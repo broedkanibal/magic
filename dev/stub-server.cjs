@@ -12,7 +12,9 @@
    att medvetet testa acceptvägen, eller STUB_AI=medel för mellanläget. */
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = __dirname + '/..';
-const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.md':'text/markdown' };
+const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.md':'text/markdown',
+  '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.gif':'image/gif',
+  '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css' };
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/api/identify') {
@@ -39,7 +41,11 @@ http.createServer((req, res) => {
     });
     return;
   }
-  const f = path.join(ROOT, u.pathname === '/' ? 'index.html' : u.pathname);
+  // pathname är URL-kodad: filnamn med mellanslag kom fram som %20 och gav 404
+  let rel;
+  try { rel = decodeURIComponent(u.pathname); } catch (e) { rel = u.pathname; }
+  const f = path.join(ROOT, rel === '/' ? 'index.html' : rel);
+  if (!f.startsWith(path.resolve(ROOT))) { res.writeHead(403); return res.end('403'); }
   fs.readFile(f, (e, d) => {
     if (e) { res.writeHead(404); return res.end('404'); }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });

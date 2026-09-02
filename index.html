@@ -146,7 +146,7 @@ main{flex:1;display:flex;min-height:0}
 .zoomctl .fitbtn{width:auto;padding:0 7px;font-size:11px;font-weight:600}
 .zoomctl .fitbtn.on{background:var(--acc-d);color:#ffd98a}
 
-.gridwrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px;position:relative}
+.gridwrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:24px 14px 14px;position:relative}
 .grid{
   display:grid;gap:12px;align-content:start;
   grid-template-columns:repeat(auto-fill,minmax(var(--cardw),var(--cardw)));
@@ -158,6 +158,9 @@ main{flex:1;display:flex;min-height:0}
   background:#1a212c;overflow:visible;
   transition:transform .13s cubic-bezier(.2,.8,.3,1);
   outline:none;
+  /* .card.sel lyfts 5px och skalas 1.035, plus en 3px ring — utan marginal
+     rullar scrollIntoView kortet så att ringens överkant hamnar utanför. */
+  scroll-margin:24px;
 }
 .card img{
   width:100%;height:100%;display:block;object-fit:cover;
@@ -462,6 +465,9 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   box-shadow:0 20px 50px -14px #000;overflow:hidden;
 }
 .scanpanel.open{display:flex}
+/* Medan man fyller i ett kort hör "Läs av igen", "Klistra in" och "Byt bild"
+   inte hemma — de gäller hela skärmdumpen, inte kortet man håller på med. */
+#shotOv.picking .sw-top .btn:not(.danger){display:none}
 .scanpanel header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:650}
 .scanpanel header .meta{font:10.5px var(--mono);color:var(--dim2);font-weight:400}
 .scanpanel header .close{margin-left:auto;color:var(--dim2);line-height:0;padding:3px;border-radius:4px}
@@ -475,10 +481,15 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .cand img{width:28px;height:39px;object-fit:cover;border-radius:3px;flex:none;background:#0c1017;box-shadow:0 2px 5px #0007}
 .cand .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .cand .cname{font-size:12.5px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cand .bar{height:3px;border-radius:2px;background:#ffffff14;overflow:hidden}
-.cand .bar i{display:block;height:100%;background:var(--acc);border-radius:2px}
-.cand.top .bar i{background:var(--green)}
 .cand kbd{flex:none;opacity:.55}
+/* granskningens enda förslag */
+.guess{padding:10px 12px;border-bottom:1px solid var(--line)}
+.guess .lbl{font:10px var(--mono);color:var(--blue);text-transform:uppercase;letter-spacing:.6px}
+.guess .row{display:flex;align-items:center;gap:9px;margin-top:7px}
+.guess img{width:34px;height:47px;object-fit:cover;border-radius:3px;flex:none;background:#0c1017;box-shadow:0 2px 5px #0007}
+.guess .nm{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--txt)}
+.guess .acts{display:flex;gap:6px;margin-top:9px}
+.guess .acts .btn{flex:1;justify-content:center}
 .cand.ai{box-shadow:inset 0 0 0 1px #6b8cff66}
 .cand .tag{font:9.5px/1 var(--mono);color:var(--blue);text-transform:uppercase;letter-spacing:.5px}
 .scanpanel .note{padding:9px 12px;font-size:11.5px;line-height:1.6;color:var(--dim2);border-top:1px solid var(--line)}
@@ -700,12 +711,12 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 
 <!-- ── screenshot-arbetsyta ── -->
 <div class="ov" id="shotOv">
-  <button class="ovclose" data-close="shotOv" title="Stäng (Esc)">
+  <button class="ovclose" data-close="shotOv" title="Stäng bildvyn (Esc)">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
   </button>
   <div class="sw-top">
     <span class="title"><span class="dot"></span><span id="swWho">—</span></span>
-    <span style="color:var(--dim2);font-size:12px" id="swMeta"></span>
+    <span style="color:var(--dim2);font-size:12px" id="swMeta"></span><!-- bildmått och zoomnivå sa inget en användare behöver -->
     <div style="flex:1"></div>
     <button class="btn sm" id="swRescan" title="Läs av bilden igen">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
@@ -719,7 +730,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <button class="fitbtn" id="swFit" title="Passa in">Fit</button>
       <button id="swZoomIn" title="Zooma in">+</button>
     </div>
-    <button class="btn sm danger" id="swDel" title="Ta bort bilden">Ta bort</button>
+    <button class="btn sm danger" id="swDel" title="Ta bort hela skärmdumpen">Ta bort bilden</button>
   </div>
   <div class="sw-stage" id="swStage">
     <img id="swImg" alt="" hidden>
@@ -741,9 +752,17 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <header>
         <span id="scanTitle">Vilket kort är detta?</span>
         <span class="meta" id="scanMeta"></span>
-        <button class="close" id="scanClose"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <button class="close" id="scanClose" title="Stäng ifyllningen — bilden är kvar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </header>
       <div class="pickcrop"><img id="pickImg" alt="" title="Klicka för att zooma in i bilden"></div>
+      <div class="guess" id="guessBox" hidden>
+        <span class="lbl">Claude gissar</span>
+        <div class="row"><img id="guessImg" alt=""><span class="nm" id="guessName"></span></div>
+        <div class="acts">
+          <button class="btn sm prim" id="guessYes">Ja, det är rätt</button>
+          <button class="btn sm" id="guessNo">Nej, något annat</button>
+        </div>
+      </div>
       <div class="picksearch">
         <input id="pickSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Skriv kortnamnet…">
         <ul id="pickSuggest"></ul>
@@ -2458,7 +2477,8 @@ function renderSel() {
   const el = gridEl.children[state.sel];
   if (el) {
     const r = el.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
-    if (r.top < wr.top + 6 || r.bottom > wr.bottom - 6) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const rum = 24;                 // samma marginal som .card { scroll-margin }
+    if (r.top < wr.top + rum || r.bottom > wr.bottom - rum) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 }
 
@@ -3142,7 +3162,7 @@ const SW = { id: null, z: 1, px: 0, py: 0, nw: 0, nh: 0, box: null, lastBox: nul
 
 function swApply() {
   swImg.style.transform = `translate(${SW.px}px,${SW.py}px) scale(${SW.z})`;
-  $('#swMeta').textContent = SW.nw ? `${SW.nw}×${SW.nh} px · ${Math.round(SW.z * 100)}%` : '';
+  $('#swMeta').textContent = '';
   renderBoxes();
   drawFitBox(SW.fitRot == null ? null : { rot: SW.fitRot });
 }
@@ -3356,7 +3376,7 @@ swStage.addEventListener('wheel', ev => {
 let drag = null;
 swStage.addEventListener('pointerdown', ev => {
   if (!SW.nw || ev.button !== 0 || ev.target.closest('.dbox')) return;
-  swStage.setPointerCapture(ev.pointerId);
+  try { swStage.setPointerCapture(ev.pointerId); } catch (e) { /* pekaren hann släppa */ }
   drag = { x: ev.clientX, y: ev.clientY, px: SW.px, py: SW.py, moved: false };
   swStage.classList.add('grabbing');
 });
@@ -3371,7 +3391,10 @@ swStage.addEventListener('pointerup', ev => {
   if (!drag) return;
   const d = drag; drag = null;
   swStage.classList.remove('grabbing');
-  if (!d.moved && SW.nw) addAtPoint(ev.clientX, ev.clientY);   // klick på tom yta → nytt kort här
+  // Mitt i granskningskön bytte ett klick på tom yta tyst ut panelen mot
+  // "lägg till nytt kort här", medan markeringen på bilden låg kvar på det
+  // gamla kortet. Panelen visade alltså ett kort och markeringen ett annat.
+  if (!d.moved && SW.nw && !(SW.target && SW.target.kind === 'pend')) addAtPoint(ev.clientX, ev.clientY);
 });
 swStage.addEventListener('dblclick', () => swFit());
 
@@ -3577,6 +3600,34 @@ function cropURL(img, r, w) {
   return cv.toDataURL('image/jpeg', 0.8);
 }
 
+/* Rankar och verifierar ETT område. Bruten ur avläsningsloopen så att den
+   kan köras om på en justerad låda när första försöket inte höll. */
+function identifyAt(img, box, hint) {
+  const r = Matcher.scan(img, box, Pool.idx, { keep: 50, refine: 10, hint });
+  const b = r.results[0];
+  const rot0 = b && b.fit ? b.fit.rot : hint;
+  const orb = orbIdentify(img, box, rot0, (r.results || []).slice(0, 15));
+  const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: x.id, score: x.score }));
+  if (orb && orb.cand) {                       // sätt ORB:s val överst bland förslagen
+    const j = cands.findIndex(x => x.sid === orb.cand.id);
+    if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
+    else if (j < 0) cands.unshift({ name: orb.cand.name, sid: orb.cand.id, score: orb.cand.score });
+  }
+  /* Två oberoende bevis krävs. Enbart inliers räckte inte: ett område som
+     inte var ett kort fick 20 geometriskt konsekventa träffar men bara 0.53 i
+     helhetslikhet, och hamnade i handen. Enbart helhetslikhet räckte inte
+     heller — det var så tangentbord och livtotaler tog sig in. Många inliers
+     (25+) får däremot stå på egna ben, för det är där kraftigt övertäckta
+     kort räddas när helhetslikheten faller. */
+  const gScore = b ? b.score : 0;
+  const konf = !!(b && confident(b, r.confidence, r.results));
+  const orbOK = orb && orb.inliers >= ORB_ACCEPT && (gScore >= 0.70 || orb.inliers >= 25);
+  const accept = orbOK
+    || (!Pool.idx.orb && konf)
+    || (Pool.idx.orb && konf && orb && orb.inliers >= 6);
+  return { accept, score: gScore, rec: { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0 } };
+}
+
 let analyzing = false, cancelAnalyze = false;
 $('#anCancel').onclick = () => { cancelAnalyze = true; };
 
@@ -3631,36 +3682,30 @@ async function analyzeShot(shotId) {
       for (const pr of props[i]) {
         if (cancelAnalyze) return;
         const box = { x: pr.cx - pr.w / 2, y: pr.cy - pr.h / 2, w: pr.w, h: pr.h };
-        const r = Matcher.scan(img, box, Pool.idx, { keep: 50, refine: 10, hint: pr.deg });
         done++;
         anBar(done / total);
         anStep(`Ruta ${i + 1} av ${panes.length} — matchar kort ${done} av ${total}`);
-        const b = r.results[0];
-        const rot0 = b && b.fit ? b.fit.rot : pr.deg;
-        const orb = orbIdentify(img, box, rot0, (r.results || []).slice(0, 15));
-        {
-          const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: x.id, score: x.score }));
-          // sätt ORB:s val överst bland förslagen
-          if (orb && orb.cand) {
-            const j = cands.findIndex(x => x.sid === orb.cand.id);
-            if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
-            else if (j < 0) cands.unshift({ name: orb.cand.name, sid: orb.cand.id, score: orb.cand.score });
+        let v = identifyAt(img, box, pr.deg);
+        /* Räddningsomgång. Rankningen görs vid detektorns låda, och den kan
+           sitta några procent fel i höjdled. För de flesta kort spelar det
+           ingen roll, men ett kort vars signatur är känslig faller då hela
+           vägen ur listan: ett uppmätt fall hamnade på plats 133 av 1026 och
+           blev "Fungal Plots". Samma kort med lådan 4 % högre rankas etta med
+           0.84 och 99 geometriska träffar. refine() kan inte rädda det, för
+           den finputsar bara de tio redan bäst rankade. Körs bara när kortet
+           annars skulle hamna i ifyllnadslistan, så rätt avlästa kort kostar
+           ingenting extra. Skräpområden räddas inte — de saknar en riktig
+           träff att hitta. */
+        if (!v.accept) {
+          for (const dy of [-0.08, -0.04, 0.04, 0.08]) {
+            if (cancelAnalyze) return;
+            const alt = identifyAt(img, { x: box.x, y: box.y + box.h * dy, w: box.w, h: box.h }, pr.deg);
+            if (alt.score > v.score) v = alt;
+            if (v.accept) break;
           }
-          const rec = { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0 };
-          /* Två oberoende bevis krävs. Enbart inliers räckte inte: ett
-             område som inte var ett kort fick 20 geometriskt konsekventa
-             träffar men bara 0.53 i helhetslikhet, och hamnade i handen.
-             Enbart helhetslikhet räckte inte heller — det var så
-             tangentbord och livtotaler tog sig in. Många inliers (25+) får
-             däremot stå på egna ben, för det är där kraftigt övertäckta
-             kort räddas när helhetslikheten faller. */
-          const gScore = b ? b.score : 0;
-          const orbOK = orb && orb.inliers >= ORB_ACCEPT && (gScore >= 0.70 || orb.inliers >= 25);
-          if (orbOK) acc.push(rec);
-          else if (!Pool.idx.orb && b && confident(b, r.confidence, r.results)) acc.push(rec);
-          else if (Pool.idx.orb && b && confident(b, r.confidence, r.results) && orb && orb.inliers >= 6) acc.push(rec);
-          else pend.push(rec);
+          await tick();
         }
+        (v.accept ? acc : pend).push(v.rec);
         if (cnt) cnt.textContent = `${acc.length} kort${pend.length ? ` · ${pend.length} osäkra` : ''}`;
         await tick();
       }
@@ -3752,7 +3797,9 @@ function applyAnalysis(shotId, out, img) {
       cid: uid(), name: a.cands[0].name, sid: a.cands[0].sid, flipped: 0,
       box: a.box, rot: a.rot, shotId, cands: a.cands, byAI: a.byAI || undefined
     }));
-    p.pending = r.pend.map(q => ({ id: uid(), box: q.box, rot: q.rot, cands: q.cands, shotId }));
+    // ai bär Claudes säkerhet ('medel'/'lag') och avgör om granskningen har
+    // ett förslag att bekräfta eller bara ska be om namnet
+    p.pending = r.pend.map(q => ({ id: uid(), box: q.box, rot: q.rot, cands: q.cands, shotId, ai: q.ai }));
     if (img) {                       // beskär korten nu, medan bilden är laddad
       p.cards.forEach(c => { const d = makeCrop(img, c.box, c.rot, 220); if (d) cropCache.set(c.cid + '@220', d); });
       p.pending.forEach(q => {
@@ -3857,7 +3904,8 @@ function cropFor(key, box, rot, w) {
 
 function closeScan() {
   scanPanel.classList.remove('open');
-  SW.out = null; SW.target = null; SW.fitRot = null;
+  $('#shotOv').classList.remove('picking');
+  SW.out = null; SW.target = null; SW.fitRot = null; SW.ai = null;
   drawFitBox(null); renderBoxes();
 }
 $('#scanClose').onclick = closeScan;
@@ -3868,6 +3916,9 @@ $('#scanClose').onclick = closeScan;
    och vyn panorerar bara dit. */
 function focusBox(box) {
   const st = swStage.getBoundingClientRect();
+  // Innan bilden laddats eller ytan mätts blir want ~0, och clamp golvar
+  // zoomen på 0.05 — bilden krymper då till en prick och rutan ser tom ut.
+  if (!SW.nw || !box || !box.h || st.height < 40) return;
   const want = (st.height * 0.42) / box.h;                 // kortet ~42 % av höjden
   if (!(SW.z > want * 0.55 && SW.z < want * 1.9)) SW.z = clamp(want, 0.05, 12);
   SW.px = st.width / 2 - (box.x + box.w / 2) * SW.z;
@@ -3896,9 +3947,11 @@ function openPicker(kind, i) {
   const item = kind === 'card' ? p.cards[i] : (p.pending || [])[i];
   if (!item) return;
   SW.target = { kind, i };
+  SW.ai = kind === 'pend' ? item.ai : null;
   SW.box = item.box;
   SW.out = { results: (item.cands || []).map(c => ({ name: c.name, id: c.sid, score: c.score })), confidence: 1 };
   scanPanel.classList.add('open');
+  $('#shotOv').classList.add('picking');
   $('#scanMeta').textContent = (prefs.pool || 'j25').toUpperCase();
   $('#pickImg').src = cropFor(item.cid || item.id, item.box, item.rot, 260) || '';
   $('#pickSearch').value = '';
@@ -3912,8 +3965,9 @@ $('#pickImg').onclick = () => { if (SW.box) swFit({ x: SW.box.x - SW.box.w * 0.4
 
 /* Matcha ett område användaren klickat fram */
 async function scanAt(box, hint) {
-  SW.box = box; SW.target = { kind: 'new' };
+  SW.box = box; SW.target = { kind: 'new' }; SW.ai = null;
   scanPanel.classList.add('open');
+  $('#shotOv').classList.add('picking');
   $('#scanMeta').textContent = (prefs.pool || 'j25').toUpperCase();
   $('#pickImg').src = makeCrop(swImg, box, hint || 0, 260) || '';
   $('#pickSearch').value = '';
@@ -3922,6 +3976,7 @@ async function scanAt(box, hint) {
   $('#scanSkip').hidden = true;
   $('#scanAI').hidden = !aiEnabled();
   $('#scanTitle').textContent = 'Vilket kort är detta?';
+  renderBoxes();                    // annars ligger föregående markering kvar
   setTimeout(() => $('#pickSearch').focus(), 60);
   if (!Pool.idx) { SW.out = { results: [], confidence: 0 }; return; }
   await tick();
@@ -3944,33 +3999,51 @@ function addAtPoint(clientX, clientY) {
   scanAt({ x: c.x - w / 2, y: c.y - h / 2, w, h }, 0);
 }
 
-function scoreBar(s) { return Math.round(clamp((s - 0.35) / 0.55, 0, 1) * 100); }
+function thumbFor(id) {
+  const pi = Pool.idx ? Pool.idx.ids.indexOf(id) : -1;
+  return pi >= 0 ? Pool.idx.smalls[pi] : '';
+}
+/* Granskningen visade fem förslag med färgade staplar och siffror. Staplarna
+   sa ingenting begripligt, och har bildjämförelsen gissat fel är förslag två
+   till fem nästan aldrig bättre — de fyra raderna var brus. Nu visas ETT
+   förslag, och bara när Claude faktiskt tittat på kortet och föreslagit något.
+   Har ingen känt igen det blir granskningen bara ett namnfält. Den fulla
+   listan finns kvar där man själv frågar "vilket kort är detta?". */
 function renderCands() {
-  const out = SW.out;
+  const out = SW.out, t = SW.target;
   $('#scanTitle').textContent = pickTitle();
   const list = (out ? out.results : []).slice(0, 5);
-  candList.innerHTML = list.map((r, i) => {
-    const pi = Pool.idx ? Pool.idx.ids.indexOf(r.id) : -1;
-    const thumb = pi >= 0 ? Pool.idx.smalls[pi] : '';
-    return `<button class="cand${i === 0 ? ' top' : ''}${r.ai ? ' ai' : ''}" data-i="${i}">
+  const granskar = !!(t && t.kind === 'pend');
+  const gissning = granskar && SW.ai && list[0] ? list[0] : null;
+
+  const g = $('#guessBox');
+  g.hidden = !gissning;
+  if (gissning) {
+    const th = thumbFor(gissning.id);
+    $('#guessImg').src = th || '';
+    $('#guessImg').style.visibility = th ? '' : 'hidden';
+    $('#guessName').textContent = gissning.name;
+  }
+
+  candList.innerHTML = granskar ? '' : list.map((r, i) => {
+    const thumb = thumbFor(r.id);
+    return `<button class="cand${i === 0 ? ' top' : ''}" data-i="${i}">
       ${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy">` : '<span style="width:28px"></span>'}
-      <span class="col">
-        <span class="cname">${esc(r.name)}</span>
-        ${r.ai ? '<span class="tag">Claude valde</span>' : ''}
-        <span class="bar"><i style="width:${scoreBar(r.score)}%"></i></span>
-      </span>
+      <span class="col"><span class="cname">${esc(r.name)}</span></span>
       ${i < 9 ? `<kbd>${i + 1}</kbd>` : ''}
     </button>`;
   }).join('');
-  const t = SW.target;
-  scanNoteEl.innerHTML = !list.length
-    ? 'Inga förslag — skriv namnet i rutan ovanför.'
-    : t && t.kind === 'pend'
-    ? 'Förslag från bilden. Stämmer inget — skriv namnet ovanför.'
-    : 'Välj förslag, tryck <kbd>1</kbd>–<kbd>5</kbd>, eller skriv namnet.';
-  $('#scanSkip').hidden = !(t && t.kind === 'pend');
-  $('#scanAI').hidden = !aiEnabled() || !list.length;
+
+  scanNoteEl.innerHTML = granskar
+    ? (gissning ? 'Stämmer det inte — skriv rätt namn i rutan ovanför.'
+                : 'Varken bildjämförelsen eller Claude kunde läsa kortet. Skriv namnet ovanför.')
+    : list.length ? 'Välj förslag, tryck <kbd>1</kbd>–<kbd>5</kbd>, eller skriv namnet.'
+                  : 'Inga förslag — skriv namnet i rutan ovanför.';
+  $('#scanSkip').hidden = !granskar;
+  $('#scanAI').hidden = granskar || !aiEnabled() || !list.length;
 }
+$('#guessYes').onclick = () => pickCand(0);
+$('#guessNo').onclick = () => { $('#guessBox').hidden = true; $('#pickSearch').focus(); };
 candList.addEventListener('click', ev => {
   const b = ev.target.closest('.cand');
   if (b) pickCand(+b.dataset.i);
