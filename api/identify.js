@@ -41,15 +41,29 @@ function allow(ip) {
   return { ok: true };
 }
 
-function originAllowed(origin) {
+/* Sidan som ligger på servern ska ALLTID få anropa den. Första versionen
+   jämförde Origin-strängen exakt mot listan, vilket gjorde att ett bortglömt
+   https:// eller ett snedstreck för mycket blockerade appens egna anrop —
+   precis det som hände. Nu jämförs värdnamn, och samma värd som servern
+   själv släpps alltid igenom. Listan gäller därmed bara ANDRA webbplatser,
+   vilket är vad den är till för. */
+function hostOf(u) {
+  try { return new URL(u).host; } catch (e) { return null; }
+}
+function originAllowed(origin, host) {
+  if (!origin) return true;                       // inget Origin = inte en webbläsare
+  const oHost = hostOf(origin);
+  if (!oHost) return false;
+  if (host && oHost === host) return true;        // samma ursprung som servern
   const raw = (process.env.ALLOWED_ORIGINS || '').trim();
   if (!raw) return true;                          // ingen lista satt = öppet
-  return raw.split(',').map(s => s.trim()).filter(Boolean).includes(origin);
+  return raw.split(',').map(s => s.trim()).filter(Boolean)
+    .some(a => (hostOf(a) || hostOf('https://' + a)) === oHost);
 }
 
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
-  const ok = originAllowed(origin);
+  const ok = originAllowed(origin, req.headers.host);
   if (origin && ok) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');

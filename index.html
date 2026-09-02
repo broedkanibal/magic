@@ -93,6 +93,8 @@ kbd{
 .ptab.on .num{color:var(--acc)}
 .ptab .cnt{font:11px/1 var(--mono);color:var(--dim2);background:#00000055;border-radius:20px;padding:3px 6px}
 .ptab.on .cnt{color:#cfd9e8}
+.ptab .pen{padding:3px;border-radius:4px;color:var(--dim2);line-height:0;opacity:.65}
+.ptab .pen:hover{background:#00000055;color:var(--acc);opacity:1}
 .ptab .x{opacity:0;margin:0 -4px 0 -2px;padding:2px;border-radius:4px;color:var(--dim2);line-height:0}
 .ptab:hover .x{opacity:1}
 .ptab .x:hover{background:#00000055;color:var(--red)}
@@ -175,8 +177,16 @@ main{flex:1;display:flex;min-height:0}
 }
 .gridwrap.shownums .card .idx,.card.sel .idx{opacity:1}
 .card.sel .idx{background:var(--acc);color:#20160a;font-weight:700}
+.card .delbadge{
+  position:absolute;top:5px;right:5px;z-index:3;width:20px;height:20px;
+  border-radius:5px;background:#000000b8;backdrop-filter:blur(3px);
+  color:#c3d0e2;line-height:0;display:grid;place-items:center;
+  opacity:0;transition:opacity .12s,background .12s,color .12s;
+}
+.card:hover .delbadge{opacity:1}
+.card .delbadge:hover{background:var(--red);color:#fff}
 .card .flipbadge{
-  position:absolute;top:5px;right:5px;z-index:2;width:20px;height:20px;
+  position:absolute;bottom:5px;right:5px;z-index:2;width:20px;height:20px;
   border-radius:5px;background:#000000b8;backdrop-filter:blur(3px);
   color:#c3d0e2;line-height:0;display:grid;place-items:center;
   opacity:0;transition:opacity .12s,background .12s;
@@ -349,6 +359,9 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 }
 #toast div.err{background:#3a1f22;border-color:#6a3138;color:#ffb3ba}
 #toast div.ok{background:#16302a;border-color:#2c5a48;color:#9fe8c4}
+#toast button.undo{margin-left:10px;padding:2px 9px;border-radius:6px;border:1px solid currentColor;
+  background:transparent;color:inherit;font:inherit;font-size:12px;font-weight:600;cursor:pointer;opacity:.85}
+#toast button.undo:hover{opacity:1;background:#ffffff1a}
 
 /* ─────────── screenshot workspace ─────────── */
 #shotOv{background:#05070af5}
@@ -377,6 +390,8 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .sw-drop .icon{width:58px;height:58px;border-radius:14px;background:#ffffff08;display:grid;place-items:center;color:var(--dim2)}
 .sw-drop h2{margin:0;font-size:15px;color:var(--dim);font-weight:600}
 .sw-drop p{margin:0;max-width:46ch;font-size:12.5px;line-height:1.7}
+.dropbtns{display:flex;gap:9px;margin-top:4px}
+.sw-drop{cursor:pointer}
 .sw-stage.dragover{outline:2px dashed var(--acc);outline-offset:-10px;background-color:#1a1408}
 .sw-bottom{
   flex:none;display:flex;align-items:center;gap:9px;padding:9px 14px;
@@ -578,7 +593,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       Spelare
     </button>
     <div class="vr"></div>
-    <button class="btn" id="shotBtn" title="Klistra in eller visa skärmdumpen (S)">
+    <button class="btn" id="shotBtn" title="Öppna bildvyn (S)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
       <span id="shotBtnTxt">Skärmdump</span>
     </button>
@@ -605,6 +620,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
         </button>
         <div class="handmeta">
           <span id="handCount">0 kort</span>
+          <button class="btn sm" id="clearHand" title="Ta bort alla kort för den här spelaren">Töm</button>
           <div class="zoomctl">
             <button id="fitBtn" class="fitbtn" title="Anpassa så hela handen syns (0)">Fit</button>
             <button id="zoomOut" title="Mindre kort (−)">−</button>
@@ -687,6 +703,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
       Läs av igen
     </button>
+    <button class="btn sm" id="swPaste" title="Läs in bilden i urklipp">Klistra in</button>
     <button class="btn sm" id="swFile">Byt bild…</button>
     <input type="file" id="swInput" accept="image/*" multiple hidden>
     <div class="zoomctl">
@@ -705,9 +722,12 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <div class="icon">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
       </div>
-      <h2>Klistra in din SpellTable-screenshot</h2>
-      <p><kbd>⌘V</kbd> / <kbd>Ctrl V</kbd> direkt här, dra in en bildfil, eller <b>Välj fil…</b>.<br>
-      Bilden sparas lokalt på den här spelaren. Scrolla för att zooma, dra för att panorera — läs av korten och skriv in namnen i rutan nedanför.</p>
+      <h2>Lägg in din SpellTable-skärmdump</h2>
+      <p>Dra in en bildfil här från Finder, klistra in med <kbd>⌘V</kbd>, eller välj en fil.</p>
+      <div class="dropbtns">
+        <button class="btn prim big" id="dropPaste">Klistra in bild</button>
+        <button class="btn big" id="dropFile">Välj fil…</button>
+      </div>
     </div>
     <div class="scanpanel" id="scanPanel">
       <header>
@@ -2015,17 +2035,30 @@ function statusErr(txt) { statusEl.classList.add('err'); statusTxt.textContent =
 
 const toastEl = $('#toast');
 let toastT = null;
-function toast(msg, kind) {
+function hideToast() {
+  clearTimeout(toastT);
+  toastEl.classList.remove('on');
+  setTimeout(() => { toastEl.innerHTML = ''; }, 220);
+}
+/* undo: en ångraknapp i toasten i stället för en blockerande confirm-ruta —
+   raderingen går direkt och ett felklick kostar ingenting. */
+function toast(msg, kind, undo) {
   const d = document.createElement('div');
   if (kind) d.className = kind;
-  d.textContent = msg;
+  d.appendChild(document.createTextNode(msg));
+  if (undo) {
+    const b = document.createElement('button');
+    b.className = 'undo'; b.type = 'button'; b.textContent = '\u00c5ngra';
+    b.onclick = () => { undo(); hideToast(); };
+    d.appendChild(b);
+  }
   toastEl.appendChild(d);
   toastEl.classList.add('on');
   clearTimeout(toastT);
   toastT = setTimeout(() => {
     toastEl.classList.remove('on');
     setTimeout(() => { toastEl.innerHTML = ''; }, 220);
-  }, kind === 'err' ? 4200 : 2400);
+  }, kind === 'err' ? 4200 : undo ? 7000 : 2400);
 }
 
 /* ─────────── localStorage ─────────── */
@@ -2051,7 +2084,11 @@ const IDB = (() => {
       };
       rq.onsuccess = () => res(rq.result);
       rq.onerror = () => rej(rq.error);
+      // utan onblocked kan löftet aldrig lösas ut (t.ex. en gammal flik som
+      // håller kvar en tidigare version) och hela appen stannar i boot
+      rq.onblocked = () => rej(new Error('IndexedDB blockerad av en annan flik'));
     });
+    dbp.catch(() => { dbp = null; });   // låt ett nytt försök gå igenom
     return dbp;
   }
   function tx(store, mode, fn) {
@@ -2304,6 +2341,8 @@ function renderTabs() {
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
       <span class="cnt">${p.cards.length}</span>
+      ${p.id === state.active ? `<span class="pen" data-rename="${esc(p.id)}" title="Döp om (R)" role="button">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>` : ''}
       ${state.players.length > 1 ? `<span class="x" data-del="${esc(p.id)}" title="Ta bort spelaren" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
     </button>`).join('');
@@ -2337,7 +2376,7 @@ function applySize() {
 }
 
 /* ─── handens rutnät ─── */
-let gridSig = '';
+let gridSig = null;   // null, inte '' — annars matchar en tom hand vid första renderingen och hoppas över
 function cardStatus(e) {
   if (cardOf(e)) return 'ok';
   if (failed.has(keyOf(e))) return 'err';
@@ -2346,6 +2385,9 @@ function cardStatus(e) {
 function renderGrid(force) {
   const cards = hand();
   const sig = cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + cardStatus(c)).join('|');
+  // räkneverk och Töm-knapp uppdateras oavsett om rutnätet ritas om
+  $('#handCount').textContent = cards.length === 1 ? '1 kort' : cards.length + ' kort';
+  $('#clearHand').hidden = cards.length === 0;
   if (!force && sig === gridSig) { renderSel(); return; }
   gridSig = sig;
 
@@ -2360,13 +2402,14 @@ function renderGrid(force) {
       <span class="idx">${i + 1}</span>
       ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
       <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(failed.get(keyOf(e)) || '') + '</span>' : ''}</span>
+      <span class="delbadge" data-delcard="${i}" role="button" title="Ta bort kortet">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
       ${dfc ? `<span class="flipbadge" data-flip="${i}" role="button" title="Vänd (Space)">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></span>` : ''}
     </button>`;
   }).join('');
 
   emptyEl.classList.toggle('hide', cards.length > 0);
-  $('#handCount').textContent = cards.length === 1 ? '1 kort' : cards.length + ' kort';
   applySize();
   renderSel();
 }
@@ -2551,9 +2594,16 @@ function addCards(items, opts) {
 function removeAt(i) {
   const h = hand();
   if (i < 0 || i >= h.length) return;
-  h.splice(i, 1);
+  const [gone] = h.splice(i, 1);
+  const sel = state.sel;
   state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
   save(); renderAll();
+  toast(`${gone.name} borttaget`, 'ok', () => {
+    const cur = hand();
+    cur.splice(Math.min(i, cur.length), 0, gone);
+    state.sel = sel;
+    save(); renderAll();
+  });
 }
 function moveSel(dir) {
   const h = hand(), i = state.sel, j = i + dir;
@@ -2664,6 +2714,8 @@ autocomplete(searchInput, $('#suggest'), name => { addCards([name]); searchInput
 
 /* ─── klick i rutnätet ─── */
 gridEl.addEventListener('click', ev => {
+  const del = ev.target.closest('[data-delcard]');
+  if (del) { ev.stopPropagation(); removeAt(+del.dataset.delcard); return; }
   const flip = ev.target.closest('[data-flip]');
   if (flip) { ev.stopPropagation(); state.sel = +flip.dataset.flip; flipSel(); return; }
   const c = ev.target.closest('.card');
@@ -2675,6 +2727,8 @@ gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) open
 
 /* ─── spelarflikar ─── */
 $('#playerTabs').addEventListener('click', ev => {
+  const pen = ev.target.closest('[data-rename]');
+  if (pen) { ev.stopPropagation(); startRename(pen.dataset.rename); return; }
   const del = ev.target.closest('[data-del]');
   if (del) {
     ev.stopPropagation();
@@ -2719,6 +2773,19 @@ function setCardW(d) {
   prefs.cardw = clamp((prefs.fit ? computeFit() : prefs.cardw) + d, 70, 400);
   savePrefs(); applySize();
 }
+$('#clearHand').onclick = () => {
+  const p = player();
+  if (!p.cards.length) return;
+  const old = p.cards, sel = state.sel;
+  p.cards = [];
+  state.sel = 0;
+  save(); renderAll(true);
+  toast(`${old.length} kort borttagna`, 'ok', () => {
+    p.cards = old;
+    state.sel = sel;
+    save(); renderAll(true);
+  });
+};
 $('#zoomIn').onclick = () => setCardW(18);
 $('#zoomOut').onclick = () => setCardW(-18);
 $('#fitBtn').onclick = () => { prefs.fit = !prefs.fit; savePrefs(); applySize(); };
@@ -2849,7 +2916,7 @@ menuEl.addEventListener('click', ev => {
   closeMenu();
   const a = b.dataset.a, p = player();
   if (a === 'rename') startRename(p.id);
-  if (a === 'clearhand') { if (!p.cards.length || confirm(`Töm ${p.name}s hand (${p.cards.length} kort)?`)) { p.cards = []; state.sel = 0; save(); renderAll(true); } }
+  if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
   if (a === 'pool') openPool();
   if (a === 'ai') openAI();
   if (a === 'sharelink') shareLink();
@@ -3109,10 +3176,17 @@ function openShot() {
   setTimeout(() => { if (SW.nw) swFit(p.pane && p.pane.w ? p.pane : null); }, 30);
 }
 function closeShot() { closeOv('shotOv'); closeScan(); }
-$('#shotBtn').onclick = () => { if (player().shots.length) openShot(); else pasteOrPick(); };
-$('#emptyPaste').onclick = () => pasteOrPick();
+/* Öppna bildvyn i stället för att direkt läsa urklipp. Att appen tog det
+   man råkade ha kopierat utan att fråga var svårt att förutse. */
+$('#shotBtn').onclick = () => openShot();
+$('#emptyPaste').onclick = () => openShot();
 $('#emptySearch').onclick = () => searchInput.focus();
 $('#swFile').onclick = () => $('#swInput').click();
+$('#dropFile').onclick = ev => { ev.stopPropagation(); $('#swInput').click(); };
+$('#dropPaste').onclick = ev => { ev.stopPropagation(); pasteOrPick(); };
+$('#swPaste').onclick = () => pasteOrPick();
+// klick i zonen tar fokus från sökrutan så ⌘V hamnar rätt
+swDrop.addEventListener('click', () => { const a = document.activeElement; if (isTyping(a)) a.blur(); });
 $('#swInput').onchange = async () => {
   const fs = Array.from($('#swInput').files || []);
   $('#swInput').value = '';
@@ -3187,11 +3261,24 @@ swStage.addEventListener('pointerup', ev => {
 });
 swStage.addEventListener('dblclick', () => swFit());
 
-/* drag & drop */
-['dragenter', 'dragover'].forEach(t => swStage.addEventListener(t, e => { e.preventDefault(); swStage.classList.add('dragover'); }));
-['dragleave', 'drop'].forEach(t => swStage.addEventListener(t, e => { e.preventDefault(); swStage.classList.remove('dragover'); }));
-swStage.addEventListener('drop', async e => {
-  const fs = Array.from(e.dataTransfer.files || []).filter(f => /^image\//.test(f.type));
+/* Dra in en bildfil var som helst i appen, inte bara i bildvyn — annars
+   måste man först hitta rätt vy för att kunna släppa filen. */
+let dragDepth = 0;
+addEventListener('dragenter', e => {
+  if (!Array.from(e.dataTransfer.types || []).includes('Files')) return;
+  e.preventDefault();
+  if (++dragDepth === 1) { if (!$('#shotOv').classList.contains('open')) openShot(); swStage.classList.add('dragover'); }
+});
+addEventListener('dragover', e => {
+  if (Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault();
+});
+addEventListener('dragleave', e => { if (--dragDepth <= 0) { dragDepth = 0; swStage.classList.remove('dragover'); } });
+addEventListener('drop', async e => {
+  const fs = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => /^image\//.test(f.type));
+  if (!fs.length) return;
+  e.preventDefault();
+  dragDepth = 0;
+  swStage.classList.remove('dragover');
   for (const f of fs) await addShot(f);
 });
 
@@ -3516,7 +3603,23 @@ async function claudePass(out, img) {
   if (added) toast(`AI-hjälpen identifierade ${added} kort`, 'ok');
 }
 
+/* Hur stor del av den mindre rutan som ligger inom den större. */
+function boxOverlap(a, b) {
+  const x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  const y = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const inter = x * y;
+  const small = Math.min(a.w * a.h, b.w * b.h);
+  return small > 0 ? inter / small : 0;
+}
+
 function applyAnalysis(shotId, out, img) {
+  /* Samma kort kunde hittas två gånger — en gång välcentrerat och godkänt,
+     en gång förskjutet och osäkert — så att sex identifierade kort plus två
+     "osäkra" blev åtta av sju kort på bordet. Ett område som till största
+     delen täcker ett redan identifierat kort är inget nytt kort. */
+  out.forEach(r => {
+    r.pend = r.pend.filter(q => !r.acc.some(a => boxOverlap(q.box, a.box) > 0.45));
+  });
   out.forEach((r, i) => {
     let p = state.players[i];
     if (!p) { p = mkPlayer('Spelare ' + (i + 1), i); state.players.push(p); }
@@ -3634,6 +3737,19 @@ function closeScan() {
 }
 $('#scanClose').onclick = closeScan;
 
+/* Flytta blicken till ett kort utan att kasta om hela vyn. Att zooma om vid
+   varje kort gjorde att bilden hoppade mellan varje ifyllning, vilket gjorde
+   det svårt att förstå var man var. Nu behålls zoomen om den redan är rimlig
+   och vyn panorerar bara dit. */
+function focusBox(box) {
+  const st = swStage.getBoundingClientRect();
+  const want = (st.height * 0.42) / box.h;                 // kortet ~42 % av höjden
+  if (!(SW.z > want * 0.55 && SW.z < want * 1.9)) SW.z = clamp(want, 0.05, 12);
+  SW.px = st.width / 2 - (box.x + box.w / 2) * SW.z;
+  SW.py = st.height / 2 - (box.y + box.h / 2) * SW.z;
+  swApply();
+}
+
 function drawFitBox(res) {
   const el = $('#swFitBox');
   if (!res || !SW.box) { el.classList.remove('on'); SW.fitRot = null; return; }
@@ -3664,7 +3780,7 @@ function openPicker(kind, i) {
   renderCands();
   SW.fitRot = item.rot || 0;
   renderBoxes();
-  swFit({ x: item.box.x - item.box.w, y: item.box.y - item.box.h, w: item.box.w * 3, h: item.box.h * 3 });
+  focusBox(item.box);
   setTimeout(() => $('#pickSearch').focus(), 60);
 }
 $('#pickImg').onclick = () => { if (SW.box) swFit({ x: SW.box.x - SW.box.w * 0.4, y: SW.box.y - SW.box.h * 0.4, w: SW.box.w * 1.8, h: SW.box.h * 1.8 }); };
@@ -4119,9 +4235,20 @@ addEventListener('paste', async ev => {
 /* ══════════════════════════════════════════════════════════════════
    UPPSTART
    ══════════════════════════════════════════════════════════════════ */
+/* IndexedDB får aldrig kunna hänga renderingen: allt som rör lagringen
+   time-boxas, resten av appen fungerar utan sparade bilder. */
+const idbTimeout = (pr, ms) => Promise.race([
+  pr, new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB svarar inte')), ms))
+]);
 (async function boot() {
+  /* Rita först, hydrera sen. Lagringen får aldrig gatea första ritningen —
+     en blockerad IndexedDB (gammal flik, privat läge) lämnade annars appen tom. */
+  renderAll(true);
+  applySize();
+  probeAI();
+
   try {
-    const recs = await IDB.all();
+    const recs = await idbTimeout(IDB.all(), 4000);
     const known = new Set();
     state.players.forEach(p => p.shots.forEach(id => known.add(id)));
     for (const r of (recs || [])) {
@@ -4130,19 +4257,17 @@ addEventListener('paste', async ev => {
       shotMem.set(r.id, { rec: r, url: URL.createObjectURL(r.blob) });
     }
     state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
-  } catch (e) { /* IndexedDB blockerad — appen funkar ändå, utan sparade bilder */ }
+  } catch (e) { toast('Sparade skärmdumpar kunde inte läsas', 'err'); }
 
   try {
-    const rec = await IDB.poolGet(prefs.pool || 'j25');
+    const rec = await idbTimeout(IDB.poolGet(prefs.pool || 'j25'), 4000);
     if (rec && rec.names && rec.names.length && rec.v >= 5) Pool.idx = rec;   // äldre pooler saknar detektormallen
-  } catch (e) { /* poolen byggs vid första avläsningen */ }
+  } catch (e) { /* poolen byggs om vid första avläsningen */ }
 
   renderAll(true);
   importFromHash();
   resolveAll();
   applySize();
-
-  probeAI();
 })();
 </script>
 </body>
