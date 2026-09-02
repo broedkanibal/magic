@@ -178,6 +178,13 @@ main{flex:1;display:flex;min-height:0}
    är kapad, vilket läses som ett fel. Ritad innanför kanten i stället — då
    finns inget utanför kortet som kan klippas bort. */
 .card.sel img{box-shadow:0 12px 26px -6px #000e}
+/* dra för att sortera om handen */
+.card{cursor:grab}
+.grid.sorting .card{transition:transform .16s cubic-bezier(.2,.8,.3,1)}
+.grid.sorting .card.dragging{transition:none}
+.card.dragging{cursor:grabbing;z-index:9;opacity:.92;filter:drop-shadow(0 16px 28px #000b)}
+.card.dragging::after{border-color:var(--acc)}
+.grid.sorting{cursor:grabbing}
 .card.sel::after{
   content:'';position:absolute;inset:0;border-radius:inherit;
   border:3px solid var(--acc);pointer-events:none;z-index:2;
@@ -632,22 +639,25 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   /* kortet: fyller höjden som blir över */
   .detail{order:1;width:auto;flex:1;min-height:0;border-left:none;border-bottom:1px solid var(--line)}
   .dpad{padding:10px;gap:0;overflow:hidden}
-  /* aspect-ratio räckte inte: i en kolumn-flexbox sträcks elementet i sidled
-     och proportionen kunde inte styra bredden, så bilden rann utanför och
-     klipptes. Låt rutan ta det utrymme som finns och bilden skala in i den. */
-  .dimg{flex:1;min-height:0;width:100%;aspect-ratio:auto;display:grid;place-items:center;background:none}
-  .dimg img{width:auto;height:auto;max-width:100%;max-height:100%;box-shadow:var(--shadow)}
+  /* Rutan tar utrymmet som blir över, bilden skalas in i den. max-height:100%
+     räckte inte — procent mot en grid-area vars höjd kommer från flex blir
+     obestämd, så bilden behöll sin egen höjd och rann ner bakom remsan.
+     object-fit binder alltid, oavsett hur höjden räknats fram. */
+  .dimg{flex:1;min-height:0;width:100%;aspect-ratio:auto;background:none}
+  .dimg img{display:block;width:100%;height:100%;object-fit:contain;box-shadow:none}
   .dpad .dimg ~ *{display:none}          /* regeltexten står på kortet */
 
   /* handen: granskningsrad, remsa, sökruta */
   .hand{order:2;flex:none;min-height:0}
   .pendbar{order:1}
-  .gridwrap{order:2;flex:none;height:104px;overflow-x:auto;overflow-y:hidden;padding:9px 10px}
+  /* 60px breda kort gick inte att se vad de föreställde. 92px räcker för att
+     känna igen konstverket, och kostar bara ~45px av det stora kortet. */
+  .gridwrap{order:2;flex:none;height:148px;overflow-x:auto;overflow-y:hidden;padding:10px}
   .handbar{order:3;border-bottom:none;border-top:1px solid var(--line);padding:8px 10px}
-  .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:60px;gap:7px;justify-content:start}
+  .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:92px;gap:8px;justify-content:start}
   .card{scroll-margin:10px}
   .card.sel{transform:none}              /* lyftet får inte plats i remsan */
-  .card .skel{font-size:9px;padding:4px}
+  .card .skel{font-size:10px;padding:5px}
   .card .idx{display:none}
 
   /* i handraden får bara sökrutan plats */
@@ -2863,7 +2873,9 @@ const searchInput = $('#search');
 autocomplete(searchInput, $('#suggest'), name => { addCards([name]); searchInput.focus(); });
 
 /* ─── klick i rutnätet ─── */
+let svalgKlick = false;
 gridEl.addEventListener('click', ev => {
+  if (svalgKlick) { svalgKlick = false; ev.stopPropagation(); return; }   // klicket efter ett drag
   const del = ev.target.closest('[data-delcard]');
   if (del) { ev.stopPropagation(); removeAt(+del.dataset.delcard); return; }
   const flip = ev.target.closest('[data-flip]');
@@ -2874,6 +2886,94 @@ gridEl.addEventListener('click', ev => {
   renderSel(); renderDetail(); save();
 });
 gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
+
+/* ─── dra för att sortera om handen ───────────────────────────────────
+   Pekarhändelser i stället för HTML5-drag: det senare ger ingen kontroll över
+   utseendet och fungerar inte med touch.
+
+   Första versionen flyttade korten i DOM:en under dragningen och läste av vad
+   som låg under pekaren med elementFromPoint. Det gick inte: träffdetektering
+   sker mot elementens VISUELLA läge, och mitt under en FLIP-animation ligger
+   de kvar på sina gamla platser. Ordningen studsade fram och tillbaka och
+   nettoresultatet blev noll.
+
+   Nu mäts rutnätets rutor EN gång när dragningen börjar. Sedan räknas
+   målplatsen fram mot de fasta rutorna, och de kort som ska ge plats skjuts
+   dit med transform. DOM:en rörs inte förrän man släpper. */
+let dnd = null;
+const DND_TROSKEL = 6;                       // px innan det räknas som ett drag
+
+function dndPlats(x, y) {                    // vilken ruta pekaren är närmast
+  let bäst = 0, bd = Infinity;
+  dnd.rutor.forEach((r, i) => {
+    const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2));
+    if (d < bd) { bd = d; bäst = i; }
+  });
+  return bäst;
+}
+function dndVisa() {
+  const { från, till, rutor, barn } = dnd;
+  barn.forEach((el, j) => {
+    if (el === dnd.el) return;
+    let plats = j;
+    if (från < till && j > från && j <= till) plats = j - 1;
+    else if (från > till && j >= till && j < från) plats = j + 1;
+    const dx = rutor[plats].left - rutor[j].left, dy = rutor[plats].top - rutor[j].top;
+    el.style.transform = (dx || dy) ? `translate(${dx}px,${dy}px)` : '';
+  });
+}
+function dndStäda() {
+  if (!dnd) return;
+  gridEl.classList.remove('sorting');
+  dnd.el.classList.remove('dragging');
+  dnd.barn.forEach(el => { el.style.transform = ''; el.style.transition = ''; });
+  dnd = null;
+}
+gridEl.addEventListener('pointerdown', ev => {
+  /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar webbläsaren
+     inte alltid något click alls, och då blev flaggan hängande och åt upp
+     nästa riktiga klick. Ett click hör alltid ihop med sin egen pointerdown. */
+  svalgKlick = false;
+  if (ev.button !== 0) return;
+  const el = ev.target.closest('.card');
+  if (!el || ev.target.closest('[data-delcard],[data-flip]')) return;
+  const barn = [...gridEl.children];
+  dnd = { el, barn, från: barn.indexOf(el), till: barn.indexOf(el),
+          x0: ev.clientX, y0: ev.clientY, drar: false,
+          rutor: barn.map(b => b.getBoundingClientRect()) };
+});
+addEventListener('pointermove', ev => {
+  if (!dnd) return;
+  if (!dnd.drar) {
+    if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
+    dnd.drar = true;
+    gridEl.classList.add('sorting');
+    dnd.el.classList.add('dragging');
+    try { gridEl.setPointerCapture(ev.pointerId); } catch (e) {}
+  }
+  // kortet ska ligga under fingret, annars känns det inte som att man håller i det
+  dnd.el.style.transform = `translate(${ev.clientX - dnd.x0}px,${ev.clientY - dnd.y0}px) scale(1.04)`;
+  const till = dndPlats(ev.clientX, ev.clientY);
+  if (till !== dnd.till) { dnd.till = till; dndVisa(); }
+});
+addEventListener('pointerup', () => {
+  if (!dnd) return;
+  if (!dnd.drar) { dnd = null; return; }        // vanligt klick, låt det gå vidare
+  const { från, till } = dnd;
+  if (till !== från) {
+    const hh = hand();
+    const [kort] = hh.splice(från, 1);
+    hh.splice(till, 0, kort);
+    state.sel = till;
+    save();
+  }
+  svalgKlick = true;
+  dndStäda();
+  renderGrid(true); renderDetail();
+});
+addEventListener('keydown', ev => {                // Esc avbryter ett pågående drag
+  if (ev.key === 'Escape' && dnd && dnd.drar) { dndStäda(); renderGrid(true); }
+}, true);
 
 /* ─── spelarflikar ─── */
 $('#playerTabs').addEventListener('click', ev => {
