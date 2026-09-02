@@ -2115,7 +2115,9 @@ function toast(msg, kind, undo) {
   d.onmouseleave = () => { if (toastEl.classList.contains('on')) armToast(toastMs); };
   toastEl.appendChild(d);
   toastEl.classList.add('on');
-  armToast(undo ? 14000 : kind === 'err' ? 10000 : 6000);
+  /* 14 s för ångra var för länge — notisen blev liggande över korten långt
+     efter att man bestämt sig. 8 s räcker för att hinna reagera. */
+  armToast(undo ? 8000 : kind === 'err' ? 8000 : 6000);
 }
 
 /* ─────────── localStorage ─────────── */
@@ -3375,7 +3377,12 @@ swStage.addEventListener('wheel', ev => {
 
 let drag = null;
 swStage.addEventListener('pointerdown', ev => {
-  if (!SW.nw || ev.button !== 0 || ev.target.closest('.dbox')) return;
+  /* Panelen och dropzonen ligger INUTI bildytan. Utan det här undantaget tog
+     swStage pekaren med setPointerCapture, och då omdirigeras även click-
+     händelsen hit — knapparna i panelen fick aldrig sitt klick. Det var därför
+     "Hoppa över" inte gjorde något: klicket blev en panorering i stället. */
+  if (!SW.nw || ev.button !== 0) return;
+  if (ev.target.closest('.dbox, .scanpanel, .sw-drop')) return;
   try { swStage.setPointerCapture(ev.pointerId); } catch (e) { /* pekaren hann släppa */ }
   drag = { x: ev.clientX, y: ev.clientY, px: SW.px, py: SW.py, moved: false };
   swStage.classList.add('grabbing');
@@ -3786,8 +3793,14 @@ function applyAnalysis(shotId, out, img) {
      en gång förskjutet och osäkert — så att sex identifierade kort plus två
      "osäkra" blev åtta av sju kort på bordet. Ett område som till största
      delen täcker ett redan identifierat kort är inget nytt kort. */
+  /* Ett område som ingen känt igen och som till stor del ligger ovanpå ett
+     kort som ÄR identifierat är i praktiken alltid en förskjuten dubblett av
+     det kortet, inte ett eget. Gränsen låg på 45 %, och en ruta som täckte
+     36 % av ett identifierat Plains slank därför igenom och hamnade i kön som
+     ett spökkort. 30 % tar den. Riktiga kort som skyms av varandra klarar sig
+     ändå: ORB identifierar dem, och då hamnar de aldrig i pend. */
   out.forEach(r => {
-    r.pend = r.pend.filter(q => !r.acc.some(a => boxOverlap(q.box, a.box) > 0.45));
+    r.pend = r.pend.filter(q => !r.acc.some(a => boxOverlap(q.box, a.box) > 0.30));
   });
   out.forEach((r, i) => {
     let p = state.players[i];
@@ -3938,7 +3951,15 @@ function drawFitBox(res) {
 function pickTitle() {
   const p = player(), t = SW.target;
   if (!t) return 'Vilket kort är detta?';
-  if (t.kind === 'pend') return `Fyll i kort — ${t.i + 1} av ${(p.pending || []).length}`;
+  /* Räknades tidigare mot kön som den ser ut NU. Eftersom varje ifyllt kort
+     lämnar kön blev "1 av 2" till "1 av 1" i stället för "2 av 2", vilket såg
+     ut som att appen tappat räkningen. Nu räknas det mot antalet kort kön
+     hade när den öppnades. */
+  if (t.kind === 'pend') {
+    const kvar = (p.pending || []).length;
+    if (SW.qTotal && SW.qTotal >= kvar) return `Kort ${SW.qTotal - kvar + 1} av ${SW.qTotal}`;
+    return `Kort ${t.i + 1} av ${kvar}`;
+  }
   if (t.kind === 'card') return 'Byt kort';
   return 'Vilket kort är detta?';
 }
@@ -4085,8 +4106,15 @@ $('#scanSkip').onclick = () => {
 };
 function nextPending() {
   const p = player();
-  if (p.pending && p.pending.length && $('#shotOv').classList.contains('open')) {
-    setTimeout(() => openPicker('pend', 0), 120);
+  if (!$('#shotOv').classList.contains('open')) return;
+  if (p.pending && p.pending.length) { setTimeout(() => openPicker('pend', 0), 120); return; }
+  /* Kön är slut. Att bli stående kvar i bildvyn kändes som att ingenting
+     hände — uppgiften var klar men vyn såg likadan ut. Stäng och visa handen. */
+  if (SW.qTotal) {
+    const n = SW.qTotal;
+    SW.qTotal = 0;
+    closeShot();
+    toast(n === 1 ? 'Klart — 1 kort genomgånget' : `Klart — ${n} kort genomgångna`, 'ok');
   }
 }
 $('#pendDrop').onclick = async () => {
@@ -4101,6 +4129,7 @@ $('#pendDrop').onclick = async () => {
 $('#pendGo').onclick = () => {
   const p = player();
   if (!p.pending || !p.pending.length) return;
+  SW.qTotal = p.pending.length;            // fryser nämnaren för hela omgången
   if (!$('#shotOv').classList.contains('open')) openShot();
   setTimeout(() => openPicker('pend', 0), 200);
 };
