@@ -1,0 +1,165 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Matcher-bänk</title>
+<style>body{background:#0d1015;color:#e7ecf4;font:12px/1.5 ui-monospace,Menlo,monospace;padding:14px}
+pre{white-space:pre-wrap;margin:2px 0}b{color:#f0a52a}canvas{border:1px solid #333;margin:3px}</style>
+</head><body><div id="log"></div><div id="vis"></div>
+<script src="matcher.js"></script>
+<script>
+const log=m=>{document.getElementById('log').insertAdjacentHTML('beforeend','<pre>'+m+'</pre>');console.log(m);};
+
+/* ── cache ── */
+const db=()=>new Promise((res,rej)=>{const r=indexedDB.open('bench2',1);
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const kvGet=async k=>{const d=await db();return new Promise((res,rej)=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})};
+const kvPut=async(k,v)=>{const d=await db();return new Promise((res,rej)=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})};
+
+async function fetchSet(code){
+  const c=await kvGet('cards:'+code); if(c) return c;
+  let url=`https://api.scryfall.com/cards/search?q=set%3A${code}&unique=art&order=name`,out=[];
+  while(url){const r=await fetch(url),d=await r.json();
+    if(!d.data)throw new Error(d.details||'fel');
+    out=out.concat(d.data.map(x=>{const iu=x.image_uris||(x.card_faces&&x.card_faces[0].image_uris)||{};
+      return {id:x.id,name:x.name,small:iu.small,normal:iu.normal};}).filter(x=>x.small));
+    url=d.next_page; if(url)await new Promise(r=>setTimeout(r,110));}
+  await kvPut('cards:'+code,out); return out;
+}
+const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=()=>rej(new Error('img'));i.src=src;});
+
+async function buildIndex(codes, tag){
+  let cards=[]; for(const c of codes) cards=cards.concat(await fetchSet(c));
+  const key='idx:'+codes.join('+')+':'+tag;
+  const cached=await kvGet(key);
+  if(cached&&cached.names.length===cards.length){log(`index <b>${tag}</b> ur cache: ${cached.names.length}`);return cached;}
+  const D=Matcher.DESC, descs=new Int8Array(cards.length*D), names=[],ids=[],smalls=[];
+  let done=0,fail=0,next=0,t0=performance.now();
+  async function w(){for(;;){const i=next++;if(i>=cards.length)return;
+    const c=cards[i];names[i]=c.name;ids[i]=c.id;smalls[i]=c.small;
+    try{descs.set(Matcher.describeImage(await loadImg(c.small)),i*D);}catch(e){fail++;}
+    done++;}}
+  await Promise.all(Array.from({length:12},w));
+  log(`index <b>${tag}</b> byggt: ${cards.length} kort, ${((performance.now()-t0)/1000).toFixed(1)}s, fel ${fail}`);
+  const idx={names,ids,smalls,descs}; await kvPut(key,idx); return idx;
+}
+
+/* ══ realistisk scen: kort på bord, sett snett uppifrån, med lampglans ══ */
+function drawPersp(cx,img,w,h,tilt){
+  const N=56, sh=img.naturalHeight/N, sw=img.naturalWidth;
+  const shrink=t=>1-tilt*(1-t)*0.30;               // överkanten smalare
+  let tot=0; for(let i=0;i<N;i++)tot+=(1-tilt*(1-i/(N-1))*0.42);
+  let y=-h/2;
+  for(let i=0;i<N;i++){const t=i/(N-1);
+    const dh=h*(1-tilt*(1-t)*0.42)/tot, ww=w*shrink(t);
+    cx.drawImage(img,0,i*sh,sw,sh,-ww/2,y,ww,dh+0.7); y+=dh;}
+}
+function makeScene(img,o){
+  const cw=o.cardW, ch=Math.round(cw/0.716), S=Math.round(Math.max(cw,ch)*2.4);
+  const cv=document.createElement('canvas');cv.width=S;cv.height=S;
+  const c=cv.getContext('2d',{willReadFrequently:true});
+  const g=c.createRadialGradient(S*0.3,S*0.2,S*0.05,S*0.5,S*0.5,S*0.85);
+  g.addColorStop(0,'#f4ecdd');g.addColorStop(1,'#8b8274');
+  c.fillStyle=g;c.fillRect(0,0,S,S);
+  c.save();c.translate(S/2+(o.dx||0),S/2+(o.dy||0));c.rotate((o.rot||0)*Math.PI/180);
+  if(o.blur)c.filter=`blur(${o.blur}px)`;
+  if(o.tilt) drawPersp(c,img,cw,ch,o.tilt); else c.drawImage(img,-cw/2,-ch/2,cw,ch);
+  c.restore();c.filter='none';
+  if(o.glare){                                     // skrivbordslampans reflex
+    const gg=c.createRadialGradient(S*0.42,S*0.40,2,S*0.42,S*0.40,cw*0.85);
+    gg.addColorStop(0,`rgba(255,252,240,${o.glare})`);gg.addColorStop(1,'rgba(255,252,240,0)');
+    c.fillStyle=gg;c.fillRect(0,0,S,S);
+  }
+  const d=c.getImageData(0,0,S,S),p=d.data;
+  const cr=o.castR||1,cg=o.castG||1,cb=o.castB||1,k=o.contrast==null?1:o.contrast,br=o.bright||0;
+  for(let i=0;i<p.length;i+=4){for(let j=0;j<3;j++){
+    const ca=j===0?cr:j===1?cg:cb;
+    let v=((p[i+j]-128)*k+128+br)*ca+(Math.random()-0.5)*(o.noise||0);
+    p[i+j]=v<0?0:v>255?255:v;}}
+  c.putImageData(d,0,0);
+  return {canvas:cv,cx:S/2+(o.dx||0),cy:S/2+(o.dy||0),cw,ch};
+}
+function jitterBox(sc,jit){
+  const jx=(Math.random()-0.5)*sc.cw*jit,jy=(Math.random()-0.5)*sc.ch*jit;
+  const w=sc.cw*(1+(Math.random()-0.5)*jit*2),h=sc.ch*(1+(Math.random()-0.5)*jit*2);
+  return {x:sc.cx-w/2+jx,y:sc.cy-h/2+jy,w,h};
+}
+function normBox(r){const cx=r.x+r.w/2,cy=r.y+r.h/2;let w=r.w,h=r.h;
+  if(w/h>Matcher.ASPECT)h=w/Matcher.ASPECT;else w=h*Matcher.ASPECT;
+  return {x:cx-w/2,y:cy-h/2,w,h};}
+
+/* ══ mätning ══ */
+const PRESET={
+  lätt:      {cardW:90,blur:0.3,noise:8, contrast:0.92,rotSpread:4, jit:0.06,tilt:0,   glare:0},
+  typiskt:   {cardW:62,blur:0.8,noise:16,contrast:0.82,rotSpread:9, jit:0.10,tilt:0.25,glare:0.30},
+  litet:     {cardW:44,blur:0.9,noise:18,contrast:0.80,rotSpread:9, jit:0.12,tilt:0.30,glare:0.32},
+  glansigt:  {cardW:62,blur:0.8,noise:16,contrast:0.78,rotSpread:9, jit:0.10,tilt:0.25,glare:0.62},
+  snett:     {cardW:62,blur:0.8,noise:16,contrast:0.82,rotSpread:9, jit:0.10,tilt:0.55,glare:0.30},
+  vänt:      {cardW:62,blur:0.8,noise:16,contrast:0.82,rotSpread:9, jit:0.10,tilt:0.25,glare:0.30,flipHalf:true},
+  slarvruta: {cardW:62,blur:0.8,noise:16,contrast:0.82,rotSpread:9, jit:0.26,tilt:0.25,glare:0.30},
+  värsting:  {cardW:40,blur:1.4,noise:22,contrast:0.72,rotSpread:16,jit:0.16,tilt:0.55,glare:0.60,flipHalf:true},
+};
+async function bench(idx,cards,name,n){
+  const o=Object.assign({castR:1.10,castG:1.02,castB:0.86,bright:6},PRESET[name],{n});
+  const ranks=[];
+  for(let t=0;t<n;t++){
+    const ci=Math.floor(((t*2654435761)%4294967296)/4294967296*cards.length);
+    const c=cards[ci];let img;try{img=await loadImg(c.small);}catch(e){continue;}
+    const flip=o.flipHalf&&(t%2===1);
+    const rot=(Math.random()-0.5)*2*o.rotSpread+(flip?180:0);
+    const sc=makeScene(img,Object.assign({},o,{rot}));
+    const out=Matcher.scan(sc.canvas,normBox(jitterBox(sc,o.jit)),idx,{keep:70});
+    const r=out.results.findIndex(x=>x.name===c.name);
+    ranks.push(r<0?9999:r);
+  }
+  const pct=k=>Math.round(100*ranks.filter(r=>r<k).length/ranks.length);
+  return {t1:pct(1),t3:pct(3),t5:pct(5),n:ranks.length};
+}
+async function suite(idx,cards,names,n){
+  const rows=[];
+  for(const nm of names){const r=await bench(idx,cards,nm,n);
+    rows.push({nm,...r});}
+  return rows;
+}
+const fmt=rows=>rows.map(r=>`  ${r.nm.padEnd(11)} t1 ${String(r.t1).padStart(3)}%  t5 ${String(r.t5).padStart(3)}%`).join('\n');
+const mean=rows=>Math.round(rows.reduce((a,r)=>a+r.t1,0)/rows.length)+'/'+Math.round(rows.reduce((a,r)=>a+r.t5,0)/rows.length);
+
+/* Isolerad deskriptortest: sampla vid KÄND geometri och ranka hela poolen.
+   Sökmaskineriet är identiskt mellan varianter, så det som mäts här är
+   just deskriptorns förmåga att skilja korten åt. ~50× snabbare. */
+async function benchDesc(idx,cards,name,n){
+  const o=Object.assign({castR:1.10,castG:1.02,castB:0.86,bright:6},PRESET[name]);
+  const D=Matcher.DESC, N=idx.names.length, ranks=[];
+  for(let t=0;t<n;t++){
+    const ci=Math.floor(((t*2654435761)%4294967296)/4294967296*cards.length);
+    const c=cards[ci]; let img; try{img=await loadImg(c.small);}catch(e){continue;}
+    const flip=o.flipHalf&&(t%2===1);
+    const rot=(Math.random()-0.5)*2*o.rotSpread+(flip?180:0);
+    const sc=makeScene(img,Object.assign({},o,{rot}));
+    const box={x:sc.cx-sc.cw/2,y:sc.cy-sc.ch/2,w:sc.cw,h:sc.ch};
+    const g=Matcher.grab(sc.canvas,box); if(!g) continue;
+    const q=Matcher.describeAt(g,sc.cx,sc.cy,sc.cw,sc.ch,rot,false);
+    let rank=0; const truth=idx.names.indexOf(c.name);
+    if(truth<0) continue;
+    const st=Matcher.similarity(q, idx.descs.subarray(truth*D,truth*D+D));
+    for(let i=0;i<N;i++){ if(i===truth) continue;
+      if(Matcher.similarity(q, idx.descs.subarray(i*D,i*D+D))>st) rank++; }
+    ranks.push(rank);
+  }
+  const pct=k=>Math.round(100*ranks.filter(r=>r<k).length/ranks.length);
+  return {t1:pct(1),t3:pct(3),t5:pct(5),n:ranks.length};
+}
+async function suiteDesc(idx,cards,names,n){
+  const rows=[]; for(const nm of names) rows.push({nm,...await benchDesc(idx,cards,nm,n)});
+  return rows;
+}
+window.benchDesc=benchDesc; window.suiteDesc=suiteDesc;
+window.CASES=Object.keys(PRESET);
+window.fetchSet=fetchSet; window.buildIndex=buildIndex; window.bench=bench; window.suite=suite;
+window.fmt=fmt; window.mean=mean; window.loadImg=loadImg; window.makeScene=makeScene;
+window.jitterBox=jitterBox; window.normBox=normBox; window.log=log;
+log('bänk redo — anropa RUN()');
+window.RUN=async function(){
+  window.CARDS=await fetchSet('j25');
+  log(`kort: <b>${CARDS.length}</b>`);
+  return 'ok';
+};
+RUN();
+</script></body></html>

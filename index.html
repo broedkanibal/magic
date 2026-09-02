@@ -1,0 +1,4149 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handvy — MTG / SpellTable</title>
+<meta name="description" content="Överblicka och zooma varje spelares hand från en SpellTable-screenshot.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1116'/%3E%3Crect x='6' y='7' width='11' height='16' rx='2' fill='%23f0a52a'/%3E%3Crect x='15' y='9' width='11' height='16' rx='2' fill='%236b8cff' opacity='.9'/%3E%3C/svg%3E">
+<style>
+/* ─────────── tokens ─────────── */
+:root{
+  --bg:#0d1015; --bg2:#141922; --bg3:#1b2230; --bg4:#232c3c;
+  --line:#28313f; --line2:#39445708;
+  --txt:#e7ecf4; --dim:#93a1b6; --dim2:#66748a;
+  --acc:#f0a52a; --acc-d:#8a5d10; --blue:#6b8cff; --red:#e2606a; --green:#57c785;
+  --r:10px; --rs:7px;
+  --cardw:150px;
+  --shadow:0 8px 28px -8px #000a, 0 2px 6px #0006;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--txt);
+  font:14px/1.45 var(--sans);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+[hidden]{display:none!important}
+button{cursor:pointer;background:none;border:0;padding:0}
+a{color:var(--blue)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#2b3545;border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#3a4658}
+::-webkit-scrollbar-track{background:transparent}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  height:30px;padding:0 11px;border-radius:var(--rs);
+  background:var(--bg3);border:1px solid var(--line);
+  color:var(--dim);font-size:12.5px;font-weight:500;white-space:nowrap;
+  transition:background .12s,color .12s,border-color .12s;
+}
+.btn:hover{background:var(--bg4);color:var(--txt);border-color:#3b485c}
+.btn:active{transform:translateY(1px)}
+.btn.prim{background:var(--acc);color:#20160a;border-color:var(--acc);font-weight:650}
+.btn.prim:hover{background:#ffb943;color:#20160a}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--bg3)}
+.btn.sm{height:26px;padding:0 8px;font-size:11.5px}
+.btn.danger:hover{background:#3a1f22;color:#ff9099;border-color:#5e2b30}
+.btn[disabled]{opacity:.4;pointer-events:none}
+kbd{
+  display:inline-block;min-width:17px;text-align:center;
+  padding:1px 5px;border-radius:4px;background:#212a38;
+  border:1px solid #333e50;border-bottom-width:2px;
+  font:11px/1.5 var(--mono);color:#b9c6d8;
+}
+
+/* ─────────── shell ─────────── */
+#app{display:flex;flex-direction:column;height:100%}
+
+.topbar{
+  display:flex;align-items:center;gap:10px;
+  height:46px;flex:none;padding:0 12px;
+  background:linear-gradient(#161c26,#11161e);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;letter-spacing:.2px;padding-right:4px}
+.brand svg{display:block}
+.brand .sub{color:var(--dim2);font-weight:500;font-size:11px;letter-spacing:.4px;text-transform:uppercase}
+.vr{width:1px;height:20px;background:var(--line);flex:none}
+
+.players{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none;flex:1}
+.players::-webkit-scrollbar{display:none}
+.ptab{
+  position:relative;display:flex;align-items:center;gap:7px;
+  height:30px;padding:0 9px 0 8px;border-radius:var(--rs);
+  border:1px solid transparent;background:transparent;
+  color:var(--dim);font-size:12.5px;font-weight:550;white-space:nowrap;
+  transition:background .12s,color .12s;
+}
+.ptab:hover{background:var(--bg3);color:var(--txt)}
+.ptab.on{background:var(--bg4);color:var(--txt);border-color:#3d4a5f}
+.ptab .dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0004 inset}
+.ptab .num{
+  font:10px/1 var(--mono);color:var(--dim2);
+  background:#0006;border-radius:3px;padding:2px 3px;
+}
+.ptab.on .num{color:var(--acc)}
+.ptab .cnt{font:11px/1 var(--mono);color:var(--dim2);background:#00000055;border-radius:20px;padding:3px 6px}
+.ptab.on .cnt{color:#cfd9e8}
+.ptab .x{opacity:0;margin:0 -4px 0 -2px;padding:2px;border-radius:4px;color:var(--dim2);line-height:0}
+.ptab:hover .x{opacity:1}
+.ptab .x:hover{background:#00000055;color:var(--red)}
+.ptab .nameedit{background:#0007;border:1px solid var(--acc);border-radius:4px;padding:1px 4px;width:9ch;outline:none}
+
+main{flex:1;display:flex;min-height:0}
+
+/* ─────────── hand pane ─────────── */
+.hand{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.handbar{
+  display:flex;align-items:center;gap:8px;flex:none;
+  padding:9px 12px;border-bottom:1px solid var(--line);background:#0f141c;
+}
+.searchwrap{position:relative;flex:1;max-width:460px;min-width:180px}
+.searchwrap>svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--dim2)}
+#search{
+  width:100%;height:32px;padding:0 30px 0 30px;
+  background:var(--bg2);border:1px solid var(--line);border-radius:var(--rs);
+  outline:none;font-size:13px;transition:border-color .12s,background .12s;
+}
+#search::placeholder{color:var(--dim2)}
+#search:focus{border-color:var(--acc);background:#161d28;box-shadow:0 0 0 3px #f0a52a1f}
+.searchwrap .slash{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  pointer-events:none;transition:opacity .12s;
+}
+#search:focus~.slash{opacity:0}
+#suggest{
+  position:absolute;z-index:60;left:0;right:0;top:calc(100% + 5px);
+  margin:0;padding:4px;list-style:none;max-height:330px;overflow-y:auto;
+  background:#151b25;border:1px solid #333e50;border-radius:var(--r);
+  box-shadow:var(--shadow);display:none;
+}
+#suggest.open{display:block}
+#suggest li{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--dim);
+}
+#suggest li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#suggest li mark{background:none;color:var(--acc);font-weight:650}
+#suggest li.on{background:var(--bg4);color:var(--txt)}
+#suggest li.on .hintk{opacity:1}
+#suggest li .hintk{opacity:0;font-size:10px;color:var(--dim2)}
+.handmeta{margin-left:auto;display:flex;align-items:center;gap:9px;color:var(--dim2);font-size:12px;white-space:nowrap}
+.handmeta b{color:var(--dim);font-weight:600}
+.zoomctl{display:flex;align-items:center;gap:2px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--rs);padding:2px}
+.zoomctl button{width:24px;height:22px;border-radius:4px;color:var(--dim2);font-size:14px;line-height:1}
+.zoomctl button:hover{background:var(--bg4);color:var(--txt)}
+.zoomctl .fitbtn{width:auto;padding:0 7px;font-size:11px;font-weight:600}
+.zoomctl .fitbtn.on{background:var(--acc-d);color:#ffd98a}
+
+.gridwrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px;position:relative}
+.grid{
+  display:grid;gap:12px;align-content:start;
+  grid-template-columns:repeat(auto-fill,minmax(var(--cardw),var(--cardw)));
+  justify-content:center;
+}
+.card{
+  position:relative;display:block;width:100%;aspect-ratio:488/680;
+  border-radius:calc(var(--cardw) * .045);
+  background:#1a212c;overflow:visible;
+  transition:transform .13s cubic-bezier(.2,.8,.3,1);
+  outline:none;
+}
+.card img{
+  width:100%;height:100%;display:block;object-fit:cover;
+  border-radius:inherit;background:#11161e;
+  box-shadow:0 3px 10px -2px #000b;
+  transition:box-shadow .13s;
+}
+.card:hover{transform:translateY(-3px)}
+.card.sel{transform:translateY(-5px) scale(1.035);z-index:3}
+.card.sel img{box-shadow:0 0 0 3px var(--acc),0 12px 26px -6px #000e}
+.card .idx{
+  position:absolute;top:5px;left:5px;z-index:2;
+  min-width:18px;height:18px;padding:0 5px;border-radius:5px;
+  background:#000000b8;backdrop-filter:blur(3px);
+  font:10px/18px var(--mono);color:#9fb0c6;text-align:center;
+  opacity:0;transition:opacity .12s;
+}
+.gridwrap.shownums .card .idx,.card.sel .idx{opacity:1}
+.card.sel .idx{background:var(--acc);color:#20160a;font-weight:700}
+.card .flipbadge{
+  position:absolute;top:5px;right:5px;z-index:2;width:20px;height:20px;
+  border-radius:5px;background:#000000b8;backdrop-filter:blur(3px);
+  color:#c3d0e2;line-height:0;display:grid;place-items:center;
+  opacity:0;transition:opacity .12s,background .12s;
+}
+.card:hover .flipbadge,.card.sel .flipbadge{opacity:1}
+.card .flipbadge:hover{background:var(--acc);color:#20160a}
+.card.pending img{opacity:0}
+.card .skel{
+  position:absolute;inset:0;border-radius:inherit;display:none;
+  background:linear-gradient(105deg,#1a212c 30%,#232c3c 50%,#1a212c 70%) 0 0/300% 100%;
+  animation:sh 1.3s linear infinite;
+  padding:10px;font-size:11px;color:var(--dim2);align-items:flex-end;
+}
+.card.pending .skel{display:flex}
+.card.err .skel{display:flex;animation:none;background:#2a1c1f;color:#e08a92}
+@keyframes sh{to{background-position:-300% 0}}
+
+.empty{
+  position:absolute;inset:0;display:grid;place-content:center;justify-items:center;
+  gap:16px;text-align:center;padding:24px;pointer-events:none;
+}
+.empty.hide{display:none}
+.empty-icon{
+  width:74px;height:74px;border-radius:20px;display:grid;place-items:center;
+  background:#ffffff07;border:1px solid var(--line);color:var(--dim2);margin-bottom:2px;
+}
+.empty h2{margin:0;font-size:19px;font-weight:650;color:var(--txt);letter-spacing:-.2px}
+.empty p{margin:0;max-width:47ch;color:var(--dim);font-size:13.5px;line-height:1.65}
+.empty .btnrow{pointer-events:auto;display:flex;gap:9px;margin-top:4px}
+.btn.big{height:38px;padding:0 18px;font-size:13.5px;border-radius:9px}
+.empty-fine{color:var(--dim2)!important;font-size:12px!important}
+
+/* ─────────── detail pane ─────────── */
+.detail{
+  flex:none;width:clamp(300px,26vw,380px);
+  border-left:1px solid var(--line);background:#0f141c;
+  display:flex;flex-direction:column;min-height:0;
+}
+.dpad{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.dimg{position:relative;width:100%;aspect-ratio:488/680;border-radius:4.7%/3.4%;background:#11161e;flex:none}
+.dimg img{width:100%;height:100%;display:block;border-radius:inherit;box-shadow:var(--shadow)}
+.dimg .flipbtn{
+  position:absolute;bottom:8px;right:8px;height:28px;padding:0 10px;border-radius:20px;
+  background:#000000c4;backdrop-filter:blur(4px);border:1px solid #ffffff22;
+  font-size:11.5px;font-weight:600;color:#dbe4f0;display:flex;align-items:center;gap:5px;
+}
+.dimg .flipbtn:hover{background:var(--acc);color:#20160a;border-color:var(--acc)}
+.dhead{display:flex;align-items:baseline;gap:8px}
+.dhead h2{margin:0;font-size:15.5px;font-weight:650;line-height:1.25;flex:1;min-width:0}
+.dtype{color:var(--dim);font-size:12.5px;font-weight:550;border-bottom:1px solid var(--line);padding-bottom:9px}
+.doracle{font-size:12.8px;line-height:1.62;color:#c8d3e2;white-space:pre-wrap}
+.doracle em{color:var(--dim2);font-size:12px}
+.dpt{align-self:flex-start;font:600 13px var(--mono);background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:3px 9px}
+.dset{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--dim2);flex-wrap:wrap}
+.dset .setcode{font:600 10.5px var(--mono);text-transform:uppercase;background:var(--bg3);padding:2px 6px;border-radius:4px;color:var(--dim)}
+.dempty{margin:auto;text-align:center;color:var(--dim2);font-size:13px;padding:20px;line-height:1.7}
+
+/* mana symbols */
+.ms{
+  display:inline-grid;place-items:center;vertical-align:-2px;
+  width:15px;height:15px;border-radius:50%;margin:0 1px;
+  font:700 9.5px/1 var(--sans);color:#100d08;
+  background:#cdc5c2;box-shadow:inset 0 -1px 0 #0003, 0 1px 1px #0006;
+  text-shadow:none;
+}
+.ms.w{background:#fbf7e2}.ms.u{background:#a7d3ee}.ms.b{background:#b0a49d}
+.ms.r{background:#f0a48b}.ms.g{background:#9fd0a8}.ms.c{background:#cbc6c1}
+.ms.hy{font-size:8px;background:linear-gradient(135deg,var(--h1) 50%,var(--h2) 50%)}
+.ms.big{width:18px;height:18px;font-size:11px;vertical-align:-3px}
+.dmana{display:flex;gap:1px;flex:none}
+
+/* ─────────── footer ─────────── */
+.hints.hide{display:none}
+.hints{
+  flex:none;display:flex;align-items:center;gap:14px;
+  height:30px;padding:0 12px;background:#0b0f15;border-top:1px solid var(--line);
+  font-size:11.5px;color:var(--dim2);overflow-x:auto;scrollbar-width:none;white-space:nowrap;
+}
+.hints::-webkit-scrollbar{display:none}
+.hints span{display:flex;align-items:center;gap:5px}
+.hints .sep{width:1px;height:13px;background:var(--line)}
+.hints .status{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim2)}
+.hints .status .led{width:6px;height:6px;border-radius:50%;background:#3a4658}
+.hints .status.busy .led{background:var(--acc);animation:pulse 1s ease-in-out infinite}
+.hints .status.err .led{background:var(--red)}
+@keyframes pulse{50%{opacity:.25}}
+
+/* ─────────── overlays ─────────── */
+.ov{
+  position:fixed;inset:0;z-index:100;display:none;
+  background:#05070ae8;backdrop-filter:blur(7px);
+  animation:fade .13s ease-out;
+}
+.ov.open{display:flex;flex-direction:column}
+@keyframes fade{from{opacity:0}}
+.ovclose{
+  position:absolute;top:12px;right:14px;z-index:10;
+  width:32px;height:32px;border-radius:8px;color:var(--dim);
+  background:#ffffff0d;display:grid;place-items:center;line-height:0;
+}
+.ovclose:hover{background:var(--red);color:#fff}
+
+/* focus mode */
+#focusOv{padding:0}
+.fx-top{
+  flex:none;display:flex;align-items:center;gap:10px;height:44px;padding:0 56px 0 16px;
+  border-bottom:1px solid #ffffff12;font-size:12.5px;color:var(--dim);
+}
+.fx-top .who{display:flex;align-items:center;gap:7px;font-weight:600;color:var(--txt)}
+.fx-top .who .dot{width:8px;height:8px;border-radius:50%}
+.fx-top .pos{font:11px var(--mono);color:var(--dim2)}
+.fx-main{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:24px;padding:18px 24px}
+.fx-img{height:100%;max-height:100%;display:flex;align-items:center;justify-content:center}
+.fx-img img{max-height:100%;max-width:100%;height:auto;width:auto;border-radius:3.2%/2.3%;box-shadow:0 24px 60px -18px #000,0 0 0 1px #ffffff10}
+.fx-side{width:min(330px,30vw);max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.fx-side h2{margin:0;font-size:17px;font-weight:650}
+.fx-nav{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:5;
+  width:44px;height:64px;border-radius:10px;background:#ffffff0d;color:var(--dim);
+  display:grid;place-items:center;line-height:0;transition:background .12s,color .12s;
+}
+.fx-nav:hover{background:var(--acc);color:#20160a}
+.fx-nav.prev{left:10px}.fx-nav.next{right:10px}
+.fx-strip{
+  flex:none;display:flex;gap:7px;padding:10px 14px;overflow-x:auto;
+  border-top:1px solid #ffffff12;background:#00000055;
+}
+.fx-strip button{flex:none;width:52px;aspect-ratio:488/680;border-radius:4px;overflow:hidden;opacity:.42;transition:opacity .12s,transform .12s}
+.fx-strip button img{width:100%;height:100%;object-fit:cover;display:block}
+.fx-strip button:hover{opacity:.8}
+.fx-strip button.on{opacity:1;transform:translateY(-2px);box-shadow:0 0 0 2px var(--acc)}
+
+/* modal (bulk / help / confirm) */
+.modal{
+  margin:auto;width:min(620px,92vw);max-height:86vh;display:flex;flex-direction:column;
+  background:#131924;border:1px solid #35415420;border-radius:14px;
+  box-shadow:0 30px 80px -20px #000,0 0 0 1px #ffffff10;overflow:hidden;
+}
+.modal header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.modal header h2{margin:0;font-size:14.5px;font-weight:650;flex:1}
+.modal header .close{width:26px;height:26px;border-radius:6px;color:var(--dim2);display:grid;place-items:center;line-height:0}
+.modal header .close:hover{background:var(--bg4);color:var(--txt)}
+.modal .body{padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.modal .foot{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:#0f141c}
+.modal .foot .grow{flex:1;color:var(--dim2);font-size:12px}
+.modal p.lead{margin:0;color:var(--dim);font-size:12.8px;line-height:1.65}
+textarea.ta{
+  width:100%;min-height:190px;resize:vertical;padding:11px 12px;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--rs);
+  font:13px/1.6 var(--mono);outline:none;
+}
+textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+
+.helpgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px 26px}
+.helpgrid section h3{margin:0 0 8px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--acc)}
+.helpgrid dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:7px 12px;align-items:center}
+.helpgrid dt{justify-self:start;display:flex;gap:3px}
+.helpgrid dd{margin:0;font-size:12.5px;color:var(--dim)}
+
+/* toast */
+#toast{
+  position:fixed;left:50%;bottom:44px;transform:translateX(-50%) translateY(12px);
+  z-index:300;display:flex;flex-direction:column;gap:7px;align-items:center;
+  pointer-events:none;opacity:0;transition:opacity .18s,transform .18s;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast div{
+  padding:8px 15px;border-radius:20px;font-size:12.5px;font-weight:550;
+  background:#1e2735;border:1px solid #3b4759;box-shadow:0 10px 30px -8px #000c;
+}
+#toast div.err{background:#3a1f22;border-color:#6a3138;color:#ffb3ba}
+#toast div.ok{background:#16302a;border-color:#2c5a48;color:#9fe8c4}
+
+/* ─────────── screenshot workspace ─────────── */
+#shotOv{background:#05070af5}
+.sw-top{
+  flex:none;display:flex;align-items:center;gap:8px;height:46px;padding:0 56px 0 14px;
+  border-bottom:1px solid #ffffff12;
+}
+.sw-top .title{font-weight:650;font-size:13px;display:flex;align-items:center;gap:7px}
+.sw-top .title .dot{width:8px;height:8px;border-radius:50%}
+.sw-stage{
+  flex:1;min-height:0;position:relative;overflow:hidden;
+  background:#0a0d12;cursor:grab;
+  background-image:linear-gradient(#ffffff05 1px,transparent 1px),linear-gradient(90deg,#ffffff05 1px,transparent 1px);
+  background-size:28px 28px;
+}
+.sw-stage.grabbing{cursor:grabbing}
+.sw-stage.marking{cursor:crosshair}
+#swImg{position:absolute;top:0;left:0;transform-origin:0 0;image-rendering:auto;max-width:none;user-select:none;-webkit-user-drag:none}
+.sw-sel{position:absolute;border:1.5px solid var(--acc);background:#f0a52a1c;pointer-events:none;border-radius:2px;display:none}
+.sw-sel.on{display:block}
+.sw-drop{
+  position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:16px;
+  text-align:center;padding:30px;color:var(--dim2);
+}
+.sw-drop.hide{display:none}
+.sw-drop .icon{width:58px;height:58px;border-radius:14px;background:#ffffff08;display:grid;place-items:center;color:var(--dim2)}
+.sw-drop h2{margin:0;font-size:15px;color:var(--dim);font-weight:600}
+.sw-drop p{margin:0;max-width:46ch;font-size:12.5px;line-height:1.7}
+.sw-stage.dragover{outline:2px dashed var(--acc);outline-offset:-10px;background-color:#1a1408}
+.sw-bottom{
+  flex:none;display:flex;align-items:center;gap:9px;padding:9px 14px;
+  border-top:1px solid #ffffff12;background:#0d1219;
+}
+.sw-thumbs{display:flex;gap:6px;align-items:center}
+.sw-thumbs button{flex:none;width:46px;height:29px;border-radius:5px;overflow:hidden;opacity:.5;border:1px solid transparent}
+.sw-thumbs button img{width:100%;height:100%;object-fit:cover;display:block}
+.sw-thumbs button.on{opacity:1;border-color:var(--acc)}
+.sw-adds{display:flex;gap:5px;align-items:center;overflow-x:auto;max-width:38vw;scrollbar-width:none}
+.sw-adds::-webkit-scrollbar{display:none}
+.sw-adds img{height:40px;border-radius:3px;flex:none;box-shadow:0 2px 6px #0008}
+.sw-searchwrap{position:relative;flex:1;min-width:190px;max-width:420px}
+#shotSearch{
+  width:100%;height:32px;padding:0 12px;background:#161d28;border:1px solid #333e50;
+  border-radius:var(--rs);outline:none;font-size:13px;
+}
+#shotSearch:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+#shotSuggest{
+  position:absolute;z-index:60;left:0;right:0;bottom:calc(100% + 6px);
+  margin:0;padding:4px;list-style:none;max-height:300px;overflow-y:auto;
+  background:#151b25;border:1px solid #333e50;border-radius:var(--r);box-shadow:var(--shadow);display:none;
+}
+#shotSuggest.open{display:block}
+#shotSuggest li{padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--dim)}
+#shotSuggest li.on{background:var(--bg4);color:var(--txt)}
+#shotSuggest li mark{background:none;color:var(--acc);font-weight:650}
+
+/* det beskurna kortet man ska fylla i */
+.pickcrop{
+  flex:none;padding:11px 11px 0;display:flex;justify-content:center;
+}
+.pickcrop img{
+  width:158px;aspect-ratio:488/680;object-fit:cover;border-radius:5px;
+  background:#0b0f15;box-shadow:0 4px 14px -3px #000b, 0 0 0 1px #ffffff14;
+  image-rendering:auto;cursor:zoom-in;
+}
+.picksearch{position:relative;flex:none;padding:10px 11px 8px}
+#pickSearch{
+  width:100%;height:32px;padding:0 11px;background:#0e131b;border:1px solid #333e50;
+  border-radius:var(--rs);outline:none;font-size:13px;
+}
+#pickSearch::placeholder{color:var(--dim2)}
+#pickSearch:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+#pickSuggest{
+  position:absolute;z-index:70;left:11px;right:11px;top:calc(100% - 4px);
+  margin:0;padding:4px;list-style:none;max-height:260px;overflow-y:auto;
+  background:#151b25;border:1px solid #333e50;border-radius:var(--r);box-shadow:var(--shadow);display:none;
+}
+#pickSuggest.open{display:block}
+#pickSuggest li{padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--dim)}
+#pickSuggest li.on{background:var(--bg4);color:var(--txt)}
+#pickSuggest li mark{background:none;color:var(--acc);font-weight:650}
+
+/* kandidatpanel vid skanning */
+.scanpanel{
+  position:absolute;right:12px;top:12px;z-index:8;width:320px;max-height:calc(100% - 24px);
+  display:none;flex-direction:column;
+  background:#131924f5;border:1px solid #35415440;border-radius:12px;
+  box-shadow:0 20px 50px -14px #000;overflow:hidden;
+}
+.scanpanel.open{display:flex}
+.scanpanel header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:650}
+.scanpanel header .meta{font:10.5px var(--mono);color:var(--dim2);font-weight:400}
+.scanpanel header .close{margin-left:auto;color:var(--dim2);line-height:0;padding:3px;border-radius:4px}
+.scanpanel header .close:hover{background:var(--bg4);color:var(--txt)}
+.candlist{overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:2px;min-height:0}
+.cand{
+  display:flex;align-items:center;gap:9px;width:100%;flex:none;text-align:left;
+  padding:5px 7px;border-radius:7px;color:var(--dim);transition:background .1s;
+}
+.cand:hover,.cand.on{background:var(--bg4);color:var(--txt)}
+.cand img{width:28px;height:39px;object-fit:cover;border-radius:3px;flex:none;background:#0c1017;box-shadow:0 2px 5px #0007}
+.cand .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.cand .cname{font-size:12.5px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cand .bar{height:3px;border-radius:2px;background:#ffffff14;overflow:hidden}
+.cand .bar i{display:block;height:100%;background:var(--acc);border-radius:2px}
+.cand.top .bar i{background:var(--green)}
+.cand kbd{flex:none;opacity:.55}
+.cand.ai{box-shadow:inset 0 0 0 1px #6b8cff66}
+.cand .tag{font:9.5px/1 var(--mono);color:var(--blue);text-transform:uppercase;letter-spacing:.5px}
+.scanpanel .note{padding:9px 12px;font-size:11.5px;line-height:1.6;color:var(--dim2);border-top:1px solid var(--line)}
+.scanpanel .foot{padding:8px 10px;border-top:1px solid var(--line);display:flex;gap:6px}
+.scanpanel .foot .btn{flex:1;justify-content:center}
+.spin{width:13px;height:13px;border:2px solid #ffffff25;border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;flex:none;display:inline-block;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* träffad rektangel i bilden */
+.sw-fit{position:absolute;left:0;top:0;z-index:6;pointer-events:none;display:none}
+.sw-fit.on{display:block}
+.sw-fit i{
+  position:absolute;inset:0;border:2px solid var(--green);border-radius:3px;
+  box-shadow:0 0 0 1px #000a, 0 0 14px #57c78566;
+}
+
+/* poolstatus */
+.poolrow{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);border-radius:var(--rs);background:var(--bg)}
+.poolrow .nm{flex:1;min-width:0}
+.poolrow .nm b{display:block;font-size:13px}
+.poolrow .nm span{font-size:11.5px;color:var(--dim2)}
+.prog{height:5px;border-radius:3px;background:#ffffff12;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;width:0;background:var(--acc);border-radius:3px;transition:width .2s}
+.presets{display:flex;gap:6px;flex-wrap:wrap}
+.presets button.on{background:var(--acc-d);color:#ffd98a;border-color:#7a5410}
+.keyin{width:100%;height:34px;padding:0 11px;background:var(--bg);border:1px solid var(--line);border-radius:var(--rs);outline:none;font:12.5px var(--mono)}
+.keyin:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+.warn{padding:10px 12px;border-radius:var(--rs);background:#2a1f12;border:1px solid #5a4420;color:#e8c98a;font-size:12px;line-height:1.6}
+
+/* kort som behöver bekräftas */
+.pendbar{
+  display:flex;align-items:center;gap:10px;flex:none;padding:8px 12px;
+  background:#241c0d;border-bottom:1px solid #4a3a17;font-size:12.5px;color:#e8c98a;
+}
+.pendbar[hidden]{display:none}
+.pendbar .pdot{width:7px;height:7px;border-radius:50%;background:var(--acc);flex:none}
+.pendbar .ptxt{flex:none}
+.pendbar .ptxt b{color:#ffd98a}
+.pendthumbs{display:flex;gap:4px;flex:1;min-width:0;overflow:hidden}
+.pendthumbs img{height:36px;border-radius:3px;border:1px solid #6a5220;flex:none;background:#0b0f15}
+.pendbar .ptxt em{font-style:normal;color:#c9b485}
+
+/* avläsning pågår */
+.analyze{
+  margin:auto;width:min(520px,92vw);padding:22px;
+  background:#131924;border:1px solid #35415430;border-radius:14px;
+  box-shadow:0 30px 80px -20px #000,0 0 0 1px #ffffff10;
+  display:flex;flex-direction:column;gap:12px;
+}
+.analyze h2{margin:0;font-size:16px;font-weight:650}
+.an-step{margin:0;color:var(--dim);font-size:13px;min-height:19px}
+.an-panes{display:flex;gap:8px;flex-wrap:wrap;min-height:0}
+.an-pane{
+  display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border-radius:8px;
+  background:var(--bg);border:1px solid var(--line);font-size:12px;color:var(--dim);
+}
+.an-pane img{width:44px;height:26px;object-fit:cover;border-radius:4px;background:#000}
+.an-pane b{color:var(--txt);font-weight:600}
+.an-pane.done{border-color:#2c5a48}
+.an-foot{display:flex;align-items:center;gap:10px;margin-top:2px}
+.an-foot span{flex:1;color:var(--dim2);font-size:12px}
+
+/* hittade kort ovanpå bilden */
+.sw-boxes{position:absolute;left:0;top:0;z-index:5;pointer-events:none}
+.dbox{
+  position:absolute;left:0;top:0;pointer-events:auto;
+  border:2px solid var(--green);border-radius:3px;background:#57c78514;
+  box-shadow:0 0 0 1px #000a;transition:background .12s,border-color .12s;
+}
+.dbox:hover{background:#57c78530;border-color:#8ff0bb}
+.dbox.weak{border-color:var(--acc);background:#f0a52a18}
+.dbox.weak:hover{background:#f0a52a33}
+.dbox.sel{border-color:#fff;background:#ffffff22}
+.dbox i{
+  position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);
+  min-width:17px;height:17px;padding:0 5px;border-radius:9px;
+  background:var(--green);color:#0b1a12;font:700 10px/17px var(--mono);
+  font-style:normal;white-space:nowrap;box-shadow:0 2px 5px #0008;
+}
+.dbox.weak i{background:var(--acc);color:#20160a}
+.sw-help{flex:1;color:var(--dim2);font-size:11.5px;text-align:center;min-width:0}
+
+/* menu */
+.menu{
+  position:absolute;z-index:200;min-width:210px;padding:5px;
+  background:#151b25;border:1px solid #333e50;border-radius:10px;box-shadow:var(--shadow);
+  display:none;flex-direction:column;gap:1px;
+}
+.menu.open{display:flex}
+.menu button{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;font-size:12.8px;color:var(--dim);text-align:left}
+.menu button:hover{background:var(--bg4);color:var(--txt)}
+.menu button.danger:hover{background:#3a1f22;color:#ff9099}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.menu .hd{padding:6px 9px 3px;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim2)}
+
+@media (max-width:1080px){
+  .detail{width:290px}
+  :root{--cardw:124px}
+}
+@media (max-height:760px){
+  .gridwrap{padding:10px}
+  .grid{gap:9px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="4" y="6" width="12" height="18" rx="2.5" fill="#f0a52a"/>
+        <rect x="14" y="8" width="12" height="18" rx="2.5" fill="#6b8cff" opacity=".92"/>
+      </svg>
+      <span>Handvy<span class="sub" style="margin-left:6px">SpellTable</span></span>
+    </div>
+    <div class="vr"></div>
+    <nav class="players" id="playerTabs"></nav>
+    <button class="btn ghost" id="addPlayerBtn" title="Ny spelare (N)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Spelare
+    </button>
+    <div class="vr"></div>
+    <button class="btn" id="shotBtn" title="Klistra in eller visa skärmdumpen (S)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
+      <span id="shotBtnTxt">Skärmdump</span>
+    </button>
+    <button class="btn ghost" id="helpBtn" title="Kortkommandon (?)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.4 3.4v1.1"/><path d="M12 17.2v.01"/></svg>
+    </button>
+    <button class="btn ghost" id="menuBtn" title="Meny">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+    </button>
+  </header>
+
+  <main>
+    <section class="hand">
+      <div class="handbar">
+        <div class="searchwrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+          <input id="search" type="text" autocomplete="off" spellcheck="false" placeholder="Lägg till kort — skriv kortnamn…">
+          <kbd class="slash">/</kbd>
+          <ul id="suggest"></ul>
+        </div>
+        <button class="btn" id="bulkBtn" title="Klistra in flera kortnamn (B)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M6 8h12M6 12h12M6 16h7"/></svg>
+          Lista
+        </button>
+        <div class="handmeta">
+          <span id="handCount">0 kort</span>
+          <div class="zoomctl">
+            <button id="fitBtn" class="fitbtn" title="Anpassa så hela handen syns (0)">Fit</button>
+            <button id="zoomOut" title="Mindre kort (−)">−</button>
+            <button id="zoomIn" title="Större kort (+)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="pendbar" id="pendBar" hidden>
+        <span class="pdot"></span>
+        <span class="ptxt"><b id="pendCount">0</b> <span id="pendWord">kort hittades</span><em id="pendTail"></em></span>
+        <div class="pendthumbs" id="pendThumbs"></div>
+        <button class="btn sm prim" id="pendGo">Granska</button>
+        <button class="btn sm" id="pendDrop" title="Ta bort skärmdumpen och alla kort som väntar">Släng</button>
+      </div>
+      <div class="gridwrap" id="gridWrap">
+        <div class="grid" id="grid"></div>
+        <div class="empty" id="emptyHand">
+          <div class="empty-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+          </div>
+          <h2>Klistra in en skärmdump från SpellTable</h2>
+          <p>Appen hittar spelarnas videorutor och läser av korten som ligger på borden — en spelare per ruta.</p>
+          <div class="btnrow">
+            <button class="btn prim big" id="emptyPaste">Klistra in skärmdump</button>
+            <button class="btn big" id="emptySearch">Lägg till kort för hand</button>
+          </div>
+          <p class="empty-fine">Tryck <kbd>⌘V</kbd> var som helst i appen, eller dra in en bildfil.</p>
+        </div>
+      </div>
+    </section>
+
+    <aside class="detail">
+      <div class="dpad" id="detailPad">
+        <div class="dempty">Inget kort valt.<br><span style="color:#4d5a6d">Klicka på ett kort eller använd piltangenterna.</span></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="hints" id="hintBar">
+    <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> välj</span>
+    <span><kbd>F</kbd> fokus</span>
+    <span><kbd>Space</kbd> vänd</span>
+    <span><kbd>/</kbd> sök</span>
+    <span><kbd>S</kbd> screenshot</span>
+    <span><kbd>1</kbd>–<kbd>9</kbd> spelare</span>
+    <span><kbd>⌫</kbd> ta bort</span>
+    <span><kbd>?</kbd> alla kommandon</span>
+    <div class="status" id="status"><span class="led"></span><span id="statusTxt">Redo</span></div>
+  </footer>
+</div>
+
+<!-- ── fokusläge ── -->
+<div class="ov" id="focusOv">
+  <button class="ovclose" data-close="focusOv" title="Stäng (Esc)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+  </button>
+  <div class="fx-top">
+    <span class="who" id="fxWho"><span class="dot"></span><span></span></span>
+    <span class="pos" id="fxPos"></span>
+  </div>
+  <div class="fx-main">
+    <button class="fx-nav prev" id="fxPrev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5-7 7 7 7"/></svg></button>
+    <div class="fx-img"><img id="fxImg" alt=""></div>
+    <div class="fx-side" id="fxSide"></div>
+    <button class="fx-nav next" id="fxNext"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 5 7 7-7 7"/></svg></button>
+  </div>
+  <div class="fx-strip" id="fxStrip"></div>
+</div>
+
+<!-- ── screenshot-arbetsyta ── -->
+<div class="ov" id="shotOv">
+  <button class="ovclose" data-close="shotOv" title="Stäng (Esc)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+  </button>
+  <div class="sw-top">
+    <span class="title"><span class="dot"></span><span id="swWho">—</span></span>
+    <span style="color:var(--dim2);font-size:12px" id="swMeta"></span>
+    <div style="flex:1"></div>
+    <button class="btn sm" id="swRescan" title="Läs av bilden igen">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+      Läs av igen
+    </button>
+    <button class="btn sm" id="swFile">Byt bild…</button>
+    <input type="file" id="swInput" accept="image/*" multiple hidden>
+    <div class="zoomctl">
+      <button id="swZoomOut" title="Zooma ut">−</button>
+      <button class="fitbtn" id="swFit" title="Passa in">Fit</button>
+      <button id="swZoomIn" title="Zooma in">+</button>
+    </div>
+    <button class="btn sm danger" id="swDel" title="Ta bort bilden">Ta bort</button>
+  </div>
+  <div class="sw-stage" id="swStage">
+    <img id="swImg" alt="" hidden>
+    <div class="sw-sel" id="swSel"></div>
+    <div class="sw-fit" id="swFitBox"></div>
+    <div class="sw-boxes" id="swBoxes"></div>
+    <div class="sw-drop" id="swDrop">
+      <div class="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
+      </div>
+      <h2>Klistra in din SpellTable-screenshot</h2>
+      <p><kbd>⌘V</kbd> / <kbd>Ctrl V</kbd> direkt här, dra in en bildfil, eller <b>Välj fil…</b>.<br>
+      Bilden sparas lokalt på den här spelaren. Scrolla för att zooma, dra för att panorera — läs av korten och skriv in namnen i rutan nedanför.</p>
+    </div>
+    <div class="scanpanel" id="scanPanel">
+      <header>
+        <span id="scanTitle">Vilket kort är detta?</span>
+        <span class="meta" id="scanMeta"></span>
+        <button class="close" id="scanClose"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </header>
+      <div class="pickcrop"><img id="pickImg" alt="" title="Klicka för att zooma in i bilden"></div>
+      <div class="picksearch">
+        <input id="pickSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Skriv kortnamnet…">
+        <ul id="pickSuggest"></ul>
+      </div>
+      <div class="candlist" id="candList"></div>
+      <div class="note" id="scanNote"></div>
+      <div class="foot">
+        <button class="btn sm" id="scanSkip" hidden>Hoppa över</button>
+        <button class="btn sm" id="scanAI" hidden title="Låt Claude välja bland kandidaterna">Fråga Claude</button>
+      </div>
+    </div>
+  </div>
+  <div class="sw-bottom">
+    <div class="sw-thumbs" id="swThumbs"></div>
+    <span class="sw-help" id="swHelp">Klicka på en markering för att ändra kortet · klicka på tom yta för att lägga till</span>
+    <div class="sw-searchwrap">
+      <input id="shotSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Lägg till kort för hand…">
+      <ul id="shotSuggest"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ── bulkimport ── -->
+<div class="ov" id="bulkOv">
+  <div class="modal">
+    <header>
+      <h2>Klistra in kortnamn</h2>
+      <button class="close" data-close="bulkOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <p class="lead">Ett kortnamn per rad. Antal framför namnet fungerar (<code>2 Sol Ring</code>, <code>1x Llanowar Elves</code>), liksom set-suffix från decklistor (<code>Sol Ring (LTC) 268</code>). Stavfel rättas automatiskt när det går.</p>
+      <textarea class="ta" id="bulkTa" spellcheck="false" placeholder="Chief of the Foundry&#10;2 Ornithopter&#10;Priest of Gix&#10;Bonecaller Cleric"></textarea>
+    </div>
+    <div class="foot">
+      <span class="grow" id="bulkInfo"></span>
+      <button class="btn" data-close="bulkOv">Avbryt</button>
+      <button class="btn prim" id="bulkGo">Lägg till</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── hjälp ── -->
+<div class="ov" id="helpOv">
+  <div class="modal" style="width:min(700px,94vw)">
+    <header>
+      <h2>Kortkommandon</h2>
+      <button class="close" data-close="helpOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <div class="helpgrid">
+        <section>
+          <h3>Navigera handen</h3>
+          <dl>
+            <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Föregående / nästa kort</dd>
+            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>En rad upp / ner i rutnätet</dd>
+            <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>Första / sista kortet</dd>
+            <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Fokusläge — kortet fyller skärmen</dd>
+            <dt><kbd>Space</kbd></dt><dd>Vänd dubbelsidigt kort</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Stäng överlägg / lämna sökrutan</dd>
+          </dl>
+        </section>
+        <section>
+          <h3>Spelare</h3>
+          <dl>
+            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Byt till spelare</dd>
+            <dt><kbd>Tab</kbd></dt><dd>Nästa spelare</dd>
+            <dt><kbd>⇧</kbd><kbd>Tab</kbd></dt><dd>Föregående spelare</dd>
+            <dt><kbd>N</kbd></dt><dd>Ny spelare</dd>
+            <dt><kbd>R</kbd></dt><dd>Döp om aktiv spelare</dd>
+          </dl>
+        </section>
+        <section>
+          <h3>Bygga handen</h3>
+          <dl>
+            <dt><kbd>⌘V</kbd></dt><dd>Klistra in en SpellTable-skärmdump — läses av automatiskt</dd>
+            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Hoppa till sökrutan</dd>
+            <dt><kbd>B</kbd></dt><dd>Klistra in en lista med namn</dd>
+            <dt><kbd>⌫</kbd> <kbd>Del</kbd></dt><dd>Ta bort valt kort</dd>
+            <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Flytta kortet vänster / höger</dd>
+            <dt><kbd>D</kbd></dt><dd>Duplicera valt kort</dd>
+          </dl>
+        </section>
+        <section>
+          <h3>Bild &amp; vy</h3>
+          <dl>
+            <dt><kbd>S</kbd></dt><dd>Bildvyn — se skärmdumpen med markeringar</dd>
+            <dt><kbd>R</kbd></dt><dd>Läs av bilden igen (i bildvyn)</dd>
+            <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Välj kandidat när du bekräftar ett kort</dd>
+            <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Större / mindre kort i rutnätet</dd>
+            <dt><kbd>0</kbd></dt><dd>Fit — hela handen på en skärm</dd>
+            <dt><kbd>?</kbd></dt><dd>Den här rutan</dd>
+          </dl>
+        </section>
+      </div>
+      <p class="lead" style="border-top:1px solid var(--line);padding-top:12px">
+        <b>Så läser appen av en skärmdump:</b> den letar först efter SpellTables videorutor (svarta mellanrum skiljer dem åt),
+        sedan efter mörka kortramar mot ljust bord i varje ruta, och matchar till sist varje träff mot kortsetets bildsignaturer.
+        Bara kort som matchar tydligt läggs till automatiskt — resten hamnar i bekräftaraden högst upp.
+        <br><br>
+        Matchningen sker mot ett <b>begränsat set</b> (⋯ → Kortpool). Det är förutsättningen för att den ska fungera:
+        780 kort går att skilja åt visuellt, alla 30 000 MTG-kort gör det inte.
+        Kortdata och bilder kommer från <a href="https://scryfall.com" target="_blank" rel="noreferrer">Scryfall</a>.
+        Allt sparas bara i den här webbläsaren.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ── kortpool ── -->
+<div class="ov" id="poolOv">
+  <div class="modal">
+    <header>
+      <h2>Kortpool att matcha mot</h2>
+      <button class="close" data-close="poolOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <p class="lead">Skanningen matchar mot ett <b>begränsat</b> set — det är därför den fungerar. 780 kort går att skilja åt visuellt; 30&nbsp;000 gör det inte. Välj det set ni spelar med.</p>
+      <div class="presets" id="poolPresets"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="keyin" id="poolCode" style="flex:1" placeholder="setkod, t.ex. j25" spellcheck="false" autocomplete="off">
+        <button class="btn" id="poolCheck">Kontrollera</button>
+      </div>
+      <label style="display:flex;gap:9px;align-items:center;font-size:12.8px;color:var(--dim)">
+        <input type="checkbox" id="poolLands" style="accent-color:var(--acc);width:15px;height:15px">
+        Ta även med vanliga basic lands (Plains, Island, Swamp, Mountain, Forest) från senare år
+      </label>
+      <div class="poolrow" id="poolStatus"><div class="nm"><b>Ingen pool vald</b><span>Välj ett set ovan.</span></div></div>
+      <div class="prog" id="poolProg" hidden><i></i></div>
+      <p class="lead" style="font-size:11.5px">Indexet byggs en gång per set: ~780 kortbilder hämtas från Scryfall, får en bildsignatur på 528 byte och sparas lokalt. Tar ungefär en halv minut och behöver aldrig göras om.</p>
+    </div>
+    <div class="foot">
+      <span class="grow" id="poolInfo"></span>
+      <button class="btn" data-close="poolOv">Stäng</button>
+      <button class="btn prim" id="poolBuild">Bygg index</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI-hjälp ── -->
+<div class="ov" id="aiOv">
+  <div class="modal">
+    <header>
+      <h2>AI-hjälp med osäkra kort</h2>
+      <button class="close" data-close="aiOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <div class="poolrow" id="aiStatus"></div>
+      <p class="lead">Den lokala igenkänningen klarar de flesta korten själv. För dem den inte är säker på kan en bildmodell få avgöra — den ser det beskurna kortet och de bästa kandidaterna, och väljer ett av dem.</p>
+      <label style="display:flex;gap:9px;align-items:center;font-size:12.8px;color:var(--dim)">
+        <input type="checkbox" id="aiAuto" style="accent-color:var(--acc);width:15px;height:15px">
+        Fråga automatiskt om varje osäkert kort vid avläsning
+      </label>
+      <div id="aiKeyBlock">
+        <div class="warn">Appen körs utan server, så AI-hjälpen kräver en <b>egen nyckel</b> från <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>. Nyckeln sparas i den här webbläsaren och skickas bara till Anthropic — men den syns för den som kommer åt datorn, så använd en separat nyckel med utgiftsgräns.</div>
+        <input class="keyin" id="aiKey" type="password" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" style="margin-top:10px">
+      </div>
+    </div>
+    <div class="foot">
+      <span class="grow" id="aiInfo"></span>
+      <button class="btn danger" id="aiForget">Glöm nyckeln</button>
+      <button class="btn prim" id="aiSave">Spara</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── avläsning pågår ── -->
+<div class="ov" id="analyzeOv">
+  <div class="analyze">
+    <h2 id="anTitle">Läser av skärmdumpen…</h2>
+    <p class="an-step" id="anStep">Letar efter spelarnas videorutor</p>
+    <div class="prog"><i id="anBar"></i></div>
+    <div class="an-panes" id="anPanes"></div>
+    <div class="an-foot">
+      <span id="anNote"></span>
+      <button class="btn" id="anCancel">Avbryt</button>
+    </div>
+  </div>
+</div>
+
+<img id="bgShot" alt="" hidden>
+<div class="menu" id="menu"></div>
+<div id="toast"></div>
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   Visuell kortmatchning mot en begränsad kortpool.
+
+   Poolen är liten (ett set, ~600–800 kort), inte alla 30 000 MTG-kort.
+   Det är förutsättningen för att en enkel bildsignatur ska räcka.
+
+   Signaturen består av två fönster:
+     • hela kortet  — luminans 16×22 + färg 8×11 (röd−grön, gul−blå)
+     • konstverket  — luminans 12×12 + färg 6×6
+   Konstverket väger tungt eftersom kortramar ser likadana ut mellan kort;
+   det är bilden som skiljer dem åt.
+
+   Luminansen högpassfiltreras (varje ruta minus sitt lokala medelvärde)
+   innan normalisering. Det tar bort skrivbordslampans ljusgradient och
+   glans, vilket global normalisering inte klarar.
+
+   Sökningen sker i tre steg: grovt över hela poolen, fint kring de bästa,
+   och till sist lokal klättring per kandidat — inklusive fri bredd/höjd
+   för att kompensera för att kameran ser bordet snett.
+   ══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+
+  const ASPECT = 0.716;                      // kortets bredd / höjd
+
+  /* Signaturens två fönster. rect anges i kortets egna koordinater (0–1). */
+  const PARTS = [
+    { key: 'full', rect: [0, 0, 1, 1],                 SW: 32, SH: 44, LW: 16, LH: 22, CW: 8, CH: 11 },
+    { key: 'art',  rect: [0.075, 0.105, 0.85, 0.445],  SW: 24, SH: 24, LW: 12, LH: 12, CW: 6, CH: 6 }
+  ];
+  for (const p of PARTS) { p.NL = p.LW * p.LH; p.NC = p.CW * p.CH; p.N = p.NL + p.NC * 2; }
+  let off = 0;
+  for (const p of PARTS) { p.off = off; off += p.N; }
+  const DESC = off;                          // 528 + 216 = 744 byte
+  const SCALE = 40;                          // Int8-kvantisering (±3.17 σ)
+
+  /* Vikter per del. Konstverket är mer särskiljande än ramen. */
+  /* Vikterna är uppmätta, inte gissade. Mot en realistisk bänk (glans,
+     perspektiv, oskärpa, brus) gav utgångsläget 79 % rätt överst / 89 %
+     bland de fem bästa. Högpassfiltret lyfte det till 85/94, och 30 %
+     vikt på konstverksfönstret till 89/98. Mer vikt på konstverket blev
+     sämre igen — ramfärg och layout bär verklig information. */
+  const W = { full: { L: 0.43, A: 0.13, B: 0.13 }, art: { L: 0.21, A: 0.05, B: 0.05 } };
+  const OPT = { highpass: true, hpRadius: 2 };
+
+  /* ── arbetsytor ── */
+  const gcv = document.createElement('canvas');
+  const gctx = gcv.getContext('2d', { willReadFrequently: true });
+  const GRAB_W = 176, MARGIN = 0.55;
+
+  const rcv = document.createElement('canvas');
+  const rctx = rcv.getContext('2d', { willReadFrequently: true });
+  rctx.imageSmoothingEnabled = true;
+  rctx.imageSmoothingQuality = 'high';
+
+  /* återanvända buffertar — signaturer beräknas hundratals gånger per sökning */
+  const scratch = PARTS.map(p => ({
+    L: new Float32Array(p.NL), A: new Float32Array(p.NC), B: new Float32Array(p.NC),
+    T: new Float32Array(p.NL)
+  }));
+  const _tmp = new Int8Array(DESC);
+
+  /* ── normalisering ── */
+  function highpass(v, w, h, out, r) {
+    // separabelt boxmedel med klippta kanter, sedan v − medel
+    const tmp = out;                                  // återanvänd som mellansteg
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let s = 0, n = 0;
+        for (let k = -r; k <= r; k++) { const xx = x + k; if (xx >= 0 && xx < w) { s += v[y * w + xx]; n++; } }
+        tmp[y * w + x] = s / n;
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      for (let y = 0; y < h; y++) {
+        let s = 0, n = 0;
+        for (let k = -r; k <= r; k++) { const yy = y + k; if (yy >= 0 && yy < h) { s += tmp[yy * w + x]; n++; } }
+        out[y * w + x] = v[y * w + x] - s / n;
+      }
+    }
+  }
+  function znorm(v, out, o, n) {
+    let m = 0;
+    for (let i = 0; i < n; i++) m += v[i];
+    m /= n;
+    let s = 0;
+    for (let i = 0; i < n; i++) { const d = v[i] - m; s += d * d; }
+    s = Math.sqrt(s / n) || 1;
+    for (let i = 0; i < n; i++) {
+      const q = Math.round(((v[i] - m) / s) * SCALE);
+      out[o + i] = q > 127 ? 127 : q < -128 ? -128 : q;
+    }
+  }
+  function finish(transient) {
+    for (let pi = 0; pi < PARTS.length; pi++) {
+      const p = PARTS[pi], sc = scratch[pi];
+      if (OPT.highpass) { highpass(sc.L, p.LW, p.LH, sc.T, OPT.hpRadius); znorm(sc.T, _tmp, p.off, p.NL); }
+      else znorm(sc.L, _tmp, p.off, p.NL);
+      znorm(sc.A, _tmp, p.off + p.NL, p.NC);
+      znorm(sc.B, _tmp, p.off + p.NL + p.NC, p.NC);
+    }
+    return transient ? _tmp : new Int8Array(_tmp);
+  }
+  function clearScratch() {
+    for (const s of scratch) { s.L.fill(0); s.A.fill(0); s.B.fill(0); }
+  }
+
+  /* ── referenssignatur: en hel, ren kortbild ── */
+  function describeImage(img) {
+    clearScratch();
+    for (let pi = 0; pi < PARTS.length; pi++) {
+      const p = PARTS[pi], sc = scratch[pi];
+      rcv.width = p.SW; rcv.height = p.SH;
+      rctx.imageSmoothingEnabled = true;
+      rctx.imageSmoothingQuality = 'high';
+      rctx.setTransform(1, 0, 0, 1, 0, 0);
+      rctx.fillStyle = '#7f7f7f';
+      rctx.fillRect(0, 0, p.SW, p.SH);
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      rctx.drawImage(img, p.rect[0] * iw, p.rect[1] * ih, p.rect[2] * iw, p.rect[3] * ih, 0, 0, p.SW, p.SH);
+      const px = rctx.getImageData(0, 0, p.SW, p.SH).data;
+      const lby = p.SH / p.LH, lbx = p.SW / p.LW, cby = p.SH / p.CH, cbx = p.SW / p.CW;
+      for (let y = 0; y < p.SH; y++) {
+        const ly = ((y / lby) | 0) * p.LW, cy = ((y / cby) | 0) * p.CW;
+        for (let x = 0; x < p.SW; x++) {
+          const i = (y * p.SW + x) << 2, r = px[i], g = px[i + 1], b = px[i + 2];
+          sc.L[ly + ((x / lbx) | 0)] += r * 0.299 + g * 0.587 + b * 0.114;
+          const ci = cy + ((x / cbx) | 0);
+          sc.A[ci] += r - g;
+          sc.B[ci] += (r + g) * 0.5 - b;
+        }
+      }
+    }
+    return finish(false);
+  }
+
+  /* ── "grab": läs in rutan + marginal en gång, sampla sedan i ren JS ── */
+  function grab(img, box) {
+    const tw = box.w * (1 + 2 * MARGIN), th = box.h * (1 + 2 * MARGIN);
+    const gw = GRAB_W, gh = Math.max(8, Math.round(gw * th / tw));
+    gcv.width = gw; gcv.height = gh;
+    gctx.setTransform(1, 0, 0, 1, 0, 0);
+    gctx.imageSmoothingEnabled = true;
+    gctx.imageSmoothingQuality = 'high';
+    gctx.fillStyle = '#7f7f7f';
+    gctx.fillRect(0, 0, gw, gh);
+    const x0 = box.x - box.w * MARGIN, y0 = box.y - box.h * MARGIN;
+    const s = gw / tw;
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const sx = Math.max(0, Math.floor(x0)), sy = Math.max(0, Math.floor(y0));
+    const sx2 = Math.min(iw, Math.ceil(x0 + tw)), sy2 = Math.min(ih, Math.ceil(y0 + th));
+    if (sx2 <= sx || sy2 <= sy) return null;
+    try {
+      gctx.drawImage(img, sx, sy, sx2 - sx, sy2 - sy,
+                     (sx - x0) * s, (sy - y0) * s, (sx2 - sx) * s, (sy2 - sy) * s);
+    } catch (e) { return null; }
+    return { d: gctx.getImageData(0, 0, gw, gh).data, w: gw, h: gh, x0, y0, s };
+  }
+
+  /* Signatur för ett roterat rektangelområde i grab-bufferten.
+     w och h anges separat: kameran ser bordet snett, så kortet blir
+     hoptryckt i höjdled — en gemensam skala klarar inte det. */
+  function describeAt(g, cx, cy, w, h, rotDeg, transient) {
+    const rad = rotDeg * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad);
+    const gw = g.w, gh = g.h, d = g.d, maxX = gw - 1, maxY = gh - 1;
+    clearScratch();
+    for (let pi = 0; pi < PARTS.length; pi++) {
+      const p = PARTS[pi], sc = scratch[pi];
+      const rx = p.rect[0], ry = p.rect[1], rw = p.rect[2], rh = p.rect[3];
+      const lby = p.SH / p.LH, lbx = p.SW / p.LW, cby = p.SH / p.CH, cbx = p.SW / p.CW;
+      for (let oy = 0; oy < p.SH; oy++) {
+        const v = (ry + (oy + 0.5) / p.SH * rh - 0.5) * h;
+        const ly = ((oy / lby) | 0) * p.LW, cyy = ((oy / cby) | 0) * p.CW;
+        for (let ox = 0; ox < p.SW; ox++) {
+          const u = (rx + (ox + 0.5) / p.SW * rw - 0.5) * w;
+          const ix = cx + u * cs - v * sn, iy = cy + u * sn + v * cs;
+          let fx = (ix - g.x0) * g.s - 0.5, fy = (iy - g.y0) * g.s - 0.5;
+          fx = fx < 0 ? 0 : fx > maxX ? maxX : fx;
+          fy = fy < 0 ? 0 : fy > maxY ? maxY : fy;
+          const xi = fx | 0, yi = fy | 0;
+          const xj = xi < maxX ? xi + 1 : xi, yj = yi < maxY ? yi + 1 : yi;
+          const tx = fx - xi, ty = fy - yi;
+          const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
+          const i00 = (yi * gw + xi) << 2, i10 = (yi * gw + xj) << 2,
+                i01 = (yj * gw + xi) << 2, i11 = (yj * gw + xj) << 2;
+          const r = d[i00] * w00 + d[i10] * w10 + d[i01] * w01 + d[i11] * w11;
+          const gg = d[i00 + 1] * w00 + d[i10 + 1] * w10 + d[i01 + 1] * w01 + d[i11 + 1] * w11;
+          const b = d[i00 + 2] * w00 + d[i10 + 2] * w10 + d[i01 + 2] * w01 + d[i11 + 2] * w11;
+          sc.L[ly + ((ox / lbx) | 0)] += r * 0.299 + gg * 0.587 + b * 0.114;
+          const ci = cyy + ((ox / cbx) | 0);
+          sc.A[ci] += r - gg;
+          sc.B[ci] += (r + gg) * 0.5 - b;
+        }
+      }
+    }
+    return finish(transient);
+  }
+
+  /* ── likhet ── */
+  const K = SCALE * SCALE;
+  function similarity(a, b) {
+    let acc = 0;
+    for (let pi = 0; pi < PARTS.length; pi++) {
+      const p = PARTS[pi], w = W[p.key];
+      let sl = 0, sa = 0, sb = 0;
+      let i = p.off; const eL = i + p.NL;
+      for (; i < eL; i++) sl += a[i] * b[i];
+      const eA = i + p.NC;
+      for (; i < eA; i++) sa += a[i] * b[i];
+      const eB = i + p.NC;
+      for (; i < eB; i++) sb += a[i] * b[i];
+      acc += w.L * sl / (p.NL * K) + w.A * sa / (p.NC * K) + w.B * sb / (p.NC * K);
+    }
+    return acc;
+  }
+
+  /* ── sökparametrar ── */
+  const P = {
+    COARSE_ROT: [0, -8, 8, -17, 17],
+    COARSE_SC: [0.75, 0.87, 1.0, 1.12],
+    FINE_SC: [0.68, 0.76, 0.84, 0.92, 1.0, 1.08, 1.17],
+    FINE_OFF: [-0.085, 0, 0.085],
+    FINE_ROT: [-9, -4.5, 0, 4.5, 9],
+    // När detektorn redan pekat ut kortet behövs inget brett finsök —
+    // läge, storlek och vinkel är nära nog, och steg 3 tar resten.
+    HINT_SC: [0.85, 1.0, 1.18, 1.36],
+    HINT_OFF: [-0.15, 0, 0.15],
+    HINT_ROT: [-5, 0, 5]
+  };
+
+  function variants(g, box, scales, dxs, dys, rots) {
+    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    const out = [];
+    for (const sc of scales) {
+      const w = box.w * sc, h = box.h * sc;
+      for (const dx of dxs) for (const dy of dys) for (const r of rots) {
+        out.push({ d: describeAt(g, cx + box.w * dx, cy + box.h * dy, w, h, r), sc, sy: 1, dx, dy, rot: r });
+      }
+    }
+    return out;
+  }
+  function rankAll(qs, index, keep) {
+    const n = index.names.length, all = index.descs;
+    const best = new Float32Array(n), bv = new Int16Array(n);
+    for (let i = 0; i < n; i++) {
+      const ref = all.subarray(i * DESC, i * DESC + DESC);
+      let b = -2, bi = 0;
+      for (let v = 0; v < qs.length; v++) {
+        const s = similarity(qs[v].d, ref);
+        if (s > b) { b = s; bi = v; }
+      }
+      best[i] = b; bv[i] = bi;
+    }
+    const idx = Array.from({ length: n }, (_, i) => i);
+    idx.sort((a, b) => best[b] - best[a]);
+    return idx.slice(0, keep).map(i => ({ i, score: best[i], vi: bv[i] }));
+  }
+
+  /* Lokal klättring per kandidat. sy är höjdens skala relativt bredden —
+     den fångar perspektivet när kameran ser bordet snett. */
+  function refine(g, box, index, results, topN) {
+    const cx0 = box.x + box.w / 2, cy0 = box.y + box.h / 2;
+    const n = Math.min(topN, results.length);
+    const scLo = P.FINE_SC[0] * 0.92, scHi = P.FINE_SC[P.FINE_SC.length - 1] * 1.25;
+    const OFF = 0.26, SY_LO = 0.78, SY_HI = 1.22;
+    const cl = t => {
+      t.sc = t.sc < scLo ? scLo : t.sc > scHi ? scHi : t.sc;
+      t.sy = t.sy < SY_LO ? SY_LO : t.sy > SY_HI ? SY_HI : t.sy;
+      t.dx = t.dx < -OFF ? -OFF : t.dx > OFF ? OFF : t.dx;
+      t.dy = t.dy < -OFF ? -OFF : t.dy > OFF ? OFF : t.dy;
+      return t;
+    };
+    const at = t => describeAt(g, cx0 + box.w * t.dx, cy0 + box.h * t.dy,
+                              box.w * t.sc, box.h * t.sc * t.sy, t.rot, true);
+    for (let k = 0; k < n; k++) {
+      const r = results[k];
+      if (!r.fit) continue;
+      const ref = index.descs.subarray(r.i * DESC, r.i * DESC + DESC);
+      let cur = r.fit, best = r.score;
+      let sStep = 0.05, oStep = 0.042, rStep = 3.2, yStep = 0.05;
+      for (let it = 0; it < 5; it++) {
+        let moved = false;
+        for (let j = 0; j < 10; j++) {
+          const t = { sc: cur.sc, sy: cur.sy, dx: cur.dx, dy: cur.dy, rot: cur.rot };
+          if (j === 0) t.sc = cur.sc * (1 + sStep);
+          else if (j === 1) t.sc = cur.sc * (1 - sStep);
+          else if (j === 2) t.dx = cur.dx + oStep;
+          else if (j === 3) t.dx = cur.dx - oStep;
+          else if (j === 4) t.dy = cur.dy + oStep;
+          else if (j === 5) t.dy = cur.dy - oStep;
+          else if (j === 6) t.rot = cur.rot + rStep;
+          else if (j === 7) t.rot = cur.rot - rStep;
+          else if (j === 8) t.sy = cur.sy * (1 + yStep);
+          else t.sy = cur.sy * (1 - yStep);
+          cl(t);
+          const s = similarity(at(t), ref);
+          if (s > best) { best = s; cur = t; moved = true; }
+        }
+        if (!moved) { sStep *= 0.5; oStep *= 0.5; rStep *= 0.5; yStep *= 0.5; }
+      }
+      r.score = best;
+      r.fit = cur;
+    }
+    results.sort((a, b) => b.score - a.score);
+  }
+
+  /* Ett försök med "robust" poängsättning — kasta de sämst matchande
+     cellerna innan poängen räknas, för att hantera överlappande kort — gav
+     exakt noll skillnad i mätningar vid 35–75 % behållna celler. Vid kraftig
+     övertäckning finns rätt kort inte ens bland kandidaterna, så det hjälper
+     inte att omvärdera dem. Borttaget; detekteringen får i stället se till
+     att kortet hamnar i ifyllnadslistan. */
+
+  function scan(img, box, index, opts) {
+    const o = opts || {};
+    const g = grab(img, box);
+    if (!g) return { error: 'tainted', results: [] };
+    const t0 = performance.now();
+
+    // När detektorn redan gett vinkel och storlek räcker ett smalare grovsök.
+    const hint = o.hint;
+    const rots = hint != null
+      ? [hint - 8, hint, hint + 8, hint + 172, hint + 180, hint + 188]
+      : o.orientation === 'up' ? P.COARSE_ROT
+      : o.orientation === 'flip' ? P.COARSE_ROT.map(r => r + 180)
+      : P.COARSE_ROT.concat(P.COARSE_ROT.map(r => r + 180));
+    const cscales = hint != null ? [0.9, 1.0, 1.1] : P.COARSE_SC;
+    const coarse = variants(g, box, cscales, [0], [0], rots);
+    const keep = Math.min(index.names.length, o.keep || 70);
+    const top = rankAll(coarse, index, keep);
+
+    // högst tre basrotationer — utan tak exploderar antalet varianter
+    const cnt = new Map();
+    top.slice(0, 12).forEach((t, rank) => {
+      const r = coarse[t.vi].rot;
+      const e = cnt.get(r) || { n: 0, best: rank };
+      e.n++;
+      cnt.set(r, e);
+    });
+    const baseRots = Array.from(cnt.entries())
+      .sort((a, b) => b[1].n - a[1].n || a[1].best - b[1].best)
+      .slice(0, hint != null ? 2 : 3).map(e => e[0]);
+    const fRot = hint != null ? P.HINT_ROT : P.FINE_ROT;
+    const fSc = hint != null ? P.HINT_SC : P.FINE_SC;
+    const fOff = hint != null ? P.HINT_OFF : P.FINE_OFF;
+    const fineRots = [];
+    for (const br of baseRots) for (const dr of fRot) fineRots.push(br + dr);
+    const fine = variants(g, box, fSc, fOff, fOff, Array.from(new Set(fineRots)));
+
+    const results = top.map(t => {
+      let best = -2, bv = null;
+      const ref = index.descs.subarray(t.i * DESC, t.i * DESC + DESC);
+      for (let v = 0; v < fine.length; v++) {
+        const s = similarity(fine[v].d, ref);
+        if (s > best) { best = s; bv = fine[v]; }
+      }
+      return {
+        i: t.i, name: index.names[t.i], id: index.ids ? index.ids[t.i] : null,
+        score: best, fit: bv ? { sc: bv.sc, sy: 1, dx: bv.dx, dy: bv.dy, rot: bv.rot } : null
+      };
+    }).sort((a, b) => b.score - a.score);
+
+    refine(g, box, index, results, o.refine == null ? 14 : o.refine);
+
+    const conf = results.length > 1 ? results[0].score - results[1].score : 1;
+    const f = results[0] && results[0].fit;
+    const lo = P.FINE_SC[0], hi = P.FINE_SC[P.FINE_SC.length - 1];
+    const edge = !f ? 0 : f.sc <= lo * 0.96 ? -1 : f.sc >= hi * 1.04 ? 1 : 0;
+    return { results, ms: Math.round(performance.now() - t0), confidence: conf, edge, grab: g };
+  }
+
+  /* Grovt luminansrutnät, 8×11, z-normaliserat. Används för att bygga
+     "genomsnittskortet" som detektorn letar efter. Medvetet UTAN
+     högpassfilter: filtret kostade mer än allt annat i detektorsvepet
+     tillsammans, och z-normaliseringen räcker för att detektera. */
+  const G8W = 8, G8H = 11, G8N = G8W * G8H;
+  const g8cv = document.createElement('canvas');
+  g8cv.width = 32; g8cv.height = 44;
+  const g8x = g8cv.getContext('2d', { willReadFrequently: true });
+  g8x.imageSmoothingEnabled = true;
+  g8x.imageSmoothingQuality = 'high';
+  function grid8(img) {
+    g8x.setTransform(1, 0, 0, 1, 0, 0);
+    g8x.fillStyle = '#7f7f7f';
+    g8x.fillRect(0, 0, 32, 44);
+    g8x.drawImage(img, 0, 0, 32, 44);
+    const px = g8x.getImageData(0, 0, 32, 44).data;
+    const g = new Float32Array(G8N);
+    for (let y = 0; y < 44; y++) {
+      const gy = ((y / 4) | 0) * G8W;
+      for (let x = 0; x < 32; x++) {
+        const i = (y * 32 + x) << 2;
+        g[gy + ((x / 4) | 0)] += px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114;
+      }
+    }
+    let m = 0;
+    for (let k = 0; k < G8N; k++) m += g[k];
+    m /= G8N;
+    let s = 0;
+    for (let k = 0; k < G8N; k++) { const d = g[k] - m; s += d * d; }
+    s = Math.sqrt(s / G8N) || 1;
+    for (let k = 0; k < G8N; k++) g[k] = (g[k] - m) / s;
+    return g;
+  }
+
+  /* "Genomsnittskortet": medelvärdet av hela poolens luminanssignaturer.
+     Konstverken tar ut varandra och kvar blir det alla magickort har
+     gemensamt — titelrad, konstruta, typrad, textruta. Det är den strukturen
+     detektorn letar efter, i stället för en mörk ram mot bordet. En ram
+     fungerar bara när korten ligger isär; strukturen syns även när de
+     ligger omlott. */
+  function template(index) {
+    if (index._tmpl) return index._tmpl;
+    if (!index.tmpl) return null;                    // pool byggd före mallstödet
+    const t = Float32Array.from(index.tmpl);
+    let m = 0;
+    for (let k = 0; k < G8N; k++) m += t[k];
+    m /= G8N;
+    let s = 0;
+    for (let k = 0; k < G8N; k++) { const d = t[k] - m; s += d * d; }
+    s = Math.sqrt(s / G8N) || 1;
+    for (let k = 0; k < G8N; k++) t[k] = (t[k] - m) / s;
+    index._tmpl = { grid: t, LW: G8W, LH: G8H, n: G8N };
+    return index._tmpl;
+  }
+
+  global.Matcher = {
+    DESC, ASPECT, MARGIN, PARTS, params: P, weights: W, opt: OPT, template,
+    describeImage, describeAt, grab, similarity, variants, rankAll, refine, scan, grid8,
+    tune(k) { if (k) Object.assign(P, k); },
+    tuneW(k) { if (k) for (const key in k) Object.assign(W[key], k[key]); }
+  };
+})(window);
+
+/* ══════════════════════════════════════════════════════════════════
+   Lokala särdrag med geometrisk verifiering — ORB i miniatyr.
+
+   Varför inte bara jämföra hela kortet mot en mall (som förut)?
+   Tre saker som en helhetsjämförelse inte klarar men det här gör:
+
+     • Övertäckning — behöver bara ~15 synliga punkter, inte hela kortet.
+     • Perspektiv   — punkterna får förskjutas, transformen räknas fram.
+     • AVVISNING    — ett tangentbord eller en livtotal ger aldrig en
+                      geometriskt konsekvent matchning, och faller bort.
+                      Det sista är hela poängen: helhetsjämförelsen hade
+                      inget sätt att säga "det här är inte ett kort".
+
+   OpenCV.js har ORB men saknar findHomography i standardbygget och väger
+   10 MB. Det här är ~400 rader och följer med i filen.
+   ══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+
+  const NB = 32;                       // 256 bitar per deskriptor
+  const PATCH = 31, HALF = 15;
+  const FAST_T = 18;                   // hörntröskel
+  const CIRC = [[0,-3],[1,-3],[2,-2],[3,-1],[3,0],[3,1],[2,2],[1,3],
+                [0,3],[-1,3],[-2,2],[-3,1],[-3,0],[-3,-1],[-2,-2],[-1,-3]];
+
+  /* BRIEF-mönster. Måste vara identiskt när indexet byggs och när det
+     används, därför en fast slumpgenerator i stället för Math.random. */
+  const PAT = (() => {
+    let s = 0x2f6e2b1 >>> 0;
+    const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const gauss = () => {
+      let u = 0, v = 0;
+      while (!u) u = rnd();
+      while (!v) v = rnd();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    };
+    const p = new Int8Array(256 * 4);
+    for (let i = 0; i < 256; i++) {
+      for (let k = 0; k < 4; k++) {
+        let v = Math.round(gauss() * (PATCH / 5));
+        if (v > HALF - 1) v = HALF - 1;
+        if (v < -(HALF - 1)) v = -(HALF - 1);
+        p[i * 4 + k] = v;
+      }
+    }
+    return p;
+  })();
+
+  /* ── gråskala ur en bild eller canvas ── */
+  const gcv = document.createElement('canvas');
+  const gcx = gcv.getContext('2d', { willReadFrequently: true });
+  function grayOf(src, w, h) {
+    gcv.width = w; gcv.height = h;
+    gcx.imageSmoothingEnabled = true;
+    gcx.imageSmoothingQuality = 'high';
+    gcx.setTransform(1, 0, 0, 1, 0, 0);
+    gcx.fillStyle = '#000';
+    gcx.fillRect(0, 0, w, h);
+    gcx.drawImage(src, 0, 0, w, h);
+    const d = gcx.getImageData(0, 0, w, h).data;
+    const L = new Float32Array(w * h);
+    for (let i = 0, j = 0; i < w * h; i++, j += 4) L[i] = d[j] * 0.299 + d[j + 1] * 0.587 + d[j + 2] * 0.114;
+    return L;
+  }
+
+  /* ── FAST-9 hörn ── */
+  function fast(L, W, H, thr) {
+    const out = [];
+    const off = CIRC.map(([dx, dy]) => dy * W + dx);
+    const b = HALF + 2;
+    for (let y = b; y < H - b; y++) {
+      for (let x = b; x < W - b; x++) {
+        const i = y * W + x, p = L[i], hi = p + thr, lo = p - thr;
+        // snabbavvisning på de fyra "kompasspunkterna"
+        const a0 = L[i + off[0]], a4 = L[i + off[4]], a8 = L[i + off[8]], a12 = L[i + off[12]];
+        let nb = (a0 > hi) + (a4 > hi) + (a8 > hi) + (a12 > hi);
+        let nd = (a0 < lo) + (a4 < lo) + (a8 < lo) + (a12 < lo);
+        if (nb < 3 && nd < 3) continue;
+        // full cirkel: 9 sammanhängande ljusare eller mörkare
+        let runB = 0, runD = 0, maxB = 0, maxD = 0, score = 0;
+        for (let k = 0; k < 24; k++) {
+          const v = L[i + off[k & 15]];
+          if (v > hi) { runB++; if (runB > maxB) maxB = runB; } else runB = 0;
+          if (v < lo) { runD++; if (runD > maxD) maxD = runD; } else runD = 0;
+          if (k < 16) score += Math.abs(v - p);
+        }
+        if (maxB >= 9 || maxD >= 9) out.push({ x, y, score });
+      }
+    }
+    return out;
+  }
+
+  /* ── icke-max-undertryckning + bästa N ── */
+  function pickBest(kps, n, minDist) {
+    kps.sort((a, b) => b.score - a.score);
+    const keep = [], d2 = minDist * minDist;
+    for (const k of kps) {
+      let ok = true;
+      for (const q of keep) {
+        const dx = k.x - q.x, dy = k.y - q.y;
+        if (dx * dx + dy * dy < d2) { ok = false; break; }
+      }
+      if (ok) keep.push(k);
+      if (keep.length >= n) break;
+    }
+    return keep;
+  }
+
+  /* ── orientering via intensitetscentroid ── */
+  function orient(L, W, kps) {
+    for (const k of kps) {
+      let m01 = 0, m10 = 0;
+      for (let dy = -HALF; dy <= HALF; dy++) {
+        const row = (k.y + dy) * W + k.x;
+        for (let dx = -HALF; dx <= HALF; dx++) {
+          if (dx * dx + dy * dy > HALF * HALF) continue;
+          const v = L[row + dx];
+          m01 += dy * v; m10 += dx * v;
+        }
+      }
+      k.a = Math.atan2(m01, m10);
+    }
+  }
+
+  /* ── roterad BRIEF ── */
+  function describe(L, W, H, kps) {
+    const out = new Uint8Array(kps.length * NB);
+    for (let n = 0; n < kps.length; n++) {
+      const k = kps[n], cs = Math.cos(k.a), sn = Math.sin(k.a), base = n * NB;
+      for (let i = 0; i < 256; i++) {
+        const ax = PAT[i * 4], ay = PAT[i * 4 + 1], bx = PAT[i * 4 + 2], by = PAT[i * 4 + 3];
+        const ax2 = Math.round(ax * cs - ay * sn), ay2 = Math.round(ax * sn + ay * cs);
+        const bx2 = Math.round(bx * cs - by * sn), by2 = Math.round(bx * sn + by * cs);
+        const pa = L[(k.y + ay2) * W + (k.x + ax2)];
+        const pb = L[(k.y + by2) * W + (k.x + bx2)];
+        if (pa < pb) out[base + (i >> 3)] |= (1 << (i & 7));
+      }
+    }
+    return out;
+  }
+
+  /* ── särdrag ur en bild ── */
+  /* Orienterade deskriptorer (rBRIEF) gav sämre resultat än oorienterade:
+     på suddiga lågupplösta kort blir vinkelskattningen brusig, och då pekar
+     mönstret olika håll i fråga och referens. Beskärningen rätas redan upp
+     med kortets uppmätta vinkel, så rotationsinvarians behövs inte —
+     resterande fel är några grader, vilket BRIEF tål. */
+  function features(src, w, h, maxKp, thr, rotInv) {
+    const L = grayOf(src, w, h);
+    const t = thr == null ? FAST_T : thr;
+    let kps = fast(L, w, h, t);
+    if (kps.length < 24) kps = fast(L, w, h, Math.max(6, t - 8));
+    kps = pickBest(kps, maxKp, 4);
+    if (!kps.length) return { kps: [], desc: new Uint8Array(0), w, h };
+    if (rotInv) orient(L, w, kps); else for (const k of kps) k.a = 0;
+    return { kps, desc: describe(L, w, h, kps), w, h };
+  }
+
+  /* ── hamming ── */
+  function popcount(v) {
+    v = v - ((v >> 1) & 0x55555555);
+    v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+    return ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
+  }
+  function ham(a, ao, b, bo) {
+    let d = 0;
+    for (let i = 0; i < NB; i += 4) {
+      const x = ((a[ao + i] ^ b[bo + i])) | ((a[ao + i + 1] ^ b[bo + i + 1]) << 8) |
+                ((a[ao + i + 2] ^ b[bo + i + 2]) << 16) | ((a[ao + i + 3] ^ b[bo + i + 3]) << 24);
+      d += popcount(x);
+    }
+    return d;
+  }
+
+  /* ── matcha med Lowes kvottest ── */
+  function match(qd, qn, rd, rn, ratio) {
+    const out = [];
+    const R = ratio == null ? 0.80 : ratio;
+    for (let i = 0; i < qn; i++) {
+      let b1 = 999, b2 = 999, bi = -1;
+      const qo = i * NB;
+      for (let j = 0; j < rn; j++) {
+        const d = ham(qd, qo, rd, j * NB);
+        if (d < b1) { b2 = b1; b1 = d; bi = j; }
+        else if (d < b2) b2 = d;
+      }
+      if (bi >= 0 && b1 < 72 && b1 < b2 * R) out.push({ q: i, r: bi, d: b1 });
+    }
+    return out;
+  }
+
+  /* ── RANSAC på likformig transform (rotation + skala + förflyttning) ──
+     Två punktpar räcker för att bestämma modellen. Kortet är plant, så en
+     likformig transform är en god approximation av vad kameran gör; en full
+     homografi kräver fyra par och är känsligare för brus vid få träffar. */
+  function ransac(qk, rk, matches, tolFrac, iters, refSize) {
+    const n = matches.length;
+    if (n < 4) return { inliers: [], model: null, n: 0 };
+    const tol = Math.max(3, (tolFrac == null ? 0.045 : tolFrac) * refSize);
+    const tol2 = tol * tol;
+    let best = [], bestM = null;
+    let seed = 0x9e3779b9 >>> 0;
+    const rnd = m => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed % m; };
+    const IT = iters == null ? 220 : iters;
+    for (let it = 0; it < IT; it++) {
+      const i1 = rnd(n), i2 = rnd(n);
+      if (i1 === i2) continue;
+      const a1 = qk[matches[i1].q], b1 = rk[matches[i1].r];
+      const a2 = qk[matches[i2].q], b2 = rk[matches[i2].r];
+      const dax = a2.x - a1.x, day = a2.y - a1.y;
+      const dbx = b2.x - b1.x, dby = b2.y - b1.y;
+      const da2 = dax * dax + day * day;
+      if (da2 < 36) continue;
+      // lös s*R som komplex kvot (db / da)
+      const sr = (dbx * dax + dby * day) / da2;
+      const si = (dby * dax - dbx * day) / da2;
+      const sc = Math.sqrt(sr * sr + si * si);
+      if (sc < 0.35 || sc > 2.8) continue;
+      const tx = b1.x - (sr * a1.x - si * a1.y);
+      const ty = b1.y - (si * a1.x + sr * a1.y);
+      const inl = [];
+      for (let k = 0; k < n; k++) {
+        const a = qk[matches[k].q], b = rk[matches[k].r];
+        const px = sr * a.x - si * a.y + tx, py = si * a.x + sr * a.y + ty;
+        const ex = px - b.x, ey = py - b.y;
+        if (ex * ex + ey * ey < tol2) inl.push(matches[k]);
+      }
+      if (inl.length > best.length) { best = inl; bestM = { sr, si, tx, ty, scale: sc, rot: Math.atan2(si, sr) }; }
+      if (best.length > n * 0.75 && best.length >= 14) break;
+    }
+    return { inliers: best, model: bestM, n };
+  }
+
+  /* Verifiera ETT kandidatkort mot en fråga. Returnerar antal inliers. */
+  function verify(qf, rf, opts) {
+    const o = opts || {};
+    if (!qf.kps.length || !rf.kps.length) return { inliers: 0, model: null };
+    const m = match(qf.desc, qf.kps.length, rf.desc, rf.kps.length, o.ratio);
+    if (m.length < 4) return { inliers: m.length, model: null, matches: m.length };
+    const r = ransac(qf.kps, rf.kps, m, o.tol, o.iters, Math.max(rf.w, rf.h));
+    return { inliers: r.inliers.length, model: r.model, matches: m.length };
+  }
+
+  /* ── referensbild → särdrag i den konfiguration som mätte bäst ──
+     240 px bred och lätt oskärpt. Skärpan MÅSTE likna frågebildens: en
+     skarp referens mot en suddig webbkamerabild gav 3/10 rätt, samma
+     referens nedskalad och oskärpt gav 10/10. Det var den enskilt
+     viktigaste inställningen. */
+  const REF_W = 240, REF_H = Math.round(240 / 0.716), REF_BLUR = 1.2;
+  const rcv = document.createElement('canvas');
+  rcv.width = REF_W; rcv.height = REF_H;
+  const rcx = rcv.getContext('2d', { willReadFrequently: true });
+  function refFeatures(img, maxKp) {
+    rcx.setTransform(1, 0, 0, 1, 0, 0);
+    rcx.filter = 'none';
+    rcx.fillStyle = '#000';
+    rcx.fillRect(0, 0, REF_W, REF_H);
+    rcx.imageSmoothingEnabled = true;
+    rcx.imageSmoothingQuality = 'high';
+    rcx.filter = `blur(${REF_BLUR}px)`;
+    rcx.drawImage(img, 0, 0, REF_W, REF_H);
+    rcx.filter = 'none';
+    return features(rcv, REF_W, REF_H, maxKp || 200, 18, false);
+  }
+  function queryFeatures(cropCanvas, maxKp) {
+    return features(cropCanvas, REF_W, REF_H, maxKp || 300, 14, false);
+  }
+
+  /* Packa alla referenser till tre platta arrayer — ett objekt per kort
+     skulle kosta både minne och tid att serialisera till IndexedDB. */
+  function pack(list) {
+    let total = 0;
+    for (const f of list) total += f.kps.length;
+    const desc = new Uint8Array(total * NB), xy = new Int16Array(total * 2), off = new Int32Array(list.length + 1);
+    let k = 0;
+    for (let i = 0; i < list.length; i++) {
+      off[i] = k;
+      const f = list[i];
+      desc.set(f.desc, k * NB);
+      for (let j = 0; j < f.kps.length; j++) { xy[(k + j) * 2] = f.kps[j].x; xy[(k + j) * 2 + 1] = f.kps[j].y; }
+      k += f.kps.length;
+    }
+    off[list.length] = k;
+    return { desc, xy, off, w: REF_W, h: REF_H };
+  }
+  const _kpBuf = [];
+  function unpack(o, i) {
+    const a = o.off[i], b = o.off[i + 1], n = b - a;
+    _kpBuf.length = 0;
+    for (let j = 0; j < n; j++) _kpBuf.push({ x: o.xy[(a + j) * 2], y: o.xy[(a + j) * 2 + 1] });
+    return { kps: _kpBuf.slice(), desc: o.desc.subarray(a * NB, b * NB), w: o.w, h: o.h };
+  }
+
+  global.ORB = { features, refFeatures, queryFeatures, verify, match, ransac, pack, unpack,
+                 NB, PAT, REF_W, REF_H, REF_BLUR };
+})(window);
+
+/* ══════════════════════════════════════════════════════════════════
+   Automatisk avläsning av en SpellTable-skärmdump.
+
+   Två steg, båda utan externa bibliotek:
+
+   1. Videorutor. SpellTable lägger spelarna i ett rutnät med helsvarta
+      mellanrum. En kolumn som är svart hela vägen ner är mellanrum eller
+      tom ruta — allt annat är innehåll. Samma sak radvis inom varje
+      kolumnband ger rutnätets celler.
+
+   2. Kort i en ruta. Ett magickort är en MÖRK RAM mot ett ljusare bord
+      och ett ljusare innehåll. Det går att mäta direkt med integralbilder:
+      medelljus i ramen jämfört med innanför och strax utanför. Att svepa
+      rutan i några vinklar fångar kort som ligger snett. Det är både
+      enklare och tåligare än att försöka segmentera fram korten — särskilt
+      när de överlappar varandra, vilket de nästan alltid gör.
+
+   Detektorn föreslår bara var kort KAN finnas. Matcharen avgör sedan vad
+   de föreställer, och förslag som inte liknar något kort faller bort.
+   ══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+
+  const ASPECT = 0.716;
+
+  /* ── hjälpare ── */
+  function work(img, sx, sy, sw, sh, maxW) {
+    const s = Math.min(1, maxW / sw);
+    const w = Math.max(8, Math.round(sw * s)), h = Math.max(8, Math.round(sh * s));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.imageSmoothingEnabled = true;
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+    return { cv, data: cx.getImageData(0, 0, w, h).data, w, h, k: sw / w, ox: sx, oy: sy };
+  }
+  function luma(data, n) {
+    const L = new Float32Array(n);
+    for (let i = 0, j = 0; i < n; i++, j += 4) L[i] = data[j] * 0.299 + data[j + 1] * 0.587 + data[j + 2] * 0.114;
+    return L;
+  }
+  function runs(flags, minLen) {
+    const out = [];
+    let s = -1;
+    for (let i = 0; i < flags.length; i++) {
+      if (flags[i]) { if (s < 0) s = i; }
+      else if (s >= 0) { if (i - s >= minLen) out.push([s, i]); s = -1; }
+    }
+    if (s >= 0 && flags.length - s >= minLen) out.push([s, flags.length]);
+    return out;
+  }
+
+  /* ══ 1. videorutor ══ */
+  function findPanes(img) {
+    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const im = work(img, 0, 0, iw, ih, 640);
+    const L = luma(im.data, im.w * im.h), W = im.w, H = im.h;
+    const BLACK = 30, FULL = 0.965;
+
+    const colFlags = new Array(W);
+    for (let x = 0; x < W; x++) {
+      let n = 0;
+      for (let y = 0; y < H; y++) if (L[y * W + x] < BLACK) n++;
+      colFlags[x] = (n / H) < FULL;
+    }
+    const panes = [];
+    for (const [x0, x1] of runs(colFlags, Math.round(W * 0.10))) {
+      const bw = x1 - x0;
+      const rowFlags = new Array(H);
+      for (let y = 0; y < H; y++) {
+        let n = 0;
+        for (let x = x0; x < x1; x++) if (L[y * W + x] < BLACK) n++;
+        rowFlags[y] = (n / bw) < FULL;
+      }
+      for (const [y0, y1] of runs(rowFlags, Math.round(H * 0.10))) {
+        const w = bw, h = y1 - y0, ar = w / h;
+        if (w < W * 0.18) continue;                    // sidopanelen är smal
+        if (ar < 0.8 || ar > 3.6) continue;            // videorutor är liggande
+        if (w * h < W * H * 0.03) continue;
+        panes.push({ x: x0 * im.k, y: y0 * im.k, w: w * im.k, h: h * im.k });
+      }
+    }
+    if (!panes.length) panes.push({ x: 0, y: 0, w: iw, h: ih });
+    panes.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    return panes;
+  }
+
+  /* ══ 2. kortförslag i en ruta ══ */
+  function rotatedLuma(srcCanvas, deg) {
+    const rad = deg * Math.PI / 180;
+    const c = Math.abs(Math.cos(rad)), s = Math.abs(Math.sin(rad));
+    const w = srcCanvas.width, h = srcCanvas.height;
+    const W = Math.ceil(w * c + h * s), H = Math.ceil(w * s + h * c);
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d', { willReadFrequently: true });
+    cx.fillStyle = '#000';
+    cx.fillRect(0, 0, W, H);
+    cx.translate(W / 2, H / 2);
+    cx.rotate(-rad);                                   // motrotera så kort i vinkel blir raka
+    cx.drawImage(srcCanvas, -w / 2, -h / 2);
+    const d = cx.getImageData(0, 0, W, H).data;
+    return { L: luma(d, W * H), W, H, rad, w, h };
+  }
+  function backMap(r, X, Y) {
+    const dx = X - r.W / 2, dy = Y - r.H / 2;
+    const c = Math.cos(r.rad), s = Math.sin(r.rad);    // invers av −rad
+    return { x: dx * c - dy * s + r.w / 2, y: dx * s + dy * c + r.h / 2 };
+  }
+  function integral(L, W, H) {
+    const W1 = W + 1, I = new Float64Array(W1 * (H + 1));
+    for (let y = 0; y < H; y++) {
+      let run = 0;
+      for (let x = 0; x < W; x++) { run += L[y * W + x]; I[(y + 1) * W1 + x + 1] = I[y * W1 + x + 1] + run; }
+    }
+    return I;
+  }
+  const rsum = (I, W1, x0, y0, x1, y1) =>
+    I[y1 * W1 + x1] - I[y0 * W1 + x1] - I[y1 * W1 + x0] + I[y0 * W1 + x0];
+
+  /* Kortlikhet.
+
+     Första försöket mätte ramen som helhet mot innanmätet. Det gick fel:
+     den svarta bakgrunden runt hela videorutan blev en jättelik "kortram"
+     och vann över de riktiga korten. Rätt mått ställer krav på VARJE sida
+     för sig — ett kort har mörk kant runt om, inte bara på ett håll — och
+     jämför kanten både med kortets insida och med bordet strax utanför.
+     Poängen är den svagaste sidan, så ett ensamt mörkt streck räcker inte. */
+  function cardness(I, W1, W, H, x, y, w, h) {
+    const b = Math.max(2, Math.round(w * 0.06));
+    const x1 = x + w, y1 = y + h;
+    if (x < 0 || y < 0 || x1 > W || y1 > H) return -1e9;
+    const ix0 = x + b, iy0 = y + b, ix1 = x1 - b, iy1 = y1 - b;
+    if (ix1 <= ix0 + 3 || iy1 <= iy0 + 3) return -1e9;
+    const inner = rsum(I, W1, ix0, iy0, ix1, iy1) / ((ix1 - ix0) * (iy1 - iy0));
+    const p = Math.max(2, Math.round(w * 0.09));
+    const side = (rx0, ry0, rx1, ry1, ox0, oy0, ox1, oy1) => {
+      const ra = (rx1 - rx0) * (ry1 - ry0);
+      if (ra <= 0) return -1e9;
+      const ring = rsum(I, W1, rx0, ry0, rx1, ry1) / ra;
+      const cx0 = Math.max(0, ox0), cy0 = Math.max(0, oy0);
+      const cx1 = Math.min(W, ox1), cy1 = Math.min(H, oy1);
+      const oa = (cx1 - cx0) * (cy1 - cy0);
+      const out = oa > 0 ? rsum(I, W1, cx0, cy0, cx1, cy1) / oa : inner;
+      return (inner + out) * 0.5 - ring;
+    };
+    /* Poängen är den SVAGASTE sidan. Ett försök att kompensera för lampglans
+       genom att dela med hur nära vitt området låg gjorde det klart sämre —
+       det belönade platta överexponerade bordsytor i stället för kort. */
+    return Math.min(
+      side(x, y, x1, y + b,        x, y - p, x1, y),          // ovan
+      side(x, y1 - b, x1, y1,      x, y1, x1, y1 + p),        // under
+      side(x, y + b, x + b, y1 - b, x - p, y, x, y1),         // vänster
+      side(x1 - b, y + b, x1, y1 - b, x1, y, x1 + p, y1)      // höger
+    );
+  }
+
+  /* ── mallmatchning: "ser det här ut som ett magickort inuti?" ──
+     Korrelation mellan fönstrets 8×11-luminansrutnät och poolens
+     genomsnittskort. Till skillnad från ramtestet bryr den sig inte om vad
+     som finns UTANFÖR kortet, och fungerar därför även när korten ligger
+     omlott — vilket de nästan alltid gör på ett riktigt bord.
+
+     Cellgränserna förberäknas per kortstorlek: att räkna ut dem per fönster
+     kostade mer än själva jämförelsen. */
+  const TW = 8, TH = 11, TN = TW * TH;
+  const _t = new Float32Array(TN);
+  const _offs = new Map();
+  function offsets(w, h) {
+    const key = w * 4096 + h;
+    let o = _offs.get(key);
+    if (o) return o;
+    const xs = new Int32Array(TW + 1), ys = new Int32Array(TH + 1);
+    for (let c = 0; c <= TW; c++) xs[c] = Math.round(c * w / TW);
+    for (let r = 0; r <= TH; r++) ys[r] = Math.round(r * h / TH);
+    for (let c = 0; c < TW; c++) if (xs[c + 1] <= xs[c]) xs[c + 1] = xs[c] + 1;
+    for (let r = 0; r < TH; r++) if (ys[r + 1] <= ys[r]) ys[r + 1] = ys[r] + 1;
+    const area = new Float32Array(TN);
+    for (let r = 0; r < TH; r++)
+      for (let c = 0; c < TW; c++) area[r * TW + c] = 1 / ((xs[c + 1] - xs[c]) * (ys[r + 1] - ys[r]));
+    o = { xs, ys, area };
+    _offs.set(key, o);
+    return o;
+  }
+  function tmplScore(I, W1, W, H, x, y, w, h, T) {
+    if (x < 0 || y < 0 || x + w > W || y + h > H) return -1e9;
+    const o = offsets(w, h), xs = o.xs, ys = o.ys, area = o.area;
+    let m = 0;
+    for (let r = 0; r < TH; r++) {
+      const y0 = (y + ys[r]) * W1, y1 = (y + ys[r + 1]) * W1;
+      for (let c = 0; c < TW; c++) {
+        const x0 = x + xs[c], x1 = x + xs[c + 1];
+        const v = (I[y1 + x1] - I[y0 + x1] - I[y1 + x0] + I[y0 + x0]) * area[r * TW + c];
+        _t[r * TW + c] = v;
+        m += v;
+      }
+    }
+    m /= TN;
+    let s = 0;
+    for (let k = 0; k < TN; k++) { const d = _t[k] - m; s += d * d; }
+    s = Math.sqrt(s / TN);
+    if (s < 1e-3) return -1e9;                    // helt platt yta — inget kort
+    let dot = 0;
+    for (let k = 0; k < TN; k++) dot += (_t[k] - m) * T[k];
+    return dot / (s * TN);
+  }
+
+  /* Alla kortförslag i en ruta.
+
+     Två svep. Det första letar brett över storlekar och hittar hur stora
+     korten är i rutan; det andra går tätt vid just den storleken och ger
+     välcentrerade träffar. Finns en kortpool används genomsnittskortet som
+     mall — annars faller detektorn tillbaka på ramtestet. */
+  function proposeCards(img, pane, opts) {
+    const o = Object.assign({ maxW: 760, rots: [-26, -19, -13, -6, 0, 6, 13, 19, 26], want: 18 }, opts || {});
+    const im = work(img, pane.x, pane.y, pane.w, pane.h, o.maxW);
+    const T = o.template ? o.template.grid : null;
+
+    const frames = o.rots.map(deg => {
+      const r = rotatedLuma(im.cv, deg);
+      return { deg, r, I: integral(r.L, r.W, r.H), W1: r.W + 1 };
+    });
+    const inside = (r, x, y, w, h) => {
+      const m = w * 0.16;
+      for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        const q = backMap(r, px, py);
+        if (q.x < -m || q.y < -m || q.x > r.w + m || q.y > r.h + m) return false;
+      }
+      return true;
+    };
+    const scoreAt = (f, x, y, cw, ch) => T
+      ? tmplScore(f.I, f.W1, f.r.W, f.r.H, x, y, cw, ch, T)
+      : cardness(f.I, f.W1, f.r.W, f.r.H, x, y, cw, ch) / 60;
+    const sweep = (widths, stepFrac, minScore, useFrames) => {
+      const out = [];
+      for (const f of (useFrames || frames)) {
+        const r = f.r;
+        for (const cw of widths) {
+          const ch = Math.round(cw / ASPECT);
+          if (ch >= r.H || cw >= r.W) continue;
+          const step = Math.max(2, Math.round(cw * stepFrac));
+          for (let y = 0; y + ch <= r.H; y += step) {
+            for (let x = 0; x + cw <= r.W; x += step) {
+              const s = scoreAt(f, x, y, cw, ch);
+              if (s < minScore) continue;
+              if (!inside(r, x, y, cw, ch)) continue;
+              out.push({ score: s, deg: f.deg, w: cw, x, y, f });
+            }
+          }
+        }
+      }
+      return out;
+    };
+
+    const MIN = T ? 0.14 : 0.16;
+    const wMin = Math.max(16, im.w * 0.07), wMax = im.w * 0.30;
+    const w1 = [];
+    for (let w = wMin; w <= wMax; w *= 1.14) w1.push(Math.round(w));
+    const pass1 = sweep(w1, 0.22, MIN);
+    if (!pass1.length) return { proposals: [], work: im, cardW: 0 };
+    pass1.sort((a, b) => b.score - a.score);
+    /* Kortstorlek: den bredd vars BÄSTA träffar är starkast.
+       Ett viktat histogram över alla träffar var systematiskt fel — små
+       fönster får långt fler positioner att samla poäng på, så summan pekade
+       alltid mot för små kort. Medelvärdet av de fem bästa poängen per
+       bredd har inte den snedvridningen, eftersom det inte beror på hur
+       många fönster som fanns. */
+    const perW = new Map();
+    for (const c of pass1) {
+      let a = perW.get(c.w);
+      if (!a) { a = []; perW.set(c.w, a); }
+      if (a.length < 5) a.push(c.score);
+      else if (c.score > a[4]) { a[4] = c.score; a.sort((x, y) => y - x); }
+    }
+    let wRef = 0, bestV = -1e9;
+    for (const [w, a] of perW) {
+      if (a.length < 3) continue;
+      const v = a.reduce((s, x) => s + x, 0) / a.length;
+      if (v > bestV) { bestV = v; wRef = w; }
+    }
+    if (!wRef) wRef = pass1[0].w;
+
+    // Svep 2 går tätt kring den funna storleken. Ladderns bredd är satt så
+    // att även en storleksgissning som är 25 % fel fångas upp.
+    const w2 = Array.from(new Set([0.88, 1.0, 1.13].map(f => Math.round(wRef * f))));
+    const pass2 = sweep(w2, 0.06, MIN);
+    const cands = pass2.length ? pass2 : pass1;
+    cands.sort((a, b) => b.score - a.score);
+
+    /* Absolut tröskel när mallen används. Uppmätt på en ruta med
+       tangentbord, mus och SpellTables överlägg: riktiga kort 0.79–0.89,
+       allt annat 0.48–0.69. Bara en relativ tröskel räckte inte — om det
+       bäst poängsatta råkade vara ett tangentbord blev allt relativt det. */
+    const cut = T ? Math.max(0.70, cands[0].score * 0.55) : cands[0].score * 0.38;
+    /* Inget "behåll minst N" när mallen används. Regeln var tänkt som skydd
+       om toppvärdet råkade komma från något som inte var ett kort, men med
+       en absolut tröskel gör den bara skada: den tvingade igenom ett förslag
+       med mallpoäng 0.64 i en ruta med fyra kort, och det blev ett felaktigt
+       kort i handen. */
+    const MIN_KEEP = T ? 0 : 5;
+    const keep = [];
+    for (const c of cands) {
+      if (c.score < cut && keep.length >= MIN_KEEP) break;
+      const p = backMap(c.f.r, c.x + c.w / 2, c.y + (c.w / ASPECT) / 2);
+      let dup = false;
+      for (const k of keep) {
+        const lim = Math.min(c.w, k.w);
+        if (Math.abs(p.x - k.ux) < lim * 0.55 && Math.abs(p.y - k.uy) < lim * 0.55) { dup = true; break; }
+      }
+      if (dup) continue;
+      keep.push({ score: c.score, deg: c.deg, w: c.w, ux: p.x, uy: p.y });
+      if (keep.length >= o.want) break;
+    }
+    return {
+      proposals: keep.map(c => ({
+        score: c.score, deg: c.deg,
+        cx: pane.x + c.ux * im.k, cy: pane.y + c.uy * im.k,
+        w: c.w * im.k, h: (c.w / ASPECT) * im.k
+      })),
+      work: im, cardW: wRef * im.k
+    };
+  }
+
+  global.Detect = { findPanes, proposeCards, cardness, integral, rotatedLuma, work, ASPECT };
+})(window);
+</script>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   Handvy — överblick över MTG-händer från SpellTable-screenshots
+   Kortdata: Scryfall (https://scryfall.com/docs/api)
+   Allt lagras lokalt (localStorage + IndexedDB). Inget skickas vidare.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ─────────── små hjälpare ─────────── */
+const $  = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-3);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+const PALETTE = ['#f0a52a', '#6b8cff', '#57c785', '#e2606a', '#b782ff', '#4ec9d6', '#ff9a5a', '#c9d2e0'];
+const ASPECT = 488 / 680;              // kortproportion (bredd / höjd)
+
+/* mana-symboler: {2}{U}{U} → små runda pärlor */
+const MSCOL = { W: 'w', U: 'u', B: 'b', R: 'r', G: 'g', C: 'c' };
+const HEX   = { w: '#fbf7e2', u: '#a7d3ee', b: '#b0a49d', r: '#f0a48b', g: '#9fd0a8', c: '#cbc6c1' };
+function symbol(tok, big) {
+  const t = tok.toUpperCase(), cls = big ? ' big' : '';
+  if (t.includes('/')) {
+    const [a, b] = t.split('/');
+    const c1 = HEX[MSCOL[a]] || HEX.c, c2 = HEX[MSCOL[b]] || HEX.c;
+    return `<i class="ms hy${cls}" style="--h1:${c1};--h2:${c2}">${esc(a + b)}</i>`;
+  }
+  return `<i class="ms ${MSCOL[t] || 'c'}${cls}">${esc(t === 'T' ? 'T' : t)}</i>`;
+}
+function symbolize(str, big) {
+  return esc(str).replace(/\{([^}]{1,5})\}/g, (_, t) => symbol(t, big));
+}
+function manaHtml(cost, big) {
+  if (!cost) return '';
+  const out = [];
+  cost.replace(/\{([^}]{1,5})\}/g, (_, t) => { out.push(symbol(t, big)); return ''; });
+  return out.join('');
+}
+
+/* ─────────── status & toast ─────────── */
+const statusEl = $('#status'), statusTxt = $('#statusTxt');
+let busyCount = 0;
+function busy(on, txt) {
+  busyCount = Math.max(0, busyCount + (on ? 1 : -1));
+  statusEl.classList.toggle('busy', busyCount > 0);
+  statusEl.classList.remove('err');
+  statusTxt.textContent = busyCount > 0 ? (txt || 'Hämtar…') : 'Redo';
+}
+function statusErr(txt) { statusEl.classList.add('err'); statusTxt.textContent = txt; }
+
+const toastEl = $('#toast');
+let toastT = null;
+function toast(msg, kind) {
+  const d = document.createElement('div');
+  if (kind) d.className = kind;
+  d.textContent = msg;
+  toastEl.appendChild(d);
+  toastEl.classList.add('on');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => {
+    toastEl.classList.remove('on');
+    setTimeout(() => { toastEl.innerHTML = ''; }, 220);
+  }, kind === 'err' ? 4200 : 2400);
+}
+
+/* ─────────── localStorage ─────────── */
+const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v1', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1' };
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+/* ─────────── IndexedDB för screenshots ─────────── */
+const IDB = (() => {
+  let dbp = null;
+  function db() {
+    if (dbp) return dbp;
+    dbp = new Promise((res, rej) => {
+      let rq;
+      try { rq = indexedDB.open('sthv', 2); } catch (e) { return rej(e); }
+      rq.onupgradeneeded = () => {
+        const d = rq.result;
+        if (!d.objectStoreNames.contains('shots')) d.createObjectStore('shots', { keyPath: 'id' });
+        if (!d.objectStoreNames.contains('pool')) d.createObjectStore('pool', { keyPath: 'code' });
+      };
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+    return dbp;
+  }
+  function tx(store, mode, fn) {
+    return db().then(d => new Promise((res, rej) => {
+      const t = d.transaction(store, mode), s = t.objectStore(store);
+      let out;
+      const rq = fn(s);
+      if (rq) rq.onsuccess = () => { out = rq.result; };
+      t.oncomplete = () => res(out);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error);
+    }));
+  }
+  return {
+    put: rec => tx('shots', 'readwrite', s => s.put(rec)),
+    del: id => tx('shots', 'readwrite', s => s.delete(id)),
+    all: () => tx('shots', 'readonly', s => s.getAll()),
+    clear: () => tx('shots', 'readwrite', s => s.clear()),
+    poolGet: code => tx('pool', 'readonly', s => s.get(code)),
+    poolPut: rec => tx('pool', 'readwrite', s => s.put(rec)),
+    poolDel: code => tx('pool', 'readwrite', s => s.delete(code)),
+    poolAll: () => tx('pool', 'readonly', s => s.getAll())
+  };
+})();
+
+/* ─────────── Scryfall-klient (kö + throttling + cache) ─────────── */
+const SF = (() => {
+  const BASE = 'https://api.scryfall.com';
+  const GAP = 95;                       // Scryfalls riktlinje: ~10 anrop/s
+  let chain = Promise.resolve(), lastAt = 0;
+
+  function enqueue(task) {
+    const p = chain.then(async () => {
+      const wait = GAP - (performance.now() - lastAt);
+      if (wait > 0) await sleep(wait);
+      lastAt = performance.now();
+      return task();
+    });
+    chain = p.then(() => {}, () => {});
+    return p;
+  }
+  async function get(path) {
+    return enqueue(async () => {
+      let r;
+      try { r = await fetch(BASE + path, { headers: { Accept: 'application/json' } }); }
+      catch (e) { const err = new Error('offline'); err.offline = true; throw err; }
+      const d = await r.json().catch(() => null);
+      if (!r.ok) {
+        const err = new Error((d && (d.details || d.warnings)) || ('HTTP ' + r.status));
+        err.status = r.status;
+        throw err;
+      }
+      return d;
+    });
+  }
+  return {
+    autocomplete: q => get('/cards/autocomplete?q=' + encodeURIComponent(q)),
+    fuzzy: q => get('/cards/named?fuzzy=' + encodeURIComponent(q)),
+    exact: q => get('/cards/named?exact=' + encodeURIComponent(q)),
+    byId: id => get('/cards/' + encodeURIComponent(id)),
+    set: code => get('/sets/' + encodeURIComponent(code)),
+    raw: path => get(path)
+  };
+})();
+
+/* ─────────── kortcache ─────────── */
+const cardCache = new Map(Object.entries(LS.get(K.cards, {})));   // kanoniskt namn (lc) → kort
+const aliasMap  = new Map(Object.entries(LS.get(K.alias, {})));   // sökt text (lc)     → kanoniskt namn
+const failed    = new Map();                                      // sökt text (lc)     → felmeddelande
+const inflight  = new Map();                                      // sökt text (lc)     → Promise
+
+let saveCacheT = null;
+function saveCache() {
+  clearTimeout(saveCacheT);
+  saveCacheT = setTimeout(() => {
+    // håll cachen under kontroll — behåll de 800 senast använda
+    let entries = Array.from(cardCache.entries());
+    if (entries.length > 800) entries = entries.slice(-800);
+    if (!LS.set(K.cards, Object.fromEntries(entries))) {
+      // slut på utrymme: halvera och försök igen
+      entries = entries.slice(-300);
+      LS.set(K.cards, Object.fromEntries(entries));
+    }
+    let al = Array.from(aliasMap.entries());
+    if (al.length > 1200) al = al.slice(-1200);
+    LS.set(K.alias, Object.fromEntries(al));
+  }, 400);
+}
+
+/* Scryfall-svar → kompakt form */
+function normalizeCard(c) {
+  const faces = [];
+  const mk = (f, iu) => ({
+    name: f.name, mana: f.mana_cost || '', type: f.type_line || '',
+    oracle: f.oracle_text || '', flavor: f.flavor_text || '',
+    pow: f.power, tou: f.toughness, loy: f.loyalty, def: f.defense,
+    img: iu ? { small: iu.small, normal: iu.normal, large: iu.large, png: iu.png } : null
+  });
+  if (Array.isArray(c.card_faces) && c.card_faces.length && c.card_faces[0].image_uris) {
+    for (const f of c.card_faces) faces.push(mk(f, f.image_uris));
+  } else if (Array.isArray(c.card_faces) && c.card_faces.length) {
+    // split / adventure / flip: en bild, två textdelar
+    const f = mk(c, c.image_uris);
+    f.oracle = c.card_faces.map(x =>
+      `${x.name}${x.mana_cost ? ' ' + x.mana_cost : ''}\n${x.type_line || ''}\n${x.oracle_text || ''}`.trim()
+    ).join('\n\n— — —\n\n');
+    f.mana = c.mana_cost || c.card_faces.map(x => x.mana_cost).filter(Boolean).join(' // ');
+    faces.push(f);
+  } else {
+    faces.push(mk(c, c.image_uris));
+  }
+  return {
+    id: c.id, name: c.name, cmc: c.cmc, ci: c.color_identity || [],
+    set: c.set, setName: c.set_name, cn: c.collector_number, rarity: c.rarity,
+    layout: c.layout, uri: c.scryfall_uri, faces
+  };
+}
+
+/* Slå upp ett namn — fuzzy, cachat, avduplicerat */
+function lookup(query) {
+  const q = norm(query);
+  if (!q) return Promise.reject(new Error('tomt'));
+  const alias = aliasMap.get(q);
+  if (alias && cardCache.has(alias)) return Promise.resolve(cardCache.get(alias));
+  if (cardCache.has(q)) return Promise.resolve(cardCache.get(q));
+  if (failed.has(q)) return Promise.reject(new Error(failed.get(q)));
+  if (inflight.has(q)) return inflight.get(q);
+
+  const p = SF.fuzzy(q).then(raw => {
+    const card = normalizeCard(raw);
+    const key = norm(card.name);
+    cardCache.set(key, card);
+    aliasMap.set(q, key);
+    saveCache();
+    inflight.delete(q);
+    return card;
+  }).catch(err => {
+    inflight.delete(q);
+    const msg = err.offline ? 'ingen anslutning'
+      : err.status === 404 ? 'hittades inte'
+      : /ambiguous|too many|fler än/i.test(err.message || '') ? 'flertydigt namn'
+      : (err.message || 'fel');
+    if (!err.offline) failed.set(q, msg);
+    throw new Error(msg);
+  });
+  inflight.set(q, p);
+  return p;
+}
+function cardFor(name) {
+  const q = norm(name);
+  return cardCache.get(aliasMap.get(q) || q) || null;
+}
+/* En handpost kan peka på en exakt tryckning (sid) — t.ex. skannad ur j25 —
+   eller bara på ett namn. Nyckeln avgör var i cachen kortet ligger. */
+function keyOf(e) {
+  if (!e) return '';
+  if (e.sid) return 'id:' + e.sid;
+  const q = norm(e.name);
+  return aliasMap.get(q) || q;
+}
+function cardOf(e) { return e ? (cardCache.get(keyOf(e)) || null) : null; }
+function lookupId(sid) {
+  const k = 'id:' + sid;
+  if (cardCache.has(k)) return Promise.resolve(cardCache.get(k));
+  if (failed.has(k)) return Promise.reject(new Error(failed.get(k)));
+  if (inflight.has(k)) return inflight.get(k);
+  const p = SF.byId(sid).then(raw => {
+    const card = normalizeCard(raw);
+    cardCache.set(k, card);
+    saveCache();
+    inflight.delete(k);
+    return card;
+  }).catch(err => {
+    inflight.delete(k);
+    const msg = err.offline ? 'ingen anslutning' : err.status === 404 ? 'hittades inte' : (err.message || 'fel');
+    if (!err.offline) failed.set(k, msg);
+    throw new Error(msg);
+  });
+  inflight.set(k, p);
+  return p;
+}
+function imgOf(card, face, size) {
+  const f = card && card.faces[face || 0];
+  if (!f || !f.img) return '';
+  return f.img[size] || f.img.normal || f.img.large || f.img.small || '';
+}
+
+/* ─────────── state ─────────── */
+const prefs = Object.assign({ cardw: 150, fit: true, shownums: false }, LS.get(K.prefs, {}));
+function savePrefs() { LS.set(K.prefs, prefs); }
+
+let state = LS.get(K.state, null);
+if (!state || !Array.isArray(state.players) || !state.players.length) {
+  state = { players: [mkPlayer('Spelare 1', 0)], active: null, sel: 0 };
+  state.active = state.players[0].id;
+}
+state.players.forEach((p, i) => {
+  p.color = p.color || PALETTE[i % PALETTE.length];
+  p.cards = Array.isArray(p.cards) ? p.cards : [];
+  p.cards.forEach(c => { c.cid = c.cid || uid(); });
+  p.shots = Array.isArray(p.shots) ? p.shots : [];
+  p.pending = Array.isArray(p.pending) ? p.pending : [];
+  p.shotIdx = p.shotIdx || 0;
+});
+if (!state.players.some(p => p.id === state.active)) state.active = state.players[0].id;
+state.sel = state.sel || 0;
+
+function mkPlayer(name, i) {
+  return { id: uid(), name, color: PALETTE[i % PALETTE.length], cards: [], shots: [], shotIdx: 0, pending: [], pane: null };
+}
+let saveT = null;
+function save() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    const slim = {
+      active: state.active, sel: state.sel,
+      players: state.players.map(p => ({
+        id: p.id, name: p.name, color: p.color, shots: p.shots, shotIdx: p.shotIdx,
+        pane: p.pane || undefined,
+        pending: (p.pending || []).map(q => ({ id: q.id, box: q.box, rot: q.rot, shotId: q.shotId, cands: (q.cands || []).slice(0, 8) })),
+        cards: p.cards.map(c => ({
+          cid: c.cid, name: c.name, sid: c.sid || undefined, flipped: c.flipped ? 1 : 0,
+          box: c.box || undefined, rot: c.rot || undefined, shotId: c.shotId || undefined,
+          cands: c.cands ? c.cands.slice(0, 8) : undefined
+        }))
+      }))
+    };
+    LS.set(K.state, slim);
+  }, 250);
+}
+const player = () => state.players.find(p => p.id === state.active) || state.players[0];
+const hand = () => player().cards;
+const selCard = () => hand()[state.sel] || null;
+
+/* screenshots i minnet: id → {rec, url} */
+const shotMem = new Map();
+function shotURL(id) { const s = shotMem.get(id); return s ? s.url : ''; }
+
+/* ══════════════════════════════════════════════════════════════════
+   RENDERING
+   ══════════════════════════════════════════════════════════════════ */
+const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand');
+
+/* ─── spelarflikar ─── */
+function renderTabs() {
+  const box = $('#playerTabs');
+  box.innerHTML = state.players.map((p, i) => `
+    <button class="ptab${p.id === state.active ? ' on' : ''}" data-pid="${esc(p.id)}" title="${esc(p.name)} — tryck ${i + 1}">
+      ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
+      <span class="dot" style="background:${esc(p.color)}"></span>
+      <span class="nm">${esc(p.name)}</span>
+      <span class="cnt">${p.cards.length}</span>
+      ${state.players.length > 1 ? `<span class="x" data-del="${esc(p.id)}" title="Ta bort spelaren" role="button">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
+    </button>`).join('');
+}
+
+/* ─── storlek på korten i rutnätet ─── */
+function computeFit() {
+  const n = hand().length;
+  if (!n) return prefs.cardw;
+  const cs = getComputedStyle(gridWrap);
+  const W = gridWrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+  const H = gridWrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2;
+  const gap = parseFloat(getComputedStyle(gridEl).gap) || 12;
+  if (!(W > 0 && H > 0)) return prefs.cardw;
+  let best = 0;
+  for (let cols = 1; cols <= n; cols++) {
+    const rows = Math.ceil(n / cols);
+    const byCol = (W - gap * (cols - 1)) / cols;
+    const byRow = ((H - gap * (rows - 1)) / rows) * ASPECT;
+    const w = Math.min(byCol, byRow);
+    if (w > best) best = w;
+  }
+  // marginal så inte "sel"-skalningen (1.035) klipps
+  return clamp(Math.floor(best - 3), 58, 460);
+}
+function applySize() {
+  const w = prefs.fit ? computeFit() : prefs.cardw;
+  gridEl.style.setProperty('--cardw', w + 'px');
+  $('#fitBtn').classList.toggle('on', !!prefs.fit);
+  gridWrap.classList.toggle('shownums', !!prefs.shownums);
+}
+
+/* ─── handens rutnät ─── */
+let gridSig = '';
+function cardStatus(e) {
+  if (cardOf(e)) return 'ok';
+  if (failed.has(keyOf(e))) return 'err';
+  return 'pending';
+}
+function renderGrid(force) {
+  const cards = hand();
+  const sig = cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + cardStatus(c)).join('|');
+  if (!force && sig === gridSig) { renderSel(); return; }
+  gridSig = sig;
+
+  gridEl.innerHTML = cards.map((e, i) => {
+    const card = cardOf(e);
+    const st = cardStatus(e);
+    const fi = e.flipped && card && card.faces.length > 1 ? 1 : 0;
+    const src = card ? imgOf(card, fi, 'normal') : '';
+    const dfc = card && card.faces.length > 1 && card.faces[1].img;
+    const label = card ? card.name : e.name;
+    return `<button class="card ${st === 'ok' ? '' : st === 'err' ? 'err' : 'pending'}" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}">
+      <span class="idx">${i + 1}</span>
+      ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
+      <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(failed.get(keyOf(e)) || '') + '</span>' : ''}</span>
+      ${dfc ? `<span class="flipbadge" data-flip="${i}" role="button" title="Vänd (Space)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg></span>` : ''}
+    </button>`;
+  }).join('');
+
+  emptyEl.classList.toggle('hide', cards.length > 0);
+  $('#handCount').textContent = cards.length === 1 ? '1 kort' : cards.length + ' kort';
+  applySize();
+  renderSel();
+}
+function renderSel() {
+  const n = hand().length;
+  state.sel = n ? clamp(state.sel, 0, n - 1) : 0;
+  $$('.card', gridEl).forEach((el, i) => el.classList.toggle('sel', i === state.sel));
+  const el = gridEl.children[state.sel];
+  if (el) {
+    const r = el.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
+    if (r.top < wr.top + 6 || r.bottom > wr.bottom - 6) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+/* ─── detaljpanelen ─── */
+function faceInfoHtml(card, f, fi) {
+  const pt = f.pow != null ? `${esc(f.pow)} / ${esc(f.tou)}`
+    : f.loy != null ? `Lojalitet ${esc(f.loy)}`
+    : f.def != null ? `Försvar ${esc(f.def)}` : '';
+  return `
+    <div class="dhead"><h2>${esc(f.name)}</h2><span class="dmana">${manaHtml(f.mana, true)}</span></div>
+    <div class="dtype">${esc(f.type)}</div>
+    ${f.oracle ? `<div class="doracle">${symbolize(f.oracle)}</div>` : ''}
+    ${pt ? `<div class="dpt">${pt}</div>` : ''}
+    ${f.flavor ? `<div class="doracle"><em>${esc(f.flavor)}</em></div>` : ''}
+    <div class="dset">
+      <span class="setcode">${esc(card.set)}</span>
+      <span>${esc(card.setName)} · #${esc(card.cn)}</span>
+      <span style="text-transform:capitalize">${esc(card.rarity || '')}</span>
+      <a href="${esc(card.uri)}" target="_blank" rel="noreferrer" style="margin-left:auto">Scryfall ↗</a>
+    </div>`;
+}
+function renderDetail() {
+  const pad = $('#detailPad');
+  const e = selCard();
+  if (!e) {
+    pad.innerHTML = `<div class="dempty">Inget kort valt.<br><span style="color:#4d5a6d">Klicka på ett kort eller använd piltangenterna.</span></div>`;
+    return;
+  }
+  const card = cardOf(e);
+  if (!card) {
+    const err = failed.get(keyOf(e));
+    pad.innerHTML = `<div class="dempty">${err ? '⚠ ' : ''}<b style="color:var(--txt)">${esc(e.name)}</b><br>
+      <span style="color:#4d5a6d">${err ? esc(err) + ' på Scryfall' : 'Hämtar…'}</span>
+      ${err ? `<div style="margin-top:14px"><button class="btn sm" id="retryCard">Försök igen</button></div>` : ''}</div>`;
+    const rb = $('#retryCard');
+    if (rb) rb.onclick = () => { failed.delete(keyOf(e)); renderAll(); resolveAll(); };
+    return;
+  }
+  const many = card.faces.length > 1 && card.faces[1].img;
+  const fi = e.flipped && many ? 1 : 0;
+  const f = card.faces[fi];
+  pad.innerHTML = `
+    <div class="dimg">
+      <img src="${esc(imgOf(card, fi, 'png') || imgOf(card, fi, 'large'))}" alt="${esc(f.name)}">
+      ${many ? `<button class="flipbtn" id="dFlip">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
+        Vänd</button>` : ''}
+    </div>
+    ${faceInfoHtml(card, f, fi)}`;
+  const fb = $('#dFlip');
+  if (fb) fb.onclick = () => flipSel();
+}
+
+/* ─── fokusläge ─── */
+let focusOpen = false;
+function renderFocus() {
+  if (!focusOpen) return;
+  const e = selCard(), p = player(), n = hand().length;
+  const card = cardOf(e);
+  $('#fxWho').innerHTML = `<span class="dot" style="background:${esc(p.color)}"></span><span>${esc(p.name)}</span>`;
+  $('#fxPos').textContent = n ? `${state.sel + 1} / ${n}` : '';
+  const many = card && card.faces.length > 1 && card.faces[1].img;
+  const fi = e && e.flipped && many ? 1 : 0;
+  const img = $('#fxImg');
+  if (card) { img.src = imgOf(card, fi, 'png') || imgOf(card, fi, 'large'); img.hidden = false; }
+  else { img.removeAttribute('src'); img.hidden = true; }
+  $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
+    : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Handen är tom'}</div>`;
+  $('#fxStrip').innerHTML = hand().map((x, i) => {
+    const c = cardOf(x);
+    const f2 = x.flipped && c && c.faces.length > 1 ? 1 : 0;
+    return `<button class="${i === state.sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : x.name)}">
+      ${c ? `<img src="${esc(imgOf(c, f2, 'small'))}" alt="">` : ''}</button>`;
+  }).join('');
+  const on = $('#fxStrip .on');
+  if (on) on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  $('#fxPrev').disabled = $('#fxNext').disabled = n < 2;
+}
+
+function renderAll(forceGrid) {
+  renderTabs();
+  renderGrid(forceGrid);
+  renderDetail();
+  renderFocus();
+  renderShotUI();
+  renderPending();
+  const p = player();
+  $('#hintBar').classList.toggle('hide', p.cards.length === 0);
+  const hasShot = p.shots.length > 0;
+  $('#shotBtnTxt').textContent = hasShot ? 'Skärmdump' : 'Klistra in skärmdump';
+  $('#shotBtn').classList.toggle('prim', !hasShot && p.cards.length > 0);
+}
+function renderPending() {
+  const p = player(), q = p.pending || [];
+  const bar = $('#pendBar');
+  bar.hidden = q.length === 0;
+  if (!q.length) return;
+  $('#pendCount').textContent = q.length;
+  $('#pendWord').textContent = q.length === 1 ? 'kort hittades' : 'kort hittades';
+  $('#pendTail').textContent = p.cards.length === 0
+    ? ' men kunde inte identifieras — fyll i dem själv'
+    : ' som appen inte var säker på';
+  $('#pendThumbs').innerHTML = q.slice(0, 14)
+    .map(x => { const d = cropFor(x.id, x.box, x.rot, 220); return d ? `<img src="${d}" alt="">` : ''; }).join('');
+}
+
+/* ─── upplösning av kortnamn mot Scryfall ─── */
+let resolving = false;
+async function resolveAll() {
+  if (resolving) return;
+  resolving = true;
+  const tried = new Set();
+  try {
+    for (;;) {
+      const ordered = [player()].concat(state.players.filter(p => p.id !== state.active));
+      let target = null;
+      for (const p of ordered) {
+        for (const c of p.cards) {
+          const k = keyOf(c);
+          if (!cardOf(c) && !failed.has(k) && !tried.has(k)) { target = c; break; }
+        }
+        if (target) break;
+      }
+      if (!target) break;
+      const k = keyOf(target);
+      tried.add(k);
+      busy(true, 'Hämtar kort…');
+      let offline = false;
+      try {
+        if (target.sid) {
+          await lookupId(target.sid);
+        } else {
+          const q = norm(target.name);
+          const card = await lookup(target.name);
+          for (const p of state.players) for (const en of p.cards)
+            if (!en.sid && norm(en.name) === q) en.name = card.name;
+        }
+        save();
+      } catch (err) {
+        if (/anslutning/.test(err.message || '')) offline = true;
+      }
+      busy(false);
+      renderAll();
+      if (offline) {
+        statusErr('Ingen anslutning till Scryfall');
+        toast('Når inte Scryfall — kontrollera nätverket.', 'err');
+        break;
+      }
+    }
+  } finally { resolving = false; renderAll(); }
+}
+
+/* ─── mutationer ─── */
+function addCards(items, opts) {
+  const p = (opts && opts.player) || player();
+  const added = [];
+  for (const raw of items) {
+    const o = typeof raw === 'string' ? { name: raw } : (raw || {});
+    const nm = String(o.name || '').trim();
+    if (!nm) continue;
+    const entry = { cid: uid(), name: nm, flipped: 0 };
+    if (o.sid) entry.sid = o.sid;
+    p.cards.push(entry);
+    added.push(entry);
+  }
+  if (!added.length) return added;
+  if (p.id === state.active && !(opts && opts.keepSel)) state.sel = p.cards.length - 1;
+  save(); renderAll(); resolveAll();
+  return added;
+}
+function removeAt(i) {
+  const h = hand();
+  if (i < 0 || i >= h.length) return;
+  h.splice(i, 1);
+  state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
+  save(); renderAll();
+}
+function moveSel(dir) {
+  const h = hand(), i = state.sel, j = i + dir;
+  if (j < 0 || j >= h.length) return;
+  [h[i], h[j]] = [h[j], h[i]];
+  state.sel = j;
+  save(); renderAll();
+}
+function flipSel() {
+  const e = selCard();
+  if (!e) return;
+  const c = cardOf(e);
+  if (!c || c.faces.length < 2 || !c.faces[1].img) return;
+  e.flipped = e.flipped ? 0 : 1;
+  save(); renderAll();
+}
+function setActive(id) {
+  if (!state.players.some(p => p.id === id)) return;
+  state.active = id;
+  state.sel = 0;
+  save(); renderAll(true);
+  resolveAll();
+}
+function addPlayer(name) {
+  const p = mkPlayer(name || 'Spelare ' + (state.players.length + 1), state.players.length);
+  state.players.push(p);
+  setActive(p.id);
+  return p;
+}
+function removePlayer(id) {
+  if (state.players.length < 2) return;
+  const i = state.players.findIndex(p => p.id === id);
+  if (i < 0) return;
+  const p = state.players[i];
+  p.shots.forEach(sid => { const m = shotMem.get(sid); if (m) URL.revokeObjectURL(m.url); shotMem.delete(sid); IDB.del(sid).catch(() => {}); });
+  state.players.splice(i, 1);
+  if (state.active === id) state.active = state.players[clamp(i, 0, state.players.length - 1)].id;
+  state.sel = 0;
+  save(); renderAll(true);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INTERAKTION
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ─── autocomplete mot Scryfall ─── */
+function autocomplete(input, listEl, onPick) {
+  let items = [], idx = -1, timer = null, seq = 0;
+  const close = () => { listEl.classList.remove('open'); listEl.innerHTML = ''; items = []; idx = -1; };
+  const hl = (n, q) => {
+    const i = n.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0 || !q) return esc(n);
+    return esc(n.slice(0, i)) + '<mark>' + esc(n.slice(i, i + q.length)) + '</mark>' + esc(n.slice(i + q.length));
+  };
+  const paint = () => {
+    listEl.innerHTML = items.map((n, i) =>
+      `<li class="${i === idx ? 'on' : ''}" data-i="${i}"><span class="nm">${hl(n, input.value.trim())}</span><span class="hintk">↵</span></li>`).join('');
+    listEl.classList.toggle('open', items.length > 0);
+    const on = listEl.querySelector('.on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+  };
+  const move = d => { if (!items.length) return; idx = (idx + d + items.length) % items.length; paint(); };
+  const pick = txt => { close(); input.value = ''; onPick(txt); };
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(timer);
+    if (q.length < 2) { close(); return; }
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      try {
+        const d = await SF.autocomplete(q);
+        if (my !== seq || input.value.trim() !== q) return;
+        items = (d && d.data || []).slice(0, 14);
+        idx = items.length ? 0 : -1;
+        paint();
+      } catch (e) { /* tyst — Enter gör fuzzy-sökning ändå */ }
+    }, 150);
+  });
+  input.addEventListener('keydown', ev => {
+    ev.stopPropagation();
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); move(1); }
+    else if (ev.key === 'ArrowUp') { ev.preventDefault(); move(-1); }
+    else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const txt = (idx >= 0 && items[idx]) ? items[idx] : input.value.trim();
+      if (txt) pick(txt);
+    } else if (ev.key === 'Tab' && items.length && idx >= 0) {
+      ev.preventDefault(); input.value = items[idx]; close();
+    } else if (ev.key === 'Escape') {
+      ev.preventDefault();
+      if (listEl.classList.contains('open')) close();
+      else { input.value = ''; input.blur(); }
+    }
+  });
+  input.addEventListener('blur', () => setTimeout(close, 130));
+  listEl.addEventListener('mousedown', ev => {
+    const li = ev.target.closest('li');
+    if (!li) return;
+    ev.preventDefault();
+    pick(items[+li.dataset.i]);
+  });
+  return { close };
+}
+
+const searchInput = $('#search');
+autocomplete(searchInput, $('#suggest'), name => { addCards([name]); searchInput.focus(); });
+
+/* ─── klick i rutnätet ─── */
+gridEl.addEventListener('click', ev => {
+  const flip = ev.target.closest('[data-flip]');
+  if (flip) { ev.stopPropagation(); state.sel = +flip.dataset.flip; flipSel(); return; }
+  const c = ev.target.closest('.card');
+  if (!c) return;
+  state.sel = +c.dataset.i;
+  renderSel(); renderDetail(); save();
+});
+gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
+
+/* ─── spelarflikar ─── */
+$('#playerTabs').addEventListener('click', ev => {
+  const del = ev.target.closest('[data-del]');
+  if (del) {
+    ev.stopPropagation();
+    const p = state.players.find(x => x.id === del.dataset.del);
+    if (p && (p.cards.length === 0 || confirm(`Ta bort "${p.name}" med ${p.cards.length} kort?`))) removePlayer(p.id);
+    return;
+  }
+  const tab = ev.target.closest('.ptab');
+  if (tab) setActive(tab.dataset.pid);
+});
+$('#playerTabs').addEventListener('dblclick', ev => {
+  const tab = ev.target.closest('.ptab');
+  if (tab) startRename(tab.dataset.pid);
+});
+function startRename(id) {
+  const p = state.players.find(x => x.id === id);
+  const tab = $(`.ptab[data-pid="${id}"]`);
+  if (!p || !tab) return;
+  const nm = $('.nm', tab);
+  if (!nm) return;
+  const inp = document.createElement('input');
+  inp.className = 'nameedit'; inp.value = p.name; inp.maxLength = 24;
+  nm.replaceWith(inp);
+  inp.focus(); inp.select();
+  const done = ok => {
+    if (ok) { const v = inp.value.trim(); if (v) { p.name = v; save(); } }
+    renderAll();
+  };
+  inp.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') done(true);
+    if (e.key === 'Escape') done(false);
+  });
+  inp.addEventListener('blur', () => done(true));
+  inp.addEventListener('click', e => e.stopPropagation());
+}
+$('#addPlayerBtn').onclick = () => { addPlayer(); startRename(state.active); };
+
+/* ─── zoom / fit ─── */
+function setCardW(d) {
+  prefs.fit = false;
+  prefs.cardw = clamp((prefs.fit ? computeFit() : prefs.cardw) + d, 70, 400);
+  savePrefs(); applySize();
+}
+$('#zoomIn').onclick = () => setCardW(18);
+$('#zoomOut').onclick = () => setCardW(-18);
+$('#fitBtn').onclick = () => { prefs.fit = !prefs.fit; savePrefs(); applySize(); };
+
+let rsT = null;
+addEventListener('resize', () => {
+  clearTimeout(rsT);
+  rsT = setTimeout(() => { applySize(); renderSel(); }, 90);
+});
+
+/* ─── överlägg ─── */
+function openOv(id) { $('#' + id).classList.add('open'); }
+function closeOv(id) { $('#' + id).classList.remove('open'); }
+function anyOvOpen() { return $$('.ov.open').length > 0; }
+$$('[data-close]').forEach(b => b.onclick = () => {
+  const id = b.dataset.close;
+  if (id === 'focusOv') closeFocus(); else if (id === 'shotOv') closeShot(); else closeOv(id);
+});
+$$('.ov').forEach(ov => ov.addEventListener('mousedown', ev => {
+  if (ev.target === ov && ov.id !== 'shotOv') {
+    if (ov.id === 'focusOv') closeFocus(); else closeOv(ov.id);
+  }
+}));
+
+function openFocus() {
+  if (!hand().length) { toast('Handen är tom'); return; }
+  focusOpen = true; openOv('focusOv'); renderFocus();
+}
+function closeFocus() { focusOpen = false; closeOv('focusOv'); }
+$('#fxPrev').onclick = () => step(-1);
+$('#fxNext').onclick = () => step(1);
+$('#fxStrip').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-i]');
+  if (b) { state.sel = +b.dataset.i; save(); renderFocus(); renderSel(); renderDetail(); }
+});
+$('#fxImg').addEventListener('click', () => flipSel());
+
+function step(d) {
+  const n = hand().length;
+  if (!n) return;
+  state.sel = clamp(state.sel + d, 0, n - 1);
+  save(); renderSel(); renderDetail(); renderFocus();
+}
+function stepRow(d) {
+  const n = hand().length;
+  if (!n) return;
+  const els = Array.from(gridEl.children);
+  let cols = 1;
+  if (els.length > 1) {
+    const top = els[0].offsetTop;
+    cols = 0;
+    for (const el of els) { if (el.offsetTop === top) cols++; else break; }
+    cols = Math.max(1, cols);
+  }
+  const t = state.sel + d * cols;
+  state.sel = t < 0 ? 0 : t >= n ? n - 1 : t;
+  save(); renderSel(); renderDetail(); renderFocus();
+}
+
+/* ─── hjälp & bulk ─── */
+$('#helpBtn').onclick = () => openOv('helpOv');
+$('#bulkBtn').onclick = openBulk;
+$('#emptySearch').onclick = () => searchInput.focus();
+function openBulk() {
+  openOv('bulkOv');
+  const ta = $('#bulkTa');
+  $('#bulkInfo').textContent = '';
+  ta.focus();
+}
+function parseList(txt) {
+  return txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean).flatMap(line => {
+    if (/^(\/\/|#)/.test(line)) return [];
+    let count = 1, s = line;
+    const m = line.match(/^(\d+)\s*[xX]?[\s.)]+/);
+    if (m) { count = clamp(+m[1], 1, 40); s = line.slice(m[0].length); }
+    s = s.replace(/\s*\((?:[A-Za-z0-9]{2,6})\)\s*[A-Za-z0-9\-★]*\s*$/, '');  // "(LTC) 268"
+    s = s.replace(/\s*[·|]\s*[A-Za-z0-9]{2,6}\s*$/, '').trim();
+    s = s.replace(/\s*\[[^\]]*\]\s*$/, '').trim();
+    if (!s) return [];
+    return Array.from({ length: count }, () => s);
+  });
+}
+$('#bulkGo').onclick = () => {
+  const names = parseList($('#bulkTa').value);
+  if (!names.length) { $('#bulkInfo').textContent = 'Inga namn hittades.'; return; }
+  closeOv('bulkOv');
+  $('#bulkTa').value = '';
+  addCards(names);
+  toast(`La till ${names.length} kort`, 'ok');
+};
+$('#bulkTa').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#bulkGo').click();
+});
+
+/* ─── meny ─── */
+const menuEl = $('#menu');
+function closeMenu() { menuEl.classList.remove('open'); }
+addEventListener('mousedown', e => { if (!menuEl.contains(e.target) && !e.target.closest('#menuBtn')) closeMenu(); });
+$('#menuBtn').onclick = ev => {
+  ev.stopPropagation();
+  if (menuEl.classList.contains('open')) return closeMenu();
+  menuEl.innerHTML = `
+    <div class="hd">Aktiv spelare</div>
+    <button data-a="rename">Döp om <kbd style="margin-left:auto">R</kbd></button>
+    <button data-a="clearhand" class="danger">Töm handen</button>
+    <hr>
+    <div class="hd">Dela &amp; säkerhetskopiera</div>
+    <button data-a="sharelink">Kopiera länk till handen</button>
+    <button data-a="export">Exportera allt (JSON)</button>
+    <button data-a="import">Importera JSON…</button>
+    <hr>
+    <div class="hd">Avläsning</div>
+    <button data-a="pool">Kortpool<span style="margin-left:auto;color:var(--dim2);font:10px var(--mono)">${esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'ej byggd')}</span></button>
+    <button data-a="ai">AI-hjälp<span style="margin-left:auto;color:${AI.mode === 'server' ? 'var(--green)' : 'var(--dim2)'};font:10px var(--mono)">${AI.mode === 'server' ? (prefs.aiAuto ? 'PÅ' : 'REDO') : aiKey() ? 'EGEN NYCKEL' : 'AV'}</span></button>
+    <hr>
+    <button data-a="nums">${prefs.shownums ? '✓ ' : ''}Visa nummer på korten</button>
+    <button data-a="reset" class="danger">Nollställ appen</button>`;
+  const r = $('#menuBtn').getBoundingClientRect();
+  menuEl.style.top = (r.bottom + 6) + 'px';
+  menuEl.style.left = 'auto';
+  menuEl.style.right = '12px';
+  menuEl.classList.add('open');
+};
+menuEl.addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-a]');
+  if (!b) return;
+  closeMenu();
+  const a = b.dataset.a, p = player();
+  if (a === 'rename') startRename(p.id);
+  if (a === 'clearhand') { if (!p.cards.length || confirm(`Töm ${p.name}s hand (${p.cards.length} kort)?`)) { p.cards = []; state.sel = 0; save(); renderAll(true); } }
+  if (a === 'pool') openPool();
+  if (a === 'ai') openAI();
+  if (a === 'sharelink') shareLink();
+  if (a === 'export') exportJSON();
+  if (a === 'import') $('#importInput').click();
+  if (a === 'nums') { prefs.shownums = !prefs.shownums; savePrefs(); applySize(); }
+  if (a === 'reset') {
+    if (confirm('Nollställ allt — spelare, händer och screenshots?')) {
+      [K.state, K.prefs].forEach(LS.del);
+      IDB.clear().catch(() => {}).then(() => location.reload());
+    }
+  }
+});
+
+/* ─── dela / exportera ─── */
+function b64e(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64d(s) { return decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))); }
+function shareLink() {
+  const p = player();
+  if (!p.cards.length) { toast('Handen är tom'); return; }
+  const payload = { n: p.name, c: p.cards.map(c => c.name) };
+  const url = location.origin + location.pathname + location.search + '#h=' + b64e(JSON.stringify(payload));
+  navigator.clipboard.writeText(url).then(
+    () => toast('Länk kopierad — den som öppnar den ser handen', 'ok'),
+    () => prompt('Kopiera länken:', url)
+  );
+}
+function exportJSON() {
+  const data = {
+    app: 'handvy', v: 1, ts: new Date().toISOString(),
+    players: state.players.map(p => ({ name: p.name, color: p.color, cards: p.cards.map(c => c.name) }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'handvy-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast('Exporterad', 'ok');
+}
+const importInput = document.createElement('input');
+importInput.type = 'file'; importInput.accept = '.json,application/json'; importInput.id = 'importInput'; importInput.hidden = true;
+document.body.appendChild(importInput);
+importInput.onchange = async () => {
+  const f = importInput.files && importInput.files[0];
+  importInput.value = '';
+  if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d || !Array.isArray(d.players)) throw 0;
+    d.players.forEach((pp, i) => {
+      const p = addPlayer(pp.name || 'Importerad ' + (i + 1));
+      p.color = pp.color || p.color;
+      (pp.cards || []).forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
+    });
+    save(); renderAll(true); resolveAll();
+    toast(`Importerade ${d.players.length} spelare`, 'ok');
+  } catch (e) { toast('Kunde inte läsa filen', 'err'); }
+};
+function importFromHash() {
+  const m = /[#&]h=([^&]+)/.exec(location.hash || '');
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  try {
+    const d = JSON.parse(b64d(m[1]));
+    if (!d || !Array.isArray(d.c) || !d.c.length) return;
+    if (!confirm(`Öppna delad hand "${d.n || 'Delad'}" med ${d.c.length} kort?`)) return;
+    const p = addPlayer(d.n || 'Delad hand');
+    d.c.forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
+    save(); renderAll(true); resolveAll();
+  } catch (e) { /* trasig länk — strunt i det */ }
+}
+
+/* ─── globala tangenter ─── */
+const isTyping = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+addEventListener('keydown', ev => {
+  const k = ev.key;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  if (isTyping(ev.target)) return;
+
+  if (k === 'Escape') {
+    if (menuEl.classList.contains('open')) return closeMenu();
+    if ($('#scanPanel').classList.contains('open')) return closeScan();
+    if ($('#focusOv').classList.contains('open')) return closeFocus();
+    if ($('#shotOv').classList.contains('open')) return closeShot();
+    const o = $('.ov.open'); if (o) return closeOv(o.id);
+    return;
+  }
+  const shotOpen = $('#shotOv').classList.contains('open');
+  if (shotOpen) { shotKey(ev); return; }
+  if ($('#helpOv').classList.contains('open') || $('#bulkOv').classList.contains('open')) return;
+
+  switch (k) {
+    case 'ArrowLeft':  ev.preventDefault(); step(-1); return;
+    case 'ArrowRight': ev.preventDefault(); step(1); return;
+    case 'ArrowUp':    ev.preventDefault(); focusOpen ? step(-1) : stepRow(-1); return;
+    case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : stepRow(1); return;
+    case 'Home':       ev.preventDefault(); state.sel = 0; save(); renderSel(); renderDetail(); renderFocus(); return;
+    case 'End':        ev.preventDefault(); state.sel = Math.max(0, hand().length - 1); save(); renderSel(); renderDetail(); renderFocus(); return;
+    case ' ':          ev.preventDefault(); flipSel(); return;
+    case 'Enter':      ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); return;
+    case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
+    case 'Backspace':
+    case 'Delete':     ev.preventDefault(); removeAt(state.sel); return;
+    case ',':          ev.preventDefault(); moveSel(-1); return;
+    case '.':          ev.preventDefault(); moveSel(1); return;
+    case '+': case '=': ev.preventDefault(); setCardW(18); return;
+    case '-': case '_': ev.preventDefault(); setCardW(-18); return;
+    case '0':          ev.preventDefault(); prefs.fit = !prefs.fit; savePrefs(); applySize(); return;
+    case '?':          ev.preventDefault(); openOv('helpOv'); return;
+  }
+  if (k >= '1' && k <= '9') {
+    const p = state.players[+k - 1];
+    if (p) { ev.preventDefault(); setActive(p.id); }
+    return;
+  }
+  const lower = k.toLowerCase();
+  if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
+  else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
+  else if (lower === 'b') { ev.preventDefault(); openBulk(); }
+  else if (lower === 's') { ev.preventDefault(); $('#shotBtn').click(); }
+  else if (lower === 'n') { ev.preventDefault(); addPlayer(); startRename(state.active); }
+  else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
+  else if (lower === 'd') {
+    const e = selCard();
+    if (e) { ev.preventDefault(); addCards([e.name]); }
+  }
+});
+function cyclePlayer(d) {
+  const i = state.players.findIndex(p => p.id === state.active);
+  setActive(state.players[(i + d + state.players.length) % state.players.length].id);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BILDVYN — visar skärmdumpen med det appen hittat markerat.
+   Grön ruta = kort som lagts till. Gul = kort som behöver bekräftas.
+   ══════════════════════════════════════════════════════════════════ */
+const swStage = $('#swStage'), swImg = $('#swImg'), swSel = $('#swSel'), swDrop = $('#swDrop');
+const SW = { id: null, z: 1, px: 0, py: 0, nw: 0, nh: 0, box: null, lastBox: null, out: null, target: null, fitRot: null };
+
+function swApply() {
+  swImg.style.transform = `translate(${SW.px}px,${SW.py}px) scale(${SW.z})`;
+  $('#swMeta').textContent = SW.nw ? `${SW.nw}×${SW.nh} px · ${Math.round(SW.z * 100)}%` : '';
+  renderBoxes();
+  drawFitBox(SW.fitRot == null ? null : { rot: SW.fitRot });
+}
+function swFit(rect) {
+  if (!SW.nw) return;
+  const r = swStage.getBoundingClientRect();
+  const b = rect || { x: 0, y: 0, w: SW.nw, h: SW.nh };
+  const z = Math.min((r.width - 40) / b.w, (r.height - 40) / b.h);
+  SW.z = z > 0 ? z : 1;
+  SW.px = r.width / 2 - (b.x + b.w / 2) * SW.z;
+  SW.py = r.height / 2 - (b.y + b.h / 2) * SW.z;
+  swApply();
+}
+function swZoom(f, cx, cy) {
+  if (!SW.nw) return;
+  const r = swStage.getBoundingClientRect();
+  const mx = cx == null ? r.width / 2 : cx - r.left;
+  const my = cy == null ? r.height / 2 : cy - r.top;
+  const nz = clamp(SW.z * f, 0.03, 16);
+  SW.px = mx - (mx - SW.px) * (nz / SW.z);
+  SW.py = my - (my - SW.py) * (nz / SW.z);
+  SW.z = nz;
+  swApply();
+}
+const toImg = (cx, cy) => {
+  const r = swStage.getBoundingClientRect();
+  return { x: (cx - r.left - SW.px) / SW.z, y: (cy - r.top - SW.py) / SW.z };
+};
+
+function loadImage(src, cross) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    if (cross !== false) i.crossOrigin = 'anonymous';
+    i.onload = () => res(i);
+    i.onerror = () => rej(new Error('bild'));
+    i.src = src;
+  });
+}
+
+function loadShot(id) {
+  const url = shotURL(id);
+  SW.id = id;
+  closeScan();
+  if (!url) {
+    swImg.hidden = true; swImg.removeAttribute('src');
+    SW.nw = SW.nh = 0;
+    swDrop.classList.remove('hide');
+    swApply(); renderShotUI();
+    return;
+  }
+  swDrop.classList.add('hide');
+  swImg.hidden = false;
+  swImg.onload = () => {
+    SW.nw = swImg.naturalWidth; SW.nh = swImg.naturalHeight;
+    swImg.style.width = SW.nw + 'px';
+    swImg.style.height = SW.nh + 'px';
+    const p = player();
+    swFit(p.pane && p.pane.w ? p.pane : null);
+  };
+  swImg.src = url;
+  const p = player();
+  p.shotIdx = Math.max(0, p.shots.indexOf(id));
+  save();
+  renderShotUI();
+}
+function renderShotUI() {
+  const p = player();
+  $('#swWho').textContent = p.name;
+  $('.sw-top .dot').style.background = p.color;
+  $('#swThumbs').innerHTML = p.shots.map(id =>
+    `<button class="${id === SW.id ? 'on' : ''}" data-sid="${esc(id)}" title="Bild"><img src="${esc(shotURL(id))}" alt=""></button>`).join('');
+  $('#swDel').disabled = !SW.id;
+  $('#swRescan').disabled = !SW.id;
+  renderBoxes();
+}
+
+/* ── markeringar ovanpå bilden ── */
+function boxStyle(b, rot) {
+  const w = b.w * SW.z, h = b.h * SW.z;
+  const cx = (b.x + b.w / 2) * SW.z + SW.px, cy = (b.y + b.h / 2) * SW.z + SW.py;
+  return `width:${w}px;height:${h}px;transform-origin:${w / 2}px ${h / 2}px;` +
+         `transform:translate(${cx - w / 2}px,${cy - h / 2}px) rotate(${rot || 0}deg)`;
+}
+function renderBoxes() {
+  const el = $('#swBoxes');
+  if (!el) return;
+  if (!SW.nw || !$('#shotOv').classList.contains('open')) { el.innerHTML = ''; return; }
+  const p = player();
+  const parts = [];
+  p.cards.forEach((c, i) => {
+    if (!c.box || c.shotId !== SW.id) return;
+    const on = SW.target && SW.target.kind === 'card' && SW.target.i === i;
+    parts.push(`<button class="dbox${on ? ' sel' : ''}" data-kind="card" data-i="${i}" style="${boxStyle(c.box, c.rot)}" title="${esc(c.name)}"><i>${i + 1}</i></button>`);
+  });
+  (p.pending || []).forEach((q, i) => {
+    if (q.shotId !== SW.id) return;
+    const on = SW.target && SW.target.kind === 'pend' && SW.target.i === i;
+    parts.push(`<button class="dbox weak${on ? ' sel' : ''}" data-kind="pend" data-i="${i}" style="${boxStyle(q.box, q.rot)}" title="Behöver bekräftas"><i>?</i></button>`);
+  });
+  el.innerHTML = parts.join('');
+}
+$('#swBoxes').addEventListener('click', ev => {
+  const b = ev.target.closest('.dbox');
+  if (!b) return;
+  ev.stopPropagation();
+  openPicker(b.dataset.kind, +b.dataset.i);
+});
+
+function openShot() {
+  openOv('shotOv');
+  const p = player();
+  const id = p.shots[clamp(p.shotIdx || 0, 0, Math.max(0, p.shots.length - 1))] || null;
+  loadShot(id);
+  setTimeout(() => { if (SW.nw) swFit(p.pane && p.pane.w ? p.pane : null); }, 30);
+}
+function closeShot() { closeOv('shotOv'); closeScan(); }
+$('#shotBtn').onclick = () => { if (player().shots.length) openShot(); else pasteOrPick(); };
+$('#emptyPaste').onclick = () => pasteOrPick();
+$('#emptySearch').onclick = () => searchInput.focus();
+$('#swFile').onclick = () => $('#swInput').click();
+$('#swInput').onchange = async () => {
+  const fs = Array.from($('#swInput').files || []);
+  $('#swInput').value = '';
+  for (const f of fs) await addShot(f);
+};
+$('#swRescan').onclick = () => { if (SW.id) analyzeShot(SW.id); };
+$('#swDel').onclick = async () => {
+  if (!SW.id) return;
+  const p = player(), id = SW.id;
+  const nPend = state.players.reduce((a, x) => a + (x.pending || []).filter(q => q.shotId === id).length, 0);
+  if (!confirm(nPend ? `Ta bort bilden och ${nPend} kort som väntar på ifyllnad?` : 'Ta bort den här bilden?')) return;
+  const m = shotMem.get(id);
+  if (m) { URL.revokeObjectURL(m.url); shotMem.delete(id); }
+  state.players.forEach(pp => {
+    pp.shots = pp.shots.filter(x => x !== id);
+    pp.pending = (pp.pending || []).filter(q => q.shotId !== id);
+    pp.cards.forEach(c => { if (c.shotId === id) { delete c.box; delete c.shotId; } });
+  });
+  p.shotIdx = Math.max(0, p.shots.length - 1);
+  await IDB.del(id).catch(() => {});
+  save();
+  loadShot(p.shots[p.shotIdx] || null);
+};
+$('#swThumbs').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-sid]');
+  if (b) loadShot(b.dataset.sid);
+});
+$('#swFit').onclick = () => swFit();
+$('#swZoomIn').onclick = () => swZoom(1.3);
+$('#swZoomOut').onclick = () => swZoom(1 / 1.3);
+
+/* Klistra in via knapp — faller tillbaka på filväljaren om urklipp nekas */
+async function pasteOrPick() {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const it of items) {
+      const t = it.types.find(x => x.startsWith('image/'));
+      if (t) { await addShot(await it.getType(t)); return; }
+    }
+    toast('Ingen bild i urklipp — ta en skärmdump först (⇧⌘4 på Mac)', 'err');
+  } catch (e) {
+    $('#swInput').click();
+  }
+}
+
+/* ── panorering och zoom ── */
+swStage.addEventListener('wheel', ev => {
+  if (!SW.nw) return;
+  ev.preventDefault();
+  swZoom(Math.exp(-ev.deltaY * 0.0018), ev.clientX, ev.clientY);
+}, { passive: false });
+
+let drag = null;
+swStage.addEventListener('pointerdown', ev => {
+  if (!SW.nw || ev.button !== 0 || ev.target.closest('.dbox')) return;
+  swStage.setPointerCapture(ev.pointerId);
+  drag = { x: ev.clientX, y: ev.clientY, px: SW.px, py: SW.py, moved: false };
+  swStage.classList.add('grabbing');
+});
+swStage.addEventListener('pointermove', ev => {
+  if (!drag) return;
+  if (Math.abs(ev.clientX - drag.x) + Math.abs(ev.clientY - drag.y) > 4) drag.moved = true;
+  SW.px = drag.px + (ev.clientX - drag.x);
+  SW.py = drag.py + (ev.clientY - drag.y);
+  swApply();
+});
+swStage.addEventListener('pointerup', ev => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  swStage.classList.remove('grabbing');
+  if (!d.moved && SW.nw) addAtPoint(ev.clientX, ev.clientY);   // klick på tom yta → nytt kort här
+});
+swStage.addEventListener('dblclick', () => swFit());
+
+/* drag & drop */
+['dragenter', 'dragover'].forEach(t => swStage.addEventListener(t, e => { e.preventDefault(); swStage.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(t => swStage.addEventListener(t, e => { e.preventDefault(); swStage.classList.remove('dragover'); }));
+swStage.addEventListener('drop', async e => {
+  const fs = Array.from(e.dataTransfer.files || []).filter(f => /^image\//.test(f.type));
+  for (const f of fs) await addShot(f);
+});
+
+/* ── bilder in ── */
+async function addShot(blob) {
+  if (!blob || !/^image\//.test(blob.type)) return;
+  const rec = { id: uid(), ts: Date.now(), blob };
+  try { await IDB.put(rec); }
+  catch (e) { toast('Kunde inte spara bilden lokalt', 'err'); return; }
+  shotMem.set(rec.id, { rec, url: URL.createObjectURL(blob) });
+  await analyzeShot(rec.id);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   KORTPOOL — bildsignaturer för ett begränsat set.
+   Poolen måste vara liten för att matchningen ska fungera: ~780 kort
+   går att skilja åt visuellt, alla 30 000 MTG-kort gör det inte.
+   ══════════════════════════════════════════════════════════════════ */
+const POOL_PRESETS = [
+  { code: 'j25', name: 'Foundations Jumpstart' },
+  { code: 'fdn', name: 'Foundations' },
+  { code: 'jmp', name: 'Jumpstart' },
+  { code: 'j22', name: 'Jumpstart 2022' }
+];
+const Pool = {
+  idx: null,
+  building: false,
+  async load(code) {
+    try {
+      const rec = await IDB.poolGet(code);
+      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 5) { this.idx = rec; return rec; }
+    } catch (e) {}
+    return null;
+  }
+};
+/* Basic lands ligger på bordet i varje spel men kommer sällan från samma set
+   som resten. Ett Foundations Jumpstart-set har bara tre konstverk per
+   landskap, så ett Island från ett annat år matchar inte. Därför hämtas
+   aktuella landskapskonstverk separat och läggs till i poolen. */
+const LAND_QUERY = 'type:basic -is:digital -is:funny year>=2023';
+
+async function fetchQuery(q, onProg, seen, cards, label) {
+  let path = `/cards/search?q=${encodeURIComponent(q)}&unique=art&order=name`;
+  for (;;) {
+    const d = await SF.raw(path);
+    for (const c of (d.data || [])) {
+      const iu = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris);
+      if (!iu || !iu.small || seen.has(c.id)) continue;
+      seen.add(c.id);
+      cards.push({ id: c.id, name: c.name, small: iu.small });
+    }
+    onProg({ phase: 'list', done: cards.length, label });
+    if (!d.has_more || !d.next_page) break;
+    path = d.next_page.replace(/^https:\/\/api\.scryfall\.com/, '');
+  }
+}
+
+async function buildPool(code, onProg) {
+  const meta = await SF.set(code);
+  const cards = [], seen = new Set();
+  await fetchQuery('set:' + code, onProg, seen, cards, meta.name || code);
+  if (prefs.lands !== false) {
+    try {
+      const before = cards.length;
+      await fetchQuery(LAND_QUERY, onProg, seen, cards, 'basic lands');
+      // Tak per landskapstyp: fler konstverk ger inte bättre träffar, bara
+      // en större pool som alla andra kort får konkurrera med.
+      const perName = new Map(), keep = cards.slice(0, before);
+      for (let i = before; i < cards.length; i++) {
+        const c = cards[i], k = perName.get(c.name) || 0;
+        if (k >= 45) continue;
+        perName.set(c.name, k + 1);
+        keep.push(c);
+      }
+      cards.length = 0;
+      for (const c of keep) cards.push(c);
+    } catch (e) { /* utan landskap fungerar resten ändå */ }
+  }
+  if (!cards.length) throw new Error('Setet innehåller inga kort med bilder.');
+  const D = Matcher.DESC;
+  const descs = new Int8Array(cards.length * D);
+  const tmpl = new Float32Array(88);          // "genomsnittskortet" för detektorn
+  const feats = new Array(cards.length);      // lokala särdrag per kort
+  const EMPTY = { kps: [], desc: new Uint8Array(0) };
+  let tmplN = 0;
+  let done = 0, fail = 0, next = 0;
+  /* Flera arbetare är säkert trots att ORB och Matcher delar canvas: allt
+     mellan två await är synkront, så två arbetare kan aldrig interfoliera
+     sitt canvas-arbete. */
+  async function worker() {
+    for (;;) {
+      const i = next++;
+      if (i >= cards.length) return;
+      feats[i] = EMPTY;
+      try {
+        const im = await loadImage(cards[i].small);
+        descs.set(Matcher.describeImage(im), i * D);
+        const g = Matcher.grid8(im);
+        for (let k = 0; k < 88; k++) tmpl[k] += g[k];
+        tmplN++;
+        feats[i] = ORB.refFeatures(im, 200);
+      } catch (e) { fail++; }
+      onProg({ phase: 'img', done: ++done, total: cards.length, fail });
+    }
+  }
+  await Promise.all(Array.from({ length: 8 }, worker));
+  const rec = {
+    code, setName: meta.name || code.toUpperCase(), ts: Date.now(),
+    names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
+    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 5, lands: prefs.lands !== false
+  };
+  await IDB.poolPut(rec);
+  Pool.idx = rec;
+  return rec;
+}
+async function ensurePool(onProg) {
+  const code = prefs.pool || 'j25';
+  if (Pool.idx && Pool.idx.code === code) return Pool.idx;
+  const cached = await Pool.load(code);
+  if (cached) return cached;
+  return buildPool(code, onProg || (() => {}));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   AUTOMATISK AVLÄSNING
+
+   En skärmdump → spelarnas videorutor → kortförslag per ruta →
+   matchning mot poolen. Bara kort som matchar tydligt läggs till
+   direkt; resten hamnar i en bekräftalista.
+   ══════════════════════════════════════════════════════════════════ */
+/* Gräns för "säker nog att lägga till utan att fråga". Uppmätt låg korrekta
+   matchningar på 0.85–0.96 och felaktiga på 0.41–0.64, så marginalen är god.
+   Allt som INTE når hit hamnar i ifyllnadslistan i stället för att kastas —
+   detektorns egen gallring håller skräpet borta. */
+const CONF = { accept: 0.78, margin: 0.07, landScore: 0.62, landAgree: 4 };
+const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+
+/* Ett landskap är ett landskap oavsett konstverk. Poolen innehåller drygt
+   hundra varianter av varje, och de konkurrerar med varandra — därför får
+   rätt landskap sällan hög enskild poäng. Men samstämmigheten avslöjar det:
+   uppmätt hade rätt landskap 3–6 av de sex bästa kandidaterna med samma
+   namn, fel landskap bara 1. Det är ett bättre bevis än poängen.
+
+   Kravet är satt till 4 av 6 och inte 3: vid 3 släppte en slät bordsyta
+   igenom som "Plains". Hellre ett landskap i ifyllnadslistan än ett fel
+   kort i handen. */
+function confident(best, margin, results) {
+  if (best.score >= CONF.accept && margin >= CONF.margin) return true;
+  if (!BASICS.has(best.name)) return false;
+  const agree = results.slice(0, 6).filter(x => x.name === best.name).length;
+  return agree >= CONF.landAgree && best.score >= CONF.landScore;
+}
+/* Lämna över till renderaren mellan korten. setTimeout duger inte: en flik
+   i bakgrunden får bara köra timers en gång i minuten, och då tar avläsningen
+   evigheter om man byter flik mitt i. MessageChannel stryps inte på det viset. */
+const _yc = new MessageChannel();
+const _yq = [];
+_yc.port1.onmessage = () => { const r = _yq.shift(); if (r) r(); };
+const tick = () => new Promise(r => { _yq.push(r); _yc.port2.postMessage(0); });
+const anEl = {};
+function anInit() {
+  anEl.title = $('#anTitle'); anEl.step = $('#anStep');
+  anEl.bar = $('#anBar'); anEl.panes = $('#anPanes'); anEl.note = $('#anNote');
+}
+function anStep(t) { if (anEl.step) anEl.step.textContent = t; }
+function anBar(p) { if (anEl.bar) anEl.bar.style.width = Math.round(clamp(p, 0, 1) * 100) + '%'; }
+
+function cropURL(img, r, w) {
+  const cv = document.createElement('canvas');
+  const h = Math.max(8, Math.round(w * r.h / r.w));
+  cv.width = w; cv.height = h;
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, w, h);
+  return cv.toDataURL('image/jpeg', 0.8);
+}
+
+let analyzing = false, cancelAnalyze = false;
+$('#anCancel').onclick = () => { cancelAnalyze = true; };
+
+async function analyzeShot(shotId) {
+  if (analyzing) return;
+  analyzing = true; cancelAnalyze = false;
+  anInit();
+  const mem = shotMem.get(shotId);
+  try {
+    if (!mem) return;
+    openOv('analyzeOv');
+    anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
+    anEl.title.textContent = 'Läser av skärmdumpen…';
+    anStep('Öppnar bilden…');
+    await tick();
+    const img = await loadImage(mem.url, false);
+
+    if (!Pool.idx || Pool.idx.code !== (prefs.pool || 'j25')) {
+      anEl.title.textContent = 'Förbereder kortdatabasen';
+      anEl.note.textContent = 'Görs bara en gång — sparas sedan i webbläsaren';
+      await ensurePool(p => {
+        if (p.phase === 'list') anStep(`Hämtar kortlistan från Scryfall… ${p.done} kort${p.label ? ' (' + p.label + ')' : ''}`);
+        else { anBar(p.done / p.total); anStep(`Bygger bildsignaturer… ${p.done} av ${p.total}`); }
+      });
+      anEl.title.textContent = 'Läser av skärmdumpen…';
+      anEl.note.textContent = '';
+      anBar(0);
+    }
+    if (cancelAnalyze) return;
+
+    anStep('Letar efter spelarnas videorutor…');
+    await tick();
+    const panes = Detect.findPanes(img);
+    anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor hittade`;
+    anEl.panes.innerHTML = panes.map((p, i) =>
+      `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Ruta ${i + 1}</b><br><span class="c">väntar</span></span></div>`).join('');
+    await tick();
+
+    anStep('Letar efter kort på borden…');
+    await tick();
+    const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
+    const props = panes.map(p => Detect.proposeCards(img, p, { want: 16, template: tmpl }).proposals);
+    const total = props.reduce((a, x) => a + x.length, 0) || 1;
+
+    let done = 0;
+    const out = [];
+    for (let i = 0; i < panes.length; i++) {
+      const acc = [], pend = [];
+      const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
+      for (const pr of props[i]) {
+        if (cancelAnalyze) return;
+        const box = { x: pr.cx - pr.w / 2, y: pr.cy - pr.h / 2, w: pr.w, h: pr.h };
+        const r = Matcher.scan(img, box, Pool.idx, { keep: 50, refine: 10, hint: pr.deg });
+        done++;
+        anBar(done / total);
+        anStep(`Ruta ${i + 1} av ${panes.length} — matchar kort ${done} av ${total}`);
+        const b = r.results[0];
+        const rot0 = b && b.fit ? b.fit.rot : pr.deg;
+        const orb = orbIdentify(img, box, rot0, (r.results || []).slice(0, 15));
+        {
+          const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: x.id, score: x.score }));
+          // sätt ORB:s val överst bland förslagen
+          if (orb && orb.cand) {
+            const j = cands.findIndex(x => x.sid === orb.cand.id);
+            if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
+            else if (j < 0) cands.unshift({ name: orb.cand.name, sid: orb.cand.id, score: orb.cand.score });
+          }
+          const rec = { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0 };
+          /* Två oberoende bevis krävs. Enbart inliers räckte inte: ett
+             område som inte var ett kort fick 20 geometriskt konsekventa
+             träffar men bara 0.53 i helhetslikhet, och hamnade i handen.
+             Enbart helhetslikhet räckte inte heller — det var så
+             tangentbord och livtotaler tog sig in. Många inliers (25+) får
+             däremot stå på egna ben, för det är där kraftigt övertäckta
+             kort räddas när helhetslikheten faller. */
+          const gScore = b ? b.score : 0;
+          const orbOK = orb && orb.inliers >= ORB_ACCEPT && (gScore >= 0.70 || orb.inliers >= 25);
+          if (orbOK) acc.push(rec);
+          else if (!Pool.idx.orb && b && confident(b, r.confidence, r.results)) acc.push(rec);
+          else if (Pool.idx.orb && b && confident(b, r.confidence, r.results) && orb && orb.inliers >= 6) acc.push(rec);
+          else pend.push(rec);
+        }
+        if (cnt) cnt.textContent = `${acc.length} kort${pend.length ? ` · ${pend.length} osäkra` : ''}`;
+        await tick();
+      }
+      if (cell) cell.classList.add('done');
+      out.push({ pane: panes[i], acc, pend });
+    }
+    await claudePass(out, img);
+    applyAnalysis(shotId, out, img);
+  } catch (e) {
+    toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
+  } finally {
+    analyzing = false;
+    closeOv('analyzeOv');
+  }
+}
+
+/* Frågar Claude om varje kort avläsningen inte var säker på. Körs bara när
+   det är påslaget och det finns en nyckel (eller en server som håller den).
+   Bara svar med hög säkerhet läggs till automatiskt — resten hamnar kvar i
+   ifyllnadslistan med Claudes förslag överst, enligt principen att inget
+   osäkert ska smyga in i handen. */
+const AI_MAX = 40;                       // tak per skärmdump, så en miss inte blir dyr
+async function claudePass(out, img) {
+  if (!aiEnabled() || !prefs.aiAuto) return;
+  const jobs = [];
+  for (const r of out) for (const q of r.pend) jobs.push({ r, q });
+  if (!jobs.length) return;
+  const todo = jobs.slice(0, AI_MAX);
+  anEl.title.textContent = 'Frågar Claude om de osäkra korten';
+  anEl.note.textContent = todo.length < jobs.length ? `${todo.length} av ${jobs.length} (tak per bild)` : '';
+  anBar(0);
+  /* Tre samtidiga anrop. Ett i taget gav en halv minut för åtta kort, vilket
+     kändes som att appen hängt sig. Fler än så är onödigt — takräkningen på
+     servern och svarstiden är ändå gränsen. */
+  const CONC = 3;
+  let next = 0, done = 0, added = 0, stop = false;
+  async function worker() {
+    for (;;) {
+      if (stop || cancelAnalyze) return;
+      const i = next++;
+      if (i >= todo.length) return;
+      const { r, q } = todo[i];
+      try {
+        const res = await askClaudeFor(img, q.box, q.rot, q.cands.map(c => ({ name: c.name, id: c.sid, score: c.score })));
+        if (res && res.cand) {
+          const j = q.cands.findIndex(c => c.sid === res.cand.id);
+          const chosen = j >= 0 ? q.cands.splice(j, 1)[0] : { name: res.cand.name, sid: res.cand.id, score: res.cand.score };
+          q.cands.unshift(chosen);
+          q.ai = res.sure;
+          if (res.sure === 'hog') { q.byAI = true; r.acc.push(q); r.pend = r.pend.filter(x => x !== q); added++; }
+        }
+      } catch (e) {
+        const err = claudeError(e);
+        toast('AI-hjälp: ' + err.msg, 'err');
+        if (err.fatal) { stop = true; return; }
+      }
+      done++;
+      anBar(done / todo.length);
+      anStep(`Kort ${done} av ${todo.length}`);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
+  if (added) toast(`AI-hjälpen identifierade ${added} kort`, 'ok');
+}
+
+function applyAnalysis(shotId, out, img) {
+  out.forEach((r, i) => {
+    let p = state.players[i];
+    if (!p) { p = mkPlayer('Spelare ' + (i + 1), i); state.players.push(p); }
+    p.pane = r.pane;
+    p.cards = r.acc.map(a => ({
+      cid: uid(), name: a.cands[0].name, sid: a.cands[0].sid, flipped: 0,
+      box: a.box, rot: a.rot, shotId, cands: a.cands, byAI: a.byAI || undefined
+    }));
+    p.pending = r.pend.map(q => ({ id: uid(), box: q.box, rot: q.rot, cands: q.cands, shotId }));
+    if (img) {                       // beskär korten nu, medan bilden är laddad
+      p.cards.forEach(c => { const d = makeCrop(img, c.box, c.rot, 220); if (d) cropCache.set(c.cid + '@220', d); });
+      p.pending.forEach(q => {
+        for (const w of [220, 260]) { const d = makeCrop(img, q.box, q.rot, w); if (d) cropCache.set(q.id + '@' + w, d); }
+      });
+    }
+    if (!p.shots.includes(shotId)) p.shots.push(shotId);
+    p.shotIdx = p.shots.indexOf(shotId);
+  });
+  state.active = state.players[0].id;
+  state.sel = 0;
+  save(); renderAll(true); resolveAll();
+  const nc = out.reduce((a, r) => a + r.acc.length, 0);
+  const np = out.reduce((a, r) => a + r.pend.length, 0);
+  if (!nc && !np) toast('Hittade inga kort på borden i bilden', 'err');
+  else if (!nc) toast(`${out.length} spelare · ${np} kort hittade men inte identifierade — fyll i dem`, 'err');
+  else toast(`${out.length} spelare · ${nc} kort${np ? ` · ${np} att fylla i` : ''}`, 'ok');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FYLL I / BYT KORT
+
+   Bildigenkänning på webbkamerabilder blir aldrig helt tillförlitlig.
+   Därför är detekteringen och identifieringen skilda åt: hittar appen ett
+   kort men vet inte vad det är, hamnar det ändå i listan — med en beskuren
+   bild av just det kortet och ett sökfält. Att fylla i nio kort man ser
+   framför sig tar under en minut; att inte få veta att de fanns är värre.
+   ══════════════════════════════════════════════════════════════════ */
+const scanPanel = $('#scanPanel'), candList = $('#candList'), scanNoteEl = $('#scanNote');
+const cropCache = new Map();
+
+/* Räta upp och beskär ett kort ur skärmdumpen */
+function cropCanvas(img, box, rot, outW, outH) {
+  const cw = box.w, ch = box.h;
+  const cx = box.x + cw / 2, cy = box.y + ch / 2;
+  const rad = (rot || 0) * Math.PI / 180;
+  const oh = outH || Math.max(8, Math.round(outW * ch / cw));
+  const cv = document.createElement('canvas');
+  cv.width = outW; cv.height = oh;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = 'high';
+  c.fillStyle = '#0b0f15';
+  c.fillRect(0, 0, outW, oh);
+  c.translate(outW / 2, oh / 2);
+  c.scale(outW / cw, oh / ch);
+  c.rotate(-rad);
+  c.translate(-cx, -cy);
+  try { c.drawImage(img, 0, 0); } catch (e) { return null; }
+  return cv;
+}
+function makeCrop(img, box, rot, outW) {
+  const cv = cropCanvas(img, box, rot, outW);
+  return cv ? cv.toDataURL('image/jpeg', 0.86) : '';
+}
+
+/* ── identifiering med lokala särdrag ──
+   Helhetsjämförelsen rankar kandidater; den här avgör. Den kan säga nej:
+   ett tangentbord eller SpellTables livtotal ger aldrig en geometriskt
+   konsekvent matchning, och stannar därför utanför handen.
+   Den avgör också vändningen — ligger kortet upp och ner hittas det som
+   en 180-graders transform, och beskärningen kan rätas upp. */
+const ORB_ACCEPT = 10;
+function orbIdentify(img, box, rot, cands) {
+  if (!Pool.idx || !Pool.idx.orb || !cands.length) return null;
+  const mk = r => {
+    const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H);
+    return cv ? ORB.queryFeatures(cv, 300) : null;
+  };
+  let best = { inliers: 0, cand: null, rot };
+  const sweep = (qf, r) => {
+    if (!qf) return;
+    for (const c of cands) {
+      const v = ORB.verify(qf, ORB.unpack(Pool.idx.orb, c.i), {});
+      if (v.inliers > best.inliers) best = { inliers: v.inliers, cand: c, rot: r };
+    }
+  };
+  sweep(mk(rot), rot);
+  if (best.inliers < ORB_ACCEPT + 4) sweep(mk(rot + 180), rot + 180);
+  return best;
+}
+/* Håll den aktiva spelarens skärmdump laddad så beskärningar går att göra
+   även när bildvyn är stängd */
+const bgShot = $('#bgShot');
+function ensureBgShot() {
+  const p = player();
+  const id = p.shots[clamp(p.shotIdx || 0, 0, Math.max(0, p.shots.length - 1))];
+  const url = id ? shotURL(id) : '';
+  if (url && bgShot.getAttribute('src') !== url) bgShot.src = url;
+  return bgShot.naturalWidth ? bgShot : null;
+}
+function cropFor(key, box, rot, w) {
+  const ck = key + '@' + (w || 220);
+  if (cropCache.has(ck)) return cropCache.get(ck);
+  const img = (swImg && swImg.naturalWidth && $('#shotOv').classList.contains('open')) ? swImg : ensureBgShot();
+  if (!img || !img.naturalWidth || !box) return '';
+  const d = makeCrop(img, box, rot, w || 220);
+  if (d) cropCache.set(ck, d);
+  return d;
+}
+
+function closeScan() {
+  scanPanel.classList.remove('open');
+  SW.out = null; SW.target = null; SW.fitRot = null;
+  drawFitBox(null); renderBoxes();
+}
+$('#scanClose').onclick = closeScan;
+
+function drawFitBox(res) {
+  const el = $('#swFitBox');
+  if (!res || !SW.box) { el.classList.remove('on'); SW.fitRot = null; return; }
+  SW.fitRot = res.rot || 0;
+  el.style.cssText = boxStyle(SW.box, res.rot || 0);
+  if (!el.firstChild) el.innerHTML = '<i></i>';
+  el.classList.add('on');
+}
+
+function pickTitle() {
+  const p = player(), t = SW.target;
+  if (!t) return 'Vilket kort är detta?';
+  if (t.kind === 'pend') return `Fyll i kort — ${t.i + 1} av ${(p.pending || []).length}`;
+  if (t.kind === 'card') return 'Byt kort';
+  return 'Vilket kort är detta?';
+}
+function openPicker(kind, i) {
+  const p = player();
+  const item = kind === 'card' ? p.cards[i] : (p.pending || [])[i];
+  if (!item) return;
+  SW.target = { kind, i };
+  SW.box = item.box;
+  SW.out = { results: (item.cands || []).map(c => ({ name: c.name, id: c.sid, score: c.score })), confidence: 1 };
+  scanPanel.classList.add('open');
+  $('#scanMeta').textContent = (prefs.pool || 'j25').toUpperCase();
+  $('#pickImg').src = cropFor(item.cid || item.id, item.box, item.rot, 260) || '';
+  $('#pickSearch').value = '';
+  renderCands();
+  SW.fitRot = item.rot || 0;
+  renderBoxes();
+  swFit({ x: item.box.x - item.box.w, y: item.box.y - item.box.h, w: item.box.w * 3, h: item.box.h * 3 });
+  setTimeout(() => $('#pickSearch').focus(), 60);
+}
+$('#pickImg').onclick = () => { if (SW.box) swFit({ x: SW.box.x - SW.box.w * 0.4, y: SW.box.y - SW.box.h * 0.4, w: SW.box.w * 1.8, h: SW.box.h * 1.8 }); };
+
+/* Matcha ett område användaren klickat fram */
+async function scanAt(box, hint) {
+  SW.box = box; SW.target = { kind: 'new' };
+  scanPanel.classList.add('open');
+  $('#scanMeta').textContent = (prefs.pool || 'j25').toUpperCase();
+  $('#pickImg').src = makeCrop(swImg, box, hint || 0, 260) || '';
+  $('#pickSearch').value = '';
+  candList.innerHTML = '';
+  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Söker…' : 'Ingen kortpool byggd — skriv namnet istället.';
+  $('#scanSkip').hidden = true;
+  $('#scanAI').hidden = !aiEnabled();
+  $('#scanTitle').textContent = 'Vilket kort är detta?';
+  setTimeout(() => $('#pickSearch').focus(), 60);
+  if (!Pool.idx) { SW.out = { results: [], confidence: 0 }; return; }
+  await tick();
+  const r = Matcher.scan(swImg, box, Pool.idx, { keep: 60, hint });
+  SW.out = r;
+  renderCands();
+  drawFitBox(r.results[0] ? r.results[0].fit : null);
+}
+function addAtPoint(clientX, clientY) {
+  const c = toImg(clientX, clientY);
+  const p = player();
+  let w = SW.lastBox && SW.lastBox.w;
+  if (!w) {
+    const known = p.cards.filter(x => x.box && x.shotId === SW.id).map(x => x.box.w)
+      .concat((p.pending || []).filter(x => x.shotId === SW.id).map(x => x.box.w));
+    w = known.length ? known.sort((a, b) => a - b)[known.length >> 1] : SW.nw * 0.06;
+  }
+  const h = w / Matcher.ASPECT;
+  SW.lastBox = { w, h };
+  scanAt({ x: c.x - w / 2, y: c.y - h / 2, w, h }, 0);
+}
+
+function scoreBar(s) { return Math.round(clamp((s - 0.35) / 0.55, 0, 1) * 100); }
+function renderCands() {
+  const out = SW.out;
+  $('#scanTitle').textContent = pickTitle();
+  const list = (out ? out.results : []).slice(0, 5);
+  candList.innerHTML = list.map((r, i) => {
+    const pi = Pool.idx ? Pool.idx.ids.indexOf(r.id) : -1;
+    const thumb = pi >= 0 ? Pool.idx.smalls[pi] : '';
+    return `<button class="cand${i === 0 ? ' top' : ''}${r.ai ? ' ai' : ''}" data-i="${i}">
+      ${thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy">` : '<span style="width:28px"></span>'}
+      <span class="col">
+        <span class="cname">${esc(r.name)}</span>
+        ${r.ai ? '<span class="tag">Claude valde</span>' : ''}
+        <span class="bar"><i style="width:${scoreBar(r.score)}%"></i></span>
+      </span>
+      ${i < 9 ? `<kbd>${i + 1}</kbd>` : ''}
+    </button>`;
+  }).join('');
+  const t = SW.target;
+  scanNoteEl.innerHTML = !list.length
+    ? 'Inga förslag — skriv namnet i rutan ovanför.'
+    : t && t.kind === 'pend'
+    ? 'Förslag från bilden. Stämmer inget — skriv namnet ovanför.'
+    : 'Välj förslag, tryck <kbd>1</kbd>–<kbd>5</kbd>, eller skriv namnet.';
+  $('#scanSkip').hidden = !(t && t.kind === 'pend');
+  $('#scanAI').hidden = !aiEnabled() || !list.length;
+}
+candList.addEventListener('click', ev => {
+  const b = ev.target.closest('.cand');
+  if (b) pickCand(+b.dataset.i);
+});
+
+/* Gemensam väg in för både förslag och egen inskrivning */
+function applyPick(name, sid, cands) {
+  const p = player(), t = SW.target;
+  const list = cands || [{ name, sid, score: 1 }];
+  if (t && t.kind === 'card') {
+    Object.assign(p.cards[t.i], { name, sid: sid || undefined, cands: list });
+  } else if (t && t.kind === 'pend') {
+    const q = p.pending[t.i];
+    p.pending.splice(t.i, 1);
+    p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list });
+  } else {
+    p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, box: SW.box, rot: SW.fitRot || 0, shotId: SW.id, cands: list });
+  }
+  save();
+  resolveAll();                     // rättar även stavning till kortets riktiga namn
+  toast(name, 'ok');
+  closeScan();
+  renderAll();
+  nextPending();
+}
+function pickCand(i) {
+  const r = SW.out && SW.out.results[i];
+  if (!r) return;
+  const cands = SW.out.results.slice(0, 8).map(x => ({ name: x.name, sid: x.id, score: x.score }));
+  const chosen = cands.splice(i, 1)[0] || { name: r.name, sid: r.id, score: r.score };
+  applyPick(r.name, r.id, [chosen].concat(cands));
+}
+autocomplete($('#pickSearch'), $('#pickSuggest'), name => applyPick(name, null, null));
+
+$('#scanSkip').onclick = () => {
+  const p = player(), t = SW.target;
+  if (t && t.kind === 'pend') { p.pending.splice(t.i, 1); save(); }
+  closeScan(); renderAll(); nextPending();
+};
+function nextPending() {
+  const p = player();
+  if (p.pending && p.pending.length && $('#shotOv').classList.contains('open')) {
+    setTimeout(() => openPicker('pend', 0), 120);
+  }
+}
+$('#pendDrop').onclick = async () => {
+  const p = player(), q = p.pending || [];
+  if (!q.length) return;
+  const id = q[0].shotId;
+  if (!confirm(`Släng ${q.length} kort som väntar på ifyllnad, och skärmdumpen?`)) return;
+  const m = shotMem.get(id);
+  if (m) { URL.revokeObjectURL(m.url); shotMem.delete(id); }
+  state.players.forEach(pp => {
+    pp.shots = pp.shots.filter(x => x !== id);
+    pp.pending = (pp.pending || []).filter(x => x.shotId !== id);
+    pp.cards.forEach(c => { if (c.shotId === id) { delete c.box; delete c.shotId; } });
+  });
+  await IDB.del(id).catch(() => {});
+  save();
+  if (SW.id === id) { SW.id = null; closeShot(); }
+  renderAll();
+  toast('Borttagen', 'ok');
+};
+$('#pendGo').onclick = () => {
+  const p = player();
+  if (!p.pending || !p.pending.length) return;
+  if (!$('#shotOv').classList.contains('open')) openShot();
+  setTimeout(() => openPicker('pend', 0), 200);
+};
+
+/* ── sökrutan i bildvyn ── */
+const shotSearch = $('#shotSearch');
+autocomplete(shotSearch, $('#shotSuggest'), name => {
+  const [e] = addCards([name], { keepSel: true });
+  if (e) lookup(name).then(() => renderShotUI(), () => {});
+  renderShotUI();
+});
+
+/* ── tangenter i bildvyn ── */
+function shotKey(ev) {
+  const k = ev.key;
+  const picking = scanPanel.classList.contains('open');
+  if (picking && SW.out && k >= '1' && k <= '9') { ev.preventDefault(); pickCand(+k - 1); return; }
+  if (k === '+' || k === '=') { ev.preventDefault(); swZoom(1.3); }
+  else if (k === '-' || k === '_') { ev.preventDefault(); swZoom(1 / 1.3); }
+  else if (k === '0') { ev.preventDefault(); swFit(); }
+  else if (k === 'ArrowLeft') { ev.preventDefault(); SW.px += 80; swApply(); }
+  else if (k === 'ArrowRight') { ev.preventDefault(); SW.px -= 80; swApply(); }
+  else if (k === 'ArrowUp') { ev.preventDefault(); SW.py += 80; swApply(); }
+  else if (k === 'ArrowDown') { ev.preventDefault(); SW.py -= 80; swApply(); }
+  else if (k === '/' || k.toLowerCase() === 'a') { ev.preventDefault(); shotSearch.focus(); }
+  else if (k.toLowerCase() === 'r') { ev.preventDefault(); if (SW.id) analyzeShot(SW.id); }
+  else if (k.toLowerCase() === 's') { ev.preventDefault(); closeShot(); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   INSTÄLLNINGAR — kortpool och (valfritt) Claude
+   ══════════════════════════════════════════════════════════════════ */
+let poolCode = prefs.pool || 'j25';
+function openPool() {
+  openOv('poolOv');
+  $('#poolCode').value = poolCode;
+  $('#poolLands').checked = prefs.lands !== false;
+  renderPoolPresets();
+  showPoolStatus();
+}
+function renderPoolPresets() {
+  $('#poolPresets').innerHTML = POOL_PRESETS.map(p =>
+    `<button class="btn sm${p.code === poolCode ? ' on' : ''}" data-pc="${esc(p.code)}">${esc(p.name)}</button>`).join('');
+}
+$('#poolPresets').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-pc]');
+  if (!b) return;
+  poolCode = b.dataset.pc;
+  $('#poolCode').value = poolCode;
+  renderPoolPresets(); showPoolStatus();
+});
+$('#poolCode').addEventListener('input', () => {
+  poolCode = $('#poolCode').value.trim().toLowerCase();
+  renderPoolPresets(); showPoolStatus();
+});
+$('#poolCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('#poolBuild').click(); });
+async function showPoolStatus() {
+  const box = $('#poolStatus');
+  const rec = (Pool.idx && Pool.idx.code === poolCode) ? Pool.idx : await IDB.poolGet(poolCode).catch(() => null);
+  if (rec && rec.names) {
+    const active = prefs.pool === poolCode;
+    box.innerHTML = `<div class="nm"><b>${esc(rec.setName)} ${active ? '<span style="color:var(--green)">· används</span>' : ''}</b>
+      <span>${rec.names.length} kort indexerade</span></div>
+      ${active ? '' : '<button class="btn sm" id="poolUse">Använd</button>'}
+      <button class="btn sm danger" id="poolDrop">Ta bort</button>`;
+    $('#poolBuild').textContent = 'Bygg om';
+    const u = $('#poolUse');
+    if (u) u.onclick = async () => {
+      prefs.pool = poolCode; savePrefs();
+      await Pool.load(poolCode);
+      showPoolStatus(); renderAll();
+      toast('Använder ' + Pool.idx.setName, 'ok');
+    };
+    $('#poolDrop').onclick = async () => {
+      if (!confirm('Ta bort indexet för ' + poolCode.toUpperCase() + '?')) return;
+      await IDB.poolDel(poolCode).catch(() => {});
+      if (Pool.idx && Pool.idx.code === poolCode) Pool.idx = null;
+      showPoolStatus(); renderAll();
+    };
+    return;
+  }
+  box.innerHTML = `<div class="nm"><b>${esc(poolCode.toUpperCase())}</b><span>Inget index byggt ännu — byggs automatiskt vid nästa avläsning.</span></div>`;
+  $('#poolBuild').textContent = 'Bygg nu';
+}
+$('#poolLands').onchange = () => { prefs.lands = $('#poolLands').checked; savePrefs(); showPoolStatus(); };
+$('#poolCheck').onclick = async () => {
+  $('#poolInfo').textContent = 'Kollar…';
+  try { const m = await SF.set(poolCode); $('#poolInfo').textContent = `${m.name} — ${m.card_count} kort`; }
+  catch (e) { $('#poolInfo').textContent = 'Okänd setkod.'; }
+};
+$('#poolBuild').onclick = async () => {
+  if (Pool.building) return;
+  Pool.building = true;
+  const prog = $('#poolProg'), bar = $('#poolProg i'), btn = $('#poolBuild');
+  prog.hidden = false; bar.style.width = '0%'; btn.disabled = true;
+  try {
+    const rec = await buildPool(poolCode, p => {
+      if (p.phase === 'list') $('#poolInfo').textContent = `Kortlista: ${p.done}${p.label ? ' — ' + p.label : ''}`;
+      else { bar.style.width = Math.round(100 * p.done / p.total) + '%'; $('#poolInfo').textContent = `Bildsignaturer ${p.done} / ${p.total}`; }
+    });
+    prefs.pool = poolCode; savePrefs();
+    $('#poolInfo').textContent = '';
+    toast(`${rec.setName}: ${rec.names.length} kort`, 'ok');
+    showPoolStatus(); renderAll();
+  } catch (e) {
+    $('#poolInfo').textContent = 'Misslyckades: ' + (e.message || 'fel');
+  } finally { Pool.building = false; btn.disabled = false; prog.hidden = true; }
+};
+
+/* ── Claude (valfritt, egen nyckel) ── */
+/* ══════════════════════════════════════════════════════════════════
+   AI-HJÄLP
+
+   Normalfallet är att en server håller API-nyckeln. Klienten får aldrig se
+   den, och ingen användare behöver eget konto — så hanteras nycklar i en
+   produkt. Appen frågar servern vid start om den finns, så ingen behöver
+   redigera koden för att slå på det.
+
+   Utan server fungerar appen ändå: den lokala igenkänningen är oberoende,
+   och den som kör index.html som ensam fil kan lägga in en egen nyckel.
+   ══════════════════════════════════════════════════════════════════ */
+const AI_ENDPOINT = '/api/identify';
+const AI = { mode: 'off', model: '', checked: false };   // 'server' | 'key' | 'off'
+
+const K_AI = 'sthv.aikey.v1';
+const aiKey = () => LS.get(K_AI, '');
+const aiEnabled = () => AI.mode === 'server' || !!aiKey();
+
+async function probeAI() {
+  AI.checked = false;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 4000);
+    const r = await fetch(AI_ENDPOINT, { method: 'GET', signal: ctl.signal });
+    clearTimeout(t);
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j.ok && j.ready) { AI.mode = 'server'; AI.model = j.model || ''; }
+      else if (j && j.ok) AI.mode = 'off';            // servern finns men saknar nyckel
+    }
+  } catch (e) { /* ingen server — fristående fil */ }
+  if (AI.mode !== 'server' && aiKey()) AI.mode = 'key';
+  AI.checked = true;
+  if (AI.mode === 'server' && prefs.aiAuto == null) { prefs.aiAuto = true; savePrefs(); }
+  renderAll();
+}
+function openAI() {
+  openOv('aiOv');
+  $('#aiKey').value = aiKey();
+  $('#aiAuto').checked = !!prefs.aiAuto;
+  const server = AI.mode === 'server';
+  $('#aiKeyBlock').hidden = server;
+  $('#aiForget').hidden = server || !aiKey();
+  $('#aiSave').textContent = server ? 'Klart' : 'Spara';
+  $('#aiStatus').innerHTML = server
+    ? `<div class="nm"><b style="color:var(--green)">Påslagen</b><span>Sköts av appens server${AI.model ? ' · ' + esc(AI.model) : ''} — du behöver ingen egen nyckel.</span></div>`
+    : aiKey()
+    ? `<div class="nm"><b>Egen nyckel sparad</b><span>Appen körs utan server, så nyckeln ligger i den här webbläsaren.</span></div>`
+    : `<div class="nm"><b>Avstängd</b><span>Ingen server hittades och ingen nyckel är inlagd.</span></div>`;
+}
+$('#scanAI').onclick = () => aiEnabled() ? askClaude() : openAI();
+$('#aiSave').onclick = () => {
+  const v = $('#aiKey').value.trim();
+  if (v) LS.set(K_AI, v);
+  prefs.aiAuto = $('#aiAuto').checked;
+  savePrefs();
+  $('#scanAI').hidden = !aiEnabled();
+  closeOv('aiOv');
+  toast('Sparat', 'ok');
+};
+$('#aiForget').onclick = () => {
+  LS.del(K_AI); prefs.aiAuto = false; savePrefs();
+  $('#aiKey').value = ''; $('#aiAuto').checked = false;
+  $('#scanAI').hidden = true;
+  toast('Nyckeln borttagen');
+};
+$('#aiKey').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('#aiSave').click(); });
+
+let sdkP = null;
+function loadSDK() {
+  if (!sdkP) sdkP = import('https://esm.sh/@anthropic-ai/sdk').catch(e => { sdkP = null; throw e; });
+  return sdkP;
+}
+function renderFitted(box, rot, outW) {
+  const cw = box.w, ch = box.h, cx = box.x + cw / 2, cy = box.y + ch / 2;
+  const rad = (rot || 0) * Math.PI / 180;
+  const outH = Math.max(8, Math.round(outW * ch / cw));
+  const cv = document.createElement('canvas');
+  cv.width = outW; cv.height = outH;
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.fillStyle = '#000'; c.fillRect(0, 0, outW, outH);
+  c.translate(outW / 2, outH / 2);
+  c.scale(outW / cw, outH / ch);
+  c.rotate(-rad);
+  c.translate(-cx, -cy);
+  c.drawImage(swImg, 0, 0);
+  return cv;
+}
+/* Frågar Claude vilket kort en beskärning föreställer. Ren funktion utan
+   koppling till gränssnittet, så den kan användas både från knappen och
+   automatiskt under avläsningen. Kastar vidare autentiseringsfel så att
+   anroparen kan sluta försöka i stället för att köra på med fel nyckel. */
+async function askClaudeFor(img, box, rot, cands) {
+  if (!aiEnabled() || !cands.length) return null;
+  const cv = cropCanvas(img, box, rot, 440);
+  if (!cv) return null;
+  const url = cv.toDataURL('image/jpeg', 0.88);
+  const list0 = cands.slice(0, 25);
+
+  if (AI.mode === 'server') {            // servern håller nyckeln
+    const resp = await fetch(AI_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: url.slice(url.indexOf(',') + 1), names: list0.map(c => c.name) })
+    });
+    if (!resp.ok) {
+      let msg = resp.status + '';
+      try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      const err = new Error(msg);
+      err.status = resp.status;
+      throw err;
+    }
+    const j = await resp.json();
+    const nSel = +j.n;
+    if (!nSel || nSel < 1 || nSel > list0.length) return { cand: null, sure: 'lag' };
+    return { cand: list0[nSel - 1], sure: String(j.sakerhet || 'medel') };
+  }
+
+  const key = aiKey();
+  if (!key) return null;
+  const mod = await loadSDK();
+  const Anthropic = mod.default || mod.Anthropic;
+  const client = new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
+  const list = list0;
+  const res = await client.messages.create({
+    model: 'claude-opus-5',
+    max_tokens: 800,
+    output_config: { effort: 'low' },
+    system: 'Du identifierar Magic: the Gathering-kort på suddiga webbkamerafoton. Du får en beskuren bild av ETT kort och en numrerad lista med kandidater ur spelarnas set. Kortet kan vara delvis täckt av ett annat kort. Svara bara med JSON.',
+    messages: [{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: url.slice(url.indexOf(',') + 1) } },
+      { type: 'text', text: `Vilket av dessa kort är på bilden?\n\n${list.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\n` +
+        `Titta på konstverket, ramfärgen och kortnamnet. Svara med enbart JSON:\n` +
+        `{"n": <radnummer 1-${list.length}, eller 0 om inget passar>, "sakerhet": "hog"|"medel"|"lag"}` }
+    ] }]
+  });
+  const txt = (res.content || []).filter(x => x.type === 'text').map(x => x.text).join('');
+  const m = txt.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  const j = JSON.parse(m[0]);
+  const nSel = +j.n;
+  if (!nSel || nSel < 1 || nSel > list.length) return { cand: null, sure: 'lag' };
+  return { cand: list[nSel - 1], sure: String(j.sakerhet || 'medel') };
+}
+function claudeError(e) {
+  const s = (e && e.message) || '';
+  const st = e && e.status;
+  if (st === 503) return { fatal: true, msg: s || 'AI-hjälpen är inte tillgänglig just nu.' };
+  if (st === 429) return { fatal: true, msg: s || 'För många anrop — vänta en stund.' };
+  if (st === 403) return { fatal: true, msg: 'Servern nekade anropet.' };
+  if (/401|authentication|invalid x-api-key/i.test(s)) return { fatal: true, msg: 'Nyckeln avvisades.' };
+  if (/429|rate.?limit/i.test(s)) return { fatal: true, msg: 'För många anrop — vänta en stund.' };
+  if (/credit|billing|quota/i.test(s)) return { fatal: true, msg: 'Slut på krediter på kontot.' };
+  if (/Failed to fetch|NetworkError|CORS/i.test(s)) return { fatal: true, msg: 'Nådde inte Anthropics API.' };
+  return { fatal: false, msg: s || 'okänt fel' };
+}
+
+/* Knappen i ifyllnadsvyn */
+async function askClaude() {
+  const out = SW.out;
+  if (!out || !out.results.length || !SW.box) return;
+  if (!aiKey()) { openAI(); return; }
+  const btn = $('#scanAI');
+  btn.disabled = true;
+  scanNoteEl.innerHTML = '<span class="spin"></span> Frågar Claude…';
+  try {
+    const img = (swImg && swImg.naturalWidth) ? swImg : ensureBgShot();
+    const r = await askClaudeFor(img, SW.box, SW.fitRot || 0,
+      out.results.map(x => ({ name: x.name, id: x.id, score: x.score })));
+    if (!r || !r.cand) scanNoteEl.innerHTML = 'Claude kände inte igen kortet bland kandidaterna.';
+    else {
+      const i = out.results.findIndex(x => x.id === r.cand.id);
+      const chosen = i >= 0 ? out.results.splice(i, 1)[0] : { name: r.cand.name, id: r.cand.id, score: r.cand.score };
+      out.results.forEach(x => { x.ai = false; });
+      chosen.ai = true;
+      out.results.unshift(chosen);
+      renderCands();
+      scanNoteEl.innerHTML = `<b style="color:var(--blue)">Claude valde ${esc(chosen.name)}</b> · säkerhet ${esc(r.sure)}. Tryck <kbd>1</kbd>.`;
+    }
+  } catch (e) {
+    scanNoteEl.innerHTML = 'Claude-anropet misslyckades: ' + esc(claudeError(e).msg);
+  }
+  btn.disabled = false;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   KLISTRA IN VAR SOM HELST
+   ══════════════════════════════════════════════════════════════════ */
+addEventListener('paste', async ev => {
+  if (isTyping(ev.target) && ev.target.id !== 'shotSearch') return;
+  const items = Array.from((ev.clipboardData && ev.clipboardData.items) || []);
+  const imgItem = items.find(i => i.kind === 'file' && /^image\//.test(i.type));
+  if (imgItem) {
+    ev.preventDefault();
+    const f = imgItem.getAsFile();
+    if (f) await addShot(f);
+    return;
+  }
+  if (isTyping(ev.target)) return;
+  const txt = (ev.clipboardData && ev.clipboardData.getData('text/plain') || '').trim();
+  if (txt && txt.length < 4000 && !/^https?:/i.test(txt)) {
+    ev.preventDefault();
+    $('#bulkTa').value = txt;
+    openBulk();
+    $('#bulkInfo').textContent = parseList(txt).length + ' namn hittades';
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════════
+   UPPSTART
+   ══════════════════════════════════════════════════════════════════ */
+(async function boot() {
+  try {
+    const recs = await IDB.all();
+    const known = new Set();
+    state.players.forEach(p => p.shots.forEach(id => known.add(id)));
+    for (const r of (recs || [])) {
+      if (!r || !r.blob) continue;
+      if (!known.has(r.id)) { IDB.del(r.id).catch(() => {}); continue; }   // föräldralös
+      shotMem.set(r.id, { rec: r, url: URL.createObjectURL(r.blob) });
+    }
+    state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
+  } catch (e) { /* IndexedDB blockerad — appen funkar ändå, utan sparade bilder */ }
+
+  try {
+    const rec = await IDB.poolGet(prefs.pool || 'j25');
+    if (rec && rec.names && rec.names.length && rec.v >= 5) Pool.idx = rec;   // äldre pooler saknar detektormallen
+  } catch (e) { /* poolen byggs vid första avläsningen */ }
+
+  renderAll(true);
+  importFromHash();
+  resolveAll();
+  applySize();
+
+  probeAI();
+})();
+</script>
+</body>
+</html>
