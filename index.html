@@ -74,7 +74,10 @@ kbd{
 .brand .sub{color:var(--dim2);font-weight:500;font-size:11px;letter-spacing:.4px;text-transform:uppercase}
 .vr{width:1px;height:20px;background:var(--line);flex:none}
 
-.players{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none;flex:1}
+/* flex:1 här sköt ut "+ Spelare" till andra sidan raden — nav:en ska bara
+   ta den plats flikarna behöver, och krympa när de blir för många */
+.players{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none;flex:0 1 auto}
+.topspacer{flex:1;min-width:8px}
 .players::-webkit-scrollbar{display:none}
 .ptab{
   position:relative;display:flex;align-items:center;gap:7px;
@@ -170,7 +173,15 @@ main{flex:1;display:flex;min-height:0}
 }
 .card:hover{transform:translateY(-3px)}
 .card.sel{transform:translateY(-5px) scale(1.035);z-index:3}
-.card.sel img{box-shadow:0 0 0 3px var(--acc),0 12px 26px -6px #000e}
+/* Ringen låg 3px UTANFÖR kortet. Rullar man handen så att kortet går in under
+   sökraden klipper scrollytan just de pixlarna: kortet ser helt ut medan ramen
+   är kapad, vilket läses som ett fel. Ritad innanför kanten i stället — då
+   finns inget utanför kortet som kan klippas bort. */
+.card.sel img{box-shadow:0 12px 26px -6px #000e}
+.card.sel::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;
+  border:3px solid var(--acc);pointer-events:none;z-index:2;
+}
 .card .idx{
   position:absolute;top:5px;left:5px;z-index:2;
   min-width:18px;height:18px;padding:0 5px;border-radius:5px;
@@ -593,6 +604,69 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   .gridwrap{padding:10px}
   .grid{gap:9px}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   KOMPAKT LÄGE — ett smalt fönster vid sidan av SpellTable.
+   Måttet som räknar är ungefär en tredjedel av en 13-tums MacBook Pro,
+   alltså runt 480 px. Där får det breda tvåspaltsläget inte plats: enbart
+   detaljpanelen är 300 px. Layouten viks till en spalt med kortet överst
+   så stort som höjden tillåter, en vågrät remsa att bläddra i, och sökrutan
+   längst ned där tummen är. Regeltexten döljs — den står på kortet, och
+   poängen med läget är att kortet ska vara stort.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width:620px){
+  .brand span{display:none}
+  .brand{padding-right:0}
+  .topbar{gap:6px;padding:0 8px;height:44px}
+  .topbar .vr{display:none}
+  #helpBtn{display:none}
+  #shotBtnTxt{display:none}
+  #addPlayerBtn{padding:0 7px}
+  #addPlayerBtn svg{margin:0}
+  #addPlayerBtn{font-size:0}                 /* bara plustecknet får plats */
+  #addPlayerBtn svg{font-size:13px}
+  .hints{display:none}
+
+  main{flex-direction:column}
+
+  /* kortet: fyller höjden som blir över */
+  .detail{order:1;width:auto;flex:1;min-height:0;border-left:none;border-bottom:1px solid var(--line)}
+  .dpad{padding:10px;gap:0;overflow:hidden}
+  /* aspect-ratio räckte inte: i en kolumn-flexbox sträcks elementet i sidled
+     och proportionen kunde inte styra bredden, så bilden rann utanför och
+     klipptes. Låt rutan ta det utrymme som finns och bilden skala in i den. */
+  .dimg{flex:1;min-height:0;width:100%;aspect-ratio:auto;display:grid;place-items:center;background:none}
+  .dimg img{width:auto;height:auto;max-width:100%;max-height:100%;box-shadow:var(--shadow)}
+  .dpad .dimg ~ *{display:none}          /* regeltexten står på kortet */
+
+  /* handen: granskningsrad, remsa, sökruta */
+  .hand{order:2;flex:none;min-height:0}
+  .pendbar{order:1}
+  .gridwrap{order:2;flex:none;height:104px;overflow-x:auto;overflow-y:hidden;padding:9px 10px}
+  .handbar{order:3;border-bottom:none;border-top:1px solid var(--line);padding:8px 10px}
+  .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:60px;gap:7px;justify-content:start}
+  .card{scroll-margin:10px}
+  .card.sel{transform:none}              /* lyftet får inte plats i remsan */
+  .card .skel{font-size:9px;padding:4px}
+  .card .idx{display:none}
+
+  /* i handraden får bara sökrutan plats */
+  #bulkBtn,.handmeta{display:none}
+  .searchwrap{max-width:none;min-width:0}
+
+  /* tom hand: låt remsan bli stor nog för startmeddelandet */
+  /* .hand är flex:none och tar bara sin innehållshöjd — utan att den också
+     får växa hade remsan blivit 18px och startmeddelandet osynligt. */
+  body.tomhand .detail{display:none}
+  body.tomhand .hand{flex:1;min-height:0}
+  body.tomhand .gridwrap{flex:1;height:auto}
+  body.tomhand .empty{padding:14px}
+  body.tomhand .empty h2{font-size:15px}
+  body.tomhand .empty p{font-size:12px}
+  body.tomhand .empty-icon,body.tomhand .empty-fine{display:none}
+  body.tomhand .empty .btnrow{flex-direction:column;width:100%}
+  body.tomhand .empty .btnrow .btn{width:100%;justify-content:center}
+}
 </style>
 </head>
 <body>
@@ -611,6 +685,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Spelare
     </button>
+    <div class="topspacer"></div>
     <div class="vr"></div>
     <button class="btn" id="shotBtn" title="Öppna bildvyn (S)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
@@ -2447,6 +2522,8 @@ function renderGrid(force) {
   // räkneverk och Töm-knapp uppdateras oavsett om rutnätet ritas om
   $('#handCount').textContent = cards.length === 1 ? '1 kort' : cards.length + ' kort';
   $('#clearHand').hidden = cards.length === 0;
+  // kompakta läget behöver veta om handen är tom för att ge startmeddelandet plats
+  document.body.classList.toggle('tomhand', cards.length === 0);
   if (!force && sig === gridSig) { renderSel(); return; }
   gridSig = sig;
 
