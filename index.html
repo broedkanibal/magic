@@ -3855,7 +3855,23 @@ async function analyzeShot(shotId) {
     anStep('Letar efter kort på borden…');
     await tick();
     const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
-    const props = panes.map(p => Detect.proposeCards(img, p, { want: 16, template: tmpl }).proposals);
+    /* Motståndarens kort ligger vända mot honom, alltså upp och ner sett från
+       hans kamera. Detektorn provade bara ±26°, så en sådan ruta gav noll
+       förslag — uppmätt på en riktig skärmdump: 0 kort upprätt, 4 kort med de
+       vända vinklarna, poäng 0.86/0.84/0.71/0.70. Identifieringen klarade
+       redan båda hållen (Matcher.scan provar hint+180), det var bara
+       detekteringen som saknade dem.
+       Extrapasset körs bara när rutan ser tom ut, så en vanlig bild kostar
+       ingenting extra. */
+    const VAND_ROTS = [-26, -19, -13, -6, 0, 6, 13, 19, 26].map(r => r + 180);
+    const props = panes.map(p => {
+      let r = Detect.proposeCards(img, p, { want: 16, template: tmpl });
+      if (r.proposals.length < 2) {
+        const alt = Detect.proposeCards(img, p, { want: 16, template: tmpl, rots: VAND_ROTS });
+        if (alt.proposals.length > r.proposals.length) r = alt;
+      }
+      return r.proposals;
+    });
     const total = props.reduce((a, x) => a + x.length, 0) || 1;
 
     let done = 0;
