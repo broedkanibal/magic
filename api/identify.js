@@ -105,15 +105,33 @@ export default async function handler(req, res) {
       model: MODEL,
       max_tokens: 600,
       output_config: { effort: 'low' },
-      system: 'Du identifierar Magic: the Gathering-kort på suddiga webbkamerafoton. Du får en beskuren bild av ETT kort och en numrerad lista med kandidater ur spelarnas set. Kortet kan vara delvis täckt av ett annat kort. Svara bara med JSON.',
+      /* Beskärningen kommer från en automatisk detektor som ibland tar fel:
+         en kortask, en mobil, en kaffekopp eller en bit bord kan se kortlik ut.
+         Utan att det sägs rakt ut väljer modellen helst NÅGOT ur listan, och
+         då hamnar ett påhittat kort i spelarens hand. Därför står det både att
+         0 är ett fullgott svar och vad "hog" faktiskt ska betyda. */
+      system: 'Du identifierar Magic: the Gathering-kort på suddiga webbkamerafoton. ' +
+        'Du får en beskuren bild och en numrerad lista med kandidater ur spelarnas set. ' +
+        'Bilden är automatiskt utklippt och föreställer INTE alltid ett kort — det kan ' +
+        'vara en kortask, en tärning, en telefon, en hand eller bara bordet. Den kan ' +
+        'också vara ett kort som inte finns i listan. I båda fallen är 0 rätt svar. ' +
+        'Att gissa fel är sämre än att svara 0, för svaret hamnar direkt i spelarens ' +
+        'hand utan kontroll. Svara bara med JSON.',
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
           { type: 'text', text:
             `Vilket av dessa kort är på bilden?\n\n${list.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\n` +
-            `Titta på konstverket, ramfärgen och kortnamnet. Svara med enbart JSON:\n` +
-            `{"n": <radnummer 1-${list.length}, eller 0 om inget passar>, "sakerhet": "hog"|"medel"|"lag"}` }
+            `Titta på konstverket, ramfärgen och kortnamnet.\n\n` +
+            `Svara 0 om bilden inte föreställer ett Magic-kort, eller om kortet inte ` +
+            `finns bland kandidaterna.\n\n` +
+            `Säkerhet:\n` +
+            `- "hog" bara när du kan läsa kortnamnet, eller känner igen konstverket utan tvekan\n` +
+            `- "medel" när konstverket verkar stämma men du inte kan läsa namnet\n` +
+            `- "lag" när du mest gissar\n\n` +
+            `Svara med enbart JSON:\n` +
+            `{"n": <radnummer 1-${list.length}, eller 0>, "sakerhet": "hog"|"medel"|"lag"}` }
         ]
       }]
     });

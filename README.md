@@ -19,6 +19,37 @@ sekunder, gratis.
 Första gången du läser av en bild bygger appen ett bildindex över kortsetet
 (~780 kort, ca 30 sekunder). Det sparas lokalt och görs aldrig om.
 
+## Köra lokalt
+
+Två lägen, olika portar. Båda kan köras samtidigt.
+
+```bash
+npm run dev        # http://localhost:8232 — attrapp, gratis
+npm run dev:ai     # http://localhost:3000 — riktiga Claude, kostar krediter
+```
+
+**`npm run dev`** startar `dev/stub-server.cjs`. Steg 1–3 av igenkänningen körs i
+webbläsaren och är därför identiska med produktion — det är bara det sista steget,
+att fråga Claude om de osäkra korten, som är en attrapp. Den svarar "inget av
+kandidaterna passar", så osäkra kort stannar i granskningslistan. Använd det här
+till gränssnitt, flöden och detekteringen.
+
+Attrappen svarade tidigare "kandidat 1, hög säkerhet" på allt utan att titta på
+bilden, vilket tryckte in felaktiga kort i handen och såg ut som ett fel i
+igenkänningen. Sätt `STUB_AI=accept` för att medvetet testa den vägen.
+
+**`npm run dev:ai`** kör `vercel dev`, alltså den riktiga `api/identify.js` med din
+riktiga nyckel. Kräver engångsuppsättning:
+
+```bash
+npm install
+npm i -g vercel
+vercel link              # välj projektet "magic"
+vercel env pull .env.local
+```
+
+`.env.local` innehåller nyckeln och är gitignorerad.
+
 ## Så fungerar det
 
 1. Ta en skärmdump av hela SpellTable-fönstret (⇧⌘4 + mellanslag på Mac).

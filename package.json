@@ -2,6 +2,10 @@
   "name": "handvy",
   "private": true,
   "type": "module",
+  "scripts": {
+    "dev": "node dev/stub-server.cjs",
+    "dev:ai": "vercel dev"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0"
   }

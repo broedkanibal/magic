@@ -292,7 +292,11 @@
        tangentbord, mus och SpellTables överlägg: riktiga kort 0.79–0.89,
        allt annat 0.48–0.69. Bara en relativ tröskel räckte inte — om det
        bäst poängsatta råkade vara ett tangentbord blev allt relativt det. */
-    const cut = T ? Math.max(0.70, cands[0].score * 0.55) : cands[0].score * 0.38;
+    /* tmplScore är en korrelationskoefficient — mallen z-normaliseras i
+       template() — så score når aldrig över 1.0 och 0.55*score aldrig över
+       0.55. Math.max(0.70, ...) var därför alltid exakt 0.70 och såg bara ut
+       att anpassa sig efter bästa träffen. Skrivet som den konstant det är. */
+    const cut = T ? 0.70 : cands[0].score * 0.38;
     /* Inget "behåll minst N" när mallen används. Regeln var tänkt som skydd
        om toppvärdet råkade komma från något som inte var ett kort, men med
        en absolut tröskel gör den bara skada: den tvingade igenom ett förslag

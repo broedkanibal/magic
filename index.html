@@ -353,14 +353,22 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   pointer-events:none;opacity:0;transition:opacity .18s,transform .18s;
 }
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Behållaren är klick-genomsläpplig så att den inte blockerar gränssnittet,
+   men varje notis tar själv emot muspekaren — annars går den varken att
+   hovra för att pausa eller klicka bort. */
 #toast div{
   padding:8px 15px;border-radius:20px;font-size:12.5px;font-weight:550;
   background:#1e2735;border:1px solid #3b4759;box-shadow:0 10px 30px -8px #000c;
+  pointer-events:auto;cursor:pointer;
 }
 #toast div.err{background:#3a1f22;border-color:#6a3138;color:#ffb3ba}
 #toast div.ok{background:#16302a;border-color:#2c5a48;color:#9fe8c4}
+/* Notisen är klick-genomsläpplig så att den inte blockerar gränssnittet.
+   Ångraknappen måste därför uttryckligen ta emot klick igen — utan detta går
+   den att se men inte att trycka på. */
 #toast button.undo{margin-left:10px;padding:2px 9px;border-radius:6px;border:1px solid currentColor;
-  background:transparent;color:inherit;font:inherit;font-size:12px;font-weight:600;cursor:pointer;opacity:.85}
+  background:transparent;color:inherit;font:inherit;font-size:12px;font-weight:600;cursor:pointer;opacity:.85;
+  pointer-events:auto}
 #toast button.undo:hover{opacity:1;background:#ffffff1a}
 
 /* ─────────── screenshot workspace ─────────── */
@@ -773,6 +781,22 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <span class="grow" id="bulkInfo"></span>
       <button class="btn" data-close="bulkOv">Avbryt</button>
       <button class="btn prim" id="bulkGo">Lägg till</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── bekräfta ── -->
+<div class="ov" id="askOv">
+  <div class="modal" style="width:min(430px,94vw)">
+    <header>
+      <h2 id="askTitle">Är du säker?</h2>
+      <button class="close" data-close="askOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body"><p class="lead" id="askBody"></p></div>
+    <div class="foot">
+      <span class="grow"></span>
+      <button class="btn" id="askNo">Avbryt</button>
+      <button class="btn prim" id="askYes">OK</button>
     </div>
   </div>
 </div>
@@ -1944,7 +1968,11 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
        tangentbord, mus och SpellTables överlägg: riktiga kort 0.79–0.89,
        allt annat 0.48–0.69. Bara en relativ tröskel räckte inte — om det
        bäst poängsatta råkade vara ett tangentbord blev allt relativt det. */
-    const cut = T ? Math.max(0.70, cands[0].score * 0.55) : cands[0].score * 0.38;
+    /* tmplScore är en korrelationskoefficient — mallen z-normaliseras i
+       template() — så score når aldrig över 1.0 och 0.55*score aldrig över
+       0.55. Math.max(0.70, ...) var därför alltid exakt 0.70 och såg bara ut
+       att anpassa sig efter bästa träffen. Skrivet som den konstant det är. */
+    const cut = T ? 0.70 : cands[0].score * 0.38;
     /* Inget "behåll minst N" när mallen används. Regeln var tänkt som skydd
        om toppvärdet råkade komma från något som inte var ett kort, men med
        en absolut tröskel gör den bara skada: den tvingade igenom ett förslag
@@ -2034,13 +2062,25 @@ function busy(on, txt) {
 function statusErr(txt) { statusEl.classList.add('err'); statusTxt.textContent = txt; }
 
 const toastEl = $('#toast');
-let toastT = null;
+let toastT = null, toastMs = 0;
 function hideToast() {
   clearTimeout(toastT);
   toastEl.classList.remove('on');
   setTimeout(() => { toastEl.innerHTML = ''; }, 220);
 }
-/* undo: en ångraknapp i toasten i stället för en blockerande confirm-ruta —
+function armToast(ms) {
+  clearTimeout(toastT);
+  toastMs = ms;
+  toastT = setTimeout(hideToast, ms);
+}
+/* Notiser låg tidigare uppe 2,4 sekunder, vilket inte räcker för att hinna
+   läsa en mening — särskilt inte en med en ångraknapp man ska hinna reagera
+   på. Tiderna är rejält tilltagna, klockan pausar när muspekaren är över
+   notisen, och ett klick tar bort den om den är i vägen. */
+// mouseenter/mouseleave bubblar inte, och behållaren har pointer-events:none —
+// lyssnarna måste därför sitta på varje notis, inte på #toast.
+toastEl.addEventListener('click', ev => { if (!ev.target.closest('button.undo')) hideToast(); });
+/* undo: en ångraknapp i notisen i stället för en blockerande confirm-ruta —
    raderingen går direkt och ett felklick kostar ingenting. */
 function toast(msg, kind, undo) {
   const d = document.createElement('div');
@@ -2049,16 +2089,14 @@ function toast(msg, kind, undo) {
   if (undo) {
     const b = document.createElement('button');
     b.className = 'undo'; b.type = 'button'; b.textContent = '\u00c5ngra';
-    b.onclick = () => { undo(); hideToast(); };
+    b.onclick = ev => { ev.stopPropagation(); undo(); hideToast(); };
     d.appendChild(b);
   }
+  d.onmouseenter = () => clearTimeout(toastT);
+  d.onmouseleave = () => { if (toastEl.classList.contains('on')) armToast(toastMs); };
   toastEl.appendChild(d);
   toastEl.classList.add('on');
-  clearTimeout(toastT);
-  toastT = setTimeout(() => {
-    toastEl.classList.remove('on');
-    setTimeout(() => { toastEl.innerHTML = ''; }, 220);
-  }, kind === 'err' ? 4200 : undo ? 7000 : 2400);
+  armToast(undo ? 14000 : kind === 'err' ? 10000 : 6000);
 }
 
 /* ─────────── localStorage ─────────── */
@@ -2638,11 +2676,24 @@ function removePlayer(id) {
   const i = state.players.findIndex(p => p.id === id);
   if (i < 0) return;
   const p = state.players[i];
+  /* Bildposterna sparas undan så att ångra kan lägga tillbaka dem — objekt-
+     URL:erna återskapas då ur blobbarna, de gamla är återkallade. */
+  const mems = p.shots.map(sid => shotMem.get(sid)).filter(Boolean).map(m => m.rec);
   p.shots.forEach(sid => { const m = shotMem.get(sid); if (m) URL.revokeObjectURL(m.url); shotMem.delete(sid); IDB.del(sid).catch(() => {}); });
+  const prevActive = state.active, prevSel = state.sel;
   state.players.splice(i, 1);
   if (state.active === id) state.active = state.players[clamp(i, 0, state.players.length - 1)].id;
   state.sel = 0;
   save(); renderAll(true);
+  toast(`${p.name} borttagen`, 'ok', async () => {
+    state.players.splice(Math.min(i, state.players.length), 0, p);
+    state.active = prevActive; state.sel = prevSel;
+    for (const rec of mems) {
+      shotMem.set(rec.id, { rec, url: URL.createObjectURL(rec.blob) });
+      await IDB.put(rec).catch(() => {});
+    }
+    save(); renderAll(true);
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -2733,7 +2784,7 @@ $('#playerTabs').addEventListener('click', ev => {
   if (del) {
     ev.stopPropagation();
     const p = state.players.find(x => x.id === del.dataset.del);
-    if (p && (p.cards.length === 0 || confirm(`Ta bort "${p.name}" med ${p.cards.length} kort?`))) removePlayer(p.id);
+    if (p) removePlayer(p.id);   // ångerbar, så ingen fråga behövs
     return;
   }
   const tab = ev.target.closest('.ptab');
@@ -2798,8 +2849,37 @@ addEventListener('resize', () => {
 
 /* ─── överlägg ─── */
 function openOv(id) { $('#' + id).classList.add('open'); }
-function closeOv(id) { $('#' + id).classList.remove('open'); }
+let askResolve = null;
+function closeOv(id) {
+  $('#' + id).classList.remove('open');
+  // stängs rutan på annat sätt — kryss, Esc, klick utanför — räknas det som nej
+  if (id === 'askOv' && askResolve) { const r = askResolve; askResolve = null; r(false); }
+}
+/* Egen bekräftelseruta i stället för webbläsarens confirm(). Den senare kan
+   sluta svara helt: har man en gång kryssat i Chromes "hindra sidan från att
+   visa fler dialogrutor" returnerar den nej direkt, utan att visa något, och
+   knappen gör då tyst ingenting. Används bara där ett svar verkligen behövs —
+   det som går att återställa får en ångraknapp i notisen i stället. */
+function ask(msg, opt) {
+  const o = opt || {};
+  $('#askTitle').textContent = o.title || 'Är du säker?';
+  $('#askBody').textContent = msg;
+  const yes = $('#askYes');
+  yes.textContent = o.ok || 'OK';
+  yes.classList.toggle('danger', !!o.danger);
+  openOv('askOv');
+  setTimeout(() => yes.focus(), 30);
+  return new Promise(res => { askResolve = res; });
+}
+function askDone(v) {
+  if (!askResolve) return;
+  const r = askResolve; askResolve = null;
+  closeOv('askOv');
+  r(v);
+}
 function anyOvOpen() { return $$('.ov.open').length > 0; }
+$('#askYes').onclick = () => askDone(true);
+$('#askNo').onclick = () => askDone(false);
 $$('[data-close]').forEach(b => b.onclick = () => {
   const id = b.dataset.close;
   if (id === 'focusOv') closeFocus(); else if (id === 'shotOv') closeShot(); else closeOv(id);
@@ -2924,10 +3004,12 @@ menuEl.addEventListener('click', ev => {
   if (a === 'import') $('#importInput').click();
   if (a === 'nums') { prefs.shownums = !prefs.shownums; savePrefs(); applySize(); }
   if (a === 'reset') {
-    if (confirm('Nollställ allt — spelare, händer och screenshots?')) {
+    ask('Alla spelare, händer och skärmdumpar tas bort och sidan laddas om. Det går inte att ångra.',
+        { title: 'Nollställ allt?', ok: 'Nollställ', danger: true }).then(yes => {
+      if (!yes) return;
       [K.state, K.prefs].forEach(LS.del);
       IDB.clear().catch(() => {}).then(() => location.reload());
-    }
+    });
   }
 });
 
@@ -2976,14 +3058,15 @@ importInput.onchange = async () => {
     toast(`Importerade ${d.players.length} spelare`, 'ok');
   } catch (e) { toast('Kunde inte läsa filen', 'err'); }
 };
-function importFromHash() {
+async function importFromHash() {
   const m = /[#&]h=([^&]+)/.exec(location.hash || '');
   if (!m) return;
   history.replaceState(null, '', location.pathname + location.search);
   try {
     const d = JSON.parse(b64d(m[1]));
     if (!d || !Array.isArray(d.c) || !d.c.length) return;
-    if (!confirm(`Öppna delad hand "${d.n || 'Delad'}" med ${d.c.length} kort?`)) return;
+    if (!await ask(`"${d.n || 'Delad'}" med ${d.c.length} kort läggs till som en ny spelare.`,
+                   { title: 'Öppna delad hand?', ok: 'Lägg till' })) return;
     const p = addPlayer(d.n || 'Delad hand');
     d.c.forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
     save(); renderAll(true); resolveAll();
@@ -3193,21 +3276,52 @@ $('#swInput').onchange = async () => {
   for (const f of fs) await addShot(f);
 };
 $('#swRescan').onclick = () => { if (SW.id) analyzeShot(SW.id); };
-$('#swDel').onclick = async () => {
-  if (!SW.id) return;
-  const p = player(), id = SW.id;
-  const nPend = state.players.reduce((a, x) => a + (x.pending || []).filter(q => q.shotId === id).length, 0);
-  if (!confirm(nPend ? `Ta bort bilden och ${nPend} kort som väntar på ifyllnad?` : 'Ta bort den här bilden?')) return;
+/* Ta bort en skärmdump och allt som hör till den. Låg tidigare bakom en
+   confirm-ruta i två nästan identiska kopior. Det kunde sluta med att
+   ingenting hände: har man en gång kryssat i Chromes "hindra sidan från att
+   visa fler dialogrutor" svarar confirm() nej direkt, utan att visa något.
+   En knapp som tyst vägrar är värre än en som ångrar sig. */
+async function dropShot(id) {
   const m = shotMem.get(id);
+  const snap = state.players.map(pp => ({
+    p: pp,
+    shots: pp.shots.slice(),
+    pending: (pp.pending || []).slice(),
+    shotIdx: pp.shotIdx,
+    boxes: pp.cards.filter(c => c.shotId === id).map(c => ({ c, box: c.box, shotId: c.shotId }))
+  }));
+  const nPend = snap.reduce((a, s) => a + s.pending.filter(q => q.shotId === id).length, 0);
+
   if (m) { URL.revokeObjectURL(m.url); shotMem.delete(id); }
   state.players.forEach(pp => {
     pp.shots = pp.shots.filter(x => x !== id);
     pp.pending = (pp.pending || []).filter(q => q.shotId !== id);
     pp.cards.forEach(c => { if (c.shotId === id) { delete c.box; delete c.shotId; } });
   });
-  p.shotIdx = Math.max(0, p.shots.length - 1);
+  player().shotIdx = Math.max(0, player().shots.length - 1);
+  if (SW.id === id) SW.id = null;
   await IDB.del(id).catch(() => {});
-  save();
+  save(); renderAll(true);
+
+  toast(nPend ? `Bilden och ${nPend} kort borttagna` : 'Bilden borttagen', 'ok', async () => {
+    if (m) {
+      shotMem.set(id, { rec: m.rec, url: URL.createObjectURL(m.rec.blob) });
+      await IDB.put(m.rec).catch(() => {});
+    }
+    snap.forEach(s => {
+      s.p.shots = s.shots;
+      s.p.pending = s.pending;
+      s.p.shotIdx = s.shotIdx;
+      s.boxes.forEach(b => { b.c.box = b.box; b.c.shotId = b.shotId; });
+    });
+    save(); renderAll(true);
+    if ($('#shotOv').classList.contains('open')) loadShot(id);
+  });
+}
+$('#swDel').onclick = async () => {
+  if (!SW.id) return;
+  await dropShot(SW.id);
+  const p = player();
   loadShot(p.shots[p.shotIdx] || null);
 };
 $('#swThumbs').addEventListener('click', ev => {
@@ -3289,7 +3403,14 @@ async function addShot(blob) {
   try { await IDB.put(rec); }
   catch (e) { toast('Kunde inte spara bilden lokalt', 'err'); return; }
   shotMem.set(rec.id, { rec, url: URL.createObjectURL(blob) });
-  await analyzeShot(rec.id);
+  const found = await analyzeShot(rec.id);
+  /* Efter en avläsning hör man hemma i handen, inte kvar i bildvyn. Det var
+     tidigare sant av en slump — vyn öppnades först efteråt. Sedan bilder kan
+     dras in direkt i vyn måste den stängas aktivt. Hittades ingenting stannar
+     vi kvar, men visar bilden i stället för dropzonen så att man ser vad som
+     lästes av och kan köra om. */
+  if (found) closeShot();
+  else if ($('#shotOv').classList.contains('open')) loadShot(rec.id);
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -3459,13 +3580,15 @@ function cropURL(img, r, w) {
 let analyzing = false, cancelAnalyze = false;
 $('#anCancel').onclick = () => { cancelAnalyze = true; };
 
+/* Returnerar antalet hittade kort (identifierade + att fylla i), så att
+   anroparen vet om avläsningen gav något att gå vidare till. */
 async function analyzeShot(shotId) {
-  if (analyzing) return;
+  if (analyzing) return 0;
   analyzing = true; cancelAnalyze = false;
   anInit();
   const mem = shotMem.get(shotId);
   try {
-    if (!mem) return;
+    if (!mem) return 0;
     openOv('analyzeOv');
     anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
     anEl.title.textContent = 'Läser av skärmdumpen…';
@@ -3545,9 +3668,10 @@ async function analyzeShot(shotId) {
       out.push({ pane: panes[i], acc, pend });
     }
     await claudePass(out, img);
-    applyAnalysis(shotId, out, img);
+    return applyAnalysis(shotId, out, img);
   } catch (e) {
     toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
+    return 0;
   } finally {
     analyzing = false;
     closeOv('analyzeOv');
@@ -3591,7 +3715,7 @@ async function claudePass(out, img) {
         }
       } catch (e) {
         const err = claudeError(e);
-        toast('AI-hjälp: ' + err.msg, 'err');
+        toast('Claude: ' + err.msg, 'err');
         if (err.fatal) { stop = true; return; }
       }
       done++;
@@ -3600,7 +3724,7 @@ async function claudePass(out, img) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
-  if (added) toast(`AI-hjälpen identifierade ${added} kort`, 'ok');
+  if (added) toast(`Claude avgjorde ${added} osäkra kort`, 'ok');
 }
 
 /* Hur stor del av den mindre rutan som ligger inom den större. */
@@ -3646,6 +3770,7 @@ function applyAnalysis(shotId, out, img) {
   if (!nc && !np) toast('Hittade inga kort på borden i bilden', 'err');
   else if (!nc) toast(`${out.length} spelare · ${np} kort hittade men inte identifierade — fyll i dem`, 'err');
   else toast(`${out.length} spelare · ${nc} kort${np ? ` · ${np} att fylla i` : ''}`, 'ok');
+  return nc + np;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -3892,22 +4017,13 @@ function nextPending() {
   }
 }
 $('#pendDrop').onclick = async () => {
-  const p = player(), q = p.pending || [];
+  const q = player().pending || [];
   if (!q.length) return;
-  const id = q[0].shotId;
-  if (!confirm(`Släng ${q.length} kort som väntar på ifyllnad, och skärmdumpen?`)) return;
-  const m = shotMem.get(id);
-  if (m) { URL.revokeObjectURL(m.url); shotMem.delete(id); }
-  state.players.forEach(pp => {
-    pp.shots = pp.shots.filter(x => x !== id);
-    pp.pending = (pp.pending || []).filter(x => x.shotId !== id);
-    pp.cards.forEach(c => { if (c.shotId === id) { delete c.box; delete c.shotId; } });
-  });
-  await IDB.del(id).catch(() => {});
-  save();
-  if (SW.id === id) { SW.id = null; closeShot(); }
-  renderAll();
-  toast('Borttagen', 'ok');
+  await dropShot(q[0].shotId);
+  if ($('#shotOv').classList.contains('open')) {
+    const p = player();
+    loadShot(p.shots[p.shotIdx] || null);
+  }
 };
 $('#pendGo').onclick = () => {
   const p = player();
@@ -3986,10 +4102,16 @@ async function showPoolStatus() {
       toast('Använder ' + Pool.idx.setName, 'ok');
     };
     $('#poolDrop').onclick = async () => {
-      if (!confirm('Ta bort indexet för ' + poolCode.toUpperCase() + '?')) return;
+      const wasActive = !!(Pool.idx && Pool.idx.code === poolCode);
+      const rec = wasActive ? Pool.idx : await IDB.poolGet(poolCode).catch(() => null);
       await IDB.poolDel(poolCode).catch(() => {});
-      if (Pool.idx && Pool.idx.code === poolCode) Pool.idx = null;
+      if (wasActive) Pool.idx = null;
       showPoolStatus(); renderAll();
+      toast('Indexet för ' + poolCode.toUpperCase() + ' borttaget', 'ok', rec ? async () => {
+        await IDB.poolPut(rec).catch(() => {});
+        if (wasActive) Pool.idx = rec;
+        showPoolStatus(); renderAll();
+      } : null);
     };
     return;
   }
