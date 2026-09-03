@@ -134,8 +134,14 @@ export default async function handler(req, res) {
           'ser likadan ut oavsett vilket kort det är. Har du inte sett något som liknar ' +
           'konstverk eller tryckt text på kortet är det en baksida, inte ett oläsbart kort. ' +
           'Gissa aldrig ett namn du inte har stöd för — ett påhittat namn med hög säkerhet ' +
-          'hamnar direkt i spelarens hand utan kontroll. Svara bara med JSON, aldrig med ' +
-          'förklarande text.',
+          'hamnar direkt i spelarens hand utan kontroll. ' +
+          'BASLÄNDER ÄR ETT UNDANTAG. Plains, Island, Swamp, Mountain och Forest identifieras ' +
+          'på den stora mana-symbolen, inte på namnet: en vit sol, en blå droppe, en svart ' +
+          'dödskalle, ett rött berg, ett grönt träd. Ser du symbolen tydligt är kortet ' +
+          'identifierat — svara med hög säkerhet även om resten av kortet är utbränt av ' +
+          'lampans reflex och namnet inte går att läsa. Symbolen är stödet. Kortet kan ligga ' +
+          'upp och ner, så symbolen kan sitta i övre halvan. ' +
+          'Svara bara med JSON, aldrig med förklarande text.',
         messages: [{
           role: 'user',
           content: [
