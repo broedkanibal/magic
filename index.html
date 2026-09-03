@@ -4053,10 +4053,13 @@ function cardPayload(img, box, marg) {
   const url = cv.toDataURL('image/jpeg', 0.92);
   return url.slice(url.indexOf(',') + 1);
 }
-async function readCardAt(img, box, marg) {
+const BASLAND_NAMN = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
+const arBasland = n => !!n && BASLAND_NAMN.includes(n.trim());
+
+async function readCardAt(img, box, marg, lage) {
   const resp = await fetch(AI_ENDPOINT, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: 'card', image: cardPayload(img, box, marg) })
+    body: JSON.stringify({ mode: lage || 'card', image: cardPayload(img, box, marg) })
   });
   if (!resp.ok) return null;
   const j = await resp.json();
@@ -4078,7 +4081,7 @@ async function readCardAt(img, box, marg) {
    Är första svaret redan säkert räcker det, och kortet kostar ett anrop. */
 async function readCard(img, box) {
   const forsta = await readCardAt(img, box, 0.40).catch(() => null);
-  if (forsta && forsta.namn && forsta.sakerhet === 'hog') return forsta;
+  if (forsta && forsta.namn && forsta.sakerhet === 'hog' && !arBasland(forsta.namn)) return forsta;
   const andra = await readCardAt(img, box, 0.10).catch(() => null);
   /* Ett svar från EN inramning som inte är säkert räcker inte. Det var så en
      Swamp presenterades som "Island" — den ena inramningen sa inget alls och
@@ -4086,6 +4089,16 @@ async function readCard(img, box) {
      eller överens mellan de två. Annars inget påstående. */
   const a = forsta && forsta.namn ? forsta : null;
   const b = andra && andra.namn ? andra : null;
+
+  /* Handlar det om ett basland avgörs det genom att JÄMFÖRA mot de fem
+     riktiga korten i stället för att lita på modellens minne. En suddig
+     dödskalle kallades "Forest" — ur minnet är en mörk klump på 80 pixlar
+     lätt att ta fel på, sida vid sida med facit är den det inte. */
+  if ((a && arBasland(a.namn)) || (b && arBasland(b.namn))) {
+    const land = await readCardAt(img, box, 0.15, 'land').catch(() => null);
+    if (land && land.namn) return land;
+  }
+
   if (!a || !b) {
     const ensam = a || b;
     return ensam && ensam.sakerhet === 'hog' ? ensam : null;

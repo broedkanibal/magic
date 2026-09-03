@@ -22,7 +22,18 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
    svarade så här" från "deployen hade inte hunnit ut" — det kostade två
    felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 7;
+const PANE_PROMPT_V = 8;
+
+/* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
+   lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
+   klump på 80 pixlar — sida vid sida med facit går de att skilja åt. */
+const BASLAND = [
+  ['Plains',   'https://cards.scryfall.io/normal/front/a/2/a2125c3e-d52c-44b9-b9f1-89f02236d447.jpg'],
+  ['Island',   'https://cards.scryfall.io/normal/front/0/e/0e443748-edf1-4499-9507-3649dd57ee95.jpg'],
+  ['Swamp',    'https://cards.scryfall.io/normal/front/b/a/babd424c-38cf-45e8-9684-de7bfc1ed86a.jpg'],
+  ['Mountain', 'https://cards.scryfall.io/normal/front/d/4/d4606809-7066-4413-9dfd-e929004a71bb.jpg'],
+  ['Forest',   'https://cards.scryfall.io/normal/front/2/5/2581a074-00ab-4a2d-8699-25dcd8c76393.jpg']
+];
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
    instans och nollställs när en instans startas om — alltså ett hinder mot
@@ -117,6 +128,67 @@ export default async function handler(req, res) {
      inte grannarna som råkar komma med i beskärningen. Behövs för att rutläget
      inte namnger kort som är små i bildrutan — samma kort uppförstorat gick
      från namnlöst till "Swamp" med hög säkerhet. */
+  /* Jämför ett kort mot de FAKTISKA basländerna. Modellen kallade en tydlig
+     dödskalle för "Forest" — ur minnet är en suddig mörk symbol lätt att ta
+     fel på. Med de fem korten bredvid i samma anrop blir det en jämförelse i
+     stället för ett minnestest. */
+  if (mode === 'land') {
+    try {
+      const client = new Anthropic({ apiKey: key });
+      const stream = client.messages.stream({
+        model: MODEL,
+        max_tokens: 8000,
+        output_config: { effort: 'high' },
+        system:
+          'Du avgör vilket basland ett suddigt webbkamerafoto visar, genom att jämföra ' +
+          'mot de fem riktiga korten. ' +
+          'Ett basland känns igen på att textrutan är TOM — den innehåller bara den stora ' +
+          'mana-symbolen och ingen regeltext alls. Ser du rader av text i rutan är det inte ' +
+          'ett basland. ' +
+          'Symbolerna: Plains är en vit sol med utstrålande spetsar. Island är en enda blå ' +
+          'droppe, slät och rundad. Swamp är en svart dödskalle — rundad hjärnskål med två ' +
+          'mörka ögonhålor och en käke under. Mountain är ett rött berg, en spetsig triangel. ' +
+          'Forest är ett grönt träd med bred krona ovanpå en smal stam. ' +
+          'Dödskalle och träd är båda mörka klumpar när bilden är suddig: skilj dem på ' +
+          'ögonhålorna (skalle) mot stammen som sticker ned (träd). ' +
+          'Kortet kan ligga upp och ner. Svara bara med JSON.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Fotot att bedöma:' },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text: 'De fem basländerna, i ordning Plains, Island, Swamp, Mountain, Forest:' },
+            ...BASLAND.map(([, url]) => ({ type: 'image', source: { type: 'url', url } })),
+            { type: 'text', text:
+              'Vilket av de fem korten är fotot? Titta på symbolens form, inte på färgen — ' +
+              'fotot kan vara urtvättat av lampans reflex.\n\n' +
+              'Är det inget basland alls (regeltext i rutan, konstverk över hela kortet), ' +
+              'svara med tom lista.\n\n' +
+              'Svara med enbart JSON:\n' +
+              '{"kort": [{"namn": "Plains"|"Island"|"Swamp"|"Mountain"|"Forest", ' +
+              '"sakerhet": "hog"|"medel"|"lag"}]}' }
+          ]
+        }]
+      });
+      const msg = await stream.finalMessage();
+      const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) return res.status(200).json({ kort: [], varfor: 'inget-json', promptv: PANE_PROMPT_V });
+      const j = JSON.parse(m[0]);
+      const namn = BASLAND.map(b => b[0]);
+      const k = (Array.isArray(j.kort) ? j.kort : []).slice(0, 1)
+        .filter(x => x && namn.includes(x.namn))
+        .map(x => ({ namn: x.namn, x: 500, y: 500,
+                     sakerhet: ['hog', 'medel', 'lag'].includes(x.sakerhet) ? x.sakerhet : 'medel' }));
+      return res.status(200).json({ kort: k, promptv: PANE_PROMPT_V });
+    } catch (e) {
+      const s = e && e.status;
+      console.error('identify/land:', s || '', (e && e.message) || e);
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+    }
+  }
+
   if (mode === 'card') {
     try {
       const client = new Anthropic({ apiKey: key });
@@ -129,10 +201,12 @@ export default async function handler(req, res) {
           'ovanför ett spelbord. Bilden är uppförstorad ur en större bild och därför suddig. ' +
           'Kortet som ska namnges är det i MITTEN — grannkort i kanterna ska ignoreras. ' +
           'Kortet kan ligga upp och ner eller snett. ' +
-          'BASLÄNDER identifieras på den stora mana-symbolen, inte på namnet: vit sol = Plains, ' +
-          'blå droppe = Island, svart dödskalle = Swamp, rött berg = Mountain, grönt träd = ' +
-          'Forest. Ser du symbolen tydligt är kortet identifierat med hög säkerhet, även om ' +
-          'resten är utbränt av lampans reflex. ' +
+          'BASLÄNDER känns igen på att textrutan är TOM: den innehåller bara den stora ' +
+          'mana-symbolen och ingen regeltext alls. Ser du rader av text i rutan är det inte ' +
+          'ett basland. Symbolen avgör vilket: vit sol med spetsar = Plains, en blå droppe = ' +
+          'Island, svart dödskalle med ögonhålor = Swamp, rött spetsigt berg = Mountain, ' +
+          'grönt träd med krona och stam = Forest. Ser du symbolen tydligt är kortet ' +
+          'identifierat med hög säkerhet, även om resten är utbränt av lampans reflex. ' +
           'Är det en baksida (enfärgat brun med ljus oval, inget konstverk och ingen textruta) ' +
           'eller inget kort alls, svara med tom lista. Svara bara med JSON.',
         messages: [{
