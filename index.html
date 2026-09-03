@@ -486,6 +486,10 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 /* Medan man fyller i ett kort hör "Läs av igen", "Klistra in" och "Byt bild"
    inte hemma — de gäller hela skärmdumpen, inte kortet man håller på med. */
 #shotOv.picking .sw-top .btn:not(.danger){display:none}
+/* Under ifyllnad ska det synas VILKET kort panelen gäller. Alla markeringar
+   var lika tydliga, och med nio rutor i bild gick det inte att se. */
+#shotOv.picking .dbox{opacity:.3}
+#shotOv.picking .dbox.sel{opacity:1}
 .scanpanel header{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:650}
 .scanpanel header .meta{font:10.5px var(--mono);color:var(--dim2);font-weight:400}
 .scanpanel header .close{margin-left:auto;color:var(--dim2);line-height:0;padding:3px;border-radius:4px}
@@ -3461,21 +3465,33 @@ function boxStyle(b, rot) {
   return `width:${w}px;height:${h}px;transform-origin:${w / 2}px ${h / 2}px;` +
          `transform:translate(${cx - w / 2}px,${cy - h / 2}px) rotate(${rot || 0}deg)`;
 }
+/* Markeringarna pekades tidigare ut med arrayindex. Varje ifyllt kort tas bort
+   ur kön, vilket förskjuter alla index efter den — markeringen hamnade då på
+   fel kort och panelen visade ett annat än det som var inringat. Allt går nu
+   på id, som inte ändras när listan krymper. */
+function pendById(id) { return (player().pending || []).find(q => q.id === id) || null; }
+function cardById(id) { return player().cards.find(c => c.cid === id) || null; }
+function targetItem() {
+  const t = SW.target;
+  if (!t) return null;
+  return t.kind === 'pend' ? pendById(t.id) : t.kind === 'card' ? cardById(t.id) : null;
+}
 function renderBoxes() {
   const el = $('#swBoxes');
   if (!el) return;
   if (!SW.nw || !$('#shotOv').classList.contains('open')) { el.innerHTML = ''; return; }
   const p = player();
+  const t = SW.target;
   const parts = [];
   p.cards.forEach((c, i) => {
     if (!c.box || c.shotId !== SW.id) return;
-    const on = SW.target && SW.target.kind === 'card' && SW.target.i === i;
-    parts.push(`<button class="dbox${on ? ' sel' : ''}" data-kind="card" data-i="${i}" style="${boxStyle(c.box, c.rot)}" title="${esc(c.name)}"><i>${i + 1}</i></button>`);
+    const on = t && t.kind === 'card' && t.id === c.cid;
+    parts.push(`<button class="dbox${on ? ' sel' : ''}" data-kind="card" data-id="${esc(c.cid)}" style="${boxStyle(c.box, c.rot)}" title="${esc(c.name)}"><i>${i + 1}</i></button>`);
   });
-  (p.pending || []).forEach((q, i) => {
+  (p.pending || []).forEach(q => {
     if (q.shotId !== SW.id) return;
-    const on = SW.target && SW.target.kind === 'pend' && SW.target.i === i;
-    parts.push(`<button class="dbox weak${on ? ' sel' : ''}" data-kind="pend" data-i="${i}" style="${boxStyle(q.box, q.rot)}" title="Behöver bekräftas"><i>?</i></button>`);
+    const on = t && t.kind === 'pend' && t.id === q.id;
+    parts.push(`<button class="dbox weak${on ? ' sel' : ''}" data-kind="pend" data-id="${esc(q.id)}" style="${boxStyle(q.box, q.rot)}" title="Behöver fyllas i"><i>?</i></button>`);
   });
   el.innerHTML = parts.join('');
 }
@@ -3483,7 +3499,7 @@ $('#swBoxes').addEventListener('click', ev => {
   const b = ev.target.closest('.dbox');
   if (!b) return;
   ev.stopPropagation();
-  openPicker(b.dataset.kind, +b.dataset.i);
+  openPicker(b.dataset.kind, b.dataset.id);
 });
 
 function openShot() {
@@ -4064,10 +4080,18 @@ async function readCard(img, box) {
   const forsta = await readCardAt(img, box, 0.40).catch(() => null);
   if (forsta && forsta.namn && forsta.sakerhet === 'hog') return forsta;
   const andra = await readCardAt(img, box, 0.10).catch(() => null);
-  if (!forsta || !forsta.namn) return andra && andra.namn ? andra : null;
-  if (!andra || !andra.namn) return forsta;
-  if (forsta.namn.toLowerCase() !== andra.namn.toLowerCase()) return null;   // oense → inget påstående
-  return andra.sakerhet === 'hog' ? andra : forsta;
+  /* Ett svar från EN inramning som inte är säkert räcker inte. Det var så en
+     Swamp presenterades som "Island" — den ena inramningen sa inget alls och
+     den andras gissning gick rakt igenom. Antingen säker vid första försöket,
+     eller överens mellan de två. Annars inget påstående. */
+  const a = forsta && forsta.namn ? forsta : null;
+  const b = andra && andra.namn ? andra : null;
+  if (!a || !b) {
+    const ensam = a || b;
+    return ensam && ensam.sakerhet === 'hog' ? ensam : null;
+  }
+  if (a.namn.toLowerCase() !== b.namn.toLowerCase()) return null;            // oense
+  return b.sakerhet === 'hog' ? b : a;
 }
 
 /* Claudes position är en uppskattning: bra på vilket kort som avses, opålitlig
@@ -4125,7 +4149,7 @@ async function claudePaneSweep(img, panes, shotId, out) {
   let hittade = 0, namngivna = 0;
   for (let i = 0; i < panes.length; i++) {
     if (cancelAnalyze) return { hittade, namngivna };
-    anStep(`Claude läser ruta ${i + 1} av ${panes.length}`);
+    anStep(`Claude letar kort i ruta ${i + 1} av ${panes.length}`);
     anBar(i / panes.length);
     await tick();
     let kort;
@@ -4133,6 +4157,7 @@ async function claudePaneSweep(img, panes, shotId, out) {
     catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
 
     const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
+    const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
     const bredder = r.acc.concat(r.pend).map(x => x.box.w);
     const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
     const ch = cw / Matcher.ASPECT;
@@ -4157,7 +4182,7 @@ async function claudePaneSweep(img, panes, shotId, out) {
     // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
     const namnlosa = nya.filter(k => !k.namn).slice(0, NARBILD_MAX);
     if (namnlosa.length) {
-      anStep(`Ruta ${i + 1} — närbild på ${namnlosa.length} kort`);
+      anStep(`Ruta ${i + 1} — läser ${namnlosa.length} kort i närbild`);
       await tick();
       let klara = 0;
       const jobb = namnlosa.map(k => async () => {
@@ -4183,6 +4208,7 @@ async function claudePaneSweep(img, panes, shotId, out) {
         continue;
       }
       hittade++;
+      if (cell && cnt) cnt.textContent = `${r.acc.length + r.pend.length + 1} kort`;
       const rec = { box: k.box, rot: k.rot || 0, inliers: 0, byAI: true,
                     cands: k.namn ? [{ name: k.namn, sid: null, score: 1 }] : [] };
       if (k.namn && k.sakerhet === 'hog') { r.acc.push(rec); namngivna++; }
@@ -4462,18 +4488,18 @@ function pickTitle() {
      ut som att appen tappat räkningen. Nu räknas det mot antalet kort kön
      hade när den öppnades. */
   if (t.kind === 'pend') {
+    const k = SW.queue ? SW.queue.indexOf(t.id) : -1;
+    if (k >= 0) return `Kort ${k + 1} av ${SW.queue.length}`;
     const kvar = (p.pending || []).length;
-    if (SW.qTotal && SW.qTotal >= kvar) return `Kort ${SW.qTotal - kvar + 1} av ${SW.qTotal}`;
-    return `Kort ${t.i + 1} av ${kvar}`;
+    return kvar ? `Kort 1 av ${kvar}` : 'Fyll i kort';
   }
   if (t.kind === 'card') return 'Byt kort';
   return 'Vilket kort är detta?';
 }
-function openPicker(kind, i) {
-  const p = player();
-  const item = kind === 'card' ? p.cards[i] : (p.pending || [])[i];
+function openPicker(kind, id) {
+  const item = kind === 'card' ? cardById(id) : pendById(id);
   if (!item) return;
-  SW.target = { kind, i };
+  SW.target = { kind, id };
   SW.ai = kind === 'pend' ? item.ai : null;
   SW.box = item.box;
   SW.out = { results: (item.cands || []).map(c => ({ name: c.name, id: c.sid, score: c.score })), confidence: 1 };
@@ -4580,11 +4606,11 @@ candList.addEventListener('click', ev => {
 function applyPick(name, sid, cands) {
   const p = player(), t = SW.target;
   const list = cands || [{ name, sid, score: 1 }];
-  if (t && t.kind === 'card') {
-    Object.assign(p.cards[t.i], { name, sid: sid || undefined, cands: list });
-  } else if (t && t.kind === 'pend') {
-    const q = p.pending[t.i];
-    p.pending.splice(t.i, 1);
+  if (t && t.kind === 'card' && cardById(t.id)) {
+    Object.assign(cardById(t.id), { name, sid: sid || undefined, cands: list });
+  } else if (t && t.kind === 'pend' && pendById(t.id)) {
+    const q = pendById(t.id);
+    p.pending.splice(p.pending.indexOf(q), 1);
     p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list });
   } else {
     p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, box: SW.box, rot: SW.fitRot || 0, shotId: SW.id, cands: list });
@@ -4592,6 +4618,7 @@ function applyPick(name, sid, cands) {
   save();
   resolveAll();                     // rättar även stavning till kortets riktiga namn
   toast(name, 'ok');
+  if (SW.queue) SW.qi++;
   closeScan();
   renderAll();
   nextPending();
@@ -4607,21 +4634,42 @@ autocomplete($('#pickSearch'), $('#pickSuggest'), name => applyPick(name, null, 
 
 $('#scanSkip').onclick = () => {
   const p = player(), t = SW.target;
-  if (t && t.kind === 'pend') { p.pending.splice(t.i, 1); save(); }
+  if (t && t.kind === 'pend') {
+    const q = pendById(t.id);
+    if (q) { p.pending.splice(p.pending.indexOf(q), 1); save(); }
+  }
+  if (SW.queue) SW.qi++;                   // hoppa vidare, inte om till samma
   closeScan(); renderAll(); nextPending();
 };
-function nextPending() {
+/* Kön gås igenom i LÄSORDNING och i tur och ordning. Tidigare öppnades alltid
+   den post som råkade ligga först i arrayen, vilket fick bilden att hoppa fram
+   och tillbaka över bordet mellan varje kort. Ordningen fryses när omgången
+   börjar, så att den inte ändras av att poster försvinner ur listan. */
+function byggKo() {
   const p = player();
+  const q = (p.pending || []).filter(x => x.shotId === SW.id);
+  const radh = (q[0] && q[0].box.h ? q[0].box.h : 100) * 0.6;
+  SW.queue = q.slice().sort((a, b) => {
+    const ra = Math.round(a.box.y / radh), rb = Math.round(b.box.y / radh);
+    return ra !== rb ? ra - rb : a.box.x - b.box.x;
+  }).map(x => x.id);
+  SW.qi = 0;
+}
+function nextPending() {
   if (!$('#shotOv').classList.contains('open')) return;
-  if (p.pending && p.pending.length) { setTimeout(() => openPicker('pend', 0), 120); return; }
+  if (!SW.queue) return;
+  while (SW.qi < SW.queue.length && !pendById(SW.queue[SW.qi])) SW.qi++;
+  if (SW.qi < SW.queue.length) {
+    const id = SW.queue[SW.qi];
+    setTimeout(() => openPicker('pend', id), 120);
+    return;
+  }
   /* Kön är slut. Att bli stående kvar i bildvyn kändes som att ingenting
      hände — uppgiften var klar men vyn såg likadan ut. Stäng och visa handen. */
-  if (SW.qTotal) {
-    const n = SW.qTotal;
-    SW.qTotal = 0;
-    closeShot();
-    toast(n === 1 ? 'Klart — 1 kort genomgånget' : `Klart — ${n} kort genomgångna`, 'ok');
-  }
+  const n = SW.queue.length;
+  SW.queue = null; SW.qi = 0;
+  closeShot();
+  toast(n === 1 ? 'Klart — 1 kort genomgånget' : `Klart — ${n} kort genomgångna`, 'ok');
 }
 $('#pendDrop').onclick = async () => {
   const q = player().pending || [];
@@ -4635,9 +4683,8 @@ $('#pendDrop').onclick = async () => {
 $('#pendGo').onclick = () => {
   const p = player();
   if (!p.pending || !p.pending.length) return;
-  SW.qTotal = p.pending.length;            // fryser nämnaren för hela omgången
   if (!$('#shotOv').classList.contains('open')) openShot();
-  setTimeout(() => openPicker('pend', 0), 200);
+  setTimeout(() => { byggKo(); nextPending(); }, 200);
 };
 
 /* ── sökrutan i bildvyn ── */
