@@ -279,6 +279,48 @@ main{flex:1;display:flex;min-height:0}
 .ms.big{width:18px;height:18px;font-size:11px;vertical-align:-3px}
 .dmana{display:flex;gap:1px;flex:none}
 
+/* ─────────── manaraden ───────────
+   På bordet ligger creatures, artifacts och enchantments på en eller flera
+   rader och manan på raden under. Handen speglar det: manan bryts ut ur
+   remsan och får en egen rad längst ner, avdelad med en tunn linje. */
+.manarow[hidden]{display:none}
+.manarow{
+  flex:none;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
+  padding:9px 16px 11px;border-top:1px solid var(--line);background:#0b1017;
+  max-height:40%;overflow-y:auto;scrollbar-width:thin;
+}
+.ms.xl{
+  width:32px;height:32px;font-size:18px;margin:0;vertical-align:0;
+  box-shadow:inset 0 -2px 0 #0004, 0 2px 4px #0008;
+}
+.mgrp,.mcard{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:4px 6px 5px;border:1px solid transparent;border-radius:9px;
+  background:none;cursor:pointer;
+}
+.mgrp:hover,.mcard:hover{background:#141c28}
+.mgrp.sel,.mcard.sel{border-color:var(--acc);background:var(--acc-d)}
+.mgn{display:flex;align-items:center;gap:3px}
+.mgn b{min-width:18px;text-align:center;font:700 15px/1 var(--sans);color:var(--txt)}
+.mgstep{
+  width:19px;height:19px;padding:0;border-radius:5px;border:1px solid var(--line);
+  background:var(--bg3);color:var(--dim);font:700 13px/1 var(--sans);
+  display:grid;place-items:center;cursor:pointer;
+}
+.mgstep:hover{background:var(--acc-d);color:#ffd98a;border-color:var(--acc)}
+.mgnamn{font-size:10.5px;color:var(--dim2)}
+.mgrp.sel .mgnamn,.mcard.sel .mnamn{color:#ffd98a}
+.mcard{width:66px}
+.mcard img{
+  width:54px;aspect-ratio:488/680;object-fit:cover;border-radius:4px;display:block;
+  background:#11161e;box-shadow:0 2px 7px -1px #000b;
+}
+.mnamn{
+  font-size:10px;line-height:1.2;color:var(--dim);text-align:center;max-width:100%;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+.msep{width:1px;align-self:stretch;margin:2px 0;background:var(--line)}
+
 /* ─────────── footer ─────────── */
 .hints.hide{display:none}
 .hints{
@@ -626,6 +668,16 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   #addPlayerBtn{font-size:0}                 /* bara plustecknet får plats */
   #addPlayerBtn svg{font-size:13px}
   .hints{display:none}
+  /* Manaraden ska rymmas utan att äta remsan: en tredjedel av ett kort, inte
+     en halv skärm. Symbolen är det enda som måste förbli läsbart på håll. */
+  .manarow{gap:10px;padding:7px 10px 8px;max-height:34%}
+  .ms.xl{width:26px;height:26px;font-size:15px}
+  .mgn b{font-size:13px;min-width:15px}
+  .mgstep{width:17px;height:17px;font-size:12px}
+  .mgnamn{font-size:9.5px}
+  .mcard{width:52px}
+  .mcard img{width:42px}
+  .mnamn{font-size:9px}
 
   main{flex-direction:column}
 
@@ -747,6 +799,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
           <p class="empty-fine">Tryck <kbd>⌘V</kbd> var som helst i appen, eller dra in en bildfil.</p>
         </div>
       </div>
+      <div class="manarow" id="manaRow" hidden></div>
     </section>
 
     <aside class="detail">
@@ -1830,21 +1883,74 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   }
 
   /* ══ 1. videorutor ══ */
+
+  /* SpellTables sidopanel — den med "Cards / Game Log", sökrutan, "Last Card"
+     och listan över tidigare spelade kort — innehåller kortBILDER. Ett svep
+     över den ger 12 förslag, varav 3 tar sig förbi ljusfiltret: kort som
+     aldrig legat på något bord.
+
+     Att den ändå hållit sig utanför rutorna var tur, inte en regel. Panelens
+     bakgrund ligger på luma 16–18 och tröskeln för svart är 30, så den råkar
+     läsas som samma svarta list som ramar in videon. Marginalen är 13 luma.
+     Sätts tröskeln till 14 — vad ett ljusare tema motsvarar — slås de två
+     rutorna ihop till EN som når bildkanten, och hela panelen följer med.
+     Då försvinner dessutom den svarta raden mellan rutorna, så de två
+     spelarna slås ihop till en.
+
+     Den letas därför upp för sig. Panelen är en enfärgad UI-yta mot bildens
+     högerkant: andelen pixlar inom ±6 luma från bakgrundstonen är 0.99 inne i
+     panelen mot 0.00–0.03 i videokolumnerna, och håller sig över 0.35 även
+     genom kortminiatyrerna. Uppmätt 12.5 % av bredden på den ena
+     skärmdumpen och 12.2 % på den andra, bakgrundston 18 i båda. */
+  function sidebarZone(L, W, H) {
+    /* Tonen tas från fyra kolumner, inte från den yttersta: där ligger en
+       1 px ram på luma 28 som ensam skulle ge fel ton. */
+    const bins = new Int32Array(64);
+    for (let x = W - 4; x < W; x++) for (let y = 0; y < H; y++) bins[Math.min(63, L[y * W + x] >> 2)]++;
+    let bi = 0;
+    for (let i = 1; i < 64; i++) if (bins[i] > bins[bi]) bi = i;
+    const bg = bi * 4 + 2, andel = bins[bi] / (4 * H);
+    /* Golvet på 12 skiljer panelen (16–22) från ren brevlådesvärta (0–2);
+       taket och andelen stänger ute videokolumner (andel 0.02–0.09) och en
+       beskärning av bara bordet (ton 130+). */
+    if (bg < 12 || bg > 40 || andel < 0.60) return null;
+    /* Vandringen får inte stanna på första kolumnen som inte passar. Panelen
+       har en 1 px ram på luma 26, och den ligger utanför ±6-fönstret: i en
+       nedskalad bild medelvärdas den bort, men i en beskärning där en
+       arbetskolumn är nästan en bildpunkt blev den yttersta kolumnen ramen —
+       zonen blev noll bred och panelen släpptes in igen. Tre kolumners
+       tålamod räcker: videokolumnerna ligger på 0.00–0.03 och stoppar ändå,
+       kortminiatyrerna på 0.35–0.42 och passerar. */
+    let x0 = W, miss = 0;
+    for (let x = W - 1; x >= 0; x--) {
+      let n = 0;
+      for (let y = 0; y < H; y++) if (Math.abs(L[y * W + x] - bg) <= 6) n++;
+      if (n / H < 0.20) { if (++miss > 3) break; continue; }
+      miss = 0; x0 = x;
+    }
+    const bredd = W - x0;
+    return (bredd >= W * 0.03 && bredd <= W * 0.45) ? x0 : null;
+  }
+
   function findPanes(img) {
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
     const im = work(img, 0, 0, iw, ih, 640);
     const L = luma(im.data, im.w * im.h), W = im.w, H = im.h;
     const BLACK = 30, FULL = 0.965;
+    const zon = sidebarZone(L, W, H);                  // kolumn där panelen börjar, eller null
+    const XMAX = zon == null ? W : zon;
 
     const colFlags = new Array(W);
     for (let x = 0; x < W; x++) {
       let n = 0;
       for (let y = 0; y < H; y++) if (L[y * W + x] < BLACK) n++;
-      colFlags[x] = (n / H) < FULL;
+      colFlags[x] = x < XMAX && (n / H) < FULL;
     }
     const panes = [];
-    for (const [x0, x1] of runs(colFlags, Math.round(W * 0.10))) {
+    for (const [x0, xr] of runs(colFlags, Math.round(W * 0.10))) {
+      const x1 = Math.min(xr, XMAX);                   // en löpa som vuxit in i panelen kapas här
       const bw = x1 - x0;
+      if (bw <= 0) continue;
       const rowFlags = new Array(H);
       for (let y = 0; y < H; y++) {
         let n = 0;
@@ -1853,14 +1959,19 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       }
       for (const [y0, y1] of runs(rowFlags, Math.round(H * 0.10))) {
         const w = bw, h = y1 - y0, ar = w / h;
-        if (w < W * 0.18) continue;                    // sidopanelen är smal
+        if (w < W * 0.18) continue;                    // videorutor är breda, UI-paneler smala
         if (ar < 0.8 || ar > 3.6) continue;            // videorutor är liggande
         if (w * h < W * H * 0.03) continue;
         panes.push({ x: x0 * im.k, y: y0 * im.k, w: w * im.k, h: h * im.k });
       }
     }
-    if (!panes.length) panes.push({ x: 0, y: 0, w: iw, h: ih });
+    /* Nödfallsrutan måste också stanna vid panelen. Annars släpps hela
+       sidopanelen in varje gång ingen ruta hittades. */
+    if (!panes.length) panes.push({ x: 0, y: 0, w: XMAX * im.k, h: ih });
     panes.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    /* Zonen följer med ut: snappaTillKort söker i en fritt svävande kvadrat
+       som inte är begränsad till någon ruta, och behöver samma spärr. */
+    panes.zon = zon == null ? null : zon * im.k;
     return panes;
   }
 
@@ -2131,7 +2242,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     };
   }
 
-  global.Detect = { findPanes, proposeCards, cardness, integral, rotatedLuma, work, ASPECT };
+  global.Detect = { findPanes, sidebarZone, proposeCards, cardness, integral, rotatedLuma, work, ASPECT };
 })(window);
 </script>
 
@@ -2160,6 +2271,23 @@ const ASPECT = 488 / 680;              // kortproportion (bredd / höjd)
 /* mana-symboler: {2}{U}{U} → små runda pärlor */
 const MSCOL = { W: 'w', U: 'u', B: 'b', R: 'r', G: 'g', C: 'c' };
 const HEX   = { w: '#fbf7e2', u: '#a7d3ee', b: '#b0a49d', r: '#f0a48b', g: '#9fd0a8', c: '#cbc6c1' };
+/* Ett namn som lästs ur en bild har ingen ifyllnadskö. Ett okänt KORT hamnar
+   i granskningen och användaren rättar det på en sekund; ett namn går rakt upp
+   på fliken utan kontroll. Därför sållas allt som rimligtvis inte är ett
+   användarnamn bort redan här — livtotaler, gränssnittstexter, uppmaningar —
+   och hellre "Spelare 2" än ett troligt fel. */
+const UI_TEXT = new Set(['video is off', 'cards', 'game log', 'search', 'last card', 'history',
+  'commander', 'spectator', 'roll dice', 'life', 'you', 'no commander(s) set']);
+function rentNamn(raw) {
+  const t = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
+  if (t.length < 2 || t.length > 24) return null;      // 24 = samma tak som omdöpningsfältet
+  if (/[\u0000-\u001f<>]/.test(t)) return null;
+  if (/^[\d\s.,:;/+-]+$/.test(t)) return null;         // livtotaler
+  if (!/[a-zA-Z\u00c0-\u024f\u0400-\u04ff]/.test(t)) return null;
+  if (UI_TEXT.has(t.toLowerCase()) || /^click to /i.test(t)) return null;
+  return t;
+}
+
 function symbol(tok, big) {
   const t = tok.toUpperCase(), cls = big ? ' big' : '';
   if (t.includes('/')) {
@@ -2461,12 +2589,20 @@ state.players.forEach((p, i) => {
   p.shots = Array.isArray(p.shots) ? p.shots : [];
   p.pending = Array.isArray(p.pending) ? p.pending : [];
   p.shotIdx = p.shotIdx || 0;
+  /* Sparade tillstånd från före flaggan har ingen. Allt som inte ser ut som
+     ett automatnamn har användaren skrivit själv — utan den regeln skulle
+     första avläsningen efter uppgraderingen tyst radera namn hen skrivit. */
+  if (!p.namnkalla) p.namnkalla = /^Spelare \d+$/.test(p.name || '') ? null : 'anvandare';
 });
 if (!state.players.some(p => p.id === state.active)) state.active = state.players[0].id;
 state.sel = state.sel || 0;
 
 function mkPlayer(name, i) {
-  return { id: uid(), name, color: PALETTE[i % PALETTE.length], cards: [], shots: [], shotIdx: 0, pending: [], pane: null };
+  /* namnkalla: varifrån namnet kommer. Ett namn användaren skrivit själv
+     ska aldrig skrivas över av en avläsning, och ett "Spelare 2" ska aldrig
+     stå kvar när bilden faktiskt säger vem det är. */
+  return { id: uid(), name, color: PALETTE[i % PALETTE.length], cards: [], shots: [], shotIdx: 0,
+           pending: [], pane: null, namnkalla: null };
 }
 let saveT = null;
 function save() {
@@ -2475,7 +2611,7 @@ function save() {
     const slim = {
       active: state.active, sel: state.sel,
       players: state.players.map(p => ({
-        id: p.id, name: p.name, color: p.color, shots: p.shots, shotIdx: p.shotIdx,
+        id: p.id, name: p.name, namnkalla: p.namnkalla || undefined, color: p.color, shots: p.shots, shotIdx: p.shotIdx,
         pane: p.pane || undefined,
         pending: (p.pending || []).map(q => ({ id: q.id, box: q.box, rot: q.rot, shotId: q.shotId, cands: (q.cands || []).slice(0, 8) })),
         cards: p.cards.map(c => ({
@@ -2499,7 +2635,7 @@ function shotURL(id) { const s = shotMem.get(id); return s ? s.url : ''; }
 /* ══════════════════════════════════════════════════════════════════
    RENDERING
    ══════════════════════════════════════════════════════════════════ */
-const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand');
+const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'), manaRow = $('#manaRow');
 
 /* ─── spelarflikar ─── */
 function renderTabs() {
@@ -2519,7 +2655,8 @@ function renderTabs() {
 
 /* ─── storlek på korten i rutnätet ─── */
 function computeFit() {
-  const n = hand().length;
+  /* Manan ligger i en egen rad utanför rutnätet och ska inte krympa korten. */
+  const n = antalSpell();
   if (!n) return prefs.cardw;
   const cs = getComputedStyle(gridWrap);
   const W = gridWrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
@@ -2551,18 +2688,62 @@ function cardStatus(e) {
   if (failed.has(keyOf(e))) return 'err';
   return 'pending';
 }
+
+/* ─── mana ────────────────────────────────────────────────────────────
+   Ett basland behöver inte visas som ett kort. Att det ligger två Swamp och
+   en Plains är hela informationen, och den ryms i en symbol med en siffra —
+   en tredjedel av ett korts höjd i stället för tre kort i bredd. Specialmana
+   som Thriving Moor har regeltext som spelar roll och visas som ett minikort
+   man klickar upp.
+
+   Typraden avgör, inte namnet: "Basic Land — Swamp" fångar även Snow-Covered
+   Swamp och Wastes, som ett namnregister hade missat. */
+const MANA_SUB = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
+const MANA_ORD = ['W', 'U', 'B', 'R', 'G', 'C'];
+function typLinje(e) { const c = cardOf(e); return (c && c.faces[0] && c.faces[0].type) || ''; }
+function arLandKort(e) { return /\bland\b/i.test(typLinje(e)); }
+function baslandSym(e) {
+  const t = typLinje(e);
+  if (!/^basic\b/i.test(t)) return null;
+  const sub = t.split(/[—–-]/).pop().trim().toLowerCase().split(/\s+/).pop();
+  return MANA_SUB[sub] || null;
+}
+/* Manan flyttas FYSISKT sist i listan i stället för bara visuellt. Då behåller
+   varje kort ett giltigt index, och urval, piltangenter, dragsortering och
+   fokusremsan fungerar oförändrat — annars hade var och en av dem behövt en
+   egen översättning mellan visningsordning och lagringsordning.
+   Stabil och idempotent: när Scryfall svarat och typraden är känd faller
+   korten på plats en gång och stannar där. */
+function sorteraMana(p) {
+  const c = p.cards, ovr = [], land = [];
+  for (const e of c) (arLandKort(e) ? land : ovr).push(e);
+  if (!land.length || !ovr.length) return false;
+  const ny = ovr.concat(land);
+  if (ny.every((e, i) => e === c[i])) return false;
+  const valt = p.id === state.active ? c[state.sel] : null;
+  c.length = 0; c.push(...ny);
+  if (valt) { const j = c.indexOf(valt); if (j >= 0) state.sel = j; }   // urvalet följer kortet, inte platsen
+  return true;
+}
+const antalSpell = () => { const c = hand(), i = c.findIndex(arLandKort); return i < 0 ? c.length : i; };
+
 function renderGrid(force) {
+  if (sorteraMana(player())) save();
   const cards = hand();
-  const sig = cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + cardStatus(c)).join('|');
+  const k = antalSpell();
+  const sig = k + '/' + cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + cardStatus(c)).join('|');
   // räkneverk och Töm-knapp uppdateras oavsett om rutnätet ritas om
-  $('#handCount').textContent = cards.length === 1 ? '1 kort' : cards.length + ' kort';
+  /* Remsan visar bara spellkorten nu. Sa räkneverket "10 kort" medan sju
+     rutor syntes såg tre kort ut som borttappade i stället för flyttade. */
+  $('#handCount').textContent = (k === 1 ? '1 kort' : k + ' kort')
+    + (cards.length > k ? ' · ' + (cards.length - k) + ' land' : '');
   $('#clearHand').hidden = cards.length === 0;
   // kompakta läget behöver veta om handen är tom för att ge startmeddelandet plats
   document.body.classList.toggle('tomhand', cards.length === 0);
   if (!force && sig === gridSig) { renderSel(); return; }
   gridSig = sig;
 
-  gridEl.innerHTML = cards.map((e, i) => {
+  gridEl.innerHTML = cards.slice(0, k).map((e, i) => {
     const card = cardOf(e);
     const st = cardStatus(e);
     const fi = e.flipped && card && card.faces.length > 1 ? 1 : 0;
@@ -2581,13 +2762,61 @@ function renderGrid(force) {
   }).join('');
 
   emptyEl.classList.toggle('hide', cards.length > 0);
+  renderMana(cards, k);
   applySize();
   renderSel();
 }
+
+/* Manaraden. Baslanden slås ihop per typ till en symbol med en siffra;
+   specialmana får ett minikort med namnet under, som öppnas i fokusvyn. */
+function renderMana(cards, k) {
+  const land = cards.slice(k);
+  manaRow.hidden = !land.length;
+  if (!land.length) { manaRow.innerHTML = ''; return; }
+
+  const grupp = new Map();          // kortnamn → {sym, namn, idx:[…]}
+  const special = [];
+  land.forEach((e, j) => {
+    const i = k + j, sym = baslandSym(e);
+    if (!sym) { special.push({ e, i }); return; }
+    if (!grupp.has(e.name)) grupp.set(e.name, { sym, namn: e.name, idx: [] });
+    grupp.get(e.name).idx.push(i);
+  });
+  const grupper = [...grupp.values()].sort((a, b) => MANA_ORD.indexOf(a.sym) - MANA_ORD.indexOf(b.sym));
+
+  const bas = grupper.map(g => `
+    <div class="mgrp" data-alla="${g.idx.join(',')}" title="${esc(g.namn)} — klicka för att visa kortet">
+      <i class="ms ${MSCOL[g.sym] || 'c'} xl">${esc(g.sym)}</i>
+      <span class="mgn">
+        <button class="mgstep" data-mana-minus="${esc(g.namn)}" title="En ${esc(g.namn)} färre">−</button>
+        <b>${g.idx.length}</b>
+        <button class="mgstep" data-mana-plus="${esc(g.namn)}" title="En ${esc(g.namn)} till">+</button>
+      </span>
+      <span class="mgnamn">${esc(g.namn)}</span>
+    </div>`).join('');
+
+  const spec = special.map(({ e, i }) => {
+    const card = cardOf(e);
+    const src = card ? imgOf(card, 0, 'small') || imgOf(card, 0, 'normal') : '';
+    const namn = card ? card.name : e.name;
+    return `<button class="mcard" data-i="${i}" title="${esc(namn)}">
+      ${src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'}
+      <span class="mnamn">${esc(namn)}</span>
+    </button>`;
+  }).join('');
+
+  manaRow.innerHTML = bas + (bas && spec ? '<span class="msep"></span>' : '') + spec;
+}
+
 function renderSel() {
   const n = hand().length;
   state.sel = n ? clamp(state.sel, 0, n - 1) : 0;
   $$('.card', gridEl).forEach((el, i) => el.classList.toggle('sel', i === state.sel));
+  /* Urvalet kan peka på ett kort i manaraden. En basgrupp är flera kort, så
+     den markeras när urvalet ligger på något av dem. */
+  $$('.mgrp', manaRow).forEach(el =>
+    el.classList.toggle('sel', el.dataset.alla.split(',').includes(String(state.sel))));
+  $$('.mcard', manaRow).forEach(el => el.classList.toggle('sel', +el.dataset.i === state.sel));
   const el = gridEl.children[state.sel];
   if (el) {
     const r = el.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
@@ -2916,6 +3145,34 @@ gridEl.addEventListener('click', ev => {
 });
 gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
 
+/* Manaraden. Plus och minus ändrar antalet direkt: motståndaren spelar ett
+   land till och man klickar +, i stället för att ta om skärmdumpen. Ett kort
+   per klick — handen är fortfarande den enda sanningen, så export, delning
+   och ångra fungerar oförändrat. */
+manaRow.addEventListener('click', ev => {
+  const plus = ev.target.closest('[data-mana-plus]');
+  if (plus) {
+    const namn = plus.dataset.manaPlus, c = hand();
+    const mall = c.find(e => e.name === namn);
+    c.push({ cid: uid(), name: namn, sid: mall && mall.sid, flipped: 0 });
+    save(); renderAll(); resolveAll();
+    return;
+  }
+  const minus = ev.target.closest('[data-mana-minus]');
+  if (minus) {
+    const namn = minus.dataset.manaMinus, c = hand();
+    let sist = -1;
+    c.forEach((e, i) => { if (e.name === namn) sist = i; });
+    if (sist >= 0) removeAt(sist);          // ångerbar, som alla andra borttag
+    return;
+  }
+  const grp = ev.target.closest('.mgrp');
+  if (grp) { state.sel = +grp.dataset.alla.split(',')[0]; renderSel(); renderDetail(); save(); return; }
+  const kort = ev.target.closest('.mcard');
+  if (kort) { state.sel = +kort.dataset.i; renderSel(); renderDetail(); save(); }
+});
+manaRow.addEventListener('dblclick', ev => { if (ev.target.closest('.mcard, .mgrp')) openFocus(); });
+
 /* ─── dra för att sortera om handen ───────────────────────────────────
    Pekarhändelser i stället för HTML5-drag: det senare ger ingen kontroll över
    utseendet och fungerar inte med touch.
@@ -3033,7 +3290,7 @@ function startRename(id) {
   nm.replaceWith(inp);
   inp.focus(); inp.select();
   const done = ok => {
-    if (ok) { const v = inp.value.trim(); if (v) { p.name = v; save(); } }
+    if (ok) { const v = inp.value.trim(); if (v) { p.name = v; p.namnkalla = 'anvandare'; save(); } }
     renderAll();
   };
   inp.addEventListener('keydown', e => {
@@ -3131,10 +3388,33 @@ $('#fxStrip').addEventListener('click', ev => {
 });
 $('#fxImg').addEventListener('click', () => flipSel());
 
+/* Piltangenterna ska följa det man SER. I remsan är det ett stopp per ruta,
+   i manaraden ett per post — tre Swamp är en symbol med en trea, inte tre
+   stopp. Fokusvyn visar däremot varje kort för sig och navigerar rakt. */
+function navIdx() {
+  const c = hand(), k = antalSpell(), ut = [], sedd = new Set();
+  for (let i = 0; i < k; i++) ut.push(i);
+  for (let i = k; i < c.length; i++) {
+    if (!baslandSym(c[i])) { ut.push(i); continue; }
+    if (sedd.has(c[i].name)) continue;
+    sedd.add(c[i].name); ut.push(i);
+  }
+  return ut;
+}
+function navPos(nav, i) {                  // vilken synlig post index i hör till
+  let p = 0;
+  for (let j = 0; j < nav.length; j++) if (nav[j] <= i) p = j;
+  return p;
+}
+function snapNav(i) { const nav = navIdx(); return nav.length ? nav[navPos(nav, i)] : 0; }
 function step(d) {
   const n = hand().length;
   if (!n) return;
-  state.sel = clamp(state.sel + d, 0, n - 1);
+  if (focusOpen) { state.sel = clamp(state.sel + d, 0, n - 1); }
+  else {
+    const nav = navIdx();
+    state.sel = nav[clamp(navPos(nav, state.sel) + d, 0, nav.length - 1)];
+  }
   save(); renderSel(); renderDetail(); renderFocus();
 }
 function stepRow(d) {
@@ -3149,7 +3429,7 @@ function stepRow(d) {
     cols = Math.max(1, cols);
   }
   const t = state.sel + d * cols;
-  state.sel = t < 0 ? 0 : t >= n ? n - 1 : t;
+  state.sel = snapNav(t < 0 ? 0 : t >= n ? n - 1 : t);
   save(); renderSel(); renderDetail(); renderFocus();
 }
 
@@ -3295,7 +3575,9 @@ async function importFromHash() {
     if (!d || !Array.isArray(d.c) || !d.c.length) return;
     if (!await ask(`"${d.n || 'Delad'}" med ${d.c.length} kort läggs till som en ny spelare.`,
                    { title: 'Öppna delad hand?', ok: 'Lägg till' })) return;
-    const p = addPlayer(d.n || 'Delad hand');
+    /* Namnet kommer ur en länk någon annan skickat. Det skrivs alltid ut
+       escapat, men det ska inte kunna vara tusen tecken långt heller. */
+    const p = addPlayer(String(d.n || 'Delad hand').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || 'Delad hand');
     d.c.forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
     save(); renderAll(true); resolveAll();
   } catch (e) { /* trasig länk — strunt i det */ }
@@ -3326,7 +3608,7 @@ addEventListener('keydown', ev => {
     case 'ArrowUp':    ev.preventDefault(); focusOpen ? step(-1) : stepRow(-1); return;
     case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : stepRow(1); return;
     case 'Home':       ev.preventDefault(); state.sel = 0; save(); renderSel(); renderDetail(); renderFocus(); return;
-    case 'End':        ev.preventDefault(); state.sel = Math.max(0, hand().length - 1); save(); renderSel(); renderDetail(); renderFocus(); return;
+    case 'End':        ev.preventDefault(); state.sel = snapNav(Math.max(0, hand().length - 1)); save(); renderSel(); renderDetail(); renderFocus(); return;
     case ' ':          ev.preventDefault(); flipSel(); return;
     case 'Enter':      ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); return;
     case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
@@ -3863,6 +4145,11 @@ function identifyAt(img, box, hint) {
    Gäller allt som blir ett kort i handen, oavsett om detektorn eller Claude
    hittade det. */
 const LJUS_MIN = 10;
+/* Sidopanelen kan aldrig innehålla ett kort som ligger på ett bord.
+   Detektorns rutor stannar redan vid zonen, men snappaTillKort söker i en
+   fritt svävande kvadrat runt Claudes gissning och kan därför nå in i den. */
+function utanforPanel(panes, cx) { return panes.zon == null || cx < panes.zon; }
+
 function harTextruta(im, box, rot) {
   const cv = document.createElement('canvas');
   cv.width = 64; cv.height = Math.round(64 / Matcher.ASPECT);
@@ -3935,7 +4222,8 @@ async function analyzeShot(shotId) {
         const alt = Detect.proposeCards(img, p, { want: 16, template: tmpl, rots: VAND_ROTS });
         if (alt.proposals.length > r.proposals.length) r = alt;
       }
-      return r.proposals.filter(q => harTextruta(img, { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h }, q.deg));
+      return r.proposals.filter(q => utanforPanel(panes, q.cx)
+        && harTextruta(img, { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h }, q.deg));
     });
     const total = props.reduce((a, x) => a + x.length, 0) || 1;
 
@@ -4092,7 +4380,27 @@ async function readCard(img, box) {
      lätt att ta fel på, sida vid sida med facit är den det inte. */
   if ((a && arBasland(a.namn)) || (b && arBasland(b.namn))) {
     const land = await readCardAt(img, box, 0.15, 'land').catch(() => null);
-    if (land && land.namn) return land;
+    if (land && land.namn) {
+      /* Jämförelsen mot de fem korten finns för att FÅNGA fel, inte för att
+         sänka ett svar som redan är belagt. Uppmätt på en Swamp i lampglans:
+         båda inramningarna svarade "Swamp · hog" och jämförelsen "Swamp ·
+         medel" — tre oberoende avläsningar, alla överens — och kortet hamnade
+         ändå i ifyllnadskön, för att bara jämförelsens säkerhet räknades.
+         Jämförelsen behåller sin vetorätt — den måste hålla med — men den
+         får inte sänka. Belagt är därför: jämförelsen plus en inramning som
+         själv var säker, eller jämförelsen plus två inramningar som är
+         överens. Att kräva alla tre samtidigt visade sig för strikt: samma
+         kort svarade "Swamp·hog / Swamp·hog / Swamp·medel" i en körning och
+         vinglade i nästa, och ett kort som tre avläsningar pekar ut ska inte
+         bero på vilken körning det var. Grannkortet i samma ruta gav
+         "Island·medel / Island·hog / Swamp·medel" — jämförelsen säger emot,
+         och det kortet stannar i kön. */
+      const enig = x => x && norm(x.namn) === norm(land.namn);
+      const belagt = (enig(a) && a.sakerhet === 'hog')
+                  || (enig(b) && b.sakerhet === 'hog')
+                  || (enig(a) && enig(b));
+      return belagt ? Object.assign({}, land, { sakerhet: 'hog' }) : land;
+    }
   }
 
   if (!a || !b) {
@@ -4143,6 +4451,20 @@ async function readPane(img, pane) {
   return Array.isArray(j.kort) ? j.kort : [];
 }
 
+/* SpellTable skriver ut spelarens namn i rutans överlägg. Läses det av
+   hamnar korten på en flik som heter "Xepman" i stället för "Spelare 1", och
+   en senare skärmdump av samma spel kan hitta tillbaka till rätt hand även om
+   rutorna bytt plats. Bara hög säkerhet duger — se rentNamn. */
+async function readPaneName(img, pane) {
+  const resp = await fetch(AI_ENDPOINT, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'namn', image: panePayload(img, pane) })
+  });
+  if (!resp.ok) return null;
+  const j = await resp.json();
+  return j && j.sakerhet === 'hog' ? rentNamn(j.namn) : null;
+}
+
 /* Kortbredd att rita lådorna med. Detektorn vet bäst när den hittat något;
    annars är ett kort grovt en tiondel av rutans bredd. */
 function paneCardW(p, pane) {
@@ -4161,12 +4483,24 @@ async function claudePaneSweep(img, panes, shotId, out) {
     anStep(`Claude letar kort i ruta ${i + 1} av ${panes.length}`);
     anBar(i / panes.length);
     await tick();
-    let kort;
-    try { kort = await readPane(img, panes[i]); }
+    /* Namnet hämtas samtidigt som korten, inte efter — det är ett eget litet
+       anrop och ska inte förlänga avläsningen med sin egen väntan. Att det
+       misslyckas får aldrig fälla svepet: då blir det bara "Spelare N". */
+    let kort, namn = null;
+    try {
+      const [k, n] = await Promise.all([
+        readPane(img, panes[i]),
+        readPaneName(img, panes[i]).catch(() => null)
+      ]);
+      kort = k; namn = n;
+    }
     catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
 
     const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
+    if (namn) r.spelare = namn;
     const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
+    // rutan får spelarens namn i stället för "Ruta N" så man ser vem som blir vem
+    if (namn && cell) { const b = cell.querySelector('b'); if (b) b.textContent = namn; }
     const bredder = r.acc.concat(r.pend).map(x => x.box.w);
     const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
     const ch = cw / Matcher.ASPECT;
@@ -4181,6 +4515,7 @@ async function claudePaneSweep(img, panes, shotId, out) {
         box: { x: mx - cw / 2, y: my - ch / 2, w: cw, h: ch }
       });
     }).filter(k => !r.acc.some(a => boxOverlap(k.box, a.box) > 0.30))
+      .filter(k => utanforPanel(panes, k.box.x + k.box.w / 2))
       .filter(k => harTextruta(img, k.box, k.rot));   // baksidor och gränssnitt bort
 
     /* Claude ser hela rutan och missar inte kort som detektorn tappat. Ett
@@ -4340,9 +4675,38 @@ function applyAnalysis(shotId, out, img) {
   out.forEach(r => {
     r.pend = r.pend.filter(q => !r.acc.some(a => boxOverlap(q.box, a.box) > 0.30));
   });
+  /* Vem hör rutan till? Har namnet lästs ur SpellTables överlägg vinner det
+     över platsen i listan. Kopplingen var förut rent positionell: stängs en
+     kamera av mellan två skärmdumpar hittar findPanes en ruta färre, varje
+     index under den glider ett steg, och en spelares kort hamnade i någon
+     annans hand. Ett namn låser rutan till rätt spelare. */
+  const tagna = new Set();
+  const valda = out.map(r => {
+    if (!r.spelare) return null;
+    const p = state.players.find(q => !tagna.has(q.id) && norm(q.name) === norm(r.spelare));
+    if (p) tagna.add(p.id);
+    return p || null;
+  });
+  out.forEach((r, i) => {                    // resten faller tillbaka på ordningen
+    if (valda[i]) return;
+    const p = state.players[i];
+    if (p && !tagna.has(p.id)) { tagna.add(p.id); valda[i] = p; }
+  });
+
   out.forEach((r, i) => {
-    let p = state.players[i];
-    if (!p) { p = mkPlayer('Spelare ' + (i + 1), i); state.players.push(p); }
+    let p = valda[i];
+    if (!p) {
+      p = mkPlayer(r.spelare || 'Spelare ' + (i + 1), state.players.length);
+      if (r.spelare) p.namnkalla = 'bild';
+      state.players.push(p); tagna.add(p.id); valda[i] = p;
+    } else if (r.spelare && p.namnkalla !== 'anvandare'
+               && !state.players.some(q => q !== p && norm(q.name) === norm(r.spelare))) {
+      /* Ett namn användaren skrivit själv står kvar — det är alltid mer värt
+         än en avläsning. Och två flikar får aldrig heta samma sak: de går
+         inte att skilja åt i flikraden, och nästa skärmdump skulle inte veta
+         vilken av dem den syftade på. */
+      p.name = r.spelare; p.namnkalla = 'bild';
+    }
     p.pane = r.pane;
     p.cards = r.acc.map(a => ({
       cid: uid(), name: a.cands[0].name, sid: a.cands[0].sid, flipped: 0,
@@ -4360,7 +4724,7 @@ function applyAnalysis(shotId, out, img) {
     if (!p.shots.includes(shotId)) p.shots.push(shotId);
     p.shotIdx = p.shots.indexOf(shotId);
   });
-  state.active = state.players[0].id;
+  state.active = (valda[0] || state.players[0]).id;
   state.sel = 0;
   save(); renderAll(true); resolveAll();
   const nc = out.reduce((a, r) => a + r.acc.length, 0);

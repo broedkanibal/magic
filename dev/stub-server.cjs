@@ -34,6 +34,16 @@ http.createServer((req, res) => {
       // koordinatmappningen går att kontrollera utan att betala för ett anrop
       let body2 = null;
       try { body2 = JSON.parse(body); } catch (e) {}
+      /* Namnläget. STUB_NAMN sätter vad som svaras, så både "läste ett namn"
+         och "såg inget" går att prova utan att betala för ett anrop.
+         Standard är tomt: en försiktig modell som inte gissar. */
+      if (body2 && body2.mode === 'namn') {
+        const n = process.env.STUB_NAMN || '';
+        const svar = n ? { namn: n, sakerhet: 'hog' } : { namn: '', sakerhet: 'lag' };
+        console.log(`stub/namn: svarar ${JSON.stringify(svar)} (STUB_NAMN=${n || 'tomt'})`);
+        res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
+        return res.end(JSON.stringify(svar));
+      }
       if (body2 && (body2.mode === 'pane' || body2.mode === 'card')) {
         const narbild = body2.mode === 'card';
         const lage = process.env.STUB_PANE || 'none';
@@ -69,7 +79,11 @@ http.createServer((req, res) => {
   if (!f.startsWith(path.resolve(ROOT))) { res.writeHead(403); return res.end('403'); }
   fs.readFile(f, (e, d) => {
     if (e) { res.writeHead(404); return res.end('404'); }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+    /* Även statiska filer får CORS. Testbilderna ligger i dev/bilder som är
+       gitignorerad, och vercel dev serverar därför inte den mappen — vill man
+       köra sidan mot riktiga Claude måste bilden gå att hämta härifrån. */
+    res.writeHead(200, Object.assign(
+      { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' }, cors()));
     res.end(d);
   });
 }).listen(8232, () => {

@@ -52,21 +52,74 @@
   }
 
   /* ══ 1. videorutor ══ */
+
+  /* SpellTables sidopanel — den med "Cards / Game Log", sökrutan, "Last Card"
+     och listan över tidigare spelade kort — innehåller kortBILDER. Ett svep
+     över den ger 12 förslag, varav 3 tar sig förbi ljusfiltret: kort som
+     aldrig legat på något bord.
+
+     Att den ändå hållit sig utanför rutorna var tur, inte en regel. Panelens
+     bakgrund ligger på luma 16–18 och tröskeln för svart är 30, så den råkar
+     läsas som samma svarta list som ramar in videon. Marginalen är 13 luma.
+     Sätts tröskeln till 14 — vad ett ljusare tema motsvarar — slås de två
+     rutorna ihop till EN som når bildkanten, och hela panelen följer med.
+     Då försvinner dessutom den svarta raden mellan rutorna, så de två
+     spelarna slås ihop till en.
+
+     Den letas därför upp för sig. Panelen är en enfärgad UI-yta mot bildens
+     högerkant: andelen pixlar inom ±6 luma från bakgrundstonen är 0.99 inne i
+     panelen mot 0.00–0.03 i videokolumnerna, och håller sig över 0.35 även
+     genom kortminiatyrerna. Uppmätt 12.5 % av bredden på den ena
+     skärmdumpen och 12.2 % på den andra, bakgrundston 18 i båda. */
+  function sidebarZone(L, W, H) {
+    /* Tonen tas från fyra kolumner, inte från den yttersta: där ligger en
+       1 px ram på luma 28 som ensam skulle ge fel ton. */
+    const bins = new Int32Array(64);
+    for (let x = W - 4; x < W; x++) for (let y = 0; y < H; y++) bins[Math.min(63, L[y * W + x] >> 2)]++;
+    let bi = 0;
+    for (let i = 1; i < 64; i++) if (bins[i] > bins[bi]) bi = i;
+    const bg = bi * 4 + 2, andel = bins[bi] / (4 * H);
+    /* Golvet på 12 skiljer panelen (16–22) från ren brevlådesvärta (0–2);
+       taket och andelen stänger ute videokolumner (andel 0.02–0.09) och en
+       beskärning av bara bordet (ton 130+). */
+    if (bg < 12 || bg > 40 || andel < 0.60) return null;
+    /* Vandringen får inte stanna på första kolumnen som inte passar. Panelen
+       har en 1 px ram på luma 26, och den ligger utanför ±6-fönstret: i en
+       nedskalad bild medelvärdas den bort, men i en beskärning där en
+       arbetskolumn är nästan en bildpunkt blev den yttersta kolumnen ramen —
+       zonen blev noll bred och panelen släpptes in igen. Tre kolumners
+       tålamod räcker: videokolumnerna ligger på 0.00–0.03 och stoppar ändå,
+       kortminiatyrerna på 0.35–0.42 och passerar. */
+    let x0 = W, miss = 0;
+    for (let x = W - 1; x >= 0; x--) {
+      let n = 0;
+      for (let y = 0; y < H; y++) if (Math.abs(L[y * W + x] - bg) <= 6) n++;
+      if (n / H < 0.20) { if (++miss > 3) break; continue; }
+      miss = 0; x0 = x;
+    }
+    const bredd = W - x0;
+    return (bredd >= W * 0.03 && bredd <= W * 0.45) ? x0 : null;
+  }
+
   function findPanes(img) {
     const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
     const im = work(img, 0, 0, iw, ih, 640);
     const L = luma(im.data, im.w * im.h), W = im.w, H = im.h;
     const BLACK = 30, FULL = 0.965;
+    const zon = sidebarZone(L, W, H);                  // kolumn där panelen börjar, eller null
+    const XMAX = zon == null ? W : zon;
 
     const colFlags = new Array(W);
     for (let x = 0; x < W; x++) {
       let n = 0;
       for (let y = 0; y < H; y++) if (L[y * W + x] < BLACK) n++;
-      colFlags[x] = (n / H) < FULL;
+      colFlags[x] = x < XMAX && (n / H) < FULL;
     }
     const panes = [];
-    for (const [x0, x1] of runs(colFlags, Math.round(W * 0.10))) {
+    for (const [x0, xr] of runs(colFlags, Math.round(W * 0.10))) {
+      const x1 = Math.min(xr, XMAX);                   // en löpa som vuxit in i panelen kapas här
       const bw = x1 - x0;
+      if (bw <= 0) continue;
       const rowFlags = new Array(H);
       for (let y = 0; y < H; y++) {
         let n = 0;
@@ -75,14 +128,19 @@
       }
       for (const [y0, y1] of runs(rowFlags, Math.round(H * 0.10))) {
         const w = bw, h = y1 - y0, ar = w / h;
-        if (w < W * 0.18) continue;                    // sidopanelen är smal
+        if (w < W * 0.18) continue;                    // videorutor är breda, UI-paneler smala
         if (ar < 0.8 || ar > 3.6) continue;            // videorutor är liggande
         if (w * h < W * H * 0.03) continue;
         panes.push({ x: x0 * im.k, y: y0 * im.k, w: w * im.k, h: h * im.k });
       }
     }
-    if (!panes.length) panes.push({ x: 0, y: 0, w: iw, h: ih });
+    /* Nödfallsrutan måste också stanna vid panelen. Annars släpps hela
+       sidopanelen in varje gång ingen ruta hittades. */
+    if (!panes.length) panes.push({ x: 0, y: 0, w: XMAX * im.k, h: ih });
     panes.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    /* Zonen följer med ut: snappaTillKort söker i en fritt svävande kvadrat
+       som inte är begränsad till någon ruta, och behöver samma spärr. */
+    panes.zon = zon == null ? null : zon * im.k;
     return panes;
   }
 
@@ -353,5 +411,5 @@
     };
   }
 
-  global.Detect = { findPanes, proposeCards, cardness, integral, rotatedLuma, work, ASPECT };
+  global.Detect = { findPanes, sidebarZone, proposeCards, cardness, integral, rotatedLuma, work, ASPECT };
 })(window);

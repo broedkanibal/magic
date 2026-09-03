@@ -37,6 +37,14 @@ till gränssnitt, flöden och detekteringen.
 Attrappen svarade tidigare "kandidat 1, hög säkerhet" på allt utan att titta på
 bilden, vilket tryckte in felaktiga kort i handen och såg ut som ett fel i
 igenkänningen. Sätt `STUB_AI=accept` för att medvetet testa den vägen.
+`STUB_PANE=kort` låter helrutsläget svara med kort, och `STUB_NAMN=Xepman` låter
+namnläget svara med ett spelarnamn — utan den svarar det tomt, som en modell som
+inte gissar.
+
+Testbilderna i `dev/bilder/` är gitignorerade, så `vercel dev` serverar dem inte.
+Vill du köra sidan mot riktiga Claude med en av dem: öppna sidan på port 3000 och
+hämta bilden från `http://localhost:8232/dev/bilder/…` — attrappen skickar CORS
+även på statiska filer just för det.
 
 **`npm run dev:ai`** kör `vercel dev`, alltså den riktiga `api/identify.js` med din
 riktiga nyckel. Kräver engångsuppsättning:

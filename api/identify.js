@@ -19,10 +19,10 @@ import Anthropic from '@anthropic-ai/sdk';
 const MAX_IMAGE_B64 = 900_000;          // ~650 kB bild
 const MAX_NAMES = 25;
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
-/* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
-   svarade så här" från "deployen hade inte hunnit ut" — det kostade två
-   felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 10;
+/* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
+   "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
+   två felaktiga slutsatser under utvecklingen. */
+const PANE_PROMPT_V = 11;
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -212,6 +212,64 @@ export default async function handler(req, res) {
       /* Bara feltypen följer med, inte hela svaret — den räcker för att se
          vad som gick fel utan att skicka ut förfrågningsid och interna
          detaljer på en publik endpoint. */
+      const typ = (String((e && e.message) || '').match(/"type":"(\w+_error)"/) || [])[1];
+      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten',
+        typ: typ || 'okant', promptv: PANE_PROMPT_V });
+    }
+  }
+
+  /* ── Spelarnamnet ur SpellTables överlägg ──────────────────────────
+     Egen prompt i stället för ett fält i rutläget: den promten säger
+     uttryckligen att spelarnamn ska IGNORERAS, och formuleringen är
+     intrimmad mot riktiga skärmdumpar. Att motsäga sig själv mitt i den
+     vore att röra det som fungerar.
+
+     Ett namn har heller ingen ifyllnadskö som ett kort har — ett okänt kort
+     hamnar i granskningen, men ett namn går rakt upp på fliken. Därför
+     duger bara hög säkerhet, och tom sträng är ett fullgott svar. */
+  if (mode === 'namn') {
+    try {
+      const client = new Anthropic({ apiKey: key, maxRetries: 2 });
+      const stream = client.messages.stream({
+        model: MODEL,
+        max_tokens: 2000,
+        output_config: { effort: 'high' },
+        system:
+          'Du läser användarnamnet ur SpellTables gränssnitt. Bilden är en videoruta från ' +
+          'ett Magic-spelbord med ett överlägg ovanpå: användarnamnet står med fet stil i ' +
+          'ett av de övre hörnen, ofta med commanderns namn i kursiv stil under sig och en ' +
+          'stor siffra för livtotalen bredvid. ' +
+          'Svara med ENBART användarnamnet. Livtotalen, commanderns namn, kortnamn, ' +
+          'knapptexter och uppmaningar som "Click to add commander(s) and edit decklist" ' +
+          'eller "Video is off" är inte användarnamn. ' +
+          'Ser du inget användarnamn, svara med tom sträng — det är ett fullgott svar. ' +
+          'Gissa aldrig: ett felaktigt namn hamnar direkt på spelarens flik utan kontroll. ' +
+          'Svara bara med JSON, aldrig med förklarande text.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text:
+              'Vilket användarnamn står i överlägget?\n\n' +
+              'Svara med enbart JSON:\n' +
+              '{"namn": "…", "sakerhet": "hog"|"medel"|"lag"}' }
+          ]
+        }]
+      });
+      const msg = await stream.finalMessage();
+      const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) return res.status(200).json({ namn: '', varfor: 'inget-json', promptv: PANE_PROMPT_V });
+      const j = JSON.parse(m[0]);
+      return res.status(200).json({
+        namn: String(j.namn == null ? '' : j.namn).slice(0, 40).trim(),
+        sakerhet: ['hog', 'medel', 'lag'].includes(j.sakerhet) ? j.sakerhet : 'lag',
+        promptv: PANE_PROMPT_V
+      });
+    } catch (e) {
+      const s = e && e.status;
+      console.error('identify/namn:', s || '', (e && e.message) || e);
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
       const typ = (String((e && e.message) || '').match(/"type":"(\w+_error)"/) || [])[1];
       return res.status(502).json({ error: 'Kunde inte nå bildtjänsten',
         typ: typ || 'okant', promptv: PANE_PROMPT_V });
