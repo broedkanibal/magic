@@ -19,6 +19,34 @@ sekunder, gratis.
 Första gången du läser av en bild bygger appen ett bildindex över kortsetet
 (~780 kort, ca 30 sekunder). Det sparas lokalt och görs aldrig om.
 
+## Är allt driftsatt?
+
+Produktionen ligger på <https://magic-mauve-xi.vercel.app>. Tre kontroller, i
+den ordningen:
+
+```bash
+git status --short                       # ska vara tomt
+git rev-parse --short HEAD origin/main   # ska ge samma commit två gånger
+curl -s https://magic-mauve-xi.vercel.app/api/identify
+```
+
+Sista raden svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":N}`.
+`promptv` höjs varje gång promterna eller lägena ändras och finns just för det
+här: utan den går det inte att skilja "modellen svarade så" från "deployen hade
+inte hunnit ut", och det kostade två felaktiga slutsatser under utvecklingen.
+Stämmer siffran inte med `PANE_PROMPT_V` i `api/identify.js` är deployen gammal.
+
+Vill du jämföra själva sidan i stället för serverfunktionen:
+
+```bash
+curl -s https://magic-mauve-xi.vercel.app/ | shasum
+shasum < index.html
+```
+
+Samma summa = exakt din fil ligger ute. I Vercels lista är det den blå
+**Production**-brickan som visar vilken deploy som faktiskt serveras; de gråa är
+tidigare deployer som ligger kvar på sina egna adresser.
+
 ## Köra lokalt
 
 Två lägen, olika portar. Båda kan köras samtidigt.
@@ -212,7 +240,7 @@ package.json      dess enda beroende
    | Variabel | Krävs | Betydelse |
    |---|---|---|
    | `ANTHROPIC_API_KEY` | ja | Nyckeln. Bara här — aldrig i någon fil du delar. |
-   | `ALLOWED_ORIGINS` | bör | Kommaseparerade adresser, t.ex. `https://handvy.vercel.app`. Utelämnad = alla ursprung tillåts. |
+   | `ALLOWED_ORIGINS` | bör | Kommaseparerade adresser, t.ex. `https://magic-mauve-xi.vercel.app`. Utelämnad = alla ursprung tillåts. |
    | `ANTHROPIC_MODEL` | nej | Standard `claude-opus-5`. |
    | `RATE_PER_MIN` | nej | Standard 40 anrop per IP och minut. |
    | `RATE_PER_DAY` | nej | Standard 600 anrop per IP och dygn. |
