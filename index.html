@@ -3980,7 +3980,7 @@ function cardPayload(img, box) {
 async function readCard(img, box) {
   const resp = await fetch(AI_ENDPOINT, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: 'pane', image: cardPayload(img, box) })
+    body: JSON.stringify({ mode: 'card', image: cardPayload(img, box) })
   });
   if (!resp.ok) return null;
   const j = await resp.json();

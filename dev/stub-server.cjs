@@ -34,12 +34,19 @@ http.createServer((req, res) => {
       // koordinatmappningen går att kontrollera utan att betala för ett anrop
       let body2 = null;
       try { body2 = JSON.parse(body); } catch (e) {}
-      if (body2 && body2.mode === 'pane') {
-        const svar = (process.env.STUB_PANE || 'none') === 'kort'
-          ? { kort: [ { namn: 'Swamp', x: 250, y: 300, sakerhet: 'hog' },
-                      { namn: 'Sol Ring', x: 500, y: 500, sakerhet: 'medel' },
-                      { namn: 'Island', x: 750, y: 700, sakerhet: 'lag' } ] }
-          : { kort: [] };
+      if (body2 && (body2.mode === 'pane' || body2.mode === 'card')) {
+        const narbild = body2.mode === 'card';
+        const lage = process.env.STUB_PANE || 'none';
+        /* Härmar det verkliga beteendet: en hel ruta ger positioner utan namn,
+           en närbild ger ett namn. Det är så tvåstegsflödet går att prova
+           utan att betala för riktiga anrop. */
+        const svar = lage !== 'kort' ? { kort: [] }
+          : narbild
+            ? { kort: [ { namn: 'Swamp', x: 500, y: 500, sakerhet: 'hog' },
+                        { namn: 'Grannkort', x: 900, y: 500, sakerhet: 'lag' } ] }
+            : { kort: [ { namn: '',      x: 250, y: 300, sakerhet: 'lag' },
+                        { namn: '',      x: 500, y: 500, sakerhet: 'lag' },
+                        { namn: 'Plains', x: 750, y: 700, sakerhet: 'hog' } ] };
         console.log(`stub/pane: bild ${Math.round((body2.image||'').length/1024)} kB, svarar ${svar.kort.length} kort (STUB_PANE=${process.env.STUB_PANE || 'none'})`);
         res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
         return res.end(JSON.stringify(svar));

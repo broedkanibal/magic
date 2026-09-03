@@ -22,7 +22,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
    svarade så här" från "deployen hade inte hunnit ut" — det kostade två
    felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 3;
+const PANE_PROMPT_V = 4;
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
    instans och nollställs när en instans startas om — alltså ett hinder mot
@@ -113,6 +113,61 @@ export default async function handler(req, res) {
      sig varken om att kortet ligger upp och ner eller att kontrasten är
      borta. Den är inte heller bunden till den lokala kortpoolens 1026
      namn — svaren slås upp mot hela Scryfall efteråt. */
+  /* Närbild på ETT kort. Egen prompt: modellen ska namnge kortet i mitten och
+     inte grannarna som råkar komma med i beskärningen. Behövs för att rutläget
+     inte namnger kort som är små i bildrutan — samma kort uppförstorat gick
+     från namnlöst till "Swamp" med hög säkerhet. */
+  if (mode === 'card') {
+    try {
+      const client = new Anthropic({ apiKey: key });
+      const stream = client.messages.stream({
+        model: MODEL,
+        max_tokens: 8000,
+        output_config: { effort: 'high' },
+        system:
+          'Du identifierar ETT Magic: the Gathering-kort på en närbild från en webbkamera ' +
+          'ovanför ett spelbord. Bilden är uppförstorad ur en större bild och därför suddig. ' +
+          'Kortet som ska namnges är det i MITTEN — grannkort i kanterna ska ignoreras. ' +
+          'Kortet kan ligga upp och ner eller snett. ' +
+          'BASLÄNDER identifieras på den stora mana-symbolen, inte på namnet: vit sol = Plains, ' +
+          'blå droppe = Island, svart dödskalle = Swamp, rött berg = Mountain, grönt träd = ' +
+          'Forest. Ser du symbolen tydligt är kortet identifierat med hög säkerhet, även om ' +
+          'resten är utbränt av lampans reflex. ' +
+          'Är det en baksida (enfärgat brun med ljus oval, inget konstverk och ingen textruta) ' +
+          'eller inget kort alls, svara med tom lista. Svara bara med JSON.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text:
+              'Vilket kort ligger i mitten?\n\n' +
+              'namn: exakta engelska namnet, eller "" om du inte kan avgöra vilket kort det är.\n' +
+              'sakerhet: "hog" när du läser namnet eller ser en baslandssymbol tydligt, ' +
+              '"medel" när konstverket verkar stämma men namnet inte går att läsa, "lag" annars.\n\n' +
+              'Svara med enbart JSON:\n' +
+              '{"kort": [{"namn": "..." | "", "x": 500, "y": 500, "sakerhet": "hog"|"medel"|"lag"}]}' }
+          ]
+        }]
+      });
+      const msg = await stream.finalMessage();
+      const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) return res.status(200).json({ kort: [], varfor: 'inget-json', promptv: PANE_PROMPT_V });
+      const j = JSON.parse(m[0]);
+      const k = (Array.isArray(j.kort) ? j.kort : [])
+        .filter(x => x && typeof x.namn === 'string')
+        .slice(0, 1)
+        .map(x => ({ namn: String(x.namn).slice(0, 120).trim(), x: 500, y: 500,
+                     sakerhet: ['hog', 'medel', 'lag'].includes(x.sakerhet) ? x.sakerhet : 'medel' }));
+      return res.status(200).json({ kort: k, promptv: PANE_PROMPT_V });
+    } catch (e) {
+      const s = e && e.status;
+      console.error('identify/card:', s || '', (e && e.message) || e);
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+    }
+  }
+
   if (mode === 'pane') {
     try {
       const client = new Anthropic({ apiKey: key });
