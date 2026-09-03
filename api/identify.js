@@ -22,7 +22,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
    svarade så här" från "deployen hade inte hunnit ut" — det kostade två
    felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 5;
+const PANE_PROMPT_V = 6;
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
    instans och nollställs när en instans startas om — alltså ett hinder mot
@@ -209,8 +209,11 @@ export default async function handler(req, res) {
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
             { type: 'text', text:
               'Lista VARJE uppåtvänt Magic-kort i bilden — även de vars namn du inte kan läsa.\n\n' +
-              'För varje kort: mittpunkten som heltal 0–1000 där x=0 är bildens vänsterkant och ' +
-              'y=0 dess överkant, samt namnet.\n\n' +
+              'För varje kort: kortets FYRA HÖRN och namnet.\n\n' +
+              'horn: fyra punkter [x,y] runt kortet i ordning medurs, som heltal 0–1000 där ' +
+              'x=0 är bildens vänsterkant och y=0 dess överkant. Följ kortets verkliga kanter — ' +
+              'korten ligger snett, så hörnen bildar oftast inte en rak rektangel. Var noggrann: ' +
+              'rutan ritas ut ovanpå bilden och används för att klippa ut kortet.\n\n' +
               'namn: kortets exakta engelska namn, eller tom sträng "" om du inte kan avgöra ' +
               'vilket kort det är.\n' +
               'sakerhet: "hog" när du kan läsa kortnamnet eller känner igen konstverket utan ' +
@@ -219,7 +222,8 @@ export default async function handler(req, res) {
               'Medel och låg hamnar i en lista användaren får bekräfta, så de kostar ingenting ' +
               'om de är fel.\n\n' +
               'Svara med enbart JSON. Finns inga kort alls i bilden: {"kort": []}\n' +
-              '{"kort": [{"namn": "..." | "", "x": 0-1000, "y": 0-1000, "sakerhet": "hog"|"medel"|"lag"}]}' }
+              '{"kort": [{"namn": "..." | "", "horn": [[x,y],[x,y],[x,y],[x,y]], ' +
+              '"sakerhet": "hog"|"medel"|"lag"}]}' }
           ]
         }]
       });
@@ -237,12 +241,22 @@ export default async function handler(req, res) {
       const j = JSON.parse(m[0]);
       const kort = (Array.isArray(j.kort) ? j.kort : []).slice(0, 40)
         .filter(k => k && typeof k.namn === 'string')      // tomt namn är ett giltigt svar
-        .map(k => ({
-          namn: String(k.namn).slice(0, 120).trim(),
-          x: Math.max(0, Math.min(1000, Number(k.x) || 0)),
-          y: Math.max(0, Math.min(1000, Number(k.y) || 0)),
-          sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'medel'
-        }));
+        .map(k => {
+          const h4 = Array.isArray(k.horn) ? k.horn.slice(0, 4)
+            .filter(p => Array.isArray(p) && p.length >= 2)
+            .map(p => [Math.max(0, Math.min(1000, Number(p[0]) || 0)),
+                       Math.max(0, Math.min(1000, Number(p[1]) || 0))]) : [];
+          // mittpunkten härleds ur hörnen, med fallback till ett angivet x/y
+          const mx = h4.length === 4 ? h4.reduce((a, p) => a + p[0], 0) / 4 : Number(k.x) || 0;
+          const my = h4.length === 4 ? h4.reduce((a, p) => a + p[1], 0) / 4 : Number(k.y) || 0;
+          return {
+            namn: String(k.namn).slice(0, 120).trim(),
+            horn: h4.length === 4 ? h4 : null,
+            x: Math.max(0, Math.min(1000, mx)),
+            y: Math.max(0, Math.min(1000, my)),
+            sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'medel'
+          };
+        });
       return res.status(200).json({ kort, promptv: PANE_PROMPT_V });
     } catch (e) {
       const s = e && e.status;
