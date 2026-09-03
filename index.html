@@ -807,7 +807,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
       Läs av igen
     </button>
-    <button class="btn sm" id="swClaude" hidden title="Skicka hela bilden till Claude — hittar kort som detektorn missar, t.ex. kort som lampan speglat sig i">
+    <button class="btn sm" id="swClaude" hidden title="Skicka hela bilden till Claude — hittar kort som detektorn missar, t.ex. kort som lampan speglat sig i. Ett anrop per ruta, plus ett per kort som behöver närbild.">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
       Läs med Claude
     </button>
@@ -3945,6 +3945,7 @@ const AI_MAX = 40;                       // tak per skärmdump, så en miss inte
    slås upp mot hela Scryfall efteråt. Kostar ett anrop per ruta, så det körs
    på begäran och inte automatiskt. */
 const PANE_MAXW = 1100;                  // räcker för att läsa kortnamn
+const NARBILD_MAX = 14;                  // tak på närbilder per ruta, ett anrop styck
 
 function panePayload(img, pane) {
   const s = Math.min(1, PANE_MAXW / pane.w);
@@ -3956,6 +3957,38 @@ function panePayload(img, pane) {
   c.drawImage(img, pane.x, pane.y, pane.w, pane.h, 0, 0, cv.width, cv.height);
   const url = cv.toDataURL('image/jpeg', 0.85);
   return url.slice(url.indexOf(',') + 1);
+}
+
+/* Närbild på ett enskilt kort. Modellen namnger inte kort som är små i
+   bildrutan: på en ruta med åtta kort blev alla åtta namnlösa, men samma
+   Swamp uppförstorad blev "Swamp" med hög säkerhet. Fler pixlar räckte inte —
+   en uppskalad ruta gav fortfarande noll namn. Kortet måste fylla rutan. */
+const CARD_MAXW = 800;
+function cardPayload(img, box) {
+  const m = box.w * 0.4;                      // lite omgivning hjälper modellen
+  const sx = box.x - m, sy = box.y - m, sw = box.w + m * 2, sh = box.h + m * 2;
+  const s = Math.min(3, CARD_MAXW / sw);      // uppförstora små kort
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(sw * s));
+  cv.height = Math.max(1, Math.round(sh * s));
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+  const url = cv.toDataURL('image/jpeg', 0.92);
+  return url.slice(url.indexOf(',') + 1);
+}
+async function readCard(img, box) {
+  const resp = await fetch(AI_ENDPOINT, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'pane', image: cardPayload(img, box) })
+  });
+  if (!resp.ok) return null;
+  const j = await resp.json();
+  const k = (Array.isArray(j.kort) ? j.kort : []).filter(x => x.namn);
+  if (!k.length) return null;
+  // närmast mitten är kortet vi frågade om, inte grannen som råkade komma med
+  k.sort((a, b) => Math.hypot(a.x - 500, a.y - 500) - Math.hypot(b.x - 500, b.y - 500));
+  return k[0];
 }
 
 async function readPane(img, pane) {
@@ -4013,6 +4046,31 @@ async function claudeReadShot() {
       const p = state.players[i] || (state.players.push(mkPlayer('Spelare ' + (i + 1), i)), state.players[state.players.length - 1]);
       if (!p.pending) p.pending = [];
       const cw = paneCardW(p, panes[i]), ch = cw / Matcher.ASPECT;
+
+      /* Steg 2: namnlösa kort får en närbild. Rutan hittar var korten ligger,
+         men namnger dem bara när de är stora nog i bildrutan. Ett kort som är
+         80px brett i en 976px ruta blir namnlöst; samma kort uppförstorat blev
+         "Swamp" med hög säkerhet. Ett anrop per namnlöst kort, med tak. */
+      const namnlosa = kort.filter(k => !k.namn).slice(0, NARBILD_MAX);
+      if (namnlosa.length) {
+        anStep(`Ruta ${i + 1} — närbild på ${namnlosa.length} kort`);
+        await tick();
+        let klara = 0;
+        const jobb = namnlosa.map(k => async () => {
+          const box = {
+            x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
+            y: panes[i].y + (k.y / 1000) * panes[i].h - ch / 2, w: cw, h: ch
+          };
+          try { const r = await readCard(img, box); if (r && r.namn) { k.namn = r.namn; k.sakerhet = r.sakerhet; } }
+          catch (e) { /* ett misslyckat kort ska inte stoppa resten */ }
+          anBar((i + (++klara / namnlosa.length)) / panes.length);
+        });
+        for (let j = 0; j < jobb.length; j += 3) {          // tre i taget
+          if (cancelAnalyze) return;
+          await Promise.all(jobb.slice(j, j + 3).map(f => f()));
+        }
+      }
+
       for (const k of kort) {
         const box = {
           x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
