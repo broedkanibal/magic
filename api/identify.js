@@ -22,7 +22,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
    svarade så här" från "deployen hade inte hunnit ut" — det kostade två
    felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 8;
+const PANE_PROMPT_V = 9;
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -34,6 +34,27 @@ const BASLAND = [
   ['Mountain', 'https://cards.scryfall.io/normal/front/d/4/d4606809-7066-4413-9dfd-e929004a71bb.jpg'],
   ['Forest',   'https://cards.scryfall.io/normal/front/2/5/2581a074-00ab-4a2d-8699-25dcd8c76393.jpg']
 ];
+
+/* Bilderna skickas som base64, inte som URL. Anthropics servrar får inte hämta
+   dem själva — Scryfall svarar inte på deras hämtare, och anropet föll på
+   "Unable to download the file". Servern hämtar i stället, med den
+   användaragent Scryfall ber om, och behåller resultatet mellan anrop på en
+   varm instans så att de fem bilderna bara hämtas en gång. */
+const landCache = new Map();
+async function landBilder() {
+  const ut = [];
+  for (const [namn, url] of BASLAND) {
+    let b64 = landCache.get(url);
+    if (!b64) {
+      const r = await fetch(url, { headers: { 'User-Agent': 'Handvy/1.0 (MTG-korthjalp)', 'Accept': 'image/jpeg' } });
+      if (!r.ok) throw new Error('kunde inte hämta ' + namn + ': ' + r.status);
+      b64 = Buffer.from(await r.arrayBuffer()).toString('base64');
+      landCache.set(url, b64);
+    }
+    ut.push([namn, b64]);
+  }
+  return ut;
+}
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
    instans och nollställs när en instans startas om — alltså ett hinder mot
@@ -158,7 +179,8 @@ export default async function handler(req, res) {
             { type: 'text', text: 'Fotot att bedöma:' },
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
             { type: 'text', text: 'De fem basländerna, i ordning Plains, Island, Swamp, Mountain, Forest:' },
-            ...BASLAND.map(([, url]) => ({ type: 'image', source: { type: 'url', url } })),
+            ...(await landBilder()).map(([, b64]) => ({
+              type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } })),
             { type: 'text', text:
               'Vilket av de fem korten är fotot? Titta på symbolens form, inte på färgen — ' +
               'fotot kan vara urtvättat av lampans reflex.\n\n' +
