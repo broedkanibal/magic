@@ -22,7 +22,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
    svarade så här" från "deployen hade inte hunnit ut" — det kostade två
    felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 9;
+const PANE_PROMPT_V = 10;
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -155,7 +155,9 @@ export default async function handler(req, res) {
      stället för ett minnestest. */
   if (mode === 'land') {
     try {
-      const client = new Anthropic({ apiKey: key });
+      /* Överbelastning slog igenom till klienten fast anropet är litet och
+         gärna får ta en stund till. Tre försök med växande paus. */
+      const client = new Anthropic({ apiKey: key, maxRetries: 3 });
       const stream = client.messages.stream({
         model: MODEL,
         max_tokens: 8000,
@@ -207,11 +209,12 @@ export default async function handler(req, res) {
       const s = e && e.status;
       console.error('identify/land:', s || '', (e && e.message) || e);
       if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
-      /* Felets text följer med för det här läget. Det är SDK:ns egen
-         valideringstext, inte något om kontot, och utan den gick det inte att
-         se varför anropet kastade. */
+      /* Bara feltypen följer med, inte hela svaret — den räcker för att se
+         vad som gick fel utan att skicka ut förfrågningsid och interna
+         detaljer på en publik endpoint. */
+      const typ = (String((e && e.message) || '').match(/"type":"(\w+_error)"/) || [])[1];
       return res.status(502).json({ error: 'Kunde inte nå bildtjänsten',
-        detalj: String((e && e.message) || e).slice(0, 300), promptv: PANE_PROMPT_V });
+        typ: typ || 'okant', promptv: PANE_PROMPT_V });
     }
   }
 
