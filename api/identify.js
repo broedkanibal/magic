@@ -128,8 +128,11 @@ export default async function handler(req, res) {
           'du kan. Positionen är värdefull även utan namn: appen visar då en beskuren bild av ' +
           'kortet som användaren fyller i för hand. Utelämna alltså aldrig ett kort bara för ' +
           'att namnet inte går att läsa — lämna namnet tomt i stället. ' +
-          'Räkna INTE med kort som ligger med baksidan upp, kortaskar, lekar, tärningar, ' +
-          'tangentbord, händer eller telefoner. ' +
+          'Räkna INTE med baksidor, kortaskar, lekar, tärningar, tangentbord, händer eller ' +
+          'telefoner. En Magic-baksida känns igen på att den är enfärgat brun med en stor ' +
+          'ljus oval i mitten och ingen text, inget konstverk och ingen ljus textruta — den ' +
+          'ser likadan ut oavsett vilket kort det är. Har du inte sett något som liknar ' +
+          'konstverk eller tryckt text på kortet är det en baksida, inte ett oläsbart kort. ' +
           'Gissa aldrig ett namn du inte har stöd för — ett påhittat namn med hög säkerhet ' +
           'hamnar direkt i spelarens hand utan kontroll. Svara bara med JSON, aldrig med ' +
           'förklarande text.',
