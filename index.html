@@ -4021,23 +4021,24 @@ async function readCardAt(img, box, marg) {
   k.sort((a, b) => Math.hypot(a.x - 500, a.y - 500) - Math.hypot(b.x - 500, b.y - 500));
   return k[0];
 }
-/* Två inramningar. Uppmätt på två Swamp-kort i samma ruta: den vida gav rätt
-   på det ena och "Forest" på det andra, den tighta tvärtom. Det är ett
-   gränsfall för modellen, och små ändringar i beskärningen vänder svaret. Med
-   båda blir båda korten rätt med hög säkerhet. Den vida först — den tål att
-   positionen är några procent fel — och den tighta bara om svaret inte redan
-   var säkert, så ett kort som läses direkt kostar ett anrop. */
+/* Två inramningar som måste vara ÖVERENS.
+
+   Uppmätt på de två Swamp-korten i samma ruta: den vida beskärningen gav rätt
+   på det ena och "Forest" på det andra, den tighta tvärtom — och svaret vände
+   mellan körningar. Det är ett gränsfall, och då är ett självsäkert fel värre
+   än inget svar: användaren ser en beskuren bild och skriver namnet på en
+   sekund, men ett fel namn som ser rimligt ut kan glida igenom.
+
+   Samma princip som den lokala kedjan redan bygger på: två oberoende bevis.
+   Är första svaret redan säkert räcker det, och kortet kostar ett anrop. */
 async function readCard(img, box) {
-  let bäst = null;
-  for (const marg of [0.40, 0.10]) {
-    let r = null;
-    try { r = await readCardAt(img, box, marg); } catch (e) { /* prova nästa inramning */ }
-    if (r && r.namn) {
-      if (r.sakerhet === 'hog') return r;
-      if (!bäst) bäst = r;
-    }
-  }
-  return bäst;
+  const forsta = await readCardAt(img, box, 0.40).catch(() => null);
+  if (forsta && forsta.namn && forsta.sakerhet === 'hog') return forsta;
+  const andra = await readCardAt(img, box, 0.10).catch(() => null);
+  if (!forsta || !forsta.namn) return andra && andra.namn ? andra : null;
+  if (!andra || !andra.namn) return forsta;
+  if (forsta.namn.toLowerCase() !== andra.namn.toLowerCase()) return null;   // oense → inget påstående
+  return andra.sakerhet === 'hog' ? andra : forsta;
 }
 
 async function readPane(img, pane) {
