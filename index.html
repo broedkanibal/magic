@@ -2038,6 +2038,33 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     };
 
     const MIN = T ? 0.14 : 0.16;
+
+    /* Känd kortstorlek: hoppa över storleksuppskattningen och sök bara läge och
+       vinkel. Uppskattningen behöver en yta med flera kort för att bli stabil,
+       så den fungerar inte i ett litet fönster runt EN punkt — och det är just
+       vad som behövs när något annat redan sagt var kortet ligger. */
+    if (o.fixedW) {
+      const wf = Math.max(8, Math.round(o.fixedW / im.k));
+      const nära = sweep(Array.from(new Set([0.94, 1.0, 1.06].map(f => Math.round(wf * f)))), 0.05, -1e9);
+      if (!nära.length) return { proposals: [], work: im, cardW: o.fixedW };
+      nära.sort((a, b) => b.score - a.score);
+      const valda = [];
+      for (const c of nära) {
+        const u = backMap(c.f.r, c.x + c.w / 2, c.y + (c.w / ASPECT) / 2);
+        if (valda.some(v => Math.abs(v.ux - u.x) < wf * 0.5 && Math.abs(v.uy - u.y) < wf * 0.5)) continue;
+        valda.push({ score: c.score, deg: c.deg, w: c.w, ux: u.x, uy: u.y });
+        if (valda.length >= (o.want || 1)) break;
+      }
+      return {
+        proposals: valda.map(c => ({
+          score: c.score, deg: c.deg,
+          cx: pane.x + c.ux * im.k, cy: pane.y + c.uy * im.k,
+          w: c.w * im.k, h: (c.w / ASPECT) * im.k
+        })),
+        work: im, cardW: o.fixedW
+      };
+    }
+
     const wMin = Math.max(16, im.w * 0.07), wMax = im.w * 0.30;
     const w1 = [];
     for (let w = wMin; w <= wMax; w *= 1.14) w1.push(Math.round(w));
@@ -3896,7 +3923,6 @@ async function analyzeShot(shotId) {
        detekteringen som saknade dem.
        Extrapasset körs bara när rutan ser tom ut, så en vanlig bild kostar
        ingenting extra. */
-    const VAND_ROTS = [-26, -19, -13, -6, 0, 6, 13, 19, 26].map(r => r + 180);
     const props = panes.map(p => {
       let r = Detect.proposeCards(img, p, { want: 16, template: tmpl });
       if (r.proposals.length < 2) {
@@ -3976,6 +4002,8 @@ const AI_MAX = 40;                       // tak per skärmdump, så en miss inte
    upp och ner, och är inte bunden till den lokala poolens 1026 namn: svaren
    slås upp mot hela Scryfall efteråt. Kostar ett anrop per ruta, så det körs
    på begäran och inte automatiskt. */
+const DET_ROTS = [-26, -19, -13, -6, 0, 6, 13, 19, 26];
+const VAND_ROTS = DET_ROTS.map(r => r + 180);
 const PANE_MAXW = 1100;                  // räcker för att läsa kortnamn
 const NARBILD_MAX = 14;                  // tak på närbilder per ruta, upp till två anrop styck
 
@@ -4042,6 +4070,31 @@ async function readCard(img, box) {
   return andra.sakerhet === 'hog' ? andra : forsta;
 }
 
+/* Claudes position är en uppskattning: bra på vilket kort som avses, opålitlig
+   på exakt kant och vinkel. Rutorna hamnade därför bredvid korten, och
+   beskärningen visade fel sak — i ett fall spelarnamnet i stället för ett kort.
+   Hörn testades och blev sämre (förhållanden 1.18–2.24 mot kortets 1.39).
+   Detektorn kan däremot hitta kortets exakta kant och vinkel om den får veta
+   var den ska leta och hur stort kortet är. Uppmätt på åtta kort: gissningen
+   flyttas 4–47 px och landar på kortet, med vinkeln rätt. */
+function snappaTillKort(img, cx, cy, cw, tmpl) {
+  if (!tmpl) return null;
+  const ch = cw / Matcher.ASPECT;
+  const sida = ch * 2.1;                    // rymmer kortet vid vilken vinkel som helst
+  const sok = { x: cx - sida / 2, y: cy - sida / 2, w: sida, h: sida };
+  let b = null;
+  for (const rots of [DET_ROTS, VAND_ROTS]) {
+    try {
+      const r = Detect.proposeCards(img, sok, { want: 3, template: tmpl, rots, fixedW: cw });
+      for (const q of r.proposals) {
+        if (Math.hypot(q.cx - cx, q.cy - cy) > cw * 0.75) continue;   // inte grannkortet
+        if (!b || q.score > b.score) b = q;
+      }
+    } catch (e) { /* snappningen är en förbättring, inte ett krav */ }
+  }
+  return b;
+}
+
 async function readPane(img, pane) {
   const resp = await fetch(AI_ENDPOINT, {
     method: 'POST',
@@ -4083,11 +4136,18 @@ async function claudePaneSweep(img, panes, shotId, out) {
     const bredder = r.acc.concat(r.pend).map(x => x.box.w);
     const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
     const ch = cw / Matcher.ASPECT;
-    const nya = kort.map(k => Object.assign({}, k, {
-      box: { x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
-             y: panes[i].y + (k.y / 1000) * panes[i].h - ch / 2, w: cw, h: ch }
-    })).filter(k => !r.acc.some(a => boxOverlap(k.box, a.box) > 0.30))
-       .filter(k => harTextruta(img, k.box, 0));   // baksidor och gränssnitt bort
+    const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
+    const nya = kort.map(k => {
+      const cx = panes[i].x + (k.x / 1000) * panes[i].w;
+      const cy = panes[i].y + (k.y / 1000) * panes[i].h;
+      const s = snappaTillKort(img, cx, cy, cw, tmpl);
+      const mx = s ? s.cx : cx, my = s ? s.cy : cy;
+      return Object.assign({}, k, {
+        rot: s ? s.deg : 0,
+        box: { x: mx - cw / 2, y: my - ch / 2, w: cw, h: ch }
+      });
+    }).filter(k => !r.acc.some(a => boxOverlap(k.box, a.box) > 0.30))
+      .filter(k => harTextruta(img, k.box, k.rot));   // baksidor och gränssnitt bort
 
     /* Claude ser hela rutan och missar inte kort som detektorn tappat. Ett
        lokalt osäkert område som Claude INTE ser något kort på är därför
@@ -4111,7 +4171,11 @@ async function claudePaneSweep(img, panes, shotId, out) {
       }
     }
 
-    for (const k of nya) {
+    // efter snappningen kan två gissningar ha landat på samma kort
+    const unika = [];
+    for (const k of nya) if (!unika.some(u => boxOverlap(u.box, k.box) > 0.45)) unika.push(k);
+
+    for (const k of unika) {
       if (r.pend.some(q => boxOverlap(k.box, q.box) > 0.30)) {
         // redan i listan lokalt — fyll bara på med Claudes förslag
         const q = r.pend.find(x => boxOverlap(k.box, x.box) > 0.30);
@@ -4119,7 +4183,7 @@ async function claudePaneSweep(img, panes, shotId, out) {
         continue;
       }
       hittade++;
-      const rec = { box: k.box, rot: 0, inliers: 0, byAI: true,
+      const rec = { box: k.box, rot: k.rot || 0, inliers: 0, byAI: true,
                     cands: k.namn ? [{ name: k.namn, sid: null, score: 1 }] : [] };
       if (k.namn && k.sakerhet === 'hog') { r.acc.push(rec); namngivna++; }
       else { rec.ai = k.namn ? k.sakerhet : undefined; r.pend.push(rec); }

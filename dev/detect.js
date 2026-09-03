@@ -254,6 +254,33 @@
     };
 
     const MIN = T ? 0.14 : 0.16;
+
+    /* Känd kortstorlek: hoppa över storleksuppskattningen och sök bara läge och
+       vinkel. Uppskattningen behöver en yta med flera kort för att bli stabil,
+       så den fungerar inte i ett litet fönster runt EN punkt — och det är just
+       vad som behövs när något annat redan sagt var kortet ligger. */
+    if (o.fixedW) {
+      const wf = Math.max(8, Math.round(o.fixedW / im.k));
+      const nära = sweep(Array.from(new Set([0.94, 1.0, 1.06].map(f => Math.round(wf * f)))), 0.05, -1e9);
+      if (!nära.length) return { proposals: [], work: im, cardW: o.fixedW };
+      nära.sort((a, b) => b.score - a.score);
+      const valda = [];
+      for (const c of nära) {
+        const u = backMap(c.f.r, c.x + c.w / 2, c.y + (c.w / ASPECT) / 2);
+        if (valda.some(v => Math.abs(v.ux - u.x) < wf * 0.5 && Math.abs(v.uy - u.y) < wf * 0.5)) continue;
+        valda.push({ score: c.score, deg: c.deg, w: c.w, ux: u.x, uy: u.y });
+        if (valda.length >= (o.want || 1)) break;
+      }
+      return {
+        proposals: valda.map(c => ({
+          score: c.score, deg: c.deg,
+          cx: pane.x + c.ux * im.k, cy: pane.y + c.uy * im.k,
+          w: c.w * im.k, h: (c.w / ASPECT) * im.k
+        })),
+        work: im, cardW: o.fixedW
+      };
+    }
+
     const wMin = Math.max(16, im.w * 0.07), wMax = im.w * 0.30;
     const w1 = [];
     for (let w = wMin; w <= wMax; w *= 1.14) w1.push(Math.round(w));
