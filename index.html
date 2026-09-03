@@ -670,7 +670,12 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   .hints{display:none}
   /* Manaraden ska rymmas utan att äta remsan: en tredjedel av ett kort, inte
      en halv skärm. Symbolen är det enda som måste förbli läsbart på håll. */
-  .manarow{gap:10px;padding:7px 10px 8px;max-height:34%}
+  /* .hand:s barn får uttrycklig ordning i det här läget, och utan en egen
+     hamnade manaraden först — alltså ovanför korten i stället för under dem.
+     Den ska ligga direkt efter remsan; sökraden är en verktygsrad längst ner.
+     Höjden i px, inte procent: .hand är flex:none här och har därför ingen
+     bestämd höjd att räkna procent på. */
+  .manarow{order:3;gap:10px;padding:7px 10px 8px;max-height:132px}
   .ms.xl{width:26px;height:26px;font-size:15px}
   .mgn b{font-size:13px;min-width:15px}
   .mgstep{width:17px;height:17px;font-size:12px}
@@ -698,7 +703,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   /* 60px breda kort gick inte att se vad de föreställde. 92px räcker för att
      känna igen konstverket, och kostar bara ~45px av det stora kortet. */
   .gridwrap{order:2;flex:none;height:148px;overflow-x:auto;overflow-y:hidden;padding:10px}
-  .handbar{order:3;border-bottom:none;border-top:1px solid var(--line);padding:8px 10px}
+  .handbar{order:4;border-bottom:none;border-top:1px solid var(--line);padding:8px 10px}
   .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:92px;gap:8px;justify-content:start}
   .card{scroll-margin:10px}
   .card.sel{transform:none}              /* lyftet får inte plats i remsan */
