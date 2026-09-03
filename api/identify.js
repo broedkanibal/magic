@@ -19,6 +19,10 @@ import Anthropic from '@anthropic-ai/sdk';
 const MAX_IMAGE_B64 = 900_000;          // ~650 kB bild
 const MAX_NAMES = 25;
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
+/* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
+   svarade så här" från "deployen hade inte hunnit ut" — det kostade två
+   felaktiga slutsatser under utvecklingen. */
+const PANE_PROMPT_V = 3;
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
    instans och nollställs när en instans startas om — alltså ett hinder mot
@@ -77,7 +81,7 @@ export default async function handler(req, res) {
   /* Hälsokoll — klienten frågar vid start om servern finns, och slipper
      då kräva att någon redigerar en rad i koden för att slå på AI-hjälpen. */
   if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL });
+    return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL, promptv: PANE_PROMPT_V });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST krävs' });
   if (origin && !ok) return res.status(403).json({ error: 'Otillåtet ursprung' });
@@ -182,7 +186,7 @@ export default async function handler(req, res) {
           y: Math.max(0, Math.min(1000, Number(k.y) || 0)),
           sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'medel'
         }));
-      return res.status(200).json({ kort });
+      return res.status(200).json({ kort, promptv: PANE_PROMPT_V });
     } catch (e) {
       const s = e && e.status;
       console.error('identify/pane:', s || '', (e && e.message) || e);
