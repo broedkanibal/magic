@@ -185,7 +185,11 @@ export default async function handler(req, res) {
       const s = e && e.status;
       console.error('identify/land:', s || '', (e && e.message) || e);
       if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
-      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+      /* Felets text följer med för det här läget. Det är SDK:ns egen
+         valideringstext, inte något om kontot, och utan den gick det inte att
+         se varför anropet kastade. */
+      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten',
+        detalj: String((e && e.message) || e).slice(0, 300), promptv: PANE_PROMPT_V });
     }
   }
 
