@@ -308,6 +308,9 @@ main{flex:1;display:flex;min-height:0}
   width:32px;height:32px;border-radius:8px;color:var(--dim);
   background:#ffffff0d;display:grid;place-items:center;line-height:0;
 }
+/* Bildvyns kryss låg 12px från toppen medan verktygsradens knappar centreras i
+   en 46px hög rad — de hamnade därför på olika höjd. Centrera i samma rad. */
+#shotOv .ovclose{top:7px}
 .ovclose:hover{background:var(--red);color:#fff}
 
 /* focus mode */
@@ -426,6 +429,8 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   flex:none;display:flex;align-items:center;gap:9px;padding:9px 14px;
   border-top:1px solid #ffffff12;background:#0d1219;
 }
+.sw-label{flex:none;font-size:11px;color:var(--dim2);letter-spacing:.3px}
+.sw-help{margin-left:auto;text-align:right}
 .sw-thumbs{display:flex;gap:6px;align-items:center}
 .sw-thumbs button{flex:none;width:46px;height:29px;border-radius:5px;overflow:hidden;opacity:.5;border:1px solid transparent}
 .sw-thumbs button img{width:100%;height:100%;object-fit:cover;display:block}
@@ -433,22 +438,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .sw-adds{display:flex;gap:5px;align-items:center;overflow-x:auto;max-width:38vw;scrollbar-width:none}
 .sw-adds::-webkit-scrollbar{display:none}
 .sw-adds img{height:40px;border-radius:3px;flex:none;box-shadow:0 2px 6px #0008}
-.sw-searchwrap{position:relative;flex:1;min-width:190px;max-width:420px}
-#shotSearch{
-  width:100%;height:32px;padding:0 12px;background:#161d28;border:1px solid #333e50;
-  border-radius:var(--rs);outline:none;font-size:13px;
-}
-#shotSearch:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
-#shotSuggest{
-  position:absolute;z-index:60;left:0;right:0;bottom:calc(100% + 6px);
-  margin:0;padding:4px;list-style:none;max-height:300px;overflow-y:auto;
-  background:#151b25;border:1px solid #333e50;border-radius:var(--r);box-shadow:var(--shadow);display:none;
-}
-#shotSuggest.open{display:block}
-#shotSuggest li{padding:6px 8px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--dim)}
-#shotSuggest li.on{background:var(--bg4);color:var(--txt)}
-#shotSuggest li mark{background:none;color:var(--acc);font-weight:650}
-
 /* det beskurna kortet man ska fylla i */
 .pickcrop{
   flex:none;padding:11px 11px 0;display:flex;justify-content:center;
@@ -868,13 +857,14 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       </div>
     </div>
   </div>
+  <!-- Sökrutan för att lägga till kort satt här förut. Den hörde inte hemma:
+       att lägga till ett kort som inte finns i bilden är inget man gör mitt i
+       en avläsning, och "lägg till kort för hand" gick att läsa som att man
+       skulle lägga till en BILD för hand. Det görs i huvudvyn i stället. -->
   <div class="sw-bottom">
+    <span class="sw-label">Skärmdumpar</span>
     <div class="sw-thumbs" id="swThumbs"></div>
     <span class="sw-help" id="swHelp">Klicka på en markering för att ändra kortet · klicka på tom yta för att lägga till</span>
-    <div class="sw-searchwrap">
-      <input id="shotSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Lägg till kort för hand…">
-      <ul id="shotSuggest"></ul>
-    </div>
   </div>
 </div>
 
@@ -3992,7 +3982,13 @@ async function analyzeShot(shotId) {
        lampglans hittade den noll av åtta. Claude ser hela rutan och behöver
        ingen rektangel, så svepet körs som en del av avläsningen — annars måste
        man veta att man ska klicka en knapp, och det gjorde ingen. */
-    if (aiEnabled() && prefs.aiAuto) await claudePaneSweep(img, panes, shotId, out);
+    /* Svepet får inte kunna ta med sig avläsningen i fallet. Går anropet fel
+       ska det detektorn redan hittat ändå hamna i handen — annars ser en
+       fungerande avläsning ut som att ingenting hittades. */
+    if (aiEnabled() && prefs.aiAuto) {
+      try { await claudePaneSweep(img, panes, shotId, out); }
+      catch (e) { toast('Claude kunde inte läsa bilden — visar det appen hittade själv', 'err'); }
+    }
     return applyAnalysis(shotId, out, img);
   } catch (e) {
     toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
@@ -4700,14 +4696,6 @@ $('#pendGo').onclick = () => {
   setTimeout(() => { byggKo(); nextPending(); }, 200);
 };
 
-/* ── sökrutan i bildvyn ── */
-const shotSearch = $('#shotSearch');
-autocomplete(shotSearch, $('#shotSuggest'), name => {
-  const [e] = addCards([name], { keepSel: true });
-  if (e) lookup(name).then(() => renderShotUI(), () => {});
-  renderShotUI();
-});
-
 /* ── tangenter i bildvyn ── */
 function shotKey(ev) {
   const k = ev.key;
@@ -4720,7 +4708,6 @@ function shotKey(ev) {
   else if (k === 'ArrowRight') { ev.preventDefault(); SW.px -= 80; swApply(); }
   else if (k === 'ArrowUp') { ev.preventDefault(); SW.py += 80; swApply(); }
   else if (k === 'ArrowDown') { ev.preventDefault(); SW.py -= 80; swApply(); }
-  else if (k === '/' || k.toLowerCase() === 'a') { ev.preventDefault(); shotSearch.focus(); }
   else if (k.toLowerCase() === 'r') { ev.preventDefault(); if (SW.id) analyzeShot(SW.id); }
   else if (k.toLowerCase() === 's') { ev.preventDefault(); closeShot(); }
 }
@@ -5003,7 +4990,7 @@ async function askClaude() {
    KLISTRA IN VAR SOM HELST
    ══════════════════════════════════════════════════════════════════ */
 addEventListener('paste', async ev => {
-  if (isTyping(ev.target) && ev.target.id !== 'shotSearch') return;
+  if (isTyping(ev.target)) return;
   const items = Array.from((ev.clipboardData && ev.clipboardData.items) || []);
   const imgItem = items.find(i => i.kind === 'file' && /^image\//.test(i.type));
   if (imgItem) {
