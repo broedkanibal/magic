@@ -4023,13 +4023,17 @@ async function claudeReadShot() {
         const finns = p.cards.some(c => c.box && c.shotId === shotId && boxOverlap(box, c.box) > 0.30)
                    || p.pending.some(q => q.shotId === shotId && boxOverlap(box, q.box) > 0.30);
         if (finns) continue;
-        if (k.sakerhet === 'hog') {
+        /* Ett kort utan namn är fortfarande värt något: användaren får en
+           beskuren bild att fylla i för hand, vilket är hela poängen med
+           ifyllnadslistan. Utan positionen finns inte ens den möjligheten. */
+        if (k.namn && k.sakerhet === 'hog') {
           p.cards.push({ cid: uid(), name: k.namn, flipped: 0, box, rot: 0, shotId, byAI: true,
                          cands: [{ name: k.namn, sid: null, score: 1 }] });
           lagt++;
         } else {
-          p.pending.push({ id: uid(), box, rot: 0, shotId, ai: k.sakerhet,
-                           cands: [{ name: k.namn, sid: null, score: 0.5 }] });
+          p.pending.push({ id: uid(), box, rot: 0, shotId,
+                           ai: k.namn ? k.sakerhet : undefined,
+                           cands: k.namn ? [{ name: k.namn, sid: null, score: 0.5 }] : [] });
           granska++;
         }
       }
@@ -4038,7 +4042,8 @@ async function claudeReadShot() {
     anBar(1);
     save(); renderAll(true); resolveAll();
     if (!lagt && !granska) toast('Claude hittade inga nya kort i bilden', 'err');
-    else toast(`Claude lade till ${lagt} kort${granska ? ` · ${granska} att bekräfta` : ''}`, 'ok');
+    else if (!lagt) toast(`Claude hittade ${granska} kort att fylla i`, 'ok');
+    else toast(`Claude lade till ${lagt} kort${granska ? ` · ${granska} att fylla i` : ''}`, 'ok');
   } catch (e) {
     toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
   } finally {

@@ -124,25 +124,32 @@ export default async function handler(req, res) {
           'Du läser av foton från webbkameror ovanför spelbord i Magic: the Gathering. ' +
           'Bildkvaliteten är dålig: kort kan vara små, suddiga, snedvridna, delvis skymda, ' +
           'ligga upp och ner, eller vara utbrända av lampans reflex i plastfickan. ' +
-          'Din uppgift är att hitta varje UPPÅTVÄND spelkort och namnge det. ' +
+          'Din uppgift är att hitta VAR varje uppåtvänt spelkort ligger, och namnge det när ' +
+          'du kan. Positionen är värdefull även utan namn: appen visar då en beskuren bild av ' +
+          'kortet som användaren fyller i för hand. Utelämna alltså aldrig ett kort bara för ' +
+          'att namnet inte går att läsa — lämna namnet tomt i stället. ' +
           'Räkna INTE med kort som ligger med baksidan upp, kortaskar, lekar, tärningar, ' +
           'tangentbord, händer eller telefoner. ' +
-          'Hellre utelämna ett kort än gissa på namnet — ett påhittat namn hamnar direkt i ' +
-          'spelarens hand utan kontroll. Svara bara med JSON.',
+          'Gissa aldrig ett namn du inte har stöd för — ett påhittat namn med hög säkerhet ' +
+          'hamnar direkt i spelarens hand utan kontroll. Svara bara med JSON, aldrig med ' +
+          'förklarande text.',
         messages: [{
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
             { type: 'text', text:
-              'Lista varje uppåtvänt Magic-kort du kan namnge i bilden.\n\n' +
-              'För varje kort: kortets exakta engelska namn, och mittpunkten angiven som ' +
-              'heltal 0–1000 där x=0 är bildens vänsterkant och y=0 dess överkant.\n\n' +
+              'Lista VARJE uppåtvänt Magic-kort i bilden — även de vars namn du inte kan läsa.\n\n' +
+              'För varje kort: mittpunkten som heltal 0–1000 där x=0 är bildens vänsterkant och ' +
+              'y=0 dess överkant, samt namnet.\n\n' +
+              'namn: kortets exakta engelska namn, eller tom sträng "" om du inte kan avgöra ' +
+              'vilket kort det är.\n' +
               'sakerhet: "hog" när du kan läsa kortnamnet eller känner igen konstverket utan ' +
-              'tvekan, "medel" när konstverket verkar stämma men namnet inte går att läsa, ' +
-              '"lag" när du mest gissar. Ta med osäkra kort — de hamnar i en lista användaren ' +
-              'får bekräfta — men utelämna dem du inte alls kan namnge.\n\n' +
-              'Svara med enbart JSON:\n' +
-              '{"kort": [{"namn": "...", "x": 0-1000, "y": 0-1000, "sakerhet": "hog"|"medel"|"lag"}]}' }
+              'tvekan — då läggs kortet till automatiskt. "medel" när konstverket verkar stämma ' +
+              'men namnet inte går att läsa. "lag" när du mest gissar, och när namnet är tomt. ' +
+              'Medel och låg hamnar i en lista användaren får bekräfta, så de kostar ingenting ' +
+              'om de är fel.\n\n' +
+              'Svara med enbart JSON. Finns inga kort alls i bilden: {"kort": []}\n' +
+              '{"kort": [{"namn": "..." | "", "x": 0-1000, "y": 0-1000, "sakerhet": "hog"|"medel"|"lag"}]}' }
           ]
         }]
       });
@@ -152,9 +159,9 @@ export default async function handler(req, res) {
       if (!m) return res.status(200).json({ kort: [] });
       const j = JSON.parse(m[0]);
       const kort = (Array.isArray(j.kort) ? j.kort : []).slice(0, 40)
-        .filter(k => k && typeof k.namn === 'string' && k.namn.trim())
+        .filter(k => k && typeof k.namn === 'string')      // tomt namn är ett giltigt svar
         .map(k => ({
-          namn: String(k.namn).slice(0, 120),
+          namn: String(k.namn).slice(0, 120).trim(),
           x: Math.max(0, Math.min(1000, Number(k.x) || 0)),
           y: Math.max(0, Math.min(1000, Number(k.y) || 0)),
           sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'medel'
