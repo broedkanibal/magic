@@ -156,7 +156,14 @@ export default async function handler(req, res) {
       const msg = await stream.finalMessage();
       const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) return res.status(200).json({ kort: [] });
+      /* Utan det här gick ett tomt svar inte att skilja från "modellen svarade
+         något annat än JSON" — båda blev en tom lista, och felsökningen fastnade. */
+      if (!m) {
+        console.error('identify/pane: inget JSON i svaret',
+          JSON.stringify({ stop: msg.stop_reason, detaljer: msg.stop_details, txt: txt.slice(0, 400) }));
+        return res.status(200).json({ kort: [], varfor: 'inget-json',
+          stop: msg.stop_reason || null, svar: txt.slice(0, 400) });
+      }
       const j = JSON.parse(m[0]);
       const kort = (Array.isArray(j.kort) ? j.kort : []).slice(0, 40)
         .filter(k => k && typeof k.namn === 'string')      // tomt namn är ett giltigt svar
