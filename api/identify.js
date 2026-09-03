@@ -22,7 +22,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när helrutspromten ändras. Utan den gick det inte att skilja "modellen
    svarade så här" från "deployen hade inte hunnit ut" — det kostade två
    felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 4;
+const PANE_PROMPT_V = 5;
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
    instans och nollställs när en instans startas om — alltså ett hinder mot
@@ -188,7 +188,9 @@ export default async function handler(req, res) {
           'kortet som användaren fyller i för hand. Utelämna alltså aldrig ett kort bara för ' +
           'att namnet inte går att läsa — lämna namnet tomt i stället. ' +
           'Räkna INTE med baksidor, kortaskar, lekar, tärningar, tangentbord, händer eller ' +
-          'telefoner. En Magic-baksida känns igen på att den är enfärgat brun med en stor ' +
+          'telefoner. Räkna inte heller med SpellTables eget gränssnitt som ligger ovanpå ' +
+          'videon: lila eller blå knappar, tre punkter i en rundad fyrkant, spelarnamn, ' +
+          'livtotaler och siffror. En Magic-baksida känns igen på att den är enfärgat brun med en stor ' +
           'ljus oval i mitten och ingen text, inget konstverk och ingen ljus textruta — den ' +
           'ser likadan ut oavsett vilket kort det är. Har du inte sett något som liknar ' +
           'konstverk eller tryckt text på kortet är det en baksida, inte ett oläsbart kort. ' +

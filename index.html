@@ -2669,11 +2669,15 @@ function renderPending() {
   const bar = $('#pendBar');
   bar.hidden = q.length === 0;
   if (!q.length) return;
+  /* Raden ska säga hur många kort som hittades TOTALT, inte bara hur många som
+     återstår. En ruta med åtta kort där två gick att läsa ska inte se ut som
+     att appen bara hittade sex. */
+  const tot = p.cards.filter(c => c.box).length + q.length;
   $('#pendCount').textContent = q.length;
-  $('#pendWord').textContent = q.length === 1 ? 'kort hittades' : 'kort hittades';
+  $('#pendWord').textContent = 'av ' + tot + (tot === 1 ? ' kort' : ' kort');
   $('#pendTail').textContent = p.cards.length === 0
-    ? ' men kunde inte identifieras — fyll i dem själv'
-    : ' som appen inte var säker på';
+    ? ' kunde inte identifieras — fyll i dem själv, ett i taget'
+    : ' behöver fyllas i';
   $('#pendThumbs').innerHTML = q.slice(0, 14)
     .map(x => { const d = cropFor(x.id, x.box, x.rot, 220); return d ? `<img src="${d}" alt="">` : ''; }).join('');
 }
@@ -3860,6 +3864,28 @@ async function analyzeShot(shotId) {
 
     anStep('Letar efter kort på borden…');
     await tick();
+    /* SpellTables egen "..."-knapp — en lila fyrkant på svart botten — fick
+       0.74 i mallpoäng och hamnade i ifyllnadslistan som ett kort. Varje
+       Magic-kort har en ljus textruta och ljusa raminslag: uppmätt på elva
+       riktiga kort i två skärmdumpar ligger andelen ljusa bildpunkter på
+       32–70 %. Knappen har 0 %. Tröskeln 10 % ger nästan tre gångers marginal
+       ner till det mörkaste riktiga kortet. */
+    const LJUS_MIN = 10;
+    function harTextruta(im, box, rot) {
+      const cv = document.createElement('canvas');
+      cv.width = 64; cv.height = Math.round(64 / Matcher.ASPECT);
+      const c = cv.getContext('2d', { willReadFrequently: true });
+      c.translate(cv.width / 2, cv.height / 2);
+      c.rotate((rot || 0) * Math.PI / 180);
+      c.translate(-cv.width / 2, -cv.height / 2);
+      c.drawImage(im, box.x, box.y, box.w, box.h, 0, 0, cv.width, cv.height);
+      const d = c.getImageData(0, 0, cv.width, cv.height).data;
+      let ljust = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4, n++)
+        if (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114 > 150) ljust++;
+      return n ? (ljust / n) * 100 >= LJUS_MIN : false;
+    }
+
     const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
     /* Motståndarens kort ligger vända mot honom, alltså upp och ner sett från
        hans kamera. Detektorn provade bara ±26°, så en sådan ruta gav noll
@@ -3876,7 +3902,7 @@ async function analyzeShot(shotId) {
         const alt = Detect.proposeCards(img, p, { want: 16, template: tmpl, rots: VAND_ROTS });
         if (alt.proposals.length > r.proposals.length) r = alt;
       }
-      return r.proposals;
+      return r.proposals.filter(q => harTextruta(img, { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h }, q.deg));
     });
     const total = props.reduce((a, x) => a + x.length, 0) || 1;
 
@@ -3919,6 +3945,11 @@ async function analyzeShot(shotId) {
       out.push({ pane: panes[i], acc, pend });
     }
     await claudePass(out, img);
+    /* Detektorn hittar bara kort som har ett inre mönster kvar. På en ruta med
+       lampglans hittade den noll av åtta. Claude ser hela rutan och behöver
+       ingen rektangel, så svepet körs som en del av avläsningen — annars måste
+       man veta att man ska klicka en knapp, och det gjorde ingen. */
+    if (aiEnabled() && prefs.aiAuto) await claudePaneSweep(img, panes, shotId, out);
     return applyAnalysis(shotId, out, img);
   } catch (e) {
     toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
@@ -4012,6 +4043,69 @@ function paneCardW(p, pane) {
   const b = (p.cards || []).concat(p.pending || []).filter(c => c.box).map(c => c.box.w);
   if (b.length) { b.sort((x, y) => x - y); return b[b.length >> 1]; }
   return pane.w * 0.10;
+}
+
+/* Läser rutorna med Claude och lägger in det som saknas. Körs både som en del
+   av vanliga avläsningen och från knappen i bildvyn. Returnerar hur många kort
+   som hittades respektive namngavs. */
+async function claudePaneSweep(img, panes, shotId, out) {
+  let hittade = 0, namngivna = 0;
+  for (let i = 0; i < panes.length; i++) {
+    if (cancelAnalyze) return { hittade, namngivna };
+    anStep(`Claude läser ruta ${i + 1} av ${panes.length}`);
+    anBar(i / panes.length);
+    await tick();
+    let kort;
+    try { kort = await readPane(img, panes[i]); }
+    catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
+
+    const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
+    const bredder = r.acc.concat(r.pend).map(x => x.box.w);
+    const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
+    const ch = cw / Matcher.ASPECT;
+    const nya = kort.map(k => Object.assign({}, k, {
+      box: { x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
+             y: panes[i].y + (k.y / 1000) * panes[i].h - ch / 2, w: cw, h: ch }
+    })).filter(k => !r.acc.some(a => boxOverlap(k.box, a.box) > 0.30));
+
+    /* Claude ser hela rutan och missar inte kort som detektorn tappat. Ett
+       lokalt osäkert område som Claude INTE ser något kort på är därför
+       nästan alltid skräp — SpellTables egen knapp hamnade så i listan. */
+    r.pend = r.pend.filter(q => nya.some(k => boxOverlap(q.box, k.box) > 0.30));
+
+    // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
+    const namnlosa = nya.filter(k => !k.namn).slice(0, NARBILD_MAX);
+    if (namnlosa.length) {
+      anStep(`Ruta ${i + 1} — närbild på ${namnlosa.length} kort`);
+      await tick();
+      let klara = 0;
+      const jobb = namnlosa.map(k => async () => {
+        try { const v = await readCard(img, k.box); if (v && v.namn) { k.namn = v.namn; k.sakerhet = v.sakerhet; } }
+        catch (e) { /* ett misslyckat kort ska inte stoppa resten */ }
+        anBar((i + (++klara / namnlosa.length)) / panes.length);
+      });
+      for (let j = 0; j < jobb.length; j += 3) {
+        if (cancelAnalyze) return { hittade, namngivna };
+        await Promise.all(jobb.slice(j, j + 3).map(f => f()));
+      }
+    }
+
+    for (const k of nya) {
+      if (r.pend.some(q => boxOverlap(k.box, q.box) > 0.30)) {
+        // redan i listan lokalt — fyll bara på med Claudes förslag
+        const q = r.pend.find(x => boxOverlap(k.box, x.box) > 0.30);
+        if (k.namn && !q.cands.length) { q.cands = [{ name: k.namn, sid: null, score: 0.5 }]; q.ai = k.sakerhet; }
+        continue;
+      }
+      hittade++;
+      const rec = { box: k.box, rot: 0, inliers: 0, byAI: true,
+                    cands: k.namn ? [{ name: k.namn, sid: null, score: 1 }] : [] };
+      if (k.namn && k.sakerhet === 'hog') { r.acc.push(rec); namngivna++; }
+      else { rec.ai = k.namn ? k.sakerhet : undefined; r.pend.push(rec); }
+    }
+  }
+  anBar(1);
+  return { hittade, namngivna };
 }
 
 async function claudeReadShot() {
@@ -4201,9 +4295,12 @@ function applyAnalysis(shotId, out, img) {
   save(); renderAll(true); resolveAll();
   const nc = out.reduce((a, r) => a + r.acc.length, 0);
   const np = out.reduce((a, r) => a + r.pend.length, 0);
+  /* Antalet hittade kort ska alltid framgå, även när inget kunde namnges —
+     annars ser en ruta med åtta oläsbara kort ut som en tom ruta. */
   if (!nc && !np) toast('Hittade inga kort på borden i bilden', 'err');
-  else if (!nc) toast(`${out.length} spelare · ${np} kort hittade men inte identifierade — fyll i dem`, 'err');
-  else toast(`${out.length} spelare · ${nc} kort${np ? ` · ${np} att fylla i` : ''}`, 'ok');
+  else if (!nc) toast(`${nc + np} kort hittade, inget kunde identifieras — fyll i dem själv`, 'err');
+  else if (np) toast(`${nc + np} kort hittade · ${nc} identifierade · ${np} att fylla i`, 'ok');
+  else toast(`${nc} kort identifierade`, 'ok');
   return nc + np;
 }
 
