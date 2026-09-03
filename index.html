@@ -3976,7 +3976,7 @@ const AI_MAX = 40;                       // tak per skärmdump, så en miss inte
    slås upp mot hela Scryfall efteråt. Kostar ett anrop per ruta, så det körs
    på begäran och inte automatiskt. */
 const PANE_MAXW = 1100;                  // räcker för att läsa kortnamn
-const NARBILD_MAX = 14;                  // tak på närbilder per ruta, ett anrop styck
+const NARBILD_MAX = 14;                  // tak på närbilder per ruta, upp till två anrop styck
 
 function panePayload(img, pane) {
   const s = Math.min(1, PANE_MAXW / pane.w);
@@ -3995,8 +3995,8 @@ function panePayload(img, pane) {
    Swamp uppförstorad blev "Swamp" med hög säkerhet. Fler pixlar räckte inte —
    en uppskalad ruta gav fortfarande noll namn. Kortet måste fylla rutan. */
 const CARD_MAXW = 800;
-function cardPayload(img, box) {
-  const m = box.w * 0.4;                      // lite omgivning hjälper modellen
+function cardPayload(img, box, marg) {
+  const m = box.w * (marg == null ? 0.4 : marg);
   const sx = box.x - m, sy = box.y - m, sw = box.w + m * 2, sh = box.h + m * 2;
   const s = Math.min(3, CARD_MAXW / sw);      // uppförstora små kort
   const cv = document.createElement('canvas');
@@ -4008,10 +4008,10 @@ function cardPayload(img, box) {
   const url = cv.toDataURL('image/jpeg', 0.92);
   return url.slice(url.indexOf(',') + 1);
 }
-async function readCard(img, box) {
+async function readCardAt(img, box, marg) {
   const resp = await fetch(AI_ENDPOINT, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: 'card', image: cardPayload(img, box) })
+    body: JSON.stringify({ mode: 'card', image: cardPayload(img, box, marg) })
   });
   if (!resp.ok) return null;
   const j = await resp.json();
@@ -4020,6 +4020,24 @@ async function readCard(img, box) {
   // närmast mitten är kortet vi frågade om, inte grannen som råkade komma med
   k.sort((a, b) => Math.hypot(a.x - 500, a.y - 500) - Math.hypot(b.x - 500, b.y - 500));
   return k[0];
+}
+/* Två inramningar. Uppmätt på två Swamp-kort i samma ruta: den vida gav rätt
+   på det ena och "Forest" på det andra, den tighta tvärtom. Det är ett
+   gränsfall för modellen, och små ändringar i beskärningen vänder svaret. Med
+   båda blir båda korten rätt med hög säkerhet. Den vida först — den tål att
+   positionen är några procent fel — och den tighta bara om svaret inte redan
+   var säkert, så ett kort som läses direkt kostar ett anrop. */
+async function readCard(img, box) {
+  let bäst = null;
+  for (const marg of [0.40, 0.10]) {
+    let r = null;
+    try { r = await readCardAt(img, box, marg); } catch (e) { /* prova nästa inramning */ }
+    if (r && r.namn) {
+      if (r.sakerhet === 'hog') return r;
+      if (!bäst) bäst = r;
+    }
+  }
+  return bäst;
 }
 
 async function readPane(img, pane) {
@@ -4108,6 +4126,8 @@ async function claudePaneSweep(img, panes, shotId, out) {
   return { hittade, namngivna };
 }
 
+/* Knappen i bildvyn: samma svep, men på begäran för en bild man redan läst av.
+   Nyttig när man vill be Claude titta igen utan att göra om hela avläsningen. */
 async function claudeReadShot() {
   if (AI.mode !== 'server') { openAI(); return; }
   if (analyzing) return;
@@ -4127,75 +4147,23 @@ async function claudeReadShot() {
     const panes = Detect.findPanes(img);
     anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor`;
 
-    let lagt = 0, granska = 0;
-    for (let i = 0; i < panes.length; i++) {
-      if (cancelAnalyze) return;
-      anStep(`Ruta ${i + 1} av ${panes.length}`);
-      anBar(i / panes.length);
-      await tick();
-      let kort;
-      try { kort = await readPane(img, panes[i]); }
-      catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return; }
-
-      const p = state.players[i] || (state.players.push(mkPlayer('Spelare ' + (i + 1), i)), state.players[state.players.length - 1]);
-      if (!p.pending) p.pending = [];
-      const cw = paneCardW(p, panes[i]), ch = cw / Matcher.ASPECT;
-
-      /* Steg 2: namnlösa kort får en närbild. Rutan hittar var korten ligger,
-         men namnger dem bara när de är stora nog i bildrutan. Ett kort som är
-         80px brett i en 976px ruta blir namnlöst; samma kort uppförstorat blev
-         "Swamp" med hög säkerhet. Ett anrop per namnlöst kort, med tak. */
-      const namnlosa = kort.filter(k => !k.namn).slice(0, NARBILD_MAX);
-      if (namnlosa.length) {
-        anStep(`Ruta ${i + 1} — närbild på ${namnlosa.length} kort`);
-        await tick();
-        let klara = 0;
-        const jobb = namnlosa.map(k => async () => {
-          const box = {
-            x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
-            y: panes[i].y + (k.y / 1000) * panes[i].h - ch / 2, w: cw, h: ch
-          };
-          try { const r = await readCard(img, box); if (r && r.namn) { k.namn = r.namn; k.sakerhet = r.sakerhet; } }
-          catch (e) { /* ett misslyckat kort ska inte stoppa resten */ }
-          anBar((i + (++klara / namnlosa.length)) / panes.length);
-        });
-        for (let j = 0; j < jobb.length; j += 3) {          // tre i taget
-          if (cancelAnalyze) return;
-          await Promise.all(jobb.slice(j, j + 3).map(f => f()));
-        }
-      }
-
-      for (const k of kort) {
-        const box = {
-          x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
-          y: panes[i].y + (k.y / 1000) * panes[i].h - ch / 2,
-          w: cw, h: ch
-        };
-        // hoppa över det som redan hittats lokalt
-        const finns = p.cards.some(c => c.box && c.shotId === shotId && boxOverlap(box, c.box) > 0.30)
-                   || p.pending.some(q => q.shotId === shotId && boxOverlap(box, q.box) > 0.30);
-        if (finns) continue;
-        /* Ett kort utan namn är fortfarande värt något: användaren får en
-           beskuren bild att fylla i för hand, vilket är hela poängen med
-           ifyllnadslistan. Utan positionen finns inte ens den möjligheten. */
-        if (k.namn && k.sakerhet === 'hog') {
-          p.cards.push({ cid: uid(), name: k.namn, flipped: 0, box, rot: 0, shotId, byAI: true,
-                         cands: [{ name: k.namn, sid: null, score: 1 }] });
-          lagt++;
-        } else {
-          p.pending.push({ id: uid(), box, rot: 0, shotId,
-                           ai: k.namn ? k.sakerhet : undefined,
-                           cands: k.namn ? [{ name: k.namn, sid: null, score: 0.5 }] : [] });
-          granska++;
-        }
-      }
-      if (!p.shots.includes(shotId)) p.shots.push(shotId);
-    }
-    anBar(1);
-    save(); renderAll(true); resolveAll();
-    if (!lagt && !granska) toast('Claude hittade inga nya kort i bilden', 'err');
-    else if (!lagt) toast(`Claude hittade ${granska} kort att fylla i`, 'ok');
-    else toast(`Claude lade till ${lagt} kort${granska ? ` · ${granska} att fylla i` : ''}`, 'ok');
+    /* Utgå från det som redan ligger i handen, så svepet inte lägger in
+       dubbletter av kort avläsningen redan hittat. */
+    const out = panes.map((pane, i) => {
+      const p = state.players[i];
+      if (!p) return { pane, acc: [], pend: [] };
+      return {
+        pane,
+        acc: p.cards.filter(c => c.box && c.shotId === shotId)
+              .map(c => ({ box: c.box, rot: c.rot, cands: c.cands || [], inliers: 0, behall: c })),
+        pend: (p.pending || []).filter(q => q.shotId === shotId)
+              .map(q => ({ box: q.box, rot: q.rot, cands: q.cands || [], ai: q.ai, inliers: 0, behall: q }))
+      };
+    });
+    const f = await claudePaneSweep(img, panes, shotId, out);
+    if (f.fel) return;
+    applyAnalysis(shotId, out, img);
+    if (!f.hittade) toast('Claude hittade inga nya kort i bilden', 'ok');
   } catch (e) {
     toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
   } finally {
