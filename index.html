@@ -807,6 +807,10 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
       Läs av igen
     </button>
+    <button class="btn sm" id="swClaude" hidden title="Skicka hela bilden till Claude — hittar kort som detektorn missar, t.ex. kort som lampan speglat sig i">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
+      Läs med Claude
+    </button>
     <button class="btn sm" id="swPaste" title="Läs in bilden i urklipp">Klistra in</button>
     <button class="btn sm" id="swFile">Byt bild…</button>
     <input type="file" id="swInput" accept="image/*" multiple hidden>
@@ -3415,6 +3419,7 @@ function renderShotUI() {
     `<button class="${id === SW.id ? 'on' : ''}" data-sid="${esc(id)}" title="Bild"><img src="${esc(shotURL(id))}" alt=""></button>`).join('');
   $('#swDel').disabled = !SW.id;
   $('#swRescan').disabled = !SW.id;
+  $('#swClaude').hidden = !SW.id || AI.mode !== 'server';
   renderBoxes();
 }
 
@@ -3467,6 +3472,7 @@ $('#swFile').onclick = () => $('#swInput').click();
 $('#dropFile').onclick = ev => { ev.stopPropagation(); $('#swInput').click(); };
 $('#dropPaste').onclick = ev => { ev.stopPropagation(); pasteOrPick(); };
 $('#swPaste').onclick = () => pasteOrPick();
+$('#swClaude').onclick = () => claudeReadShot();
 // klick i zonen tar fokus från sökrutan så ⌘V hamnar rätt
 swDrop.addEventListener('click', () => { const a = document.activeElement; if (isTyping(a)) a.blur(); });
 $('#swInput').onchange = async () => {
@@ -3929,6 +3935,118 @@ async function analyzeShot(shotId) {
    ifyllnadslistan med Claudes förslag överst, enligt principen att inget
    osäkert ska smyga in i handen. */
 const AI_MAX = 40;                       // tak per skärmdump, så en miss inte blir dyr
+/* ─── Läsa av en hel videoruta med Claude ──────────────────────────────
+   Den lokala kedjan börjar med att detektorn hittar en kortformad rektangel.
+   Ett kort som lampan speglat sig i har inget inre mönster kvar, och då
+   uppstår ingen beskärning att identifiera — uppmätt på en riktig skärmdump
+   blev det noll av åtta kort i den rutan. Här skickas hela rutan i stället.
+   En bildmodell behöver ingen rektangel, bryr sig inte om att kortet ligger
+   upp och ner, och är inte bunden till den lokala poolens 1026 namn: svaren
+   slås upp mot hela Scryfall efteråt. Kostar ett anrop per ruta, så det körs
+   på begäran och inte automatiskt. */
+const PANE_MAXW = 1100;                  // räcker för att läsa kortnamn
+
+function panePayload(img, pane) {
+  const s = Math.min(1, PANE_MAXW / pane.w);
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(pane.w * s));
+  cv.height = Math.max(1, Math.round(pane.h * s));
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(img, pane.x, pane.y, pane.w, pane.h, 0, 0, cv.width, cv.height);
+  const url = cv.toDataURL('image/jpeg', 0.85);
+  return url.slice(url.indexOf(',') + 1);
+}
+
+async function readPane(img, pane) {
+  const resp = await fetch(AI_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'pane', image: panePayload(img, pane) })
+  });
+  if (!resp.ok) {
+    let msg = resp.status + '';
+    try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+    const err = new Error(msg); err.status = resp.status; throw err;
+  }
+  const j = await resp.json();
+  return Array.isArray(j.kort) ? j.kort : [];
+}
+
+/* Kortbredd att rita lådorna med. Detektorn vet bäst när den hittat något;
+   annars är ett kort grovt en tiondel av rutans bredd. */
+function paneCardW(p, pane) {
+  const b = (p.cards || []).concat(p.pending || []).filter(c => c.box).map(c => c.box.w);
+  if (b.length) { b.sort((x, y) => x - y); return b[b.length >> 1]; }
+  return pane.w * 0.10;
+}
+
+async function claudeReadShot() {
+  if (AI.mode !== 'server') { openAI(); return; }
+  if (analyzing) return;
+  const shotId = SW.id;
+  const mem = shotId && shotMem.get(shotId);
+  if (!mem) { toast('Ingen bild att läsa av', 'err'); return; }
+
+  analyzing = true; cancelAnalyze = false;
+  anInit();
+  try {
+    openOv('analyzeOv');
+    anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
+    anEl.title.textContent = 'Claude läser hela bilden';
+    anStep('Öppnar bilden…');
+    await tick();
+    const img = await loadImage(mem.url, false);
+    const panes = Detect.findPanes(img);
+    anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor`;
+
+    let lagt = 0, granska = 0;
+    for (let i = 0; i < panes.length; i++) {
+      if (cancelAnalyze) return;
+      anStep(`Ruta ${i + 1} av ${panes.length}`);
+      anBar(i / panes.length);
+      await tick();
+      let kort;
+      try { kort = await readPane(img, panes[i]); }
+      catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return; }
+
+      const p = state.players[i] || (state.players.push(mkPlayer('Spelare ' + (i + 1), i)), state.players[state.players.length - 1]);
+      if (!p.pending) p.pending = [];
+      const cw = paneCardW(p, panes[i]), ch = cw / Matcher.ASPECT;
+      for (const k of kort) {
+        const box = {
+          x: panes[i].x + (k.x / 1000) * panes[i].w - cw / 2,
+          y: panes[i].y + (k.y / 1000) * panes[i].h - ch / 2,
+          w: cw, h: ch
+        };
+        // hoppa över det som redan hittats lokalt
+        const finns = p.cards.some(c => c.box && c.shotId === shotId && boxOverlap(box, c.box) > 0.30)
+                   || p.pending.some(q => q.shotId === shotId && boxOverlap(box, q.box) > 0.30);
+        if (finns) continue;
+        if (k.sakerhet === 'hog') {
+          p.cards.push({ cid: uid(), name: k.namn, flipped: 0, box, rot: 0, shotId, byAI: true,
+                         cands: [{ name: k.namn, sid: null, score: 1 }] });
+          lagt++;
+        } else {
+          p.pending.push({ id: uid(), box, rot: 0, shotId, ai: k.sakerhet,
+                           cands: [{ name: k.namn, sid: null, score: 0.5 }] });
+          granska++;
+        }
+      }
+      if (!p.shots.includes(shotId)) p.shots.push(shotId);
+    }
+    anBar(1);
+    save(); renderAll(true); resolveAll();
+    if (!lagt && !granska) toast('Claude hittade inga nya kort i bilden', 'err');
+    else toast(`Claude lade till ${lagt} kort${granska ? ` · ${granska} att bekräfta` : ''}`, 'ok');
+  } catch (e) {
+    toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
+  } finally {
+    analyzing = false;
+    closeOv('analyzeOv');
+  }
+}
+
 async function claudePass(out, img) {
   if (!aiEnabled() || !prefs.aiAuto) return;
   const jobs = [];

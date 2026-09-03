@@ -92,10 +92,86 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'För många anrop — försök igen om en stund' });
   }
 
-  const { image, names } = req.body || {};
-  if (typeof image !== 'string' || !Array.isArray(names) || !names.length)
-    return res.status(400).json({ error: 'Skicka { image: base64, names: [...] }' });
+  const { image, names, mode } = req.body || {};
+  if (typeof image !== 'string' || !image)
+    return res.status(400).json({ error: 'Skicka { image: base64 }' });
   if (image.length > MAX_IMAGE_B64) return res.status(413).json({ error: 'Bilden är för stor' });
+
+  /* ── Läsa av en hel videoruta ──────────────────────────────────────
+     Den lokala igenkänningen bygger på att detektorn först hittar en
+     kortformad rektangel. Ett urtvättat kort — lampan speglar sig i
+     plastfickan — har inget inre mönster kvar att hitta, och då finns
+     ingen beskärning att skicka vidare. Uppmätt på en riktig skärmdump:
+     noll av åtta kort hittades i den rutan.
+
+     Här skickas hela rutan i stället. En bildmodell behöver ingen
+     rektangel: den ser att där ligger ett kort, läser namnet, och bryr
+     sig varken om att kortet ligger upp och ner eller att kontrasten är
+     borta. Den är inte heller bunden till den lokala kortpoolens 1026
+     namn — svaren slås upp mot hela Scryfall efteråt. */
+  if (mode === 'pane') {
+    try {
+      const client = new Anthropic({ apiKey: key });
+      /* Strömmande anrop: adaptivt tänkande vid hög ansträngning kan hålla på
+         länge, och ett icke-strömmande anrop riskerar då att slå i tidsgränsen
+         innan svaret kommit. max_tokens måste också rymma tänkandet, inte bara
+         den korta JSON-listan. */
+      const stream = client.messages.stream({
+        model: MODEL,
+        max_tokens: 16000,
+        output_config: { effort: 'high' },
+        system:
+          'Du läser av foton från webbkameror ovanför spelbord i Magic: the Gathering. ' +
+          'Bildkvaliteten är dålig: kort kan vara små, suddiga, snedvridna, delvis skymda, ' +
+          'ligga upp och ner, eller vara utbrända av lampans reflex i plastfickan. ' +
+          'Din uppgift är att hitta varje UPPÅTVÄND spelkort och namnge det. ' +
+          'Räkna INTE med kort som ligger med baksidan upp, kortaskar, lekar, tärningar, ' +
+          'tangentbord, händer eller telefoner. ' +
+          'Hellre utelämna ett kort än gissa på namnet — ett påhittat namn hamnar direkt i ' +
+          'spelarens hand utan kontroll. Svara bara med JSON.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text:
+              'Lista varje uppåtvänt Magic-kort du kan namnge i bilden.\n\n' +
+              'För varje kort: kortets exakta engelska namn, och mittpunkten angiven som ' +
+              'heltal 0–1000 där x=0 är bildens vänsterkant och y=0 dess överkant.\n\n' +
+              'sakerhet: "hog" när du kan läsa kortnamnet eller känner igen konstverket utan ' +
+              'tvekan, "medel" när konstverket verkar stämma men namnet inte går att läsa, ' +
+              '"lag" när du mest gissar. Ta med osäkra kort — de hamnar i en lista användaren ' +
+              'får bekräfta — men utelämna dem du inte alls kan namnge.\n\n' +
+              'Svara med enbart JSON:\n' +
+              '{"kort": [{"namn": "...", "x": 0-1000, "y": 0-1000, "sakerhet": "hog"|"medel"|"lag"}]}' }
+          ]
+        }]
+      });
+      const msg = await stream.finalMessage();
+      const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) return res.status(200).json({ kort: [] });
+      const j = JSON.parse(m[0]);
+      const kort = (Array.isArray(j.kort) ? j.kort : []).slice(0, 40)
+        .filter(k => k && typeof k.namn === 'string' && k.namn.trim())
+        .map(k => ({
+          namn: String(k.namn).slice(0, 120),
+          x: Math.max(0, Math.min(1000, Number(k.x) || 0)),
+          y: Math.max(0, Math.min(1000, Number(k.y) || 0)),
+          sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'medel'
+        }));
+      return res.status(200).json({ kort });
+    } catch (e) {
+      const s = e && e.status;
+      console.error('identify/pane:', s || '', (e && e.message) || e);
+      if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+      if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
+      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+    }
+  }
+
+  if (!Array.isArray(names) || !names.length)
+    return res.status(400).json({ error: 'Skicka { image: base64, names: [...] }' });
 
   const list = names.slice(0, MAX_NAMES).map(n => String(n).slice(0, 120));
 
