@@ -160,7 +160,7 @@ main{flex:1;display:flex;min-height:0}
 
 /* ─────────── bordet ───────────
    Två zoner: permanents som fyller ytan, och ett nedre band med fast höjd
-   (Lands, Markerat, Graveyard). Ingenting får skrolla — computeFit() krymper
+   (Lands, Selected, Graveyard). Ingenting får skrolla — computeFit() krymper
    kortbredden tills allt ryms. Måtten kommer ur designöverlämningen och gäller
    ett fönster på 720×900, alltså halva skärmen bredvid SpellTable. */
 .gridwrap{
@@ -233,7 +233,7 @@ main{flex:1;display:flex;min-height:0}
 }
 
 .card:hover{transform:translateY(-3px)}
-/* Markerat kort: lyft 3 px, ingen skalning. Skalningen fick kortet att växa
+/* Selected kort: lyft 3 px, ingen skalning. Skalningen fick kortet att växa
    utanför sin plats och klippas av zonens kant — designen lyfter i stället
    bara, och ringen ritas innanför kanten. */
 .card.sel{transform:translateY(-3px);z-index:3}
@@ -308,7 +308,7 @@ main{flex:1;display:flex;min-height:0}
 .empty-fine{color:var(--dim2)!important;font-size:12px!important}
 
 /* ─────────── detail pane ─────────── */
-/* Sidopanelen är borta. Markerat-kolumnen i nedre bandet visar det valda
+/* Sidopanelen är borta. Selected-kolumnen i nedre bandet visar det valda
    kortet, och en panel som visade samma sak tog 290 px av bredden bordet
    behöver. Regeltexten läser man i fokusvyn (F). */
 .detail{display:none}
@@ -397,8 +397,8 @@ main{flex:1;display:flex;min-height:0}
    rad som klipptes bort av radens höjdtak — och en hög man inte ser är ingen
    hög. Rullar i sidled i stället, som kortremsan gör i det smala läget. */
 /* ─────────── nedre bandet ───────────
-   Fast höjd, satt av Markerat-kolumnens innehåll. Ordningen är Lands →
-   Markerat → Graveyard, med en tunn avdelare mellan varje. */
+   Fast höjd, satt av Selected-kolumnens innehåll. Ordningen är Lands →
+   Selected → Graveyard, med en tunn avdelare mellan varje. */
 .band{
   flex:none;height:306px;display:flex;gap:12px;align-items:stretch;
   background:var(--bandbg);border:1px solid var(--line);border-radius:8px;
@@ -491,7 +491,7 @@ main{flex:1;display:flex;min-height:0}
 }
 .fargstang:hover{background:var(--acc);color:#20160a}
 
-/* Markerat: kortet som är valt, stort nog att läsa */
+/* Selected: kortet som är valt, stort nog att läsa */
 .markrub .zonlbl{color:var(--acc)}
 .markrub .zonlinje{background:#3a2c10}
 .markruta{
@@ -747,7 +747,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   box-shadow:0 20px 50px -14px #000;overflow:hidden;
 }
 .scanpanel.open{display:flex}
-/* Medan man fyller i ett kort hör "Läs av igen", "Klistra in" och "Byt bild"
+/* Medan man fyller i ett kort hör "Read again", "Klistra in" och "Byt bild"
    inte hemma — de gäller hela skärmdumpen, inte kortet man håller på med. */
 #shotOv.picking .sw-top .btn:not(.danger){display:none}
 /* Under ifyllnad ska det synas VILKET kort panelen gäller. Alla markeringar
@@ -991,17 +991,17 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     </div>
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
-    <button class="btn ghost" id="addPlayerBtn" title="Ny spelare (N)">
+    <button class="btn ghost" id="addPlayerBtn" title="New player (N)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Spelare
+      Player
     </button>
     <div class="topspacer"></div>
     <div class="vr"></div>
-    <button class="btn" id="shotBtn" title="Öppna bildvyn (S)">
+    <button class="btn" id="shotBtn" title="Open the image view (S)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
-      <span id="shotBtnTxt">Skärmdump</span>
+      <span id="shotBtnTxt">Screenshot</span>
     </button>
-    <button class="btn ghost" id="helpBtn" title="Kortkommandon (?)">
+    <button class="btn ghost" id="helpBtn" title="Keyboard shortcuts (?)">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.4 3.4v1.1"/><path d="M12 17.2v.01"/></svg>
     </button>
     <button class="btn ghost" id="menuBtn" title="Meny">
@@ -1014,30 +1014,30 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <div class="handbar">
         <div class="searchwrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
-          <input id="search" type="text" autocomplete="off" spellcheck="false" placeholder="Lägg till kort — skriv kortnamn…">
+          <input id="search" type="text" autocomplete="off" spellcheck="false" placeholder="Add a card — type a card name…">
           <kbd class="slash">/</kbd>
           <ul id="suggest"></ul>
         </div>
-        <button class="btn" id="bulkBtn" title="Klistra in flera kortnamn (B)">
+        <button class="btn" id="bulkBtn" title="Paste several card names (B)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M6 8h12M6 12h12M6 16h7"/></svg>
-          Lista
+          List
         </button>
         <div class="handmeta">
           <span id="handCount">0 kort</span>
-          <button class="btn sm" id="clearHand" title="Nollställ bordet — tar bort alla kort och alla spelare utom en">Töm bordet</button>
+          <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one">Clear board</button>
           <div class="zoomctl">
-            <button id="fitBtn" class="fitbtn" title="Anpassa så hela handen syns (0)">Fit</button>
-            <button id="zoomOut" title="Mindre kort (−)">−</button>
-            <button id="zoomIn" title="Större kort (+)">+</button>
+            <button id="fitBtn" class="fitbtn" title="Fit the whole hand on screen (0)">Fit</button>
+            <button id="zoomOut" title="Smaller cards (−)">−</button>
+            <button id="zoomIn" title="Bigger cards (+)">+</button>
           </div>
         </div>
       </div>
       <div class="pendbar" id="pendBar" hidden>
         <span class="pdot"></span>
-        <span class="ptxt"><b id="pendCount">0</b> <span id="pendWord">kort hittades</span><em id="pendTail"></em></span>
+        <span class="ptxt"><b id="pendCount">0</b> <span id="pendWord">cards found</span><em id="pendTail"></em></span>
         <div class="pendthumbs" id="pendThumbs"></div>
         <button class="btn sm prim" id="pendGo">Granska</button>
-        <button class="btn sm" id="pendDrop" title="Ta bort skärmdumpen och alla kort som väntar">Släng</button>
+        <button class="btn sm" id="pendDrop" title="Remove the screenshot and every card still waiting">Discard</button>
       </div>
       <div class="gridwrap" id="gridWrap">
         <section class="zon-perm" id="zonPerm">
@@ -1045,20 +1045,20 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
             <span class="zonlbl">Permanents</span>
             <i class="zonlinje"></i>
             <span class="zonrakn" id="permRakn"></span>
-            <button class="zonchip" data-addtile title="Dra in eller klistra in en bild — korten läggs till (I)"><svg width="13" height="10" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>Dra in kort</button>
+            <button class="zonchip" data-addtile title="Drag in or paste an image — the cards get added (I)"><svg width="13" height="10" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>Drag in cards</button>
           </div>
           <div class="grid" id="grid"></div>
         <div class="empty" id="emptyHand">
           <div class="empty-icon">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
           </div>
-          <h2>Klistra in en skärmdump från SpellTable</h2>
-          <p>Appen hittar spelarnas videorutor och läser av korten som ligger på borden — en spelare per ruta. En beskuren bild på ett eller flera kort fungerar också: de läggs då till i handen.</p>
+          <h2>Paste a screenshot from SpellTable</h2>
+          <p>The app finds each player's video pane and reads the cards on their table — one player per pane. A cropped picture of one or more cards works too: those get added to your hand.</p>
           <div class="btnrow">
-            <button class="btn prim big" id="emptyPaste">Klistra in skärmdump</button>
-            <button class="btn big" id="emptySearch">Lägg till kort för hand</button>
+            <button class="btn prim big" id="emptyPaste">Paste screenshot</button>
+            <button class="btn big" id="emptySearch">Add a card by hand</button>
           </div>
-          <p class="empty-fine">Tryck <kbd>⌘V</kbd> var som helst i appen, eller dra in en bildfil.<br>Klistrar du in senare läggs korten till — handen töms bara om du läser om bilden i bildvyn.</p>
+          <p class="empty-fine">Press <kbd>⌘V</kbd> anywhere in the app, or drag in an image file.<br>Pasting later adds the cards — your hand is only replaced if you re-read the board in the image view.</p>
         </div>
         </section>
         <div class="band" id="manaRow" hidden></div>
@@ -1067,27 +1067,27 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 
     <aside class="detail">
       <div class="dpad" id="detailPad">
-        <div class="dempty">Inget kort valt.<br><span style="color:#4d5a6d">Klicka på ett kort eller använd piltangenterna.</span></div>
+        <div class="dempty">No card selected.<br><span style="color:#4d5a6d">Click a card or use the arrow keys.</span></div>
       </div>
     </aside>
   </main>
 
   <footer class="hints" id="hintBar">
-    <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> välj</span>
-    <span><kbd>F</kbd> fokus</span>
-    <span><kbd>Space</kbd> vänd</span>
-    <span><kbd>/</kbd> sök</span>
+    <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> select</span>
+    <span><kbd>F</kbd> focus</span>
+    <span><kbd>Space</kbd> flip</span>
+    <span><kbd>/</kbd> search</span>
     <span><kbd>S</kbd> screenshot</span>
-    <span><kbd>1</kbd>–<kbd>9</kbd> spelare</span>
-    <span><kbd>⌫</kbd> ta bort</span>
-    <span><kbd>?</kbd> alla kommandon</span>
-    <div class="status" id="status"><span class="led"></span><span id="statusTxt">Redo</span></div>
+    <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
+    <span><kbd>⌫</kbd> remove</span>
+    <span><kbd>?</kbd> all shortcuts</span>
+    <div class="status" id="status"><span class="led"></span><span id="statusTxt">Ready</span></div>
   </footer>
 </div>
 
 <!-- ── fokusläge ── -->
 <div class="ov" id="focusOv">
-  <button class="ovclose" data-close="focusOv" title="Stäng (Esc)">
+  <button class="ovclose" data-close="focusOv" title="Close (Esc)">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
   </button>
   <div class="fx-top">
@@ -1105,7 +1105,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 
 <!-- ── screenshot-arbetsyta ── -->
 <div class="ov" id="shotOv">
-  <button class="ovclose" data-close="shotOv" title="Stäng bildvyn (Esc)">
+  <button class="ovclose" data-close="shotOv" title="Close the image view (Esc)">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
   </button>
   <div class="sw-top">
@@ -1114,18 +1114,18 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     <span class="title">Hela bordet</span>
     <span style="color:var(--dim2);font-size:12px" id="swMeta"></span><!-- bildmått och zoomnivå sa inget en användare behöver -->
     <div style="flex:1"></div>
-    <button class="btn sm" id="swRescan" title="Läs av bilden igen">
+    <button class="btn sm" id="swRescan" title="Read the image again">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
-      Läs av igen
+      Read again
     </button>
-    <button class="btn sm" id="swFile" title="Klistra in eller välj en ny skärmdump — hela bordet läses om och handen ersätts">Ny bild…</button>
+    <button class="btn sm" id="swFile" title="Paste or pick a new screenshot — the whole board is re-read and your hand replaced">Ny bild…</button>
     <input type="file" id="swInput" accept="image/*" multiple hidden>
     <div class="zoomctl">
       <button id="swZoomOut" title="Zooma ut">−</button>
       <button class="fitbtn" id="swFit" title="Passa in">Fit</button>
       <button id="swZoomIn" title="Zooma in">+</button>
     </div>
-    <button class="btn sm danger" id="swDel" title="Ta bort hela skärmdumpen">Ta bort bilden</button>
+    <button class="btn sm danger" id="swDel" title="Remove the whole screenshot">Ta bort bilden</button>
   </div>
   <div class="sw-stage" id="swStage">
     <img id="swImg" alt="" hidden>
@@ -1136,38 +1136,38 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <div class="icon">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
       </div>
-      <h2>Läs av ett helt bord</h2>
-      <p>Dra in en SpellTable-skärmdump här från Finder, klistra in med <kbd>⌘V</kbd>, eller välj en fil. Appen läser av alla spelares bord och skapar en flik per videoruta.</p>
-      <p class="varning">Handen <b>ersätts</b> av det som hittas. Vill du bara lägga till kort — stäng den här vyn och klistra in bland korten i stället.</p>
+      <h2>Read a whole board</h2>
+      <p>Drag a SpellTable screenshot here from Finder, paste with <kbd>⌘V</kbd>, or pick a file. The app reads every player's table and makes one tab per video pane.</p>
+      <p class="varning">Your hand is <b>replaced</b> by whatever is found. To just add cards, close this view and paste among the cards instead.</p>
       <div class="dropbtns">
-        <button class="btn prim big" id="dropPaste">Klistra in skärmdump</button>
-        <button class="btn big" id="dropFile">Välj fil…</button>
+        <button class="btn prim big" id="dropPaste">Paste screenshot</button>
+        <button class="btn big" id="dropFile">Pick a file…</button>
       </div>
     </div>
     <div class="scanpanel" id="scanPanel">
       <header>
-        <span id="scanTitle">Vilket kort är detta?</span>
+        <span id="scanTitle">Which card is this?</span>
         <span class="meta" id="scanMeta"></span>
-        <button class="close" id="scanClose" title="Stäng ifyllningen — bilden är kvar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        <button class="close" id="scanClose" title="Close the fill-in panel — the image stays"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </header>
-      <div class="pickcrop"><img id="pickImg" alt="" title="Klicka för att zooma in i bilden"></div>
+      <div class="pickcrop"><img id="pickImg" alt="" title="Click to zoom into the image"></div>
       <div class="guess" id="guessBox" hidden>
-        <span class="lbl">Förslag</span>
+        <span class="lbl">Suggestions</span>
         <div class="row"><img id="guessImg" alt=""><span class="nm" id="guessName"></span></div>
         <div class="acts">
-          <button class="btn sm prim" id="guessYes">Ja, det är rätt</button>
-          <button class="btn sm" id="guessNo">Nej, något annat</button>
+          <button class="btn sm prim" id="guessYes">Yes, that's right</button>
+          <button class="btn sm" id="guessNo">No, something else</button>
         </div>
       </div>
       <div class="picksearch">
-        <input id="pickSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Skriv kortnamnet…">
+        <input id="pickSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Type the card name…">
         <ul id="pickSuggest"></ul>
       </div>
       <div class="candlist" id="candList"></div>
       <div class="note" id="scanNote"></div>
       <div class="foot">
-        <button class="btn sm" id="scanSkip" hidden>Hoppa över</button>
-        <button class="btn sm" id="scanAI" hidden title="Försök identifiera kortet bland kandidaterna">Identifiera</button>
+        <button class="btn sm" id="scanSkip" hidden>Skip</button>
+        <button class="btn sm" id="scanAI" hidden title="Try to identify the card among the candidates">Identifiera</button>
       </div>
     </div>
   </div>
@@ -1176,9 +1176,9 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
        en avläsning, och "lägg till kort för hand" gick att läsa som att man
        skulle lägga till en BILD för hand. Det görs i huvudvyn i stället. -->
   <div class="sw-bottom">
-    <span class="sw-label">Skärmdumpar</span>
+    <span class="sw-label">Screenshots</span>
     <div class="sw-thumbs" id="swThumbs"></div>
-    <span class="sw-help" id="swHelp">Klicka på en markering för att ändra kortet · klicka på tom yta för att lägga till · <kbd>⌘V</kbd> byter bild och läser om hela bordet</span>
+    <span class="sw-help" id="swHelp">Click a marker to change that card · click empty space to add one · <kbd>⌘V</kbd> swaps the image and re-reads the whole board</span>
   </div>
 </div>
 
@@ -1190,13 +1190,13 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <button class="close" data-close="bulkOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
-      <p class="lead">Ett kortnamn per rad. Antal framför namnet fungerar (<code>2 Sol Ring</code>, <code>1x Llanowar Elves</code>), liksom set-suffix från decklistor (<code>Sol Ring (LTC) 268</code>). Stavfel rättas automatiskt när det går.</p>
+      <p class="lead">One card name per line. A count in front works (<code>2 Sol Ring</code>, <code>1x Llanowar Elves</code>), as does a set suffix from decklists (<code>Sol Ring (LTC) 268</code>). Typos are corrected automatically where possible.</p>
       <textarea class="ta" id="bulkTa" spellcheck="false" placeholder="Chief of the Foundry&#10;2 Ornithopter&#10;Priest of Gix&#10;Bonecaller Cleric"></textarea>
     </div>
     <div class="foot">
       <span class="grow" id="bulkInfo"></span>
       <button class="btn" data-close="bulkOv">Avbryt</button>
-      <button class="btn prim" id="bulkGo">Lägg till</button>
+      <button class="btn prim" id="bulkGo">Add</button>
     </div>
   </div>
 </div>
@@ -1205,11 +1205,11 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <div class="ov" id="gravOv">
   <div class="modal" style="width:min(760px,94vw)">
     <header>
-      <h2>Graveyard <span id="gravCount" class="gravhead"></span><span class="gravhead">· överst först · piltangenter bläddrar</span></h2>
+      <h2>Graveyard <span id="gravCount" class="gravhead"></span><span class="gravhead">· newest first · arrow keys browse</span></h2>
       <button class="close" data-close="gravOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body gravbody">
-      <div class="gravbig"><img id="gravImg" alt=""><div class="gravempty" id="gravEmpty" hidden>Graveyard är tom.</div></div>
+      <div class="gravbig"><img id="gravImg" alt=""><div class="gravempty" id="gravEmpty" hidden>The graveyard is empty.</div></div>
       <div class="gravside">
         <div class="gravinfo" id="gravInfo"></div>
         <div class="gravlist" id="gravList"></div>
@@ -1218,7 +1218,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     <div class="foot">
       <span class="grow" id="gravNav"></span>
       <button class="btn" id="gravBack">Tillbaka till handen</button>
-      <button class="btn" data-close="gravOv">Stäng</button>
+      <button class="btn" data-close="gravOv">Close</button>
     </div>
   </div>
 </div>
@@ -1227,21 +1227,21 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <div class="ov" id="imgOv">
   <div class="modal" style="width:min(560px,94vw)">
     <header>
-      <h2>Lägg till kort från en bild</h2>
+      <h2>Add cards from an image</h2>
       <button class="close" data-close="imgOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
-      <p class="lead">En bild på ett eller flera kort — en beskuren skärmdump, ett foto, en kortbild från nätet. Korten som hittas <b>läggs till</b> i handen; det som redan ligger där rörs inte.</p>
+      <p class="lead">A picture of one or more cards — a cropped screenshot, a photo, a card image from the web. Whatever is found is <b>added</b> to your hand; what's already there is left alone.</p>
       <div class="imgdrop" id="imgDrop">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
         <b>Klistra in med <kbd>⌘V</kbd> eller dra in bilden hit</b>
-        <span>Går också att välja en fil nedan</span>
+        <span>You can also pick a file below</span>
       </div>
     </div>
     <div class="foot">
       <span class="grow"></span>
       <button class="btn" data-close="imgOv">Avbryt</button>
-      <button class="btn prim" id="imgPick">Välj bild…</button>
+      <button class="btn prim" id="imgPick">Pick an image…</button>
     </div>
   </div>
 </div>
@@ -1251,7 +1251,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <div class="ov" id="askOv">
   <div class="modal" style="width:min(430px,94vw)">
     <header>
-      <h2 id="askTitle">Är du säker?</h2>
+      <h2 id="askTitle">Are you sure?</h2>
       <button class="close" data-close="askOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body"><p class="lead" id="askBody"></p></div>
@@ -1275,57 +1275,57 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
         <section>
           <h3>Navigera handen</h3>
           <dl>
-            <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Föregående / nästa kort</dd>
-            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>En rad upp / ner i rutnätet</dd>
-            <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>Första / sista kortet</dd>
-            <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Fokusläge — kortet fyller skärmen</dd>
-            <dt><kbd>Space</kbd></dt><dd>Vänd dubbelsidigt kort</dd>
-            <dt><kbd>Esc</kbd></dt><dd>Stäng överlägg / lämna sökrutan</dd>
+            <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Previous / next card</dd>
+            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>One row up / down in the grid</dd>
+            <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card</dd>
+            <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen</dd>
+            <dt><kbd>Space</kbd></dt><dd>Flip a double-faced card</dd>
+            <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
         </section>
         <section>
-          <h3>Spelare</h3>
+          <h3>Players</h3>
           <dl>
-            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Byt till spelare</dd>
-            <dt><kbd>Tab</kbd></dt><dd>Nästa spelare</dd>
-            <dt><kbd>⇧</kbd><kbd>Tab</kbd></dt><dd>Föregående spelare</dd>
+            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Switch to player</dd>
+            <dt><kbd>Tab</kbd></dt><dd>Next player</dd>
+            <dt><kbd>⇧</kbd><kbd>Tab</kbd></dt><dd>Previous player</dd>
             <dt><kbd>N</kbd></dt><dd>Ny spelare</dd>
-            <dt><kbd>R</kbd></dt><dd>Döp om aktiv spelare</dd>
+            <dt><kbd>R</kbd></dt><dd>Rename the active player</dd>
           </dl>
         </section>
         <section>
           <h3>Bygga handen</h3>
           <dl>
-            <dt><kbd>⌘V</kbd></dt><dd>Klistra in en bild — korten som hittas <b>läggs till</b> i handen</dd>
-            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Hoppa till sökrutan</dd>
-            <dt><kbd>B</kbd></dt><dd>Klistra in en lista med namn</dd>
-            <dt><kbd>I</kbd></dt><dd>Lägg till kort från en bild</dd>
+            <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> i handen</dd>
+            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Jump to the search box</dd>
+            <dt><kbd>B</kbd></dt><dd>Paste a list of names</dd>
+            <dt><kbd>I</kbd></dt><dd>Add cards from an image</dd>
             <dt><kbd>⌫</kbd> <kbd>Del</kbd></dt><dd>Ta bort valt kort</dd>
-            <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Flytta kortet vänster / höger</dd>
+            <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Move the card left / right</dd>
             <dt><kbd>D</kbd></dt><dd>Duplicera valt kort</dd>
           </dl>
         </section>
         <section>
           <h3>Bild &amp; vy</h3>
           <dl>
-            <dt><kbd>S</kbd></dt><dd>Bildvyn — se skärmdumpen med markeringar</dd>
-            <dt><kbd>R</kbd></dt><dd>Läs av bilden igen (i bildvyn)</dd>
-            <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Välj kandidat när du bekräftar ett kort</dd>
-            <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Större / mindre kort i rutnätet</dd>
-            <dt><kbd>0</kbd></dt><dd>Fit — hela handen på en skärm</dd>
-            <dt><kbd>?</kbd></dt><dd>Den här rutan</dd>
+            <dt><kbd>S</kbd></dt><dd>Image view — see the screenshot with markers</dd>
+            <dt><kbd>R</kbd></dt><dd>Read the image again (in the image view)</dd>
+            <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick a candidate when confirming a card</dd>
+            <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Bigger / smaller cards in the grid</dd>
+            <dt><kbd>0</kbd></dt><dd>Fit — the whole hand on one screen</dd>
+            <dt><kbd>?</kbd></dt><dd>This pane</dd>
           </dl>
         </section>
       </div>
       <p class="lead" style="border-top:1px solid var(--line);padding-top:12px">
-        <b>Så läser appen av en skärmdump:</b> den letar först efter SpellTables videorutor (svarta mellanrum skiljer dem åt),
-        sedan efter mörka kortramar mot ljust bord i varje ruta, och matchar till sist varje träff mot kortsetets bildsignaturer.
-        Bara kort som matchar tydligt läggs till automatiskt — resten hamnar i bekräftaraden högst upp.
+        <b>How the app reads a screenshot:</b> it first looks for SpellTable's video panes (black gaps separate them),
+        then for dark card borders against the light table in each pane, and finally matches every hit against the set's image signatures.
+        Only cards that match clearly are added automatically — the rest end up in the confirm row at the top.
         <br><br>
-        Matchningen sker mot ett <b>begränsat set</b> (⋯ → Kortpool). Det är förutsättningen för att den ska fungera:
-        780 kort går att skilja åt visuellt, alla 30 000 MTG-kort gör det inte.
-        Kortdata och bilder kommer från <a href="https://scryfall.com" target="_blank" rel="noreferrer">Scryfall</a>.
-        Allt sparas bara i den här webbläsaren.
+        Matching happens against <b>a limited set</b> (⋯ → Card pool). That is what makes it work:
+        780 cards can be told apart visually, all 30,000 MTG cards cannot.
+        Card data and images come from <a href="https://scryfall.com" target="_blank" rel="noreferrer">Scryfall</a>.
+        Everything is stored in this browser only.
       </p>
     </div>
   </div>
@@ -1335,28 +1335,28 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <div class="ov" id="poolOv">
   <div class="modal">
     <header>
-      <h2>Kortpool att matcha mot</h2>
+      <h2>Card pool to match against</h2>
       <button class="close" data-close="poolOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
-      <p class="lead">Skanningen matchar mot ett <b>begränsat</b> set — det är därför den fungerar. 780 kort går att skilja åt visuellt; 30&nbsp;000 gör det inte. Välj det set ni spelar med.</p>
+      <p class="lead">Scanning matches against a <b>limited</b> set — that is why it works. 780 cards can be told apart visually; 30&nbsp;000 cannot. Pick the set you are playing with.</p>
       <div class="presets" id="poolPresets"></div>
       <div style="display:flex;gap:8px;align-items:center">
-        <input class="keyin" id="poolCode" style="flex:1" placeholder="setkod, t.ex. j25" spellcheck="false" autocomplete="off">
-        <button class="btn" id="poolCheck">Kontrollera</button>
+        <input class="keyin" id="poolCode" style="flex:1" placeholder="set code, e.g. j25" spellcheck="false" autocomplete="off">
+        <button class="btn" id="poolCheck">Check</button>
       </div>
       <label style="display:flex;gap:9px;align-items:center;font-size:12.8px;color:var(--dim)">
         <input type="checkbox" id="poolLands" style="accent-color:var(--acc);width:15px;height:15px">
-        Ta även med vanliga basic lands (Plains, Island, Swamp, Mountain, Forest) från senare år
+        Also include ordinary basic lands (Plains, Island, Swamp, Mountain, Forest) from later years
       </label>
-      <div class="poolrow" id="poolStatus"><div class="nm"><b>Ingen pool vald</b><span>Välj ett set ovan.</span></div></div>
+      <div class="poolrow" id="poolStatus"><div class="nm"><b>No pool selected</b><span>Pick a set above.</span></div></div>
       <div class="prog" id="poolProg" hidden><i></i></div>
-      <p class="lead" style="font-size:11.5px">Indexet byggs en gång per set: ~780 kortbilder hämtas från Scryfall, får en bildsignatur på 528 byte och sparas lokalt. Tar ungefär en halv minut och behöver aldrig göras om.</p>
+      <p class="lead" style="font-size:11.5px">The index is built once per set: ~780 card images are fetched from Scryfall, get a 528-byte image signature, and are stored locally. Takes about half a minute and never has to be redone.</p>
     </div>
     <div class="foot">
       <span class="grow" id="poolInfo"></span>
-      <button class="btn" data-close="poolOv">Stäng</button>
-      <button class="btn prim" id="poolBuild">Bygg index</button>
+      <button class="btn" data-close="poolOv">Close</button>
+      <button class="btn prim" id="poolBuild">Build index</button>
     </div>
   </div>
 </div>
@@ -1365,24 +1365,24 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <div class="ov" id="aiOv">
   <div class="modal">
     <header>
-      <h2>AI-hjälp med osäkra kort</h2>
+      <h2>AI help with uncertain cards</h2>
       <button class="close" data-close="aiOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
       <div class="poolrow" id="aiStatus"></div>
-      <p class="lead">Den lokala igenkänningen klarar de flesta korten själv. För dem den inte är säker på kan en bildmodell få avgöra — den ser det beskurna kortet och de bästa kandidaterna, och väljer ett av dem.</p>
+      <p class="lead">Local recognition handles most cards on its own. For the ones it isn't sure about, an image model can decide — it sees the cropped card and the best candidates, and picks one.</p>
       <label style="display:flex;gap:9px;align-items:center;font-size:12.8px;color:var(--dim)">
         <input type="checkbox" id="aiAuto" style="accent-color:var(--acc);width:15px;height:15px">
-        Fråga automatiskt om varje osäkert kort vid avläsning
+        Ask automatically about every uncertain card when reading
       </label>
       <div id="aiKeyBlock">
-        <div class="warn">Appen körs utan server, så AI-hjälpen kräver en <b>egen nyckel</b> från <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>. Nyckeln sparas i den här webbläsaren och skickas bara till Anthropic — men den syns för den som kommer åt datorn, så använd en separat nyckel med utgiftsgräns.</div>
+        <div class="warn">The app is running without a server, so AI help needs your <b>own key</b> from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>. The key is stored in this browser and only sent to Anthropic — but anyone with access to this computer can read it, so use a separate key with a spending limit.</div>
         <input class="keyin" id="aiKey" type="password" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" style="margin-top:10px">
       </div>
     </div>
     <div class="foot">
       <span class="grow" id="aiInfo"></span>
-      <button class="btn danger" id="aiForget">Glöm nyckeln</button>
+      <button class="btn danger" id="aiForget">Forget the key</button>
       <button class="btn prim" id="aiSave">Spara</button>
     </div>
   </div>
@@ -1391,8 +1391,8 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <!-- ── avläsning pågår ── -->
 <div class="ov" id="analyzeOv">
   <div class="analyze">
-    <h2 id="anTitle">Läser av skärmdumpen…</h2>
-    <p class="an-step" id="anStep">Letar efter spelarnas rutor i bilden…</p>
+    <h2 id="anTitle">Reading the screenshot…</h2>
+    <p class="an-step" id="anStep">Looking for the players' panes in the image…</p>
     <div class="prog"><i id="anBar"></i></div>
     <div class="an-panes" id="anPanes"></div>
     <div class="an-foot">
@@ -2645,7 +2645,7 @@ function busy(on, txt) {
   busyCount = Math.max(0, busyCount + (on ? 1 : -1));
   statusEl.classList.toggle('busy', busyCount > 0);
   statusEl.classList.remove('err');
-  statusTxt.textContent = busyCount > 0 ? (txt || 'Hämtar…') : 'Redo';
+  statusTxt.textContent = busyCount > 0 ? (txt || 'Fetching…') : 'Redo';
 }
 function statusErr(txt) { statusEl.classList.add('err'); statusTxt.textContent = txt; }
 
@@ -2856,8 +2856,8 @@ function lookup(query) {
   }).catch(err => {
     inflight.delete(q);
     const msg = err.offline ? 'ingen anslutning'
-      : err.status === 404 ? 'hittades inte'
-      : /ambiguous|too many|fler än/i.test(err.message || '') ? 'flertydigt namn'
+      : err.status === 404 ? 'not found'
+      : /ambiguous|too many|fler än/i.test(err.message || '') ? 'ambiguous name'
       : (err.message || 'fel');
     if (!err.offline) failed.set(q, msg);
     throw new Error(msg);
@@ -2891,7 +2891,7 @@ function lookupId(sid) {
     return card;
   }).catch(err => {
     inflight.delete(k);
-    const msg = err.offline ? 'ingen anslutning' : err.status === 404 ? 'hittades inte' : (err.message || 'fel');
+    const msg = err.offline ? 'ingen anslutning' : err.status === 404 ? 'not found' : (err.message || 'fel');
     if (!err.offline) failed.set(k, msg);
     throw new Error(msg);
   });
@@ -2974,20 +2974,20 @@ const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'),
 function renderTabs() {
   const box = $('#playerTabs');
   box.innerHTML = state.players.map((p, i) => `
-    <button class="ptab${p.id === state.active ? ' on' : ''}" data-pid="${esc(p.id)}" title="${esc(p.name)} — tryck ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} kort behöver fyllas i` : ''}">
+    <button class="ptab${p.id === state.active ? ' on' : ''}" data-pid="${esc(p.id)}" title="${esc(p.name)} — tryck ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} kort need to be filled in` : ''}">
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
       <span class="cnt">${p.cards.length}${(p.pending || []).length ? `<em>+${p.pending.length}</em>` : ''}</span>
-      ${p.id === state.active ? `<span class="pen" data-rename="${esc(p.id)}" title="Döp om (R)" role="button">
+      ${p.id === state.active ? `<span class="pen" data-rename="${esc(p.id)}" title="Rename (R)" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>` : ''}
-      ${state.players.length > 1 ? `<span class="x" data-del="${esc(p.id)}" title="Ta bort spelaren" role="button">
+      ${state.players.length > 1 ? `<span class="x" data-del="${esc(p.id)}" title="Remove the player" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
     </button>`).join('');
 }
 
 /* ─── storlek på korten i rutnätet ─── */
-/* Nedre bandets höjd är FAST — den sätts av Markerat-kolumnens innehåll, inte
+/* Nedre bandets höjd är FAST — den sätts av Selected-kolumnens innehåll, inte
    av kortbredden. Förra layouten räknade den som en funktion av kortbredden
    och hamnade i en rundgång: större kort gav högre band gav mindre plats.
    Mäts efter rendering; konstanten är reservvärdet ur designen. */
@@ -3153,7 +3153,7 @@ function kortHtml(e, i, extra) {
   const label = card ? card.name : e.name;
   const kl = ['card', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', extra || ''].filter(Boolean).join(' ');
-  return `<button class="${kl}" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}${e.tapped ? ' (tappat)' : ''}">
+  return `<button class="${kl}" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}">
     <span class="idx">${i + 1}</span>
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(failed.get(keyOf(e)) || '') + '</span>' : ''}</span>
@@ -3171,8 +3171,8 @@ function renderGrid(force) {
   /* Handbarens meta säger vad bordet innehåller, i designens ordning. */
   $('#handCount').textContent = [
     d.spell.length + ' permanents',
-    d.mana.length ? d.mana.length + ' land' : '',
-    d.grav.length ? d.grav.length + ' i graveyard' : ''
+    d.mana.length ? d.mana.length + (d.mana.length === 1 ? ' land' : ' lands') : '',
+    d.grav.length ? d.grav.length + ' in graveyard' : ''
   ].filter(Boolean).join(' · ');
   $('#clearHand').hidden = state.players.every(q => !q.cards.length && !(q.pending || []).length);
   document.body.classList.toggle('tomhand', cards.length === 0);
@@ -3202,7 +3202,7 @@ function renderGrid(force) {
     return `<span class="kortplats${cards[i].tapped ? ' tappad' : ''}">
       ${bif.map(j => kortHtml(cards[j], j, 'bifogad')).join('')}
       ${kortHtml(cards[i], i, 'vard')}
-      <span class="bifbricka" data-bif="${cards[i].cid}" title="${bif.length} bifogat kort">+${bif.length}</span>
+      <span class="bifbricka" data-bif="${cards[i].cid}" title="${bif.length} attached card">+${bif.length}</span>
     </span>`;
   }).join('');
 
@@ -3212,8 +3212,8 @@ function renderGrid(force) {
   const bif = d.spell.filter(i => cards[i].attachedTo).length;
   $('#permRakn').textContent = !d.spell.length ? '' : [
     d.spell.length,
-    tappade ? tappade + ' tappade' : '',
-    bif ? bif + (bif === 1 ? ' bifogad' : ' bifogade') : ''
+    tappade ? tappade + ' tapped' : '',
+    bif ? bif + (bif === 1 ? ' attached' : ' attached') : ''
   ].filter(x => x !== '').join(' · ');
 
   emptyEl.classList.toggle('hide', cards.length > 0);
@@ -3222,8 +3222,8 @@ function renderGrid(force) {
   renderSel();
 }
 
-/* Nedre bandet: Lands → Markerat → Graveyard, med fast höjd. Höjden sätts av
-   Markerat-kolumnens innehåll (ett läsbart kort plus namn) och är därför en
+/* Nedre bandet: Lands → Selected → Graveyard, med fast höjd. Höjden sätts av
+   Selected-kolumnens innehåll (ett läsbart kort plus namn) och är därför en
    konstant, inte en följd av kortbredden — det är skillnaden mot förra
    layouten och det computeFit() nu räknar med. */
 /* En gravsten, genomskinlig, ovanpå det översta kortet — den säger "inte i
@@ -3254,10 +3254,10 @@ function landGruppHtml(g) {
     </div>
     <div class="lctrl">
       <i class="lsym">${manaFigur(g.sym)}</i>
-      <button class="mgstep" data-mana-minus="${esc(g.namn)}" title="En ${esc(g.namn)} färre">−</button>
+      <button class="mgstep" data-mana-minus="${esc(g.namn)}" title="One less ${esc(g.namn)}">−</button>
       <b>${g.idx.length}</b>
-      <button class="mgstep" data-mana-plus="${esc(g.namn)}" title="En ${esc(g.namn)} till">+</button>
-      <span class="lfordel" title="otappat / tappat">${otappade.length}/${tappade.length}</span>
+      <button class="mgstep" data-mana-plus="${esc(g.namn)}" title="One more ${esc(g.namn)}">+</button>
+      <span class="lfordel" title="untapped / tapped">${otappade.length}/${tappade.length}</span>
     </div>
   </div>`;
 }
@@ -3328,12 +3328,12 @@ function renderMana(cards) {
   const saknade = BASLAND_VAL.filter(([, sym]) => !harSym.has(sym));
   const fargVal = !saknade.length ? '' : fargValjOppen
     ? `<div class="fargval oppen" data-fargval>
-        ${saknade.map(([namn, sym]) => `<button class="fargknapp" data-basland="${esc(namn)}" title="Lägg till ${esc(namn)}">
+        ${saknade.map(([namn, sym]) => `<button class="fargknapp" data-basland="${esc(namn)}" title="Add ${esc(namn)}">
           <i class="lsym">${manaFigur(sym)}</i><span>${esc(namn)}</span></button>`).join('')}
-        <button class="fargstang" data-fargstang title="Stäng">✕</button>
+        <button class="fargstang" data-fargstang title="Close">✕</button>
       </div>`
-    : `<button class="fargval" data-fargval title="Lägg till en färg du inte har ute än">
-        <span class="fargplus">+</span><span>Färg</span>
+    : `<button class="fargval" data-fargval title="Add a color you don't have out yet">
+        <span class="fargplus">+</span><span>Color</span>
       </button>`;
 
   const landTappade = d.mana.filter(i => cards[i].tapped).length;
@@ -3345,19 +3345,19 @@ function renderMana(cards) {
     <div class="bandkol kol-lands" data-zon-lands>
       <div class="zonrub">
         <span class="zonlbl">Lands</span><i class="zonlinje"></i>
-        <span class="zonrakn">${d.mana.length}${landTappade ? ' · ' + landTappade + ' tappade' : ''}</span>
-        <button class="zonchip" data-addtile title="Dra in eller klistra in en bild på specialland">Dra in specialland</button>
+        <span class="zonrakn">${d.mana.length}${landTappade ? ' · ' + landTappade + ' tapped' : ''}</span>
+        <button class="zonchip" data-addtile title="Drag in or paste an image of nonbasic lands">Drag in lands</button>
       </div>
       <div class="lands">${grupper.map(landGruppHtml).join('')}${specHtml}${fargVal}</div>
     </div>
     <i class="bandsep"></i>
     <div class="bandkol kol-mark">
       <div class="zonrub markrub">
-        <span class="zonlbl">Markerat</span><i class="zonlinje"></i>
+        <span class="zonlbl">Selected</span><i class="zonlinje"></i>
       </div>
       <div class="markruta">
         ${valdSrc ? `<img src="${esc(valdSrc)}" alt="" draggable="false">`
-                  : '<div class="marktom">Inget kort valt</div>'}
+                  : '<div class="marktom">No card selected</div>'}
         ${vald ? `<span class="marknamn">${esc(valdKort ? valdKort.name : vald.name)}</span>` : ''}
       </div>
     </div>
@@ -3385,20 +3385,20 @@ function renderMana(cards) {
    antalet syns i högen själv. Formeln krymper steget när högen växer så att
    tjugo kort fortfarande ryms. Gravstenen ovanpå säger "inte i spel". */
 function gravHtml(cards, idx) {
-  if (!idx.length) return `<div class="grav tom" data-grav-open title="Kort som är spelade hamnar här">
+  if (!idx.length) return `<div class="grav tom" data-grav-open title="Cards that have been played end up here">
       <span class="gravsten">${GRAVSTEN}</span><span class="gravtxt">tom</span></div>`;
   const e = cards[idx[0]], card = cardOf(e);
   const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
   const n = idx.length, steg = Math.max(1.6, Math.min(4, 26 / n));
   const lager = [];
   for (let k = n - 1; k >= 1; k--) lager.push(`<i class="glager" style="transform:translate(${(k * steg).toFixed(1)}px,${(-k * steg).toFixed(1)}px)"></i>`);
-  return `<button class="grav" data-grav-open title="${n} kort i graveyard — klicka för att bläddra">
+  return `<button class="grav" data-grav-open title="${n} cards in the graveyard — click to browse">
     <span class="gravstack">
       ${lager.join('')}
       ${src ? `<img src="${esc(src)}" alt="" draggable="false">` : '<img alt="">'}
       <span class="gravsten">${GRAVSTEN}</span>
     </span>
-    <span class="gravtxt">${n} kort</span>
+    <span class="gravtxt">${n} ${n === 1 ? "card" : "cards"}</span>
   </button>`;
 }
 
@@ -3408,7 +3408,7 @@ function renderSel() {
   $$('.card', gridEl).forEach((el, i) => el.classList.toggle('sel', i === state.sel));
   /* Urvalet kan peka på ett kort i manaraden. En basgrupp är flera kort, så
      den markeras när urvalet ligger på något av dem. */
-  /* Bara riktiga managrupper — "Lägg till mana" delar klass men har inga
+  /* Bara riktiga managrupper — "Add mana" delar klass men har inga
      kortindex, och att läsa data-alla på den kastade mitt i renderingen. */
   $$('.lgrupp[data-alla]', manaRow).forEach(el =>
     el.classList.toggle('sel', el.dataset.alla.split(',').includes(String(state.sel))));
@@ -3427,8 +3427,8 @@ function renderSel() {
 /* ─── detaljpanelen ─── */
 function faceInfoHtml(card, f, fi) {
   const pt = f.pow != null ? `${esc(f.pow)} / ${esc(f.tou)}`
-    : f.loy != null ? `Lojalitet ${esc(f.loy)}`
-    : f.def != null ? `Försvar ${esc(f.def)}` : '';
+    : f.loy != null ? `Loyalty ${esc(f.loy)}`
+    : f.def != null ? `Defense ${esc(f.def)}` : '';
   return `
     <div class="dhead"><h2>${esc(f.name)}</h2><span class="dmana">${manaHtml(f.mana, true)}</span></div>
     <div class="dtype">${esc(f.type)}</div>
@@ -3446,14 +3446,14 @@ function renderDetail() {
   const pad = $('#detailPad');
   const e = selCard();
   if (!e) {
-    pad.innerHTML = `<div class="dempty">Inget kort valt.<br><span style="color:#4d5a6d">Klicka på ett kort eller använd piltangenterna.</span></div>`;
+    pad.innerHTML = `<div class="dempty">No card selected.<br><span style="color:#4d5a6d">Click a card or use the arrow keys.</span></div>`;
     return;
   }
   const card = cardOf(e);
   if (!card) {
     const err = failed.get(keyOf(e));
     pad.innerHTML = `<div class="dempty">${err ? '⚠ ' : ''}<b style="color:var(--txt)">${esc(e.name)}</b><br>
-      <span style="color:#4d5a6d">${err ? esc(err) + ' på Scryfall' : 'Hämtar…'}</span>
+      <span style="color:#4d5a6d">${err ? esc(err) + ' på Scryfall' : 'Fetching…'}</span>
       ${err ? `<div style="margin-top:14px"><button class="btn sm" id="retryCard">Försök igen</button></div>` : ''}</div>`;
     const rb = $('#retryCard');
     if (rb) rb.onclick = () => { failed.delete(keyOf(e)); renderAll(); resolveAll(); };
@@ -3488,7 +3488,7 @@ function renderFocus() {
   if (card) { img.src = imgOf(card, fi, 'png') || imgOf(card, fi, 'large'); img.hidden = false; }
   else { img.removeAttribute('src'); img.hidden = true; }
   $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
-    : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Handen är tom'}</div>`;
+    : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Your hand is empty'}</div>`;
   $('#fxStrip').innerHTML = hand().map((x, i) => {
     const c = cardOf(x);
     const f2 = x.flipped && c && c.faces.length > 1 ? 1 : 0;
@@ -3512,10 +3512,10 @@ function renderAll(forceGrid) {
   const hasShot = p.shots.length > 0;
   /* "Skärmdump" sa vad man gav appen, inte vad som hände. Den här vägen
      ERSÄTTER hela handen — allt annat lägger till — och namnet ska säga det. */
-  $('#shotBtnTxt').textContent = hasShot ? 'Läs om bordet' : 'Läs av bordet';
+  $('#shotBtnTxt').textContent = hasShot ? 'Re-read board' : 'Read board';
   $('#shotBtn').title = hasShot
-    ? 'Läs om hela bordet från en skärmdump — ersätter allt som ligger i handen (S)'
-    : 'Läs av ett helt bord från en SpellTable-skärmdump (S)';
+    ? 'Re-read the whole board from a screenshot — replaces everything in your hand (S)'
+    : 'Read a whole board from a SpellTable screenshot (S)';
   $('#shotBtn').classList.toggle('prim', !hasShot && p.cards.length > 0);
 }
 function renderPending() {
@@ -3528,10 +3528,10 @@ function renderPending() {
      att appen bara hittade sex. */
   const tot = p.cards.filter(c => c.box).length + q.length;
   $('#pendCount').textContent = q.length;
-  $('#pendWord').textContent = 'av ' + tot + (tot === 1 ? ' kort' : ' kort');
+  $('#pendWord').textContent = 'of ' + tot + (tot === 1 ? ' card' : ' cards');
   $('#pendTail').textContent = p.cards.length === 0
-    ? ' kunde inte identifieras — fyll i dem själv, ett i taget'
-    : ' behöver fyllas i';
+    ? ' could not be identified — fill them in yourself, one at a time'
+    : ' need to be filled in';
   $('#pendThumbs').innerHTML = q.slice(0, 14)
     .map(x => { const d = cropFor(x.id, x.box, x.rot, 220); return d ? `<img src="${d}" alt="">` : ''; }).join('');
 }
@@ -3556,7 +3556,7 @@ async function resolveAll() {
       if (!target) break;
       const k = keyOf(target);
       tried.add(k);
-      busy(true, 'Hämtar kort…');
+      busy(true, 'Fetching card…');
       let offline = false;
       try {
         if (target.sid) {
@@ -3574,8 +3574,8 @@ async function resolveAll() {
       busy(false);
       renderAll();
       if (offline) {
-        statusErr('Ingen anslutning till Scryfall');
-        toast('Når inte Scryfall — kontrollera nätverket.', 'err');
+        statusErr('No connection to Scryfall');
+        toast('Cannot reach Scryfall — check your network.', 'err');
         break;
       }
     }
@@ -3994,7 +3994,7 @@ function gravKort() { const c = hand(); return delaHand().grav.map(i => c[i]); }
 function openGrav() { gravSel = 0; openOv('gravOv'); renderGrav(); }
 function renderGrav() {
   const lista = gravKort();
-  $('#gravCount').textContent = lista.length ? `${lista.length} kort` : '';
+  $('#gravCount').textContent = lista.length ? `${lista.length} cards` : '';
   if (!lista.length) {
     $('#gravImg').removeAttribute('src'); $('#gravImg').hidden = true;
     $('#gravEmpty').hidden = false;
@@ -4071,7 +4071,7 @@ $('#clearHand').onclick = () => {
   state.active = state.players[0].id;
   state.sel = 0;
   save(); renderAll(true);
-  toast(`${antal} kort borttagna · bordet nollställt`, 'ok', () => {
+  toast(`${antal} cards removed · board reset`, 'ok', () => {
     state.players = gammalt.players;
     state.active = gammalt.active;
     state.sel = gammalt.sel;
@@ -4103,7 +4103,7 @@ function closeOv(id) {
    det som går att återställa får en ångraknapp i notisen i stället. */
 function ask(msg, opt) {
   const o = opt || {};
-  $('#askTitle').textContent = o.title || 'Är du säker?';
+  $('#askTitle').textContent = o.title || 'Are you sure?';
   $('#askBody').textContent = msg;
   const yes = $('#askYes');
   yes.textContent = o.ok || 'OK';
@@ -4132,7 +4132,7 @@ $$('.ov').forEach(ov => ov.addEventListener('mousedown', ev => {
 }));
 
 function openFocus() {
-  if (!hand().length) { toast('Handen är tom'); return; }
+  if (!hand().length) { toast('Your hand is empty'); return; }
   focusOpen = true; openOv('focusOv'); renderFocus();
 }
 function closeFocus() { focusOpen = false; closeOv('focusOv'); }
@@ -4272,11 +4272,11 @@ function parseList(txt) {
 }
 $('#bulkGo').onclick = () => {
   const names = parseList($('#bulkTa').value);
-  if (!names.length) { $('#bulkInfo').textContent = 'Inga namn hittades.'; return; }
+  if (!names.length) { $('#bulkInfo').textContent = 'No names found.'; return; }
   closeOv('bulkOv');
   $('#bulkTa').value = '';
   addCards(names);
-  toast(`La till ${names.length} kort`, 'ok');
+  toast(`Added ${names.length} cards`, 'ok');
 };
 $('#bulkTa').addEventListener('keydown', e => {
   e.stopPropagation();
@@ -4291,8 +4291,8 @@ $('#menuBtn').onclick = ev => {
   ev.stopPropagation();
   if (menuEl.classList.contains('open')) return closeMenu();
   menuEl.innerHTML = `
-    <div class="hd">Aktiv spelare</div>
-    <button data-a="rename">Döp om <kbd style="margin-left:auto">R</kbd></button>
+    <div class="hd">Active player</div>
+    <button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
     <button data-a="clearhand" class="danger">Töm handen</button>
     <hr>
     <div class="hd">Dela &amp; säkerhetskopiera</div>
@@ -4326,8 +4326,8 @@ menuEl.addEventListener('click', ev => {
   if (a === 'import') $('#importInput').click();
   if (a === 'nums') { prefs.shownums = !prefs.shownums; savePrefs(); applySize(); }
   if (a === 'reset') {
-    ask('Alla spelare, händer och skärmdumpar tas bort och sidan laddas om. Det går inte att ångra.',
-        { title: 'Nollställ allt?', ok: 'Nollställ', danger: true }).then(yes => {
+    ask('Every player, hand and screenshot is removed and the page reloads. This cannot be undone.',
+        { title: 'Reset everything?', ok: 'Reset', danger: true }).then(yes => {
       if (!yes) return;
       [K.state, K.prefs].forEach(LS.del);
       IDB.clear().catch(() => {}).then(() => location.reload());
@@ -4340,12 +4340,12 @@ function b64e(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '
 function b64d(s) { return decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))); }
 function shareLink() {
   const p = player();
-  if (!p.cards.length) { toast('Handen är tom'); return; }
+  if (!p.cards.length) { toast('Your hand is empty'); return; }
   const payload = { n: p.name, c: p.cards.map(c => c.name) };
   const url = location.origin + location.pathname + location.search + '#h=' + b64e(JSON.stringify(payload));
   navigator.clipboard.writeText(url).then(
-    () => toast('Länk kopierad — den som öppnar den ser handen', 'ok'),
-    () => prompt('Kopiera länken:', url)
+    () => toast('Link copied — whoever opens it sees the hand', 'ok'),
+    () => prompt('Copy the link:', url)
   );
 }
 function exportJSON() {
@@ -4377,8 +4377,8 @@ importInput.onchange = async () => {
       (pp.cards || []).forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
     });
     save(); renderAll(true); resolveAll();
-    toast(`Importerade ${d.players.length} spelare`, 'ok');
-  } catch (e) { toast('Kunde inte läsa filen', 'err'); }
+    toast(`Imported ${d.players.length} players`, 'ok');
+  } catch (e) { toast('Could not read the file', 'err'); }
 };
 async function importFromHash() {
   const m = /[#&]h=([^&]+)/.exec(location.hash || '');
@@ -4387,11 +4387,11 @@ async function importFromHash() {
   try {
     const d = JSON.parse(b64d(m[1]));
     if (!d || !Array.isArray(d.c) || !d.c.length) return;
-    if (!await ask(`"${d.n || 'Delad'}" med ${d.c.length} kort läggs till som en ny spelare.`,
-                   { title: 'Öppna delad hand?', ok: 'Lägg till' })) return;
+    if (!await ask(`"${d.n || 'Shared'}" with ${d.c.length} cards will be added as a new player.`,
+                   { title: 'Open shared hand?', ok: 'Add' })) return;
     /* Namnet kommer ur en länk någon annan skickat. Det skrivs alltid ut
        escapat, men det ska inte kunna vara tusen tecken långt heller. */
-    const p = addPlayer(String(d.n || 'Delad hand').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || 'Delad hand');
+    const p = addPlayer(String(d.n || 'Shared hand').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || 'Shared hand');
     d.c.forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
     save(); renderAll(true); resolveAll();
   } catch (e) { /* trasig länk — strunt i det */ }
@@ -4654,7 +4654,7 @@ async function dropShot(id) {
   await IDB.del(id).catch(() => {});
   save(); renderAll(true);
 
-  toast(nPend ? `Bilden och ${nPend} kort borttagna` : 'Bilden borttagen', 'ok', async () => {
+  toast(nPend ? `Image and ${nPend} cards removed` : 'Bilden borttagen', 'ok', async () => {
     if (m) {
       shotMem.set(id, { rec: m.rec, url: URL.createObjectURL(m.rec.blob) });
       await IDB.put(m.rec).catch(() => {});
@@ -4691,7 +4691,7 @@ async function pasteOrPick() {
       const t = it.types.find(x => x.startsWith('image/'));
       if (t) { await addShot(await it.getType(t)); return; }
     }
-    toast('Ingen bild i urklipp — ta en skärmdump först (⇧⌘4 på Mac)', 'err');
+    toast('No image in the clipboard — take a screenshot first (⇧⌘4 on Mac)', 'err');
   } catch (e) {
     $('#swInput').click();
   }
@@ -4709,7 +4709,7 @@ swStage.addEventListener('pointerdown', ev => {
   /* Panelen och dropzonen ligger INUTI bildytan. Utan det här undantaget tog
      swStage pekaren med setPointerCapture, och då omdirigeras även click-
      händelsen hit — knapparna i panelen fick aldrig sitt klick. Det var därför
-     "Hoppa över" inte gjorde något: klicket blev en panorering i stället. */
+     "Skip" inte gjorde något: klicket blev en panorering i stället. */
   if (!SW.nw || ev.button !== 0) return;
   if (ev.target.closest('.dbox, .scanpanel, .sw-drop')) return;
   try { swStage.setPointerCapture(ev.pointerId); } catch (e) { /* pekaren hann släppa */ }
@@ -4793,7 +4793,7 @@ async function addShot(blob, tillagg) {
   if (!blob || !/^image\//.test(blob.type)) return;
   const rec = { id: uid(), ts: Date.now(), blob };
   try { await IDB.put(rec); }
-  catch (e) { toast('Kunde inte spara bilden lokalt', 'err'); return; }
+  catch (e) { toast('Could not store the image locally', 'err'); return; }
   shotMem.set(rec.id, { rec, url: URL.createObjectURL(blob) });
   if (tillagg) { closeOv('imgOv'); return analyzeExtra(rec.id); }
   const found = await analyzeShot(rec.id);
@@ -4807,7 +4807,7 @@ async function addShot(blob, tillagg) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   KORTPOOL — bildsignaturer för ett begränsat set.
+   KORTPOOL — bildsignaturer för ett a limited set.
    Poolen måste vara liten för att matchningen ska fungera: ~780 kort
    går att skilja åt visuellt, alla 30 000 MTG-kort gör det inte.
    ══════════════════════════════════════════════════════════════════ */
@@ -4872,7 +4872,7 @@ async function buildPool(code, onProg) {
       for (const c of keep) cards.push(c);
     } catch (e) { /* utan landskap fungerar resten ändå */ }
   }
-  if (!cards.length) throw new Error('Setet innehåller inga kort med bilder.');
+  if (!cards.length) throw new Error('This set has no cards with images.');
   const D = Matcher.DESC;
   const descs = new Int8Array(cards.length * D);
   const tmpl = new Float32Array(88);          // "genomsnittskortet" för detektorn
@@ -5067,28 +5067,28 @@ async function analyzeShot(shotId) {
     if (!mem) return 0;
     openOv('analyzeOv');
     anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
-    anEl.title.textContent = 'Läser av skärmdumpen…';
-    anStep('Öppnar bilden…');
+    anEl.title.textContent = 'Reading the screenshot…';
+    anStep('Opening the image…');
     await tick();
     const img = await loadImage(mem.url, false);
 
     if (!Pool.idx || Pool.idx.code !== (prefs.pool || 'j25')) {
-      anEl.title.textContent = 'Förbereder kortdatabasen';
-      anEl.note.textContent = 'Görs bara en gång — sparas sedan i webbläsaren';
+      anEl.title.textContent = 'Preparing the card database';
+      anEl.note.textContent = 'Done once — then stored in the browser';
       await ensurePool(p => {
-        if (p.phase === 'list') anStep(`Hämtar kortlistan från Scryfall… ${p.done} kort${p.label ? ' (' + p.label + ')' : ''}`);
-        else { anBar(p.done / p.total); anStep(`Bygger bildsignaturer… ${p.done} av ${p.total}`); }
+        if (p.phase === 'list') anStep(`Fetching the card list from Scryfall… ${p.done} cards${p.label ? ' (' + p.label + ')' : ''}`);
+        else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
       });
-      anEl.title.textContent = 'Läser av skärmdumpen…';
+      anEl.title.textContent = 'Reading the screenshot…';
       anEl.note.textContent = '';
       anBar(0);
     }
     if (cancelAnalyze) return;
 
-    anStep('Letar efter spelarnas rutor i bilden…');
+    anStep('Looking for the player panes in the image…');
     await tick();
     const panes = Detect.findPanes(img);
-    anEl.note.textContent = panes.length === 1 ? '1 spelare hittad' : `${panes.length} spelare hittade`;
+    anEl.note.textContent = panes.length === 1 ? '1 player found' : `${panes.length} players found`;
     ritaPaneCeller(img, panes);
     /* Namnen startas HÄR, inte inne i svepet. De är ett litet anrop per ruta
        och hör inte ihop med kortarbetet: läses de i tur och ordning står den
@@ -5100,7 +5100,7 @@ async function analyzeShot(shotId) {
     if (namnLoftet) namnLoftet.then(n => malaPaneNamn(n));
     await tick();
 
-    anStep('Letar efter kort hos varje spelare…');
+    anStep('Looking for cards at each player…');
     await tick();
     const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
     /* Motståndarens kort ligger vända mot honom, alltså upp och ner sett från
@@ -5128,13 +5128,13 @@ async function analyzeShot(shotId) {
       const acc = [], pend = [];
       const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
       anAktiv(i);
-      if (cnt) cnt.textContent = props[i].length ? `${props[i].length} kort hittade` : 'inga kort hittade';
+      if (cnt) cnt.textContent = props[i].length ? `${props[i].length} cards found` : 'no cards found';
       for (const pr of props[i]) {
         if (cancelAnalyze) return;
         const box = { x: pr.cx - pr.w / 2, y: pr.cy - pr.h / 2, w: pr.w, h: pr.h };
         done++;
         anBar(done / total);
-        anStep(`Identifierar kort ${done} av ${total}`);
+        anStep(`Identifying card ${done} of ${total}`);
         let v = identifyAt(img, box, pr.deg);
         /* Räddningsomgång. Rankningen görs vid detektorns låda, och den kan
            sitta några procent fel i höjdled. För de flesta kort spelar det
@@ -5156,7 +5156,7 @@ async function analyzeShot(shotId) {
           await tick();
         }
         (v.accept ? acc : pend).push(v.rec);
-        if (cnt) cnt.textContent = `${acc.length} av ${props[i].length} identifierade`;
+        if (cnt) cnt.textContent = `${acc.length} of ${props[i].length} identified`;
         /* Summan av rutorna, aldrig slingräknaren. `done` är hur många lådor
            som behandlats, inte hur många kort som hittats — den sa "1 kort
            hittade" när nio låg på bordet. */
@@ -5176,12 +5176,12 @@ async function analyzeShot(shotId) {
        fungerande avläsning ut som att ingenting hittades. */
     if (aiEnabled() && prefs.aiAuto) {
       try { await claudePaneSweep(img, panes, shotId, out, namnLoftet); }
-      catch (e) { toast('Kunde inte läsa igenom hela bilden — visar det som hittades ändå', 'err'); }
+      catch (e) { toast('Could not read the whole image — showing what was found anyway', 'err'); }
     }
     return applyAnalysis(shotId, out, img);
   } catch (e) {
     /* Ett avbrott är inget fel — användaren bad om det. */
-    toast(arAvbrott(e) ? 'Avläsningen avbröts' : 'Avläsningen misslyckades: ' + (e.message || 'fel'), arAvbrott(e) ? 'ok' : 'err');
+    toast(arAvbrott(e) ? 'Reading cancelled' : 'Reading failed: ' + (e.message || 'fel'), arAvbrott(e) ? 'ok' : 'err');
     return 0;
   } finally {
     analyzing = false;
@@ -5203,19 +5203,19 @@ async function analyzeExtra(shotId) {
     if (!mem) return 0;
     openOv('analyzeOv');
     anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
-    anEl.title.textContent = 'Läser av bilden…';
-    anStep('Öppnar bilden…');
+    anEl.title.textContent = 'Reading the image…';
+    anStep('Opening the image…');
     await tick();
     const img = await loadImage(mem.url, false);
 
     if (!Pool.idx || Pool.idx.code !== (prefs.pool || 'j25')) {
-      anEl.title.textContent = 'Förbereder kortdatabasen';
-      anEl.note.textContent = 'Görs bara en gång — sparas sedan i webbläsaren';
+      anEl.title.textContent = 'Preparing the card database';
+      anEl.note.textContent = 'Done once — then stored in the browser';
       await ensurePool(p => {
-        if (p.phase === 'list') anStep(`Hämtar kortlistan från Scryfall… ${p.done} kort${p.label ? ' (' + p.label + ')' : ''}`);
-        else { anBar(p.done / p.total); anStep(`Bygger bildsignaturer… ${p.done} av ${p.total}`); }
+        if (p.phase === 'list') anStep(`Fetching the card list from Scryfall… ${p.done} cards${p.label ? ' (' + p.label + ')' : ''}`);
+        else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
       });
-      anEl.title.textContent = 'Läser av bilden…';
+      anEl.title.textContent = 'Reading the image…';
       anEl.note.textContent = ''; anBar(0);
     }
     if (cancelAnalyze) return 0;
@@ -5223,7 +5223,7 @@ async function analyzeExtra(shotId) {
     const iw = img.naturalWidth, ih = img.naturalHeight;
     const hela = { x: 0, y: 0, w: iw, h: ih };
     const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
-    anStep('Letar efter kort i bilden…');
+    anStep('Looking for cards in the image…');
     await tick();
 
     /* Är bilden SJÄLV kortformad är den ett kort, och detektorn ska inte köras
@@ -5240,7 +5240,7 @@ async function analyzeExtra(shotId) {
     if (kortformad) {
       const w = Math.min(iw, ih * Matcher.ASPECT);
       props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
-      anEl.note.textContent = 'Bilden läses som ett kort';
+      anEl.note.textContent = 'Reading the image as a single card';
     } else {
       /* Är bilden en HEL SpellTable-skärmdump ska sökningen hålla sig till
          videorutorna, precis som en vanlig avläsning gör. Söker man igenom
@@ -5262,9 +5262,9 @@ async function analyzeExtra(shotId) {
       if (!props.length) {
         const w = Math.min(iw, ih * Matcher.ASPECT);
         props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
-        anEl.note.textContent = 'Hittade ingen kortkant — läser hela bilden som ett kort';
+        anEl.note.textContent = 'No card edge found — reading the whole image as one card';
       } else {
-        anEl.note.textContent = props.length === 1 ? '1 kort hittat' : `${props.length} kort hittade`;
+        anEl.note.textContent = props.length === 1 ? '1 card found' : `${props.length} cards found`;
       }
     }
 
@@ -5274,7 +5274,7 @@ async function analyzeExtra(shotId) {
       const q = props[i];
       const box = { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h };
       anBar(i / props.length);
-      anStep(`Identifierar kort ${i + 1} av ${props.length}`);
+      anStep(`Identifying card ${i + 1} of ${props.length}`);
       await tick();
       let v = identifyAt(img, box, q.deg);
       /* En beskärning har nästan alltid någon marginal kvar, och signaturen
@@ -5294,7 +5294,7 @@ async function analyzeExtra(shotId) {
          kort utanför den, och då är närbildsläget rätt verktyg: det är inte
          bundet till någon lista och slås upp mot hela Scryfall efteråt. */
       if (aiEnabled() && prefs.aiAuto) {
-        anStep(`Identifierar kort ${i + 1} av ${props.length}`);
+        anStep(`Identifying card ${i + 1} of ${props.length}`);
         await tick();
         const k = await readCard(img, box).catch(() => null);
         if (k && k.namn) {
@@ -5311,7 +5311,7 @@ async function analyzeExtra(shotId) {
     return appendAnalysis(shotId, [{ pane: hela, acc, pend }], img);
   } catch (e) {
     /* Ett avbrott är inget fel — användaren bad om det. */
-    toast(arAvbrott(e) ? 'Avläsningen avbröts' : 'Avläsningen misslyckades: ' + (e.message || 'fel'), arAvbrott(e) ? 'ok' : 'err');
+    toast(arAvbrott(e) ? 'Reading cancelled' : 'Reading failed: ' + (e.message || 'fel'), arAvbrott(e) ? 'ok' : 'err');
     return 0;
   } finally {
     analyzing = false;
@@ -5496,7 +5496,7 @@ const paneNamn = i => {
 };
 function ritaPaneCeller(img, panes) {
   anEl.panes.innerHTML = panes.map((p, i) =>
-    `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Spelare ${i + 1}</b><br><span class="c">väntar</span></span></div>`).join('');
+    `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Player ${i + 1}</b><br><span class="c">waiting</span></span></div>`).join('');
 }
 function anAktiv(i) {
   [...anEl.panes.children].forEach((c, j) => c.classList.toggle('aktiv', j === i));
@@ -5517,8 +5517,8 @@ function anRakna(hittade, identifierade) {
   if (!hittade) { anEl.note.textContent = ''; return; }
   const kvar = hittade - identifierade;
   anEl.note.textContent = kvar
-    ? `${hittade} kort hittade · ${identifierade} identifierade · ${kvar} kvar`
-    : `${hittade} kort hittade och identifierade`;
+    ? `${hittade} cards found · ${identifierade} identified · ${kvar} left`
+    : `${hittade} cards found and identified`;
 }
 /* Alla rutors namn på en gång. Ett fel på en ruta får bara kosta den rutans
    namn — förut låg namnläsningen inne i kortslingan, och ett avbrott där tog
@@ -5564,7 +5564,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   /* Namnen är klara innan kortarbetet börjar — antingen för att avläsningen
      redan startat dem, eller genom att de startas här. */
   if (!cancelAnalyze) {
-    anStep('Läser spelarnas namn…');
+    anStep('Reading the player names…');
     await tick();
     const namn = await (namnLoftet || lasPaneNamn(img, panes));
     malaPaneNamn(namn);
@@ -5581,8 +5581,8 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   await Promise.all(panes.map((_, i) => (async () => {
     if (cancelAnalyze) return;
     anStep(panes.length > 1
-      ? `Letar en gång till efter kort som missats — ${panes.length} spelare samtidigt`
-      : 'Letar en gång till efter kort som missats…');
+      ? `Looking once more for cards that were missed — ${panes.length} players at once`
+      : 'Looking once more for cards that were missed…');
     anBar(klaraRutor / panes.length);
     await tick();
     let kort;
@@ -5619,7 +5619,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
     // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
     const namnlosa = nya.filter(k => !k.namn).slice(0, NARBILD_MAX);
     if (namnlosa.length) {
-      anStep(`Identifierar ${namnlosa.length} kort till på närbild`);
+      anStep(`Identifying ${namnlosa.length} more cards up close`);
       await tick();
       let klara = 0;
       const jobb = namnlosa.map(k => async () => {
@@ -5668,7 +5668,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
       hittade++;
       if (cell && cnt) {
         const h = r.acc.length + r.pend.length + 1;
-        cnt.textContent = `${r.acc.length} av ${h} identifierade`;
+        cnt.textContent = `${r.acc.length} of ${h} identified`;
       }
       anSumma(out);
       const rec = { box: k.box, rot: k.rot || 0, inliers: 0, byAI: true,
@@ -5719,11 +5719,11 @@ async function claudePass(out, img) {
       }
       done++;
       anBar(done / todo.length);
-      anStep(`Gör ett nytt försök på ${todo.length} osäkra kort — ${done} av ${todo.length}`);
+      anStep(`Trying again on ${todo.length} uncertain cards — ${done} of ${todo.length}`);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
-  if (added) toast(`${added} osäkra kort kunde identifieras`, 'ok');
+  if (added) toast(`${added} uncertain cards were identified`, 'ok');
 }
 
 /* Hur stor del av den mindre rutan som ligger inom den större. */
@@ -5801,10 +5801,10 @@ function applyAnalysis(shotId, out, img) {
   const np = out.reduce((a, r) => a + r.pend.length, 0);
   /* Antalet hittade kort ska alltid framgå, även när inget kunde namnges —
      annars ser en ruta med åtta oläsbara kort ut som en tom ruta. */
-  if (!nc && !np) toast('Hittade inga kort på borden i bilden', 'err');
-  else if (!nc) toast(`${nc + np} kort hittade, inget kunde identifieras — fyll i dem själv`, 'err');
-  else if (np) toast(`${nc + np} kort hittade · ${nc} identifierade · ${np} att fylla i`, 'ok');
-  else toast(`${nc} kort identifierade`, 'ok');
+  if (!nc && !np) toast('No cards found on the tables in this image', 'err');
+  else if (!nc) toast(`${nc + np} cards found, none could be identified — fill them in yourself`, 'err');
+  else if (np) toast(`${nc + np} cards found · ${nc} identified · ${np} to fill in`, 'ok');
+  else toast(`${nc} cards identified`, 'ok');
   return nc + np;
 }
 
@@ -5838,10 +5838,10 @@ function appendAnalysis(shotId, out, img) {
   save(); renderAll(true); resolveAll();
 
   const n = nya.length, v = nyaVantar.length;
-  if (!n && !v) toast('Hittade inga kort i bilden', 'err');
-  else if (!n) toast(`${v} kort hittade, inget kunde identifieras — fyll i dem själv`, 'err');
-  else if (v) toast(`${n} kort tillagda · ${v} att fylla i`, 'ok');
-  else toast(n === 1 ? `${nya[0].name} tillagt` : `${n} kort tillagda`, 'ok');
+  if (!n && !v) toast('No cards found in the image', 'err');
+  else if (!n) toast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
+  else if (v) toast(`${n} cards added · ${v} to fill in`, 'ok');
+  else toast(n === 1 ? `${nya[0].name} tillagt` : `${n} cards added`, 'ok');
   return n + v;
 }
 
@@ -5962,19 +5962,19 @@ function drawFitBox(res) {
 
 function pickTitle() {
   const p = player(), t = SW.target;
-  if (!t) return 'Vilket kort är detta?';
+  if (!t) return 'Which card is this?';
   /* Räknades tidigare mot kön som den ser ut NU. Eftersom varje ifyllt kort
      lämnar kön blev "1 av 2" till "1 av 1" i stället för "2 av 2", vilket såg
      ut som att appen tappat räkningen. Nu räknas det mot antalet kort kön
      hade när den öppnades. */
   if (t.kind === 'pend') {
     const k = SW.queue ? SW.queue.indexOf(t.id) : -1;
-    if (k >= 0) return `Kort ${k + 1} av ${SW.queue.length}`;
+    if (k >= 0) return `Card ${k + 1} of ${SW.queue.length}`;
     const kvar = (p.pending || []).length;
-    return kvar ? `Kort 1 av ${kvar}` : 'Fyll i kort';
+    return kvar ? `Card 1 of ${kvar}` : 'Fill in card';
   }
-  if (t.kind === 'card') return 'Byt kort';
-  return 'Vilket kort är detta?';
+  if (t.kind === 'card') return 'Change card';
+  return 'Which card is this?';
 }
 function openPicker(kind, id) {
   const item = kind === 'card' ? cardById(id) : pendById(id);
@@ -6005,10 +6005,10 @@ async function scanAt(box, hint) {
   $('#pickImg').src = makeCrop(swImg, box, hint || 0, 260) || '';
   $('#pickSearch').value = '';
   candList.innerHTML = '';
-  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Söker…' : 'Ingen kortpool byggd — skriv namnet istället.';
+  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Searching…' : 'No card pool built — type the name instead.';
   $('#scanSkip').hidden = true;
   $('#scanAI').hidden = !aiEnabled();
-  $('#scanTitle').textContent = 'Vilket kort är detta?';
+  $('#scanTitle').textContent = 'Which card is this?';
   renderBoxes();                    // annars ligger föregående markering kvar
   setTimeout(() => $('#pickSearch').focus(), 60);
   if (!Pool.idx) { SW.out = { results: [], confidence: 0 }; return; }
@@ -6068,10 +6068,10 @@ function renderCands() {
   }).join('');
 
   scanNoteEl.innerHTML = granskar
-    ? (gissning ? 'Stämmer det inte — skriv rätt namn i rutan ovanför.'
-                : 'Varken bildjämförelsen eller Claude kunde läsa kortet. Skriv namnet ovanför.')
-    : list.length ? 'Välj förslag, tryck <kbd>1</kbd>–<kbd>5</kbd>, eller skriv namnet.'
-                  : 'Inga förslag — skriv namnet i rutan ovanför.';
+    ? (gissning ? 'If that is wrong, type the right name in the box above.'
+                : 'Neither the image match nor the model could read this card. Type the name above.')
+    : list.length ? 'Pick a suggestion, press <kbd>1</kbd>–<kbd>5</kbd>, or type the name.'
+                  : 'No suggestions — type the name in the box above.';
   $('#scanSkip').hidden = !granskar;
   $('#scanAI').hidden = granskar || !aiEnabled() || !list.length;
 }
@@ -6149,7 +6149,7 @@ function nextPending() {
   const n = SW.queue.length;
   SW.queue = null; SW.qi = 0;
   closeShot();
-  toast(n === 1 ? 'Klart — 1 kort genomgånget' : `Klart — ${n} kort genomgångna`, 'ok');
+  toast(n === 1 ? 'Done — 1 card reviewed' : `Done — ${n} cards reviewed`, 'ok');
 }
 $('#pendDrop').onclick = async () => {
   const q = player().pending || [];
@@ -6216,7 +6216,7 @@ async function showPoolStatus() {
   const rec = (Pool.idx && Pool.idx.code === poolCode) ? Pool.idx : await IDB.poolGet(poolCode).catch(() => null);
   if (rec && rec.names) {
     const active = prefs.pool === poolCode;
-    box.innerHTML = `<div class="nm"><b>${esc(rec.setName)} ${active ? '<span style="color:var(--green)">· används</span>' : ''}</b>
+    box.innerHTML = `<div class="nm"><b>${esc(rec.setName)} ${active ? '<span style="color:var(--green)">· in use</span>' : ''}</b>
       <span>${rec.names.length} kort indexerade</span></div>
       ${active ? '' : '<button class="btn sm" id="poolUse">Använd</button>'}
       <button class="btn sm danger" id="poolDrop">Ta bort</button>`;
@@ -6226,7 +6226,7 @@ async function showPoolStatus() {
       prefs.pool = poolCode; savePrefs();
       await Pool.load(poolCode);
       showPoolStatus(); renderAll();
-      toast('Använder ' + Pool.idx.setName, 'ok');
+      toast('Using ' + Pool.idx.setName, 'ok');
     };
     $('#poolDrop').onclick = async () => {
       const wasActive = !!(Pool.idx && Pool.idx.code === poolCode);
@@ -6234,7 +6234,7 @@ async function showPoolStatus() {
       await IDB.poolDel(poolCode).catch(() => {});
       if (wasActive) Pool.idx = null;
       showPoolStatus(); renderAll();
-      toast('Indexet för ' + poolCode.toUpperCase() + ' borttaget', 'ok', rec ? async () => {
+      toast('The index for ' + poolCode.toUpperCase() + ' borttaget', 'ok', rec ? async () => {
         await IDB.poolPut(rec).catch(() => {});
         if (wasActive) Pool.idx = rec;
         showPoolStatus(); renderAll();
@@ -6242,14 +6242,14 @@ async function showPoolStatus() {
     };
     return;
   }
-  box.innerHTML = `<div class="nm"><b>${esc(poolCode.toUpperCase())}</b><span>Inget index byggt ännu — byggs automatiskt vid nästa avläsning.</span></div>`;
+  box.innerHTML = `<div class="nm"><b>${esc(poolCode.toUpperCase())}</b><span>No index built yet — it's built automatically on the next read.</span></div>`;
   $('#poolBuild').textContent = 'Bygg nu';
 }
 $('#poolLands').onchange = () => { prefs.lands = $('#poolLands').checked; savePrefs(); showPoolStatus(); };
 $('#poolCheck').onclick = async () => {
   $('#poolInfo').textContent = 'Kollar…';
-  try { const m = await SF.set(poolCode); $('#poolInfo').textContent = `${m.name} — ${m.card_count} kort`; }
-  catch (e) { $('#poolInfo').textContent = 'Okänd setkod.'; }
+  try { const m = await SF.set(poolCode); $('#poolInfo').textContent = `${m.name} — ${m.card_count} cards`; }
+  catch (e) { $('#poolInfo').textContent = 'Unknown set code.'; }
 };
 $('#poolBuild').onclick = async () => {
   if (Pool.building) return;
@@ -6263,7 +6263,7 @@ $('#poolBuild').onclick = async () => {
     });
     prefs.pool = poolCode; savePrefs();
     $('#poolInfo').textContent = '';
-    toast(`${rec.setName}: ${rec.names.length} kort`, 'ok');
+    toast(`${rec.setName}: ${rec.names.length} cards`, 'ok');
     showPoolStatus(); renderAll();
   } catch (e) {
     $('#poolInfo').textContent = 'Misslyckades: ' + (e.message || 'fel');
@@ -6316,10 +6316,10 @@ function openAI() {
   $('#aiForget').hidden = server || !aiKey();
   $('#aiSave').textContent = server ? 'Klart' : 'Spara';
   $('#aiStatus').innerHTML = server
-    ? `<div class="nm"><b style="color:var(--green)">Påslagen</b><span>Sköts av appens server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instruktioner v' + esc(String(AI.promptv)) : ''} — du behöver ingen egen nyckel.</span></div>`
+    ? `<div class="nm"><b style="color:var(--green)">On</b><span>Handled by the app's server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instruktioner v' + esc(String(AI.promptv)) : ''} — du behöver ingen egen nyckel.</span></div>`
     : aiKey()
-    ? `<div class="nm"><b>Egen nyckel sparad</b><span>Appen körs utan server, så nyckeln ligger i den här webbläsaren.</span></div>`
-    : `<div class="nm"><b>Avstängd</b><span>Ingen server hittades och ingen nyckel är inlagd.</span></div>`;
+    ? `<div class="nm"><b>Own key saved</b><span>The app runs without a server, so the key lives in this browser.</span></div>`
+    : `<div class="nm"><b>Off</b><span>No server was found and no key is set.</span></div>`;
 }
 $('#scanAI').onclick = () => aiEnabled() ? askClaude() : openAI();
 $('#aiSave').onclick = () => {
@@ -6400,12 +6400,12 @@ async function askClaudeFor(img, box, rot, cands) {
     model: 'claude-opus-5',
     max_tokens: 800,
     output_config: { effort: 'low' },
-    system: 'Du identifierar Magic: the Gathering-kort på suddiga webbkamerafoton. Du får en beskuren bild av ETT kort och en numrerad lista med kandidater ur spelarnas set. Kortet kan vara delvis täckt av ett annat kort. Svara bara med JSON.',
+    system: 'You identify Magic: the Gathering cards in blurry webcam photos. You get a cropped image of ONE card and a numbered list of candidates from the players\' set. The card may be partly covered by another card. Answer with JSON only.',
     messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: url.slice(url.indexOf(',') + 1) } },
-      { type: 'text', text: `Vilket av dessa kort är på bilden?\n\n${list.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\n` +
-        `Titta på konstverket, ramfärgen och kortnamnet. Svara med enbart JSON:\n` +
-        `{"n": <radnummer 1-${list.length}, eller 0 om inget passar>, "sakerhet": "hog"|"medel"|"lag"}` }
+      { type: 'text', text: `Which of these cards is in the image?\n\n${list.map((c, i) => `${i + 1}. ${c.name}`).join('\n')}\n\n` +
+        `Look at the artwork, the frame color and the card name. Answer with JSON only:\n` +
+        `{"n": <row number 1-${list.length}, or 0 if none fit>, "sakerhet": "hog"|"medel"|"lag"}` }
     ] }]
   });
   const txt = (res.content || []).filter(x => x.type === 'text').map(x => x.text).join('');
@@ -6419,14 +6419,14 @@ async function askClaudeFor(img, box, rot, cands) {
 function claudeError(e) {
   const s = (e && e.message) || '';
   const st = e && e.status;
-  if (st === 503) return { fatal: true, msg: s || 'AI-hjälpen är inte tillgänglig just nu.' };
-  if (st === 429) return { fatal: true, msg: s || 'För många anrop — vänta en stund.' };
+  if (st === 503) return { fatal: true, msg: s || 'AI help is not available right now.' };
+  if (st === 429) return { fatal: true, msg: s || 'Too many requests — wait a moment.' };
   if (st === 403) return { fatal: true, msg: 'Servern nekade anropet.' };
   if (/401|authentication|invalid x-api-key/i.test(s)) return { fatal: true, msg: 'Nyckeln avvisades.' };
-  if (/429|rate.?limit/i.test(s)) return { fatal: true, msg: 'För många anrop — vänta en stund.' };
-  if (/credit|billing|quota/i.test(s)) return { fatal: true, msg: 'Slut på krediter på kontot.' };
-  if (/Failed to fetch|NetworkError|CORS/i.test(s)) return { fatal: true, msg: 'Nådde inte Anthropics API.' };
-  return { fatal: false, msg: s || 'okänt fel' };
+  if (/429|rate.?limit/i.test(s)) return { fatal: true, msg: 'Too many requests — wait a moment.' };
+  if (/credit|billing|quota/i.test(s)) return { fatal: true, msg: 'The account is out of credits.' };
+  if (/Failed to fetch|NetworkError|CORS/i.test(s)) return { fatal: true, msg: 'Could not reach the Anthropic API.' };
+  return { fatal: false, msg: s || 'unknown error' };
 }
 
 /* Knappen i ifyllnadsvyn */
@@ -6436,12 +6436,12 @@ async function askClaude() {
   if (!aiKey()) { openAI(); return; }
   const btn = $('#scanAI');
   btn.disabled = true;
-  scanNoteEl.innerHTML = '<span class="spin"></span> Frågar Claude…';
+  scanNoteEl.innerHTML = '<span class="spin"></span> Asking the model…';
   try {
     const img = (swImg && swImg.naturalWidth) ? swImg : ensureBgShot();
     const r = await askClaudeFor(img, SW.box, SW.fitRot || 0,
       out.results.map(x => ({ name: x.name, id: x.id, score: x.score })));
-    if (!r || !r.cand) scanNoteEl.innerHTML = 'Claude kände inte igen kortet bland kandidaterna.';
+    if (!r || !r.cand) scanNoteEl.innerHTML = 'The model did not recognize the card among the candidates.';
     else {
       const i = out.results.findIndex(x => x.id === r.cand.id);
       const chosen = i >= 0 ? out.results.splice(i, 1)[0] : { name: r.cand.name, id: r.cand.id, score: r.cand.score };
@@ -6449,7 +6449,7 @@ async function askClaude() {
       chosen.ai = true;
       out.results.unshift(chosen);
       renderCands();
-      scanNoteEl.innerHTML = `<b style="color:var(--blue)">Identifierat som ${esc(chosen.name)}</b> · säkerhet ${esc(r.sure)}. Tryck <kbd>1</kbd>.`;
+      scanNoteEl.innerHTML = `<b style="color:var(--blue)">Identified as ${esc(chosen.name)}</b> · confidence ${esc(r.sure)}. Tryck <kbd>1</kbd>.`;
     }
   } catch (e) {
     scanNoteEl.innerHTML = 'Claude-anropet misslyckades: ' + esc(claudeError(e).msg);
@@ -6488,7 +6488,7 @@ addEventListener('paste', async ev => {
 /* IndexedDB får aldrig kunna hänga renderingen: allt som rör lagringen
    time-boxas, resten av appen fungerar utan sparade bilder. */
 const idbTimeout = (pr, ms) => Promise.race([
-  pr, new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB svarar inte')), ms))
+  pr, new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB is not responding')), ms))
 ]);
 (async function boot() {
   /* Rita först, hydrera sen. Lagringen får aldrig gatea första ritningen —
@@ -6507,7 +6507,7 @@ const idbTimeout = (pr, ms) => Promise.race([
       shotMem.set(r.id, { rec: r, url: URL.createObjectURL(r.blob) });
     }
     state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
-  } catch (e) { toast('Sparade skärmdumpar kunde inte läsas', 'err'); }
+  } catch (e) { toast('Saved screenshots could not be read', 'err'); }
 
   try {
     const rec = await idbTimeout(IDB.poolGet(prefs.pool || 'j25'), 4000);

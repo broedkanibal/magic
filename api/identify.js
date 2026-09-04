@@ -128,23 +128,23 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
       modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL }, promptv: PANE_PROMPT_V });
   }
-  if (req.method !== 'POST') return res.status(405).json({ error: 'POST krävs' });
-  if (origin && !ok) return res.status(403).json({ error: 'Otillåtet ursprung' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
+  if (origin && !ok) return res.status(403).json({ error: 'Origin not allowed' });
 
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return res.status(503).json({ error: 'Servern saknar ANTHROPIC_API_KEY' });
+  if (!key) return res.status(503).json({ error: 'The server is missing ANTHROPIC_API_KEY' });
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'okänd';
   const gate = allow(ip);
   if (!gate.ok) {
     res.setHeader('Retry-After', String(gate.retry));
-    return res.status(429).json({ error: 'För många anrop — försök igen om en stund' });
+    return res.status(429).json({ error: 'Too many requests — try again in a moment' });
   }
 
   const { image, names, mode } = req.body || {};
   if (typeof image !== 'string' || !image)
-    return res.status(400).json({ error: 'Skicka { image: base64 }' });
-  if (image.length > MAX_IMAGE_B64) return res.status(413).json({ error: 'Bilden är för stor' });
+    return res.status(400).json({ error: 'Send { image: base64 }' });
+  if (image.length > MAX_IMAGE_B64) return res.status(413).json({ error: 'The image is too large' });
 
   /* ── Läsa av en hel videoruta ──────────────────────────────────────
      Den lokala igenkänningen bygger på att detektorn först hittar en
@@ -221,12 +221,12 @@ export default async function handler(req, res) {
     } catch (e) {
       const s = e && e.status;
       console.error('identify/land:', s || '', (e && e.message) || e);
-      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+      if (s === 429) return res.status(429).json({ error: 'Too many requests right now' });
       /* Bara feltypen följer med, inte hela svaret — den räcker för att se
          vad som gick fel utan att skicka ut förfrågningsid och interna
          detaljer på en publik endpoint. */
       const typ = (String((e && e.message) || '').match(/"type":"(\w+_error)"/) || [])[1];
-      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten',
+      return res.status(502).json({ error: 'Could not reach the image service',
         typ: typ || 'okant', promptv: PANE_PROMPT_V });
     }
   }
@@ -290,9 +290,9 @@ export default async function handler(req, res) {
     } catch (e) {
       const s = e && e.status;
       console.error('identify/namn:', s || '', (e && e.message) || e);
-      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+      if (s === 429) return res.status(429).json({ error: 'Too many requests right now' });
       const typ = (String((e && e.message) || '').match(/"type":"(\w+_error)"/) || [])[1];
-      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten',
+      return res.status(502).json({ error: 'Could not reach the image service',
         typ: typ || 'okant', promptv: PANE_PROMPT_V });
     }
   }
@@ -349,8 +349,8 @@ export default async function handler(req, res) {
     } catch (e) {
       const s = e && e.status;
       console.error('identify/card:', s || '', (e && e.message) || e);
-      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
-      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+      if (s === 429) return res.status(429).json({ error: 'Too many requests right now' });
+      return res.status(502).json({ error: 'Could not reach the image service' });
     }
   }
 
@@ -450,9 +450,9 @@ export default async function handler(req, res) {
       const s = e && e.status;
       console.error('identify/pane:', s || '', (e && e.message) || e);
       if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
-      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+      if (s === 429) return res.status(429).json({ error: 'Too many requests right now' });
       if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
-      return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+      return res.status(502).json({ error: 'Could not reach the image service' });
     }
   }
 
@@ -512,8 +512,8 @@ export default async function handler(req, res) {
     // klienten får en generell text, orsaken hamnar i serverloggen.
     console.error('identify:', s || '', (e && e.message) || e);
     if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
-    if (s === 429) return res.status(429).json({ error: 'För många anrop just nu' });
+    if (s === 429) return res.status(429).json({ error: 'Too many requests right now' });
     if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
-    return res.status(502).json({ error: 'Kunde inte nå bildtjänsten' });
+    return res.status(502).json({ error: 'Could not reach the image service' });
   }
 }
