@@ -308,11 +308,10 @@ main{flex:1;display:flex;min-height:0}
 .empty-fine{color:var(--dim2)!important;font-size:12px!important}
 
 /* ─────────── detail pane ─────────── */
-.detail{
-  flex:none;width:clamp(300px,26vw,380px);
-  border-left:1px solid var(--line);background:#0f141c;
-  display:flex;flex-direction:column;min-height:0;
-}
+/* Sidopanelen är borta. Markerat-kolumnen i nedre bandet visar det valda
+   kortet, och en panel som visade samma sak tog 290 px av bredden bordet
+   behöver. Regeltexten läser man i fokusvyn (F). */
+.detail{display:none}
 .dpad{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
 .dimg{position:relative;width:100%;aspect-ratio:488/680;border-radius:4.7%/3.4%;background:#11161e;flex:none}
 .dimg img{width:100%;height:100%;display:block;border-radius:inherit;box-shadow:var(--shadow)}
@@ -414,48 +413,68 @@ main{flex:1;display:flex;min-height:0}
   background:linear-gradient(180deg,transparent,var(--line) 20%,var(--line) 80%,transparent);
 }
 
-/* Lands: färggrupper som radbryter. Landkorten är fasta 30 px — zonen skalar
-   inte med kortbredden, den radbryter i stället. */
-.lands{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;min-height:0;overflow:hidden}
-.lgrupp{width:126px;display:flex;flex-direction:column;gap:4px;cursor:pointer}
-.lrad{display:flex;align-items:flex-end;gap:4px;min-height:42px}
+/* Lands: färggrupper som radbryter. Kortbredden (--lw) sätts av landBredd()
+   efter hur mycket plats zonen har och hur många grupper som ligger ute — men
+   knapparna och siffran är fasta, för de ska gå att träffa och läsa lika
+   snabbt oavsett. */
+.lands{
+  --lw:30px;
+  flex:1;min-height:0;overflow:hidden;
+  display:flex;flex-wrap:wrap;gap:8px;align-content:center;
+}
+/* Gruppen är så bred som den behöver — kontrollraden sätter golvet. En fast
+   schablonbredd slösade bort halva zonen när en färg bara hade några kort. */
+.lgrupp{
+  min-width:122px;
+  display:flex;flex-direction:column;gap:4px;cursor:pointer;
+}
+.lrad{display:flex;align-items:flex-end;gap:4px;min-height:calc(var(--lw) * 1.4)}
 .lstapel{display:flex;align-items:flex-end}
 .lkort{
-  flex:none;display:block;width:30px;aspect-ratio:488/680;border-radius:2px;
-  background:#11161e;overflow:hidden;position:relative;
+  flex:none;display:block;width:var(--lw);aspect-ratio:488/680;
+  border-radius:calc(var(--lw) * .067);background:#11161e;overflow:hidden;position:relative;
 }
 .lkort img{width:100%;height:100%;object-fit:cover;display:block}
 /* Skuggan ger kanten mellan de omlottliggande korten. */
 .lstapel .lkort + .lkort{box-shadow:-2px 1px 4px -1px #000c}
 /* Tappat land: vridet 90°, i en plats som är lika bred som kortet är högt. */
-.lkort.ltapp{width:42px;height:30px;aspect-ratio:auto;background:none;overflow:visible;opacity:.62}
-.lkort.ltapp img{position:absolute;left:6px;top:-6px;width:30px;height:auto;aspect-ratio:488/680;border-radius:2px;transform:rotate(90deg)}
-.lctrl{display:flex;align-items:center;gap:3px}
-.lsym{display:block;width:15px;height:15px;flex:none}
+.lkort.ltapp{
+  width:calc(var(--lw) * 1.4);height:var(--lw);aspect-ratio:auto;
+  background:none;overflow:visible;opacity:.62;
+}
+.lkort.ltapp img{
+  position:absolute;left:calc(var(--lw) * .2);top:calc(var(--lw) * -.2);
+  width:var(--lw);height:auto;aspect-ratio:488/680;
+  border-radius:calc(var(--lw) * .067);transform:rotate(90deg);
+}
+/* Kontrollraden är fast — den skalar inte med korten. */
+.lctrl{display:flex;align-items:center;gap:4px;height:30px;flex:none}
+.lsym{display:block;width:19px;height:19px;flex:none}
 .lsym svg{width:100%;height:100%;display:block}
-.lctrl b{font:700 12px/1 var(--sans);color:var(--txt);min-width:13px;text-align:center}
-.lfordel{font:9px var(--sans);color:var(--zonrakn);margin-left:1px}
+.lctrl b{font:700 17px/1 var(--sans);color:var(--txt);min-width:20px;text-align:center}
+.lfordel{font:10px var(--mono);color:var(--zonrakn);margin-left:2px}
 .mgstep{
-  width:16px;height:16px;padding:0;border-radius:4px;border:1px solid var(--line);
-  background:var(--bg3);color:var(--dim);font:700 10px/1 var(--sans);
+  width:22px;height:22px;padding:0;border-radius:5px;border:1px solid var(--line);
+  background:var(--bg3);color:var(--dim);font:700 14px/1 var(--sans);
   display:grid;place-items:center;cursor:pointer;flex:none;
 }
 .mgstep:hover{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .lgrupp.sel .lctrl b,.lgrupp.sel .lfordel{color:var(--pa-acc)}
 .lgrupp.sel .lkort{outline:1px solid var(--acc);outline-offset:1px}
-.lspec .lrad{gap:5px}
-.lspectxt{font:9px/1.25 var(--sans);color:var(--dim2)}
+.lspec .lrad{gap:5px;flex-wrap:wrap}
 
 /* Lägg till färg: ett streckat plus som fälls ut till de färger som saknas */
+/* Färgväljaren har fast storlek, som knapparna — den ska inte krympa när
+   korten gör det. */
 .fargval{
-  height:42px;padding:0 9px;display:flex;align-items:center;gap:6px;
+  height:52px;padding:0 12px;display:flex;align-items:center;gap:8px;flex:none;
   border:1px dashed var(--line);border-radius:6px;background:none;cursor:pointer;
-  font:9.5px/1 var(--sans);color:var(--dim2);align-self:flex-start;
+  font:11px/1 var(--sans);color:var(--dim2);align-self:flex-start;
 }
 .fargval:hover{border-color:var(--acc);color:var(--pa-acc)}
 .fargplus{
-  width:20px;height:20px;border-radius:50%;display:grid;place-items:center;flex:none;
-  border:1px dashed var(--line);color:var(--dim);font:300 14px/1 var(--sans);
+  width:24px;height:24px;border-radius:50%;display:grid;place-items:center;flex:none;
+  border:1px dashed var(--line);color:var(--dim);font:300 17px/1 var(--sans);
 }
 .fargval:hover .fargplus{border-color:var(--acc);color:var(--acc)}
 .fargval.oppen{border-style:solid;border-color:var(--acc);background:var(--tand);cursor:default;padding:0 5px;gap:3px}
@@ -857,12 +876,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
 .menu .hd{padding:6px 9px 3px;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim2)}
 
-/* Markerat-kolumnen i nedre bandet visar det valda kortet, så sidopanelen
-   är dubbelarbete i designens fönster (720 px) — och tar 290 px av bredden
-   som bordet behöver. Den finns kvar först när skärmen räcker till båda:
-   där ger den regeltexten som Markerat inte har plats för. */
 @media (max-width:1100px){
-  .detail{display:none}
   :root{--cardw:124px}
 }
 @media (max-height:760px){
@@ -3234,9 +3248,9 @@ function landGruppHtml(g) {
   return `<div class="lgrupp" data-alla="${g.idx.join(',')}">
     <div class="lrad">
       <span class="lstapel">${otappade.map((i, k) =>
-        `<span class="lkort" data-i="${i}" style="${k ? 'margin-left:-22px' : ''}">${bild(i)}</span>`).join('')}</span>
+        `<span class="lkort" data-i="${i}"${k ? ' style="margin-left:calc(var(--lw) * -0.733)"' : ''}>${bild(i)}</span>`).join('')}</span>
       ${tappade.length ? `<span class="lstapel ltappade">${tappade.map((i, k) =>
-        `<span class="lkort ltapp" data-i="${i}" style="${k ? 'margin-left:-24px' : ''}">${bild(i)}</span>`).join('')}</span>` : ''}
+        `<span class="lkort ltapp" data-i="${i}"${k ? ' style="margin-left:calc(var(--lw) * -0.8)"' : ''}>${bild(i)}</span>`).join('')}</span>` : ''}
     </div>
     <div class="lctrl">
       <i class="lsym">${manaFigur(g.sym)}</i>
@@ -3246,6 +3260,38 @@ function landGruppHtml(g) {
       <span class="lfordel" title="otappat / tappat">${otappade.length}/${tappade.length}</span>
     </div>
   </div>`;
+}
+
+/* Landkorten fyller den yta Lands-zonen har. Ju fler grupper, desto mindre
+   kort — men knapparna och siffran ändrar sig aldrig: de ska gå att träffa
+   och läsa lika snabbt oavsett hur många färger som ligger ute. Kortbredden
+   söks uppifrån och ned, precis som computeFit() gör för permanents. */
+const LAND_CTRL_H = 30;     // kontrollradens höjd, fast
+const LAND_GRUPP_MIN = 122; // smalaste gruppen — knapparna sätter golvet
+/* Bredden på en grupp vid kortbredden lw. Otappade ligger omlott med 26.7 %
+   synligt per kort, tappade tar 140 % i bredd och överlappar med 60 %. */
+function gruppBredd(g, lw) {
+  const inn = 4 + (g.o ? lw + (g.o - 1) * lw * 0.267 : 0)
+                + (g.t ? (g.o ? 4 : 0) + lw * 1.4 + (g.t - 1) * lw * 0.6 : 0);
+  return Math.max(LAND_GRUPP_MIN, inn);
+}
+function landBredd(grupper) {
+  const box = manaRow.querySelector('.lands');
+  if (!box || !grupper.length) return 30;
+  const W = box.clientWidth, H = box.clientHeight;
+  if (!(W > 0 && H > 0)) return 30;
+  const GAP = 8;
+  for (let lw = 76; lw >= 20; lw--) {
+    const gh = lw * 1.4 + 4 + LAND_CTRL_H;
+    // packa grupperna i rader efter sin egen bredd
+    let rader = 1, x = 0;
+    for (const g of grupper) {
+      const gw = gruppBredd(g, lw);
+      if (x > 0 && x + GAP + gw > W) { rader++; x = gw; } else x += (x ? GAP : 0) + gw;
+    }
+    if (rader * gh + (rader - 1) * GAP <= H) return lw;
+  }
+  return 20;
 }
 
 function renderMana(cards) {
@@ -3267,6 +3313,9 @@ function renderMana(cards) {
 
   /* Specialland får en egen grupp: de har regeltext som spelar roll, så de
      ligger bredvid varandra utan överlappning och går att klicka upp. */
+  /* Specialland ligger bredvid varandra utan överlappning — de har regeltext
+     som spelar roll och ska gå att se var för sig. Ingen bildtext: den sa
+     bara vad man redan ser, och tog höjd från korten. */
   const specHtml = !special.length ? '' : `<div class="lgrupp lspec">
     <div class="lrad">${special.slice(0, 4).map(i => {
       const c = cardOf(cards[i]);
@@ -3274,7 +3323,6 @@ function renderMana(cards) {
       return `<span class="lkort${cards[i].tapped ? ' ltapp' : ''}" data-i="${i}" title="${esc(c ? c.name : cards[i].name)}">${
         src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'}</span>`;
     }).join('')}</div>
-    <span class="lspectxt">${special.length} specialland — klicka för att läsa</span>
   </div>`;
 
   const saknade = BASLAND_VAL.filter(([, sym]) => !harSym.has(sym));
@@ -3298,7 +3346,7 @@ function renderMana(cards) {
       <div class="zonrub">
         <span class="zonlbl">Lands</span><i class="zonlinje"></i>
         <span class="zonrakn">${d.mana.length}${landTappade ? ' · ' + landTappade + ' tappade' : ''}</span>
-        <button class="zonchip" data-addtile title="Dra in eller klistra in en bild på land">Dra in land</button>
+        <button class="zonchip" data-addtile title="Dra in eller klistra in en bild på specialland">Dra in specialland</button>
       </div>
       <div class="lands">${grupper.map(landGruppHtml).join('')}${specHtml}${fargVal}</div>
     </div>
@@ -3320,6 +3368,17 @@ function renderMana(cards) {
       </div>
       ${gravHtml(cards, d.grav)}
     </div>`;
+
+  /* Grupperna som ska rymmas, med hur många otappade och tappade kort var och
+     en har — färgväljaren har fast storlek och räknas som en smal grupp. */
+  const matt = grupper.map(g => ({
+    o: g.idx.filter(i => !cards[i].tapped).length,
+    t: g.idx.filter(i =>  cards[i].tapped).length
+  }));
+  if (special.length) matt.push({ o: special.length, t: 0 });
+  if (saknade.length) matt.push({ o: 0, t: 0 });
+  const box = manaRow.querySelector('.lands');
+  if (box) box.style.setProperty('--lw', landBredd(matt) + 'px');
 }
 
 /* Graveyard-högen: ett lager per kort under det översta, förskjutna, så att
@@ -3677,6 +3736,12 @@ autocomplete(searchInput, $('#suggest'), name => { addCards([name]); searchInput
 
 /* ─── klick i rutnätet ─── */
 let svalgKlick = false;
+/* Chippet sitter i zonrubriken, alltså utanför #grid — klickhanteraren på
+   rutnätet nådde det aldrig. Bind på zonen i stället, så fungerar båda
+   zonernas chip likadant. */
+$('#zonPerm').addEventListener('click', ev => {
+  if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
+});
 gridEl.addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
   const gb = ev.target.closest('[data-grav]');
