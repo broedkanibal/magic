@@ -586,6 +586,17 @@ main{flex:1;display:flex;min-height:0}
   border-radius:7px;box-shadow:0 8px 22px -8px #000e;min-height:0;
 }
 .marknamn{font-size:10px;color:var(--dim);text-align:center;line-height:1.25}
+/* Handlingsraden under det valda kortet. Här står texten utskriven — det finns
+   plats, och till skillnad från hovermenyns ikoner behöver man inte gissa. */
+.markakt{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:auto}
+.markakt-b{
+  display:flex;align-items:center;gap:4px;height:22px;padding:0 7px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg3);
+  color:#cfd9e8;font:11px/1 var(--sans);cursor:pointer;
+}
+.markakt-b:hover{background:var(--acc);color:#20160a;border-color:var(--acc)}
+.markakt-b.fara:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.markakt-b svg{flex:none}
 .marktom{margin:auto;font-size:10.5px;color:var(--dim2);text-align:center;padding:0 8px}
 
 /* Graveyard: en stapel, ett lager per kort */
@@ -3517,9 +3528,6 @@ function renderMana(cards) {
       </button>`;
 
   const landTappade = d.mana.filter(i => cards[i].tapped).length;
-  const vald = selCard();
-  const valdKort = vald ? cardOf(vald) : null;
-  const valdSrc = valdKort ? imgOf(valdKort, vald.flipped && valdKort.faces.length > 1 ? 1 : 0, 'normal') : '';
 
   manaRow.innerHTML = `
     <div class="bandkol kol-lands" data-zon-lands>
@@ -3543,11 +3551,7 @@ function renderMana(cards) {
       <div class="zonrub markrub">
         <span class="zonlbl">Selected</span><i class="zonlinje"></i>
       </div>
-      <div class="markruta">
-        ${valdSrc ? `<img src="${esc(valdSrc)}" alt="" draggable="false">`
-                  : '<div class="marktom">No card selected</div>'}
-        ${vald ? `<span class="marknamn">${esc(valdKort ? valdKort.name : vald.name)}</span>` : ''}
-      </div>
+      <div class="markruta"></div>
     </div>`;
 
   /* Grupperna som ska rymmas, med hur många otappade och tappade kort var och
@@ -3560,6 +3564,50 @@ function renderMana(cards) {
   if (saknade.length) matt.push({ o: 0, t: 0 });
   const box = manaRow.querySelector('.lands');
   if (box) box.style.setProperty('--lw', landBredd(matt) + 'px');
+}
+
+/* Selected visar det valda kortet stort nog att läsa, och de handlingar man
+   gör på det. Landen har ingen hovermeny — deras kort är för små att sikta
+   på — så det här är stället där ett land går att tappa och lägga i högen. */
+function markHtml() {
+  const e = selCard();
+  if (!e) return '<div class="marktom">No card selected</div>';
+  const c = cardOf(e);
+  const src = c ? imgOf(c, e.flipped && c.faces.length > 1 ? 1 : 0, 'normal') : '';
+  return (src ? `<img src="${esc(src)}" alt="" draggable="false">`
+              : '<div class="marktom">No card selected</div>')
+    + `<span class="marknamn">${esc(c ? c.name : e.name)}</span>`
+    + markAktHtml(e, state.sel);
+}
+function markAktHtml(e, i) {
+  const iGrav = zonAv(e) === ZON_GRAV;
+  const b = bifogTyp(e);
+  const kanBifoga = !iGrav && b && malIndex(i).length;
+  /* Basland tas bort med minusknappen i sin grupp — en andra väg till samma
+     sak, med en annan symbol, hade bara gjort det oklart vilken som gäller.
+     Specialland har ingen minusknapp och behöver därför sin egen. */
+  const kanTaBort = !baslandSym(e);
+  const kn = (akt, txt, svg, extra) =>
+    `<button class="markakt-b${extra || ''}" data-akt="${akt}" data-i="${i}">${svg}<span>${txt}</span></button>`;
+  const sv = (d, w) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  return `<span class="markakt">
+    ${iGrav ? '' : kn('tap', e.tapped ? 'Untap' : 'Tap', sv('<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>', 2.2))}
+    ${kanBifoga ? kn('attach', b.etikett, sv('<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>', 2.2)) : ''}
+    ${iGrav ? '' : kn('grav', 'Graveyard', sv('<path d="M12 4v13M6 12l6 6 6-6"/>', 2.4))}
+    ${kanTaBort ? kn('del', 'Remove', sv('<path d="M6 6l12 12M18 6 6 18"/>', 2.4), ' fara') : ''}
+  </span>`;
+}
+/* Bara innehållet, inte hela bandet: en omritning av bandet river bilden och
+   laddar om den, och det blinkade vid varje piltryck. */
+function renderMark() {
+  const ruta = manaRow.querySelector('.markruta');
+  if (!ruta) return;
+  const e = selCard();
+  const nyckel = e ? [keyOf(e), e.flipped ? 1 : 0, e.tapped ? 1 : 0, zonAv(e), e.attachedTo || '',
+                      state.sel, malIndex(state.sel).length].join('·') : '';
+  if (ruta.dataset.k === nyckel) return;
+  ruta.dataset.k = nyckel;
+  ruta.innerHTML = markHtml();
 }
 
 /* Graveyard-högen: ett lager per kort under det översta, förskjutna, så att
@@ -3601,6 +3649,7 @@ function renderSel() {
   /* Högen är ett stopp i navigeringen, alltså måste den kunna se vald ut. */
   const gr = manaRow.querySelector('.grav');
   if (gr) gr.classList.toggle('sel', delaHand().grav.includes(state.sel));
+  renderMark();
   const el = gridEl.children[state.sel];
   if (el) {
     const r = el.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
@@ -4056,10 +4105,12 @@ manaRow.addEventListener('click', ev => {
     }
     return;
   }
+  const ab = ev.target.closest('[data-akt]');
+  if (ab) { kortAktion(ab.dataset.akt, +ab.dataset.i); return; }
   const lk = ev.target.closest('.lkort[data-i]');
-  if (lk) { state.sel = +lk.dataset.i; renderSel(); renderDetail(); renderMana(hand()); save(); return; }
+  if (lk) { state.sel = +lk.dataset.i; renderSel(); renderDetail(); save(); return; }
   const grp = ev.target.closest('.lgrupp[data-alla]');
-  if (grp) { state.sel = +grp.dataset.alla.split(',')[0]; renderSel(); renderDetail(); renderMana(hand()); save(); }
+  if (grp) { state.sel = +grp.dataset.alla.split(',')[0]; renderSel(); renderDetail(); save(); }
 });
 manaRow.addEventListener('dblclick', ev => { if (ev.target.closest('.lkort, .lgrupp')) openFocus(); });
 
