@@ -288,6 +288,22 @@ main{flex:1;display:flex;min-height:0}
 .dmana{display:flex;gap:1px;flex:none}
 
 /* ─────────── lägg till från bild ─────────── */
+.addtile{
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;width:100%;aspect-ratio:488/680;padding:8px;
+  border:2px dashed var(--line);border-radius:calc(var(--cardw) * .045);
+  background:#0d1219;color:var(--dim2);text-align:center;cursor:pointer;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.addtile b{font:600 11.5px/1.25 var(--sans);color:var(--dim)}
+.addtile span{font-size:10px;line-height:1.25}
+.addtile svg{color:#41506a;transition:color .12s}
+.addtile:hover,.addtile:focus-visible,.addtile.over{
+  border-color:var(--acc);background:#1a1408;outline:none;
+}
+.addtile:hover b,.addtile:focus-visible b,.addtile.over b{color:#ffd98a}
+.addtile:hover svg,.addtile:focus-visible svg,.addtile.over svg{color:var(--acc)}
+
 .imgdrop{
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
   min-height:150px;padding:22px 16px;border:2px dashed var(--line);border-radius:12px;
@@ -2741,8 +2757,10 @@ function renderTabs() {
 
 /* ─── storlek på korten i rutnätet ─── */
 function computeFit() {
-  /* Manan ligger i en egen rad utanför rutnätet och ska inte krympa korten. */
-  const n = antalSpell();
+  /* Manan ligger i en egen rad utanför rutnätet och ska inte krympa korten.
+     Tilläggsrutan däremot tar en plats i rutnätet — räknas den inte med
+     hamnar den utanför synfältet så fort handen fyller skärmen. */
+  const n = antalSpell() + (hand().length ? 1 : 0);
   if (!n) return prefs.cardw;
   const cs = getComputedStyle(gridWrap);
   const W = gridWrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
@@ -2850,6 +2868,21 @@ function renderGrid(force) {
     </button>`;
   }).join('');
 
+  /* En egen ruta sist i handen, formad som ett kort. Vägen att lägga till
+     från en bild fanns bara som en knapp uppe i handraden, och det är inte
+     där man tittar när man vill lägga till ett kort — man tittar på korten.
+     Den LÄGGER TILL, precis som sökfältet bredvid: att släppa en bild bland
+     korten och få hela handen utbytt vore en obehaglig överraskning. Hela
+     bordet läses fortfarande om via Skärmdump-knappen eller vanlig
+     inklistring. */
+  if (cards.length) {
+    gridEl.insertAdjacentHTML('beforeend', `
+      <div class="addtile" id="addTile" title="Lägg till kort från en bild (I)" role="button" tabindex="0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
+        <b>Dra in en bild här</b>
+        <span>eller klicka för att klistra in</span>
+      </div>`);
+  }
   emptyEl.classList.toggle('hide', cards.length > 0);
   renderMana(cards, k);
   applySize();
@@ -3222,6 +3255,7 @@ autocomplete(searchInput, $('#suggest'), name => { addCards([name]); searchInput
 /* ─── klick i rutnätet ─── */
 let svalgKlick = false;
 gridEl.addEventListener('click', ev => {
+  if (ev.target.closest('.addtile')) { openOv('imgOv'); return; }
   if (svalgKlick) { svalgKlick = false; ev.stopPropagation(); return; }   // klicket efter ett drag
   const del = ev.target.closest('[data-delcard]');
   if (del) { ev.stopPropagation(); removeAt(+del.dataset.delcard); return; }
@@ -3233,6 +3267,10 @@ gridEl.addEventListener('click', ev => {
   renderSel(); renderDetail(); save();
 });
 gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
+gridEl.addEventListener('keydown', ev => {
+  const t = ev.target.closest('.addtile');
+  if (t && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); openOv('imgOv'); }
+});
 
 /* Manaraden. Plus och minus ändrar antalet direkt: motståndaren spelar ett
    land till och man klickar +, i stället för att ta om skärmdumpen. Ett kort
@@ -3312,7 +3350,7 @@ gridEl.addEventListener('pointerdown', ev => {
   if (ev.button !== 0) return;
   const el = ev.target.closest('.card');
   if (!el || ev.target.closest('[data-delcard],[data-flip]')) return;
-  const barn = [...gridEl.children];
+  const barn = [...gridEl.children].filter(b => b.classList.contains('card'));
   dnd = { el, barn, från: barn.indexOf(el), till: barn.indexOf(el),
           x0: ev.clientX, y0: ev.clientY, drar: false,
           rutor: barn.map(b => b.getBoundingClientRect()) };
@@ -3519,7 +3557,7 @@ function step(d) {
 function stepRow(d) {
   const n = hand().length;
   if (!n) return;
-  const els = Array.from(gridEl.children);
+  const els = Array.from(gridEl.children).filter(e => e.classList.contains('card'));
   let cols = 1;
   if (els.length > 1) {
     const top = els[0].offsetTop;
@@ -4015,6 +4053,10 @@ addEventListener('dragenter', e => {
   e.preventDefault();
   if (++dragDepth !== 1) return;
   if (imgAddOppen()) { $('#imgDrop').classList.add('over'); return; }
+  /* Finns tilläggsrutan i handen är den ett fullgott mål i sig — då ska inte
+     bildvyn slås upp över den och gömma det man siktade på. */
+  const tile = $('#addTile');
+  if (tile) { tile.classList.add('over'); return; }
   if (!$('#shotOv').classList.contains('open')) openShot();
   swStage.classList.add('dragover');
 });
@@ -4026,6 +4068,7 @@ addEventListener('dragleave', e => {
   dragDepth = 0;
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
+  const t = $('#addTile'); if (t) t.classList.remove('over');
 });
 addEventListener('drop', async e => {
   const fs = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => /^image\//.test(f.type));
@@ -4034,10 +4077,14 @@ addEventListener('drop', async e => {
   dragDepth = 0;
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
-  /* Står tilläggsrutan öppen är avsikten given: bilden ska LÄGGA TILL kort,
-     inte läsa om bordet. Bara första filen — flera bilder som var för sig
-     lägger till kort blir en kö man inte ser slutet på. */
-  const tillagg = imgAddOppen();
+  const tile = $('#addTile'); if (tile) tile.classList.remove('over');
+  /* Bara ett släpp PÅ rutan lägger till. Överallt annars gäller det som
+     alltid gällt: bordet läses om. Att låta hela fönstret betyda "lägg till"
+     bara för att rutan finns hade brutit det vanliga arbetssättet — man drar
+     in en ny skärmdump varje tur, och då ska handen bytas ut, inte fyllas på
+     med dubbletter. Bara första filen vid tillägg: flera bilder som var för
+     sig lägger till kort blir en kö man inte ser slutet på. */
+  const tillagg = imgAddOppen() || !!(e.target.closest && e.target.closest('.addtile'));
   if (tillagg) { await addShot(fs[0], true); return; }
   for (const f of fs) await addShot(f);
 });
