@@ -4244,8 +4244,15 @@ async function analyzeShot(shotId) {
     await tick();
     const panes = Detect.findPanes(img);
     anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor hittade`;
-    anEl.panes.innerHTML = panes.map((p, i) =>
-      `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Ruta ${i + 1}</b><br><span class="c">väntar</span></span></div>`).join('');
+    ritaPaneCeller(img, panes);
+    /* Namnen startas HÄR, inte inne i svepet. De är ett litet anrop per ruta
+       och hör inte ihop med kortarbetet: läses de i tur och ordning står den
+       andra spelaren kvar som "Ruta 2" under hela närbildsläsningen av den
+       första — uppmätt tog det över en halv minut innan jesfunk dök upp. Nu
+       går de parallellt med detektorn och båda namnen står i rutorna nästan
+       direkt. */
+    var namnLoftet = (aiEnabled() && prefs.aiAuto) ? lasPaneNamn(img, panes) : null;
+    if (namnLoftet) namnLoftet.then(n => malaPaneNamn(n));
     await tick();
 
     anStep('Letar efter kort på borden…');
@@ -4317,7 +4324,7 @@ async function analyzeShot(shotId) {
        ska det detektorn redan hittat ändå hamna i handen — annars ser en
        fungerande avläsning ut som att ingenting hittades. */
     if (aiEnabled() && prefs.aiAuto) {
-      try { await claudePaneSweep(img, panes, shotId, out); }
+      try { await claudePaneSweep(img, panes, shotId, out, namnLoftet); }
       catch (e) { toast('Claude kunde inte läsa bilden — visar det appen hittade själv', 'err'); }
     }
     return applyAnalysis(shotId, out, img);
@@ -4494,6 +4501,23 @@ async function readPane(img, pane) {
   return Array.isArray(j.kort) ? j.kort : [];
 }
 
+function ritaPaneCeller(img, panes) {
+  anEl.panes.innerHTML = panes.map((p, i) =>
+    `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Ruta ${i + 1}</b><br><span class="c">väntar</span></span></div>`).join('');
+}
+/* Alla rutors namn på en gång. Ett fel på en ruta får bara kosta den rutans
+   namn — förut låg namnläsningen inne i kortslingan, och ett avbrott där tog
+   med sig namnen på rutorna som ännu inte hunnit läsas. */
+function lasPaneNamn(img, panes) {
+  return Promise.all(panes.map(p => readPaneName(img, p).catch(() => null)));
+}
+function malaPaneNamn(namn) {
+  (namn || []).forEach((n, i) => {
+    const cell = anEl.panes.children[i], b = cell && cell.querySelector('b');
+    if (n && b) b.textContent = n;
+  });
+}
+
 /* SpellTable skriver ut spelarens namn i rutans överlägg. Läses det av
    hamnar korten på en flik som heter "Xepman" i stället för "Spelare 1", och
    en senare skärmdump av samma spel kan hitta tillbaka till rätt hand även om
@@ -4519,31 +4543,32 @@ function paneCardW(p, pane) {
 /* Läser rutorna med Claude och lägger in det som saknas. Körs både som en del
    av vanliga avläsningen och från knappen i bildvyn. Returnerar hur många kort
    som hittades respektive namngavs. */
-async function claudePaneSweep(img, panes, shotId, out) {
+async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   let hittade = 0, namngivna = 0;
+  /* Namnen är klara innan kortarbetet börjar — antingen för att avläsningen
+     redan startat dem, eller genom att de startas här. */
+  if (!cancelAnalyze) {
+    anStep('Läser spelarnas namn…');
+    await tick();
+    const namn = await (namnLoftet || lasPaneNamn(img, panes));
+    malaPaneNamn(namn);
+    namn.forEach((n, i) => {
+      if (!n) return;
+      const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
+      r.spelare = n;
+    });
+  }
   for (let i = 0; i < panes.length; i++) {
     if (cancelAnalyze) return { hittade, namngivna };
     anStep(`Claude letar kort i ruta ${i + 1} av ${panes.length}`);
     anBar(i / panes.length);
     await tick();
-    /* Namnet hämtas samtidigt som korten, inte efter — det är ett eget litet
-       anrop och ska inte förlänga avläsningen med sin egen väntan. Att det
-       misslyckas får aldrig fälla svepet: då blir det bara "Spelare N". */
-    let kort, namn = null;
-    try {
-      const [k, n] = await Promise.all([
-        readPane(img, panes[i]),
-        readPaneName(img, panes[i]).catch(() => null)
-      ]);
-      kort = k; namn = n;
-    }
+    let kort;
+    try { kort = await readPane(img, panes[i]); }
     catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
 
     const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
-    if (namn) r.spelare = namn;
     const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
-    // rutan får spelarens namn i stället för "Ruta N" så man ser vem som blir vem
-    if (namn && cell) { const b = cell.querySelector('b'); if (b) b.textContent = namn; }
     const bredder = r.acc.concat(r.pend).map(x => x.box.w);
     const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
     const ch = cw / Matcher.ASPECT;
@@ -4626,6 +4651,7 @@ async function claudeReadShot() {
     const img = await loadImage(mem.url, false);
     const panes = Detect.findPanes(img);
     anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor`;
+    ritaPaneCeller(img, panes);        // den här vägen visade tidigare inga rutor alls
 
     /* Utgå från det som redan ligger i handen, så svepet inte lägger in
        dubbletter av kort avläsningen redan hittat. */
