@@ -640,6 +640,11 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .an-pane img{width:44px;height:26px;object-fit:cover;border-radius:4px;background:#000}
 .an-pane b{color:var(--txt);font-weight:600}
 .an-pane.done{border-color:#2c5a48}
+/* Den ruta som arbetas på just nu ska gå att se — annars vet man inte vems
+   kort som läses medan man väntar. */
+.an-pane.aktiv{border-color:var(--acc);background:#1a1408;color:var(--txt)}
+.an-pane.aktiv b{color:#ffd98a}
+.an-pane.aktiv img{outline:1px solid var(--acc);outline-offset:-1px}
 .an-foot{display:flex;align-items:center;gap:10px;margin-top:2px}
 .an-foot span{flex:1;color:var(--dim2);font-size:12px}
 
@@ -905,7 +910,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
       Läs av igen
     </button>
-    <button class="btn sm" id="swClaude" hidden title="Skicka hela bilden till Claude — hittar kort som detektorn missar, t.ex. kort som lampan speglat sig i. Ett anrop per ruta, plus ett per kort som behöver närbild.">
+    <button class="btn sm" id="swClaude" hidden title="Leta igenom hela bilden en gång till — hittar kort som missats, t.ex. kort som lampan speglat sig i">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
       Läs med Claude
     </button>
@@ -943,7 +948,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       </header>
       <div class="pickcrop"><img id="pickImg" alt="" title="Klicka för att zooma in i bilden"></div>
       <div class="guess" id="guessBox" hidden>
-        <span class="lbl">Claude gissar</span>
+        <span class="lbl">Förslag</span>
         <div class="row"><img id="guessImg" alt=""><span class="nm" id="guessName"></span></div>
         <div class="acts">
           <button class="btn sm prim" id="guessYes">Ja, det är rätt</button>
@@ -958,7 +963,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <div class="note" id="scanNote"></div>
       <div class="foot">
         <button class="btn sm" id="scanSkip" hidden>Hoppa över</button>
-        <button class="btn sm" id="scanAI" hidden title="Låt Claude välja bland kandidaterna">Fråga Claude</button>
+        <button class="btn sm" id="scanAI" hidden title="Försök identifiera kortet bland kandidaterna">Identifiera</button>
       </div>
     </div>
   </div>
@@ -4385,10 +4390,10 @@ async function analyzeShot(shotId) {
     }
     if (cancelAnalyze) return;
 
-    anStep('Letar efter spelarnas videorutor…');
+    anStep('Letar efter spelarnas rutor…');
     await tick();
     const panes = Detect.findPanes(img);
-    anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor hittade`;
+    anEl.note.textContent = panes.length === 1 ? '1 spelare hittad' : `${panes.length} spelare hittade`;
     ritaPaneCeller(img, panes);
     /* Namnen startas HÄR, inte inne i svepet. De är ett litet anrop per ruta
        och hör inte ihop med kortarbetet: läses de i tur och ordning står den
@@ -4427,12 +4432,14 @@ async function analyzeShot(shotId) {
     for (let i = 0; i < panes.length; i++) {
       const acc = [], pend = [];
       const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
+      anAktiv(i);
+      if (cnt) cnt.textContent = props[i].length ? `hittade ${props[i].length} kort` : 'inga kort hittade';
       for (const pr of props[i]) {
         if (cancelAnalyze) return;
         const box = { x: pr.cx - pr.w / 2, y: pr.cy - pr.h / 2, w: pr.w, h: pr.h };
         done++;
         anBar(done / total);
-        anStep(`Ruta ${i + 1} av ${panes.length} — matchar kort ${done} av ${total}`);
+        anStep(`${paneNamn(i)} — identifierar kort ${done} av ${total}`);
         let v = identifyAt(img, box, pr.deg);
         /* Räddningsomgång. Rankningen görs vid detektorns låda, och den kan
            sitta några procent fel i höjdled. För de flesta kort spelar det
@@ -4454,10 +4461,11 @@ async function analyzeShot(shotId) {
           await tick();
         }
         (v.accept ? acc : pend).push(v.rec);
-        if (cnt) cnt.textContent = `${acc.length} kort${pend.length ? ` · ${pend.length} osäkra` : ''}`;
+        if (cnt) cnt.textContent = `${acc.length} av ${props[i].length} identifierade`;
+        anRakna(done, out.reduce((n, r) => n + r.acc.length, 0) + acc.length);
         await tick();
       }
-      if (cell) cell.classList.add('done');
+      if (cell) { cell.classList.add('done'); cell.classList.remove('aktiv'); }
       out.push({ pane: panes[i], acc, pend });
     }
     await claudePass(out, img);
@@ -4470,7 +4478,7 @@ async function analyzeShot(shotId) {
        fungerande avläsning ut som att ingenting hittades. */
     if (aiEnabled() && prefs.aiAuto) {
       try { await claudePaneSweep(img, panes, shotId, out, namnLoftet); }
-      catch (e) { toast('Claude kunde inte läsa bilden — visar det appen hittade själv', 'err'); }
+      catch (e) { toast('Kunde inte läsa igenom hela bilden — visar det som hittades ändå', 'err'); }
     }
     return applyAnalysis(shotId, out, img);
   } catch (e) {
@@ -4556,7 +4564,7 @@ async function analyzeExtra(shotId) {
       const q = props[i];
       const box = { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h };
       anBar(i / props.length);
-      anStep(`Matchar kort ${i + 1} av ${props.length}`);
+      anStep(`Identifierar kort ${i + 1} av ${props.length}`);
       await tick();
       let v = identifyAt(img, box, q.deg);
       /* En beskärning har nästan alltid någon marginal kvar, och signaturen
@@ -4576,7 +4584,7 @@ async function analyzeExtra(shotId) {
          kort utanför den, och då är närbildsläget rätt verktyg: det är inte
          bundet till någon lista och slås upp mot hela Scryfall efteråt. */
       if (aiEnabled() && prefs.aiAuto) {
-        anStep(`Frågar Claude om kort ${i + 1} av ${props.length}`);
+        anStep(`Identifierar kort ${i + 1} av ${props.length}`);
         await tick();
         const k = await readCard(img, box).catch(() => null);
         if (k && k.namn) {
@@ -4767,9 +4775,33 @@ async function readPane(img, pane) {
   return Array.isArray(j.kort) ? j.kort : [];
 }
 
+/* "Ruta 1" är appens ord för sin egen bildbehandling. Den som väntar tänker
+   på spelare, inte på rektanglar i en skärmdump — och så fort namnet lästs
+   ur överlägget står det där i stället. */
+const paneNamn = i => {
+  const cell = anEl.panes.children[i], b = cell && cell.querySelector('b');
+  return (b && b.textContent) || 'Spelare ' + (i + 1);
+};
 function ritaPaneCeller(img, panes) {
   anEl.panes.innerHTML = panes.map((p, i) =>
-    `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Ruta ${i + 1}</b><br><span class="c">väntar</span></span></div>`).join('');
+    `<div class="an-pane" data-i="${i}"><img src="${cropURL(img, p, 88)}" alt=""><span><b>Spelare ${i + 1}</b><br><span class="c">väntar</span></span></div>`).join('');
+}
+function anAktiv(i) {
+  [...anEl.panes.children].forEach((c, j) => c.classList.toggle('aktiv', j === i));
+}
+/* Sammanräkningen ska säga båda talen. "6 kort" när det ligger åtta på bordet
+   läses som att två tappats bort; "6 av 8 identifierade" säger vad som
+   återstår och att appen vet om dem. */
+const anSumma = out => {
+  let h = 0, i = 0;
+  for (const r of out) { h += r.acc.length + r.pend.length; i += r.acc.length; }
+  anRakna(h, i);
+};
+function anRakna(hittade, identifierade) {
+  if (!hittade) { anEl.note.textContent = ''; return; }
+  anEl.note.textContent = identifierade === hittade
+    ? `${hittade} kort hittade och identifierade`
+    : `${hittade} kort hittade · ${identifierade} identifierade`;
 }
 /* Alla rutors namn på en gång. Ett fel på en ruta får bara kosta den rutans
    namn — förut låg namnläsningen inne i kortslingan, och ett avbrott där tog
@@ -4827,15 +4859,16 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   }
   for (let i = 0; i < panes.length; i++) {
     if (cancelAnalyze) return { hittade, namngivna };
-    anStep(`Claude letar kort i ruta ${i + 1} av ${panes.length}`);
+    anStep(`${paneNamn(i)} — letar efter kort som missats`);
     anBar(i / panes.length);
     await tick();
     let kort;
     try { kort = await readPane(img, panes[i]); }
-    catch (e) { const err = claudeError(e); toast('Claude: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
+    catch (e) { const err = claudeError(e); toast('Identifieringen: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
 
     const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
     const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
+    anAktiv(i);
     const bredder = r.acc.concat(r.pend).map(x => x.box.w);
     const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
     const ch = cw / Matcher.ASPECT;
@@ -4861,7 +4894,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
     // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
     const namnlosa = nya.filter(k => !k.namn).slice(0, NARBILD_MAX);
     if (namnlosa.length) {
-      anStep(`Ruta ${i + 1} — läser ${namnlosa.length} kort i närbild`);
+      anStep(`${paneNamn(i)} — försöker identifiera ${namnlosa.length} kort till`);
       await tick();
       let klara = 0;
       const jobb = namnlosa.map(k => async () => {
@@ -4873,8 +4906,10 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
         if (cancelAnalyze) return { hittade, namngivna };
         await Promise.all(jobb.slice(j, j + 3).map(f => f()));
       }
+      anSumma(out);
     }
 
+    anSumma(out);
     // efter snappningen kan två gissningar ha landat på samma kort
     const unika = [];
     for (const k of nya) if (!unika.some(u => boxOverlap(u.box, k.box) > 0.45)) unika.push(k);
@@ -4887,7 +4922,11 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
         continue;
       }
       hittade++;
-      if (cell && cnt) cnt.textContent = `${r.acc.length + r.pend.length + 1} kort`;
+      if (cell && cnt) {
+        const h = r.acc.length + r.pend.length + 1;
+        cnt.textContent = `${r.acc.length} av ${h} identifierade`;
+      }
+      anSumma(out);
       const rec = { box: k.box, rot: k.rot || 0, inliers: 0, byAI: true,
                     cands: k.namn ? [{ name: k.namn, sid: null, score: 1 }] : [] };
       if (k.namn && k.sakerhet === 'hog') { r.acc.push(rec); namngivna++; }
@@ -4895,6 +4934,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
     }
   }
   anBar(1);
+  anAktiv(-1);
   return { hittade, namngivna };
 }
 
@@ -4912,12 +4952,12 @@ async function claudeReadShot() {
   try {
     openOv('analyzeOv');
     anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
-    anEl.title.textContent = 'Claude läser hela bilden';
+    anEl.title.textContent = 'Letar efter kort som missats…';
     anStep('Öppnar bilden…');
     await tick();
     const img = await loadImage(mem.url, false);
     const panes = Detect.findPanes(img);
-    anEl.note.textContent = panes.length === 1 ? '1 ruta' : `${panes.length} rutor`;
+    anEl.note.textContent = panes.length === 1 ? '1 spelare' : `${panes.length} spelare`;
     ritaPaneCeller(img, panes);        // den här vägen visade tidigare inga rutor alls
 
     /* Utgå från det som redan ligger i handen, så svepet inte lägger in
@@ -4936,7 +4976,7 @@ async function claudeReadShot() {
     const f = await claudePaneSweep(img, panes, shotId, out);
     if (f.fel) return;
     applyAnalysis(shotId, out, img);
-    if (!f.hittade) toast('Claude hittade inga nya kort i bilden', 'ok');
+    if (!f.hittade) toast('Inga fler kort hittades i bilden', 'ok');
   } catch (e) {
     toast(arAvbrott(e) ? 'Avläsningen avbröts' : 'Avläsningen misslyckades: ' + (e.message || 'fel'), arAvbrott(e) ? 'ok' : 'err');
   } finally {
@@ -4951,7 +4991,7 @@ async function claudePass(out, img) {
   for (const r of out) for (const q of r.pend) jobs.push({ r, q });
   if (!jobs.length) return;
   const todo = jobs.slice(0, AI_MAX);
-  anEl.title.textContent = 'Frågar Claude om de osäkra korten';
+  anEl.title.textContent = 'Identifierar de osäkra korten';
   anEl.note.textContent = todo.length < jobs.length ? `${todo.length} av ${jobs.length} (tak per bild)` : '';
   anBar(0);
   /* Tre samtidiga anrop. Ett i taget gav en halv minut för åtta kort, vilket
@@ -4976,7 +5016,7 @@ async function claudePass(out, img) {
         }
       } catch (e) {
         const err = claudeError(e);
-        toast('Claude: ' + err.msg, 'err');
+        toast('Identifieringen: ' + err.msg, 'err');
         if (err.fatal) { stop = true; return; }
       }
       done++;
@@ -4985,7 +5025,7 @@ async function claudePass(out, img) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
-  if (added) toast(`Claude avgjorde ${added} osäkra kort`, 'ok');
+  if (added) toast(`${added} osäkra kort kunde identifieras`, 'ok');
 }
 
 /* Hur stor del av den mindre rutan som ligger inom den större. */
@@ -5719,7 +5759,7 @@ async function askClaude() {
       chosen.ai = true;
       out.results.unshift(chosen);
       renderCands();
-      scanNoteEl.innerHTML = `<b style="color:var(--blue)">Claude valde ${esc(chosen.name)}</b> · säkerhet ${esc(r.sure)}. Tryck <kbd>1</kbd>.`;
+      scanNoteEl.innerHTML = `<b style="color:var(--blue)">Identifierat som ${esc(chosen.name)}</b> · säkerhet ${esc(r.sure)}. Tryck <kbd>1</kbd>.`;
     }
   } catch (e) {
     scanNoteEl.innerHTML = 'Claude-anropet misslyckades: ' + esc(claudeError(e).msg);
