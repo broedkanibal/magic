@@ -384,6 +384,25 @@ main{flex:1;display:flex;min-height:0}
 }
 .mgstep:hover{background:var(--acc-d);color:#ffd98a;border-color:var(--acc)}
 .mgnamn{font-size:10.5px;color:var(--dim2)}
+/* Bara färger man faktiskt har står som räknare. De andra ligger bakom den
+   här knappen — fem tomma räknare på noll hade sagt lika lite som de tar plats. */
+.mgadd{border:1px dashed var(--line);background:none;justify-content:center}
+.mgadd:hover{border-color:var(--acc);background:#1a1408}
+.mgaddsym{
+  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  border:1px dashed var(--line);color:var(--dim);font:300 21px/1 var(--sans);
+}
+.mgadd:hover .mgaddsym{border-color:var(--acc);color:var(--acc)}
+.mgadd:hover .mgnamn{color:#ffd98a}
+.manavalj{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:4px 0}
+.manavalj button{
+  display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;
+  border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;min-width:74px;
+}
+.manavalj button:hover{border-color:var(--acc);background:#1a1408}
+.manavalj .ms{width:38px;height:38px}
+.manavalj span{font-size:11.5px;color:var(--dim)}
+.manavalj button:hover span{color:#ffd98a}
 .mgrp.sel .mgnamn,.mcard.sel .mnamn{color:#ffd98a}
 /* Rutan och specialmanakorten ska stå lika höga — annars ser raden ojämn ut.
    Höjden sätts en gång här i stället för att räknas fram på två ställen och
@@ -431,7 +450,8 @@ main{flex:1;display:flex;min-height:0}
 .gravtxt{display:flex;align-items:center;gap:3px}
 .gravtxt svg{opacity:.75}
 .msep.grav-sep{background:linear-gradient(180deg,transparent,var(--line) 25%,var(--line) 75%,transparent)}
-.grav:hover,.grav.over{background:#141c28;border-color:var(--acc)}
+.grav:hover,.grav.over,.grav.sel{background:#141c28;border-color:var(--acc)}
+.grav.sel .gravtxt{color:#ffd98a}
 /* Lagren bakom kortet sticker ut uppåt och åt höger, så högen behöver
    utrymme åt de hållen i .grav ovan — annars klipper raden bort djupet. */
 .gravstack{position:relative;display:block;width:42px;aspect-ratio:488/680}
@@ -805,7 +825,14 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   :root{--cardw:124px}
 }
 @media (max-height:760px){
-  .gridwrap{padding:10px}
+  /* Bara sidorna och botten. Kortformen `padding` nollställer även padding-top,
+     och det gjorde basregelns uträknade toppmarginal till död kod på varje
+     skärm lägre än 760 px — vilket är de flesta bärbara. Det var därför den
+     gula ramens ÖVERKANT fortsatte klippas fast paddingen "var fixad": uppmätt
+     10 px där formeln bad om 11,3 vid 260 px breda kort och 16,2 vid 460.
+     Överkanten är den enda sida där lyftet och skalningen adderas i stället
+     för att ta ut varandra, så det är den enda som syns. */
+  .gridwrap{padding-left:10px;padding-right:10px;padding-bottom:10px}
   .grid{gap:9px}
 }
 
@@ -944,7 +971,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
         </button>
         <div class="handmeta">
           <span id="handCount">0 kort</span>
-          <button class="btn sm" id="clearHand" title="Ta bort alla kort för den här spelaren">Töm</button>
+          <button class="btn sm" id="clearHand" title="Nollställ bordet — tar bort alla kort och alla spelare utom en">Töm bordet</button>
           <div class="zoomctl">
             <button id="fitBtn" class="fitbtn" title="Anpassa så hela handen syns (0)">Fit</button>
             <button id="zoomOut" title="Mindre kort (−)">−</button>
@@ -1109,6 +1136,20 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <span class="grow" id="bulkInfo"></span>
       <button class="btn" data-close="bulkOv">Avbryt</button>
       <button class="btn prim" id="bulkGo">Lägg till</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── välj basland ── -->
+<div class="ov" id="manaOv">
+  <div class="modal" style="width:min(430px,94vw)">
+    <header>
+      <h2>Lägg till mana</h2>
+      <button class="close" data-close="manaOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <p class="lead">Ett kort läggs till i manaraden. Har du redan färgen räknar du hellre upp den med <b>+</b> där.</p>
+      <div class="manavalj" id="manaValj"></div>
     </div>
   </div>
 </div>
@@ -1304,7 +1345,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 <div class="ov" id="analyzeOv">
   <div class="analyze">
     <h2 id="anTitle">Läser av skärmdumpen…</h2>
-    <p class="an-step" id="anStep">Letar efter spelarnas videorutor</p>
+    <p class="an-step" id="anStep">Letar efter spelarnas rutor i bilden…</p>
     <div class="prog"><i id="anBar"></i></div>
     <div class="an-panes" id="anPanes"></div>
     <div class="an-foot">
@@ -3034,7 +3075,7 @@ function renderGrid(force) {
     dz.mana.length ? dz.mana.length + ' land' : '',
     dz.grav.length ? dz.grav.length + ' i graveyard' : ''
   ].filter(Boolean).join(' · ');
-  $('#clearHand').hidden = cards.length === 0;
+  $('#clearHand').hidden = state.players.every(q => !q.cards.length && !(q.pending || []).length);
   // kompakta läget behöver veta om handen är tom för att ge startmeddelandet plats
   document.body.classList.toggle('tomhand', cards.length === 0);
   if (!force && sig === gridSig) { renderSel(); return; }
@@ -3124,6 +3165,11 @@ function renderMana(cards) {
     </button>`;
   }).join('');
 
+  const laggMana = `<button class="mgrp mgadd" data-mana-valj title="Lägg till mana av en färg du inte har än">
+      <span class="mgaddsym">+</span>
+      <span class="mgnamn">Lägg till mana</span>
+    </button>`;
+
   const ruta = `<div class="addtile mini" data-addtile role="button" tabindex="0" title="Dra in eller klistra in en bild på ett eller flera kort — de läggs till (I)">
       <svg width="24" height="19" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>
       <b>Dra in en bild</b>
@@ -3134,7 +3180,7 @@ function renderMana(cards) {
      tidigare ytterst till höger och läste som ännu en sak på bordet. Nu står
      den för sig, före manan, och det man har i spel börjar efter linjen. */
   manaRow.innerHTML = gravHtml(cards, d.grav) + '<span class="msep grav-sep"></span>'
-    + bas + (bas && spec ? '<span class="msep"></span>' : '') + spec + ruta;
+    + bas + laggMana + (spec ? '<span class="msep"></span>' : '') + spec + ruta;
 }
 
 /* En gravsten: rundad topp, rak fot. Etiketten "Graveyard" räcker inte för
@@ -3166,9 +3212,14 @@ function renderSel() {
   $$('.card', gridEl).forEach((el, i) => el.classList.toggle('sel', i === state.sel));
   /* Urvalet kan peka på ett kort i manaraden. En basgrupp är flera kort, så
      den markeras när urvalet ligger på något av dem. */
-  $$('.mgrp', manaRow).forEach(el =>
+  /* Bara riktiga managrupper — "Lägg till mana" delar klass men har inga
+     kortindex, och att läsa data-alla på den kastade mitt i renderingen. */
+  $$('.mgrp[data-alla]', manaRow).forEach(el =>
     el.classList.toggle('sel', el.dataset.alla.split(',').includes(String(state.sel))));
   $$('.mcard', manaRow).forEach(el => el.classList.toggle('sel', +el.dataset.i === state.sel));
+  /* Högen är ett stopp i navigeringen, alltså måste den kunna se vald ut. */
+  const gr = manaRow.querySelector('.grav');
+  if (gr) gr.classList.toggle('sel', delaHand().grav.includes(state.sel));
   const el = gridEl.children[state.sel];
   if (el) {
     const r = el.getBoundingClientRect(), wr = gridWrap.getBoundingClientRect();
@@ -3515,25 +3566,47 @@ manaRow.addEventListener('keydown', rutaTangent);
    land till och man klickar +, i stället för att ta om skärmdumpen. Ett kort
    per klick — handen är fortfarande den enda sanningen, så export, delning
    och ångra fungerar oförändrat. */
+const BASLAND_VAL = [['Plains','W'], ['Island','U'], ['Swamp','B'], ['Mountain','R'], ['Forest','G']];
+function openManaValj() {
+  $('#manaValj').innerHTML = BASLAND_VAL.map(([namn, sym]) =>
+    `<button data-basland="${namn}"><i class="ms ${MSCOL[sym]} xl">${manaFigur(sym)}</i><span>${namn}</span></button>`).join('');
+  openOv('manaOv');
+}
+$('#manaValj').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-basland]');
+  if (!b) return;
+  closeOv('manaOv');
+  await addCards([b.dataset.basland]);
+});
+
 manaRow.addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
+  if (ev.target.closest('[data-mana-valj]')) { openManaValj(); return; }
   if (ev.target.closest('[data-grav-open]')) { openGrav(); return; }
   const gb = ev.target.closest('[data-grav]');
   if (gb) { ev.stopPropagation(); flyttaTill(+gb.dataset.grav, ZON_GRAV); return; }
   const plus = ev.target.closest('[data-mana-plus]');
   if (plus) {
     const namn = plus.dataset.manaPlus, c = hand();
-    const mall = c.find(e => e.name === namn);
+    const mall = c.find(e => e.name === namn);      // samma tryckning som de andra
     c.push({ cid: uid(), name: namn, sid: mall && mall.sid, flipped: 0 });
-    save(); renderAll(); resolveAll();
+    save(); renderAll(true); resolveAll();
     return;
   }
   const minus = ev.target.closest('[data-mana-minus]');
   if (minus) {
+    /* Ingen ångra-notis här. Att räkna upp och ner mana är något man gör flera
+       gånger i rad under en tur, och en notis per klick lade sig över korten
+       och sa något man redan ser i siffran bredvid. Fel klick rättas med
+       knappen intill. */
     const namn = minus.dataset.manaMinus, c = hand();
     let sist = -1;
     c.forEach((e, i) => { if (e.name === namn) sist = i; });
-    if (sist >= 0) removeAt(sist);          // ångerbar, som alla andra borttag
+    if (sist >= 0) {
+      c.splice(sist, 1);
+      state.sel = clamp(state.sel, 0, Math.max(0, c.length - 1));
+      save(); renderAll(true);
+    }
     return;
   }
   const grp = ev.target.closest('.mgrp');
@@ -3790,16 +3863,23 @@ function setCardW(d) {
   prefs.cardw = clamp((prefs.fit ? computeFit() : prefs.cardw) + d, 70, 400);
   savePrefs(); applySize();
 }
+/* Töm nollställer BORDET, inte bara en hand. Spelarna kommer från
+   skärmdumpen — deras namn och antal hör till just den omgången, och att
+   lämna kvar "Xepman" och "jesfunk" utan kort efter en tömning såg ut som att
+   knappen bara gjort halva jobbet. Efter tömning står en enda "Spelare 1"
+   kvar, som när appen är ny. */
 $('#clearHand').onclick = () => {
-  const p = player();
-  if (!p.cards.length) return;
-  const old = p.cards, sel = state.sel;
-  p.cards = [];
+  const antal = state.players.reduce((n, p) => n + p.cards.length + (p.pending || []).length, 0);
+  if (!antal) return;
+  const gammalt = { players: state.players, active: state.active, sel: state.sel };
+  state.players = [mkPlayer('Spelare 1', 0)];
+  state.active = state.players[0].id;
   state.sel = 0;
   save(); renderAll(true);
-  toast(`${old.length} kort borttagna`, 'ok', () => {
-    p.cards = old;
-    state.sel = sel;
+  toast(`${antal} kort borttagna · bordet nollställt`, 'ok', () => {
+    state.players = gammalt.players;
+    state.active = gammalt.active;
+    state.sel = gammalt.sel;
     save(); renderAll(true);
   });
 };
@@ -3872,20 +3952,49 @@ $('#fxImg').addEventListener('click', () => flipSel());
 /* Piltangenterna ska följa det man SER. I remsan är det ett stopp per ruta,
    i manaraden ett per post — tre Swamp är en symbol med en trea, inte tre
    stopp. Fokusvyn visar däremot varje kort för sig och navigerar rakt. */
+/* Navigeringsordningen ska följa det ÖGAT går: hela handraden från vänster
+   till höger, sedan nedre raden i den ordning den ritas — graveyard först,
+   sedan manan, sedan specialmanan — och därefter runt till handraden igen.
+   Tre Swamp är en post i raden, inte tre, så de är ett stopp. */
 function navIdx() {
-  const c = hand(), k = antalSpell(), ut = [], sedd = new Set();
-  for (let i = 0; i < k; i++) ut.push(i);
-  for (let i = k; i < c.length; i++) {
-    if (!baslandSym(c[i])) { ut.push(i); continue; }
+  const c = hand(), d = delaHand(), ut = [], sedd = new Set();
+  for (const i of d.spell) ut.push(i);
+  if (d.grav.length) ut.push(d.grav[0]);                 // högen är ett stopp
+  const bas = [], spec = [];
+  for (const i of d.mana) {
+    const sym = baslandSym(c[i]);
+    if (!sym) { spec.push(i); continue; }
     if (sedd.has(c[i].name)) continue;
-    sedd.add(c[i].name); ut.push(i);
+    sedd.add(c[i].name); bas.push({ i, sym });
   }
+  bas.sort((a, b) => MANA_ORD.indexOf(a.sym) - MANA_ORD.indexOf(b.sym));   // samma ordning som raden
+  for (const b of bas) ut.push(b.i);
+  for (const i of spec) ut.push(i);
   return ut;
 }
-function navPos(nav, i) {                  // vilken synlig post index i hör till
-  let p = 0;
-  for (let j = 0; j < nav.length; j++) if (nav[j] <= i) p = j;
-  return p;
+/* Var i nedre raden börjar den? Upp och ner ska landa längst till vänster i
+   grannraden, och då måste gränsen mellan raderna vara känd. */
+const navRad2 = () => { const d = delaHand(); return d.spell.length; };
+/* Vilken synlig post ett kortindex hör till. Den gamla varianten tog sista
+   posten med ett lägre index och byggde alltså på att listan var stigande —
+   men visningsordningen är det inte: graveyard ligger före manan i raden och
+   sist i kortlistan. Följden blev att höger från högen hoppade tillbaka till
+   första kortet och manan aldrig gick att nå med tangenterna. */
+function navPos(nav, i) {
+  const k = nav.indexOf(i);
+  if (k >= 0) return k;
+  /* Urvalet kan stå på ett kort som inte är ett eget stopp: den andra av två
+     Swamp, eller ett kort längre ner i högen. */
+  const c = hand(), e = c[i];
+  if (!e) return 0;
+  const iGrav = zonAv(e) === ZON_GRAV;
+  for (let j = 0; j < nav.length; j++) {
+    const n = c[nav[j]];
+    if (!n) continue;
+    if (iGrav && zonAv(n) === ZON_GRAV) return j;   // hela högen är ett stopp
+    if (!iGrav && n.name === e.name) return j;      // samma basland
+  }
+  return 0;
 }
 function snapNav(i) { const nav = navIdx(); return nav.length ? nav[navPos(nav, i)] : 0; }
 function step(d) {
@@ -3893,14 +4002,26 @@ function step(d) {
   if (!n) return;
   if (focusOpen) { state.sel = clamp(state.sel + d, 0, n - 1); }
   else {
+    /* Runt kanten i stället för att ta emot: efter sista posten i nedre raden
+       kommer första kortet i handraden igen. Att stå still vid kanten läses
+       som att tangenten slutat fungera. */
     const nav = navIdx();
-    state.sel = nav[clamp(navPos(nav, state.sel) + d, 0, nav.length - 1)];
+    if (!nav.length) return;
+    const p = (navPos(nav, state.sel) + d + nav.length) % nav.length;
+    state.sel = nav[p];
   }
   save(); renderSel(); renderDetail(); renderFocus();
 }
+/* Upp och ner byter RAD, och landar alltid längst till vänster i den nya
+   raden. Att behålla kolumnen lät rimligt men blev oförutsägbart så fort
+   raderna hade olika många poster — nedre raden har inga kolumner alls. */
 function stepRow(d) {
   const n = hand().length;
   if (!n) return;
+  const nav = navIdx();
+  if (!nav.length) return;
+  const grans = navRad2();                       // första index i nedre raden
+  const iNedre = state.sel >= grans;
   const els = Array.from(gridEl.children).filter(e => e.classList.contains('card'));
   let cols = 1;
   if (els.length > 1) {
@@ -3909,8 +4030,25 @@ function stepRow(d) {
     for (const el of els) { if (el.offsetTop === top) cols++; else break; }
     cols = Math.max(1, cols);
   }
-  const t = state.sel + d * cols;
-  state.sel = snapNav(t < 0 ? 0 : t >= n ? n - 1 : t);
+  const rad2Forsta = nav.find(i => i >= grans);
+  if (d > 0) {
+    if (iNedre) { state.sel = nav[0]; }                       // varv runt till handraden
+    else {
+      const nastaRad = Math.floor(state.sel / cols + 1) * cols;
+      state.sel = nastaRad < grans ? nastaRad
+        : rad2Forsta != null ? rad2Forsta : nav[0];
+    }
+  } else {
+    if (iNedre) {
+      const sistaRadStart = grans ? Math.floor((grans - 1) / cols) * cols : 0;
+      state.sel = grans ? sistaRadStart : nav[nav.length - 1];
+    } else {
+      const rad = Math.floor(state.sel / cols);
+      state.sel = rad > 0 ? (rad - 1) * cols
+        : rad2Forsta != null ? rad2Forsta : 0;               // varv runt nedåt
+    }
+  }
+  state.sel = snapNav(state.sel);
   save(); renderSel(); renderDetail(); renderFocus();
 }
 
@@ -4098,7 +4236,11 @@ addEventListener('keydown', ev => {
     case 'Home':       ev.preventDefault(); state.sel = 0; save(); renderSel(); renderDetail(); renderFocus(); return;
     case 'End':        ev.preventDefault(); state.sel = snapNav(Math.max(0, hand().length - 1)); save(); renderSel(); renderDetail(); renderFocus(); return;
     case ' ':          ev.preventDefault(); flipSel(); return;
-    case 'Enter':      ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); return;
+    case 'Enter':
+      ev.preventDefault();
+      if (!focusOpen && delaHand().grav.includes(state.sel)) { openGrav(); return; }
+      focusOpen ? closeFocus() : openFocus();
+      return;
     case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
     case 'Backspace':
     case 'Delete':     ev.preventDefault(); removeAt(state.sel); return;
@@ -4198,8 +4340,7 @@ function loadShot(id) {
     SW.nw = swImg.naturalWidth; SW.nh = swImg.naturalHeight;
     swImg.style.width = SW.nw + 'px';
     swImg.style.height = SW.nh + 'px';
-    const p = player();
-    swFit(p.pane && p.pane.w ? p.pane : null);
+    swFit(null);
   };
   swImg.src = url;
   const p = player();
@@ -4260,12 +4401,19 @@ $('#swBoxes').addEventListener('click', ev => {
   openPicker(b.dataset.kind, b.dataset.id);
 });
 
-function openShot() {
+/* Knappen betyder "ge appen ett nytt bord", så vyn öppnas i dropp-läget även
+   när det redan finns en bild. Att den slog upp den GAMLA skärmdumpen, dessutom
+   inzoomad på en spelares ruta ur en tidigare bild, gjorde att man landade i en
+   nästan tom yta med en remsa bordsskiva i kanten och ingen aning om vad man
+   såg. Den gamla bilden nås fortfarande via miniatyrerna längst ner, och
+   granskningen via Granska-knappen. */
+function openShot(visaBild) {
   openOv('shotOv');
   const p = player();
-  const id = p.shots[clamp(p.shotIdx || 0, 0, Math.max(0, p.shots.length - 1))] || null;
+  const id = visaBild ? (p.shots[clamp(p.shotIdx || 0, 0, Math.max(0, p.shots.length - 1))] || null) : null;
   loadShot(id);
-  setTimeout(() => { if (SW.nw) swFit(p.pane && p.pane.w ? p.pane : null); }, 30);
+  /* Passar HELA bilden, inte en spelares ruta — vyn handlar om hela bordet. */
+  if (id) setTimeout(() => { if (SW.nw) swFit(null); }, 30);
 }
 function closeShot() { closeOv('shotOv'); closeScan(); }
 /* Öppna bildvyn i stället för att direkt läsa urklipp. Att appen tog det
@@ -4742,7 +4890,7 @@ async function analyzeShot(shotId) {
     }
     if (cancelAnalyze) return;
 
-    anStep('Letar efter spelarnas rutor…');
+    anStep('Letar efter spelarnas rutor i bilden…');
     await tick();
     const panes = Detect.findPanes(img);
     anEl.note.textContent = panes.length === 1 ? '1 spelare hittad' : `${panes.length} spelare hittade`;
@@ -4757,7 +4905,7 @@ async function analyzeShot(shotId) {
     if (namnLoftet) namnLoftet.then(n => malaPaneNamn(n));
     await tick();
 
-    anStep('Letar efter kort på borden…');
+    anStep('Letar efter kort hos varje spelare…');
     await tick();
     const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
     /* Motståndarens kort ligger vända mot honom, alltså upp och ner sett från
@@ -4785,13 +4933,13 @@ async function analyzeShot(shotId) {
       const acc = [], pend = [];
       const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
       anAktiv(i);
-      if (cnt) cnt.textContent = props[i].length ? `hittade ${props[i].length} kort` : 'inga kort hittade';
+      if (cnt) cnt.textContent = props[i].length ? `${props[i].length} kort hittade` : 'inga kort hittade';
       for (const pr of props[i]) {
         if (cancelAnalyze) return;
         const box = { x: pr.cx - pr.w / 2, y: pr.cy - pr.h / 2, w: pr.w, h: pr.h };
         done++;
         anBar(done / total);
-        anStep(`${paneNamn(i)} — identifierar kort ${done} av ${total}`);
+        anStep(`Identifierar kort ${done} av ${total}`);
         let v = identifyAt(img, box, pr.deg);
         /* Räddningsomgång. Rankningen görs vid detektorns låda, och den kan
            sitta några procent fel i höjdled. För de flesta kort spelar det
@@ -4814,7 +4962,10 @@ async function analyzeShot(shotId) {
         }
         (v.accept ? acc : pend).push(v.rec);
         if (cnt) cnt.textContent = `${acc.length} av ${props[i].length} identifierade`;
-        anRakna(done, out.reduce((n, r) => n + r.acc.length, 0) + acc.length);
+        /* Summan av rutorna, aldrig slingräknaren. `done` är hur många lådor
+           som behandlats, inte hur många kort som hittats — den sa "1 kort
+           hittade" när nio låg på bordet. */
+        anRakna(total, out.reduce((n, r) => n + r.acc.length, 0) + acc.length);
         await tick();
       }
       if (cell) { cell.classList.add('done'); cell.classList.remove('aktiv'); }
@@ -5053,7 +5204,15 @@ async function readCardAt(img, box, marg, lage) {
 async function readCard(img, box) {
   const forsta = await readCardAt(img, box, 0.40).catch(() => null);
   if (forsta && forsta.namn && forsta.sakerhet === 'hog' && !arBasland(forsta.namn)) return forsta;
-  const andra = await readCardAt(img, box, 0.10).catch(() => null);
+  /* Den tighta inramningen och landjämförelsen är oberoende av varandra —
+     jämförelsen behöver bara veta att NÅGON av dem gissade på ett basland,
+     och det vet vi redan av den första. Sekventiellt kostade ett basland tre
+     anropslatenser i rad, och basländer är de vanligaste korten på ett bord. */
+  const gissarLand = !!(forsta && forsta.namn && arBasland(forsta.namn));
+  const [andra, landTidigt] = await Promise.all([
+    readCardAt(img, box, 0.10).catch(() => null),
+    gissarLand ? readCardAt(img, box, 0.15, 'land').catch(() => null) : Promise.resolve(null)
+  ]);
   /* Ett svar från EN inramning som inte är säkert räcker inte. Det var så en
      Swamp presenterades som "Island" — den ena inramningen sa inget alls och
      den andras gissning gick rakt igenom. Antingen säker vid första försöket,
@@ -5066,7 +5225,7 @@ async function readCard(img, box) {
      dödskalle kallades "Forest" — ur minnet är en mörk klump på 80 pixlar
      lätt att ta fel på, sida vid sida med facit är den det inte. */
   if ((a && arBasland(a.namn)) || (b && arBasland(b.namn))) {
-    const land = await readCardAt(img, box, 0.15, 'land').catch(() => null);
+    const land = landTidigt || await readCardAt(img, box, 0.15, 'land').catch(() => null);
     if (land && land.namn) {
       /* Jämförelsen mot de fem korten finns för att FÅNGA fel, inte för att
          sänka ett svar som redan är belagt. Uppmätt på en Swamp i lampglans:
@@ -5161,11 +5320,16 @@ const anSumma = out => {
   for (const r of out) { h += r.acc.length + r.pend.length; i += r.acc.length; }
   anRakna(h, i);
 };
+/* Två skilda saker, och förvirringen kom av att texten blandade dem: att
+   HITTA ett kort är att se att där ligger ett kort, att IDENTIFIERA det är
+   att avgöra vilket. Det första fungerar även när det andra inte gör det, och
+   räknaren måste därför alltid visa båda talen. */
 function anRakna(hittade, identifierade) {
   if (!hittade) { anEl.note.textContent = ''; return; }
-  anEl.note.textContent = identifierade === hittade
-    ? `${hittade} kort hittade och identifierade`
-    : `${hittade} kort hittade · ${identifierade} identifierade`;
+  const kvar = hittade - identifierade;
+  anEl.note.textContent = kvar
+    ? `${hittade} kort hittade · ${identifierade} identifierade · ${kvar} kvar`
+    : `${hittade} kort hittade och identifierade`;
 }
 /* Alla rutors namn på en gång. Ett fel på en ruta får bara kosta den rutans
    namn — förut låg namnläsningen inne i kortslingan, och ett avbrott där tog
@@ -5221,18 +5385,26 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
       r.spelare = n;
     });
   }
-  for (let i = 0; i < panes.length; i++) {
-    if (cancelAnalyze) return { hittade, namngivna };
-    anStep(`${paneNamn(i)} — letar efter kort som missats`);
-    anBar(i / panes.length);
+  /* Rutorna läses SAMTIDIGT. De är helt oberoende av varandra, och
+     sekventiellt kostade två spelare dubbla svepstiden — uppmätt 17,6 s för
+     den ena rutan och 17,4 för den andra, i rad. */
+  let klaraRutor = 0;
+  await Promise.all(panes.map((_, i) => (async () => {
+    if (cancelAnalyze) return;
+    anStep(panes.length > 1
+      ? `Letar en gång till efter kort som missats — ${panes.length} spelare samtidigt`
+      : 'Letar en gång till efter kort som missats…');
+    anBar(klaraRutor / panes.length);
     await tick();
     let kort;
+    /* Ett fel på EN ruta får inte fälla de andra nu när de körs samtidigt —
+       den som lyckades ska behålla sina kort. */
     try { kort = await readPane(img, panes[i]); }
-    catch (e) { const err = claudeError(e); toast('Identifieringen: ' + err.msg, 'err'); return { hittade, namngivna, fel: true }; }
+    catch (e) { const err = claudeError(e); toast('Identifieringen: ' + err.msg, 'err'); return; }
 
     const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
     const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
-    anAktiv(i);
+    if (cell) cell.classList.add('aktiv');       // alla rutor arbetar samtidigt nu
     const bredder = r.acc.concat(r.pend).map(x => x.box.w);
     const cw = bredder.length ? bredder.sort((a, b) => a - b)[bredder.length >> 1] : panes[i].w * 0.10;
     const ch = cw / Matcher.ASPECT;
@@ -5258,7 +5430,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
     // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
     const namnlosa = nya.filter(k => !k.namn).slice(0, NARBILD_MAX);
     if (namnlosa.length) {
-      anStep(`${paneNamn(i)} — försöker identifiera ${namnlosa.length} kort till`);
+      anStep(`Identifierar ${namnlosa.length} kort till på närbild`);
       await tick();
       let klara = 0;
       const jobb = namnlosa.map(k => async () => {
@@ -5266,9 +5438,11 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
         catch (e) { /* ett misslyckat kort ska inte stoppa resten */ }
         anBar((i + (++klara / namnlosa.length)) / panes.length);
       });
-      for (let j = 0; j < jobb.length; j += 3) {
-        if (cancelAnalyze) return { hittade, namngivna };
-        await Promise.all(jobb.slice(j, j + 3).map(f => f()));
+      /* Två i taget per ruta i stället för tre: rutorna körs nu samtidigt, så
+         den totala samtidigheten mot serverns takräkning blir densamma. */
+      for (let j = 0; j < jobb.length; j += 2) {
+        if (cancelAnalyze) return;
+        await Promise.all(jobb.slice(j, j + 2).map(f => f()));
       }
       anSumma(out);
     }
@@ -5296,7 +5470,8 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
       if (k.namn && k.sakerhet === 'hog') { r.acc.push(rec); namngivna++; }
       else { rec.ai = k.namn ? k.sakerhet : undefined; r.pend.push(rec); }
     }
-  }
+    anBar(++klaraRutor / panes.length);
+  })()));
   anBar(1);
   anAktiv(-1);
   return { hittade, namngivna };
@@ -5308,8 +5483,8 @@ async function claudePass(out, img) {
   for (const r of out) for (const q of r.pend) jobs.push({ r, q });
   if (!jobs.length) return;
   const todo = jobs.slice(0, AI_MAX);
-  anEl.title.textContent = 'Identifierar de osäkra korten';
-  anEl.note.textContent = todo.length < jobs.length ? `${todo.length} av ${jobs.length} (tak per bild)` : '';
+  /* Rubriken och räknaren tillhör hela avläsningen. Skrev det här steget
+     över dem försvann summan mitt i körningen och rubriken hoppade. */
   anBar(0);
   /* Tre samtidiga anrop. Ett i taget gav en halv minut för åtta kort, vilket
      kändes som att appen hängt sig. Fler än så är onödigt — takräkningen på
@@ -5338,7 +5513,7 @@ async function claudePass(out, img) {
       }
       done++;
       anBar(done / todo.length);
-      anStep(`Kort ${done} av ${todo.length}`);
+      anStep(`Gör ett nytt försök på ${todo.length} osäkra kort — ${done} av ${todo.length}`);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
@@ -5791,7 +5966,8 @@ $('#pendDrop').onclick = async () => {
 $('#pendGo').onclick = () => {
   const p = player();
   if (!p.pending || !p.pending.length) return;
-  if (!$('#shotOv').classList.contains('open')) openShot();
+  // granskningen behöver bilden framme, till skillnad från knappen i toppraden
+  if (!$('#shotOv').classList.contains('open')) openShot(true);
   setTimeout(() => { byggKo(); nextPending(); }, 200);
 };
 

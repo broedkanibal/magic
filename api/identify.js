@@ -22,7 +22,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
    två felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 11;
+const PANE_PROMPT_V = 12;
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -41,9 +41,11 @@ const BASLAND = [
    användaragent Scryfall ber om, och behåller resultatet mellan anrop på en
    varm instans så att de fem bilderna bara hämtas en gång. */
 const landCache = new Map();
+/* De fem hämtas parallellt. En kall instans gjorde annars fem hämtningar i
+   rad innan modellanropet ens hann börja. Varma instanser läser ur cachen och
+   märker ingen skillnad. */
 async function landBilder() {
-  const ut = [];
-  for (const [namn, url] of BASLAND) {
+  return Promise.all(BASLAND.map(async ([namn, url]) => {
     let b64 = landCache.get(url);
     if (!b64) {
       const r = await fetch(url, { headers: { 'User-Agent': 'Handvy/1.0 (MTG-korthjalp)', 'Accept': 'image/jpeg' } });
@@ -51,9 +53,8 @@ async function landBilder() {
       b64 = Buffer.from(await r.arrayBuffer()).toString('base64');
       landCache.set(url, b64);
     }
-    ut.push([namn, b64]);
-  }
-  return ut;
+    return [namn, b64];
+  }));
 }
 
 /* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
@@ -230,10 +231,14 @@ export default async function handler(req, res) {
   if (mode === 'namn') {
     try {
       const client = new Anthropic({ apiKey: key, maxRetries: 2 });
+      /* Låg ansträngning. Att läsa ett användarnamn ur en etikett kräver ingen
+         eftertanke, men med hög låg anropet på 15 sekunder — uppmätt två
+         anrop på 30,5 s av en avläsning på 93 s. Svaret används bara när det
+         är säkert, så en billigare gissning kostar ingenting i kvalitet. */
       const stream = client.messages.stream({
         model: MODEL,
-        max_tokens: 2000,
-        output_config: { effort: 'high' },
+        max_tokens: 600,
+        output_config: { effort: 'low' },
         system:
           'Du läser användarnamnet ur SpellTables gränssnitt. Bilden är en videoruta från ' +
           'ett Magic-spelbord med ett överlägg ovanpå: användarnamnet står med fet stil i ' +
