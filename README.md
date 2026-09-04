@@ -20,11 +20,18 @@ Första gången du läser av en bild bygger appen ett bildindex över kortsetet
 (~780 kort, ca 30 sekunder). Det sparas lokalt och görs aldrig om.
 
 **Tre vägar in i handen.** Skriv kortnamnet i sökfältet, klistra in en lista med
-namn (`Lista`, eller <kbd>B</kbd>), eller klistra in en bild (`Bild`, eller
-<kbd>I</kbd>) — en beskuren skärmdump, ett foto, en kortbild från nätet. Bilden
-LÄGGER TILL kort; det som redan ligger i handen rörs inte. Att klistra in en hel
-SpellTable-skärmdump utan att först öppna den rutan gör något annat: då läses
-hela bordet om och handen ersätts.
+namn (`Lista`, eller <kbd>B</kbd>), eller ge appen en bild.
+
+**Var bilden hamnar avgör vad som händer:**
+
+| var | vad som händer |
+| --- | --- |
+| huvudvyn — <kbd>⌘V</kbd>, dra in en fil, eller släpp den i någon av rutorna | korten som hittas **läggs till**; det som redan ligger i handen står kvar |
+| bildvyn (öppnas med `Skärmdump`) | bilden läses av som ett helt bord och **handen ersätts** |
+
+Bilden kan innehålla ett kort eller flera — en beskuren skärmdump, ett foto, en
+kortbild från nätet, eller en hel SpellTable-skärmdump. Är det en hel skärmdump
+söker appen bara igenom videorutorna, så sidopanelens kortlista kommer inte med.
 
 ## Är allt driftsatt?
 
