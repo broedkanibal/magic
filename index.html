@@ -95,6 +95,10 @@ kbd{
 }
 .ptab.on .num{color:var(--acc)}
 .ptab .cnt{font:11px/1 var(--mono);color:var(--dim2);background:#00000055;border-radius:20px;padding:3px 6px}
+/* Fliken räknade bara de namngivna korten. Ligger det åtta kort på bordet och
+   sex gick att läsa stod det "6", och de två som väntade på ifyllning såg ut
+   som borttappade. Nu står de kvar som "6+2". */
+.ptab .cnt em{font-style:normal;color:var(--acc);margin-left:1px}
 .ptab.on .cnt{color:#cfd9e8}
 .ptab .pen{padding:3px;border-radius:4px;color:var(--dim2);line-height:0;opacity:.65}
 .ptab .pen:hover{background:#00000055;color:var(--acc);opacity:1}
@@ -273,8 +277,12 @@ main{flex:1;display:flex;min-height:0}
   background:#cdc5c2;box-shadow:inset 0 -1px 0 #0003, 0 1px 1px #0006;
   text-shadow:none;
 }
-.ms.w{background:#fbf7e2}.ms.u{background:#a7d3ee}.ms.b{background:#b0a49d}
-.ms.r{background:#f0a48b}.ms.g{background:#9fd0a8}.ms.c{background:#cbc6c1}
+.ms{--msbg:#cdc5c2}
+.ms.w{background:#fbf7e2;--msbg:#fbf7e2}.ms.u{background:#a7d3ee;--msbg:#a7d3ee}
+.ms.b{background:#b0a49d;--msbg:#b0a49d}.ms.r{background:#f0a48b;--msbg:#f0a48b}
+.ms.g{background:#9fd0a8;--msbg:#9fd0a8}.ms.c{background:#cbc6c1;--msbg:#cbc6c1}
+.ms svg{width:70%;height:70%;display:block;fill:#100d08}
+.ms svg .cut{fill:var(--msbg)}
 .ms.hy{font-size:8px;background:linear-gradient(135deg,var(--h1) 50%,var(--h2) 50%)}
 .ms.big{width:18px;height:18px;font-size:11px;vertical-align:-3px}
 .dmana{display:flex;gap:1px;flex:none}
@@ -2302,6 +2310,32 @@ function symbol(tok, big) {
   }
   return `<i class="ms ${MSCOL[t] || 'c'}${cls}">${esc(t === 'T' ? 'T' : t)}</i>`;
 }
+/* Manaraden ska visa symbolen, inte bokstaven: en svart dödskalle säger
+   "Swamp" på en blick, ett "B" måste översättas i huvudet — och det är just
+   symbolen man känner igen från kortet man tittar på. Bokstäverna sitter kvar
+   i manakostnaden, där de blandas med siffror ({3}{B}) och måste kunna läsas
+   som text.
+
+   Ögonhålor, tänder och liknande urtag ritas i brickans egen färg via
+   --msbg, så samma figur fungerar mot alla fem bakgrunderna. */
+const MANA_FIG = {
+  W: '<path d="M12 2.4l1.9 4.3 4.3-1.9-1.9 4.3 4.3 1.9-4.3 1.9 1.9 4.3-4.3-1.9L12 21.6l-1.9-4.3-4.3 1.9 1.9-4.3L3.4 13l4.3-1.9-1.9-4.3 4.3 1.9z"/>',
+  U: '<path d="M12 2.3c-.3 0-6.6 7.2-6.6 11.5a6.6 6.6 0 1 0 13.2 0C18.6 9.5 12.3 2.3 12 2.3z"/>',
+  B: '<path d="M12 2.9c-4.4 0-7.7 3.1-7.7 7.3 0 2.3 1 4.2 2.6 5.5v2.6c0 .9.7 1.6 1.6 1.6h7c.9 0 1.6-.7 1.6-1.6v-2.6c1.6-1.3 2.6-3.2 2.6-5.5 0-4.2-3.3-7.3-7.7-7.3z"/>'
+     + '<ellipse class="cut" cx="9.2" cy="10.1" rx="2.2" ry="2.5"/><ellipse class="cut" cx="14.8" cy="10.1" rx="2.2" ry="2.5"/>'
+     + '<path class="cut" d="M9 16.4h1.4v3.5H9zM11.3 16.4h1.4v3.5h-1.4zM13.6 16.4H15v3.5h-1.4z"/>',
+  R: '<path d="M12.6 2.2c.5 2.4-.4 4-1.6 5.4-1 1.2-1.7 2-1.7 3.2 0 .8.3 1.4.3 1.4s-1.5-.7-2.3-2.2c-1.3 1.6-2 3.4-2 5.1 0 3.4 3 6.5 6.7 6.5s6.7-2.8 6.7-6.5c0-5.1-4-9.4-6.1-12.9z"/>',
+  /* En enda lob med en smal stam blev ett nyckelhål, inte ett träd. Tre
+     överlappande lober ger en lövkrona som håller ihop även vid 26 px. */
+  G: '<circle cx="12" cy="8.2" r="5.1"/><circle cx="7.4" cy="11.4" r="4.1"/>'
+     + '<circle cx="16.6" cy="11.4" r="4.1"/><path d="M10.6 11.5h2.8v9.9h-2.8z"/>',
+  C: '<path d="M12 2.6 4.8 12 12 21.4 19.2 12z"/>'
+};
+function manaFigur(bokstav) {
+  const f = MANA_FIG[bokstav];
+  return f ? `<svg viewBox="0 0 24 24" aria-hidden="true">${f}</svg>` : esc(bokstav);
+}
+
 function symbolize(str, big) {
   return esc(str).replace(/\{([^}]{1,5})\}/g, (_, t) => symbol(t, big));
 }
@@ -2607,7 +2641,7 @@ function mkPlayer(name, i) {
      ska aldrig skrivas över av en avläsning, och ett "Spelare 2" ska aldrig
      stå kvar när bilden faktiskt säger vem det är. */
   return { id: uid(), name, color: PALETTE[i % PALETTE.length], cards: [], shots: [], shotIdx: 0,
-           pending: [], pane: null, namnkalla: null };
+           pending: [], pane: null, namnkalla: null, bildnamn: null };
 }
 let saveT = null;
 function save() {
@@ -2616,7 +2650,8 @@ function save() {
     const slim = {
       active: state.active, sel: state.sel,
       players: state.players.map(p => ({
-        id: p.id, name: p.name, namnkalla: p.namnkalla || undefined, color: p.color, shots: p.shots, shotIdx: p.shotIdx,
+        id: p.id, name: p.name, namnkalla: p.namnkalla || undefined, bildnamn: p.bildnamn || undefined,
+        color: p.color, shots: p.shots, shotIdx: p.shotIdx,
         pane: p.pane || undefined,
         pending: (p.pending || []).map(q => ({ id: q.id, box: q.box, rot: q.rot, shotId: q.shotId, cands: (q.cands || []).slice(0, 8) })),
         cards: p.cards.map(c => ({
@@ -2646,11 +2681,11 @@ const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'),
 function renderTabs() {
   const box = $('#playerTabs');
   box.innerHTML = state.players.map((p, i) => `
-    <button class="ptab${p.id === state.active ? ' on' : ''}" data-pid="${esc(p.id)}" title="${esc(p.name)} — tryck ${i + 1}">
+    <button class="ptab${p.id === state.active ? ' on' : ''}" data-pid="${esc(p.id)}" title="${esc(p.name)} — tryck ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} kort behöver fyllas i` : ''}">
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      <span class="cnt">${p.cards.length}</span>
+      <span class="cnt">${p.cards.length}${(p.pending || []).length ? `<em>+${p.pending.length}</em>` : ''}</span>
       ${p.id === state.active ? `<span class="pen" data-rename="${esc(p.id)}" title="Döp om (R)" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>` : ''}
       ${state.players.length > 1 ? `<span class="x" data-del="${esc(p.id)}" title="Ta bort spelaren" role="button">
@@ -2711,7 +2746,10 @@ function baslandSym(e) {
   const t = typLinje(e);
   if (!/^basic\b/i.test(t)) return null;
   const sub = t.split(/[—–-]/).pop().trim().toLowerCase().split(/\s+/).pop();
-  return MANA_SUB[sub] || null;
+  if (MANA_SUB[sub]) return MANA_SUB[sub];
+  // Wastes saknar undertyp — typraden är bara "Basic Land" — och hamnade
+  // därför bland specialmanan trots att den är ett basland som alla andra.
+  return /^basic[a-z ]*land$/i.test(t.trim()) ? 'C' : null;
 }
 /* Manan flyttas FYSISKT sist i listan i stället för bara visuellt. Då behåller
    varje kort ett giltigt index, och urval, piltangenter, dragsortering och
@@ -2791,7 +2829,7 @@ function renderMana(cards, k) {
 
   const bas = grupper.map(g => `
     <div class="mgrp" data-alla="${g.idx.join(',')}" title="${esc(g.namn)} — klicka för att visa kortet">
-      <i class="ms ${MSCOL[g.sym] || 'c'} xl">${esc(g.sym)}</i>
+      <i class="ms ${MSCOL[g.sym] || 'c'} xl">${manaFigur(g.sym)}</i>
       <span class="mgn">
         <button class="mgstep" data-mana-minus="${esc(g.namn)}" title="En ${esc(g.namn)} färre">−</button>
         <b>${g.idx.length}</b>
@@ -4702,16 +4740,21 @@ function applyAnalysis(shotId, out, img) {
     let p = valda[i];
     if (!p) {
       p = mkPlayer(r.spelare || 'Spelare ' + (i + 1), state.players.length);
-      if (r.spelare) p.namnkalla = 'bild';
+      if (r.spelare) { p.namnkalla = 'bild'; p.bildnamn = r.spelare; }
       state.players.push(p); tagna.add(p.id); valda[i] = p;
-    } else if (r.spelare && p.namnkalla !== 'anvandare'
-               && !state.players.some(q => q !== p && norm(q.name) === norm(r.spelare))) {
-      /* Ett namn användaren skrivit själv står kvar — det är alltid mer värt
-         än en avläsning. Och två flikar får aldrig heta samma sak: de går
-         inte att skilja åt i flikraden, och nästa skärmdump skulle inte veta
-         vilken av dem den syftade på. */
-      p.name = r.spelare; p.namnkalla = 'bild';
+    } else if (r.spelare && !state.players.some(q => q !== p && norm(q.name) === norm(r.spelare))) {
+      /* Ett handskrivet namn vetar bara det namn det FAKTISKT ersatte. Döper
+         man om "jesfunk" till "Jesper" ska nästa skärmdump inte sätta tillbaka
+         "jesfunk" — men en flik som fått sitt namn på något annat sätt har
+         inget avvisat namn, och där ska bilden bestämma. Utan den skillnaden
+         blev ett vetande av allting: flikar som hette "Jesper" och "Herman"
+         sedan tidigare stod kvar fast bilden tydligt sa Xepman och jesfunk.
+         Två flikar får ändå aldrig heta samma sak — de går inte att skilja åt
+         i flikraden, och nästa skärmdump skulle inte veta vilken den menade. */
+      const avvisat = p.namnkalla === 'anvandare' && p.bildnamn && norm(p.bildnamn) === norm(r.spelare);
+      if (!avvisat) { p.name = r.spelare; p.namnkalla = 'bild'; }
     }
+    if (r.spelare) p.bildnamn = r.spelare;     // vad bilden sa, oavsett om det användes
     p.pane = r.pane;
     p.cards = r.acc.map(a => ({
       cid: uid(), name: a.cands[0].name, sid: a.cands[0].sid, flipped: 0,
