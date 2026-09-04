@@ -287,6 +287,18 @@ main{flex:1;display:flex;min-height:0}
 .ms.big{width:18px;height:18px;font-size:11px;vertical-align:-3px}
 .dmana{display:flex;gap:1px;flex:none}
 
+/* ─────────── lägg till från bild ─────────── */
+.imgdrop{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  min-height:150px;padding:22px 16px;border:2px dashed var(--line);border-radius:12px;
+  background:#0d1219;color:var(--dim2);text-align:center;transition:border-color .12s,background .12s;
+}
+.imgdrop b{font-size:13.5px;font-weight:600;color:var(--txt)}
+.imgdrop span{font-size:11.5px}
+.imgdrop svg{color:#4d5a6d}
+.imgdrop.over{border-color:var(--acc);background:#1a1408}
+.imgdrop.over svg{color:var(--acc)}
+
 /* ─────────── manaraden ───────────
    På bordet ligger creatures, artifacts och enchantments på en eller flera
    rader och manan på raden under. Handen speglar det: manan bryts ut ur
@@ -720,6 +732,11 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 
   /* i handraden får bara sökrutan plats */
   #bulkBtn,.handmeta{display:none}
+  /* Bildknappen får INTE gömmas som Lista-knappen: att lägga till kort från
+     en bild är en av två vägar in i handen, och den smala vyn är just den
+     där man har minst plats att skriva namn för hand. Bara texten går. */
+  #imgBtn{padding:0 8px;font-size:0}
+  #imgBtn svg{margin:0;font-size:13px}
   .searchwrap{max-width:none;min-width:0}
 
   /* tom hand: låt remsan bli stor nog för startmeddelandet */
@@ -779,6 +796,10 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
         <button class="btn" id="bulkBtn" title="Klistra in flera kortnamn (B)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M6 8h12M6 12h12M6 16h7"/></svg>
           Lista
+        </button>
+        <button class="btn" id="imgBtn" title="Lägg till kort från en bild (I)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
+          Bild
         </button>
         <div class="handmeta">
           <span id="handCount">0 kort</span>
@@ -953,6 +974,30 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   </div>
 </div>
 
+<!-- ── lägg till kort från en bild ── -->
+<div class="ov" id="imgOv">
+  <div class="modal" style="width:min(560px,94vw)">
+    <header>
+      <h2>Lägg till kort från en bild</h2>
+      <button class="close" data-close="imgOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <p class="lead">En bild på ett eller flera kort — en beskuren skärmdump, ett foto, en kortbild från nätet. Korten som hittas <b>läggs till</b> i handen; det som redan ligger där rörs inte.</p>
+      <div class="imgdrop" id="imgDrop">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
+        <b>Klistra in med <kbd>⌘V</kbd> eller dra in bilden hit</b>
+        <span>Går också att välja en fil nedan</span>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="grow"></span>
+      <button class="btn" data-close="imgOv">Avbryt</button>
+      <button class="btn prim" id="imgPick">Välj bild…</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="imgFile" accept="image/*" hidden>
+
 <!-- ── bekräfta ── -->
 <div class="ov" id="askOv">
   <div class="modal" style="width:min(430px,94vw)">
@@ -1005,6 +1050,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
             <dt><kbd>⌘V</kbd></dt><dd>Klistra in en SpellTable-skärmdump — läses av automatiskt</dd>
             <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Hoppa till sökrutan</dd>
             <dt><kbd>B</kbd></dt><dd>Klistra in en lista med namn</dd>
+            <dt><kbd>I</kbd></dt><dd>Lägg till kort från en bild</dd>
             <dt><kbd>⌫</kbd> <kbd>Del</kbd></dt><dd>Ta bort valt kort</dd>
             <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Flytta kortet vänster / höger</dd>
             <dt><kbd>D</kbd></dt><dd>Duplicera valt kort</dd>
@@ -3344,6 +3390,16 @@ function startRename(id) {
   inp.addEventListener('blur', () => done(true));
   inp.addEventListener('click', e => e.stopPropagation());
 }
+const imgAddOppen = () => $('#imgOv').classList.contains('open');
+$('#imgBtn').onclick = () => openOv('imgOv');
+$('#imgDrop').onclick = () => $('#imgFile').click();
+$('#imgPick').onclick = () => $('#imgFile').click();
+$('#imgFile').onchange = async ev => {
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = '';                   // samma fil ska gå att välja igen
+  if (f) await addShot(f, true);
+};
+
 $('#addPlayerBtn').onclick = () => { addPlayer(); startRename(state.active); };
 
 /* ─── zoom / fit ─── */
@@ -3673,6 +3729,7 @@ addEventListener('keydown', ev => {
   if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
   else if (lower === 'b') { ev.preventDefault(); openBulk(); }
+  else if (lower === 'i') { ev.preventDefault(); openOv('imgOv'); }
   else if (lower === 's') { ev.preventDefault(); $('#shotBtn').click(); }
   else if (lower === 'n') { ev.preventDefault(); addPlayer(); startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
@@ -3956,28 +4013,43 @@ let dragDepth = 0;
 addEventListener('dragenter', e => {
   if (!Array.from(e.dataTransfer.types || []).includes('Files')) return;
   e.preventDefault();
-  if (++dragDepth === 1) { if (!$('#shotOv').classList.contains('open')) openShot(); swStage.classList.add('dragover'); }
+  if (++dragDepth !== 1) return;
+  if (imgAddOppen()) { $('#imgDrop').classList.add('over'); return; }
+  if (!$('#shotOv').classList.contains('open')) openShot();
+  swStage.classList.add('dragover');
 });
 addEventListener('dragover', e => {
   if (Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault();
 });
-addEventListener('dragleave', e => { if (--dragDepth <= 0) { dragDepth = 0; swStage.classList.remove('dragover'); } });
+addEventListener('dragleave', e => {
+  if (--dragDepth > 0) return;
+  dragDepth = 0;
+  swStage.classList.remove('dragover');
+  $('#imgDrop').classList.remove('over');
+});
 addEventListener('drop', async e => {
   const fs = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => /^image\//.test(f.type));
   if (!fs.length) return;
   e.preventDefault();
   dragDepth = 0;
   swStage.classList.remove('dragover');
+  $('#imgDrop').classList.remove('over');
+  /* Står tilläggsrutan öppen är avsikten given: bilden ska LÄGGA TILL kort,
+     inte läsa om bordet. Bara första filen — flera bilder som var för sig
+     lägger till kort blir en kö man inte ser slutet på. */
+  const tillagg = imgAddOppen();
+  if (tillagg) { await addShot(fs[0], true); return; }
   for (const f of fs) await addShot(f);
 });
 
 /* ── bilder in ── */
-async function addShot(blob) {
+async function addShot(blob, tillagg) {
   if (!blob || !/^image\//.test(blob.type)) return;
   const rec = { id: uid(), ts: Date.now(), blob };
   try { await IDB.put(rec); }
   catch (e) { toast('Kunde inte spara bilden lokalt', 'err'); return; }
   shotMem.set(rec.id, { rec, url: URL.createObjectURL(blob) });
+  if (tillagg) { closeOv('imgOv'); return analyzeExtra(rec.id); }
   const found = await analyzeShot(rec.id);
   /* Efter en avläsning hör man hemma i handen, inte kvar i bildvyn. Det var
      tidigare sant av en slump — vyn öppnades först efteråt. Sedan bilder kan
@@ -4328,6 +4400,123 @@ async function analyzeShot(shotId) {
       catch (e) { toast('Claude kunde inte läsa bilden — visar det appen hittade själv', 'err'); }
     }
     return applyAnalysis(shotId, out, img);
+  } catch (e) {
+    toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
+    return 0;
+  } finally {
+    analyzing = false;
+    closeOv('analyzeOv');
+  }
+}
+
+/* Läser en bild på ett eller flera kort och lägger till dem. Egen väg i
+   stället för en flagga i analyzeShot: bordsavläsningen är intrimmad mot
+   riktiga skärmdumpar och ska inte behöva bära undantag för ett helt annat
+   slags bild. Här finns inga videorutor att hitta, inga spelarnamn att läsa
+   och ingen anledning att fråga om hela bilden på en gång. */
+async function analyzeExtra(shotId) {
+  if (analyzing) return 0;
+  analyzing = true; cancelAnalyze = false;
+  anInit();
+  const mem = shotMem.get(shotId);
+  try {
+    if (!mem) return 0;
+    openOv('analyzeOv');
+    anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
+    anEl.title.textContent = 'Läser av bilden…';
+    anStep('Öppnar bilden…');
+    await tick();
+    const img = await loadImage(mem.url, false);
+
+    if (!Pool.idx || Pool.idx.code !== (prefs.pool || 'j25')) {
+      anEl.title.textContent = 'Förbereder kortdatabasen';
+      anEl.note.textContent = 'Görs bara en gång — sparas sedan i webbläsaren';
+      await ensurePool(p => {
+        if (p.phase === 'list') anStep(`Hämtar kortlistan från Scryfall… ${p.done} kort${p.label ? ' (' + p.label + ')' : ''}`);
+        else { anBar(p.done / p.total); anStep(`Bygger bildsignaturer… ${p.done} av ${p.total}`); }
+      });
+      anEl.title.textContent = 'Läser av bilden…';
+      anEl.note.textContent = ''; anBar(0);
+    }
+    if (cancelAnalyze) return 0;
+
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const hela = { x: 0, y: 0, w: iw, h: ih };
+    const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
+    anStep('Letar efter kort i bilden…');
+    await tick();
+
+    /* Är bilden SJÄLV kortformad är den ett kort, och detektorn ska inte köras
+       alls. Uppmätt på en tight beskärning av ett kort: den hittade sex
+       "kort" inuti kortet — konstrutan, textrutan och kanterna är också
+       rektanglar med mörk ram runt om — och sex skräpposter i ifyllnadskön
+       är ett sämre svar än ett kort som inte gick att namnge.
+       Fönstret 0.60–0.86 rymmer kortets 0.717 med marginal för en beskärning
+       som tagit med lite bordsyta, men stänger ute två kort bredvid varandra
+       (1.43) och en remsa med tre (2.15). */
+    const kvot = iw / ih;
+    const kortformad = kvot > 0.60 && kvot < 0.86;
+    let props = [];
+    if (kortformad) {
+      const w = Math.min(iw, ih * Matcher.ASPECT);
+      props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
+      anEl.note.textContent = 'Bilden läses som ett kort';
+    } else {
+      for (const rots of [DET_ROTS, VAND_ROTS]) {
+        const r = Detect.proposeCards(img, hela, { want: 10, template: tmpl, rots });
+        if (r.proposals.length > props.length) props = r.proposals;
+      }
+      props = props.filter(q => harTextruta(img, { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h }, q.deg));
+      if (!props.length) {
+        const w = Math.min(iw, ih * Matcher.ASPECT);
+        props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
+        anEl.note.textContent = 'Hittade ingen kortkant — läser hela bilden som ett kort';
+      } else {
+        anEl.note.textContent = props.length === 1 ? '1 kort hittat' : `${props.length} kort hittade`;
+      }
+    }
+
+    const acc = [], pend = [];
+    for (let i = 0; i < props.length; i++) {
+      if (cancelAnalyze) return 0;
+      const q = props[i];
+      const box = { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h };
+      anBar(i / props.length);
+      anStep(`Matchar kort ${i + 1} av ${props.length}`);
+      await tick();
+      let v = identifyAt(img, box, q.deg);
+      /* En beskärning har nästan alltid någon marginal kvar, och signaturen
+         är känslig för den. Ett insatt försök kostar ingenting och räddar de
+         beskärningar som tagit med en kantremsa bord. */
+      if (!v.accept && kortformad) {
+        for (const d of [0.04, 0.08]) {
+          const inre = { x: box.x + box.w * d, y: box.y + box.h * d,
+                         w: box.w * (1 - 2 * d), h: box.h * (1 - 2 * d) };
+          const alt = identifyAt(img, inre, q.deg);
+          if (alt.score > v.score) v = alt;
+          if (v.accept) break;
+        }
+      }
+      if (v.accept) { acc.push(v.rec); continue; }
+      /* Den lokala poolen rymmer 1026 kort. Bilden kan mycket väl vara på ett
+         kort utanför den, och då är närbildsläget rätt verktyg: det är inte
+         bundet till någon lista och slås upp mot hela Scryfall efteråt. */
+      if (aiEnabled() && prefs.aiAuto) {
+        anStep(`Frågar Claude om kort ${i + 1} av ${props.length}`);
+        await tick();
+        const k = await readCard(img, box).catch(() => null);
+        if (k && k.namn) {
+          const rec = { box, rot: q.deg, inliers: 0, byAI: true,
+                        cands: [{ name: k.namn, sid: null, score: 1 }] };
+          if (k.sakerhet === 'hog') acc.push(rec);
+          else { rec.ai = k.sakerhet; pend.push(rec); }
+          continue;
+        }
+      }
+      pend.push(v.rec);
+    }
+    anBar(1);
+    return appendAnalysis(shotId, [{ pane: hela, acc, pend }], img);
   } catch (e) {
     toast('Avläsningen misslyckades: ' + (e.message || 'fel'), 'err');
     return 0;
@@ -4810,6 +4999,43 @@ function applyAnalysis(shotId, out, img) {
   else if (np) toast(`${nc + np} kort hittade · ${nc} identifierade · ${np} att fylla i`, 'ok');
   else toast(`${nc} kort identifierade`, 'ok');
   return nc + np;
+}
+
+/* Lägga till kort från en bild på just de korten, i stället för att läsa om
+   ett helt bord. Tre skillnader mot en vanlig avläsning: allt hamnar hos
+   spelaren man står på oavsett hur många rutor detektorn tycker sig se,
+   korten LÄGGS TILL i stället för att ersätta handen, och inget spelarnamn
+   läses — en närbild på ett kort har inget överlägg, och ett kortnamn som
+   lästes som spelarnamn hade döpt om fliken. */
+function appendAnalysis(shotId, out, img) {
+  const p = player();
+  const acc = out.reduce((a, r) => a.concat(r.acc), []);
+  const pend = out.reduce((a, r) => a.concat(r.pend), [])
+    .filter(q => !acc.some(a => boxOverlap(q.box, a.box) > 0.30));
+
+  const nya = acc.map(a => ({
+    cid: uid(), name: a.cands[0].name, sid: a.cands[0].sid, flipped: 0,
+    box: a.box, rot: a.rot, shotId, cands: a.cands, byAI: a.byAI || undefined
+  }));
+  const nyaVantar = pend.map(q => ({ id: uid(), box: q.box, rot: q.rot, cands: q.cands, shotId, ai: q.ai }));
+  if (img) {
+    nya.forEach(c => { const d = makeCrop(img, c.box, c.rot, 220); if (d) cropCache.set(c.cid + '@220', d); });
+    nyaVantar.forEach(q => {
+      for (const w of [220, 260]) { const d = makeCrop(img, q.box, q.rot, w); if (d) cropCache.set(q.id + '@' + w, d); }
+    });
+  }
+  p.cards.push(...nya);
+  p.pending = (p.pending || []).concat(nyaVantar);
+  if (!p.shots.includes(shotId)) p.shots.push(shotId);
+  p.shotIdx = p.shots.indexOf(shotId);
+  save(); renderAll(true); resolveAll();
+
+  const n = nya.length, v = nyaVantar.length;
+  if (!n && !v) toast('Hittade inga kort i bilden', 'err');
+  else if (!n) toast(`${v} kort hittade, inget kunde identifieras — fyll i dem själv`, 'err');
+  else if (v) toast(`${n} kort tillagda · ${v} att fylla i`, 'ok');
+  else toast(n === 1 ? `${nya[0].name} tillagt` : `${n} kort tillagda`, 'ok');
+  return n + v;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -5434,7 +5660,7 @@ addEventListener('paste', async ev => {
   if (imgItem) {
     ev.preventDefault();
     const f = imgItem.getAsFile();
-    if (f) await addShot(f);
+    if (f) await addShot(f, imgAddOppen());
     return;
   }
   if (isTyping(ev.target)) return;

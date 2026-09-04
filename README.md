@@ -19,6 +19,13 @@ sekunder, gratis.
 Första gången du läser av en bild bygger appen ett bildindex över kortsetet
 (~780 kort, ca 30 sekunder). Det sparas lokalt och görs aldrig om.
 
+**Tre vägar in i handen.** Skriv kortnamnet i sökfältet, klistra in en lista med
+namn (`Lista`, eller <kbd>B</kbd>), eller klistra in en bild (`Bild`, eller
+<kbd>I</kbd>) — en beskuren skärmdump, ett foto, en kortbild från nätet. Bilden
+LÄGGER TILL kort; det som redan ligger i handen rörs inte. Att klistra in en hel
+SpellTable-skärmdump utan att först öppna den rutan gör något annat: då läses
+hela bordet om och handen ersätts.
+
 ## Är allt driftsatt?
 
 Produktionen ligger på <https://magic-mauve-xi.vercel.app>. Tre kontroller, i
