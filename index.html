@@ -234,6 +234,9 @@ main{flex:1;display:flex;min-height:0}
   gap:16px;text-align:center;padding:24px;pointer-events:none;
 }
 .empty.hide{display:none}
+/* Markering när man drar in en fil över en tom hand — där finns ingen ruta
+   att tända, och utan svar ser appen ut att inte ta emot något. */
+.empty.over{outline:2px dashed var(--acc);outline-offset:-14px;background:#120e06;border-radius:14px}
 .empty-icon{
   width:74px;height:74px;border-radius:20px;display:grid;place-items:center;
   background:#ffffff07;border:1px solid var(--line);color:var(--dim2);margin-bottom:2px;
@@ -324,6 +327,9 @@ main{flex:1;display:flex;min-height:0}
 }
 .addtile b{font:600 11.5px/1.25 var(--sans);color:var(--dim)}
 .addtile span{font-size:10px;line-height:1.25}
+.addtile .tilehint{font-size:9px;color:#41506a}
+.addtile:hover .tilehint,.addtile.over .tilehint{color:var(--acc)}
+.addtile.mini .tilehint{font-size:8.5px}
 .addtile svg{color:#41506a;transition:color .12s}
 .addtile:hover,.addtile:focus-visible,.addtile.over{
   border-color:var(--acc);background:#1a1408;outline:none;
@@ -932,12 +938,12 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
           </div>
           <h2>Klistra in en skärmdump från SpellTable</h2>
-          <p>Appen hittar spelarnas videorutor och läser av korten som ligger på borden — en spelare per ruta.</p>
+          <p>Appen hittar spelarnas videorutor och läser av korten som ligger på borden — en spelare per ruta. En beskuren bild på ett eller flera kort fungerar också: de läggs då till i handen.</p>
           <div class="btnrow">
             <button class="btn prim big" id="emptyPaste">Klistra in skärmdump</button>
             <button class="btn big" id="emptySearch">Lägg till kort för hand</button>
           </div>
-          <p class="empty-fine">Tryck <kbd>⌘V</kbd> var som helst i appen, eller dra in en bildfil.</p>
+          <p class="empty-fine">Tryck <kbd>⌘V</kbd> var som helst i appen, eller dra in en bildfil.<br>Klistrar du in senare läggs korten till — handen töms bara om du läser om bilden i bildvyn.</p>
         </div>
       </div>
       <div class="manarow" id="manaRow" hidden></div>
@@ -1176,7 +1182,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
         <section>
           <h3>Bygga handen</h3>
           <dl>
-            <dt><kbd>⌘V</kbd></dt><dd>Klistra in en SpellTable-skärmdump — läses av automatiskt</dd>
+            <dt><kbd>⌘V</kbd></dt><dd>Klistra in en bild — korten som hittas <b>läggs till</b> i handen</dd>
             <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Hoppa till sökrutan</dd>
             <dt><kbd>B</kbd></dt><dd>Klistra in en lista med namn</dd>
             <dt><kbd>I</kbd></dt><dd>Lägg till kort från en bild</dd>
@@ -3036,10 +3042,11 @@ function renderGrid(force) {
      inklistring. */
   if (cards.length) {
     gridEl.insertAdjacentHTML('beforeend', `
-      <div class="addtile" id="addTile" title="Lägg till kort från en bild (I)" role="button" tabindex="0">
+      <div class="addtile" id="addTile" title="Dra in eller klistra in en bild på ett eller flera kort — de läggs till i handen (I)" role="button" tabindex="0">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
-        <b>Dra in en bild här</b>
+        <b>Dra in en skärmdump</b>
         <span>eller klicka för att klistra in</span>
+        <span class="tilehint">ett eller flera kort läggs till</span>
       </div>`);
   }
   emptyEl.classList.toggle('hide', cards.length > 0);
@@ -3090,9 +3097,10 @@ function renderMana(cards) {
     </button>`;
   }).join('');
 
-  const ruta = `<div class="addtile mini" data-addtile role="button" tabindex="0" title="Lägg till kort från en bild (I)">
+  const ruta = `<div class="addtile mini" data-addtile role="button" tabindex="0" title="Dra in eller klistra in en bild på ett eller flera kort — de läggs till (I)">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
       <b>Dra in bild</b>
+      <span class="tilehint">ett eller flera kort</span>
     </div>`;
 
   manaRow.innerHTML = bas + (bas && spec ? '<span class="msep"></span>' : '') + spec + ruta + gravHtml(cards, d.grav);
@@ -4355,12 +4363,13 @@ addEventListener('dragenter', e => {
   e.preventDefault();
   if (++dragDepth !== 1) return;
   if (imgAddOppen()) { $('#imgDrop').classList.add('over'); return; }
-  /* Finns tilläggsrutan i handen är den ett fullgott mål i sig — då ska inte
-     bildvyn slås upp över den och gömma det man siktade på. */
-  const rutor = $$('.addtile', document);
-  if (rutor.length) { rutor.forEach(t => t.classList.add('over')); return; }
-  if (!$('#shotOv').classList.contains('open')) openShot();
-  swStage.classList.add('dragover');
+  if ($('#shotOv').classList.contains('open')) { swStage.classList.add('dragover'); return; }
+  /* Bildvyn slås INTE upp längre. Den la sig över precis det man siktade på,
+     och numera betyder ett släpp i huvudvyn något annat än ett släpp i
+     bildvyn — att byta vy mitt i dragningen hade alltså också bytt innebörd
+     under fingret. */
+  $$('.addtile', document).forEach(t => t.classList.add('over'));
+  emptyEl.classList.add('over');
 });
 addEventListener('dragover', e => {
   if (Array.from(e.dataTransfer.types || []).includes('Files')) e.preventDefault();
@@ -4371,6 +4380,7 @@ addEventListener('dragleave', e => {
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
   $$('.addtile', document).forEach(t => t.classList.remove('over'));
+  emptyEl.classList.remove('over');
 });
 addEventListener('drop', async e => {
   const fs = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => /^image\//.test(f.type));
@@ -4380,14 +4390,16 @@ addEventListener('drop', async e => {
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
   $$('.addtile', document).forEach(t => t.classList.remove('over'));
-  /* Bara ett släpp PÅ rutan lägger till. Överallt annars gäller det som
-     alltid gällt: bordet läses om. Att låta hela fönstret betyda "lägg till"
-     bara för att rutan finns hade brutit det vanliga arbetssättet — man drar
-     in en ny skärmdump varje tur, och då ska handen bytas ut, inte fyllas på
-     med dubbletter. Bara första filen vid tillägg: flera bilder som var för
-     sig lägger till kort blir en kö man inte ser slutet på. */
-  const tillagg = imgAddOppen() || !!(e.target.closest && e.target.closest('.addtile'));
-  if (tillagg) { await addShot(fs[0], true); return; }
+  emptyEl.classList.remove('over');
+  /* VAR bilden hamnar avgör vad som händer, och det är hela regeln:
+     huvudvyn lägger till, bildvyn läser om bordet. En bild som släpps bland
+     korten är ett tillskott — det som redan ligger där ska stå kvar. Vill man
+     byta ut hela handen öppnar man bildvyn med Skärmdump-knappen, och där
+     betyder ett släpp fortfarande "läs av den här skärmdumpen på nytt".
+
+     Bara första filen vid tillägg: flera bilder som var för sig lägger till
+     kort blir en kö man inte ser slutet på. */
+  if (!$('#shotOv').classList.contains('open')) { await addShot(fs[0], true); return; }
   for (const f of fs) await addShot(f);
 });
 
@@ -4842,9 +4854,21 @@ async function analyzeExtra(shotId) {
       props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
       anEl.note.textContent = 'Bilden läses som ett kort';
     } else {
-      for (const rots of [DET_ROTS, VAND_ROTS]) {
-        const r = Detect.proposeCards(img, hela, { want: 10, template: tmpl, rots });
-        if (r.proposals.length > props.length) props = r.proposals;
+      /* Är bilden en HEL SpellTable-skärmdump ska sökningen hålla sig till
+         videorutorna, precis som en vanlig avläsning gör. Söker man igenom
+         hela bilden kommer sidopanelens kortminiatyrer med, och de har aldrig
+         legat på något bord. Sedan tilläggsläget nås med ⌘V i huvudvyn är
+         det här inget ovanligt fall längre. */
+      const rutor = Detect.findPanes(img);
+      const helbild = rutor.length === 1 && rutor[0].w >= iw * 0.95 && rutor[0].h >= ih * 0.95;
+      const omraden = helbild ? [hela] : rutor;
+      for (const omr of omraden) {
+        let bast = [];
+        for (const rots of [DET_ROTS, VAND_ROTS]) {
+          const r = Detect.proposeCards(img, omr, { want: 10, template: tmpl, rots });
+          if (r.proposals.length > bast.length) bast = r.proposals;
+        }
+        props = props.concat(bast.filter(q => utanforPanel(rutor, q.cx)));
       }
       props = props.filter(q => harTextruta(img, { x: q.cx - q.w / 2, y: q.cy - q.h / 2, w: q.w, h: q.h }, q.deg));
       if (!props.length) {
@@ -6076,7 +6100,8 @@ addEventListener('paste', async ev => {
   if (imgItem) {
     ev.preventDefault();
     const f = imgItem.getAsFile();
-    if (f) await addShot(f, imgAddOppen());
+    /* Samma regel som för släpp: står man i huvudvyn läggs korten till. */
+    if (f) await addShot(f, !$('#shotOv').classList.contains('open'));
     return;
   }
   if (isTyping(ev.target)) return;
