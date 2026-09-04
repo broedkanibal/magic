@@ -19,10 +19,21 @@ import Anthropic from '@anthropic-ai/sdk';
 const MAX_IMAGE_B64 = 900_000;          // ~650 kB bild
 const MAX_NAMES = 25;
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
+/* Rätt modell för rätt jobb. Att läsa ett användarnamn ur en etikett, eller
+   ett tryckt kortnamn på en uppförstorad närbild, är inte det svåra — det
+   svåra är att hitta ett kort som lampan bränt ut (rutläget) och att skilja
+   en suddig dödskalle från ett suddigt träd (landläget). Närbilderna — läs
+   det tryckta namnet på ett uppförstorat kort — får en snabbare modell.
+   Uppmätt: 6,9 s per närbild på den tunga, 2,9 på den snabbare, och de var
+   55 s av en avläsning på 93. Närbildens svar går dessutom genom två
+   oberoende inramningar som måste vara överens innan något hamnar i handen,
+   så en enskild sämre gissning stoppas där — det behövdes: den snabbare
+   modellen läste commanderns namn ur överlägget på ett utbränt kort. */
+const MODEL_KORT  = process.env.ANTHROPIC_MODEL_CARD || 'claude-sonnet-5';
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
    två felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 12;
+const PANE_PROMPT_V = 15;
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -114,7 +125,8 @@ export default async function handler(req, res) {
   /* Hälsokoll — klienten frågar vid start om servern finns, och slipper
      då kräva att någon redigerar en rad i koden för att slå på AI-hjälpen. */
   if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL, promptv: PANE_PROMPT_V });
+    return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
+      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL }, promptv: PANE_PROMPT_V });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST krävs' });
   if (origin && !ok) return res.status(403).json({ error: 'Otillåtet ursprung' });
@@ -235,6 +247,10 @@ export default async function handler(req, res) {
          eftertanke, men med hög låg anropet på 15 sekunder — uppmätt två
          anrop på 30,5 s av en avläsning på 93 s. Svaret används bara när det
          är säkert, så en billigare gissning kostar ingenting i kvalitet. */
+      /* Den tunga modellen ändå. Den snabba missade namnet på var annan bild,
+         och namnläsningen kostar ingen väntetid: den startas parallellt med
+         den lokala detekteringen (13 s) och är klar innan den behövs. Där
+         latensen är gratis ska tillförlitligheten vinna. */
       const stream = client.messages.stream({
         model: MODEL,
         max_tokens: 600,
@@ -285,14 +301,18 @@ export default async function handler(req, res) {
     try {
       const client = new Anthropic({ apiKey: key });
       const stream = client.messages.stream({
-        model: MODEL,
-        max_tokens: 8000,
-        output_config: { effort: 'high' },
+        model: MODEL_KORT,
+        max_tokens: 4000,
+        output_config: { effort: 'medium' },
         system:
           'Du identifierar ETT Magic: the Gathering-kort på en närbild från en webbkamera ' +
           'ovanför ett spelbord. Bilden är uppförstorad ur en större bild och därför suddig. ' +
           'Kortet som ska namnges är det i MITTEN — grannkort i kanterna ska ignoreras. ' +
           'Kortet kan ligga upp och ner eller snett. ' +
+          'Bildens kanter kan innehålla text ur SpellTables gränssnitt som ligger OVANPÅ videon: ' +
+          'spelarens namn, commanderns namn, livtotal, knappar. Det är inte kortet. Läs bara ' +
+          'namnet som står tryckt PÅ kortet i mitten. Står det inget läsbart namn på själva ' +
+          'kortet — svara med tom lista, gissa inte utifrån annan text i bilden. ' +
           'BASLÄNDER känns igen på att textrutan är TOM: den innehåller bara den stora ' +
           'mana-symbolen och ingen regeltext alls. Ser du rader av text i rutan är det inte ' +
           'ett basland. Symbolen avgör vilket: vit sol med spetsar = Plains, en blå droppe = ' +

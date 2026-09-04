@@ -359,124 +359,121 @@ main{flex:1;display:flex;min-height:0}
    rad som klipptes bort av radens höjdtak — och en hög man inte ser är ingen
    hög. Rullar i sidled i stället, som kortremsan gör i det smala läget. */
 .manarow{
-  flex:none;display:flex;align-items:flex-end;gap:16px;flex-wrap:nowrap;
-  padding:9px 16px 11px;border-top:1px solid var(--line);background:#0b1017;
+  --kw:min(var(--cardw,150px), 200px);
+  flex:none;display:flex;align-items:flex-end;gap:14px;flex-wrap:nowrap;
+  padding:12px 16px 10px;border-top:1px solid var(--line);background:#0b1017;
   overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;
 }
 .manarow > *{flex:none}
-.ms.xl{
-  width:32px;height:32px;font-size:18px;margin:0;vertical-align:0;
-  box-shadow:inset 0 -2px 0 #0004, 0 2px 4px #0008;
-}
-.mgrp,.mcard{
-  display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:4px 6px 5px;border:1px solid transparent;border-radius:9px;
+/* Ett element i nedre raden är lika högt som ett kort i raden ovanför plus
+   en namnrad. Samma höjd på allt är det som ger raden en hierarki. */
+.manarow{--mh:calc(var(--kw) / (488 / 680) + 2.4em + 10px)}
+.mgrp,.mcard,.fargval,.grav,.addtile.mini{height:var(--mh)}
+
+/* managrupp: symbol, räknare, namn — centrerad i kortets höjd */
+.mgrp{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-width:calc(var(--kw) * .62);padding:4px 8px;border:1px solid transparent;border-radius:9px;
   background:none;cursor:pointer;
 }
-.mgrp:hover,.mcard:hover{background:#141c28}
-.mgrp.sel,.mcard.sel{border-color:var(--acc);background:var(--acc-d)}
+.mgrp:hover{background:#141c28}
+.mgrp.sel{border-color:var(--acc);background:var(--acc-d)}
+.ms.xl{width:calc(var(--kw) * .34);height:calc(var(--kw) * .34);min-width:30px;min-height:30px;max-width:56px;max-height:56px;margin:0;vertical-align:0}
+.ms.xl{background:none;box-shadow:none}
+.ms.xl svg{width:100%;height:100%;display:block}
 .mgn{display:flex;align-items:center;gap:3px}
 .mgn b{min-width:18px;text-align:center;font:700 15px/1 var(--sans);color:var(--txt)}
 .mgstep{
-  width:19px;height:19px;padding:0;border-radius:5px;border:1px solid var(--line);
+  width:20px;height:20px;padding:0;border-radius:5px;border:1px solid var(--line);
   background:var(--bg3);color:var(--dim);font:700 13px/1 var(--sans);
   display:grid;place-items:center;cursor:pointer;
 }
 .mgstep:hover{background:var(--acc-d);color:#ffd98a;border-color:var(--acc)}
 .mgnamn{font-size:10.5px;color:var(--dim2)}
-/* Bara färger man faktiskt har står som räknare. De andra ligger bakom den
-   här knappen — fem tomma räknare på noll hade sagt lika lite som de tar plats. */
-.mgadd{border:1px dashed var(--line);background:none;justify-content:center}
-.mgadd:hover{border-color:var(--acc);background:#1a1408}
-.mgaddsym{
-  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
-  border:1px dashed var(--line);color:var(--dim);font:300 21px/1 var(--sans);
-}
-.mgadd:hover .mgaddsym{border-color:var(--acc);color:var(--acc)}
-.mgadd:hover .mgnamn{color:#ffd98a}
-.manavalj{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:4px 0}
-.manavalj button{
-  display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px;
-  border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer;min-width:74px;
-}
-.manavalj button:hover{border-color:var(--acc);background:#1a1408}
-.manavalj .ms{width:38px;height:38px}
-.manavalj span{font-size:11.5px;color:var(--dim)}
-.manavalj button:hover span{color:#ffd98a}
 .mgrp.sel .mgnamn,.mcard.sel .mnamn{color:#ffd98a}
-/* Rutan och specialmanakorten ska stå lika höga — annars ser raden ojämn ut.
-   Höjden sätts en gång här i stället för att räknas fram på två ställen och
-   glida isär. */
-.manarow{--mrow:96px}
-.mcard{width:66px;height:var(--mrow);position:relative;justify-content:flex-start}
+
+/* lägg till färg: ett plus som fälls ut till de färger som saknas */
+.fargval{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-width:calc(var(--kw) * .5);padding:4px 8px;border:1px dashed var(--line);border-radius:9px;
+  background:none;cursor:pointer;
+}
+.fargval:hover{border-color:var(--acc);background:#1a1408}
+.fargval:hover .mgnamn{color:#ffd98a}
+.mgaddsym{
+  width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+  border:1px dashed var(--line);color:var(--dim);font:300 22px/1 var(--sans);
+}
+.fargval:hover .mgaddsym{border-color:var(--acc);color:var(--acc)}
+.fargval.oppen{flex-direction:row;gap:6px;border-style:solid;border-color:var(--acc);background:#120e06;cursor:default;padding:4px 6px}
+.fargknapp{
+  display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 5px;
+  border:1px solid transparent;border-radius:8px;background:none;cursor:pointer;
+}
+.fargknapp:hover{border-color:var(--acc);background:#1a1408}
+.fargknapp span{font-size:9.5px;color:var(--dim2)}
+.fargknapp:hover span{color:#ffd98a}
+.fargstang{
+  align-self:flex-start;width:18px;height:18px;padding:0;border:none;border-radius:5px;
+  background:#00000055;color:var(--dim2);font:12px/1 var(--sans);cursor:pointer;
+}
+.fargstang:hover{background:var(--acc);color:#20160a}
+
+/* specialmana: ett kort i samma storlek som raden ovanför, med hela namnet */
+.mcard{
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;
+  width:calc(var(--kw) + 12px);padding:4px 6px;border:1px solid transparent;border-radius:9px;
+  background:none;cursor:pointer;position:relative;
+}
+.mcard:hover{background:#141c28}
+.mcard.sel{border-color:var(--acc);background:var(--acc-d)}
 .mcard img{
-  width:54px;aspect-ratio:488/680;object-fit:cover;border-radius:4px;display:block;
-  background:#11161e;box-shadow:0 2px 7px -1px #000b;
+  width:var(--kw);aspect-ratio:488/680;object-fit:cover;display:block;
+  border-radius:calc(var(--kw) * .045);background:#11161e;box-shadow:0 3px 10px -2px #000b;
 }
-.mnamn{
-  font-size:10px;line-height:1.2;color:var(--dim);text-align:center;max-width:100%;
-  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-}
+.mnamn{font-size:10.5px;line-height:1.2;color:var(--dim);text-align:center;max-width:100%;white-space:normal}
 .msep{width:1px;align-self:stretch;margin:2px 0;background:var(--line)}
+.msep.grav-sep{background:linear-gradient(180deg,transparent,var(--line) 25%,var(--line) 75%,transparent)}
 
-/* Den lilla släppytan i nedre raden. Samma sak som rutan bland korten, men
-   i radens höjd — en bild med specialmana ska kunna dras in där man tittar. */
-/* Höjden är satt till samma som ett specialmanakort — bilden 54px bred gånger
-   kortproportionen, plus namnraden och kortets egen padding. Stod rutan lägre
-   än grannen såg raden ojämn ut. */
-.addtile.mini{
-  width:84px;aspect-ratio:auto;gap:3px;padding:6px;border-width:1.5px;
-  height:var(--mrow);
-}
-.addtile.mini b{font-size:9.5px;line-height:1.2}
+/* släppytan i nedre raden, i kortstorlek som den i raden ovanför */
+.addtile.mini{width:calc(var(--kw) + 12px);aspect-ratio:auto;gap:4px;padding:8px 6px;border-width:1.5px}
+.addtile.mini b{font-size:10px;line-height:1.2}
 
-/* Graveyard som en hög. Två lager bakom kortet ger djupet; utan dem läses den
-   som ett ensamt kort och antalet blir en gåta.
-
-   Korten där är INTE i spel, och det ska synas utan att man läser etiketten.
-   Magic gör det med gravstensspråk: dämpad färg och sten. Här avfärgas och
-   mörkas kortet, högen får en benvit hårlinje och en gravsten i etiketten —
-   samma grepp som spelet självt använder, utan att låtsas vara ett kort som
-   ligger framme. */
+/* Graveyard: en stapel i kortstorlek. Ett lager per kort bakom det översta,
+   förskjutna upp och åt höger, så att antalet syns i själva högen. Kortet
+   avfärgas och får en genomskinlig gravsten ovanpå — det är den som säger
+   "inte i spel", inte en siffra och inte en etikett man måste läsa. Magic
+   självt använder just gravstenen för zonen. */
 .grav{
-  position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;
-  align-self:center;padding:12px 6px 5px 13px;
+  position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;
+  width:calc(var(--kw) + 40px);padding:4px 6px 4px 6px;
   border:1px solid transparent;border-radius:9px;background:none;cursor:pointer;
 }
-.grav .gravstack img{filter:grayscale(.55) brightness(.62) contrast(1.05)}
-.grav:hover .gravstack img{filter:grayscale(.25) brightness(.85)}
-.grav .gravstack::after{border-color:#4a4640;background:#181713}
-.grav .gravstack::before{border-color:#3a3733;background:#131210}
-.gravtxt{display:flex;align-items:center;gap:3px}
-.gravtxt svg{opacity:.75}
-.msep.grav-sep{background:linear-gradient(180deg,transparent,var(--line) 25%,var(--line) 75%,transparent)}
 .grav:hover,.grav.over,.grav.sel{background:#141c28;border-color:var(--acc)}
 .grav.sel .gravtxt{color:#ffd98a}
-/* Lagren bakom kortet sticker ut uppåt och åt höger, så högen behöver
-   utrymme åt de hållen i .grav ovan — annars klipper raden bort djupet. */
-.gravstack{position:relative;display:block;width:42px;aspect-ratio:488/680}
-.gravstack::before,.gravstack::after{
-  content:'';position:absolute;inset:0;border-radius:4px;background:#1a212c;
-  border:1px solid #2a3444;
+.gravstack{position:relative;display:block;width:var(--kw);aspect-ratio:488/680;margin-top:18px;margin-right:22px}
+.glager{
+  position:absolute;inset:0;border-radius:calc(var(--kw) * .045);
+  background:#15181d;border:1px solid #2c2f35;box-shadow:0 1px 0 #000a;
 }
-.gravstack::before{transform:translate(7px,-7px);background:#141b25;border-color:#232c3c}
-.gravstack::after{transform:translate(3.5px,-3.5px)}
-.gravstack[data-lager="1"]::before,.gravstack[data-lager="1"]::after{display:none}
-.gravstack[data-lager="2"]::before{display:none}
 .gravstack img{
-  position:relative;z-index:2;width:100%;height:100%;object-fit:cover;border-radius:4px;
-  background:#11161e;box-shadow:0 2px 8px -1px #000c;display:block;
+  position:relative;z-index:2;width:100%;height:100%;object-fit:cover;display:block;
+  border-radius:calc(var(--kw) * .045);background:#11161e;box-shadow:0 3px 10px -2px #000c;
+  filter:grayscale(.6) brightness(.55) contrast(1.05);
 }
-.gravn{
-  position:absolute;right:0;top:2px;z-index:3;min-width:19px;height:19px;padding:0 5px;
-  border-radius:10px;background:var(--acc);color:#20160a;
-  font:700 11px/19px var(--mono);text-align:center;
+.grav:hover .gravstack img{filter:grayscale(.3) brightness(.8)}
+.gravsten{
+  position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:calc(var(--kw) * .42);height:calc(var(--kw) * .42);color:#e6e1d6;opacity:.55;
+  filter:drop-shadow(0 2px 4px #000c);pointer-events:none;
 }
-.gravtxt{font-size:10px;color:var(--dim2)}
+.gravsten svg{width:100%;height:100%;display:block}
+.gravtxt{font-size:10.5px;color:var(--dim2)}
 .grav.tom{
-  width:78px;height:64px;justify-content:center;border:1.5px dashed var(--line);
-  border-radius:9px;color:var(--dim2);font-size:10px;text-align:center;
+  justify-content:center;gap:8px;border:1.5px dashed var(--line);border-radius:9px;
+  color:var(--dim2);font-size:10px;text-align:center;
 }
+.grav.tom .gravsten{position:static;transform:none;width:36px;height:36px;opacity:.35}
 .grav.tom:hover,.grav.tom.over{border-color:var(--acc);background:#1a1408;color:#ffd98a}
 /* Raden man kan släppa i ska synas medan man drar, annars siktar man blint. */
 .manarow.slappmal,.gridwrap.slappmal{outline:2px dashed var(--acc);outline-offset:-4px;background-color:#120e06}
@@ -864,14 +861,12 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
      Den ska ligga direkt efter remsan; sökraden är en verktygsrad längst ner.
      Höjden i px, inte procent: .hand är flex:none här och har därför ingen
      bestämd höjd att räkna procent på. */
-  .manarow{order:3;gap:10px;padding:7px 10px 8px}
-  .ms.xl{width:26px;height:26px;font-size:15px}
+  /* Storlekarna följer --cardw, som redan är litet här. Fasta pixelmått
+     hade dragit åt ett annat håll än kortraden ovanför. */
+  .manarow{order:3;gap:10px;padding:8px 10px 8px}
   .mgn b{font-size:13px;min-width:15px}
   .mgstep{width:17px;height:17px;font-size:12px}
-  .mgnamn{font-size:9.5px}
-  .mcard{width:52px}
-  .mcard img{width:42px}
-  .mnamn{font-size:9px}
+  .mgnamn,.mnamn{font-size:9.5px}
 
   main{flex-direction:column}
 
@@ -1136,20 +1131,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <span class="grow" id="bulkInfo"></span>
       <button class="btn" data-close="bulkOv">Avbryt</button>
       <button class="btn prim" id="bulkGo">Lägg till</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── välj basland ── -->
-<div class="ov" id="manaOv">
-  <div class="modal" style="width:min(430px,94vw)">
-    <header>
-      <h2>Lägg till mana</h2>
-      <button class="close" data-close="manaOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    </header>
-    <div class="body">
-      <p class="lead">Ett kort läggs till i manaraden. Har du redan färgen räknar du hellre upp den med <b>+</b> där.</p>
-      <div class="manavalj" id="manaValj"></div>
     </div>
   </div>
 </div>
@@ -2939,22 +2920,38 @@ function renderTabs() {
 }
 
 /* ─── storlek på korten i rutnätet ─── */
+/* Nedre raden står i samma kortskala, alltså tar den en kortrads höjd av
+   samma yta. Räknas den inte med växer korten tills rutnätet fyller skärmen,
+   nedre raden följer efter i samma skala, och båda hamnar utanför — uppmätt
+   685 px hög nedre rad med tre kort i handen. Den räknas därför som en extra
+   rad, och dess bredd är dessutom takad (NEDRE_MAX) så att tre kort i Fit-
+   läge inte ger en graveyard på en tredjedels skärm. */
+const NEDRE_MAX = 200;
+function nedreHojd(w) {
+  if (manaRow.hidden) return 0;
+  const kw = Math.min(w, NEDRE_MAX);
+  return kw / ASPECT + 2.4 * 13 + 10 + 22;        // kort + namnrad + inre padding + radens padding
+}
 function computeFit() {
-  /* Manan ligger i en egen rad utanför rutnätet och ska inte krympa korten.
-     Tilläggsrutan däremot tar en plats i rutnätet — räknas den inte med
-     hamnar den utanför synfältet så fort handen fyller skärmen. */
+  /* Tilläggsrutan tar en plats i rutnätet — räknas den inte med hamnar den
+     utanför synfältet så fort handen fyller skärmen. */
   const n = antalSpell() + (hand().length ? 1 : 0);
   if (!n) return prefs.cardw;
   const cs = getComputedStyle(gridWrap);
   const W = gridWrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
-  const H = gridWrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2;
+  /* Ytan att dela på är rutnätet PLUS nedre raden, för nedre radens höjd
+     är en följd av kortbredden vi håller på att räkna ut. */
+  const H = gridWrap.clientHeight + (manaRow.hidden ? 0 : manaRow.offsetHeight)
+          - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 2;
   const gap = parseFloat(getComputedStyle(gridEl).gap) || 12;
   if (!(W > 0 && H > 0)) return prefs.cardw;
   let best = 0;
   for (let cols = 1; cols <= n; cols++) {
     const rows = Math.ceil(n / cols);
     const byCol = (W - gap * (cols - 1)) / cols;
-    const byRow = ((H - gap * (rows - 1)) / rows) * ASPECT;
+    // lös h ur rows*h + gap*(rows-1) + nedreHojd(w) <= H, med nedre raden takad
+    let byRow = ((H - gap * (rows - 1)) / rows) * ASPECT;
+    for (let k = 0; k < 4; k++) byRow = ((H - nedreHojd(byRow) - gap * (rows - 1)) / rows) * ASPECT;
     const w = Math.min(byCol, byRow);
     if (w > best) best = w;
   }
@@ -2965,6 +2962,7 @@ function applySize() {
   const w = prefs.fit ? computeFit() : prefs.cardw;
   gridEl.style.setProperty('--cardw', w + 'px');
   gridWrap.style.setProperty('--cardw', w + 'px');   // paddingen nedan räknar på den
+  manaRow.style.setProperty('--cardw', w + 'px');    // nedre raden står i samma skala
   $('#fitBtn').classList.toggle('on', !!prefs.fit);
   gridWrap.classList.toggle('shownums', !!prefs.shownums);
 }
@@ -2988,6 +2986,7 @@ function cardStatus(e) {
    Swamp och Wastes, som ett namnregister hade missat. */
 const MANA_SUB = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G', wastes: 'C' };
 const MANA_ORD = ['W', 'U', 'B', 'R', 'G', 'C'];
+const BASLAND_VAL = [['Plains', 'W'], ['Island', 'U'], ['Swamp', 'B'], ['Mountain', 'R'], ['Forest', 'G']];
 function typLinje(e) { const c = cardOf(e); return (c && c.faces[0] && c.faces[0].type) || ''; }
 function baslandSym(e) {
   const t = typLinje(e);
@@ -3123,9 +3122,12 @@ function renderGrid(force) {
   renderSel();
 }
 
-/* Nedre raden: manan, specialmanan, en ruta att dra in kort i, och
-   graveyard-högen längst till höger. Baslanden slås ihop per typ till en
-   symbol med en siffra; specialmana får ett minikort med namnet under. */
+/* Nedre raden. Allt står i SAMMA storlek som korten i raden ovanför —
+   specialmanan, graveyard-högen och släppytan — och manasymbolerna centreras
+   i den höjden. Förut hade varje sak sin egen höjd och raden läste som ett
+   skrivbord där någon ställt ifrån sig saker, utan ordning i vad som var
+   viktigt. Nu är det två kortrader, och det man ser först är korten. */
+let fargValjOppen = false;
 function renderMana(cards) {
   const d = delaHand();
   const har = d.mana.length || d.grav.length || cards.length;
@@ -3141,6 +3143,7 @@ function renderMana(cards) {
     grupp.get(e.name).idx.push(i);
   }
   const grupper = [...grupp.values()].sort((a, b) => MANA_ORD.indexOf(a.sym) - MANA_ORD.indexOf(b.sym));
+  const harSym = new Set(grupper.map(g => g.sym));
 
   const bas = grupper.map(g => `
     <div class="mgrp" data-alla="${g.idx.join(',')}" title="${esc(g.namn)} — klicka för att visa kortet">
@@ -3153,9 +3156,23 @@ function renderMana(cards) {
       <span class="mgnamn">${esc(g.namn)}</span>
     </div>`).join('');
 
+  /* Färger man inte har ligger bakom ett plus som fälls ut på plats — ingen
+     dialog. Ordet är FÄRG: mana lägger man redan till med plusset på
+     räknaren, och "lägg till mana" när man redan har mana ute lät fel. */
+  const saknade = BASLAND_VAL.filter(([, sym]) => !harSym.has(sym));
+  const fargVal = !saknade.length ? '' : fargValjOppen
+    ? `<div class="fargval oppen" data-fargval>
+        ${saknade.map(([namn, sym]) => `<button class="fargknapp" data-basland="${esc(namn)}" title="Lägg till ${esc(namn)}">
+          <i class="ms ${MSCOL[sym]} xl">${manaFigur(sym)}</i><span>${esc(namn)}</span></button>`).join('')}
+        <button class="fargstang" data-fargstang title="Stäng">✕</button>
+      </div>`
+    : `<button class="fargval" data-fargval title="Lägg till en färg du inte har ute än">
+        <span class="mgaddsym">+</span><span class="mgnamn">Lägg till färg</span>
+      </button>`;
+
   const spec = special.map(({ e, i }) => {
     const card = cardOf(e);
-    const src = card ? imgOf(card, 0, 'small') || imgOf(card, 0, 'normal') : '';
+    const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
     const namn = card ? card.name : e.name;
     return `<button class="mcard" data-i="${i}" title="${esc(namn)}">
       ${src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'}
@@ -3165,44 +3182,40 @@ function renderMana(cards) {
     </button>`;
   }).join('');
 
-  const laggMana = `<button class="mgrp mgadd" data-mana-valj title="Lägg till mana av en färg du inte har än">
-      <span class="mgaddsym">+</span>
-      <span class="mgnamn">Lägg till mana</span>
-    </button>`;
-
   const ruta = `<div class="addtile mini" data-addtile role="button" tabindex="0" title="Dra in eller klistra in en bild på ett eller flera kort — de läggs till (I)">
       <svg width="24" height="19" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>
       <b>Dra in en bild</b>
       <span class="tilehint">ett eller flera kort</span>
     </div>`;
 
-  /* Graveyard först, längst till vänster, avskild med en linje. Den låg
-     tidigare ytterst till höger och läste som ännu en sak på bordet. Nu står
-     den för sig, före manan, och det man har i spel börjar efter linjen. */
   manaRow.innerHTML = gravHtml(cards, d.grav) + '<span class="msep grav-sep"></span>'
-    + bas + laggMana + (spec ? '<span class="msep"></span>' : '') + spec + ruta;
+    + bas + fargVal + (spec ? '<span class="msep"></span>' : '') + spec + ruta;
 }
 
-/* En gravsten: rundad topp, rak fot. Etiketten "Graveyard" räcker inte för
-   den som spelar på svenska och inte läser den. */
-const GRAVSTEN = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+/* En gravsten, genomskinlig, ovanpå det översta kortet. Det är den som säger
+   "inte i spel" — inte en etikett under högen som man måste läsa. */
+const GRAVSTEN = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
   + '<path d="M12 2.5c-3.6 0-6.5 2.9-6.5 6.5v10h13v-10c0-3.6-2.9-6.5-6.5-6.5z"/>'
   + '<rect x="3.4" y="19.4" width="17.2" height="2.4" rx="1"/></svg>';
 
-/* Graveyard som en hög, inte en rad. Antalet är kortens antal, och det som
-   lades dit sist ligger överst — det är så en hög fungerar på bordet, och
-   det är det kortet man senast brydde sig om. */
+/* Graveyard som en riktig stapel: ett lager per kort, förskjutna, så att
+   antalet syns i högen själv i stället för i en siffra. Förskjutningen
+   krymper när högen växer så att tjugo kort fortfarande ryms. */
 function gravHtml(cards, idx) {
-  if (!idx.length) return `<div class="grav tom" data-grav-zon title="Dra hit kort som är spelade — de ligger inte kvar på bordet"><span class="gravtxt">${GRAVSTEN}Graveyard</span></div>`;
+  if (!idx.length) return `<div class="grav tom" data-grav-zon title="Dra hit kort som är spelade — de ligger inte kvar på bordet">
+      <span class="gravsten">${GRAVSTEN}</span><span class="gravtxt">Graveyard</span></div>`;
   const e = cards[idx[0]], card = cardOf(e);
-  const src = card ? imgOf(card, 0, 'small') || imgOf(card, 0, 'normal') : '';
-  const lager = Math.min(3, idx.length);
-  return `<button class="grav" data-grav-zon data-grav-open title="${idx.length} kort i graveyard — klicka för att bläddra">
-    <span class="gravstack" data-lager="${lager}">
+  const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
+  const n = idx.length, steg = Math.max(1.6, Math.min(4, 26 / n));
+  const lager = [];
+  for (let k = n - 1; k >= 1; k--) lager.push(`<i class="glager" style="transform:translate(${(k * steg).toFixed(1)}px,${(-k * steg).toFixed(1)}px)"></i>`);
+  return `<button class="grav" data-grav-zon data-grav-open title="${n} kort i graveyard — klicka för att bläddra" style="--glager:${n}">
+    <span class="gravstack">
+      ${lager.join('')}
       ${src ? `<img src="${esc(src)}" alt="" draggable="false">` : '<img alt="">'}
+      <span class="gravsten">${GRAVSTEN}</span>
     </span>
-    <span class="gravn">${idx.length}</span>
-    <span class="gravtxt">${GRAVSTEN}Graveyard</span>
+    <span class="gravtxt">Graveyard</span>
   </button>`;
 }
 
@@ -3566,22 +3579,15 @@ manaRow.addEventListener('keydown', rutaTangent);
    land till och man klickar +, i stället för att ta om skärmdumpen. Ett kort
    per klick — handen är fortfarande den enda sanningen, så export, delning
    och ångra fungerar oförändrat. */
-const BASLAND_VAL = [['Plains','W'], ['Island','U'], ['Swamp','B'], ['Mountain','R'], ['Forest','G']];
-function openManaValj() {
-  $('#manaValj').innerHTML = BASLAND_VAL.map(([namn, sym]) =>
-    `<button data-basland="${namn}"><i class="ms ${MSCOL[sym]} xl">${manaFigur(sym)}</i><span>${namn}</span></button>`).join('');
-  openOv('manaOv');
-}
-$('#manaValj').addEventListener('click', async ev => {
-  const b = ev.target.closest('[data-basland]');
-  if (!b) return;
-  closeOv('manaOv');
-  await addCards([b.dataset.basland]);
-});
-
 manaRow.addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
-  if (ev.target.closest('[data-mana-valj]')) { openManaValj(); return; }
+  /* Färgväljaren fälls ut på plats i raden och fälls ihop när en färg valts,
+     när krysset trycks, eller när man klickar var som helst annars. */
+  const fk = ev.target.closest('[data-basland]');
+  if (fk) { fargValjOppen = false; addCards([fk.dataset.basland]); return; }
+  if (ev.target.closest('[data-fargstang]')) { fargValjOppen = false; renderGrid(true); return; }
+  if (ev.target.closest('[data-fargval]')) { fargValjOppen = !fargValjOppen; renderGrid(true); return; }
+  if (fargValjOppen) { fargValjOppen = false; renderGrid(true); }
   if (ev.target.closest('[data-grav-open]')) { openGrav(); return; }
   const gb = ev.target.closest('[data-grav]');
   if (gb) { ev.stopPropagation(); flyttaTill(+gb.dataset.grav, ZON_GRAV); return; }
@@ -5202,21 +5208,17 @@ async function readCardAt(img, box, marg, lage) {
    Samma princip som den lokala kedjan redan bygger på: två oberoende bevis.
    Är första svaret redan säkert räcker det, och kortet kostar ett anrop. */
 async function readCard(img, box) {
-  const forsta = await readCardAt(img, box, 0.40).catch(() => null);
-  if (forsta && forsta.namn && forsta.sakerhet === 'hog' && !arBasland(forsta.namn)) return forsta;
-  /* Den tighta inramningen och landjämförelsen är oberoende av varandra —
-     jämförelsen behöver bara veta att NÅGON av dem gissade på ett basland,
-     och det vet vi redan av den första. Sekventiellt kostade ett basland tre
-     anropslatenser i rad, och basländer är de vanligaste korten på ett bord. */
-  const gissarLand = !!(forsta && forsta.namn && arBasland(forsta.namn));
-  const [andra, landTidigt] = await Promise.all([
-    readCardAt(img, box, 0.10).catch(() => null),
-    gissarLand ? readCardAt(img, box, 0.15, 'land').catch(() => null) : Promise.resolve(null)
+  /* Båda inramningarna på en gång, alltid. Den vida (0.40) får med grannar
+     och — nära rutans kant — SpellTables överlägg; den tighta (0.10) ser bara
+     kortet. Med en snabb modell på närbilderna kostar två parallella anrop
+     detsamma som ett, och den snabba modellen behöver den här spärren: den
+     läste "Zur, Eternal Schemer" ur överlägget på ett utbränt kort och svarade
+     säkert. Den tighta inramningen såg inget sådant namn, och oenighet stoppar
+     det. Förut fick ett säkert första svar gå igenom ensamt. */
+  const [forsta, andra] = await Promise.all([
+    readCardAt(img, box, 0.40).catch(() => null),
+    readCardAt(img, box, 0.10).catch(() => null)
   ]);
-  /* Ett svar från EN inramning som inte är säkert räcker inte. Det var så en
-     Swamp presenterades som "Island" — den ena inramningen sa inget alls och
-     den andras gissning gick rakt igenom. Antingen säker vid första försöket,
-     eller överens mellan de två. Annars inget påstående. */
   const a = forsta && forsta.namn ? forsta : null;
   const b = andra && andra.namn ? andra : null;
 
@@ -5225,22 +5227,12 @@ async function readCard(img, box) {
      dödskalle kallades "Forest" — ur minnet är en mörk klump på 80 pixlar
      lätt att ta fel på, sida vid sida med facit är den det inte. */
   if ((a && arBasland(a.namn)) || (b && arBasland(b.namn))) {
-    const land = landTidigt || await readCardAt(img, box, 0.15, 'land').catch(() => null);
+    const land = await readCardAt(img, box, 0.15, 'land').catch(() => null);
     if (land && land.namn) {
-      /* Jämförelsen mot de fem korten finns för att FÅNGA fel, inte för att
-         sänka ett svar som redan är belagt. Uppmätt på en Swamp i lampglans:
-         båda inramningarna svarade "Swamp · hog" och jämförelsen "Swamp ·
-         medel" — tre oberoende avläsningar, alla överens — och kortet hamnade
-         ändå i ifyllnadskön, för att bara jämförelsens säkerhet räknades.
-         Jämförelsen behåller sin vetorätt — den måste hålla med — men den
-         får inte sänka. Belagt är därför: jämförelsen plus en inramning som
-         själv var säker, eller jämförelsen plus två inramningar som är
-         överens. Att kräva alla tre samtidigt visade sig för strikt: samma
-         kort svarade "Swamp·hog / Swamp·hog / Swamp·medel" i en körning och
-         vinglade i nästa, och ett kort som tre avläsningar pekar ut ska inte
-         bero på vilken körning det var. Grannkortet i samma ruta gav
-         "Island·medel / Island·hog / Swamp·medel" — jämförelsen säger emot,
-         och det kortet stannar i kön. */
+      /* Jämförelsen finns för att FÅNGA fel, inte för att sänka ett svar som
+         redan är belagt. Den behåller sin vetorätt — den måste hålla med —
+         men får inte sänka: jämförelsen plus en inramning som själv var
+         säker, eller jämförelsen plus två överens inramningar, är belagt. */
       const enig = x => x && norm(x.namn) === norm(land.namn);
       const belagt = (enig(a) && a.sakerhet === 'hog')
                   || (enig(b) && b.sakerhet === 'hog')
@@ -5249,11 +5241,10 @@ async function readCard(img, box) {
     }
   }
 
-  if (!a || !b) {
-    const ensam = a || b;
-    return ensam && ensam.sakerhet === 'hog' ? ensam : null;
-  }
-  if (a.namn.toLowerCase() !== b.namn.toLowerCase()) return null;            // oense
+  /* Inget kort utan två överens svar. En ensam inramning, hur säker den än
+     låter, räcker inte längre — det var den vägen överläggets text kom in. */
+  if (!a || !b) return null;
+  if (norm(a.namn) !== norm(b.namn)) return null;
   return b.sakerhet === 'hog' ? b : a;
 }
 
@@ -5452,6 +5443,23 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
     const unika = [];
     for (const k of nya) if (!unika.some(u => boxOverlap(u.box, k.box) > 0.45)) unika.push(k);
 
+    /* Ett svepfynd med SAMMA NAMN som ett redan identifierat kort, inom ett
+       kortavstånd, är det kortet — inte ett till. Överlappstestet ovan räcker
+       inte: snäppningen kan landa en bit fel, och uppmätt på den lätta bilden
+       låg ett fynd på bara 0.52 överlapp mot sitt eget kort. Faller det under
+       0.30 blir kortet "nytt", får en närbild, namnges igen och ligger sedan
+       två gånger i handen. Det var så en Swamp blev två. Två riktiga Swamp
+       bredvid varandra klarar sig: deras mittpunkter ligger minst en
+       kortbredd isär. */
+    const dubblett = k => k.namn && r.acc.some(a => {
+      const an = a.cands && a.cands[0] && a.cands[0].name;
+      if (!an || norm(an) !== norm(k.namn)) return false;
+      const dx = (a.box.x + a.box.w / 2) - (k.box.x + k.box.w / 2);
+      const dy = (a.box.y + a.box.h / 2) - (k.box.y + k.box.h / 2);
+      return Math.hypot(dx, dy) < a.box.w * 0.9;
+    });
+    for (let i = unika.length - 1; i >= 0; i--) if (dubblett(unika[i])) unika.splice(i, 1);
+
     for (const k of unika) {
       if (r.pend.some(q => boxOverlap(k.box, q.box) > 0.30)) {
         // redan i listan lokalt — fyll bara på med Claudes förslag
@@ -5548,38 +5556,29 @@ function applyAnalysis(shotId, out, img) {
      kamera av mellan två skärmdumpar hittar findPanes en ruta färre, varje
      index under den glider ett steg, och en spelares kort hamnade i någon
      annans hand. Ett namn låser rutan till rätt spelare. */
-  const tagna = new Set();
-  const valda = out.map(r => {
-    if (!r.spelare) return null;
-    const p = state.players.find(q => !tagna.has(q.id) && norm(q.name) === norm(r.spelare));
-    if (p) tagna.add(p.id);
-    return p || null;
-  });
-  out.forEach((r, i) => {                    // resten faller tillbaka på ordningen
-    if (valda[i]) return;
-    const p = state.players[i];
-    if (p && !tagna.has(p.id)) { tagna.add(p.id); valda[i] = p; }
+  /* En avläsning av HELA bordet är en ny omgång. Spelarna kommer från
+     skärmdumpen: en flik per videoruta, döpt efter överlägget om det gick att
+     läsa och annars "Spelare N", och inga rester från förra bilden. Det gamla
+     sättet — matcha på namn, falla tillbaka på plats, låt övriga stå kvar —
+     lät en "Xepman" från en tidigare skärmdump stå kvar med åtta kort när
+     den nya bilden bara innehöll jesfunk. Handskrivna namn skyddas inte
+     heller längre här: man läser om bordet för att FÅ det bilden visar. */
+  const gamla = state.players;
+  state.players = [];
+  const valda = out.map((r, i) => {
+    const namn = r.spelare || 'Spelare ' + (i + 1);
+    // återanvänd fliken med samma namn så färg och id består mellan omgångar
+    const p = gamla.find(q => norm(q.name) === norm(namn) && !state.players.includes(q))
+           || mkPlayer(namn, i);
+    p.name = namn;
+    p.namnkalla = r.spelare ? 'bild' : null;
+    p.bildnamn = r.spelare || null;
+    state.players.push(p);
+    return p;
   });
 
   out.forEach((r, i) => {
-    let p = valda[i];
-    if (!p) {
-      p = mkPlayer(r.spelare || 'Spelare ' + (i + 1), state.players.length);
-      if (r.spelare) { p.namnkalla = 'bild'; p.bildnamn = r.spelare; }
-      state.players.push(p); tagna.add(p.id); valda[i] = p;
-    } else if (r.spelare && !state.players.some(q => q !== p && norm(q.name) === norm(r.spelare))) {
-      /* Ett handskrivet namn vetar bara det namn det FAKTISKT ersatte. Döper
-         man om "jesfunk" till "Jesper" ska nästa skärmdump inte sätta tillbaka
-         "jesfunk" — men en flik som fått sitt namn på något annat sätt har
-         inget avvisat namn, och där ska bilden bestämma. Utan den skillnaden
-         blev ett vetande av allting: flikar som hette "Jesper" och "Herman"
-         sedan tidigare stod kvar fast bilden tydligt sa Xepman och jesfunk.
-         Två flikar får ändå aldrig heta samma sak — de går inte att skilja åt
-         i flikraden, och nästa skärmdump skulle inte veta vilken den menade. */
-      const avvisat = p.namnkalla === 'anvandare' && p.bildnamn && norm(p.bildnamn) === norm(r.spelare);
-      if (!avvisat) { p.name = r.spelare; p.namnkalla = 'bild'; }
-    }
-    if (r.spelare) p.bildnamn = r.spelare;     // vad bilden sa, oavsett om det användes
+    const p = valda[i];
     p.pane = r.pane;
     p.cards = r.acc.map(a => ({
       cid: uid(), name: a.cands[0].name, sid: a.cands[0].sid, flipped: 0,
