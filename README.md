@@ -28,31 +28,80 @@ hela bordet om och handen ersätts.
 
 ## Är allt driftsatt?
 
-Produktionen ligger på <https://magic-mauve-xi.vercel.app>. Tre kontroller, i
-den ordningen:
+Produktionen ligger på <https://magic-mauve-xi.vercel.app>. Fyra kontroller, i
+den ordningen. Samma lista finns som slash-kommandot `/driftkoll` om du kör
+Claude Code i det här repot.
+
+**1. Finns det något ocommittat?**
 
 ```bash
-git status --short                       # ska vara tomt
-git rev-parse --short HEAD origin/main   # ska ge samma commit två gånger
+git status --short
+```
+
+Tomt svar = allt är committat. Varje rad som dyker upp är en fil som skiljer
+sig från senaste commiten: `M` ändrad, `A` tillagd och redo, `??` ny och
+ospårad.
+
+**2. Ligger det något lokalt som inte nått GitHub?**
+
+```bash
+git fetch -q origin && git rev-list --count origin/main..HEAD
+```
+
+`git fetch` hämtar hem vad GitHub tror att `main` är — utan den jämför du mot
+en gammal bild av verkligheten, och det är just då man tror att man pushat fast
+man inte gjort det. `origin/main..HEAD` betyder "commits som finns hos mig men
+inte hos GitHub". Svaret `0` betyder att allt är uppe.
+
+**3. Lever serverfunktionen, och är det rätt version?**
+
+```bash
 curl -s https://magic-mauve-xi.vercel.app/api/identify
 ```
 
-Sista raden svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":N}`.
-`promptv` höjs varje gång promterna eller lägena ändras och finns just för det
-här: utan den går det inte att skilja "modellen svarade så" från "deployen hade
-inte hunnit ut", och det kostade två felaktiga slutsatser under utvecklingen.
-Stämmer siffran inte med `PANE_PROMPT_V` i `api/identify.js` är deployen gammal.
+Svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":11}`.
 
-Vill du jämföra själva sidan i stället för serverfunktionen:
+| fält | betyder |
+| --- | --- |
+| `ok` | funktionen kör. Kommer HTML tillbaka i stället är deployen trasig. |
+| `ready` | `ANTHROPIC_API_KEY` finns i Vercels miljövariabler. Är den `false` svarar appen ändå, men bara den lokala igenkänningen fungerar. |
+| `model` | vilken modell servern faktiskt använder. |
+| `promptv` | versionen på instruktionerna. Se nedan. |
+
+**4. Är sidan som ligger ute exakt din fil?**
 
 ```bash
-curl -s https://magic-mauve-xi.vercel.app/ | shasum
-shasum < index.html
+diff <(curl -s https://magic-mauve-xi.vercel.app/) index.html && echo IDENTISKA
 ```
 
-Samma summa = exakt din fil ligger ute. I Vercels lista är det den blå
-**Production**-brickan som visar vilken deploy som faktiskt serveras; de gråa är
-tidigare deployer som ligger kvar på sina egna adresser.
+Ingen utskrift plus `IDENTISKA` betyder att exakt den fil du har på disk är den
+besökarna får. Det är starkare bevis än "Vercel säger Ready", som bara betyder
+att bygget gick igenom — inte *vilken* kod som byggdes.
+
+### Vad `promptv` är
+
+Instruktionerna som skickas till bildmodellen ligger i
+[`api/identify.js`](api/identify.js), en per läge:
+
+| läge | rad | vad den gör |
+| --- | --- | --- |
+| `land` | ~156 | jämför ett suddigt kort mot de fem riktiga basländerna |
+| `namn` | ~230 | läser spelarens namn ur SpellTables överlägg |
+| `card` | ~279 | namnger ETT kort på en närbild |
+| `pane` | ~332 | hittar alla kort i en hel videoruta |
+
+`PANE_PROMPT_V` högst upp i samma fil är ett heltal som höjs för hand varje
+gång någon av promterna eller lägena ändras. Det ska alltså **stämma med
+siffran hälsokollen svarar** — gör det inte det kör produktionen gammal kod.
+
+Den finns för att det annars är omöjligt att skilja "modellen svarade så här"
+från "deployen hade inte hunnit ut". Under utvecklingen drog vi fel slutsats
+två gånger av precis det skälet, och letade efter fel i promterna när
+problemet var att ändringen inte låg ute.
+
+Siffran syns på tre ställen: i koden (`PANE_PROMPT_V`), i hälsokollens svar,
+och i appen under **Meny → AI-hjälp**, där det står "instruktioner v11" bredvid
+modellnamnet.
 
 ## Köra lokalt
 
@@ -302,4 +351,8 @@ dev/orb.js      lokala särdrag (FAST + BRIEF) och RANSAC-verifiering
 dev/detect.js   videoruts- och kortdetektering
 dev/bench.html  mätbänk för träffsäkerheten
 dev/mock.js     syntetisk SpellTable-skärmdump för test
+dev/stub-server.cjs  attrapp för /api/identify vid lokal utveckling
+assets/mana/    Wizards manasymboler, hämtade från Scryfall
+scripts/hamta-mana.sh  hämtar om dem
+.claude/skills/driftkoll/  slash-kommandot /driftkoll
 ```

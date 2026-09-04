@@ -5906,7 +5906,7 @@ async function probeAI() {
     clearTimeout(t);
     if (r.ok) {
       const j = await r.json();
-      if (j && j.ok && j.ready) { AI.mode = 'server'; AI.model = j.model || ''; }
+      if (j && j.ok && j.ready) { AI.mode = 'server'; AI.model = j.model || ''; AI.promptv = j.promptv; }
       else if (j && j.ok) AI.mode = 'off';            // servern finns men saknar nyckel
     }
   } catch (e) { /* ingen server — fristående fil */ }
@@ -5924,7 +5924,7 @@ function openAI() {
   $('#aiForget').hidden = server || !aiKey();
   $('#aiSave').textContent = server ? 'Klart' : 'Spara';
   $('#aiStatus').innerHTML = server
-    ? `<div class="nm"><b style="color:var(--green)">Påslagen</b><span>Sköts av appens server${AI.model ? ' · ' + esc(AI.model) : ''} — du behöver ingen egen nyckel.</span></div>`
+    ? `<div class="nm"><b style="color:var(--green)">Påslagen</b><span>Sköts av appens server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instruktioner v' + esc(String(AI.promptv)) : ''} — du behöver ingen egen nyckel.</span></div>`
     : aiKey()
     ? `<div class="nm"><b>Egen nyckel sparad</b><span>Appen körs utan server, så nyckeln ligger i den här webbläsaren.</span></div>`
     : `<div class="nm"><b>Avstängd</b><span>Ingen server hittades och ingen nyckel är inlagd.</span></div>`;
