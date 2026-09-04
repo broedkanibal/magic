@@ -3192,12 +3192,15 @@ function baslandSym(e) {
    uttryckligt zon som alltid vinner: appen ska inte flytta tillbaka något
    användaren själv lagt någonstans. */
 const ZON_SPELL = 'spell', ZON_MANA = 'mana', ZON_GRAV = 'grav';
+/* Graveyard är INGEN härledd zon. Ett land är alltid ett land, det syns på
+   typraden — men om ett kort ligger i högen eller på bordet är något appen
+   omöjligt kan läsa ur en bild. Tidigare hamnade allt som var instant eller
+   sorcery där automatiskt. Det gissade rätt ibland och fel resten av tiden,
+   och efter en avläsning låg kort i högen som spelaren aldrig lagt dit. Nu
+   kommer man dit bara genom att flytta kortet själv. */
 function zonAv(e) {
   if (e && e.zon) return e.zon;
-  const t = typLinje(e);
-  if (/\bland\b/i.test(t)) return ZON_MANA;
-  if (/\b(instant|sorcery)\b/i.test(t)) return ZON_GRAV;
-  return ZON_SPELL;
+  return /\bland\b/i.test(typLinje(e)) ? ZON_MANA : ZON_SPELL;
 }
 const ZON_ORD = { [ZON_SPELL]: 0, [ZON_MANA]: 1, [ZON_GRAV]: 2 };
 function delaHand() {
@@ -4396,7 +4399,6 @@ $('#gravBack').onclick = () => {
   const i = hand().indexOf(e);
   if (i < 0) return;
   delete e.zon;                       // tillbaka till den zon typraden pekar ut
-  if (zonAv(e) === ZON_GRAV) e.zon = ZON_SPELL;   // en sorcery hör annars hemma just här
   sorteraMana(player()); save(); renderAll(true);
 };
 
