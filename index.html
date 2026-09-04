@@ -232,6 +232,72 @@ main{flex:1;display:flex;min-height:0}
   font:600 9px/1.5 var(--sans);color:#cfd9e8;pointer-events:none;
 }
 
+/* ── hovrat kort: ring, namnetikett och handlingsrad ──
+   Blå ring = hovrad, gul = markerad. Två olika färger så att de aldrig
+   förväxlas — man hovrar ofta ett annat kort än det man valt. */
+.card:hover{z-index:20}
+.card:hover::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
+  border:2px solid var(--blue);box-shadow:0 0 0 4px #6b8cff22;pointer-events:none;
+}
+.kortnamn,.kortakt{opacity:0;pointer-events:none;transition:opacity .1s}
+.card:hover .kortnamn,.card:hover .kortakt{opacity:1}
+.card:hover .kortakt{pointer-events:auto}
+/* Etiketten och knappraden ligger INNANFÖR kortet. Brädet klipper vid sin
+   kant, och ett kort på första raden hade annars fått sin etikett avskuren. */
+.kortnamn{
+  position:absolute;left:50%;top:5px;transform:translateX(-50%);z-index:22;max-width:calc(100% - 10px);
+  display:flex;flex-direction:column;gap:1px;white-space:nowrap;
+  background:#0b1017f2;border:1px solid var(--panelram);border-radius:6px;
+  padding:3px 8px;box-shadow:0 6px 16px -6px #000c;
+}
+.kortnamn b{font:600 10.5px/1.3 var(--sans);color:#cfd9e8;overflow:hidden;text-overflow:ellipsis}
+.kortnamn i{font:10px/1.3 var(--mono);color:var(--dim2);font-style:normal}
+/* Handlingsraden flyter över kortets nederkant — den ska inte skymma
+   konstverket eller namnet man just läste. */
+.kortakt{
+  position:absolute;left:50%;bottom:5px;transform:translateX(-50%);z-index:22;
+  display:flex;gap:3px;padding:3px;
+  background:#0b1017f2;border:1px solid var(--panelram2);border-radius:8px;
+  box-shadow:0 6px 16px -6px #000c;
+}
+.kortakt-b{
+  width:20px;height:20px;border-radius:5px;background:var(--bg4);color:#cfd9e8;
+  display:grid;place-items:center;cursor:pointer;flex:none;user-select:none;
+}
+.kortakt-b:hover{background:var(--acc);color:#20160a}
+.kortakt-b.fara:hover{background:var(--red);color:#fff}
+/* Vid små kort ryms varken etikett eller rad — då är kortet ändå för litet
+   att sikta på, och Selected visar det man behöver. */
+.grid[data-smakort] .kortnamn,.grid[data-smakort] .kortakt{display:none}
+
+/* ── attach-läget ──────────────────────────────────────────────────
+   Modalt inom brädet: allt utom de giltiga målen tonas ner, så frågan
+   "vad kan det här sitta på?" besvaras av bilden i stället för av text. */
+.zon-perm.attachlage .card{opacity:.28;pointer-events:none;filter:grayscale(.6)}
+.zon-perm.attachlage .card.mal{opacity:1;pointer-events:auto;filter:none;cursor:pointer}
+.zon-perm.attachlage .card.mal::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:5;
+  box-shadow:0 0 0 3px var(--acc),0 0 0 8px #e8b33a1f;pointer-events:none;
+}
+.zon-perm.attachlage .card.mal:hover{transform:translateY(-5px)}
+.zon-perm.attachlage .kortnamn,.zon-perm.attachlage .kortakt{display:none}
+/* Banderollen ligger ovanpå i stället för i flödet: annars hade brädets
+   höjd ändrats mitt i en handling och alla kort räknats om och hoppat. */
+.attachbanner{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:40;
+  display:flex;align-items:center;gap:8px;
+  padding:6px 10px;border-radius:8px;
+  background:#1a1710f2;border:1px solid #e8b33a66;color:var(--acc);
+  box-shadow:0 8px 22px -8px #000c;
+}
+.attachbanner b{font:600 11.5px/1 var(--sans)}
+.attachbanner span{font:11px/1 var(--mono);color:var(--dim2)}
+.attachbanner kbd{
+  font:10px/1 var(--mono);background:var(--bg4);color:#cfd9e8;
+  border:1px solid var(--panelram2);border-radius:4px;padding:2px 4px;
+}
+
 .card:hover{transform:translateY(-3px)}
 /* Selected kort: lyft 3 px, ingen skalning. Skalningen fick kortet att växa
    utanför sin plats och klippas av zonens kant — designen lyfter i stället
@@ -248,6 +314,21 @@ main{flex:1;display:flex;min-height:0}
 .grid.sorting .card.dragging{transition:none}
 .card.dragging{cursor:grabbing;z-index:9;opacity:.92;filter:drop-shadow(0 16px 28px #000b)}
 .card.dragging::after{border-color:var(--acc)}
+.card.dragging .kortnamn,.card.dragging .kortakt{display:none}
+/* Stapling ser ut som stapling redan innan man släpper: kortet man håller i
+   lyfts och lutar, och värden får en gul ram som säger var det landar. */
+.card.dragging.stackar{opacity:1;z-index:6;filter:brightness(.85) drop-shadow(0 20px 30px #000c)}
+.card.vardover::after{
+  border-color:var(--acc)!important;
+  box-shadow:0 0 0 3px var(--acc),0 0 0 9px #e8b33a24;
+}
+.card.vardover{z-index:7}
+/* Kolumnerna i bandet lyser var för sig — man siktar på Lands ELLER
+   Graveyard, aldrig på hela raden. */
+.bandkol.slappmal{
+  outline:2px dashed var(--acc);outline-offset:4px;border-radius:8px;
+  background-color:#120e06;
+}
 .grid.sorting{cursor:grabbing}
 .card.sel::after{
   content:'';position:absolute;inset:0;border-radius:inherit;
@@ -400,14 +481,16 @@ main{flex:1;display:flex;min-height:0}
    Fast höjd, satt av Selected-kolumnens innehåll. Ordningen är Lands →
    Selected → Graveyard, med en tunn avdelare mellan varje. */
 .band{
-  flex:none;height:306px;display:flex;gap:12px;align-items:stretch;
+  flex:none;height:330px;display:flex;gap:12px;align-items:stretch;
   background:var(--bandbg);border:1px solid var(--line);border-radius:8px;
   padding:9px 11px;min-height:0;
 }
 .bandkol{display:flex;flex-direction:column;gap:8px;min-height:0}
 .kol-lands{flex:1;min-width:0}
-.kol-mark{flex:none;width:172px}
-.kol-grav{flex:none;width:100px}
+/* Selected ska gå att LÄSA — regeltexten på ett Magic-kort kräver bredd.
+   Kolumnen är därför den bredaste i bandet, och bandet något högre. */
+.kol-mark{flex:none;width:212px}
+.kol-grav{flex:none;width:112px}
 .bandsep{
   flex:none;width:1px;align-self:stretch;
   background:linear-gradient(180deg,transparent,var(--line) 20%,var(--line) 80%,transparent);
@@ -499,7 +582,7 @@ main{flex:1;display:flex;min-height:0}
   border:1px solid var(--line);background:var(--rutbg);border-radius:8px;padding:7px;
 }
 .markruta img{
-  width:156px;max-width:100%;aspect-ratio:488/680;object-fit:contain;
+  width:196px;max-width:100%;aspect-ratio:488/680;object-fit:contain;
   border-radius:7px;box-shadow:0 8px 22px -8px #000e;min-height:0;
 }
 .marknamn{font-size:10px;color:var(--dim);text-align:center;line-height:1.25}
@@ -512,10 +595,12 @@ main{flex:1;display:flex;min-height:0}
   background:none;cursor:pointer;
 }
 .grav:hover,.grav.over,.grav.sel{background:#141c28;border-color:var(--acc)}
-.gravstack{position:relative;display:block;width:80px;aspect-ratio:488/680;flex:none}
+.gravstack{position:relative;display:block;width:92px;aspect-ratio:488/680;flex:none}
+/* Lagren ska synas som kort, inte som en skugga: ljusare kant och en egen
+   yta, så att en hög med sex kort läses som sex och inte som ett. */
 .glager{
-  position:absolute;inset:0;border-radius:4px;
-  background:#15181d;border:1px solid #2c2f35;
+  position:absolute;inset:0;border-radius:4px;transform-origin:50% 100%;
+  background:#1b1f26;border:1px solid #39414e;box-shadow:0 1px 2px #0009;
 }
 .gravstack img{
   position:relative;z-index:2;width:100%;height:100%;object-fit:cover;display:block;
@@ -535,7 +620,7 @@ main{flex:1;display:flex;min-height:0}
 .grav.tom:hover,.grav.tom.over{border-color:var(--acc);background:var(--tand2);color:var(--pa-acc)}
 
 /* Raden man kan släppa i ska synas medan man drar, annars siktar man blint. */
-.band.slappmal,.gridwrap.slappmal{outline:2px dashed var(--acc);outline-offset:-4px;background-color:#120e06}
+.gridwrap.slappmal{outline:2px dashed var(--acc);outline-offset:-4px;background-color:#120e06}
 
 /* knapp för att lägga ett kort i graveyard */
 .gravbadge{
@@ -2910,7 +2995,7 @@ function savePrefs() { LS.set(K.prefs, prefs); }
 
 let state = LS.get(K.state, null);
 if (!state || !Array.isArray(state.players) || !state.players.length) {
-  state = { players: [mkPlayer('Spelare 1', 0)], active: null, sel: 0 };
+  state = { players: [mkPlayer('Player 1', 0)], active: null, sel: 0 };
   state.active = state.players[0].id;
 }
 state.players.forEach((p, i) => {
@@ -2923,7 +3008,8 @@ state.players.forEach((p, i) => {
   /* Sparade tillstånd från före flaggan har ingen. Allt som inte ser ut som
      ett automatnamn har användaren skrivit själv — utan den regeln skulle
      första avläsningen efter uppgraderingen tyst radera namn hen skrivit. */
-  if (!p.namnkalla) p.namnkalla = /^Spelare \d+$/.test(p.name || '') ? null : 'anvandare';
+  /* Sparade tillstånd kan ha "Spelare N" från innan appen blev engelsk. */
+  if (!p.namnkalla) p.namnkalla = /^(Player|Spelare) \d+$/.test(p.name || '') ? null : 'anvandare';
 });
 if (!state.players.some(p => p.id === state.active)) state.active = state.players[0].id;
 state.sel = state.sel || 0;
@@ -2949,6 +3035,7 @@ function save() {
         cards: p.cards.map(c => ({
           cid: c.cid, name: c.name, sid: c.sid || undefined, flipped: c.flipped ? 1 : 0,
           tapped: c.tapped ? 1 : 0, attachedTo: c.attachedTo || undefined,
+          zon: c.zon || undefined,
           box: c.box || undefined, rot: c.rot || undefined, shotId: c.shotId || undefined,
           cands: c.cands ? c.cands.slice(0, 8) : undefined
         }))
@@ -2991,7 +3078,7 @@ function renderTabs() {
    av kortbredden. Förra layouten räknade den som en funktion av kortbredden
    och hamnade i en rundgång: större kort gav högre band gav mindre plats.
    Mäts efter rendering; konstanten är reservvärdet ur designen. */
-const BAND_H = 306;
+const BAND_H = 330;
 const bandHojd = () => manaRow.hidden ? 0 : (manaRow.offsetHeight || BAND_H);
 
 /* Ryms n permanents på `rader` rader med kortbredden w? Ett TAPPAT kort tar
@@ -3119,6 +3206,13 @@ function flyttaTill(i, zon) {
   state.sel = c.indexOf(e);
   sorteraMana(player());
   state.sel = c.indexOf(e);
+  /* Högen är inte en plats man tittar på ett kort från, så urvalet följer inte
+     med dit. Det stannar på brädet, där man är på väg att göra nästa sak. */
+  if (zon === ZON_GRAV) {
+    const d = delaHand();
+    if (d.spell.length) state.sel = Math.min(i, d.spell[d.spell.length - 1]);
+    else if (d.mana.length) state.sel = d.mana[0];
+  }
   save(); renderAll(true);
   return true;
 }
@@ -3157,12 +3251,90 @@ function kortHtml(e, i, extra) {
     <span class="idx">${i + 1}</span>
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(failed.get(keyOf(e)) || '') + '</span>' : ''}</span>
+    ${hoverNamnHtml(e)}
+    ${hoverRadHtml(e, i)}
   </button>`;
+}
+
+/* Vad ett kort kan läggas på, och vad handlingen heter. Magic har egna regler
+   för det: en Equipment sätts på en creature, en Aura på det dess typrad säger
+   ("Enchant creature", "Enchant land"), en Fortification på ett land. Knappen
+   visas bara för de korten, och bara giltiga mål går att välja — appen ska
+   inte erbjuda ett drag som reglerna inte tillåter. */
+function bifogTyp(e) {
+  const t = typLinje(e);
+  if (/\bEquipment\b/i.test(t)) return { etikett: 'Equip', mal: /\bCreature\b/i };
+  if (/\bFortification\b/i.test(t)) return { etikett: 'Fortify', mal: /\bLand\b/i };
+  if (/\bAura\b/i.test(t)) {
+    const c = cardOf(e), o = (c && c.faces[0] && c.faces[0].oracle) || '';
+    const m = o.match(/Enchant\s+([a-z ]+)/i);
+    const vad = m ? m[1].trim().split(/\s+/).pop() : 'permanent';
+    return { etikett: 'Attach', mal: new RegExp('\\b' + vad.replace(/s$/, '') + '\\b', 'i') };
+  }
+  return null;
+}
+/* Går kortet i att lägga på det här målet? Målet måste vara i spel, får inte
+   vara kortet självt, och får inte redan sitta på något. */
+function giltigtMal(kalla, mal) {
+  if (!kalla || !mal || kalla === mal) return false;
+  if (zonAv(mal) !== ZON_SPELL || mal.attachedTo) return false;
+  const b = bifogTyp(kalla);
+  return !!b && b.mal.test(typLinje(mal));
+}
+/* Ett kort som sitter på något faller av när värden lämnar spelplanen —
+   samma regel som i Magic, och utan den skulle räknaren säga "1 attached"
+   om ett kort som ligger löst. Körs vid varje omritning, den är billig. */
+function losBifogade(cards) {
+  const iSpel = new Set(delaHand().spell.map(i => cards[i].cid));
+  let andrat = false;
+  for (const e of cards) {
+    if (e.attachedTo && !(iSpel.has(e.attachedTo) && zonAv(e) === ZON_SPELL)) {
+      delete e.attachedTo; andrat = true;
+    }
+  }
+  return andrat;
+}
+function malIndex(i) {
+  const c = hand();
+  return delaHand().spell.filter(j => giltigtMal(c[i], c[j]));
+}
+
+/* Handlingsraden som visas när man hovrar ett kort. Fyra saker man faktiskt
+   gör under en tur: vrid kortet, lägg det på ett annat, lägg det i graveyard,
+   ta bort det. Ikonerna följer appens övriga streck. */
+function hoverRadHtml(e, i) {
+  const b = bifogTyp(e);
+  const kanBifoga = b && malIndex(i).length;
+  /* Spans, inte knappar: kortet SJÄLVT är en <button>, och HTML tillåter inte
+     en knapp inuti en knapp — parsern lyfte ut dem ur kortet och la dem som
+     egna rutor i rutnätet. */
+  const kn = (akt, titel, svg, extra) =>
+    `<span class="kortakt-b${extra || ''}" role="button" data-akt="${akt}" data-i="${i}" title="${titel}">${svg}</span>`;
+  const sv = (d, w) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  return `<span class="kortakt" data-akt-for="${i}">
+    ${kn('tap', `${e.tapped ? 'Untap' : 'Tap'} (T)`, sv('<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>', 2.2))}
+    ${kanBifoga ? kn('attach', `${b.etikett} (E)`, sv('<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>', 2.2)) : ''}
+    ${kn('grav', 'Put in graveyard (G)', sv('<path d="M12 4v13M6 12l6 6 6-6"/>', 2.4))}
+    ${kn('del', 'Remove the card (Backspace)', sv('<path d="M6 6l12 12M18 6 6 18"/>', 2.4), ' fara')}
+  </span>`;
+}
+/* Etiketten ovanför kortet: namn, styrka/tålighet och de nyckelord som gör
+   skillnad i en tur. Regeltexten i sin helhet står i Selected. */
+function hoverNamnHtml(e) {
+  const c = cardOf(e);
+  if (!c) return `<span class="kortnamn"><b>${esc(e.name)}</b></span>`;
+  const f = c.faces[0] || {};
+  const pt = f.pow != null ? `${f.pow}/${f.tou}` : f.loy != null ? `${f.loy} loyalty` : '';
+  const nyckel = (f.oracle || '').split('\n')[0].split(/[,.(]/)[0].trim();
+  const kort = nyckel && nyckel.length < 42 && !/\s{2}/.test(nyckel) ? nyckel.toLowerCase() : '';
+  return `<span class="kortnamn"><b>${esc(c.name)}</b>${
+    pt || kort ? `<i>${esc([pt, kort].filter(Boolean).join(' · '))}</i>` : ''}</span>`;
 }
 
 function renderGrid(force) {
   if (sorteraMana(player())) save();
   const cards = hand();
+  if (losBifogade(cards)) save();
   const d = delaHand();
   const sig = d.spell.length + '/' + cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
@@ -3213,13 +3385,14 @@ function renderGrid(force) {
   $('#permRakn').textContent = !d.spell.length ? '' : [
     d.spell.length,
     tappade ? tappade + ' tapped' : '',
-    bif ? bif + (bif === 1 ? ' attached' : ' attached') : ''
+    bif ? bif + ' attached' : ''
   ].filter(x => x !== '').join(' · ');
 
   emptyEl.classList.toggle('hide', cards.length > 0);
   renderMana(cards);
   applySize();
   renderSel();
+  if (attach) ritaAttach();                    // läget överlever en omritning
 }
 
 /* Nedre bandet: Lands → Selected → Graveyard, med fast höjd. Höjden sätts av
@@ -3351,6 +3524,14 @@ function renderMana(cards) {
       <div class="lands">${grupper.map(landGruppHtml).join('')}${specHtml}${fargVal}</div>
     </div>
     <i class="bandsep"></i>
+    <div class="bandkol kol-grav" data-grav-zon>
+      <div class="zonrub">
+        <span class="zonlbl">Graveyard</span><i class="zonlinje"></i>
+        <span class="zonrakn">${d.grav.length || ''}</span>
+      </div>
+      ${gravHtml(cards, d.grav)}
+    </div>
+    <i class="bandsep"></i>
     <div class="bandkol kol-mark">
       <div class="zonrub markrub">
         <span class="zonlbl">Selected</span><i class="zonlinje"></i>
@@ -3360,13 +3541,6 @@ function renderMana(cards) {
                   : '<div class="marktom">No card selected</div>'}
         ${vald ? `<span class="marknamn">${esc(valdKort ? valdKort.name : vald.name)}</span>` : ''}
       </div>
-    </div>
-    <i class="bandsep"></i>
-    <div class="bandkol kol-grav" data-grav-zon>
-      <div class="zonrub">
-        <span class="zonlbl">Graveyard</span><i class="zonlinje"></i>
-      </div>
-      ${gravHtml(cards, d.grav)}
     </div>`;
 
   /* Grupperna som ska rymmas, med hur många otappade och tappade kort var och
@@ -3386,12 +3560,16 @@ function renderMana(cards) {
    tjugo kort fortfarande ryms. Gravstenen ovanpå säger "inte i spel". */
 function gravHtml(cards, idx) {
   if (!idx.length) return `<div class="grav tom" data-grav-open title="Cards that have been played end up here">
-      <span class="gravsten">${GRAVSTEN}</span><span class="gravtxt">tom</span></div>`;
+      <span class="gravsten">${GRAVSTEN}</span><span class="gravtxt">Empty</span></div>`;
   const e = cards[idx[0]], card = cardOf(e);
   const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
-  const n = idx.length, steg = Math.max(1.6, Math.min(4, 26 / n));
+  /* Fyra lager räcker för att säga "en hög": fler blir en grå kant utan
+     innebörd, och antalet står ändå i klartext under. Varje lager vrids en
+     aning så att kanterna solfjädrar ut och går att räkna. */
+  const n = idx.length, synliga = Math.min(n - 1, 4);
   const lager = [];
-  for (let k = n - 1; k >= 1; k--) lager.push(`<i class="glager" style="transform:translate(${(k * steg).toFixed(1)}px,${(-k * steg).toFixed(1)}px)"></i>`);
+  for (let k = synliga; k >= 1; k--)
+    lager.push(`<i class="glager" style="transform:translate(${k * 5}px,${-k * 5}px) rotate(${(k * 1.5).toFixed(1)}deg)"></i>`);
   return `<button class="grav" data-grav-open title="${n} cards in the graveyard — click to browse">
     <span class="gravstack">
       ${lager.join('')}
@@ -3637,7 +3815,7 @@ function setActive(id) {
   resolveAll();
 }
 function addPlayer(name) {
-  const p = mkPlayer(name || 'Spelare ' + (state.players.length + 1), state.players.length);
+  const p = mkPlayer(name || 'Player ' + (state.players.length + 1), state.players.length);
   state.players.push(p);
   setActive(p.id);
   return p;
@@ -3742,11 +3920,77 @@ let svalgKlick = false;
 $('#zonPerm').addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
 });
+
+/* ── attach-läge ──────────────────────────────────────────────────
+   Man väljer kortet först och målet sedan. Läget är modalt inom brädet:
+   allt utom de giltiga målen släcks, så det syns direkt vad som går. */
+let attach = null;                 // { i, etikett, mal:[index] }
+function startaAttach(i) {
+  const e = hand()[i], b = bifogTyp(e);
+  if (!b) return;
+  const mal = malIndex(i);
+  if (!mal.length) { toast('Nothing on the board can take that card', 'err'); return; }
+  attach = { i, etikett: b.etikett, mal };
+  ritaAttach();
+}
+function avbrytAttach() { attach = null; ritaAttach(); }
+function ritaAttach() {
+  const zon = $('#zonPerm');
+  zon.classList.toggle('attachlage', !!attach);
+  $$('.card', gridEl).forEach(el => el.classList.remove('mal'));
+  let banner = $('#attachBanner');
+  if (!attach) { if (banner) banner.remove(); return; }
+  const e = hand()[attach.i], namn = (cardOf(e) || e).name;
+  attach.mal.forEach(j => {
+    const el = gridEl.querySelector(`.card[data-i="${j}"]`);
+    if (el) el.classList.add('mal');
+  });
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'attachBanner'; banner.className = 'attachbanner';
+    zon.insertBefore(banner, gridEl);
+  }
+  banner.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/></svg>
+    <b>Pick the card ${esc(namn)} goes on</b>
+    <span>${attach.mal.length} possible ${attach.mal.length === 1 ? 'target' : 'targets'} · <kbd>Esc</kbd> cancels</span>`;
+}
+function utforAttach(j) {
+  if (!attach || !attach.mal.includes(j)) return;
+  const c = hand();
+  c[attach.i].attachedTo = c[j].cid;
+  c[attach.i].tapped = 0;                 // det som sätts på något ligger som värden
+  attach = null;
+  ritaAttach();                           // banderoll och nedtoning bort
+  save(); renderAll(true);
+}
+
+/* Handlingarna bakom hover-radens knappar. Samma vägar används av
+   tangenterna, så det bara finns en beskrivning av vad varje sak gör. */
+function tappa(i) {
+  const e = hand()[i];
+  if (!e || zonAv(e) === ZON_GRAV) return;
+  e.tapped = e.tapped ? 0 : 1;
+  save(); renderGrid(true);
+}
+function kortAktion(akt, i) {
+  if (akt === 'tap') return tappa(i);
+  if (akt === 'attach') return startaAttach(i);
+  if (akt === 'grav') { flyttaTill(i, ZON_GRAV); return; }
+  if (akt === 'del') return removeAt(i);
+}
 gridEl.addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
+  /* I attach-läget betyder ett klick "det här är målet", ingenting annat. */
+  if (attach) {
+    const m = ev.target.closest('.card.mal');
+    if (m) utforAttach(+m.dataset.i); else avbrytAttach();
+    return;
+  }
+  if (svalgKlick) { svalgKlick = false; ev.stopPropagation(); return; }   // klicket efter ett drag
+  const ab = ev.target.closest('[data-akt]');
+  if (ab) { ev.stopPropagation(); kortAktion(ab.dataset.akt, +ab.dataset.i); return; }
   const gb = ev.target.closest('[data-grav]');
   if (gb) { ev.stopPropagation(); flyttaTill(+gb.dataset.grav, ZON_GRAV); return; }
-  if (svalgKlick) { svalgKlick = false; ev.stopPropagation(); return; }   // klicket efter ett drag
   const del = ev.target.closest('[data-delcard]');
   if (del) { ev.stopPropagation(); removeAt(+del.dataset.delcard); return; }
   const flip = ev.target.closest('[data-flip]');
@@ -3849,8 +4093,9 @@ function dndVisa() {
 function dndStäda() {
   if (!dnd) return;
   dndMarkera(null);
+  if (dnd.barn) dnd.barn.forEach(el => el.classList.remove('vardover'));
   gridEl.classList.remove('sorting');
-  dnd.el.classList.remove('dragging');
+  dnd.el.classList.remove('dragging', 'stackar');
   dnd.barn.forEach(el => { el.style.transform = ''; el.style.transition = ''; });
   dnd = null;
 }
@@ -3860,12 +4105,15 @@ gridEl.addEventListener('pointerdown', ev => {
      nästa riktiga klick. Ett click hör alltid ihop med sin egen pointerdown. */
   svalgKlick = false;
   if (ev.button !== 0) return;
+  if (attach) return;                        // i attach-läget pekar man ut ett mål
   const el = ev.target.closest('.card');
-  if (!el || ev.target.closest('[data-delcard],[data-flip]')) return;
+  if (!el || ev.target.closest('[data-delcard],[data-flip],[data-akt]')) return;
   const barn = [...gridEl.querySelectorAll('.card')];
-  dnd = { el, barn, kalla: 'grid', handIdx: +el.dataset.i,
+  const hi = +el.dataset.i;
+  dnd = { el, barn, kalla: 'grid', handIdx: hi,
           från: barn.indexOf(el), till: barn.indexOf(el),
-          x0: ev.clientX, y0: ev.clientY, drar: false,
+          x0: ev.clientX, y0: ev.clientY, drar: false, vard: null,
+          malSet: new Set(malIndex(hi)),
           rutor: barn.map(b => b.getBoundingClientRect()) };
 });
 /* Specialmanan går att dra också, åt båda hållen. Basländerna gör det inte:
@@ -3882,21 +4130,49 @@ manaRow.addEventListener('pointerdown', ev => {
 
 /* Vilken zon pekaren är över. Handraden och manaraden är två lådor på
    skärmen, och graveyard-högen en tredje inuti den andra. */
+/* Bandet är tre kolumner med olika innebörd, inte en enda låda. Lands och
+   Graveyard tar emot kort var för sig, och Selected tar inte emot något alls
+   — det är en visning av det man valt, ingen plats ett kort kan ligga på. */
+const inuti = (el, x, y) => {
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+};
 function dndZon(x, y) {
-  const gr = manaRow.querySelector('.grav');
-  if (gr) { const r = gr.getBoundingClientRect();
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return ZON_GRAV; }
-  const rm = manaRow.getBoundingClientRect();
-  if (!manaRow.hidden && x >= rm.left && x <= rm.right && y >= rm.top && y <= rm.bottom) return ZON_MANA;
-  const rg = gridWrap.getBoundingClientRect();
-  if (x >= rg.left && x <= rg.right && y >= rg.top && y <= rg.bottom) return ZON_SPELL;
+  if (!manaRow.hidden) {
+    if (inuti(manaRow.querySelector('[data-grav-zon]'), x, y)) return ZON_GRAV;
+    if (inuti(manaRow.querySelector('[data-zon-lands]'), x, y)) return ZON_MANA;
+    if (inuti(manaRow.querySelector('.kol-mark'), x, y)) return null;
+  }
+  if (inuti(gridWrap, x, y)) return ZON_SPELL;
   return null;
 }
 function dndMarkera(zon) {
   const gr = manaRow.querySelector('.grav');
   if (gr) gr.classList.toggle('over', zon === ZON_GRAV);
-  manaRow.classList.toggle('slappmal', zon === ZON_MANA);
+  const kg = manaRow.querySelector('[data-grav-zon]'), kl = manaRow.querySelector('[data-zon-lands]');
+  if (kg) kg.classList.toggle('slappmal', zon === ZON_GRAV);
+  if (kl) kl.classList.toggle('slappmal', zon === ZON_MANA);
   gridWrap.classList.toggle('slappmal', zon === ZON_SPELL && dnd && dnd.kalla === 'mana');
+}
+/* Vilket kort pekaren står över — bland dem kortet får läggas på. Rutorna är
+   de uppmätta från dragstarten, av samma skäl som resten av dragningen. */
+function dndVard(x, y) {
+  dnd.vardRuta = null;
+  if (!dnd || !dnd.malSet || !dnd.malSet.size) return null;
+  for (let j = 0; j < dnd.barn.length; j++) {
+    const el = dnd.barn[j];
+    if (el === dnd.el) continue;
+    const i = +el.dataset.i;
+    if (!dnd.malSet.has(i)) continue;
+    const r = dnd.rutor[j];
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { dnd.vardRuta = r; return i; }
+  }
+  return null;
+}
+function dndMarkeraVard(i) {
+  dnd.barn.forEach(el => el.classList.toggle('vardover', i != null && +el.dataset.i === i));
+  dnd.el.classList.toggle('stackar', i != null);
 }
 addEventListener('pointermove', ev => {
   if (!dnd) return;
@@ -3907,25 +4183,49 @@ addEventListener('pointermove', ev => {
     dnd.el.classList.add('dragging');
     try { gridEl.setPointerCapture(ev.pointerId); } catch (e) {}
   }
-  // kortet ska ligga under fingret, annars känns det inte som att man håller i det
-  dnd.el.style.transform = `translate(${ev.clientX - dnd.x0}px,${ev.clientY - dnd.y0}px) scale(1.04)`;
   dnd.zon = dndZon(ev.clientX, ev.clientY);
   dndMarkera(dnd.zon);
   /* Omordning bara när kortet stannar i sin egen rad. Drar man det till en
      annan zon är det en flytt, och då ska de andra korten inte kasta om sig
      under fingret som om det skulle landa mellan dem. */
   if (dnd.kalla === 'grid' && dnd.zon === ZON_SPELL) {
-    const till = dndPlats(ev.clientX, ev.clientY);
+    /* Ligger pekaren på ett kort som detta får läggas på är avsikten stapling,
+       inte omflyttning. Då ska raden stå still — annars ser det ut som att
+       kortet är på väg mellan två andra samtidigt som det ska landa på ett. */
+    const v = dndVard(ev.clientX, ev.clientY);
+    if (v !== dnd.vard) { dnd.vard = v; dndMarkeraVard(v); }
+    const till = v == null ? dndPlats(ev.clientX, ev.clientY) : dnd.från;
     if (till !== dnd.till) { dnd.till = till; dndVisa(); }
-  } else if (dnd.till !== dnd.från) { dnd.till = dnd.från; dndVisa(); }
+  } else {
+    if (dnd.vard != null) { dnd.vard = null; dnd.vardRuta = null; dndMarkeraVard(null); }
+    if (dnd.till !== dnd.från) { dnd.till = dnd.från; dndVisa(); }
+  }
+  /* Normalt ligger kortet under fingret — annars känns det inte som att man
+     håller i det. Över en värd snäpper det i stället till stapelns läge: pekar
+     man mitt på målet skymmer kortet annars exakt det man siktar på. */
+  if (dnd.vard != null && dnd.vardRuta) {
+    const egen = dnd.rutor[dnd.från], av = egen.width * .102;
+    dnd.el.style.transform =
+      `translate(${dnd.vardRuta.left - egen.left + av}px,${dnd.vardRuta.top - egen.top + av}px)`
+      + ' rotate(-5deg) scale(1.02)';
+  } else {
+    dnd.el.style.transform = `translate(${ev.clientX - dnd.x0}px,${ev.clientY - dnd.y0}px) scale(1.04)`;
+  }
 });
 addEventListener('pointerup', () => {
   if (!dnd) return;
   if (!dnd.drar) { dnd = null; return; }        // vanligt klick, låt det gå vidare
-  const { från, till, zon, kalla, handIdx } = dnd;
+  const { från, till, zon, kalla, handIdx, vard } = dnd;
   const egenZon = kalla === 'grid' ? ZON_SPELL : ZON_MANA;
   svalgKlick = true;
   dndStäda();
+  if (zon === ZON_SPELL && vard != null) {
+    const c = hand();
+    c[handIdx].attachedTo = c[vard].cid;
+    c[handIdx].tapped = 0;
+    save(); renderAll(true);
+    return;
+  }
   if (zon && zon !== egenZon) {
     /* Flytt mellan raderna. renderAll ritar om båda, så ingen egen
        uppdatering behövs här. */
@@ -4067,7 +4367,7 @@ $('#clearHand').onclick = () => {
   const antal = state.players.reduce((n, p) => n + p.cards.length + (p.pending || []).length, 0);
   if (!antal) return;
   const gammalt = { players: state.players, active: state.active, sel: state.sel };
-  state.players = [mkPlayer('Spelare 1', 0)];
+  state.players = [mkPlayer('Player 1', 0)];
   state.active = state.players[0].id;
   state.sel = 0;
   save(); renderAll(true);
@@ -4405,6 +4705,7 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
+    if (attach) return avbrytAttach();
     if (menuEl.classList.contains('open')) return closeMenu();
     if ($('#scanPanel').classList.contains('open')) return closeScan();
     if ($('#focusOv').classList.contains('open')) return closeFocus();
@@ -4456,6 +4757,9 @@ addEventListener('keydown', ev => {
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
   else if (lower === 'b') { ev.preventDefault(); openBulk(); }
   else if (lower === 'i') { ev.preventDefault(); openOv('imgOv'); }
+  else if (lower === 't') { ev.preventDefault(); tappa(state.sel); }
+  else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); startaAttach(state.sel); }
+  else if (lower === 'g') { ev.preventDefault(); flyttaTill(state.sel, ZON_GRAV); }
   else if (lower === 's') { ev.preventDefault(); $('#shotBtn').click(); }
   else if (lower === 'n') { ev.preventDefault(); addPlayer(); startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
@@ -5492,7 +5796,7 @@ async function readPane(img, pane) {
    ur överlägget står det där i stället. */
 const paneNamn = i => {
   const cell = anEl.panes.children[i], b = cell && cell.querySelector('b');
-  return (b && b.textContent) || 'Spelare ' + (i + 1);
+  return (b && b.textContent) || 'Player ' + (i + 1);
 };
 function ritaPaneCeller(img, panes) {
   anEl.panes.innerHTML = panes.map((p, i) =>
@@ -5764,7 +6068,7 @@ function applyAnalysis(shotId, out, img) {
   const gamla = state.players;
   state.players = [];
   const valda = out.map((r, i) => {
-    const namn = r.spelare || 'Spelare ' + (i + 1);
+    const namn = r.spelare || 'Player ' + (i + 1);
     // återanvänd fliken med samma namn så färg och id består mellan omgångar
     const p = gamla.find(q => norm(q.name) === norm(namn) && !state.players.includes(q))
            || mkPlayer(namn, i);
