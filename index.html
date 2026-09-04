@@ -1021,19 +1021,16 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
   </button>
   <div class="sw-top">
-    <span class="title"><span class="dot"></span><span id="swWho">—</span></span>
+    <!-- Här stod spelarens namn. Det såg ut som att bara hans hand skulle
+         läsas om, fast en omläsning gäller HELA bordet och alla spelare. -->
+    <span class="title">Hela bordet</span>
     <span style="color:var(--dim2);font-size:12px" id="swMeta"></span><!-- bildmått och zoomnivå sa inget en användare behöver -->
     <div style="flex:1"></div>
     <button class="btn sm" id="swRescan" title="Läs av bilden igen">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
       Läs av igen
     </button>
-    <button class="btn sm" id="swClaude" hidden title="Leta igenom hela bilden en gång till — hittar kort som missats, t.ex. kort som lampan speglat sig i">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
-      Läs med Claude
-    </button>
-    <button class="btn sm" id="swPaste" title="Läs av bilden i urklipp — ersätter handen">Klistra in</button>
-    <button class="btn sm" id="swFile" title="Välj en ny skärmdump — ersätter handen">Ny bild…</button>
+    <button class="btn sm" id="swFile" title="Klistra in eller välj en ny skärmdump — hela bordet läses om och handen ersätts">Ny bild…</button>
     <input type="file" id="swInput" accept="image/*" multiple hidden>
     <div class="zoomctl">
       <button id="swZoomOut" title="Zooma ut">−</button>
@@ -1093,7 +1090,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   <div class="sw-bottom">
     <span class="sw-label">Skärmdumpar</span>
     <div class="sw-thumbs" id="swThumbs"></div>
-    <span class="sw-help" id="swHelp">Klicka på en markering för att ändra kortet · klicka på tom yta för att lägga till</span>
+    <span class="sw-help" id="swHelp">Klicka på en markering för att ändra kortet · klicka på tom yta för att lägga till · <kbd>⌘V</kbd> byter bild och läser om hela bordet</span>
   </div>
 </div>
 
@@ -4212,13 +4209,10 @@ function loadShot(id) {
 }
 function renderShotUI() {
   const p = player();
-  $('#swWho').textContent = p.name;
-  $('.sw-top .dot').style.background = p.color;
   $('#swThumbs').innerHTML = p.shots.map(id =>
     `<button class="${id === SW.id ? 'on' : ''}" data-sid="${esc(id)}" title="Bild"><img src="${esc(shotURL(id))}" alt=""></button>`).join('');
   $('#swDel').disabled = !SW.id;
   $('#swRescan').disabled = !SW.id;
-  $('#swClaude').hidden = !SW.id || AI.mode !== 'server';
   renderBoxes();
 }
 
@@ -4279,11 +4273,9 @@ function closeShot() { closeOv('shotOv'); closeScan(); }
 $('#shotBtn').onclick = () => openShot();
 $('#emptyPaste').onclick = () => openShot();
 $('#emptySearch').onclick = () => searchInput.focus();
-$('#swFile').onclick = () => $('#swInput').click();
+$('#swFile').onclick = () => pasteOrPick();   // urklipp först, filväljaren om det är tomt
 $('#dropFile').onclick = ev => { ev.stopPropagation(); $('#swInput').click(); };
 $('#dropPaste').onclick = ev => { ev.stopPropagation(); pasteOrPick(); };
-$('#swPaste').onclick = () => pasteOrPick();
-$('#swClaude').onclick = () => claudeReadShot();
 // klick i zonen tar fokus från sökrutan så ⌘V hamnar rätt
 swDrop.addEventListener('click', () => { const a = document.activeElement; if (isTyping(a)) a.blur(); });
 $('#swInput').onchange = async () => {
@@ -5308,53 +5300,6 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   anBar(1);
   anAktiv(-1);
   return { hittade, namngivna };
-}
-
-/* Knappen i bildvyn: samma svep, men på begäran för en bild man redan läst av.
-   Nyttig när man vill be Claude titta igen utan att göra om hela avläsningen. */
-async function claudeReadShot() {
-  if (AI.mode !== 'server') { openAI(); return; }
-  if (analyzing) return;
-  const shotId = SW.id;
-  const mem = shotId && shotMem.get(shotId);
-  if (!mem) { toast('Ingen bild att läsa av', 'err'); return; }
-
-  analyzing = true; nyAvbrytning();
-  anInit();
-  try {
-    openOv('analyzeOv');
-    anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
-    anEl.title.textContent = 'Letar efter kort som missats…';
-    anStep('Öppnar bilden…');
-    await tick();
-    const img = await loadImage(mem.url, false);
-    const panes = Detect.findPanes(img);
-    anEl.note.textContent = panes.length === 1 ? '1 spelare' : `${panes.length} spelare`;
-    ritaPaneCeller(img, panes);        // den här vägen visade tidigare inga rutor alls
-
-    /* Utgå från det som redan ligger i handen, så svepet inte lägger in
-       dubbletter av kort avläsningen redan hittat. */
-    const out = panes.map((pane, i) => {
-      const p = state.players[i];
-      if (!p) return { pane, acc: [], pend: [] };
-      return {
-        pane,
-        acc: p.cards.filter(c => c.box && c.shotId === shotId)
-              .map(c => ({ box: c.box, rot: c.rot, cands: c.cands || [], inliers: 0, behall: c })),
-        pend: (p.pending || []).filter(q => q.shotId === shotId)
-              .map(q => ({ box: q.box, rot: q.rot, cands: q.cands || [], ai: q.ai, inliers: 0, behall: q }))
-      };
-    });
-    const f = await claudePaneSweep(img, panes, shotId, out);
-    if (f.fel) return;
-    applyAnalysis(shotId, out, img);
-    if (!f.hittade) toast('Inga fler kort hittades i bilden', 'ok');
-  } catch (e) {
-    toast(arAvbrott(e) ? 'Avläsningen avbröts' : 'Avläsningen misslyckades: ' + (e.message || 'fel'), arAvbrott(e) ? 'ok' : 'err');
-  } finally {
-    analyzing = false;
-    closeOv('analyzeOv');
-  }
 }
 
 async function claudePass(out, img) {
