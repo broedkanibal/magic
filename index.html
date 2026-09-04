@@ -153,7 +153,8 @@ main{flex:1;display:flex;min-height:0}
 .zoomctl .fitbtn{width:auto;padding:0 7px;font-size:11px;font-weight:600}
 .zoomctl .fitbtn.on{background:var(--acc-d);color:#ffd98a}
 
-.gridwrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:24px 14px 14px;position:relative}
+.gridwrap{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;position:relative;
+  padding:max(24px, calc(5px + var(--cardw,150px) * 0.032)) max(14px, calc(var(--cardw,150px) * 0.022)) 14px}
 .grid{
   display:grid;gap:12px;align-content:start;
   grid-template-columns:repeat(auto-fill,minmax(var(--cardw),var(--cardw)));
@@ -327,6 +328,7 @@ main{flex:1;display:flex;min-height:0}
 }
 .addtile b{font:600 11.5px/1.25 var(--sans);color:var(--dim)}
 .addtile span{font-size:10px;line-height:1.25}
+.addtile>svg{flex:none}
 .addtile .tilehint{font-size:9px;color:#41506a}
 .addtile:hover .tilehint,.addtile.over .tilehint{color:var(--acc)}
 .addtile.mini .tilehint{font-size:8.5px}
@@ -383,7 +385,11 @@ main{flex:1;display:flex;min-height:0}
 .mgstep:hover{background:var(--acc-d);color:#ffd98a;border-color:var(--acc)}
 .mgnamn{font-size:10.5px;color:var(--dim2)}
 .mgrp.sel .mgnamn,.mcard.sel .mnamn{color:#ffd98a}
-.mcard{width:66px;position:relative}
+/* Rutan och specialmanakorten ska stå lika höga — annars ser raden ojämn ut.
+   Höjden sätts en gång här i stället för att räknas fram på två ställen och
+   glida isär. */
+.manarow{--mrow:96px}
+.mcard{width:66px;height:var(--mrow);position:relative;justify-content:flex-start}
 .mcard img{
   width:54px;aspect-ratio:488/680;object-fit:cover;border-radius:4px;display:block;
   background:#11161e;box-shadow:0 2px 7px -1px #000b;
@@ -396,16 +402,35 @@ main{flex:1;display:flex;min-height:0}
 
 /* Den lilla släppytan i nedre raden. Samma sak som rutan bland korten, men
    i radens höjd — en bild med specialmana ska kunna dras in där man tittar. */
-.addtile.mini{width:78px;aspect-ratio:auto;height:64px;gap:3px;padding:6px;border-width:1.5px}
+/* Höjden är satt till samma som ett specialmanakort — bilden 54px bred gånger
+   kortproportionen, plus namnraden och kortets egen padding. Stod rutan lägre
+   än grannen såg raden ojämn ut. */
+.addtile.mini{
+  width:84px;aspect-ratio:auto;gap:3px;padding:6px;border-width:1.5px;
+  height:var(--mrow);
+}
 .addtile.mini b{font-size:9.5px;line-height:1.2}
 
 /* Graveyard som en hög. Två lager bakom kortet ger djupet; utan dem läses den
-   som ett ensamt kort och antalet blir en gåta. */
+   som ett ensamt kort och antalet blir en gåta.
+
+   Korten där är INTE i spel, och det ska synas utan att man läser etiketten.
+   Magic gör det med gravstensspråk: dämpad färg och sten. Här avfärgas och
+   mörkas kortet, högen får en benvit hårlinje och en gravsten i etiketten —
+   samma grepp som spelet självt använder, utan att låtsas vara ett kort som
+   ligger framme. */
 .grav{
   position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;
-  margin-left:auto;align-self:center;padding:12px 13px 5px 6px;
+  align-self:center;padding:12px 6px 5px 13px;
   border:1px solid transparent;border-radius:9px;background:none;cursor:pointer;
 }
+.grav .gravstack img{filter:grayscale(.55) brightness(.62) contrast(1.05)}
+.grav:hover .gravstack img{filter:grayscale(.25) brightness(.85)}
+.grav .gravstack::after{border-color:#4a4640;background:#181713}
+.grav .gravstack::before{border-color:#3a3733;background:#131210}
+.gravtxt{display:flex;align-items:center;gap:3px}
+.gravtxt svg{opacity:.75}
+.msep.grav-sep{background:linear-gradient(180deg,transparent,var(--line) 25%,var(--line) 75%,transparent)}
 .grav:hover,.grav.over{background:#141c28;border-color:var(--acc)}
 /* Lagren bakom kortet sticker ut uppåt och åt höger, så högen behöver
    utrymme åt de hållen i .grav ovan — annars klipper raden bort djupet. */
@@ -589,6 +614,10 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   text-align:center;padding:30px;color:var(--dim2);
 }
 .sw-drop.hide{display:none}
+.sw-drop .varning{
+  margin-top:2px;padding:7px 11px;border-radius:8px;max-width:46ch;
+  background:#2a1d08;border:1px solid #5a4416;color:#e8c98a;font-size:11.5px;line-height:1.5;
+}
 .sw-drop .icon{width:58px;height:58px;border-radius:14px;background:#ffffff08;display:grid;place-items:center;color:var(--dim2)}
 .sw-drop h2{margin:0;font-size:15px;color:var(--dim);font-weight:600}
 .sw-drop p{margin:0;max-width:46ch;font-size:12.5px;line-height:1.7}
@@ -835,7 +864,13 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   .pendbar{order:1}
   /* 60px breda kort gick inte att se vad de föreställde. 92px räcker för att
      känna igen konstverket, och kostar bara ~45px av det stora kortet. */
-  .gridwrap{order:2;flex:none;height:148px;overflow-x:auto;overflow-y:hidden;padding:10px}
+  /* Det valda kortet lyfts 5 px och skalas 1.035, alltså 5 + höjd*0.0175 över
+     sin ruta — vid stora kort mer än de 10 px paddingen gav, och då klipptes
+     den gula ramens överkant bort av rullytan. Uppmätt: kortets överkant låg
+     1 px ovanför ytan vid 260 px breda kort. Paddingen följer nu kortbredden
+     i stället för att vara en gissning som stämmer vid en viss storlek. */
+  .gridwrap{order:2;flex:none;height:148px;overflow-x:auto;overflow-y:hidden;
+    padding:max(14px, calc(5px + var(--cardw,150px) * 0.032)) max(12px, calc(var(--cardw,150px) * 0.022)) 10px}
   .handbar{order:4;border-bottom:none;border-top:1px solid var(--line);padding:8px 10px}
   .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:92px;gap:8px;justify-content:start}
   .card{scroll-margin:10px}
@@ -845,11 +880,8 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 
   /* i handraden får bara sökrutan plats */
   #bulkBtn,.handmeta{display:none}
-  /* Bildknappen får INTE gömmas som Lista-knappen: att lägga till kort från
-     en bild är en av två vägar in i handen, och den smala vyn är just den
-     där man har minst plats att skriva namn för hand. Bara texten går. */
-  #imgBtn{padding:0 8px;font-size:0}
-  #imgBtn svg{margin:0;font-size:13px}
+  /* Vägen att lägga till från en bild ligger i rutan bland korten, inte i en
+     knapp här — den syns där man tittar och tar ingen plats i den här raden. */
   .searchwrap{max-width:none;min-width:0}
 
   /* tom hand: låt remsan bli stor nog för startmeddelandet */
@@ -909,10 +941,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
         <button class="btn" id="bulkBtn" title="Klistra in flera kortnamn (B)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M6 8h12M6 12h12M6 16h7"/></svg>
           Lista
-        </button>
-        <button class="btn" id="imgBtn" title="Lägg till kort från en bild (I)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
-          Bild
         </button>
         <div class="handmeta">
           <span id="handCount">0 kort</span>
@@ -1004,8 +1032,8 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.2"/></svg>
       Läs med Claude
     </button>
-    <button class="btn sm" id="swPaste" title="Läs in bilden i urklipp">Klistra in</button>
-    <button class="btn sm" id="swFile">Byt bild…</button>
+    <button class="btn sm" id="swPaste" title="Läs av bilden i urklipp — ersätter handen">Klistra in</button>
+    <button class="btn sm" id="swFile" title="Välj en ny skärmdump — ersätter handen">Ny bild…</button>
     <input type="file" id="swInput" accept="image/*" multiple hidden>
     <div class="zoomctl">
       <button id="swZoomOut" title="Zooma ut">−</button>
@@ -1023,10 +1051,11 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <div class="icon">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
       </div>
-      <h2>Lägg in din SpellTable-skärmdump</h2>
-      <p>Dra in en bildfil här från Finder, klistra in med <kbd>⌘V</kbd>, eller välj en fil.</p>
+      <h2>Läs av ett helt bord</h2>
+      <p>Dra in en SpellTable-skärmdump här från Finder, klistra in med <kbd>⌘V</kbd>, eller välj en fil. Appen läser av alla spelares bord och skapar en flik per videoruta.</p>
+      <p class="varning">Handen <b>ersätts</b> av det som hittas. Vill du bara lägga till kort — stäng den här vyn och klistra in bland korten i stället.</p>
       <div class="dropbtns">
-        <button class="btn prim big" id="dropPaste">Klistra in bild</button>
+        <button class="btn prim big" id="dropPaste">Klistra in skärmdump</button>
         <button class="btn big" id="dropFile">Välj fil…</button>
       </div>
     </div>
@@ -2897,6 +2926,7 @@ function computeFit() {
 function applySize() {
   const w = prefs.fit ? computeFit() : prefs.cardw;
   gridEl.style.setProperty('--cardw', w + 'px');
+  gridWrap.style.setProperty('--cardw', w + 'px');   // paddingen nedan räknar på den
   $('#fitBtn').classList.toggle('on', !!prefs.fit);
   gridWrap.classList.toggle('shownums', !!prefs.shownums);
 }
@@ -3042,11 +3072,11 @@ function renderGrid(force) {
      inklistring. */
   if (cards.length) {
     gridEl.insertAdjacentHTML('beforeend', `
-      <div class="addtile" id="addTile" title="Dra in eller klistra in en bild på ett eller flera kort — de läggs till i handen (I)" role="button" tabindex="0">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
+      <div class="addtile" id="addTile" title="Dra in eller klistra in en bild — ett kort, några kort eller en hel skärmdump. Allt som hittas läggs till i handen; det som redan ligger där rörs inte. (I)" role="button" tabindex="0">
+        <svg width="30" height="24" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>
         <b>Dra in en skärmdump</b>
         <span>eller klicka för att klistra in</span>
-        <span class="tilehint">ett eller flera kort läggs till</span>
+        <span class="tilehint">ett eller flera kort</span>
       </div>`);
   }
   emptyEl.classList.toggle('hide', cards.length > 0);
@@ -3098,19 +3128,29 @@ function renderMana(cards) {
   }).join('');
 
   const ruta = `<div class="addtile mini" data-addtile role="button" tabindex="0" title="Dra in eller klistra in en bild på ett eller flera kort — de läggs till (I)">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.2"/><circle cx="8.6" cy="10" r="1.7"/><path d="m21 15.5-4.8-4.8L6 21"/></svg>
-      <b>Dra in bild</b>
+      <svg width="24" height="19" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>
+      <b>Dra in en bild</b>
       <span class="tilehint">ett eller flera kort</span>
     </div>`;
 
-  manaRow.innerHTML = bas + (bas && spec ? '<span class="msep"></span>' : '') + spec + ruta + gravHtml(cards, d.grav);
+  /* Graveyard först, längst till vänster, avskild med en linje. Den låg
+     tidigare ytterst till höger och läste som ännu en sak på bordet. Nu står
+     den för sig, före manan, och det man har i spel börjar efter linjen. */
+  manaRow.innerHTML = gravHtml(cards, d.grav) + '<span class="msep grav-sep"></span>'
+    + bas + (bas && spec ? '<span class="msep"></span>' : '') + spec + ruta;
 }
+
+/* En gravsten: rundad topp, rak fot. Etiketten "Graveyard" räcker inte för
+   den som spelar på svenska och inte läser den. */
+const GRAVSTEN = '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+  + '<path d="M12 2.5c-3.6 0-6.5 2.9-6.5 6.5v10h13v-10c0-3.6-2.9-6.5-6.5-6.5z"/>'
+  + '<rect x="3.4" y="19.4" width="17.2" height="2.4" rx="1"/></svg>';
 
 /* Graveyard som en hög, inte en rad. Antalet är kortens antal, och det som
    lades dit sist ligger överst — det är så en hög fungerar på bordet, och
    det är det kortet man senast brydde sig om. */
 function gravHtml(cards, idx) {
-  if (!idx.length) return '<div class="grav tom" data-grav-zon title="Dra hit kort som är spelade"><span>Graveyard</span></div>';
+  if (!idx.length) return `<div class="grav tom" data-grav-zon title="Dra hit kort som är spelade — de ligger inte kvar på bordet"><span class="gravtxt">${GRAVSTEN}Graveyard</span></div>`;
   const e = cards[idx[0]], card = cardOf(e);
   const src = card ? imgOf(card, 0, 'small') || imgOf(card, 0, 'normal') : '';
   const lager = Math.min(3, idx.length);
@@ -3119,7 +3159,7 @@ function gravHtml(cards, idx) {
       ${src ? `<img src="${esc(src)}" alt="" draggable="false">` : '<img alt="">'}
     </span>
     <span class="gravn">${idx.length}</span>
-    <span class="gravtxt">Graveyard</span>
+    <span class="gravtxt">${GRAVSTEN}Graveyard</span>
   </button>`;
 }
 
@@ -3226,7 +3266,12 @@ function renderAll(forceGrid) {
   const p = player();
   $('#hintBar').classList.toggle('hide', p.cards.length === 0);
   const hasShot = p.shots.length > 0;
-  $('#shotBtnTxt').textContent = hasShot ? 'Skärmdump' : 'Klistra in skärmdump';
+  /* "Skärmdump" sa vad man gav appen, inte vad som hände. Den här vägen
+     ERSÄTTER hela handen — allt annat lägger till — och namnet ska säga det. */
+  $('#shotBtnTxt').textContent = hasShot ? 'Läs om bordet' : 'Läs av bordet';
+  $('#shotBtn').title = hasShot
+    ? 'Läs om hela bordet från en skärmdump — ersätter allt som ligger i handen (S)'
+    : 'Läs av ett helt bord från en SpellTable-skärmdump (S)';
   $('#shotBtn').classList.toggle('prim', !hasShot && p.cards.length > 0);
 }
 function renderPending() {
@@ -3732,7 +3777,6 @@ $('#gravBack').onclick = () => {
 };
 
 const imgAddOppen = () => $('#imgOv').classList.contains('open');
-$('#imgBtn').onclick = () => openOv('imgOv');
 $('#imgDrop').onclick = () => $('#imgFile').click();
 $('#imgPick').onclick = () => $('#imgFile').click();
 $('#imgFile').onchange = async ev => {
@@ -4399,11 +4443,17 @@ addEventListener('drop', async e => {
 
      Bara första filen vid tillägg: flera bilder som var för sig lägger till
      kort blir en kö man inte ser slutet på. */
-  if (!$('#shotOv').classList.contains('open')) { await addShot(fs[0], true); return; }
+  if (!$('#shotOv').classList.contains('open')) { await addShot(fs[0], !bradetTomt()); return; }
   for (const f of fs) await addShot(f);
 });
 
 /* ── bilder in ── */
+/* Är brädet tomt finns det ingenting att lägga till TILL, och då är en
+   skärmdump av ett helt bord alltid vad man menar: alla spelares händer ska
+   läsas in från grunden, en flik per videoruta. Tilläggsläget hade lagt allt
+   hos den spelare man råkade stå på. */
+const bradetTomt = () => state.players.every(p => !p.cards.length && !(p.pending || []).length);
+
 async function addShot(blob, tillagg) {
   if (!blob || !/^image\//.test(blob.type)) return;
   const rec = { id: uid(), ts: Date.now(), blob };
@@ -6101,7 +6151,7 @@ addEventListener('paste', async ev => {
     ev.preventDefault();
     const f = imgItem.getAsFile();
     /* Samma regel som för släpp: står man i huvudvyn läggs korten till. */
-    if (f) await addShot(f, !$('#shotOv').classList.contains('open'));
+    if (f) await addShot(f, !$('#shotOv').classList.contains('open') && !bradetTomt());
     return;
   }
   if (isTyping(ev.target)) return;

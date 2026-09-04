@@ -27,7 +27,8 @@ namn (`Lista`, eller <kbd>B</kbd>), eller ge appen en bild.
 | var | vad som händer |
 | --- | --- |
 | huvudvyn — <kbd>⌘V</kbd>, dra in en fil, eller släpp den i någon av rutorna | korten som hittas **läggs till**; det som redan ligger i handen står kvar |
-| bildvyn (öppnas med `Skärmdump`) | bilden läses av som ett helt bord och **handen ersätts** |
+| huvudvyn när brädet är **tomt** | hela bordet läses av från grunden, en flik per spelare |
+| bildvyn (öppnas med `Läs av bordet`) | bilden läses av som ett helt bord och **handen ersätts** |
 
 Bilden kan innehålla ett kort eller flera — en beskuren skärmdump, ett foto, en
 kortbild från nätet, eller en hel SpellTable-skärmdump. Är det en hel skärmdump
