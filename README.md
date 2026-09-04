@@ -255,7 +255,12 @@ lampglans, tangentbord, mus och SpellTables eget överlägg med namn och livtota
 detektering och identifiering — hälften av kortet är då grannkortet. De korten
 måste läggas till för hand: klicka på tom yta i bilden så föreslås ett kort där.
 
-Avläsningen tar 10–30 sekunder. Kortdatabasen byggs en gång (~1 000 kortbilder,
+Avläsningen tar 25–45 sekunder med AI-hjälpen påslagen — uppmätt 28 s på en
+skarp bild där allt hittas lokalt, 42 s på en bild med lampglans där hälften av
+korten bara går att hitta med bildmodellen. Utan AI-hjälp tar den 10–15 sekunder
+och hittar bara det detektorn ser. Rutläget (leta igenom hela videorutan) och
+baslandsjämförelsen går till den tunga modellen, närbilderna till en snabbare:
+2 s per kort mot 7. Kortdatabasen byggs en gång (~1 000 kortbilder,
 bildsignaturer och 6 MB lokala särdrag) och tar ungefär en minut.
 
 ## Vad som är testat

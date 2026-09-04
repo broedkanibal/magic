@@ -5222,11 +5222,20 @@ async function readCard(img, box) {
   const a = forsta && forsta.namn ? forsta : null;
   const b = andra && andra.namn ? andra : null;
 
-  /* Handlar det om ett basland avgörs det genom att JÄMFÖRA mot de fem
-     riktiga korten i stället för att lita på modellens minne. En suddig
-     dödskalle kallades "Forest" — ur minnet är en mörk klump på 80 pixlar
-     lätt att ta fel på, sida vid sida med facit är den det inte. */
-  if ((a && arBasland(a.namn)) || (b && arBasland(b.namn))) {
+  /* Baslandsjämförelsen mot de fem riktiga korten är SKILJEDOMARE, inte ett
+     obligatoriskt tredje utlåtande. Den kom till när EN inramning sa "Forest"
+     om en Swamp — ur minnet är en mörk klump på 80 pixlar lätt att ta fel
+     på, sida vid sida med facit är den det inte. Men nu krävs redan att
+     båda inramningarna är överens, och säger båda "Swamp · hog" är kortet
+     belagt på samma sätt som alla andra kort. Uppmätt i produktion: en
+     jämförelse tar 15–25 s (sex bilder, tung modell) och svarade "medel" om
+     samma kort som närbilderna redan läst säkert på 2 s var. Den körs därför
+     bara när inramningarna INTE avgör saken själva: de är oense om vilket
+     land, bara en av dem svarade, eller ingen av dem var säker. */
+  const ettLand = (a && arBasland(a.namn)) || (b && arBasland(b.namn));
+  const eniga = a && b && norm(a.namn) === norm(b.namn);
+  if (ettLand && eniga && (a.sakerhet === 'hog' || b.sakerhet === 'hog')) return a.sakerhet === 'hog' ? a : b;
+  if (ettLand) {
     const land = await readCardAt(img, box, 0.15, 'land').catch(() => null);
     if (land && land.namn) {
       /* Jämförelsen finns för att FÅNGA fel, inte för att sänka ett svar som
