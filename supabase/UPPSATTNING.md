@@ -50,16 +50,25 @@ Kopiera den. Låt fliken vara kvar.
 3. Står det en röd banderoll om att din free trial är slut — strunta i
    den. Inloggning och consent screen är gratis och kräver ingen
    aktiverad betalning.
-4. Har du aldrig gjort det förut måste du först fylla i **OAuth consent
-   screen** (knappen **Configure consent screen** på Credentials-sidan).
-   Appnamn `Handvy`, din e-post som support, **Audience: External**, din
-   e-post som utvecklarkontakt, godkänn villkoren.
-5. Gå till **OAuth consent screen → Audience** och lägg till dig själv
-   och de du ska spela med under **Test users**. Så länge appen står som
-   **Testing** släpps bara de kontona in; alla andra möts av en varning.
-   Vill du slippa listan trycker du **Publish app** — för att bara läsa
-   namn och e-post krävs ingen granskning från Google.
-6. **Credentials → Create credentials → OAuth client ID**.
+4. Har du aldrig gjort det förut måste du först fylla i consent screen
+   (knappen **Configure consent screen** på Credentials-sidan). Appnamn
+   `Handvy`, din e-post som support, **Audience: External**, din e-post
+   som utvecklarkontakt, godkänn villkoren.
+
+   > Google har döpt om den här ytan till **Google Auth Platform**, och
+   > menyvalet "OAuth consent screen" finns inte längre. Det som låg där
+   > är uppdelat i vänsterspalten: **Branding** är appnamn och
+   > supportmejl, **Audience** är External/Internal och test users,
+   > **Clients** är OAuth-klienterna, **Data access** är scopes. Hamnar
+   > du i den vyn är stegen nedan samma sak under de namnen.
+
+5. Gå till **Audience** och lägg till dig själv och de du ska spela med
+   under **Test users**. Så länge appen står som **Testing** släpps bara
+   de kontona in; alla andra möts av en varning. Vill du slippa listan
+   trycker du **Publish app** — för att bara läsa namn och e-post krävs
+   ingen granskning från Google.
+6. **Clients → Create client** (heter **Credentials → Create
+   credentials → OAuth client ID** i den äldre vyn).
 7. Application type: **Web application**. Namn: `Handvy`.
 8. Under **Authorized redirect URIs**: klistra in callback-adressen från
    steg 2a. Det är den enda adress som ska stå där — Supabase tar emot
