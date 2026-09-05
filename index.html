@@ -3656,8 +3656,12 @@ const GRAVSTEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
   + '<path d="M3.2 19.4h17.6"/></svg>';
 /* Kvartsvarvspilar. En nästan sluten cirkel läste sig som en cirkel och inte
    som en vridning — de här visar åt vilket håll kortet ska vändas. */
-const IKON_TAP = '<path d="M12 4.6v5.4a5 5 0 0 0 5 5h1.6"/><path d="M16.4 12.2l2.9 2.8-2.9 2.8"/>';
-const IKON_UNTAP = '<path d="M18.6 15H17a5 5 0 0 1-5-5V4.6"/><path d="M9.2 7.5L12 4.6l2.8 2.9"/>';
+/* Samma kvartsvarv, traverserat åt var sitt håll — då läses de som varandras
+   motsatser direkt. Tap sveper medurs från toppen ut åt höger och slutar peka
+   NEDÅT, alltså åt det håll kortet vrids. Untap sveper moturs från höger upp
+   över toppen och slutar peka åt VÄNSTER, tillbaka mot upprätt läge. */
+const IKON_TAP = '<path d="M12 6a6.5 6.5 0 0 1 6.5 6.5"/><path d="M15.9 9.9 18.5 12.5 21.1 9.9"/>';
+const IKON_UNTAP = '<path d="M18.5 12.5a6.5 6.5 0 0 0-6.5-6.5"/><path d="M14.6 3.4 12 6 14.6 8.6"/>';
 const IKON_GRAV = '<path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"/><path d="M12 7.6v6.2M9 10.4h6"/><path d="M3.2 19.4h17.6"/>';
 const IKON_FLIP = '<rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2.2"/><path d="M12 3.6v16.8"/><path d="M15.4 9.2l2.2 2.4-2.2 2.4"/><path d="M8.6 9.2 6.4 11.6l2.2 2.4"/>';
 const IKON_KRYSS = '<path d="M6 6l12 12M18 6 6 18"/>';
