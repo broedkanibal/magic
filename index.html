@@ -676,13 +676,19 @@ main{flex:1;display:flex;min-height:0}
 .gravflyg img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* Sitter över den otappade stapeln, alltså över det den räknar. Till höger
-   hamnade den vid nästa färgs kant och såg ut att höra dit. */
+   hamnade den vid nästa färgs kant och såg ut att höra dit.
+   Untap-pilen står med i brickan: en ensam siffra i en fylld gul cirkel läses
+   som en notisräknare — "något är fel här" — och inte som "så många av den här
+   färgen är otappade". */
 .luntap{
-  position:absolute;left:-3px;top:-7px;z-index:8;
-  min-width:17px;height:17px;padding:0 4px;border-radius:9px;
-  background:var(--acc);color:#20160a;font:700 10.5px/17px var(--mono);text-align:center;
+  position:absolute;left:-3px;top:-6px;z-index:8;
+  height:17px;padding:0 5px 0 3px;border-radius:9px;
+  display:flex;align-items:center;gap:2px;
+  background:#0b1017f2;border:1px solid var(--acc);color:var(--acc);
+  font:700 10.5px/1 var(--mono);
   box-shadow:0 2px 6px -1px #000b;pointer-events:none;
 }
+.luntap svg{display:block;flex:none}
 /* Handlingarna på ett landkort. De låg tidigare 3 px UNDER kortet, och den
    luckan gjorde dem omöjliga att klicka på: så fort pekaren lämnade kortet för
    att nå raden slutade :hover gälla, och raden försvann under fingret. Nu
@@ -3562,7 +3568,7 @@ function hoverRadHtml(e, i) {
     + `<i class="akttip">${etikett}</i></span>`;
   return `<span class="kortakt" data-akt-for="${i}">
     ${kn('tap', e.tapped ? 'Untap' : 'Tap', e.tapped ? IKON_UNTAP : IKON_TAP)}
-    ${kn('flip', e.flipped ? 'Turn face up' : 'Turn face down', IKON_FLIP)}
+    ${kn('flip', e.flipped ? 'Turn face up' : 'Turn face down', e.flipped ? IKON_FRAMSIDA : IKON_BAKSIDA)}
     ${kanBifoga ? kn('attach', b.etikett, IKON_ATTACH) : ''}
     ${kn('grav', 'Graveyard', IKON_GRAV)}
     ${kn('del', 'Remove', IKON_KRYSS, ' fara')}
@@ -3663,7 +3669,12 @@ const GRAVSTEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const IKON_TAP = '<path d="M12 6a6.5 6.5 0 0 1 6.5 6.5"/><path d="M15.9 9.9 18.5 12.5 21.1 9.9"/>';
 const IKON_UNTAP = '<path d="M18.5 12.5a6.5 6.5 0 0 0-6.5-6.5"/><path d="M14.6 3.4 12 6 14.6 8.6"/>';
 const IKON_GRAV = '<path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"/><path d="M12 7.6v6.2M9 10.4h6"/><path d="M3.2 19.4h17.6"/>';
-const IKON_FLIP = '<rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2.2"/><path d="M12 3.6v16.8"/><path d="M15.4 9.2l2.2 2.4-2.2 2.4"/><path d="M8.6 9.2 6.4 11.6l2.2 2.4"/>';
+/* Flip visar den sida kortet ska hamna på. Baksidan är kortets kontur med
+   Magic-baksidans ovala mitt; framsidan samma kontur med titelrad och textrad
+   och konsten emellan. Den förra ikonen var en ruta med en linje genom och två
+   pilar utåt, vilket läste sig som "dela" eller "spegla". */
+const IKON_BAKSIDA = '<rect x="6" y="3" width="12" height="18" rx="2"/><ellipse cx="12" cy="12" rx="3.2" ry="4.8"/>';
+const IKON_FRAMSIDA = '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M8.8 7h6.4"/><path d="M8.8 17h6.4"/>';
 const IKON_KRYSS = '<path d="M6 6l12 12M18 6 6 18"/>';
 const IKON_ATTACH = '<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>';
 /* Baksidan på ett Magic-kort. Ett kort som vänds ner är fortfarande på bordet
@@ -3702,7 +3713,9 @@ function landGruppHtml(g) {
      hoppade i sidled precis när man var på väg att klicka igen. Den visas
      bara när något faktiskt är tappat — annars säger totalen redan allt. */
   const kvar = !tappade.length ? '' :
-    `<span class="luntap" title="${otappade.length} untapped">${otappade.length}</span>`;
+    `<span class="luntap" title="${otappade.length} of ${g.idx.length} untapped">`
+    + `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${IKON_UNTAP}</svg>`
+    + `${otappade.length}</span>`;
   return `<div class="lgrupp" data-alla="${g.idx.join(',')}">
     ${kvar}
     <div class="lrad">
@@ -4827,19 +4840,26 @@ $('#fxImg').addEventListener('click', () => flipSel());
    till höger, sedan nedre raden i den ordning den ritas — graveyard först,
    sedan manan, sedan specialmanan — och därefter runt till handraden igen.
    Tre Swamp är en post i raden, inte tre, så de är ett stopp. */
+/* Varje kort som går att markera med musen ska gå att nå med tangenterna.
+   Basland räknades tidigare som ETT stopp per färg: låg det två Swamp ute kom
+   man bara åt den ena, och vilken avgjordes av ordningen i kortlistan — den
+   andra gick att klicka på men aldrig att pila fram till. Det fungerade när
+   ramen ringade in hela färggruppen; sedan den sitter på ett enskilt kort är
+   det ett hål. Ordningen följer radens: färg för färg, otappade före tappade,
+   specialland sist. */
 function navIdx() {
-  const c = hand(), d = delaHand(), ut = [], sedd = new Set();
+  const c = hand(), d = delaHand(), ut = [];
   for (const i of d.spell) ut.push(i);
   if (d.grav.length) ut.push(d.grav[0]);                 // högen är ett stopp
-  const bas = [], spec = [];
+  const grupp = new Map(), spec = [];
   for (const i of d.mana) {
     const sym = baslandSym(c[i]);
     if (!sym) { spec.push(i); continue; }
-    if (sedd.has(c[i].name)) continue;
-    sedd.add(c[i].name); bas.push({ i, sym });
+    if (!grupp.has(c[i].name)) grupp.set(c[i].name, { sym, o: [], t: [] });
+    grupp.get(c[i].name)[c[i].tapped ? 't' : 'o'].push(i);
   }
-  bas.sort((a, b) => MANA_ORD.indexOf(a.sym) - MANA_ORD.indexOf(b.sym));   // samma ordning som raden
-  for (const b of bas) ut.push(b.i);
+  const grupper = [...grupp.values()].sort((a, b) => MANA_ORD.indexOf(a.sym) - MANA_ORD.indexOf(b.sym));
+  for (const g of grupper) ut.push(...g.o, ...g.t);
   for (const i of spec) ut.push(i);
   return ut;
 }
@@ -4854,16 +4874,16 @@ const navRad2 = () => { const d = delaHand(); return d.spell.length; };
 function navPos(nav, i) {
   const k = nav.indexOf(i);
   if (k >= 0) return k;
-  /* Urvalet kan stå på ett kort som inte är ett eget stopp: den andra av två
-     Swamp, eller ett kort längre ner i högen. */
+  /* Enda kortet som inte är sitt eget stopp är ett kort längre ner i högen —
+     den räknas som en enda plats, och urvalet kan peka på vilket som helst av
+     korten i den. */
   const c = hand(), e = c[i];
   if (!e) return 0;
-  const iGrav = zonAv(e) === ZON_GRAV;
-  for (let j = 0; j < nav.length; j++) {
-    const n = c[nav[j]];
-    if (!n) continue;
-    if (iGrav && zonAv(n) === ZON_GRAV) return j;   // hela högen är ett stopp
-    if (!iGrav && n.name === e.name) return j;      // samma basland
+  if (zonAv(e) === ZON_GRAV) {
+    for (let j = 0; j < nav.length; j++) {
+      const n = c[nav[j]];
+      if (n && zonAv(n) === ZON_GRAV) return j;
+    }
   }
   return 0;
 }
