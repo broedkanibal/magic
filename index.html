@@ -181,9 +181,13 @@ main{flex:1;display:flex;min-height:0}
 
 /* zon A: permanents */
 .zon-perm{flex:1;min-height:0;display:flex;flex-direction:column;gap:7px;position:relative}
+/* Rutnätet tar hela zonens höjd och lägger raderna mitt i den. Kortstorleken
+   sätts av computeFit och begränsas ibland av BREDDEN — åtta kort på en rad
+   kan inte bli högre än raden tillåter. Det som blir över fördelas då lika
+   över och under i stället för att lämna ett tomrum under korten. */
 .grid{
-  display:flex;flex-wrap:wrap;gap:7px 6px;padding-top:4px;
-  align-content:flex-start;align-items:flex-start;min-height:0;overflow:hidden;
+  flex:1;display:flex;flex-wrap:wrap;gap:7px 6px;padding-top:4px;
+  align-content:center;align-items:flex-start;min-height:0;overflow:hidden;
 }
 .card{
   position:relative;display:block;width:var(--cardw);flex:none;aspect-ratio:488/680;
@@ -201,24 +205,29 @@ main{flex:1;display:flex;min-height:0}
   box-shadow:0 3px 10px -2px #000b;
   transition:box-shadow .13s;
 }
-/* Tappat kort — vridet 90° som på ett fysiskt bord. Platsen blir kvadratisk
-   (kortets höjd i båda led) så att radhöjden är densamma vare sig kortet står
-   upp eller ligger ner, och bilden roteras kring platsens mitt. */
-.card.tappad{
-  width:calc(var(--cardw) / (488 / 680));height:calc(var(--cardw) / (488 / 680));
-  aspect-ratio:auto;opacity:.75;
-}
+/* Tappat kort — vridet 90° som på ett fysiskt bord, men i SAMMA plats som ett
+   ostående kort. Platsen får inte ändra storlek: gjorde den det räknades hela
+   brädets skala om varje gång man vred ett kort. Bilden krymps med .7176 så
+   att den vridna kortsidan blir exakt lika bred som platsen — proportionen
+   är kortets egen, precis som i Lands. */
+/* Platsen behåller sin storlek men ska inte SYNAS runt det vridna kortet —
+   en tom mörk ram runt en liten bild läses som att något saknas. */
+.card.tappad{opacity:.75;background:none}
+.card.tappad::after,.card.tappad::before{display:none}
+.card.tappad.sel img{box-shadow:0 0 0 3px var(--acc),0 8px 18px -6px #000e}
+.card.tappad:hover img{box-shadow:0 0 0 2px var(--blue),0 8px 18px -6px #000e}
 .card.tappad img{
-  position:absolute;top:0;left:calc((var(--cardw) / (488 / 680) - var(--cardw)) / 2);
+  position:absolute;left:50%;top:50%;
   width:var(--cardw);height:calc(var(--cardw) / (488 / 680));
-  transform:rotate(90deg);
+  transform:translate(-50%,-50%) rotate(90deg) scale(0.717647);
 }
 .card.tappad:hover{opacity:1}
+/* Det ostaplade kortets plats ändrar sig inte heller när något läggs på det. */
+.kortplats.tappad{width:var(--cardw)}
 
 /* Bifogat kort (equipment, aura) ligger BAKOM sin värd, 9 px ner och åt
    höger — måttet skalar med kortbredden så det håller i alla storlekar. */
 .kortplats{position:relative;display:block;width:var(--cardw);flex:none}
-.kortplats.tappad{width:calc(var(--cardw) / (488 / 680))}
 .kortplats .card.bifogad{
   position:absolute;left:calc(var(--cardw) * .102);top:calc(var(--cardw) * .102);
   filter:brightness(.8);z-index:1;
@@ -238,7 +247,7 @@ main{flex:1;display:flex;min-height:0}
 .card:hover{z-index:20}
 .card:hover::before{
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
-  border:2px solid var(--blue);box-shadow:0 0 0 4px #6b8cff22;pointer-events:none;
+  border:2px solid var(--blue);box-shadow:inset 0 0 0 4px #6b8cff1f;pointer-events:none;
 }
 .kortnamn,.kortakt{opacity:0;pointer-events:none;transition:opacity .1s}
 .card:hover .kortnamn,.card:hover .kortakt{opacity:1}
@@ -257,9 +266,13 @@ main{flex:1;display:flex;min-height:0}
 .kortnamn i{font:10.5px/1.35 var(--mono);color:#a9bad2;font-style:normal}
 /* Handlingsraden flyter över kortets nederkant — den ska inte skymma
    konstverket eller namnet man just läste. */
+/* Fem knappar är bredare än ett litet kort. Raden bryter innanför kortets
+   kant i stället för att sticka ut — utanför klipper rutnätet, och på kortet
+   längst till vänster försvann halva raden. */
 .kortakt{
   position:absolute;left:50%;bottom:5px;transform:translateX(-50%);z-index:22;
-  display:flex;gap:4px;padding:4px;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:4px;
+  max-width:calc(100% - 8px);
   background:#070b11f2;border:1px solid #3a4658;border-radius:9px;
   box-shadow:0 6px 16px -4px #000e;
 }
@@ -280,9 +293,21 @@ main{flex:1;display:flex;min-height:0}
   opacity:0;pointer-events:none;transition:opacity .1s;
 }
 .kortakt-b:hover .akttip,.lakt-b:hover .akttip{opacity:1}
+/* Ytterknapparnas tooltip skulle annars hänga ut över radens kant och kapas.
+   Första och sista drar in sig mot mitten i stället. */
+.kortakt-b:first-child .akttip,.lakt-b:first-child .akttip{left:0;transform:none}
+.kortakt-b:last-child .akttip,.lakt-b:last-child .akttip{left:auto;right:0;transform:none}
 /* Vid små kort ryms varken etikett eller rad — då är kortet ändå för litet
-   att sikta på, och Selected visar det man behöver. */
+   att sikta på, och Selected visar det man behöver. Flaggan sätts av
+   applySize() efter den uträknade kortbredden. */
 .grid[data-smakort] .kortnamn,.grid[data-smakort] .kortakt{display:none}
+/* Mellanläget: raden ryms men bara med mindre knappar. */
+.grid[data-trangt] .kortakt{gap:3px;padding:3px}
+.grid[data-trangt] .kortakt-b{width:21px;height:21px}
+.grid[data-trangt] .kortakt-b svg{width:12px;height:12px}
+.grid[data-trangt] .kortnamn{padding:2px 6px}
+.grid[data-trangt] .kortnamn b{font-size:9.5px}
+.grid[data-trangt] .kortnamn i{display:none}
 
 /* ── attach-läget ──────────────────────────────────────────────────
    Modalt inom brädet: allt utom de giltiga målen tonas ner, så frågan
@@ -602,6 +627,14 @@ main{flex:1;display:flex;min-height:0}
 .lspec .lrad{gap:5px;flex-wrap:wrap}
 /* Otappat-räknaren svävar över gruppen — den får inte ta plats i flödet, för
    då hoppar kontrollraden när man tappar. */
+/* Kopian som flyger till högen. Fast position så att den varken påverkar
+   layouten eller följer med när brädet ritas om under animationen. */
+.gravflyg{
+  position:fixed;z-index:900;pointer-events:none;border-radius:6px;overflow:hidden;
+  box-shadow:0 10px 28px -8px #000e;
+}
+.gravflyg img{width:100%;height:100%;object-fit:cover;display:block}
+
 /* Sitter över den otappade stapeln, alltså över det den räknar. Till höger
    hamnade den vid nästa färgs kant och såg ut att höra dit. */
 .luntap{
@@ -676,9 +709,12 @@ main{flex:1;display:flex;min-height:0}
 .marktom{margin:auto;font-size:10.5px;color:var(--dim2);text-align:center;padding:0 8px}
 
 /* Graveyard: en stapel, ett lager per kort */
+/* Högen mitt i sin kolumn, i båda led. Den satt tidigare uppklistrad mot
+   överkanten med en asymmetrisk padding som lutade den åt vänster. */
 .grav{
-  flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:16px 16px 0 0;border:1px solid transparent;border-radius:9px;
+  flex:1;min-height:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  padding:10px;border:1px solid transparent;border-radius:9px;
   background:none;cursor:pointer;
 }
 .grav:hover,.grav.over,.grav.sel{background:#141c28;border-color:var(--acc)}
@@ -702,7 +738,7 @@ main{flex:1;display:flex;min-height:0}
 }
 .gravsten svg{width:100%;height:100%;display:block}
 .gravtxt{font:10px var(--mono);color:var(--dim2)}
-.grav.tom{justify-content:center;gap:8px;border:1.5px dashed var(--line);color:var(--dim2)}
+.grav.tom{border:1.5px dashed var(--line);color:var(--dim2)}
 .grav.tom .gravsten{position:static;transform:none;opacity:.35}
 .grav.tom:hover,.grav.tom.over{border-color:var(--acc);background:var(--tand2);color:var(--pa-acc)}
 
@@ -1198,7 +1234,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
           List
         </button>
         <div class="handmeta">
-          <span id="handCount">0 permanents</span>
           <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one">Clear board</button>
           <div class="zoomctl">
             <button id="fitBtn" class="fitbtn" title="Fit the whole hand on screen (0)">Fit</button>
@@ -3190,21 +3225,14 @@ const bandHojd = () => manaRow.hidden ? 0 : (manaRow.offsetHeight || BAND_H);
    kvadratisk plats — kortets höjd i båda led — och är alltså (h − w) bredare
    än ett otappat. Utan det hamnar sista kortet utanför så fort några ligger
    ner. Bifogade kort tar ingen egen plats: de ligger bakom sin värd. */
-function permRyms(w, W, H, rader, gapX, gapY) {
+/* Ryms n kort av bredden w på ytan? Varje kort får en plats av samma storlek,
+   oavsett om det ligger tappat eller har något staplat på sig — annars ändrade
+   sig hela brädets skala mitt i en tur, bara för att man vred ett kort. */
+function permRyms(w, n, W, H, gapX, gapY) {
   const h = w / ASPECT;
-  const cards = hand(), d = delaHand();
-  const vardar = new Set(cards.filter(e => e.attachedTo).map(e => e.attachedTo));
-  const bredder = d.spell
-    .filter(i => !cards[i].attachedTo)
-    .map(i => cards[i].tapped ? h : w);
-  if (!bredder.length) return true;
-  if (rader * h + gapY * (rader - 1) > H) return false;
-  let rad = 1, x = 0;
-  for (const b of bredder) {
-    if (x > 0 && x + gapX + b > W) { rad++; x = b; if (rad > rader) return false; }
-    else x += (x ? gapX : 0) + b;
-  }
-  return true;
+  const perRad = Math.max(1, Math.floor((W + gapX) / (w + gapX)));
+  const rader = Math.ceil(n / perRad);
+  return rader * h + gapY * (rader - 1) <= H;
 }
 
 function computeFit() {
@@ -3217,19 +3245,21 @@ function computeFit() {
   const rubrik = 18 + 7;                                  // zonrubrik + gap under den
   const gapCS = getComputedStyle(gridEl);
   const gapY = parseFloat(gapCS.rowGap) || 7, gapX = parseFloat(gapCS.columnGap) || 6;
-  const W = gridWrap.clientWidth - padX - 2;
+  const W = gridWrap.clientWidth - padX - 2 - 6;
   /* Ytan är bordet minus bandet, minus mellanrummet mellan zonerna och minus
      permanents-zonens egen rubrikrad. */
-  const H = gridWrap.clientHeight - padY - bandHojd() - 10 - rubrik - 4 - 2;   // 4 = rutnätets toppmarginal för lyftet
+  /* RING är plats åt markeringsramen och lyftet vid hover: utan den räcker
+     ytan precis till korten och ramen kapas mot zonens kant. */
+  const RING = 10;
+  const H = gridWrap.clientHeight - padY - bandHojd() - 10 - rubrik - 4 - 2 - RING;
   if (!(W > 0 && H > 0)) return prefs.cardw;
 
-  /* Sök största kortbredd som ryms. Radantalet är inte fritt valbart längre
-     eftersom tappade kort är bredare — pröva i stället bredder uppifrån och
-     ned och låt packningen avgöra. */
+  /* Största bredd som ryms, sökt uppifrån. Räknar på ALLA permanents, även de
+     som ligger staplade på ett annat kort och just nu inte har någon egen
+     plats — annars hoppade skalan när man satte en Equipment på en creature. */
   let bast = 58;
   for (let w = 460; w >= 58; w -= 2) {
-    const maxRader = Math.max(1, Math.floor((H + gapY) / (w / ASPECT + gapY)));
-    if (permRyms(w, W, H, maxRader, gapX, gapY)) { bast = w; break; }
+    if (permRyms(w, n, W, H, gapX, gapY)) { bast = w; break; }
   }
   return clamp(Math.floor(bast), 58, 460);
 }
@@ -3239,6 +3269,11 @@ function applySize() {
   gridWrap.style.setProperty('--cardw', w + 'px');   // paddingen nedan räknar på den
   $('#fitBtn').classList.toggle('on', !!prefs.fit);
   gridWrap.classList.toggle('shownums', !!prefs.shownums);
+  /* Hovermenyn behöver en viss kortbredd för att gå att sikta på. Under 100 px
+     visas den inte alls — där är kortet ändå för litet att träffa, och
+     Selected plus tangenterna gör samma jobb. */
+  gridEl.toggleAttribute('data-smakort', w < 100);
+  gridEl.toggleAttribute('data-trangt', w >= 100 && w < 168);
 }
 
 /* ─── handens rutnät ─── */
@@ -3300,6 +3335,31 @@ function delaHand() {
 }
 /* Flytta ett kort till en annan zon. Graveyard är en hög, och det man just
    lade dit ligger överst — alltså först i sin grupp. */
+/* Ett kort som bara försvinner från brädet och dyker upp som en siffra i
+   högen läses som att det raderades. Den här flyger en kopia av kortet dit,
+   så att man ser VART det tog vägen. Kopian ligger utanför layouten och rörs
+   inte av omritningen som sker samtidigt. */
+function flygTillGrav(fran) {
+  const hog = manaRow.querySelector('.grav');
+  if (!fran || !hog || !fran.getBoundingClientRect) return;
+  const a = fran.getBoundingClientRect(), b = hog.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const bild = fran.querySelector('img');
+  const kopia = document.createElement('div');
+  kopia.className = 'gravflyg';
+  kopia.style.cssText = `left:${a.left}px;top:${a.top}px;width:${a.width}px;height:${a.height}px`;
+  if (bild && bild.src) kopia.innerHTML = `<img src="${esc(bild.src)}" alt="">`;
+  document.body.appendChild(kopia);
+  const skala = Math.min(1, (b.width * 0.8) / a.width);
+  const dx = (b.left + b.width / 2) - (a.left + a.width / 2);
+  const dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+  const anim = kopia.animate([
+    { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+    { transform: `translate(${dx}px,${dy}px) scale(${skala}) rotate(-12deg)`, opacity: .15 }
+  ], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)' });
+  anim.finished.catch(() => {}).then(() => kopia.remove());
+}
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
@@ -3451,12 +3511,8 @@ function renderGrid(force) {
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c)).join('|');
 
-  /* Handbarens meta säger vad bordet innehåller, i designens ordning. */
-  $('#handCount').textContent = [
-    d.spell.length + ' permanents',
-    d.mana.length ? d.mana.length + (d.mana.length === 1 ? ' land' : ' lands') : '',
-    d.grav.length ? d.grav.length + ' in graveyard' : ''
-  ].filter(Boolean).join(' · ');
+  /* Antalet står i varje zons egen rubrik. En andra räkning uppe i sökraden
+     sa samma sak en gång till, längre bort från det den räknade. */
   $('#clearHand').hidden = state.players.every(q => !q.cards.length && !(q.pending || []).length);
   document.body.classList.toggle('tomhand', cards.length === 0);
   if (!force && sig === gridSig) { renderSel(); return; }
@@ -4153,7 +4209,11 @@ function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
   if (akt === 'flip') { state.sel = i; flipSel(); return; }
   if (akt === 'attach') return startaAttach(i);
-  if (akt === 'grav') { flyttaTill(i, ZON_GRAV); return; }
+  if (akt === 'grav') {
+    flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`) || manaRow.querySelector(`.lkort[data-i="${i}"]`));
+    flyttaTill(i, ZON_GRAV);
+    return;
+  }
   if (akt === 'del') return removeAt(i);
 }
 gridEl.addEventListener('click', ev => {
@@ -4472,9 +4532,15 @@ function startRename(id) {
    med tolv kort är inget man vill klicka sig igenom. */
 let gravSel = 0;
 function gravKort() { const c = hand(); return delaHand().grav.map(i => c[i]); }
-function openGrav() { gravSel = 0; openOv('gravOv'); renderGrav(); }
+let gravHadeKort = false;
+function openGrav() { gravSel = 0; gravHadeKort = gravKort().length > 0; openOv('gravOv'); renderGrav(); }
 function renderGrav() {
   const lista = gravKort();
+  /* Tom hög betyder inget att bläddra i, och huvudvyn visar redan tomtillstånd
+     — men bara om man kom hit med kort. Klickar man på en tom hög ska den gå
+     att öppna och läsa. */
+  if (!lista.length && gravHadeKort) { gravHadeKort = false; closeOv('gravOv'); return; }
+  gravHadeKort = lista.length > 0;
   $('#gravCount').textContent = lista.length
     ? `${lista.length} ${lista.length === 1 ? 'card' : 'cards'} · newest first` : '';
   $('#gravPrev').disabled = $('#gravNext').disabled = lista.length < 2;
@@ -4956,7 +5022,11 @@ addEventListener('keydown', ev => {
   else if (lower === 'i') { ev.preventDefault(); openOv('imgOv'); }
   else if (lower === 't') { ev.preventDefault(); tappa(state.sel); }
   else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); startaAttach(state.sel); }
-  else if (lower === 'g') { ev.preventDefault(); flyttaTill(state.sel, ZON_GRAV); }
+  else if (lower === 'g') {
+    ev.preventDefault();
+    flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`) || manaRow.querySelector(`.lkort[data-i="${state.sel}"]`));
+    flyttaTill(state.sel, ZON_GRAV);
+  }
   else if (lower === 's') { ev.preventDefault(); $('#shotBtn').click(); }
   else if (lower === 'n') { ev.preventDefault(); addPlayer(); startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
