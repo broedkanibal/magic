@@ -118,6 +118,9 @@ på en felsida efter Google-rutan.
 1. I Supabase: **SQL Editor → New query**.
 2. Klistra in hela innehållet i `supabase/schema.sql` från det här repot.
 3. **Run**. Det ska sluta med `Success`.
+4. Gör om samma sak med `supabase/kamera.sql` — den lägger till tabellerna
+   för mobilkameran och en privat lagringshink för bilderna. Utan den
+   fungerar spel och inloggning, men kameraknappen gör ingenting.
 
 Filen går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.

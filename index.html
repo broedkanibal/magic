@@ -1199,6 +1199,83 @@ body.lasvy .card:hover{transform:none}
 }
 body.lasvy .lasband{display:flex}
 
+/* Anslutningsdialogen och kalibreringen på datorn. */
+.kamsteg{display:flex;flex-direction:column;gap:12px}
+.kamqr{
+  align-self:center;padding:14px;border-radius:12px;background:#fff;
+  min-width:200px;min-height:200px;display:grid;place-items:center;
+}
+.kamqr canvas,.kamqr img{display:block;image-rendering:pixelated}
+.kamqr .vantar{color:#5a6474;font:12px var(--sans)}
+.kamlank{display:flex;align-items:center;gap:8px;margin:0}
+.kamlank code{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:11px var(--mono);color:var(--dim);background:var(--bg);
+  border:1px solid var(--line);border-radius:6px;padding:7px 9px;
+}
+.kamfin2{margin:0;font:11.5px/1.5 var(--sans);color:var(--dim2)}
+.kalbild{position:relative;border-radius:10px;overflow:hidden;background:#000;user-select:none}
+.kalbild img{display:block;width:100%;height:auto}
+.kalruta{
+  position:absolute;border:2px solid var(--acc);cursor:move;
+  box-shadow:0 0 0 9999px #000000a8;
+}
+.kalruta i{
+  position:absolute;width:16px;height:16px;border-radius:50%;
+  background:var(--acc);border:2px solid #20160a;
+}
+.kalruta i[data-horn="nv"]{left:-9px;top:-9px;cursor:nwse-resize}
+.kalruta i[data-horn="no"]{right:-9px;top:-9px;cursor:nesw-resize}
+.kalruta i[data-horn="sv"]{left:-9px;bottom:-9px;cursor:nesw-resize}
+.kalruta i[data-horn="so"]{right:-9px;bottom:-9px;cursor:nwse-resize}
+
+/* ═══════════════════════════════════════════════════════════════════
+   KAMERALÄGET — telefonen
+
+   Helskärm, mörkt, och byggt för att hållas i handen eller stå i ett
+   stativ. Ingenting att läsa på håll utom statusraden: det man tittar
+   på är bordet, inte skärmen.
+   ═══════════════════════════════════════════════════════════════════ */
+.kamera{
+  position:fixed;inset:0;z-index:420;background:#000;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+#kamVideo{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  background:#000;
+}
+.kamoverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.kamtopp{
+  position:relative;z-index:2;display:flex;align-items:center;gap:9px;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 12px;
+  background:linear-gradient(#000c,#0000);color:#e6ecf5;
+  font:12.5px var(--sans);
+}
+.kamtopp b{font:600 13px var(--sans)}
+/* Pricken säger om datorn lyssnar. Utan den vet man inte om korten
+   kommer fram eller bara läggs på hög. */
+.kamprick{
+  width:9px;height:9px;border-radius:50%;flex:none;
+  background:var(--red);box-shadow:0 0 0 3px #ff6b6b22;
+}
+.kamprick.pa{background:var(--green);box-shadow:0 0 0 3px #5fbf7f22}
+.kambotten{
+  position:relative;z-index:2;margin-top:auto;
+  display:flex;flex-direction:column;gap:10px;
+  padding:16px 16px calc(env(safe-area-inset-bottom,0px) + 18px);
+  background:linear-gradient(#0000,#000d 40%);
+}
+.kamstatus{margin:0;font:600 16px/1.35 var(--sans);color:#fff;text-shadow:0 1px 3px #000}
+.kamfin{margin:0;font:12.5px/1.5 var(--sans);color:#b9c6d8;text-shadow:0 1px 3px #000}
+.kamknappar{display:flex;gap:8px}
+.kamknappar .btn{flex:1;justify-content:center}
+.kamsenast{
+  display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;
+  background:#0b1017d9;border:1px solid #3a4658;
+}
+.kamsenast img{width:34px;height:48px;object-fit:cover;border-radius:4px;background:#11161e;flex:none}
+.kamsenast span{font:12px var(--sans);color:#e6ecf5}
+
 /* ═══════════════════════════════════════════════════════════════════
    PORTALEN — landningssida och lobby
    Två helskärmsvyer utanför appen. De ligger i samma fil och byts med
@@ -1416,6 +1493,36 @@ body.ispel #addPlayerBtn{display:none}
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════════
+     Kameraläget — telefonen.
+
+     Samma fil, samma inloggning, samma spel. Skillnaden är att den här
+     enheten inte visar något bord: den tittar på en matta och skickar
+     kort. Datorn gör igenkänningen.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="vyKamera" class="kamera" hidden>
+  <video id="kamVideo" playsinline muted autoplay></video>
+  <canvas id="kamOverlay" class="kamoverlay"></canvas>
+
+  <div class="kamtopp">
+    <span class="kamprick" id="kamPrick"></span>
+    <b id="kamSpel">—</b>
+    <button class="btn ghost sm" id="kamStang" style="margin-left:auto">Koppla från</button>
+  </div>
+
+  <div class="kambotten">
+    <p class="kamstatus" id="kamStatus">Startar kameran…</p>
+    <p class="kamfin" id="kamFin"></p>
+    <div class="kamknappar">
+      <button class="btn prim big" id="kamKalibrera">Skicka bild för kalibrering</button>
+    </div>
+    <div class="kamsenast" id="kamSenast" hidden>
+      <img id="kamSenastBild" alt="">
+      <span id="kamSenastTxt"></span>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <header class="topbar">
     <div class="brand">
@@ -1428,6 +1535,10 @@ body.ispel #addPlayerBtn{display:none}
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
     <div class="spelrad" id="spelRad" hidden>
+      <button class="btn sm" id="kamKnapp" title="Koppla telefonen som kamera">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>
+        Kamera
+      </button>
       <button class="btn sm" id="bjudInBtn" title="Kopiera inbjudningslänken">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg>
         Bjud in
@@ -1643,6 +1754,41 @@ body.ispel #addPlayerBtn{display:none}
       <span class="grow" id="bulkInfo"></span>
       <button class="btn" data-close="bulkOv">Cancel</button>
       <button class="btn prim" id="bulkGo">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── koppla kamera ── -->
+<div class="ov" id="kamOv">
+  <div class="modal" style="width:min(560px,94vw)">
+    <header>
+      <h2>Koppla en kamera</h2>
+      <button class="close" data-close="kamOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <div class="kamsteg" id="kamStegQr">
+        <p class="lead">Skanna med telefonens kamera. Du loggar in med samma konto,
+          och telefonen blir din kamera i det här spelet — den visar inget bord.</p>
+        <div class="kamqr" id="kamQr"></div>
+        <p class="kamlank"><code id="kamLank"></code>
+          <button class="btn sm" id="kamKopiera">Kopiera länk</button></p>
+      </div>
+
+      <div class="kamsteg" id="kamStegKal" hidden>
+        <p class="lead"><b>Bekräfta ytan.</b> Dra rutan så att den täcker mattan där du
+          lägger nya kort. Mattan ska vara <b>tom</b> just nu — bilden av den tomma
+          mattan är det kameran jämför mot för att se när ett kort lagts dit.</p>
+        <div class="kalbild" id="kalBild">
+          <img id="kalImg" alt="">
+          <div class="kalruta" id="kalRuta"><i data-horn="nv"></i><i data-horn="no"></i><i data-horn="sv"></i><i data-horn="so"></i></div>
+        </div>
+        <p class="kamfin2" id="kalFin"></p>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="grow" id="kamOvStatus"></span>
+      <button class="btn" data-close="kamOv">Stäng</button>
+      <button class="btn prim" id="kalSpara" hidden>Bekräfta ytan</button>
     </div>
   </div>
 </div>
@@ -3448,6 +3594,7 @@ const Moln = (() => {
     /* Koden ur inbjudningslänken överlever inte rundturen till Google,
        så den läggs undan lokalt och plockas upp när vi kommer tillbaka. */
     if (nastaKod) sessionStorage.setItem('sthv.join', nastaKod);
+    if (kameraIUrl()) sessionStorage.setItem('sthv.cam', '1');
     const { error } = await s.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: location.origin + location.pathname }
@@ -3541,16 +3688,105 @@ const Moln = (() => {
     await s.from('game_players').update({ namn }).eq('game_id', gameId).eq('user_id', minId());
   }
 
+  /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
+     anropas, så en andra prenumeration för avläsningarna kan inte vara en
+     egen kanal — den hade tystat borden. Allt hänger på samma. */
   async function lyssna(gameId, cb) {
     const s = await klient(); if (!s) return;
     await lamnaKanal();
     lyssnare.bord = cb.bord; lyssnare.spelare = cb.spelare;
+    lyssnare.scan = cb.scan; lyssnare.kal = cb.kal; lyssnare.uppkopplad = cb.uppkopplad;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
           p => lyssnare.bord && lyssnare.bord(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: 'game_id=eq.' + gameId },
           () => lyssnare.spelare && lyssnare.spelare())
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scans', filter: 'game_id=eq.' + gameId },
+          p => lyssnare.scan && lyssnare.scan(p.new || p.old, p.eventType))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_setups', filter: 'game_id=eq.' + gameId },
+          p => lyssnare.kal && lyssnare.kal(p.new || p.old))
+      /* Statusen är inte kosmetisk. Tappas sockeln återansluter supabase-js
+         tyst, men de händelser som missades under tiden spelas ALDRIG upp
+         igen. För borden läker det av sig självt — nästa skrivning bär hela
+         kortlistan. En avläsning finns bara en gång, så den som vaknar måste
+         fråga efter vad som ligger kvar. */
+      .subscribe(st => { if (st === 'SUBSCRIBED' && lyssnare.uppkopplad) lyssnare.uppkopplad(); });
+  }
+
+  /* ─── kameran ──────────────────────────────────────────────────────
+     Telefonen laddar upp en beskärning, datorn hämtar ner den och känner
+     igen kortet. Bilderna är privata: de är fotografier av ditt bord. */
+
+  async function sparaKalibrering(gameId, ruta, farg, bredd, hojd) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('camera_setups').upsert({
+      game_id: gameId, user_id: minId(), ruta, farg,
+      bildbredd: bredd, bildhojd: hojd, andrad: new Date().toISOString()
+    }, { onConflict: 'game_id,user_id' });
+    if (error) { console.warn('Kalibreringen kunde inte sparas', error.message); return false; }
+    return true;
+  }
+  async function hamtaKalibrering(gameId) {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const { data } = await s.from('camera_setups')
+      .select('*').eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+    return data || null;
+  }
+
+  /* Filnamnet börjar med användarens id — lagringspolicyn låter en bara
+     röra sin egen mapp, och sökvägen är det som avgör vems den är. */
+  async function laddaUppScan(gameId, blob) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Inte inloggad');
+    const namn = `${minId()}/${gameId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const up = await s.storage.from('scans').upload(namn, blob, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) throw up.error;
+    const { data, error } = await s.from('scans')
+      .insert({ game_id: gameId, user_id: minId(), bild: namn }).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  /* Tar en avläsning i anspråk. Villkoret sitter i databasen: två datorer
+     som frågar samtidigt får bara en rad var, och den som förlorar får
+     null tillbaka i stället för att behandla samma bild en gång till. */
+  async function taScan(id, flik) {
+    const s = await klient(); if (!s) return null;
+    const { data, error } = await s.rpc('ta_scan', { p_id: id, p_flik: flik });
+    if (error) { console.warn('Kunde inte ta avläsningen', error.message); return null; }
+    return Array.isArray(data) ? data[0] : data;
+  }
+  async function scanBild(sokvag) {
+    const s = await klient(); if (!s) return null;
+    const { data, error } = await s.storage.from('scans').download(sokvag);
+    if (error) { console.warn('Bilden kunde inte hämtas', error.message); return null; }
+    return data;                                    // Blob
+  }
+  async function scanKlar(id, kortnamn, status) {
+    const s = await klient(); if (!s) return;
+    await s.from('scans').update({
+      status: status || 'klar', kort: kortnamn || null, andrad: new Date().toISOString()
+    }).eq('id', id);
+  }
+  /* Bilden har gjort sitt när kortet ligger på bordet. Att låta dem ligga
+     kvar hade fyllt hinken med fotografier av gamla spel. */
+  async function radeaScan(rad) {
+    const s = await klient(); if (!s || !rad) return;
+    try { await s.storage.from('scans').remove([rad.bild]); } catch (e) {}
+    try { await s.from('scans').delete().eq('id', rad.id); } catch (e) {}
+  }
+  /* Avläsningar som ligger kvar sedan tidigare — telefonen fotade medan
+     ingen dator lyssnade. De ska behandlas när en öppnas. */
+  /* Väntande OCH sådana som fastnat. En rad i 'tas' vars flik försvann skulle
+     annars aldrig behandlas — och det är just de osäkra korten som fastnar,
+     eftersom de väntar på att någon svarar på en fråga. */
+  async function vantandeScans(gameId) {
+    const s = await klient(); if (!s || !inloggad()) return [];
+    const grans = new Date(Date.now() - 90000).toISOString();
+    const { data } = await s.from('scans').select('*')
+      .eq('game_id', gameId).eq('user_id', minId())
+      .or(`status.eq.ny,status.eq.kal,and(status.eq.tas,andrad.lt.${grans})`)
+      .order('skapad').limit(20);
+    return data || [];
   }
 
   async function lamnaKanal() {
@@ -3560,7 +3796,9 @@ const Moln = (() => {
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
-           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, dopOm, lyssna, lamnaKanal };
+           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, dopOm, lyssna, lamnaKanal,
+           sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
+           scanKlar, radeaScan, vantandeScans };
 })();
 
 /* ─────────── state ─────────── */
@@ -3616,6 +3854,12 @@ function mkPlayer(name, i) {
    flikarna och de fyrtiosex ställen som muterar hittar allt precis som
    förut. Skillnaden ligger i vad som får skrivas, inte i formen. */
 let spelLage = null;
+/* Telefonen i kameraläge är inloggad som samma person och i samma spel som
+   datorn. Den ritar inget bord, men den har ett state kvar från lokalt läge,
+   och den minsta skrivning därifrån hade lagt sig över datorns bord — hela
+   bordet skickas som en klump, och sista skrivaren vinner. Den här flaggan
+   säger att enheten är ett öga, inte en spelare. */
+let kameraEnhet = false;
 /* Sant medan en fjärruppdatering appliceras. renderGrid sorterar manan och
    sparar mitt i sin egen rendering — utan den här spärren skulle varje
    inkommande ändring studsa tillbaka som en egen skrivning, och två klienter
@@ -3630,6 +3874,11 @@ let fjarrLas = false;
 const arMitt = p => !spelLage || (p && p.id === spelLage.mig);
 const redigerbar = () => arMitt(player());
 const minSpelare = () => spelLage ? state.players.find(p => p.id === spelLage.mig) : player();
+/* Vem en avläsning ska skriva till. I ett spel ALLTID mitt eget bord, oavsett
+   vilken flik jag råkar titta på — annars hamnar ett kort jag just spelat ut
+   på motståndarens bord, där det dessutom aldrig når servern och bara blir en
+   lokal avvikelse som ser ut som att vi ser olika saker. */
+const malSpelare = () => spelLage ? (minSpelare() || player()) : player();
 
 let saveT = null;
 function slimSpelare(p) {
@@ -3671,6 +3920,7 @@ function save() {
 }
 function sparaNu() {
   clearTimeout(saveT); saveT = null;
+  if (kameraEnhet) return;                 // ett öga skriver ingenting
   if (!spelLage) { LS.set(K.state, slimState()); return; }
   /* I spelläge är vilken flik man tittar på och vilket kort som är markerat
      enhetsvärden — de hör inte hemma på servern och ska inte följa med till
@@ -5978,13 +6228,13 @@ addEventListener('drop', async e => {
    hos den spelare man råkade stå på. */
 const bradetTomt = () => state.players.every(p => !p.cards.length && !(p.pending || []).length);
 
-async function addShot(blob, tillagg) {
+async function addShot(blob, tillagg, tyst) {
   if (!blob || !/^image\//.test(blob.type)) return;
   const rec = { id: uid(), ts: Date.now(), blob };
   try { await IDB.put(rec); }
   catch (e) { toast('Could not store the image locally', 'err'); return; }
   shotMem.set(rec.id, { rec, url: URL.createObjectURL(blob) });
-  if (tillagg) { closeOv('imgOv'); return analyzeExtra(rec.id); }
+  if (tillagg) { if (!tyst) closeOv('imgOv'); return analyzeExtra(rec.id, tyst); }
   const found = await analyzeShot(rec.id);
   /* Efter en avläsning hör man hemma i handen, inte kvar i bildvyn. Det var
      tidigare sant av en slump — vyn öppnades först efteråt. Sedan bilder kan
@@ -6383,14 +6633,23 @@ async function analyzeShot(shotId) {
    riktiga skärmdumpar och ska inte behöva bära undantag för ett helt annat
    slags bild. Här finns inga videorutor att hitta, inga spelarnamn att läsa
    och ingen anledning att fråga om hela bilden på en gång. */
-async function analyzeExtra(shotId) {
-  if (analyzing) return 0;
+async function analyzeExtra(shotId, tyst) {
+  /* En avläsning i taget, men den som kommer från kameran får INTE tappas.
+     En människa vid en filväljare märker att ingenting hände och trycker igen;
+     ett kort som lagts på mattan är redan spelat, och den bilden finns bara
+     en gång. Därför köas den i stället. */
+  if (analyzing) {
+    if (!tyst) return 0;
+    return new Promise(res => kamKo.push({ shotId, res }));
+  }
   analyzing = true; nyAvbrytning();
   anInit();
   const mem = shotMem.get(shotId);
   try {
     if (!mem) return 0;
-    openOv('analyzeOv');
+    /* Kameraläget tar inte över skärmen. Man sitter mitt i en tur och tittar
+       på bordet — ett helskärmsöverlägg per utspelat kort vore outhärdligt. */
+    if (!tyst) openOv('analyzeOv');
     anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
     anEl.title.textContent = 'Reading the image…';
     anStep('Opening the image…');
@@ -6500,12 +6759,21 @@ async function analyzeExtra(shotId) {
     return appendAnalysis(shotId, [{ pane: hela, acc, pend }], img);
   } catch (e) {
     /* Ett avbrott är inget fel — användaren bad om det. */
-    toast(arAvbrott(e) ? 'Reading cancelled' : 'Reading failed: ' + (e.message || 'unknown error'), arAvbrott(e) ? 'ok' : 'err');
+    if (!tyst) toast(arAvbrott(e) ? 'Reading cancelled' : 'Reading failed: ' + (e.message || 'unknown error'), arAvbrott(e) ? 'ok' : 'err');
     return 0;
   } finally {
     analyzing = false;
-    closeOv('analyzeOv');
+    if (!tyst) closeOv('analyzeOv');
+    kamNasta();
   }
+}
+/* Kön från kameran. Ett kort i taget läses av, men det som ligger och väntar
+   ska aldrig försvinna — bilden av ett utspelat kort finns bara en gång. */
+const kamKo = [];
+function kamNasta() {
+  if (analyzing || !kamKo.length) return;
+  const n = kamKo.shift();
+  analyzeExtra(n.shotId, true).then(n.res, n.res);
 }
 
 /* Frågar Claude om varje kort avläsningen inte var säker på. Körs bara när
@@ -7009,7 +7277,7 @@ function applyAnalysis(shotId, out, img) {
    läses — en närbild på ett kort har inget överlägg, och ett kortnamn som
    lästes som spelarnamn hade döpt om fliken. */
 function appendAnalysis(shotId, out, img) {
-  const p = player();
+  const p = malSpelare();
   const acc = out.reduce((a, r) => a.concat(r.acc), []);
   const pend = out.reduce((a, r) => a.concat(r.pend), [])
     .filter(q => !acc.some(a => boxOverlap(q.box, a.box) > 0.30));
@@ -7278,7 +7546,7 @@ candList.addEventListener('click', ev => {
 
 /* Gemensam väg in för både förslag och egen inskrivning */
 function applyPick(name, sid, cands) {
-  const p = player(), t = SW.target;
+  const p = malSpelare(), t = SW.target;
   const list = cands || [{ name, sid, score: 1 }];
   if (t && t.kind === 'card' && cardById(t.id)) {
     Object.assign(cardById(t.id), { name, sid: sid || undefined, cands: list });
@@ -7685,13 +7953,562 @@ const idbTimeout = (pr, ms) => Promise.race([
   pr, new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB is not responding')), ms))
 ]);
 /* ═══════════════════════════════════════════════════════════════════
+   KAMERAN — telefonens sida
+
+   Uppgiften är smal: se när ETT kort har lagts på mattan och lagt sig
+   stilla, ta en bild av just det kortet, och skicka den. Ingen
+   igenkänning här — den sker på datorn, som redan har kortpoolen och
+   matchningen.
+
+   Att avgöra "ligger det ett kort där" görs mot en referensbild av den
+   TOMMA mattan, tagen vid kalibreringen. Färgmatchning mot mattans kulör
+   var det första försöket och är känsligare än man tror: ett moln utanför
+   fönstret flyttar hela bildens vitbalans och en tröskel som satt bra i
+   solen slutar sitta i skugga. Skillnaden mot en referens tagen i samma
+   ljus, i samma ruta, bryr sig inte om det.
+   ══════════════════════════════════════════════════════════════════ */
+const Kamera = (() => {
+  /* Analysen görs i en liten ruta. Ett kort som fyller 96×134 pixlar har
+     alla drag som behövs för de två frågorna — ligger något där, och rör
+     det sig — och kostar en bråkdel av att räkna på full upplösning
+     tjugo gånger i sekunden. */
+  const AB = 96, AH = 134;
+  /* Tröskelvärden i gråskala 0–255, satta mot referensbilden.
+     TOM: under det här är mattan tom igen och nästa kort får läggas.
+     KORT: över det här ligger något där som är värt att titta på.
+     Glappet mellan dem är med flit: utan det skulle en skugga som vandrar
+     över kanten kunna studsa fram och tillbaka mellan lägena. */
+  const TOM = 11, KORT = 26;
+  const STILLA = 3.2;          // medelrörelse per pixel som räknas som stillastående
+  const STILLA_MS = 900;       // hur länge det ska ligga stilla innan bilden tas
+  const BILD_BREDD = 720;      // vad som skickas till datorn
+
+  let stream = null, video = null, ov = null, ovc = null;
+  let anaC = null, anaX = null;
+  let ref = null;              // gråskala av tom matta
+  let forra = null;            // föregående ruta, för rörelsen
+  let kal = null;              // {ruta:{x,y,w,h}} i andelar av bildrutan
+  let lage = 'start';
+  let stillaFran = 0;
+  let snurra = null, wake = null;
+  let pa = false;
+  const cb = {};               // { status, bild }
+
+  /* Beslutet, brutet ur slingan så att det går att pröva utan kamera. Rent:
+     in går läget och två mätvärden, ut går nästa läge.
+
+     Två saker är värda att förstå. Glappet mellan TOM och KORT är med flit —
+     ett enda tröskelvärde skulle få en skugga som vandrar över kanten att
+     studsa mellan lägena flera gånger i sekunden. Och efter en bild krävs att
+     mattan blir TOM igen innan nästa kort räknas: utan det fotas samma kort
+     om och om igen så länge det ligger kvar. */
+  function beslut(lage, narvaro, rorelse, stillaFran, nu) {
+    if (lage === 'skickar') return { lage, stillaFran, fota: false };
+    if (lage === 'vantar-tom') {
+      return narvaro < TOM
+        ? { lage: 'tom', stillaFran: 0, fota: false, text: 'Redo — lägg nästa kort' }
+        : { lage, stillaFran: 0, fota: false };
+    }
+    if (narvaro < TOM) {
+      return lage === 'tom'
+        ? { lage, stillaFran: 0, fota: false }
+        : { lage: 'tom', stillaFran: 0, fota: false, text: 'Redo — lägg ett kort på mattan' };
+    }
+    if (narvaro <= KORT) return { lage, stillaFran, fota: false };   // i glappet: låt läget stå
+    if (rorelse >= STILLA) return { lage: 'kort', stillaFran: 0, fota: false, text: 'Lägg kortet stilla på mattan' };
+    const fran = stillaFran || nu;
+    if (nu - fran >= STILLA_MS) return { lage: 'skickar', stillaFran: 0, fota: true, text: 'Skickar kortet…' };
+    return { lage: 'kort', stillaFran: fran, fota: false, text: 'Håll stilla…' };
+  }
+
+  const gr = d => { const g = new Float32Array(AB * AH); for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114); return g; };
+  const avvik = (a, b) => { if (!a || !b) return 0; let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
+
+  async function start(el, o) {
+    video = el.video; ov = el.overlay; ovc = ov.getContext('2d');
+    Object.assign(cb, o || {});
+    anaC = document.createElement('canvas'); anaC.width = AB; anaC.height = AH;
+    anaX = anaC.getContext('2d', { willReadFrequently: true });
+    /* Bakre kameran, och så hög upplösning enheten går med på: den
+       beskurna biten blir bara några hundra pixlar bred, och där är varje
+       pixel värd något när kortnamnet ska läsas. */
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play().catch(() => {});
+    try { wake = await navigator.wakeLock.request('screen'); } catch (e) { /* inte alla stödjer det */ }
+    pa = true;
+    loop();
+  }
+
+  function stopp() {
+    pa = false;
+    if (snurra) cancelAnimationFrame(snurra);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (wake) { try { wake.release(); } catch (e) {} wake = null; }
+    stream = null; ref = null; forra = null; lage = 'start';
+  }
+
+  function satKalibrering(k) {
+    kal = k && k.ruta ? k : null;
+    ref = null; forra = null; lage = kal ? 'lar' : 'ingen';
+  }
+
+  /* Rutan i bildpunkter för den upplösning videon faktiskt ger. Sparas i
+     andelar, inte pixlar: telefonen kan ge en annan upplösning nästa gång
+     appen öppnas, och kalibreringen ska ändå gälla. */
+  function rutaPx(bredd, hojd) {
+    const r = kal.ruta;
+    return { x: Math.round(r.x * bredd), y: Math.round(r.y * hojd),
+             w: Math.round(r.w * bredd), h: Math.round(r.h * hojd) };
+  }
+
+  function loop() {
+    if (!pa) return;
+    snurra = requestAnimationFrame(loop);
+    const vb = video.videoWidth, vh = video.videoHeight;
+    if (!vb || !vh) return;
+    rita(vb, vh);
+    if (!kal) { säg('ingen', 'Väntar på kalibrering från datorn'); return; }
+
+    const r = rutaPx(vb, vh);
+    anaX.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, AB, AH);
+    const nu = gr(anaX.getImageData(0, 0, AB, AH).data);
+
+    /* Första rutorna efter kalibrering är referensen: mattan ska vara tom
+       då. Ett medelvärde av några rutor i stället för en enda, så att en
+       enstaka suddig bildruta inte blir facit för hela sessionen. */
+    if (!ref) {
+      ref = nu; forra = nu;
+      säg('tom', 'Redo — lägg ett kort på mattan');
+      return;
+    }
+
+    const narvaro = avvik(nu, ref);
+    const rorelse = avvik(nu, forra);
+    forra = nu;
+
+    const b = beslut(lage, narvaro, rorelse, stillaFran, performance.now());
+    stillaFran = b.stillaFran;
+    if (b.lage !== lage || b.text) { lage = b.lage; säg(b.lage, b.text); }
+    if (b.fota) fota(vb, vh);
+  }
+
+  async function fota(vb, vh) {
+    lage = 'skickar'; säg('skickar', 'Skickar kortet…');
+    const r = rutaPx(vb, vh);
+    const c = document.createElement('canvas');
+    const skala = Math.min(1, BILD_BREDD / r.w);
+    c.width = Math.round(r.w * skala); c.height = Math.round(r.h * skala);
+    c.getContext('2d').drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
+    try { if (cb.bild) await cb.bild(blob, c.toDataURL('image/jpeg', 0.5)); }
+    catch (e) { säg('fel', 'Kortet kunde inte skickas'); }
+    lage = 'vantar-tom';
+    säg('vantar-tom', 'Ta bort kortet från mattan');
+  }
+
+  /* En stillbild att kalibrera mot. Full bildruta, inte beskuren — det är
+     just rutan datorn ska peka ut. */
+  async function stillbild() {
+    const vb = video.videoWidth, vh = video.videoHeight;
+    if (!vb) return null;
+    const c = document.createElement('canvas');
+    const skala = Math.min(1, 1280 / vb);
+    c.width = Math.round(vb * skala); c.height = Math.round(vh * skala);
+    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    return new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
+  }
+
+  function rita(vb, vh) {
+    const R = ov.getBoundingClientRect();
+    if (ov.width !== R.width || ov.height !== R.height) { ov.width = R.width; ov.height = R.height; }
+    ovc.clearRect(0, 0, ov.width, ov.height);
+    if (!kal) return;
+    /* Videon ligger med object-fit:cover, så bildrutan är beskuren mot
+       skärmen. Samma uträkning här, annars hamnar ramen bredvid mattan. */
+    const s = Math.max(ov.width / vb, ov.height / vh);
+    const ox = (ov.width - vb * s) / 2, oy = (ov.height - vh * s) / 2;
+    const r = kal.ruta;
+    const x = ox + r.x * vb * s, y = oy + r.y * vh * s;
+    const w = r.w * vb * s, h = r.h * vh * s;
+    ovc.save();
+    ovc.fillStyle = '#000000a0';
+    ovc.fillRect(0, 0, ov.width, ov.height);
+    ovc.clearRect(x, y, w, h);
+    ovc.strokeStyle = lage === 'kort' ? '#e8b33a' : lage === 'skickar' ? '#5fbf7f' : '#6b8cff';
+    ovc.lineWidth = 3; ovc.setLineDash(lage === 'tom' ? [10, 8] : []);
+    ovc.strokeRect(x, y, w, h);
+    ovc.restore();
+  }
+
+  const säg = (l, txt) => { if (lage !== 'skickar' && lage !== 'vantar-tom') lage = l; if (cb.status) cb.status(l, txt); };
+
+  return { start, stopp, satKalibrering, stillbild, beslut, get lage() { return lage; } };
+})();
+
+/* ═══════════════════════════════════════════════════════════════════
    PORTALEN — vilken vy som visas, och vägen in i ett spel
    ══════════════════════════════════════════════════════════════════ */
 function visaVy(namn) {
   $('#vyStart').hidden = namn !== 'start';
   $('#vyLobby').hidden = namn !== 'lobby';
+  $('#vyKamera').hidden = namn !== 'kamera';
   $('#app').style.display = namn === 'app' ? '' : 'none';
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   KAMERALÄGET — kopplingen mellan telefonen och spelet
+
+   Telefonen går in i samma spel som datorn, som samma person, men visar
+   inget bord. Den laddar upp bilder; datorn känner igen dem. Att båda är
+   inloggade som samma användare är avsiktligt: rättigheterna behöver
+   ingen ny väg, och kortet som läggs ut är per definition mitt eget.
+   ══════════════════════════════════════════════════════════════════ */
+let kamLage = null;             // { id, kod } när telefonen är kopplad
+let kamRaknare = 0;
+
+const kamSag = (l, txt) => {
+  const st = $('#kamStatus'); if (st && txt) st.textContent = txt;
+  $('#kamKalibrera').textContent = l === 'ingen' ? 'Skicka bild för kalibrering' : 'Kalibrera om';
+};
+
+async function oppnaKamera(gameId) {
+  const { spel } = await Moln.hamtaSpel(gameId);
+  kamLage = { id: spel.id, kod: spel.kod };
+  kameraEnhet = true;
+  spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
+  $('#kamSpel').textContent = spel.namn || ('Spel ' + spel.kod);
+  visaVy('kamera');
+
+  /* Telefonen lyssnar bara på två saker: att datorn bekräftat rutan, och
+     att en avläsning tagits om hand — det senare bara för att kunna säga
+     att någon faktiskt lyssnar. */
+  await Moln.lyssna(spel.id, {
+    kal: rad => { if (rad && rad.user_id === Moln.minId()) tillampaKalibrering(rad); },
+    scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); }
+  });
+
+  try {
+    await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
+      status: kamSag,
+      bild: async (blob, forhands) => {
+        try {
+          await Moln.laddaUppScan(kamLage.id, blob);
+          kamRaknare++;
+          $('#kamSenast').hidden = false;
+          $('#kamSenastBild').src = forhands;
+          $('#kamSenastTxt').textContent = 'Skickat · ' + kamRaknare + (kamRaknare === 1 ? ' kort' : ' kort');
+        } catch (e) {
+          kamSag('fel', 'Kunde inte skicka: ' + (e.message || 'okänt fel'));
+          throw e;
+        }
+      }
+    });
+  } catch (e) {
+    kamSag('fel', 'Kameran gick inte att starta');
+    $('#kamFin').textContent = e && e.name === 'NotAllowedError'
+      ? 'Du måste ge sidan tillgång till kameran. Öppna webbläsarens inställningar för den här sidan och tillåt kamera.'
+      : (e.message || '');
+    return;
+  }
+
+  const k = await Moln.hamtaKalibrering(spel.id);
+  if (k) tillampaKalibrering(k);
+  else {
+    kamSag('ingen', 'Rikta kameran mot mattan');
+    $('#kamFin').textContent = 'Lägg mattan TOM i bild och tryck på knappen. På datorn bekräftar du sedan rutan.';
+  }
+}
+
+function tillampaKalibrering(rad) {
+  Kamera.satKalibrering({ ruta: rad.ruta });
+  $('#kamFin').textContent = 'Lägg ett kort i taget. Det skickas när det legat stilla en stund.';
+  kamDatorSvarade();
+}
+/* Pricken uppe till vänster. Att veta om datorn lyssnar är skillnaden
+   mellan "det funkar" och "jag fotar in i ett svart hål". */
+let kamSenastSvar = 0;
+function kamDatorSvarade() {
+  kamSenastSvar = Date.now();
+  $('#kamPrick').classList.add('pa');
+}
+setInterval(() => {
+  if (!kamLage) return;
+  $('#kamPrick').classList.toggle('pa', Date.now() - kamSenastSvar < 90000);
+}, 10000);
+
+$('#kamKalibrera').onclick = async () => {
+  if (!kamLage) return;
+  const b = $('#kamKalibrera'); b.disabled = true;
+  const gammal = b.textContent; b.textContent = 'Skickar…';
+  try {
+    const blob = await Kamera.stillbild();
+    if (!blob) throw new Error('Ingen bild');
+    const rad = await Moln.laddaUppScan(kamLage.id, blob);
+    await Moln.scanKlar(rad.id, null, 'kal');
+    $('#kamFin').textContent = 'Bilden är skickad. Bekräfta rutan på datorn.';
+  } catch (e) {
+    $('#kamFin').textContent = 'Kunde inte skicka bilden: ' + (e.message || '');
+  } finally { b.disabled = false; b.textContent = gammal; }
+};
+/* ═══════════════════════════════════════════════════════════════════
+   KAMERAN — datorns sida
+
+   Datorn gör igenkänningen. Den har redan kortpoolen, matchningen och
+   Claude-fallbacken; telefonen har bara ögat. Här tas bilderna emot,
+   körs genom exakt samma kedja som en indragen bild, och kortet hamnar
+   på mitt eget bord — varifrån det syns för alla i spelet.
+   ══════════════════════════════════════════════════════════════════ */
+/* Den här flikens id. Måste vara ett riktigt uuid — kolumnen tagen_av är
+   uuid, och appens egen uid() är Math.random i bas 36, vilket Postgres
+   avvisar rakt av. */
+const FLIK_ID = (() => {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+})();
+
+async function visaKamOv() {
+  if (!spelLage) return;
+  openOv('kamOv');
+  $('#kamStegQr').hidden = false;
+  $('#kamStegKal').hidden = true;
+  $('#kalSpara').hidden = true;
+  const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
+  $('#kamLank').textContent = lank;
+  $('#kamOvStatus').textContent = 'Väntar på att telefonen ansluter…';
+  ritaQr(lank);
+  const k = await Moln.hamtaKalibrering(spelLage.id);
+  if (k) $('#kamOvStatus').textContent = 'En kamera är redan kalibrerad för det här spelet.';
+}
+$('#kamKnapp').onclick = () => visaKamOv();
+$('#kamKopiera').onclick = async () => {
+  const t = $('#kamLank').textContent;
+  try { await navigator.clipboard.writeText(t); toast('Länken är kopierad', 'ok'); }
+  catch (e) { prompt('Kopiera länken:', t); }
+};
+
+/* QR-koden hämtas som modul först när dialogen öppnas. Går den inte att
+   hämta står länken kvar — den fungerar lika bra, den är bara jobbigare
+   att få in i telefonen. */
+async function ritaQr(text) {
+  const box = $('#kamQr');
+  box.innerHTML = '<span class="vantar">Ritar kod…</span>';
+  try {
+    const mod = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm');
+    const qr = (mod.default || mod)(0, 'M');
+    qr.addData(text); qr.make();
+    const n = qr.getModuleCount(), px = 6, marg = 4;
+    const c = document.createElement('canvas');
+    c.width = c.height = (n + marg * 2) * px;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+    x.fillStyle = '#000';
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++)
+      if (qr.isDark(r, col)) x.fillRect((col + marg) * px, (r + marg) * px, px, px);
+    box.innerHTML = ''; box.appendChild(c);
+  } catch (e) {
+    box.innerHTML = '<span class="vantar">Koden kunde inte ritas — använd länken nedan.</span>';
+  }
+}
+
+/* ── kalibreringen ──────────────────────────────────────────────────
+   Telefonen skickar en stillbild. Här pekas rutan ut. Förslaget kommer
+   från färgen: den största sammanhängande ytan vars kulör avviker från
+   bordet runt omkring. Det blir sällan exakt, och behöver inte bli det —
+   det är därför man drar i den efteråt. */
+let kalRad = null, kalBox = null;
+
+async function visaKalibrering(rad) {
+  const blob = await Moln.scanBild(rad.bild);
+  if (!blob) return;
+  kalRad = rad;
+  openOv('kamOv');
+  $('#kamStegQr').hidden = true;
+  $('#kamStegKal').hidden = false;
+  $('#kalSpara').hidden = false;
+  $('#kamOvStatus').textContent = '';
+  const img = $('#kalImg');
+  img.src = URL.createObjectURL(blob);
+  await img.decode().catch(() => {});
+  const f = forslagRuta(img);
+  kalBox = f.box;
+  $('#kalFin').textContent = f.hittad
+    ? 'Förslaget kommer från den avvikande färgen i bilden. Justera om det inte sitter rätt.'
+    : 'Ingen tydligt avvikande yta hittades — dra rutan över mattan själv.';
+  ritaKalRuta();
+}
+
+/* Grov färgsegmentering: dela bilden i ett rutnät, hitta den kulör som är
+   ovanlig i kanterna men vanlig i mitten, och ta dess omslutande låda. */
+function forslagRuta(img) {
+  const N = 48;
+  const c = document.createElement('canvas'); c.width = N; c.height = N;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0, N, N);
+  const d = x.getImageData(0, 0, N, N).data;
+  const hsl = [];
+  for (let i = 0, p = 0; i < N * N; i++, p += 4) hsl.push(rgbTillHsl(d[p], d[p + 1], d[p + 2]));
+  /* Bordets färg tas från kanten — där ligger inte mattan. */
+  const kant = [];
+  for (let r = 0; r < N; r++) for (let col = 0; col < N; col++)
+    if (r < 3 || col < 3 || r > N - 4 || col > N - 4) kant.push(hsl[r * N + col]);
+  const bord = median(kant);
+  const trof = [];
+  for (let r = 0; r < N; r++) for (let col = 0; col < N; col++) {
+    const h = hsl[r * N + col];
+    if (hslAvstand(h, bord) > 34) trof.push([col, r]);
+  }
+  if (trof.length < 40) return { hittad: false, box: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 } };
+  let x0 = N, y0 = N, x1 = 0, y1 = 0;
+  for (const [cx, cy] of trof) { if (cx < x0) x0 = cx; if (cy < y0) y0 = cy; if (cx > x1) x1 = cx; if (cy > y1) y1 = cy; }
+  return { hittad: true, box: {
+    x: Math.max(0, x0 / N), y: Math.max(0, y0 / N),
+    w: Math.min(1, (x1 - x0 + 1) / N), h: Math.min(1, (y1 - y0 + 1) / N)
+  } };
+}
+function rgbTillHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return { h: 0, s: 0, l };
+  const d = mx - mn, sv = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  let h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: h * 60, s: sv, l };
+}
+const median = a => {
+  const f = k => { const v = a.map(x => x[k]).sort((p, q) => p - q); return v[v.length >> 1]; };
+  return { h: f('h'), s: f('s'), l: f('l') };
+};
+/* Kulörskillnad som väger mättnad in: en grå matta på ett grått bord skiljs
+   av ljusheten, en färgad av kulören. */
+function hslAvstand(a, b) {
+  let dh = Math.abs(a.h - b.h); if (dh > 180) dh = 360 - dh;
+  const kulor = dh / 180 * 100 * Math.min(a.s, b.s) * 2;
+  return kulor + Math.abs(a.s - b.s) * 60 + Math.abs(a.l - b.l) * 70;
+}
+
+function ritaKalRuta() {
+  const img = $('#kalImg'), ruta = $('#kalRuta');
+  const R = img.getBoundingClientRect(), P = img.parentElement.getBoundingClientRect();
+  const ox = R.left - P.left, oy = R.top - P.top;
+  ruta.style.left = (ox + kalBox.x * R.width) + 'px';
+  ruta.style.top = (oy + kalBox.y * R.height) + 'px';
+  ruta.style.width = (kalBox.w * R.width) + 'px';
+  ruta.style.height = (kalBox.h * R.height) + 'px';
+}
+addEventListener('resize', () => { if (kalBox && !$('#kamStegKal').hidden) ritaKalRuta(); });
+
+/* Dra hela rutan eller ett hörn. Musen räknas om till andelar direkt, så
+   att fönsterstorleken aldrig hamnar i det som sparas. */
+(() => {
+  let drar = null;
+  $('#kalBild').addEventListener('pointerdown', ev => {
+    if (!kalBox) return;
+    const horn = ev.target.dataset && ev.target.dataset.horn;
+    const R = $('#kalImg').getBoundingClientRect();
+    drar = { horn, x0: ev.clientX, y0: ev.clientY, box: { ...kalBox }, R };
+    $('#kalBild').setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  $('#kalBild').addEventListener('pointermove', ev => {
+    if (!drar) return;
+    const dx = (ev.clientX - drar.x0) / drar.R.width, dy = (ev.clientY - drar.y0) / drar.R.height;
+    const b = { ...drar.box };
+    if (!drar.horn) { b.x += dx; b.y += dy; }
+    else {
+      /* Hörnen heter efter väderstreck: n/s är över/under, v/o vänster/höger.
+         Drar man i en vänsterkant flyttas kanten OCH bredden krymper lika
+         mycket — annars flyttar sig hela rutan i stället för att ändra form. */
+      if (drar.horn[1] === 'v') { b.x += dx; b.w -= dx; } else { b.w += dx; }
+      if (drar.horn[0] === 'n') { b.y += dy; b.h -= dy; } else { b.h += dy; }
+    }
+    b.w = Math.max(0.05, b.w); b.h = Math.max(0.05, b.h);
+    b.x = clamp(b.x, 0, 1 - b.w); b.y = clamp(b.y, 0, 1 - b.h);
+    kalBox = b; ritaKalRuta();
+  });
+  const slut = ev => { if (drar) { drar = null; try { $('#kalBild').releasePointerCapture(ev.pointerId); } catch (e) {} } };
+  $('#kalBild').addEventListener('pointerup', slut);
+  $('#kalBild').addEventListener('pointercancel', slut);
+})();
+
+$('#kalSpara').onclick = async () => {
+  if (!spelLage || !kalBox) return;
+  const img = $('#kalImg');
+  const b = $('#kalSpara'); b.disabled = true;
+  try {
+    await Moln.sparaKalibrering(spelLage.id, kalBox, null, img.naturalWidth, img.naturalHeight);
+    if (kalRad) await Moln.radeaScan(kalRad);
+    kalRad = null;
+    closeOv('kamOv');
+    toast('Ytan är bekräftad — kameran är igång', 'ok');
+  } catch (e) { $('#kamOvStatus').textContent = 'Kunde inte spara: ' + (e.message || ''); }
+  finally { b.disabled = false; }
+};
+
+/* ── ta emot avläsningar ────────────────────────────────────────────
+   En rad i taget, och den som tar den vinner i databasen. Två datorer
+   öppna på samma konto lägger annars ut samma kort två gånger. */
+let kamArbetar = false;
+async function taEmotScan(rad) {
+  if (!spelLage || !rad || rad.user_id !== Moln.minId()) return;
+  if (rad.status === 'kal') { visaKalibrering(rad); return; }
+  if (rad.status !== 'ny') return;
+  if (kamArbetar) return;                     // nästa varv plockar den
+  kamArbetar = true;
+  try {
+    const tagen = await Moln.taScan(rad.id, FLIK_ID);
+    if (!tagen) return;                       // någon annan flik hann före
+    const blob = await Moln.scanBild(tagen.bild);
+    if (!blob) { await Moln.scanKlar(tagen.id, null, 'fel'); return; }
+    const mig = malSpelare();
+    const innan = (mig.cards || []).length, vantadeInnan = (mig.pending || []).length;
+    await addShot(new File([blob], 'kort.jpg', { type: 'image/jpeg' }), true, true);
+    const efter = (mig.cards || []).length, vantadeEfter = (mig.pending || []).length;
+    await Moln.scanKlar(tagen.id, efter > innan ? 'ok' : null, 'klar');
+    await Moln.radeaScan(tagen);
+    if (efter > innan) {
+      const k = mig.cards[mig.cards.length - 1];
+      toast((k && k.name ? k.name : 'Kortet') + ' lades ut', 'ok');
+    } else if (vantadeEfter > vantadeInnan) {
+      /* Osäkert. Frågan ska komma direkt — man står vid bordet just nu och
+         vet vilket kort man la dit, om tio minuter gör man inte det. */
+      fragaOmScan();
+    } else {
+      toast('Inget kort hittades i bilden', 'err');
+    }
+  } catch (e) {
+    console.warn('Avläsningen gick inte att behandla', e);
+  } finally {
+    kamArbetar = false;
+    setTimeout(kollaVantandeScans, 200);
+  }
+}
+/* Öppnar kandidatrutan för det senast inkomna osäkra kortet. Går samma väg
+   som granskningsknappen: bildvyn måste vara framme, för panelen ritar sin
+   beskärning ur den laddade skärmdumpen. */
+function fragaOmScan() {
+  const p = malSpelare();
+  if (!p || !(p.pending || []).length) return;
+  if (!$('#shotOv').classList.contains('open')) openShot(true);
+  setTimeout(() => { byggKo(); nextPending(); }, 220);
+}
+async function kollaVantandeScans() {
+  if (!spelLage || kamArbetar) return;
+  try { const v = await Moln.vantandeScans(spelLage.id); if (v.length) taEmotScan(v[0]); }
+  catch (e) {}
+}
+
+$('#kamStang').onclick = async () => {
+  Kamera.stopp();
+  await Moln.lamnaKanal();
+  kamLage = null; spelLage = null;
+  location.href = location.origin + location.pathname;
+};
 const portalFel = (id, txt) => {
   const el = $(id); el.textContent = txt || ''; el.hidden = !txt;
 };
@@ -7702,10 +8519,14 @@ function inbjudanIUrl() {
   const k = (u.searchParams.get('join') || '').trim().toUpperCase();
   return k || null;
 }
+/* Kameraläget begärs i adressen, inte av enhetstypen. En surfplatta kan
+   vara kamera och en telefon kan visa bordet — det är QR-koden man
+   skannade som avgör vad enheten ska vara, inte vad den är. */
+const kameraIUrl = () => new URL(location.href).searchParams.get('cam') === '1';
 function rensaInbjudan() {
   const u = new URL(location.href);
-  if (!u.searchParams.has('join')) return;
-  u.searchParams.delete('join');
+  if (!u.searchParams.has('join') && !u.searchParams.has('cam')) return;
+  u.searchParams.delete('join'); u.searchParams.delete('cam');
   history.replaceState(null, '', u.pathname + (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
 }
 
@@ -7735,8 +8556,18 @@ async function oppnaSpel(gameId) {
     bord: rad => fjarrBord(rad),
     spelare: async () => {
       try { const f = await Moln.hamtaSpel(spelLage.id); fjarrSpelare(f.spelare); } catch (e) {}
-    }
+    },
+    scan: rad => taEmotScan(rad),
+    uppkopplad: () => kollaVantandeScans()
   });
+  /* Datorn kan ha legat i viloläge medan telefonen fotade. En återkomst till
+     fliken är den billigaste signalen om att något kan ha hänt under tiden. */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && spelLage && !kameraEnhet) kollaVantandeScans();
+  });
+  /* Telefonen kan ha fotat medan ingen dator var öppen. De bilderna ligger
+     kvar som 'ny' och ska behandlas nu. */
+  kollaVantandeScans();
   visaVy('app');
   renderAll(true);
   resolveAll();
@@ -7773,11 +8604,16 @@ function fjarrSpelare(lista) {
     /* Behåll de kort vi redan har för spelare vi känner — annars skulle en ny
        deltagare som joinar rita om allas bord från en hämtning som kan vara
        äldre än den senaste realtidshändelsen. */
+    /* Skärmdumpar och väntande kort är enhetslokala och finns inte på
+       servern. Nollställdes de här försvann en pågående identifiering varje
+       gång någon gick med eller bytte namn — och just de korten är de som
+       väntar på ett mänskligt svar. */
     return normalisera({
       id: p.user_id, name: p.name, color: p.color,
       cards: g ? g.cards : (p.cards || []),
       version: g ? g.version : p.version,
-      shots: [], shotIdx: 0, pending: [], pane: null,
+      shots: g ? g.shots : [], shotIdx: g ? g.shotIdx : 0,
+      pending: g ? g.pending : [], pane: g ? g.pane : null,
       namnkalla: 'anvandare', bildnamn: null
     }, i);
   });
@@ -7878,6 +8714,11 @@ async function portalStart() {
   if (inbjudan) {
     $('#startInbjuden').hidden = false;
     $('#startInbjudenKod').textContent = inbjudan;
+    if (kameraIUrl()) {
+      $('#startInbjuden').querySelector('b').textContent = 'Koppla den här enheten som kamera';
+      $('#startInbjuden').querySelector('.portalfin').textContent =
+        'Logga in med samma konto som på datorn.';
+    }
   }
   const { konfigurerad } = await Moln.start();
   if (!konfigurerad) {
@@ -7892,9 +8733,17 @@ async function portalStart() {
   const vantande = sessionStorage.getItem('sthv.join');
   sessionStorage.removeItem('sthv.join');
   const kod = inbjudan || vantande;
+  /* Precis som koden överlever inte "det här är en kamera" rundturen till
+     Google — den läggs undan bredvid koden och plockas upp här. */
+  const villKamera = kameraIUrl() || sessionStorage.getItem('sthv.cam') === '1';
   rensaInbjudan();
   if (kod) {
-    try { const id = await Moln.gaMed(kod); await oppnaSpel(id); return; }
+    try {
+      const id = await Moln.gaMed(kod);
+      if (villKamera) { sessionStorage.removeItem('sthv.cam'); await oppnaKamera(id); }
+      else await oppnaSpel(id);
+      return;
+    }
     catch (e) { await visaLobby(); portalFel('#lobbyFel', 'Kunde inte gå med i spelet: ' + (e.message || '')); return; }
   }
   await visaLobby();
@@ -7916,12 +8765,17 @@ async function portalStart() {
     const recs = await idbTimeout(IDB.all(), 4000);
     const known = new Set();
     state.players.forEach(p => p.shots.forEach(id => known.add(id)));
+    /* Städningen kapplöper mot portalen: har ett spel hunnit ta över
+       state.players är varje shots-lista tom, och då ser ALLA sparade bilder
+       föräldralösa ut. Att radera dem vore ett datatapp orsakat av ren
+       tajming, så i spelläge laddas de bara — de får ligga kvar. */
+    const stada = !spelLage;
     for (const r of (recs || [])) {
       if (!r || !r.blob) continue;
-      if (!known.has(r.id)) { IDB.del(r.id).catch(() => {}); continue; }   // föräldralös
+      if (stada && !known.has(r.id)) { IDB.del(r.id).catch(() => {}); continue; }
       shotMem.set(r.id, { rec: r, url: URL.createObjectURL(r.blob) });
     }
-    state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
+    if (stada) state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
   } catch (e) { toast('Saved screenshots could not be read', 'err'); }
 
   try {
