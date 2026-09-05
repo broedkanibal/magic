@@ -248,25 +248,38 @@ main{flex:1;display:flex;min-height:0}
 .kortnamn{
   position:absolute;left:50%;top:5px;transform:translateX(-50%);z-index:22;max-width:calc(100% - 10px);
   display:flex;flex-direction:column;gap:1px;white-space:nowrap;
-  background:#0b1017f2;border:1px solid var(--panelram);border-radius:6px;
-  padding:3px 8px;box-shadow:0 6px 16px -6px #000c;
+  background:#070b11;border:1px solid #3a4658;border-radius:6px;
+  padding:4px 9px;box-shadow:0 6px 16px -4px #000e;
 }
-.kortnamn b{font:600 10.5px/1.3 var(--sans);color:#cfd9e8;overflow:hidden;text-overflow:ellipsis}
-.kortnamn i{font:10px/1.3 var(--mono);color:var(--dim2);font-style:normal}
+.kortnamn b{font:600 11px/1.3 var(--sans);color:#f0f4fa;overflow:hidden;text-overflow:ellipsis}
+/* Andra raden — 3/3, flying — låg tidigare i --dim2 mot ett halvgenomskinligt
+   fält ovanpå kortkonsten. Den försvann i vad som råkade ligga bakom. */
+.kortnamn i{font:10.5px/1.35 var(--mono);color:#a9bad2;font-style:normal}
 /* Handlingsraden flyter över kortets nederkant — den ska inte skymma
    konstverket eller namnet man just läste. */
 .kortakt{
   position:absolute;left:50%;bottom:5px;transform:translateX(-50%);z-index:22;
-  display:flex;gap:3px;padding:3px;
-  background:#0b1017f2;border:1px solid var(--panelram2);border-radius:8px;
-  box-shadow:0 6px 16px -6px #000c;
+  display:flex;gap:4px;padding:4px;
+  background:#070b11f2;border:1px solid #3a4658;border-radius:9px;
+  box-shadow:0 6px 16px -4px #000e;
 }
 .kortakt-b{
-  width:20px;height:20px;border-radius:5px;background:var(--bg4);color:#cfd9e8;
+  position:relative;
+  width:26px;height:26px;border-radius:6px;background:var(--bg4);color:#cfd9e8;
   display:grid;place-items:center;cursor:pointer;flex:none;user-select:none;
 }
 .kortakt-b:hover{background:var(--acc);color:#20160a}
 .kortakt-b.fara:hover{background:var(--red);color:#fff}
+/* Egen tooltip. Webbläsarens title dröjer en dryg sekund, och på en rad med
+   fem närliggande ikoner hinner man klicka innan man fått veta vad de gör. */
+.akttip{
+  position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);
+  padding:3px 7px;border-radius:5px;white-space:nowrap;
+  background:#070b11;border:1px solid #3a4658;box-shadow:0 6px 14px -6px #000e;
+  font:10.5px/1.25 var(--sans);font-style:normal;color:#e6ecf5;
+  opacity:0;pointer-events:none;transition:opacity .1s;
+}
+.kortakt-b:hover .akttip,.lakt-b:hover .akttip{opacity:1}
 /* Vid små kort ryms varken etikett eller rad — då är kortet ändå för litet
    att sikta på, och Selected visar det man behöver. */
 .grid[data-smakort] .kortnamn,.grid[data-smakort] .kortakt{display:none}
@@ -341,8 +354,9 @@ main{flex:1;display:flex;min-height:0}
   font:10px/18px var(--mono);color:#9fb0c6;text-align:center;
   opacity:0;transition:opacity .12s;
 }
-.gridwrap.shownums .card .idx,.card.sel .idx{opacity:1}
-.card.sel .idx{background:var(--acc);color:#20160a;font-weight:700}
+/* Numret visas bara när man uttryckligen bett om numren. På det valda kortet
+   sa det ingenting som ramen inte redan säger. */
+.gridwrap.shownums .card .idx{opacity:1}
 .card .delbadge{
   position:absolute;top:5px;right:5px;z-index:3;width:20px;height:20px;
   border-radius:5px;background:#000000b8;backdrop-filter:blur(3px);
@@ -434,13 +448,33 @@ main{flex:1;display:flex;min-height:0}
 
 /* ─────────── graveyard-vyn ─────────── */
 .gravhead{font:12px var(--mono);color:var(--dim2);margin-left:6px}
-.gravbody{display:flex;gap:16px;min-height:0}
+/* Rubriken bär gravstenen, antalet och bläddringen. Pilarna sitter där för
+   att högen ska gå att gå igenom med musen — piltangenterna gör samma sak. */
+.gravhd{display:flex;align-items:center;gap:8px}
+.gravhd h2{margin:0}
+.gravhd .grow{flex:1}
+.gravhd-sten{width:22px;height:22px;flex:none;color:var(--dim);display:block}
+.gravhd-sten svg{width:100%;height:100%;display:block}
+.gnav{
+  width:28px;height:28px;flex:none;display:grid;place-items:center;
+  border:1px solid var(--line);border-radius:7px;background:var(--bg3);
+  color:var(--dim);cursor:pointer;
+}
+.gnav:hover{background:var(--bg4);color:var(--txt);border-color:#3b485c}
+.gnav[disabled]{opacity:.35;pointer-events:none}
+.gravtyp{font-size:12.5px;color:var(--dim)}
+.gravsenast{color:var(--acc)}
+.gravknappar{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.gravfot{margin:0;font:11.5px/1.5 var(--sans);color:var(--dim2)}
+/* .modal .body sätter kolumn, står längre ner i filen och vinner vid lika
+   specificitet. Tre klasser krävs för att komma åt riktningen härifrån. */
+.modal .body.gravbody{display:flex;flex-direction:row;gap:18px;min-height:0;align-items:stretch}
 /* min-width:0 krävs: utan den vägrar en flexkolumn krympa under sitt
    innehålls naturliga bredd, och kortbilden la sig över texten bredvid. */
-.gravbig{flex:0 0 42%;min-width:0;display:flex;align-items:flex-start;justify-content:center}
-.gravbig img{max-width:100%;max-height:46vh;object-fit:contain;border-radius:10px;box-shadow:0 10px 30px -8px #000e}
+.gravbig{flex:0 0 38%;min-width:0;display:flex;align-items:flex-start;justify-content:center}
+.gravbig img{max-width:100%;max-height:58vh;object-fit:contain;border-radius:10px;box-shadow:0 10px 30px -8px #000e}
 @media (max-width:680px){
-  .gravbody{flex-direction:column}
+  .modal .body.gravbody{flex-direction:column}
   .gravbig{flex:none}
   .gravbig img{max-height:34vh}
   .gravlist{max-height:22vh}
@@ -448,10 +482,10 @@ main{flex:1;display:flex;min-height:0}
 .gravempty{color:var(--dim2);font-size:13px;text-align:center}
 .gravside{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
 .gravinfo{font-size:12.5px;color:var(--dim);line-height:1.5}
-.gravinfo h3{font-size:15px;color:var(--txt);margin:0 0 4px}
-.gravlist{display:flex;gap:6px;flex-wrap:wrap;overflow-y:auto;min-height:0;align-content:flex-start}
+.gravinfo h3{font:600 21px/1.2 var(--sans);color:var(--txt);margin:0 0 3px}
+.gravlist{display:flex;gap:7px;flex-wrap:wrap;overflow-y:auto;min-height:0;align-content:flex-start}
 .gravlist button{
-  width:52px;aspect-ratio:488/680;padding:0;border:2px solid transparent;border-radius:5px;
+  width:76px;aspect-ratio:488/680;padding:0;border:2px solid transparent;border-radius:6px;
   background:#11161e;cursor:pointer;overflow:hidden;
 }
 .gravlist button img{width:100%;height:100%;object-fit:cover;display:block}
@@ -500,15 +534,19 @@ main{flex:1;display:flex;min-height:0}
    efter hur mycket plats zonen har och hur många grupper som ligger ute — men
    knapparna och siffran är fasta, för de ska gå att träffa och läsa lika
    snabbt oavsett. */
+/* Synligt spill: hovermenyn hänger under kortet och räknaren ovanför det, och
+   båda kapades av en dold overflow. Att grupperna ryms är landBredd() sak —
+   den söker fram en kortbredd som passar — och brädet klipper som yttersta
+   skydd. */
 .lands{
   --lw:30px;
-  flex:1;min-height:0;overflow:hidden;
+  flex:1;min-height:0;overflow:visible;padding:4px;
   display:flex;flex-wrap:wrap;gap:8px;align-content:center;
 }
 /* Gruppen är så bred som den behöver — kontrollraden sätter golvet. En fast
    schablonbredd slösade bort halva zonen när en färg bara hade några kort. */
 .lgrupp{
-  min-width:122px;
+  position:relative;min-width:122px;
   display:flex;flex-direction:column;gap:4px;cursor:pointer;
 }
 .lrad{display:flex;align-items:flex-end;gap:4px;min-height:calc(var(--lw) * 1.4)}
@@ -535,22 +573,69 @@ main{flex:1;display:flex;min-height:0}
 .lsym{display:block;width:19px;height:19px;flex:none}
 .lsym svg{width:100%;height:100%;display:block}
 .lctrl b{font:700 17px/1 var(--sans);color:var(--txt);min-width:20px;text-align:center}
-.lfordel{font:10px var(--mono);color:var(--zonrakn);margin-left:2px}
 .mgstep{
   width:22px;height:22px;padding:0;border-radius:5px;border:1px solid var(--line);
   background:var(--bg3);color:var(--dim);font:700 14px/1 var(--sans);
   display:grid;place-items:center;cursor:pointer;flex:none;
 }
 .mgstep:hover{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
-.lgrupp.sel .lctrl b,.lgrupp.sel .lfordel{color:var(--pa-acc)}
-.lgrupp.sel .lkort{outline:1px solid var(--acc);outline-offset:1px}
+.lgrupp.vald .lctrl b{color:var(--pa-acc)}
+/* Ram med box-shadow, inte outline: raden klipper vid sin kant och en outline
+   på kortet längst till vänster kapades på mitten. Skuggan ritas innanför. */
+.lkort.sel{z-index:6}
+.lkort.sel::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:5;
+  box-shadow:inset 0 0 0 2px var(--acc),0 0 0 3px #e8b33a26;pointer-events:none;
+}
+/* Samma blå hover som på ett permanent, så att de två betyder samma sak. */
+.lkort:hover{z-index:7}
+.lkort:hover::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
+  box-shadow:inset 0 0 0 2px var(--blue),0 0 0 3px #6b8cff22;pointer-events:none;
+}
+/* Ett tappat kort är en vriden bild i en liggande ruta. Ramen läggs därför
+   på bilden, som redan bär rotationen — att räkna fram samma vridning en
+   gång till på rutan gav en ram som låg bredvid kortet. */
+.lkort.ltapp.sel::after,.lkort.ltapp:hover::before{display:none}
+.lkort.ltapp.sel img{box-shadow:0 0 0 2px var(--acc),0 0 0 5px #e8b33a26}
+.lkort.ltapp:hover img{box-shadow:0 0 0 2px var(--blue),0 0 0 5px #6b8cff22}
 .lspec .lrad{gap:5px;flex-wrap:wrap}
+/* Otappat-räknaren svävar över gruppen — den får inte ta plats i flödet, för
+   då hoppar kontrollraden när man tappar. */
+/* Sitter över den otappade stapeln, alltså över det den räknar. Till höger
+   hamnade den vid nästa färgs kant och såg ut att höra dit. */
+.luntap{
+  position:absolute;left:-3px;top:-7px;z-index:8;
+  min-width:17px;height:17px;padding:0 4px;border-radius:9px;
+  background:var(--acc);color:#20160a;font:700 10.5px/17px var(--mono);text-align:center;
+  box-shadow:0 2px 6px -1px #000b;pointer-events:none;
+}
+/* Handlingarna på ett landkort. Små kort, så knapparna ligger under kortet
+   och bara det hovrade kortets rad visas. */
+.lakt{
+  position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);z-index:9;
+  display:flex;gap:3px;padding:3px;
+  background:#070b11f2;border:1px solid #3a4658;border-radius:7px;
+  box-shadow:0 6px 16px -4px #000e;
+  opacity:0;pointer-events:none;transition:opacity .1s;
+}
+.lkort:hover .lakt{opacity:1;pointer-events:auto}
+.lakt-b{
+  position:relative;
+  width:21px;height:21px;border-radius:5px;background:var(--bg4);color:#cfd9e8;
+  display:grid;place-items:center;cursor:pointer;flex:none;user-select:none;
+}
+.lakt-b:hover{background:var(--acc);color:#20160a}
+.lakt-b.fara:hover{background:var(--red);color:#fff}
 
 /* Lägg till färg: ett streckat plus som fälls ut till de färger som saknas */
 /* Färgväljaren har fast storlek, som knapparna — den ska inte krympa när
    korten gör det. */
+/* Knappen är lika hög som korten bredvid den, så raden får en överkant.
+   Golvet finns för att texten ska rymmas när korten krympt till småstenar. */
 .fargval{
-  height:52px;padding:0 12px;display:flex;align-items:center;gap:8px;flex:none;
+  height:max(40px, calc(var(--lw) * 1.4));
+  padding:0 12px;display:flex;align-items:center;gap:8px;flex:none;
   border:1px dashed var(--line);border-radius:6px;background:none;cursor:pointer;
   font:11px/1 var(--sans);color:var(--dim2);align-self:flex-start;
 }
@@ -560,7 +645,7 @@ main{flex:1;display:flex;min-height:0}
   border:1px dashed var(--line);color:var(--dim);font:300 17px/1 var(--sans);
 }
 .fargval:hover .fargplus{border-color:var(--acc);color:var(--acc)}
-.fargval.oppen{border-style:solid;border-color:var(--acc);background:var(--tand);cursor:default;padding:0 5px;gap:3px}
+.fargval.oppen{height:max(52px, calc(var(--lw) * 1.4));border-style:solid;border-color:var(--acc);background:var(--tand);cursor:default;padding:0 5px;gap:3px}
 .fargknapp{
   display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 4px;
   border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;
@@ -577,26 +662,17 @@ main{flex:1;display:flex;min-height:0}
 /* Selected: kortet som är valt, stort nog att läsa */
 .markrub .zonlbl{color:var(--acc)}
 .markrub .zonlinje{background:#3a2c10}
+/* Kortet ska bli så stort rutan tillåter. Med en fast bredd låg det och
+   simmade i en kolumn som var högre än kortet behövde vara. */
 .markruta{
-  flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:5px;
+  flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--rutbg);border-radius:8px;padding:7px;
 }
 .markruta img{
-  width:196px;max-width:100%;aspect-ratio:488/680;object-fit:contain;
-  border-radius:7px;box-shadow:0 8px 22px -8px #000e;min-height:0;
+  max-width:100%;max-height:100%;width:auto;height:auto;aspect-ratio:488/680;
+  object-fit:contain;border-radius:7px;box-shadow:0 8px 22px -8px #000e;
+  cursor:zoom-in;
 }
-.marknamn{font-size:10px;color:var(--dim);text-align:center;line-height:1.25}
-/* Handlingsraden under det valda kortet. Här står texten utskriven — det finns
-   plats, och till skillnad från hovermenyns ikoner behöver man inte gissa. */
-.markakt{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:auto}
-.markakt-b{
-  display:flex;align-items:center;gap:4px;height:22px;padding:0 7px;
-  border:1px solid var(--line);border-radius:6px;background:var(--bg3);
-  color:#cfd9e8;font:11px/1 var(--sans);cursor:pointer;
-}
-.markakt-b:hover{background:var(--acc);color:#20160a;border-color:var(--acc)}
-.markakt-b.fara:hover{background:var(--red);color:#fff;border-color:var(--red)}
-.markakt-b svg{flex:none}
 .marktom{margin:auto;font-size:10.5px;color:var(--dim2);text-align:center;padding:0 8px}
 
 /* Graveyard: en stapel, ett lager per kort */
@@ -1178,9 +1254,9 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     <span><kbd>/</kbd> search</span>
     <span><kbd>S</kbd> screenshot</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
-    <span><kbd>⌫</kbd> remove</span>
+    <span><kbd>Backspace</kbd> remove</span>
     <span><kbd>?</kbd> all shortcuts</span>
-    <div class="status" id="status"><span class="led"></span><span id="statusTxt">Ready</span></div>
+    <div class="status" id="status" hidden><span class="led"></span><span id="statusTxt"></span></div>
   </footer>
 </div>
 
@@ -1302,9 +1378,17 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 
 <!-- ── graveyard ── -->
 <div class="ov" id="gravOv">
-  <div class="modal" style="width:min(760px,94vw)">
-    <header>
-      <h2>Graveyard <span id="gravCount" class="gravhead"></span><span class="gravhead">· newest first · arrow keys browse</span></h2>
+  <div class="modal gravmodal" style="width:min(980px,94vw)">
+    <header class="gravhd">
+      <span class="gravhd-sten" id="gravHdSten"></span>
+      <h2>Graveyard</h2>
+      <span class="gravhead" id="gravCount"></span>
+      <span class="grow"></span>
+      <button class="gnav" id="gravPrev" title="Previous card (←)" aria-label="Previous card">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+      <button class="gnav" id="gravNext" title="Next card (→)" aria-label="Next card">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      <span class="gravhead">browsing</span>
       <button class="close" data-close="gravOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body gravbody">
@@ -1312,13 +1396,12 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
       <div class="gravside">
         <div class="gravinfo" id="gravInfo"></div>
         <div class="gravlist" id="gravList"></div>
+        <div class="gravknappar">
+          <button class="btn" id="gravBack" title="Put the card back on the battlefield">Return to play</button>
+          <button class="btn danger" id="gravRemove" title="Take the card out of the game entirely">Remove from game</button>
+        </div>
+        <p class="gravfot">The same browser opens when you click a stack of attached cards.</p>
       </div>
-    </div>
-    <div class="foot">
-      <span class="grow" id="gravNav"></span>
-      <button class="btn danger" id="gravRemove" title="Take the card out of the game entirely">Remove from game</button>
-      <button class="btn" id="gravBack" title="Put the card back on the battlefield">Return to play</button>
-      <button class="btn" data-close="gravOv">Back to cards in play</button>
     </div>
   </div>
 </div>
@@ -1379,7 +1462,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
             <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>One row up / down in the grid</dd>
             <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card</dd>
             <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen</dd>
-            <dt><kbd>Space</kbd></dt><dd>Flip a double-faced card</dd>
+            <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
         </section>
@@ -1400,7 +1483,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
             <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Jump to the search box</dd>
             <dt><kbd>B</kbd></dt><dd>Paste a list of names</dd>
             <dt><kbd>I</kbd></dt><dd>Add cards from an image</dd>
-            <dt><kbd>⌫</kbd> <kbd>Del</kbd></dt><dd>Remove the selected card</dd>
+            <dt><kbd>Backspace</kbd> <kbd>Del</kbd></dt><dd>Remove the selected card</dd>
             <dt><kbd>T</kbd></dt><dd>Tap or untap the selected card</dd>
             <dt><kbd>E</kbd></dt><dd>Put the selected card on another one — equip, fortify, attach</dd>
             <dt><kbd>G</kbd></dt><dd>Put the selected card in the graveyard</dd>
@@ -2748,7 +2831,11 @@ function busy(on, txt) {
   busyCount = Math.max(0, busyCount + (on ? 1 : -1));
   statusEl.classList.toggle('busy', busyCount > 0);
   statusEl.classList.remove('err');
-  statusTxt.textContent = busyCount > 0 ? (txt || 'Fetching…') : 'Ready';
+  /* Tom rad när ingenting händer. "Ready" stod kvar i timmar och sa bara att
+     appen inte hade hängt sig. */
+  const jobb = busyCount > 0;
+  statusTxt.textContent = jobb ? (txt || 'Fetching…') : '';
+  $('#status').hidden = !jobb;
 }
 function statusErr(txt) { statusEl.classList.add('err'); statusTxt.textContent = txt; }
 
@@ -3262,9 +3349,9 @@ const antalSpell = () => delaHand().spell.length;
 function kortHtml(e, i, extra) {
   const card = cardOf(e);
   const st = cardStatus(e);
-  const fi = e.flipped && card && card.faces.length > 1 ? 1 : 0;
-  const src = card ? imgOf(card, fi, 'normal') : '';
-  const dfc = card && card.faces.length > 1 && card.faces[1].img;
+  const dfc = arDfc(card);
+  const fi = e.flipped && dfc ? 1 : 0;
+  const src = e.flipped && !dfc ? BAKSIDA : (card ? imgOf(card, fi, 'normal') : '');
   const label = card ? card.name : e.name;
   const kl = ['card', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', extra || ''].filter(Boolean).join(' ');
@@ -3328,15 +3415,18 @@ function hoverRadHtml(e, i) {
   const kanBifoga = b && malIndex(i).length;
   /* Spans, inte knappar: kortet SJÄLVT är en <button>, och HTML tillåter inte
      en knapp inuti en knapp — parsern lyfte ut dem ur kortet och la dem som
-     egna rutor i rutnätet. */
-  const kn = (akt, titel, svg, extra) =>
-    `<span class="kortakt-b${extra || ''}" role="button" data-akt="${akt}" data-i="${i}" title="${titel}">${svg}</span>`;
-  const sv = (d, w) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+     egna rutor i rutnätet. Etiketten ligger i knappen och inte i title, för
+     webbläsarens egen tooltip dröjer en sekund och hinner aldrig fram. */
+  const kn = (akt, etikett, ikon, extra) =>
+    `<span class="kortakt-b${extra || ''}" role="button" data-akt="${akt}" aria-label="${etikett}" data-i="${i}">`
+    + `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ikon}</svg>`
+    + `<i class="akttip">${etikett}</i></span>`;
   return `<span class="kortakt" data-akt-for="${i}">
-    ${kn('tap', `${e.tapped ? 'Untap' : 'Tap'} (T)`, sv('<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>', 2.2))}
-    ${kanBifoga ? kn('attach', `${b.etikett} (E)`, sv('<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>', 2.2)) : ''}
-    ${kn('grav', 'Put in graveyard (G)', sv('<path d="M12 4v13M6 12l6 6 6-6"/>', 2.4))}
-    ${kn('del', 'Remove the card (Backspace)', sv('<path d="M6 6l12 12M18 6 6 18"/>', 2.4), ' fara')}
+    ${kn('tap', e.tapped ? 'Untap' : 'Tap', e.tapped ? IKON_UNTAP : IKON_TAP)}
+    ${kn('flip', e.flipped ? 'Turn face up' : 'Turn face down', IKON_FLIP)}
+    ${kanBifoga ? kn('attach', b.etikett, IKON_ATTACH) : ''}
+    ${kn('grav', 'Graveyard', IKON_GRAV)}
+    ${kn('del', 'Remove', IKON_KRYSS, ' fara')}
   </span>`;
 }
 /* Etiketten ovanför kortet: namn, styrka/tålighet och de nyckelord som gör
@@ -3422,15 +3512,44 @@ function renderGrid(force) {
    layouten och det computeFit() nu räknar med. */
 /* En gravsten, genomskinlig, ovanpå det översta kortet — den säger "inte i
    spel" utan att man behöver läsa en etikett. */
-const GRAVSTEN = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
-  + '<path d="M12 2.5c-3.6 0-6.5 2.9-6.5 6.5v10h13v-10c0-3.6-2.9-6.5-6.5-6.5z"/>'
-  + '<rect x="3.4" y="19.4" width="17.2" height="2.4" rx="1"/></svg>';
+/* En hög med kort behöver en bild som säger "ur spel". Den förra stenen var
+   en fylld klump som lika gärna kunde ha varit en dörr; den här har valv,
+   ingraverat kors och mark under sig, och läses som en grav även i 14 px. */
+const GRAVSTEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+  + '<path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"/>'
+  + '<path d="M12 7.6v6.2M9 10.4h6"/>'
+  + '<path d="M3.2 19.4h17.6"/></svg>';
+/* Kvartsvarvspilar. En nästan sluten cirkel läste sig som en cirkel och inte
+   som en vridning — de här visar åt vilket håll kortet ska vändas. */
+const IKON_TAP = '<path d="M12 4.6v5.4a5 5 0 0 0 5 5h1.6"/><path d="M16.4 12.2l2.9 2.8-2.9 2.8"/>';
+const IKON_UNTAP = '<path d="M18.6 15H17a5 5 0 0 1-5-5V4.6"/><path d="M9.2 7.5L12 4.6l2.8 2.9"/>';
+const IKON_GRAV = '<path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"/><path d="M12 7.6v6.2M9 10.4h6"/><path d="M3.2 19.4h17.6"/>';
+const IKON_FLIP = '<rect x="4.2" y="3.6" width="15.6" height="16.8" rx="2.2"/><path d="M12 3.6v16.8"/><path d="M15.4 9.2l2.2 2.4-2.2 2.4"/><path d="M8.6 9.2 6.4 11.6l2.2 2.4"/>';
+const IKON_KRYSS = '<path d="M6 6l12 12M18 6 6 18"/>';
+const IKON_ATTACH = '<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>';
+/* Baksidan på ett Magic-kort. Ett kort som vänds ner är fortfarande på bordet
+   och räknas med — det är bara inte synligt vad det är. */
+const BAKSIDA = 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
 
 let fargValjOppen = false;
 
 /* En färggrupp i Lands. Otappade kort ligger omlott åt höger med 8 px synligt
    per kort, tappade vridna bredvid. Ett landkort är alltid 30 px — landzonen
    skalar inte med kortbredden, den radbryter i stället. */
+/* Samma två handlingar som på ett permanent, men bara de två. Ett basland
+   tas bort med minusknappen i sin grupp — ett kryss här hade varit en andra
+   väg till samma sak. Specialland har ingen minusknapp och får därför sitt. */
+function landAktHtml(i, tappad) {
+  const e = hand()[i];
+  const kn = (akt, etikett, ikon, extra) =>
+    `<span class="lakt-b${extra || ''}" role="button" data-akt="${akt}" data-i="${i}" aria-label="${etikett}">`
+    + `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">${ikon}</svg>`
+    + `<i class="akttip">${etikett}</i></span>`;
+  return `<span class="lakt">
+    ${kn('tap', tappad ? 'Untap' : 'Tap', tappad ? IKON_UNTAP : IKON_TAP)}
+    ${baslandSym(e) ? '' : kn('del', 'Remove', IKON_KRYSS, ' fara')}
+  </span>`;
+}
 function landGruppHtml(g) {
   const otappade = g.idx.filter(i => !hand()[i].tapped);
   const tappade  = g.idx.filter(i =>  hand()[i].tapped);
@@ -3439,19 +3558,24 @@ function landGruppHtml(g) {
     const src = c ? imgOf(c, 0, 'small') || imgOf(c, 0, 'normal') : '';
     return src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">';
   };
+  /* Räknaren för otappat svävar ovanför stapeln i stället för att stå i
+     kontrollraden. Där ändrade den bredd när man tappade, och minus och plus
+     hoppade i sidled precis när man var på väg att klicka igen. Den visas
+     bara när något faktiskt är tappat — annars säger totalen redan allt. */
+  const kvar = !tappade.length ? '' :
+    `<span class="luntap" title="${otappade.length} untapped">${otappade.length}</span>`;
   return `<div class="lgrupp" data-alla="${g.idx.join(',')}">
+    ${kvar}
     <div class="lrad">
       <span class="lstapel">${otappade.map((i, k) =>
-        `<span class="lkort" data-i="${i}"${k ? ' style="margin-left:calc(var(--lw) * -0.733)"' : ''}>${bild(i)}</span>`).join('')}</span>
+        `<span class="lkort" data-i="${i}"${k ? ' style="margin-left:calc(var(--lw) * -0.733)"' : ''}>${bild(i)}${landAktHtml(i, false)}</span>`).join('')}</span>
       ${tappade.length ? `<span class="lstapel ltappade">${tappade.map((i, k) =>
-        `<span class="lkort ltapp" data-i="${i}"${k ? ' style="margin-left:calc(var(--lw) * -0.8)"' : ''}>${bild(i)}</span>`).join('')}</span>` : ''}
+        `<span class="lkort ltapp" data-i="${i}"${k ? ' style="margin-left:calc(var(--lw) * -0.8)"' : ''}>${bild(i)}${landAktHtml(i, true)}</span>`).join('')}</span>` : ''}
     </div>
     <div class="lctrl">
-      <i class="lsym">${manaFigur(g.sym)}</i>
       <button class="mgstep" data-mana-minus="${esc(g.namn)}" title="One less ${esc(g.namn)}">−</button>
       <b>${g.idx.length}</b>
       <button class="mgstep" data-mana-plus="${esc(g.namn)}" title="One more ${esc(g.namn)}">+</button>
-      <span class="lfordel" title="untapped / tapped">${otappade.length}/${tappade.length}</span>
     </div>
   </div>`;
 }
@@ -3515,7 +3639,8 @@ function renderMana(cards) {
       const c = cardOf(cards[i]);
       const src = c ? imgOf(c, 0, 'small') || imgOf(c, 0, 'normal') : '';
       return `<span class="lkort${cards[i].tapped ? ' ltapp' : ''}" data-i="${i}" title="${esc(c ? c.name : cards[i].name)}">${
-        src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'}</span>`;
+        src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'
+      }${landAktHtml(i, !!cards[i].tapped)}</span>`;
     }).join('')}</div>
   </div>`;
 
@@ -3569,36 +3694,17 @@ function renderMana(cards) {
   if (box) box.style.setProperty('--lw', landBredd(matt) + 'px');
 }
 
-/* Selected visar det valda kortet stort nog att läsa, och de handlingar man
-   gör på det. Landen har ingen hovermeny — deras kort är för små att sikta
-   på — så det här är stället där ett land går att tappa och lägga i högen. */
+/* Selected visar det valda kortet så stort rutan tillåter. Det är den enda
+   platsen i appen där regeltexten går att läsa utan att öppna något. */
 function markHtml() {
   const e = selCard();
   if (!e) return '<div class="marktom">No card selected</div>';
-  const c = cardOf(e);
-  const src = c ? imgOf(c, e.flipped && c.faces.length > 1 ? 1 : 0, 'normal') : '';
-  return (src ? `<img src="${esc(src)}" alt="" draggable="false">`
-              : '<div class="marktom">No card selected</div>')
-    + `<span class="marknamn">${esc(c ? c.name : e.name)}</span>`
-    + markAktHtml(e, state.sel);
-}
-function markAktHtml(e, i) {
-  const iGrav = zonAv(e) === ZON_GRAV;
-  const b = bifogTyp(e);
-  const kanBifoga = !iGrav && b && malIndex(i).length;
-  /* Basland tas bort med minusknappen i sin grupp — en andra väg till samma
-     sak, med en annan symbol, hade bara gjort det oklart vilken som gäller.
-     Specialland har ingen minusknapp och behöver därför sin egen. */
-  const kanTaBort = !baslandSym(e);
-  const kn = (akt, txt, svg, extra) =>
-    `<button class="markakt-b${extra || ''}" data-akt="${akt}" data-i="${i}">${svg}<span>${txt}</span></button>`;
-  const sv = (d, w) => `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-  return `<span class="markakt">
-    ${iGrav ? '' : kn('tap', e.tapped ? 'Untap' : 'Tap', sv('<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>', 2.2))}
-    ${kanBifoga ? kn('attach', b.etikett, sv('<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>', 2.2)) : ''}
-    ${iGrav ? '' : kn('grav', 'Graveyard', sv('<path d="M12 4v13M6 12l6 6 6-6"/>', 2.4))}
-    ${kanTaBort ? kn('del', 'Remove', sv('<path d="M6 6l12 12M18 6 6 18"/>', 2.4), ' fara') : ''}
-  </span>`;
+  const c = cardOf(e), dfc = arDfc(c);
+  const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, e.flipped && dfc ? 1 : 0, 'normal') : '');
+  /* Bara kortet. Namnet stod redan på bilden, och handlingarna finns på
+     kortet självt — här tog de bara plats från det man faktiskt ska läsa. */
+  return src ? `<img src="${esc(src)}" alt="${esc(c ? c.name : e.name)}" draggable="false" title="Click to enlarge (F)">`
+             : '<div class="marktom">No card selected</div>';
 }
 /* Bara innehållet, inte hela bandet: en omritning av bandet river bilden och
    laddar om den, och det blinkade vid varje piltryck. */
@@ -3606,8 +3712,7 @@ function renderMark() {
   const ruta = manaRow.querySelector('.markruta');
   if (!ruta) return;
   const e = selCard();
-  const nyckel = e ? [keyOf(e), e.flipped ? 1 : 0, e.tapped ? 1 : 0, zonAv(e), e.attachedTo || '',
-                      state.sel, malIndex(state.sel).length].join('·') : '';
+  const nyckel = e ? [keyOf(e), e.flipped ? 1 : 0].join('·') : '';
   if (ruta.dataset.k === nyckel) return;
   ruta.dataset.k = nyckel;
   ruta.innerHTML = markHtml();
@@ -3646,8 +3751,11 @@ function renderSel() {
      den markeras när urvalet ligger på något av dem. */
   /* Bara riktiga managrupper — "Add mana" delar klass men har inga
      kortindex, och att läsa data-alla på den kastade mitt i renderingen. */
+  /* Gruppen visar sitt urval på siffran, men ramen sitter på det kort man
+     faktiskt klickade. Förut ringades hela färgen in och det gick inte att se
+     vilket av sex Forest som var valt. */
   $$('.lgrupp[data-alla]', manaRow).forEach(el =>
-    el.classList.toggle('sel', el.dataset.alla.split(',').includes(String(state.sel))));
+    el.classList.toggle('vald', el.dataset.alla.split(',').includes(String(state.sel))));
   $$('.lkort[data-i]', manaRow).forEach(el => el.classList.toggle('sel', +el.dataset.i === state.sel));
   /* Högen är ett stopp i navigeringen, alltså måste den kunna se vald ut. */
   const gr = manaRow.querySelector('.grav');
@@ -3704,7 +3812,7 @@ function renderDetail() {
       <img src="${esc(imgOf(card, fi, 'png') || imgOf(card, fi, 'large'))}" alt="${esc(f.name)}">
       ${many ? `<button class="flipbtn" id="dFlip">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
-        Vänd</button>` : ''}
+        Flip</button>` : ''}
     </div>
     ${faceInfoHtml(card, f, fi)}`;
   const fb = $('#dFlip');
@@ -3722,15 +3830,21 @@ function renderFocus() {
   const many = card && card.faces.length > 1 && card.faces[1].img;
   const fi = e && e.flipped && many ? 1 : 0;
   const img = $('#fxImg');
-  if (card) { img.src = imgOf(card, fi, 'png') || imgOf(card, fi, 'large'); img.hidden = false; }
+  /* Ett nervänt kort ska vara nervänt även i förstoringen, annars vänder det
+     sig tillbaka så fort man tittar närmare på det. */
+  const stor = e && e.flipped && !many ? BAKSIDA
+             : card ? (imgOf(card, fi, 'png') || imgOf(card, fi, 'large')) : '';
+  if (stor) { img.src = stor; img.hidden = false; }
   else { img.removeAttribute('src'); img.hidden = true; }
   $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
     : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Your hand is empty'}</div>`;
   $('#fxStrip').innerHTML = hand().map((x, i) => {
     const c = cardOf(x);
-    const f2 = x.flipped && c && c.faces.length > 1 ? 1 : 0;
+    const dfc2 = arDfc(c);
+    const f2 = x.flipped && dfc2 ? 1 : 0;
+    const s2 = x.flipped && !dfc2 ? BAKSIDA : (c ? imgOf(c, f2, 'small') : '');
     return `<button class="${i === state.sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : x.name)}">
-      ${c ? `<img src="${esc(imgOf(c, f2, 'small'))}" alt="">` : ''}</button>`;
+      ${s2 ? `<img src="${esc(s2)}" alt="">` : ''}</button>`;
   }).join('');
   const on = $('#fxStrip .on');
   if (on) on.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
@@ -3859,11 +3973,14 @@ function moveSel(dir) {
   state.sel = j;
   save(); renderAll();
 }
+/* Att vända ett kort betyder två olika saker beroende på kortet. Ett
+   dubbelsidigt kort har en andra sida att visa. Alla andra har baksidan —
+   och ett nervänt kort är fortfarande på bordet, man ser bara inte vad det
+   är. Tidigare gjorde tangenten ingenting alls för vanliga kort. */
+const arDfc = c => !!(c && c.faces.length > 1 && c.faces[1].img);
 function flipSel() {
   const e = selCard();
   if (!e) return;
-  const c = cardOf(e);
-  if (!c || c.faces.length < 2 || !c.faces[1].img) return;
   e.flipped = e.flipped ? 0 : 1;
   save(); renderAll();
 }
@@ -4034,6 +4151,7 @@ function tappa(i) {
 }
 function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
+  if (akt === 'flip') { state.sel = i; flipSel(); return; }
   if (akt === 'attach') return startaAttach(i);
   if (akt === 'grav') { flyttaTill(i, ZON_GRAV); return; }
   if (akt === 'del') return removeAt(i);
@@ -4110,6 +4228,7 @@ manaRow.addEventListener('click', ev => {
   }
   const ab = ev.target.closest('[data-akt]');
   if (ab) { kortAktion(ab.dataset.akt, +ab.dataset.i); return; }
+  if (ev.target.closest('.markruta img')) { openFocus(); return; }
   const lk = ev.target.closest('.lkort[data-i]');
   if (lk) { state.sel = +lk.dataset.i; renderSel(); renderDetail(); save(); return; }
   const grp = ev.target.closest('.lgrupp[data-alla]');
@@ -4356,12 +4475,14 @@ function gravKort() { const c = hand(); return delaHand().grav.map(i => c[i]); }
 function openGrav() { gravSel = 0; openOv('gravOv'); renderGrav(); }
 function renderGrav() {
   const lista = gravKort();
-  $('#gravCount').textContent = lista.length ? `${lista.length} ${lista.length === 1 ? 'card' : 'cards'}` : '';
+  $('#gravCount').textContent = lista.length
+    ? `${lista.length} ${lista.length === 1 ? 'card' : 'cards'} · newest first` : '';
+  $('#gravPrev').disabled = $('#gravNext').disabled = lista.length < 2;
+  $('#gravHdSten') && ($('#gravHdSten').innerHTML = GRAVSTEN);
   if (!lista.length) {
     $('#gravImg').removeAttribute('src'); $('#gravImg').hidden = true;
     $('#gravEmpty').hidden = false;
     $('#gravInfo').innerHTML = ''; $('#gravList').innerHTML = '';
-    $('#gravNav').textContent = '';
     $('#gravBack').disabled = $('#gravRemove').disabled = true;
     return;
   }
@@ -4372,14 +4493,17 @@ function renderGrav() {
   const im = $('#gravImg');
   if (stor) { im.src = stor; im.hidden = false; } else { im.removeAttribute('src'); im.hidden = true; }
   const f = card && card.faces[0];
+  /* Bilden är stor nog att läsa regeltexten på, så här står bara namnet och
+     typraden — plus vilket kort som senast hamnade i högen, eftersom högen
+     ligger med det nyaste först och det inte syns någon annanstans. */
   $('#gravInfo').innerHTML = `<h3>${esc(card ? card.name : e.name)}</h3>`
-    + (f ? `<div>${esc(f.type)}</div>${f.oracle ? `<div style="margin-top:6px">${symbolize(f.oracle)}</div>` : ''}` : '');
+    + `<div class="gravtyp">${f ? esc(f.type) : ''}${gravSel === 0 && lista.length > 1
+        ? `${f ? ' · ' : ''}<span class="gravsenast">added last</span>` : ''}</div>`;
   $('#gravList').innerHTML = lista.map((x, j) => {
     const c2 = cardOf(x), src = c2 ? imgOf(c2, 0, 'small') : '';
     return `<button data-g="${j}" class="${j === gravSel ? 'on' : ''}" title="${esc(c2 ? c2.name : x.name)}">
       ${src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'}</button>`;
   }).join('');
-  $('#gravNav').textContent = `${gravSel + 1} of ${lista.length}`;
   $('#gravBack').disabled = $('#gravRemove').disabled = false;
 }
 function gravStep(d) {
@@ -4392,6 +4516,8 @@ $('#gravList').addEventListener('click', ev => {
   const b = ev.target.closest('[data-g]');
   if (b) { gravSel = +b.dataset.g; renderGrav(); }
 });
+$('#gravPrev').onclick = () => gravStep(-1);
+$('#gravNext').onclick = () => gravStep(1);
 $('#gravBack').onclick = () => {
   const lista = gravKort();
   const e = lista[gravSel];
