@@ -677,18 +677,18 @@ main{flex:1;display:flex;min-height:0}
 
 /* Sitter över den otappade stapeln, alltså över det den räknar. Till höger
    hamnade den vid nästa färgs kant och såg ut att höra dit.
-   Untap-pilen står med i brickan: en ensam siffra i en fylld gul cirkel läses
-   som en notisräknare — "något är fel här" — och inte som "så många av den här
-   färgen är otappade". */
+   Utskrivet i ord: en siffra ensam — med eller utan pil — gick att läsa som en
+   notisräknare, ett radnummer eller manakostnad. "2 untapped" går inte att
+   missförstå, och gruppens minsta bredd på 74 px rymmer texten även när
+   landkorten krympt till småstenar. */
 .luntap{
-  position:absolute;left:-3px;top:-6px;z-index:8;
-  height:17px;padding:0 5px 0 3px;border-radius:9px;
-  display:flex;align-items:center;gap:2px;
+  position:absolute;left:-3px;top:-7px;z-index:8;
+  height:16px;padding:0 6px;border-radius:8px;white-space:nowrap;
+  display:flex;align-items:center;
   background:#0b1017f2;border:1px solid var(--acc);color:var(--acc);
-  font:700 10.5px/1 var(--mono);
+  font:700 9.5px/1 var(--mono);letter-spacing:.2px;
   box-shadow:0 2px 6px -1px #000b;pointer-events:none;
 }
-.luntap svg{display:block;flex:none}
 /* Handlingarna på ett landkort. De låg tidigare 3 px UNDER kortet, och den
    luckan gjorde dem omöjliga att klicka på: så fort pekaren lämnade kortet för
    att nå raden slutade :hover gälla, och raden försvann under fingret. Nu
@@ -3713,9 +3713,7 @@ function landGruppHtml(g) {
      hoppade i sidled precis när man var på väg att klicka igen. Den visas
      bara när något faktiskt är tappat — annars säger totalen redan allt. */
   const kvar = !tappade.length ? '' :
-    `<span class="luntap" title="${otappade.length} of ${g.idx.length} untapped">`
-    + `<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${IKON_UNTAP}</svg>`
-    + `${otappade.length}</span>`;
+    `<span class="luntap" title="${otappade.length} of ${g.idx.length} lands untapped">${otappade.length} untapped</span>`;
   return `<div class="lgrupp" data-alla="${g.idx.join(',')}">
     ${kvar}
     <div class="lrad">
