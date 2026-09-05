@@ -44,20 +44,33 @@ Kopiera den. Låt fliken vara kvar.
 ### 2b. Registrera appen hos Google
 
 1. Gå till <https://console.cloud.google.com/apis/credentials>.
-2. Skapa ett projekt om du inte har ett — namnet syns bara för dig.
-3. Har du aldrig gjort det förut måste du först fylla i **OAuth consent
-   screen**: välj **External**, ange appnamn `Handvy`, din e-post som
-   support och som utvecklarkontakt. Du behöver inte skicka in den för
-   granskning — så länge appen står som **Testing** fungerar den, men
-   bara för konton du lagt till under **Test users**. Lägg in dig själv
-   och de du ska spela med. Vill du slippa den listan trycker du
-   **Publish app**; för enbart namn och e-post krävs ingen granskning.
-4. **Credentials → Create credentials → OAuth client ID**.
-5. Application type: **Web application**. Namn: `Handvy`.
-6. Under **Authorized redirect URIs**: klistra in callback-adressen från
+2. Skapa ett projekt om du inte har ett, eller använd ett befintligt.
+   Consent screen är per projekt, så appnamnet du sätter i nästa steg
+   blir vad som visas för alla OAuth-flöden i det projektet.
+3. Står det en röd banderoll om att din free trial är slut — strunta i
+   den. Inloggning och consent screen är gratis och kräver ingen
+   aktiverad betalning.
+4. Har du aldrig gjort det förut måste du först fylla i **OAuth consent
+   screen** (knappen **Configure consent screen** på Credentials-sidan).
+   Appnamn `Handvy`, din e-post som support, **Audience: External**, din
+   e-post som utvecklarkontakt, godkänn villkoren.
+5. Gå till **OAuth consent screen → Audience** och lägg till dig själv
+   och de du ska spela med under **Test users**. Så länge appen står som
+   **Testing** släpps bara de kontona in; alla andra möts av en varning.
+   Vill du slippa listan trycker du **Publish app** — för att bara läsa
+   namn och e-post krävs ingen granskning från Google.
+6. **Credentials → Create credentials → OAuth client ID**.
+7. Application type: **Web application**. Namn: `Handvy`.
+8. Under **Authorized redirect URIs**: klistra in callback-adressen från
    steg 2a. Det är den enda adress som ska stå där — Supabase tar emot
-   svaret från Google och skickar sedan vidare till appen.
-7. Skapa. Du får en **Client ID** och en **Client secret**.
+   svaret från Google och skickar sedan vidare till appen. Appens egen
+   adress ska alltså INTE in här. **Authorized JavaScript origins**
+   lämnas tomt.
+9. Skapa. Du får en **Client ID** och en **Client secret** i en ruta —
+   kopiera båda direkt, secreten är lättare att hämta nu än sedan.
+
+Du behöver inte aktivera något API. Äldre guider säger "enable Google+
+API"; den finns inte längre och behövs inte.
 
 ### 2c. Tillbaka i Supabase
 
