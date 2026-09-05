@@ -17,6 +17,20 @@ const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'applicati
   '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css' };
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  /* Klienten frågar efter Supabase-nycklarna vid varje start. Utan den här
+     rutten får den 404, tolkar det som "inte konfigurerad" och visar
+     landningssidan med inloggningen avstängd — vilket är rätt beteende, men
+     stubben kan lika gärna svara ärligt. Vill man testa inloggningen lokalt
+     sätter man SUPABASE_URL och SUPABASE_ANON_KEY i miljön innan start. */
+  if (u.pathname === '/api/config') {
+    const url = (process.env.SUPABASE_URL || '').trim();
+    const key = (process.env.SUPABASE_ANON_KEY || '').trim();
+    res.writeHead(200, Object.assign({ 'Content-Type':'application/json' }, cors()));
+    return res.end(JSON.stringify({
+      ok: true, konfigurerad: !!(url && key),
+      supabaseUrl: url || null, supabaseAnonKey: key || null
+    }));
+  }
   if (u.pathname === '/api/identify') {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors()); return res.end(); }
     if (req.method === 'GET') {

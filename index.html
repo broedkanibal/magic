@@ -1168,6 +1168,103 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   SKRIVSKYDD — någon annans bord
+
+   I ett spel rår du över ditt eget bord och tittar på de andras. Servern
+   vägrar oavsett vad gränssnittet gör, men en knapp som inte fungerar är
+   sämre än en knapp som inte finns: det som inte går att göra ska inte
+   heller synas.
+   ═══════════════════════════════════════════════════════════════════ */
+body.lasvy .kortakt,
+body.lasvy .lakt,
+body.lasvy .gravbadge,
+body.lasvy .delbadge,
+body.lasvy .mgstep,
+body.lasvy .fargval,
+body.lasvy .zonchip,
+body.lasvy .bifbricka[data-bif],
+body.lasvy #clearHand,
+body.lasvy .searchwrap,
+body.lasvy #bulkBtn,
+body.lasvy .gravknappar{display:none!important}
+body.lasvy .card,body.lasvy .lkort{cursor:default}
+body.lasvy .card:hover{transform:none}
+/* Ett band som säger varför inget går att ändra. Utan det läser sig den
+   tomma verktygsraden som att appen gått sönder. */
+.lasband{
+  display:none;align-items:center;gap:8px;flex:none;
+  padding:5px 11px;border-radius:8px;
+  background:#6b8cff14;border:1px solid #6b8cff40;color:#a8bcff;
+  font:11.5px/1 var(--sans);
+}
+body.lasvy .lasband{display:flex}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PORTALEN — landningssida och lobby
+   Två helskärmsvyer utanför appen. De ligger i samma fil och byts med
+   ett hidden-attribut; appen har ingen router och behöver ingen.
+   ═══════════════════════════════════════════════════════════════════ */
+/* Spelraden i huvudvyn: koden att läsa upp och länken att skicka. */
+.spelrad{display:flex;align-items:center;gap:7px;flex:none}
+.spelkod{
+  font:700 12px var(--mono);letter-spacing:2px;color:var(--acc);
+  padding:0 8px;height:26px;display:flex;align-items:center;
+  border:1px dashed #e8b33a55;border-radius:6px;
+}
+body:not(.ispel) .spelrad{display:none}
+body:not(.ispel) #addPlayerBtn{}
+/* I ett spel skapas spelare genom att någon går med, inte med en knapp. */
+body.ispel #addPlayerBtn{display:none}
+
+.portal{
+  position:fixed;inset:0;z-index:400;overflow:auto;
+  display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(1200px 700px at 50% -10%,#1b2433,var(--bg) 60%);
+}
+.portalkort{
+  width:min(420px,100%);display:flex;flex-direction:column;gap:14px;
+  padding:26px;border-radius:16px;
+  background:#131924;border:1px solid #35415450;
+  box-shadow:0 30px 80px -24px #000,0 0 0 1px #ffffff08;
+}
+.portalmarke{display:flex;align-items:center;gap:11px}
+.portalmarke > div{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.portalmarke b{font:700 17px var(--sans);color:var(--txt)}
+.portalmarke span{font:11.5px var(--sans);color:var(--dim2);overflow:hidden;text-overflow:ellipsis}
+.portalledd{margin:0;font:13px/1.6 var(--sans);color:var(--dim)}
+.portalfin{margin:0;font:11.5px/1.55 var(--sans);color:var(--dim2)}
+/* Två klasser i väljaren: .btn.prim är också två och står tidigare i filen,
+   så en ensam .portalgoogle förlorade och knappen blev guldfärgad. */
+.btn.portalgoogle{justify-content:center;gap:10px;background:#fff;color:#1f2530;border-color:#fff;font-weight:600}
+.btn.portalgoogle:hover{background:#f1f3f7;color:#1f2530;border-color:#f1f3f7}
+.portallokal{justify-content:center}
+.portaldelare{display:flex;align-items:center;gap:10px;color:var(--dim2);font:11px var(--mono)}
+.portaldelare::before,.portaldelare::after{content:'';flex:1;height:1px;background:var(--line)}
+.portaljoin{display:flex;gap:8px}
+.portaljoin input{
+  flex:1;min-width:0;height:34px;padding:0 11px;border-radius:8px;
+  background:var(--bg);border:1px solid var(--line);color:var(--txt);
+  font:600 14px/1 var(--mono);letter-spacing:2px;text-transform:uppercase;outline:none;
+}
+.portaljoin input:focus{border-color:var(--acc)}
+.portalfel{margin:0;font:12px/1.5 var(--sans);color:#ff9099}
+.portalnotis{
+  display:flex;flex-direction:column;gap:3px;padding:11px 13px;border-radius:10px;
+  background:#e8b33a14;border:1px solid #e8b33a40;
+}
+.portalnotis b{font:600 12.5px var(--sans);color:var(--acc)}
+.portalnotis span{font:11.5px var(--mono);color:var(--dim)}
+.portalmina{display:flex;flex-direction:column;gap:6px}
+.portalmina button{
+  display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:9px;
+  background:var(--bg3);border:1px solid var(--line);color:var(--dim);
+  font:12.5px var(--sans);text-align:left;cursor:pointer;
+}
+.portalmina button:hover{background:var(--bg4);color:var(--txt);border-color:#3b485c}
+.portalmina b{color:var(--txt);font-weight:600}
+.portalmina .kod{margin-left:auto;font:11px var(--mono);color:var(--dim2);letter-spacing:1.5px}
+
+/* ═══════════════════════════════════════════════════════════════════
    KOMPAKT LÄGE — ett smalt fönster vid sidan av SpellTable.
    Måttet som räknar är ungefär en tredjedel av en 13-tums MacBook Pro,
    alltså runt 480 px. Där får det breda tvåspaltsläget inte plats: enbart
@@ -1256,6 +1353,69 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 </style>
 </head>
 <body>
+<!-- ══════════════════════════════════════════════════════════════════
+     Landningssida och lobby.
+
+     Ligger utanför #app och byter av varandra med visaVy(). Appen har
+     ingen router: den här filen ÄR sidan, och tre lägen räcker — inte
+     inloggad, inloggad utan spel, och i spel (eller lokalt läge).
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="vyStart" class="portal" hidden>
+  <div class="portalkort">
+    <div class="portalmarke">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="4" y="6" width="12" height="18" rx="2.5" fill="#f0a52a"/>
+        <rect x="14" y="8" width="12" height="18" rx="2.5" fill="#6b8cff" opacity=".92"/>
+      </svg>
+      <div><b>Handvy</b><span>Fysiska kort, delat bord</span></div>
+    </div>
+    <p class="portalledd">Din lek och din hand är dina egna. Det du spelar ut på bordet
+      syns för alla i spelet — utan att någon behöver skriva in något.</p>
+
+    <div id="startInbjuden" class="portalnotis" hidden>
+      <b>Du är inbjuden till ett spel</b>
+      <span id="startInbjudenKod"></span>
+      <span class="portalfin">Logga in så går du med direkt.</span>
+    </div>
+
+    <button class="btn prim big portalgoogle" id="loggaInBtn">
+      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z"/><path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3C3.7 21.4 7.6 24 12 24z"/><path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.6l3.8-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.6 0 3.7 2.6 1.8 6.3l3.8 3C6.5 6.7 9 4.8 12 4.8z"/></svg>
+      Fortsätt med Google
+    </button>
+    <p class="portalfel" id="startFel" hidden></p>
+
+    <div class="portaldelare"><span>eller</span></div>
+    <button class="btn portallokal" id="lokaltBtn">Använd utan konto</button>
+    <p class="portalfin">Utan konto sparas allt bara i den här webbläsaren, och du kan
+      inte bjuda in någon. Du kan logga in senare.</p>
+  </div>
+</div>
+
+<div id="vyLobby" class="portal" hidden>
+  <div class="portalkort">
+    <div class="portalmarke">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="4" y="6" width="12" height="18" rx="2.5" fill="#f0a52a"/>
+        <rect x="14" y="8" width="12" height="18" rx="2.5" fill="#6b8cff" opacity=".92"/>
+      </svg>
+      <div><b id="lobbyHalsning">Handvy</b><span id="lobbyMejl"></span></div>
+      <button class="btn ghost sm" id="loggaUtBtn" style="margin-left:auto">Logga ut</button>
+    </div>
+
+    <button class="btn prim big" id="skapaSpelBtn">Skapa nytt spel</button>
+
+    <div class="portaldelare"><span>eller gå med</span></div>
+    <form class="portaljoin" id="joinForm">
+      <input id="joinKod" placeholder="Spelkod" autocomplete="off" spellcheck="false" maxlength="8">
+      <button class="btn" type="submit">Gå med</button>
+    </form>
+    <p class="portalfel" id="lobbyFel" hidden></p>
+
+    <div id="lobbyMina" class="portalmina" hidden></div>
+    <button class="btn ghost sm" id="lobbyLokalt">Fortsätt utan spel</button>
+  </div>
+</div>
+
 <div id="app">
   <header class="topbar">
     <div class="brand">
@@ -1267,6 +1427,13 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
     </div>
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
+    <div class="spelrad" id="spelRad" hidden>
+      <button class="btn sm" id="bjudInBtn" title="Kopiera inbjudningslänken">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg>
+        Bjud in
+      </button>
+      <span class="spelkod" id="spelKod"></span>
+    </div>
     <button class="btn ghost" id="addPlayerBtn" title="New player (N)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Player
@@ -1298,7 +1465,11 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 4h8M6 8h12M6 12h12M6 16h7"/></svg>
           List
         </button>
-        <div class="handmeta">
+        <span class="lasband" id="lasband">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+        <span id="lasbandTxt">Du tittar på ett annat bord</span>
+      </span>
+      <div class="handmeta">
           <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one">Clear board</button>
           <div class="zoomctl">
             <button id="fitBtn" class="fitbtn" title="Fit the whole hand on screen (0)">Fit</button>
@@ -2980,7 +3151,8 @@ function toast(msg, kind, undo) {
 }
 
 /* ─────────── localStorage ─────────── */
-const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v1', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1' };
+const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v1', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
+            lage: 'sthv.lage.v1', ui: 'sthv.ui.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -3194,6 +3366,203 @@ function imgOf(card, face, size) {
   return f.img[size] || f.img.normal || f.img.large || f.img.small || '';
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MOLNET — inloggning, spel och realtid
+
+   Ett eget lager med smal yta mot resten av appen: appen frågar efter
+   sessionen, spelet och de andras bord, och skickar in sitt eget bord.
+   Inget härifrån vet något om kort, zoner eller rendering.
+
+   Biblioteket hämtas med dynamisk import() först när det behövs. Appen
+   ska starta lika snabbt som förut för den som kör lokalt utan konto,
+   och den ska starta ÖVER HUVUD TAGET om CDN:et ligger nere.
+   ══════════════════════════════════════════════════════════════════ */
+const Moln = (() => {
+  const CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+  let sb = null;            // klienten, null tills den laddats
+  let konf = null;          // svaret från /api/config
+  let session = null;
+  let kanal = null;         // realtidsprenumerationen
+  const lyssnare = { spelare: null, bord: null };
+
+  async function konfig() {
+    if (konf) return konf;
+    try {
+      const r = await fetch('/api/config', { cache: 'no-store' });
+      konf = r.ok ? await r.json() : { konfigurerad: false };
+    } catch (e) { konf = { konfigurerad: false }; }
+    return konf;
+  }
+
+  /* Klienten skapas en gång, lat. Namnet på modulens export är
+     "createClient" — den globala variabeln supabase som UMD-bygget
+     annars sätter är medvetet undviken, den krockar med allt man vill
+     döpa sin egen klient till. */
+  async function klient() {
+    if (sb) return sb;
+    const c = await konfig();
+    if (!c.konfigurerad) return null;
+    const { createClient } = await import(CDN);
+    sb = createClient(c.supabaseUrl, c.supabaseAnonKey, {
+      auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true, autoRefreshToken: true }
+    });
+    return sb;
+  }
+
+  /* Kallas en gång vid uppstart. Returnerar sessionen om det finns en,
+     annars null. Den fångar också returen från Google: supabase-js
+     läser koden ur adressen själv när detectSessionInUrl är på, och vi
+     städar adressen efteråt så att en omladdning inte försöker igen. */
+  async function start() {
+    const c = await konfig();
+    if (!c.konfigurerad) return { konfigurerad: false, session: null };
+    const s = await klient();
+    if (!s) return { konfigurerad: false, session: null };
+    const { data } = await s.auth.getSession();
+    session = data && data.session;
+    const u = new URL(location.href);
+    if (u.searchParams.has('code') || u.searchParams.has('error')) {
+      u.searchParams.delete('code'); u.searchParams.delete('error');
+      u.searchParams.delete('error_description'); u.searchParams.delete('state');
+      history.replaceState(null, '', u.pathname + (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
+    }
+    s.auth.onAuthStateChange((_, ns) => { session = ns; });
+    return { konfigurerad: true, session };
+  }
+
+  const inloggad = () => !!(session && session.user);
+  const minId = () => session && session.user && session.user.id;
+  /* Förnamnet ur Google-kontot. given_name finns när kontot har ett
+     förnamn satt; annars första ordet i namnet, annars mejlets början.
+     Det blir spelarens namn i vyn och går att skriva över efteråt. */
+  function mittNamn() {
+    const u = session && session.user; if (!u) return 'Player';
+    const m = u.user_metadata || {};
+    return (m.given_name || (m.full_name || m.name || '').split(' ')[0]
+            || (u.email || '').split('@')[0] || 'Player').slice(0, 24);
+  }
+
+  async function loggaIn(nastaKod) {
+    const s = await klient();
+    if (!s) throw new Error('Inloggning är inte uppsatt på den här servern.');
+    /* Koden ur inbjudningslänken överlever inte rundturen till Google,
+       så den läggs undan lokalt och plockas upp när vi kommer tillbaka. */
+    if (nastaKod) sessionStorage.setItem('sthv.join', nastaKod);
+    const { error } = await s.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin + location.pathname }
+    });
+    if (error) throw error;
+  }
+
+  async function loggaUt() {
+    const s = await klient(); if (!s) return;
+    await lamnaKanal();
+    await s.auth.signOut();
+    session = null;
+  }
+
+  const KODTECKEN = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // utan I,O,0,1
+  function nyKod() {
+    let k = ''; const b = new Uint8Array(6); crypto.getRandomValues(b);
+    for (const v of b) k += KODTECKEN[v % KODTECKEN.length];
+    return k;
+  }
+
+  async function skapaSpel(namn) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Inte inloggad');
+    /* Koden är slumpad och unik i tabellen. Krocken är osannolik men
+       inte omöjlig, så vi provar några gånger i stället för att låta
+       spelaren möta ett databasfel. */
+    for (let f = 0; f < 5; f++) {
+      const kod = nyKod();
+      const { data, error } = await s.from('games')
+        .insert({ kod, namn: namn || null, vard: minId() }).select().single();
+      if (!error) {
+        await s.rpc('ga_med', { p_kod: kod, p_namn: mittNamn() });
+        return data;
+      }
+      if (error.code !== '23505') throw error;      // 23505 = koden var upptagen
+    }
+    throw new Error('Kunde inte skapa spelet, försök igen.');
+  }
+
+  async function gaMed(kod) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Inte inloggad');
+    const { data, error } = await s.rpc('ga_med', {
+      p_kod: String(kod || '').trim().toUpperCase(), p_namn: mittNamn()
+    });
+    if (error) throw error;
+    return data;                                    // spelets id
+  }
+
+  async function minaSpel() {
+    const s = await klient(); if (!s || !inloggad()) return [];
+    const { data } = await s.from('game_players')
+      .select('game_id, games(id, kod, namn, skapad)')
+      .order('gick_med', { ascending: false }).limit(6);
+    return (data || []).map(r => r.games).filter(Boolean);
+  }
+
+  /* Hämtar spelet i sin helhet: deltagare och deras bord. Returneras i
+     den form appen redan har i minnet, så att renderingen inte behöver
+     veta att korten kom någon annanstans ifrån. */
+  async function hamtaSpel(gameId) {
+    const s = await klient(); if (!s) throw new Error('Inte uppkopplad');
+    const [g, sp, bd] = await Promise.all([
+      s.from('games').select('*').eq('id', gameId).single(),
+      s.from('game_players').select('*').eq('game_id', gameId).order('plats'),
+      s.from('boards').select('*').eq('game_id', gameId)
+    ]);
+    if (g.error) throw g.error;
+    const bord = new Map((bd.data || []).map(b => [b.user_id, b]));
+    return {
+      spel: g.data,
+      spelare: (sp.data || []).map(p => ({
+        user_id: p.user_id, name: p.namn, color: p.farg, plats: p.plats,
+        cards: (bord.get(p.user_id) || {}).kort || [],
+        version: (bord.get(p.user_id) || {}).version || 0
+      }))
+    };
+  }
+
+  /* Bara mitt eget bord. Servern vägrar allt annat, men vi skickar inte
+     ens iväg det: ett anrop som ändå kommer att nekas är bara brus. */
+  async function sparaBord(gameId, kort) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('boards')
+      .upsert({ game_id: gameId, user_id: minId(), kort }, { onConflict: 'game_id,user_id' });
+    if (error) { console.warn('Bordet kunde inte sparas', error.message); return false; }
+    return true;
+  }
+
+  async function dopOm(gameId, namn) {
+    const s = await klient(); if (!s || !inloggad()) return;
+    await s.from('game_players').update({ namn }).eq('game_id', gameId).eq('user_id', minId());
+  }
+
+  async function lyssna(gameId, cb) {
+    const s = await klient(); if (!s) return;
+    await lamnaKanal();
+    lyssnare.bord = cb.bord; lyssnare.spelare = cb.spelare;
+    kanal = s.channel('spel:' + gameId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
+          p => lyssnare.bord && lyssnare.bord(p.new || p.old, p.eventType))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: 'game_id=eq.' + gameId },
+          () => lyssnare.spelare && lyssnare.spelare())
+      .subscribe();
+  }
+
+  async function lamnaKanal() {
+    if (!kanal) return;
+    try { await kanal.unsubscribe(); } catch (e) {}
+    kanal = null;
+  }
+
+  return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
+           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, dopOm, lyssna, lamnaKanal };
+})();
+
 /* ─────────── state ─────────── */
 const prefs = Object.assign({ cardw: 150, fit: true, shownums: false }, LS.get(K.prefs, {}));
 /* Anpassningen är på vid varje start. Zoomknapparna stänger av den, och förut
@@ -3208,7 +3577,10 @@ if (!state || !Array.isArray(state.players) || !state.players.length) {
   state = { players: [mkPlayer('Player 1', 0)], active: null, sel: 0 };
   state.active = state.players[0].id;
 }
-state.players.forEach((p, i) => {
+/* Lagar en spelare som kommer utifrån — ur localStorage vid start, eller ur
+   en rad från servern. Var sin egen loop tidigare; den behövde brytas ut när
+   spelare började komma in en och en över realtid. */
+function normalisera(p, i) {
   p.color = p.color || PALETTE[i % PALETTE.length];
   p.cards = Array.isArray(p.cards) ? p.cards : [];
   p.cards.forEach(c => { c.cid = c.cid || uid(); });
@@ -3217,10 +3589,12 @@ state.players.forEach((p, i) => {
   p.shotIdx = p.shotIdx || 0;
   /* Sparade tillstånd från före flaggan har ingen. Allt som inte ser ut som
      ett automatnamn har användaren skrivit själv — utan den regeln skulle
-     första avläsningen efter uppgraderingen tyst radera namn hen skrivit. */
-  /* Sparade tillstånd kan ha "Spelare N" från innan appen blev engelsk. */
+     första avläsningen efter uppgraderingen tyst radera namn hen skrivit.
+     Sparade tillstånd kan ha "Spelare N" från innan appen blev engelsk. */
   if (!p.namnkalla) p.namnkalla = /^(Player|Spelare) \d+$/.test(p.name || '') ? null : 'anvandare';
-});
+  return p;
+}
+state.players.forEach(normalisera);
 if (!state.players.some(p => p.id === state.active)) state.active = state.players[0].id;
 state.sel = state.sel || 0;
 
@@ -3231,28 +3605,85 @@ function mkPlayer(name, i) {
   return { id: uid(), name, color: PALETTE[i % PALETTE.length], cards: [], shots: [], shotIdx: 0,
            pending: [], pane: null, namnkalla: null, bildnamn: null };
 }
+/* ═══════════════════════════════════════════════════════════════════
+   Vilket läge appen körs i.
+
+   null  = lokalt. Allt i localStorage, precis som förut.
+   objekt = i ett spel. Spelarna kommer från servern, deras id ÄR deras
+            user_id, och bara mitt eget bord får skrivas.
+
+   Att låta p.id vara user_id i spelläge är hela poängen: player(), hand(),
+   flikarna och de fyrtiosex ställen som muterar hittar allt precis som
+   förut. Skillnaden ligger i vad som får skrivas, inte i formen. */
+let spelLage = null;
+/* Sant medan en fjärruppdatering appliceras. renderGrid sorterar manan och
+   sparar mitt i sin egen rendering — utan den här spärren skulle varje
+   inkommande ändring studsa tillbaka som en egen skrivning, och två klienter
+   kunna hålla varandra igång i en eko-loop. */
+let fjarrLas = false;
+
+/* Bordet jag TITTAR på är player(). Bordet jag får SKRIVA i är mitt eget.
+   Att de var samma sak är grundfelet som gör flerspelarläget farligt: varje
+   mutation i filen skriver till den aktiva fliken, och den fliken är i ett
+   spel någon annans bord. Gränssnittet stänger av sig när det inte är mitt
+   (se .lasvy), och servern vägrar oavsett — det här är mellanledet. */
+const arMitt = p => !spelLage || (p && p.id === spelLage.mig);
+const redigerbar = () => arMitt(player());
+const minSpelare = () => spelLage ? state.players.find(p => p.id === spelLage.mig) : player();
+
 let saveT = null;
+function slimSpelare(p) {
+  return {
+    id: p.id, name: p.name, namnkalla: p.namnkalla || undefined, bildnamn: p.bildnamn || undefined,
+    color: p.color, shots: p.shots, shotIdx: p.shotIdx,
+    pane: p.pane || undefined,
+    pending: (p.pending || []).map(q => ({ id: q.id, box: q.box, rot: q.rot, shotId: q.shotId, cands: (q.cands || []).slice(0, 8) })),
+    cards: slimKort(p.cards)
+  };
+}
+/* Vad de ANDRA behöver veta om mina kort. Medvetet mindre än vad som sparas
+   lokalt: shotId, box och rot pekar in i skärmdumpar som ligger i MIN
+   IndexedDB, och cands är kandidatlistan från min egen avläsning. Skickas de
+   med får de andra bord vars beskärningar inte har något att rita från, och i
+   värsta fall ritas min skärmdump som miniatyrer på deras kort. Det som hör
+   till kortet självt — vilket kort, vilken sida upp, tappat, vad det sitter
+   på, vilken zon — är allt de behöver. */
+function slimDelat(cards) {
+  return (cards || []).map(c => ({
+    cid: c.cid, name: c.name, sid: c.sid || undefined,
+    flipped: c.flipped ? 1 : 0, tapped: c.tapped ? 1 : 0,
+    attachedTo: c.attachedTo || undefined, zon: c.zon || undefined
+  }));
+}
+function slimKort(cards) {
+  return (cards || []).map(c => ({
+    cid: c.cid, name: c.name, sid: c.sid || undefined, flipped: c.flipped ? 1 : 0,
+    tapped: c.tapped ? 1 : 0, attachedTo: c.attachedTo || undefined,
+    zon: c.zon || undefined,
+    box: c.box || undefined, rot: c.rot || undefined, shotId: c.shotId || undefined,
+    cands: c.cands ? c.cands.slice(0, 8) : undefined
+  }));
+}
 function save() {
+  if (fjarrLas) return;                 // en fjärrändring ska inte skrivas tillbaka
   clearTimeout(saveT);
-  saveT = setTimeout(() => {
-    const slim = {
-      active: state.active, sel: state.sel,
-      players: state.players.map(p => ({
-        id: p.id, name: p.name, namnkalla: p.namnkalla || undefined, bildnamn: p.bildnamn || undefined,
-        color: p.color, shots: p.shots, shotIdx: p.shotIdx,
-        pane: p.pane || undefined,
-        pending: (p.pending || []).map(q => ({ id: q.id, box: q.box, rot: q.rot, shotId: q.shotId, cands: (q.cands || []).slice(0, 8) })),
-        cards: p.cards.map(c => ({
-          cid: c.cid, name: c.name, sid: c.sid || undefined, flipped: c.flipped ? 1 : 0,
-          tapped: c.tapped ? 1 : 0, attachedTo: c.attachedTo || undefined,
-          zon: c.zon || undefined,
-          box: c.box || undefined, rot: c.rot || undefined, shotId: c.shotId || undefined,
-          cands: c.cands ? c.cands.slice(0, 8) : undefined
-        }))
-      }))
-    };
-    LS.set(K.state, slim);
-  }, 250);
+  saveT = setTimeout(sparaNu, 250);
+}
+function sparaNu() {
+  clearTimeout(saveT); saveT = null;
+  if (!spelLage) { LS.set(K.state, slimState()); return; }
+  /* I spelläge är vilken flik man tittar på och vilket kort som är markerat
+     enhetsvärden — de hör inte hemma på servern och ska inte följa med till
+     de andras skärmar. */
+  LS.set(K.ui, { active: state.active, sel: state.sel });
+  const mig = minSpelare();
+  if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards));
+}
+/* Sista chansen att få ut det som ligger i debouncen. Utan den försvann de
+   sista 250 millisekundrarnas arbete när fliken stängdes. */
+addEventListener('pagehide', () => { if (saveT) sparaNu(); });
+function slimState() {
+  return { active: state.active, sel: state.sel, players: state.players.map(slimSpelare) };
 }
 const player = () => state.players.find(p => p.id === state.active) || state.players[0];
 const hand = () => player().cards;
@@ -3598,7 +4029,9 @@ function renderGrid(force) {
 
   /* Antalet står i varje zons egen rubrik. En andra räkning uppe i sökraden
      sa samma sak en gång till, längre bort från det den räknade. */
-  $('#clearHand').hidden = state.players.every(q => !q.cards.length && !(q.pending || []).length);
+  $('#clearHand').hidden = spelLage
+    ? !(minSpelare() && (minSpelare().cards.length || (minSpelare().pending || []).length))
+    : state.players.every(q => !q.cards.length && !(q.pending || []).length);
   document.body.classList.toggle('tomhand', cards.length === 0);
   if (!force && sig === gridSig) { renderSel(); return; }
   gridSig = sig;
@@ -4027,6 +4460,7 @@ function renderFocus() {
 }
 
 function renderAll(forceGrid) {
+  uppdateraLage();
   renderTabs();
   renderGrid(forceGrid);
   if ($('#gravOv').classList.contains('open')) renderGrav();
@@ -4071,7 +4505,12 @@ async function resolveAll() {
   const tried = new Set();
   try {
     for (;;) {
-      const ordered = [player()].concat(state.players.filter(p => p.id !== state.active));
+      /* I ett spel rättar jag bara stavningen på MITT bord. De andras kort
+         rättas av deras egna klienter, och skulle jag skriva i dem hamnar
+         rättelsen ändå aldrig på servern — den blir bara en lokal avvikelse
+         som ser ut som att vi ser olika saker. */
+      const ordered = spelLage ? [minSpelare()].filter(Boolean)
+                               : [player()].concat(state.players.filter(p => p.id !== state.active));
       let target = null;
       for (const p of ordered) {
         for (const c of p.cards) {
@@ -4111,7 +4550,12 @@ async function resolveAll() {
 
 /* ─── mutationer ─── */
 function addCards(items, opts) {
-  const p = (opts && opts.player) || player();
+  /* Standardmålet är bordet jag får skriva i, inte det jag tittar på. I ett
+     spel är de två inte samma sak, och utan skillnaden hamnar ett kort jag
+     söker fram på motståndarens bord — där det ändå aldrig når servern och
+     bara blir en lokal avvikelse som ser ut som att vi ser olika saker. */
+  const p = (opts && opts.player) || (spelLage ? (minSpelare() || player()) : player());
+  if (spelLage && !arMitt(p)) return [];
   const added = [];
   for (const raw of items) {
     const o = typeof raw === 'string' ? { name: raw } : (raw || {});
@@ -4336,6 +4780,9 @@ function kortAktion(akt, i) {
   if (akt === 'del') return removeAt(i);
 }
 gridEl.addEventListener('click', ev => {
+  /* Klick som bara MARKERAR är alltid tillåtna — man ska kunna titta på ett
+     kort på någon annans bord. Det som ÄNDRAR stoppas här. */
+  if (!redigerbar() && (ev.target.closest('[data-akt],[data-addtile],[data-delcard],[data-flip],[data-grav]'))) return;
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
   /* I attach-läget betyder ett klick "det här är målet", ingenting annat. */
   if (attach) {
@@ -4370,6 +4817,7 @@ manaRow.addEventListener('keydown', rutaTangent);
    per klick — handen är fortfarande den enda sanningen, så export, delning
    och ångra fungerar oförändrat. */
 manaRow.addEventListener('click', ev => {
+  if (!redigerbar() && ev.target.closest('[data-akt],[data-addtile],[data-mana-plus],[data-mana-minus],[data-basland],[data-fargval],[data-grav]')) return;
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
   /* Färgväljaren fälls ut på plats i raden och fälls ihop när en färg valts,
      när krysset trycks, eller när man klickar var som helst annars. */
@@ -4460,6 +4908,7 @@ function dndStäda() {
   dnd = null;
 }
 gridEl.addEventListener('pointerdown', ev => {
+  if (!redigerbar()) return;                 // ingen dragsortering på andras bord
   /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar webbläsaren
      inte alltid något click alls, och då blev flaggan hängande och åt upp
      nästa riktiga klick. Ett click hör alltid ihop med sin egen pointerdown. */
@@ -4480,6 +4929,7 @@ gridEl.addEventListener('pointerdown', ev => {
    en symbol med en trea är tre kort, och det finns inget "det där kortet" att
    ta tag i. */
 manaRow.addEventListener('pointerdown', ev => {
+  if (!redigerbar()) return;
   svalgKlick = false;
   if (ev.button !== 0) return;
   const el = ev.target.closest('.lkort[data-i]');
@@ -4600,6 +5050,7 @@ addEventListener('pointerup', () => {
     save();
   }
   renderGrid(true); renderDetail();
+  fjarrIkapp();
 });
 addEventListener('keydown', ev => {                // Esc avbryter ett pågående drag
   if (ev.key === 'Escape' && dnd && dnd.drar) { dndStäda(); renderGrid(true); }
@@ -4607,6 +5058,9 @@ addEventListener('keydown', ev => {                // Esc avbryter ett pågåend
 
 /* ─── spelarflikar ─── */
 $('#playerTabs').addEventListener('click', ev => {
+  /* I ett spel finns spelare för att någon gått med. Man tar inte bort en
+     annan människa från sitt eget fönster. */
+  if (spelLage && ev.target.closest('[data-del]')) return;
   const pen = ev.target.closest('[data-rename]');
   if (pen) { ev.stopPropagation(); startRename(pen.dataset.rename); return; }
   const del = ev.target.closest('[data-del]');
@@ -4627,6 +5081,7 @@ function startRename(id) {
   const p = state.players.find(x => x.id === id);
   const tab = $(`.ptab[data-pid="${id}"]`);
   if (!p || !tab) return;
+  if (!arMitt(p)) return;                    // bara sitt eget namn
   const nm = $('.nm', tab);
   if (!nm) return;
   const inp = document.createElement('input');
@@ -4634,7 +5089,15 @@ function startRename(id) {
   nm.replaceWith(inp);
   inp.focus(); inp.select();
   const done = ok => {
-    if (ok) { const v = inp.value.trim(); if (v) { p.name = v; p.namnkalla = 'anvandare'; save(); } }
+    if (ok) {
+      const v = inp.value.trim();
+      if (v) {
+        p.name = v; p.namnkalla = 'anvandare'; save();
+        /* Namnet bor i game_players, inte i bordet — det når inte servern
+           via save() som bara skickar kortlistan. */
+        if (spelLage) Moln.dopOm(spelLage.id, v);
+      }
+    }
     renderAll();
   };
   inp.addEventListener('keydown', e => {
@@ -4704,6 +5167,7 @@ $('#gravList').addEventListener('click', ev => {
 $('#gravPrev').onclick = () => gravStep(-1);
 $('#gravNext').onclick = () => gravStep(1);
 $('#gravBack').onclick = () => {
+  if (!redigerbar()) return;
   const lista = gravKort();
   const e = lista[gravSel];
   if (!e) return;
@@ -4717,6 +5181,7 @@ $('#gravBack').onclick = () => {
    ångra-knapp. Ett kort kan hamna i graveyard av misstag under en avläsning,
    och då är det inte "tillbaka i spel" man vill, utan bort. */
 $('#gravRemove').onclick = () => {
+  if (!redigerbar()) return;
   const e = gravKort()[gravSel];
   if (!e) return;
   const i = hand().indexOf(e);
@@ -4751,6 +5216,23 @@ function setCardW(d) {
    knappen bara gjort halva jobbet. Efter tömning står en enda "Spelare 1"
    kvar, som när appen är ny. */
 $('#clearHand').onclick = () => {
+  /* I ett spel nollställer knappen BARA mitt eget bord. Att den lokalt river
+     hela bordet och alla spelare är rätt när spelarna är flikar i mitt eget
+     fönster — i ett spel är de andra människor. */
+  if (spelLage) {
+    if (!redigerbar()) return;
+    const mig = minSpelare(); if (!mig) return;
+    const antal = mig.cards.length + (mig.pending || []).length;
+    if (!antal) return;
+    const gamla = mig.cards, gammalPending = mig.pending;
+    mig.cards = []; mig.pending = []; state.sel = 0;
+    save(); renderAll(true);
+    toast(`${antal} cards removed from your board`, 'ok', () => {
+      mig.cards = gamla; mig.pending = gammalPending;
+      save(); renderAll(true);
+    });
+    return;
+  }
   const antal = state.players.reduce((n, p) => n + p.cards.length + (p.pending || []).length, 0);
   if (!antal) return;
   const gammalt = { players: state.players, active: state.active, sel: state.sel };
@@ -5125,7 +5607,7 @@ addEventListener('keydown', ev => {
     case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : stepRow(1); return;
     case 'Home':       ev.preventDefault(); state.sel = 0; save(); renderSel(); renderDetail(); renderFocus(); return;
     case 'End':        ev.preventDefault(); state.sel = snapNav(Math.max(0, hand().length - 1)); save(); renderSel(); renderDetail(); renderFocus(); return;
-    case ' ':          ev.preventDefault(); flipSel(); return;
+    case ' ':          if (!redigerbar()) return; ev.preventDefault(); flipSel(); return;
     case 'Enter':
       ev.preventDefault();
       if (!focusOpen && delaHand().grav.includes(state.sel)) { openGrav(); return; }
@@ -5133,9 +5615,9 @@ addEventListener('keydown', ev => {
       return;
     case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
     case 'Backspace':
-    case 'Delete':     ev.preventDefault(); removeAt(state.sel); return;
-    case ',':          ev.preventDefault(); moveSel(-1); return;
-    case '.':          ev.preventDefault(); moveSel(1); return;
+    case 'Delete':     if (!redigerbar()) return; ev.preventDefault(); removeAt(state.sel); return;
+    case ',':          if (!redigerbar()) return; ev.preventDefault(); moveSel(-1); return;
+    case '.':          if (!redigerbar()) return; ev.preventDefault(); moveSel(1); return;
     case '+': case '=': ev.preventDefault(); setCardW(18); return;
     case '-': case '_': ev.preventDefault(); setCardW(-18); return;
     case '0':          ev.preventDefault(); prefs.fit = !prefs.fit; savePrefs(); applySize(); return;
@@ -5147,6 +5629,11 @@ addEventListener('keydown', ev => {
     return;
   }
   const lower = k.toLowerCase();
+  /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
+     navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
+  const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ' ||
+                  k === 'Backspace' || k === 'Delete' || k === ',' || k === '.';
+  if (!redigerbar() && skriver) return;
   if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
   else if (lower === 'b') { ev.preventDefault(); openBulk(); }
@@ -6438,6 +6925,11 @@ function boxOverlap(a, b) {
 }
 
 function applyAnalysis(shotId, out, img) {
+  /* En bordsavläsning river state.players och bygger om dem ur bilden. Det är
+     rätt lokalt, där flikarna ÄR bilden. I ett spel är spelarna riktiga
+     människor som gått med, och en skärmdump får inte skapa eller döpa om
+     dem — då landar korten i tillägget nedan i stället, på mitt eget bord. */
+  if (spelLage) return appendAnalysis(shotId, out, img);
   /* Samma kort kunde hittas två gånger — en gång välcentrerat och godkänt,
      en gång förskjutet och osäkert — så att sex identifierade kort plus två
      "osäkra" blev åtta av sju kort på bordet. Ett område som till största
@@ -7192,7 +7684,228 @@ addEventListener('paste', async ev => {
 const idbTimeout = (pr, ms) => Promise.race([
   pr, new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB is not responding')), ms))
 ]);
+/* ═══════════════════════════════════════════════════════════════════
+   PORTALEN — vilken vy som visas, och vägen in i ett spel
+   ══════════════════════════════════════════════════════════════════ */
+function visaVy(namn) {
+  $('#vyStart').hidden = namn !== 'start';
+  $('#vyLobby').hidden = namn !== 'lobby';
+  $('#app').style.display = namn === 'app' ? '' : 'none';
+}
+const portalFel = (id, txt) => {
+  const el = $(id); el.textContent = txt || ''; el.hidden = !txt;
+};
+/* Koden ur ?join=XXXX. Adressen städas när vi tagit hand om den, så att en
+   omladdning inte försöker gå med en gång till. */
+function inbjudanIUrl() {
+  const u = new URL(location.href);
+  const k = (u.searchParams.get('join') || '').trim().toUpperCase();
+  return k || null;
+}
+function rensaInbjudan() {
+  const u = new URL(location.href);
+  if (!u.searchParams.has('join')) return;
+  u.searchParams.delete('join');
+  history.replaceState(null, '', u.pathname + (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
+}
+
+async function visaLobby() {
+  visaVy('lobby');
+  $('#lobbyHalsning').textContent = 'Hej ' + Moln.mittNamn();
+  portalFel('#lobbyFel', '');
+  try {
+    const spel = await Moln.minaSpel();
+    const box = $('#lobbyMina');
+    box.hidden = !spel.length;
+    box.innerHTML = spel.map(g =>
+      `<button data-spel="${esc(g.id)}"><b>${esc(g.namn || 'Spel')}</b><span class="kod">${esc(g.kod)}</span></button>`).join('');
+  } catch (e) { /* listan är en bekvämlighet, inte en förutsättning */ }
+}
+
+/* Går in i ett spel: hämtar deltagare och bord, lägger dem i state i den form
+   appen redan använder, och börjar lyssna på ändringar. */
+async function oppnaSpel(gameId) {
+  const { spel, spelare } = await Moln.hamtaSpel(gameId);
+  spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
+  byggSpelare(spelare);
+  const ui = LS.get(K.ui, {});
+  state.active = spelare.some(p => p.user_id === ui.active) ? ui.active : spelLage.mig;
+  state.sel = ui.sel || 0;
+  await Moln.lyssna(spel.id, {
+    bord: rad => fjarrBord(rad),
+    spelare: async () => {
+      try { const f = await Moln.hamtaSpel(spelLage.id); fjarrSpelare(f.spelare); } catch (e) {}
+    }
+  });
+  visaVy('app');
+  renderAll(true);
+  resolveAll();
+  applySize();
+}
+
+/* Spelarna från servern får samma form som de lokala. p.id ÄR user_id — det
+   är det som gör att resten av appen inte behöver veta att den är uppkopplad. */
+function byggSpelare(lista) {
+  state.players = lista.map((p, i) => normalisera({
+    id: p.user_id, name: p.name, color: p.color, cards: p.cards || [],
+    shots: [], shotIdx: 0, pending: [], pane: null,
+    namnkalla: 'anvandare', bildnamn: null, version: p.version
+  }, i));
+}
+/* En ändrad bordsrad. Mitt eget bord hoppas över: jag har det redan, och min
+   egen skrivning kommer tillbaka som en händelse jag inte ska agera på. */
+function fjarrBord(rad) {
+  if (!spelLage || !rad || rad.game_id !== spelLage.id) return;
+  if (rad.user_id === spelLage.mig) return;
+  const p = state.players.find(x => x.id === rad.user_id);
+  if (!p) return;
+  if (rad.version != null && p.version != null && rad.version <= p.version) return;  // äldre än det vi har
+  p.version = rad.version;
+  p.cards = Array.isArray(rad.kort) ? rad.kort : [];
+  p.cards.forEach(c => { c.cid = c.cid || uid(); });
+  medFjarr(() => renderAll(true));
+}
+function fjarrSpelare(lista) {
+  if (!spelLage) return;
+  const gamla = new Map(state.players.map(p => [p.id, p]));
+  state.players = lista.map((p, i) => {
+    const g = gamla.get(p.user_id);
+    /* Behåll de kort vi redan har för spelare vi känner — annars skulle en ny
+       deltagare som joinar rita om allas bord från en hämtning som kan vara
+       äldre än den senaste realtidshändelsen. */
+    return normalisera({
+      id: p.user_id, name: p.name, color: p.color,
+      cards: g ? g.cards : (p.cards || []),
+      version: g ? g.version : p.version,
+      shots: [], shotIdx: 0, pending: [], pane: null,
+      namnkalla: 'anvandare', bildnamn: null
+    }, i);
+  });
+  if (!state.players.some(p => p.id === state.active)) state.active = spelLage.mig;
+  medFjarr(() => renderAll(true));
+}
+/* Kör något utan att det räknas som en lokal ändring. renderGrid sorterar och
+   sparar mitt i sin rendering, och utan spärren studsar varje inkommande
+   ändring tillbaka som en egen skrivning. */
+function medFjarr(fn) {
+  /* Rita inte om mitt i en dragning. Rutnätets rutor mäts vid pointerdown och
+     adresseras med index efteråt — byggs DOM om däremellan släpper man kortet
+     på en plats som inte finns längre. Ändringen är redan i state, så den syns
+     så fort dragningen släpps. */
+  if (dnd && dnd.drar) { fjarrVantar = true; return; }
+  fjarrLas = true;
+  try { fn(); } finally { fjarrLas = false; }
+}
+let fjarrVantar = false;
+function fjarrIkapp() {
+  if (!fjarrVantar) return;
+  fjarrVantar = false;
+  medFjarr(() => renderAll(true));
+}
+
+/* Skrivskyddet i gränssnittet. Servern vägrar oavsett, men en knapp som inte
+   gör något är sämre än en knapp som inte finns. */
+function uppdateraLage() {
+  document.body.classList.toggle('ispel', !!spelLage);
+  const las = !!spelLage && !redigerbar();
+  document.body.classList.toggle('lasvy', las);
+  const rad = $('#spelRad');
+  if (rad) rad.hidden = !spelLage;
+  if (spelLage) {
+    $('#spelKod').textContent = spelLage.kod;
+    if (las) $('#lasbandTxt').textContent = (player().name || 'Den här spelaren') + 's bord — du kan titta, inte ändra';
+  }
+}
+/* Inbjudningslänken är adressen till appen plus koden. Den som öppnar den
+   loggar in och hamnar direkt i spelet — koden överlever rundturen till
+   Google genom sessionStorage. */
+const inbjudanLank = () => location.origin + location.pathname + '?join=' + (spelLage ? spelLage.kod : '');
+$('#bjudInBtn').onclick = async () => {
+  if (!spelLage) return;
+  const lank = inbjudanLank();
+  try { await navigator.clipboard.writeText(lank); toast('Inbjudningslänken är kopierad', 'ok'); }
+  catch (e) { prompt('Kopiera länken:', lank); }
+};
+
+async function startaLokalt() {
+  spelLage = null;
+  LS.set(K.lage, 'lokal');
+  await Moln.lamnaKanal();
+  visaVy('app');
+  renderAll(true); applySize();
+}
+
+$('#lokaltBtn').onclick = () => startaLokalt();
+$('#lobbyLokalt').onclick = () => startaLokalt();
+$('#loggaInBtn').onclick = async () => {
+  portalFel('#startFel', '');
+  try { LS.set(K.lage, 'moln'); await Moln.loggaIn(inbjudanIUrl()); }
+  catch (e) { portalFel('#startFel', e.message || 'Inloggningen gick inte att starta.'); }
+};
+$('#loggaUtBtn').onclick = async () => {
+  await Moln.loggaUt(); spelLage = null; LS.del(K.lage); visaVy('start');
+};
+$('#skapaSpelBtn').onclick = async () => {
+  portalFel('#lobbyFel', '');
+  const b = $('#skapaSpelBtn'); b.disabled = true;
+  try { const g = await Moln.skapaSpel(null); await oppnaSpel(g.id); }
+  catch (e) { portalFel('#lobbyFel', e.message || 'Kunde inte skapa spelet.'); }
+  finally { b.disabled = false; }
+};
+$('#joinForm').onsubmit = async ev => {
+  ev.preventDefault();
+  portalFel('#lobbyFel', '');
+  const kod = $('#joinKod').value.trim().toUpperCase();
+  if (!kod) return;
+  try { const id = await Moln.gaMed(kod); await oppnaSpel(id); }
+  catch (e) { portalFel('#lobbyFel', e.message === 'Spelet finns inte' ? 'Ingen hittade med den koden.' : (e.message || 'Kunde inte gå med.')); }
+};
+$('#lobbyMina').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-spel]'); if (!b) return;
+  try { await oppnaSpel(b.dataset.spel); }
+  catch (e) { portalFel('#lobbyFel', e.message || 'Kunde inte öppna spelet.'); }
+});
+
+/* Vilken vy som ska visas vid start. Har man valt lokalt läge tidigare visas
+   appen direkt, utan att vänta på ett nätverksanrop — annars hade den som
+   inte använder spel fått en blink av landningssidan vid varje start. */
+async function portalStart() {
+  const inbjudan = inbjudanIUrl();
+  const sparatLage = LS.get(K.lage, null);
+  if (sparatLage === 'lokal' && !inbjudan) { spelLage = null; visaVy('app'); return; }
+
+  visaVy('start');
+  if (inbjudan) {
+    $('#startInbjuden').hidden = false;
+    $('#startInbjudenKod').textContent = inbjudan;
+  }
+  const { konfigurerad } = await Moln.start();
+  if (!konfigurerad) {
+    portalFel('#startFel', 'Inloggning är inte uppsatt på den här servern. Kör vidare utan konto.');
+    $('#loggaInBtn').disabled = true;
+    return;
+  }
+  if (!Moln.inloggad()) return;                      // stanna på landningssidan
+
+  /* Tillbaka från Google, eller redan inloggad. Fanns en inbjudan innan
+     rundturen ligger den i sessionStorage. */
+  const vantande = sessionStorage.getItem('sthv.join');
+  sessionStorage.removeItem('sthv.join');
+  const kod = inbjudan || vantande;
+  rensaInbjudan();
+  if (kod) {
+    try { const id = await Moln.gaMed(kod); await oppnaSpel(id); return; }
+    catch (e) { await visaLobby(); portalFel('#lobbyFel', 'Kunde inte gå med i spelet: ' + (e.message || '')); return; }
+  }
+  await visaLobby();
+}
+
 (async function boot() {
+  /* Portalen avgör vad som visas innan något ritas. Är lokalt läge valt sedan
+     tidigare visar den appen direkt utan att vänta på nätet — den som aldrig
+     använder spel ska inte betala en blink av landningssidan vid varje start. */
+  portalStart().catch(e => console.warn('Portalen kunde inte starta', e));
+
   /* Rita först, hydrera sen. Lagringen får aldrig gatea första ritningen —
      en blockerad IndexedDB (gammal flik, privat läge) lämnade annars appen tom. */
   renderAll(true);
