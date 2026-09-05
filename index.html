@@ -683,12 +683,15 @@ main{flex:1;display:flex;min-height:0}
   background:var(--acc);color:#20160a;font:700 10.5px/17px var(--mono);text-align:center;
   box-shadow:0 2px 6px -1px #000b;pointer-events:none;
 }
-/* Handlingarna på ett landkort. Små kort, så knapparna ligger under kortet
-   och bara det hovrade kortets rad visas. */
+/* Handlingarna på ett landkort. De låg tidigare 3 px UNDER kortet, och den
+   luckan gjorde dem omöjliga att klicka på: så fort pekaren lämnade kortet för
+   att nå raden slutade :hover gälla, och raden försvann under fingret. Nu
+   ligger den innanför kortets nederkant, precis som på ett permanent, och
+   pekaren lämnar aldrig kortet på vägen dit. */
 .lakt{
-  position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);z-index:9;
-  width:max-content;
-  display:flex;gap:3px;padding:3px;
+  position:absolute;left:0;right:0;bottom:4px;margin:0 auto;z-index:9;
+  width:max-content;max-width:calc(100% - 6px);
+  display:flex;flex-wrap:wrap;justify-content:center;gap:3px;padding:3px;
   background:#070b11f2;border:1px solid #3a4658;border-radius:7px;
   box-shadow:0 6px 16px -4px #000e;
   opacity:0;pointer-events:none;transition:opacity .1s;
@@ -3187,6 +3190,11 @@ function imgOf(card, face, size) {
 
 /* ─────────── state ─────────── */
 const prefs = Object.assign({ cardw: 150, fit: true, shownums: false }, LS.get(K.prefs, {}));
+/* Anpassningen är på vid varje start. Zoomknapparna stänger av den, och förut
+   låg det kvar i lagret: hade man någon gång klickat på minus stod korten kvar
+   i den storleken för alltid, och brädet slutade tyst fylla sin yta. Zoomen är
+   ett tillfälligt undantag under en session, inte en inställning. */
+prefs.fit = true;
 function savePrefs() { LS.set(K.prefs, prefs); }
 
 let state = LS.get(K.state, null);
@@ -4713,8 +4721,13 @@ $('#addPlayerBtn').onclick = () => { addPlayer(); startRename(state.active); };
 
 /* ─── zoom / fit ─── */
 function setCardW(d) {
+  /* Utgångsläget läses INNAN flaggan nollställs. Förut sattes prefs.fit = false
+     på raden ovanför, varpå villkoret alltid föll på det lagrade värdet — ett
+     första klick på minus hoppade från det man såg (säg 266) till vad som råkade
+     ligga sparat (150) i stället för att ta ett steg. */
+  const nuvarande = prefs.fit ? computeFit() : prefs.cardw;
   prefs.fit = false;
-  prefs.cardw = clamp((prefs.fit ? computeFit() : prefs.cardw) + d, 70, 400);
+  prefs.cardw = clamp(nuvarande + d, 70, 400);
   savePrefs(); applySize(); sattLandBredd();
 }
 /* Töm nollställer BORDET, inte bara en hand. Spelarna kommer från
