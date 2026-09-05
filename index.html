@@ -101,8 +101,8 @@ kbd{
   color:var(--dim);font-size:12.5px;font-weight:550;white-space:nowrap;
   transition:background .12s,color .12s;
 }
-/* Namnet är det enda som får krympa. Siffran, pricken och antalet är det man
-   siktar på och räknar med — de står kvar i full storlek. */
+/* Namnet är det enda som får krympa. Siffran och pricken är det man siktar
+   på — de står kvar i full storlek. */
 .ptab .nm{overflow:hidden;text-overflow:ellipsis;min-width:2.5ch;flex:0 1 auto}
 /* Den aktiva spelarens namn kortas aldrig. Det är det enda namn man behöver
    kunna läsa hela tiden — resten går att se i tooltipen eller genom att byta. */
@@ -111,10 +111,11 @@ kbd{
    tappar de andra flikarna namn och antal, sedan gör den aktiva det med. Kvar
    står siffran och färgpricken — siffran ÄR tangenten man byter med, så fliken
    är fortfarande både läsbar och stor nog att klicka på. */
-.players.kompakt .ptab:not(.on) .nm,.players.kompakt .ptab:not(.on) .cnt{display:none}
-.players.ikoner .ptab .nm,.players.ikoner .ptab .cnt{display:none}
+.players.kompakt .ptab:not(.on) .nm{display:none}
+.players.ikoner .ptab .nm,.players.ikoner .ptab .jagmark,
+.players.ikoner .ptab .pen{display:none}
 .players.kompakt .ptab:not(.on),.players.ikoner .ptab{padding:0 7px}
-.ptab .num,.ptab .dot,.ptab .cnt{flex:none}
+.ptab .num,.ptab .dot{flex:none}
 .ptab:hover{background:var(--bg3);color:var(--txt)}
 .ptab.on{background:var(--bg4);color:var(--txt);border-color:#3d4a5f}
 .ptab .dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0004 inset}
@@ -123,12 +124,28 @@ kbd{
   background:#0006;border-radius:3px;padding:2px 3px;
 }
 .ptab.on .num{color:var(--acc)}
-.ptab .cnt{font:11px/1 var(--mono);color:var(--dim2);background:#00000055;border-radius:20px;padding:3px 6px}
-/* Fliken räknade bara de namngivna korten. Ligger det åtta kort på bordet och
-   sex gick att läsa stod det "6", och de två som väntade på ifyllning såg ut
-   som borttappade. Nu står de kvar som "6+2". */
-.ptab .cnt em{font-style:normal;color:var(--acc);margin-left:1px}
-.ptab.on .cnt{color:#cfd9e8}
+
+/* ── Din egen flik ────────────────────────────────────────────────
+   Den ligger först och sitter fast när raden rullar: vägen tillbaka till
+   sitt eget bord ska aldrig kunna hamna utanför bild. Den har en egen yta
+   även när den inte är vald — dels för att den ska gå att peka ut på en
+   halv sekund, dels för att de andra flikarna rullar in UNDER den och
+   behöver något ogenomskinligt att försvinna bakom. */
+.ptab.jag{
+  position:sticky;left:0;z-index:3;
+  background:#1a212c;border-color:#2b3546;color:var(--dim);
+}
+.players:not(.allt) .ptab.jag{box-shadow:7px 0 10px -7px #000c}
+.ptab.jag:hover{background:#212a38;color:var(--txt)}
+/* Vald: guld. Ingen annan flik blir guld, så färgen ensam svarar på frågan
+   "är det mitt eget bord jag ändrar i?" */
+.ptab.jag.on{background:#f0a52a1c;border-color:#f0a52a66;color:var(--txt)}
+.ptab .jagmark{
+  flex:none;font:9.5px/1 var(--sans);font-weight:700;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--dim2);
+  background:#00000055;border-radius:20px;padding:3.5px 5px;
+}
+.ptab.jag.on .jagmark{color:var(--acc);background:#f0a52a24}
 .ptab .pen{padding:3px;border-radius:4px;color:var(--dim2);line-height:0;opacity:.65}
 .ptab .pen:hover{background:#00000055;color:var(--acc);opacity:1}
 .ptab .x{opacity:0;margin:0 -4px 0 -2px;padding:2px;border-radius:4px;color:var(--dim2);line-height:0}
@@ -452,6 +469,9 @@ main{flex:1;display:flex;min-height:0}
   gap:16px;text-align:center;padding:24px;pointer-events:none;
 }
 .empty.hide{display:none}
+#emptyLas{display:none}
+body.lasvy #emptyHand{display:none}
+body.lasvy #emptyLas:not(.hide){display:grid}
 /* Markering när man drar in en fil över en tom hand — där finns ingen ruta
    att tända, och utan svar ser appen ut att inte ta emot något. */
 .empty.over{outline:2px dashed var(--acc);outline-offset:-14px;background:#120e06;border-radius:14px}
@@ -646,8 +666,14 @@ main{flex:1;display:flex;min-height:0}
 .mgstep:hover{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .lgrupp.vald .lctrl b{color:var(--pa-acc)}
 /* Ram med box-shadow, inte outline: raden klipper vid sin kant och en outline
-   på kortet längst till vänster kapades på mitten. Skuggan ritas innanför. */
-.lkort.sel{z-index:6}
+   på kortet längst till vänster kapades på mitten. Skuggan ritas innanför.
+
+   Markeringen lyfter INTE kortet ur stapeln. Ett valt kort som hoppade fram
+   flyttade sig under fingret och gjorde ordningen i högen oläslig — och
+   ordningen är information: det är den man arbetar sig igenom när man tappar.
+   Kortet ligger kvar, ramen ritas ovanpå grannarna. Det går ihop av sig självt
+   eftersom .lkort saknar egen stapelkontext, så ::after:s z-index gäller mot
+   syskonkorten och inte bara inuti det egna kortet. */
 .lkort.sel::after{
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:5;
   box-shadow:inset 0 0 0 2px var(--acc),0 0 0 3px #e8b33a26;pointer-events:none;
@@ -658,11 +684,18 @@ main{flex:1;display:flex;min-height:0}
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
   box-shadow:inset 0 0 0 2px var(--blue),0 0 0 3px #6b8cff22;pointer-events:none;
 }
-/* Ett tappat kort är en vriden bild i en liggande ruta. Ramen läggs därför
-   på bilden, som redan bär rotationen — att räkna fram samma vridning en
-   gång till på rutan gav en ram som låg bredvid kortet. */
-.lkort.ltapp.sel::after,.lkort.ltapp:hover::before{display:none}
-.lkort.ltapp.sel img{box-shadow:0 0 0 3px var(--acc)}
+/* Ett tappat kort är en vriden bild i en liggande ruta. Ramen får därför
+   bildens exakta mått och vridning — en ram runt själva rutan hamnar bredvid
+   kortet. Den sitter på ::after och inte på bilden, för att den ska kunna
+   ligga över grannkorten utan att bilden gör det. */
+.lkort.ltapp.sel::after{
+  inset:auto;left:50%;top:50%;
+  width:var(--lw);height:calc(var(--lw) / (488 / 680));
+  border-radius:calc(var(--lw) * .067);
+  transform:translate(-50%,-50%) rotate(90deg) scale(0.717647);
+  box-shadow:0 0 0 3px var(--acc);
+}
+.lkort.ltapp:hover::before{display:none}
 .lkort.ltapp:hover img{box-shadow:0 0 0 3px var(--blue)}
 .lspec .lrad{gap:5px;flex-wrap:wrap}
 /* Otappat-räknaren svävar över gruppen — den får inte ta plats i flödet, för
@@ -1189,12 +1222,22 @@ body.lasvy #bulkBtn,
 body.lasvy .gravknappar{display:none!important}
 body.lasvy .card,body.lasvy .lkort{cursor:default}
 body.lasvy .card:hover{transform:none}
+/* Tittar man på någon annans bord får hela brädytan en list i den spelarens
+   färg — samma färg som pricken i fliken och som bandet nedan. Tre ställen,
+   en färg: det går inte att missa vems kort man ser på. */
+body.lasvy .hand{position:relative}
+body.lasvy .hand::before{
+  content:'';position:absolute;inset:0 0 auto 0;height:2px;z-index:6;
+  background:var(--vy,var(--blue));pointer-events:none;
+}
 /* Ett band som säger varför inget går att ändra. Utan det läser sig den
    tomma verktygsraden som att appen gått sönder. */
 .lasband{
   display:none;align-items:center;gap:8px;flex:none;
   padding:5px 11px;border-radius:8px;
-  background:#6b8cff14;border:1px solid #6b8cff40;color:#a8bcff;
+  background:color-mix(in srgb, var(--vy,var(--blue)) 12%, transparent);
+  border:1px solid color-mix(in srgb, var(--vy,var(--blue)) 42%, transparent);
+  color:var(--vy,var(--blue));
   font:11.5px/1 var(--sans);
 }
 body.lasvy .lasband{display:flex}
@@ -1581,7 +1624,7 @@ body.ispel #addPlayerBtn{display:none}
         <span id="lasbandTxt">Du tittar på ett annat bord</span>
       </span>
       <div class="handmeta">
-          <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one">Clear board</button>
+          <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one"><span id="clearHandTxt">Clear board</span></button>
           <div class="zoomctl">
             <button id="fitBtn" class="fitbtn" title="Fit the whole hand on screen (0)">Fit</button>
             <button id="zoomOut" title="Smaller cards (−)">−</button>
@@ -1616,6 +1659,16 @@ body.ispel #addPlayerBtn{display:none}
             <button class="btn big" id="emptySearch">Add a card by hand</button>
           </div>
           <p class="empty-fine">Press <kbd>⌘V</kbd> anywhere in the app, or drag in an image file.<br>Pasting later adds the cards — your hand is only replaced if you re-read the board in the image view.</p>
+        </div>
+        <!-- Samma tomma yta, men på någon annans bord. Uppmaningen att klistra
+             in en skärmdump hör inte hemma där: det man ser är deras kort, och
+             de dyker upp av sig själva. -->
+        <div class="empty" id="emptyLas">
+          <div class="empty-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+          </div>
+          <h2 id="emptyLasTxt">Inget på bordet ännu</h2>
+          <p>Korten dyker upp här av sig själva så fort de läggs ut.</p>
         </div>
         </section>
         <div class="band" id="manaRow" hidden></div>
@@ -3665,11 +3718,17 @@ const Moln = (() => {
     const bord = new Map((bd.data || []).map(b => [b.user_id, b]));
     return {
       spel: g.data,
+      /* Jag först, alltid. Ordningen i game_players är den man råkade gå
+         med i, och den flik man oftast vill tillbaka till är sin egen — att
+         den flyttar sig beroende på när man joinade är bara i vägen. Sorterat
+         här och inte i vyn, så att både första hämtningen och varje senare
+         omläsning ger samma ordning. */
       spelare: (sp.data || []).map(p => ({
         user_id: p.user_id, name: p.namn, color: p.farg, plats: p.plats,
         cards: (bord.get(p.user_id) || {}).kort || [],
         version: (bord.get(p.user_id) || {}).version || 0
-      }))
+      })).sort((a, b) =>
+        (a.user_id === minId() ? -1 : b.user_id === minId() ? 1 : a.plats - b.plats))
     };
   }
 
@@ -3947,21 +4006,30 @@ function shotURL(id) { const s = shotMem.get(id); return s ? s.url : ''; }
    RENDERING
    ══════════════════════════════════════════════════════════════════ */
 const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'), manaRow = $('#manaRow');
+const emptyLasEl = $('#emptyLas');
 
 /* ─── spelarflikar ─── */
 function renderTabs() {
   const box = $('#playerTabs');
-  box.innerHTML = state.players.map((p, i) => `
-    <button class="ptab${p.id === state.active ? ' on' : ''}" data-pid="${esc(p.id)}" title="${esc(p.name)} — press ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} cards need to be filled in` : ''}">
+  box.innerHTML = state.players.map((p, i) => {
+    const mitt = !!spelLage && arMitt(p);
+    /* I ett spel finns spelarna för att människor gått med. Man byter inte
+       namn på någon annan, och man tar inte bort dem ur sitt eget fönster —
+       så de knapparna ritas inte alls där. */
+    const fardknapp = p.id === state.active && (!spelLage || mitt);
+    const kryss = !spelLage && state.players.length > 1;
+    return `
+    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Ditt eget bord' : esc(p.name) + 's bord'} — press ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} cards need to be filled in` : ''}">
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      <span class="cnt">${p.cards.length}${(p.pending || []).length ? `<em>+${p.pending.length}</em>` : ''}</span>
-      ${p.id === state.active ? `<span class="pen" data-rename="${esc(p.id)}" title="Rename (R)" role="button">
+      ${mitt ? '<span class="jagmark">du</span>' : ''}
+      ${fardknapp ? `<span class="pen" data-rename="${esc(p.id)}" title="Rename (R)" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>` : ''}
-      ${state.players.length > 1 ? `<span class="x" data-del="${esc(p.id)}" title="Remove the player" role="button">
+      ${kryss ? `<span class="x" data-del="${esc(p.id)}" title="Remove the player" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
-    </button>`).join('');
+    </button>`;
+  }).join('');
   /* Får de inte plats fälls de ihop i två steg. Rullning är sista utvägen —
      en flik man måste leta rätt på är sämre än en flik utan namn. */
   box.classList.remove('kompakt', 'ikoner');
@@ -4279,6 +4347,10 @@ function renderGrid(force) {
 
   /* Antalet står i varje zons egen rubrik. En andra räkning uppe i sökraden
      sa samma sak en gång till, längre bort från det den räknade. */
+  $('#clearHandTxt').textContent = spelLage ? 'Clear my board' : 'Clear board';
+  $('#clearHand').title = spelLage
+    ? 'Removes every card from your own board — the other players keep theirs'
+    : 'Reset the board — removes every card and all players but one';
   $('#clearHand').hidden = spelLage
     ? !(minSpelare() && (minSpelare().cards.length || (minSpelare().pending || []).length))
     : state.players.every(q => !q.cards.length && !(q.pending || []).length);
@@ -4324,6 +4396,9 @@ function renderGrid(force) {
   ].filter(x => x !== '').join(' · ');
 
   emptyEl.classList.toggle('hide', cards.length > 0);
+  emptyLasEl.classList.toggle('hide', cards.length > 0);
+  if (!cards.length && !redigerbar()) $('#emptyLasTxt').textContent =
+    (player().name || 'Spelaren') + ' har inget på bordet ännu';
   renderMana(cards);
   applySize();
   renderSel();
@@ -4723,7 +4798,11 @@ function renderAll(forceGrid) {
   const hasShot = p.shots.length > 0;
   /* "Skärmdump" sa vad man gav appen, inte vad som hände. Den här vägen
      ERSÄTTER hela handen — allt annat lägger till — och namnet ska säga det. */
-  $('#shotBtnTxt').textContent = hasShot ? 'Re-read board' : 'Read board';
+  /* I ett spel gäller avläsningen BARA mitt eget bord — de andra sköter sina.
+     Texten sa "hela bordet", vilket var sant lokalt och en lögn i ett spel. */
+  $('#shotBtnTxt').textContent = spelLage
+    ? (hasShot ? 'Read my board again' : 'Read my board')
+    : (hasShot ? 'Re-read board' : 'Read board');
   $('#shotBtn').title = hasShot
     ? 'Re-read the whole board from a screenshot — replaces everything in your hand (S)'
     : 'Read a whole board from a SpellTable screenshot (S)';
@@ -4755,12 +4834,17 @@ async function resolveAll() {
   const tried = new Set();
   try {
     for (;;) {
-      /* I ett spel rättar jag bara stavningen på MITT bord. De andras kort
-         rättas av deras egna klienter, och skulle jag skriva i dem hamnar
-         rättelsen ändå aldrig på servern — den blir bara en lokal avvikelse
-         som ser ut som att vi ser olika saker. */
-      const ordered = spelLage ? [minSpelare()].filter(Boolean)
-                               : [player()].concat(state.players.filter(p => p.id !== state.active));
+      /* ALLA spelares kort slås upp. Att hämta ett kort och att rätta dess
+         stavning är två olika saker, och jag blandade ihop dem: bara mina egna
+         slogs upp, så motståndarens kort stod kvar som namnlappar i all
+         evighet. Uppslagningen fyller den delade kortcachen, som är det
+         renderingen ritar ur — den måste ske för allt som syns. Rättelsen
+         däremot skriver i kortobjektet och hör bara hemma på mitt eget bord.
+         Mina först, så att det jag själv tittar på blir klart snabbast. */
+      const mina = minSpelare();
+      const ordered = spelLage
+        ? [mina].concat(state.players.filter(p => p !== mina)).filter(Boolean)
+        : [player()].concat(state.players.filter(p => p.id !== state.active));
       let target = null;
       for (const p of ordered) {
         for (const c of p.cards) {
@@ -4780,7 +4864,11 @@ async function resolveAll() {
         } else {
           const q = norm(target.name);
           const card = await lookup(target.name);
-          for (const p of state.players) for (const en of p.cards)
+          /* Rättelsen skrivs bara i det bord jag råder över. På någon annans
+             hamnar den ändå aldrig på servern och blir en lokal avvikelse som
+             ser ut som att vi ser olika saker. */
+          const mal = spelLage ? [minSpelare()].filter(Boolean) : state.players;
+          for (const p of mal) for (const en of p.cards)
             if (!en.sid && norm(en.name) === q) en.name = card.name;
         }
         save();
@@ -5012,11 +5100,32 @@ function utforAttach(j) {
 
 /* Handlingarna bakom hover-radens knappar. Samma vägar används av
    tangenterna, så det bara finns en beskrivning av vad varje sak gör. */
+/* Korten i samma stapel som i, i den ordning de ritas. En färg i Lands ritas
+   som två staplar — otappade och tappade — och ett kort byter stapel i samma
+   ögonblick det tappas. null för allt annat: specialländer ligger bredvid
+   varandra utan att flytta sig, och permanents har ingen stapel alls. */
+function landStapel(i) {
+  const c = hand(), e = c[i];
+  if (!e || !baslandSym(e) || zonAv(e) !== ZON_MANA) return null;
+  return delaHand().mana.filter(j =>
+    c[j].name === e.name && baslandSym(c[j]) && !c[j].tapped === !e.tapped);
+}
 function tappa(i) {
   const e = hand()[i];
   if (!e || zonAv(e) === ZON_GRAV) return;
+  /* Kortet lämnar sin stapel i och med tappningen. Markeringen ska inte följa
+     med dit — den ska stanna i stapeln man arbetar sig igenom, på kortet som
+     låg ovanpå det man just tog. Ligger man överst finns inget ovanpå, och då
+     är det som låg under näst på tur. Samma sak åt andra hållet när man
+     untappar: nästa i den vridna högen, annars den som blir sist kvar. */
+  const stapel = landStapel(i);
   e.tapped = e.tapped ? 0 : 1;
-  save(); renderGrid(true);
+  if (stapel) {
+    const k = stapel.indexOf(i);
+    const nasta = stapel[k + 1] != null ? stapel[k + 1] : stapel[k - 1];
+    if (nasta != null) state.sel = nasta;
+  }
+  save(); renderGrid(true); renderDetail();
 }
 function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
@@ -5325,7 +5434,9 @@ $('#playerTabs').addEventListener('click', ev => {
 });
 $('#playerTabs').addEventListener('dblclick', ev => {
   const tab = ev.target.closest('.ptab');
-  if (tab) startRename(tab.dataset.pid);
+  if (!tab) return;
+  if (spelLage && tab.dataset.pid !== spelLage.mig) return;   // bara sitt eget namn
+  startRename(tab.dataset.pid);
 });
 function startRename(id) {
   const p = state.players.find(x => x.id === id);
@@ -6535,7 +6646,11 @@ async function analyzeShot(shotId) {
        första — uppmätt tog det över en halv minut innan jesfunk dök upp. Nu
        går de parallellt med detektorn och båda namnen står i rutorna nästan
        direkt. */
-    var namnLoftet = (aiEnabled() && prefs.aiAuto) ? lasPaneNamn(img, panes) : null;
+    /* Namnen ur SpellTables överlägg läses bara i lokalt läge. I ett spel ÄR
+       spelarna inloggade människor med namn från sina Google-konton — att
+       läsa "Xepman" ur en bild och skriva över det vore både fel och
+       förvirrande. Det sparar dessutom ett modellanrop per avläsning. */
+    var namnLoftet = (!spelLage && aiEnabled() && prefs.aiAuto) ? lasPaneNamn(img, panes) : null;
     if (namnLoftet) namnLoftet.then(n => malaPaneNamn(n));
     await tick();
 
@@ -7020,7 +7135,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   let hittade = 0, namngivna = 0;
   /* Namnen är klara innan kortarbetet börjar — antingen för att avläsningen
      redan startat dem, eller genom att de startas här. */
-  if (!cancelAnalyze) {
+  if (!cancelAnalyze && !spelLage) {
     anStep('Reading the player names…');
     await tick();
     const namn = await (namnLoftet || lasPaneNamn(img, panes));
@@ -8595,6 +8710,10 @@ function fjarrBord(rad) {
   p.cards = Array.isArray(rad.kort) ? rad.kort : [];
   p.cards.forEach(c => { c.cid = c.cid || uid(); });
   medFjarr(() => renderAll(true));
+  /* Korten kom som namn, inte som bilder. Utan uppslagningen här står de kvar
+     som namnlappar tills något annat råkar utlösa den — vilket för den som
+     BARA tittar på ett bord aldrig händer. */
+  resolveAll();
 }
 function fjarrSpelare(lista) {
   if (!spelLage) return;
@@ -8619,6 +8738,7 @@ function fjarrSpelare(lista) {
   });
   if (!state.players.some(p => p.id === state.active)) state.active = spelLage.mig;
   medFjarr(() => renderAll(true));
+  resolveAll();
 }
 /* Kör något utan att det räknas som en lokal ändring. renderGrid sorterar och
    sparar mitt i sin rendering, och utan spärren studsar varje inkommande
@@ -8649,7 +8769,11 @@ function uppdateraLage() {
   if (rad) rad.hidden = !spelLage;
   if (spelLage) {
     $('#spelKod').textContent = spelLage.kod;
-    if (las) $('#lasbandTxt').textContent = (player().name || 'Den här spelaren') + 's bord — du kan titta, inte ändra';
+    if (las) {
+      const p = player();
+      $('#lasbandTxt').textContent = (p.name || 'Den här spelaren') + 's bord — du kan titta, inte ändra';
+      document.body.style.setProperty('--vy', p.color || 'var(--blue)');
+    }
   }
 }
 /* Inbjudningslänken är adressen till appen plus koden. Den som öppnar den
