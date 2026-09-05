@@ -164,6 +164,31 @@ revoke all on function public.ga_med(text, text) from public;
 grant execute on function public.ga_med(text, text) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  Rättigheter till Data-API:et
+--
+--  Projektet är skapat med "Automatically expose new tables" AVSLAGET,
+--  vilket är Supabases egen rekommendation: annars blir varje ny tabell
+--  i public nåbar utifrån så fort den finns, och då är radsäkerheten det
+--  enda som står mellan en glömd tabell och internet.
+--
+--  Priset är att rättigheterna måste ges uttryckligen. De ges bara till
+--  authenticated — appen kräver inloggning för spel, och anon har
+--  ingenting här att göra. Varje tabell får exakt de verb som policyerna
+--  ovan faktiskt tillåter, så listan går att läsa som en sammanfattning
+--  av vad som är möjligt: ingen kan ta bort ett spel, och ingen kan
+--  lägga till sig själv i game_players utan att gå via ga_med().
+-- ═══════════════════════════════════════════════════════════════════
+grant usage on schema public to authenticated;
+
+grant select, insert, update on public.games        to authenticated;
+grant select, update, delete on public.game_players to authenticated;
+grant select, insert, update on public.boards       to authenticated;
+
+-- Policyerna anropar den här funktionen, och en policy körs med den
+-- frågande rollens rättigheter — utan execute faller varje läsning.
+grant execute on function public.i_spelet(uuid) to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  Realtid
 --  Klienten lyssnar på ändringar i de här tabellerna, filtrerat på
 --  game_id. RLS gäller även här, så ingen får ut något de inte får se.

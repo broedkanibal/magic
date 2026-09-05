@@ -11,9 +11,17 @@ Räkna med en kvart.
 2. **New project**. Välj organisation, ge det namnet `handvy`.
 3. Sätt ett databaslösenord och spara det i din lösenordshanterare. Du
    behöver det inte för appen, men du får inte se det igen.
-4. Välj region **Central EU (Frankfurt)** — närmast er, och spelet är
+4. Välj region **North EU (Stockholm)** — närmast er, och spelet är
    känsligt för fördröjning eftersom borden uppdateras i realtid.
-5. Vänta ut provisioneringen, ungefär två minuter.
+5. Under **Security**, sätt de tre rutorna så här:
+
+   | Inställning | Läge | Varför |
+   | --- | --- | --- |
+   | Enable Data API | **på** | `supabase-js` pratar med det. Utan det når klienten ingenting. |
+   | Automatically expose new tables | **av** | Påslagen blir varje ny tabell i `public` nåbar utifrån direkt, och då är radsäkerheten det enda som står mellan en glömd tabell och internet. `schema.sql` ger rättigheterna uttryckligen i stället. |
+   | Enable automatic RLS | **på** | Slår på radsäkerhet för varje ny tabell. Schemat gör det redan självt för de tre tabellerna, men den här gör att något du lägger till senare är stängt från början i stället för öppet. |
+
+6. Vänta ut provisioneringen, ungefär två minuter.
 
 ---
 
