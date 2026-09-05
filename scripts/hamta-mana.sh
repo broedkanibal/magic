@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p assets/mana
 for k in W U B R G C; do
-  curl -fsS -H "User-Agent: Handvy/1.0 (MTG-korthjalp)" \
+  curl -fsS -H "User-Agent: Mesa/1.0 (MTG-korthjalp)" \
     "https://svgs.scryfall.io/card-symbols/$k.svg" -o "assets/mana/$k.svg"
   echo "assets/mana/$k.svg"
 done

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
---  Handvy — mobilkameran
+--  Mesa — mobilkameran
 --
 --  Körs EFTER schema.sql. Går att köra om.
 --

@@ -8,7 +8,7 @@
 
    Miljövariabler (Vercel → Settings → Environment Variables):
      ANTHROPIC_API_KEY   krävs
-     ALLOWED_ORIGINS     kommaseparerad lista, t.ex. https://handvy.vercel.app
+     ALLOWED_ORIGINS     kommaseparerad lista, t.ex. https://mesa.vercel.app
                          Utelämnad = alla ursprung tillåts (bara för test).
      ANTHROPIC_MODEL     valfritt, standard claude-opus-5
      RATE_PER_MIN        valfritt, standard 40 anrop per IP och minut
@@ -33,7 +33,7 @@ const MODEL_KORT  = process.env.ANTHROPIC_MODEL_CARD || 'claude-sonnet-5';
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
    två felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 15;
+const PANE_PROMPT_V = 16;   // 16: prompterna beskriver videosamtalet utan att namnge någon app
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -59,7 +59,7 @@ async function landBilder() {
   return Promise.all(BASLAND.map(async ([namn, url]) => {
     let b64 = landCache.get(url);
     if (!b64) {
-      const r = await fetch(url, { headers: { 'User-Agent': 'Handvy/1.0 (MTG-korthjalp)', 'Accept': 'image/jpeg' } });
+      const r = await fetch(url, { headers: { 'User-Agent': 'Mesa/1.0 (MTG-korthjalp)', 'Accept': 'image/jpeg' } });
       if (!r.ok) throw new Error('kunde inte hämta ' + namn + ': ' + r.status);
       b64 = Buffer.from(await r.arrayBuffer()).toString('base64');
       landCache.set(url, b64);
@@ -231,7 +231,7 @@ export default async function handler(req, res) {
     }
   }
 
-  /* ── Spelarnamnet ur SpellTables överlägg ──────────────────────────
+  /* ── Spelarnamnet ur videoöverlägget ─────────────────────────────────
      Egen prompt i stället för ett fält i rutläget: den promten säger
      uttryckligen att spelarnamn ska IGNORERAS, och formuleringen är
      intrimmad mot riktiga skärmdumpar. Att motsäga sig själv mitt i den
@@ -256,7 +256,7 @@ export default async function handler(req, res) {
         max_tokens: 600,
         output_config: { effort: 'low' },
         system:
-          'Du läser användarnamnet ur SpellTables gränssnitt. Bilden är en videoruta från ' +
+          'Du läser användarnamnet ur överlägget i ett videosamtal. Bilden är en videoruta från ' +
           'ett Magic-spelbord med ett överlägg ovanpå: användarnamnet står med fet stil i ' +
           'ett av de övre hörnen, ofta med commanderns namn i kursiv stil under sig och en ' +
           'stor siffra för livtotalen bredvid. ' +
@@ -309,7 +309,7 @@ export default async function handler(req, res) {
           'ovanför ett spelbord. Bilden är uppförstorad ur en större bild och därför suddig. ' +
           'Kortet som ska namnges är det i MITTEN — grannkort i kanterna ska ignoreras. ' +
           'Kortet kan ligga upp och ner eller snett. ' +
-          'Bildens kanter kan innehålla text ur SpellTables gränssnitt som ligger OVANPÅ videon: ' +
+          'Bildens kanter kan innehålla text ur videoappens gränssnitt som ligger OVANPÅ videon: ' +
           'spelarens namn, commanderns namn, livtotal, knappar. Det är inte kortet. Läs bara ' +
           'namnet som står tryckt PÅ kortet i mitten. Står det inget läsbart namn på själva ' +
           'kortet — svara med tom lista, gissa inte utifrån annan text i bilden. ' +
@@ -374,7 +374,7 @@ export default async function handler(req, res) {
           'kortet som användaren fyller i för hand. Utelämna alltså aldrig ett kort bara för ' +
           'att namnet inte går att läsa — lämna namnet tomt i stället. ' +
           'Räkna INTE med baksidor, kortaskar, lekar, tärningar, tangentbord, händer eller ' +
-          'telefoner. Räkna inte heller med SpellTables eget gränssnitt som ligger ovanpå ' +
+          'telefoner. Räkna inte heller med videoappens eget gränssnitt som ligger ovanpå ' +
           'videon: lila eller blå knappar, tre punkter i en rundad fyrkant, spelarnamn, ' +
           'livtotaler och siffror. En Magic-baksida känns igen på att den är enfärgat brun med en stor ' +
           'ljus oval i mitten och ingen text, inget konstverk och ingen ljus textruta — den ' +

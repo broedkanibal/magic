@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════
---  Handvy — spel, spelare och bord
+--  Mesa — spel, spelare och bord
 --
 --  Kör hela filen i Supabase SQL Editor. Den går att köra om: allt är
 --  skrivet med "if not exists" eller "drop policy if exists" först.

@@ -1,10 +1,10 @@
-# Handoff: bordslayout för Handvy (permanents, lands, graveyard, interaktioner)
+# Handoff: bordslayout för Mesa (permanents, lands, graveyard, interaktioner)
 
 ## Overview
 
-Ny layout och nya interaktioner för huvudvyn i **Handvy** (repo `broedkanibal/magic`, filen `index.html`).
+Ny layout och nya interaktioner för huvudvyn i **Mesa** (repo `broedkanibal/magic`, filen `index.html`).
 Målet: bordet ska läsas som ett fysiskt Magic-bord i ett fönster som ligger på **halva skärmen bredvid
-SpellTable** (720×900 CSS-px), utan skroll i någon zon, och med direkta handlingar på korten
+videosamtalet** (720×900 CSS-px), utan skroll i någon zon, och med direkta handlingar på korten
 (tappa/untappa, lägg i graveyard, lägg equipment på ett kort, dra för att sortera).
 
 Tre zoner ersätter dagens uppdelning:

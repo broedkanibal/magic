@@ -3,9 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Handvy — MTG / SpellTable</title>
-<meta name="description" content="See and zoom every player hand from a SpellTable screenshot.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1116'/%3E%3Crect x='6' y='7' width='11' height='16' rx='2' fill='%23f0a52a'/%3E%3Crect x='15' y='9' width='11' height='16' rx='2' fill='%236b8cff' opacity='.9'/%3E%3C/svg%3E">
+<title>Mesa — physical cards, shared board</title>
+<meta name="description" content="Your deck and your hand stay yours. What you play on the table shows up for everyone in the game.">
+<!-- Märket: två plan sett snett uppifrån. Det undre, ifyllda, är bordet du
+     faktiskt sitter vid; det övre, bara en kontur, är samma yta digitalt.
+     Mesa betyder bord — och är ett platåberg, en plan yta sedd uppifrån,
+     vilket är exakt vad kameran ser. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e1116'/%3E%3Cpath d='M16 4.2 26.6 9.9 16 15.6 5.4 9.9Z' fill='none' stroke='%236b8cff' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M16 16.8 26.6 22.5 16 28.2 5.4 22.5Z' fill='%23f0a52a'/%3E%3C/svg%3E">
 <style>
 /* ─────────── tokens ─────────── */
 :root{
@@ -203,10 +207,34 @@ main{flex:1;display:flex;min-height:0}
    Två zoner: permanents som fyller ytan, och ett nedre band med fast höjd
    (Lands, Selected, Graveyard). Ingenting får skrolla — computeFit() krymper
    kortbredden tills allt ryms. Måtten kommer ur designöverlämningen och gäller
-   ett fönster på 720×900, alltså halva skärmen bredvid SpellTable. */
+   ett fönster på 720×900, alltså halva skärmen bredvid videosamtalet. */
+/* Brädet är två spalter: allt man ändrar till vänster, det valda kortet till
+   höger. Selected låg förut nere i bandet, klämt mellan Lands och Graveyard,
+   och fick 330 px höjd att visa ett kort som är högre än det är brett. Som
+   egen spalt får det hela höjden — och Lands slipper konkurrera om bredden. */
+.brade{flex:1;min-height:0;min-width:0;display:flex;gap:10px;padding:10px}
 .gridwrap{
-  flex:1;min-height:0;position:relative;overflow:hidden;
-  display:flex;flex-direction:column;gap:10px;padding:10px;
+  flex:1;min-height:0;min-width:0;position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:10px;
+}
+/* Bredden följer fönstret. Ett Magic-kort är 0.72 gånger så brett som högt, så
+   för att kortet ska fylla spalten måste spalten växa med höjden — en fast
+   bredd gav antingen ett frimärke på en stor skärm eller en spalt som åt upp
+   brädet på en liten. Golvet är den bredd där regeltexten fortfarande går att
+   läsa; taket är där kortet fyller höjden och mer bredd bara blir marginal. */
+.kolmark{
+  flex:0 0 clamp(224px, 26%, 520px);min-width:0;
+  display:flex;flex-direction:column;gap:8px;
+}
+/* På ett smalt fönster är brädet viktigare än en stor förhandsvisning. */
+@media (max-width:900px){ .kolmark{display:none} }
+/* Utan kort finns inget att visa, och den tomma uppmaningen ska få hela
+   bredden i stället för att stå i en spalt bredvid en tom ruta. */
+body.tomhand .kolmark{display:none}
+.markhint{font:9.5px/1 var(--sans);color:var(--zonrakn);white-space:nowrap;display:flex;align-items:center;gap:4px}
+.markhint kbd{
+  font:9px/1 var(--mono);background:#0006;border:1px solid var(--line);
+  border-radius:3px;padding:2px 4px;color:var(--dim2);
 }
 .zonrub{display:flex;align-items:center;gap:8px;flex:none;height:18px;min-width:0}
 .zonlbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--zonlbl);white-space:nowrap}
@@ -598,15 +626,12 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    Fast höjd, satt av Selected-kolumnens innehåll. Ordningen är Lands →
    Selected → Graveyard, med en tunn avdelare mellan varje. */
 .band{
-  flex:none;height:330px;display:flex;gap:12px;align-items:stretch;
+  flex:none;height:300px;display:flex;gap:12px;align-items:stretch;
   background:var(--bandbg);border:1px solid var(--line);border-radius:8px;
   padding:9px 11px;min-height:0;
 }
 .bandkol{display:flex;flex-direction:column;gap:8px;min-height:0}
 .kol-lands{flex:1;min-width:0}
-/* Selected ska gå att LÄSA — regeltexten på ett Magic-kort kräver bredd.
-   Kolumnen är därför den bredaste i bandet, och bandet något högre. */
-.kol-mark{flex:none;width:212px}
 .kol-grav{flex:none;width:112px}
 .bandsep{
   flex:none;width:1px;align-self:stretch;
@@ -785,11 +810,14 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    simmade i en kolumn som var högre än kortet behövde vara. */
 .markruta{
   flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:var(--rutbg);border-radius:8px;padding:7px;
+  border:1px solid var(--line);background:var(--rutbg);border-radius:8px;padding:9px;
 }
+/* Kortet fyller den kortare av spaltens två riktningar. height:100% först, så
+   att det växer i en hög spalt; max-width håller det innanför bredden när det
+   är bredden som är trång. */
 .markruta img{
-  max-width:100%;max-height:100%;width:auto;height:auto;aspect-ratio:488/680;
-  object-fit:contain;border-radius:7px;box-shadow:0 8px 22px -8px #000e;
+  height:100%;width:auto;max-width:100%;max-height:100%;aspect-ratio:488/680;
+  object-fit:contain;border-radius:3.5%/2.5%;box-shadow:0 10px 26px -8px #000e;
   cursor:zoom-in;
 }
 .marktom{margin:auto;font-size:10.5px;color:var(--dim2);text-align:center;padding:0 8px}
@@ -1200,6 +1228,18 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   #addPlayerBtn svg{font-size:13px}
 }
 
+/* Skrivningen till servern gick inte fram. Den ligger kvar och skickas om, men
+   under tiden ser mitt bord annorlunda ut än vad de andra ser — och det ska
+   inte vara något man får upptäcka själv. */
+.sparfel{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:800;
+  display:flex;align-items:center;gap:7px;
+  padding:7px 12px;border-radius:20px;
+  background:#2a1414;border:1px solid #e2606a55;color:#f0a9ad;
+  font:12px/1 var(--sans);box-shadow:var(--shadow);
+}
+.sparfel[hidden]{display:none}
+
 /* ═══════════════════════════════════════════════════════════════════
    SKRIVSKYDD — någon annans bord
 
@@ -1385,7 +1425,7 @@ body.ispel #addPlayerBtn{display:none}
 .portalmina .kod{margin-left:auto;font:11px var(--mono);color:var(--dim2);letter-spacing:1.5px}
 
 /* ═══════════════════════════════════════════════════════════════════
-   KOMPAKT LÄGE — ett smalt fönster vid sidan av SpellTable.
+   KOMPAKT LÄGE — ett smalt fönster vid sidan av videosamtalet.
    Måttet som räknar är ungefär en tredjedel av en 13-tums MacBook Pro,
    alltså runt 480 px. Där får det breda tvåspaltsläget inte plats: enbart
    detaljpanelen är 300 px. Layouten viks till en spalt med kortet överst
@@ -1461,6 +1501,7 @@ body.ispel #addPlayerBtn{display:none}
   /* .hand är flex:none och tar bara sin innehållshöjd — utan att den också
      får växa hade remsan blivit 18px och startmeddelandet osynligt. */
   body.tomhand .detail{display:none}
+  body.tomhand .kolmark{display:none}
   body.tomhand .hand{flex:1;min-height:0}
   body.tomhand .gridwrap{flex:1;height:auto}
   body.tomhand .empty{padding:14px}
@@ -1483,11 +1524,8 @@ body.ispel #addPlayerBtn{display:none}
 <div id="vyStart" class="portal" hidden>
   <div class="portalkort">
     <div class="portalmarke">
-      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="4" y="6" width="12" height="18" rx="2.5" fill="#f0a52a"/>
-        <rect x="14" y="8" width="12" height="18" rx="2.5" fill="#6b8cff" opacity=".92"/>
-      </svg>
-      <div><b>Handvy</b><span>Fysiska kort, delat bord</span></div>
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
+      <div><b>Mesa</b><span>Fysiska kort, delat bord</span></div>
     </div>
     <p class="portalledd">Din lek och din hand är dina egna. Det du spelar ut på bordet
       syns för alla i spelet — utan att någon behöver skriva in något.</p>
@@ -1514,11 +1552,8 @@ body.ispel #addPlayerBtn{display:none}
 <div id="vyLobby" class="portal" hidden>
   <div class="portalkort">
     <div class="portalmarke">
-      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="4" y="6" width="12" height="18" rx="2.5" fill="#f0a52a"/>
-        <rect x="14" y="8" width="12" height="18" rx="2.5" fill="#6b8cff" opacity=".92"/>
-      </svg>
-      <div><b id="lobbyHalsning">Handvy</b><span id="lobbyMejl"></span></div>
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
+      <div><b id="lobbyHalsning">Mesa</b><span id="lobbyMejl"></span></div>
       <button class="btn ghost sm" id="loggaUtBtn" style="margin-left:auto">Logga ut</button>
     </div>
 
@@ -1569,11 +1604,8 @@ body.ispel #addPlayerBtn{display:none}
 <div id="app">
   <header class="topbar">
     <div class="brand">
-      <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true">
-        <rect x="4" y="6" width="12" height="18" rx="2.5" fill="#f0a52a"/>
-        <rect x="14" y="8" width="12" height="18" rx="2.5" fill="#6b8cff" opacity=".92"/>
-      </svg>
-      <span>Handvy<span class="sub" style="margin-left:6px">SpellTable</span></span>
+      <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
+      <span>Mesa</span>
     </div>
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
@@ -1639,6 +1671,7 @@ body.ispel #addPlayerBtn{display:none}
         <button class="btn sm prim" id="pendGo">Review</button>
         <button class="btn sm" id="pendDrop" title="Remove the screenshot and every card still waiting">Discard</button>
       </div>
+      <div class="brade">
       <div class="gridwrap" id="gridWrap">
         <section class="zon-perm" id="zonPerm">
           <div class="zonrub">
@@ -1652,8 +1685,8 @@ body.ispel #addPlayerBtn{display:none}
           <div class="empty-icon">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
           </div>
-          <h2>Paste a screenshot from SpellTable</h2>
-          <p>The app finds each player's video pane and reads the cards on their table — one player per pane. A cropped picture of one or more cards works too: those get added to your hand.</p>
+          <h2>Read the board from a picture</h2>
+          <p>Paste a screenshot of a video call and Mesa finds each player's pane and reads the cards on their table — one player per pane. A cropped picture of one or more cards works too: those get added to your hand.</p>
           <div class="btnrow">
             <button class="btn prim big" id="emptyPaste">Paste screenshot</button>
             <button class="btn big" id="emptySearch">Add a card by hand</button>
@@ -1672,6 +1705,19 @@ body.ispel #addPlayerBtn{display:none}
         </div>
         </section>
         <div class="band" id="manaRow" hidden></div>
+      </div>
+      <!-- Selected står inte längre nere i bandet mellan Lands och Graveyard.
+           Ett Magic-kort är högt, och en kolumn som bara var 330 px hög tvingade
+           kortet att bli litet mitt i den bredaste ytan på skärmen. Som egen
+           spalt får det hela brädets höjd, och regeltexten går att läsa utan
+           att öppna fokusvyn. -->
+      <aside class="kolmark" id="markKol">
+        <div class="zonrub markrub">
+          <span class="zonlbl">Selected</span><i class="zonlinje"></i>
+          <span class="markhint"><kbd>F</kbd> enlarge</span>
+        </div>
+        <div class="markruta"></div>
+      </aside>
       </div>
     </section>
 
@@ -1692,6 +1738,12 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>Backspace</kbd> remove</span>
     <span><kbd>?</kbd> all shortcuts</span>
     <div class="status" id="status" hidden><span class="led"></span><span id="statusTxt"></span></div>
+    <!-- En skrivning som inte gick fram. Utan den låg kortet på mitt eget bord
+         och ingen annanstans, utan ett tecken på att något var fel. -->
+    <div class="sparfel" id="sparfel" hidden>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8v5"/><path d="M12 16.5v.01"/><circle cx="12" cy="12" r="9.2"/></svg>
+      <span>The others can't see your latest change — trying again…</span>
+    </div>
   </footer>
 </div>
 
@@ -1747,7 +1799,7 @@ body.ispel #addPlayerBtn{display:none}
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
       </div>
       <h2>Read a whole board</h2>
-      <p>Drag a SpellTable screenshot here from Finder, paste with <kbd>⌘V</kbd>, or pick a file. The app reads every player's table and makes one tab per video pane.</p>
+      <p>Drag a screenshot here from Finder, paste with <kbd>⌘V</kbd>, or pick a file. Mesa reads every player's table and makes one tab per video pane.</p>
       <p class="varning">Your hand is <b>replaced</b> by whatever is found. To just add cards, close this view and paste among the cards instead.</p>
       <div class="dropbtns">
         <button class="btn prim big" id="dropPaste">Paste screenshot</button>
@@ -1974,7 +2026,7 @@ body.ispel #addPlayerBtn{display:none}
         </section>
       </div>
       <p class="lead" style="border-top:1px solid var(--line);padding-top:12px">
-        <b>How the app reads a screenshot:</b> it first looks for SpellTable's video panes (black gaps separate them),
+        <b>How Mesa reads a screenshot:</b> it first looks for the video panes (black gaps separate them),
         then for dark card borders against the light table in each pane, and finally matches every hit against the set's image signatures.
         Only cards that match clearly are added automatically — the rest end up in the confirm row at the top.
         <br><br>
@@ -2794,11 +2846,11 @@ body.ispel #addPlayerBtn{display:none}
 })(window);
 
 /* ══════════════════════════════════════════════════════════════════
-   Automatisk avläsning av en SpellTable-skärmdump.
+   Automatisk avläsning av en skärmdump från ett videosamtal.
 
    Två steg, båda utan externa bibliotek:
 
-   1. Videorutor. SpellTable lägger spelarna i ett rutnät med helsvarta
+   1. Videorutor. Videosamtalet lägger spelarna i ett rutnät med helsvarta
       mellanrum. En kolumn som är svart hela vägen ner är mellanrum eller
       tom ruta — allt annat är innehåll. Samma sak radvis inom varje
       kolumnband ger rutnätets celler.
@@ -2848,7 +2900,7 @@ body.ispel #addPlayerBtn{display:none}
 
   /* ══ 1. videorutor ══ */
 
-  /* SpellTables sidopanel — den med "Cards / Game Log", sökrutan, "Last Card"
+  /* Videoappens sidopanel — den med "Cards / Game Log", sökrutan, "Last Card"
      och listan över tidigare spelade kort — innehåller kortBILDER. Ett svep
      över den ger 12 förslag, varav 3 tar sig förbi ljusfiltret: kort som
      aldrig legat på något bord.
@@ -3169,7 +3221,7 @@ body.ispel #addPlayerBtn{display:none}
     cands.sort((a, b) => b.score - a.score);
 
     /* Absolut tröskel när mallen används. Uppmätt på en ruta med
-       tangentbord, mus och SpellTables överlägg: riktiga kort 0.79–0.89,
+       tangentbord, mus och videoöverlägg: riktiga kort 0.79–0.89,
        allt annat 0.48–0.69. Bara en relativ tröskel räckte inte — om det
        bäst poängsatta råkade vara ett tangentbord blev allt relativt det. */
     /* tmplScore är en korrelationskoefficient — mallen z-normaliseras i
@@ -3213,7 +3265,7 @@ body.ispel #addPlayerBtn{display:none}
 <script>
 "use strict";
 /* ══════════════════════════════════════════════════════════════════
-   Handvy — överblick över MTG-händer från SpellTable-screenshots
+   Mesa — fysiska kort på ett delat, digitalt bord
    Kortdata: Scryfall (https://scryfall.com/docs/api)
    Allt lagras lokalt (localStorage + IndexedDB). Inget skickas vidare.
    ══════════════════════════════════════════════════════════════════ */
@@ -3419,11 +3471,20 @@ const SF = (() => {
     chain = p.then(() => {}, () => {});
     return p;
   }
+  /* En fetch utan tidsgräns kan varken lösa ut eller avvisas — en somnande
+     flik, ett byte av mobilnät eller en captive portal räcker. Uppslagningen
+     körs seriellt bakom en flagga, så EN sådan hängning frös all framtida
+     kortuppslagning i fliken. Nu faller den ut som ett nätverksfel, vilket
+     koden redan kan hantera. */
+  const TIMEOUT = 12000;
   async function get(path) {
     return enqueue(async () => {
       let r;
-      try { r = await fetch(BASE + path, { headers: { Accept: 'application/json' } }); }
+      const ac = typeof AbortController === 'function' ? new AbortController() : null;
+      const t = ac ? setTimeout(() => ac.abort(), TIMEOUT) : null;
+      try { r = await fetch(BASE + path, { headers: { Accept: 'application/json' }, signal: ac ? ac.signal : undefined }); }
       catch (e) { const err = new Error('offline'); err.offline = true; throw err; }
+      finally { if (t) clearTimeout(t); }
       const d = await r.json().catch(() => null);
       if (!r.ok) {
         const err = new Error((d && (d.details || d.warnings)) || ('HTTP ' + r.status));
@@ -3446,8 +3507,25 @@ const SF = (() => {
 /* ─────────── kortcache ─────────── */
 const cardCache = new Map(Object.entries(LS.get(K.cards, {})));   // kanoniskt namn (lc) → kort
 const aliasMap  = new Map(Object.entries(LS.get(K.alias, {})));   // sökt text (lc)     → kanoniskt namn
-const failed    = new Map();                                      // sökt text (lc)     → felmeddelande
+/* Kort som inte gick att slå upp: nyckel → { msg, tillfallig }. Ett 429 eller
+   ett nätverksglapp läker av sig självt, ett 404 gör det inte. Utan den
+   skillnaden dömde ett enda 429 från Scryfall ut kortet för hela sessionen,
+   och enda vägen tillbaka var att markera varje kort och trycka "Try again". */
+const failed    = new Map();                                      // sökt text (lc)     → { msg, tillfallig }
 const inflight  = new Map();                                      // sökt text (lc)     → Promise
+
+const OVERGANDE = new Set([408, 425, 429, 500, 502, 503, 504]);
+function marFel(k, msg, err) {
+  failed.set(k, { msg, tillfallig: !!(err && (err.offline || OVERGANDE.has(err.status))) });
+}
+const felText = k => { const v = failed.get(k); return v ? (typeof v === 'string' ? v : v.msg) : ''; };
+/* Släpper de övergående felen så att nästa uppslagning provar om. Körs när
+   nätet kommer tillbaka och när realtidskanalen återansluter. */
+function glomTillfalliga() {
+  let n = 0;
+  for (const [k, v] of failed) if (v && v.tillfallig) { failed.delete(k); n++; }
+  return n;
+}
 
 let saveCacheT = null;
 function saveCache() {
@@ -3503,7 +3581,7 @@ function lookup(query) {
   const alias = aliasMap.get(q);
   if (alias && cardCache.has(alias)) return Promise.resolve(cardCache.get(alias));
   if (cardCache.has(q)) return Promise.resolve(cardCache.get(q));
-  if (failed.has(q)) return Promise.reject(new Error(failed.get(q)));
+  if (failed.has(q)) return Promise.reject(new Error(felText(q)));
   if (inflight.has(q)) return inflight.get(q);
 
   const p = SF.fuzzy(q).then(raw => {
@@ -3520,7 +3598,13 @@ function lookup(query) {
       : err.status === 404 ? 'not found'
       : /ambiguous|too many|fler än/i.test(err.message || '') ? 'ambiguous name'
       : (err.message || 'unknown error');
-    if (!err.offline) failed.set(q, msg);
+    /* Felet skrivs under söktexten OCH under aliaset. cardStatus() läser via
+       keyOf(), som går via aliasMap: finns ett alias pekade läsningen på en
+       annan nyckel än den skrivningen använde, och kortet blev "pending" i
+       stället för "err" — ett evigt skimmer utan felknapp. */
+    marFel(q, msg, err);
+    const al = aliasMap.get(q);
+    if (al && al !== q) marFel(al, msg, err);
     throw new Error(msg);
   });
   inflight.set(q, p);
@@ -3542,7 +3626,7 @@ function cardOf(e) { return e ? (cardCache.get(keyOf(e)) || null) : null; }
 function lookupId(sid) {
   const k = 'id:' + sid;
   if (cardCache.has(k)) return Promise.resolve(cardCache.get(k));
-  if (failed.has(k)) return Promise.reject(new Error(failed.get(k)));
+  if (failed.has(k)) return Promise.reject(new Error(felText(k)));
   if (inflight.has(k)) return inflight.get(k);
   const p = SF.byId(sid).then(raw => {
     const card = normalizeCard(raw);
@@ -3553,7 +3637,7 @@ function lookupId(sid) {
   }).catch(err => {
     inflight.delete(k);
     const msg = err.offline ? 'no connection' : err.status === 404 ? 'not found' : (err.message || 'unknown error');
-    if (!err.offline) failed.set(k, msg);
+    marFel(k, msg, err);
     throw new Error(msg);
   });
   inflight.set(k, p);
@@ -3582,7 +3666,7 @@ const Moln = (() => {
   let konf = null;          // svaret från /api/config
   let session = null;
   let kanal = null;         // realtidsprenumerationen
-  const lyssnare = { spelare: null, bord: null };
+  const lyssnare = { spelare: null, bord: null, sparat: null };
 
   async function konfig() {
     if (konf) return konf;
@@ -3733,18 +3817,60 @@ const Moln = (() => {
   }
 
   /* Bara mitt eget bord. Servern vägrar allt annat, men vi skickar inte
-     ens iväg det: ett anrop som ändå kommer att nekas är bara brus. */
+     ens iväg det: ett anrop som ändå kommer att nekas är bara brus.
+
+     En misslyckad skrivning loggades förut till konsolen och slängdes. För
+     användaren betydde det att kortet låg på hens eget bord men aldrig hos
+     någon annan, utan ett tecken på att något gått fel — och nästa ändring
+     bar visserligen med sig hela listan, men bara om det kom en nästa. Nu
+     hålls det senaste misslyckade bordet kvar och skickas om. */
+  let ovantat = null, omforsokT = null, omforsokMs = 800;
   async function sparaBord(gameId, kort) {
-    const s = await klient(); if (!s || !inloggad()) return false;
+    const s = await klient();
+    if (!s || !inloggad()) { koaOm(gameId, kort); return false; }
     const { error } = await s.from('boards')
       .upsert({ game_id: gameId, user_id: minId(), kort }, { onConflict: 'game_id,user_id' });
-    if (error) { console.warn('Bordet kunde inte sparas', error.message); return false; }
+    if (error) {
+      console.warn('Bordet kunde inte sparas', error.message);
+      koaOm(gameId, kort);
+      return false;
+    }
+    ovantat = null; clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
+    if (lyssnare.sparat) lyssnare.sparat(true);
+    return true;
+  }
+  /* Kön är EN post, inte en lista: varje skrivning bär hela kortlistan, så
+     det enda som betyder något är den senaste. */
+  function koaOm(gameId, kort) {
+    ovantat = { gameId, kort };
+    if (lyssnare.sparat) lyssnare.sparat(false);
+    if (omforsokT) return;
+    omforsokT = setTimeout(() => {
+      omforsokT = null;
+      omforsokMs = Math.min(omforsokMs * 2, 15000);
+      const v = ovantat;
+      if (v) sparaBord(v.gameId, v.kort);
+    }, omforsokMs);
+  }
+  function skickaOmVantande() {
+    if (!ovantat) return false;
+    clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
+    const v = ovantat;
+    sparaBord(v.gameId, v.kort);
     return true;
   }
 
+  /* Namnbytet gick förut iväg utan att någon läste svaret: nekades det av
+     radsäkerheten, gick nätet fel eller matchade det noll rader var det
+     omöjligt att skilja från ett som lyckades. Namnet stod kvar lokalt och
+     ingen annan såg det — tills nästa deltagarhändelse tyst rullade tillbaka
+     det. Nu returneras utfallet och anroparen får säga till. */
   async function dopOm(gameId, namn) {
-    const s = await klient(); if (!s || !inloggad()) return;
-    await s.from('game_players').update({ namn }).eq('game_id', gameId).eq('user_id', minId());
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('game_players')
+      .update({ namn }).eq('game_id', gameId).eq('user_id', minId());
+    if (error) { console.warn('Namnet kunde inte sparas', error.message); return false; }
+    return true;
   }
 
   /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
@@ -3755,6 +3881,7 @@ const Moln = (() => {
     await lamnaKanal();
     lyssnare.bord = cb.bord; lyssnare.spelare = cb.spelare;
     lyssnare.scan = cb.scan; lyssnare.kal = cb.kal; lyssnare.uppkopplad = cb.uppkopplad;
+    lyssnare.sparat = cb.sparat;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
           p => lyssnare.bord && lyssnare.bord(p.new || p.old, p.eventType))
@@ -3849,13 +3976,19 @@ const Moln = (() => {
   }
 
   async function lamnaKanal() {
+    /* Släpp en osänd skrivning. Den hör till spelet man lämnar, och utan det
+       här försökte omsändningen skriva till ett bord man inte längre sitter
+       vid — i all evighet, med växande fördröjning. */
+    ovantat = null; clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
+    if (lyssnare.sparat) lyssnare.sparat(true);
+    lyssnare.sparat = null;
     if (!kanal) return;
     try { await kanal.unsubscribe(); } catch (e) {}
     kanal = null;
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
-           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, dopOm, lyssna, lamnaKanal,
+           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, lyssna, lamnaKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
@@ -3977,6 +4110,15 @@ function save() {
   clearTimeout(saveT);
   saveT = setTimeout(sparaNu, 250);
 }
+/* Vilket kort som är markerat är en enhetssak, inte en bordsändring. Den gick
+   förut genom save(), som i ett spel skickar HELA kortlistan till servern —
+   varje klick bumpade versionen och väckte alla andras klienter för något de
+   inte ens kan se. */
+function sparaUi() {
+  if (fjarrLas) return;
+  if (!spelLage) { save(); return; }
+  LS.set(K.ui, { active: state.active, sel: state.sel });
+}
 function sparaNu() {
   clearTimeout(saveT); saveT = null;
   if (kameraEnhet) return;                 // ett öga skriver ingenting
@@ -3991,6 +4133,12 @@ function sparaNu() {
 /* Sista chansen att få ut det som ligger i debouncen. Utan den försvann de
    sista 250 millisekundrarnas arbete när fliken stängdes. */
 addEventListener('pagehide', () => { if (saveT) sparaNu(); });
+/* pagehide räddar det lokala läget — LS.set är synkront — men i ett spel går
+   skrivningen över nätet och hinner aldrig iväg när fliken redan stängs.
+   visibilitychange kommer tidigare och är den sista punkt där en nätskrivning
+   fortfarande har en chans. */
+addEventListener('visibilitychange', () => { if (document.hidden && saveT) sparaNu(); });
+addEventListener('blur', () => { if (saveT) sparaNu(); });
 function slimState() {
   return { active: state.active, sel: state.sel, players: state.players.map(slimSpelare) };
 }
@@ -4252,7 +4400,7 @@ function kortHtml(e, i, extra) {
   return `<button class="${kl}" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}">
     <span class="idx">${i + 1}</span>
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
-    <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(failed.get(keyOf(e)) || '') + '</span>' : ''}</span>
+    <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
     ${hoverNamnHtml(e)}
     ${hoverRadHtml(e, i)}
   </button>`;
@@ -4583,15 +4731,6 @@ function renderMana(cards) {
   const landTappade = d.mana.filter(i => cards[i].tapped).length;
 
   manaRow.innerHTML = `
-    <div class="bandkol kol-lands" data-zon-lands>
-      <div class="zonrub">
-        <span class="zonlbl">Lands</span><i class="zonlinje"></i>
-        <span class="zonrakn">${d.mana.length}${landTappade ? ' · ' + landTappade + ' tapped' : ''}</span>
-        <button class="zonchip" data-addtile title="Drag in or paste an image of nonbasic lands">Drag in lands</button>
-      </div>
-      <div class="lands">${grupper.map(landGruppHtml).join('')}${specHtml}${fargVal}</div>
-    </div>
-    <i class="bandsep"></i>
     <div class="bandkol kol-grav" data-grav-zon>
       <div class="zonrub">
         <span class="zonlbl">Graveyard</span><i class="zonlinje"></i>
@@ -4600,11 +4739,13 @@ function renderMana(cards) {
       ${gravHtml(cards, d.grav)}
     </div>
     <i class="bandsep"></i>
-    <div class="bandkol kol-mark">
-      <div class="zonrub markrub">
-        <span class="zonlbl">Selected</span><i class="zonlinje"></i>
+    <div class="bandkol kol-lands" data-zon-lands>
+      <div class="zonrub">
+        <span class="zonlbl">Lands</span><i class="zonlinje"></i>
+        <span class="zonrakn">${d.mana.length}${landTappade ? ' · ' + landTappade + ' tapped' : ''}</span>
+        <button class="zonchip" data-addtile title="Drag in or paste an image of nonbasic lands">Drag in lands</button>
       </div>
-      <div class="markruta"></div>
+      <div class="lands">${grupper.map(landGruppHtml).join('')}${specHtml}${fargVal}</div>
     </div>`;
 
   /* Grupperna som ska rymmas, med hur många otappade och tappade kort var och
@@ -4633,7 +4774,10 @@ function markHtml() {
   const e = selCard();
   if (!e) return '<div class="marktom">No card selected</div>';
   const c = cardOf(e), dfc = arDfc(c);
-  const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, e.flipped && dfc ? 1 : 0, 'normal') : '');
+  /* 'large' (672×936), inte 'normal' (488×680). Spalten är numera hela brädets
+     höjd och blir på en stor skärm bredare än 488 px — då skalades bilden upp
+     och regeltexten, som är hela poängen med den här ytan, blev grynig. */
+  const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, e.flipped && dfc ? 1 : 0, 'large') : '');
   /* Bara kortet. Namnet stod redan på bilden, och handlingarna finns på
      kortet självt — här tog de bara plats från det man faktiskt ska läsa. */
   return src ? `<img src="${esc(src)}" alt="${esc(c ? c.name : e.name)}" draggable="false" title="Click to enlarge (F)">`
@@ -4642,10 +4786,14 @@ function markHtml() {
 /* Bara innehållet, inte hela bandet: en omritning av bandet river bilden och
    laddar om den, och det blinkade vid varje piltryck. */
 function renderMark() {
-  const ruta = manaRow.querySelector('.markruta');
+  const ruta = $('#markKol .markruta');
   if (!ruta) return;
   const e = selCard();
-  const nyckel = e ? [keyOf(e), e.flipped ? 1 : 0].join('·') : '';
+  /* Nyckeln måste bära OM kortet är uppslaget, inte bara vilket det är.
+     Markerar man ett kort innan Scryfall svarat ritas "No card selected" och
+     nyckeln sätts — och när bilden sedan kommer är nyckeln oförändrad, så
+     rutan ritas aldrig om. Kortet fanns, men syntes aldrig. */
+  const nyckel = e ? [keyOf(e), e.flipped ? 1 : 0, cardOf(e) ? 1 : 0].join('·') : '';
   if (ruta.dataset.k === nyckel) return;
   ruta.dataset.k = nyckel;
   ruta.innerHTML = markHtml();
@@ -4729,7 +4877,7 @@ function renderDetail() {
   }
   const card = cardOf(e);
   if (!card) {
-    const err = failed.get(keyOf(e));
+    const err = felText(keyOf(e));
     pad.innerHTML = `<div class="dempty">${err ? '⚠ ' : ''}<b style="color:var(--txt)">${esc(e.name)}</b><br>
       <span style="color:#4d5a6d">${err ? esc(err) + ' on Scryfall' : 'Fetching…'}</span>
       ${err ? `<div style="margin-top:14px"><button class="btn sm" id="retryCard">Try again</button></div>` : ''}</div>`;
@@ -4805,7 +4953,7 @@ function renderAll(forceGrid) {
     : (hasShot ? 'Re-read board' : 'Read board');
   $('#shotBtn').title = hasShot
     ? 'Re-read the whole board from a screenshot — replaces everything in your hand (S)'
-    : 'Read a whole board from a SpellTable screenshot (S)';
+    : 'Read a whole board from a screenshot (S)';
   $('#shotBtn').classList.toggle('prim', !hasShot && p.cards.length > 0);
 }
 function renderPending() {
@@ -4827,64 +4975,92 @@ function renderPending() {
 }
 
 /* ─── upplösning av kortnamn mot Scryfall ─── */
-let resolving = false;
+/* Den som TITTAR på ett bord har ingenting i sin kortcache: korten kom som
+   namn över nätet, och tills de slagits upp ritas de som skimrande skelett.
+   Uppslagningen är alltså inte en bekvämlighet för åskådaren — den är hela
+   skillnaden mellan ett bord och en rad gråa rutor. Därför får den varken
+   tappa ett anrop, fastna, eller ge upp tyst. */
+let resolving = false, resolveOm = false;
 async function resolveAll() {
-  if (resolving) return;
+  /* Ett anrop som kommer MEDAN en körning pågår fick tidigare bara returnera,
+     och ingenting utlöste ett nytt. Det var så motståndarens kort blev
+     hängande för alltid: bordet kom in via fjarrBord mitt under den första
+     uppslagningen vid inträdet, anropet svaldes, och nästa chans krävde att
+     motståndaren rörde sitt bord igen. Nu köas ett varv till i stället. */
+  if (resolving) { resolveOm = true; return; }
   resolving = true;
-  const tried = new Set();
   try {
-    for (;;) {
-      /* ALLA spelares kort slås upp. Att hämta ett kort och att rätta dess
-         stavning är två olika saker, och jag blandade ihop dem: bara mina egna
-         slogs upp, så motståndarens kort stod kvar som namnlappar i all
-         evighet. Uppslagningen fyller den delade kortcachen, som är det
-         renderingen ritar ur — den måste ske för allt som syns. Rättelsen
-         däremot skriver i kortobjektet och hör bara hemma på mitt eget bord.
-         Mina först, så att det jag själv tittar på blir klart snabbast. */
-      const mina = minSpelare();
-      const ordered = spelLage
-        ? [mina].concat(state.players.filter(p => p !== mina)).filter(Boolean)
-        : [player()].concat(state.players.filter(p => p.id !== state.active));
-      let target = null;
-      for (const p of ordered) {
-        for (const c of p.cards) {
-          const k = keyOf(c);
-          if (!cardOf(c) && !failed.has(k) && !tried.has(k)) { target = c; break; }
-        }
-        if (target) break;
-      }
-      if (!target) break;
-      const k = keyOf(target);
-      tried.add(k);
-      busy(true, 'Fetching card…');
-      let offline = false;
-      try {
-        if (target.sid) {
-          await lookupId(target.sid);
-        } else {
-          const q = norm(target.name);
-          const card = await lookup(target.name);
-          /* Rättelsen skrivs bara i det bord jag råder över. På någon annans
-             hamnar den ändå aldrig på servern och blir en lokal avvikelse som
-             ser ut som att vi ser olika saker. */
-          const mal = spelLage ? [minSpelare()].filter(Boolean) : state.players;
-          for (const p of mal) for (const en of p.cards)
-            if (!en.sid && norm(en.name) === q) en.name = card.name;
-        }
-        save();
-      } catch (err) {
-        if (/anslutning/.test(err.message || '')) offline = true;
-      }
-      busy(false);
-      renderAll();
-      if (offline) {
-        statusErr('No connection to Scryfall');
-        toast('Cannot reach Scryfall — check your network.', 'err');
-        break;
-      }
-    }
+    do { resolveOm = false; await resolveVarv(); } while (resolveOm);
   } finally { resolving = false; renderAll(); }
 }
+async function resolveVarv() {
+  const tried = new Set();
+  for (;;) {
+    /* ALLA spelares kort slås upp. Att hämta ett kort och att rätta dess
+       stavning är två olika saker, och jag blandade ihop dem: bara mina egna
+       slogs upp, så motståndarens kort stod kvar som namnlappar i all
+       evighet. Uppslagningen fyller den delade kortcachen, som är det
+       renderingen ritar ur — den måste ske för allt som syns. Rättelsen
+       däremot skriver i kortobjektet och hör bara hemma på mitt eget bord.
+       Mina först, så att det jag själv tittar på blir klart snabbast. */
+    const mina = minSpelare();
+    const ordered = spelLage
+      ? [mina].concat(state.players.filter(p => p !== mina)).filter(Boolean)
+      : [player()].concat(state.players.filter(p => p.id !== state.active));
+    let target = null;
+    for (const p of ordered) {
+      for (const c of p.cards) {
+        const k = keyOf(c);
+        if (!k) continue;                 // varken namn eller tryckning: går inte att slå upp
+        if (!cardOf(c) && !failed.has(k) && !tried.has(k)) { target = c; break; }
+      }
+      if (target) break;
+    }
+    if (!target) break;
+    const k = keyOf(target);
+    tried.add(k);
+    busy(true, 'Fetching card…');
+    let offline = false;
+    try {
+      if (target.sid) {
+        await lookupId(target.sid);
+      } else {
+        const q = norm(target.name);
+        const card = await lookup(target.name);
+        /* Rättelsen skrivs bara i det bord jag råder över. På någon annans
+           hamnar den ändå aldrig på servern och blir en lokal avvikelse som
+           ser ut som att vi ser olika saker. */
+        /* Bara om något faktiskt rättades. Ett save() per uppslaget kort
+           skickade hela mitt bord till servern varje gång ETT av någon annans
+           kort löstes upp — och varje sådan skrivning bumpar versionen och
+           väcker alla andra klienter i onödan. */
+        let rattat = false;
+        const mal = spelLage ? [minSpelare()].filter(Boolean) : state.players;
+        for (const p of mal) for (const en of p.cards)
+          if (!en.sid && norm(en.name) === q && en.name !== card.name) { en.name = card.name; rattat = true; }
+        if (rattat) save();
+      }
+    } catch (err) {
+      /* Meddelandet är engelskt sedan lookup() normaliserade det. Villkoret
+         letade efter svenska "anslutning" och matchade därför aldrig: ett
+         nätavbrott gick tyst förbi, loopen fortsatte genom hela bordet och
+         brände varje nyckel i `tried` utan att någon fick veta varför inget
+         kom fram. */
+      if (/no connection/.test(err.message || '')) offline = true;
+    }
+    busy(false);
+    renderAll();
+    if (offline) {
+      statusErr('No connection to Scryfall');
+      toast('Cannot reach Scryfall — the cards come back when the network does.', 'err');
+      break;
+    }
+  }
+}
+/* Nätet kom tillbaka. De fel som var övergående släpps och allt som fortfarande
+   saknar bild slås upp igen — utan det stod skeletten kvar tills sidan laddades
+   om, även när allt annat fungerade. */
+addEventListener('online', () => { glomTillfalliga(); statusEl.classList.remove('err'); resolveAll(); });
 
 /* ─── mutationer ─── */
 function addCards(items, opts) {
@@ -4949,6 +5125,12 @@ function setActive(id) {
   resolveAll();
 }
 function addPlayer(name) {
+  /* I ett spel finns spelarna för att människor gått med. En flik som skapas
+     lokalt finns inte på servern, sparas aldrig, och försvinner vid nästa
+     deltagarhändelse — under tiden ser den ut som en riktig spelare vars bord
+     är tomt. Knappen är gömd i spelläge, men tangenten N, JSON-importen och
+     delade-handen-länken gick alla runt den. */
+  if (spelLage) return null;
   const p = mkPlayer(name || 'Player ' + (state.players.length + 1), state.players.length);
   state.players.push(p);
   setActive(p.id);
@@ -5214,13 +5396,16 @@ manaRow.addEventListener('click', ev => {
   }
   const ab = ev.target.closest('[data-akt]');
   if (ab) { kortAktion(ab.dataset.akt, +ab.dataset.i); return; }
-  if (ev.target.closest('.markruta img')) { openFocus(); return; }
   const lk = ev.target.closest('.lkort[data-i]');
-  if (lk) { state.sel = +lk.dataset.i; renderSel(); renderDetail(); save(); return; }
+  if (lk) { state.sel = +lk.dataset.i; renderSel(); renderDetail(); sparaUi(); return; }
   const grp = ev.target.closest('.lgrupp[data-alla]');
-  if (grp) { state.sel = +grp.dataset.alla.split(',')[0]; renderSel(); renderDetail(); save(); }
+  if (grp) { state.sel = +grp.dataset.alla.split(',')[0]; renderSel(); renderDetail(); sparaUi(); }
 });
 manaRow.addEventListener('dblclick', ev => { if (ev.target.closest('.lkort, .lgrupp')) openFocus(); });
+/* Selected har flyttat ut ur bandet till en egen spalt, och lyssnaren måste
+   följa med. Låg den kvar på manaRow gjorde ett klick på det stora kortet
+   ingenting alls — och det är den självklaraste vägen till fokusvyn. */
+$('#markKol').addEventListener('click', ev => { if (ev.target.closest('.markruta img')) openFocus(); });
 
 /* ─── dra för att sortera om handen ───────────────────────────────────
    Pekarhändelser i stället för HTML5-drag: det senare ger ingen kontroll över
@@ -5311,7 +5496,7 @@ function dndZon(x, y) {
   if (!manaRow.hidden) {
     if (inuti(manaRow.querySelector('[data-grav-zon]'), x, y)) return ZON_GRAV;
     if (inuti(manaRow.querySelector('[data-zon-lands]'), x, y)) return ZON_MANA;
-    if (inuti(manaRow.querySelector('.kol-mark'), x, y)) return null;
+    if (inuti($('#markKol'), x, y)) return null;
   }
   if (inuti(gridWrap, x, y)) return ZON_SPELL;
   return null;
@@ -5412,7 +5597,11 @@ addEventListener('pointerup', () => {
   fjarrIkapp();
 });
 addEventListener('keydown', ev => {                // Esc avbryter ett pågående drag
-  if (ev.key === 'Escape' && dnd && dnd.drar) { dndStäda(); renderGrid(true); }
+  /* fjarrIkapp måste med. Under en dragning läggs inkommande ändringar på
+     hyllan (medFjarr), och den enda som plockade ner dem satt i pointerup —
+     som aldrig kommer när dragningen avbryts med Escape. Allt de andra gjorde
+     resten av matchen blev osynligt. */
+  if (ev.key === 'Escape' && dnd && dnd.drar) { dndStäda(); renderGrid(true); fjarrIkapp(); }
 }, true);
 
 /* ─── spelarflikar ─── */
@@ -5438,6 +5627,7 @@ $('#playerTabs').addEventListener('dblclick', ev => {
   if (spelLage && tab.dataset.pid !== spelLage.mig) return;   // bara sitt eget namn
   startRename(tab.dataset.pid);
 });
+let namnByte = false;
 function startRename(id) {
   const p = state.players.find(x => x.id === id);
   const tab = $(`.ptab[data-pid="${id}"]`);
@@ -5455,8 +5645,19 @@ function startRename(id) {
       if (v) {
         p.name = v; p.namnkalla = 'anvandare'; save();
         /* Namnet bor i game_players, inte i bordet — det når inte servern
-           via save() som bara skickar kortlistan. */
-        if (spelLage) Moln.dopOm(spelLage.id, v);
+           via save() som bara skickar kortlistan.
+
+           Flaggan håller emot medan skrivningen är i luften: varje
+           deltagarhändelse under tiden hämtar hem listan på nytt, och där
+           står fortfarande det gamla namnet. Utan spärren rullades bytet
+           tillbaka framför ögonen på den som just tryckt Enter. */
+        if (spelLage) {
+          namnByte = true;
+          Moln.dopOm(spelLage.id, v).then(ok => {
+            namnByte = false;
+            if (!ok) toast('The name could not be saved — the others still see the old one', 'err');
+          });
+        }
       }
     }
     renderAll();
@@ -5558,7 +5759,7 @@ $('#imgFile').onchange = async ev => {
   if (f) await addShot(f, true);
 };
 
-$('#addPlayerBtn').onclick = () => { addPlayer(); startRename(state.active); };
+$('#addPlayerBtn').onclick = () => { if (addPlayer()) startRename(state.active); };
 
 /* ─── zoom / fit ─── */
 function setCardW(d) {
@@ -5672,7 +5873,7 @@ $('#fxStrip').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-i]');
   if (b) { state.sel = +b.dataset.i; save(); renderFocus(); renderSel(); renderDetail(); }
 });
-$('#fxImg').addEventListener('click', () => flipSel());
+$('#fxImg').addEventListener('click', () => { if (redigerbar()) flipSel(); });
 
 /* Piltangenterna ska följa det man SER. I remsan är det ett stopp per ruta,
    i manaraden ett per post — tre Swamp är en symbol med en trea, inte tre
@@ -5887,13 +6088,13 @@ function shareLink() {
 }
 function exportJSON() {
   const data = {
-    app: 'handvy', v: 1, ts: new Date().toISOString(),
+    app: 'mesa', v: 1, ts: new Date().toISOString(),
     players: state.players.map(p => ({ name: p.name, color: p.color, cards: p.cards.map(c => c.name) }))
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'handvy-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.download = 'mesa-' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
   toast('Exported', 'ok');
@@ -5905,6 +6106,10 @@ importInput.onchange = async () => {
   const f = importInput.files && importInput.files[0];
   importInput.value = '';
   if (!f) return;
+  /* En import bygger om spelarlistan ur en fil. I ett spel är listan
+     deltagarna på servern, och de flikar filen skulle lägga till finns
+     ingenstans annat än i det här fönstret. */
+  if (spelLage) { toast('Import only works outside a game', 'err'); return; }
   try {
     const d = JSON.parse(await f.text());
     if (!d || !Array.isArray(d.players)) throw 0;
@@ -5924,6 +6129,7 @@ async function importFromHash() {
   try {
     const d = JSON.parse(b64d(m[1]));
     if (!d || !Array.isArray(d.c) || !d.c.length) return;
+    if (spelLage) return;                 // en delad hand är en egen flik, och de finns bara lokalt
     if (!await ask(`"${d.n || 'Shared'}" with ${d.c.length} cards will be added as a new player.`,
                    { title: 'Open shared hand?', ok: 'Add' })) return;
     /* Namnet kommer ur en länk någon annan skickat. Det skrivs alltid ut
@@ -6007,7 +6213,7 @@ addEventListener('keydown', ev => {
     flyttaTill(state.sel, ZON_GRAV);
   }
   else if (lower === 's') { ev.preventDefault(); $('#shotBtn').click(); }
-  else if (lower === 'n') { ev.preventDefault(); addPlayer(); startRename(state.active); }
+  else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
   else if (lower === 'd') {
     const e = selCard();
@@ -6552,7 +6758,7 @@ function identifyAt(img, box, hint) {
 
 /* Ett uppåtvänt Magic-kort har alltid en ljus textruta och ljusa raminslag.
    Uppmätt på elva riktiga kort i två skärmdumpar: 32–70 % av bildpunkterna är
-   ljusare än 150. SpellTables egen lila "..."-knapp och ett nedåtvänt kort
+   ljusare än 150. Videoappens egen lila "..."-knapp och ett nedåtvänt kort
    ligger båda på 0 %. Tröskeln 10 % ger nästan tre gångers marginal ner till
    det mörkaste riktiga kortet, och tar båda sorternas skräp.
    Gäller allt som blir ett kort i handen, oavsett om detektorn eller Claude
@@ -6617,7 +6823,7 @@ async function analyzeShot(shotId) {
     if (!mem) return 0;
     openOv('analyzeOv');
     anEl.panes.innerHTML = ''; anEl.note.textContent = ''; anBar(0);
-    anEl.title.textContent = 'Reading the screenshot…';
+    anEl.title.textContent = spelLage ? 'Reading your board…' : 'Reading the screenshot…';
     anStep('Opening the image…');
     await tick();
     const img = await loadImage(mem.url, false);
@@ -6629,24 +6835,39 @@ async function analyzeShot(shotId) {
         if (p.phase === 'list') anStep(`Fetching the card list from Scryfall… ${p.done} cards${p.label ? ' (' + p.label + ')' : ''}`);
         else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
       });
-      anEl.title.textContent = 'Reading the screenshot…';
+      anEl.title.textContent = spelLage ? 'Reading your board…' : 'Reading the screenshot…';
       anEl.note.textContent = '';
       anBar(0);
     }
     if (cancelAnalyze) return;
 
-    anStep('Looking for the player panes in the image…');
+    /* I ett spel är spelarna inloggade människor med egna kameror. Då finns
+       det ingenting att dela upp: bilden är MITT bord, hur den än ser ut, och
+       allt som hittas i den hör hemma hos mig. Uppdelningen i videorutor är
+       kvar för det lokala läget, där flikarna ÄR bilden.
+
+       Rutan sätts här i stället för att spärra varje steg längre ner —
+       resten av kedjan (detektorn, Claudes helrutesvep, sammanräkningen)
+       arbetar per ruta och fungerar oförändrat med exakt en. */
+    anStep(spelLage ? 'Looking at the image…' : 'Looking for the player panes in the image…');
     await tick();
-    const panes = Detect.findPanes(img);
-    anEl.note.textContent = panes.length === 1 ? '1 player found' : `${panes.length} players found`;
-    ritaPaneCeller(img, panes);
+    const panes = spelLage
+      ? [{ x: 0, y: 0, w: img.naturalWidth || img.width, h: img.naturalHeight || img.height }]
+      : Detect.findPanes(img);
+    if (spelLage) {
+      anEl.note.textContent = '';
+      anEl.panes.innerHTML = '';
+    } else {
+      anEl.note.textContent = panes.length === 1 ? '1 player found' : `${panes.length} players found`;
+      ritaPaneCeller(img, panes);
+    }
     /* Namnen startas HÄR, inte inne i svepet. De är ett litet anrop per ruta
        och hör inte ihop med kortarbetet: läses de i tur och ordning står den
        andra spelaren kvar som "Ruta 2" under hela närbildsläsningen av den
        första — uppmätt tog det över en halv minut innan jesfunk dök upp. Nu
        går de parallellt med detektorn och båda namnen står i rutorna nästan
        direkt. */
-    /* Namnen ur SpellTables överlägg läses bara i lokalt läge. I ett spel ÄR
+    /* Namnen ur videoöverlägget läses bara i lokalt läge. I ett spel ÄR
        spelarna inloggade människor med namn från sina Google-konton — att
        läsa "Xepman" ur en bild och skriva över det vore både fel och
        förvirrande. Det sparar dessutom ett modellanrop per avläsning. */
@@ -6654,7 +6875,7 @@ async function analyzeShot(shotId) {
     if (namnLoftet) namnLoftet.then(n => malaPaneNamn(n));
     await tick();
 
-    anStep('Looking for cards at each player…');
+    anStep(spelLage ? 'Looking for cards…' : 'Looking for cards at each player…');
     await tick();
     const tmpl = Pool.idx ? Matcher.template(Pool.idx) : null;
     /* Motståndarens kort ligger vända mot honom, alltså upp och ner sett från
@@ -6805,7 +7026,7 @@ async function analyzeExtra(shotId, tyst) {
       props = [{ cx: iw / 2, cy: ih / 2, w, h: w / Matcher.ASPECT, deg: 0, score: 0 }];
       anEl.note.textContent = 'Reading the image as a single card';
     } else {
-      /* Är bilden en HEL SpellTable-skärmdump ska sökningen hålla sig till
+      /* Är bilden en HEL skärmdump av videosamtalet ska sökningen hålla sig till
          videorutorna, precis som en vanlig avläsning gör. Söker man igenom
          hela bilden kommer sidopanelens kortminiatyrer med, och de har aldrig
          legat på något bord. Sedan tilläggsläget nås med ⌘V i huvudvyn är
@@ -6970,7 +7191,7 @@ async function readCardAt(img, box, marg, lage) {
    Är första svaret redan säkert räcker det, och kortet kostar ett anrop. */
 async function readCard(img, box) {
   /* Båda inramningarna på en gång, alltid. Den vida (0.40) får med grannar
-     och — nära rutans kant — SpellTables överlägg; den tighta (0.10) ser bara
+     och — nära rutans kant — videoöverlägget; den tighta (0.10) ser bara
      kortet. Med en snabb modell på närbilderna kostar två parallella anrop
      detsamma som ett, och den snabba modellen behöver den här spärren: den
      läste "Zur, Eternal Schemer" ur överlägget på ett utbränt kort och svarade
@@ -7105,7 +7326,7 @@ function malaPaneNamn(namn) {
   });
 }
 
-/* SpellTable skriver ut spelarens namn i rutans överlägg. Läses det av
+/* Videoappen skriver ut spelarens namn i rutans överlägg. Läses det av
    hamnar korten på en flik som heter "Xepman" i stället för "Spelare 1", och
    en senare skärmdump av samma spel kan hitta tillbaka till rätt hand även om
    rutorna bytt plats. Bara hög säkerhet duger — se rentNamn. */
@@ -7152,7 +7373,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
   let klaraRutor = 0;
   await Promise.all(panes.map((_, i) => (async () => {
     if (cancelAnalyze) return;
-    anStep(panes.length > 1
+    anStep(!spelLage && panes.length > 1
       ? `Looking once more for cards that were missed — ${panes.length} players at once`
       : 'Looking once more for cards that were missed…');
     anBar(klaraRutor / panes.length);
@@ -7185,7 +7406,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
 
     /* Claude ser hela rutan och missar inte kort som detektorn tappat. Ett
        lokalt osäkert område som Claude INTE ser något kort på är därför
-       nästan alltid skräp — SpellTables egen knapp hamnade så i listan. */
+       nästan alltid skräp — videoappens egen knapp hamnade så i listan. */
     r.pend = r.pend.filter(q => nya.some(k => boxOverlap(q.box, k.box) > 0.30));
 
     // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
@@ -7312,7 +7533,12 @@ function applyAnalysis(shotId, out, img) {
      rätt lokalt, där flikarna ÄR bilden. I ett spel är spelarna riktiga
      människor som gått med, och en skärmdump får inte skapa eller döpa om
      dem — då landar korten i tillägget nedan i stället, på mitt eget bord. */
-  if (spelLage) return appendAnalysis(shotId, out, img);
+  /* I ett spel finns ingen spelarlista att bygga om — deltagarna är
+     inloggade människor. Kvar blir det knappen lovar: MITT bord läses om,
+     precis som "Read my board" och "replaces everything in your hand" säger.
+     Utan ersättningen blev en andra avläsning av samma bild ett bord med
+     varje kort i dubbel uppsättning. */
+  if (spelLage) return appendAnalysis(shotId, out, img, true);
   /* Samma kort kunde hittas två gånger — en gång välcentrerat och godkänt,
      en gång förskjutet och osäkert — så att sex identifierade kort plus två
      "osäkra" blev åtta av sju kort på bordet. Ett område som till största
@@ -7326,7 +7552,7 @@ function applyAnalysis(shotId, out, img) {
   out.forEach(r => {
     r.pend = r.pend.filter(q => !r.acc.some(a => boxOverlap(q.box, a.box) > 0.30));
   });
-  /* Vem hör rutan till? Har namnet lästs ur SpellTables överlägg vinner det
+  /* Vem hör rutan till? Har namnet lästs ur videoöverlägget vinner det
      över platsen i listan. Kopplingen var förut rent positionell: stängs en
      kamera av mellan två skärmdumpar hittar findPanes en ruta färre, varje
      index under den glider ett steg, och en spelares kort hamnade i någon
@@ -7336,18 +7562,30 @@ function applyAnalysis(shotId, out, img) {
      läsa och annars "Spelare N", och inga rester från förra bilden. Det gamla
      sättet — matcha på namn, falla tillbaka på plats, låt övriga stå kvar —
      lät en "Xepman" från en tidigare skärmdump stå kvar med åtta kort när
-     den nya bilden bara innehöll jesfunk. Handskrivna namn skyddas inte
-     heller längre här: man läser om bordet för att FÅ det bilden visar. */
+     den nya bilden bara innehöll jesfunk.
+
+     Ett namn man skrivit själv står dock kvar. namnkalla har funnits sedan
+     länge just för det, men ingen rad läste den — fältet skrevs på åtta
+     ställen och var villkor på noll, så skyddet fanns bara i kommentaren.
+     Nu gäller det: har du döpt fliken är det ditt namn som står där, oavsett
+     vad bilden säger. Och kan överlägget inte läsas alls behåller fliken sitt
+     namn i stället för att bli "Player 2" — att förlora sitt eget namn för att
+     en lampa reflekterade är inget rimligt utfall av en omläsning. */
   const gamla = state.players;
   state.players = [];
   const valda = out.map((r, i) => {
-    const namn = r.spelare || 'Player ' + (i + 1);
-    // återanvänd fliken med samma namn så färg och id består mellan omgångar
-    const p = gamla.find(q => norm(q.name) === norm(namn) && !state.players.includes(q))
-           || mkPlayer(namn, i);
-    p.name = namn;
-    p.namnkalla = r.spelare ? 'bild' : null;
-    p.bildnamn = r.spelare || null;
+    const bildnamn = r.spelare || null;
+    /* Matcha i tur och ordning: namnet ur bilden, sedan namnet bilden GAV
+       fliken förra gången, sedan platsen. Utan de två sista tappar en flik med
+       eget namn sin identitet så fort bilden läses om. */
+    const p = (bildnamn && gamla.find(q => norm(q.name) === norm(bildnamn) && !state.players.includes(q)))
+           || (bildnamn && gamla.find(q => q.bildnamn && norm(q.bildnamn) === norm(bildnamn) && !state.players.includes(q)))
+           || (gamla[i] && !state.players.includes(gamla[i]) ? gamla[i] : null)
+           || mkPlayer(bildnamn || 'Player ' + (i + 1), i);
+    const eget = p.namnkalla === 'anvandare';
+    p.name = eget ? p.name : (bildnamn || p.name || 'Player ' + (i + 1));
+    if (!eget) p.namnkalla = bildnamn ? 'bild' : null;
+    p.bildnamn = bildnamn;
     state.players.push(p);
     return p;
   });
@@ -7391,7 +7629,7 @@ function applyAnalysis(shotId, out, img) {
    korten LÄGGS TILL i stället för att ersätta handen, och inget spelarnamn
    läses — en närbild på ett kort har inget överlägg, och ett kortnamn som
    lästes som spelarnamn hade döpt om fliken. */
-function appendAnalysis(shotId, out, img) {
+function appendAnalysis(shotId, out, img, ersatt) {
   const p = malSpelare();
   const acc = out.reduce((a, r) => a.concat(r.acc), []);
   const pend = out.reduce((a, r) => a.concat(r.pend), [])
@@ -7408,17 +7646,19 @@ function appendAnalysis(shotId, out, img) {
       for (const w of [220, 260]) { const d = makeCrop(img, q.box, q.rot, w); if (d) cropCache.set(q.id + '@' + w, d); }
     });
   }
-  p.cards.push(...nya);
-  p.pending = (p.pending || []).concat(nyaVantar);
+  if (ersatt) { p.cards = nya; p.pending = nyaVantar; }
+  else { p.cards.push(...nya); p.pending = (p.pending || []).concat(nyaVantar); }
   if (!p.shots.includes(shotId)) p.shots.push(shotId);
   p.shotIdx = p.shots.indexOf(shotId);
   save(); renderAll(true); resolveAll();
 
   const n = nya.length, v = nyaVantar.length;
+  const ord = ersatt ? 'on your board' : 'added';
   if (!n && !v) toast('No cards found in the image', 'err');
   else if (!n) toast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
-  else if (v) toast(`${n} cards added · ${v} to fill in`, 'ok');
-  else toast(n === 1 ? `${nya[0].name} tillagt` : `${n} cards added`, 'ok');
+  else if (v) toast(`${n} cards ${ord} · ${v} to fill in`, 'ok');
+  else if (ersatt) toast(n === 1 ? `1 card on your board` : `${n} cards on your board`, 'ok');
+  else toast(n === 1 ? `${nya[0].name} added` : `${n} cards added`, 'ok');
   return n + v;
 }
 
@@ -7461,7 +7701,7 @@ function makeCrop(img, box, rot, outW) {
 
 /* ── identifiering med lokala särdrag ──
    Helhetsjämförelsen rankar kandidater; den här avgör. Den kan säga nej:
-   ett tangentbord eller SpellTables livtotal ger aldrig en geometriskt
+   ett tangentbord eller en livtotal i överlägget ger aldrig en geometriskt
    konsekvent matchning, och stannar därför utanför handen.
    Den avgör också vändningen — ligger kortet upp och ner hittas det som
    en 180-graders transform, och beskärningen kan rätas upp. */
@@ -8669,12 +8909,25 @@ async function oppnaSpel(gameId) {
   state.sel = ui.sel || 0;
   await Moln.lyssna(spel.id, {
     bord: rad => fjarrBord(rad),
-    spelare: async () => {
-      try { const f = await Moln.hamtaSpel(spelLage.id); fjarrSpelare(f.spelare); } catch (e) {}
-    },
+    spelare: () => hamtaOm(),
     scan: rad => taEmotScan(rad),
-    uppkopplad: () => kollaVantandeScans()
+    /* Sockeln kan ha varit nere. De händelser som missades under tiden spelas
+       aldrig upp, och den enda som fanns här var en koll av kameraköen — allt
+       som hänt på de andras bord under avbrottet stod kvar osynligt. Nu hämtas
+       hela spelet hem igen, det som inte kunde sparas skickas om, och de
+       kortuppslagningar som föll på nätavbrottet får ett nytt försök. */
+    uppkopplad: () => {
+      kollaVantandeScans();
+      Moln.skickaOmVantande();
+      glomTillfalliga();
+      hamtaOm();
+    },
+    sparat: ok => visaSparstatus(ok)
   });
+  /* Prenumerationen sattes upp EFTER hämtningen, och allt som hände i glappet
+     mellan de två fanns varken i ögonblicksbilden eller i strömmen. En extra
+     hämtning när kanalen väl är uppe stänger fönstret. */
+  hamtaOm();
   /* Datorn kan ha legat i viloläge medan telefonen fotade. En återkomst till
      fliken är den billigaste signalen om att något kan ha hänt under tiden. */
   document.addEventListener('visibilitychange', () => {
@@ -8687,6 +8940,24 @@ async function oppnaSpel(gameId) {
   renderAll(true);
   resolveAll();
   applySize();
+}
+
+/* Hämtar hela spelet på nytt och låter fjarrSpelare avgöra per spelare vad som
+   är nyast. Det är appens enda reparationsväg: realtidsströmmen har inga
+   omsändningar, så allt som missas måste kunna hämtas hem. */
+let hamtarOm = false;
+async function hamtaOm() {
+  if (!spelLage || hamtarOm) return;
+  hamtarOm = true;
+  try { const f = await Moln.hamtaSpel(spelLage.id); if (spelLage) fjarrSpelare(f.spelare); }
+  catch (e) { /* nästa händelse eller återanslutning försöker igen */ }
+  finally { hamtarOm = false; }
+}
+/* En skrivning som inte gick fram ska synas. Utan det låg kortet på mitt eget
+   bord och ingen annanstans, utan ett tecken på att något var fel. */
+function visaSparstatus(ok) {
+  const el = $('#sparfel');
+  if (el) el.hidden = !!ok;
 }
 
 /* Spelarna från servern får samma form som de lokala. p.id ÄR user_id — det
@@ -8720,17 +8991,30 @@ function fjarrSpelare(lista) {
   const gamla = new Map(state.players.map(p => [p.id, p]));
   state.players = lista.map((p, i) => {
     const g = gamla.get(p.user_id);
-    /* Behåll de kort vi redan har för spelare vi känner — annars skulle en ny
-       deltagare som joinar rita om allas bord från en hämtning som kan vara
-       äldre än den senaste realtidshändelsen. */
+    /* Versionen avgör, inte vem som råkade komma sist. Förut behölls ALLTID
+       den lokala kopian för en spelare vi redan kände till — vilket gjorde
+       den här vägen värdelös som reparation: hade en realtidshändelse gått
+       förlorad kunde omhämtningen aldrig laga den, för den kastade just den
+       färska datan. Nu tas serverns rad när den är nyare. */
     /* Skärmdumpar och väntande kort är enhetslokala och finns inte på
        servern. Nollställdes de här försvann en pågående identifiering varje
        gång någon gick med eller bytte namn — och just de korten är de som
        väntar på ett mänskligt svar. */
+    /* MITT eget bord tas aldrig från servern. Min lokala version bumpas
+       aldrig (fjarrBord hoppar över mina egna rader), så serverns siffra är
+       alltid högre — och en rak jämförelse hade rullat tillbaka det jag just
+       gjort medan det ännu låg i de 250 millisekundernas debounce. */
+    const mitt = spelLage && p.user_id === spelLage.mig;
+    const nyare = !mitt && (!g || (p.version || 0) > (g.version || 0));
+    const kort = nyare ? (p.cards || []) : g.cards;
+    if (nyare) kort.forEach(c => { c.cid = c.cid || uid(); });
+    /* Mitt eget namn kan ligga i ett byte som ännu inte hunnit fram. Läses
+       serverns rad rakt av rullas inmatningen tillbaka mitt under fingrarna
+       på den som skriver. */
     return normalisera({
-      id: p.user_id, name: p.name, color: p.color,
-      cards: g ? g.cards : (p.cards || []),
-      version: g ? g.version : p.version,
+      id: p.user_id, name: (mitt && g && namnByte) ? g.name : p.name, color: p.color,
+      cards: kort,
+      version: nyare ? p.version : g.version,
       shots: g ? g.shots : [], shotIdx: g ? g.shotIdx : 0,
       pending: g ? g.pending : [], pane: g ? g.pane : null,
       namnkalla: 'anvandare', bildnamn: null

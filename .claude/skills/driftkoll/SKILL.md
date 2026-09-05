@@ -1,9 +1,9 @@
 ---
 name: driftkoll
-description: Skriver ut de fyra kommandona som visar om Handvy är committat, pushat och driftsatt — var och ett i ett eget kopierbart block med en kort rubrik om vad det gör. Använd den när användaren vill veta om allt är ute, om något ligger opushat, om produktionen kör senaste koden, eller ber om "driftkollen", "kolla om allt är deployat" eller liknande. Skriver ingenting och ändrar ingenting.
+description: Skriver ut de fyra kommandona som visar om Mesa är committat, pushat och driftsatt — var och ett i ett eget kopierbart block med en kort rubrik om vad det gör. Använd den när användaren vill veta om allt är ute, om något ligger opushat, om produktionen kör senaste koden, eller ber om "driftkollen", "kolla om allt är deployat" eller liknande. Skriver ingenting och ändrar ingenting.
 ---
 
-# Driftkoll för Handvy
+# Driftkoll för Mesa
 
 Skriv ut kontrollerna nedan **ordagrant** som svar, i den här ordningen, med
 rubrikerna kvar och varje kommando i ett eget ```bash-block. Ett kommando per

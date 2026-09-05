@@ -1,9 +1,9 @@
-# Handvy — MTG-händer från SpellTable-skärmdumpar
+# Mesa — fysiska kort på ett delat, digitalt bord
 
 En fristående webbsida (`index.html`, en enda fil) som kompletterar
 [spelltable.wizards.com](https://spelltable.wizards.com).
 
-**Klistra in en skärmdump av hela SpellTable-fönstret.** Appen hittar spelarnas
+**Klistra in en skärmdump av hela videosamtalets fönster.** Appen hittar spelarnas
 videorutor, läser av korten som ligger på borden, och skapar en spelare per ruta.
 Sedan kan du växla mellan spelare, se hela handen på en gång och zooma in på ett
 enskilt kort med piltangenterna — i skarp upplösning från Scryfall.
@@ -31,7 +31,7 @@ namn (`Lista`, eller <kbd>B</kbd>), eller ge appen en bild.
 | bildvyn (öppnas med `Läs av bordet`) | bilden läses av som ett helt bord och **handen ersätts** |
 
 Bilden kan innehålla ett kort eller flera — en beskuren skärmdump, ett foto, en
-kortbild från nätet, eller en hel SpellTable-skärmdump. Är det en hel skärmdump
+kortbild från nätet, eller en hel skärmdump av videosamtalet. Är det en hel skärmdump
 söker appen bara igenom videorutorna, så sidopanelens kortlista kommer inte med.
 
 ## Är allt driftsatt?
@@ -94,7 +94,7 @@ Instruktionerna som skickas till bildmodellen ligger i
 | läge | rad | vad den gör |
 | --- | --- | --- |
 | `land` | ~156 | jämför ett suddigt kort mot de fem riktiga basländerna |
-| `namn` | ~230 | läser spelarens namn ur SpellTables överlägg |
+| `namn` | ~230 | läser spelarens namn ur videoappens överlägg |
 | `card` | ~279 | namnger ETT kort på en närbild |
 | `pane` | ~332 | hittar alla kort i en hel videoruta |
 
@@ -152,7 +152,7 @@ vercel env pull .env.local
 
 ## Så fungerar det
 
-1. Ta en skärmdump av hela SpellTable-fönstret (⇧⌘4 + mellanslag på Mac).
+1. Ta en skärmdump av hela videosamtalets fönster (⇧⌘4 + mellanslag på Mac).
 2. Klistra in i appen med ⌘V — var som helst.
 3. Appen skapar en spelare per videoruta och lägger till korten den känner igen.
 
@@ -211,7 +211,7 @@ geometriskt. Det ger tre saker de två första stegen inte klarar:
 
 - **övertäckning** — behöver bara ~15 synliga punkter, inte hela kortet
 - **perspektiv** — punkterna får förskjutas, transformen räknas fram
-- **avvisning** — ett tangentbord eller SpellTables livtotal ger aldrig en
+- **avvisning** — ett tangentbord eller videoappens livtotal ger aldrig en
   geometriskt konsekvent matchning. Det var precis de sakerna som hamnade i
   ifyllnadslistan förut; helhetsjämförelsen hade inget sätt att säga "det här
   är inte ett kort".
@@ -242,8 +242,8 @@ fel landskap 1 av 6.
 
 ### Uppmätt träffsäkerhet
 
-Hela kedjan på en syntetisk SpellTable-skärmdump (två rutor, 10 kort, perspektiv,
-lampglans, tangentbord, mus och SpellTables eget överlägg med namn och livtotal):
+Hela kedjan på en syntetisk skärmdump av videosamtalet (två rutor, 10 kort, perspektiv,
+lampglans, tangentbord, mus och videoappens eget överlägg med namn och livtotal):
 
 | Korten ligger | Rätt automatiskt | Felaktigt | Kvar att fylla i |
 |---|---|---|---|
@@ -267,13 +267,13 @@ bildsignaturer och 6 MB lokala särdrag) och tar ungefär en minut.
 
 Verifierat i Chrome på laptopstorlek:
 
-- Rutdetektering på en syntetisk SpellTable-layout (2×2, en svart "video off"-ruta,
+- Rutdetektering på en syntetisk videosamtalslayout (2×2, en svart "video off"-ruta,
   sidopanel) — hittar rätt rutor på ±1 px, ignorerar sidopanel och tom ruta.
 - Kortdetektering och matchning, inklusive stresstest med starkare glans, mer brus
   och hårdare JPEG-komprimering.
 - Manuell inmatning, listimport, dubbelsidiga kort, flera spelare, delning, export.
 
-**Inte testat:** en riktig SpellTable-skärmdump med riktiga webbkameror — testerna
+**Inte testat:** en riktig skärmdump av videosamtalet med riktiga webbkameror — testerna
 använder syntetiska bilder som härmar förhållandena. Räkna med att verkligheten är
 något svårare, särskilt vid kraftigt överlappande kort.
 
@@ -363,7 +363,7 @@ dev/matcher.js  bildsignaturer och helhetsmatchning
 dev/orb.js      lokala särdrag (FAST + BRIEF) och RANSAC-verifiering
 dev/detect.js   videoruts- och kortdetektering
 dev/bench.html  mätbänk för träffsäkerheten
-dev/mock.js     syntetisk SpellTable-skärmdump för test
+dev/mock.js     syntetisk skärmdump av videosamtalet för test
 dev/stub-server.cjs  attrapp för /api/identify vid lokal utveckling
 assets/mana/    Wizards manasymboler, hämtade från Scryfall
 scripts/hamta-mana.sh  hämtar om dem

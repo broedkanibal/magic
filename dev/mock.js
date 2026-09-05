@@ -1,4 +1,4 @@
-/* Syntetisk SpellTable-skärmdump för att testa hela kedjan:
+/* Syntetisk skärmdump av ett videosamtal för att testa hela kedjan:
    2×2-rutnät, en helsvart "video off"-ruta, sidopanel, och kort på bord
    med perspektiv, oskärpa, lampglans och brus. */
 (function (g) {
@@ -39,8 +39,8 @@
     gg.addColorStop(0, `rgba(255,252,240,${glare})`); gg.addColorStop(1, 'rgba(255,252,240,0)');
     c.fillStyle = gg; c.fillRect(px, py, pw, ph);
 
-    /* Störningar som finns i varje riktig SpellTable-ruta och som tidigare
-       testbilder helt saknade: tangentbord, mus, och SpellTables eget
+    /* Störningar som finns i varje riktig videoruta och som tidigare
+       testbilder helt saknade: tangentbord, mus, och videoappens eget
        överlägg med spelarnamn, kommandantnamn och en stor livtotal. Det var
        precis de sakerna detektorn plockade upp som "kort". */
     if (o.clutter !== false) {
@@ -53,7 +53,7 @@
       // mus
       c.fillStyle = '#232326';
       c.beginPath(); c.ellipse(px + pw * 0.09, py + ph * 0.80, pw * 0.045, ph * 0.10, 0, 0, 7); c.fill();
-      // SpellTables överlägg
+      // videoappens överlägg
       c.fillStyle = 'rgba(0,0,0,0.62)';
       c.fillRect(px, py, pw, ph * 0.115);
       c.fillStyle = '#fff';
@@ -76,7 +76,7 @@
     cv.width = W; cv.height = H;
     const c = cv.getContext('2d', { willReadFrequently: true });
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-    /* Kortlayout som i en riktig SpellTable-ruta: korten ligger OMLOTT i
+    /* Kortlayout som i en riktig videoruta: korten ligger OMLOTT i
        rader, inte isär. Det var precis det de tidiga testbilderna missade —
        en detektor som letar mörk ram runt om hittar då springorna MELLAN
        korten i stället för korten själva. */

@@ -1,9 +1,9 @@
 /* ══════════════════════════════════════════════════════════════════
-   Automatisk avläsning av en SpellTable-skärmdump.
+   Automatisk avläsning av en skärmdump från ett videosamtal.
 
    Två steg, båda utan externa bibliotek:
 
-   1. Videorutor. SpellTable lägger spelarna i ett rutnät med helsvarta
+   1. Videorutor. Videosamtalet lägger spelarna i ett rutnät med helsvarta
       mellanrum. En kolumn som är svart hela vägen ner är mellanrum eller
       tom ruta — allt annat är innehåll. Samma sak radvis inom varje
       kolumnband ger rutnätets celler.
@@ -53,7 +53,7 @@
 
   /* ══ 1. videorutor ══ */
 
-  /* SpellTables sidopanel — den med "Cards / Game Log", sökrutan, "Last Card"
+  /* Videoappens sidopanel — den med "Cards / Game Log", sökrutan, "Last Card"
      och listan över tidigare spelade kort — innehåller kortBILDER. Ett svep
      över den ger 12 förslag, varav 3 tar sig förbi ljusfiltret: kort som
      aldrig legat på något bord.
@@ -374,7 +374,7 @@
     cands.sort((a, b) => b.score - a.score);
 
     /* Absolut tröskel när mallen används. Uppmätt på en ruta med
-       tangentbord, mus och SpellTables överlägg: riktiga kort 0.79–0.89,
+       tangentbord, mus och videoöverlägg: riktiga kort 0.79–0.89,
        allt annat 0.48–0.69. Bara en relativ tröskel räckte inte — om det
        bäst poängsatta råkade vara ett tangentbord blev allt relativt det. */
     /* tmplScore är en korrelationskoefficient — mallen z-normaliseras i

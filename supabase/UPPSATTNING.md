@@ -1,4 +1,4 @@
-# Sätta upp Supabase för Handvy
+# Sätta upp Supabase för Mesa
 
 Tre steg. Du gör dem i webbläsaren, jag kan inte nå dina konsoler härifrån.
 Räkna med en kvart.
@@ -8,7 +8,9 @@ Räkna med en kvart.
 ## 1. Skapa projektet
 
 1. Gå till <https://supabase.com/dashboard> och logga in.
-2. **New project**. Välj organisation, ge det namnet `handvy`.
+2. **New project**. Välj organisation, ge det namnet `mesa`.
+   Har du redan ett projekt från tidigare heter det något annat — det gör
+   ingenting, namnet syns bara i Supabases egen instrumentpanel.
 3. Sätt ett databaslösenord och spara det i din lösenordshanterare. Du
    behöver det inte för appen, men du får inte se det igen.
 4. Välj region **North EU (Stockholm)** — närmast er, och spelet är
@@ -52,7 +54,7 @@ Kopiera den. Låt fliken vara kvar.
    aktiverad betalning.
 4. Har du aldrig gjort det förut måste du först fylla i consent screen
    (knappen **Configure consent screen** på Credentials-sidan). Appnamn
-   `Handvy`, din e-post som support, **Audience: External**, din e-post
+   `Mesa`, din e-post som support, **Audience: External**, din e-post
    som utvecklarkontakt, godkänn villkoren.
 
    > Google har döpt om den här ytan till **Google Auth Platform**, och
@@ -69,7 +71,7 @@ Kopiera den. Låt fliken vara kvar.
    ingen granskning från Google.
 6. **Clients → Create client** (heter **Credentials → Create
    credentials → OAuth client ID** i den äldre vyn).
-7. Application type: **Web application**. Namn: `Handvy`.
+7. Application type: **Web application**. Namn: `Mesa`.
 8. Under **Authorized redirect URIs**: klistra in callback-adressen från
    steg 2a. Det är den enda adress som ska stå där — Supabase tar emot
    svaret från Google och skickar sedan vidare till appen. Appens egen
@@ -80,6 +82,11 @@ Kopiera den. Låt fliken vara kvar.
 
 Du behöver inte aktivera något API. Äldre guider säger "enable Google+
 API"; den finns inte längre och behövs inte.
+
+> **Har du redan satt upp Google?** Appnamnet du valde då står kvar i
+> Googles inloggningsruta — det är den enda platsen där ett gammalt
+> produktnamn fortfarande kan möta en användare. Byt det under
+> **Google Auth Platform → Branding → App name**.
 
 ### 2c. Tillbaka i Supabase
 
