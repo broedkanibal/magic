@@ -3422,8 +3422,14 @@ function flygTillGrav(fran) {
   const anim = kopia.animate([
     { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
     { transform: `translate(${dx}px,${dy}px) scale(${skala}) rotate(-12deg)`, opacity: .15 }
-  ], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)' });
-  anim.finished.catch(() => {}).then(() => kopia.remove());
+  ], { duration: 340, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+  /* Två vägar bort, för finished ensam räcker inte: ligger fliken i bakgrunden
+     står animationens tidslinje stilla och löftet infrias aldrig — kopian blev
+     då liggande kvar ovanpå brädet tills sidan laddades om. remove() på en
+     redan borttagen nod gör ingenting, så det är ofarligt att städa två gånger. */
+  const stad = () => kopia.remove();
+  anim.finished.then(stad, stad);
+  setTimeout(stad, 1200);
 }
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
