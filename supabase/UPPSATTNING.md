@@ -64,6 +64,18 @@ Kopiera den. Låt fliken vara kvar.
 I fliken från steg 2a: slå på **Enable Sign in with Google**, klistra in
 Client ID och Client secret, spara.
 
+Fältet heter **Client IDs** i plural och tar en kommaseparerad lista, för
+att det också stödjer Android och Chrome-tillägg. Du ska bara ha en — den
+för webben, den ser ut så här:
+
+```
+418302941746-k3f9d8s7a2n1m4p6q8r0t5v7w9x1y3z5.apps.googleusercontent.com
+```
+
+Två reglage längre ner ska stå kvar som de är: **Skip nonce checks** av,
+och **Allow users without an email** av. Appen hämtar spelarens förnamn ur
+Google-kontot, så vi vill ha uppgifterna.
+
 ### 2d. Tala om vart appen får skickas efter inloggning
 
 **Authentication → URL Configuration**:
