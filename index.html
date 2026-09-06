@@ -718,17 +718,30 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .lstapel{display:flex;align-items:flex-end}
 .lkort{
   flex:none;display:block;width:var(--lw);aspect-ratio:488/680;
-  border-radius:calc(var(--lw) * .067);background:#11161e;overflow:hidden;position:relative;
+  border-radius:calc(var(--lw) * .067);background:#11161e;position:relative;
 }
-.lkort img{width:100%;height:100%;object-fit:cover;display:block}
-/* Skuggan ger kanten mellan de omlottliggande korten. */
-.lstapel .lkort + .lkort{box-shadow:-2px 1px 4px -1px #000c}
+/* Bilden klipper sig själv mot hörnen. Kortet gjorde det förut, och då kapades
+   handlingsraden — som ligger innanför nederkanten men bredare än ett smalt
+   landkort — rakt av. */
+.lkort img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
+/* Skuggan ger kanten mellan de omlottliggande korten. Bara på stående kort:
+   ett tappat korts ruta är osynlig, och en skugga runt ingenting läser sig som
+   en glipa i högen. */
+.lstapel .lkort:not(.ltapp) + .lkort:not(.ltapp){box-shadow:-2px 1px 4px -1px #000c}
 /* Tappat land: vridet 90° men i SAMMA plats som ett stående kort, precis som
    på brädet. Platsen var förut bredare än ett stående kort, och då växte hela
    färggruppen när man tappade — minus och plus för färgerna till höger hoppade
    i sidled mitt i en tur. Bilden krymps med kortets kvot så att den vridna
    sidan blir exakt lika bred som platsen. */
-.lkort.ltapp{background:none;overflow:visible;opacity:.62}
+/* Vridningen ÄR signalen — ett tappat kort ligger ner, precis som på bordet.
+   Genomskinligheten ovanpå det gjorde kortet grådaskigt och lät bordet lysa
+   igenom, och den skapade dessutom en egen stapelkontext: markeringsramen
+   stängdes in i kortet och hamnade UNDER grannarna, tvärtemot vad samma regel
+   gjorde i den otappade stapeln. En nedtonad bild säger samma sak utan att
+   göra något av det. */
+.lkort.ltapp{background:none}
+.lkort.ltapp img{filter:brightness(.82) saturate(.9)}
+.lkort.ltapp:hover img{filter:none}
 .lkort.ltapp img{
   position:absolute;left:50%;top:50%;
   width:var(--lw);height:calc(var(--lw) / (488 / 680));
@@ -747,20 +760,31 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 }
 .mgstep:hover{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .lgrupp.vald .lctrl b{color:var(--pa-acc)}
-/* Ram med box-shadow, inte outline: raden klipper vid sin kant och en outline
-   på kortet längst till vänster kapades på mitten. Skuggan ritas innanför.
+/* ── markering i en hög ────────────────────────────────────────────
+   Korten ligger omlott med 26,7 % synligt. Ramen låg tidigare i ett eget
+   z-lager för att alltid synas hel — men kortet den hörde till gjorde inte
+   det, så ett markerat kort som låg UNDER ett annat fick sin ram ritad OVANPÅ
+   grannen. Ramen svävade över ett kort den inte handlade om.
 
-   Markeringen lyfter INTE kortet ur stapeln. Ett valt kort som hoppade fram
-   flyttade sig under fingret och gjorde ordningen i högen oläslig — och
-   ordningen är information: det är den man arbetar sig igenom när man tappar.
-   Kortet ligger kvar, ramen ritas ovanpå grannarna. Det går ihop av sig självt
-   eftersom .lkort saknar egen stapelkontext, så ::after:s z-index gäller mot
-   syskonkorten och inte bara inuti det egna kortet. */
+   Nu ritas ramen med kortet. Ligger kortet under ett annat syns ramen bara på
+   den remsa som faktiskt är synlig — vilket är sant: det är allt man ser av
+   kortet. Markeringen lyfter fortfarande inte kortet ur högen; ordningen i
+   högen är information, det är den man arbetar sig igenom när man tappar.
+
+   För att en markering på en 26,7 %-remsa ändå ska gå att se på en halv
+   sekund tonas gruppens ÖVRIGA kort ner. Det valda är det ljusa, och den
+   gyllene kanten bekräftar. Den signalen bryr sig inte om vem som ligger
+   överst. */
 .lkort.sel::after{
-  content:'';position:absolute;inset:0;border-radius:inherit;z-index:5;
-  box-shadow:inset 0 0 0 2px var(--acc),0 0 0 3px #e8b33a26;pointer-events:none;
+  content:'';position:absolute;inset:0;border-radius:inherit;
+  box-shadow:inset 0 0 0 2px var(--acc);pointer-events:none;
 }
-/* Samma blå hover som på ett permanent, så att de två betyder samma sak. */
+.lgrupp.vald .lkort:not(.sel) img{filter:brightness(.55) saturate(.7)}
+.lgrupp.vald .lkort.ltapp:not(.sel) img{filter:brightness(.45) saturate(.6)}
+.lgrupp.vald .lkort:hover img{filter:none}
+/* Samma blå hover som på ett permanent, så att de två betyder samma sak.
+   Hovern DÄREMOT lyfter kortet — man måste se hela det man pekar på, och nå
+   dess knappar. Att peka är en fråga, att markera är ett svar. */
 .lkort:hover{z-index:7}
 .lkort:hover::before{
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
@@ -768,14 +792,13 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 }
 /* Ett tappat kort är en vriden bild i en liggande ruta. Ramen får därför
    bildens exakta mått och vridning — en ram runt själva rutan hamnar bredvid
-   kortet. Den sitter på ::after och inte på bilden, för att den ska kunna
-   ligga över grannkorten utan att bilden gör det. */
+   kortet. */
 .lkort.ltapp.sel::after{
   inset:auto;left:50%;top:50%;
   width:var(--lw);height:calc(var(--lw) / (488 / 680));
   border-radius:calc(var(--lw) * .067);
   transform:translate(-50%,-50%) rotate(90deg) scale(0.717647);
-  box-shadow:0 0 0 3px var(--acc);
+  box-shadow:inset 0 0 0 2px var(--acc);
 }
 .lkort.ltapp:hover::before{display:none}
 .lkort.ltapp:hover img{box-shadow:0 0 0 3px var(--blue)}
@@ -809,20 +832,30 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    att nå raden slutade :hover gälla, och raden försvann under fingret. Nu
    ligger den innanför kortets nederkant, precis som på ett permanent, och
    pekaren lämnar aldrig kortet på vägen dit. */
+/* Ett tappat kort är en vriden bild inuti en stående ruta: bilden slutar
+   0,338 * lw ovanför rutans nederkant. Raden mättes mot rutan och hängde
+   därför i luften under kortet. */
+.lkort.ltapp .lakt{bottom:calc(var(--lw) * 0.338 + 4px)}
 .lakt{
   position:absolute;left:0;right:0;bottom:4px;margin:0 auto;z-index:9;
-  width:max-content;max-width:calc(100% - 6px);
-  display:flex;flex-wrap:wrap;justify-content:center;gap:3px;padding:3px;
+  width:max-content;max-width:none;
+  display:flex;justify-content:center;gap:3px;padding:3px;
   background:#070b11f2;border:1px solid #3a4658;border-radius:7px;
   box-shadow:0 6px 16px -4px #000e;
   opacity:0;pointer-events:none;transition:opacity .1s;
 }
 .lkort:hover .lakt{opacity:1;pointer-events:auto}
+/* Knappen följer kortet. Fast 21 px var för litet på ett stort landkort och
+   för stort på ett litet — vid --lw 30 fick raden inte plats och bröt till två
+   rader. Golv och tak håller den träffbar respektive lagom. */
 .lakt-b{
   position:relative;
-  width:21px;height:21px;border-radius:5px;background:var(--bg4);color:#cfd9e8;
+  width:clamp(20px, calc(var(--lw) * 0.30), 30px);
+  height:clamp(20px, calc(var(--lw) * 0.30), 30px);
+  border-radius:5px;background:var(--bg4);color:#cfd9e8;
   display:grid;place-items:center;cursor:pointer;flex:none;user-select:none;
 }
+.lakt-b svg{width:62%;height:62%}
 .lakt-b:hover{background:var(--acc);color:#20160a}
 .lakt-b.fara:hover{background:var(--red);color:#fff}
 
@@ -831,34 +864,40 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    korten gör det. */
 /* Knappen har kortets format — den stod tidigare som en bred etikettruta
    bredvid smala kort och såg ut som ännu en färg med en väldigt bred plats. */
+/* Huset ligger i flödet och är exakt lika stort som knappen — därför kan
+   listan öppnas utan att någonting annat rör sig. */
+.fargvalhus{position:relative;flex:none;align-self:flex-start}
 .fargval{
   width:max(46px, var(--lw));height:max(40px, calc(var(--lw) * 1.4));
-  padding:0 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:none;
+  padding:0 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
   border:1px dashed var(--line);border-radius:6px;background:none;cursor:pointer;
-  font:9.5px/1 var(--sans);color:var(--dim2);align-self:flex-start;
+  font:9.5px/1 var(--sans);color:var(--dim2);
 }
-.fargval:hover{border-color:var(--acc);color:var(--pa-acc)}
+.fargval:hover,.fargvalhus.oppen .fargval{border-color:var(--acc);color:var(--pa-acc)}
 .fargplus{
   width:20px;height:20px;border-radius:50%;display:grid;place-items:center;flex:none;
   border:1px dashed var(--line);color:var(--dim);font:300 15px/1 var(--sans);
 }
-.fargval:hover .fargplus{border-color:var(--acc);color:var(--acc)}
-.fargval.oppen{
-  width:auto;height:max(52px, calc(var(--lw) * 1.4));flex-direction:row;
-  border-style:solid;border-color:var(--acc);background:var(--tand);cursor:default;padding:0 5px;gap:3px;
+.fargval:hover .fargplus,.fargvalhus.oppen .fargplus{border-color:var(--acc);color:var(--acc)}
+/* Popovern. Nedre kanten linjerar med knappens, så listan växer uppåt och kan
+   inte tryckas ut under zonen. z-index över grupperna: förut målades den gula
+   ramen över av landkorten, eftersom .lgrupp är positionerad och väljaren inte
+   var det. */
+.fargmeny{
+  position:absolute;z-index:30;bottom:0;left:0;
+  display:flex;gap:2px;padding:5px;
+  background:var(--tand);border:1px solid var(--acc);border-radius:8px;
+  box-shadow:0 10px 26px -6px #000e;
 }
+/* Nära högerkanten fälls den ut åt vänster i stället. */
+.fargvalhus.vanster .fargmeny{left:auto;right:0}
 .fargknapp{
-  display:flex;flex-direction:column;align-items:center;gap:3px;padding:3px 4px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;
   border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;
 }
 .fargknapp:hover{border-color:var(--acc);background:var(--tand2)}
-.fargknapp span{font:8.5px/1 var(--sans);color:var(--dim2)}
+.fargknapp span{font:8.5px/1 var(--sans);color:var(--dim2);white-space:nowrap}
 .fargknapp:hover span{color:var(--pa-acc)}
-.fargstang{
-  align-self:flex-start;width:16px;height:16px;padding:0;border:none;border-radius:4px;
-  background:#00000055;color:var(--dim2);font:10px/1 var(--sans);cursor:pointer;
-}
-.fargstang:hover{background:var(--acc);color:#20160a}
 
 /* Selected: kortet som är valt, stort nog att läsa */
 .markrub .zonlbl{color:var(--acc)}
@@ -1324,6 +1363,10 @@ body.lasvy #bulkBtn,
    kvar även på någon annans bord — annars är krysset i hörnet enda vägen ut,
    och det är inte där handen är. */
 body.lasvy #gravBack,body.lasvy #gravRemove{display:none!important}
+/* Hela kontrollraden, inte bara knapparna. Kvar blev annars en ensam siffra
+   under högen, som läser sig som att plus och minus gått sönder — och antalet
+   står redan i zonrubriken. */
+body.lasvy .lctrl{display:none!important}
 body.lasvy .card,body.lasvy .lkort{cursor:default}
 body.lasvy .card:hover{transform:none}
 /* Tittar man på någon annans bord får hela brädytan en list i den spelarens
@@ -4699,21 +4742,25 @@ const GRAVSTEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
   + '<path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"/>'
   + '<path d="M12 7.6v6.2M9 10.4h6"/>'
   + '<path d="M3.2 19.4h17.6"/></svg>';
-/* Kvartsvarvspilar. En nästan sluten cirkel läste sig som en cirkel och inte
-   som en vridning — de här visar åt vilket håll kortet ska vändas. */
-/* Samma kvartsvarv, traverserat åt var sitt håll — då läses de som varandras
-   motsatser direkt. Tap sveper medurs från toppen ut åt höger och slutar peka
-   NEDÅT, alltså åt det håll kortet vrids. Untap sveper moturs från höger upp
-   över toppen och slutar peka åt VÄNSTER, tillbaka mot upprätt läge. */
-const IKON_TAP = '<path d="M12 6a6.5 6.5 0 0 1 6.5 6.5"/><path d="M15.9 9.9 18.5 12.5 21.1 9.9"/>';
-const IKON_UNTAP = '<path d="M18.5 12.5a6.5 6.5 0 0 0-6.5-6.5"/><path d="M14.6 3.4 12 6 14.6 8.6"/>';
+/* Tap och untap visar KORTET i det läge knappen leder till, plus bågen som
+   tar det dit. Förut var de två bara samma kvartscirkelbåge med pilspetsen
+   flyttad — några pixlars skillnad, och ingenting som sa att det handlade om
+   ett kort. Nu skiljer sig silhuetterna: liggande för tappat, stående för
+   otappat. Den skillnaden överlever ända ner till 13 px, vilket bågarnas
+   riktning inte gjorde. */
+const IKON_TAP = '<rect x="3.5" y="11" width="17" height="9.5" rx="2"/>'
+  + '<path d="M7.2 7.4A6.6 6.6 0 0 1 17.4 6"/><path d="M14.2 5.2 17.4 6 16.6 2.8"/>';
+const IKON_UNTAP = '<rect x="7" y="8" width="10" height="12.5" rx="2"/>'
+  + '<path d="M16.8 7.4A6.6 6.6 0 0 0 6.6 6"/><path d="M9.8 5.2 6.6 6 7.4 2.8"/>';
 const IKON_GRAV = '<path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"/><path d="M12 7.6v6.2M9 10.4h6"/><path d="M3.2 19.4h17.6"/>';
-/* Flip visar den sida kortet ska hamna på. Baksidan är kortets kontur med
-   Magic-baksidans ovala mitt; framsidan samma kontur med titelrad och textrad
-   och konsten emellan. Den förra ikonen var en ruta med en linje genom och två
-   pilar utåt, vilket läste sig som "dela" eller "spegla". */
-const IKON_BAKSIDA = '<rect x="6" y="3" width="12" height="18" rx="2"/><ellipse cx="12" cy="12" rx="3.2" ry="4.8"/>';
-const IKON_FRAMSIDA = '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M8.8 7h6.4"/><path d="M8.8 17h6.4"/>';
+/* Flip visar ett kort MITT I vändningen: två paneler i perspektiv, gångjärnet
+   i mitten, och den sida man är på väg till till höger — Magic-baksidans ovala
+   mitt, eller framsidans titelrad och textrad. En stilla kortkontur sa vilken
+   sida man skulle få men inte att något skulle hända; den här rör sig. */
+const IKON_BAKSIDA = '<path d="M10 4.2 4.6 6.6v10.8L10 19.8Z"/>'
+  + '<path d="M14 4.2l5.4 2.4v10.8L14 19.8Z"/><ellipse cx="16.7" cy="12" rx="1.1" ry="2.3"/>';
+const IKON_FRAMSIDA = '<path d="M10 4.2 4.6 6.6v10.8L10 19.8Z"/>'
+  + '<path d="M14 4.2l5.4 2.4v10.8L14 19.8Z"/><path d="M15.7 9.6h2.4M15.7 14.4h2.4"/>';
 const IKON_KRYSS = '<path d="M6 6l12 12M18 6 6 18"/>';
 const IKON_ATTACH = '<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>';
 /* Baksidan på ett Magic-kort. Ett kort som vänds ner är fortfarande på bordet
@@ -4789,10 +4836,17 @@ function gruppBredd(g, lw) {
   const inn = 4 + stapel(g.o) + (g.t ? (g.o ? 4 : 0) + stapel(g.t) : 0);
   return Math.max(LAND_GRUPP_MIN, inn);
 }
+/* Den bredd som gäller just nu. Hålls kvar så länge den fortfarande fungerar
+   — se hysteresen i landBredd. */
+let lwNu = 0;
 function landBredd(grupper) {
   const box = manaRow.querySelector('.lands');
   if (!box || !grupper.length) return 30;
-  const W = box.clientWidth, H = box.clientHeight;
+  /* clientWidth/Height INNEHÅLLER zonens egen padding. Ytan mättes därför 8 px
+     för stor i båda led, och packningen trodde sig ha plats den inte hade. */
+  const cs = getComputedStyle(box);
+  const W = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const H = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
   if (!(W > 0 && H > 0)) return 30;
   const GAPX = 6, GAP = 9;
   /* Taket låg fast på 76 px: med tre länder på bordet stod de som frimärken i
@@ -4801,7 +4855,7 @@ function landBredd(grupper) {
      sammanfattning, och ett Forest ska inte bli större än en creature.
      Golvet 76 finns för att raden ska vara läsbar även när brädet är fullt. */
   const tak = clamp(Math.round(prefs.fit ? computeFit() : prefs.cardw), 76, 150);
-  for (let lw = tak; lw >= 20; lw--) {
+  const ryms = lw => {
     const gh = lw * 1.4 + 4 + LAND_CTRL_H;
     // packa grupperna i rader efter sin egen bredd
     let rader = 1, x = 0;
@@ -4809,9 +4863,19 @@ function landBredd(grupper) {
       const gw = gruppBredd(g, lw);
       if (x > 0 && x + GAPX + gw > W) { rader++; x = gw; } else x += (x ? GAPX : 0) + gw;
     }
-    if (rader * gh + (rader - 1) * GAP <= H) return lw;
-  }
-  return 20;
+    return rader * gh + (rader - 1) * GAP <= H;
+  };
+  /* Hysteres. Bredden söktes förut om från grunden vid varje omritning, och
+     ett kort till kostar 0,267 * lw i sin grupp — precis nog för att trycka ner
+     bredden ett steg. Minus gav tillbaka platsen. Alltså pendlade ALLA
+     landkort i storlek mellan två lägen när man klickade plus och minus, och
+     kontrollraden vandrade med dem. Nu behålls den bredd som redan gäller så
+     länge den fortfarande packar; den räknas om först när den inte gör det.
+     Att bara växa när det finns gott om plats hindrar den från att kravla
+     tillbaka uppåt ett steg i taget och börja om pendlandet. */
+  if (lwNu && lwNu <= tak && ryms(lwNu) && !ryms(Math.min(tak, lwNu + 12))) return lwNu;
+  for (let lw = tak; lw >= 20; lw--) if (ryms(lw)) return (lwNu = lw);
+  return (lwNu = 20);
 }
 
 /* Mätunderlaget för landraden sparas så att kortbredden går att räkna om utan
@@ -4851,15 +4915,21 @@ function renderMana(cards) {
   </div>`;
 
   const saknade = BASLAND_VAL.filter(([, sym]) => !harSym.has(sym));
-  const fargVal = !saknade.length ? '' : fargValjOppen
-    ? `<div class="fargval oppen" data-fargval>
+  /* Knappen ligger kvar i flödet i BÅDA lägena och behåller sin storlek — det
+     är den packningen räknar med. Den utfällda listan hänger som en popover
+     ovanför den i stället för att svälla ut i raden: förut mättes den som en
+     74 px smal grupp, blev 229 px bred, bröt till en rad höjdbudgeten inte
+     hade, och centreringen sköt ut överskottet både över och under zonen. */
+  const fargVal = !saknade.length ? '' :
+    `<div class="fargvalhus${fargValjOppen ? ' oppen' : ''}">
+      <button class="fargval" data-fargval title="${fargValjOppen ? 'Close' : "Add a color you don't have out yet"}">
+        <span class="fargplus">${fargValjOppen ? '×' : '+'}</span><span>Color</span>
+      </button>
+      ${!fargValjOppen ? '' : `<div class="fargmeny">
         ${saknade.map(([namn, sym]) => `<button class="fargknapp" data-basland="${esc(namn)}" title="Add ${esc(namn)}">
           <i class="lsym">${manaFigur(sym)}</i><span>${esc(namn)}</span></button>`).join('')}
-        <button class="fargstang" data-fargstang title="Close">✕</button>
-      </div>`
-    : `<button class="fargval" data-fargval title="Add a color you don't have out yet">
-        <span class="fargplus">+</span><span>Color</span>
-      </button>`;
+      </div>`}
+    </div>`;
 
   const landTappade = d.mana.filter(i => cards[i].tapped).length;
 
@@ -4895,9 +4965,37 @@ function renderMana(cards) {
   landMatt = matt;
   sattLandBredd();
 }
+/* Medan man klickar plus eller minus står bredden stilla. Varje kort kostar
+   0,267 * lw i sin grupp, så förr eller senare måste korten krympa — men gör de
+   det mitt i en klickserie krymper ALLA grupper, de till vänster om den man
+   håller på med blir smalare, och knappen glider undan under fingret. Man ska
+   kunna trycka plus fem gånger utan att flytta musen. Bredden räknas om en
+   knapp sekund efter sista klicket i stället. */
+let lwFrysT = null;
+function frysLandBredd() {
+  clearTimeout(lwFrysT);
+  lwFrysT = setTimeout(() => { lwFrysT = null; sattLandBredd(); }, 900);
+}
 function sattLandBredd() {
   const box = manaRow.querySelector('.lands');
-  if (box && landMatt) box.style.setProperty('--lw', landBredd(landMatt) + 'px');
+  if (box && landMatt) {
+    /* Under frysningen skrivs den bredd som redan gällde. Att bara hoppa över
+       skrivningen räckte inte: renderMana bygger om raden, och det nya
+       .lands-elementet bär ingen inline-bredd — det föll tillbaka på 30 px och
+       alla landkort krympte till frimärken vid första klicket. */
+    box.style.setProperty('--lw', ((lwFrysT && lwNu) ? lwNu : landBredd(landMatt)) + 'px');
+  }
+  vandFargmeny();
+}
+/* Popovern öppnas åt höger om det finns plats, annars åt vänster. Mäts efter
+   att bredden satts, för knappens läge beror på den. */
+function vandFargmeny() {
+  const hus = manaRow.querySelector('.fargvalhus.oppen'), meny = hus && hus.querySelector('.fargmeny');
+  if (!meny) return;
+  hus.classList.remove('vanster');
+  const zon = manaRow.querySelector('.lands');
+  if (!zon) return;
+  if (meny.getBoundingClientRect().right > zon.getBoundingClientRect().right - 2) hus.classList.add('vanster');
 }
 
 /* Selected visar det valda kortet så stort rutan tillåter. Det är den enda
@@ -5495,18 +5593,20 @@ manaRow.addEventListener('keydown', rutaTangent);
 manaRow.addEventListener('click', ev => {
   if (!redigerbar() && ev.target.closest('[data-akt],[data-addtile],[data-mana-plus],[data-mana-minus],[data-basland],[data-fargval],[data-grav]')) return;
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
-  /* Färgväljaren fälls ut på plats i raden och fälls ihop när en färg valts,
-     när krysset trycks, eller när man klickar var som helst annars. */
+  /* Färgväljaren hänger som en popover över sin knapp och fälls ihop när en
+     färg valts, när knappen trycks igen, eller när man klickar utanför. Ett
+     klick INNE i listan får inte stänga den — förut bar den öppna rutan själv
+     data-fargval, så tomrummet i den stängde den man just öppnat. */
   const fk = ev.target.closest('[data-basland]');
   if (fk) { fargValjOppen = false; addCards([fk.dataset.basland]); return; }
-  if (ev.target.closest('[data-fargstang]')) { fargValjOppen = false; renderGrid(true); return; }
   if (ev.target.closest('[data-fargval]')) { fargValjOppen = !fargValjOppen; renderGrid(true); return; }
-  if (fargValjOppen) { fargValjOppen = false; renderGrid(true); }
+  if (fargValjOppen && !ev.target.closest('.fargmeny')) { fargValjOppen = false; renderGrid(true); }
   if (ev.target.closest('[data-grav-open]')) { openGrav(); return; }
   const gb = ev.target.closest('[data-grav]');
   if (gb) { ev.stopPropagation(); flyttaTill(+gb.dataset.grav, ZON_GRAV); return; }
   const plus = ev.target.closest('[data-mana-plus]');
   if (plus) {
+    frysLandBredd();
     const namn = plus.dataset.manaPlus, c = hand();
     const mall = c.find(e => e.name === namn);      // samma tryckning som de andra
     c.push({ cid: uid(), name: namn, sid: mall && mall.sid, flipped: 0 });
@@ -5519,9 +5619,14 @@ manaRow.addEventListener('click', ev => {
        gånger i rad under en tur, och en notis per klick lade sig över korten
        och sa något man redan ser i siffran bredvid. Fel klick rättas med
        knappen intill. */
+    frysLandBredd();
+    /* Ta bort ett OTAPPAT först. Minus plockade sist i listan, och eftersom
+       tappade kort sorteras sist försvann hela den tappade högen innan de
+       otappade ens rörts — man tog bort mana man redan spenderat. */
     const namn = minus.dataset.manaMinus, c = hand();
     let sist = -1;
-    c.forEach((e, i) => { if (e.name === namn) sist = i; });
+    c.forEach((e, i) => { if (e.name === namn && !e.tapped) sist = i; });
+    if (sist < 0) c.forEach((e, i) => { if (e.name === namn) sist = i; });
     if (sist >= 0) {
       c.splice(sist, 1);
       state.sel = clamp(state.sel, 0, Math.max(0, c.length - 1));
@@ -5612,7 +5717,10 @@ manaRow.addEventListener('pointerdown', ev => {
   svalgKlick = false;
   if (ev.button !== 0) return;
   const el = ev.target.closest('.lkort[data-i]');
-  if (!el || ev.target.closest('[data-grav]')) return;
+  /* Handlingsknapparna ligger INUTI kortet. Utan undantaget startade en
+     dragning på vägen ner i knappen, och tap eller remove blev till ett
+     halvhjärtat drag som inte gjorde något alls. */
+  if (!el || ev.target.closest('[data-grav],[data-akt]')) return;
   dnd = { el, barn: [], rutor: [], kalla: 'mana', handIdx: +el.dataset.i,
           från: -1, till: -1, x0: ev.clientX, y0: ev.clientY, drar: false };
 });
@@ -5952,7 +6060,11 @@ $('#fitBtn').onclick = () => { prefs.fit = !prefs.fit; savePrefs(); applySize();
 let rsT = null;
 addEventListener('resize', () => {
   clearTimeout(rsT);
-  rsT = setTimeout(() => { applySize(); renderTabs(); renderSel(); }, 90);
+  /* Landbredden räknades inte om vid en fönsterändring — brädets kortstorlek
+     gjorde det, men landzonen behöll den bredd den fick vid inläsningen och
+     svämmade över eller stod som frimärken. Hysteresen gör det extra viktigt:
+     utan det här anropet fastnar den gamla bredden för gott. */
+  rsT = setTimeout(() => { applySize(); sattLandBredd(); renderTabs(); renderSel(); }, 90);
 });
 
 /* ─── överlägg ─── */
@@ -9358,6 +9470,10 @@ async function lamnaSpelet() {
   state.active = state.players[0].id;
   state.sel = 0;
   visaSparstatus(true);
+  /* Utan omritningen ligger body.lasvy kvar från det bord man tittade på, och
+     det egna lokala bordet öppnas skrivskyddat: korten syns men plus, minus
+     och färgväljaren är borta, utan att något förklarar varför. */
+  renderAll(true);
 }
 async function tillbakaTillLobby() {
   await lamnaSpelet();
