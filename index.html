@@ -3780,12 +3780,32 @@ const Moln = (() => {
     return data;                                    // spelets id
   }
 
+  /* Mina spel. Filtret på user_id är inte kosmetiskt: radsäkerheten låter mig
+     läsa ALLA deltagarrader i de spel jag är med i — det är så spelarflikarna
+     kan ritas — så utan det gav ett spel med två deltagare två rader, båda
+     pekande på samma spel, och lobbyn listade det två gånger. Med fyra
+     spelare hade det stått där fyra gånger. Limiten blev fel av samma skäl:
+     sex RADER är sällan sex spel.
+
+     ga_med vägrar redan gå med i ett avslutat spel, så ett sådant hör inte
+     hemma i listan heller. Och dubblettspärren står kvar som ett sista skydd:
+     listan är en genväg tillbaka in i ett spel, och två likadana rader gör
+     den obrukbar utan att någonting ser trasigt ut. */
   async function minaSpel() {
     const s = await klient(); if (!s || !inloggad()) return [];
     const { data } = await s.from('game_players')
-      .select('game_id, games(id, kod, namn, skapad)')
+      .select('game_id, games(id, kod, namn, skapad, avslutad)')
+      .eq('user_id', minId())
       .order('gick_med', { ascending: false }).limit(6);
-    return (data || []).map(r => r.games).filter(Boolean);
+    const sedda = new Set();
+    const ut = [];
+    for (const r of (data || [])) {
+      const g = r.games;
+      if (!g || g.avslutad || sedda.has(g.id)) continue;
+      sedda.add(g.id);
+      ut.push(g);
+    }
+    return ut;
   }
 
   /* Hämtar spelet i sin helhet: deltagare och deras bord. Returneras i
