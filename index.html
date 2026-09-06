@@ -1302,7 +1302,10 @@ body.lasvy .bifbricka[data-bif],
 body.lasvy #clearHand,
 body.lasvy .searchwrap,
 body.lasvy #bulkBtn,
-body.lasvy .gravknappar{display:none!important}
+/* Bara de två som ÄNDRAR något. "Back to table" är navigation och ska finnas
+   kvar även på någon annans bord — annars är krysset i hörnet enda vägen ut,
+   och det är inte där handen är. */
+body.lasvy #gravBack,body.lasvy #gravRemove{display:none!important}
 body.lasvy .card,body.lasvy .lkort{cursor:default}
 body.lasvy .card:hover{transform:none}
 /* Tittar man på någon annans bord får hela brädytan en list i den spelarens
@@ -9272,7 +9275,14 @@ async function lamnaSpelet() {
   spelLage = null;
   kameraEnhet = false;
   kalRad = null;
-  state.players = [];
+  /* En tom spelarlista är inget läge appen kan vara i: player() returnerar
+     undefined och allt som rör handen faller. En uppslagning som fortfarande
+     pågår när man lämnar spelet gör just det — och den pågår ofta, eftersom
+     den startar vid inträdet och efter varje inkommande bord. Ett tomt lokalt
+     bord i stället: ingenting kvar från spelet, men något att stå på. */
+  state.players = [mkPlayer('Player 1', 0)];
+  state.active = state.players[0].id;
+  state.sel = 0;
   visaSparstatus(true);
 }
 async function tillbakaTillLobby() {
