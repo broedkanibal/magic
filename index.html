@@ -23,6 +23,7 @@
   --bandbg:#0b1017; --rutbg:#0f141c; --panelram:#333e50; --panelram2:#3d4a5f;
   --tand:#120e06; --tand2:#1a1408; --pa-acc:#ffd98a; --pa-acc2:#c9b485;
   --r:10px; --rs:7px;
+  --bandh:300px;                 /* Graveyard/Lands-radens höjd; Selected följer den */
   --cardw:150px;
   --shadow:0 8px 28px -8px #000a, 0 2px 6px #0006;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
@@ -208,26 +209,56 @@ main{flex:1;display:flex;min-height:0}
    (Lands, Selected, Graveyard). Ingenting får skrolla — computeFit() krymper
    kortbredden tills allt ryms. Måtten kommer ur designöverlämningen och gäller
    ett fönster på 720×900, alltså halva skärmen bredvid videosamtalet. */
-/* Brädet är två spalter: allt man ändrar till vänster, det valda kortet till
-   höger. Selected låg förut nere i bandet, klämt mellan Lands och Graveyard,
-   och fick 330 px höjd att visa ett kort som är högre än det är brett. Som
-   egen spalt får det hela höjden — och Lands slipper konkurrera om bredden. */
-.brade{flex:1;min-height:0;min-width:0;display:flex;gap:10px;padding:10px}
+/* ── brädets tre ytor ───────────────────────────────────────────────
+   Permanents uppe, Graveyard och Lands nere, Selected till höger över hela
+   höjden. Selected låg förut i samma box som de andra två och fick 300 px att
+   visa ett kort som är högre än det är brett; som egen spalt får det hela
+   höjden och Lands slipper konkurrera om bredden.
+
+   Rutnät och inte nästlade flexboxar, för att ytorna ska kunna byta plats med
+   varandra utan att DOM:en rörs. På en smal skärm försvinner inte Selected —
+   den flyttar ner bredvid Graveyard och Lands, där den kostar höjd i stället
+   för bredd. Att gömma den var fel: det valda kortet är det man läser
+   regeltexten på. */
+.brade{
+  flex:1;min-height:0;min-width:0;display:grid;gap:10px;padding:10px;
+  grid-template-columns:minmax(0,1fr) clamp(224px, 26%, 520px);
+  /* Bottenraden har en BESTÄMD höjd, inte auto. Med auto sätts radens höjd av
+     det högsta innehållet, och då har Selected-rutan ingen höjd att fylla:
+     kortets height:100% blir obestämt, bilden faller tillbaka på sin egen
+     storlek och rutan växte 34 px förbi sina grannar. */
+  grid-template-rows:minmax(0,1fr) var(--bandh);
+  grid-template-areas:"perm mark" "band mark";
+}
+.gridwrap{grid-area:perm}
+.band{grid-area:band}
+.kolmark{grid-area:mark}
+@media (max-width:1100px){
+  .brade{
+    grid-template-columns:minmax(0,1fr) minmax(150px, 24%);
+    grid-template-areas:"perm perm" "band mark";
+  }
+  /* Nere i raden är Selected en box som sina två grannar, med etiketten inuti.
+     Uppe till höger sitter etiketten i stället i rubrikraden bredvid
+     PERMANENTS — där hör den hemma, men här hade den skjutit boxen 26 px
+     under grannarnas överkant och raden sett sned ut. */
+  .kolmark{
+    background:var(--bandbg);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;
+  }
+  .kolmark .markruta{border:0;background:none;padding:0}
+}
+/* Tom hand: ingen bottenrad alls, uppmaningen får hela ytan. */
+body.tomhand .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
 .gridwrap{
-  flex:1;min-height:0;min-width:0;position:relative;overflow:hidden;
+  min-height:0;min-width:0;position:relative;overflow:hidden;
   display:flex;flex-direction:column;gap:10px;
 }
-/* Bredden följer fönstret. Ett Magic-kort är 0.72 gånger så brett som högt, så
-   för att kortet ska fylla spalten måste spalten växa med höjden — en fast
-   bredd gav antingen ett frimärke på en stor skärm eller en spalt som åt upp
-   brädet på en liten. Golvet är den bredd där regeltexten fortfarande går att
-   läsa; taket är där kortet fyller höjden och mer bredd bara blir marginal. */
-.kolmark{
-  flex:0 0 clamp(224px, 26%, 520px);min-width:0;
-  display:flex;flex-direction:column;gap:8px;
-}
-/* På ett smalt fönster är brädet viktigare än en stor förhandsvisning. */
-@media (max-width:900px){ .kolmark{display:none} }
+/* Bredden sätts av rutnätet ovan och följer fönstret: ett Magic-kort är 0.72
+   gånger så brett som högt, så för att kortet ska fylla spalten måste spalten
+   växa med höjden. En fast bredd gav antingen ett frimärke på en stor skärm
+   eller en spalt som åt upp brädet på en liten. */
+.kolmark{min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px}
 /* Utan kort finns inget att visa, och den tomma uppmaningen ska få hela
    bredden i stället för att stå i en spalt bredvid en tom ruta. */
 body.tomhand .kolmark{display:none}
@@ -255,7 +286,7 @@ body.tomhand .kolmark{display:none}
    kan inte bli högre än raden tillåter. Det som blir över fördelas då lika
    över och under i stället för att lämna ett tomrum under korten. */
 .grid{
-  flex:1;display:flex;flex-wrap:wrap;gap:7px 6px;padding-top:4px;
+  flex:1;display:flex;flex-wrap:wrap;gap:7px 6px;padding:4px 3px 0;
   align-content:center;align-items:flex-start;min-height:0;overflow:hidden;
 }
 .card{
@@ -283,8 +314,13 @@ body.tomhand .kolmark{display:none}
    en tom mörk ram runt en liten bild läses som att något saknas. */
 .card.tappad{opacity:.75;background:none}
 .card.tappad::after,.card.tappad::before{display:none}
-.card.tappad.sel img{box-shadow:0 0 0 3px var(--acc),0 8px 18px -6px #000e}
-.card.tappad:hover img{box-shadow:0 0 0 2px var(--blue),0 8px 18px -6px #000e}
+/* Ringen ritas INNANFÖR bilden, inte utanför. Ett tappat kort fyller sin plats
+   exakt, och en yttre skugga hamnar därför utanför rutnätet — som klipper. På
+   kortet längst till vänster kapades hela den vänstra sidan av ramen, vilket
+   såg ut som ett fel i kortet. Samma princip som den ostående ringen redan
+   följer. Rotationen sitter på bilden, så en inset-skugga följer med den. */
+.card.tappad.sel img{box-shadow:inset 0 0 0 3px var(--acc),0 8px 18px -6px #000e}
+.card.tappad:hover img{box-shadow:inset 0 0 0 2px var(--blue),0 8px 18px -6px #000e}
 .card.tappad img{
   position:absolute;left:50%;top:50%;
   width:var(--cardw);height:calc(var(--cardw) / (488 / 680));
@@ -625,18 +661,25 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 /* ─────────── nedre bandet ───────────
    Fast höjd, satt av Selected-kolumnens innehåll. Ordningen är Lands →
    Selected → Graveyard, med en tunn avdelare mellan varje. */
+/* Graveyard och Lands är två olika platser på bordet, inte två spalter i en
+   ruta. En delad box med en tunn skiljelinje läste sig som EN yta, och en
+   linje är ett svagare svar på "var slutar den ena och börjar den andra" än
+   två kanter. Raden håller ihop dem i stället: samma höjd, samma överkant,
+   samma underkant. */
 .band{
-  flex:none;height:300px;display:flex;gap:12px;align-items:stretch;
+  height:100%;display:flex;gap:10px;align-items:stretch;min-height:0;
+}
+.bandkol{
+  display:flex;flex-direction:column;gap:8px;min-height:0;
   background:var(--bandbg);border:1px solid var(--line);border-radius:8px;
-  padding:9px 11px;min-height:0;
+  padding:9px 11px;
 }
-.bandkol{display:flex;flex-direction:column;gap:8px;min-height:0}
 .kol-lands{flex:1;min-width:0}
-.kol-grav{flex:none;width:112px}
-.bandsep{
-  flex:none;width:1px;align-self:stretch;
-  background:linear-gradient(180deg,transparent,var(--line) 20%,var(--line) 80%,transparent);
-}
+.kol-grav{flex:none;width:134px}
+/* Selected-rutan är en box som de andra, och alla tre ska sluta på samma rad.
+   Etiketten ovanför sitter utanför boxen — därför bär spalten samma höjd som
+   bandet och rutan tar resten. */
+.kolmark .markruta{margin-bottom:0}
 
 /* Lands: färggrupper som radbryter. Kortbredden (--lw) sätts av landBredd()
    efter hur mycket plats zonen har och hur många grupper som ligger ute — men
@@ -809,7 +852,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 /* Kortet ska bli så stort rutan tillåter. Med en fast bredd låg det och
    simmade i en kolumn som var högre än kortet behövde vara. */
 .markruta{
-  flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  flex:1;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--rutbg);border-radius:8px;padding:9px;
 }
 /* Kortet fyller den kortare av spaltens två riktningar. height:100% först, så
@@ -1323,8 +1366,13 @@ body.lasvy .lasband{display:flex}
   position:fixed;inset:0;z-index:420;background:#000;
   display:flex;flex-direction:column;overflow:hidden;
 }
+/* contain, inte cover. Med cover beskars bildrutan mot telefonens skärm, och
+   den stillbild datorn fick att kalibrera mot var HELA rutan — bredare och
+   med mer runtomkring än det man just tittat på. Två olika bilder av samma
+   sak, och rutan man drog på datorn hamnade inte där man trodde. Nu är det
+   man ser på telefonen exakt det datorn ser. */
 #kamVideo{
-  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
   background:#000;
 }
 .kamoverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -1423,6 +1471,15 @@ body.ispel #addPlayerBtn{display:none}
 .portalmina button:hover{background:var(--bg4);color:var(--txt);border-color:#3b485c}
 .portalmina b{color:var(--txt);font-weight:600}
 .portalmina .kod{margin-left:auto;font:11px var(--mono);color:var(--dim2);letter-spacing:1.5px}
+/* Raden är spelet plus värdens knapp att avsluta det. Knappen står tyst till
+   höger — den är ett städval, inte något man gör ofta, och ska inte konkurrera
+   med det man faktiskt kom hit för. */
+.lobbyrad{display:flex;gap:6px;align-items:stretch}
+.lobbyrad > button[data-spel]{flex:1;min-width:0}
+.portalmina .spelslut{
+  flex:none;padding:0 11px;color:var(--dim2);background:transparent;border-color:transparent;
+}
+.portalmina .spelslut:hover{color:var(--red);border-color:#e2606a55;background:#e2606a12}
 
 /* ═══════════════════════════════════════════════════════════════════
    KOMPAKT LÄGE — ett smalt fönster vid sidan av videosamtalet.
@@ -1704,8 +1761,8 @@ body.ispel #addPlayerBtn{display:none}
           <p>Korten dyker upp här av sig själva så fort de läggs ut.</p>
         </div>
         </section>
-        <div class="band" id="manaRow" hidden></div>
       </div>
+      <div class="band" id="manaRow" hidden></div>
       <!-- Selected står inte längre nere i bandet mellan Lands och Graveyard.
            Ett Magic-kort är högt, och en kolumn som bara var 330 px hög tvingade
            kortet att bli litet mitt i den bredaste ytan på skärmen. Som egen
@@ -1918,9 +1975,16 @@ body.ispel #addPlayerBtn{display:none}
       <div class="gravside">
         <div class="gravinfo" id="gravInfo"></div>
         <div class="gravlist" id="gravList"></div>
+        <!-- Knapptexterna säger vad de gör MED KORTET, inte vad de gör med
+             vyn. "Return to play" och "Remove from game" gick att läsa som att
+             de gällde graveyarden eller hela spelet; med "card" i texten finns
+             ingen sådan tvekan. Den tredje knappen stänger vyn — krysset uppe
+             i hörnet är en väg tillbaka, men inte en man letar efter när
+             händerna är kvar nere vid de andra två. -->
         <div class="gravknappar">
-          <button class="btn" id="gravBack" title="Put the card back on the battlefield">Return to play</button>
-          <button class="btn danger" id="gravRemove" title="Take the card out of the game entirely">Remove from game</button>
+          <button class="btn" id="gravBack" title="Put this card back on the battlefield">Return card to play</button>
+          <button class="btn danger" id="gravRemove" title="Take this card out of the game entirely — it leaves the graveyard too">Remove card from the game</button>
+          <button class="btn ghost" id="gravStang" title="Close the graveyard (Esc)">Back to table</button>
         </div>
         <p class="gravfot">The same browser opens when you click a stack of attached cards.</p>
       </div>
@@ -3794,7 +3858,7 @@ const Moln = (() => {
   async function minaSpel() {
     const s = await klient(); if (!s || !inloggad()) return [];
     const { data } = await s.from('game_players')
-      .select('game_id, games(id, kod, namn, skapad, avslutad)')
+      .select('game_id, games(id, kod, namn, skapad, avslutad, vard)')
       .eq('user_id', minId())
       .order('gick_med', { ascending: false }).limit(6);
     const sedda = new Set();
@@ -3885,6 +3949,19 @@ const Moln = (() => {
      omöjligt att skilja från ett som lyckades. Namnet stod kvar lokalt och
      ingen annan såg det — tills nästa deltagarhändelse tyst rullade tillbaka
      det. Nu returneras utfallet och anroparen får säga till. */
+  /* Avsluta ett spel. Bara värden får — radsäkerheten säger samma sak, men
+     ett anrop som ändå kommer att nekas är bara brus. Spelet raderas inte:
+     korten och deltagarna finns kvar, det slutar bara dyka upp i listan och
+     går inte längre att gå med i. */
+  async function avslutaSpel(gameId) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('games')
+      .update({ avslutad: new Date().toISOString() })
+      .eq('id', gameId).eq('vard', minId());
+    if (error) { console.warn('Spelet kunde inte avslutas', error.message); return false; }
+    return true;
+  }
+
   async function dopOm(gameId, namn) {
     const s = await klient(); if (!s || !inloggad()) return false;
     const { error } = await s.from('game_players')
@@ -4008,7 +4085,8 @@ const Moln = (() => {
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
-           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, lyssna, lamnaKanal,
+           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm,
+           avslutaSpel, lyssna, lamnaKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
@@ -4134,6 +4212,11 @@ function save() {
    förut genom save(), som i ett spel skickar HELA kortlistan till servern —
    varje klick bumpade versionen och väckte alla andras klienter för något de
    inte ens kan se. */
+/* Enhetslokala värden: vilken flik man tittar på och vilket kort som är
+   markerat. Lokalt ligger de i samma klump som allt annat, så där räcker den
+   vanliga debouncen. I ett spel får de INTE gå via save() — den skickar hela
+   kortlistan, bumpar versionen och väcker alla andras klienter för något de
+   inte ens kan se. */
 function sparaUi() {
   if (fjarrLas) return;
   if (!spelLage) { save(); return; }
@@ -4214,8 +4297,6 @@ function renderTabs() {
    av kortbredden. Förra layouten räknade den som en funktion av kortbredden
    och hamnade i en rundgång: större kort gav högre band gav mindre plats.
    Mäts efter rendering; konstanten är reservvärdet ur designen. */
-const BAND_H = 330;
-const bandHojd = () => manaRow.hidden ? 0 : (manaRow.offsetHeight || BAND_H);
 
 /* Ryms n permanents på `rader` rader med kortbredden w? Ett TAPPAT kort tar
    kvadratisk plats — kortets höjd i båda led — och är alltså (h − w) bredare
@@ -4242,12 +4323,14 @@ function computeFit() {
   const gapCS = getComputedStyle(gridEl);
   const gapY = parseFloat(gapCS.rowGap) || 7, gapX = parseFloat(gapCS.columnGap) || 6;
   const W = gridWrap.clientWidth - padX - 2 - 6;
-  /* Ytan är bordet minus bandet, minus mellanrummet mellan zonerna och minus
-     permanents-zonens egen rubrikrad. */
-  /* RING är plats åt markeringsramen och lyftet vid hover: utan den räcker
+  /* Ytan är permanents-zonen minus dess egen rubrikrad. Bandet räknades förut
+     bort här — det låg då INUTI gridWrap. Sedan brädet blev ett rutnät är det
+     en egen ruta bredvid, och gridWrap.clientHeight innehåller det inte
+     längre: avdraget blev dubbelt och korten krympte till en tredjedel.
+     RING är plats åt markeringsramen och lyftet vid hover: utan den räcker
      ytan precis till korten och ramen kapas mot zonens kant. */
   const RING = 10;
-  const H = gridWrap.clientHeight - padY - bandHojd() - 10 - rubrik - 4 - 2 - RING;
+  const H = gridWrap.clientHeight - padY - rubrik - 4 - 2 - RING;
   if (!(W > 0 && H > 0)) return prefs.cardw;
 
   /* Största bredd som ryms, sökt uppifrån. Räknar på ALLA permanents, även de
@@ -4758,7 +4841,6 @@ function renderMana(cards) {
       </div>
       ${gravHtml(cards, d.grav)}
     </div>
-    <i class="bandsep"></i>
     <div class="bandkol kol-lands" data-zon-lands>
       <div class="zonrub">
         <span class="zonlbl">Lands</span><i class="zonlinje"></i>
@@ -5141,7 +5223,10 @@ function setActive(id) {
   if (!state.players.some(p => p.id === id)) return;
   state.active = id;
   state.sel = 0;
-  save(); renderAll(true);
+  /* Att byta flik ändrar inte ett enda kort. Gick det genom save() skrevs hela
+     mitt bord till servern, versionen bumpades, och alla andras klienter ritade
+     om sig — kortet de tittade på hoppade till varje gång jag bläddrade. */
+  sparaUi(); renderAll(true);
   resolveAll();
 }
 function addPlayer(name) {
@@ -5363,7 +5448,7 @@ gridEl.addEventListener('click', ev => {
   const c = ev.target.closest('.card');
   if (!c) return;
   state.sel = +c.dataset.i;
-  renderSel(); renderDetail(); save();
+  renderSel(); renderDetail(); sparaUi();
 });
 gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
 function rutaTangent(ev) {
@@ -5748,6 +5833,7 @@ $('#gravList').addEventListener('click', ev => {
 });
 $('#gravPrev').onclick = () => gravStep(-1);
 $('#gravNext').onclick = () => gravStep(1);
+$('#gravStang').onclick = () => closeOv('gravOv');
 $('#gravBack').onclick = () => {
   if (!redigerbar()) return;
   const lista = gravKort();
@@ -5891,7 +5977,7 @@ $('#fxPrev').onclick = () => step(-1);
 $('#fxNext').onclick = () => step(1);
 $('#fxStrip').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-i]');
-  if (b) { state.sel = +b.dataset.i; save(); renderFocus(); renderSel(); renderDetail(); }
+  if (b) { state.sel = +b.dataset.i; sparaUi(); renderFocus(); renderSel(); renderDetail(); }
 });
 $('#fxImg').addEventListener('click', () => { if (redigerbar()) flipSel(); });
 
@@ -6002,7 +6088,7 @@ function stepRow(d) {
     }
   }
   state.sel = snapNav(state.sel);
-  save(); renderSel(); renderDetail(); renderFocus();
+  sparaUi(); renderSel(); renderDetail(); renderFocus();
 }
 
 /* ─── hjälp & bulk ─── */
@@ -6063,6 +6149,11 @@ $('#menuBtn').onclick = ev => {
     <button data-a="ai">AI help<span style="margin-left:auto;color:${AI.mode === 'server' ? 'var(--green)' : 'var(--dim2)'};font:10px var(--mono)">${AI.mode === 'server' ? (prefs.aiAuto ? 'ON' : 'READY') : aiKey() ? 'OWN KEY' : 'OFF'}</span></button>
     <hr>
     <button data-a="nums">${prefs.shownums ? '✓ ' : ''}Visa nummer på korten</button>
+    ${spelLage ? `<hr>
+    <div class="hd">Spelet</div>
+    <button data-a="lamna">Tillbaka till mina spel</button>
+    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}
+    <button data-a="loggaut">Logga ut</button>` : ''}
     <button data-a="reset" class="danger">Nollställ appen</button>`;
   const r = $('#menuBtn').getBoundingClientRect();
   menuEl.style.top = (r.bottom + 6) + 'px';
@@ -6083,6 +6174,9 @@ menuEl.addEventListener('click', ev => {
   if (a === 'export') exportJSON();
   if (a === 'import') $('#importInput').click();
   if (a === 'nums') { prefs.shownums = !prefs.shownums; savePrefs(); applySize(); }
+  if (a === 'lamna') tillbakaTillLobby();
+  if (a === 'avsluta') avslutaSpelet();
+  if (a === 'loggaut') loggaUtHelt();
   if (a === 'reset') {
     ask('Every player, hand and screenshot is removed and the page reloads. This cannot be undone.',
         { title: 'Reset everything?', ok: 'Reset', danger: true }).then(yes => {
@@ -6192,8 +6286,8 @@ addEventListener('keydown', ev => {
     case 'ArrowRight': ev.preventDefault(); step(1); return;
     case 'ArrowUp':    ev.preventDefault(); focusOpen ? step(-1) : stepRow(-1); return;
     case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : stepRow(1); return;
-    case 'Home':       ev.preventDefault(); state.sel = 0; save(); renderSel(); renderDetail(); renderFocus(); return;
-    case 'End':        ev.preventDefault(); state.sel = snapNav(Math.max(0, hand().length - 1)); save(); renderSel(); renderDetail(); renderFocus(); return;
+    case 'Home':       ev.preventDefault(); state.sel = 0; sparaUi(); renderSel(); renderDetail(); renderFocus(); return;
+    case 'End':        ev.preventDefault(); state.sel = snapNav(Math.max(0, hand().length - 1)); sparaUi(); renderSel(); renderDetail(); renderFocus(); return;
     case ' ':          if (!redigerbar()) return; ev.preventDefault(); flipSel(); return;
     case 'Enter':
       ev.preventDefault();
@@ -6825,6 +6919,13 @@ function nyAvbrytning() { cancelAnalyze = false; avbrytStyr = new AbortControlle
 const avbrytSignal = () => avbrytStyr ? avbrytStyr.signal : undefined;
 function kollaAvbrott() { if (cancelAnalyze) { const e = new Error('avbrutet'); e.avbrutet = true; throw e; } }
 const arAvbrott = e => !!(e && (e.avbrutet || e.name === 'AbortError')) || cancelAnalyze;
+/* Efter ett avbrott ska det vara tyst. Den som tryckt Cancel vet redan vad som
+   hände och behöver varken få veta att avläsningen avbröts, att ett anrop
+   avbröts under tiden eller att inga kort hittades — alla tre är följder av
+   klicket, inte nyheter. Avbrytningen river pågående anrop, så felen kommer i
+   en klunga en stund EFTER klicket: utan spärren fick man tre röda rutor för
+   något man själv bett om. */
+const anToast = (txt, typ) => { if (!cancelAnalyze) toast(txt, typ); };
 
 $('#anCancel').onclick = () => {
   cancelAnalyze = true;
@@ -6971,12 +7072,13 @@ async function analyzeShot(shotId) {
        fungerande avläsning ut som att ingenting hittades. */
     if (aiEnabled() && prefs.aiAuto) {
       try { await claudePaneSweep(img, panes, shotId, out, namnLoftet); }
-      catch (e) { toast('Could not read the whole image — showing what was found anyway', 'err'); }
+      catch (e) { anToast('Could not read the whole image — showing what was found anyway', 'err'); }
     }
+    if (cancelAnalyze) return 0;      // avbrutet: inget resultat, inget besked
     return applyAnalysis(shotId, out, img);
   } catch (e) {
     /* Ett avbrott är inget fel — användaren bad om det. */
-    toast(arAvbrott(e) ? 'Reading cancelled' : 'Reading failed: ' + (e.message || 'unknown error'), arAvbrott(e) ? 'ok' : 'err');
+    if (!arAvbrott(e)) toast('Reading failed: ' + (e.message || 'unknown error'), 'err');
     return 0;
   } finally {
     analyzing = false;
@@ -7115,7 +7217,7 @@ async function analyzeExtra(shotId, tyst) {
     return appendAnalysis(shotId, [{ pane: hela, acc, pend }], img);
   } catch (e) {
     /* Ett avbrott är inget fel — användaren bad om det. */
-    if (!tyst) toast(arAvbrott(e) ? 'Reading cancelled' : 'Reading failed: ' + (e.message || 'unknown error'), arAvbrott(e) ? 'ok' : 'err');
+    if (!tyst && !arAvbrott(e)) toast('Reading failed: ' + (e.message || 'unknown error'), 'err');
     return 0;
   } finally {
     analyzing = false;
@@ -7402,7 +7504,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
     /* Ett fel på EN ruta får inte fälla de andra nu när de körs samtidigt —
        den som lyckades ska behålla sina kort. */
     try { kort = await readPane(img, panes[i]); }
-    catch (e) { const err = claudeError(e); toast('Identification: ' + err.msg, 'err'); return; }
+    catch (e) { const err = claudeError(e); anToast('Identification: ' + err.msg, 'err'); return; }
 
     const r = out[i] || (out[i] = { pane: panes[i], acc: [], pend: [] });
     const cell = anEl.panes.children[i], cnt = cell && cell.querySelector('.c');
@@ -7429,6 +7531,24 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
        nästan alltid skräp — videoappens egen knapp hamnade så i listan. */
     r.pend = r.pend.filter(q => nya.some(k => boxOverlap(q.box, k.box) > 0.30));
 
+    /* Foten ska räkna det som pågår. Claudes fynd ligger ännu inte i `out` —
+       de läggs dit först efter avdubbleringen längre ner — så foten beskrev
+       detektorns tidigare omgång medan steget beskrev den här: "3 cards found
+       · 1 left" samtidigt som det stod "Identifying 7 more cards up close".
+       Talen såg ut att motsäga varandra. Nu räknas de fynd som ännu inte
+       finns i listan med, så found/identified/left hela tiden beskriver samma
+       kort som steget talar om. */
+    const svepExtra = () => nya.filter(k =>
+      !r.acc.some(a => boxOverlap(a.box, k.box) > 0.30) &&
+      !r.pend.some(q => boxOverlap(q.box, k.box) > 0.30));
+    const summaMedSvep = () => {
+      let h = 0, i2 = 0;
+      for (const rr of out) { h += rr.acc.length + rr.pend.length; i2 += rr.acc.length; }
+      const extra = svepExtra();
+      anRakna(h + extra.length, i2 + extra.filter(k => k.namn).length);
+    };
+    summaMedSvep();
+
     // namnlösa kort får en närbild; rutan hittar men namnger inte små kort
     const namnlosa = nya.filter(k => !k.namn).slice(0, NARBILD_MAX);
     if (namnlosa.length) {
@@ -7439,6 +7559,7 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
         try { const v = await readCard(img, k.box); if (v && v.namn) { k.namn = v.namn; k.sakerhet = v.sakerhet; } }
         catch (e) { /* ett misslyckat kort ska inte stoppa resten */ }
         anBar((i + (++klara / namnlosa.length)) / panes.length);
+        summaMedSvep();
       });
       /* Två i taget per ruta i stället för tre: rutorna körs nu samtidigt, så
          den totala samtidigheten mot serverns takräkning blir densamma. */
@@ -7446,10 +7567,8 @@ async function claudePaneSweep(img, panes, shotId, out, namnLoftet) {
         if (cancelAnalyze) return;
         await Promise.all(jobb.slice(j, j + 2).map(f => f()));
       }
-      anSumma(out);
     }
-
-    anSumma(out);
+    summaMedSvep();
     // efter snappningen kan två gissningar ha landat på samma kort
     const unika = [];
     for (const k of nya) if (!unika.some(u => boxOverlap(u.box, k.box) > 0.45)) unika.push(k);
@@ -7527,7 +7646,7 @@ async function claudePass(out, img) {
         }
       } catch (e) {
         const err = claudeError(e);
-        toast('Identification: ' + err.msg, 'err');
+        anToast('Identification: ' + err.msg, 'err');
         if (err.fatal) { stop = true; return; }
       }
       done++;
@@ -7536,7 +7655,7 @@ async function claudePass(out, img) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
-  if (added) toast(`${added} uncertain cards were identified`, 'ok');
+  if (added) anToast(`${added} uncertain cards were identified`, 'ok');
 }
 
 /* Hur stor del av den mindre rutan som ligger inom den större. */
@@ -7674,11 +7793,11 @@ function appendAnalysis(shotId, out, img, ersatt) {
 
   const n = nya.length, v = nyaVantar.length;
   const ord = ersatt ? 'on your board' : 'added';
-  if (!n && !v) toast('No cards found in the image', 'err');
-  else if (!n) toast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
-  else if (v) toast(`${n} cards ${ord} · ${v} to fill in`, 'ok');
-  else if (ersatt) toast(n === 1 ? `1 card on your board` : `${n} cards on your board`, 'ok');
-  else toast(n === 1 ? `${nya[0].name} added` : `${n} cards added`, 'ok');
+  if (!n && !v) anToast('No cards found in the image', 'err');
+  else if (!n) anToast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
+  else if (v) anToast(`${n} cards ${ord} · ${v} to fill in`, 'ok');
+  else if (ersatt) anToast(n === 1 ? `1 card on your board` : `${n} cards on your board`, 'ok');
+  else anToast(n === 1 ? `${nya[0].name} added` : `${n} cards added`, 'ok');
   return n + v;
 }
 
@@ -8502,9 +8621,9 @@ const Kamera = (() => {
     if (ov.width !== R.width || ov.height !== R.height) { ov.width = R.width; ov.height = R.height; }
     ovc.clearRect(0, 0, ov.width, ov.height);
     if (!kal) return;
-    /* Videon ligger med object-fit:cover, så bildrutan är beskuren mot
+    /* Videon ligger med object-fit:contain, alltså hela bildrutan inpassad i
        skärmen. Samma uträkning här, annars hamnar ramen bredvid mattan. */
-    const s = Math.max(ov.width / vb, ov.height / vh);
+    const s = Math.min(ov.width / vb, ov.height / vh);
     const ox = (ov.width - vb * s) / 2, oy = (ov.height - vh * s) / 2;
     const r = kal.ruta;
     const x = ox + r.x * vb * s, y = oy + r.y * vh * s;
@@ -8650,6 +8769,12 @@ const FLIK_ID = (() => {
 
 async function visaKamOv() {
   if (!spelLage) return;
+  /* Dialogen öppnas direkt — ett klick ska ge något att titta på med en gång,
+     inte efter ett nätanrop. Väntar telefonen redan på att ytan ska bekräftas
+     byter vi till det steget så fort svaret kommer: QR-koden är fel svar då,
+     telefonen ÄR ansluten och en ny skanning kopplar upp samma enhet igen.
+     Refreshade man datorn mitt i steget fastnade man här — QR på datorn,
+     kameraläge på telefonen, och ingen väg framåt. */
   openOv('kamOv');
   $('#kamStegQr').hidden = false;
   $('#kamStegKal').hidden = true;
@@ -8658,8 +8783,29 @@ async function visaKamOv() {
   $('#kamLank').textContent = lank;
   $('#kamOvStatus').textContent = 'Väntar på att telefonen ansluter…';
   ritaQr(lank);
+  const vantande = await kalibreringSomVantar();
+  if (vantande) { visaKalibrering(vantande); return; }
   const k = await Moln.hamtaKalibrering(spelLage.id);
-  if (k) $('#kamOvStatus').textContent = 'En kamera är redan kalibrerad för det här spelet.';
+  if (k) $('#kamOvStatus').textContent =
+    'En kamera är redan kalibrerad för det här spelet. Ligger telefonen redan i kameraläget kan du trycka "Kalibrera" där för att skicka en ny bild.';
+}
+/* En kalibreringsbild som fortfarande är aktuell. Handskakningen är levande:
+   en bild från i förrgår betyder ingenting, och att öppna dialogen för den
+   varje gång man går in i spelet vore bara i vägen. */
+const KAL_FARSK_MS = 3 * 60 * 1000;
+async function kalibreringSomVantar() {
+  if (!spelLage) return null;
+  try {
+    const rader = await Moln.vantandeScans(spelLage.id);
+    const kal = rader.filter(r => r.status === 'kal');
+    let farsk = null;
+    for (const r of kal) {
+      const alder = Date.now() - new Date(r.skapad || r.andrad || 0).getTime();
+      if (alder < KAL_FARSK_MS) farsk = r;
+      else Moln.radeaScan(r);              // gammal handskakning, städa bort
+    }
+    return farsk;
+  } catch (e) { return null; }
 }
 $('#kamKnapp').onclick = () => visaKamOv();
 $('#kamKopiera').onclick = async () => {
@@ -8831,7 +8977,16 @@ $('#kalSpara').onclick = async () => {
 let kamArbetar = false;
 async function taEmotScan(rad) {
   if (!spelLage || !rad || rad.user_id !== Moln.minId()) return;
-  if (rad.status === 'kal') { visaKalibrering(rad); return; }
+  if (rad.status === 'kal') {
+    /* Bara en färsk handskakning öppnar dialogen. Raden ligger kvar tills ytan
+       bekräftats, så en avbruten kalibrering fick annars kameradialogen att
+       slå upp varje gång man gick in i spelet — mitt i att man tittade på
+       bordet, för något man gjorde i förrgår. */
+    const alder = Date.now() - new Date(rad.skapad || rad.andrad || 0).getTime();
+    if (alder < KAL_FARSK_MS) visaKalibrering(rad);
+    else Moln.radeaScan(rad);
+    return;
+  }
   if (rad.status !== 'ny') return;
   if (kamArbetar) return;                     // nästa varv plockar den
   kamArbetar = true;
@@ -8913,8 +9068,14 @@ async function visaLobby() {
     const spel = await Moln.minaSpel();
     const box = $('#lobbyMina');
     box.hidden = !spel.length;
+    /* Värden får avsluta sina egna spel härifrån. Det är här man ser dem
+       ligga kvar, och alltså här man vill bli av med dem. */
+    const jag = Moln.minId();
     box.innerHTML = spel.map(g =>
-      `<button data-spel="${esc(g.id)}"><b>${esc(g.namn || 'Spel')}</b><span class="kod">${esc(g.kod)}</span></button>`).join('');
+      `<div class="lobbyrad">
+         <button data-spel="${esc(g.id)}"><b>${esc(g.namn || 'Spel')}</b><span class="kod">${esc(g.kod)}</span></button>
+         ${g.vard === jag ? `<button class="spelslut" data-avsluta="${esc(g.id)}" data-kod="${esc(g.kod)}" title="Avsluta spelet ${esc(g.kod)}">Avsluta</button>` : ''}
+       </div>`).join('');
   } catch (e) { /* listan är en bekvämlighet, inte en förutsättning */ }
 }
 
@@ -9101,6 +9262,47 @@ $('#bjudInBtn').onclick = async () => {
   catch (e) { prompt('Kopiera länken:', lank); }
 };
 
+/* ── ut ur ett spel ─────────────────────────────────────────────────
+   Tre olika saker som är lätta att blanda ihop: lämna spelet (det finns kvar,
+   du kan gå in igen), avsluta det (ingen kan gå med, det försvinner ur allas
+   listor), och logga ut (enheten glömmer vem du är). */
+async function lamnaSpelet() {
+  if (saveT) sparaNu();                     // ut med det som ligger i debouncen
+  await Moln.lamnaKanal();
+  spelLage = null;
+  kameraEnhet = false;
+  kalRad = null;
+  state.players = [];
+  visaSparstatus(true);
+}
+async function tillbakaTillLobby() {
+  await lamnaSpelet();
+  LS.set(K.lage, 'moln');
+  await visaLobby();
+}
+async function avslutaSpelet() {
+  if (!spelLage) return;
+  const kod = spelLage.kod;
+  const ja = await ask(`Ingen kan gå med i ${kod} efteråt, och det försvinner ur allas listor. Korten ligger kvar.`,
+                       { title: 'Avsluta spelet?', ok: 'Avsluta', danger: true });
+  if (!ja) return;
+  const id = spelLage.id;
+  if (!await Moln.avslutaSpel(id)) { toast('Spelet kunde inte avslutas', 'err'); return; }
+  await tillbakaTillLobby();
+  toast(`Spelet ${kod} är avslutat`, 'ok');
+}
+async function loggaUtHelt() {
+  const ja = await ask('Den här enheten glömmer vem du är. Dina spel ligger kvar och du kan logga in igen.',
+                       { title: 'Logga ut?', ok: 'Logga ut' });
+  if (!ja) return;
+  await lamnaSpelet();
+  LS.del(K.lage);
+  LS.del(K.ui);
+  await Moln.loggaUt();
+  visaVy('start');
+  location.reload();
+}
+
 async function startaLokalt() {
   spelLage = null;
   LS.set(K.lage, 'lokal');
@@ -9116,9 +9318,7 @@ $('#loggaInBtn').onclick = async () => {
   try { LS.set(K.lage, 'moln'); await Moln.loggaIn(inbjudanIUrl()); }
   catch (e) { portalFel('#startFel', e.message || 'Inloggningen gick inte att starta.'); }
 };
-$('#loggaUtBtn').onclick = async () => {
-  await Moln.loggaUt(); spelLage = null; LS.del(K.lage); visaVy('start');
-};
+$('#loggaUtBtn').onclick = () => loggaUtHelt();
 $('#skapaSpelBtn').onclick = async () => {
   portalFel('#lobbyFel', '');
   const b = $('#skapaSpelBtn'); b.disabled = true;
@@ -9135,6 +9335,16 @@ $('#joinForm').onsubmit = async ev => {
   catch (e) { portalFel('#lobbyFel', e.message === 'Spelet finns inte' ? 'Ingen hittade med den koden.' : (e.message || 'Kunde inte gå med.')); }
 };
 $('#lobbyMina').addEventListener('click', async ev => {
+  const slut = ev.target.closest('[data-avsluta]');
+  if (slut) {
+    ev.stopPropagation();
+    const kod = slut.dataset.kod;
+    if (!await ask(`Ingen kan gå med i ${kod} efteråt, och det försvinner ur allas listor. Korten ligger kvar.`,
+                   { title: 'Avsluta spelet?', ok: 'Avsluta', danger: true })) return;
+    if (await Moln.avslutaSpel(slut.dataset.avsluta)) { await visaLobby(); toast(`Spelet ${kod} är avslutat`, 'ok'); }
+    else portalFel('#lobbyFel', 'Spelet kunde inte avslutas.');
+    return;
+  }
   const b = ev.target.closest('[data-spel]'); if (!b) return;
   try { await oppnaSpel(b.dataset.spel); }
   catch (e) { portalFel('#lobbyFel', e.message || 'Kunde inte öppna spelet.'); }
