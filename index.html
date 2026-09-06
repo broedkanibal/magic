@@ -248,8 +248,16 @@ main{flex:1;display:flex;min-height:0}
   }
   .kolmark .markruta{border:0;background:none;padding:0}
 }
-/* Tom hand: ingen bottenrad alls, uppmaningen får hela ytan. */
-body.tomhand .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
+/* Tom hand: ingen bottenrad alls, uppmaningen får hela ytan. Raderna måste
+   skrivas om med areorna — grid-template-rows räknar fortfarande två rader
+   annars, och den tomma andra raden reserverade 300 px som permanents-zonen
+   inte fick använda. Uppmaningen ritas mitt i den zonen och stack därför ut
+   både uppåt och nedåt, där brädet klipper. */
+body.tomhand .brade{
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr);
+  grid-template-areas:"perm";
+}
 .gridwrap{
   min-height:0;min-width:0;position:relative;overflow:hidden;
   display:flex;flex-direction:column;gap:10px;
@@ -528,10 +536,16 @@ body.tomhand .kolmark{display:none}
 .card.err .skel{display:flex;animation:none;background:#2a1c1f;color:#e08a92}
 @keyframes sh{to{background-position:-300% 0}}
 
+/* Ryms inte texten på höjden ska den gå att rulla i stället för att kapas.
+   Ett litet fönster, ett stort typsnitt eller ett extra stycke räcker för att
+   den ska bli högre än zonen, och halva kameraikonen plus en avhuggen mening
+   läser sig som att appen är trasig. */
 .empty{
   position:absolute;inset:0;display:grid;place-content:center;justify-items:center;
   gap:16px;text-align:center;padding:24px;pointer-events:none;
+  overflow-y:auto;overscroll-behavior:contain;
 }
+.empty > *{pointer-events:auto}
 .empty.hide{display:none}
 #emptyLas{display:none}
 body.lasvy #emptyHand{display:none}
@@ -6155,9 +6169,9 @@ $('#menuBtn').onclick = ev => {
     ${spelLage ? `<hr>
     <div class="hd">Spelet</div>
     <button data-a="lamna">Tillbaka till mina spel</button>
-    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}
-    <button data-a="loggaut">Logga ut</button>` : ''}
-    <button data-a="reset" class="danger">Nollställ appen</button>`;
+    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}` : ''}
+    <button data-a="reset" class="danger">Nollställ appen</button>
+    ${spelLage ? '<hr><button data-a="loggaut">Logga ut</button>' : ''}`;
   const r = $('#menuBtn').getBoundingClientRect();
   menuEl.style.top = (r.bottom + 6) + 'px';
   menuEl.style.left = 'auto';
@@ -7788,15 +7802,24 @@ function appendAnalysis(shotId, out, img, ersatt) {
       for (const w of [220, 260]) { const d = makeCrop(img, q.box, q.rot, w); if (d) cropCache.set(q.id + '@' + w, d); }
     });
   }
-  if (ersatt) { p.cards = nya; p.pending = nyaVantar; }
-  else { p.cards.push(...nya); p.pending = (p.pending || []).concat(nyaVantar); }
+  /* En omläsning ERSÄTTER bordet — det är vad knappen lovar. Men den ersätter
+     aldrig med ingenting: hittar avläsningen noll kort betyder det att
+     LÄSNINGEN gick fel, inte att bordet är tomt. Dålig belysning, fel bild
+     eller ett modellanrop som inte gick fram räckte för att tömma allt man
+     lagt ut, och kvar stod ett tomt bord som såg ut som att appen slutat
+     fungera. */
+  const tomtResultat = !nya.length && !nyaVantar.length;
+  if (ersatt && !tomtResultat) { p.cards = nya; p.pending = nyaVantar; }
+  else if (!ersatt) { p.cards.push(...nya); p.pending = (p.pending || []).concat(nyaVantar); }
   if (!p.shots.includes(shotId)) p.shots.push(shotId);
   p.shotIdx = p.shots.indexOf(shotId);
   save(); renderAll(true); resolveAll();
 
   const n = nya.length, v = nyaVantar.length;
   const ord = ersatt ? 'on your board' : 'added';
-  if (!n && !v) anToast('No cards found in the image', 'err');
+  if (!n && !v) anToast(ersatt && p.cards.length
+    ? 'No cards found in the image — your board is untouched'
+    : 'No cards found in the image', 'err');
   else if (!n) anToast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
   else if (v) anToast(`${n} cards ${ord} · ${v} to fill in`, 'ok');
   else if (ersatt) anToast(n === 1 ? `1 card on your board` : `${n} cards on your board`, 'ok');
