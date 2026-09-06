@@ -1404,8 +1404,18 @@ body.lasvy .lasband{display:flex}
   border:1px solid var(--line);border-radius:6px;padding:7px 9px;
 }
 .kamfin2{margin:0;font:11.5px/1.5 var(--sans);color:var(--dim2)}
-.kalbild{position:relative;border-radius:10px;overflow:hidden;background:#000;user-select:none}
+.kalbild{position:relative;border-radius:10px;overflow:hidden;background:#000;user-select:none;min-height:120px}
 .kalbild img{display:block;width:100%;height:auto}
+/* Innan första bildrutan kommit finns ingen bild att dra rutan mot. */
+.kalvantar{
+  position:absolute;inset:0;display:grid;place-items:center;
+  color:#5a6474;font:12px var(--sans);text-align:center;padding:12px;
+}
+.kalvantar[hidden]{display:none}
+/* En liten pulserande prick vid statusraden när bilden strömmar. */
+.kamlive{display:inline-flex;align-items:center;gap:6px;color:var(--green)}
+.kamlive i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.6s ease-in-out infinite}
+@keyframes kampuls{0%,100%{opacity:1}50%{opacity:.35}}
 .kalruta{
   position:absolute;border:2px solid var(--acc);cursor:move;
   box-shadow:0 0 0 9999px #000000a8;
@@ -1712,9 +1722,9 @@ body.ispel #addPlayerBtn{display:none}
   <div class="kambotten">
     <p class="kamstatus" id="kamStatus">Startar kameran…</p>
     <p class="kamfin" id="kamFin"></p>
-    <div class="kamknappar">
-      <button class="btn prim big" id="kamKalibrera">Skicka bild för kalibrering</button>
-    </div>
+    <!-- Ingen knapp. Telefonen sitter i en hållare över bordet: man kommer
+         varken åt skärmen eller ser den. Allt som ska göras görs på datorn,
+         och det enda man kan behöva här är att koppla från. -->
     <div class="kamsenast" id="kamSenast" hidden>
       <img id="kamSenastBild" alt="">
       <span id="kamSenastTxt"></span>
@@ -2007,12 +2017,14 @@ body.ispel #addPlayerBtn{display:none}
         <div class="kalbild" id="kalBild">
           <img id="kalImg" alt="">
           <div class="kalruta" id="kalRuta"><i data-horn="nv"></i><i data-horn="no"></i><i data-horn="sv"></i><i data-horn="so"></i></div>
+          <div class="kalvantar" id="kalVantar">Väntar på bild från telefonen…</div>
         </div>
         <p class="kamfin2" id="kalFin"></p>
       </div>
     </div>
     <div class="foot">
       <span class="grow" id="kamOvStatus"></span>
+      <button class="btn danger" id="kamKoppla" hidden>Koppla bort kameran</button>
       <button class="btn" data-close="kamOv">Stäng</button>
       <button class="btn prim" id="kalSpara" hidden>Bekräfta ytan</button>
     </div>
@@ -4043,6 +4055,8 @@ const Moln = (() => {
     lyssnare.bord = cb.bord; lyssnare.spelare = cb.spelare;
     lyssnare.scan = cb.scan; lyssnare.kal = cb.kal; lyssnare.uppkopplad = cb.uppkopplad;
     lyssnare.sparat = cb.sparat;
+    lyssnare.kam = cb.kam; lyssnare.narvaro = cb.narvaro;
+    lyssnare.roll = cb.roll || null;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
           p => lyssnare.bord && lyssnare.bord(p.new || p.old, p.eventType))
@@ -4052,12 +4066,30 @@ const Moln = (() => {
           p => lyssnare.scan && lyssnare.scan(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_setups', filter: 'game_id=eq.' + gameId },
           p => lyssnare.kal && lyssnare.kal(p.new || p.old))
+      /* Bilden från telefonen går INTE genom databasen. En kalibrering vill ha
+         några bildrutor i sekunden och de ska aldrig sparas — de är bara till
+         för att man ska kunna sikta. Broadcast passerar servern utan att röra
+         en tabell, och kanalen finns redan. Samma väg bär kommandon åt andra
+         hållet: börja skicka, sluta skicka, koppla från. */
+      .on('broadcast', { event: 'kam' }, p => lyssnare.kam && lyssnare.kam(p.payload || {}))
+      /* Närvaro svarar på den enda fråga gränssnittet egentligen ställer:
+         sitter det en kamera i det här spelet just nu? Utan den fick datorn
+         gissa utifrån om det råkat komma en bild. */
+      .on('presence', { event: 'sync' }, () => {
+        if (!lyssnare.narvaro || !kanal) return;
+        const alla = Object.values(kanal.presenceState() || {}).flat();
+        lyssnare.narvaro(alla.filter(x => x && x.roll === 'kamera'));
+      })
       /* Statusen är inte kosmetisk. Tappas sockeln återansluter supabase-js
          tyst, men de händelser som missades under tiden spelas ALDRIG upp
          igen. För borden läker det av sig självt — nästa skrivning bär hela
          kortlistan. En avläsning finns bara en gång, så den som vaknar måste
          fråga efter vad som ligger kvar. */
-      .subscribe(st => { if (st === 'SUBSCRIBED' && lyssnare.uppkopplad) lyssnare.uppkopplad(); });
+      .subscribe(async st => {
+        if (st !== 'SUBSCRIBED') return;
+        if (lyssnare.roll) { try { await kanal.track({ roll: lyssnare.roll, id: minId() }); } catch (e) {} }
+        if (lyssnare.uppkopplad) lyssnare.uppkopplad();
+      });
   }
 
   /* ─── kameran ──────────────────────────────────────────────────────
@@ -4136,6 +4168,14 @@ const Moln = (() => {
     return data || [];
   }
 
+  /* Ett meddelande på kanalen. Returnerar utan att kasta om kanalen inte är
+     uppe — en tappad bildruta är ingenting att stanna för. */
+  function sandKam(typ, data) {
+    if (!kanal) return false;
+    try { kanal.send({ type: 'broadcast', event: 'kam', payload: Object.assign({ typ }, data || {}) }); return true; }
+    catch (e) { return false; }
+  }
+
   async function lamnaKanal() {
     /* Släpp en osänd skrivning. Den hör till spelet man lämnar, och utan det
        här försökte omsändningen skriva till ett bord man inte längre sitter
@@ -4150,7 +4190,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm,
-           avslutaSpel, lyssna, lamnaKanal,
+           avslutaSpel, lyssna, lamnaKanal, sandKam,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
@@ -6074,6 +6114,8 @@ function closeOv(id) {
   $('#' + id).classList.remove('open');
   // stängs rutan på annat sätt — kryss, Esc, klick utanför — räknas det som nej
   if (id === 'askOv' && askResolve) { const r = askResolve; askResolve = null; r(false); }
+  /* Oavsett HUR kameradialogen stängdes ska telefonen sluta strömma. */
+  if (id === 'kamOv' && typeof stangKamOv === 'function') stangKamOv();
 }
 /* Egen bekräftelseruta i stället för webbläsarens confirm(). Den senare kan
    sluta svara helt: har man en gång kryssat i Chromes "hindra sidan från att
@@ -8793,6 +8835,21 @@ const Kamera = (() => {
     säg('vantar-tom', 'Ta bort kortet från mattan');
   }
 
+  /* En liten bildruta för strömmen till datorn. Full bildruta, precis som
+     stillbilden — kalibreringsrutan uttrycks i andelar av HELA rutan, så det
+     datorn siktar mot måste vara samma bild som analysen sedan beskär ur.
+     Liten och hårt komprimerad: den ska passera realtidskanalen flera gånger
+     i sekunden, inte arkiveras. */
+  function forhandsbild(bredd) {
+    const vb = video.videoWidth, vh = video.videoHeight;
+    if (!vb || !vh) return null;
+    const s = Math.min(1, (bredd || 380) / vb);
+    const c = document.createElement('canvas');
+    c.width = Math.round(vb * s); c.height = Math.round(vh * s);
+    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    return { url: c.toDataURL('image/jpeg', 0.45), w: vb, h: vh };
+  }
+
   /* En stillbild att kalibrera mot. Full bildruta, inte beskuren — det är
      just rutan datorn ska peka ut. */
   async function stillbild() {
@@ -8829,7 +8886,7 @@ const Kamera = (() => {
 
   const säg = (l, txt) => { if (lage !== 'skickar' && lage !== 'vantar-tom') lage = l; if (cb.status) cb.status(l, txt); };
 
-  return { start, stopp, satKalibrering, stillbild, beslut, get lage() { return lage; } };
+  return { start, stopp, satKalibrering, stillbild, forhandsbild, beslut, get lage() { return lage; } };
 })();
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -8855,7 +8912,6 @@ let kamRaknare = 0;
 
 const kamSag = (l, txt) => {
   const st = $('#kamStatus'); if (st && txt) st.textContent = txt;
-  $('#kamKalibrera').textContent = l === 'ingen' ? 'Skicka bild för kalibrering' : 'Kalibrera om';
 };
 
 async function oppnaKamera(gameId) {
@@ -8866,12 +8922,13 @@ async function oppnaKamera(gameId) {
   $('#kamSpel').textContent = spel.namn || ('Spel ' + spel.kod);
   visaVy('kamera');
 
-  /* Telefonen lyssnar bara på två saker: att datorn bekräftat rutan, och
-     att en avläsning tagits om hand — det senare bara för att kunna säga
-     att någon faktiskt lyssnar. */
+  /* Telefonen anmäler sig som kamera. Datorn ser den i närvarolistan och kan
+     visa bilden i stället för QR-koden. */
   await Moln.lyssna(spel.id, {
+    roll: 'kamera',
     kal: rad => { if (rad && rad.user_id === Moln.minId()) tillampaKalibrering(rad); },
-    scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); }
+    scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); },
+    kam: m => kamKommando(m)
   });
 
   try {
@@ -8902,7 +8959,7 @@ async function oppnaKamera(gameId) {
   if (k) tillampaKalibrering(k);
   else {
     kamSag('ingen', 'Rikta kameran mot mattan');
-    $('#kamFin').textContent = 'Lägg mattan TOM i bild och tryck på knappen. På datorn bekräftar du sedan rutan.';
+    $('#kamFin').textContent = 'Lägg mattan tom i bild. Resten gör du på datorn.';
   }
 }
 
@@ -8910,6 +8967,37 @@ function tillampaKalibrering(rad) {
   Kamera.satKalibrering({ ruta: rad.ruta });
   $('#kamFin').textContent = 'Lägg ett kort i taget. Det skickas när det legat stilla en stund.';
   kamDatorSvarade();
+}
+
+/* ── telefonens ström till datorn ────────────────────────────────────
+   Datorn ber om bilden när den behöver den — under kalibreringen — och säger
+   till när den inte gör det längre. Tre bildrutor i sekunden räcker gott för
+   att sikta en ruta, och det är bara under de sekunderna strömmen går alls. */
+let stromT = null;
+const STROM_MS = 330, STROM_BREDD = 380;
+function startaStrom() {
+  if (stromT) return;
+  stromT = setInterval(async () => {
+    if (!kamLage) return stoppaStrom();
+    const d = await Kamera.forhandsbild(STROM_BREDD);
+    if (d) Moln.sandKam('bild', { b64: d.url, w: d.w, h: d.h });
+  }, STROM_MS);
+}
+function stoppaStrom() { clearTimeout(stromT); clearInterval(stromT); stromT = null; }
+
+function kamKommando(m) {
+  if (!m || !kamLage) return;
+  kamDatorSvarade();
+  if (m.typ === 'strom') { m.pa ? startaStrom() : stoppaStrom(); return; }
+  if (m.typ === 'stopp') {
+    /* Datorn kopplade bort kameran. Telefonen har inget att fråga om — den
+       slutar titta och säger vad som hänt. */
+    stoppaStrom(); Kamera.stopp(); kamLage = null;
+    Moln.lamnaKanal();
+    kamSag('ingen', 'Frånkopplad från datorn');
+    $('#kamFin').textContent = 'Du kan stänga den här fliken.';
+    return;
+  }
 }
 /* Pricken uppe till vänster. Att veta om datorn lyssnar är skillnaden
    mellan "det funkar" och "jag fotar in i ett svart hål". */
@@ -8923,20 +9011,6 @@ setInterval(() => {
   $('#kamPrick').classList.toggle('pa', Date.now() - kamSenastSvar < 90000);
 }, 10000);
 
-$('#kamKalibrera').onclick = async () => {
-  if (!kamLage) return;
-  const b = $('#kamKalibrera'); b.disabled = true;
-  const gammal = b.textContent; b.textContent = 'Skickar…';
-  try {
-    const blob = await Kamera.stillbild();
-    if (!blob) throw new Error('Ingen bild');
-    const rad = await Moln.laddaUppScan(kamLage.id, blob);
-    await Moln.scanKlar(rad.id, null, 'kal');
-    $('#kamFin').textContent = 'Bilden är skickad. Bekräfta rutan på datorn.';
-  } catch (e) {
-    $('#kamFin').textContent = 'Kunde inte skicka bilden: ' + (e.message || '');
-  } finally { b.disabled = false; b.textContent = gammal; }
-};
 /* ═══════════════════════════════════════════════════════════════════
    KAMERAN — datorns sida
 
@@ -8956,45 +9030,78 @@ const FLIK_ID = (() => {
   return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
 })();
 
+/* ── datorns kameradialog ────────────────────────────────────────────
+   Två lägen i samma ruta: QR-koden så länge ingen kamera är ansluten, och
+   telefonens bild så fort en är det. Kalibreringen görs mot den levande
+   bilden — telefonen sitter i en hållare över bordet och ska inte behöva
+   röras. Så länge dialogen är öppen ber datorn telefonen strömma; stängs den
+   säger den till att sluta. */
+let kamAnsluten = false, kamOppen = false;
+/* Strömmen kostar bandbredd hos den som håller telefonen. Den går bara medan
+   någon faktiskt tittar på den. */
+function stangKamOv() {
+  if (!kamOppen) return;
+  kamOppen = false;
+  kalForslagGjort = false;
+  Moln.sandKam('strom', { pa: false });
+}
+
 async function visaKamOv() {
   if (!spelLage) return;
-  /* Dialogen öppnas direkt — ett klick ska ge något att titta på med en gång,
-     inte efter ett nätanrop. Väntar telefonen redan på att ytan ska bekräftas
-     byter vi till det steget så fort svaret kommer: QR-koden är fel svar då,
-     telefonen ÄR ansluten och en ny skanning kopplar upp samma enhet igen.
-     Refreshade man datorn mitt i steget fastnade man här — QR på datorn,
-     kameraläge på telefonen, och ingen väg framåt. */
+  kamOppen = true;
   openOv('kamOv');
-  $('#kamStegQr').hidden = false;
-  $('#kamStegKal').hidden = true;
-  $('#kalSpara').hidden = true;
   const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
   $('#kamLank').textContent = lank;
-  $('#kamOvStatus').textContent = 'Väntar på att telefonen ansluter…';
   ritaQr(lank);
-  const vantande = await kalibreringSomVantar();
-  if (vantande) { visaKalibrering(vantande); return; }
+  visaKamSteg();
+  Moln.sandKam('strom', { pa: true });
   const k = await Moln.hamtaKalibrering(spelLage.id);
-  if (k) $('#kamOvStatus').textContent =
-    'En kamera är redan kalibrerad för det här spelet. Ligger telefonen redan i kameraläget kan du trycka "Kalibrera" där för att skicka en ny bild.';
+  if (k && !kalBox) { kalBox = k.ruta; ritaKalRuta(); }
 }
-/* En kalibreringsbild som fortfarande är aktuell. Handskakningen är levande:
-   en bild från i förrgår betyder ingenting, och att öppna dialogen för den
-   varje gång man går in i spelet vore bara i vägen. */
-const KAL_FARSK_MS = 3 * 60 * 1000;
-async function kalibreringSomVantar() {
-  if (!spelLage) return null;
-  try {
-    const rader = await Moln.vantandeScans(spelLage.id);
-    const kal = rader.filter(r => r.status === 'kal');
-    let farsk = null;
-    for (const r of kal) {
-      const alder = Date.now() - new Date(r.skapad || r.andrad || 0).getTime();
-      if (alder < KAL_FARSK_MS) farsk = r;
-      else Moln.radeaScan(r);              // gammal handskakning, städa bort
-    }
-    return farsk;
-  } catch (e) { return null; }
+/* Vilket steg som ska synas följer av EN sak: sitter det en kamera i spelet? */
+function visaKamSteg() {
+  $('#kamStegQr').hidden = kamAnsluten;
+  $('#kamStegKal').hidden = !kamAnsluten;
+  $('#kalSpara').hidden = !kamAnsluten;
+  $('#kamKoppla').hidden = !kamAnsluten;
+  $('#kamOvStatus').innerHTML = kamAnsluten
+    ? '<span class="kamlive"><i></i>Telefonen är ansluten</span>'
+    : 'Väntar på att telefonen ansluter…';
+}
+/* Närvarolistan från kanalen. Kommer och går telefonen byter dialogen läge av
+   sig själv — ingen knapp att trycka på någonstans. */
+function kamNarvaro(kameror) {
+  const fanns = kamAnsluten;
+  kamAnsluten = kameror.length > 0;
+  if (kamAnsluten === fanns) return;
+  if (kamOppen) {
+    visaKamSteg();
+    if (kamAnsluten) Moln.sandKam('strom', { pa: true });
+    else { $('#kalVantar').hidden = false; $('#kalImg').removeAttribute('src'); }
+  }
+  toast(kamAnsluten ? 'Kameran är ansluten' : 'Kameran kopplades från', kamAnsluten ? 'ok' : 'err');
+}
+/* En bildruta från telefonen. Måtten följer med: kalibreringsrutan uttrycks i
+   andelar av hela bildrutan, och det är de andelarna telefonen sedan beskär
+   mot — inte pixlarna i den nedskalade förhandsbilden. */
+let kamBildW = 0, kamBildH = 0;
+function kamBild(m) {
+  if (!m || !m.b64 || !kamOppen) return;
+  kamBildW = m.w || kamBildW; kamBildH = m.h || kamBildH;
+  const img = $('#kalImg');
+  const forst = !img.getAttribute('src');
+  img.src = m.b64;
+  $('#kalVantar').hidden = true;
+  if (forst) {
+    /* Första rutan: låt färgsegmenteringen föreslå mattan så fort bilden
+       faktiskt är avkodad. Finns redan en sparad kalibrering står den kvar. */
+    img.decode().then(() => { if (!kalBox) foreslaFranBild(); else ritaKalRuta(); }).catch(() => {});
+  } else ritaKalRuta();
+}
+function kamTogsEmot(m) {
+  if (!m) return;
+  if (m.typ === 'bild') return kamBild(m);
+  if (m.typ === 'av') { kamAnsluten = false; if (kamOppen) visaKamSteg(); toast('Kameran kopplades från', 'err'); }
 }
 $('#kamKnapp').onclick = () => visaKamOv();
 $('#kamKopiera').onclick = async () => {
@@ -9032,20 +9139,15 @@ async function ritaQr(text) {
    från färgen: den största sammanhängande ytan vars kulör avviker från
    bordet runt omkring. Det blir sällan exakt, och behöver inte bli det —
    det är därför man drar i den efteråt. */
-let kalRad = null, kalBox = null;
+let kalBox = null;
 
-async function visaKalibrering(rad) {
-  const blob = await Moln.scanBild(rad.bild);
-  if (!blob) return;
-  kalRad = rad;
-  openOv('kamOv');
-  $('#kamStegQr').hidden = true;
-  $('#kamStegKal').hidden = false;
-  $('#kalSpara').hidden = false;
-  $('#kamOvStatus').textContent = '';
+/* Förslaget körs på den första bildrutan som kommer in, en gång per uppkoppling
+   — hade det körts på varje ruta hade rutan hoppat medan man drog i den. */
+let kalForslagGjort = false;
+function foreslaFranBild() {
   const img = $('#kalImg');
-  img.src = URL.createObjectURL(blob);
-  await img.decode().catch(() => {});
+  if (kalForslagGjort || !img.naturalWidth) return;
+  kalForslagGjort = true;
   const f = forslagRuta(img);
   kalBox = f.box;
   $('#kalFin').textContent = f.hittad
@@ -9148,16 +9250,24 @@ addEventListener('resize', () => { if (kalBox && !$('#kamStegKal').hidden) ritaK
 
 $('#kalSpara').onclick = async () => {
   if (!spelLage || !kalBox) return;
-  const img = $('#kalImg');
   const b = $('#kalSpara'); b.disabled = true;
   try {
-    await Moln.sparaKalibrering(spelLage.id, kalBox, null, img.naturalWidth, img.naturalHeight);
-    if (kalRad) await Moln.radeaScan(kalRad);
-    kalRad = null;
+    /* Måtten är telefonens EGNA, inte förhandsbildens. Rutan sparas i andelar
+       av hela bildrutan, och det är de andelarna telefonen sedan beskär mot. */
+    await Moln.sparaKalibrering(spelLage.id, kalBox, null, kamBildW || 0, kamBildH || 0);
     closeOv('kamOv');
     toast('Ytan är bekräftad — kameran är igång', 'ok');
   } catch (e) { $('#kamOvStatus').textContent = 'Kunde inte spara: ' + (e.message || ''); }
   finally { b.disabled = false; }
+};
+/* Datorn kopplar bort telefonen. Telefonen slutar titta av sig själv; närvaron
+   försvinner och dialogen går tillbaka till QR-koden. */
+$('#kamKoppla').onclick = async () => {
+  if (!await ask('Telefonen slutar läsa av kort. Du kan koppla upp den igen med QR-koden.',
+                 { title: 'Koppla bort kameran?', ok: 'Koppla bort', danger: true })) return;
+  Moln.sandKam('stopp');
+  kamAnsluten = false;
+  visaKamSteg();
 };
 
 /* ── ta emot avläsningar ────────────────────────────────────────────
@@ -9166,16 +9276,10 @@ $('#kalSpara').onclick = async () => {
 let kamArbetar = false;
 async function taEmotScan(rad) {
   if (!spelLage || !rad || rad.user_id !== Moln.minId()) return;
-  if (rad.status === 'kal') {
-    /* Bara en färsk handskakning öppnar dialogen. Raden ligger kvar tills ytan
-       bekräftats, så en avbruten kalibrering fick annars kameradialogen att
-       slå upp varje gång man gick in i spelet — mitt i att man tittade på
-       bordet, för något man gjorde i förrgår. */
-    const alder = Date.now() - new Date(rad.skapad || rad.andrad || 0).getTime();
-    if (alder < KAL_FARSK_MS) visaKalibrering(rad);
-    else Moln.radeaScan(rad);
-    return;
-  }
+  /* Kalibreringsbilder går inte längre genom tabellen — de strömmas direkt
+     till dialogen. En gammal rad från förr städas bort i stället för att slå
+     upp en dialog för något som redan är avklarat. */
+  if (rad.status === 'kal') { Moln.radeaScan(rad); return; }
   if (rad.status !== 'ny') return;
   if (kamArbetar) return;                     // nästa varv plockar den
   kamArbetar = true;
@@ -9223,7 +9327,11 @@ async function kollaVantandeScans() {
 }
 
 $('#kamStang').onclick = async () => {
+  stoppaStrom();
   Kamera.stopp();
+  /* Säg till innan kanalen rivs, annars får datorn bara veta att någon
+     försvann och kan inte skilja frånkoppling från tappat nät. */
+  Moln.sandKam('av');
   await Moln.lamnaKanal();
   kamLage = null; spelLage = null;
   location.href = location.origin + location.pathname;
@@ -9291,6 +9399,8 @@ async function oppnaSpel(gameId, farsk) {
     bord: rad => fjarrBord(rad),
     spelare: () => hamtaOm(),
     scan: rad => taEmotScan(rad),
+    kam: m => kamTogsEmot(m),
+    narvaro: k => kamNarvaro(k),
     /* Sockeln kan ha varit nere. De händelser som missades under tiden spelas
        aldrig upp, och den enda som fanns här var en koll av kameraköen — allt
        som hänt på de andras bord under avbrottet stod kvar osynligt. Nu hämtas
@@ -9460,7 +9570,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kalRad = null;
+  kalBox = null; kamAnsluten = false; kamOppen = false;
   /* En tom spelarlista är inget läge appen kan vara i: player() returnerar
      undefined och allt som rör handen faller. En uppslagning som fortfarande
      pågår när man lämnar spelet gör just det — och den pågår ofta, eftersom
