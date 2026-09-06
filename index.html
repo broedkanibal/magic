@@ -4137,7 +4137,7 @@ function save() {
 function sparaUi() {
   if (fjarrLas) return;
   if (!spelLage) { save(); return; }
-  LS.set(K.ui, { active: state.active, sel: state.sel });
+  LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel });
 }
 function sparaNu() {
   clearTimeout(saveT); saveT = null;
@@ -4146,7 +4146,7 @@ function sparaNu() {
   /* I spelläge är vilken flik man tittar på och vilket kort som är markerat
      enhetsvärden — de hör inte hemma på servern och ska inte följa med till
      de andras skärmar. */
-  LS.set(K.ui, { active: state.active, sel: state.sel });
+  LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel });
   const mig = minSpelare();
   if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards));
 }
@@ -8920,13 +8920,23 @@ async function visaLobby() {
 
 /* Går in i ett spel: hämtar deltagare och bord, lägger dem i state i den form
    appen redan använder, och börjar lyssna på ändringar. */
-async function oppnaSpel(gameId) {
+/* farsk = man har just gått med, via inbjudningslänk eller kod. Då ska man
+   landa på sitt eget bord, punkt: det är det man ska lägga kort på, och det
+   enda man kan ändra i. */
+async function oppnaSpel(gameId, farsk) {
   const { spel, spelare } = await Moln.hamtaSpel(gameId);
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
   byggSpelare(spelare);
+  /* Den sparade fliken gäller ETT spel, och sedan förra versionen står det
+     vilket. Förut låg { active, sel } löst i en nyckel som delades av alla
+     spel: gick man med i ett nytt spel med samma gäng landade man på den man
+     råkat titta på sist i ett annat spel — någon annans bord, i skrivskyddat
+     läge, i ett spel man just gått med i. Saknas spelet, eller är det ett man
+     just gått med i, är svaret alltid mitt eget bord. */
   const ui = LS.get(K.ui, {});
-  state.active = spelare.some(p => p.user_id === ui.active) ? ui.active : spelLage.mig;
-  state.sel = ui.sel || 0;
+  const samma = !farsk && ui.spel === spel.id && spelare.some(p => p.user_id === ui.active);
+  state.active = samma ? ui.active : spelLage.mig;
+  state.sel = samma ? (ui.sel || 0) : 0;
   await Moln.lyssna(spel.id, {
     bord: rad => fjarrBord(rad),
     spelare: () => hamtaOm(),
@@ -9112,7 +9122,7 @@ $('#loggaUtBtn').onclick = async () => {
 $('#skapaSpelBtn').onclick = async () => {
   portalFel('#lobbyFel', '');
   const b = $('#skapaSpelBtn'); b.disabled = true;
-  try { const g = await Moln.skapaSpel(null); await oppnaSpel(g.id); }
+  try { const g = await Moln.skapaSpel(null); await oppnaSpel(g.id, true); }
   catch (e) { portalFel('#lobbyFel', e.message || 'Kunde inte skapa spelet.'); }
   finally { b.disabled = false; }
 };
@@ -9121,7 +9131,7 @@ $('#joinForm').onsubmit = async ev => {
   portalFel('#lobbyFel', '');
   const kod = $('#joinKod').value.trim().toUpperCase();
   if (!kod) return;
-  try { const id = await Moln.gaMed(kod); await oppnaSpel(id); }
+  try { const id = await Moln.gaMed(kod); await oppnaSpel(id, true); }
   catch (e) { portalFel('#lobbyFel', e.message === 'Spelet finns inte' ? 'Ingen hittade med den koden.' : (e.message || 'Kunde inte gå med.')); }
 };
 $('#lobbyMina').addEventListener('click', async ev => {
@@ -9169,7 +9179,7 @@ async function portalStart() {
     try {
       const id = await Moln.gaMed(kod);
       if (villKamera) { sessionStorage.removeItem('sthv.cam'); await oppnaKamera(id); }
-      else await oppnaSpel(id);
+      else await oppnaSpel(id, true);
       return;
     }
     catch (e) { await visaLobby(); portalFel('#lobbyFel', 'Kunde inte gå med i spelet: ' + (e.message || '')); return; }
