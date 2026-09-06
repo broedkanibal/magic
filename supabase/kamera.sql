@@ -90,8 +90,21 @@ grant execute on function public.ta_scan(uuid, uuid) to authenticated;
 -- ── realtid ────────────────────────────────────────────────────────
 -- Telefonen behöver få veta när datorn bekräftat rutan, utan att fråga
 -- om och om igen.
-alter publication supabase_realtime add table public.scans;
-alter publication supabase_realtime add table public.camera_setups;
+-- Går att köra om. "alter publication ... add table" kastar fel om tabellen
+-- redan är med, och hela poängen med de här filerna är att de ska tåla att
+-- köras igen när något lagts till längre ner.
+do $$
+declare t text;
+begin
+  foreach t in array array['scans', 'camera_setups'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 alter table public.scans         replica identity full;
 alter table public.camera_setups replica identity full;
 

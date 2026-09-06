@@ -193,8 +193,21 @@ grant execute on function public.i_spelet(uuid) to authenticated;
 --  Klienten lyssnar på ändringar i de här tabellerna, filtrerat på
 --  game_id. RLS gäller även här, så ingen får ut något de inte får se.
 -- ═══════════════════════════════════════════════════════════════════
-alter publication supabase_realtime add table public.boards;
-alter publication supabase_realtime add table public.game_players;
+-- Går att köra om. "alter publication ... add table" kastar fel om tabellen
+-- redan är med, och hela poängen med de här filerna är att de ska tåla att
+-- köras igen när något lagts till längre ner.
+do $$
+declare t text;
+begin
+  foreach t in array array['boards', 'game_players'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 
 -- Utan full replikaidentitet skickas bara primärnyckeln vid en ändring,
 -- och klienten får aldrig se de nya korten.
