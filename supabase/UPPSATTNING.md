@@ -137,6 +137,11 @@ på en felsida efter Google-rutan.
 Filen går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.
 
+> **Har du kört `schema.sql` förut?** Kör den igen. Den senaste versionen
+> lägger till kolumnen `lek` på `game_players` — spelarens lek, som
+> kameran känner igen kort mot. Utan kolumnen kan leken inte sparas och
+> telefonen ser korten utan att veta vilka de är.
+
 ---
 
 ## 4. Nycklarna till appen

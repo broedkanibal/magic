@@ -200,3 +200,15 @@ alter publication supabase_realtime add table public.game_players;
 -- och klienten får aldrig se de nya korten.
 alter table public.boards       replica identity full;
 alter table public.game_players replica identity full;
+
+-- ═══════════════════════════════════════════════════════════════════
+--  Leken
+--  Kameran identifierar kort mot spelarens EGEN lek — ett hundratal
+--  kandidater i stället för trettiotusen. Det är hela skillnaden mellan
+--  igenkänning som fungerar på telefonen och en evig ström av osäkra
+--  kort. Lagras som en lista {name, sid, small, n}: namn, Scryfall-id,
+--  liten bild-URL och antal. Bilden finns med så att telefonen kan bygga
+--  sin igenkänningspool utan hundra uppslagningar.
+--  Går att köra om: kolumnen läggs bara till om den saknas.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.game_players add column if not exists lek jsonb;

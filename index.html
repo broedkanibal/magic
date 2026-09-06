@@ -1389,6 +1389,22 @@ body.lasvy .hand::before{
 }
 body.lasvy .lasband{display:flex}
 
+/* Kort som just dök upp från kameran pulserar till en gång. */
+@keyframes nypuls{0%{box-shadow:0 0 0 0 #5fbf7f88}70%{box-shadow:0 0 0 12px #5fbf7f00}100%{box-shadow:0 0 0 0 #5fbf7f00}}
+.card.nykort{animation:nypuls 1.4s ease-out 1}
+/* Remsan under permanents: kort kameran inte längre ser. */
+.avbord{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:none;
+  padding:7px 10px;border-radius:8px;border:1px dashed #e8b33a55;background:#1a140a;
+}
+.avbord[hidden]{display:none}
+.avbordlbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--acc);margin-right:2px}
+.avbordkort{display:inline-flex;align-items:center;gap:6px;padding:3px 4px 3px 3px;border-radius:7px;background:#00000040}
+.avbordkort img{width:22px;height:31px;border-radius:2px;object-fit:cover}
+.avbordkort b{font:600 12px var(--sans);color:var(--txt);margin-right:2px}
+.kalupp{display:flex;align-items:center;gap:6px;font:12px var(--sans);color:var(--dim)}
+.kalupp .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
+
 /* Anslutningsdialogen och kalibreringen på datorn. */
 .kamsteg{display:flex;flex-direction:column;gap:12px}
 .kamqr{
@@ -1741,6 +1757,10 @@ body.ispel #addPlayerBtn{display:none}
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
     <div class="spelrad" id="spelRad" hidden>
+      <button class="btn sm" id="lekKnapp" title="Din lek — det kameran känner igen kort mot">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="11" height="15" rx="2"/><path d="M9 8h9a2 2 0 0 1 2 2v11H9.5"/></svg>
+        <span id="lekKnappTxt">Min lek</span>
+      </button>
       <button class="btn sm" id="kamKnapp" title="Koppla telefonen som kamera">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>
         Kamera
@@ -1812,6 +1832,7 @@ body.ispel #addPlayerBtn{display:none}
             <button class="zonchip" data-addtile title="Drag in or paste an image — the cards get added (I)"><svg width="13" height="10" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>Drag in cards</button>
           </div>
           <div class="grid" id="grid"></div>
+          <div class="avbord" id="avbord" hidden></div>
         <div class="empty" id="emptyHand">
           <div class="empty-icon">
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/></svg>
@@ -1975,6 +1996,29 @@ body.ispel #addPlayerBtn{display:none}
   </div>
 </div>
 
+<!-- ── leken ── -->
+<div class="ov" id="lekOv">
+  <div class="modal" style="width:min(600px,94vw)">
+    <header>
+      <h2>Min lek</h2>
+      <button class="close" data-close="lekOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body">
+      <p class="lead">Kameran känner igen kort mot <b>din lek</b> — ett hundratal kandidater i
+        stället för trettiotusen. Det är skillnaden mellan igenkänning som fungerar och en
+        ström av osäkra kort. Klistra in listan från Moxfield, Archidekt eller vad som helst
+        med ett kort per rad.</p>
+      <textarea class="ta" id="lekTa" spellcheck="false" placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Mountain&#10;…"></textarea>
+      <p class="kamfin2" id="lekInfo"></p>
+    </div>
+    <div class="foot">
+      <span class="grow" id="lekStatus"></span>
+      <button class="btn" data-close="lekOv">Stäng</button>
+      <button class="btn prim" id="lekSpara">Spara leken</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── bulkimport ── -->
 <div class="ov" id="bulkOv">
   <div class="modal">
@@ -2011,9 +2055,14 @@ body.ispel #addPlayerBtn{display:none}
       </div>
 
       <div class="kamsteg" id="kamStegKal" hidden>
-        <p class="lead"><b>Bekräfta ytan.</b> Dra rutan så att den täcker mattan där du
-          lägger nya kort. Mattan ska vara <b>tom</b> just nu — bilden av den tomma
-          mattan är det kameran jämför mot för att se när ett kort lagts dit.</p>
+        <p class="lead"><b>Bekräfta ytan.</b> Dra rutan så att den täcker hela mattan där dina
+          kort ligger. Mattan ska vara <b>tom</b> just nu — bilden av den tomma mattan är det
+          kameran jämför mot. Lägg sedan korten med lite luft emellan.</p>
+        <div class="kalupp">
+          <span>Ett otappat kort i bilden är</span>
+          <button class="btn sm on" data-upp="v">stående</button>
+          <button class="btn sm" data-upp="h">liggande</button>
+        </div>
         <div class="kalbild" id="kalBild">
           <img id="kalImg" alt="">
           <div class="kalruta" id="kalRuta"><i data-horn="nv"></i><i data-horn="no"></i><i data-horn="sv"></i><i data-horn="so"></i></div>
@@ -4038,6 +4087,21 @@ const Moln = (() => {
     return true;
   }
 
+  /* Leken bor i game_players — den hör till spelaren i det här spelet. */
+  async function sparaLek(gameId, lek) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('game_players').update({ lek })
+      .eq('game_id', gameId).eq('user_id', minId());
+    if (error) { console.warn('Leken kunde inte sparas', error.message); return false; }
+    return true;
+  }
+  async function hamtaLek(gameId) {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const { data } = await s.from('game_players').select('lek')
+      .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+    return (data && data.lek) || null;
+  }
+
   async function dopOm(gameId, namn) {
     const s = await klient(); if (!s || !inloggad()) return false;
     const { error } = await s.from('game_players')
@@ -4190,7 +4254,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm,
-           avslutaSpel, lyssna, lamnaKanal, sandKam,
+           avslutaSpel, lyssna, lamnaKanal, sandKam, sparaLek, hamtaLek,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
@@ -4295,7 +4359,8 @@ function slimDelat(cards) {
   return (cards || []).map(c => ({
     cid: c.cid, name: c.name, sid: c.sid || undefined,
     flipped: c.flipped ? 1 : 0, tapped: c.tapped ? 1 : 0,
-    attachedTo: c.attachedTo || undefined, zon: c.zon || undefined
+    attachedTo: c.attachedTo || undefined, zon: c.zon || undefined,
+    spar: c.spar || undefined
   }));
 }
 function slimKort(cards) {
@@ -4611,8 +4676,11 @@ function kortHtml(e, i, extra) {
   const fi = e.flipped && dfc ? 1 : 0;
   const src = e.flipped && !dfc ? BAKSIDA : (card ? imgOf(card, fi, 'normal') : '');
   const label = card ? card.name : e.name;
+  /* Ett kort som kameran just lade ut pulserar till en gång — det är hela
+     återkopplingen på att bordet och spegeln nu är i fas. */
+  const nytt = e.ny && Date.now() - e.ny < 2500;
   const kl = ['card', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
-              e.tapped ? 'tappad' : '', extra || ''].filter(Boolean).join(' ');
+              e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', extra || ''].filter(Boolean).join(' ');
   return `<button class="${kl}" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}">
     <span class="idx">${i + 1}</span>
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
@@ -5206,6 +5274,7 @@ function renderAll(forceGrid) {
   uppdateraLage();
   renderTabs();
   renderGrid(forceGrid);
+  renderAvbord();
   if ($('#gravOv').classList.contains('open')) renderGrav();
   renderDetail();
   renderFocus();
@@ -6298,6 +6367,62 @@ function parseList(txt) {
     return Array.from({ length: count }, () => s);
   });
 }
+/* ── leken ────────────────────────────────────────────────────────────
+   Klistra in, slå upp varje namn en gång, spara som {name, sid, small, n}.
+   Bilden sparas med så att telefonen kan bygga sin pool utan att slå upp
+   hundra kort själv. */
+let minLek = null;
+async function oppnaLek() {
+  if (!spelLage) return;
+  openOv('lekOv');
+  $('#lekStatus').textContent = '';
+  if (!minLek) { try { minLek = await Moln.hamtaLek(spelLage.id); } catch (e) {} }
+  $('#lekTa').value = minLek && minLek.kort ? minLek.kort.map(k => `${k.n} ${k.name}`).join('\n') : '';
+  $('#lekInfo').textContent = minLek && minLek.kort
+    ? `${minLek.kort.reduce((n, k) => n + k.n, 0)} kort i leken.`
+    : 'Ingen lek sparad ännu.';
+  setTimeout(() => $('#lekTa').focus(), 30);
+}
+$('#lekKnapp').onclick = () => oppnaLek();
+$('#lekTa').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#lekSpara').click();
+});
+$('#lekSpara').onclick = async () => {
+  if (!spelLage) return;
+  const namn = parseList($('#lekTa').value);
+  if (!namn.length) { $('#lekStatus').textContent = 'Inga kortnamn hittades.'; return; }
+  const antal = new Map();
+  for (const n of namn) antal.set(n, (antal.get(n) || 0) + 1);
+  const b = $('#lekSpara'); b.disabled = true;
+  const kort = [], okanda = [];
+  let i = 0;
+  for (const [n, c] of antal) {
+    $('#lekStatus').textContent = `Slår upp ${++i} av ${antal.size}…`;
+    try {
+      const k = await lookup(n);
+      kort.push({ name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), n: c });
+    } catch (e) { okanda.push(n); }
+  }
+  const lek = { kort, ts: Date.now() };
+  const ok = await Moln.sparaLek(spelLage.id, lek);
+  b.disabled = false;
+  if (!ok) { $('#lekStatus').textContent = 'Leken kunde inte sparas.'; return; }
+  minLek = lek;
+  uppdateraLekKnapp();
+  closeOv('lekOv');
+  const tot = kort.reduce((s, k) => s + k.n, 0);
+  toast(okanda.length ? `${tot} kort sparade · ${okanda.length} okända: ${okanda.slice(0, 3).join(', ')}` : `${tot} kort sparade — kameran känner nu igen din lek`,
+        okanda.length ? 'err' : 'ok');
+  /* Telefonen bygger om sin pool när leken ändras — säg till. */
+  Moln.sandKam('lek');
+};
+function uppdateraLekKnapp() {
+  const t = $('#lekKnappTxt'); if (!t) return;
+  const n = minLek && minLek.kort ? minLek.kort.reduce((s, k) => s + k.n, 0) : 0;
+  t.textContent = n ? `Lek · ${n}` : 'Min lek';
+}
+
 $('#bulkGo').onclick = () => {
   const names = parseList($('#bulkTa').value);
   if (!names.length) { $('#bulkInfo').textContent = 'No names found.'; return; }
@@ -6927,6 +7052,15 @@ async function buildPool(code, onProg) {
     } catch (e) { /* utan landskap fungerar resten ändå */ }
   }
   if (!cards.length) throw new Error('This set has no cards with images.');
+  return byggPoolAv(cards, code, meta.name || code.toUpperCase(), onProg, prefs.lands !== false);
+}
+
+/* Bygger igenkänningspoolen ur en färdig kortlista. Setpoolen och lekpoolen
+   delar den här delen — det enda som skiljer dem är var listan kommer ifrån:
+   ett set från Scryfall, eller spelarens egen lek. Med leken som pool blir
+   igenkänningen något helt annat än med ett set: ett hundratal kandidater i
+   stället för åttahundra, och de kort som faktiskt kan ligga på bordet. */
+async function byggPoolAv(cards, code, setName, onProg, lands) {
   const D = Matcher.DESC;
   const descs = new Int8Array(cards.length * D);
   const tmpl = new Float32Array(88);          // "genomsnittskortet" för detektorn
@@ -6956,13 +7090,40 @@ async function buildPool(code, onProg) {
   }
   await Promise.all(Array.from({ length: 8 }, worker));
   const rec = {
-    code, setName: meta.name || code.toUpperCase(), ts: Date.now(),
+    code, setName, ts: Date.now(),
     names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
-    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 5, lands: prefs.lands !== false
+    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 5, lands: !!lands
   };
   await IDB.poolPut(rec);
   Pool.idx = rec;
   return rec;
+}
+
+/* Poolen ur spelarens lek. Baslanden i leken kompletteras med några
+   konstverk till per landskapstyp — ett Mountain är ett Mountain oavsett
+   tryckning, och den man har på bordet är sällan just den i listan. */
+async function byggLekPool(lek, gameId, userId, onProg) {
+  const code = 'lek:' + gameId + ':' + userId;
+  if (Pool.idx && Pool.idx.code === code) return Pool.idx;
+  const cached = await Pool.load(code);
+  if (cached && cached.ts >= (lek.ts || 0)) return cached;
+  const cards = [], seen = new Set();
+  for (const k of (lek.kort || [])) {
+    if (!k.sid || !k.small || seen.has(k.sid)) continue;
+    seen.add(k.sid); cards.push({ id: k.sid, name: k.name, small: k.small });
+  }
+  const basland = [...new Set((lek.kort || []).map(k => k.name).filter(n => BASICS.has(n)))];
+  if (basland.length) {
+    try {
+      const extra = [];
+      await fetchQuery(`(${basland.map(n => '!"' + n + '"').join(' or ')}) -is:digital -is:funny year>=2021`,
+                       onProg || (() => {}), seen, extra, 'basic lands');
+      const per = new Map();
+      for (const c of extra) { const k = per.get(c.name) || 0; if (k >= 24) continue; per.set(c.name, k + 1); cards.push(c); }
+    } catch (e) { /* utan extra landskap fungerar lekens egna */ }
+  }
+  if (!cards.length) throw new Error('Leken har inga kort med bilder.');
+  return byggPoolAv(cards, code, 'Min lek', onProg || (() => {}), true);
 }
 async function ensurePool(onProg) {
   const code = prefs.pool || 'j25';
@@ -8278,7 +8439,10 @@ function applyPick(name, sid, cands) {
   } else if (t && t.kind === 'pend' && pendById(t.id)) {
     const q = pendById(t.id);
     p.pending.splice(p.pending.indexOf(q), 1);
-    p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list });
+    /* Kom kortet från kameran bär det sitt spår vidare — annars slutar
+       tap-state följa det i samma stund som man namngett det. */
+    p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list,
+                   spar: q.spar || undefined, tapped: q.tappad ? 1 : 0 });
   } else {
     p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, box: SW.box, rot: SW.fitRot || 0, shotId: SW.id, cands: list });
   }
@@ -8693,70 +8857,158 @@ const idbTimeout = (pr, ms) => Promise.race([
    ljus, i samma ruta, bryr sig inte om det.
    ══════════════════════════════════════════════════════════════════ */
 const Kamera = (() => {
-  /* Analysen görs i en liten ruta. Ett kort som fyller 96×134 pixlar har
-     alla drag som behövs för de två frågorna — ligger något där, och rör
-     det sig — och kostar en bråkdel av att räkna på full upplösning
-     tjugo gånger i sekunden. */
-  const AB = 96, AH = 134;
-  /* Tröskelvärden i gråskala 0–255, satta mot referensbilden.
-     TOM: under det här är mattan tom igen och nästa kort får läggas.
-     KORT: över det här ligger något där som är värt att titta på.
-     Glappet mellan dem är med flit: utan det skulle en skugga som vandrar
-     över kanten kunna studsa fram och tillbaka mellan lägena. */
-  const TOM = 11, KORT = 26;
-  const STILLA = 3.2;          // medelrörelse per pixel som räknas som stillastående
-  const STILLA_MS = 900;       // hur länge det ska ligga stilla innan bilden tas
-  const BILD_BREDD = 720;      // vad som skickas till datorn
+  /* ── Vad telefonen gör, i en mening ──────────────────────────────────
+     Den tittar på hela mattan hela tiden, hittar varje kort som ligger där,
+     följer det från bildruta till bildruta, läser om det är vridet, och
+     identifierar det EN gång när det lagt sig stilla. Allt på telefonen.
+     Det som lämnar den är ett litet bordstillstånd — några hundra byte —
+     när något ändrats, och en beskuren bild bara för de kort den är osäker
+     på.
+
+     Tre steg med tre helt olika prislappar:
+       detektera + spåra + tap-state   varje bildruta, ren geometri, ~ms
+       identifiera                     en gång per kort, mot spelarens lek
+       fråga datorn                    bara när identifieringen är osäker
+     Det är därför det går att köra kontinuerligt utan att någon betalar. */
+
+  /* Analysbredd. Mattan skalas ner till 240 px: ett kort blir då 20–40 px
+     brett, vilket räcker för att hitta det, följa det och se om det ligger
+     ner — men inte för att läsa vad det är. Identifieringen beskär därför ur
+     den fulla videon i stället. */
+  const AW = 240;
+  const TROSKEL = 26;          // gråskillnad mot tom matta som räknas som "något ligger här"
+  const STILLA_PX = 1.6;       // rörelse i analyspixlar per ruta som räknas som stilla
+  const STILLA_MS = 800;       // hur länge ett kort ska ligga stilla innan det identifieras
+  const BORTA_MS = 700;        // hur länge ett spår får saknas innan kortet räknas som lyft
+  const TAKT_MS = 150;         // analystakt: ~7 gånger i sekunden
+  const KORT_KVOT = 488 / 680; // ett Magic-korts bredd/höjd
+  const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
 
   let stream = null, video = null, ov = null, ovc = null;
-  let anaC = null, anaX = null;
-  let ref = null;              // gråskala av tom matta
-  let forra = null;            // föregående ruta, för rörelsen
-  let kal = null;              // {ruta:{x,y,w,h}} i andelar av bildrutan
+  let anaC = null, anaX = null, AH = 0;
+  let ref = null;              // gråskala av tom matta, analysstorlek
+  let kal = null;              // {ruta:{x,y,w,h,upp}} i andelar av bildrutan
   let lage = 'start';
-  let stillaFran = 0;
-  let snurra = null, wake = null;
+  let snurra = null, wake = null, senast = 0, senastRef = 0;
   let pa = false;
-  const cb = {};               // { status, bild }
+  let spar = [];               // de kort som ligger på mattan just nu
+  let nastaId = 1;
+  let identifierar = false;
+  const cb = {};               // { status, bord, identifiera }
 
-  /* Beslutet, brutet ur slingan så att det går att pröva utan kamera. Rent:
-     in går läget och två mätvärden, ut går nästa läge.
+  const gr = (d, n) => { const g = new Float32Array(n); for (let i = 0, p = 0; i < n; i++, p += 4) g[i] = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114; return g; };
 
-     Två saker är värda att förstå. Glappet mellan TOM och KORT är med flit —
-     ett enda tröskelvärde skulle få en skugga som vandrar över kanten att
-     studsa mellan lägena flera gånger i sekunden. Och efter en bild krävs att
-     mattan blir TOM igen innan nästa kort räknas: utan det fotas samma kort
-     om och om igen så länge det ligger kvar. */
-  function beslut(lage, narvaro, rorelse, stillaFran, nu) {
-    if (lage === 'skickar') return { lage, stillaFran, fota: false };
-    if (lage === 'vantar-tom') {
-      return narvaro < TOM
-        ? { lage: 'tom', stillaFran: 0, fota: false, text: 'Redo — lägg nästa kort' }
-        : { lage, stillaFran: 0, fota: false };
+  /* ── detektering ──────────────────────────────────────────────────
+     Skillnad mot den tomma mattan → mask → sammanhängande regioner → en
+     vriden rektangel per region ur dess andra moment. Ingen konturföljning:
+     för en jämnt fylld rektangel ger huvudaxlarnas standardavvikelser
+     halva sidlängderna gånger roten ur tre, exakt. Ren funktion, prövbar. */
+  function detektera(nu, ref, W, H) {
+    const n = W * H;
+    const mask = new Uint8Array(n);
+    for (let i = 0; i < n; i++) mask[i] = Math.abs(nu[i] - ref[i]) > TROSKEL ? 1 : 0;
+    /* Öppning: bort med enstaka pixlar och tunna trådar (skuggkanter). */
+    const tmp = new Uint8Array(n);
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      tmp[i] = (mask[i] && mask[i - 1] && mask[i + 1] && mask[i - W] && mask[i + W]) ? 1 : 0;
     }
-    if (narvaro < TOM) {
-      return lage === 'tom'
-        ? { lage, stillaFran: 0, fota: false }
-        : { lage: 'tom', stillaFran: 0, fota: false, text: 'Redo — lägg ett kort på mattan' };
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      mask[i] = (tmp[i] || tmp[i - 1] || tmp[i + 1] || tmp[i - W] || tmp[i + W]) ? 1 : 0;
     }
-    if (narvaro <= KORT) return { lage, stillaFran, fota: false };   // i glappet: låt läget stå
-    if (rorelse >= STILLA) return { lage: 'kort', stillaFran: 0, fota: false, text: 'Lägg kortet stilla på mattan' };
-    const fran = stillaFran || nu;
-    if (nu - fran >= STILLA_MS) return { lage: 'skickar', stillaFran: 0, fota: true, text: 'Skickar kortet…' };
-    return { lage: 'kort', stillaFran: fran, fota: false, text: 'Håll stilla…' };
+    /* Regioner med flodfyllning på en kö. */
+    const lab = new Int32Array(n);
+    const ko = new Int32Array(n);
+    const ut = [];
+    let next = 1;
+    for (let s0 = 0; s0 < n; s0++) {
+      if (!mask[s0] || lab[s0]) continue;
+      const id = next++;
+      let head = 0, tail = 0; ko[tail++] = s0; lab[s0] = id;
+      let cnt = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, minx = W, maxx = 0, miny = H, maxy = 0;
+      while (head < tail) {
+        const i = ko[head++];
+        const x = i % W, y = (i - x) / W;
+        cnt++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
+        if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
+        if (x > 0 && mask[i - 1] && !lab[i - 1]) { lab[i - 1] = id; ko[tail++] = i - 1; }
+        if (x < W - 1 && mask[i + 1] && !lab[i + 1]) { lab[i + 1] = id; ko[tail++] = i + 1; }
+        if (y > 0 && mask[i - W] && !lab[i - W]) { lab[i - W] = id; ko[tail++] = i - W; }
+        if (y < H - 1 && mask[i + W] && !lab[i + W]) { lab[i + W] = id; ko[tail++] = i + W; }
+      }
+      if (cnt < 60) continue;                          // damm
+      const cx = sx / cnt, cy = sy / cnt;
+      const vxx = sxx / cnt - cx * cx, vyy = syy / cnt - cy * cy, vxy = sxy / cnt - cx * cy;
+      /* Egenvärden och huvudaxelns vinkel. */
+      const tr = vxx + vyy, det = vxx * vyy - vxy * vxy;
+      const disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+      const l1 = tr / 2 + disc, l2 = Math.max(1e-6, tr / 2 - disc);
+      const vinkel = 0.5 * Math.atan2(2 * vxy, vxx - vyy);   // huvudaxelns vinkel, radianer
+      const lang = 2 * Math.sqrt(3 * l1), kort = 2 * Math.sqrt(3 * l2);
+      const kvot = kort / lang;
+      /* Ett kort: kvoten nära 0,72. Två kort som ligger ihop, en hand, eller
+         en skugga faller utanför och lämnas utan spår. */
+      if (kvot < 0.50 || kvot > 0.95) continue;
+      /* Fyllnadsgrad: en rektangel fyller sin vridna låda; en hand gör det inte. */
+      if (cnt < 0.72 * lang * kort) continue;
+      ut.push({ cx, cy, lang, kort, vinkel, area: cnt, box: { x: minx, y: miny, w: maxx - minx + 1, h: maxy - miny + 1 } });
+    }
+    return ut;
   }
 
-  const gr = d => { const g = new Float32Array(AB * AH); for (let i = 0, p = 0; i < g.length; i++, p += 4) g[i] = (d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114); return g; };
-  const avvik = (a, b) => { if (!a || !b) return 0; let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
+  /* Vriden eller inte. Huvudaxeln nära lodrät = stående = otappat, nära
+     vågrät = liggande = tappat — givet att otappade kort står lodrätt i
+     bilden. Ligger de vågrätt (telefonen sitter så) vänds tolkningen. */
+  function tappad(vinkel, upp) {
+    const lodrat = Math.abs(Math.cos(vinkel)) < Math.abs(Math.sin(vinkel));   // huvudaxel närmare y-axeln
+    return upp === 'h' ? lodrat : !lodrat;
+  }
+
+  /* ── spårning ─────────────────────────────────────────────────────
+     Närmaste-granne på mittpunkten. Kort flyttar sig inte mellan två rutor
+     om ingen håller i dem, och håller någon i dem är de ändå inte stilla. */
+  function matcha(spar, fynd, nu, upp) {
+    const kvar = new Set(spar);
+    const anv = new Set();
+    for (const f of fynd) {
+      let bast = null, bd = Infinity;
+      for (const t of spar) {
+        if (anv.has(t)) continue;
+        const d = Math.hypot(t.cx - f.cx, t.cy - f.cy);
+        if (d < bd) { bd = d; bast = t; }
+      }
+      const grans = 0.6 * Math.max(f.lang, 12);
+      if (bast && bd < grans) {
+        anv.add(bast); kvar.delete(bast);
+        const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
+        bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
+        bast.sedd = nu;
+        if (ror > STILLA_PX) { bast.stillaFran = nu; if (bast.tillstand === 'stilla' && !bast.namn) bast.tillstand = 'ny'; }
+        else if (!bast.stillaFran) bast.stillaFran = nu;
+        /* Tap-state debounceras över några rutor: en vinkel mitt emellan
+           får inte slå fram och tillbaka. */
+        const t2 = tappad(f.vinkel, upp);
+        bast.tappRost = (bast.tappRost || 0) * 0.6 + (t2 ? 0.4 : -0.4);
+        if (bast.tappRost > 0.5) bast.tappad = true;
+        else if (bast.tappRost < -0.5) bast.tappad = false;
+      } else {
+        spar.push({ id: nastaId++, cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box,
+                    sedd: nu, fodd: nu, stillaFran: nu, tillstand: 'ny',
+                    tappad: tappad(f.vinkel, upp), tappRost: tappad(f.vinkel, upp) ? 1 : -1 });
+      }
+    }
+    /* Saknade spår: kvar en stund (någon lyfter kortet för att läsa det),
+       sedan borta. */
+    for (const t of kvar) if (nu - t.sedd > BORTA_MS) spar.splice(spar.indexOf(t), 1);
+    return spar;
+  }
 
   async function start(el, o) {
     video = el.video; ov = el.overlay; ovc = ov.getContext('2d');
     Object.assign(cb, o || {});
-    anaC = document.createElement('canvas'); anaC.width = AB; anaC.height = AH;
+    anaC = document.createElement('canvas');
     anaX = anaC.getContext('2d', { willReadFrequently: true });
-    /* Bakre kameran, och så hög upplösning enheten går med på: den
-       beskurna biten blir bara några hundra pixlar bred, och där är varje
-       pixel värd något när kortnamnet ska läsas. */
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: false
@@ -8773,17 +9025,16 @@ const Kamera = (() => {
     if (snurra) cancelAnimationFrame(snurra);
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (wake) { try { wake.release(); } catch (e) {} wake = null; }
-    stream = null; ref = null; forra = null; lage = 'start';
+    stream = null; ref = null; lage = 'start'; spar = [];
   }
 
   function satKalibrering(k) {
     kal = k && k.ruta ? k : null;
-    ref = null; forra = null; lage = kal ? 'lar' : 'ingen';
+    ref = null; spar = []; lage = kal ? 'lar' : 'ingen';
+    AH = 0;
+    if (cb.bord) cb.bord([]);
   }
 
-  /* Rutan i bildpunkter för den upplösning videon faktiskt ger. Sparas i
-     andelar, inte pixlar: telefonen kan ge en annan upplösning nästa gång
-     appen öppnas, och kalibreringen ska ändå gälla. */
   function rutaPx(bredd, hojd) {
     const r = kal.ruta;
     return { x: Math.round(r.x * bredd), y: Math.round(r.y * hojd),
@@ -8797,49 +9048,93 @@ const Kamera = (() => {
     if (!vb || !vh) return;
     rita(vb, vh);
     if (!kal) { säg('ingen', 'Väntar på kalibrering från datorn'); return; }
+    const nu = performance.now();
+    if (nu - senast < TAKT_MS) return;
+    senast = nu;
 
     const r = rutaPx(vb, vh);
-    anaX.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, AB, AH);
-    const nu = gr(anaX.getImageData(0, 0, AB, AH).data);
+    if (!AH) { AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH; }
+    anaX.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, AW, AH);
+    const g = gr(anaX.getImageData(0, 0, AW, AH).data, AW * AH);
 
-    /* Första rutorna efter kalibrering är referensen: mattan ska vara tom
-       då. Ett medelvärde av några rutor i stället för en enda, så att en
-       enstaka suddig bildruta inte blir facit för hela sessionen. */
-    if (!ref) {
-      ref = nu; forra = nu;
-      säg('tom', 'Redo — lägg ett kort på mattan');
-      return;
+    /* Referensen är mattan TOM, tagen när kalibreringen kommer. */
+    if (!ref) { ref = g; senastRef = nu; säg('tom', 'Redo — lägg ut kort på mattan'); return; }
+
+    const fynd = detektera(g, ref, AW, AH);
+    const fore = tillstandsSignatur();
+    matcha(spar, fynd, nu, kal.ruta.upp || 'v');
+
+    /* Ljuset driver under en kväll. Mattan där inget ligger dras sakta mot
+       det den ser ut som nu, så att en skugga från lampan inte blir ett kort
+       om en timme. Där kort ligger rörs referensen inte. */
+    if (nu - senastRef > 2000) { senastRef = nu; uppdateraRef(g); }
+
+    /* Stilla länge nog och ännu utan namn → identifiera, ett i taget. */
+    for (const t of spar) {
+      if (t.tillstand === 'ny' && nu - t.stillaFran >= STILLA_MS) t.tillstand = 'stilla';
+      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !identifierar) { identifiera(t, vb, vh); break; }
     }
 
-    const narvaro = avvik(nu, ref);
-    const rorelse = avvik(nu, forra);
-    forra = nu;
-
-    const b = beslut(lage, narvaro, rorelse, stillaFran, performance.now());
-    stillaFran = b.stillaFran;
-    if (b.lage !== lage || b.text) { lage = b.lage; säg(b.lage, b.text); }
-    if (b.fota) fota(vb, vh);
+    const efter = tillstandsSignatur();
+    if (efter !== fore) rapportera();
+    säg(spar.length ? 'kort' : 'tom', spar.length
+      ? `${spar.length} kort på mattan` : 'Redo — lägg ut kort på mattan');
   }
 
-  async function fota(vb, vh) {
-    lage = 'skickar'; säg('skickar', 'Skickar kortet…');
-    const r = rutaPx(vb, vh);
-    const c = document.createElement('canvas');
-    const skala = Math.min(1, BILD_BREDD / r.w);
-    c.width = Math.round(r.w * skala); c.height = Math.round(r.h * skala);
-    c.getContext('2d').drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
-    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.85));
-    try { if (cb.bild) await cb.bild(blob, c.toDataURL('image/jpeg', 0.5)); }
-    catch (e) { säg('fel', 'Kortet kunde inte skickas'); }
-    lage = 'vantar-tom';
-    säg('vantar-tom', 'Ta bort kortet från mattan');
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}`).join('|');
+
+  function uppdateraRef(g) {
+    const n = AW * AH;
+    const fri = new Uint8Array(n).fill(1);
+    for (const t of spar) {
+      const m = 6;
+      const x0 = Math.max(0, t.box.x - m), x1 = Math.min(AW - 1, t.box.x + t.box.w + m);
+      const y0 = Math.max(0, t.box.y - m), y1 = Math.min(AH - 1, t.box.y + t.box.h + m);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) fri[y * AW + x] = 0;
+    }
+    for (let i = 0; i < n; i++) if (fri[i]) ref[i] = ref[i] * 0.9 + g[i] * 0.1;
   }
 
-  /* En liten bildruta för strömmen till datorn. Full bildruta, precis som
-     stillbilden — kalibreringsrutan uttrycks i andelar av HELA rutan, så det
-     datorn siktar mot måste vara samma bild som analysen sedan beskär ur.
-     Liten och hårt komprimerad: den ska passera realtidskanalen flera gånger
-     i sekunden, inte arkiveras. */
+  /* Vad datorn får: ett bordstillstånd, inte händelser. Rutorna i andelar av
+     mattan så att datorn kan rita dem ovanpå sin egen bild av den. */
+  function rapportera() {
+    if (!cb.bord) return;
+    cb.bord(spar.map(t => ({
+      id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
+      saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand,
+      x: t.box.x / AW, y: t.box.y / AH, w: t.box.w / AW, h: t.box.h / AH
+    })));
+  }
+
+  /* Beskär kortet ur den fulla videon, räta upp det om det ligger ner, och
+     låt igenkänningen avgöra vilket det är. Görs en gång per spår. */
+  async function identifiera(t, vb, vh) {
+    identifierar = true;
+    try {
+      const r = rutaPx(vb, vh);
+      const sx = r.w / AW, sy = r.h / AH;
+      const m = 0.08;
+      const bx = r.x + (t.box.x - t.box.w * m) * sx, by = r.y + (t.box.y - t.box.h * m) * sy;
+      const bw = t.box.w * (1 + 2 * m) * sx, bh = t.box.h * (1 + 2 * m) * sy;
+      const c = document.createElement('canvas');
+      const liggande = bw > bh;
+      const skala = Math.min(1, BESKAR_BREDD / (liggande ? bh : bw));
+      const ow = Math.round((liggande ? bh : bw) * skala), oh = Math.round((liggande ? bw : bh) * skala);
+      c.width = ow; c.height = oh;
+      const x = c.getContext('2d');
+      x.imageSmoothingQuality = 'high';
+      if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
+      else x.drawImage(video, bx, by, bw, bh, 0, 0, ow, oh);
+      if (cb.identifiera) {
+        const svar = await cb.identifiera(c, t.id);
+        if (svar) { t.namn = svar.namn || null; t.sid = svar.sid || null; t.saker = !!svar.saker; t.cands = svar.cands || null; }
+      }
+      t.fragad = true;
+      t.tillstand = t.namn ? 'klar' : 'okand';
+      rapportera();
+    } finally { identifierar = false; }
+  }
+
   function forhandsbild(bredd) {
     const vb = video.videoWidth, vh = video.videoHeight;
     if (!vb || !vh) return null;
@@ -8850,8 +9145,6 @@ const Kamera = (() => {
     return { url: c.toDataURL('image/jpeg', 0.45), w: vb, h: vh };
   }
 
-  /* En stillbild att kalibrera mot. Full bildruta, inte beskuren — det är
-     just rutan datorn ska peka ut. */
   async function stillbild() {
     const vb = video.videoWidth, vh = video.videoHeight;
     if (!vb) return null;
@@ -8867,8 +9160,6 @@ const Kamera = (() => {
     if (ov.width !== R.width || ov.height !== R.height) { ov.width = R.width; ov.height = R.height; }
     ovc.clearRect(0, 0, ov.width, ov.height);
     if (!kal) return;
-    /* Videon ligger med object-fit:contain, alltså hela bildrutan inpassad i
-       skärmen. Samma uträkning här, annars hamnar ramen bredvid mattan. */
     const s = Math.min(ov.width / vb, ov.height / vh);
     const ox = (ov.width - vb * s) / 2, oy = (ov.height - vh * s) / 2;
     const r = kal.ruta;
@@ -8878,15 +9169,29 @@ const Kamera = (() => {
     ovc.fillStyle = '#000000a0';
     ovc.fillRect(0, 0, ov.width, ov.height);
     ovc.clearRect(x, y, w, h);
-    ovc.strokeStyle = lage === 'kort' ? '#e8b33a' : lage === 'skickar' ? '#5fbf7f' : '#6b8cff';
-    ovc.lineWidth = 3; ovc.setLineDash(lage === 'tom' ? [10, 8] : []);
+    ovc.strokeStyle = '#6b8cff'; ovc.lineWidth = 2; ovc.setLineDash([]);
     ovc.strokeRect(x, y, w, h);
+    /* Varje spår ritas: gult medan det läses, grönt när det är känt, rött om
+       det inte gick att känna igen. Det är telefonens enda gränssnitt, och
+       det syns bara om man tittar. */
+    if (AH) for (const t of spar) {
+      const tx = x + t.box.x / AW * w, ty = y + t.box.y / AH * h;
+      const tw = t.box.w / AW * w, th = t.box.h / AH * h;
+      ovc.strokeStyle = t.namn ? '#5fbf7f' : t.tillstand === 'okand' ? '#e2606a' : '#e8b33a';
+      ovc.lineWidth = 2.5;
+      ovc.strokeRect(tx, ty, tw, th);
+    }
     ovc.restore();
   }
 
-  const säg = (l, txt) => { if (lage !== 'skickar' && lage !== 'vantar-tom') lage = l; if (cb.status) cb.status(l, txt); };
+  const säg = (l, txt) => { lage = l; if (cb.status) cb.status(l, txt); };
 
-  return { start, stopp, satKalibrering, stillbild, forhandsbild, beslut, get lage() { return lage; } };
+  /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
+  function nyReferens() { ref = null; spar = []; if (cb.bord) cb.bord([]); }
+  function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.fragad = false; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
+
+  return { start, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, rapportera,
+           detektera, matcha, tappad, get lage() { return lage; }, get spar() { return spar; } };
 })();
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -8934,18 +9239,8 @@ async function oppnaKamera(gameId) {
   try {
     await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
       status: kamSag,
-      bild: async (blob, forhands) => {
-        try {
-          await Moln.laddaUppScan(kamLage.id, blob);
-          kamRaknare++;
-          $('#kamSenast').hidden = false;
-          $('#kamSenastBild').src = forhands;
-          $('#kamSenastTxt').textContent = 'Skickat · ' + kamRaknare + (kamRaknare === 1 ? ' kort' : ' kort');
-        } catch (e) {
-          kamSag('fel', 'Kunde inte skicka: ' + (e.message || 'okänt fel'));
-          throw e;
-        }
-      }
+      bord: spar => sandBord(spar),
+      identifiera: (canvas, id) => kamIdentifiera(canvas, id)
     });
   } catch (e) {
     kamSag('fel', 'Kameran gick inte att starta');
@@ -8961,6 +9256,59 @@ async function oppnaKamera(gameId) {
     kamSag('ingen', 'Rikta kameran mot mattan');
     $('#kamFin').textContent = 'Lägg mattan tom i bild. Resten gör du på datorn.';
   }
+  /* Poolen byggs ur leken i bakgrunden. Spåren finns ändå — de får sitt namn
+     så fort poolen är klar. */
+  byggKamPool();
+  /* Hjärtslag: hela tillståndet igen var tredje sekund. En dator som just
+     öppnats eller tappat sockeln kommer i fas utan att fråga. */
+  setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', { spar: senastBord }); }, 3000);
+}
+
+/* ── telefonens igenkänning ──────────────────────────────────────────
+   Mot leken, på telefonen, en gång per kort. Säkert → namnet skickas rakt av.
+   Osäkert → förslagen skickas, och en beskuren bild så att datorn kan visa
+   vad det gäller. Ingen bild lämnar telefonen för ett kort den känner igen. */
+let senastBord = null, kamPoolBygger = false;
+function sandBord(spar) { senastBord = spar; Moln.sandKam('bord', { spar }); }
+
+async function byggKamPool() {
+  if (!kamLage || kamPoolBygger) return;
+  kamPoolBygger = true;
+  try {
+    const lek = await Moln.hamtaLek(kamLage.id);
+    if (!lek || !lek.kort || !lek.kort.length) {
+      $('#kamFin').textContent = 'Ingen lek sparad — lägg in den på datorn under "Min lek". Tills dess ser jag korten men vet inte vilka de är.';
+      return;
+    }
+    let sist = 0;
+    await byggLekPool(lek, kamLage.id, Moln.minId(), p => {
+      const nu = Date.now(); if (nu - sist < 400) return; sist = nu;
+      $('#kamFin').textContent = p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : 'Hämtar leken…';
+    });
+    $('#kamFin').textContent = `Känner igen ${Pool.idx.names.length} kort ur din lek.`;
+    /* Kort som väntade på en pool får en ny chans. */
+    for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
+  } catch (e) {
+    $('#kamFin').textContent = 'Kunde inte bygga igenkänningen: ' + (e.message || '');
+  } finally { kamPoolBygger = false; }
+}
+
+async function kamIdentifiera(canvas, id) {
+  if (!Pool.idx) return null;                     // poolen är inte klar än — spåret får vänta
+  const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+  let v;
+  try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
+  const cands = (v.rec.cands || []).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
+  const c0 = cands[0];
+  const saker = !!(v.accept && c0);
+  if (!saker) {
+    /* Beskärningen följer med så att datorn kan visa den i granskningen. */
+    const s = Math.min(1, 300 / canvas.width);
+    const c = document.createElement('canvas'); c.width = Math.round(canvas.width * s); c.height = Math.round(canvas.height * s);
+    c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+    Moln.sandKam('beskarning', { spar: id, b64: c.toDataURL('image/jpeg', 0.7) });
+  }
+  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands };
 }
 
 function tillampaKalibrering(rad) {
@@ -8989,6 +9337,10 @@ function kamKommando(m) {
   if (!m || !kamLage) return;
   kamDatorSvarade();
   if (m.typ === 'strom') { m.pa ? startaStrom() : stoppaStrom(); return; }
+  if (m.typ === 'lek') { byggKamPool(); return; }            // leken ändrades på datorn
+  if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
+  if (m.typ === 'glom') { Kamera.glomKort(m.spar); return; } // datorn rättade — läs om
+  if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', { spar: senastBord }); return; }
   if (m.typ === 'stopp') {
     /* Datorn kopplade bort kameran. Telefonen har inget att fråga om — den
        slutar titta och säger vad som hänt. */
@@ -9029,6 +9381,101 @@ const FLIK_ID = (() => {
   const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
   return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
 })();
+
+/* ── avstämning: telefonens bord blir mitt digitala bord ─────────────
+   Telefonen skickar HELA det den ser, inte händelser. Här jämförs det med
+   mitt bord: varje kort som kameran följer bär sitt spår-id. Syns spåret är
+   kortet kvar och tappat som kameran säger. Syns det inte längre får kortet
+   tre sekunders nåd — man lyfter kort för att läsa dem — och hamnar sedan i
+   remsan "utanför bordet", där man med ett klick säger vart det tog vägen.
+   Ett kort som kommer tillbaka inom kort återfår sitt gamla jag. */
+const BORTA_NAD = 3000;
+let avbord = [], avbordT = null;
+
+function avstamBord(spar) {
+  const mig = minSpelare(); if (!mig || !spelLage) return;
+  const nu = Date.now();
+  const sedda = new Set();
+  let andrat = false;
+  mig.pending = mig.pending || [];
+  for (const t of spar) {
+    sedda.add(t.id);
+    let k = mig.cards.find(c => c.spar === t.id);
+    if (!k && t.namn) {
+      /* Lyft och tillbakalagt: samma namn, nyss utanför bordet. */
+      const j = avbord.findIndex(a => a.name === t.namn);
+      if (j >= 0) { k = avbord.splice(j, 1)[0]; k.spar = t.id; delete k.borta; mig.cards.push(k); andrat = true; }
+    }
+    if (!k && t.tillstand === 'klar' && t.namn) {
+      k = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: t.tappad ? 1 : 0, spar: t.id, ny: nu };
+      mig.cards.push(k); andrat = true;
+    }
+    if (!k && t.tillstand === 'okand' && !mig.pending.some(q => q.spar === t.id)) {
+      mig.pending.push({ id: uid(), spar: t.id, box: null, rot: 0, tappad: !!t.tappad,
+        cands: (t.cands || []).map(c => ({ name: c.name, sid: c.sid || null, score: c.score || 0.5 })) });
+      andrat = true;
+    }
+    if (k) {
+      const tap = t.tappad ? 1 : 0;
+      if ((k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
+      if (k.borta) { delete k.borta; andrat = true; }
+    }
+  }
+  /* Spår som inte längre syns. */
+  for (const k of mig.cards) if (k.spar && !sedda.has(k.spar) && !k.borta) { k.borta = nu; andrat = true; }
+  const kvar = [];
+  for (const k of mig.cards) {
+    if (k.spar && !sedda.has(k.spar) && k.borta && nu - k.borta > BORTA_NAD) { delete k.spar; delete k.borta; k.lyft = nu; avbord.push(k); andrat = true; }
+    else kvar.push(k);
+  }
+  if (kvar.length !== mig.cards.length) mig.cards = kvar;
+  const pendKvar = mig.pending.filter(q => !q.spar || sedda.has(q.spar));
+  if (pendKvar.length !== mig.pending.length) { mig.pending = pendKvar; andrat = true; }
+  if (andrat) { save(); renderAll(true); resolveAll(); }
+  /* Nådatiden ska löpa ut även om telefonen är tyst. */
+  clearTimeout(avbordT);
+  if (mig.cards.some(k => k.borta)) avbordT = setTimeout(() => avstamBord(senasteSpar), BORTA_NAD + 100);
+  senasteSpar = spar;
+}
+let senasteSpar = [];
+
+/* Beskärningen av ett kort telefonen var osäker på — den bild granskningen
+   visar. Samma cache som skärmdumpsvägen använder, samma storlekar. */
+function tagEmotBeskarning(m) {
+  if (!m || !m.b64 || m.spar == null) return;
+  const mig = minSpelare(); if (!mig) return;
+  const q = (mig.pending || []).find(x => x.spar === m.spar);
+  const id = q ? q.id : ('spar-' + m.spar);
+  cropCache.set(id + '@220', m.b64); cropCache.set(id + '@260', m.b64);
+  if (q) renderAll(true);
+}
+
+/* Remsan för kort som lyfts från mattan. Bordet är sanningen; vad kortet
+   gjorde SEDAN vet bara du. */
+function renderAvbord() {
+  const el = $('#avbord'); if (!el) return;
+  const visa = !!spelLage && redigerbar() && avbord.length > 0;
+  el.hidden = !visa;
+  if (!visa) return;
+  el.innerHTML = `<span class="avbordlbl">Lyft från mattan</span>` + avbord.map((k, i) => {
+    const c = cardOf(k), src = c ? imgOf(c, 0, 'small') : '';
+    return `<span class="avbordkort" data-av="${i}">
+      ${src ? `<img src="${esc(src)}" alt="">` : ''}<b>${esc(k.name)}</b>
+      <button class="btn sm" data-av-grav="${i}" title="Kortet gick till graveyard">Graveyard</button>
+      <button class="btn sm" data-av-hand="${i}" title="Kortet togs upp på hand / lämnade bordet">Bort</button>
+      <button class="btn sm ghost" data-av-kvar="${i}" title="Det ligger kvar, kameran missade det">Ligger kvar</button>
+    </span>`;
+  }).join('');
+}
+$('#avbord') && $('#avbord').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-av-grav],[data-av-hand],[data-av-kvar]'); if (!b) return;
+  const i = +(b.dataset.avGrav ?? b.dataset.avHand ?? b.dataset.avKvar);
+  const k = avbord.splice(i, 1)[0]; if (!k) return;
+  const mig = minSpelare(); if (!mig) return;
+  if (b.dataset.avGrav != null) { k.zon = ZON_GRAV; mig.cards.push(k); }
+  else if (b.dataset.avKvar != null) { mig.cards.push(k); }
+  save(); renderAll(true);
+});
 
 /* ── datorns kameradialog ────────────────────────────────────────────
    Två lägen i samma ruta: QR-koden så länge ingen kamera är ansluten, och
@@ -9101,6 +9548,8 @@ function kamBild(m) {
 function kamTogsEmot(m) {
   if (!m) return;
   if (m.typ === 'bild') return kamBild(m);
+  if (m.typ === 'bord') return avstamBord(m.spar || []);
+  if (m.typ === 'beskarning') return tagEmotBeskarning(m);
   if (m.typ === 'av') { kamAnsluten = false; if (kamOppen) visaKamSteg(); toast('Kameran kopplades från', 'err'); }
 }
 $('#kamKnapp').onclick = () => visaKamOv();
@@ -9254,7 +9703,8 @@ $('#kalSpara').onclick = async () => {
   try {
     /* Måtten är telefonens EGNA, inte förhandsbildens. Rutan sparas i andelar
        av hela bildrutan, och det är de andelarna telefonen sedan beskär mot. */
-    await Moln.sparaKalibrering(spelLage.id, kalBox, null, kamBildW || 0, kamBildH || 0);
+    const upp = ($('.kalupp .on') || {}).dataset ? $('.kalupp .on').dataset.upp : 'v';
+    await Moln.sparaKalibrering(spelLage.id, Object.assign({}, kalBox, { upp }), null, kamBildW || 0, kamBildH || 0);
     closeOv('kamOv');
     toast('Ytan är bekräftad — kameran är igång', 'ok');
   } catch (e) { $('#kamOvStatus').textContent = 'Kunde inte spara: ' + (e.message || ''); }
@@ -9262,6 +9712,10 @@ $('#kalSpara').onclick = async () => {
 };
 /* Datorn kopplar bort telefonen. Telefonen slutar titta av sig själv; närvaron
    försvinner och dialogen går tillbaka till QR-koden. */
+$('.kalupp') && $('.kalupp').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-upp]'); if (!b) return;
+  $$('.kalupp [data-upp]').forEach(x => x.classList.toggle('on', x === b));
+});
 $('#kamKoppla').onclick = async () => {
   if (!await ask('Telefonen slutar läsa av kort. Du kan koppla upp den igen med QR-koden.',
                  { title: 'Koppla bort kameran?', ok: 'Koppla bort', danger: true })) return;

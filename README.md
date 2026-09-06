@@ -3,6 +3,13 @@
 En fristående webbsida (`index.html`, en enda fil) som kompletterar
 [spelltable.wizards.com](https://spelltable.wizards.com).
 
+**Kameran ser bordet.** I ett spel sitter din telefon i en hållare rakt
+över din spelyta. Den hittar varje kort som ligger där, följer det från
+bildruta till bildruta, läser om det är vridet, och känner igen det — mot
+din egen lek, på telefonen, en gång per kort. Det som lämnar telefonen är
+ett litet bordstillstånd när något ändrats. Den digitala vyn är en spegel av
+mattan; ett kort som lyfts hamnar i en remsa där du säger vart det tog vägen.
+
 **Klistra in en skärmdump av hela videosamtalets fönster.** Appen hittar spelarnas
 videorutor, läser av korten som ligger på borden, och skapar en spelare per ruta.
 Sedan kan du växla mellan spelare, se hela handen på en gång och zooma in på ett
