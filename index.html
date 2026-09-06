@@ -4422,7 +4422,16 @@ const ZON_SPELL = 'spell', ZON_MANA = 'mana', ZON_GRAV = 'grav';
    kommer man dit bara genom att flytta kortet själv. */
 function zonAv(e) {
   if (e && e.zon) return e.zon;
-  return /\bland\b/i.test(typLinje(e)) ? ZON_MANA : ZON_SPELL;
+  const t = typLinje(e);
+  /* Typraden kommer från Scryfall, och tills svaret är här är den tom — då
+     räknades varje kort som en permanent. Byter man till ett bord man inte
+     sett förut ligger alltså sju länder uppe bland creatures medan
+     uppslagningen går, kortstorleken räknas fram för dubbelt så många kort som
+     zonen faktiskt ska rymma, och några sekunder senare hoppar hela brädet om.
+     Ett kort som HETER Swamp är ett Swamp — de namnen är reserverade — så den
+     vanligaste sorten går att placera rätt direkt. */
+  if (t) return /\bland\b/i.test(t) ? ZON_MANA : ZON_SPELL;
+  return MANA_SUB[norm(e && e.name)] ? ZON_MANA : ZON_SPELL;
 }
 const ZON_ORD = { [ZON_SPELL]: 0, [ZON_MANA]: 1, [ZON_GRAV]: 2 };
 function delaHand() {
