@@ -1517,7 +1517,16 @@ body.lasvy .lasband{display:flex}
 /* ── tomläget ── */
 .lektomt,.lekfylld{display:flex;flex-direction:column;gap:13px}
 .lektomt[hidden],.lekfylld[hidden]{display:none}
-.lektomt.over{outline:2px dashed var(--acc);outline-offset:9px;border-radius:12px}
+/* Markeringen ligger på modalen, inte på tomläget: hela dialogen tar emot,
+   och då ska hela dialogen svara. */
+.lekmodal.over{outline:2px dashed var(--acc);outline-offset:-6px}
+.lekmodal.over::after{
+  content:'Släpp fotot så läser jag av det';
+  position:absolute;inset:auto 0 0;padding:10px;text-align:center;
+  background:var(--acc-d);color:var(--pa-acc);font:600 12.5px var(--sans);
+  border-top:1px solid var(--acc);pointer-events:none;
+}
+.lekmodal{position:relative}
 .lekritning{display:block;width:100%;max-width:340px;margin:2px auto}
 .lekgor{margin:0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:9px}
 .lekgor li{display:flex;gap:10px;font:12.8px/1.6 var(--sans);color:var(--dim)}
@@ -7415,23 +7424,38 @@ function lekNastaIKon() {
   return true;
 }
 $('#lekOppnaText').onclick = () => { lekAter = 'lek'; lekLage('text'); };
-/* Släppzonen måste stoppa händelsen innan appens egna drop- och paste-
-   lyssnare hinner tolka bilden som "lägg till kort i handen". */
+/* HELA dialogen är släppzon, i varje läge. Zonen satt förut på tomläget, och
+   det finns bara medan leken är tom — så fort man fått in sitt första foto var
+   drag-och-släpp död, trots att rutan lovade motsatsen. Värre: släppte man
+   strax utanför den lilla zonen fångade appens GLOBALA släpphanterare fotot i
+   stället, och trettio kort hamnade i handen på bordet.
+
+   Därför överlägget, inte en ruta i det: allt man kan sikta på när dialogen är
+   uppe hör till dialogen. Fångsten sker i fångstfasen och stoppar händelsen,
+   så att den globala hanteraren aldrig ser den. */
 (() => {
-  const z = $('#lekTomt');
+  const ov = $('#lekOv');
+  const modal = () => ov.querySelector('.lekmodal');
   const av = ev => { ev.preventDefault(); ev.stopPropagation(); };
-  z.addEventListener('dragover', ev => { av(ev); z.classList.add('over'); });
-  z.addEventListener('dragleave', ev => { av(ev); z.classList.remove('over'); });
-  z.addEventListener('drop', ev => {
-    av(ev); z.classList.remove('over');
-    const filer = [...((ev.dataTransfer && ev.dataTransfer.files) || [])];
-    if (!filer.length) return;
+  /* Räknare, inte en enkel flagga: dragleave avfyras varje gång pekaren går
+     över en gräns mellan barnelement, och en flagga hade blinkat bort
+     markeringen medan man fortfarande höll fotot över rutan. */
+  let djup = 0;
+  const markera = pa => modal() && modal().classList.toggle('over', pa);
+  ov.addEventListener('dragenter', ev => { av(ev); djup++; markera(true); }, true);
+  ov.addEventListener('dragover', av, true);
+  ov.addEventListener('dragleave', ev => { av(ev); if (--djup <= 0) { djup = 0; markera(false); } }, true);
+  ov.addEventListener('drop', ev => {
+    av(ev); djup = 0; markera(false);
+    const filer = [...((ev.dataTransfer && ev.dataTransfer.files) || [])]
+      .filter(f => /^image\//.test(f.type) || lekArHeic(f));
+    if (!filer.length) { toast(`Det där var ingen bild. Använd ${LEK_FORMATTEXT}.`, 'err'); return; }
     lekKo = filer.slice(1);
     lekTaEmotFil(filer[0]);
-  });
+  }, true);
+  /* Inklistring gäller i alla lägen utom textrutan, där ⌘V ska klistra text. */
   addEventListener('paste', ev => {
-    if (!$('#lekOv').classList.contains('open')) return;
-    if (lekLageNu !== 'lek' && lekLageNu !== 'foto') return;
+    if (!ov.classList.contains('open') || lekLageNu === 'text') return;
     const it = [...(ev.clipboardData ? ev.clipboardData.items : [])].find(i => i.type.startsWith('image/'));
     if (!it) return;
     ev.preventDefault(); ev.stopPropagation();
