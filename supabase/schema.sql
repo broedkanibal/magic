@@ -222,6 +222,45 @@ alter table public.game_players replica identity full;
 --  kort. Lagras som en lista {name, sid, small, n}: namn, Scryfall-id,
 --  liten bild-URL och antal. Bilden finns med så att telefonen kan bygga
 --  sin igenkänningspool utan hundra uppslagningar.
---  Går att köra om: kolumnen läggs bara till om den saknas.
+--
+--  Leken hör till KONTOT, inte till spelet. Först låg den som en kolumn
+--  på game_players, och den tabellen har nyckeln (game_id, user_id) —
+--  ga_med() infogar en tom rad för varje nytt spel, så leken dog med
+--  spelet och fick läggas in på nytt varje spelkväll. Värre: telefonen
+--  och datorn är två olika enheter, och en lek fotograferad i telefonen
+--  ska förstås finnas på datorn. Det som binder dem är inloggningen.
+--
+--  En rad per spelare. Ingen annan kommer åt den — inte ens de man
+--  spelar med, för vad man har i leken är inte deras sak.
+--  Går att köra om: skapas bara om den saknas, policyerna släpps först.
 -- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.lekar (
+  user_id     uuid primary key references auth.users(id) on delete cascade,
+  lek         jsonb not null,
+  uppdaterad  timestamptz not null default now()
+);
+alter table public.lekar enable row level security;
+
+drop policy if exists lekar_las on public.lekar;
+create policy lekar_las on public.lekar for select
+  using (user_id = auth.uid());
+
+drop policy if exists lekar_skriv on public.lekar;
+create policy lekar_skriv on public.lekar for insert
+  with check (user_id = auth.uid());
+
+drop policy if exists lekar_andra on public.lekar;
+create policy lekar_andra on public.lekar for update
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists lekar_radera on public.lekar;
+create policy lekar_radera on public.lekar for delete
+  using (user_id = auth.uid());
+
+grant select, insert, update, delete on public.lekar to authenticated;
+
+-- Den gamla kolumnen ligger kvar och LÄSES en sista gång: har man en lek
+-- sparad i ett spel från före den här ändringen flyttas den över till
+-- kontot när dialogen öppnas. Den skrivs aldrig mer. Att släppa den nu
+-- vore att kasta bort de lekarna för den som inte hunnit öppna appen.
 alter table public.game_players add column if not exists lek jsonb;

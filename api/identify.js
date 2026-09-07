@@ -33,7 +33,7 @@ const MODEL_KORT  = process.env.ANTHROPIC_MODEL_CARD || 'claude-sonnet-5';
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
    två felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 16;   // 16: prompterna beskriver videosamtalet utan att namnge någon app
+const PANE_PROMPT_V = 18;   // 18: lekläget rapporterar hur många kort taket kapade
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -126,7 +126,7 @@ export default async function handler(req, res) {
      då kräva att någon redigerar en rad i koden för att slå på AI-hjälpen. */
   if (req.method === 'GET') {
     return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
-      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL }, promptv: PANE_PROMPT_V });
+      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL, lek: MODEL }, promptv: PANE_PROMPT_V });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
   if (origin && !ok) return res.status(403).json({ error: 'Origin not allowed' });
@@ -453,6 +453,146 @@ export default async function handler(req, res) {
       if (s === 429) return res.status(429).json({ error: 'Too many requests right now' });
       if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
       return res.status(502).json({ error: 'Could not reach the image service' });
+    }
+  }
+
+  /* ── Läsa av spelarens lek ur ett foto ─────────────────────────────
+     Spelaren äger korten fysiskt och har ingen decklist att klistra in.
+     Leken läggs därför ut på ett bord i högar som överlappar nedåt, så
+     att bara titelraden syns av alla utom det nedersta i varje hög, och
+     fotograferas.
+
+     Det som skiljer det här läget från rutläget: där är positionen det
+     värdefulla och namnet en bonus, här är det tvärtom. Konstverket syns
+     knappt och regeltexten inte alls — den TRYCKTA TEXTEN är hela
+     signalen. Positionen är ändå med, men bara för att klienten ska kunna
+     klippa ut just den titelraden och visa den bredvid namnet när en rad
+     behöver rättas.
+
+     Och en sak till som rutläget inte har: här ska varje FYSISKT kort ge
+     en egen post. Fyra Mountain är fyra rader, inte "Mountain x4".
+     Klienten räknar förekomsterna själv. Att låta modellen räkna är den
+     dyraste felkällan i uppgiften — den ser tjugo likadana överlappande
+     kort och gissar ett jämnt tal. */
+  if (mode === 'lek') {
+    try {
+      const client = new Anthropic({ apiKey: key });
+      /* Den tunga modellen. Att läsa ett tryckt kortnamn på en NÄRBILD är
+         lätt nog för den snabba (card-läget), men där finns två oberoende
+         inramningar som måste vara överens innan något hamnar i handen.
+         Här finns ingen sådan spärr — ett felläst namn hamnar i den lek
+         kameran sedan identifierar MOT, och förgiftar hela kvällen. */
+      const stream = client.messages.stream({
+        model: MODEL,
+        max_tokens: 16000,
+        output_config: { effort: 'medium' },
+        system:
+          'Du läser av ett foto av en Magic: the Gathering-lek som ligger utlagd på ett bord. ' +
+          'Korten ligger i lodräta högar bredvid varandra och överlappar nedåt, som en solfjäder: ' +
+          'av varje kort syns bara den översta remsan med titelraden och manakostnaden, medan ' +
+          'konstverket och regeltexten är dolda under nästa kort. Det nedersta kortet i varje hög ' +
+          'syns helt. ' +
+          'Din uppgift är att skriva av titelraden på varje kort, EN RAD PER FYSISKT KORT. ' +
+          'Ligger fyra likadana kort i leken ska namnet stå fyra gånger, som fyra separata poster. ' +
+          'Slå aldrig ihop lika kort till en post, och skriv aldrig antal, multiplikatorer eller ' +
+          '"x4" — appen räknar själv hur många gånger ett namn förekommer. Det är den vanligaste ' +
+          'och dyraste felkällan i den här uppgiften. ' +
+          'Läs högarna i ordning: uppifrån och ned i den vänstra högen först, sedan nästa hög åt höger. ' +
+          'Titelraden är det enda beviset. Konstverket syns knappt och regeltexten inte alls, så ' +
+          'gissa aldrig ett kort utifrån den smala remsa färg som sticker fram. ' +
+          'Går en titelrad inte att läsa — en reflex i plastfickan, en skugga, ett kort som ligger ' +
+          'för långt över — svara med tom sträng som namn men BEHÅLL posten och ge den rätt ' +
+          'position. Den tomma posten är värdefull: den säger att där ligger ett kort, appen visar ' +
+          'en uppförstorad bild av just den remsan, och användaren fyller i namnet för hand på tre ' +
+          'sekunder. Ett kort du utelämnar helt försvinner däremot ur leken utan att någon märker det. ' +
+          'Hitta aldrig på ett kort för att fylla ut en hög till jämnt antal. Är högen nio kort djup ' +
+          'ska det bli nio poster, inte tolv. ' +
+          'Skriv namnet exakt som det står tryckt, med samma stavning, isärskrivning och skiljetecken. ' +
+          'Dubbelsidiga kort har bara framsidans namn tryckt — skriv det. Delade kort har två namn ' +
+          'med "//" emellan — skriv båda så som de står. Lägg inte till setnamn, samlarnummer eller utgåva. ' +
+          'Räkna inte med något som inte är ett uppåtvänt Magic-kort: kortaskar, tärningar, spelmattan, ' +
+          'händer, telefonen, kortryggar (enfärgat bruna med en ljus oval och ingen text) eller lösa ' +
+          'plastfickor. ' +
+          'Ett påhittat namn är värre än ett tomt. Appen slår upp varje namn mot Scryfall, och ett ' +
+          'namn som råkar finnas men är fel hamnar i spelarens sparade lek — sedan letar kameran ' +
+          'efter det kortet hela kvällen, och det ligger inte på bordet. ' +
+          'Svara bara med JSON, aldrig med förklarande text.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text:
+              'Skriv av titelraden på varje kort i bilden, ett kort per rad, i läsordning: uppifrån ' +
+              'och ned i vänstra högen, sedan nästa hög åt höger. Ta med även de kort vars namn du ' +
+              'inte kan läsa, då med tomt namn.\n\n' +
+              'namn: kortets namn exakt som det står tryckt, eller tom sträng "" om titelraden inte ' +
+              'går att läsa.\n' +
+              'x, y: mittpunkten på kortets synliga TITELRAD som heltal 0–1000, där x=0 är bildens ' +
+              'vänsterkant och y=0 dess överkant. Titelraden, inte kortets mitt — kortets mitt är ' +
+              'skymd av nästa kort. Appen visar en uppförstorad bild av just den remsan bredvid ' +
+              'namnet när användaren ska rätta det.\n' +
+              'sakerhet: "hog" när du läser hela titelraden tecken för tecken utan tvekan, "medel" ' +
+              'när du läser det mesta men gissar ett tecken eller ett ord, "lag" när du mest gissar. ' +
+              'Är namnet tomt är säkerheten "lag". Allt som inte är "hog" hamnar i en lista ' +
+              'användaren bekräftar, så "medel" och "lag" kostar ingenting.\n' +
+              'otydliga: hur många kort du SER i bilden men inte har lagt in i listan alls. Noll är ' +
+              'ett fullgott svar.\n\n' +
+              'Svara med enbart JSON. Ligger inga kort i bilden: {"kort": [], "otydliga": 0}\n' +
+              '{"kort": [{"namn": "..." | "", "x": 0-1000, "y": 0-1000, ' +
+              '"sakerhet": "hog"|"medel"|"lag"}], "otydliga": 0}' }
+          ]
+        }]
+      });
+      const msg = await stream.finalMessage();
+      const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) {
+        console.error('identify/lek: inget JSON i svaret',
+          JSON.stringify({ stop: msg.stop_reason, txt: txt.slice(0, 400) }));
+        return res.status(200).json({ kort: [], varfor: 'inget-json',
+          stop: msg.stop_reason || null, svar: txt.slice(0, 400), promptv: PANE_PROMPT_V });
+      }
+      /* JSON.parse ligger UTANFÖR anropets try-block i tanken: ett avhugget
+         svar är inte ett nätverksfel, och att svara 502 på det skickar
+         felsökningen åt fel håll. Här blir det ett 200 med skälet i klartext. */
+      let j;
+      try { j = JSON.parse(m[0]); }
+      catch (e) {
+        return res.status(200).json({ kort: [], varfor: 'trasigt-json',
+          svar: m[0].slice(0, 400), promptv: PANE_PROMPT_V });
+      }
+      /* filter FÖRE slice: annars äter en handfull skräpposter upp taket och
+         riktiga kort faller bort i stället för skräpet. Taket är 60 — fler
+         kort än så får ändå inte plats i en bild med läsbar titelrad. */
+      /* Taket är 60 — fler kort än så får ändå inte plats i en bild med
+         läsbar titelrad. Men ett tak som KAPAR TYST ljuger: klienten visade
+         "Fotot gav 60 kort" och användaren såg aldrig att femton kort fallit
+         bort. De kapade räknas därför in i otydliga, som redan betyder
+         "kort du inte fick med". */
+      const alla = (Array.isArray(j.kort) ? j.kort : [])
+        .filter(k => k && typeof k.namn === 'string');     // tomt namn är ett giltigt svar
+      const kapade = Math.max(0, alla.length - 60);
+      const kort = alla
+        .slice(0, 60)
+        .map(k => ({
+          namn: String(k.namn).slice(0, 120).trim(),
+          x: Math.max(0, Math.min(1000, Number(k.x) || 0)),
+          y: Math.max(0, Math.min(1000, Number(k.y) || 0)),
+          /* 'lag' som fallback, inte 'medel' som i rutläget: här är det ett
+             namn som ska sparas, och bara "hog" går in utan att bekräftas. */
+          sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'lag'
+        }));
+      return res.status(200).json({ kort,
+        otydliga: Math.max(0, Math.min(200, (Number(j.otydliga) || 0) + kapade)),
+        kapade,
+        promptv: PANE_PROMPT_V });
+    } catch (e) {
+      const s = e && e.status;
+      console.error('identify/lek:', s || '', (e && e.message) || e);
+      if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu — vänta en stund' });
+      if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
+      return res.status(502).json({ error: 'Bildtjänsten gick inte att nå', promptv: PANE_PROMPT_V });
     }
   }
 

@@ -1468,6 +1468,132 @@ body.lasvy .lasband{display:flex}
 .kalruta i[data-horn="sv"]{left:-9px;bottom:-9px;cursor:nesw-resize}
 .kalruta i[data-horn="so"]{right:-9px;bottom:-9px;cursor:nwse-resize}
 
+/* ── leken ─────────────────────────────────────────────────────────
+   Dialogen är bredare än de andra: varje rad bär två bilder — remsan ur
+   fotot och Scryfalls konstverk — och det är just jämförelsen mellan dem
+   som är kontrollen. Trängs de ihop finns ingen kontroll kvar.
+
+   Telefonen är den enhet fotot ligger på, så dialogen måste gå att
+   slutföra på 360 px. Därför faller raden till två rader i smalt läge i
+   stället för att klippa bort kolumner. */
+.lekmodal{width:min(760px,94vw)}
+.leksteg[hidden]{display:none}
+.lekhur{margin:10px 0 0;font:12.5px/1.6 var(--sans);color:var(--dim)}
+.lekslapp{
+  margin-top:10px;padding:22px 14px;border-radius:10px;text-align:center;
+  border:1.5px dashed var(--line);background:var(--bg3);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.lekslapp.over{border-color:var(--acc);background:var(--acc-d)}
+.lekslapp b{font-size:13.5px;color:var(--txt)}
+.lekslapp span{font-size:12px;color:var(--dim)}
+.lekslapp i{font:11.5px var(--sans);color:var(--dim2);font-style:normal}
+.lekbeskar[hidden]{display:none}
+.lekbeskar .kalbild{margin-top:8px;max-height:46vh}
+.lekbeskar .kalbild img{max-height:46vh;width:auto;margin:0 auto}
+.lekhogar{display:flex;align-items:center;gap:6px;margin-top:10px;font:11.5px var(--sans);color:var(--dim)}
+.lekhogar span{margin-right:2px}
+.lekhogar .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
+.lekknappar{display:flex;gap:6px;margin-top:10px;justify-content:flex-end}
+.lekhd{display:flex;align-items:center;gap:8px;margin:12px 0 6px}
+.lekfoton{display:flex;gap:5px;flex-wrap:wrap}
+.lekfoto{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 4px 2px 7px;border-radius:20px;
+  background:var(--bg3);border:1px solid var(--line);font:11px var(--mono);color:var(--dim);
+}
+.lekfoto button{padding:0 3px;color:var(--dim2);font-size:13px;line-height:1}
+.lekfoto button:hover{color:var(--red)}
+.leklista{
+  max-height:38vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);padding:4px;display:flex;flex-direction:column;gap:2px;
+}
+/* Byggd på .cand, men med remsan ur fotot först. Båda bilderna sitter på
+   VARJE rad, inte bara de trasiga: en modell som hittar på ett namn som
+   råkar finnas i Scryfall får rätt konstverk och en grön rad, och upptäcks
+   annars först mitt i ett parti. Remsan är det enda som säger vad som
+   faktiskt låg på bordet. */
+.lekrad{
+  display:flex;align-items:center;gap:9px;padding:5px 7px;border-radius:7px;
+  color:var(--dim);transition:background .1s;
+}
+.lekrad:hover{background:var(--bg4)}
+.lekrad .remsa{
+  width:96px;height:26px;object-fit:cover;border-radius:3px;flex:none;
+  background:#0c1017;box-shadow:0 2px 5px #0007;
+}
+/* Rader som inte kom från ett foto behåller platsen men inte rutan — en tom
+   mörk ruta på varje rad i en inläst lek läser sig som en trasig bild.
+   Konstverkets plats behåller däremot sin kontur när den är tom: där är
+   tomheten en upplysning, den säger att inget kort matchade. */
+.lekrad .remsa.tom{background:none;box-shadow:none}
+.lekrad .konst.tom{background:none;box-shadow:none;border:1px dashed var(--line)}
+.lekrad .konst{
+  width:28px;height:39px;object-fit:cover;border-radius:3px;flex:none;
+  background:#0c1017;box-shadow:0 2px 5px #0007;
+}
+.lekrad .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lekrad .nm{font-size:12.5px;font-weight:550;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lekrad .ef{font:10.5px var(--sans);color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lekrad.fel .nm{color:var(--acc)}
+.lekrad.fel .ef{color:var(--acc)}
+.lekrad .antal{
+  flex:none;min-width:26px;text-align:right;font:600 12px var(--mono);color:var(--txt);
+}
+.lekrad .bort{flex:none;padding:2px 5px;color:var(--dim2);font-size:13px;line-height:1}
+.lekrad .bort:hover{color:var(--red)}
+.lekrad input.ratta{
+  flex:1;min-width:0;height:28px;padding:0 9px;background:#0e131b;
+  border:1px solid #333e50;border-radius:var(--rs);outline:none;font-size:12.5px;color:var(--txt);
+}
+.lekrad input.ratta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+.leklagg{position:relative;margin-top:8px}
+.leklagg input{
+  width:100%;height:32px;padding:0 11px;background:#0e131b;border:1px solid #333e50;
+  border-radius:var(--rs);outline:none;font-size:13px;color:var(--txt);
+}
+.leklagg input:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+/* Klassbaserad, inte id-baserad som #suggest och #pickSuggest: rullgardinen
+   behövs på varje rad i listan, inte bara på ett ställe. */
+.leksuggest{
+  position:absolute;z-index:70;left:0;right:0;top:calc(100% + 4px);
+  margin:0;padding:4px;list-style:none;max-height:240px;overflow-y:auto;
+  background:#151b25;border:1px solid #333e50;border-radius:var(--r);
+  box-shadow:var(--shadow);display:none;
+}
+.leksuggest.open{display:block}
+.leksuggest li{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;
+  font-size:13px;cursor:pointer;color:var(--dim);
+}
+.leksuggest li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leksuggest li mark{background:none;color:var(--acc);font-weight:650}
+.leksuggest li.on{background:var(--bg4);color:var(--txt)}
+.leksuggest li .hintk{opacity:0;font-size:10px;color:var(--dim2)}
+.leksuggest li.on .hintk{opacity:1}
+.lekbasland{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.lekbl{display:inline-flex;align-items:center;gap:5px;font:11.5px var(--sans);color:var(--dim)}
+.lekbl input{
+  width:46px;height:28px;padding:0 6px;background:#0e131b;border:1px solid #333e50;
+  border-radius:var(--rs);outline:none;font:12px var(--mono);color:var(--txt);text-align:right;
+}
+.lekbl input:focus{border-color:var(--acc)}
+@media (max-width:560px){
+  .lekrad{flex-wrap:wrap}
+  .lekrad .col{flex-basis:100%;order:3}
+  .lekrad .antal,.lekrad .bort{order:4}
+  .kalruta i{width:22px;height:22px}
+  .kalruta i[data-horn="nv"]{left:-12px;top:-12px}
+  .kalruta i[data-horn="no"]{right:-12px;top:-12px}
+  .kalruta i[data-horn="sv"]{left:-12px;bottom:-12px}
+  .kalruta i[data-horn="so"]{right:-12px;bottom:-12px}
+  .kamflikar{flex-wrap:wrap}
+  .kamflikar .btn{flex:1}
+  /* Foten säger "18 kort sparas · 4 rader saknar namn". Den meningen är
+     halva svaret på om man är klar, och .grow krymper och kapar den i
+     stället för att radbryta. På en telefon får den en egen rad, överst. */
+  #lekOv .foot .grow{flex-basis:100%;order:-1;white-space:normal;line-height:1.5}
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    KAMERALÄGET — telefonen
 
@@ -1779,11 +1905,15 @@ body.ispel #addPlayerBtn{display:none}
     </div>
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
+    <!-- Leken hör till SPELAREN, inte till spelet: den lever i webbläsaren och
+         kopieras in i ett spel när man är i ett. Att fotografera sin lek är
+         dessutom något man gör FÖRE spelkvällen, inte under den — knappen låg
+         i spelraden och var därmed osynlig i just det läge man behöver den. -->
+    <button class="btn sm" id="lekKnapp" title="Din lek — det kameran känner igen kort mot">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="11" height="15" rx="2"/><path d="M9 8h9a2 2 0 0 1 2 2v11H9.5"/></svg>
+      <span id="lekKnappTxt">Min lek</span>
+    </button>
     <div class="spelrad" id="spelRad" hidden>
-      <button class="btn sm" id="lekKnapp" title="Din lek — det kameran känner igen kort mot">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="11" height="15" rx="2"/><path d="M9 8h9a2 2 0 0 1 2 2v11H9.5"/></svg>
-        <span id="lekKnappTxt">Min lek</span>
-      </button>
       <button class="btn sm" id="kamKnapp" title="Koppla telefonen som kamera">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>
         Kamera
@@ -2021,7 +2151,7 @@ body.ispel #addPlayerBtn{display:none}
 
 <!-- ── leken ── -->
 <div class="ov" id="lekOv">
-  <div class="modal" style="width:min(600px,94vw)">
+  <div class="modal lekmodal">
     <header>
       <h2>Min lek</h2>
       <button class="close" data-close="lekOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -2029,10 +2159,82 @@ body.ispel #addPlayerBtn{display:none}
     <div class="body">
       <p class="lead">Kameran känner igen kort mot <b>din lek</b> — ett hundratal kandidater i
         stället för trettiotusen. Det är skillnaden mellan igenkänning som fungerar och en
-        ström av osäkra kort. Klistra in listan från Moxfield, Archidekt eller vad som helst
-        med ett kort per rad.</p>
-      <textarea class="ta" id="lekTa" spellcheck="false" placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Mountain&#10;…"></textarea>
-      <p class="kamfin2" id="lekInfo"></p>
+        ström av osäkra kort.</p>
+
+      <div class="kamflikar" id="lekFlikar">
+        <button class="btn sm on" data-lekflik="foto">Fotografera leken</button>
+        <button class="btn sm" data-lekflik="text">Klistra in en lista</button>
+      </div>
+
+      <!-- fotovägen -->
+      <div class="leksteg" id="lekStegFoto">
+        <div id="lekHur">
+        <p class="lekhur">Lägg korten i <b>högar bredvid varandra</b> som överlappar nedåt, så att
+          bara titelraden syns av alla utom det nedersta i varje hög. Fotografera rakt uppifrån,
+          i jämnt ljus. <b>Ungefär trettio kort per foto</b> — ta flera efter varandra tills
+          leken är slut.</p>
+        <p class="kamfin2">Basländerna fotograferar du inte. Dem fyller du i som antal längre ned:
+          kameran känner ändå igen ett Mountain på symbolen, och den letar bland tjugofyra
+          tryckningar av varje landskap oavsett vilken du äger.</p>
+        </div>
+
+        <div class="lekslapp" id="lekSlapp">
+          <input type="file" id="lekFil" accept="image/*" multiple hidden>
+          <b>Släpp fotot här</b>
+          <span>eller <button class="btn sm" id="lekValjFil">välj en bild</button></span>
+          <i>Öppnar du sidan i telefonen kan du fota direkt.</i>
+        </div>
+
+        <div class="lekbeskar" id="lekBeskar" hidden>
+          <p class="kamfin2">Dra rutan så att den täcker korten och inget bord. Rutan är
+            upplösningen: tjugo procent bord är tjugo procent av titelraden.</p>
+          <div class="kalbild" id="lekBild">
+            <img id="lekImg" alt="">
+            <div class="kalruta" id="lekRuta"><i data-horn="nv"></i><i data-horn="no"></i><i data-horn="sv"></i><i data-horn="so"></i></div>
+          </div>
+          <div class="lekhogar">
+            <span>Högar bredvid varandra</span>
+            <button class="btn sm" data-hogar="2">2</button>
+            <button class="btn sm on" data-hogar="3">3</button>
+            <button class="btn sm" data-hogar="4">4</button>
+            <button class="btn sm" data-hogar="5">5</button>
+          </div>
+          <div class="pbrad" id="lekTal"></div>
+          <p class="kamfin2" id="lekDom"></p>
+          <div class="lekknappar">
+            <button class="btn sm ghost" id="lekAnnat">Välj ett annat foto</button>
+            <button class="btn prim" id="lekLas">Läs av fotot</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- inklistringsvägen -->
+      <div class="leksteg" id="lekStegText" hidden>
+        <p class="lekhur">Har du leken digitalt går den lika bra. Klistra in listan från Moxfield,
+          Archidekt eller vad som helst med ett kort per rad.</p>
+        <textarea class="ta" id="lekTa" spellcheck="false" placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Mountain&#10;…"></textarea>
+        <div class="lekknappar">
+          <button class="btn prim" id="lekTaGo">Lägg till namnen</button>
+        </div>
+      </div>
+
+      <!-- listan -->
+      <div class="leksteg" id="lekStegLista" hidden>
+        <div class="lekhd">
+          <div class="presets" id="lekFilter">
+            <button class="btn sm on" data-lekfilter="alla">Alla</button>
+            <button class="btn sm" data-lekfilter="fel">Behöver rättas</button>
+          </div>
+          <span class="grow"></span>
+          <div class="lekfoton" id="lekFoton"></div>
+        </div>
+        <div class="leklista" id="lekLista"></div>
+        <div class="leklagg">
+          <input id="lekLaggIn" type="text" placeholder="Lägg till ett kort för hand…" spellcheck="false" autocomplete="off">
+          <ul class="leksuggest" id="lekLaggSug"></ul>
+        </div>
+        <div class="lekbasland" id="lekBasland"></div>
+      </div>
     </div>
     <div class="foot">
       <span class="grow" id="lekStatus"></span>
@@ -3636,7 +3838,7 @@ function toast(msg, kind, undo) {
 
 /* ─────────── localStorage ─────────── */
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v1', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
-            lage: 'sthv.lage.v1', ui: 'sthv.ui.v1' };
+            lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -3814,7 +4016,12 @@ function lookup(query) {
   const alias = aliasMap.get(q);
   if (alias && cardCache.has(alias)) return Promise.resolve(cardCache.get(alias));
   if (cardCache.has(q)) return Promise.resolve(cardCache.get(q));
-  if (failed.has(q)) return Promise.reject(new Error(felText(q)));
+  if (failed.has(q)) {
+    const v = failed.get(q);
+    const ut = new Error(felText(q));
+    ut.tillfallig = !!(v && v.tillfallig);
+    return Promise.reject(ut);
+  }
   if (inflight.has(q)) return inflight.get(q);
 
   const p = SF.fuzzy(q).then(raw => {
@@ -3838,7 +4045,13 @@ function lookup(query) {
     marFel(q, msg, err);
     const al = aliasMap.get(q);
     if (al && al !== q) marFel(al, msg, err);
-    throw new Error(msg);
+    /* Arten följer med. marFel har redan avgjort om felet läker av sig självt
+       — utan flaggan på felet självt måste varje anropare räkna om samma sak,
+       och lekens uppslagning gjorde inte det: den sa "finns inte på Scryfall"
+       om ett nätglapp, och användaren rättade ett korrekt namn. */
+    const ut = new Error(msg);
+    ut.tillfallig = !!(err && (err.offline || OVERGANDE.has(err.status)));
+    throw ut;
   });
   inflight.set(q, p);
   return p;
@@ -4132,17 +4345,33 @@ const Moln = (() => {
   }
 
   /* Leken bor i game_players — den hör till spelaren i det här spelet. */
-  async function sparaLek(gameId, lek) {
+  /* Leken hör till kontot. En rad per spelare i lekar, inte en kolumn per
+     spel: telefonen som fotograferar och datorn som spelar är två enheter,
+     och det enda som binder dem är inloggningen. */
+  async function sparaMinLek(lek) {
     const s = await klient(); if (!s || !inloggad()) return false;
-    const { error } = await s.from('game_players').update({ lek })
-      .eq('game_id', gameId).eq('user_id', minId());
+    const { error } = await s.from('lekar')
+      .upsert({ user_id: minId(), lek, uppdaterad: new Date().toISOString() },
+              { onConflict: 'user_id' });
     if (error) { console.warn('Leken kunde inte sparas', error.message); return false; }
     return true;
   }
+  async function hamtaMinLek() {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const { data, error } = await s.from('lekar').select('lek')
+      .eq('user_id', minId()).maybeSingle();
+    if (error) throw new Error(error.message || 'Leken kunde inte hämtas');
+    return (data && data.lek) || null;
+  }
+  /* Den GAMLA vägen: leken som en kolumn på game_players. Läses bara en sista
+     gång, för att flytta över en lek sparad före kontotabellen. Skrivs aldrig
+     mer. Kastar vid databasfel i stället för att svara null — ett nätfel som
+     ser ut som en tom lek skulle annars se ut som "ingen lek att flytta". */
   async function hamtaLek(gameId) {
     const s = await klient(); if (!s || !inloggad()) return null;
-    const { data } = await s.from('game_players').select('lek')
+    const { data, error } = await s.from('game_players').select('lek')
       .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+    if (error) throw new Error(error.message || 'Leken kunde inte hämtas');
     return (data && data.lek) || null;
   }
 
@@ -4298,7 +4527,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm,
-           avslutaSpel, lyssna, lamnaKanal, sandKam, sparaLek, hamtaLek,
+           avslutaSpel, lyssna, lamnaKanal, sandKam, sparaMinLek, hamtaMinLek, hamtaLek,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
@@ -6229,6 +6458,11 @@ function closeOv(id) {
   if (id === 'askOv' && askResolve) { const r = askResolve; askResolve = null; r(false); }
   /* Oavsett HUR kameradialogen stängdes ska telefonen sluta strömma. */
   if (id === 'kamOv' && typeof stangKamOv === 'function') stangKamOv();
+  /* Och en pågående lekavläsning ska sluta kosta pengar när ingen tittar.
+     Samma form som raden ovanför: en hissad funktionsdeklaration, inte en
+     variabel — en let som deklareras längre ned i filen ligger i sin döda
+     zon om closeOv någonsin körs innan dess. */
+  if (id === 'lekOv' && typeof stangLek === 'function') stangLek();
 }
 /* Egen bekräftelseruta i stället för webbläsarens confirm(). Den senare kan
    sluta svara helt: har man en gång kryssat i Chromes "hindra sidan från att
@@ -6411,59 +6645,947 @@ function parseList(txt) {
     return Array.from({ length: count }, () => s);
   });
 }
-/* ── leken ────────────────────────────────────────────────────────────
-   Klistra in, slå upp varje namn en gång, spara som {name, sid, small, n}.
-   Bilden sparas med så att telefonen kan bygga sin pool utan att slå upp
-   hundra kort själv. */
+/* ══════════════════════════════════════════════════════════════════
+   LEKEN
+
+   Kameran identifierar mot spelarens egen lek. Utan sparad lek är hela
+   kamerakedjan oanvändbar, och inklistringsvägen förutsätter ett konto
+   på Moxfield som den som äger korten fysiskt sällan har. Därför
+   fotovägen: leken läggs ut på ett bord i högar som överlappar nedåt,
+   fotograferas, och namnen läses ur den tryckta titelraden.
+
+   TRE TAL STYR HELA BYGGET.
+
+   1. Titelraden är 2,9 % av kortets bredd. Uppmätt på en Scryfall-bild i
+      488 punkters bredd: versalhöjden i kortnamnet är 14 punkter. Det är
+      det tal som avgör hur många kort som får plats i ett anrop, och det
+      är mätt, inte räknat ur kortets millimetermått.
+
+   2. Servern tar emot 900 000 tecken base64 (api/identify.js). Det är
+      den bindande gränsen, inte modellens bildbudget: en bild kostar
+      0,32-0,40 base64-tecken per bildpunkt vid kvalitet 0,85, så taket
+      slår till vid drygt två megapixel — långt innan modellens 4784
+      visuella tokens är slut. Vi håller oss under 860 000 med marginal.
+
+   3. Modellen ser bilden nedskalad till högst 2576 punkter på långsidan
+      OCH högst 4784 visuella tokens (~3,75 megapixel). Att skicka mer är
+      att betala för punkter som kastas bort.
+
+   Tillsammans: omkring trettio kort per foto, med en titelrad på tolv
+   till femton punkter. Hela leken i ett anrop ger tio punkter — läsbart
+   på en ren bild, men utan marginal för oskärpa, lampglans och
+   perspektiv, som ett telefonfoto alltid har.
+
+   VAR LEKEN BOR. På kontot, i tabellen lekar, en rad per spelare. Först
+   låg den som en kolumn på game_players — men den tabellen har nyckeln
+   (game_id, user_id), så leken dog med spelet och fick läggas in på nytt
+   varje spelkväll. Och telefonen som fotograferar och datorn som spelar
+   är två enheter; det enda som binder dem är inloggningen. Den gamla
+   kolumnen läses en sista gång, för att flytta över gamla lekar.
+
+   BASLÄNDERNA FOTOGRAFERAS INTE. byggLekPool läser aldrig k.n, och den
+   hämtar dessutom tjugofyra tryckningar av varje landskap ur Scryfall
+   oavsett vilken man äger. Tjugo överlappande likadana Mountain är det
+   svåraste vi kan be en modell om, och det köper ingenting. Fem
+   sifferfält ersätter dem.
+
+   RADMODELLEN. Varje rad bär { per: { <källa>: antal } } i stället för
+   ett tal, där källa är ett foto, 'text' eller 'basland'. Summan är
+   antalet. Det gör tillägg, ångra och omfotografering till samma
+   operation — och sparningen ersätter hela leken, den har ingen tilläggsväg.
+   ══════════════════════════════════════════════════════════════════ */
 let minLek = null;
-async function oppnaLek() {
-  if (!spelLage) return;
-  openOv('lekOv');
-  $('#lekStatus').textContent = '';
-  if (!minLek) { try { minLek = await Moln.hamtaLek(spelLage.id); } catch (e) {} }
-  $('#lekTa').value = minLek && minLek.kort ? minLek.kort.map(k => `${k.n} ${k.name}`).join('\n') : '';
-  $('#lekInfo').textContent = minLek && minLek.kort
-    ? `${minLek.kort.reduce((n, k) => n + k.n, 0)} kort i leken.`
-    : 'Ingen lek sparad ännu.';
-  setTimeout(() => $('#lekTa').focus(), 30);
+
+/* Webbläsarkopian. Leken bor på KONTOT, i tabellen lekar — det är den som
+   gör att en lek fotograferad i telefonen finns på datorn. Den här kopian
+   är inget hem, den är två andra saker:
+
+     · vägen för den som kör utan konto alls
+     · det som finns kvar när nätet är borta
+
+   Den läses bara när kontot inte gav någon lek, och den är ett utkast: den
+   sås in i listan och måste sparas för att gälla någon annanstans. */
+const lekLokal = {
+  las() { return LS.get(K.lek, null); },
+  /* Returvärdet betyder något: LS.set svarar false när lagret är fullt eller
+     avstängt i privat läge. Utan konto är den här kopian det ENDA stället
+     leken finns, och att då säga "sparad" vore en ren lögn. */
+  spara(lek) { return LS.set(K.lek, lek); }
+};
+
+/* Arbetslistan. Nollställs när dialogen öppnas, aldrig medan den är öppen. */
+let lekRader = [];
+let lekFoton = [];              // { id, namn, n }
+let lekBasland = { Plains: 0, Island: 0, Swamp: 0, Mountain: 0, Forest: 0 };
+let lekFilter = 'alla';
+/* Ett meddelande som gäller HELA sessionen och inte får skrivas över av
+   fotens tillståndstext: "din lek ligger inte på kontot än, tryck spara".
+   Det säger varför knappen behöver tryckas, och försvinner först när den
+   gjort det. Utan det stod bara "4 kort redo att sparas" — sant, men det
+   svarar inte på frågan man har. */
+let lekNotis = '';
+/* Tidsstämpeln på den lek listan BYGGER PÅ. Sparningen jämför mot vad som
+   faktiskt ligger på kontot: har en annan enhet sparat under tiden dialogen
+   stått öppen skulle en blind skrivning kasta den nyare leken, och sedan
+   leken flyttade till kontot drabbar det alla enheter, inte ett spel. */
+let lekBaseradPa = 0;
+let lekBild = null;             // { img, canvas, box, hogar, namn }
+let lekLaser = false;
+let lekFotoRaknare = 0;
+/* Varje öppning av dialogen är en egen session. Ett avläsningssvar som kommer
+   in efter att dialogen stängts hör till en lista som inte finns längre —
+   utan spärren kunde förra fotots kort landa i nästa sessions lek. */
+let lekSession = 0;
+let lekStyr = null;             // AbortController för det pågående anropet
+/* Anropas av closeOv, oavsett hur dialogen stängdes. */
+function stangLek() {
+  if (lekStyr) { try { lekStyr.abort(); } catch (e) {} lekStyr = null; }
 }
-$('#lekKnapp').onclick = () => oppnaLek();
-$('#lekTa').addEventListener('keydown', e => {
-  e.stopPropagation();
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#lekSpara').click();
+
+const lekNyckel = n => (n || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const lekAntal = r => Object.values(r.per).reduce((s, v) => s + v, 0);
+const lekTotalt = () => lekRader.reduce((s, r) => s + lekAntal(r), 0)
+                      + Object.values(lekBasland).reduce((s, v) => s + v, 0);
+const lekTrasiga = () => lekRader.filter(r => r.fel).length;
+
+/* En rad per KORTNAMN, inte per fysiskt kort: fyra Mountain blir en rad
+   med antalet fyra. Modellen svarar med fyra poster, och de slås ihop här. */
+function lekLaggTill(rått, kalla, remsa, sak) {
+  const nyckel = lekNyckel(rått);
+  let rad = nyckel && lekRader.find(r => lekNyckel(r.name || r.namn) === nyckel);
+  if (rad) {
+    rad.per[kalla] = (rad.per[kalla] || 0) + 1;
+    if (!rad.remsa && remsa) rad.remsa = remsa;
+    return rad;
+  }
+  rad = { namn: rått || '', name: null, sid: null, small: null,
+          per: { [kalla]: 1 }, sak: sak || 'lag', fel: true, remsa: remsa || null };
+  lekRader.push(rad);
+  return rad;
+}
+
+/* Slår upp de rader som ännu inte har ett Scryfall-kort. Ett namn slås upp
+   EN gång även om det ligger på flera rader — uppslagningen är den enda
+   delen som tar tid utan att kosta pengar. */
+async function lekSlaUpp(onProg) {
+  const kvar = lekRader.filter(r => !r.sid && r.namn);
+  const unika = [...new Set(kvar.map(r => lekNyckel(r.namn)))];
+  let i = 0;
+  for (const nyckel of unika) {
+    const rader = kvar.filter(r => lekNyckel(r.namn) === nyckel);
+    if (onProg) onProg(++i, unika.length);
+    try {
+      const k = await lookup(rader[0].namn);
+      for (const r of rader) {
+        r.name = k.name; r.sid = k.id; r.small = imgOf(k, 0, 'small'); r.felmsg = '';
+        /* Bara "hog" räknas som klart. Ett namn modellen tvekade om kan
+           mycket väl slås upp utan fel och ändå vara fel kort — det är
+           just den vägen ett hittepånamn tar sig in. */
+        r.fel = r.sak !== 'hog';
+      }
+    } catch (e) {
+      /* Ett nätfel är inte samma sak som ett namn som inte finns. Sägs de med
+         samma ord rättar användaren ett korrekt namn — eller kastar kortet. */
+      const tillfallig = !!(e && e.tillfallig);
+      for (const r of rader) {
+        r.fel = true;
+        r.fann = tillfallig ? null : false;
+        r.felmsg = tillfallig ? 'Uppslagningen nådde inte fram — försök igen' : '';
+      }
+    }
+  }
+  /* Rader med samma uppslagna namn slås ihop nu — modellen kan ha stavat
+     "Lightning Bolt" och "Lightning  Bolt" olika och båda landar rätt. */
+  const av = new Map();
+  for (let r of lekRader) {
+    const n = lekNyckel(r.name || r.namn);
+    if (!n) continue;
+    let f = av.get(n);
+    if (!f) { av.set(n, r); continue; }
+    /* Den rad som FAKTISKT har ett kort vinner, inte den som råkar ligga
+       först. Annars kunde en uppslagen rad slås in i en vars uppslagning
+       fallerat — sid, name och small kastades, användarens rättning blev
+       tyst ogjord, och båda korten föll bort på !r.sid i sparningen. */
+    if (!f.sid && r.sid) { const t = f; f = r; av.set(n, r); r = t; }
+    for (const [k, v] of Object.entries(r.per)) f.per[k] = (f.per[k] || 0) + v;
+    if (!f.remsa) f.remsa = r.remsa;
+    /* Två belägg för samma kort: det starkaste gäller. Ett namn användaren
+       skrivit för hand ska inte tvingas bekräftas igen bara för att modellen
+       råkat läsa samma kort otydligt någon annanstans i fotot. */
+    if (r.sak === 'hog') f.sak = 'hog';
+    f.fel = !f.sid || f.sak !== 'hog';
+    r.borta = true;
+  }
+  lekRader = lekRader.filter(r => !r.borta);
+}
+
+/* ── dialogen ──────────────────────────────────────────────────────── */
+async function oppnaLek() {
+  openOv('lekOv');
+  const minSession = ++lekSession;
+  lekRader = []; lekFoton = []; lekFilter = 'alla'; lekFotoRaknare = 0; lekNotis = '';
+  lekBaseradPa = 0; lekKo = [];
+  lekBasland = { Plains: 0, Island: 0, Swamp: 0, Mountain: 0, Forest: 0 };
+  lekBild = null;
+  lekVisaFlik('foto');
+  $('#lekBeskar').hidden = true;
+  $('#lekSlapp').hidden = false;
+  $('#lekHur').hidden = false;
+  $('#lekTa').value = '';
+  $('#lekStatus').textContent = 'Hämtar…';
+
+  /* Tre källor, i fallande ordning av sanning:
+       1. kontot — leken hör dit och följer dig mellan enheter
+       2. spelets gamla kolumn — bara för lekar sparade före kontotabellen,
+          och bara för att kunna flytta över dem
+       3. webbläsaren — för den som kör utan konto
+     Ett hämtningsfel får ALDRIG falla vidare till nästa källa: en tom lek
+     som egentligen var ett nätfel skulle sås som utkast, och nästa sparning
+     skriva över den riktiga leken med en gammal. */
+  let konto = null, fel = null, flyttad = false;
+  if (Moln.inloggad()) {
+    try { konto = await Moln.hamtaMinLek(); }
+    catch (e) { fel = e; }
+  }
+  /* En nyare öppning äger listan. Utan den här raden sådde två överlappande
+     öppningar — stäng och öppna igen medan hämtningen hänger på ett trögt
+     nät — leken TVÅ gånger: lekSa gör bara push, så varje kort fick en egen
+     rad till och varje basland dubblerades. Uppmätt: 16 kort blev 32, och
+     eftersom leken sparas på kontot hade den dubbletten skrivit över den
+     riktiga på alla enheter. */
+  if (minSession !== lekSession) return;
+  minLek = konto;
+  uppdateraLekKnapp();
+
+  if (fel) {
+    $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken kunde inte hämtas.</b> Spara inte förrän du vet varför — det skulle skriva över den som finns.';
+    /* Listrutan stod kvar från förra öppningen och såg ut som en tom lek.
+       Sparning är ofarlig i det läget (inga rader = ingenting att skriva),
+       men en tom lista under ett felmeddelande läser sig som ett svar. */
+    ritaLek();
+    return;
+  }
+
+  /* Ingen lek på kontot? Leta i det gamla stället innan vi ger upp. */
+  if ((!konto || !konto.kort || !konto.kort.length) && spelLage && Moln.inloggad()) {
+    try {
+      const gammal = await Moln.hamtaLek(spelLage.id);
+      if (minSession !== lekSession) return;
+      if (gammal && gammal.kort && gammal.kort.length) { konto = gammal; flyttad = true; }
+    } catch (e) { /* den gamla kolumnen är en bonus, inte ett krav */ }
+  }
+
+  if (konto && konto.kort && konto.kort.length) {
+    lekBaseradPa = konto.ts || 0;
+    lekSa(konto.kort, 'sparat');
+    if (flyttad) lekNotis = 'Din lek låg sparad i det här spelet. <b>Spara</b> så flyttas den till kontot och följer med till nästa spel.';
+  } else {
+    const lokal = lekLokal.las();
+    if (lokal && lokal.kort && lokal.kort.length) {
+      lekSa(lokal.kort, 'lokalt');
+      if (Moln.inloggad()) lekNotis = 'Leken finns bara i den här webbläsaren. <b>Spara</b> så hamnar den på kontot och följer med till dina andra enheter.';
+    }
+  }
+  ritaLek();
+}
+
+/* Sår listan ur en sparad lek. Basländerna går tillbaka till sifferfälten
+   där de hör hemma, resten blir rader med källan 'sparat' eller 'lokalt'. */
+function lekSa(kort, kalla) {
+  for (const k of kort) {
+    /* BASLAND_NAMN, inte BASICS: BASICS rymmer även Wastes, som inte har
+       något sifferfält — det kortet skulle tyst ha försvunnit. */
+    if (BASLAND_NAMN.includes(k.name)) { lekBasland[k.name] = (lekBasland[k.name] || 0) + (k.n || 1); continue; }
+    lekRader.push({ namn: k.name, name: k.name, sid: k.sid, small: k.small,
+                    per: { [kalla]: k.n || 1 }, sak: 'hog', fel: false, remsa: null });
+  }
+}
+
+function lekVisaFlik(v) {
+  $$('#lekFlikar [data-lekflik]').forEach(b => b.classList.toggle('on', b.dataset.lekflik === v));
+  $('#lekStegFoto').hidden = v !== 'foto';
+  $('#lekStegText').hidden = v !== 'text';
+}
+$('#lekFlikar').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-lekflik]'); if (b) lekVisaFlik(b.dataset.lekflik);
 });
-$('#lekSpara').onclick = async () => {
-  if (!spelLage) return;
+$('#lekKnapp').onclick = () => oppnaLek();
+
+/* ── fotot in ───────────────────────────────────────────────────────
+   Duken är obligatorisk och inte en optimering: den fryser EXIF-
+   orienteringen i bildpunkter. Ett telefonfoto bär sin vridning som en
+   tagg, och den taggen följer inte med när bilden ritas på en canvas —
+   utan det här steget läser modellen ett liggande foto som stående. */
+async function lekTaEmotFil(fil) {
+  if (!fil || !/^image\//.test(fil.type)) { toast('Det där var ingen bild', 'err'); return; }
+  const url = URL.createObjectURL(fil);
+  try {
+    const img = await loadImage(url, false);
+    /* Taket är inte en optimering. Safari på iOS ritar ingenting alls på en
+       canvas över ungefär 16,7 miljoner bildpunkter — den blir tyst tom — och
+       en modern telefonkamera ger 48 megapixel. Telefonen är just den enhet
+       där fotot ligger, så utan taket är det DÄR funktionen går sönder, med
+       en svart beskärningsruta och nonsens i alla mätvärden.
+       12 miljoner ger marginal och är fortfarande sex gånger mer än de två
+       miljoner som skickas — remsorna i listan klipps ur den här duken och
+       ska vara skarpare än det modellen såg. */
+    const KALLA_MAX = 12_000_000;
+    const kk = Math.min(1, Math.sqrt(KALLA_MAX / (img.naturalWidth * img.naturalHeight)));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.naturalWidth * kk));
+    cv.height = Math.max(1, Math.round(img.naturalHeight * kk));
+    const kc = cv.getContext('2d');
+    kc.imageSmoothingQuality = 'high';
+    kc.drawImage(img, 0, 0, cv.width, cv.height);
+    lekBild = { img, canvas: cv, box: { x: 0.02, y: 0.02, w: 0.96, h: 0.96 },
+                hogar: (prefs.lekHogar || 3), namn: fil.name || 'foto' };
+    /* Förhandsbilden behöver inte vara mer än skärmbred. toDataURL på en
+       tolvmegapixelsduk tar sekunder och blockerar under tiden. */
+    const fh = document.createElement('canvas');
+    const fk = Math.min(1, 1400 / Math.max(cv.width, cv.height));
+    fh.width = Math.max(1, Math.round(cv.width * fk));
+    fh.height = Math.max(1, Math.round(cv.height * fk));
+    const fc = fh.getContext('2d');
+    fc.imageSmoothingQuality = 'high';
+    fc.drawImage(cv, 0, 0, fh.width, fh.height);
+    $('#lekImg').src = fh.toDataURL('image/jpeg', 0.88);
+    $('#lekSlapp').hidden = true;
+    $('#lekBeskar').hidden = false;
+    /* Läggningsinstruktionen har gjort sitt när fotot är taget, och den
+       tryckte ned beskärningsrutan, talen och knappen under vikningen —
+       tre stycken att rulla förbi varje gång, för att komma åt det man
+       faktiskt håller på med. */
+    $('#lekHur').hidden = true;
+    $$('#lekStegFoto [data-hogar]').forEach(b => b.classList.toggle('on', +b.dataset.hogar === lekBild.hogar));
+    /* decode() kan avslå OCH dröja. Ett .catch fångar bara det första, och
+       drar den ut på tiden ritas varken beskärningsrutan eller talen — man
+       får en bild utan ruta och utan dom, och inget som säger varför.
+       Kapplöpningen låter ritningen ske ändå; bilden är redan satt, och
+       webbläsaren visar den när den är klar. */
+    await Promise.race([
+      $('#lekImg').decode().catch(() => {}),
+      new Promise(r => setTimeout(r, 1500))
+    ]);
+    ritaLekRuta(); lekMat();
+  } catch (e) {
+    toast('Bilden gick inte att läsa', 'err');
+  } finally { URL.revokeObjectURL(url); }
+}
+$('#lekValjFil').onclick = () => $('#lekFil').click();
+/* Att markera flera foton på en gång är det naturliga sättet att välja när
+   leken tog tre bilder, och markupen tillåter det. Förut lästes bara den
+   första och resten kastades utan ett ord. De köas nu i stället: en bild i
+   taget genom beskärning och avläsning, och kön säger hur många som väntar. */
+let lekKo = [];
+$('#lekFil').onchange = ev => {
+  const filer = [...(ev.target.files || [])];
+  ev.target.value = '';
+  if (!filer.length) return;
+  lekKo = filer.slice(1);
+  lekTaEmotFil(filer[0]);
+};
+function lekNastaIKon() {
+  if (!lekKo.length) return false;
+  const f = lekKo.shift();
+  lekTaEmotFil(f);
+  return true;
+}
+$('#lekAnnat').onclick = () => {
+  lekBild = null; lekKo = [];
+  $('#lekBeskar').hidden = true; $('#lekSlapp').hidden = false;
+  $('#lekHur').hidden = false;
+};
+/* Släppzonen måste stoppa händelsen innan appens egna drop- och paste-
+   lyssnare hinner tolka bilden som "lägg till kort i handen". */
+(() => {
+  const z = $('#lekSlapp');
+  const av = ev => { ev.preventDefault(); ev.stopPropagation(); };
+  z.addEventListener('dragover', ev => { av(ev); z.classList.add('over'); });
+  z.addEventListener('dragleave', ev => { av(ev); z.classList.remove('over'); });
+  z.addEventListener('drop', ev => {
+    av(ev); z.classList.remove('over');
+    const filer = [...((ev.dataTransfer && ev.dataTransfer.files) || [])];
+    if (!filer.length) return;
+    lekKo = filer.slice(1);
+    lekTaEmotFil(filer[0]);
+  });
+  addEventListener('paste', ev => {
+    if (!$('#lekOv').classList.contains('open') || $('#lekStegFoto').hidden) return;
+    const it = [...(ev.clipboardData ? ev.clipboardData.items : [])].find(i => i.type.startsWith('image/'));
+    if (!it) return;
+    ev.preventDefault(); ev.stopPropagation();
+    lekTaEmotFil(it.getAsFile());
+  }, true);
+})();
+
+function ritaLekRuta() {
+  if (!lekBild) return;
+  const img = $('#lekImg'), ruta = $('#lekRuta');
+  const R = img.getBoundingClientRect(), P = img.parentElement.getBoundingClientRect();
+  if (!R.width) return;
+  const ox = R.left - P.left, oy = R.top - P.top, b = lekBild.box;
+  ruta.style.left = (ox + b.x * R.width) + 'px';
+  ruta.style.top = (oy + b.y * R.height) + 'px';
+  ruta.style.width = (b.w * R.width) + 'px';
+  ruta.style.height = (b.h * R.height) + 'px';
+}
+addEventListener('resize', () => { if (lekBild && !$('#lekBeskar').hidden) ritaLekRuta(); });
+/* Rutan ritas mot bildens UPPMÄTTA storlek, och den är noll tills webbläsaren
+   lagt ut elementet. Ritningen efter decode() träffar oftast rätt, men inte
+   alltid — och då står bilden där utan ruta, utan att något säger varför.
+   Att rita om när bilden är på plats kostar ingenting och stänger hålet. */
+$('#lekImg').addEventListener('load', () => { if (lekBild) ritaLekRuta(); });
+
+/* Samma dragmönster som kalibreringens ruta: musen räknas om till andelar
+   direkt, så fönsterstorleken hamnar aldrig i det som används. */
+(() => {
+  let drar = null;
+  const zon = $('#lekBild');
+  zon.addEventListener('pointerdown', ev => {
+    if (!lekBild) return;
+    const horn = ev.target.dataset && ev.target.dataset.horn;
+    const R = $('#lekImg').getBoundingClientRect();
+    drar = { horn, x0: ev.clientX, y0: ev.clientY, box: { ...lekBild.box }, R };
+    zon.setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+  });
+  zon.addEventListener('pointermove', ev => {
+    if (!drar) return;
+    const dx = (ev.clientX - drar.x0) / drar.R.width, dy = (ev.clientY - drar.y0) / drar.R.height;
+    const b = { ...drar.box };
+    if (!drar.horn) { b.x += dx; b.y += dy; }
+    else {
+      if (drar.horn[1] === 'v') { b.x += dx; b.w -= dx; } else { b.w += dx; }
+      if (drar.horn[0] === 'n') { b.y += dy; b.h -= dy; } else { b.h += dy; }
+    }
+    /* Tak åt BÅDA håll. Utan Math.min kunde bredden växa över 1, och då blev
+       clamp(b.x, 0, 1 - b.w) ett intervall med negativ övre gräns — rutan
+       hoppade utanför bilden och beskärningen läste utanför duken. */
+    b.w = clamp(b.w, 0.08, 1); b.h = clamp(b.h, 0.08, 1);
+    b.x = clamp(b.x, 0, 1 - b.w); b.y = clamp(b.y, 0, 1 - b.h);
+    lekBild.box = b; ritaLekRuta(); lekMatSnart();
+  });
+  const slut = ev => { if (drar) { drar = null; try { zon.releasePointerCapture(ev.pointerId); } catch (e) {} } };
+  zon.addEventListener('pointerup', slut);
+  zon.addEventListener('pointercancel', slut);
+})();
+
+$('#lekStegFoto').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-hogar]'); if (!b || !lekBild) return;
+  lekBild.hogar = +b.dataset.hogar;
+  prefs.lekHogar = lekBild.hogar; savePrefs();
+  $$('#lekStegFoto [data-hogar]').forEach(x => x.classList.toggle('on', x === b));
+  lekMat();
+});
+
+/* ── duken som skickas ──────────────────────────────────────────────
+   Tre tak, i den ordningen: bildpunkter (serverns bytegräns slår till
+   först), långsida (modellens 2576), och sist kvaliteten. */
+const LEK_MAXAREA = 2_000_000;
+const LEK_MAXSIDA = 2400;
+const LEK_MAXB64  = 860_000;        // serverns tak är 900 000 — marginal för avrundning
+/* Uppmätt på en Scryfall-bild i 488 punkters bredd: versalhöjden i
+   kortnamnet är 14 punkter. Kvoten är det tal hela geometrin vilar på. */
+const LEK_TITELKVOT = 0.029;
+/* Laplacevariansens gräns, uppmätt på en syntetisk solfjäder i tre högar med
+   växande oskärpa (dev/lekmock.js, mätt 1:1 på 520 punkter ur mitten):
+
+     0 px oskärpa  1441      1,5 px  153
+     0,5 px         988      2 px     70
+     1 px           365      3 px     20
+
+   Vid 1,5 px börjar en titelrad på 12,6 punkter smeta ihop, vid 2 px är den
+   borta. 150 ligger alltså precis där gränsen går. Det gamla värdet 60 var
+   satt mot en nedskalad tumnagel och släppte igenom 2 px oskärpa som "bra". */
+const LEK_SKARPA_MIN = 150;
+
+function lekDuk() {
+  if (!lekBild) return null;
+  const c = lekBild.canvas, b = lekBild.box;
+  const sx = b.x * c.width, sy = b.y * c.height;
+  const sw = Math.max(1, b.w * c.width), sh = Math.max(1, b.h * c.height);
+  let s = Math.min(1, Math.sqrt(LEK_MAXAREA / (sw * sh)), LEK_MAXSIDA / Math.max(sw, sh));
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(sw * s));
+  cv.height = Math.max(1, Math.round(sh * s));
+  const x = cv.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(c, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+  return cv;
+}
+
+/* Kvaliteten mäts i stället för att antas. En bild av kortgrafik ligger på
+   0,32-0,40 base64-tecken per bildpunkt vid 0,85, men en brusig bild i
+   dålig belysning ligger högre — och ett 413 från servern efter fyrtio
+   sekunders väntan är det sämsta svaret appen kan ge. */
+function lekB64(cv) {
+  for (const q of [0.85, 0.82, 0.78, 0.72]) {
+    const url = cv.toDataURL('image/jpeg', q);
+    const b64 = url.slice(url.indexOf(',') + 1);
+    if (b64.length <= LEK_MAXB64) return { b64, q, cv };
+  }
+  /* Golv, så att rekursionen bevisligen tar slut. Den kan i praktiken inte
+     nå hit — en bild under en halv megapixel kommer inte över 860 000 tecken
+     ens vid kvalitet 0,72 — men "i praktiken" är inte samma sak som "aldrig",
+     och en oändlig loop i en bildbehandlare låser fliken. */
+  if (cv.width * cv.height < 400_000) {
+    const url = cv.toDataURL('image/jpeg', 0.6);
+    return { b64: url.slice(url.indexOf(',') + 1), q: 0.6, cv };
+  }
+  const mindre = document.createElement('canvas');
+  mindre.width = Math.round(cv.width * 0.85); mindre.height = Math.round(cv.height * 0.85);
+  const x = mindre.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(cv, 0, 0, mindre.width, mindre.height);
+  return lekB64(mindre);
+}
+
+/* Laplacevarians på en gråskalenedskalning. Skriven lokalt och inte i
+   Matcher: dev/matcher.js är en kopia av koden här inne och ingenting
+   håller dem synkade — en funktion som läggs på ett ställe finns bara där. */
+function lekSkarpa(cv) {
+  /* Mätningen görs 1:1 på en bit ur mitten, inte på en nedskalad tumnagel av
+     hela bilden. Nedskalningen svarade på fel fråga: den mätte kontrast i
+     grova drag, och en bild där de stora formerna är skarpa men titelraden
+     suddig fick "Ser bra ut". Det är just titelraden som ska gå att läsa, och
+     den syns bara i de bildpunkter modellen faktiskt får. */
+  const RUTA = 520;
+  const w = Math.max(8, Math.min(RUTA, cv.width)), h = Math.max(8, Math.min(RUTA, cv.height));
+  const sx = Math.round((cv.width - w) / 2), sy = Math.round((cv.height - h) / 2);
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const x = t.getContext('2d', { willReadFrequently: true });
+  x.drawImage(cv, sx, sy, w, h, 0, 0, w, h);       // 1:1, ingen skalning
+  const d = x.getImageData(0, 0, w, h).data;
+  const g = new Float32Array(w * h);
+  let ljusa = 0;
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+    g[p] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    if (g[p] > 250) ljusa++;
+  }
+  let sum = 0, sum2 = 0, n2 = 0;
+  for (let y = 1; y < h - 1; y++) for (let xx = 1; xx < w - 1; xx++) {
+    const i = y * w + xx;
+    const l = 4 * g[i] - g[i - 1] - g[i + 1] - g[i - w] - g[i + w];
+    sum += l; sum2 += l * l; n2++;
+  }
+  const m = sum / n2;
+  return { varians: sum2 / n2 - m * m, utbrant: ljusa / (w * h) };
+}
+
+/* Fem tal medan rutan dras, i provbordets form. Kortbredden är det som
+   avgör om avläsningen kan lyckas; de andra säger varför den annars inte
+   skulle göra det.
+
+   Mätningen ritar om hela duken och läser tillbaka bildpunkterna. På en
+   tolvmegapixelsbild kostar det för mycket för att göras vid varje
+   musrörelse — dragningen hackade. En bildruta i taget räcker: ögat hinner
+   ändå inte läsa talen snabbare än så. */
+let lekMatVantar = 0;
+function lekMatSnart() {
+  if (lekMatVantar) return;
+  lekMatVantar = requestAnimationFrame(() => { lekMatVantar = 0; lekMat(); });
+}
+function lekMat() {
+  if (!lekBild) return;
+  const cv = lekDuk(); if (!cv) return;
+  const kolumner = lekBild.hogar * 1.0952 - 0.0952;
+  const W = cv.width / kolumner;
+  const titel = W * LEK_TITELKVOT;
+  const { varians, utbrant } = lekSkarpa(cv);
+  const tal = (namn, v, varn) => `<span class="pbtal${varn ? ' varn' : ''}">${namn} <b>${v}</b></span>`;
+  $('#lekTal').innerHTML =
+    tal('kortbredd', Math.round(W) + ' px', W < 340) +
+    tal('titelrad', titel.toFixed(1) + ' px', titel < 10) +
+    tal('skärpa', Math.round(varians), varians < LEK_SKARPA_MIN) +
+    tal('utbränt', (utbrant * 100).toFixed(1) + ' %', utbrant > 0.08) +
+    tal('bild', cv.width + '×' + cv.height, false);
+
+  let dom = '', las = 'Läs av fotot';
+  if (W < 286) {
+    dom = 'Korten är för små i bilden för att titelraden ska gå att läsa. Fotografera färre kort, eller dra rutan tätare kring dem.';
+    las = 'Läs av ändå';
+  } else if (W < 340) {
+    dom = 'Titelraden blir knapp. Det kan gå, men räkna med rader att fylla i för hand.';
+  } else if (varians < LEK_SKARPA_MIN) {
+    dom = 'Bilden är suddig. Håll telefonen stilla eller flytta den närmare.';
+  } else if (utbrant > 0.08) {
+    dom = 'Lampan speglar sig i plastfickorna. Flytta ljuset åt sidan, eller vinkla bordet.';
+  } else {
+    dom = 'Ser bra ut.';
+  }
+  $('#lekDom').textContent = dom;
+  $('#lekLas').textContent = lekKo.length ? `${las} (${lekKo.length + 1} valda)` : las;
+}
+
+/* ── avläsningen ──────────────────────────────────────────────────── */
+$('#lekLas').onclick = async () => {
+  if (!lekBild || lekLaser) return;
+  if (!aiEnabled()) { toast('Fotovägen behöver AI-hjälpen. Slå på den under ⋯ → AI-hjälp.', 'err'); return; }
+  lekLaser = true;
+  const knapp = $('#lekLas'); knapp.disabled = true;
+  const fotoId = 'foto' + (++lekFotoRaknare);
+  const duk = lekDuk();
+  /* Tillståndet som gäller för DET HÄR anropet, fruset. Allt nedanför är
+     asynkront, och lekBild kan bytas eller nollställas under tiden. */
+  const kalla = { canvas: lekBild.canvas, box: { ...lekBild.box }, hogar: lekBild.hogar };
+  const minSession = lekSession;
+  lekStyr = new AbortController();
+  try {
+    $('#lekStatus').textContent = 'Läser av fotot…';
+    const { b64 } = lekB64(duk);
+    const resp = await fetch(AI_ENDPOINT, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      signal: lekStyr.signal,
+      body: JSON.stringify({ mode: 'lek', image: b64 })
+    });
+    if (minSession !== lekSession) return;      // dialogen stängdes under tiden
+    if (!resp.ok) {
+      let msg = 'Fel ' + resp.status;
+      try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      $('#lekStatus').innerHTML = `<b style="color:var(--red)">${esc(msg)}</b>`;
+      return;
+    }
+    const j = await resp.json();
+    const kort = Array.isArray(j.kort) ? j.kort : [];
+    if (!kort.length) {
+      $('#lekStatus').innerHTML = j.varfor
+        ? '<b style="color:var(--red)">Avläsningen gav inget svar att tolka.</b> Bordet står kvar som det var.'
+        : '<b style="color:var(--red)">Inga kort hittades i fotot.</b> Ligger korten med titelraden synlig?';
+      return;
+    }
+    /* Remsan klipps ur ORIGINALFOTOT, inte ur den nedskalade duken: den ska
+       vara läsbar för en människa även när den var för liten för modellen. */
+    for (const k of kort) {
+      const remsa = lekRemsa(k.x, k.y, kalla);
+      lekLaggTill(k.namn, fotoId, remsa, k.sakerhet);
+    }
+    lekFoton.push({ id: fotoId, namn: 'Foto ' + lekFotoRaknare, n: kort.length });
+    await lekSlaUpp((i, n) => { $('#lekStatus').textContent = `Slår upp ${i} av ${n}…`; });
+    if (minSession !== lekSession) return;
+    /* Utfallet av ETT foto är en händelse och hör hemma i en notis. Statusraden
+       bär ett tillstånd — hur många kort som sparas just nu — och skrivs om av
+       uppdateraLekFot vid varje omritning. Låg utfallet där försvann det direkt,
+       och antalet otydliga kort nådde aldrig fram: det är just det talet som
+       säger att man bör fotografera om innan man går vidare. */
+    const otydliga = +j.otydliga || 0;
+    const kapade = +j.kapade || 0;
+    toast(`Fotot gav ${kort.length} kort` +
+          (otydliga ? ` · ${otydliga} syntes men kunde inte läsas` : '') +
+          (kapade ? ` — fotografera färre kort åt gången` : ''),
+          otydliga ? 'err' : 'ok');
+    lekBild = null;
+    if (lekTrasiga()) lekFilter = 'fel';
+    ritaLek();
+    if (!lekNastaIKon()) {
+      $('#lekBeskar').hidden = true; $('#lekSlapp').hidden = false;
+      $('#lekHur').hidden = false;
+    }
+  } catch (e) {
+    /* Ett AbortError är följden av att användaren stängde dialogen. Att skrika
+       om det vore att rapportera hens eget klick som ett fel. */
+    if (e && e.name === 'AbortError') return;
+    $('#lekStatus').innerHTML = `<b style="color:var(--red)">Avläsningen gick inte fram.</b> ${esc(e.message || '')}`;
+  } finally { lekLaser = false; knapp.disabled = false; lekStyr = null; }
+};
+
+/* Modellen svarar med titelradens mittpunkt i tusendelar av den duk den
+   fick. Remsan klipps ur samma duk med kortets bredd som mått, så att den
+   visar just den titelrad raden handlar om. */
+/* Remsan klipps ur KÄLLAN, inte ur den nedskalade duk som skickades.
+   Remsan finns till för att en människa ska kunna läsa ett namn modellen
+   INTE kunde läsa — klipptes den ur samma nedskalning, och dessutom ned till
+   192 punkters bredd, var den oläsligare än modellens egen indata, och hela
+   poängen föll.
+
+   'kalla' fångas när avläsningen startar och skickas hit. Att läsa lekBild
+   globalt gick inte: anropet är asynkront, och användaren kan hinna välja ett
+   annat foto med annat högantal innan svaret kommer. */
+function lekRemsa(x, y, kalla) {
+  if (!kalla || !kalla.canvas) return null;
+  const c = kalla.canvas, b = kalla.box;
+  const kolumner = kalla.hogar * 1.0952 - 0.0952;
+  /* Modellens 0–1000 gäller den beskurna, nedskalade bilden. Tillbaka till
+     källans bildpunkter går via beskärningsrutan. */
+  const omrX = b.x * c.width, omrY = b.y * c.height;
+  const omrB = b.w * c.width, omrH = b.h * c.height;
+  const W = omrB / kolumner;
+  const box = { x: omrX + (x / 1000) * omrB - W / 2,
+                y: omrY + (y / 1000) * omrH - W * 0.09,
+                w: W, h: W * 0.26 };
+  /* 320 punkter, inte 192: bred nog att läsa ett långt kortnamn på, och
+     källan har upplösningen att fylla dem. */
+  const cv = cropCanvas(c, box, 0, 320);
+  return cv ? cv.toDataURL('image/jpeg', 0.85) : null;
+}
+
+/* ── listan ────────────────────────────────────────────────────────── */
+function ritaLek() {
+  const har = lekRader.length || Object.values(lekBasland).some(v => v);
+  $('#lekStegLista').hidden = !har;
+  if (!har) { uppdateraLekFot(); return; }
+
+  const trasiga = lekTrasiga();
+  $$('#lekFilter [data-lekfilter]').forEach(b => {
+    b.classList.toggle('on', b.dataset.lekfilter === lekFilter);
+    b.textContent = b.dataset.lekfilter === 'alla'
+      ? `Alla (${lekRader.length})` : `Behöver rättas (${trasiga})`;
+  });
+  $('#lekFoton').innerHTML = lekFoton.map(f =>
+    `<span class="lekfoto">${esc(f.namn)}<button data-avfoto="${f.id}" title="Ta bort det här fotots kort">✕</button></span>`).join('');
+
+  const rader = lekFilter === 'fel' ? lekRader.filter(r => r.fel) : lekRader;
+  $('#lekLista').innerHTML = rader.map(r => {
+    const i = lekRader.indexOf(r);
+    const remsa = r.remsa ? `<img class="remsa" src="${r.remsa}" alt="">`
+                          : `<span class="remsa tom"></span>`;
+    const konst = r.small ? `<img class="konst" src="${esc(r.small)}" alt="">`
+                          : `<span class="konst tom"></span>`;
+    if (r.fel) {
+      const ef = !r.namn ? 'Titelraden gick inte att läsa'
+               : r.felmsg ? r.felmsg
+               : r.fann === false ? `"${esc(r.namn)}" finns inte på Scryfall`
+               : `Läst som "${esc(r.namn)}" — bekräfta`;
+      return `<div class="lekrad fel" data-rad="${i}">${remsa}${konst}` +
+        `<div class="col"><input class="ratta" type="text" value="${esc(r.namn || '')}" placeholder="Skriv kortets namn…" spellcheck="false" autocomplete="off">` +
+        `<span class="ef">${ef}</span></div>` +
+        `<span class="antal">${lekAntal(r)}</span>` +
+        `<button class="bort" data-bort="${i}" title="Ta bort">✕</button>` +
+        `<ul class="leksuggest"></ul></div>`;
+    }
+    return `<div class="lekrad" data-rad="${i}">${remsa}${konst}` +
+      `<div class="col"><span class="nm">${esc(r.name)}</span></div>` +
+      `<span class="antal">${lekAntal(r)}</span>` +
+      `<button class="bort" data-bort="${i}" title="Ta bort">✕</button></div>`;
+  }).join('') || '<div class="lekrad"><div class="col"><span class="ef">Inget att rätta.</span></div></div>';
+
+  $('#lekBasland').innerHTML = '<span class="kamfin2" style="flex-basis:100%">Basländer — antal, inte foton:</span>' +
+    BASLAND_NAMN.map(n => `<label class="lekbl">${n}<input type="number" min="0" max="60" data-bl="${n}" value="${lekBasland[n] || 0}"></label>`).join('');
+
+  /* Rullgardinen kopplas per rad, en gång per omritning. autocomplete äger
+     sin egen tangenthantering och stoppar händelsen själv. */
+  $$('#lekLista .lekrad.fel').forEach(el => {
+    const inp = el.querySelector('input.ratta'), ul = el.querySelector('.leksuggest');
+    const i = +el.dataset.rad;
+    if (inp && ul) autocomplete(inp, ul, namn => lekRatta(i, namn));
+  });
+  uppdateraLekFot();
+}
+
+/* En väg in i datan. Förslagsklick, Enter i fältet och handpåläggning går
+   alla hit, så att en rad aldrig kan bli halvrättad. */
+async function lekRatta(i, namn) {
+  const r = lekRader[i]; if (!r || !namn) return;
+  r.namn = namn;
+  $('#lekStatus').textContent = 'Slår upp…';
+  try {
+    const k = await lookup(namn);
+    /* Finns namnet redan som en annan rad hör de ihop — slå ihop dem i
+       stället för att låta samma kort ligga två gånger. */
+    const nyckel = lekNyckel(k.name);
+    const annan = lekRader.find(x => x !== r && lekNyckel(x.name) === nyckel);
+    if (annan) {
+      for (const [kk, v] of Object.entries(r.per)) annan.per[kk] = (annan.per[kk] || 0) + v;
+      lekRader = lekRader.filter(x => x !== r);
+    } else {
+      r.name = k.name; r.sid = k.id; r.small = imgOf(k, 0, 'small');
+      r.fel = false; r.fann = true; r.sak = 'hog'; r.felmsg = '';
+    }
+    $('#lekStatus').textContent = '';
+  } catch (e) {
+    const tillfallig = !!(e && e.tillfallig);
+    r.fel = true;
+    r.fann = tillfallig ? null : false;
+    r.felmsg = tillfallig ? 'Uppslagningen nådde inte fram — försök igen' : '';
+    $('#lekStatus').innerHTML = tillfallig
+      ? '<b style="color:var(--red)">Uppslagningen nådde inte fram.</b> Namnet kan mycket väl vara rätt — försök igen.'
+      : `<b style="color:var(--red)">"${esc(namn)}" finns inte på Scryfall.</b>`;
+  }
+  ritaLek();
+}
+
+$('#lekLista').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-bort]'); if (!b) return;
+  const i = +b.dataset.bort, r = lekRader[i]; if (!r) return;
+  const namn = r.name || r.namn || 'Kortet';
+  const kopia = { ...r, per: { ...r.per } }, plats = i;
+  lekRader = lekRader.filter(x => x !== r);
+  ritaLek();
+  toast(`${namn} togs bort`, undefined, () => { lekRader.splice(plats, 0, kopia); ritaLek(); });
+});
+$('#lekFilter').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-lekfilter]'); if (!b) return;
+  lekFilter = b.dataset.lekfilter; ritaLek();
+});
+/* Att ta bort ett foto är att stryka just det fotots bidrag ur varje rad.
+   Rader som därmed blir tomma försvinner. Det är hela ångravägen efter ett
+   foto som blev dåligt — inget behöver fotograferas om i onödan. */
+$('#lekFoton').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-avfoto]'); if (!b) return;
+  const id = b.dataset.avfoto;
+  for (const r of lekRader) delete r.per[id];
+  lekRader = lekRader.filter(r => lekAntal(r) > 0);
+  lekFoton = lekFoton.filter(f => f.id !== id);
+  ritaLek();
+});
+$('#lekBasland').addEventListener('input', ev => {
+  const inp = ev.target.closest('[data-bl]'); if (!inp) return;
+  lekBasland[inp.dataset.bl] = clamp(+inp.value || 0, 0, 60);
+  uppdateraLekFot();
+});
+$('#lekBasland').addEventListener('keydown', e => e.stopPropagation());
+autocomplete($('#lekLaggIn'), $('#lekLaggSug'), async namn => {
+  const rad = lekLaggTill(namn, 'text', null, 'hog');
+  rad.sak = 'hog';
+  await lekSlaUpp();
+  ritaLek();
+});
+
+$('#lekTaGo').onclick = async () => {
   const namn = parseList($('#lekTa').value);
   if (!namn.length) { $('#lekStatus').textContent = 'Inga kortnamn hittades.'; return; }
-  const antal = new Map();
-  for (const n of namn) antal.set(n, (antal.get(n) || 0) + 1);
-  const b = $('#lekSpara'); b.disabled = true;
-  const kort = [], okanda = [];
-  let i = 0;
-  for (const [n, c] of antal) {
-    $('#lekStatus').textContent = `Slår upp ${++i} av ${antal.size}…`;
-    try {
-      const k = await lookup(n);
-      kort.push({ name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), n: c });
-    } catch (e) { okanda.push(n); }
+  for (const n of namn) {
+    if (BASLAND_NAMN.includes(n)) { lekBasland[n] = (lekBasland[n] || 0) + 1; continue; }
+    lekLaggTill(n, 'text', null, 'hog');
   }
-  const lek = { kort, ts: Date.now() };
-  const ok = await Moln.sparaLek(spelLage.id, lek);
+  $('#lekTa').value = '';
+  await lekSlaUpp((i, t) => { $('#lekStatus').textContent = `Slår upp ${i} av ${t}…`; });
+  $('#lekStatus').textContent = '';
+  if (lekTrasiga()) lekFilter = 'fel';
+  ritaLek();
+};
+$('#lekTa').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('#lekTaGo').click();
+});
+$('#lekLaggIn').addEventListener('keydown', e => e.stopPropagation());
+
+/* Foten säger båda talen. En knapp som är grå för att tre rader saknar namn
+   döljer att nittiofyra kort är färdiga och går att spara nu. */
+function uppdateraLekFot() {
+  const b = $('#lekSpara');
+  const klara = lekRader.filter(r => r.sid).reduce((s, r) => s + lekAntal(r), 0)
+              + Object.values(lekBasland).reduce((s, v) => s + v, 0);
+  const trasiga = lekTrasiga();
+  b.textContent = klara ? `Spara ${klara} kort` : 'Spara leken';
   b.disabled = false;
-  if (!ok) { $('#lekStatus').textContent = 'Leken kunde inte sparas.'; return; }
-  minLek = lek;
-  uppdateraLekKnapp();
-  closeOv('lekOv');
-  const tot = kort.reduce((s, k) => s + k.n, 0);
-  toast(okanda.length ? `${tot} kort sparade · ${okanda.length} okända: ${okanda.slice(0, 3).join(', ')}` : `${tot} kort sparade — kameran känner nu igen din lek`,
-        okanda.length ? 'err' : 'ok');
-  /* Telefonen bygger om sin pool när leken ändras — säg till. */
-  Moln.sandKam('lek');
+  /* Ett rött meddelande är det enda som får stå kvar — det bär något
+     användaren måste läsa innan hen sparar. Allt annat ersätts, även när
+     ingenting är trasigt: annars blev "Slår upp 5 av 8…" stående kvar
+     efter att uppslagningen var klar. */
+  const st = $('#lekStatus');
+  if (/color:var\(--red\)/.test(st.innerHTML)) return;
+  const tillstand = !klara ? ''
+    : trasiga ? `${klara} kort sparas · ${trasiga} rader saknar namn`
+    : `${klara} kort redo att sparas`;
+  st.innerHTML = lekNotis
+    ? lekNotis + (tillstand ? ` <span style="opacity:.65">· ${esc(tillstand)}</span>` : '')
+    : esc(tillstand);
+}
+
+$('#lekSpara').onclick = async () => {
+  const kort = [];
+  for (const r of lekRader) {
+    if (!r.sid) continue;
+    kort.push({ name: r.name, sid: r.sid, small: r.small, n: lekAntal(r) });
+  }
+  /* Basländerna slås upp först nu. De har inget sid i listan eftersom de
+     aldrig fotograferats — men poolen vill ha ett kort att utgå från, och
+     hämtar sedan själv tjugofyra tryckningar till per landskap. */
+  const b = $('#lekSpara'); b.disabled = true;
+  const missade = [];
+  try {
+    for (const n of BASLAND_NAMN) {
+      const antal = lekBasland[n] || 0;
+      if (!antal) continue;
+      $('#lekStatus').textContent = `Slår upp ${n}…`;
+      try {
+        const k = await lookup(n);
+        kort.push({ name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), n: antal });
+      } catch (e) { missade.push(n); }
+    }
+    /* Ett land som inte gick att slå upp fick förut tyst utebli. Knappen hade
+       räknat med det, och nästa gång dialogen öppnades byggdes sifferfälten
+       ur den sparade leken — då var landet borta för gott, och kameran letade
+       aldrig efter det. Hellre stoppa och låta användaren spara om. */
+    if (missade.length) {
+      $('#lekStatus').innerHTML = `<b style="color:var(--red)">Kunde inte slå upp ${esc(missade.join(', '))}.</b> Leken sparades inte — försök igen när du har nät.`;
+      return;
+    }
+    if (!kort.length) { $('#lekStatus').textContent = 'Det finns inga kort att spara ännu.'; return; }
+
+    /* Ett namn, en post. Fotograferar man basländerna ändå hamnar de både som
+       rad och i sifferfältet, och leken fick då "4x Mountain" och "12x
+       Mountain" bredvid varandra. Poolen dedupar på sid och tog ingen skada,
+       men en sparad lek som räknar samma kort två gånger är fel att titta på. */
+    const slagna = [];
+    for (const k of kort) {
+      const f = slagna.find(x => x.sid === k.sid);
+      if (f) f.n += k.n; else slagna.push({ ...k });
+    }
+
+    const lek = { kort: slagna, ts: Date.now() };
+    $('#lekStatus').textContent = 'Sparar…';
+    /* Webbläsarkopian först, och alltid. Den är inte lekens hem — kontot är
+       det — men den är det som finns kvar om nätet är borta, och den kostar
+       ingenting. Skrivs den sist går en lek förlorad om kontosparningen
+       fallerar, och det är just då man helst vill ha den kvar. */
+    const lokaltOk = lekLokal.spara(lek);
+
+    const inloggad = Moln.inloggad();
+    if (inloggad) {
+      /* Har någon annan enhet sparat sedan listan byggdes? Fråga innan vi
+         skriver över. Att bara skriva vore att tyst kasta någons arbete. */
+      let nuvarande = null;
+      try { nuvarande = await Moln.hamtaMinLek(); } catch (e) { /* nätfelet fångas av sparningen nedan */ }
+      if (nuvarande && (nuvarande.ts || 0) > lekBaseradPa) {
+        const antal = (nuvarande.kort || []).reduce((a, k) => a + (k.n || 1), 0);
+        const jaSkriv = await ask(
+          `En lek med ${antal} kort sparades från en annan enhet medan den här rutan stod öppen. ` +
+          `Sparar du nu ersätts den med de ${lekTotalt()} kort du ser här.`,
+          { title: 'Leken har ändrats någon annanstans', ok: 'Skriv över', danger: true });
+        if (!jaSkriv) { $('#lekStatus').innerHTML = '<b>Ingenting sparades.</b> Stäng och öppna rutan igen för att se den nyare leken.'; return; }
+      }
+    }
+    if (!lokaltOk && !inloggad) {
+      $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken kunde inte sparas i webbläsaren.</b> Lagret är fullt eller avstängt — logga in, så sparas den på ditt konto i stället.';
+      return;
+    }
+    if (inloggad) {
+      const ok = await Moln.sparaMinLek(lek);
+      if (!ok) {
+        $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken sparades i den här webbläsaren men nådde inte kontot.</b> Spara om när du har nät igen.';
+        minLek = null; uppdateraLekKnapp();
+        return;
+      }
+      minLek = lek;
+      lekBaseradPa = lek.ts;
+      /* Telefonen bygger om sin pool när leken ändras — säg till. Bara i ett
+         spel finns en kanal att säga det på. */
+      if (spelLage) Moln.sandKam('lek');
+    }
+    uppdateraLekKnapp();
+    closeOv('lekOv');
+    const tot = kort.reduce((s, k) => s + k.n, 0);
+    const kvar = lekTrasiga();
+    toast(kvar ? `${tot} kort sparade · ${kvar} rader utan namn lämnades kvar`
+               : inloggad ? `${tot} kort sparade på ditt konto — kameran känner nu igen din lek`
+                          : `${tot} kort sparade i den här webbläsaren`,
+          kvar ? 'err' : 'ok');
+  } catch (e) {
+    $('#lekStatus').innerHTML = `<b style="color:var(--red)">Sparningen gick fel.</b> ${esc(e.message || '')}`;
+  } finally {
+    /* try/finally: klient() kan kasta på den dynamiska supabase-importen,
+       och utan finally blev knappen grå för resten av besöket. */
+    b.disabled = false;
+  }
 };
 function uppdateraLekKnapp() {
   const t = $('#lekKnappTxt'); if (!t) return;
-  const n = minLek && minLek.kort ? minLek.kort.reduce((s, k) => s + k.n, 0) : 0;
+  /* Utanför ett spel finns ingen minLek — knappen ska ändå säga hur många
+     kort man har, annars ser en sparad lek ut att ha försvunnit så fort man
+     lämnar spelet. */
+  const lek = (minLek && minLek.kort) ? minLek : lekLokal.las();
+  const n = lek && lek.kort ? lek.kort.reduce((s, k) => s + (k.n || 1), 0) : 0;
   t.textContent = n ? `Lek · ${n}` : 'Min lek';
 }
 
@@ -6632,7 +7754,11 @@ addEventListener('keydown', ev => {
   }
   const shotOpen = $('#shotOv').classList.contains('open');
   if (shotOpen) { shotKey(ev); return; }
-  if ($('#helpOv').classList.contains('open') || $('#bulkOv').classList.contains('open')) return;
+  /* lekOv hör hit sedan dialogen fick knappar och fält: utan den styrde
+     Space, piltangenter och Backspace bordet UNDER överlägget, och
+     Backspace tar bort ett kort därifrån. */
+  if ($('#helpOv').classList.contains('open') || $('#bulkOv').classList.contains('open')
+      || $('#lekOv').classList.contains('open')) return;
 
   switch (k) {
     case 'ArrowLeft':  ev.preventDefault(); step(-1); return;
@@ -7146,9 +8272,18 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
 /* Poolen ur spelarens lek. Baslanden i leken kompletteras med några
    konstverk till per landskapstyp — ett Mountain är ett Mountain oavsett
    tryckning, och den man har på bordet är sällan just den i listan. */
-async function byggLekPool(lek, gameId, userId, onProg) {
-  const code = 'lek:' + gameId + ':' + userId;
-  if (Pool.idx && Pool.idx.code === code) return Pool.idx;
+async function byggLekPool(lek, userId, onProg) {
+  /* Nyckeln är spelaren, inte spelet. Leken hör till kontot, och att bygga om
+     hela poolen — en dryg minut och tusen bilder — bara för att man startat
+     ett nytt spel med samma lek vore ren väntan utan orsak.
+
+     Koden ändras däremot ALDRIG när leken gör det. Utan ts-villkoret här
+     lämnade den redan byggda poolen tillbaka direkt, och ett andra foto nådde
+     därför aldrig telefonen: sandKam('lek') → byggKamPool → byggLekPool →
+     samma pool som förut. Raden under jämför redan ts mot den sparade
+     kopian; den i minnet måste jämföras likadant. */
+  const code = 'lek:' + userId;
+  if (Pool.idx && Pool.idx.code === code && (Pool.idx.ts || 0) >= (lek.ts || 0)) return Pool.idx;
   const cached = await Pool.load(code);
   if (cached && cached.ts >= (lek.ts || 0)) return cached;
   const cards = [], seen = new Set();
@@ -9286,6 +10421,7 @@ const kamSag = (l, txt) => {
 async function oppnaKamera(gameId) {
   const { spel } = await Moln.hamtaSpel(gameId);
   kamLage = { id: spel.id, kod: spel.kod };
+  minLek = null;
   kameraEnhet = true;
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
   $('#kamSpel').textContent = spel.namn || ('Spel ' + spel.kod);
@@ -9347,13 +10483,21 @@ async function byggKamPool() {
   if (!kamLage || kamPoolBygger) return;
   kamPoolBygger = true;
   try {
-    const lek = await Moln.hamtaLek(kamLage.id);
+    /* Kontots lek, inte spelets. Telefonen är inloggad som samma person som
+       sitter vid datorn, och det är just den kopplingen som gör att en lek
+       fotograferad på ett ställe finns på det andra. */
+    let lek = await Moln.hamtaMinLek();
+    /* Ligger den kvar i det gamla stället får den duga tills någon öppnat
+       dialogen och flyttat över den. */
     if (!lek || !lek.kort || !lek.kort.length) {
-      $('#kamFin').textContent = 'Ingen lek sparad — lägg in den på datorn under "Min lek". Tills dess ser jag korten men vet inte vilka de är.';
+      try { lek = await Moln.hamtaLek(kamLage.id); } catch (e) { lek = null; }
+    }
+    if (!lek || !lek.kort || !lek.kort.length) {
+      $('#kamFin').textContent = 'Ingen lek sparad — öppna "Min lek" och fotografera leken, eller klistra in listan. Tills dess ser jag korten men vet inte vilka de är.';
       return;
     }
     let sist = 0;
-    await byggLekPool(lek, kamLage.id, Moln.minId(), p => {
+    await byggLekPool(lek, Moln.minId(), p => {
       const nu = Date.now(); if (nu - sist < 400) return; sist = nu;
       $('#kamFin').textContent = p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : 'Hämtar leken…';
     });
@@ -9744,6 +10888,10 @@ function kamTogsEmot(m) {
   if (m.typ === 'bord') { if (m.dia) provbordData(m); return avstamBord(m.spar || []); }
   if (m.typ === 'trosklar') { pbTro = m.v || pbTro; ritaPbReglage(); return; }
   if (m.typ === 'beskarning') return tagEmotBeskarning(m);
+  /* Leken kan sparas från telefonen — fotot ligger där. Utan den här raden
+     satt datorn kvar med en inaktuell minLek och skrev en gammal lek över
+     den nya nästa gång dialogen sparades. */
+  if (m.typ === 'lek') { minLek = null; uppdateraLekKnapp(); return; }
   if (m.typ === 'av') { kamAnsluten = false; if (kamOppen) visaKamSteg(); toast('Kameran kopplades från', 'err'); }
 }
 $('#kamKnapp').onclick = () => visaKamOv();
@@ -10032,6 +11180,11 @@ async function visaLobby() {
 async function oppnaSpel(gameId, farsk) {
   const { spel, spelare } = await Moln.hamtaSpel(gameId);
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
+  /* Leken hör till ETT spel — game_players har nyckeln (game_id, user_id).
+     Utan nollställningen hindrade det gamla värdet hämtningen av det nya
+     spelets lek, och knappen visade fel antal. */
+  minLek = null;
+  uppdateraLekKnapp();
   byggSpelare(spelare);
   /* Den sparade fliken gäller ETT spel, och sedan förra versionen står det
      vilket. Förut låg { active, sel } löst i en nyckel som delades av alla
@@ -10390,6 +11543,7 @@ async function portalStart() {
   } catch (e) { /* poolen byggs om vid första avläsningen */ }
 
   renderAll(true);
+  uppdateraLekKnapp();      // säger antalet ur den lokala kopian, även utan spel
   importFromHash();
   resolveAll();
   applySize();

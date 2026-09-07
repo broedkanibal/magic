@@ -6,7 +6,18 @@ En fristående webbsida (`index.html`, en enda fil) som kompletterar
 **Kameran ser bordet.** I ett spel sitter din telefon i en hållare rakt
 över din spelyta. Den hittar varje kort som ligger där, följer det från
 bildruta till bildruta, läser om det är vridet, och känner igen det — mot
-din egen lek, på telefonen, en gång per kort. Det som lämnar telefonen är
+din egen lek, på telefonen, en gång per kort.
+
+**Leken lär du appen genom att fotografera den.** Korten läggs i högar som
+överlappar nedåt, så att bara titelraden syns, och ett foto räcker för ett
+trettiotal kort. Namnen läses ur den tryckta texten, slås upp mot Scryfall och
+visas som en lista du rättar innan den sparas. Har du listan digitalt går den
+lika bra att klistra in.
+
+Leken hör till ditt **konto**, inte till spelet: fotograferar du den i telefonen
+finns den på datorn, och den följer med in i varje nytt spel. Du kan ändra den
+när som helst, också mitt i ett parti — telefonen bygger om sin igenkänning så
+fort du sparat. Utan konto sparas den i webbläsaren. Det som lämnar telefonen är
 ett litet bordstillstånd när något ändrats. Den digitala vyn är en spegel av
 mattan; ett kort som lyfts hamnar i en remsa där du säger vart det tog vägen.
 
@@ -74,7 +85,7 @@ inte hos GitHub". Svaret `0` betyder att allt är uppe.
 curl -s https://magic-mauve-xi.vercel.app/api/identify
 ```
 
-Svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":11}`.
+Svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":18}`.
 
 | fält | betyder |
 | --- | --- |
@@ -104,6 +115,7 @@ Instruktionerna som skickas till bildmodellen ligger i
 | `namn` | ~230 | läser spelarens namn ur videoappens överlägg |
 | `card` | ~279 | namnger ETT kort på en närbild |
 | `pane` | ~332 | hittar alla kort i en hel videoruta |
+| `lek` | ~459 | läser kortnamnen ur ett foto av den utlagda leken |
 
 `PANE_PROMPT_V` högst upp i samma fil är ett heltal som höjs för hand varje
 gång någon av promterna eller lägena ändras. Det ska alltså **stämma med
@@ -115,7 +127,7 @@ två gånger av precis det skälet, och letade efter fel i promterna när
 problemet var att ändringen inte låg ute.
 
 Siffran syns på tre ställen: i koden (`PANE_PROMPT_V`), i hälsokollens svar,
-och i appen under **Meny → AI-hjälp**, där det står "instruktioner v11" bredvid
+och i appen under **Meny → AI-hjälp**, där det står "instruktioner v18" bredvid
 modellnamnet.
 
 ## Köra lokalt
@@ -139,6 +151,15 @@ igenkänningen. Sätt `STUB_AI=accept` för att medvetet testa den vägen.
 `STUB_PANE=kort` låter helrutsläget svara med kort, och `STUB_NAMN=Xepman` låter
 namnläget svara med ett spelarnamn — utan den svarar det tomt, som en modell som
 inte gissar.
+
+`STUB_LEK=kort` låter lekfotot svara med elva kort valda för att vara svåra att
+bygga rätt mot: fyra likadana Mountain som ska bli **en** rad med antalet fyra,
+ett tomt namn som ska hamna i ifyllnadslistan, ett namn som inte finns på
+Scryfall, och ett `medel` som ska begära bekräftelse trots att det slås upp utan
+fel. `STUB_LEK=trasigt` svarar utan JSON. Utan variabeln svarar den "inga kort".
+
+`PORT` går att sätta, standard 8232 — så att två attrapper med olika lägen kan
+köras samtidigt.
 
 Testbilderna i `dev/bilder/` är gitignorerade, så `vercel dev` serverar dem inte.
 Vill du köra sidan mot riktiga Claude med en av dem: öppna sidan på port 3000 och
@@ -279,10 +300,23 @@ Verifierat i Chrome på laptopstorlek:
 - Kortdetektering och matchning, inklusive stresstest med starkare glans, mer brus
   och hårdare JPEG-komprimering.
 - Manuell inmatning, listimport, dubbelsidiga kort, flera spelare, delning, export.
+- Lekens fotoväg mot attrappen (`STUB_LEK=kort`, port 8233), med en syntetisk
+  solfjäder på 3024 px: geometrin landar på 436 px kortbredd och 1390x1439
+  levererad bild, mot designens förutsagda 435 och 1387x1442. Elva svarsposter
+  blir åtta rader, fyra Mountain blir en rad med antalet fyra, ett andra foto
+  staplas ovanpå det första, ett borttaget foto stryker just sina kort, och en
+  lek sparad i ett spel sås tillbaka ur den lokala kopian i nästa.
 
 **Inte testat:** en riktig skärmdump av videosamtalet med riktiga webbkameror — testerna
 använder syntetiska bilder som härmar förhållandena. Räkna med att verkligheten är
 något svårare, särskilt vid kraftigt överlappande kort.
+
+**Inte heller testat:** ett riktigt foto av en riktig lek. Den syntetiska
+solfjädern har perfekt ljus, ingen oskärpa och inget perspektiv, och saknar
+därmed just det som gör uppgiften svår — reflexen som lägger sig tvärs över tre
+titelrader samtidigt. Titelradens höjd är däremot uppmätt på en riktig
+Scryfall-bild: versalhöjden är 2,9 % av kortbredden, alltså 14 punkter på en
+kortbild i 488 punkters bredd. Det är talet hela geometrin vilar på.
 
 ## AI-hjälp
 
@@ -348,8 +382,10 @@ En skärmdump med åtta osäkra kort kostar 10–40 öre. Byt modell med
 
 ## Vad som lagras var
 
-Allt lokalt: **localStorage** (spelare, händer, inställningar) och **IndexedDB**
-(skärmdumpar, kortpoolens bildsignaturer). Nätverksanrop går bara till **Scryfall**
+Allt lokalt: **localStorage** (spelare, händer, inställningar, och en kopia av
+leken) och **IndexedDB** (skärmdumpar, kortpoolens bildsignaturer). Är du
+inloggad ligger leken dessutom på ditt konto i Supabase, i tabellen `lekar` —
+det är den som gör att den finns på alla dina enheter. Nätverksanrop går bara till **Scryfall**
 (kortdata och bilder) och, om du slår på det, **Anthropic**.
 ⋯ → *Nollställ appen* rensar allt.
 
@@ -371,6 +407,7 @@ dev/orb.js      lokala särdrag (FAST + BRIEF) och RANSAC-verifiering
 dev/detect.js   videoruts- och kortdetektering
 dev/bench.html  mätbänk för träffsäkerheten
 dev/mock.js     syntetisk skärmdump av videosamtalet för test
+dev/lekmock.js  syntetisk solfjäder och mätbänk för lekens fotoväg
 dev/stub-server.cjs  attrapp för /api/identify vid lokal utveckling
 assets/mana/    Wizards manasymboler, hämtade från Scryfall
 scripts/hamta-mana.sh  hämtar om dem

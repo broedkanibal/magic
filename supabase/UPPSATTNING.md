@@ -137,10 +137,20 @@ på en felsida efter Google-rutan.
 Filen går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.
 
-> **Har du kört `schema.sql` förut?** Kör den igen. Den senaste versionen
-> lägger till kolumnen `lek` på `game_players` — spelarens lek, som
-> kameran känner igen kort mot. Utan kolumnen kan leken inte sparas och
+> **Har du kört `schema.sql` förut? Kör den igen.** Den senaste versionen
+> lägger till tabellen `lekar` — en rad per spelare, med den lek kameran
+> känner igen kort mot. Utan tabellen går leken inte att spara, och
 > telefonen ser korten utan att veta vilka de är.
+>
+> Leken låg tidigare som en kolumn på `game_players`. Den flyttades för att
+> `game_players` har nyckeln `(game_id, user_id)` — leken dog med spelet och
+> fick läggas in på nytt varje spelkväll. Och telefonen som fotograferar
+> leken och datorn som spelar är två olika enheter; det enda som binder dem
+> är inloggningen.
+>
+> Den gamla kolumnen ligger kvar och läses en sista gång: har du en lek
+> sparad i ett spel flyttas den till kontot när du öppnar **Min lek** och
+> trycker Spara. Inget går förlorat.
 
 ---
 
@@ -190,3 +200,7 @@ curl -s https://magic-mauve-xi.vercel.app/api/config | head -c 300
 ```
 
 Svarar den med `konfigurerad: false` saknas miljövariablerna i Vercel.
+
+Att `lekar` finns kontrollerar du i **Table Editor** — den ska ligga där med
+kolumnerna `user_id`, `lek` och `uppdaterad`. Saknas den har `schema.sql`
+inte körts sedan leken flyttades, och **Min lek** kan inte spara.

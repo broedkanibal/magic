@@ -12,6 +12,10 @@
    att medvetet testa acceptvägen, eller STUB_AI=medel för mellanläget. */
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = __dirname + '/..';
+/* PORT går att sätta. Standard 8232, som förut — men två attrapper med olika
+   STUB_-lägen ska kunna köras samtidigt, och en glömd gammal instans på 8232
+   ska inte hindra att den nya koden går att prova. */
+const PORT = +(process.env.PORT || 8232);
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.md':'text/markdown',
   '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.gif':'image/gif',
   '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css' };
@@ -35,7 +39,10 @@ http.createServer((req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors()); return res.end(); }
     if (req.method === 'GET') {
       res.writeHead(200, Object.assign({ 'Content-Type':'application/json' }, cors()));
-      return res.end(JSON.stringify({ ok:true, ready:true, model:'stub-model' }));
+      /* promptv följer med. Utan den ser attrappen frisk ut i driftkollen
+         utan att kunna svara på den enda fråga kollen ställer: kör den
+         version av instruktionerna som ligger i koden? */
+      return res.end(JSON.stringify({ ok:true, ready:true, model:'stub-model', promptv:18 }));
     }
     let body = '';
     req.on('data', c => body += c);
@@ -55,6 +62,39 @@ http.createServer((req, res) => {
         const n = process.env.STUB_NAMN || '';
         const svar = n ? { namn: n, sakerhet: 'hog' } : { namn: '', sakerhet: 'lag' };
         console.log(`stub/namn: svarar ${JSON.stringify(svar)} (STUB_NAMN=${n || 'tomt'})`);
+        res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
+        return res.end(JSON.stringify(svar));
+      }
+      /* Lekläget. Att fotografera hundra kort för att prova gränssnittet är
+         inte rimligt, och ett riktigt anrop kostar pengar varje gång man
+         flyttar en knapp. Standard är TOMT — en modell som inte ser några
+         kort — så att den vägen inte råkar se ut att fungera.
+
+         STUB_LEK=kort ger ett svar med den form som är svår att bygga rätt
+         mot: fyra likadana Mountain som SKA bli en rad med antalet fyra,
+         ett namn med kommatecken, ett tomt namn som ska hamna i
+         ifyllnadslistan, ett namn som inte finns på Scryfall, och ett
+         'medel' som ska bekräftas trots att det slås upp utan fel.
+         STUB_LEK=trasigt svarar utan JSON, för felvägen. */
+      if (body2 && body2.mode === 'lek') {
+        const lage = process.env.STUB_LEK || 'tomt';
+        const rad = (namn, x, y, sakerhet) => ({ namn, x, y, sakerhet });
+        const svar = lage === 'trasigt' ? { kort: [], varfor: 'inget-json', promptv: 18 }
+          : lage !== 'kort' ? { kort: [], otydliga: 0, promptv: 18 }
+          : { kort: [
+                rad('Sol Ring',            170, 120, 'hog'),
+                rad('Arcane Signet',       170, 240, 'hog'),
+                rad('Thalia, Guardian of Thraben', 170, 360, 'hog'),
+                rad('',                    170, 480, 'lag'),
+                rad('Lightning Bolt',      500, 120, 'medel'),
+                rad('Mountain',            500, 240, 'hog'),
+                rad('Mountain',            500, 360, 'hog'),
+                rad('Mountain',            500, 480, 'hog'),
+                rad('Mountain',            500, 600, 'hog'),
+                rad('Blixtpil',            830, 120, 'lag'),
+                rad('Swords to Plowshares', 830, 240, 'hog')
+              ], otydliga: 2, promptv: 18 };
+        console.log(`stub/lek: bild ${Math.round((body2.image||'').length/1024)} kB, svarar ${svar.kort.length} kort (STUB_LEK=${lage})`);
         res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
         return res.end(JSON.stringify(svar));
       }
@@ -100,14 +140,18 @@ http.createServer((req, res) => {
       { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' }, cors()));
     res.end(d);
   });
-}).listen(8232, () => {
+}).listen(PORT, () => {
   const mode = process.env.STUB_AI || 'none';
-  console.log('stub på http://localhost:8232');
+  console.log('stub på http://localhost:' + PORT);
   console.log('OBS: /api/identify är en ATTRAPP och tittar inte på bilden.');
   console.log(`     STUB_AI=${mode} — ` + (mode === 'accept'
     ? 'svarar alltid kandidat 1 med hög säkerhet (kort läggs till automatiskt!)'
     : mode === 'medel' ? 'svarar kandidat 1 med medelsäkerhet (hamnar i granskningslistan)'
     : 'svarar "inget passar" — kort stannar i granskningslistan, som med en försiktig modell'));
+  console.log(`     STUB_LEK=${process.env.STUB_LEK || 'tomt'} — ` + (process.env.STUB_LEK === 'kort'
+    ? 'lekfotot svarar med elva kort, dubbletter och en trasig rad'
+    : process.env.STUB_LEK === 'trasigt' ? 'lekfotot svarar utan JSON'
+    : 'lekfotot svarar "inga kort" — sätt STUB_LEK=kort för att prova listan'));
   console.log('     Riktig igenkänning testas mot produktionsdeployen, inte här.');
 });
 function cors(){ return { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Headers':'Content-Type,X-Group-Password' }; }
