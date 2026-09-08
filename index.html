@@ -2021,7 +2021,7 @@ body.ispel #startSpelBtn{display:none}
    faktiskt har en storlek, och den har den inte i en stängd popover. */
 .kamskruv{
   position:absolute;z-index:200;display:none;flex-direction:column;
-  width:330px;max-height:calc(100vh - 70px);overflow-y:auto;
+  width:min(460px,calc(100vw - 16px));max-height:calc(100vh - 70px);overflow-y:auto;
   padding:5px;border-radius:10px;
   background:#151b25;border:1px solid var(--panelram);box-shadow:var(--shadow);
 }
@@ -2030,7 +2030,31 @@ body.ispel #startSpelBtn{display:none}
 .kamskruv-hd .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
 .kamskruv-hd .meta{margin-left:auto;font:10px var(--mono);color:var(--dim2)}
 .kamskruv .kalbild{margin:0 4px 8px;height:104px;min-height:0;border-radius:var(--rs);border:1px solid var(--line)}
+/* Stor: bilden får popoverns hela bredd i 16:10 och upp till 290 px. Det är
+   den som svarar på om kameran ser korten — 104 px gjorde det inte. */
+.kamskruv .kalbild.stor{height:auto;aspect-ratio:16/10;max-height:290px;flex:none}
+/* Under 370 px popoverbredd läggs färgförklaringen en rad ovanför räknaren
+   i stället för ovanpå den. */
+@media (max-width:386px){ .kamskruv .pbfarger{bottom:21px} }   /* mer specifik än grundregeln, som står senare */
 .kamskruv .kalbild img{width:100%;height:100%;object-fit:contain}
+.pbfarger{
+  position:absolute;right:8px;bottom:7px;display:flex;align-items:center;gap:4px;
+  font:10px var(--sans);color:#b9c6d8;text-shadow:0 1px 3px #000;
+}
+.pbfarger i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-left:6px}
+.pbfarger i:first-child{margin-left:0}
+.pbstatus{margin:0;padding:0 9px 8px;font:12.5px/1.45 var(--sans);color:var(--dim)}
+.pbstatus b{color:var(--txt)}
+.pbstatus .rad{display:block;margin-top:4px;color:#e8c98a}
+.pbstatus .fin{display:block;margin-top:2px;font-size:11px;color:var(--dim2)}
+.pbavancerat{margin:0 5px 4px;border-top:1px solid var(--line)}
+.pbavancerat summary{
+  cursor:pointer;padding:7px 4px;font:600 10.5px/1 var(--sans);letter-spacing:.7px;
+  text-transform:uppercase;color:var(--dim2);list-style:none;
+}
+.pbavancerat summary::-webkit-details-marker{display:none}
+.pbavancerat summary::before{content:'▸ ';color:var(--dim2)}
+.pbavancerat[open] summary::before{content:'▾ '}
 .kamskruv-rakn{position:absolute;left:8px;bottom:7px;font:10px var(--mono);color:var(--dim2);text-shadow:0 1px 3px #000}
 /* Popovern är 330 px bred oavsett hur brett fönstret är, så reglagen måste
    tvingas till en spalt HÄR. Mediafrågan längre ner följer fönstrets bredd och
@@ -3037,23 +3061,33 @@ body.ispel #addPlayerBtn{display:none}
      kalibreringen är kvar i #kamOv: den ena är en engångshandling, den andra
      måste mätas mot en bild som har en storlek, och det har den inte i en
      popover som just varit stängd. -->
+<!-- Livebilden först och stor, en mening om vad kameran ser, och reglagen
+     bakom Avancerat. Tolv reglage i en spelares ansikte var fel fråga: det
+     spelaren behöver veta är om kameran ser korten, och det svarar bilden
+     och meningen på. Reglagen är ett felsökningsverktyg (MES-26). -->
 <div class="kamskruv" id="kamSkruv">
   <div class="kamskruv-hd">
     <span class="led"></span><b>Auto är på</b>
     <span class="meta" id="kamSkruvMeta"></span>
   </div>
-  <div class="kalbild" id="pbBild">
+  <div class="kalbild stor" id="pbBild">
     <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
     <div class="kalvantar" id="pbVantar">Väntar på bild från telefonen…</div>
     <span class="kamskruv-rakn" id="kamSkruvRakn"></span>
+    <span class="pbfarger"><i style="background:#5fbf7f"></i>känns igen <i style="background:#e2606a"></i>okänt <i style="background:#e8b33a"></i>läses <i style="background:#6b7280"></i>inte ett kort</span>
   </div>
-  <div class="pbrad" id="pbSiffror"></div>
-  <div class="pbreglage" id="pbReglage"></div>
+  <p class="pbstatus" id="pbStatus"></p>
   <div class="pbknappar">
-    <button class="btn sm" id="pbRef" title="Ta om bilden av den tomma mattan">Ny referensbild</button>
-    <button class="btn sm" id="kamRikta" title="Dra om rutan runt mattan">Rikta om mattan</button>
-    <button class="btn sm ghost" id="pbAter">Återställ</button>
+    <button class="btn sm" id="pbRef" title="Ta om bilden av den tomma mattan — gör det när ljuset ändrats">Ny referensbild</button>
+    <button class="btn sm" id="kamRikta" title="Dra om rutan runt mattan">Rikta om</button>
+    <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
   </div>
+  <details class="pbavancerat" id="pbAvancerat">
+    <summary>Avancerat</summary>
+    <div class="pbrad" id="pbSiffror"></div>
+    <div class="pbreglage" id="pbReglage"></div>
+    <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Återställ trösklarna</button></div>
+  </details>
   <hr>
   <button class="btn danger" id="kamKoppla">Stäng av auto</button>
 </div>
@@ -6230,7 +6264,7 @@ function renderMode() {
        förut "mattan är tom" här — grönt, medan telefonen väntade. */
     chip = `<button class="modechip vantar" data-mode="koppla" title="Telefonen väntar på att du drar rutan runt mattan"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · rita rutan runt mattan</span></span></button>`;
 
-  } else if (kamFas === 'ljus') {
+  } else if (kamFas === 'ljus' || kamFas === 'lar') {
     /* Telefonen tar bilden av den tomma mattan och mäter bruset. Sekunden
        det tar är den enda gången "auto" är på utan att titta. */
     chip = `<button class="modechip vantar" data-mode="skruv" title="Telefonen tar bilden av den tomma mattan och mäter ljuset"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · lär sig ljuset…</span></span></button>`;
@@ -11224,7 +11258,15 @@ const Kamera = (() => {
      brett, vilket räcker för att hitta det, följa det och se om det ligger
      ner — men inte för att läsa vad det är. Identifieringen beskär därför ur
      den fulla videon i stället. */
-  const AW = 240;
+  /* Analysbredden är inte fast längre: en ruta som täcker ett helt bord
+     ger 20 px breda kort vid 240, och det räcker inte för att beskära ut
+     något läsbart. En femtedel av videons bredd, mellan 240 och 360. */
+  let AW = 240;
+  /* Taket är 320, inte 360: ett analyssteg kostar i proportion till ytan, och
+     360 var 2,3 gånger 240. Uppmätt i node: 30 ms vid 240, 69 vid 360 innan
+     suddningen gjordes separabel; en mellanklasstelefon är tre till fyra
+     gånger långsammare, och takten är 150 ms. */
+  const AW_MIN = 240, AW_MAX = 320;
   const TAKT_MS = 150;         // analystakt: ~7 gånger i sekunden
   const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
   /* Referensen är inte EN bildruta utan medel av några. En enda ruta bär
@@ -11252,7 +11294,10 @@ const Kamera = (() => {
     tomMin: 0.3,    // maskandel i rutan, i andel av kortets area, under vilken mattan räknas som tom
     skymdMin: 0.6,  // …över vilken något ligger över kortet: en hand, en arm, ett annat kort
     areaVaxt: 1.6,  // en träff så här mycket större än spåret är inte kortet
-    spokMs: 20000   // hur länge ett borttaget spår minns sin plats och sitt namn
+    spokMs: 20000,  // hur länge ett borttaget spår minns sin plats och sitt namn
+    textur: 0.5,    // hur mycket tröskeln höjs per gråsteg kant i referensen (trä, ådring)
+    ton: 0.2,       // …och per gråsteg som bildpunkten avviker från mattans median (tonkurva)
+    blank: 235      // ljusare än så i referensen är blänk och räknas aldrig
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel;
@@ -11263,6 +11308,7 @@ const Kamera = (() => {
        Förut föll den tillbaka till golvet varje gång något ANNAT reglage
        drogs, och klättrade sedan om från början. */
     if (T.auto) T.troskel = (!varAuto && sigma != null) ? autoTroskel() : gammal;
+    if (ref) troskelkarta();
   }
   /* 3σ+4, låst till 10–50. Öppningen kräver fem grannar över tröskeln i rad,
      så 3σ per bildpunkt ger i praktiken noll falska regioner; 4σ+6, som var
@@ -11274,6 +11320,11 @@ const Kamera = (() => {
   let ref = null;              // gråskala av tom matta, analysstorlek — medel av REF_RUTOR rutor
   let refSum = null, refFore = null, refDiff = 0, refN = 0;   // under insamlingen av referensen
   let sigma = null;            // mattans uppmätta brus, gråsteg per bildpunkt
+  let tros = null;             // tröskel per bildpunkt, ur referensens egen textur
+  let blankM = null;           // 1 där referensen är blänk — räknas aldrig
+  let yta = null;              // { dom, brus, textur, blank } — ytans betyg vid referensen
+  let senasteG = null, senasteG0 = null, senasteMask = null;   // för diagnosfilen: efter och FÖRE suddning
+  let vidSkala = 1;            // videopixlar per analyspixel — det beskärningen faktiskt får
   let kal = null;              // {ruta:{x,y,w,h,upp}} i andelar av bildrutan
   let lage = 'start';
   let snurra = null, wake = null, senast = 0, senastRef = 0, forra = 0;
@@ -11292,16 +11343,18 @@ const Kamera = (() => {
      utan den blev varje kant i mattans mönster en tunn tråd av skillnad.
      36 000 bildpunkter gånger nio är ingenting, sju gånger i sekunden. */
   function suddig(g, W, H) {
-    const u = new Float32Array(g.length);
-    for (let y = 0; y < H; y++) {
-      const y0 = Math.max(0, y - 1), y1 = Math.min(H - 1, y + 1);
-      for (let x = 0; x < W; x++) {
-        const x0 = Math.max(0, x - 1), x1 = Math.min(W - 1, x + 1);
-        let s = 0, n = 0;
-        for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) { s += g[yy * W + xx]; n++; }
-        u[y * W + x] = s / n;
-      }
+    /* Separabelt: först vågrätt tre-tal, sedan lodrätt, utan gränskontroll
+       per bildpunkt — kanterna får sina två grannar. Uppmätt: 29 ms → under
+       10 vid 360 px, samma resultat i det inre. */
+    const n = W * H, h = new Float32Array(n), u = new Float32Array(n);
+    for (let y = 0, r = 0; y < H; y++, r += W) {
+      h[r] = (g[r] + g[r + 1]) / 2;
+      for (let x = 1; x < W - 1; x++) h[r + x] = (g[r + x - 1] + g[r + x] + g[r + x + 1]) / 3;
+      h[r + W - 1] = (g[r + W - 2] + g[r + W - 1]) / 2;
     }
+    for (let x = 0; x < W; x++) u[x] = (h[x] + h[x + W]) / 2;
+    for (let i = W; i < n - W; i++) u[i] = (h[i - W] + h[i] + h[i + W]) / 3;
+    for (let i = n - W; i < n; i++) u[i] = (h[i - W] + h[i]) / 2;
     return u;
   }
 
@@ -11312,13 +11365,38 @@ const Kamera = (() => {
      halva sidlängderna gånger roten ur tre, exakt. Ren funktion, prövbar.
      Masken följer med ut: spårningen behöver veta vad som ligger under ett
      spår som inte fick någon träff. */
-  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, tackning: 0, spritt: 0, troskel: 0, sigma: 0, gain: 1 };
+  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, tackning: 0, spritt: 0, troskel: 0, sigma: 0, gain: 1 };
+  /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
+     samma bildpunkt. En telefon i en hållare skakar en pixel när någon
+     nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
+     spritt brus och 81 regioner av EN pixels skakning. Ett kort är bredare
+     än så och syns lika bra ändå. */
+  function skillnad(nu, ref, W, H, i, x, y) {
+    const c = nu[i];
+    let b = Math.abs(c - ref[i]);
+    if (b <= 2) return b;
+    const x0 = x > 0 ? -1 : 0, x1 = x < W - 1 ? 1 : 0, y0 = y > 0 ? -W : 0, y1 = y < H - 1 ? W : 0;
+    for (let dy = y0; dy <= y1; dy += W) for (let dx = x0; dx <= x1; dx++) {
+      if (!dx && !dy) continue;
+      const d = Math.abs(c - ref[i + dy + dx]); if (d < b) b = d;
+    }
+    return b;
+  }
   function detektera(nu, ref, W, H) {
-    dia.regioner = dia.forSma = dia.felKvot = dia.otat = 0;
+    dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = 0;
     const n = W * H;
     const mask = new Uint8Array(n);
     let pa = 0;
-    for (let i = 0; i < n; i++) { const m = Math.abs(nu[i] - ref[i]) > T.troskel ? 1 : 0; mask[i] = m; pa += m; }
+    /* Blänket maskas bara där det är mättat i BÅDA bilderna. Bara referensen
+       räckte inte: ett kort som lades precis där blänket varit fick ett hål
+       i mitten och föll på formen — och blänket sitter i mitten av mattan,
+       där man lägger kort. Ett blänk som flyttat sig fångas i stället nedan,
+       på regionen: en kärna av mättade bildpunkter är inget kort. */
+    const bl = T.blank;
+    for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
+      const m = (blankM && blankM[i] && nu[i] > bl) ? 0 : (skillnad(nu, ref, W, H, i, x, y) > (tros ? tros[i] : T.troskel) ? 1 : 0);
+      mask[i] = m; pa += m;
+    }
     dia.tackning = pa / n;
     /* Öppning: bort med enstaka pixlar och tunna trådar (skuggkanter).
        Före/efter räknas båda över det inre — kantraden rörs aldrig av
@@ -11337,20 +11415,49 @@ const Kamera = (() => {
       mask[i] = (tmp[i] || tmp[i - 1] || tmp[i + 1] || tmp[i - W] || tmp[i + W]) ? 1 : 0;
       efter += mask[i];
     }
+    /* Stängning och hålfyllning. Ett korts mörka konstverk ligger inom trä-
+       ådringens eget spann, och med tolerant skillnad och tröskel per
+       bildpunkt fick kortet hål längs varje ådra; öppningen ovan skar det
+       sedan i bitar. Granskningen mätte tre 22×31-kort som blev 16×13, 10×6
+       och 23×13. Stängningen (vidga, sedan krymp) läker snitt som når kanten,
+       och allt som öppningen inte når från bildens kant är ett hål inne i
+       något — det fylls. Två kort med luft emellan förblir två: luften når
+       kanten. */
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      tmp[i] = (mask[i] || mask[i - 1] || mask[i + 1] || mask[i - W] || mask[i + W]) ? 1 : 0;
+    }
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      mask[i] = (tmp[i] && tmp[i - 1] && tmp[i + 1] && tmp[i - W] && tmp[i + W]) ? 1 : 0;
+    }
+    const ko = new Int32Array(n);
+    {
+      tmp.fill(0);
+      let head = 0, tail = 0;
+      const sadd = i => { if (!mask[i] && !tmp[i]) { tmp[i] = 1; ko[tail++] = i; } };
+      for (let x = 0; x < W; x++) { sadd(x); sadd(n - W + x); }
+      for (let y = 1; y < H - 1; y++) { sadd(y * W); sadd(y * W + W - 1); }
+      while (head < tail) {
+        const i = ko[head++]; const x = i % W;
+        if (x > 0) sadd(i - 1); if (x < W - 1) sadd(i + 1); if (i >= W) sadd(i - W); if (i < n - W) sadd(i + W);
+      }
+      for (let i = 0; i < n; i++) if (!mask[i] && !tmp[i]) mask[i] = 1;
+    }
     /* Regioner med flodfyllning på en kö. */
     const lab = new Int32Array(n);
-    const ko = new Int32Array(n);
     const ut = [];
     let next = 1, smaPx = 0;
     for (let s0 = 0; s0 < n; s0++) {
       if (!mask[s0] || lab[s0]) continue;
       const id = next++;
       let head = 0, tail = 0; ko[tail++] = s0; lab[s0] = id;
-      let cnt = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, minx = W, maxx = 0, miny = H, maxy = 0;
+      let cnt = 0, morkare = 0, refSum = 0, nuSum = 0, nuSq = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, minx = W, maxx = 0, miny = H, maxy = 0;
       while (head < tail) {
         const i = ko[head++];
         const x = i % W, y = (i - x) / W;
-        cnt++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
+        cnt++; if (nu[i] < ref[i] - 8) morkare++; refSum += ref[i]; nuSum += nu[i]; nuSq += nu[i] * nu[i];
+        sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
         if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
         if (x > 0 && mask[i - 1] && !lab[i - 1]) { lab[i - 1] = id; ko[tail++] = i - 1; }
         if (x < W - 1 && mask[i + 1] && !lab[i + 1]) { lab[i + 1] = id; ko[tail++] = i + 1; }
@@ -11359,6 +11466,32 @@ const Kamera = (() => {
       }
       dia.regioner++;
       if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; continue; }  // damm
+      /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
+         kort: kort är ljusa men inte utbrända. Uppmätt: elliptisk, fyller sin
+         låda, passerade kvoten, blev ett rött kort i granskningen. */
+      /* Mättnaden räknas över regionen och en pixels ring runt den. Bara
+         regionens egna bildpunkter missade ett blänk som flyttat sig
+         halvvägs: dess mättade kärna är delvis maskad, och det som blir kvar
+         är kärnans kant plus den gamla platsen, med för få mättade punkter i
+         sig självt. Uppmätt: 6 falska kort på 30 rutor utan ringen, 0 med. */
+      let sat = 0;
+      for (let q = head - cnt; q < head; q++) {
+        const i = ko[q]; const x = i % W;
+        if (nu[i] > bl) sat++;
+        if (x > 0 && !lab[i - 1] && nu[i - 1] > bl && tmp[i - 1] !== 2) { tmp[i - 1] = 2; sat++; }
+        if (x < W - 1 && !lab[i + 1] && nu[i + 1] > bl && tmp[i + 1] !== 2) { tmp[i + 1] = 2; sat++; }
+        if (i >= W && !lab[i - W] && nu[i - W] > bl && tmp[i - W] !== 2) { tmp[i - W] = 2; sat++; }
+        if (i < n - W && !lab[i + W] && nu[i + W] > bl && tmp[i + W] !== 2) { tmp[i + W] = 2; sat++; }
+      }
+      if (sat > 0.05 * cnt) { dia.blanka++; continue; }
+      /* …och platsen ett blänk LÄMNAT är en flat region där nästan varje
+         bildpunkt är mörkare än en ljus referens. Ett kort över blänket är
+         också mörkare i kärnan, men det är aldrig flatt: ljus ram, mörkt
+         konstverk, spridning kring 50 mot träets 15. Uppmätt: 22 falska kort
+         av ett blänk som flyttat 15 px innan regeln fanns, och kortet som
+         täckte blänket försvann när regeln saknade flathetskravet. */
+      const nuStd = Math.sqrt(Math.max(0, nuSq / cnt - (nuSum / cnt) ** 2));
+      if (morkare > 0.9 * cnt && refSum / cnt > 180 && nuStd < 30) { dia.blanka++; continue; }
       const cx = sx / cnt, cy = sy / cnt;
       const vxx = sxx / cnt - cx * cx, vyy = syy / cnt - cy * cy, vxy = sxy / cnt - cx * cy;
       /* Egenvärden och huvudaxelns vinkel. */
@@ -11454,14 +11587,22 @@ const Kamera = (() => {
          en handformad fläck som fick ta över spåret vred tap-läget till
          TAPPAD på 300 ms och tillbaka 300 ms efter att handen lyfts. Träffen
          lämnas, och spåret får gå skymningsvägen nedan i stället. */
-      if (bast && bd < grans && f.area > T.areaVaxt * bast.areaRef) continue;
+      if (bast && bd < grans && f.area > T.areaVaxt * bast.areaRef) {
+        if (bast.tillstand !== 'skrap') continue;
+        /* Skräp under något mycket större: ett kort har lagts ovanpå. Skräpet
+           får inte hålla platsen — spåret tas bort, utan spöke. */
+        spar.splice(spar.indexOf(bast), 1); kvar.delete(bast); bast = null;
+      }
       if (bast && bd < grans) {
         anv.add(bast); kvar.delete(bast);
         const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
         bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         bast.sedd = nu; bast.tomMs = 0; bast.skymd = false;
-        if (ror > T.stillaPx) { bast.stillaFran = nu; if (bast.tillstand === 'stilla' && !bast.namn) bast.tillstand = 'ny'; }
+        if (ror > T.stillaPx) {
+          bast.stillaFran = nu;
+          if ((bast.tillstand === 'stilla' || bast.tillstand === 'skrap') && !bast.namn) { bast.tillstand = 'ny'; bast.fragad = false; bast.skrapN = 0; }
+        }
         else if (!bast.stillaFran) bast.stillaFran = nu;
         /* Tap-state debounceras över några rutor: en vinkel mitt emellan
            får inte slå fram och tillbaka. */
@@ -11526,7 +11667,7 @@ const Kamera = (() => {
     glomReferens();
   }
 
-  function glomReferens() { ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; forra = 0; brusRader = brusLugna = 0; }
+  function glomReferens() { ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; yta = null; forra = 0; brusRader = brusLugna = 0; }
 
   function satKalibrering(k) {
     kal = k && k.ruta ? k : null;
@@ -11554,7 +11695,11 @@ const Kamera = (() => {
     senast = nu;
 
     const r = rutaPx(vb, vh);
-    if (!AH) { AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH; }
+    if (!AH) {
+      AW = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 5)));
+      AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH;
+      vidSkala = r.w / AW;
+    }
     anaX.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, AW, AH);
     steg(gr(anaX.getImageData(0, 0, AW, AH).data, AW * AH), nu, AH);
   }
@@ -11563,8 +11708,10 @@ const Kamera = (() => {
      att det går att köra på syntetiska bilder i node — det är så siffrorna
      i MES-22 är framtagna: en arm över ett känt kort, en handformad fläck,
      ett kort som lyfts, ett som flimrar förbi. */
-  function steg(g0, nu, ah) {
+  function steg(g0, nu, ah, aw, skala) {
+    if (aw && aw !== AW) { AW = aw; AH = 0; }
     if (!AH) AH = ah;
+    if (skala) vidSkala = skala;
     const n = AW * AH;
     const g = suddig(g0, AW, AH);
     /* Tiden som får läggas på en frånvaroräkning per ruta är begränsad: efter
@@ -11590,7 +11737,10 @@ const Kamera = (() => {
       if (T.auto) T.troskel = autoTroskel();
       dia.troskel = T.troskel;
       refSum = refFore = null; senastRef = nu;
-      säg('tom', 'Redo — lägg ut kort på mattan', 'Lite luft mellan korten. Datorn visar det du lägger ut.');
+      bedomYta();
+      säg('tom', 'Redo — lägg ut kort på mattan', yta.dom === 'lugn'
+        ? 'Lite luft mellan korten. Datorn visar det du lägger ut.'
+        : yta.rad);
       return;
     }
 
@@ -11626,8 +11776,10 @@ const Kamera = (() => {
       senastRef = nu;
       uppdateraRef(g, fri);
       if (ra !== 1) skalaRef(Math.pow(1 / ra, klamd ? 0.3 : 0.1));
+      troskelkarta();
     }
     styrTroskel();
+    senasteG0 = g0; senasteG = g; senasteMask = mask;
 
     /* Stilla länge nog och ännu utan namn → identifiera, ett i taget. */
     for (const t of spar) {
@@ -11637,8 +11789,90 @@ const Kamera = (() => {
 
     const efter = tillstandsSignatur();
     if (efter !== fore) rapportera();
-    const skymda = spar.filter(t => t.skymd).length;
-    säg(spar.length ? 'kort' : 'tom', spar.length ? antalText(spar.length, skymda) : 'Redo — lägg ut kort på mattan');
+    /* Skräp räknas inte som kort: det är trä, en skugga, ett blänk som kom
+       igenom. Det står kvar som spår så att det inte föds om varje ruta. */
+    const riktiga = spar.filter(t => t.tillstand !== 'skrap');
+    const skymda = riktiga.filter(t => t.skymd).length;
+    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Redo — lägg ut kort på mattan', forLangtBort() ? LANGT_BORT : undefined);
+  }
+
+  /* Korten är för små i bilden för att gå att läsa. Uppmätt på Jespers bord:
+     rutan över hela bordet gav ~20 px breda kort vid 240, och matcharen
+     avvisade allihop. Beskärningen får sin upplösning ur videon, så det
+     är avståndet eller rutan som är felet, inte tröskeln. */
+  /* Mätt i videopixlar, inte i andel av rutan: beskärningen tas ur videon,
+     så det är kortets storlek DÄR som avgör om det går att läsa. Att dra
+     rutan tätare ändrade andelen men inte en enda pixel i beskärningen —
+     rådet tystade varningen utan att hjälpa. 150 px kortsida är golvet:
+     Jespers ~160 px avvisades, normalfallet är 250–400, och suddningen
+     lägger ~2 analyspixlar på den uppmätta sidan. */
+  const KORT_MIN_PX = 150;
+  const LANGT_BORT = 'Korten är små i bilden. Flytta telefonen närmare mattan.';
+  function forLangtBort() {
+    const k = spar.filter(t => t.tillstand !== 'skrap').map(t => t.kort).sort((a, b) => a - b);
+    if (!k.length) return false;
+    return k[k.length >> 1] * vidSkala < KORT_MIN_PX;
+  }
+
+  /* Tröskeln per bildpunkt: grundtröskeln plus ett tillägg där referensen
+     har kanter (ådring, mönster) och där den avviker från mattans median
+     (en tonkurva som ändrar sig slår hårdast i det mörkaste och ljusaste).
+     Blänk — bildpunkter nära mättnad — räknas aldrig: de flyttar sig med
+     minsta rörelse av telefonen och blir kortformade fläckar. Uppmätt: två
+     falska kort per ruta av ett blänk som flyttat sig 3 px. */
+  function troskelkarta() {
+    const n = AW * AH, W = AW;
+    if (!tros || tros.length !== n) { tros = new Float32Array(n); blankM = new Uint8Array(n); }
+    if (!allaFri || allaFri.length !== n) allaFri = new Uint8Array(n).fill(1);
+    const mr = medianFri(ref, allaFri) || 128;
+    const bas = T.troskel, kt = T.textur, kton = T.ton, bl = T.blank;
+    /* Kanten mäts framåt (höger och ner) — bakåt är samma kant sedd från
+       grannen, och kartan behöver inte vara exakt symmetrisk. Inget
+       gränsvillkor i det inre. */
+    for (let i = 0; i < n; i++) {
+      const c = ref[i];
+      const x = i % W;
+      let a = x < W - 1 ? c - ref[i + 1] : 0; if (a < 0) a = -a;
+      let b = i < n - W ? c - ref[i + W] : 0; if (b < 0) b = -b;
+      let d = c - mr; if (d < 0) d = -d;
+      tros[i] = bas + kt * (a > b ? a : b) + kton * d;
+      blankM[i] = c > bl ? 1 : 0;
+    }
+  }
+  let allaFri = null;
+
+  /* Ytans betyg, en gång per referens. Tre tal, alla ur bilden av den tomma
+     ytan: bruset mellan rutorna, kanttätheten (textur), och andelen blänk.
+     Det som avgör om kameran kommer att fungera är inte trösklarna utan
+     ytan, och det ska sägas med siffror i stället för att jagas med reglage. */
+  function bedomYta() {
+    const n = AW * AH;
+    troskelkarta();
+    let kantSum = 0, blankN = 0;
+    for (let y = 1, i = AW + 1; y < AH - 1; y++, i += 2) for (let x = 1; x < AW - 1; x++, i++) {
+      kantSum += Math.max(Math.abs(ref[i] - ref[i + 1]), Math.abs(ref[i] - ref[i + AW]));
+      if (blankM[i]) blankN++;
+    }
+    const textur = kantSum / ((AW - 2) * (AH - 2)), blank = blankN / n;
+    /* Gränserna är uppmätta på bänken, på den suddade referensen: slät
+       matta 0,2–0,9, mjukt tyg 3,3, mild ådring 4,5, hård ådring 6,7. Ett
+       blänk på 0,6 % av ytan räckte för två falska kort per ruta när det
+       flyttade sig 3 px. */
+    /* En nästan vit matta är lika hopplös som ett blänk: kortets ljusa ram
+       har ingen kontrast mot den, och kvar blir konstverket — en liten mörk
+       fläck utan textruta, alltså skräp. Uppmätt: ett kort ovanpå blänket
+       blev 18×16 px av 31×22. Medianen 190 är gränsen; en ljusgrå duk (160)
+       klarar sig. */
+    const mr = medianFri(ref, allaFri) || 128;
+    const dom = blank > 0.003 ? 'blank' : mr > 190 ? 'ljus' : (textur > 4 || sigma > 4) ? 'orolig' : 'lugn';
+    const dk = x => String(x).replace('.', ',');
+    const rad = dom === 'blank' ? `Blänk i bilden (${(blank * 100).toFixed(0)} % av mattan). Flytta lampan eller telefonen så att det försvinner.`
+      : dom === 'ljus' ? `Mattan är nästan lika ljus som korten (${Math.round(mr)} av 255). En mörkare duk gör kameran mycket säkrare.`
+      : dom === 'orolig' ? `Mattan är orolig (textur ${textur.toFixed(0)}, brus ${dk(sigma.toFixed(1))}). En enfärgad duk eller ett stort papper under korten gör kameran mycket säkrare.`
+      : `Mattan är lugn (textur ${textur.toFixed(0)}, brus ${dk(sigma.toFixed(1))}).`;
+    yta = { dom, brus: +sigma.toFixed(2), textur: +textur.toFixed(1), blank: +(blank * 100).toFixed(1), rad };
+    dia.textur = yta.textur; dia.blank = yta.blank;
+    if (cb.fas) cb.fas(lage);
   }
 
   const antalText = (n, s) => n === 1
@@ -11652,6 +11886,7 @@ const Kamera = (() => {
   function friYta() {
     const n = AW * AH;
     const fri = new Uint8Array(n).fill(1);
+    if (blankM) for (let i = 0; i < n; i++) if (blankM[i]) fri[i] = 0;
     for (const t of spar) {
       const m = 6;
       const x0 = Math.max(0, t.box.x - m), x1 = Math.min(AW - 1, t.box.x + t.box.w + m);
@@ -11703,8 +11938,12 @@ const Kamera = (() => {
      ur σ. Bara det spridda bruset räknas, se detektera(). */
   function styrTroskel() {
     if (!T.auto || sigma == null) return;
+    const fore = T.troskel;
     if (dia.spritt > 0.005) { brusLugna = 0; if (++brusRader >= 3) { T.troskel = Math.min(60, T.troskel + 2); brusRader = 0; } }
     else { brusRader = 0; if (dia.spritt < 0.0005 && ++brusLugna >= 20) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
+    /* Kartan är det som faktiskt jämförs mot. Byggdes den bara om var
+       annan sekund såg slingan aldrig sitt eget steg och tog nästa. */
+    if (T.troskel !== fore && tros) { const d = T.troskel - fore; for (let i = 0; i < tros.length; i++) tros[i] += d; }
     dia.troskel = T.troskel;
   }
 
@@ -11715,9 +11954,27 @@ const Kamera = (() => {
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand,
-      skymd: !!t.skymd, gissning: t.gissning || null,
+      skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort),
       x: t.box.x / AW, y: t.box.y / AH, w: t.box.w / AW, h: t.box.h / AH
     })));
+  }
+
+  /* Allt som behövs för att köra samma ruta igen på bänken: referensen,
+     rutan just nu, masken, spåren och trösklarna. Det är så ett bord som
+     inte fungerar blir mätbart i stället för beskrivet. */
+  function diagnos() {
+    if (!ref) return null;
+    let bild = null;
+    if (video && kal) {
+      const vb = video.videoWidth, vh = video.videoHeight; const r = rutaPx(vb, vh);
+      const s = Math.min(1, 560 / r.w); const c = document.createElement('canvas');
+      c.width = Math.round(r.w * s); c.height = Math.round(r.h * s);
+      c.getContext('2d').drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
+      bild = c.toDataURL('image/jpeg', 0.6);
+    }
+    return { matt: { aw: AW, ah: AH }, tro: Object.assign({}, T), dia: Object.assign({}, dia), yta, kal,
+             refRa: ref, rutaRa: senasteG0, maskRa: senasteMask, bild,
+             spar: spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, tillstand: t.tillstand, namn: t.namn, saker: !!t.saker, skymd: !!t.skymd, tomMs: t.tomMs })) };
   }
 
   /* Beskär kortet ur den fulla videon, räta upp det om det ligger ner. */
@@ -11740,6 +11997,20 @@ const Kamera = (() => {
     return c;
   }
 
+  /* Bänken: en färdig referens rakt in, utan insamlingsvarv. Referensen i
+     diagnosfilen är redan medelvärdet av suddade rutor — precis det steg()
+     jämför mot — och bruset kommer ur filen. Att köra den genom steg() en
+     gång till suddade den två gånger och satte bruset till noll. */
+  function laddaReferens(r, sig, ah, aw) {
+    if (aw && aw !== AW) { AW = aw; AH = 0; }
+    if (!AH) AH = ah;
+    glomReferens(); spar = []; spoken = [];
+    ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
+    if (T.auto) T.troskel = autoTroskel();
+    dia.troskel = T.troskel; senastRef = 0;
+    bedomYta(); lage = 'tom';
+  }
+
   /* Låt igenkänningen avgöra vilket kort det är. Görs en gång per spår.
      Bara ett SÄKERT svar gör spåret klart; ett osäkert går till granskning
      på datorn med förslagen — det är det README lovar för skärmdumpar, och
@@ -11759,6 +12030,17 @@ const Kamera = (() => {
        kortet går till granskningen en gång, i stället för att frågas om sju
        gånger i sekunden med ett obesvarat fel per gång. */
     if (svar === null && !fel) { t.igen = (nu || 0) + 1500; return; }
+    /* Ingen ljus textruta i beskärningen: det är inte ett kort utan en bit
+       av bordet som kom igenom. Det får inte bli en granskningspost — åtta
+       "kort att fylla i" med trä i miniatyrerna var precis det. */
+    if (svar && svar.skrap) {
+      /* Två nya försök med 1,5 s emellan innan domen faller: beskärningen tas
+         ur den råa videon, och en exponering som just dippat efter en hand
+         gör ett riktigt kort mörkt en sekund. */
+      t.skrapN = (t.skrapN || 0) + 1;
+      if (t.skrapN < 3) { t.igen = (nu || 0) + 1500; return; }
+      t.fragad = true; t.tillstand = 'skrap'; rapportera(); return;
+    }
     if (svar) {
       let cands = svar.cands || null;
       if (!svar.saker && t.gissning && cands) {
@@ -11808,19 +12090,23 @@ const Kamera = (() => {
     ovc.clearRect(x, y, w, h);
     ovc.strokeStyle = '#6b8cff'; ovc.lineWidth = 2; ovc.setLineDash([]);
     ovc.strokeRect(x, y, w, h);
-    /* Varje spår ritas: gult medan det läses, grönt när det är känt, rött om
-       det inte gick att känna igen, och streckat när något ligger över det.
-       Det är telefonens enda gränssnitt, och det syns bara om man tittar. */
+    /* Varje spår ritas: gult medan det läses, grönt när det är KÄNT, rött om
+       det inte gick att känna igen, grått om det inte är ett kort, och
+       streckat när något ligger över det. Grönt betydde förut "har ett
+       namn", och sedan osäkra spår bär sin bästa gissning som namn ritades
+       tio gröna rutor för noll igenkända kort. */
     if (AH) for (const t of spar) {
       const tx = x + t.box.x / AW * w, ty = y + t.box.y / AH * h;
       const tw = t.box.w / AW * w, th = t.box.h / AH * h;
-      ovc.strokeStyle = t.namn ? '#5fbf7f' : t.tillstand === 'okand' ? '#e2606a' : '#e8b33a';
+      ovc.strokeStyle = sparFarg(t);
       ovc.lineWidth = 2.5;
       ovc.setLineDash(t.skymd ? [6, 5] : []);
       ovc.strokeRect(tx, ty, tw, th);
     }
     ovc.restore();
   }
+
+  const sparFarg = t => t.tillstand === 'klar' ? '#5fbf7f' : t.tillstand === 'okand' ? '#e2606a' : t.tillstand === 'skrap' ? '#6b7280' : '#e8b33a';
 
   /* Statusraden på telefonen. Den korta texten varje ruta, den långa bara
      när fasen byter — annars skrev den över lekbyggets framsteg. Byter fasen
@@ -11833,7 +12119,7 @@ const Kamera = (() => {
   };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { glomReferens(); spar = []; spoken = []; if (cb.bord) cb.bord([], true); }
+  function nyReferens() { glomReferens(); spar = []; spoken = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
   function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
@@ -11845,7 +12131,9 @@ const Kamera = (() => {
   }
 
   return { start, installera, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, namnge, rapportera,
-           detektera, matcha, tappad, satTrosklar, steg,
+           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens,
+           get yta() { return yta; },
+           get rad() { return forLangtBort() ? LANGT_BORT : (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
            get trosklar() { return Object.assign({}, T); },
            get diagnos() { return Object.assign({}, dia); },
@@ -11913,7 +12201,7 @@ async function oppnaKamera(gameId) {
       bord: (spar, nollstall) => sandBord(spar, nollstall),
       /* Fasbytet går som ett eget bordsmeddelande: chippet på datorn säger
          "lär sig ljuset" ur exakt det, och behöver inte gissa ur tystnaden. */
-      fas: () => { if (kamLage) Moln.sandKam('bord', { fas: Kamera.lage, barafas: true }); },
+      fas: () => { if (kamLage) Moln.sandKam('bord', { fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }); },
       identifiera: (canvas, id, gissning) => kamIdentifiera(canvas, id, gissning)
     });
   } catch (e) {
@@ -11933,7 +12221,7 @@ async function oppnaKamera(gameId) {
   byggKamPool();
   /* Hjärtslag: hela tillståndet igen var tredje sekund. En dator som just
      öppnats eller tappat sockeln kommer i fas utan att fråga. */
-  setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', { spar: senastBord, fas: Kamera.lage }); }, 3000);
+  setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', { spar: senastBord, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null }); }, 3000);
 }
 
 /* ── telefonens igenkänning ──────────────────────────────────────────
@@ -11953,9 +12241,9 @@ function sandBord(spar, nollstall) {
   /* Provbordet vill se mer än bordet: hela spårets geometri och varför
      regioner förkastades. Det följer bara med när någon faktiskt tittar. */
   Moln.sandKam('bord', provbord
-    ? { spar, fas: Kamera.lage, dia: Kamera.diagnos, tro: Kamera.trosklar, matt: Kamera.analysMatt,
-        ra: Kamera.spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, namn: t.namn, tappad: !!t.tappad, skymd: !!t.skymd })) }
-    : { spar, fas: Kamera.lage });
+    ? { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, dia: Kamera.diagnos, tro: Kamera.trosklar, matt: Kamera.analysMatt,
+        ra: Kamera.spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, namn: t.namn, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd })) }
+    : { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null });
 }
 
 async function byggKamPool() {
@@ -11991,6 +12279,11 @@ async function byggKamPool() {
 async function kamIdentifiera(canvas, id, gissning) {
   if (!Pool.idx || !canvas) return null;          // poolen är inte klar än — spåret får vänta
   const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+  /* Samma regel som skärmdumpsvägen: ett uppåtvänt kort har alltid en ljus
+     textruta. En bit trä, en skugga eller ett blänk som kom igenom
+     detektorn har det inte, och ska inte bli en granskningspost med en
+     träbit som miniatyr. */
+  if (!harTextruta(canvas, box, 0)) return { skrap: true };
   let v;
   try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
   const cands = (v.rec.cands || []).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
@@ -12016,14 +12309,33 @@ function tillampaKalibrering(rad) {
    till när den inte gör det längre. Tre bildrutor i sekunden räcker gott för
    att sikta en ruta, och det är bara under de sekunderna strömmen går alls. */
 let stromT = null;
-const STROM_MS = 330, STROM_BREDD = 380;
-function startaStrom() {
+const STROM_MS = 330;
+let stromBredd = 380;
+function startaStrom(bredd) {
+  if (bredd) stromBredd = bredd;
   if (stromT) return;
   stromT = setInterval(async () => {
     if (!kamLage) return stoppaStrom();
-    const d = await Kamera.forhandsbild(STROM_BREDD);
+    const d = await Kamera.forhandsbild(stromBredd);
     if (d) Moln.sandKam('bild', { b64: d.url, w: d.w, h: d.h });
   }, STROM_MS);
+}
+/* Diagnosen går i två meddelanden: kanalen har ett tak per meddelande, och
+   referens plus bildruta plus foto ryms inte i ett när analysen är 360 px
+   bred. Datorn sätter ihop dem på id. Referens och bildruta skickas som råa
+   byte, inte som bild — då behöver bänken ingen bildavkodare. */
+function sandDiagnos() {
+  const d = Kamera.diagnosfil();
+  if (!d) { Moln.sandKam('diagnos', { fel: 'Telefonen har ingen referensbild än.' }); return; }
+  const id = Date.now().toString(36);
+  const b64 = arr => { let s = ''; for (let i = 0; i < arr.length; i += 4096) s += String.fromCharCode.apply(null, arr.subarray(i, i + 4096)); return btoa(s); };
+  const gra = f => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = Math.max(0, Math.min(255, Math.round(f[i]))); return u; };
+  /* Tre delar, en bild var: taket på kanalen är ett kvarts megabyte per
+     meddelande, och en hög ruta vid 320 px är 100 kB rå. Masken skickas inte
+     — bänken räknar fram den ur referens och ruta. */
+  Moln.sandKam('diagnos', { id, del: 1, delar: 3, matt: d.matt, tro: d.tro, dia: d.dia, yta: d.yta, kal: d.kal, spar: d.spar, ref: b64(gra(d.refRa)) });
+  Moln.sandKam('diagnos', { id, del: 2, delar: 3, ruta: d.rutaRa ? b64(gra(d.rutaRa)) : null });
+  Moln.sandKam('diagnos', { id, del: 3, delar: 3, bild: d.bild });
 }
 function stoppaStrom() { clearTimeout(stromT); clearInterval(stromT); stromT = null; }
 
@@ -12035,7 +12347,8 @@ function kamKommando(m) {
   const jag = Moln.minId();
   if (!jag || m.av !== jag || m.fran !== 'dator') return;
   kamDatorSvarade();
-  if (m.typ === 'strom') { m.pa ? startaStrom() : stoppaStrom(); return; }
+  if (m.typ === 'strom') { m.pa ? startaStrom(m.bredd) : stoppaStrom(); return; }
+  if (m.typ === 'diagnos') { sandDiagnos(); return; }
   if (m.typ === 'lek') { byggKamPool(); return; }            // leken ändrades på datorn
   if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
   if (m.typ === 'glom') { Kamera.glomKort(m.spar); return; } // datorn rättade — läs om
@@ -12116,7 +12429,9 @@ let lyftTips = null;
 /* Nedtoningen släpps på ett ställe, så att förklaringen följer med. */
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 let kamFas = '';                 // telefonens fas ur senaste bordsmeddelandet
-let kamSer = 0;                  // spår telefonen ser, lästa eller inte
+let kamSer = 0;                  // spår telefonen ser, lästa eller inte — skräp borträknat
+let kamYta = null;               // ytans betyg ur telefonens referens: { dom, brus, textur, blank, rad }
+let kamRad = '';                 // telefonens råd just nu: för långt bort, orolig yta
 
 /* Bindningen mellan ett kort och ett spår gäller BARA inom en kamerasession.
    Varje ny session numrerar om från 1, så ett kvarlämnat spar är i bästa fall
@@ -12139,15 +12454,21 @@ function glomSpar(ocksaLyft) {
   if (andrat) { save(); renderAll(true); }
 }
 
-function avstamBord(spar, nollstall, fas) {
+function avstamBord(spar, nollstall, fas, yta, rad) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
   if (fas) kamFas = fas;
+  if (yta) kamYta = yta;
+  kamRad = rad || '';
+  /* Skräp — trä, skuggor, blänk som kom igenom detektorn — är inte kort.
+     Det räknas inte, skapar inget, och står bara kvar i spårlistan så att
+     telefonen slipper föda om det varje ruta. */
+  spar = spar.filter(t => t.tillstand !== 'skrap');
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { glomSpar(); kamLast = kamTot = kamSer = 0; renderMode(); return; }
+  if (nollstall) { glomSpar(); kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset ser den ingenting. Listan är tom för att
      den inte tittat än, inte för att mattan är tom. */
-  if (kamFas === 'ljus' || kamFas === 'ingen') { renderMode(); return; }
+  if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
   /* Hur mycket av det kameran SER som den också känner igen. Bara spår som
      fått ett slutgiltigt utfall räknas i kvoten: identifieringen är seriell,
      så de som ännu läses skulle få chippet att larma gult varje gång man
@@ -12242,6 +12563,7 @@ function avstamBord(spar, nollstall, fas) {
   /* Även när ingenting ändrades på bordet kan förhållandet lästa/sedda ha
      gjort det: ett kort som just lagts ner är sett men ännu inte läst. */
   if (!andrat) renderMode();
+  uppdateraPbStatus();
 }
 let senasteSpar = [];
 
@@ -12306,6 +12628,69 @@ async function stangAvAuto(fraga) {
   renderMode();
   return true;
 }
+/* ── popoverns statusrad ─────────────────────────────────────────────
+   En mening i klartext i stället för tolv reglage: vad kameran ser, vad
+   den känner igen, och det enda råd som spelar roll just nu — ytan,
+   avståndet. Reglagen ligger kvar bakom Avancerat för den som felsöker. */
+function uppdateraPbStatus() {
+  const el = $('#pbStatus'); if (!el || !kamSkruvOppen) return;
+  let h;
+  if (kamFas === 'ingen') h = 'Väntar på att du drar rutan runt mattan.';
+  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Lär sig ljuset — håll mattan tom en sekund.';
+  else if (!kamSer) h = '<b>Mattan är tom.</b> Lägg ut ett kort så får det en ram här.';
+  else {
+    /* Bara det som faktiskt står i kön lovas granskning: ett rött spår man
+       hoppat över är rött men frågas inte om igen förrän det lyfts. */
+    const mig = minSpelare();
+    const iKo = ((mig && mig.pending) || []).filter(q => q.spar != null).length;
+    const okanda = kamTot - kamLast, kvar = okanda - iKo, laser = kamSer - kamTot;
+    h = `Ser <b>${kamSer}</b> kort och känner igen <b>${kamLast}</b>.`
+      + (iKo ? ` ${iKo === 1 ? 'Det röda kortet går' : 'De röda går'} till granskningen.` : '')
+      + (kvar > 0 ? ` ${kvar === 1 ? 'Ett rött ligger' : kvar + ' röda ligger'} kvar utan namn — lyft kortet så frågar den igen.` : '')
+      + (laser > 0 ? ` ${laser === 1 ? 'Ett läses' : laser + ' läses'} fortfarande.` : '');
+  }
+  const rad = kamRad || (kamYta && kamYta.dom !== 'lugn' ? kamYta.rad : '');
+  const lugn = kamYta && kamYta.dom === 'lugn' && !kamRad ? `<span class="fin">${esc(kamYta.rad)}</span>` : '';
+  el.innerHTML = h + (rad ? `<span class="rad">${esc(rad)}</span>` : lugn);
+}
+
+/* Diagnosfilen: allt telefonen ser, som JSON på datorn. Två delar från
+   telefonen, ihopsatta på id, plus datorns egen bild av läget. Filen går
+   rakt in i dev/kamerabank.cjs --diagnos, så nästa bord som inte fungerar
+   blir en mätning i stället för en beskrivning. */
+const diagnosDelar = new Map();
+function tagEmotDiagnos(m) {
+  if (!m) return;
+  if (m.fel) { toast(m.fel, 'err'); return; }
+  if (!m.id) return;
+  const d = diagnosDelar.get(m.id) || { delar: new Set() };
+  /* Delarna kan komma i vilken ordning som helst, och en kan försvinna.
+     Förut satte en villkorad tilldelning bara den första flaggan om del två
+     kom först, och en tappad del lämnade en post för alltid utan ett ord. */
+  d.delar.add(m.del);
+  for (const key of ['matt', 'tro', 'dia', 'yta', 'kal', 'spar', 'ref', 'ruta', 'bild']) if (m[key] !== undefined) d[key] = m[key];
+  if (!d.t) d.t = setTimeout(() => { if (diagnosDelar.delete(m.id)) toast('Diagnosen kom inte fram helt från telefonen', 'err'); }, 10000);
+  diagnosDelar.set(m.id, d);
+  if (d.delar.size < (m.delar || 3)) return;
+  clearTimeout(d.t); diagnosDelar.delete(m.id);
+  const fil = {
+    version: 2, tid: new Date().toISOString(), spel: spelLage && spelLage.kod, promptv: null,
+    matt: d.matt, tro: d.tro, dia: d.dia, yta: d.yta, kal: d.kal, kalBox, pbTro,
+    spar: d.spar, ref: d.ref, ruta: d.ruta, bild: d.bild,
+    bord: (minSpelare() || { cards: [] }).cards.map(c => ({ name: c.name, spar: c.spar, lyft: c.lyft, tapped: c.tapped }))
+  };
+  const blob = new Blob([JSON.stringify(fil)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mesa-diagnos-${fil.tid.slice(0, 16).replace(/[:T]/g, '-')}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Diagnosen är sparad', 'ok');
+}
+$('#pbDiagnos') && ($('#pbDiagnos').onclick = () => { Moln.sandKam('diagnos'); toast('Hämtar det telefonen ser…'); });
+/* Bilden byter storlek när Avancerat fälls ut; lagret mäts om direkt. */
+$('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestAnimationFrame(ritaPbLager));
+
 /* ── provbordet på datorn ────────────────────────────────────────────
    Trösklarna går inte att gissa rätt på från en kodfil: de beror på din
    matta, ditt ljus och din telefon. Här ser man vad kameran ser och skruvar
@@ -12409,7 +12794,7 @@ function provbordData(m) {
    Det är exakt den skillnaden man skruvar trösklarna för att stänga. */
 function kamSkruvTal() {
   const m = $('#kamSkruvMeta'), r = $('#kamSkruvRakn');
-  if (m) m.textContent = kamTot ? `känner igen ${kamLast} av ${kamTot}` : 'inga kort än';
+  if (m) m.textContent = kamSer ? `ser ${kamSer}, känner igen ${kamLast}` : 'inga kort än';
   if (r) r.textContent = pbRa.length ? `${pbRa.length} spår hittade` : '';
 }
 
@@ -12441,11 +12826,16 @@ function ritaPbLager() {
     const w = t.lang * sx, h = t.kort * sx;
     x.save();
     x.translate(cx, cy); x.rotate(t.vinkel);
-    x.strokeStyle = t.namn ? '#5fbf7f' : '#e8b33a';
+    /* Grönt = igenkänt, rött = okänt, grått = skräp, gult = läses. Grönt
+       betydde förut "har ett namn", och tio osäkra spår med sin bästa
+       gissning som namn ritades gröna för noll igenkända kort (MES-26). */
+    const farg = t.tillstand === 'klar' ? '#5fbf7f' : t.tillstand === 'okand' ? '#e2606a' : t.tillstand === 'skrap' ? '#6b7280' : '#e8b33a';
+    x.strokeStyle = farg;
     x.lineWidth = 2;
+    x.setLineDash(t.skymd ? [5, 4] : []);
     x.strokeRect(-w / 2, -h / 2, w, h);
     x.restore();
-    x.fillStyle = t.namn ? '#5fbf7f' : '#e8b33a';
+    x.fillStyle = farg;
     x.fillText(`#${t.id}${t.tappad ? ' ⟲' : ''}`, cx - w / 2, cy - h / 2 - 2);
   }
 }
@@ -12465,7 +12855,9 @@ function kamStrom() {
   const vill = kamOppen || kamSkruvOppen;
   if (vill === kamTittar) return;
   kamTittar = vill;
-  Moln.sandKam('strom', { pa: vill });
+  /* Popovern visar bilden stor nu — 380 px räckte för att sikta en ruta i
+     modalen, inte för att se om tre små kort får rätt färg på sina ramar. */
+  Moln.sandKam('strom', { pa: vill, bredd: kamSkruvOppen ? 640 : 380 });
   if (vill) Moln.sandKam('trosklar', { v: pbTro });
 }
 function stangKamOv() {
@@ -12526,7 +12918,7 @@ function kamNarvaro(kameror) {
   else if (kamHarVarit) kamTappadNar = Date.now();
   if (kamOppen) {
     visaKamSteg();
-    if (kamAnsluten) { Moln.sandKam('strom', { pa: true }); Moln.sandKam('trosklar', { v: pbTro }); }
+    if (kamAnsluten) { Moln.sandKam('strom', { pa: true, bredd: kamSkruvOppen ? 640 : 380 }); Moln.sandKam('trosklar', { v: pbTro }); }
     else { const v = $('#kalVantar'), i = $('#kalImg'); if (v) v.hidden = false; if (i) i.removeAttribute('src'); }
   }
   if (!kamAnsluten) { kamLast = kamTot = 0; stangKamSkruv(); }
@@ -12571,12 +12963,13 @@ function kamTogsEmot(m) {
   if (m.typ === 'bord') {
     /* Ett fasbyte bär ingen kortlista. Gjorde det det, med en tom lista,
        tonade det ned hela bordet hos en dator som missat nollställningen. */
-    if (m.barafas) { kamFas = m.fas || ''; renderMode(); return; }
+    if (m.barafas) { kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }
     /* Auto av betyder av. Förut lydde datorn ändå, så länge telefonen sände. */
     if (prefs.autoLage === false) return;
     if (m.dia) provbordData(m);
-    return avstamBord(m.spar || [], m.nollstall, m.fas);
+    return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad);
   }
+  if (m.typ === 'diagnos') return tagEmotDiagnos(m);
   if (m.typ === 'trosklar') { pbTro = m.v || pbTro; ritaPbReglage(); return; }
   if (m.typ === 'beskarning') return tagEmotBeskarning(m);
   /* Leken kan sparas från telefonen — fotot ligger där. Utan den här raden
@@ -12790,10 +13183,13 @@ function visaKamSkruv() {
   const r = (chip || $('#modeSlot')).getBoundingClientRect();
   el.style.top = (r.bottom + 6) + 'px';
   el.style.left = 'auto';
-  el.style.right = Math.max(8, Math.round(innerWidth - r.right)) + 'px';
+  /* Förankrad under chippet när det finns plats, annars vid högerkanten:
+     460 px brett i ett 375 px brett fönster stack förut ut till vänster. */
+  el.style.right = Math.max(8, Math.min(Math.round(innerWidth - r.right), innerWidth - 8 - el.offsetWidth)) + 'px';
   kamStrom();
   visaProvbord(true);
   kamSkruvTal();
+  uppdateraPbStatus();
   /* Rutan popovern ritar är den bekräftade mattan. Hämtades den inte här stod
      kalBox tom efter en omladdning, och lagret ritade ingenting alls. */
   if (!kalBox && spelLage) Moln.hamtaKalibrering(spelLage.id)
