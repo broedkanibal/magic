@@ -4,14 +4,31 @@
     {
       "name": "mesa",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8231"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8231"
+      ],
       "port": 8231
     },
     {
       "name": "mesa-attrapp",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "STUB_LEK=kort node dev/stub-server.cjs"],
+      "runtimeArgs": [
+        "-c",
+        "STUB_LEK=kort node dev/stub-server.cjs"
+      ],
       "port": 8232
+    },
+    {
+      "name": "mesa-18",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "python3 -m http.server ${PORT:-8233}"
+      ],
+      "port": 8233,
+      "autoPort": true
     }
   ]
 }

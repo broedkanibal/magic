@@ -124,11 +124,37 @@ kbd{
 .ptab:hover{background:var(--bg3);color:var(--txt)}
 .ptab.on{background:var(--bg4);color:var(--txt);border-color:#3d4a5f}
 .ptab .dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0004 inset}
+/* Siffran är en TANGENT, inte en etikett — det är den man trycker för att byta
+   bord. Den ritas därför som appens egen kbd, med samma undre kant: en liten
+   mörk ruta med ett tal i såg ut som ett ANTAL kort, och den enda som visste
+   att den gick att trycka på var den som redan visste det. */
 .ptab .num{
-  font:10px/1 var(--mono);color:var(--dim2);
-  background:#0006;border-radius:3px;padding:2px 3px;
+  display:inline-block;min-width:17px;text-align:center;
+  padding:1px 4px;border-radius:4px;
+  background:#212a38;border:1px solid #333e50;border-bottom-width:2px;
+  font:11px/1.4 var(--mono);color:#b9c6d8;
 }
-.ptab.on .num{color:var(--acc)}
+.ptab.on .num,.ptab.jag.on .num{background:#f0a52a2b;border-color:#f0a52a55;color:var(--pa-acc)}
+/* Kort som väntar på att fyllas i räknas i fliken. Antalet stod förut bara i
+   title-attributet — alltså bakom en sekunds hovring på just det bord man inte
+   tittar på, vilket är precis det bord man behöver bli påmind om. */
+.ptab .vantar{
+  display:inline-flex;align-items:center;flex:none;
+  padding:3px 5px;border-radius:20px;
+  background:var(--tand2);border:1px solid #4a3a17;
+  font:700 10px/1 var(--mono);color:#e8c98a;
+}
+/* Siffran och pricken tappas aldrig, i något nedfällningssteg. Det är dem man
+   siktar på; namnet är det enda som får gå. */
+.players.ikoner .ptab .num{display:inline-block}
+.players.ikoner .ptab .dot{display:block}
+.players.ikoner .ptab .vantar{display:none}
+/* Läser man någon annans bord är den fliken blå, inte guld. Guld betyder
+   "här kan du ändra", och det kan man inte på ett annat bord — den egna
+   fliken behåller sitt du-märke, men i grått. */
+.ptab.on.andras{background:#6b8cff14;border-color:#6b8cff55}
+.ptab.on.andras .num{background:#6b8cff2b;border-color:#6b8cff55;color:#c3d0ff}
+body.lasvy .ptab.jag .jagmark{color:var(--dim2);background:#00000055}
 
 /* ── Din egen flik ────────────────────────────────────────────────
    Den ligger först och sitter fast när raden rullar: vägen tillbaka till
@@ -1313,6 +1339,10 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .menu button.danger:hover{background:#3a1f22;color:#ff9099}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
 .menu .hd{padding:6px 9px 3px;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim2)}
+/* Menyn växte med spelet och igenkänningen och blev sexton rader. Utan tak
+   gick den under skärmkanten på en låg bärbar, och de sista raderna — den
+   som nollställer appen och den som loggar ut — fanns bara inte. */
+.menu{max-height:calc(100vh - 62px);overflow-y:auto}
 
 @media (max-width:1100px){
   :root{--cardw:124px}
@@ -1329,16 +1359,27 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   .grid{gap:9px}
 }
 
-/* Innan det riktigt smala läget: ge flikarna plats genom att låta rubrikens
-   underrad och knappens etikett gå först. Spelarflikarna är det enda i raden
-   som inte går att nå någon annanstans ifrån — resten har både ikon och
-   tangentbordsgenväg. */
-@media (max-width:1000px){
-  .brand .sub{display:none}
+/* Innan det riktigt smala läget: ge flikarna plats genom att låta etiketterna
+   gå först. Spelarflikarna är det enda i raden som inte går att nå någon
+   annanstans ifrån — resten har både ikon och tangentbordsgenväg.
+   Blocket stod förut på 1000 px och dolde .brand .sub, ett element som inte
+   finns i markupen: det var alltså tomt sedan länge. */
+@media (max-width:1024px){
+  /* Frågetecknet får gå först. Varje genväg det visar står också i menyn, och
+     ? öppnar samma ruta från tangentbordet. */
+  #helpBtn{display:none}
+  /* "· läser ditt bord" är en bekräftelse, inte upplysning — den gröna
+     pricken säger redan att det går. Siffrorna i det svaga läget står kvar:
+     de är det enda som säger hur illa det är. */
+  .modechip.pa .langtxt{display:none}
 }
 @media (max-width:860px){
   #addPlayerBtn{font-size:0;padding:0 7px}
   #addPlayerBtn svg{font-size:13px}
+  .modechip.svag .langtxt{display:none}
+  /* Punkten skiljer två meningar. Faller den andra bort måste den följa med,
+     annars slutar raden med ett ensamt "·". */
+  .modeforklaring .langtxt,.modeforklaring .punkt{display:none}
 }
 
 /* Skrivningen till servern gick inte fram. Den ligger kvar och skickas om, men
@@ -1444,9 +1485,8 @@ body.lasvy .lasband{display:flex}
 /* ── provbordet ───────────────────────────────────────────────────
    Telefonens bild med spåren ritade ovanpå, och reglagen som ändrar
    trösklarna medan kameran går. Utan det är trösklarna gissningar man
-   ändrar i koden och startar om för. */
-.kamflikar{display:flex;gap:6px;margin-bottom:2px}
-.kamflikar .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
+   ändrar i koden och startar om för. Bor sedan ombyggnaden av topbaren i
+   popovern .kamskruv, inte som en flik i kameramodalen. */
 #pbBild{position:relative}
 #pbLager{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .pbrad{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
@@ -1815,15 +1855,99 @@ body.lasvy .lasband{display:flex}
    Två helskärmsvyer utanför appen. De ligger i samma fil och byts med
    ett hidden-attribut; appen har ingen router och behöver ingen.
    ═══════════════════════════════════════════════════════════════════ */
-/* Spelraden i huvudvyn: koden att läsa upp och länken att skicka. */
-.spelrad{display:flex;align-items:center;gap:7px;flex:none}
-.spelkod{
-  font:700 12px var(--mono);letter-spacing:2px;color:var(--acc);
-  padding:0 8px;height:26px;display:flex;align-items:center;
-  border:1px dashed #e8b33a55;border-radius:6px;
+/* ── Spelidentiteten: koden ÄR inbjudningsknappen ───────────────────
+   Förut stod koden i en egen ruta bredvid en knapp som hette "Bjud in", och de
+   två gjorde samma ärende: den ena var talet man läser upp, den andra länken
+   man skickar. Ingenting sa att koden gick att kopiera — den var ett <span>.
+   Nu är den knappen, och "Bjud in" står kvar som det man får om man trycker. */
+.spelknapp{
+  display:inline-flex;align-items:center;gap:8px;flex:none;
+  height:30px;padding:0 9px;border-radius:var(--rs);
+  background:#f0a52a14;border:1px dashed #e8b33a66;
+  transition:background .12s,border-color .12s;
 }
-body:not(.ispel) .spelrad{display:none}
-body:not(.ispel) #addPlayerBtn{}
+.spelknapp:hover{background:#f0a52a24;border-color:var(--acc)}
+.spelknapp .kod{font:700 12.5px var(--mono);letter-spacing:2px;color:var(--acc)}
+.spelknapp .delare{width:1px;height:14px;background:#e8b33a44;flex:none}
+.spelknapp .bjud{display:inline-flex;align-items:center;gap:5px;flex:none;font-size:11.5px;color:#c9a45e;white-space:nowrap}
+/* Utanför ett spel finns ingen kod, och i stället en väg in i ett. Den vägen
+   fanns inte alls förut: från det lokala bordet gick lobbyn inte att nå utan
+   att ladda om sidan. */
+body:not(.ispel) .spelknapp{display:none}
+body.ispel #startSpelBtn{display:none}
+
+/* ── Modeplatsen ────────────────────────────────────────────────────
+   Ett och samma utrymme längst till höger, och det enda stället där det står
+   HUR bordet läses av. Den frågan fanns förut ingenstans: "Read my board
+   again" såg likadan ut när kameran läste varje kort, när den läste fyra av
+   nio, och när telefonen hade somnat en halvtimme tidigare. */
+.modeslot{display:flex;align-items:center;gap:7px;flex:none}
+.modechip{
+  display:inline-flex;align-items:center;gap:8px;flex:none;
+  height:30px;padding:0 10px;border-radius:var(--rs);
+  border:1px solid transparent;
+  font-size:12.5px;font-weight:550;white-space:nowrap;
+  transition:background .12s,border-color .12s;
+}
+.modechip .led{width:7px;height:7px;border-radius:50%;flex:none}
+.modechip .lbl{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.modechip .delare{width:1px;height:14px;background:currentColor;opacity:.3;flex:none}
+.modechip svg{flex:none;opacity:.85}
+.modechip.pa{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.modechip.pa:hover{background:#12291c;border-color:#3d8659}
+.modechip.pa .led{background:var(--green);animation:kampuls 1.8s ease-in-out infinite}
+.modechip.svag,.modechip.vantar{background:var(--tand2);border-color:#4a3a17;color:#e8c98a}
+.modechip.svag:hover{background:#241c0d;border-color:#5d4a1d}
+.modechip.svag .led,.modechip.vantar .led{background:var(--acc);animation:kampuls 1.2s ease-in-out infinite}
+.modechip.tappad{background:#2a1414;border-color:#e2606a55;color:#f0a9ad}
+.modechip.tappad:hover{background:#331818;border-color:#e2606a88}
+.modechip.tappad .led{background:var(--red);animation:kampuls 1.1s ease-in-out infinite}
+/* Väntar-läget har inga inställningar att visa, men det är inte dött: ett
+   klick tar fram QR-koden igen. Utan hovringen såg det ut som en etikett, och
+   den som råkat stänga rutan hade ingen synlig väg tillbaka. */
+.modechip.vantar:hover{background:#241c0d;border-color:#5d4a1d}
+
+/* Raden under topbaren. Två sorters mening, samma mått: förklaringen som står
+   en enda gång innan man valt väg, och beskedet att bordet är fruset. */
+.modeforklaring,.frusen{
+  display:flex;align-items:center;gap:9px;flex:none;
+  height:34px;padding:0 12px;font-size:12px;overflow:hidden;
+}
+.modeforklaring{background:var(--rutbg);border-bottom:1px solid var(--line);color:var(--dim2)}
+.modeforklaring b{color:var(--dim);font-weight:600}
+.modeforklaring .punkt{color:#3a4658;flex:none}
+.modeforklaring span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frusen{background:var(--tand2);border-bottom:1px solid #4a3a17;color:#e8c98a}
+.frusen span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frusen .btn{height:24px;padding:0 8px;font-size:11.5px;margin-left:auto;flex:none}
+
+/* ── Kamerainställningarna, som popover ─────────────────────────────
+   Det man vill skruva på UNDER spelet ska inte ligga i en modal som täcker
+   bordet man skruvar mot. QR-koden är kvar i modalen — den är en engångssak —
+   och kalibreringen med, eftersom rutan man drar måste mätas mot en bild som
+   faktiskt har en storlek, och den har den inte i en stängd popover. */
+.kamskruv{
+  position:absolute;z-index:200;display:none;flex-direction:column;
+  width:330px;max-height:calc(100vh - 70px);overflow-y:auto;
+  padding:5px;border-radius:10px;
+  background:#151b25;border:1px solid var(--panelram);box-shadow:var(--shadow);
+}
+.kamskruv.open{display:flex}
+.kamskruv-hd{display:flex;align-items:center;gap:8px;padding:8px 9px 6px;font-size:12.5px;color:var(--txt)}
+.kamskruv-hd .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
+.kamskruv-hd .meta{margin-left:auto;font:10px var(--mono);color:var(--dim2)}
+.kamskruv .kalbild{margin:0 4px 8px;height:104px;min-height:0;border-radius:var(--rs);border:1px solid var(--line)}
+.kamskruv .kalbild img{width:100%;height:100%;object-fit:contain}
+.kamskruv-rakn{position:absolute;left:8px;bottom:7px;font:10px var(--mono);color:var(--dim2);text-shadow:0 1px 3px #000}
+/* Popovern är 330 px bred oavsett hur brett fönstret är, så reglagen måste
+   tvingas till en spalt HÄR. Mediafrågan längre ner följer fönstrets bredd och
+   lämnade dem i två spalter med 132 px låst till etikett och värde — alltså
+   några pixlar spår kvar att dra i. */
+.kamskruv .pbreglage{grid-template-columns:1fr;gap:4px;margin-top:0;padding:2px 9px 8px}
+.kamskruv .pbknappar{padding:0 5px 6px;margin-top:0;flex-wrap:wrap}
+.kamskruv .pbknappar .btn{flex:1 1 auto;justify-content:center}
+.kamskruv hr{border:0;border-top:1px solid var(--line);margin:2px 2px 5px;width:100%}
+.kamskruv .btn.danger{justify-content:center;width:100%}
 /* I ett spel skapas spelare genom att någon går med, inte med en knapp. */
 body.ispel #addPlayerBtn{display:none}
 
@@ -1899,7 +2023,6 @@ body.ispel #addPlayerBtn{display:none}
   .topbar{gap:6px;padding:0 8px;height:44px}
   .topbar .vr{display:none}
   #helpBtn{display:none}
-  #shotBtnTxt{display:none}
   #addPlayerBtn{padding:0 7px}
   #addPlayerBtn svg{margin:0}
   #addPlayerBtn{font-size:0}                 /* bara plustecknet får plats */
@@ -1970,6 +2093,38 @@ body.ispel #addPlayerBtn{display:none}
   body.tomhand .empty-icon,body.tomhand .empty-fine{display:none}
   body.tomhand .empty .btnrow{flex-direction:column;width:100%}
   body.tomhand .empty .btnrow .btn{width:100%;justify-content:center}
+}
+
+/* ── Topbarens nedfällning ──────────────────────────────────────────
+   Ligger sist i stilmallen med flit: blocket på 620 px ovanför sätter redan
+   .topbar-höjd och -padding, och en regel som ska vinna över det måste stå
+   efter det. Ordningen den fäller i är samma som frågorna man ställer: vad
+   heter spelet, vems bord tittar jag på, läses det av. Flikarna och
+   modeplatsen är de sista som går. */
+@media (max-width:620px){
+  .spelknapp{padding:0 7px;gap:6px}
+  .spelknapp .kod{font-size:11px;letter-spacing:1.4px}
+  .spelknapp .bjud span{display:none}       /* bara länkikonen kvar */
+  .modechip{height:28px;padding:0 8px;font-size:11.5px;gap:6px}
+  .modeforklaring{display:none}             /* två meningar får inte plats */
+  .frusen{font-size:11.5px;padding:0 8px}
+}
+@media (max-width:390px){
+  .topbar{height:44px;gap:5px;padding:0 7px}
+  /* Kvar: flikarna, koden, läget och menyn. Chippet blir en lampa — den säger
+     fortfarande det enda man behöver veta på den bredden, nämligen om något
+     läser bordet just nu. */
+  .modechip{width:28px;height:28px;padding:0;justify-content:center}
+  /* Etiketten ligger i ett eget span just för det här: en naken textnod går
+     inte att träffa med en väljare, och "Auto" blev kvar och sprängde lampan. */
+  .modechip .lbl,.modechip .delare,.modechip svg{display:none}
+  /* I halva lägena är modeknappen en vanlig .btn, och de fälldes aldrig — raden
+     blev 408 px bred i ett 390 px fönster och menyknappen kapades på mitten.
+     Modeplatsen får dessutom krympa: den är inte det sista man ger upp. */
+  .modeslot{min-width:0}
+  .modeslot .btn{padding:0 7px}
+  .modeslot .btn .langtxt,#startSpelBtn{display:none}
+  .spelknapp .bjud,.spelknapp .delare{display:none}
 }
 </style>
 </head>
@@ -2067,44 +2222,43 @@ body.ispel #addPlayerBtn{display:none}
       <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
       <span>Mesa</span>
     </div>
+
+    <!-- Koden och "Bjud in" var två element för ETT ärende: talet man läser upp
+         och länken man skickar är samma sak, sedd från två håll. Att koden dessutom
+         var ett <span> gjorde att den enda som visste att den gick att kopiera var
+         den som redan visste det. -->
+    <button class="spelknapp" id="spelKnapp" title="Kopiera inbjudningslänken">
+      <span class="kod" id="spelKod"></span>
+      <span class="delare"></span>
+      <span class="bjud">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg>
+        <span>Bjud in</span>
+      </span>
+    </button>
+    <!-- Utanför ett spel gick lobbyn inte att nå utan att ladda om sidan. -->
+    <button class="btn sm" id="startSpelBtn" title="Spela med andra på samma bord">Starta ett spel</button>
+
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
-    <!-- Leken hör till SPELAREN, inte till spelet: den lever i webbläsaren och
-         kopieras in i ett spel när man är i ett. Att fotografera sin lek är
-         dessutom något man gör FÖRE spelkvällen, inte under den — knappen låg
-         i spelraden och var därmed osynlig i just det läge man behöver den. -->
-    <button class="btn sm" id="lekKnapp" title="Din lek — det kameran känner igen kort mot">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="11" height="15" rx="2"/><path d="M9 8h9a2 2 0 0 1 2 2v11H9.5"/></svg>
-      <span id="lekKnappTxt">Min lek</span>
-    </button>
-    <div class="spelrad" id="spelRad" hidden>
-      <button class="btn sm" id="kamKnapp" title="Koppla telefonen som kamera">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>
-        Kamera
-      </button>
-      <button class="btn sm" id="bjudInBtn" title="Kopiera inbjudningslänken">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg>
-        Bjud in
-      </button>
-      <span class="spelkod" id="spelKod"></span>
-    </div>
-    <button class="btn ghost" id="addPlayerBtn" title="New player (N)">
+    <button class="btn ghost" id="addPlayerBtn" title="Ny spelare (N)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Player
+      Spelare
     </button>
     <div class="topspacer"></div>
+    <!-- Modeplatsen. Allt om hur bordet läses av bor här och ingen annanstans;
+         se renderMode(). -->
+    <div class="modeslot" id="modeSlot"></div>
     <div class="vr"></div>
-    <button class="btn" id="shotBtn" title="Open the image view (S)">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>
-      <span id="shotBtnTxt">Screenshot</span>
-    </button>
-    <button class="btn ghost" id="helpBtn" title="Keyboard shortcuts (?)">
+    <button class="btn ghost" id="helpBtn" title="Tangentbordsgenvägar (?)">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.4 3.4v1.1"/><path d="M12 17.2v.01"/></svg>
     </button>
-    <button class="btn ghost" id="menuBtn" title="Menu">
+    <button class="btn ghost" id="menuBtn" title="Meny">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
     </button>
   </header>
+  <!-- Raden under topbaren: förklaringen som står en gång innan man valt väg,
+       och beskedet att bordet är fruset. Samma plats, aldrig båda. -->
+  <div id="modeRad" hidden></div>
 
   <main>
     <section class="hand">
@@ -2537,27 +2691,6 @@ body.ispel #addPlayerBtn{display:none}
           <button class="btn sm" id="kamKopiera">Kopiera länk</button></p>
       </div>
 
-      <div class="kamflikar" id="kamFlikar" hidden>
-        <button class="btn sm on" data-kamflik="ytan">Ytan</button>
-        <button class="btn sm" data-kamflik="prov">Provbord</button>
-      </div>
-
-      <div class="kamsteg" id="kamStegProv" hidden>
-        <p class="lead">Vad kameran ser just nu. Skruva tills varje kort får en ram och
-          ingenting annat gör det. Ändringarna gäller direkt på telefonen.</p>
-        <div class="kalbild" id="pbBild">
-          <img id="pbImg" alt="">
-          <canvas id="pbLager"></canvas>
-          <div class="kalvantar" id="pbVantar">Väntar på bild från telefonen…</div>
-        </div>
-        <div class="pbrad" id="pbSiffror"></div>
-        <div class="pbreglage" id="pbReglage"></div>
-        <div class="pbknappar">
-          <button class="btn sm" id="pbRef" title="Ta om bilden av den tomma mattan">Ny referensbild</button>
-          <button class="btn sm ghost" id="pbAter">Återställ trösklarna</button>
-        </div>
-      </div>
-
       <div class="kamsteg" id="kamStegKal" hidden>
         <p class="lead"><b>Bekräfta ytan.</b> Dra rutan så att den täcker hela mattan där dina
           kort ligger. Mattan ska vara <b>tom</b> just nu — bilden av den tomma mattan är det
@@ -2577,7 +2710,6 @@ body.ispel #addPlayerBtn{display:none}
     </div>
     <div class="foot">
       <span class="grow" id="kamOvStatus"></span>
-      <button class="btn danger" id="kamKoppla" hidden>Koppla bort kameran</button>
       <button class="btn" data-close="kamOv">Stäng</button>
       <button class="btn prim" id="kalSpara" hidden>Bekräfta ytan</button>
     </div>
@@ -2805,6 +2937,33 @@ body.ispel #addPlayerBtn{display:none}
 
 <img id="bgShot" alt="" hidden>
 <div class="menu" id="menu"></div>
+
+<!-- Kamerans skruvrum. Det man ändrar UNDER spelet ska inte ligga i en modal
+     som täcker bordet man ändrar mot — man skruvar tröskeln och tittar på om
+     korten får ramar, och det gick inte att göra samtidigt. QR-koden och
+     kalibreringen är kvar i #kamOv: den ena är en engångshandling, den andra
+     måste mätas mot en bild som har en storlek, och det har den inte i en
+     popover som just varit stängd. -->
+<div class="kamskruv" id="kamSkruv">
+  <div class="kamskruv-hd">
+    <span class="led"></span><b>Auto är på</b>
+    <span class="meta" id="kamSkruvMeta"></span>
+  </div>
+  <div class="kalbild" id="pbBild">
+    <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
+    <div class="kalvantar" id="pbVantar">Väntar på bild från telefonen…</div>
+    <span class="kamskruv-rakn" id="kamSkruvRakn"></span>
+  </div>
+  <div class="pbrad" id="pbSiffror"></div>
+  <div class="pbreglage" id="pbReglage"></div>
+  <div class="pbknappar">
+    <button class="btn sm" id="pbRef" title="Ta om bilden av den tomma mattan">Ny referensbild</button>
+    <button class="btn sm" id="kamRikta" title="Dra om rutan runt mattan">Rikta om mattan</button>
+    <button class="btn sm ghost" id="pbAter">Återställ</button>
+  </div>
+  <hr>
+  <button class="btn danger" id="kamKoppla">Stäng av auto</button>
+</div>
 <div id="toast"></div>
 <script>
 /* ══════════════════════════════════════════════════════════════════
@@ -4849,6 +5008,24 @@ let spelLage = null;
    bordet skickas som en klump, och sista skrivaren vinner. Den här flaggan
    säger att enheten är ett öga, inte en spelare. */
 let kameraEnhet = false;
+/* ── Vad som läser bordet ────────────────────────────────────────────
+   Flaggorna står här uppe och inte nere vid kameradialogen, där de bodde
+   förut: renderAll() ritar modeplatsen, och renderMode() läser dem. Låg de
+   kvar vid dialogen träffade appens första rendering dem i deras TDZ.
+
+   kamOppen och kamTittar var förut EN flagga, och det var fel: den ena säger
+   att modalen står öppen, den andra att någon tittar på telefonens bild. Så
+   länge de var samma sak kunde bilden bara visas i modalen — och en popover
+   som ber om bildrutor fick noll, för alltid.
+
+   Att auto "slås på" är för övrigt en synvilla: kortavläsningen har alltid
+   gått oberoende av dialogen. Det som saknades var att SE att den gjorde det. */
+let kamAnsluten = false;      // sitter en telefon i spelets närvarolista?
+let kamOppen = false;         // står #kamOv öppen?
+let kamTittar = false;        // tittar någon på telefonens bild? (modal ELLER popover)
+let kamHarVarit = false;      // har en telefon någonsin svarat i det här spelet?
+let kamTappadNar = 0;         // när tappades den? — bordet är fruset sedan dess
+let kamLast = 0, kamTot = 0;  // lästa kort av upptäckta spår, ur varje bordsmeddelande
 /* Sant medan en fjärruppdatering appliceras. renderGrid sorterar manan och
    sparar mitt i sin egen rendering — utan den här spärren skulle varje
    inkommande ändring studsa tillbaka som en egen skrivning, och två klienter
@@ -4885,13 +5062,19 @@ function slimSpelare(p) {
    med får de andra bord vars beskärningar inte har något att rita från, och i
    värsta fall ritas min skärmdump som miniatyrer på deras kort. Det som hör
    till kortet självt — vilket kort, vilken sida upp, tappat, vad det sitter
-   på, vilken zon — är allt de behöver. */
+   på, vilken zon — är allt de behöver.
+
+   spar hörde också hit förut, och det var halva MES-17. Ett spår-id är MIN
+   telefons räknare i DEN HÄR kamerasessionen, och den börjar om på 1 varje
+   gång telefonen laddas om (nastaId). Skrevs det till servern kom det
+   tillbaka nästa kväll på kort som den nya sessionen aldrig sett — och
+   första bordsbilden dömde dem allihop som lyfta från mattan. slimKort,
+   den lokala sparningen, har aldrig tagit med det. */
 function slimDelat(cards) {
   return (cards || []).map(c => ({
     cid: c.cid, name: c.name, sid: c.sid || undefined,
     flipped: c.flipped ? 1 : 0, tapped: c.tapped ? 1 : 0,
-    attachedTo: c.attachedTo || undefined, zon: c.zon || undefined,
-    spar: c.spar || undefined
+    attachedTo: c.attachedTo || undefined, zon: c.zon || undefined
   }));
 }
 function slimKort(cards) {
@@ -4970,17 +5153,27 @@ function renderTabs() {
     const fardknapp = p.id === state.active && (!spelLage || mitt);
     const kryss = !spelLage && state.players.length > 1;
     return `
-    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Ditt eget bord' : esc(p.name) + 's bord'} — press ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} cards need to be filled in` : ''}">
+    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}${spelLage && !mitt && p.id === state.active ? ' andras' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Ditt eget bord' : esc(p.name) + 's bord'} — tryck ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} kort behöver fyllas i` : ''}">
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
       ${mitt ? '<span class="jagmark">du</span>' : ''}
+      ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} kort behöver fyllas i">${p.pending.length}</span>` : ''}
       ${fardknapp ? `<span class="pen" data-rename="${esc(p.id)}" title="Rename (R)" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>` : ''}
       ${kryss ? `<span class="x" data-del="${esc(p.id)}" title="Remove the player" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
     </button>`;
   }).join('');
+  matFlikar();
+}
+/* Mätningen är en egen funktion för att den måste göras OM när något annat i
+   raden byter bredd. Modeplatsen gör det utan att flikarna ritas om: går
+   telefonen från "Auto" till "Kameran tappad · koppla om" plus en fotoknapp
+   växer den med hundra pixlar, och flikarna satt kvar i sitt gamla steg med
+   sista namnet kapat mitt itu. */
+function matFlikar() {
+  const box = $('#playerTabs'); if (!box) return;
   /* Får de inte plats fälls de ihop i två steg. Rullning är sista utvägen —
      en flik man måste leta rätt på är sämre än en flik utan namn. */
   box.classList.remove('kompakt', 'ikoner');
@@ -5030,7 +5223,15 @@ function computeFit() {
      RING är plats åt markeringsramen och lyftet vid hover: utan den räcker
      ytan precis till korten och ramen kapas mot zonens kant. */
   const RING = 10;
-  const H = gridWrap.clientHeight - padY - rubrik - 4 - 2 - RING;
+  /* Remsan "lyft från mattan" ligger INUTI zonen, till skillnad från bandet
+     som är en egen ruta bredvid — den äter alltså av kortytan. Räknades den
+     inte bort skalades korten mot en yta remsan redan tagit, och nedersta
+     raden kapades av .grid{overflow:hidden}. Höjden mäts i stället för att
+     gissas: den beror på hur många kort som står i remsan och om de bryter
+     rad. 7 är .zon-perm:s gap. */
+  const avbordEl = $('#avbord');
+  const remsa = avbordEl && !avbordEl.hidden ? avbordEl.offsetHeight + 7 : 0;
+  const H = gridWrap.clientHeight - padY - rubrik - remsa - 4 - 2 - RING;
   if (!(W > 0 && H > 0)) return prefs.cardw;
 
   /* Största bredd som ryms, sökt uppifrån. Räknar på ALLA permanents, även de
@@ -5811,21 +6012,117 @@ function renderAll(forceGrid) {
   renderFocus();
   renderShotUI();
   renderPending();
+  renderMode();
   const p = player();
   $('#hintBar').classList.toggle('hide', p.cards.length === 0);
-  const hasShot = p.shots.length > 0;
-  /* "Skärmdump" sa vad man gav appen, inte vad som hände. Den här vägen
-     ERSÄTTER hela handen — allt annat lägger till — och namnet ska säga det. */
-  /* I ett spel gäller avläsningen BARA mitt eget bord — de andra sköter sina.
-     Texten sa "hela bordet", vilket var sant lokalt och en lögn i ett spel. */
-  $('#shotBtnTxt').textContent = spelLage
-    ? (hasShot ? 'Read my board again' : 'Read my board')
-    : (hasShot ? 'Re-read board' : 'Read board');
-  $('#shotBtn').title = hasShot
-    ? 'Re-read the whole board from a screenshot — replaces everything in your hand (S)'
-    : 'Read a whole board from a screenshot (S)';
-  $('#shotBtn').classList.toggle('prim', !hasShot && p.cards.length > 0);
 }
+/* ── Modeplatsen ────────────────────────────────────────────────────
+   Sex tillstånd, ett utrymme, längst till höger i raden. Allt om HUR bordet
+   läses av bor här och ingen annanstans. Förut bodde det ingenstans alls:
+   knappen hette "Read my board again" oavsett om kameran läste varje kort,
+   läste fyra av nio, eller hade tappat telefonen en halvtimme tidigare — och
+   den som undrade varför bordet stod still hade ingenstans att titta.
+
+   A inget valt · B väntar på telefonen · C auto går · D auto går men läser
+   dåligt · E kameran tappad · F manuellt. Utanför ett spel finns bara fotot:
+   auto kräver ett spel att koppla telefonen till. */
+const M_TELEFON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>';
+const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>';
+const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
+const M_CHEVRON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+/* Frusna bordet står kvar tills telefonen kommer tillbaka, och texten ska
+   åldras med det — annars säger den "för 40 sekunder sedan" i tio minuter. */
+let modeT = null;
+function sedan(ts) {
+  const n = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (n < 90) return `för ${n} sekunder sedan`;
+  const m = Math.round(n / 60);
+  return m < 90 ? `för ${m} minuter sedan` : `för ${Math.round(m / 60)} timmar sedan`;
+}
+
+function renderMode() {
+  const slot = $('#modeSlot'), rad = $('#modeRad');
+  if (!slot || !rad) return;
+  clearTimeout(modeT);
+  const p = player();
+  let chip = '', radKlass = '', radHtml = '';
+
+  if (!spelLage) {
+    /* Lokalt bord: det finns inget spel att koppla en telefon till, så auto är
+       inte ett val man kan erbjuda. Ett foto är hela vägen. */
+    const harFoto = p && p.shots.length > 0;
+    chip = `<button class="btn${!harFoto && p && p.cards.length ? '' : ' prim'}" data-mode="foto" title="Läs hela bordet ur ett foto (S)">${M_FOTO}<span class="langtxt">${harFoto ? 'Läs om bordet' : 'Läs bordet ur ett foto'}</span></button>`;
+
+  } else if (prefs.autoLage == null) {
+    /* A. Skillnaden mellan de två vägarna är inte självklar, och den som valt
+       en gång ska inte behöva läsa den igen. Därför står den EN gång. */
+    chip = `<button class="btn prim" data-mode="auto" title="Håll en telefonkamera på bordet">${M_TELEFON}<span class="langtxt">Slå på auto</span></button>` +
+           `<button class="btn" data-mode="foto" title="Läs bordet ur ett foto">${M_FOTO}<span class="langtxt">Ladda upp foto</span></button>`;
+    radKlass = 'modeforklaring';
+    radHtml = '<span><b>Auto</b> håller en telefonkamera på ditt bord och följer varje kort du flyttar.</span>' +
+              '<span class="punkt">·</span>' +
+              '<span class="langtxt"><b>Ladda upp</b> läser ett foto och sätter ditt bord till det ögonblicket.</span>';
+
+  } else if (prefs.autoLage === false) {
+    /* F. Vägen tillbaka till auto står i menyn — annars är manuellt läge en
+       dörr som bara går att gå igenom åt ett håll. */
+    chip = `<button class="btn prim" data-mode="foto">${M_FOTO}<span class="langtxt">Ladda upp bordsfoto</span></button>`;
+
+  } else if (!kamAnsluten && kamHarVarit) {
+    /* E. Bordet ljuger nu: korten ligger kvar som de låg när telefonen tystnade.
+       Det är den enda gången appen visar något den inte vet är sant, och då
+       ska den säga det rakt ut. */
+    chip = '<button class="modechip tappad" data-mode="skruv"><span class="led"></span><span class="lbl">Kameran tappad<span class="langtxt"> · koppla om</span></span></button>' +
+           `<button class="btn" data-mode="foto" title="Läs bordet ur ett foto i stället">${M_FOTO}<span class="langtxt">Ladda upp foto</span></button>`;
+    radKlass = 'frusen';
+    radHtml = `<span>Ditt bord är fruset som det såg ut ${sedan(kamTappadNar)}. Ingenting läses av.</span>` +
+              '<button class="btn prim" data-mode="koppla">Koppla om</button>';
+    modeT = setTimeout(renderMode, 10000);
+
+  } else if (!kamAnsluten) {
+    /* B. Telefonen har aldrig svarat i det här spelet. Inget att skruva på än. */
+    chip = '<button class="modechip vantar" data-mode="koppla" title="Visa QR-koden igen"><span class="led"></span><span class="lbl">Väntar på telefonen…</span></button>' +
+           `<button class="btn" data-mode="foto" title="Läs bordet ur ett foto i stället">${M_FOTO}<span class="langtxt">Ladda upp foto</span></button>`;
+
+  } else if (kamTot > 0 && kamLast / kamTot < 0.6) {
+    /* D. Kameran ser korten men känner inte igen dem. Siffrorna är hela
+       poängen — de säger om det är en tröskel som sitter fel eller en lek som
+       saknar kort — så de överlever längre i nedfällningen än allt annat. */
+    chip = `<button class="modechip svag" data-mode="skruv" title="Kamerainställningar"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · bara <b>${kamLast}</b> av ${kamTot} kort lästa</span></span>${M_CHEVRON}</button>`;
+
+  } else {
+    /* C. */
+    chip = `<button class="modechip pa" data-mode="skruv" title="Kamerainställningar"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · läser ditt bord</span></span><span class="delare"></span>${M_KUGGE}</button>`;
+  }
+
+  slot.innerHTML = chip;
+  rad.hidden = !radKlass;
+  rad.className = radKlass;
+  rad.innerHTML = radHtml;
+  matFlikar();
+}
+
+/* Ett enda ställe tar emot klicken. Chippet ritas om vid varje rendering, så
+   en bindning mot dess id hade tappats efter första omritningen. */
+function modeKlick(ev) {
+  const b = ev.target.closest('[data-mode]'); if (!b) return;
+  const a = b.dataset.mode;
+  /* Fotoknappen finns bara i de lägen där auto inte gör sitt jobb (A, B, E, F).
+     Att trycka på den är att välja bort auto — annars stod chippet kvar på
+     "Kameran tappad" och raden påstod att bordet var fruset, direkt efter att
+     man läst in ett färskt foto av det. */
+  if (a === 'foto') {
+    if (spelLage) { prefs.autoLage = false; savePrefs(); kamHarVarit = false; kamTappadNar = 0; }
+    openShot(); renderMode();
+  }
+  if (a === 'auto') { prefs.autoLage = true; savePrefs(); renderMode(); visaKamOv(); }
+  if (a === 'koppla') visaKamOv();
+  if (a === 'skruv') visaKamSkruv();
+}
+$('#modeSlot').addEventListener('click', modeKlick);
+$('#modeRad').addEventListener('click', modeKlick);
+
 function renderPending() {
   const p = player(), q = p.pending || [];
   const bar = $('#pendBar');
@@ -7261,7 +7558,6 @@ async function oppnaLek() {
      riktiga på alla enheter. */
   if (minSession !== lekSession) return;
   minLek = konto;
-  uppdateraLekKnapp();
 
   if (fel) {
     $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken kunde inte hämtas.</b> Spara inte förrän du vet varför — det skulle skriva över den som finns.';
@@ -7310,7 +7606,6 @@ function lekSa(kort, kalla) {
   }
 }
 
-$('#lekKnapp').onclick = () => oppnaLek();
 
 /* ── fotot in ───────────────────────────────────────────────────────
    Duken är obligatorisk och inte en optimering: den fryser EXIF-
@@ -8218,7 +8513,7 @@ async function lekSparaNu() {
       const ok = await Moln.sparaMinLek(lek);
       if (!ok) {
         $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken sparades i den här webbläsaren men nådde inte kontot.</b> Spara om när du har nät igen.';
-        minLek = null; uppdateraLekKnapp();
+        minLek = null;
         return;
       }
       minLek = lek;
@@ -8227,7 +8522,6 @@ async function lekSparaNu() {
          spel finns en kanal att säga det på. */
       if (spelLage) Moln.sandKam('lek');
     }
-    uppdateraLekKnapp();
     closeOv('lekOv');
     const tot = kort.reduce((s, k) => s + k.n, 0);
     const kvar = lekTrasiga();
@@ -8243,14 +8537,14 @@ async function lekSparaNu() {
     b.disabled = false;
   }
 };
-function uppdateraLekKnapp() {
-  const t = $('#lekKnappTxt'); if (!t) return;
-  /* Utanför ett spel finns ingen minLek — knappen ska ändå säga hur många
-     kort man har, annars ser en sparad lek ut att ha försvunnit så fort man
-     lämnar spelet. */
+/* Antalet stod förut i en knapp i topbaren och måste därför skrivas om varje
+   gång leken ändrades. Leken bor i menyn nu, och menyn byggs om från grunden
+   vid varje öppning — så antalet behöver bara gå att FRÅGA efter.
+   Utanför ett spel finns ingen minLek; den lokala kopian svarar i stället,
+   annars ser en sparad lek ut att ha försvunnit så fort man lämnar spelet. */
+function minLekAntal() {
   const lek = (minLek && minLek.kort) ? minLek : lekLokal.las();
-  const n = lek && lek.kort ? lek.kort.reduce((s, k) => s + (k.n || 1), 0) : 0;
-  t.textContent = n ? `Lek · ${n}` : 'Min lek';
+  return lek && lek.kort ? lek.kort.reduce((s, k) => s + (k.n || 1), 0) : 0;
 }
 
 $('#bulkGo').onclick = () => {
@@ -8273,27 +8567,38 @@ addEventListener('mousedown', e => { if (!menuEl.contains(e.target) && !e.target
 $('#menuBtn').onclick = ev => {
   ev.stopPropagation();
   if (menuEl.classList.contains('open')) return closeMenu();
+  /* Menyn grupperas efter vad saken HANDLAR om, inte efter när den byggdes:
+     du, spelet, igenkänningen. Leken flyttade hit ur topbaren — man fotograferar
+     sin lek före spelkvällen, inte under den, och en knapp för det stod i vägen
+     i just det läge där den aldrig används.
+     "Läs om mitt bord" finns inte längre: det är modeplatsens jobb, och två
+     ställen som gör samma sak var precis det som gjorde raden oläslig. */
+  const meta = (txt, farg) => `<span style="margin-left:auto;color:${farg || 'var(--dim2)'};font:10px var(--mono)">${txt}</span>`;
+  const n = minLekAntal();
   menuEl.innerHTML = `
-    <div class="hd">Active player</div>
-    <button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
-    <button data-a="clearhand" class="danger">Töm handen</button>
+    <div class="hd">${esc((spelLage ? (minSpelare() || player()) : player()).name || 'Aktiv spelare')}</div>
+    ${!spelLage || redigerbar() ? `<button data-a="rename">Byt namn <kbd style="margin-left:auto">R</kbd></button>
+    <button data-a="clearhand" class="danger">Töm mitt bord</button>` : '<button data-a="mitt">Tillbaka till mitt bord</button>'}
+    ${spelLage ? `<hr>
+    <div class="hd">Spelet ${esc(spelLage.kod)}</div>
+    <button data-a="bjudin">Kopiera inbjudningslänk</button>
+    <button data-a="lamna">Tillbaka till mina spel</button>
+    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}` : ''}
     <hr>
-    <div class="hd">Dela &amp; säkerhetskopiera</div>
+    <div class="hd">Igenkänning</div>
+    <button data-a="lek">Min lek${meta(n ? String(n) : 'tom')}</button>
+    <button data-a="pool">Kortpool${meta(esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'ej byggd'))}</button>
+    <button data-a="ai">AI-hjälp${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'PÅ' : 'KLAR') : aiKey() ? 'EGEN NYCKEL' : 'AV', AI.mode === 'server' ? 'var(--green)' : null)}</button>
+    ${spelLage ? (prefs.autoLage === true
+      ? '<button data-a="manuell">Stäng av auto</button>'
+      : '<button data-a="auto">Slå på auto</button>') : ''}
+    <button data-a="nums">${prefs.shownums ? '✓ ' : ''}Nummer på korten</button>
+    <hr>
     <button data-a="sharelink">Kopiera länk till handen</button>
     <button data-a="export">Exportera allt (JSON)</button>
     <button data-a="import">Importera JSON…</button>
-    <hr>
-    <div class="hd">Avläsning</div>
-    <button data-a="pool">Kortpool<span style="margin-left:auto;color:var(--dim2);font:10px var(--mono)">${esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'ej byggd')}</span></button>
-    <button data-a="ai">AI help<span style="margin-left:auto;color:${AI.mode === 'server' ? 'var(--green)' : 'var(--dim2)'};font:10px var(--mono)">${AI.mode === 'server' ? (prefs.aiAuto ? 'ON' : 'READY') : aiKey() ? 'OWN KEY' : 'OFF'}</span></button>
-    <hr>
-    <button data-a="nums">${prefs.shownums ? '✓ ' : ''}Visa nummer på korten</button>
-    ${spelLage ? `<hr>
-    <div class="hd">Spelet</div>
-    <button data-a="lamna">Tillbaka till mina spel</button>
-    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}` : ''}
     <button data-a="reset" class="danger">Nollställ appen</button>
-    ${spelLage ? '<hr><button data-a="loggaut">Logga ut</button>' : ''}`;
+    ${spelLage ? '<button data-a="loggaut">Logga ut</button>' : ''}`;
   const r = $('#menuBtn').getBoundingClientRect();
   menuEl.style.top = (r.bottom + 6) + 'px';
   menuEl.style.left = 'auto';
@@ -8307,6 +8612,14 @@ menuEl.addEventListener('click', ev => {
   const a = b.dataset.a, p = player();
   if (a === 'rename') startRename(p.id);
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
+  if (a === 'lek') oppnaLek();
+  if (a === 'bjudin') $('#spelKnapp').click();
+  if (a === 'mitt') { const m = minSpelare(); if (m) { state.active = m.id; save(); renderAll(true); } }
+  if (a === 'auto') { prefs.autoLage = true; savePrefs(); renderMode(); visaKamOv(); }
+  /* Utan den här raden fanns ingen väg tillbaka till manuellt läge: "Stäng av
+     auto" satt i popovern, och popovern öppnas inte utan ansluten telefon —
+     alltså var den oåtkomlig i exakt det läge där man behövde den. */
+  if (a === 'manuell') { prefs.autoLage = false; savePrefs(); kamHarVarit = false; kamTappadNar = 0; stangKamSkruv(); renderMode(); }
   if (a === 'pool') openPool();
   if (a === 'ai') openAI();
   if (a === 'sharelink') shareLink();
@@ -8317,8 +8630,8 @@ menuEl.addEventListener('click', ev => {
   if (a === 'avsluta') avslutaSpelet();
   if (a === 'loggaut') loggaUtHelt();
   if (a === 'reset') {
-    ask('Every player, hand and screenshot is removed and the page reloads. This cannot be undone.',
-        { title: 'Reset everything?', ok: 'Reset', danger: true }).then(yes => {
+    ask('Varje spelare, bord och bild tas bort och sidan laddas om. Det går inte att ångra.',
+        { title: 'Nollställa appen?', ok: 'Nollställ', danger: true }).then(yes => {
       if (!yes) return;
       [K.state, K.prefs].forEach(LS.del);
       IDB.clear().catch(() => {}).then(() => location.reload());
@@ -8469,7 +8782,7 @@ addEventListener('keydown', ev => {
     flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`) || manaRow.querySelector(`.lkort[data-i="${state.sel}"]`));
     flyttaTill(state.sel, ZON_GRAV);
   }
-  else if (lower === 's') { ev.preventDefault(); $('#shotBtn').click(); }
+  else if (lower === 's') { ev.preventDefault(); openShot(); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
   else if (lower === 'd') {
@@ -8626,7 +8939,6 @@ function openShot(visaBild) {
 function closeShot() { closeOv('shotOv'); closeScan(); }
 /* Öppna bildvyn i stället för att direkt läsa urklipp. Att appen tog det
    man råkade ha kopierat utan att fråga var svårt att förutse. */
-$('#shotBtn').onclick = () => openShot();
 $('#emptyPaste').onclick = () => openShot();
 $('#emptySearch').onclick = () => searchInput.focus();
 $('#swFile').onclick = () => pasteOrPick();   // urklipp först, filväljaren om det är tomt
@@ -10891,7 +11203,7 @@ const Kamera = (() => {
     kal = k && k.ruta ? k : null;
     ref = null; spar = []; lage = kal ? 'lar' : 'ingen';
     AH = 0;
-    if (cb.bord) cb.bord([]);
+    if (cb.bord) cb.bord([], true);
   }
 
   function rutaPx(bredd, hojd) {
@@ -11046,7 +11358,7 @@ const Kamera = (() => {
   const säg = (l, txt) => { lage = l; if (cb.status) cb.status(l, txt); };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { ref = null; spar = []; if (cb.bord) cb.bord([]); }
+  function nyReferens() { ref = null; spar = []; if (cb.bord) cb.bord([], true); }
   function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.fragad = false; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
 
   return { start, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, rapportera,
@@ -11103,7 +11415,7 @@ async function oppnaKamera(gameId) {
   try {
     await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
       status: kamSag,
-      bord: spar => sandBord(spar),
+      bord: (spar, nollstall) => sandBord(spar, nollstall),
       identifiera: (canvas, id) => kamIdentifiera(canvas, id)
     });
   } catch (e) {
@@ -11133,7 +11445,14 @@ async function oppnaKamera(gameId) {
    Osäkert → förslagen skickas, och en beskuren bild så att datorn kan visa
    vad det gäller. Ingen bild lämnar telefonen för ett kort den känner igen. */
 let senastBord = null, kamPoolBygger = false, provbord = false;
-function sandBord(spar) {
+function sandBord(spar, nollstall) {
+  /* "Jag vet ingenting än" och "jag har tittat, mattan är tom" är två helt
+     olika besked, och de gick förut genom samma kanal. En kamera som just
+     kalibrerats har inte sett en enda bildruta; skickade den spar:[] rakt av
+     läste datorn det som att varje kort försvunnit, och tre sekunder senare
+     stod hela bordet i remsan. senastBord lämnas orört så att hjärtslaget
+     inte upprepar lögnen var tredje sekund. */
+  if (nollstall) { senastBord = null; Moln.sandKam('bord', { spar: [], nollstall: true }); return; }
   senastBord = spar;
   /* Provbordet vill se mer än bordet: hela spårets geometri och varför
      regioner förkastades. Det följer bara med när någon faktiskt tittar. */
@@ -11274,8 +11593,36 @@ const FLIK_ID = (() => {
 const BORTA_NAD = 3000;
 let avbord = [], avbordT = null;
 
-function avstamBord(spar) {
+/* Bindningen mellan ett kort och ett spår gäller BARA inom en kamerasession.
+   Varje ny session numrerar om från 1, så ett kvarlämnat spar är i bästa fall
+   meningslöst och i värsta fall fel kort. Att bryta bindningen är ofarligt:
+   kortet ligger kvar på bordet, det är bara kameran som får leta rätt på det
+   igen. Att INTE bryta den kostade hela bordet. */
+function glomSpar() {
+  const mig = minSpelare(); if (!mig) return;
+  let andrat = false;
+  for (const k of mig.cards) if (k.spar != null || k.borta != null) { delete k.spar; delete k.borta; andrat = true; }
+  clearTimeout(avbordT); avbordT = null;
+  if (andrat) { save(); renderAll(true); }
+}
+
+function avstamBord(spar, nollstall) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
+  /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
+     Den säger inte att bordet är tomt, den säger att den inte vet än. */
+  if (nollstall) { glomSpar(); kamLast = kamTot = 0; renderMode(); return; }
+  /* Hur mycket av det kameran SER som den också känner igen. Siffrorna ligger
+     i varje bordsmeddelande — bara provbordets extrafält kräver att någon
+     tittar — så modeplatsen kan säga "bara 4 av 9 kort lästa" utan att någon
+     dialog behöver vara öppen. */
+  /* Bara spår som fått ett slutgiltigt utfall räknas. Räknades även de som
+     ännu är 'ny' eller 'stilla' larmade chippet gult varje gång man lade ut
+     flera kort på en gång: identifieringen är seriell, så kvoten föll till
+     noll och klättrade tillbaka medan man tittade på den. */
+  const avgjorda = spar.filter(t => t.tillstand === 'klar' || t.tillstand === 'okand');
+  kamTot = avgjorda.length;
+  kamLast = avgjorda.filter(t => t.tillstand === 'klar').length;
+  kamSkruvTal();
   const nu = Date.now();
   const sedda = new Set();
   let andrat = false;
@@ -11318,6 +11665,9 @@ function avstamBord(spar) {
   clearTimeout(avbordT);
   if (mig.cards.some(k => k.borta)) avbordT = setTimeout(() => avstamBord(senasteSpar), BORTA_NAD + 100);
   senasteSpar = spar;
+  /* Även när ingenting ändrades på bordet kan förhållandet lästa/sedda ha
+     gjort det: ett kort som just lagts ner är sett men ännu inte läst. */
+  if (!andrat) renderMode();
 }
 let senasteSpar = [];
 
@@ -11337,8 +11687,12 @@ function tagEmotBeskarning(m) {
 function renderAvbord() {
   const el = $('#avbord'); if (!el) return;
   const visa = !!spelLage && redigerbar() && avbord.length > 0;
+  const fanns = !el.hidden;
   el.hidden = !visa;
-  if (!visa) return;
+  /* renderAll kör renderGrid — och därmed applySize — FÖRE den här funktionen.
+     Skalan räknades alltså alltid utan remsan, och när remsan sedan dök upp
+     stod korten kvar för stora och kapades nedtill. */
+  if (!visa) { if (fanns) applySize(); return; }
   el.innerHTML = `<span class="avbordlbl">Lyft från mattan</span>` + avbord.map((k, i) => {
     const c = cardOf(k), src = c ? imgOf(c, 0, 'small') : '';
     return `<span class="avbordkort" data-av="${i}">
@@ -11348,6 +11702,8 @@ function renderAvbord() {
       <button class="btn sm ghost" data-av-kvar="${i}" title="Det ligger kvar, kameran missade det">Ligger kvar</button>
     </span>`;
   }).join('');
+  /* Höjden beror på ANTALET kort i remsan, inte bara på om den syns. */
+  applySize();
 }
 $('#avbord') && $('#avbord').addEventListener('click', ev => {
   const b = ev.target.closest('[data-av-grav],[data-av-hand],[data-av-kvar]'); if (!b) return;
@@ -11378,27 +11734,24 @@ const PB_REG = [
 let pbTro = Object.assign({}, PB_STD, LS.get('sthv.tro.v1', {}));
 let pbPa = false, pbDia = null, pbRa = [], pbW = 0, pbH = 0, pbMatt = { aw: 0, ah: 0 };
 
+/* Provbordet var en flik bredvid kalibreringen i modalen. Nu är det popovern:
+   man skruvar tröskeln och tittar på om korten får ramar, och det gick inte
+   att göra i en ruta som täckte bordet man tittade på.
+   Telefonen skickar de dyra extrafälten (spårens geometri, förkastade
+   regioner) bara medan pa är sant — därför slås det på när popovern öppnas
+   och av när den stängs, aldrig däremellan. */
 function visaProvbord(pa) {
   pbPa = pa;
-  $('#kamStegProv').hidden = !pa;
-  $('#kamStegKal').hidden = pa || !kamAnsluten;
-  $$('#kamFlikar [data-kamflik]').forEach(b => b.classList.toggle('on', (b.dataset.kamflik === 'prov') === pa));
-  $('#kalSpara').hidden = pa || !kamAnsluten;
   Moln.sandKam('provbord', { pa });
-  if (pa) {
-    Moln.sandKam('trosklar', { v: pbTro });
-    ritaPbReglage();
-    /* Ta med den bildruta som redan finns. Nästa kommer inom en tredjedels
-       sekund, men "väntar på bild" när bilden står bredvid i samma dialog
-       läser sig som att något gått sönder. */
-    const k = $('#kalImg').getAttribute('src');
-    if (k) { const pi = $('#pbImg'); pi.src = k; $('#pbVantar').hidden = true; pi.decode().then(ritaPbLager).catch(() => {}); }
-  }
+  if (!pa) return;
+  Moln.sandKam('trosklar', { v: pbTro });
+  ritaPbReglage();
+  /* Ta med den bildruta som redan finns. Nästa kommer inom en tredjedels
+     sekund, men "väntar på bild" när bilden nyss syntes läser sig som att
+     något gått sönder. */
+  const k = $('#kalImg') && $('#kalImg').getAttribute('src');
+  if (k) { const pi = $('#pbImg'); pi.src = k; $('#pbVantar').hidden = true; pi.decode().then(ritaPbLager).catch(() => {}); }
 }
-$('#kamFlikar') && $('#kamFlikar').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-kamflik]'); if (!b) return;
-  visaProvbord(b.dataset.kamflik === 'prov');
-});
 
 function ritaPbReglage() {
   const box = $('#pbReglage'); if (!box) return;
@@ -11427,6 +11780,7 @@ function provbordData(m) {
   if (m.matt && m.matt.aw) pbMatt = m.matt;
   if (m.tro) { for (const k in m.tro) if (pbTro[k] !== m.tro[k]) pbTro[k] = m.tro[k]; }
   if (!pbPa) return;
+  kamSkruvTal();
   const d = pbDia || {};
   const tal = (namn, v, varn) => `<span class="pbtal${varn ? ' varn' : ''}">${namn} <b>${v}</b></span>`;
   $('#pbSiffror').innerHTML = [
@@ -11443,6 +11797,15 @@ function provbordData(m) {
 /* Spåren ligger i ANALYSENS koordinater — en nedskalad bild av mattan. Mattan
    ligger i bildrutans, som andelar. Telefonen skickar analysens mått, så det
    här blir två raka skalningar i stället för en gissning. */
+/* Två tal, båda ur data som redan kommer in: hur många spår telefonen ser
+   (räknaren i bilden) och hur många av dem den satt namn på (raden överst).
+   Det är exakt den skillnaden man skruvar trösklarna för att stänga. */
+function kamSkruvTal() {
+  const m = $('#kamSkruvMeta'), r = $('#kamSkruvRakn');
+  if (m) m.textContent = kamTot ? `${kamLast} av ${kamTot} lästa` : 'inga kort än';
+  if (r) r.textContent = pbRa.length ? `${pbRa.length} spår hittade` : '';
+}
+
 function ritaPbLager() {
   const c = $('#pbLager'), img = $('#pbImg');
   if (!c || !img.naturalWidth) return;
@@ -11450,9 +11813,17 @@ function ritaPbLager() {
   if (c.width !== Math.round(R.width) || c.height !== Math.round(R.height)) { c.width = Math.round(R.width); c.height = Math.round(R.height); }
   const x = c.getContext('2d');
   x.clearRect(0, 0, c.width, c.height);
-  if (!kalBox || !pbMatt.aw || !pbMatt.ah) return;
-  const mx = kalBox.x * c.width, my = kalBox.y * c.height;
-  const mw = kalBox.w * c.width, mh = kalBox.h * c.height;
+  if (!kalBox || !pbMatt.aw || !pbMatt.ah || !img.naturalWidth) return;
+  /* Rutan uttrycks i andelar av BILDEN, inte av elementet. I modalen var det
+     samma sak — bilden fyllde bredden och höjden följde med. I popovern är
+     rutan låst till 104 px och bilden brevlådas i mitten, och då ritades varje
+     spårram mot hela elementet: drygt dubbelt så bred, ute på de svarta
+     fälten bredvid bilden. Räkna fram den målade rektangeln och lägg origo där. */
+  const sk = Math.min(c.width / img.naturalWidth, c.height / img.naturalHeight);
+  const bw = img.naturalWidth * sk, bh = img.naturalHeight * sk;
+  const ox = (c.width - bw) / 2, oy = (c.height - bh) / 2;
+  const mx = ox + kalBox.x * bw, my = oy + kalBox.y * bh;
+  const mw = kalBox.w * bw, mh = kalBox.h * bh;
   /* Mattans ruta, så att man ser vad analysen tittar på. */
   x.strokeStyle = '#6b8cff88'; x.lineWidth = 1; x.setLineDash([5, 4]);
   x.strokeRect(mx, my, mw, mh); x.setLineDash([]);
@@ -11478,39 +11849,51 @@ function ritaPbLager() {
    bilden — telefonen sitter i en hållare över bordet och ska inte behöva
    röras. Så länge dialogen är öppen ber datorn telefonen strömma; stängs den
    säger den till att sluta. */
-let kamAnsluten = false, kamOppen = false;
 /* Strömmen kostar bandbredd hos den som håller telefonen. Den går bara medan
    någon faktiskt tittar på den. */
+/* Strömmen är BARA förhandsbilden — kortavläsningen går oberoende och har
+   alltid gjort det. Bilden kostar bandbredd hos den som håller telefonen, så
+   den går bara medan någon faktiskt tittar: modalen eller popovern. */
+function kamStrom() {
+  const vill = kamOppen || kamSkruvOppen;
+  if (vill === kamTittar) return;
+  kamTittar = vill;
+  Moln.sandKam('strom', { pa: vill });
+  if (vill) Moln.sandKam('trosklar', { v: pbTro });
+}
 function stangKamOv() {
   if (!kamOppen) return;
   kamOppen = false;
   kalForslagGjort = false;
-  Moln.sandKam('strom', { pa: false });
-  if (pbPa) { pbPa = false; Moln.sandKam('provbord', { pa: false }); }
+  kamStrom();
 }
 
-async function visaKamOv() {
+async function visaKamOv(steg) {
   if (!spelLage) return;
   kamOppen = true;
   openOv('kamOv');
+  kamStegKal = steg === 'kal';
   const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
   $('#kamLank').textContent = lank;
   ritaQr(lank);
   visaKamSteg();
-  Moln.sandKam('strom', { pa: true });
-  Moln.sandKam('trosklar', { v: pbTro });
+  kamStrom();
   const k = await Moln.hamtaKalibrering(spelLage.id);
   if (k && !kalBox) { kalBox = k.ruta; ritaKalRuta(); }
 }
-/* Vilket steg som ska synas följer av EN sak: sitter det en kamera i spelet? */
+/* Modalen är två steg och inget mer: koden man skannar, och rutan man drar
+   runt mattan. Vilket som syns följer av EN sak — sitter det en kamera i
+   spelet? Provbordet låg här förut som en tredje flik; det bor i popovern nu.
+   Vakterna finns för att stegen ska kunna flyttas igen utan att appen dör:
+   $ är ren querySelector, och en oskyddad rad här dödade hela skriptet. */
+let kamStegKal = false;
 function visaKamSteg() {
-  $('#kamStegQr').hidden = kamAnsluten;
-  $('#kamFlikar').hidden = !kamAnsluten;
-  $('#kamStegKal').hidden = !kamAnsluten || pbPa;
-  $('#kamStegProv').hidden = !kamAnsluten || !pbPa;
-  $('#kalSpara').hidden = !kamAnsluten || pbPa;
-  $('#kamKoppla').hidden = !kamAnsluten;
-  $('#kamOvStatus').innerHTML = kamAnsluten
+  const satt = (sel, v) => { const el = $(sel); if (el) el.hidden = v; };
+  satt('#kamStegQr', kamAnsluten);
+  satt('#kamStegKal', !kamAnsluten);
+  satt('#kalSpara', !kamAnsluten);
+  const st = $('#kamOvStatus');
+  if (st) st.innerHTML = kamAnsluten
     ? '<span class="kamlive"><i></i>Telefonen är ansluten</span>'
     : 'Väntar på att telefonen ansluter…';
 }
@@ -11518,13 +11901,29 @@ function visaKamSteg() {
    sig själv — ingen knapp att trycka på någonstans. */
 function kamNarvaro(kameror) {
   const fanns = kamAnsluten;
-  kamAnsluten = kameror.length > 0;
+  /* Listan är spelets alla kameror. En annan spelares telefon över SITT bord
+     sa förut att mitt bord lästes av — chippet slog om till "Auto · läser ditt
+     bord" fast ingenting läste mitt. Närvaron bär redan avsändarens id. */
+  kamAnsluten = kameror.some(k => !k.id || k.id === Moln.minId());
   if (kamAnsluten === fanns) return;
+  /* Telefonen kan ha laddats om utan att säga det. Bryt bindningen när
+     sessionen byts, åt båda hållen — nollställningsmeddelandet täcker
+     kalibreringsvägen, den här raden täcker att telefonen bara försvinner
+     och kommer tillbaka. */
+  glomSpar();
+  /* Skillnaden mellan "väntar på telefonen" och "kameran tappad" är hela
+     skillnaden mellan att inget har hänt än och att bordet på skärmen ljuger.
+     Funktionen visste den redan — fanns är exakt den frågan — men värdet
+     kastades när den returnerade, och kvar blev bara en toast som försvann. */
+  if (kamAnsluten) kamHarVarit = true;
+  else if (kamHarVarit) kamTappadNar = Date.now();
   if (kamOppen) {
     visaKamSteg();
     if (kamAnsluten) { Moln.sandKam('strom', { pa: true }); Moln.sandKam('trosklar', { v: pbTro }); }
-    else { $('#kalVantar').hidden = false; $('#kalImg').removeAttribute('src'); }
+    else { const v = $('#kalVantar'), i = $('#kalImg'); if (v) v.hidden = false; if (i) i.removeAttribute('src'); }
   }
+  if (!kamAnsluten) { kamLast = kamTot = 0; stangKamSkruv(); }
+  renderMode();
   toast(kamAnsluten ? 'Kameran är ansluten' : 'Kameran kopplades från', kamAnsluten ? 'ok' : 'err');
 }
 /* En bildruta från telefonen. Måtten följer med: kalibreringsrutan uttrycks i
@@ -11532,10 +11931,17 @@ function kamNarvaro(kameror) {
    mot — inte pixlarna i den nedskalade förhandsbilden. */
 let kamBildW = 0, kamBildH = 0;
 function kamBild(m) {
-  if (!m || !m.b64 || !kamOppen) return;
+  /* Villkoret stod förut på kamOppen, alltså på om MODALEN var öppen. Det gav
+     popovern noll bildrutor och ett "Väntar på bild från telefonen…" som
+     aldrig gick över. */
+  if (!m || !m.b64 || !kamTittar) return;
   kamBildW = m.w || kamBildW; kamBildH = m.h || kamBildH;
   pbW = kamBildW; pbH = kamBildH;
   if (pbPa) { const pi = $('#pbImg'); pi.src = m.b64; $('#pbVantar').hidden = true; pi.decode().then(ritaPbLager).catch(() => {}); }
+  /* Resten är kalibreringens, och den bor i modalen. Öppnades bara popovern
+     körde färggissningen ändå — och skrev över en matta någon redan bekräftat,
+     eftersom den sparade kalibreringen bara hämtas när modalen öppnas. */
+  if (!kamOppen) return;
   const img = $('#kalImg');
   const forst = !img.getAttribute('src');
   img.src = m.b64;
@@ -11549,16 +11955,23 @@ function kamBild(m) {
 function kamTogsEmot(m) {
   if (!m) return;
   if (m.typ === 'bild') return kamBild(m);
-  if (m.typ === 'bord') { if (m.dia) provbordData(m); return avstamBord(m.spar || []); }
+  if (m.typ === 'bord') { if (m.dia) provbordData(m); return avstamBord(m.spar || [], m.nollstall); }
   if (m.typ === 'trosklar') { pbTro = m.v || pbTro; ritaPbReglage(); return; }
   if (m.typ === 'beskarning') return tagEmotBeskarning(m);
   /* Leken kan sparas från telefonen — fotot ligger där. Utan den här raden
      satt datorn kvar med en inaktuell minLek och skrev en gammal lek över
      den nya nästa gång dialogen sparades. */
-  if (m.typ === 'lek') { minLek = null; uppdateraLekKnapp(); return; }
-  if (m.typ === 'av') { kamAnsluten = false; if (kamOppen) visaKamSteg(); toast('Kameran kopplades från', 'err'); }
+  if (m.typ === 'lek') { minLek = null; return; }
+  if (m.typ === 'av') {
+    kamAnsluten = false;
+    if (kamHarVarit) kamTappadNar = Date.now();
+    kamLast = kamTot = 0;
+    stangKamSkruv();
+    if (kamOppen) visaKamSteg();
+    renderMode();
+    toast('Kameran kopplades från', 'err');
+  }
 }
-$('#kamKnapp').onclick = () => visaKamOv();
 $('#kamKopiera').onclick = async () => {
   const t = $('#kamLank').textContent;
   try { await navigator.clipboard.writeText(t); toast('Länken är kopierad', 'ok'); }
@@ -11660,6 +12073,10 @@ function hslAvstand(a, b) {
 }
 
 function ritaKalRuta() {
+  /* kalBox nollställs när man lämnar ett spel, medan bilden kan ligga kvar och
+     nästa bildruta ritar om rutan. Alla andra läsare av kalBox har den här
+     vakten; den här saknade den, och kastade mitt i en inkommande bildruta. */
+  if (!kalBox) return;
   const img = $('#kalImg'), ruta = $('#kalRuta');
   const R = img.getBoundingClientRect(), P = img.parentElement.getBoundingClientRect();
   const ox = R.left - P.left, oy = R.top - P.top;
@@ -11668,7 +12085,11 @@ function ritaKalRuta() {
   ruta.style.width = (kalBox.w * R.width) + 'px';
   ruta.style.height = (kalBox.h * R.height) + 'px';
 }
-addEventListener('resize', () => { if (kalBox && !$('#kamStegKal').hidden) ritaKalRuta(); });
+addEventListener('resize', () => {
+  const k = $('#kamStegKal');
+  if (kalBox && k && !k.hidden) ritaKalRuta();
+  if (kamSkruvOppen) ritaPbLager();
+});
 
 /* Dra hela rutan eller ett hörn. Musen räknas om till andelar direkt, så
    att fönsterstorleken aldrig hamnar i det som sparas. */
@@ -11723,12 +12144,56 @@ $('.kalupp') && $('.kalupp').addEventListener('click', ev => {
   $$('.kalupp [data-upp]').forEach(x => x.classList.toggle('on', x === b));
 });
 $('#kamKoppla').onclick = async () => {
-  if (!await ask('Telefonen slutar läsa av kort. Du kan koppla upp den igen med QR-koden.',
-                 { title: 'Koppla bort kameran?', ok: 'Koppla bort', danger: true })) return;
+  if (!await ask('Telefonen slutar läsa av kort. Ditt bord ändrar sig bara när du laddar upp ett foto. Du kan slå på auto igen från menyn.',
+                 { title: 'Stänga av auto?', ok: 'Stäng av', danger: true })) return;
   Moln.sandKam('stopp');
   kamAnsluten = false;
+  kamHarVarit = false;            // avstängd är inte tappad — bordet ljuger inte
+  kamTappadNar = 0; kamLast = kamTot = 0;
+  prefs.autoLage = false; savePrefs();
+  stangKamSkruv();
   visaKamSteg();
+  renderMode();
 };
+$('#kamRikta').onclick = () => { stangKamSkruv(); visaKamOv('kal'); };
+
+/* ── Skruvrummet ────────────────────────────────────────────────────
+   Hänger under modechippet, som menyn hänger under sin knapp. Den ligger som
+   syskon till #menu i body och inte i topbaren: topbaren är 46 px hög och
+   hade klippt bort allt utom rubrikraden. */
+let kamSkruvOppen = false;
+function stangKamSkruv() {
+  if (!kamSkruvOppen) return;
+  kamSkruvOppen = false;
+  $('#kamSkruv').classList.remove('open');
+  visaProvbord(false);
+  kamStrom();
+}
+function visaKamSkruv() {
+  if (kamSkruvOppen) return stangKamSkruv();
+  if (!kamAnsluten) return visaKamOv();
+  const el = $('#kamSkruv'), chip = $('#modeSlot .modechip');
+  kamSkruvOppen = true;
+  el.classList.add('open');
+  const r = (chip || $('#modeSlot')).getBoundingClientRect();
+  el.style.top = (r.bottom + 6) + 'px';
+  el.style.left = 'auto';
+  el.style.right = Math.max(8, Math.round(innerWidth - r.right)) + 'px';
+  kamStrom();
+  visaProvbord(true);
+  kamSkruvTal();
+  /* Rutan popovern ritar är den bekräftade mattan. Hämtades den inte här stod
+     kalBox tom efter en omladdning, och lagret ritade ingenting alls. */
+  if (!kalBox && spelLage) Moln.hamtaKalibrering(spelLage.id)
+    .then(k => { if (k && !kalBox) { kalBox = k.ruta; ritaPbLager(); } }).catch(() => {});
+  /* Rutan ritas mot en bild som just fått en storlek. Ritas den medan
+     popovern fortfarande är display:none blir varje mått noll, och lagret
+     står kvar som en tom canvas tills nästa bildruta råkar komma. */
+  requestAnimationFrame(ritaPbLager);
+}
+addEventListener('mousedown', e => {
+  if (!$('#kamSkruv').contains(e.target) && !e.target.closest('#modeSlot')) stangKamSkruv();
+});
 
 /* ── ta emot avläsningar ────────────────────────────────────────────
    En rad i taget, och den som tar den vinner i databasen. Två datorer
@@ -11848,7 +12313,6 @@ async function oppnaSpel(gameId, farsk) {
      Utan nollställningen hindrade det gamla värdet hämtningen av det nya
      spelets lek, och knappen visade fel antal. */
   minLek = null;
-  uppdateraLekKnapp();
   byggSpelare(spelare);
   /* Den sparade fliken gäller ETT spel, och sedan förra versionen står det
      vilket. Förut låg { active, sel } löst i en nyckel som delades av alla
@@ -12004,10 +12468,8 @@ function uppdateraLage() {
   document.body.classList.toggle('ispel', !!spelLage);
   const las = !!spelLage && !redigerbar();
   document.body.classList.toggle('lasvy', las);
-  const rad = $('#spelRad');
-  if (rad) rad.hidden = !spelLage;
   if (spelLage) {
-    $('#spelKod').textContent = spelLage.kod;
+    const kod = $('#spelKod'); if (kod) kod.textContent = spelLage.kod;
     if (las) {
       const p = player();
       $('#lasbandTxt').textContent = (p.name || 'Den här spelaren') + 's bord — du kan titta, inte ändra';
@@ -12019,7 +12481,7 @@ function uppdateraLage() {
    loggar in och hamnar direkt i spelet — koden överlever rundturen till
    Google genom sessionStorage. */
 const inbjudanLank = () => location.origin + location.pathname + '?join=' + (spelLage ? spelLage.kod : '');
-$('#bjudInBtn').onclick = async () => {
+$('#spelKnapp').onclick = async () => {
   if (!spelLage) return;
   const lank = inbjudanLank();
   try { await navigator.clipboard.writeText(lank); toast('Inbjudningslänken är kopierad', 'ok'); }
@@ -12036,6 +12498,12 @@ async function lamnaSpelet() {
   spelLage = null;
   kameraEnhet = false;
   kalBox = null; kamAnsluten = false; kamOppen = false;
+  /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
+     ens hunnit koppla en telefon: flaggan mindes ett spel som var slut. */
+  kamHarVarit = false; kamTappadNar = 0; kamLast = kamTot = 0;
+  kalForslagGjort = false;
+  { const i = $('#kalImg'); if (i) i.removeAttribute('src'); }
+  stangKamSkruv();
   /* En tom spelarlista är inget läge appen kan vara i: player() returnerar
      undefined och allt som rör handen faller. En uppslagning som fortfarande
      pågår när man lämnar spelet gör just det — och den pågår ofta, eftersom
@@ -12094,6 +12562,12 @@ $('#loggaInBtn').onclick = async () => {
   catch (e) { portalFel('#startFel', e.message || 'Inloggningen gick inte att starta.'); }
 };
 $('#loggaUtBtn').onclick = () => loggaUtHelt();
+/* Från det lokala bordet fanns ingen väg till lobbyn alls — man fick ladda om
+   sidan. Är man inte inloggad är landningssidan rätt ställe att hamna på. */
+$('#startSpelBtn').onclick = async () => {
+  LS.set(K.lage, 'moln');
+  if (Moln.minId()) await visaLobby(); else visaVy('start');
+};
 $('#skapaSpelBtn').onclick = async () => {
   portalFel('#lobbyFel', '');
   const b = $('#skapaSpelBtn'); b.disabled = true;
@@ -12207,7 +12681,6 @@ async function portalStart() {
   } catch (e) { /* poolen byggs om vid första avläsningen */ }
 
   renderAll(true);
-  uppdateraLekKnapp();      // säger antalet ur den lokala kopian, även utan spel
   importFromHash();
   resolveAll();
   applySize();
