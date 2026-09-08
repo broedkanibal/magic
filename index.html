@@ -110,19 +110,58 @@ kbd{
    på — de står kvar i full storlek. */
 .ptab .nm{overflow:hidden;text-overflow:ellipsis;min-width:2.5ch;flex:0 1 auto}
 /* Den aktiva spelarens namn kortas aldrig. Det är det enda namn man behöver
-   kunna läsa hela tiden — resten går att se i tooltipen eller genom att byta. */
+   kunna läsa hela tiden — resten går att se genom att hovra eller byta. */
 .ptab.on .nm{flex:none}
-/* Ryms de inte fälls de ihop i två steg i stället för att rullas ur bild: först
-   tappar de andra flikarna namn och antal, sedan gör den aktiva det med. Kvar
-   står siffran och färgpricken — siffran ÄR tangenten man byter med, så fliken
-   är fortfarande både läsbar och stor nog att klicka på. */
+/* Ryms de inte fälls de ihop i två steg i stället för att rullas ur bild: de
+   ANDRA flikarna tappar sitt namn, och i sista steget får den aktivas namn
+   kortas med ellips. Kvar står siffran och färgpricken — siffran ÄR tangenten
+   man byter med, så fliken är fortfarande både läsbar och stor nog att klicka på.
+
+   Sista steget tog förut namnet av den aktiva fliken också. Då stod det två
+   sifferrutor i raden och ingenting sa vems bord man tittade på — vilket är
+   hela frågan flikarna finns för att svara på. Uppmätt i webbläsaren före
+   ändringen: vid 720 px och TVÅ spelare hamnade raden i ikonläget, alltså i
+   ett helt vanligt halvskärmsfönster. Du-märket står kvar av samma skäl: det
+   är den billigaste ledtråden om vilken flik som är min, 24 px. */
 .players.kompakt .ptab:not(.on) .nm{display:none}
-.players.ikoner .ptab .nm,.players.ikoner .ptab .jagmark,
+.players.ikoner .ptab:not(.on) .nm{display:none}
 .players.ikoner .ptab .pen{display:none}
+.players.ikoner .ptab.on .nm{max-width:9ch}
+/* Ett TAK på namnet, inte en flex-krympning. Krympningen såg rätt ut och
+   gjorde ingenting: en flik är själv en flexrad utan min-width:0, så dess
+   minsta storlek ÄR det okortade namnet — regeln kunde aldrig träda i kraft,
+   och raden svämmade i stället över och gömde sista fliken bakom
+   uttoningen. Uppmätt med fyra spelare och namnet Christofferhansson vid
+   720 px: 395 px innehåll i en 338 px ruta. Ett tak går inte att missförstå,
+   och .nm kortar redan med ellips. Nio tecken räcker för att skilja spelare
+   åt, och steget slår bara till när raden ändå är trång. */
+/* Hovra en hopfälld flik för att se vem det är. Namnet vecklas ut åt HÖGER, så
+   fliken man pekar på står still under muspekaren; det är flikarna till höger
+   som flyttar sig. Titeln finns kvar för tangentbord och skärmläsare.
+   Taket håller utfällningen så liten att raden oftast ryms ändå, och
+   uttoningen tänds medan ett namn är utfällt: går det ändå inte in ska
+   kanten läsas som "det finns mer åt höger" och inte som en kapad bokstav. */
+.players.kompakt .ptab:not(.on):hover .nm,
+.players.ikoner .ptab:not(.on):hover .nm{display:inline-block;max-width:10ch}
+.players.allt:has(.ptab:not(.on):hover) {
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);
+          mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);
+}
 .players.kompakt .ptab:not(.on),.players.ikoner .ptab{padding:0 7px}
 .ptab .num,.ptab .dot{flex:none}
 .ptab:hover{background:var(--bg3);color:var(--txt)}
-.ptab.on{background:var(--bg4);color:var(--txt);border-color:#3d4a5f}
+/* Vald flik. Skillnaden mot en ovald var en aning mörkare yta och en aning
+   ljusare ram, och den gick att missa mitt i ett parti — man visste inte om
+   man stod på sitt eget bord eller på någon annans. Nu bär den tre signaler
+   som pekar åt samma håll: fylld yta, tydlig ram, och en 2 px stapel längs
+   underkanten i bordets egen färg. Stapeln ritas INNE i fliken: .players har
+   overflow-x:auto och klipper allt som ritas utanför. */
+.ptab.on{background:var(--bg4);color:var(--txt);border-color:#4a5a72}
+.ptab.on .nm{font-weight:650}
+.ptab.on::after{
+  content:'';position:absolute;left:7px;right:7px;bottom:2px;height:2px;
+  border-radius:2px;background:#8496b0;
+}
 .ptab .dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0004 inset}
 /* Siffran är en TANGENT, inte en etikett — det är den man trycker för att byta
    bord. Den ritas därför som appens egen kbd, med samma undre kant: en liten
@@ -152,7 +191,8 @@ kbd{
 /* Läser man någon annans bord är den fliken blå, inte guld. Guld betyder
    "här kan du ändra", och det kan man inte på ett annat bord — den egna
    fliken behåller sitt du-märke, men i grått. */
-.ptab.on.andras{background:#6b8cff14;border-color:#6b8cff55}
+.ptab.on.andras{background:#6b8cff26;border-color:#6b8cff8c;color:#ccd7ff}
+.ptab.on.andras::after{background:var(--blue)}
 .ptab.on.andras .num{background:#6b8cff2b;border-color:#6b8cff55;color:#c3d0ff}
 body.lasvy .ptab.jag .jagmark{color:var(--dim2);background:#00000055}
 
@@ -170,7 +210,12 @@ body.lasvy .ptab.jag .jagmark{color:var(--dim2);background:#00000055}
 .ptab.jag:hover{background:#212a38;color:var(--txt)}
 /* Vald: guld. Ingen annan flik blir guld, så färgen ensam svarar på frågan
    "är det mitt eget bord jag ändrar i?" */
-.ptab.jag.on{background:#f0a52a1c;border-color:#f0a52a66;color:var(--txt)}
+/* Guldet läggs som ett eget lager ÖVER den ogenomskinliga ytan, inte i
+   stället för den. Den egna fliken är sticky och de andra rullar in under
+   den; med bara en genomskinlig guldton lyste de rakt igenom, och vid 420 px
+   stod två flikars text ovanpå varandra. */
+.ptab.jag.on{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
+.ptab.jag.on::after{background:var(--acc)}
 .ptab .jagmark{
   flex:none;font:9.5px/1 var(--sans);font-weight:700;letter-spacing:.7px;
   text-transform:uppercase;color:var(--dim2);
@@ -1889,6 +1934,17 @@ body.lasvy .lasband{display:flex}
 .spelknapp .kod{font:700 12.5px var(--mono);letter-spacing:2px;color:var(--acc)}
 .spelknapp .delare{width:1px;height:14px;background:#e8b33a44;flex:none}
 .spelknapp .bjud{display:inline-flex;align-items:center;gap:5px;flex:none;font-size:11.5px;color:#c9a45e;white-space:nowrap}
+/* Så fort någon annan gått med är inbjudan ett avklarat ärende, och ordet tog
+   72 px av toppraden resten av kvällen — plats som spelarflikarna behöver för
+   att kunna skriva ut namn. Koden står kvar: den är det man läser upp, och
+   knappen kopierar länken precis som förut. */
+.spelknapp.kompakt{padding:0 8px}
+/* Ordet går, länkikonen stannar. Utan den blev knappen fyra tecken i en
+   streckad ruta: en etikett, inte något man trycker på — och för en
+   skärmläsare hette den bara koden. Samma val som topbarens smala läge gör
+   med sina knappar. */
+.spelknapp.kompakt .delare,.spelknapp.kompakt .bjud span{display:none}
+.spelknapp.kompakt .bjud{gap:0}
 /* Utanför ett spel finns ingen kod, och i stället en väg in i ett. Den vägen
    fanns inte alls förut: från det lokala bordet gick lobbyn inte att nå utan
    att ladda om sidan. */
@@ -1901,6 +1957,23 @@ body.ispel #startSpelBtn{display:none}
    again" såg likadan ut när kameran läste varje kort, när den läste fyra av
    nio, och när telefonen hade somnat en halvtimme tidigare. */
 .modeslot{display:flex;align-items:center;gap:7px;flex:none}
+/* En knapp med bara sin ikon, och namnet i en egen tooltip under. Texten låg
+   förut i knappen: "Ladda upp bordsfoto" mätte 172 px, och det var den
+   bredden som tryckte ihop spelarflikarna till siffror i ett halvskärms-
+   fönster. Statuschippet bredvid behåller sina ord — de är beskedet om vad
+   som läser bordet, inte en etikett på en knapp.
+   Webbläsarens egen title dröjer en dryg sekund och duger inte för en knapp
+   utan text, så tooltipen är egen, som den på kortens handlingsrad. */
+.ikonknapp{position:relative;width:30px;padding:0;justify-content:center;flex:none}
+.ikonknapp svg{opacity:.92}
+.knapptip{
+  position:absolute;top:calc(100% + 7px);right:0;z-index:80;
+  padding:4px 8px;border-radius:6px;white-space:nowrap;
+  background:#070b11;border:1px solid #3a4658;box-shadow:0 8px 18px -6px #000e;
+  font:11px/1.3 var(--sans);font-style:normal;font-weight:500;color:#e6ecf5;
+  opacity:0;pointer-events:none;transition:opacity .1s .12s;
+}
+.ikonknapp:hover .knapptip,.ikonknapp:focus-visible .knapptip{opacity:1}
 .modechip{
   display:inline-flex;align-items:center;gap:8px;flex:none;
   height:30px;padding:0 10px;border-radius:var(--rs);
@@ -6095,6 +6168,14 @@ function sedan(ts) {
   return m < 90 ? `för ${m} minuter sedan` : `för ${Math.round(m / 60)} timmar sedan`;
 }
 
+/* Ikonknapparna i modeplatsen. Etiketten bor i tooltipen i stället för i
+   knappen; aria-label bär den för skärmläsare. Funktionsdeklaration och inte
+   en const: renderMode ritas tidigt, och en const hade legat i sin TDZ om
+   ordningen någonsin ändras — det har den här filen redan dött av en gång. */
+function modeIkon(mode, ikon, etikett, klass) {
+  return `<button class="btn ikonknapp${klass || ''}" data-mode="${mode}" aria-label="${etikett}">${ikon}<i class="knapptip">${etikett}</i></button>`;
+}
+
 function renderMode() {
   const slot = $('#modeSlot'), rad = $('#modeRad');
   if (!slot || !rad) return;
@@ -6106,7 +6187,8 @@ function renderMode() {
     /* Lokalt bord: det finns inget spel att koppla en telefon till, så auto är
        inte ett val man kan erbjuda. Ett foto är hela vägen. */
     const harFoto = p && p.shots.length > 0;
-    chip = `<button class="btn${!harFoto && p && p.cards.length ? '' : ' prim'}" data-mode="foto" title="Läs hela bordet ur ett foto (S)">${M_FOTO}<span class="langtxt">${harFoto ? 'Läs om bordet' : 'Läs bordet ur ett foto'}</span></button>`;
+    chip = modeIkon('foto', M_FOTO, harFoto ? 'Läs om bordet ur ett foto (S)' : 'Läs bordet ur ett foto (S)',
+                    !harFoto && p && p.cards.length ? '' : ' prim');
 
   } else if (prefs.autoLage == null) {
     /* A. Skillnaden mellan de två vägarna är inte självklar, och den som valt
@@ -6119,16 +6201,20 @@ function renderMode() {
               '<span class="langtxt"><b>Ladda upp</b> läser ett foto och sätter bordet som det såg ut då.</span>';
 
   } else if (prefs.autoLage === false) {
-    /* F. Vägen tillbaka till auto står i menyn — annars är manuellt läge en
-       dörr som bara går att gå igenom åt ett håll. */
-    chip = `<button class="btn prim" data-mode="foto">${M_FOTO}<span class="langtxt">Ladda upp bordsfoto</span></button>`;
+    /* F. Manuellt läge. Vägen tillbaka till auto stod förut BARA i menyn, och
+       eftersom valet ligger i webbläsarens inställningar överlevde det både
+       omladdningar och nya spel: en dörr som gick att gå igenom åt ett håll,
+       och den enda skylten om att det fanns en väg tillbaka satt i en meny.
+       Nu står telefonknappen kvar bredvid fotot, dämpad. */
+    chip = modeIkon('auto', M_TELEFON, 'Slå på auto')
+         + modeIkon('foto', M_FOTO, 'Ladda upp bordsfoto', ' prim');
 
   } else if (!kamAnsluten && kamHarVarit) {
     /* E. Bordet ljuger nu: korten ligger kvar som de låg när telefonen tystnade.
        Det är den enda gången appen visar något den inte vet är sant, och då
        ska den säga det rakt ut. */
-    chip = '<button class="modechip tappad" data-mode="skruv"><span class="led"></span><span class="lbl">Kameran tappad<span class="langtxt"> · koppla om</span></span></button>' +
-           `<button class="btn" data-mode="foto" title="Läs bordet ur ett foto i stället">${M_FOTO}<span class="langtxt">Ladda upp foto</span></button>`;
+    chip = '<button class="modechip tappad" data-mode="skruv"><span class="led"></span><span class="lbl">Kameran tappad<span class="langtxt"> · koppla om</span></span></button>'
+         + modeIkon('foto', M_FOTO, 'Läs bordet ur ett foto i stället');
     radKlass = 'frusen';
     radHtml = `<span>Ditt bord är fruset som det såg ut ${sedan(kamTappadNar)}. Ingenting läses av.</span>` +
               '<button class="btn prim" data-mode="koppla">Koppla om</button>';
@@ -6136,8 +6222,8 @@ function renderMode() {
 
   } else if (!kamAnsluten) {
     /* B. Telefonen har aldrig svarat i det här spelet. Inget att skruva på än. */
-    chip = '<button class="modechip vantar" data-mode="koppla" title="Visa QR-koden igen"><span class="led"></span><span class="lbl">Väntar på telefonen…</span></button>' +
-           `<button class="btn" data-mode="foto" title="Läs bordet ur ett foto i stället">${M_FOTO}<span class="langtxt">Ladda upp foto</span></button>`;
+    chip = '<button class="modechip vantar" data-mode="koppla" title="Visa QR-koden igen"><span class="led"></span><span class="lbl">Väntar på telefonen…</span></button>'
+         + modeIkon('foto', M_FOTO, 'Läs bordet ur ett foto i stället');
 
   } else if (kamFas === 'ingen') {
     /* Telefonen är kopplad men rutan runt mattan är inte dragen. Chippet sa
@@ -6178,14 +6264,15 @@ function renderMode() {
 function modeKlick(ev) {
   const b = ev.target.closest('[data-mode]'); if (!b) return;
   const a = b.dataset.mode;
-  /* Fotoknappen finns bara i de lägen där auto inte gör sitt jobb (A, B, E, F).
-     Att trycka på den är att välja bort auto — annars stod chippet kvar på
-     "Kameran tappad" och raden påstod att bordet var fruset, direkt efter att
-     man läst in ett färskt foto av det. */
-  if (a === 'foto') {
-    if (spelLage) stangAvAuto(false);
-    openShot(); renderMode();
-  }
+  /* Ett foto är bara ett foto. Knappen stängde förut av auto för gott, utan
+     att fråga: ett tryck för att läsa in bordet en gång, och kameran var borta
+     resten av kvällen — dessutom i varje kommande spel, eftersom valet sparas
+     i webbläsaren. Sedan MES-22 skickade den dessutom stopp till telefonen.
+     Att ÖPPNA bildvyn ändrar ingenting alls; frusen-varningen släcks först när
+     ett foto faktiskt satt bordet, se avfrys() i appendAnalysis. Att släcka
+     den här hade varit att tysta varningen för den som öppnar rutan och
+     ångrar sig — bordet står då kvar exakt lika gammalt som förut. */
+  if (a === 'foto') { openShot(); renderMode(); }
   if (a === 'auto') { prefs.autoLage = true; savePrefs(); renderMode(); visaKamOv(); }
   if (a === 'koppla') visaKamOv();
   if (a === 'skruv') visaKamSkruv();
@@ -10410,6 +10497,11 @@ function appendAnalysis(shotId, out, img, ersatt) {
   else if (!ersatt) { p.cards.push(...nya); p.pending = (p.pending || []).concat(nyaVantar); }
   if (!p.shots.includes(shotId)) p.shots.push(shotId);
   p.shotIdx = p.shots.indexOf(shotId);
+  /* Bordet kommer nu från ett foto, alltså är det inte längre fruset sedan
+     telefonen tystnade. Det gäller BARA när avläsningen gav något: ett tomt
+     resultat rör inte korten, och då är varningen fortfarande sann. Kameran
+     stängs inte av — den får koppla upp sig igen när som helst. */
+  if (!tomtResultat && spelLage && !kamAnsluten && kamHarVarit) { kamHarVarit = false; kamTappadNar = 0; }
   save(); renderAll(true); resolveAll();
 
   const n = nya.length, v = nyaVantar.length;
@@ -12192,12 +12284,13 @@ $('#lyftAlla') && $('#lyftAlla').addEventListener('click', ev => {
   save(); renderAll(true);
 });
 
-/* Ett ställe stänger av auto. Knappen i skruvrummet, menyn och fotoknappen
-   gick förut tre olika vägar, och ingen av dem bröt kortens bindning till
-   spåren eller stoppade nådatimern. Timern fyrade tre sekunder senare med
-   den senast sedda listan och flyttade allt som inte stod i den till remsan
-   (MES-22). Två av vägarna sa inte ens till telefonen, som fortsatte sända,
-   och datorn fortsatte lyda i "manuellt" läge. */
+/* Ett ställe stänger av auto: knappen i skruvrummet och menyvalet. De gick
+   förut var sin väg, och ingen av dem bröt kortens bindning till spåren eller
+   stoppade nådatimern. Timern fyrade tre sekunder senare med den senast sedda
+   listan och flyttade allt som inte stod i den till remsan (MES-22). Menyns
+   väg sa inte ens till telefonen, som fortsatte sända, och datorn fortsatte
+   lyda i "manuellt" läge. Fotoknappen var en tredje väg hit och är det inte
+   längre: ett foto är ett foto och rör inte kameran (MES-25). */
 async function stangAvAuto(fraga) {
   if (fraga && kamAnsluten && !await ask(
       'Telefonen slutar titta på mattan. Kort du flyttar där syns inte längre här — du flyttar dem själv eller laddar upp ett foto. Auto går att slå på igen från menyn.',
@@ -12985,6 +13078,18 @@ function fjarrIkapp() {
    gör något är sämre än en knapp som inte finns. */
 function uppdateraLage() {
   document.body.classList.toggle('ispel', !!spelLage);
+  /* Inbjudningsknappen fälls ihop till bara koden när man inte är ensam kvar
+     i spelet. Räknas här och inte i renderTabs: uppdateraLage körs först i
+     renderAll, så raden är hopfälld redan innan flikarna mäter sin plats. */
+  const sk = $('#spelKnapp');
+  if (sk) {
+    sk.classList.toggle('kompakt', !!spelLage && state.players.length > 1);
+    /* Namnet måste bära ÄRENDET, inte bara koden: hopfälld är knappens enda
+       synliga innehåll fyra tecken, och det är vad en skärmläsare läser upp
+       om ingen aria-label finns. Titeln säger inte "igen" — den som just gått
+       med i spelet har aldrig kopierat någon länk. */
+    if (spelLage) sk.setAttribute('aria-label', 'Kopiera inbjudningslänken, kod ' + spelLage.kod);
+  }
   const las = !!spelLage && !redigerbar();
   document.body.classList.toggle('lasvy', las);
   if (spelLage) {
