@@ -19,7 +19,17 @@ finns den på datorn, och den följer med in i varje nytt spel. Du kan ändra de
 när som helst, också mitt i ett parti — telefonen bygger om sin igenkänning så
 fort du sparat. Utan konto sparas den i webbläsaren. Det som lämnar telefonen är
 ett litet bordstillstånd när något ändrats. Den digitala vyn är en spegel av
-mattan; ett kort som lyfts hamnar i en remsa där du säger vart det tog vägen.
+mattan — men kameran får bara lägga till kort och vrida dem, aldrig ta bort
+dem. Ett kort den inte längre ser tonas ned där det ligger, med tre val: till
+graveyard, ligger kvar, eller bort från bordet (samma kryss som på varje kort).
+Att göra ingenting betyder att det ligger kvar, och lägger du tillbaka det på
+mattan tonas det upp av sig självt. Har flera kort tonats ned på en gång får
+du ett svar för alla i zonrubriken. Mätbänken för kameran ligger i
+`dev/kamerabank.cjs` (`node dev/kamerabank.cjs`).
+En hand eller en arm över korten ändrar ingenting: ett spår släpps först när
+mattan *under* det sett tom ut. Tröskeln för vad som är "något på mattan"
+räknas ur mattans eget brus när kameran startar, så det finns inget att
+ställa in i vanligt ljus.
 
 **Klistra in en skärmdump av hela videosamtalets fönster.** Appen hittar spelarnas
 videorutor, läser av korten som ligger på borden, och skapar en spelare per ruta.
