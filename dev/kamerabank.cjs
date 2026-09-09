@@ -3,9 +3,13 @@
 // bildrutor: arm över ett känt kort, handformad fläck, lyft kort, flimmer,
 // spöken, ihopskjutna kort, exponeringssväng, diagonalt kort, brus → tröskel,
 // varaktig ljusändring, igenkänning som inte är redo, paus i analysen, och
-// sedan MES-26: ådrat trä med blänk, skakning, drift, tonkurva, skräp, avstånd.
+// sedan MES-26: ådrat trä med blänk, skakning, drift, tonkurva, skräp, avstånd,
+// och sedan MES-28 ytorna bänken saknade: ljus matta med mörka kort, mörkt
+// rum, låg kontrast, överexponering, tryckt matta (G1–G5).
 // Slutkod 1 om något faller. Med --diagnos <fil.json> spelas en sparad
-// diagnos från appen upp i stället. .cjs eftersom package.json säger "type": "module".
+// diagnos från appen upp i stället; --scen <namn> ändrar ljussättningen på
+// den (inverterad, dimmat, kontrast, starkt) och --vantat <n> gör det till
+// ett prov. .cjs eftersom package.json säger "type": "module".
 'use strict';
 // ── extrahering ──────────────────────────────────────────────────────
 const fs = require('fs'), vm = require('vm');
@@ -34,13 +38,18 @@ function matta(W, H, niv, brus, slump) {
    övre halvan och textrader i den nedre. Detektorn kräver sedan MES-26 att
    en region har spridning (ett kort ≥ 15, en träflisa < 10), så en platta
    utan struktur vore inte ett kort — och den vore inte ett riktigt prov. */
-function kortPixel(u, v, w, h, niv) {
-  if (u < 1 || v < 1 || u >= w - 1 || v >= h - 1) return Math.max(0, niv - 150);      // svart kant
-  if (v > h * 0.12 && v < h * 0.55 && u > 2 && u < w - 3) return Math.max(0, niv - 90) + ((u * 7 + v * 3) % 5) * 4;   // konstverk, lite struktur
-  if (v > h * 0.6 && (v % 3) === 0 && u > 2 && u < w - 3) return Math.max(0, niv - 60);   // textrad
+/* k skalar kortets egna kontraster (kant, konstverk, textrader) — 1 är
+   kortet i vanligt ljus, 0,375 är ett kort där allt ligger inom 30 gråsteg
+   från ramen: så ser låg kontrast ut, och det går inte att härma genom att
+   bara flytta ramens nivå närmare mattan (då blev konstverket 60 steg
+   MÖRKARE än mattan och kortet syntes bättre än förut). */
+function kortPixel(u, v, w, h, niv, k = 1) {
+  if (u < 1 || v < 1 || u >= w - 1 || v >= h - 1) return Math.max(0, niv - 150 * k);      // svart kant
+  if (v > h * 0.12 && v < h * 0.55 && u > 2 && u < w - 3) return Math.max(0, niv - 90 * k) + ((u * 7 + v * 3) % 5) * 4 * k;   // konstverk, lite struktur
+  if (v > h * 0.6 && (v % 3) === 0 && u > 2 && u < w - 3) return Math.max(0, niv - 60 * k);   // textrad
   return niv;
 }
-function kort(g, W, x, y, w, h, niv) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) g[yy * W + xx] = kortPixel(xx - x, yy - y, w, h, niv); }
+function kort(g, W, x, y, w, h, niv, k = 1) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) g[yy * W + xx] = kortPixel(xx - x, yy - y, w, h, niv, k); }
 function hand(g, W, cx, cy, rx, ry, niv) {
   for (let yy = Math.max(0, cy - ry); yy < cy + ry; yy++) for (let xx = Math.max(0, cx - rx); xx < cx + rx; xx++) {
     const dx = (xx - cx) / rx, dy = (yy - cy) / ry;
@@ -77,13 +86,30 @@ if (process.argv.includes('--diagnos')) {
   const { aw, ah } = d.matt;
   const ur = b64 => { const u = Buffer.from(b64, 'base64'); const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = u[i]; return f; };
   const ref = ur(d.ref), ruta = d.ruta ? ur(d.ruta) : null;
+  /* Ljussättningen ändras på filen, inte på bordet: samma bord, samma
+     kort, annat ljus. Det är så tabellen i MES-28 togs fram — dimmat ×0,5
+     gav 1 av 3, låg kontrast ×0,4 gav 0 av 3 med de fasta trösklarna.
+     Referensen och rutan får samma behandling, och bruset skalas med. */
+  const SCEN = {
+    original: [v => v, 1],
+    inverterad: [v => 255 - v, 1],
+    dimmat: [v => v * 0.5, 0.5],
+    kontrast: [v => 128 + (v - 128) * 0.4, 0.4],
+    starkt: [v => Math.min(255, v + 90), 1]
+  };
+  const scenNamn = process.argv.includes('--scen') ? process.argv[process.argv.indexOf('--scen') + 1] : 'original';
+  if (!SCEN[scenNamn]) { console.error('Okänd scen: ' + scenNamn + '. Välj bland ' + Object.keys(SCEN).join(', ')); process.exit(2); }
+  const [scenF, scenBrus] = SCEN[scenNamn];
+  if (scenNamn !== 'original') { for (let i = 0; i < ref.length; i++) ref[i] = scenF(ref[i]); if (ruta) for (let i = 0; i < ruta.length; i++) ruta[i] = scenF(ruta[i]); }
+  const vantat = process.argv.includes('--vantat') ? +process.argv[process.argv.indexOf('--vantat') + 1] : null;
+  console.log('scen          ', scenNamn + (vantat != null ? `, väntar ${vantat} kort` : ''));
   Kamera.installera({ status: () => {}, bord: () => {}, fas: () => {}, identifiera: () => Promise.resolve(null) });
   Kamera.satKalibrering({ ruta: (d.kal && d.kal.ruta) || { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
   /* Referensen i filen är redan den suddade medelbilden — den läggs in
      rakt, med filens brus, i stället för att köras genom steg() och suddas
      en gång till. Rutan är rå och går genom steg() som på telefonen. */
-  Kamera.laddaReferens(ref, d.yta ? d.yta.brus : 0, ah, aw);
-  Kamera.satTrosklar(Object.assign({}, d.tro, { auto: 0 }));
+  Kamera.laddaReferens(ref, (d.yta ? d.yta.brus : 0) * scenBrus, ah, aw);
+  Kamera.satTrosklar(Object.assign({}, d.tro, { auto: 0, autoUts: 0 }));   // filens trösklar rakt av, även avvikelsen
   let nu = 900;
   console.log('yta ur filen  ', JSON.stringify(d.yta));
   console.log('yta på bänken ', JSON.stringify(Kamera.yta && { dom: Kamera.yta.dom, brus: Kamera.yta.brus, textur: Kamera.yta.textur, blank: Kamera.yta.blank }));
@@ -112,6 +138,14 @@ if (process.argv.includes('--diagnos')) {
     Kamera.satKalibrering({ ruta: (d.kal && d.kal.ruta) || { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
     for (let i = 0; i < 14; i++) { nu += 150; Kamera.steg(ruta, nu, ah, aw, skala); }
     console.log('spår', Kamera.spar.map(t => `#${t.id} ${Math.round(t.lang)}×${Math.round(t.kort)} @${Math.round(t.cx)},${Math.round(t.cy)} ${t.tillstand}${t.skymd ? ' skymd' : ''}`).join(' | ') || '(inga)');
+    /* Provet gäller det andra läget: det är dagens kod mot bordet, och det
+       som ska hålla när ljuset ändras. Skräp räknas inte som kort. */
+    if (vantat != null) {
+      const fann = Kamera.spar.filter(t => t.tillstand !== 'skrap').length;
+      const T2 = Kamera.trosklar, D2 = Kamera.diagnos;
+      console.log(`${fann === vantat ? 'OK  ' : 'FEL '} ${scenNamn}: ${fann} kort, väntade ${vantat} — avvikelse ${T2.utseende} (otsu ${D2.otsu}), spridning ${T2.spridning}, tröskel ${T2.troskel}, σ ${(Kamera.sigma || 0).toFixed(2)}, matta ${D2.matta}, regioner ${D2.regioner}, blänk ${D2.blanka}, flata ${D2.flata}, fel kvot ${D2.felKvot}, otäta ${D2.otat}`);
+      process.exit(fann === vantat ? 0 : 1);
+    }
   }
   console.log('bord på datorn', JSON.stringify(d.bord));
   process.exit(0);
@@ -375,8 +409,14 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      blir kvar i referensen som mattans mönster. Lyfts det står platsen
      kvar som skillnad tills driften tagit in den; läggs det tillbaka syns
      det inte. Uppmätt i granskningen — därför ligger korten här fritt. */
-  const TRE_R = g => { kortPaTra(g, 12, 70); kortPaTra(g, 47, 100); kortPaTra(g, 82, 72); return g; };
-  const helaR = s => [[12, 70], [47, 100], [82, 72]].every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
+  /* …och fritt från kvisten vid (40, 110): förut låg det andra kortet på
+     x 47–69 och överlappade kvisten (radie 9) med två bildpunkter, och om
+     kvistens flank hamnade i modellgrenen eller mönstergrenen avgjorde om
+     kortet blev 29×20 eller 34×25 (MES-28). Ett kort som nuddar en mörk
+     fläck i träet kan smälta ihop med den — det är en känd gräns, och ett
+     prov för sig, inte ett villkor för "kort på fri yta". */
+  const TRE_R = g => { kortPaTra(g, 12, 70); kortPaTra(g, 52, 100); kortPaTra(g, 82, 72); return g; };
+  const helaR = s => [[12, 70], [52, 100], [82, 72]].every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
   for (let i = 0; i < 6; i++) await rutaTra({}, TRE_R);
   r = await summa(12, () => rutaTra({}, TRE_R));
   check(`R1 tre kort på mattan NÄR referensen tas: spår ${r.sist.length}, hela kort ${helaR(r.sist)}, klara ${r.sist.filter(t => t.tillstand === 'klar').length}`, r.sist.length === 3 && helaR(r.sist) && r.sist.every(t => t.tillstand === 'klar'));
@@ -417,6 +457,63 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      ingenting (granskningen). */
   r = await summa(20, () => rutaTra({}, g => { TREW(g); for (let yy = 20; yy < 140; yy++) for (let xx = 86; xx < 91; xx++) g[yy * W + xx] = Math.min(255, g[yy * W + xx] + 40); }));
   check(`R4 lodrät ljusstrimma 5 px mellan korten: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')}), hela kort ${helaKort(r.sist)}`, r.sist.length === 3 && helaKort(r.sist));
+
+  // ── G: ytorna bänken saknade (MES-28) ─────────────────────────────
+  /* Varje syntetisk yta hittills har haft kort ~80 gråsteg LJUSARE än
+     mattan i vanligt ljus, och trösklarna är absoluta gråsteg (utseende
+     25, blänk 235). Det som faller på ett annat bord föll därför aldrig
+     här. Uppmätt på diagnosfil 21-04 med ändrad ljussättning: dimmat ×0,5
+     gav 1 av 3, låg kontrast ×0,4 gav 0 av 3, starkt ljus +90 gav 2 av 3.
+     Fem ytor som fångar det: ljus matta med mörka kort, mörkt rum (allt
+     ×0,45 OCH bruset ×2 — T9 sänker bara mattan och ökar kontrasten), låg
+     kontrast (kortet inom 30 steg från mattan), överexponering (mattan
+     210, kortets ram klipper), tryckt matta. Tre kort på 30×42. */
+  const G_KORT = [[40, 40], [110, 40], [180, 40]];
+  const treG = (niv, k = 1) => g => { for (const [x, y] of G_KORT) kort(g, W, x, y, 30, 42, niv, k); };
+  const helaG = s => G_KORT.every(([x, y]) => s.filter(t => t.tillstand !== 'skrap' && !t.skymd && Math.abs(t.lang - 42) <= 8 && Math.abs(t.kort - 30) <= 6 && Math.hypot(t.cx - (x + 15), t.cy - (y + 21)) <= 4).length === 1);
+  const gRad = () => Kamera.spar.map(t => `${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)} ${t.tillstand}${t.skymd ? ' skymd' : ''}`).join(', ') || 'inga';
+  const gKlara = () => Kamera.spar.length === 3 && helaG(Kamera.spar) && Kamera.spar.every(t => t.tillstand === 'klar');
+  namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [] });
+  /* G1: ljus matta (200), mörka kort (120). Det raka motsatsfallet. */
+  nystart(); for (let i = 0; i < 6; i++) await ruta(null, 3, 200);
+  for (let i = 0; i < 12; i++) await ruta(treG(120), 3, 200);
+  check(`G1 ljus matta 200, mörka kort 120: ${gRad()}; betyg '${Kamera.yta.dom}'`, gKlara());
+  /* G2: mörkt rum — allt ×0,45 och bruset fördubblat (±6). */
+  nystart(); for (let i = 0; i < 6; i++) await ruta(null, 6, 100, 0.45);
+  for (let i = 0; i < 12; i++) await ruta(treG(180), 6, 100, 0.45);
+  check(`G2 mörkt rum ×0,45, brus ±6: ${gRad()}; σ ${Kamera.sigma.toFixed(2)}, tröskel ${Kamera.trosklar.troskel}, avvikelse ${Kamera.trosklar.utseende}`, gKlara());
+  /* G3: låg kontrast — kortets ram 30 steg från mattan, resten av kortet
+     inom det (k = 0,375). */
+  nystart(); await referens();
+  for (let i = 0; i < 12; i++) await ruta(treG(130, 0.375));
+  check(`G3 låg kontrast, kort 30 steg från mattan: ${gRad()}; avvikelse ${Kamera.trosklar.utseende}`, gKlara());
+  /* G4: överexponering — mattan 210, kortets ram vill vara 290 och
+     klipper vid 255. Blänkreglerna får inte döma ett helt kort som blänk. */
+  const klipp = g => { treG(290)(g); for (let i = 0; i < g.length; i++) if (g[i] > 255) g[i] = 255; };
+  nystart(); for (let i = 0; i < 6; i++) await ruta(null, 3, 210);
+  for (let i = 0; i < 12; i++) await ruta(klipp, 3, 210);
+  check(`G4 överexponerat, matta 210 och ram som klipper: ${gRad()}; blänkdomar ${Kamera.diagnos.blanka}, betyg '${Kamera.yta.dom}'`, gKlara());
+  /* G5: tryckt matta — en mörk linje tvärs över, en ljus logotyp, ett
+     textband — allt i referensen. Korten läggs ÖVER trycket. Trycket
+     ska varken bli kort (under skakning) eller gömma dem. */
+  const tryck = (dx = 0, dy = 0) => g => {
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const X = x - dx, Y = y - dy, i = y * W + x;
+      if (Y >= 58 && Y < 62) g[i] = 55;                                                         // linje tvärs över, genom korten
+      else if ((X - 125) ** 2 + (Y - 64) ** 2 < 15 ** 2) g[i] = 130;                               // logotyp under kort 2 (30 steg ljusare än mattan; vid 150 var kortets ram bara 30 steg från den — det är G3:s fall, inte tryckets)
+      else if (Y >= 120 && Y < 132 && X > 30 && X < 210) g[i] = ((X >> 2) & 1) ? 70 : 135;      // textband
+      else if (X >= 8 && X < 11 || X >= 229 && X < 232) g[i] = 60;                                 // kantlinjer
+    }
+  };
+  nystart(); for (let i = 0; i < 6; i++) await ruta(tryck());
+  const monsterFalska = [];
+  for (let i = 0; i < 20; i++) { const s = await ruta(tryck((i % 3) - 1, i % 2)); monsterFalska.push(s.length); }
+  check(`G5a tryckt matta, skakning ±1 px, inga kort: falska spår ${monsterFalska.reduce((a, b) => a + b, 0)} (flest ${Math.max(...monsterFalska)}); betyg '${Kamera.yta.dom}'`, monsterFalska.every(n => n === 0));
+  for (let i = 0; i < 12; i++) await ruta(g => { tryck()(g); treG(180)(g); });
+  check(`G5b tre kort ovanpå trycket: ${gRad()}`, gKlara());
+  let g5Hela = 0;
+  for (let i = 0; i < 20; i++) { await ruta(g => { tryck((i % 3) - 1, i % 2)(g); treG(180)(g); }); if (gKlara()) g5Hela++; }
+  check(`G5c korten kvar under skakning: hela i ${g5Hela}/20 rutor, sist ${gRad()}`, g5Hela >= 18);
 
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);

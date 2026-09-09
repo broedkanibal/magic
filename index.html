@@ -9620,8 +9620,12 @@ function harTextruta(im, box, rot) {
    bildpunkterna mer än 25 steg från mattan (bara 27–36 % mer än 35 — Maul
    of the Skyclaves och Valkyrie's Sword är mörka kort), spridning 34–39;
    träflisor och strimmor under 10 i spridning. Saknas mattans nivå (poolen kom före första rutan) räknas
-   bara spridningen. */
-function serUtSomKort(im, matt) {
+   bara spridningen. Talen 22 och 25 är uppmätta i det ljuset; skala är
+   kamerans egen avvikelse i förhållande till det (1 på Jespers bord, ~0,5
+   dimmat), så att ett kort i svagt ljus inte döms som skräp av en tröskel
+   från ett starkare (MES-28). */
+function serUtSomKort(im, matt, skala) {
+  const k = skala || 1;
   const cv = document.createElement('canvas');
   cv.width = 64; cv.height = Math.round(64 / Matcher.ASPECT);
   const c = cv.getContext('2d', { willReadFrequently: true });
@@ -9631,11 +9635,11 @@ function serUtSomKort(im, matt) {
   for (let i = 0; i < d.length; i += 4, n++) {
     const L = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
     s += L; q += L * L;
-    if (matt != null && Math.abs(L - matt) > 25) bort++;
+    if (matt != null && Math.abs(L - matt) > 25 * k) bort++;
   }
   if (!n) return false;
   const std = Math.sqrt(Math.max(0, q / n - (s / n) ** 2));
-  return std >= 22 && (matt == null || bort / n >= 0.25);
+  return std >= 22 * k && (matt == null || bort / n >= 0.25);
 }
 
 let analyzing = false, cancelAnalyze = false;
@@ -11342,11 +11346,22 @@ const Kamera = (() => {
     /* En region utan struktur är inte ett kort: ett kort har ram, konstverk
        och text (spridning 28–47 på det riktiga bordet), en träflisa, en
        skugga eller en strimma är slät (2–10). */
-    spridning: 15   // minsta spridning i gråsteg inom regionen
+    spridning: 15,  // minsta spridning i gråsteg inom regionen
+    /* MES-28: 25 och 15 är uppmätta på ETT bord i ETT ljus. Samma bord
+       dimmat till hälften gav 1 kort av 3, med kontrasten sänkt till 40 %
+       inget alls (diagnosfil 21-04, --scen i bänken). Med autoUts på räknas
+       avvikelsen ur rutan själv — Otsu på histogrammet av |ruta − modell|,
+       se detektera() — och spridningen skalas i samma proportion; 25 och 15
+       är då utgångsläget och skalans etta. Reglagen Avvikelse och Struktur
+       tar över när någon drar i dem, som tröskelreglaget gör med auto. */
+    autoUts: 1
   };
   function satTrosklar(nya) {
-    const varAuto = T.auto, gammal = T.troskel;
+    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning;
     Object.assign(T, nya || {});
+    /* Samma sak för avvikelsen: med autoUts på är den rutans egen, och det
+       som skickas med är bara vad datorn råkade visa senast. */
+    if (T.autoUts) { T.utseende = gammalUts; T.spridning = gammalSprid; }
     /* Med auto på är tröskeln telefonens egen: den som skickas med är bara
        vad datorn råkade visa senast. Byter auto från av till på räknas den
        om ur bruset; annars behålls den — även det styrslingan höjt den till.
@@ -11360,6 +11375,42 @@ const Kamera = (() => {
      första förslaget, åt upp marginalen för ljusa kort på ljus matta. */
   const autoTroskel = () => Math.min(50, Math.max(10, Math.round(3 * sigma + 4)));
 
+  /* ── avvikelsen ur bilden (MES-28) ────────────────────────────────
+     Hur mycket en bildpunkt måste avvika från mattmodellen för att vara
+     "något" beror på ljuset: samma bord, samma kort, dimmat till hälften,
+     och 25 gråsteg är plötsligt ett helt kort. Otsu på histogrammet av
+     |ruta − modell| hittar delningen mellan mattan och det som ligger på
+     den. 70 % av delningen landar där det handvalda 25 låg på Jespers bord
+     (modulens Otsu, som inte räknar mönsterpunkterna: 36 i originalet, 14
+     dimmat, 11 med låg kontrast — diagnosfil 21-04, --scen i bänken).
+     Otsu ensam räcker inte: på ett ådrat bord delar den mattan i ådror och
+     mellanrum och lägger tröskeln nere i ådringen (bänkens W-prov: 43
+     falska spår av en pixels skakning). Golvet är därför mattans EGEN
+     textur, mätt i referensen: tre gånger medianen av |referens − modell|
+     över det som ligger inom 25 (bänkens trä ≈ 7 → 22, Jespers bord 3,2 →
+     10, dimmat 1,3 → 10; se troskelkarta()). Medianen rubbas inte av korten
+     som ligger kvar i referensen, det gör varje percentil över 80. Innan
+     referensen finns är golvet 25 — det gamla fasta talet — så att
+     inlärningen inte föder spår ur ådringen.
+     UTS_BAS och SPRID_BAS är talen som var fasta förut: skalans etta för
+     spridningen och skräpfiltret (serUtSomKort). Allt över OTSU_TAK viks in
+     i sista facket: en hand, en arm eller ett vitt kort långt över mattan
+     ska inte dra delningen upp förbi de andra korten. Steget per ruta är
+     begränsat så att ett kort som flimrar in och ut inte drar tröskeln med
+     sig fram och tillbaka. */
+  const UTS_BAS = 25, SPRID_BAS = 15, UTS_TAK = 45, UTS_STEG = 3, OTSU_TAK = 90, OTSU_DEL = 0.7, TEXTUR_GANGER = 3;
+  function otsuTroskel(h, k) {
+    let sum = 0; for (let b = 0; b <= OTSU_TAK; b++) sum += b * h[b];
+    let w0 = 0, s0 = 0, bast = 0, bastT = 0;
+    for (let t = 0; t < OTSU_TAK; t++) {
+      w0 += h[t]; s0 += t * h[t];
+      if (!w0) continue; const w1 = k - w0; if (!w1) break;
+      const m0 = s0 / w0, m1 = (sum - s0) / w1, v = w0 * w1 * (m0 - m1) * (m0 - m1);
+      if (v > bast) { bast = v; bastT = t; }
+    }
+    return bastT;   // ≤ bastT är matta
+  }
+
   let stream = null, video = null, ov = null, ovc = null;
   let anaC = null, anaX = null, AH = 0;
   let ref = null;              // gråskala av tom matta, analysstorlek — medel av REF_RUTOR rutor
@@ -11370,19 +11421,22 @@ const Kamera = (() => {
   let yta = null;              // { dom, brus, textur, blank } — ytans betyg vid referensen
   let senasteG = null, senasteG0 = null, senasteMask = null;   // för diagnosfilen: efter och FÖRE suddning
   let modell = null;           // mattmodellen för senaste rutan (Float32Array med .M = mattans median)
-  let refMonster = null;       // 1 där referensen avviker från sin egen mattmodell — mattans tryck, inte kort
+  let refAvvik = null;         // |referens − dess mattmodell| per bildpunkt: över avvikelsen är det mattans eget tryck, inte kort (MES-28: ett tal, inte en mask, så att gränsen följer T.utseende ruta för ruta)
+  let texturGolv = null;       // golvet för avvikelsen ur referensens egen textur (MES-28), null tills referensen finns
   let omtag = 0, felRader = 0; // referensen tagen om för att bilden flyttat sig, och rutor i rad som inte stämt
   let senasteGain = 1;         // förstärkningen som senaste rutan skalades med innan modellen räknades
   let vidSkala = 1;            // videopixlar per analyspixel — det beskärningen faktiskt får
   let kal = null;              // {ruta:{x,y,w,h,upp}} i andelar av bildrutan
   let lage = 'start';
   let snurra = null, wake = null, senast = 0, senastRef = 0, forra = 0;
+  let senVb = 0, senVh = 0;    // videons mått senast — byter de räknas analysen om
   let pa = false;
   let spar = [];               // de kort som ligger på mattan just nu
   let spoken = [];             // nyss borttagna spår som minns var de låg
   let nastaId = 1;
   let identifierar = false;
-  let brusRader = 0, brusLugna = 0;   // styrslingan för tröskeln
+  let brusRader = 0, brusLugna = 0;   // styrslingan för tröskeln (mönstergrenen)
+  let utsRader = 0, utsLugna = 0, brusGolv = 0;   // …och för avvikelsen (modellgrenen): golvet den höjer när bruset spritter
   const cb = {};               // { status, bord, identifiera }
 
   const gr = (d, n) => { const g = new Float32Array(n); for (let i = 0, p = 0; i < n; i++, p += 4) g[i] = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114; return g; };
@@ -11408,7 +11462,7 @@ const Kamera = (() => {
   }
 
   /* Räknarna som diagnosfilen och popovern visar, uppdaterade av detektera(). */
-  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, ms: 0, tid: null };
+  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, ms: 0, tid: null };
   /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
      samma bildpunkt. En telefon i en hållare skakar en pixel när någon
      nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
@@ -11556,7 +11610,7 @@ const Kamera = (() => {
      ett EGET mönster — en tryckt spelmatta — räknas bara det som ändrats.
      Ren funktion, prövbar. Masken följer med ut: spårningen behöver veta
      vad som ligger under ett spår som inte fick någon träff. */
-  function detektera(nu, ref, W, H, under) {
+  function detektera(nu, ref, W, H, under, hopp) {
     dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = 0;
     const n = W * H;
     /* Tiden per del följer med i diagnosfilen: det är telefonen som ska
@@ -11565,8 +11619,37 @@ const Kamera = (() => {
     modell = mattmodell(nu, W, H, under === undefined ? spar : under);
     const tModell = performance.now();
     dia.matta = Math.round(modell.M);
-    const mask = new Uint8Array(n);
-    const uts = T.utseende, bl = T.blank, monster = ref ? refMonster : null;
+    /* Avvikelsen ur rutan, se otsuTroskel(). Mönsterpunkterna (tryckt matta,
+       strimma i träet) räknas inte: de jämförs mot referensen, inte mot
+       modellen, och skulle annars fylla histogrammets övre klass med matta.
+       Golvet är bruset, som för tröskeln; taket 45. */
+    if (T.autoUts) {
+      /* Bara med en referens inskickad: när referensen själv rensas är
+         korten fortfarande "mönster" i kartan, och räknades de bort ur
+         histogrammet föll delningen till golvet och rensningen fyllde skräp
+         i referensen (golden-fall 04 och 06 slog i taket: allt förblev nytt
+         och ytbetyget kom aldrig). */
+      const h = new Int32Array(OTSU_TAK + 1), ra = ref ? refAvvik : null, u0 = T.utseende;
+      let k = 0;
+      for (let i = 0; i < n; i++) { if (ra && ra[i] > u0) continue; let d = nu[i] - modell[i]; if (d < 0) d = -d; h[d >= OTSU_TAK ? OTSU_TAK : d | 0]++; k++; }
+      const o = k ? otsuTroskel(h, k) : 0;
+      dia.otsu = o;
+      const golv = Math.max(sigma != null ? autoTroskel() : 10, texturGolv != null ? texturGolv : UTS_BAS, brusGolv);
+      dia.golv = golv;
+      const mal = Math.min(UTS_TAK, Math.max(golv, Math.round(OTSU_DEL * o)));
+      /* Rensningen av referensen hoppar rakt till målet: den körs en gång,
+         på en bild som ska rensas med scenens tröskel, inte gårdagens. */
+      T.utseende = hopp ? mal : T.utseende + Math.max(-UTS_STEG, Math.min(UTS_STEG, mal - T.utseende));
+      T.spridning = Math.max(6, Math.round(SPRID_BAS * T.utseende / UTS_BAS));
+    }
+    dia.utseende = T.utseende;
+    const mask = new Uint8Array(n), kalla = new Uint8Array(n);   // kalla: 1 = avvek från modellen, 2 = ändrat mot referensen (mönster)
+    /* Mönstergrenen: där referensen avviker mer än AVVIKELSEN från sin egen
+       modell. Gränsen är samma tal som masken använder, i samma ruta — en
+       karta byggd med gårdagens tröskel lade kvistens flanker i fel gren
+       (bänkens R1: kortet bredvid kvisten blev 34×25 i stället för 29×20
+       när kartan var byggd med 27 och rutan gick på 25). */
+    const uts = T.utseende, bl = T.blank, monster = ref ? refAvvik : null;
     let pa = 0;
     for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
       /* Två frågor, en per bildpunkt. Där mattan har ett EGET mönster —
@@ -11580,7 +11663,7 @@ const Kamera = (() => {
          alls över masken — det är därför en telefon som flyttats
          fortfarande ser korten, och varför ett kort som lyfts inte lämnar
          ett spöke efter sig. */
-      if (monster && monster[i]) { if (skillnad(nu, ref, W, H, i, x, y) <= (tros ? tros[i] : T.troskel)) continue; }
+      if (monster && monster[i] > uts) { if (skillnad(nu, ref, W, H, i, x, y) <= (tros ? tros[i] : T.troskel)) continue; }
       else if (Math.abs(nu[i] - modell[i]) <= uts) continue;
       /* Blänket maskas bara där det är mättat i BÅDA bilderna. Bara referensen
          räckte inte: ett kort som lades precis där blänket varit fick ett hål
@@ -11588,7 +11671,7 @@ const Kamera = (() => {
          stället nedan, på regionen: en kärna av mättade bildpunkter är inget
          kort. */
       if (blankM && blankM[i] && nu[i] > bl) continue;
-      mask[i] = 1; pa++;
+      mask[i] = 1; pa++; kalla[i] = monster && monster[i] > uts ? 2 : 1;
     }
     dia.tackning = pa / n;
     const tMask = performance.now();
@@ -11602,7 +11685,7 @@ const Kamera = (() => {
        för sig själva. En tunn kant som sitter på en textruta står kvar.
        Före/efter räknas över det inre för det spridda bruset. */
     const tmp = new Uint8Array(n);
-    let fore = 0, efter = 0;
+    let fore = 0, efter = 0, sprittM = 0, sprittP = 0;   // det spridda bruset, per gren: modellen respektive mönstret
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
       const i = y * W + x;
       fore += mask[i];
@@ -11625,7 +11708,10 @@ const Kamera = (() => {
           if (i >= W && mask[i - W] && !sedd[i - W]) { sedd[i - W] = 1; ko[tail++] = i - W; }
           if (i < n - W && mask[i + W] && !sedd[i + W]) { sedd[i + W] = 1; ko[tail++] = i + W; }
         }
-        if (!karna) { for (let q = 0; q < tail; q++) mask[ko[q]] = 0; efter += inre; }
+        if (!karna) {
+          for (let q = 0; q < tail; q++) { const i = ko[q]; mask[i] = 0; const x = i % W, y = (i - x) / W; if (x > 0 && y > 0 && x < W - 1 && y < H - 1) { if (kalla[i] === 2) sprittP++; else sprittM++; } }
+          efter += inre;
+        }
       }
       efter = fore - efter;
     }
@@ -11682,12 +11768,12 @@ const Kamera = (() => {
         const i = pix[q]; const x = i % W, y = (i - x) / W;
         if (x < rmin[y]) rmin[y] = x; if (x > rmax[y]) rmax[y] = x; if (y < cmin[x]) cmin[x] = y; if (y > cmax[x]) cmax[x] = y;
       }
-      let fc = 0, morkare = 0, ljusare = 0, refSum = 0, modSum = 0, nuSum = 0, nuSq = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, ljusa = 0, maxNu = 0, satB = 0;
+      let fc = 0, morkare = 0, ljusare = 0, refSum = 0, modSum = 0, nuSum = 0, nuSq = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, ljusa = 0, maxNu = 0, satB = 0, morkK = 0;
       const ljusGrans = 0.85 * bl;
       for (let y = miny; y <= maxy; y++) for (let x = minx; x <= maxx; x++) {
         if ((x < rmin[y] || x > rmax[y]) && (y < cmin[x] || y > cmax[x])) continue;
         const i = y * W + x, v = nu[i];
-        fc++; nuSum += v; nuSq += v * v; if (v > ljusGrans) ljusa++; if (v > maxNu) maxNu = v; if (v > bl) satB++;
+        fc++; nuSum += v; nuSq += v * v; if (v > ljusGrans) ljusa++; if (v > maxNu) maxNu = v; if (v > bl) satB++; if (v < modell[i] - uts) morkK++;
         if (ref) { refSum += ref[i]; modSum += modell[i]; if (v < ref[i] - 8) morkare++; else if (v > ref[i] + 8) ljusare++; }
         sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
       }
@@ -11699,12 +11785,13 @@ const Kamera = (() => {
          kanten drar ner hälften av kortet under det. Uppmätt på bänken: ett
          blänk som flyttat 15 px blev ett "kort" på 49×43 i 16 rutor av 30
          när halon inte längre räknades som blänkets gamla plats. */
-      if (maxNu > bl && ljusa > 0.5 * fc) return { skal: 'blank', box, std: nuStd };
+      /* Den mörka kanten friar här också, se mättnadsräkningen ovan. */
+      if (maxNu > bl && ljusa > 0.5 * fc && morkK < 0.03 * fc) return { skal: 'blank', box, std: nuStd };
       /* Mättnaden räknas en gång till, över KROPPEN: masken lämnar hål där
          referensen också var mättad, och ett blänk som flyttat sig hade sin
          kärna just i ett sådant hål. Uppmätt: 16 av 30 rutor med ett falskt
          kort när bara maskens bildpunkter räknades — kärnan låg utanför dem. */
-      if (satB > 0.05 * fc) return { skal: 'blank', box, std: nuStd };
+      if (satB > 0.05 * fc && morkK < 0.03 * fc) return { skal: 'blank', box, std: nuStd };
       /* …och platsen ett blänk LÄMNAT är en flat region där nästan varje
          bildpunkt är mörkare än en ljus referens — ljus i förhållande till
          MATTAN där (blänkets halo), inte bara ljus i sig: på en ljus matta
@@ -11802,22 +11889,29 @@ const Kamera = (() => {
         if (i < n - W && mask[i + W] && !lab[i + W]) { lab[i + W] = id; ko[tail++] = i + W; }
       }
       dia.regioner++;
-      if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; continue; }  // damm
+      if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; for (let q = head - cnt; q < head; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
       /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
          kort: kort är ljusa men inte utbrända. Mättnaden räknas över regionen
          och en pixels ring runt den — bara regionens egna bildpunkter missade
          ett blänk som flyttat sig halvvägs. Uppmätt: 6 falska kort på 30
          rutor utan ringen, 0 med. */
-      let sat = 0;
+      let sat = 0, mork = 0;
       for (let q = head - cnt; q < head; q++) {
         const i = ko[q]; const x = i % W;
         if (nu[i] > bl) sat++;
+        if (nu[i] < modell[i] - uts) mork++;
         if (x > 0 && !lab[i - 1] && nu[i - 1] > bl && tmp[i - 1] !== 2) { tmp[i - 1] = 2; sat++; }
         if (x < W - 1 && !lab[i + 1] && nu[i + 1] > bl && tmp[i + 1] !== 2) { tmp[i + 1] = 2; sat++; }
         if (i >= W && !lab[i - W] && nu[i - W] > bl && tmp[i - W] !== 2) { tmp[i - W] = 2; sat++; }
         if (i < n - W && !lab[i + W] && nu[i + W] > bl && tmp[i + W] !== 2) { tmp[i + W] = 2; sat++; }
       }
-      if (sat > 0.05 * cnt) { dia.blanka++; continue; }
+      /* …om det inte har en MÖRK kant. Ett kort vars ram klipper — starkt
+         ljus, överexponering — är också mättat i fläckar, men ett blänk är
+         ljust rakt igenom: inget i en halo ligger under mattan, medan kortets
+         svarta kant och konstverk alltid gör det. Uppmätt: --scen starkt på
+         diagnosfilerna gav 2 av 3 och 3 av 4 med mättnaden som enda domare,
+         alla med kanten som friare; bänkens G4 (matta 210, ram 255) likaså. */
+      if (sat > 0.05 * cnt && mork < 0.03 * cnt) { dia.blanka++; continue; }
       const r = bedom(ko, head - cnt, head);
       /* Allt med struktur — kort eller inte — skyddas från driften i
          referensen, se uppdateraRef(). En strimma är slät och får drivas in. */
@@ -11861,6 +11955,10 @@ const Kamera = (() => {
     /* Spritt brus: det öppningen tog bort plus regionerna som var för små.
        Det är det bruset tröskeln ska styras av. */
     dia.spritt = (fore - efter + smaPx) / n;
+    /* …och per gren, så att styrslingan höjer rätt tröskel: ådror som
+       skakar ur fas med referensen är mönstrets brus, en för låg avvikelse
+       på ett slätt bord är modellens (styrTroskel). */
+    dia.sprittModell = sprittM / n; dia.sprittMonster = sprittP / n;
     const tSlut = performance.now();
     dia.tid = { modell: Math.round(tModell - t0), mask: Math.round(tMask - tModell), morf: Math.round(tMorf - tMask), regioner: Math.round(tSlut - tMorf) };
     /* De accepterade regionerna, för diagnosfilen: det är dem spåren matchas mot. */
@@ -12110,11 +12208,19 @@ const Kamera = (() => {
     if (snurra) cancelAnimationFrame(snurra);
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (wake) { try { wake.release(); } catch (e) {} wake = null; }
-    stream = null; lage = 'start'; spar = []; spoken = [];
+    stream = null; lage = 'start'; spar = []; spoken = []; senVb = senVh = 0;
     glomReferens();
   }
 
-  function glomReferens() { ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; refMonster = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = 0; }
+  function glomReferens() {
+    ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; refAvvik = null; texturGolv = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = utsRader = utsLugna = 0; brusGolv = 0;
+    /* Inlärningen börjar aldrig under 25: avvikelsen ärvs annars från den
+       scen som var — 10 efter en dimmad — och stiger tre steg per ruta, och
+       på ett ådrat bord föddes blänkets halo som ett kort på vägen upp
+       (bänken: 95×57 vid 150,62) och rensningen raderade blänket ur
+       referensen. Rensningen får sedan hoppa dit scenen vill, se rensaRef(). */
+    if (T.autoUts && T.utseende < UTS_BAS) { T.utseende = UTS_BAS; T.spridning = SPRID_BAS; }
+  }
 
   function satKalibrering(k) {
     kal = k && k.ruta ? k : null;
@@ -12135,6 +12241,15 @@ const Kamera = (() => {
     snurra = requestAnimationFrame(loop);
     const vb = video.videoWidth, vh = video.videoHeight;
     if (!vb || !vh) return;
+    /* Byter videon storlek — telefonen vreds, strömmen startade om i en
+       annan upplösning — är analysens mått, videopixlar per analyspixel
+       och referensen räknade mot en bild som inte finns längre. Förut
+       räknades de bara om vid ny kalibrering, och avståndsrådet och
+       fragmentgolvet mättes mot fel skala tills någon drog om rutan. */
+    if (vb !== senVb || vh !== senVh) {
+      if (senVb) { glomReferens(); spar = []; spoken = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
+      senVb = vb; senVh = vh; AH = 0;
+    }
     rita(vb, vh);
     if (!kal) { säg('ingen', 'Väntar på att du bekräftar ytan', 'Dra rutan runt mattan på datorn.'); return; }
     const nu = performance.now();
@@ -12197,6 +12312,9 @@ const Kamera = (() => {
       if (T.auto) T.troskel = autoTroskel();
       dia.troskel = T.troskel;
       refSum = refFore = null; senastRef = nu; felRader = 0;
+      /* Golvet först, ur referensen som den är: rensningen ska ha scenens
+         tröskel, och bedomYta() räknar om kartan efteråt på den rensade. */
+      troskelkarta();
       rensaRef();
       bedomYta();
       const riktiga0 = spar.filter(t => t.tillstand !== 'skrap');
@@ -12218,8 +12336,9 @@ const Kamera = (() => {
     const ra = forstarkning(g, ref, fri);                    // rå kvot, 1 om okänd
     const gain = Math.min(1.6, Math.max(0.6, ra));
     /* Slår förstärkningen i taket är det inte en hand utan ljuset som ändrat
-       sig på riktigt. Den rutan föds inga nya spår ur, och de spår som finns
-       hålls som skymda. */
+       sig på riktigt. Den rutan föds inga nya spår ur; de spår som finns
+       matchas som vanligt — masken är fortfarande sann för dem — och
+       referensen dras snabbare mot det nya ljuset (skalaRef nedan). */
     const klamd = gain !== ra;
     dia.gain = gain; senasteGain = gain;
     if (Math.abs(gain - 1) > 0.01) for (let i = 0; i < n; i++) g[i] *= gain;
@@ -12259,7 +12378,10 @@ const Kamera = (() => {
       senastRef = nu;
       uppdateraRef(g, fri, texturerade);
       if (ra !== 1) skalaRef(Math.pow(1 / ra, klamd ? 0.3 : 0.1));
-      troskelkarta();
+      /* Betyget följer med driften: en lampa som tänds efter en timme gör
+         mattan blank eller ljus, och det ska sägas då — inte bara när
+         referensen togs (MES-28). bedomYta() räknar om kartan först. */
+      bedomYta();
     }
     styrTroskel();
     senasteG0 = g0; senasteG = g; senasteMask = mask;
@@ -12302,7 +12424,12 @@ const Kamera = (() => {
        får inte stå kvar som rutans (granskningen: dia.fynd och dia.tid
        rapporterade referensens siffror i rutan efter inlärningen). */
     const diaFore = Object.assign({}, dia), modellFore = modell;
-    const { fynd } = detektera(ref, null, W, H, []);
+    /* Avvikelsen får hoppa rakt till referensens egen (hopp): dimmat till
+       hälften är korten 27–30 från mattan, och med inlärningens 25 hade de
+       inte hittats här — och då stått kvar i referensen som mönster,
+       jämförts mot sig själva och varit osynliga. Värdet får stå kvar
+       efteråt: rutan är samma scen. */
+    const { fynd } = detektera(ref, null, W, H, [], true);
     const refModell = modell;                                // mattmodellen av referensen
     Object.assign(dia, diaFore); modell = modellFore;
     const rutor = fynd.map(f => f.box).concat(spar.map(t => t.box));
@@ -12355,8 +12482,25 @@ const Kamera = (() => {
        spelmatta, en skarv, en ådra mörkare än resten. Där räknas sedan bara
        det som ändrats, se detektera(). På ett träbord är kartan nästan tom. */
     const rm = mattmodell(ref, W, AH);
-    if (!refMonster || refMonster.length !== n) refMonster = new Uint8Array(n);
-    for (let i = 0; i < n; i++) refMonster[i] = Math.abs(ref[i] - rm[i]) > T.utseende ? 1 : 0;
+    if (!refAvvik || refAvvik.length !== n) refAvvik = new Float32Array(n);
+    /* Mattans textur: medianen av |referens − modell| gånger tre — golvet
+       för avvikelsen, se otsuTroskel(). Bara det som ligger inom 25 räknas
+       (och inte blänk): det som avviker mer är mattans eget mönster och
+       jämförs mot referensen, inte mot modellen, och ska inte höja golvet
+       för den gren som inte ser det. Uppmätt: ribborna i golden-fall 05 —
+       mörka springor över hela bordet — gav medianen 11 och golvet 34, och
+       korten (30 över ribborna) försvann; med snittet vid 25 mäts golvet på
+       ribborna själva. Snittet är fast, inte T.utseende: annars sjönk golvet
+       för varje varv som flyttade mer av mattan till mönstergrenen. */
+    const th = new Int32Array(2 * UTS_BAS + 1); let tk = 0;                       // halva gråsteg, 0–25
+    for (let i = 0; i < n; i++) {
+      const d = Math.abs(ref[i] - rm[i]);
+      refAvvik[i] = d;
+      if (ref[i] > T.blank || d > UTS_BAS) continue;
+      th[(2 * d) | 0]++; tk++;
+    }
+    let acc = 0, med = 0; for (let b = 0; b < th.length; b++) { acc += th[b]; if (acc * 2 >= tk) { med = b / 2; break; } }
+    texturGolv = Math.round(TEXTUR_GANGER * (med + 0.25));
     if (!allaFri || allaFri.length !== n) allaFri = new Uint8Array(n).fill(1);
     const mr = medianFri(ref, allaFri) || 128;
     const bas = T.troskel, kt = T.textur, kton = T.ton, bl = T.blank;
@@ -12404,9 +12548,12 @@ const Kamera = (() => {
       : dom === 'ljus' ? `Mattan är nästan lika ljus som korten (${Math.round(mr)} av 255). En mörkare duk gör kameran mycket säkrare.`
       : dom === 'orolig' ? `Mattan är orolig (textur ${textur.toFixed(0)}, brus ${dk(sigma.toFixed(1))}). En enfärgad duk eller ett stort papper under korten gör kameran mycket säkrare.`
       : `Mattan är lugn (textur ${textur.toFixed(0)}, brus ${dk(sigma.toFixed(1))}).`;
+    const bytt = !yta || yta.dom !== dom;
     yta = { dom, brus: +sigma.toFixed(2), textur: +textur.toFixed(1), blank: +(blank * 100).toFixed(1), rad };
     dia.textur = yta.textur; dia.blank = yta.blank;
-    if (cb.fas) cb.fas(lage);
+    /* Bara när domen byter: körs var annan sekund nu, och datorn ska inte
+       få samma mening sju gånger i minuten. */
+    if (bytt && cb.fas) cb.fas(lage);
   }
 
   const antalText = (n, s) => n === 1
@@ -12454,7 +12601,7 @@ const Kamera = (() => {
     for (let i = 0; i < n; i++) {
       if (!skydd[i]) continue;
       const d = g[i] - ref[i];
-      const spoke = refMonster && refMonster[i] && modell && Math.abs(g[i] - modell[i]) <= uts;
+      const spoke = refAvvik && refAvvik[i] > uts && modell && Math.abs(g[i] - modell[i]) <= uts;
       ref[i] += d * (Math.abs(d) > T.troskel && !spoke ? 0.01 : 0.1);
     }
   }
@@ -12482,21 +12629,44 @@ const Kamera = (() => {
     return mr / mn;
   }
   /* Långsam slinga: spritt brus över 0,5 % tre analyser i rad → tröskeln upp
-     två steg (tak 60); under 0,05 % i tre sekunder → ett steg ner mot golvet
-     ur σ. Bara det spridda bruset räknas, se detektera(). */
+     två steg (tak 60); under 0,25 % i tre sekunder → ett steg ner mot golvet
+     ur σ. Bara det spridda bruset räknas, se detektera().
+
+     Två ställdon (MES-28). Förut var T.troskel det enda: allt spritt brus
+     höjde den, och på ett slätt bord — där mönstergrenen är nästan tom — höjde
+     slingan en tröskel som inte användes, medan modellgrenen som faktiskt
+     spottade bruset stod utan reglering; på den tryckta mattan drev
+     modellgrenens brus i kanten av trycket T.troskel till 30 och kortet
+     ovanpå logotypen tappade sin nedre halva (bänkens G5c, 12 av 20 rutor).
+     Nu höjer mönstrets brus tröskeln mot referensen och modellens brus
+     golvet för avvikelsen, var för sig. */
   function styrTroskel() {
-    if (!T.auto || sigma == null) return;
-    const fore = T.troskel;
-    if (dia.spritt > 0.005) { brusLugna = 0; if (++brusRader >= 3) { T.troskel = Math.min(60, T.troskel + 2); brusRader = 0; } }
-    /* Ner under 0,25 %, inte 0,05 %: däremellan låg ett band där tröskeln
-       varken steg eller sjönk, och efter en drift som drivit upp den till 60
-       stod den kvar där för alltid (granskningen; uppmätt: 60 → 10 på en
-       minut efter fixen när ådrorna åter ligger rätt). */
-    else { brusRader = 0; if (dia.spritt < 0.0025 && ++brusLugna >= 20) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
-    /* Kartan är det som faktiskt jämförs mot. Byggdes den bara om var
-       annan sekund såg slingan aldrig sitt eget steg och tog nästa. */
-    if (T.troskel !== fore && tros) { const d = T.troskel - fore; for (let i = 0; i < tros.length; i++) tros[i] += d; }
-    dia.troskel = T.troskel;
+    if (sigma == null) return;
+    if (T.auto) {
+      const fore = T.troskel;
+      if (dia.sprittMonster > 0.005) { brusLugna = 0; if (++brusRader >= 3) { T.troskel = Math.min(60, T.troskel + 2); brusRader = 0; } }
+      /* Ner under 0,25 %, inte 0,05 %: däremellan låg ett band där tröskeln
+         varken steg eller sjönk, och efter en drift som drivit upp den till 60
+         stod den kvar där för alltid (granskningen; uppmätt: 60 → 10 på en
+         minut efter fixen när ådrorna åter ligger rätt). */
+      else { brusRader = 0; if (dia.sprittMonster < 0.0025 && ++brusLugna >= 20) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
+      /* Kartan är det som faktiskt jämförs mot. Byggdes den bara om var
+         annan sekund såg slingan aldrig sitt eget steg och tog nästa. */
+      if (T.troskel !== fore && tros) { const d = T.troskel - fore; for (let i = 0; i < tros.length; i++) tros[i] += d; }
+      dia.troskel = T.troskel;
+    }
+    if (T.autoUts) {
+      /* Golvet läggs två steg ÖVER dagens avvikelse, inte över golvet självt:
+         annars stod det under Otsus värde och ändrade ingenting. Gränsen är
+         fyra gånger mönstergrenens: ett ådrat bord spottar 0,4–1 % spritt
+         brus i modellgrenen utan att det blir en enda falsk region (bänkens
+         trä; Jespers bord 0,35 %), och med 0,5 % klättrade golvet till 27 och
+         ett kort hakade i kvisten bredvid (R1). Två procent är det som
+         förut gav falska spår. */
+      if (dia.sprittModell > 0.02) { utsLugna = 0; if (++utsRader >= 3) { brusGolv = Math.min(UTS_TAK, Math.max(brusGolv, T.utseende) + 2); utsRader = 0; } }
+      else { utsRader = 0; if (dia.sprittModell < 0.01 && ++utsLugna >= 20) { utsLugna = 0; if (brusGolv > 0) brusGolv -= 1; } }
+      dia.brusGolv = brusGolv;
+    }
   }
 
   /* Vad datorn får: ett bordstillstånd, inte händelser. Rutorna i andelar av
@@ -12560,6 +12730,7 @@ const Kamera = (() => {
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
     if (T.auto) T.troskel = autoTroskel();
     dia.troskel = T.troskel; senastRef = 0;
+    troskelkarta();
     rensaRef();
     bedomYta(); lage = 'tom';
   }
@@ -12692,6 +12863,9 @@ const Kamera = (() => {
            get omtag() { return omtag; },
            /* I råa videopixlar: modellen är räknad på den förstärkta rutan. */
            get mattNiva() { return modell ? modell.M / senasteGain : null; },
+           /* Avvikelsen i förhållande till bordet den mättes upp på (25): så
+              skalar skräpfiltret sina gråsteg i samma proportion. */
+           get utseendeSkala() { return T.utseende / UTS_BAS; },
            get rad() { return forLangtBort() ? LANGT_BORT : (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
            get trosklar() { return Object.assign({}, T); },
@@ -12844,7 +13018,7 @@ async function kamIdentifiera(canvas, id, gissning) {
      Jespers bord till skräp. En bit trä, en skugga eller ett blänk som kom
      igenom detektorn har varken spridning eller avvikelse, och ska inte bli
      en granskningspost med en träbit som miniatyr. */
-  if (!serUtSomKort(canvas, Kamera.mattNiva)) return { skrap: true };
+  if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala)) return { skrap: true };
   let v;
   try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
   const cands = (v.rec.cands || []).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
@@ -13258,12 +13432,13 @@ $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestA
    matta, ditt ljus och din telefon. Här ser man vad kameran ser och skruvar
    medan den går. Det som fungerar sparas i webbläsaren och skickas till
    telefonen varje gång den ansluter. */
-const PB_STD = { auto: 1, troskel: 26, utseende: 25, spridning: 15, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700,
+const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 };
 const PB_REG = [
   ['utseende', 'Avvikelse',    8,   60,  1,   'Hur mycket en bildpunkt ska skilja sig från mattmodellen — det mattan ser ut som i samma bildruta. Det är den här som hittar korten'],
   ['spridning','Struktur',     0,   40,  1,   'Minsta spridning i gråsteg inom en region för att den ska räknas som kort. Ett kort ligger på 28–47, en träflisa under 10'],
   ['troskel',  'Tröskel',      6,   80,  1,   'Hur mycket en bildpunkt ska skilja sig från referensen där mattan har eget tryck eller mönster. Räknas ur mattans brus tills du drar i reglaget'],
+  ['blank',    'Blänk',        180, 255, 1,   'Ljusare än så är blänk: räknas aldrig i referensen, och en region med mättad kärna utan mörk kant är ett blänk som flyttat sig. Sänk den om en ljus matta får blänk-domar utan lampa i bild'],
   ['minArea',  'Minsta yta',   10,  400, 5,   'Mindre regioner än så är damm'],
   ['kvotMin',  'Kvot min',     0.3, 0.72, 0.01, 'Ett kort har kvoten 0,72'],
   ['kvotMax',  'Kvot max',     0.72, 1.2, 0.01, 'Över 1 är regionen bredare än den är lång'],
@@ -13298,19 +13473,24 @@ function visaProvbord(pa) {
   if (k) { const pi = $('#pbImg'); pi.src = k; $('#pbVantar').hidden = true; pi.decode().then(ritaPbLager).catch(() => {}); }
 }
 
+/* Reglagen telefonen själv räknar fram: tröskeln ur bruset, avvikelsen och
+   strukturen ur rutan (MES-28). De visas med "auto" tills någon drar i dem. */
+const pbAuto = k => (k === 'troskel' && !!pbTro.auto) || ((k === 'utseende' || k === 'spridning') && !!pbTro.autoUts);
 function ritaPbReglage() {
   const box = $('#pbReglage'); if (!box) return;
   box.innerHTML = PB_REG.map(([k, namn, min, max, steg, hjalp]) =>
     `<span class="pbreg" title="${esc(hjalp)}"><label>${esc(namn)}</label>
       <input type="range" data-tro="${k}" min="${min}" max="${max}" step="${steg}" value="${pbTro[k]}">
-      <b>${k === 'troskel' && pbTro.auto ? 'auto ' : ''}${pbTro[k]}</b></span>`).join('');
+      <b>${pbAuto(k) ? 'auto ' : ''}${pbTro[k]}</b></span>`).join('');
 }
 $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   const r = ev.target.closest('[data-tro]'); if (!r) return;
   pbTro[r.dataset.tro] = +r.value;
   /* Att dra i tröskeln är att ta över den från mätningen. Återställ ger
-     tillbaka den. */
+     tillbaka den. Avvikelse och struktur hör ihop — strukturen skalas med
+     avvikelsen — så att dra i den ena tar över båda. */
   if (r.dataset.tro === 'troskel') pbTro.auto = 0;
+  if (r.dataset.tro === 'utseende' || r.dataset.tro === 'spridning') pbTro.autoUts = 0;
   r.parentElement.querySelector('b').textContent = r.value;
   LS.set('sthv.tro.v1', pbTro);
   Moln.sandKam('trosklar', { v: pbTro });
@@ -13330,8 +13510,10 @@ function provbordData(m) {
   if (!pbPa) return;
   /* Tröskeln telefonen räknat fram visas i reglaget utan att reglagen ritas
      om — en omritning mitt i ett drag släpper greppet. */
-  const tr = $('#pbReglage [data-tro="troskel"]');
-  if (tr && pbTro.auto && document.activeElement !== tr) { tr.value = pbTro.troskel; tr.parentElement.querySelector('b').textContent = 'auto ' + pbTro.troskel; }
+  for (const k of ['troskel', 'utseende', 'spridning']) {
+    const tr = $(`#pbReglage [data-tro="${k}"]`);
+    if (tr && pbAuto(k) && document.activeElement !== tr) { tr.value = pbTro[k]; tr.parentElement.querySelector('b').textContent = 'auto ' + pbTro[k]; }
+  }
   kamSkruvTal();
   const d = pbDia || {};
   const tal = (namn, v, varn) => `<span class="pbtal${varn ? ' varn' : ''}">${namn} <b>${v}</b></span>`;
@@ -13342,6 +13524,7 @@ function provbordData(m) {
     tal('täckning', ((d.tackning || 0) * 100).toFixed(1) + '%', (d.tackning || 0) > 0.35),
     tal('spritt', ((d.spritt || 0) * 100).toFixed(2) + '%', (d.spritt || 0) > 0.005),
     tal('brus σ', (d.sigma || 0).toFixed(1)),
+    tal('otsu', d.otsu == null ? '–' : d.otsu),
     tal('gain', (d.gain || 1).toFixed(2), Math.abs((d.gain || 1) - 1) > 0.25),
     tal('för små', d.forSma || 0),
     tal('fel kvot', d.felKvot || 0, (d.felKvot || 0) > 2),
@@ -13543,7 +13726,7 @@ function kamTogsEmot(m) {
       if (r === document.activeElement) continue;
       const k = r.dataset.tro; if (pbTro[k] == null) continue;
       r.value = pbTro[k];
-      const b = r.parentElement.querySelector('b'); if (b) b.textContent = (k === 'troskel' && pbTro.auto ? 'auto ' : '') + pbTro[k];
+      const b = r.parentElement.querySelector('b'); if (b) b.textContent = (pbAuto(k) ? 'auto ' : '') + pbTro[k];
     }
     return;
   }
