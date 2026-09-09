@@ -138,7 +138,8 @@ const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade inna
 
 let w = null, K = null, kamSag = null;  // appens fönster, dess Kamera-modul och kameravyns statusrad
 let fall = [], resultat = new Map(), senaste = null, kor = false, stoppa = false;
-let poolKlar = false, poolRec = null, poolFel = [];
+let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
+const metod = () => { try { return w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal'; } catch (e) { return 'lokal'; } };
 /* Samma norm som appens namnjämförelse i stort: gemener, en sorts apostrof,
    ett mellanslag. Facit skrivs med lek.txt:s stavning, poolen med Scryfalls
    — "Nights Whisper" mot "Night's Whisper" är samma kort. */
@@ -234,6 +235,12 @@ async function byggPool() {
     status(p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : `Hämtar leken… ${p.done || ''}`);
   });
   poolRec = rec;
+  /* Namnläsaren hör till kedjan (appen laddar den när poolen byggs på
+     telefonen). Här väntas den in, så att första fallet inte körs utan den
+     och metoden i resultatet stämmer. Går den inte att hämta står det. */
+  namnFel = null;
+  try { status('Hämtar namnläsaren (tesseract.js)…'); await w.eval('Namn').ladda(); }
+  catch (e) { namnFel = e && e.message || String(e); }
   const Pool = w.eval('Pool');
   if (!Pool.idx || Pool.idx.code !== rec.code) Pool.idx = rec;
   /* byggLekPool sväljer ett fel på baslandsfrågan. Syns det på antalet —
@@ -261,7 +268,11 @@ async function byggPool() {
     f.varning = borta.length ? `saknas i poolen: ${borta.join(', ')}` : null;
   }
   $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
-    + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`;
+    + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`
+    + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.');
+  $('#metod').textContent = metod() === 'lokal+ocr'
+    ? 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken, och kortnamnet läst ur titelraden (tesseract.js). Ingen AI-modell.'
+    : 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken. Ingen namnläsare, ingen AI-modell.';
   poolKlar = true;
 }
 
@@ -347,6 +358,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   const alla = K.spar.map((t, i) => { const b = t.ram || t.box; return {
     id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad,
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
+    ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null } : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
   const spar = alla.filter(t => t.tillstand !== 'skrap');
   /* Facit i två sorter: kort med ruta (positionen provas) och kort med bara
@@ -402,7 +414,11 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     missade: synliga.filter(k => !harTraff(k)).map(k => k.namn),
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
-    metod: 'lokal', ai: null,
+    metod: metod(), ai: null,
+    /* Hur många av de rätta, säkra namnen som namnläsaren också läste rätt,
+       och hur många den läste rätt där bilden hade ett annat kort överst. */
+    namnViaOcr: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && p.t.ocr && p.t.ocr.namn && norm(p.t.ocr.namn) === norm(p.k.namn)).length,
+    ocrMs: (() => { const v = alla.filter(t => t.ocr && t.ocr.ms).map(t => t.ocr.ms).sort((a, b) => a - b); return v.length ? v[v.length >> 1] : null; })(),
     ms: msMedian, msMax, tid, aw, ah,
     sigma: +(K.sigma || 0).toFixed(2), troskel: tro.troskel, utseende: tro.utseende, spridning: tro.spridning, otsu: dia.otsu == null ? null : dia.otsu,
     yta: K.yta ? K.yta.dom : null, matta: dia.matta, regioner: dia.regioner, tackning: +(dia.tackning || 0).toFixed(3),
@@ -443,11 +459,11 @@ function ritaTabell() {
       tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}${flaggor ? ' ' + flaggor : ''}</td>`
         + cell(r.hittade, r.kort, r.hittade === r.kort, forra, 'hittade', r.kort)
         + (r.platsAv ? cell(r.plats, r.platsAv, r.plats === r.platsAv, forra, 'plats') : '<td class="dim" title="facit har bara namn — rita rutor i markera.html för att prova platsen">–</td>')
-        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + '</td>')
+        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + (r.namnViaOcr ? ` <span class="dim" title="säkra rätta namn som namnläsaren också läste rätt">· ${r.namnViaOcr} via namn</span>` : '') + '</td>')
         + cell(r.felNamn, null, r.felNamn === 0, forra, 'felNamn')
         + cell(r.falska, null, r.falska === 0, forra, 'falska').replace('</td>', (r.kant ? ` <span class="dim">(+${r.kant} vid kanten)</span>` : '') + (r.doldaHittade ? ` <span class="dim">(+${r.doldaHittade} dolda)</span>` : '') + (r.skrap ? ` <span class="dim">· ${r.skrap} skräp</span>` : '') + '</td>')
         + (r.tappadAv ? cell(r.tappad, r.tappadAv, r.tappad === r.tappadAv, forra, 'tappad') : '<td class="dim">–</td>')
-        + `<td>${r.ms}${r.msMax ? ` <span class="dim">(${r.msMax})</span>` : ''}</td><td class="dim">σ ${r.sigma} · t ${r.troskel} · a ${r.utseende}${r.otsu != null ? ' (otsu ' + r.otsu + ')' : ''} · ${r.yta || '–'}</td>`;
+        + `<td>${r.ms}${r.msMax ? ` <span class="dim">(${r.msMax})</span>` : ''}${r.ocrMs ? ` <span class="dim" title="namnläsaren, median per kort">· ocr ${r.ocrMs}</span>` : ''}</td><td class="dim">σ ${r.sigma} · t ${r.troskel} · a ${r.utseende}${r.otsu != null ? ' (otsu ' + r.otsu + ')' : ''} · ${r.yta || '–'}</td>`;
     }
     tb.appendChild(tr);
   }
@@ -493,7 +509,7 @@ async function visaDetalj(id) {
     `${id} — ${fa.yta || ''}${fa.ljus ? ' · ' + fa.ljus : ''}${fa.hojd_cm ? ' · ' + fa.hojd_cm + ' cm' : ''}`,
     fa.anteckning ? fa.anteckning : '',
     utanRuta.length ? `Facit (bara namn): ${utanRuta.join(', ')}` : '',
-    r && !r.fel ? `Spår: ${r.spar.map(t => `#${t.id} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}`).join(' | ') || 'inga'}` : '',
+    r && !r.fel ? `Spår: ${r.spar.map(t => `#${t.id} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + ', ' + t.ocr.ms + ' ms]') : ''}`).join(' | ') || 'inga'}` : '',
     r && r.missade && r.missade.length ? `Missade: ${r.missade.join(', ')}` : '',
     r && !r.fel ? `Analys ${r.aw}×${r.ah}, matta ${r.matta}, regioner ${r.regioner}, täckning ${(r.tackning * 100).toFixed(1)} %, ${r.tid} ms totalt` : ''
   ].filter(Boolean).join('\n');

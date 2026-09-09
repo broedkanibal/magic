@@ -15,7 +15,8 @@ dev/golden/
   LÄS-MIG.md         den här filen
   lek.txt            leken kedjan känner igen mot — ett kortnamn per rad
   markera.html       annoteringsverktyget: ritar facit.json i webbläsaren
-  kor.html           provkörningen
+  kor.html           provkörningen, i webbläsaren
+  kor.cjs            samma provkörning från terminalen, i en huvudlös Chrome
   senaste.json       senaste incheckade körningen — det kor.html jämför med
   historik.md        en rad per incheckad körning: datum, commit, metod, totaler
   fall/
@@ -35,6 +36,23 @@ bort ett fall rör inget annat: `kor.html` listar `fall/` själv.
 
 ## Köra provet
 
+Från terminalen, det som ska köras före varje commit i kameran:
+
+```bash
+node dev/golden/kor.cjs
+```
+
+Den startar attrappen på en egen port, öppnar `kor.html` i en huvudlös Chrome,
+trycker *Kör alla*, skriver tabellen och slutar med kod 1 om något fall blev
+sämre än `senaste.json` (färre rätta namn, fler falska eller fler fel namn).
+`--spara` skriver resultatet som `senaste.json`, `--detalj` skriver varje spår
+med vad namnläsaren såg. Första körningen tar en minut extra (poolen och
+namnläsarens data hämtas och cachas i en egen Chrome-profil), de följande
+inte. Kräver Chrome på Macen (`CHROME=/sökväg` om den ligger någon annanstans).
+
+För att **titta** — bilden med facit och spår, radklick, kameravyn i rutan till
+höger — kör i webbläsaren:
+
 ```bash
 npm run dev
 ```
@@ -42,7 +60,9 @@ npm run dev
 Öppna sedan <http://localhost:8232/dev/golden/kor.html> och tryck **Kör alla**.
 Vilken statisk server som helst duger (`python3 -m http.server` också), men
 attrappen på 8232 listar mappar som JSON och ger CORS; utan det får sidan
-gissa ur en HTML-lista.
+gissa ur en HTML-lista. Tidsmåtten i en flik som ligger i bakgrunden är inte
+sanna: Chrome stryper den (namnläsaren tog tio sekunder per kort där, mot
+0,1–0,4 s i den huvudlösa). Mät i terminalen, titta i webbläsaren.
 
 Det är appen själv som kör, i en ruta till höger: `kor.html` laddar
 `index.html` i en iframe och matar in fallets bild som kamerabild. Ingen kopia
@@ -53,13 +73,23 @@ IndexedDB tills `lek.txt` ändras. Fliken får ligga i bakgrunden medan det kör
 
 **Vad som mäts, och vad som inte gör det.** Körningen är telefonens kedja
 rakt av: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher och
-ORB mot leken. Ingen AI-modell är inblandad, och det står i sidhuvudet och i
-varje rad i `senaste.json` (`"metod": "lokal", "ai": null`). Skulle ett
-AI-steg någon gång ingå i provet ska fältet bära modellens namn, så att två
-körningar aldrig jämförs utan att man vet vad som svarade. Det som INTE
-provas här är datorns sida: granskningslistan, AI-hjälpen på osäkra kort och
-det som händer på bordet efteråt. Ett osäkert svar räknas därför inte som
+ORB mot leken, och sedan MES-28 **kortnamnet läst ur titelraden** (tesseract.js,
+lokalt i webbläsaren) matchat mot lekens namn. Ingen AI-modell är inblandad,
+och det står i sidhuvudet och i varje rad i `senaste.json` (`"metod":
+"lokal+ocr"`, eller `"lokal"` om namnläsaren inte gick att hämta, `"ai": null`).
+Skulle ett AI-steg någon gång ingå i provet ska fältet bära modellens namn, så
+att två körningar aldrig jämförs utan att man vet vad som svarade. Det som
+INTE provas här är datorns sida: granskningslistan, AI-hjälpen på osäkra kort
+och det som händer på bordet efteråt. Ett osäkert svar räknas därför inte som
 igenkänt — det är där kedjan slutar.
+
+Namnläsaren körs bara när titelraden är hög nog att läsas (remsan ≥ 40 px i
+beskärningen; på 60 cm ja, på 150 cm nej — där gav den tomt på alla kort) och
+läses i `senaste.json` per spår som `ocr: { text, namn, poang, marginal, ms,
+hoppad }`. Ett kort är säkert när bild och namn håller med, eller när ett av
+dem är starkt nog att stå för sig — men aldrig när de är säkra på var sitt
+kort; då går det till granskningen med båda överst. Ett basland blir aldrig
+säkert på bilden ensam när läsaren tydligt läst ett annat namn.
 
 **Kolumnerna, per fall:**
 
@@ -67,11 +97,11 @@ igenkänt — det är där kedjan slutar.
 |---|---|
 | **Hittade** | spår som inte är skräp, mot antal synliga kort i facit (dolda räknas inte) |
 | **Rätt plats** | spår som täcker ett facitkort (IoU ≥ 0,3), mot facitkort med ruta. `–` när facit bara har namn |
-| **Rätt namn** | facitkort som fått rätt namn **med säkert svar**, mot synliga kort i facit. Inom parentes: rätt namn men osäkert — det går till granskningen och räknas inte som igenkänt |
+| **Rätt namn** | facitkort som fått rätt namn **med säkert svar**, mot synliga kort i facit. Inom parentes: rätt namn men osäkert — det går till granskningen och räknas inte som igenkänt — och hur många av de rätta som namnläsaren också läste rätt (*via namn*) |
 | **Fel namn** | säkert svar med fel namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända: kortet hamnar på bordet utan att någon frågas |
 | **Falska** | spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats |
 | **Tappad** | spår på rätt plats med rätt tap-läge, mot facitkort med ruta |
-| **ms** | analyssteget i millisekunder, sista rutan (i den här datorns webbläsare — säger inget om telefonen) |
+| **ms** | analyssteget i millisekunder, medianen över körningen, med den dyraste rutan inom parentes, och namnläsarens median per kort (*ocr*). Mätt i den här datorns webbläsare — säger inget om telefonen |
 | **mätt** | mattans brus σ, tröskeln, avvikelsen (`utseende`) och ytans dom |
 
 Klicka på en rad för att se bilden med facit (grönt) och spåren (blått känt,
