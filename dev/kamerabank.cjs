@@ -30,7 +30,17 @@ function matta(W, H, niv, brus, slump) {
   for (let i = 0; i < g.length; i++) g[i] = niv + (slump() * 2 - 1) * brus;
   return g;
 }
-function kort(g, W, x, y, w, h, niv) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) g[yy * W + xx] = niv; }
+/* Ett kort är inte en jämn platta: svart kant, ljus ram, mörkt konstverk i
+   övre halvan och textrader i den nedre. Detektorn kräver sedan MES-26 att
+   en region har spridning (ett kort ≥ 15, en träflisa < 10), så en platta
+   utan struktur vore inte ett kort — och den vore inte ett riktigt prov. */
+function kortPixel(u, v, w, h, niv) {
+  if (u < 1 || v < 1 || u >= w - 1 || v >= h - 1) return Math.max(0, niv - 150);      // svart kant
+  if (v > h * 0.12 && v < h * 0.55 && u > 2 && u < w - 3) return Math.max(0, niv - 90) + ((u * 7 + v * 3) % 5) * 4;   // konstverk, lite struktur
+  if (v > h * 0.6 && (v % 3) === 0 && u > 2 && u < w - 3) return Math.max(0, niv - 60);   // textrad
+  return niv;
+}
+function kort(g, W, x, y, w, h, niv) { for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) g[yy * W + xx] = kortPixel(xx - x, yy - y, w, h, niv); }
 function hand(g, W, cx, cy, rx, ry, niv) {
   for (let yy = Math.max(0, cy - ry); yy < cy + ry; yy++) for (let xx = Math.max(0, cx - rx); xx < cx + rx; xx++) {
     const dx = (xx - cx) / rx, dy = (yy - cy) / ry;
@@ -50,7 +60,7 @@ function kortVriden(g, W, cx, cy, w, h, vinkel, niv) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const dx = x - cx, dy = y - cy;
     const u = dx * c + dy * s, v = -dx * s + dy * c;
-    if (Math.abs(u) <= w / 2 && Math.abs(v) <= h / 2) g[y * W + x] = niv;
+    if (Math.abs(u) <= w / 2 && Math.abs(v) <= h / 2) g[y * W + x] = kortPixel(Math.round(u + w / 2), Math.round(v + h / 2), w, h, niv);
   }
 }
 
@@ -63,6 +73,7 @@ if (process.argv.includes('--diagnos')) {
   const fil = process.argv[process.argv.indexOf('--diagnos') + 1];
   if (!fil || fil.startsWith('--')) { console.error('Användning: node dev/kamerabank.cjs --diagnos <fil.json>'); process.exit(2); }
   const d = JSON.parse(fs.readFileSync(fil, 'utf8'));
+  const standardTro = Kamera.trosklar;                 // modulens egna, innan filens tvingas på
   const { aw, ah } = d.matt;
   const ur = b64 => { const u = Buffer.from(b64, 'base64'); const f = new Float32Array(u.length); for (let i = 0; i < u.length; i++) f[i] = u[i]; return f; };
   const ref = ur(d.ref), ruta = d.ruta ? ur(d.ruta) : null;
@@ -77,8 +88,14 @@ if (process.argv.includes('--diagnos')) {
   console.log('yta ur filen  ', JSON.stringify(d.yta));
   console.log('yta på bänken ', JSON.stringify(Kamera.yta && { dom: Kamera.yta.dom, brus: Kamera.yta.brus, textur: Kamera.yta.textur, blank: Kamera.yta.blank }));
   console.log('trösklar      ', JSON.stringify(d.tro));
+  /* Videopixlar per analyspixel: golvet för kortsidan (90 videopixlar)
+     räknas i videons mått. Nyare filer bär videons bredd; äldre antas vara
+     1080 breda — det Jespers telefon ger. */
+  const vb = (d.matt && d.matt.vb) || 1080;
+  const skala = (vb * (((d.kal && d.kal.ruta) || { w: 1 }).w)) / aw;
   if (ruta) {
-    for (let i = 0; i < 8; i++) { nu += 150; Kamera.steg(ruta, nu, ah, aw); }
+    for (let i = 0; i < 8; i++) { nu += 150; Kamera.steg(ruta, nu, ah, aw, skala); }
+    console.log('--- med filens referens (rensad från kortformade regioner) ---');
     const dia = Kamera.diagnosfil();
     console.log('regioner', dia.dia.regioner, 'för små', dia.dia.forSma, 'fel kvot', dia.dia.felKvot, 'otäta', dia.dia.otat, 'täckning', (dia.dia.tackning * 100).toFixed(1) + '%', 'spritt', (dia.dia.spritt * 100).toFixed(2) + '%');
     console.log('spår', Kamera.spar.map(t => `#${t.id} ${Math.round(t.lang)}×${Math.round(t.kort)} ${t.tillstand}${t.skymd ? ' skymd' : ''}`).join(' | ') || '(inga)');
@@ -86,6 +103,15 @@ if (process.argv.includes('--diagnos')) {
     const m = dia.maskRa; const buf = Buffer.alloc(aw * ah); for (let i = 0; i < aw * ah; i++) buf[i] = m[i] ? 255 : 0;
     fs.writeFileSync(ut, Buffer.concat([Buffer.from(`P5\n${aw} ${ah}\n255\n`), buf]));
     console.log('spår i filen', (d.spar || []).map(t => `#${t.id} ${t.tillstand}`).join(' | '), '\nmask skriven till', ut);
+    /* Samma ruta en gång till, men referensen lärs ur rutan själv: så ser
+       det ut när telefonen pekas mot ett bord som redan har kort på sig. */
+    console.log('--- utan filens referens: referensen lärs ur rutan med korten på, med dagens trösklar ---');
+    /* Här gäller modulens egna trösklar, inte filens: den här delen visar
+       vad koden av i dag gör med bordet, inte vad telefonen gjorde då. */
+    Kamera.satTrosklar(Object.assign({}, standardTro, { auto: 1 }));
+    Kamera.satKalibrering({ ruta: (d.kal && d.kal.ruta) || { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
+    for (let i = 0; i < 14; i++) { nu += 150; Kamera.steg(ruta, nu, ah, aw, skala); }
+    console.log('spår', Kamera.spar.map(t => `#${t.id} ${Math.round(t.lang)}×${Math.round(t.kort)} @${Math.round(t.cx)},${Math.round(t.cy)} ${t.tillstand}${t.skymd ? ' skymd' : ''}`).join(' | ') || '(inga)');
   }
   console.log('bord på datorn', JSON.stringify(d.bord));
   process.exit(0);
@@ -101,7 +127,7 @@ Kamera.installera({
 
 function nystart() {
   Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
-  Kamera.satTrosklar({ auto: 1, troskel: 26, minArea: 60, kvotMin: 0.5, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700, tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 });
+  Kamera.satTrosklar({ auto: 1, troskel: 26, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700, tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 });
   identifieringar = 0; bord = []; nu = 0;
 }
 // En ruta: matta + valfria objekt. `brus` i gråsteg (likformigt ±brus ≈ σ·√3).
@@ -220,7 +246,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   const DIAG = g => kortVriden(g, W, 100, 75, 30, 42, Math.PI / 4, 180);
   for (let i = 0; i < 8; i++) s = await ruta(DIAG);
   check(`T7 diagonalt kort läses: ${s.length} spår`, s.length === 1);
-  Kamera.satTrosklar({ kvotMin: 0.9 }); s = await ruta(DIAG); Kamera.satTrosklar({ kvotMin: 0.5 });
+  Kamera.satTrosklar({ kvotMin: 0.9 }); s = await ruta(DIAG); Kamera.satTrosklar({ kvotMin: 0.55 });
   check(`T7 en missad ruta: tomMs=${s[0] && s[0].tomMs}, skymd=${s[0] && s[0].skymd}`, s.length === 1 && s[0].tomMs === 0);
 
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
@@ -269,21 +295,29 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
     return g;
   }
-  const kortPaTra = (g, x, y) => { for (let yy = y; yy < y + 31; yy++) for (let xx = x; xx < x + 22; xx++) { const inre = xx > x + 2 && xx < x + 22 - 3 && yy > y + 3 && yy < y + 31 * 0.55; g[yy * W + xx] = inre ? 95 : 205; } return g; };
+  const kortPaTra = (g, x, y) => { kort(g, W, x, y, 22, 31, 205); return g; };
   const TREW = g => { kortPaTra(g, 60, 70); kortPaTra(g, 95, 72); kortPaTra(g, 130, 68); return g; };
   let seedW = 900;
   const rutaTra = async (o, bygg) => { nu += TAKT; const g = tra(lcg(seedW++), o); if (bygg) bygg(g); Kamera.steg(g, nu, H, undefined, 8); await new Promise(r => setImmediate(r)); return Kamera.spar; };
   /* Geometrin, inte bara antalet: ett kort som blivit tre bitar räknas inte. */
   const KORTEN = [[60, 70], [95, 72], [130, 68]];
-  const helaKort = s => KORTEN.every(([x, y]) => s.filter(t => Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
+  /* Bara spår som fick träff i sista rutan räknas (skymd = ingen träff): ett
+     spår som lever på sitt minne är inte ett hittat kort (granskningen). */
+  const helaKort = s => KORTEN.every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
   const refTra = async () => { for (let i = 0; i < 6; i++) await rutaTra({}); };
   const summa = async (n, f) => { let sum = 0, max = 0, sist = []; for (let i = 0; i < n; i++) { const s = await f(i); sum += s.length; max = Math.max(max, s.length); sist = s; } return { sum, max, sist }; };
   nystart(); await refTra();
   check(`W0 ytans betyg på trä med blänk: ${JSON.stringify({ dom: Kamera.yta.dom, textur: Kamera.yta.textur, blank: Kamera.yta.blank })}`, Kamera.yta.dom === 'blank');
   let r = await summa(40, i => rutaTra({ dx: (i % 3) - 1, dy: i % 2 }));
-  check(`W2 skakning ±1 px i båda led, tomt trä: falska spår ${r.sum} (flest ${r.max}), spritt ${(Kamera.diagnos.spritt * 100).toFixed(2)}%, tröskel ${Kamera.trosklar.troskel}`, r.sum === 0 && Kamera.trosklar.troskel <= 14);
+  /* Tröskelns värde är inte måttet längre (se W3): den styr bara mönster-
+     jämförelsen, och får klättra medan ådrorna skakar. Falska spår är måttet. */
+  check(`W2 skakning ±1 px i båda led, tomt trä: falska spår ${r.sum} (flest ${r.max}), spritt ${(Kamera.diagnos.spritt * 100).toFixed(2)}%, tröskel ${Kamera.trosklar.troskel}`, r.sum === 0);
   nystart(); await refTra(); r = await summa(60, () => rutaTra({ dx: 2, dy: 1 }));
-  check(`W3 drift 2,1 px som stannar i 9 s: falska spår ${r.sum}, tröskel ${Kamera.trosklar.troskel}`, r.sum === 0 && Kamera.trosklar.troskel <= 14);
+  /* Tröskeln får klättra här: sedan MES-26 avgör den bara jämförelsen mot
+     referensen där mattan har eget mönster (ådrorna), och ligger ådrorna två
+     bildpunkter fel är det just den som ska upp tills referensen hunnit
+     ikapp. Måttet är falska spår, inte tröskelns värde. */
+  check(`W3 drift 2,1 px som stannar i 9 s: falska spår ${r.sum}, tröskel ${Kamera.trosklar.troskel}`, r.sum === 0);
   nystart(); await refTra(); r = await summa(40, () => rutaTra({ gamma: 0.85 }));
   check(`W7 tonkurvan ändras (gamma 0,85): falska spår ${r.sum}`, r.sum === 0);
   nystart(); await refTra(); r = await summa(30, () => rutaTra({ bx: 153, by: 64 }));
@@ -291,8 +325,12 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   nystart(); await refTra(); r = await summa(12, () => rutaTra({}, TREW));
   check(`W4 tre små kort (22×31) på trä: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort)).join(', ')}), alla klara ${r.sist.every(t => t.tillstand === 'klar')}, hela kort ${helaKort(r.sist)}`, r.sist.length === 3 && r.sist.every(t => t.tillstand === 'klar') && helaKort(r.sist));
   const idsW = new Set(r.sist.map(t => t.id));
-  r = await summa(30, i => rutaTra({ dx: i % 2 }, TREW));
-  check(`W5 tre kort + skakning 4,5 s: samma tre id kvar ${r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3}, hela kort ${helaKort(r.sist)}`, r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3 && helaKort(r.sist));
+  /* Under skakningen räknas rutor, inte bara den sista: kortet i blänkets
+     halo får tappa träffen en ruta då och då (det är W11:s gräns), men inte
+     ofta, och aldrig sitt id. */
+  let helaRutor = 0;
+  r = await summa(30, async i => { const s = await rutaTra({ dx: i % 2 }, TREW); if (helaKort(s)) helaRutor++; return s; });
+  check(`W5 tre kort + skakning 4,5 s: samma tre id kvar ${r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3}, rutor med alla tre hela ${helaRutor}/30 (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')})`, r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3 && helaRutor >= 24);
   nystart(); await refTra(); namnSvar = () => ({ skrap: true });
   r = await summa(34, () => rutaTra({}, TREW));                         // två omförsök à 1,5 s, sedan dom
   check(`W8 skräp: beskärning utan textruta blir 'skrap' efter tre försök, inte okänd: ${r.sist.map(t => t.tillstand).join(',')}, frågor ${identifieringar}`, r.sist.length === 3 && r.sist.every(t => t.tillstand === 'skrap') && identifieringar === 9);
@@ -302,11 +340,15 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`W8b mörk första beskärning, sedan läsbar: ${r.sist.map(t => t.tillstand).join(',')}`, r.sist.length === 1 && r.sist[0].tillstand === 'klar');
   /* W10: ett kort läggs ovanpå ett skräpspår — kortet ska få ett eget spår. */
   namnSvar = () => ({ skrap: true }); nystart(); await refTra();
-  r = await summa(34, () => rutaTra({}, g => { for (let yy = 80; yy < 90; yy++) for (let xx = 100; xx < 114; xx++) g[yy * W + xx] = 200; }));   // en ljus flisa 14×10
+  r = await summa(34, () => rutaTra({}, g => { for (let yy = 76; yy < 96; yy++) for (let xx = 97; xx < 121; xx++) g[yy * W + xx] = ((Math.floor(xx / 3) + Math.floor(yy / 3)) % 2) ? 200 : 110; }));   // en ljus, rutig flisa 24×20 — struktur nog för detektorn, ingen textruta
   const flisa = r.sist.length === 1 && r.sist[0].tillstand === 'skrap';
+  const flisId = r.sist.length ? r.sist[0].id : -1;
   namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [] });
   r = await summa(14, () => rutaTra({}, g => kortPaTra(g, 96, 72)));
-  check(`W10 kort ovanpå skräp: flisan var skräp ${flisa}, sedan ${r.sist.map(t => t.tillstand + ' ' + Math.round(t.lang) + '×' + Math.round(t.kort)).join(' | ')}`, flisa && r.sist.length === 1 && r.sist[0].tillstand === 'klar' && Math.abs(r.sist[0].lang - 31) <= 8);
+  /* Kortet ska bli ett läst kort utan att flisan lämnar ett spöke. Om det
+     är flisans spår som läses om (kortet flyttade det) eller ett nytt spår
+     spelar ingen roll för datorn: skräp visas aldrig, kortet är nytt ändå. */
+  check(`W10 kort ovanpå skräp: flisan var skräp ${flisa}, sedan ${r.sist.map(t => '#' + t.id + (t.id === flisId ? ' (flisans id)' : '') + ' ' + t.tillstand + ' ' + Math.round(t.lang) + '×' + Math.round(t.kort)).join(' | ')}, spöken ${Kamera.spoken.length}`, flisa && r.sist.length === 1 && r.sist[0].tillstand === 'klar' && Kamera.spoken.length === 0 && Math.abs(r.sist[0].lang - 31) <= 8);
   /* W11: ett kort ovanpå referensens blänk. Känd gräns, dokumenterad här:
      kortets ljusa ram har ingen kontrast mot blänkets halo, kvar blir
      konstverket (uppmätt 18×16 av 31×22), och det förkastas som blänkets
@@ -323,6 +365,58 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 14, 20, 180));
   check(`W9 för litet kort (14×20 vid 240, ×8 = 112 videopx): rådet '${(Kamera.rad || '').slice(0, 24)}…', kortsida ${Kamera.spar.map(t => t.kort.toFixed(1)).join(',')}, tillstånd ${Kamera.spar.map(t => t.tillstand).join(',')}`, /små i bilden/.test(Kamera.rad || ''));
+
+  // ── R1: korten ligger REDAN på mattan när referensen tas (MES-26) ──
+  /* Så ser ett riktigt bord ut: telefonen pekas mot ett bord med kort på.
+     Förut lärde sig referensen in korten och de var osynliga för alltid. */
+  nystart(); namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [] });
+  /* Korten på fri yta. Ett kort som ligger i blänkets halo när referensen
+     tas är W11:s kända gräns: det syns inte som kort under inlärningen och
+     blir kvar i referensen som mattans mönster. Lyfts det står platsen
+     kvar som skillnad tills driften tagit in den; läggs det tillbaka syns
+     det inte. Uppmätt i granskningen — därför ligger korten här fritt. */
+  const TRE_R = g => { kortPaTra(g, 12, 70); kortPaTra(g, 47, 100); kortPaTra(g, 82, 72); return g; };
+  const helaR = s => [[12, 70], [47, 100], [82, 72]].every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
+  for (let i = 0; i < 6; i++) await rutaTra({}, TRE_R);
+  r = await summa(12, () => rutaTra({}, TRE_R));
+  check(`R1 tre kort på mattan NÄR referensen tas: spår ${r.sist.length}, hela kort ${helaR(r.sist)}, klara ${r.sist.filter(t => t.tillstand === 'klar').length}`, r.sist.length === 3 && helaR(r.sist) && r.sist.every(t => t.tillstand === 'klar'));
+  /* …och när ett av dem lyfts ska det försvinna, inte lämna ett spöke i referensen. */
+  r = await summa(12, () => rutaTra({}, g => { kortPaTra(g, 12, 70); kortPaTra(g, 82, 72); }));
+  check(`R1b ett av dem lyfts: spår ${r.sist.length}`, r.sist.length === 2);
+  // ── R2: telefonen flyttas 30 px och stannar — korten hittas igen på nya platsen ──
+  /* Flyttas telefonen flyttar sig både träet och korten i bilden — korten
+     ritas alltså på nya platser (granskningen: förut stod korten kvar och
+     "flytten" prövade ingenting). Omtaget av referensen är inget villkor:
+     på ett slätt bord behöver det aldrig ske, mattmodellen följer med. */
+  const TRE_F = g => { kortPaTra(g, 40, 100); kortPaTra(g, 75, 102); kortPaTra(g, 110, 98); return g; };
+  nystart(); await refTra(); r = await summa(12, () => rutaTra({}, TRE_F));
+  /* Träet flyttar (dx 30, dy 12) och korten med det: (40,100) → (70,112) osv.
+     Blänket hamnar på (120, 50), sextio bildpunkter ovanför korten. */
+  r = await summa(30, () => rutaTra({ dx: 30, dy: 12 }, g => { kortPaTra(g, 70, 112); kortPaTra(g, 105, 114); kortPaTra(g, 140, 110); }));
+  const helaFlytt = s => [[70, 112], [105, 114], [140, 110]].every(([x, y]) => s.filter(t => !t.skymd && Math.abs(t.lang - 31) <= 8 && Math.abs(t.kort - 22) <= 6 && Math.hypot(t.cx - (x + 10.5), t.cy - (y + 15)) <= 4).length === 1);
+  check(`R2 telefonen flyttad 30×12 px i 4,5 s: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy)).join(', ')}), hela kort på nya platsen ${helaFlytt(r.sist)}, referensen togs om ${Kamera.omtag > 0}`, r.sist.length === 3 && helaFlytt(r.sist));
+  // ── R3: ett kort vars konstverk har mattans ljus — sluten ring, hålet fylls ──
+  nystart(); await refTra();
+  const morkt = g => { kort(g, W, 60, 70, 22, 31, 205); for (let yy = 70 + 4; yy < 70 + 17; yy++) for (let xx = 60 + 3; xx < 60 + 19; xx++) g[yy * W + xx] = 128; return g; };
+  r = await summa(12, () => rutaTra({}, morkt));
+  check(`R3 kort med konstverk i mattans ljus, ram runt om: spår ${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort)).join(',') || 'inga'}`, r.sist.length === 1 && Math.abs(r.sist[0].lang - 31) <= 6 && Math.abs(r.sist[0].kort - 22) <= 5);
+  /* R3b: en äkta П — konstverket når kortets överkant, så hålet är öppet mot
+     mattan och hålfyllningen från kanten kan inte ta det. Det är den
+     ortogonala fyllningens fall (granskningen: R3 prövade bara ringen). */
+  nystart(); await refTra();
+  const pe = g => { kort(g, W, 60, 70, 22, 31, 205); for (let yy = 70; yy < 70 + 17; yy++) for (let xx = 60 + 3; xx < 60 + 19; xx++) g[yy * W + xx] = 128; return g; };
+  r = await summa(12, () => rutaTra({}, pe));
+  check(`R3b П-kort (konstverket öppet uppåt): spår ${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort)).join(',') || 'inga'}`, r.sist.length === 1 && Math.abs(r.sist[0].lang - 31) <= 6 && Math.abs(r.sist[0].kort - 22) <= 5);
+  // ── R4: en ljusstrimma som ändras (lampan) blir inget kort och stör inte korten ──
+  nystart(); await refTra();
+  /* Strimman ligger i luften mellan kort 1 och 2 (x 86–90; korten slutar
+     på 81 och börjar på 95, så fyra bildpunkter luft på var sida — två
+     bildpunkter sluter stängningen, och då är strimman en del av kortet:
+     det är den kända gränsen) och långt från blänket vid (150, 62) — förut
+     gick den rakt genom blänket, som klippte den, och provet prövade
+     ingenting (granskningen). */
+  r = await summa(20, () => rutaTra({}, g => { TREW(g); for (let yy = 20; yy < 140; yy++) for (let xx = 86; xx < 91; xx++) g[yy * W + xx] = Math.min(255, g[yy * W + xx] + 40); }));
+  check(`R4 lodrät ljusstrimma 5 px mellan korten: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')}), hela kort ${helaKort(r.sist)}`, r.sist.length === 3 && helaKort(r.sist));
 
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);

@@ -2810,8 +2810,8 @@ body.ispel #addPlayerBtn{display:none}
 
       <div class="kamsteg" id="kamStegKal" hidden>
         <p class="lead"><b>Bekräfta ytan.</b> Dra rutan så att den täcker hela mattan där dina
-          kort ligger. Mattan ska vara <b>tom</b> just nu — bilden av den tomma mattan är det
-          kameran jämför mot. Lägg sedan korten med lite luft emellan.</p>
+          kort ligger. Korten får ligga kvar — håll bara telefonen stilla en sekund när
+          rutan är satt, så lär den sig ljuset. Lägg korten med lite luft emellan.</p>
         <div class="kalupp">
           <span>Ett otappat kort i bilden är</span>
           <button class="btn sm on" data-upp="v">stående</button>
@@ -3078,7 +3078,7 @@ body.ispel #addPlayerBtn{display:none}
   </div>
   <p class="pbstatus" id="pbStatus"></p>
   <div class="pbknappar">
-    <button class="btn sm" id="pbRef" title="Ta om bilden av den tomma mattan — gör det när ljuset ändrats">Ny referensbild</button>
+    <button class="btn sm" id="pbRef" title="Ta om bilden av mattan — gör det när ljuset ändrats. Korten får ligga kvar">Ny referensbild</button>
     <button class="btn sm" id="kamRikta" title="Dra om rutan runt mattan">Rikta om</button>
     <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
   </div>
@@ -6265,9 +6265,10 @@ function renderMode() {
     chip = `<button class="modechip vantar" data-mode="koppla" title="Telefonen väntar på att du drar rutan runt mattan"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · rita rutan runt mattan</span></span></button>`;
 
   } else if (kamFas === 'ljus' || kamFas === 'lar') {
-    /* Telefonen tar bilden av den tomma mattan och mäter bruset. Sekunden
-       det tar är den enda gången "auto" är på utan att titta. */
-    chip = `<button class="modechip vantar" data-mode="skruv" title="Telefonen tar bilden av den tomma mattan och mäter ljuset"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · lär sig ljuset…</span></span></button>`;
+    /* Telefonen tar bilden av mattan och mäter bruset. Korten får ligga
+       kvar sedan MES-26: de hittas ur bildens eget utseende, och deras
+       platser fylls med mattmodellen när referensen är klar. */
+    chip = `<button class="modechip vantar" data-mode="skruv" title="Telefonen lär sig ljuset — håll den stilla en sekund"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · lär sig ljuset…</span></span></button>`;
 
   } else if (kamTot > 0 && kamLast < kamTot) {
     /* D. Kameran ser korten men känner inte igen alla. Två verb för två
@@ -9609,6 +9610,34 @@ function harTextruta(im, box, rot) {
   return n ? (ljust / n) * 100 >= LJUS_MIN : false;
 }
 
+/* Kamerans motsvarighet, mätt mot MATTAN i stället för mot ett fast tal.
+   Regeln ovan (10 % ljusare än 150) är skriven för en skärmdump från ett
+   videosamtal. På Jespers bord i lampljus nådde 0–35 % av ett riktigt korts
+   bildpunkter 150, och alla fyra korten blev skräp — masken var rätt, domen
+   fel. Ett kort skiljer sig från mattan ÅT BÅDA HÅLL (svart kant och ljus
+   textruta på ett mörkt bord; kant och konstverk på ett ljust) och har
+   struktur. Uppmätt på fyra kort i videon på 1,5 meters håll: 41–51 % av
+   bildpunkterna mer än 25 steg från mattan (bara 27–36 % mer än 35 — Maul
+   of the Skyclaves och Valkyrie's Sword är mörka kort), spridning 34–39;
+   träflisor och strimmor under 10 i spridning. Saknas mattans nivå (poolen kom före första rutan) räknas
+   bara spridningen. */
+function serUtSomKort(im, matt) {
+  const cv = document.createElement('canvas');
+  cv.width = 64; cv.height = Math.round(64 / Matcher.ASPECT);
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  c.drawImage(im, 0, 0, im.width, im.height, 0, 0, cv.width, cv.height);
+  const d = c.getImageData(0, 0, cv.width, cv.height).data;
+  let n = 0, s = 0, q = 0, bort = 0;
+  for (let i = 0; i < d.length; i += 4, n++) {
+    const L = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    s += L; q += L * L;
+    if (matt != null && Math.abs(L - matt) > 25) bort++;
+  }
+  if (!n) return false;
+  const std = Math.sqrt(Math.max(0, q / n - (s / n) ** 2));
+  return std >= 22 && (matt == null || bort / n >= 0.25);
+}
+
 let analyzing = false, cancelAnalyze = false;
 
 /* Avbryt måste bita MITT i arbetet, inte bara mellan två kort. Flaggan
@@ -11262,11 +11291,16 @@ const Kamera = (() => {
      ger 20 px breda kort vid 240, och det räcker inte för att beskära ut
      något läsbart. En femtedel av videons bredd, mellan 240 och 360. */
   let AW = 240;
-  /* Taket är 320, inte 360: ett analyssteg kostar i proportion till ytan, och
-     360 var 2,3 gånger 240. Uppmätt i node: 30 ms vid 240, 69 vid 360 innan
-     suddningen gjordes separabel; en mellanklasstelefon är tre till fyra
-     gånger långsammare, och takten är 150 ms. */
-  const AW_MIN = 240, AW_MAX = 320;
+  /* Taket höjdes från 320 till 360 med MES-26: vid 240 var ett kort på
+     Jespers bord 34×24 bildpunkter, dess svarta kant en enda, och suddningen
+     åt upp den. En tredjedel av videons bredd ger 349 för en telefon som ser
+     hela bordet, och ett kort blir 60×40. Uppmätt i Chromium på en Mac,
+     varm motor, 376×540: hela steget 53 ms, varav modellen 7, masken 3,
+     morfologin 12 och regionerna 14 (dia.tid följer med i diagnosfilen).
+     Bänkens vm-sandlåda är tio gånger långsammare och säger inget om
+     telefonen. Takten är 150 ms och en mellanklasstelefon är tre gånger
+     långsammare — därför inte 400. */
+  const AW_MIN = 240, AW_MAX = 360;
   const TAKT_MS = 150;         // analystakt: ~7 gånger i sekunden
   const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
   /* Referensen är inte EN bildruta utan medel av några. En enda ruta bär
@@ -11285,7 +11319,7 @@ const Kamera = (() => {
     auto: 1,        // 1 = tröskeln räknas ur mattans uppmätta brus, 0 = reglaget bestämmer
     troskel: 26,    // gråskillnad mot tom matta som räknas som "något ligger här"
     minArea: 60,    // minsta region i analyspixlar — under det är det damm
-    kvotMin: 0.50,  // ett Magic-kort har kvoten 0,72; utanför spannet är det
+    kvotMin: 0.55,  // ett Magic-kort har kvoten 0,72 (uppmätt 0,62–0,81 på bordet); utanför spannet är det
     kvotMax: 0.95,  // inget kort utan en hand, en skugga, eller två kort ihop
     fyllnad: 0.72,  // hur mycket av sin vridna låda regionen ska fylla
     stillaPx: 1.6,  // rörelse i analyspixlar per ruta som räknas som stilla
@@ -11297,7 +11331,18 @@ const Kamera = (() => {
     spokMs: 20000,  // hur länge ett borttaget spår minns sin plats och sitt namn
     textur: 0.5,    // hur mycket tröskeln höjs per gråsteg kant i referensen (trä, ådring)
     ton: 0.2,       // …och per gråsteg som bildpunkten avviker från mattans median (tonkurva)
-    blank: 235      // ljusare än så i referensen är blänk och räknas aldrig
+    blank: 235,     // ljusare än så i referensen är blänk och räknas aldrig
+    /* MES-26, andra passet: det som avgör om en bildpunkt är "något på
+       mattan" är avståndet till MATTMODELLEN — det mattan ser ut som i samma
+       ruta, räknad ur rutan själv — inte skillnaden mot en tom referens.
+       Uppmätt på Jespers bord: kort 104–139 mot modellens 46–69, svart kant
+       20–30, mörkt konstverk 72–90, ljusstrimmor på träet 85–95. 25 tar
+       korten och kanten men inte strimmorna. */
+    utseende: 25,   // gråsteg från mattmodellen som räknas som "något ligger här"
+    /* En region utan struktur är inte ett kort: ett kort har ram, konstverk
+       och text (spridning 28–47 på det riktiga bordet), en träflisa, en
+       skugga eller en strimma är slät (2–10). */
+    spridning: 15   // minsta spridning i gråsteg inom regionen
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel;
@@ -11324,6 +11369,10 @@ const Kamera = (() => {
   let blankM = null;           // 1 där referensen är blänk — räknas aldrig
   let yta = null;              // { dom, brus, textur, blank } — ytans betyg vid referensen
   let senasteG = null, senasteG0 = null, senasteMask = null;   // för diagnosfilen: efter och FÖRE suddning
+  let modell = null;           // mattmodellen för senaste rutan (Float32Array med .M = mattans median)
+  let refMonster = null;       // 1 där referensen avviker från sin egen mattmodell — mattans tryck, inte kort
+  let omtag = 0, felRader = 0; // referensen tagen om för att bilden flyttat sig, och rutor i rad som inte stämt
+  let senasteGain = 1;         // förstärkningen som senaste rutan skalades med innan modellen räknades
   let vidSkala = 1;            // videopixlar per analyspixel — det beskärningen faktiskt får
   let kal = null;              // {ruta:{x,y,w,h,upp}} i andelar av bildrutan
   let lage = 'start';
@@ -11358,14 +11407,8 @@ const Kamera = (() => {
     return u;
   }
 
-  /* ── detektering ──────────────────────────────────────────────────
-     Skillnad mot den tomma mattan → mask → sammanhängande regioner → en
-     vriden rektangel per region ur dess andra moment. Ingen konturföljning:
-     för en jämnt fylld rektangel ger huvudaxlarnas standardavvikelser
-     halva sidlängderna gånger roten ur tre, exakt. Ren funktion, prövbar.
-     Masken följer med ut: spårningen behöver veta vad som ligger under ett
-     spår som inte fick någon träff. */
-  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, tackning: 0, spritt: 0, troskel: 0, sigma: 0, gain: 1 };
+  /* Räknarna som diagnosfilen och popovern visar, uppdaterade av detektera(). */
+  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, ms: 0, tid: null };
   /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
      samma bildpunkt. En telefon i en hållare skakar en pixel när någon
      nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
@@ -11382,47 +11425,217 @@ const Kamera = (() => {
     }
     return b;
   }
-  function detektera(nu, ref, W, H) {
-    dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = 0;
+
+  /* ── mattmodellen ──────────────────────────────────────────────────
+     Vad mattan ser ut som JUST NU, bildpunkt för bildpunkt, räknad ur rutan
+     själv: medianen per cell (~AW/8) över de bildpunkter som inte ligger
+     under ett spårs inre, ett ROBUST PLAN anpassat till cellerna (tre varv,
+     celler mer än 25 från planet kastas: det är korten), och
+     sedan varje cell som ligger inom 10 från planet med sitt eget värde,
+     de andra med planets — bilinjärt uppskalat. Tio, inte tjugofem: med
+     Jespers nivåer (matta 65, konstverk 72–88) låg en cell full av
+     konstverk inom 25 från planet och behöll sin egen median — kortets
+     mitt blev matta, och om kortet hittades berodde på var i cellrutnätet
+     det råkade ligga (granskningen: 0 respektive 24 av 102 lägen, 102 av
+     102 med tio). Mattans egen ton — en bräda, en skarv, vinjetteringen —
+     ligger inom tio. Ytan är det som gör modellen
+     okänslig för hur mycket kort som ligger på mattan: en grannmedian över
+     3×3 eller 5×5 celler blev kortet självt när två kort nära kameran låg
+     sida vid sida (3×4 celler var), och Thriving Heath och Valkyrie's Sword
+     blev bara sina textrutor (uppmätt i videon på 60 cm). Ett plan följer
+     lampans gradient (uppmätt 39→71 över Jespers bord) men aldrig ett
+     kort, så länge korten är mindre än hälften av mattan. Ett plan och
+     inte en andragradsyta: med sex parametrar på bänkens 8×5 celler böjde
+     sig ytan efter en hand över mattan, handen blev matta och spåret under
+     den släpptes (T1b). Cellernas egna värden håller kvar mattans lokala
+     ton (en mörkare bräda, en skarv, vinjetteringen i hörnen) där de inte
+     avviker mer än ett kort. 
+
+     Det är hela skillnaden mot första passet. Skillnaden mot en tom referens
+     krävde att referensen var tom och att telefonen stod still — och en
+     referens som driver mot "det mattan ser ut som nu" åt upp varje kort
+     som inte spårades (uppmätt: Thriving Heath låg i referensen med median
+     75 mot mattans 50, och var osynlig för alltid). I en handhållen video
+     vandrade korten 60–90 bildpunkter mellan rutorna, och kvar i skillnaden
+     var bara mana-symbolerna. */
+  function mattmodell(g, W, H, under) {
+    const cell = Math.max(16, Math.round(W / 8)), gw = Math.ceil(W / cell), gh = Math.ceil(H / cell), n = W * H;
+    const c = new Float32Array(gw * gh), kand = new Uint8Array(gw * gh), hist = new Int32Array(256);
+    /* Det som ligger under ett spår räknas inte som matta — men bara spårets
+       INRE (lådan krympt 20 % på varje sida). Hela lådan med marginal gav
+       återkoppling: kanterna och luften mellan korten försvann ur medianen,
+       modellen där blev en gissning från grannarna, kortets skugga och en
+       mörk strimma i träet steg över tröskeln, regionen ändrade form, spåret
+       dog, modellen blev sig lik igen, spåret föddes om — en cykel på två
+       sekunder (uppmätt i diagnosfilen 21-04). Det inre räcker: det är
+       kortets mitt som annars gör ett stort kort till matta. */
+    let tackt = null;
+    if (under && under.length) {
+      tackt = new Uint8Array(n);
+      for (const t of under) {
+        const b = t.box, mx = Math.round(b.w * 0.2), my = Math.round(b.h * 0.2);
+        for (let y = Math.max(0, b.y + my), y1 = Math.min(H - 1, b.y + b.h - 1 - my); y <= y1; y++)
+          for (let x = Math.max(0, b.x + mx), x1 = Math.min(W - 1, b.x + b.w - 1 - mx); x <= x1; x++) tackt[y * W + x] = 1;
+      }
+    }
+    /* Medianen per cell via histogram, inte sortering: TypedArray.sort på
+       120 celler kostade 158 ms per ruta vid 349 px, histogrammet under 5. */
+    for (let cy = 0; cy < gh; cy++) for (let cx = 0; cx < gw; cx++) {
+      hist.fill(0); let k = 0, tot = 0;
+      for (let y = cy * cell, y1 = Math.min(H, y + cell); y < y1; y++) for (let x = cx * cell, x1 = Math.min(W, x + cell); x < x1; x++) { tot++; if (tackt && tackt[y * W + x]) continue; const v = g[y * W + x]; hist[v <= 0 ? 0 : v >= 255 ? 255 : v | 0]++; k++; }
+      /* Under 30 % fri yta säger cellen inget om mattan; grannarna får tala. */
+      if (k < 0.3 * tot) { kand[cy * gw + cx] = 0; c[cy * gw + cx] = 0; continue; }
+      let acc = 0, med = 0; for (let b = 0; b < 256; b++) { acc += hist[b]; if (acc * 2 >= k) { med = b; break; } }
+      c[cy * gw + cx] = med; kand[cy * gw + cx] = 1;
+    }
+    /* Planet: v = a + b·x + c·y över cellernas mittpunkter (x, y i celler,
+       centrerade). Minsta kvadrat på de celler som är kvar, tre varv; efter
+       varje varv kastas celler mer än 25 från planet. */
+    const inl = new Uint8Array(gw * gh); for (let i = 0; i < inl.length; i++) inl[i] = kand[i];
+    const cxm = (gw - 1) / 2, cym = (gh - 1) / 2;
+    let koef = null;
+    for (let varv = 0; varv < 3; varv++) {
+      const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], B = [0, 0, 0];
+      let m = 0;
+      for (let cy = 0; cy < gh; cy++) for (let cx = 0; cx < gw; cx++) {
+        const i = cy * gw + cx; if (!inl[i]) continue; m++;
+        const x = cx - cxm, y = cy - cym, f = [1, x, y], v = c[i];
+        for (let p = 0; p < 3; p++) { B[p] += f[p] * v; for (let q = 0; q < 3; q++) A[p][q] += f[p] * f[q]; }
+      }
+      if (m < 5) break;
+      /* Gauss-eliminering med pivotering; 3×3 är ingenting. */
+      const M = A.map((r, p) => r.concat([B[p]]));
+      let ok = true;
+      for (let p = 0; p < 3; p++) {
+        let piv = p; for (let r = p + 1; r < 3; r++) if (Math.abs(M[r][p]) > Math.abs(M[piv][p])) piv = r;
+        if (Math.abs(M[piv][p]) < 1e-9) { ok = false; break; }
+        [M[p], M[piv]] = [M[piv], M[p]];
+        for (let r = 0; r < 3; r++) { if (r === p) continue; const k = M[r][p] / M[p][p]; for (let q = p; q <= 3; q++) M[r][q] -= k * M[p][q]; }
+      }
+      if (!ok) break;
+      koef = M.map((r, p) => r[3] / r[p]);
+      let bort = 0;
+      for (let cy = 0; cy < gh; cy++) for (let cx = 0; cx < gw; cx++) {
+        const i = cy * gw + cx; if (!inl[i]) continue;
+        const p = koef[0] + koef[1] * (cx - cxm) + koef[2] * (cy - cym);
+        if (Math.abs(c[i] - p) > 25) { inl[i] = 0; bort++; }
+      }
+      if (!bort) break;
+    }
+    const cur = new Float32Array(gw * gh);
+    if (koef) {
+      for (let cy = 0; cy < gh; cy++) for (let cx = 0; cx < gw; cx++) {
+        const i = cy * gw + cx;
+        const p = koef[0] + koef[1] * (cx - cxm) + koef[2] * (cy - cym);
+        cur[i] = (kand[i] && Math.abs(c[i] - p) <= 10) ? c[i] : p;
+      }
+    } else {
+      /* För få celler för ett plan (en pytteliten ruta): medianen av dem som finns. */
+      const kanda = []; for (let i = 0; i < c.length; i++) if (kand[i]) kanda.push(c[i]); kanda.sort((p, q) => p - q);
+      const M0 = kanda.length ? kanda[kanda.length >> 1] : 128; for (let i = 0; i < c.length; i++) cur[i] = kand[i] ? c[i] : M0;
+    }
+    const alla = Array.from(cur).sort((p, q) => p - q);
+    const ut = new Float32Array(n);
+    for (let y = 0; y < H; y++) {
+      const fy = Math.max(0, Math.min(gh - 1, (y + 0.5) / cell - 0.5)), y0 = Math.floor(fy), y1 = Math.min(gh - 1, y0 + 1), ty = fy - y0;
+      for (let x = 0; x < W; x++) {
+        const fx = Math.max(0, Math.min(gw - 1, (x + 0.5) / cell - 0.5)), x0 = Math.floor(fx), x1 = Math.min(gw - 1, x0 + 1), tx = fx - x0;
+        ut[y * W + x] = (cur[y0 * gw + x0] * (1 - tx) + cur[y0 * gw + x1] * tx) * (1 - ty) + (cur[y1 * gw + x0] * (1 - tx) + cur[y1 * gw + x1] * tx) * ty;
+      }
+    }
+    ut.M = alla[alla.length >> 1];
+    return ut;
+  }
+
+  /* ── detektering ──────────────────────────────────────────────────
+     Avstånd från mattmodellen → mask → sammanhängande regioner → ortogonal
+     fyllning → en vriden rektangel per region ur dess andra moment. Ingen
+     konturföljning: för en jämnt fylld rektangel ger huvudaxlarnas
+     standardavvikelser halva sidlängderna gånger roten ur tre, exakt.
+     Referensen (tom eller inte) används bara till en sak: där mattan har
+     ett EGET mönster — en tryckt spelmatta — räknas bara det som ändrats.
+     Ren funktion, prövbar. Masken följer med ut: spårningen behöver veta
+     vad som ligger under ett spår som inte fick någon träff. */
+  function detektera(nu, ref, W, H, under) {
+    dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = 0;
     const n = W * H;
+    /* Tiden per del följer med i diagnosfilen: det är telefonen som ska
+       hinna, och bänkens sandlåda säger inget om det. */
+    const t0 = performance.now();
+    modell = mattmodell(nu, W, H, under === undefined ? spar : under);
+    const tModell = performance.now();
+    dia.matta = Math.round(modell.M);
     const mask = new Uint8Array(n);
+    const uts = T.utseende, bl = T.blank, monster = ref ? refMonster : null;
     let pa = 0;
-    /* Blänket maskas bara där det är mättat i BÅDA bilderna. Bara referensen
-       räckte inte: ett kort som lades precis där blänket varit fick ett hål
-       i mitten och föll på formen — och blänket sitter i mitten av mattan,
-       där man lägger kort. Ett blänk som flyttat sig fångas i stället nedan,
-       på regionen: en kärna av mättade bildpunkter är inget kort. */
-    const bl = T.blank;
     for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
-      const m = (blankM && blankM[i] && nu[i] > bl) ? 0 : (skillnad(nu, ref, W, H, i, x, y) > (tros ? tros[i] : T.troskel) ? 1 : 0);
-      mask[i] = m; pa += m;
+      /* Två frågor, en per bildpunkt. Där mattan har ett EGET mönster —
+         en tryckt spelmatta, blänkets halo, en strimma i träet — avviker
+         referensen från sin egen mattmodell, och där gäller frågan "har det
+         ÄNDRATS mot referensen?", med tröskeln per bildpunkt. Överallt
+         annars gäller "avviker det från mattmodellen?". Så ser ett kort på
+         ett blänks halo ut som något (det skiljer sig från halon), en
+         strimma som funnits sedan referensen togs ser inte ut som något
+         (den är sig lik), och på ett slätt bord har referensen ingen makt
+         alls över masken — det är därför en telefon som flyttats
+         fortfarande ser korten, och varför ett kort som lyfts inte lämnar
+         ett spöke efter sig. */
+      if (monster && monster[i]) { if (skillnad(nu, ref, W, H, i, x, y) <= (tros ? tros[i] : T.troskel)) continue; }
+      else if (Math.abs(nu[i] - modell[i]) <= uts) continue;
+      /* Blänket maskas bara där det är mättat i BÅDA bilderna. Bara referensen
+         räckte inte: ett kort som lades precis där blänket varit fick ett hål
+         i mitten och föll på formen. Ett blänk som flyttat sig fångas i
+         stället nedan, på regionen: en kärna av mättade bildpunkter är inget
+         kort. */
+      if (blankM && blankM[i] && nu[i] > bl) continue;
+      mask[i] = 1; pa++;
     }
     dia.tackning = pa / n;
-    /* Öppning: bort med enstaka pixlar och tunna trådar (skuggkanter).
-       Före/efter räknas båda över det inre — kantraden rörs aldrig av
-       öppningen, och räknades den in såg varje fläck som nuddade kanten ut
-       som spritt brus. Uppmätt: tröskeln 10→22 av en hand vid nederkanten. */
+    const tMask = performance.now();
+    /* Öppning genom återuppbyggnad. En vanlig öppning tog bort enstaka
+       pixlar och tunna trådar — men också kortets egna kanter: ramen på ett
+       kort på avstånd är två bildpunkter bred, och utan den föll konstverket
+       ur och kortet blev en titelrad och en textruta med luft emellan
+       (uppmätt: exakt samma kort hittades vid x=60 och inte vid x=130 på
+       bänken, beroende på hur bruset råkade falla). Nu tas bara det bort som
+       inte hänger ihop med något som ÖVERLEVER öppningen: fläckar och trådar
+       för sig själva. En tunn kant som sitter på en textruta står kvar.
+       Före/efter räknas över det inre för det spridda bruset. */
     const tmp = new Uint8Array(n);
-    let fore = 0;
+    let fore = 0, efter = 0;
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
       const i = y * W + x;
       fore += mask[i];
       tmp[i] = (mask[i] && mask[i - 1] && mask[i + 1] && mask[i - W] && mask[i + W]) ? 1 : 0;
     }
-    let efter = 0;
-    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-      const i = y * W + x;
-      mask[i] = (tmp[i] || tmp[i - 1] || tmp[i + 1] || tmp[i - W] || tmp[i + W]) ? 1 : 0;
-      efter += mask[i];
+    const ko = new Int32Array(n);
+    {
+      /* Varje sammanhängande region i den råa masken: har den ingen kärna
+         (ingen bildpunkt som överlevde erosionen) tas den bort. Det som tas
+         bort är det spridda bruset; kantraden räknas inte. */
+      const sedd = new Uint8Array(n);
+      for (let s0 = 0; s0 < n; s0++) {
+        if (!mask[s0] || sedd[s0]) continue;
+        let head = 0, tail = 0, karna = 0, inre = 0; ko[tail++] = s0; sedd[s0] = 1;
+        while (head < tail) {
+          const i = ko[head++]; const x = i % W, y = (i - x) / W;
+          karna += tmp[i]; if (x > 0 && y > 0 && x < W - 1 && y < H - 1) inre++;
+          if (x > 0 && mask[i - 1] && !sedd[i - 1]) { sedd[i - 1] = 1; ko[tail++] = i - 1; }
+          if (x < W - 1 && mask[i + 1] && !sedd[i + 1]) { sedd[i + 1] = 1; ko[tail++] = i + 1; }
+          if (i >= W && mask[i - W] && !sedd[i - W]) { sedd[i - W] = 1; ko[tail++] = i - W; }
+          if (i < n - W && mask[i + W] && !sedd[i + W]) { sedd[i + W] = 1; ko[tail++] = i + W; }
+        }
+        if (!karna) { for (let q = 0; q < tail; q++) mask[ko[q]] = 0; efter += inre; }
+      }
+      efter = fore - efter;
     }
-    /* Stängning och hålfyllning. Ett korts mörka konstverk ligger inom trä-
-       ådringens eget spann, och med tolerant skillnad och tröskel per
-       bildpunkt fick kortet hål längs varje ådra; öppningen ovan skar det
-       sedan i bitar. Granskningen mätte tre 22×31-kort som blev 16×13, 10×6
-       och 23×13. Stängningen (vidga, sedan krymp) läker snitt som når kanten,
-       och allt som öppningen inte når från bildens kant är ett hål inne i
-       något — det fylls. Två kort med luft emellan förblir två: luften når
-       kanten. */
+    /* Stängning och hålfyllning. Ett korts mörka konstverk ligger inom
+       mattans eget spann, och kortet fick hål. Stängningen (vidga, sedan
+       krymp) läker snitt som når kanten, och allt som inte nås från bildens
+       kant är ett hål inne i något — det fylls. Två kort med luft emellan
+       förblir två: luften når kanten. Ett hål som är ÖPPET mot kanten —
+       konstverket i ett kort vars ena ram inte kom med — tas av den
+       ortogonala fyllningen nedan. */
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
       const i = y * W + x;
       tmp[i] = (mask[i] || mask[i - 1] || mask[i + 1] || mask[i - W] || mask[i + W]) ? 1 : 0;
@@ -11431,7 +11644,6 @@ const Kamera = (() => {
       const i = y * W + x;
       mask[i] = (tmp[i] && tmp[i - 1] && tmp[i + 1] && tmp[i - W] && tmp[i + W]) ? 1 : 0;
     }
-    const ko = new Int32Array(n);
     {
       tmp.fill(0);
       let head = 0, tail = 0;
@@ -11444,36 +11656,158 @@ const Kamera = (() => {
       }
       for (let i = 0; i < n; i++) if (!mask[i] && !tmp[i]) mask[i] = 1;
     }
+    const tMorf = performance.now();
     /* Regioner med flodfyllning på en kö. */
     const lab = new Int32Array(n);
-    const ut = [];
+    const rmin = new Int32Array(H), rmax = new Int32Array(H), cmin = new Int32Array(W), cmax = new Int32Array(W);
+    const ut = [], texturerade = [];
     let next = 1, smaPx = 0;
+    /* Domen över en samling bildpunkter (en region, eller en del av en som
+       delats). Ortogonal fyllning: varje rad fylls mellan samlingens första
+       och sista bildpunkt, varje kolumn likaså, och FÖRENINGEN är kroppen.
+       Ett kort vars konstverk har mattans ljus är en П i masken — ram på
+       tre sidor, hålet öppet mot kanten — och raderna genom hålet spänner
+       från sida till sida: hel rektangel. Ligger kortet ner är П:et ett ⊃,
+       och då är det kolumnerna som spänner. Snittet i stället för
+       föreningen prövades först och tog bara hål som var stängda på alla
+       fyra sidor (granskningen; R3b). Två kort i vinkel mot varandra blir
+       INTE en rektangel av det: raderna genom L:ets stapel spänner bara
+       stapeln, kolumnerna genom foten bara foten — hörnet förblir tomt. */
+    const bedom = (pix, p0, p1) => {
+      let minx = W, maxx = 0, miny = H, maxy = 0;
+      for (let q = p0; q < p1; q++) { const i = pix[q]; const x = i % W, y = (i - x) / W; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+      for (let y = miny; y <= maxy; y++) { rmin[y] = W; rmax[y] = -1; }
+      for (let x = minx; x <= maxx; x++) { cmin[x] = H; cmax[x] = -1; }
+      for (let q = p0; q < p1; q++) {
+        const i = pix[q]; const x = i % W, y = (i - x) / W;
+        if (x < rmin[y]) rmin[y] = x; if (x > rmax[y]) rmax[y] = x; if (y < cmin[x]) cmin[x] = y; if (y > cmax[x]) cmax[x] = y;
+      }
+      let fc = 0, morkare = 0, ljusare = 0, refSum = 0, modSum = 0, nuSum = 0, nuSq = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, ljusa = 0, maxNu = 0, satB = 0;
+      const ljusGrans = 0.85 * bl;
+      for (let y = miny; y <= maxy; y++) for (let x = minx; x <= maxx; x++) {
+        if ((x < rmin[y] || x > rmax[y]) && (y < cmin[x] || y > cmax[x])) continue;
+        const i = y * W + x, v = nu[i];
+        fc++; nuSum += v; nuSq += v * v; if (v > ljusGrans) ljusa++; if (v > maxNu) maxNu = v; if (v > bl) satB++;
+        if (ref) { refSum += ref[i]; modSum += modell[i]; if (v < ref[i] - 8) morkare++; else if (v > ref[i] + 8) ljusare++; }
+        sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
+      }
+      const nuStd = Math.sqrt(Math.max(0, nuSq / fc - (nuSum / fc) ** 2));
+      const box = { x: minx, y: miny, w: maxx - minx + 1, h: maxy - miny + 1 };
+      /* Ett blänk som flyttat sig är en ljus fläck som är utbränd någonstans
+         och nästan utbränd över hälften av sin yta. Ett kort är aldrig det:
+         en vit textruta under lampan når 200, inte 235, och konstverket och
+         kanten drar ner hälften av kortet under det. Uppmätt på bänken: ett
+         blänk som flyttat 15 px blev ett "kort" på 49×43 i 16 rutor av 30
+         när halon inte längre räknades som blänkets gamla plats. */
+      if (maxNu > bl && ljusa > 0.5 * fc) return { skal: 'blank', box, std: nuStd };
+      /* Mättnaden räknas en gång till, över KROPPEN: masken lämnar hål där
+         referensen också var mättad, och ett blänk som flyttat sig hade sin
+         kärna just i ett sådant hål. Uppmätt: 16 av 30 rutor med ett falskt
+         kort när bara maskens bildpunkter räknades — kärnan låg utanför dem. */
+      if (satB > 0.05 * fc) return { skal: 'blank', box, std: nuStd };
+      /* …och platsen ett blänk LÄMNAT är en flat region där nästan varje
+         bildpunkt är mörkare än en ljus referens — ljus i förhållande till
+         MATTAN där (blänkets halo), inte bara ljus i sig: på en ljus matta
+         (över 180) var annars varje mörkt, slätt kort "blänkets gamla
+         plats" (granskningen). Ett kort över blänket är också mörkare i
+         kärnan, men det är aldrig flatt. */
+      if (ref && morkare > 0.9 * fc && refSum / fc > 180 && refSum / fc > modSum / fc + 20 && nuStd < 30) return { skal: 'blank', box, std: nuStd };
+      /* …och platsen det FLYTTAT TILL är spegelbilden: en ljus, flat region
+         där nästan varje bildpunkt är ljusare än referensen och som når upp
+         mot mättnad någonstans. Ett kort som läggs där är också ljusare —
+         men aldrig flatt. En ljus flisa är flat men når inte mättnad. */
+      if (ref && ljusare > 0.85 * fc && nuSum / fc > 150 && nuStd < 32 && maxNu > 0.92 * bl) return { skal: 'blank', box, std: nuStd };
+      const cx = sx / fc, cy = sy / fc;
+      const vxx = sxx / fc - cx * cx, vyy = syy / fc - cy * cy, vxy = sxy / fc - cx * cy;
+      /* Egenvärden och huvudaxelns vinkel. */
+      const tr = vxx + vyy, det = vxx * vyy - vxy * vxy;
+      const disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
+      const l1 = tr / 2 + disc, l2 = Math.max(1e-6, tr / 2 - disc);
+      const vinkel = 0.5 * Math.atan2(2 * vxy, vxx - vyy);   // huvudaxelns vinkel, radianer
+      const lang = 2 * Math.sqrt(3 * l1), kort = 2 * Math.sqrt(3 * l2);
+      const r = { cx, cy, lang, kort, vinkel, area: fc, std: nuStd, box };
+      /* Inget kort är en fjärdedel av mattan. */
+      if (fc > 0.25 * n || lang > 0.6 * Math.max(W, H)) return Object.assign(r, { skal: 'kvot' });
+      const kvot = kort / lang;
+      /* Ett kort: kvoten nära 0,72. Två kort som ligger ihop, en hand, eller
+         en skugga faller utanför. */
+      if (kvot < T.kvotMin || kvot > T.kvotMax) return Object.assign(r, { skal: 'kvot' });
+      /* Fyllnadsgrad: en rektangel fyller sin vridna låda; en hand gör det inte. */
+      if (fc < T.fyllnad * lang * kort) return Object.assign(r, { skal: 'otat' });
+      /* En slät region är en träflisa, en skugga, en strimma — inte ett kort. */
+      if (nuStd < T.spridning) return Object.assign(r, { skal: 'flat' });
+      /* Kortsidan mäts i videopixlar: det är där beskärningen tas. Under
+         60 % av vad som går att läsa är regionen ett fragment av något, inte
+         ett kort som ligger långt bort — de fragmenten (22×16 av 34×24) var
+         "korten" som fick rådet om avståndet att tändas för fyra riktiga. */
+      if (vidSkala > 1 && kort * vidSkala < KORT_MIN_PX * 0.6) return Object.assign(r, { skal: 'liten' });
+      return r;
+    };
+    const rakna = r => { if (r.skal === 'blank') dia.blanka++; else if (r.skal === 'kvot') dia.felKvot++; else if (r.skal === 'otat') dia.otat++; else if (r.skal === 'flat') dia.flata++; else if (r.skal === 'liten') dia.forSma++; };
+    /* Delning: en region som inte är ett kort kan vara två — eller ett kort
+       och en ljusstrimma som hakat i det. Den eroderas ett par steg innanför
+       sin låda, delarna som blir kvar vidgas tillbaka inom regionen, och var
+       och en döms för sig. Uppmätt på Jespers bord: Valkyrie's Sword hade en
+       8 px bred strimma på träet i sidan, och blev 81×46 i stället för 60×40. */
+    const dela = (p0, p1, R) => {
+      let minx = W, maxx = 0, miny = H, maxy = 0;
+      for (let q = p0; q < p1; q++) { const i = ko[q]; const x = i % W, y = (i - x) / W; if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; }
+      const bw = maxx - minx + 1, bh = maxy - miny + 1, bn = bw * bh, F = 2 * R + 1;
+      /* Lådan får inte vara en stor del av bilden: delningen är dyr och en
+         sådan region är ändå inte två kort. */
+      if (bn > 0.15 * n) return [];
+      const inne = new Uint8Array(bn), er = new Uint8Array(bn), sub = new Int32Array(bn), rs = new Uint8Array(bn);
+      for (let q = p0; q < p1; q++) { const i = ko[q]; const x = i % W - minx, y = (i - x - minx) / W - miny; inne[y * bw + x] = 1; }
+      /* Separabel erosion: först vågräta fönster som är helt inne, sedan
+         lodräta fönster av dem. Samma resultat som ett kvadratiskt fönster,
+         men O(1) per bildpunkt i stället för (2R+1)². */
+      for (let y = 0; y < bh; y++) { const row = y * bw; let acc = 0; for (let x = -R; x < bw; x++) { if (x + R < bw) acc += inne[row + x + R]; if (x - R - 1 >= 0) acc -= inne[row + x - R - 1]; if (x >= 0) rs[row + x] = (x - R >= 0 && x + R < bw && acc === F) ? 1 : 0; } }
+      for (let x = 0; x < bw; x++) { let acc = 0; for (let y = -R; y < bh; y++) { if (y + R < bh) acc += rs[(y + R) * bw + x]; if (y - R - 1 >= 0) acc -= rs[(y - R - 1) * bw + x]; if (y >= 0) er[y * bw + x] = (y - R >= 0 && y + R < bh && acc === F) ? 1 : 0; } }
+      const delar = [];
+      let nid = 0;
+      const lok = new Int32Array(bn), one = new Uint8Array(bn), dil = new Uint8Array(bn);
+      for (let s = 0; s < bn; s++) {
+        if (!er[s] || sub[s]) continue;
+        const id = ++nid; let h = 0, t = 0; lok[t++] = s; sub[s] = id;
+        while (h < t) {
+          const i = lok[h++]; const x = i % bw;
+          if (x > 0 && er[i - 1] && !sub[i - 1]) { sub[i - 1] = id; lok[t++] = i - 1; }
+          if (x < bw - 1 && er[i + 1] && !sub[i + 1]) { sub[i + 1] = id; lok[t++] = i + 1; }
+          if (i >= bw && er[i - bw] && !sub[i - bw]) { sub[i - bw] = id; lok[t++] = i - bw; }
+          if (i < bn - bw && er[i + bw] && !sub[i + bw]) { sub[i + bw] = id; lok[t++] = i + bw; }
+        }
+        if (t < T.minArea) continue;
+        /* Vidga tillbaka inom regionen, separabelt, och samla de globala indexen. */
+        for (let i = 0; i < bn; i++) one[i] = sub[i] === id ? 1 : 0;
+        for (let y = 0; y < bh; y++) { const row = y * bw; let acc = 0; for (let x = -R; x < bw; x++) { if (x + R < bw) acc += one[row + x + R]; if (x - R - 1 >= 0) acc -= one[row + x - R - 1]; if (x >= 0) rs[row + x] = acc > 0 ? 1 : 0; } }
+        for (let x = 0; x < bw; x++) { let acc = 0; for (let y = -R; y < bh; y++) { if (y + R < bh) acc += rs[(y + R) * bw + x]; if (y - R - 1 >= 0) acc -= rs[(y - R - 1) * bw + x]; if (y >= 0) dil[y * bw + x] = acc > 0 ? 1 : 0; } }
+        const pix = [];
+        for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) if (inne[y * bw + x] && dil[y * bw + x]) pix.push((y + miny) * W + x + minx);
+        delar.push(Int32Array.from(pix));
+      }
+      return delar;
+    };
     for (let s0 = 0; s0 < n; s0++) {
       if (!mask[s0] || lab[s0]) continue;
       const id = next++;
       let head = 0, tail = 0; ko[tail++] = s0; lab[s0] = id;
-      let cnt = 0, morkare = 0, refSum = 0, nuSum = 0, nuSq = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, minx = W, maxx = 0, miny = H, maxy = 0;
+      let cnt = 0;
       while (head < tail) {
         const i = ko[head++];
-        const x = i % W, y = (i - x) / W;
-        cnt++; if (nu[i] < ref[i] - 8) morkare++; refSum += ref[i]; nuSum += nu[i]; nuSq += nu[i] * nu[i];
-        sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
-        if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;
+        const x = i % W;
+        cnt++;
         if (x > 0 && mask[i - 1] && !lab[i - 1]) { lab[i - 1] = id; ko[tail++] = i - 1; }
         if (x < W - 1 && mask[i + 1] && !lab[i + 1]) { lab[i + 1] = id; ko[tail++] = i + 1; }
-        if (y > 0 && mask[i - W] && !lab[i - W]) { lab[i - W] = id; ko[tail++] = i - W; }
-        if (y < H - 1 && mask[i + W] && !lab[i + W]) { lab[i + W] = id; ko[tail++] = i + W; }
+        if (i >= W && mask[i - W] && !lab[i - W]) { lab[i - W] = id; ko[tail++] = i - W; }
+        if (i < n - W && mask[i + W] && !lab[i + W]) { lab[i + W] = id; ko[tail++] = i + W; }
       }
       dia.regioner++;
       if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; continue; }  // damm
       /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
-         kort: kort är ljusa men inte utbrända. Uppmätt: elliptisk, fyller sin
-         låda, passerade kvoten, blev ett rött kort i granskningen. */
-      /* Mättnaden räknas över regionen och en pixels ring runt den. Bara
-         regionens egna bildpunkter missade ett blänk som flyttat sig
-         halvvägs: dess mättade kärna är delvis maskad, och det som blir kvar
-         är kärnans kant plus den gamla platsen, med för få mättade punkter i
-         sig självt. Uppmätt: 6 falska kort på 30 rutor utan ringen, 0 med. */
+         kort: kort är ljusa men inte utbrända. Mättnaden räknas över regionen
+         och en pixels ring runt den — bara regionens egna bildpunkter missade
+         ett blänk som flyttat sig halvvägs. Uppmätt: 6 falska kort på 30
+         rutor utan ringen, 0 med. */
       let sat = 0;
       for (let q = head - cnt; q < head; q++) {
         const i = ko[q]; const x = i % W;
@@ -11484,41 +11818,135 @@ const Kamera = (() => {
         if (i < n - W && !lab[i + W] && nu[i + W] > bl && tmp[i + W] !== 2) { tmp[i + W] = 2; sat++; }
       }
       if (sat > 0.05 * cnt) { dia.blanka++; continue; }
-      /* …och platsen ett blänk LÄMNAT är en flat region där nästan varje
-         bildpunkt är mörkare än en ljus referens. Ett kort över blänket är
-         också mörkare i kärnan, men det är aldrig flatt: ljus ram, mörkt
-         konstverk, spridning kring 50 mot träets 15. Uppmätt: 22 falska kort
-         av ett blänk som flyttat 15 px innan regeln fanns, och kortet som
-         täckte blänket försvann när regeln saknade flathetskravet. */
-      const nuStd = Math.sqrt(Math.max(0, nuSq / cnt - (nuSum / cnt) ** 2));
-      if (morkare > 0.9 * cnt && refSum / cnt > 180 && nuStd < 30) { dia.blanka++; continue; }
-      const cx = sx / cnt, cy = sy / cnt;
-      const vxx = sxx / cnt - cx * cx, vyy = syy / cnt - cy * cy, vxy = sxy / cnt - cx * cy;
-      /* Egenvärden och huvudaxelns vinkel. */
-      const tr = vxx + vyy, det = vxx * vyy - vxy * vxy;
-      const disc = Math.sqrt(Math.max(0, tr * tr / 4 - det));
-      const l1 = tr / 2 + disc, l2 = Math.max(1e-6, tr / 2 - disc);
-      const vinkel = 0.5 * Math.atan2(2 * vxy, vxx - vyy);   // huvudaxelns vinkel, radianer
-      const lang = 2 * Math.sqrt(3 * l1), kort = 2 * Math.sqrt(3 * l2);
-      /* Inget kort är en fjärdedel av mattan. Utan gränsen blev HELA ytan ett
-         "kort" när ljuset ändrades mer än förstärkningen tillåter — mattans
-         egen kvot ligger i spannet — och sedan fanns ingen fri yta kvar att
-         mäta ljuset på: modulen låste sig. */
-      if (cnt > 0.25 * n || lang > 0.6 * Math.max(W, H)) { dia.felKvot++; continue; }
-      const kvot = kort / lang;
-      /* Ett kort: kvoten nära 0,72. Två kort som ligger ihop, en hand, eller
-         en skugga faller utanför och lämnas utan spår. */
-      if (kvot < T.kvotMin || kvot > T.kvotMax) { dia.felKvot++; continue; }
-      /* Fyllnadsgrad: en rektangel fyller sin vridna låda; en hand gör det inte. */
-      if (cnt < T.fyllnad * lang * kort) { dia.otat++; continue; }
-      ut.push({ cx, cy, lang, kort, vinkel, area: cnt, box: { x: minx, y: miny, w: maxx - minx + 1, h: maxy - miny + 1 } });
+      const r = bedom(ko, head - cnt, head);
+      /* Allt med struktur — kort eller inte — skyddas från driften i
+         referensen, se uppdateraRef(). En strimma är slät och får drivas in. */
+      if (r.std >= T.spridning) texturerade.push(r.box);
+      /* Ett kort med en strimma i sidan passerar ibland kvoten ändå — som
+         ett brett kort. Tveksamt är allt under 0,64 eller med luft i lådan;
+         då prövas delningen, och delarna tar över om någon av dem är ett
+         renare kort. */
+      const tveksam = !r.skal && (r.kort / r.lang < 0.64 || r.area < 0.85 * r.lang * r.kort);
+      if (!r.skal && !tveksam) { ut.push(r); continue; }
+      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * T.minArea && cnt < 0.25 * n) {
+        let hittat = false;
+        for (const R of [2, 3]) {
+          const delar = dela(head - cnt, head, R);
+          const bra = [];
+          let yta = 0;
+          for (const pix of delar) { const d = bedom(pix, 0, pix.length); if (!d.skal && (!tveksam || d.kort / d.lang >= 0.64)) { bra.push(d); yta += d.area; } }
+          /* En region som redan ÄR ett kort (bara tveksam) byts mot sina
+             delar bara om de tillsammans är det mesta av den: ett kort med
+             stort mörkt konstverk delades annars i titelrad och textruta,
+             och textrutan ensam såg ut som ett liggande kort (uppmätt i
+             videon: Thriving Heath 115×92 av 125×175, fel namn). En region
+             som INTE är ett kort (kvoten, fyllnaden) har inget att förlora:
+             varje kortlik del är en vinst — kortet med en lång strimma i
+             sidan (R4) är 40 % av sin region. */
+          if (bra.length && (!tveksam || yta >= 0.6 * r.area)) { for (const d of bra) ut.push(d); hittat = true; dia.delade++; break; }
+        }
+        if (hittat) continue;
+      }
+      if (!r.skal) { ut.push(r); continue; }
+      rakna(r);
     }
+    /* Öar: en region som ligger inne i en större accepterad region är en ljus
+       fläck i dess konstverk, inte ett kort. Uppmätt i videon: två "kort" på
+       39×23 och 22×15 inne i Maul of the Skyclaves. */
+    const inne = (a, b) => {
+      const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+      return ox * oy >= 0.8 * a.w * a.h;
+    };
+    const fynd = ut.filter(a => !ut.some(b => b !== a && b.area > a.area && inne(a.box, b.box)));
     /* Spritt brus: det öppningen tog bort plus regionerna som var för små.
-       Det är det bruset tröskeln ska styras av. En hand eller en väska är en
-       stor sammanhängande fläck och säger ingenting om ljuset — att höja
-       tröskeln för den vore fel medicin. */
+       Det är det bruset tröskeln ska styras av. */
     dia.spritt = (fore - efter + smaPx) / n;
-    return { fynd: ut, mask };
+    const tSlut = performance.now();
+    dia.tid = { modell: Math.round(tModell - t0), mask: Math.round(tMask - tModell), morf: Math.round(tMorf - tMask), regioner: Math.round(tSlut - tMorf) };
+    /* De accepterade regionerna, för diagnosfilen: det är dem spåren matchas mot. */
+    dia.fynd = fynd.map(f => ({ cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), kort: Math.round(f.kort), area: f.area }));
+    return { fynd, mask, texturerade };
+  }
+
+  /* ── kortets ram ──────────────────────────────────────────────────
+     Regionen säger VAR kortet ligger; ramen säger exakt hur stort det är.
+     Masken tappar ett mörkt konstverk och tar med en skugga, och det räcker
+     för att spåra men inte för att beskära: matcharen fick lådor som täckte
+     textrutan och halva konstverket och kände inte igen ett enda kort på
+     avstånd (uppmätt 0 av 7), med rätt ramar 6 av 7.
+
+     Ramen letas upp i gradienten av den osuddade rutan: för var och en av de
+     fyra sidorna räknas kantstyrkan längs raden eller kolumnen, men bara där
+     utsidan är MATTA (ligger nära mattmodellen). Det är det som skiljer
+     kortets ytterkant från textrutans och ramens innerkanter, och som gör
+     att grannkortets kant inte får stöd. Bland kandidaterna väljs de fyra
+     som tillsammans är starkast och vars låda har kortets kvot, stående
+     eller liggande. Sökningen går upp till 0,8 kortbredder utåt, för den
+     saknade halvan av ett mörkt kort. Uppmätt mot facit i videon: inom 5–8
+     bildpunkter på alla tio kort i tre rutor. */
+  function finLada(box, g0, t) {
+    const W = AW, H = AH, m = modell;
+    if (!g0 || !m) return null;
+    const x0 = box.x, y0 = box.y, w = box.w, h = box.h, x1 = x0 + w - 1, y1 = y0 + h - 1;
+    /* Rutan är rå (osuddad, oförstärkt) för kanternas skull; modellen är
+       räknad på den förstärkta rutan. Samma skala på båda, annars fanns
+       ingen "matta utanför" när exponeringen svängt (granskningen). */
+    const gn = senasteGain;
+    /* Ett spår som redan är ett helt kort får bara finjusteras: ±12 % per
+       sida. Sökningen långt utåt är till för halva kort — för ett helt kort
+       fann den skuggans ytterkant i stället för kortets (uppmätt i videon
+       på 60 cm: Thriving Heath 132×221 av 125×173, och kortet kändes inte
+       igen). Helt = lådan är minst tre fjärdedelar av det största spåret på
+       mattan: ett halvt kort är hälften av ett helt, och ett ensamt kort är
+       alltid det största. Kvoten duger inte som mått: ett helt kort med
+       skuggan i lådan är 101×114 (0,89), ett halvt 79×64 (0,81) — och den
+       vida sökningen tog då grannkortets kant, 185 bred av 79 (videon). */
+    const kvBox = Math.min(w, h) / Math.max(w, h);
+    let storst = 0; for (const q of spar) storst = Math.max(storst, q.box.w * q.box.h);
+    const helt = w * h >= 0.75 * storst;
+    /* Ett helt kort söks utåt bara 12 %; inåt 12 % om lådan har kortets
+       kvot, annars 30 % — en låda som är nästan kvadratisk (0,89) har
+       skuggan med sig på ena sidan, och kortets kant ligger då 20–25 %
+       in (uppmätt: Plains 101 bred av 79). */
+    const UT = helt ? 0.12 : 0.8, IN = helt ? (kvBox > 0.8 ? 0.3 : 0.12) : 0.2;
+    const P = (x, y) => g0[y * W + x] * gn, M = (x, y) => m[y * W + x];
+    const mx0 = Math.round(x0 + 0.2 * w), mx1 = Math.round(x1 - 0.2 * w), my0 = Math.round(y0 + 0.2 * h), my1 = Math.round(y1 - 0.2 * h);
+    const MATT = 14, MIN = 5, KVOT = 0.716, TOL = 0.12;
+    /* Utsidan är matta bara om den ligger nära modellen. Det prövades att
+       räkna kortets skugga (20–35 under mattan) som matta också, så att
+       ytterkanten fick stöd där skuggan föll — men då räknades grannkortets
+       svarta kant som matta, och ramen hoppade dit: Plains 183 bred av 79
+       (uppmätt i videon). Hellre en ram som ibland saknas — regionen duger
+       då — än en som tar grannen. */
+    const mattUte = (px, py, dx, dy) => { let k = 0; for (let d = 2; d <= 5; d++) if (Math.abs(P(px + dx * d, py + dy * d) - M(px + dx * d, py + dy * d)) < MATT) k++; return k >= 3; };
+    const radP = (y, ute) => { if (y < 6 || y >= H - 6) return 0; let s = 0, k = 0, n = 0; for (let x = mx0; x <= mx1; x++) { s += Math.abs(P(x, y + 1) - P(x, y - 1)); if (mattUte(x, y, 0, ute)) k++; n++; } return n && k / n >= 0.6 ? (s / n) * (k / n) : 0; };
+    const kolP = (x, ute) => { if (x < 6 || x >= W - 6) return 0; let s = 0, k = 0, n = 0; for (let y = my0; y <= my1; y++) { s += Math.abs(P(x + 1, y) - P(x - 1, y)); if (mattUte(x, y, ute, 0)) k++; n++; } return n && k / n >= 0.6 ? (s / n) * (k / n) : 0; };
+    const span = Math.max(w, h);
+    const kand = (lo, hi, tak, f, ute) => { const a = []; lo = Math.max(0, Math.round(lo)); hi = Math.min(tak, Math.round(hi)); for (let i = lo; i <= hi; i++) a.push([i, f(i, ute)]); return a.filter(([i, v], k) => v >= MIN && (k === 0 || v >= a[k - 1][1]) && (k === a.length - 1 || v >= a[k + 1][1])); };
+    const Tc = kand(y0 - UT * (helt ? h : span), y0 + IN * h, H - 1, radP, -1), Bc = kand(y1 - IN * h, y1 + UT * (helt ? h : span), H - 1, radP, +1);
+    const Lc = kand(x0 - UT * (helt ? w : span), x0 + IN * w, W - 1, kolP, -1), Rc = kand(x1 - IN * w, x1 + UT * (helt ? w : span), W - 1, kolP, +1);
+    let bast = null;
+    for (const [l, sl] of Lc) for (const [r, sr] of Rc) {
+      const bw = r - l + 1; if (bw < 8) continue;
+      for (const [t, st] of Tc) for (const [b, sb] of Bc) {
+        const bh = b - t + 1; if (bh < 8) continue;
+        if (Math.abs(Math.min(bw, bh) / Math.max(bw, bh) - KVOT) > TOL) continue;
+        const sc = sl + sr + st + sb;
+        if (!bast || sc > bast.sc) bast = { sc, x: l, y: t, w: bw, h: bh };
+      }
+    }
+    /* En ram mycket större än regionen har hittat något annat: grannkortet,
+       en strimma. Då är regionen bättre än ramen. Och för ett helt kort ska
+       ramen vara ett KLART bättre kort än regionen (kvoten minst 0,02
+       närmare 0,716), inte bara en annan låda: annars är det skuggans
+       kanter som vunnit (uppmätt: 132×215 av 135×193 för ett kort på
+       125×173, och 132×188 lika stort men förskjutet — matcharen kände
+       igen regionen men inte ramen), och regionen duger. */
+    /* Ett halvt kort får växa till det dubbla (textrutan är hälften av ett
+       kort); ett helt bara lite. */
+    if (!bast || bast.w * bast.h > (helt ? 1.3 : 2.2) * w * h) return null;
+    if (helt && Math.abs(Math.min(bast.w, bast.h) / Math.max(bast.w, bast.h) - KVOT) > Math.abs(kvBox - KVOT) - 0.02) return null;
+    return { x: bast.x, y: bast.y, w: bast.w, h: bast.h };
   }
 
   /* Vriden eller inte. Huvudaxeln nära lodrät = stående = otappat, nära
@@ -11587,7 +12015,18 @@ const Kamera = (() => {
          en handformad fläck som fick ta över spåret vred tap-läget till
          TAPPAD på 300 ms och tillbaka 300 ms efter att handen lyfts. Träffen
          lämnas, och spåret får gå skymningsvägen nedan i stället. */
-      if (bast && bd < grans && f.area > T.areaVaxt * bast.areaRef) {
+      /* Ett ungt spår utan namn får växa: första rutan ger halva kort
+         (mattmodellen har inga spår att hålla korten ute med än), andra
+         rutan hela — och utan undantaget stod det halva spåret kvar som
+         skymt för alltid medan hela kortet avvisades som "för stort".
+         Uppmätt i diagnosfilerna: tre av fyra spår skymda på en stilla
+         bild. Ett kort som redan lästs är inte ungt, och skyddas som förut. */
+      const ungt = bast && !bast.namn && nu - bast.fodd < 2000;
+      /* Skräp släpper platsen redan vid 1,3 gånger sin yta: ett kort ovanpå
+         en flisa är alltid större än flisan, men inte alltid 1,6 gånger
+         (granskningen: 560 mot 316 var på gränsen). */
+      const vaxt = bast && bast.tillstand === 'skrap' ? 1.3 : T.areaVaxt;
+      if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt) {
         if (bast.tillstand !== 'skrap') continue;
         /* Skräp under något mycket större: ett kort har lagts ovanpå. Skräpet
            får inte hålla platsen — spåret tas bort, utan spöke. */
@@ -11600,7 +12039,7 @@ const Kamera = (() => {
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         bast.sedd = nu; bast.tomMs = 0; bast.skymd = false;
         if (ror > T.stillaPx) {
-          bast.stillaFran = nu;
+          bast.stillaFran = nu; bast.ram = null;
           if ((bast.tillstand === 'stilla' || bast.tillstand === 'skrap') && !bast.namn) { bast.tillstand = 'ny'; bast.fragad = false; bast.skrapN = 0; }
         }
         else if (!bast.stillaFran) bast.stillaFran = nu;
@@ -11667,7 +12106,7 @@ const Kamera = (() => {
     glomReferens();
   }
 
-  function glomReferens() { ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; yta = null; forra = 0; brusRader = brusLugna = 0; }
+  function glomReferens() { ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; refMonster = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = 0; }
 
   function satKalibrering(k) {
     kal = k && k.ruta ? k : null;
@@ -11689,14 +12128,14 @@ const Kamera = (() => {
     const vb = video.videoWidth, vh = video.videoHeight;
     if (!vb || !vh) return;
     rita(vb, vh);
-    if (!kal) { säg('ingen', 'Väntar på att du bekräftar ytan', 'Dra rutan runt mattan på datorn. Mattan ska vara tom.'); return; }
+    if (!kal) { säg('ingen', 'Väntar på att du bekräftar ytan', 'Dra rutan runt mattan på datorn.'); return; }
     const nu = performance.now();
     if (nu - senast < TAKT_MS) return;
     senast = nu;
 
     const r = rutaPx(vb, vh);
     if (!AH) {
-      AW = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 5)));
+      AW = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 3)));
       AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH;
       vidSkala = r.w / AW;
     }
@@ -11713,6 +12152,7 @@ const Kamera = (() => {
     if (!AH) AH = ah;
     if (skala) vidSkala = skala;
     const n = AW * AH;
+    const tSteg = performance.now();
     const g = suddig(g0, AW, AH);
     /* Tiden som får läggas på en frånvaroräkning per ruta är begränsad: efter
        en paus (identifieringen tog lång tid, fliken var i bakgrunden) hade
@@ -11720,27 +12160,44 @@ const Kamera = (() => {
        än hela bortaMs. Beviset ska bestå av flera rutor i rad. */
     const dt = forra ? Math.min(2 * TAKT_MS, nu - forra) : TAKT_MS;
     forra = nu;
+    const upp = (kal && kal.ruta && kal.ruta.upp) || 'v';
+    const fore = tillstandsSignatur();
 
-    /* Referensen är mattan TOM, tagen när kalibreringen kommer: medel av
-       några rutor, och bruset mellan dem. Medelabsolutskillnaden mellan två
-       rutor av gaussiskt brus är σ·2/√π ≈ 1,13 σ. */
+    /* Referensen är mattan, tagen medan telefonen står stilla: medel av några
+       rutor, och bruset mellan dem (medelabsolutskillnaden mellan två rutor
+       av gaussiskt brus är σ·2/√π ≈ 1,13 σ). Korten får ligga kvar: de hittas
+       ur rutans eget utseende under tiden, och när referensen är klar fylls
+       deras platser med mattmodellen så att de aldrig blir en del av den.
+       Förut krävdes en TOM matta, och ett kort som råkade ligga där — eller
+       som inte spårades och därför drevs in i referensen — var osynligt för
+       alltid. Det var så tre kort på Jespers bord blev "Mattan är tom". */
     if (!ref) {
       if (!refSum) { refSum = new Float32Array(n); refN = 0; refDiff = 0; refFore = null; }
       for (let i = 0; i < n; i++) refSum[i] += g[i];
       if (refFore) { let s = 0; for (let i = 0; i < n; i++) s += Math.abs(g[i] - refFore[i]); refDiff += s / n; }
       refFore = g; refN++;
-      säg('ljus', 'Lär mig ljuset — håll mattan tom', 'Tar ett par sekunder. Den tomma mattan är det jag jämför korten mot.');
-      if (refN < REF_RUTOR) return;
+      senasteGain = 1;
+      const d0 = detektera(g, null, AW, AH);
+      matcha(spar, d0.fynd, d0.mask, nu, dt, upp, true);
+      senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
+      säg('ljus', 'Lär mig ljuset — håll telefonen stilla', 'Tar ett par sekunder. Korten får ligga kvar.');
+      dia.ms = Math.round(performance.now() - tSteg);
+      if (refN < REF_RUTOR) { if (tillstandsSignatur() !== fore) rapportera(); return; }
       ref = refSum; for (let i = 0; i < n; i++) ref[i] /= refN;
       sigma = (refDiff / (refN - 1)) / 1.128;
       dia.sigma = sigma;
       if (T.auto) T.troskel = autoTroskel();
       dia.troskel = T.troskel;
-      refSum = refFore = null; senastRef = nu;
+      refSum = refFore = null; senastRef = nu; felRader = 0;
+      rensaRef();
       bedomYta();
-      säg('tom', 'Redo — lägg ut kort på mattan', yta.dom === 'lugn'
+      const riktiga0 = spar.filter(t => t.tillstand !== 'skrap');
+      /* Fasen först, bordet sedan: datorn lyssnar inte på ett bord som kommer
+         med fasen "lär sig ljuset". */
+      säg(riktiga0.length ? 'kort' : 'tom', riktiga0.length ? antalText(riktiga0.length, riktiga0.filter(t => t.skymd).length) : 'Redo — lägg ut kort på mattan', yta.dom === 'lugn'
         ? 'Lite luft mellan korten. Datorn visar det du lägger ut.'
         : yta.rad);
+      rapportera();
       return;
     }
 
@@ -11753,28 +12210,46 @@ const Kamera = (() => {
     const ra = forstarkning(g, ref, fri);                    // rå kvot, 1 om okänd
     const gain = Math.min(1.6, Math.max(0.6, ra));
     /* Slår förstärkningen i taket är det inte en hand utan ljuset som ändrat
-       sig på riktigt. Den rutan föds inga nya spår ur — masken är då mest
-       felmatchning, och den spottade ur sig dussintals kortformade fläckar
-       innan referensen hunnit ikapp. De spår som finns hålls som skymda. */
+       sig på riktigt. Den rutan föds inga nya spår ur, och de spår som finns
+       hålls som skymda. */
     const klamd = gain !== ra;
-    dia.gain = gain;
+    dia.gain = gain; senasteGain = gain;
     if (Math.abs(gain - 1) > 0.01) for (let i = 0; i < n; i++) g[i] *= gain;
 
-    const { fynd, mask } = detektera(g, ref, AW, AH);
-    const fore = tillstandsSignatur();
-    matcha(spar, fynd, mask, nu, dt, (kal && kal.ruta && kal.ruta.upp) || 'v', !klamd);
+    const { fynd, mask, texturerade } = detektera(g, ref, AW, AH);
+    matcha(spar, fynd, mask, nu, dt, upp, !klamd);
+
+    /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
+       flyttats ser en annan bit av bordet, och då tas referensen om — utan
+       att spåren släpps: korten hittas ur utseendet under tiden. På ett slätt
+       bord märks en flytt knappt, och gör då ingen skada heller: mattmodellen
+       följer med. Tio rutor i rad (1,5 s) så att en hand som sveper förbi
+       inte räcker. Gränsen räknas ur mattans brus vid inlärningen (σ), inte
+       ur tröskeln: den drivs upp av just den flytt som ska upptäckas, och
+       gränsen sprang då före (granskningen). Uppmätt på bänkens trä: 1–2
+       i fas, 15–20 ur fas; en arm över 17 % av mattan ger 7. */
+    const avvik = avvikelse(g, fri);
+    dia.avvik = avvik;
+    if (avvik > Math.max(12, 4 * sigma * 1.13 + 8)) {
+      if (++felRader >= 10) {
+        omtag++; felRader = 0; glomReferens();
+        senasteG0 = g0; senasteG = g; senasteMask = mask;
+        säg('ljus', 'Lär mig ljuset — håll telefonen stilla', 'Bilden har flyttat sig. Referensen tas om; korten får ligga kvar.');
+        return;
+      }
+    } else felRader = 0;
 
     /* Ljuset driver under en kväll. Mattan där inget ligger dras sakta mot
        det den ser ut som nu, så att en skugga från lampan inte blir ett kort
-       om en timme. Där kort ligger — även skymda — rörs referensen inte:
-       det är det som gör att ett kort under en hand inte sugs in i mattan.
-       Och hela referensen följer med ljusstyrkan: förstärkningen tar den
-       snabba svängen, referensen den varaktiga ändringen (τ ≈ 20 s, tre
-       gånger snabbare medan förstärkningen står i taket). Utan det åt
-       förstärkningen upp hela ändringen, för alltid, tills nästa slog i taket. */
+       om en timme. Där kort ligger — även skymda — rörs referensen inte, och
+       inte heller där något med STRUKTUR ligger utan att spåras: det är så
+       ett kort som inte blev ett spår ändå aldrig sugs in i mattan. Och hela
+       referensen följer med ljusstyrkan: förstärkningen tar den snabba
+       svängen, referensen den varaktiga ändringen (τ ≈ 20 s, tre gånger
+       snabbare medan förstärkningen står i taket). */
     if (nu - senastRef > 2000) {
       senastRef = nu;
-      uppdateraRef(g, fri);
+      uppdateraRef(g, fri, texturerade);
       if (ra !== 1) skalaRef(Math.pow(1 / ra, klamd ? 0.3 : 0.1));
       troskelkarta();
     }
@@ -11793,7 +12268,51 @@ const Kamera = (() => {
        igenom. Det står kvar som spår så att det inte föds om varje ruta. */
     const riktiga = spar.filter(t => t.tillstand !== 'skrap');
     const skymda = riktiga.filter(t => t.skymd).length;
+    dia.ms = Math.round(performance.now() - tSteg);
     säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Redo — lägg ut kort på mattan', forLangtBort() ? LANGT_BORT : undefined);
+  }
+
+  /* Medelavvikelse mellan rutan och referensen över fri yta, var tredje
+     bildpunkt — måttet på om referensen fortfarande är den här bilden. */
+  function avvikelse(g, fri) {
+    let s = 0, k = 0;
+    for (let i = 0; i < g.length; i += 3) { if (!fri[i]) continue; s += Math.abs(g[i] - ref[i]); k++; }
+    return k ? s / k : 0;
+  }
+
+  /* Referensen får aldrig innehålla ett kort. Varje region i den som ser ut
+     som ett kort — och varje spår som redan finns — fylls med mattmodellen,
+     så att kortet därefter är lika synligt som om mattan varit tom när
+     bilden togs. Uppmätt i diagnosfilerna: det inätna kortet hittades i
+     referensen som 46×40 med spridning 44. */
+  function rensaRef() {
+    const W = AW, H = AH;
+    /* Referensen är en ren bild av mattan med korten på: här räknas
+       mattmodellen UTAN att spåren hålls ute, så att lådorna blir kortens
+       egna och inte tar med sig en mörk strimma i träet bredvid. */
+    /* detektera() skriver modell och räknarna; det är referensens värden och
+       får inte stå kvar som rutans (granskningen: dia.fynd och dia.tid
+       rapporterade referensens siffror i rutan efter inlärningen). */
+    const diaFore = Object.assign({}, dia), modellFore = modell;
+    const { fynd } = detektera(ref, null, W, H, []);
+    const refModell = modell;                                // mattmodellen av referensen
+    Object.assign(dia, diaFore); modell = modellFore;
+    const rutor = fynd.map(f => f.box).concat(spar.map(t => t.box));
+    /* HELA kortets låda fylls, utan marginal och utan undantag. Det prövades
+       att bara fylla det som avvek starkt (mer än 50) från mattan, för att
+       inte ta med en strimma i träet intill kortet ur referensen — men då
+       stod kortets svarta kant (45–50 från mattan), dess bruna ram och
+       mörka konstverk kvar i referensen som mattans mönster, jämfördes mot
+       sig själva och tystades: Thriving Heath blev en titelrad och en
+       textruta utan sidor (uppmätt i videon på 60 cm, med korten på plats
+       när referensen togs — precis så telefonen används). Utan marginal:
+       en strimma som nuddar lådans kant får ligga kvar som mönster. */
+    let fyllda = 0;
+    for (const b of rutor) {
+      for (let y = Math.max(0, b.y), y1 = Math.min(H - 1, b.y + b.h - 1); y <= y1; y++)
+        for (let x = Math.max(0, b.x), x1 = Math.min(W - 1, b.x + b.w - 1); x <= x1; x++) { ref[y * W + x] = refModell[y * W + x]; fyllda++; }
+    }
+    return fyllda;
   }
 
   /* Korten är för små i bilden för att gå att läsa. Uppmätt på Jespers bord:
@@ -11823,6 +12342,13 @@ const Kamera = (() => {
   function troskelkarta() {
     const n = AW * AH, W = AW;
     if (!tros || tros.length !== n) { tros = new Float32Array(n); blankM = new Uint8Array(n); }
+    /* Mattans eget mönster: där referensen avviker från sin egen mattmodell
+       ligger något som är matta men inte ser ut som matta — en tryckt
+       spelmatta, en skarv, en ådra mörkare än resten. Där räknas sedan bara
+       det som ändrats, se detektera(). På ett träbord är kartan nästan tom. */
+    const rm = mattmodell(ref, W, AH);
+    if (!refMonster || refMonster.length !== n) refMonster = new Uint8Array(n);
+    for (let i = 0; i < n; i++) refMonster[i] = Math.abs(ref[i] - rm[i]) > T.utseende ? 1 : 0;
     if (!allaFri || allaFri.length !== n) allaFri = new Uint8Array(n).fill(1);
     const mr = medianFri(ref, allaFri) || 128;
     const bas = T.troskel, kt = T.textur, kton = T.ton, bl = T.blank;
@@ -11902,12 +12428,26 @@ const Kamera = (() => {
      referensen när den lyfts — en fläck med skillnaden precis vid tröskeln,
      som spottar spritt brus och driver upp tröskeln. Uppmätt på bänken:
      10→22 på tre sekunder innan den här regeln fanns. */
-  function uppdateraRef(g, fri) {
+  function uppdateraRef(g, fri, texturerade) {
     const n = AW * AH;
+    const skydd = fri.slice();
+    for (const b of texturerade || []) {
+      const m = 2;
+      for (let y = Math.max(0, b.y - m), y1 = Math.min(AH - 1, b.y + b.h - 1 + m); y <= y1; y++)
+        for (let x = Math.max(0, b.x - m), x1 = Math.min(AW - 1, b.x + b.w - 1 + m); x <= x1; x++) skydd[y * AW + x] = 0;
+    }
+    /* Ett spöke i referensen — en hand som var i bild när den togs, eller
+       platsen där ett kort lyfts — är mönster i referensen men ser ut som
+       matta i rutan. Sådant dras in snabbt (τ ≈ 20 s) i stället för på
+       hundra gånger längre tid: det finns inget att skydda där, det som
+       låg där är borta (granskningen). Mattans eget mönster, som avviker i
+       rutan också, drivs fortfarande långsamt. */
+    const uts = T.utseende;
     for (let i = 0; i < n; i++) {
-      if (!fri[i]) continue;
+      if (!skydd[i]) continue;
       const d = g[i] - ref[i];
-      ref[i] += d * (Math.abs(d) > T.troskel ? 0.01 : 0.1);
+      const spoke = refMonster && refMonster[i] && modell && Math.abs(g[i] - modell[i]) <= uts;
+      ref[i] += d * (Math.abs(d) > T.troskel && !spoke ? 0.01 : 0.1);
     }
   }
   /* Hela referensen, även under korten: ljuset ändrade sig överallt. */
@@ -11940,7 +12480,11 @@ const Kamera = (() => {
     if (!T.auto || sigma == null) return;
     const fore = T.troskel;
     if (dia.spritt > 0.005) { brusLugna = 0; if (++brusRader >= 3) { T.troskel = Math.min(60, T.troskel + 2); brusRader = 0; } }
-    else { brusRader = 0; if (dia.spritt < 0.0005 && ++brusLugna >= 20) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
+    /* Ner under 0,25 %, inte 0,05 %: däremellan låg ett band där tröskeln
+       varken steg eller sjönk, och efter en drift som drivit upp den till 60
+       stod den kvar där för alltid (granskningen; uppmätt: 60 → 10 på en
+       minut efter fixen när ådrorna åter ligger rätt). */
+    else { brusRader = 0; if (dia.spritt < 0.0025 && ++brusLugna >= 20) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
     /* Kartan är det som faktiskt jämförs mot. Byggdes den bara om var
        annan sekund såg slingan aldrig sitt eget steg och tog nästa. */
     if (T.troskel !== fore && tros) { const d = T.troskel - fore; for (let i = 0; i < tros.length; i++) tros[i] += d; }
@@ -11955,7 +12499,7 @@ const Kamera = (() => {
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand,
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort),
-      x: t.box.x / AW, y: t.box.y / AH, w: t.box.w / AW, h: t.box.h / AH
+      x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH
     })));
   }
 
@@ -11972,7 +12516,7 @@ const Kamera = (() => {
       c.getContext('2d').drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
       bild = c.toDataURL('image/jpeg', 0.6);
     }
-    return { matt: { aw: AW, ah: AH }, tro: Object.assign({}, T), dia: Object.assign({}, dia), yta, kal,
+    return { matt: { aw: AW, ah: AH, vb: video ? video.videoWidth : 0, vh: video ? video.videoHeight : 0 }, tro: Object.assign({}, T), dia: Object.assign({}, dia), yta, kal,
              refRa: ref, rutaRa: senasteG0, maskRa: senasteMask, bild,
              spar: spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, tillstand: t.tillstand, namn: t.namn, saker: !!t.saker, skymd: !!t.skymd, tomMs: t.tomMs })) };
   }
@@ -11982,9 +12526,9 @@ const Kamera = (() => {
     const vb = video.videoWidth, vh = video.videoHeight;
     const r = rutaPx(vb, vh);
     const sx = r.w / AW, sy = r.h / AH;
-    const m = 0.08;
-    const bx = r.x + (t.box.x - t.box.w * m) * sx, by = r.y + (t.box.y - t.box.h * m) * sy;
-    const bw = t.box.w * (1 + 2 * m) * sx, bh = t.box.h * (1 + 2 * m) * sy;
+    const m = 0.08, b = t.ram || t.box;
+    const bx = r.x + (b.x - b.w * m) * sx, by = r.y + (b.y - b.h * m) * sy;
+    const bw = b.w * (1 + 2 * m) * sx, bh = b.h * (1 + 2 * m) * sy;
     const c = document.createElement('canvas');
     const liggande = bw > bh;
     const skala = Math.min(1, BESKAR_BREDD / (liggande ? bh : bw));
@@ -12008,6 +12552,7 @@ const Kamera = (() => {
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
     if (T.auto) T.troskel = autoTroskel();
     dia.troskel = T.troskel; senastRef = 0;
+    rensaRef();
     bedomYta(); lage = 'tom';
   }
 
@@ -12020,6 +12565,8 @@ const Kamera = (() => {
     identifierar = true;
     let svar = null, fel = false;
     try {
+      /* Ramen först: regionen räcker för att spåra, inte för att beskära. */
+      t.ram = finLada(t.box, senasteG0, t);
       const c = video ? beskar(t) : null;
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null);
     } catch (e) { fel = true; }
@@ -12096,8 +12643,9 @@ const Kamera = (() => {
        namn", och sedan osäkra spår bär sin bästa gissning som namn ritades
        tio gröna rutor för noll igenkända kort. */
     if (AH) for (const t of spar) {
-      const tx = x + t.box.x / AW * w, ty = y + t.box.y / AH * h;
-      const tw = t.box.w / AW * w, th = t.box.h / AH * h;
+      const b = t.ram || t.box;
+      const tx = x + b.x / AW * w, ty = y + b.y / AH * h;
+      const tw = b.w / AW * w, th = b.h / AH * h;
       ovc.strokeStyle = sparFarg(t);
       ovc.lineWidth = 2.5;
       ovc.setLineDash(t.skymd ? [6, 5] : []);
@@ -12131,8 +12679,11 @@ const Kamera = (() => {
   }
 
   return { start, installera, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, namnge, rapportera,
-           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens,
+           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            get yta() { return yta; },
+           get omtag() { return omtag; },
+           /* I råa videopixlar: modellen är räknad på den förstärkta rutan. */
+           get mattNiva() { return modell ? modell.M / senasteGain : null; },
            get rad() { return forLangtBort() ? LANGT_BORT : (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
            get trosklar() { return Object.assign({}, T); },
@@ -12279,11 +12830,13 @@ async function byggKamPool() {
 async function kamIdentifiera(canvas, id, gissning) {
   if (!Pool.idx || !canvas) return null;          // poolen är inte klar än — spåret får vänta
   const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
-  /* Samma regel som skärmdumpsvägen: ett uppåtvänt kort har alltid en ljus
-     textruta. En bit trä, en skugga eller ett blänk som kom igenom
-     detektorn har det inte, och ska inte bli en granskningspost med en
-     träbit som miniatyr. */
-  if (!harTextruta(canvas, box, 0)) return { skrap: true };
+  /* Ser beskärningen ut som ett kort MOT MATTAN? Spridning och andel
+     bildpunkter som avviker från mattans nivå — inte skärmdumpsvägens
+     textruteregel (10 % ljusare än 150), som dömde alla fyra korten på
+     Jespers bord till skräp. En bit trä, en skugga eller ett blänk som kom
+     igenom detektorn har varken spridning eller avvikelse, och ska inte bli
+     en granskningspost med en träbit som miniatyr. */
+  if (!serUtSomKort(canvas, Kamera.mattNiva)) return { skrap: true };
   let v;
   try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
   const cands = (v.rec.cands || []).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
@@ -12466,8 +13019,9 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
   if (nollstall) { glomSpar(); kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
-  /* Medan telefonen lär sig ljuset ser den ingenting. Listan är tom för att
-     den inte tittat än, inte för att mattan är tom. */
+  /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
+     först när fasen bytt: det som kommer under sekunden är preliminärt, och
+     telefonen skickar hela bordet igen så fort referensen är klar. */
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
   /* Hur mycket av det kameran SER som den också känner igen. Bara spår som
      fått ett slutgiltigt utfall räknas i kvoten: identifieringen är seriell,
@@ -12636,7 +13190,7 @@ function uppdateraPbStatus() {
   const el = $('#pbStatus'); if (!el || !kamSkruvOppen) return;
   let h;
   if (kamFas === 'ingen') h = 'Väntar på att du drar rutan runt mattan.';
-  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Lär sig ljuset — håll mattan tom en sekund.';
+  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Lär sig ljuset — håll telefonen stilla en sekund. Korten får ligga kvar.';
   else if (!kamSer) h = '<b>Mattan är tom.</b> Lägg ut ett kort så får det en ram här.';
   else {
     /* Bara det som faktiskt står i kön lovas granskning: ett rött spår man
@@ -12696,10 +13250,12 @@ $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestA
    matta, ditt ljus och din telefon. Här ser man vad kameran ser och skruvar
    medan den går. Det som fungerar sparas i webbläsaren och skickas till
    telefonen varje gång den ansluter. */
-const PB_STD = { auto: 1, troskel: 26, minArea: 60, kvotMin: 0.50, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700,
+const PB_STD = { auto: 1, troskel: 26, utseende: 25, spridning: 15, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 };
 const PB_REG = [
-  ['troskel',  'Tröskel',      6,   80,  1,   'Hur mycket en bildpunkt ska skilja sig från tomma mattan. Räknas ur mattans brus tills du drar i reglaget'],
+  ['utseende', 'Avvikelse',    8,   60,  1,   'Hur mycket en bildpunkt ska skilja sig från mattmodellen — det mattan ser ut som i samma bildruta. Det är den här som hittar korten'],
+  ['spridning','Struktur',     0,   40,  1,   'Minsta spridning i gråsteg inom en region för att den ska räknas som kort. Ett kort ligger på 28–47, en träflisa under 10'],
+  ['troskel',  'Tröskel',      6,   80,  1,   'Hur mycket en bildpunkt ska skilja sig från referensen där mattan har eget tryck eller mönster. Räknas ur mattans brus tills du drar i reglaget'],
   ['minArea',  'Minsta yta',   10,  400, 5,   'Mindre regioner än så är damm'],
   ['kvotMin',  'Kvot min',     0.3, 0.72, 0.01, 'Ett kort har kvoten 0,72'],
   ['kvotMax',  'Kvot max',     0.72, 1.2, 0.01, 'Över 1 är regionen bredare än den är lång'],
@@ -12751,7 +13307,7 @@ $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   LS.set('sthv.tro.v1', pbTro);
   Moln.sandKam('trosklar', { v: pbTro });
 });
-$('#pbRef') && ($('#pbRef').onclick = () => { Moln.sandKam('nyref'); toast('Ny referensbild — håll mattan tom', 'ok'); });
+$('#pbRef') && ($('#pbRef').onclick = () => { Moln.sandKam('nyref'); toast('Ny referensbild — håll telefonen stilla', 'ok'); });
 $('#pbAter') && ($('#pbAter').onclick = () => {
   pbTro = Object.assign({}, PB_STD);
   LS.set('sthv.tro.v1', pbTro); ritaPbReglage(); Moln.sandKam('trosklar', { v: pbTro });
@@ -12970,7 +13526,19 @@ function kamTogsEmot(m) {
     return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad);
   }
   if (m.typ === 'diagnos') return tagEmotDiagnos(m);
-  if (m.typ === 'trosklar') { pbTro = m.v || pbTro; ritaPbReglage(); return; }
+  if (m.typ === 'trosklar') {
+    pbTro = m.v || pbTro;
+    /* Inte ritaPbReglage(): telefonen ekar varje reglageändring, och en
+       omritning mitt i ett drag släpper greppet om reglaget (granskningen).
+       Värdena skrivs in i de reglage som finns; det man håller i lämnas. */
+    for (const r of document.querySelectorAll('#pbReglage [data-tro]')) {
+      if (r === document.activeElement) continue;
+      const k = r.dataset.tro; if (pbTro[k] == null) continue;
+      r.value = pbTro[k];
+      const b = r.parentElement.querySelector('b'); if (b) b.textContent = (k === 'troskel' && pbTro.auto ? 'auto ' : '') + pbTro[k];
+    }
+    return;
+  }
   if (m.typ === 'beskarning') return tagEmotBeskarning(m);
   /* Leken kan sparas från telefonen — fotot ligger där. Utan den här raden
      satt datorn kvar med en inaktuell minLek och skrev en gammal lek över

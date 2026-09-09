@@ -27,9 +27,13 @@ mattan tonas det upp av sig självt. Har flera kort tonats ned på en gång får
 du ett svar för alla i zonrubriken. Mätbänken för kameran ligger i
 `dev/kamerabank.cjs` (`node dev/kamerabank.cjs`).
 En hand eller en arm över korten ändrar ingenting: ett spår släpps först när
-mattan *under* det sett tom ut. Tröskeln för vad som är "något på mattan"
-räknas ur mattans eget brus när kameran startar, så det finns inget att
-ställa in i vanligt ljus.
+mattan *under* det sett tom ut. Korten hittas som det som avviker från vad
+mattan själv ser ut som i samma bildruta (uppmätt på ett träbord; reglaget
+*Avvikelse* under Auto-chippet ändrar det), så korten får ligga kvar när
+kameran startar — håll bara telefonen stilla en sekund. Bara där mattan har
+eget tryck eller mönster räknas i stället skillnaden mot referensbilden, med
+en tröskel ur mattans brus. På en slät, enfärgad matta i vanligt ljus behöver
+inget ställas in.
 
 **Klistra in en skärmdump av hela videosamtalets fönster.** Appen hittar spelarnas
 videorutor, läser av korten som ligger på borden, och skapar en spelare per ruta.
