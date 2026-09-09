@@ -11896,19 +11896,17 @@ const Kamera = (() => {
        sida. Sökningen långt utåt är till för halva kort — för ett helt kort
        fann den skuggans ytterkant i stället för kortets (uppmätt i videon
        på 60 cm: Thriving Heath 132×221 av 125×173, och kortet kändes inte
-       igen). Helt = lådan är minst tre fjärdedelar av det största spåret på
-       mattan: ett halvt kort är hälften av ett helt, och ett ensamt kort är
-       alltid det största. Kvoten duger inte som mått: ett helt kort med
-       skuggan i lådan är 101×114 (0,89), ett halvt 79×64 (0,81) — och den
-       vida sökningen tog då grannkortets kant, 185 bred av 79 (videon). */
+       igen). Helt = lådan har kortets kvot (0,62–0,82) och är minst tre
+       fjärdedelar av det största spåret på mattan: ett halvt kort är en
+       liggande eller nästan kvadratisk låda på hälften av ett helt, och ett
+       ensamt kort är alltid det största. Storleken ensam dög inte: på en
+       meters håll var alla tre lådorna halva kort av samma storlek, och
+       som "hela" fick de inte växa (videon, 18 s). */
     const kvBox = Math.min(w, h) / Math.max(w, h);
-    let storst = 0; for (const q of spar) storst = Math.max(storst, q.box.w * q.box.h);
-    const helt = w * h >= 0.75 * storst;
-    /* Ett helt kort söks utåt bara 12 %; inåt 12 % om lådan har kortets
-       kvot, annars 30 % — en låda som är nästan kvadratisk (0,89) har
-       skuggan med sig på ena sidan, och kortets kant ligger då 20–25 %
-       in (uppmätt: Plains 101 bred av 79). */
-    const UT = helt ? 0.12 : 0.8, IN = helt ? (kvBox > 0.8 ? 0.3 : 0.12) : 0.2;
+    let storst = 0, bredast = 0, hogst = 0;
+    for (const q of spar) { storst = Math.max(storst, q.box.w * q.box.h); bredast = Math.max(bredast, q.box.w); hogst = Math.max(hogst, q.box.h); }
+    const helt = kvBox >= 0.62 && kvBox <= 0.82 && w * h >= 0.75 * storst;
+    const UT = helt ? 0.12 : 0.8, IN = helt ? 0.12 : 0.2;
     const P = (x, y) => g0[y * W + x] * gn, M = (x, y) => m[y * W + x];
     const mx0 = Math.round(x0 + 0.2 * w), mx1 = Math.round(x1 - 0.2 * w), my0 = Math.round(y0 + 0.2 * h), my1 = Math.round(y1 - 0.2 * h);
     const MATT = 14, MIN = 5, KVOT = 0.716, TOL = 0.12;
@@ -11925,28 +11923,38 @@ const Kamera = (() => {
     const kand = (lo, hi, tak, f, ute) => { const a = []; lo = Math.max(0, Math.round(lo)); hi = Math.min(tak, Math.round(hi)); for (let i = lo; i <= hi; i++) a.push([i, f(i, ute)]); return a.filter(([i, v], k) => v >= MIN && (k === 0 || v >= a[k - 1][1]) && (k === a.length - 1 || v >= a[k + 1][1])); };
     const Tc = kand(y0 - UT * (helt ? h : span), y0 + IN * h, H - 1, radP, -1), Bc = kand(y1 - IN * h, y1 + UT * (helt ? h : span), H - 1, radP, +1);
     const Lc = kand(x0 - UT * (helt ? w : span), x0 + IN * w, W - 1, kolP, -1), Rc = kand(x1 - IN * w, x1 + UT * (helt ? w : span), W - 1, kolP, +1);
-    let bast = null;
+    /* De åtta bästa ramarna, inte bara den bästa: den starkaste kombinationen
+       kan vara den som tog grannkortets kant, och då ska nästa få chansen
+       (uppmätt i videon, 15 s: Plains 185 bred förkastad, 75 bred rätt). */
+    const basta = [];
     for (const [l, sl] of Lc) for (const [r, sr] of Rc) {
       const bw = r - l + 1; if (bw < 8) continue;
       for (const [t, st] of Tc) for (const [b, sb] of Bc) {
         const bh = b - t + 1; if (bh < 8) continue;
         if (Math.abs(Math.min(bw, bh) / Math.max(bw, bh) - KVOT) > TOL) continue;
         const sc = sl + sr + st + sb;
-        if (!bast || sc > bast.sc) bast = { sc, x: l, y: t, w: bw, h: bh };
+        if (basta.length < 8 || sc > basta[basta.length - 1].sc) {
+          basta.push({ sc, x: l, y: t, w: bw, h: bh }); basta.sort((p, q) => q.sc - p.sc); if (basta.length > 8) basta.pop();
+        }
       }
     }
-    /* En ram mycket större än regionen har hittat något annat: grannkortet,
-       en strimma. Då är regionen bättre än ramen. Och för ett helt kort ska
-       ramen vara ett KLART bättre kort än regionen (kvoten minst 0,02
-       närmare 0,716), inte bara en annan låda: annars är det skuggans
-       kanter som vunnit (uppmätt: 132×215 av 135×193 för ett kort på
-       125×173, och 132×188 lika stort men förskjutet — matcharen kände
-       igen regionen men inte ramen), och regionen duger. */
-    /* Ett halvt kort får växa till det dubbla (textrutan är hälften av ett
-       kort); ett helt bara lite. */
-    if (!bast || bast.w * bast.h > (helt ? 1.3 : 2.2) * w * h) return null;
-    if (helt && Math.abs(Math.min(bast.w, bast.h) / Math.max(bast.w, bast.h) - KVOT) > Math.abs(kvBox - KVOT) - 0.02) return null;
-    return { x: bast.x, y: bast.y, w: bast.w, h: bast.h };
+    for (const bast of basta) {
+      /* Ett halvt kort får växa till det dubbla (textrutan är hälften av ett
+         kort); ett helt bara lite. Och ingen ram får bli mer än 1,3 gånger
+         bredare eller högre än den bredaste eller högsta lådan på mattan:
+         korten är lika stora, så en ram på 185 när bredaste lådan är 101 har
+         tagit grannkortet med sig (uppmätt i videon, 15 s: Plains). */
+      if (bast.w * bast.h > (helt ? 1.3 : 2.2) * w * h) continue;
+      if (bast.w > 1.3 * bredast || bast.h > 1.3 * hogst) continue;
+      /* För ett helt kort ska ramen vara ett KLART bättre kort än regionen
+         (kvoten minst 0,02 närmare 0,716), inte bara en annan låda: annars
+         är det skuggans kanter som vunnit (uppmätt: 132×215 av 135×193 för
+         ett kort på 125×173, och 132×188 lika stort men förskjutet —
+         matcharen kände igen regionen men inte ramen), och regionen duger. */
+      if (helt && Math.abs(Math.min(bast.w, bast.h) / Math.max(bast.w, bast.h) - KVOT) > Math.abs(kvBox - KVOT) - 0.02) continue;
+      return { x: bast.x, y: bast.y, w: bast.w, h: bast.h };
+    }
+    return null;
   }
 
   /* Vriden eller inte. Huvudaxeln nära lodrät = stående = otappat, nära
