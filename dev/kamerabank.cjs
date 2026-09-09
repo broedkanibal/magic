@@ -515,6 +515,48 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 20; i++) { await ruta(g => { tryck((i % 3) - 1, i % 2)(g); treG(180)(g); }); if (gKlara()) g5Hela++; }
   check(`G5c korten kvar under skakning: hela i ${g5Hela}/20 rutor, sist ${gRad()}`, g5Hela >= 18);
 
+  // ── N: kort kant i kant (MES-28 Del 2) ─────────────────────────────
+  /* Två kort som nuddar har ingen springa: masken är EN region med två
+     svarta kanter intill varandra, och erosionen i dela() kan inte dela
+     den. Skärlinjen (skar) hittar sömmen som en dal i profilen längs
+     regionens axel. Delarna måste vara kort och lika stora; finns en
+     referens (säkert namngivna spår) ska de dessutom ha kortets storlek.
+     Helt kort här: 30×42 mäts som ~40×28. */
+  const N_FMT = () => Kamera.spar.map(t => `${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)}${t.skymd ? ' skymd' : ''}`).join(', ');
+  const N_HELA = () => Kamera.spar.every(t => !t.skymd && Math.abs(t.lang - 40) <= 6 && Math.abs(t.kort - 28) <= 6);
+
+  // N2: tre kort i rad, kant i kant, utan referens → 3
+  nystart(); await referens();
+  const N2 = g => { kort(g, W, 60, 50, 30, 42, 180); kort(g, W, 90, 50, 30, 42, 180); kort(g, W, 120, 50, 30, 42, 180); };
+  for (let i = 0; i < 8; i++) s = await ruta(N2);
+  check(`N2 tre kort i rad kant i kant, utan referens: spår ${s.length} (${N_FMT()}), skurna ${Kamera.diagnos.skurna}`, s.length === 3 && N_HELA());
+
+  // N3: två kort ovanpå varandra, kortsida mot kortsida → 2
+  nystart(); await referens();
+  const N3 = g => { kort(g, W, 100, 20, 30, 42, 180); kort(g, W, 100, 62, 30, 42, 180); };
+  for (let i = 0; i < 8; i++) s = await ruta(N3);
+  check(`N3 två kort kortsida mot kortsida: spår ${s.length} (${N_FMT()}), skurna ${Kamera.diagnos.skurna}`, s.length === 2 && N_HELA());
+
+  // N5: ett kort med en mörk linje tvärs över vid 57 % (konstverk/textruta) → 1, helt. Regressionsvakten.
+  nystart(); await referens();
+  /* Linjen är 3 px och 45 mörk: 2 px svart (30) suddades till mattans nivå
+     och delade MASKEN — kortet blev 28×22 redan före skärlinjen (uppmätt
+     här: 2 px/30 → 28×22, 3 px/45 → 40×28). Det är en annan sak, och inte
+     det provet mäter. */
+  const N5 = g => { kort(g, W, 100, 50, 30, 42, 180); for (let yy = 74; yy < 77; yy++) for (let xx = 100; xx < 130; xx++) g[yy * W + xx] = 45; };
+  for (let i = 0; i < 8; i++) s = await ruta(N5);
+  check(`N5 ett kort med mörk linje vid 57 %: spår ${s.length} (${N_FMT()}), skurna ${Kamera.diagnos.skurna}`, s.length === 1 && N_HELA());
+  // N5b: samma kort med ett rent kort bredvid (referensen finns) → 2
+  nystart(); await referens();
+  const N5b = g => { kort(g, W, 30, 50, 30, 42, 180); N5(g); };
+  for (let i = 0; i < 8; i++) s = await ruta(N5b);
+  check(`N5b linjekortet bredvid ett rent kort: spår ${s.length} (${N_FMT()}), skurna ${Kamera.diagnos.skurna}`, s.length === 2 && N_HELA());
+
+  // N4: R4:s strimma utan luft mot korten (mätning: strimman är ljus, inte en söm)
+  nystart(); await refTra();
+  r = await summa(20, () => rutaTra({}, g => { TREW(g); for (let yy = 20; yy < 140; yy++) for (let xx = 82; xx < 95; xx++) g[yy * W + xx] = Math.min(255, g[yy * W + xx] + 40); }));
+  console.log(`     N4 (mätning) strimma 13 px utan luft mot korten: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')}), hela kort ${helaKort(r.sist)}, skurna ${Kamera.diagnos.skurna}`);
+
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);

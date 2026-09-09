@@ -46,7 +46,11 @@ Den startar attrappen på en egen port, öppnar `kor.html` i en huvudlös Chrome
 trycker *Kör alla*, skriver tabellen och slutar med kod 1 om något fall blev
 sämre än `senaste.json` (färre rätta namn, fler falska eller fler fel namn).
 `--spara` skriver resultatet som `senaste.json`, `--detalj` skriver varje spår
-med vad namnläsaren såg. Första körningen tar en minut extra (poolen och
+med läge, storlek och vad namnläsaren såg, plus delningen per fall: erosionens
+*delade*, skärlinjernas *skurna*, kortreferensen (ur säkert namngivna spår) och
+varje prövat snitt med dom (`grund`, `grå`, `ljus`, `olika`, `flisa`, `skuren`…).
+`--fall 03` kör bara fallen vars id börjar så, `--rutor` skriver snittförsöken
+ruta för ruta (de senaste 40) — ett snitt som flimrar syns bara där. Första körningen tar en minut extra (poolen och
 namnläsarens data hämtas och cachas i en egen Chrome-profil), de följande
 inte. Kräver Chrome på Macen (`CHROME=/sökväg` om den ligger någon annanstans).
 

@@ -319,6 +319,7 @@ async function korFall(f) {
        och en halv sekund. Ett spår utan svar väntar på poolen (1,5 s
        mellan frågorna) eller på tre skräpdomar — därav taket. */
     let sig = '', stabilSedan = 0;
+    const skurnaAlla = [];
     const msProv = [];   // analyssteget per ruta — medianen, inte sista: en ruta med identifiering i kostar 300 ms
     for (;;) {
       await sleep(150);
@@ -326,6 +327,8 @@ async function korFall(f) {
       const ms = performance.now() - t0;
       const spar = K.spar, lage = K.lage;
       if (K.diagnos.ms) msProv.push(K.diagnos.ms);
+      /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
+      if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && skurnaAlla.length < 20) skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
       const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
       if (s2 !== sig) { sig = s2; stabilSedan = ms; }
       const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
@@ -335,7 +338,9 @@ async function korFall(f) {
       status(`${f.id}: ${lage}, ${spar.length} spår, ${(ms / 1000).toFixed(1)} s`);
     }
     const sort = msProv.slice().sort((a, b) => a - b);
-    return bedom(f, sistaBord, Math.round(performance.now() - t0), tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
+    const res = bedom(f, sistaBord, Math.round(performance.now() - t0), tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
+    res.skurnaAlla = skurnaAlla;
+    return res;
   } finally {
     try { K.stopp(); } catch (e) {}
   }
@@ -422,6 +427,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     ms: msMedian, msMax, tid, aw, ah,
     sigma: +(K.sigma || 0).toFixed(2), troskel: tro.troskel, utseende: tro.utseende, spridning: tro.spridning, otsu: dia.otsu == null ? null : dia.otsu,
     yta: K.yta ? K.yta.dom : null, matta: dia.matta, regioner: dia.regioner, tackning: +(dia.tackning || 0).toFixed(3),
+    /* Delningen (MES-28 Del 2): erosionens delade, skärlinjernas skurna, kortreferensen och de prövade snitten i sista rutan. */
+    delade: dia.delade, skurna: dia.skurna, kortRef: dia.kortRef || null, skarProv: dia.skarProv || [],
+    skarLogg: dia.skarLogg || [],
     traffar: traffar.map(p => ({ facit: p.k.namn, dold: !!p.k.dold, spar: p.t.id, namn: p.t.namn, saker: p.t.saker, iou: p.iou })),
     spar: alla
   };

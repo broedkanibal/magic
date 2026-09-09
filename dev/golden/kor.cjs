@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--port 8239]
+/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--port 8239]
 
    Startar attrappen (dev/stub-server.cjs), öppnar dev/golden/kor.html i en
    huvudlös Chrome, trycker "Kör alla", skriver tabellen, och med --spara
@@ -24,6 +24,7 @@ const SPARA = process.argv.includes('--spara');
 const PORT = +arg('--port', 8239);
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const TAK_MS = +arg('--tak', 20 * 60 * 1000);
+const FALL = arg('--fall', '');
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = await f().catch(() => null); if (v) return v; if (Date.now() - t0 > ms) throw new Error('väntade förgäves på ' + vad); await vanta(250); } }
@@ -60,7 +61,8 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   console.log('\r' + redo);
   console.log(await kor(`(document.querySelector('#pool') || {}).textContent || ''`));
   console.log(await kor(`(document.querySelector('#metod') || {}).textContent || ''`));
-  await kor(`document.querySelector('#korAlla').click(); 'ok'`);
+  /* --fall <prefix>: bara fallen vars id börjar så — ett fall i taget när ett steg mäts */
+  await kor(FALL ? `korDessa(fall.filter(f => f.id.startsWith(${JSON.stringify(FALL)}))); 'ok'` : `document.querySelector('#korAlla').click(); 'ok'`);
   let sist = '';
   await tills(async () => { const s = await status(); if (s !== sist) { sist = s; process.stdout.write('\r  ' + s.padEnd(70).slice(0, 70)); } return /^(Klar|Stoppad)/.test(s) ? s : null; }, TAK_MS, 'körningen');
   console.log('');
@@ -73,7 +75,11 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
-    for (const t of r.spar) console.log(`  #${t.id} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + ', ' + t.ocr.ms + ' ms]') : ''}`);
+    console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    for (const p of r.skurnaAlla || []) console.log(`    skuret vid ${p.s} s: ${p.lang}×${p.kort} ${p.grader}° led ${p.led}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')}`);
+    if (process.argv.includes('--rutor')) for (const l of r.skarLogg || []) console.log(`    ruta ${l.ruta}: skurna ${l.skurna}${l.prov.length ? ' — ' + l.prov.join('; ') : ''}`);
+    for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
+    for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + ', ' + t.ocr.ms + ' ms]') : ''}`);
   }
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   let samre = [];

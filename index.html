@@ -11528,6 +11528,10 @@ const Kamera = (() => {
   let blankM = null;           // 1 där referensen är blänk — räknas aldrig
   let yta = null;              // { dom, brus, textur, blank } — ytans betyg vid referensen
   let senasteG = null, senasteG0 = null, senasteMask = null;   // för diagnosfilen: efter och FÖRE suddning
+  /* Skärlinjerna ruta för ruta, de senaste 40: ett snitt som flimrar mellan
+     rutorna syns bara här — diagnosen i övrigt är sista rutan. */
+  const skarLogg = [];
+  let rutaNr = 0;
   let modell = null;           // mattmodellen för senaste rutan (Float32Array med .M = mattans median)
   let refAvvik = null;         // |referens − dess mattmodell| per bildpunkt: över avvikelsen är det mattans eget tryck, inte kort (MES-28: ett tal, inte en mask, så att gränsen följer T.utseende ruta för ruta)
   let texturGolv = null;       // golvet för avvikelsen ur referensens egen textur (MES-28), null tills referensen finns
@@ -11570,7 +11574,7 @@ const Kamera = (() => {
   }
 
   /* Räknarna som diagnosfilen och popovern visar, uppdaterade av detektera(). */
-  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, ms: 0, tid: null };
+  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null };
   /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
      samma bildpunkt. En telefon i en hållare skakar en pixel när någon
      nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
@@ -11719,7 +11723,7 @@ const Kamera = (() => {
      Ren funktion, prövbar. Masken följer med ut: spårningen behöver veta
      vad som ligger under ett spår som inte fick någon träff. */
   function detektera(nu, ref, W, H, under, hopp) {
-    dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = 0;
+    dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = dia.skurna = 0;
     const n = W * H;
     /* Tiden per del följer med i diagnosfilen: det är telefonen som ska
        hinna, och bänkens sandlåda säger inget om det. */
@@ -11982,29 +11986,39 @@ const Kamera = (() => {
       }
       return delar;
     };
+    /* Två pass. Först flodfylls ALLA regioner — var och en ligger kvar i
+       kön `ko` från sin p0 till sin p1 (kön töms inte mellan dem, och
+       rymmer dem alla eftersom regionerna inte överlappar) — och döms för
+       damm, blänk och form. Besluten om delning tas i pass två, när rutans
+       kortstorlek är känd: två kort kant i kant är en region med ETT korts
+       kvot (2b×h ger 0,70) och kan bara kännas igen på att den är dubbelt
+       så stor som de andra korten. Uppmätt i golden-fall 03: paret sida vid
+       sida är 153×74, de ensamma korten omkring 75×105. */
+    const regioner = [];
+    let tail = 0;
     for (let s0 = 0; s0 < n; s0++) {
       if (!mask[s0] || lab[s0]) continue;
       const id = next++;
-      let head = 0, tail = 0; ko[tail++] = s0; lab[s0] = id;
-      let cnt = 0;
+      const p0 = tail;
+      let head = tail; ko[tail++] = s0; lab[s0] = id;
       while (head < tail) {
         const i = ko[head++];
         const x = i % W;
-        cnt++;
         if (x > 0 && mask[i - 1] && !lab[i - 1]) { lab[i - 1] = id; ko[tail++] = i - 1; }
         if (x < W - 1 && mask[i + 1] && !lab[i + 1]) { lab[i + 1] = id; ko[tail++] = i + 1; }
         if (i >= W && mask[i - W] && !lab[i - W]) { lab[i - W] = id; ko[tail++] = i - W; }
         if (i < n - W && mask[i + W] && !lab[i + W]) { lab[i + W] = id; ko[tail++] = i + W; }
       }
+      const cnt = tail - p0;
       dia.regioner++;
-      if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; for (let q = head - cnt; q < head; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
+      if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; for (let q = p0; q < tail; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
       /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
          kort: kort är ljusa men inte utbrända. Mättnaden räknas över regionen
          och en pixels ring runt den — bara regionens egna bildpunkter missade
          ett blänk som flyttat sig halvvägs. Uppmätt: 6 falska kort på 30
          rutor utan ringen, 0 med. */
       let sat = 0, mork = 0;
-      for (let q = head - cnt; q < head; q++) {
+      for (let q = p0; q < tail; q++) {
         const i = ko[q]; const x = i % W;
         if (nu[i] > bl) sat++;
         if (nu[i] < modell[i] - uts) mork++;
@@ -12020,34 +12034,241 @@ const Kamera = (() => {
          diagnosfilerna gav 2 av 3 och 3 av 4 med mättnaden som enda domare,
          alla med kanten som friare; bänkens G4 (matta 210, ram 255) likaså. */
       if (sat > 0.05 * cnt && mork < 0.03 * cnt) { dia.blanka++; continue; }
-      const r = bedom(ko, head - cnt, head);
+      const r = bedom(ko, p0, tail);
       /* Allt med struktur — kort eller inte — skyddas från driften i
          referensen, se uppdateraRef(). En strimma är slät och får drivas in. */
       if (r.std >= T.spridning) texturerade.push(r.box);
+      regioner.push({ p0, p1: tail, cnt, r });
+    }
+    /* Kortstorleken i rutan, `kortRef`: medianen av långsidan och kortsidan
+       över spåren som är NAMNGIVNA med säkerhet (tillståndet 'klar'). Bara
+       de: igenkänningen har bevisat att spåret är ETT kort. Rena regioner
+       och osäkra spår duger inte som referens — i golden-fall 03 ligger
+       korten i par och 2×2-block som har kortets kvot, och medianen över
+       dem blev själv en klunga (154×107, mot kortets ~83×60) som stoppade
+       varje riktigt snitt på storleken. Saknas säkra spår är referensen
+       null, och likheten mellan delarna dömer ensam. */
+    const sparen = under === undefined ? spar : under;
+    const langar = [], korta = [];
+    for (const t of sparen) if (t.tillstand === 'klar') { langar.push(t.lang); korta.push(t.kort); }
+    const median = a => { a.sort((x, y) => x - y); return a[a.length >> 1]; };
+    const kortRef = langar.length ? { lang: median(langar), kort: median(korta) } : null;
+    dia.kortRef = kortRef && { lang: Math.round(kortRef.lang), kort: Math.round(kortRef.kort), av: langar.length };
+    /* ── Skärlinjer ──
+       Två kort kant i kant har ingen springa som erosionen i dela() kan ta
+       bort — bara två svarta kortkanter intill varandra, en mörk linje
+       2–4 analyspixlar bred tvärs över regionen. Uppmätt (golden 03): en
+       region på 131×163 blev en enda klump på 126×159 med R = 2, 3 och 5.
+       Linjen syns i stället som en DAL i regionens intensitetsprofil längs
+       dess huvudaxel: paret sida vid sida i 03 (153×74) ligger 44 steg
+       under grannarna 5 fack bort, vid 53 % av längden; springorna i 05
+       30–45; klungan i 04 21; två kort som ligger PÅ varandra 14–17 (den
+       övre kantens linje över den undres konstverk — ingen söm, och
+       delarna faller sedan på storleken).
+       Profilen: regionens egna bildpunkter projicerade på axeln ur
+       bedom():s vinkel, ett fack per analyspixel, medelintensitet och
+       antal per fack. En dal är ett snitt när
+         · den ligger minst SKAR_DJUP under det ljusaste facket 3–7 fack
+           bort på BÅDA sidor (kanterna är 3–4 px vardera vid 75 px breda
+           kort, så facken 1–2 bort är fortfarande kant) — och minst
+           SKAR_DJUP_REL av regionens eget spann (tiondels- till
+           niotiondelspercentilen av dess bildpunkter): en söm är två svarta
+           kanter, och den är djup i kortets egen kontrast. Uppmätt: sömmar
+           i golden 03/06 är 48–137 och 81 djupa vid spann ~175; i 04:s rad
+           av små kort (37×52 px) bara 24–27 vid spann 138 — därav 0,15, inte
+           0,25. Det mörka bandet i Swamps konstverk som skars fel i 03 var
+           14 vid spann 156, kort som ligger PÅ varandra 14–17,
+         · dalens medel når regionens svärta: högst SKAR_SVART av spannet
+           över tiondelspercentilen. Två svarta kanter ÄR det mörkaste i
+           regionen; en linje i ramen eller ett band i konstverket är grått,
+         · minst SKAR_MORK av dalens bildpunkter ligger under dalens halva
+           djup — ett medelvärde som dras ner av ett mörkt konstverk på ena
+           halvan av linjen är ingen söm,
+         · regionen är hel där (facket har minst 60 % av mittfackens
+           bildpunkter: en söm går tvärs igenom, ett saknat hörn gör det
+           inte),
+         · den inte ligger i yttersta SKAR_YTTRE av längden (kortets egen
+           kant).
+       Alltid: minst två delar är kort enligt bedom(), lika stora —
+       kortsidorna inom SKAR_LIKA_KORT och långsidorna inom SKAR_LIKA_LANG
+       av medianens (ett delvis täckt kort i en klunga är kortare, aldrig
+       smalare; uppmätt: fyra kort ur 04:s klunga mättes 52×47, 54×38, 57×42
+       och 55×48, tre ur en Γ-formad klunga i 03 81×55, 70×55 och 79×64) —
+       och det som INTE blev kort får bara vara större än ett kort
+       (SKAR_REST av medianens yta): två kort som ligger på varandra i
+       klungan, som ingen söm skiljer, lämnas utanför utan att fälla de
+       andra. Med kortreferensen dessutom: aldrig närmare änden än 0,25
+       kortsidor, snitten minst 0,5 kortsidor isär, och varje kort inom
+       0,6–1,5 kortareor.
+       Likhetsregeln är skyddet för kortet som skärs vid gränsen mellan
+       konstverk och textruta: 75×60 + 75×45 har båda kortets kvot, men
+       kortsidorna skiljer 33 %; och en flisa som skurits av ett kort är
+       mindre än kortet, aldrig större. Bildpunkterna ±1 fack kring
+       snittet kastas: sömmen tillhör ingen. Nästan kvadratiska klumpar
+       (som 3×2 kort: 2,16 mot 2) har en oviss huvudaxel, och två par som
+       ligger förskjutna får en diagonal axel (golden 03: −36° på ett
+       2×2-block). Därför provas fyra riktningar, olika med minst 5°:
+       regionens egen, spårens median, 0° och 90° — kort på ett bord ligger
+       i regel i rad med varandra.
+       Dalarna prövas djupast först, ett snitt i taget fler (högst SKAR_MAX),
+       tills varje del är ett kort: en extra dal — en textrad, kanten på
+       ett konstverk — får då inte fälla den riktiga sömmen. Bänkens kort
+       har textrader 60 steg under ramen, och de är dalar de också.
+       SKAR_LED: en del som inte är ett kort skärs i sin tur längs SIN
+       huvudaxel, högst så många led (1 = en axel). Faller någon del faller
+       snittet. skarProv i diagnosen visar varje prövat snitt. */
+    const SKAR_DJUP = 12, SKAR_DJUP_REL = 0.15, SKAR_SVART = 0.25, SKAR_MORK = 0.7, SKAR_YTTRE = 0.12, SKAR_LED = 1, SKAR_MAX = 4;
+    const SKAR_LIKA_KORT = 0.2, SKAR_LIKA_LANG = 0.35, SKAR_REST = 1.3;
+    const refA = kortRef ? kortRef.lang * kortRef.kort : 0;
+    const arKortStor = b => !kortRef || (b.lang * b.kort >= 0.6 * refA && b.lang * b.kort <= 1.5 * refA);
+    const sparVinklar = []; for (const t of sparen) if (t.tillstand !== 'skrap' && t.vinkel != null) sparVinklar.push(t.vinkel);
+    const sparVinkel = sparVinklar.length ? median(sparVinklar) : null;
+    const skarProv = [];
+    /* Profilen och dalarna, djupast först; dela(valda) bygger delarna. */
+    const skar = (pix, p0, p1, r, vinkel) => {
+      const cs = Math.cos(vinkel), sn = Math.sin(vinkel), N = p1 - p0;
+      const fack = new Int32Array(N);
+      let tmin = Infinity, tmax = -Infinity;
+      for (let q = 0; q < N; q++) { const i = pix[p0 + q]; const x = i % W, y = (i - x) / W; const t = Math.round((x - r.cx) * cs + (y - r.cy) * sn); fack[q] = t; if (t < tmin) tmin = t; if (t > tmax) tmax = t; }
+      const NB = tmax - tmin + 1;
+      if (NB < 12) return { orsak: 'smal' };
+      const sum = new Float64Array(NB), cnt = new Int32Array(NB), m = new Float32Array(NB);
+      for (let q = 0; q < N; q++) { const b = fack[q] - tmin; fack[q] = b; sum[b] += nu[pix[p0 + q]]; cnt[b]++; }
+      for (let b = 0; b < NB; b++) m[b] = cnt[b] ? sum[b] / cnt[b] : 0;
+      const yttre = Math.round(SKAR_YTTRE * NB);
+      const lo = Math.max(3, yttre), hi = Math.min(NB - 4, NB - 1 - yttre);
+      const tv = []; for (let b = lo; b <= hi; b++) tv.push(cnt[b]);
+      if (!tv.length) return { orsak: 'smal' };
+      const tvar = median(tv);
+      const andMarg = kortRef ? 0.25 * kortRef.kort : 0;
+      /* Regionens svärta och ljushet: percentilerna ur ett histogram. */
+      const hist = new Int32Array(256);
+      for (let q = 0; q < N; q++) { let v = nu[pix[p0 + q]] | 0; if (v < 0) v = 0; else if (v > 255) v = 255; hist[v]++; }
+      let ack = 0, p10 = -1, p90 = 255;
+      for (let v = 0; v < 256; v++) { ack += hist[v]; if (p10 < 0 && ack >= 0.1 * N) p10 = v; if (ack >= 0.9 * N) { p90 = v; break; } }
+      const spann = p90 - p10, djupMin = Math.max(SKAR_DJUP, SKAR_DJUP_REL * spann), svartTak = p10 + SKAR_SVART * spann;
+      const niv = p10 + '–' + p90 + ' djup≥' + Math.round(djupMin) + ' svart≤' + Math.round(svartTak);
+      const kand = [];
+      let djupMax = 0, graMin = Infinity;
+      for (let b = lo; b <= hi; b++) {
+        if (cnt[b] < 0.6 * tvar || m[b] > m[b - 1] || m[b] > m[b + 1] || b < andMarg || NB - 1 - b < andMarg) continue;
+        let v = 0, h = 0;
+        for (let k = 3; k <= 7; k++) { if (b - k >= 0 && cnt[b - k] && m[b - k] > v) v = m[b - k]; if (b + k < NB && cnt[b + k] && m[b + k] > h) h = m[b + k]; }
+        const djup = Math.min(v, h) - m[b];
+        if (djup > djupMax) djupMax = djup;
+        if (djup < djupMin) continue;
+        if (m[b] > svartTak) { if (m[b] - svartTak < graMin) graMin = m[b] - svartTak; continue; }
+        kand.push({ b, djup, grans: m[b] + 0.5 * djup, morka: 0, av: cnt[b] });
+      }
+      const profil = T.skarLogg ? { m: Array.from(m, v => Math.round(v)), antal: Array.from(cnt) } : undefined;
+      if (!kand.length) return { orsak: (graMin < Infinity ? 'grå +' + Math.round(graMin) : 'grund ' + Math.round(djupMax)) + ' (' + niv + ')', profil };
+      const vid = new Int32Array(NB).fill(-1);
+      for (let j = 0; j < kand.length; j++) vid[kand[j].b] = j;
+      for (let q = 0; q < N; q++) { const j = vid[fack[q]]; if (j >= 0 && nu[pix[p0 + q]] < kand[j].grans) kand[j].morka++; }
+      const dalar = kand.filter(k => k.morka >= SKAR_MORK * k.av).sort((a, b) => b.djup - a.djup);
+      if (!dalar.length) return { orsak: 'ljus ' + Math.max(...kand.map(k => +(k.morka / k.av).toFixed(2))) + ' (' + niv + ')', profil };
+      const dela = valda => {
+        const snitt = valda.slice().sort((a, b) => a.b - b.b);
+        const delar = []; for (let j = 0; j <= snitt.length; j++) delar.push([]);
+        for (let q = 0; q < N; q++) {
+          const b = fack[q]; let d = 0, kast = false;
+          for (const s of snitt) { if (b < s.b - 1) break; if (b <= s.b + 1) { kast = true; break; } d++; }
+          if (!kast) delar[d].push(pix[p0 + q]);
+        }
+        return delar.map(a => Int32Array.from(a));
+      };
+      return { dalar, NB, dela, profil, niv };
+    };
+    const skarAllt = (pix, p0, p1, r, led) => {
+      const axSkillnad = (u, v) => Math.abs(Math.atan2(Math.sin(2 * (u - v)), Math.cos(2 * (u - v)))) / 2;   // mellan axlar: u och u+π är samma axel
+      const vinklar = [r.vinkel];
+      for (const v of [sparVinkel, 0, Math.PI / 2]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
+      const minAvst = kortRef ? 0.5 * kortRef.kort : Math.max(5, 0.3 * r.kort);
+      for (const v of vinklar) {
+        const s = skar(pix, p0, p1, r, v);
+        const grader = Math.round(v * 180 / Math.PI);
+        if (!s.dalar) { if (skarProv.length < 12) skarProv.push({ lang: Math.round(r.lang), kort: Math.round(r.kort), led, grader, snitt: [], delar: [], dom: s.orsak, profil: s.profil }); continue; }
+        for (let k = 1; k <= SKAR_MAX; k++) {
+          const valda = [];
+          for (const c of s.dalar) { if (valda.length === k) break; if (valda.some(x => Math.abs(x.b - c.b) < minAvst)) continue; valda.push(c); }
+          if (valda.length < k) break;
+          const prov = { lang: Math.round(r.lang), kort: Math.round(r.kort), led, grader, niv: s.niv, snitt: valda.map(c => ({ vid: +((c.b + 0.5) / s.NB).toFixed(2), djup: Math.round(c.djup), mork: +(c.morka / c.av).toFixed(2) })), delar: [], dom: 'skuren' };
+          if (s.profil) prov.profil = s.profil;
+          if (skarProv.length < 12) skarProv.push(prov);
+          const bitar = [], rest = [];
+          let smula = false;
+          for (const d of s.dela(valda)) {
+            if (d.length < T.minArea) { smula = true; break; }
+            const b = bedom(d, 0, d.length);
+            prov.delar.push(Math.round(b.lang || 0) + '×' + Math.round(b.kort || 0) + (b.skal ? ' ' + b.skal : ''));
+            if (!b.skal && arKortStor(b)) { bitar.push(b); continue; }
+            if (led < SKAR_LED && b.vinkel !== undefined) { const u = skarAllt(d, 0, d.length, b, led + 1); if (u) { for (const x of u) bitar.push(x); continue; } }
+            rest.push(b);
+          }
+          if (smula) prov.dom = 'smula';
+          else if (bitar.length < 2) prov.dom = bitar.length ? 'ett' : rest.length ? 'del ' + (rest[0].skal || 'storlek') : 'inga';
+          else {
+            const medK = median(bitar.map(b => b.kort)), medL = median(bitar.map(b => b.lang));
+            if (bitar.some(b => Math.abs(b.kort - medK) > SKAR_LIKA_KORT * medK || Math.abs(b.lang - medL) > SKAR_LIKA_LANG * medL)) prov.dom = 'olika';
+            else if (rest.some(b => (b.lang && b.kort ? b.lang * b.kort : 0) < SKAR_REST * medK * medL)) prov.dom = 'flisa';
+          }
+          if (prov.dom === 'skuren') return bitar;
+        }
+      }
+      return null;
+    };
+    /* Delarna tar över om någon av dem är ett renare kort. En region som
+       redan ÄR ett kort (bara tveksam) byts mot sina delar bara om de
+       tillsammans är det mesta av den: ett kort med stort mörkt konstverk
+       delades annars i titelrad och textruta, och textrutan ensam såg ut
+       som ett liggande kort (uppmätt i videon: Thriving Heath 115×92 av
+       125×175, fel namn). En region som INTE är ett kort (kvoten, fyllnaden)
+       har inget att förlora: varje kortlik del är en vinst — kortet med en
+       lång strimma i sidan (R4) är 40 % av sin region. */
+    const provaDelar = (p0, p1, r, tveksam) => {
+      for (const R of [2, 3]) {
+        const delar = dela(p0, p1, R);
+        const bra = [];
+        let yta = 0;
+        for (const pix of delar) { const d = bedom(pix, 0, pix.length); if (!d.skal && (!tveksam || d.kort / d.lang >= 0.64)) { bra.push(d); yta += d.area; } }
+        if (bra.length && (!tveksam || yta >= 0.6 * r.area)) { for (const d of bra) ut.push(d); dia.delade++; return true; }
+      }
+      return false;
+    };
+    /* Två lådor täcker varandra när snittet är minst 70 % av den mindre. */
+    const tacker = (a, b) => {
+      const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+      return ox * oy >= 0.7 * Math.min(a.w * a.h, b.w * b.h);
+    };
+    /* Pass två: besluten, i samma ordning som regionerna hittades. */
+    for (const g of regioner) {
+      const { p0, p1, cnt, r } = g;
       /* Ett kort med en strimma i sidan passerar ibland kvoten ändå — som
          ett brett kort. Tveksamt är allt under 0,64 eller med luft i lådan;
          då prövas delningen, och delarna tar över om någon av dem är ett
          renare kort. */
       const tveksam = !r.skal && (r.kort / r.lang < 0.64 || r.area < 0.85 * r.lang * r.kort);
-      if (!r.skal && !tveksam) { ut.push(r); continue; }
-      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * T.minArea && cnt < 0.25 * n) {
-        let hittat = false;
-        for (const R of [2, 3]) {
-          const delar = dela(head - cnt, head, R);
-          const bra = [];
-          let yta = 0;
-          for (const pix of delar) { const d = bedom(pix, 0, pix.length); if (!d.skal && (!tveksam || d.kort / d.lang >= 0.64)) { bra.push(d); yta += d.area; } }
-          /* En region som redan ÄR ett kort (bara tveksam) byts mot sina
-             delar bara om de tillsammans är det mesta av den: ett kort med
-             stort mörkt konstverk delades annars i titelrad och textruta,
-             och textrutan ensam såg ut som ett liggande kort (uppmätt i
-             videon: Thriving Heath 115×92 av 125×175, fel namn). En region
-             som INTE är ett kort (kvoten, fyllnaden) har inget att förlora:
-             varje kortlik del är en vinst — kortet med en lång strimma i
-             sidan (R4) är 40 % av sin region. */
-          if (bra.length && (!tveksam || yta >= 0.6 * r.area)) { for (const d of bra) ut.push(d); hittat = true; dia.delade++; break; }
-        }
-        if (hittat) continue;
+      if (!r.skal && !tveksam) {
+        /* Ett accepterat kort kan vara två kort kant i kant: paret 2b×h har
+           kvoten 0,70, ett 2×2-block 0,72. Det skärs när det är för stort
+           mot referensen (minst 1,6 kortareor) — eller, utan referens, när
+           igenkänningen redan sagt att den inte känner igen det (spåret på
+           platsen är 'okand'). Ett ensamt kort med ett mörkt band tvärs
+           över mitten känns igen som det är, och skärs därför aldrig. */
+        const stort = kortRef && r.lang * r.kort >= 1.6 * refA;
+        const okant = !kortRef && sparen.some(t => t.tillstand === 'okand' && tacker(r.box, t.box));
+        if ((stort || okant) && cnt >= 2 * T.minArea) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
+        ut.push(r); continue;
+      }
+      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * T.minArea) {
+        if (cnt < 0.25 * n && provaDelar(p0, p1, r, tveksam)) continue;
+        /* …och det erosionen inte kan dela skärs: kort kant i kant. Men
+           inte en region som är bordet självt — över en fjärdedel av bilden
+           eller 60 % av dess längd, bedom():s egen gräns. Uppmätt i golden
+           05 (ribbor): en ribba på 456×115 med korten på skars i ribbstycken
+           med kortets kvot, fyra osäkra spår där det förut var noll. */
+        const jatte = r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H);
+        if (r.vinkel !== undefined && !jatte) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
       }
       if (!r.skal) { ut.push(r); continue; }
       rakna(r);
@@ -12071,6 +12292,10 @@ const Kamera = (() => {
     dia.tid = { modell: Math.round(tModell - t0), mask: Math.round(tMask - tModell), morf: Math.round(tMorf - tMask), regioner: Math.round(tSlut - tMorf) };
     /* De accepterade regionerna, för diagnosfilen: det är dem spåren matchas mot. */
     dia.fynd = fynd.map(f => ({ cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), kort: Math.round(f.kort), area: f.area }));
+    dia.skarProv = skarProv;
+    skarLogg.push({ ruta: ++rutaNr, skurna: dia.skurna, prov: skarProv.map(p => p.lang + '×' + p.kort + ' ' + p.grader + '° ' + p.dom) });
+    if (skarLogg.length > 40) skarLogg.shift();
+    dia.skarLogg = skarLogg;
     return { fynd, mask, texturerade };
   }
 
@@ -12107,10 +12332,22 @@ const Kamera = (() => {
        liggande eller nästan kvadratisk låda på hälften av ett helt, och ett
        ensamt kort är alltid det största. Storleken ensam dög inte: på en
        meters håll var alla tre lådorna halva kort av samma storlek, och
-       som "hela" fick de inte växa (videon, 18 s). */
+       som "hela" fick de inte växa (videon, 18 s).
+       Måttet tas från de spår som är säkert namngivna ('klar') när sådana
+       finns — medianen av deras lådor — och först annars från det största
+       spåret. Ligger korten kant i kant är det största spåret en klunga
+       (golden 06: 89×81 för ett kort på 73×54), och mot den var varje
+       riktigt kort "ett halvt": ramen växte tillbaka över grannen som
+       skärlinjen just skilt av (Maul + Pacifism, 71×53 → 0,19×0,23 av
+       bilden). Ett namngivet spår är bevisligen ett kort. */
     const kvBox = Math.min(w, h) / Math.max(w, h);
     let storst = 0, bredast = 0, hogst = 0;
-    for (const q of spar) { storst = Math.max(storst, q.box.w * q.box.h); bredast = Math.max(bredast, q.box.w); hogst = Math.max(hogst, q.box.h); }
+    const klara = spar.filter(q => q.tillstand === 'klar');
+    if (klara.length) {
+      const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+      storst = med(klara.map(q => q.box.w * q.box.h)); bredast = med(klara.map(q => q.box.w)); hogst = med(klara.map(q => q.box.h));
+    }
+    else for (const q of spar) { storst = Math.max(storst, q.box.w * q.box.h); bredast = Math.max(bredast, q.box.w); hogst = Math.max(hogst, q.box.h); }
     const helt = kvBox >= 0.62 && kvBox <= 0.82 && w * h >= 0.75 * storst;
     const UT = helt ? 0.12 : 0.8, IN = helt ? 0.12 : 0.2;
     const P = (x, y) => g0[y * W + x] * gn, M = (x, y) => m[y * W + x];
@@ -12249,6 +12486,15 @@ const Kamera = (() => {
       if (bast && bd < grans) {
         anv.add(bast); kvar.delete(bast);
         const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
+        /* En träff som är mycket MINDRE än spåret är en del av det: två kort
+           kant i kant som skars isär (detektera, skar). Spåret tar delen
+           som sin nya storlek på en gång — glidmedlet nedan hade hållit
+           kvar den gamla ytan i minuter, och nästa ruta utan snitt hade
+           då fått hela klumpen tillbaka — och läses om om det inte redan
+           är säkert namngivet. Uppmätt i golden 06: Maul + Pacifism som
+           en region, skuren till 71×53 och 71×49, och spåret behöll
+           0,19×0,23 av bilden med namnet det gissat på klumpen. */
+        if (f.area < 0.6 * bast.areaRef) { bast.areaRef = f.area; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; } }
         bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         bast.sedd = nu; bast.tomMs = 0; bast.skymd = false;
