@@ -20,6 +20,25 @@ const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'applicati
   '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.gif':'image/gif',
   '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css' };
 http.createServer((req, res) => {
+  try { hantera(req, res); }
+  catch (e) { console.error('stub: fel i begäran', e && e.message); try { res.writeHead(500); res.end('500'); } catch (e2) {} }
+}).listen(PORT, () => {
+  const mode = process.env.STUB_AI || 'none';
+  console.log('stub på http://localhost:' + PORT);
+  console.log('OBS: /api/identify är en ATTRAPP och tittar inte på bilden.');
+  console.log(`     STUB_AI=${mode} — ` + (mode === 'accept'
+    ? 'svarar alltid kandidat 1 med hög säkerhet (kort läggs till automatiskt!)'
+    : mode === 'medel' ? 'svarar kandidat 1 med medelsäkerhet (hamnar i granskningslistan)'
+    : 'svarar "inget passar" — kort stannar i granskningslistan, som med en försiktig modell'));
+  console.log(`     STUB_LEK=${process.env.STUB_LEK || 'tomt'} — ` + (process.env.STUB_LEK === 'kort'
+    ? 'lekfotot svarar med elva kort, dubbletter och en trasig rad'
+    : process.env.STUB_LEK === 'trasigt' ? 'lekfotot svarar utan JSON'
+    : 'lekfotot svarar "inga kort" — sätt STUB_LEK=kort för att prova listan'));
+  console.log('     Riktig igenkänning testas mot produktionsdeployen, inte här.');
+});
+/* Ett kastat undantag i lyssnaren dödar annars processen — en enda konstig
+   GET från nätet räckte (granskningen: ett huvud med tecken utanför Latin-1). */
+function hantera(req, res) {
   const u = new URL(req.url, 'http://x');
   /* Klienten frågar efter Supabase-nycklarna vid varje start. Utan den här
      rutten får den 404, tolkar det som "inte konfigurerad" och visar
@@ -129,8 +148,31 @@ http.createServer((req, res) => {
   // pathname är URL-kodad: filnamn med mellanslag kom fram som %20 och gav 404
   let rel;
   try { rel = decodeURIComponent(u.pathname); } catch (e) { rel = u.pathname; }
-  const f = path.join(ROOT, rel === '/' ? 'index.html' : rel);
-  if (!f.startsWith(path.resolve(ROOT))) { res.writeHead(403); return res.end('403'); }
+  /* Inga punktfiler eller punktmappar, någonstans i sökvägen: .env.local med
+     nyckeln ligger i roten, och servern lyssnar på alla gränssnitt så att
+     telefonen når den. Kontrollen på hela sökvägen — inte bara namnet i en
+     listning — så att '/.git/' och '/dev/..%2f' inte kommer runt den. */
+  if (rel.split('/').some(seg => seg.startsWith('.'))) { res.writeHead(403); return res.end('403'); }
+  const rot = path.resolve(ROOT);
+  const f = path.resolve(rot, '.' + (rel === '/' ? '/index.html' : rel));
+  if (f !== rot && !f.startsWith(rot + path.sep)) { res.writeHead(403); return res.end('403'); }
+  /* En mapp svarar med sitt innehåll som JSON. Golden setet (dev/golden/kor.html)
+     hittar sina fall genom att lista dev/golden/fall/: ett fall är en mapp, och
+     att lägga till ett ska inte kräva en lista som hålls i handen — den listan
+     hade legat ett fall efter så snart någon glömt den. Pythons http.server
+     listar mappar som HTML; kor.html läser båda formerna. Roten listas inte:
+     den är index.html. */
+  let st = null; try { st = fs.statSync(f); } catch (e2) {}
+  if (st && st.isDirectory() && f !== rot) {
+    /* Location byggs av den KODADE sökvägen: ett avkodat tecken utanför
+       Latin-1 i ett huvud får writeHead att kasta, och undantaget tar hela
+       processen med sig. */
+    if (!rel.endsWith('/')) { res.writeHead(301, { Location: u.pathname + '/' }); return res.end(); }
+    let poster = [];
+    try { poster = fs.readdirSync(f, { withFileTypes: true }).filter(e2 => !e2.name.startsWith('.')).map(e2 => ({ namn: e2.name, mapp: e2.isDirectory() })); } catch (e2) {}
+    res.writeHead(200, Object.assign({ 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, cors()));
+    return res.end(JSON.stringify(poster));
+  }
   fs.readFile(f, (e, d) => {
     if (e) { res.writeHead(404); return res.end('404'); }
     /* Även statiska filer får CORS. Testbilderna ligger i dev/bilder som är
@@ -140,18 +182,5 @@ http.createServer((req, res) => {
       { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' }, cors()));
     res.end(d);
   });
-}).listen(PORT, () => {
-  const mode = process.env.STUB_AI || 'none';
-  console.log('stub på http://localhost:' + PORT);
-  console.log('OBS: /api/identify är en ATTRAPP och tittar inte på bilden.');
-  console.log(`     STUB_AI=${mode} — ` + (mode === 'accept'
-    ? 'svarar alltid kandidat 1 med hög säkerhet (kort läggs till automatiskt!)'
-    : mode === 'medel' ? 'svarar kandidat 1 med medelsäkerhet (hamnar i granskningslistan)'
-    : 'svarar "inget passar" — kort stannar i granskningslistan, som med en försiktig modell'));
-  console.log(`     STUB_LEK=${process.env.STUB_LEK || 'tomt'} — ` + (process.env.STUB_LEK === 'kort'
-    ? 'lekfotot svarar med elva kort, dubbletter och en trasig rad'
-    : process.env.STUB_LEK === 'trasigt' ? 'lekfotot svarar utan JSON'
-    : 'lekfotot svarar "inga kort" — sätt STUB_LEK=kort för att prova listan'));
-  console.log('     Riktig igenkänning testas mot produktionsdeployen, inte här.');
-});
+}
 function cors(){ return { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Headers':'Content-Type,X-Group-Password' }; }

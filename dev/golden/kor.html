@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Golden set — provkörning</title>
+<style>
+:root{--bg:#0d1015;--fg:#e7ecf4;--dim:#9aa4b5;--ok:#5fbf7f;--warn:#e8b33a;--bad:#e2606a;--line:#2a3140;--acc:#6b8cff;--panel:#11161f}
+body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 ui-monospace,Menlo,monospace}
+header{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:15px;margin:0 8px 0 0}
+button{background:#1a2030;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:default;border-color:var(--line)}
+button.prim{background:#243a7a;border-color:#3d5bbd}
+#status{color:var(--dim);flex:1 1 auto;min-width:200px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;padding:12px 14px}
+@media (max-width:1000px){main{grid-template-columns:1fr}}
+table{border-collapse:collapse;width:100%}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:top}
+th{color:var(--dim);font-weight:600;font-size:12px}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#141a25}
+tr.vald td{background:#161c28}
+td.bra{color:var(--ok)} td.dalig{color:var(--bad)} td.dim{color:var(--dim)}
+.d{font-size:11px;margin-left:5px}
+.d.upp{color:var(--ok)} .d.ner{color:var(--bad)} .d.lika{color:var(--dim)}
+aside{display:flex;flex-direction:column;gap:8px}
+iframe{width:100%;height:600px;border:1px solid var(--line);border-radius:6px;background:#000}
+.hint{color:var(--dim);font-size:12px}
+#detalj{margin-top:12px}
+#detalj canvas{max-width:100%;border:1px solid var(--line);border-radius:4px;display:block}
+#detaljText{white-space:pre-wrap;color:var(--dim);font-size:12px;margin:6px 0}
+pre{white-space:pre-wrap;background:#0a0d12;padding:8px;border:1px solid var(--line);border-radius:6px;max-height:260px;overflow:auto;margin:8px 0 0;font-size:11.5px}
+.rad{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.tot td{font-weight:700;border-top:2px solid var(--line)}
+.fel{color:var(--bad)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 8px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Golden set — provkörning</h1>
+  <button id="korAlla" class="prim" disabled>Kör alla</button>
+  <button id="stopp" disabled>Stoppa</button>
+  <span id="status">Laddar appen…</span>
+  <span class="hint" id="metod">Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken. Ingen AI-modell.</span>
+</header>
+<main>
+  <section>
+    <table id="tabell">
+      <thead><tr>
+        <th></th><th>Fall</th><th title="antal spår som inte är skräp / synliga kort i facit (dolda räknas inte)">Hittade</th>
+        <th title="spår som täcker ett facitkort (IoU ≥ 0,3) / facitkort med ruta. – när facit bara har namn">Rätt plats</th>
+        <th title="kort i facit som fått rätt namn med SÄKERT svar / synliga kort i facit. Inom parentes: rätt namn men osäkert (går till granskning)">Rätt namn</th>
+        <th title="säkert svar med FEL namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända">Fel namn</th>
+        <th title="spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats">Falska</th>
+        <th title="spår på rätt plats med rätt tap-läge / facitkort med ruta">Tappad</th>
+        <th title="analyssteget i millisekunder: medianen över körningen (sista rutan förut — en ruta med identifiering i kostar 300 ms). Inom parentes: den dyraste rutan">ms</th>
+        <th title="mattans brus σ, tröskel, avvikelse (utseende), ytans dom">mätt</th>
+      </tr></thead>
+      <tbody id="rader"></tbody>
+      <tfoot><tr class="tot" id="totRad"></tr></tfoot>
+    </table>
+    <p class="hint" id="jamfor"></p>
+    <div id="detalj" hidden>
+      <div id="detaljText"></div>
+      <canvas id="detaljCv"></canvas>
+      <p class="hint legend"><i style="background:#5fbf7f"></i>facit <i style="background:#e8b33a"></i>spår läses <i style="background:#39c0ed"></i>känt namn <i style="background:#e2606a"></i>okänt/fel <i style="background:#6b7280"></i>skräp (streckat = skymt)</p>
+    </div>
+    <div class="rad">
+      <button id="kopiera" disabled>Kopiera resultat</button>
+      <span class="hint">Klistra in som <code>dev/golden/senaste.json</code> och checka in — nästa körning visar skillnaden mot den.</span>
+    </div>
+    <pre id="ut" hidden></pre>
+  </section>
+  <aside>
+    <iframe id="app" title="appen"></iframe>
+    <p class="hint">Det är appen själv som kör, i rutan ovan: samma <code>index.html</code>, samma Kamera-modul, samma igenkänning. Bilden matas in som kamerabild och kedjan får gå precis som på telefonen.</p>
+    <p class="hint" id="pool"></p>
+  </aside>
+</main>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   GOLDEN SET — regressionsprovet för kameran
+
+   Kör HELA kedjan — detektering, ram, beskärning, igenkänning mot leken —
+   på varje fall i fall/ och jämför med facit.json. Det är bara i
+   webbläsaren hela kedjan finns (matcharen och ORB behöver canvas), och
+   det är bara i appen själv den är exakt den kod som körs på telefonen.
+   Därför laddas index.html i en iframe och drivs härifrån: ingen kopia
+   av modulen, ingen extraktion som kan glida isär från den riktiga.
+
+   Bilden matas in som KAMERA: modulen får en canvas med fallets bild i
+   stället för ett videoelement. Den läser bara videoWidth/videoHeight och
+   ritar av elementet, och en canvas svarar på båda — så beskärningen tas
+   ur fallets bild i full upplösning, precis som ur videon på telefonen.
+   Alternativet — att anropa Kamera.steg() direkt som bänken gör — stannar
+   före beskärningen: beskar() tar sin bild ur videon, och utan den blir
+   ingen identifiering gjord. En riktig MediaStream (captureStream +
+   getUserMedia utbytt) prövades också: den ger bara nya rutor när fliken
+   ritas, och i en bakgrundsflik stod allt stilla.
+
+   Fliken får ligga i bakgrunden: Chrome stryper setTimeout till en gång i
+   sekunden och pausar requestAnimationFrame helt i en flik som inte syns,
+   och en körning på tio fall tar över en minut. Därför drivs både
+   modulens rAF och väntetiderna här av en tickare i en Worker, som inte
+   stryps.
+
+   Måtten per fall: hittade spår, spår på rätt plats (IoU mot facit),
+   rätt namn (bara SÄKRA svar räknas — ett osäkert går till granskningen
+   och är inte ett igenkänt kort), säkra FEL namn (det värsta), falska
+   spår, och tap-läge. Ett fall är inte "bättre" bara för att fler spår
+   hittas: fel namn och falska räknas som försämringar.
+   ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+const $ = s => document.querySelector(s);
+/* Tickaren: en Worker som postar var 40:e ms. Allt som väntar — sleep()
+   här och rAF i appen — hängs på den, se rAF-skarven i laddaApp(). */
+const tick = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 40)'], { type: 'text/javascript' })));
+const vantande = [];          // { tid, res } — sleep() som väntar på tickaren
+let rafKo = [];               // appens rAF-anrop som väntar på nästa tick
+let krascher = 0;             // undantag ur appens loop under pågående fall — de sväljs annars tyst
+tick.onmessage = () => {
+  const nu = performance.now();
+  for (let i = vantande.length - 1; i >= 0; i--) if (vantande[i].tid <= nu) vantande.splice(i, 1)[0].res();
+  if (rafKo.length) { const k = rafKo; rafKo = []; for (const cb of k) { try { cb(nu); } catch (e) { krascher++; console.error(e); } } }
+};
+const sleep = ms => new Promise(res => vantande.push({ tid: performance.now() + ms, res }));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+/* Hur länge ett fall får ta. Referensen tar sex rutor (~1 s), ett spår blir
+   stilla efter 800 ms, och varje identifiering är en beskärning plus
+   matchning — tre kort brukar vara klara på fem sekunder. Taket är för
+   ett spår som aldrig får svar (poolen saknar kortet, eller ett skräpspår
+   som frågas tre gånger med 1,5 s emellan). */
+const TAK_MS = 30000;
+const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade innan fallet räknas som klart
+
+let w = null, K = null, kamSag = null;  // appens fönster, dess Kamera-modul och kameravyns statusrad
+let fall = [], resultat = new Map(), senaste = null, kor = false, stoppa = false;
+let poolKlar = false, poolRec = null, poolFel = [];
+/* Samma norm som appens namnjämförelse i stort: gemener, en sorts apostrof,
+   ett mellanslag. Facit skrivs med lek.txt:s stavning, poolen med Scryfalls
+   — "Nights Whisper" mot "Night's Whisper" är samma kort. */
+const norm = s => String(s || '').toLowerCase().replace(/[’ʼ]/g, "'").replace(/\s+/g, ' ').trim();
+
+const status = t => { $('#status').textContent = t; };
+
+/* ── fallen ──────────────────────────────────────────────────────── */
+async function listaFall() {
+  const r = await fetch('fall/', { cache: 'no-store' });
+  if (!r.ok) throw new Error('fall/ gick inte att lista (' + r.status + ')');
+  const ct = r.headers.get('content-type') || '';
+  let namn;
+  if (ct.includes('json')) namn = (await r.json()).filter(e => e.mapp).map(e => e.namn);
+  else {
+    /* Pythons http.server: en HTML-lista med <a href="mapp/">. */
+    const html = await r.text();
+    namn = [...html.matchAll(/href="([^"?#]+)\/"/g)].map(m => decodeURIComponent(m[1])).filter(n => n && !n.startsWith('.') && n !== '..');
+  }
+  namn.sort();
+  const ut = [];
+  for (const id of namn) {
+    let facit = null, fel = null;
+    try {
+      const fr = await fetch(`fall/${encodeURIComponent(id)}/facit.json`, { cache: 'no-store' });
+      if (fr.ok) facit = await fr.json(); else fel = 'facit.json saknas';
+    } catch (e) { fel = 'facit.json går inte att läsa'; }
+    if (facit && !facit.ruta) facit.ruta = { x: 0, y: 0, w: 1, h: 1, upp: 'v' };
+    if (facit && !Array.isArray(facit.kort)) fel = 'facit.json saknar kort[]';
+    ut.push({ id, facit, fel });
+  }
+  return ut;
+}
+
+async function laddaSenaste() {
+  try {
+    const r = await fetch('senaste.json', { cache: 'no-store' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const m = new Map(); for (const x of (Array.isArray(d) ? d : [])) if (x && x.id) m.set(x.id, x);
+    return m;
+  } catch (e) { return null; }
+}
+
+/* ── appen ───────────────────────────────────────────────────────── */
+async function laddaApp() {
+  const f = $('#app');
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = '../../'; });
+  w = f.contentWindow;
+  /* Toppnivåns const/let syns inte som fönsteregenskaper, men en indirekt
+     eval i appens fönster når dem. Funktionsdeklarationerna (lookup,
+     byggLekPool, kamIdentifiera, visaVy) ligger direkt på fönstret. */
+  for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
+  K = w.eval('Kamera');
+  if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
+  for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'kamIdentifiera', 'visaVy']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
+  /* Statusraden i appens kameravy är en const-pil, inte en deklaration. */
+  try { kamSag = w.eval('kamSag'); } catch (e) { kamSag = null; }
+  /* Modulens loop() hänger på requestAnimationFrame i appens fönster. Byts
+     mot tickaren så att den går även när fliken ligger i bakgrunden;
+     cancelAnimationFrame behövs inte — loop() själv tittar på pa. */
+  w.requestAnimationFrame = cb => { rafKo.push(cb); return rafKo.length; };
+  w.cancelAnimationFrame = () => {};
+  w.visaVy('kamera');
+}
+
+/* Leken ur lek.txt, uppslagen mot Scryfall med appens egen lookup() och
+   byggd till en pool med appens egen byggLekPool() — samma väg som när
+   listan klistras in i Min lek. Poolen cachas i appens IndexedDB under en
+   nyckel ur textens innehåll: ändras lek.txt byggs den om, annars inte. */
+async function byggPool() {
+  const r = await fetch('lek.txt', { cache: 'no-store' });
+  if (!r.ok) throw new Error('lek.txt saknas');
+  const namn = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#')).map(l => l.replace(/^\d+\s*[xX]?\s+/, ''));
+  if (!namn.length) throw new Error('lek.txt är tom');
+  let h = 2166136261; for (const c of namn.join('\n')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  const kort = [], saknas = [];
+  for (let i = 0; i < namn.length; i++) {
+    status(`Slår upp leken: ${i + 1} av ${namn.length} — ${namn[i]}`);
+    try { const c = await w.lookup(namn[i]); kort.push({ sid: c.id, name: c.name, small: w.imgOf(c, 0, 'small'), n: 1 }); }
+    /* Appens lookup skiljer på ett nätglapp/429 (tillfällig) och ett namn
+       som inte finns (404): det första läker av en omladdning, det andra
+       ska rättas i lek.txt. */
+    catch (e) { saknas.push({ namn: namn[i], tillfallig: !!(e && e.tillfallig) }); }
+    /* Appens kö håller 95 ms mellan anropen, vilket är precis Scryfalls tak
+       (10 i sekunden). Uppmätt: 27 uppslag i följd gav 429 på det sista och
+       på baslandsfrågan efter. Lite luft till, namnen cachas ändå. */
+    await sleep(80);
+  }
+  /* Nyckeln bär antalet uppslagna namn: en pool byggd medan Scryfall
+     svarade 429 får inte ligga kvar under samma nyckel som den hela. */
+  const rec = await w.byggLekPool({ kort, ts: 1 }, 'golden-' + h.toString(16) + '-' + kort.length, p => {
+    status(p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : `Hämtar leken… ${p.done || ''}`);
+  });
+  poolRec = rec;
+  const Pool = w.eval('Pool');
+  if (!Pool.idx || Pool.idx.code !== rec.code) Pool.idx = rec;
+  /* byggLekPool sväljer ett fel på baslandsfrågan. Syns det på antalet —
+     inga fler kort än namn fast leken har basland — sparas inte poolen,
+     så att nästa omladdning bygger om den i stället för att ärva luckan. */
+  const BAS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+  const harBasland = kort.some(k => BAS.has(k.name));
+  const utanLand = harBasland && rec.names.length <= kort.length;
+  const tillfalliga = saknas.filter(x => x.tillfallig), varaktiga = saknas.filter(x => !x.tillfallig);
+  poolFel = [];
+  if (varaktiga.length) poolFel.push(`Finns inte på Scryfall — rätta lek.txt: ${varaktiga.map(x => x.namn).join(', ')}.`);
+  if (tillfalliga.length) poolFel.push(`Nådde inte Scryfall för: ${tillfalliga.map(x => x.namn).join(', ')}.`);
+  if (utanLand) poolFel.push('Baslandens extra konstverk kom inte med.');
+  if (tillfalliga.length || utanLand) {
+    try { await w.eval('IDB').poolDel(rec.code); } catch (e) {}
+    poolFel.push('Scryfall svarade troligen 429 (för många anrop). Poolen sparas inte — ladda om sidan om en minut, så byggs den om.');
+  }
+  /* Vilka facitnamn saknas i poolen? Det som inte finns där kan kedjan inte
+     känna igen, och provet mäter då leken i stället för kameran. Sägs per
+     fall, innan det körs. */
+  const iPool = new Set(rec.names.map(norm));
+  for (const f of fall) {
+    if (!f.facit) continue;
+    const borta = f.facit.kort.map(k => k.namn).filter(n => !iPool.has(norm(n)));
+    f.varning = borta.length ? `saknas i poolen: ${borta.join(', ')}` : null;
+  }
+  $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
+    + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`;
+  poolKlar = true;
+}
+
+/* ── ett fall ────────────────────────────────────────────────────── */
+const laddaBild = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bilden gick inte att läsa')); i.src = src; });
+
+async function korFall(f) {
+  const img = await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
+  const doc = w.document;
+  /* "Videon": en canvas med bilden i full upplösning, i appens dokument
+     och på videoelementets plats i kameravyn, så att spåren ritas ovanpå
+     den. Modulen frågar efter videoWidth/videoHeight, sätter srcObject
+     och anropar play() — alla tre finns här, och getUserMedia svarar med
+     en ström utan spår så att stopp() har något att stänga. */
+  const cv = doc.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+  cv.getContext('2d').drawImage(img, 0, 0);
+  cv.videoWidth = cv.width; cv.videoHeight = cv.height; cv.play = () => Promise.resolve();
+  cv.id = 'kamVideo'; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';
+  const gammal = doc.getElementById('kamVideo'); if (gammal) gammal.replaceWith(cv);
+  const nav = w.navigator;
+  if (!nav.mediaDevices) Object.defineProperty(nav, 'mediaDevices', { value: {}, configurable: true });
+  nav.mediaDevices.getUserMedia = async () => ({ getTracks: () => [] });
+  w.visaVy('kamera');
+  /* Appens egen boot läser in setpoolen (j25) ur IndexedDB i bakgrunden och
+     kan landa efter att golden-poolen satts. Kedjan läser bara Pool.idx —
+     så den sätts om, precis före varje fall. */
+  const Pool = w.eval('Pool');
+  if (poolRec && (!Pool.idx || Pool.idx.code !== poolRec.code)) Pool.idx = poolRec;
+  /* Kalibreringen FÖRE start(): start() kör första varvet av loopen
+     synkront, och med förra fallets ruta och mått kvar i modulen gick den
+     rutan genom steg() innan satKalibrering hann nollställa. */
+  K.satKalibrering({ ruta: f.facit.ruta });
+  let sistaBord = null, tak = false;
+  const t0 = performance.now();
+  krascher = 0;
+  try {
+    await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, {
+      status: kamSag || (() => {}),
+      fas: () => {},
+      bord: (spar, nollstall) => { if (!nollstall) sistaBord = spar; },
+      identifiera: (c, id, gissning) => w.kamIdentifiera(c, id, gissning)
+    });
+    /* Klart när alla spår fått sitt svar och ingenting ändrat sig på en
+       och en halv sekund. Ett spår utan svar väntar på poolen (1,5 s
+       mellan frågorna) eller på tre skräpdomar — därav taket. */
+    let sig = '', stabilSedan = 0;
+    const msProv = [];   // analyssteget per ruta — medianen, inte sista: en ruta med identifiering i kostar 300 ms
+    for (;;) {
+      await sleep(150);
+      if (stoppa) throw new Error('stoppad');
+      const ms = performance.now() - t0;
+      const spar = K.spar, lage = K.lage;
+      if (K.diagnos.ms) msProv.push(K.diagnos.ms);
+      const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
+      if (s2 !== sig) { sig = s2; stabilSedan = ms; }
+      const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
+      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap');
+      if (lart && svarade && ms - stabilSedan >= STILLA_MS && ms > 2500) break;
+      if (ms > TAK_MS) { tak = true; break; }
+      status(`${f.id}: ${lage}, ${spar.length} spår, ${(ms / 1000).toFixed(1)} s`);
+    }
+    const sort = msProv.slice().sort((a, b) => a - b);
+    return bedom(f, sistaBord, Math.round(performance.now() - t0), tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
+  } finally {
+    try { K.stopp(); } catch (e) {}
+  }
+}
+
+/* ── bedömningen ─────────────────────────────────────────────────── */
+function iou(a, b) {
+  const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y), x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h);
+  const s = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+  return s / (a.w * a.h + b.w * b.h - s);
+}
+function bedom(f, bord, tid, tak, msMedian, msMax) {
+  const { aw, ah } = K.analysMatt, r = f.facit.ruta;
+  const f4 = v => +v.toFixed(4);
+  /* Spårens lådor i andelar av HELA bilden, som facit: modulen räknar i
+     analyspixlar inom rutan. Ramen (finLada) om den finns, annars lådan —
+     det är den beskärningen tas ur. Spåren numreras om från 1 per fall:
+     modulens id räknar vidare över hela sessionen, och senaste.json ska
+     diffa rent mellan två körningar. */
+  const alla = K.spar.map((t, i) => { const b = t.ram || t.box; return {
+    id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad,
+    cands: (t.cands || []).slice(0, 3).map(c => c.name),
+    x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
+  const spar = alla.filter(t => t.tillstand !== 'skrap');
+  /* Facit i två sorter: kort med ruta (positionen provas) och kort med bara
+     namn (bara namnet provas). Dolda kort — under ett annat, bara en kant
+     synlig — räknas inte i nämnaren: ingen kamera ser dem, men hittas de
+     ändå är det inte falskt. */
+  const harRuta = k => k.x != null && k.w != null;
+  const kortAlla = f.facit.kort, synliga = kortAlla.filter(k => !k.dold), dolda = kortAlla.filter(k => k.dold);
+  const ratt = (t, k) => t.namn && norm(t.namn) === norm(k.namn);
+  /* 1. Rutorna: girig matchning på IoU, bästa paret först. 0,3 är lågt med
+     flit: ett spår som täcker halva kortet står på rätt plats — det är
+     namnet och ramen som sedan avgör om det duger. */
+  const par = [];
+  kortAlla.forEach((k, ki) => { if (!harRuta(k)) return; spar.forEach((t, ti) => { const v = iou(k, t); if (v >= 0.3) par.push({ ki, ti, v }); }); });
+  par.sort((a, b) => b.v - a.v);
+  const tagnaK = new Set(), tagnaT = new Set(), traffar = [];
+  for (const p of par) { if (tagnaK.has(p.ki) || tagnaT.has(p.ti)) continue; tagnaK.add(p.ki); tagnaT.add(p.ti); traffar.push({ k: kortAlla[p.ki], t: spar[p.ti], iou: +p.v.toFixed(2), plats: true }); }
+  /* 2. Namnen: facitkort utan ruta paras med kvarvarande spår på namnet —
+     säkra svar först, sedan osäkra — så att ett kort som lästs rätt men
+     osäkert räknas som osäkert och inte som miss. */
+  for (const villkor of [t => t.saker, t => !t.saker]) {
+    kortAlla.forEach((k, ki) => {
+      if (harRuta(k) || tagnaK.has(ki)) return;
+      const ti = spar.findIndex((t, i) => !tagnaT.has(i) && villkor(t) && ratt(t, k));
+      if (ti < 0) return;
+      tagnaK.add(ki); tagnaT.add(ti); traffar.push({ k, t: spar[ti], iou: null, plats: false });
+    });
+  }
+  const harTraff = k => tagnaK.has(kortAlla.indexOf(k));
+  const synligaTraffar = traffar.filter(p => !p.k.dold), doldaTraffar = traffar.filter(p => p.k.dold);
+  /* 3. Resten av spåren. Vid RUTANS kant — det är den kameran ser — ursäktas
+     så många som facit listar som avskurna; resten är falska. */
+  const m = 0.01;
+  const vidKant = t => t.x < r.x + m || t.y < r.y + m || t.x + t.w > r.x + r.w - m || t.y + t.h > r.y + r.h - m;
+  const over = spar.filter((t, i) => !tagnaT.has(i));
+  const avskurna = Array.isArray(f.facit.avskurna) ? f.facit.avskurna.length : 0;
+  const kant = over.filter(vidKant).slice(0, avskurna);
+  const falska = over.filter(t => !kant.includes(t));
+  const medRuta = synliga.filter(harRuta);
+  const dia = K.diagnos, tro = K.trosklar;
+  return {
+    id: f.id, kort: synliga.length, dolda: dolda.length,
+    hittade: spar.length,
+    plats: synligaTraffar.filter(p => p.plats).length, platsAv: medRuta.length,
+    namn: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).length,
+    osakra: synligaTraffar.filter(p => !p.t.saker && ratt(p.t, p.k)).length,
+    /* Fel namn: ett SÄKERT svar som inte är kortet — på rätt plats med fel
+       namn, eller ett falskt spår som fått ett namn. Båda hamnar på bordet
+       utan att någon frågas; det är det värsta som kan hända. */
+    felNamn: synligaTraffar.filter(p => p.t.saker && p.t.namn && !ratt(p.t, p.k)).length + falska.filter(t => t.saker && t.namn).length,
+    falska: falska.length, kant: kant.length, doldaHittade: doldaTraffar.length, skrap: alla.length - spar.length,
+    tappad: synligaTraffar.filter(p => p.plats && p.t.tappad === !!p.k.tappad).length, tappadAv: synligaTraffar.filter(p => p.plats).length,
+    missade: synliga.filter(k => !harTraff(k)).map(k => k.namn),
+    obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
+    tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
+    metod: 'lokal', ai: null,
+    ms: msMedian, msMax, tid, aw, ah,
+    sigma: +(K.sigma || 0).toFixed(2), troskel: tro.troskel, utseende: tro.utseende, spridning: tro.spridning, otsu: dia.otsu == null ? null : dia.otsu,
+    yta: K.yta ? K.yta.dom : null, matta: dia.matta, regioner: dia.regioner, tackning: +(dia.tackning || 0).toFixed(3),
+    traffar: traffar.map(p => ({ facit: p.k.namn, dold: !!p.k.dold, spar: p.t.id, namn: p.t.namn, saker: p.t.saker, iou: p.iou })),
+    spar: alla
+  };
+}
+
+/* ── tabellen ────────────────────────────────────────────────────── */
+/* Pilen säger om det blev BÄTTRE, inte om talet steg: fler spår än
+   facitkort är en försämring, och pilen för hittade mäter avståndet till
+   facit. Falska, fel namn och kant är bättre när de sjunker. */
+function cell(v, n, bra, forra, nyckel, mal) {
+  const s = n == null ? String(v) : `${v}/${n}`;
+  let d = '';
+  if (forra && forra[nyckel] != null && forra[nyckel] !== v) {
+    const upp = v > forra[nyckel];
+    const battre = mal != null ? Math.abs(v - mal) < Math.abs(forra[nyckel] - mal)
+      : (nyckel === 'falska' || nyckel === 'felNamn' || nyckel === 'kant') ? !upp : upp;
+    d = `<span class="d ${battre ? 'upp' : 'ner'}" title="förra: ${forra[nyckel]}">${upp ? '▲' : '▼'}${Math.abs(v - forra[nyckel])}</span>`;
+  }
+  return `<td class="${bra == null ? '' : bra ? 'bra' : 'dalig'}">${s}${d}</td>`;
+}
+function ritaTabell() {
+  const tb = $('#rader'); tb.innerHTML = '';
+  for (const f of fall) {
+    const tr = document.createElement('tr'); tr.dataset.id = f.id;
+    const r = resultat.get(f.id), forra = senaste && senaste.get(f.id);
+    const knapp = `<td><button data-kor="${esc(f.id)}" ${kor || !poolKlar ? 'disabled' : ''}>Kör</button></td>`;
+    const varn = f.varning ? ` <span class="fel" title="${esc(f.varning)}">⚠</span>` : '';
+    if (f.fel) tr.innerHTML = `<td></td><td>${esc(f.id)}</td><td class="fel" colspan="8">${esc(f.fel)}</td>`;
+    else if (!r) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="dim" colspan="8">${forra ? `förra: ${forra.plats}/${forra.kort} plats, ${forra.namn} namn, ${forra.falska} falska` : 'inte körd'}${f.varning ? ' · ' + esc(f.varning) : ''}</td>`;
+    else if (r.fel) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="fel" colspan="8">${esc(r.fel)}</td>`;
+    else {
+      const flaggor = [r.tidsgrans ? `<span class="fel" title="fallet slog i taket på ${TAK_MS / 1000} s — ${r.obesvarade} spår utan svar">⏱ tak</span>` : '',
+                       r.krascher ? `<span class="fel" title="undantag i appens loop under fallet">✗ ${r.krascher} krasch${r.krascher === 1 ? '' : 'er'}</span>` : '',
+                       r.poolOfullstandig ? `<span class="fel" title="poolen var ofullständig när fallet kördes">⚠ pool</span>` : ''].filter(Boolean).join(' ');
+      tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}${flaggor ? ' ' + flaggor : ''}</td>`
+        + cell(r.hittade, r.kort, r.hittade === r.kort, forra, 'hittade', r.kort)
+        + (r.platsAv ? cell(r.plats, r.platsAv, r.plats === r.platsAv, forra, 'plats') : '<td class="dim" title="facit har bara namn — rita rutor i markera.html för att prova platsen">–</td>')
+        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + '</td>')
+        + cell(r.felNamn, null, r.felNamn === 0, forra, 'felNamn')
+        + cell(r.falska, null, r.falska === 0, forra, 'falska').replace('</td>', (r.kant ? ` <span class="dim">(+${r.kant} vid kanten)</span>` : '') + (r.doldaHittade ? ` <span class="dim">(+${r.doldaHittade} dolda)</span>` : '') + (r.skrap ? ` <span class="dim">· ${r.skrap} skräp</span>` : '') + '</td>')
+        + (r.tappadAv ? cell(r.tappad, r.tappadAv, r.tappad === r.tappadAv, forra, 'tappad') : '<td class="dim">–</td>')
+        + `<td>${r.ms}${r.msMax ? ` <span class="dim">(${r.msMax})</span>` : ''}</td><td class="dim">σ ${r.sigma} · t ${r.troskel} · a ${r.utseende}${r.otsu != null ? ' (otsu ' + r.otsu + ')' : ''} · ${r.yta || '–'}</td>`;
+    }
+    tb.appendChild(tr);
+  }
+  const rs = [...resultat.values()].filter(r => !r.fel);
+  const sum = k => rs.reduce((s, r) => s + r[k], 0);
+  $('#totRad').innerHTML = rs.length
+    ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td><td></td><td></td>`
+    : '';
+  $('#kopiera').disabled = !rs.length;
+  $('#jamfor').textContent = senaste ? `Jämförs med senaste.json (${senaste.size} fall). ▲▼ visar skillnaden mot den; grönt är bättre.` : 'Ingen senaste.json att jämföra med — den här körningen blir utgångsläget när du sparar den.';
+}
+
+/* Fallets bild med facit (grönt) och spåren (färg efter tillstånd). */
+async function visaDetalj(id) {
+  const f = fall.find(x => x.id === id), r = resultat.get(id);
+  if (!f || !f.facit) return;
+  document.querySelectorAll('#rader tr').forEach(tr => tr.classList.toggle('vald', tr.dataset.id === id));
+  const img = await laddaBild(`fall/${encodeURIComponent(id)}/bild.jpg`);
+  const cv = $('#detaljCv'), S = Math.min(1, 900 / img.naturalWidth);
+  cv.width = Math.round(img.naturalWidth * S); cv.height = Math.round(img.naturalHeight * S);
+  const c = cv.getContext('2d'); c.drawImage(img, 0, 0, cv.width, cv.height);
+  c.font = '12px ui-monospace, Menlo, monospace'; c.lineWidth = 2;
+  const ruta = f.facit.ruta;
+  c.strokeStyle = '#6b8cff'; c.setLineDash([6, 4]); c.strokeRect(ruta.x * cv.width, ruta.y * cv.height, ruta.w * cv.width, ruta.h * cv.height); c.setLineDash([]);
+  const utanRuta = [];
+  for (const k of f.facit.kort) {
+    if (k.x == null) { utanRuta.push(k.namn + (k.dold ? ' (dold)' : '')); continue; }
+    c.strokeStyle = k.dold ? '#8a9aa8' : '#5fbf7f'; c.setLineDash(k.dold ? [4, 4] : []);
+    c.strokeRect(k.x * cv.width, k.y * cv.height, k.w * cv.width, k.h * cv.height);
+    c.fillStyle = c.strokeStyle; c.fillText(k.namn + (k.tappad ? ' ⟳' : '') + (k.dold ? ' (dold)' : ''), k.x * cv.width + 4, k.y * cv.height + 14);
+  }
+  c.setLineDash([]);
+  if (r && r.spar) for (const t of r.spar) {
+    c.strokeStyle = t.tillstand === 'klar' ? '#39c0ed' : t.tillstand === 'okand' ? '#e2606a' : t.tillstand === 'skrap' ? '#6b7280' : '#e8b33a';
+    c.setLineDash(t.skymd ? [5, 4] : []);
+    c.strokeRect(t.x * cv.width, t.y * cv.height, t.w * cv.width, t.h * cv.height);
+    c.fillStyle = c.strokeStyle;
+    c.fillText(`#${t.id} ${t.namn || t.tillstand}${t.saker ? '' : t.namn ? '?' : ''}${t.tappad ? ' ⟳' : ''}`, t.x * cv.width + 4, (t.y + t.h) * cv.height - 5);
+  }
+  c.setLineDash([]);
+  const fa = f.facit;
+  $('#detaljText').textContent = [
+    `${id} — ${fa.yta || ''}${fa.ljus ? ' · ' + fa.ljus : ''}${fa.hojd_cm ? ' · ' + fa.hojd_cm + ' cm' : ''}`,
+    fa.anteckning ? fa.anteckning : '',
+    utanRuta.length ? `Facit (bara namn): ${utanRuta.join(', ')}` : '',
+    r && !r.fel ? `Spår: ${r.spar.map(t => `#${t.id} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}`).join(' | ') || 'inga'}` : '',
+    r && r.missade && r.missade.length ? `Missade: ${r.missade.join(', ')}` : '',
+    r && !r.fel ? `Analys ${r.aw}×${r.ah}, matta ${r.matta}, regioner ${r.regioner}, täckning ${(r.tackning * 100).toFixed(1)} %, ${r.tid} ms totalt` : ''
+  ].filter(Boolean).join('\n');
+  $('#detalj').hidden = false;
+}
+
+/* ── körningen ───────────────────────────────────────────────────── */
+async function korDessa(lista) {
+  if (kor) return;
+  kor = true; stoppa = false;
+  $('#korAlla').disabled = true; $('#stopp').disabled = false;
+  ritaTabell();
+  try {
+    for (const f of lista) {
+      if (stoppa) break;
+      if (!f.facit || f.fel) continue;
+      status(`Kör ${f.id}…`);
+      try { resultat.set(f.id, await korFall(f)); }
+      catch (e) {
+        /* Stoppad mitt i ett fall: inget resultat alls — ett halvfärdigt
+           hade sett ut som ett riktigt i tabellen och i senaste.json. */
+        if (e && e.message === 'stoppad') { resultat.delete(f.id); break; }
+        resultat.set(f.id, { id: f.id, fel: e && e.message || String(e) }); console.error(f.id, e);
+      }
+      ritaTabell();
+      try { await visaDetalj(f.id); } catch (e) { console.warn(f.id, e); }
+    }
+    status(stoppa ? 'Stoppad.' : 'Klar.');
+  } finally {
+    kor = false; $('#korAlla').disabled = false; $('#stopp').disabled = true; ritaTabell();
+  }
+}
+
+$('#korAlla').onclick = () => korDessa(fall);
+$('#stopp').onclick = () => { stoppa = true; };
+$('#rader').addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-kor]');
+  if (b) { const f = fall.find(x => x.id === b.dataset.kor); if (f) korDessa([f]); return; }
+  const tr = ev.target.closest('tr'); if (tr && tr.dataset.id) visaDetalj(tr.dataset.id);
+});
+/* En rad JSON per fall, som en giltig array: går att läsa som helhet och
+   att diffa rad för rad i git. Spårens detaljer följer med, så att en
+   försämring går att se utan att köra om. Fall som inte körts i den här
+   omgången tas ur senaste.json, så att en delkörning inte skriver bort
+   utgångsläget för resten. */
+$('#kopiera').onclick = async () => {
+  let urSenaste = 0;
+  const rs = fall.map(f => { const r = resultat.get(f.id); if (r && !r.fel) return r; const g = senaste && senaste.get(f.id); if (g) urSenaste++; return g || null; }).filter(Boolean);
+  const txt = '[\n' + rs.map(r => JSON.stringify(r)).join(',\n') + '\n]\n';
+  const ut = $('#ut'); ut.textContent = txt; ut.hidden = false;
+  const tackning = `${rs.length} av ${fall.length} fall${urSenaste ? `, ${urSenaste} tagna ur senaste.json` : ''}`;
+  try { await navigator.clipboard.writeText(txt); status(`Resultatet ligger i urklipp (${tackning}) — spara som dev/golden/senaste.json.`); }
+  catch (e) { status(`Kunde inte kopiera automatiskt (${tackning}) — markera texten nedan.`); }
+};
+
+(async () => {
+  try {
+    [fall, senaste] = await Promise.all([listaFall(), laddaSenaste()]);
+    ritaTabell();
+    if (!fall.length) { status('Inga fall i fall/ — se LÄS-MIG.md.'); return; }
+    status('Laddar appen…');
+    await laddaApp();
+    await byggPool();
+    /* En ofullständig pool mäter leken, inte kameran. Körningen får gå
+       ändå — men det ska vara ett val, och resultatet bär flaggan. */
+    if (poolFel.length) { status('Poolen är ofullständig: ' + poolFel[0] + ' Tryck "Kör ändå" om du vill köra mot den.'); $('#korAlla').textContent = 'Kör ändå'; }
+    else status(`Redo: ${fall.filter(f => f.facit && !f.fel).length} fall. Tryck Kör alla.`);
+    $('#korAlla').disabled = false;
+    ritaTabell();
+  } catch (e) {
+    status('Fel: ' + (e && e.message || e)); console.error(e);
+  }
+})();
+</script>
+</body>
+</html>

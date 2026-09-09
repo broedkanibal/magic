@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markera facit — golden set</title>
+<style>
+:root{--bg:#0d1015;--fg:#e7ecf4;--dim:#8b96a5;--linje:#232a33;--panel:#12161c;--falt:#0a0d11;
+      --kort:#f0d23c;--vald:#5ee38a;--ruta:#4aa3ff;--varning:#f0a52a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;overflow:hidden}
+[hidden]{display:none!important}
+body.drar::after{content:"Släpp bild, facit.json eller en hel fall-mapp";position:fixed;inset:8px;border:2px dashed var(--ruta);
+  background:rgba(74,163,255,.08);display:flex;align-items:center;justify-content:center;font-size:18px;pointer-events:none;z-index:9}
+
+#scen{flex:1;display:flex;flex-direction:column;min-width:0}
+#verktyg{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--linje)}
+#bildinfo{color:var(--dim);font:12px ui-monospace,Menlo,monospace;margin-left:auto}
+#duk{flex:1;position:relative;min-height:0}
+canvas{position:absolute;inset:0;display:block;touch-action:none}
+#tips{padding:5px 10px;border-top:1px solid var(--linje);color:var(--dim);font-size:11.5px}
+
+#panel{width:360px;flex:none;overflow-y:auto;background:var(--panel);border-left:1px solid var(--linje);padding:12px 14px 48px}
+@media (max-width:820px){
+  body{flex-direction:column;overflow:auto}
+  #scen{flex:none;height:60vh}
+  #panel{width:auto;border-left:0;border-top:1px solid var(--linje)}
+}
+
+h1{font-size:15px;margin:0 0 10px}
+h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+h2 .antal{color:var(--fg);font-weight:normal;letter-spacing:0}
+button{background:#1a2029;color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#4b5868}
+button kbd{font:11px ui-monospace,Menlo,monospace;color:var(--dim);margin-left:5px}
+.lage.aktiv{border-color:currentColor}
+#lage-kort.aktiv{color:var(--kort)} #lage-ruta.aktiv{color:var(--ruta)}
+input[type=text],input[type=number],textarea,select{width:100%;background:var(--falt);color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:5px 7px;font:inherit}
+textarea{resize:vertical}
+.falt{display:block;margin-bottom:9px}
+.falt .rubrik{display:block;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.hjalp{display:block;color:var(--dim);font-size:11px;margin-top:3px;line-height:1.35}
+.hjalp code,#summering code{font-family:ui-monospace,Menlo,monospace;color:var(--fg)}
+
+.rad{border:1px solid var(--linje);border-radius:4px;padding:6px 8px;margin-bottom:6px;background:var(--bg)}
+.rad.vald{border-color:var(--vald);background:rgba(94,227,138,.07)}
+.rad.avskuren{border-style:dashed}
+.rad.dold .nr{background:var(--dim)}   /* grått som på canvasen: kortet ligger under ett annat */
+.radtopp{display:flex;gap:6px;align-items:center}
+.nr{flex:none;min-width:22px;text-align:center;font:600 12px ui-monospace,Menlo,monospace;background:var(--kort);color:var(--bg);border-radius:3px;padding:2px 4px}
+.rad.vald .nr{background:var(--vald)}
+.radtopp .namn{flex:1;min-width:0;width:auto}
+.bort{flex:none;padding:3px 8px;line-height:1}
+.radval{display:flex;gap:12px;align-items:center;margin-top:5px;font-size:12px;color:var(--dim)}
+.radval label{display:flex;gap:4px;align-items:center;cursor:pointer}
+.matt{margin-left:auto;font:12px ui-monospace,Menlo,monospace}
+.matt.liten{color:var(--varning)}
+.varning{color:var(--varning);font-size:11.5px;margin-top:4px}
+#tomt{color:var(--dim);font-size:12px}
+
+#summering{font-size:12px;color:var(--dim);margin-bottom:6px;line-height:1.5}
+#summering .varning{display:inline;margin:0}
+#utdata{font:11.5px/1.4 ui-monospace,Menlo,monospace;height:260px;white-space:pre;overflow:auto}
+.knappar{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+#melding{color:var(--vald);font-size:12px;min-height:1.4em;margin-top:6px}
+</style>
+</head>
+<body>
+<div id="scen">
+  <div id="verktyg">
+    <button id="valjfil" type="button">Välj bild / facit.json…</button>
+    <input type="file" id="filval" multiple accept="image/*,.json,application/json" hidden>
+    <button id="lage-kort" class="lage aktiv" type="button">Kort<kbd>K</kbd></button>
+    <button id="lage-ruta" class="lage" type="button">Ruta<kbd>R</kbd></button>
+    <span id="bildinfo">ingen bild</span>
+  </div>
+  <div id="duk"><canvas id="canvas"></canvas></div>
+  <div id="tips">Dra på bilden för att rita · klick väljer · dra inuti flyttar · handtagen ändrar storlek · Delete tar bort vald · Esc avmarkerar · K/R byter läge · ⌘V klistrar in en bild</div>
+</div>
+
+<aside id="panel">
+  <h1>Markera facit</h1>
+  <label class="falt"><span class="rubrik">id</span><input type="text" id="f-id" spellcheck="false" placeholder="03-vitmatta-dagsljus-100cm-4kort">
+    <small class="hjalp">Mappens namn under <code>fall/</code>: <code>NN-&lt;yta&gt;-&lt;ljus&gt;-&lt;avstånd&gt;-&lt;antal&gt;kort[-&lt;variant&gt;]</code></small></label>
+  <label class="falt"><span class="rubrik">yta</span><input type="text" id="f-yta" placeholder="vit spelmatta, tyg"></label>
+  <label class="falt"><span class="rubrik">ljus</span><input type="text" id="f-ljus" placeholder="dagsljus från fönster till vänster"></label>
+  <label class="falt"><span class="rubrik">telefon</span><input type="text" id="f-telefon" placeholder="iPhone 15 Pro"></label>
+  <label class="falt"><span class="rubrik">höjd över bordet, cm</span><input type="number" id="f-hojd" step="any" min="0" inputmode="decimal" placeholder="100">
+    <small class="hjalp">Tomt fält utelämnar <code>hojd_cm</code> ur facit.</small></label>
+  <label class="falt"><span class="rubrik">upp — åt vilket håll otappade kort står</span>
+    <select id="f-upp"><option value="v">v — lodrätt i bilden</option><option value="h">h — vågrätt i bilden</option></select>
+    <small class="hjalp"><code>v</code>: ett otappat kort står upprätt i bilden — det vanliga, telefonen i porträtt rakt över bordet.
+      <code>h</code>: korten ligger vågrätt i bilden när de <em>inte</em> är tappade.</small></label>
+  <label class="falt"><span class="rubrik">anteckning</span><textarea id="f-anteckning" rows="2" placeholder="kortet längst till höger skärs av bildkanten"></textarea></label>
+
+  <h2>Kort <span class="antal" id="antal"></span></h2>
+  <div id="kortlista"></div>
+  <div id="tomt">Inga kort än — dra en rektangel runt varje kort som ligger helt i bild. Kort som skärs av bildkanten ritas också, men kryssas <em>avskuret</em>. Ett kort som ligger under ett annat så att bara en kant syns kryssas <em>dold</em> — provet räknar det inte som miss.</div>
+
+  <h2>facit.json</h2>
+  <div id="summering"></div>
+  <textarea id="utdata" readonly spellcheck="false"></textarea>
+  <div class="knappar">
+    <button id="kopiera" type="button">Kopiera facit.json</button>
+    <button id="laddaner" type="button">Ladda ner facit.json</button>
+    <button id="nyttfall" type="button" title="Tömmer kort, ruta, id och anteckning. Bilden och bordsuppgifterna (yta, ljus, telefon, höjd, upp) står kvar — de brukar vara samma för nästa foto från samma bord.">Nytt fall</button>
+  </div>
+  <div id="melding"></div>
+</aside>
+<datalist id="leknamn"></datalist>
+
+<script>
+'use strict';
+const el = id => document.getElementById(id);
+
+/* ── Tillstånd ────────────────────────────────────────────────────────────
+   Rektanglarna lagras som andelar av bildrutan (0–1), inte pixlar, så att ett
+   facit överlever att bilden skalas om: kör.html får krympa bilden hur den
+   vill och samma facit gäller, och här kan fönstret ändras utan att något
+   räknas om. Skärmpixlar finns bara i rita() och i pekhanteringen.          */
+const T = {
+  bild: null, bildNamn: '',
+  ruta: null,        // {x,y,w,h} eller null = hela bilden gäller
+  upp: 'v',
+  kort: [],          // {namn, x,y,w,h, tappad, avskuret, dold}; x == null när raden saknar ritad ruta
+                     // (avskuren, eller inläst ur ett facit som bara listar namn)
+  ovrigt: {},        // nycklar i en inläst facit.json som verktyget inte känner till
+  vald: -1,          // index i kort, 'ruta', eller -1
+  lage: 'kort',      // 'kort' | 'ruta'
+  lek: null,         // Set med namn ur lek.txt; null om filen inte gick att läsa
+};
+const FARG = { kort: '#f0d23c', vald: '#5ee38a', ruta: '#4aa3ff', dold: '#8b96a5' };
+const KANDA = ['id', 'yta', 'ljus', 'telefon', 'hojd_cm', 'ruta', 'kort', 'avskurna', 'anteckning'];
+const KORTSIDA_MIN = 150;   // kamerans golv i bildpixlar för att kunna läsa ett kort
+const F = { id: el('f-id'), yta: el('f-yta'), ljus: el('f-ljus'), telefon: el('f-telefon'),
+            hojd: el('f-hojd'), upp: el('f-upp'), anteckning: el('f-anteckning') };
+const cv = el('canvas'), cx = cv.getContext('2d'), duk = el('duk'), lista = el('kortlista'), ut = el('utdata');
+
+const runda = v => Math.round(v * 1e4) / 1e4;
+const klamm = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+const arTal = (...v) => v.every(Number.isFinite);
+const harRekt = r => !!r && r.x != null;
+const iFalt = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
+
+/* ── Vy: var bilden ligger på canvasen ───────────────────────────────────── */
+let vy = { ox: 0, oy: 0, w: 1, h: 1 };   // i CSS-pixlar
+let dpr = 1;
+
+function passaCanvas(){
+  const b = duk.getBoundingClientRect();
+  dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(b.width * dpr); cv.height = Math.round(b.height * dpr);
+  cv.style.width = b.width + 'px'; cv.style.height = b.height + 'px';
+  if (T.bild){
+    const s = Math.min(b.width / T.bild.naturalWidth, b.height / T.bild.naturalHeight);
+    vy = { w: T.bild.naturalWidth * s, h: T.bild.naturalHeight * s };
+    vy.ox = (b.width - vy.w) / 2; vy.oy = (b.height - vy.h) / 2;
+  }
+  rita();
+}
+new ResizeObserver(passaCanvas).observe(duk);
+window.addEventListener('resize', passaCanvas);   // ResizeObserver ser inte ett byte av skärm med annan pixeltäthet
+
+const skarm = r => ({ x: vy.ox + r.x * vy.w, y: vy.oy + r.y * vy.h, w: r.w * vy.w, h: r.h * vy.h });
+const tillAndel = p => ({ x: (p.x - vy.ox) / vy.w, y: (p.y - vy.oy) / vy.h });
+function pekpos(e){ const b = cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; }
+function normRekt(a, b){
+  const p = tillAndel(a), q = tillAndel(b);
+  const x0 = klamm(p.x), x1 = klamm(q.x), y0 = klamm(p.y), y1 = klamm(q.y);
+  return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+}
+
+/* ── Träffytor ────────────────────────────────────────────────────────────
+   Bara det aktuella lägets rektanglar går att ta i. Rutan täcker nästan
+   alltid korten, så hade allt varit klickbart hade varje klick på ett kort
+   i Kort-läge tagit rutan i stället. Handtagen på den valda provas först:
+   ett hörn ligger ofta inne i grannkortet, som annars skulle sluka det.     */
+const HANDTAG = [[0, 0], [0.5, 0], [1, 0], [1, 0.5], [1, 1], [0.5, 1], [0, 1], [0, 0.5]];
+const GREPP = 7;   // px kring ett handtag som räknas som träff
+
+const rektFor = mal => mal === 'ruta' ? T.ruta : T.kort[mal];
+function kandidater(){
+  if (T.lage === 'ruta') return T.ruta ? ['ruta'] : [];
+  return T.kort.map((k, i) => i).filter(i => harRekt(T.kort[i]));
+}
+function traffa(p){
+  const kand = kandidater();
+  if (kand.includes(T.vald)){
+    const s = skarm(rektFor(T.vald));
+    for (const [hx, hy] of HANDTAG){
+      if (Math.abs(p.x - (s.x + hx * s.w)) <= GREPP && Math.abs(p.y - (s.y + hy * s.h)) <= GREPP)
+        return { typ: 'handtag', mal: T.vald, hx, hy };
+    }
+  }
+  for (let i = kand.length - 1; i >= 0; i--){   // sist ritad överst, som på canvasen
+    const s = skarm(rektFor(kand[i]));
+    if (p.x >= s.x && p.x <= s.x + s.w && p.y >= s.y && p.y <= s.y + s.h) return { typ: 'inuti', mal: kand[i] };
+  }
+  return null;
+}
+function markor(p){
+  if (!T.bild) return 'default';
+  const tr = traffa(p);
+  if (!tr) return 'crosshair';
+  if (tr.typ === 'inuti') return 'move';
+  return (tr.hx === 0.5 ? 'ns' : tr.hy === 0.5 ? 'ew' : tr.hx === tr.hy ? 'nwse' : 'nesw') + '-resize';
+}
+
+/* ── Pekhantering ─────────────────────────────────────────────────────── */
+let drag = null;   // {typ:'rita'|'flytta'|'storlek', start, nu, mal, urspr, hx, hy, flyttad}
+
+cv.addEventListener('pointerdown', e => {
+  if (!T.bild || e.button !== 0) return;
+  // preventDefault stoppar textmarkering på sidan runt om, men låter också ett
+  // fokuserat namnfält behålla fokus — då skulle K, R och Delete hamna i fältet.
+  e.preventDefault();
+  if (iFalt()) document.activeElement.blur();
+  cv.setPointerCapture(e.pointerId);
+  const p = pekpos(e), tr = traffa(p);
+  if (tr && tr.typ === 'handtag')
+    drag = { typ: 'storlek', mal: tr.mal, hx: tr.hx, hy: tr.hy, start: p, urspr: Object.assign({}, rektFor(tr.mal)), flyttad: false };
+  else if (tr){
+    valj(tr.mal);
+    drag = { typ: 'flytta', mal: tr.mal, start: p, urspr: Object.assign({}, rektFor(tr.mal)), flyttad: false };
+  } else drag = { typ: 'rita', start: p, nu: p, flyttad: false };
+});
+
+cv.addEventListener('pointermove', e => {
+  const p = pekpos(e);
+  if (!drag){ cv.style.cursor = markor(p); return; }
+  // Under 4 px är ett klick med darr på handen, inte ett drag — annars blev
+  // varje val av ett kort en pytteliten ny rektangel eller en knuff.
+  if (!drag.flyttad && Math.hypot(p.x - drag.start.x, p.y - drag.start.y) < 4) return;
+  drag.flyttad = true;
+  if (drag.typ === 'rita'){ drag.nu = p; rita(); return; }
+  const r = rektFor(drag.mal), u = drag.urspr;
+  if (drag.typ === 'flytta'){
+    r.x = klamm(u.x + (p.x - drag.start.x) / vy.w, 0, 1 - u.w);
+    r.y = klamm(u.y + (p.y - drag.start.y) / vy.h, 0, 1 - u.h);
+  } else {
+    const a = tillAndel(p), ax = klamm(a.x), ay = klamm(a.y);
+    let x0 = u.x, x1 = u.x + u.w, y0 = u.y, y1 = u.y + u.h;
+    if (drag.hx === 0) x0 = ax; else if (drag.hx === 1) x1 = ax;
+    if (drag.hy === 0) y0 = ay; else if (drag.hy === 1) y1 = ay;
+    r.x = Math.min(x0, x1); r.y = Math.min(y0, y1);
+    r.w = Math.max(Math.abs(x1 - x0), 4 / vy.w); r.h = Math.max(Math.abs(y1 - y0), 4 / vy.h);
+  }
+  andrat();
+});
+
+cv.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (d.typ !== 'rita'){ rita(); return; }
+  if (!d.flyttad){ valj(-1); return; }   // klick på tom yta avmarkerar
+  const r = normRekt(d.start, pekpos(e));
+  if (r.w * vy.w < 2 || r.h * vy.h < 2){ rita(); return; }
+  if (T.lage === 'ruta'){ T.ruta = r; valj('ruta'); }
+  else {
+    // En vald rad utan ruta (inläst ur avskurna, eller ur ett facit som bara
+    // listar namn) får den nya rektangeln i stället för att en ny rad skapas —
+    // annars fick namnet skrivas om.
+    const k = typeof T.vald === 'number' ? T.kort[T.vald] : null;
+    if (k && !harRekt(k)) Object.assign(k, r);
+    else { T.kort.push(Object.assign({ namn: '', tappad: false, avskuret: false, dold: false }, r)); T.vald = T.kort.length - 1; }
+    renderaLista();
+    const inp = lista.children[T.vald] && lista.children[T.vald].querySelector('.namn');
+    if (inp) inp.focus();   // nästa steg är nästan alltid att skriva namnet
+  }
+  andrat();
+});
+cv.addEventListener('pointercancel', () => { drag = null; rita(); });
+
+/* ── Tangenter ────────────────────────────────────────────────────────── */
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ if (iFalt()) document.activeElement.blur(); valj(-1); return; }
+  if (iFalt()) return;   // Delete i ett namnfält ska ta bort bokstäver, inte kortet
+  if (e.key === 'Delete' || e.key === 'Backspace'){ e.preventDefault(); taBortVald(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;   // ⌘R är omladdning, inte Ruta-läge
+  if (e.key === 'k' || e.key === 'K') byt('kort');
+  else if (e.key === 'r' || e.key === 'R') byt('ruta');
+});
+// Allt tillstånd ligger i minnet, och R är en snabbtangent: ett ⌘R i stället
+// för R laddar om sidan och raderar varje ritat kort utan spår. Så länge något
+// är ritat får webbläsaren fråga först. returnValue är för äldre webbläsare.
+window.addEventListener('beforeunload', e => {
+  if (T.kort.length || T.ruta){ e.preventDefault(); e.returnValue = ''; }
+});
+
+// rulla=false när valet kommer från raden själv: rullar listan mellan pointerdown
+// och click flyttar sig kryssrutan under fingret, och klicket träffar fel.
+function valj(mal, rulla = true){ T.vald = mal; markeraVal(rulla); rita(); }
+function markeraVal(rulla){
+  for (const rad of lista.children){
+    const ar = +rad.dataset.i === T.vald;
+    rad.classList.toggle('vald', ar);
+    if (ar && rulla) rad.scrollIntoView({ block: 'nearest' });
+  }
+}
+function byt(lage){
+  T.lage = lage;
+  el('lage-kort').classList.toggle('aktiv', lage === 'kort');
+  el('lage-ruta').classList.toggle('aktiv', lage === 'ruta');
+  valj(-1);   // ett grönt kort i Ruta-läge går inte att ta i, så markeringen släpps hellre än ljuger
+}
+function taBortVald(){
+  if (T.vald === 'ruta'){ T.ruta = null; valj(-1); andrat(); }
+  else if (typeof T.vald === 'number' && T.kort[T.vald]) taBortKort(T.vald);
+}
+function taBortKort(i){ T.kort.splice(i, 1); T.vald = -1; renderaLista(); andrat(); }
+function andrat(){ rita(); uppdateraAllaRader(); uppdateraUtdata(); uppdateraSummering(); }
+
+/* ── Rita ────────────────────────────────────────────────────────────── */
+function rita(){
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = cv.width / dpr, H = cv.height / dpr;
+  cx.fillStyle = '#0d1015'; cx.fillRect(0, 0, W, H);
+  if (!T.bild){
+    cx.fillStyle = '#5b6573'; cx.font = '13px ui-monospace, Menlo, monospace'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText('Släpp en bild här, välj en, eller klistra in (⌘V)', W / 2, H / 2);
+    cx.textAlign = 'left'; return;
+  }
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(T.bild, vy.ox, vy.oy, vy.w, vy.h);
+  if (T.ruta){
+    // Det kameran inte tittar på mörkas ner, så att ett kort utanför rutan syns som fel redan här.
+    const s = skarm(T.ruta);
+    cx.fillStyle = 'rgba(0,0,0,0.35)';
+    cx.beginPath(); cx.rect(vy.ox, vy.oy, vy.w, vy.h); cx.rect(s.x, s.y, s.w, s.h); cx.fill('evenodd');
+    ritaRekt(s, FARG.ruta, T.vald === 'ruta', false, 'ruta · upp ' + T.upp);
+  }
+  T.kort.forEach((k, i) => {
+    if (!harRekt(k)) return;
+    // Ett dolt kort ritas grått och streckat: det ligger under ett annat, och en
+    // gul heldragen ram hade sett ut som ett kort kameran ska hitta.
+    const farg = T.vald === i ? FARG.vald : k.dold ? FARG.dold : FARG.kort;
+    ritaRekt(skarm(k), farg, T.vald === i, k.avskuret || !!k.dold, String(i + 1), k.namn);
+  });
+  if (drag && drag.typ === 'rita' && drag.flyttad){
+    const r = normRekt(drag.start, drag.nu), s = skarm(r), farg = T.lage === 'ruta' ? FARG.ruta : FARG.kort;
+    cx.setLineDash([6, 4]); cx.lineWidth = 1.5; cx.strokeStyle = farg;
+    cx.strokeRect(s.x, s.y, s.w, s.h); cx.setLineDash([]);
+    etikett(s.x, s.y + s.h + 4, pixelmatt(r), farg);
+  }
+}
+function ritaRekt(s, farg, vald, streckad, nr, namn){
+  cx.lineWidth = vald ? 2.5 : 2; cx.strokeStyle = farg;
+  cx.setLineDash(streckad ? [7, 5] : []);
+  cx.strokeRect(s.x, s.y, s.w, s.h);
+  cx.setLineDash([]);
+  cx.font = '600 12px ui-monospace, Menlo, monospace';
+  // Namnet visas bara om det får plats i rutan — hellre bara numret än text över grannen.
+  const text = namn && cx.measureText(nr + ' ' + namn).width + 8 <= s.w ? nr + ' ' + namn : nr;
+  etikett(s.x, s.y, text, farg);
+  if (vald){
+    cx.fillStyle = farg;
+    for (const [hx, hy] of HANDTAG) cx.fillRect(s.x + hx * s.w - 4, s.y + hy * s.h - 4, 8, 8);
+  }
+}
+function etikett(x, y, text, farg){
+  cx.font = '600 12px ui-monospace, Menlo, monospace';
+  const b = cx.measureText(text).width + 8;
+  cx.fillStyle = farg; cx.fillRect(x, y, b, 17);
+  cx.fillStyle = '#0d1015'; cx.textBaseline = 'middle'; cx.textAlign = 'left';
+  cx.fillText(text, x + 4, y + 9);
+}
+function pixelmatt(r){ return `${Math.round(r.w * T.bild.naturalWidth)}×${Math.round(r.h * T.bild.naturalHeight)} px`; }
+
+/* ── Kortlistan ──────────────────────────────────────────────────────────
+   Hela listan byggs om bara när rader kommer till eller försvinner. Att skriva
+   i ett namnfält rör bara den radens mått och varning — en ombyggnad hade
+   tappat fokus mitt i ordet.                                                */
+function renderaLista(){
+  lista.replaceChildren(...T.kort.map((k, i) => {
+    const rad = document.createElement('div');
+    rad.className = 'rad'; rad.dataset.i = i;
+    rad.innerHTML =
+      `<div class="radtopp"><span class="nr">${i + 1}</span>` +
+      `<input type="text" class="namn" list="leknamn" placeholder="kortnamn" autocomplete="off" spellcheck="false">` +
+      `<button type="button" class="bort" title="Ta bort kortet">×</button></div>` +
+      `<div class="radval"><label><input type="checkbox" class="tappad"> tappad</label>` +
+      `<label><input type="checkbox" class="avskuret"> avskuret</label>` +
+      `<label title="ligger under ett annat kort så att bara en kant syns — provet räknar det inte som miss"><input type="checkbox" class="dold"> dold</label>` +
+      `<span class="matt"></span></div>` +
+      `<div class="varning" hidden></div>`;
+    const namn = rad.querySelector('.namn'), tappad = rad.querySelector('.tappad'), avskuret = rad.querySelector('.avskuret'), dold = rad.querySelector('.dold');
+    namn.value = k.namn; tappad.checked = k.tappad; avskuret.checked = k.avskuret; dold.checked = !!k.dold;
+    namn.addEventListener('input', () => { k.namn = namn.value; uppdateraRad(i); rita(); uppdateraUtdata(); uppdateraSummering(); });
+    namn.addEventListener('keydown', e => { if (e.key === 'Enter') namn.blur(); });
+    tappad.addEventListener('change', () => { k.tappad = tappad.checked; andrat(); });
+    avskuret.addEventListener('change', () => { k.avskuret = avskuret.checked; andrat(); });
+    dold.addEventListener('change', () => { k.dold = dold.checked; andrat(); });
+    rad.querySelector('.bort').addEventListener('click', e => { e.stopPropagation(); taBortKort(i); });
+    rad.addEventListener('pointerdown', () => { if (T.lage !== 'kort') byt('kort'); valj(i, false); });
+    return rad;
+  }));
+  markeraVal(); uppdateraAllaRader();
+}
+function uppdateraAllaRader(){ T.kort.forEach((_, i) => uppdateraRad(i)); }
+function uppdateraRad(i){
+  const k = T.kort[i], rad = lista.children[i];
+  if (!rad) return;
+  const m = rad.querySelector('.matt'), v = rad.querySelector('.varning');
+  rad.classList.toggle('avskuren', k.avskuret); rad.classList.toggle('dold', !!k.dold);
+  m.classList.remove('liten'); m.title = '';
+  if (!harRekt(k)) m.textContent = 'ingen ruta';
+  else if (!T.bild) m.textContent = '';
+  else {
+    const w = Math.round(k.w * T.bild.naturalWidth), h = Math.round(k.h * T.bild.naturalHeight);
+    m.textContent = `${w}×${h} px`;
+    if (Math.min(w, h) < KORTSIDA_MIN){ m.classList.add('liten'); m.title = `kortaste sidan under ${KORTSIDA_MIN} px — under kamerans golv för att läsa ett kort`; }
+  }
+  const namn = k.namn.trim(), fel = [];
+  // Ett namn utanför leken kan kedjan inte känna igen, och då mäter provet leken i stället för kameran.
+  if (namn && T.lek && !T.lek.has(namn)) fel.push('finns inte i lek.txt — kan inte kännas igen');
+  if (!k.avskuret && !harRekt(k)) fel.push('saknar ruta — markera raden och rita, så får den rektangeln');
+  v.textContent = fel.join(' · '); v.hidden = !fel.length;
+}
+
+/* ── Rad ↔ post i kort[] ─────────────────────────────────────────────────
+   Utbrutna ur byggFacit/laddaFacit så att rundturen ladda → spara går att
+   pröva i node utan DOM.
+   En rad utan ruta skrivs som bara namn (plus dold/tappad när de är satta):
+   ett facit får lista korten utan koordinater, och en omannotering ska varken
+   tappa posten eller hitta på en ruta. Med ruta skrivs tappad alltid, som de
+   ritade facit alltid gjort — kör.html läser den som en boolean.            */
+function postUrRad(k){
+  const o = { namn: k.namn.trim() };
+  if (harRekt(k)) Object.assign(o, { x: runda(k.x), y: runda(k.y), w: runda(k.w), h: runda(k.h), tappad: !!k.tappad });
+  else if (k.tappad) o.tappad = true;
+  if (k.dold) o.dold = true;
+  return o;
+}
+function radUrPost(k){
+  const rekt = k && arTal(k.x, k.y, k.w, k.h) ? { x: k.x, y: k.y, w: k.w, h: k.h } : { x: null, y: null, w: null, h: null };
+  return Object.assign({ namn: k && k.namn != null ? String(k.namn) : '', tappad: !!(k && k.tappad), avskuret: false, dold: !!(k && k.dold) }, rekt);
+}
+
+/* ── Facit ut ────────────────────────────────────────────────────────── */
+function byggFacit(){
+  const f = { id: F.id.value.trim(), yta: F.yta.value.trim(), ljus: F.ljus.value.trim(), telefon: F.telefon.value.trim() };
+  const h = parseFloat(F.hojd.value);
+  if (Number.isFinite(h)) f.hojd_cm = h;   // tomt fält utelämnar nyckeln, hellre än en påhittad nolla
+  const r = T.ruta || { x: 0, y: 0, w: 1, h: 1 };
+  f.ruta = { x: runda(r.x), y: runda(r.y), w: runda(r.w), h: runda(r.h), upp: T.upp };
+  f.kort = T.kort.filter(k => !k.avskuret).map(postUrRad);
+  f.avskurna = T.kort.filter(k => k.avskuret).map(k => k.namn.trim());
+  f.anteckning = F.anteckning.value.trim();
+  Object.assign(f, T.ovrigt);   // okända nycklar följer med oförändrade, så att en omannotering inte tyst tappar dem
+  return f;
+}
+/* Ett kort per rad: JSON.stringify(…, null, 2) hade brett ut varje kort över
+   åtta rader och gjort en diff mellan två facit oläslig. Varje del görs ändå
+   med JSON.stringify, så att resultatet alltid går att parsa.               */
+function kompakt(o){ return '{ ' + Object.entries(o).map(([k, v]) => JSON.stringify(k) + ': ' + JSON.stringify(v)).join(', ') + ' }'; }
+function formateraFacit(f){
+  const nycklar = Object.keys(f);
+  return '{\n' + nycklar.map((k, i) => {
+    const v = f[k];
+    const s = k === 'ruta' ? kompakt(v)
+            : k === 'kort' ? (v.length ? '[\n' + v.map(o => '    ' + kompakt(o)).join(',\n') + '\n  ]' : '[]')
+            : JSON.stringify(v);
+    return '  ' + JSON.stringify(k) + ': ' + s + (i < nycklar.length - 1 ? ',' : '');
+  }).join('\n') + '\n}\n';
+}
+function uppdateraUtdata(){ ut.value = formateraFacit(byggFacit()); }
+function uppdateraSummering(){
+  const f = byggFacit();
+  const utanNamn = T.kort.filter(k => !k.namn.trim()).length;
+  const utanRuta = T.kort.filter(k => !k.avskuret && !harRekt(k)).length;
+  const saknas = T.lek ? T.kort.filter(k => k.namn.trim() && !T.lek.has(k.namn.trim())).length : 0;
+  const varn = [];
+  if (utanNamn) varn.push(`${utanNamn} utan namn`);
+  if (utanRuta) varn.push(`${utanRuta} saknar ruta — skrivs med bara namn`);
+  const dolda = f.kort.filter(k => k.dold).length;
+  el('summering').innerHTML =
+    `${f.kort.length} kort` + (dolda ? ` (${dolda} dolda)` : '') + ` · ${f.avskurna.length} avskurna · ` + (T.ruta ? 'ruta ritad' : 'ingen ruta — hela bilden gäller') + '<br>' +
+    (T.lek
+      ? (saknas ? `<span class="varning">${saknas} namn saknas i lek.txt</span>` : '0 namn saknas i lek.txt') + ` (${T.lek.size} namn i leken)`
+      : '<span class="varning">lek.txt gick inte att läsa — namnen kontrolleras inte</span>') +
+    (varn.length ? `<br><span class="varning">${varn.join(' · ')}</span>` : '');
+  el('antal').textContent = T.kort.length || '';
+  el('tomt').hidden = T.kort.length > 0;
+}
+
+/* ── Facit in ────────────────────────────────────────────────────────── */
+function laddaFacit(f){
+  if (!f || typeof f !== 'object' || Array.isArray(f)) throw new Error('inte ett facit-objekt');
+  // diagnos.json i samma fallmapp är också ett JSON-objekt. Det som gör ett
+  // facit är kort[] eller avskurna[]; saknas båda laddas inget alls — annars
+  // hade telefonens diagnos tömt korten och skrivit över bordsuppgifterna.
+  if (!Array.isArray(f.kort) && !Array.isArray(f.avskurna)) throw new Error('inte ett facit — saknar både kort[] och avskurna[]');
+  // Samma spärr som Nytt fall: ett facit ur fil, mapp eller urklipp ersätter
+  // allt som ritats, och det ska inte ske utan ett ja. Nej avbryter tyst.
+  if (T.kort.length && !confirm(`Ersätta ${T.kort.length} ritade kort med facit ur filen?`)) return;
+  if (f.id) F.id.value = String(f.id);   // ett tomt id i filen får inte radera mappnamnet som redan föreslagits
+  F.yta.value = f.yta == null ? '' : String(f.yta);
+  F.ljus.value = f.ljus == null ? '' : String(f.ljus);
+  F.telefon.value = f.telefon == null ? '' : String(f.telefon);
+  F.hojd.value = Number.isFinite(f.hojd_cm) ? f.hojd_cm : '';
+  F.anteckning.value = f.anteckning == null ? '' : String(f.anteckning);
+  const r = f.ruta || {};
+  T.upp = r.upp === 'h' ? 'h' : 'v'; F.upp.value = T.upp;
+  // En ruta som täcker hela bilden är samma sak som ingen ruta — den lagras som
+  // null så att summeringen säger "hela bilden" och inte låtsas att någon ritat den.
+  T.ruta = arTal(r.x, r.y, r.w, r.h) && !(r.x === 0 && r.y === 0 && r.w === 1 && r.h === 1)
+    ? { x: r.x, y: r.y, w: r.w, h: r.h } : null;
+  // En post med bara namn blir en rad utan ruta — samma rad som en avskuren
+  // får, så att "markera raden och rita" ger den rektangeln.
+  T.kort = (Array.isArray(f.kort) ? f.kort : []).map(radUrPost);
+  for (const n of (Array.isArray(f.avskurna) ? f.avskurna : []))
+    T.kort.push({ namn: String(n), x: null, y: null, w: null, h: null, tappad: false, avskuret: true, dold: false });
+  T.ovrigt = {};
+  for (const [k, v] of Object.entries(f)) if (!KANDA.includes(k)) T.ovrigt[k] = v;
+  T.vald = -1;
+  renderaLista(); andrat();
+  const utanRuta = T.kort.filter(k => !k.avskuret && !harRekt(k)).length;
+  melding(`facit läst: ${f.kort ? f.kort.length : 0} kort` + (utanRuta ? ` (${utanRuta} utan ruta)` : '') + `, ${f.avskurna ? f.avskurna.length : 0} avskurna`);
+}
+
+/* ── Filer in ────────────────────────────────────────────────────────── */
+function laddaBild(fil){
+  const url = URL.createObjectURL(fil), img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    T.bild = img; T.bildNamn = fil.name || 'urklipp';
+    visaBildinfo(); passaCanvas(); andrat();
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); melding('Kunde inte läsa bilden ' + fil.name); };
+  img.src = url;
+}
+function visaBildinfo(){
+  el('bildinfo').textContent = T.bild ? `${T.bildNamn} · ${T.bild.naturalWidth}×${T.bild.naturalHeight} px` : 'ingen bild';
+}
+function mappUr(fil){
+  const delar = (fil.webkitRelativePath || '').split('/');
+  return delar.length > 1 ? delar[delar.length - 2] : '';
+}
+function taEmotFiler(filer, mappnamn){
+  const alla = Array.from(filer || []);
+  // En fallmapp får också rymma diagnos.json och fler bilder än bild.jpg, och
+  // diagnos.json sorterar före facit.json — "första bästa" hade tagit diagnosen
+  // för facit. bild.* och facit.json går därför före; utan dem tas första av var sort.
+  const bilder = alla.filter(f => f.type.startsWith('image/'));
+  const jsoner = alla.filter(f => /\.json$/i.test(f.name) || f.type === 'application/json');
+  const bild = bilder.find(f => /^bild\./i.test(f.name)) || bilder[0];
+  const json = jsoner.find(f => /^facit\.json$/i.test(f.name)) || jsoner[0];
+  if (!bild && !json){ melding('Inget att läsa — släpp en bild eller en facit.json'); return; }
+  // Mappnamnet är ett förslag till id och sätts först, så att ett id i en
+  // medföljande facit.json hinner skriva över det. Utan mapp lämnas fältet i fred.
+  const mapp = mappnamn || (bild && mappUr(bild)) || (json && mappUr(json)) || '';
+  if (mapp){ F.id.value = mapp; uppdateraUtdata(); }
+  if (bild) laddaBild(bild);
+  if (json) json.text().then(t => laddaFacit(JSON.parse(t))).catch(e => melding(json.name + ' gick inte att läsa: ' + e.message));
+}
+/* En släppt fall-mapp öppnas som helhet: bild.jpg och facit.json ur den, och
+   mappnamnet blir id. dataTransfer.items måste läsas innan något väntas på —
+   efter drop-händelsen är listan tom.                                        */
+function slapp(dt){
+  if (!dt) return;
+  const poster = Array.from(dt.items || []).map(i => i.webkitGetAsEntry ? i.webkitGetAsEntry() : null).filter(Boolean);
+  const mapp = poster.find(p => p.isDirectory);
+  if (mapp) lasMapp(mapp).then(filer => taEmotFiler(filer, mapp.name));
+  else taEmotFiler(dt.files);
+}
+function lasMapp(mapp){
+  return new Promise(res => mapp.createReader().readEntries(
+    poster => Promise.all(poster.filter(p => p.isFile).map(p => new Promise(r => p.file(r)))).then(res),
+    () => res([])));
+}
+
+el('valjfil').addEventListener('click', () => el('filval').click());
+el('filval').addEventListener('change', e => { taEmotFiler(e.target.files); e.target.value = ''; });   // samma fil ska gå att välja igen
+
+// dragenter/dragleave avfyras för varje barn man passerar; utan räknaren flimrar släppytan.
+let dragRaknare = 0;
+window.addEventListener('dragenter', e => { e.preventDefault(); dragRaknare++; document.body.classList.add('drar'); });
+window.addEventListener('dragleave', () => { if (--dragRaknare <= 0){ dragRaknare = 0; document.body.classList.remove('drar'); } });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); dragRaknare = 0; document.body.classList.remove('drar'); slapp(e.dataTransfer); });
+
+document.addEventListener('paste', e => {
+  const cd = e.clipboardData;
+  if (!cd) return;
+  for (const it of cd.items || []){
+    if (it.kind === 'file' && it.type.startsWith('image/')){ e.preventDefault(); laddaBild(it.getAsFile()); return; }
+  }
+  if (iFalt()) return;   // text i ett fält är vanlig inklistring
+  const text = cd.getData('text/plain');
+  if (text && text.trim().startsWith('{')){
+    let f;
+    try { f = JSON.parse(text); } catch (_) { return; }   // inte JSON — vanlig text, låt den vara
+    try { laddaFacit(f); e.preventDefault(); } catch (fel) { melding('inklistrad JSON gick inte att läsa: ' + fel.message); }
+  }
+});
+
+/* ── Fält och knappar ──────────────────────────────────────────────────── */
+for (const k of ['id', 'yta', 'ljus', 'telefon', 'hojd', 'anteckning'])
+  F[k].addEventListener('input', () => { uppdateraUtdata(); uppdateraSummering(); });
+F.upp.addEventListener('change', () => { T.upp = F.upp.value; andrat(); });
+el('lage-kort').addEventListener('click', () => byt('kort'));
+el('lage-ruta').addEventListener('click', () => byt('ruta'));
+
+el('kopiera').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(ut.value); melding('facit.json kopierad'); }
+  catch (_) {   // utanför https/localhost finns inget clipboard-API; då markeras texten så att ⌘C tar den
+    ut.focus(); ut.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (__) {}
+    melding(ok ? 'facit.json kopierad' : 'texten är markerad — kopiera med ⌘C');
+  }
+});
+el('laddaner').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([ut.value], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = 'facit.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+el('nyttfall').addEventListener('click', () => {
+  if (T.kort.length && !confirm('Ta bort alla kort och rutan?')) return;
+  T.kort = []; T.ruta = null; T.ovrigt = {}; T.vald = -1;
+  F.id.value = ''; F.anteckning.value = '';
+  renderaLista(); andrat();
+});
+
+let meldingTimer;
+function melding(text){
+  el('melding').textContent = text;
+  clearTimeout(meldingTimer);
+  meldingTimer = setTimeout(() => { el('melding').textContent = ''; }, 3000);
+}
+
+/* ── lek.txt ─────────────────────────────────────────────────────────────
+   Öppnad som file:// misslyckas fetch; då blir autokompletteringen tom och
+   namnen kontrolleras inte, vilket summeringen säger.
+   En rad får börja med ett antal ("4 Plains", "2x Island"); det skalas bort.
+   kor.html läser filen på precis samma sätt i byggPool(), och de två måste
+   hållas lika — annars föreslår autokompletteringen "4 Plains", facit får
+   det namnet, och provet hittar det aldrig i poolen.                         */
+fetch('lek.txt').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(t => {
+  T.lek = new Set(t.split(/\r?\n/).map(s => s.trim()).filter(s => s && !s.startsWith('#')).map(s => s.replace(/^\d+\s*[xX]?\s+/, '')));
+  el('leknamn').replaceChildren(...[...T.lek].map(n => Object.assign(document.createElement('option'), { value: n })));
+  uppdateraAllaRader(); uppdateraSummering();
+}).catch(() => { uppdateraSummering(); });
+
+renderaLista(); andrat();
+</script>
+</body>
+</html>
