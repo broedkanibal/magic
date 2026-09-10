@@ -1,0 +1,45 @@
+{
+  "id": "07-tra-dagsljus-40cm-5kort-rorelse",
+  "yta": "träbord, lackat och ådrat, mellanbrunt",
+  "ljus": "dagsljus inomhus, jämnt",
+  "telefon": "iPhone, skärminspelning av Mesas kameravy",
+  "hojd_cm": 40,
+  "ruta": {
+    "upp": "h"
+  },
+  "kort": [
+    {
+      "namn": "Ukud Cobra"
+    },
+    {
+      "namn": "Valkyrie's Sword"
+    },
+    {
+      "namn": "Trusty Retriever"
+    },
+    {
+      "namn": "Thriving Moor"
+    },
+    {
+      "namn": "Swamp"
+    }
+  ],
+  "video": {
+    "fil": "video.mp4",
+    "takt_ms": 150,
+    "svans_s": 8,
+    "handelser": [
+      { "t": 5.5, "spelar": "Thriving Moor" },
+      { "t": 9.5, "spelar": "Ukud Cobra" },
+      { "t": 15, "spelar": "Valkyrie's Sword" },
+      { "t": 17, "spelar": "Swamp" },
+      { "t": 19, "spelar": "Plains" },
+      { "t": 23, "spelar": "Trusty Retriever" },
+      { "t": 26.5, "spelar": "Fencing Ace" },
+      { "t": 29.5, "tar_bort": "Fencing Ace" },
+      { "t": 32, "tar_bort": "Plains" }
+    ]
+  },
+  "avskurna": [],
+  "anteckning": "Första videofallet. Källan är Jespers skärminspelning av Mesas kameravy på telefonen (1180×2556, HEVC, 37,2 s); originalet ligger utanför git i dev/videos/07-tra-dagsljus-40cm-rorelse-original.MP4. Ur den är kamerabilden urklippt (x 0–1180, y 300–1780 av inspelningen — bort med iOS statusrad, Mesas rubrik, statustexten och Safaris rad) och omkodad till H.264 1080×1354, 15 rutor i sekunden, 1 Mbit/s, en nyckelruta i sekunden (4,7 MB) med dev/golden/video/koda.swift. Appens egna gula och gröna spårrutor är alltså inbakade i bilden, som i fall 01–02. bild.jpg är sista rutan (36,5 s) och visar slutläget. Korten ligger med långsidan vågrätt i bilden (upp: h). Bordet är tomt de första fyra sekunderna; kort läggs ut, och två tas bort igen — tiderna i video.handelser är avlästa ur bildrutorna och gäller ungefär (±0,5 s). kort[] är SLUTLÄGET: de fem kort som ligger kvar när videon tar slut."
+}

@@ -47,6 +47,11 @@ iframe{width:360px;height:480px;border:1px solid #ccc;background:#000}
       namnläsare behövs: domen där är exakt den kamIdentifiera fäller först.
       De sex golden-fallen körs också som de är, och varje spår där den nya
       vägen dömer annorlunda än den gamla skrivs ut.
+
+   Ett fall som varken har rutor i facit eller spår i senaste-ai.json hoppas
+   över, och det skrivs ut. Utan hinder vet sidan inte var korten ligger:
+   mattans nivå skulle mätas över dem, och "bitar av bordet utan kort"
+   klippas mitt i ett kort och dömas som trä.
    ═══════════════════════════════════════════════════════════════════ */
 'use strict';
 const $ = s => document.querySelector(s);
@@ -139,13 +144,19 @@ async function listaFall() {
   const ut = [];
   for (const id of namn) {
     const facit = await (await fetch(`fall/${encodeURIComponent(id)}/facit.json`, { cache: 'no-store' })).json();
-    const img = await ladda(`fall/${encodeURIComponent(id)}/bild.jpg`);
-    const IW = img.naturalWidth, IH = img.naturalHeight, px = k => ({ namn: k.namn, dold: !!k.dold, x: k.x * IW, y: k.y * IH, w: k.w * IW, h: k.h * IH });
     const medRuta = facit.kort.filter(k => k.x != null && k.w != null);
     /* Korten som hinder: facits rutor, eller — där facit bara har namn —
        spåren Claude hittade i --ai-körningen, med mer luft (grövre lådor). */
     const a = ai.find(r => r.id === id);
-    const hinder = medRuta.length ? medRuta.map(px) : ((a && a.spar) || []).map(px);
+    const rutor = medRuta.length ? medRuta : ((a && a.spar) || []);
+    /* Utan hinder vet sidan inte var korten ligger: mattans nivå skulle
+       mätas över dem, och kortstora bitar av "bordet" klippas mitt i ett
+       kort och dömas som trä. Ett sådant fall hoppas över (ett nytt fall
+       som ännu inte har vare sig rutor i facit eller en AI-baslinje). */
+    if (!rutor.length) { skriv(`  hoppar över ${id}: inga hinder — facit har inga rutor och senaste-ai.json inga spår för fallet`); continue; }
+    const img = await ladda(`fall/${encodeURIComponent(id)}/bild.jpg`);
+    const IW = img.naturalWidth, IH = img.naturalHeight, px = k => ({ namn: k.namn, dold: !!k.dold, x: k.x * IW, y: k.y * IH, w: k.w * IW, h: k.h * IH });
+    const hinder = rutor.map(px);
     ut.push({ id, nr: id.slice(0, 2), facit, img, IW, IH, kort: medRuta.filter(k => !k.dold).map(px), hinder, luft: medRuta.length ? 1.3 : 1.8, M: mattNiva(img, hinder) });
   }
   return ut;

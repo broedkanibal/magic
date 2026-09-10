@@ -56,6 +56,7 @@ pre{white-space:pre-wrap;background:#0a0d12;padding:8px;border:1px solid var(--l
         <th title="säkert svar med FEL namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända">Fel namn</th>
         <th title="spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats">Falska</th>
         <th title="spår på rätt plats med rätt tap-läge / facitkort med ruta">Tappad</th>
+        <th title="bara videofall: utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som inte ligger kvar i slutet, och hur många som kom i rätt ordning">Förlopp</th>
         <th title="analyssteget i millisekunder: medianen över körningen (sista rutan förut — en ruta med identifiering i kostar 300 ms). Inom parentes: den dyraste rutan">ms</th>
         <th title="mattans brus σ, tröskel, avvikelse (utseende), ytans dom">mätt</th>
       </tr></thead>
@@ -107,11 +108,17 @@ pre{white-space:pre-wrap;background:#0a0d12;padding:8px;border:1px solid var(--l
    modulens rAF och väntetiderna här av en tickare i en Worker, som inte
    stryps.
 
+   Ett fall kan också vara en VIDEO (facit.video): då matas rutorna ur
+   filen, en i taget, i lås med appens loop, och appens klocka är videons —
+   se korVideoFall längre ner. Facits kort är slutläget, och video.handelser
+   säger vad som spelades ut och plockades bort på vägen.
+
    Måtten per fall: hittade spår, spår på rätt plats (IoU mot facit),
    rätt namn (bara SÄKRA svar räknas — ett osäkert går till granskningen
    och är inte ett igenkänt kort), säkra FEL namn (det värsta), falska
-   spår, och tap-läge. Ett fall är inte "bättre" bara för att fler spår
-   hittas: fel namn och falska räknas som försämringar.
+   spår, och i ett videofall förloppet (betygVideo). Ett fall är inte
+   "bättre" bara för att fler spår hittas: fel namn och falska räknas som
+   försämringar.
    ═══════════════════════════════════════════════════════════════════ */
 'use strict';
 const $ = s => document.querySelector(s);
@@ -121,12 +128,20 @@ const tick = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMes
 const vantande = [];          // { tid, res } — sleep() som väntar på tickaren
 let rafKo = [];               // appens rAF-anrop som väntar på nästa tick
 let krascher = 0;             // undantag ur appens loop under pågående fall — de sväljs annars tyst
+/* Videoläget driver appens rAF själv, ett varv per bildruta (korVideoFall).
+   Tickaren får då inte också tömma kön: två varv på samma bildruta är två
+   analyssteg på samma tid, och klockan är ändå videons, inte väggurets. */
+let rafManuell = false;
+function korRaf(nu) { const k = rafKo; rafKo = []; for (const cb of k) { try { cb(nu); } catch (e) { krascher++; console.error(e); } } }
 tick.onmessage = () => {
   const nu = performance.now();
   for (let i = vantande.length - 1; i >= 0; i--) if (vantande[i].tid <= nu) vantande.splice(i, 1)[0].res();
-  if (rafKo.length) { const k = rafKo; rafKo = []; for (const cb of k) { try { cb(nu); } catch (e) { krascher++; console.error(e); } } }
+  if (!rafManuell && rafKo.length) korRaf(nu);
 };
 const sleep = ms => new Promise(res => vantande.push({ tid: performance.now() + ms, res }));
+/* Ett varv i händelsekön, utan tidtagare: setTimeout stryps i en flik som
+   ligger i bakgrunden, och videoläget tar ett sådant varv per bildruta. */
+const makrotakt = () => new Promise(res => { const k = new MessageChannel(); k.port1.onmessage = () => { k.port1.close(); res(); }; k.port2.postMessage(0); });
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 /* Hur länge ett fall får ta. Referensen tar sex rutor (~1 s), ett spår blir
    stilla efter 800 ms, och varje identifiering är en beskärning plus
@@ -184,7 +199,9 @@ async function listaFall() {
       const fr = await fetch(`fall/${encodeURIComponent(id)}/facit.json`, { cache: 'no-store' });
       if (fr.ok) facit = await fr.json(); else fel = 'facit.json saknas';
     } catch (e) { fel = 'facit.json går inte att läsa'; }
-    if (facit && !facit.ruta) facit.ruta = { x: 0, y: 0, w: 1, h: 1, upp: 'v' };
+    /* Rutan är hela bilden om inget annat står; ett facit som bara anger
+       upp (videofallen) fyller resten härifrån. */
+    if (facit) facit.ruta = Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: 'v' }, facit.ruta || {});
     if (facit && !Array.isArray(facit.kort)) fel = 'facit.json saknar kort[]';
     ut.push({ id, facit, fel });
   }
@@ -282,7 +299,10 @@ async function byggPool() {
   const iPool = new Set(rec.names.map(norm));
   for (const f of fall) {
     if (!f.facit) continue;
-    const borta = f.facit.kort.map(k => k.namn).filter(n => !iPool.has(norm(n)));
+    /* Också korten som bara syns under videon: de spelas ut och plockas
+       bort igen, och saknas de i poolen mäter förloppet leken. */
+    const under = ((f.facit.video && f.facit.video.handelser) || []).map(h => h.spelar || h.tar_bort);
+    const borta = [...new Set(f.facit.kort.map(k => k.namn).concat(under))].filter(n => n && !iPool.has(norm(n)));
     f.varning = borta.length ? `saknas i poolen: ${borta.join(', ')}` : null;
   }
   $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
@@ -308,18 +328,73 @@ function sparaBeskarning(fallId, c, id) {
   } catch (e) { console.warn('beskärningen gick inte att spara', e); }
 }
 
+/* Videon till ett rörelsefall. Filen hämtas hit och spelas ur en blob: URL:
+   attrappen svarar varken med mp4-typ eller med Range-huvud, och ett
+   <video src> rakt mot den gick inte att söka i. Elementet ligger i
+   provsidans eget dokument, tyst och utanför bild — det ska avkoda rutor,
+   inte visas. */
+async function laddaVideo(src) {
+  const r = await fetch(src, { cache: 'no-store' });
+  if (!r.ok) throw new Error('videon gick inte att hämta (' + r.status + ')');
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0';
+  v.src = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: 'video/mp4' }));
+  document.body.appendChild(v);
+  /* Tak och städning: en fil Chrome varken avkodar eller fäller ett fel om
+     hängde annars hela körningen, och elementet med sin blob-URL låg kvar i
+     dokumentet resten av körningen. */
+  try {
+    await new Promise((res, rej) => {
+      const tid = setTimeout(() => rej(new Error('videon gav ingen bildruta på 20 s')), 20000);
+      v.onloadeddata = () => { clearTimeout(tid); res(); };
+      v.onerror = () => { clearTimeout(tid); rej(new Error('videon gick inte att avkoda')); };
+    });
+  } catch (e) { stangVideo(v); throw e; }
+  return v;
+}
+function stangVideo(v) { try { URL.revokeObjectURL(v.src); v.remove(); } catch (e) {} }
+/* En BESTÄMD bildruta: sök dit och vänta in den. Uppspelning i realtid ger
+   olika rutor från körning till körning; en sökning ger samma ruta varje
+   gång. Står elementet redan på tiden görs ingen sökning — då kommer inget
+   'seeked', och väntan hade aldrig tagit slut. */
+function sokTill(v, s) {
+  if (Math.abs(v.currentTime - s) < 1e-6) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const av = () => { v.removeEventListener('seeked', klar); v.removeEventListener('error', fel); clearTimeout(tid); };
+    const klar = () => { av(); res(); };
+    const fel = () => { av(); rej(new Error('videon gick inte att söka i')); };
+    const tid = setTimeout(() => { av(); rej(new Error(`videon svarade inte på sökningen till ${s.toFixed(2)} s`)); }, 20000);
+    v.addEventListener('seeked', klar); v.addEventListener('error', fel);
+    v.currentTime = s;
+  });
+}
+
 async function korFall(f) {
-  const img = await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
-  const doc = w.document;
   beskarningar[f.id] = [];
-  /* "Videon": en canvas med bilden i full upplösning, i appens dokument
-     och på videoelementets plats i kameravyn, så att spåren ritas ovanpå
-     den. Modulen frågar efter videoWidth/videoHeight, sätter srcObject
-     och anropar play() — alla tre finns här, och getUserMedia svarar med
-     en ström utan spår så att stopp() har något att stänga. */
-  const cv = doc.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
-  cv.getContext('2d').drawImage(img, 0, 0);
-  cv.videoWidth = cv.width; cv.videoHeight = cv.height; cv.play = () => Promise.resolve();
+  const vf = f.facit.video || null;
+  const kalla = vf ? await laddaVideo(`fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
+                   : await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
+  try {
+    const kb = vf ? kalla.videoWidth : kalla.naturalWidth, kh = vf ? kalla.videoHeight : kalla.naturalHeight;
+    if (!kb || !kh) throw new Error('källan har ingen storlek');
+    const cv = stallUpp(f, kalla, kb, kh);
+    return vf ? await korVideoFall(f, vf, kalla, cv) : await korStillFall(f, cv);
+  } finally { if (vf) stangVideo(kalla); }
+}
+
+/* "Videon": en canvas med källans bild i full upplösning, i appens dokument
+   och på videoelementets plats i kameravyn, så att spåren ritas ovanpå den.
+   Modulen frågar efter videoWidth/videoHeight, sätter srcObject och anropar
+   play() — alla tre finns här, och getUserMedia svarar med en ström utan
+   spår så att stopp() har något att stänga. Storleken sätts EN gång och får
+   aldrig ändras under fallet: byter videon storlek nollställer modulen
+   referensen och alla spår (loop). */
+function stallUpp(f, kalla, kb, kh) {
+  const doc = w.document;
+  const cv = doc.createElement('canvas'); cv.width = kb; cv.height = kh;
+  cv.getContext('2d').drawImage(kalla, 0, 0, kb, kh);
+  cv.videoWidth = kb; cv.videoHeight = kh; cv.play = () => Promise.resolve();
   cv.id = 'kamVideo'; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';
   const gammal = doc.getElementById('kamVideo'); if (gammal) gammal.replaceWith(cv);
   const nav = w.navigator;
@@ -337,68 +412,221 @@ async function korFall(f) {
      gick den rutan genom steg() innan satKalibrering hann nollställa. */
   K.satKalibrering({ ruta: f.facit.ruta });
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
-  let sistaBord = null, tak = false;
+  return cv;
+}
+
+/* Allt som samlas medan ett fall kör. logg/bordLogg bara för videofall:
+   ett förlopp går inte att bedöma ur slutläget. */
+function nyttProv(video) {
+  return { msProv: [],       // analyssteget per ruta — medianen, inte sista: en ruta med identifiering i kostar 300 ms
+           skurnaAlla: [],
+           /* Skärloggen över HELA fallet: modulen minns bara de senaste 40
+              rutorna, och ett snitt som flimrade i sekund 5–11 syntes inte i
+              en rad som slog i taket vid 30. Rutorna samlas per nummer vid
+              varje avläsning. Och tidslinjen: spåren varje gång något av dem
+              bytte tillstånd, storlek eller skymning — det är där man ser ett
+              spår dö och födas om. */
+           skarAlla: new Map(), tidslinje: [], sig: '', sigT: '', stabilSedan: 0,
+           sistaBord: null, s: 0,
+           logg: video ? [] : null, bordLogg: video ? [] : null,
+           pendande: new Set() };
+}
+/* Återanropen modulen får. I videoläget måste varje ruta vänta in det som
+   är på väg innan klockan flyttas fram, därför bokförs varje löfte. */
+function aterkoppling(f, prov) {
+  const folj = p => { if (!p || typeof p.then !== 'function') return p; prov.pendande.add(p); p.then(() => {}, () => {}).then(() => prov.pendande.delete(p)); return p; };
+  return {
+    status: kamSag || (() => {}),
+    fas: () => {},
+    bord: (spar, nollstall) => {
+      if (!nollstall) prov.sistaBord = spar;
+      /* Bordet datorn fick, med videons tid: ett kort som kom och gick syns
+         bara här. Bara det datorn visar per spår, inte hela posten. */
+      if (prov.bordLogg) prov.bordLogg.push({ s: prov.s, nollstall: !!nollstall,
+        kort: (spar || []).map(t => ({ id: t.id, namn: t.namn, saker: !!t.saker, tillstand: t.tillstand, skymd: !!t.skymd, provas: !!t.provas, tappad: !!t.tappad })) });
+    },
+    identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return folj(w.kamIdentifiera(c, id, gissning, kort)); },
+    fragaAI: (c, id) => w.kamFragaAI(c, id),
+    /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
+       modulen ingen, och det lokala provet mäter som förut. */
+    helbild: AI_PA ? (c => folj(w.kamHelbild(c))) : null
+  };
+}
+/* En avläsning av modulen efter en ruta. ms är fallets klocka: riktig tid i
+   ett stillbildsfall, videotid i ett videofall. */
+function las(prov, ms, msRuta) {
+  const spar = K.spar, lage = K.lage;
+  prov.s = +(ms / 1000).toFixed(2);
+  if (msRuta != null) prov.msProv.push(msRuta);
+  else if (K.diagnos.ms) prov.msProv.push(K.diagnos.ms);
+  /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
+  if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && prov.skurnaAlla.length < 20) prov.skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
+  for (const l of K.diagnos.skarLogg || []) if (!prov.skarAlla.has(l.ruta)) prov.skarAlla.set(l.ruta, l);
+  const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
+  if (s2 !== prov.sig) { prov.sig = s2; prov.stabilSedan = ms; }
+  const rad = spar.map(t => `#${t.id} ${t.tillstand}${t.skymd ? ' skymd' : ''} ${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)}${t.namn ? ' ' + t.namn + (t.saker ? '' : '?') : ''}`).join(' | ');
+  const sT = rad + '@' + lage;
+  if (sT !== prov.sigT && prov.tidslinje.length < 400) { prov.sigT = sT; prov.tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
+  if (prov.logg) loggaSpar(prov, spar);
+  const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
+  /* …och en helbild som är planerad eller på väg väntas in: den kommer
+     3 s efter att bordet stått stilla, och fall 05 var annars "klart"
+     med noll spår vid 2,5 s. */
+  const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar() && !K.helbildVantar;
+  return { spar, lage, klart: lart && svarade && ms - prov.stabilSedan >= STILLA_MS && ms > 2500 };
+}
+/* Spåren över tiden: när de föddes, vilka SÄKRA namn de bar och när, vad de
+   bar sist och när de försvann. Slutläget säger inget om ett kort som lades
+   ut och plockades bort igen — det är just det ett videofall provar. */
+function loggaSpar(prov, spar) {
+  const s = prov.s;
+  for (const t of spar) {
+    let l = prov.logg.find(x => x.mid === t.id);
+    if (!l) { l = { id: prov.logg.length + 1, mid: t.id, nr: null, fodd: s, sist: s, borta: null, skrap: null, sakra: [] }; prov.logg.push(l); }
+    l.sist = s; l.namn = t.namn || null; l.saker = !!t.saker; l.tillstand = t.tillstand;
+    if (t.tillstand === 'skrap' && l.skrap == null) l.skrap = s;
+    if (t.namn && t.saker && t.tillstand !== 'skrap' && !l.sakra.some(x => x.namn === t.namn)) l.sakra.push({ namn: t.namn, s });
+  }
+  for (const l of prov.logg) if (l.borta == null && !spar.some(t => t.id === l.mid)) l.borta = s;
+}
+/* Beskärningens spårnummer i resultatet: bedom numrerar om från 1 i
+   K.spar-ordning, så att en beskärning går att para med raden i --detalj.
+   null = spåret finns inte kvar. Samma nummer sätts på spårloggen. */
+function numreraOm(f, prov) {
+  for (const p of beskarningar[f.id]) { const i = K.spar.findIndex(t => t.id === p.spar); p.nr = i >= 0 ? i + 1 : null; }
+  for (const l of (prov.logg || [])) { const i = K.spar.findIndex(t => t.id === l.mid); l.nr = i >= 0 ? i + 1 : null; }
+}
+function avsluta(f, prov, tid, tak, takS) {
+  numreraOm(f, prov);
+  const sort = prov.msProv.slice().sort((a, b) => a - b);
+  const res = bedom(f, prov.sistaBord, tid, tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
+  res.skurnaAlla = prov.skurnaAlla;
+  res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
+  res.tidslinje = prov.tidslinje;
+  res.takS = takS;
+  return res;
+}
+
+/* ── ett stillbildsfall ──────────────────────────────────────────── */
+async function korStillFall(f, cv) {
+  const prov = nyttProv(false);
+  let tak = false;
   const t0 = performance.now();
   krascher = 0;
   try {
-    await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, {
-      status: kamSag || (() => {}),
-      fas: () => {},
-      bord: (spar, nollstall) => { if (!nollstall) sistaBord = spar; },
-      identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning, kort); },
-      fragaAI: (c, id) => w.kamFragaAI(c, id),
-      /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
-         modulen ingen, och det lokala provet mäter som förut. */
-      helbild: AI_PA ? (c => w.kamHelbild(c)) : null
-    });
+    await K.start({ video: cv, overlay: w.document.getElementById('kamOverlay') }, aterkoppling(f, prov));
     /* Klart när alla spår fått sitt svar och ingenting ändrat sig på en
        och en halv sekund. Ett spår utan svar väntar på poolen (1,5 s
        mellan frågorna) eller på tre skräpdomar — därav taket. */
-    let sig = '', stabilSedan = 0;
-    const skurnaAlla = [];
-    const msProv = [];   // analyssteget per ruta — medianen, inte sista: en ruta med identifiering i kostar 300 ms
-    /* Skärloggen över HELA fallet: modulen minns bara de senaste 40 rutorna,
-       och ett snitt som flimrade i sekund 5–11 syntes inte i en rad som slog
-       i taket vid 30. Rutorna samlas per nummer vid varje avläsning. Och
-       tidslinjen: spåren varje gång något av dem bytte tillstånd, storlek
-       eller skymning — det är där man ser ett spår dö och födas om. */
-    const skarAlla = new Map(), tidslinje = [];
-    let sigT = '';
     for (;;) {
       await sleep(150);
       if (stoppa) throw new Error('stoppad');
       const ms = performance.now() - t0;
-      const spar = K.spar, lage = K.lage;
-      if (K.diagnos.ms) msProv.push(K.diagnos.ms);
-      /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
-      if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && skurnaAlla.length < 20) skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
-      for (const l of K.diagnos.skarLogg || []) if (!skarAlla.has(l.ruta)) skarAlla.set(l.ruta, l);
-      const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
-      if (s2 !== sig) { sig = s2; stabilSedan = ms; }
-      const rad = spar.map(t => `#${t.id} ${t.tillstand}${t.skymd ? ' skymd' : ''} ${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)}${t.namn ? ' ' + t.namn + (t.saker ? '' : '?') : ''}`).join(' | ');
-      const sT = rad + '@' + lage;
-      if (sT !== sigT && tidslinje.length < 400) { sigT = sT; tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
-      const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
-      /* …och en helbild som är planerad eller på väg väntas in: den kommer
-         3 s efter att bordet stått stilla, och fall 05 var annars "klart"
-         med noll spår vid 2,5 s. */
-      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar() && !K.helbildVantar;
-      if (lart && svarade && ms - stabilSedan >= STILLA_MS && ms > 2500) break;
+      const { spar, lage, klart } = las(prov, ms);
+      if (klart) break;
       if (ms > TAK_MS) { tak = true; break; }
       status(`${f.id}: ${lage}, ${spar.length} spår, ${(ms / 1000).toFixed(1)} s`);
     }
-    /* Spårets nummer i resultatet: bedom numrerar om från 1 i K.spar-ordning,
-       så att en beskärning går att para med raden i --detalj. null = borta. */
-    for (const p of beskarningar[f.id]) { const i = K.spar.findIndex(t => t.id === p.spar); p.nr = i >= 0 ? i + 1 : null; }
-    const sort = msProv.slice().sort((a, b) => a - b);
-    const res = bedom(f, sistaBord, Math.round(performance.now() - t0), tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
-    res.skurnaAlla = skurnaAlla;
-    res.skarLogg = [...skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
-    res.tidslinje = tidslinje;
-    return res;
+    return avsluta(f, prov, Math.round(performance.now() - t0), tak, TAK_MS / 1000);
   } finally {
     try { K.stopp(); } catch (e) {}
   }
+}
+
+/* ── ett videofall ───────────────────────────────────────────────────
+   Ett förlopp, inte ett läge: kort läggs ut, flyttas och plockas bort
+   medan kameran går. Videon spelas INTE upp i realtid — den matas ruta
+   för ruta, i lås med appens egen loop:
+
+     1. sök videon till k × takt, rita av rutan i canvasattrappen,
+     2. flytta fram KLOCKAN med takt (se nedan),
+     3. kör appens köade requestAnimationFrame EN gång, alltså exakt ett
+        analyssteg,
+     4. vänta in det som steget satte igång — identifieringar, frågor till
+        Claude, helbilden — och ett varv i händelsekön.
+
+   KLOCKAN. Modulen läser tiden ur performance.now() i appens fönster:
+   loopens takt, hur länge ett spår stått stilla, när mattan under det såg
+   tom ut, när helbilden senast gick. Med väggur skulle en identifiering
+   som tar 300 ms flytta bordet 300 ms framåt medan videon stod still, och
+   två körningar aldrig kunna bli lika. Därför byts performance.now i
+   appens fönster ut mot videons egen tid under fallet, och sätts tillbaka
+   efteråt — före nästa fall och före poolbygget, som väntar på Scryfall i
+   riktig tid. Klockan startar långt från noll: noll betyder "aldrig" på
+   flera ställen i modulen.
+
+   Efter sista rutan matas samma ruta vidare tills fallet är klart på samma
+   villkor som en stillbild (alla spår har svar, ingenting har ändrat sig på
+   1,5 s), med ett tak på videons längd + svans_s — allt i videotid. */
+async function korVideoFall(f, vf, vid, cv) {
+  const takt = vf.takt_ms || 150, svans = vf.svans_s != null ? vf.svans_s : 8;
+  const dur = vid.duration || 0;
+  const sista = Math.max(0, Math.floor((dur * 1000 - 1) / takt) * takt);   // sista rutan som finns i filen, i ms
+  const takVirt = Math.round((dur + svans) * 1000);
+  const cx = cv.getContext('2d');
+  const prov = nyttProv(true);
+  const doc = w.document;
+  let tak = false, vt = 0;
+  const t0 = performance.now();
+  krascher = 0;
+  /* Klockan i appens fönster är videons under fallet. Den får ALDRIG gå
+     bakåt: modulens taktspärr (senast) och Scryfall-köns lastAt ligger kvar
+     efter fallet, och en klocka som hoppar tillbaka gjorde att inget fall
+     efter ett videofall analyserade en enda ruta (uppmätt: 01 fick 0/3 när
+     det kördes efter 07). Därför startar videotiden ovanför vad klockan
+     redan visar, och efteråt fortsätter den i riktig tid från videons slut. */
+  const VIRT0 = Math.max(1e7, Math.ceil(w.performance.now()) + 1000);
+  let virt = VIRT0;
+  w.performance.now = () => virt;
+  rafManuell = true;
+  try {
+    for (let k = 0; ; k++) {
+      if (stoppa) throw new Error('stoppad');
+      vt = k * takt;
+      if (vt <= sista) { await sokTill(vid, vt / 1000); cx.drawImage(vid, 0, 0, cv.width, cv.height); }
+      virt = VIRT0 + vt;
+      prov.s = +(vt / 1000).toFixed(2);   // före rutan: bordsrapporterna under den ska bära DEN här tiden, inte förra rutans
+      const tR = performance.now();
+      if (k === 0) await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, aterkoppling(f, prov));
+      else korRaf(virt);
+      const msRuta = k === 0 ? null : Math.round(performance.now() - tR);
+      await vantaIn(prov);
+      const { spar, lage, klart } = las(prov, vt, msRuta);
+      if (vt >= sista) {
+        if (klart) break;
+        if (vt > takVirt) { tak = true; break; }
+      }
+      if (k % 7 === 0) status(`${f.id}: ${lage}, ${spar.length} spår, ${(vt / 1000).toFixed(1)} s av ${dur.toFixed(1)} s`);
+    }
+    const res = avsluta(f, prov, Math.round(performance.now() - t0), tak, +(takVirt / 1000).toFixed(1));
+    Object.assign(res, betygVideo(f, vf, prov, +(vt / 1000).toFixed(2), +dur.toFixed(2), takt));
+    res.bordLogg = prov.bordLogg;
+    res.videoSpar = prov.logg;
+    return res;
+  } finally {
+    /* Riktig tid igen, men monotont: klockan fortsätter från videons slut i
+       provsidans egen takt, så nästa fall och poolbygget väntar i riktig tid
+       utan att modulen ser tiden gå bakåt. Och rAF-kön töms — en
+       kvarliggande loop från det här fallet hade annars kört ett andra varv
+       i nästa. */
+    { const slutVirt = virt, r0 = performance.now(); w.performance.now = () => slutVirt + (performance.now() - r0); }
+    rafManuell = false; rafKo = [];
+    try { K.stopp(); } catch (e) {}
+  }
+}
+/* Det steget satte igång: identifieringar och frågor till servern. Klockan
+   står stilla under tiden — riktig tid som går här är ingen tid i videon.
+   Taket är en spärr mot ett löfte som aldrig faller ut; det räknas som en
+   krasch i stället för att hänga körningen. */
+async function vantaIn(prov) {
+  const t0 = performance.now();
+  for (let varv = 0; prov.pendande.size || aiVantar(); varv++) {
+    if (prov.pendande.size) await Promise.race([Promise.allSettled([...prov.pendande]), sleep(30000)]);
+    else await sleep(50);
+    await makrotakt();
+    if (performance.now() - t0 > 60000) { krascher++; console.error('videoläget: väntade förgäves på ett svar'); break; }
+  }
+  await makrotakt();
 }
 
 /* ── bedömningen ─────────────────────────────────────────────────── */
@@ -497,6 +725,84 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   };
 }
 
+/* ── förloppet i ett videofall ───────────────────────────────────────
+   bedom() ovan dömer SLUTLÄGET, precis som för en stillbild. Det säger
+   ingenting om vägen dit, och det är vägen ett videofall provar. Fyra tal
+   till, alla platta fält i resultatraden så att de går att diffa:
+
+     spelade   — utspelade kort som något spår bar som SÄKERT rätt namn
+                 någon gång under videon (ett spår per kort)
+     borttagna — bortplockade kort som inte ligger kvar på bordet i slutet
+     ordning   — längsta växande delföljd av tidpunkterna då korten fick
+                 sitt säkra namn, mot facits ordning: kameran ska se korten
+                 komma i den ordning de lades ut
+     fördröjning — mediantiden från att kortet lades ut till att det fick
+                 sitt säkra namn
+     fel under — säkra namn på kort som aldrig var med i partiet
+
+   Facittiderna är avlästa ur bildrutorna och gäller ungefär, därför räknas
+   en namngivning som svar på utspelet bara om den kom tidigast TOL sekunder
+   före den avlästa tiden. */
+function betygVideo(f, vf, prov, korda, langd, takt) {
+  const TOL = 2;
+  const h = vf.handelser || [];
+  const spelade = h.filter(x => x.spelar).slice().sort((a, b) => a.t - b.t);
+  const bortagna = h.filter(x => x.tar_bort);
+  const logg = prov.logg || [];
+  /* Ett spår per utspelat kort, girigt i facitordning: det som fick namnet
+     tidigast (men inte före kortet lades ut) svarar mot utspelet. */
+  const tagna = new Set();
+  const traffar = spelade.map(x => {
+    let bast = null;
+    for (const l of logg) {
+      if (tagna.has(l)) continue;
+      const e = l.sakra.find(y => norm(y.namn) === norm(x.spelar) && y.s >= x.t - TOL);
+      if (e && (!bast || e.s < bast.s)) bast = { l, s: e.s };
+    }
+    if (bast) tagna.add(bast.l);
+    return { t: x.t, spelar: x.spelar, spar: bast ? bast.l.id : null, s: bast ? bast.s : null, dt: bast ? +(bast.s - x.t).toFixed(2) : null };
+  });
+  const namngivna = traffar.filter(x => x.s != null);
+  /* Ordningen: längsta växande delföljd av namngivningstiderna, i facits
+     ordning. Två kort som fick sina namn i omvänd ordning kostar ett. */
+  const tider = namngivna.map(x => x.s), lis = [];
+  for (const t of tider) { let i = lis.findIndex(v => v > t); if (i < 0) i = lis.length; lis[i] = t; }
+  /* Borttagna: ligger namnet kvar SÄKERT på ett spår som inte är skräp när
+     videon tagit slut? Bara säkra namn, som i resten av förloppet — ett
+     osäkert namn ligger inte på bordet utan i granskningen (uppmätt i 07: ett
+     spår fött 12 s före Plains lades ut gissade Plains osäkert och dömde
+     borttagningen som misslyckad). Fler säkra spår med namnet än facit har
+     i slutläget betyder att just den borttagningen inte gick fram. Ett kort
+     som aldrig fick ett säkert namn räknas som borta — det syns aldrig på
+     bordet — men skrivs ut som "aldrig namngivet" i --detalj. */
+  const slut = K.spar.filter(t => t.tillstand !== 'skrap' && t.namn && t.saker);
+  const namngivnaNagonsin = new Set(logg.flatMap(l => l.sakra.map(y => norm(y.namn))));
+  const borta = bortagna.map(x => ({ t: x.t, tar_bort: x.tar_bort, borta: true, namngiven: namngivnaNagonsin.has(norm(x.tar_bort)) }));
+  for (const namn of new Set(borta.map(x => x.tar_bort))) {
+    const rader = borta.filter(x => norm(x.tar_bort) === norm(namn));
+    const kvar = slut.filter(t => norm(t.namn) === norm(namn)).length;
+    const iFacit = f.facit.kort.filter(k => norm(k.namn) === norm(namn)).length;
+    for (let i = 0; i < Math.min(rader.length, Math.max(0, kvar - iFacit)); i++) rader[i].borta = false;
+  }
+  /* Säkra namn på kort som aldrig var i partiet: varken utspelade eller kvar
+     på bordet i slutet. Det är fel namn under förloppet — de syns inte i
+     slutläget, men datorn har visat dem. */
+  const iPartiet = new Set(h.map(x => x.spelar || x.tar_bort).concat(f.facit.kort.map(k => k.namn)).filter(Boolean).map(norm));
+  const felUnder = [];
+  for (const l of logg) for (const e of l.sakra) if (!iPartiet.has(norm(e.namn))) felUnder.push({ spar: l.id, namn: e.namn, s: e.s });
+  const dts = namngivna.map(x => x.dt).sort((a, b) => a - b);
+  return {
+    videoLangd: langd, videoTakt: takt, videoSekunder: korda,
+    videoLagda: namngivna.length, videoLagdaAv: spelade.length,
+    videoBorta: borta.filter(x => x.borta).length, videoBortaAv: borta.length,
+    videoOrdning: lis.length, videoOrdningAv: spelade.length,
+    videoFordrojning: dts.length ? +dts[dts.length >> 1].toFixed(2) : null,
+    videoFelUnder: felUnder.length, videoFelUnderNamn: felUnder,
+    videoHandelser: traffar.concat(borta.map(x => ({ t: x.t, tar_bort: x.tar_bort, borta: x.borta, namngiven: x.namngiven })))
+                           .sort((a, b) => a.t - b.t)
+  };
+}
+
 /* ── tabellen ────────────────────────────────────────────────────── */
 /* Pilen säger om det blev BÄTTRE, inte om talet steg: fler spår än
    facitkort är en försämring, och pilen för hittade mäter avståndet till
@@ -512,6 +818,15 @@ function cell(v, n, bra, forra, nyckel, mal) {
   }
   return `<td class="${bra == null ? '' : bra ? 'bra' : 'dalig'}">${s}${d}</td>`;
 }
+/* Förloppskolumnen: bara videofall har den, en stillbild visar –. */
+function forloppCell(r, forra) {
+  if (r.videoLagdaAv == null) return '<td class="dim" title="bara videofall: kort som läggs ut och plockas bort medan kameran går">–</td>';
+  const del = (v, n, nyckel) => `${v}/${n}` + (forra && forra[nyckel] != null && forra[nyckel] !== v
+    ? `<span class="d ${v > forra[nyckel] ? 'upp' : 'ner'}" title="förra: ${forra[nyckel]}">${v > forra[nyckel] ? '▲' : '▼'}${Math.abs(v - forra[nyckel])}</span>` : '');
+  const bra = r.videoLagda === r.videoLagdaAv && r.videoBorta === r.videoBortaAv && r.videoOrdning === r.videoOrdningAv;
+  return `<td class="${bra ? 'bra' : ''}" title="fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median), ${r.videoFelUnder} säkra namn på kort som aldrig var i partiet">`
+    + `${del(r.videoLagda, r.videoLagdaAv, 'videoLagda')} spelade · ${del(r.videoBorta, r.videoBortaAv, 'videoBorta')} borttagna · ordning ${del(r.videoOrdning, r.videoOrdningAv, 'videoOrdning')}</td>`;
+}
 function ritaTabell() {
   const tb = $('#rader'); tb.innerHTML = '';
   for (const f of fall) {
@@ -523,7 +838,7 @@ function ritaTabell() {
     else if (!r) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="dim" colspan="8">${forra ? `förra: ${forra.plats}/${forra.kort} plats, ${forra.namn} namn, ${forra.falska} falska` : 'inte körd'}${f.varning ? ' · ' + esc(f.varning) : ''}</td>`;
     else if (r.fel) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="fel" colspan="8">${esc(r.fel)}</td>`;
     else {
-      const flaggor = [r.tidsgrans ? `<span class="fel" title="fallet slog i taket på ${TAK_MS / 1000} s — ${r.obesvarade} spår utan svar">⏱ tak</span>` : '',
+      const flaggor = [r.tidsgrans ? `<span class="fel" title="fallet slog i taket på ${r.takS || TAK_MS / 1000} s — ${r.obesvarade} spår utan svar">⏱ tak</span>` : '',
                        r.krascher ? `<span class="fel" title="undantag i appens loop under fallet">✗ ${r.krascher} krasch${r.krascher === 1 ? '' : 'er'}</span>` : '',
                        r.poolOfullstandig ? `<span class="fel" title="poolen var ofullständig när fallet kördes">⚠ pool</span>` : ''].filter(Boolean).join(' ');
       tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}${flaggor ? ' ' + flaggor : ''}</td>`
@@ -533,14 +848,17 @@ function ritaTabell() {
         + cell(r.felNamn, null, r.felNamn === 0, forra, 'felNamn')
         + cell(r.falska, null, r.falska === 0, forra, 'falska').replace('</td>', (r.kant ? ` <span class="dim">(+${r.kant} vid kanten)</span>` : '') + (r.doldaHittade ? ` <span class="dim">(+${r.doldaHittade} dolda)</span>` : '') + (r.skrap ? ` <span class="dim">· ${r.skrap} skräp</span>` : '') + '</td>')
         + (r.tappadAv ? cell(r.tappad, r.tappadAv, r.tappad === r.tappadAv, forra, 'tappad') : '<td class="dim">–</td>')
+        + forloppCell(r, forra)
         + `<td>${r.ms}${r.msMax ? ` <span class="dim">(${r.msMax})</span>` : ''}${r.ocrMs ? ` <span class="dim" title="namnläsaren, median per kort">· ocr ${r.ocrMs}</span>` : ''}</td><td class="dim">σ ${r.sigma} · t ${r.troskel} · a ${r.utseende}${r.otsu != null ? ' (otsu ' + r.otsu + ')' : ''} · ${r.yta || '–'}</td>`;
     }
     tb.appendChild(tr);
   }
   const rs = [...resultat.values()].filter(r => !r.fel);
-  const sum = k => rs.reduce((s, r) => s + r[k], 0);
+  const sum = k => rs.reduce((s, r) => s + (r[k] || 0), 0);   // videofältens summa: de saknas i stillbildsraderna
   $('#totRad').innerHTML = rs.length
-    ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td><td></td><td></td>`
+    ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td>`
+      + (sum('videoLagdaAv') ? `<td>${sum('videoLagda')}/${sum('videoLagdaAv')} spelade · ${sum('videoBorta')}/${sum('videoBortaAv')} borttagna · ordning ${sum('videoOrdning')}/${sum('videoOrdningAv')}</td>` : '<td class="dim">–</td>')
+      + '<td></td><td></td>'
     : '';
   $('#kopiera').disabled = !rs.length;
   $('#jamfor').textContent = senaste ? `Jämförs med senaste.json (${senaste.size} fall). ▲▼ visar skillnaden mot den; grönt är bättre.` : 'Ingen senaste.json att jämföra med — den här körningen blir utgångsläget när du sparar den.';
@@ -579,6 +897,12 @@ async function visaDetalj(id) {
     `${id} — ${fa.yta || ''}${fa.ljus ? ' · ' + fa.ljus : ''}${fa.hojd_cm ? ' · ' + fa.hojd_cm + ' cm' : ''}`,
     fa.anteckning ? fa.anteckning : '',
     utanRuta.length ? `Facit (bara namn): ${utanRuta.join(', ')}` : '',
+    /* Videofallet: bilden ovan är sista rutan, och facit ovanpå den är
+       slutläget. Förloppet står här. */
+    r && r.videoHandelser ? `Video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms · ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'}` : '',
+    r && r.videoHandelser ? r.videoHandelser.map(h => h.spelar
+      ? `  ${h.t} s ut ${h.spelar}: ${h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`}`
+      : `  ${h.t} s bort ${h.tar_bort}: ${h.borta ? 'borta ur bordet' : 'ligger kvar'}`).join('\n') : '',
     r && !r.fel ? `Spår: ${r.spar.map(t => `#${t.id} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + ', ' + t.ocr.ms + ' ms]') : ''}`).join(' | ') || 'inga'}` : '',
     r && r.missade && r.missade.length ? `Missade: ${r.missade.join(', ')}` : '',
     r && !r.fel ? `Analys ${r.aw}×${r.ah}, matta ${r.matta}, regioner ${r.regioner}, täckning ${(r.tackning * 100).toFixed(1)} %, ${r.tid} ms totalt` : ''

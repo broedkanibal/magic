@@ -5,8 +5,10 @@ foto läggs till, och var algoritmen, systemprompten och modellen finns. Den hä
 filen är referensen.
 
 Riktiga bilder från olika bord och ljus, var och en med ett facit över vilka
-kort som ligger var. `kor.html` kör **hela kamerakedjan** — detektering, ram,
-beskärning, igenkänning mot leken — på varje fall och jämför med facit, så att
+kort som ligger var — och sedan fall 07 också **videor**, där kort läggs ut
+och plockas bort medan kameran går. `kor.html` kör **hela kamerakedjan** —
+detektering, ram, beskärning, igenkänning mot leken — på varje fall och
+jämför med facit, så att
 en ändring i algoritmen mäts mot verkligheten i stället för att gissas.
 Bänken (`node dev/kamerabank.cjs`) provar syntetiska ytor och rörelse; det här
 provar det bänken inte kan: ett riktigt bord, en riktig lampa, riktiga kort.
@@ -24,6 +26,9 @@ dev/golden/
   vriden.html/.cjs   skräpfiltret mot kort i vinkel och mot bordet utan kort
   senaste.json       senaste incheckade körningen — det kor.html jämför med
   historik.md        en rad per incheckad körning: datum, commit, metod, totaler
+  video/             verktygen som gör en telefoninspelning till ett videofall
+                     (koda.swift, ruta.swift, kontaktark.swift — bara macOS
+                      egna delar, ingen ffmpeg)
   fall/
     01-tra-lampa-60cm-3kort/
       bild.jpg
@@ -33,6 +38,10 @@ dev/golden/
       facit.json
       diagnos.json   (valfritt: telefonens egen referens, brus och trösklar —
                       spelas upp med bänken, se nedan; kor.html läser den inte)
+    07-tra-dagsljus-40cm-5kort-rorelse/
+      bild.jpg       sista rutan: slutläget, som facit dömer mot
+      video.mp4      hela förloppet — ett videofall (facit.video)
+      facit.json
     …
 ```
 
@@ -75,7 +84,10 @@ snitt som flimrar, eller ett spår som aldrig blir stilla, syns bara där.
 en jpg per spår (`<fall>-spar<nr>.jpg`, nr = raden i `--detalj`): det är dem
 man ska titta på när ett kort blir osäkert. Varje spår i `--detalj` bär domskälet
 i hakparentes (`bild`, `bild+namn`, `namn ensamt`, `namn slår land`,
-`konflikt`, `osäker`) och namnläsarens rad med remsans läge (`@8%`, `vänd`). Första körningen tar en minut extra (poolen och
+`konflikt`, `osäker`) och namnläsarens rad med remsans läge (`@8%`, `vänd`).
+I ett **videofall** skriver `--detalj` dessutom förloppet: varje utspelat och
+bortplockat kort med sin tid och när kameran namngav det, och varje spår från
+födsel till död i videons sekunder. Första körningen tar en minut extra (poolen och
 namnläsarens data hämtas och cachas i en egen Chrome-profil), de följande
 inte. Kräver Chrome på Macen (`CHROME=/sökväg` om den ligger någon annanstans).
 
@@ -133,6 +145,10 @@ blir skräp, en vriden bit av bordet godkänns eller en vinkel inte fick ett
 enda mätt kort. Raka bitar som godkänns står i
 tabellen men fäller inte körningen: där mäter appen som förut, och det provar
 `kor.cjs` (i 04–06 är de skålen, bordskanten mot golvet och ribborna).
+Ett fall som varken har rutor i facit eller spår i `senaste-ai.json` hoppas
+över, och det skrivs ut: utan att veta var korten ligger skulle sidan mäta
+mattans nivå över dem och klippa "bitar av bordet" mitt i ett kort. Fall 07
+är ett sådant i dag.
 
 Namnläsaren körs bara när titelraden är hög nog att läsas (remsan minst 20 px
 hög i källbilden, `MIN_KALLHOJD` i `index.html`; golvet låg på 40 tills fotona i
@@ -152,7 +168,7 @@ säkert på bilden ensam när läsaren tydligt läst ett annat namn.
 | **Rätt namn** | facitkort som fått rätt namn **med säkert svar**, mot synliga kort i facit. Inom parentes: rätt namn men osäkert — det går till granskningen och räknas inte som igenkänt — och hur många av de rätta som namnläsaren också läste rätt (*via namn*) |
 | **Fel namn** | säkert svar med fel namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända: kortet hamnar på bordet utan att någon frågas |
 | **Falska** | spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats |
-| **Tappad** | spår på rätt plats med rätt tap-läge, mot facitkort med ruta |
+| **Förlopp** | bara videofall: utspelade kort som fick ett säkert rätt namn någon gång under videon, bortplockade kort som inte ligger kvar på bordet i slutet, och hur många av utspelen kameran såg i rätt ordning. `–` för ett foto |
 | **ms** | analyssteget i millisekunder, medianen över körningen, med den dyraste rutan inom parentes, och namnläsarens median per kort (*ocr*). Mätt i den här datorns webbläsare — säger inget om telefonen |
 | **mätt** | mattans brus σ, tröskeln, avvikelsen (`utseende`) och ytans dom |
 
@@ -193,12 +209,15 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
 ## Lägga till ett fall
 
 Steg för steg står i [SNABBGUIDE.md](SNABBGUIDE.md), under *Lägga till ett nytt
-foto*. Här är detaljerna bakom.
+foto* och *Lägga till en video*. Här är detaljerna bakom.
 
 1. **Fotografera.** Telefonen i hållaren rakt över bordet, som när man
-   spelar. Stillbild med kameraappen eller en ruta ur en video — lägg bara in
-   den utvalda rutan som JPEG, aldrig videofilen (44 MB hör inte hemma i git).
-   Skala till högst 1080 px bred, kvalitet ~80, så blir den 150–250 kB.
+   spelar. Stillbild med kameraappen eller en ruta ur en video — lägg in den
+   utvalda rutan som JPEG, inte telefonens egen videofil (den är tiotals
+   megabyte och hör hemma i det gitignorerade `dev/videos/`). Ska fallet
+   vara ett *videofall* går videon in i mappen, men klippt och omkodad till
+   några megabyte — se *facit.json för ett videofall* längre ner.
+   Skala bilden till högst 1080 px bred, kvalitet ~80, så blir den 150–250 kB.
    Detekteringen kör på 360 px och beskärningen behöver 250–400 px kortsida,
    så det räcker. På en Mac:
 
@@ -216,29 +235,29 @@ foto*. Här är detaljerna bakom.
    - `<antal>kort`: facit i namnet, så att fel syns direkt i en fillista
    - `<variant>` valfritt: `tappade`, `overlapp`, `hand`, `rorelse`
 
-   Exempel: `03-vitmatta-dagsljus-100cm-4kort`, `07-tryckt-lampa-60cm-3kort-tappade`.
+   Exempel: `03-vitmatta-dagsljus-100cm-4kort`, `08-tryckt-lampa-60cm-3kort-hand`.
 
 3. **Skriv facit.** En **namnlista** räcker: `kort` med bara `namn` per post,
    ett kort per rad, också dubbletter — så lades fall 03–06 till. Då provas
-   namnen men inte platsen och tap-läget (kolumnerna Plats och Tappad visar
-   `–`). Ett kort som ligger under ett annat så att bara en kant syns får
-   `"dold": true`.
+   namnen men inte platsen (kolumnen Plats visar `–`). Ett kort som ligger
+   under ett annat så att bara en kant syns får `"dold": true`.
 
-   Vill du också prova var korten ligger och om de är tappade kan du rita
+   Vill du också prova var korten ligger kan du rita
    rutor — frivilligt, och det går att göra senare. Kör `npm run dev`, öppna
    <http://localhost:8232/dev/golden/markera.html>, släpp in bilden, dra en
-   ruta runt varje kort, skriv namnet (autokomplettering ur `lek.txt`), kryssa
-   *tappad* för liggande kort, *avskuret* för kort som skärs av kanten och
+   ruta runt varje kort, skriv namnet (autokomplettering ur `lek.txt`),
+   *avskuret* för kort som skärs av kanten och
    *dold* för kort under ett annat, och tryck **Kopiera facit.json**.
    markera.html läser också en namnlista och låter dig rita ruta för ruta.
+   Kryssa *tappad* för liggande kort, så provas tap-läget också.
 
 4. **Kontrollera leken.** Varje kortnamn i facit måste finnas i `lek.txt` —
    annars kan kedjan inte känna igen kortet, och provet mäter leken i stället
    för kameran. Lägg till namnet om det saknas; poolen byggs om av sig själv.
 
-5. **Kör fallet och spara det.** `node dev/golden/kor.cjs --fall 07 --detalj`
-   visar raden; sedan `node dev/golden/kor.cjs --fall 07 --spara` (och
-   `--ai --fall 07 --spara` för Claude-baslinjen — med `--fall` byts bara det
+5. **Kör fallet och spara det.** `node dev/golden/kor.cjs --fall 08 --detalj`
+   visar raden; sedan `node dev/golden/kor.cjs --fall 08 --spara` (och
+   `--ai --fall 08 --spara` för Claude-baslinjen — med `--fall` byts bara det
    fallet), en rad i `historik.md`, och mappen och baslinjerna i samma commit.
    `kor.html` behövs inte: det är samma prov i webbläsaren, för den som vill
    se bilden med spåren.
@@ -275,11 +294,71 @@ foto*. Här är detaljerna bakom.
   Rutläget i markera.html behövs inte för nya fall.
 - `avskurna` listar kort som syns men skärs av kanten. De räknas inte som
   missar; i dag spåras de medvetet inte.
-- `tappad` gör att tap-läget provas, inte bara namnen.
+- `tappad` gör att tap-läget provas, inte bara namnen. Kameran läser tappat
+  mot ett grundläge spelaren bekräftar i spelet; i provet är grundläget
+  `ruta.upp` (stående eller liggande otappat).
 - `dold: true` på ett kort betyder att det ligger under ett annat så att bara
   en kant syns. Det räknas inte i nämnaren — ingen kamera ser det — men
   hittas det ändå räknas det inte som falskt.
 - En post får ha bara `namn`. Då provas namnet men inte platsen.
+
+### facit.json för ett videofall
+
+Ett fall med `video` i facit är ett **förlopp**: kort läggs ut, flyttas och
+plockas bort medan kameran går. `kort` är fortfarande **slutläget** — det som
+ligger kvar när videon tar slut, och det bild.jpg (sista rutan) visar — så
+alla kolumner utom Förlopp betyder exakt samma sak som för ett foto.
+
+```json
+{
+  "ruta": { "upp": "h" },
+  "kort": [ { "namn": "Ukud Cobra" }, { "namn": "Swamp" } ],
+  "video": {
+    "fil": "video.mp4",
+    "takt_ms": 150,
+    "svans_s": 8,
+    "handelser": [
+      { "t": 5.5, "spelar": "Thriving Moor" },
+      { "t": 29.5, "tar_bort": "Fencing Ace" }
+    ]
+  }
+}
+```
+
+- `fil` ligger i fallets egen mapp och checkas in (till skillnad från
+  originalinspelningen, som hör hemma i det gitignorerade `dev/videos/`).
+- `takt_ms` är hur tätt rutorna matas in i modulen. 150 är appens egen takt;
+  lägre än så hoppar modulen över rutor och mäter inget mer.
+- `svans_s` är hur många sekunder kameran får på **sista rutan** efter att
+  videon tagit slut, innan fallet döms — ett kort som lades ut i sista
+  sekunden ska hinna bli namngivet. Det är också fallets tidsgräns:
+  videons längd + `svans_s`, räknat i videotid.
+- `handelser` är avlästa ur bildrutorna (`video/kontaktark.swift`): `t` i
+  sekunder in i videon, `spelar` för ett kort som läggs ut och `tar_bort`
+  för ett som plockas bort. En halv sekund fel gör ingen skada — en
+  namngivning räknas som svar på utspelet om den kom tidigast två sekunder
+  före den avlästa tiden.
+- Varje namn, också de som bara syns en stund, måste finnas i `lek.txt`.
+
+**Så körs en video.** Provet spelar inte upp den. Det söker fram ruta k ×
+`takt_ms`, ritar av den i canvasattrappen, flyttar fram appens klocka ett
+takt-steg och kör ETT analyssteg — och väntar sedan in identifieringarna
+innan nästa ruta. Appens `performance.now()` är videons tid under fallet
+(och sätts tillbaka efteråt), så en igenkänning som tar 300 ms flyttar inte
+bordet 300 ms framåt: två körningar på samma fil ger samma svar, spår för
+spår. Efter sista rutan matas samma ruta vidare tills fallet är klart på
+samma villkor som ett foto (alla spår har svar, ingenting har ändrat sig på
+1,5 s) eller taket ovan slår till.
+
+**Förloppets tal** (`videoLagda`, `videoBorta`, `videoOrdning`,
+`videoFordrojning`, `videoFelUnder` i `senaste.json`): utspelade kort som
+något spår bar som säkert rätt namn någon gång, bortplockade kort som inte
+ligger kvar på bordet i slutet, längsta växande delföljd av
+namngivningstiderna mot facits ordning, mediantiden från utspel till säkert
+namn, och säkra namn på kort som aldrig var i partiet. `--detalj` skriver
+dem kort för kort, och varje spår från födsel till död i videons sekunder;
+`senaste.json` bär dessutom hela loggen (`videoSpar`) och varje bord datorn
+fick (`bordLogg`).
 
 ## Fallen som finns, och de som saknas
 
@@ -297,6 +376,17 @@ ett annat är `dold`. Att facit listar alla kort på bordet, också de som
 ligger under andra, är rätt: det är så bordet ser ut. Men ingen kamera ser
 ett kort som bara visar en kant, och därför räknas de dolda för sig.
 
+Fall 07 är det första **videofallet** (2026-09-10): en skärminspelning av
+Mesas kameravy på ett träbord i dagsljus, 37 sekunder, där sju kort läggs ut
+ett i taget och två av dem plockas bort igen. Bordet är tomt de första fyra
+sekunderna, en hand är i bild vid varje utspel, och appens egna spårrutor är
+inbakade i bilden som i 01–02. `bild.jpg` är sista rutan och facit `kort` de
+fem kort som ligger kvar då; `video.handelser` bär förloppet. Uppmätt lokalt
+utan Claude: 2 av 7 utspelade kort hann få ett säkert namn, 1 av 2
+bortplockade försvann ur bordet, 6 spår mot 5 kort i slutet. Det är sämre än
+fotona, och det ska det vara — en hand i bild, kort som skjuts in bredvid
+varandra och ett bord som ändras hela tiden är svårare än en stillbild.
+
 Det som fortfarande saknas, i den ordning det skulle lära oss mest:
 
 - **Vit eller svart spelmatta** — det raka motsatsfallet mot trä.
@@ -311,6 +401,9 @@ Det som fortfarande saknas, i den ordning det skulle lära oss mest:
 
 Fler bord slår fler bilder av samma bord. Video med rörelse blir egna fall
 (`-rorelse`) och ska förväntas ge sämre resultat; det är själva poängen.
+Hur man gör en ny video till ett fall står i
+[SNABBGUIDE.md](SNABBGUIDE.md) under *Lägga till en video* — verktygen ligger
+i `dev/golden/video/` och behöver ingen ffmpeg.
 
 ## Är det här AI-evals eller regressionstest?
 

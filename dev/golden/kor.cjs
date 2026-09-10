@@ -8,6 +8,11 @@
    blev sämre än senaste.json (rätt namn, falska eller fel namn), så att den
    går att köra före en commit.
 
+   Ett fall är en stillbild eller en VIDEO (facit.video). Ett videofall matas
+   ruta för ruta med videons egen klocka och har sitt eget tak i videotid
+   (videons längd + svans_s); --tak nedan gäller hela körningen. Kolumnen
+   Förlopp i tabellen är videofallens: vad kameran hann se hända.
+
    Varför huvudlös Chrome och inte bänken: hela kedjan — beskärningen,
    matcharen, ORB och namnläsaren — finns bara i webbläsaren. Och varför
    inte bara fliken: en flik i bakgrunden stryps (rAF pausas, tidtagare en
@@ -41,7 +46,14 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
    "(var N)" står där ett tal skiljer sig från baslinjen. Sidans egen rad
    (tider, tröskel, yta) står under --detalj. */
 function skrivTabell(rs, gamla) {
-  const skiljer = (r, g, k) => g && g[k] !== r[k] ? ` (var ${g[k]})` : '';
+  const skiljer = (r, g, k) => g && g[k] != null && g[k] !== r[k] ? ` (var ${g[k]})` : '';
+  /* Förloppet finns bara i ett videofall: hur många utspelade kort kameran
+     hann namnge säkert, hur många bortplockade som försvann ur bordet, och
+     hur många som kom i rätt ordning. En stillbild har inget förlopp. */
+  const forlopp = (r, g) => (r.videoLagdaAv == null && r.videoBortaAv == null) ? '–'   // fältet saknas = foto; noll utspel är fortfarande ett videofall
+    : `${r.videoLagda}/${r.videoLagdaAv} spelade${skiljer(r, g, 'videoLagda')}`
+    + ` · ${r.videoBorta}/${r.videoBortaAv} borttagna${skiljer(r, g, 'videoBorta')}`
+    + ` · ordning ${r.videoOrdning}/${r.videoOrdningAv}${skiljer(r, g, 'videoOrdning')}`;
   const kolumner = [
     ['Fall', 42, r => r.id],
     ['Kort', 12, r => r.kort + (r.dolda ? ` +${r.dolda} dolt` : '')],
@@ -50,11 +62,13 @@ function skrivTabell(rs, gamla) {
     ['Fel namn', 13, (r, g) => r.felNamn + skiljer(r, g, 'felNamn')],
     ['Falska', 13, (r, g) => r.falska + skiljer(r, g, 'falska')],
     ['Plats', 7, r => r.platsAv ? `${r.plats}/${r.platsAv}` : '–'],
-    ['Tappad', 7, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–']
+    ['Tappad', 8, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–'],
+    ['Förlopp', 46, forlopp]
   ];
   const rad = celler => '  ' + celler.map((c, i) => String(c).padEnd(kolumner[i][1])).join('').trimEnd();
   const summa = (lista, k) => lista.reduce((a, r) => a + (r[k] || 0), 0);
-  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv'].map(k => [k, summa(lista, k)]));
+  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv',
+    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder'].map(k => [k, summa(lista, k)]));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
   const gs = rs.map(r => gamla.get(r.id));
@@ -63,6 +77,8 @@ function skrivTabell(rs, gamla) {
   console.log('  Hittade: kort kameran lade ut — också dolda kort den ändå såg, och falska spår. Därför kan talet bli större än Kort.');
   console.log('  Rätt namn: synliga kort som fick rätt namn med säkert svar. Fel namn: säkert svar men fel kort (ska vara 0).');
   console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor. (var N): baslinjens tal.');
+  console.log('  Förlopp: bara videofall — utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
+  console.log('  inte ligger kvar med säkert namn, och hur många av utspelen kameran såg i rätt ordning. Slutläget står i kolumnerna före.');
 }
 
 (async () => {
@@ -98,7 +114,10 @@ function skrivTabell(rs, gamla) {
   console.log(await kor(`(document.querySelector('#pool') || {}).textContent || ''`));
   console.log(await kor(`(document.querySelector('#metod') || {}).textContent || ''`));
   /* --fall <prefix>: bara fallen vars id börjar så — ett fall i taget när ett steg mäts */
-  await kor(FALL ? `korDessa(fall.filter(f => f.id.startsWith(${JSON.stringify(FALL)}))); 'ok'` : `document.querySelector('#korAlla').click(); 'ok'`);
+  /* --fall 07,01: flera prefix, körda i DEN ordningen. Ordningen är själva
+     provet ibland — ett videofall lämnade förut klockan i framtiden, och
+     det syntes bara om ett foto kördes efter det. */
+  await kor(FALL ? `korDessa(${JSON.stringify(FALL.split(','))}.flatMap(p => fall.filter(f => f.id.startsWith(p)))); 'ok'` : `document.querySelector('#korAlla').click(); 'ok'`);
   let sist = '';
   await tills(async () => { const s = await status(); if (s !== sist) { sist = s; process.stdout.write('\r  ' + s.padEnd(70).slice(0, 70)); } return /^(Klar|Stoppad)/.test(s) ? s : null; }, TAK_MS, 'körningen');
   console.log('');
@@ -116,6 +135,21 @@ function skrivTabell(rs, gamla) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     { const sidan = rader.find(x => x.includes(r.id)); if (sidan) console.log('  sidans rad: ' + sidan.replace(/^Kör\s+/, '')); }
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    /* Videofallet: förloppet i videons sekunder — vad facit säger, när
+       kameran namngav kortet, och varje spår från födsel till död. Det är
+       här man ser ett kort som kom fram sent, ett som aldrig blev säkert,
+       och ett som låg kvar efter att det plockats bort. */
+    if (r.videoSpar) {
+      console.log(`  video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms; ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median)`);
+      for (const h of r.videoHandelser || []) console.log(h.spelar
+        ? `    ${h.t} s ut ${h.spelar}: ` + (h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`)
+        : `    ${h.t} s bort ${h.tar_bort}: ` + (h.borta ? 'borta ur bordet' : 'LIGGER KVAR'));
+      if (r.videoFelUnder) console.log('    säkra namn på kort som aldrig var i partiet: ' + (r.videoFelUnderNamn || []).map(x => `${x.namn} (spår ${x.spar}, ${x.s} s)`).join(', '));
+      for (const l of r.videoSpar) console.log(`    spår ${l.id}${l.nr ? ` (#${l.nr} i slutet)` : ''}: ${l.fodd}–${l.borta != null ? l.borta : l.sist} s`
+        + (l.borta != null ? ' (försvann)' : '') + (l.skrap != null ? `, skräp från ${l.skrap} s` : '')
+        + `, ${l.sakra.length ? 'säkert ' + l.sakra.map(x => `${x.namn} @${x.s} s`).join(', ') : 'aldrig säkert namngivet'}`
+        + `, sist ${l.namn || '–'}${l.namn && !l.saker ? ' (osäker)' : ''} ${l.tillstand}`);
+    }
     if (r.helbild) console.log(`  helbild (${r.helbild.skal}): Claude såg ${r.helbild.kort} kort — ${r.helbild.nya} nya spår, ${r.helbild.namngivna} egna namngivna, ${r.helbild.bort} borttagna; ${r.helbild.ms} ms; låda ${r.helbild.matt ? r.helbild.matt.lang + '×' + r.helbild.matt.kort + ' (' + r.helbild.matt.kalla + ')' : '–'}${r.helbild.modell ? '; ' + r.helbild.modell : ''}`);
     for (const p of r.skurnaAlla || []) console.log(`    skuret vid ${p.s} s: ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')}`);
     if (process.argv.includes('--rutor')) {
@@ -152,10 +186,14 @@ function skrivTabell(rs, gamla) {
   const samre = [], battre = [], rs = JSON.parse(json);
   const vad = r => `${r.ai || 'bara det lokala'}${r.promptv != null ? ', systemprompt v' + r.promptv : ''}`;
   for (const r of rs) { const g = gamla.get(r.id); if (!g) continue;
-    const av = ` (av ${r.kort} kort)`;
-    for (const [k, namn, merArBattre] of [['namn', 'rätt namn', true], ['felNamn', 'fel namn', false], ['falska', 'falska', false]]) {
-      if (r[k] === g[k]) continue;
-      ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]}${av}`);
+    /* Videofallen jämförs också på förloppet: ett kort som lades ut och
+       aldrig fick sitt namn syns inte i slutläget. Nämnaren är förloppets
+       egen — utspelade respektive bortplockade kort, inte korten i facit. */
+    for (const [k, namn, merArBattre, avK] of [['namn', 'rätt namn', true, 'kort'], ['felNamn', 'fel namn', false, 'kort'], ['falska', 'falska', false, 'kort'],
+                                               ['videoLagda', 'spelade kort som fick namn', true, 'videoLagdaAv'], ['videoBorta', 'borttagna kort som försvann', true, 'videoBortaAv'],
+                                               ['videoOrdning', 'utspel i rätt ordning', true, 'videoOrdningAv'], ['videoFelUnder', 'säkra namn på kort som aldrig var i partiet', false, 'videoLagdaAv']]) {
+      if (r[k] == null || g[k] == null || r[k] === g[k]) continue;
+      ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]} (av ${r[avK]} kort)`);
     } }
   const jamforda = rs.filter(r => gamla.has(r.id));
   if (jamforda.length) {
@@ -165,7 +203,8 @@ function skrivTabell(rs, gamla) {
       console.log(`\nOBS: baslinjen (${BASFIL}) är gjord med ${vad(gs[0])}, den här körningen med ${vad(jamforda[0])}`);
     const dom = samre.length && battre.length ? 'BLANDAT — bättre i något fall, sämre i ett annat' : samre.length ? 'SÄMRE' : battre.length ? 'BÄTTRE' : 'LIKA BRA';
     console.log(`\nJämfört med baslinjen (${BASFIL}): ${dom}`);
-    console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`);
+    console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
+      + (jamforda.some(r => r.videoLagdaAv != null || r.videoBortaAv != null) ? `\n  förloppet: spelade ${s(gs, 'videoLagda')} → ${s(jamforda, 'videoLagda')} av ${s(jamforda, 'videoLagdaAv')} kort, borttagna ${s(gs, 'videoBorta')} → ${s(jamforda, 'videoBorta')} av ${s(jamforda, 'videoBortaAv')} kort, ordning ${s(gs, 'videoOrdning')} → ${s(jamforda, 'videoOrdning')}, fel namn under förloppet ${s(gs, 'videoFelUnder')} → ${s(jamforda, 'videoFelUnder')}` : ''));
     if (battre.length) console.log('  bättre:\n    ' + battre.join('\n    '));
     if (samre.length) console.log('  sämre:\n    ' + samre.join('\n    '));
   } else console.log(`\nIngen baslinje att jämföra med för de här fallen (${BASFIL}).`);
