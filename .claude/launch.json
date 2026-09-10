@@ -49,6 +49,16 @@
       ],
       "port": 8235,
       "autoPort": true
+    },
+    {
+      "name": "mesa-28g",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "STUB_LEK=kort PORT=${PORT:-8236} node dev/stub-server.cjs"
+      ],
+      "port": 8236,
+      "autoPort": true
     }
   ]
 }

@@ -1195,6 +1195,10 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   text-align:center;padding:30px;color:var(--dim2);
 }
 .sw-drop.hide{display:none}
+/* Ett kamerakort granskas utan skärmdump: bilden är beskärningen i panelen,
+   och stod dropp-zonens "Read a whole board — your hand is replaced" bakom
+   den såg det ut som att man skulle klistra in något. */
+#shotOv.picking .sw-drop{display:none}
 .sw-drop .varning{
   margin-top:2px;padding:7px 11px;border-radius:8px;max-width:46ch;
   background:#2a1d08;border:1px solid #5a4416;color:#e8c98a;font-size:11.5px;line-height:1.5;
@@ -11039,15 +11043,26 @@ $('#scanSkip').onclick = () => {
    börjar, så att den inte ändras av att poster försvinner ur listan. */
 function byggKo() {
   const p = player();
-  const q = (p.pending || []).filter(x => x.shotId === SW.id);
-  /* Kamerans kort har ingen ruta i någon skärmdump — de sorteras i den
-     ordning de kom. Utan vakten föll hela granskningen på det första. */
+  /* Bildens poster hör till den skärmdump som är framme. Kamerans poster
+     hör inte till någon skärmdump alls (inget shotId, ingen ruta) — de
+     kom in med bordet från telefonen — och står alltid med i kön. Förut
+     krävdes shotId === SW.id även av dem, och med bara kamerakort i listan
+     blev kön tom: "Done — 0 cards reviewed", posterna kvar. */
+  const alla = p.pending || [];
+  const bild = alla.filter(x => x.shotId != null && x.shotId === SW.id);
+  const kamera = alla.filter(x => x.shotId == null);
+  /* Bildens kort i LÄSORDNING, radhöjden ur det första kortet med ruta —
+     annars blev raderna 60 px när ett rutlöst kamerakort råkade stå först. */
   const bx = x => x.box || { x: 0, y: 0, h: 0 };
-  const radh = (q[0] && bx(q[0]).h ? bx(q[0]).h : 100) * 0.6;
-  SW.queue = q.slice().sort((a, b) => {
+  const forsta = bild.find(x => bx(x).h);
+  const radh = (forsta ? bx(forsta).h : 100) * 0.6;
+  const lasordning = bild.slice().sort((a, b) => {
     const ra = Math.round(bx(a).y / radh), rb = Math.round(bx(b).y / radh);
     return ra !== rb ? ra - rb : bx(a).x - bx(b).x;
-  }).map(x => x.id);
+  });
+  /* Bildens kort först — det är dem man ser i bilden som är framme — och
+     sedan kamerans i den ordning de kom; de har ingen plats i bilden. */
+  SW.queue = lasordning.concat(kamera).map(x => x.id);
   SW.qi = 0;
 }
 function nextPending() {
@@ -13848,7 +13863,14 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
       mig.cards.push(k); andrat = true;
     }
     if (!k && t.tillstand === 'okand' && !hoppade.has(t.id) && !borttagna.has(t.id) && !mig.pending.some(q => q.spar === t.id)) {
-      mig.pending.push({ id: uid(), spar: t.id, box: null, rot: 0, tappad: !!t.tappad, namnLast: t.namnLast || null,
+      const id = uid();
+      /* Beskärningen kom redan, under spårnyckeln: telefonen skickar den
+         inne i kamIdentifiera, innan identifiera() rapporterar bordet, så
+         vid första läsningen fanns ingen post att lägga den på. cropFor
+         slår bara upp postens id — utan flytten stod miniatyren och
+         panelen tomma för varje kamerakort (se tagEmotBeskarning). */
+      for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
+      mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: !!t.tappad, namnLast: t.namnLast || null,
         cands: (t.cands || []).map(c => ({ name: c.name, sid: c.sid || null, score: c.score || 0.5 })) });
       andrat = true;
     }
@@ -13890,13 +13912,22 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
 let senasteSpar = [];
 
 /* Beskärningen av ett kort telefonen var osäker på — den bild granskningen
-   visar. Samma cache som skärmdumpsvägen använder, samma storlekar. */
+   visar. Samma cache som skärmdumpsvägen använder, samma storlekar.
+   Den kommer FÖRE bordet (kamIdentifiera skickar den, sedan rapporterar
+   identifiera() bordet), så vid första läsningen finns ingen post än:
+   då ligger den under spårnyckeln tills avstamBord skapar posten och
+   hämtar den därifrån. Finns posten redan — en omläsning av samma spår —
+   läggs den under postens id också, som cropFor slår upp. Spårnyckeln
+   behålls i båda fallen så att en post som skapas om för samma spår
+   hittar den. */
 function tagEmotBeskarning(m) {
   if (!m || !m.b64 || m.spar == null) return;
   const mig = minSpelare(); if (!mig) return;
   const q = (mig.pending || []).find(x => x.spar === m.spar);
-  const id = q ? q.id : ('spar-' + m.spar);
-  cropCache.set(id + '@220', m.b64); cropCache.set(id + '@260', m.b64);
+  for (const w of [220, 260]) {
+    cropCache.set('spar-' + m.spar + '@' + w, m.b64);
+    if (q) cropCache.set(q.id + '@' + w, m.b64);
+  }
   if (q && m.namnLast) q.namnLast = m.namnLast;
   if (q) renderAll(true);
 }
