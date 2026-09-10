@@ -3,7 +3,8 @@
 
    Startar attrappen (dev/stub-server.cjs), öppnar dev/golden/kor.html i en
    huvudlös Chrome, trycker "Kör alla", skriver tabellen, och med --spara
-   sparar resultatet som dev/golden/senaste.json. Slutkod 1 om något fall
+   sparar resultatet som dev/golden/senaste.json (med --fall byts bara de
+   fallen ut, resten står kvar). Slutkod 1 om något fall
    blev sämre än senaste.json (rätt namn, falska eller fel namn), så att den
    går att köra före en commit.
 
@@ -122,7 +123,19 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
       if (r.felNamn > g.felNamn) samre.push(`${r.id}: fel namn ${g.felNamn} → ${r.felNamn}`); }
   } catch (e) { /* ingen senaste.json — inget att jämföra med */ }
   if (samre.length) console.log('\nSÄMRE än ' + BASFIL + ':\n  ' + samre.join('\n  '));
-  if (SPARA) { fs.writeFileSync(path.join(__dirname, BASFIL), json); console.log('\nsparat som dev/golden/' + BASFIL + ' — lägg en rad i historik.md'); }
+  /* --spara med --fall byter bara de körda fallen i baslinjen; övriga står kvar
+     ur filen. Förut skrev "--fall 07 --spara" en baslinje med enbart fall 07,
+     och alla andra fall slutade jämföras — just när ett nytt fall lagts till. */
+  if (SPARA) {
+    let rader = JSON.parse(json);
+    if (FALL) {
+      let gamla = []; try { gamla = JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')); } catch (e) {}
+      const korda = new Set(rader.map(r => r.id));
+      rader = gamla.filter(r => !korda.has(r.id)).concat(rader).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    }
+    fs.writeFileSync(path.join(__dirname, BASFIL), '[\n' + rader.map(r => JSON.stringify(r)).join(',\n') + '\n]\n');
+    console.log(`\nsparat som dev/golden/${BASFIL}${FALL ? ` (fall ${FALL}… bytta, övriga ur filen)` : ''} — lägg en rad i historik.md`);
+  }
   else console.log('\n(--spara skriver ' + BASFIL + ')');
   ws.close(); chrome.kill(); server.kill();
   process.exit(samre.length ? 1 : 0);

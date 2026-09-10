@@ -149,7 +149,12 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
 const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : ''); } catch (e) { return 'lokal'; } };
-const aiModell = () => { try { return AI_PA ? (w.eval('AI').model || 'server') : null; } catch (e) { return null; } };
+/* Modellen som svarar i kameraläget, som servern själv anger den
+   (modeller.kamera). Appens AI.model är standardmodellen: med
+   ANTHROPIC_MODEL_KAMERA satt stod fel modell i resultatet. */
+let kameraModell = null;
+if (AI_PA) fetch('/api/identify', { cache: 'no-store' }).then(r => r.json()).then(j => { kameraModell = (j.modeller && j.modeller.kamera) || j.model || null; }).catch(() => {});
+const aiModell = () => { try { return AI_PA ? (kameraModell || w.eval('AI').model || 'server') : null; } catch (e) { return null; } };
 const aiVantar = () => { try { return w.eval('kamAiVantar') > 0; } catch (e) { return false; } };
 /* Samma norm som appens namnjämförelse i stort: gemener, en sorts apostrof,
    ett mellanslag. Facit skrivs med lek.txt:s stavning, poolen med Scryfalls

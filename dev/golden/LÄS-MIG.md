@@ -1,5 +1,9 @@
 # Golden set — riktiga bord med facit
 
+**Ny här?** Börja med [SNABBGUIDE.md](SNABBGUIDE.md): kommandona, hur ett nytt
+foto läggs till, och var algoritmen, prompten och modellen finns. Den här
+filen är referensen.
+
 Riktiga bilder från olika bord och ljus, var och en med ett facit över vilka
 kort som ligger var. `kor.html` kör **hela kamerakedjan** — detektering, ram,
 beskärning, igenkänning mot leken — på varje fall och jämför med facit, så att
@@ -46,7 +50,8 @@ node dev/golden/kor.cjs
 Den startar attrappen på en egen port, öppnar `kor.html` i en huvudlös Chrome,
 trycker *Kör alla*, skriver tabellen och slutar med kod 1 om något fall blev
 sämre än `senaste.json` (färre rätta namn, fler falska eller fler fel namn).
-`--spara` skriver resultatet som `senaste.json`, `--detalj` skriver varje spår
+`--spara` skriver resultatet som `senaste.json` (med `--fall` byts bara de
+fallen ut), `--detalj` skriver varje spår
 med läge, storlek och vad namnläsaren såg, plus delningen per fall: erosionens
 *delade*, skärlinjernas *skurna*, kortreferensen (ur säkert namngivna spår) och
 varje prövat snitt med dom (`grund`, `grå`, `ljus`, `olika`, `flisa`, `skuren`…).
