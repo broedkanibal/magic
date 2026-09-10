@@ -149,11 +149,12 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
 const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : ''); } catch (e) { return 'lokal'; } };
-/* Modellen som svarar i kameraläget, som servern själv anger den
-   (modeller.kamera). Appens AI.model är standardmodellen: med
-   ANTHROPIC_MODEL_KAMERA satt stod fel modell i resultatet. */
-let kameraModell = null;
-if (AI_PA) fetch('/api/identify', { cache: 'no-store' }).then(r => r.json()).then(j => { kameraModell = (j.modeller && j.modeller.kamera) || j.model || null; }).catch(() => {});
+/* Modellen som svarar i kameraläget och promptversionen, som servern själv
+   anger dem (modeller.kamera, promptv). Appens AI.model är standardmodellen:
+   med ANTHROPIC_MODEL_KAMERA satt stod fel modell i resultatet. Versionen
+   gör att varje AI-resultat säger vilken prompt det mätte. */
+let kameraModell = null, promptVersion = null;
+if (AI_PA) fetch('/api/identify', { cache: 'no-store' }).then(r => r.json()).then(j => { kameraModell = (j.modeller && j.modeller.kamera) || j.model || null; promptVersion = j.promptv != null ? j.promptv : null; }).catch(() => {});
 const aiModell = () => { try { return AI_PA ? (kameraModell || w.eval('AI').model || 'server') : null; } catch (e) { return null; } };
 const aiVantar = () => { try { return w.eval('kamAiVantar') > 0; } catch (e) { return false; } };
 /* Samma norm som appens namnjämförelse i stort: gemener, en sorts apostrof,
@@ -475,7 +476,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     missade: synliga.filter(k => !harTraff(k)).map(k => k.namn),
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
-    metod: metod(), ai: aiModell(),
+    metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
     /* Säkra rätta namn som servern (Claude) avgjorde. */
     namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && (p.t.varfor === 'ai' || p.t.varfor === 'helbild')).length,
     /* Helbilden, om fallet fick en: vad Claude såg, hur lång tid det tog och

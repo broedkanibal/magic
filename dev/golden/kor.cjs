@@ -79,7 +79,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   const json = await kor(`(() => { const rs = fall.map(f => resultat.get(f.id)).filter(r => r && !r.fel); return '[\\n' + rs.map(r => JSON.stringify(r)).join(',\\n') + '\\n]\\n'; })()`);
   for (const r of rader) console.log('  ' + r);
   console.log('  ' + tot.replace(/\s+/g, ' ').trim());
-  { const f0 = JSON.parse(json)[0]; if (f0) console.log('  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + ')' : '')); }
+  { const f0 = JSON.parse(json)[0]; if (f0) console.log('  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', prompt v' + f0.promptv : '') + ')' : '')); }
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
@@ -114,14 +114,20 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
     console.log(`\n${index.length} beskärningar skrivna till ${BESKARNINGAR} (index.json listar dem)`);
   }
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
-  let samre = [];
+  let samre = [], jamfor = '';
   try {
     const gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r]));
     for (const r of JSON.parse(json)) { const g = gamla.get(r.id); if (!g) continue;
       if (r.namn < g.namn) samre.push(`${r.id}: rätt namn ${g.namn} → ${r.namn}`);
       if (r.falska > g.falska) samre.push(`${r.id}: falska ${g.falska} → ${r.falska}`);
       if (r.felNamn > g.felNamn) samre.push(`${r.id}: fel namn ${g.felNamn} → ${r.felNamn}`); }
+    /* Vad baslinjen gjordes med, när det skiljer sig från den här körningen:
+       "SÄMRE" mot en annan modell eller prompt är en jämförelse, inget fel. */
+    const g0 = [...gamla.values()][0], r0 = JSON.parse(json)[0];
+    const vad = r => `${r.ai || 'bara det lokala'}${r.promptv != null ? ', prompt v' + r.promptv : ''}`;
+    if (g0 && r0 && (g0.ai !== r0.ai || (g0.promptv != null && g0.promptv !== r0.promptv))) jamfor = `baslinjen (${BASFIL}) är gjord med ${vad(g0)}, den här körningen med ${vad(r0)}`;
   } catch (e) { /* ingen senaste.json — inget att jämföra med */ }
+  if (jamfor) console.log('\nOBS: ' + jamfor);
   if (samre.length) console.log('\nSÄMRE än ' + BASFIL + ':\n  ' + samre.join('\n  '));
   /* --spara med --fall byter bara de körda fallen i baslinjen; övriga står kvar
      ur filen. Förut skrev "--fall 07 --spara" en baslinje med enbart fall 07,

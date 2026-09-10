@@ -26,6 +26,10 @@ kort ligger). Övriga kolumner förklaras i LÄS-MIG.
 ## Kommandona
 
 Körs från repots rot. Kräver Chrome; första körningen tar en minut extra.
+Kommandona startar själva en lokal testserver (`dev/stub-server.cjs`, i koden
+kallad *attrappen*) och stänger den efteråt. Utan `--ai` svarar den i Claudes
+ställe, så provet är gratis; med `--ai` skickar den frågorna vidare till den
+riktiga koden i `api/identify.js`, med nyckeln ur `.env.local`.
 
 | Kommando | Gör |
 |---|---|
@@ -33,7 +37,7 @@ Körs från repots rot. Kräver Chrome; första körningen tar en minut extra.
 | `node dev/golden/kor.cjs --detalj` | samma, plus varje spår: namn, varför, vad textläsaren läste |
 | `node dev/golden/kor.cjs --fall 07` | bara fallen vars mapp börjar på `07` |
 | `node dev/golden/kor.cjs --ai` | med Claude (kostar) |
-| `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar vilken som svarade |
+| `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar modell och promptversion |
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
@@ -44,6 +48,36 @@ Flaggorna går att kombinera: `node dev/golden/kor.cjs --ai --fall 03 --detalj`.
 **Spara en baslinje bara när du vill jämföra mot den framöver** — ett nytt
 fall, eller en ändring som blev bättre. Skriv då en rad i `historik.md` och
 checka in båda.
+
+## Jämföra modeller
+
+| Modell | ID | Pris in / ut per miljon tokens | I kameran |
+|---|---|---|---|
+| Opus 5 (i dag) | `claude-opus-5` | $5 / $25 | fungerar |
+| Sonnet 5 | `claude-sonnet-5` | $2 / $10 | fungerar |
+| Fable 5.1 | `claude-fable-5-1` | $10 / $50 | fungerar — dyrast och långsammast |
+| Haiku 4.5 | `claude-haiku-4-5` | $1 / $5 | fungerar inte: avvisar kamerans inställning `effort` (kräver en kodändring) |
+
+Provat med nyckeln i `.env.local` 2026-09-10. En hel körning kostar ungefär
+i proportion till priset: Opus 10–20 cent, Sonnet under hälften, Fable det
+dubbla.
+
+1. **Gör dagens modell och prompt till referens:**
+   `node dev/golden/kor.cjs --ai --spara`
+   Avviker ett fall mot vad du väntat dig, kör om just det innan du går
+   vidare: `node dev/golden/kor.cjs --ai --fall 03 --spara`.
+2. **Kör samma prov med en annan modell** (sparas inte):
+   `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai`
+   Raden `OBS:` säger att du jämför mot en baslinje från en annan modell, och
+   `SÄMRE än …` listar fallen där den nya modellen gjorde sämre ifrån sig.
+3. **Skiljer ett fall**, kör om det med samma modell (`--fall 03`) innan du
+   drar slutsatser: Claude svarar inte exakt likadant varje gång.
+4. **Byta modell i appen på riktigt** görs med miljövariabeln
+   `ANTHROPIC_MODEL_KAMERA` i Vercel. Spara därefter en ny baslinje med den.
+
+En promptändring provas på samma sätt: kör steg 1 före ändringen och samma
+kommando efter. Raden `metod:` visar promptversionen (`prompt v20`), så att
+varje resultat säger vilken prompt det mätte.
 
 ## Lägga till ett nytt foto
 
