@@ -83,6 +83,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    if (r.helbild) console.log(`  helbild (${r.helbild.skal}): Claude såg ${r.helbild.kort} kort — ${r.helbild.nya} nya spår, ${r.helbild.namngivna} egna namngivna, ${r.helbild.bort} borttagna; ${r.helbild.ms} ms; låda ${r.helbild.matt ? r.helbild.matt.lang + '×' + r.helbild.matt.kort + ' (' + r.helbild.matt.kalla + ')' : '–'}${r.helbild.modell ? '; ' + r.helbild.modell : ''}`);
     for (const p of r.skurnaAlla || []) console.log(`    skuret vid ${p.s} s: ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')}`);
     if (process.argv.includes('--rutor')) {
       /* Bara raderna som SKILJER sig från rutan före: på en stillbild är de flesta rutor lika, och det är bytena man letar efter. */

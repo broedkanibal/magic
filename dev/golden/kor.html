@@ -339,7 +339,10 @@ async function korFall(f) {
       fas: () => {},
       bord: (spar, nollstall) => { if (!nollstall) sistaBord = spar; },
       identifiera: (c, id, gissning) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning); },
-      fragaAI: (c, id) => w.kamFragaAI(c, id)
+      fragaAI: (c, id) => w.kamFragaAI(c, id),
+      /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
+         modulen ingen, och det lokala provet mäter som förut. */
+      helbild: AI_PA ? (c => w.kamHelbild(c)) : null
     });
     /* Klart när alla spår fått sitt svar och ingenting ändrat sig på en
        och en halv sekund. Ett spår utan svar väntar på poolen (1,5 s
@@ -369,7 +372,10 @@ async function korFall(f) {
       const sT = rad + '@' + lage;
       if (sT !== sigT && tidslinje.length < 400) { sigT = sT; tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
       const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
-      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar();
+      /* …och en helbild som är planerad eller på väg väntas in: den kommer
+         3 s efter att bordet stått stilla, och fall 05 var annars "klart"
+         med noll spår vid 2,5 s. */
+      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar() && !K.helbildVantar;
       if (lart && svarade && ms - stabilSedan >= STILLA_MS && ms > 2500) break;
       if (ms > TAK_MS) { tak = true; break; }
       status(`${f.id}: ${lage}, ${spar.length} spår, ${(ms / 1000).toFixed(1)} s`);
@@ -404,7 +410,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      diffa rent mellan två körningar. */
   const alla = K.spar.map((t, i) => { const b = t.ram || t.box; return {
     id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad, varfor: t.varfor || null,
-    ai: t.ai ? { modell: t.ai.modell || null, kort: t.ai.kort, antal: t.ai.antal, usage: t.ai.usage || null } : null,
+    ai: t.ai ? { modell: t.ai.modell || null, kort: t.ai.kort, antal: t.ai.antal, usage: t.ai.usage || null, helbild: !!t.ai.helbild } : null,
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
     ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
@@ -464,7 +470,10 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(),
     /* Säkra rätta namn som servern (Claude) avgjorde. */
-    namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && p.t.varfor === 'ai').length,
+    namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && (p.t.varfor === 'ai' || p.t.varfor === 'helbild')).length,
+    /* Helbilden, om fallet fick en: vad Claude såg, hur lång tid det tog och
+       vilken låda spåren fick (kortMatt: spårens median eller standardmåttet). */
+    helbild: dia.helbild ? { skal: dia.helbild.skal, kort: dia.helbild.kort, nya: dia.helbild.nya, namngivna: dia.helbild.namngivna, bort: dia.helbild.bort, ms: dia.helbild.ms, matt: dia.helbild.matt, modell: dia.helbild.modell } : null,
     /* Hur många av de rätta, säkra namnen som namnläsaren också läste rätt,
        och hur många den läste rätt där bilden hade ett annat kort överst. */
     namnViaOcr: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && p.t.ocr && p.t.ocr.namn && norm(p.t.ocr.namn) === norm(p.k.namn)).length,

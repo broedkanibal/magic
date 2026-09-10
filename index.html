@@ -2327,9 +2327,15 @@ body.ispel #addPlayerBtn{display:none}
   <div class="kambotten">
     <p class="kamstatus" id="kamStatus">Startar kameran…</p>
     <p class="kamfin" id="kamFin"></p>
-    <!-- Ingen knapp. Telefonen sitter i en hållare över bordet: man kommer
-         varken åt skärmen eller ser den. Allt som ska göras görs på datorn,
-         och det enda man kan behöva här är att koppla från. -->
+    <!-- Ingen knapp, var tanken: telefonen sitter i en hållare över bordet,
+         man kommer varken åt skärmen eller ser den, och allt görs på datorn.
+         En har det ändå blivit (MES-28 Del 4): "Läs av hela bordet" ber
+         Claude titta på hela bilden när detektorn inte hittar korten själv —
+         ett ribbat bord (golden 05) ger noll regioner hur trösklarna än
+         skruvas. Samma sak går att göra från provbordet på datorn. -->
+    <div class="kamknappar">
+      <button class="btn sm" id="kamHelbild" title="Skickar hela bilden till Claude och lägger ut de kort den ser">Läs av hela bordet</button>
+    </div>
     <div class="kamsenast" id="kamSenast" hidden>
       <img id="kamSenastBild" alt="">
       <span id="kamSenastTxt"></span>
@@ -3085,6 +3091,7 @@ body.ispel #addPlayerBtn{display:none}
     <button class="btn sm" id="pbRef" title="Ta om bilden av mattan — gör det när ljuset ändrats. Korten får ligga kvar">Ny referensbild</button>
     <button class="btn sm" id="kamRikta" title="Dra om rutan runt mattan">Rikta om</button>
     <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
+    <button class="btn sm ghost" id="pbHelbild" title="Telefonen skickar hela bilden till Claude och lägger ut de kort den ser — för bord där kameran inte hittar korten själv">Läs av hela bordet</button>
   </div>
   <details class="pbavancerat" id="pbAvancerat">
     <summary>Avancerat</summary>
@@ -11618,7 +11625,40 @@ const Kamera = (() => {
   let identifierar = false;
   let brusRader = 0, brusLugna = 0;   // styrslingan för tröskeln (mönstergrenen)
   let utsRader = 0, utsLugna = 0, brusGolv = 0;   // …och för avvikelsen (modellgrenen): golvet den höjer när bruset spritter
-  const cb = {};               // { status, bord, identifiera }
+  const cb = {};               // { status, bord, identifiera, fragaAI, helbild }
+
+  /* ── helbildsavläsningen (MES-28 Del 4) ──────────────────────────
+     Detektorn hittar inget på ett bord vars eget mönster är starkare än
+     korten: golden-fall 05 (ribbat utebord med mörka springor) ger noll
+     regioner hur trösklarna än skruvas — Otsu 8, ytan 'orolig' — och då
+     finns ingen beskärning att fråga om. Claude behöver ingen region:
+     kameraläget på hela fotot gav 5 av 5 synliga kort plus det dolda
+     (uppmätt 2026-09-10, Opus 5: 9 s, 3 cent; 40 av 40 på de sex fotona).
+     Därför skickas hela analysrutan när detektorn själv inte ser något —
+     bordet 'tom' — eller när ytan inte är lugn, så snart bilden stått
+     stilla en stund och något är nytt sedan Claude senast tittade; och
+     när användaren ber om det (knappen i kameravyn, eller provbordet på
+     datorn). Varje kort i svaret blir ett spår med Claudes läge och en
+     låda av kortstorlek. De spåren har ingen mask under sig — det var ju
+     därför de behövdes — så matcha() får inte släppa dem efter bortaMs:
+     de står tills nästa helbild säger något annat, eller tills bordet
+     nollställs. Se planeraHelbild(), helbild() och tillampaHelbild(). */
+  const HELBILD_MAXW = 1080;        // bildens bredd till servern: golden-fotona är 1080 px; uppmätt 3 197 indatatokens för 1080×1440
+  const HELBILD_STILLA_MS = 3000;   // så länge bordet ska ha stått stilla innan hela bilden skickas — en hand som lägger ut ett kort ska inte fotograferas
+  const HELBILD_MIN_MS = 30000;     // minsta avstånd mellan två AUTOMATISKA helbilder: 3 cent och 9 s styck med Opus, alltså högst två i minuten
+  const HELBILD_KORT = 0.15;        // standardmåttet när inga säkra egna spår finns: kortsidan i andel av analysbredden (uppmätt på fotona 03/04/06 på 40 cm: 0,12–0,17; videons kalibreringsruta i 01/02: 0,21–0,35)
+  const HELBILD_KVOT = 0.72;        // ett Magic-kort är 63×88 mm
+  const HELBILD_ANDRAD = 0.01;      // andel bildpunkter som avviker mer än avvikelsen från rutan Claude senast såg: ett kort täcker 2–4 % av rutan, bruset efter suddningen inget — utgångsvärde, inte uppmätt på ett riktigt bord
+  const HELBILD_ROR = 0.003;        // …och mot förra rutan: mer än så är rörelse, och stillhetstimern börjar om
+  let helbildSedan = 0;             // när villkoret började gälla, 0 = gäller inte just nu
+  let helbildPagar = false;         // en fråga är på väg
+  let helbildSist = 0;              // när den senaste skickades (0 = ingen än)
+  let helbildSig = null;            // detektorns egna spår vid senaste helbilden — samma bord frågas inte om igen
+  let helbildBild = null;           // rutan (suddad, förstärkt) som senast skickades — ändras bilden frågas det igen
+  let helbildForra = null;          // förra rutan, för stillheten
+  let helbildGen = 0;               // räknas upp när bordet nollställs: ett svar från före dess kastas
+  let helbildAntal = 0;
+  const arHelbild = t => !!(t.ai && t.ai.helbild);
 
   const gr = (d, n) => { const g = new Float32Array(n); for (let i = 0, p = 0; i < n; i++, p += 4) g[i] = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114; return g; };
 
@@ -11643,7 +11683,7 @@ const Kamera = (() => {
   }
 
   /* Räknarna som diagnosfilen och popovern visar, uppdaterade av detektera(). */
-  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null };
+  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null, helbild: null };
   /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
      samma bildpunkt. En telefon i en hållare skakar en pixel när någon
      nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
@@ -12119,7 +12159,8 @@ const Kamera = (() => {
        null, och likheten mellan delarna dömer ensam. */
     const sparen = under === undefined ? spar : under;
     const langar = [], korta = [];
-    for (const t of sparen) if (t.tillstand === 'klar') { langar.push(t.lang); korta.push(t.kort); }
+    /* …och inte spår ur helbilden: deras låda är gissad, inte mätt. */
+    for (const t of sparen) if (t.tillstand === 'klar' && !arHelbild(t)) { langar.push(t.lang); korta.push(t.kort); }
     const median = a => { a.sort((x, y) => x - y); return a[a.length >> 1]; };
     const kortRef = langar.length ? { lang: median(langar), kort: median(korta) } : null;
     dia.kortRef = kortRef && { lang: Math.round(kortRef.lang), kort: Math.round(kortRef.kort), av: langar.length };
@@ -12462,7 +12503,7 @@ const Kamera = (() => {
        bilden). Ett namngivet spår är bevisligen ett kort. */
     const kvBox = Math.min(w, h) / Math.max(w, h);
     let storst = 0, bredast = 0, hogst = 0;
-    const klara = spar.filter(q => q.tillstand === 'klar');
+    const klara = spar.filter(q => q.tillstand === 'klar' && !arHelbild(q));   // inte helbildens spår: gissad låda
     if (klara.length) {
       const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
       storst = med(klara.map(q => q.box.w * q.box.h)); bredast = med(klara.map(q => q.box.w)); hogst = med(klara.map(q => q.box.h));
@@ -12592,7 +12633,9 @@ const Kamera = (() => {
          skymt för alltid medan hela kortet avvisades som "för stort".
          Uppmätt i diagnosfilerna: tre av fyra spår skymda på en stilla
          bild. Ett kort som redan lästs är inte ungt, och skyddas som förut. */
-      const ungt = bast && !bast.namn && nu - bast.fodd < 2000;
+      /* …och ett spår fött ur helbilden har bara en gissad låda: regionen
+         som dyker upp under det är kortet självt, hur stor den än är. */
+      const ungt = bast && ((!bast.namn && nu - bast.fodd < 2000) || arHelbild(bast));
       /* Skräp släpper platsen redan vid 1,3 gånger sin yta: ett kort ovanpå
          en flisa är alltid större än flisan, men inte alltid 1,6 gånger
          (granskningen: 560 mot 316 var på gränsen). */
@@ -12644,7 +12687,10 @@ const Kamera = (() => {
       const fyll = mask ? maskI(mask, t.box, AW, AH) / Math.max(1, t.areaRef) : 0;
       if (fyll < T.tomMin) { t.tomMs += dt; t.skymd = false; }
       else if (fyll >= T.skymdMin) { t.tomMs = Math.max(0, t.tomMs - dt); t.skymd = true; }
-      if (t.tomMs > T.bortaMs) { spar.splice(spar.indexOf(t), 1); t.dog = nu; spoken.push(t); }
+      /* Ett spår ur helbilden har ingen mask under sig — det var därför det
+         behövdes (golden 05: noll regioner) — så tom matta bevisar inget om
+         det. Det står tills nästa helbild, eller tills bordet nollställs. */
+      if (t.tomMs > T.bortaMs && !arHelbild(t)) { spar.splice(spar.indexOf(t), 1); t.dog = nu; spoken.push(t); }
     }
     /* Spöken städas: för gamla, och de som ett levande spår flyttat in över. */
     while (spoken.length && nu - spoken[0].dog > T.spokMs) spoken.shift();
@@ -12688,6 +12734,7 @@ const Kamera = (() => {
 
   function glomReferens() {
     ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; refAvvik = null; texturGolv = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = utsRader = utsLugna = 0; brusGolv = 0;
+    glomHelbild();
     /* Inlärningen börjar aldrig under 25: avvikelsen ärvs annars från den
        scen som var — 10 efter en dimmad — och stiger tre steg per ruta, och
        på ett ådrat bord föddes blänkets halo som ett kort på vägen upp
@@ -12865,6 +12912,7 @@ const Kamera = (() => {
       if (t.tillstand === 'ny' && nu - t.stillaFran >= T.stillaMs) t.tillstand = 'stilla';
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !(t.igen > nu) && !identifierar) { identifiera(t, nu); break; }
     }
+    planeraHelbild(nu, g);
 
     const efter = tillstandsSignatur();
     if (efter !== fore) rapportera();
@@ -12937,7 +12985,7 @@ const Kamera = (() => {
   const KORT_MIN_PX = 150;
   const LANGT_BORT = 'Korten är små i bilden. Flytta telefonen närmare mattan.';
   function forLangtBort() {
-    const k = spar.filter(t => t.tillstand !== 'skrap').map(t => t.kort).sort((a, b) => a - b);
+    const k = spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t)).map(t => t.kort).sort((a, b) => a - b);   // helbildens spår har ingen mätt storlek
     if (!k.length) return false;
     return k[k.length >> 1] * vidSkala < KORT_MIN_PX;
   }
@@ -13255,7 +13303,7 @@ const Kamera = (() => {
        bakgrunden så att nästa spår inte väntar på den — låset ovan hålls
        inte, och svaret kommer via svarAI() när det kommer. En gång per
        spår; ett spår som läses om (krympt, glömt) får fråga igen. */
-    if (t.tillstand === 'okand' && c && cb.fragaAI && !t.aiFragad) { t.aiFragad = true; try { cb.fragaAI(c, t.id); } catch (e) {} }
+    if (t.tillstand === 'okand' && c && cb.fragaAI && !t.aiFragad) { t.aiFragad = true; t.aiFragadNar = nu || 0; try { cb.fragaAI(c, t.id); } catch (e) {} }
     rapportera();
   }
 
@@ -13289,7 +13337,7 @@ const Kamera = (() => {
     const liggande = b.w > b.h;
     const lage = k => { const a = liggande ? 1 - k.y : k.x, c = liggande ? k.x : k.y; return { cx: x0 + a * bw, cy: y0 + c * bh }; };
     const inuti = (p, q) => p.cx >= q.box.x && p.cx <= q.box.x + q.box.w && p.cy >= q.box.y && p.cy <= q.box.y + q.box.h;
-    const klara = spar.filter(q => q !== t && q.tillstand === 'klar').map(q => q.lang * q.kort).sort((p, q) => p - q);
+    const klara = spar.filter(q => q !== t && q.tillstand === 'klar' && !arHelbild(q)).map(q => q.lang * q.kort).sort((p, q) => p - q);
     const ref = klara.length ? klara[klara.length >> 1] : 0;
     const ettKort = ref ? lang0 * kort0 < 1.6 * ref : svar.length <= 1;
     let delar = svar.slice();
@@ -13323,6 +13371,149 @@ const Kamera = (() => {
       if (q !== t) spar.push(q);
     });
     if (!redanKlar) t.ram = null;
+    rapportera();
+  }
+
+  /* ── helbilden: när, och vad som händer med svaret ─────────────────
+     Villkoret: referensen finns, och detektorns EGNA spår (inte de ur en
+     tidigare helbild) är antingen inga alls — bordet ser tomt ut — eller
+     ligger på en yta som inte är lugn; och alla egna spår har fått sitt
+     svar, även från servern på beskärningarna (den lokala kedjan går
+     först: den är gratis och har 0 fel namn i golden). Då ska något
+     dessutom vara NYTT sedan Claude senast tittade: de egna spåren har
+     ändrats, eller bilden — mer än HELBILD_ANDRAD av rutan avviker från
+     den ruta som skickades. Det sista är det som gör att nästa kort på
+     ribborna också hittas: detektorn ser det aldrig, så spåren ändras
+     inte, men bilden gör det. Och bordet ska ha stått stilla
+     HELBILD_STILLA_MS: en hand som lägger ut ett kort rör mer än
+     HELBILD_ROR av rutan mellan två rutor, och timern börjar om. */
+  const egenSignatur = () => spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t)).map(t => `${t.id}:${t.tillstand}:${t.namn || ''}`).join('|');
+  function andelOver(a, b, tr) {
+    if (!a || !b || a.length !== b.length) return 1;
+    let k = 0, n = 0;
+    for (let i = 0; i < a.length; i += 4) { n++; const d = a[i] - b[i]; if (d > tr || d < -tr) k++; }
+    return n ? k / n : 0;
+  }
+  function planeraHelbild(nu, g) {
+    if (!cb.helbild || helbildPagar || !ref) { helbildSedan = 0; helbildForra = null; return; }
+    const ror = helbildForra ? andelOver(g, helbildForra, T.utseende) : 0;
+    helbildForra = g;
+    const egna = spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t));
+    if (egna.length && !(yta && yta.dom !== 'lugn')) { helbildSedan = 0; return; }
+    /* Beskärningens fråga till servern räknas som obesvarad i 15 s: ett
+       svar som aldrig kommer (nätet) får inte hålla helbilden borta. */
+    const svarade = !identifierar && egna.every(t => (t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand') && !(t.aiFragad && !t.ai && nu - (t.aiFragadNar || 0) < 15000));
+    const nytt = egenSignatur() !== helbildSig || !helbildBild || andelOver(g, helbildBild, T.utseende) > HELBILD_ANDRAD;
+    if (!svarade || !nytt || ror > HELBILD_ROR) { helbildSedan = 0; return; }
+    if (!helbildSedan) { helbildSedan = nu; return; }
+    if (nu - helbildSedan < HELBILD_STILLA_MS) return;
+    if (helbildSist && nu - helbildSist < HELBILD_MIN_MS) return;
+    helbild('auto');
+  }
+  /* …och diagnosens rad: golden-06 visade annars 05:s helbild (uppmätt). */
+  function glomHelbild() { helbildSedan = 0; helbildSist = 0; helbildSig = null; helbildBild = null; helbildForra = null; helbildGen++; dia.helbild = null; }
+
+  /* Hela analysrutan till servern (cb.helbild → kamHelbild i appen), och
+     svaret in i spåren. Nedskalad till HELBILD_MAXW: det är bredden
+     golden-fotona har, och det som mättes. false när det inte gick att
+     fråga: en fråga redan på väg, ingen bild, eller AI-hjälpen av
+     (cb.helbild svarar null) — då rörs inga spår. Bilden och de egna
+     spåren antecknas INNAN svaret: det som ändras medan Claude tänker
+     är nytt nästa gång, och samma bord frågas inte om igen. */
+  async function helbild(skal) {
+    if (!cb.helbild || helbildPagar || !video || !kal || !AH) return false;
+    const vb = video.videoWidth, vh = video.videoHeight;
+    if (!vb || !vh) return false;
+    const r = rutaPx(vb, vh);
+    const s = Math.min(1, HELBILD_MAXW / r.w);
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(r.w * s)); c.height = Math.max(1, Math.round(r.h * s));
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+    x.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
+    const gen = helbildGen, t0 = performance.now();
+    helbildPagar = true; helbildSedan = 0; helbildSist = t0;
+    helbildBild = senasteG ? Float32Array.from(senasteG) : null;
+    helbildSig = egenSignatur();
+    let res = null;
+    try { res = await cb.helbild(c, { skal }); } catch (e) { res = null; }
+    finally { helbildPagar = false; }
+    if (!res || !Array.isArray(res.svar) || gen !== helbildGen) return false;
+    const info = Object.assign({ helbild: true, skal, ms: Math.round(performance.now() - t0) }, res.info || {}, { kort: res.svar.length });
+    tillampaHelbild(res.svar, info, performance.now());
+    return true;
+  }
+
+  /* Kortets storlek i analysbilden för ett spår utan region: medianen av
+     de egna säkra spåren (samma regel som kortRef i detektera), annars
+     standardmåttet ur analysbredden. */
+  function kortMatt() {
+    const egna = spar.filter(t => t.tillstand === 'klar' && t.saker && !arHelbild(t));
+    const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+    if (egna.length) return { lang: med(egna.map(t => t.lang)), kort: med(egna.map(t => t.kort)), kalla: 'spår' };
+    const kort = HELBILD_KORT * AW;
+    return { lang: kort / HELBILD_KVOT, kort, kalla: 'standard' };
+  }
+
+  /* Svaret in i spåren. Tre fall per kort Claude såg:
+       1. Läget ligger inne i ett av detektorns EGNA spår → det spåret är
+          kortet, och får namnet om det inte redan är säkert namngivet
+          lokalt (den lokala kedjan har 0 fel namn i golden; Claude får
+          inte skriva över den). Ett skräpspår där Claude ser ett kort tas
+          bort och ersätts: regionen var en bit av kortet eller av bordet.
+       2. Läget ligger inne i ett spår ur FÖRRA helbilden med samma namn →
+          samma kort, flyttar med.
+       3. Annars ett nytt spår: Claudes mittpunkt och en låda i
+          kortstorlek (kortMatt), stående eller liggande som ett otappat
+          kort efter rutans `upp` — tap-läget för ett kort utan region är
+          okänt, och regionen som sedan kan dyka upp under spåret får
+          rätta det.
+     Spår ur förra helbilden som inte känns igen tas bort: Claude såg dem
+     inte längre. Ett osäkert svar ('medel'/'lag') blir ett okänt spår
+     med namnet överst — granskningen på datorn, som förut. */
+  function tillampaHelbild(svar, info, nu) {
+    const upp = (kal && kal.ruta && kal.ruta.upp) || 'v';
+    const m = kortMatt();
+    info.matt = { lang: Math.round(m.lang), kort: Math.round(m.kort), kalla: m.kalla };
+    const gamla = spar.filter(arHelbild);
+    const inuti = (p, b) => p.cx >= b.x && p.cx <= b.x + b.w && p.cy >= b.y && p.cy <= b.y + b.h;
+    const lada = p => { const w = upp === 'v' ? m.kort : m.lang, h = upp === 'v' ? m.lang : m.kort;
+      return { x: Math.round(p.cx - w / 2), y: Math.round(p.cy - h / 2), w: Math.max(4, Math.round(w)), h: Math.max(4, Math.round(h)) }; };
+    const behallna = new Set(), bort = new Set(), nya = [];
+    let namngivna = 0;
+    for (const k of svar) {
+      const p = { cx: k.x * AW, cy: k.y * AH };
+      const eget = spar.find(t => !arHelbild(t) && !bort.has(t) && inuti(p, t.box));
+      if (eget && eget.tillstand !== 'skrap') {
+        if (!(eget.tillstand === 'klar' && eget.saker)) {
+          eget.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((eget.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
+          eget.namn = k.namn; eget.sid = k.sid; eget.saker = !!k.saker; eget.varfor = k.saker ? 'helbild' : 'helbild osäker';
+          eget.tillstand = k.saker ? 'klar' : 'okand'; eget.fragad = true; eget.aiFragad = true;
+          eget.ai = Object.assign({}, eget.ai || {}, info, { helbild: false });
+          namngivna++;
+        }
+        continue;
+      }
+      if (eget) bort.add(eget);
+      const g = gamla.find(t => !behallna.has(t) && t.namn === k.namn && inuti(p, t.box));
+      if (g) {
+        behallna.add(g);
+        g.cx = p.cx; g.cy = p.cy; g.box = lada(p); g.lang = m.lang; g.kort = m.kort; g.areaRef = g.box.w * g.box.h * 0.9;
+        g.sedd = nu; g.tomMs = 0; g.ai = Object.assign({}, info);
+        if (k.saker && !g.saker) { g.saker = true; g.tillstand = 'klar'; g.varfor = 'helbild'; }
+        continue;
+      }
+      const b = lada(p);
+      nya.push({ id: nastaId++, cx: p.cx, cy: p.cy, lang: m.lang, kort: m.kort, vinkel: upp === 'v' ? Math.PI / 2 : 0, box: b, areaRef: b.w * b.h * 0.9,
+                 sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, tappad: false, tappRost: -1,
+                 namn: k.namn, sid: k.sid, saker: !!k.saker, cands: [{ name: k.namn, sid: k.sid, score: 0 }],
+                 fragad: true, aiFragad: true, namnLast: null, ram: null, gissning: null,
+                 varfor: k.saker ? 'helbild' : 'helbild osäker', tillstand: k.saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
+    }
+    spar = spar.filter(t => !bort.has(t) && (!arHelbild(t) || behallna.has(t)));
+    for (const t of nya) spar.push(t);
+    helbildAntal++;
+    helbildSig = egenSignatur();
+    dia.helbild = { nr: helbildAntal, skal: info.skal, kort: svar.length, nya: nya.length, kvar: behallna.size, namngivna, bort: gamla.length - behallna.size + bort.size, ms: info.ms, matt: info.matt, modell: info.modell || null };
     rapportera();
   }
 
@@ -13373,7 +13564,7 @@ const Kamera = (() => {
       const tw = b.w / AW * w, th = b.h / AH * h;
       ovc.strokeStyle = sparFarg(t);
       ovc.lineWidth = 2.5;
-      ovc.setLineDash(t.skymd ? [6, 5] : []);
+      ovc.setLineDash(t.skymd ? [6, 5] : arHelbild(t) ? [2, 4] : []);   // prickat: kortet såg Claude i helbilden, inte detektorn
       ovc.strokeRect(tx, ty, tw, th);
     }
     ovc.restore();
@@ -13393,7 +13584,14 @@ const Kamera = (() => {
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
   function nyReferens() { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
-  function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
+  function glomKort(id) {
+    const t = spar.find(x => x.id === id); if (!t) return;
+    /* Ett spår ur helbilden har ingen region att läsa om: det står kvar
+       namnlöst i granskningen tills nästa helbild, eller tills datorn
+       namnger det. Flaggan behålls så att matcha() inte släpper det. */
+    if (arHelbild(t)) { t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.varfor = 'helbild glömd'; t.tillstand = 'okand'; return; }
+    t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now();
+  }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
   function namnge(id, namn, sid) {
@@ -13405,6 +13603,11 @@ const Kamera = (() => {
 
   return { start, installera, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
+           /* Helbilden på begäran (knappen, datorn); och om en automatisk är
+              på väg — golden-provet väntar in den innan fallet döms. */
+           helbild: () => helbild('knapp'), tillampaHelbild,
+           get helbildVantar() { return !!cb.helbild && (helbildPagar || (helbildSedan > 0 && (!helbildSist || performance.now() - helbildSist >= HELBILD_MIN_MS))); },
+           get helbildPagar() { return helbildPagar; },
            get yta() { return yta; },
            get omtag() { return omtag; },
            /* I råa videopixlar: modellen är räknad på den förstärkta rutan. */
@@ -13445,10 +13648,10 @@ let kamRaknare = 0;
    har olika ägare: datorns tystnad, kamerans fas, och lekbygget. Förut skrev
    de över varandra — fasen "lär mig ljuset" raderade "Lär mig leken… 12 av
    90" mitt i bygget. */
-const kamFinDel = { dator: '', fas: '', pool: '' };
+const kamFinDel = { dator: '', fas: '', pool: '', ai: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"
 function ritaKamFin() {
   const f = $('#kamFin'); if (!f) return;
-  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.pool].filter(Boolean).map(esc).join('<br>');
+  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.ai, kamFinDel.pool].filter(Boolean).map(esc).join('<br>');
 }
 function satKamFin(del, txt) { kamFinDel[del] = txt || ''; ritaKamFin(); }
 const kamSag = (l, txt, fin) => {
@@ -13482,7 +13685,8 @@ async function oppnaKamera(gameId) {
          "lär sig ljuset" ur exakt det, och behöver inte gissa ur tystnaden. */
       fas: () => { if (kamLage) Moln.sandKam('bord', { fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }); },
       identifiera: (canvas, id, gissning) => kamIdentifiera(canvas, id, gissning),
-      fragaAI: (canvas, id) => kamFragaAI(canvas, id)
+      fragaAI: (canvas, id) => kamFragaAI(canvas, id),
+      helbild: (canvas, o) => kamHelbild(canvas, o)
     });
   } catch (e) {
     kamSag('fel', 'Kameran gick inte att starta');
@@ -13676,16 +13880,61 @@ async function kamFragaAI(canvas, id) {
     if (!resp.ok) return;
     const j = await resp.json();
     const kort = Array.isArray(j.kort) ? j.kort : [];
-    const svar = [];
-    for (const k of kort) {
-      if (!k || !k.namn) continue;
-      const i = Pool.idx.names.indexOf(k.namn);
-      if (i < 0) continue;
-      svar.push({ namn: k.namn, sid: Pool.idx.ids[i], saker: k.sakerhet === 'hog', sakerhet: k.sakerhet || 'lag',
-                  x: Math.max(0, Math.min(1, (+k.x || 0) / 1000)), y: Math.max(0, Math.min(1, (+k.y || 0) / 1000)) });
-    }
-    Kamera.svarAI(id, svar, { modell: j.modell || AI.model || null, antal: kort.length, usage: j.usage || null });
+    Kamera.svarAI(id, kamAiPoster(kort), { modell: j.modell || AI.model || null, antal: kort.length, usage: j.usage || null });
   } catch (e) { /* utan svar står spåret kvar som osäkert, i granskningen */ }
+  finally { kamAiVantar--; }
+}
+/* Serverns poster → poolens namn och sid, läge 0–1. Ett namn som inte finns
+   i poolen hoppas över (servern har redan tömt namn utanför leken). */
+function kamAiPoster(kort) {
+  const svar = [];
+  for (const k of kort) {
+    if (!k || !k.namn) continue;
+    const i = Pool.idx.names.indexOf(k.namn);
+    if (i < 0) continue;
+    svar.push({ namn: k.namn, sid: Pool.idx.ids[i], saker: k.sakerhet === 'hog', sakerhet: k.sakerhet || 'lag',
+                x: Math.max(0, Math.min(1, (+k.x || 0) / 1000)), y: Math.max(0, Math.min(1, (+k.y || 0) / 1000)) });
+  }
+  return svar;
+}
+
+/* ── Claude om hela bordet (MES-28 Del 4) ──
+   Kamera.helbild() skickar hela analysrutan hit när detektorn inte ser
+   något på bordet, när ytan är orolig, eller när någon tryckt på knappen;
+   svaret går tillbaka som { svar, info } och blir spår
+   (Kamera.tillampaHelbild). null betyder "gick inte att fråga" — AI-hjälpen
+   av, poolen inte klar, taket per minut nått, servern svarade inte — och
+   då rör kameran inga spår. Samma tak som beskärningarna: en helbild är
+   ett anrop. Bilden är 1080 px bred, jpeg 0,8, och kvaliteten sänks tills
+   den ryms under serverns tak (900 000 tecken base64): golden 05 som jpeg
+   0,8 är ~430 kB, alltså ~575 000 tecken. Uppmätt 2026-09-10 på de sex
+   golden-fotona i kameraläget: Opus 5 40 av 40 kort, 9 s och 3 cent per
+   foto; Sonnet 5 3,6 s och 1 cent (ANTHROPIC_MODEL_KAMERA). */
+const HELBILD_B64_TAK = 880_000;
+async function kamHelbild(canvas, o) {
+  if (AI.mode !== 'server' || !prefs.aiAuto) { satKamFin('ai', 'AI-hjälpen är av — slå på den i menyn på datorn.'); return null; }
+  if (!Pool.idx) { satKamFin('ai', 'Leken är inte klar än.'); return null; }
+  if (!canvas) return null;
+  const nu = Date.now();
+  while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
+  if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) { satKamFin('ai', 'För många frågor till Claude den här minuten — vänta lite.'); return null; }
+  kamAiTider.push(nu); kamAiVantar++;
+  satKamFin('ai', 'Frågar Claude om hela bordet…');
+  const t0 = performance.now();
+  const sek = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
+  try {
+    let q = 0.8, b64 = '';
+    for (;;) { const url = canvas.toDataURL('image/jpeg', q); b64 = url.slice(url.indexOf(',') + 1); if (b64.length <= HELBILD_B64_TAK || q <= 0.45) break; q = +(q - 0.15).toFixed(2); }
+    const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'kamera', image: b64, names: kamAiNamnen() }) });
+    if (!resp.ok) { satKamFin('ai', `Claude svarade inte (${resp.status}).`); return null; }
+    const j = await resp.json();
+    const kort = Array.isArray(j.kort) ? j.kort : [];
+    const svar = kamAiPoster(kort);
+    const ms = Math.round(performance.now() - t0);
+    satKamFin('ai', svar.length ? `Claude såg ${svar.length} kort på bordet (${sek(ms)}).` : `Claude såg inga kort på bordet (${sek(ms)}).`);
+    return { svar, info: { modell: j.modell || AI.model || null, antal: kort.length, usage: j.usage || null, bild: { w: canvas.width, h: canvas.height, b64: b64.length, kvalitet: q } } };
+  } catch (e) { satKamFin('ai', 'Claude gick inte att nå.'); return null; }
   finally { kamAiVantar--; }
 }
 
@@ -13741,6 +13990,7 @@ function kamKommando(m) {
   if (m.typ === 'diagnos') { sandDiagnos(); return; }
   if (m.typ === 'lek') { byggKamPool(); return; }            // leken ändrades på datorn
   if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
+  if (m.typ === 'helbild') { Kamera.helbild(); return; }     // provbordet bad Claude titta på hela bordet
   if (m.typ === 'glom') { Kamera.glomKort(m.spar); return; } // datorn rättade — läs om
   if (m.typ === 'namn') { Kamera.namnge(m.spar, m.namn, m.sid); return; } // granskningen gav kortet ett namn
   if (m.typ === 'trosklar') { Kamera.satTrosklar(m.v); Moln.sandKam('trosklar', { v: Kamera.trosklar }); return; }
@@ -14096,6 +14346,7 @@ function tagEmotDiagnos(m) {
   toast('Diagnosen är sparad', 'ok');
 }
 $('#pbDiagnos') && ($('#pbDiagnos').onclick = () => { Moln.sandKam('diagnos'); toast('Hämtar det telefonen ser…'); });
+$('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); toast('Telefonen frågar Claude om hela bordet…'); });
 /* Bilden byter storlek när Avancerat fälls ut; lagret mäts om direkt. */
 $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestAnimationFrame(ritaPbLager));
 
@@ -14690,6 +14941,14 @@ async function kollaVantandeScans() {
   catch (e) {}
 }
 
+/* Knappen som inte skulle finnas (se #vyKamera): Claude får titta på hela
+   bordet. Raden under statusen säger vad som hände; går det inte att fråga
+   alls — ingen kalibrering än, en fråga redan på väg — står det också. */
+$('#kamHelbild').onclick = async () => {
+  const b = $('#kamHelbild'); b.disabled = true; satKamFin('ai', '');
+  try { if (!(await Kamera.helbild()) && !kamFinDel.ai) satKamFin('ai', Kamera.helbildPagar ? 'Claude tittar redan.' : 'Kameran är inte redo än — rutan måste vara bekräftad på datorn.'); }
+  finally { b.disabled = false; }
+};
 $('#kamStang').onclick = async () => {
   stoppaStrom();
   Kamera.stopp();

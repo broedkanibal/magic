@@ -54,6 +54,12 @@ anrop med nyckeln ur `.env.local` (`MESA_AI=1`, kostar pengar: uppmätt 10–15
 cent per körning med Opus 5). Metoden blir `lokal+ocr+ai` och modellen står i
 fältet `ai`; resultatet jämförs mot och sparas i `senaste-ai.json`, aldrig i
 `senaste.json`, så att den lokala baslinjen står kvar för sig.
+Med `--ai` kan kameran också be Claude om **hela bilden** (helbilden, MES-28
+Del 4): när detektorn inte ser något på bordet eller ytan inte är lugn, så
+snart bilden stått stilla tre sekunder — det är så fall 05 (ribborna, noll
+regioner) får sina kort. Spåren som föds ur svaret har `varfor: "helbild"`
+och `ai.helbild: true`, fallet bär `helbild` (vad Claude såg, tiden, lådans
+mått), och `--detalj` skriver raden. Utan `--ai` händer inget av det.
 `--fall 03` kör bara fallen vars id börjar så, `--rutor` skriver snittförsöken
 ruta för ruta över hela fallet (bara rutorna som skiljer sig från rutan före,
 och `(minne)` efter ett snitt som togs ur snittminnet) och en tidslinje över
