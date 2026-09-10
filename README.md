@@ -18,22 +18,57 @@ Leken hör till ditt **konto**, inte till spelet: fotograferar du den i telefone
 finns den på datorn, och den följer med in i varje nytt spel. Du kan ändra den
 när som helst, också mitt i ett parti — telefonen bygger om sin igenkänning så
 fort du sparat. Utan konto sparas den i webbläsaren. Det som lämnar telefonen är
-ett litet bordstillstånd när något ändrats. Den digitala vyn är en spegel av
-mattan — men kameran får bara lägga till kort och vrida dem, aldrig ta bort
-dem. Ett kort den inte längre ser tonas ned där det ligger, med tre val: till
+ett litet bordstillstånd när något ändrats.
+
+**Telefonen läser av hela bilden** — det finns ingen yta att markera. Sätt den i
+en hållare rakt ovanför korten du spelar ut, och håll leken och graveyard utanför
+bild. Hur ett otappat kort ligger i bilden (stående eller liggande) avgör vilka
+kort som räknas som tappade; det ställs under Auto-chippet och gäller spelet.
+
+Den digitala vyn är en spegel av bordet — men kameran får bara lägga till kort
+och vrida dem, aldrig ta bort dem. Den räknar kort, inte spår: känner den igen
+ett kort som redan ligger på bordet läggs det inte till en gång till — den lägger
+bara till så många som fattas för att appen ska ha lika många av kortet som det
+ligger på bordet. Ser den samma kort två gånger — Claude läser av hela bordet och
+placerar kortet en bit bredvid där kameran redan ser det — blir det ett kort, och
+ett osäkert kort ovanpå ett känt med samma namn hamnar inte i granskningen.
+
+Ett kort den inte längre ser tonas ned där det ligger, med tre val: till
 graveyard, ligger kvar, eller bort från bordet (samma kryss som på varje kort).
 Att göra ingenting betyder att det ligger kvar, och lägger du tillbaka det på
-mattan tonas det upp av sig självt. Har flera kort tonats ned på en gång får
-du ett svar för alla i zonrubriken. Mätbänken för kameran ligger i
-`dev/kamerabank.cjs` (`node dev/kamerabank.cjs`).
+bordet tonas det upp av sig självt. Har flera kort tonats ned på en gång får
+du ett svar för alla i zonrubriken. Det gäller landen också: ett land kameran
+inte ser läggs nedtonat sist i sin färggrupp med samma tre val, minus tar ett
+nedtonat land först, och Lands har en egen rad för alla.
+
+Något som inte är ett kort — en bit av bordet, en skugga, en baksida — läggs
+varken till eller i granskningen. Telefonen avgör först om beskärningen alls ser
+ut som ett kort mot det som ligger runt den, och med AI-hjälpen på har Claude
+sista ordet: säger Claude att det inte är något kort blir det skräp. Ett riktigt
+kort som kameran är osäker på går fortfarande till granskningen, men först när
+Claude svarat — högst 15 sekunder senare.
+
+Mätbänken för kameran ligger i `dev/kamerabank.cjs` (`node dev/kamerabank.cjs`),
+och datorns avstämning — samma kort som två spår, landhögar, nedtonade land,
+spår som väntar på Claude — provas med `node dev/avstamning.cjs`.
 En hand eller en arm över korten ändrar ingenting: ett spår släpps först när
-mattan *under* det sett tom ut. Korten hittas som det som avviker från vad
-mattan själv ser ut som i samma bildruta (uppmätt på ett träbord; reglaget
+bordet *under* det sett tomt ut. Korten hittas som det som avviker från vad
+bordet självt ser ut som i samma bildruta (uppmätt på ett träbord; reglaget
 *Avvikelse* under Auto-chippet ändrar det), så korten får ligga kvar när
-kameran startar — håll bara telefonen stilla en sekund. Bara där mattan har
+kameran startar — håll bara telefonen stilla en sekund. Bara där bordet har
 eget tryck eller mönster räknas i stället skillnaden mot referensbilden, med
-en tröskel ur mattans brus. På en slät, enfärgad matta i vanligt ljus behöver
-inget ställas in.
+en tröskel ur bordets brus. På ett slätt, enfärgat bord eller en duk i vanligt
+ljus behöver inget ställas in.
+
+**Ett tomt bord säger vad som händer härnäst.** I ett spel är *Slå på auto*
+huvudvalet på det tomma brädet, med en mening om vad det är. Väntar appen på
+telefonen står *Visa QR-koden* där; har kameran tappats står *Koppla om*; är den
+kopplad står en uppmaning att lägga ut ett kort på bordet. Skärmdumpen är alltid
+andrahandsvalet, och den lägger till — liksom kortikonen i toppraden, som står
+kvar också när auto går. Klistrar du in en bild på det enda kort kameran väntar
+på ett namn för, tar kortet över kamerans spår: frågan försvinner ur kön och
+tappningen följer med. På ett lokalt bord finns ingen telefon, så där är
+skärmdumpen huvudvalet.
 
 **Klistra in en skärmdump av hela videosamtalets fönster.** Appen hittar spelarnas
 videorutor, läser av korten som ligger på borden, och skapar en spelare per ruta.
@@ -52,15 +87,18 @@ Första gången du läser av en bild bygger appen ett bildindex över kortsetet
 (~780 kort, ca 30 sekunder). Det sparas lokalt och görs aldrig om.
 
 **Tre vägar in i handen.** Skriv kortnamnet i sökfältet, klistra in en lista med
-namn (`Lista`, eller <kbd>B</kbd>), eller ge appen en bild.
+namn (`Lista`, eller <kbd>B</kbd>), eller ge appen en bild. En bild med ett
+eller flera kort kan läggas till från kortikonen i toppraden (<kbd>I</kbd>) — i
+alla lägen, också medan auto går.
 
 **Var bilden hamnar avgör vad som händer:**
 
 | var | vad som händer |
 | --- | --- |
 | huvudvyn — <kbd>⌘V</kbd>, dra in en fil, eller släpp den i någon av rutorna | korten som hittas **läggs till**; det som redan ligger i handen står kvar |
-| huvudvyn när brädet är **tomt** | hela bordet läses av från grunden, en flik per spelare |
-| bildvyn (öppnas med `Läs av bordet`) | bilden läses av som ett helt bord och **handen ersätts** |
+| tilläggsrutan (*Add cards from an image* — kortikonen i toppraden, <kbd>I</kbd>, *Drag in cards*, tomrutans *Klistra in en skärmdump*) | korten **läggs alltid till**, också på ett tomt bräde |
+| huvudvyn när brädet är **tomt** och ingen ruta är öppen | hela bordet läses av från grunden, en flik per spelare |
+| bildvyn (kameraikonen i toppraden eller <kbd>S</kbd>) | bilden läses av som ett helt bord och **handen ersätts** |
 
 Bilden kan innehålla ett kort eller flera — en beskuren skärmdump, ett foto, en
 kortbild från nätet, eller en hel skärmdump av videosamtalet. Är det en hel skärmdump
@@ -158,7 +196,9 @@ npm run dev:ai     # http://localhost:3000 — riktiga Claude, kostar krediter
 webbläsaren och är därför identiska med produktion — det är bara det sista steget,
 att fråga Claude om de osäkra korten, som är en attrapp. Den svarar "inget av
 kandidaterna passar", så osäkra kort stannar i granskningslistan. Använd det här
-till gränssnitt, flöden och detekteringen.
+till gränssnitt, flöden och detekteringen. I kameraläget svarar attrappen utan
+kortlista, och kameran räknar det som att inget svar kom: osäkra kort hamnar i
+granskningen som vanligt.
 
 Attrappen svarade tidigare "kandidat 1, hög säkerhet" på allt utan att titta på
 bilden, vilket tryckte in felaktiga kort i handen och såg ut som ett fel i
@@ -339,7 +379,10 @@ Den lokala igenkänningen klarar de flesta korten gratis och utan nätverk. För
 dem den inte är säker på frågas en bildmodell — den ser det beskurna kortet och
 de bästa kandidaterna och väljer ett av dem. Bara svar med **hög säkerhet**
 läggs till automatiskt; resten hamnar kvar i ifyllnadslistan med förslaget
-överst.
+överst. I kameraläget frågas Claude om varje kort kameran är osäker på: ett namn
+ur leken med hög säkerhet lägger till kortet, "inget kort" gör spåret till
+skräp, och uteblir svaret (nätet, taket per minut) går kortet till granskningen
+som förut.
 
 **Nyckeln ligger på servern och lämnar den aldrig.** Ingen användare behöver ett
 eget konto, och ingen kan läsa nyckeln ur webbläsaren. Appen frågar servern vid
@@ -424,6 +467,9 @@ dev/bench.html  mätbänk för träffsäkerheten
 dev/mock.js     syntetisk skärmdump av videosamtalet för test
 dev/lekmock.js  syntetisk solfjäder och mätbänk för lekens fotoväg
 dev/stub-server.cjs  attrapp för /api/identify vid lokal utveckling
+dev/kamerabank.cjs   mätbänk för kameramodulen (telefonens sida)
+dev/avstamning.cjs   prov för datorns avstämning, med telefonens riktiga rapporter i dev/avstamning-rapporter.json
+dev/golden/     golden setet: riktiga bord med facit, hela kamerakedjan i appen
 assets/mana/    Wizards manasymboler, hämtade från Scryfall
 scripts/hamta-mana.sh  hämtar om dem
 .claude/skills/driftkoll/  slash-kommandot /driftkoll

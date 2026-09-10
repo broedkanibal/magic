@@ -3,9 +3,8 @@
 --
 --  Körs EFTER schema.sql. Går att köra om.
 --
---  Kameran är telefonens öga in i spelet. Den lägger ett kort på en
---  markerad matta, fotar det, och datorn känner igen kortet och lägger
---  ut det. Två saker behöver finnas för det: en plats att lägga bilden
+--  Kameran är telefonens öga in i spelet. Den lägger ett kort på bordet,
+--  fotar det, och datorn känner igen kortet och lägger ut det. Två saker behöver finnas för det: en plats att lägga bilden
 --  (Storage) och en kö som säger "här ligger en ny bild" (scans).
 --
 --  Kön är avsiktligt inte en broadcast. En bild ska behandlas EN gång
@@ -14,10 +13,9 @@
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── kalibrering ────────────────────────────────────────────────────
--- Var mattan ligger i telefonens bild, plus färgen att känna igen den
--- på. En rad per spelare och spel: byter man plats vid bordet gäller
--- inte den gamla rutan längre, och den ska inte följa med till nästa
--- spel heller.
+-- Kamerans läge per spelare och spel. ruta är numera alltid hela bilden
+-- {x:0,y:0,w:1,h:1} plus upp ('v'/'h'); en äldre rads ruta ignoreras och
+-- skrivs om när telefonen ansluter. farg används inte.
 create table if not exists public.camera_setups (
   game_id     uuid not null references public.games(id) on delete cascade,
   user_id     uuid not null references auth.users(id) on delete cascade,
@@ -88,7 +86,7 @@ revoke all on function public.ta_scan(uuid, uuid) from public;
 grant execute on function public.ta_scan(uuid, uuid) to authenticated;
 
 -- ── realtid ────────────────────────────────────────────────────────
--- Telefonen behöver få veta när datorn bekräftat rutan, utan att fråga
+-- Telefonen behöver få veta när läget ändras på datorn, utan att fråga
 -- om och om igen.
 -- Går att köra om. "alter publication ... add table" kastar fel om tabellen
 -- redan är med, och hela poängen med de här filerna är att de ska tåla att

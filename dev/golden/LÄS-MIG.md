@@ -103,8 +103,14 @@ och det står i sidhuvudet och i varje rad i `senaste.json` (`"metod":
 Skulle ett AI-steg någon gång ingå i provet ska fältet bära modellens namn, så
 att två körningar aldrig jämförs utan att man vet vad som svarade. Det som
 INTE provas här är datorns sida: granskningslistan, AI-hjälpen på osäkra kort
-och det som händer på bordet efteråt. Ett osäkert svar räknas därför inte som
-igenkänt — det är där kedjan slutar.
+och det som händer på bordet efteråt (datorns avstämning — samma kort som två
+spår, nedtonade land, spår som väntar på Claude — provas med
+`node dev/avstamning.cjs`). Ett osäkert svar räknas därför inte som igenkänt —
+det är där kedjan slutar. Med `--ai` räknas också Claudes "inget kort" som skräp
+(`varfor: "ai: inget kort"`). Skräpfiltret (`serUtSomKort`) har sedan MES-29 två
+regler till: kortet ska skilja sig från marginalen runt det, och strukturen ska
+finnas i minst hälften av 4×5 celler i kortets insida; bildpunkter utanför
+videon räknas inte.
 
 Namnläsaren körs bara när titelraden är hög nog att läsas (remsan ≥ 40 px i
 beskärningen; på 60 cm ja, på 150 cm nej — där gav den tomt på alla kort) och
@@ -188,8 +194,7 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
    bilden, dra en ruta runt varje kort, skriv namnet (autokomplettering ur
    `lek.txt`), kryssa *tappad* för liggande kort, *avskuret* för kort som
    skärs av kanten och *dold* för kort som ligger under ett annat så att bara
-   en kant syns, dra kalibreringsrutan om bilden visar mer än mattan, och
-   tryck **Kopiera facit.json**. Klistra in som `facit.json` i mappen.
+   en kant syns, och tryck **Kopiera facit.json**. Klistra in som `facit.json` i mappen.
 
    Har du bråttom räcker en **namnlista**: `kort` med bara `namn` per post.
    Då provas namnen men inte platsen och tap-läget (kolumnerna visar `–`), och
@@ -213,7 +218,7 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
   "ljus": "dagsljus från fönster till vänster",
   "telefon": "iPhone 15 Pro",
   "hojd_cm": 100,
-  "ruta": { "x": 0.02, "y": 0.12, "w": 0.96, "h": 0.80, "upp": "v" },
+  "ruta": { "x": 0, "y": 0, "w": 1, "h": 1, "upp": "v" },
   "kort": [
     { "namn": "Valkyrie's Sword", "x": 0.18, "y": 0.44, "w": 0.20, "h": 0.28, "tappad": false },
     { "namn": "Plains",           "x": 0.62, "y": 0.44, "w": 0.20, "h": 0.28, "tappad": true }
@@ -225,9 +230,11 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
 
 - Koordinaterna är **andelar av hela bilden**, inte pixlar — då överlever
   facit att bilden skalas om eller att analysbredden ändras.
-- `ruta` är kalibreringsrutan, den del av bilden kameran analyserar. Saknas
-  den gäller hela bilden. `upp` är `"v"` när ett otappat kort står lodrätt i
+- `ruta` används inte längre till beskärning — sedan MES-29 läser kameran hela
+  bilden, och kor.html räknar om spåren genom modulens egen ruta (`K.ruta`),
+  inte facits. Bara `ruta.upp` läses: `"v"` när ett otappat kort står lodrätt i
   bilden (telefon i porträtt rakt över bordet), `"h"` när det ligger vågrätt.
+  Rutläget i markera.html behövs inte för nya fall.
 - `avskurna` listar kort som syns men skärs av kanten. De räknas inte som
   missar; i dag spåras de medvetet inte.
 - `tappad` gör att tap-läget provas, inte bara namnen.

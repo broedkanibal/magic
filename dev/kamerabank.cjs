@@ -557,6 +557,156 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   r = await summa(20, () => rutaTra({}, g => { TREW(g); for (let yy = 20; yy < 140; yy++) for (let xx = 82; xx < 95; xx++) g[yy * W + xx] = Math.min(255, g[yy * W + xx] + 40); }));
   console.log(`     N4 (mätning) strimma 13 px utan luft mot korten: spår ${r.sist.length} (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')}), hela kort ${helaKort(r.sist)}, skurna ${Kamera.diagnos.skurna}`);
 
+  // ── MES-29 helbild: rutan är borta, läget (upp) byts utan nollställning ──
+  // U1: läget byts på datorn — tappläget tolkas om, inget nollställs
+  nystart(); await referens();
+  for (let i = 0; i < 8; i++) s = await ruta(KORT);
+  const idU = s[0] && s[0].id, nollU = nollst;
+  Kamera.satUpp('h'); s = await ruta(KORT);
+  check(`U1 liggande: samma id ${s[0] && s[0].id === idU}, tappad ${s[0] && s[0].tappad}, nollställningar ${nollst - nollU}`, s.length === 1 && s[0].id === idU && s[0].tappad && nollst === nollU);
+  Kamera.satUpp('v'); s = await ruta(KORT);
+  check(`U1 stående igen: tappad ${s[0] && s[0].tappad}`, s.length === 1 && !s[0].tappad);
+  // U2: en sparad ruta från förr krymper inte bilden, men läget gäller
+  Kamera.satKalibrering({ ruta: { x: 0.25, y: 0.25, w: 0.5, h: 0.5, upp: 'h' } });
+  const rU = Kamera.ruta;
+  check(`U2 gammal kalibrering: ${JSON.stringify(rU)}`, rU.x === 0 && rU.y === 0 && rU.w === 1 && rU.h === 1 && rU.upp === 'h');
+  nystart();   // U2 lämnar läget liggande
+  // ── MES-29 dubblett: ett kort får inte bli två spår ─────────────────
+  /* Datorns avstämning räknar fysiska kort (se dev/avstamning.cjs); här
+     provas telefonens halva: var det andra spåret föddes. */
+  {
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    const fmt = l => l.map(t => `#${t.id} ${t.tillstand} ${t.namn || ''} tap=${t.tappad ? 1 : 0}${t.ai && t.ai.helbild ? ' helbild' : ''}`).join(', ');
+    const kortSpar = () => Kamera.spar.filter(t => t.tillstand !== 'skrap');
+    /* D1: helbilden lägger Claudes punkt 0,6 kortlängder bredvid ett tappat
+       kort — ett tappat kort är brett och lågt, och punkten hamnar utanför
+       lådan. Förut blev den ett eget, otappat helbildsspår bredvid
+       detektorns tappade, och datorn fick två kort för ett (Jespers parti
+       2026-09-10). Punkten ska räknas till spåret som redan bär namnet. */
+    const tappat = g => kortVriden(g, W, 110, 70, 30, 42, Math.PI / 2, 180);
+    nystart(); await referens();
+    for (let i = 0; i < 10; i++) await ruta(tappat);
+    Kamera.tillampaHelbild([{ x: (110 + 0.6 * 42) / W, y: 70 / H, namn: 'Plains', sid: 's1', saker: true }], { helbild: true, skal: 'auto' }, nu);
+    const detRapport = bord.find(t => t.tillstand !== 'skrap');
+    for (let i = 0; i < 10; i++) await ruta(tappat);
+    const d1 = kortSpar();
+    check(`D1 helbildens punkt 0,6 L bredvid ett tappat kort: spår ${d1.length} (${fmt(d1)})`,
+          d1.length === 1 && !d1.some(t => t.ai && t.ai.helbild) && d1[0].tappad);
+    /* D2: rapporten bär `sen` — ms sedan detektorn gav spåret en region, det
+       datorn kallar färskt. Ett spår som bara finns i helbilden har inget. */
+    nystart(); await referens();
+    Kamera.tillampaHelbild([{ x: 110 / W, y: 70 / H, namn: 'Plains', sid: 's1', saker: true }], { helbild: true, skal: 'auto' }, nu);
+    const helRapport = bord.find(t => t.ai && t.ai.helbild);
+    check(`D2 sen i rapporten: detektorns spår ${detRapport && detRapport.sen} ms, helbildens ${helRapport && helRapport.sen}`,
+          !!detRapport && typeof detRapport.sen === 'number' && detRapport.sen < 500 && !!helRapport && helRapport.sen === null);
+    /* D3: tappat runt nedre vänstra hörnet med en hand över. Mittpunkten
+       flyttar sig mer än matcha tar, så det gamla spåret dör och ett nytt
+       föds — men aldrig två klara samtidigt, och ett spår till sist. */
+    const hx = 110 - 15 + 21, hy = 70 + 21 + 15;
+    nystart(); await referens();
+    for (let i = 0; i < 10; i++) await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
+    for (let i = 0; i < 4; i++) await ruta(g => { kortVriden(g, W, hx, hy, 30, 42, Math.PI / 2, 180); hand(g, W, 112, 88, 30, 28, 60); });
+    let flestKlara = 0;
+    for (let i = 0; i < 25; i++) { await ruta(g => kortVriden(g, W, hx, hy, 30, 42, Math.PI / 2, 180)); flestKlara = Math.max(flestKlara, Kamera.spar.filter(t => t.tillstand === 'klar').length); }
+    const d3 = kortSpar();
+    check(`D3 tappat runt hörnet med hand: spår sist ${d3.length} (${fmt(d3)}), flest klara samtidigt ${flestKlara}`,
+          d3.length === 1 && d3[0].tappad && flestKlara <= 1);
+  }
+
+  // ── MES-29 skräp: Claudes "inget kort" och spår som prövas ─────────
+  /* Bänken har ingen video (c = null), så fragaAI anropas aldrig. Proven
+     ställer frågan för hand — aiFragad, provas, aiFragadNar, som identifiera
+     gör — och svarar via Kamera.svarAI, som kamFragaAI gör när svaret kommit. */
+  {
+    const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
+    const ETT = g => kortPaTra(g, 60, 70), FLYTT = g => kortPaTra(g, 63, 70);
+    const iBord = t => bord.find(x => x.id === t.id) || {};
+    const fraga = t => { t.aiFragad = true; t.provas = true; t.aiFragadNar = nu; };
+    const fmt = t => `${t.tillstand}${t.provas ? ' prövas' : ''}${t.namn ? ' ' + t.namn : ''}${t.varfor ? ' (' + t.varfor + ')' : ''}`;
+    /* Ett okänt Plains på trä, med en fråga ute. */
+    const ettOkant = async () => {
+      namnSvar = osaker; nystart(); await refTra();
+      for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+      const t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
+      fraga(t); return t;
+    };
+    /* W12: Claude såg inget kort → skräp, utan namn och ledtråd, och läses
+       inte om medan det ligger stilla. */
+    let t = await ettOkant();
+    Kamera.svarAI(t.id, [], { antal: 0 });
+    const b12 = iBord(t), fr12 = identifieringar;
+    for (let i = 0; i < 10; i++) await rutaTra({}, ETT);
+    check(`W12 Claude: inget kort → skräp: ${fmt(t)}, gissning ${t.gissning}, bordet ${b12.tillstand}, omläst ${identifieringar - fr12}`,
+          t.tillstand === 'skrap' && t.varfor === 'ai: inget kort' && t.namn === null && t.gissning === null && t.provas === false && b12.tillstand === 'skrap' && identifieringar === fr12);
+    /* W13: en post utan namn — ett kort utanför leken, en token — är ett kort. */
+    t = await ettOkant();
+    Kamera.svarAI(t.id, [], { antal: 1 });
+    check(`W13 Claude såg ett kort den inte kunde namnge (antal 1): ${fmt(t)}, bordet prövas ${iBord(t).provas}`,
+          t.tillstand === 'okand' && t.provas === false && iBord(t).provas === false);
+    /* W14: inget svar alls — den lokala domen står. */
+    t = await ettOkant();
+    Kamera.svarAI(t.id, null, { fel: 502 });
+    check(`W14 inget svar (502): ${fmt(t)}, ai.fel ${t.ai && t.ai.fel}`, t.tillstand === 'okand' && t.provas === false && !!t.ai && t.ai.fel === 502);
+    /* W15: svaret kommer aldrig — efter PROVA_MS (15 s) släpps provet, och
+       signaturen gör det till en rapport. */
+    t = await ettOkant();
+    Kamera.rapportera();
+    const fore15 = iBord(t).provas;
+    for (let i = 0; i < 93; i++) await rutaTra({}, ETT);       // 14 s
+    const mitt15 = iBord(t).provas;
+    for (let i = 0; i < 14; i++) await rutaTra({}, ETT);       // 16 s
+    check(`W15 svaret kommer aldrig: prövas ${fore15} → 14 s ${mitt15} → 16 s ${t.provas}, bordet ${iBord(t).provas}, ${fmt(t)}`,
+          fore15 === true && mitt15 === true && t.provas === false && iBord(t).provas === false && t.tillstand === 'okand');
+    /* W16: ett lokalt säkert spår rörs inte av "inget kort". */
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    nystart(); await refTra();
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    t = Kamera.spar.find(x => x.tillstand === 'klar') || { id: -1 };
+    t.aiFragad = true;
+    Kamera.svarAI(t.id, [], { antal: 0 });
+    check(`W16 lokalt säkert spår, Claude: inget kort → står kvar: ${fmt(t)}`, t.tillstand === 'klar' && t.namn === 'Plains');
+    /* W17: helbildens osäkra namn är Claudes egen motsatta dom. */
+    t = await ettOkant(); t.varfor = 'helbild osäker';
+    Kamera.svarAI(t.id, [], { antal: 0 });
+    check(`W17 helbildens osäkra namn, beskärningen: inget kort → står kvar: ${fmt(t)}`, t.tillstand === 'okand' && t.namn === 'Plains');
+    /* W18: en fråga till efter rörelse, aldrig fler. */
+    t = await ettOkant();
+    Kamera.svarAI(t.id, [], { antal: 0 });
+    const forst18 = fmt(t);
+    for (let i = 0; i < 12; i++) await rutaTra({}, FLYTT);
+    const andra18 = `${fmt(t)}, frågad ${!!t.aiFragad}`;
+    const ok18 = t.tillstand === 'okand' && !t.aiFragad && t.aiInget === 1;
+    fraga(t); Kamera.svarAI(t.id, [], { antal: 0 });
+    const fr18 = identifieringar;
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    check(`W18 inget kort, flyttad 3 px: ${forst18} → ${andra18} (en fråga till); inget kort igen, flyttad: ${fmt(t)}, aiInget ${t.aiInget}, lästes lokalt ${identifieringar - fr18}`,
+          ok18 && t.tillstand === 'skrap' && t.aiInget === 2 && t.aiFragad === true && identifieringar - fr18 === 1);
+    /* W19: ett svar på en fråga från före en nollställning gäller inte. */
+    t = await ettOkant(); t.aiFragad = false;
+    const ai19 = t.ai;
+    Kamera.svarAI(t.id, [], { antal: 0 });
+    check(`W19 gammalt svar efter en nollställning (aiFragad false): ${fmt(t)}`, t.tillstand === 'okand' && t.ai === ai19 && t.namn === 'Plains');
+    /* W20: utan fragaAI (AI av, taket nått) prövas inget — granskningen som förut. */
+    namnSvar = osaker; nystart(); await refTra();
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    const t20 = Kamera.spar.find(x => x.tillstand === 'okand') || {};
+    const b20 = iBord(t20);
+    check(`W20 utan fragaAI: ett osäkert Plains på trä: ${fmt(t20)}, bordet ${b20.tillstand} prövas ${b20.provas}`,
+          t20.tillstand === 'okand' && t20.provas === false && b20.tillstand === 'okand' && b20.provas === false);
+    /* W21: spåret flimrar medan frågan är ute. Frågan följer med (fodSpar),
+       och svaret som kommer sedan gäller det återfödda spåret. */
+    t = await ettOkant();
+    const id21 = t.id;
+    for (let i = 0; i < 20 && Kamera.spar.some(x => x.id === id21); i++) await rutaTra({});
+    const dog21 = !Kamera.spar.some(x => x.id === id21);
+    for (let i = 0; i < 2; i++) await rutaTra({}, ETT);
+    const t21 = Kamera.spar.find(x => x.id === id21) || { id: -1 };
+    const arv21 = `prövas ${t21.provas}, frågad ${t21.aiFragad}`;
+    Kamera.svarAI(id21, [], { antal: 0 });
+    check(`W21 flimmer medan frågan är ute: dog ${dog21}, samma id igen ${t21.id === id21} (${arv21}), svaret sedan: ${fmt(t21)}`,
+          dog21 && t21.id === id21 && arv21 === 'prövas true, frågad true' && t21.tillstand === 'skrap');
+  }
+
   console.log([...ok, ...fel].join('\n'));
   console.log(`\n${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);

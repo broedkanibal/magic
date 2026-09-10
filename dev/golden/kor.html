@@ -325,9 +325,10 @@ async function korFall(f) {
      så den sätts om, precis före varje fall. */
   const Pool = w.eval('Pool');
   if (poolRec && (!Pool.idx || Pool.idx.code !== poolRec.code)) Pool.idx = poolRec;
-  /* Kalibreringen FÖRE start(): start() kör första varvet av loopen
-     synkront, och med förra fallets ruta och mått kvar i modulen gick den
-     rutan genom steg() innan satKalibrering hann nollställa. */
+  /* satKalibrering FÖRE start(): den nollställer och sätter läget (upp ur
+     facit; rutan ignoreras, modulen läser hela bilden). start() kör första
+     varvet av loopen synkront, och med förra fallets mått kvar i modulen
+     gick den rutan genom steg() innan satKalibrering hann nollställa. */
   K.satKalibrering({ ruta: f.facit.ruta });
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   let sistaBord = null, tak = false;
@@ -401,10 +402,11 @@ function iou(a, b) {
   return s / (a.w * a.h + b.w * b.h - s);
 }
 function bedom(f, bord, tid, tak, msMedian, msMax) {
-  const { aw, ah } = K.analysMatt, r = f.facit.ruta;
+  const { aw, ah } = K.analysMatt, r = K.ruta || f.facit.ruta;
   const f4 = v => +v.toFixed(4);
   /* Spårens lådor i andelar av HELA bilden, som facit: modulen räknar i
-     analyspixlar inom rutan. Ramen (finLada) om den finns, annars lådan —
+     analyspixlar av hela bilden; en ruta i facit ignoreras av modulen och
+     får inte användas här heller. Ramen (finLada) om den finns, annars lådan —
      det är den beskärningen tas ur. Spåren numreras om från 1 per fall:
      modulens id räknar vidare över hela sessionen, och senaste.json ska
      diffa rent mellan två körningar. */

@@ -131,7 +131,7 @@ på en felsida efter Google-rutan.
 
    > Kalibreringsbilden går INTE genom de här tabellerna. Telefonens
    > livebild strömmas till datorn över realtidskanalen och sparas aldrig
-   > — bara den färdiga rutan hamnar i `camera_setups`. Tabellen `scans`
+   > — i `camera_setups` ligger bara kamerans läge (stående/liggande). Tabellen `scans`
    > används enbart för de kort som faktiskt spelas ut.
 
 Filen går att köra om utan att något går sönder, så om du behöver ändra
