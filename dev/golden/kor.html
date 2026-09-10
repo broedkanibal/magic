@@ -347,6 +347,13 @@ async function korFall(f) {
     let sig = '', stabilSedan = 0;
     const skurnaAlla = [];
     const msProv = [];   // analyssteget per ruta — medianen, inte sista: en ruta med identifiering i kostar 300 ms
+    /* Skärloggen över HELA fallet: modulen minns bara de senaste 40 rutorna,
+       och ett snitt som flimrade i sekund 5–11 syntes inte i en rad som slog
+       i taket vid 30. Rutorna samlas per nummer vid varje avläsning. Och
+       tidslinjen: spåren varje gång något av dem bytte tillstånd, storlek
+       eller skymning — det är där man ser ett spår dö och födas om. */
+    const skarAlla = new Map(), tidslinje = [];
+    let sigT = '';
     for (;;) {
       await sleep(150);
       if (stoppa) throw new Error('stoppad');
@@ -355,8 +362,12 @@ async function korFall(f) {
       if (K.diagnos.ms) msProv.push(K.diagnos.ms);
       /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
       if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && skurnaAlla.length < 20) skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
+      for (const l of K.diagnos.skarLogg || []) if (!skarAlla.has(l.ruta)) skarAlla.set(l.ruta, l);
       const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
       if (s2 !== sig) { sig = s2; stabilSedan = ms; }
+      const rad = spar.map(t => `#${t.id} ${t.tillstand}${t.skymd ? ' skymd' : ''} ${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)}${t.namn ? ' ' + t.namn + (t.saker ? '' : '?') : ''}`).join(' | ');
+      const sT = rad + '@' + lage;
+      if (sT !== sigT && tidslinje.length < 400) { sigT = sT; tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
       const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
       const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar();
       if (lart && svarade && ms - stabilSedan >= STILLA_MS && ms > 2500) break;
@@ -369,6 +380,8 @@ async function korFall(f) {
     const sort = msProv.slice().sort((a, b) => a - b);
     const res = bedom(f, sistaBord, Math.round(performance.now() - t0), tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
     res.skurnaAlla = skurnaAlla;
+    res.skarLogg = [...skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
+    res.tidslinje = tidslinje;
     return res;
   } finally {
     try { K.stopp(); } catch (e) {}

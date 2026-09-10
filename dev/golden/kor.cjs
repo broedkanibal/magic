@@ -83,9 +83,14 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
-    for (const p of r.skurnaAlla || []) console.log(`    skuret vid ${p.s} s: ${p.lang}×${p.kort} ${p.grader}° led ${p.led}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')}`);
-    if (process.argv.includes('--rutor')) for (const l of r.skarLogg || []) console.log(`    ruta ${l.ruta}: skurna ${l.skurna}${l.prov.length ? ' — ' + l.prov.join('; ') : ''}`);
-    for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
+    for (const p of r.skurnaAlla || []) console.log(`    skuret vid ${p.s} s: ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')}`);
+    if (process.argv.includes('--rutor')) {
+      /* Bara raderna som SKILJER sig från rutan före: på en stillbild är de flesta rutor lika, och det är bytena man letar efter. */
+      let forra = '';
+      for (const l of r.skarLogg || []) { const s = `skurna ${l.skurna}${l.prov.length ? ' — ' + l.prov.join('; ') : ''}`; if (s !== forra) { forra = s; console.log(`    ruta ${l.ruta}: ${s}`); } }
+      for (const p of r.tidslinje || []) console.log(`    ${p.s} s${p.ruta != null ? ' (ruta ' + p.ruta + ')' : ''} [${p.lage}]: ${p.spar || '–'}`);
+    }
+    for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
     for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.varfor ? ' [' + t.varfor + ']' : ''}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + (t.ocr.start != null ? ' @' + Math.round(t.ocr.start * 100) + '%' + (t.ocr.vand ? ' vänd' : '') : '') + ', ' + t.ocr.ms + ' ms]') : ''}`);
   }
   /* --beskarningar <mapp>: det kameran faktiskt skickade till igenkänningen,

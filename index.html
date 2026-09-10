@@ -11598,6 +11598,9 @@ const Kamera = (() => {
      rutorna syns bara här — diagnosen i övrigt är sista rutan. */
   const skarLogg = [];
   let rutaNr = 0;
+  /* Snittminnet: det snitt (vinkel och skärlinjer) som senast lyckades på
+     varje region, se skarAllt() i detektera(). Töms med spåren. */
+  let snittMinne = [];
   let modell = null;           // mattmodellen för senaste rutan (Float32Array med .M = mattans median)
   let refAvvik = null;         // |referens − dess mattmodell| per bildpunkt: över avvikelsen är det mattans eget tryck, inte kort (MES-28: ett tal, inte en mask, så att gränsen följer T.utseende ruta för ruta)
   let texturGolv = null;       // golvet för avvikelsen ur referensens egen textur (MES-28), null tills referensen finns
@@ -12185,6 +12188,34 @@ const Kamera = (() => {
        snittet. skarProv i diagnosen visar varje prövat snitt. */
     const SKAR_DJUP = 12, SKAR_DJUP_REL = 0.15, SKAR_SVART = 0.25, SKAR_MORK = 0.7, SKAR_YTTRE = 0.12, SKAR_LED = 1, SKAR_MAX = 4;
     const SKAR_LIKA_KORT = 0.2, SKAR_LIKA_LANG = 0.35, SKAR_REST = 1.3;
+    /* ── Snittminnet: hysteres i skärningen ──
+       Snittet som lyckades senast på en region prövas först nästa ruta.
+       Utan det valdes vinkeln ur en lista vars andra post är SPÅRENS
+       medianvinkel — och spåren är delarna av förra snittet, så vinkeln
+       följde snittet i en cykel. Uppmätt i golden 03 på en STILLBILD:
+       2×2-klungan (154×106) skars i ett kretslopp om sju rutor med 1°,
+       −4°, 2°, 2° och 0°; vid 2° smetades sömmen ut (en 2–4 px bred linje
+       tvärs över 106 px vrids 3,7 px) och dalen vid 0,55 föll för den vid
+       0,50 (djup 43 mot 90), som gav en rest på 110×66 i stället för det
+       tredje kortet. Delarna hoppade 5–6 px mellan rutorna (67×56@197,323
+       mot 79×63@204,319): ett spår kom aldrig under stillaPx (1,6) och
+       lästes aldrig, ett annat blev skymt var tredje ruta, och fallet slog
+       i kor.html:s tak på 30 s med 1–2 namn beroende på körning.
+       Minnet bär vinkeln och skärlinjerna som PUNKTER i bilden, inte fack:
+       regionens tyngdpunkt flyttar sig en pixel mellan rutorna (154×107@
+       222,277 mot 155×104). Ett minne gäller samma region (lådorna täcker
+       70 % av den STÖRRE — en del av klungan, helt inne i den, är inte
+       klungan) i samma led, och glöms efter SNITT_MINNE_RUTOR rutor utan
+       användning: en hand över klungan i några sekunder ska inte radera
+       det, en omflyttad klunga ska inte bära det länge. Ett mint snitt går
+       genom exakt samma prov som ett nytt — bara ordningen ändras, så ett
+       inaktuellt minne kostar en profil och inget mer. */
+    const SNITT_MINNE_RUTOR = 70, SNITT_MINNE_FACK = 2;
+    snittMinne = snittMinne.filter(m => rutaNr - m.nar <= SNITT_MINNE_RUTOR);
+    const sammaLada = (a, b) => {
+      const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+      return ox * oy >= 0.7 * Math.max(a.w * a.h, b.w * b.h);
+    };
     const refA = kortRef ? kortRef.lang * kortRef.kort : 0;
     const arKortStor = b => !kortRef || (b.lang * b.kort >= 0.6 * refA && b.lang * b.kort <= 1.5 * refA);
     const sparVinklar = []; for (const t of sparen) if (t.tillstand !== 'skrap' && t.vinkel != null) sparVinklar.push(t.vinkel);
@@ -12243,22 +12274,33 @@ const Kamera = (() => {
         }
         return delar.map(a => Int32Array.from(a));
       };
-      return { dalar, NB, dela, profil, niv };
+      return { dalar, NB, dela, profil, niv, tmin };
     };
     const skarAllt = (pix, p0, p1, r, led) => {
       const axSkillnad = (u, v) => Math.abs(Math.atan2(Math.sin(2 * (u - v)), Math.cos(2 * (u - v)))) / 2;   // mellan axlar: u och u+π är samma axel
-      const vinklar = [r.vinkel];
-      for (const v of [sparVinkel, 0, Math.PI / 2]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
+      const minne = snittMinne.find(m => m.led === led && sammaLada(m.box, r.box)) || null;
+      const vinklar = [];
+      for (const v of [minne ? minne.vinkel : null, r.vinkel, sparVinkel, 0, Math.PI / 2]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
       const minAvst = kortRef ? 0.5 * kortRef.kort : Math.max(5, 0.3 * r.kort);
       for (const v of vinklar) {
         const s = skar(pix, p0, p1, r, v);
         const grader = Math.round(v * 180 / Math.PI);
         if (!s.dalar) { if (skarProv.length < 12) skarProv.push({ lang: Math.round(r.lang), kort: Math.round(r.kort), led, grader, snitt: [], delar: [], dom: s.orsak, profil: s.profil }); continue; }
+        const cs = Math.cos(v), sn = Math.sin(v), urMinne = !!minne && v === minne.vinkel;
+        /* Minnets skärlinjer, omräknade till den här rutans fack, tas
+           först och i sin ordning; dalarna som inte minns kommer sedan,
+           djupast först som förut. */
+        let dalar = s.dalar;
+        if (urMinne) {
+          const forst = [];
+          for (const L of minne.linjer) { const b = Math.round((L.x - r.cx) * cs + (L.y - r.cy) * sn) - s.tmin; const c = s.dalar.find(d => Math.abs(d.b - b) <= SNITT_MINNE_FACK && !forst.includes(d)); if (c) forst.push(c); }
+          if (forst.length) dalar = forst.concat(s.dalar.filter(d => !forst.includes(d)));
+        }
         for (let k = 1; k <= SKAR_MAX; k++) {
           const valda = [];
-          for (const c of s.dalar) { if (valda.length === k) break; if (valda.some(x => Math.abs(x.b - c.b) < minAvst)) continue; valda.push(c); }
+          for (const c of dalar) { if (valda.length === k) break; if (valda.some(x => Math.abs(x.b - c.b) < minAvst)) continue; valda.push(c); }
           if (valda.length < k) break;
-          const prov = { lang: Math.round(r.lang), kort: Math.round(r.kort), led, grader, niv: s.niv, snitt: valda.map(c => ({ vid: +((c.b + 0.5) / s.NB).toFixed(2), djup: Math.round(c.djup), mork: +(c.morka / c.av).toFixed(2) })), delar: [], dom: 'skuren' };
+          const prov = { lang: Math.round(r.lang), kort: Math.round(r.kort), led, grader, niv: s.niv, snitt: valda.map(c => ({ vid: +((c.b + 0.5) / s.NB).toFixed(2), djup: Math.round(c.djup), mork: +(c.morka / c.av).toFixed(2) })), delar: [], dom: 'skuren', minne: urMinne };
           if (s.profil) prov.profil = s.profil;
           if (skarProv.length < 12) skarProv.push(prov);
           const bitar = [], rest = [];
@@ -12278,7 +12320,12 @@ const Kamera = (() => {
             if (bitar.some(b => Math.abs(b.kort - medK) > SKAR_LIKA_KORT * medK || Math.abs(b.lang - medL) > SKAR_LIKA_LANG * medL)) prov.dom = 'olika';
             else if (rest.some(b => (b.lang && b.kort ? b.lang * b.kort : 0) < SKAR_REST * medK * medL)) prov.dom = 'flisa';
           }
-          if (prov.dom === 'skuren') return bitar;
+          if (prov.dom === 'skuren') {
+            const post = { box: r.box, led, vinkel: v, nar: rutaNr, linjer: valda.map(c => ({ x: r.cx + (c.b + s.tmin) * cs, y: r.cy + (c.b + s.tmin) * sn })) };
+            const j = snittMinne.findIndex(m => m.led === led && sammaLada(m.box, r.box));
+            if (j >= 0) snittMinne[j] = post; else snittMinne.push(post);
+            return bitar;
+          }
         }
       }
       return null;
@@ -12323,7 +12370,14 @@ const Kamera = (() => {
            över mitten känns igen som det är, och skärs därför aldrig. */
         const stort = kortRef && r.lang * r.kort >= 1.6 * refA;
         const okant = !kortRef && sparen.some(t => t.tillstand === 'okand' && tacker(r.box, t.box));
-        if ((stort || okant) && cnt >= 2 * T.minArea) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
+        /* …och en region som snittminnet minns skärs igen: delarna från
+           förra snittet är spår nu ('ny', inte 'okand'), och utan
+           referens fanns då ingen utlösare kvar — golden 03:s klunga
+           skars i ruta 32, låg oskuren med tre skymda delar i rutorna
+           33–43, och skars igen först när ett av dem blivit säkert och
+           gett kortRef. */
+        const minns = snittMinne.some(m => m.led === 0 && sammaLada(m.box, r.box));
+        if ((stort || okant || minns) && cnt >= 2 * T.minArea) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
         ut.push(r); continue;
       }
       if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * T.minArea) {
@@ -12359,7 +12413,7 @@ const Kamera = (() => {
     /* De accepterade regionerna, för diagnosfilen: det är dem spåren matchas mot. */
     dia.fynd = fynd.map(f => ({ cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), kort: Math.round(f.kort), area: f.area }));
     dia.skarProv = skarProv;
-    skarLogg.push({ ruta: ++rutaNr, skurna: dia.skurna, prov: skarProv.map(p => p.lang + '×' + p.kort + ' ' + p.grader + '° ' + p.dom) });
+    skarLogg.push({ ruta: ++rutaNr, skurna: dia.skurna, prov: skarProv.map(p => p.lang + '×' + p.kort + ' ' + p.grader + '° ' + p.dom + (p.minne ? ' (minne)' : '')) });
     if (skarLogg.length > 40) skarLogg.shift();
     dia.skarLogg = skarLogg;
     return { fynd, mask, texturerade };
@@ -12628,7 +12682,7 @@ const Kamera = (() => {
     if (snurra) cancelAnimationFrame(snurra);
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (wake) { try { wake.release(); } catch (e) {} wake = null; }
-    stream = null; lage = 'start'; spar = []; spoken = []; senVb = senVh = 0;
+    stream = null; lage = 'start'; spar = []; spoken = []; snittMinne = []; senVb = senVh = 0;
     glomReferens();
   }
 
@@ -12644,7 +12698,7 @@ const Kamera = (() => {
 
   function satKalibrering(k) {
     kal = k && k.ruta ? k : null;
-    spar = []; spoken = []; lage = kal ? 'lar' : 'ingen';
+    spar = []; spoken = []; snittMinne = []; lage = kal ? 'lar' : 'ingen';
     glomReferens();
     AH = 0;
     if (cb.bord) cb.bord([], true);
@@ -12667,7 +12721,7 @@ const Kamera = (() => {
        räknades de bara om vid ny kalibrering, och avståndsrådet och
        fragmentgolvet mättes mot fel skala tills någon drog om rutan. */
     if (vb !== senVb || vh !== senVh) {
-      if (senVb) { glomReferens(); spar = []; spoken = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
+      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
       senVb = vb; senVh = vh; AH = 0;
     }
     rita(vb, vh);
@@ -13146,7 +13200,7 @@ const Kamera = (() => {
   function laddaReferens(r, sig, ah, aw) {
     if (aw && aw !== AW) { AW = aw; AH = 0; }
     if (!AH) AH = ah;
-    glomReferens(); spar = []; spoken = [];
+    glomReferens(); spar = []; spoken = []; snittMinne = [];
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
     if (T.auto) T.troskel = autoTroskel();
     dia.troskel = T.troskel; senastRef = 0;
@@ -13338,7 +13392,7 @@ const Kamera = (() => {
   };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { glomReferens(); spar = []; spoken = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
+  function nyReferens() { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
   function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */

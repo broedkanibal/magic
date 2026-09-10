@@ -55,7 +55,10 @@ cent per körning med Opus 5). Metoden blir `lokal+ocr+ai` och modellen står i
 fältet `ai`; resultatet jämförs mot och sparas i `senaste-ai.json`, aldrig i
 `senaste.json`, så att den lokala baslinjen står kvar för sig.
 `--fall 03` kör bara fallen vars id börjar så, `--rutor` skriver snittförsöken
-ruta för ruta (de senaste 40) — ett snitt som flimrar syns bara där.
+ruta för ruta över hela fallet (bara rutorna som skiljer sig från rutan före,
+och `(minne)` efter ett snitt som togs ur snittminnet) och en tidslinje över
+spåren varje gång något av dem bytte tillstånd, storlek eller skymning — ett
+snitt som flimrar, eller ett spår som aldrig blir stilla, syns bara där.
 `--beskarningar <mapp>` skriver det kameran faktiskt skickade till igenkänningen,
 en jpg per spår (`<fall>-spar<nr>.jpg`, nr = raden i `--detalj`): det är dem
 man ska titta på när ett kort blir osäkert. Varje spår i `--detalj` bär domskälet
