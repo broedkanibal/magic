@@ -1,7 +1,7 @@
 # Golden set — riktiga bord med facit
 
 **Ny här?** Börja med [SNABBGUIDE.md](SNABBGUIDE.md): kommandona, hur ett nytt
-foto läggs till, och var algoritmen, prompten och modellen finns. Den här
+foto läggs till, och var algoritmen, systemprompten och modellen finns. Den här
 filen är referensen.
 
 Riktiga bilder från olika bord och ljus, var och en med ett facit över vilka
