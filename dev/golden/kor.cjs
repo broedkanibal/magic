@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--beskarningar <mapp>] [--port 8239]
+/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--beskarningar <mapp>] [--ai] [--port 8239]
 
    Startar attrappen (dev/stub-server.cjs), öppnar dev/golden/kor.html i en
    huvudlös Chrome, trycker "Kör alla", skriver tabellen, och med --spara
@@ -25,6 +25,11 @@ const PORT = +arg('--port', 8239);
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const TAK_MS = +arg('--tak', 20 * 60 * 1000);
 const FALL = arg('--fall', '');
+/* --ai: attrappen kör riktiga anrop (MESA_AI=1, nyckeln ur .env.local) och sidan
+   låter kamerans osäkra spår fråga servern. Kostar pengar; jämförs mot och
+   sparas i senaste-ai.json, inte senaste.json. */
+const AIFLAG = process.argv.includes('--ai');
+const BASFIL = AIFLAG ? 'senaste-ai.json' : 'senaste.json';
 const BESKARNINGAR = arg('--beskarningar', '');   // mapp att skriva beskärningarna till: <fall>-spar<nr>.jpg
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -33,7 +38,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
 (async () => {
   if (!fs.existsSync(CHROME)) { console.error('Hittar inte Chrome på ' + CHROME + ' — sätt CHROME=/sökväg/till/Chrome'); process.exit(2); }
   /* 1. attrappen, på en egen port så att en flik som redan kör inte störs */
-  const server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }), stdio: 'ignore' });
+  const server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }, AIFLAG ? { MESA_AI: '1' } : {}), stdio: 'ignore' });
   await tills(() => fetch(`http://localhost:${PORT}/dev/golden/kor.html`).then(r => r.ok), 10000, 'attrappen');
   /* 2. Chrome, huvudlös, med egen profil som får ligga kvar */
   const profil = path.join(os.tmpdir(), 'mesa-golden-profil');
@@ -54,7 +59,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   const cdp = (method, params) => new Promise(res => { const id = ++nr; svar.set(id, res); ws.send(JSON.stringify({ id, method, params: params || {} })); });
   const kor = async uttryck => { const r = await cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }); if (r.result && r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.text); return r.result && r.result.result ? r.result.result.value : undefined; };
   await cdp('Runtime.enable');
-  await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html` });
+  await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${AIFLAG ? '?ai=1' : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
   process.stdout.write('förbereder (poolen, namnläsaren)…');
@@ -73,6 +78,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   const json = await kor(`(() => { const rs = fall.map(f => resultat.get(f.id)).filter(r => r && !r.fel); return '[\\n' + rs.map(r => JSON.stringify(r)).join(',\\n') + '\\n]\\n'; })()`);
   for (const r of rader) console.log('  ' + r);
   console.log('  ' + tot.replace(/\s+/g, ' ').trim());
+  { const f0 = JSON.parse(json)[0]; if (f0) console.log('  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + ')' : '')); }
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
@@ -103,15 +109,15 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   let samre = [];
   try {
-    const gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, 'senaste.json'), 'utf8')).map(r => [r.id, r]));
+    const gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r]));
     for (const r of JSON.parse(json)) { const g = gamla.get(r.id); if (!g) continue;
       if (r.namn < g.namn) samre.push(`${r.id}: rätt namn ${g.namn} → ${r.namn}`);
       if (r.falska > g.falska) samre.push(`${r.id}: falska ${g.falska} → ${r.falska}`);
       if (r.felNamn > g.felNamn) samre.push(`${r.id}: fel namn ${g.felNamn} → ${r.felNamn}`); }
   } catch (e) { /* ingen senaste.json — inget att jämföra med */ }
-  if (samre.length) console.log('\nSÄMRE än senaste.json:\n  ' + samre.join('\n  '));
-  if (SPARA) { fs.writeFileSync(path.join(__dirname, 'senaste.json'), json); console.log('\nsparat som dev/golden/senaste.json — lägg en rad i historik.md'); }
-  else console.log('\n(--spara skriver senaste.json)');
+  if (samre.length) console.log('\nSÄMRE än ' + BASFIL + ':\n  ' + samre.join('\n  '));
+  if (SPARA) { fs.writeFileSync(path.join(__dirname, BASFIL), json); console.log('\nsparat som dev/golden/' + BASFIL + ' — lägg en rad i historik.md'); }
+  else console.log('\n(--spara skriver ' + BASFIL + ')');
   ws.close(); chrome.kill(); server.kill();
   process.exit(samre.length ? 1 : 0);
 })().catch(e => { console.error('\nkor.cjs: ' + (e && e.message || e)); process.exit(2); });

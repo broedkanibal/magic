@@ -16,6 +16,53 @@ const ROOT = __dirname + '/..';
    STUB_-lägen ska kunna köras samtidigt, och en glömd gammal instans på 8232
    ska inte hindra att den nya koden går att prova. */
 const PORT = +(process.env.PORT || 8232);
+/* MESA_AI=1 (eller flaggan --ai): /api/identify går till den RIKTIGA handlern i
+   api/identify.js, med nyckeln ur .env.local, i stället för attrappen. Utan
+   den beter sig stubben exakt som förut. Varför inte `vercel dev`: den
+   serverar inte dev/bilder (gitignorerad), och golden setet (kor.cjs)
+   startar just den här stubben på en egen port — kameraläget mättes så,
+   60 anrop mot leken utan Vercel emellan. Nyckeln läses in i processen och
+   skrivs aldrig ut; ANTHROPIC_MODEL i miljön styr modellen som vanligt. */
+const AI = process.env.MESA_AI === '1' || process.argv.includes('--ai');
+let handlerP = null;
+function laddaHandler() {
+  if (!handlerP) handlerP = (async () => {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      let env = '';
+      try { env = fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8'); } catch (e) {}
+      /* Vercel CLI skriver värdet inom citattecken; en handskriven rad har inga. */
+      const m = env.match(/^\s*ANTHROPIC_API_KEY\s*=\s*("?)(.*?)\1\s*$/m);
+      if (m && m[2]) process.env.ANTHROPIC_API_KEY = m[2];
+    }
+    /* Dynamisk import: package.json säger "type": "module", så handlern är en
+       ES-modul och stubben en .cjs — require() går inte. */
+    return (await import(require('url').pathToFileURL(path.join(ROOT, 'api', 'identify.js')).href)).default;
+  })();
+  return handlerP;
+}
+/* Handlern är skriven för Vercel: req.body är redan JSON-parsad och res har
+   status().json(). Nodes egna req/res saknar det — en liten adapter, inget
+   mer, så att samma fil kör här som där. */
+function riktig(req, res) {
+  let body = '';
+  req.on('data', c => body += c);
+  req.on('end', async () => {
+    req.body = null;
+    if (body) {
+      try { req.body = JSON.parse(body); }
+      catch (e) { res.writeHead(400, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ error: 'trasig JSON' })); }
+    }
+    res.status = c => { res.statusCode = c; return res; };
+    res.json = o => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(o)); return res; };
+    res.send = d => { res.end(typeof d === 'string' || Buffer.isBuffer(d) ? d : JSON.stringify(d)); return res; };
+    try { await (await laddaHandler())(req, res); }
+    catch (e) {
+      console.error('stub/ai: handlern kastade', e && e.message);
+      if (!res.headersSent) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'handlern kastade' })); }
+      else res.end();
+    }
+  });
+}
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.md':'text/markdown',
   '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.gif':'image/gif',
   '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css' };
@@ -25,6 +72,13 @@ http.createServer((req, res) => {
 }).listen(PORT, () => {
   const mode = process.env.STUB_AI || 'none';
   console.log('stub på http://localhost:' + PORT);
+  if (AI) {
+    console.log('MESA_AI=1: /api/identify går till api/identify.js med nyckeln ur .env.local — RIKTIGA anrop, kostar pengar.');
+    console.log(`     ANTHROPIC_MODEL=${process.env.ANTHROPIC_MODEL || '(standard i api/identify.js)'}`);
+    laddaHandler().then(() => console.log('     handlern laddad' + (process.env.ANTHROPIC_API_KEY ? '' : ' — MEN INGEN NYCKEL hittades i miljön eller .env.local, svaren blir 503')),
+                        e => console.error('     kunde inte ladda api/identify.js:', e && e.message));
+    return;
+  }
   console.log('OBS: /api/identify är en ATTRAPP och tittar inte på bilden.');
   console.log(`     STUB_AI=${mode} — ` + (mode === 'accept'
     ? 'svarar alltid kandidat 1 med hög säkerhet (kort läggs till automatiskt!)'
@@ -54,6 +108,7 @@ function hantera(req, res) {
       supabaseUrl: url || null, supabaseAnonKey: key || null
     }));
   }
+  if (u.pathname === '/api/identify' && AI) return riktig(req, res);
   if (u.pathname === '/api/identify') {
     if (req.method === 'OPTIONS') { res.writeHead(204, cors()); return res.end(); }
     if (req.method === 'GET') {
@@ -61,7 +116,7 @@ function hantera(req, res) {
       /* promptv följer med. Utan den ser attrappen frisk ut i driftkollen
          utan att kunna svara på den enda fråga kollen ställer: kör den
          version av instruktionerna som ligger i koden? */
-      return res.end(JSON.stringify({ ok:true, ready:true, model:'stub-model', promptv:18 }));
+      return res.end(JSON.stringify({ ok:true, ready:true, model:'stub-model', promptv:20 }));
     }
     let body = '';
     req.on('data', c => body += c);
@@ -98,8 +153,8 @@ function hantera(req, res) {
       if (body2 && body2.mode === 'lek') {
         const lage = process.env.STUB_LEK || 'tomt';
         const rad = (namn, x, y, sakerhet) => ({ namn, x, y, sakerhet });
-        const svar = lage === 'trasigt' ? { kort: [], varfor: 'inget-json', promptv: 18 }
-          : lage !== 'kort' ? { kort: [], otydliga: 0, promptv: 18 }
+        const svar = lage === 'trasigt' ? { kort: [], varfor: 'inget-json', promptv: 20 }
+          : lage !== 'kort' ? { kort: [], otydliga: 0, promptv: 20 }
           : { kort: [
                 rad('Sol Ring',            170, 120, 'hog'),
                 rad('Arcane Signet',       170, 240, 'hog'),
@@ -112,7 +167,7 @@ function hantera(req, res) {
                 rad('Mountain',            500, 600, 'hog'),
                 rad('Blixtpil',            830, 120, 'lag'),
                 rad('Swords to Plowshares', 830, 240, 'hog')
-              ], otydliga: 2, promptv: 18 };
+              ], otydliga: 2, promptv: 20 };
         console.log(`stub/lek: bild ${Math.round((body2.image||'').length/1024)} kB, svarar ${svar.kort.length} kort (STUB_LEK=${lage})`);
         res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
         return res.end(JSON.stringify(svar));

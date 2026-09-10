@@ -99,7 +99,7 @@ inte hos GitHub". Svaret `0` betyder att allt är uppe.
 curl -s https://magic-mauve-xi.vercel.app/api/identify
 ```
 
-Svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":18}`.
+Svarar `{"ok":true,"ready":true,"model":"claude-opus-5","promptv":20}` (plus `modeller` per läge).
 
 | fält | betyder |
 | --- | --- |
@@ -130,6 +130,7 @@ Instruktionerna som skickas till bildmodellen ligger i
 | `card` | ~279 | namnger ETT kort på en närbild |
 | `pane` | ~332 | hittar alla kort i en hel videoruta |
 | `lek` | ~459 | läser kortnamnen ur ett foto av den utlagda leken |
+| `kamera` | ~640 | kamerans osäkra beskärning + lekens namn in, ett namn EXAKT ur leken per kort som syns ut (med läge och `usage`). Modellen väljs med `ANTHROPIC_MODEL_KAMERA` (standard samma som `ANTHROPIC_MODEL`); uppmätt lika träffsäkra på beskärningarna, Sonnet 5 en tredjedel av priset och 1,7 mot 2,2 s. Lokalt: `MESA_AI=1 node dev/stub-server.cjs` kör riktiga anrop med nyckeln ur `.env.local`. |
 
 `PANE_PROMPT_V` högst upp i samma fil är ett heltal som höjs för hand varje
 gång någon av promterna eller lägena ändras. Det ska alltså **stämma med

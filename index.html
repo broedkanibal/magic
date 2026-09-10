@@ -12545,7 +12545,7 @@ const Kamera = (() => {
            är säkert namngivet. Uppmätt i golden 06: Maul + Pacifism som
            en region, skuren till 71×53 och 71×49, och spåret behöll
            0,19×0,23 av bilden med namnet det gissat på klumpen. */
-        if (f.area < 0.6 * bast.areaRef) { bast.areaRef = f.area; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; } }
+        if (f.area < 0.6 * bast.areaRef) { bast.areaRef = f.area; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; } }
         bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         bast.sedd = nu; bast.tomMs = 0; bast.skymd = false;
@@ -13081,7 +13081,7 @@ const Kamera = (() => {
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
-      skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort),
+      skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
       x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH
     })));
   }
@@ -13147,11 +13147,11 @@ const Kamera = (() => {
      sann. Ett spökes gamla namn lyfts fram bland förslagen om det finns där. */
   async function identifiera(t, nu) {
     identifierar = true;
-    let svar = null, fel = false;
+    let svar = null, fel = false, c = null;
     try {
       /* Ramen först: regionen räcker för att spåra, inte för att beskära. */
       t.ram = finLada(t.box, senasteG0, t);
-      const c = video ? beskar(t) : null;
+      c = video ? beskar(t) : null;
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null);
     } catch (e) { fel = true; }
     finally { identifierar = false; }
@@ -13182,6 +13182,78 @@ const Kamera = (() => {
     }
     t.fragad = true;
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
+    /* Osäkert: en andra åsikt från servern (Claude, kameraläget), i
+       bakgrunden så att nästa spår inte väntar på den — låset ovan hålls
+       inte, och svaret kommer via svarAI() när det kommer. En gång per
+       spår; ett spår som läses om (krympt, glömt) får fråga igen. */
+    if (t.tillstand === 'okand' && c && cb.fragaAI && !t.aiFragad) { t.aiFragad = true; try { cb.fragaAI(c, t.id); } catch (e) {} }
+    rapportera();
+  }
+
+  /* Svaret från servern på en osäker beskärning (kamFragaAI). Ett kort:
+     spåret får namnet — säkert bara vid 'hog', annars överst bland
+     förslagen och kvar i granskningen. Flera kort: spåret delas i ett spår
+     per kort, med Claudes mittpunkter räknade tillbaka från beskärningen
+     till analysbilden. Beskärningen är lådan (ram eller region) med 8 %
+     marginal, vriden −90° när den låg liggande (beskar): punkten (u, v) i
+     den vridna bilden är (1−v, u) i källan. Delarna får var sin låda av
+     klungans yta delat på antalet; matcha() parar regionen med den
+     närmaste och de andra lever som skymda tills korten flyttas isär —
+     samma väg som ett kort under ett annat går.
+     Grannarna: Claude listar även kanter av grannkort som kom med i lådan,
+     med läsbar titel och 'hog' (uppmätt: Flutterfox-beskärningen i golden
+     03 gav Flutterfox + Militant Inquisitor + Mirran Bardiche, och delad i
+     tre blev Militant ett kort till på bordet). Därför: poster i
+     beskärningens yttersta 8 % hoppas över, poster vars läge redan ligger
+     inne i ett spår med samma namn är det spåret, och ett spår som är
+     stort som ETT kort (under 1,6 gånger de säkra spårens median) tar bara
+     posten närmast mitten. Ett spår som hann bli säkert lokalt medan
+     svaret var på väg behåller sitt namn; svaret får bara lägga till
+     klungans övriga kort. Uppmätt på golden-setets 24 beskärningar med
+     lekens 28 namn: 35 av 35 kort rätt, alla tio lokalt osäkra med 'hog',
+     0 fel namn med 'hog' (Opus 5 och Sonnet 5), 1,7–2,2 s per beskärning. */
+  function svarAI(id, svar, info) {
+    const t = spar.find(x => x.id === id); if (!t) return;
+    t.ai = Object.assign({ kort: svar.length }, info || {});
+    const b = t.ram || t.box, m = 0.08, lang0 = t.lang, kort0 = t.kort;
+    const x0 = b.x - b.w * m, y0 = b.y - b.h * m, bw = b.w * (1 + 2 * m), bh = b.h * (1 + 2 * m);
+    const liggande = b.w > b.h;
+    const lage = k => { const a = liggande ? 1 - k.y : k.x, c = liggande ? k.x : k.y; return { cx: x0 + a * bw, cy: y0 + c * bh }; };
+    const inuti = (p, q) => p.cx >= q.box.x && p.cx <= q.box.x + q.box.w && p.cy >= q.box.y && p.cy <= q.box.y + q.box.h;
+    const klara = spar.filter(q => q !== t && q.tillstand === 'klar').map(q => q.lang * q.kort).sort((p, q) => p - q);
+    const ref = klara.length ? klara[klara.length >> 1] : 0;
+    const ettKort = ref ? lang0 * kort0 < 1.6 * ref : svar.length <= 1;
+    let delar = svar.slice();
+    if (delar.length > 1) {
+      const inre = delar.filter(k => k.x > 0.08 && k.x < 0.92 && k.y > 0.08 && k.y < 0.92);
+      if (inre.length) delar = inre;
+      delar = delar.filter(k => !spar.some(q => q !== t && q.namn === k.namn && inuti(lage(k), q)));
+      if (ettKort && delar.length > 1) { delar.sort((p, q) => Math.hypot(p.x - 0.5, p.y - 0.5) - Math.hypot(q.x - 0.5, q.y - 0.5)); delar = [delar[0]]; }
+    }
+    const redanKlar = t.tillstand === 'klar' && t.saker;
+    if (redanKlar) delar = delar.filter(k => k.namn !== t.namn);
+    if (!delar.length || (redanKlar && ettKort)) { rapportera(); return; }
+    if (!redanKlar && delar.length === 1) {
+      const k = delar[0];
+      t.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((t.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
+      t.namn = k.namn; t.sid = k.sid; t.saker = !!k.saker; t.varfor = k.saker ? 'ai' : 'ai osäker';
+      t.tillstand = k.saker ? 'klar' : 'okand';
+      rapportera(); return;
+    }
+    const skal = 1 / Math.sqrt(delar.length + (redanKlar ? 1 : 0));
+    delar.forEach((k, i) => {
+      const p = lage(k), w = b.w * skal, h = b.h * skal;
+      const q = (!redanKlar && i === 0) ? t : { id: nastaId++, fodd: t.fodd, sedd: t.sedd, stillaFran: t.stillaFran, tomMs: 0, skymd: true,
+                                                tappad: t.tappad, tappRost: t.tappRost, vinkel: t.vinkel, gissning: null, ram: null, aiFragad: true };
+      q.cx = p.cx; q.cy = p.cy;
+      q.box = { x: Math.round(p.cx - w / 2), y: Math.round(p.cy - h / 2), w: Math.max(4, Math.round(w)), h: Math.max(4, Math.round(h)) };
+      q.lang = lang0 * skal; q.kort = kort0 * skal; q.areaRef = q.box.w * q.box.h * 0.9;
+      q.namn = k.namn; q.sid = k.sid; q.saker = !!k.saker; q.cands = [{ name: k.namn, sid: k.sid, score: 0 }];
+      q.fragad = true; q.namnLast = q === t ? t.namnLast : null; q.ai = t.ai; q.varfor = k.saker ? 'ai' : 'ai osäker';
+      q.tillstand = k.saker ? 'klar' : 'okand';
+      if (q !== t) spar.push(q);
+    });
+    if (!redanKlar) t.ram = null;
     rapportera();
   }
 
@@ -13252,7 +13324,7 @@ const Kamera = (() => {
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
   function nyReferens() { glomReferens(); spar = []; spoken = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
-  function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
+  function glomKort(id) { const t = spar.find(x => x.id === id); if (t) { t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); } }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
   function namnge(id, namn, sid) {
@@ -13262,7 +13334,7 @@ const Kamera = (() => {
     rapportera();
   }
 
-  return { start, installera, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, namnge, rapportera,
+  return { start, installera, stopp, satKalibrering, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            get yta() { return yta; },
            get omtag() { return omtag; },
@@ -13340,7 +13412,8 @@ async function oppnaKamera(gameId) {
       /* Fasbytet går som ett eget bordsmeddelande: chippet på datorn säger
          "lär sig ljuset" ur exakt det, och behöver inte gissa ur tystnaden. */
       fas: () => { if (kamLage) Moln.sandKam('bord', { fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }); },
-      identifiera: (canvas, id, gissning) => kamIdentifiera(canvas, id, gissning)
+      identifiera: (canvas, id, gissning) => kamIdentifiera(canvas, id, gissning),
+      fragaAI: (canvas, id) => kamFragaAI(canvas, id)
     });
   } catch (e) {
     kamSag('fel', 'Kameran gick inte att starta');
@@ -13502,6 +13575,49 @@ async function kamIdentifiera(canvas, id, gissning) {
     Moln.sandKam('beskarning', { spar: id, b64: c.toDataURL('image/jpeg', 0.7), namnLast });
   }
   return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor };
+}
+
+/* ── Claude för kamerans osäkra beskärningar (MES-28 Del 3b) ──
+   Det lokala svaret går först: ett osäkert spår hamnar i granskningen på
+   en gång, och frågan till servern går i bakgrunden (Kamera.identifiera
+   håller ett lås, och ett svar tar 1,5–6 s). Beskärningen (720 px bred)
+   och lekens namn skickas i kameraläget (api/identify.js, mode 'kamera'),
+   som svarar med en post per kort som syns, namnet exakt ur leken eller
+   tomt, och lägena 0–1000 i bilden. Svaret går in via Kamera.svarAI.
+   Uppmätt på golden-setets 24 beskärningar: 35 av 35 kort rätt, alla tio
+   lokalt osäkra lösta med 'hog', 0 fel namn med 'hog'; 1,7–2,2 s och
+   0,35–1 cent per beskärning (Sonnet 5 resp. Opus 5). Bara serverns
+   nyckel (AI.mode 'server'): en egen nyckel i telefonens webbläsare vore
+   fel plats. Taket per minut håller kostnaden nere om något går i loop:
+   tjugo per minut är fler kort än någon lägger ut. */
+const KAM_AI_TAK_PER_MIN = 20;
+let kamAiVantar = 0;                    // frågor som väntar på svar (golden-provet väntar in dem)
+const kamAiTider = [];
+function kamAiNamnen() { return [...new Set(((Pool.idx && Pool.idx.names) || []).filter(n => n && !n.includes(' // ')))].slice(0, 80); }
+async function kamFragaAI(canvas, id) {
+  if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas) return;
+  const nu = Date.now();
+  while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
+  if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) return;
+  kamAiTider.push(nu); kamAiVantar++;
+  try {
+    const url = canvas.toDataURL('image/jpeg', 0.85);
+    const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen() }) });
+    if (!resp.ok) return;
+    const j = await resp.json();
+    const kort = Array.isArray(j.kort) ? j.kort : [];
+    const svar = [];
+    for (const k of kort) {
+      if (!k || !k.namn) continue;
+      const i = Pool.idx.names.indexOf(k.namn);
+      if (i < 0) continue;
+      svar.push({ namn: k.namn, sid: Pool.idx.ids[i], saker: k.sakerhet === 'hog', sakerhet: k.sakerhet || 'lag',
+                  x: Math.max(0, Math.min(1, (+k.x || 0) / 1000)), y: Math.max(0, Math.min(1, (+k.y || 0) / 1000)) });
+    }
+    Kamera.svarAI(id, svar, { modell: j.modell || AI.model || null, antal: kort.length, usage: j.usage || null });
+  } catch (e) { /* utan svar står spåret kvar som osäkert, i granskningen */ }
+  finally { kamAiVantar--; }
 }
 
 function tillampaKalibrering(rad) {

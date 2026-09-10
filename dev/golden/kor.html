@@ -134,6 +134,10 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
    ett spår som aldrig får svar (poolen saknar kortet, eller ett skräpspår
    som frågas tre gånger med 1,5 s emellan). */
 const TAK_MS = 30000;
+/* ?ai=1 (kor.cjs --ai): kamerans osäkra spår får fråga servern — attrappen
+   måste då köra riktiga anrop (MESA_AI=1). Annars stängs AI-hjälpen av, så att
+   provet mäter det lokala och attrappens {n:0} aldrig räknas. */
+const AI_PA = new URLSearchParams(location.search).get('ai') === '1';
 const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade innan fallet räknas som klart
 
 let w = null, K = null, kamSag = null;  // appens fönster, dess Kamera-modul och kameravyns statusrad
@@ -144,7 +148,9 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    efter fallet spårets nummer i resultatet (nr). Läses ut av
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
-const metod = () => { try { return w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal'; } catch (e) { return 'lokal'; } };
+const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : ''); } catch (e) { return 'lokal'; } };
+const aiModell = () => { try { return AI_PA ? (w.eval('AI').model || 'server') : null; } catch (e) { return null; } };
+const aiVantar = () => { try { return w.eval('kamAiVantar') > 0; } catch (e) { return false; } };
 /* Samma norm som appens namnjämförelse i stort: gemener, en sorts apostrof,
    ett mellanslag. Facit skrivs med lek.txt:s stavning, poolen med Scryfalls
    — "Nights Whisper" mot "Night's Whisper" är samma kort. */
@@ -199,6 +205,7 @@ async function laddaApp() {
      byggLekPool, kamIdentifiera, visaVy) ligger direkt på fönstret. */
   for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
   K = w.eval('Kamera');
+  try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
   for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'kamIdentifiera', 'visaVy']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
   /* Statusraden i appens kameravy är en const-pil, inte en deklaration. */
@@ -322,6 +329,7 @@ async function korFall(f) {
      synkront, och med förra fallets ruta och mått kvar i modulen gick den
      rutan genom steg() innan satKalibrering hann nollställa. */
   K.satKalibrering({ ruta: f.facit.ruta });
+  try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   let sistaBord = null, tak = false;
   const t0 = performance.now();
   krascher = 0;
@@ -330,7 +338,8 @@ async function korFall(f) {
       status: kamSag || (() => {}),
       fas: () => {},
       bord: (spar, nollstall) => { if (!nollstall) sistaBord = spar; },
-      identifiera: (c, id, gissning) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning); }
+      identifiera: (c, id, gissning) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning); },
+      fragaAI: (c, id) => w.kamFragaAI(c, id)
     });
     /* Klart när alla spår fått sitt svar och ingenting ändrat sig på en
        och en halv sekund. Ett spår utan svar väntar på poolen (1,5 s
@@ -349,7 +358,7 @@ async function korFall(f) {
       const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
       if (s2 !== sig) { sig = s2; stabilSedan = ms; }
       const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
-      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap');
+      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar();
       if (lart && svarade && ms - stabilSedan >= STILLA_MS && ms > 2500) break;
       if (ms > TAK_MS) { tak = true; break; }
       status(`${f.id}: ${lage}, ${spar.length} spår, ${(ms / 1000).toFixed(1)} s`);
@@ -382,6 +391,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      diffa rent mellan två körningar. */
   const alla = K.spar.map((t, i) => { const b = t.ram || t.box; return {
     id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad, varfor: t.varfor || null,
+    ai: t.ai ? { modell: t.ai.modell || null, kort: t.ai.kort, antal: t.ai.antal, usage: t.ai.usage || null } : null,
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
     ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
@@ -439,7 +449,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     missade: synliga.filter(k => !harTraff(k)).map(k => k.namn),
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
-    metod: metod(), ai: null,
+    metod: metod(), ai: aiModell(),
+    /* Säkra rätta namn som servern (Claude) avgjorde. */
+    namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && p.t.varfor === 'ai').length,
     /* Hur många av de rätta, säkra namnen som namnläsaren också läste rätt,
        och hur många den läste rätt där bilden hade ett annat kort överst. */
     namnViaOcr: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && p.t.ocr && p.t.ocr.namn && norm(p.t.ocr.namn) === norm(p.k.namn)).length,
@@ -487,7 +499,7 @@ function ritaTabell() {
       tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}${flaggor ? ' ' + flaggor : ''}</td>`
         + cell(r.hittade, r.kort, r.hittade === r.kort, forra, 'hittade', r.kort)
         + (r.platsAv ? cell(r.plats, r.platsAv, r.plats === r.platsAv, forra, 'plats') : '<td class="dim" title="facit har bara namn — rita rutor i markera.html för att prova platsen">–</td>')
-        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + (r.namnViaOcr ? ` <span class="dim" title="säkra rätta namn som namnläsaren också läste rätt">· ${r.namnViaOcr} via namn</span>` : '') + '</td>')
+        + cell(r.namn, r.kort, r.kort > 0 && r.namn === r.kort, forra, 'namn').replace('</td>', (r.osakra ? ` <span class="dim">(+${r.osakra} osäkra)</span>` : '') + (r.namnViaOcr ? ` <span class="dim" title="säkra rätta namn som namnläsaren också läste rätt">· ${r.namnViaOcr} via namn</span>` : '') + (r.namnViaAi ? ` <span class="dim">· ${r.namnViaAi} via ai</span>` : '') + '</td>')
         + cell(r.felNamn, null, r.felNamn === 0, forra, 'felNamn')
         + cell(r.falska, null, r.falska === 0, forra, 'falska').replace('</td>', (r.kant ? ` <span class="dim">(+${r.kant} vid kanten)</span>` : '') + (r.doldaHittade ? ` <span class="dim">(+${r.doldaHittade} dolda)</span>` : '') + (r.skrap ? ` <span class="dim">· ${r.skrap} skräp</span>` : '') + '</td>')
         + (r.tappadAv ? cell(r.tappad, r.tappadAv, r.tappad === r.tappadAv, forra, 'tappad') : '<td class="dim">–</td>')

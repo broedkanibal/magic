@@ -18,6 +18,16 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const MAX_IMAGE_B64 = 900_000;          // ~650 kB bild
 const MAX_NAMES = 25;
+/* Kameraläget får hela leken, inte en topplista. Kandidatläget skickar de
+   25 bästa ur den lokala matchningen; kameran vet inte vilka som är bäst —
+   det är ju det som är osäkert — men vet vilken lek som ligger på bordet.
+   Golden setets lek är 28 namn, en Commander-lek 100 kort varav landen
+   upprepas. 80 rymmer de unika namnen i en sådan. Listan kostar lite:
+   uppmätt med 28 namn gick den minsta beskärningen (171×240 px) på 1 274
+   indatatokens och den största (701×891) på 2 048, ett helt foto
+   (1080×1440) på 3 197 — den fasta delen, prompten med listan, är alltså
+   under 1 300 tokens. */
+const MAX_NAMES_KAMERA = 80;
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 /* Rätt modell för rätt jobb. Att läsa ett användarnamn ur en etikett, eller
    ett tryckt kortnamn på en uppförstorad närbild, är inte det svåra — det
@@ -30,10 +40,14 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
    så en enskild sämre gissning stoppas där — det behövdes: den snabbare
    modellen läste commanderns namn ur överlägget på ett utbränt kort. */
 const MODEL_KORT  = process.env.ANTHROPIC_MODEL_CARD || 'claude-sonnet-5';
+/* Kameraläget: samma tunga modell som rutläget tills vidare, men med egen
+   miljövariabel så att den går att byta för sig — mätningen i kameraläget
+   nedan talar för den snabbare på beskärningarna. */
+const MODEL_KAMERA = process.env.ANTHROPIC_MODEL_KAMERA || MODEL;
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade
    två felaktiga slutsatser under utvecklingen. */
-const PANE_PROMPT_V = 18;   // 18: lekläget rapporterar hur många kort taket kapade
+const PANE_PROMPT_V = 20;   // 20: kameraläget frågar lägena i pixlar och räknar om (19: kameraläget — beskärning + lekens namn in, ett namn ur listan per kort ut, usage i svaret)
 
 /* De faktiska basländerna ur spelarnas set, att jämföra mot i stället för att
    lita på minnet. En suddig dödskalle och ett suddigt träd är båda en mörk
@@ -109,6 +123,29 @@ function originAllowed(origin, host) {
     .some(a => (hostOf(a) || hostOf('https://' + a)) === oHost);
 }
 
+/* Bildens mått ur JPEG-huvudet: första SOF-markören (C0–CF utom C4, C8,
+   CC) bär höjd och bredd. Skannar markör för markör; ett trasigt huvud ger
+   null, och då frågas lägena i 0–1000 i stället. */
+function jpegMatt(b64) {
+  try {
+    const buf = Buffer.from(String(b64 || ''), 'base64');
+    let i = 2;
+    while (i < buf.length - 9) {
+      if (buf[i] !== 0xFF) { i++; continue; }
+      const m = buf[i + 1];
+      if (m === 0xFF) { i++; continue; }
+      if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+      const len = buf.readUInt16BE(i + 2);
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+        const h = buf.readUInt16BE(i + 5), w = buf.readUInt16BE(i + 7);
+        return w > 0 && h > 0 ? { w, h } : null;
+      }
+      i += 2 + len;
+    }
+  } catch (e) { /* trasigt huvud */ }
+  return null;
+}
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   const ok = originAllowed(origin, req.headers.host);
@@ -126,7 +163,7 @@ export default async function handler(req, res) {
      då kräva att någon redigerar en rad i koden för att slå på AI-hjälpen. */
   if (req.method === 'GET') {
     return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
-      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL, lek: MODEL }, promptv: PANE_PROMPT_V });
+      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL, lek: MODEL, kamera: MODEL_KAMERA }, promptv: PANE_PROMPT_V });
   }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
   if (origin && !ok) return res.status(403).json({ error: 'Origin not allowed' });
@@ -141,7 +178,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Too many requests — try again in a moment' });
   }
 
-  const { image, names, mode } = req.body || {};
+  const { image, names, mode, antal } = req.body || {};
   if (typeof image !== 'string' || !image)
     return res.status(400).json({ error: 'Send { image: base64 }' });
   if (image.length > MAX_IMAGE_B64) return res.status(413).json({ error: 'The image is too large' });
@@ -589,6 +626,161 @@ export default async function handler(req, res) {
     } catch (e) {
       const s = e && e.status;
       console.error('identify/lek:', s || '', (e && e.message) || e);
+      if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
+      if (s === 429) return res.status(429).json({ error: 'För många anrop just nu — vänta en stund' });
+      if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });
+      return res.status(502).json({ error: 'Bildtjänsten gick inte att nå', promptv: PANE_PROMPT_V });
+    }
+  }
+
+  /* ── Kameran: en beskärning (eller hela tavelbilden) mot lekens namn ──
+     Kamerans lokala kedja (Matcher + ORB + namnläsaren mot lekens 28 kort)
+     lämnade 10 av 24 beskärningar i golden setet osäkra: 6 var hela,
+     läsbara kort där titelraden var under 40 px så att namnläsaren aldrig
+     kördes, och 4 var klungor av 3–8 kort som skärlinjen inte fick isär.
+     Rutläget på hela fotona gav 42 av 44 kort rätt och 0 fel — men det tar
+     ingen lista och svarar med fri text för uppslag mot Scryfall, och
+     kandidatläget tar en lista men svarar med ETT radnummer för ETT kort.
+     En klunga behöver flera svar, och kameran vet vilken lek som ligger på
+     bordet.
+
+     Därför: bilden + hela leken in, en post per fysiskt kort ut, med namnet
+     EXAKT ur listan eller tomt. Listan är hela beviset — ett namn utanför
+     den blir tomt HÄR, på servern, inte en "hog"-gissning i spelarens hand;
+     de bortkastade namnen följer med som `okanda` så att det syns när det
+     händer (ett tak som kapar tyst ljuger, se lekläget). `antal` är
+     kamerans egen gissning om hur många kort bilden rymmer (1 = ett kort)
+     och ges som ledtråd, inte som facit: den är ju det som är osäkert.
+
+     usage följer med i svaret. Rutlägets kostnad fick uppskattas ur
+     svarstiderna eftersom ingen mätte, och LÄS-MIG kräver att ett AI-steg i
+     provet bär modellens namn — priset går inte att räkna utan tokens.
+
+     Uppmätt 2026-09-10 (scratchpad/kamera-prov.mjs, lokalt via stubben med
+     MESA_AI=1) på de 24 beskärningarna med antal, plus de sex fotona hela
+     utan antal, alla med lekens 28 namn:
+       Opus 5:   75 av 75 rätt namn (74 hog), 0 missade, 0 namn utanför
+                 listan, 2 dubbletter (ett extra Plains i en landhög: i
+                 beskärning 02 #2 delade den kortet i två poster vid appens
+                 gula ruta, i foto 03 räknade den den staplade högen som tre),
+                 median 2,2 s per beskärning och 9,0 s per foto, $0,43 för 30.
+       Sonnet 5: 74 av 75 (72 hog), 1 fel namn — Aphelia upp och ner med mörk
+                 titelrad blev "Serpent Assassin" med medel — 0 dubbletter,
+                 median 1,7 s per beskärning och 3,6 s per foto, $0,15 för 30.
+     Indatatokens var identiska modellerna emellan (52 952 för de 30), så
+     prisskillnaden är hela skillnaden. Räknat på det som når handen utan
+     kontroll — fel namn MED hog — hade Opus 1 (det tredje Plains på foto 03)
+     och Sonnet 0; Sonnets enda fel låg på medel och hade stannat i
+     granskningen. På beskärningarna, som är kamerans verkliga fråga, var
+     de lika (35/35) och Sonnet gav varken dubbletter eller tomma poster.
+     Standard är ändå MODEL, som uppdraget sade; ANTHROPIC_MODEL_KAMERA
+     byter bara det här läget. */
+  if (mode === 'kamera') {
+    if (!Array.isArray(names) || !names.length)
+      return res.status(400).json({ error: 'Skicka { mode: "kamera", image: base64, names: [...] }' });
+    /* Lägena frågas i PIXLAR och räknas om här. Uppmätt (kamera-prov.mjs):
+       bedda om 0–1000 svarade modellerna ändå ibland i pixlar — Opus på 1
+       av 6 foton, Sonnet på 4 av 6 — och klämningen vid 1000 förstörde då
+       läget för korten längst ner. Med bildens mått ur JPEG-huvudet finns
+       inget att blanda ihop; saknas måtten (trasigt huvud) gäller 0–1000. */
+    const matt = jpegMatt(image);
+    /* Dubbletter bort FÖRE taket: fyra Plains i en decklist ska inte äta upp
+       fyra av åttio platser. Nyckeln för att para modellens svar med listan
+       är okänslig för skiftläge, krullig apostrof och dubbla mellanslag —
+       modellen skriver gärna ’ där listan har '. */
+    const norm = s => String(s).toLowerCase().replace(/[’‘`]/g, "'").replace(/\s+/g, ' ').trim();
+    const lek = [...new Set(names.map(n => String(n).slice(0, 120).trim()).filter(Boolean))].slice(0, MAX_NAMES_KAMERA);
+    const iLek = new Map(lek.map(n => [norm(n), n]));
+    const tror = Number.isInteger(antal) && antal > 0 ? antal : 0;
+    try {
+      const client = new Anthropic({ apiKey: key });
+      /* Medel ansträngning, som närbilden: uppgiften är att läsa en titelrad
+         mot en kort lista, inte att hitta kort som lampan bränt ut. Uppmätt
+         på Opus: 1,8–5,6 s per beskärning, 3,8–14,5 s per helt foto (rutläget
+         med hög låg på 8–45 s för samma foton). 4000 tokens räckte: det
+         längsta svaret var 1 205 utdatatokens (foto 03, tolv poster). */
+      const stream = client.messages.stream({
+        model: MODEL_KAMERA,
+        max_tokens: 4000,
+        output_config: { effort: 'medium' },
+        system:
+          'Du identifierar Magic: the Gathering-kort på en bild från en kamera ovanför ett spelbord. ' +
+          'Bilden är oftast en automatisk beskärning runt det kameran tror är ETT kort, men den kan ' +
+          'rymma flera kort kant i kant eller omlott, kanter av grannkort, eller vara hela tavelbilden. ' +
+          'Leken är känd: du får listan över de kort som kan ligga på bordet, och BARA de namnen kan ' +
+          'förekomma. Svara med namnet EXAKT som det står i listan. Är kortet inte något av dem, eller ' +
+          'kan du inte avgöra vilket, svara med tom sträng "" som namn — hellre tomt än påhitt, ett ' +
+          'fel namn hamnar i spelarens hand utan kontroll. ' +
+          'Lista VARJE uppåtvänt kort som syns, även delvis täckta kort när titelraden eller ' +
+          'tillräckligt av konstverket syns för att avgöra vilket kort det är. EN post per fysiskt ' +
+          'kort: två likadana kort är två poster, skriv aldrig antal eller "x2". ' +
+          'BASLÄNDER — Plains, Island, Swamp, Mountain, Forest — avgörs på den stora mana-symbolen i ' +
+          'konstverket och namnet i titelraden: vit sol = Plains, blå droppe = Island, svart ' +
+          'dödskalle = Swamp, rött berg = Mountain, grönt träd = Forest. Textrutan på ett basland är tom. ' +
+          'Hoppa över baksidor (enfärgat bruna med en ljus oval, ingen text), tärningar, händer, ' +
+          'bordet, och appens egna ritade gula rutor och streck som kan ligga inbakade i bilden. ' +
+          'Kortet kan ligga upp och ner eller på sidan. Svara bara med JSON, aldrig med förklarande text.',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+            { type: 'text', text:
+              'Leken — bara de här namnen kan förekomma:\n' + lek.join('\n') + '\n\n' +
+              (tror ? `Kameran tror att bilden rymmer ${tror} kort${tror === 1 ? '' : ' (en klunga)'}, ` +
+                      'men lita på det du ser: det kan vara fler eller färre.\n\n' : '') +
+              'För varje kort: namn EXAKT ur listan (eller ""), kortets MITTPUNKT x och y som heltal ' +
+              (matt ? `i PIXLAR — bilden är ${matt.w}×${matt.h} px, x=0 är vänsterkanten och y=0 överkanten — `
+                    : '0–1000 där x=0 är bildens vänsterkant och y=0 dess överkant, ') +
+              'samt sakerhet.\n' +
+              'sakerhet: "hog" när du läser namnet i titelraden eller ser baslandssymbolen tydligt — ' +
+              'då läggs kortet till automatiskt. "medel" när konstverket eller ramen stämmer med ett ' +
+              'namn i listan men namnet inte går att läsa. "lag" när du mest gissar, och alltid när ' +
+              'namnet är tomt.\n\n' +
+              'Svara med enbart JSON. Finns inget kort i bilden: {"kort": []}\n' +
+              (matt ? '{"kort": [{"namn": "..." | "", "x": <px>, "y": <px>, "sakerhet": "hog"|"medel"|"lag"}]}'
+                    : '{"kort": [{"namn": "..." | "", "x": 0-1000, "y": 0-1000, "sakerhet": "hog"|"medel"|"lag"}]}') }
+          ]
+        }]
+      });
+      const msg = await stream.finalMessage();
+      const usage = { input_tokens: (msg.usage && msg.usage.input_tokens) || 0,
+                      output_tokens: (msg.usage && msg.usage.output_tokens) || 0 };
+      const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const m = txt.match(/\{[\s\S]*\}/);
+      if (!m) {
+        console.error('identify/kamera: inget JSON i svaret',
+          JSON.stringify({ stop: msg.stop_reason, txt: txt.slice(0, 400) }));
+        return res.status(200).json({ kort: [], varfor: 'inget-json', stop: msg.stop_reason || null,
+          svar: txt.slice(0, 400), promptv: PANE_PROMPT_V, usage, modell: MODEL_KAMERA });
+      }
+      let j;
+      try { j = JSON.parse(m[0]); }
+      catch (e) {
+        return res.status(200).json({ kort: [], varfor: 'trasigt-json', svar: m[0].slice(0, 400),
+          promptv: PANE_PROMPT_V, usage, modell: MODEL_KAMERA });
+      }
+      const okanda = [];
+      const kort = (Array.isArray(j.kort) ? j.kort : [])
+        .filter(k => k && typeof k.namn === 'string')      // tomt namn är ett giltigt svar
+        .slice(0, 40)
+        .map(k => {
+          const givet = String(k.namn).slice(0, 120).trim();
+          const namn = givet ? (iLek.get(norm(givet)) || '') : '';
+          if (givet && !namn) okanda.push(givet);
+          /* 'lag' som fallback, och alltid 'lag' på ett tomt namn: här är det
+             ett namn som ska in i handen, och bara "hog" går in utan att
+             bekräftas. */
+          const sakerhet = namn && ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'lag';
+          const px = Number(k.x) || 0, py = Number(k.y) || 0;
+          return { namn,
+            x: Math.max(0, Math.min(1000, Math.round(matt ? px * 1000 / matt.w : px))),
+            y: Math.max(0, Math.min(1000, Math.round(matt ? py * 1000 / matt.h : py))),
+            sakerhet };
+        });
+      return res.status(200).json({ kort, okanda: okanda.slice(0, 10), promptv: PANE_PROMPT_V, usage, modell: MODEL_KAMERA });
+    } catch (e) {
+      const s = e && e.status;
+      console.error('identify/kamera:', s || '', (e && e.message) || e);
       if (s === 401) return res.status(503).json({ error: 'Serverns nyckel avvisades' });
       if (s === 429) return res.status(429).json({ error: 'För många anrop just nu — vänta en stund' });
       if (s === 400) return res.status(400).json({ error: 'Bilden kunde inte behandlas' });

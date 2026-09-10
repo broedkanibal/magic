@@ -49,6 +49,11 @@ sämre än `senaste.json` (färre rätta namn, fler falska eller fler fel namn).
 med läge, storlek och vad namnläsaren såg, plus delningen per fall: erosionens
 *delade*, skärlinjernas *skurna*, kortreferensen (ur säkert namngivna spår) och
 varje prövat snitt med dom (`grund`, `grå`, `ljus`, `olika`, `flisa`, `skuren`…).
+`--ai` låter kamerans osäkra spår fråga Claude via attrappen, som då kör riktiga
+anrop med nyckeln ur `.env.local` (`MESA_AI=1`, kostar pengar: uppmätt 10–15
+cent per körning med Opus 5). Metoden blir `lokal+ocr+ai` och modellen står i
+fältet `ai`; resultatet jämförs mot och sparas i `senaste-ai.json`, aldrig i
+`senaste.json`, så att den lokala baslinjen står kvar för sig.
 `--fall 03` kör bara fallen vars id börjar så, `--rutor` skriver snittförsöken
 ruta för ruta (de senaste 40) — ett snitt som flimrar syns bara där.
 `--beskarningar <mapp>` skriver det kameran faktiskt skickade till igenkänningen,
