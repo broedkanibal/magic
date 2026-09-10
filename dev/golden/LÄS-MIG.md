@@ -134,8 +134,9 @@ enda mätt kort. Raka bitar som godkänns står i
 tabellen men fäller inte körningen: där mäter appen som förut, och det provar
 `kor.cjs` (i 04–06 är de skålen, bordskanten mot golvet och ribborna).
 
-Namnläsaren körs bara när titelraden är hög nog att läsas (remsan ≥ 40 px i
-beskärningen; på 60 cm ja, på 150 cm nej — där gav den tomt på alla kort) och
+Namnläsaren körs bara när titelraden är hög nog att läsas (remsan minst 20 px
+hög i källbilden, `MIN_KALLHOJD` i `index.html`; golvet låg på 40 tills fotona i
+03–06 visade att skärpan avgör mer än höjden) och
 läses i `senaste.json` per spår som `ocr: { text, namn, poang, marginal, ms,
 hoppad }`. Ett kort är säkert när bild och namn håller med, eller när ett av
 dem är starkt nog att stå för sig — men aldrig när de är säkra på var sitt
@@ -191,6 +192,9 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
 
 ## Lägga till ett fall
 
+Steg för steg står i [SNABBGUIDE.md](SNABBGUIDE.md), under *Lägga till ett nytt
+foto*. Här är detaljerna bakom.
+
 1. **Fotografera.** Telefonen i hållaren rakt över bordet, som när man
    spelar. Stillbild med kameraappen eller en ruta ur en video — lägg bara in
    den utvalda rutan som JPEG, aldrig videofilen (44 MB hör inte hemma i git).
@@ -202,7 +206,9 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
    sips --resampleWidth 1080 -s format jpeg -s formatOptions 80 IMG_1234.jpg --out bild.jpg
    ```
 
-2. **Döp mappen** `NN-<yta>-<ljus>-<avstånd>-<antal>kort[-<variant>]`:
+2. **Döp mappen** `NN-<yta>-<ljus>-<avstånd>-<antal>kort[-<variant>]`. Namnet
+   är bara en etikett så att man ser vad fallet provar; inget i provet läser
+   det, och avståndet räcker som gissning:
    - `NN` löpnummer, så att ordningen är stabil
    - `<yta>`: `tra`, `vitmatta`, `svartmatta`, `tryckt`, `glansig`, `duk`
    - `<ljus>`: `lampa`, `dagsljus`, `morkt`, `motljus`, `blandat`
@@ -212,24 +218,34 @@ ljussättningen på samma fil — det är så tabellen i MES-28 togs fram — oc
 
    Exempel: `03-vitmatta-dagsljus-100cm-4kort`, `07-tryckt-lampa-60cm-3kort-tappade`.
 
-3. **Rita facit** med <http://localhost:8232/dev/golden/markera.html>: släpp in
-   bilden, dra en ruta runt varje kort, skriv namnet (autokomplettering ur
-   `lek.txt`), kryssa *tappad* för liggande kort, *avskuret* för kort som
-   skärs av kanten och *dold* för kort som ligger under ett annat så att bara
-   en kant syns, och tryck **Kopiera facit.json**. Klistra in som `facit.json` i mappen.
+3. **Skriv facit.** En **namnlista** räcker: `kort` med bara `namn` per post,
+   ett kort per rad, också dubbletter — så lades fall 03–06 till. Då provas
+   namnen men inte platsen och tap-läget (kolumnerna Plats och Tappad visar
+   `–`). Ett kort som ligger under ett annat så att bara en kant syns får
+   `"dold": true`.
 
-   Har du bråttom räcker en **namnlista**: `kort` med bara `namn` per post.
-   Då provas namnen men inte platsen och tap-läget (kolumnerna visar `–`), och
-   rutorna kan ritas senare — markera.html läser ett sådant facit och låter
-   dig rita ruta för ruta.
+   Vill du också prova var korten ligger och om de är tappade kan du rita
+   rutor — frivilligt, och det går att göra senare. Kör `npm run dev`, öppna
+   <http://localhost:8232/dev/golden/markera.html>, släpp in bilden, dra en
+   ruta runt varje kort, skriv namnet (autokomplettering ur `lek.txt`), kryssa
+   *tappad* för liggande kort, *avskuret* för kort som skärs av kanten och
+   *dold* för kort under ett annat, och tryck **Kopiera facit.json**.
+   markera.html läser också en namnlista och låter dig rita ruta för ruta.
 
 4. **Kontrollera leken.** Varje kortnamn i facit måste finnas i `lek.txt` —
    annars kan kedjan inte känna igen kortet, och provet mäter leken i stället
    för kameran. Lägg till namnet om det saknas; poolen byggs om av sig själv.
 
-5. **Kör** `kor.html`, titta på raden, och checka in mappen. Har du tryckt
-   *Spara diagnos* på telefonen i samma läge: lägg filen som `diagnos.json`
-   i mappen — den bär telefonens egen referens, brus och trösklar.
+5. **Kör fallet och spara det.** `node dev/golden/kor.cjs --fall 07 --detalj`
+   visar raden; sedan `node dev/golden/kor.cjs --fall 07 --spara` (och
+   `--ai --fall 07 --spara` för Claude-baslinjen — med `--fall` byts bara det
+   fallet), en rad i `historik.md`, och mappen och baslinjerna i samma commit.
+   `kor.html` behövs inte: det är samma prov i webbläsaren, för den som vill
+   se bilden med spåren.
+
+   **Diagnosfil — valfritt.** Bara om du tryckt *Spara diagnos* på telefonen
+   i samma läge: lägg filen som `diagnos.json` i mappen, så bär den
+   telefonens egen referens, brus och trösklar. Utan den fungerar allt.
 
 ### facit.json
 
