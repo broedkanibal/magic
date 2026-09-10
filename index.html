@@ -3318,7 +3318,12 @@ body.ispel #addPlayerBtn{display:none}
     FINE_ROT: [-9, -4.5, 0, 4.5, 9],
     // När detektorn redan pekat ut kortet behövs inget brett finsök —
     // läge, storlek och vinkel är nära nog, och steg 3 tar resten.
-    HINT_SC: [0.85, 1.0, 1.18, 1.36],
+    // Men kortet fyller inte alltid lådan: kamerans låda är regionen i
+    // masken, och utan ram tar den skuggan med sig. Uppmätt (golden 06,
+    // Maul of the Skyclaves, låda 78×64 för ett kort på ~74×54): 0,284 på
+    // rank 18 med golvet 0,85, men 0,824 som klar etta vid skalan 0,68.
+    // Därav 0,6 och 0,7 också; kostnaden är 50 % fler finvarianter.
+    HINT_SC: [0.6, 0.7, 0.85, 1.0, 1.18, 1.36],
     HINT_OFF: [-0.15, 0, 0.15],
     HINT_ROT: [-5, 0, 5]
   };
@@ -9346,7 +9351,9 @@ const Pool = {
   async load(code) {
     try {
       const rec = await IDB.poolGet(code);
-      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 5) { this.idx = rec; return rec; }
+      /* v 6: lekens pool bär alla konstverk per namn (byggLekPool); en
+         sparad pool från förut har fel tryckningar och byggs om. */
+      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 6) { this.idx = rec; return rec; }
     } catch (e) {}
     return null;
   }
@@ -9357,8 +9364,10 @@ const Pool = {
    aktuella landskapskonstverk separat och läggs till i poolen. */
 const LAND_QUERY = 'type:basic -is:digital -is:funny year>=2023';
 
-async function fetchQuery(q, onProg, seen, cards, label) {
-  let path = `/cards/search?q=${encodeURIComponent(q)}&unique=art&order=name`;
+async function fetchQuery(q, onProg, seen, cards, label, order) {
+  /* order 'released' ger nyaste tryckningen först — det som ligger på ett
+     bord i dag är oftare nytt än gammalt, och taket per namn tar de första. */
+  let path = `/cards/search?q=${encodeURIComponent(q)}&unique=art&order=${order === 'released' ? 'released&dir=desc' : 'name'}`;
   for (;;) {
     const d = await SF.raw(path);
     for (const c of (d.data || [])) {
@@ -9436,7 +9445,7 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
   const rec = {
     code, setName, ts: Date.now(),
     names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
-    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 5, lands: !!lands
+    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 6, lands: !!lands
   };
   await IDB.poolPut(rec);
   Pool.idx = rec;
@@ -9465,6 +9474,29 @@ async function byggLekPool(lek, userId, onProg) {
     if (!k.sid || !k.small || seen.has(k.sid)) continue;
     seen.add(k.sid); cards.push({ id: k.sid, name: k.name, small: k.small });
   }
+  /* Alla konstverk för varje namn i leken — inte bara den tryckning som
+     Scryfalls namnuppslag råkar ge. Uppmätt (golden, 2026-09-10): fuzzy-
+     uppslaget gav en annan tryckning än korten på bordet (Foundations
+     Jumpstart) för 7 av 28 namn — Serpent Assassin blev Portal 1997,
+     Pacifism ett konstverk från 2026 — och de två var två av tre kort som
+     igenkänningen gissade fel på i golden-fall 06: bästa möjliga passform
+     0,27 och 0,45 mot 0,78–0,95 för kort med rätt konstverk i poolen.
+     Leken vet inte vilken tryckning som ligger på bordet, så alla får vara
+     med, högst KONST_TAK per namn och nyaste först (Pacifism har 9,
+     Night's Whisper 12). Poolen växer från 78 till omkring 110 för den
+     leken; Matcher rankar alla på samma varv. Tjugo namn per fråga: en
+     fråga med alla namn i leken blir annars lång. */
+  const KONST_TAK = 12;
+  const namnen = [...new Set((lek.kort || []).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
+  for (let i = 0; i < namnen.length; i += 20) {
+    try {
+      const extra = [];
+      await fetchQuery(`(${namnen.slice(i, i + 20).map(n => '!"' + n.replace(/"/g, '') + '"').join(' or ')}) -is:digital -is:funny`,
+                       onProg || (() => {}), seen, extra, 'konstverk', 'released');
+      const per = new Map();
+      for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= KONST_TAK) continue; per.set(c.name, k + 1); cards.push(c); }
+    } catch (e) { /* utan fler konstverk fungerar lekens egna */ }
+  }
   const basland = [...new Set((lek.kort || []).map(k => k.name).filter(n => BASICS.has(n)))];
   if (basland.length) {
     try {
@@ -9472,7 +9504,11 @@ async function byggLekPool(lek, userId, onProg) {
       await fetchQuery(`(${basland.map(n => '!"' + n + '"').join(' or ')}) -is:digital -is:funny year>=2021`,
                        onProg || (() => {}), seen, extra, 'basic lands');
       const per = new Map();
-      for (const c of extra) { const k = per.get(c.name) || 0; if (k >= 24) continue; per.set(c.name, k + 1); cards.push(c); }
+      /* De dubbelsidiga ("Plains // Plains") heter något annat än Plains och
+         står därför utanför BASICS: landregeln i confident() räknar dem
+         inte, och de tog en plats bland de sex bästa utan att räknas
+         (uppmätt i golden 06: "Swamp // Swamp" överst för en klunga land). */
+      for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= 24) continue; per.set(c.name, k + 1); cards.push(c); }
     } catch (e) { /* utan extra landskap fungerar lekens egna */ }
   }
   if (!cards.length) throw new Error('Leken har inga kort med bilder.');
@@ -9666,9 +9702,14 @@ function serUtSomKort(im, matt, skala) {
 const Namn = (() => {
   const CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
   /* MIN_KALLHOJD: remsan i källan måste vara så här hög för att läsas.
-     Uppmätt: fall 02 (150 cm) har remsor på ~33 px och gav tomt på alla
-     fyra korten trots tre försök; fall 01 (60 cm) har ~54 px och läses. */
-  const REMSA_START = 0.08, REMSA_HOJD = 0.085, REMSA_MAL_PX = 64, MIN_KALLHOJD = 40;
+     Uppmätt: fall 02 (150 cm, suddigt) har remsor på ~33 px och gav tomt
+     på alla fyra korten trots tre försök; fall 01 (60 cm) har ~54 px och
+     läses. Golvet låg på 40 — men då kördes läsaren aldrig på golden 03/06
+     (40 cm, skarpt dagsljus, remsor 20–37 px), där bilden ensam gissade
+     fel på fyra hela, läsbara kort. Skärpan avgör mer än höjden: remsan
+     skalas ändå upp till REMSA_MAL_PX. Därför 20, och ett läst namn som
+     inte når 0,6 mot leken räknas som förut inte alls. */
+  const REMSA_START = 0.08, REMSA_HOJD = 0.085, REMSA_MAL_PX = 64, MIN_KALLHOJD = 20;
   let workerP = null, klar = false;
   function ladda() {
     if (workerP) return workerP;
@@ -9696,12 +9737,17 @@ const Namn = (() => {
     let k = 0; for (const x of A) if (B.has(x)) k++;
     return 2 * k / (A.size + B.size);
   }
-  function remsa(canvas, start) {
-    const h = Math.round(canvas.height * REMSA_HOJD), y0 = Math.round(canvas.height * start);
+  /* vand: kortet ligger upp och ner (motståndarens sida, eller bara lagt
+     så) — då sitter titeln i botten och spegelvänd, och remsan tas därifrån
+     och vrids 180° innan den läses. */
+  function remsa(canvas, start, vand) {
+    const h = Math.round(canvas.height * REMSA_HOJD);
+    const y0 = vand ? canvas.height - Math.round(canvas.height * start) - h : Math.round(canvas.height * start);
     const skala = Math.max(1, Math.min(4, REMSA_MAL_PX / h));
     const t = document.createElement('canvas');
     t.width = Math.round(canvas.width * skala); t.height = Math.round(h * skala);
     const x = t.getContext('2d'); x.imageSmoothingQuality = 'high';
+    if (vand) { x.translate(t.width, t.height); x.rotate(Math.PI); }
     x.drawImage(canvas, 0, y0, canvas.width, h, 0, 0, t.width, t.height);
     return t;
   }
@@ -9719,19 +9765,24 @@ const Namn = (() => {
   }
   /* null = läsaren finns inte (inte laddad, eller misslyckades): som förut.
      hoppad = 'liten' när titelraden är för låg för att läsas. */
-  async function las(canvas, namnLista) {
+  async function las(canvas, namnLista, vand) {
     if (!workerP) return null;
     let w; try { w = await workerP; } catch (e) { return null; }
     const t0 = performance.now();
     if (canvas.height * REMSA_HOJD < MIN_KALLHOJD) return { namn: null, poang: 0, marginal: 0, text: '', ms: 0, hoppad: 'liten' };
     const namn = [...new Set(namnLista || [])];
     let bast = null;
-    for (const start of [REMSA_START, 0.06, 0.10]) {
+    /* Sex lägen, 4–14 % ner, tills något når 0,6. Kamerans låda är regionen
+       i masken och tar ibland en rand av bordet med sig ovanför kortet
+       (golden 03: Swamp, låda 106×66 för ett kort ~83×60), och då ligger
+       titeln längre ner än 8–10 %. Varje läge kostar en läsning (70–290 ms
+       på Macen); de flesta kort stannar på det första. */
+    for (const start of [REMSA_START, 0.06, 0.10, 0.04, 0.12, 0.14]) {
       let text = '';
-      try { text = (await w.recognize(remsa(canvas, start))).data.text || ''; } catch (e) { break; }
+      try { text = (await w.recognize(remsa(canvas, start, vand))).data.text || ''; } catch (e) { break; }
       for (const rad of text.split('\n').map(r => r.trim()).filter(Boolean)) {
         const b = basta(rad, namn);
-        if (!bast || b.poang > bast.poang) bast = Object.assign(b, { text: rad, start });
+        if (!bast || b.poang > bast.poang) bast = Object.assign(b, { text: rad, start, vand: !!vand });
       }
       if (bast && bast.poang >= 0.6) break;
     }
@@ -13127,7 +13178,7 @@ const Kamera = (() => {
         const j = cands.findIndex(x => x.name === t.gissning);
         if (j > 0) { cands = cands.slice(); cands.unshift(cands.splice(j, 1)[0]); }
       }
-      t.namn = svar.namn || null; t.sid = svar.sid || null; t.saker = !!svar.saker; t.cands = cands; t.namnLast = svar.namnLast || null;
+      t.namn = svar.namn || null; t.sid = svar.sid || null; t.saker = !!svar.saker; t.cands = cands; t.namnLast = svar.namnLast || null; t.varfor = svar.varfor || null;
     }
     t.fragad = true;
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
@@ -13381,16 +13432,38 @@ async function kamIdentifiera(canvas, id, gissning) {
   let v;
   try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
+  /* Läste titeln inget: kortet kan ligga upp och ner. Bilden vet vinkeln
+     (matchningens rot, 0 eller 180 ± några grader); säger den 180 läses
+     titeln en gång till ur botten, vänd. Bara då: att läsa vänt för varje
+     osäker beskärning kostade 800 ms per kort på Macen (sex lägen ×2), och
+     golden-fall 03 slog i tidstaket innan sista kortet hann läsas. */
+  if ((!namn || namn.poang < 0.6) && !(namn && namn.hoppad)) {
+    const rot = ((((v.rec && v.rec.rot) || 0) % 360) + 360) % 360;
+    if (Math.abs(rot - 180) < 45) {
+      let namn2 = null; try { namn2 = await Namn.las(canvas, Pool.idx.names, true); } catch (e) { namn2 = null; }
+      if (namn2 && (!namn || namn2.poang > namn.poang)) namn = namn2;
+    }
+  }
   const cands = (v.rec.cands || []).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   let saker = !!(v.accept && cands[0]);
+  let varfor = saker ? 'bild' : 'osäker';   // domskälet, för diagnosen och golden-provet
   /* Två vittnen: illustrationen och namnet. Säkert när de håller med, eller
      när det ena är starkt nog att stå för sig — men ALDRIG när båda är
      säkra på var sitt kort: då går kortet till granskningen med bägge
      överst. Trösklarna är utgångsvärden ur de tre uppmätta raderna i
-     golden-fall 01 (0,91, 0,85, 0,42) och skruvas mot golden setet. */
+     golden-fall 01 (0,91, 0,85, 0,42) och skruvas mot golden setet.
+     Uppmätt 2026-09-10 med golvet 20 px (golden 06, kort 171–223 px breda):
+     rätt namn lästes 0,82–1,0 med marginal 0,59–0,73, skräp nådde som mest
+     0,33 med marginal 0,16. Därför: ett säkert namn (≥ 0,6) tas in även
+     när bilden inte hade det bland sina fem (Pacifism 0,82/0,62 låg
+     utanför och blev "Faithful Pikemaster"), och ett SVAGT namn (≥ 0,5,
+     marginal ≥ 0,15) räcker när det pekar på samma kort som bildens etta:
+     två oberoende vittnen som är överens (Maul på 150 cm: 0,59/0,21 med
+     Maul överst i bilden). */
   const lastNamn = namn && namn.namn;
   const sakertNamn = lastNamn && namn.poang >= 0.6 && namn.marginal >= 0.2;
   const starktNamn = lastNamn && namn.poang >= 0.85 && namn.marginal >= 0.3;
+  const svagtNamn = lastNamn && !sakertNamn && namn.poang >= 0.5 && namn.marginal >= 0.15;
   if (lastNamn) {
     const j = cands.findIndex(c => c.name === namn.namn);
     if (sakertNamn && j >= 0) {
@@ -13398,15 +13471,19 @@ async function kamIdentifiera(canvas, id, gissning) {
          när bildens kort är ett basland och namnet är starkt. Det är det
          kända felet (24 konstverk per land): Thriving Heath lästes 0,92 med
          marginal 0,31 och bilden var "säker" på Swamp (golden-fall 01). */
-      if (saker && j > 0) saker = starktNamn && BASICS.has(cands[0].name);
-      else saker = true;
+      if (saker && j > 0) { saker = starktNamn && BASICS.has(cands[0].name); varfor = saker ? 'namn slår land' : 'konflikt'; }
+      else { saker = true; varfor = j === 0 ? 'bild+namn' : 'namn'; }
       if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
-    } else if (starktNamn && j < 0) {
+    } else if (sakertNamn && j < 0) {
       /* Namnet står ensamt: kortet finns i leken men bilden hittade det
-         inte bland sina fem. Poolens post för namnet tas in. */
+         inte bland sina fem. Poolens post för namnet tas in överst. */
       const i = Pool.idx.names.indexOf(namn.namn);
-      if (i >= 0) { cands.unshift({ name: namn.namn, sid: Pool.idx.ids[i], score: namn.poang }); saker = !saker || cands.length === 1; if (v.accept) saker = false; }
-    }
+      if (i >= 0) {
+        cands.unshift({ name: namn.namn, sid: Pool.idx.ids[i], score: namn.poang });
+        if (!saker) { saker = true; varfor = 'namn ensamt'; }
+        else { saker = starktNamn && BASICS.has(cands[1].name); varfor = saker ? 'namn slår land' : 'konflikt'; }
+      }
+    } else if (svagtNamn && j === 0 && !saker) { saker = true; varfor = 'bild+svagt namn'; }
   }
   /* Ett basland blir aldrig säkert på bilden ensam när namnläsaren läst
      ett ANNAT namn tydligt: 24 konstverk per landtyp i poolen är för många
@@ -13415,8 +13492,8 @@ async function kamIdentifiera(canvas, id, gissning) {
      egen landregel som förut: fall 02 (150 cm) tappade Plains när regeln
      krävde namnet även då. */
   const c0 = cands[0];
-  if (saker && c0 && BASICS.has(c0.name) && sakertNamn && namn.namn !== c0.name) saker = false;
-  const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null } : null;
+  if (saker && c0 && BASICS.has(c0.name) && sakertNamn && namn.namn !== c0.name) { saker = false; varfor = 'land mot namn'; }
+  const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand } : null;
   if (!saker) {
     /* Beskärningen följer med så att datorn kan visa den i granskningen. */
     const s = Math.min(1, 300 / canvas.width);
@@ -13424,7 +13501,7 @@ async function kamIdentifiera(canvas, id, gissning) {
     c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
     Moln.sandKam('beskarning', { spar: id, b64: c.toDataURL('image/jpeg', 0.7), namnLast });
   }
-  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast };
+  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor };
 }
 
 function tillampaKalibrering(rad) {

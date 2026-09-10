@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--port 8239]
+/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--beskarningar <mapp>] [--port 8239]
 
    Startar attrappen (dev/stub-server.cjs), öppnar dev/golden/kor.html i en
    huvudlös Chrome, trycker "Kör alla", skriver tabellen, och med --spara
@@ -25,6 +25,7 @@ const PORT = +arg('--port', 8239);
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const TAK_MS = +arg('--tak', 20 * 60 * 1000);
 const FALL = arg('--fall', '');
+const BESKARNINGAR = arg('--beskarningar', '');   // mapp att skriva beskärningarna till: <fall>-spar<nr>.jpg
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = await f().catch(() => null); if (v) return v; if (Date.now() - t0 > ms) throw new Error('väntade förgäves på ' + vad); await vanta(250); } }
@@ -79,7 +80,25 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = a
     for (const p of r.skurnaAlla || []) console.log(`    skuret vid ${p.s} s: ${p.lang}×${p.kort} ${p.grader}° led ${p.led}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')}`);
     if (process.argv.includes('--rutor')) for (const l of r.skarLogg || []) console.log(`    ruta ${l.ruta}: skurna ${l.skurna}${l.prov.length ? ' — ' + l.prov.join('; ') : ''}`);
     for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
-    for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + ', ' + t.ocr.ms + ' ms]') : ''}`);
+    for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.varfor ? ' [' + t.varfor + ']' : ''}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + (t.ocr.start != null ? ' @' + Math.round(t.ocr.start * 100) + '%' + (t.ocr.vand ? ' vänd' : '') : '') + ', ' + t.ocr.ms + ' ms]') : ''}`);
+  }
+  /* --beskarningar <mapp>: det kameran faktiskt skickade till igenkänningen,
+     en jpg per spår, döpt efter spårets nummer i --detalj (#nr). Ett spår
+     som identifierats men försvunnit innan fallet var klart heter
+     -sparM<modulid>-borta. Hämtas en i taget: en data-URL är 100–300 kB. */
+  if (BESKARNINGAR) {
+    fs.mkdirSync(BESKARNINGAR, { recursive: true });
+    const lista = await kor(`Object.entries(beskarningar).map(([id, l]) => ({ id, spar: l.map(p => ({ spar: p.spar, nr: p.nr, w: p.w, h: p.h })) }))`);
+    const index = [];
+    for (const f of lista) for (let i = 0; i < f.spar.length; i++) {
+      const p = f.spar[i];
+      const b64 = await kor(`beskarningar[${JSON.stringify(f.id)}][${i}].b64`);
+      const fil = `${f.id}-spar${p.nr != null ? p.nr : 'M' + p.spar + '-borta'}.jpg`;
+      fs.writeFileSync(path.join(BESKARNINGAR, fil), Buffer.from(String(b64 || '').replace(/^data:image\/jpeg;base64,/, ''), 'base64'));
+      index.push({ fall: f.id, nr: p.nr, modulId: p.spar, w: p.w, h: p.h, fil });
+    }
+    fs.writeFileSync(path.join(BESKARNINGAR, 'index.json'), JSON.stringify(index, null, 1) + '\n');
+    console.log(`\n${index.length} beskärningar skrivna till ${BESKARNINGAR} (index.json listar dem)`);
   }
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   let samre = [];

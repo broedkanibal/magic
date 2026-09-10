@@ -139,6 +139,11 @@ const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade inna
 let w = null, K = null, kamSag = null;  // appens fönster, dess Kamera-modul och kameravyns statusrad
 let fall = [], resultat = new Map(), senaste = null, kor = false, stoppa = false;
 let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
+/* Beskärningarna som kameran skickade till igenkänningen, per fall: den
+   senaste per spår (modulens id) som jpeg-data-URL med bredd och höjd, och
+   efter fallet spårets nummer i resultatet (nr). Läses ut av
+   kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
+let beskarningar = {};
 const metod = () => { try { return w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal'; } catch (e) { return 'lokal'; } };
 /* Samma norm som appens namnjämförelse i stort: gemener, en sorts apostrof,
    ett mellanslag. Facit skrivs med lek.txt:s stavning, poolen med Scryfalls
@@ -278,10 +283,22 @@ async function byggPool() {
 
 /* ── ett fall ────────────────────────────────────────────────────── */
 const laddaBild = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bilden gick inte att läsa')); i.src = src; });
+/* Den senaste beskärningen per spår: ett spår som krymper till en del läses
+   om, och det är den sista som gav svaret. Får aldrig störa körningen. */
+function sparaBeskarning(fallId, c, id) {
+  if (!c) return;
+  try {
+    const l = beskarningar[fallId] || (beskarningar[fallId] = []);
+    const post = { spar: id, nr: null, w: c.width, h: c.height, b64: c.toDataURL('image/jpeg', 0.85) };
+    const i = l.findIndex(p => p.spar === id);
+    if (i >= 0) l[i] = post; else l.push(post);
+  } catch (e) { console.warn('beskärningen gick inte att spara', e); }
+}
 
 async function korFall(f) {
   const img = await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
   const doc = w.document;
+  beskarningar[f.id] = [];
   /* "Videon": en canvas med bilden i full upplösning, i appens dokument
      och på videoelementets plats i kameravyn, så att spåren ritas ovanpå
      den. Modulen frågar efter videoWidth/videoHeight, sätter srcObject
@@ -313,7 +330,7 @@ async function korFall(f) {
       status: kamSag || (() => {}),
       fas: () => {},
       bord: (spar, nollstall) => { if (!nollstall) sistaBord = spar; },
-      identifiera: (c, id, gissning) => w.kamIdentifiera(c, id, gissning)
+      identifiera: (c, id, gissning) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning); }
     });
     /* Klart när alla spår fått sitt svar och ingenting ändrat sig på en
        och en halv sekund. Ett spår utan svar väntar på poolen (1,5 s
@@ -337,6 +354,9 @@ async function korFall(f) {
       if (ms > TAK_MS) { tak = true; break; }
       status(`${f.id}: ${lage}, ${spar.length} spår, ${(ms / 1000).toFixed(1)} s`);
     }
+    /* Spårets nummer i resultatet: bedom numrerar om från 1 i K.spar-ordning,
+       så att en beskärning går att para med raden i --detalj. null = borta. */
+    for (const p of beskarningar[f.id]) { const i = K.spar.findIndex(t => t.id === p.spar); p.nr = i >= 0 ? i + 1 : null; }
     const sort = msProv.slice().sort((a, b) => a - b);
     const res = bedom(f, sistaBord, Math.round(performance.now() - t0), tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
     res.skurnaAlla = skurnaAlla;
@@ -361,9 +381,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      modulens id räknar vidare över hela sessionen, och senaste.json ska
      diffa rent mellan två körningar. */
   const alla = K.spar.map((t, i) => { const b = t.ram || t.box; return {
-    id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad,
+    id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad, varfor: t.varfor || null,
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
-    ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null } : null,
+    ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
   const spar = alla.filter(t => t.tillstand !== 'skrap');
   /* Facit i två sorter: kort med ruta (positionen provas) och kort med bara

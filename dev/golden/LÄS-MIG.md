@@ -50,7 +50,12 @@ med läge, storlek och vad namnläsaren såg, plus delningen per fall: erosionen
 *delade*, skärlinjernas *skurna*, kortreferensen (ur säkert namngivna spår) och
 varje prövat snitt med dom (`grund`, `grå`, `ljus`, `olika`, `flisa`, `skuren`…).
 `--fall 03` kör bara fallen vars id börjar så, `--rutor` skriver snittförsöken
-ruta för ruta (de senaste 40) — ett snitt som flimrar syns bara där. Första körningen tar en minut extra (poolen och
+ruta för ruta (de senaste 40) — ett snitt som flimrar syns bara där.
+`--beskarningar <mapp>` skriver det kameran faktiskt skickade till igenkänningen,
+en jpg per spår (`<fall>-spar<nr>.jpg`, nr = raden i `--detalj`): det är dem
+man ska titta på när ett kort blir osäkert. Varje spår i `--detalj` bär domskälet
+i hakparentes (`bild`, `bild+namn`, `namn ensamt`, `namn slår land`,
+`konflikt`, `osäker`) och namnläsarens rad med remsans läge (`@8%`, `vänd`). Första körningen tar en minut extra (poolen och
 namnläsarens data hämtas och cachas i en egen Chrome-profil), de följande
 inte. Kräver Chrome på Macen (`CHROME=/sökväg` om den ligger någon annanstans).
 
