@@ -339,7 +339,7 @@ async function korFall(f) {
       status: kamSag || (() => {}),
       fas: () => {},
       bord: (spar, nollstall) => { if (!nollstall) sistaBord = spar; },
-      identifiera: (c, id, gissning) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning); },
+      identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return w.kamIdentifiera(c, id, gissning, kort); },
       fragaAI: (c, id) => w.kamFragaAI(c, id),
       /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
          modulen ingen, och det lokala provet mäter som förut. */

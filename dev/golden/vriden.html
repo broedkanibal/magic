@@ -1,0 +1,358 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Vridna kort — skräpfiltret</title>
+<style>
+body{font:13px/1.4 system-ui,sans-serif;margin:12px;background:#fafafa;color:#222}
+pre{font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+iframe{width:360px;height:480px;border:1px solid #ccc;background:#000}
+</style>
+<p id="status">Laddar appen…</p>
+<pre id="ut"></pre>
+<iframe id="app" title="appen"></iframe>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   VRIDNA KORT — skräpfiltret (serUtSomKort) mot kort som ligger snett
+
+   Kör: node dev/golden/vriden.cjs   (eller öppna sidan via attrappen)
+
+   Beskärningen är en rak låda runt kortet. Ett kort i vinkel får bord i
+   lådans hörn, och skräpfiltrets andelar sjönk under sina trösklar:
+   uppmätt på golden 02 (MES-29) klarade kort som vridits på träet 4/4
+   vid 0° (6/6 med fall 01), 3/4 vid 15° och 0/4 vid 30–60°. Den här sidan mäter samma sak
+   med appens EGEN serUtSomKort (index.html i en iframe, som kor.html),
+   på två sätt:
+
+   A. Direkt. Varje facitkort i fall 01–02 klistras in vridet på närmaste
+      lediga trä i samma bild, beskärs som beskar() gör (den raka lådan runt
+      kortet, 8 % marginal, −90° när den ligger) och döms två gånger: rakt
+      (beskärningen som den är) och vridet (i kortets rektangel). Mot det
+      står kortstora bitar av bordet utan kort, i samma vinklar — inne på
+      bordet och mot bildens kant, där marginalen hamnar utanför bilden —
+      på alla sex bord (vridna bara på 02–06: på fall 01 får ingen plats).
+      De ska dömas som skräp. Mattans nivå och skalan är MES-29-mätningens
+      (medianen utanför korten, k = 1), så att raden rakt går att jämföra
+      med den. "appen" är vad kameran använder: rakt nära en axel, vridet
+      annars (beskar, BESKAR_SNETT).
+      Fall 01:s kort är så stora att de bara får plats raka; de vridna korten
+      är fall 02:s fyra. En vinkel där inget kort fick plats skrivs ut och
+      fäller körningen, i stället för att räknas som godkänd. Raka kort mäts
+      också i en rektangel som med flit är 5–25° fel vriden, åt båda hållen:
+      detektorns vinkel är brusig (golden 02:s Plains fick 103°), och det är
+      så ett rakt kort mäts när bruset går över BESKAR_SNETT.
+
+   B. Hela kedjan. Bilden med ett inklistrat vridet kort matas in som
+      kamerabild och appens detektor, ram och beskärning får göra spåret —
+      vinkeln och sidorna är detektorns egna, inte facits. Igenkänningen
+      byts mot en som bara fäller skräpdomen, så att ingen pool och ingen
+      namnläsare behövs: domen där är exakt den kamIdentifiera fäller först.
+      De sex golden-fallen körs också som de är, och varje spår där den nya
+      vägen dömer annorlunda än den gamla skrivs ut.
+   ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+const $ = s => document.querySelector(s);
+/* Tickaren ur kor.html: appens rAF och väntetiderna här går på en Worker. */
+const tick = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 40)'], { type: 'text/javascript' })));
+const vantande = []; let rafKo = [];
+tick.onmessage = () => {
+  const nu = performance.now();
+  for (let i = vantande.length - 1; i >= 0; i--) if (vantande[i].tid <= nu) vantande.splice(i, 1)[0].res();
+  if (rafKo.length) { const k = rafKo; rafKo = []; for (const cb of k) { try { cb(nu); } catch (e) { console.error(e); } } }
+};
+const sleep = ms => new Promise(res => vantande.push({ tid: performance.now() + ms, res }));
+const status = t => { $('#status').textContent = t; };
+const rader = []; const skriv = s => { rader.push(s); $('#ut').textContent = rader.join('\n'); };
+const ladda = s => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('kunde inte läsa ' + s)); i.src = s; });
+const med = a => { const b = a.slice().sort((p, q) => p - q); return b.length ? b[b.length >> 1] : null; };
+const Q = new URLSearchParams(location.search), DEL = Q.get('del') || 'ab';
+const ASPECT = 0.716, RAD = Math.PI / 180;
+const KORT_GRADER = [0, 5, 10, 15, 30, 45, 60], TRA_GRADER = [0, 15, 30, 45, 60, 90], KEDJA_GRADER = [0, 15, 30, 45, 60], FEL_GRADER = [5, 10, 15, 20, 25];
+/* BESKAR_SNETT i index.html: närmare en axel än så mäter appen beskärningen rakt. */
+const naraAxel = g => Math.min(g % 90, 90 - g % 90) < 10;
+let w = null, K = null;
+
+/* ── geometri: en rektangel är { cx, cy, lang, kort, vinkel }, vinkeln långsidans mot x-axeln ── */
+const lada = r => { const c = Math.abs(Math.cos(r.vinkel)), s = Math.abs(Math.sin(r.vinkel)), hw = (r.lang * c + r.kort * s) / 2, hh = (r.lang * s + r.kort * c) / 2; return { x: r.cx - hw, y: r.cy - hh, w: 2 * hw, h: 2 * hh }; };
+const vidga = (b, f) => ({ x: b.x - b.w * (f - 1) / 2, y: b.y - b.h * (f - 1) / 2, w: b.w * f, h: b.h * f });
+const overlapp = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+const iou = (a, b) => { const s = overlapp(a, b); return s / (a.w * a.h + b.w * b.h - s); };
+const inuti = (b, W, H) => b.x >= 0 && b.y >= 0 && b.x + b.w <= W && b.y + b.h <= H;
+const iRekt = (px, py, r) => { const dx = px - r.cx, dy = py - r.cy, c = Math.cos(r.vinkel), s = Math.sin(r.vinkel); return Math.abs(dx * c + dy * s) <= r.lang / 2 && Math.abs(-dx * s + dy * c) <= r.kort / 2; };
+
+/* beskar() ur index.html, mot en bild i stället för videon: lådan är
+   rektangelns omskrivna låda, och kortet i beskärningen räknas som där. */
+function beskar(bild, r) {
+  const b = lada(r), m = 0.08;
+  const bx = b.x - b.w * m, by = b.y - b.h * m, bw = b.w * (1 + 2 * m), bh = b.h * (1 + 2 * m);
+  const liggande = bw > bh, skala = Math.min(1, 720 / (liggande ? bh : bw));
+  const ow = Math.round((liggande ? bh : bw) * skala), oh = Math.round((liggande ? bw : bh) * skala);
+  const c = document.createElement('canvas'); c.width = ow; c.height = oh;
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+  if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(bild, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
+  else x.drawImage(bild, bx, by, bw, bh, 0, 0, ow, oh);
+  const u = (r.cx - bx) / bw, v = (r.cy - by) / bh;
+  const kort = liggande ? { cx: v * ow, cy: (1 - u) * oh, lang: r.lang * skala, kort: r.kort * skala, vinkel: r.vinkel - Math.PI / 2 }
+                        : { cx: u * ow, cy: v * oh, lang: r.lang * skala, kort: r.kort * skala, vinkel: r.vinkel };
+  return { bild: c, kort };
+}
+
+/* Bilden med facitkortet k inklistrat i rektangeln r. */
+function klistra(img, k, r) {
+  const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  g.translate(r.cx, r.cy); g.rotate(r.vinkel - Math.PI / 2);          // lokal y-axel = långsidan
+  if (k.w > k.h) { g.rotate(-Math.PI / 2); g.drawImage(img, k.x, k.y, k.w, k.h, -r.lang / 2, -r.kort / 2, r.lang, r.kort); }
+  else g.drawImage(img, k.x, k.y, k.w, k.h, -r.kort / 2, -r.lang / 2, r.kort, r.lang);
+  return c;
+}
+
+/* Närmaste lediga trä för kortet k vridet deg grader: beskärningen helt i
+   bilden, och 30 % luft runt lådan till varje kort som redan ligger där. */
+function plats(k, deg, IW, IH, hinder) {
+  const r0 = { lang: Math.max(k.w, k.h), kort: Math.min(k.w, k.h), vinkel: Math.PI / 2 + deg * RAD };
+  const b0 = lada(Object.assign({ cx: 0, cy: 0 }, r0)), steg = Math.min(b0.w, b0.h) / 4;
+  let bast = null, bd = Infinity;
+  for (let cy = 0; cy <= IH; cy += steg) for (let cx = 0; cx <= IW; cx += steg) {
+    const r = Object.assign({ cx, cy }, r0), b = lada(r);
+    if (!inuti(vidga(b, 1.16), IW, IH) || hinder.some(h => overlapp(vidga(b, 1.3), h) > 0)) continue;
+    const d = Math.hypot(cx - (k.x + k.w / 2), cy - (k.y + k.h / 2));
+    if (d < bd) { bd = d; bast = r; }
+  }
+  return bast;
+}
+
+/* Mattans nivå som i MES-29-mätningen: medianen utanför korten, i 360 px bredd. */
+function mattNiva(img, hinder) {
+  const IW = img.naturalWidth, IH = img.naturalHeight, aw = 360, ah = Math.round(IH * aw / IW);
+  const c = document.createElement('canvas'); c.width = aw; c.height = ah;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, aw, ah); const d = g.getImageData(0, 0, aw, ah).data, fri = [];
+  for (let y = 0; y < ah; y++) for (let x = 0; x < aw; x++) {
+    const px = x * IW / aw, py = y * IH / ah;
+    if (hinder.some(k => px >= k.x && px <= k.x + k.w && py >= k.y && py <= k.y + k.h)) continue;
+    const i = (y * aw + x) * 4; fri.push(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114);
+  }
+  return med(fri);
+}
+
+async function listaFall() {
+  const namn = (await (await fetch('fall/', { cache: 'no-store' })).json()).filter(e => e.mapp).map(e => e.namn).sort();
+  const ai = await (await fetch('senaste-ai.json', { cache: 'no-store' })).json();
+  const ut = [];
+  for (const id of namn) {
+    const facit = await (await fetch(`fall/${encodeURIComponent(id)}/facit.json`, { cache: 'no-store' })).json();
+    const img = await ladda(`fall/${encodeURIComponent(id)}/bild.jpg`);
+    const IW = img.naturalWidth, IH = img.naturalHeight, px = k => ({ namn: k.namn, dold: !!k.dold, x: k.x * IW, y: k.y * IH, w: k.w * IW, h: k.h * IH });
+    const medRuta = facit.kort.filter(k => k.x != null && k.w != null);
+    /* Korten som hinder: facits rutor, eller — där facit bara har namn —
+       spåren Claude hittade i --ai-körningen, med mer luft (grövre lådor). */
+    const a = ai.find(r => r.id === id);
+    const hinder = medRuta.length ? medRuta.map(px) : ((a && a.spar) || []).map(px);
+    ut.push({ id, nr: id.slice(0, 2), facit, img, IW, IH, kort: medRuta.filter(k => !k.dold).map(px), hinder, luft: medRuta.length ? 1.3 : 1.8, M: mattNiva(img, hinder) });
+  }
+  return ut;
+}
+
+/* ── A: serUtSomKort direkt ──────────────────────────────────────── */
+function delA(fall) {
+  const R = { kort: [], tra: [], kant: [], felvridna: [] };
+  for (const f of fall) {
+    for (const k of f.kort) for (const deg of KORT_GRADER) {
+      const r = plats(k, deg, f.IW, f.IH, f.hinder);
+      if (!r) { R.kort.push({ fall: f.nr, namn: k.namn, deg, saknas: true }); continue; }
+      const { bild, kort } = beskar(klistra(f.img, k, r), r);
+      R.kort.push({ fall: f.nr, namn: k.namn, deg, rak: w.serUtSomKort(bild, f.M, 1), vriden: w.serUtSomKort(bild, f.M, 1, kort) });
+      /* Ett rakt kort mätt i en rektangel som är fel vriden åt båda hållen: så mäts det när detektorns vinkel brusar över BESKAR_SNETT. */
+      if (deg === 0) for (const fel of FEL_GRADER) for (const tecken of [1, -1])
+        R.felvridna.push({ fall: f.nr, namn: k.namn, fel, tecken, ok: w.serUtSomKort(bild, f.M, 1, Object.assign({}, kort, { vinkel: kort.vinkel + tecken * fel * RAD })) });
+    }
+    const kortS = med(f.hinder.map(h => Math.min(h.w, h.h)));
+    for (const deg of TRA_GRADER) {
+      const r0 = { lang: kortS / ASPECT, kort: kortS, vinkel: Math.PI / 2 + deg * RAD };
+      const b0 = lada(Object.assign({ cx: 0, cy: 0 }, r0)), steg = Math.min(b0.w, b0.h) / 2;
+      const prova = (cx, cy) => {
+        const r = Object.assign({ cx, cy }, r0), b = lada(r);
+        if (f.hinder.some(h => overlapp(vidga(b, f.luft), h) > 0)) return;
+        const { bild, kort } = beskar(f.img, r);
+        /* +lampa: mattans nivå 40 steg mörkare än ytan, som när bitens bord ligger under lampan. */
+        (inuti(vidga(b, 1.16), f.IW, f.IH) ? R.tra : R.kant).push({ fall: f.nr, deg, cx: Math.round(cx), cy: Math.round(cy),
+          rak: w.serUtSomKort(bild, f.M, 1), vriden: w.serUtSomKort(bild, f.M, 1, kort),
+          rakL: w.serUtSomKort(bild, f.M - 40, 1), vridenL: w.serUtSomKort(bild, f.M - 40, 1, kort) });
+      };
+      /* Rutnätet börjar kant i kant med bilden (marginalen utanför), och högra kolumnen och nedersta raden läggs också kant i kant. */
+      const xs = [], ys = [];
+      for (let x = b0.w / 2; x <= f.IW - b0.w / 2; x += steg) xs.push(x); xs.push(f.IW - b0.w / 2);
+      for (let y = b0.h / 2; y <= f.IH - b0.h / 2; y += steg) ys.push(y); ys.push(f.IH - b0.h / 2);
+      for (const y of ys) for (const x of xs) prova(x, y);
+    }
+  }
+  return R;
+}
+
+function skrivA(R) {
+  const tab = (namn, lista, grader, falt) => {
+    const cell = g => { const a = lista.filter(t => t.deg === g && !t.saknas); return a.length ? `${a.filter(t => t[falt]).length}/${a.length}`.padStart(8) : '       –'; };
+    return namn.padEnd(26) + grader.map(cell).join('');
+  };
+  const appen = t => naraAxel(t.deg) ? t.rak : t.vriden;
+  const appenL = t => naraAxel(t.deg) ? t.rakL : t.vridenL;
+  for (const t of [...R.kort, ...R.tra, ...R.kant]) { t.appen = appen(t); if ('rakL' in t) t.appenL = appenL(t); }
+  skriv('A. serUtSomKort direkt (M = medianen utanför korten, k = 1, som MES-29)');
+  skriv(''.padEnd(26) + KORT_GRADER.map(g => (g + '°').padStart(8)).join(''));
+  for (const fk of [...new Set(R.kort.map(t => t.fall))]) {
+    const a = R.kort.filter(t => t.fall === fk);
+    skriv(tab(`kort ${fk}, rakt`, a, KORT_GRADER, 'rak'));
+    skriv(tab(`kort ${fk}, vridet`, a, KORT_GRADER, 'vriden'));
+  }
+  skriv(tab('kort alla, appen', R.kort, KORT_GRADER, 'appen'));
+  const miss = R.kort.filter(t => !t.saknas && !t.appen);
+  if (miss.length) skriv('  skräp i appen: ' + miss.map(t => `${t.fall} ${t.namn} ${t.deg}°`).join(', '));
+  /* Ett kort som inte fick plats mäts inte — det ska synas, och en vinkel utan ett enda mätt kort får inte passera som godkänd. */
+  const utanPlats = R.kort.filter(t => t.saknas), namnUtan = [...new Set(utanPlats.map(t => `${t.fall} ${t.namn}`))];
+  if (utanPlats.length) skriv('  utan ledig plats: ' + namnUtan.map(n => `${n} (${utanPlats.filter(t => `${t.fall} ${t.namn}` === n).map(t => t.deg + '°').join(', ')})`).join('; '));
+  const tomma = KORT_GRADER.filter(g => !R.kort.some(t => t.deg === g && !t.saknas));
+  if (tomma.length) skriv('  INGET kort mätt vid ' + tomma.map(g => g + '°').join(', ') + ' — fäller körningen');
+  skriv('\nRaka kort mätta i en rektangel som är fel vriden (+ och −, två per kort) — godkända:');
+  skriv(''.padEnd(26) + FEL_GRADER.map(g => (g + '°').padStart(8)).join(''));
+  skriv('kort alla, rakt, fel vriden'.padEnd(26) + FEL_GRADER.map(g => { const a = R.felvridna.filter(t => t.fel === g); return `${a.filter(t => t.ok).length}/${a.length}`.padStart(8); }).join(''));
+  const felMiss = R.felvridna.filter(t => !t.ok);
+  if (felMiss.length) skriv('  skräp: ' + felMiss.map(t => `${t.fall} ${t.namn} ${t.tecken > 0 ? '+' : '−'}${t.fel}°`).join(', '));
+  skriv('\nBitar av bordet utan kort — ska vara 0 (godkända/antal):');
+  skriv(''.padEnd(26) + TRA_GRADER.map(g => (g + '°').padStart(8)).join(''));
+  for (const [namn, lista] of [['trä inne', R.tra], ['trä vid kanten', R.kant]]) {
+    skriv(tab(namn + ', rakt', lista, TRA_GRADER, 'rak'));
+    skriv(tab(namn + ', vridet', lista, TRA_GRADER, 'vriden'));
+    skriv(tab(namn + ', appen', lista, TRA_GRADER, 'appen'));
+    skriv(tab(namn + ' +lampa, appen', lista, TRA_GRADER, 'appenL'));
+  }
+  for (const fk of [...new Set([...R.tra, ...R.kant].map(t => t.fall))]) {
+    const a = [...R.tra, ...R.kant].filter(t => t.fall === fk), g = a.filter(t => t.appen), gL = a.filter(t => t.appenL);
+    skriv(`  fall ${fk}: ${a.length} bitar, appen släpper ${g.length}${g.length ? ' (' + g.map(t => `${t.deg}° @${t.cx},${t.cy}`).join(', ') + ')' : ''}; +lampa ${gL.length}`);
+  }
+  /* Slutkoden gäller det den här sidan finns för: den vridna mätningen. Nära
+     en axel mäter appen rakt, som före MES-29:s vinkelfix, och det provar
+     kor.cjs; de bitarna står i tabellen ovan men fäller inte körningen. */
+  const traVridet = [...R.tra, ...R.kant].filter(t => !naraAxel(t.deg) && t.appen).length;
+  if (traVridet) skriv(`  ${traVridet} bitar av bordet godkändes av den vridna mätningen`);
+  const tommaTra = TRA_GRADER.filter(g => ![...R.tra, ...R.kant].some(t => t.deg === g));
+  if (tommaTra.length) skriv('  INGEN bit av bordet mätt vid ' + tommaTra.map(g => g + '°').join(', ') + ' — fäller körningen');
+  return traVridet + miss.length + tomma.length + tommaTra.length;
+}
+
+/* ── B: hela kedjan ──────────────────────────────────────────────── */
+async function laddaApp() {
+  const f = $('#app');
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = '../../'; });
+  w = f.contentWindow;
+  for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
+  K = w.eval('Kamera');
+  if (!K || typeof K.start !== 'function' || typeof w.serUtSomKort !== 'function') throw new Error('hittar inte Kamera eller serUtSomKort i appen');
+  try { w.eval('prefs').aiAuto = false; } catch (e) {}
+  w.requestAnimationFrame = cb => { rafKo.push(cb); return rafKo.length; };
+  w.cancelAnimationFrame = () => {};
+  w.visaVy('kamera');
+}
+
+/* En bild genom kameran, som korFall() i kor.html. Domen per spår: rak =
+   beskärningen som den är, ny = det kamIdentifiera fäller med det fjärde
+   argumentet appen skickar (i en app utan det är ny = rak). */
+async function korScen(bild, ruta, kortLista) {
+  const doc = w.document;
+  const cv = doc.createElement('canvas'); cv.width = bild.width; cv.height = bild.height; cv.getContext('2d').drawImage(bild, 0, 0);
+  cv.videoWidth = cv.width; cv.videoHeight = cv.height; cv.play = () => Promise.resolve();
+  cv.id = 'kamVideo'; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';
+  const gammal = doc.getElementById('kamVideo'); if (gammal) gammal.replaceWith(cv);
+  const nav = w.navigator;
+  if (!nav.mediaDevices) Object.defineProperty(nav, 'mediaDevices', { value: {}, configurable: true });
+  nav.mediaDevices.getUserMedia = async () => ({ getTracks: () => [] });
+  w.visaVy('kamera');
+  K.satKalibrering({ ruta });
+  const logg = new Map(), t0 = performance.now();
+  try {
+    await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, {
+      status: () => {}, fas: () => {}, bord: () => {},
+      identifiera: (c, id, gissning, kort) => {
+        const rak = w.serUtSomKort(c, K.mattNiva, K.utseendeSkala), ny = w.serUtSomKort(c, K.mattNiva, K.utseendeSkala, kort);
+        /* …och samma två domar med skalan 1: bordet i Jespers lampljus, där
+           trösklarna mättes. En stillbild får ofta lägre avvikelse (golden 02:
+           0,8) och är då snällare än telefonen på samma bord. */
+        logg.set(id, { rak, ny, vriden: !!kort, k: +K.utseendeSkala.toFixed(2), rak1: w.serUtSomKort(c, K.mattNiva, 1), ny1: w.serUtSomKort(c, K.mattNiva, 1, kort) });
+        return Promise.resolve(ny ? { namn: null, saker: false, cands: [] } : { skrap: true });
+      }
+    });
+    let sig = '', stabil = 0;
+    for (;;) {
+      await sleep(150);
+      const ms = performance.now() - t0, spar = K.spar, lage = K.lage;
+      const s2 = spar.map(t => `${t.id}:${t.tillstand}`).join('|') + '@' + lage;
+      if (s2 !== sig) { sig = s2; stabil = ms; }
+      const lart = !['ljus', 'lar', 'start', 'ingen'].includes(lage);
+      const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap');
+      if ((lart && svarade && ms - stabil >= 1500 && ms > 2500) || ms > 20000) break;
+    }
+    const { aw, ah } = K.analysMatt, r = K.ruta, IW = cv.width, IH = cv.height;
+    return K.spar.map(t => {
+      const b = t.ram || t.box, bb = { x: (r.x + b.x / aw * r.w) * IW, y: (r.y + b.y / ah * r.h) * IH, w: b.w / aw * r.w * IW, h: b.h / ah * r.h * IH };
+      const cx = (r.x + t.cx / aw * r.w) * IW, cy = (r.y + t.cy / ah * r.h) * IH;
+      const k = kortLista.find(k => iou(bb, k.box) >= 0.3 || (k.rekt ? iRekt(cx, cy, k.rekt) : (cx >= k.box.x && cx <= k.box.x + k.box.w && cy >= k.box.y && cy <= k.box.y + k.box.h)));
+      const grader = t.vinkel != null ? Math.round(((t.vinkel / RAD) % 180 + 180) % 180) : null;
+      return { id: t.id, tillstand: t.tillstand, kort: k ? k.namn : null, klistrad: !!(k && k.rekt), grader, ram: !!t.ram,
+               matt: `${Math.round(bb.w)}×${Math.round(bb.h)}`, logg: logg.get(t.id) || null };
+    });
+  } finally { try { K.stopp(); } catch (e) {} }
+}
+
+async function delB(fall) {
+  const B = { klistrade: [], golden: [] };
+  const ks = v => v ? 'kort' : 'skräp';
+  const dom = s => !s.logg ? 'ej frågad' : `k ${s.logg.k}: rak ${ks(s.logg.rak)}, ny ${ks(s.logg.ny)}${s.logg.vriden ? ' (vridet)' : ''}; k 1: rak ${ks(s.logg.rak1)}, ny ${ks(s.logg.ny1)}`;
+  skriv('\nB. hela kedjan: ett facitkort inklistrat i vinkel, detektorns eget spår (vinkel, låda/ram) — kvar = inte skräp');
+  for (const f of fall.filter(f => f.kort.length)) {
+    for (const k of f.kort) for (const deg of KEDJA_GRADER) {
+      const r = plats(k, deg, f.IW, f.IH, f.hinder);
+      if (!r) { B.klistrade.push({ fall: f.nr, namn: k.namn, deg, saknas: true }); continue; }
+      status(`B: ${f.id} ${k.namn} ${deg}°`);
+      const kortLista = f.kort.map(q => ({ namn: q.namn, box: q })).concat([{ namn: '*' + k.namn, box: lada(r), rekt: r }]);
+      const spar = await korScen(klistra(f.img, k, r), f.facit.ruta, kortLista);
+      const mina = spar.filter(s => s.klistrad), falska = spar.filter(s => !s.kort && s.tillstand !== 'skrap');
+      const kvar = mina.some(s => s.tillstand !== 'skrap');
+      B.klistrade.push({ fall: f.nr, namn: k.namn, deg, kvar, hittad: mina.length > 0, spar: mina, falska: falska.length,
+                         originalKvar: f.kort.filter(q => spar.some(s => s.kort === q.namn && s.tillstand !== 'skrap')).length, original: f.kort.length });
+      skriv(`  ${f.nr} ${k.namn.padEnd(22)} ${String(deg).padStart(2)}°: ` + (mina.length ? mina.map(s => `${s.tillstand} ${s.matt} ${s.grader}°${s.ram ? ' ram' : ''} [${dom(s)}]`).join(' + ') : 'inget spår')
+            + (falska.length ? `  · ${falska.length} falska kvar` : ''));
+    }
+  }
+  skriv('\n  inklistrade kort kvar per vinkel: ' + KEDJA_GRADER.map(g => { const a = B.klistrade.filter(t => t.deg === g && !t.saknas); return `${g}° ${a.filter(t => t.kvar).length}/${a.length}`; }).join(', ')
+        + `; originalen kvar ${B.klistrade.reduce((s, t) => s + (t.originalKvar || 0), 0)}/${B.klistrade.reduce((s, t) => s + (t.original || 0), 0)}; falska kvar ${B.klistrade.reduce((s, t) => s + (t.falska || 0), 0)}`);
+  const medK1 = (g, falt) => { const a = B.klistrade.filter(t => t.deg === g && !t.saknas); return `${a.filter(t => t.spar.some(s => s.logg && s.logg[falt])).length}/${a.length}`; };
+  skriv('  samma spår med skalan 1, rak → ny: ' + KEDJA_GRADER.map(g => `${g}° ${medK1(g, 'rak1')} → ${medK1(g, 'ny1')}`).join(', '));
+  const utanPlatsB = B.klistrade.filter(t => t.saknas);
+  if (utanPlatsB.length) skriv('  utan ledig plats: ' + utanPlatsB.map(t => `${t.fall} ${t.namn} ${t.deg}°`).join(', '));
+  const tommaB = KEDJA_GRADER.filter(g => !B.klistrade.some(t => t.deg === g && !t.saknas));
+  if (tommaB.length) skriv('  INGET kort genom kedjan vid ' + tommaB.map(g => g + '°').join(', ') + ' — fäller körningen');
+  B.fallna = B.klistrade.filter(t => !t.saknas && !t.kvar).length + tommaB.length;
+  skriv('\n  golden-fallen som de är — spår där ny dom ≠ rak:');
+  for (const f of fall) {
+    status(`B: ${f.id} som det är`);
+    const c = document.createElement('canvas'); c.width = f.IW; c.height = f.IH; c.getContext('2d').drawImage(f.img, 0, 0);
+    const spar = await korScen(c, f.facit.ruta, f.kort.map(q => ({ namn: q.namn, box: q })));
+    const fragade = spar.filter(s => s.logg), vridna = fragade.filter(s => s.logg.vriden), byten = fragade.filter(s => s.logg.rak !== s.logg.ny);
+    B.golden.push({ fall: f.nr, spar });
+    skriv(`  ${f.id}: ${spar.length} spår, ${fragade.length} frågade, ${vridna.length} mätta vridet` + (vridna.length ? ` (${vridna.map(s => s.grader + '°').join(', ')})` : '') + `, ${byten.length} byten`
+          + byten.map(s => `\n    ${s.matt} ${s.grader}°${s.ram ? ' ram' : ''} ${s.kort || 'utan facit'}: ${dom(s)}`).join(''));
+  }
+  return B;
+}
+
+(async () => {
+  try {
+    await laddaApp();
+    status('Läser fallen…');
+    const fall = await listaFall();
+    const RES = {};
+    let samre = 0;
+    if (DEL.includes('a')) { status('A: direkt…'); await sleep(0); RES.A = delA(fall); samre = skrivA(RES.A); }
+    if (DEL.includes('b')) { RES.B = await delB(fall); samre += RES.B.fallna; }
+    window.RES = RES; window.SAMRE = samre;
+    status(samre ? `Klar. ${samre} fel: vridna kort som blev skräp, vridna bitar av bordet som godkändes, eller vinklar utan ett mätt kort.` : 'Klar. Inga vridna kort blev skräp och ingen vriden bit av bordet godkändes.');
+  } catch (e) { status('Fel: ' + (e && e.message || e)); console.error(e); }
+})();
+</script>

@@ -17,6 +17,7 @@ dev/golden/
   markera.html       annoteringsverktyget: ritar facit.json i webbläsaren
   kor.html           provkörningen, i webbläsaren
   kor.cjs            samma provkörning från terminalen, i en huvudlös Chrome
+  vriden.html/.cjs   skräpfiltret mot kort i vinkel och mot bordet utan kort
   senaste.json       senaste incheckade körningen — det kor.html jämför med
   historik.md        en rad per incheckad körning: datum, commit, metod, totaler
   fall/
@@ -110,7 +111,23 @@ det är där kedjan slutar. Med `--ai` räknas också Claudes "inget kort" som s
 (`varfor: "ai: inget kort"`). Skräpfiltret (`serUtSomKort`) har sedan MES-29 två
 regler till: kortet ska skilja sig från marginalen runt det, och strukturen ska
 finnas i minst hälften av 4×5 celler i kortets insida; bildpunkter utanför
-videon räknas inte.
+videon räknas inte. Ett kort som ligger snett mäts i spårets vridna rektangel,
+inte i beskärningens raka låda (beskar skickar den med). Det provas för sig:
+
+```bash
+node dev/golden/vriden.cjs
+```
+
+klistrar in facitkorten ur fall 02 i 0–60° på bordet (fall 01:s kort får
+bara plats raka) och dömer dem med appens egen `serUtSomKort`, dels direkt,
+dels genom hela kameran (detektorns egen vinkel och låda). Raka kort mäts
+också i en rektangel som med flit är 5–25° fel vriden, som när detektorns
+vinkel brusar. Mot dem står kortstora bitar av borden utan kort, inne på
+bordet och mot bildens kant (vridna på 02–06). Slutkod 1 om ett vridet kort
+blir skräp, en vriden bit av bordet godkänns eller en vinkel inte fick ett
+enda mätt kort. Raka bitar som godkänns står i
+tabellen men fäller inte körningen: där mäter appen som förut, och det provar
+`kor.cjs` (i 04–06 är de skålen, bordskanten mot golvet och ribborna).
 
 Namnläsaren körs bara när titelraden är hög nog att läsas (remsan ≥ 40 px i
 beskärningen; på 60 cm ja, på 150 cm nej — där gav den tomt på alla kort) och

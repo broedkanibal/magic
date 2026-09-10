@@ -9861,16 +9861,33 @@ function harTextruta(im, box, rot) {
       Uppmätt på golden-setets 24 beskärningar 0,85–1; trä med band ≤ 0,2.
    Med hela kamerabilden kommer bordskanter, golv och ribbor med. I golden
    03–06 släppte de gamla reglerna igenom 20–66 % av kortstora ytor utan
-   kort, de nya 0–16 %. Resten avgör Claude (svarAI). Känd lucka: ett kort
-   som ligger 30° snett eller mer får bord i beskärningens hörn och döms
-   som skräp — av de gamla reglerna också (uppmätt på golden 02). */
-function serUtSomKort(im, matt, skala) {
+   kort, de nya 0–16 %. Resten avgör Claude (svarAI).
+   Ett kort som ligger snett mäts i sin egen rektangel (kort: spårets mitt,
+   sidor och vinkel i beskärningen, ur beskar), inte i beskärningens raka
+   låda — den har bord i hörnen, och där sjönk andelarna under trösklarna.
+   Uppmätt på golden 02 med dev/golden/vriden.cjs (k = 1): kort vridna på
+   träet klarade rakt 4/4 upp till 10°, 3/4 vid 15° och 0/4 vid 30–60°, i
+   rektangeln 4/4 i alla vinklar. Trösklarna är desamma. Kortstora bitar av
+   borden 02–06 vridna 15–60° godkänns inte: 0 av 178 i rektangeln (2
+   rakt; på fall 01 får ingen vriden bit plats). Nära en axel är kort null,
+   och beskärningen mäts som förut. */
+function serUtSomKort(im, matt, skala, kort) {
   const k = skala || 1;
   const cv = document.createElement('canvas');
   cv.width = 64; cv.height = Math.round(64 / Matcher.ASPECT);
   const W = cv.width, H = cv.height;
   const c = cv.getContext('2d', { willReadFrequently: true });
-  c.drawImage(im, 0, 0, im.width, im.height, 0, 0, W, H);
+  if (kort) {
+    /* Det vridna kortet med sin egen 8 % marginal ritas rakt in i rutnätet,
+       långsidan lodrätt: då ligger ringen, insidan och cellerna nedan längs
+       kortets egna kanter och inte längs beskärningens. Det som faller
+       utanför beskärningen blir genomskinligt och räknas inte, som bildpunkter
+       utanför videon. */
+    const fi = ((kort.vinkel % Math.PI) + Math.PI) % Math.PI;   // långsidan nedåt: ett rakt kort står rätt
+    const lc = Math.cos(fi), ls = Math.sin(fi), gu = W / ((1 + 2 * 0.08) * kort.kort), gv = H / ((1 + 2 * 0.08) * kort.lang);
+    c.setTransform(ls * gu, lc * gv, -lc * gu, ls * gv, W / 2 - gu * (ls * kort.cx - lc * kort.cy), H / 2 - gv * (lc * kort.cx + ls * kort.cy));
+    c.drawImage(im, 0, 0);
+  } else c.drawImage(im, 0, 0, im.width, im.height, 0, 0, W, H);
   const d = c.getImageData(0, 0, W, H).data;
   const L = new Float32Array(W * H), ok = new Uint8Array(W * H);
   let n = 0, s = 0, q = 0, bort = 0;
@@ -11768,6 +11785,13 @@ const Kamera = (() => {
   const AW_MIN = 240, AW_MAX = 360;
   const TAKT_MS = 150;         // analystakt: ~7 gånger i sekunden
   const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
+  /* Från så här långt från en axel mäts kortet vridet i beskärningen (beskar).
+     Upp till 10° klarar den raka lådan alla kort (golden 02, k = 1), och vid
+     15° fäller den det första (1 av 4) — närmare en axel behövs inte
+     rektangeln. Detektorns vinkel brusar ibland mer än så: golden 02:s raka
+     Plains fick 103°. Men ett rakt kort mätt i en rektangel som med flit är
+     5–25° fel vriden godkändes ändå, 12 av 12 (dev/golden/vriden.cjs). */
+  const BESKAR_SNETT = 10 * Math.PI / 180;
   /* Referensen är inte EN bildruta utan medel av några. En enda ruta bär
      hela sitt brus in i varje jämförelse som görs sedan, och skillnaden
      mellan rutorna är dessutom det enda måttet på hur mycket brus mattan
@@ -13572,7 +13596,20 @@ const Kamera = (() => {
     x.imageSmoothingQuality = 'high';
     if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(video, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
     else x.drawImage(video, bx, by, bw, bh, 0, 0, ow, oh);
-    return c;
+    /* Var kortet ligger i beskärningen, när det ligger snett: spårets vridna
+       rektangel (mitt, sidor, vinkel) räknad genom samma led som bilden —
+       analyspixlar, video, marginalen, −90° när lådan låg. Lådan ovan är rak,
+       så ett kort i vinkel har bord i hörnen; serUtSomKort mäter då i
+       rektangeln i stället. Nära en axel är lådan kortet, och null betyder
+       att beskärningen mäts som den är. */
+    let kort = null;
+    if (t.vinkel != null && t.lang > 0 && t.kort > 0 && Math.abs(Math.atan2(Math.sin(4 * t.vinkel), Math.cos(4 * t.vinkel))) / 4 >= BESKAR_SNETT) {
+      /* t.cx är ett medel av bildpunkternas index; lådan och bilden räknar i kanter, så mitten ligger en halv bildpunkt in. */
+      const u = (r.x + (t.cx + 0.5) * sx - bx) / bw, v = (r.y + (t.cy + 0.5) * sy - by) / bh, s = skala * Math.sqrt(sx * sy);
+      kort = liggande ? { cx: v * ow, cy: (1 - u) * oh, lang: t.lang * s, kort: t.kort * s, vinkel: t.vinkel - Math.PI / 2 }
+                      : { cx: u * ow, cy: v * oh, lang: t.lang * s, kort: t.kort * s, vinkel: t.vinkel };
+    }
+    return { bild: c, kort };
   }
 
   /* Bänken: en färdig referens rakt in, utan insamlingsvarv. Referensen i
@@ -13602,8 +13639,8 @@ const Kamera = (() => {
     try {
       /* Ramen först: regionen räcker för att spåra, inte för att beskära. */
       t.ram = finLada(t.box, senasteG0, t);
-      c = video ? beskar(t) : null;
-      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null);
+      const b = video ? beskar(t) : null; c = b && b.bild;
+      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
     } catch (e) { fel = true; }
     finally { identifierar = false; }
     /* null betyder "inte redo än" — leken byggs fortfarande. Spåret väntar
@@ -14064,7 +14101,7 @@ async function oppnaKamera(gameId) {
       /* Fasbytet går som ett eget bordsmeddelande: chippet på datorn säger
          "lär sig ljuset" ur exakt det, och behöver inte gissa ur tystnaden. */
       fas: () => { if (kamLage) Moln.sandKam('bord', { fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }); },
-      identifiera: (canvas, id, gissning) => kamIdentifiera(canvas, id, gissning),
+      identifiera: (canvas, id, gissning, kort) => kamIdentifiera(canvas, id, gissning, kort),
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       helbild: (canvas, o) => kamHelbild(canvas, o)
     });
@@ -14158,7 +14195,7 @@ async function byggKamPool() {
   } finally { kamPoolBygger = false; }
 }
 
-async function kamIdentifiera(canvas, id, gissning) {
+async function kamIdentifiera(canvas, id, gissning, kort) {
   if (!Pool.idx || !canvas) return null;          // poolen är inte klar än — spåret får vänta
   const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
   /* Ser beskärningen ut som ett kort MOT MATTAN? Spridning och andel
@@ -14167,7 +14204,7 @@ async function kamIdentifiera(canvas, id, gissning) {
      Jespers bord till skräp. En bit trä, en skugga eller ett blänk som kom
      igenom detektorn har varken spridning eller avvikelse, och ska inte bli
      en granskningspost med en träbit som miniatyr. */
-  if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala)) return { skrap: true };
+  if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
   /* Namnet läses i workern medan illustrationen matchas på huvudtråden. */
   const namnP = Namn.las(canvas, Pool.idx.names);
   let v;
