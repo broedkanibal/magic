@@ -406,6 +406,33 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      sma 0. */
   check(`W9b utan känd upplösning (${JSON.stringify(Kamera.upplosning)}) är rådet det gamla: '${Kamera.rad}', sma ${Kamera.sma}`,
         Kamera.upplosning === null && Kamera.rad === 'Korten är små i bilden. Flytta telefonen närmare bordet.' && Kamera.sma === 0);
+  /* W9c–W9f (MES-31): med Claude påslagen (aiPa) gäller rådet först när
+     Claude inte heller läser de små korten. Uppmätt i avståndsprovet
+     2026-09-11: Claude läste 9 av 11 kort i golden 06 på 129 px kortsida
+     medan rådet stod tänt. Bänken har ingen video, så frågan ställs för
+     hand som i W12 (aiFragad, provas) och besvaras via Kamera.svarAI. */
+  {
+    const litet = g => kort(g, W, 60, 50, 14, 20, 180);   // 112 videopx: under golvet, men ett spår (W9)
+    const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
+    const radet = () => /små i bilden/.test(Kamera.rad || '');
+    Kamera.installera({ aiPa: () => true });
+    namnSvar = osaker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(litet);
+    let t = Kamera.spar.find(x => x.tillstand === 'okand');
+    check(`W9c Claude på, det lilla kortet oläst och ingen fråga ute: rådet '${(Kamera.rad || '').slice(0, 24)}…'`, !!t && radet());
+    t.aiFragad = true; t.provas = true; t.aiFragadNar = nu; s = await ruta(litet);
+    check(`W9d frågan till Claude är ute: rådet ${JSON.stringify(Kamera.rad)} (väntar)`, !radet());
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.5, y: 0.5 }], { antal: 1 }); s = await ruta(litet);
+    check(`W9e Claude läste det: ${t.tillstand} ${t.namn}, rådet ${JSON.stringify(Kamera.rad)}`, t.tillstand === 'klar' && !radet());
+    namnSvar = osaker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(litet);
+    t = Kamera.spar.find(x => x.tillstand === 'okand');
+    t.aiFragad = true; t.provas = true; t.aiFragadNar = nu;
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: false, x: 0.5, y: 0.5 }], { antal: 1 }); s = await ruta(litet);
+    check(`W9f Claude osäker också: ${t.tillstand} (${t.varfor}), rådet '${(Kamera.rad || '').slice(0, 24)}…'`, t.tillstand === 'okand' && radet());
+    Kamera.installera({ aiPa: null });
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+  }
 
   // ── MES-31 små kort: räknas och rapporteras i stället för att tigas ihjäl ──
   /* Ett kort under golvet (KORT_MIN_PX × 0,6 = 90 videopx kort sida) blir

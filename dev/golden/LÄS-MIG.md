@@ -25,7 +25,8 @@ dev/golden/
   kor.cjs            samma provkörning från terminalen, i en huvudlös Chrome
   vriden.html/.cjs   skräpfiltret mot kort i vinkel och mot bordet utan kort
   avstand.html/.cjs  avståndsprovet: fotona nerskalade steg för steg — vilket
-                     golv i kedjan går först (ett mått, ingen baslinje)
+                     golv i kedjan går först (ett mått, ingen baslinje);
+                     --ai mäter samma sak med Claude
   senaste.json       senaste incheckade körningen — det kor.html jämför med;
                      i ett videofall också varje bord datorn fick (bordLogg,
                      hela spårposten), som ../dubbletter.cjs spelar upp
@@ -166,9 +167,11 @@ mattans nivå över dem och klippa "bitar av bordet" mitt i ett kort. Fall 07
 **Avståndet** mäts för sig, som ett mått utan dom:
 
 ```bash
-node dev/golden/avstand.cjs [--fall 01,02] [--faktorer 1,0.5] [--json fil]
+node dev/golden/avstand.cjs [--fall 01,02] [--faktorer 1,0.5] [--json fil] [--ai]
 ```
 
+Med `--ai` frågas Claude om det den lokala kedjan är osäker på, som i
+`kor.cjs --ai` (kostar; samma port och profil som utan, körs efter varandra).
 `avstand.html` laddar `kor.html` i en iframe — som gör allt den brukar: listar
 fallen, laddar appen, bygger poolen, hämtar namnläsaren — och lånar sedan
 dess egna funktioner (`stallUpp`, `korStillFall`, `bedom`) för att köra varje

@@ -458,6 +458,7 @@ function aterkoppling(f, prov) {
     },
     identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return folj(w.kamIdentifiera(c, id, gissning, kort)); },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
+    aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas
     /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
        modulen ingen, och det lokala provet mäter som förut. */
     helbild: AI_PA ? (c => folj(w.kamHelbild(c))) : null

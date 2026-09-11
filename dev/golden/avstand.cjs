@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Avståndsprovet från terminalen. Kör: node dev/golden/avstand.cjs [--fall 01,02] [--faktorer 1,0.5] [--json <fil>] [--port <n>]
+/* Avståndsprovet från terminalen. Kör: node dev/golden/avstand.cjs [--fall 01,02] [--faktorer 1,0.5] [--json <fil>] [--port <n>] [--ai]
 
    Startar attrappen, öppnar dev/golden/avstand.html i en huvudlös Chrome
    och skriver det sidan mätt: varje stillbildsfall skalat ner steg för steg
@@ -12,6 +12,13 @@
    --fall 01,03      bara fallen vars mapp börjar så (videofall körs aldrig)
    --faktorer 1,0.5  andra skalfaktorer än 1, 0,8, 0,65, 0,5, 0,4, 0,3
    --json <fil>      hela resultatet som JSON (varje fall × faktor med spåren)
+   --ai              med Claude, som kor.cjs --ai: attrappen kör riktiga
+                     anrop (MESA_AI=1, nyckeln ur .env.local) och kamerans
+                     osäkra spår frågar servern. KOSTAR PENGAR. Samma port
+                     och profil som utan: poolen är densamma med och utan
+                     Claude, och en egen profil byggde om den — det var så
+                     Scryfall svarade 429 mitt i. Körs efter varandra, inte
+                     samtidigt. Raden `metod:` i utdatan visar modellen.
 
    Samma skarv som kor.cjs — se den för varför en huvudlös Chrome. Poolen
    och namnläsaren behövs (fallen ska namnges), så profilen ligger kvar
@@ -31,6 +38,7 @@ const { spawn } = require('child_process'), fs = require('fs'), path = require('
 const ROT = path.join(__dirname, '..', '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const FALL = arg('--fall', ''), FAKTORER = arg('--faktorer', ''), JSONFIL = arg('--json', '');
+const AIFLAG = process.argv.includes('--ai');
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CDP_TAK_MS = 120000;   // ett enskilt anrop till sidan; hela körningen har sitt eget tak nedan
 /* Sex fall × sex faktorer, var och en med kor.html:s tak på 30 s, plus
@@ -57,7 +65,8 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { if (doende)
   };
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await stang(); process.exit(130); });
   try {
-    server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }), stdio: ['ignore', 'pipe', 'pipe'] });
+    if (AIFLAG) console.log('--ai: riktiga anrop till Claude — kostar pengar.');
+    server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }, AIFLAG ? { MESA_AI: '1' } : {}), stdio: ['ignore', 'pipe', 'pipe'] });
     server.stderr.on('data', () => {});
     /* "stub på …" skrivs när listen() lyckats: först då vet vi att porten är vår. */
     await new Promise((res, rej) => {
@@ -87,7 +96,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { if (doende)
     });
     const kor = async uttryck => { const r = await cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }); return r.result && r.result.result ? r.result.result.value : undefined; };
     await cdp('Runtime.enable');
-    const q = new URLSearchParams(); if (FALL) q.set('fall', FALL); if (FAKTORER) q.set('faktorer', FAKTORER);
+    const q = new URLSearchParams(); if (FALL) q.set('fall', FALL); if (FAKTORER) q.set('faktorer', FAKTORER); if (AIFLAG) q.set('ai', '1');
     await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/avstand.html${q.size ? '?' + q : ''}` });
     let sist = '';
     const slut = await tills(async () => {

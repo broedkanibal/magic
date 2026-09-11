@@ -20,7 +20,8 @@ iframe{width:100%;height:760px;border:1px solid #ccc;background:#fff}
    korten — och VILKET golv är det som ger vika först? Golden-fallens
    bild.jpg skalas ner med faktorerna 1, 0,8, 0,65, 0,5, 0,4 och 0,3 (samma
    bord, samma kort, bara längre bort), och varje skalning körs genom hela
-   kedjan precis som ett stillbildsfall i kor.html — utan Claude — och döms
+   kedjan precis som ett stillbildsfall i kor.html — utan Claude, eller med
+   (?ai=1, avstand.cjs --ai) — och döms
    med samma bedom(). Det är ett mått, inte ett prov med slutkod: det finns
    inget "rätt" här, bara ordningen golven faller i.
 
@@ -80,6 +81,11 @@ const rader = []; const skriv = s => { rader.push(s); $('#ut').textContent = rad
 const Q = new URLSearchParams(location.search);
 const FAKTORER = (Q.get('faktorer') || '1,0.8,0.65,0.5,0.4,0.3').split(',').map(Number).filter(x => x > 0 && x <= 1).sort((a, b) => b - a);   // störst först: den är jämförelsens bas
 const FALL = (Q.get('fall') || '').split(',').map(s => s.trim()).filter(Boolean);
+/* ?ai=1 (avstand.cjs --ai): kor.html laddas med samma flagga och låter
+   kamerans osäkra spår fråga Claude — frågan är om Claude läser korten där
+   den lokala kedjan tappar dem (MES-31). Kostar; attrappen måste köra
+   riktiga anrop (MESA_AI=1). */
+const AI = Q.get('ai') === '1';
 /* Golvens tal, som i index.html. Bara för att räkna om kortsidan till
    "kapas beskärningen?" och för rubrikerna — själva domarna läses ur appen. */
 const KORT_MIN_PX = 150, BESKAR_BREDD = 720, MARGINAL = 1.16;
@@ -91,7 +97,7 @@ let kw = null, K = null;   // kor.html:s fönster och appens Kamera-modul (kor.h
 /* ── kor.html, med allt den gör vid start ─────────────────────────── */
 async function laddaKor() {
   const f = $('#kor');
-  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html'; });
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html' + (AI ? '?ai=1' : ''); });
   kw = f.contentWindow;
   for (let i = 0; i < 100; i++) { try { if (typeof kw.korStillFall === 'function') break; } catch (e) {} await sleep(100); }
   for (const fn of ['korStillFall', 'stallUpp', 'bedom']) if (typeof kw[fn] !== 'function') throw new Error('kor.html saknar ' + fn);
@@ -192,6 +198,9 @@ const ja = v => v ? 'ja' : 'nej';
 function skrivTabell(R, fall) {
   const cell = r => !r ? '–' : r.fel ? 'fel' : `${r.namn}/${r.kort} · ${r.felNamn} · ${r.falska}${r.tidsgrans ? ' ⏱' : ''}`;
   const rad = (namn, celler) => '  ' + namn.padEnd(42) + celler.map(c => String(c).padEnd(16)).join('').trimEnd();
+  /* Vad som kördes, som kor.cjs skriver det: med Claude också modellen. */
+  const met = (() => { try { const m = kw.eval('metod')(), a = kw.eval('aiModell')(); return m + (a ? ` (${a})` : ''); } catch (e) { return AI ? '+ai' : 'lokal'; } })();
+  skriv(`metod: ${met}`);
   skriv('Rätt namn/kort · fel namn · falska, per fall och faktor (⏱ = slog i taket på 30 s). Faktor 1 = bild.jpg som den är.');
   skriv(rad('Fall', FAKTORER.map(x => 'faktor ' + x)));
   for (const f of fall) skriv(rad(f.id, FAKTORER.map(x => cell(R.find(r => r.fall === f.id && r.faktor === x)))));

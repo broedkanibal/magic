@@ -60,6 +60,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
+| `node dev/golden/avstand.cjs --ai --fall 02,06` | samma, med Claude (kostar, ~5–10 cent för två fall): läser Claude korten där den lokala kedjan tappar dem? |
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
 | `node dev/avstamning.cjs` | datorns sida: granskningslistan och bordet efteråt, ska sluta med `0 FEL` |
 | `node dev/dubbletter.cjs --fall 07` | eget mått: videofallets bordsrapporter genom datorns avstämning — var dubbletter och tap-fel uppstår (se *Dubbletter*) |
@@ -138,8 +139,28 @@ inte centimetrarna.
 Det som faktiskt tappar namnen är igenkänningen vid 200–250 px kortsida
 (fall 02: 4/4 vid 252, 2/4 vid 202), medan korten fortfarande är spår — inte
 golven. På telefonens 3840 px är kortsidan ~900 px på 40 cm och ~250–300 px
-på 150 cm, så det är där det spelar roll. Nästa spak är Claude på osäkra
-beskärningar (redan vägen för `okand`-spår med AI på), inte lägre golv.
+på 150 cm, så det är där det spelar roll.
+
+**Med Claude (`--ai`, mätt 2026-09-11 med claude-opus-5):** Claude tar de
+osäkra beskärningarna, och läser dem långt förbi den lokala kedjan:
+
+| Fall | faktor 1 | 0,8 | 0,65 | 0,5 |
+|---|---|---|---|---|
+| 02 (150 cm) utan → med Claude | 4/4 → 4/4 | 2/4 → **4/4** | 1/4 → 2/4 | 1/4 → 1/4 |
+| 06 (12 kort omlott) utan → med | 9/11 → 11/11 | 3/11 → **9/11** (2 fel namn, 2 falska) | 6/11 → 8/11 | 0/11 → 0/11 |
+
+Rätt namn/kort, kortsidan 252/202/164/126 px i fall 02 och 159/129/108/83
+i 06. Golvet går vid ~100 px: där är beskärningen för liten också för
+Claude, och under 90 px blir korten aldrig spår. Claude varierar körning till
+körning: en andra körning gav 3/4 i 02 på 0,65 och 10/11 i 06 på 0,8 — och
+där stod rådet inte längre tänt (långt bort: nej).
+
+**Rådet "Korten är små i bilden. Flytta telefonen närmare"** tändes förut
+på storleken ensam — också i 06 på faktor 0,8, där Claude läste 9 av 11.
+Sedan MES-31 gäller det, när Claude är påslagen, först när Claude inte
+heller läser korten: står en fråga ute väntar rådet, och det kommer bara
+när de olästa små korten är fler än de lästa (`radAvstand` i index.html,
+provat i bänken W9c–W9f). Utan Claude dömer storleken som förut.
 
 ## Hastighet
 
