@@ -142,6 +142,7 @@ blir.
 | Kommando | Gör |
 |---|---|
 | `node dev/dubbletter.cjs --fall 07` | videofallet 07, mot facit (`video.handelser`) |
+| `node dev/dubbletter.cjs --logg ~/Downloads/pass-2026-09-11-1002.json` | **ett riktigt pass**, utan facit: loggen sparas i appen med knappen *Spara bordsloggen* i sammanfattningen som visas när auto stängs av (allt telefonen sa under passet, från det att auto slogs på) |
 | `node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn` | en inspelad rapportlista ur bänken, utan facit |
 | `… --json fil` | allt som mättes, som JSON |
 

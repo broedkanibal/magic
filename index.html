@@ -1162,6 +1162,9 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .autosum td{padding:5px 6px;border-bottom:1px solid #ffffff0a;vertical-align:baseline}
 .autosum .tal{text-align:right;font-family:var(--mono);font-size:12px;white-space:nowrap}
 .autosum td.tal i{font-style:normal;color:var(--dim2);font-size:11px}
+.autosum .loggrad{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;font-size:12px;line-height:1.4;color:var(--dim)}
+.autosum .loggrad .btn{flex:none}
+.autosum .loggrad code{font-family:var(--mono);font-size:11px;color:var(--txt);white-space:nowrap}
 .autosum tr.sub td{color:var(--dim);padding-top:2px;padding-bottom:2px}
 .autosum tr.sub td:first-child{padding-left:20px}
 .autosum tr.summa td{font-weight:650;border-top:1px solid var(--line);border-bottom:0}
@@ -15264,6 +15267,39 @@ function aiPris(modell) { if (!modell) return null; return AI_PRIS[String(modell
 function aiKostnad(modell, inTok, utTok) { const p = aiPris(modell); return p ? ((+inTok || 0) * p[0] + (+utTok || 0) * p[1]) / 1e6 : null; }
 const K_AUTOSUM = 'sthv.autosum.v1.';
 let autoSum = null;   // passet: { spel, start, slut, kort: { cid → { metod, modell, ms, namn } }, bok: { sess → { forsta, senaste, nar } }, dator: { anrop, fel, utan, per } }
+/* Bordsloggen (MES-43): varje bord telefonen skickade under passet, i
+   samma form som kor.html sparar videofallens `bordLogg` — så att ett
+   riktigt pass som gav en dubblett går att spela upp genom avstämningen
+   efteråt: `node dev/dubbletter.cjs --logg <fil>`. Dubbletterna i Jespers
+   skärmdump 2026-09-11 (Killing Glare ×2, Plains ×2) gick inte att
+   återskapa: ingenting av det telefonen sagt fanns kvar. Bara i minnet,
+   ett pass i taget (passets start är nyckeln); sammanfattningen när auto
+   stängs av har knappen som sparar den. Högst BORDLOGG_MAX bord (en
+   dryg timme med hjärtslag var tredje sekund) — de äldsta släpps, och
+   filen säger att den är kapad. */
+const BORDLOGG_MAX = 4000;
+let kamBordLogg = null;   // { pass (autoSum.start), start, rader: [{ s, fas, nollstall, grund, spar }], kapad }
+function loggaBord(m) {
+  const nu = Date.now(), p = autoSumSakra();
+  if (!kamBordLogg || kamBordLogg.pass !== p.start) kamBordLogg = { pass: p.start, start: nu, rader: [], kapad: false };
+  kamBordLogg.rader.push({ s: Math.round(nu - kamBordLogg.start) / 1000, fas: m.fas || null, nollstall: !!m.nollstall, grund: m.grund === undefined ? undefined : m.grund, spar: m.spar || [] });
+  if (kamBordLogg.rader.length > BORDLOGG_MAX) { kamBordLogg.rader.shift(); kamBordLogg.kapad = true; }
+}
+function bordLoggFil() {
+  if (!kamBordLogg || !kamBordLogg.rader.length) return null;
+  const ts = new Date(kamBordLogg.start);
+  const id = 'pass-' + ts.toISOString().slice(0, 16).replace('T', '-').replace(':', '');
+  return { id, app: 'mesa', v: 1, start: ts.toISOString(), spel: spelLage ? spelLage.id : null, kapad: kamBordLogg.kapad, bordLogg: kamBordLogg.rader };
+}
+function sparaBordLogg() {
+  const data = bordLoggFil();
+  if (!data) { toast('Ingen bordslogg att spara'); return; }
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = data.id + '.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast('Bordsloggen sparad', 'ok');
+}
 const autoSumTomBok = () => ({ anrop: 0, fel: 0, utan: 0, per: {} });
 function autoSumNy(nu) { return { spel: spelLage ? spelLage.id : null, start: nu, slut: null, kort: {}, bok: {}, dator: autoSumTomBok() }; }
 function autoSumSpara() { if (autoSum && !autoSum.slut && autoSum.spel != null) LS.set(K_AUTOSUM + autoSum.spel, autoSum); }   // ett stängt pass sparas inte om (telefonens sista bok kommer efter avslutet)
@@ -15827,8 +15863,13 @@ function autoSumHtml(sum) {
   if (k.ute) noter.push(`${k.ute} ${k.ute === 1 ? 'fråga var' : 'frågor var'} fortfarande på väg till Claude när auto stängdes av — ${k.ute === 1 ? 'den' : 'de'} räknas inte här.`);
   if (k.totalt.utan) noter.push(`${k.totalt.utan} anrop utan tokenuppgift (nätet eller servern svarade inte) — kostnaden är minst den som står.`);
   if (k.totalt.okandPris.length) noter.push('Pris okänt för ' + k.totalt.okandPris.map(esc).join(', ') + ' — tokens räknas, inte USD.');
-  return kort.join('') + pengar.join('') + (noter.length ? '<ul class="noter">' + noter.map(n => '<li>' + n + '</li>').join('') + '</ul>' : '');
+  /* Bordsloggen: allt telefonen sa under passet, för den som vill felsöka
+     en dubblett eller ett fel tap-läge efteråt (dev/dubbletter.cjs --logg). */
+  const lg = kamBordLogg && kamBordLogg.rader.length ? `<p class="loggrad"><button class="btn sm" id="autoSumLogg" type="button">Spara bordsloggen</button>
+    <span>${svHel(kamBordLogg.rader.length)} bord från passet${kamBordLogg.kapad ? ' (de äldsta släppta)' : ''} — blev ett kort två, eller tappat fast det inte var det? Loggen spelar upp passet: <code>node dev/dubbletter.cjs --logg fil</code></span></p>` : '';
+  return kort.join('') + pengar.join('') + (noter.length ? '<ul class="noter">' + noter.map(n => '<li>' + n + '</li>').join('') + '</ul>' : '') + lg;
 }
+$('#autoSumBody').addEventListener('click', ev => { if (ev.target.closest('#autoSumLogg')) sparaBordLogg(); });
 /* Telefonens sista bok, skickad i stopp-svaret innan den lämnar kanalen.
    Passet är redan stängt; boken läggs på det och rutan ritas om om den
    fortfarande är öppen. */
@@ -16204,6 +16245,7 @@ function kamTogsEmot(m) {
     if (m.barafas) { kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }
     /* Auto av betyder av. Förut lydde datorn ändå, så länge telefonen sände. */
     if (prefs.autoLage === false) return;
+    loggaBord(m);   // bordsloggen: passet går att spela upp efteråt (dev/dubbletter.cjs --logg)
     /* Grundläget följer med varje bord (också hjärtslaget): så vet datorn
        om spelet är kalibrerat innan den frågar. Före avstämningen, som
        läser det. En telefon utan fältet lämnar undefined. */

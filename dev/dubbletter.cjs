@@ -3,6 +3,7 @@
    avstämning, med klockan på rapporternas egen tid.
 
    Kör:  node dev/dubbletter.cjs --fall 07 [--json fil] [--svans 3.5]
+         node dev/dubbletter.cjs --logg ~/Downloads/pass-2026-09-11-1002.json [--json fil]
          node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn [--json fil]
 
    Jesper hade ett Killing Glare och ett Plains på bordet och fick två av
@@ -10,9 +11,11 @@
    eller i datorns avstämning? Det här är ett MÅTT, inget prov: slutkod 0
    vad siffrorna än blir, ingen baslinje.
 
-   Så går det till. Källan är antingen golden-fallets bordslogg (varje bord
-   datorn fick under videokörningen, sparad av kor.html i senaste.json, med
-   facit ur video.handelser) eller en inspelad rapportlista ur
+   Så går det till. Källan är golden-fallets bordslogg (varje bord datorn
+   fick under videokörningen, sparad av kor.html i senaste.json, med facit
+   ur video.handelser), ett riktigt pass sparat ur appen (--logg: knappen
+   "Spara bordsloggen" i sammanfattningen när auto stängs av — samma rader,
+   utan facit), eller en inspelad rapportlista ur
    dev/avstamning-rapporter.json (utan facit — då räknas bara korten per
    namn över tid). Varje rapport spelas upp genom den RIKTIGA avstamBord ur
    index.html, som i dev/avstamning.cjs, med
@@ -45,6 +48,7 @@ const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? proce
 const FALL = arg('--fall', '');
 const RAPP_I = process.argv.indexOf('--rapporter');
 const RAPPORTER = RAPP_I >= 0 ? { fil: process.argv[RAPP_I + 1], nyckel: process.argv[RAPP_I + 2] } : null;
+const LOGG = arg('--logg', '');            // en bordslogg sparad ur appen: knappen "Spara bordsloggen" i sammanfattningen när auto stängs av
 const JSONFIL = arg('--json', '');
 const SVANS_S = +arg('--svans', 3.5);      // så länge klockan går efter sista rapporten (hjärtslag och nådtimer får fyra)
 const HTML = arg('--html', path.join(ROT, 'index.html'));
@@ -53,8 +57,8 @@ const TOLERANS_S = 0.5;                    // facits tider är avlästa ur bildr
 const VIRT0 = 1e6;                         // klockan startar långt från noll: noll betyder "aldrig" på flera ställen
 const GRUND_PROD = 12;                     // ett sparat grundläge, vilket tal som helst: avstämningen läser bara om det är null
 
-if (!FALL && !RAPPORTER) {
-  console.log('Kör: node dev/dubbletter.cjs --fall 07 [--json fil]\n     node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn [--json fil]');
+if (!FALL && !RAPPORTER && !LOGG) {
+  console.log('Kör: node dev/dubbletter.cjs --fall 07 [--json fil]\n     node dev/dubbletter.cjs --logg ~/Downloads/pass-2026-09-11-1002.json [--json fil]   (sparad ur appen: "Spara bordsloggen" när auto stängs av)\n     node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn [--json fil]');
   process.exit(0);
 }
 
@@ -84,7 +88,7 @@ const zonAv = e => e.zon || (LAND.has(e.name) ? ZON_MANA : ZON_SPELL);
 let n = 0; const uid = () => 'c' + (++n);
 const cropCache = new Map();
 const prefs = { lyftForklarad: true }; const savePrefs = () => {};
-const save = () => {}, renderAll = () => {}, resolveAll = () => {}, renderMode = () => {}, uppdateraPbStatus = () => {}, kamSkruvTal = () => {};
+const save = () => {}, renderAll = () => {}, resolveAll = () => {}, renderMode = () => {}, renderGrid = () => {}, uppdateraPbStatus = () => {}, kamSkruvTal = () => {};
 let kamFas = '', kamYta = null, kamRad = '', kamTot = 0, kamLast = 0, kamSer = 0;
 const BORTA_NAD = 3000; let lyftT = null, lyftTips = null;
 let hoppade = new Set(), borttagna = new Set();
@@ -130,13 +134,24 @@ function lasKalla() {
     const facitFil = path.join(__dirname, 'golden', 'fall', rad.id, 'facit.json');
     const facit = JSON.parse(fs.readFileSync(facitFil, 'utf8'));
     const handelser = rad.bordLogg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, slag: 'rapport', nr: i }));
-    return { namn: rad.id, handelser, facit: { handelser: (facit.video && facit.video.handelser) || [], kort: facit.kort || [] }, sekund: s => s, bordLogg: rad.bordLogg };
+    return { namn: rad.id, handelser, facit: { handelser: (facit.video && facit.video.handelser) || [], kort: facit.kort || [] }, sekund: sek, bordLogg: rad.bordLogg };
+  }
+  if (LOGG) {
+    /* Ett riktigt pass, sparat ur appen (sparaBordLogg i index.html): samma
+       rader som videofallens bordLogg — s, fas, nollstall, grund, spar — men
+       utan facit. Grundläget kommer ur raderna (loggat per bord). */
+    const R = JSON.parse(fs.readFileSync(path.resolve(LOGG), 'utf8'));
+    const logg = Array.isArray(R) ? R : R.bordLogg;
+    if (!Array.isArray(logg) || !logg.length) throw new Error(`${LOGG}: ingen bordLogg — spara den med "Spara bordsloggen" i sammanfattningen när auto stängs av`);
+    if (logg.some(r => r.spar == null)) throw new Error(`${LOGG}: rader utan spår — filen är ingen bordslogg`);
+    const handelser = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, slag: 'rapport', nr: i }));
+    return { namn: (R.id || path.basename(LOGG)) + (R.kapad ? ' (kapad: de äldsta borden saknas)' : ''), handelser, facit: null, sekund: sek, bordLogg: logg };
   }
   const R = JSON.parse(fs.readFileSync(path.resolve(RAPPORTER.fil), 'utf8'));
   const logg = RAPPORTER.nyckel.split('.').reduce((o, k) => o == null ? undefined : o[k], R);
   if (!Array.isArray(logg)) throw new Error(`${RAPPORTER.nyckel} finns inte i ${RAPPORTER.fil}, eller är ingen lista`);
   const handelser = logg.map((r, i) => ({ t: r.nu, s: r.nu / 1000, fas: undefined, nollstall: false, spar: r.spar, slag: 'rapport', nr: i }));
-  return { namn: RAPPORTER.fil + ' ' + RAPPORTER.nyckel, handelser, facit: null, sekund: s => s, bordLogg: logg.map(r => ({ s: r.nu / 1000, spar: r.spar })) };
+  return { namn: RAPPORTER.fil + ' ' + RAPPORTER.nyckel, handelser, facit: null, sekund: t => +(t / 1000).toFixed(2), bordLogg: logg.map(r => ({ s: r.nu / 1000, spar: r.spar })) };
 }
 
 /* Hjärtslagen: var tredje sekund från första rapporten, senaste bordet som
@@ -194,7 +209,7 @@ function spelaUpp(kalla, grund) {
   const sparI = (spar, id) => (spar || []).find(t => t.id === id);
 
   const mat = (slag, t, spar, fas) => {
-    const s = kalla.facit ? sek(t) : t / 1000;
+    const s = kalla.sekund(t);   // golden och --logg: sekunder från passets start (klockan startar på VIRT0); --rapporter: riktiga ms
     const per = bordet(app);
     for (const c of app.kort) namnen.add(c.name);
     const rad = { s, slag, fas: fas || null, spar: spar ? spar.length : null, namn: {} };
