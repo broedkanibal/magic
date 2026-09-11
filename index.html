@@ -12094,7 +12094,7 @@ const Kamera = (() => {
     kvotMax: 0.95,  // inget kort utan en hand, en skugga, eller två kort ihop
     fyllnad: 0.72,  // hur mycket av sin vridna låda regionen ska fylla
     stillaPx: 1.6,  // rörelse i analyspixlar per ruta som räknas som stilla
-    stillaMs: 800,  // hur länge ett kort ska ligga stilla innan det identifieras
+    stillaMs: 800,  // hur länge ett kort ska ligga stilla innan det identifieras — 500 provat i golden 07 (2026-09-11): sämre, 3 → 2 namn, 1 → 3 falska, fördröjningen 1,8 → 2 s
     bortaMs: 700,   // hur länge mattan UNDER ett spår ska ha sett tom ut innan kortet räknas som lyft
     tomMin: 0.3,    // maskandel i rutan, i andel av kortets area, under vilken mattan räknas som tom
     skymdMin: 0.6,  // …över vilken något ligger över kortet: en hand, en arm, ett annat kort

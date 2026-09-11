@@ -128,6 +128,20 @@ drygt två meter). Provet mäter alltså längre bort än telefonen någonsin
 sitter — läs ordningen mellan golven och kortsidan i pixlar där de slår till,
 inte centimetrarna.
 
+## Hastighet
+
+Hur lång tid tar det från att ett kort läggs ner tills det har sitt namn?
+Videofallet 07 mäter det som **fördröjning** (`videoFordrojning`): medianen
+över de kort som fick rätt namn, från facits utspelstid till första säkra
+namnet. Den syns i `--detalj` (raden `video:`) och i tabellens Förlopp-cell
+(title). 2026-09-11: 1,8 s. Vad tiden består av: handen lämnar kortet,
+spåret ska ligga stilla i `stillaMs` (800 ms) innan det läses, och
+läsningen (ram, beskärning, bild + titelrad) tar 0,1–0,7 s. Provat: 500 ms
+i stället för 800 gav **sämre** — 3 → 2 namn, 1 → 3 falska, fördröjningen
+1,8 → 2 s — kortet läses medan det ännu inte ligger stilla. Det som gör
+väntan kortare för spelaren är platshållaren på bordet (MES-42): den står
+där efter en halv sekund, namnet kommer efter en till två.
+
 ## Kortbaksidor
 
 Ett nedvänt kort på bordet (biblioteket, ett kort som vänts) blev en
