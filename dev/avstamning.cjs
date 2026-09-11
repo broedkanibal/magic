@@ -66,10 +66,11 @@ return {
      samma underlag som i appen — senaste bordet, avstämningens lösa spår
      och när varje spår först sågs. extra lägger till det som kommer
      utifrån (sma, fas, rad). */
-  remsa(extra) { return autoRemsaModell(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
+  remsa(extra) { return autoRemsaModell(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
   /* Platshållarna i rutnätet (MES-42): samma underlag som remsan. */
-  platser(extra) { return autoPlatser(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
+  platser(extra) { return autoPlatser(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
   get losa() { return losaSpar; },
+  get lage() { return sparLage; },
   /* Sammanfattningen när auto stängs av: passet, boken, datorns anrop,
      och summan — som stangAvAuto räknar den, ur senaste bordet och mitt bord. */
   get pass() { return autoSum; },
@@ -447,13 +448,13 @@ prov('T6b steget också för ett kort som låg på bordet och bands till ett mä
    skymda och dubbla spår får inget eget besked: de osäkra ÄR granskningen,
    resten syns i kameravyn. */
 const paVag = m => m.paVag.map(v => v.slag + ':' + v.spar);
-prov('R1 ett nytt spår: "1 på väg", sett från första bordet, ingen anmärkning', () => {
+prov('R1 ett nytt spår: "1 på väg", sett från första bordet, och notisen att det läses', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
   let m = app.remsa();
-  assert.equal(m.text, 'Auto · 1 på väg'); assert.equal(m.not, null); assert.equal(m.granska, 0);
+  assert.equal(m.text, 'Auto · 1 på väg'); assert.equal(m.not, 'Kortet du la ut läses …'); assert.equal(m.puls, true); assert.equal(m.granska, 0);
   assert.deepEqual(paVag(m), ['laser:1']); assert.equal(m.paVag[0].sedan, klocka.t); assert.equal(m.paVag[0].namn, null);
   klocka.t += 2400; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
-  m = app.remsa(); assert.deepEqual(paVag(m), ['laser:1']); assert.equal(klocka.t - m.paVag[0].sedan, 2400); assert.equal(m.not, null);
+  m = app.remsa(); assert.deepEqual(paVag(m), ['laser:1']); assert.equal(klocka.t - m.paVag[0].sedan, 2400); assert.equal(m.not, 'Kortet du la ut läses …');
 });
 prov('R1b ett spår som är "ny" i över tre sekunder rör sig: "Något rör sig på bordet"', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
@@ -466,13 +467,13 @@ prov('R2 ett spår som prövas väntar på Claude: på väg, gissningen som namn
   const m = app.remsa();
   assert.equal(app.pending.length, 0); assert.equal(m.granska, 0);
   assert.deepEqual(paVag(m), ['vantar:1']); assert.equal(m.paVag[0].namn, 'Forest'); assert.equal(klocka.t - m.paVag[0].sedan, 5000);
-  assert.equal(m.text, 'Auto · 1 på väg');
+  assert.equal(m.text, 'Auto · 1 på väg'); assert.equal(m.not, 'Kortet du la ut (Forest?) — frågar Claude …'); assert.equal(m.puls, true);
 });
-prov('R3 okänt med post i kön: granskningen räknar det, inget "på väg", ingen anmärkning', () => {
+prov('R3 okänt med post i kön: granskningen räknar det, inget "på väg", notisen säger vart det tog vägen', () => {
   stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
   assert.equal(app.pending.length, 1);
   const m = app.remsa();
-  assert.equal(m.granska, 1); assert.deepEqual(m.paVag, []); assert.equal(m.not, null);
+  assert.equal(m.granska, 1); assert.deepEqual(m.paVag, []); assert.equal(m.not, 'Kortet du la ut hamnade i granskningen'); assert.equal(m.puls, false);
   assert.equal(m.text, 'Auto');            // inte "bordet är tomt": kameran ser ett kort
 });
 prov('R3b okänt som hoppats över i granskningen: varken på väg eller i kön', () => {
@@ -493,12 +494,12 @@ prov('R5 sma=1: "Ett kort är för litet för att läsas", utan spår; två blir
   m = app.remsa({ sma: 2 }); assert.equal(m.not, 'Två kort är för små för att läsas');
   m = app.remsa({ sma: 7 }); assert.equal(m.not, '7 kort är för små för att läsas');
 });
-prov('R5b telefonens råd om avståndet: första meningen, utan siffror, före "för litet"', () => {
+prov('R5b telefonens råd om avståndet står aldrig för sig självt: "för litet" gäller, annars inget', () => {
   stam([]);
   let m = app.remsa({ rad: 'Korten är små i bilden. Flytta telefonen närmare bordet.', sma: 1 });
-  assert.equal(m.not, 'Korten är små i bilden');
+  assert.equal(m.not, 'Ett kort är för litet för att läsas');
   m = app.remsa({ rad: 'Korten är små i bilden. Telefonen ger 1280×720 men klarar 3840×2160.' });
-  assert.equal(m.not, 'Korten är små i bilden');
+  assert.equal(m.not, null);
 });
 prov('R6 allt bundet: "N kort på bordet" och inget mer — också när ett kort ses som två spår', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
@@ -536,8 +537,9 @@ prov('R8 medan telefonen lär sig ljuset: "lär sig ljuset" och "Håll telefonen
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
   const m = app.remsa({ fas: 'lar' });
   assert.equal(m.text, 'Auto · lär sig ljuset'); assert.equal(m.not, 'Håll telefonen stilla'); assert.deepEqual(m.paVag, []);
-  /* Ytans råd hör till kameravyn, aldrig till fältet: ingen anmärkning. */
-  assert.equal(app.remsa({ yta: { dom: 'orolig', rad: 'Bordets mönster gör kameran osäker. …' } }).not, null);
+  /* Ytans betyg hör till kameravyn, aldrig till fältet: notisen är den om
+     kortet som läses, med eller utan yta. */
+  assert.equal(app.remsa({ yta: { dom: 'orolig', rad: 'Bordets mönster gör kameran osäker. …' } }).not, 'Kortet du la ut läses …');
 });
 prov('R9 ett kort borttaget för hand: spåret är löst men varken på väg eller i kön', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
@@ -551,6 +553,97 @@ prov('R10 nollställning glömmer när spåren sågs: spår 1 är nytt igen', ()
   klocka.t += 4000; app.avstamBord([], true);
   stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
   const m = app.remsa(); assert.deepEqual(paVag(m), ['laser:1']); assert.equal(m.paVag[0].sedan, klocka.t);
+});
+
+/* Notisen om kortet man just la ut (MES-27): det spår som ändrades senast —
+   dök upp, eller flyttade sig mer än 15 % av sin bredd — så länge det läses
+   eller väntar på Claude, och fyra sekunder efter att det hamnade i
+   granskningen. Telefonens råd om ytan och avståndet hör till det kortet,
+   aldrig till bordet. Inget nytt: ingen notis. Lägeskartan (sparLage)
+   nollställs med kameran. */
+const flytt = (b, dx) => box(b.x + dx, b.y, b.w, b.h);
+const BLANK = 'Det blänker i bilden. Flytta lampan eller telefonen så att blänket försvinner.';
+prov('K1 två spår: notisen gäller det som dök upp senast, och pulserar medan det läses', () => {
+  stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
+  let m = app.remsa(); assert.equal(m.not, 'Kortet du la ut läses …'); assert.equal(m.puls, true);
+  klocka.t += 1500; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }, { id: 2, tillstand: 'ny', sen: 10, ...LANGT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut läses …');
+  /* Spår 2 går till Claude medan 1 fortfarande läses: notisen följer 2. */
+  klocka.t += 500; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
+  m = app.remsa(); assert.equal(m.not, 'Kortet du la ut (Forest?) — frågar Claude …'); assert.equal(m.puls, true);
+  assert.equal(app.lage.get(1).andrad, klocka.t - 2000); assert.equal(app.lage.get(2).andrad, klocka.t - 500);
+});
+prov('K2 ett spår som flyttat sig mer än 15 % av sin bredd är det senaste igen; darr räknas inte', () => {
+  stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
+  klocka.t += 1000; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut (Forest?) — frågar Claude …');
+  klocka.t += 1000; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...flytt(PORT, 0.005) }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut (Forest?) — frågar Claude …', 'darr på 8 % av bredden');
+  klocka.t += 1000; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...flytt(PORT, 0.035) }, { id: 2, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...LANGT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut läses …', 'flyttat en halv kortbredd');
+  assert.equal(app.lage.get(1).andrad, klocka.t); assert.equal(app.lage.get(1).x, PORT.x + 0.035);
+});
+prov('K3 hamnade i granskningen: fyra sekunder, sedan ingen notis — kön står kvar', () => {
+  stam([{ id: 1, tillstand: 'okand', namnLast: { namn: 'Killing Glare', poang: 0.9 }, cands: [{ name: 'Killing Glare', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
+  let m = app.remsa(); assert.equal(m.not, 'Kortet du la ut (Killing Glare?) hamnade i granskningen'); assert.equal(m.puls, false); assert.equal(m.granska, 1);
+  klocka.t += 3900; stam([{ id: 1, tillstand: 'okand', namnLast: { namn: 'Killing Glare', poang: 0.9 }, sen: 10, ...PORT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut (Killing Glare?) hamnade i granskningen');
+  klocka.t += 200; stam([{ id: 1, tillstand: 'okand', namnLast: { namn: 'Killing Glare', poang: 0.9 }, sen: 10, ...PORT }]);
+  m = app.remsa(); assert.equal(m.not, null); assert.equal(m.granska, 1);
+  /* Väntade det på Claude först räknas de fyra sekunderna från svaret. */
+  klocka.t += 1000; stam([{ id: 2, tillstand: 'okand', provas: true, sen: 10, ...LANGT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut — frågar Claude …');
+  klocka.t += 3000; stam([{ id: 2, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.4 }], sen: 10, ...LANGT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut hamnade i granskningen'); assert.equal(app.lage.get(2).klar, klocka.t);
+});
+prov('K3b ett kort som fick sitt namn: ingen notis — det syns på bordet', () => {
+  stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut läses …');
+  klocka.t += 1200; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  const m = app.remsa(); assert.equal(m.not, null); assert.equal(m.puls, false); assert.equal(m.text, 'Auto · 1 kort på bordet');
+  /* Ett kort som var klart redan när det dök upp (telefonen kopplade upp
+     mot ett dukat bord) får inte heller någon notis. */
+  klocka.t += 1000; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
+  assert.equal(app.remsa().not, null);
+});
+prov('K4 telefonens råd hör till kortet som läses, aldrig till bordet', () => {
+  stam([]);
+  assert.equal(app.remsa({ rad: BLANK }).not, null, 'tomt bord: inget råd');
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.remsa({ rad: BLANK }).not, null, 'inget nytt kort: inget råd');
+  klocka.t += 1000; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 2, tillstand: 'stilla', sen: 10, ...LANGT }]);
+  const m = app.remsa({ rad: BLANK });
+  assert.equal(m.not, 'Kortet du la ut är svårt att läsa — det blänker på det'); assert.equal(m.puls, true);
+  assert.equal(app.remsa({ rad: 'Bordets mönster gör kameran osäker. En enfärgad duk eller ett stort papper under korten hjälper.' }).not, 'Kortet du la ut är svårt att läsa — bordets mönster stör');
+  assert.equal(app.remsa({ rad: 'Korten är små i bilden. Flytta telefonen närmare bordet.' }).not, 'Kortet du la ut är svårt att läsa — det är litet i bilden');
+  assert.equal(app.remsa({ rad: 'Korten är små i bilden. Telefonen ger 1280×720 men klarar 3840×2160.' }).not, 'Kortet du la ut är svårt att läsa — det är litet i bilden');
+  assert.equal(app.remsa({ rad: 'Bordet är nästan lika ljust som korten. En mörkare duk under korten gör kameran säkrare.' }).not, 'Kortet du la ut är svårt att läsa — bordet är nästan lika ljust som kortet');
+  assert.equal(app.remsa({ rad: 'Något helt nytt. Andra meningen.' }).not, 'Kortet du la ut är svårt att läsa — något helt nytt');
+  /* Väntar kortet på Claude säger notisen det — rådet står i kameravyn. */
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 2, tillstand: 'okand', provas: true, sen: 10, ...LANGT }]);
+  assert.equal(app.remsa({ rad: BLANK }).not, 'Kortet du la ut — frågar Claude …');
+  /* Rörelsen går före allt: den går över av sig själv. */
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 3, tillstand: 'ny', sen: 10, ...LANGT }]);
+  klocka.t += 3500; stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), { id: 3, tillstand: 'ny', sen: 10, ...LANGT }]);
+  assert.equal(app.remsa({ rad: BLANK }).not, 'Något rör sig på bordet');
+});
+prov('K5 "syns inte längre" står i sex sekunder efter nedtoningen, sedan inte', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  stam([]); klocka.t += 3200; stam([]);
+  assert.equal(app.remsa().not, 'Ukud Cobra syns inte längre');
+  klocka.t += 5900; assert.equal(app.remsa().not, 'Ukud Cobra syns inte längre');
+  klocka.t += 200; assert.equal(app.remsa().not, null); assert.ok(app.kort[0].lyft, 'fortfarande nedtonat');
+});
+prov('K6 nollställningen glömmer spårens lägen: samma spår är nytt igen', () => {
+  stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut hamnade i granskningen'); assert.equal(app.lage.size, 1);
+  klocka.t += 10000; app.avstamBord([], true);
+  assert.equal(app.lage.size, 0);
+  stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
+  assert.equal(app.lage.get(1).andrad, klocka.t); assert.equal(app.lage.get(1).klar, klocka.t);
+  assert.equal(app.remsa().not, 'Kortet du la ut hamnade i granskningen');
+  /* Spår som försvinner glöms också, som i sparSedd. */
+  stam([]); assert.equal(app.lage.size, 0);
 });
 
 /* Sammanfattningen när auto stängs av: korten räknas en gång per cid ur
@@ -737,6 +830,14 @@ prov('H4 platserna och remsan räknar samma "på väg"', () => {
   const m = app.remsa();
   assert.equal(m.text, 'Auto · 2 på väg');
   assert.equal(app.platser().filter(p => p.slag !== 'fyll').length, m.paVag.length);
+});
+
+prov('K7 ett osäkert spår med telefonens lågt vägda namn: notisen skriver det som en gissning, aldrig som kortets namn', () => {
+  stam([{ id: 1, tillstand: 'okand', namn: 'Forest', saker: false, cands: [{ name: 'Forest', sid: 's', score: 0.35 }], sen: 10, ...PORT }]);
+  assert.equal(app.remsa().not, 'Kortet du la ut (Forest?) hamnade i granskningen');
+  // ett säkert namn på ett klart spår ger ingen notis alls — kortet syns på bordet
+  stam([klar(2, 'Swamp', { sen: 10, ...LANGT })]);
+  assert.equal(app.remsa().not, null);
 });
 
 console.log([...ok, ...fel].join('\n'));

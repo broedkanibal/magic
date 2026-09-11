@@ -2104,11 +2104,13 @@ body.ispel #startSpelBtn{display:none}
    ett chip per spår ("läses (2 s)", "väntar på Claude", "osäkert – fyll i
    i granskningen") och granskningsraden — och remsan radbröt, så bordet
    hoppade varje gång ett kort lades ner (Jespers skärmdumpar, MES-27).
-   Nu: läget till vänster ("Auto · 2 kort på bordet · 1 på väg"),
-   granskningen med miniatyrer och knappar i mitten när något väntar, och
-   högst EN kort anmärkning till höger. Höjden är fast och ingenting
-   radbryter: text klipps med ellips (hela står i title), miniatyrerna
-   rullar i sidled. Samma färgfamilj som granskningsraden hade: bärnsten
+   Nu: läget till vänster ("Auto · 2 kort på bordet · 1 på väg") med högst
+   EN kort notis direkt efter sig, i samma blick, och granskningen — text,
+   miniatyrer, knappar — som en tät klunga sist i raden när något väntar.
+   Förut stod "Fyll i" och "Ta bort" mitt på skärmen, långt från sin text,
+   och notisen längst till höger där den var lätt att missa (Jespers dom,
+   MES-27). Höjden är fast och ingenting radbryter: text klipps med ellips
+   (hela står i title), miniatyrerna rullar i sidled. Samma färgfamilj som granskningsraden hade: bärnsten
    när fältet ber om ett klick, annars dämpat. Ritas av renderAutoBar()
    och renderPending(). */
 .autobar{
@@ -2117,42 +2119,71 @@ body.ispel #startSpelBtn{display:none}
   background:var(--rutbg);border-bottom:1px solid var(--line);color:var(--dim);
 }
 .autobar.varm{background:#241c0d;border-bottom-color:#4a3a17;color:#e8c98a}
-.autobar .status{display:inline-flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0;white-space:nowrap;color:var(--txt);font-weight:550}
+/* Vänstergruppen: läget och notisen i en enda blick — "Auto · 4 kort på
+   bordet · • Killing Glare läses …". Gruppen tar det som blir över i raden
+   och är det enda som krymper: notisen, med ellips och hela texten i
+   title. Läget krymper inte alls så länge notisen kan ge sig — med
+   flex-shrink-vikter tog notisen 97 % av bristen och läget ändå 4 px, och
+   "1 på väg" blev "1 på v…" (uppmätt vid 800 px). Läget ger sig bara när
+   steget står där med sitt golv på 12 em, och på en telefon. Inget
+   utrymme reserveras för notisen: meningen blir längre när den kommer
+   och kortare när den går, och ingenting annat flyttar sig. */
+.autobar .lage{display:flex;align-items:center;flex:1 1 auto;min-width:0;height:100%}
+/* Utan auto (fotot, telefonen borta) är gruppen tom — då ska den inte stå
+   som en tom fjäder som skjuter granskningen längst ut till höger. */
+.autobar .lage:not(:has(> :not([hidden]))){display:none}
+.autobar .status{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-width:0;white-space:nowrap;color:var(--txt);font-weight:550}
+.autobar .lage:has(.not.grund) .status{flex-shrink:1}
 .autobar .status .txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .autobar .status .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
 .autobar.varm .status{color:#f0dcb0}
 .autobar.varm .status .led{background:var(--acc);animation-duration:1.2s}
-/* Granskningen och anmärkningen är flexrader inne i flexraden, och en
-   sådan mäter sig själv efter sitt innehåll: alla miniatyrerna, hela den
-   obrytbara meningen. På en telefon (390 px) blev måtten större än raden,
-   och det som fick stryka på foten var knapparna längst ut ("Inte nu"
-   utanför kanten). contain:inline-size gör att
-   miniatyrerna och meningen inte räknas när gruppen mäts: gruppens mått
-   är dess text och knappar, som aldrig ger sig, och det som blir över i
-   raden delas mellan miniatyrerna (rullar i sidled) och meningen (klipps
-   med ellips, hela står i title). */
-.autobar .granska{display:flex;align-items:center;gap:10px;flex:1 1 auto;height:100%}
-.autobar .granska .ptxt{flex:none;white-space:nowrap;color:#e8c98a}
-.autobar .granska .ptxt b{color:#ffd98a}
-.pendthumbs{display:flex;align-items:center;gap:4px;flex:1 1 auto;min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;contain:inline-size}
-.pendthumbs::-webkit-scrollbar{display:none}
-.pendthumbs img{height:34px;border-radius:3px;border:1px solid #6a5220;flex:none;background:#0b0f15}
-.autobar .granska .btn{flex:none}
-/* Anmärkningen: en mening längst till höger. Steget att spara ett otappat
-   läge står i samma plats med sina två knappar, och får inte heller
-   radbryta: texten klipps med ellips (hela står i title). */
-.autobar .not{display:flex;align-items:center;gap:8px;flex:1 1 auto;white-space:nowrap;color:#e8c98a}
-.autobar .not .nottxt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:right;contain:inline-size}
-/* Steget har företräde: utan det delades utrymmet lika med
-   granskningsgruppen, vars text och knappar aldrig krymper, och stegets
-   mening var det enda som gav sig — vid 700–900 px stod knapparna utan
-   någon mening framför (uppmätt: 26 px text vid 800 px). Miniatyrerna får
-   krympa först, de är bara en förhandsvisning. */
-.autobar .not.grund{flex:3 1 auto}
-.autobar .not.grund .nottxt{min-width:12em}
-.autobar .not.grund ~ .granska .pendthumbs,.autobar .granska:has(~ .not.grund) .pendthumbs{flex:0 1 auto}
+/* Notisen: direkt efter läget, med samma punkt emellan som inne i läget,
+   och en liten prick i notisens egen färg som pulserar bara medan ett kort
+   läses (.puls, ur modellens m.puls). Steget att spara ett otappat läge
+   står på samma plats med sina två knappar i stället för pricken, och får
+   inte heller radbryta. */
+.autobar .not{display:inline-flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0;white-space:nowrap;color:#e8c98a}
+.autobar .not::before{content:'·';color:var(--txt);font-weight:550;margin-left:4px;flex:none}
+.autobar.varm .not::before{color:#f0dcb0}
+.autobar .not .prick{width:6px;height:6px;border-radius:50%;background:#e8c98a;flex:none}
+.autobar .not .prick.puls{animation:kampuls 1.2s ease-in-out infinite}
+.autobar .not .nottxt{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* Steget har företräde framför läget: det krymper aldrig under sitt eget
+   innehåll — meningen och de två knapparna — och det är läget som får ge
+   sig (ellips). Med bara ett golv på 12 em för meningen (MES-32) sköt
+   knapparna ut över granskningen vid 620–750 px (uppmätt: "Inte nu" ovanpå
+   "5 kort att fylla i" vid 640 px). Ryms inte steget och granskningen
+   ihop ändå, viker steget: se @media nedan. */
+.autobar .not.grund{flex:none;gap:8px}
 .autobar .not b{color:#f0dcb0}
 .autobar .not .btn{height:26px;padding:0 9px;font-size:11.5px;flex:none}
+/* Granskningen: en tät klunga sist i raden — texten, upp till fyra
+   miniatyrer (fler rullar i sidled), "Fyll i" och "Ta bort". Ingenting i
+   den växer eller krymper: knapparna står intill sin text, inte mitt på
+   skärmen, och gruppen mäter alltid det den innehåller. Miniatyrernas
+   remsa tar sin bredd av bilderna (ett stående kort är 26 px vid 34 px
+   höjd) upp till fyra stycken. */
+.autobar .granska{display:flex;align-items:center;gap:8px;flex:none;height:100%}
+.autobar .granska .ptxt{flex:none;white-space:nowrap;color:#e8c98a}
+.autobar .granska .ptxt b{color:#ffd98a}
+.pendthumbs{display:flex;align-items:center;gap:4px;flex:none;max-width:118px;height:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.pendthumbs::-webkit-scrollbar{display:none}
+.pendthumbs:empty{display:none}
+.pendthumbs img{height:34px;border-radius:3px;border:1px solid #6a5220;flex:none;background:#0b0f15}
+.autobar .granska .btn{flex:none}
+/* Steget och granskningen på en gång ryms inte med miniatyrer under
+   ~1300 px (läget 230 px, steget med knappar 610, granskningen 370):
+   miniatyrerna är en förhandsvisning och får vika, texten och knapparna
+   står kvar. Steget står en gång per spel. */
+@media (max-width:1300px){ .autobar:has(.not.grund:not([hidden])) .pendthumbs{display:none} }
+/* Under 1000 px ryms inte steget (610 px) och granskningen (300 utan
+   miniatyrer) ens med läget klippt till sin lampa: steget viker, det går
+   att spara i kameravyn i stället, och det står en gång per spel.
+   Under 760 px viker också notisen — den blev "· • Kor…" mellan 620 och
+   740 px (granskningen efter 1b) — granskningen är det som väntar på svar. */
+@media (max-width:1000px){ .autobar:has(.granska:not([hidden])) .not.grund{display:none} }
+@media (max-width:760px){ .autobar:has(.granska:not([hidden])) .not{display:none} }
 
 /* ── Kamerainställningarna, i den dockade kameravyn ─────────────────
    Det man vill skruva på UNDER spelet ska inte ligga i en modal som täcker
@@ -2360,17 +2391,18 @@ body.ispel #addPlayerBtn{display:none}
   .modeforklaring{display:none}             /* två meningar får inte plats */
   .frusen{font-size:11.5px;padding:0 8px}
   .autobar{height:40px;font-size:11.5px;padding:0 8px;gap:8px}
+  .autobar .status{flex-shrink:1}          /* raden är smalare än läget och granskningen ihop: läget får ellips */
   .autobar .granska{gap:7px}
   .autobar .not .btn{padding:0 7px}
+  /* Två miniatyrer (23 px vid 30 px höjd): läget ska gå att läsa bredvid. */
+  .pendthumbs{max-width:50px}
   .pendthumbs img{height:30px}
   /* Granskningens knappar och stegets knappar ryms inte i samma rad på en
-     telefon: det som står sist klipptes ("Inte nu" utanför kanten).
-     Granskningen är det som väntar på ett svar; anmärkningen får stå
-     tillbaka medan den syns, och det otappade läget går att spara i
-     kameravyn i stället. */
-  .autobar .granska:not([hidden]) ~ .not{display:none}
+     telefon; notisen och steget viker för granskningen redan från 760 px
+     (regeln ovanför telefonbrytpunkten). */
 }
 @media (max-width:390px){
+  .pendthumbs{display:none}                 /* texten och knapparna räcker */
   .topbar{height:44px;gap:5px;padding:0 7px}
   /* Kvar: flikarna, koden, läget och menyn. Chippet blir en lampa — den säger
      fortfarande det enda man behöver veta på den bredden, nämligen om något
@@ -2542,21 +2574,23 @@ body.ispel #addPlayerBtn{display:none}
   <!-- Raden under topbaren: förklaringen som står en gång innan man valt väg,
        och beskedet att bordet är fruset. Samma plats, aldrig båda. -->
   <div id="modeRad" hidden></div>
-  <!-- Statusfältet: Auto-läget, granskningen och högst en anmärkning, i en
-       enda rad med fast höjd. Auto-delen ritas av renderAutoBar() medan auto
-       går och telefonen är ansluten; granskningen av renderPending() så
-       länge kort väntar på ett namn — också med auto av. Inget av det:
-       dolt. Knapparna behåller sina id:n (pendGo, pendDrop): granskningen
-       hänger på dem. -->
+  <!-- Statusfältet: Auto-läget med högst en notis efter sig, och sist
+       granskningen, i en enda rad med fast höjd. Auto-delen ritas av
+       renderAutoBar() medan auto går och telefonen är ansluten;
+       granskningen av renderPending() så länge kort väntar på ett namn —
+       också med auto av. Inget av det: dolt. Knapparna behåller sina id:n
+       (pendGo, pendDrop): granskningen hänger på dem. -->
   <div class="autobar" id="autoBar" hidden>
-    <span class="status" id="autoStatus" hidden></span>
+    <div class="lage">
+      <span class="status" id="autoStatus" hidden></span>
+      <span class="not" id="autoNot" hidden></span>
+    </div>
     <div class="granska" id="pendBar" hidden>
       <span class="ptxt"><b id="pendCount">0</b> kort att fylla i</span>
       <div class="pendthumbs" id="pendThumbs"></div>
       <button class="btn sm prim" id="pendGo">Fyll i</button>
       <button class="btn sm" id="pendDrop" title="Tar bort bilden och alla kort som väntar">Ta bort</button>
     </div>
-    <span class="not" id="autoNot" hidden></span>
   </div>
 
   <main>
@@ -15021,7 +15055,7 @@ function glomSpar(ocksaLyft) {
   clearTimeout(lyftT); lyftT = null;
   hoppade = new Set(); borttagna = new Set(); lyftTips = null;
   /* Remsans minne av spåren hör till samma numrering som bindningen. */
-  losaSpar = new Set(); sparSedd = new Map();
+  losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map();
   const mig = minSpelare(); if (!mig) return;
   let andrat = false;
   for (const k of mig.cards) {
@@ -15140,9 +15174,16 @@ function grundSteg(mig, spar) {
                steg gör dem till platshållarkort på bordet (MES-27).
      granska – hur många kort som väntar i granskningen. De osäkra spåren
                ÄR granskningens poster och får inget eget besked.
-     not     – högst en kort anmärkning, utan siffror: något rör sig, korten
-               är små, ett kort är för litet, ett kort syns inte längre.
-               Ytans råd (blänk, ljust bord, mönster) hör till kameravyn.
+     not     – högst en kort notis, utan siffror, om det man just gjorde:
+               kortet man la ut läses, frågar Claude, är svårt att läsa
+               (telefonens råd om blänk, mönster och avstånd hör till DET
+               kortet, aldrig till bordet), hamnade i granskningen. Annars
+               något rör sig, ett kort är för litet, ett kort syns inte
+               längre (i sex sekunder) — eller ingenting. Ingen stående
+               anmärkning: "Det blänker i bilden" stod längst till höger så
+               länge bordet blänkte, och var lätt att missa (Jespers dom,
+               MES-27).
+     puls    – notisen gäller ett kort som läses just nu: pricken pulserar.
    Förut gav modellen ett chip per spår med skäl ("läses (2 s)", "skymt",
    "ligger redan på bordet") — en remsa som radbröt så att bordet hoppade,
    och som sa "osäkert – fyll i i granskningen" bredvid granskningsraden
@@ -15151,7 +15192,11 @@ function grundSteg(mig, spar) {
    hjärtslag (3 s) sent, och ingen klocka att jämka mellan två enheter. */
 let losaSpar = new Set();    // spår-id ur senaste bordet som inte räknades till något kort på bordet
 let sparSedd = new Map();    // spår-id → Date.now() när datorn först såg spåret
+let sparLage = new Map();    // spår-id → { x, y, andrad, klar }: var spåret låg senast, när det senast dök upp eller flyttade sig, och när det fick sitt utfall
 const AUTO_RORLIGT_S = 3;    // ett spår som är 'ny' (rör sig) längre än så är en hand eller ett kort på väg, inte något som läses
+const AUTO_FLYTT = 0.15;     // ett spår vars hörn gått längre än så av dess bredd har spelaren flyttat — mindre är detektorns darr
+const AUTO_EFTER_S = 4;      // notisen om ett kort står kvar så länge efter att kortet hamnade i granskningen
+const AUTO_LYFT_S = 6;       // "syns inte längre" står så länge efter nedtoningen — bordet visar det nedtonade kortet ändå
 /* Riktiga kort på bordet enligt kameran: bundna till ett spår och inte
    nedtonade. Samma tal i chippet (renderMode) och i statusfältet. */
 function autoKortPaBordet(mig) {
@@ -15160,10 +15205,45 @@ function autoKortPaBordet(mig) {
 /* Räkneord i anmärkningen: "Ett kort", "Två kort" — siffror först över fem. */
 const AUTO_RAKNEORD = ['', 'Ett', 'Två', 'Tre', 'Fyra', 'Fem'];
 const autoAntal = n => AUTO_RAKNEORD[n] || String(n);
+/* Ett spår som fått sitt utfall: ett namn, eller granskningen (okänt och
+   inte längre hos Claude). Det som läses eller väntar på Claude är oavgjort. */
+function autoAvgjort(t) { return t.tillstand === 'klar' || (t.tillstand === 'okand' && !t.provas); }
+/* Spårens lägen — underlaget för notisen om kortet man just la ut. Efter
+   varje bord: var spåret låg, när det senast dök upp eller flyttade sig
+   (andrad) och när det fick sitt utfall (klar). Flyttat är mer än
+   AUTO_FLYTT av spårets bredd; mindre är detektorns darr. Spår som försvann
+   glöms, som i sparSedd, och alltihop nollställs med kameran. */
+function autoSparLage(lage, spar, nu) {
+  const kvar = new Set();
+  for (const t of spar) {
+    kvar.add(t.id);
+    const l = lage.get(t.id), avgjort = autoAvgjort(t);
+    if (!l) { lage.set(t.id, { x: t.x, y: t.y, andrad: nu, klar: avgjort ? nu : null }); continue; }
+    if (Math.hypot(t.x - l.x, t.y - l.y) > AUTO_FLYTT * (t.w || 0)) { l.x = t.x; l.y = t.y; l.andrad = nu; }
+    if (!avgjort) l.klar = null; else if (l.klar == null) l.klar = nu;
+  }
+  for (const id of [...lage.keys()]) if (!kvar.has(id)) lage.delete(id);
+}
+/* Telefonens råd hör till kortet man just la ut, inte till bordet: "det
+   blänker på det", inte "Det blänker i bilden" som stod kvar så länge
+   bordet blänkte. Rådets första mening känns igen på sin början; ett råd
+   som inte känns igen får stå som det är, med liten bokstav. */
+const AUTO_RAD_SKAL = [
+  ['Korten är små', 'det är litet i bilden'],
+  ['Det blänker', 'det blänker på det'],
+  ['Bordets mönster', 'bordets mönster stör'],
+  ['Bordet är nästan lika ljust', 'bordet är nästan lika ljust som kortet'],
+];
+function autoRadSkal(rad) {
+  const hit = AUTO_RAD_SKAL.find(([b]) => rad.startsWith(b));
+  if (hit) return hit[1];
+  const f = rad.split('. ')[0].replace(/\.$/, '');
+  return f ? f[0].toLowerCase() + f.slice(1) : null;
+}
 function autoRemsaModell(spar, mig, extra) {
   const e = extra || {}, nu = e.nu != null ? e.nu : Date.now();
   const kort = (mig && mig.cards) || [], ko = (mig && mig.pending) || [];
-  const m = { text: '', not: null, paVag: [], granska: ko.length };
+  const m = { text: '', not: null, puls: false, paVag: [], granska: ko.length };
   if (e.fas === 'ljus' || e.fas === 'lar') { m.text = 'Auto · lär sig ljuset'; m.not = 'Håll telefonen stilla'; return m; }
   if (e.fas === 'ingen') { m.text = 'Auto · ladda om sidan på telefonen'; return m; }
   const sedan = id => { const t0 = e.sedd ? e.sedd.get(id) : undefined; return t0 == null ? nu : t0; };
@@ -15184,19 +15264,48 @@ function autoRemsaModell(spar, mig, extra) {
   }
   const n = autoKortPaBordet(mig);
   const ser = e.ser != null ? e.ser : spar.length;
-  const lyfta = kort.filter(c => c.lyft != null && kanLyftas(c));
+  /* Nedtonade kort får en notis i AUTO_LYFT_S: bordet visar dem ändå. */
+  const lyfta = kort.filter(c => c.lyft != null && kanLyftas(c) && nu - c.lyft <= AUTO_LYFT_S * 1000);
   /* "Bordet är tomt" bara när kameran inte ser något alls: ett kort som är
      för litet, ett osäkert i granskningen eller ett skymt är inte tomt. */
   const tomt = !n && !ser && !m.paVag.length && !ko.length && !(e.sma > 0);
   m.text = tomt ? 'Auto · bordet är tomt'
     : ['Auto', n ? `${n} kort på bordet` : null, m.paVag.length ? `${m.paVag.length} på väg` : null].filter(Boolean).join(' · ');
-  /* En anmärkning, den som är mest värd att veta just nu: rörelsen först
-     (den går över av sig själv), sedan avståndet (allt är för litet), ett
-     kort som är för litet (det syns ingen annanstans), sist det nedtonade
-     (bordet visar det redan). Telefonens råd om avståndet har två meningar;
-     den första räcker här, hela står i kameravyn. */
+  /* Kortet man just la ut: det spår som ändrades senast — dök upp eller
+     flyttades — så länge det läses eller väntar på Claude, och i
+     AUTO_EFTER_S efter att det hamnade i granskningen (så länge posten
+     finns där: hoppades den över eller togs bort är det inte sant). Ett
+     kort som fick sitt namn syns på bordet — det är beskedet — och ett
+     skymt spår har en hand över sig. Lika gamla: det senast födda (högst
+     id) vinner. Utan lägeskartan (äldre anrop) gäller när spåret sågs. */
+  const lage = e.lage || new Map();
+  const andrad = id => { const l = lage.get(id); return l ? l.andrad : sedan(id); };
+  let senast = null;
+  for (const t of spar) {
+    if (t.skymd) continue;
+    if (autoAvgjort(t)) {
+      const l = lage.get(t.id);
+      if (t.tillstand !== 'okand' || !ko.some(q => q.spar === t.id) || !l || l.klar == null || nu - l.klar >= AUTO_EFTER_S * 1000) continue;
+    }
+    if (!senast || andrad(t.id) > andrad(senast.id) || (andrad(t.id) === andrad(senast.id) && t.id > senast.id)) senast = t;
+  }
+  /* Namnet i notisen: bara ett SÄKERT namn står som det är. Ett osäkert
+     spår bär just den gissning granskningen finns för att pröva (t.namn på
+     ett okänt spår är telefonens lågt vägda förslag; namnLast är titelraden
+     som namnläsaren såg, ett objekt med .namn) — den skrivs som en gissning
+     med frågetecken, så att fältet inte säger "Forest hamnade i
+     granskningen" om ett Swamp (granskningen efter 1b). */
+  const giss = senast && senast.tillstand !== 'klar' ? (senast.namn || senast.gissning || (senast.namnLast && senast.namnLast.namn) || null) : null;
+  const vem = !senast ? '' : senast.tillstand === 'klar' && senast.namn ? senast.namn : giss ? `Kortet du la ut (${giss}?)` : 'Kortet du la ut';
+  /* En notis, den som är mest värd att veta just nu: rörelsen först (den
+     går över av sig själv), sedan kortet man just la ut, ett kort som är
+     för litet (det syns ingen annanstans, och står tills man flyttat
+     telefonen), sist det nedtonade (bordet visar det redan). */
   if (rorligt) m.not = 'Något rör sig på bordet';
-  else if (e.rad) m.not = e.rad.split('. ')[0].replace(/\.$/, '');
+  else if (senast && autoAvgjort(senast)) m.not = `${vem} hamnade i granskningen`;
+  else if (senast && senast.tillstand === 'okand') { m.not = `${vem} — frågar Claude …`; m.puls = true; }
+  else if (senast && e.rad) { m.not = `${vem} är svårt att läsa — ${autoRadSkal(e.rad)}`; m.puls = true; }
+  else if (senast) { m.not = `${vem} läses …`; m.puls = true; }
   else if (e.sma > 0) m.not = e.sma === 1 ? 'Ett kort är för litet för att läsas' : `${autoAntal(e.sma)} kort är för små för att läsas`;
   else if (lyfta.length === 1) m.not = `${lyfta[0].name} syns inte längre`;
   else if (lyfta.length > 1) m.not = `${autoAntal(lyfta.length)} kort syns inte längre`;
@@ -15447,7 +15556,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   spar = spar.filter(t => t.tillstand !== 'skrap');
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { glomSpar(); losaSpar = new Set(); sparSedd = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { glomSpar(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
@@ -15619,6 +15728,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   losaSpar = new Set(spar.filter(t => !redovisade.has(t.id)).map(t => t.id));
   for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
   for (const id of [...sparSedd.keys()]) if (!synliga.has(id)) sparSedd.delete(id);
+  autoSparLage(sparLage, spar, nu);   // notisen om kortet man just la ut: vilket spår som ändrades senast, och när det fick sitt utfall
   /* Hur mycket av det kameran SER som den också känner igen. Bara spår som
      fått ett slutgiltigt utfall räknas i kvoten: identifieringen är seriell,
      så de som ännu läses skulle få chippet att larma gult varje gång man
@@ -15727,16 +15837,21 @@ function renderAutoBar() {
   const steg = auto ? grundSteg(minSpelare(), senasteSpar) : null;
   if (!auto) {
     if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
+    /* Klassen följer med: ett dolt .not.grund tände annars regeln som
+       döljer miniatyrerna under 1300 px, fast inget steg syntes. */
     if (!not.hidden) { not.hidden = true; not.innerHTML = ''; autoBarNotHtml = ''; }
+    not.classList.remove('grund');
   } else {
-    const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
+    const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
     const statusHtml = `<span class="led"></span><span class="txt" title="${esc(m.text)}">${esc(m.text)}</span>`;
     const stegTxt = steg ? `Lägg korten som du vill ha dem otappade — ${steg.namn} ligger så nu?` : '';
+    /* Notisen har en prick framför sig som pulserar bara medan ett kort
+       läses (m.puls); steget har sina knappar i stället. */
     const notHtml = steg
       ? `<span class="nottxt" title="${esc(stegTxt)}">Lägg korten som du vill ha dem otappade — <b>${esc(steg.namn)}</b> ligger så nu?</span>` +
         '<button class="btn prim" data-mode="grund-spara" title="Kortets vinkel i bilden blir det otappade läget för det här spelet">Spara som otappat läge</button>' +
         '<button class="btn ghost" data-mode="grund-stang" title="Går att spara senare i kameravyn">Inte nu</button>'
-      : m.not ? `<span class="nottxt" title="${esc(m.not)}">${esc(m.not)}</span>` : '';
+      : m.not ? `<span class="prick${m.puls ? ' puls' : ''}"></span><span class="nottxt" title="${esc(m.not)}">${esc(m.not)}</span>` : '';
     if (statusHtml !== autoBarStatusHtml) { status.innerHTML = statusHtml; autoBarStatusHtml = statusHtml; }
     if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
     not.classList.toggle('grund', !!steg);   // steget får mer plats än en vanlig anmärkning (CSS .not.grund)
