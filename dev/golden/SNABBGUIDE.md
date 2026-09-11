@@ -62,6 +62,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
 | `node dev/avstamning.cjs` | datorns sida: granskningslistan och bordet efteråt, ska sluta med `0 FEL` |
+| `node dev/dubbletter.cjs --fall 07` | eget mått: videofallets bordsrapporter genom datorns avstämning — var dubbletter och tap-fel uppstår (se *Dubbletter*) |
 
 Flaggorna går att kombinera: `node dev/golden/kor.cjs --ai --fall 03 --detalj`.
 
@@ -126,6 +127,47 @@ motsvarar telefonen på ungefär 3,5 gånger avståndet i fotots namn (60 cm bli
 drygt två meter). Provet mäter alltså längre bort än telefonen någonsin
 sitter — läs ordningen mellan golven och kortsidan i pixlar där de slår till,
 inte centimetrarna.
+
+## Dubbletter
+
+Ett kort på bordet blev två i appen, och tap-läget blev fel — var uppstår
+det, i telefonens spår eller i datorns avstämning? `node dev/dubbletter.cjs`
+tar varje bord telefonen skickade under ett videofall (sparat i
+`senaste.json` som `bordLogg`, med hela spårposten) och spelar upp det genom
+datorns riktiga avstämning (`avstamBord` ur `index.html`), med klockan på
+rapporternas tid, hjärtslaget var tredje sekund och nådtimern härmade. Det
+är ett **mått, inte ett prov**: ingen baslinje, slutkod 0 vad siffrorna än
+blir.
+
+| Kommando | Gör |
+|---|---|
+| `node dev/dubbletter.cjs --fall 07` | videofallet 07, mot facit (`video.handelser`) |
+| `node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn` | en inspelad rapportlista ur bänken, utan facit |
+| `… --json fil` | allt som mättes, som JSON |
+
+Facit bär inte tap-läge i ett videofall; korten ligger otappade, så varje
+tappat kort på bordet är ett fel. Fallet måste vara sparat med dagens
+`kor.html` (`--fall 07 --spara`), annars saknar loggen spårens lägen och
+verktyget säger ifrån.
+
+Utskriften, uppifrån:
+
+| Del | Betyder |
+|---|---|
+| Tidslinje | ett steg per rapport, hjärtslag eller nådtimer där bordet ändrades: per namn *bundna/facit* (kort på bordet med spår, mot vad facit säger ligger där ±0,5 s), `+N ned` nedtonade, `T` tappade, `ÖVERSKOTT` när bordet har fler bundna än facit (kort i nåd — spåret nyss borta, 3 s kvar — räknas inte) — det är en dubblett |
+| Skapade kort | varje kort datorn skapade: tid, spår, spårets domskäl (`varfor`), och om ett kort med samma namn **redan fanns** (bundet eller nedtonat) i det ögonblicket — `← DUBBLETT?` |
+| Totalt | per namn: största antal bundna, största överskott, skapade, och hur många skapades fast ett bundet eller nedtonat kort med namnet fanns; nya kort mot facits fysiska kort; tap: kort vars tap-läge inte är spårets (då är det datorn), och tappade kort mot facit (då är det telefonen) |
+| Med kamGrund = null | samma uppspelning utan sparat grundläge — datorn läser det bara för frågan om grundläget, så bordet ska bli identiskt |
+| Samma namn på flera spår | telefonens sida: rapporter där flera spår bär samma namn (osäkra förslag medräknade), grupperade som avstämningen skulle göra om alla vore klara — `[5+4]` är ett kort, `[1] [5+4]` är två. fler grupper än facit (och än en) är en dubblett som väntar på att Claude eller granskningen säger ja på båda spåren; en enda grupp med ett namn facit inte har är en felgissning, ingen dubblett. `f` = färskt (två färska spår räknas alltid som två), `s` = skymt |
+| Spåren i loggen | per spår: när det levde, hur många rapporter det var tappat i (och hur många medan det rörde sig — en hand), hur många gånger tap-läget slog om, och sekunderna. Ett spår som är tappat medan det rör sig är handen, inte kortet |
+
+Läs så här: **står något under Skapade kort med "fanns redan", eller ett
+ÖVERSKOTT i tidslinjen, gjorde datorn dubbletten.** Står allt på noll där
+men *Samma namn på flera spår* visar två grupper för ett namn, föds
+dubbletten på telefonen — två spår för ett kort, eller samma gissning på
+två kort — och datorn kan bara slå ihop dem när de ligger på samma plats.
+Tap: *kort mot spårets tappad* är datorns fel; *Spåren i loggen* är
+telefonens.
 
 ## Lägga till ett nytt foto
 

@@ -26,8 +26,13 @@ dev/golden/
   vriden.html/.cjs   skräpfiltret mot kort i vinkel och mot bordet utan kort
   avstand.html/.cjs  avståndsprovet: fotona nerskalade steg för steg — vilket
                      golv i kedjan går först (ett mått, ingen baslinje)
-  senaste.json       senaste incheckade körningen — det kor.html jämför med
+  senaste.json       senaste incheckade körningen — det kor.html jämför med;
+                     i ett videofall också varje bord datorn fick (bordLogg,
+                     hela spårposten), som ../dubbletter.cjs spelar upp
   historik.md        en rad per incheckad körning: datum, commit, metod, totaler
+  ../dubbletter.cjs  (i dev/) dubblettmätningen: videofallets bordsrapporter
+                     genom datorns avstämning — var dubbletter och tap-fel
+                     uppstår (ett mått, ingen baslinje; se SNABBGUIDE.md)
   video/             verktygen som gör en telefoninspelning till ett videofall
                      (koda.swift, ruta.swift, kontaktark.swift — bara macOS
                       egna delar, ingen ffmpeg)
@@ -412,7 +417,11 @@ namngivningstiderna mot facits ordning, mediantiden från utspel till säkert
 namn, och säkra namn på kort som aldrig var i partiet. `--detalj` skriver
 dem kort för kort, och varje spår från födsel till död i videons sekunder;
 `senaste.json` bär dessutom hela loggen (`videoSpar`) och varje bord datorn
-fick (`bordLogg`).
+fick (`bordLogg`: videons sekund, telefonens fas, och hela spårposten som
+`rapportera()` skickar den — läge, `sen`, namn, tillstånd, tap-läge —
+trimmad till tre kandidater och namnläsarens namn och poäng). Det är den
+loggen `node dev/dubbletter.cjs --fall 07` spelar upp genom datorns
+avstämning för att se var dubbletter och tap-fel uppstår.
 
 ## Fallen som finns, och de som saknas
 

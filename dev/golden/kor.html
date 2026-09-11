@@ -441,9 +441,20 @@ function aterkoppling(f, prov) {
     bord: (spar, nollstall) => {
       if (!nollstall) prov.sistaBord = spar;
       /* Bordet datorn fick, med videons tid: ett kort som kom och gick syns
-         bara här. Bara det datorn visar per spår, inte hela posten. */
-      if (prov.bordLogg) prov.bordLogg.push({ s: prov.s, nollstall: !!nollstall,
-        kort: (spar || []).map(t => ({ id: t.id, namn: t.namn, saker: !!t.saker, tillstand: t.tillstand, skymd: !!t.skymd, provas: !!t.provas, tappad: !!t.tappad })) });
+         bara här. HELA posten per spår, som rapportera() skickar den — med
+         läget (x, y, w, h) och `sen`, som datorns avstämning läser — så att
+         dev/dubbletter.cjs (MES-43) kan spela upp loggen genom avstamBord
+         och mäta var dubbletterna och tap-felen uppstår. Förut sparades
+         bara det datorn visar per spår, och loggen gick inte att spela upp.
+         fas är telefonens läge just då (sandBord skickar Kamera.lage med
+         varje bord). Trimmat för storleken: högst tre kandidater, och av
+         namnläsarens rad bara namn och poäng. */
+      /* grund: telefonens grundläge i grader (null = inget sparat), som sandBord skickar det — uppspelningen (dubbletter.cjs) ska ha samma läge som datorn hade. */
+      if (prov.bordLogg) prov.bordLogg.push({ s: prov.s, fas: K ? K.lage : null, nollstall: !!nollstall, grund: K && K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null,
+        spar: (spar || []).map(t => Object.assign({}, t, {
+          cands: t.cands ? t.cands.slice(0, 3).map(c => ({ name: c.name, sid: c.sid || null, score: c.score != null ? c.score : null })) : null,
+          namnLast: t.namnLast ? { namn: t.namnLast.namn != null ? t.namnLast.namn : null, poang: t.namnLast.poang != null ? t.namnLast.poang : null } : null
+        })) });
     },
     identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return folj(w.kamIdentifiera(c, id, gissning, kort)); },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
