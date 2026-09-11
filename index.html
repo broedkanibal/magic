@@ -13064,6 +13064,15 @@ const Kamera = (() => {
     return axSkillnad(vinkel, bas) > Math.PI / 4;
   }
 
+  /* Hur stor del av den mindre lådan som ligger inom den andra (0–1). Samma
+     mått som datorns tackning() i avstämningen, i analyspixlar. */
+  function ladTackning(a, b) {
+    const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+    const ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (iw <= 0 || ih <= 0) return 0;
+    return iw * ih / Math.max(1e-9, Math.min(a.w * a.h, b.w * b.h));
+  }
+
   /* Hur mycket av masken som ligger i en ruta. */
   function maskI(mask, b, W, H) {
     let s = 0;
@@ -13084,10 +13093,15 @@ const Kamera = (() => {
      där ett kort låg ska inte ärva kortets ID. */
   function fodSpar(f, nu, upp) {
     const grans = 0.6 * Math.max(f.lang, 12);
-    const t2 = tappad(f.vinkel, upp);
+    /* Tap-läget döms inte i födelserutan: ett spår föds oftast medan handen
+       fortfarande håller i kortet, och vinkeln då är handens, inte kortets.
+       Uppmätt i golden 07: tio av tolv tappade avläsningar kom på spår i
+       rörelse (tillstånd 'ny'), och korten föddes tappade på datorn. Rösten
+       börjar på noll och räknas bara i stilla rutor (matcha): tills något
+       är bevisat är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: t2, tappRost: t2 ? 1 : -1 };
+                 tappad: false, tappRost: 0 };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (i < 0) return Object.assign(ny, { id: nastaId++, tillstand: 'ny' });
@@ -13099,7 +13113,7 @@ const Kamera = (() => {
       cands: flimmer ? g.cands : null, fragad: flimmer ? !!g.fragad : false,
       tillstand: flimmer ? g.tillstand : 'ny',
       gissning: flimmer ? (g.gissning || null) : (g.namn || g.gissning || null),
-      tappad: flimmer ? g.tappad : t2, tappRost: flimmer ? g.tappRost : ny.tappRost,
+      tappad: flimmer ? g.tappad : false, tappRost: flimmer ? g.tappRost : 0,
       /* Frågan till Claude följer med ett flimmer: annars kastade svarAI
          svaret (aiFragad saknas) och tidsgränsen släppte provet på en gång. */
       provas: flimmer ? !!g.provas : false, aiFragad: flimmer ? !!g.aiFragad : false, aiFragadNar: flimmer ? (g.aiFragadNar || 0) : 0,
@@ -13173,16 +13187,36 @@ const Kamera = (() => {
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
             if (bast.aiInget === 1) { bast.aiFragad = false; bast.ai = null; } }
         }
-        else if (!bast.stillaFran) bast.stillaFran = nu;
-        /* Tap-state debounceras över några rutor: en vinkel mitt emellan
-           får inte slå fram och tillbaka. */
-        const t2 = tappad(f.vinkel, upp);
-        bast.tappRost = (bast.tappRost || 0) * 0.6 + (t2 ? 0.4 : -0.4);
-        if (bast.tappRost > 0.5) bast.tappad = true;
-        else if (bast.tappRost < -0.5) bast.tappad = false;
+        else {
+          if (!bast.stillaFran) bast.stillaFran = nu;
+          /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
+             flyttas är vinkeln handens (se fodSpar), och ett kort som redan
+             är bundet på datorn behåller sin senaste dom tills det landat.
+             Debounce över några rutor: en vinkel mitt emellan får inte slå
+             fram och tillbaka. Från noll tar det två stilla rutor. */
+          const t2 = tappad(f.vinkel, upp);
+          bast.tappRost = (bast.tappRost || 0) * 0.6 + (t2 ? 0.4 : -0.4);
+          if (bast.tappRost > 0.5) bast.tappad = true;
+          else if (bast.tappRost < -0.5) bast.tappad = false;
+        }
       } else if (fodNya) {
         spar.push(fodSpar(f, nu, upp));
       }
+    }
+    /* Ett spår utan region vars låda RYMMER ett klart mindre spår som fick
+       en region i den här rutan var aldrig ett eget kort: det var kortet
+       plus handen som lade det, eller två kort i en klump som nu skilts åt.
+       Uppmätt i golden 07: spår 1 föddes ur en region 168 px kort sida
+       (kortet 80) medan handen var i bild, och stod sedan i 30 s som "skymt"
+       över kortet det lämnade efter sig — mattan under det såg aldrig tom
+       ut, för kortet låg där — med ett eget namn (Plains?) och eget tap-läge.
+       Datorn räknade två spår med samma namn som två kort. Ett namnsatt
+       spår skyddas: då är det kortet, och det lilla en del av det (ett
+       blänk, en tärning). Inget spöke: platsen är kortets, inte klumpens. */
+    for (const t of [...kvar]) {
+      if (t.tillstand === 'klar' || arHelbild(t)) continue;
+      const del = [...anv].find(b => b.areaRef < 0.6 * t.areaRef && ladTackning(b.box, t.box) >= 0.7);
+      if (del) { spar.splice(spar.indexOf(t), 1); kvar.delete(t); }
     }
     /* Saknade spår. Frånvaro ska bevisas: bara om mattan under rutan ser tom
        ut räknas tiden mot bortaMs. Är rutan täckt är kortet skymt och tiden
