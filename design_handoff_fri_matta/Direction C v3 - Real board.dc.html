@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/modernist-f5d6f9af-4e12-41a1-82c3-664940079469/styles.css">
+  <script src="_ds/modernist-f5d6f9af-4e12-41a1-82c3-664940079469/_ds_bundle.js"></script>
+  <style>
+    html,body{height:100%;margin:0;background:#0d1015;color:#e7ecf4;overflow:hidden;color-scheme:dark;
+      font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased}
+    a{color:#6b8cff}a:hover{color:#8ea6ff}
+    @keyframes cSettle{0%{transform:scale(1.06)}60%{transform:scale(.985)}100%{transform:scale(1)}}
+    @keyframes cLand{0%{transform:translateY(-40px) scale(1.14);opacity:0}60%{transform:translateY(4px) scale(.98)}100%{transform:none;opacity:1}}
+    @keyframes cBump{40%{transform:scale(1.18)}}
+    @keyframes cToast{from{opacity:0;transform:translateY(8px)}}
+    @keyframes cNew{0%,100%{box-shadow:0 0 0 0 #f0a52a00}50%{box-shadow:0 0 0 6px #f0a52a26}}
+    @keyframes cRing{from{opacity:.7;transform:scale(.5)}to{opacity:0;transform:scale(1.5)}}
+    @keyframes cFound{0%{box-shadow:0 0 0 0 #57c78566}100%{box-shadow:0 0 0 22px #57c78500}}
+  </style>
+</helmet>
+
+<div style="position:absolute;inset:0;overflow:hidden;background:#0d1015">
+<div style="position:relative;display:flex;flex-direction:column;width:1440px;height:900px;flex:none;background:#0d1015;color:#e7ecf4;overflow:hidden;font:14px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;user-select:none;transform-origin:0 0;transform:scale({{ fit }})" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}">
+
+  <header style="display:flex;align-items:center;gap:10px;height:46px;flex:none;padding:0 12px;background:linear-gradient(#161c26,#11161e);border-bottom:1px solid #28313f;z-index:5">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;letter-spacing:.2px;padding-right:4px">
+      <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true" style="display:block"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"></path><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"></path></svg>
+      <span>Mesa</span>
+    </div>
+    <span style="padding:2px 7px;border-radius:11px;border:1px solid #3d4a5f;background:#141922;font:600 9.5px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.7px;text-transform:uppercase;color:#93a1b6">Direction C v3 · Real board</span>
+    <div style="width:1px;height:20px;background:#28313f;flex:none"></div>
+    <span style="font:11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#66748a">{{ countTxt }}</span>
+    <div style="flex:1;min-width:8px"></div>
+
+    <div style="display:flex;align-items:center;height:30px;border-radius:7px;border:1px solid #28313f;background:#1b2230;overflow:hidden">
+      <span role="button" onClick="{{ zoomOut }}" title="Back the board off" style="display:grid;place-items:center;width:28px;height:30px;color:#93a1b6;cursor:pointer" style-hover="background:#232c3c;color:#e7ecf4">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"></path></svg>
+      </span>
+      <span role="button" onClick="{{ zoomAuto }}" title="Fit the whole board" style="display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;border-left:1px solid #28313f;border-right:1px solid #28313f;cursor:pointer;font:11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:{{ zoomCol }}" style-hover="background:#232c3c">
+        {{ zoomTxt }}
+      </span>
+      <span role="button" onClick="{{ zoomIn }}" title="Come in closer" style="display:grid;place-items:center;width:28px;height:30px;color:#93a1b6;cursor:pointer" style-hover="background:#232c3c;color:#e7ecf4">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </span>
+    </div>
+
+    <button onClick="{{ untapAll }}" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #28313f;color:#93a1b6;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232c3c;color:#e7ecf4;border-color:#3b485c" title="Stand every tapped card back up">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="8" width="10" height="12.5" rx="2"></rect><path d="M16.8 7.4A6.6 6.6 0 0 0 6.6 6"></path><path d="M9.8 5.2 6.6 6 7.4 2.8"></path></svg>
+      Untap all
+    </button>
+    <button onClick="{{ tidy }}" style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #28313f;color:#93a1b6;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232c3c;color:#e7ecf4;border-color:#3b485c" title="Fan every card back into tidy rows">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h13"></path></svg>
+      Tidy up
+    </button>
+  </header>
+
+  <div style="flex:1;min-height:0;padding:10px">
+    <div ref="{{ matRef }}" onContextMenu="{{ noMenu }}" style="position:relative;width:100%;height:100%;border-radius:12px;overflow:hidden;border:1px solid #1c2330;background:radial-gradient(1250px 620px at 46% 26%,#18232f,#0a0f14 72%);box-shadow:inset 0 0 90px 20px #00000066">
+
+      <div ref="{{ vpRef }}" onPointerDown="{{ fieldDown }}" style="position:absolute;left:0;top:0;width:1060px;height:792px;overflow:hidden;cursor:{{ vpCursor }}">
+        <div style="position:absolute;left:0;top:0;width:{{ boardW }};height:{{ boardH }};transform-origin:0 0;transform:translate({{ panX }},{{ panY }}) scale({{ zoom }});transition:{{ boardTrans }}">
+
+          <sc-if value="{{ lasso }}" hint-placeholder-val="{{ false }}">
+            <i style="position:absolute;z-index:400;left:{{ lassoX }};top:{{ lassoY }};width:{{ lassoW }};height:{{ lassoH }};border:1.5px dashed #6b8cff;background:#6b8cff14;border-radius:4px;pointer-events:none"></i>
+          </sc-if>
+
+          <sc-for list="{{ mat }}" as="c" hint-placeholder-count="12">
+            <div onPointerDown="{{ c.down }}" onPointerEnter="{{ c.enter }}" onPointerLeave="{{ c.leave }}" onContextMenu="{{ c.menu }}" style="position:absolute;width:{{ c.w }};height:{{ c.h }};left:{{ c.x }};top:{{ c.y }};z-index:{{ c.z }};cursor:grab;opacity:{{ c.op }};transition:{{ c.trans }};transform:{{ c.tf }};transform-origin:50% 50%;animation:{{ c.anim }}">
+              <div style="position:absolute;inset:0;border-radius:{{ c.r }};overflow:hidden;box-shadow:{{ c.shadow }};background:#11161e">
+                <sc-if value="{{ c.img }}" hint-placeholder-val="{{ false }}">
+                  <img src="{{ c.img }}" alt="{{ c.name }}" draggable="false" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:{{ c.r }};filter:{{ c.imgFilter }}"></img>
+                </sc-if>
+                <sc-if value="{{ c.unknown }}" hint-placeholder-val="{{ false }}">
+                  <span style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:repeating-linear-gradient(45deg,#141a24 0 9px,#111721 9px 18px);color:#5c6b82">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9.2 9.2a2.9 2.9 0 1 1 3.9 2.7c-.7.3-1.1 1-1.1 1.8v.5"></path><circle cx="12" cy="17.8" r="1"></circle></svg>
+                  </span>
+                </sc-if>
+                <span style="position:absolute;left:0;right:0;bottom:0;height:{{ c.barH }};background:linear-gradient(transparent,#04070cf0 68%);pointer-events:none"></span>
+
+                <sc-if value="{{ c.kwShow }}" hint-placeholder-val="{{ true }}">
+                  <span style="position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;pointer-events:none;transform:{{ c.upright }};transform-origin:0 100%">
+                    <sc-for list="{{ c.kw }}" as="k" hint-placeholder-count="2">
+                      <b style="padding:2px 6px;border-radius:5px;background:#04070cf2;border:1px solid #4a5a72;box-shadow:0 2px 8px -3px #000c;font:700 9px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.7px;text-transform:uppercase;color:#dbe6f5;white-space:nowrap">{{ k.label }}</b>
+                    </sc-for>
+                  </span>
+                </sc-if>
+
+                <sc-if value="{{ c.pt }}" hint-placeholder-val="{{ true }}">
+                  <span style="position:absolute;bottom:6px;right:6px;display:flex;align-items:center;gap:5px;padding:2px 7px;border-radius:6px;background:#04070cf2;border:1px solid {{ c.ptBd }};box-shadow:0 2px 8px -2px #000c;pointer-events:none;transform:{{ c.upright }};transform-origin:100% 100%">
+                    <b style="font:700 13.5px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;color:{{ c.ptCol }}">{{ c.pt }}</b>
+                    <sc-if value="{{ c.ptTotal }}" hint-placeholder-val="{{ false }}">
+                      <i style="font-style:normal;font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#4d7a60">→</i>
+                    </sc-if>
+                    <sc-if value="{{ c.ptTotal }}" hint-placeholder-val="{{ false }}">
+                      <b style="font:700 13.5px/1.15 ui-monospace,SFMono-Regular,Menlo,monospace;color:#7fd6a2">{{ c.ptTotal }}</b>
+                    </sc-if>
+                  </span>
+                </sc-if>
+
+                <sc-if value="{{ c.ring }}" hint-placeholder-val="{{ false }}">
+                  <i style="position:absolute;inset:0;border-radius:{{ c.r }};pointer-events:none;z-index:6;border:{{ c.ringBorder }};box-shadow:{{ c.ringGlow }};animation:{{ c.ringAnim }}"></i>
+                </sc-if>
+              </div>
+
+              <sc-if value="{{ c.chipShow }}" hint-placeholder-val="{{ false }}">
+                <span onPointerDown="{{ c.chipDown }}" onClick="{{ c.prim }}" style="position:absolute;left:50%;top:{{ c.chipTop }};transform:{{ c.chipTf }} {{ c.upright }};z-index:16;display:flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:7px;white-space:nowrap;cursor:pointer;background:{{ c.chipBg }};border:1px solid {{ c.chipBd }};color:{{ c.chipFg }};font:650 10.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;box-shadow:0 6px 16px -6px #000e">
+                  {{ c.chip }}
+                </span>
+              </sc-if>
+            </div>
+          </sc-for>
+
+          <sc-if value="{{ hoverUI }}" hint-placeholder-val="{{ false }}">
+            <div onPointerEnter="{{ hoverKeep }}" onPointerLeave="{{ hoverDrop }}" style="position:absolute;z-index:950;left:{{ hoverX }};top:{{ hoverY }};width:{{ hoverW }};height:{{ hoverH }};pointer-events:none">
+              <span onPointerDown="{{ hoverSpin }}" title="Drag to turn the card sideways" style="position:absolute;right:-13px;bottom:-13px;pointer-events:auto;width:30px;height:30px;border-radius:50%;background:#f0a52a;border:2px solid #04070c;box-shadow:0 4px 12px -2px #000c;display:grid;place-items:center;cursor:grab" style-hover="background:#ffb943">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#20160a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.4-5.7"></path><path d="M20 4v4h-4"></path></svg>
+              </span>
+              <span style="position:absolute;left:50%;top:{{ hoverPillTop }};transform:{{ hoverPillTf }};pointer-events:auto;display:flex;align-items:center;gap:6px;padding:3px 4px 3px 9px;border-radius:8px;background:#04070cf2;border:1px solid #3a4658;box-shadow:0 8px 18px -6px #000e;white-space:nowrap">
+                <span style="font:10.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#93a1b6">{{ hoverHint }}</span>
+                <span role="button" onPointerDown="{{ stopEv }}" onClick="{{ hoverPrim }}" style="display:flex;align-items:center;gap:4px;height:21px;padding:0 8px;border-radius:6px;cursor:pointer;background:#f0a52a;color:#20160a;font:650 10.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif" style-hover="filter:brightness(1.12)">{{ hoverPrimLabel }}</span>
+                <span role="button" onPointerDown="{{ stopEv }}" onClick="{{ hoverCounters }}" title="Counters on this card" style="display:grid;place-items:center;width:21px;height:21px;border-radius:6px;background:#0e2118;border:1px solid #2f6b48;color:#9fe3ba;font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;cursor:pointer" style-hover="background:#143126">+</span>
+                <span role="button" onPointerDown="{{ stopEv }}" onClick="{{ hoverMenu }}" title="Everything else you can do" style="display:grid;place-items:center;width:21px;height:21px;border-radius:6px;background:#1b2230;color:#cfd9e8;cursor:pointer" style-hover="background:#232c3c;color:#fff">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg>
+                </span>
+              </span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="position:absolute;z-index:20;left:24px;top:10px;width:1012px;height:38px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:9px;background:#0f141cd9;border:1px solid #2f3a4c">
+        <span style="display:flex;align-items:center;gap:6px;font:600 10px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#93a1b6;flex:none">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"></path><circle cx="12" cy="13" r="3.2"></circle></svg>
+          Couldn't place
+        </span>
+        <sc-if value="{{ inboxN }}" hint-placeholder-val="{{ true }}">
+          <span style="display:flex;align-items:center;gap:7px">
+            <sc-for list="{{ inbox }}" as="b" hint-placeholder-count="2">
+              <span onPointerDown="{{ b.down }}" title="Drag onto the board" style="display:flex;align-items:center;gap:6px;height:28px;padding:2px 9px 2px 3px;border-radius:7px;background:#1a1408;border:1px solid #6a5220;cursor:grab">
+                <img src="{{ b.img }}" alt="" draggable="false" style="width:18px;height:25px;object-fit:cover;border-radius:2px;display:block"></img>
+                <b style="font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#e8c98a">{{ b.name }}</b>
+              </span>
+            </sc-for>
+          </span>
+          <span style="font:10.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">— drop it where it lies on your table</span>
+        </sc-if>
+        <sc-if value="{{ inboxEmpty }}" hint-placeholder-val="{{ false }}">
+          <span style="font:10.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">every card the camera saw found a spot on the board</span>
+        </sc-if>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font:10.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#5c6b82;flex:none">
+          <span style="width:6px;height:6px;border-radius:50%;background:#57c785"></span>
+          The camera never moves or removes a card. That's yours.
+        </span>
+      </div>
+
+      <sc-if value="{{ alert }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:40;left:24px;top:56px;width:1012px;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;background:#241a0ef2;border:1px solid #8a6a22;box-shadow:0 18px 40px -14px #000">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f0a52a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 4.3 2.6 18a1.6 1.6 0 0 0 1.4 2.4h16a1.6 1.6 0 0 0 1.4-2.4L13.7 4.3a1.6 1.6 0 0 0-2.8 0Z"></path><path d="M12 9.6v4.2"></path><circle cx="12" cy="17.2" r="1"></circle></svg>
+          <span style="flex:1;min-width:0">
+            <b style="display:block;font:650 12.5px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#ffd98a">{{ alertTitle }}</b>
+            <span style="display:block;font:11.5px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#c3b189">{{ alertBody }}</span>
+          </span>
+          <span role="button" onClick="{{ alertKeep }}" style="flex:none;display:flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;background:#f0a52a;color:#20160a;font:650 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#ffb943">Nothing happened — keep them</span>
+          <span role="button" onClick="{{ alertWipe }}" style="flex:none;display:flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;background:#2a1c1c;border:1px solid #7a3a3a;color:#f0b3b3;font:600 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#3a2222">Board wipe — all to graveyard</span>
+          <span role="button" onClick="{{ alertReview }}" style="flex:none;display:flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #3b485c;color:#cfd9e8;font:600 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#232c3c">One by one</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ review }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:75;left:24px;top:56px;width:1012px;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;background:#0f141cfa;border:1px solid #4a5a72;box-shadow:0 18px 40px -14px #000">
+          <span style="display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#f0a52a;color:#20160a;flex:none">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h11"></path><path d="M11.5 7.5 16 12l-4.5 4.5"></path><path d="M20 5v14"></path></svg>
+          </span>
+          <span style="flex:1;min-width:0">
+            <b style="display:block;font:650 12.5px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#e7ecf4">{{ reviewTitle }}</b>
+            <span style="display:block;font:11.5px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">{{ reviewBody }}</span>
+          </span>
+          <span role="button" onClick="{{ reviewSkip }}" style="flex:none;display:flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #3b485c;color:#cfd9e8;font:600 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#232c3c">Decide later</span>
+          <span role="button" onClick="{{ reviewEnd }}" style="flex:none;display:flex;align-items:center;height:28px;padding:0 11px;border-radius:7px;background:#161d28;border:1px solid #28313f;color:#93a1b6;font:600 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#232c3c;color:#e7ecf4">Stop reviewing</span>
+        </div>
+      </sc-if>
+
+      <div style="position:absolute;z-index:20;left:1086px;top:56px;width:326px;height:736px;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:12px;background:#0b1017e8;border:1px solid #28313f">
+        <div style="display:flex;align-items:center;gap:8px;height:16px;flex:none">
+          <span style="font:600 9.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#93a1b6">{{ selLabel }}</span>
+          <i style="flex:1;height:1px;background:#28313f"></i>
+          <span style="font:9.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#41506a;display:flex;align-items:center;gap:4px"><kbd style="font:9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;background:#0006;border:1px solid #28313f;border-radius:3px;padding:2px 4px;color:#66748a">F</kbd> enlarge</span>
+        </div>
+        <sc-if value="{{ selImg }}" hint-placeholder-val="{{ false }}">
+          <img src="{{ selImg }}" alt="" draggable="false" style="flex:1;min-height:0;width:100%;object-fit:contain;filter:drop-shadow(0 12px 26px #000e);cursor:zoom-in"></img>
+        </sc-if>
+        <sc-if value="{{ selBlank }}" hint-placeholder-val="{{ false }}">
+          <span style="flex:1;min-height:0;display:grid;place-items:center;border:1.5px dashed #222b39;border-radius:8px;color:#33405a">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h5"></path></svg>
+          </span>
+        </sc-if>
+        <sc-if value="{{ selName }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:none;display:flex;flex-direction:column;gap:2px">
+            <b style="font:650 14px/1.25 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#e7ecf4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selName }}</b>
+            <span style="font:11px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">{{ selType }}</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ selKwShow }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:none;display:flex;flex-wrap:wrap;gap:5px">
+            <sc-for list="{{ selKw }}" as="k" hint-placeholder-count="2">
+              <span style="display:flex;align-items:center;height:21px;padding:0 8px;border-radius:6px;background:#141a24;border:1px solid #2b3444;color:#cfe0f5;font:700 10px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.5px;text-transform:uppercase">{{ k.label }}</span>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ selCtShow }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:none;display:flex;flex-direction:column;gap:6px;padding:9px 10px;border-radius:9px;background:#0c1a12;border:1px solid #24503a">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font:600 9.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#5f9c7c">Counters</span>
+              <span style="margin-left:auto;font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9fe3ba">{{ selCtSum }}</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px">
+              <sc-for list="{{ selCts }}" as="ct" hint-placeholder-count="2">
+                <span style="display:flex;align-items:center;height:20px;padding:0 7px;border-radius:5px;background:#12281c;border:1px solid #2f6b48;color:#9fe3ba;font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace">{{ ct.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div onPointerEnter="{{ gravEnter }}" onPointerLeave="{{ gravLeave }}" style="position:absolute;z-index:22;left:22px;top:526px;width:186px;display:flex;flex-direction:column;align-items:flex-start;gap:10px">
+        <div style="width:100%;display:flex;align-items:center;gap:8px;height:14px;flex:none">
+          <span style="font:600 9.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:{{ gravLbl }};transition:color .16s">Graveyard</span>
+          <i style="flex:1;height:1px;background:#1c2330"></i>
+        </div>
+        <span ref="{{ gravRef }}" title="Hover to fan the graveyard out" style="position:relative;display:block;width:{{ gravCardW }};aspect-ratio:488/680;border-radius:7px;cursor:pointer;transition:width .22s cubic-bezier(.2,.8,.3,1),box-shadow .16s;box-shadow:{{ gravTargetGlow }};opacity:{{ gravStackOp }}">
+          <sc-for list="{{ gravLayers }}" as="l" hint-placeholder-count="3">
+            <i style="position:absolute;inset:0;border-radius:6px;transform-origin:50% 100%;background:#1b1f26;border:1px solid #39414e;box-shadow:0 1px 2px #0009;transition:transform .22s cubic-bezier(.2,.8,.3,1);transform:{{ l.tf }}"></i>
+          </sc-for>
+          <i style="position:absolute;inset:0;border-radius:6px;border:{{ gravBorder }};background:{{ gravBg }};transition:border-color .16s,background .16s"></i>
+          <sc-if value="{{ gravTop }}" hint-placeholder-val="{{ false }}">
+            <img src="{{ gravTop }}" alt="" draggable="false" style="position:relative;z-index:2;width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;background:#11161e;box-shadow:0 4px 14px -3px #000d;filter:{{ gravFilter }};animation:{{ gravAnim }}"></img>
+          </sc-if>
+          <span style="position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;color:#e6e1d6;opacity:{{ gravStoneOp }};filter:drop-shadow(0 2px 4px #000c);pointer-events:none;transition:opacity .18s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:100%;height:100%;display:block"><path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"></path><path d="M12 7.6v6.2M9 10.4h6"></path><path d="M3.2 19.4h17.6"></path></svg>
+          </span>
+          <sc-if value="{{ gravRing }}" hint-placeholder-val="{{ false }}">
+            <i style="position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;border-radius:50%;border:2px solid #e8c98a;animation:cRing .55s ease-out forwards;pointer-events:none"></i>
+          </sc-if>
+        </span>
+        <span style="font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:{{ gravTxtCol }};animation:{{ gravBump }};flex:none">{{ gravTxt }}</span>
+      </div>
+
+      <sc-if value="{{ gravOver }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:95;left:22px;top:752px;width:212px;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:#1a1408f7;border:1px solid #8a6a22;box-shadow:0 12px 26px -10px #000">
+          <i style="flex:none;width:6px;height:6px;border-radius:50%;background:#f0a52a"></i>
+          <span style="font:600 10.5px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#ffd98a">Let go — {{ dragName }} lands face up on top</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ fanOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:88;left:22px;top:550px;width:104px;height:145px;pointer-events:none">
+          <sc-for list="{{ fan }}" as="fc" hint-placeholder-count="3">
+            <div onPointerEnter="{{ fc.enter }}" onPointerLeave="{{ fc.leave }}" onPointerDown="{{ fc.down }}" style="position:absolute;inset:0;pointer-events:auto;cursor:grab;z-index:{{ fc.z }};transform-origin:50% 100%;transform:{{ fc.tf }};transition:{{ fc.trans }}">
+              <img src="{{ fc.img }}" alt="" draggable="false" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;background:#11161e;border:{{ fc.bd }};box-shadow:{{ fc.sh }}"></img>
+            </div>
+          </sc-for>
+          <sc-if value="{{ fanActs }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:{{ fanActX }};top:{{ fanActY }};z-index:60;pointer-events:auto;display:flex;align-items:center;gap:5px;padding:5px;border-radius:9px;background:#0b1017f7;border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000">
+              <span role="button" onPointerDown="{{ stopEv }}" onClick="{{ fanPlay }}" style="display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:#f0a52a;color:#20160a;font:650 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer;white-space:nowrap" style-hover="background:#ffb943">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5m0 0-5.5 5.5M12 5l5.5 5.5"></path></svg>
+                Return to play
+              </span>
+              <span role="button" onPointerDown="{{ stopEv }}" onClick="{{ fanExile }}" style="display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;background:#1b1428;border:1px solid #5c4a80;color:#d9c7f5;font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer;white-space:nowrap" style-hover="background:#241a35">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v9m4.5-6.8a8 8 0 1 1-9 0"></path></svg>
+                Exile
+              </span>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ menu }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:960;left:{{ menuX }};top:{{ menuY }};min-width:198px;display:flex;flex-direction:column;gap:2px;padding:6px;border-radius:10px;background:#0f141cf7;border:1px solid #3a4658;box-shadow:0 22px 44px -14px #000">
+          <span style="padding:3px 8px 6px;font:600 9.5px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.6px;text-transform:uppercase;color:#5c6b82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ menuName }}</span>
+          <sc-for list="{{ menuItems }}" as="mi" hint-placeholder-count="4">
+            <span role="button" onClick="{{ mi.run }}" style="display:flex;align-items:center;gap:9px;height:29px;padding:0 9px;border-radius:7px;color:{{ mi.fg }};font:500 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#232c3c">
+              <i style="flex:none;width:6px;height:6px;border-radius:50%;background:{{ mi.dot }}"></i>
+              {{ mi.label }}
+            </span>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ ctr }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:975;left:{{ ctrX }};top:{{ ctrY }};width:264px;display:flex;flex-direction:column;gap:9px;padding:11px;border-radius:11px;background:#0b1017fa;border:1px solid #2f6b48;box-shadow:0 26px 52px -16px #000">
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <b style="font:650 12px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#e7ecf4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Counters on {{ ctrName }}</b>
+            <span style="font:11px/1.35 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">{{ ctrNow }}</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+            <sc-for list="{{ ctrPresets }}" as="p" hint-placeholder-count="4">
+              <span role="button" onClick="{{ p.run }}" style="display:flex;align-items:center;justify-content:center;height:28px;border-radius:6px;background:#12281c;border:1px solid #2f6b48;color:#9fe3ba;font:700 11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;cursor:pointer" style-hover="background:#1a3a28;color:#c8f2da">{{ p.label }}</span>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid #1c2330">
+            <span style="font:600 9.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#5c6b82">Any amount</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;display:flex;align-items:center;gap:4px">
+                <span style="width:14px;font:600 10px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">P</span>
+                <span role="button" onClick="{{ ctrPDown }}" style="display:grid;place-items:center;width:24px;height:26px;border-radius:5px;background:#161d28;border:1px solid #28313f;color:#cfd9e8;font:700 13px/1 ui-monospace,Menlo,monospace;cursor:pointer" style-hover="background:#232c3c">−</span>
+                <span style="flex:1;text-align:center;font:700 12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#e7ecf4">{{ ctrP }}</span>
+                <span role="button" onClick="{{ ctrPUp }}" style="display:grid;place-items:center;width:24px;height:26px;border-radius:5px;background:#161d28;border:1px solid #28313f;color:#cfd9e8;font:700 13px/1 ui-monospace,Menlo,monospace;cursor:pointer" style-hover="background:#232c3c">+</span>
+              </div>
+              <div style="flex:1;display:flex;align-items:center;gap:4px">
+                <span style="width:14px;font:600 10px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">T</span>
+                <span role="button" onClick="{{ ctrTDown }}" style="display:grid;place-items:center;width:24px;height:26px;border-radius:5px;background:#161d28;border:1px solid #28313f;color:#cfd9e8;font:700 13px/1 ui-monospace,Menlo,monospace;cursor:pointer" style-hover="background:#232c3c">−</span>
+                <span style="flex:1;text-align:center;font:700 12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#e7ecf4">{{ ctrT }}</span>
+                <span role="button" onClick="{{ ctrTUp }}" style="display:grid;place-items:center;width:24px;height:26px;border-radius:5px;background:#161d28;border:1px solid #28313f;color:#cfd9e8;font:700 13px/1 ui-monospace,Menlo,monospace;cursor:pointer" style-hover="background:#232c3c">+</span>
+              </div>
+            </div>
+            <span role="button" onClick="{{ ctrAdd }}" style="display:flex;align-items:center;justify-content:center;height:29px;border-radius:6px;background:#f0a52a;color:#20160a;font:650 11.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#ffb943">Add {{ ctrCustom }} counter</span>
+          </div>
+
+          <sc-if value="{{ ctrHas }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid #1c2330">
+              <span style="font:600 9.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;letter-spacing:.8px;text-transform:uppercase;color:#5c6b82">On the card</span>
+              <div style="display:flex;flex-wrap:wrap;gap:5px">
+                <sc-for list="{{ ctrList }}" as="ct" hint-placeholder-count="2">
+                  <span role="button" onClick="{{ ct.remove }}" title="Remove one" style="display:flex;align-items:center;gap:6px;height:23px;padding:0 6px 0 8px;border-radius:6px;background:#12281c;border:1px solid #2f6b48;color:#9fe3ba;font:700 10.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;cursor:pointer" style-hover="background:#2a1717;border-color:#7a3a3a;color:#f0b3b3">
+                    {{ ct.label }}
+                    <i style="font-style:normal;opacity:.7">×</i>
+                  </span>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <span role="button" onClick="{{ ctrClose }}" style="display:flex;align-items:center;justify-content:center;height:26px;border-radius:6px;background:#161d28;border:1px solid #28313f;color:#93a1b6;font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#232c3c;color:#e7ecf4">Done</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ sheet }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;z-index:970;left:{{ sheetX }};top:{{ sheetY }};width:238px;display:flex;flex-direction:column;gap:3px;padding:10px;border-radius:11px;background:#0f141cfa;border:1px solid #4a5a72;box-shadow:0 26px 52px -16px #000">
+          <b style="padding:0 2px 2px;font:650 12px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#e7ecf4">{{ sheetTitle }}</b>
+          <span style="padding:0 2px 7px;font:11px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#66748a">{{ sheetBody }}</span>
+          <sc-for list="{{ sheetOpts }}" as="o" hint-placeholder-count="5">
+            <span role="button" onClick="{{ o.run }}" style="display:flex;align-items:center;gap:9px;height:31px;padding:0 9px;border-radius:7px;background:{{ o.bg }};border:1px solid {{ o.bd }};color:{{ o.fg }};font:550 12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="filter:brightness(1.22)">
+              <i style="flex:none;width:6px;height:6px;border-radius:50%;background:{{ o.dot }}"></i>
+              {{ o.label }}
+            </span>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <footer style="flex:none;display:flex;align-items:center;gap:14px;height:30px;padding:0 12px;background:#0b0f15;border-top:1px solid #28313f;font-size:11.5px;color:#66748a;white-space:nowrap;overflow:hidden">
+    <span style="display:flex;align-items:center;gap:5px;color:#93a1b6"><b style="font-weight:600;color:#e7ecf4">Drag a card</b> anywhere — it stays where you put it</span>
+    <span style="width:1px;height:13px;background:#28313f"></span>
+    <span style="display:flex;align-items:center;gap:5px"><b style="font-weight:600;color:#b9c6d8">Scroll to zoom</b> anywhere over the board</span>
+    <span style="width:1px;height:13px;background:#28313f"></span>
+    <span style="display:flex;align-items:center;gap:5px">{{ panHint }}</span>
+    <span style="width:1px;height:13px;background:#28313f"></span>
+    <span style="display:flex;align-items:center;gap:5px"><b style="font-weight:600;color:#b9c6d8">Nothing leaves</b> until you say where it went</span>
+    <span style="display:flex;align-items:center;gap:5px;margin-left:auto"><kbd style="display:inline-block;min-width:17px;text-align:center;padding:1px 5px;border-radius:4px;background:#212a38;border:1px solid #333e50;border-bottom-width:2px;font:11px/1.5 ui-monospace,Menlo,monospace;color:#b9c6d8">?</kbd> all shortcuts</span>
+  </footer>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:50%;bottom:52px;transform:translateX(-50%);z-index:800;display:flex;align-items:center;gap:10px;padding:8px 10px 8px 12px;border-radius:9px;background:#141922f2;border:1px solid #3d4a5f;box-shadow:0 14px 34px -12px #000;animation:cToast .18s ease-out">
+      <span style="font:12px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;color:#cfd9e8">{{ toast }}</span>
+      <button onClick="{{ undo }}" style="height:24px;padding:0 9px;border-radius:6px;background:#232c3c;border:1px solid #4a5a72;color:#e7ecf4;font:600 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;cursor:pointer" style-hover="background:#f0a52a;color:#20160a;border-color:#f0a52a">Undo</button>
+    </div>
+  </sc-if>
+</div>
+
+<span role="button" onClick="{{ devToggle }}" title="Test cases — scenarios for testing, not part of the design" style="position:fixed;right:4px;top:4px;z-index:9998;display:grid;place-items:center;width:24px;height:24px;border-radius:4px;background:#12060f;border:1px dashed #7b3f86;color:#c98fd6;cursor:pointer;opacity:.55" style-hover="opacity:1;background:#1c0a19">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6.5L5.2 18a2 2 0 0 0 1.7 3h10.2a2 2 0 0 0 1.7-3L14 9.5V3"></path><path d="M7.6 14h8.8"></path></svg>
+</span>
+
+<sc-if value="{{ dev }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;right:4px;top:32px;z-index:9998;width:298px;display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:6px;background:#0a0710f2;border:1px dashed #7b3f86;box-shadow:0 26px 52px -16px #000">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font:600 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1.2px;text-transform:uppercase;color:#c98fd6">Test harness · not shipped</span>
+      <i style="flex:1;height:1px;background:#2c1a30"></i>
+      <span role="button" onClick="{{ devToggle }}" style="display:grid;place-items:center;width:18px;height:18px;border-radius:3px;color:#8f6f97;cursor:pointer;font:700 12px/1 ui-monospace,Menlo,monospace" style-hover="background:#1c0a19;color:#e9d6ee">×</span>
+    </div>
+    <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <span style="font:600 9px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.8px;text-transform:uppercase;color:#6c5674">{{ g.title }}</span>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+            <span role="button" onClick="{{ it.run }}" style="display:flex;align-items:center;gap:6px;height:23px;padding:0 8px;border-radius:4px;background:#140d18;border:1px solid #2c1a30;color:#c2b2c8;font:500 10.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;cursor:pointer" style-hover="background:#20132a;border-color:#7b3f86;color:#fff">
+              <i style="flex:none;width:5px;height:5px;border-radius:50%;background:{{ it.dot }}"></i>
+              {{ it.label }}
+            </span>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;manaStacks&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;abilityWords&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;confirmRemoval&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Cards leaving&quot;}}">
+const CW = 178, CH = 248, LW = 128, LH = 178, VPW = 1060, VPH = 792;
+/* Manan ligger omlott i BÅDA led: en bred synlig kant nedåt och en tydlig
+   förskjutning i sidled, så varje kort i högen syns och går att peka på. */
+const STACK = 74, XSTEP = 17, PER_STACK = 4;
+const LANDRE = /island|swamp|forest|plains|mountain|moor|bog|cottage|wastes|tomb|crypt/i;
+const img = (n, v) => n ? 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(n) + '&format=image&version=' + (v || 'normal') : '';
+
+const SEED = [
+  { id: 'llan', name: 'Llanowar Dead',     kind: 'perm', tapped: true,  cts: [], x: 44,  y: 82 },
+  { id: 'wood', name: 'Wood Elves',        kind: 'perm', tapped: false, cts: [{ p: 1, t: 1 }, { p: 1, t: 1 }], x: 246, y: 82 },
+  { id: 'nigh', name: 'Vampire Nighthawk', kind: 'perm', tapped: true,  cts: [], x: 448, y: 82 },
+  { id: 'bone', name: 'Bonecaller Cleric', kind: 'perm', tapped: false, cts: [], x: 650, y: 82 },
+  { id: 'chor', name: 'Elven Chorus',      kind: 'perm', tapped: false, cts: [], x: 852, y: 82 },
+  { id: 'is1',  name: 'Island', kind: 'land', tapped: false, cts: [], x: 300, y: 470 },
+  { id: 'is2',  name: 'Island', kind: 'land', tapped: false, cts: [], x: 362, y: 470 },
+  { id: 'sw2',  name: 'Swamp',  kind: 'land', tapped: false, cts: [], x: 496, y: 470 },
+  { id: 'sw3',  name: 'Swamp',  kind: 'land', tapped: false, cts: [], x: 558, y: 470 },
+  { id: 'sw4',  name: 'Swamp',  kind: 'land', tapped: false, cts: [], x: 620, y: 470 },
+  { id: 'sw1',  name: 'Swamp',  kind: 'land', tapped: true,  cts: [], x: 768, y: 495 },
+  { id: 'moor', name: 'Thriving Moor', kind: 'land', tapped: false, cts: [], x: 940, y: 470 }
+];
+const CROWD_PERM = ['Sengir Vampire', 'Gravedigger', 'Blood Artist', 'Cryptbreaker', 'Dusk Legion Zealot', 'Grim Haruspex'];
+const CROWD_LAND = ['Swamp', 'Swamp', 'Island', 'Bojuka Bog', "Witch's Cottage"];
+const BULK_PERM = ['Sengir Vampire', 'Nighthawk Scavenger', 'Crypt Ghast', 'Bloodline Keeper', 'Grim Haruspex', 'Cryptbreaker', 'Blood Artist', 'Gravedigger', 'Dusk Legion Zealot'];
+const BULK_LAND = ['Swamp', 'Island', 'Bojuka Bog', "Witch's Cottage", 'Swamp'];
+const PILES = [
+  { key: 'grav', label: 'Graveyard', tint: '#f0a52a' },
+  { key: 'exile', label: 'Exile',     tint: '#b98ff0' },
+  { key: 'hand', label: 'Back to hand', tint: '#6b8cff' },
+  { key: 'lib',  label: 'Library', tint: '#7fd6a2', long: 'into the library' }
+];
+const PRESETS = [{ p: 1, t: 1 }, { p: 1, t: 0 }, { p: 0, t: 1 }, { p: 2, t: 2 }];
+const ctLabel = k => (k.p >= 0 ? '+' + k.p : k.p) + '/' + (k.t >= 0 ? '+' + k.t : k.t);
+const ctSum = cts => (cts || []).reduce((a, k) => ({ p: a.p + k.p, t: a.t + k.t }), { p: 0, t: 0 });
+
+class Component extends DCLogic {
+  state = {
+    cards: SEED.map((c, i) => Object.assign({}, c, { z: i + 1, st: 'ok' })),
+    piles: { grav: ['Dark Bargain', 'Gravedigger', 'Swamp'], exile: [], hand: [], lib: [] },
+    inbox: [], meta: {}, fit: 1, topZ: 40, nextId: 1,
+    board: { w: VPW, h: VPH }, pan: { x: 0, y: 0 }, zoomManual: null, glide: false,
+    sel: [], hover: null, lastSel: 'wood', held: null, spin: null, live: null, settle: null,
+    overPile: null, joinId: null, bumped: null, menu: null, menuPt: null, sheet: null, sheetPt: null,
+    ctr: null, ctrPt: null, ctrP: 1, ctrT: 1,
+    lasso: null, alert: null, review: null, toast: null, undoFn: null,
+    fanOpen: false, fanOn: false, fanHover: null, dev: false
+  };
+
+  /* --- vy: brädet är en yta, mattan är ett fönster mot den ------------ */
+  boardFor(cards) {
+    const need = cards.reduce((a, c) => a + (c.kind === 'land' ? LW * LH : CW * CH), 0) * 3;
+    const s = Math.max(1, Math.sqrt(need / (VPW * VPH)));
+    return { w: Math.round(VPW * s), h: Math.round(VPH * s) };
+  }
+  grown(cards, board) {
+    const b = this.boardFor(cards), cur = board || this.state.board;
+    return { w: Math.max(cur.w, b.w), h: Math.max(cur.h, b.h) };
+  }
+  fitZoom(board) { return Math.max(0.3, Math.min(1, Math.min(VPW / board.w, VPH / board.h))); }
+  clampPan(pan, z, board) {
+    const minX = Math.min(0, VPW - board.w * z), minY = Math.min(0, VPH - board.h * z);
+    return { x: Math.max(minX, Math.min(0, pan.x)), y: Math.max(minY, Math.min(0, pan.y)) };
+  }
+  view(cards, boardIn) {
+    const board = boardIn || this.state.board;
+    const fit = this.fitZoom(board);
+    const z = this.state.zoomManual != null ? Math.max(fit, Math.min(1.8, this.state.zoomManual)) : fit;
+    return { board, fit, z, pan: this.clampPan(this.state.pan, z, board) };
+  }
+
+  componentDidMount() {
+    this.onFit = () => this.setState({ fit: Math.min(1, window.innerWidth / 1440, window.innerHeight / 900) });
+    this.onFit();
+    window.addEventListener('resize', this.onFit);
+    this.setState(s => ({ board: this.grown(s.cards) }));
+    this.ensureMeta(SEED.map(c => c.name).concat(['Dark Bargain']));
+    if (this.vpEl) { this.wheel = e => this.onWheel(e); this.vpEl.addEventListener('wheel', this.wheel, { passive: false }); }
+  }
+  componentWillUnmount() {
+    window.removeEventListener('resize', this.onFit);
+    if (this.vpEl && this.wheel) this.vpEl.removeEventListener('wheel', this.wheel);
+  }
+  ensureMeta(names) {
+    const want = [...new Set(names)].filter(n => n && !this.state.meta[n] && !(this.pending || {})[n]);
+    this.pending = this.pending || {};
+    want.forEach((n, i) => {
+      this.pending[n] = 1;
+      setTimeout(() => {
+        fetch('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(n))
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d) this.setState(s => ({ meta: Object.assign({}, s.meta, { [n]: {
+            pow: +d.power, tou: +d.toughness,
+            type: (d.type_line || '').split('//')[0].trim(),
+            kw: d.keywords || []
+          } }) })); })
+          .catch(() => {});
+      }, i * 80);
+    });
+  }
+
+  /* --- zoom och pan ---------------------------------------------------- */
+  onWheel(ev) {
+    ev.preventDefault();
+    const v = this.view(), fit = this.state.fit || 1;
+    const r = this.vpEl.getBoundingClientRect();
+    const mx = (ev.clientX - r.left) / fit, my = (ev.clientY - r.top) / fit;
+    if (ev.shiftKey || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) {
+      const d = ev.shiftKey ? ev.deltaY : ev.deltaX;
+      this.setState({ pan: this.clampPan({ x: v.pan.x - d, y: v.pan.y }, v.z, v.board), glide: false });
+      return;
+    }
+    const nz = Math.max(v.fit, Math.min(1.8, v.z * Math.exp(-ev.deltaY * 0.0016)));
+    const bx = (mx - v.pan.x) / v.z, by = (my - v.pan.y) / v.z;
+    this.setState({ glide: false, zoomManual: nz <= v.fit + 0.004 ? null : nz,
+      pan: this.clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board) });
+  }
+  zoomBy(mult) {
+    const v = this.view();
+    const nz = Math.max(v.fit, Math.min(1.8, v.z * mult));
+    const cx = VPW / 2, cy = VPH / 2;
+    const bx = (cx - v.pan.x) / v.z, by = (cy - v.pan.y) / v.z;
+    this.setState({ glide: true, zoomManual: nz <= v.fit + 0.004 ? null : nz,
+      pan: this.clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board) });
+  }
+  fitView() { this.setState({ zoomManual: null, pan: { x: 0, y: 0 }, glide: true }); }
+
+  /* --- geometri -------------------------------------------------------- */
+  size(c) { return c.kind === 'land' ? { w: LW, h: LH } : { w: CW, h: CH }; }
+  gravRect(v) {
+    return { x0: (6 - v.pan.x) / v.z, x1: (146 - v.pan.x) / v.z,
+             y0: (508 - v.pan.y) / v.z, y1: (740 - v.pan.y) / v.z };
+  }
+  clamp(c, v) {
+    const s = this.size(c);
+    let x = Math.max(8, Math.min(v.board.w - s.w - 8, c.x));
+    let y = Math.max(50, Math.min(v.board.h - s.h - 8, c.y));
+    const g = this.gravRect(v);
+    if (x < g.x1 && x + s.w > g.x0 && y + s.h > g.y0 && y < g.y1) {
+      const up = (y + s.h) - g.y0, right = g.x1 - x;
+      if (up < right && g.y0 - s.h - 8 > 50) y = g.y0 - s.h - 8;
+      else x = Math.min(v.board.w - s.w - 8, g.x1 + 8);
+    }
+    return Object.assign({}, c, { x, y });
+  }
+  rect(c) {
+    const s = this.size(c);
+    if (!c.tapped) return { x: c.x, y: c.y, w: s.w, h: s.h };
+    const cx = c.x + s.w / 2, cy = c.y + s.h / 2;
+    return { x: cx - s.h / 2, y: cy - s.w / 2, w: s.h, h: s.w };
+  }
+
+  /* --- mutation --------------------------------------------------------- */
+  act(msg, mutate, extra) {
+    const before = { cards: this.state.cards.map(c => Object.assign({}, c)),
+                     piles: JSON.parse(JSON.stringify(this.state.piles)),
+                     inbox: this.state.inbox.slice(), board: this.state.board };
+    this.setState(s => {
+      const next = mutate({ cards: s.cards.map(c => Object.assign({}, c)),
+                            piles: JSON.parse(JSON.stringify(s.piles)), inbox: s.inbox.slice() });
+      const board = next.board || this.grown(next.cards, s.board);
+      const v = this.view(next.cards, board);
+      return Object.assign({
+        cards: next.cards.map(c => this.clamp(c, v)), piles: next.piles, inbox: next.inbox,
+        board, pan: v.pan, toast: msg || null, menu: null, sheet: null,
+        undoFn: () => this.setState({ cards: before.cards, piles: before.piles, inbox: before.inbox, board: before.board, toast: null })
+      }, extra || {});
+    });
+    clearTimeout(this.tT);
+    if (msg) this.tT = setTimeout(() => this.setState({ toast: null }), 4600);
+  }
+  patch(id, fn) {
+    this.setState(s => ({ cards: s.cards.map(c => c.id === id ? Object.assign({}, c, fn(c)) : c) }));
+  }
+  tap(id) {
+    const c = this.state.cards.find(x => x.id === id);
+    if (!c || c.st === 'missing') return;
+    this.setState({ menu: null, sheet: null });
+    this.patch(id, x => ({ tapped: !x.tapped }));
+  }
+  untapAll() {
+    const n = this.state.cards.filter(c => c.tapped).length;
+    if (!n) return;
+    this.act(n + (n === 1 ? ' card' : ' cards') + ' stood back up',
+      st => (st.cards = st.cards.map(c => Object.assign({}, c, { tapped: false })), st));
+  }
+
+  /* --- counters ---------------------------------------------------------- */
+  openCounters(id, pt) {
+    const c = this.state.cards.find(x => x.id === id); if (!c) return;
+    const v = this.view(), sz = this.size(c);
+    const p = pt || { x: Math.min(760, c.x * v.z + v.pan.x + sz.w * v.z + 14), y: Math.max(110, c.y * v.z + v.pan.y) };
+    this.setState({ ctr: id, ctrPt: { x: Math.min(770, p.x), y: Math.min(300, Math.max(70, p.y)) }, menu: null, sheet: null, hover: null });
+  }
+  addCounter(id, k) {
+    if (!k.p && !k.t) return;
+    this.patch(id, c => ({ cts: (c.cts || []).concat([{ p: k.p, t: k.t }]) }));
+  }
+  removeCounter(id, key) {
+    this.patch(id, c => {
+      const list = (c.cts || []).slice();
+      const i = list.findIndex(k => ctLabel(k) === key);
+      if (i >= 0) list.splice(i, 1);
+      return { cts: list };
+    });
+  }
+
+  /* --- upplägg ---------------------------------------------------------- */
+  layoutAll(cards, landsOnly) {
+    const board = this.boardFor(cards);
+    const rows = (list, w, h, x0, y0, hAvail) => {
+      const n = list.length; if (!n) return [];
+      const room = Math.max(w, board.w - x0 - 24 - w);
+      const maxRows = Math.max(1, Math.floor(hAvail / (h + 16)));
+      let r = 1;
+      while (r < maxRows && room / Math.max(1, Math.ceil(n / r) - 1) < w * 0.9) r++;
+      const per = Math.ceil(n / r);
+      const step = Math.min(w + 24, room / Math.max(1, per - 1));
+      return list.map((c, i) => Object.assign({}, c, { grp: null, gi: null,
+        x: Math.round(x0 + (i % per) * step), y: y0 + Math.floor(i / per) * (h + 16) }));
+    };
+    const lands = cards.filter(c => c.kind === 'land');
+    const permList = cards.filter(c => c.kind === 'perm');
+    const stacking = lands.length > 8 || (landsOnly && lands.length > 2);
+    const perRows = stacking ? Math.min(PER_STACK, lands.length) : 1;
+    const blockH = stacking ? (perRows - 1) * STACK + LH : LH;
+    const perms = landsOnly ? [] : rows(permList, CW, CH, 44, 82, Math.max(CH + 16, board.h - 150 - blockH - 82));
+    const permBottom = perms.length ? Math.max.apply(null, perms.map(c => c.y + CH)) : 82;
+    const lY = Math.max(82, Math.min(board.h - 40 - blockH, (permList.length ? permBottom + 42 : 82)));
+    const fit = Math.max(0.3, Math.min(1, Math.min(VPW / board.w, VPH / board.h)));
+    const lX = lY + blockH > 508 / fit ? Math.round(146 / fit + 14) : 44;
+    let laid;
+    if (stacking) {
+      const cols = [];
+      for (let i = 0; i < lands.length; i += PER_STACK) cols.push(lands.slice(i, i + PER_STACK));
+      const wide = LW + (Math.min(PER_STACK, lands.length) - 1) * XSTEP;
+      const step = Math.min(wide + 40, (board.w - lX - 24 - wide) / Math.max(1, cols.length - 1));
+      laid = [];
+      cols.forEach((col, ci) => col.forEach((c, i) => laid.push(Object.assign({}, c, {
+        grp: col.length > 1 ? 'L' + ci : null, gi: col.length > 1 ? i : null, tapped: false,
+        x: Math.round(lX + ci * step + i * XSTEP), y: lY + i * STACK, z: 200 + ci * 10 + i }))));
+    } else {
+      laid = rows(lands, LW, LH, lX, lY, board.h - 40 - lY);
+    }
+    const by = {}; perms.concat(laid).forEach(c => { by[c.id] = c; });
+    return cards.map(c => by[c.id] || c);
+  }
+  tidy() {
+    this.setState({ zoomManual: null, pan: { x: 0, y: 0 }, glide: true });
+    this.act('Fanned back into rows', st => {
+      st.cards = this.layoutAll(st.cards).map(c => c.kind === 'land' ? Object.assign({}, c, { tapped: false }) : c);
+      st.board = this.boardFor(st.cards);
+      return st;
+    });
+  }
+  stackAllMana() {
+    if (this.state.cards.filter(c => c.kind === 'land').length < 2) { this.flash('No mana on the board yet'); return; }
+    this.act('Mana stacked — drag one out whenever you need it',
+      st => (st.cards = this.layoutAll(st.cards, true), st));
+  }
+  findJoin(cards, id) {
+    if (this.props.manaStacks === false) return null;
+    const me = cards.find(c => c.id === id);
+    if (!me || me.kind !== 'land' || me.st === 'missing') return null;
+    const rm = this.rect(me);
+    let best = null, bestOv = 0.24;
+    cards.forEach(o => {
+      if (o.id === id || o.kind !== 'land' || o.st === 'missing') return;
+      const ro = this.rect(o);
+      const ix = Math.max(0, Math.min(rm.x + rm.w, ro.x + ro.w) - Math.max(rm.x, ro.x));
+      const iy = Math.max(0, Math.min(rm.y + rm.h, ro.y + ro.h) - Math.max(rm.y, ro.y));
+      const ov = ix * iy / (rm.w * rm.h);
+      if (ov > bestOv) { bestOv = ov; best = o; }
+    });
+    return best ? best.id : null;
+  }
+  restack(id) {
+    this.setState(s => {
+      const src = s.cards.find(c => c.id === id);
+      if (!src || src.kind !== 'land') return null;
+      const target = this.findJoin(s.cards, id);
+      if (!target && !src.grp) return { joinId: null };
+      const v = this.view(s.cards, s.board);
+      const cards = s.cards.map(c => Object.assign({}, c));
+      const get = i => cards.find(c => c.id === i);
+      const mine = get(id);
+      if (target) {
+        const t = get(target);
+        const g = t.grp || ('g' + s.nextId);
+        if (t.gi == null) { t.grp = g; t.gi = 0; }
+        mine.grp = g;
+        mine.gi = cards.reduce((a, c) => c.grp === g && c.id !== id ? Math.max(a, c.gi || 0) : a, 0) + 1;
+      } else { mine.grp = null; mine.gi = null; }
+      const groups = {};
+      cards.forEach(c => { if (c.grp) (groups[c.grp] = groups[c.grp] || []).push(c); });
+      Object.keys(groups).forEach(k => {
+        const list = groups[k].sort((a, b) => (a.gi || 0) - (b.gi || 0));
+        if (list.length < 2) { list.forEach(c => { c.grp = null; c.gi = null; }); return; }
+        const base = list[0];
+        list.forEach((c, i) => { c.gi = i; c.x = base.x + i * XSTEP; c.y = base.y + i * STACK; c.z = 200 + i; });
+      });
+      return { cards: cards.map(c => this.clamp(c, v)), nextId: s.nextId + 1, joinId: null };
+    });
+  }
+
+  /* --- kort lämnar bordet ------------------------------------------------ */
+  resolve(id, dest, label) {
+    const c = this.state.cards.find(x => x.id === id);
+    if (!c) return;
+    this.act(c.name + ' → ' + label, st => {
+      st.cards = st.cards.filter(x => x.id !== id);
+      st.piles[dest] = [c.name].concat(st.piles[dest]);
+      return st;
+    }, { bumped: dest, hover: null, sel: [] });
+    setTimeout(() => this.setState(s => s.bumped === dest ? { bumped: null } : null), 500);
+    this.advanceReview();
+  }
+  stillThere(id) {
+    const c = this.state.cards.find(x => x.id === id);
+    this.setState({ sheet: null, menu: null, found: id });
+    this.patch(id, () => ({ st: 'ok', missAt: null }));
+    if (c && !this.state.review) this.flash(c.name + ' stays on the board');
+    setTimeout(() => this.setState(s => s.found === id ? { found: null } : null), 700);
+    this.advanceReview();
+  }
+  startReview() {
+    const ids = this.state.cards.filter(c => c.st === 'missing').map(c => c.id);
+    if (!ids.length) { this.setState({ alert: null }); return; }
+    this.setState({ alert: null, review: { ids, i: 0 } });
+    setTimeout(() => this.openSheet(ids[0], 'dest'), 140);
+  }
+  advanceReview() {
+    const r = this.state.review;
+    if (!r) return;
+    const rest = r.ids.slice(r.i + 1).filter(id => {
+      const c = this.state.cards.find(x => x.id === id); return c && c.st === 'missing';
+    });
+    if (!rest.length) { this.setState({ review: null, sheet: null }); this.flash('Every card is accounted for'); return; }
+    const i = r.ids.indexOf(rest[0]);
+    this.setState({ review: { ids: r.ids, i } });
+    setTimeout(() => this.openSheet(rest[0], 'dest'), 140);
+  }
+  endReview() { this.setState({ review: null, sheet: null }); }
+  confirmNew(id) { this.setState({ sheet: null, menu: null }); this.patch(id, () => ({ st: 'ok' })); }
+  flash(msg) {
+    this.setState({ toast: msg, undoFn: null });
+    clearTimeout(this.tT);
+    this.tT = setTimeout(() => this.setState({ toast: null }), 3200);
+  }
+
+  /* --- graveyard: solfjädern fälls ut ur själva högen --------------------- */
+  fanOpenNow() {
+    clearTimeout(this.fT);
+    if (this.state.fanOpen && this.state.fanOn) return;
+    this.setState({ fanOpen: true });
+    clearTimeout(this.fOn);
+    this.fOn = setTimeout(() => this.setState({ fanOn: true }), 24);
+  }
+  fanCloseSoon() {
+    clearTimeout(this.fT);
+    this.fT = setTimeout(() => {
+      this.setState({ fanOn: false, fanHover: null });
+      clearTimeout(this.fOff);
+      this.fOff = setTimeout(() => this.setState({ fanOpen: false }), 240);
+    }, 130);
+  }
+  fanReturn(i) {
+    const name = (this.state.piles.grav || [])[i];
+    if (name == null) return;
+    const kind = LANDRE.test(name) ? 'land' : 'perm';
+    const p = this.slotBeside(kind);
+    this.setState({ fanOpen: false, fanOn: false, fanHover: null });
+    this.act(name + ' → back on the board', st => {
+      st.piles.grav = st.piles.grav.filter((n, k) => k !== i);
+      st.cards = st.cards.concat([{ id: 'r' + Date.now().toString(36), name, kind, tapped: false,
+        cts: [], st: 'new', z: 900, x: p.x, y: p.y, grp: null, gi: null }]);
+      return st;
+    });
+    this.ensureMeta([name]);
+  }
+  fanExileCard(i) {
+    const name = (this.state.piles.grav || [])[i];
+    if (name == null) return;
+    this.setState({ fanHover: null });
+    this.act(name + ' → exiled from the game', st => {
+      st.piles.grav = st.piles.grav.filter((n, k) => k !== i);
+      st.piles.exile = [name].concat(st.piles.exile);
+      return st;
+    }, { bumped: 'exile' });
+    setTimeout(() => this.setState(s => s.bumped === 'exile' ? { bumped: null } : null), 500);
+  }
+  fanDown(i, ev) {
+    if (ev.button) return;
+    ev.stopPropagation();
+    this.gravDrag = { i, name: (this.state.piles.grav || [])[i], x0: ev.clientX, y0: ev.clientY };
+  }
+  spawnFromGrave(ev) {
+    const g = this.gravDrag; this.gravDrag = null;
+    const kind = LANDRE.test(g.name || '') ? 'land' : 'perm';
+    const s = kind === 'land' ? { w: LW, h: LH } : { w: CW, h: CH };
+    const p = this.cpt(ev), id = 'r' + this.state.nextId;
+    this.ensureMeta([g.name]);
+    this.setState(st => ({
+      nextId: st.nextId + 1, topZ: st.topZ + 1, sel: [id], fanOpen: false, fanOn: false, fanHover: null, held: id,
+      piles: Object.assign({}, st.piles, { grav: st.piles.grav.filter((n, k) => k !== g.i) }),
+      cards: st.cards.concat([{ id, name: g.name, kind, tapped: false, cts: [], st: 'new',
+        z: st.topZ + 1, x: p.x - s.w / 2, y: p.y - s.h / 2, grp: null, gi: null }])
+    }));
+    this.dnd = { id, ids: [id], offs: { [id]: { ox: s.w / 2, oy: s.h / 2 } }, moved: true, x0: ev.clientX, y0: ev.clientY };
+  }
+
+  /* --- scenarier (test harness) -------------------------------------------- */
+  add(name, opts) {
+    const o = opts || {};
+    this.ensureMeta([name]);
+    this.setState(s => {
+      const id = 'n' + s.nextId;
+      const c = Object.assign({
+        id, name: name || '', kind: o.kind || (LANDRE.test(name || '') ? 'land' : 'perm'),
+        tapped: false, cts: [], st: o.st || 'new', z: s.topZ + 1,
+        unknown: !!o.unknown, guesses: o.guesses || null, x: o.x || 44, y: o.y || 82, grp: null, gi: null
+      });
+      const cards = s.cards.concat([c]);
+      const board = this.grown(cards, s.board);
+      const v = this.view(cards, board);
+      return { cards: cards.map(k => k.id === id ? this.clamp(k, v) : k), board, nextId: s.nextId + 1, topZ: s.topZ + 1 };
+    });
+  }
+  slotBeside(kind) {
+    const v = this.view();
+    const s = kind === 'land' ? { w: LW, h: LH } : { w: CW, h: CH };
+    const row = this.state.cards.filter(c => c.kind === kind);
+    if (!row.length) return { x: kind === 'land' ? 300 : 44, y: kind === 'land' ? Math.round(82 + (v.board.h - 172) * 0.6) : 82 };
+    const last = row.reduce((a, b) => (b.x > a.x ? b : a), row[0]);
+    let x = last.x + s.w + 18, y = last.y;
+    if (x + s.w + 8 > v.board.w) { x = 44; y = last.y + s.h + 16; }
+    return { x, y };
+  }
+  playBeside(name, kind) {
+    const p = this.slotBeside(kind);
+    this.add(name, { kind, x: p.x, y: p.y });
+    this.flash(name + ' landed beside its neighbours');
+  }
+  playMany(names) {
+    names.forEach((n, i) => setTimeout(() => {
+      const kind = LANDRE.test(n) ? 'land' : 'perm';
+      const p = this.slotBeside(kind);
+      this.add(n, { kind, x: p.x, y: p.y });
+    }, i * 220));
+    this.flash(names.length + ' cards hit the table at once');
+  }
+  playUnplaced(name) {
+    this.ensureMeta([name]);
+    this.setState(s => ({ inbox: s.inbox.concat([{ id: 'b' + s.nextId, name }]), nextId: s.nextId + 1 }));
+    this.flash("The camera saw " + name + " but not where — drop it yourself");
+  }
+  playUnknown() {
+    const p = this.slotBeside('perm');
+    this.add('', { kind: 'perm', x: p.x, y: p.y, unknown: true, guesses: ['Gravedigger', 'Blood Artist', 'Sengir Vampire'] });
+    this.flash("A card the camera couldn't read");
+  }
+  crowd() {
+    this.ensureMeta(CROWD_PERM.concat(CROWD_LAND));
+    this.act('Eleven more cards — the board grew to hold them', st => {
+      let n = 900, top = 400;
+      st.cards = this.layoutAll(st.cards.concat(
+        CROWD_PERM.map(name => ({ id: 'c' + (n++), name, kind: 'perm', tapped: Math.random() < 0.3, cts: [], st: 'ok', z: top++, x: 0, y: 0 })),
+        CROWD_LAND.map(name => ({ id: 'c' + (n++), name, kind: 'land', tapped: false, cts: [], st: 'ok', z: top++, x: 0, y: 0 }))));
+      st.board = this.boardFor(st.cards);
+      return st;
+    });
+    this.setState({ zoomManual: null, pan: { x: 0, y: 0 }, glide: true });
+  }
+  fillTo(target) {
+    const need = target - this.state.cards.length;
+    if (need <= 0) { this.flash('Already ' + this.state.cards.length + ' cards on the board'); return; }
+    const add = [];
+    for (let i = 0; i < need; i++) {
+      const land = i % 3 === 2;
+      add.push({ id: 'f' + i + '_' + this.state.nextId, kind: land ? 'land' : 'perm',
+        name: land ? BULK_LAND[i % BULK_LAND.length] : BULK_PERM[i % BULK_PERM.length],
+        tapped: !land && Math.random() < 0.28, cts: [], st: 'ok', z: 300 + i, x: 0, y: 0, grp: null, gi: null });
+    }
+    this.ensureMeta(add.map(c => c.name));
+    this.setState(s => ({ nextId: s.nextId + 1, zoomManual: null, pan: { x: 0, y: 0 }, glide: true }));
+    this.act(target + ' cards on the table — the board grew and the mana stacked itself', st => {
+      st.cards = this.layoutAll(st.cards.concat(add));
+      st.board = this.boardFor(st.cards);
+      return st;
+    });
+  }
+  loseOne() {
+    const live = this.state.cards.filter(c => c.st === 'ok');
+    if (!live.length) return;
+    const c = live[Math.floor(Math.random() * live.length)];
+    if (this.props.confirmRemoval === false) { this.resolve(c.id, 'grav', 'graveyard (no confirmation)'); return; }
+    this.patch(c.id, () => ({ st: 'missing' }));
+    this.setState({ toast: null });
+  }
+  loseMany() {
+    const live = this.state.cards.filter(c => c.st === 'ok');
+    const pick = live.slice(0, Math.min(9, live.length)).map(c => c.id);
+    if (!pick.length) return;
+    this.setState(s => ({
+      cards: s.cards.map(c => pick.indexOf(c.id) >= 0 ? Object.assign({}, c, { st: 'missing' }) : c),
+      alert: { n: pick.length }
+    }));
+  }
+  cameFilterBack() {
+    const m = this.state.cards.filter(c => c.st === 'missing');
+    if (!m.length) { this.flash('Nothing is missing right now'); return; }
+    this.stillThere(m[m.length - 1].id);
+  }
+  alertKeep() {
+    this.setState(s => ({ cards: s.cards.map(c => c.st === 'missing' ? Object.assign({}, c, { st: 'ok' }) : c), alert: null }));
+    this.flash('Kept every card — nothing left the table');
+  }
+  alertWipe() {
+    const gone = this.state.cards.filter(c => c.st === 'missing');
+    this.act(gone.length + ' cards → graveyard', st => {
+      const names = st.cards.filter(c => c.st === 'missing').map(c => c.name);
+      st.cards = st.cards.filter(c => c.st !== 'missing');
+      st.piles.grav = names.concat(st.piles.grav);
+      return st;
+    }, { alert: null, bumped: 'grav' });
+    setTimeout(() => this.setState(s => s.bumped === 'grav' ? { bumped: null } : null), 500);
+  }
+
+  /* --- pekare -------------------------------------------------------------- */
+  pt(ev) {
+    const r = this.matEl ? this.matEl.getBoundingClientRect() : { left: 0, top: 0 };
+    const f = this.state.fit || 1;
+    return { x: (ev.clientX - r.left) / f, y: (ev.clientY - r.top) / f };
+  }
+  cpt(ev) { const p = this.pt(ev), v = this.view(); return { x: (p.x - v.pan.x) / v.z, y: (p.y - v.pan.y) / v.z }; }
+  pileAt(ev) {
+    const els = this.pileEls || {}, fit = this.state.fit || 1;
+    let best = null, bestD = Infinity;
+    for (const k in els) {
+      const el = els[k]; if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const p = k === 'grav' ? { l: 54, r: 44, t: 66, b: 66 } : { l: 20, r: 20, t: 20, b: 20 };
+      if (ev.clientX >= r.left - p.l * fit && ev.clientX <= r.right + p.r * fit
+        && ev.clientY >= r.top - p.t * fit && ev.clientY <= r.bottom + p.b * fit) {
+        const d = Math.abs(ev.clientX - (r.left + r.right) / 2) + Math.abs(ev.clientY - (r.top + r.bottom) / 2);
+        if (d < bestD) { bestD = d; best = k; }
+      }
+    }
+    return best;
+  }
+  zoomedIn() { const v = this.view(); return v.z > v.fit + 0.005; }
+  fieldDown(ev) {
+    if (ev.button === 1 || (ev.button === 0 && this.zoomedIn() && !ev.shiftKey)) {
+      const v = this.view();
+      this.panning = { x0: ev.clientX, y0: ev.clientY, pan: v.pan };
+      this.setState({ menu: null, sheet: null, ctr: null, sel: [], glide: false });
+      return;
+    }
+    if (ev.button) return;
+    const p = this.cpt(ev);
+    this.lasso = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+    this.setState({ menu: null, sheet: null, ctr: null, sel: [], lasso: this.lasso });
+  }
+  down(id, ev) {
+    if (ev.button) return;
+    ev.stopPropagation();
+    const c = this.state.cards.find(x => x.id === id);
+    if (!c) return;
+    const p = this.cpt(ev);
+    let sel = this.state.sel;
+    if (sel.indexOf(id) < 0) sel = ev.shiftKey ? sel.concat([id]) : [id];
+    const ids = sel.length > 1 ? sel : [id];
+    const offs = {};
+    this.state.cards.forEach(k => { if (ids.indexOf(k.id) >= 0) offs[k.id] = { ox: p.x - k.x, oy: p.y - k.y }; });
+    this.dnd = { id, ids, offs, moved: false, x0: ev.clientX, y0: ev.clientY };
+    this.setState(s => ({ sel, menu: null, sheet: null, ctr: null, topZ: s.topZ + 1,
+      cards: s.cards.map(k => k.id === id ? Object.assign({}, k, { z: s.topZ + 1 }) : k) }));
+  }
+  stop(ev) { ev.stopPropagation(); }
+  spinDown(id, ev) {
+    if (ev.button) return;
+    ev.stopPropagation();
+    const c = this.state.cards.find(x => x.id === id);
+    if (!c) return;
+    this.spinning = { id, x0: ev.clientX, y0: ev.clientY, from: c.tapped ? 90 : 0 };
+    this.setState({ sel: [id], menu: null, sheet: null, spin: id, live: c.tapped ? 90 : 0 });
+  }
+  inboxDown(bid, ev) {
+    if (ev.button) return;
+    ev.stopPropagation();
+    const b = this.state.inbox.find(x => x.id === bid);
+    if (!b) return;
+    const p = this.cpt(ev), kind = LANDRE.test(b.name) ? 'land' : 'perm';
+    const s = kind === 'land' ? { w: LW, h: LH } : { w: CW, h: CH };
+    const id = 'n' + this.state.nextId;
+    this.setState(st => ({
+      inbox: st.inbox.filter(x => x.id !== bid), nextId: st.nextId + 1, topZ: st.topZ + 1, sel: [id],
+      cards: st.cards.concat([{ id, name: b.name, kind, tapped: false, cts: [], st: 'new',
+                                z: st.topZ + 1, x: p.x - s.w / 2, y: p.y - s.h / 2, grp: null, gi: null }])
+    }));
+    this.dnd = { id, ids: [id], offs: { [id]: { ox: s.w / 2, oy: s.h / 2 } }, moved: true, x0: ev.clientX, y0: ev.clientY };
+  }
+  hoverIn(id) { clearTimeout(this.hT); if (this.state.hover !== id) this.setState({ hover: id, lastSel: id }); }
+  hoverOut() { clearTimeout(this.hT); this.hT = setTimeout(() => this.setState({ hover: null }), 90); }
+  onMove(ev) {
+    if (this.panning) {
+      const f = this.state.fit || 1, v = this.view();
+      this.setState({ pan: this.clampPan({ x: this.panning.pan.x + (ev.clientX - this.panning.x0) / f,
+                                           y: this.panning.pan.y + (ev.clientY - this.panning.y0) / f }, v.z, v.board) });
+      return;
+    }
+    if (this.spinning) {
+      const dx = ev.clientX - this.spinning.x0, dy = ev.clientY - this.spinning.y0;
+      const swing = Math.max(0, Math.min(1, (dx * 0.45 + dy * 0.75) / 110));
+      this.setState({ live: this.spinning.from === 0 ? swing * 90 : 90 - swing * 90 });
+      return;
+    }
+    if (this.gravDrag) {
+      if (Math.abs(ev.clientX - this.gravDrag.x0) + Math.abs(ev.clientY - this.gravDrag.y0) < 6) return;
+      this.spawnFromGrave(ev);
+      return;
+    }
+    if (this.lasso) {
+      const p = this.cpt(ev);
+      this.lasso.x1 = p.x; this.lasso.y1 = p.y;
+      this.setState({ lasso: Object.assign({}, this.lasso) });
+      return;
+    }
+    if (!this.dnd) return;
+    if (!this.dnd.moved) {
+      if (Math.abs(ev.clientX - this.dnd.x0) + Math.abs(ev.clientY - this.dnd.y0) < 4) return;
+      this.dnd.moved = true;
+      this.setState({ held: this.dnd.id, hover: null });
+    }
+    const p = this.cpt(ev), d = this.dnd;
+    this.setState(s => {
+      const cards = s.cards.map(c => d.offs[c.id]
+        ? Object.assign({}, c, { x: p.x - d.offs[c.id].ox, y: p.y - d.offs[c.id].oy }) : c);
+      const pile = this.pileAt(ev);
+      return { cards, overPile: pile, joinId: pile || d.ids.length > 1 ? null : this.findJoin(cards, d.id) };
+    });
+  }
+  onUp(ev) {
+    if (this.panning) { this.panning = null; return; }
+    this.gravDrag = null;
+    if (this.spinning) {
+      const { id, from } = this.spinning, live = this.state.live;
+      this.spinning = null;
+      const tapped = live >= 45;
+      this.setState({ spin: null, live: null });
+      if (tapped !== (from === 90)) this.patch(id, () => ({ tapped }));
+      return;
+    }
+    if (this.lasso) {
+      const l = this.lasso; this.lasso = null;
+      const w = Math.abs(l.x1 - l.x0), h = Math.abs(l.y1 - l.y0);
+      if (w < 8 || h < 8) { this.setState({ lasso: null }); return; }
+      const bx = Math.min(l.x0, l.x1), by = Math.min(l.y0, l.y1);
+      const hit = this.state.cards.filter(c => {
+        const r = this.rect(c);
+        return r.x < bx + w && r.x + r.w > bx && r.y < by + h && r.y + r.h > by;
+      }).map(c => c.id);
+      this.setState({ lasso: null, sel: hit });
+      if (hit.length > 1) this.flash(hit.length + ' cards grabbed — drag any one to move the clump');
+      return;
+    }
+    const d = this.dnd; this.dnd = null;
+    if (!d) return;
+    if (!d.moved) { this.tap(d.id); this.setState({ held: null, overPile: null }); return; }
+    const pile = this.state.overPile;
+    this.setState({ held: null, overPile: null, settle: d.id });
+    setTimeout(() => this.setState(s => s.settle === d.id ? { settle: null } : null), 340);
+    if (pile) {
+      const p = PILES.find(x => x.key === pile);
+      d.ids.forEach(id => this.resolve(id, pile, p ? (p.long || p.label).toLowerCase() : pile));
+    } else {
+      const v = this.view();
+      this.setState(s => ({ cards: s.cards.map(c => d.offs[c.id] ? this.clamp(c, v) : c), joinId: null }));
+      d.ids.forEach(id => {
+        const c = this.state.cards.find(x => x.id === id);
+        if (c && c.kind === 'land' && this.props.manaStacks !== false) this.restack(id);
+      });
+    }
+  }
+
+  openSheet(id, kind, ev) {
+    const c = this.state.cards.find(x => x.id === id); if (!c) return;
+    const v = this.view(), sz = this.size(c);
+    const sx = c.x * v.z + v.pan.x, sy = c.y * v.z + v.pan.y;
+    const pt = ev && ev.clientX ? this.pt(ev)
+      : { x: sx + sz.w * v.z + 16 > 820 ? Math.max(8, sx - 250) : sx + sz.w * v.z + 16, y: Math.max(112, sy - 10) };
+    this.setState({ sheet: { id, kind }, sheetPt: pt, menu: null, ctr: null, hover: null });
+  }
+
+  renderVals() {
+    const s = this.state, m = s.meta;
+    const v = this.view();
+    const z = v.z;
+    const info = c => m[c.name] || {};
+    const missN = s.cards.filter(c => c.st === 'missing').length;
+    const freshN = s.cards.filter(c => c.st === 'new').length;
+    const rev = s.review, revId = rev ? rev.ids[rev.i] : null;
+    const joinC = s.joinId ? s.cards.find(c => c.id === s.joinId) : null;
+    const joinGrp = joinC && joinC.grp ? joinC.grp : null;
+    const words = this.props.abilityWords !== false;
+
+    const mat = s.cards.map(c => {
+      const i = info(c), isLand = c.kind === 'land';
+      const sz = this.size(c);
+      const sum = ctSum(c.cts);
+      const hasBase = i.pow != null && !isNaN(i.pow);
+      const boosted = !!(sum.p || sum.t);
+      const hovered = s.hover === c.id && !s.held && !s.spin;
+      const selected = s.sel.indexOf(c.id) >= 0;
+      const isHeld = s.held === c.id || (s.held && s.sel.indexOf(c.id) >= 0 && s.sel.length > 1);
+      const rot = s.spin === c.id && s.live != null ? s.live : (c.tapped ? 90 : 0);
+      const scale = isHeld ? 1.05 : hovered ? 1.02 : 1;
+      const joining = !!joinC && (c.id === joinC.id || (joinGrp && c.grp === joinGrp));
+      const missing = c.st === 'missing', fresh = c.st === 'new';
+      /* Nyckelorden står som ord, aldrig som ikon — och de följer med när
+         kortet är tappat, upprätt-roterade i sitt hörn. */
+      const all = isLand || c.unknown || missing ? [] : (i.kw || []);
+      const kw = all.slice(0, 3).map(k => ({ label: k }));
+      if (all.length > 3) kw.push({ label: '+' + (all.length - 3) });
+      const flip = c.y * z + v.pan.y < 110;
+
+      const chip = joining && c.id === s.joinId ? 'Let go — the mana stacks here'
+                 : missing ? 'Not on the table — where did it go?'
+                 : c.unknown ? "Camera couldn't read this — which card?"
+                 : fresh ? 'Just played · drag if the spot is wrong' : '';
+
+      return {
+        id: c.id, name: c.name || 'Unread card', unknown: !!c.unknown,
+        img: c.unknown ? '' : img(c.name, isLand ? 'small' : 'normal'),
+        w: sz.w + 'px', h: sz.h + 'px', x: Math.round(c.x) + 'px', y: Math.round(c.y) + 'px',
+        r: isLand ? '8px' : '10px', barH: isLand ? '26px' : '44px',
+        pt: hasBase ? i.pow + '/' + i.tou : '',
+        ptTotal: hasBase && boosted ? (i.pow + sum.p) + '/' + (i.tou + sum.t) : '',
+        ptCol: boosted ? '#7e8ea6' : '#f4f7fc',
+        ptBd: boosted ? '#2f6b48' : '#4a5a72',
+        kw, kwShow: words && kw.length > 0,
+        tf: 'rotate(' + rot.toFixed(1) + 'deg) scale(' + scale + ')',
+        upright: 'rotate(' + (-rot).toFixed(1) + 'deg)',
+        trans: isHeld || s.spin === c.id ? 'none'
+          : 'transform .34s cubic-bezier(.34,1.4,.5,1),left .22s cubic-bezier(.2,.8,.3,1),top .22s cubic-bezier(.2,.8,.3,1),opacity .3s',
+        anim: s.settle === c.id ? 'cSettle .3s cubic-bezier(.2,.8,.3,1)'
+            : fresh && !s.held ? 'cLand .45s cubic-bezier(.2,.8,.3,1)' : 'none',
+        op: missing ? (rev && revId !== c.id ? '.25' : '.5') : rev ? '.4' : '1',
+        z: isHeld ? 900 : revId === c.id ? 880 : missing || fresh ? 700 + (c.z % 50) : c.z,
+        shadow: isHeld ? '0 26px 40px -12px #000f' : hovered || selected ? '0 14px 26px -8px #000e' : '0 4px 12px -3px #000c',
+        imgFilter: missing ? 'grayscale(.85) brightness(.7)' : c.tapped ? 'brightness(.86) saturate(.94)' : 'none',
+        ring: joining || hovered || selected || missing || fresh,
+        ringBorder: joining ? '2.5px solid #f0a52a' : revId === c.id ? '3px solid #f0a52a' : hovered ? '2px solid #8ea6ff'
+          : missing ? '2px dashed #93a1b6' : fresh ? '2px solid #f0a52a' : '1.5px solid #6b8cff8c',
+        ringGlow: joining ? 'inset 0 0 0 5px #f0a52a2e' : revId === c.id ? '0 0 0 9999px #05080cb8'
+          : hovered ? 'inset 0 0 0 4px #6b8cff26' : 'none',
+        ringAnim: fresh ? 'cNew 1.6s ease-in-out infinite' : s.found === c.id ? 'cFound .7s ease-out' : 'none',
+        chip, chipShow: joining ? c.id === s.joinId
+          : !!chip && !hovered && !s.held && !rev && (missing ? missN <= 2 : fresh ? freshN <= 3 : true),
+        chipBg: '#241a0efa',
+        chipTop: flip ? '100%' : '-14px',
+        chipTf: flip ? 'translate(-50%,14px)' : 'translate(-50%,-100%)',
+        chipBd: joining ? '#f0a52a' : missing ? '#4a5a72' : '#8a6a22',
+        chipFg: joining || !missing ? '#ffd98a' : '#cfd9e8',
+        down: ev => this.down(c.id, ev),
+        chipDown: ev => this.stop(ev),
+        enter: () => this.hoverIn(c.id),
+        leave: () => this.hoverOut(),
+        prim: ev => { if (ev) ev.stopPropagation(); this.primFor(c.id); },
+        menu: ev => { ev.preventDefault(); ev.stopPropagation();
+                      this.setState({ menu: c.id, menuPt: this.pt(ev), hover: null, sheet: null, ctr: null }); }
+      };
+    });
+
+    const hc = s.hover && !s.held && !s.spin ? s.cards.find(c => c.id === s.hover) : null;
+    const hr = hc ? this.rect(hc) : null;
+    const hStack = hc && hc.grp ? s.cards.filter(x => x.grp === hc.grp).length : 0;
+
+    const menuC = s.menu ? s.cards.find(c => c.id === s.menu) : null;
+    const menuItems = menuC ? [
+      { label: menuC.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways', dot: '#f0a52a', fg: '#e7ecf4',
+        run: () => this.tap(menuC.id) },
+      { label: 'Counters…', dot: '#57c785', fg: '#e7ecf4',
+        run: () => this.openCounters(menuC.id, s.menuPt) },
+      { label: menuC.unknown ? 'Tell us what it is' : 'Not this card?', dot: '#b98ff0', fg: '#e7ecf4',
+        run: () => this.openSheet(menuC.id, 'guess') },
+      { label: "It's gone — where to?", dot: '#e2606a', fg: '#e7ecf4',
+        run: () => this.openSheet(menuC.id, 'dest') }
+    ] : [];
+
+    /* --- counter-panelen: valfri storlek, en enda sanning på kortet ------ */
+    const ctrC = s.ctr ? s.cards.find(c => c.id === s.ctr) : null;
+    const ctrSum = ctrC ? ctSum(ctrC.cts) : { p: 0, t: 0 };
+    const ctrGroups = {};
+    if (ctrC) (ctrC.cts || []).forEach(k => { const l = ctLabel(k); ctrGroups[l] = (ctrGroups[l] || 0) + 1; });
+    const ctrList = Object.keys(ctrGroups).map(l => ({
+      label: l + (ctrGroups[l] > 1 ? ' ×' + ctrGroups[l] : ''),
+      remove: () => this.removeCounter(ctrC.id, l)
+    }));
+
+    const sheetC = s.sheet ? s.cards.find(c => c.id === s.sheet.id) : null;
+    const dest = s.sheet && s.sheet.kind === 'dest';
+    const sheetOpts = !sheetC ? [] : dest
+      ? PILES.map(p => ({ label: p.long ? 'Into the library' : p.label, dot: p.tint, bg: '#161d28', bd: '#28313f', fg: '#e7ecf4',
+                          run: () => this.resolve(sheetC.id, p.key, (p.long || p.label).toLowerCase()) }))
+          .concat([{ label: "False alarm — it's still there", dot: '#57c785', bg: '#0e1a14', bd: '#2f6b48', fg: '#9fe3ba',
+                     run: () => this.stillThere(sheetC.id) }])
+      : (sheetC.guesses || ['Gravedigger', 'Blood Artist', 'Sengir Vampire']).map((g, i) => ({
+          label: g + (i === 0 ? '  · best guess' : ''), dot: i === 0 ? '#57c785' : '#4a5a72',
+          bg: '#161d28', bd: '#28313f', fg: '#e7ecf4',
+          run: () => { this.ensureMeta([g]);
+            this.setState({ sheet: null, cards: s.cards.map(c => c.id === sheetC.id ? Object.assign({}, c, { name: g, unknown: false, st: 'ok' }) : c) });
+            this.flash('Named it ' + g); }
+        })).concat([{ label: 'Leave it unread for now', dot: '#4a5a72', bg: '#141a24', bd: '#28313f', fg: '#93a1b6',
+                      run: () => this.setState({ sheet: null }) }]);
+
+    const l = s.lasso;
+    const gravList = s.piles.grav || [];
+    const gravOver = s.overPile === 'grav';
+    const heldC = s.held ? s.cards.find(c => c.id === s.held) : null;
+    const gStep = gravOver ? 11 : 5;
+    const gravLayers = [];
+    for (let k = Math.min(gravList.length - 1, 4); k >= 1; k--)
+      gravLayers.push({ tf: 'translate(' + (k * gStep) + 'px,' + (-k * gStep) + 'px) rotate(' + (k * (gravOver ? 4.5 : 1.5)).toFixed(1) + 'deg)' });
+
+    /* Solfjädern: varje kort startar exakt ovanpå högen och glider ut till
+       sin plats — det är samma kort som låg i högen som far ut. */
+    const fn = gravList.length;
+    const fStep = fn > 1 ? Math.min(96, 828 / (fn - 1)) : 0;
+    const fan = gravList.map((name, i) => {
+      const t = fn > 1 ? i / (fn - 1) : 0;
+      const on = s.fanHover === i;
+      const dx = i * fStep;
+      const dy = -64 - Math.sin(t * Math.PI) * 30 - (on ? 20 : 0);
+      const a = (-9 + t * 18).toFixed(1);
+      return { name, img: img(name, 'normal'), z: on ? 60 : i + 1,
+        tf: s.fanOn ? 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) rotate(' + a + 'deg) scale(' + (on ? 1.1 : 1) + ')' : 'none',
+        trans: 'transform .3s cubic-bezier(.2,.9,.3,1) ' + (i * 22) + 'ms',
+        bd: on ? '2px solid #f0a52a' : '1px solid #39414e',
+        sh: on ? '0 22px 40px -10px #000f' : '0 8px 18px -8px #000c',
+        enter: () => { clearTimeout(this.fT); this.setState({ fanHover: i }); },
+        leave: () => this.fanCloseSoon(),
+        down: ev => this.fanDown(i, ev) };
+    });
+    const fh = s.fanHover;
+    const fanCard = fh != null ? fan[fh] : null;
+    const fanDX = fh != null ? fh * fStep : 0;
+    const fanDY = fh != null ? -64 - Math.sin((fn > 1 ? fh / (fn - 1) : 0) * Math.PI) * 30 - 20 : 0;
+
+    const insC = fh == null ? (s.cards.find(c => c.id === (s.hover || s.lastSel)) || null) : null;
+    const gravMeta = fh != null && gravList[fh] ? (m[gravList[fh]] || {}) : null;
+    const panelName = fh != null ? (gravList[fh] || '') : (insC ? (insC.unknown ? 'Unread card' : insC.name) : '');
+    const panelKwSrc = fh != null ? (gravMeta || {}).kw : (insC && !insC.unknown ? (info(insC) || {}).kw : []);
+    const panelKw = (panelKwSrc || []).map(k => ({ label: k }));
+    const panelType = fh != null ? ((gravMeta || {}).type || 'In the graveyard')
+      : (insC ? ((info(insC) || {}).type || (insC.kind === 'land' ? 'Land' : 'Permanent')) : '');
+    const insSum = insC ? ctSum(insC.cts) : { p: 0, t: 0 };
+    const insGroups = {};
+    if (insC) (insC.cts || []).forEach(k => { const lb = ctLabel(k); insGroups[lb] = (insGroups[lb] || 0) + 1; });
+
+    const revC = revId ? s.cards.find(c => c.id === revId) : null;
+    const revLeft = rev ? rev.ids.filter(id => {
+      const c = s.cards.find(x => x.id === id); return c && c.st === 'missing';
+    }).length : 0;
+
+    return {
+      fit: s.fit, zoom: z,
+      boardW: v.board.w + 'px', boardH: v.board.h + 'px',
+      panX: Math.round(v.pan.x) + 'px', panY: Math.round(v.pan.y) + 'px',
+      boardTrans: s.glide ? 'transform .32s cubic-bezier(.2,.8,.3,1)' : 'none',
+      vpCursor: this.zoomedIn() ? 'grab' : 'default',
+      vpRef: el => { this.vpEl = el; },
+      matRef: el => { this.matEl = el; },
+      noMenu: ev => ev.preventDefault(),
+      fieldDown: ev => this.fieldDown(ev),
+      onMove: ev => this.onMove(ev), onUp: ev => this.onUp(ev),
+      stopEv: ev => ev.stopPropagation(),
+      mat,
+      hoverUI: !!hc,
+      hoverX: hr ? Math.round(hr.x) + 'px' : '0px', hoverY: hr ? Math.round(hr.y) + 'px' : '0px',
+      hoverW: hr ? Math.round(hr.w) + 'px' : '0px', hoverH: hr ? Math.round(hr.h) + 'px' : '0px',
+      hoverPillTop: hr && hr.y * z + v.pan.y < 110 ? '100%' : '-15px',
+      hoverPillTf: hr && hr.y * z + v.pan.y < 110 ? 'translate(-50%,15px)' : 'translate(-50%,-100%)',
+      hoverHint: !hc ? '' : hStack > 1 ? hStack + ' stacked · drag one out'
+        : hc.st === 'missing' ? 'Last seen here' : hc.tapped ? 'Swing it back up' : 'Swing it sideways',
+      hoverPrimLabel: !hc ? '' : hc.st === 'missing' ? 'Where did it go?' : hc.unknown ? 'Which card?'
+        : hc.st === 'new' ? 'Right spot' : (hc.tapped ? 'Untap' : 'Tap'),
+      hoverPrim: ev => { if (ev) ev.stopPropagation(); if (hc) this.primFor(hc.id); },
+      hoverSpin: ev => { if (hc) this.spinDown(hc.id, ev); },
+      hoverCounters: ev => { ev.stopPropagation();
+        if (hc) this.openCounters(hc.id, { x: (hc.x + this.size(hc).w) * z + v.pan.x + 14, y: hc.y * z + v.pan.y }); },
+      hoverMenu: ev => { ev.stopPropagation();
+        if (hc) this.setState({ menu: hc.id, menuPt: { x: (hc.x + this.size(hc).w / 2) * z + v.pan.x, y: (hc.y + 26) * z + v.pan.y }, hover: null, sheet: null, ctr: null }); },
+      hoverKeep: () => { if (hc) this.hoverIn(hc.id); },
+      hoverDrop: () => this.hoverOut(),
+      countTxt: s.cards.length + ' cards on the board' + (missN ? ' · ' + missN + ' unaccounted for' : ''),
+      zoomTxt: Math.round(z * 100) + '%' + (s.zoomManual == null ? ' fit' : ''),
+      zoomCol: s.zoomManual == null ? '#57c785' : '#ffd98a',
+      zoomIn: () => this.zoomBy(1.25), zoomOut: () => this.zoomBy(0.8), zoomAuto: () => this.fitView(),
+      panHint: this.zoomedIn() ? 'Drag the empty board to pan' : 'Zoom in to pan around',
+      untapAll: () => this.untapAll(), tidy: () => this.tidy(),
+      lasso: !!l,
+      lassoX: l ? Math.min(l.x0, l.x1) + 'px' : '0px', lassoY: l ? Math.min(l.y0, l.y1) + 'px' : '0px',
+      lassoW: l ? Math.abs(l.x1 - l.x0) + 'px' : '0px', lassoH: l ? Math.abs(l.y1 - l.y0) + 'px' : '0px',
+      inbox: s.inbox.map(b => ({ id: b.id, name: b.name, img: img(b.name, 'small'),
+                                 down: ev => this.inboxDown(b.id, ev) })),
+      inboxN: s.inbox.length, inboxEmpty: s.inbox.length === 0,
+
+      gravRef: el => { this.pileEls = this.pileEls || {}; this.pileEls.grav = el; },
+      gravEnter: () => { if (!s.held) this.fanOpenNow(); },
+      gravLeave: () => this.fanCloseSoon(),
+      gravLayers, gravOver, dragName: heldC ? heldC.name : 'it',
+      gravCardW: gravOver ? '122px' : '104px',
+      gravStackOp: s.fanOn && gravList.length ? '0' : '1',
+      gravTargetGlow: gravOver ? '0 0 0 3px #f0a52a, 0 0 32px -2px #f0a52a99' : '0 6px 16px -8px #000c',
+      gravTop: gravList.length ? img(gravList[0]) : '',
+      gravFilter: gravOver ? 'grayscale(.2) brightness(.9)' : 'grayscale(.6) brightness(.55) contrast(1.05)',
+      gravAnim: s.bumped === 'grav' ? 'cLand .5s cubic-bezier(.2,.8,.3,1)' : 'none',
+      gravStoneOp: gravOver ? '.1' : gravList.length ? '.5' : '.32',
+      gravBorder: gravOver ? '1.5px solid #f0a52a55' : '1.5px dashed #ffffff14',
+      gravBg: gravOver ? '#1a140833' : 'transparent',
+      gravLbl: gravOver || s.fanOn ? '#f0a52a' : '#93a1b6',
+      gravTxt: gravList.length ? (s.fanOn ? 'Drag one back out' : gravList.length + (gravList.length === 1 ? ' card' : ' cards')) : 'Empty',
+      gravTxtCol: gravOver || s.fanOn ? '#ffd98a' : '#66748a',
+      gravBump: s.bumped === 'grav' ? 'cBump .42s cubic-bezier(.2,.8,.3,1)' : 'none',
+      gravRing: s.bumped === 'grav',
+      fanOpen: s.fanOpen && gravList.length > 0, fan,
+      fanActs: fh != null && !!fanCard,
+      fanActX: Math.round(fanDX - 30) + 'px',
+      fanActY: Math.round(fanDY - 44) + 'px',
+      fanPlay: ev => { ev.stopPropagation(); if (fh != null) this.fanReturn(fh); },
+      fanExile: ev => { ev.stopPropagation(); if (fh != null) this.fanExileCard(fh); },
+
+      selLabel: fh != null ? 'From the graveyard' : s.hover ? 'Pointing at' : 'Last card',
+      selImg: fh != null ? img(gravList[fh], 'normal') : (insC ? (insC.unknown ? '' : img(insC.name, 'normal')) : ''),
+      selBlank: fh != null ? false : (!insC || !!(insC && insC.unknown)),
+      selName: panelName, selType: panelType,
+      selKw: panelKw, selKwShow: panelKw.length > 0,
+      selCtShow: fh == null && !!insC && (insSum.p !== 0 || insSum.t !== 0),
+      selCtSum: (insSum.p >= 0 ? '+' + insSum.p : insSum.p) + '/' + (insSum.t >= 0 ? '+' + insSum.t : insSum.t) + ' in total',
+      selCts: Object.keys(insGroups).map(lb => ({ label: lb + (insGroups[lb] > 1 ? ' ×' + insGroups[lb] : '') })),
+
+      alert: !!s.alert,
+      alertTitle: s.alert ? 'The camera lost ' + s.alert.n + ' cards at once' : '',
+      alertBody: 'That is more than a normal play. A hand over the table, a moved camera and a board wipe look the same from up here — so nothing has been taken off the board.',
+      alertKeep: () => this.alertKeep(), alertWipe: () => this.alertWipe(),
+      alertReview: () => this.startReview(),
+      review: !!rev,
+      reviewTitle: rev ? (rev.ids.length - revLeft + 1) + ' of ' + rev.ids.length + ' · ' + (revC ? revC.name : '') : '',
+      reviewBody: 'The rest of the board is dimmed. Say where this one went, then the board moves on.',
+      reviewSkip: () => { this.setState({ sheet: null }); this.advanceReview(); },
+      reviewEnd: () => this.endReview(),
+
+      ctr: !!ctrC, ctrName: ctrC ? (ctrC.name || 'this card') : '',
+      ctrX: s.ctrPt ? s.ctrPt.x + 'px' : '0px', ctrY: s.ctrPt ? s.ctrPt.y + 'px' : '0px',
+      ctrNow: !ctrC ? '' : (ctrSum.p || ctrSum.t)
+        ? 'Now ' + ((ctrSum.p >= 0 ? '+' + ctrSum.p : ctrSum.p) + '/' + (ctrSum.t >= 0 ? '+' + ctrSum.t : ctrSum.t)) + ' from counters'
+        : 'No counters on it yet',
+      ctrPresets: PRESETS.map(k => ({ label: ctLabel(k), run: () => { if (ctrC) this.addCounter(ctrC.id, k); } })),
+      ctrP: (s.ctrP >= 0 ? '+' : '') + s.ctrP, ctrT: (s.ctrT >= 0 ? '+' : '') + s.ctrT,
+      ctrCustom: ctLabel({ p: s.ctrP, t: s.ctrT }),
+      ctrPUp: () => this.setState(st => ({ ctrP: Math.min(20, st.ctrP + 1) })),
+      ctrPDown: () => this.setState(st => ({ ctrP: Math.max(-20, st.ctrP - 1) })),
+      ctrTUp: () => this.setState(st => ({ ctrT: Math.min(20, st.ctrT + 1) })),
+      ctrTDown: () => this.setState(st => ({ ctrT: Math.max(-20, st.ctrT - 1) })),
+      ctrAdd: () => { if (ctrC) this.addCounter(ctrC.id, { p: s.ctrP, t: s.ctrT }); },
+      ctrHas: ctrList.length > 0, ctrList,
+      ctrClose: () => this.setState({ ctr: null }),
+
+      dev: s.dev, devToggle: () => this.setState(st => ({ dev: !st.dev })),
+      groups: [
+        { title: 'A crowded board', items: [
+          { label: 'Add 11 cards', dot: '#6b8cff', run: () => this.crowd() },
+          { label: 'Fill to 25 cards', dot: '#6b8cff', run: () => this.fillTo(25) },
+          { label: 'Stack the mana', dot: '#6b8cff', run: () => this.stackAllMana() },
+          { label: 'Fan into rows', dot: '#6b8cff', run: () => this.tidy() }
+        ] },
+        { title: 'New cards played for real', items: [
+          { label: 'A land beside the rest', dot: '#f0a52a', run: () => this.playBeside('Swamp', 'land') },
+          { label: 'Three at once', dot: '#f0a52a', run: () => this.playMany(['Gravedigger', 'Swamp', 'Blood Artist']) },
+          { label: 'What, not where', dot: '#f0a52a', run: () => this.playUnplaced('Sengir Vampire') },
+          { label: 'Where, not what', dot: '#f0a52a', run: () => this.playUnknown() }
+        ] },
+        { title: 'A card leaves the table', items: [
+          { label: 'One card gone', dot: '#e2606a', run: () => this.loseOne() },
+          { label: 'Nine gone at once', dot: '#e2606a', run: () => this.loseMany() },
+          { label: 'It turns up again', dot: '#57c785', run: () => this.cameFilterBack() }
+        ] }
+      ],
+      menu: !!menuC, menuName: menuC ? (menuC.name || 'Unread card') : '', menuItems,
+      menuX: s.menuPt ? Math.min(s.menuPt.x, 1120) + 'px' : '0px',
+      menuY: s.menuPt ? Math.min(s.menuPt.y, 560) + 'px' : '0px',
+      sheet: !!sheetC,
+      sheetTitle: sheetC ? (dest ? (sheetC.name || 'That card') + ' is off the table' : 'Which card is this?') : '',
+      sheetBody: dest ? 'Tell the board where it went. Until you do it stays exactly where you left it.'
+                      : 'The camera has three guesses. Pick one, or leave it unread.',
+      sheetOpts,
+      sheetX: s.sheetPt ? Math.min(s.sheetPt.x, 1060) + 'px' : '0px',
+      sheetY: s.sheetPt ? Math.min(s.sheetPt.y, 440) + 'px' : '0px',
+      toast: s.toast, undo: () => { if (s.undoFn) s.undoFn(); }
+    };
+  }
+
+  primFor(id) {
+    const c = this.state.cards.find(x => x.id === id);
+    if (!c) return;
+    if (c.st === 'missing') this.openSheet(id, 'dest');
+    else if (c.unknown) this.openSheet(id, 'guess');
+    else if (c.st === 'new') this.confirmNew(id);
+    else this.tap(id);
+  }
+}
+
+</script>
+</body>
+</html>
