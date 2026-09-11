@@ -36,10 +36,16 @@ dev/golden/
   video/             verktygen som gör en telefoninspelning till ett videofall
                      (koda.swift, ruta.swift, kontaktark.swift — bara macOS
                       egna delar, ingen ffmpeg)
+  bild/lagg-pa.swift lägger en bild (ett kort, en kortbaksida) på ett foto i
+                     given storlek och vinkel — så gjordes fall 08 (syntetiskt)
   fall/
     01-tra-lampa-60cm-3kort/
       bild.jpg
       facit.json
+    08-tra-lampa-60cm-3kort-baksida/
+      bild.jpg       fall 01 med en kortbaksida inklistrad (SYNTETISKT, se
+                     facit.anteckning): baksidan ska bli skräp, inte ett kort
+      facit.json     samma tre kort som 01; `baksidor` säger var baksidan ligger
     02-tra-lampa-150cm-4kort/
       bild.jpg
       facit.json

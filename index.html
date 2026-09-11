@@ -6035,6 +6035,13 @@ const IKON_ATTACH = '<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 
 /* Baksidan på ett Magic-kort. Ett kort som vänds ner är fortfarande på bordet
    och räknas med — det är bara inte synligt vad det är. */
 const BAKSIDA = 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
+/* Baksidans namn i kortpoolen (byggLekPool): ett nedvänt kort på bordet ska
+   kännas igen som just det — inte bli en granskningspost med baksidan som
+   miniatyr (Jespers skärmdump 2026-09-11, MES-42). Namnet skickas aldrig
+   till Claude (kamAiNamnen) och står aldrig bland förslagen (kamIdentifiera). */
+const BAKSIDA_NAMN = '(baksida)';
+/* Poolens namn utan baksidan: det namnläsaren och Claude får se. */
+function namnUtanBaksida() { return ((Pool.idx && Pool.idx.names) || []).filter(n => n !== BAKSIDA_NAMN); }
 
 let fargValjOppen = false;
 
@@ -9793,8 +9800,10 @@ const Pool = {
     try {
       const rec = await IDB.poolGet(code);
       /* v 6: lekens pool bär alla konstverk per namn (byggLekPool); en
-         sparad pool från förut har fel tryckningar och byggs om. */
-      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 6) { this.idx = rec; return rec; }
+         sparad pool från förut har fel tryckningar och byggs om.
+         v 7: poolen bär kortbaksidan (BAKSIDA_NAMN), så att ett nedvänt
+         kort känns igen som just det och inte blir en granskningspost. */
+      if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 7) { this.idx = rec; return rec; }
     } catch (e) {}
     return null;
   }
@@ -9874,9 +9883,14 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
       try {
         const im = await loadImage(cards[i].small);
         descs.set(Matcher.describeImage(im), i * D);
-        const g = Matcher.grid8(im);
-        for (let k = 0; k < 88; k++) tmpl[k] += g[k];
-        tmplN++;
+        /* Baksidan är med i poolen för att kännas igen (BAKSIDA_NAMN), men
+           den är inget kort och ska inte forma "genomsnittskortet" som
+           detektorn letar efter. */
+        if (cards[i].name !== BAKSIDA_NAMN) {
+          const g = Matcher.grid8(im);
+          for (let k = 0; k < 88; k++) tmpl[k] += g[k];
+          tmplN++;
+        }
         feats[i] = ORB.refFeatures(im, 200);
       } catch (e) { fail++; }
       onProg({ phase: 'img', done: ++done, total: cards.length, fail });
@@ -9886,7 +9900,7 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
   const rec = {
     code, setName, ts: Date.now(),
     names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
-    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 6, lands: !!lands
+    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 7, lands: !!lands
   };
   await IDB.poolPut(rec);
   Pool.idx = rec;
@@ -9953,6 +9967,12 @@ async function byggLekPool(lek, userId, onProg) {
     } catch (e) { /* utan extra landskap fungerar lekens egna */ }
   }
   if (!cards.length) throw new Error('Leken har inga kort med bilder.');
+  /* Kortbaksidan som ett eget uppslag (MES-42): ett nedvänt kort på bordet
+     — biblioteket, ett kort som vänts — matchar den och blir skräp med
+     domskälet 'baksida' (kamIdentifiera), i stället för en granskningspost
+     med baksidan som miniatyr. Namnet BAKSIDA_NAMN filtreras bort ur
+     namnläsarens lista och ur namnen till Claude. Poolversion 7. */
+  cards.push({ id: 'baksida', name: BAKSIDA_NAMN, small: BAKSIDA });
   return byggPoolAv(cards, code, 'Min lek', onProg || (() => {}), true);
 }
 async function ensurePool(onProg) {
@@ -14094,6 +14114,15 @@ const Kamera = (() => {
       if (t.skrapN < 3) { t.igen = (nu || 0) + 1500; return; }
       t.fragad = true; t.tillstand = 'skrap'; rapportera(); return;
     }
+    /* Ett nedvänt kort — baksidan överst i bilden (kamIdentifiera, MES-42):
+       inget kort att läsa, ingen granskningspost, inget att fråga Claude
+       om. Skräp som allt annat på datorn, men med domskälet 'baksida' så
+       att kameravyn kan säga vad det är. Domen faller på en gång: baksidan
+       är samma bild varje gång, och det är ingen exponering som dippat. */
+    if (svar && svar.baksida) {
+      t.fragad = true; t.tillstand = 'skrap'; t.varfor = 'baksida'; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.namnLast = null; t.skrapN = 3;
+      rapportera(); return;
+    }
     if (svar) {
       let cands = svar.cands || null;
       if (!svar.saker && t.gissning && cands) {
@@ -14668,7 +14697,7 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
      en granskningspost med en träbit som miniatyr. */
   if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
   /* Namnet läses i workern medan illustrationen matchas på huvudtråden. */
-  const namnP = Namn.las(canvas, Pool.idx.names);
+  const namnP = Namn.las(canvas, namnUtanBaksida());
   let v;
   try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
@@ -14680,11 +14709,22 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
   if ((!namn || namn.poang < 0.6) && !(namn && namn.hoppad)) {
     const rot = ((((v.rec && v.rec.rot) || 0) % 360) + 360) % 360;
     if (Math.abs(rot - 180) < 45) {
-      let namn2 = null; try { namn2 = await Namn.las(canvas, Pool.idx.names, true); } catch (e) { namn2 = null; }
+      let namn2 = null; try { namn2 = await Namn.las(canvas, namnUtanBaksida(), true); } catch (e) { namn2 = null; }
       if (namn2 && (!namn || namn2.poang > namn.poang)) namn = namn2;
     }
   }
-  const cands = (v.rec.cands || []).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
+  /* Baksidan (MES-42): poolen bär kortbaksidan som ett eget uppslag
+     (BAKSIDA_NAMN). Står den överst i bilden med matcharens egen acceptans —
+     ORB-inliers och helhetslikhet, samma krav som för ett kort — eller med
+     hög likhet och klar marginal, är det ett nedvänt kort: inget att läsa,
+     ingen granskningspost, inget "kort" i statusfältet. Bilden dömer ensam:
+     en baksida har ingen titelrad. Annars plockas baksidan bort ur
+     förslagen — ett uppvänt kort ska aldrig få "(baksida)" i granskningen. */
+  const alla = v.rec.cands || [];
+  const b0 = alla[0], b1 = alla[1];
+  if (b0 && b0.name === BAKSIDA_NAMN && (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1))))
+    return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept };
+  const cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   let saker = !!(v.accept && cands[0]);
   let varfor = saker ? 'bild' : 'osäker';   // domskälet, för diagnosen och golden-provet
   /* Två vittnen: illustrationen och namnet. Säkert när de håller med, eller
@@ -14789,7 +14829,7 @@ function kamAiBokLage() {
   const per = {}; for (const k in kamAiBok.per) per[k] = Object.assign({}, kamAiBok.per[k]);
   return { sess: kamAiBok.sess, anrop: kamAiBok.anrop, fel: kamAiBok.fel, utan: kamAiBok.utan, ute: kamAiVantar, per };
 }
-function kamAiNamnen() { return [...new Set(((Pool.idx && Pool.idx.names) || []).filter(n => n && !n.includes(' // ')))].slice(0, 80); }
+function kamAiNamnen() { return [...new Set(namnUtanBaksida().filter(n => n && !n.includes(' // ')))].slice(0, 80); }
 /* true = frågan är ute, och svaret — eller beskedet att det inte kom — går
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala

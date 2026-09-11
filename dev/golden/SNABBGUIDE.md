@@ -128,6 +128,17 @@ drygt två meter). Provet mäter alltså längre bort än telefonen någonsin
 sitter — läs ordningen mellan golven och kortsidan i pixlar där de slår till,
 inte centimetrarna.
 
+## Kortbaksidor
+
+Ett nedvänt kort på bordet (biblioteket, ett kort som vänts) blev en
+granskningspost med baksidan som miniatyr. Sedan MES-42 bär kortpoolen
+baksidan som ett eget uppslag (`BAKSIDA_NAMN`, poolversion 7): matchar
+beskärningen den överst blir spåret skräp med domskälet `baksida` — inget
+kort, ingen granskningspost, inget "kort" i statusfältet. Fall 08 (fall 01
+med en inklistrad baksida, syntetiskt) mäter det: `· 1 skräp` i kolumnen
+Falska, 0 falska. Med koden före: 4 hittade, 1 falsk (baksidan som ett
+osäkert Plains/Pacifism i granskningen).
+
 ## Dubbletter
 
 Ett kort på bordet blev två i appen, och tap-läget blev fel — var uppstår
