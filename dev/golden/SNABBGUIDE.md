@@ -59,6 +59,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
+| `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
 | `node dev/avstamning.cjs` | datorns sida: granskningslistan och bordet efteråt, ska sluta med `0 FEL` |
 
@@ -102,6 +103,29 @@ En ändring i systemprompten provas på samma sätt: kör steg 1 före ändringe
 samma kommando efter. Raden `metod:` visar versionen (`systemprompt v20`), så
 att varje resultat säger vilken systemprompt det mätte. Systemprompten ändras
 bara på uttrycklig begäran — se `CLAUDE.md` i repots rot.
+
+## Avstånd
+
+Hur långt bort får telefonen sitta? `node dev/golden/avstand.cjs` skalar ner
+varje foto i golden setet steg för steg — faktor 1, 0,8, 0,65, 0,5, 0,4 och
+0,3, som samma bord på allt längre håll — och kör varje steg genom hela kedjan
+utan Claude. Det är ett **mått, inte ett prov**: ingen baslinje, ingen dom,
+slutkod 0 vad siffrorna än blir. Tar 5–10 minuter för alla sex foton;
+`--fall 01,02` och `--faktorer 1,0.5` kortar ner, `--json fil` sparar allt.
+
+Tabellen har ett foto per rad och en kolumn per faktor, cellen är `rätt
+namn/kort · fel namn · falska`. Under den står varje steg med kortsidan i
+pixlar och telefonens egna skäl: *långt bort* (rådet "flytta närmare",
+kortsida under 150 px), *små* (kortformade regioner under 90 px som aldrig
+blir spår), *ocr hoppade* (titelraden för låg för namnläsaren, 20 px) och
+*kapad* (beskärningen krymps till 720 px bred). Sist: vilket golv som slog
+till först, och vid vilken faktor.
+
+**Skalan:** fotona är 1080 px breda men telefonen ger 3840 px, så faktor 1
+motsvarar telefonen på ungefär 3,5 gånger avståndet i fotots namn (60 cm blir
+drygt två meter). Provet mäter alltså längre bort än telefonen någonsin
+sitter — läs ordningen mellan golven och kortsidan i pixlar där de slår till,
+inte centimetrarna.
 
 ## Lägga till ett nytt foto
 

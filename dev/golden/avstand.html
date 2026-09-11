@@ -1,0 +1,267 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Avståndsprovet — samma bord på längre håll</title>
+<style>
+body{font:13px/1.4 system-ui,sans-serif;margin:12px;background:#fafafa;color:#222}
+pre{font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+iframe{width:100%;height:760px;border:1px solid #ccc;background:#fff}
+</style>
+<p id="status">Laddar kor.html…</p>
+<pre id="ut"></pre>
+<iframe id="kor" title="kor.html — golden-provet, som i sin tur kör appen"></iframe>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   AVSTÅNDSPROVET — samma bord på längre håll
+
+   Kör: node dev/golden/avstand.cjs
+   (eller öppna sidan via attrappen: avstand.html?faktorer=1,0.5&fall=01,02)
+
+   Frågan: hur långt bort får telefonen sitta innan kedjan slutar läsa
+   korten — och VILKET golv är det som ger vika först? Golden-fallens
+   bild.jpg skalas ner med faktorerna 1, 0,8, 0,65, 0,5, 0,4 och 0,3 (samma
+   bord, samma kort, bara längre bort), och varje skalning körs genom hela
+   kedjan precis som ett stillbildsfall i kor.html — utan Claude — och döms
+   med samma bedom(). Det är ett mått, inte ett prov med slutkod: det finns
+   inget "rätt" här, bara ordningen golven faller i.
+
+   Skalan i verkligheten: fallens bilder är 1080 px breda (fall 04: 1440),
+   och telefonens kamera ger i dag 3840 px. Faktor 1 här motsvarar alltså
+   telefonen på ungefär 3,5 gånger avståndet i fallets namn; 0,3 är nästan
+   tolv gånger. Provet mäter alltså längre bort än telefonen någonsin sitter
+   — svaret är golvens ORDNING och kortsidan i pixlar där de slår till, inte
+   en centimetersiffra.
+
+   Golven som mäts, med telefonens egna skäl:
+     · långt bort   — forLangtBort(): medianen av spårens kortsida i video-
+                      pixlar under KORT_MIN_PX (150). Läses ur K.rad, rådet
+                      telefonen visar spelaren ("Korten är små i bilden").
+     · liten        — kortformade regioner under 0,6 × 150 = 90 px som
+                      kastas innan de blir spår: dia.smaKort i sista rutan,
+                      det största talet under fallet, och K.sma (medianen
+                      över sex rutor, det datorn får).
+     · namnläsaren  — spår vars titelrad var lägre än MIN_KALLHOJD (20 px i
+                      beskärningen) och därför aldrig lästes
+                      (namnLast.hoppad = 'liten'). Beskärningen är kortet
+                      plus 8 % marginal, och remsan 8,5 % av höjden: det
+                      slår vid ~235 px beskärningshöjd, ~145 px kortsida.
+     · beskärningen — BESKAR_BREDD (720) kapar beskärningen. Med marginalen
+                      börjar det vid ~620 px kortsida; läses ur bredden på
+                      de beskärningar kameran skickade (kor.html sparar dem).
+   Kortsidan i pixlar tas ur facits rutor där de finns (01–02, medianen av
+   de synliga korten × faktorn), annars ur telefonens egen kortreferens
+   (dia.kortRef: säkert namngivna spår, i analyspixlar × vidSkala), annars
+   skalas ett annat faktorsteg i samma fall om (märkt ≈), och först när
+   inget steg i fallet har någon av dem tas spårens median (märkt spår? —
+   den kan vara en klunga).
+
+   Hur: kor.html laddas i en iframe och gör allt den brukar — listar fallen,
+   laddar appen, bygger poolen, hämtar namnläsaren. Sedan lånas dess egna
+   funktioner: stallUpp() (canvasen som är "videon"), korStillFall() (samma
+   start, samma klart-villkor, samma tak på 30 s) och bedom() via avsluta().
+   Inte en rad av kedjedrivningen kopieras hit: en kopia hade glidit isär
+   från kor.html vid nästa ändring där, och det är just kor.html:s mått
+   som ska gälla. Funktionsdeklarationerna ligger på kor.html:s fönster;
+   dess let-variabler (fall, K, beskarningar) nås med en indirekt eval där.
+   Det enda den här sidan lägger till är skalningen (en canvas ritad med
+   hög kvalitet, som sedan ritas av 1:1 av stallUpp) och avläsningen av
+   golven — som måste ske MEDAN fallet kör: K.stopp() tömmer spåren, och
+   forLangtBort räknas på dem.
+   ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+const $ = s => document.querySelector(s);
+/* Tickaren ur kor.html: väntetiderna här går på en Worker, så att sidan
+   mäter lika i en flik som ligger i bakgrunden. */
+const tick = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 40)'], { type: 'text/javascript' })));
+const vantande = [];
+tick.onmessage = () => { const nu = performance.now(); for (let i = vantande.length - 1; i >= 0; i--) if (vantande[i].tid <= nu) vantande.splice(i, 1)[0].res(); };
+const sleep = ms => new Promise(res => vantande.push({ tid: performance.now() + ms, res }));
+const status = t => { $('#status').textContent = t; };
+const rader = []; const skriv = s => { rader.push(s); $('#ut').textContent = rader.join('\n'); };
+const Q = new URLSearchParams(location.search);
+const FAKTORER = (Q.get('faktorer') || '1,0.8,0.65,0.5,0.4,0.3').split(',').map(Number).filter(x => x > 0 && x <= 1).sort((a, b) => b - a);   // störst först: den är jämförelsens bas
+const FALL = (Q.get('fall') || '').split(',').map(s => s.trim()).filter(Boolean);
+/* Golvens tal, som i index.html. Bara för att räkna om kortsidan till
+   "kapas beskärningen?" och för rubrikerna — själva domarna läses ur appen. */
+const KORT_MIN_PX = 150, BESKAR_BREDD = 720, MARGINAL = 1.16;
+const TELEFON_PX = 3840;   // telefonens bredd i dag, för raden om vad faktor 1 motsvarar
+const med = a => { const b = a.slice().sort((p, q) => p - q); return b.length ? b[b.length >> 1] : null; };
+const f1 = v => v == null ? '–' : String(Math.round(v));
+let kw = null, K = null;   // kor.html:s fönster och appens Kamera-modul (kor.html:s K)
+
+/* ── kor.html, med allt den gör vid start ─────────────────────────── */
+async function laddaKor() {
+  const f = $('#kor');
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html'; });
+  kw = f.contentWindow;
+  for (let i = 0; i < 100; i++) { try { if (typeof kw.korStillFall === 'function') break; } catch (e) {} await sleep(100); }
+  for (const fn of ['korStillFall', 'stallUpp', 'bedom']) if (typeof kw[fn] !== 'function') throw new Error('kor.html saknar ' + fn);
+  /* kor.html:s egen statusrad säger när poolen och namnläsaren är inne. */
+  const korStatus = () => (kw.document.querySelector('#status') || {}).textContent || '';
+  const t0 = performance.now();
+  for (;;) {
+    const s = korStatus();
+    if (/^Fel/.test(s)) throw new Error('kor.html: ' + s);
+    /* En ofullständig pool (Scryfall 429, ett namn som saknas) är inget att
+       mäta avstånd mot: då mäts leken, inte kameran. Hellre stopp än en
+       tabell som ser hel ut. */
+    if (/ofullständig|Kör ändå/.test(s)) throw new Error('poolen är ofullständig — ladda om om en minut (' + s + ')');
+    if (/Redo/.test(s)) break;
+    if (performance.now() - t0 > 5 * 60 * 1000) throw new Error('kor.html blev aldrig redo: ' + s);
+    status('kor.html: ' + s);
+    await sleep(250);
+  }
+  K = kw.eval('K');
+  if (!K || typeof K.start !== 'function') throw new Error('kor.html har ingen Kamera-modul');
+}
+
+/* ── ett fall vid en faktor ───────────────────────────────────────── */
+const facitKortPx = (f, W, H) => med(f.facit.kort.filter(k => !k.dold && k.x != null && k.w != null).map(k => Math.min(k.w * W, k.h * H)));
+
+async function korFaktor(f, img, faktor) {
+  const W = img.naturalWidth, H = img.naturalHeight, kb = Math.round(W * faktor), kh = Math.round(H * faktor);
+  /* Skalningen: en canvas ritad med hög kvalitet (Chromes bikubiska),
+     inte stallUpp:s egen drawImage — den ritar med standardkvalitet. Den
+     får sedan ritas av 1:1, så inget mer resamplas. */
+  const c = document.createElement('canvas'); c.width = kb; c.height = kh;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, kb, kh);
+  /* korFall i kor.html tömmer beskärningslistan före fallet; här går vi in
+     under korFall, och numreraOm itererar listan när fallet är klart. */
+  kw.eval('beskarningar')[f.id] = [];
+  const cv = kw.stallUpp(f, c, kb, kh);
+  let klar = false, prov = null, smaMax = 0;
+  const p = kw.korStillFall(f, cv);
+  p.then(() => { klar = true; }, () => { klar = true; });
+  /* Golven avläses medan fallet kör: sista provet före klart gäller, och
+     fallet är per definition klart först när inget ändrat sig på 1,5 s. */
+  while (!klar) {
+    try {
+      const spar = K.spar.filter(t => t.tillstand !== 'skrap' && !(t.ai && t.ai.helbild));
+      const vidSkala = kb * K.ruta.w / K.analysMatt.aw;   // videopixlar per analyspixel, som modulen räknar den
+      const dia = K.diagnos;
+      smaMax = Math.max(smaMax, dia.smaKort || 0);
+      prov = { langtBort: /^Korten är små i bilden/.test(K.rad || ''), vidSkala, lage: K.lage, antalSpar: spar.length,
+               sparKortPx: med(spar.map(t => t.kort * vidSkala)), sma: K.sma, smaKort: dia.smaKort || 0,
+               kortRef: dia.kortRef ? Object.assign({}, dia.kortRef) : null,
+               /* Avslagen i sista rutan, i den ordning detektera prövar dem:
+                  damm (under minArea), blänk, kvot, fyllnad, slät, liten. Det
+                  är här man ser VAD som tog korten när de blev små — 'liten'
+                  prövas sist, och ett litet kort kan ha fallit på slätheten
+                  före. */
+               avslag: { regioner: dia.regioner || 0, damm: dia.forSma || 0, blank: dia.blanka || 0, kvot: dia.felKvot || 0, otat: dia.otat || 0, flat: dia.flata || 0, liten: dia.smaKort || 0 } };
+      status(`${f.id} × ${faktor} (${kb}×${kh}): ${K.lage}, ${spar.length} spår`);
+    } catch (e) { /* mitt i ett byte av ruta — nästa varv */ }
+    await sleep(100);
+  }
+  const res = await p;   // kor.html:s bedom(), samma rad som i senaste.json
+  const facitPx = facitKortPx(f, W, H);
+  const kortRefPx = prov && prov.kortRef ? prov.kortRef.kort * prov.vidSkala : null;
+  /* Kortsidan: facit, annars kortreferensen. Spårens median sparas för sig —
+     fyllKortPx tar den sist, för i ett fall med kort omlott är "spåret" ofta
+     en klunga av två (03 vid 0,5: 175 px spår mot 117 px kortRef vid 0,65). */
+  const kortPx = facitPx != null ? facitPx * faktor : kortRefPx;
+  const kortKalla = facitPx != null ? 'facit' : kortRefPx != null ? 'kortRef' : null;
+  const ocr = res.spar.filter(t => t.ocr);
+  /* Kapas beskärningen? Läses ur det kameran faktiskt skickade (kor.html
+     sparar varje beskärning per spår, nollställd per steg ovan) — inte
+     räknat ur en uppskattad kortsida med en kopierad konstant. */
+  const besk = kw.eval('beskarningar')[f.id] || [];
+  const beskBredd = besk.length ? Math.max(...besk.map(p => p.w || 0)) : null;
+  return { fall: f.id, faktor, bredd: kb, hojd: kh, kort: res.kort, hittade: res.hittade, namn: res.namn, osakra: res.osakra, felNamn: res.felNamn, falska: res.falska,
+           kortPx: kortPx != null ? Math.round(kortPx) : null, kortKalla, beskBredd, kapad: beskBredd != null && beskBredd >= BESKAR_BREDD,
+           langtBort: !!(prov && prov.langtBort), sparKortPx: prov && prov.sparKortPx != null ? Math.round(prov.sparKortPx) : null, vidSkala: prov ? +prov.vidSkala.toFixed(2) : null,
+           smaKort: prov ? prov.smaKort : 0, smaMax, sma: prov ? prov.sma : 0, avslag: prov ? prov.avslag : null,
+           ocrHoppade: ocr.filter(t => t.ocr.hoppad === 'liten').length, ocrAv: ocr.length,
+           tidsgrans: !!res.tidsgrans, tid: res.tid, krascher: res.krascher || 0, missade: res.missade, spar: res.spar.map(t => ({ id: t.id, tillstand: t.tillstand, namn: t.namn, saker: t.saker, ocr: t.ocr ? { hoppad: t.ocr.hoppad, namn: t.ocr.namn, poang: t.ocr.poang } : null })) };
+}
+
+/* Ett faktorsteg utan egen kortsida (inga rutor, ingen kortreferens) får
+   den ur närmaste steg i samma fall som har en, skalad med faktorn (≈):
+   kortsidan är ju bara bilden × faktorn. Först när inget steg i fallet fick
+   ett säkert namn tas spårens median (spår?) — den kan vara en klunga. */
+function fyllKortPx(R) {
+  for (const r of R) {
+    if (r.kortPx != null) continue;
+    const kalla = R.filter(q => q.fall === r.fall && q.kortPx != null && (q.kortKalla === 'facit' || q.kortKalla === 'kortRef')).sort((a, b) => Math.abs(a.faktor - r.faktor) - Math.abs(b.faktor - r.faktor))[0];
+    if (kalla) { r.kortPx = Math.round(kalla.kortPx * r.faktor / kalla.faktor); r.kortKalla = '≈'; }
+    else if (r.sparKortPx != null) { r.kortPx = r.sparKortPx; r.kortKalla = 'spår?'; }
+  }
+}
+
+/* ── tabellen ─────────────────────────────────────────────────────── */
+const ja = v => v ? 'ja' : 'nej';
+function skrivTabell(R, fall) {
+  const cell = r => !r ? '–' : r.fel ? 'fel' : `${r.namn}/${r.kort} · ${r.felNamn} · ${r.falska}${r.tidsgrans ? ' ⏱' : ''}`;
+  const rad = (namn, celler) => '  ' + namn.padEnd(42) + celler.map(c => String(c).padEnd(16)).join('').trimEnd();
+  skriv('Rätt namn/kort · fel namn · falska, per fall och faktor (⏱ = slog i taket på 30 s). Faktor 1 = bild.jpg som den är.');
+  skriv(rad('Fall', FAKTORER.map(x => 'faktor ' + x)));
+  for (const f of fall) skriv(rad(f.id, FAKTORER.map(x => cell(R.find(r => r.fall === f.id && r.faktor === x)))));
+  const sum = (x, k) => R.filter(r => r.faktor === x && !r.fel).reduce((s, r) => s + (r[k] || 0), 0);
+  const felI = x => R.filter(r => r.faktor === x && r.fel).length;   // ett fall som föll syns i totalen, annars krymper nämnaren tyst
+  skriv(rad(`Totalt, ${fall.length} fall`, FAKTORER.map(x => `${sum(x, 'namn')}/${sum(x, 'kort')} · ${sum(x, 'felNamn')} · ${sum(x, 'falska')}${felI(x) ? ` (${felI(x)} fel)` : ''}`)));
+  skriv('');
+  skriv('Golven, per fall och faktor. Kortsida i videopixlar (källa) · hittade · rätt · fel · falska · långt bort (KORT_MIN_PX 150)');
+  skriv('· små (regioner under 90 px som aldrig blev spår: sista rutan / störst under fallet / median över sex rutor, det spelaren får veta) · ocr hoppade (MIN_KALLHOJD 20 px, av spår som identifierades)');
+  skriv('· kapad (BESKAR_BREDD 720) · avslag i sista rutan, i detekterans ordning: regioner, varav damm · blänk · kvot · otät · slät · liten. Kortsidans källa: facit, kortRef, ≈ (annat steg omskalat), spår? (kan vara en klunga).');
+  for (const f of fall) {
+    skriv('  ' + f.id);
+    for (const x of FAKTORER) {
+      const r = R.find(q => q.fall === f.id && q.faktor === x);
+      if (!r) continue;
+      if (r.fel) { skriv(`    faktor ${String(x).padEnd(5)} ${String(r.bredd).padStart(4)} px bred   FEL: ${r.fel}`); continue; }
+      const a = r.avslag;
+      skriv(`    faktor ${String(x).padEnd(5)} ${String(r.bredd).padStart(4)} px bred   kortsida ${String(f1(r.kortPx)).padStart(3)} (${(r.kortKalla || '–').padEnd(7)})`
+        + `   hittade ${String(r.hittade).padStart(2)}   rätt ${String(r.namn + '/' + r.kort).padStart(5)}   fel ${r.felNamn}   falska ${String(r.falska).padStart(2)}`
+        + `   långt bort ${ja(r.langtBort).padEnd(3)}   små ${r.smaKort}/${r.smaMax}/${r.sma}   ocr hoppade ${r.ocrHoppade} av ${String(r.ocrAv).padEnd(2)}   kapad ${ja(r.kapad).padEnd(3)}`
+        + (a ? `   avslag ${String(a.regioner).padStart(2)}: damm ${String(a.damm).padStart(2)} · blänk ${a.blank} · kvot ${a.kvot} · otät ${a.otat} · slät ${a.flat} · liten ${a.liten}` : '')
+        + `   ${(r.tid / 1000).toFixed(1)} s${r.tidsgrans ? ' ⏱' : ''}${r.krascher ? ' ✗' + r.krascher : ''}`);
+    }
+  }
+  /* Vilket golv går först: den STÖRSTA faktorn där golvet slog till i något
+     fall, och fallen. Ett golv som aldrig slog till står som det. */
+  const forst = (namn, slog) => {
+    const x = FAKTORER.filter(x => R.some(r => r.faktor === x && !r.fel && slog(r))).sort((a, b) => b - a)[0];
+    if (x == null) return `  ${namn.padEnd(74)} aldrig i provet`;
+    const vilka = R.filter(r => r.faktor === x && !r.fel && slog(r)).map(r => r.fall.slice(0, 2) + (r.kortPx != null ? ` (${r.kortPx} px)` : ''));
+    return `  ${namn.padEnd(74)} faktor ${x} — ${vilka.join(', ')}`;
+  };
+  skriv('');
+  skriv('Vilket golv går först — största faktorn där det slår till, och i vilka fall (kortsidan då):');
+  skriv(forst('långt bort: spårens kortsida under KORT_MIN_PX 150 (forLangtBort)', r => r.langtBort));
+  skriv(forst('liten: kortformade regioner under 0,6 × 150 = 90 px kastas — det spelaren får veta (K.sma)', r => r.sma > 0));
+  skriv(forst('liten: …i någon ruta under fallet (smaKort som störst)', r => r.smaMax > 0));
+  skriv(forst('namnläsaren hoppar: titelraden under MIN_KALLHOJD 20 px (hoppad liten)', r => r.ocrHoppade > 0));
+  skriv(forst('beskärningen kapas: en skickad beskärning är BESKAR_BREDD 720 px bred', r => r.kapad));
+  skriv(forst(`första rätta namnet tappas (mot faktor ${FAKTORER[0]} i samma fall)`, r => { const bas = R.find(q => q.fall === r.fall && q.faktor === FAKTORER[0]); return bas && !bas.fel && r.namn < bas.namn; }));
+  skriv(forst('inga rätta namn alls', r => r.kort > 0 && r.namn === 0));
+  const storst = med(R.filter(r => r.faktor === FAKTORER[0] && r.kortPx != null).map(r => r.kortPx));
+  skriv('');
+  skriv(`Skalan: bilderna är ${[...new Set(fall.map(f => f.bredd))].join('/')} px breda och telefonen ger ${TELEFON_PX} px, så faktor 1 motsvarar telefonen på ~${(TELEFON_PX / 1080).toFixed(1)} gånger avståndet i fallets namn`
+    + (storst != null ? `; kortsidan vid faktor ${FAKTORER[0]} är ~${storst} px här (median), ~${Math.round(storst * TELEFON_PX / 1080)} px på telefonen — och beskärningen kapas vid ~${Math.round(BESKAR_BREDD / MARGINAL)} px` : '') + '.');
+}
+
+/* ── körningen ────────────────────────────────────────────────────── */
+(async () => {
+  try {
+    await laddaKor();
+    const alla = kw.eval('fall');
+    /* Bara stillbilder: ett videofall har inget stillbildsläge att skala. */
+    const fall = alla.filter(f => f.facit && !f.fel && !f.facit.video && (!FALL.length || FALL.some(p => f.id.startsWith(p))));
+    if (!fall.length) throw new Error('inga stillbildsfall att köra' + (FALL.length ? ' som börjar på ' + FALL.join(', ') : ''));
+    const laddaBild = kw.eval('laddaBild');
+    const R = [];
+    for (const f of fall) {
+      const img = await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
+      f.bredd = img.naturalWidth;
+      for (const x of FAKTORER) {
+        status(`${f.id} × ${x}…`);
+        try { R.push(await korFaktor(f, img, x)); }
+        catch (e) { console.error(f.id, x, e); R.push({ fall: f.id, faktor: x, bredd: Math.round(img.naturalWidth * x), fel: e && e.message || String(e) }); }
+      }
+    }
+    fyllKortPx(R);
+    skrivTabell(R, fall);
+    window.RES = { faktorer: FAKTORER, telefonPx: TELEFON_PX, metod: (() => { try { return kw.eval('metod')(); } catch (e) { return null; } })(), rader: R };
+    status('Klar.');
+  } catch (e) { status('Fel: ' + (e && e.message || e)); console.error(e); }
+})();
+</script>

@@ -24,6 +24,8 @@ dev/golden/
   kor.html           provkörningen, i webbläsaren
   kor.cjs            samma provkörning från terminalen, i en huvudlös Chrome
   vriden.html/.cjs   skräpfiltret mot kort i vinkel och mot bordet utan kort
+  avstand.html/.cjs  avståndsprovet: fotona nerskalade steg för steg — vilket
+                     golv i kedjan går först (ett mått, ingen baslinje)
   senaste.json       senaste incheckade körningen — det kor.html jämför med
   historik.md        en rad per incheckad körning: datum, commit, metod, totaler
   video/             verktygen som gör en telefoninspelning till ett videofall
@@ -149,6 +151,58 @@ Ett fall som varken har rutor i facit eller spår i `senaste-ai.json` hoppas
 över, och det skrivs ut: utan att veta var korten ligger skulle sidan mäta
 mattans nivå över dem och klippa "bitar av bordet" mitt i ett kort. Fall 07
 är ett sådant i dag.
+
+**Avståndet** mäts för sig, som ett mått utan dom:
+
+```bash
+node dev/golden/avstand.cjs [--fall 01,02] [--faktorer 1,0.5] [--json fil]
+```
+
+`avstand.html` laddar `kor.html` i en iframe — som gör allt den brukar: listar
+fallen, laddar appen, bygger poolen, hämtar namnläsaren — och lånar sedan
+dess egna funktioner (`stallUpp`, `korStillFall`, `bedom`) för att köra varje
+stillbildsfall nerskalat med faktorerna 1, 0,8, 0,65, 0,5, 0,4 och 0,3:
+samma bord, samma kort, bara längre bort. Bilden skalas med hög kvalitet i en
+canvas som sedan är "videon", och varje faktor är en egen `Kamera.start`/
+`stopp`, precis som ett fall i kor.html; klart-villkoret och taket på 30 s är
+kor.html:s. Ingen rad av kedjedrivningen är kopierad, så måttet är alltid
+kor.html:s. Utan Claude. Videofallen körs inte — de har inget stillbildsläge
+att skala.
+
+Per fall och faktor står kortsidan i videopixlar (facits rutor i 01–02;
+annars telefonens egen kortreferens ur säkert namngivna spår, annars ett
+annat faktorsteg i samma fall omskalat, märkt ≈, och sist spårens median,
+märkt spår?), rätt namn, fel namn, falska,
+och **telefonens egna skäl** — avlästa medan fallet kör, eftersom `stopp()`
+tömmer spåren:
+
+| Golv | I `index.html` | Läses som |
+|---|---|---|
+| långt bort | `KORT_MIN_PX` 150: medianen av spårens kortsida i videopixlar, `forLangtBort()` | `K.rad` börjar med "Korten är små i bilden" |
+| liten | kortformade regioner under 0,6 × 150 = 90 px kastas i `detektera` innan de blir spår | `dia.smaKort` (sista rutan / störst under fallet / `K.sma`, medianen över sex rutor) |
+| namnläsaren hoppar | `MIN_KALLHOJD` 20 px: titelraden i beskärningen för låg att läsas — ~235 px beskärningshöjd, ~145 px kortsida | spår med `namnLast.hoppad = 'liten'`, mot antalet som identifierades |
+| beskärningen kapas | `BESKAR_BREDD` 720: beskärningen krymps — börjar vid ~620 px kortsida (8 % marginal) | bredden på beskärningarna kameran skickade (kor.html sparar dem per spår) |
+
+Raden bär också detekterans **avslag i sista rutan**, i den ordning de
+prövas — damm, blänk, kvot, otät, slät, liten — så att man ser *vad* som tog
+korten när de blev små: 'liten' prövas sist, och ett litet kort kan lika
+gärna ha fallit på slätheten före. Sist står, per golv, den största faktorn
+där det slog till och i vilka fall, plus när det första rätta namnet
+tappades mot faktor 1 och när inga namn alls blev rätt. Slutkod 0 efter en genomförd mätning oavsett siffror
+(2 bara om körningen inte gick att genomföra, eller om poolen är
+ofullständig — då mäts leken, inte kameran). Profilen är en egen
+(`mesa-avstand-profil`), så kor.cjs kan köra samtidigt; första körningen
+bygger poolen. Poolen cachas per port (appens IndexedDB), så byt inte
+`--port` mellan körningar om du vill slippa bygga om den.
+
+**Skalan mot telefonen.** Fallens bilder är 1080 px breda (fall 04: 1440) och
+telefonen ger sedan MES-30 3840 px. Faktor 1 motsvarar därför telefonen på
+ungefär 3,5 gånger avståndet i fallets namn (3840/1080 = 3,6), och faktor
+0,3 nästan tolv gånger: kortsidan som är ~380 px i fall 01 här är ~1350 px på
+telefonen, långt över alla golv. Provet mäter alltså längre bort än telefonen
+någonsin sitter, med flit — det är golvens *ordning* och kortsidan i pixlar
+där de faller som är svaret, inte en centimetersiffra. Vill man veta hur
+det ser ut på telefonens avstånd är det fotona som ska tas om i 3840 px.
 
 Namnläsaren körs bara när titelraden är hög nog att läsas (remsan minst 20 px
 hög i källbilden, `MIN_KALLHOJD` i `index.html`; golvet låg på 40 tills fotona i
