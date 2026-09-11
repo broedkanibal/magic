@@ -128,6 +128,19 @@ drygt två meter). Provet mäter alltså längre bort än telefonen någonsin
 sitter — läs ordningen mellan golven och kortsidan i pixlar där de slår till,
 inte centimetrarna.
 
+**Mätt 2026-09-11 (MES-31), två spakar som inte hjälpte:**
+
+| Spak | Resultat | Varför den inte behölls |
+|---|---|---|
+| Förstora små beskärningar till 360 px kortsida innan de läses | namnläsaren slutade hoppa över titelrader men läste inget mer; fall 02 på faktor 1 tappade ett namn (4/4 → 3/4) | beskärningens skala är det trösklarna är mätta i; förstoringen ger inga nya bildpunkter |
+| Golvet *liten* 90 → 60 px (regioner som får bli spår) | på håll bättre: fall 06 på faktor 0,5 gick 0 → 7 av 11 namn, faktor 0,4 0 → 6; men videofallet 07 fick 1 → 3 falska — fragment ur handrörelser blev spår och sedan granskningsposter | 75 px gav 07:s falska ändå och tappade 06 på 0,4 — ett storleksgolv skiljer inte fragment (85 px) från riktiga kort (81 px) |
+
+Det som faktiskt tappar namnen är igenkänningen vid 200–250 px kortsida
+(fall 02: 4/4 vid 252, 2/4 vid 202), medan korten fortfarande är spår — inte
+golven. På telefonens 3840 px är kortsidan ~900 px på 40 cm och ~250–300 px
+på 150 cm, så det är där det spelar roll. Nästa spak är Claude på osäkra
+beskärningar (redan vägen för `okand`-spår med AI på), inte lägre golv.
+
 ## Hastighet
 
 Hur lång tid tar det från att ett kort läggs ner tills det har sitt namn?
