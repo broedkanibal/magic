@@ -33,7 +33,7 @@ const zonAv = e => e.zon || (LAND.has(e.name) ? ZON_MANA : ZON_SPELL);
 let n = 0; const uid = () => 'c' + (++n);
 const cropCache = new Map();
 const prefs = { lyftForklarad: true }; const savePrefs = () => {};
-const save = () => {}, renderAll = () => {}, resolveAll = () => {}, renderMode = () => {}, uppdateraPbStatus = () => {}, kamSkruvTal = () => {};
+const save = () => {}, renderAll = () => {}, renderGrid = () => {}, resolveAll = () => {}, renderMode = () => {}, uppdateraPbStatus = () => {}, kamSkruvTal = () => {};
 let kamFas = '', kamYta = null, kamRad = '', kamTot = 0, kamLast = 0, kamSer = 0;
 const BORTA_NAD = 3000; let lyftT = null, lyftTips = null;
 let hoppade = new Set(), borttagna = new Set();
@@ -67,6 +67,8 @@ return {
      och när varje spår först sågs. extra lägger till det som kommer
      utifrån (sma, fas, rad). */
   remsa(extra) { return autoRemsaModell(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
+  /* Platshållarna i rutnätet (MES-42): samma underlag som remsan. */
+  platser(extra) { return autoPlatser(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
   get losa() { return losaSpar; },
   /* Sammanfattningen när auto stängs av: passet, boken, datorns anrop,
      och summan — som stangAvAuto räknar den, ur senaste bordet och mitt bord. */
@@ -701,6 +703,40 @@ prov('A13 datorns egna anrop medan auto är på räknas i en egen bok, med serve
   const k = app.summa().kostnad;
   assert.equal(k.dator.anrop, 2); assert.equal(k.dator.fel, 1); assert.equal(k.dator.utan, 1); assert.ok(nara(k.dator.per[OPUS].usd, 0.00631));
   assert.equal(k.totalt.anrop, 2); assert.ok(nara(k.totalt.usd, 0.00631)); assert.deepEqual(k.totalt.okandPris, ['okänd']);
+});
+
+/* ── platshållarna på bordet (MES-42) ── */
+const platsSlag = l => l.map(p => `${p.slag}:${p.spar}${p.namn ? '=' + p.namn : ''}${p.pend ? '#' : ''}`);
+prov('H1 ett spår som just föddes ("ny") får ingen plats förrän efter en halv sekund; stilla får en direkt', () => {
+  stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }]);
+  assert.deepEqual(platsSlag(app.platser()), []);
+  klocka.t += 400; stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }]);
+  assert.deepEqual(platsSlag(app.platser()), []);
+  klocka.t += 200; stam([{ id: 1, tillstand: 'ny', sen: 0, ...PORT }]);
+  assert.deepEqual(platsSlag(app.platser()), ['laser:1']);
+  stam([{ id: 1, tillstand: 'stilla', sen: 0, ...PORT }, { id: 2, tillstand: 'stilla', sen: 0, ...LANGT }]);
+  assert.deepEqual(platsSlag(app.platser()), ['laser:1', 'laser:2'], 'i den ordning de sågs');
+});
+prov('H2 ett spår som väntar på Claude: "vantar" med gissningen; skymda och klara bundna får ingen plats', () => {
+  stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Plains', sen: 0, ...PORT }, klar(2, 'Forest', { sen: 10, ...LANGT }), { id: 3, tillstand: 'stilla', skymd: true, sen: 900, x: 0.1, y: 0.1, w: 0.063, h: 0.088 }]);
+  assert.equal(app.kort.length, 1);
+  assert.deepEqual(platsSlag(app.platser()), ['vantar:1=Plains']);
+});
+prov('H3 ett osäkert spår i granskningen: "fyll" med posten och förslaget; kortet ifyllt → platsen borta, kortet kvar', () => {
+  stam([{ id: 1, tillstand: 'okand', sen: 0, cands: [{ name: 'Swamp', score: 0.4 }], ...PORT }]);
+  assert.equal(app.pending.length, 1);
+  const l = app.platser();
+  assert.deepEqual(platsSlag(l), ['fyll:1=Swamp#']); assert.equal(l[0].pend, app.pending[0].id);
+  // spåret blir klart (namnet fylldes i och telefonen fick det): kortet skapas, posten och platsen försvinner
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 0);
+  assert.deepEqual(platsSlag(app.platser()), []);
+});
+prov('H4 platserna och remsan räknar samma "på väg"', () => {
+  stam([{ id: 1, tillstand: 'stilla', sen: 0, ...PORT }, { id: 2, tillstand: 'okand', provas: true, sen: 0, ...LANGT }]);
+  const m = app.remsa();
+  assert.equal(m.text, 'Auto · 2 på väg');
+  assert.equal(app.platser().filter(p => p.slag !== 'fyll').length, m.paVag.length);
 });
 
 console.log([...ok, ...fel].join('\n'));

@@ -1518,6 +1518,23 @@ body.lasvy .lasband{display:flex}
 /* Kort som just dök upp från kameran pulserar till en gång. */
 @keyframes nypuls{0%{box-shadow:0 0 0 0 #5fbf7f88}70%{box-shadow:0 0 0 12px #5fbf7f00}100%{box-shadow:0 0 0 0 #5fbf7f00}}
 .card.nykort{animation:nypuls 1.4s ease-out 1}
+/* Platshållaren (MES-42): ett kort kameran ser men ännu inte har namn på —
+   samma plats och storlek som kortet får sedan, skimrande som ett kort vars
+   bild inte laddats än (.card.pending), och en streckad kant som säger att
+   det inte är ett kort än. Ingen .card-klass: markering, drag och
+   tangenter ska inte räkna med den. En som står i granskningen är en
+   knapp och öppnar den. */
+.plats{
+  position:relative;display:flex;align-items:flex-end;width:var(--cardw);flex:none;aspect-ratio:488/680;
+  border-radius:calc(var(--cardw) * .045);border:0;padding:10px;text-align:left;font:inherit;font-size:11px;line-height:1.3;
+  color:var(--dim);background:linear-gradient(105deg,#1a212c 30%,#232c3c 50%,#1a212c 70%) 0 0/300% 100%;
+  animation:sh 1.3s linear infinite;outline:1px dashed #ffffff2e;outline-offset:-1px;cursor:default;
+}
+.plats .platstxt{display:block}
+.plats .platstxt i{display:block;font-style:normal;color:var(--dim2)}
+.plats.fyll{cursor:pointer;outline-color:var(--acc);color:var(--txt)}
+.plats.fyll:hover{background:#232c3c;animation:none}
+.plats.fyll .platstxt::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--acc);margin:0 6px 1px 0}
 /* Ett kort kameran inte längre ser. Det stannar på sin plats, nedtonat, med
    en enda fråga: ska det till graveyard? Krysset tar allt annat, och att göra
    ingenting betyder att det ligger kvar. Samma vokabulär som den gröna pulsen
@@ -5847,14 +5864,37 @@ function hoverNamnHtml(e) {
     pt || kort ? `<i>${esc([pt, kort].filter(Boolean).join(' · '))}</i>` : ''}</span>`;
 }
 
+/* Platshållarna just nu (autoPlatser): bara på mitt eget bord, medan auto
+   är på och telefonen är med. Någon annans bord får inga — deras kamera
+   är deras. */
+function autoPlatserNu() {
+  const mig = minSpelare();
+  if (!mig || player() !== mig || !kamAnsluten || prefs.autoLage === false) return [];
+  return autoPlatser(senasteSpar, mig, { sedd: sparSedd, losa: losaSpar });
+}
+/* En plats i rutnätet. Den som står i granskningen är en knapp — klicket
+   öppnar granskningen på just det kortet (oppnaGranskningFor). */
+function platsHtml(p) {
+  const fyll = p.slag === 'fyll';
+  const txt = fyll ? 'Fyll i' : p.slag === 'vantar' ? 'Frågar Claude…' : 'Läser kortet…';
+  const titel = fyll ? 'Kameran är osäker på vilket kort det här är — klicka för att fylla i det'
+    : p.slag === 'vantar' ? 'Kameran frågar Claude vilket kort det här är' : 'Kameran läser kortet';
+  const tag = fyll ? 'button' : 'span';
+  return `<${tag} class="plats ${p.slag}"${fyll ? ` type="button" data-pend="${esc(p.pend)}"` : ''} title="${titel}">
+    <span class="platstxt">${txt}${p.namn ? `<i>${esc(p.namn)}?</i>` : ''}</span></${tag}>`;
+}
 function renderGrid(force) {
   if (sorteraMana(player())) save();
   const cards = hand();
   if (losBifogade(cards)) save();
   const d = delaHand();
+  /* Platshållarna är med i signaturen: ett kort som börjar läsas ändrar
+     inte ett enda kort, men bordet ska ritas om ändå. */
+  const platser = autoPlatserNu();
   const sig = d.spell.length + '/' + cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
-    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + (lyftTips === c.cid ? 'T' : '')).join('|');
+    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + (lyftTips === c.cid ? 'T' : '')).join('|')
+    + '/' + platser.map(p => p.spar + p.slag + (p.namn || '')).join(',');
 
   /* Antalet står i varje zons egen rubrik. En andra räkning uppe i sökraden
      sa samma sak en gång till, längre bort från det den räknade. */
@@ -5865,7 +5905,8 @@ function renderGrid(force) {
   $('#clearHand').hidden = spelLage
     ? !(minSpelare() && (minSpelare().cards.length || (minSpelare().pending || []).length))
     : state.players.every(q => !q.cards.length && !(q.pending || []).length);
-  document.body.classList.toggle('tomhand', cards.length === 0);
+  /* Ett bord med bara platshållare är inte tomt: kameran ser något. */
+  document.body.classList.toggle('tomhand', cards.length === 0 && !platser.length);
   if (!force && sig === gridSig) { renderSel(); return; }
   gridSig = sig;
 
@@ -5894,7 +5935,7 @@ function renderGrid(force) {
       ${kortHtml(cards[i], i, 'vard')}
       <span class="bifbricka" data-bif="${cards[i].cid}" title="${bif.length} attached card">+${bif.length}</span>
     </span>`;
-  }).join('');
+  }).join('') + platser.map(platsHtml).join('');
 
   /* Zonräknaren: hur många permanents, hur många av dem tappade, hur många
      bifogade. Härledd varje gång — ingenting av det lagras. */
@@ -5906,7 +5947,9 @@ function renderGrid(force) {
     bif ? bif + ' attached' : ''
   ].filter(x => x !== '').join(' · ');
 
-  emptyEl.classList.toggle('hide', cards.length > 0);
+  /* Tomt-rutan viker för platshållarna också: kameran ser kort, och de
+     står redan i rutnätet. */
+  emptyEl.classList.toggle('hide', cards.length > 0 || platser.length > 0);
   if (!cards.length) renderTom();
   emptyLasEl.classList.toggle('hide', cards.length > 0);
   if (!cards.length && !redigerbar()) $('#emptyLasTxt').textContent =
@@ -7019,6 +7062,30 @@ gridEl.addEventListener('click', ev => {
   renderSel(); renderDetail(); sparaUi();
 });
 gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) openFocus(); });
+/* Platshållaren i granskningen: klicket öppnar granskningen på det kortet.
+   Egen lyssnare — platsen är ingen .card, och korthanteraren ovan ska
+   inte veta av den. */
+gridEl.addEventListener('click', ev => {
+  const p = ev.target.closest('.plats.fyll');
+  if (!p || !p.dataset.pend) return;
+  ev.stopPropagation();
+  oppnaGranskningFor(p.dataset.pend);
+});
+/* Granskningen öppnad på en viss post: samma väg som "Fyll i" i
+   statusfältet (pendGo), men kön ställs på posten i stället för på den
+   första. Finns posten inte längre — kortet blev klart medan man klickade —
+   går det som vanligt: första i kön. */
+function oppnaGranskningFor(id) {
+  const p = player();
+  if (!p.pending || !p.pending.length) return;
+  if (!$('#shotOv').classList.contains('open')) openShot(true);
+  setTimeout(() => {
+    byggKo();
+    const i = SW.queue ? SW.queue.indexOf(id) : -1;
+    if (i >= 0) SW.qi = i;
+    nextPending();
+  }, 200);
+}
 function rutaTangent(ev) {
   const t = ev.target.closest('[data-addtile]');
   if (t && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); openOv('imgOv'); }
@@ -15132,6 +15199,36 @@ function autoRemsaModell(spar, mig, extra) {
   else if (lyfta.length > 1) m.not = `${autoAntal(lyfta.length)} kort syns inte längre`;
   return m;
 }
+/* Platshållare på bordet (MES-42): ett kort kameran ser men ännu inte har
+   namn på ritas som en tom plats sist i permanents-zonen — där kortet
+   sedan dyker upp. Förut låg kortet på mattan i en, två, tre sekunder
+   innan något alls syntes på datorn, och den som lade ut det undrade om
+   kameran såg det. Tre slag: 'laser' (ligger stilla, läses lokalt),
+   'vantar' (frågan till Claude är ute), 'fyll' (osäkert, står i
+   granskningen — platsen öppnar den). Ett spår som är 'ny' (rör sig) får
+   en plats först efter PLATS_DROJ: handen som lägger kortet är också ett
+   spår i en halv sekund, och en plats som blinkar förbi för varje hand
+   vore värre än ingen. Skymda och klara spår får ingen: de syns i
+   kameravyn respektive på bordet. Samma underlag som statusfältet
+   (autoRemsaModell), så att "2 på väg" och två platser alltid är samma
+   två. Ren funktion, provad i dev/avstamning.cjs. */
+const PLATS_DROJ = 500;
+function autoPlatser(spar, mig, extra) {
+  const e = extra || {}, nu = e.nu != null ? e.nu : Date.now();
+  const m = autoRemsaModell(spar, mig, e);
+  const ut = [];
+  for (const p of m.paVag) {
+    const t = spar.find(u => u.id === p.spar);
+    if (p.slag === 'laser' && t && t.tillstand === 'ny' && nu - p.sedan < PLATS_DROJ) continue;
+    ut.push({ spar: p.spar, sedan: p.sedan, slag: p.slag, namn: p.namn, pend: null });
+  }
+  for (const q of (mig && mig.pending) || []) {
+    if (q.spar == null || !spar.some(t => t.id === q.spar) || ut.some(p => p.spar === q.spar)) continue;
+    const sedan = e.sedd && e.sedd.has(q.spar) ? e.sedd.get(q.spar) : nu;
+    ut.push({ spar: q.spar, sedan, slag: 'fyll', namn: (q.cands && q.cands[0] && q.cands[0].name) || null, pend: q.id });
+  }
+  return ut.sort((a, b) => a.sedan - b.sedan || a.spar - b.spar);
+}
 
 /* ── sammanfattningen när auto stängs av ─────────────────────────────
    Vad hela passet kostade och gav: kort som hittades, hur de fick sitt
@@ -15534,8 +15631,10 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   if (mig.cards.some(k => k.borta)) lyftT = setTimeout(() => avstamBord(senasteSpar), BORTA_NAD + 100);
   senasteSpar = spar;
   /* Även när ingenting ändrades på bordet kan förhållandet lästa/sedda ha
-     gjort det: ett kort som just lagts ner är sett men ännu inte läst. */
-  if (!andrat) renderMode();
+     gjort det: ett kort som just lagts ner är sett men ännu inte läst — och
+     det får en platshållare i rutnätet (renderGrid ritar bara om när
+     platserna faktiskt ändrats, se signaturen). */
+  if (!andrat) { renderMode(); renderGrid(); }
   uppdateraPbStatus();
 }
 let senasteSpar = [];
@@ -15673,6 +15772,7 @@ async function stangAvAuto(fraga) {
   glomSpar(true);
   stangKamSkruv();          // panelen stängs: utan auto finns inget att koppla eller skruva
   renderMode();
+  renderGrid();             // platshållarna går med kameran
   visaAutoSum(sum);
   return true;
 }
