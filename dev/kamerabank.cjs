@@ -152,17 +152,18 @@ if (process.argv.includes('--diagnos')) {
 }
 
 let identifieringar = 0, bord = [], nollst = 0, nu = 0;
+let bordExtra = null, bordRapporter = 0;   // tredje argumentet till bord (MES-31: sma, upplosning), och hur många bord som gått
 let namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
 Kamera.installera({
   status: () => {},
-  bord: (spar, nollstall) => { bord = spar; if (nollstall) nollst++; },
+  bord: (spar, nollstall, extra) => { bord = spar; bordExtra = extra || null; bordRapporter++; if (nollstall) nollst++; },
   identifiera: (c, id, gissning) => { identifieringar++; return Promise.resolve(namnSvar(id, gissning)); }
 });
 
 function nystart() {
   Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
   Kamera.satTrosklar({ auto: 1, troskel: 26, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700, tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 });
-  identifieringar = 0; bord = []; nu = 0;
+  identifieringar = 0; bord = []; nu = 0; bordExtra = null; bordRapporter = 0;
 }
 // En ruta: matta + valfria objekt. `brus` i gråsteg (likformigt ±brus ≈ σ·√3).
 async function ruta(bygg, brus = 3, niv = 100, gain = 1) {
@@ -399,6 +400,56 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 14, 20, 180));
   check(`W9 för litet kort (14×20 vid 240, ×8 = 112 videopx): rådet '${(Kamera.rad || '').slice(0, 24)}…', kortsida ${Kamera.spar.map(t => t.kort.toFixed(1)).join(',')}, tillstånd ${Kamera.spar.map(t => t.tillstand).join(',')}`, /små i bilden/.test(Kamera.rad || ''));
+  /* W9b: bänken har ingen ström, alltså inget tak att jämföra med — då är
+     rådet det gamla, "flytta närmare" (vidTaket antar att telefonen ger allt
+     den kan). Ett kort över golvet men under 150 är ett spår, inte "litet":
+     sma 0. */
+  check(`W9b utan känd upplösning (${JSON.stringify(Kamera.upplosning)}) är rådet det gamla: '${Kamera.rad}', sma ${Kamera.sma}`,
+        Kamera.upplosning === null && Kamera.rad === 'Korten är små i bilden. Flytta telefonen närmare bordet.' && Kamera.sma === 0);
+
+  // ── MES-31 små kort: räknas och rapporteras i stället för att tigas ihjäl ──
+  /* Ett kort under golvet (KORT_MIN_PX × 0,6 = 90 videopx kort sida) blir
+     aldrig ett spår ('liten' i bedom) och syntes förut ingenstans — inte i
+     rådet (som räknar på spår), inte i bordet. Nu räknas det för sig
+     (dia.smaKort, inte dammet under minArea i forSma), hålls som median
+     över sex rutor (Kamera.sma) och går med i bordet som tredje argument
+     (sma). Uppmätt vid 8 videopx/analyspx: ett 9×13 ritat kort mäts 10,8
+     kort sida efter suddningen = 86 videopx och är litet; 10×14 mäts 11,8
+     = 94 och blir ett spår (W9 ovan är 14×20). */
+  {
+    nystart(); await referens();
+    const rapFore = bordRapporter;
+    for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 9, 13, 180));
+    const d = Kamera.diagnos;
+    check(`SM1 kort under golvet (9×13, ≈86 videopx): inget spår (${s.length}), smaKort ${d.smaKort}, forSma ${d.forSma}, sma ${Kamera.sma}, rad ${JSON.stringify(Kamera.rad)}`,
+          s.length === 0 && d.smaKort === 1 && d.forSma === 0 && Kamera.sma === 1 && Kamera.rad === null);
+    check(`SM2 bordet gick EN gång (${bordRapporter - rapFore}) när talet ändrades, med sma ${bordExtra && bordExtra.sma} och upplosning ${bordExtra && JSON.stringify(bordExtra.upplosning)}`,
+          bordRapporter - rapFore === 1 && !!bordExtra && bordExtra.sma === 1 && bordExtra.upplosning === null);
+    /* Medianen: kortet lyfts — talet står kvar tre rutor och faller på den
+       fjärde (fönstret är sex rutor), och bordet går igen just då. */
+    const rapMitt = bordRapporter, forlopp = [];
+    for (let i = 0; i < 5; i++) { s = await ruta(null); forlopp.push(Kamera.sma); }
+    check(`SM3 kortet lyfts: sma ruta för ruta ${forlopp.join(',')}, bordet gick ${bordRapporter - rapMitt} gång`,
+          forlopp.join(',') === '1,1,1,0,0' && bordRapporter - rapMitt === 1);
+    /* En ruta med ett kortformat fragment (en hand som sveper) tänder inget:
+       medianen över sex rutor är 0 så länge fem av dem är tomma. */
+    for (let i = 0; i < 3; i++) s = await ruta(null);
+    const rapFrag = bordRapporter;
+    s = await ruta(g => kort(g, W, 60, 50, 9, 13, 180));
+    const ettVarv = Kamera.sma;
+    for (let i = 0; i < 2; i++) s = await ruta(null);
+    check(`SM4 en enda ruta med ett litet fragment: sma ${ettVarv} sedan ${Kamera.sma}, bordet gick ${bordRapporter - rapFrag} gånger`,
+          ettVarv === 0 && Kamera.sma === 0 && bordRapporter - rapFrag === 0);
+    /* Damm — en region under minArea (60) — räknas i forSma, inte i smaKort:
+       de två talen ska inte gå att blanda ihop. 5×6 är 30 bildpunkter. */
+    for (let i = 0; i < 4; i++) s = await ruta(g => kort(g, W, 120, 100, 5, 6, 180));
+    const d2 = Kamera.diagnos;
+    check(`SM5 damm (5×6): forSma ${d2.forSma}, smaKort ${d2.smaKort}, sma ${Kamera.sma}, spår ${s.length}`, d2.forSma >= 1 && d2.smaKort === 0 && Kamera.sma === 0 && s.length === 0);
+    /* Diagnosfilen bär upplösningen i matt — null på bänken, telefonens på telefonen. */
+    const df = Kamera.diagnosfil();
+    check(`SM6 diagnosfilen: matt.upplosning ${JSON.stringify(df.matt.upplosning)}, dia.smaKort ${df.dia.smaKort}`, df.matt.upplosning === null && df.dia.smaKort === 0);
+    nystart();
+  }
 
   // ── R1: korten ligger REDAN på mattan när referensen tas (MES-26) ──
   /* Så ser ett riktigt bord ut: telefonen pekas mot ett bord med kort på.
@@ -705,6 +756,116 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     Kamera.svarAI(id21, [], { antal: 0 });
     check(`W21 flimmer medan frågan är ute: dog ${dog21}, samma id igen ${t21.id === id21} (${arv21}), svaret sedan: ${fmt(t21)}`,
           dog21 && t21.id === id21 && arv21 === 'prövas true, frågad true' && t21.tillstand === 'skrap');
+
+    /* ── tiderna till sammanfattningen när auto stängs av ──
+       identifiera mäter den lokala kedjan med väggklockan (performance.now),
+       som bänken stubbar till 0. Här går den fem enheter per avläsning så
+       att tiden syns; rutklockan nu rörs inte. lokalMs och ai.ms ska
+       överleva rapportera() — det är ur bordet datorn räknar. */
+    const pnFore = ctx.performance.now; let tick = 0; ctx.performance.now = () => (tick += 5);
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    nystart(); await refTra();
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    t = Kamera.spar.find(x => x.tillstand === 'klar') || { id: -1 };
+    const b22 = iBord(t);
+    check(`W22 lokalMs i bordet: spåret ${t.lokalMs} ms, bordet ${b22.lokalMs} ms (ai ${JSON.stringify(b22.ai)})`,
+          typeof t.lokalMs === 'number' && t.lokalMs > 0 && b22.lokalMs === t.lokalMs && b22.ai === null);
+    /* W22b: omförsöken (inte redo, sedan svar) läggs ihop — inte skrivs över. */
+    let varv = 0; namnSvar = () => (++varv < 3 ? null : { namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    nystart(); await refTra();
+    for (let i = 0; i < 40 && !(Kamera.spar[0] && Kamera.spar[0].tillstand === 'klar'); i++) await rutaTra({}, ETT);
+    t = Kamera.spar[0] || { id: -1 };
+    check(`W22b tre försök (två "inte redo"): lokalMs ${t.lokalMs} ms, försök ${varv}, ${fmt(t)}`, varv === 3 && t.lokalMs >= 3 * 5 && t.tillstand === 'klar');
+    /* W23: Claudes svarstid (ms i info från kamFragaAI) landar i t.ai.ms och
+       i bordet; delarna ur en klunga bär klungans lokala tid och samma ai. */
+    namnSvar = osaker; t = await ettOkant();
+    const lokal23 = t.lokalMs;
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.3, y: 0.5 }, { namn: 'Plains', sid: 's1', saker: true, x: 0.7, y: 0.5 }], { antal: 2, ms: 1234, modell: 'claude-opus-5' });
+    const delar = bord.filter(x => x.ai && x.ai.klunga === t.id);
+    check(`W23 ai.ms i bordet: ${delar.map(x => `#${x.id} ${x.tillstand} lokalMs ${x.lokalMs} ai.ms ${x.ai.ms} ${x.ai.modell}`).join(' | ')} (klungans lokala tid ${lokal23})`,
+          delar.length === 2 && delar.every(x => x.ai.ms === 1234 && x.ai.modell === 'claude-opus-5' && x.lokalMs === lokal23 && lokal23 > 0));
+    /* W24: ett flimmer behåller tiden med namnet; en omläsning efter 3 s mäter om. */
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    nystart(); await refTra();
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    t = Kamera.spar.find(x => x.tillstand === 'klar') || { id: -1 };
+    const ms24 = t.lokalMs, id24 = t.id;
+    for (let i = 0; i < 6; i++) await rutaTra({});                 // 0,9 s borta: flimmer
+    for (let i = 0; i < 3; i++) await rutaTra({}, ETT);
+    const t24 = Kamera.spar.find(x => x.id === id24) || { id: -1 };
+    const flimmer24 = t24.id === id24 && t24.lokalMs === ms24 && t24.tillstand === 'klar';
+    for (let i = 0; i < 22; i++) await rutaTra({});                // 3,3 s borta: omläsning med ledtråd
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    const t24b = Kamera.spar.find(x => x.id === id24) || { id: -1 };
+    check(`W24 flimmer: samma id ${t24.id === id24}, lokalMs ${t24.lokalMs} (var ${ms24}); omläsning efter 3 s: ${fmt(t24b)}, lokalMs ${t24b.lokalMs}`,
+          flimmer24 && t24b.id === id24 && t24b.tillstand === 'klar' && typeof t24b.lokalMs === 'number' && t24b.lokalMs > 0 && t24b.lokalMs < ms24 + 5 * 3);
+    ctx.performance.now = pnFore;
+  }
+
+  // ── MES-30 grundläget: tappat mäts mot en bekräftad vinkel ──────────
+  /* Otappat är sällan exakt 0° och tappat sällan exakt 90°. Grundläget är
+     axeln spelaren bekräftade som otappad; mer än 45° därifrån är tappat.
+     Utan grundläge gäller upp som förut ('v' lodrät, 'h' vågrät). */
+  {
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    const rad = d => d * Math.PI / 180, grader = v => Math.round(v * 180 / Math.PI);
+    const axSk = (u, v) => Math.abs(Math.atan2(Math.sin(2 * (u - v)), Math.cos(2 * (u - v)))) / 2;
+    const T = (d, upp) => Kamera.tappad(rad(d), upp || 'v');
+    nystart();
+    check(`GL0 utan grundläge: grund ${Kamera.grund}; upp 'v': 20° ${T(20)}, 80° ${T(80)}; upp 'h': 20° ${T(20, 'h')}, 80° ${T(80, 'h')}`,
+          Kamera.grund === null && T(20) && !T(80) && !T(20, 'h') && T(80, 'h'));
+    Kamera.satGrund(rad(20));
+    /* 65° är exakt gränsen (45° från 20°) och avgörs av avrundningen — den
+       provas inte; 64° och 66° ligger på var sin sida. */
+    check(`GL1 grundläge 20°: 20° ${T(20)}, 110° ${T(110)}, 64° ${T(64)}, 66° ${T(66)}, 200° ${T(200)} (samma axel som 20°), −70° ${T(-70)} (samma som 110°); upp 'h' ändrar inget: 20° ${T(20, 'h')}`,
+          !T(20) && T(110) && !T(64) && T(66) && !T(200) && T(-70) && !T(20, 'h'));
+    Kamera.satGrund(null);
+    check(`GL2 satGrund(null) faller tillbaka på upp: grund ${Kamera.grund}, 20° med 'v' ${T(20)}, med 'h' ${T(20, 'h')}`, Kamera.grund === null && T(20) && !T(20, 'h'));
+    Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', grund: 150 } });
+    const g150 = Kamera.grund;
+    Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'h' } });
+    check(`GL3 satKalibrering läser ruta.grund i grader: 150 → ${g150 == null ? g150 : grader(g150) + '°'}; en rad utan grund (golden-facit, bänken) → ${Kamera.grund}`,
+          g150 != null && Math.abs(g150 - rad(150)) < 1e-9 && Kamera.grund === null);
+    /* GL4: grundFranSpar dömer om spåren som redan finns. Ett stående kort
+       (axel 90°) och ett vridet 60° (axel 150°): med upp 'v' är det vridna
+       tappat. Bekräftas det vridna som otappat blir grundläget 150°: det
+       vridna otappat och det stående (60° från grundläget) tappat — på en
+       gång, i rapporten, och det står sig ruta för ruta. */
+    nystart(); await referens();
+    const TVA_V = g => { KORT(g); kortVriden(g, W, 160, 75, 30, 42, rad(60), 180); };
+    for (let i = 0; i < 10; i++) s = await ruta(TVA_V);
+    const staende = Kamera.spar.find(t => Math.abs(t.cx - 75) < 8) || null, vridet = Kamera.spar.find(t => Math.abs(t.cx - 160) < 8) || null;
+    /* Detektorn mäter det vridna kortets axel till ~146° (−34°), inte 150°:
+       momentvinkeln på ett 30×42-kort i 60° drar några grader, och den
+       spritter ±5° ruta för ruta. Grundläget är axeln i ögonblicket det
+       togs — det är den som jämförs, inte sista rutans. */
+    const vAx = vridet ? vridet.vinkel : 0;
+    const fore = `före: stående tap=${staende && staende.tappad}, vridet tap=${vridet && vridet.tappad} (axel ${vridet && grader(vAx)}°)`;
+    const okFore = !!staende && !!vridet && !staende.tappad && vridet.tappad;
+    const fann = okFore && Kamera.grundFranSpar(vridet.id, false);
+    const rap = t => t && (bord.find(x => x.id === t.id) || {}).tappad;
+    const direkt = `rapporten direkt: stående ${rap(staende)}, vridet ${rap(vridet)}`;
+    const okDirekt = fann && rap(staende) === true && rap(vridet) === false;
+    for (let i = 0; i < 6; i++) s = await ruta(TVA_V);
+    check(`GL4 grundFranSpar(vridet 60°): ${fore}; ${direkt}; efter 6 rutor stående ${staende && staende.tappad}, vridet ${vridet && vridet.tappad}, grund ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'}`,
+          okFore && okDirekt && staende.tappad && !vridet.tappad && axSk(Kamera.grund, vAx) < 1e-9);
+    /* GL5: "Det är tappat" — otappat är 90° från kortets axel. Stående
+       tappat (90° från grundläget 0°), vridet 30° från det: otappat. */
+    if (okFore) Kamera.grundFranSpar(staende.id, true);
+    check(`GL5 grundFranSpar(stående, tappat): grund ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'} (axel ${staende && grader(staende.vinkel)}°), stående tap=${staende && staende.tappad}, vridet tap=${vridet && vridet.tappad}`,
+          okFore && Math.abs(axSk(Kamera.grund, staende.vinkel) - Math.PI / 2) < 0.02 && staende.tappad && !vridet.tappad);
+    /* GL6: satGrund(null) ger upp tillbaka: stående otappat, vridet tappat. */
+    Kamera.satGrund(null);
+    check(`GL6 satGrund(null): stående tap=${staende && staende.tappad}, vridet tap=${vridet && vridet.tappad}`, okFore && !staende.tappad && vridet.tappad);
+    /* GL7: ett spår ur helbilden föds i grundläget, otappat — det har ingen
+       egen vinkel. GL8: det duger därför inte som grund; okänt spår inte heller. */
+    Kamera.satGrund(rad(150));
+    Kamera.tillampaHelbild([{ x: 40 / W, y: 135 / H, namn: 'Plains', sid: 's1', saker: true }], { helbild: true, skal: 'auto' }, nu);
+    const hb = Kamera.spar.find(t => t.ai && t.ai.helbild) || null;
+    check(`GL7 helbildsspår med grundläge 150°: vinkel ${hb && grader(hb.vinkel)}°, tap=${hb && hb.tappad}`, !!hb && Math.abs(hb.vinkel - rad(150)) < 1e-9 && !hb.tappad);
+    check(`GL8 grundFranSpar(helbildsspår utan region) = ${hb && Kamera.grundFranSpar(hb.id, false)}, okänt id = ${Kamera.grundFranSpar(9999, false)}, grund kvar ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'}`,
+          !!hb && !Kamera.grundFranSpar(hb.id, false) && !Kamera.grundFranSpar(9999, false) && Math.abs(Kamera.grund - rad(150)) < 1e-9);
+    nystart();
   }
 
   console.log([...ok, ...fel].join('\n'));

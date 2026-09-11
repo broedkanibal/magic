@@ -146,6 +146,14 @@ function jpegMatt(b64) {
   return null;
 }
 
+/* Tokens ur modellens svar, i varje läge som frågar Claude. Kameraläget
+   bar dem först (v19); datorns egna anrop — granskningen, fotot, leken,
+   namnet — räknas nu med i sammanfattningen när auto stängs av, och den
+   går inte att prisa utan tokens och modellens namn. Bara svarsfält:
+   inga instruktioner rörs. */
+const anvandning = msg => ({ input_tokens: (msg && msg.usage && msg.usage.input_tokens) || 0,
+                             output_tokens: (msg && msg.usage && msg.usage.output_tokens) || 0 });
+
 export default async function handler(req, res) {
   const origin = req.headers.origin || '';
   const ok = originAllowed(origin, req.headers.host);
@@ -247,14 +255,14 @@ export default async function handler(req, res) {
       const msg = await stream.finalMessage();
       const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) return res.status(200).json({ kort: [], varfor: 'inget-json', promptv: PANE_PROMPT_V });
+      if (!m) return res.status(200).json({ kort: [], varfor: 'inget-json', promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
       const j = JSON.parse(m[0]);
       const namn = BASLAND.map(b => b[0]);
       const k = (Array.isArray(j.kort) ? j.kort : []).slice(0, 1)
         .filter(x => x && namn.includes(x.namn))
         .map(x => ({ namn: x.namn, x: 500, y: 500,
                      sakerhet: ['hog', 'medel', 'lag'].includes(x.sakerhet) ? x.sakerhet : 'medel' }));
-      return res.status(200).json({ kort: k, promptv: PANE_PROMPT_V });
+      return res.status(200).json({ kort: k, promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
     } catch (e) {
       const s = e && e.status;
       console.error('identify/land:', s || '', (e && e.message) || e);
@@ -317,12 +325,12 @@ export default async function handler(req, res) {
       const msg = await stream.finalMessage();
       const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) return res.status(200).json({ namn: '', varfor: 'inget-json', promptv: PANE_PROMPT_V });
+      if (!m) return res.status(200).json({ namn: '', varfor: 'inget-json', promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
       const j = JSON.parse(m[0]);
       return res.status(200).json({
         namn: String(j.namn == null ? '' : j.namn).slice(0, 40).trim(),
         sakerhet: ['hog', 'medel', 'lag'].includes(j.sakerhet) ? j.sakerhet : 'lag',
-        promptv: PANE_PROMPT_V
+        promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL
       });
     } catch (e) {
       const s = e && e.status;
@@ -375,14 +383,14 @@ export default async function handler(req, res) {
       const msg = await stream.finalMessage();
       const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const m = txt.match(/\{[\s\S]*\}/);
-      if (!m) return res.status(200).json({ kort: [], varfor: 'inget-json', promptv: PANE_PROMPT_V });
+      if (!m) return res.status(200).json({ kort: [], varfor: 'inget-json', promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL_KORT });
       const j = JSON.parse(m[0]);
       const k = (Array.isArray(j.kort) ? j.kort : [])
         .filter(x => x && typeof x.namn === 'string')
         .slice(0, 1)
         .map(x => ({ namn: String(x.namn).slice(0, 120).trim(), x: 500, y: 500,
                      sakerhet: ['hog', 'medel', 'lag'].includes(x.sakerhet) ? x.sakerhet : 'medel' }));
-      return res.status(200).json({ kort: k, promptv: PANE_PROMPT_V });
+      return res.status(200).json({ kort: k, promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL_KORT });
     } catch (e) {
       const s = e && e.status;
       console.error('identify/card:', s || '', (e && e.message) || e);
@@ -461,7 +469,7 @@ export default async function handler(req, res) {
         console.error('identify/pane: inget JSON i svaret',
           JSON.stringify({ stop: msg.stop_reason, detaljer: msg.stop_details, txt: txt.slice(0, 400) }));
         return res.status(200).json({ kort: [], varfor: 'inget-json',
-          stop: msg.stop_reason || null, svar: txt.slice(0, 400) });
+          stop: msg.stop_reason || null, svar: txt.slice(0, 400), usage: anvandning(msg), modell: MODEL });
       }
       const j = JSON.parse(m[0]);
       const kort = (Array.isArray(j.kort) ? j.kort : []).slice(0, 40)
@@ -482,7 +490,7 @@ export default async function handler(req, res) {
             sakerhet: ['hog', 'medel', 'lag'].includes(k.sakerhet) ? k.sakerhet : 'medel'
           };
         });
-      return res.status(200).json({ kort, promptv: PANE_PROMPT_V });
+      return res.status(200).json({ kort, promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
     } catch (e) {
       const s = e && e.status;
       console.error('identify/pane:', s || '', (e && e.message) || e);
@@ -587,7 +595,7 @@ export default async function handler(req, res) {
         console.error('identify/lek: inget JSON i svaret',
           JSON.stringify({ stop: msg.stop_reason, txt: txt.slice(0, 400) }));
         return res.status(200).json({ kort: [], varfor: 'inget-json',
-          stop: msg.stop_reason || null, svar: txt.slice(0, 400), promptv: PANE_PROMPT_V });
+          stop: msg.stop_reason || null, svar: txt.slice(0, 400), promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
       }
       /* JSON.parse ligger UTANFÖR anropets try-block i tanken: ett avhugget
          svar är inte ett nätverksfel, och att svara 502 på det skickar
@@ -596,7 +604,7 @@ export default async function handler(req, res) {
       try { j = JSON.parse(m[0]); }
       catch (e) {
         return res.status(200).json({ kort: [], varfor: 'trasigt-json',
-          svar: m[0].slice(0, 400), promptv: PANE_PROMPT_V });
+          svar: m[0].slice(0, 400), promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
       }
       /* filter FÖRE slice: annars äter en handfull skräpposter upp taket och
          riktiga kort faller bort i stället för skräpet. Taket är 60 — fler
@@ -622,7 +630,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ kort,
         otydliga: Math.max(0, Math.min(200, (Number(j.otydliga) || 0) + kapade)),
         kapade,
-        promptv: PANE_PROMPT_V });
+        promptv: PANE_PROMPT_V, usage: anvandning(msg), modell: MODEL });
     } catch (e) {
       const s = e && e.status;
       console.error('identify/lek:', s || '', (e && e.message) || e);
@@ -832,11 +840,12 @@ export default async function handler(req, res) {
 
     const txt = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     const m = txt.match(/\{[\s\S]*\}/);
-    if (!m) return res.status(200).json({ n: 0, sakerhet: 'lag' });
+    if (!m) return res.status(200).json({ n: 0, sakerhet: 'lag', usage: anvandning(msg), modell: MODEL });
     const j = JSON.parse(m[0]);
     return res.status(200).json({
       n: Number(j.n) || 0,
-      sakerhet: ['hog', 'medel', 'lag'].includes(j.sakerhet) ? j.sakerhet : 'medel'
+      sakerhet: ['hog', 'medel', 'lag'].includes(j.sakerhet) ? j.sakerhet : 'medel',
+      usage: anvandning(msg), modell: MODEL
     });
   } catch (e) {
     const s = e && e.status;

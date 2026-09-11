@@ -20,7 +20,11 @@ const kod = src.slice(a, b + SLUT.length);
 /* Det avstamBord läser utanför utdraget. zonAv härmar appens: ett land är
    ZON_MANA på namnet, allt annat en permanent, och `zon` vinner. */
 const miljo = `
-const spelLage = { mig: 'p1' };
+const spelLage = { mig: 'p1', id: 'spel1' };
+/* Sammanfattningen (autoSum) sparar passet per spel i localStorage genom
+   appens LS; här en karta, så att en omladdning går att spela upp. */
+const lsMinne = new Map();
+const LS = { get: (k, d) => lsMinne.has(k) ? JSON.parse(lsMinne.get(k)) : d, set: (k, v) => { lsMinne.set(k, JSON.stringify(v)); return true; }, del: k => { lsMinne.delete(k); } };
 const state = { players: [{ id: 'p1', cards: [], pending: [] }] };
 const minSpelare = () => state.players[0];
 const ZON_SPELL = 'spell', ZON_MANA = 'mana', ZON_GRAV = 'grav';
@@ -35,6 +39,12 @@ const BORTA_NAD = 3000; let lyftT = null, lyftTips = null;
 let hoppade = new Set(), borttagna = new Set();
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 function glomSpar() {}
+/* Grundläget (MES-30): telefonens besked i varje bord (null = inte sparat,
+   undefined = telefon utan fältet), och frågan datorn ställer på det första
+   kamerakortet — här bara samlad, inte ritad. */
+let kamGrund = null;
+let grundFragor = [];
+function grundFraga(namn, spar) { grundFragor.push({ namn, spar }); }
 `;
 const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
@@ -45,7 +55,27 @@ return {
   get chip() { return { kamSer, kamLast, kamTot }; },
   get borttagna() { return borttagna; },
   get hoppade() { return hoppade; },
-  nollstall() { state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; }
+  get grundFragor() { return grundFragor; },
+  set grund(v) { kamGrund = v; },
+  get senasteKamSpar() { return senasteKamSpar; },
+  /* Auto-remsan (MES-32): modellen som renderAutoRemsa ritar, med samma
+     underlag som i appen — senaste bordet, avstämningens lösa spår och när
+     varje spår först sågs. extra lägger till det som kommer utifrån
+     (sma, fas, rad, yta). */
+  remsa(extra) { return autoRemsaModell(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
+  get losa() { return losaSpar; },
+  /* Sammanfattningen när auto stängs av: passet, boken, datorns anrop,
+     och summan — som stangAvAuto räknar den, ur senaste bordet och mitt bord. */
+  get pass() { return autoSum; },
+  set pass(v) { autoSum = v; },
+  get ls() { return lsMinne; },
+  starta: autoSumStarta, bok: b => autoSumBok(b), dator: (m, u, fel) => autoSumDator(m, u, fel),
+  summa() { return autoSumSammanfatta(autoSum, senasteSpar, state.players[0], Date.now()); },
+  avsluta() { return autoSumAvsluta(senasteSpar, state.players[0], Date.now()); },
+  kostnad: aiKostnad, pris: aiPris,
+  /* Nollställningen går genom avstamBord: det är där frågan om grundläget
+     och "senaste kortet" börjar om, som när telefonen nollställt sig. */
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = null; grundFragor = []; autoSum = null; lsMinne.clear(); }
 };`)({ now: () => klocka.t }, () => 0, () => {});
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -306,6 +336,291 @@ prov('K5 borttaget för hand, det spärrade spåret dör men ett annat ser korte
   stam([]);   // nu lyfts det: spärren släpper
   stam([klar(3, 'Ukud Cobra', { sen: 10, ...PORT })]);
   assert.equal(app.kort.length, 1, 'ett kort som läggs ut igen efter lyftet får ett kort');
+});
+
+/* Tap-synken från kameran till bordet står kvar (produktregeln 2026-09-10:
+   kameran läser tappat/otappat, mot ett bekräftat grundläge). Kortets
+   tapped följer spårets tappad åt båda hållen, och ett kort som skapas
+   från ett tappat spår föds tappat. */
+prov('T1 spårets tappad styr det bundna kortet: tappas, och otappas igen', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 0);
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1);
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 0);
+});
+prov('T2 ett kort som skapas ur ett tappat spår föds tappat', () => {
+  stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1);
+});
+
+/* Grundläget (MES-30): frågan om det första kamerakortet ställs en gång per
+   nollställning, med kortets namn och spår, och bara när telefonen själv sagt
+   att inget läge är sparat (null). Ett kort som binds till ett kort som redan
+   låg på bordet skapas inte, och frågar inte. */
+prov('G1 första kamerakortet utan grundläge: frågan ställs en gång, med namn och spår', () => {
+  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.deepEqual(app.grundFragor, [{ namn: 'Ukud Cobra', spar: 4 }]);
+  assert.equal(app.senasteKamSpar, 4);
+  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT }), klar(5, 'Forest', { sen: 10, ...LANGT })]);
+  assert.equal(app.grundFragor.length, 1, 'frågan en gång'); assert.equal(app.senasteKamSpar, 5, 'senaste kortet');
+  app.avstamBord([], true);   // telefonen nollställde sig
+  assert.equal(app.senasteKamSpar, null);
+  stam([klar(6, 'Plains', { sen: 10, ...PORT })]);
+  assert.equal(app.grundFragor.length, 2); assert.equal(app.grundFragor[1].spar, 6);
+});
+prov('G2 sparat grundläge (12°): ingen fråga', () => {
+  app.grund = 12;
+  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.grundFragor.length, 0); assert.equal(app.kort.length, 1);
+});
+prov('G3 telefon utan fältet (undefined): ingen fråga — den kan inte svara på den', () => {
+  app.grund = undefined;
+  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.grundFragor.length, 0); assert.equal(app.kort.length, 1);
+});
+prov('G4 ett kort som redan låg på bordet binds, skapas inte: ingen fråga', () => {
+  app.kort.push({ cid: 'm', name: 'Forest', flipped: 0 });
+  stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 1);
+  assert.equal(app.grundFragor.length, 0); assert.equal(app.senasteKamSpar, null);
+});
+
+/* Auto-remsan (MES-32): ett chip per spår som inte är ett kort på bordet,
+   med skälet i klartext och hur länge det stått så. Sekunderna räknas från
+   datorns första bord med spåret. Allt bundet ger den korta, lugna texten. */
+const chips = m => m.chips.map(c => c.slag + ':' + c.text);
+prov('R1 ett nytt spår: "läses", med sekunder som går från första bordet', () => {
+  stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
+  let m = app.remsa();
+  assert.equal(m.text, 'Auto · ser 1 kort · 0 på bordet'); assert.equal(m.lage, 'varm');
+  assert.deepEqual(chips(m), ['laser:läses (0 s)']); assert.equal(m.chips[0].namn, null); assert.equal(m.chips[0].spar, 1);
+  klocka.t += 2400; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
+  m = app.remsa(); assert.deepEqual(chips(m), ['laser:läses (2 s)']); assert.equal(m.rorligt, false); assert.equal(m.not, null);
+});
+prov('R1b ett spår som är "ny" i över tre sekunder rör sig: "något rör sig på bordet"', () => {
+  stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
+  klocka.t += 3500; stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
+  const m = app.remsa(); assert.equal(m.rorligt, true); assert.equal(m.not, 'något rör sig på bordet');
+});
+prov('R2 ett spår som prövas: "väntar på Claude", gissningen som namn, ingen post i kön', () => {
+  stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...PORT }]);
+  klocka.t += 5000; stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...PORT }]);
+  const m = app.remsa();
+  assert.equal(app.pending.length, 0);
+  assert.deepEqual(chips(m), ['vantar:väntar på Claude (5 s)']); assert.equal(m.chips[0].namn, 'Forest');
+});
+prov('R3 okänt med post i kön: "osäkert – fyll i i granskningen", med länk', () => {
+  stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
+  assert.equal(app.pending.length, 1);
+  const m = app.remsa();
+  assert.deepEqual(chips(m), ['osaker:osäkert – fyll i i granskningen']); assert.equal(m.chips[0].granska, true);
+  assert.equal(m.text, 'Auto · ser 1 kort · 0 på bordet');
+});
+prov('R3b okänt som hoppats över i granskningen: "lyft kortet så frågar den igen"', () => {
+  stam([{ id: 1, tillstand: 'okand', sen: 10, ...PORT }]);
+  app.pending.length = 0; app.hoppade.add(1);
+  stam([{ id: 1, tillstand: 'okand', sen: 10, ...PORT }]);
+  assert.equal(app.pending.length, 0);
+  assert.deepEqual(chips(app.remsa()), ['osaker:osäkert – lyft kortet så frågar den igen']);
+});
+prov('R4 skymt spår som inte är ett kort: "skymt – något ligger över"', () => {
+  stam([{ id: 1, tillstand: 'stilla', skymd: true, sen: 900, ...PORT }]);
+  assert.deepEqual(chips(app.remsa()), ['skymd:skymt – något ligger över']);
+});
+prov('R5 sma=1: "för litet för att läsas", utan spår; två blir "för små"', () => {
+  stam([]);
+  let m = app.remsa({ sma: 1 });
+  assert.deepEqual(chips(m), ['liten:ett kort för litet för att läsas']); assert.equal(m.text, 'Auto · ser 0 kort · 0 på bordet');
+  m = app.remsa({ sma: 2 }); assert.deepEqual(chips(m), ['liten:2 kort för små för att läsas']);
+});
+prov('R6 allt bundet: den korta lugna texten, inga chips — också när ett kort ses som två spår', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
+  let m = app.remsa();
+  assert.equal(m.text, 'Auto · 2 kort på bordet, alla kända'); assert.deepEqual(m.chips, []); assert.equal(m.lage, 'lugn');
+  stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 1200, ...PORT }), klar(3, 'Ukud Cobra', { tappad: true, sen: 30, ...LAND_ }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
+  m = app.remsa(); assert.equal(m.text, 'Auto · 2 kort på bordet, alla kända'); assert.deepEqual(m.chips, []);
+  assert.deepEqual([...app.losa], []);
+  stam([]); m = app.remsa(); assert.equal(m.text, 'Auto · bordet är tomt');
+});
+prov('R7 ett nedtonat kort: "syns inte längre" med namnet, och raden blir varm', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  stam([]); klocka.t += 3200; stam([]);
+  assert.ok(app.kort[0].lyft, 'nedtonat');
+  const m = app.remsa();
+  assert.deepEqual(chips(m), ['borta:syns inte längre']); assert.equal(m.chips[0].namn, 'Ukud Cobra'); assert.equal(m.lage, 'varm');
+});
+prov('R8 medan telefonen lär sig ljuset säger remsan det, och inget annat', () => {
+  stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
+  const m = app.remsa({ fas: 'lar' });
+  assert.equal(m.text, 'Auto · lär sig ljuset — håll telefonen stilla'); assert.deepEqual(m.chips, []);
+  assert.equal(app.remsa({ yta: { dom: 'orolig', rad: 'Bordet är oroligt (textur 6, brus 4,1). …' } }).not, 'bordet är oroligt');
+});
+prov('R9 ett kort borttaget för hand: spåret är löst men chippet säger varför', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  const k = app.kort.pop(); app.borttagna.add(k.spar);
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.kort.length, 0);
+  const m = app.remsa(); assert.deepEqual(chips(m), ['bort:borttaget för hand']); assert.equal(m.chips[0].namn, 'Ukud Cobra');
+});
+prov('R10 nollställning glömmer sekunderna: spår 1 är nytt igen', () => {
+  stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
+  klocka.t += 4000; app.avstamBord([], true);
+  stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
+  assert.deepEqual(chips(app.remsa()), ['laser:läses (0 s)']);
+});
+
+/* Sammanfattningen när auto stängs av: korten räknas en gång per cid ur
+   ledarspåret med metod och tid, kostnaden ur telefonens bok per session
+   (skillnaden mot den första boken efter start) plus datorns egna anrop,
+   och priset ur tabellen med serverns modellnamn. */
+const bok = (sess, per, extra) => Object.assign({ sess, anrop: Object.values(per).reduce((a, q) => a + q.anrop, 0), fel: 0, utan: 0, ute: 0, per }, extra || {});
+const OPUS = 'claude-opus-5', SONNET = 'claude-sonnet-5';
+const nara = (a, b, tol = 1e-9) => Math.abs(a - b) < tol;
+prov('A1 boken per modell: telefonens anrop räknas per modell, tokens och pris', () => {
+  stam([klar(1, 'Forest', { sen: 10, lokalMs: 400, ...PORT })]);
+  app.bok(bok('s1', {}));
+  app.bok(bok('s1', { [OPUS]: { anrop: 2, fel: 0, in: 1000, ut: 100 }, [SONNET]: { anrop: 1, fel: 0, in: 500, ut: 50 } }));
+  const k = app.summa().kostnad;
+  assert.equal(k.telefon.anrop, 3); assert.equal(k.telefon.per[OPUS].anrop, 2); assert.equal(k.telefon.per[SONNET].in, 500);
+  assert.equal(k.telefon.in, 1500); assert.equal(k.telefon.ut, 150);
+  assert.ok(nara(k.telefon.per[OPUS].usd, (1000 * 5 + 100 * 25) / 1e6)); assert.ok(nara(k.telefon.per[SONNET].usd, (500 * 2 + 50 * 10) / 1e6));
+  assert.ok(nara(k.totalt.usd, 0.0075 + 0.0015)); assert.equal(k.ingenBok, false); assert.deepEqual(k.totalt.okandPris, []);
+});
+prov('A2 samma bok igen (hjärtslaget) ändrar ingenting', () => {
+  const b = bok('s1', { [OPUS]: { anrop: 2, fel: 0, in: 812, ut: 90 } });
+  assert.equal(app.bok(bok('s1', {})), true);
+  assert.equal(app.bok(b), true); assert.equal(app.bok(b), false); assert.equal(app.bok(JSON.parse(JSON.stringify(b))), false);
+  assert.equal(app.summa().kostnad.telefon.anrop, 2); assert.equal(app.summa().kostnad.telefon.in, 812);
+});
+prov('A3 två telefonsessioner summeras, och en omladdad telefon drar inte ifrån', () => {
+  app.bok(bok('s1', {})); app.bok(bok('s1', { [OPUS]: { anrop: 2, fel: 0, in: 1000, ut: 100 } }));
+  app.bok(bok('s2', {}));                         // telefonen laddades om: ny sess på noll
+  assert.equal(app.summa().kostnad.telefon.anrop, 2, 'omladdningen drog ifrån');
+  app.bok(bok('s2', { [OPUS]: { anrop: 1, fel: 0, in: 300, ut: 30 } }));
+  const k = app.summa().kostnad;
+  assert.equal(k.telefon.anrop, 3); assert.equal(k.telefon.in, 1300); assert.equal(k.sessioner, 2);
+});
+prov('A3b första boken efter start är nollpunkten: det som redan stod i den räknas inte', () => {
+  app.bok(bok('s1', { [OPUS]: { anrop: 5, fel: 1, in: 9000, ut: 900 } }, { fel: 1 }));
+  assert.equal(app.summa().kostnad.telefon.anrop, 0);
+  app.bok(bok('s1', { [OPUS]: { anrop: 6, fel: 1, in: 9500, ut: 950 } }, { fel: 1 }));
+  const k = app.summa().kostnad.telefon;
+  assert.equal(k.anrop, 1); assert.equal(k.fel, 0); assert.equal(k.in, 500); assert.equal(k.ut, 50);
+});
+prov('A4 medianen: udda, jämnt, tomt — lokalt, med Claude och alla lästa', () => {
+  const lokal = (id, ms, b) => klar(id, 'Kort ' + id, { sen: 10, lokalMs: ms, varfor: 'bild', ...b });
+  stam([lokal(1, 100, PORT), lokal(2, 300, LANGT), lokal(3, 200, box(0.1, 0.7, 0.063, 0.088))]);
+  let m = app.summa();
+  assert.equal(m.lokal.n, 3); assert.equal(m.lokal.medianMs, 200); assert.equal(m.ai.medianMs, null); assert.equal(m.medianMs, 200);
+  stam([lokal(4, 400, box(0.6, 0.7, 0.063, 0.088))]);
+  m = app.summa();
+  assert.equal(m.lokal.n, 4); assert.equal(m.lokal.medianMs, 250); assert.equal(m.kort, 4);
+  /* Claude: lokal tid + svarstid; medianen per modell och för alla lästa. */
+  stam([klar(5, 'Ukud Cobra', { sen: 10, lokalMs: 600, varfor: 'ai', ai: { modell: OPUS, ms: 2000, klunga: 5 }, ...PORT }),
+        klar(6, 'Plains', { sen: 10, lokalMs: 500, varfor: 'ai osäker', ai: { modell: SONNET, ms: 1500, klunga: 6 }, ...LANGT })]);
+  m = app.summa();
+  assert.equal(m.ai.n, 2); assert.equal(m.ai.medianMs, 2300); assert.equal(m.ai.per[OPUS].medianMs, 2600); assert.equal(m.ai.per[SONNET].n, 1);
+  assert.equal(m.medianMs, 350, 'alla lästa: [100,200,300,400,2000,2600] → 350');
+  /* Ett kort utan tid räknas men ingår inte i medianen. */
+  stam([klar(7, 'Swamp', { sen: 10, varfor: 'bild', ...box(0.1, 0.1, 0.063, 0.088) })]);
+  m = app.summa(); assert.equal(m.lokal.n, 5); assert.equal(m.lokal.medianMs, 250);
+});
+prov('A4b tomt pass: inga kort, ingen median, ingen bok', () => {
+  app.starta();
+  const m = app.summa();
+  assert.equal(m.hittade, 0); assert.equal(m.medianMs, null); assert.equal(m.kostnad.ingenBok, true); assert.equal(m.kostnad.totalt.usd, 0);
+});
+prov('A5 priset exakt: Opus 812 in / 90 ut = 0,00631 USD; datumsuffixet stryks', () => {
+  assert.ok(nara(app.kostnad(OPUS, 812, 90), 0.00631)); assert.ok(nara(app.kostnad('claude-opus-5-20260901', 812, 90), 0.00631));
+  assert.ok(nara(app.kostnad('claude-fable-5-1', 1e6, 1e6), 60)); assert.ok(nara(app.kostnad('claude-haiku-4-5', 1e6, 0), 1));
+  app.bok(bok('s1', {})); app.bok(bok('s1', { [OPUS]: { anrop: 1, fel: 0, in: 812, ut: 90 } }));
+  assert.ok(nara(app.summa().kostnad.totalt.usd, 0.00631));
+});
+prov('A6 okänd modell (attrappens stub-model, null): priset är null, aldrig 0, och står som okänt', () => {
+  assert.equal(app.kostnad('stub-model', 812, 90), null); assert.equal(app.kostnad(null, 812, 90), null); assert.equal(app.pris('claude-opus-9'), null);
+  app.bok(bok('s1', {})); app.bok(bok('s1', { 'stub-model': { anrop: 2, fel: 0, in: 812, ut: 90 } }));
+  const k = app.summa().kostnad;
+  assert.equal(k.telefon.per['stub-model'].usd, null); assert.equal(k.totalt.usd, null); assert.deepEqual(k.totalt.okandPris, ['stub-model']);
+  assert.equal(k.totalt.in, 812, 'tokens räknas ändå');
+  /* Blandat: den kända modellen prisas, den okända står som okänd. */
+  app.bok(bok('s1', { 'stub-model': { anrop: 2, fel: 0, in: 812, ut: 90 }, [OPUS]: { anrop: 1, fel: 0, in: 812, ut: 90 } }));
+  const k2 = app.summa().kostnad;
+  assert.ok(nara(k2.totalt.usd, 0.00631)); assert.deepEqual(k2.totalt.okandPris, ['stub-model']);
+});
+prov('A7 ett kort ur helbilden räknas en gång, med Claude, utan lokal tid — hur många bord det än står i', () => {
+  const hb = klar(3, 'Ukud Cobra', { ai: { helbild: true, modell: OPUS, ms: 9000 }, varfor: 'helbild', sen: null, ...box(0.41, 0.42, 0.063, 0.088) });
+  for (let i = 0; i < 5; i++) { stam([hb]); klocka.t += 3000; }
+  let m = app.summa();
+  assert.equal(m.kort, 1); assert.equal(m.ai.n, 1); assert.equal(m.ai.per[OPUS].n, 1); assert.equal(m.ai.medianMs, 9000);
+  /* Detektorn tar över kortet (samma plats): fortfarande ett kort. */
+  stam([hb, klar(9, 'Ukud Cobra', { tappad: true, sen: 10, lokalMs: 300, varfor: 'bild', ...PORT })]);
+  m = app.summa(); assert.equal(m.kort, 1); assert.equal(app.kort.length, 1);
+});
+prov('A8 ett misslyckat anrop räknas som anrop och fel, utan tokens', () => {
+  app.bok(bok('s1', {}));
+  app.bok(bok('s1', { 'okänd': { anrop: 1, fel: 1, in: 0, ut: 0 } }, { fel: 1, utan: 1, ute: 2 }));
+  const k = app.summa().kostnad;
+  assert.equal(k.telefon.anrop, 1); assert.equal(k.telefon.fel, 1); assert.equal(k.telefon.utan, 1); assert.equal(k.ute, 2, 'frågor på väg ur senaste boken');
+  assert.equal(k.totalt.usd, null); assert.deepEqual(k.totalt.okandPris, ['okänd']);
+});
+prov('A9 gammal telefon utan bok: avstämningen som förut, och rutan säger att boken saknas', () => {
+  stam([klar(1, 'Forest', { sen: 10, ...PORT }), klar(2, 'Ukud Cobra', { sen: 10, ...LANGT })]);
+  assert.equal(app.kort.length, 2);
+  const m = app.summa();
+  assert.equal(m.kort, 2); assert.equal(m.lokal.n, 2); assert.equal(m.lokal.medianMs, null, 'ingen lokalMs'); assert.equal(m.kostnad.ingenBok, true);
+  assert.equal(m.kostnad.totalt.anrop, 0);
+});
+prov('A10 ett kort som tas bort från bordet räknas ändå — och räknas inte om när det kommer igen', () => {
+  stam([klar(1, 'Forest', { sen: 10, lokalMs: 200, ...PORT })]);
+  app.kort.pop();
+  stam([]); klocka.t += 4000; stam([]);
+  assert.equal(app.kort.length, 0); assert.equal(app.summa().kort, 1);
+  /* Samma spår igen, lyft och lagt tillbaka: nytt kort, ny cid → ett kort till (kameran hittade två gånger). Ett nedtonat som binds om räknas inte om. */
+  app.kort.push({ cid: 'x', name: 'Forest', flipped: 0, lyft: 1 });
+  stam([klar(5, 'Forest', { sen: 10, lokalMs: 150, ...PORT })]);
+  assert.equal(app.kort[0].spar, 5);
+  const m = app.summa(); assert.equal(m.kort, 2); assert.equal(m.lokal.medianMs, 175);
+  stam([klar(5, 'Forest', { sen: 10, lokalMs: 150, ...PORT })]);
+  assert.equal(app.summa().kort, 2, 'bundet igen: inget nytt');
+});
+prov('A11 ifyllt för hand: skapat på datorn (applyPick), spåret blir klart med domskälet hand', () => {
+  app.kort.push({ cid: 'q1', name: 'Blixtpil', flipped: 0, spar: 4 });   // granskningen skapade kortet med spåret
+  stam([{ id: 4, tillstand: 'okand', namn: null, sen: 10, ...PORT }]);
+  assert.equal(app.summa().kort, 0, 'okänt: inte räknat än');
+  stam([klar(4, 'Blixtpil', { sen: 10, lokalMs: 700, varfor: 'hand', ...PORT })]);
+  const m = app.summa();
+  assert.equal(m.kort, 1); assert.equal(m.hand.n, 1); assert.equal(m.lokal.n, 0); assert.equal(m.medianMs, null, 'handen har ingen tid');
+});
+prov('A11b ännu utan namn: okända spår som inte blivit kort räknas som hittade', () => {
+  stam([klar(1, 'Forest', { sen: 10, lokalMs: 100, ...PORT }), { id: 2, tillstand: 'okand', cands: [{ name: 'Plains' }], sen: 10, ...LANGT }]);
+  const m = app.summa();
+  assert.equal(m.kort, 1); assert.equal(m.okanda, 1); assert.equal(m.hittade, 2);
+});
+prov('A12 passet överlever en omladdning av datorn: sparat per spel, laddat vid nästa bord, glömt vid avslut', () => {
+  app.starta();
+  stam([klar(1, 'Forest', { sen: 10, lokalMs: 100, ...PORT })]);
+  app.bok(bok('s1', {})); app.bok(bok('s1', { [OPUS]: { anrop: 1, fel: 0, in: 812, ut: 90 } }));
+  assert.ok(app.ls.has('sthv.autosum.v1.spel1'));
+  app.pass = null;                                   // omladdning: minnet borta, localStorage kvar
+  stam([klar(1, 'Forest', { sen: 10, lokalMs: 100, ...PORT }), klar(2, 'Plains', { sen: 10, lokalMs: 300, ...LANGT })]);
+  let m = app.summa();
+  assert.equal(m.kort, 2, 'kortet från före omladdningen är kvar'); assert.equal(m.kostnad.telefon.anrop, 1, 'boken också');
+  const slut = app.avsluta();
+  assert.equal(slut.kort, 2); assert.ok(nara(slut.kostnad.totalt.usd, 0.00631)); assert.ok(!app.ls.has('sthv.autosum.v1.spel1'), 'glömt');
+  assert.equal(app.avsluta(), null, 'stängt två gånger: inget pass');
+  /* Nästa bord efter avslutet startar ett nytt pass — inte det gamla. */
+  stam([klar(3, 'Swamp', { sen: 10, lokalMs: 50, ...PORT })]);
+  assert.equal(app.summa().kort, 1);
+});
+prov('A13 datorns egna anrop medan auto är på räknas i en egen bok, med serverns modell', () => {
+  stam([klar(1, 'Forest', { sen: 10, lokalMs: 100, ...PORT })]);
+  app.dator(OPUS, { input_tokens: 812, output_tokens: 90 }, false);
+  app.dator(null, null, true);
+  const k = app.summa().kostnad;
+  assert.equal(k.dator.anrop, 2); assert.equal(k.dator.fel, 1); assert.equal(k.dator.utan, 1); assert.ok(nara(k.dator.per[OPUS].usd, 0.00631));
+  assert.equal(k.totalt.anrop, 2); assert.ok(nara(k.totalt.usd, 0.00631)); assert.deepEqual(k.totalt.okandPris, ['okänd']);
 });
 
 console.log([...ok, ...fel].join('\n'));

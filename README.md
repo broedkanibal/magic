@@ -6,7 +6,11 @@ En fristående webbsida (`index.html`, en enda fil) som kompletterar
 **Kameran ser bordet.** I ett spel sitter din telefon i en hållare rakt
 över din spelyta. Den hittar varje kort som ligger där, följer det från
 bildruta till bildruta, läser om det är vridet, och känner igen det — mot
-din egen lek, på telefonen, en gång per kort.
+din egen lek, på telefonen, en gång per kort. Den filmar i 4K om den kan:
+ett kort behöver vara minst 150 px kort sida i bilden för att gå att läsa,
+och vid 1080p var korten på ett vanligt bord 100–130 px. Kort som är för
+små räknas och rapporteras till datorn (`sma` i varje bord) i stället för
+att tigas ihjäl, och telefonen visar vilken upplösning den fick.
 
 **Leken lär du appen genom att fotografera den.** Korten läggs i högar som
 överlappar nedåt, så att bara titelraden syns, och ett foto räcker för ett
@@ -22,8 +26,36 @@ ett litet bordstillstånd när något ändrats.
 
 **Telefonen läser av hela bilden** — det finns ingen yta att markera. Sätt den i
 en hållare rakt ovanför korten du spelar ut, och håll leken och graveyard utanför
-bild. Hur ett otappat kort ligger i bilden (stående eller liggande) avgör vilka
-kort som räknas som tappade; det ställs under Auto-chippet och gäller spelet.
+bild. Tappat läses ur kortets vinkel mot ett **otappat läge**: när kameran
+lägger det första kortet på bordet frågar appen om det ligger otappat ("Ja,
+spara" / "Det är tappat"), och från då är ett kort som ligger mer än 45° från
+det läget tappat. Otappat är sällan exakt rakt och tappat sällan exakt 90°, så
+läget tas ur ett riktigt kort i stället för en fast axel. Det sparas i spelet,
+och går att spara om i kameravyn ("Spara från senaste kortet").
+
+**Auto-remsan** under topbaren säger varför ett kort inte kommit än, utan att
+du öppnar något: "Auto · ser 3 kort · 2 på bordet" och ett chip per kort
+kameran ser men inte lagt ut — *läses (2 s)*, *väntar på Claude (5 s)*,
+*osäkert – fyll i i granskningen* (länken är Review-knappen), *skymt – något
+ligger över*, *för litet för att läsas*, *syns inte längre* för ett nedtonat
+kort. Är allt känt står bara "Auto · 3 kort på bordet, alla kända". Frågan om
+det otappade läget står i samma rad. Chippet i topbaren är kvar som förut och
+öppnar **kameravyn**: en panel dockad vid högerkanten (från 900 px bred skärm)
+med telefonens bild, statusraden och reglagen, som inte täcker bordet — ett
+kort som dyker upp medan du skruvar syns. QR-koden för att koppla telefonen
+är samma panels första steg.
+
+**När auto stängs av** får du en sammanfattning av passet i stället för en
+notis: hur många kort kameran hittade, hur de fick sitt namn — lokalt
+(konstverk och titelrad), med Claude per modell, fyllt i för hand, eller ännu
+utan namn — medianen för hur lång tid ett kort tog att känna igen, och vad
+Claude-anropen kostade: anrop, tokens in och ut, USD, för telefonens frågor
+(beskärningar och hela bilden) och datorns egna medan auto var på. Kostnaden
+räknas ur en bok telefonen för per anrop, inte ur spåren — ett svar kan sitta
+på flera kort, och ett anrop som inte gav något kostade ändå. En modell utan
+pris i tabellen står som "pris okänt", aldrig som 0 USD. Ett nedtonat land
+bär samma etikett som ett nedtonat permanent, "Syns inte", när kortet är
+brett nog för den.
 
 Den digitala vyn är en spegel av bordet — men kameran får bara lägga till kort
 och vrida dem, aldrig ta bort dem. Den räknar kort, inte spår: känner den igen

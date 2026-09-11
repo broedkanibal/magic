@@ -1076,6 +1076,27 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 }
 .ov.open{display:flex;flex-direction:column}
 @keyframes fade{from{opacity:0}}
+/* ── Dockad: en vy som inte täcker bordet ────────────────────────────
+   Kameravyn öppnar man för att se om korten får ramar, och rättar sedan
+   bordet — samtidigt. Som modal mitt på skärmen täckte den just det bordet:
+   ett kort som dök upp medan man skruvade syntes inte förrän rutan stängts
+   (Jespers parti 2026-09-10). Dockad sitter den vid högerkanten, under
+   topbaren och remsan (--dock-top sätts av dockaKamOv), utan bakgrund och
+   utan att låsa något; bordet flyttar sig åt vänster (body.kamdockad) i
+   stället för att hamna bakom. z-index under menyn (200): menyn fälls ner
+   över samma hörn. Under 900 px finns ingen bredd att dela på — då är den
+   en vanlig modal, och regeln nedan gäller inte. */
+@media (min-width:900px){
+  .ov.dockad{
+    inset:var(--dock-top,46px) 0 0 auto;width:min(440px,40vw);z-index:190;
+    background:none;backdrop-filter:none;
+    border-left:1px solid var(--panelram);box-shadow:var(--shadow);
+  }
+  .ov.dockad .modal{margin:0;width:100%;max-width:none;height:100%;max-height:none;border:0;border-radius:0;box-shadow:none;background:#121821}
+  .ov.dockad .modal .body{flex:1;padding:12px}
+  body.kamdockad main{margin-right:min(440px,40vw)}
+}
+.modal.kammodal{width:min(560px,94vw)}
 .ovclose{
   position:absolute;top:12px;right:14px;z-index:10;
   width:32px;height:32px;border-radius:8px;color:var(--dim);
@@ -1133,6 +1154,19 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .modal .foot .grow{flex:1;min-width:0;white-space:nowrap;color:var(--dim2);font-size:12px}
 .modal .foot .btn{flex:none}
 .modal p.lead{margin:0;color:var(--dim);font-size:12.8px;line-height:1.65}
+/* Sammanfattningen när auto stängs av (visaAutoSum): två kompakta
+   tabeller — korten och Claude-anropen — och noterna under. Talen i mono,
+   högerställda, så att kolumnerna går att läsa uppifrån och ned. */
+.autosum table{width:100%;border-collapse:collapse;font:12.5px/1.4 var(--sans);color:var(--txt)}
+.autosum th{font:600 10.5px/1 var(--sans);letter-spacing:.5px;text-transform:uppercase;color:var(--dim2);padding:0 6px 6px;text-align:left;border-bottom:1px solid var(--line)}
+.autosum td{padding:5px 6px;border-bottom:1px solid #ffffff0a;vertical-align:baseline}
+.autosum .tal{text-align:right;font-family:var(--mono);font-size:12px;white-space:nowrap}
+.autosum td.tal i{font-style:normal;color:var(--dim2);font-size:11px}
+.autosum tr.sub td{color:var(--dim);padding-top:2px;padding-bottom:2px}
+.autosum tr.sub td:first-child{padding-left:20px}
+.autosum tr.summa td{font-weight:650;border-top:1px solid var(--line);border-bottom:0}
+.autosum .noter{margin:0;padding:0 0 0 18px;color:var(--dim);font-size:12px;line-height:1.5}
+.autosum .noter li{margin:3px 0}
 textarea.ta{
   width:100%;min-height:190px;resize:vertical;padding:11px 12px;
   background:var(--bg);border:1px solid var(--line);border-radius:var(--rs);
@@ -1537,6 +1571,24 @@ body.lasvy .lasband{display:flex}
 .lyftlbl{font:600 8.5px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:var(--acc);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .lyftknappar{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
 .grid[data-smakort] .lyftlbl{display:none}
+/* Samma etikett på ett nedtonat LAND, så att det läses som ett nedtonat
+   permanent. Landkortet är 20–150 px brett och ligger omlott, så etiketten
+   är ett pillerchip i kortets överkant — knapparna hänger i nederkanten —
+   och aldrig bredare än kortet (ellips). En etikett per hög: bara det
+   översta (sista) kortet i den nedtonade stapeln bär den; ett specialland
+   ligger för sig och bär sin egen. Under 58 px (sattLandBredd) ryms inte
+   "Syns inte" ens i 8 px, och då faller den bort som på ett litet permanent
+   (data-smakort); zonrubrikens rad svarar för alla då. Räknat: nio
+   versaler à ~5 px + spärrning + kant ≈ 56 px. */
+.llyftlbl{
+  position:absolute;left:50%;top:3px;transform:translateX(-50%);z-index:8;
+  display:block;box-sizing:border-box;max-width:calc(100% - 2px);height:14px;padding:0 4px;
+  border-radius:7px;background:#0b1017f2;border:1px solid #6b5522;color:var(--acc);
+  font:600 8px/12px var(--sans);letter-spacing:.5px;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+}
+.llyft .lkort:not(:last-child) .llyftlbl{display:none}
+.lands[data-smaland] .llyftlbl{display:none}
 .grid[data-smakort] .lyftrad{padding:2px;gap:2px;border-radius:7px}
 .grid[data-smakort] .lyftknappar{gap:2px}
 /* Raden i zonrubriken: förstagångsförklaringen, och svaret för alla när tre
@@ -2028,7 +2080,8 @@ body.ispel #startSpelBtn{display:none}
 .modechip.vantar:hover{background:#241c0d;border-color:#5d4a1d}
 
 /* Raden under topbaren. Två sorters mening, samma mått: förklaringen som står
-   en enda gång innan man valt väg, och beskedet att bordet är fruset. */
+   en enda gång innan man valt väg, och beskedet att bordet är fruset. Frågan
+   om grundläget bor i Auto-remsan nedanför sedan MES-32. */
 .modeforklaring,.frusen{
   display:flex;align-items:center;gap:9px;flex:none;
   height:34px;padding:0 12px;font-size:12px;overflow:hidden;
@@ -2041,17 +2094,57 @@ body.ispel #startSpelBtn{display:none}
 .frusen span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frusen .btn{height:24px;padding:0 8px;font-size:11.5px;margin-left:auto;flex:none}
 
-/* ── Kamerainställningarna, som popover ─────────────────────────────
-   Det man vill skruva på UNDER spelet ska inte ligga i en modal som täcker
-   bordet man skruvar mot. QR-koden är kvar i modalen — den är en engångssak —
-   och kalibreringen med, eftersom rutan man drar måste mätas mot en bild som
-   faktiskt har en storlek, och den har den inte i en stängd popover. */
-.kamskruv{
-  position:absolute;z-index:200;display:none;flex-direction:column;
-  width:min(460px,calc(100vw - 16px));max-height:calc(100vh - 70px);overflow-y:auto;
-  padding:5px;border-radius:10px;
-  background:#151b25;border:1px solid var(--panelram);box-shadow:var(--shadow);
+/* ── Auto-remsan ─────────────────────────────────────────────────────
+   Raden som svarar på "jag lade ett kort — varför syns det inte?" utan att
+   man öppnar kameravyn. Chippet i topbaren sa "ser 3 kort, känner igen 2":
+   ett tal, inte ett skäl. Här står varje kort kameran ser men inte lagt på
+   bordet som ett chip med sitt skäl och hur länge det stått så, och samma
+   rad bär frågan om grundläget. Samma färgfamilj som granskningsraden
+   (.pendbar): bärnsten när något väntar, grönt när allt är känt. Chippen
+   får radbryta — ett chip man inte ser är ett skäl man inte får. */
+.autoremsa{
+  display:flex;align-items:center;flex-wrap:wrap;gap:5px 10px;flex:none;
+  min-height:32px;padding:4px 12px;font-size:12px;
+  background:var(--rutbg);border-bottom:1px solid var(--line);color:var(--dim);
 }
+.autoremsa[hidden]{display:none}
+.autoremsa .sum{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:var(--txt);font-weight:550}
+.autoremsa .sum .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
+.autoremsa.varm{background:var(--tand2);border-bottom-color:#4a3a17;color:#e8c98a}
+.autoremsa.varm .sum{color:#f0dcb0}
+.autoremsa.varm .sum .led{background:var(--acc);animation-duration:1.2s}
+.autoremsa.lugn{background:#0f2016;border-bottom-color:#2f6b4780;color:#8fe0b0}
+.autoremsa.lugn .sum{color:#8fe0b0}
+.autoremsa .not{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e8c98a}
+.autoremsa .chip{
+  display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:11px;
+  font-size:11.5px;white-space:nowrap;border:1px solid #4a3a17;background:#241c0d;color:#e8c98a;
+}
+.autoremsa .chip b{color:#f0dcb0;font-weight:600}
+.autoremsa .chip .led{width:6px;height:6px;border-radius:50%;background:var(--acc);flex:none}
+.autoremsa .chip.laser .led,.autoremsa .chip.vantar .led{animation:kampuls 1.2s ease-in-out infinite}
+.autoremsa .chip.osaker{border-color:#e2606a55;background:#2a1414;color:#f0a9ad}
+.autoremsa .chip.osaker .led{background:var(--red)}
+.autoremsa .chip.osaker b{color:#f7c9cc}
+.autoremsa .chip.skymd,.autoremsa .chip.liten,.autoremsa .chip.borta,.autoremsa .chip.dubbel,.autoremsa .chip.bort{border-color:#3a4658;background:#1a2130;color:var(--dim)}
+.autoremsa .chip.skymd .led,.autoremsa .chip.liten .led,.autoremsa .chip.borta .led,.autoremsa .chip.dubbel .led,.autoremsa .chip.bort .led{background:#6b7280}
+.autoremsa .chip.skymd b,.autoremsa .chip.liten b,.autoremsa .chip.borta b,.autoremsa .chip.dubbel b,.autoremsa .chip.bort b{color:var(--txt)}
+/* Länken i chippet: samma handling som Review-knappen, ingen egen knapp. */
+.autoremsa .chip .lank{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.autoremsa .chip .lank:hover{color:#fff}
+/* Frågan om grundläget tar en egen rad i remsan: den ska stå där man tittar
+   när det första kortet dyker upp, inte i en vy man inte öppnat. */
+.autoremsa .grund{display:flex;align-items:center;gap:8px;flex:1 1 100%;min-width:0;padding:2px 0}
+.autoremsa .grund span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;color:#e8c98a}
+.autoremsa .grund b{color:#f0dcb0}
+.autoremsa .grund .btn{height:24px;padding:0 8px;font-size:11.5px;flex:none}
+
+/* ── Kamerainställningarna, i den dockade kameravyn ─────────────────
+   Det man vill skruva på UNDER spelet ska inte ligga i en modal som täcker
+   bordet man skruvar mot. Skruvrummet var en popover under chippet; nu är
+   det andra steget i #kamOv (första är QR-koden), som dockas vid högerkanten
+   (.ov.dockad) så att bordet syns bredvid. */
+.kamskruv{display:none;flex-direction:column;margin:-4px -7px 0}
 .kamskruv.open{display:flex}
 .kamskruv-hd{display:flex;align-items:center;gap:8px;padding:8px 9px 6px;font-size:12.5px;color:var(--txt)}
 .kamskruv-hd .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
@@ -2252,6 +2345,7 @@ body.ispel #addPlayerBtn{display:none}
   .modechip{height:28px;padding:0 8px;font-size:11.5px;gap:6px}
   .modeforklaring{display:none}             /* två meningar får inte plats */
   .frusen{font-size:11.5px;padding:0 8px}
+  .autoremsa{font-size:11.5px;padding:3px 8px;gap:4px 7px}
 }
 @media (max-width:390px){
   .topbar{height:44px;gap:5px;padding:0 7px}
@@ -2425,6 +2519,9 @@ body.ispel #addPlayerBtn{display:none}
   <!-- Raden under topbaren: förklaringen som står en gång innan man valt väg,
        och beskedet att bordet är fruset. Samma plats, aldrig båda. -->
   <div id="modeRad" hidden></div>
+  <!-- Auto-remsan: vad kameran ser som inte är på bordet, med skäl, medan
+       auto går och telefonen är ansluten. Ritas av renderAutoRemsa(). -->
+  <div class="autoremsa" id="autoRemsa" hidden></div>
 
   <main>
     <section class="hand">
@@ -2837,11 +2934,15 @@ body.ispel #addPlayerBtn{display:none}
   </div>
 </div>
 
-<!-- ── koppla kamera ── -->
-<div class="ov" id="kamOv">
-  <div class="modal" style="width:min(560px,94vw)">
+<!-- ── kameravyn: koppla, sedan skruva ──
+     Dockad vid högerkanten (.ov.dockad) så att bordet syns bredvid: man
+     skruvar och tittar på om korten får ramar, och ett kort som dyker upp
+     under tiden hamnar inte bakom en modal. Två steg i samma panel, ett i
+     taget (kamStegSynk): QR-koden tills telefonen svarat, sedan skruvrummet. -->
+<div class="ov dockad" id="kamOv">
+  <div class="modal kammodal">
     <header>
-      <h2>Koppla en kamera</h2>
+      <h2 id="kamOvRubrik">Koppla en kamera</h2>
       <button class="close" data-close="kamOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
@@ -2854,6 +2955,46 @@ body.ispel #addPlayerBtn{display:none}
         <div class="kamqr" id="kamQr"></div>
         <p class="kamlank"><code id="kamLank"></code>
           <button class="btn sm" id="kamKopiera">Kopiera länk</button></p>
+      </div>
+      <!-- Kamerans skruvrum. Det man ändrar UNDER spelet ska inte ligga i en
+           modal som täcker bordet man ändrar mot — man skruvar tröskeln och
+           tittar på om korten får ramar. Livebilden först och stor, en mening
+           om vad kameran ser, och reglagen bakom Avancerat. Tolv reglage i en
+           spelares ansikte var fel fråga: det spelaren behöver veta är om
+           kameran ser korten, och det svarar bilden och meningen på. Reglagen
+           är ett felsökningsverktyg (MES-26). -->
+      <div class="kamskruv" id="kamSkruv">
+        <div class="kamskruv-hd">
+          <span class="led"></span><b>Auto är på</b>
+          <span class="meta" id="kamSkruvMeta"></span>
+        </div>
+        <div class="kalbild stor" id="pbBild">
+          <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
+          <div class="kalvantar" id="pbVantar">Väntar på bild från telefonen…</div>
+          <span class="kamskruv-rakn" id="kamSkruvRakn"></span>
+          <span class="pbfarger"><i style="background:#5fbf7f"></i>känns igen <i style="background:#e2606a"></i>okänt <i style="background:#e8b33a"></i>läses <i style="background:#6b7280"></i>inte ett kort</span>
+        </div>
+        <p class="pbstatus" id="pbStatus"></p>
+        <!-- Grundläget: vinkeln ett otappat kort har i telefonens bild. Sparas ur
+             ett kort som ligger på bordet — frågan i Auto-remsan vid första
+             kortet, eller knappen här — och gäller spelet. -->
+        <div class="kalupp" id="kamGrund" title="Kortets vinkel i bilden avgör om det är tappat: mer än 45° från det otappade läget räknas som tappat. Läget sparas ur ett kort som ligger otappat på bordet och gäller det här spelet">
+          <span id="kamGrundTxt">Otappat läge: inte sparat</span>
+          <button class="btn sm" id="kamGrundSpara" title="Tar vinkeln ur det senaste kortet kameran lade på bordet och sparar den som otappat">Spara från senaste kortet</button>
+        </div>
+        <div class="pbknappar">
+          <button class="btn sm" id="pbRef" title="Ta om bilden av bordet — gör det när ljuset ändrats. Korten får ligga kvar">Ny referensbild</button>
+          <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
+          <button class="btn sm ghost" id="pbHelbild" title="Telefonen skickar hela bilden till Claude och lägger ut de kort den ser — för bord där kameran inte hittar korten själv">Läs av hela bordet</button>
+        </div>
+        <details class="pbavancerat" id="pbAvancerat">
+          <summary>Avancerat</summary>
+          <div class="pbrad" id="pbSiffror"></div>
+          <div class="pbreglage" id="pbReglage"></div>
+          <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Återställ trösklarna</button></div>
+        </details>
+        <hr>
+        <button class="btn danger" id="kamKoppla">Stäng av auto</button>
       </div>
     </div>
     <div class="foot">
@@ -2936,6 +3077,21 @@ body.ispel #addPlayerBtn{display:none}
       <span class="grow"></span>
       <button class="btn" id="askNo">Cancel</button>
       <button class="btn prim" id="askYes">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── auto är av: sammanfattningen av passet ── -->
+<div class="ov" id="autoSumOv">
+  <div class="modal autosum" style="width:min(520px,94vw)">
+    <header>
+      <h2>Auto är av</h2>
+      <button class="close" data-close="autoSumOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </header>
+    <div class="body" id="autoSumBody"></div>
+    <div class="foot">
+      <span class="grow">Auto slås på igen från menyn eller chippet.</span>
+      <button class="btn prim" data-close="autoSumOv">Stäng</button>
     </div>
   </div>
 </div>
@@ -3084,46 +3240,7 @@ body.ispel #addPlayerBtn{display:none}
 
 <img id="bgShot" alt="" hidden>
 <div class="menu" id="menu"></div>
-
-<!-- Kamerans skruvrum. Det man ändrar UNDER spelet ska inte ligga i en modal
-     som täcker bordet man ändrar mot — man skruvar tröskeln och tittar på om
-     korten får ramar, och det gick inte att göra samtidigt. QR-koden bor kvar
-     i #kamOv; kalibreringen finns inte längre — kameran läser hela bilden. -->
-<!-- Livebilden först och stor, en mening om vad kameran ser, och reglagen
-     bakom Avancerat. Tolv reglage i en spelares ansikte var fel fråga: det
-     spelaren behöver veta är om kameran ser korten, och det svarar bilden
-     och meningen på. Reglagen är ett felsökningsverktyg (MES-26). -->
-<div class="kamskruv" id="kamSkruv">
-  <div class="kamskruv-hd">
-    <span class="led"></span><b>Auto är på</b>
-    <span class="meta" id="kamSkruvMeta"></span>
-  </div>
-  <div class="kalbild stor" id="pbBild">
-    <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
-    <div class="kalvantar" id="pbVantar">Väntar på bild från telefonen…</div>
-    <span class="kamskruv-rakn" id="kamSkruvRakn"></span>
-    <span class="pbfarger"><i style="background:#5fbf7f"></i>känns igen <i style="background:#e2606a"></i>okänt <i style="background:#e8b33a"></i>läses <i style="background:#6b7280"></i>inte ett kort</span>
-  </div>
-  <p class="pbstatus" id="pbStatus"></p>
-  <div class="kalupp" id="kamUpp" title="Avgör vilka kort som räknas som tappade. Sitter telefonen på tvären mot dig ligger ett otappat kort ned i bilden">
-    <span>Ett otappat kort i bilden är</span>
-    <button class="btn sm on" data-upp="v">stående</button>
-    <button class="btn sm" data-upp="h">liggande</button>
-  </div>
-  <div class="pbknappar">
-    <button class="btn sm" id="pbRef" title="Ta om bilden av bordet — gör det när ljuset ändrats. Korten får ligga kvar">Ny referensbild</button>
-    <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
-    <button class="btn sm ghost" id="pbHelbild" title="Telefonen skickar hela bilden till Claude och lägger ut de kort den ser — för bord där kameran inte hittar korten själv">Läs av hela bordet</button>
-  </div>
-  <details class="pbavancerat" id="pbAvancerat">
-    <summary>Avancerat</summary>
-    <div class="pbrad" id="pbSiffror"></div>
-    <div class="pbreglage" id="pbReglage"></div>
-    <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Återställ trösklarna</button></div>
-  </details>
-  <hr>
-  <button class="btn danger" id="kamKoppla">Stäng av auto</button>
-</div>
+<!-- Kamerans skruvrum bor i #kamOv sedan MES-32 (den dockade kameravyn). -->
 <div id="toast"></div>
 <script>
 /* ══════════════════════════════════════════════════════════════════
@@ -5200,8 +5317,14 @@ let kameraEnhet = false;
 let kamAnsluten = false;      // sitter en telefon i spelets närvarolista?
 let kamOppen = false;         // står #kamOv öppen?
 let kamTittar = false;        // tittar någon på telefonens bild? (popovern)
-let kamUpp = 'v';             // hur ett otappat kort ligger i telefonens bild: 'v' stående, 'h' liggande
-let kamUppNr = 0;             // räknas upp vid varje klick; en hämtning som startade före klicket får inte skriva över det
+let kamUpp = 'v';             // hur ett otappat kort ligger i telefonens bild: 'v' stående, 'h' liggande — reserven när inget grundläge är sparat; följer med i raden
+/* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
+   hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
+   utan fältet), null = inte sparat, tal = sparat. Frågan om första kortet
+   ställs bara vid null: en telefon med äldre kod kan inte svara på den. */
+let kamGrund;
+let kamGrundRad = null;       // grundläget i spelets rad (camera_setups), för popovern innan telefonen rapporterat
+let grundFragaData = null;    // { namn, spar } medan raden under topbaren frågar om första kortet
 let kamHarVarit = false;      // har en telefon någonsin svarat i det här spelet?
 let kamTappadNar = 0;         // när tappades den? — bordet är fruset sedan dess
 let kamLast = 0, kamTot = 0;  // lästa kort av upptäckta spår, ur varje bordsmeddelande
@@ -5610,8 +5733,13 @@ function kortHtml(e, i, extra) {
 function lyftRadHtml(e, i, land) {
   /* Landkortet är 20–150 px brett och ligger omlott med grannarna: det får
      landets egen handlingsrad (.lakt) i stället för kortets, så att knapparna
-     hänger där landets tap-knapp brukar hänga och krymper med --lw. Ingen
-     etikett — den ryms inte, och zonrubriken säger vad nedtoningen betyder. */
+     hänger där landets tap-knapp brukar hänga och krymper med --lw. Etiketten
+     "Syns inte" fanns först inte på landet — raden rymde den inte — och då
+     lästes ett nedtonat Forest som ett mörkt kort, inte som ett kort kameran
+     tappat. Nu är den ett chip i kortets ÖVERKANT (.llyftlbl), där inget
+     annat hänger: ett per nedtonad stapel (CSS visar bara det översta
+     kortets), aldrig bredare än kortet, och borta under 58 px som på ett
+     litet permanent (data-smaland i sattLandBredd). */
   const kl = land ? 'lakt-b' : 'kortakt-b', px = land ? 12 : 15;
   const kn = (akt, etikett, ikon, extra) =>
     `<span class="${kl}${extra || ''}" role="button" data-akt="${akt}" aria-label="${etikett}" data-i="${i}">`
@@ -5623,7 +5751,7 @@ function lyftRadHtml(e, i, land) {
      då ingen väg tillbaka förrän två till tonats ned. */
   const IKON_KVAR = '<path d="M5 12.5l4.5 4.5L19 7"/>';
   const knappar = kn('grav', 'Till graveyard', IKON_GRAV) + kn('kvar', 'Ligger kvar', IKON_KVAR) + kn('del', 'Ta bort från bordet', IKON_KRYSS, ' fara');
-  if (land) return `<span class="lakt lyftakt">${knappar}</span>`;
+  if (land) return `<span class="llyftlbl">Syns inte</span><span class="lakt lyftakt">${knappar}</span>`;
   return `<span class="lyftrad" data-akt-for="${i}">
     <span class="lyftlbl">Syns inte</span>
     <span class="lyftknappar">${knappar}</span>
@@ -6053,7 +6181,9 @@ function sattLandBredd() {
        skrivningen räckte inte: renderMana bygger om raden, och det nya
        .lands-elementet bär ingen inline-bredd — det föll tillbaka på 30 px och
        alla landkort krympte till frimärken vid första klicket. */
-    box.style.setProperty('--lw', ((lwFrysT && lwNu) ? lwNu : landBredd(landMatt)) + 'px');
+    const lw = (lwFrysT && lwNu) ? lwNu : landBredd(landMatt);
+    box.style.setProperty('--lw', lw + 'px');
+    box.toggleAttribute('data-smaland', lw < 58);   // "Syns inte" på nedtonade land ryms inte under 58 px (.llyftlbl)
   }
   vandFargmeny();
 }
@@ -6370,6 +6500,9 @@ function renderMode() {
   rad.innerHTML = radHtml;
   matFlikar();
   renderTom();              // tomrutan följer samma läge som chippet
+  /* Auto-remsan följer samma flaggor: den finns bara medan auto går och
+     telefonen är ansluten, och den bär frågan om grundläget (MES-32). */
+  renderAutoRemsa();
 }
 
 /* Ett enda ställe tar emot klicken. Chippet ritas om vid varje rendering, så
@@ -6386,12 +6519,21 @@ function modeKlick(ev) {
      den här hade varit att tysta varningen för den som öppnar rutan och
      ångrar sig — bordet står då kvar exakt lika gammalt som förut. */
   if (a === 'foto') { openShot(); renderMode(); }
-  if (a === 'auto') { prefs.autoLage = true; savePrefs(); renderMode(); visaKamOv(); }
+  if (a === 'auto') { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
   if (a === 'koppla') visaKamOv();
   if (a === 'skruv') visaKamSkruv();
+  /* Grundläget ur det första kortet. "Det är tappat" betyder att otappat
+     är 90° från kortets vinkel — telefonen räknar (grundFranSpar). */
+  if (a === 'grund-ja' || a === 'grund-tappat') { begarGrund(grundFragaData && grundFragaData.spar, a === 'grund-tappat'); grundFragaData = null; renderMode(); }
+  if (a === 'grund-stang') { grundFragaData = null; renderMode(); }
+  /* Remsans "fyll i i granskningen" är Review-knappen, inte en egen väg —
+     men remsan gäller MITT bord, och Review-knappen den flik som visas:
+     tittade man på en motspelares bord gjorde klicket ingenting. */
+  if (a === 'granska') { const m = minSpelare(); if (m && state.active !== m.id) setActive(m.id); $('#pendGo').click(); }
 }
 $('#modeSlot').addEventListener('click', modeKlick);
 $('#modeRad').addEventListener('click', modeKlick);
+$('#autoRemsa').addEventListener('click', modeKlick);
 
 /* ── Tomrutan ─────────────────────────────────────────────────────────
    Ett tomt bräde är det första man ser i ett spel, och det gjorde reklam för
@@ -8374,10 +8516,12 @@ async function lekLasAv() {
     if (!resp.ok) {
       let msg = 'Fel ' + resp.status;
       try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      bokforDatorAi(null, null, true);
       $('#lekStatus').innerHTML = `<b style="color:var(--red)">${esc(msg)}</b>`;
       return;
     }
     const j = await resp.json();
+    bokforDatorAi(j.modell, j.usage, !!j.varfor);
     const kort = Array.isArray(j.kort) ? j.kort : [];
     if (!kort.length) {
       $('#lekStatus').innerHTML = j.varfor
@@ -8997,11 +9141,12 @@ menuEl.addEventListener('click', ev => {
   if (a === 'lek') oppnaLek();
   if (a === 'bjudin') $('#spelKnapp').click();
   if (a === 'mitt') { const m = minSpelare(); if (m) { state.active = m.id; save(); renderAll(true); } }
-  if (a === 'auto') { prefs.autoLage = true; savePrefs(); renderMode(); visaKamOv(); }
+  if (a === 'auto') { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
   /* Utan den här raden fanns ingen väg tillbaka till manuellt läge: "Stäng av
      auto" satt i popovern, och popovern öppnas inte utan ansluten telefon —
-     alltså var den oåtkomlig i exakt det läge där man behövde den. */
-  if (a === 'manuell') stangAvAuto(true).then(av => { if (av) toast('Auto är av'); });
+     alltså var den oåtkomlig i exakt det läge där man behövde den.
+     Sammanfattningen (visaAutoSum) är beskedet att auto är av. */
+  if (a === 'manuell') stangAvAuto(true);
   if (a === 'pool') openPool();
   if (a === 'ai') openAI();
   if (a === 'sharelink') shareLink();
@@ -9101,7 +9246,9 @@ addEventListener('keydown', ev => {
     if ($('#scanPanel').classList.contains('open')) return closeScan();
     if ($('#focusOv').classList.contains('open')) return closeFocus();
     if ($('#shotOv').classList.contains('open')) return closeShot();
-    const o = $('.ov.open'); if (o) return closeOv(o.id);
+    /* Den dockade kameravyn står öppen bredvid bordet medan man gör annat:
+       en modal som öppnats ovanpå den ska stängas först. Den är sist. */
+    const o = $('.ov.open:not(.dockad)') || $('.ov.open'); if (o) return closeOv(o.id);
     return;
   }
   if ($('#gravOv').classList.contains('open')) {
@@ -10435,8 +10582,9 @@ async function readCardAt(img, box, marg, lage) {
     signal: avbrytSignal(),
     body: JSON.stringify({ mode: lage || 'card', image: cardPayload(img, box, marg) })
   });
-  if (!resp.ok) return null;
+  if (!resp.ok) { bokforDatorAi(null, null, true); return null; }
   const j = await resp.json();
+  bokforDatorAi(j.modell, j.usage, !!j.varfor);
   const k = (Array.isArray(j.kort) ? j.kort : []).filter(x => x.namn);
   if (!k.length) return null;
   // närmast mitten är kortet vi frågade om, inte grannen som råkade komma med
@@ -10538,9 +10686,11 @@ async function readPane(img, pane) {
   if (!resp.ok) {
     let msg = resp.status + '';
     try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+    bokforDatorAi(null, null, true);
     const err = new Error(msg); err.status = resp.status; throw err;
   }
   const j = await resp.json();
+  bokforDatorAi(j.modell, j.usage, !!j.varfor);
   return Array.isArray(j.kort) ? j.kort : [];
 }
 
@@ -10608,8 +10758,9 @@ async function readPaneName(img, pane) {
     signal: avbrytSignal(),
     body: JSON.stringify({ mode: 'namn', image: panePayload(img, pane) })
   });
-  if (!resp.ok) return null;
+  if (!resp.ok) { bokforDatorAi(null, null, true); return null; }
   const j = await resp.json();
+  bokforDatorAi(j && j.modell, j && j.usage, !!(j && j.varfor));
   return j && j.sakerhet === 'hog' ? rentNamn(j.namn) : null;
 }
 
@@ -11609,11 +11760,13 @@ async function askClaudeFor(img, box, rot, cands) {
     if (!resp.ok) {
       let msg = resp.status + '';
       try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      bokforDatorAi(null, null, true);
       const err = new Error(msg);
       err.status = resp.status;
       throw err;
     }
     const j = await resp.json();
+    bokforDatorAi(j.modell, j.usage, false);
     const nSel = +j.n;
     if (!nSel || nSel < 1 || nSel > list0.length) return { cand: null, sure: 'lag' };
     return { cand: list0[nSel - 1], sure: String(j.sakerhet || 'medel') };
@@ -11637,6 +11790,7 @@ async function askClaudeFor(img, box, rot, cands) {
         `{"n": <row number 1-${list.length}, or 0 if none fit>, "sakerhet": "hog"|"medel"|"lag"}` }
     ] }]
   });
+  bokforDatorAi(res.model || 'claude-opus-5', res.usage, false);   // egen nyckel: modellen står i anropet ovan
   const txt = (res.content || []).filter(x => x.type === 'text').map(x => x.text).join('');
   const m = txt.match(/\{[\s\S]*\}/);
   if (!m) return null;
@@ -11923,12 +12077,30 @@ const Kamera = (() => {
      pekade på en annan del av bilden så fort telefonen vreds. Kvar är bara
      hur ett otappat kort ligger i bilden — upp: 'v' stående, 'h' liggande.
      Formen {ruta:{x,y,w,h,upp}} behålls så att rutaPx(), beskar(), helbild(),
-     diagnosfilen och bänken läser den som förut. */
+     diagnosfilen och bänken läser den som förut.
+     grund är GRUNDLÄGET: huvudaxelns vinkel (radianer, modulo π) för ett kort
+     som ligger otappat, bekräftad av spelaren på det första kortet. Otappat
+     är sällan exakt 0° och tappat sällan exakt 90° — telefonen sitter snett,
+     korten läggs snett (Jesper 2026-09-10) — och en fast axel dömer fel
+     nära 45°. null = inte sparat: då härleds axeln ur upp, så att gamla spel,
+     bänken och golden-facit (ruta.upp) dömer precis som förut. */
   const HELA_BILDEN = { x: 0, y: 0, w: 1, h: 1 };
-  let kal = { ruta: Object.assign({}, HELA_BILDEN, { upp: 'v' }) };
+  let kal = { ruta: Object.assign({}, HELA_BILDEN, { upp: 'v' }), grund: null };
+  /* Skillnaden mellan två AXLAR, 0–π/2: u och u+π är samma axel. Samma
+     mått som skärlinjerna (skarAllt) väljer vinklar med. */
+  const axSkillnad = (u, v) => Math.abs(Math.atan2(Math.sin(2 * (u - v)), Math.cos(2 * (u - v)))) / 2;
+  const normGrund = v => ((v % Math.PI) + Math.PI) % Math.PI;
+  /* Axeln ett otappat kort har just nu: grundläget, annars ur upp. */
+  const grundVinkel = () => kal.grund != null ? kal.grund : (kal.ruta.upp === 'h' ? 0 : Math.PI / 2);
   let lage = 'start';
   let snurra = null, wake = null, senast = 0, senastRef = 0, forra = 0;
   let senVb = 0, senVh = 0;    // videons mått senast — byter de räknas analysen om
+  /* Upplösningen strömmen faktiskt gav — videons egna mått, med spårets
+     getSettings som stöd — och den högsta telefonen säger sig klara
+     (getCapabilities; null där webbläsaren inte svarar, iOS Safari bland
+     dem). Rådet om avståndet lutar sig mot dem (radAvstand): "flytta
+     närmare" gäller bara när telefonen redan ger allt den kan. */
+  let upplosning = null;       // { w, h, max: { w, h } | null }, null tills första rutan
   let pa = false;
   let spar = [];               // de kort som ligger på mattan just nu
   let spoken = [];             // nyss borttagna spår som minns var de låg
@@ -11996,7 +12168,7 @@ const Kamera = (() => {
   }
 
   /* Räknarna som diagnosfilen och popovern visar, uppdaterade av detektera(). */
-  const dia = { regioner: 0, forSma: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null, helbild: null };
+  const dia = { regioner: 0, forSma: 0, smaKort: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null, helbild: null };
   /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
      samma bildpunkt. En telefon i en hållare skakar en pixel när någon
      nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
@@ -12145,7 +12317,7 @@ const Kamera = (() => {
      Ren funktion, prövbar. Masken följer med ut: spårningen behöver veta
      vad som ligger under ett spår som inte fick någon träff. */
   function detektera(nu, ref, W, H, under, hopp) {
-    dia.regioner = dia.forSma = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = dia.skurna = 0;
+    dia.regioner = dia.forSma = dia.smaKort = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = dia.skurna = 0;
     const n = W * H;
     /* Tiden per del följer med i diagnosfilen: det är telefonen som ska
        hinna, och bänkens sandlåda säger inget om det. */
@@ -12364,7 +12536,11 @@ const Kamera = (() => {
       if (vidSkala > 1 && kort * vidSkala < KORT_MIN_PX * 0.6) return Object.assign(r, { skal: 'liten' });
       return r;
     };
-    const rakna = r => { if (r.skal === 'blank') dia.blanka++; else if (r.skal === 'kvot') dia.felKvot++; else if (r.skal === 'otat') dia.otat++; else if (r.skal === 'flat') dia.flata++; else if (r.skal === 'liten') dia.forSma++; };
+    /* 'liten' räknas för sig (smaKort), inte ihop med dammet under minArea
+       (forSma): en kortformad region som är för liten att läsa är det enda
+       av de två spelaren ska få veta om — den blir aldrig ett spår, och
+       förut fanns den inte någonstans (MES-31). */
+    const rakna = r => { if (r.skal === 'blank') dia.blanka++; else if (r.skal === 'kvot') dia.felKvot++; else if (r.skal === 'otat') dia.otat++; else if (r.skal === 'flat') dia.flata++; else if (r.skal === 'liten') dia.smaKort++; };
     /* Delning: en region som inte är ett kort kan vara två — eller ett kort
        och en ljusstrimma som hakat i det. Den eroderas ett par steg innanför
        sin låda, delarna som blir kvar vidgas tillbaka inom regionen, och var
@@ -12631,7 +12807,6 @@ const Kamera = (() => {
       return { dalar, NB, dela, profil, niv, tmin };
     };
     const skarAllt = (pix, p0, p1, r, led) => {
-      const axSkillnad = (u, v) => Math.abs(Math.atan2(Math.sin(2 * (u - v)), Math.cos(2 * (u - v)))) / 2;   // mellan axlar: u och u+π är samma axel
       const minne = snittMinne.find(m => m.led === led && sammaLada(m.box, r.box)) || null;
       const vinklar = [];
       for (const v of [minne ? minne.vinkel : null, r.vinkel, sparVinkel, 0, Math.PI / 2]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
@@ -12874,12 +13049,14 @@ const Kamera = (() => {
     return null;
   }
 
-  /* Vriden eller inte. Huvudaxeln nära lodrät = stående = otappat, nära
-     vågrät = liggande = tappat — givet att otappade kort står lodrätt i
-     bilden. Ligger de vågrätt (telefonen sitter så) vänds tolkningen. */
+  /* Vriden eller inte, mot grundläget: skiljer sig kortets huvudaxel mer än
+     45° från den axel ett otappat kort har är det tappat. Utan sparat
+     grundläge (kal.grund null) är axeln lodrät för upp 'v' och vågrät för
+     'h' — samma dom som förut, då "närmare y-axeln än x-axeln" avgjorde.
+     upp får skickas med (steg, matcha, bänken) men grundläget vinner. */
   function tappad(vinkel, upp) {
-    const lodrat = Math.abs(Math.cos(vinkel)) < Math.abs(Math.sin(vinkel));   // huvudaxel närmare y-axeln
-    return upp === 'h' ? lodrat : !lodrat;
+    const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+    return axSkillnad(vinkel, bas) > Math.PI / 4;
   }
 
   /* Hur mycket av masken som ligger i en ruta. */
@@ -12921,7 +13098,10 @@ const Kamera = (() => {
       /* Frågan till Claude följer med ett flimmer: annars kastade svarAI
          svaret (aiFragad saknas) och tidsgränsen släppte provet på en gång. */
       provas: flimmer ? !!g.provas : false, aiFragad: flimmer ? !!g.aiFragad : false, aiFragadNar: flimmer ? (g.aiFragadNar || 0) : 0,
-      aiInget: flimmer ? (g.aiInget || 0) : 0, ai: flimmer ? (g.ai || null) : null
+      aiInget: flimmer ? (g.aiInget || 0) : 0, ai: flimmer ? (g.ai || null) : null,
+      /* Lästiden hör till läsningen: ett flimmer behåller den, en omläsning
+         (med ledtråd) mäter om. */
+      lokalMs: flimmer ? (g.lokalMs || 0) : 0
     });
   }
 
@@ -13026,14 +13206,33 @@ const Kamera = (() => {
     installera(o);
     anaC = document.createElement('canvas');
     anaX = anaC.getContext('2d', { willReadFrequently: true });
+    /* Nedskalningen till analysbredden ska MEDLA blocket, inte plocka ett
+       par bildpunkter ur det. Chromes standard ('low') tar ~2×2 källpixlar
+       per analyspixel oavsett skalan: uppmätt i huvudlös Chrome på en flat
+       yta med brus σ = 8 blev bruset i analysbilden 6,9 vid 1080→360 och
+       5,3 vid 1920→360; med 'high' 2,4 vid 1080→360, i nivå med det som
+       väntas av ett medel (8/3). Vid 3840→360 (10,7×) hade 'low' kastat
+       96 % av bildpunkterna, och 4K-sensorns brus per pixel är dessutom
+       högre än 1080p:s — tröskeln räknas ur just det bruset (autoTroskel).
+       Kanten blir en analyspixel mjukare, och suddig() går ändå ovanpå. */
+    anaX.imageSmoothingQuality = 'high';
     /* Kontinuerlig fokus, vitbalans och exponering begärs, men låses INTE
        när referensen tagits — det övervägdes. En exponering låst mot en mörk
        tom matta bränner ut vita kort när de läggs ut, och det är just de
        beskärningarna identifieringen läser. Svängen som en hand ger tas i
        stället om hand i programvaran, se forstarkning(). iOS Safari ignorerar
        för övrigt alla tre. */
+    /* 4K begärs, inte 1080p. Korten är ≈100–130 px korta sidan vid 1080p på
+       Jespers bord, under golvet 150 px (KORT_MIN_PX) där de går att läsa —
+       och telefonen flyttas inte närmare. 3840×2160 fördubblar kortet i
+       beskärningen utan att något annat ändras: analysen är fortfarande
+       ≤ 360 px bred (AW_MAX, ritad ur videon), beskärningen tas ur videon
+       och kapas vid BESKAR_BREDD, helbilden vid HELBILD_MAXW, diagnosbilden
+       vid 560. ideal, inte exact: en telefon som inte klarar 4K ger det
+       närmaste den har, och vad den gav syns i statusraden och diagnosen
+       (upplosning). */
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 },
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: BEGARD.w }, height: { ideal: BEGARD.h },
                advanced: [{ focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }, { exposureMode: 'continuous' }] },
       audio: false
     });
@@ -13057,6 +13256,7 @@ const Kamera = (() => {
 
   function glomReferens() {
     ref = null; refSum = null; refFore = null; refDiff = 0; refN = 0; sigma = null; tros = null; blankM = null; refAvvik = null; texturGolv = null; yta = null; forra = 0; felRader = 0; brusRader = brusLugna = utsRader = utsLugna = 0; brusGolv = 0;
+    smaMinne = [];
     glomHelbild();
     /* Inlärningen börjar aldrig under 25: avvikelsen ärvs annars från den
        scen som var — 10 efter en dimmad — och stiger tre steg per ruta, och
@@ -13067,35 +13267,63 @@ const Kamera = (() => {
   }
 
   /* Nollställer kameran och sätter läget. En ruta i k — en sparad
-     kalibrering från förr — ignoreras: bara upp läses. Telefonen anropar den
-     när den startat, bänken och golden-provet mellan fallen — för
-     nollställningens skull. */
+     kalibrering från förr — ignoreras: bara upp och grund (grader, som raden
+     i camera_setups bär det) läses. Telefonen anropar den när den startat,
+     bänken och golden-provet mellan fallen — för nollställningens skull. */
   function satKalibrering(k) {
     /* Utan rad behålls läget: telefonen nollställer sig med null när den
        startat, och ett läge som redan kommit med realtid ska stå kvar. */
     const upp = k && k.ruta ? (k.ruta.upp === 'h' ? 'h' : 'v') : kal.ruta.upp;
-    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }) };
+    const grund = k && k.ruta ? graderTillGrund(k.ruta.grund) : kal.grund;
+    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund };
     spar = []; spoken = []; snittMinne = []; lage = 'lar';
     glomReferens();
     AH = 0;
     if (cb.bord) cb.bord([], true);
   }
+  const graderTillGrund = g => (typeof g === 'number' && isFinite(g)) ? normGrund(g * Math.PI / 180) : null;
   /* Läget byts från datorn medan kameran går. Ingenting nollställs —
      referensen och spåren gäller lika bra — utan vinklarna som redan finns
      tolkas om, så att korten på datorn vrids på en gång. Rösten sätts fullt
      åt det nya hållet: halvvägs hade debouncen i matcha() vänt kortet först
-     efter tre rutor. Helbildens spår har en gissad vinkel och ritas om vid
-     nästa helbild. Utan spår skickas inget: ett tomt bord från en kamera
+     efter tre rutor. Utan spår skickas inget: ett tomt bord från en kamera
      som just nollställts är den lögn sandBord() skyddar datorn mot. */
   function satUpp(upp) {
     upp = upp === 'h' ? 'h' : 'v';
     if (kal.ruta.upp === upp) return;
     kal.ruta.upp = upp;
+    domOm();
+  }
+  /* Grundläget byts: från raden i camera_setups (start, realtid) eller ur
+     ett spår (grundFranSpar). null = inte sparat, tillbaka till upp. Samma
+     omdömning som satUpp. Ett spår ur helbilden som aldrig fått en region
+     har ingen egen vinkel — det ligger som ett otappat kort i grundläget,
+     och lådan ritas om vid nästa helbild. */
+  function satGrund(vinkel) {
+    const g = vinkel == null ? null : normGrund(vinkel);
+    if (g === kal.grund || (g != null && kal.grund != null && Math.abs(g - kal.grund) < 1e-9)) return false;
+    kal.grund = g;
+    domOm();
+    return true;
+  }
+  function domOm() {
     for (const t of spar.concat(spoken)) {
-      if (arHelbild(t) || t.vinkel == null) continue;
-      t.tappad = tappad(t.vinkel, upp); t.tappRost = t.tappad ? 1 : -1;
+      if (arHelbild(t) && t.regionNar == null) { t.vinkel = grundVinkel(); t.tappad = false; t.tappRost = -1; continue; }
+      if (t.vinkel == null) continue;
+      t.tappad = tappad(t.vinkel); t.tappRost = t.tappad ? 1 : -1;
     }
     if (spar.length) rapportera();
+  }
+  /* Grundläget ur ett kort som ligger på bordet: spelaren bekräftade på
+     datorn att just det kortet ligger otappat — eller tappat, och då är
+     otappat 90° därifrån. Bara spår med en egen region duger: ett spår ur
+     helbilden utan region har grundläget som sin vinkel, och att spara det
+     vore att spara gissningen. false = kortet syns inte (längre). */
+  function grundFranSpar(id, tappat) {
+    const t = spar.find(x => x.id === id);
+    if (!t || t.vinkel == null || (arHelbild(t) && t.regionNar == null)) return false;
+    satGrund(t.vinkel + (tappat ? Math.PI / 2 : 0));
+    return true;
   }
 
   function rutaPx(bredd, hojd) {
@@ -13103,6 +13331,34 @@ const Kamera = (() => {
     return { x: Math.round(r.x * bredd), y: Math.round(r.y * hojd),
              w: Math.round(r.w * bredd), h: Math.round(r.h * hojd) };
   }
+
+  /* Vad strömmen gav, antecknat en gång per storlek (loop, när videons mått
+     byter): videons egna mått är sanningen — det är ur dem beskärningen
+     tas — och spårets getSettings/getCapabilities läggs till där de finns.
+     Taket jämförs på långsidan: i stående läge kan getSettings ge 1080×1920
+     medan getCapabilities säger 3840×2160. Golden-provet (kor.html) och
+     bänken har ingen ström med spår — då blir max null och rådet det gamla. */
+  const BEGARD = { w: 3840, h: 2160 };
+  function lasUpplosning(vb, vh) {
+    let s = null, c = null;
+    try {
+      const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+      if (t) { s = t.getSettings ? t.getSettings() : null; c = t.getCapabilities ? t.getCapabilities() : null; }
+    } catch (e) { /* en ström utan spår, en webbläsare utan getCapabilities */ }
+    const w = vb || (s && s.width) || 0, h = vh || (s && s.height) || 0;
+    if (!w || !h) return;
+    const max = c && c.width && c.width.max && c.height && c.height.max ? { w: c.width.max, h: c.height.max } : null;
+    upplosning = { w, h, max, begard: Object.assign({}, BEGARD) };
+    if (cb.upplosning) cb.upplosning(Object.assign({}, upplosning));
+  }
+  /* Ger telefonen allt den kan? Utan svar från getCapabilities antas ja:
+     det finns inget annat att be om. Och det som begärdes (BEGARD) är taket
+     i praktiken: Android rapporterar ofta stillbildens mått som max
+     (4032×3024), över alla videolägen, och då hade en 4K-ström dömts som
+     för liten för alltid. */
+  const vidTaket = () => !upplosning || !upplosning.max
+    || Math.max(upplosning.w, upplosning.h) >= Math.max(upplosning.max.w, upplosning.max.h)
+    || Math.max(upplosning.w, upplosning.h) >= BEGARD.w;
 
   function loop() {
     if (!pa) return;
@@ -13117,6 +13373,7 @@ const Kamera = (() => {
     if (vb !== senVb || vh !== senVh) {
       if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
       senVb = vb; senVh = vh; AH = 0;
+      lasUpplosning(vb, vh);
     }
     rita(vb, vh);
     const nu = performance.now();
@@ -13211,6 +13468,7 @@ const Kamera = (() => {
     if (Math.abs(gain - 1) > 0.01) for (let i = 0; i < n; i++) g[i] *= gain;
 
     const { fynd, mask, texturerade } = detektera(g, ref, AW, AH);
+    smaMinne.push(dia.smaKort); if (smaMinne.length > REF_RUTOR) smaMinne.shift();
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
 
     /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
@@ -13270,7 +13528,7 @@ const Kamera = (() => {
     const riktiga = spar.filter(t => t.tillstand !== 'skrap');
     const skymda = riktiga.filter(t => t.skymd).length;
     dia.ms = Math.round(performance.now() - tSteg);
-    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Redo — lägg ut kort på bordet', forLangtBort() ? LANGT_BORT : undefined);
+    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Redo — lägg ut kort på bordet', radAvstand() || undefined);
   }
 
   /* Medelavvikelse mellan rutan och referensen över fri yta, var tredje
@@ -13338,6 +13596,25 @@ const Kamera = (() => {
     if (!k.length) return false;
     return k[k.length >> 1] * vidSkala < KORT_MIN_PX;
   }
+  /* Rådet om avståndet. "Flytta närmare" bara när telefonen redan ger allt
+     den kan (vidTaket) och korten ändå ligger under golvet — annars är det
+     inte avståndet som är felet utan strömmen, och då sägs det den gav.
+     null = inget råd. */
+  function radAvstand() {
+    if (!forLangtBort()) return null;
+    if (vidTaket()) return LANGT_BORT;
+    return `Korten är små i bilden. Telefonen ger ${upplosning.w}×${upplosning.h} men klarar ${upplosning.max.w}×${upplosning.max.h}.`;
+  }
+  /* Kortformade regioner som var för små att läsa ('liten' i bedom), räknade
+     per ruta av detektera och hållna som medianen över de senaste sex
+     rutorna — samma fönster som referensen (REF_RUTOR): en hand som sveper
+     förbi lämnar kortformade fragment i en ruta eller två, och de ska inte
+     tända något. Talet går med i varje bord (sma) och i tillståndssignaturen,
+     så att datorn får veta när det ändras och inte först vid nästa
+     hjärtslag: ett kort som är för litet blir aldrig ett spår, och innan
+     MES-31 syntes det ingenstans. */
+  let smaMinne = [];
+  const smaNu = () => { if (!smaMinne.length) return 0; const k = smaMinne.slice().sort((a, b) => a - b); return k[k.length >> 1]; };
 
   /* Tröskeln per bildpunkt: grundtröskeln plus ett tillägg där referensen
      har kanter (ådring, mönster) och där den avviker från mattans median
@@ -13438,7 +13715,7 @@ const Kamera = (() => {
      ögonblick då ett kort låg skymt kvar i varje hjärtslag, och det andra
      av två kort med samma namn omlott fick aldrig sitt kort. Talet står här
      och inte som FARSK_MS: bänken kör modulen utan appens toppnivå. */
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}`).join('|');
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}`).join('|') + `|sma${smaNu()}`;
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -13551,14 +13828,19 @@ const Kamera = (() => {
      bilden så att datorn kan rita dem ovanpå sin egen bild av den. */
   function rapportera() {
     if (!cb.bord) return;
+    /* Tredje argumentet: det som inte är spår men hör till bordet — hur
+       många kortformade regioner som var för små att läsa, och vilken
+       upplösning strömmen ger. sandBord lägger dem i meddelandet. */
+    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null };
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
+      lokalMs: t.lokalMs != null ? t.lokalMs : null,   // den lokala kedjans tid (identifiera); null = aldrig läst lokalt (helbild)
       x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH
-    })));
+    })), false, extra);
   }
 
   /* Allt som behövs för att köra samma ruta igen på bänken: referensen,
@@ -13574,7 +13856,7 @@ const Kamera = (() => {
       c.getContext('2d').drawImage(video, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height);
       bild = c.toDataURL('image/jpeg', 0.6);
     }
-    return { matt: { aw: AW, ah: AH, vb: video ? video.videoWidth : 0, vh: video ? video.videoHeight : 0 }, tro: Object.assign({}, T), dia: Object.assign({}, dia), yta, kal,
+    return { matt: { aw: AW, ah: AH, vb: video ? video.videoWidth : 0, vh: video ? video.videoHeight : 0, upplosning: upplosning ? Object.assign({}, upplosning) : null }, tro: Object.assign({}, T), dia: Object.assign({}, dia), yta, kal,
              refRa: ref, rutaRa: senasteG0, maskRa: senasteMask, bild,
              spar: spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, tillstand: t.tillstand, namn: t.namn, saker: !!t.saker, skymd: !!t.skymd, tomMs: t.tomMs, namnLast: t.namnLast || null })) };
   }
@@ -13636,13 +13918,20 @@ const Kamera = (() => {
   async function identifiera(t, nu) {
     identifierar = true;
     let svar = null, fel = false, c = null;
+    /* Tiden den lokala kedjan tar — ramen, beskärningen, Matcher + ORB och
+       namnläsaren — summerad över omförsöken (inte redo, skräp-omtag), så
+       att sammanfattningen när auto stängs av kan säga hur lång tid ett kort
+       tog att känna igen. Väggklockan (performance.now), inte rutklockan nu:
+       bänken och golden styr den själva. Frågan till Claude mäts för sig
+       (kamFragaAI, ai.ms) och läggs till på datorn. */
+    const t0 = performance.now();
     try {
       /* Ramen först: regionen räcker för att spåra, inte för att beskära. */
       t.ram = finLada(t.box, senasteG0, t);
       const b = video ? beskar(t) : null; c = b && b.bild;
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
     } catch (e) { fel = true; }
-    finally { identifierar = false; }
+    finally { identifierar = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
     /* null betyder "inte redo än" — leken byggs fortfarande. Spåret väntar
        en och en halv sekund och frågar igen; inte varje ruta, för varje
        fråga är en beskärning ur videon. Ett kastat fel är ett "vet inte":
@@ -13780,7 +14069,7 @@ const Kamera = (() => {
       q.namn = k.namn; q.sid = k.sid; q.saker = !!k.saker; q.cands = [{ name: k.namn, sid: k.sid, score: 0 }];
       q.fragad = true; q.namnLast = q === t ? t.namnLast : null; q.ai = t.ai; q.varfor = k.saker ? 'ai' : 'ai osäker';
       q.tillstand = k.saker ? 'klar' : 'okand';
-      if (q !== t) spar.push(q);
+      if (q !== t) { q.lokalMs = t.lokalMs; spar.push(q); }   // klungans lokala tid gäller varje del; ai.ms ligger i det delade ai-objektet
     });
     if (!redanKlar) t.ram = null;
     rapportera();
@@ -13877,20 +14166,20 @@ const Kamera = (() => {
           samma kort, flyttar med.
        3. Annars ett nytt spår: Claudes mittpunkt och en låda i
           kortstorlek (kortMatt), stående eller liggande som ett otappat
-          kort efter rutans `upp` — tap-läget för ett kort utan region är
-          okänt, och regionen som sedan kan dyka upp under spåret får
-          rätta det.
+          kort i grundläget (grundVinkel: sparat, annars ur `upp`) —
+          tap-läget för ett kort utan region är okänt, och regionen som
+          sedan kan dyka upp under spåret får rätta det.
      Spår ur förra helbilden som inte känns igen tas bort: Claude såg dem
      inte längre. Ett osäkert svar ('medel'/'lag') blir ett okänt spår
      med namnet överst — granskningen på datorn, som förut. */
   function tillampaHelbild(svar, info, nu) {
-    const upp = (kal && kal.ruta && kal.ruta.upp) || 'v';
+    const gv = grundVinkel(), staende = Math.abs(Math.cos(gv)) < Math.abs(Math.sin(gv));   // grundläget närmare y-axeln: ett otappat kort står i bilden
     const m = kortMatt();
     info.matt = { lang: Math.round(m.lang), kort: Math.round(m.kort), kalla: m.kalla };
     const gamla = spar.filter(arHelbild);
     const inuti = (p, b) => p.cx >= b.x && p.cx <= b.x + b.w && p.cy >= b.y && p.cy <= b.y + b.h;
     const nara = (p, b) => p.cx >= b.x - b.w * HELBILD_NARA && p.cx <= b.x + b.w * (1 + HELBILD_NARA) && p.cy >= b.y - b.h * HELBILD_NARA && p.cy <= b.y + b.h * (1 + HELBILD_NARA);
-    const lada = p => { const w = upp === 'v' ? m.kort : m.lang, h = upp === 'v' ? m.lang : m.kort;
+    const lada = p => { const w = staende ? m.kort : m.lang, h = staende ? m.lang : m.kort;
       return { x: Math.round(p.cx - w / 2), y: Math.round(p.cy - h / 2), w: Math.max(4, Math.round(w)), h: Math.max(4, Math.round(h)) }; };
     const behallna = new Set(), bort = new Set(), nya = [];
     let namngivna = 0;
@@ -13923,7 +14212,7 @@ const Kamera = (() => {
         continue;
       }
       const b = lada(p);
-      nya.push({ id: nastaId++, cx: p.cx, cy: p.cy, lang: m.lang, kort: m.kort, vinkel: upp === 'v' ? Math.PI / 2 : 0, box: b, areaRef: b.w * b.h * 0.9,
+      nya.push({ id: nastaId++, cx: p.cx, cy: p.cy, lang: m.lang, kort: m.kort, vinkel: gv, box: b, areaRef: b.w * b.h * 0.9,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, tappad: false, tappRost: -1,
                  namn: k.namn, sid: k.sid, saker: !!k.saker, cands: [{ name: k.namn, sid: k.sid, score: 0 }],
                  fragad: true, aiFragad: true, namnLast: null, ram: null, gissning: null,
@@ -14014,10 +14303,16 @@ const Kamera = (() => {
     const t = spar.find(x => x.id === id); if (!t) return;
     t.namn = namn || null; t.sid = sid || null; t.saker = !!namn; t.fragad = true; t.gissning = null; t.provas = false;
     t.tillstand = namn ? 'klar' : 'okand';
+    /* Domskälet: datorn, inte kameran. 'namn' kommer från granskningen
+       (människan valde) eller från ett uppladdat foto som parats med spåret;
+       sammanfattningen när auto stängs av räknar båda som "fyllt i för hand
+       eller ur ett foto", inte som läst av kameran eller Claude i kameran.
+       Fotots egna Claude-anrop står i datorns bok. */
+    if (namn) t.varfor = 'hand';
     rapportera();
   }
 
-  return { start, installera, stopp, satKalibrering, satUpp, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
@@ -14031,9 +14326,12 @@ const Kamera = (() => {
            /* Avvikelsen i förhållande till bordet den mättes upp på (25): så
               skalar skräpfiltret sina gråsteg i samma proportion. */
            get utseendeSkala() { return T.utseende / UTS_BAS; },
-           get rad() { return forLangtBort() ? LANGT_BORT : (yta && yta.dom !== 'lugn' ? yta.rad : null); },
+           get rad() { return radAvstand() || (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
+           get sma() { return smaNu(); },                                                   // kortformade regioner för små att läsa, median över sex rutor
+           get upplosning() { return upplosning ? Object.assign({}, upplosning) : null; },  // { w, h, max, begard }; null innan första rutan
            get ruta() { return Object.assign({}, kal.ruta); },
+           get grund() { return kal.grund; },   // radianer modulo π; null = inte sparat (upp gäller)
            get trosklar() { return Object.assign({}, T); },
            get diagnos() { return Object.assign({}, dia); },
            get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; },
@@ -14065,10 +14363,17 @@ let kamRaknare = 0;
    har olika ägare: datorns tystnad, kamerans fas, och lekbygget. Förut skrev
    de över varandra — fasen "lär mig ljuset" raderade "Lär mig leken… 40 %"
    mitt i bygget. */
-const kamFinDel = { dator: '', fas: '', pool: '', ai: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"
+const kamFinDel = { dator: '', fas: '', pool: '', ai: '', bild: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"; bild: upplösningen strömmen gav
 function ritaKamFin() {
   const f = $('#kamFin'); if (!f) return;
-  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.ai, kamFinDel.pool].filter(Boolean).map(esc).join('<br>');
+  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.ai, kamFinDel.pool, kamFinDel.bild].filter(Boolean).map(esc).join('<br>');
+}
+/* Vad strömmen gav, en rad på telefonen: så syns det om 4K-begäran gick
+   igenom (getUserMedia i Kamera.start) utan att öppna diagnosen. */
+function kamUpplosningRad(u) {
+  if (!u || !u.w) return '';
+  const under = u.max && Math.max(u.w, u.h) < Math.max(u.max.w, u.max.h);
+  return `Bilden är ${u.w}×${u.h}` + (under ? ` — telefonen klarar ${u.max.w}×${u.max.h}` : '');
 }
 function satKamFin(del, txt) { kamFinDel[del] = txt || ''; ritaKamFin(); }
 const kamSag = (l, txt, fin) => {
@@ -14097,10 +14402,11 @@ async function oppnaKamera(gameId) {
   try {
     await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
       status: kamSag,
-      bord: (spar, nollstall) => sandBord(spar, nollstall),
+      bord: (spar, nollstall, extra) => sandBord(spar, nollstall, extra),
       /* Fasbytet går som ett eget bordsmeddelande: chippet på datorn säger
          "lär sig ljuset" ur exakt det, och behöver inte gissa ur tystnaden. */
-      fas: () => { if (kamLage) Moln.sandKam('bord', { fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }); },
+      fas: () => { if (kamLage) Moln.sandKam('bord', Object.assign({ fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }, bordExtra())); },
+      upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
       identifiera: (canvas, id, gissning, kort) => kamIdentifiera(canvas, id, gissning, kort),
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       helbild: (canvas, o) => kamHelbild(canvas, o)
@@ -14124,22 +14430,33 @@ async function oppnaKamera(gameId) {
      det senaste. Hämtningen blockerar inget; senare byten kommer med realtid. */
   Kamera.satKalibrering(null);
   Moln.hamtaKalibrering(spel.id)
-    .then(k => { if (k && k.ruta) Kamera.satUpp(k.ruta.upp); })
+    .then(k => { if (k && k.ruta) tillampaKalRad(k.ruta); })
     .catch(() => {});
   /* Poolen byggs ur leken i bakgrunden. Spåren finns ändå — de får sitt namn
      så fort poolen är klar. */
   byggKamPool();
   /* Hjärtslag: hela tillståndet igen var tredje sekund. En dator som just
      öppnats eller tappat sockeln kommer i fas utan att fråga. */
-  setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', { spar: senastBord, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null }); }, 3000);
+  setInterval(() => { if (kamLage && senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader() }, bordExtra())); }, 3000);
 }
+/* Det som följer med varje bord utöver spåren (MES-31): sma — kortformade
+   regioner för små att läsas, som aldrig blir spår — och upplösningen
+   strömmen ger, så att datorn kan säga "1 kort är för litet" och varför. */
+function bordExtra(extra) {
+  const u = (extra && extra.upplosning) || Kamera.upplosning;
+  return { sma: extra && extra.sma != null ? extra.sma : Kamera.sma, upplosning: u ? { w: u.w, h: u.h } : null,
+           bok: kamAiBokLage() };   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
+}
+/* Grundläget som datorn och raden i camera_setups bär det: hela grader,
+   0–179. null = inte sparat — det är så datorn vet om spelet ska frågas. */
+const grundGrader = () => Kamera.grund == null ? null : Math.round(Kamera.grund * 180 / Math.PI) % 180;
 
 /* ── telefonens igenkänning ──────────────────────────────────────────
    Mot leken, på telefonen, en gång per kort. Säkert → namnet skickas rakt av.
    Osäkert → förslagen skickas, och en beskuren bild så att datorn kan visa
    vad det gäller. Ingen bild lämnar telefonen för ett kort den känner igen. */
 let senastBord = null, kamPoolBygger = false, provbord = false;
-function sandBord(spar, nollstall) {
+function sandBord(spar, nollstall, extra) {
   /* "Jag vet ingenting än" och "jag har tittat, mattan är tom" är två helt
      olika besked, och de gick förut genom samma kanal. En kamera som just
      kalibrerats har inte sett en enda bildruta; skickade den spar:[] rakt av
@@ -14150,10 +14467,10 @@ function sandBord(spar, nollstall) {
   senastBord = spar;
   /* Provbordet vill se mer än bordet: hela spårets geometri och varför
      regioner förkastades. Det följer bara med när någon faktiskt tittar. */
-  Moln.sandKam('bord', provbord
-    ? { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, dia: Kamera.diagnos, tro: Kamera.trosklar, matt: Kamera.analysMatt,
+  Moln.sandKam('bord', Object.assign(provbord
+    ? { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader(), dia: Kamera.diagnos, tro: Kamera.trosklar, matt: Kamera.analysMatt,
         ra: Kamera.spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, namn: t.namn, tillstand: t.tillstand, provas: !!t.provas, tappad: !!t.tappad, skymd: !!t.skymd })) }
-    : { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null });
+    : { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader() }, bordExtra(extra)));
 }
 
 async function byggKamPool() {
@@ -14302,6 +14619,31 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
 const KAM_AI_TAK_PER_MIN = 20;
 let kamAiVantar = 0;                    // frågor som väntar på svar (golden-provet väntar in dem)
 const kamAiTider = [];
+/* ── kostnadsboken: ett anrop är ett anrop ──
+   Det som betalas är anrop, inte spår: ett svar kan sitta på flera spår
+   (klungan i svarAI, helbildens alla kort) och många betalda anrop lämnar
+   inget spår alls (inget kort, fel, ett spår som hann dö). Därför räknas
+   varje anrop här när svaret kommer, per modell som SERVERN säger (aldrig
+   AI.model — den är rutlägets), med tokens ur svaret; ett HTTP- eller
+   nätfel är ett anrop utan känd tokenåtgång (utan). Boken går med i varje
+   bord (bordExtra) och en sista gång i stopp-svaret; sess är den här
+   sidladdningen, så att datorn räknar skillnaden sedan auto slogs på och
+   en omladdad telefon inte drar ifrån. */
+const KAM_SESS = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const kamAiBok = { sess: KAM_SESS, anrop: 0, fel: 0, utan: 0, ute: 0, per: {} };
+function kamAiBokfor(modell, usage, fel) {
+  const m = modell || 'okänd';
+  const p = kamAiBok.per[m] || (kamAiBok.per[m] = { anrop: 0, fel: 0, in: 0, ut: 0 });
+  kamAiBok.anrop++; p.anrop++;
+  if (fel) { kamAiBok.fel++; p.fel++; }
+  if (usage) { p.in += +usage.input_tokens || 0; p.ut += +usage.output_tokens || 0; }
+  else kamAiBok.utan++;
+}
+/* Ögonblicksbild till bordet: ute är frågorna som är på väg just nu. */
+function kamAiBokLage() {
+  const per = {}; for (const k in kamAiBok.per) per[k] = Object.assign({}, kamAiBok.per[k]);
+  return { sess: kamAiBok.sess, anrop: kamAiBok.anrop, fel: kamAiBok.fel, utan: kamAiBok.utan, ute: kamAiVantar, per };
+}
 function kamAiNamnen() { return [...new Set(((Pool.idx && Pool.idx.names) || []).filter(n => n && !n.includes(' // ')))].slice(0, 80); }
 /* true = frågan är ute, och svaret — eller beskedet att det inte kom — går
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
@@ -14315,21 +14657,26 @@ function kamFragaAI(canvas, id) {
   kamAiTider.push(nu); kamAiVantar++;
   (async () => {
     let svar = null, info = null;
+    const t0 = performance.now();
     try {
       const url = canvas.toDataURL('image/jpeg', 0.85);
       const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen() }) });
-      if (!resp.ok) info = { fel: resp.status };
+      if (!resp.ok) { info = { fel: resp.status }; kamAiBokfor(null, null, true); }
       else {
         const j = await resp.json();
         /* "Inget kort" gäller bara ett svar med en kortlista. Servern svarar
            {kort: []} också när modellens svar inte gick att läsa (varfor:
            inget-json, trasigt-json), och attrappen i npm run dev svarar {n: 0}
-           utan lista. Inget av dem är ett besked om bordet. */
-        if (j.varfor || !Array.isArray(j.kort)) info = { fel: j.varfor || 'ingen kortlista', modell: j.modell || null };
-        else { svar = kamAiPoster(j.kort); info = { modell: j.modell || AI.model || null, antal: j.kort.length, usage: j.usage || null }; }
+           utan lista. Inget av dem är ett besked om bordet. Betalt är det
+           ändå: tokens följer med när servern hade dem. */
+        if (j.varfor || !Array.isArray(j.kort)) { info = { fel: j.varfor || 'ingen kortlista', modell: j.modell || null }; kamAiBokfor(j.modell || null, j.usage || null, true); }
+        else { svar = kamAiPoster(j.kort); info = { modell: j.modell || null, antal: j.kort.length, usage: j.usage || null }; kamAiBokfor(j.modell || null, j.usage || null, false); }
       }
-    } catch (e) { info = { fel: 'nätet' }; }
+    } catch (e) { info = { fel: 'nätet' }; kamAiBokfor(null, null, true); }
+    /* Svarstiden är ett värde per anrop, inte per spår: den får ligga i
+       t.ai (syskon() jämför ai-objekten, och delarna ur en klunga delar det). */
+    info.ms = Math.round(performance.now() - t0);
     try { Kamera.svarAI(id, svar, info); } catch (e) {}
     finally { kamAiVantar--; }
   })();
@@ -14378,24 +14725,32 @@ async function kamHelbild(canvas, o) {
     for (;;) { const url = canvas.toDataURL('image/jpeg', q); b64 = url.slice(url.indexOf(',') + 1); if (b64.length <= HELBILD_B64_TAK || q <= 0.45) break; q = +(q - 0.15).toFixed(2); }
     const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: 'kamera', image: b64, names: kamAiNamnen() }) });
-    if (!resp.ok) { satKamFin('ai', `Claude svarade inte (${resp.status}).`); return null; }
+    if (!resp.ok) { kamAiBokfor(null, null, true); satKamFin('ai', `Claude svarade inte (${resp.status}).`); return null; }
     const j = await resp.json();
+    kamAiBokfor(j.modell || null, j.usage || null, !!j.varfor || !Array.isArray(j.kort));
     const kort = Array.isArray(j.kort) ? j.kort : [];
     const svar = kamAiPoster(kort);
     const ms = Math.round(performance.now() - t0);
     satKamFin('ai', svar.length ? `Claude såg ${svar.length} kort på bordet (${sek(ms)}).` : `Claude såg inga kort på bordet (${sek(ms)}).`);
-    return { svar, info: { modell: j.modell || AI.model || null, antal: kort.length, usage: j.usage || null, bild: { w: canvas.width, h: canvas.height, b64: b64.length, kvalitet: q } } };
-  } catch (e) { satKamFin('ai', 'Claude gick inte att nå.'); return null; }
+    return { svar, info: { modell: j.modell || null, antal: kort.length, usage: j.usage || null, bild: { w: canvas.width, h: canvas.height, b64: b64.length, kvalitet: q } } };
+  } catch (e) { kamAiBokfor(null, null, true); satKamFin('ai', 'Claude gick inte att nå.'); return null; }
   finally { kamAiVantar--; }
 }
 
-/* Datorn ändrade läget i Kamerainställningar, eller skrev om en gammal rad
-   till hela bilden (camera_setups via realtid). Bara upp läses, och utan
+/* Datorn sparade grundläget, eller skrev om en gammal rad till hela bilden
+   (camera_setups via realtid). Bara upp och grund läses, och utan
    nollställning: ett byte av läge ska vrida korten, inte få kameran att
-   lära sig ljuset om. */
+   lära sig ljuset om. Samma väg vid start (oppnaKamera). */
 function tillampaKalibrering(rad) {
-  if (rad && rad.ruta) Kamera.satUpp(rad.ruta.upp);
+  if (rad && rad.ruta) tillampaKalRad(rad.ruta);
   kamDatorSvarade();
+}
+/* Raden bär grundläget i hela grader (grundGrader); modulen räknar i
+   radianer. En rad utan grund betyder inte sparat — det är vad datorn
+   skriver tills spelaren bekräftat ett kort. */
+function tillampaKalRad(ruta) {
+  Kamera.satUpp(ruta.upp);
+  Kamera.satGrund(typeof ruta.grund === 'number' ? ruta.grund * Math.PI / 180 : null);
 }
 
 /* ── telefonens ström till datorn ────────────────────────────────────
@@ -14451,10 +14806,18 @@ function kamKommando(m) {
   if (m.typ === 'namn') { Kamera.namnge(m.spar, m.namn, m.sid); return; } // granskningen gav kortet ett namn
   if (m.typ === 'trosklar') { Kamera.satTrosklar(m.v); Moln.sandKam('trosklar', { v: Kamera.trosklar }); return; }
   if (m.typ === 'provbord') { provbord = !!m.pa; return; }
-  if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', { spar: senastBord }); return; }
+  if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, grund: grundGrader() }, bordExtra())); return; }
+  /* Datorn bad om grundläget ur ett spår: spelaren bekräftade att kortet
+     ligger otappat (eller tappat). Spåren döms om och bordet går på en gång
+     (rapportera i satGrund); svaret säger om spåret fanns, så att datorn
+     vet om den ska spara läget eller säga att kortet är borta. */
+  if (m.typ === 'grund') { const ok = Kamera.grundFranSpar(m.spar, !!m.tappat); Moln.sandKam('grund', { ok, grund: grundGrader() }); return; }
   if (m.typ === 'stopp') {
     /* Datorn kopplade bort kameran. Telefonen har inget att fråga om — den
-       slutar titta och säger vad som hänt. */
+       slutar titta och säger vad som hänt. Boken går en sista gång först:
+       ett svar som kom efter det senaste bordet är annars oräknat, och ute
+       säger hur många frågor som fortfarande är på väg. */
+    Moln.sandKam('bok', { bok: kamAiBokLage() });
     stoppaStrom(); Kamera.stopp(); kamLage = null;
     Moln.lamnaKanal();
     kamSag('ingen', 'Datorn stängde av auto');
@@ -14528,6 +14891,8 @@ let kamFas = '';                 // telefonens fas ur senaste bordsmeddelandet
 let kamSer = 0;                  // kort telefonen ser, lästa eller inte — skräp borträknat, ett kort som syns som två spår räknat en gång
 let kamYta = null;               // ytans betyg ur telefonens referens: { dom, brus, textur, blank, rad }
 let kamRad = '';                 // telefonens råd just nu: för långt bort, orolig yta
+let kamSma = 0;                  // kortformade regioner telefonen såg men inte kunde läsa (för små; aldrig spår) — ur varje bord, MES-31
+let kamUpplosning = null;        // { w, h } strömmen ger på telefonen; null tills första bordet, eller från en telefon utan fältet
 
 /* Bindningen mellan ett kort och ett spår gäller BARA inom en kamerasession.
    Varje ny session numrerar om från 1, så ett kvarlämnat spar är i bästa fall
@@ -14540,6 +14905,8 @@ let kamRad = '';                 // telefonens råd just nu: för långt bort, o
 function glomSpar(ocksaLyft) {
   clearTimeout(lyftT); lyftT = null;
   hoppade = new Set(); borttagna = new Set(); lyftTips = null;
+  /* Remsans minne av spåren hör till samma numrering som bindningen. */
+  losaSpar = new Set(); sparSedd = new Map();
   const mig = minSpelare(); if (!mig) return;
   let andrat = false;
   for (const k of mig.cards) {
@@ -14612,6 +14979,241 @@ function ledarOrdning(a, b) {
    flyttats dit för hand behöver inget besked. Zonrubrikernas rader räknar
    var sin zon (renderLyftRad). */
 function kanLyftas(c) { return zonAv(c) !== ZON_GRAV; }
+/* Grundläget (tappat mäts mot det, se Kamera.tappad) sparas ur ett kort
+   som ligger på bordet. Spåret bakom det senast skapade kamerakortet är
+   det "Spara från senaste kortet" tar, och frågan under topbaren ställs på
+   det första kortet efter varje nollställning — en gång, inte per kort. */
+let senasteKamSpar = null;
+let grundFragad = false;
+
+/* ── Auto-remsan: varje spår som inte blivit ett kort, med sitt skäl ──
+   Chippet sa "ser 3 kort, känner igen 2" och inget mer: man lade ett kort
+   och såg inte varför det inte kom (Jespers parti 2026-09-10). Avstämningen
+   vet varför — den har just avgjort vilka spår som är kort på bordet — så
+   den lämnar efter sig de LÖSA spåren (losaSpar) och när datorn först såg
+   varje spår (sparSedd, för "läses (2 s)"). Modellen nedan är en ren
+   funktion av bordet, spåren och de två, så att den går att prova utan vy
+   (dev/avstamning.cjs); renderAutoRemsa gör HTML av den. Sekunderna räknas
+   från datorns första bord med spåret, inte telefonens födsel: högst en
+   rapporttakt (150 ms) eller ett hjärtslag (3 s) sent, och ingen klocka
+   att jämka mellan två enheter. */
+let losaSpar = new Set();    // spår-id ur senaste bordet som inte räknades till något kort på bordet
+let sparSedd = new Map();    // spår-id → Date.now() när datorn först såg spåret
+const AUTO_RORLIGT_S = 3;    // ett spår som är 'ny' (rör sig) längre än så är en hand eller ett kort på väg, inte något som läses
+function autoRemsaModell(spar, mig, extra) {
+  const e = extra || {}, nu = e.nu != null ? e.nu : Date.now();
+  const kort = (mig && mig.cards) || [], ko = (mig && mig.pending) || [];
+  const sek = id => { const t0 = e.sedd ? e.sedd.get(id) : undefined; return t0 == null ? 0 : Math.max(0, Math.floor((nu - t0) / 1000)); };
+  const m = { lage: 'varm', text: '', not: null, rorligt: false, chips: [] };
+  if (e.fas === 'ljus' || e.fas === 'lar') { m.text = 'Auto · lär sig ljuset — håll telefonen stilla'; return m; }
+  if (e.fas === 'ingen') { m.text = 'Auto · ladda om sidan på telefonen'; return m; }
+  const synliga = new Set(spar.map(t => t.id));
+  const paBordet = kort.filter(c => c.spar != null && synliga.has(c.spar)).length;
+  /* Utan avstämningens facit (losa) räcker bindningen som mått. */
+  const losa = spar.filter(t => e.losa ? e.losa.has(t.id) : !kort.some(c => c.spar === t.id));
+  for (const t of losa) {
+    const s = sek(t.id);
+    const chip = { spar: t.id, namn: t.namn || t.namnLast || t.gissning || null, s };
+    if (t.tillstand === 'okand' && t.provas) Object.assign(chip, { slag: 'vantar', text: `väntar på Claude (${s} s)` });
+    else if (t.tillstand === 'okand' && ko.some(q => q.spar === t.id)) Object.assign(chip, { slag: 'osaker', granska: true, text: 'osäkert – fyll i i granskningen' });
+    else if (t.skymd) Object.assign(chip, { slag: 'skymd', text: 'skymt – något ligger över' });
+    /* Okänt utan post: överhoppat i granskningen, samma råd som statusraden. */
+    else if (t.tillstand === 'okand') Object.assign(chip, { slag: 'osaker', text: 'osäkert – lyft kortet så frågar den igen' });
+    /* Klart men löst: kortet togs bort för hand (spärrat tills det lyfts),
+       eller bordet har redan lika många med namnet som mattan visar. */
+    else if (t.tillstand === 'klar' && e.borttagna && e.borttagna.has(t.id)) Object.assign(chip, { slag: 'bort', text: 'borttaget för hand' });
+    else if (t.tillstand === 'klar') Object.assign(chip, { slag: 'dubbel', text: 'ligger redan på bordet' });
+    else {
+      Object.assign(chip, { slag: 'laser', text: `läses (${s} s)` });
+      if (t.tillstand === 'ny' && s >= AUTO_RORLIGT_S) m.rorligt = true;
+    }
+    m.chips.push(chip);
+  }
+  if (e.sma > 0) m.chips.push({ slag: 'liten', text: e.sma === 1 ? 'ett kort för litet för att läsas' : `${e.sma} kort för små för att läsas` });
+  /* Nedtonade kort: ett i taget med namn, fyra eller fler som ett tal —
+     zonrubrikens rad svarar för alla på en gång (renderLyftRad). */
+  const lyfta = kort.filter(c => c.lyft != null && kanLyftas(c));
+  if (lyfta.length > 3) m.chips.push({ slag: 'borta', text: `${lyfta.length} kort syns inte längre` });
+  else for (const c of lyfta) m.chips.push({ slag: 'borta', kort: c.cid, namn: c.name, text: 'syns inte längre' });
+  const ser = e.ser != null ? e.ser : spar.length;
+  const allaKanda = !losa.length && !(e.sma > 0);
+  if (allaKanda) { m.text = ser ? `Auto · ${ser} kort på bordet, alla kända` : 'Auto · bordet är tomt'; m.lage = lyfta.length ? 'varm' : 'lugn'; }
+  else m.text = `Auto · ser ${ser} kort · ${paBordet} på bordet`;
+  if (m.rorligt) m.not = 'något rör sig på bordet';
+  else if (e.rad) m.not = e.rad;
+  else if (e.yta && e.yta.dom && e.yta.dom !== 'lugn') m.not = { blank: 'blänk i bilden', ljus: 'bordet är nästan lika ljust som korten', orolig: 'bordet är oroligt' }[e.yta.dom] || null;
+  return m;
+}
+
+/* ── sammanfattningen när auto stängs av ─────────────────────────────
+   Vad hela passet kostade och gav: kort som hittades, hur de fick sitt
+   namn (lokalt, med Claude per modell, för hand), medianen för hur lång
+   tid det tog, och vad Claude-anropen kostade. Allt räknas HÄR, i rena
+   funktioner utan vy, så att dev/avstamning.cjs kan prova det.
+
+   Korten räknas en gång per kort-cid vid bindningen i avstamBord, ur
+   ledarspåret: ett kort som läses om, tappas och binds igen räknas inte
+   två gånger, och ett kort som sedan tas bort från bordet är fortfarande
+   ett kort kameran hittade. Tiden är telefonens lokala kedja (lokalMs ur
+   identifiera) plus Claudes svarstid (ai.ms) när det var Claude som gav
+   namnet; ett kort ur helbilden har ingen lokal tid.
+
+   Kostnaden summeras ALDRIG ur spåren: ett svar kan sitta på flera spår
+   (klungan, helbildens alla kort) och många betalda anrop lämnar inget
+   spår (inget kort, fel, ett spår som hann dö). Telefonen för i stället
+   en bok per anrop (kamAiBok) som följer med varje bord; datorn sparar
+   senaste boken per telefonsession (sess) och räknar skillnaden mot den
+   första den såg efter att auto slogs på. Samma bok igen från hjärtslaget
+   ändrar inget, och en omladdad telefon börjar en ny sess på noll — den
+   drar inte ifrån. Datorns egna anrop medan auto var på (granskningens
+   "Fråga Claude", fotot, leken) räknas i en egen bok (autoSumDator).
+
+   Passet sparas i localStorage per spel (K_AUTOSUM), så att en omladdning
+   av datorn inte tappar det; det tas bort när auto stängs av. */
+/* USD per miljon tokens [in, ut]. Modellens id är det SERVERN svarar med;
+   ett datumsuffix (-YYYYMMDD) stryks före uppslaget. En okänd modell — eller
+   attrappens stub-model — ger null, aldrig 0: "pris okänt" är ett svar,
+   "0 USD" vore en lögn. */
+const AI_PRIS = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };
+function aiPris(modell) { if (!modell) return null; return AI_PRIS[String(modell).replace(/-\d{8}$/, '')] || null; }
+function aiKostnad(modell, inTok, utTok) { const p = aiPris(modell); return p ? ((+inTok || 0) * p[0] + (+utTok || 0) * p[1]) / 1e6 : null; }
+const K_AUTOSUM = 'sthv.autosum.v1.';
+let autoSum = null;   // passet: { spel, start, slut, kort: { cid → { metod, modell, ms, namn } }, bok: { sess → { forsta, senaste, nar } }, dator: { anrop, fel, utan, per } }
+const autoSumTomBok = () => ({ anrop: 0, fel: 0, utan: 0, per: {} });
+function autoSumNy(nu) { return { spel: spelLage ? spelLage.id : null, start: nu, slut: null, kort: {}, bok: {}, dator: autoSumTomBok() }; }
+function autoSumSpara() { if (autoSum && !autoSum.slut && autoSum.spel != null) LS.set(K_AUTOSUM + autoSum.spel, autoSum); }   // ett stängt pass sparas inte om (telefonens sista bok kommer efter avslutet)
+/* När auto slås på: ett nytt pass, oavsett vad som låg sparat. */
+function autoSumStarta() { autoSum = autoSumNy(Date.now()); autoSumSpara(); return autoSum; }
+/* Passet som gäller: det pågående, annars det sparade för spelet (datorn
+   laddades om), annars ett nytt — ett bord som kommer utan pass startar ett. */
+/* Ett pass hör till ETT spel: det som ligger i minnet gäller bara om det
+   är det här spelets — annars hade spel A:s pass (start, kort, bokens
+   nollpunkt) fyllts på med spel B:s kort när man gick vidare utan att
+   stänga av auto. */
+function autoSumSparat(id) {
+  const sparad = id != null ? LS.get(K_AUTOSUM + id, null) : null;
+  return sparad && sparad.spel === id && !sparad.slut && sparad.kort && sparad.bok && sparad.dator ? sparad : null;
+}
+function autoSumSakra() {
+  const id = spelLage ? spelLage.id : null;
+  if (autoSum && !autoSum.slut && autoSum.spel === id) return autoSum;
+  const sparad = autoSumSparat(id);
+  if (sparad) { autoSum = sparad; return autoSum; }
+  return autoSumStarta();
+}
+/* Hur kortet fick sitt namn, ur spårets domskäl: 'ai'/'ai osäker' och
+   'helbild' är Claude, 'hand' är granskningen (Kamera.namnge), allt annat —
+   bild, namn, bild+namn, namn ensamt … — är den lokala kedjan. */
+function autoSumMetod(t) { const v = (t && t.varfor) || ''; return /^(ai|helbild)/.test(v) ? 'ai' : v === 'hand' ? 'hand' : 'lokal'; }
+function autoSumKort(cid, t) {
+  if (cid == null || !t) return false;
+  const p = autoSumSakra();
+  if (p.kort[cid]) return false;
+  const metod = autoSumMetod(t);
+  const lokal = t.lokalMs != null ? +t.lokalMs : null;
+  const aiMs = t.ai && t.ai.ms != null ? +t.ai.ms : null;
+  const ms = metod === 'lokal' ? lokal : metod === 'ai' ? (aiMs == null ? null : (lokal || 0) + aiMs) : null;
+  p.kort[cid] = { metod, modell: metod === 'ai' ? (t.ai && t.ai.modell) || null : null, ms, namn: t.namn || null };
+  autoSumSpara();
+  return true;
+}
+/* Telefonens bok ur ett bord. Första boken per sess är nollpunkten; den
+   senaste ersätter bara när något ändrats (hjärtslaget bär samma bok var
+   tredje sekund). p ges när boken kommer efter att passet stängts (stopp-
+   svaret från telefonen). */
+const autoSumBokSig = b => `${b.anrop}|${b.fel}|${b.utan}|${b.ute}|${JSON.stringify(b.per || {})}`;
+function autoSumBok(bok, p) {
+  if (!bok || typeof bok !== 'object' || !bok.sess) return false;
+  p = p || autoSumSakra();
+  const kopia = JSON.parse(JSON.stringify(bok)), nu = Date.now();
+  const b = p.bok[bok.sess];
+  if (!b) { p.bok[bok.sess] = { forsta: kopia, senaste: kopia, nar: nu }; if (p === autoSum) autoSumSpara(); return true; }
+  if (autoSumBokSig(b.senaste) === autoSumBokSig(kopia)) return false;
+  b.senaste = kopia; b.nar = nu; if (p === autoSum) autoSumSpara(); return true;
+}
+/* Datorns egna anrop medan auto är på — anroparen avgör att auto är på. */
+function autoSumDator(modell, usage, fel) {
+  const p = autoSumSakra(), d = p.dator, m = modell || 'okänd';
+  const q = d.per[m] || (d.per[m] = { anrop: 0, fel: 0, in: 0, ut: 0 });
+  d.anrop++; q.anrop++;
+  if (fel) { d.fel++; q.fel++; }
+  if (usage) { q.in += +usage.input_tokens || 0; q.ut += +usage.output_tokens || 0; }
+  else d.utan++;
+  autoSumSpara();
+  return true;
+}
+/* Skillnaden mellan två böcker, per modell — aldrig under noll (en telefon
+   som räknat om från noll ger en ny sess, inte ett minustal). */
+function autoSumBokDiff(fran, till) {
+  const d = autoSumTomBok(), n = k => Math.max(0, (+(till && till[k]) || 0) - (+(fran && fran[k]) || 0));
+  d.anrop = n('anrop'); d.fel = n('fel'); d.utan = n('utan');
+  for (const m in (till && till.per) || {}) {
+    const a = (fran && fran.per && fran.per[m]) || {}, b = till.per[m] || {};
+    const q = { anrop: Math.max(0, (+b.anrop || 0) - (+a.anrop || 0)), fel: Math.max(0, (+b.fel || 0) - (+a.fel || 0)),
+                in: Math.max(0, (+b.in || 0) - (+a.in || 0)), ut: Math.max(0, (+b.ut || 0) - (+a.ut || 0)) };
+    if (q.anrop || q.in || q.ut) d.per[m] = q;
+  }
+  return d;
+}
+function autoSumBokLagg(till, fran) {
+  till.anrop += fran.anrop; till.fel += fran.fel; till.utan += fran.utan;
+  for (const m in fran.per) { const q = till.per[m] || (till.per[m] = { anrop: 0, fel: 0, in: 0, ut: 0 }); for (const k of ['anrop', 'fel', 'in', 'ut']) q[k] += fran.per[m][k]; }
+  return till;
+}
+/* Priset på en bok: usd per modell (null när priset är okänt), summan av
+   de kända, och vilka modeller som saknar pris. */
+function autoSumPrisa(b) {
+  let usd = 0, kant = false; const okandPris = [];
+  for (const m in b.per) { const q = b.per[m], k = aiKostnad(m, q.in, q.ut); q.usd = k; if (k == null) okandPris.push(m); else { usd += k; kant = true; } }
+  b.in = 0; b.ut = 0; for (const m in b.per) { b.in += b.per[m].in; b.ut += b.per[m].ut; }
+  b.usd = kant ? usd : (b.anrop ? null : 0);
+  b.okandPris = okandPris;
+  return b;
+}
+const autoSumMedian = a => { if (!a.length) return null; const b = a.slice().sort((p, q) => p - q), h = b.length >> 1; return b.length % 2 ? b[h] : (b[h - 1] + b[h]) / 2; };
+/* Sammanfattningen: en ren funktion av passet, senaste bordet (för spår
+   som ännu inte fått namn) och mitt bord. */
+function autoSumSammanfatta(p, spar, mig, nu) {
+  const kort = Object.values(p.kort || {});
+  const tid = lista => autoSumMedian(lista.map(k => k.ms).filter(v => v != null));
+  const lokal = kort.filter(k => k.metod === 'lokal'), ai = kort.filter(k => k.metod === 'ai'), hand = kort.filter(k => k.metod === 'hand');
+  const perModell = {};
+  for (const k of ai) { const m = k.modell || 'okänd'; (perModell[m] = perModell[m] || []).push(k); }
+  const aiPer = {}; for (const m in perModell) aiPer[m] = { n: perModell[m].length, medianMs: tid(perModell[m]) };
+  const bunden = id => ((mig && mig.cards) || []).some(c => c.spar === id);
+  const okanda = (spar || []).filter(t => t.tillstand === 'okand' && !bunden(t.id)).length;
+  const telefon = autoSumTomBok(); let sessioner = 0, ute = 0, senast = -1;
+  for (const sess in p.bok || {}) {
+    const b = p.bok[sess]; sessioner++;
+    autoSumBokLagg(telefon, autoSumBokDiff(b.forsta, b.senaste));
+    if ((b.nar || 0) >= senast) { senast = b.nar || 0; ute = +(b.senaste && b.senaste.ute) || 0; }
+  }
+  const dator = autoSumBokLagg(autoSumTomBok(), p.dator || autoSumTomBok());
+  const totalt = autoSumBokLagg(autoSumBokLagg(autoSumTomBok(), telefon), dator);
+  return {
+    start: p.start, slut: nu, ms: Math.max(0, nu - (p.start || nu)),
+    hittade: kort.length + okanda, kort: kort.length, okanda,
+    lokal: { n: lokal.length, medianMs: tid(lokal) },
+    ai: { n: ai.length, medianMs: tid(ai), per: aiPer },
+    hand: { n: hand.length },
+    medianMs: tid(lokal.concat(ai)),
+    kostnad: { telefon: autoSumPrisa(telefon), dator: autoSumPrisa(dator), totalt: autoSumPrisa(totalt),
+               sessioner, ingenBok: sessioner === 0, ute }
+  };
+}
+/* När auto stängs av: passet stängs FÖRE nollställningen i stangAvAuto,
+   sammanfattas och glöms i localStorage. null när inget pass fanns. */
+function autoSumAvsluta(spar, mig, nu) {
+  const id = spelLage ? spelLage.id : null;
+  /* Datorn laddades om och auto stängs av innan något bord hunnit komma:
+     passet ligger bara i localStorage, och det är just då det ska räknas —
+     annars sa sammanfattningen "Kameran läste inget" om en hel kväll. */
+  if ((!autoSum || autoSum.slut || autoSum.spel !== id) && id != null) autoSum = autoSumSparat(id) || autoSum;
+  if (id != null) LS.del(K_AUTOSUM + id);
+  if (!autoSum || autoSum.slut || autoSum.spel !== id) return null;
+  autoSum.slut = nu;
+  return autoSumSammanfatta(autoSum, spar, mig, nu);
+}
 
 function avstamBord(spar, nollstall, fas, yta, rad) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
@@ -14624,12 +15226,16 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   spar = spar.filter(t => t.tillstand !== 'skrap');
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { glomSpar(); kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { glomSpar(); losaSpar = new Set(); sparSedd = new Map(); grundFragad = false; senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
   const nu = Date.now();
+  /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
+     omladdning): sammanfattningen ska finnas när auto stängs av, även om
+     inget kort hann bindas. */
+  autoSumSakra();
   let andrat = false;
   mig.pending = mig.pending || [];
   /* Alla spår i meddelandet, innan något stäms av. Förut byggdes mängden
@@ -14706,6 +15312,11 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
     if (!k && !sparrat(g)) k = ledigt(g.namn);
     if (k && k.spar !== ledare.id) binder(k, ledare);
     g.kort = k;
+    /* Sammanfattningen räknar kortet här, ur ledaren, en gång per cid —
+       också ett kort som redan var bundet: det som fylldes i i granskningen
+       skapades på datorn (applyPick) och blir 'klar' med domskälet 'hand'
+       först när telefonen fått namnet. */
+    if (k) autoSumKort(k.cid, ledare);
   }
   /* 4. Skapa sedan — bara om bordet har FÄRRE kort med namnet än mattan har
      fysiska. Mattans tal: de fysiska korten (ett spärrat räknas bara om det
@@ -14721,9 +15332,18 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
     const t = g.spar[0];
     g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: t.tappad ? 1 : 0, spar: t.id, ny: nu };
     mig.cards.push(g.kort); andrat = true;
+    autoSumKort(g.kort.cid, t);
+    senasteKamSpar = t.id;
+    /* Första kamerakortet utan sparat grundläge: fråga om det ligger
+       otappat (raden under topbaren, renderMode). kamGrund null är
+       telefonens eget besked; undefined är en telefon som inte kan svara.
+       Bara ett spår detektorn själv mätt duger: ett kort ur helbilden har
+       ingen vinkel (sen null), och telefonen kan inte ta grundläget ur det —
+       frågan hade ställts, svaret blivit nej, och ingen fråga kommit igen. */
+    if (kamGrund === null && !grundFragad && t.sen != null && !(t.ai && t.ai.helbild)) { grundFragad = true; grundFraga(t.namn, t.id); }
   }
   for (const g of fysiska) {
-    if (g.bundna) for (const c of g.bundna) lagg(c, g.spar.find(t => t.id === c.spar));
+    if (g.bundna) for (const c of g.bundna) { const t = g.spar.find(t => t.id === c.spar); lagg(c, t); autoSumKort(c.cid, t); }
     else if (g.kort) lagg(g.kort, g.spar[0]);
   }
   /* 5. Spår som inte är klara. Ett bundet håller sitt kort. Ett osäkert som
@@ -14767,6 +15387,15 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
     }
     if (k) lagg(k, t);
   }
+  /* Det remsan visar: spår som inte räknades till något kort på bordet —
+     varken till ett fysiskt kort med kort, bundna på ledtråden, eller samma
+     som ett klart — och när varje spår först sågs. */
+  const redovisade = new Set(sammaSomKlart);
+  for (const g of fysiska) if (g.kort || g.bundna) for (const t of g.spar) redovisade.add(t.id);
+  for (const t of spar) if (bunden(t.id)) redovisade.add(t.id);
+  losaSpar = new Set(spar.filter(t => !redovisade.has(t.id)).map(t => t.id));
+  for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
+  for (const id of [...sparSedd.keys()]) if (!synliga.has(id)) sparSedd.delete(id);
   /* Hur mycket av det kameran SER som den också känner igen. Bara spår som
      fått ett slutgiltigt utfall räknas i kvoten: identifieringen är seriell,
      så de som ännu läses skulle få chippet att larma gult varje gång man
@@ -14849,6 +15478,69 @@ function tagEmotBeskarning(m) {
    graveyard" i landen ska inte skicka iväg creatures man inte tittat på.
    Landens rad bor i manaRow, som renderMana bygger om vid varje omritning —
    därför anropas den här också ur renderGrid, inte bara ur renderAll. */
+/* Frågan om det första kamerakortet: Auto-remsan ritar den så länge
+   grundFragaData står och läget inte kommit från annat håll. */
+function grundFraga(namn, spar) { grundFragaData = { namn, spar }; renderMode(); }
+
+/* ── Auto-remsan, ritad ─────────────────────────────────────────────
+   Modellen står i avstämningen (autoRemsaModell); här blir den HTML. Ritas
+   ur renderMode — varje bord, varje lägesbyte — och en gång i sekunden så
+   att sekunderna i "läses (2 s)" går. Samma HTML ritas inte om: en knapp
+   man tabbat till tappade annars fokus var tredje sekund (jfr renderTom).
+   Frågan om grundläget bor här: den ska stå där man tittar när det första
+   kortet dyker upp, och gäller så länge inget läge sparats (telefonens
+   eget besked, null). Ett läge från annat håll släcker den. */
+let autoRemsaHtml = '', autoRemsaGrundHtml = '';
+function autoRemsaSynlig() { return !!spelLage && prefs.autoLage === true && kamAnsluten; }
+function renderAutoRemsa() {
+  const el = $('#autoRemsa'); if (!el) return;
+  if (!autoRemsaSynlig()) {
+    if (!el.hidden) { el.hidden = true; el.innerHTML = ''; autoRemsaHtml = autoRemsaGrundHtml = ''; dockaKamOv(); }
+    return;
+  }
+  if (grundFragaData && kamGrund !== null) grundFragaData = null;
+  const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad, yta: kamYta });
+  /* Sekunderna i "läses (2 s)" står i ett eget element och byts med
+     textContent: byttes hela remsan ut varje sekund försvann knappen man
+     var på väg att trycka på mellan mousedown och mouseup, och fokus med
+     den. Remsan ritas om bara när något annat än sekunderna ändrats, och
+     frågan om grundläget ligger i ett eget block som ritas för sig. */
+  const chip = c => {
+    const vem = c.namn ? `<b>${esc(c.namn)}</b> · ` : (c.slag === 'liten' || (c.slag === 'borta' && !c.kort)) ? '' : 'Ett kort · ';
+    const sek = /\(\d+ s\)$/.exec(c.text || '');
+    const skal = c.granska ? 'osäkert – <button class="lank" data-mode="granska">fyll i i granskningen</button>'
+      : sek ? esc(c.text.slice(0, sek.index)) + '<span class="sek"></span>' : esc(c.text);
+    return `<span class="chip ${c.slag}"${c.spar != null ? ` title="spår #${c.spar}"` : ''}><span class="led"></span>${vem}${skal}</span>`;
+  };
+  const sekunder = m.chips.map(c => { const s = /\(\d+ s\)$/.exec(c.text || ''); return s ? s[0] : null; }).filter(Boolean);
+  const html = `<div class="remsa"><span class="sum"><span class="led"></span>${esc(m.text)}</span>`
+    + (m.not ? `<span class="not" title="${esc(m.not)}">${esc(m.not)}</span>` : '')
+    + m.chips.map(chip).join('') + '</div>';
+  const grund = grundFragaData
+    ? `<div class="grund"><span><b>${esc(grundFragaData.namn)}</b> ligger otappat? Spara det som otappat läge.</span>` +
+      '<button class="btn prim" data-mode="grund-ja">Ja, spara</button>' +
+      '<button class="btn" data-mode="grund-tappat">Det är tappat</button>' +
+      '<button class="btn ghost" data-mode="grund-stang" title="Går att spara senare i kameravyn">Inte nu</button></div>'
+    : '';
+  if (html !== autoRemsaHtml || grund !== autoRemsaGrundHtml) {
+    let del = el.firstElementChild, grundEl = el.querySelector(':scope > .grund');
+    if (html !== autoRemsaHtml || !del || del.classList.contains('grund')) {
+      if (del && !del.classList.contains('grund')) del.outerHTML = html; else el.insertAdjacentHTML('afterbegin', html);
+      autoRemsaHtml = html;
+    }
+    if (grund !== autoRemsaGrundHtml) {
+      if (grundEl) grundEl.remove();
+      if (grund) el.insertAdjacentHTML('beforeend', grund);
+      autoRemsaGrundHtml = grund;
+    }
+  }
+  el.querySelectorAll('.sek').forEach((s, i) => { if (s.textContent !== sekunder[i]) s.textContent = sekunder[i] || ''; });
+  el.className = 'autoremsa ' + (grundFragaData ? 'varm' : m.lage);
+  el.hidden = false;
+  dockaKamOv();     // remsans höjd flyttar panelens överkant
+}
+setInterval(() => { if (autoRemsaSynlig()) renderAutoRemsa(); }, 1000);
+
 function renderLyftRad() {
   const p = player();
   const mitt = !!spelLage && redigerbar() && p;
@@ -14897,16 +15589,90 @@ async function stangAvAuto(fraga) {
   if (fraga && kamAnsluten && !await ask(
       'Telefonen slutar titta på bordet. Kort du flyttar där syns inte längre här — du flyttar dem själv eller laddar upp ett foto. Auto går att slå på igen från menyn.',
       { title: 'Stänga av auto?', ok: 'Stäng av', nej: 'Behåll auto', danger: true })) return false;
+  /* Passet sammanfattas FÖRE nollställningen: senaste bordet och mitt bord
+     är underlaget för "ännu utan namn", och glomSpar tar bindningarna. */
+  const sum = autoSumAvsluta(senasteSpar, minSpelare(), Date.now());
   if (kamAnsluten) Moln.sandKam('stopp');
   kamAnsluten = false;
   kamHarVarit = false;            // avstängd är inte tappad — bordet ljuger inte
-  kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = '';
+  kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = ''; kamSma = 0; kamUpplosning = null;
   prefs.autoLage = false; savePrefs();
   glomSpar(true);
-  stangKamSkruv();
-  if (kamOppen) visaKamSteg();
+  stangKamSkruv();          // panelen stängs: utan auto finns inget att koppla eller skruva
   renderMode();
+  visaAutoSum(sum);
   return true;
+}
+/* ── sammanfattningen, ritad ────────────────────────────────────────
+   "Auto är av" var en notis som försvann på sex sekunder; nu är det en
+   ruta med det passet gav och kostade (autoSumSammanfatta), i .ov-stilen
+   som frågan som föregick den. Svenska tal: decimalkomma, tusental med
+   mellanslag, "≈ 0,12 USD", "2,1 s". Telefonens sista bok (stopp-svaret)
+   kommer efter att rutan öppnats — då ritas den om (tagEmotSenBok). */
+const svTal = (v, dec) => (dec != null ? (+v).toFixed(dec) : String(v)).replace('.', ',');
+const svHel = n => String(Math.round(+n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+const svSek = ms => ms == null ? '–' : svTal(ms / 1000, 1) + ' s';
+const svUsd = usd => usd == null ? 'pris okänt' : usd === 0 ? '0 USD' : '≈ ' + svTal(usd, usd < 0.1 ? 3 : 2) + ' USD';
+function svTid(ms) {
+  const sek = Math.round(ms / 1000);
+  if (sek < 60) return sek + ' s';
+  const min = Math.floor(sek / 60);
+  if (min < 60) return min + ' min' + (sek % 60 ? ' ' + (sek % 60) + ' s' : '');
+  return Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
+}
+let autoSumVisad = null;   // { spar, mig } — underlaget till rutan som är öppen, för omritningen när telefonens sista bok kommer
+function visaAutoSum(sum) {
+  const el = $('#autoSumBody'); if (!el) return;
+  autoSumVisad = { spar: senasteSpar, mig: minSpelare() };
+  el.innerHTML = autoSumHtml(sum);
+  openOv('autoSumOv');
+}
+function autoSumHtml(sum) {
+  if (!sum) return '<p class="lead">Kameran läste inget den här gången.</p>';
+  const rad = (vad, n, tid, klass) => `<tr${klass ? ` class="${klass}"` : ''}><td>${vad}</td><td class="tal">${n}</td><td class="tal">${tid}</td></tr>`;
+  const kort = [
+    `<p class="lead">Auto var på i ${svTid(sum.ms)}. Kameran hittade <b>${sum.hittade}</b> kort${sum.okanda ? `, ${sum.okanda} ${sum.okanda === 1 ? 'av dem är' : 'av dem är'} ännu utan namn` : ''}.</p>`,
+    '<table><thead><tr><th>Hur kortet fick sitt namn</th><th class="tal">Kort</th><th class="tal">Median</th></tr></thead><tbody>',
+    rad('Lokalt — konstverk och titelrad', sum.lokal.n, svSek(sum.lokal.medianMs)),
+    rad('Med Claude', sum.ai.n, svSek(sum.ai.medianMs))
+  ];
+  for (const m in sum.ai.per) kort.push(rad(esc(m), sum.ai.per[m].n, svSek(sum.ai.per[m].medianMs), 'sub'));
+  kort.push(rad('Fyllt i för hand eller ur ett foto', sum.hand.n, '–'), rad('Ännu utan namn', sum.okanda, '–'),
+            rad('Alla lästa', sum.lokal.n + sum.ai.n, svSek(sum.medianMs), 'summa'), '</tbody></table>');
+  const k = sum.kostnad;
+  const bokRad = (vem, b, klass) => {
+    const ut = [];
+    for (const m in b.per) { const q = b.per[m]; ut.push(`<tr class="${klass || ''}"><td>${vem} · ${esc(m)}</td><td class="tal">${q.anrop}${q.fel ? ` <i>(${q.fel} fel)</i>` : ''}</td><td class="tal">${svHel(q.in)}</td><td class="tal">${svHel(q.ut)}</td><td class="tal">${svUsd(q.usd)}</td></tr>`); }
+    return ut.join('');
+  };
+  const pengar = ['<table><thead><tr><th>Claude-anrop</th><th class="tal">Anrop</th><th class="tal">Tokens in</th><th class="tal">Tokens ut</th><th class="tal">Kostnad</th></tr></thead><tbody>',
+    bokRad('Telefonen', k.telefon), bokRad('Datorn', k.dator),
+    `<tr class="summa"><td>Totalt</td><td class="tal">${k.totalt.anrop}${k.totalt.fel ? ` <i>(${k.totalt.fel} fel)</i>` : ''}</td><td class="tal">${svHel(k.totalt.in)}</td><td class="tal">${svHel(k.totalt.ut)}</td><td class="tal">${svUsd(k.totalt.usd)}</td></tr>`,
+    '</tbody></table>'];
+  const noter = [];
+  if (k.ingenBok) noter.push('Telefonen skickade ingen kostnadsbok — kameraanropen syns inte här. Ladda om sidan på telefonen nästa gång.');
+  if (k.ute) noter.push(`${k.ute} ${k.ute === 1 ? 'fråga var' : 'frågor var'} fortfarande på väg till Claude när auto stängdes av — ${k.ute === 1 ? 'den' : 'de'} räknas inte här.`);
+  if (k.totalt.utan) noter.push(`${k.totalt.utan} anrop utan tokenuppgift (nätet eller servern svarade inte) — kostnaden är minst den som står.`);
+  if (k.totalt.okandPris.length) noter.push('Pris okänt för ' + k.totalt.okandPris.map(esc).join(', ') + ' — tokens räknas, inte USD.');
+  return kort.join('') + pengar.join('') + (noter.length ? '<ul class="noter">' + noter.map(n => '<li>' + n + '</li>').join('') + '</ul>' : '');
+}
+/* Telefonens sista bok, skickad i stopp-svaret innan den lämnar kanalen.
+   Passet är redan stängt; boken läggs på det och rutan ritas om om den
+   fortfarande är öppen. */
+function tagEmotSenBok(m) {
+  if (!m || !m.bok || !autoSum || !autoSum.slut) return;
+  if (!autoSumBok(m.bok, autoSum)) return;
+  const ov = $('#autoSumOv'), el = $('#autoSumBody');
+  if (!ov || !el || !ov.classList.contains('open') || !autoSumVisad) return;
+  el.innerHTML = autoSumHtml(autoSumSammanfatta(autoSum, autoSumVisad.spar, autoSumVisad.mig, autoSum.slut));
+}
+/* Datorns egna Claude-anrop medan auto är på: granskningens "Fråga Claude",
+   fotot (claudePass → askClaudeFor, rutläget, namnet, närbilden), leken.
+   Modellen är den servern svarar med — aldrig AI.model, som är rutlägets
+   standard och kan vara en annan. */
+function bokforDatorAi(modell, usage, fel) {
+  if (prefs.autoLage !== true || !spelLage) return;
+  try { autoSumDator(modell || null, usage || null, !!fel); } catch (e) {}
 }
 /* ── popoverns statusrad ─────────────────────────────────────────────
    En mening i klartext i stället för tolv reglage: vad kameran ser, vad
@@ -14999,9 +15765,10 @@ const PB_REG = [
 let pbTro = Object.assign({}, PB_STD, LS.get('sthv.tro.v1', {}));
 let pbPa = false, pbDia = null, pbRa = [], pbW = 0, pbH = 0, pbMatt = { aw: 0, ah: 0 };
 
-/* Provbordet var en flik bredvid kalibreringen i modalen. Nu är det popovern:
-   man skruvar tröskeln och tittar på om korten får ramar, och det gick inte
-   att göra i en ruta som täckte bordet man tittade på.
+/* Provbordet var en flik bredvid kalibreringen i modalen. Nu är det
+   skruvrummet i den dockade kameravyn: man skruvar tröskeln och tittar på
+   om korten får ramar, och det gick inte att göra i en ruta som täckte
+   bordet man tittade på.
    Telefonen skickar de dyra extrafälten (spårens geometri, förkastade
    regioner) bara medan pa är sant — därför slås det på när popovern öppnas
    och av när den stängs, aldrig däremellan. */
@@ -15067,6 +15834,7 @@ function provbordData(m) {
     tal('otsu', d.otsu == null ? '–' : d.otsu),
     tal('gain', (d.gain || 1).toFixed(2), Math.abs((d.gain || 1) - 1) > 0.25),
     tal('för små', d.forSma || 0),
+    tal('små kort', d.smaKort || 0, (d.smaKort || 0) > 0),   // kortformade men under golvet för att läsas — det spelaren ska få veta om
     tal('fel kvot', d.felKvot || 0, (d.felKvot || 0) > 2),
     tal('otäta', d.otat || 0)
   ].join('');
@@ -15123,43 +15891,74 @@ function ritaPbLager() {
 }
 
 /* ── datorns kameradialog ────────────────────────────────────────────
-   Strömmen är bara förhandsbilden och går bara medan popovern är öppen:
+   Strömmen är bara förhandsbilden och går bara medan skruvrummet står framme:
    kortavläsningen går oberoende och har alltid gjort det, och bilden kostar
    bandbredd hos den som håller telefonen. 640 px — stort nog att se om tre
    små kort får rätt färg på sina ramar. */
+/* Panelen är dockad och får stå öppen hela kvällen — bilden ska inte strömmas
+   från telefonen (3 bilder/s) medan ingen tittar: fliken är dold, eller
+   panelen har legat orörd i tio minuter. Rör man panelen igen går den vidare. */
+const KAM_STROM_VILA_MS = 10 * 60 * 1000;
+let kamRordes = Date.now();
 function kamStrom() {
-  const vill = kamSkruvOppen;
+  const vill = kamSkruvOppen && !document.hidden && Date.now() - kamRordes < KAM_STROM_VILA_MS;
   if (vill === kamTittar) return;
   kamTittar = vill;
   Moln.sandKam('strom', { pa: vill, bredd: 640 });
   if (vill) Moln.sandKam('trosklar', { v: pbTro });
 }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) kamRordes = Date.now(); kamStrom(); });
+$('#kamOv') && ['pointermove', 'pointerdown', 'keydown'].forEach(ev => $('#kamOv').addEventListener(ev, () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true }));
+setInterval(() => { if (kamTittar) kamStrom(); }, 30000);
 function stangKamOv() {
   if (!kamOppen) return;
   kamOppen = false;
-  kamStrom();
+  kamStegSynk();
 }
 
+/* Kameravyn: en panel, två steg (kamStegSynk väljer). Dockad vid
+   högerkanten från 900 px (.ov.dockad) så att bordet syns bredvid; smalare
+   än så är den en modal. Chippet i topbaren växlar den (visaKamSkruv). */
+/* Länken och QR-koden ritas när QR-steget visas — också när telefonen
+   tappas medan panelen står öppen (kamStegSynk), inte bara när panelen
+   öppnas: annars stod ett tomt QR-steg där om panelen först öppnats med
+   telefonen ansluten. */
+function ritaKamLank() {
+  if (!spelLage) return;
+  const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
+  const el = $('#kamLank'); if (el && el.textContent !== lank) { el.textContent = lank; ritaQr(lank); }
+}
 async function visaKamOv() {
   if (!spelLage) return;
-  /* Med en telefon ansluten finns inget kvar att göra här: kalibreringen
-     är borta, och bilden av det kameran ser bor i popovern. */
-  if (kamAnsluten) { if (!kamSkruvOppen) visaKamSkruv(); return; }
   kamOppen = true;
   openOv('kamOv');
-  const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
-  $('#kamLank').textContent = lank;
-  ritaQr(lank);
-  visaKamSteg();
+  if (!kamAnsluten) ritaKamLank();
+  kamStegSynk();
 }
-/* Modalen är ett steg: koden man skannar. Sitter en kamera i spelet öppnas
-   popovern i stället. Vakterna finns för att $ är ren querySelector — en
-   oskyddad rad här dödade hela skriptet. */
+/* Fotraden: om telefonen är med. Vakterna finns för att $ är ren
+   querySelector — en oskyddad rad här dödade hela skriptet. */
 function visaKamSteg() {
   const st = $('#kamOvStatus');
   if (st) st.innerHTML = kamAnsluten
     ? '<span class="kamlive"><i></i>Telefonen är ansluten</span>'
     : 'Väntar på att telefonen ansluter…';
+}
+/* Panelens överkant: under topbaren, raden och remsan, vad de än är höga
+   just nu — remsan radbryter och frusen-raden kommer och går. Bordet får
+   marginalen (body.kamdockad) bara medan panelen faktiskt är dockad, alltså
+   öppen och bred nog. */
+function dockaKamOv() {
+  const ov = $('#kamOv'); if (!ov) return;
+  const dockad = kamOppen && matchMedia('(min-width:900px)').matches;
+  const var_ = document.body.classList.contains('kamdockad');
+  document.body.classList.toggle('kamdockad', dockad);
+  /* Bordet blev 440 px smalare (eller bredare igen) — samma omräkning som
+     vid en fönsterändring, annars behöll landzonen sin gamla bredd och de
+     högra landgrupperna låg kvar under panelen. */
+  if (var_ !== dockad) { applySize(); sattLandBredd(); renderTabs(); renderSel(); }
+  if (!dockad) return;
+  const m = $('main');
+  ov.style.setProperty('--dock-top', Math.round(m ? m.getBoundingClientRect().top : 46) + 'px');
 }
 /* Närvarolistan från kanalen. Kommer och går telefonen byter dialogen läge av
    sig själv — ingen knapp att trycka på någonstans. */
@@ -15181,21 +15980,19 @@ function kamNarvaro(kameror) {
      kastades när den returnerade, och kvar blev bara en toast som försvann. */
   if (kamAnsluten) { kamHarVarit = true; normaliseraKamRad(); }
   else if (kamHarVarit) kamTappadNar = Date.now();
-  /* Telefonen svarade medan QR-koden stod framme. Här kom förut rutan man
-     skulle dra runt mattan; nu finns inget att bekräfta. Dialogen stängs och
-     popovern öppnas under chippet — efter renderMode, den förankras i
-     chippet — så att man ser det kameran ser: hela bilden. */
-  const oppnaSkruv = kamOppen && kamAnsluten;
-  if (oppnaSkruv) closeOv('kamOv');
-  else if (kamOppen) visaKamSteg();
   if (!kamAnsluten) {
-    kamLast = kamTot = 0; stangKamSkruv();
-    /* Bilden i popovern hör till telefonen som gick. Nästa öppning ska säga
-       "väntar på bild", inte visa ett bord som inte finns längre. */
+    kamLast = kamTot = 0;
+    /* Bilden i panelen hör till telefonen som gick. Nästa öppning ska säga
+       "väntar på bild", inte visa ett bord som inte finns längre. Detsamma
+       med grundläget den rapporterade, och en fråga som stod obesvarad. */
+    kamGrund = undefined; grundFragaData = null;
     const pi = $('#pbImg'), pv = $('#pbVantar'); if (pi) pi.removeAttribute('src'); if (pv) pv.hidden = false;
   }
+  /* Står panelen öppen byter den steg av sig själv: telefonen svarade medan
+     QR-koden stod framme → skruvrummet, och man ser det kameran ser; den
+     försvann → koden igen. Ingen knapp att trycka på någonstans. */
+  kamStegSynk();
   renderMode();
-  if (oppnaSkruv && kamAnsluten && !kamSkruvOppen) visaKamSkruv();
   toast(kamAnsluten ? 'Kameran är ansluten' : 'Kameran kopplades från', kamAnsluten ? 'ok' : 'err');
 }
 /* En bildruta från telefonen. Måtten är telefonens egna; pbW/pbH följer dem. */
@@ -15219,14 +16016,28 @@ function kamTogsEmot(m) {
   if (!jag || m.av !== jag || m.fran !== 'kamera') return;
   if (m.typ === 'bild') return kamBild(m);
   if (m.typ === 'bord') {
+    /* Små kort och upplösningen följer med varje bord (också hjärtslaget och
+       fasbytet). En telefon utan fälten lämnar undefined: då står det som
+       var kvar. */
+    if (m.sma !== undefined) kamSma = m.sma || 0;
+    if (m.upplosning !== undefined) kamUpplosning = m.upplosning || null;
+    /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
+       Före fasbytets retur, och bara medan auto är på — som bordet självt. */
+    if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
     /* Ett fasbyte bär ingen kortlista. Gjorde det det, med en tom lista,
        tonade det ned hela bordet hos en dator som missat nollställningen. */
     if (m.barafas) { kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }
     /* Auto av betyder av. Förut lydde datorn ändå, så länge telefonen sände. */
     if (prefs.autoLage === false) return;
+    /* Grundläget följer med varje bord (också hjärtslaget): så vet datorn
+       om spelet är kalibrerat innan den frågar. Före avstämningen, som
+       läser det. En telefon utan fältet lämnar undefined. */
+    if (m.grund !== undefined && m.grund !== kamGrund) { kamGrund = m.grund; visaKamGrund(); }
     if (m.dia) provbordData(m);
     return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad);
   }
+  if (m.typ === 'grund') return tagEmotGrundSvar(m);
+  if (m.typ === 'bok') return tagEmotSenBok(m);
   if (m.typ === 'diagnos') return tagEmotDiagnos(m);
   if (m.typ === 'trosklar') {
     pbTro = m.v || pbTro;
@@ -15250,8 +16061,7 @@ function kamTogsEmot(m) {
     kamAnsluten = false;
     if (kamHarVarit) kamTappadNar = Date.now();
     kamLast = kamTot = 0;
-    stangKamSkruv();
-    if (kamOppen) visaKamSteg();
+    kamStegSynk();          // panelen går tillbaka till koden
     renderMode();
     toast('Kameran kopplades från', 'err');
   }
@@ -15286,97 +16096,117 @@ async function ritaQr(text) {
   }
 }
 
-addEventListener('resize', () => { if (kamSkruvOppen) ritaPbLager(); });
+addEventListener('resize', () => { if (kamSkruvOppen) ritaPbLager(); if (kamOppen) dockaKamOv(); });
 
-/* Hur ett otappat kort ligger i telefonens bild — det enda som är kvar av
-   kalibreringen. Tap-läget räknas ur kortets vinkel, och vilken vinkel som
-   är otappad beror på hur telefonen sitter. Reglaget bor bredvid
-   livebilden, där man ser svaret. Det sparas i spelets rad i camera_setups,
-   som telefonen läser när den startar och får via realtid; rutan i raden är
-   hela bilden, så att även en telefon med äldre kod läser allt. */
-function visaKamUpp() { $$('#kamUpp [data-upp]').forEach(x => x.classList.toggle('on', x.dataset.upp === kamUpp)); }
-$('#kamUpp') && $('#kamUpp').addEventListener('click', async ev => {
-  const b = ev.target.closest('[data-upp]'); if (!b || !spelLage || b.dataset.upp === kamUpp) return;
-  /* Numret gör att en hämtning av raden som startade före klicket (när
-     popovern öppnades, när telefonen anslöt) inte skriver tillbaka det gamla
-     läget i knapparna — de visade då "stående" medan raden och telefonen sa
-     "liggande", och ett klick på "stående" sparade ingenting. */
-  const nr = ++kamUppNr, fore = kamUpp; kamUpp = b.dataset.upp; visaKamUpp();
-  if (!(await Moln.sparaKalibrering(spelLage.id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp }, null, kamBildW || 0, kamBildH || 0))) {
-    if (nr === kamUppNr) { kamUpp = fore; visaKamUpp(); }
-    toast('Läget kunde inte sparas', 'err');
-  }
+/* Grundläget — det enda som är kvar av kalibreringen. Tap-läget räknas ur
+   kortets vinkel mot den vinkel ett otappat kort har i telefonens bild,
+   och den beror på hur telefonen sitter och hur man lägger korten. Läget
+   tas ur ett kort som ligger på bordet: frågan under topbaren vid första
+   kortet, eller knappen här bredvid livebilden. Telefonen räknar
+   (grundFranSpar), svarar med ett 'grund'-meddelande, och datorn sparar
+   det i spelets rad i camera_setups (ruta.grund, hela grader, bredvid
+   upp), som telefonen läser när den startar och får via realtid; rutan i
+   raden är hela bilden, så att även en telefon med äldre kod läser allt. */
+function visaKamGrund() {
+  const el = $('#kamGrundTxt'); if (!el) return;
+  const g = kamGrund !== undefined ? kamGrund : kamGrundRad;
+  el.textContent = g == null ? 'Otappat läge: inte sparat' : `Otappat läge: sparat (${g}°)`;
+}
+/* Datorn ber telefonen ta grundläget ur ett spår. Svaret (tagEmotGrundSvar)
+   säger om spåret fanns — kortet kan ha lyfts sedan frågan ställdes. */
+function begarGrund(spar, tappat) {
+  if (spar == null || !kamAnsluten) { toast('Kameran ser inget kort att ta läget ur — lägg ett kort på bordet', 'err'); return; }
+  Moln.sandKam('grund', { spar, tappat: !!tappat });
+}
+async function tagEmotGrundSvar(m) {
+  if (!m.ok || m.grund == null) { toast('Otappat läge kunde inte sparas — kameran har ingen egen mätning av kortets vinkel just nu. Prova igen med ett kort den själv hittat.', 'err'); return; }
+  kamGrund = m.grund; visaKamGrund();
+  if (!spelLage) return;
+  const id = spelLage.id;
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund }, null, kamBildW || 0, kamBildH || 0);
+  if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
+  toast(ok ? `Otappat läge sparat (${m.grund}°)` : 'Otappat läge kunde inte sparas i spelet — det gäller tills telefonen laddas om', ok ? 'ok' : 'err');
+}
+/* Senast skapade kamerakortet; är det borta, det senast bundna — kortet som
+   lades ut innan kameran kopplades, eller togs tillbaka ur nedtoningen. Bara
+   kort vars spår detektorn mätt själv: ett helbildskort har ingen vinkel. */
+$('#kamGrundSpara') && ($('#kamGrundSpara').onclick = () => {
+  const mig = minSpelare();
+  const matt = c => { const t = senasteSpar.find(u => u.id === c.spar); return !!t && t.sen != null && !(t.ai && t.ai.helbild); };
+  const bundna = mig ? mig.cards.filter(c => c.spar != null && !c.borta && matt(c)) : [];
+  const k = bundna.find(c => c.spar === senasteKamSpar) || bundna.sort((a, b) => (b.ny || 0) - (a.ny || 0))[0];
+  begarGrund(k ? k.spar : null, false);
 });
 /* En telefon med äldre kod väntar på en ruta ('ingen') eller beskär efter en
    gammal, och datorn ritar då spåren på fel ställe. Raden skrivs om till hela
    bilden när telefonen ansluter: den äldre koden lyssnar på raden och läser
-   hela bilden utan omladdning. Läget i raden behålls. En ny telefon gör
-   ingenting av raden utom läget. Bara när raden inte redan är hel — ingen
-   skrivning per anslutning. */
+   hela bilden utan omladdning. Läget och grundläget i raden behålls. En ny
+   telefon gör ingenting av raden utom dem. Bara när raden inte redan är
+   hel — ingen skrivning per anslutning. */
 async function normaliseraKamRad(forsok) {
   if (!spelLage) return;
-  const id = spelLage.id, nr = kamUppNr;
+  const id = spelLage.id;
   const k = await Moln.hamtaKalibrering(id).catch(() => null);
   if (!spelLage || spelLage.id !== id) return;
-  /* Klickade man medan raden hämtades har klicket redan skrivit hela bilden
-     och sitt läge. */
-  if (nr !== kamUppNr) return;
   const r = k && k.ruta;
-  kamUpp = r && r.upp === 'h' ? 'h' : 'v'; visaKamUpp();
+  kamUpp = r && r.upp === 'h' ? 'h' : 'v';
+  kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; visaKamGrund();
   if (r && r.x === 0 && r.y === 0 && r.w === 1 && r.h === 1) return;
   /* Gick skrivningen inte fram står en telefon med äldre kod kvar i 'ingen'
      hela kvällen: ingen annan skriver raden. Några försök till, sedan får
      chippet och tomrutan säga åt en att ladda om telefonen. */
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad }, null, kamBildW || 0, kamBildH || 0);
   if (!ok && (forsok || 0) < 3 && kamAnsluten && spelLage && spelLage.id === id)
     setTimeout(() => normaliseraKamRad((forsok || 0) + 1), 5000);
 }
 /* Datorn kopplar bort telefonen. Telefonen slutar titta av sig själv; närvaron
    försvinner och dialogen går tillbaka till QR-koden. */
 $('#kamKoppla').onclick = async () => {
-  if (await stangAvAuto(true)) { visaKamSteg(); toast('Auto är av'); }
+  await stangAvAuto(true);
 };
 
-/* ── Skruvrummet ────────────────────────────────────────────────────
-   Hänger under modechippet, som menyn hänger under sin knapp. Den ligger som
-   syskon till #menu i body och inte i topbaren: topbaren är 46 px hög och
-   hade klippt bort allt utom rubrikraden. */
+/* ── Skruvrummet: andra steget i kameravyn ──────────────────────────
+   Var en popover under chippet som stängdes av ett klick var som helst:
+   man kunde inte skruva och flytta ett kort i samma andetag. Nu är det ett
+   steg i den dockade panelen (#kamOv) och står kvar tills man stänger den.
+   kamSkruvOppen betyder att steget står framme — strömmen (kamStrom) och
+   provbordets extrafält (visaProvbord) följer det, aldrig panelen i sig. */
 let kamSkruvOppen = false;
-function stangKamSkruv() {
-  if (!kamSkruvOppen) return;
-  kamSkruvOppen = false;
-  $('#kamSkruv').classList.remove('open');
-  visaProvbord(false);
+function kamStegSynk() {
+  const skruv = kamOppen && kamAnsluten;
+  const qr = $('#kamStegQr'), sk = $('#kamSkruv'), rub = $('#kamOvRubrik');
+  if (qr) qr.hidden = skruv;
+  if (kamOppen && !kamAnsluten) ritaKamLank();
+  if (sk) sk.classList.toggle('open', skruv);
+  if (rub) rub.textContent = kamAnsluten ? 'Kameran' : 'Koppla en kamera';
+  visaKamSteg();
+  if (skruv && !kamSkruvOppen) {
+    kamSkruvOppen = true;
+    visaProvbord(true);
+    kamSkruvTal();
+    uppdateraPbStatus();
+    /* Läget och grundläget läses ur spelets rad varje gång: de kan ha ändrats
+       från en annan dator sedan telefonen anslöt. Telefonens eget besked
+       (kamGrund) vinner i visningen så snart det finns. */
+    visaKamGrund();
+    if (spelLage) { const id = spelLage.id; Moln.hamtaKalibrering(id)
+      .then(k => { if (!spelLage || spelLage.id !== id) return; const r = k && k.ruta;
+                   kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; visaKamGrund(); }).catch(() => {}); }
+    /* Rutan ritas mot en bild som just fått en storlek. Ritas den medan
+       steget fortfarande är display:none blir varje mått noll, och lagret
+       står kvar som en tom canvas tills nästa bildruta råkar komma. */
+    requestAnimationFrame(ritaPbLager);
+  } else if (!skruv && kamSkruvOppen) {
+    kamSkruvOppen = false;
+    visaProvbord(false);
+  }
   kamStrom();
+  dockaKamOv();
 }
-function visaKamSkruv() {
-  if (kamSkruvOppen) return stangKamSkruv();
-  if (!kamAnsluten) return visaKamOv();
-  const el = $('#kamSkruv'), chip = $('#modeSlot .modechip');
-  kamSkruvOppen = true;
-  el.classList.add('open');
-  const r = (chip || $('#modeSlot')).getBoundingClientRect();
-  el.style.top = (r.bottom + 6) + 'px';
-  el.style.left = 'auto';
-  /* Förankrad under chippet när det finns plats, annars vid högerkanten:
-     460 px brett i ett 375 px brett fönster stack förut ut till vänster. */
-  el.style.right = Math.max(8, Math.min(Math.round(innerWidth - r.right), innerWidth - 8 - el.offsetWidth)) + 'px';
-  kamStrom();
-  visaProvbord(true);
-  kamSkruvTal();
-  uppdateraPbStatus();
-  /* Läget läses ur spelets rad varje gång: det kan ha ändrats från en annan
-     dator sedan telefonen anslöt. */
-  if (spelLage) { const nr = kamUppNr; Moln.hamtaKalibrering(spelLage.id)
-    .then(k => { if (nr !== kamUppNr) return; kamUpp = k && k.ruta && k.ruta.upp === 'h' ? 'h' : 'v'; visaKamUpp(); }).catch(() => {}); }
-  /* Rutan ritas mot en bild som just fått en storlek. Ritas den medan
-     popovern fortfarande är display:none blir varje mått noll, och lagret
-     står kvar som en tom canvas tills nästa bildruta råkar komma. */
-  requestAnimationFrame(ritaPbLager);
-}
-addEventListener('mousedown', e => {
-  if (!$('#kamSkruv').contains(e.target) && !e.target.closest('#modeSlot')) stangKamSkruv();
-});
+/* Chippet i topbaren växlar panelen. Namnen står kvar från popovertiden:
+   menyn och avstängningen anropar dem. */
+function stangKamSkruv() { if (kamOppen) closeOv('kamOv'); }
+function visaKamSkruv() { if (kamOppen) closeOv('kamOv'); else visaKamOv(); }
 
 /* ── ta emot avläsningar ────────────────────────────────────────────
    En rad i taget, och den som tar den vinner i databasen. Två datorer
@@ -15701,12 +16531,15 @@ async function lamnaSpelet() {
      schemalägger en skrivning, och hann spelet nollställas innan den gick
      skrev den ett tomt "Player 1" över det lokala bordet på disk. */
   glomSpar(true);
-  kamFas = ''; kamSer = 0;
+  kamFas = ''; kamSer = 0; kamSma = 0; kamUpplosning = null;
+  stangKamSkruv();                          // panelen hör till spelet; före kanalen, den säger till telefonen
   if (saveT) sparaNu();                     // ut med det som ligger i debouncen
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamAnsluten = false; kamOppen = false;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; grundFragaData = null; senasteKamSpar = null; grundFragad = false;
+  autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
+  kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
      ens hunnit koppla en telefon: flaggan mindes ett spel som var slut. */
   kamHarVarit = false; kamTappadNar = 0; kamLast = kamTot = 0;
