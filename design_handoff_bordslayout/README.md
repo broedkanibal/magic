@@ -46,7 +46,7 @@ Alla mått gäller ett fönster på **720×900**. Ytan fördelas så här:
 ```
 topbar            46 px   (finns, oförändrad)
 handbar           43 px   (finns, oförändrad — sökfält, meta, Fit/zoom)
-pendbar           40 px   (finns, oförändrad — gula granskningsraden)
+autobar           46 px   (40 px ≤620 — statusfältet under toppraden: auto-status, kort att fylla i, en anmärkning)
 bordet           745 px   ← flex:1, padding 10, gap 10   NYTT INNEHÅLL
   ├ Permanents   409 px   flex:1
   └ nedre band   306 px   flex:none
@@ -376,7 +376,7 @@ Att läsa i mockupen: öppna `Bordsvy mockups.dc.html` i en webbläsare. Överst
 turn 2 och turn 1 med de tidigare riktningarna.
 
 Vilka delar av `index.html` designen bygger på (för orientering):
-tokens rad ~10–60, shell och handbar ~100–200, `.manarow`/`.grav` ~355–500, `.pendbar` ~750–760,
+tokens rad ~10–60, shell och handbar ~100–200, `.manarow`/`.grav` ~355–500, `.autobar` ~2101–2135,
 markup ~925–1010, och `computeFit()` / `renderGrid()` / `renderMana()` / `gravHtml()` ~2921–3230.
 
 ## Startprompt till Claude Code

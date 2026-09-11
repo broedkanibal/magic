@@ -58,10 +58,10 @@ return {
   get grundFragor() { return grundFragor; },
   set grund(v) { kamGrund = v; },
   get senasteKamSpar() { return senasteKamSpar; },
-  /* Auto-remsan (MES-32): modellen som renderAutoRemsa ritar, med samma
-     underlag som i appen — senaste bordet, avstämningens lösa spår och när
-     varje spår först sågs. extra lägger till det som kommer utifrån
-     (sma, fas, rad, yta). */
+  /* Statusfältet (MES-32, MES-27): modellen som renderAutoBar ritar, med
+     samma underlag som i appen — senaste bordet, avstämningens lösa spår
+     och när varje spår först sågs. extra lägger till det som kommer
+     utifrån (sma, fas, rad). */
   remsa(extra) { return autoRemsaModell(senasteSpar, state.players[0], Object.assign({ nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer }, extra || {})); },
   get losa() { return losaSpar; },
   /* Sammanfattningen när auto stängs av: passet, boken, datorns anrop,
@@ -387,88 +387,117 @@ prov('G4 ett kort som redan låg på bordet binds, skapas inte: ingen fråga', (
   assert.equal(app.grundFragor.length, 0); assert.equal(app.senasteKamSpar, null);
 });
 
-/* Auto-remsan (MES-32): ett chip per spår som inte är ett kort på bordet,
-   med skälet i klartext och hur länge det stått så. Sekunderna räknas från
-   datorns första bord med spåret. Allt bundet ger den korta, lugna texten. */
-const chips = m => m.chips.map(c => c.slag + ':' + c.text);
-prov('R1 ett nytt spår: "läses", med sekunder som går från första bordet', () => {
+/* Statusfältet (MES-32, MES-27): { text, not, paVag, granska }. text räknar
+   riktiga kort på bordet (bundna, inte nedtonade) och spår på väg (läses
+   eller väntar på Claude); paVag är de spåren med när datorn först såg
+   dem; granska är kön; not är högst en anmärkning utan siffror. Osäkra,
+   skymda och dubbla spår får inget eget besked: de osäkra ÄR granskningen,
+   resten syns i kameravyn. */
+const paVag = m => m.paVag.map(v => v.slag + ':' + v.spar);
+prov('R1 ett nytt spår: "1 på väg", sett från första bordet, ingen anmärkning', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
   let m = app.remsa();
-  assert.equal(m.text, 'Auto · ser 1 kort · 0 på bordet'); assert.equal(m.lage, 'varm');
-  assert.deepEqual(chips(m), ['laser:läses (0 s)']); assert.equal(m.chips[0].namn, null); assert.equal(m.chips[0].spar, 1);
+  assert.equal(m.text, 'Auto · 1 på väg'); assert.equal(m.not, null); assert.equal(m.granska, 0);
+  assert.deepEqual(paVag(m), ['laser:1']); assert.equal(m.paVag[0].sedan, klocka.t); assert.equal(m.paVag[0].namn, null);
   klocka.t += 2400; stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
-  m = app.remsa(); assert.deepEqual(chips(m), ['laser:läses (2 s)']); assert.equal(m.rorligt, false); assert.equal(m.not, null);
+  m = app.remsa(); assert.deepEqual(paVag(m), ['laser:1']); assert.equal(klocka.t - m.paVag[0].sedan, 2400); assert.equal(m.not, null);
 });
-prov('R1b ett spår som är "ny" i över tre sekunder rör sig: "något rör sig på bordet"', () => {
+prov('R1b ett spår som är "ny" i över tre sekunder rör sig: "Något rör sig på bordet"', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
   klocka.t += 3500; stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
-  const m = app.remsa(); assert.equal(m.rorligt, true); assert.equal(m.not, 'något rör sig på bordet');
+  const m = app.remsa(); assert.equal(m.not, 'Något rör sig på bordet'); assert.equal(m.text, 'Auto · 1 på väg');
 });
-prov('R2 ett spår som prövas: "väntar på Claude", gissningen som namn, ingen post i kön', () => {
+prov('R2 ett spår som prövas väntar på Claude: på väg, gissningen som namn, ingen post i kön', () => {
   stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...PORT }]);
   klocka.t += 5000; stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Forest', sen: 10, ...PORT }]);
   const m = app.remsa();
-  assert.equal(app.pending.length, 0);
-  assert.deepEqual(chips(m), ['vantar:väntar på Claude (5 s)']); assert.equal(m.chips[0].namn, 'Forest');
+  assert.equal(app.pending.length, 0); assert.equal(m.granska, 0);
+  assert.deepEqual(paVag(m), ['vantar:1']); assert.equal(m.paVag[0].namn, 'Forest'); assert.equal(klocka.t - m.paVag[0].sedan, 5000);
+  assert.equal(m.text, 'Auto · 1 på väg');
 });
-prov('R3 okänt med post i kön: "osäkert – fyll i i granskningen", med länk', () => {
+prov('R3 okänt med post i kön: granskningen räknar det, inget "på väg", ingen anmärkning', () => {
   stam([{ id: 1, tillstand: 'okand', cands: [{ name: 'Forest', sid: 's', score: 0.5 }], sen: 10, ...PORT }]);
   assert.equal(app.pending.length, 1);
   const m = app.remsa();
-  assert.deepEqual(chips(m), ['osaker:osäkert – fyll i i granskningen']); assert.equal(m.chips[0].granska, true);
-  assert.equal(m.text, 'Auto · ser 1 kort · 0 på bordet');
+  assert.equal(m.granska, 1); assert.deepEqual(m.paVag, []); assert.equal(m.not, null);
+  assert.equal(m.text, 'Auto');            // inte "bordet är tomt": kameran ser ett kort
 });
-prov('R3b okänt som hoppats över i granskningen: "lyft kortet så frågar den igen"', () => {
+prov('R3b okänt som hoppats över i granskningen: varken på väg eller i kön', () => {
   stam([{ id: 1, tillstand: 'okand', sen: 10, ...PORT }]);
   app.pending.length = 0; app.hoppade.add(1);
   stam([{ id: 1, tillstand: 'okand', sen: 10, ...PORT }]);
   assert.equal(app.pending.length, 0);
-  assert.deepEqual(chips(app.remsa()), ['osaker:osäkert – lyft kortet så frågar den igen']);
+  const m = app.remsa(); assert.equal(m.granska, 0); assert.deepEqual(m.paVag, []); assert.equal(m.text, 'Auto');
 });
-prov('R4 skymt spår som inte är ett kort: "skymt – något ligger över"', () => {
+prov('R4 skymt spår som inte är ett kort: inte på väg, ingen anmärkning', () => {
   stam([{ id: 1, tillstand: 'stilla', skymd: true, sen: 900, ...PORT }]);
-  assert.deepEqual(chips(app.remsa()), ['skymd:skymt – något ligger över']);
+  const m = app.remsa(); assert.deepEqual(m.paVag, []); assert.equal(m.not, null); assert.equal(m.text, 'Auto');
 });
-prov('R5 sma=1: "för litet för att läsas", utan spår; två blir "för små"', () => {
+prov('R5 sma=1: "Ett kort är för litet för att läsas", utan spår; två blir "Två kort … för små"', () => {
   stam([]);
   let m = app.remsa({ sma: 1 });
-  assert.deepEqual(chips(m), ['liten:ett kort för litet för att läsas']); assert.equal(m.text, 'Auto · ser 0 kort · 0 på bordet');
-  m = app.remsa({ sma: 2 }); assert.deepEqual(chips(m), ['liten:2 kort för små för att läsas']);
+  assert.equal(m.not, 'Ett kort är för litet för att läsas'); assert.equal(m.text, 'Auto'); assert.deepEqual(m.paVag, []);
+  m = app.remsa({ sma: 2 }); assert.equal(m.not, 'Två kort är för små för att läsas');
+  m = app.remsa({ sma: 7 }); assert.equal(m.not, '7 kort är för små för att läsas');
 });
-prov('R6 allt bundet: den korta lugna texten, inga chips — också när ett kort ses som två spår', () => {
+prov('R5b telefonens råd om avståndet: första meningen, utan siffror, före "för litet"', () => {
+  stam([]);
+  let m = app.remsa({ rad: 'Korten är små i bilden. Flytta telefonen närmare bordet.', sma: 1 });
+  assert.equal(m.not, 'Korten är små i bilden');
+  m = app.remsa({ rad: 'Korten är små i bilden. Telefonen ger 1280×720 men klarar 3840×2160.' });
+  assert.equal(m.not, 'Korten är små i bilden');
+});
+prov('R6 allt bundet: "N kort på bordet" och inget mer — också när ett kort ses som två spår', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
   let m = app.remsa();
-  assert.equal(m.text, 'Auto · 2 kort på bordet, alla kända'); assert.deepEqual(m.chips, []); assert.equal(m.lage, 'lugn');
+  assert.equal(m.text, 'Auto · 2 kort på bordet'); assert.deepEqual(m.paVag, []); assert.equal(m.not, null); assert.equal(m.granska, 0);
   stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 1200, ...PORT }), klar(3, 'Ukud Cobra', { tappad: true, sen: 30, ...LAND_ }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
-  m = app.remsa(); assert.equal(m.text, 'Auto · 2 kort på bordet, alla kända'); assert.deepEqual(m.chips, []);
+  m = app.remsa(); assert.equal(m.text, 'Auto · 2 kort på bordet'); assert.deepEqual(m.paVag, []);
   assert.deepEqual([...app.losa], []);
-  stam([]); m = app.remsa(); assert.equal(m.text, 'Auto · bordet är tomt');
+  /* Spåren borta: korten är bundna och synliga i nådatiden (BORTA_NAD), så
+     de räknas tills de tonas ned — då är bordet tomt och anmärkningen
+     säger varför. */
+  stam([]); m = app.remsa(); assert.equal(m.text, 'Auto · 2 kort på bordet'); assert.equal(m.not, null);
+  klocka.t += 3200; stam([]); m = app.remsa();
+  assert.equal(m.text, 'Auto · bordet är tomt'); assert.equal(m.not, 'Två kort syns inte längre');
 });
-prov('R7 ett nedtonat kort: "syns inte längre" med namnet, och raden blir varm', () => {
+prov('R6b två kort på bordet och ett tredje på väg: "2 kort på bordet · 1 på väg"', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT }), { id: 3, tillstand: 'ny', sen: 10, ...LAND_ }]);
+  const m = app.remsa();
+  assert.equal(m.text, 'Auto · 2 kort på bordet · 1 på väg'); assert.deepEqual(paVag(m), ['laser:3']);
+});
+prov('R7 ett nedtonat kort: "<namn> syns inte längre", och det räknas inte som på bordet', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
   stam([]); klocka.t += 3200; stam([]);
   assert.ok(app.kort[0].lyft, 'nedtonat');
   const m = app.remsa();
-  assert.deepEqual(chips(m), ['borta:syns inte längre']); assert.equal(m.chips[0].namn, 'Ukud Cobra'); assert.equal(m.lage, 'varm');
+  assert.equal(m.not, 'Ukud Cobra syns inte längre'); assert.equal(m.text, 'Auto · bordet är tomt');
 });
-prov('R8 medan telefonen lär sig ljuset säger remsan det, och inget annat', () => {
+prov('R7b flera nedtonade: "Två kort syns inte längre"', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), klar(2, 'Forest', { sen: 10, ...LANGT })]);
+  stam([]); klocka.t += 3200; stam([]);
+  assert.equal(app.kort.filter(c => c.lyft).length, 2);
+  assert.equal(app.remsa().not, 'Två kort syns inte längre');
+});
+prov('R8 medan telefonen lär sig ljuset: "lär sig ljuset" och "Håll telefonen stilla", inget annat', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
   const m = app.remsa({ fas: 'lar' });
-  assert.equal(m.text, 'Auto · lär sig ljuset — håll telefonen stilla'); assert.deepEqual(m.chips, []);
-  assert.equal(app.remsa({ yta: { dom: 'orolig', rad: 'Bordet är oroligt (textur 6, brus 4,1). …' } }).not, 'bordet är oroligt');
+  assert.equal(m.text, 'Auto · lär sig ljuset'); assert.equal(m.not, 'Håll telefonen stilla'); assert.deepEqual(m.paVag, []);
+  /* Ytans råd hör till kameravyn, aldrig till fältet: ingen anmärkning. */
+  assert.equal(app.remsa({ yta: { dom: 'orolig', rad: 'Bordets mönster gör kameran osäker. …' } }).not, null);
 });
-prov('R9 ett kort borttaget för hand: spåret är löst men chippet säger varför', () => {
+prov('R9 ett kort borttaget för hand: spåret är löst men varken på väg eller i kön', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
   const k = app.kort.pop(); app.borttagna.add(k.spar);
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
   assert.equal(app.kort.length, 0);
-  const m = app.remsa(); assert.deepEqual(chips(m), ['bort:borttaget för hand']); assert.equal(m.chips[0].namn, 'Ukud Cobra');
+  const m = app.remsa(); assert.deepEqual(m.paVag, []); assert.equal(m.granska, 0); assert.equal(m.text, 'Auto');
 });
-prov('R10 nollställning glömmer sekunderna: spår 1 är nytt igen', () => {
+prov('R10 nollställning glömmer när spåren sågs: spår 1 är nytt igen', () => {
   stam([{ id: 1, tillstand: 'ny', sen: 10, ...PORT }]);
   klocka.t += 4000; app.avstamBord([], true);
   stam([{ id: 1, tillstand: 'stilla', sen: 10, ...PORT }]);
-  assert.deepEqual(chips(app.remsa()), ['laser:läses (0 s)']);
+  const m = app.remsa(); assert.deepEqual(paVag(m), ['laser:1']); assert.equal(m.paVag[0].sedan, klocka.t);
 });
 
 /* Sammanfattningen när auto stängs av: korten räknas en gång per cid ur

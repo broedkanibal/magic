@@ -1081,7 +1081,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    bordet — samtidigt. Som modal mitt på skärmen täckte den just det bordet:
    ett kort som dök upp medan man skruvade syntes inte förrän rutan stängts
    (Jespers parti 2026-09-10). Dockad sitter den vid högerkanten, under
-   topbaren och remsan (--dock-top sätts av dockaKamOv), utan bakgrund och
+   topbaren och statusfältet (--dock-top sätts av dockaKamOv), utan bakgrund och
    utan att låsa något; bordet flyttar sig åt vänster (body.kamdockad) i
    stället för att hamna bakom. z-index under menyn (200): menyn fälls ner
    över samma hörn. Under 900 px finns ingen bredd att dela på — då är den
@@ -1352,18 +1352,8 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .keyin:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .warn{padding:10px 12px;border-radius:var(--rs);background:#2a1f12;border:1px solid #5a4420;color:#e8c98a;font-size:12px;line-height:1.6}
 
-/* kort som behöver bekräftas */
-.pendbar{
-  display:flex;align-items:center;gap:10px;flex:none;padding:8px 12px;
-  background:#241c0d;border-bottom:1px solid #4a3a17;font-size:12.5px;color:#e8c98a;
-}
-.pendbar[hidden]{display:none}
-.pendbar .pdot{width:7px;height:7px;border-radius:50%;background:var(--acc);flex:none}
-.pendbar .ptxt{flex:none}
-.pendbar .ptxt b{color:#ffd98a}
-.pendthumbs{display:flex;gap:4px;flex:1;min-width:0;overflow:hidden}
-.pendthumbs img{height:36px;border-radius:3px;border:1px solid #6a5220;flex:none;background:#0b0f15}
-.pendbar .ptxt em{font-style:normal;color:#c9b485}
+/* Kort som behöver bekräftas: granskningen bor i statusfältet under
+   topbaren (.autobar .granska), tillsammans med Auto-läget. */
 
 /* avläsning pågår */
 .analyze{
@@ -1451,18 +1441,13 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   /* Frågetecknet får gå först. Varje genväg det visar står också i menyn, och
      ? öppnar samma ruta från tangentbordet. */
   #helpBtn{display:none}
-  /* "· läser ditt bord" är en bekräftelse, inte upplysning — den gröna
-     pricken säger redan att det går. Siffrorna i det svaga läget står kvar:
-     de är det enda som säger hur illa det är. */
+  /* "· 3 kort" är en bekräftelse, inte upplysning — den gröna pricken
+     säger redan att det går, och talet står i statusfältet under. */
   .modechip.pa .langtxt{display:none}
 }
 @media (max-width:860px){
   #addPlayerBtn{font-size:0;padding:0 7px}
   #addPlayerBtn svg{font-size:13px}
-  /* Siffrorna överlever som bråk: "2/5" ryms alltid, och de är det enda som
-     säger hur illa det är. */
-  .modechip.svag .langtxt{display:none}
-  .modechip.svag .korttxt{display:inline}
   /* Punkten skiljer två meningar. Faller den andra bort måste den följa med,
      annars slutar raden med ett ensamt "·". */
   .modeforklaring .langtxt,.modeforklaring .punkt{display:none}
@@ -2062,7 +2047,6 @@ body.ispel #startSpelBtn{display:none}
 }
 .modechip .led{width:7px;height:7px;border-radius:50%;flex:none}
 .modechip .lbl{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.modechip .korttxt{display:none}
 .modechip .delare{width:1px;height:14px;background:currentColor;opacity:.3;flex:none}
 .modechip svg{flex:none;opacity:.85}
 .modechip.pa{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
@@ -2081,7 +2065,7 @@ body.ispel #startSpelBtn{display:none}
 
 /* Raden under topbaren. Två sorters mening, samma mått: förklaringen som står
    en enda gång innan man valt väg, och beskedet att bordet är fruset. Frågan
-   om grundläget bor i Auto-remsan nedanför sedan MES-32. */
+   om grundläget bor i statusfältet nedanför (.autobar .not) sedan MES-32. */
 .modeforklaring,.frusen{
   display:flex;align-items:center;gap:9px;flex:none;
   height:34px;padding:0 12px;font-size:12px;overflow:hidden;
@@ -2094,50 +2078,60 @@ body.ispel #startSpelBtn{display:none}
 .frusen span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frusen .btn{height:24px;padding:0 8px;font-size:11.5px;margin-left:auto;flex:none}
 
-/* ── Auto-remsan ─────────────────────────────────────────────────────
-   Raden som svarar på "jag lade ett kort — varför syns det inte?" utan att
-   man öppnar kameravyn. Chippet i topbaren sa "ser 3 kort, känner igen 2":
-   ett tal, inte ett skäl. Här står varje kort kameran ser men inte lagt på
-   bordet som ett chip med sitt skäl och hur länge det stått så, och samma
-   rad bär frågan om grundläget. Samma färgfamilj som granskningsraden
-   (.pendbar): bärnsten när något väntar, grönt när allt är känt. Chippen
-   får radbryta — ett chip man inte ser är ett skäl man inte får. */
-.autoremsa{
-  display:flex;align-items:center;flex-wrap:wrap;gap:5px 10px;flex:none;
-  min-height:32px;padding:4px 12px;font-size:12px;
+/* ── Statusfältet under topbaren ─────────────────────────────────────
+   En rad med fast höjd för allt som rör Auto och granskningen. Förut stod
+   det på tre ställen ovanpå varandra — chippet i topbaren, Auto-remsan med
+   ett chip per spår ("läses (2 s)", "väntar på Claude", "osäkert – fyll i
+   i granskningen") och granskningsraden — och remsan radbröt, så bordet
+   hoppade varje gång ett kort lades ner (Jespers skärmdumpar, MES-27).
+   Nu: läget till vänster ("Auto · 2 kort på bordet · 1 på väg"),
+   granskningen med miniatyrer och knappar i mitten när något väntar, och
+   högst EN kort anmärkning till höger. Höjden är fast och ingenting
+   radbryter: text klipps med ellips (hela står i title), miniatyrerna
+   rullar i sidled. Samma färgfamilj som granskningsraden hade: bärnsten
+   när fältet ber om ett klick, annars dämpat. Ritas av renderAutoBar()
+   och renderPending(). */
+.autobar{
+  display:flex;align-items:center;gap:14px;flex:none;
+  height:46px;padding:0 12px;overflow:hidden;font-size:12.5px;
   background:var(--rutbg);border-bottom:1px solid var(--line);color:var(--dim);
 }
-.autoremsa[hidden]{display:none}
-.autoremsa .sum{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:var(--txt);font-weight:550}
-.autoremsa .sum .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
-.autoremsa.varm{background:var(--tand2);border-bottom-color:#4a3a17;color:#e8c98a}
-.autoremsa.varm .sum{color:#f0dcb0}
-.autoremsa.varm .sum .led{background:var(--acc);animation-duration:1.2s}
-.autoremsa.lugn{background:#0f2016;border-bottom-color:#2f6b4780;color:#8fe0b0}
-.autoremsa.lugn .sum{color:#8fe0b0}
-.autoremsa .not{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e8c98a}
-.autoremsa .chip{
-  display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:11px;
-  font-size:11.5px;white-space:nowrap;border:1px solid #4a3a17;background:#241c0d;color:#e8c98a;
-}
-.autoremsa .chip b{color:#f0dcb0;font-weight:600}
-.autoremsa .chip .led{width:6px;height:6px;border-radius:50%;background:var(--acc);flex:none}
-.autoremsa .chip.laser .led,.autoremsa .chip.vantar .led{animation:kampuls 1.2s ease-in-out infinite}
-.autoremsa .chip.osaker{border-color:#e2606a55;background:#2a1414;color:#f0a9ad}
-.autoremsa .chip.osaker .led{background:var(--red)}
-.autoremsa .chip.osaker b{color:#f7c9cc}
-.autoremsa .chip.skymd,.autoremsa .chip.liten,.autoremsa .chip.borta,.autoremsa .chip.dubbel,.autoremsa .chip.bort{border-color:#3a4658;background:#1a2130;color:var(--dim)}
-.autoremsa .chip.skymd .led,.autoremsa .chip.liten .led,.autoremsa .chip.borta .led,.autoremsa .chip.dubbel .led,.autoremsa .chip.bort .led{background:#6b7280}
-.autoremsa .chip.skymd b,.autoremsa .chip.liten b,.autoremsa .chip.borta b,.autoremsa .chip.dubbel b,.autoremsa .chip.bort b{color:var(--txt)}
-/* Länken i chippet: samma handling som Review-knappen, ingen egen knapp. */
-.autoremsa .chip .lank{background:none;border:0;padding:0;font:inherit;color:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.autoremsa .chip .lank:hover{color:#fff}
-/* Frågan om grundläget tar en egen rad i remsan: den ska stå där man tittar
-   när det första kortet dyker upp, inte i en vy man inte öppnat. */
-.autoremsa .grund{display:flex;align-items:center;gap:8px;flex:1 1 100%;min-width:0;padding:2px 0}
-.autoremsa .grund span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto;color:#e8c98a}
-.autoremsa .grund b{color:#f0dcb0}
-.autoremsa .grund .btn{height:24px;padding:0 8px;font-size:11.5px;flex:none}
+.autobar.varm{background:#241c0d;border-bottom-color:#4a3a17;color:#e8c98a}
+.autobar .status{display:inline-flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0;white-space:nowrap;color:var(--txt);font-weight:550}
+.autobar .status .txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.autobar .status .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
+.autobar.varm .status{color:#f0dcb0}
+.autobar.varm .status .led{background:var(--acc);animation-duration:1.2s}
+/* Granskningen och anmärkningen är flexrader inne i flexraden, och en
+   sådan mäter sig själv efter sitt innehåll: alla miniatyrerna, hela den
+   obrytbara meningen. På en telefon (390 px) blev måtten större än raden,
+   och det som fick stryka på foten var knapparna längst ut ("Det är
+   tappat", "Inte nu" utanför kanten). contain:inline-size gör att
+   miniatyrerna och meningen inte räknas när gruppen mäts: gruppens mått
+   är dess text och knappar, som aldrig ger sig, och det som blir över i
+   raden delas mellan miniatyrerna (rullar i sidled) och meningen (klipps
+   med ellips, hela står i title). */
+.autobar .granska{display:flex;align-items:center;gap:10px;flex:1 1 auto;height:100%}
+.autobar .granska .ptxt{flex:none;white-space:nowrap;color:#e8c98a}
+.autobar .granska .ptxt b{color:#ffd98a}
+.pendthumbs{display:flex;align-items:center;gap:4px;flex:1 1 auto;min-width:0;height:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;contain:inline-size}
+.pendthumbs::-webkit-scrollbar{display:none}
+.pendthumbs img{height:34px;border-radius:3px;border:1px solid #6a5220;flex:none;background:#0b0f15}
+.autobar .granska .btn{flex:none}
+/* Anmärkningen: en mening längst till höger. Frågan om grundläget står i
+   samma plats med sina knappar, och får inte heller radbryta. */
+.autobar .not{display:flex;align-items:center;gap:8px;flex:1 1 auto;white-space:nowrap;color:#e8c98a}
+.autobar .not .nottxt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-align:right;contain:inline-size}
+/* Frågan om grundläget har företräde: utan det delades utrymmet lika med
+   granskningsgruppen, vars text och knappar aldrig krymper, och frågans
+   mening var det enda som gav sig — vid 700–900 px stod tre knappar utan
+   någon fråga framför (uppmätt: 26 px text vid 800 px). Miniatyrerna får
+   krympa först, de är bara en förhandsvisning. */
+.autobar .not.grund{flex:3 1 auto}
+.autobar .not.grund .nottxt{min-width:12em}
+.autobar .not.grund ~ .granska .pendthumbs,.autobar .granska:has(~ .not.grund) .pendthumbs{flex:0 1 auto}
+.autobar .not b{color:#f0dcb0}
+.autobar .not .btn{height:26px;padding:0 9px;font-size:11.5px;flex:none}
 
 /* ── Kamerainställningarna, i den dockade kameravyn ─────────────────
    Det man vill skruva på UNDER spelet ska inte ligga i en modal som täcker
@@ -2294,7 +2288,6 @@ body.ispel #addPlayerBtn{display:none}
 
   /* handen: granskningsrad, remsa, sökruta */
   .hand{order:2;flex:none;min-height:0}
-  .pendbar{order:1}
   /* 60px breda kort gick inte att se vad de föreställde. 92px räcker för att
      känna igen konstverket, och kostar bara ~45px av det stora kortet. */
   /* Det valda kortet lyfts 5 px och skalas 1.035, alltså 5 + höjd*0.0175 över
@@ -2345,7 +2338,16 @@ body.ispel #addPlayerBtn{display:none}
   .modechip{height:28px;padding:0 8px;font-size:11.5px;gap:6px}
   .modeforklaring{display:none}             /* två meningar får inte plats */
   .frusen{font-size:11.5px;padding:0 8px}
-  .autoremsa{font-size:11.5px;padding:3px 8px;gap:4px 7px}
+  .autobar{height:40px;font-size:11.5px;padding:0 8px;gap:8px}
+  .autobar .granska{gap:7px}
+  .autobar .not .btn{padding:0 7px}
+  .pendthumbs img{height:30px}
+  /* Granskningens knappar och frågans knappar ryms inte i samma rad på en
+     telefon: det som står sist klipptes ("Inte nu" utanför kanten).
+     Granskningen är det som väntar på ett svar; anmärkningen får stå
+     tillbaka medan den syns, och frågan om grundläget går att svara på i
+     kameravyn i stället. */
+  .autobar .granska:not([hidden]) ~ .not{display:none}
 }
 @media (max-width:390px){
   .topbar{height:44px;gap:5px;padding:0 7px}
@@ -2519,9 +2521,22 @@ body.ispel #addPlayerBtn{display:none}
   <!-- Raden under topbaren: förklaringen som står en gång innan man valt väg,
        och beskedet att bordet är fruset. Samma plats, aldrig båda. -->
   <div id="modeRad" hidden></div>
-  <!-- Auto-remsan: vad kameran ser som inte är på bordet, med skäl, medan
-       auto går och telefonen är ansluten. Ritas av renderAutoRemsa(). -->
-  <div class="autoremsa" id="autoRemsa" hidden></div>
+  <!-- Statusfältet: Auto-läget, granskningen och högst en anmärkning, i en
+       enda rad med fast höjd. Auto-delen ritas av renderAutoBar() medan auto
+       går och telefonen är ansluten; granskningen av renderPending() så
+       länge kort väntar på ett namn — också med auto av. Inget av det:
+       dolt. Knapparna behåller sina id:n (pendGo, pendDrop): granskningen
+       hänger på dem. -->
+  <div class="autobar" id="autoBar" hidden>
+    <span class="status" id="autoStatus" hidden></span>
+    <div class="granska" id="pendBar" hidden>
+      <span class="ptxt"><b id="pendCount">0</b> kort att fylla i</span>
+      <div class="pendthumbs" id="pendThumbs"></div>
+      <button class="btn sm prim" id="pendGo">Fyll i</button>
+      <button class="btn sm" id="pendDrop" title="Tar bort bilden och alla kort som väntar">Ta bort</button>
+    </div>
+    <span class="not" id="autoNot" hidden></span>
+  </div>
 
   <main>
     <section class="hand">
@@ -2548,13 +2563,6 @@ body.ispel #addPlayerBtn{display:none}
             <button id="zoomIn" title="Bigger cards (+)">+</button>
           </div>
         </div>
-      </div>
-      <div class="pendbar" id="pendBar" hidden>
-        <span class="pdot"></span>
-        <span class="ptxt"><b id="pendCount">0</b> <span id="pendWord">cards found</span><em id="pendTail"></em></span>
-        <div class="pendthumbs" id="pendThumbs"></div>
-        <button class="btn sm prim" id="pendGo">Review</button>
-        <button class="btn sm" id="pendDrop" title="Remove the screenshot and every card still waiting">Discard</button>
       </div>
       <div class="brade">
       <div class="gridwrap" id="gridWrap">
@@ -2976,7 +2984,7 @@ body.ispel #addPlayerBtn{display:none}
         </div>
         <p class="pbstatus" id="pbStatus"></p>
         <!-- Grundläget: vinkeln ett otappat kort har i telefonens bild. Sparas ur
-             ett kort som ligger på bordet — frågan i Auto-remsan vid första
+             ett kort som ligger på bordet — frågan i statusfältet vid första
              kortet, eller knappen här — och gäller spelet. -->
         <div class="kalupp" id="kamGrund" title="Kortets vinkel i bilden avgör om det är tappat: mer än 45° från det otappade läget räknas som tappat. Läget sparas ur ett kort som ligger otappat på bordet och gäller det här spelet">
           <span id="kamGrundTxt">Otappat läge: inte sparat</span>
@@ -6389,7 +6397,6 @@ function renderAll(forceGrid) {
 const M_TELEFON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>';
 const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
-const M_CHEVRON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>';
 
 /* Frusna bordet står kvar tills telefonen kommer tillbaka, och texten ska
    åldras med det — annars säger den "för 40 sekunder sedan" i tio minuter. */
@@ -6477,21 +6484,16 @@ function renderMode() {
        platser fylls med mattmodellen när referensen är klar. */
     chip = `<button class="modechip vantar" data-mode="skruv" title="Telefonen lär sig ljuset — håll den stilla en sekund"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · lär sig ljuset…</span></span></button>`;
 
-  } else if (kamTot > 0 && kamLast < kamTot) {
-    /* D. Kameran ser korten men känner inte igen alla. Två verb för två
-       fakta — "bara 2 av 5 lästa" lät som ett betyg på kameran, och sa inte
-       om felet var tröskelns eller lekens. Med tröskeln ur bruset är leken
-       den troliga orsaken, och det står i titeln. Siffrorna överlever som
-       bråk i nedfällningen: de är det enda som säger hur illa det är. */
-    chip = `<button class="modechip svag" data-mode="skruv" title="Kameran ser ${kamSer} kort och känner igen ${kamLast} av dem. Kort som saknas i din lek får inget namn."><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · ser <b>${kamSer}</b> kort, känner igen <b>${kamLast}</b></span><span class="korttxt"> · ${kamLast}/${kamSer}</span></span>${M_CHEVRON}</button>`;
-
-  } else if (!kamSer) {
-    chip = `<button class="modechip pa" data-mode="skruv" title="Kamerainställningar"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · bordet är tomt</span></span><span class="delare"></span>${M_KUGGE}</button>`;
-
   } else {
-    /* C. Ett tal i stället för ett löfte: "läser ditt bord" gick inte att
-       kontrollera, antalet kort på bordet går det. */
-    chip = `<button class="modechip pa" data-mode="skruv" title="Kamerainställningar"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · ${kamSer} kort på bordet</span></span><span class="delare"></span>${M_KUGGE}</button>`;
+    /* C. Bara "Auto": talen står i statusfältet rakt under, och samma tal
+       på två rader ovanpå varandra var precis dubbleringen som skulle bort.
+       "ser 3 kort, känner igen 2" var ett mått på kameran, inte på bordet,
+       och gjorde chippet gult så fort ett kort lästes; det står nu bara i
+       kameravyns rubrik (kamSkruvTal). Enda tillägget är "bordet är tomt"
+       när kameran inte ser något alls — då finns inget statusfält att läsa. */
+    const n = autoKortPaBordet(minSpelare());
+    const del = n || kamSer ? '' : ' · bordet är tomt';
+    chip = `<button class="modechip pa" data-mode="skruv" title="Kamerainställningar"><span class="led"></span><span class="lbl">Auto<span class="langtxt">${del}</span></span><span class="delare"></span>${M_KUGGE}</button>`;
   }
 
   slot.innerHTML = chip;
@@ -6500,9 +6502,9 @@ function renderMode() {
   rad.innerHTML = radHtml;
   matFlikar();
   renderTom();              // tomrutan följer samma läge som chippet
-  /* Auto-remsan följer samma flaggor: den finns bara medan auto går och
-     telefonen är ansluten, och den bär frågan om grundläget (MES-32). */
-  renderAutoRemsa();
+  /* Statusfältet följer samma flaggor: Auto-delen finns bara medan auto går
+     och telefonen är ansluten, och den bär frågan om grundläget (MES-32). */
+  renderAutoBar();
 }
 
 /* Ett enda ställe tar emot klicken. Chippet ritas om vid varje rendering, så
@@ -6526,14 +6528,10 @@ function modeKlick(ev) {
      är 90° från kortets vinkel — telefonen räknar (grundFranSpar). */
   if (a === 'grund-ja' || a === 'grund-tappat') { begarGrund(grundFragaData && grundFragaData.spar, a === 'grund-tappat'); grundFragaData = null; renderMode(); }
   if (a === 'grund-stang') { grundFragaData = null; renderMode(); }
-  /* Remsans "fyll i i granskningen" är Review-knappen, inte en egen väg —
-     men remsan gäller MITT bord, och Review-knappen den flik som visas:
-     tittade man på en motspelares bord gjorde klicket ingenting. */
-  if (a === 'granska') { const m = minSpelare(); if (m && state.active !== m.id) setActive(m.id); $('#pendGo').click(); }
 }
 $('#modeSlot').addEventListener('click', modeKlick);
 $('#modeRad').addEventListener('click', modeKlick);
-$('#autoRemsa').addEventListener('click', modeKlick);
+$('#autoBar').addEventListener('click', modeKlick);
 
 /* ── Tomrutan ─────────────────────────────────────────────────────────
    Ett tomt bräde är det första man ser i ett spel, och det gjorde reklam för
@@ -6609,28 +6607,29 @@ function renderTom() {
     okanda: { ikon: IKON.kort, h: `Kameran ser ${n} kort`,
       p: 'Den håller på att sätta namn på dem. Ett kort som inte finns i din lek får inget namn — klistra in en bild på det, så läggs det till.',
       knappar: klistra(true),
-      fin: (harKo ? 'Kort som väntar på ett namn går också att fylla i med <b>Review</b> ovanför. ' : '') + sok }
+      fin: (harKo ? 'Kort som väntar på ett namn går också att fylla i med <b>Fyll i</b> ovanför. ' : '') + sok }
   }[l];
   el.innerHTML = `<div class="empty-icon">${V.ikon}</div><h2>${V.h}</h2><p>${V.p}</p>`
     + `<div class="btnrow">${V.knappar}</div><p class="empty-fine">${V.fin}</p>`;
 }
 
+/* Granskningsdelen av statusfältet: hur många kort som väntar på ett namn,
+   miniatyrerna, Review och Discard. Raden säger bara vad som återstår att
+   göra — "1 kort att fylla i"; hur många som hittades totalt (också de som
+   redan fick namn ur samma bild) står i title. Fältets synlighet avgörs i
+   renderAutoBar, som Auto-delen delar raden med. */
 function renderPending() {
   const p = player(), q = p.pending || [];
-  const bar = $('#pendBar');
-  bar.hidden = q.length === 0;
-  if (!q.length) return;
-  /* Raden ska säga hur många kort som hittades TOTALT, inte bara hur många som
-     återstår. En ruta med åtta kort där två gick att läsa ska inte se ut som
-     att appen bara hittade sex. */
-  const tot = p.cards.filter(c => c.box).length + q.length;
-  $('#pendCount').textContent = q.length;
-  $('#pendWord').textContent = 'of ' + tot + (tot === 1 ? ' card' : ' cards');
-  $('#pendTail').textContent = p.cards.length === 0
-    ? ' could not be identified — fill them in yourself, one at a time'
-    : ' need to be filled in';
-  $('#pendThumbs').innerHTML = q.slice(0, 14)
-    .map(x => { const d = cropFor(x.id, x.box, x.rot, 220); return d ? `<img src="${d}" alt="">` : ''; }).join('');
+  const del = $('#pendBar');
+  del.hidden = q.length === 0;
+  if (q.length) {
+    const tot = p.cards.filter(c => c.box).length + q.length;
+    $('#pendCount').textContent = q.length;
+    del.querySelector('.ptxt').title = `${tot} kort hittade, ${q.length} utan namn`;
+    $('#pendThumbs').innerHTML = q.slice(0, 14)
+      .map(x => { const d = cropFor(x.id, x.box, x.rot, 220); return d ? `<img src="${d}" alt="">` : ''; }).join('');
+  }
+  renderAutoBar();
 }
 
 /* ─── upplösning av kortnamn mot Scryfall ─── */
@@ -13691,11 +13690,13 @@ const Kamera = (() => {
        klarar sig. */
     const mr = medianFri(ref, allaFri) || 128;
     const dom = blank > 0.003 ? 'blank' : mr > 190 ? 'ljus' : (textur > 4 || sigma > 4) ? 'orolig' : 'lugn';
-    const dk = x => String(x).replace('.', ',');
-    const rad = dom === 'blank' ? `Blänk på ${(blank * 100).toFixed(0)} % av bilden. Flytta lampan eller telefonen så att det försvinner.`
-      : dom === 'ljus' ? `Bordet är nästan lika ljust som korten (${Math.round(mr)} av 255). En mörkare duk under korten gör kameran mycket säkrare.`
-      : dom === 'orolig' ? `Bordet är oroligt (textur ${textur.toFixed(0)}, brus ${dk(sigma.toFixed(1))}). En enfärgad duk eller ett stort papper under korten gör kameran mycket säkrare.`
-      : `Bordet är lugnt (textur ${textur.toFixed(0)}, brus ${dk(sigma.toFixed(1))}).`;
+    /* Rådet i klartext, utan siffror: spelaren ska veta vad hen kan göra,
+       inte vad texturen mäter. Talen (textur, brus, blänk) följer med i
+       yta och dia och står under Avancerat i datorns kameravy. */
+    const rad = dom === 'blank' ? 'Det blänker i bilden. Flytta lampan eller telefonen så att blänket försvinner.'
+      : dom === 'ljus' ? 'Bordet är nästan lika ljust som korten. En mörkare duk under korten gör kameran säkrare.'
+      : dom === 'orolig' ? 'Bordets mönster gör kameran osäker. En enfärgad duk eller ett stort papper under korten hjälper.'
+      : 'Bordet är lugnt.';
     const bytt = !yta || yta.dom !== dom;
     yta = { dom, brus: +sigma.toFixed(2), textur: +textur.toFixed(1), blank: +(blank * 100).toFixed(1), rad };
     dia.textur = yta.textur; dia.blank = yta.blank;
@@ -14986,62 +14987,82 @@ function kanLyftas(c) { return zonAv(c) !== ZON_GRAV; }
 let senasteKamSpar = null;
 let grundFragad = false;
 
-/* ── Auto-remsan: varje spår som inte blivit ett kort, med sitt skäl ──
+/* ── Statusfältet: modellen ────────────────────────────────────────
    Chippet sa "ser 3 kort, känner igen 2" och inget mer: man lade ett kort
    och såg inte varför det inte kom (Jespers parti 2026-09-10). Avstämningen
    vet varför — den har just avgjort vilka spår som är kort på bordet — så
    den lämnar efter sig de LÖSA spåren (losaSpar) och när datorn först såg
-   varje spår (sparSedd, för "läses (2 s)"). Modellen nedan är en ren
-   funktion av bordet, spåren och de två, så att den går att prova utan vy
-   (dev/avstamning.cjs); renderAutoRemsa gör HTML av den. Sekunderna räknas
-   från datorns första bord med spåret, inte telefonens födsel: högst en
-   rapporttakt (150 ms) eller ett hjärtslag (3 s) sent, och ingen klocka
-   att jämka mellan två enheter. */
+   varje spår (sparSedd). Modellen nedan är en ren funktion av bordet,
+   spåren och de två, så att den går att prova utan vy (dev/avstamning.cjs);
+   renderAutoBar gör HTML av den. Den svarar med fyra saker:
+     text    – läget: "Auto · 2 kort på bordet · 1 på väg". Kort är riktiga
+               kort på bordet (bundna, inte nedtonade); på väg är spår som
+               läses eller väntar på Claude. Inga råa spårtal — de står i
+               kameravyn.
+     paVag   – spåren på väg, med när datorn först såg dem (sedan): nästa
+               steg gör dem till platshållarkort på bordet (MES-27).
+     granska – hur många kort som väntar i granskningen. De osäkra spåren
+               ÄR granskningens poster och får inget eget besked.
+     not     – högst en kort anmärkning, utan siffror: något rör sig, korten
+               är små, ett kort är för litet, ett kort syns inte längre.
+               Ytans råd (blänk, ljust bord, mönster) hör till kameravyn.
+   Förut gav modellen ett chip per spår med skäl ("läses (2 s)", "skymt",
+   "ligger redan på bordet") — en remsa som radbröt så att bordet hoppade,
+   och som sa "osäkert – fyll i i granskningen" bredvid granskningsraden
+   som sa samma sak. Tiden räknas från datorns första bord med spåret,
+   inte telefonens födsel: högst en rapporttakt (150 ms) eller ett
+   hjärtslag (3 s) sent, och ingen klocka att jämka mellan två enheter. */
 let losaSpar = new Set();    // spår-id ur senaste bordet som inte räknades till något kort på bordet
 let sparSedd = new Map();    // spår-id → Date.now() när datorn först såg spåret
 const AUTO_RORLIGT_S = 3;    // ett spår som är 'ny' (rör sig) längre än så är en hand eller ett kort på väg, inte något som läses
+/* Riktiga kort på bordet enligt kameran: bundna till ett spår och inte
+   nedtonade. Samma tal i chippet (renderMode) och i statusfältet. */
+function autoKortPaBordet(mig) {
+  return ((mig && mig.cards) || []).filter(c => c.spar != null && c.lyft == null).length;
+}
+/* Räkneord i anmärkningen: "Ett kort", "Två kort" — siffror först över fem. */
+const AUTO_RAKNEORD = ['', 'Ett', 'Två', 'Tre', 'Fyra', 'Fem'];
+const autoAntal = n => AUTO_RAKNEORD[n] || String(n);
 function autoRemsaModell(spar, mig, extra) {
   const e = extra || {}, nu = e.nu != null ? e.nu : Date.now();
   const kort = (mig && mig.cards) || [], ko = (mig && mig.pending) || [];
-  const sek = id => { const t0 = e.sedd ? e.sedd.get(id) : undefined; return t0 == null ? 0 : Math.max(0, Math.floor((nu - t0) / 1000)); };
-  const m = { lage: 'varm', text: '', not: null, rorligt: false, chips: [] };
-  if (e.fas === 'ljus' || e.fas === 'lar') { m.text = 'Auto · lär sig ljuset — håll telefonen stilla'; return m; }
+  const m = { text: '', not: null, paVag: [], granska: ko.length };
+  if (e.fas === 'ljus' || e.fas === 'lar') { m.text = 'Auto · lär sig ljuset'; m.not = 'Håll telefonen stilla'; return m; }
   if (e.fas === 'ingen') { m.text = 'Auto · ladda om sidan på telefonen'; return m; }
-  const synliga = new Set(spar.map(t => t.id));
-  const paBordet = kort.filter(c => c.spar != null && synliga.has(c.spar)).length;
+  const sedan = id => { const t0 = e.sedd ? e.sedd.get(id) : undefined; return t0 == null ? nu : t0; };
   /* Utan avstämningens facit (losa) räcker bindningen som mått. */
   const losa = spar.filter(t => e.losa ? e.losa.has(t.id) : !kort.some(c => c.spar === t.id));
+  let rorligt = false;
   for (const t of losa) {
-    const s = sek(t.id);
-    const chip = { spar: t.id, namn: t.namn || t.namnLast || t.gissning || null, s };
-    if (t.tillstand === 'okand' && t.provas) Object.assign(chip, { slag: 'vantar', text: `väntar på Claude (${s} s)` });
-    else if (t.tillstand === 'okand' && ko.some(q => q.spar === t.id)) Object.assign(chip, { slag: 'osaker', granska: true, text: 'osäkert – fyll i i granskningen' });
-    else if (t.skymd) Object.assign(chip, { slag: 'skymd', text: 'skymt – något ligger över' });
-    /* Okänt utan post: överhoppat i granskningen, samma råd som statusraden. */
-    else if (t.tillstand === 'okand') Object.assign(chip, { slag: 'osaker', text: 'osäkert – lyft kortet så frågar den igen' });
-    /* Klart men löst: kortet togs bort för hand (spärrat tills det lyfts),
-       eller bordet har redan lika många med namnet som mattan visar. */
-    else if (t.tillstand === 'klar' && e.borttagna && e.borttagna.has(t.id)) Object.assign(chip, { slag: 'bort', text: 'borttaget för hand' });
-    else if (t.tillstand === 'klar') Object.assign(chip, { slag: 'dubbel', text: 'ligger redan på bordet' });
+    /* På väg: spår som läses (nya eller stilla) och spår som väntar på
+       Claude. Inte på väg: osäkra (de står i granskningen, eller hoppades
+       över där), skymda (något ligger över — en hand), och klara som redan
+       ligger på bordet eller togs bort för hand. De syns i kameravyn. */
+    if (t.tillstand === 'okand' && t.provas) m.paVag.push({ spar: t.id, sedan: sedan(t.id), slag: 'vantar', namn: t.gissning || t.namnLast || null });
+    else if (t.tillstand === 'okand' || t.skymd || t.tillstand === 'klar') continue;
     else {
-      Object.assign(chip, { slag: 'laser', text: `läses (${s} s)` });
-      if (t.tillstand === 'ny' && s >= AUTO_RORLIGT_S) m.rorligt = true;
+      m.paVag.push({ spar: t.id, sedan: sedan(t.id), slag: 'laser', namn: null });
+      if (t.tillstand === 'ny' && nu - sedan(t.id) >= AUTO_RORLIGT_S * 1000) rorligt = true;
     }
-    m.chips.push(chip);
   }
-  if (e.sma > 0) m.chips.push({ slag: 'liten', text: e.sma === 1 ? 'ett kort för litet för att läsas' : `${e.sma} kort för små för att läsas` });
-  /* Nedtonade kort: ett i taget med namn, fyra eller fler som ett tal —
-     zonrubrikens rad svarar för alla på en gång (renderLyftRad). */
-  const lyfta = kort.filter(c => c.lyft != null && kanLyftas(c));
-  if (lyfta.length > 3) m.chips.push({ slag: 'borta', text: `${lyfta.length} kort syns inte längre` });
-  else for (const c of lyfta) m.chips.push({ slag: 'borta', kort: c.cid, namn: c.name, text: 'syns inte längre' });
+  const n = autoKortPaBordet(mig);
   const ser = e.ser != null ? e.ser : spar.length;
-  const allaKanda = !losa.length && !(e.sma > 0);
-  if (allaKanda) { m.text = ser ? `Auto · ${ser} kort på bordet, alla kända` : 'Auto · bordet är tomt'; m.lage = lyfta.length ? 'varm' : 'lugn'; }
-  else m.text = `Auto · ser ${ser} kort · ${paBordet} på bordet`;
-  if (m.rorligt) m.not = 'något rör sig på bordet';
-  else if (e.rad) m.not = e.rad;
-  else if (e.yta && e.yta.dom && e.yta.dom !== 'lugn') m.not = { blank: 'blänk i bilden', ljus: 'bordet är nästan lika ljust som korten', orolig: 'bordet är oroligt' }[e.yta.dom] || null;
+  const lyfta = kort.filter(c => c.lyft != null && kanLyftas(c));
+  /* "Bordet är tomt" bara när kameran inte ser något alls: ett kort som är
+     för litet, ett osäkert i granskningen eller ett skymt är inte tomt. */
+  const tomt = !n && !ser && !m.paVag.length && !ko.length && !(e.sma > 0);
+  m.text = tomt ? 'Auto · bordet är tomt'
+    : ['Auto', n ? `${n} kort på bordet` : null, m.paVag.length ? `${m.paVag.length} på väg` : null].filter(Boolean).join(' · ');
+  /* En anmärkning, den som är mest värd att veta just nu: rörelsen först
+     (den går över av sig själv), sedan avståndet (allt är för litet), ett
+     kort som är för litet (det syns ingen annanstans), sist det nedtonade
+     (bordet visar det redan). Telefonens råd om avståndet har två meningar;
+     den första räcker här, hela står i kameravyn. */
+  if (rorligt) m.not = 'Något rör sig på bordet';
+  else if (e.rad) m.not = e.rad.split('. ')[0].replace(/\.$/, '');
+  else if (e.sma > 0) m.not = e.sma === 1 ? 'Ett kort är för litet för att läsas' : `${autoAntal(e.sma)} kort är för små för att läsas`;
+  else if (lyfta.length === 1) m.not = `${lyfta[0].name} syns inte längre`;
+  else if (lyfta.length > 1) m.not = `${autoAntal(lyfta.length)} kort syns inte längre`;
   return m;
 }
 
@@ -15478,68 +15499,52 @@ function tagEmotBeskarning(m) {
    graveyard" i landen ska inte skicka iväg creatures man inte tittat på.
    Landens rad bor i manaRow, som renderMana bygger om vid varje omritning —
    därför anropas den här också ur renderGrid, inte bara ur renderAll. */
-/* Frågan om det första kamerakortet: Auto-remsan ritar den så länge
+/* Frågan om det första kamerakortet: statusfältet ritar den så länge
    grundFragaData står och läget inte kommit från annat håll. */
 function grundFraga(namn, spar) { grundFragaData = { namn, spar }; renderMode(); }
 
-/* ── Auto-remsan, ritad ─────────────────────────────────────────────
-   Modellen står i avstämningen (autoRemsaModell); här blir den HTML. Ritas
-   ur renderMode — varje bord, varje lägesbyte — och en gång i sekunden så
-   att sekunderna i "läses (2 s)" går. Samma HTML ritas inte om: en knapp
-   man tabbat till tappade annars fokus var tredje sekund (jfr renderTom).
-   Frågan om grundläget bor här: den ska stå där man tittar när det första
-   kortet dyker upp, och gäller så länge inget läge sparats (telefonens
-   eget besked, null). Ett läge från annat håll släcker den. */
-let autoRemsaHtml = '', autoRemsaGrundHtml = '';
-function autoRemsaSynlig() { return !!spelLage && prefs.autoLage === true && kamAnsluten; }
-function renderAutoRemsa() {
-  const el = $('#autoRemsa'); if (!el) return;
-  if (!autoRemsaSynlig()) {
-    if (!el.hidden) { el.hidden = true; el.innerHTML = ''; autoRemsaHtml = autoRemsaGrundHtml = ''; dockaKamOv(); }
-    return;
+/* ── Statusfältet, ritat ────────────────────────────────────────────
+   Modellen står i avstämningen (autoRemsaModell); här blir den HTML, i
+   fältet som granskningsdelen (renderPending) delar. Ritas ur renderMode —
+   varje bord, varje lägesbyte — och en gång i sekunden, för att "något rör
+   sig" räknas i tid. Samma HTML ritas inte om: en knapp man tabbat till
+   tappade annars fokus var tredje sekund (jfr renderTom).
+   Frågan om grundläget står i anmärkningens plats så länge grundFragaData
+   står och inget läge sparats (telefonens eget besked, null). Ett läge
+   från annat håll släcker den. Fältet syns när auto går och telefonen är
+   ansluten, och när något väntar i granskningen — också med auto av.
+   Bärnsten bara när fältet ber om ett klick (granskningen, frågan om
+   grundläget): en anmärkning ensam byter inte färg på hela raden. */
+let autoBarStatusHtml = '', autoBarNotHtml = '';
+function autoBarAutoSynlig() { return !!spelLage && prefs.autoLage === true && kamAnsluten; }
+function renderAutoBar() {
+  const el = $('#autoBar'); if (!el) return;
+  const status = $('#autoStatus'), not = $('#autoNot'), granska = $('#pendBar');
+  const auto = autoBarAutoSynlig();
+  if (!auto) {
+    if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
+    if (!not.hidden) { not.hidden = true; not.innerHTML = ''; autoBarNotHtml = ''; }
+  } else {
+    if (grundFragaData && kamGrund !== null) grundFragaData = null;
+    const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
+    const statusHtml = `<span class="led"></span><span class="txt" title="${esc(m.text)}">${esc(m.text)}</span>`;
+    const notHtml = grundFragaData
+      ? `<span class="nottxt" title="${esc(grundFragaData.namn)} ligger otappat? Spara det som otappat läge."><b>${esc(grundFragaData.namn)}</b> ligger otappat? Spara det som otappat läge.</span>` +
+        '<button class="btn prim" data-mode="grund-ja">Ja, spara</button>' +
+        '<button class="btn" data-mode="grund-tappat">Det är tappat</button>' +
+        '<button class="btn ghost" data-mode="grund-stang" title="Går att spara senare i kameravyn">Inte nu</button>'
+      : m.not ? `<span class="nottxt" title="${esc(m.not)}">${esc(m.not)}</span>` : '';
+    if (statusHtml !== autoBarStatusHtml) { status.innerHTML = statusHtml; autoBarStatusHtml = statusHtml; }
+    if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
+    not.classList.toggle('grund', !!grundFragaData);   // frågan får mer plats än en vanlig anmärkning (CSS .not.grund)
+    status.hidden = false;
+    not.hidden = !notHtml;
   }
-  if (grundFragaData && kamGrund !== null) grundFragaData = null;
-  const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad, yta: kamYta });
-  /* Sekunderna i "läses (2 s)" står i ett eget element och byts med
-     textContent: byttes hela remsan ut varje sekund försvann knappen man
-     var på väg att trycka på mellan mousedown och mouseup, och fokus med
-     den. Remsan ritas om bara när något annat än sekunderna ändrats, och
-     frågan om grundläget ligger i ett eget block som ritas för sig. */
-  const chip = c => {
-    const vem = c.namn ? `<b>${esc(c.namn)}</b> · ` : (c.slag === 'liten' || (c.slag === 'borta' && !c.kort)) ? '' : 'Ett kort · ';
-    const sek = /\(\d+ s\)$/.exec(c.text || '');
-    const skal = c.granska ? 'osäkert – <button class="lank" data-mode="granska">fyll i i granskningen</button>'
-      : sek ? esc(c.text.slice(0, sek.index)) + '<span class="sek"></span>' : esc(c.text);
-    return `<span class="chip ${c.slag}"${c.spar != null ? ` title="spår #${c.spar}"` : ''}><span class="led"></span>${vem}${skal}</span>`;
-  };
-  const sekunder = m.chips.map(c => { const s = /\(\d+ s\)$/.exec(c.text || ''); return s ? s[0] : null; }).filter(Boolean);
-  const html = `<div class="remsa"><span class="sum"><span class="led"></span>${esc(m.text)}</span>`
-    + (m.not ? `<span class="not" title="${esc(m.not)}">${esc(m.not)}</span>` : '')
-    + m.chips.map(chip).join('') + '</div>';
-  const grund = grundFragaData
-    ? `<div class="grund"><span><b>${esc(grundFragaData.namn)}</b> ligger otappat? Spara det som otappat läge.</span>` +
-      '<button class="btn prim" data-mode="grund-ja">Ja, spara</button>' +
-      '<button class="btn" data-mode="grund-tappat">Det är tappat</button>' +
-      '<button class="btn ghost" data-mode="grund-stang" title="Går att spara senare i kameravyn">Inte nu</button></div>'
-    : '';
-  if (html !== autoRemsaHtml || grund !== autoRemsaGrundHtml) {
-    let del = el.firstElementChild, grundEl = el.querySelector(':scope > .grund');
-    if (html !== autoRemsaHtml || !del || del.classList.contains('grund')) {
-      if (del && !del.classList.contains('grund')) del.outerHTML = html; else el.insertAdjacentHTML('afterbegin', html);
-      autoRemsaHtml = html;
-    }
-    if (grund !== autoRemsaGrundHtml) {
-      if (grundEl) grundEl.remove();
-      if (grund) el.insertAdjacentHTML('beforeend', grund);
-      autoRemsaGrundHtml = grund;
-    }
-  }
-  el.querySelectorAll('.sek').forEach((s, i) => { if (s.textContent !== sekunder[i]) s.textContent = sekunder[i] || ''; });
-  el.className = 'autoremsa ' + (grundFragaData ? 'varm' : m.lage);
-  el.hidden = false;
-  dockaKamOv();     // remsans höjd flyttar panelens överkant
+  el.classList.toggle('varm', !granska.hidden || (auto && !!grundFragaData));
+  const synlig = auto || !granska.hidden;
+  if (el.hidden !== !synlig) { el.hidden = !synlig; dockaKamOv(); }   // fältet kommer och går: panelens överkant följer
 }
-setInterval(() => { if (autoRemsaSynlig()) renderAutoRemsa(); }, 1000);
+setInterval(() => { if (autoBarAutoSynlig()) renderAutoBar(); }, 1000);
 
 function renderLyftRad() {
   const p = player();
@@ -15831,6 +15836,8 @@ function provbordData(m) {
     tal('täckning', ((d.tackning || 0) * 100).toFixed(1) + '%', (d.tackning || 0) > 0.35),
     tal('spritt', ((d.spritt || 0) * 100).toFixed(2) + '%', (d.spritt || 0) > 0.005),
     tal('brus σ', (d.sigma || 0).toFixed(1)),
+    tal('textur', d.textur == null ? '–' : d.textur.toFixed(1), (d.textur || 0) > 4),   // ytans mått: >4 är 'orolig' i bedomYta
+    tal('blänk', d.blank == null ? '–' : d.blank.toFixed(1) + '%', (d.blank || 0) > 0.3),
     tal('otsu', d.otsu == null ? '–' : d.otsu),
     tal('gain', (d.gain || 1).toFixed(2), Math.abs((d.gain || 1) - 1) > 0.25),
     tal('för små', d.forSma || 0),
@@ -15943,8 +15950,8 @@ function visaKamSteg() {
     ? '<span class="kamlive"><i></i>Telefonen är ansluten</span>'
     : 'Väntar på att telefonen ansluter…';
 }
-/* Panelens överkant: under topbaren, raden och remsan, vad de än är höga
-   just nu — remsan radbryter och frusen-raden kommer och går. Bordet får
+/* Panelens överkant: under topbaren, raden och statusfältet, vad de än är
+   höga just nu — fältet och frusen-raden kommer och går. Bordet får
    marginalen (body.kamdockad) bara medan panelen faktiskt är dockad, alltså
    öppen och bred nog. */
 function dockaKamOv() {
