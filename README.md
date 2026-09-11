@@ -26,20 +26,21 @@ ett litet bordstillstånd när något ändrats.
 
 **Telefonen läser av hela bilden** — det finns ingen yta att markera. Sätt den i
 en hållare rakt ovanför korten du spelar ut, och håll leken och graveyard utanför
-bild. Tappat läses ur kortets vinkel mot ett **otappat läge**: när kameran
-lägger det första kortet på bordet frågar appen om det ligger otappat ("Ja,
-spara" / "Det är tappat"), och från då är ett kort som ligger mer än 45° från
-det läget tappat. Otappat är sällan exakt rakt och tappat sällan exakt 90°, så
-läget tas ur ett riktigt kort i stället för en fast axel. Det sparas i spelet,
-och går att spara om i kameravyn ("Spara från senaste kortet").
+bild. Tappat läses ur kortets vinkel mot ett **otappat läge**, och det läget
+sparar du själv i ett eget steg: lägg ett kort som du vill ha det otappat, och
+tryck *Spara som otappat läge* i statusfältet (eller *Spara* i kameravyn). Tills
+dess spelas kamerans kort otappade; från då är ett kort som ligger mer än 45°
+från det läget tappat. Otappat är sällan exakt rakt och tappat sällan exakt 90°,
+så läget tas ur ett riktigt kort i stället för en fast axel; det sparas i
+spelet och går att spara om i kameravyn.
 
 **Auto-remsan** under topbaren säger varför ett kort inte kommit än, utan att
 du öppnar något: "Auto · ser 3 kort · 2 på bordet" och ett chip per kort
 kameran ser men inte lagt ut — *läses (2 s)*, *väntar på Claude (5 s)*,
 *osäkert – fyll i i granskningen* (länken är Review-knappen), *skymt – något
 ligger över*, *för litet för att läsas*, *syns inte längre* för ett nedtonat
-kort. Är allt känt står bara "Auto · 3 kort på bordet, alla kända". Frågan om
-det otappade läget står i samma rad. Chippet i topbaren är kvar som förut och
+kort. Är allt känt står bara "Auto · 3 kort på bordet, alla kända". Steget att
+spara det otappade läget står i samma rad. Chippet i topbaren är kvar som förut och
 öppnar **kameravyn**: en panel dockad vid högerkanten (från 900 px bred skärm)
 med telefonens bild, statusraden och reglagen, som inte täcker bordet — ett
 kort som dyker upp medan du skruvar syns. QR-koden för att koppla telefonen

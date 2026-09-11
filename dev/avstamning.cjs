@@ -39,12 +39,11 @@ const BORTA_NAD = 3000; let lyftT = null, lyftTips = null;
 let hoppade = new Set(), borttagna = new Set();
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 function glomSpar() {}
-/* Grundläget (MES-30): telefonens besked i varje bord (null = inte sparat,
-   undefined = telefon utan fältet), och frågan datorn ställer på det första
-   kamerakortet — här bara samlad, inte ritad. */
-let kamGrund = null;
-let grundFragor = [];
-function grundFraga(namn, spar) { grundFragor.push({ namn, spar }); }
+/* Grundläget (MES-30, MES-27): telefonens besked i varje bord (null = inte
+   sparat, undefined = telefon utan fältet, tal = sparat). Sparat i de flesta
+   proven — tap-synken från spåren gäller bara då; T- och G-serien sätter
+   null och provar otappat-tills-sparat och steget i statusfältet. */
+let kamGrund = 20;
 `;
 const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
@@ -55,9 +54,14 @@ return {
   get chip() { return { kamSer, kamLast, kamTot }; },
   get borttagna() { return borttagna; },
   get hoppade() { return hoppade; },
-  get grundFragor() { return grundFragor; },
   set grund(v) { kamGrund = v; },
   get senasteKamSpar() { return senasteKamSpar; },
+  /* Steget att spara ett otappat läge (MES-27): det statusfältet ritar, ur
+     mitt bord och senaste bordet — { namn, spar } eller null — och "Inte
+     nu"-flaggan. senaste() är kortet knappen i kameravyn tar. */
+  steg() { return grundSteg(state.players[0], senasteSpar); },
+  senaste() { return senasteMattaKort(state.players[0], senasteSpar); },
+  set avbojd(v) { grundAvbojd = !!v; },
   /* Statusfältet (MES-32, MES-27): modellen som renderAutoBar ritar, med
      samma underlag som i appen — senaste bordet, avstämningens lösa spår
      och när varje spår först sågs. extra lägger till det som kommer
@@ -73,9 +77,11 @@ return {
   summa() { return autoSumSammanfatta(autoSum, senasteSpar, state.players[0], Date.now()); },
   avsluta() { return autoSumAvsluta(senasteSpar, state.players[0], Date.now()); },
   kostnad: aiKostnad, pris: aiPris,
-  /* Nollställningen går genom avstamBord: det är där frågan om grundläget
-     och "senaste kortet" börjar om, som när telefonen nollställt sig. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = null; grundFragor = []; autoSum = null; lsMinne.clear(); }
+  /* Nollställningen går genom avstamBord: det är där "senaste kortet"
+     börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
+     hör till spelet, inte nollställningen — de sätts om här, som när man
+     lämnar spelet. */
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; autoSum = null; lsMinne.clear(); }
 };`)({ now: () => klocka.t }, () => 0, () => {});
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -341,7 +347,10 @@ prov('K5 borttaget för hand, det spärrade spåret dör men ett annat ser korte
 /* Tap-synken från kameran till bordet står kvar (produktregeln 2026-09-10:
    kameran läser tappat/otappat, mot ett bekräftat grundläge). Kortets
    tapped följer spårets tappad åt båda hållen, och ett kort som skapas
-   från ett tappat spår föds tappat. */
+   från ett tappat spår föds tappat — när ett grundläge är sparat (20 här,
+   se miljo). Utan sparat läge (MES-27, T3) spelas korten otappade: det
+   första kortet i Jespers parti lades ut tappat, och först därefter kom
+   frågan om det låg otappat. */
 prov('T1 spårets tappad styr det bundna kortet: tappas, och otappas igen', () => {
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
   assert.equal(app.kort[0].tapped, 0);
@@ -354,37 +363,79 @@ prov('T2 ett kort som skapas ur ett tappat spår föds tappat', () => {
   stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
   assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1);
 });
-
-/* Grundläget (MES-30): frågan om det första kamerakortet ställs en gång per
-   nollställning, med kortets namn och spår, och bara när telefonen själv sagt
-   att inget läge är sparat (null). Ett kort som binds till ett kort som redan
-   låg på bordet skapas inte, och frågar inte. */
-prov('G1 första kamerakortet utan grundläge: frågan ställs en gång, med namn och spår', () => {
-  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
-  assert.deepEqual(app.grundFragor, [{ namn: 'Ukud Cobra', spar: 4 }]);
-  assert.equal(app.senasteKamSpar, 4);
-  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT }), klar(5, 'Forest', { sen: 10, ...LANGT })]);
-  assert.equal(app.grundFragor.length, 1, 'frågan en gång'); assert.equal(app.senasteKamSpar, 5, 'senaste kortet');
-  app.avstamBord([], true);   // telefonen nollställde sig
-  assert.equal(app.senasteKamSpar, null);
-  stam([klar(6, 'Plains', { sen: 10, ...PORT })]);
-  assert.equal(app.grundFragor.length, 2); assert.equal(app.grundFragor[1].spar, 6);
+prov('T3 utan sparat läge (null): ett tappat spår skapar ett otappat kort, tappar inte ett bundet, och lämnar den digitala tappningen', () => {
+  app.grund = null;
+  stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 0, 'föds otappat');
+  stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 0, 'bundet kort tappas inte av spåret');
+  app.kort[0].tapped = 1;   // tappat för hand på datorn
+  stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 1, 'ett otappat spår otappar inte heller');
+  /* Granskningens post bär INGEN bedömning (null), inte "otappat": kortet
+     applyPick skapar ur den föds otappat ändå, men ett nedtonat kort som
+     svaret binder om behåller det tap-läge spelaren satt för hand — ett
+     false hade avtappat det. */
+  stam([klar(1, 'Forest', { sen: 10, ...PORT }), { id: 2, tillstand: 'okand', namn: null, cands: [], tappad: true, sen: 10, ...LANGT }]);
+  assert.equal(app.pending.length, 1); assert.strictEqual(app.pending[0].tappad, null);
 });
-prov('G2 sparat grundläge (12°): ingen fråga', () => {
-  app.grund = 12;
-  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
-  assert.equal(app.grundFragor.length, 0); assert.equal(app.kort.length, 1);
+prov('T4 läget sparas (20): nästa bord tappar det bundna kortet efter spåret — som förut', () => {
+  app.grund = null;
+  stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 0);
+  /* Telefonen dömer om spåren när läget sparas (grundFranSpar → domOm) och
+     skickar bordet på en gång, med talet i meddelandet; kamTogsEmot sätter
+     kamGrund innan avstamBord läser det. */
+  app.grund = 20;
+  stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1, 'spårets dom gäller från första bordet med läge');
+  stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 0);
 });
-prov('G3 telefon utan fältet (undefined): ingen fråga — den kan inte svara på den', () => {
+prov('T5 telefon utan fältet (undefined): spårets dom gäller som förut', () => {
   app.grund = undefined;
-  stam([klar(4, 'Ukud Cobra', { sen: 10, ...PORT })]);
-  assert.equal(app.grundFragor.length, 0); assert.equal(app.kort.length, 1);
+  stam([klar(1, 'Forest', { tappad: true, sen: 10, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1, 'föds tappat');
+  stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 0);
 });
-prov('G4 ett kort som redan låg på bordet binds, skapas inte: ingen fråga', () => {
+/* Steget i statusfältet (grundSteg): "Lägg korten som du vill ha dem
+   otappade — <kort> ligger så nu? [Spara som otappat läge] [Inte nu]".
+   Visas så snart ett kamerakort detektorn mätt (sen != null, inte helbild)
+   ligger på bordet och telefonen själv sagt att inget läge är sparat
+   (null); inte för en telefon som inte kan svara (undefined), inte när
+   läget finns, och inte efter "Inte nu". Nämner det senaste kortet — samma
+   som knappen i kameravyn tar. */
+prov('T6 steget: första mätta kamerakortet, inget läge, inte avböjt', () => {
+  app.grund = null;
+  assert.equal(app.steg(), null, 'tomt bord: inget steg');
+  stam([klar(3, 'Ukud Cobra', { ai: { helbild: true }, sen: null, ...box(0.41, 0.42, 0.063, 0.088) })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.steg(), null, 'ett helbildskort har ingen vinkel: inget steg');
+  stam([klar(3, 'Ukud Cobra', { ai: { helbild: true }, sen: null, ...box(0.41, 0.42, 0.063, 0.088) }), klar(4, 'Forest', { sen: 10, ...LANGT })]);
+  assert.deepEqual(app.steg(), { namn: 'Forest', spar: 4 }, 'första mätta kortet');
+  stam([klar(4, 'Forest', { sen: 10, ...LANGT }), klar(5, 'Plains', { sen: 10, ...PORT })]);
+  assert.deepEqual(app.steg(), { namn: 'Plains', spar: 5 }, 'det senaste kortet');
+  assert.equal(app.senaste().spar, 5, 'knappen i kameravyn tar samma kort');
+  stam([klar(4, 'Forest', { sen: 10, ...LANGT })]);   // Plains lyfts: kortet är borta i nåd, steget tar Forest
+  assert.deepEqual(app.steg(), { namn: 'Forest', spar: 4 });
+  app.avbojd = true;
+  assert.equal(app.steg(), null, '"Inte nu" håller undan steget');
+  app.avstamBord([], true);   // telefonen tog en ny referensbild — steget ska inte tjata igen
+  stam([klar(6, 'Forest', { sen: 10, ...LANGT })]);
+  assert.equal(app.steg(), null, 'avböjt gäller över en nollställning');
+  app.avbojd = false;
+  assert.deepEqual(app.steg(), { namn: 'Forest', spar: 6 });
+  app.grund = 20;
+  assert.equal(app.steg(), null, 'läget sparat: inget steg');
+  app.grund = undefined;
+  assert.equal(app.steg(), null, 'telefon som inte kan svara: inget steg');
+});
+prov('T6b steget också för ett kort som låg på bordet och bands till ett mätt spår', () => {
+  app.grund = null;
   app.kort.push({ cid: 'm', name: 'Forest', flipped: 0 });
   stam([klar(1, 'Forest', { sen: 10, ...PORT })]);
-  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 1);
-  assert.equal(app.grundFragor.length, 0); assert.equal(app.senasteKamSpar, null);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 1); assert.equal(app.senasteKamSpar, null);
+  assert.deepEqual(app.steg(), { namn: 'Forest', spar: 1 });
 });
 
 /* Statusfältet (MES-32, MES-27): { text, not, paVag, granska }. text räknar
