@@ -1832,6 +1832,7 @@ body.ispel #startSpelBtn{display:none}
 .lagevarn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:7px;background:var(--tand2);border:1px solid #4a3a17;color:#e8c98a;font:11.5px/1.4 var(--sans)}
 .lagevarn b{color:var(--pa-acc)}
 .lagefin{font:11px/1.4 var(--sans);color:var(--dim2)}
+.lagerotera{display:flex;align-items:center;gap:8px;font:12px var(--sans);color:var(--dim)}
 .modechip.lage{background:var(--bg3);border-color:var(--line);color:var(--dim)}
 .modechip.lage:hover{border-color:var(--panelram2);color:var(--txt)}
 .modechip.lage .led{background:var(--dim2)}
@@ -5229,6 +5230,13 @@ let kamAnsluten = false;      // sitter en telefon i spelets närvarolista?
 let kamOppen = false;         // står #kamOv öppen?
 let kamTittar = false;        // tittar någon på telefonens bild? (popovern)
 let kamUpp = 'v';             // hur ett otappat kort ligger i telefonens bild: 'v' stående, 'h' liggande — reserven när inget grundläge är sparat; följer med i raden
+/* Kamerabildens orientering mot mattan (MODE-5): telefonen sitter hur som
+   helst i hållaren, så bilden vrids (0/90/180/270) och speglas innan
+   spårens lägen läggs på brädet. Följer med i camera_setups.ruta så att
+   alla ser samma bord. */
+let kamVand = 0, kamSpegel = false;
+const kamOriNyckel = () => kamVand + (kamSpegel ? 'm' : '');
+function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); }
 /* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
    hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
    utan fältet), null = inte sparat, tal = sparat. Vid null spelas korten
@@ -5773,6 +5781,11 @@ function renderGrid(force) {
     v = matVy(p);
     if (arMitt(p) && v.vp.riktig && !fjarrLas) save();
   }
+  /* Table leads: kamerabundna kort ligger där bordet lägger dem. */
+  if (speglaKamPos(p, v)) {
+    v = matVy(p);
+    if (v.vp.riktig && !fjarrLas) save();
+  }
   $('#clearHandTxt').textContent = spelLage ? 'Clear my board' : 'Clear board';
   $('#clearHand').title = spelLage
     ? 'Removes every card from your own board — the other players keep theirs'
@@ -5999,10 +6012,55 @@ function matPlacera(p, platser, v) {
     kvar.add(pl.spar);
     if (platsPos.has(pl.spar)) continue;
     const upptagna = cards.concat([...platsPos.values()].map(q => ({ cid: 'plats', name: '', x: q.x, y: q.y, tapped: 0, cts: [] })));
+    /* Table leads: platshållaren står där spåret är i bilden. */
+    const t = kamSpeglar(p) ? senasteSpar.find(u => u.id === pl.spar) : null;
+    if (t && t.w != null && t.h != null) {
+      const m = kamTillMatta({ x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h }, kamSkala(p));
+      platsPos.set(pl.spar, clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g));
+      continue;
+    }
     const pos = slotBeside(upptagna, 'perm', v.board);
     platsPos.set(pl.spar, clampKort({ name: '', x: pos.x, y: pos.y }, v.board, g));
   }
   for (const key of [...platsPos.keys()]) if (!kvar.has(key)) platsPos.delete(key);
+  return andrat;
+}
+/* ═══ FRI MATTA — kamerans lägen på brädet (MODE-5, Table leads) ═════
+   Spårets mitt (k.kam, bildandelar) läggs på brädet med bildens
+   proportioner: en kortbredd i bilden (medianen av de bundna kortens
+   kam.w) är CW på brädet, så avstånden mellan korten blir samma som på
+   bordet. Bilden vrids (kamVand) och speglas (kamSpegel) kring sin mitt
+   innan den skalas, och läggs till höger om graveyard-högens kolumn.
+   Ritas bara när kamerans stämpel (kam.nar) eller orienteringen bytt —
+   annars flyttar hjärtslaget om korten var tredje sekund. Klämmer bara
+   mot graveyard-rutan: brädet växer i stället (grown i matVy). */
+function kamSkala(p) {
+  const w = p.cards.filter(c => c.kam && c.kam.w).map(c => c.kam.w).sort((a, b) => a - b);
+  const med = w.length ? w[Math.floor(w.length / 2)] : 0.12;
+  return MATTA.CW / Math.max(0.03, med);
+}
+function kamTillMatta(kam, skala) {
+  const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
+  let rx = (kamSpegel ? 1 - kam.x : kam.x) - 0.5, ry = (kam.y - 0.5) * asp;
+  const r = ((kamVand % 360) + 360) % 360;
+  if (r === 90) [rx, ry] = [-ry, rx]; else if (r === 180) [rx, ry] = [-rx, -ry]; else if (r === 270) [rx, ry] = [ry, -rx];
+  const bw = skala, bh = skala * asp;
+  const cw = r === 90 || r === 270 ? bh : bw, ch = r === 90 || r === 270 ? bw : bh;
+  return { x: MATTA.KANT + 190 + cw / 2 + rx * skala, y: MATTA.TOPP + ch / 2 + ry * skala };
+}
+function kamSpeglar(p) { return !!spelLage && arMitt(p) && mittLage() === 'bord' && kamAnsluten; }
+function speglaKamPos(p, v) {
+  if (!kamSpeglar(p)) return false;
+  const skala = kamSkala(p), g = gravRuta(v), ori = kamOriNyckel(), stort = { w: 1e6, h: 1e6 };
+  let andrat = false;
+  for (const c of p.cards) {
+    if (c.spar == null || !c.kam || c.lyft != null || !paMattan(c) || c.attachedTo) continue;
+    if (c.kamRitad === c.kam.nar && c.kamOri === ori) continue;
+    const m = kamTillMatta(c.kam, skala), sz = matStorlek(c);
+    const k = clampKort(Object.assign({}, c, { x: m.x - sz.w / 2, y: m.y - sz.h / 2 }), stort, g);
+    if (Math.abs((c.x || 0) - k.x) > 0.5 || Math.abs((c.y || 0) - k.y) > 0.5) { c.x = k.x; c.y = k.y; andrat = true; }
+    c.kamRitad = c.kam.nar; c.kamOri = ori;
+  }
   return andrat;
 }
 function renderGravHog(cards, d) {
@@ -7105,6 +7163,7 @@ function lagePanelHtml(lage, status) {
       ${kort('skarm', 'Screen leads', 'The camera only notices new cards. You move, tap and count on screen.')}
     </div>
     <div class="lagestatus"><span class="led"></span><span>Camera: ${esc(status)}</span><span class="grow"></span>${knappar}</div>
+    ${lage === 'bord' && kamAnsluten ? `<div class="lagerotera"><span>Camera view on the table</span><button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">Rotate ↻</button><button type="button" class="btn sm" data-mode="spegel" title="Mirror the camera picture left–right">${kamSpegel ? 'Unmirror' : 'Mirror'} ⇋</button></div>` : ''}
     ${grundSaknas ? `<div class="lagevarn">Tap reading is off until you save the untapped angle.${steg ? ` <b>${esc(steg.namn)}</b> is lying untapped now?` : ' Put a card on the table as you want it untapped.'} ${steg ? '<button type="button" class="btn sm prim" data-mode="grund-spara">Save as untapped</button>' : ''}</div>` : ''}
     <div class="lagefin">Keep your graveyard outside the frame — a card on top of the pile looks like a card in play.</div>`;
 }
@@ -7145,6 +7204,8 @@ function modeKlick(ev) {
   const b = ev.target.closest('[data-mode]'); if (!b) return;
   const a = b.dataset.mode;
   if (a === 'lage') { lagePanelOppen = !lagePanelOppen; renderMode(); return; }
+  if (a === 'vand') { kamVand = (kamVand + 90) % 360; sparaKamOrientering(); renderMode(); return; }
+  if (a === 'spegel') { kamSpegel = !kamSpegel; sparaKamOrientering(); renderMode(); return; }
   if (a === 'stang') { lagePanelOppen = false; stangAvAuto(true).then(() => renderMode()); return; }
   /* Ett foto är bara ett foto. Knappen stängde förut av auto för gott, utan
      att fråga: ett tryck för att läsa in bordet en gång, och kameran var borta
@@ -7710,7 +7771,7 @@ $('#markKol').addEventListener('click', ev => { if (ev.target.closest('.insimg i
    Släpp på högen lägger det i graveyard, med ångra. dnd.drar läses av
    medFjarr: fjärrändringar och kamerans omritningar väntar tills draget
    är släppt (fjarrIkapp). */
-let dnd = null;
+let dnd = null, matChipT = null;
 const DND_TROSKEL = 4;                       // px innan det räknas som ett drag
 let matTopZ = 0;
 /* Klientkoordinat → brädkoordinat. */
@@ -7749,6 +7810,12 @@ gridEl.addEventListener('pointerdown', ev => {
   state.sel = i; renderSel(); renderInspektor(); sparaUi();
   if (!redigerbar()) return;                 // titta, inte röra, på någon annans bord
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
+  /* Table leads: bordet bestämmer var ett kamerabundet kort ligger. */
+  if (spelLage && kamSpeglar(minSpelare()) && c.spar != null) {
+    matChip(c, 'The table places this card · switch to Screen leads to move it');
+    clearTimeout(matChipT); matChipT = setTimeout(() => matChip(null), 1800);
+    return;
+  }
   const pt = cpt(ev);
   /* Ett bifogat kort ritas på en plats härledd ur värden; draget ska börja
      där det syns. */
@@ -17424,11 +17491,20 @@ async function tagEmotGrundSvar(m) {
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund, vand: kamVand, spegel: kamSpegel }, null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
   toast(ok ? `Otappat läge sparat (${m.grund}°)` : 'Otappat läge kunde inte sparas i spelet — det gäller tills telefonen laddas om', ok ? 'ok' : 'err');
 }
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
+/* Vrid/spegla kameravyn (lägespanelen): raden får orienteringen, mattan
+   lägger om alla kamerabundna kort direkt. */
+async function sparaKamOrientering() {
+  for (const c of (minSpelare() || {}).cards || []) delete c.kamRitad;
+  renderGrid(true);
+  if (!spelLage) return;
+  const id = spelLage.id;
+  await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel }, null, kamBildW || 0, kamBildH || 0);
+}
 /* En telefon med äldre kod väntar på en ruta ('ingen') eller beskär efter en
    gammal, och datorn ritar då spåren på fel ställe. Raden skrivs om till hela
    bilden när telefonen ansluter: den äldre koden lyssnar på raden och läser
@@ -17443,11 +17519,12 @@ async function normaliseraKamRad(forsok) {
   const r = k && k.ruta;
   kamUpp = r && r.upp === 'h' ? 'h' : 'v';
   kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; visaKamGrund();
+  lasKamOri(r);
   if (r && r.x === 0 && r.y === 0 && r.w === 1 && r.h === 1) return;
   /* Gick skrivningen inte fram står en telefon med äldre kod kvar i 'ingen'
      hela kvällen: ingen annan skriver raden. Några försök till, sedan får
      chippet och tomrutan säga åt en att ladda om telefonen. */
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel }, null, kamBildW || 0, kamBildH || 0);
   if (!ok && (forsok || 0) < 3 && kamAnsluten && spelLage && spelLage.id === id)
     setTimeout(() => normaliseraKamRad((forsok || 0) + 1), 5000);
 }
@@ -17483,7 +17560,7 @@ function kamStegSynk() {
     visaKamGrund();
     if (spelLage) { const id = spelLage.id; Moln.hamtaKalibrering(id)
       .then(k => { if (!spelLage || spelLage.id !== id) return; const r = k && k.ruta;
-                   kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; visaKamGrund(); }).catch(() => {}); }
+                   kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; lasKamOri(r); visaKamGrund(); }).catch(() => {}); }
     /* Rutan ritas mot en bild som just fått en storlek. Ritas den medan
        steget fortfarande är display:none blir varje mått noll, och lagret
        står kvar som en tom canvas tills nästa bildruta råkar komma. */
@@ -17837,7 +17914,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
