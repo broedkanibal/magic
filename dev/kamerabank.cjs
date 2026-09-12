@@ -437,13 +437,13 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`W12 diagnosfil är en funktion och ger mask ${W * H}`, typeof Kamera.diagnosfil === 'function' && Kamera.diagnosfil().maskRa.length === W * H);
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 14, 20, 180));
-  check(`W9 för litet kort (14×20 vid 240, ×8 = 112 videopx): rådet '${(Kamera.rad || '').slice(0, 24)}…', kortsida ${Kamera.spar.map(t => t.kort.toFixed(1)).join(',')}, tillstånd ${Kamera.spar.map(t => t.tillstand).join(',')}`, /små i bilden/.test(Kamera.rad || ''));
+  check(`W9 för litet kort (14×20 vid 240, ×8 = 112 videopx): rådet '${(Kamera.rad || '').slice(0, 24)}…', kortsida ${Kamera.spar.map(t => t.kort.toFixed(1)).join(',')}, tillstånd ${Kamera.spar.map(t => t.tillstand).join(',')}`, /small in the picture/.test(Kamera.rad || ''));
   /* W9b: bänken har ingen ström, alltså inget tak att jämföra med — då är
      rådet det gamla, "flytta närmare" (vidTaket antar att telefonen ger allt
      den kan). Ett kort över golvet men under 150 är ett spår, inte "litet":
      sma 0. */
   check(`W9b utan känd upplösning (${JSON.stringify(Kamera.upplosning)}) är rådet det gamla: '${Kamera.rad}', sma ${Kamera.sma}`,
-        Kamera.upplosning === null && Kamera.rad === 'Korten är små i bilden. Flytta telefonen närmare bordet.' && Kamera.sma === 0);
+        Kamera.upplosning === null && Kamera.rad === 'The cards are small in the picture. Move the phone closer to the table.' && Kamera.sma === 0);
   /* W9c–W9f (MES-31): med Claude påslagen (aiPa) gäller rådet först när
      Claude inte heller läser de små korten. Uppmätt i avståndsprovet
      2026-09-11: Claude läste 9 av 11 kort i golden 06 på 129 px kortsida
@@ -452,7 +452,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   {
     const litet = g => kort(g, W, 60, 50, 14, 20, 180);   // 112 videopx: under golvet, men ett spår (W9)
     const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
-    const radet = () => /små i bilden/.test(Kamera.rad || '');
+    const radet = () => /small in the picture/.test(Kamera.rad || '');
     Kamera.installera({ aiPa: () => true });
     namnSvar = osaker; nystart(); await referens();
     for (let i = 0; i < 8; i++) s = await ruta(litet);

@@ -145,7 +145,7 @@ async function korFaktor(f, img, faktor) {
       const vidSkala = kb * K.ruta.w / K.analysMatt.aw;   // videopixlar per analyspixel, som modulen räknar den
       const dia = K.diagnos;
       smaMax = Math.max(smaMax, dia.smaKort || 0);
-      prov = { langtBort: /^Korten är små i bilden/.test(K.rad || ''), vidSkala, lage: K.lage, antalSpar: spar.length,
+      prov = { langtBort: /^The cards are small in the picture/.test(K.rad || ''), vidSkala, lage: K.lage, antalSpar: spar.length,
                sparKortPx: med(spar.map(t => t.kort * vidSkala)), sma: K.sma, smaKort: dia.smaKort || 0,
                kortRef: dia.kortRef ? Object.assign({}, dia.kortRef) : null,
                /* Avslagen i sista rutan, i den ordning detektera prövar dem:

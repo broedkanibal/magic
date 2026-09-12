@@ -2122,27 +2122,27 @@ body.ispel #addPlayerBtn{display:none}
   <div class="portalkort">
     <div class="portalmarke">
       <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
-      <div><b>Mesa</b><span>Fysiska kort, delat bord</span></div>
+      <div><b>Mesa</b><span>Physical cards, shared table</span></div>
     </div>
-    <p class="portalledd">Din lek och din hand är dina egna. Det du spelar ut på bordet
-      syns för alla i spelet — utan att någon behöver skriva in något.</p>
+    <p class="portalledd">Your deck and your hand are your own. What you play onto the table
+      is seen by everyone in the game — without anyone having to type anything in.</p>
 
     <div id="startInbjuden" class="portalnotis" hidden>
-      <b>Du är inbjuden till ett spel</b>
+      <b>You are invited to a game</b>
       <span id="startInbjudenKod"></span>
-      <span class="portalfin">Logga in så går du med direkt.</span>
+      <span class="portalfin">Sign in and you join right away.</span>
     </div>
 
     <button class="btn prim big portalgoogle" id="loggaInBtn">
       <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z"/><path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.4 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3C3.7 21.4 7.6 24 12 24z"/><path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.6l3.8-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.6 0 3.7 2.6 1.8 6.3l3.8 3C6.5 6.7 9 4.8 12 4.8z"/></svg>
-      Fortsätt med Google
+      Continue with Google
     </button>
     <p class="portalfel" id="startFel" hidden></p>
 
-    <div class="portaldelare"><span>eller</span></div>
-    <button class="btn portallokal" id="lokaltBtn">Använd utan konto</button>
-    <p class="portalfin">Utan konto sparas allt bara i den här webbläsaren, och du kan
-      inte bjuda in någon. Du kan logga in senare.</p>
+    <div class="portaldelare"><span>or</span></div>
+    <button class="btn portallokal" id="lokaltBtn">Use without an account</button>
+    <p class="portalfin">Without an account everything is saved only in this browser, and you
+      cannot invite anyone. You can sign in later.</p>
   </div>
 </div>
 
@@ -2151,20 +2151,20 @@ body.ispel #addPlayerBtn{display:none}
     <div class="portalmarke">
       <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
       <div><b id="lobbyHalsning">Mesa</b><span id="lobbyMejl"></span></div>
-      <button class="btn ghost sm" id="loggaUtBtn" style="margin-left:auto">Logga ut</button>
+      <button class="btn ghost sm" id="loggaUtBtn" style="margin-left:auto">Sign out</button>
     </div>
 
-    <button class="btn prim big" id="skapaSpelBtn">Skapa nytt spel</button>
+    <button class="btn prim big" id="skapaSpelBtn">Create a new game</button>
 
-    <div class="portaldelare"><span>eller gå med</span></div>
+    <div class="portaldelare"><span>or join</span></div>
     <form class="portaljoin" id="joinForm">
-      <input id="joinKod" placeholder="Spelkod" autocomplete="off" spellcheck="false" maxlength="8">
-      <button class="btn" type="submit">Gå med</button>
+      <input id="joinKod" placeholder="Game code" autocomplete="off" spellcheck="false" maxlength="8">
+      <button class="btn" type="submit">Join</button>
     </form>
     <p class="portalfel" id="lobbyFel" hidden></p>
 
     <div id="lobbyMina" class="portalmina" hidden></div>
-    <button class="btn ghost sm" id="lobbyLokalt">Fortsätt utan spel</button>
+    <button class="btn ghost sm" id="lobbyLokalt">Continue without a game</button>
   </div>
 </div>
 
@@ -2182,11 +2182,11 @@ body.ispel #addPlayerBtn{display:none}
   <div class="kamtopp">
     <span class="kamprick" id="kamPrick"></span>
     <b id="kamSpel">—</b>
-    <button class="btn ghost sm" id="kamStang" style="margin-left:auto">Koppla från</button>
+    <button class="btn ghost sm" id="kamStang" style="margin-left:auto">Disconnect</button>
   </div>
 
   <div class="kambotten">
-    <p class="kamstatus" id="kamStatus">Startar kameran…</p>
+    <p class="kamstatus" id="kamStatus">Starting the camera…</p>
     <p class="kamfin" id="kamFin"></p>
     <!-- Ingen knapp, var tanken: telefonen sitter i en hållare över bordet,
          man kommer varken åt skärmen eller ser den, och allt görs på datorn.
@@ -2195,7 +2195,7 @@ body.ispel #addPlayerBtn{display:none}
          ett ribbat bord (golden 05) ger noll regioner hur trösklarna än
          skruvas. Samma sak går att göra från provbordet på datorn. -->
     <div class="kamknappar">
-      <button class="btn sm" id="kamHelbild" title="Skickar hela bilden till Claude och lägger ut de kort den ser">Läs av hela bordet</button>
+      <button class="btn sm" id="kamHelbild" title="Sends the whole picture to Claude and puts out the cards it sees">Read the whole table</button>
     </div>
     <div class="kamsenast" id="kamSenast" hidden>
       <img id="kamSenastBild" alt="">
@@ -2215,22 +2215,22 @@ body.ispel #addPlayerBtn{display:none}
          och länken man skickar är samma sak, sedd från två håll. Att koden dessutom
          var ett <span> gjorde att den enda som visste att den gick att kopiera var
          den som redan visste det. -->
-    <button class="spelknapp" id="spelKnapp" title="Kopiera inbjudningslänken">
+    <button class="spelknapp" id="spelKnapp" title="Copy the invitation link">
       <span class="kod" id="spelKod"></span>
       <span class="delare"></span>
       <span class="bjud">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg>
-        <span>Bjud in</span>
+        <span>Invite</span>
       </span>
     </button>
     <!-- Utanför ett spel gick lobbyn inte att nå utan att ladda om sidan. -->
-    <button class="btn sm" id="startSpelBtn" title="Spela med andra på samma bord">Starta ett spel</button>
+    <button class="btn sm" id="startSpelBtn" title="Play with others at the same table">Start a game</button>
 
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
-    <button class="btn ghost" id="addPlayerBtn" title="Ny spelare (N)">
+    <button class="btn ghost" id="addPlayerBtn" title="New player (N)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      Spelare
+      Player
     </button>
     <div class="topspacer"></div>
     <!-- Modeplatsen. Allt om hur bordet läses av bor här och ingen annanstans;
@@ -2245,14 +2245,14 @@ body.ispel #addPlayerBtn{display:none}
          modeplatsen ritas om och byter bredd med varje läge, och en knapp man
          ska hitta blint får inte flytta sig. Samma ikon som zonchippet, för
          att det är samma handling. -->
-    <button class="btn ghost ikonknapp" id="bildKnapp" aria-label="Lägg till kort ur en bild (I)" aria-keyshortcuts="I">
+    <button class="btn ghost ikonknapp" id="bildKnapp" aria-label="Add cards from an image (I)" aria-keyshortcuts="I">
       <svg width="16" height="12" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/></svg>
-      <i class="knapptip">Lägg till kort ur en bild (I)</i>
+      <i class="knapptip">Add cards from an image (I)</i>
     </button>
-    <button class="btn ghost" id="helpBtn" title="Tangentbordsgenvägar (?)">
+    <button class="btn ghost" id="helpBtn" title="Keyboard shortcuts (?)">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.4 3.4v1.1"/><path d="M12 17.2v.01"/></svg>
     </button>
-    <button class="btn ghost" id="menuBtn" title="Meny">
+    <button class="btn ghost" id="menuBtn" title="Menu">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
     </button>
   </header>
@@ -2271,10 +2271,10 @@ body.ispel #addPlayerBtn{display:none}
       <span class="not" id="autoNot" hidden></span>
     </div>
     <div class="granska" id="pendBar" hidden>
-      <span class="ptxt"><b id="pendCount">0</b> kort att fylla i</span>
+      <span class="ptxt"><b id="pendCount">0</b> cards to fill in</span>
       <div class="pendthumbs" id="pendThumbs"></div>
-      <button class="btn sm prim" id="pendGo">Fyll i</button>
-      <button class="btn sm" id="pendDrop" title="Tar bort bilden och alla kort som väntar">Ta bort</button>
+      <button class="btn sm prim" id="pendGo">Fill in</button>
+      <button class="btn sm" id="pendDrop" title="Removes the image and every card that is waiting">Discard</button>
     </div>
   </div>
 
@@ -2293,7 +2293,7 @@ body.ispel #addPlayerBtn{display:none}
         </button>
         <span class="lasband" id="lasband">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
-        <span id="lasbandTxt">Du tittar på ett annat bord</span>
+        <span id="lasbandTxt">You are looking at another board</span>
       </span>
       <div class="handmeta">
           <button class="btn sm" id="clearHand" title="Reset the board — removes every card and all players but one"><span id="clearHandTxt">Clear board</span></button>
@@ -2703,19 +2703,19 @@ body.ispel #addPlayerBtn{display:none}
 <div class="ov dockad" id="kamOv">
   <div class="modal kammodal">
     <header>
-      <h2 id="kamOvRubrik">Koppla en kamera</h2>
+      <h2 id="kamOvRubrik">Connect a camera</h2>
       <button class="close" data-close="kamOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
       <div class="kamsteg" id="kamStegQr">
-        <p class="lead">Skanna med telefonens kamera. Du loggar in med samma konto, och
-          telefonen blir din kamera i det här spelet. Sätt den i en hållare rakt ovanför
-          dina kort — kameran använder hela bilden, det finns inget att markera. Håll
-          leken och graveyard utanför bild, och håll telefonen stilla en sekund när den
-          startat så lär den sig ljuset.</p>
+        <p class="lead">Scan with the phone camera. You sign in with the same account, and
+          the phone becomes your camera in this game. Put it in a holder straight above
+          your cards — the camera uses the whole picture, there is nothing to mark. Keep
+          the deck and the graveyard out of the picture, and hold the phone still for a second
+          once it has started so it learns the light.</p>
         <div class="kamqr" id="kamQr"></div>
         <p class="kamlank"><code id="kamLank"></code>
-          <button class="btn sm" id="kamKopiera">Kopiera länk</button></p>
+          <button class="btn sm" id="kamKopiera">Copy link</button></p>
       </div>
       <!-- Kamerans skruvrum. Det man ändrar UNDER spelet ska inte ligga i en
            modal som täcker bordet man ändrar mot — man skruvar tröskeln och
@@ -2726,43 +2726,43 @@ body.ispel #addPlayerBtn{display:none}
            är ett felsökningsverktyg (MES-26). -->
       <div class="kamskruv" id="kamSkruv">
         <div class="kamskruv-hd">
-          <span class="led"></span><b>Auto är på</b>
+          <span class="led"></span><b>Camera is on</b>
           <span class="meta" id="kamSkruvMeta"></span>
         </div>
         <div class="kalbild stor" id="pbBild">
           <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
-          <div class="kalvantar" id="pbVantar">Väntar på bild från telefonen…</div>
+          <div class="kalvantar" id="pbVantar">Waiting for a picture from the phone…</div>
           <span class="kamskruv-rakn" id="kamSkruvRakn"></span>
-          <span class="pbfarger"><i style="background:#5fbf7f"></i>känns igen <i style="background:#e2606a"></i>okänt <i style="background:#e8b33a"></i>läses <i style="background:#6b7280"></i>inte ett kort</span>
+          <span class="pbfarger"><i style="background:#5fbf7f"></i>recognised <i style="background:#e2606a"></i>unknown <i style="background:#e8b33a"></i>reading <i style="background:#6b7280"></i>not a card</span>
         </div>
         <p class="pbstatus" id="pbStatus"></p>
         <!-- Grundläget: vinkeln ett otappat kort har i telefonens bild. Sparas ur
              ett kort som ligger på bordet — steget i statusfältet vid första
              kortet, eller knappen här — och gäller spelet. Tills det är sparat
              spelas korten otappade. Texten och knappen sätts i visaKamGrund. -->
-        <div class="kalupp" id="kamGrund" title="Kortets vinkel i bilden avgör om det är tappat: mer än 45° från det otappade läget räknas som tappat. Tills ett läge är sparat spelas korten otappade. Läget gäller det här spelet">
-          <span id="kamGrundTxt">Otappat läge: inte sparat — lägg ett kort som du vill ha det otappat och tryck Spara</span>
-          <button class="btn sm" id="kamGrundSpara" title="Tar vinkeln ur det senaste kortet kameran lade på bordet och sparar den som otappat">Spara</button>
+        <div class="kalupp" id="kamGrund" title="The angle of the card in the picture decides whether it is tapped: more than 45° from the untapped angle counts as tapped. Until an angle is saved the cards are played untapped. The angle applies to this game">
+          <span id="kamGrundTxt">Untapped angle: not saved — put a card the way you want it untapped and press Save</span>
+          <button class="btn sm" id="kamGrundSpara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button>
         </div>
         <div class="pbknappar">
-          <button class="btn sm" id="pbRef" title="Ta om bilden av bordet — gör det när ljuset ändrats. Korten får ligga kvar">Ny referensbild</button>
-          <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
-          <button class="btn sm ghost" id="pbHelbild" title="Telefonen skickar hela bilden till Claude och lägger ut de kort den ser — för bord där kameran inte hittar korten själv">Läs av hela bordet</button>
+          <button class="btn sm" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
+          <button class="btn sm ghost" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
+          <button class="btn sm ghost" id="pbHelbild" title="The phone sends the whole picture to Claude and puts out the cards it sees — for tables where the camera cannot find the cards by itself">Read the whole table</button>
           <button class="btn sm ghost" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark the graveyard</button>
         </div>
         <details class="pbavancerat" id="pbAvancerat">
-          <summary>Avancerat</summary>
+          <summary>Advanced</summary>
           <div class="pbrad" id="pbSiffror"></div>
           <div class="pbreglage" id="pbReglage"></div>
-          <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Återställ trösklarna</button></div>
+          <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Reset the thresholds</button></div>
         </details>
         <hr>
-        <button class="btn danger" id="kamKoppla">Stäng av auto</button>
+        <button class="btn danger" id="kamKoppla">Turn off camera</button>
       </div>
     </div>
     <div class="foot">
       <span class="grow" id="kamOvStatus"></span>
-      <button class="btn" data-close="kamOv">Stäng</button>
+      <button class="btn" data-close="kamOv">Close</button>
     </div>
   </div>
 </div>
@@ -2849,13 +2849,13 @@ body.ispel #addPlayerBtn{display:none}
 <div class="ov" id="autoSumOv">
   <div class="modal autosum" style="width:min(520px,94vw)">
     <header>
-      <h2>Auto är av</h2>
+      <h2>Camera is off</h2>
       <button class="close" data-close="autoSumOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body" id="autoSumBody"></div>
     <div class="foot">
-      <span class="grow">Auto slås på igen från menyn eller chippet.</span>
-      <button class="btn prim" data-close="autoSumOv">Stäng</button>
+      <span class="grow">Turn the camera back on from the menu or the chip.</span>
+      <button class="btn prim" data-close="autoSumOv">Close</button>
     </div>
   </div>
 </div>
@@ -4328,7 +4328,7 @@ const IDB = (() => {
       rq.onerror = () => rej(rq.error);
       // utan onblocked kan löftet aldrig lösas ut (t.ex. en gammal flik som
       // håller kvar en tidigare version) och hela appen stannar i boot
-      rq.onblocked = () => rej(new Error('IndexedDB blockerad av en annan flik'));
+      rq.onblocked = () => rej(new Error('IndexedDB is blocked by another tab'));
     });
     dbp.catch(() => { dbp = null; });   // låt ett nytt försök gå igenom
     return dbp;
@@ -4647,7 +4647,7 @@ const Moln = (() => {
 
   async function loggaIn(nastaKod) {
     const s = await klient();
-    if (!s) throw new Error('Inloggning är inte uppsatt på den här servern.');
+    if (!s) throw new Error('Sign-in is not set up on this server.');
     /* Koden ur inbjudningslänken överlever inte rundturen till Google,
        så den läggs undan lokalt och plockas upp när vi kommer tillbaka. */
     if (nastaKod) sessionStorage.setItem('sthv.join', nastaKod);
@@ -4675,7 +4675,7 @@ const Moln = (() => {
   }
 
   async function skapaSpel(namn) {
-    const s = await klient(); if (!s || !inloggad()) throw new Error('Inte inloggad');
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
     /* Koden är slumpad och unik i tabellen. Krocken är osannolik men
        inte omöjlig, så vi provar några gånger i stället för att låta
        spelaren möta ett databasfel. */
@@ -4689,11 +4689,11 @@ const Moln = (() => {
       }
       if (error.code !== '23505') throw error;      // 23505 = koden var upptagen
     }
-    throw new Error('Kunde inte skapa spelet, försök igen.');
+    throw new Error('Could not create the game, try again.');
   }
 
   async function gaMed(kod) {
-    const s = await klient(); if (!s || !inloggad()) throw new Error('Inte inloggad');
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
     const { data, error } = await s.rpc('ga_med', {
       p_kod: String(kod || '').trim().toUpperCase(), p_namn: mittNamn()
     });
@@ -4733,7 +4733,7 @@ const Moln = (() => {
      den form appen redan har i minnet, så att renderingen inte behöver
      veta att korten kom någon annanstans ifrån. */
   async function hamtaSpel(gameId) {
-    const s = await klient(); if (!s) throw new Error('Inte uppkopplad');
+    const s = await klient(); if (!s) throw new Error('Not connected');
     const [g, sp, bd] = await Promise.all([
       s.from('games').select('*').eq('id', gameId).single(),
       s.from('game_players').select('*').eq('game_id', gameId).order('plats'),
@@ -4836,13 +4836,13 @@ const Moln = (() => {
     const s = await klient(); if (!s || !inloggad()) return [];
     const { data, error } = await s.from('decks').select('id, namn, farger, antal, uppdaterad')
       .eq('user_id', minId()).order('uppdaterad', { ascending: false });
-    if (error) throw new Error(error.message || 'Lekarna kunde inte hämtas');
+    if (error) throw new Error(error.message || 'The decks could not be fetched');
     return (data || []).map(r => Object.assign({ ts: lekTs(r) }, r));
   }
   async function hamtaLekRad(id) {
     const s = await klient(); if (!s || !inloggad() || !id) return null;
     const { data, error } = await s.from('decks').select('*').eq('id', id).maybeSingle();
-    if (error) throw new Error(error.message || 'Leken kunde inte hämtas');
+    if (error) throw new Error(error.message || 'The deck could not be fetched');
     return data ? Object.assign({ ts: lekTs(data) }, data) : null;
   }
   async function skapaLek(namn, kort, farger, antal) {
@@ -4851,7 +4851,7 @@ const Moln = (() => {
     const { data, error } = await s.from('decks')
       .insert({ user_id: minId(), namn: namn || 'My deck', kort: kort || [], farger: farger || [], antal: antal || 0, skapad: nu, uppdaterad: nu })
       .select('*').single();
-    if (error) throw new Error(error.message || 'Leken kunde inte skapas');
+    if (error) throw new Error(error.message || 'The deck could not be created');
     return Object.assign({ ts: lekTs(data) }, data);
   }
   /* data: {kort, farger, antal, namn} (det som ska ändras). sedd: ts på den
@@ -4893,7 +4893,7 @@ const Moln = (() => {
     const s = await klient(); if (!s || !inloggad() || !gameId) return null;
     const { data, error } = await s.from('game_players').select('lek_id, lek_info')
       .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
-    if (error) throw new Error(error.message || 'Lekvalet kunde inte hämtas');
+    if (error) throw new Error(error.message || 'The deck choice could not be fetched');
     return data && data.lek_id ? { id: data.lek_id, info: data.lek_info || null } : null;
   }
 
@@ -4912,7 +4912,7 @@ const Moln = (() => {
     const s = await klient(); if (!s || !inloggad()) return null;
     const { data, error } = await s.from('lekar').select('lek')
       .eq('user_id', minId()).maybeSingle();
-    if (error) throw new Error(error.message || 'Leken kunde inte hämtas');
+    if (error) throw new Error(error.message || 'The deck could not be fetched');
     return (data && data.lek) || null;
   }
   /* Den GAMLA vägen: leken som en kolumn på game_players. Läses bara en sista
@@ -4923,7 +4923,7 @@ const Moln = (() => {
     const s = await klient(); if (!s || !inloggad()) return null;
     const { data, error } = await s.from('game_players').select('lek')
       .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
-    if (error) throw new Error(error.message || 'Leken kunde inte hämtas');
+    if (error) throw new Error(error.message || 'The deck could not be fetched');
     return (data && data.lek) || null;
   }
 
@@ -5014,7 +5014,7 @@ const Moln = (() => {
   /* Filnamnet börjar med användarens id — lagringspolicyn låter en bara
      röra sin egen mapp, och sökvägen är det som avgör vems den är. */
   async function laddaUppScan(gameId, blob) {
-    const s = await klient(); if (!s || !inloggad()) throw new Error('Inte inloggad');
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
     const namn = `${minId()}/${gameId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
     const up = await s.storage.from('scans').upload(namn, blob, { contentType: 'image/jpeg', upsert: false });
     if (up.error) throw up.error;
@@ -5407,14 +5407,14 @@ function renderTabs() {
     const fardknapp = p.id === state.active && (!spelLage || mitt);
     const kryss = !spelLage && state.players.length > 1;
     return `
-    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}${spelLage && !mitt && p.id === state.active ? ' andras' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Ditt eget bord' : esc(p.name) + 's bord'} — tryck ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} kort behöver fyllas i` : ''}">
+    <button class="ptab${p.id === state.active ? ' on' : ''}${mitt ? ' jag' : ''}${spelLage && !mitt && p.id === state.active ? ' andras' : ''}" data-pid="${esc(p.id)}" title="${mitt ? 'Your own board' : esc(p.name) + '\'s board'} — press ${i + 1}${(p.pending || []).length ? ` · ${p.pending.length} cards need filling in` : ''}">
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
       ${spelLage ? `<span class="lagemark" title="${p.lage === 'bord' ? 'Table leads — the table is the source of truth' : 'Screen leads — the camera only adds cards'}">${p.lage === 'bord' ? '⊞' : '▢'}</span>` : ''}
       ${lekChipHtml(p, mitt)}
-      ${mitt ? '<span class="jagmark">du</span>' : ''}
-      ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} kort behöver fyllas i">${p.pending.length}</span>` : ''}
+      ${mitt ? '<span class="jagmark">you</span>' : ''}
+      ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} cards need filling in">${p.pending.length}</span>` : ''}
       ${fardknapp ? `<span class="pen" data-rename="${esc(p.id)}" title="Rename (R)" role="button">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>` : ''}
       ${kryss ? `<span class="x" data-del="${esc(p.id)}" title="Remove the player" role="button">
@@ -7088,7 +7088,7 @@ function renderMode() {
     /* Lokalt bord: det finns inget spel att koppla en telefon till, så auto är
        inte ett val man kan erbjuda. Ett foto är hela vägen. */
     const harFoto = p && p.shots.length > 0;
-    chip = modeIkon('foto', M_FOTO, harFoto ? 'Läs om bordet ur ett foto (S)' : 'Läs bordet ur ett foto (S)',
+    chip = modeIkon('foto', M_FOTO, harFoto ? 'Re-read the board from a photo (S)' : 'Read the board from a photo (S)',
                     !harFoto && p && p.cards.length ? '' : ' prim');
 
   } else {
@@ -7327,7 +7327,7 @@ function renderPending() {
   if (q.length) {
     const tot = p.cards.filter(c => c.box).length + q.length;
     $('#pendCount').textContent = q.length;
-    del.querySelector('.ptxt').title = `${tot} kort hittade, ${q.length} utan namn`;
+    del.querySelector('.ptxt').title = `${tot} cards found, ${q.length} without a name`;
     $('#pendThumbs').innerHTML = q.slice(0, 14)
       .map(x => { const d = cropFor(x.id, x.box, x.rot, 220); return d ? `<img src="${d}" alt="">` : ''; }).join('');
   }
@@ -9439,7 +9439,7 @@ async function lekLasAv() {
     });
     if (minSession !== lekSession) return;      // dialogen stängdes under tiden
     if (!resp.ok) {
-      let msg = 'Fel ' + resp.status;
+      let msg = 'Error ' + resp.status;
       try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
       bokforDatorAi(null, null, true);
       $('#lekStatus').innerHTML = `<b style="color:var(--red)">${esc(msg)}</b>`;
@@ -9472,7 +9472,7 @@ async function lekLasAv() {
        notis som var borta efter fyra sekunder — och det är just den meningen
        som ska driva nästa handling: räcker leken, eller ligger det fler kort
        kvar på bordet? En fråga man hinner läsa bort är ingen fråga. */
-    lekKvitto = lekKvittoRad(`Foto ${lekFotoRaknare} gav ${kort.length} kort.`,
+    lekKvitto = lekKvittoRad(`Photo ${lekFotoRaknare} gave ${kort.length} cards.`,
                              +j.otydliga || 0, +j.kapade || 0);
     lekAndrat = true;
     lekBild = null;
@@ -10016,7 +10016,7 @@ async function lekSparaNu() {
                                  : `${antal} cards saved in this browser`,
           kvar ? 'err' : 'ok');
   } catch (e) {
-    $('#lekStatus').innerHTML = `<b style="color:var(--red)">Sparningen gick fel.</b> ${esc(e.message || '')}`;
+    $('#lekStatus').innerHTML = `<b style="color:var(--red)">Saving failed.</b> ${esc(e.message || '')}`;
   } finally {
     /* try/finally: klient() kan kasta på den dynamiska supabase-importen,
        och utan finally blev knappen grå för resten av besöket. */
@@ -10064,28 +10064,28 @@ $('#menuBtn').onclick = ev => {
   const meta = (txt, farg) => `<span style="margin-left:auto;color:${farg || 'var(--dim2)'};font:10px var(--mono)">${txt}</span>`;
   const n = minLekAntal();
   menuEl.innerHTML = `
-    <div class="hd">${esc((spelLage ? (minSpelare() || player()) : player()).name || 'Aktiv spelare')}</div>
-    ${!spelLage || redigerbar() ? `<button data-a="rename">Byt namn <kbd style="margin-left:auto">R</kbd></button>
-    <button data-a="clearhand" class="danger">Töm mitt bord</button>` : '<button data-a="mitt">Tillbaka till mitt bord</button>'}
+    <div class="hd">${esc((spelLage ? (minSpelare() || player()) : player()).name || 'Active player')}</div>
+    ${!spelLage || redigerbar() ? `<button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
+    <button data-a="clearhand" class="danger">Clear my board</button>` : '<button data-a="mitt">Back to my board</button>'}
     ${spelLage ? `<hr>
-    <div class="hd">Spelet ${esc(spelLage.kod)}</div>
-    <button data-a="bjudin">Kopiera inbjudningslänk</button>
-    <button data-a="lamna">Tillbaka till mina spel</button>
-    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}` : ''}
+    <div class="hd">Game ${esc(spelLage.kod)}</div>
+    <button data-a="bjudin">Copy invitation link</button>
+    <button data-a="lamna">Back to my games</button>
+    ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">End the game</button>' : ''}` : ''}
     <hr>
-    <div class="hd">Igenkänning</div>
+    <div class="hd">Recognition</div>
     <button data-a="lek">My decks${meta(lekAktiv ? `${esc(lekAktiv.namn)} · ${n}` : 'none yet')}</button>
-    <button data-a="pool">Kortpool${meta(esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'ej byggd'))}</button>
-    <button data-a="ai">AI-hjälp${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'PÅ' : 'KLAR') : aiKey() ? 'EGEN NYCKEL' : 'AV', AI.mode === 'server' ? 'var(--green)' : null)}</button>
+    <button data-a="pool">Card pool${meta(esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'not built'))}</button>
+    <button data-a="ai">AI help${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'ON' : 'READY') : aiKey() ? 'OWN KEY' : 'OFF', AI.mode === 'server' ? 'var(--green)' : null)}</button>
     ${spelLage ? (prefs.autoLage === true
-      ? '<button data-a="manuell">Stäng av auto</button>'
-      : '<button data-a="auto">Slå på auto</button>') : ''}
+      ? '<button data-a="manuell">Turn off camera</button>'
+      : '<button data-a="auto">Turn on camera</button>') : ''}
     <hr>
-    <button data-a="sharelink">Kopiera länk till handen</button>
-    <button data-a="export">Exportera allt (JSON)</button>
-    <button data-a="import">Importera JSON…</button>
-    <button data-a="reset" class="danger">Nollställ appen</button>
-    ${spelLage ? '<button data-a="loggaut">Logga ut</button>' : ''}`;
+    <button data-a="sharelink">Copy link to the hand</button>
+    <button data-a="export">Export everything (JSON)</button>
+    <button data-a="import">Import JSON…</button>
+    <button data-a="reset" class="danger">Reset the app</button>
+    ${spelLage ? '<button data-a="loggaut">Sign out</button>' : ''}`;
   const r = $('#menuBtn').getBoundingClientRect();
   menuEl.style.top = (r.bottom + 6) + 'px';
   menuEl.style.left = 'auto';
@@ -10117,8 +10117,8 @@ menuEl.addEventListener('click', ev => {
   if (a === 'avsluta') avslutaSpelet();
   if (a === 'loggaut') loggaUtHelt();
   if (a === 'reset') {
-    ask('Varje spelare, bord och bild tas bort och sidan laddas om. Det går inte att ångra.',
-        { title: 'Nollställa appen?', ok: 'Nollställ', danger: true }).then(yes => {
+    ask('Every player, board and image is removed and the page reloads. This cannot be undone.',
+        { title: 'Reset the app?', ok: 'Reset', danger: true }).then(yes => {
       if (!yes) return;
       [K.state, K.prefs].forEach(LS.del);
       IDB.clear().catch(() => {}).then(() => location.reload());
@@ -10167,7 +10167,7 @@ importInput.onchange = async () => {
     const d = JSON.parse(await f.text());
     if (!d || !Array.isArray(d.players)) throw 0;
     d.players.forEach((pp, i) => {
-      const p = addPlayer(pp.name || 'Importerad ' + (i + 1));
+      const p = addPlayer(pp.name || 'Imported ' + (i + 1));
       p.color = pp.color || p.color;
       (pp.cards || []).forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
     });
@@ -10810,14 +10810,14 @@ async function byggLekPool(lek, userId, onProg) {
       for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= 24) continue; per.set(c.name, k + 1); cards.push(c); }
     } catch (e) { /* utan extra landskap fungerar lekens egna */ }
   }
-  if (!cards.length) throw new Error('Leken har inga kort med bilder.');
+  if (!cards.length) throw new Error('The deck has no cards with images.');
   /* Kortbaksidan som ett eget uppslag (MES-42): ett nedvänt kort på bordet
      — biblioteket, ett kort som vänts — matchar den och blir skräp med
      domskälet 'baksida' (kamIdentifiera), i stället för en granskningspost
      med baksidan som miniatyr. Namnet BAKSIDA_NAMN filtreras bort ur
      namnläsarens lista och ur namnen till Claude. Poolversion 7. */
   cards.push({ id: 'baksida', name: BAKSIDA_NAMN, small: BAKSIDA });
-  return byggPoolAv(cards, code, 'Min lek', onProg || (() => {}), true);
+  return byggPoolAv(cards, code, 'My deck', onProg || (() => {}), true);
 }
 async function ensurePool(onProg) {
   const code = prefs.pool || 'j25';
@@ -11079,7 +11079,7 @@ const Namn = (() => {
     workerP = (async () => {
       if (!window.Tesseract) await new Promise((res, rej) => {
         const el = document.createElement('script');
-        el.src = CDN; el.onload = res; el.onerror = () => rej(new Error('kunde inte hämta tesseract.js'));
+        el.src = CDN; el.onload = res; el.onerror = () => rej(new Error('could not fetch tesseract.js'));
         document.head.appendChild(el);
       });
       const w = await Tesseract.createWorker('eng', 1);
@@ -12438,7 +12438,7 @@ function applyPick(name, sid, cands) {
   }
   save();
   resolveAll();                     // rättar även stavning till kortets riktiga namn
-  toast(sammaKort ? `${name} ligger redan på bordet` : name, 'ok');
+  toast(sammaKort ? `${name} is already on the board` : name, 'ok');
   if (SW.queue) SW.qi++;
   closeScan();
   renderAll();
@@ -12575,8 +12575,8 @@ async function showPoolStatus() {
     const active = prefs.pool === poolCode;
     box.innerHTML = `<div class="nm"><b>${esc(rec.setName)} ${active ? '<span style="color:var(--green)">· in use</span>' : ''}</b>
       <span>${rec.names.length} cards indexed</span></div>
-      ${active ? '' : '<button class="btn sm" id="poolUse">Använd</button>'}
-      <button class="btn sm danger" id="poolDrop">Ta bort</button>`;
+      ${active ? '' : '<button class="btn sm" id="poolUse">Use</button>'}
+      <button class="btn sm danger" id="poolDrop">Remove</button>`;
     $('#poolBuild').textContent = 'Rebuild';
     const u = $('#poolUse');
     if (u) u.onclick = async () => {
@@ -12673,7 +12673,7 @@ function openAI() {
   $('#aiForget').hidden = server || !aiKey();
   $('#aiSave').textContent = server ? 'Done' : 'Save';
   $('#aiStatus').innerHTML = server
-    ? `<div class="nm"><b style="color:var(--green)">On</b><span>Handled by the app's server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instruktioner v' + esc(String(AI.promptv)) : ''} — du behöver ingen egen nyckel.</span></div>`
+    ? `<div class="nm"><b style="color:var(--green)">On</b><span>Handled by the app's server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instructions v' + esc(String(AI.promptv)) : ''} — you need no key of your own.</span></div>`
     : aiKey()
     ? `<div class="nm"><b>Own key saved</b><span>The app runs without a server, so the key lives in this browser.</span></div>`
     : `<div class="nm"><b>Off</b><span>No server was found and no key is set.</span></div>`;
@@ -14467,7 +14467,7 @@ const Kamera = (() => {
       const d0 = detektera(g, null, AW, AH);
       matcha(spar, d0.fynd, d0.mask, nu, dt, upp, true);
       senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
-      säg('ljus', 'Lär mig ljuset — håll telefonen stilla', 'Tar ett par sekunder. Korten får ligga kvar.');
+      säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
       dia.ms = Math.round(performance.now() - tSteg);
       if (refN < REF_RUTOR) { if (tillstandsSignatur() !== fore) rapportera(); return; }
       ref = refSum; for (let i = 0; i < n; i++) ref[i] /= refN;
@@ -14484,8 +14484,8 @@ const Kamera = (() => {
       const riktiga0 = spar.filter(t => t.tillstand !== 'skrap');
       /* Fasen först, bordet sedan: datorn lyssnar inte på ett bord som kommer
          med fasen "lär sig ljuset". */
-      säg(riktiga0.length ? 'kort' : 'tom', riktiga0.length ? antalText(riktiga0.length, riktiga0.filter(t => t.skymd).length) : 'Redo — lägg ut kort på bordet', yta.dom === 'lugn'
-        ? 'Lite luft mellan korten. Datorn visar det du lägger ut.'
+      säg(riktiga0.length ? 'kort' : 'tom', riktiga0.length ? antalText(riktiga0.length, riktiga0.filter(t => t.skymd).length) : 'Ready — put cards on the table', yta.dom === 'lugn'
+        ? 'Leave some space between the cards. The computer shows what you put out.'
         : yta.rad);
       rapportera();
       return;
@@ -14526,7 +14526,7 @@ const Kamera = (() => {
       if (++felRader >= 10) {
         omtag++; felRader = 0; glomReferens();
         senasteG0 = g0; senasteG = g; senasteMask = mask;
-        säg('ljus', 'Lär mig ljuset — håll telefonen stilla', 'Bilden har flyttat sig. Referensen tas om; korten får ligga kvar.');
+        säg('ljus', 'Learning the light — hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
         return;
       }
     } else felRader = 0;
@@ -14568,7 +14568,7 @@ const Kamera = (() => {
     const riktiga = spar.filter(t => t.tillstand !== 'skrap');
     const skymda = riktiga.filter(t => t.skymd).length;
     dia.ms = Math.round(performance.now() - tSteg);
-    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Redo — lägg ut kort på bordet', radAvstand() || undefined);
+    säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Ready — put cards on the table', radAvstand() || undefined);
   }
 
   /* Medelavvikelse mellan rutan och referensen över fri yta, var tredje
@@ -14630,7 +14630,7 @@ const Kamera = (() => {
      Jespers ~160 px avvisades, normalfallet är 250–400, och suddningen
      lägger ~2 analyspixlar på den uppmätta sidan. */
   const KORT_MIN_PX = 150;
-  const LANGT_BORT = 'Korten är små i bilden. Flytta telefonen närmare bordet.';
+  const LANGT_BORT = 'The cards are small in the picture. Move the phone closer to the table.';
   function forLangtBort() {
     const k = spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t)).map(t => t.kort).sort((a, b) => a - b);   // helbildens spår har ingen mätt storlek
     if (!k.length) return false;
@@ -14655,7 +14655,7 @@ const Kamera = (() => {
       if (lasta >= sma.length - lasta) return null;
     }
     if (vidTaket()) return LANGT_BORT;
-    return `Korten är små i bilden. Telefonen ger ${upplosning.w}×${upplosning.h} men klarar ${upplosning.max.w}×${upplosning.max.h}.`;
+    return `The cards are small in the picture. The phone gives ${upplosning.w}×${upplosning.h} but can do ${upplosning.max.w}×${upplosning.max.h}.`;
   }
   /* Kortformade regioner som var för små att läsa ('liten' i bedom), räknade
      per ruta av detektera och hållna som medianen över de senaste sex
@@ -14746,10 +14746,10 @@ const Kamera = (() => {
     /* Rådet i klartext, utan siffror: spelaren ska veta vad hen kan göra,
        inte vad texturen mäter. Talen (textur, brus, blänk) följer med i
        yta och dia och står under Avancerat i datorns kameravy. */
-    const rad = dom === 'blank' ? 'Det blänker i bilden. Flytta lampan eller telefonen så att blänket försvinner.'
-      : dom === 'ljus' ? 'Bordet är nästan lika ljust som korten. En mörkare duk under korten gör kameran säkrare.'
-      : dom === 'orolig' ? 'Bordets mönster gör kameran osäker. En enfärgad duk eller ett stort papper under korten hjälper.'
-      : 'Bordet är lugnt.';
+    const rad = dom === 'blank' ? 'There is glare in the picture. Move the lamp or the phone so the glare goes away.'
+      : dom === 'ljus' ? 'The table is almost as light as the cards. A darker cloth under the cards makes the camera more certain.'
+      : dom === 'orolig' ? 'The table pattern makes the camera unsure. A plain cloth or a large sheet of paper under the cards helps.'
+      : 'The table is calm.';
     const bytt = !yta || yta.dom !== dom;
     yta = { dom, brus: +sigma.toFixed(2), textur: +textur.toFixed(1), blank: +(blank * 100).toFixed(1), rad };
     dia.textur = yta.textur; dia.blank = yta.blank;
@@ -14759,8 +14759,8 @@ const Kamera = (() => {
   }
 
   const antalText = (n, s) => n === 1
-    ? (s ? '1 kort på bordet · skymt' : '1 kort på bordet')
-    : `${n} kort på bordet` + (s ? ` · ${s} skymd${s === 1 ? 't' : 'a'}` : '');
+    ? (s ? '1 card on the table · covered' : '1 card on the table')
+    : `${n} cards on the table` + (s ? ` · ${s} covered` : '');
 
   /* :p medan spåret prövas, så att tidsgränsen (PROVA_MS) blir en rapport. */
   /* :f medan detektorn gav spåret en region inom 500 ms (datorns FARSK_MS).
@@ -15459,7 +15459,7 @@ function ritaKamFin() {
 function kamUpplosningRad(u) {
   if (!u || !u.w) return '';
   const under = u.max && Math.max(u.w, u.h) < Math.max(u.max.w, u.max.h);
-  return `Bilden är ${u.w}×${u.h}` + (under ? ` — telefonen klarar ${u.max.w}×${u.max.h}` : '');
+  return `The picture is ${u.w}×${u.h}` + (under ? ` — the phone can do ${u.max.w}×${u.max.h}` : '');
 }
 function satKamFin(del, txt) { kamFinDel[del] = txt || ''; ritaKamFin(); }
 const kamSag = (l, txt, fin) => {
@@ -15473,7 +15473,7 @@ async function oppnaKamera(gameId) {
   minLek = null;
   kameraEnhet = true;
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
-  $('#kamSpel').textContent = spel.namn || ('Spel ' + spel.kod);
+  $('#kamSpel').textContent = spel.namn || ('Game ' + spel.kod);
   visaVy('kamera');
 
   /* Telefonen anmäler sig som kamera. Datorn ser den i närvarolistan och kan
@@ -15503,9 +15503,9 @@ async function oppnaKamera(gameId) {
       helbild: (canvas, o) => kamHelbild(canvas, o)
     });
   } catch (e) {
-    kamSag('fel', 'Kameran gick inte att starta');
+    kamSag('fel', 'The camera could not start');
     satKamFin('fas', e && e.name === 'NotAllowedError'
-      ? 'Du måste ge sidan tillgång till kameran. Öppna webbläsarens inställningar för den här sidan och tillåt kamera.'
+      ? 'You need to give the page access to the camera. Open the browser settings for this page and allow the camera.'
       : (e.message || ''));
     return;
   }
@@ -15782,7 +15782,7 @@ const kamAiTider = [];
 const KAM_SESS = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const kamAiBok = { sess: KAM_SESS, anrop: 0, fel: 0, utan: 0, ute: 0, per: {} };
 function kamAiBokfor(modell, usage, fel) {
-  const m = modell || 'okänd';
+  const m = modell || 'unknown';
   const p = kamAiBok.per[m] || (kamAiBok.per[m] = { anrop: 0, fel: 0, in: 0, ut: 0 });
   kamAiBok.anrop++; p.anrop++;
   if (fel) { kamAiBok.fel++; p.fel++; }
@@ -15885,14 +15885,14 @@ function kamAiPoster(kort, sparId, prior) {
    foto; Sonnet 5 3,6 s och 1 cent (ANTHROPIC_MODEL_KAMERA). */
 const HELBILD_B64_TAK = 880_000;
 async function kamHelbild(canvas, o) {
-  if (AI.mode !== 'server' || !prefs.aiAuto) { satKamFin('ai', 'AI-hjälpen är av — slå på den i menyn på datorn.'); return null; }
-  if (!Pool.idx) { satKamFin('ai', 'Leken är inte klar än.'); return null; }
+  if (AI.mode !== 'server' || !prefs.aiAuto) { satKamFin('ai', 'AI help is off — turn it on in the menu on the computer.'); return null; }
+  if (!Pool.idx) { satKamFin('ai', 'The deck is not ready yet.'); return null; }
   if (!canvas) return null;
   const nu = Date.now();
   while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
-  if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) { satKamFin('ai', 'För många frågor till Claude den här minuten — vänta lite.'); return null; }
+  if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) { satKamFin('ai', 'Too many questions to Claude this minute — wait a little.'); return null; }
   kamAiTider.push(nu); kamAiVantar++;
-  satKamFin('ai', 'Frågar Claude om hela bordet…');
+  satKamFin('ai', 'Asking Claude about the whole table…');
   const t0 = performance.now();
   const sek = ms => (ms / 1000).toFixed(1).replace('.', ',') + ' s';
   try {
@@ -15900,15 +15900,15 @@ async function kamHelbild(canvas, o) {
     for (;;) { const url = canvas.toDataURL('image/jpeg', q); b64 = url.slice(url.indexOf(',') + 1); if (b64.length <= HELBILD_B64_TAK || q <= 0.45) break; q = +(q - 0.15).toFixed(2); }
     const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode: 'kamera', image: b64, names: kamAiNamnen() }) });
-    if (!resp.ok) { kamAiBokfor(null, null, true); satKamFin('ai', `Claude svarade inte (${resp.status}).`); return null; }
+    if (!resp.ok) { kamAiBokfor(null, null, true); satKamFin('ai', `Claude did not answer (${resp.status}).`); return null; }
     const j = await resp.json();
     kamAiBokfor(j.modell || null, j.usage || null, !!j.varfor || !Array.isArray(j.kort));
     const kort = Array.isArray(j.kort) ? j.kort : [];
     const svar = kamAiPoster(kort, null, false);   // priorn för helbilden döms i Kamera.tillampaHelbild, per nytt spår
     const ms = Math.round(performance.now() - t0);
-    satKamFin('ai', svar.length ? `Claude såg ${svar.length} kort på bordet (${sek(ms)}).` : `Claude såg inga kort på bordet (${sek(ms)}).`);
+    satKamFin('ai', svar.length ? `Claude saw ${svar.length} cards on the table (${sek(ms)}).` : `Claude saw no cards on the table (${sek(ms)}).`);
     return { svar, info: { modell: j.modell || null, antal: kort.length, usage: j.usage || null, bild: { w: canvas.width, h: canvas.height, b64: b64.length, kvalitet: q } } };
-  } catch (e) { kamAiBokfor(null, null, true); satKamFin('ai', 'Claude gick inte att nå.'); return null; }
+  } catch (e) { kamAiBokfor(null, null, true); satKamFin('ai', 'Claude could not be reached.'); return null; }
   finally { kamAiVantar--; }
 }
 
@@ -15952,7 +15952,7 @@ function startaStrom(bredd) {
    byte, inte som bild — då behöver bänken ingen bildavkodare. */
 function sandDiagnos() {
   const d = Kamera.diagnosfil();
-  if (!d) { Moln.sandKam('diagnos', { fel: 'Telefonen har ingen referensbild än.' }); return; }
+  if (!d) { Moln.sandKam('diagnos', { fel: 'The phone has no reference picture yet.' }); return; }
   const id = Date.now().toString(36);
   const b64 = arr => { let s = ''; for (let i = 0; i < arr.length; i += 4096) s += String.fromCharCode.apply(null, arr.subarray(i, i + 4096)); return btoa(s); };
   const gra = f => { const u = new Uint8Array(f.length); for (let i = 0; i < f.length; i++) u[i] = Math.max(0, Math.min(255, Math.round(f[i]))); return u; };
@@ -16000,9 +16000,9 @@ function kamKommando(m) {
     Moln.sandKam('bok', { bok: kamAiBokLage() });
     stoppaStrom(); Kamera.stopp(); kamLage = null;
     Moln.lamnaKanal();
-    kamSag('ingen', 'Datorn stängde av auto');
+    kamSag('ingen', 'The computer turned off the camera');
     kamFinDel.dator = kamFinDel.pool = '';
-    satKamFin('fas', 'Du kan stänga den här fliken. Auto slås på igen från menyn på datorn.');
+    satKamFin('fas', 'You can close this tab. The camera is turned on again from the menu on the computer.');
     return;
   }
 }
@@ -16019,7 +16019,7 @@ setInterval(() => {
   $('#kamPrick').classList.toggle('pa', svarar);
   /* Hjärtslaget var tredje sekund gör löftet sant: bordet kommer i fas när
      datorn är tillbaka. Sägs det inte startar folk om telefonen i onödan. */
-  satKamFin('dator', svarar ? '' : 'Datorn svarar inte. Jag fortsätter titta — bordet kommer i fas när den är tillbaka.');
+  satKamFin('dator', svarar ? '' : 'The computer is not responding. I keep watching — the table catches up when it is back.');
 }, 10000);
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -16259,7 +16259,7 @@ function autoKortPaBordet(mig) {
   return ((mig && mig.cards) || []).filter(c => c.spar != null && c.lyft == null).length;
 }
 /* Räkneord i anmärkningen: "Ett kort", "Två kort" — siffror först över fem. */
-const AUTO_RAKNEORD = ['', 'Ett', 'Två', 'Tre', 'Fyra', 'Fem'];
+const AUTO_RAKNEORD = ['', 'One', 'Two', 'Three', 'Four', 'Five'];
 const autoAntal = n => AUTO_RAKNEORD[n] || String(n);
 /* Ett spår som fått sitt utfall: ett namn, eller granskningen (okänt och
    inte längre hos Claude). Det som läses eller väntar på Claude är oavgjort. */
@@ -16285,10 +16285,10 @@ function autoSparLage(lage, spar, nu) {
    bordet blänkte. Rådets första mening känns igen på sin början; ett råd
    som inte känns igen får stå som det är, med liten bokstav. */
 const AUTO_RAD_SKAL = [
-  ['Korten är små', 'det är litet i bilden'],
-  ['Det blänker', 'det blänker på det'],
-  ['Bordets mönster', 'bordets mönster stör'],
-  ['Bordet är nästan lika ljust', 'bordet är nästan lika ljust som kortet'],
+  ['The cards are small', 'it is small in the picture'],
+  ['There is glare', 'there is glare on it'],
+  ['The table pattern', 'the table pattern interferes'],
+  ['The table is almost as light', 'the table is almost as light as the card'],
 ];
 function autoRadSkal(rad) {
   const hit = AUTO_RAD_SKAL.find(([b]) => rad.startsWith(b));
@@ -16300,8 +16300,8 @@ function autoRemsaModell(spar, mig, extra) {
   const e = extra || {}, nu = e.nu != null ? e.nu : Date.now();
   const kort = (mig && mig.cards) || [], ko = (mig && mig.pending) || [];
   const m = { text: '', not: null, puls: false, paVag: [], granska: ko.length };
-  if (e.fas === 'ljus' || e.fas === 'lar') { m.text = 'Auto · lär sig ljuset'; m.not = 'Håll telefonen stilla'; return m; }
-  if (e.fas === 'ingen') { m.text = 'Auto · ladda om sidan på telefonen'; return m; }
+  if (e.fas === 'ljus' || e.fas === 'lar') { m.text = 'Camera · learning the light'; m.not = 'Hold the phone still'; return m; }
+  if (e.fas === 'ingen') { m.text = 'Camera · reload the page on the phone'; return m; }
   const sedan = id => { const t0 = e.sedd ? e.sedd.get(id) : undefined; return t0 == null ? nu : t0; };
   /* Utan avstämningens facit (losa) räcker bindningen som mått. */
   const losa = spar.filter(t => e.losa ? e.losa.has(t.id) : !kort.some(c => c.spar === t.id));
@@ -16325,8 +16325,8 @@ function autoRemsaModell(spar, mig, extra) {
   /* "Bordet är tomt" bara när kameran inte ser något alls: ett kort som är
      för litet, ett osäkert i granskningen eller ett skymt är inte tomt. */
   const tomt = !n && !ser && !m.paVag.length && !ko.length && !(e.sma > 0);
-  m.text = tomt ? 'Auto · bordet är tomt'
-    : ['Auto', n ? `${n} kort på bordet` : null, m.paVag.length ? `${m.paVag.length} på väg` : null].filter(Boolean).join(' · ');
+  m.text = tomt ? 'Camera · the table is empty'
+    : ['Camera', n ? `${n} ${n === 1 ? 'card' : 'cards'} on the table` : null, m.paVag.length ? `${m.paVag.length} on the way` : null].filter(Boolean).join(' · ');
   /* Kortet man just la ut: det spår som ändrades senast — dök upp eller
      flyttades — så länge det läses eller väntar på Claude, och i
      AUTO_EFTER_S efter att det hamnade i granskningen (så länge posten
@@ -16352,19 +16352,19 @@ function autoRemsaModell(spar, mig, extra) {
      med frågetecken, så att fältet inte säger "Forest hamnade i
      granskningen" om ett Swamp (granskningen efter 1b). */
   const giss = senast && senast.tillstand !== 'klar' ? (senast.namn || senast.gissning || (senast.namnLast && senast.namnLast.namn) || null) : null;
-  const vem = !senast ? '' : senast.tillstand === 'klar' && senast.namn ? senast.namn : giss ? `Kortet du la ut (${giss}?)` : 'Kortet du la ut';
+  const vem = !senast ? '' : senast.tillstand === 'klar' && senast.namn ? senast.namn : giss ? `The card you put down (${giss}?)` : 'The card you put down';
   /* En notis, den som är mest värd att veta just nu: rörelsen först (den
      går över av sig själv), sedan kortet man just la ut, ett kort som är
      för litet (det syns ingen annanstans, och står tills man flyttat
      telefonen), sist det nedtonade (bordet visar det redan). */
-  if (rorligt) m.not = 'Något rör sig på bordet';
-  else if (senast && autoAvgjort(senast)) m.not = `${vem} hamnade i granskningen`;
-  else if (senast && senast.tillstand === 'okand') { m.not = `${vem} — frågar Claude …`; m.puls = true; }
-  else if (senast && e.rad) { m.not = `${vem} är svårt att läsa — ${autoRadSkal(e.rad)}`; m.puls = true; }
-  else if (senast) { m.not = `${vem} läses …`; m.puls = true; }
-  else if (e.sma > 0) m.not = e.sma === 1 ? 'Ett kort är för litet för att läsas' : `${autoAntal(e.sma)} kort är för små för att läsas`;
-  else if (lyfta.length === 1) m.not = `${lyfta[0].name} syns inte längre`;
-  else if (lyfta.length > 1) m.not = `${autoAntal(lyfta.length)} kort syns inte längre`;
+  if (rorligt) m.not = 'Something is moving on the table';
+  else if (senast && autoAvgjort(senast)) m.not = `${vem} went to the review`;
+  else if (senast && senast.tillstand === 'okand') { m.not = `${vem} — asking Claude …`; m.puls = true; }
+  else if (senast && e.rad) { m.not = `${vem} is hard to read — ${autoRadSkal(e.rad)}`; m.puls = true; }
+  else if (senast) { m.not = `${vem} is being read …`; m.puls = true; }
+  else if (e.sma > 0) m.not = e.sma === 1 ? 'One card is too small to read' : `${autoAntal(e.sma)} cards are too small to read`;
+  else if (lyfta.length === 1) m.not = `${lyfta[0].name} is no longer visible`;
+  else if (lyfta.length > 1) m.not = `${autoAntal(lyfta.length)} cards are no longer visible`;
   return m;
 }
 /* Platshållare på bordet (MES-42): ett kort kameran ser men ännu inte har
@@ -16458,12 +16458,12 @@ function bordLoggFil() {
 }
 function sparaBordLogg() {
   const data = bordLoggFil();
-  if (!data) { toast('Ingen bordslogg att spara'); return; }
+  if (!data) { toast('No table log to save'); return; }
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = data.id + '.json'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-  toast('Bordsloggen sparad', 'ok');
+  toast('Table log saved', 'ok');
 }
 const autoSumTomBok = () => ({ anrop: 0, fel: 0, utan: 0, per: {} });
 function autoSumNy(nu) { return { spel: spelLage ? spelLage.id : null, start: nu, slut: null, kort: {}, bok: {}, dator: autoSumTomBok() }; }
@@ -16519,7 +16519,7 @@ function autoSumBok(bok, p) {
 }
 /* Datorns egna anrop medan auto är på — anroparen avgör att auto är på. */
 function autoSumDator(modell, usage, fel) {
-  const p = autoSumSakra(), d = p.dator, m = modell || 'okänd';
+  const p = autoSumSakra(), d = p.dator, m = modell || 'unknown';
   const q = d.per[m] || (d.per[m] = { anrop: 0, fel: 0, in: 0, ut: 0 });
   d.anrop++; q.anrop++;
   if (fel) { d.fel++; q.fel++; }
@@ -16564,7 +16564,7 @@ function autoSumSammanfatta(p, spar, mig, nu) {
   const tid = lista => autoSumMedian(lista.map(k => k.ms).filter(v => v != null));
   const lokal = kort.filter(k => k.metod === 'lokal'), ai = kort.filter(k => k.metod === 'ai'), hand = kort.filter(k => k.metod === 'hand');
   const perModell = {};
-  for (const k of ai) { const m = k.modell || 'okänd'; (perModell[m] = perModell[m] || []).push(k); }
+  for (const k of ai) { const m = k.modell || 'unknown'; (perModell[m] = perModell[m] || []).push(k); }
   const aiPer = {}; for (const m in perModell) aiPer[m] = { n: perModell[m].length, medianMs: tid(perModell[m]) };
   const bunden = id => ((mig && mig.cards) || []).some(c => c.spar === id);
   const okanda = (spar || []).filter(t => t.tillstand === 'okand' && !bunden(t.id)).length;
@@ -16962,13 +16962,13 @@ function renderAutoBar() {
   } else {
     const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
     const statusHtml = `<span class="led"></span><span class="txt" title="${esc(m.text)}">${esc(m.text)}</span>`;
-    const stegTxt = steg ? `Lägg korten som du vill ha dem otappade — ${steg.namn} ligger så nu?` : '';
+    const stegTxt = steg ? `Put the cards as you want them untapped — is ${steg.namn} lying like that now?` : '';
     /* Notisen har en prick framför sig som pulserar bara medan ett kort
        läses (m.puls); steget har sina knappar i stället. */
     const notHtml = steg
-      ? `<span class="nottxt" title="${esc(stegTxt)}">Lägg korten som du vill ha dem otappade — <b>${esc(steg.namn)}</b> ligger så nu?</span>` +
-        '<button class="btn prim" data-mode="grund-spara" title="Kortets vinkel i bilden blir det otappade läget för det här spelet">Spara som otappat läge</button>' +
-        '<button class="btn ghost" data-mode="grund-stang" title="Går att spara senare i kameravyn">Inte nu</button>'
+      ? `<span class="nottxt" title="${esc(stegTxt)}">Put the cards as you want them untapped — is <b>${esc(steg.namn)}</b> lying like that now?</span>` +
+        '<button class="btn prim" data-mode="grund-spara" title="The angle of the card in the picture becomes the untapped angle for this game">Save as untapped angle</button>' +
+        '<button class="btn ghost" data-mode="grund-stang" title="Can be saved later in the camera view">Not now</button>'
       : m.not ? `<span class="prick${m.puls ? ' puls' : ''}"></span><span class="nottxt" title="${esc(m.not)}">${esc(m.not)}</span>` : '';
     if (statusHtml !== autoBarStatusHtml) { status.innerHTML = statusHtml; autoBarStatusHtml = statusHtml; }
     if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
@@ -17028,8 +17028,8 @@ $('#lyftAlla') && $('#lyftAlla').addEventListener('click', ev => {
    längre: ett foto är ett foto och rör inte kameran (MES-25). */
 async function stangAvAuto(fraga) {
   if (fraga && kamAnsluten && !await ask(
-      'Telefonen slutar titta på bordet. Kort du flyttar där syns inte längre här — du flyttar dem själv eller laddar upp ett foto. Auto går att slå på igen från menyn.',
-      { title: 'Stänga av auto?', ok: 'Stäng av', nej: 'Behåll auto', danger: true })) return false;
+      'The phone stops watching the table. Cards you move there no longer show up here — you move them yourself or upload a photo. The camera can be turned on again from the menu.',
+      { title: 'Turn off the camera?', ok: 'Turn off', nej: 'Keep the camera', danger: true })) return false;
   /* Passet sammanfattas FÖRE nollställningen: senaste bordet och mitt bord
      är underlaget för "ännu utan namn", och glomSpar tar bindningarna. */
   const sum = autoSumAvsluta(senasteSpar, minSpelare(), Date.now());
@@ -17054,7 +17054,7 @@ async function stangAvAuto(fraga) {
 const svTal = (v, dec) => (dec != null ? (+v).toFixed(dec) : String(v)).replace('.', ',');
 const svHel = n => String(Math.round(+n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 const svSek = ms => ms == null ? '–' : svTal(ms / 1000, 1) + ' s';
-const svUsd = usd => usd == null ? 'pris okänt' : usd === 0 ? '0 USD' : '≈ ' + svTal(usd, usd < 0.1 ? 3 : 2) + ' USD';
+const svUsd = usd => usd == null ? 'price unknown' : usd === 0 ? '0 USD' : '≈ ' + svTal(usd, usd < 0.1 ? 3 : 2) + ' USD';
 function svTid(ms) {
   const sek = Math.round(ms / 1000);
   if (sek < 60) return sek + ' s';
@@ -17070,36 +17070,36 @@ function visaAutoSum(sum) {
   openOv('autoSumOv');
 }
 function autoSumHtml(sum) {
-  if (!sum) return '<p class="lead">Kameran läste inget den här gången.</p>';
+  if (!sum) return '<p class="lead">The camera read nothing this time.</p>';
   const rad = (vad, n, tid, klass) => `<tr${klass ? ` class="${klass}"` : ''}><td>${vad}</td><td class="tal">${n}</td><td class="tal">${tid}</td></tr>`;
   const kort = [
-    `<p class="lead">Auto var på i ${svTid(sum.ms)}. Kameran hittade <b>${sum.hittade}</b> kort${sum.okanda ? `, ${sum.okanda} ${sum.okanda === 1 ? 'av dem är' : 'av dem är'} ännu utan namn` : ''}.</p>`,
-    '<table><thead><tr><th>Hur kortet fick sitt namn</th><th class="tal">Kort</th><th class="tal">Median</th></tr></thead><tbody>',
-    rad('Lokalt — konstverk och titelrad', sum.lokal.n, svSek(sum.lokal.medianMs)),
-    rad('Med Claude', sum.ai.n, svSek(sum.ai.medianMs))
+    `<p class="lead">The camera was on for ${svTid(sum.ms)}. It found <b>${sum.hittade}</b> cards${sum.okanda ? `, ${sum.okanda} of them still without a name` : ''}.</p>`,
+    '<table><thead><tr><th>How the card got its name</th><th class="tal">Cards</th><th class="tal">Median</th></tr></thead><tbody>',
+    rad('Locally — artwork and title line', sum.lokal.n, svSek(sum.lokal.medianMs)),
+    rad('With Claude', sum.ai.n, svSek(sum.ai.medianMs))
   ];
   for (const m in sum.ai.per) kort.push(rad(esc(m), sum.ai.per[m].n, svSek(sum.ai.per[m].medianMs), 'sub'));
-  kort.push(rad('Fyllt i för hand eller ur ett foto', sum.hand.n, '–'), rad('Ännu utan namn', sum.okanda, '–'),
-            rad('Alla lästa', sum.lokal.n + sum.ai.n, svSek(sum.medianMs), 'summa'), '</tbody></table>');
+  kort.push(rad('Filled in by hand or from a photo', sum.hand.n, '–'), rad('Still without a name', sum.okanda, '–'),
+            rad('All read', sum.lokal.n + sum.ai.n, svSek(sum.medianMs), 'summa'), '</tbody></table>');
   const k = sum.kostnad;
   const bokRad = (vem, b, klass) => {
     const ut = [];
-    for (const m in b.per) { const q = b.per[m]; ut.push(`<tr class="${klass || ''}"><td>${vem} · ${esc(m)}</td><td class="tal">${q.anrop}${q.fel ? ` <i>(${q.fel} fel)</i>` : ''}</td><td class="tal">${svHel(q.in)}</td><td class="tal">${svHel(q.ut)}</td><td class="tal">${svUsd(q.usd)}</td></tr>`); }
+    for (const m in b.per) { const q = b.per[m]; ut.push(`<tr class="${klass || ''}"><td>${vem} · ${esc(m)}</td><td class="tal">${q.anrop}${q.fel ? ` <i>(${q.fel} failed)</i>` : ''}</td><td class="tal">${svHel(q.in)}</td><td class="tal">${svHel(q.ut)}</td><td class="tal">${svUsd(q.usd)}</td></tr>`); }
     return ut.join('');
   };
-  const pengar = ['<table><thead><tr><th>Claude-anrop</th><th class="tal">Anrop</th><th class="tal">Tokens in</th><th class="tal">Tokens ut</th><th class="tal">Kostnad</th></tr></thead><tbody>',
-    bokRad('Telefonen', k.telefon), bokRad('Datorn', k.dator),
-    `<tr class="summa"><td>Totalt</td><td class="tal">${k.totalt.anrop}${k.totalt.fel ? ` <i>(${k.totalt.fel} fel)</i>` : ''}</td><td class="tal">${svHel(k.totalt.in)}</td><td class="tal">${svHel(k.totalt.ut)}</td><td class="tal">${svUsd(k.totalt.usd)}</td></tr>`,
+  const pengar = ['<table><thead><tr><th>Claude calls</th><th class="tal">Calls</th><th class="tal">Tokens in</th><th class="tal">Tokens out</th><th class="tal">Cost</th></tr></thead><tbody>',
+    bokRad('Phone', k.telefon), bokRad('Computer', k.dator),
+    `<tr class="summa"><td>Total</td><td class="tal">${k.totalt.anrop}${k.totalt.fel ? ` <i>(${k.totalt.fel} failed)</i>` : ''}</td><td class="tal">${svHel(k.totalt.in)}</td><td class="tal">${svHel(k.totalt.ut)}</td><td class="tal">${svUsd(k.totalt.usd)}</td></tr>`,
     '</tbody></table>'];
   const noter = [];
-  if (k.ingenBok) noter.push('Telefonen skickade ingen kostnadsbok — kameraanropen syns inte här. Ladda om sidan på telefonen nästa gång.');
-  if (k.ute) noter.push(`${k.ute} ${k.ute === 1 ? 'fråga var' : 'frågor var'} fortfarande på väg till Claude när auto stängdes av — ${k.ute === 1 ? 'den' : 'de'} räknas inte här.`);
-  if (k.totalt.utan) noter.push(`${k.totalt.utan} anrop utan tokenuppgift (nätet eller servern svarade inte) — kostnaden är minst den som står.`);
-  if (k.totalt.okandPris.length) noter.push('Pris okänt för ' + k.totalt.okandPris.map(esc).join(', ') + ' — tokens räknas, inte USD.');
+  if (k.ingenBok) noter.push('The phone sent no cost ledger — the camera calls are not shown here. Reload the page on the phone next time.');
+  if (k.ute) noter.push(`${k.ute} ${k.ute === 1 ? 'question was' : 'questions were'} still on the way to Claude when the camera was turned off — ${k.ute === 1 ? 'it is' : 'they are'} not counted here.`);
+  if (k.totalt.utan) noter.push(`${k.totalt.utan} calls without token figures (the network or the server did not answer) — the cost is at least what is shown.`);
+  if (k.totalt.okandPris.length) noter.push('Price unknown for ' + k.totalt.okandPris.map(esc).join(', ') + ' — tokens are counted, not USD.');
   /* Bordsloggen: allt telefonen sa under passet, för den som vill felsöka
      en dubblett eller ett fel tap-läge efteråt (dev/dubbletter.cjs --logg). */
-  const lg = kamBordLogg && kamBordLogg.rader.length ? `<p class="loggrad"><button class="btn sm" id="autoSumLogg" type="button">Spara bordsloggen</button>
-    <span>${svHel(kamBordLogg.rader.length)} bord från passet${kamBordLogg.kapad ? ' (de äldsta släppta)' : ''} — blev ett kort två, eller tappat fast det inte var det? Loggen spelar upp passet: <code>node dev/dubbletter.cjs --logg fil</code></span></p>` : '';
+  const lg = kamBordLogg && kamBordLogg.rader.length ? `<p class="loggrad"><button class="btn sm" id="autoSumLogg" type="button">Save the table log</button>
+    <span>${svHel(kamBordLogg.rader.length)} tables from the session${kamBordLogg.kapad ? ' (the oldest dropped)' : ''} — did one card become two, or tapped when it was not? The log replays the session: <code>node dev/dubbletter.cjs --logg file</code></span></p>` : '';
   return kort.join('') + pengar.join('') + (noter.length ? '<ul class="noter">' + noter.map(n => '<li>' + n + '</li>').join('') + '</ul>' : '') + lg;
 }
 $('#autoSumBody').addEventListener('click', ev => { if (ev.target.closest('#autoSumLogg')) sparaBordLogg(); });
@@ -17128,19 +17128,19 @@ function bokforDatorAi(modell, usage, fel) {
 function uppdateraPbStatus() {
   const el = $('#pbStatus'); if (!el || !kamSkruvOppen) return;
   let h;
-  if (kamFas === 'ingen') h = 'Telefonen kör en äldre version av sidan — ladda om den på telefonen.';
-  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Lär sig ljuset — håll telefonen stilla en sekund. Korten får ligga kvar.';
-  else if (!kamSer) h = '<b>Bordet är tomt.</b> Lägg ut ett kort så får det en ram här.';
+  if (kamFas === 'ingen') h = 'The phone is running an older version of the page — reload it on the phone.';
+  else if (kamFas === 'ljus' || kamFas === 'lar') h = 'Learning the light — hold the phone still for a second. The cards can stay.';
+  else if (!kamSer) h = '<b>The table is empty.</b> Put out a card and it gets a frame here.';
   else {
     /* Bara det som faktiskt står i kön lovas granskning: ett rött spår man
        hoppat över är rött men frågas inte om igen förrän det lyfts. */
     const mig = minSpelare();
     const iKo = ((mig && mig.pending) || []).filter(q => q.spar != null).length;
     const okanda = kamTot - kamLast, kvar = okanda - iKo, laser = kamSer - kamTot;
-    h = `Ser <b>${kamSer}</b> kort och känner igen <b>${kamLast}</b>.`
-      + (iKo ? ` ${iKo === 1 ? 'Det röda kortet går' : 'De röda går'} till granskningen.` : '')
-      + (kvar > 0 ? ` ${kvar === 1 ? 'Ett rött ligger' : kvar + ' röda ligger'} kvar utan namn — lyft kortet så frågar den igen.` : '')
-      + (laser > 0 ? ` ${laser === 1 ? 'Ett läses' : laser + ' läses'} fortfarande.` : '');
+    h = `Sees <b>${kamSer}</b> cards and recognises <b>${kamLast}</b>.`
+      + (iKo ? ` ${iKo === 1 ? 'The red card goes' : 'The red ones go'} to the review.` : '')
+      + (kvar > 0 ? ` ${kvar === 1 ? 'One red card is' : kvar + ' red cards are'} still without a name — lift the card and it asks again.` : '')
+      + (laser > 0 ? ` ${laser === 1 ? 'One is' : laser + ' are'} still being read.` : '');
   }
   const rad = kamRad || (kamYta && kamYta.dom !== 'lugn' ? kamYta.rad : '');
   const lugn = kamYta && kamYta.dom === 'lugn' && !kamRad ? `<span class="fin">${esc(kamYta.rad)}</span>` : '';
@@ -17162,7 +17162,7 @@ function tagEmotDiagnos(m) {
      kom först, och en tappad del lämnade en post för alltid utan ett ord. */
   d.delar.add(m.del);
   for (const key of ['matt', 'tro', 'dia', 'yta', 'kal', 'spar', 'ref', 'ruta', 'bild']) if (m[key] !== undefined) d[key] = m[key];
-  if (!d.t) d.t = setTimeout(() => { if (diagnosDelar.delete(m.id)) toast('Diagnosen kom inte fram helt från telefonen', 'err'); }, 10000);
+  if (!d.t) d.t = setTimeout(() => { if (diagnosDelar.delete(m.id)) toast('The diagnostics did not fully arrive from the phone', 'err'); }, 10000);
   diagnosDelar.set(m.id, d);
   if (d.delar.size < (m.delar || 3)) return;
   clearTimeout(d.t); diagnosDelar.delete(m.id);
@@ -17178,10 +17178,10 @@ function tagEmotDiagnos(m) {
   a.download = `mesa-diagnos-${fil.tid.slice(0, 16).replace(/[:T]/g, '-')}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast('Diagnosen är sparad', 'ok');
+  toast('Diagnostics saved', 'ok');
 }
-$('#pbDiagnos') && ($('#pbDiagnos').onclick = () => { Moln.sandKam('diagnos'); toast('Hämtar det telefonen ser…'); });
-$('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); toast('Telefonen frågar Claude om hela bordet…'); });
+$('#pbDiagnos') && ($('#pbDiagnos').onclick = () => { Moln.sandKam('diagnos'); toast('Fetching what the phone sees…'); });
+$('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); toast('The phone is asking Claude about the whole table…'); });
 /* Bilden byter storlek när Avancerat fälls ut; lagret mäts om direkt. */
 $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestAnimationFrame(ritaPbLager));
 
@@ -17193,21 +17193,21 @@ $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestA
 const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 };
 const PB_REG = [
-  ['utseende', 'Avvikelse',    8,   60,  1,   'Hur mycket en bildpunkt ska skilja sig från bordsmodellen — det bordet ser ut som i samma bildruta. Det är den här som hittar korten'],
-  ['spridning','Struktur',     0,   40,  1,   'Minsta spridning i gråsteg inom en region för att den ska räknas som kort. Ett kort ligger på 28–47, en träflisa under 10'],
-  ['troskel',  'Tröskel',      6,   80,  1,   'Hur mycket en bildpunkt ska skilja sig från referensen där bordet har eget tryck eller mönster. Räknas ur bordets brus tills du drar i reglaget'],
-  ['blank',    'Blänk',        180, 255, 1,   'Ljusare än så är blänk: räknas aldrig i referensen, och en region med mättad kärna utan mörk kant är ett blänk som flyttat sig. Sänk den om ett ljust bord får blänk-domar utan lampa i bild'],
-  ['minArea',  'Minsta yta',   10,  400, 5,   'Mindre regioner än så är damm'],
-  ['kvotMin',  'Kvot min',     0.3, 0.72, 0.01, 'Ett kort har kvoten 0,72'],
-  ['kvotMax',  'Kvot max',     0.72, 1.2, 0.01, 'Över 1 är regionen bredare än den är lång'],
-  ['fyllnad',  'Fyllnad',      0.4, 0.95, 0.01, 'Hur mycket av sin låda regionen ska fylla'],
-  ['stillaPx', 'Stillhet',     0.4, 6,   0.1,  'Rörelse som ändå räknas som stilla'],
-  ['stillaMs', 'Stilla i',     200, 2500, 50,  'Hur länge innan kortet läses'],
-  ['bortaMs',  'Borta efter',  200, 3000, 50,  'Hur länge bordet under kortet ska ha sett tomt ut'],
-  ['tomMin',   'Tom under',    0.05, 0.6, 0.05, 'Så lite av kortets yta som får synas för att bordet där ska räknas som tomt'],
-  ['skymdMin', 'Skymd över',   0.3, 1.0, 0.05, 'Så mycket som ska synas för att något ska räknas ligga över kortet'],
-  ['areaVaxt', 'Får växa',     1.1, 3,   0.1,  'En träff så här mycket större än spåret är en hand, inte kortet'],
-  ['spokMs',   'Minns plats',  2000, 60000, 1000, 'Hur länge ett lyft kort minns var det låg']
+  ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],
+  ['spridning','Structure',    0,   40,  1,   'Minimum spread in grey levels within a region for it to count as a card. A card is at 28–47, a wood chip under 10'],
+  ['troskel',  'Threshold',    6,   80,  1,   'How much a pixel must differ from the reference where the table has its own print or pattern. Computed from the table noise until you drag the slider'],
+  ['blank',    'Glare',        180, 255, 1,   'Brighter than this is glare: never counted in the reference, and a region with a saturated core and no dark edge is glare that has moved. Lower it if a light table gets glare verdicts with no lamp in the picture'],
+  ['minArea',  'Min area',     10,  400, 5,   'Smaller regions than this are dust'],
+  ['kvotMin',  'Ratio min',    0.3, 0.72, 0.01, 'A card has the ratio 0.72'],
+  ['kvotMax',  'Ratio max',    0.72, 1.2, 0.01, 'Above 1 the region is wider than it is long'],
+  ['fyllnad',  'Fill',         0.4, 0.95, 0.01, 'How much of its box the region must fill'],
+  ['stillaPx', 'Stillness',    0.4, 6,   0.1,  'Movement that still counts as still'],
+  ['stillaMs', 'Still for',    200, 2500, 50,  'How long before the card is read'],
+  ['bortaMs',  'Gone after',   200, 3000, 50,  'How long the table under the card must have looked empty'],
+  ['tomMin',   'Empty under',  0.05, 0.6, 0.05, 'How little of the card area may show for the table there to count as empty'],
+  ['skymdMin', 'Covered above', 0.3, 1.0, 0.05, 'How much must show for something to count as lying over the card'],
+  ['areaVaxt', 'May grow',     1.1, 3,   0.1,  'A hit this much larger than the track is a hand, not the card'],
+  ['spokMs',   'Remembers place', 2000, 60000, 1000, 'How long a lifted card remembers where it was']
 ];
 let pbTro = Object.assign({}, PB_STD, LS.get('sthv.tro.v1', {}));
 let pbPa = false, pbDia = null, pbRa = [], pbW = 0, pbH = 0, pbMatt = { aw: 0, ah: 0 };
@@ -17249,7 +17249,7 @@ $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   LS.set('sthv.tro.v1', pbTro);
   Moln.sandKam('trosklar', { v: pbTro });
 });
-$('#pbRef') && ($('#pbRef').onclick = () => { Moln.sandKam('nyref'); toast('Ny referensbild — håll telefonen stilla', 'ok'); });
+$('#pbRef') && ($('#pbRef').onclick = () => { Moln.sandKam('nyref'); toast('New reference picture — hold the phone still', 'ok'); });
 $('#pbAter') && ($('#pbAter').onclick = () => {
   pbTro = Object.assign({}, PB_STD);
   LS.set('sthv.tro.v1', pbTro); ritaPbReglage(); Moln.sandKam('trosklar', { v: pbTro });
@@ -17272,20 +17272,20 @@ function provbordData(m) {
   const d = pbDia || {};
   const tal = (namn, v, varn) => `<span class="pbtal${varn ? ' varn' : ''}">${namn} <b>${v}</b></span>`;
   $('#pbSiffror').innerHTML = [
-    tal('spår', pbRa.length),
-    tal('skymda', pbRa.filter(t => t.skymd).length),
-    tal('regioner', d.regioner || 0),
-    tal('täckning', ((d.tackning || 0) * 100).toFixed(1) + '%', (d.tackning || 0) > 0.35),
-    tal('spritt', ((d.spritt || 0) * 100).toFixed(2) + '%', (d.spritt || 0) > 0.005),
-    tal('brus σ', (d.sigma || 0).toFixed(1)),
-    tal('textur', d.textur == null ? '–' : d.textur.toFixed(1), (d.textur || 0) > 4),   // ytans mått: >4 är 'orolig' i bedomYta
-    tal('blänk', d.blank == null ? '–' : d.blank.toFixed(1) + '%', (d.blank || 0) > 0.3),
+    tal('tracks', pbRa.length),
+    tal('covered', pbRa.filter(t => t.skymd).length),
+    tal('regions', d.regioner || 0),
+    tal('coverage', ((d.tackning || 0) * 100).toFixed(1) + '%', (d.tackning || 0) > 0.35),
+    tal('scattered', ((d.spritt || 0) * 100).toFixed(2) + '%', (d.spritt || 0) > 0.005),
+    tal('noise σ', (d.sigma || 0).toFixed(1)),
+    tal('texture', d.textur == null ? '–' : d.textur.toFixed(1), (d.textur || 0) > 4),   // ytans mått: >4 är 'orolig' i bedomYta
+    tal('glare', d.blank == null ? '–' : d.blank.toFixed(1) + '%', (d.blank || 0) > 0.3),
     tal('otsu', d.otsu == null ? '–' : d.otsu),
     tal('gain', (d.gain || 1).toFixed(2), Math.abs((d.gain || 1) - 1) > 0.25),
-    tal('för små', d.forSma || 0),
-    tal('små kort', d.smaKort || 0, (d.smaKort || 0) > 0),   // kortformade men under golvet för att läsas — det spelaren ska få veta om
-    tal('fel kvot', d.felKvot || 0, (d.felKvot || 0) > 2),
-    tal('otäta', d.otat || 0)
+    tal('too small', d.forSma || 0),
+    tal('small cards', d.smaKort || 0, (d.smaKort || 0) > 0),   // kortformade men under golvet för att läsas — det spelaren ska få veta om
+    tal('wrong ratio', d.felKvot || 0, (d.felKvot || 0) > 2),
+    tal('sparse', d.otat || 0)
   ].join('');
   ritaPbLager();
 }
@@ -17298,8 +17298,8 @@ function provbordData(m) {
    Det är exakt den skillnaden man skruvar trösklarna för att stänga. */
 function kamSkruvTal() {
   const m = $('#kamSkruvMeta'), r = $('#kamSkruvRakn');
-  if (m) m.textContent = kamSer ? `ser ${kamSer}, känner igen ${kamLast}` : 'inga kort än';
-  if (r) r.textContent = pbRa.length ? `${pbRa.length} spår hittade` : '';
+  if (m) m.textContent = kamSer ? `sees ${kamSer}, recognises ${kamLast}` : 'no cards yet';
+  if (r) r.textContent = pbRa.length ? `${pbRa.length} tracks found` : '';
 }
 
 function ritaPbLager() {
@@ -17399,8 +17399,8 @@ async function visaKamOv() {
 function visaKamSteg() {
   const st = $('#kamOvStatus');
   if (st) st.innerHTML = kamAnsluten
-    ? '<span class="kamlive"><i></i>Telefonen är ansluten</span>'
-    : 'Väntar på att telefonen ansluter…';
+    ? '<span class="kamlive"><i></i>The phone is connected</span>'
+    : 'Waiting for the phone to connect…';
 }
 /* Panelens överkant: under topbaren, raden och statusfältet, vad de än är
    höga just nu — fältet och frusen-raden kommer och går. Bordet får
@@ -17452,7 +17452,7 @@ function kamNarvaro(kameror) {
      försvann → koden igen. Ingen knapp att trycka på någonstans. */
   kamStegSynk();
   renderMode();
-  toast(kamAnsluten ? 'Kameran är ansluten' : 'Kameran kopplades från', kamAnsluten ? 'ok' : 'err');
+  toast(kamAnsluten ? 'The camera is connected' : 'The camera was disconnected', kamAnsluten ? 'ok' : 'err');
 }
 /* En bildruta från telefonen. Måtten är telefonens egna; pbW/pbH följer dem. */
 let kamBildW = 0, kamBildH = 0;
@@ -17524,13 +17524,13 @@ function kamTogsEmot(m) {
     kamLast = kamTot = 0;
     kamStegSynk();          // panelen går tillbaka till koden
     renderMode();
-    toast('Kameran kopplades från', 'err');
+    toast('The camera was disconnected', 'err');
   }
 }
 $('#kamKopiera').onclick = async () => {
   const t = $('#kamLank').textContent;
-  try { await navigator.clipboard.writeText(t); toast('Länken är kopierad', 'ok'); }
-  catch (e) { prompt('Kopiera länken:', t); }
+  try { await navigator.clipboard.writeText(t); toast('Link copied', 'ok'); }
+  catch (e) { prompt('Copy the link:', t); }
 };
 
 /* QR-koden hämtas som modul först när dialogen öppnas. Går den inte att
@@ -17538,7 +17538,7 @@ $('#kamKopiera').onclick = async () => {
    att få in i telefonen. */
 async function ritaQr(text, mal) {
   const box = mal || $('#kamQr');
-  box.innerHTML = '<span class="vantar">Ritar kod…</span>';
+  box.innerHTML = '<span class="vantar">Drawing the code…</span>';
   try {
     const mod = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm');
     const qr = (mod.default || mod)(0, 'M');
@@ -17553,7 +17553,7 @@ async function ritaQr(text, mal) {
       if (qr.isDark(r, col)) x.fillRect((col + marg) * px, (r + marg) * px, px, px);
     box.innerHTML = ''; box.appendChild(c);
   } catch (e) {
-    box.innerHTML = '<span class="vantar">Koden kunde inte ritas — använd länken nedan.</span>';
+    box.innerHTML = '<span class="vantar">The code could not be drawn — use the link below.</span>';
   }
 }
 
@@ -17574,13 +17574,13 @@ addEventListener('resize', () => { if (kamSkruvOppen) ritaPbLager(); if (kamOppe
 function visaKamGrund() {
   const el = $('#kamGrundTxt'), kn = $('#kamGrundSpara'); if (!el) return;
   const g = kamGrund !== undefined ? kamGrund : kamGrundRad;
-  el.textContent = g == null ? 'Otappat läge: inte sparat — lägg ett kort som du vill ha det otappat och tryck Spara' : `Otappat läge: sparat (${g}°)`;
-  if (kn) kn.textContent = g == null ? 'Spara' : 'Spara om';
+  el.textContent = g == null ? 'Untapped angle: not saved — put a card the way you want it untapped and press Save' : `Untapped angle: saved (${g}°)`;
+  if (kn) kn.textContent = g == null ? 'Save' : 'Save again';
 }
 /* Datorn ber telefonen ta grundläget ur ett spår. Svaret (tagEmotGrundSvar)
    säger om spåret fanns — kortet kan ha lyfts sedan steget visades. */
 function begarGrund(spar) {
-  if (spar == null || !kamAnsluten) { toast('Kameran ser inget kort att ta läget ur — lägg ett kort på bordet', 'err'); return; }
+  if (spar == null || !kamAnsluten) { toast('The camera sees no card to take the angle from — put a card on the table', 'err'); return; }
   Moln.sandKam('grund', { spar });
 }
 /* Steget i statusfältet och knappen i kameravyn gör samma sak: läget ur
@@ -17590,13 +17590,13 @@ function sparaGrundFranSenaste() {
   begarGrund(k ? k.spar : null);
 }
 async function tagEmotGrundSvar(m) {
-  if (!m.ok || m.grund == null) { toast('Otappat läge kunde inte sparas — kameran har ingen egen mätning av kortets vinkel just nu. Prova igen med ett kort den själv hittat.', 'err'); return; }
+  if (!m.ok || m.grund == null) { toast('The untapped angle could not be saved — the camera has no measurement of the card angle right now. Try again with a card it found by itself.', 'err'); return; }
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
-  toast(ok ? `Otappat läge sparat (${m.grund}°)` : 'Otappat läge kunde inte sparas i spelet — det gäller tills telefonen laddas om', ok ? 'ok' : 'err');
+  toast(ok ? `Untapped angle saved (${m.grund}°)` : 'The untapped angle could not be saved to the game — it applies until the phone reloads', ok ? 'ok' : 'err');
 }
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
 /* Graveyard-rutan (K9-lite): "Mark the graveyard" i kamerapanelen, dra en
@@ -17696,7 +17696,7 @@ function kamStegSynk() {
   if (qr) qr.hidden = skruv;
   if (kamOppen && !kamAnsluten) ritaKamLank();
   if (sk) sk.classList.toggle('open', skruv);
-  if (rub) rub.textContent = kamAnsluten ? 'Kameran' : 'Koppla en kamera';
+  if (rub) rub.textContent = kamAnsluten ? 'Camera' : 'Connect a camera';
   visaKamSteg();
   if (skruv && !kamSkruvOppen) {
     kamSkruvOppen = true;
@@ -17752,13 +17752,13 @@ async function taEmotScan(rad) {
     await Moln.radeaScan(tagen);
     if (efter > innan) {
       const k = mig.cards[mig.cards.length - 1];
-      toast((k && k.name ? k.name : 'Kortet') + ' lades ut', 'ok');
+      toast((k && k.name ? k.name : 'The card') + ' was put out', 'ok');
     } else if (vantadeEfter > vantadeInnan) {
       /* Osäkert. Frågan ska komma direkt — man står vid bordet just nu och
          vet vilket kort man la dit, om tio minuter gör man inte det. */
       fragaOmScan();
     } else {
-      toast('Inget kort hittades i bilden', 'err');
+      toast('No card was found in the image', 'err');
     }
   } catch (e) {
     console.warn('Avläsningen gick inte att behandla', e);
@@ -17787,7 +17787,7 @@ async function kollaVantandeScans() {
    alls — ingen analyserad bild än, en fråga redan på väg — står det också. */
 $('#kamHelbild').onclick = async () => {
   const b = $('#kamHelbild'); b.disabled = true; satKamFin('ai', '');
-  try { if (!(await Kamera.helbild()) && !kamFinDel.ai) satKamFin('ai', Kamera.helbildPagar ? 'Claude tittar redan.' : 'Kameran är inte redo än — vänta några sekunder och försök igen.'); }
+  try { if (!(await Kamera.helbild()) && !kamFinDel.ai) satKamFin('ai', Kamera.helbildPagar ? 'Claude is already looking.' : 'The camera is not ready yet — wait a few seconds and try again.'); }
   finally { b.disabled = false; }
 };
 $('#kamStang').onclick = async () => {
@@ -17823,7 +17823,7 @@ function rensaInbjudan() {
 
 async function visaLobby() {
   visaVy('lobby');
-  $('#lobbyHalsning').textContent = 'Hej ' + Moln.mittNamn();
+  $('#lobbyHalsning').textContent = 'Hi ' + Moln.mittNamn();
   portalFel('#lobbyFel', '');
   try {
     const spel = await Moln.minaSpel();
@@ -17834,8 +17834,8 @@ async function visaLobby() {
     const jag = Moln.minId();
     box.innerHTML = spel.map(g =>
       `<div class="lobbyrad">
-         <button data-spel="${esc(g.id)}"><b>${esc(g.namn || 'Spel')}</b><span class="kod">${esc(g.kod)}</span></button>
-         ${g.vard === jag ? `<button class="spelslut" data-avsluta="${esc(g.id)}" data-kod="${esc(g.kod)}" title="Avsluta spelet ${esc(g.kod)}">Avsluta</button>` : ''}
+         <button data-spel="${esc(g.id)}"><b>${esc(g.namn || 'Game')}</b><span class="kod">${esc(g.kod)}</span></button>
+         ${g.vard === jag ? `<button class="spelslut" data-avsluta="${esc(g.id)}" data-kod="${esc(g.kod)}" title="End the game ${esc(g.kod)}">End</button>` : ''}
        </div>`).join('');
   } catch (e) { /* listan är en bekvämlighet, inte en förutsättning */ }
 }
@@ -18023,7 +18023,7 @@ function uppdateraLage() {
        synliga innehåll fyra tecken, och det är vad en skärmläsare läser upp
        om ingen aria-label finns. Titeln säger inte "igen" — den som just gått
        med i spelet har aldrig kopierat någon länk. */
-    if (spelLage) sk.setAttribute('aria-label', 'Kopiera inbjudningslänken, kod ' + spelLage.kod);
+    if (spelLage) sk.setAttribute('aria-label', 'Copy the invitation link, code ' + spelLage.kod);
   }
   const las = !!spelLage && !redigerbar();
   document.body.classList.toggle('lasvy', las);
@@ -18031,7 +18031,7 @@ function uppdateraLage() {
     const kod = $('#spelKod'); if (kod) kod.textContent = spelLage.kod;
     if (las) {
       const p = player();
-      $('#lasbandTxt').textContent = (p.name || 'Den här spelaren') + 's bord — du kan titta, inte ändra';
+      $('#lasbandTxt').textContent = (p.name || 'This player') + '\'s board — you can look, not change';
       document.body.style.setProperty('--vy', p.color || 'var(--blue)');
     }
   }
@@ -18043,8 +18043,8 @@ const inbjudanLank = () => location.origin + location.pathname + '?join=' + (spe
 $('#spelKnapp').onclick = async () => {
   if (!spelLage) return;
   const lank = inbjudanLank();
-  try { await navigator.clipboard.writeText(lank); toast('Inbjudningslänken är kopierad', 'ok'); }
-  catch (e) { prompt('Kopiera länken:', lank); }
+  try { await navigator.clipboard.writeText(lank); toast('Invitation link copied', 'ok'); }
+  catch (e) { prompt('Copy the link:', lank); }
 };
 
 /* ── ut ur ett spel ─────────────────────────────────────────────────
@@ -18093,17 +18093,17 @@ async function tillbakaTillLobby() {
 async function avslutaSpelet() {
   if (!spelLage) return;
   const kod = spelLage.kod;
-  const ja = await ask(`Ingen kan gå med i ${kod} efteråt, och det försvinner ur allas listor. Korten ligger kvar.`,
-                       { title: 'Avsluta spelet?', ok: 'Avsluta', danger: true });
+  const ja = await ask(`No one can join ${kod} afterwards, and it disappears from everyone's lists. The cards stay.`,
+                       { title: 'End the game?', ok: 'End', danger: true });
   if (!ja) return;
   const id = spelLage.id;
-  if (!await Moln.avslutaSpel(id)) { toast('Spelet kunde inte avslutas', 'err'); return; }
+  if (!await Moln.avslutaSpel(id)) { toast('The game could not be ended', 'err'); return; }
   await tillbakaTillLobby();
-  toast(`Spelet ${kod} är avslutat`, 'ok');
+  toast(`Game ${kod} has ended`, 'ok');
 }
 async function loggaUtHelt() {
-  const ja = await ask('Den här enheten glömmer vem du är. Dina spel ligger kvar och du kan logga in igen.',
-                       { title: 'Logga ut?', ok: 'Logga ut' });
+  const ja = await ask('This device forgets who you are. Your games remain and you can sign in again.',
+                       { title: 'Sign out?', ok: 'Sign out' });
   if (!ja) return;
   await lamnaSpelet();
   LS.del(K.lage);
@@ -18126,7 +18126,7 @@ $('#lobbyLokalt').onclick = () => startaLokalt();
 $('#loggaInBtn').onclick = async () => {
   portalFel('#startFel', '');
   try { LS.set(K.lage, 'moln'); await Moln.loggaIn(inbjudanIUrl()); }
-  catch (e) { portalFel('#startFel', e.message || 'Inloggningen gick inte att starta.'); }
+  catch (e) { portalFel('#startFel', e.message || 'Sign-in could not start.'); }
 };
 $('#loggaUtBtn').onclick = () => loggaUtHelt();
 /* Från det lokala bordet fanns ingen väg till lobbyn alls — man fick ladda om
@@ -18139,7 +18139,7 @@ $('#skapaSpelBtn').onclick = async () => {
   portalFel('#lobbyFel', '');
   const b = $('#skapaSpelBtn'); b.disabled = true;
   try { const g = await Moln.skapaSpel(null); await oppnaSpel(g.id, true); }
-  catch (e) { portalFel('#lobbyFel', e.message || 'Kunde inte skapa spelet.'); }
+  catch (e) { portalFel('#lobbyFel', e.message || 'Could not create the game.'); }
   finally { b.disabled = false; }
 };
 $('#joinForm').onsubmit = async ev => {
@@ -18148,22 +18148,22 @@ $('#joinForm').onsubmit = async ev => {
   const kod = $('#joinKod').value.trim().toUpperCase();
   if (!kod) return;
   try { const id = await Moln.gaMed(kod); await oppnaSpel(id, true); }
-  catch (e) { portalFel('#lobbyFel', e.message === 'Spelet finns inte' ? 'Ingen hittade med den koden.' : (e.message || 'Kunde inte gå med.')); }
+  catch (e) { portalFel('#lobbyFel', e.message === 'Spelet finns inte' ? 'Nothing was found with that code.' : (e.message || 'Could not join.')); }
 };
 $('#lobbyMina').addEventListener('click', async ev => {
   const slut = ev.target.closest('[data-avsluta]');
   if (slut) {
     ev.stopPropagation();
     const kod = slut.dataset.kod;
-    if (!await ask(`Ingen kan gå med i ${kod} efteråt, och det försvinner ur allas listor. Korten ligger kvar.`,
-                   { title: 'Avsluta spelet?', ok: 'Avsluta', danger: true })) return;
-    if (await Moln.avslutaSpel(slut.dataset.avsluta)) { await visaLobby(); toast(`Spelet ${kod} är avslutat`, 'ok'); }
-    else portalFel('#lobbyFel', 'Spelet kunde inte avslutas.');
+    if (!await ask(`No one can join ${kod} afterwards, and it disappears from everyone's lists. The cards stay.`,
+                   { title: 'End the game?', ok: 'End', danger: true })) return;
+    if (await Moln.avslutaSpel(slut.dataset.avsluta)) { await visaLobby(); toast(`Game ${kod} has ended`, 'ok'); }
+    else portalFel('#lobbyFel', 'The game could not be ended.');
     return;
   }
   const b = ev.target.closest('[data-spel]'); if (!b) return;
   try { await oppnaSpel(b.dataset.spel); }
-  catch (e) { portalFel('#lobbyFel', e.message || 'Kunde inte öppna spelet.'); }
+  catch (e) { portalFel('#lobbyFel', e.message || 'Could not open the game.'); }
 });
 
 /* Vilken vy som ska visas vid start. Har man valt lokalt läge tidigare visas
@@ -18189,14 +18189,14 @@ async function portalStart() {
     $('#startInbjuden').hidden = false;
     $('#startInbjudenKod').textContent = inbjudan;
     if (kameraIUrl()) {
-      $('#startInbjuden').querySelector('b').textContent = 'Koppla den här enheten som kamera';
+      $('#startInbjuden').querySelector('b').textContent = 'Connect this device as a camera';
       $('#startInbjuden').querySelector('.portalfin').textContent =
-        'Logga in med samma konto som på datorn.';
+        'Sign in with the same account as on the computer.';
     }
   }
   const { konfigurerad } = await Moln.start();
   if (!konfigurerad) {
-    portalFel('#startFel', 'Inloggning är inte uppsatt på den här servern. Kör vidare utan konto.');
+    portalFel('#startFel', 'Sign-in is not set up on this server. Carry on without an account.');
     $('#loggaInBtn').disabled = true;
     return;
   }
@@ -18221,7 +18221,7 @@ async function portalStart() {
       else await oppnaSpel(id, true);
       return;
     }
-    catch (e) { await visaLobby(); portalFel('#lobbyFel', 'Kunde inte gå med i spelet: ' + (e.message || '')); return; }
+    catch (e) { await visaLobby(); portalFel('#lobbyFel', 'Could not join the game: ' + (e.message || '')); return; }
   }
   await visaLobby();
 }
