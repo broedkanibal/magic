@@ -1459,6 +1459,16 @@ body.lasvy .lasband{display:flex}
   min-height:96px;border-style:dashed;
 }
 .lekfoto.lagg:hover{border-color:var(--acc);color:var(--acc)}
+.lekfoto.lagg.telefon .plus{font-size:18px}
+.lekqr{display:flex;gap:16px;align-items:flex-start;padding:12px;border-radius:10px;border:1px solid var(--panelram2);background:var(--bg3);margin-bottom:12px}
+.lekqr[hidden]{display:none}
+.lekqr .kamqr{flex:none}
+.lekqr .kamqr canvas{width:132px;height:132px;border-radius:6px}
+.lekqrtext{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lekqrtext b{font:650 13px/1.3 var(--sans);color:var(--txt)}
+.lekqrtext p{margin:0;font:12px/1.5 var(--sans);color:var(--dim)}
+.lekqrtext #lekQrLank{font:11px var(--mono);color:var(--dim2);word-break:break-all}
+body.lekfoto .lekfoto.lagg.telefon{display:none}
 .lekfoto.lagg .plus{font-size:22px;line-height:1}
 .lekfoto.lagg span:last-child{font:11.5px var(--sans)}
 
@@ -2491,6 +2501,7 @@ body.ispel #addPlayerBtn{display:none}
           <div class="lektomakt">
             <button class="btn prim big" id="lekValjFil">Choose a photo</button>
             <button class="btn ghost" id="lekOppnaText">I have the deck as a list</button>
+            <button class="btn ghost" id="lekQrTomt">Use your phone's camera</button>
           </div>
           <p class="lekfin">You can also drop the photo in this window, or paste it with
             <kbd>⌘V</kbd>. Open Mesa on your phone to shoot directly.</p>
@@ -2502,6 +2513,17 @@ body.ispel #addPlayerBtn{display:none}
              över. "Lägg till ett foto" är den tomma platsen sist i
              fotoremsan, en handling, inte en uppmaning man verkar ha
              misslyckats med. -->
+        <!-- QR-rutan (D8-7): telefonen öppnar samma lek där, fotograferar med
+             sin egen kamera och sparar på kontot; datorn får veta det på
+             lekkanalen och laddar om listan. -->
+        <div class="lekqr" id="lekQrRuta" hidden>
+          <div class="kamqr" id="lekQr"></div>
+          <div class="lekqrtext">
+            <b>Scan with your phone</b>
+            <p>It opens this deck on the phone. Photos you take there are read and saved to your account, and show up in this list.</p>
+            <p class="lekfin"><span id="lekQrLank"></span> <button type="button" class="btn sm" id="lekQrKopiera">Copy link</button> <button type="button" class="btn sm ghost" id="lekQrStang">Hide</button></p>
+          </div>
+        </div>
         <div class="lekfylld" id="lekFylld" hidden>
           <div class="lekremsa" id="lekFoton"></div>
 
@@ -4609,6 +4631,7 @@ const Moln = (() => {
        så den läggs undan lokalt och plockas upp när vi kommer tillbaka. */
     if (nastaKod) sessionStorage.setItem('sthv.join', nastaKod);
     if (kameraIUrl()) sessionStorage.setItem('sthv.cam', '1');
+    if (lekfotoIUrl()) sessionStorage.setItem('sthv.lekfoto', lekfotoIUrl());
     const { error } = await s.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: location.origin + location.pathname }
@@ -5043,6 +5066,36 @@ const Moln = (() => {
     catch (e) { return false; }
   }
 
+  /* ── Lekkanalen (D8-7) ────────────────────────────────────────────
+     Telefonen som fotograferar leken och datorn som har dialogen öppen är
+     samma konto på två enheter; de möts på en egen broadcast-kanal
+     'lek:<userId>' — INTE spelets kanal (lyssna() river den, och leken
+     hör inte till ett spel). Egen ref, egen livslängd: datorn lyssnar
+     medan dialogen är öppen, telefonen medan den fotograferar. */
+  let lekKan = null, lekLyssnare = null;
+  async function lekKanal(cb) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    await lamnaLekKanal();
+    lekLyssnare = cb;
+    lekKan = s.channel('lek:' + minId())
+      /* Båda enheterna är samma konto, så avsändaren går inte att skilja
+         på 'av'; ett eget eko sållas på ts hos mottagaren (lekFranTelefon). */
+      .on('broadcast', { event: 'lek' }, p => { if (lekLyssnare) lekLyssnare(p.payload || {}); });
+    lekKan.subscribe();
+    return true;
+  }
+  function sandLek(data) {
+    if (!lekKan || !minId()) return false;
+    try { lekKan.send({ type: 'broadcast', event: 'lek', payload: Object.assign({ av: minId() }, data || {}) }); return true; }
+    catch (e) { return false; }
+  }
+  async function lamnaLekKanal() {
+    lekLyssnare = null;
+    if (!lekKan) return;
+    try { await lekKan.unsubscribe(); } catch (e) {}
+    lekKan = null;
+  }
+
   async function lamnaKanal() {
     /* Släpp en osänd skrivning. Den hör till spelet man lämnar, och utan det
        här försökte omsändningen skriva till ett bord man inte längre sitter
@@ -5059,6 +5112,7 @@ const Moln = (() => {
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage,
            avslutaSpel, lyssna, lamnaKanal, sandKam, sparaMinLek, hamtaMinLek, hamtaLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
+           lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
@@ -8478,6 +8532,9 @@ let lekStyr = null;             // AbortController för det pågående anropet
 /* Anropas av closeOv, oavsett hur dialogen stängdes. */
 function stangLek() {
   if (lekStyr) { try { lekStyr.abort(); } catch (e) {} lekStyr = null; }
+  clearTimeout(lekPollT); lekPollT = null;
+  lekVisaQr(false);
+  if (!lekfotoLage) Moln.lamnaLekKanal();
 }
 
 const lekNyckel = n => (n || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -8653,6 +8710,7 @@ async function lekLadda(valjId) {
     lekBaseradPa = rad.ts || 0;
     lekSa(rad.kort || [], 'sparat');
     $('#lekStatus').textContent = '';
+    if (!lekfotoLage && Moln.inloggad()) { Moln.lekKanal(m => lekFranTelefon(m)).catch(() => {}); lekPollStart(); }
   } catch (e) {
     $('#lekStatus').innerHTML = '<b style="color:var(--red)">The deck could not be fetched.</b> Do not save until you know why — it would overwrite the one that exists.';
     /* Listrutan stod kvar från förra öppningen och såg ut som en tom lek. */
@@ -8660,6 +8718,77 @@ async function lekLadda(valjId) {
     return;
   }
   ritaLek();
+}
+
+/* ── Telefonen fotograferar (D8-7) ──────────────────────────────────
+   Datorn visar en QR-kod med ?lekfoto=<lekens id>. Telefonen loggar in med
+   samma konto, öppnar samma lek i samma dialog (lekfotoLage: filväljaren
+   öppnar kameran direkt, dialogen stängs inte efter sparningen) och sparar
+   på kontot. Datorn hör 'sparad' på lekkanalen — och tittar ändå var
+   femtonde sekund om något nyare finns — och laddar om listan om den inte
+   har osparade ändringar; annars en notis med Reload. */
+let lekfotoLage = false, lekPollT = null;
+function lekfotoIUrl() { return (new URL(location.href).searchParams.get('lekfoto') || '').trim() || null; }
+function lekQrUrl(id) { const u = new URL(location.origin + location.pathname); u.searchParams.set('lekfoto', id); return u.toString(); }
+function lekVisaQr(visa) {
+  const ruta = $('#lekQrRuta'); if (!ruta) return;
+  if (!visa || !lekAktiv) { ruta.hidden = true; return; }
+  if (!Moln.inloggad()) { $('#lekStatus').innerHTML = '<b>Log in first.</b> The phone needs the same account to reach this deck.'; return; }
+  const url = lekQrUrl(lekAktiv.id);
+  $('#lekQrLank').textContent = url;
+  ruta.hidden = false;
+  ritaQr(url, $('#lekQr'));
+}
+$('#lekQrTomt').onclick = () => lekVisaQr(true);
+$('#lekQrStang').onclick = () => lekVisaQr(false);
+$('#lekQrKopiera').onclick = async () => {
+  try { await navigator.clipboard.writeText($('#lekQrLank').textContent); toast('Link copied', 'ok'); } catch (e) { toast('Could not copy — select the link and copy it', 'err'); }
+};
+/* Meddelandet från telefonen, eller pollens fynd: leken har en nyare
+   version på kontot. */
+function lekNyareFinns(antal) {
+  if (!lekAktiv) return;
+  if (lekAndrat) {
+    lekNotis = `Your phone saved ${antal != null ? antal + ' cards' : 'a new version'} to this deck. <b class="lekladda" data-lekladda="${esc(lekAktiv.id)}" role="button">Reload</b> to see it — the unsaved changes here are lost.`;
+    lekStatusrad();
+    return;
+  }
+  const id = lekAktiv.id;
+  lekLadda(id).then(() => { if (lekAktiv && lekAktiv.id === id) { lekNotis = 'Updated from your phone.'; lekStatusrad(); } });
+}
+$('#lekStatus').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-lekladda]'); if (!b) return;
+  lekAndrat = false; lekLadda(b.dataset.lekladda);
+});
+function lekFranTelefon(m) {
+  if (!m || m.typ !== 'sparad' || !lekAktiv || m.lekId !== lekAktiv.id) return;
+  if (m.ts && lekBaseradPa && m.ts <= lekBaseradPa) return;   // min egen sparning
+  lekNyareFinns(m.antal);
+}
+function lekPollStart() {
+  clearTimeout(lekPollT);
+  if (!Moln.inloggad() || lekfotoLage) return;
+  lekPollT = setTimeout(async () => {
+    if (!$('#lekOv').classList.contains('open') || !lekAktiv) return;
+    try {
+      const l = await Moln.hamtaLekar();
+      const mig = l.find(x => x.id === lekAktiv.id);
+      if (mig && mig.ts > lekBaseradPa) { lekNyareFinns(mig.antal); return; }
+    } catch (e) { /* nästa varv */ }
+    lekPollStart();
+  }, 15000);
+}
+/* Telefonen: öppnas ur ?lekfoto=<id> efter inloggningen (portalStart). */
+async function oppnaLekfoto(id) {
+  lekfotoLage = true;
+  spelLage = null;
+  document.body.classList.add('lekfoto');
+  $('#lekFil').setAttribute('capture', 'environment');
+  $('#lekFil').removeAttribute('multiple');
+  $('#lekValjFil').textContent = 'Take a photo';
+  visaVy('app');
+  try { await Moln.lekKanal(() => {}); } catch (e) {}
+  await oppnaLek(id);
 }
 
 /* ── Lekväxlaren ────────────────────────────────────────────────────
@@ -9363,6 +9492,7 @@ function ritaLekRemsa() {
   h += bricka('hand', 'Typed in', '✎', true);
   if (sparade) h += bricka('sparat', 'Saved deck', '▤', false) + bricka('lokalt', 'Saved deck', '▤', false);
   h += '<button class="lekfoto lagg" id="lekLaggFoto"><span class="plus">＋</span><span>Add a photo</span></button>';
+  if (!lekfotoLage) h += '<button class="lekfoto lagg telefon" id="lekQrKnapp" title="Photograph the deck with your phone"><span class="plus">▯</span><span>From your phone</span></button>';
   $('#lekFoton').innerHTML = h;
 }
 
@@ -9555,6 +9685,7 @@ $('#lekFilter').addEventListener('click', ev => {
    foto som blev dåligt — inget behöver fotograferas om i onödan. */
 $('#lekFoton').addEventListener('click', ev => {
   if (ev.target.closest('#lekLaggFoto')) { $('#lekFil').click(); return; }
+  if (ev.target.closest('#lekQrKnapp')) { lekVisaQr(true); return; }
   const b = ev.target.closest('[data-avfoto]');
   if (!b) return;
   ev.stopPropagation();
@@ -9727,6 +9858,15 @@ async function lekSparaNu() {
     /* Sparat: stängningsfrågan ska inte ställas (MES-12). */
     lekAndrat = false;
     lekSyncSpel();
+    if (lekfotoLage) {
+      /* Telefonen: säg till datorn, och stanna kvar för nästa foto. */
+      Moln.sandLek({ typ: 'sparad', lekId: lekAktiv.id, antal, ts: lekBaseradPa });
+      const id = lekAktiv.id;
+      await lekLadda(id);
+      lekNotis = `Saved — the computer has it. Take the next photo when you're ready.`;
+      lekStatusrad();
+      return;
+    }
     closeOv('lekOv');
     const kvar = lekTrasiga();
     toast(kvar ? `${antal} cards saved · ${kvar} rows without a name were left as they are`
@@ -17114,8 +17254,8 @@ $('#kamKopiera').onclick = async () => {
 /* QR-koden hämtas som modul först när dialogen öppnas. Går den inte att
    hämta står länken kvar — den fungerar lika bra, den är bara jobbigare
    att få in i telefonen. */
-async function ritaQr(text) {
-  const box = $('#kamQr');
+async function ritaQr(text, mal) {
+  const box = mal || $('#kamQr');
   box.innerHTML = '<span class="vantar">Ritar kod…</span>';
   try {
     const mod = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm');
@@ -17338,8 +17478,8 @@ function inbjudanIUrl() {
 const kameraIUrl = () => new URL(location.href).searchParams.get('cam') === '1';
 function rensaInbjudan() {
   const u = new URL(location.href);
-  if (!u.searchParams.has('join') && !u.searchParams.has('cam')) return;
-  u.searchParams.delete('join'); u.searchParams.delete('cam');
+  if (!u.searchParams.has('join') && !u.searchParams.has('cam') && !u.searchParams.has('lekfoto')) return;
+  u.searchParams.delete('join'); u.searchParams.delete('cam'); u.searchParams.delete('lekfoto');
   history.replaceState(null, '', u.pathname + (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
 }
 
@@ -17693,10 +17833,20 @@ $('#lobbyMina').addEventListener('click', async ev => {
    inte använder spel fått en blink av landningssidan vid varje start. */
 async function portalStart() {
   const inbjudan = inbjudanIUrl();
+  /* Telefonen som ska fotografera leken (D8-7): läget överlever rundturen
+     till Google i sessionStorage, som kamerans. */
+  const lekfotoParam = lekfotoIUrl();
+  if (lekfotoParam) sessionStorage.setItem('sthv.lekfoto', lekfotoParam);
   const sparatLage = LS.get(K.lage, null);
-  if (sparatLage === 'lokal' && !inbjudan) { spelLage = null; visaVy('app'); return; }
+  if (sparatLage === 'lokal' && !inbjudan && !lekfotoParam) { spelLage = null; visaVy('app'); return; }
 
   visaVy('start');
+  if (lekfotoParam) {
+    $('#startInbjuden').hidden = false;
+    $('#startInbjudenKod').textContent = 'Deck photos';
+    $('#startInbjuden').querySelector('b').textContent = 'Photograph your deck with this phone';
+    $('#startInbjuden').querySelector('.portalfin').textContent = 'Log in with the same account as on the computer.';
+  }
   if (inbjudan) {
     $('#startInbjuden').hidden = false;
     $('#startInbjudenKod').textContent = inbjudan;
@@ -17722,7 +17872,10 @@ async function portalStart() {
   /* Precis som koden överlever inte "det här är en kamera" rundturen till
      Google — den läggs undan bredvid koden och plockas upp här. */
   const villKamera = kameraIUrl() || sessionStorage.getItem('sthv.cam') === '1';
+  const lekfoto = lekfotoParam || sessionStorage.getItem('sthv.lekfoto');
+  sessionStorage.removeItem('sthv.lekfoto');
   rensaInbjudan();
+  if (lekfoto) { await oppnaLekfoto(lekfoto); return; }
   if (kod) {
     try {
       const id = await Moln.gaMed(kod);
