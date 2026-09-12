@@ -21,6 +21,7 @@ while ((m = re.exec(src))) {
 }
 fs.rmSync(dir, { recursive: true, force: true });
 console.log("syntax: " + n + " script-block ok");'
+node dev/lista.cjs
 node dev/avstamning.cjs
 node dev/dubbletter.cjs --fall 07 > /dev/null && echo "dubbletter --fall 07: kördes"
 node dev/kamerabank.cjs

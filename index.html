@@ -647,6 +647,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .gravsenast{color:var(--acc)}
 .gravknappar{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
 .gravfot{margin:0;font:11.5px/1.5 var(--sans);color:var(--dim2)}
+.sbtag{font:600 9px/1 var(--sans);letter-spacing:.6px;padding:2px 4px;border-radius:4px;border:1px solid var(--line);color:var(--dim2);margin-right:6px;flex:none}
 /* .modal .body sätter kolumn, står längre ner i filen och vinner vid lika
    specificitet. Tre klasser krävs för att komma åt riktningen härifrån. */
 .modal .body.gravbody{display:flex;flex-direction:row;gap:18px;min-height:0;align-items:stretch}
@@ -7947,18 +7948,80 @@ function openBulk() {
   $('#bulkInfo').textContent = '';
   ta.focus();
 }
-function parseList(txt) {
-  return txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean).flatMap(line => {
-    if (/^(\/\/|#)/.test(line)) return [];
-    let count = 1, s = line;
-    const m = line.match(/^(\d+)\s*[xX]?[\s.)]+/);
-    if (m) { count = clamp(+m[1], 1, 40); s = line.slice(m[0].length); }
-    s = s.replace(/\s*\((?:[A-Za-z0-9]{2,6})\)\s*[A-Za-z0-9\-★]*\s*$/, '');  // "(LTC) 268"
-    s = s.replace(/\s*[·|]\s*[A-Za-z0-9]{2,6}\s*$/, '').trim();
-    s = s.replace(/\s*\[[^\]]*\]\s*$/, '').trim();
-    if (!s) return [];
-    return Array.from({ length: count }, () => s);
+/* ═══ Leklistor (dev/plan/lagen.md, D5-5) ════════════════════════════
+   Exporter från Moxfield, Arena, MTGO, Archidekt, TappedOut och Deckstats
+   läses till [{name, n, sb, cmdr}]. Rubriker (hela raden, valfritt kolon,
+   skiftlägesokänsligt, får inledas med // eller #): Deck/Main/Mainboard/
+   Main Deck, Commander/Companion (ett kort, main), Sideboard, Maybeboard/
+   Considering/Tokens/About (kastas till nästa rubrik). "SB:" i början av
+   en rad = sideboard. MTGO: en blankrad mellan två block utan rubriker =
+   sideboardet börjar (bara när texten har exakt två block och inga
+   [kategori]-taggar — Archidekt grupperar med blankrader). Radens skräp
+   skalas i ordningen ^taggar^ → [kategori] → foil-/etched-/alter-
+   markörerna (stjärna F, E, A stjärna) → (SET) 123 → · SET. En "Name …"-rad (Arena) hoppas över. Ren och synkron: provas i
+   dev/lista.cjs. */
+const LEK_RUBRIKER = {
+  deck: 'main', main: 'main', mainboard: 'main', 'main deck': 'main', maindeck: 'main', creatures: 'main', spells: 'main', lands: 'main',
+  commander: 'cmdr', commanders: 'cmdr', companion: 'cmdr',
+  sideboard: 'sb', side: 'sb',
+  maybeboard: 'skip', considering: 'skip', tokens: 'skip', token: 'skip', about: 'skip'
+};
+function lekRubrik(line) {
+  const m = line.match(/^\s*(?:\/\/|#)?\s*([A-Za-z][A-Za-z ]{2,14}?)\s*:?\s*(?:\(\d+\))?\s*$/);
+  if (!m) return null;
+  const ord = m[1].toLowerCase().replace(/\s+/g, ' ').trim();
+  return Object.prototype.hasOwnProperty.call(LEK_RUBRIKER, ord) ? LEK_RUBRIKER[ord] : null;
+}
+function lekRad(line) {
+  let s = line.trim(), sb = false, cmdr = false;
+  if (/^sb:\s*/i.test(s)) { sb = true; s = s.replace(/^sb:\s*/i, ''); }
+  if (/#!commander\b/i.test(s)) { cmdr = true; s = s.replace(/\s*#!commander\b.*$/i, ''); }
+  let n = 1;
+  const m = s.match(/^(\d+)\s*[xX]?[\s.)]+/);
+  if (m) { n = clamp(+m[1], 1, 99); s = s.slice(m[0].length); }
+  s = s.replace(/\^[^^]*\^/g, '');                                   // ^taggar^ (Archidekt)
+  const kat = s.match(/\[([^\]]*)\]/);                                // [kategori]
+  if (kat) { if (/commander/i.test(kat[1])) cmdr = true; s = s.replace(/\s*\[[^\]]*\]\s*/g, ' '); }
+  s = s.replace(/\s*\*[FEA]\*\s*/gi, ' ');                           // *F* foil, *E* etched, *A* alter
+  s = s.replace(/\s*\((?:[A-Za-z0-9]{2,6})\)\s*[A-Za-z0-9\-★]*\s*$/, '');   // "(LTC) 268", "(SLD) 1234★"
+  s = s.replace(/\s*[·|]\s*[A-Za-z0-9]{2,6}\s*$/, '');                // "· M21"
+  s = s.replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  return { name: s, n, sb, cmdr };
+}
+function parseDecklist(txt) {
+  const rader = String(txt || '').split(/\r?\n/);
+  const harRubrik = rader.some(l => lekRubrik(l) !== null);
+  const harKat = rader.some(l => /\[[^\]]+\]/.test(l));
+  /* MTGO: två block åtskilda av en blankrad, utan rubriker: det andra är sideboardet. */
+  let mtgoSb = -1;
+  if (!harRubrik && !harKat) {
+    const block = []; let i = -1, forra = true;
+    rader.forEach((l, k) => { const tom = !l.trim(); if (!tom && forra) { i++; block.push(k); } forra = tom; });
+    if (block.length === 2) mtgoSb = block[1];
+  }
+  const ut = [];
+  let sektion = 'main';
+  rader.forEach((line, k) => {
+    const l = line.trim();
+    if (!l) return;
+    const rub = lekRubrik(l);
+    if (rub) { sektion = rub; return; }
+    if (/^(\/\/|#)/.test(l)) return;                                // kommentar
+    if (/^name\s*:?\s+\S/i.test(l) && k < 3) return;                  // "Name My Deck" (Arena)
+    if (sektion === 'skip') return;
+    const r = lekRad(l);
+    if (!r) return;
+    if (sektion === 'cmdr' || r.cmdr) { r.cmdr = true; r.n = 1; r.sb = false; }
+    else if (sektion === 'sb' || (mtgoSb >= 0 && k >= mtgoSb)) r.sb = true;
+    ut.push(r);
   });
+  return ut;
+}
+/* Platt lista med main-korten, ett namn per exemplar — bordets List-ruta
+   och den enkla räknaren. */
+function parseList(txt) {
+  return parseDecklist(txt).filter(e => !e.sb).flatMap(e => Array.from({ length: e.n }, () => e.name));
 }
 /* ══ BLOCK: DECKS — lekarna. Planen: dev/plan/lagen.md ══ */
 /* ══════════════════════════════════════════════════════════════════
@@ -8200,16 +8263,18 @@ const lekTrasiga = () => lekRader.filter(r => r.fel).length;
 
 /* En rad per KORTNAMN, inte per fysiskt kort: fyra Mountain blir en rad
    med antalet fyra. Modellen svarar med fyra poster, och de slås ihop här. */
-function lekLaggTill(rått, kalla, remsa, sak) {
+function lekLaggTill(rått, kalla, remsa, sak, extra) {
+  const e = extra || {}, n = Math.max(1, Number(e.n) || 1), sb = !!e.sb;
+  /* Samma namn i main och sideboard är två rader. */
   const nyckel = lekNyckel(rått);
-  let rad = nyckel && lekRader.find(r => lekNyckel(r.name || r.namn) === nyckel);
+  let rad = nyckel && lekRader.find(r => lekNyckel(r.name || r.namn) === nyckel && !!r.sb === sb);
   if (rad) {
-    rad.per[kalla] = (rad.per[kalla] || 0) + 1;
+    rad.per[kalla] = (rad.per[kalla] || 0) + n;
     if (!rad.remsa && remsa) rad.remsa = remsa;
     return rad;
   }
   rad = { namn: rått || '', name: null, sid: null, small: null,
-          per: { [kalla]: 1 }, sak: sak || 'lag', fel: true, remsa: remsa || null };
+          per: { [kalla]: n }, sak: sak || 'lag', fel: true, remsa: remsa || null, sb };
   lekRader.push(rad);
   return rad;
 }
@@ -8374,7 +8439,7 @@ function lekSa(kort, kalla) {
       continue;
     }
     lekRader.push({ namn: k.name, name: k.name, sid: k.sid, small: k.small,
-                    per: { [kalla]: k.n || 1 }, sak: 'hog', fel: false, remsa: null });
+                    per: { [kalla]: k.n || 1 }, sak: 'hog', fel: false, remsa: null, sb: !!k.sb });
   }
 }
 
@@ -8893,7 +8958,7 @@ function ritaLek() {
                           : '<span class="remsa tom"></span>';
     const konst = r.small ? `<img class="konst" src="${esc(r.small)}" alt="">`
                           : '<span class="konst tom"></span>';
-    const antal = `<span class="antal">×${lekRadAntal(r)}</span>`;
+    const antal = `${r.sb ? '<span class="sbtag" title="Sideboard">SB</span>' : ''}<span class="antal">×${lekRadAntal(r)}</span>`;
     const bort = `<button class="bort" data-bort="${i}" title="Ta bort ur leken">✕</button>`;
     if (r.fel) {
       const [namn, under, knapp] =
@@ -9157,15 +9222,14 @@ $('#lekLaggIn').addEventListener('keydown', e => e.stopPropagation());
 ovVeto.lekOv = lekVillStanga;
 
 async function lekLaggListan() {
-  const namn = parseList($('#lekTa').value);
-  if (!namn.length) { $('#lekStatus').textContent = 'Inga kortnamn hittades.'; return; }
-  for (const n of namn) {
-    lekLaggTill(n, 'text', null, 'hog');
-  }
+  const poster = parseDecklist($('#lekTa').value);
+  if (!poster.length) { $('#lekStatus').textContent = 'Inga kortnamn hittades.'; return; }
+  for (const e of poster) lekLaggTill(e.name, 'text', null, 'hog', { n: e.n, sb: e.sb });
   const fore = lekTotalt();
+  const sbN = poster.filter(e => e.sb).reduce((a, e) => a + e.n, 0), mainN = poster.filter(e => !e.sb).reduce((a, e) => a + e.n, 0);
   $('#lekTa').value = '';
   await lekSlaUpp((i, t) => { $('#lekStatus').textContent = `Slår upp ${i} av ${t}…`; });
-  lekKvitto = lekKvittoRad(`Listan gav ${lekTotalt() - fore} kort.`, 0, 0);
+  lekKvitto = lekKvittoRad(`Listan gav ${mainN} kort${sbN ? ` + ${sbN} sideboard` : ''}.`, 0, 0);
   lekAndrat = true;
   if (lekTrasiga()) lekFilter = 'fel';
   lekLage('lek');
@@ -9219,7 +9283,7 @@ async function lekSparaNu() {
   const kort = [];
   for (const r of lekRader) {
     if (!r.sid) continue;
-    kort.push({ name: r.name, sid: r.sid, small: r.small, n: lekRadAntal(r) });
+    kort.push({ name: r.name, sid: r.sid, small: r.small, n: lekRadAntal(r), sb: r.sb ? 1 : undefined });
   }
   /* Basländerna slås upp först nu. De har inget sid i listan eftersom de
      aldrig fotograferats — men poolen vill ha ett kort att utgå från, och
