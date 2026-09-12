@@ -345,6 +345,63 @@ body.tomhand .brade{
   grid-template-columns:minmax(0,1fr);
   grid-template-areas:"perm";
 }
+/* ── Leklådan (MES-100) ─────────────────────────────────────────────
+   Resten av leken i spelet: korten som inte är utspelade, per typ, med
+   sökning inom leken. Ett kort dras ut på mattan — den enda vägen att lägga
+   till ett kort för hand i ett spel. Egen spalt till vänster om mattan. */
+body.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) clamp(224px, 26%, 520px);grid-template-areas:"lada perm mark"}
+body.ladaoppen.tomhand .brade{grid-template-columns:320px minmax(0,1fr);grid-template-areas:"lada perm"}
+@media (max-width:1100px){
+  body.ladaoppen .brade{grid-template-columns:280px minmax(0,1fr) minmax(150px, 22%)}
+  body.ladaoppen.tomhand .brade{grid-template-columns:280px minmax(0,1fr)}
+}
+.lada{grid-area:lada;display:flex;flex-direction:column;min-height:0;min-width:0;background:#121821;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.lada[hidden]{display:none}
+.ladahd{padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #1c2330}
+.ladatit{display:flex;align-items:center;gap:6px;min-width:0}
+.ladatit .ladanamn{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.ladatit .ladanamn b{font-size:14px;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ladatit .byt{flex:none;height:24px;padding:0 8px;font-size:11.5px}
+.ladatit .close{flex:none}
+.ladasub{font-size:12px;color:var(--dim);margin-top:-4px}
+.ladasok{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:8px;background:#0b1017;border:1px solid var(--line);color:var(--dim2)}
+.ladasok:focus-within{border-color:#4a5a72}
+.ladasok input{flex:1;min-width:0;height:100%;border:0;background:none;outline:none;color:var(--txt);font:12.5px var(--sans)}
+.ladasok kbd{font-size:10px}
+.ladafilter{display:flex;gap:4px;flex-wrap:wrap}
+.ladafilter:empty{display:none}
+.lfchip{height:24px;display:inline-flex;align-items:center;gap:5px;padding:0 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg3);font:11.5px var(--sans);color:var(--dim);cursor:pointer}
+.lfchip:hover{color:var(--txt)}
+.lfchip b{font:600 10.5px var(--mono);color:var(--dim2)}
+.lfchip.on{background:#232c3c;border-color:#4a5a72;color:var(--txt)}
+.lfchip.on b{color:var(--dim)}
+.ladalista{flex:1;min-height:0;overflow:auto;padding:2px 8px 10px;display:flex;flex-direction:column;gap:1px}
+.ladagrp{display:flex;align-items:center;gap:8px;padding:9px 6px 3px;background:none;border:0;font:inherit;color:inherit;text-align:left}
+.ladagrp .zonlbl{color:var(--dim)}
+.ladagrp i{font:600 10.5px var(--mono);font-style:normal;color:var(--dim2)}
+button.ladagrp{cursor:pointer}
+button.ladagrp:hover .zonlbl{color:var(--txt)}
+.ladarad{display:flex;align-items:center;gap:10px;min-height:30px;padding:0 6px;border-radius:7px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.ladarad:hover{background:var(--bg3)}
+.ladarad .g{display:inline-flex;color:#4a5a72;flex:none}
+.ladarad:hover .g{color:var(--dim)}
+.ladarad .sw{width:18px;height:25px;border-radius:3px;flex:none;background:#1b2230 center 22%/cover no-repeat;box-shadow:inset 0 0 0 1.5px #0b0b0d}
+.ladarad .n{flex:1;min-width:0;font-size:12.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ladarad .c{display:inline-flex;align-items:center;gap:1px;flex:none}
+.ladarad .c > *{width:13px;height:13px}
+.ladarad .q{font:600 11px var(--mono);color:var(--dim);min-width:22px;text-align:right;flex:none}
+.ladarad.drar{background:#1a1710;box-shadow:inset 0 0 0 1px #f0a52a66}
+.ladarad.drar .n,.ladarad.drar .sw,.ladarad.drar .c{opacity:.45}
+.ladatom{padding:18px 8px;color:var(--dim2);font-size:12.5px;text-align:center}
+.ladafot{padding:10px 14px;border-top:1px solid #1c2330;font-size:11.5px;color:var(--dim2)}
+.ladafot[hidden]{display:none}
+body.lasvy .ladarad{cursor:default}
+body.lasvy .ladarad .g{visibility:hidden}
+.ladaspok{position:fixed;z-index:950;width:63px;aspect-ratio:488/680;border-radius:4px;background:#1b2230 center/cover no-repeat;box-shadow:0 14px 30px -8px #000e,0 0 0 1px #f0a52a88;pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg)}
+@media (max-width:620px){
+  .lada{position:fixed;inset:44px 0 0 0;z-index:180;border-radius:0}
+  body.ladaoppen .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
+}
 .matta{
   position:relative;min-width:0;min-height:0;overflow:hidden;border-radius:12px;
   background:radial-gradient(1250px 620px at 46% 26%, #18232f, #0a0f14 72%);
@@ -2426,6 +2483,25 @@ body.ispel #addPlayerBtn{display:none}
            mot ytan. Id:n står kvar från zonlayouten så att delegeringarna
            (data-addtile på #zonPerm), renderTom (#emptyHand) och flygTillGrav
            (.grav i #manaRow) lever vidare oförändrade. -->
+      <!-- Leklådan (MES-100): resten av leken i spelet. Ritas av renderLada(). -->
+      <aside class="lada" id="lada" hidden aria-label="Your deck">
+        <div class="ladahd">
+          <div class="ladatit">
+            <span class="ladanamn" id="ladaTit"></span>
+            <button type="button" class="btn ghost byt" data-lada="byt" data-lekvalj="lek" title="Play another deck">Switch</button>
+            <button type="button" class="close" data-lada="stang" aria-label="Close your deck" title="Close (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </div>
+          <div class="ladasub" id="ladaSub"></div>
+          <label class="ladasok">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
+            <input id="ladaSok" type="text" autocomplete="off" spellcheck="false" placeholder="Find a card in your deck">
+            <kbd>/</kbd>
+          </label>
+          <div class="ladafilter" id="ladaFilter"></div>
+        </div>
+        <div class="ladalista" id="ladaLista"></div>
+        <div class="ladafot" id="ladaFot">Drag a card onto the mat to play it.</div>
+      </aside>
       <section class="matta" id="zonPerm">
         <div class="mattavp" id="gridWrap">
           <div class="mattabrade" id="grid"></div>
@@ -5622,15 +5698,183 @@ function renderDeckKnapp() {
     else {
       const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null;
       const kvar = k ? k.kvar : (lek.antal || 0), tot = k ? k.totalt : (lek.antal || 0);
-      html = `<button type="button" class="deckbtn" data-lekvalj="lek" title="${esc(lek.namn || 'Deck')} — ${kvar} of ${tot} cards not played yet"><span class="pips">${pipsHtml(lek.farger)}</span><span class="nm">${esc(lek.namn || 'Deck')}</span><span class="cnt"><b>${kvar}</b> left</span><span class="cv">${M_CV}</span></button>`;
+      html = `<button type="button" class="deckbtn${ladaOppen ? ' on' : ''}" data-lekvalj="lek" aria-expanded="${ladaOppen}" title="${esc(lek.namn || 'Deck')} — ${kvar} of ${tot} cards not played yet"><span class="pips">${pipsHtml(lek.farger)}</span><span class="nm">${esc(lek.namn || 'Deck')}</span><span class="cnt"><b>${kvar}</b> left</span><span class="cv">${M_CV}</span></button>`;
     }
   }
   if (slot.dataset.h !== html) { slot.dataset.h = html; slot.innerHTML = html; slot.hidden = !html; }
+  if (ladaOppen) { if (!spelLage) stangLada(); else renderLada(); }
 }
-$('#deckSlot').addEventListener('click', ev => {
+/* Lekknappen och Library-högen: med vald lek växlar de leklådan, annars
+   öppnar de lekvalet. */
+function lekKlick(ev) {
   const b = ev.target.closest('[data-lekvalj]'); if (!b) return;
-  ev.stopPropagation(); oppnaLekVal(b);
+  ev.stopPropagation();
+  const mig = minSpelare();
+  if (spelLage && mig && mig.lekId) vaxlaLada(); else oppnaLekVal(b);
+}
+$('#deckSlot').addEventListener('click', lekKlick);
+
+/* ── Leklådan (MES-100) ──────────────────────────────────────────────
+   Designen Mesa Camera Play, artboard 3: resten av leken i spelet — kort
+   som inte är utspelade (lekKvar, hand och bibliotek ihop), per typ, med
+   sökning och filter inom leken. Ett kort dras ut på mattan: det är den
+   enda vägen att lägga till ett kort för hand i ett spel (MES-36 stängdes
+   som "läge 3"; designen gjorde den till svaret i stället för "lägg till
+   valfritt kort"). Sideboarden står hopfälld sist. Lekknappen, Library-
+   högen och / öppnar lådan. Listan är strängdiffad: den ritas om när
+   mattan ritas om, och sökrutan rörs aldrig. */
+let ladaOppen = false, ladaFilter = 'alla', ladaSb = false, ladaHover = null, ladaDrag = null;
+const ladaEl = $('#lada');
+function oppnaLada(sok) {
+  if (!spelLage || !ladaEl) return;
+  const mig = minSpelare();
+  if (!mig || !mig.lekId) { const b = $('#deckSlot [data-lekvalj]'); if (b) oppnaLekVal(b); return; }
+  if (!ladaOppen) {
+    ladaOppen = true; ladaEl.hidden = false; document.body.classList.add('ladaoppen');
+    lekFoljMin(); renderLada(); renderDeckKnapp(); matResize();
+  }
+  if (sok) { const i = $('#ladaSok'); i.focus(); i.select(); }
+}
+function stangLada() {
+  if (!ladaOppen) return;
+  ladaOppen = false; ladaHover = null; ladaEl.hidden = true; document.body.classList.remove('ladaoppen');
+  renderDeckKnapp(); renderInspektor(); matResize();
+}
+function vaxlaLada() { if (ladaOppen) stangLada(); else oppnaLada(); }
+/* Postens plats i lekens lista — en lek kan ha samma namn två gånger
+   (huvudlek och sideboard, två tryckningar). */
+function ladaPost(i) {
+  const k = lekKvar(), p = k && k.poster[+i];
+  return p && p.kvar > 0 ? p : null;
+}
+function renderLada() {
+  if (!ladaOppen || !ladaEl) return;
+  const mig = minSpelare(), lek = mig && mig.lek;
+  if (!spelLage || !mig || !mig.lekId) { stangLada(); return; }
+  const k = lekAktiv && lekAktiv.id === mig.lekId ? lekKvar() : null;
+  const tit = `<span class="pips">${pipsHtml(lek ? lek.farger : [])}</span><b>${esc((lek && lek.namn) || 'Deck')}</b>`;
+  const te = $('#ladaTit'); if (te.dataset.h !== tit) { te.dataset.h = tit; te.innerHTML = tit; }
+  const sub = k ? `${k.kvar} of ${k.totalt} cards not played yet` : 'Fetching your deck…';
+  const se = $('#ladaSub'); if (se.textContent !== sub) se.textContent = sub;
+  let lista = '', filter = '';
+  if (k) {
+    const q = norm($('#ladaSok').value || '');
+    const grupper = lekGrupper(k.poster.filter(p => p.kvar > 0), renderLada);
+    const huvud = grupper.filter(g => g.key !== 'sb'), sb = grupper.find(g => g.key === 'sb');
+    const summa = ps => ps.reduce((a, p) => a + p.kvar, 0);
+    if (ladaFilter !== 'alla' && !huvud.some(g => g.key === ladaFilter)) ladaFilter = 'alla';
+    if (huvud.length > 1) filter = `<button type="button" class="lfchip${ladaFilter === 'alla' ? ' on' : ''}" data-lfilter="alla">All <b>${k.kvar}</b></button>`
+      + huvud.map(g => `<button type="button" class="lfchip${ladaFilter === g.key ? ' on' : ''}" data-lfilter="${g.key}">${g.rub} <b>${summa(g.poster)}</b></button>`).join('');
+    const rad = p => {
+      const c = lekKortData(p), mana = c && c.faces && c.faces[0] ? c.faces[0].mana : '';
+      const bild = p.small || (c ? imgOf(c, 0, 'small') : '');   // äldre lekposter saknar small: kortcachen har bilden
+      return `<div class="ladarad" data-li="${p.i}" title="${esc(p.name)}${p.kvar > 1 ? ` — ${p.kvar} left` : ''}">`
+        + `<span class="g">${M_GREPP}</span><span class="sw"${bild ? ` style="background-image:url('${esc(bild)}')"` : ''}></span>`
+        + `<span class="n">${esc(p.name)}</span><span class="c">${manaHtml(mana)}</span><span class="q">${p.kvar > 1 ? '×' + p.kvar : ''}</span></div>`;
+    };
+    const traff = p => !q || norm(p.name).includes(q);
+    for (const g of huvud) {
+      if (ladaFilter !== 'alla' && ladaFilter !== g.key) continue;
+      const ps = g.poster.filter(traff); if (!ps.length) continue;
+      lista += `<div class="ladagrp"><span class="zonlbl">${g.rub}</span><i>${summa(ps)}</i></div>` + ps.map(rad).join('');
+    }
+    if (sb && ladaFilter === 'alla') {
+      const ps = sb.poster.filter(traff), oppen = ladaSb || !!q;
+      if (ps.length) lista += `<button type="button" class="ladagrp" data-lsb aria-expanded="${oppen}"><span class="zonlbl">Sideboard</span><i>${summa(ps)}</i><span class="zonlbl">${oppen ? '▾' : '▸'}</span></button>`
+        + (oppen ? ps.map(rad).join('') : '');
+    }
+    if (!lista) lista = `<div class="ladatom">${q ? 'No card in your deck matches.' : 'Every card in your deck is on the table.'}</div>`;
+  } else lista = '<div class="ladatom">Fetching your deck…</div>';
+  const fe = $('#ladaFilter'); if (fe.dataset.h !== filter) { fe.dataset.h = filter; fe.innerHTML = filter; }
+  const le = $('#ladaLista'); if (le.dataset.h !== lista) { le.dataset.h = lista; le.innerHTML = lista; }
+  $('#ladaFot').hidden = !redigerbar();       // på någon annans bord drar man inget
+}
+ladaEl.addEventListener('click', ev => {
+  const f = ev.target.closest('[data-lfilter]'); if (f) { ladaFilter = f.dataset.lfilter; renderLada(); return; }
+  if (ev.target.closest('[data-lsb]')) { ladaSb = !ladaSb; renderLada(); return; }
+  const a = ev.target.closest('[data-lada]'); if (!a) return;
+  if (a.dataset.lada === 'stang') stangLada();
+  else if (a.dataset.lada === 'byt') { ev.stopPropagation(); oppnaLekVal(a); }
 });
+$('#ladaSok').addEventListener('input', renderLada);
+$('#ladaSok').addEventListener('keydown', ev => {
+  if (ev.key !== 'Escape') return;
+  ev.stopPropagation();
+  if (ev.target.value) { ev.target.value = ''; renderLada(); } else ev.target.blur();
+});
+/* Hover på en rad visar kortet i inspektorn ("In your deck"). */
+ladaEl.addEventListener('pointerover', ev => {
+  if (ladaDrag && ladaDrag.drar) return;
+  const r = ev.target.closest('.ladarad'); if (!r) return;
+  const p = ladaPost(r.dataset.li);
+  if (p && (!ladaHover || ladaHover.i !== p.i)) { ladaHover = p; renderInspektor(); }
+});
+ladaEl.addEventListener('pointerleave', () => { if (ladaHover) { ladaHover = null; renderInspektor(); } });
+/* Draget ut ur lådan: ett spök följer pekaren så länge den är i lådan; när
+   den når mattan blir kortet ett mattkort under pekaren (spawnFromLek) och
+   mattans vanliga drag tar över — landhögar, bifoga, graveyard och
+   Library-högen fungerar som för vilket kort som helst. Släpps det utanför
+   mattan händer ingenting. */
+ladaEl.addEventListener('pointerdown', ev => {
+  if (ev.button !== 0 || !redigerbar()) return;
+  const r = ev.target.closest('.ladarad'); if (!r) return;
+  const p = ladaPost(r.dataset.li); if (!p) return;
+  ev.preventDefault();
+  ladaDrag = { post: p, rad: r, x0: ev.clientX, y0: ev.clientY, pointerId: ev.pointerId, drar: false, spok: null };
+  try { r.setPointerCapture(ev.pointerId); } catch (e) {}
+});
+addEventListener('pointermove', ev => {
+  const d = ladaDrag; if (!d || ev.pointerId !== d.pointerId) return;
+  if (!d.drar) {
+    if (Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < DND_TROSKEL) return;
+    d.drar = true; d.rad.classList.add('drar');
+    d.spok = document.createElement('div'); d.spok.className = 'ladaspok';
+    const c = lekKortData(d.post), src = (c && (imgOf(c, 0, 'small') || imgOf(c, 0, 'normal'))) || d.post.small;
+    if (src) d.spok.style.backgroundImage = `url('${src}')`;
+    document.body.appendChild(d.spok);
+    if (ladaHover) { ladaHover = null; renderInspektor(); }
+  }
+  d.spok.style.left = ev.clientX + 'px'; d.spok.style.top = ev.clientY + 'px';
+  const w = gridWrap.getBoundingClientRect();
+  if (ev.clientX > w.left && ev.clientX < w.right && ev.clientY > w.top && ev.clientY < w.bottom) {
+    const post = d.post; ladaDragSlut(); spawnFromLek(post, ev);
+  }
+});
+function ladaDragSlut() {
+  const d = ladaDrag; ladaDrag = null; if (!d) return;
+  if (d.spok) d.spok.remove();
+  if (d.rad) { d.rad.classList.remove('drar'); try { d.rad.releasePointerCapture(d.pointerId); } catch (e) {} }
+}
+addEventListener('pointerup', () => { if (ladaDrag) ladaDragSlut(); });
+addEventListener('pointercancel', () => { if (ladaDrag) ladaDragSlut(); });
+/* Kortet ur leken på mattan, mitt under pekaren, och draget tar över.
+   Undo tar bort det igen; Esc eller ett avbrutet drag gör detsamma
+   (matDndSlut, fraLek). Ett kort som läggs för hand binds av kameran när
+   det fysiska kortet dyker upp (avstämningens S9), så det blir inget nytt. */
+function spawnFromLek(post, ev) {
+  const p = minSpelare(); if (!p || !redigerbar()) return;
+  const pt = cpt(ev);
+  let e = null;
+  matAngra(post.name + ' → table', () => {
+    e = normaliseraKort({ cid: uid(), name: post.name, flipped: 0 }, p.cards.length);
+    if (post.sid) e.sid = post.sid;
+    const s = matStorlek(e);
+    e.x = pt.x - s.w / 2; e.y = pt.y - s.h / 2;
+    matTopZ = Math.max(matTopZ, ...p.cards.map(k => k.z || 0)) + 1; e.z = matTopZ;
+    p.cards.push(e);
+    state.sel = p.cards.length - 1;
+    save(); renderGrid(true); resolveAll();
+  });
+  if (!e) return;
+  const s = matStorlek(e);
+  dnd = { cid: e.cid, x0: ev.clientX, y0: ev.clientY, drar: true, fraLek: true, pointerId: ev.pointerId, over: false,
+          off: { ox: s.w / 2, oy: s.h / 2 }, start: { x: e.x, y: e.y, z: e.z } };
+  svalgKlick = true;
+  const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(e.cid)}"]`);
+  if (el) el.classList.add('held');
+  try { gridEl.setPointerCapture(ev.pointerId); } catch (err) {}
+  matChip(e, 'Let go to put ' + post.name + ' on the table');
+}
 /* Mätningen är en egen funktion för att den måste göras OM när något annat i
    raden byter bredd. Modeplatsen gör det utan att flikarna ritas om: går
    telefonen från "Auto" till "Kameran tappad · koppla om" plus en fotoknapp
@@ -6291,10 +6535,7 @@ function renderBibHog() {
   bibHogEl.hidden = !html;
   return !!html;
 }
-bibHogEl && bibHogEl.addEventListener('click', ev => {
-  const b = ev.target.closest('[data-lekvalj]'); if (!b) return;
-  ev.stopPropagation(); oppnaLekVal(b);
-});
+bibHogEl && bibHogEl.addEventListener('click', lekKlick);
 /* Är pekaren över Library-högen? Mindre luft än graveyard: högarna står
    bredvid varandra, och graveyard vinner där zonerna möts. */
 function overBib(ev) {
@@ -6618,6 +6859,7 @@ function matNav(dx, dy) {
    vid varje hjärtslag inte laddar om bilden. */
 let matHover = null, matHoverT = null;
 function inspektorKort() {
+  if (ladaHover) return { e: { cid: 'lada', name: ladaHover.name, sid: ladaHover.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   if (matHover != null) {
     const k = hand().find(c => c.cid === matHover);
     if (k) return { e: k, label: zonAv(k) === ZON_GRAV ? 'From the graveyard' : zonAv(k) === ZON_EXIL ? 'From exile' : 'Pointing at' };
@@ -7294,6 +7536,7 @@ const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stro
    table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
 const M_LAGE_SKARM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/></svg>';
 const M_LAGE_BORD = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="8" height="14" rx="1.8"/><rect x="13.5" y="5" width="8" height="14" rx="1.8"/><path d="M8 12h8M14 10l2 2-2 2"/></svg>';
+const M_GREPP = '<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.2"/><circle cx="7" cy="3" r="1.2"/><circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/><circle cx="3" cy="11" r="1.2"/><circle cx="7" cy="11" r="1.2"/></svg>';
 const M_LEK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 7v12a2 2 0 0 0 2 2h9"/></svg>';
 const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
@@ -8165,6 +8408,7 @@ addEventListener('pointermove', ev => {
   }
   if (mal) matChip(c, chipText());
   if (overB) matChip(c, 'Let go — back to your hand or library');
+  else if (dnd.fraLek && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
   function chipText() {
     if (!vard) return 'Let go — the mana stacks here';
     const b = bifogTyp(c), v = hand().find(k => k.cid === vard);
@@ -8196,6 +8440,11 @@ function matDndSlut(ev, avbryt) {
   if (!c) { renderGrid(true); fjarrIkapp(); return; }
   if (!d.drar) { tappa(i); return; }         // ett klick: tappa/untappa
   svalgKlick = true;                          // klicket som följer på draget ska inte markera om
+  if (avbryt && d.fraLek) {
+    /* Ett kort ur leken som aldrig släpptes på mattan: tillbaka i leken. */
+    h.splice(h.indexOf(c), 1);
+    save(); renderAll(true); fjarrIkapp(); return;
+  }
   if (avbryt) {
     c.x = d.start.x; c.y = d.start.y;
     renderGrid(true); fjarrIkapp(); return;
@@ -9064,7 +9313,7 @@ function lekKvar() {
   if (!Array.isArray(lekKort) || !lekKort.length) return null;
   const mig = minSpelare(), spelat = new Map();
   for (const c of (mig && mig.cards) || []) { const k = norm(c.name); spelat.set(k, (spelat.get(k) || 0) + 1); }
-  const poster = lekKort.map(k => ({ key: norm(k.name), name: k.name, sid: k.sid, small: k.small, n: Number(k.n) || 1, sb: !!k.sb }));
+  const poster = lekKort.map((k, i) => ({ i, key: norm(k.name), name: k.name, sid: k.sid, small: k.small, n: Number(k.n) || 1, sb: !!k.sb }));
   for (const p of [...poster.filter(p => !p.sb), ...poster.filter(p => p.sb)]) {
     const s = spelat.get(p.key) || 0, tar = Math.min(s, p.n);
     p.kvar = p.n - tar;
@@ -10655,7 +10904,9 @@ addEventListener('keydown', ev => {
     if ($('#shotOv').classList.contains('open')) return closeShot();
     /* Kamerapanelen står öppen bredvid bordet medan man gör annat: en modal
        som öppnats ovanpå den ska stängas först. Den är sist. */
-    const o = $('.ov.open:not(.kampop)') || $('.ov.open'); if (o) return closeOv(o.id);
+    const o = $('.ov.open:not(.kampop)'); if (o) return closeOv(o.id);
+    if (ladaOppen) return stangLada();
+    const kp = $('.ov.open'); if (kp) return closeOv(kp.id);
     return;
   }
   if ($('#gravOv').classList.contains('open')) {
@@ -10705,7 +10956,7 @@ addEventListener('keydown', ev => {
                   k === 'Backspace' || k === 'Delete';
   if (!redigerbar() && skriver) return;
   if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
-  else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
+  else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); if (spelLage) oppnaLada(true); else { searchInput.focus(); searchInput.select(); } }
   else if (lower === 'b') { ev.preventDefault(); openBulk(); }
   else if (lower === 'i') { ev.preventDefault(); openOv('imgOv'); }
   else if (lower === 't') { ev.preventDefault(); tappa(state.sel); }
