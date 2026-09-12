@@ -368,6 +368,28 @@ body.tomhand .brade{
 .gravhog{position:absolute;left:22px;bottom:14px;z-index:22;width:132px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .gravhog .zonlbl{color:var(--zonlbl)}
 .gravhog .grav{padding:6px;gap:6px;flex:none}
+/* Library-högen (MES-93, MES-95): leken bredvid graveyard, nere till
+   vänster, så att bordets två högar läses som ett par — också på en tom
+   matta, där graveyard förut stod ensam i hörnet. Talet är korten ur leken
+   som inte är utspelade; ett kort som släpps här går tillbaka. */
+.bibhog{position:absolute;left:22px;bottom:14px;z-index:22;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bibhog[hidden]{display:none}
+.bibhog .zonlbl{color:var(--zonlbl)}
+.bib{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  width:72px;aspect-ratio:488/680;margin:6px 12px 6px 6px;padding:0;border-radius:6px;
+  border:1px solid #39414e;background:linear-gradient(160deg,#1f2837,#141a24);color:var(--txt);cursor:pointer;font:inherit;
+  box-shadow:4px -4px 0 -1px #1b1f26,4px -4px 0 0 #39414e,8px -8px 0 -1px #1b1f26,8px -8px 0 0 #2d3441;
+}
+.bib:hover,.bib.over{border-color:var(--acc);background:linear-gradient(160deg,#2a2618,#1a1710)}
+.bib b{font:700 18px/1 var(--mono)}
+.bib .bibtxt{font:10px var(--mono);color:var(--dim2)}
+.bib.tom{border:1.5px dashed var(--acc);background:#f0a52a10;box-shadow:none;padding:6px;text-align:center}
+.bib.tom .bibtxt{color:var(--pa-acc);font:600 10.5px/1.3 var(--sans)}
+.gravhog.medbib{left:104px}
+/* En tom graveyard har samma kortform som leken bredvid, så att högarnas
+   rubriker står i jämnhöjd. */
+.gravhog.medbib .grav.tom{width:72px;aspect-ratio:488/680;margin:6px;padding:6px;justify-content:center}
 .lyftbanner{
   position:absolute;left:12px;top:12px;z-index:23;display:flex;align-items:center;gap:8px;
   padding:6px 10px;border-radius:8px;background:#1a1710f2;border:1px solid #e8b33a66;
@@ -2409,6 +2431,9 @@ body.ispel #addPlayerBtn{display:none}
           <div class="mattabrade" id="grid"></div>
         </div>
         <div class="mattachrome" id="mattaChrome"></div>
+        <!-- Library-högen (MES-93, MES-95): leken bredvid graveyard — bordets två
+             högar som ett par. Ritas av renderBibHog(). -->
+        <div class="bibhog" id="bibHog" hidden></div>
         <div class="gravhog" id="manaRow"></div>
         <!-- Bannern när kameran tappat tre eller fler kort på en gång
              (renderLyftBanner): Keep all / All to graveyard / One by one. -->
@@ -6141,9 +6166,17 @@ function matResize() { const p = player(); if (!p) return; matSkriv(p); renderSe
 /* Graveyard-högens ruta i brädkoordinater. Högen ligger still i mattan, så
    dess ruta räknas om ur pan och zoom innan korten klämmer mot den. */
 function gravRuta(v) {
-  const hog = manaRow.querySelector('.grav'); if (!hog) return null;
-  const r = hog.getBoundingClientRect(), w = gridWrap.getBoundingClientRect();
-  if (!r.width || !w.width) return null;
+  /* Library-högen står bredvid (MES-95): rutan täcker båda. */
+  const hogar = [manaRow.querySelector('.grav'), bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null].filter(Boolean);
+  const w = gridWrap.getBoundingClientRect();
+  if (!hogar.length || !w.width) return null;
+  let r = null;
+  for (const h of hogar) {
+    const b = h.getBoundingClientRect(); if (!b.width) continue;
+    r = r ? { left: Math.min(r.left, b.left), right: Math.max(r.right, b.right), top: Math.min(r.top, b.top), bottom: Math.max(r.bottom, b.bottom) }
+          : { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
+  }
+  if (!r) return null;
   return { x0: (r.left - w.left - v.pan.x) / v.z, x1: (r.right - w.left - v.pan.x) / v.z,
            y0: (r.top - w.top - v.pan.y) / v.z, y1: (r.bottom - w.top - v.pan.y) / v.z };
 }
@@ -6237,8 +6270,41 @@ function speglaKamPos(p, v) {
   }
   return andrat;
 }
+/* Library-högen (MES-93, MES-95): leken som en hög bredvid graveyard — de
+   två ställen på bordet där korten som inte är i spel ligger. Talet är
+   lekKvar (hand och bibliotek ihop). Klick öppnar lekvalet (leklådan,
+   MES-100); ett kort som släpps på den går tillbaka till hand eller
+   bibliotek. Bara på mitt eget bord i ett spel. Strängdiffad. */
+const bibHogEl = $('#bibHog');
+function renderBibHog() {
+  if (!bibHogEl) return false;
+  let html = '';
+  if (spelLage && arMitt(player())) {
+    const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
+    if (!lek) html = `<span class="zonlbl">Library</span><button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibtxt">Pick a deck</span></button>`;
+    else {
+      const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null, kvar = k ? k.kvar : (lek.antal || 0);
+      html = `<span class="zonlbl">Library</span><button type="button" class="bib" data-lekvalj="lek" title="${esc(lek.namn || 'Deck')} — ${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together). Drop a card here to put it back"><span class="pips">${pipsHtml(lek.farger)}</span><b>${kvar}</b><span class="bibtxt">left</span></button>`;
+    }
+  }
+  if (bibHogEl.dataset.h !== html) { bibHogEl.dataset.h = html; bibHogEl.innerHTML = html; }
+  bibHogEl.hidden = !html;
+  return !!html;
+}
+bibHogEl && bibHogEl.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-lekvalj]'); if (!b) return;
+  ev.stopPropagation(); oppnaLekVal(b);
+});
+/* Är pekaren över Library-högen? Mindre luft än graveyard: högarna står
+   bredvid varandra, och graveyard vinner där zonerna möts. */
+function overBib(ev) {
+  const el = bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)'); if (!el || !ev) return false;
+  const r = el.getBoundingClientRect();
+  return ev.clientX >= r.left - 16 && ev.clientX <= r.right + 8 && ev.clientY >= r.top - 30 && ev.clientY <= r.bottom + 20;
+}
 function renderGravHog(cards, d) {
   manaRow.hidden = false;
+  manaRow.classList.toggle('medbib', renderBibHog());
   const ex = d.exil.length;
   manaRow.innerHTML = `<span class="zonlbl">Graveyard</span>${gravHtml(cards, d.grav)}`
     + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to browse"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '')
@@ -7658,7 +7724,7 @@ function addCards(items, opts) {
   save(); renderAll(); resolveAll();
   return added;
 }
-function removeAt(i) {
+function removeAt(i, msg) {
   const h = hand();
   if (i < 0 || i >= h.length) return;
   const [gone] = h.splice(i, 1);
@@ -7668,7 +7734,7 @@ function removeAt(i) {
   const sel = state.sel;
   state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
   save(); renderAll();
-  toast(`${gone.name} removed`, 'ok', () => {
+  toast(msg || `${gone.name} removed`, 'ok', () => {
     const cur = hand();
     cur.splice(Math.min(i, cur.length), 0, gone);
     state.sel = sel;
@@ -8064,7 +8130,15 @@ addEventListener('pointermove', ev => {
   c.x = pt.x - dnd.off.ox; c.y = pt.y - dnd.off.oy;
   flyttaElement(c);
   bifogadeTill(c.cid).forEach((k, n) => flyttaElement(Object.assign({ cid: k.cid }, bifogadPlats(c, n))));
-  const over = overHogen(ev);
+  /* Library-högen först: graveyard-högens zon har luft åt sidorna och når
+     in över grannen, men den som pekar på själva leken menar leken. */
+  const overB = overBib(ev);
+  const over = !overB && overHogen(ev);
+  if (overB !== dnd.overBib) {
+    dnd.overBib = overB;
+    const b = bibHogEl && bibHogEl.querySelector('.bib'); if (b) b.classList.toggle('over', overB);
+    if (!overB) matChip(null);
+  }
   if (over !== dnd.over) {
     dnd.over = over;
     const hog = manaRow.querySelector('.grav');
@@ -8076,8 +8150,8 @@ addEventListener('pointermove', ev => {
      "Let go — the mana stacks here". Träffen avgörs på arean som
      överlappar (findJoin), inte på avstånd. */
   /* Utrustning, aura, fortifikation: värden den ligger över lyser i stället. */
-  const vard = (!over && bifogTyp(c)) ? bastVard(hand(), c.cid) : null;
-  const mal = vard || ((!over && matSlag(c) === 'land') ? findJoin(hand(), c.cid) : null);
+  const vard = (!over && !overB && bifogTyp(c)) ? bastVard(hand(), c.cid) : null;
+  const mal = vard || ((!over && !overB && matSlag(c) === 'land') ? findJoin(hand(), c.cid) : null);
   dnd.vard = vard;
   if (mal !== dnd.mal) {
     dnd.mal = mal;
@@ -8090,6 +8164,7 @@ addEventListener('pointermove', ev => {
     matChip(mal ? c : null, chipText());
   }
   if (mal) matChip(c, chipText());
+  if (overB) matChip(c, 'Let go — back to your hand or library');
   function chipText() {
     if (!vard) return 'Let go — the mana stacks here';
     const b = bifogTyp(c), v = hand().find(k => k.cid === vard);
@@ -8114,6 +8189,7 @@ function matDndSlut(ev, avbryt) {
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
   const hog = manaRow.querySelector('.grav'); if (hog) hog.classList.remove('over');
+  const bib = bibHogEl && bibHogEl.querySelector('.bib'); if (bib) bib.classList.remove('over');
   matChip(null);
   for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
   const h = hand(), i = h.findIndex(k => k.cid === d.cid), c = h[i];
@@ -8123,6 +8199,15 @@ function matDndSlut(ev, avbryt) {
   if (avbryt) {
     c.x = d.start.x; c.y = d.start.y;
     renderGrid(true); fjarrIkapp(); return;
+  }
+  if (d.overBib) {
+    /* Släppt på Library-högen: tillbaka till hand eller bibliotek, som
+       "Back to hand or library" i arket — kamerans spår spärras (removeAt)
+       så att kortet inte kommer tillbaka som ett nytt. Startläget först, så
+       att Undo lägger det där det låg. */
+    c.x = d.start.x; c.y = d.start.y;
+    removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`);
+    fjarrIkapp(); return;
   }
   if (d.over) {
     /* Tillbaka till startläget innan flytten, så att Return to play och
