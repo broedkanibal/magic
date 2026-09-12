@@ -1948,6 +1948,8 @@ body.ispel #startSpelBtn{display:none}
 .kamskruv-hd{display:flex;align-items:center;gap:8px;padding:8px 9px 6px;font-size:12.5px;color:var(--txt)}
 .kamskruv-hd .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
 .kamskruv-hd .meta{margin-left:auto;font:10px var(--mono);color:var(--dim2)}
+/* Byggarytan (MES-97): utvecklarverktygen syns bara med ?debug. */
+body:not(.debug) .dbg{display:none!important}
 .kamskruv .kalbild{margin:0 4px 8px;height:104px;min-height:0;border-radius:var(--rs);border:1px solid var(--line)}
 /* Stor: bilden får popoverns hela bredd i 16:10 och upp till 290 px. Det är
    den som svarar på om kameran ser korten — 104 px gjorde det inte. */
@@ -2737,13 +2739,13 @@ body.ispel #addPlayerBtn{display:none}
       <div class="kamskruv" id="kamSkruv">
         <div class="kamskruv-hd">
           <span class="led"></span><b>Camera is on</b>
-          <span class="meta" id="kamSkruvMeta"></span>
+          <span class="meta dbg" id="kamSkruvMeta"></span>
         </div>
         <div class="kalbild stor" id="pbBild">
           <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
           <div class="kalvantar" id="pbVantar">Waiting for a picture from the phone…</div>
-          <span class="kamskruv-rakn" id="kamSkruvRakn"></span>
-          <span class="pbfarger"><i style="background:#5fbf7f"></i>recognised <i style="background:#e2606a"></i>unknown <i style="background:#e8b33a"></i>reading <i style="background:#6b7280"></i>not a card</span>
+          <span class="kamskruv-rakn dbg" id="kamSkruvRakn"></span>
+          <span class="pbfarger dbg"><i style="background:#5fbf7f"></i>recognised <i style="background:#e2606a"></i>unknown <i style="background:#e8b33a"></i>reading <i style="background:#6b7280"></i>not a card</span>
         </div>
         <p class="pbstatus" id="pbStatus"></p>
         <!-- Grundläget: vinkeln ett otappat kort har i telefonens bild. Sparas ur
@@ -2755,12 +2757,12 @@ body.ispel #addPlayerBtn{display:none}
           <button class="btn sm" id="kamGrundSpara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button>
         </div>
         <div class="pbknappar">
-          <button class="btn sm" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
-          <button class="btn sm ghost" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
+          <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
+          <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
           <button class="btn sm ghost" id="pbHelbild" title="The phone sends the whole picture to Claude and puts out the cards it sees — for tables where the camera cannot find the cards by itself">Read the whole table</button>
           <button class="btn sm ghost" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark the graveyard</button>
         </div>
-        <details class="pbavancerat" id="pbAvancerat">
+        <details class="pbavancerat dbg" id="pbAvancerat">
           <summary>Advanced</summary>
           <div class="pbrad" id="pbSiffror"></div>
           <div class="pbreglage" id="pbReglage"></div>
@@ -4331,7 +4333,7 @@ function toast(msg, kind, undo) {
 /* ─────────── localStorage ─────────── */
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
             lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1',
-            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1' };
+            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -4341,6 +4343,18 @@ const LS = {
    sparas per kort (M0/M6): gamla poster saknar dem och hade annars aldrig
    fyllts på. v1 tas bort så att den inte ligger kvar och äter kvoten. */
 LS.del('sthv.cards.v1');
+/* Byggarytan (MES-97): spelaren ser bara det nästa steg kräver, byggaren
+   ser verktygen. ?debug slår på och ?debug=0 stänger av; valet sparas så att
+   det överlever en omladdning och inbjudningslänkar utan parametern. Allt
+   med klassen dbg syns bara då. */
+const DEBUG = (() => {
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.has('debug')) { if (q.get('debug') === '0') LS.del(K.debug); else LS.set(K.debug, true); }
+  } catch (e) {}
+  return LS.get(K.debug, false) === true;
+})();
+document.body.classList.toggle('debug', DEBUG);
 
 /* ─────────── IndexedDB för screenshots ─────────── */
 const IDB = (() => {
@@ -5297,11 +5311,14 @@ let fjarrLas = false;
 const arMitt = p => !spelLage || (p && p.id === spelLage.mig);
 const redigerbar = () => arMitt(player());
 const minSpelare = () => spelLage ? state.players.find(p => p.id === spelLage.mig) : player();
-/* Mitt spelläge: i ett spel min rad i game_players (Screen leads är förval,
-   D7), lokalt det jag valt senast (prefs.lage). Läses av mattan och
-   lägeschippet; avstämningen läser spelarens eget fält (spelPolicy). */
+/* Mitt spelläge: i ett spel min rad i game_players, lokalt det jag valt
+   senast (prefs.lage). Läses av mattan och lägeschippet; avstämningen läser
+   spelarens eget fält (spelPolicy). Follow the table ('bord') rekommenderas
+   sedan Mesa Camera Play (MES-97) — databasens förval är fortfarande 'skarm',
+   så uppstarten skriver valet uttryckligen; utan rad faller vi tillbaka på
+   'bord' som spelPolicy. */
 function mittLage() {
-  if (spelLage) { const mig = minSpelare(); return mig && mig.lage === 'bord' ? 'bord' : 'skarm'; }
+  if (spelLage) { const mig = minSpelare(); return mig && mig.lage === 'skarm' ? 'skarm' : 'bord'; }
   return prefs.lage === 'bord' ? 'bord' : 'skarm';
 }
 /* Vem en avläsning ska skriva till. I ett spel ALLTID mitt eget bord, oavsett
@@ -5442,7 +5459,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      ${spelLage ? `<span class="lagemark" title="${p.lage === 'bord' ? 'Table leads — the table is the source of truth' : 'Screen leads — the camera only adds cards'}">${p.lage === 'bord' ? '⊞' : '▢'}</span>` : ''}
+      ${spelLage ? `<span class="lagemark" title="${p.lage === 'bord' ? 'Follow the table — taps, moves and removed cards on the table show up here' : 'Add only — the camera puts new cards on the mat'}">${p.lage === 'bord' ? '⊞' : '▢'}</span>` : ''}
       ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">you</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} cards need filling in">${p.pending.length}</span>` : ''}
@@ -7128,7 +7145,7 @@ function renderMode() {
        ordning som förut: kameran av (A/F), tappad (E), väntar (B), gammal
        telefon, lär sig ljuset, på (C). Knappen "Turn on camera" står kvar
        bredvid chippet tills man valt väg (A), dämpad när auto stängts av (F). */
-    const lage = mittLage(), lageNamn = lage === 'bord' ? 'Table leads' : 'Screen leads';
+    const lage = mittLage(), lageNamn = lage === 'bord' ? 'Follow the table' : 'Add only';
     let status = '', klass = 'lage', extra = '';
     if (prefs.autoLage == null) {
       status = 'camera off';
@@ -7162,7 +7179,7 @@ function renderMode() {
       if (lage === 'bord') { const n = autoKortPaBordet(minSpelare()); status = n || kamSer ? `${n} ${n === 1 ? 'card' : 'cards'}` : 'the table is empty'; }
       else status = 'camera on';
     }
-    chip = `<button class="modechip ${klass}" data-mode="lage" title="Table leads or Screen leads, and the camera"><span class="led"></span><span class="lbl">${lageNamn}<span class="langtxt"> · ${status}</span></span><span class="delare"></span>${M_KUGGE}</button>` + extra;
+    chip = `<button class="modechip ${klass}" data-mode="lage" title="How the camera works, and its status"><span class="led"></span><span class="lbl">${lageNamn}<span class="langtxt"> · ${status}</span></span><span class="delare"></span>${M_KUGGE}</button>` + extra;
     if (lagePanelOppen) { radKlass = 'lagepanel'; radHtml = lagePanelHtml(lage, status); }
   }
 
@@ -7194,8 +7211,8 @@ function lagePanelHtml(lage, status) {
       ? `<button type="button" class="btn sm prim" data-mode="koppla">${kamHarVarit ? 'Reconnect' : 'Show QR'}</button><button type="button" class="btn sm ghost" data-mode="stang">Turn off camera</button>`
       : '<button type="button" class="btn sm" data-mode="skruv">Camera settings</button><button type="button" class="btn sm ghost" data-mode="stang">Turn off camera</button>';
   return `<div class="lagekorten">
-      ${kort('bord', 'Table leads', 'You play on the table; the screen mirrors it — cards, taps, places. You fix mistakes on screen.')}
-      ${kort('skarm', 'Screen leads', 'The camera only notices new cards. You move, tap and count on screen.')}
+      ${kort('bord', 'Follow the table', 'Taps, moves and cards you remove on the table show up here. A fix you make here holds until the card moves again.')}
+      ${kort('skarm', 'Add only', 'The camera puts new cards on the mat. You tap, move and remove them here.')}
     </div>
     <div class="lagestatus"><span class="led"></span><span>Camera: ${esc(status)}</span><span class="grow"></span>${knappar}</div>
     ${lage === 'bord' && kamAnsluten ? `<div class="lagerotera"><span>Camera view on the table</span><button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">Rotate ↻</button><button type="button" class="btn sm" data-mode="spegel" title="Mirror the camera picture left–right">${kamSpegel ? 'Unmirror' : 'Mirror'} ⇋</button></div>` : ''}
@@ -7223,7 +7240,7 @@ async function bytLage(v) {
   const ok = await Moln.sattLage(spelLage.id, v).catch(() => false);
   lageByte = false;
   if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved — try again', 'err'); return; }
-  toast(v === 'bord' ? 'Table leads — the table is the source of truth' : 'Screen leads — the camera only adds cards', 'ok');
+  toast(v === 'bord' ? 'Follow the table — taps, moves and removed cards show up here' : 'Add only — the camera puts new cards on the mat', 'ok');
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
 addEventListener('mousedown', ev => {
@@ -7847,7 +7864,7 @@ gridEl.addEventListener('pointerdown', ev => {
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   /* Table leads: bordet bestämmer var ett kamerabundet kort ligger. */
   if (spelLage && kamSpeglar(minSpelare()) && c.spar != null) {
-    matChip(c, 'The table places this card · switch to Screen leads to move it');
+    matChip(c, 'The table places this card · switch to Add only to move it');
     clearTimeout(matChipT); matChipT = setTimeout(() => matChip(null), 1800);
     return;
   }
@@ -8075,6 +8092,20 @@ async function valjLekTill(id) {
 }
 /* Vid inträdet i ett spel: har jag redan valt en lek där hämtas dess kort
    för antalspriorn; annars, om kontot har exakt en lek, väljs den tyst. */
+/* Min lek valdes om på en annan enhet (eller före inträdet): hämta dess
+   kortlista, så att lekknappen och leklådan räknar mot rätt lek. En hämtning
+   i taget per lek. */
+let lekFoljer = null;
+function lekFoljMin() {
+  if (!spelLage || lekValPagar) return;
+  const mig = minSpelare();
+  const id = mig && mig.lekId;
+  if (!id || (lekAktiv && lekAktiv.id === id && lekKort) || lekFoljer === id) return;
+  lekFoljer = id;
+  lekHamtaRad(id).then(rad => {
+    if (rad && minSpelare() && minSpelare().lekId === id) { lekSattAktiv(rad); renderTabs(); }
+  }).catch(() => {}).finally(() => { if (lekFoljer === id) lekFoljer = null; });
+}
 async function lekVidIntrade() {
   if (!spelLage || !Moln.inloggad()) return;
   const mig = minSpelare(); if (!mig) return;
@@ -8563,6 +8594,7 @@ function lekSattAktiv(rad) {
   lekAktiv = rad ? { id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0 } : null;
   if (lekAktiv) LS.set(K.lekaktiv, lekAktiv); else LS.del(K.lekaktiv);
   if (rad && rad.kort) sattLekTal(rad.kort);
+  lekKort = rad && Array.isArray(rad.kort) ? rad.kort : null;
 }
 /* Samma lager oavsett konto: inloggad → decks, annars webbläsarens lista.
    Alla svarar med raden som sparats ({ok, rad}), eller {konflikt, rad}
@@ -8768,6 +8800,84 @@ function sattLekTal(kort) {
   if (!Array.isArray(kort) || !kort.length) { lekTal = null; return; }
   lekTal = new Map();
   for (const k of kort) { const key = norm(k.name); lekTal.set(key, (lekTal.get(key) || 0) + (Number(k.n) || 1)); }
+}
+/* Den valda lekens kortlista under spelet ({name, sid, small, n, sb}), för
+   leklådan och lekknappen (MES-97). lekTal ovan har bara antal per namn. */
+let lekKort = null;
+/* Kvar i leken: lekens antal minus mina kort med samma namn i ALLA zoner —
+   hand och bibliotek ihop, Mesa kan inte skilja dem åt. Namnet är nyckeln:
+   kamerans kort bär poolens tryckning och sökta kort ingen alls, så id:n
+   stämmer inte mot lekens. Väntande kamerakort är inga kort än; tokens och
+   kloner som inte står i leken räknas inte. Ett spelat kort dras från
+   huvudleken först, sedan sideboarden. Aldrig under noll. */
+function lekKvar() {
+  if (!Array.isArray(lekKort) || !lekKort.length) return null;
+  const mig = minSpelare(), spelat = new Map();
+  for (const c of (mig && mig.cards) || []) { const k = norm(c.name); spelat.set(k, (spelat.get(k) || 0) + 1); }
+  const poster = lekKort.map(k => ({ key: norm(k.name), name: k.name, sid: k.sid, small: k.small, n: Number(k.n) || 1, sb: !!k.sb }));
+  for (const p of [...poster.filter(p => !p.sb), ...poster.filter(p => p.sb)]) {
+    const s = spelat.get(p.key) || 0, tar = Math.min(s, p.n);
+    p.kvar = p.n - tar;
+    spelat.set(p.key, s - tar);
+  }
+  const main = poster.filter(p => !p.sb);
+  return { poster, kvar: main.reduce((s, p) => s + p.kvar, 0), totalt: main.reduce((s, p) => s + p.n, 0) };
+}
+/* Typgrupperna i leklådan. Lekposten har bara namn och tryckning, så typen
+   kommer ur kortcachen; det som saknas hämtas högst sex åt gången och klar()
+   ritar om när allt kommit. Ett kort som inte gick att hämta hamnar i Other
+   och frågas inte igen (annars ritade klar() om i en evig slinga). */
+const LEK_GRUPP_ORDNING = [['creature', 'Creatures'], ['planeswalker', 'Planeswalkers'], ['artifact', 'Artifacts'],
+  ['enchantment', 'Enchantments'], ['spell', 'Spells'], ['land', 'Lands'], ['other', 'Other']];
+function lekGruppAv(typ) {
+  const t = (typ || '').toLowerCase();
+  if (/\bcreature\b/.test(t)) return 'creature';
+  if (/\bland\b/.test(t)) return 'land';
+  if (/\bplaneswalker\b/.test(t)) return 'planeswalker';
+  if (/\binstant\b|\bsorcery\b/.test(t)) return 'spell';
+  if (/\bartifact\b/.test(t)) return 'artifact';
+  if (/\benchantment\b/.test(t)) return 'enchantment';
+  return 'other';
+}
+const lekTypNyckel = p => p.sid ? 'id:' + p.sid : p.key;
+const lekTypFel = new Set(), lekTypVantar = new Set();
+function lekKortData(p) { return (p.sid && cardCache.get('id:' + p.sid)) || cardFor(p.name); }
+function lekTyp(p) {
+  if (lekTypFel.has(lekTypNyckel(p))) return '';
+  const c = lekKortData(p);
+  return c && c.faces && c.faces[0] ? (c.faces[0].type || '') : null;
+}
+function lekHamtaTyper(poster, klar) {
+  const ko = poster.filter(p => !lekTypVantar.has(lekTypNyckel(p)));
+  if (!ko.length) return;
+  ko.forEach(p => lekTypVantar.add(lekTypNyckel(p)));
+  let i = 0, aktiva = 0, klara = 0;
+  const nasta = () => {
+    while (aktiva < 6 && i < ko.length) {
+      const p = ko[i++]; aktiva++;
+      (p.sid ? lookupId(p.sid) : lookup(p.name))
+        .catch(() => { lekTypFel.add(lekTypNyckel(p)); })
+        .then(() => {
+          aktiva--; klara++; lekTypVantar.delete(lekTypNyckel(p));
+          if (klara === ko.length) { if (klar) klar(); } else nasta();
+        });
+    }
+  };
+  nasta();
+}
+function lekGrupper(poster, klar) {
+  const grupper = new Map(LEK_GRUPP_ORDNING.map(([key, rub]) => [key, { key, rub, poster: [] }]));
+  const sb = { key: 'sb', rub: 'Sideboard', poster: [] }, saknas = [];
+  for (const p of poster) {
+    if (p.sb) { sb.poster.push(p); continue; }
+    const typ = lekTyp(p);
+    if (typ == null) saknas.push(p);
+    grupper.get(typ == null ? 'other' : lekGruppAv(typ)).poster.push(p);
+  }
+  if (saknas.length) lekHamtaTyper(saknas, klar);
+  const ut = [...grupper.values(), sb].filter(g => g.poster.length);
+  ut.forEach(g => g.poster.sort((a, b) => a.name.localeCompare(b.name)));
+  return ut;
 }
 const lekTotalt = () => lekRader.reduce((s, r) => s + lekRadAntal(r), 0) + lekBlTotalt();
 const lekTrasiga = () => lekRader.filter(r => r.fel).length;
@@ -17616,8 +17726,7 @@ function ritaPbLager() {
     x.setLineDash(t.skymd ? [5, 4] : []);
     x.strokeRect(-w / 2, -h / 2, w, h);
     x.restore();
-    x.fillStyle = farg;
-    x.fillText(`#${t.id}${t.tappad ? ' ⟲' : ''}`, cx - w / 2, cy - h / 2 - 2);
+    if (DEBUG) { x.fillStyle = farg; x.fillText(`#${t.id}${t.tappad ? ' ⟲' : ''}`, cx - w / 2, cy - h / 2 - 2); }
   }
 }
 
@@ -18297,6 +18406,7 @@ function fjarrSpelare(lista) {
     }, i);
   });
   if (!state.players.some(p => p.id === state.active)) state.active = spelLage.mig;
+  lekFoljMin();
   medFjarr(() => renderAll(true));
   resolveAll();
 }
