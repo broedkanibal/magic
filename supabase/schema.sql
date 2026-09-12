@@ -31,6 +31,8 @@ create table if not exists public.game_players (
   farg        text not null,
   plats       int  not null,
   gick_med    timestamptz not null default now(),
+  -- spelläget per spelare (lagen.sql): 'skarm' = Screen leads (förval), 'bord' = Table leads
+  lage        text not null default 'skarm' check (lage in ('skarm', 'bord')),
   primary key (game_id, user_id)
 );
 create index if not exists game_players_game on public.game_players(game_id);

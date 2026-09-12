@@ -4762,6 +4762,16 @@ const Moln = (() => {
     if (error) { console.warn('Namnet kunde inte sparas', error.message); return false; }
     return true;
   }
+  /* Spelläget (Table leads 'bord' / Screen leads 'skarm') på min egen rad —
+     samma policy (gp_andra_sitt) som namnet. Alla i spelet ser det genom
+     realtime på game_players. */
+  async function sattLage(gameId, lage) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('game_players')
+      .update({ lage: lage === 'bord' ? 'bord' : 'skarm' }).eq('game_id', gameId).eq('user_id', minId());
+    if (error) { console.warn('Läget kunde inte sparas', error.message); return false; }
+    return true;
+  }
 
   /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
      anropas, så en andra prenumeration för avläsningarna kan inte vara en
@@ -4918,7 +4928,7 @@ const Moln = (() => {
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
-           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm,
+           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage,
            avslutaSpel, lyssna, lamnaKanal, sandKam, sparaMinLek, hamtaMinLek, hamtaLek,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
@@ -5042,6 +5052,13 @@ let fjarrLas = false;
 const arMitt = p => !spelLage || (p && p.id === spelLage.mig);
 const redigerbar = () => arMitt(player());
 const minSpelare = () => spelLage ? state.players.find(p => p.id === spelLage.mig) : player();
+/* Mitt spelläge: i ett spel min rad i game_players (Screen leads är förval,
+   D7), lokalt det jag valt senast (prefs.lage). Läses av mattan och
+   lägeschippet; avstämningen läser spelarens eget fält (spelPolicy). */
+function mittLage() {
+  if (spelLage) { const mig = minSpelare(); return mig && mig.lage === 'bord' ? 'bord' : 'skarm'; }
+  return prefs.lage === 'bord' ? 'bord' : 'skarm';
+}
 /* Vem en avläsning ska skriva till. I ett spel ALLTID mitt eget bord, oavsett
    vilken flik jag råkar titta på — annars hamnar ett kort jag just spelat ut
    på motståndarens bord, där det dessutom aldrig når servern och bara blir en
@@ -8061,7 +8078,7 @@ function lekFot() {
 }
 
 function lekSparaEtikett() {
-  const klara = lekRader.filter(x => x.sid).reduce((s, x) => s + lekAntal(x), 0) + lekBlTotalt();
+  const klara = lekRader.filter(x => x.sid).reduce((s, x) => s + lekRadAntal(x), 0) + lekBlTotalt();
   return klara ? `Spara ${klara} kort` : 'Spara leken';
 }
 
@@ -8087,8 +8104,24 @@ function stangLek() {
 }
 
 const lekNyckel = n => (n || '').toLowerCase().replace(/\s+/g, ' ').trim();
-const lekAntal = r => Object.values(r.per).reduce((s, v) => s + v, 0);
-const lekTotalt = () => lekRader.reduce((s, r) => s + lekAntal(r), 0) + lekBlTotalt();
+const lekRadAntal = r => Object.values(r.per).reduce((s, v) => s + v, 0);
+/* Lekens antal per namn — ett PRIOR för kameran och en varning vid tillägg
+   (dev/plan/lagen.md, D5-8/K6), aldrig ett tak: kloner, extra basland och
+   tokens är legitima. Main + sideboard. Infinity utan vald lek eller för ett
+   namn som inte står i den. lekTal fylls när en lek väljs (D5-3) och
+   nollas när den tas bort. Harnessarna stubbar samma namn. */
+let lekTal = null;
+function lekAntal(namn) {
+  if (!lekTal) return Infinity;
+  const n = lekTal.get(norm(namn));
+  return n == null ? Infinity : n;
+}
+function sattLekTal(kort) {
+  if (!Array.isArray(kort) || !kort.length) { lekTal = null; return; }
+  lekTal = new Map();
+  for (const k of kort) { const key = norm(k.name); lekTal.set(key, (lekTal.get(key) || 0) + (Number(k.n) || 1)); }
+}
+const lekTotalt = () => lekRader.reduce((s, r) => s + lekRadAntal(r), 0) + lekBlTotalt();
 const lekTrasiga = () => lekRader.filter(r => r.fel).length;
 
 /* En rad per KORTNAMN, inte per fysiskt kort: fyra Mountain blir en rad
@@ -8786,7 +8819,7 @@ function ritaLek() {
                           : '<span class="remsa tom"></span>';
     const konst = r.small ? `<img class="konst" src="${esc(r.small)}" alt="">`
                           : '<span class="konst tom"></span>';
-    const antal = `<span class="antal">×${lekAntal(r)}</span>`;
+    const antal = `<span class="antal">×${lekRadAntal(r)}</span>`;
     const bort = `<button class="bort" data-bort="${i}" title="Ta bort ur leken">✕</button>`;
     if (r.fel) {
       const [namn, under, knapp] =
@@ -8922,7 +8955,7 @@ function lekRitaKort() {
 
   $('#lekKortFalt').hidden = !r.fel;
   if (r.fel) $('#lekKortIn').value = r.name || r.namn || '';
-  const n = lekAntal(r), kalla = lekKallText(r);
+  const n = lekRadAntal(r), kalla = lekKallText(r);
   $('#lekKortKalla').textContent = `${n} ${n === 1 ? 'exemplar' : 'exemplar'}${kalla ? ' · från ' + kalla.toLowerCase() : ''}`;
   lekFot();
 }
@@ -9017,7 +9050,7 @@ $('#lekFoton').addEventListener('click', ev => {
   const id = b.dataset.avfoto;
   lekAndrat = true;
   for (const r of lekRader) delete r.per[id];
-  lekRader = lekRader.filter(r => lekAntal(r) > 0);
+  lekRader = lekRader.filter(r => lekRadAntal(r) > 0);
   for (const n of BASLAND_NAMN) delete lekBasland[n].per[id];
   lekFoton = lekFoton.filter(f => f.id !== id);
   ritaLek();
@@ -9094,8 +9127,8 @@ function lekStatusrad() {
   }
   if (lekLageNu === 'text') { st.textContent = ''; return; }
 
-  const klara = lekRader.filter(r => r.sid).reduce((s2, r) => s2 + lekAntal(r), 0) + lekBlTotalt();
-  const utanKort = lekRader.filter(r => !r.sid).reduce((s2, r) => s2 + lekAntal(r), 0);
+  const klara = lekRader.filter(r => r.sid).reduce((s2, r) => s2 + lekRadAntal(r), 0) + lekBlTotalt();
+  const utanKort = lekRader.filter(r => !r.sid).reduce((s2, r) => s2 + lekRadAntal(r), 0);
   const attBekrafta = lekRader.filter(r => r.fel && r.sid).length;
   const bitar = [];
   if (attBekrafta) bitar.push(`${attBekrafta} att bekräfta`);
@@ -9112,7 +9145,7 @@ async function lekSparaNu() {
   const kort = [];
   for (const r of lekRader) {
     if (!r.sid) continue;
-    kort.push({ name: r.name, sid: r.sid, small: r.small, n: lekAntal(r) });
+    kort.push({ name: r.name, sid: r.sid, small: r.small, n: lekRadAntal(r) });
   }
   /* Basländerna slås upp först nu. De har inget sid i listan eftersom de
      aldrig fotograferats — men poolen vill ha ett kort att utgå från, och
@@ -15254,6 +15287,15 @@ function senasteMattaKort(mig, spar) {
    ligger på bordet och telefonen sagt att inget läge är sparat (null —
    undefined är en telefon som inte kan svara), tills man sparat eller
    sagt "Inte nu". Ren funktion av bordet, provas i dev/avstamning.cjs. */
+/* Lägespolicyn (dev/plan/lagen.md §2): vad kameran får skriva på MITT bord.
+   Table leads ('bord', eller inget läge alls — harnessarnas stubbspelare)
+   speglar tap, flytt och saknade kort; Screen leads ('skarm') lägger bara
+   till. Att lägga till kort gäller alltid. Grinden i grundSteg och
+   tapSynk kopplas in i MODE-3 — här bara policyn. */
+function spelPolicy(mig) {
+  const bord = !mig || mig.lage !== 'skarm';
+  return { skapa: true, tap: bord, flytt: bord, saknas: bord, grund: bord };
+}
 function grundSteg(mig, spar) {
   if (kamGrund !== null || grundAvbojd) return null;
   const k = senasteMattaKort(mig, spar);
