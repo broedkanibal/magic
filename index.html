@@ -2447,31 +2447,31 @@ body.ispel #addPlayerBtn{display:none}
              och det är den enda punkt där en förstagångsanvändare kan
              misslyckas utan att förstå att hen gjort det. -->
         <div class="lektomt" id="lekTomt">
-          <p class="lead">Kameran känner igen kort mot <b>din lek</b> — ett hundratal kandidater i
-            stället för trettiotusen. Det är skillnaden mellan igenkänning som fungerar och en
-            ström av osäkra kort.</p>
+          <p class="lead">The camera recognises cards against <b>your deck</b> — a hundred or so
+            candidates instead of thirty thousand. That is the difference between recognition that
+            works and a stream of unsure cards.</p>
 
           <svg class="lekritning" viewBox="0 0 300 150" aria-hidden="true"><rect x="10" y="4" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="10" y="26" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="10" y="48" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="18" y="13" width="52" height="6" rx="3" fill="#7d8ca3"/><rect x="18" y="35" width="58" height="6" rx="3" fill="#7d8ca3"/><rect x="18" y="57" width="47" height="6" rx="3" fill="#7d8ca3"/><rect x="110" y="4" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="110" y="26" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="110" y="48" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="118" y="13" width="52" height="6" rx="3" fill="#7d8ca3"/><rect x="118" y="35" width="58" height="6" rx="3" fill="#7d8ca3"/><rect x="118" y="57" width="47" height="6" rx="3" fill="#7d8ca3"/><rect x="210" y="4" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="210" y="26" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="210" y="48" width="80" height="92" rx="5" fill="#1b2432" stroke="#33405422" stroke-width="1"/><rect x="218" y="13" width="52" height="6" rx="3" fill="#7d8ca3"/><rect x="218" y="35" width="58" height="6" rx="3" fill="#7d8ca3"/><rect x="218" y="57" width="47" height="6" rx="3" fill="#7d8ca3"/></svg>
 
-          <h3 class="lekh3">Så fotograferar du leken</h3>
+          <h3 class="lekh3">How to photograph the deck</h3>
           <ol class="lekgor">
-            <li><b>Lägg korten i högar</b> bredvid varandra, överlappande nedåt, så att bara
-              titelraden syns på alla utom det nedersta i varje hög.</li>
-            <li><b>Fotografera rakt uppifrån</b> i jämnt ljus. Ungefär trettio kort per foto —
-              fler än så blir titelraderna för små att läsa.</li>
-            <li><b>Lägg nästa trettio på bordet</b> och fotografera igen. Leken växer för varje
-              foto tills den är slut.</li>
+            <li><b>Lay the cards in piles</b> next to each other, overlapping downwards, so that only
+              the title line shows on every card but the bottom one in each pile.</li>
+            <li><b>Shoot straight from above</b> in even light. About thirty cards per photo —
+              more than that and the title lines get too small to read.</li>
+            <li><b>Put the next thirty on the table</b> and shoot again. The deck grows with every
+              photo until you run out.</li>
           </ol>
-          <p class="lekfin">Basländerna fotograferar du inte. Dem fyller du i som antal när listan
-            börjat växa — kameran känner ändå igen ett Mountain på symbolen, och letar bland
-            tjugofyra tryckningar av varje landskap oavsett vilken du äger.</p>
+          <p class="lekfin">Don't photograph the basic lands. Fill those in as counts once the list has
+            started to grow — the camera recognises a Mountain by its symbol anyway, and looks among
+            twenty-four printings of each land no matter which one you own.</p>
 
           <div class="lektomakt">
-            <button class="btn prim big" id="lekValjFil">Välj ett foto</button>
-            <button class="btn ghost" id="lekOppnaText">Jag har leken som en lista</button>
+            <button class="btn prim big" id="lekValjFil">Choose a photo</button>
+            <button class="btn ghost" id="lekOppnaText">I have the deck as a list</button>
           </div>
-          <p class="lekfin">Du kan också släppa fotot här i rutan, eller klistra in det med
-            <kbd>⌘V</kbd>. Öppnar du Mesa i telefonen fotograferar du direkt.</p>
+          <p class="lekfin">You can also drop the photo in this window, or paste it with
+            <kbd>⌘V</kbd>. Open Mesa on your phone to shoot directly.</p>
         </div>
 
         <!-- listan: leken. Allt annat på skärmen är handlingar på den.
@@ -2492,25 +2492,25 @@ body.ispel #addPlayerBtn{display:none}
 
           <div class="lekhd">
             <div class="presets" id="lekFilter">
-              <button class="btn sm on" data-lekfilter="alla">Alla</button>
-              <button class="btn sm" data-lekfilter="fel" hidden>Att rätta</button>
+              <button class="btn sm on" data-lekfilter="alla">All</button>
+              <button class="btn sm" data-lekfilter="fel" hidden>To fix</button>
             </div>
             <span class="grow"></span>
-            <span class="lekhjalp">Tryck på ett kort för att se det stort</span>
+            <span class="lekhjalp">Click a card to see it large</span>
           </div>
 
           <div class="leklista" id="lekLista"></div>
 
           <div class="leklagg">
-            <label for="lekLaggIn">Saknas ett kort? Skriv namnet.</label>
+            <label for="lekLaggIn">Missing a card? Type its name.</label>
             <input id="lekLaggIn" type="text" placeholder="Sol Ring…" spellcheck="false" autocomplete="off">
             <ul class="leksuggest" id="lekLaggSug"></ul>
           </div>
 
           <div class="lekbaslandruta">
-            <h3 class="lekh3">Basländer</h3>
-            <p class="lekfin">Dem fotograferar du inte — fyll i antalet. Kameran känner igen ett
-              basland på symbolen.</p>
+            <h3 class="lekh3">Basic lands</h3>
+            <p class="lekfin">Don't photograph these — fill in the counts. The camera recognises a
+              basic land by its symbol.</p>
             <div class="lekbasland" id="lekBasland"></div>
           </div>
         </div>
@@ -2518,8 +2518,8 @@ body.ispel #addPlayerBtn{display:none}
 
       <!-- ══ LÄGE foto / laser — ETT foto, ingenting annat ══ -->
       <section class="leklage" data-for="foto" id="lekFotoSek">
-        <p class="lekfin">Dra rutan så att den täcker korten och inget bord. Rutan är
-          upplösningen: tjugo procent bord är tjugo procent av titelraden.</p>
+        <p class="lekfin">Drag the frame so it covers the cards and no table. The frame is the
+          resolution: twenty percent table is twenty percent of the title line.</p>
         <div class="kalbild" id="lekBild">
           <img id="lekImg" alt="">
           <div class="kalruta" id="lekRuta"><i data-horn="nv"></i><i data-horn="no"></i><i data-horn="sv"></i><i data-horn="so"></i></div>
@@ -2527,12 +2527,12 @@ body.ispel #addPlayerBtn{display:none}
 
         <div class="lekvantar" id="lekVantar" hidden>
           <div class="prog obestamd"><i></i></div>
-          <b>Läser av fotot</b>
-          <span>Det tar ungefär en halv minut. Låt rutan stå öppen.</span>
+          <b>Reading the photo</b>
+          <span>It takes about half a minute. Leave the window open.</span>
         </div>
 
         <div class="lekhogar" id="lekHogar">
-          <span>Högar bredvid varandra</span>
+          <span>Piles side by side</span>
           <button class="btn sm" data-hogar="2">2</button>
           <button class="btn sm on" data-hogar="3">3</button>
           <button class="btn sm" data-hogar="4">4</button>
@@ -2547,18 +2547,19 @@ body.ispel #addPlayerBtn{display:none}
              namngivna som mätvärden, och påstår inget. -->
         <div class="lekkvalitet" id="lekKvalitet" data-grad="ok">
           <span class="lampa"></span>
-          <div class="ktext"><b id="lekDomRub">Titelraderna går att läsa.</b><span id="lekDom"></span></div>
+          <div class="ktext"><b id="lekDomRub">The title lines are readable.</b><span id="lekDom"></span></div>
         </div>
         <details class="lekmatt">
-          <summary>Mätvärden</summary>
+          <summary>Measurements</summary>
           <div class="pbrad" id="lekTal"></div>
         </details>
       </section>
 
       <!-- ══ LÄGE text ══ -->
       <section class="leklage" data-for="text">
-        <p class="lead">Har du leken digitalt går den lika bra. Ett kort per rad — ett antal
-          framför namnet fungerar, och en setkod efter gör det också.</p>
+        <p class="lead">Have the deck digitally? Paste it here. Exports from Moxfield, Arena, MTGO,
+          Archidekt, TappedOut and Deckstats work as they are — one card per line, a count before the
+          name, a set code after, and a Sideboard section if you have one.</p>
         <textarea class="ta" id="lekTa" spellcheck="false" placeholder="1 Sol Ring&#10;1 Arcane Signet&#10;12 Mountain&#10;…"></textarea>
       </section>
 
@@ -2571,21 +2572,21 @@ body.ispel #addPlayerBtn{display:none}
       <section class="leklage lekkort" data-for="kort">
         <div class="kortpar">
           <div class="kortvanster">
-            <span class="etikett" id="lekKortEtikett">Titelraden i ditt foto</span>
+            <span class="etikett" id="lekKortEtikett">The title line in your photo</span>
             <img class="kortremsa" id="lekKortRemsa" alt="">
             <div class="kortbild">
-              <button class="kortpil" id="lekKortForeg" title="Föregående kort" aria-label="Föregående kort">‹</button>
+              <button class="kortpil" id="lekKortForeg" title="Previous card" aria-label="Previous card">‹</button>
               <img id="lekKortBild" alt="">
-              <div class="tom" id="lekKortTom" hidden>Inget kort valt än</div>
-              <button class="kortpil" id="lekKortNasta" title="Nästa kort" aria-label="Nästa kort">›</button>
+              <div class="tom" id="lekKortTom" hidden>No card chosen yet</div>
+              <button class="kortpil" id="lekKortNasta" title="Next card" aria-label="Next card">›</button>
             </div>
           </div>
           <div class="korthoger">
             <h3 id="lekKortNamn"></h3>
             <p class="kortstatus" id="lekKortStatus"></p>
             <label class="kortfalt" id="lekKortFalt">
-              <span>Kortets namn</span>
-              <input id="lekKortIn" type="text" placeholder="Skriv kortets namn…" spellcheck="false" autocomplete="off">
+              <span>Card name</span>
+              <input id="lekKortIn" type="text" placeholder="Type the card's name…" spellcheck="false" autocomplete="off">
               <ul class="leksuggest" id="lekKortSug"></ul>
             </label>
             <span class="kortkalla" id="lekKortKalla"></span>
@@ -8229,9 +8230,9 @@ function lekLage(v) {
   const iKo = lekKo.length;
   $('#lekTitel').textContent =
       v === 'foto' || v === 'laser'
-        ? (iKo ? `Foto ${lekFotoRaknare + 1} av ${lekFotoRaknare + 1 + iKo}` : `Foto ${lekFotoRaknare + 1}`)
+        ? (iKo ? `Photo ${lekFotoRaknare + 1} of ${lekFotoRaknare + 1 + iKo}` : `Photo ${lekFotoRaknare + 1}`)
     : v === 'kort'
-        ? (lekKortI != null && lekRader[lekKortI] && lekRader[lekKortI].fel ? 'Bekräfta kortet' : 'Kortet')
+        ? (lekKortI != null && lekRader[lekKortI] && lekRader[lekKortI].fel ? 'Confirm the card' : 'The card')
     : 'My decks';
   lekRitaValj();
   lekRakna();
@@ -8264,33 +8265,33 @@ function lekFot() {
 
   switch (lekLageNu) {
     case 'foto': {
-      satt(T, 'Tillbaka till listan', () => { lekKo = []; lekBild = null; lekLage(lekAter); ritaLek(); });
-      satt(A, 'Välj ett annat foto', () => $('#lekFil').click());
-      satt(P, $('#lekDomRub').dataset.rod ? 'Läs av ändå' : 'Läs av fotot', lekLasAv);
+      satt(T, 'Back to the list', () => { lekKo = []; lekBild = null; lekLage(lekAter); ritaLek(); });
+      satt(A, 'Choose another photo', () => $('#lekFil').click());
+      satt(P, $('#lekDomRub').dataset.rod ? 'Read it anyway' : 'Read the photo', lekLasAv);
       break;
     }
     case 'laser':
       satt(T, '', null);
-      satt(A, 'Avbryt avläsningen', () => stangLek());
+      satt(A, 'Cancel the reading', () => stangLek());
       satt(P, '', null);
       break;
     case 'text':
-      satt(T, 'Tillbaka', () => { lekLage(lekAter); ritaLek(); });
+      satt(T, 'Back', () => { lekLage(lekAter); ritaLek(); });
       satt(A, '', null);
-      satt(P, 'Lägg till namnen', lekLaggListan);
+      satt(P, 'Add the names', lekLaggListan);
       break;
     case 'kort': {
-      satt(T, 'Tillbaka till listan', () => { lekLage('lek'); ritaLek(); });
+      satt(T, 'Back to the list', () => { lekLage('lek'); ritaLek(); });
       const sbB = $('#lekKortSb');
       sbB.hidden = !(r && !r.fel);
       if (r && !r.fel) { sbB.textContent = r.sb ? 'Move to main deck' : 'Move to sideboard'; sbB.onclick = lekKortSb; }
       if (r && r.fel) {
         const fler = lekNastaTrasig(lekKortI) != null;
-        satt(A, fler ? 'Hoppa över' : '', () => lekKortSteg(1));
-        satt(P, r.sid ? 'Ja, det stämmer' : '', () => lekKortJa());
+        satt(A, fler ? 'Skip' : '', () => lekKortSteg(1));
+        satt(P, r.sid ? "Yes, that's right" : '', () => lekKortJa());
       } else {
-        satt(A, 'Ta bort ur leken', () => lekKortTaBort());
-        satt(P, 'Tillbaka till listan', () => { lekLage('lek'); ritaLek(); });
+        satt(A, 'Remove from the deck', () => lekKortTaBort());
+        satt(P, 'Back to the list', () => { lekLage('lek'); ritaLek(); });
       }
       break;
     }
@@ -8299,7 +8300,7 @@ function lekFot() {
       /* I tomläget ligger valet mellan foto och lista redan i kroppen, bredvid
          varandra där det hör hemma. Att upprepa det i foten var samma handling
          två gånger på samma skärm. */
-      satt(T, tomt ? '' : 'Stäng', () => closeOv('lekOv'));
+      satt(T, tomt ? '' : 'Close', () => closeOv('lekOv'));
       satt(A, '', null);
       satt(P, tomt ? '' : lekSparaEtikett(), lekSparaNu);
     }
@@ -8309,7 +8310,7 @@ function lekFot() {
 
 function lekSparaEtikett() {
   const klara = lekRader.filter(x => x.sid).reduce((s, x) => s + lekRadAntal(x), 0) + lekBlTotalt();
-  return klara ? `Spara ${klara} kort` : 'Spara leken';
+  return klara ? `Save ${klara} cards` : 'Save the deck';
 }
 
 /* Stängningsfrågan hänger på lekAndrat, inte på att listan har rader: sås
@@ -8317,8 +8318,8 @@ function lekSparaEtikett() {
 async function lekVillStanga() {
   if (!lekAndrat) return true;
   const n = lekTotalt();
-  return await ask(`Du har lagt till ${n} kort som inte är sparade. Stänger du nu är de borta.`,
-                   { title: 'Stäng utan att spara?', ok: 'Stäng ändå', danger: true });
+  return await ask(`You have ${n} cards that are not saved. Close now and they are gone.`,
+                   { title: 'Close without saving?', ok: 'Close anyway', danger: true });
 }
 let lekBild = null;             // { img, canvas, box, hogar, namn }
 let lekLaser = false;
@@ -8403,7 +8404,7 @@ async function lekSlaUpp(onProg) {
       for (const r of rader) {
         r.fel = true;
         r.fann = tillfallig ? null : false;
-        r.felmsg = tillfallig ? 'Uppslagningen nådde inte fram — försök igen' : '';
+        r.felmsg = tillfallig ? 'The lookup did not get through — try again' : '';
       }
     }
   }
@@ -8644,20 +8645,20 @@ function lekSa(kort, kalla) {
    ett meddelande som varken sa varför eller vad man skulle göra i stället. */
 const LEK_FORMAT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 const lekFormatOk = t => LEK_FORMAT.includes((t || '').toLowerCase());
-const LEK_FORMATTEXT = 'JPEG, PNG, WebP, GIF och AVIF';
+const LEK_FORMATTEXT = 'JPEG, PNG, WebP, GIF or AVIF';
 /* Det HEIC-fotot heter i iOS: "Mest kompatibelt" ger JPEG i stället. */
 const lekArHeic = f => /heic|heif/i.test(f.type) || /\.hei[cf]$/i.test(f.name || '');
 
 async function lekTaEmotFil(fil) {
   if (!fil) return;
   if (lekArHeic(fil)) {
-    toast(`${fil.name || 'Bilden'} är HEIC, som webbläsaren inte kan läsa. ` +
-          `Ställ in Kamera → Format → Mest kompatibelt i iPhone, så tas fotona som JPEG. ` +
-          `Ett befintligt foto blir JPEG om du delar det via Mail eller sparar om det.`, 'err');
+    toast(`${fil.name || 'The image'} is HEIC, which the browser cannot read. ` +
+          `Set Camera → Formats → Most Compatible on the iPhone, so photos are taken as JPEG. ` +
+          `An existing photo becomes JPEG if you share it via Mail or save it again.`, 'err');
     return;
   }
   if (!lekFormatOk(fil.type)) {
-    toast(`Formatet ${fil.type || 'okänt'} går inte att läsa. Använd ${LEK_FORMATTEXT}.`, 'err');
+    toast(`The format ${fil.type || 'unknown'} cannot be read. Use ${LEK_FORMATTEXT}.`, 'err');
     return;
   }
   const url = URL.createObjectURL(fil);
@@ -8722,7 +8723,7 @@ async function lekTaEmotFil(fil) {
   } catch (e) {
     /* Kom vi hit trots formatkontrollen är filen trasig eller inte det den
        utger sig för att vara. Säg vad som går, så slipper man gissa. */
-    toast(`Bilden gick inte att läsa. Format som fungerar: ${LEK_FORMATTEXT}.`, 'err');
+    toast(`The image could not be read. Formats that work: ${LEK_FORMATTEXT}.`, 'err');
   } finally { URL.revokeObjectURL(url); }
 }
 $('#lekValjFil').onclick = () => $('#lekFil').click();
@@ -8770,7 +8771,7 @@ $('#lekOppnaText').onclick = () => { lekAter = 'lek'; lekLage('text'); };
     av(ev); djup = 0; markera(false);
     const filer = [...((ev.dataTransfer && ev.dataTransfer.files) || [])]
       .filter(f => /^image\//.test(f.type) || lekArHeic(f));
-    if (!filer.length) { toast(`Det där var ingen bild. Använd ${LEK_FORMATTEXT}.`, 'err'); return; }
+    if (!filer.length) { toast(`That was not an image. Use ${LEK_FORMATTEXT}.`, 'err'); return; }
     lekKo = filer.slice(1);
     lekTaEmotFil(filer[0]);
   }, true);
@@ -8960,30 +8961,30 @@ function lekMat() {
   const { varians, utbrant } = lekSkarpa(cv);
   const tal = (namn, v, varn) => `<span class="pbtal${varn ? ' varn' : ''}">${namn} <b>${v}</b></span>`;
   $('#lekTal').innerHTML =
-    tal('kortbredd', Math.round(W) + ' px', W < 340) +
-    tal('titelrad', titel.toFixed(1) + ' px', titel < 10) +
-    tal('skärpa', Math.round(varians), varians < LEK_SKARPA_MIN) +
-    tal('utbränt', (utbrant * 100).toFixed(1) + ' %', utbrant > 0.08) +
-    tal('bild', cv.width + '×' + cv.height, false);
+    tal('card width', Math.round(W) + ' px', W < 340) +
+    tal('title line', titel.toFixed(1) + ' px', titel < 10) +
+    tal('sharpness', Math.round(varians), varians < LEK_SKARPA_MIN) +
+    tal('blown out', (utbrant * 100).toFixed(1) + ' %', utbrant > 0.08) +
+    tal('image', cv.width + '×' + cv.height, false);
 
   /* En lampa och en mening i stället för fem tal. Talen kom ur provbordet:
      de MÄTER, de råder inte, och fyra av fem kan användaren inte göra något
      åt ens om hen förstår dem. De kastas ändå inte — trösklarna är oprövade
      och det är samma människa som skruvar dem. De ligger ett klick bort,
      namngivna som mätvärden, och påstår ingenting. */
-  let grad = 'ok', rub = 'Titelraderna går att läsa.', rad = '';
+  let grad = 'ok', rub = 'The title lines are readable.', rad = '';
   if (W < 286) {
-    grad = 'fel'; rub = 'Korten är för små i bilden.';
-    rad = 'Titelraden går inte att läsa. Fotografera färre kort åt gången, eller dra rutan tätare kring korten.';
+    grad = 'fel'; rub = 'The cards are too small in the picture.';
+    rad = 'The title line cannot be read. Photograph fewer cards at a time, or drag the frame tighter around the cards.';
   } else if (W < 340) {
-    grad = 'varn'; rub = 'Titelraden blir knapp.';
-    rad = 'Det kan gå. Räkna med några rader att fylla i för hand.';
+    grad = 'varn'; rub = 'The title line is barely there.';
+    rad = 'It might work. Expect a few rows to fill in by hand.';
   } else if (varians < LEK_SKARPA_MIN) {
-    grad = 'varn'; rub = 'Bilden är suddig.';
-    rad = 'Håll telefonen stilla, eller flytta den närmare bordet.';
+    grad = 'varn'; rub = 'The picture is blurry.';
+    rad = 'Hold the phone still, or move it closer to the table.';
   } else if (utbrant > 0.08) {
-    grad = 'varn'; rub = 'Lampan speglar sig i plastfickorna.';
-    rad = 'Flytta ljuset åt sidan, eller vinkla bordet.';
+    grad = 'varn'; rub = 'The lamp is reflecting in the sleeves.';
+    rad = 'Move the light to the side, or tilt the table.';
   }
   $('#lekKvalitet').dataset.grad = grad;
   const rubEl = $('#lekDomRub');
@@ -8998,7 +8999,7 @@ function lekMat() {
 async function lekLasAv() {
   if (!lekBild || lekLaser) return;
   if (!aiEnabled()) {
-    $('#lekStatus').innerHTML = '<b style="color:var(--red)">Fotovägen behöver AI-hjälpen.</b> Slå på den under ⋯ → AI-hjälp.';
+    $('#lekStatus').innerHTML = '<b style="color:var(--red)">Reading a photo needs the AI help.</b> Turn it on under ⋯ → AI help.';
     return;
   }
   lekLaser = true;
@@ -9012,7 +9013,7 @@ async function lekLasAv() {
   const minSession = lekSession;
   lekStyr = new AbortController();
   try {
-    $('#lekStatus').textContent = 'Läser av fotot…';
+    $('#lekStatus').textContent = 'Reading the photo…';
     const { b64 } = lekB64(duk);
     const resp = await fetch(AI_ENDPOINT, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -9032,8 +9033,8 @@ async function lekLasAv() {
     const kort = Array.isArray(j.kort) ? j.kort : [];
     if (!kort.length) {
       $('#lekStatus').innerHTML = j.varfor
-        ? '<b style="color:var(--red)">Avläsningen gav inget svar att tolka.</b> Bordet står kvar som det var.'
-        : '<b style="color:var(--red)">Inga kort hittades i fotot.</b> Ligger korten med titelraden synlig?';
+        ? '<b style="color:var(--red)">The reading gave no answer to interpret.</b> The list is as it was.'
+        : '<b style="color:var(--red)">No cards were found in the photo.</b> Are the cards lying with the title line showing?';
       return;
     }
     /* Remsan klipps ur ORIGINALFOTOT, inte ur den nedskalade duken: den ska
@@ -9042,8 +9043,8 @@ async function lekLasAv() {
       const remsa = lekRemsa(k.x, k.y, kalla);
       lekLaggTill(k.namn, fotoId, remsa, k.sakerhet);
     }
-    lekFoton.push({ id: fotoId, namn: 'Foto ' + lekFotoRaknare, n: kort.length, mini: kalla.mini });
-    await lekSlaUpp((i, n) => { $('#lekStatus').textContent = `Slår upp ${i} av ${n}…`; });
+    lekFoton.push({ id: fotoId, namn: 'Photo ' + lekFotoRaknare, n: kort.length, mini: kalla.mini });
+    await lekSlaUpp((i, n) => { $('#lekStatus').textContent = `Looking up ${i} of ${n}…`; });
     if (minSession !== lekSession) return;
     /* Utfallet av ETT foto är en händelse och hör hemma i en notis. Statusraden
        bär ett tillstånd — hur många kort som sparas just nu — och skrivs om av
@@ -9067,7 +9068,7 @@ async function lekLasAv() {
     /* Ett AbortError är följden av att användaren stängde dialogen. Att skrika
        om det vore att rapportera hens eget klick som ett fel. */
     if (e && e.name === 'AbortError') return;
-    $('#lekStatus').innerHTML = `<b style="color:var(--red)">Avläsningen gick inte fram.</b> ${esc(e.message || '')}`;
+    $('#lekStatus').innerHTML = `<b style="color:var(--red)">The reading did not get through.</b> ${esc(e.message || '')}`;
   } finally {
     lekLaser = false; knapp.disabled = false; lekStyr = null;
     if (lekLageNu === 'laser') { lekLage('foto'); }
@@ -9077,11 +9078,11 @@ async function lekLasAv() {
 /* Kvittot med sina tillägg. Den sista meningen är hela svaret på "hur vet jag
    att jag är klar?": den ställer frågan med användarens eget tal i. */
 function lekKvittoRad(grund, otydliga, kapade) {
-  let t = grund + ` Nu är ${lekTotalt()} kort inlästa.`;
+  let t = grund + ` The deck now has ${lekTotalt()} cards.`;
   lekKvittoVarn = false;
-  if (otydliga) { t += ` ${otydliga} kort syntes men gick inte att läsa — de ligger i listan som rader att rätta.`; lekKvittoVarn = true; }
-  if (kapade) { t += ' Fler kort fanns i bilden än som gick att läsa. Fotografera färre åt gången.'; lekKvittoVarn = true; }
-  if (lekTotalt() < 60) t += ' En lek är oftast minst 60 kort — ligger det fler kvar på bordet?';
+  if (otydliga) { t += ` ${otydliga} cards were seen but could not be read — they are in the list as rows to fix.`; lekKvittoVarn = true; }
+  if (kapade) { t += ' There were more cards in the picture than could be read. Photograph fewer at a time.'; lekKvittoVarn = true; }
+  if (lekTotalt() < 60) t += ' A deck is usually at least 60 cards — are there more left on the table?';
   return t;
 }
 
@@ -9130,7 +9131,7 @@ function ritaLek() {
   $$('#lekFilter [data-lekfilter]').forEach(b => {
     b.classList.toggle('on', b.dataset.lekfilter === lekFilter);
     b.textContent = b.dataset.lekfilter === 'alla'
-      ? `Alla ${lekRader.length} rader` : `Att rätta ${trasiga}`;
+      ? `All ${lekRader.length} rows` : `To fix ${trasiga}`;
   });
 
   const kv = $('#lekKvitto');
@@ -9150,24 +9151,24 @@ function ritaLek() {
     const konst = r.small ? `<img class="konst" src="${esc(r.small)}" alt="">`
                           : '<span class="konst tom"></span>';
     const antal = `${r.sb ? '<span class="sbtag" title="Sideboard">SB</span>' : ''}<span class="antal">×${lekRadAntal(r)}</span>`;
-    const bort = `<button class="bort" data-bort="${i}" title="Ta bort ur leken">✕</button>`;
+    const bort = `<button class="bort" data-bort="${i}" title="Remove from the deck">✕</button>`;
     if (r.fel) {
       const [namn, under, knapp] =
-          !r.namn      ? ['Namnet gick inte att läsa', 'Titelraden syns i remsan — skriv namnet', 'Skriv namnet']
-        : r.felmsg     ? [`”${esc(r.namn)}”`, 'Uppslagningen nådde inte fram — försök igen', 'Försök igen']
-        : r.fann === false ? [`”${esc(r.namn)}”`, 'Finns inte på Scryfall — skriv om namnet', 'Rätta']
-        : r.bytt       ? [`”${esc(r.namn)}”`, `Närmaste kort är ${esc(r.name)} — stämmer det?`, 'Bekräfta']
-        :                [`”${esc(r.namn)}”`, 'Läst ur fotot — bekräfta kortet', 'Bekräfta'];
+          !r.namn      ? ['The name could not be read', 'The title line is in the strip — type the name', 'Type the name']
+        : r.felmsg     ? [`“${esc(r.namn)}”`, 'The lookup did not get through — try again', 'Try again']
+        : r.fann === false ? [`“${esc(r.namn)}”`, 'Not on Scryfall — retype the name', 'Fix']
+        : r.bytt       ? [`“${esc(r.namn)}”`, `Closest card is ${esc(r.name)} — is that right?`, 'Confirm']
+        :                [`“${esc(r.namn)}”`, 'Read from the photo — confirm the card', 'Confirm'];
       return rubrik + `<div class="lekrad fel" data-rad="${i}">` +
-        `<button class="lekrad-hd" data-se="${i}" title="Visa kortet stort">${remsa}${konst}` +
+        `<button class="lekrad-hd" data-se="${i}" title="Show the card large">${remsa}${konst}` +
         `<span class="col"><span class="nm">${namn}</span><span class="ef">${under}</span></span>${antal}</button>` +
         `<button class="btn sm" data-se="${i}">${knapp}</button>${bort}</div>`;
     }
     return rubrik + `<div class="lekrad" data-rad="${i}">` +
-      `<button class="lekrad-hd" data-se="${i}" title="Visa kortet stort">${remsa}${konst}` +
+      `<button class="lekrad-hd" data-se="${i}" title="Show the card large">${remsa}${konst}` +
       `<span class="col"><span class="nm">${esc(r.name)}</span><span class="ef">${esc(lekKallText(r))}</span></span>` +
       `${antal}<span class="chev">›</span></button>${bort}</div>`;
-  }).join('') || `<p class="leklisttom">${lekFilter === 'fel' ? 'Ingenting kvar att rätta.' : 'Inga kort ännu.'}</p>`;
+  }).join('') || `<p class="leklisttom">${lekFilter === 'fel' ? 'Nothing left to fix.' : 'No cards yet.'}</p>`;
 
   $('#lekBasland').innerHTML = BASLAND_NAMN.map(n =>
     `<label class="lekbl"><span>${n}</span><input type="number" min="0" max="99" data-bl="${n}" value="${lekBlAntal(n)}"></label>`).join('');
@@ -9182,12 +9183,12 @@ function ritaLek() {
 function lekKallText(r) {
   const k = Object.keys(r.per);
   if (!k.length) return '';
-  if (k.length > 1) return `${k.length} källor`;
+  if (k.length > 1) return `${k.length} sources`;
   const f = lekFoton.find(x => x.id === k[0]);
   return f ? f.namn
-       : k[0] === 'text' ? 'Ur listan du klistrade in'
-       : k[0] === 'hand' ? 'Inskrivet för hand'
-       : 'Sparat sedan tidigare';
+       : k[0] === 'text' ? 'From the list you pasted'
+       : k[0] === 'hand' ? 'Typed in by hand'
+       : 'Saved earlier';
 }
 
 /* Brickorna svarar på "flera foton" utan ett ord prosa: här är de du tagit,
@@ -9201,16 +9202,16 @@ function ritaLekRemsa() {
     if (!n) return '';
     const f = lekFoton.find(x => x.id === id);
     const bild = f && f.mini ? `<img src="${f.mini}" alt="">` : `<span class="fikon">${ikon}</span>`;
-    const kryss = kanTas ? `<span class="fbort" data-avfoto="${id}" title="Ta bort korten härifrån">✕</span>` : '';
+    const kryss = kanTas ? `<span class="fbort" data-avfoto="${id}" title="Remove the cards from this source">✕</span>` : '';
     const tagg = kanTas ? 'button' : 'span';
     return `<${tagg} class="lekfoto${f && f.mini ? '' : ' utanbild'}${kanTas ? '' : ' info'}" data-se-foto="${id}">` +
-      `${bild}<span class="fnamn">${esc(namn)}</span><span class="fant">${n} kort</span>${kryss}</${tagg}>`;
+      `${bild}<span class="fnamn">${esc(namn)}</span><span class="fant">${n} ${n === 1 ? 'card' : 'cards'}</span>${kryss}</${tagg}>`;
   };
   let h = lekFoton.map(f => bricka(f.id, f.namn, '▤', true)).join('');
-  h += bricka('text', 'Skrivna namn', '✎', true);
-  h += bricka('hand', 'Inskrivna', '✎', true);
-  if (sparade) h += bricka('sparat', 'Sparad lek', '▤', false) + bricka('lokalt', 'Sparad lek', '▤', false);
-  h += '<button class="lekfoto lagg" id="lekLaggFoto"><span class="plus">＋</span><span>Lägg till foto</span></button>';
+  h += bricka('text', 'Pasted list', '✎', true);
+  h += bricka('hand', 'Typed in', '✎', true);
+  if (sparade) h += bricka('sparat', 'Saved deck', '▤', false) + bricka('lokalt', 'Saved deck', '▤', false);
+  h += '<button class="lekfoto lagg" id="lekLaggFoto"><span class="plus">＋</span><span>Add a photo</span></button>';
   $('#lekFoton').innerHTML = h;
 }
 
@@ -9268,26 +9269,26 @@ function lekRitaKort() {
   const remsa = $('#lekKortRemsa');
   remsa.hidden = !r.remsa;
   if (r.remsa) remsa.src = r.remsa;
-  $('#lekKortEtikett').textContent = r.remsa ? 'Titelraden i ditt foto' : 'Det här kortet kom inte från ett foto';
+  $('#lekKortEtikett').textContent = r.remsa ? 'The title line in your photo' : 'This card did not come from a photo';
 
   const bild = $('#lekKortBild'), tom = $('#lekKortTom');
   const url = r.stor || r.small || '';
   bild.hidden = !url; tom.hidden = !!url;
   if (url) bild.src = url;
 
-  $('#lekKortNamn').textContent = r.name || (r.namn ? `”${r.namn}”` : 'Namnet gick inte att läsa');
+  $('#lekKortNamn').textContent = r.name || (r.namn ? `“${r.namn}”` : 'The name could not be read');
   $('#lekKortStatus').textContent =
-      !r.fel            ? 'Klart. Det här kortet sparas.'
-    : !r.namn           ? 'Titelraden gick inte att läsa. Läs den i remsan och skriv namnet, så visas kortet här.'
-    : r.felmsg          ? 'Uppslagningen nådde inte fram. Namnet kan mycket väl vara rätt — försök igen.'
-    : r.fann === false  ? `”${r.namn}” finns inte på Scryfall. Skriv om namnet.`
-    : r.bytt            ? `Scryfall bytte ut namnet: du skrev ”${r.namn}”, närmaste kort är ${r.name}. Är det rätt kort?`
-    :                     'Modellen läste namnet men var osäker. Stämmer kortet med titelraden i fotot?';
+      !r.fel            ? 'Done. This card will be saved.'
+    : !r.namn           ? 'The title line could not be read. Read it in the strip and type the name, and the card shows up here.'
+    : r.felmsg          ? 'The lookup did not get through. The name may well be right — try again.'
+    : r.fann === false  ? `“${r.namn}” is not on Scryfall. Retype the name.`
+    : r.bytt            ? `Scryfall swapped the name: you wrote “${r.namn}”, the closest card is ${r.name}. Is that the right card?`
+    :                     'The model read the name but was unsure. Does the card match the title line in the photo?';
 
   $('#lekKortFalt').hidden = !r.fel;
   if (r.fel) $('#lekKortIn').value = r.name || r.namn || '';
   const n = lekRadAntal(r), kalla = lekKallText(r);
-  $('#lekKortKalla').textContent = `${n} ${n === 1 ? 'exemplar' : 'exemplar'}${kalla ? ' · från ' + kalla.toLowerCase() : ''}`;
+  $('#lekKortKalla').textContent = `${n} ${n === 1 ? 'copy' : 'copies'}${kalla ? ' · ' + kalla.toLowerCase() : ''}`;
   lekFot();
 }
 
@@ -9324,12 +9325,12 @@ function lekKortSb() {
 }
 function lekKortTaBort() {
   const r = lekRader[lekKortI]; if (!r) return;
-  const namn = r.name || r.namn || 'Kortet';
+  const namn = r.name || r.namn || 'The card';
   const kopia = { ...r, per: { ...r.per } }, plats = lekKortI;
   lekRader = lekRader.filter(x => x !== r);
   lekAndrat = true;
   lekLage('lek'); ritaLek();
-  toast(`${namn} togs bort`, undefined, () => { lekRader.splice(plats, 0, kopia); ritaLek(); });
+  toast(`${namn} removed`, undefined, () => { lekRader.splice(plats, 0, kopia); ritaLek(); });
 }
 
 /* En väg in i datan. Förslagsklick, Enter i fältet och handpåläggning går
@@ -9337,7 +9338,7 @@ function lekKortTaBort() {
 async function lekRatta(i, namn) {
   const r = lekRader[i]; if (!r || !namn) return;
   r.namn = namn;
-  $('#lekStatus').textContent = 'Slår upp…';
+  $('#lekStatus').textContent = 'Looking up…';
   try {
     const k = await lookup(namn);
     /* Finns namnet redan som en annan rad hör de ihop — slå ihop dem i
@@ -9357,10 +9358,10 @@ async function lekRatta(i, namn) {
     const tillfallig = !!(e && e.tillfallig);
     r.fel = true;
     r.fann = tillfallig ? null : false;
-    r.felmsg = tillfallig ? 'Uppslagningen nådde inte fram — försök igen' : '';
+    r.felmsg = tillfallig ? 'The lookup did not get through — try again' : '';
     $('#lekStatus').innerHTML = tillfallig
-      ? '<b style="color:var(--red)">Uppslagningen nådde inte fram.</b> Namnet kan mycket väl vara rätt — försök igen.'
-      : `<b style="color:var(--red)">"${esc(namn)}" finns inte på Scryfall.</b>`;
+      ? '<b style="color:var(--red)">The lookup did not get through.</b> The name may well be right — try again.'
+      : `<b style="color:var(--red)">"${esc(namn)}" is not on Scryfall.</b>`;
   }
   ritaLek();
 }
@@ -9426,13 +9427,13 @@ ovVeto.lekOv = lekVillStanga;
 
 async function lekLaggListan() {
   const poster = parseDecklist($('#lekTa').value);
-  if (!poster.length) { $('#lekStatus').textContent = 'Inga kortnamn hittades.'; return; }
+  if (!poster.length) { $('#lekStatus').textContent = 'No card names found.'; return; }
   for (const e of poster) lekLaggTill(e.name, 'text', null, 'hog', { n: e.n, sb: e.sb });
   const fore = lekTotalt();
   const sbN = poster.filter(e => e.sb).reduce((a, e) => a + e.n, 0), mainN = poster.filter(e => !e.sb).reduce((a, e) => a + e.n, 0);
   $('#lekTa').value = '';
-  await lekSlaUpp((i, t) => { $('#lekStatus').textContent = `Slår upp ${i} av ${t}…`; });
-  lekKvitto = lekKvittoRad(`Listan gav ${mainN} kort${sbN ? ` + ${sbN} sideboard` : ''}.`, 0, 0);
+  await lekSlaUpp((i, t) => { $('#lekStatus').textContent = `Looking up ${i} of ${t}…`; });
+  lekKvitto = lekKvittoRad(`The list gave ${mainN} cards${sbN ? ` + ${sbN} sideboard` : ''}.`, 0, 0);
   lekAndrat = true;
   if (lekTrasiga()) lekFilter = 'fel';
   lekLage('lek');
@@ -9456,14 +9457,14 @@ function lekStatusrad() {
 
   if (lekLageNu === 'laser') return;                       // avläsningen skriver själv
   if (lekLageNu === 'foto') {
-    st.textContent = lekKo.length ? `Foto ${lekFotoRaknare + 1} av ${lekFotoRaknare + 1 + lekKo.length} valda` : '';
+    st.textContent = lekKo.length ? `Photo ${lekFotoRaknare + 1} of ${lekFotoRaknare + 1 + lekKo.length} chosen` : '';
     return;
   }
   if (lekLageNu === 'kort') {
     const lista = lekKortLista(), nu = lista.indexOf(lekRader[lekKortI]) + 1;
     st.textContent = lekKortFran === 'fel'
-      ? `Rad ${nu} av ${lista.length} som behöver rättas`
-      : `Kort ${nu} av ${lista.length}`;
+      ? `Row ${nu} of ${lista.length} that need fixing`
+      : `Card ${nu} of ${lista.length}`;
     return;
   }
   if (lekLageNu === 'text') { st.textContent = ''; return; }
@@ -9472,11 +9473,11 @@ function lekStatusrad() {
   const utanKort = lekRader.filter(r => !r.sid).reduce((s2, r) => s2 + lekRadAntal(r), 0);
   const attBekrafta = lekRader.filter(r => r.fel && r.sid).length;
   const bitar = [];
-  if (attBekrafta) bitar.push(`${attBekrafta} att bekräfta`);
-  if (utanKort) bitar.push(`${utanKort} utan namn sparas inte`);
+  if (attBekrafta) bitar.push(`${attBekrafta} to confirm`);
+  if (utanKort) bitar.push(`${utanKort} without a name are not saved`);
   const tillstand = !klara && !utanKort ? ''
-    : bitar.length ? `${klara} kort sparas · ${bitar.join(' · ')}`
-    : `${klara} kort redo att sparas`;
+    : bitar.length ? `${klara} cards will be saved · ${bitar.join(' · ')}`
+    : `${klara} cards ready to save`;
   st.innerHTML = lekNotis
     ? lekNotis + (tillstand ? ` <span style="opacity:.65">· ${esc(tillstand)}</span>` : '')
     : esc(tillstand);
@@ -9497,7 +9498,7 @@ async function lekSparaNu() {
     for (const n of BASLAND_NAMN) {
       const antal = lekBlAntal(n);
       if (!antal) continue;
-      $('#lekStatus').textContent = `Slår upp ${n}…`;
+      $('#lekStatus').textContent = `Looking up ${n}…`;
       try {
         const k = await lookup(n);
         kort.push({ name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), n: antal });
@@ -9508,10 +9509,10 @@ async function lekSparaNu() {
        ur den sparade leken — då var landet borta för gott, och kameran letade
        aldrig efter det. Hellre stoppa och låta användaren spara om. */
     if (missade.length) {
-      $('#lekStatus').innerHTML = `<b style="color:var(--red)">Kunde inte slå upp ${esc(missade.join(', '))}.</b> Leken sparades inte — försök igen när du har nät.`;
+      $('#lekStatus').innerHTML = `<b style="color:var(--red)">Could not look up ${esc(missade.join(', '))}.</b> The deck was not saved — try again when you have network.`;
       return;
     }
-    if (!kort.length) { $('#lekStatus').textContent = 'Det finns inga kort att spara ännu.'; return; }
+    if (!kort.length) { $('#lekStatus').textContent = 'There are no cards to save yet.'; return; }
 
     /* Ett namn, en post. Fotograferar man basländerna ändå hamnar de både som
        rad och i sifferfältet, och leken fick då "4x Mountain" och "12x
