@@ -1818,6 +1818,25 @@ body.ispel #startSpelBtn{display:none}
 .modeforklaring .punkt{color:#3a4658;flex:none}
 .modeforklaring span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .frusen{background:var(--tand2);border-bottom:1px solid #4a3a17;color:#e8c98a}
+/* Lägespanelen (MODE-2) under topbaren. */
+.lagepanel{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--rutbg);border-bottom:1px solid var(--line)}
+.lagekorten{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lagekort{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);text-align:left;cursor:pointer;font:inherit}
+.lagekort:hover{border-color:var(--panelram2);background:var(--bg4)}
+.lagekort.on{border-color:var(--acc);background:#1c2433;box-shadow:inset 0 0 0 1px var(--acc)}
+.lagekort b{font:650 12.5px/1.3 var(--sans)}
+.lagekort span{font:11px/1.4 var(--sans);color:var(--dim)}
+.lagestatus{display:flex;align-items:center;gap:8px;font:12px var(--sans);color:var(--dim)}
+.lagestatus .led{width:7px;height:7px;border-radius:50%;background:var(--dim2);flex:none}
+.modechip.pa ~ #modeRad .lagestatus .led{background:var(--green)}
+.lagevarn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 10px;border-radius:7px;background:var(--tand2);border:1px solid #4a3a17;color:#e8c98a;font:11.5px/1.4 var(--sans)}
+.lagevarn b{color:var(--pa-acc)}
+.lagefin{font:11px/1.4 var(--sans);color:var(--dim2)}
+.modechip.lage{background:var(--bg3);border-color:var(--line);color:var(--dim)}
+.modechip.lage:hover{border-color:var(--panelram2);color:var(--txt)}
+.modechip.lage .led{background:var(--dim2)}
+.ptab .lagemark{flex:none;font:11px/1 var(--sans);color:var(--dim2);opacity:.8}
+.players.ikoner .ptab .lagemark{display:none}
 .frusen span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frusen .btn{height:24px;padding:0 8px;font-size:11.5px;margin-left:auto;flex:none}
 
@@ -5380,6 +5399,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
+      ${spelLage ? `<span class="lagemark" title="${p.lage === 'bord' ? 'Table leads — the table is the source of truth' : 'Screen leads — the camera only adds cards'}">${p.lage === 'bord' ? '⊞' : '▢'}</span>` : ''}
       ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">du</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} kort behöver fyllas i">${p.pending.length}</span>` : ''}
@@ -6978,10 +6998,12 @@ const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" str
    åldras med det — annars säger den "för 40 sekunder sedan" i tio minuter. */
 let modeT = null;
 function sedan(ts) {
-  const n = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (n < 90) return `för ${n} sekunder sedan`;
-  const m = Math.round(n / 60);
-  return m < 90 ? `för ${m} minuter sedan` : `för ${Math.round(m / 60)} timmar sedan`;
+  const sek = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (sek < 60) return `${sek} ${sek === 1 ? 'second' : 'seconds'} ago`;
+  const min = Math.round(sek / 60);
+  if (min < 60) return `${min} ${min === 1 ? 'minute' : 'minutes'} ago`;
+  const tim = Math.round(min / 60);
+  return `${tim} ${tim === 1 ? 'hour' : 'hours'} ago`;
 }
 
 /* Ikonknapparna i modeplatsen. Etiketten bor i tooltipen i stället för i
@@ -7007,88 +7029,123 @@ function renderMode() {
     chip = modeIkon('foto', M_FOTO, harFoto ? 'Läs om bordet ur ett foto (S)' : 'Läs bordet ur ett foto (S)',
                     !harFoto && p && p.cards.length ? '' : ' prim');
 
-  } else if (prefs.autoLage == null) {
-    /* A. Skillnaden mellan de två vägarna är inte självklar, och den som valt
-       en gång ska inte behöva läsa den igen. Därför står den EN gång. */
-    /* Står brädet tomt bär tomrutan samma val, större och med en mening om
-       vad auto är. En andra orange knapp och en andra förklaring här uppe
-       vore samma sak två gånger. */
-    const tomt = redigerbar() && !hand().length;
-    chip = `<button class="btn${tomt ? '' : ' prim'}" data-mode="auto" title="Håll en telefonkamera på bordet">${M_TELEFON}<span class="langtxt">Slå på auto</span></button>` +
-           `<button class="btn" data-mode="foto" title="Läs bordet ur ett foto">${M_FOTO}<span class="langtxt">Ladda upp foto</span></button>`;
-    if (!tomt) {
-      radKlass = 'modeforklaring';
-      radHtml = '<span><b>Auto</b> låter telefonen följa korten på bordet medan du spelar.</span>' +
-                '<span class="punkt">·</span>' +
-                '<span class="langtxt"><b>Ladda upp</b> läser ett foto och sätter bordet som det såg ut då.</span>';
-    }
-
-  } else if (prefs.autoLage === false) {
-    /* F. Manuellt läge. Vägen tillbaka till auto stod förut BARA i menyn, och
-       eftersom valet ligger i webbläsarens inställningar överlevde det både
-       omladdningar och nya spel: en dörr som gick att gå igenom åt ett håll,
-       och den enda skylten om att det fanns en väg tillbaka satt i en meny.
-       Nu står telefonknappen kvar bredvid fotot, dämpad. */
-    chip = modeIkon('auto', M_TELEFON, 'Slå på auto')
-         + modeIkon('foto', M_FOTO, 'Ladda upp bordsfoto', ' prim');
-
-  } else if (!kamAnsluten && kamHarVarit) {
-    /* E. Bordet ljuger nu: korten ligger kvar som de låg när telefonen tystnade.
-       Det är den enda gången appen visar något den inte vet är sant, och då
-       ska den säga det rakt ut. */
-    chip = '<button class="modechip tappad" data-mode="skruv"><span class="led"></span><span class="lbl">Kameran tappad<span class="langtxt"> · koppla om</span></span></button>'
-         + modeIkon('foto', M_FOTO, 'Läs bordet ur ett foto i stället');
-    radKlass = 'frusen';
-    radHtml = `<span>Ditt bord är fruset som det såg ut ${sedan(kamTappadNar)}. Ingenting läses av.</span>` +
-              '<button class="btn prim" data-mode="koppla">Koppla om</button>';
-    modeT = setTimeout(renderMode, 10000);
-
-  } else if (!kamAnsluten) {
-    /* B. Telefonen har aldrig svarat i det här spelet. Inget att skruva på än. */
-    chip = '<button class="modechip vantar" data-mode="koppla" title="Visa QR-koden igen"><span class="led"></span><span class="lbl">Väntar på telefonen…</span></button>'
-         + modeIkon('foto', M_FOTO, 'Läs bordet ur ett foto i stället');
-
-  } else if (kamFas === 'ingen') {
-    /* Bara en telefon med äldre kod säger 'ingen' nu: den väntar på en ruta
-       som inte går att dra längre. Datorn skriver om raden till hela bilden
-       när telefonen ansluter (normaliseraKamRad), så det här ska gå över av
-       sig självt; gör det inte det laddar man om sidan på telefonen. */
-    chip = `<button class="modechip vantar" data-mode="skruv" title="Telefonen kör en äldre version av sidan"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · ladda om telefonen</span></span></button>`;
-
-  } else if (kamFas === 'ljus' || kamFas === 'lar') {
-    /* Telefonen tar bilden av mattan och mäter bruset. Korten får ligga
-       kvar sedan MES-26: de hittas ur bildens eget utseende, och deras
-       platser fylls med mattmodellen när referensen är klar. */
-    chip = `<button class="modechip vantar" data-mode="skruv" title="Telefonen lär sig ljuset — håll den stilla en sekund"><span class="led"></span><span class="lbl">Auto<span class="langtxt"> · lär sig ljuset…</span></span></button>`;
-
   } else {
-    /* C. Bara "Auto": talen står i statusfältet rakt under, och samma tal
-       på två rader ovanpå varandra var precis dubbleringen som skulle bort.
-       "ser 3 kort, känner igen 2" var ett mått på kameran, inte på bordet,
-       och gjorde chippet gult så fort ett kort lästes; det står nu bara i
-       kameravyns rubrik (kamSkruvTal). Enda tillägget är "bordet är tomt"
-       när kameran inte ser något alls — då finns inget statusfält att läsa. */
-    const n = autoKortPaBordet(minSpelare());
-    const del = n || kamSer ? '' : ' · bordet är tomt';
-    chip = `<button class="modechip pa" data-mode="skruv" title="Kamerainställningar"><span class="led"></span><span class="lbl">Auto<span class="langtxt">${del}</span></span><span class="delare"></span>${M_KUGGE}</button>`;
+    /* I ett spel (MODE-2): chippet säger läget och kamerans status —
+       "Screen leads · camera on" — och öppnar lägespanelen. Statusen i samma
+       ordning som förut: kameran av (A/F), tappad (E), väntar (B), gammal
+       telefon, lär sig ljuset, på (C). Knappen "Turn on camera" står kvar
+       bredvid chippet tills man valt väg (A), dämpad när auto stängts av (F). */
+    const lage = mittLage(), lageNamn = lage === 'bord' ? 'Table leads' : 'Screen leads';
+    let status = '', klass = 'lage', extra = '';
+    if (prefs.autoLage == null) {
+      status = 'camera off';
+      const tomt = redigerbar() && !hand().length;
+      extra = `<button class="btn${tomt ? '' : ' prim'}" data-mode="auto" title="Point a phone camera at the table">${M_TELEFON}<span class="langtxt">Turn on camera</span></button>`
+            + modeIkon('foto', M_FOTO, 'Read the board from a photo');
+    } else if (prefs.autoLage === false) {
+      status = 'camera off';
+      extra = modeIkon('auto', M_TELEFON, 'Turn on camera') + modeIkon('foto', M_FOTO, 'Upload a photo of the board', ' prim');
+    } else if (!kamAnsluten && kamHarVarit) {
+      /* E. Bordet ljuger nu: korten ligger kvar som de låg när telefonen
+         tystnade. Det är den enda gången appen visar något den inte vet är
+         sant, och då ska den säga det rakt ut. */
+      status = 'camera lost'; klass = 'tappad';
+      extra = modeIkon('foto', M_FOTO, 'Read the board from a photo instead');
+      if (!lagePanelOppen) {
+        radKlass = 'frusen';
+        radHtml = `<span>Your board is frozen as it looked ${sedan(kamTappadNar)}. Nothing is being read.</span>` +
+                  '<button class="btn prim" data-mode="koppla">Reconnect</button>';
+      }
+      modeT = setTimeout(renderMode, 10000);
+    } else if (!kamAnsluten) {
+      status = 'waiting for phone'; klass = 'vantar';
+      extra = modeIkon('foto', M_FOTO, 'Read the board from a photo instead');
+    } else if (kamFas === 'ingen') {
+      status = 'reload the phone'; klass = 'vantar';
+    } else if (kamFas === 'ljus' || kamFas === 'lar') {
+      status = 'learning the light'; klass = 'vantar';
+    } else {
+      klass = 'pa';
+      if (lage === 'bord') { const n = autoKortPaBordet(minSpelare()); status = n || kamSer ? `${n} ${n === 1 ? 'card' : 'cards'}` : 'the table is empty'; }
+      else status = 'camera on';
+    }
+    chip = `<button class="modechip ${klass}" data-mode="lage" title="Table leads or Screen leads, and the camera"><span class="led"></span><span class="lbl">${lageNamn}<span class="langtxt"> · ${status}</span></span><span class="delare"></span>${M_KUGGE}</button>` + extra;
+    if (lagePanelOppen) { radKlass = 'lagepanel'; radHtml = lagePanelHtml(lage, status); }
   }
 
-  slot.innerHTML = chip;
+  /* Strängdiffat: renderMode går vid varje hjärtslag från kameran, och en
+     omritning av panelen hade rivit en knapp man håller på att trycka på. */
+  if (slot.dataset.h !== chip) { slot.dataset.h = chip; slot.innerHTML = chip; matFlikar(); }
   rad.hidden = !radKlass;
   rad.className = radKlass;
-  rad.innerHTML = radHtml;
-  matFlikar();
+  if (rad.dataset.h !== radHtml) { rad.dataset.h = radHtml; rad.innerHTML = radHtml; }
   renderTom();              // tomrutan följer samma läge som chippet
   /* Statusfältet följer samma flaggor: Auto-delen finns bara medan auto går
      och telefonen är ansluten, och den bär frågan om grundläget (MES-32). */
   renderAutoBar();
 }
 
+/* ── Lägespanelen (MODE-2) ──────────────────────────────────────────
+   Två kort med en mening var, kamerans status med dess knappar, varningen
+   när Table leads saknar sparat grundläge, och rådet om graveyard-högen
+   tills uteslutningsrutan finns (K9-lite). */
+let lagePanelOppen = false;
+function lagePanelHtml(lage, status) {
+  const mig = minSpelare();
+  const grundSaknas = lage === 'bord' && kamAnsluten && kamGrund === null;
+  const steg = grundSaknas ? grundSteg(mig, senasteSpar) : null;
+  const kort = (v, rub, txt) => `<button type="button" class="lagekort${lage === v ? ' on' : ''}" data-lage="${v}"><b>${rub}</b><span>${txt}</span></button>`;
+  const knappar = prefs.autoLage !== true
+      ? '<button type="button" class="btn sm prim" data-mode="auto">Turn on camera</button>'
+    : !kamAnsluten
+      ? `<button type="button" class="btn sm prim" data-mode="koppla">${kamHarVarit ? 'Reconnect' : 'Show QR'}</button><button type="button" class="btn sm ghost" data-mode="stang">Turn off camera</button>`
+      : '<button type="button" class="btn sm" data-mode="skruv">Camera settings</button><button type="button" class="btn sm ghost" data-mode="stang">Turn off camera</button>';
+  return `<div class="lagekorten">
+      ${kort('bord', 'Table leads', 'You play on the table; the screen mirrors it — cards, taps, places. You fix mistakes on screen.')}
+      ${kort('skarm', 'Screen leads', 'The camera only notices new cards. You move, tap and count on screen.')}
+    </div>
+    <div class="lagestatus"><span class="led"></span><span>Camera: ${esc(status)}</span><span class="grow"></span>${knappar}</div>
+    ${grundSaknas ? `<div class="lagevarn">Tap reading is off until you save the untapped angle.${steg ? ` <b>${esc(steg.namn)}</b> is lying untapped now?` : ' Put a card on the table as you want it untapped.'} ${steg ? '<button type="button" class="btn sm prim" data-mode="grund-spara">Save as untapped</button>' : ''}</div>` : ''}
+    <div class="lagefin">Keep your graveyard outside the frame — a card on top of the pile looks like a card in play.</div>`;
+}
+/* Byter läge: min rad i game_players (alla ser det), lokalt prefs. Till
+   Screen leads släpps nedtonade kort och nådatider — kameran tar inte bort
+   något där. Till Table leads spelas senaste bordet upp EN gång så att
+   mattan tar bordets läge, men bara när kameran faktiskt är ansluten —
+   annars spelades ett dött bord upp. Optimistiskt med rollback. */
+async function bytLage(v) {
+  v = v === 'bord' ? 'bord' : 'skarm';
+  lagePanelOppen = false;
+  if (mittLage() === v) { renderMode(); return; }
+  if (!spelLage) { prefs.lage = v; savePrefs(); renderMode(); return; }
+  const mig = minSpelare(); if (!mig) return;
+  const fore = mig.lage;
+  mig.lage = v; lageByte = true;
+  if (v === 'skarm') {
+    for (const c of mig.cards) { if (c.lyft != null) slappLyft(c); delete c.borta; }
+    clearTimeout(lyftT); closeArk(); save();
+  }
+  renderAll(true);
+  const ok = await Moln.sattLage(spelLage.id, v).catch(() => false);
+  lageByte = false;
+  if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved — try again', 'err'); return; }
+  toast(v === 'bord' ? 'Table leads — the table is the source of truth' : 'Screen leads — the camera only adds cards', 'ok');
+  if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
+}
+addEventListener('mousedown', ev => {
+  if (!lagePanelOppen) return;
+  if (ev.target.closest('#modeRad') || ev.target.closest('[data-mode="lage"]')) return;
+  lagePanelOppen = false; renderMode();
+});
 /* Ett enda ställe tar emot klicken. Chippet ritas om vid varje rendering, så
    en bindning mot dess id hade tappats efter första omritningen. */
 function modeKlick(ev) {
+  const lb = ev.target.closest('[data-lage]');
+  if (lb) { ev.stopPropagation(); bytLage(lb.dataset.lage); return; }
   const b = ev.target.closest('[data-mode]'); if (!b) return;
   const a = b.dataset.mode;
+  if (a === 'lage') { lagePanelOppen = !lagePanelOppen; renderMode(); return; }
+  if (a === 'stang') { lagePanelOppen = false; stangAvAuto(true).then(() => renderMode()); return; }
   /* Ett foto är bara ett foto. Knappen stängde förut av auto för gott, utan
      att fråga: ett tryck för att läsa in bordet en gång, och kameran var borta
      resten av kvällen — dessutom i varje kommande spel, eftersom valet sparas
@@ -7098,9 +7155,9 @@ function modeKlick(ev) {
      den här hade varit att tysta varningen för den som öppnar rutan och
      ångrar sig — bordet står då kvar exakt lika gammalt som förut. */
   if (a === 'foto') { openShot(); renderMode(); }
-  if (a === 'auto') { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
-  if (a === 'koppla') visaKamOv();
-  if (a === 'skruv') visaKamSkruv();
+  if (a === 'auto') { lagePanelOppen = false; prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
+  if (a === 'koppla') { lagePanelOppen = false; renderMode(); visaKamOv(); }
+  if (a === 'skruv') { lagePanelOppen = false; renderMode(); visaKamSkruv(); }
   /* Det otappade läget ur kortet som ligger på bordet: samma kort som
      statusfältet nämner (senasteMattaKort). "Inte nu" håller undan
      instruktionen resten av passet; kameravyn påminner och har knappen. */
@@ -7142,7 +7199,7 @@ function renderTom() {
   /* Varje bordsmeddelande ritar om modeplatsen, och därmed rutan. Utan
      signaturen byggdes den om var tredje sekund och en knapp man tabbat
      till tappade fokus. */
-  const sig = l + n + (harKo ? 'k' : '');
+  const sig = l + n + (harKo ? 'k' : '') + mittLage();
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
 
@@ -7152,40 +7209,42 @@ function renderTom() {
     telefon: svg(34, 34, '0 0 24 24', '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'),
     kort: svg(40, 30, '0 0 34 26', '<rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/>')
   };
-  const klistra = prim => `<button class="btn big${prim ? ' prim' : ''}" data-addtile>Klistra in en skärmdump</button>`;
-  const sok = 'Ett kort går alltid att lägga till med namn i sökfältet ovanför (<kbd>/</kbd>).';
+  const klistra = prim => `<button class="btn big${prim ? ' prim' : ''}" data-addtile>Paste a screenshot</button>`;
+  const sok = 'A card can always be added by name in the search box above (<kbd>/</kbd>).';
+  const bord = mittLage() === 'bord';
   const V = {
     /* Det lokala bordet är oförändrat, ord för ord: där finns ingen telefon. */
     lokal: { ikon: IKON.kamera, h: 'Read the board from a picture',
       p: "Paste a screenshot of a video call and Mesa finds each player's pane and reads the cards on their table — one player per pane. A cropped picture of one or more cards works too: those get added to your hand.",
       knappar: '<button class="btn prim big" data-mode="foto">Paste screenshot</button><button class="btn big" data-sok>Add a card by hand</button>',
       fin: 'Press <kbd>⌘V</kbd> anywhere in the app, or drag in an image file.<br>Pasting later adds the cards — your hand is only replaced if you re-read the board in the image view.' },
-    av: { ikon: IKON.telefon, h: 'Spela med dina riktiga kort',
-      p: 'Med auto blir din telefon en kamera över bordet. Korten du spelar ut dyker upp här av sig själva, och tappar du ett kort på bordet tappas det här också.',
-      knappar: '<button class="btn prim big" data-mode="auto">Slå på auto</button>' + klistra(),
-      fin: 'Du skannar bara en QR-kod med telefonen — inget att installera. Kort går också att lägga till med namn i sökfältet ovanför (<kbd>/</kbd>).' },
-    vantar: { ikon: IKON.telefon, h: 'Väntar på telefonen',
-      p: 'Skanna QR-koden med telefonen och sätt den rakt ovanför dina kort. Kameran använder hela bilden.',
-      knappar: '<button class="btn prim big" data-mode="koppla">Visa QR-koden</button>' + klistra(),
+    av: { ikon: IKON.telefon, h: 'Play with your real cards',
+      p: 'With the camera on, your phone watches the table. Cards you play show up here by themselves' + (bord ? ', and a card you tap on the table taps here too.' : '; you tap, move and count them on screen.'),
+      knappar: '<button class="btn prim big" data-mode="auto">Turn on camera</button>' + klistra(),
+      fin: 'You just scan a QR code with the phone — nothing to install. ' + sok },
+    vantar: { ikon: IKON.telefon, h: 'Waiting for the phone',
+      p: 'Scan the QR code with your phone and put it straight above your cards. The camera uses the whole picture.',
+      knappar: '<button class="btn prim big" data-mode="koppla">Show the QR code</button>' + klistra(),
       fin: sok },
-    tappad: { ikon: IKON.telefon, h: 'Kameran tappades',
-      p: 'Ingenting på bordet läses av just nu. Koppla om telefonen så fortsätter den där den slutade.',
-      knappar: '<button class="btn prim big" data-mode="koppla">Koppla om</button>' + klistra(),
+    tappad: { ikon: IKON.telefon, h: 'The camera was lost',
+      p: 'Nothing on the table is being read right now. Reconnect the phone and it carries on where it stopped.',
+      knappar: '<button class="btn prim big" data-mode="koppla">Reconnect</button>' + klistra(),
       fin: sok },
-    startar: { ikon: IKON.telefon, h: 'Kameran är ansluten',
-      p: 'Håll telefonen stilla en sekund medan den lär sig ljuset. Korten får ligga kvar.',
+    startar: { ikon: IKON.telefon, h: 'The camera is connected',
+      p: 'Hold the phone still for a second while it learns the light. The cards can stay where they are.',
       knappar: klistra(), fin: sok },
-    gammal: { ikon: IKON.telefon, h: 'Ladda om sidan på telefonen',
-      p: 'Telefonen kör en äldre version av sidan. Ladda om den på telefonen, så läser kameran hela bilden.',
+    gammal: { ikon: IKON.telefon, h: 'Reload the page on the phone',
+      p: 'The phone is running an older version of the page. Reload it there, and the camera reads the whole picture.',
       knappar: klistra(), fin: sok },
-    redo: { ikon: IKON.kort, h: 'Lägg ut ett kort på bordet',
-      p: 'Kort du spelar ut dyker upp här inom några sekunder. Tappar du ett kort på bordet tappas det här också.',
+    redo: { ikon: IKON.kort, h: 'Play a card on the table',
+      p: bord ? 'Cards you play show up here within seconds. Tap a card on the table and it taps here too — the table leads.'
+              : 'Cards you play show up here within seconds. You tap, move and count them on screen — the camera only adds.',
       knappar: klistra(),
-      fin: 'Du kan också tappa, flytta och ta bort kort här. Känner kameran inte igen ett kort? Klistra in en bild på det — ett eller flera kort i samma bild går bra.' },
-    okanda: { ikon: IKON.kort, h: `Kameran ser ${n} kort`,
-      p: 'Den håller på att sätta namn på dem. Ett kort som inte finns i din lek får inget namn — klistra in en bild på det, så läggs det till.',
+      fin: (bord ? 'You can fix a mistake here; it holds until the card moves on the table. ' : 'You can also remove cards here. ') + 'Camera not recognising a card? Paste a picture of it — one or several cards in the same picture works.' },
+    okanda: { ikon: IKON.kort, h: `The camera sees ${n} ${n === 1 ? 'card' : 'cards'}`,
+      p: 'It is putting names on them. A card that is not in your deck gets no name — paste a picture of it and it is added.',
       knappar: klistra(true),
-      fin: (harKo ? 'Kort som väntar på ett namn går också att fylla i med <b>Fyll i</b> ovanför. ' : '') + sok }
+      fin: (harKo ? 'Cards waiting for a name can also be filled in with <b>Fill in</b> above. ' : '') + sok }
   }[l];
   el.innerHTML = `<div class="empty-icon">${V.ikon}</div><h2>${V.h}</h2><p>${V.p}</p>`
     + `<div class="btnrow">${V.knappar}</div><p class="empty-fine">${V.fin}</p>`;
@@ -10071,6 +10130,7 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
+    if (lagePanelOppen) { lagePanelOppen = false; renderMode(); return; }
     if (ark) return closeArk();
     if (matCtr) return closeCounters();
     if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
