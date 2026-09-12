@@ -1505,6 +1505,15 @@ body.lasvy .lasband{display:flex}
   border-radius:var(--rs);outline:none;font-size:14px;color:var(--txt);
 }
 .leklagg input:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
+.leklaggrad{display:flex;align-items:center;gap:8px}
+.leklaggrad #lekLaggIn{flex:1;min-width:0}
+.leklaggrad #lekLaggN{width:64px;flex:none;text-align:center;font:600 14px var(--mono)}
+.lekchk{display:inline-flex;align-items:center;gap:6px;flex:none;font:12px var(--sans);color:var(--dim);cursor:pointer;white-space:nowrap}
+.lekchk input{width:auto;height:auto;margin:0;accent-color:var(--acc)}
+/* Plus och minus på raden: syskon till krysset, utanför rubrikknappen —
+   nästlade knappar bryter DOM:en. */
+.lekrad .steg{flex:none;width:26px;height:28px;border-radius:6px;color:var(--dim);font:700 15px/1 var(--sans);display:grid;place-items:center;border:0;background:none;cursor:pointer}
+.lekrad .steg:hover{background:var(--bg3);color:var(--txt)}
 
 /* position:fixed, INTE absolute. Raden ligger i en lista med
    overflow-y:auto, och en absolut placerad rullgardin klipps av den
@@ -2503,7 +2512,11 @@ body.ispel #addPlayerBtn{display:none}
 
           <div class="leklagg">
             <label for="lekLaggIn">Missing a card? Type its name.</label>
-            <input id="lekLaggIn" type="text" placeholder="Sol Ring…" spellcheck="false" autocomplete="off">
+            <div class="leklaggrad">
+              <input id="lekLaggIn" type="text" placeholder="Sol Ring…" spellcheck="false" autocomplete="off">
+              <input id="lekLaggN" type="number" min="1" max="99" value="1" title="How many copies" aria-label="How many copies">
+              <label class="lekchk" title="Put it in the sideboard"><input type="checkbox" id="lekLaggSb"> Sideboard</label>
+            </div>
             <ul class="leksuggest" id="lekLaggSug"></ul>
           </div>
 
@@ -9141,7 +9154,11 @@ function ritaLek() {
 
   ritaLekRemsa();
 
-  const rader = (lekFilter === 'fel' ? lekRader.filter(r => r.fel) : lekRader).slice().sort((a, b) => (a.sb ? 1 : 0) - (b.sb ? 1 : 0));
+  /* Bokstavsordning inom main och inom sideboard (MES-11); rader utan namn
+     sist i sin grupp. Indexet i data-rad pekar fortfarande in i lekRader. */
+  const namnAv2 = r => (r.name || r.namn || '\uffff').toLowerCase();
+  const rader = (lekFilter === 'fel' ? lekRader.filter(r => r.fel) : lekRader).slice()
+    .sort((a, b) => ((a.sb ? 1 : 0) - (b.sb ? 1 : 0)) || namnAv2(a).localeCompare(namnAv2(b)));
   let sektion = false;
   $('#lekLista').innerHTML = rader.map(r => {
     const rubrik = r.sb && !sektion ? (sektion = true, '<div class="leksektion">Sideboard</div>') : '';
@@ -9152,6 +9169,7 @@ function ritaLek() {
                           : '<span class="konst tom"></span>';
     const antal = `${r.sb ? '<span class="sbtag" title="Sideboard">SB</span>' : ''}<span class="antal">×${lekRadAntal(r)}</span>`;
     const bort = `<button class="bort" data-bort="${i}" title="Remove from the deck">✕</button>`;
+    const steg = `<button class="steg" data-minus="${i}" title="One fewer">−</button><button class="steg" data-plus="${i}" title="One more">+</button>`;
     if (r.fel) {
       const [namn, under, knapp] =
           !r.namn      ? ['The name could not be read', 'The title line is in the strip — type the name', 'Type the name']
@@ -9162,12 +9180,12 @@ function ritaLek() {
       return rubrik + `<div class="lekrad fel" data-rad="${i}">` +
         `<button class="lekrad-hd" data-se="${i}" title="Show the card large">${remsa}${konst}` +
         `<span class="col"><span class="nm">${namn}</span><span class="ef">${under}</span></span>${antal}</button>` +
-        `<button class="btn sm" data-se="${i}">${knapp}</button>${bort}</div>`;
+        `<button class="btn sm" data-se="${i}">${knapp}</button>${steg}${bort}</div>`;
     }
     return rubrik + `<div class="lekrad" data-rad="${i}">` +
       `<button class="lekrad-hd" data-se="${i}" title="Show the card large">${remsa}${konst}` +
       `<span class="col"><span class="nm">${esc(r.name)}</span><span class="ef">${esc(lekKallText(r))}</span></span>` +
-      `${antal}<span class="chev">›</span></button>${bort}</div>`;
+      `${antal}<span class="chev">›</span></button>${steg}${bort}</div>`;
   }).join('') || `<p class="leklisttom">${lekFilter === 'fel' ? 'Nothing left to fix.' : 'No cards yet.'}</p>`;
 
   $('#lekBasland').innerHTML = BASLAND_NAMN.map(n =>
@@ -9366,17 +9384,34 @@ async function lekRatta(i, namn) {
   ritaLek();
 }
 
-$('#lekLista').addEventListener('click', ev => {
-  const se = ev.target.closest('[data-se]');
-  if (se) { lekOppnaKort(+se.dataset.se, lekFilter); return; }
-  const b = ev.target.closest('[data-bort]'); if (!b) return;
-  const i = +b.dataset.bort, r = lekRader[i]; if (!r) return;
-  const namn = r.name || r.namn || 'Kortet';
+/* Ett exemplar färre/fler (D5-6). Minus tar först från det handskrivna,
+   sedan från vilken källa som helst; sista exemplaret tar bort raden med
+   samma ångra som krysset. */
+function lekRadSteg(i, d) {
+  const r = lekRader[i]; if (!r) return;
+  if (d > 0) { r.per.hand = (r.per.hand || 0) + 1; lekAndrat = true; ritaLek(); return; }
+  if (lekRadAntal(r) <= 1) return lekRadBort(i);
+  const k = r.per.hand ? 'hand' : Object.keys(r.per).find(x => r.per[x] > 0);
+  if (!k) return;
+  r.per[k] -= 1; if (!r.per[k]) delete r.per[k];
+  lekAndrat = true; ritaLek();
+}
+function lekRadBort(i) {
+  const r = lekRader[i]; if (!r) return;
+  const namn = r.name || r.namn || 'The card';
   const kopia = { ...r, per: { ...r.per } }, plats = i;
   lekRader = lekRader.filter(x => x !== r);
   lekAndrat = true;
   ritaLek();
-  toast(`${namn} togs bort`, undefined, () => { lekRader.splice(plats, 0, kopia); ritaLek(); });
+  toast(`${namn} removed`, undefined, () => { lekRader.splice(plats, 0, kopia); lekAndrat = true; ritaLek(); });
+}
+$('#lekLista').addEventListener('click', ev => {
+  const pm = ev.target.closest('[data-plus],[data-minus]');
+  if (pm) { lekRadSteg(+(pm.dataset.plus != null ? pm.dataset.plus : pm.dataset.minus), pm.dataset.plus != null ? 1 : -1); return; }
+  const se = ev.target.closest('[data-se]');
+  if (se) { lekOppnaKort(+se.dataset.se, lekFilter); return; }
+  const b = ev.target.closest('[data-bort]'); if (!b) return;
+  lekRadBort(+b.dataset.bort);
 });
 $('#lekFilter').addEventListener('click', ev => {
   const b = ev.target.closest('[data-lekfilter]'); if (!b) return;
@@ -9410,12 +9445,19 @@ $('#lekBasland').addEventListener('input', ev => {
 $('#lekBasland').addEventListener('keydown', e => e.stopPropagation());
 lekSuggestFoljer($('#lekLaggIn'), $('#lekLaggSug'));
 autocomplete($('#lekLaggIn'), $('#lekLaggSug'), async namn => {
-  const rad = lekLaggTill(namn, 'hand', null, 'hog');
+  /* Antalet och sideboard-rutan bredvid fältet (D5-6). Antalet nollas till 1
+     efter varje kort; rutan står kvar — man fyller ofta i flera sideboard-
+     kort i rad. Inga radreferenser över await: lekSlaUpp slår ihop rader. */
+  const n = clamp(+$('#lekLaggN').value || 1, 1, 99), sb = $('#lekLaggSb').checked;
+  const rad = lekLaggTill(namn, 'hand', null, 'hog', { n, sb });
   rad.sak = 'hog';
   lekAndrat = true;
   await lekSlaUpp();
+  $('#lekLaggN').value = 1;
   ritaLek();
+  $('#lekLaggIn').focus();
 });
+$('#lekLaggN').addEventListener('keydown', e => e.stopPropagation());
 /* Granskningens fält binds EN gång, inte en gång per rad och omritning. */
 lekSuggestFoljer($('#lekKortIn'), $('#lekKortSug'));
 autocomplete($('#lekKortIn'), $('#lekKortSug'), n => lekRatta(lekKortI, n));
