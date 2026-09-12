@@ -424,7 +424,8 @@ Mäts på 07 med `dubbletter.cjs`; mattan ritar `sammaPlats`-grupper som ett kor
 ### K2 — golden-video 09 (tap/untap/flytt) och 10 (graveyard-hög i bild) (S, kräver Jesper)
 Inspelning enligt SNABBGUIDE 275–347; facit med nya händelsetyper + `grav`-ruta; baslinjer; 10:s baslinje FÖRE K9-lite har högens toppkort som spår (skrivs i historik; K9-lite ska ge BÄTTRE på 10, inte LIKA BRA).
 
-### K-DFC + K-80 — sökrymden (S+S)
+### K-DFC + K-80 — sökrymden (S+S) — K-80 BYGGD (MES-79), K-DFC VÄNTAR
+K-80: `kamAiNamnen(sparId)` ordnar spårets lokala cands först, sedan lekens ordning, före taket `KAM_AI_NAMN_TAK` (80); poolens statusrad säger "Claude sees the 80 most likely names of N" när leken är större. `--ai`-evalen (ingen promptändring) är inte körd — kör `node dev/golden/kor.cjs --ai` (≈ 20 cent) när det passar. K-DFC (baksidan som egen poolpost, frontnamn till OCR/Claude, `face` i svaret, face-byte som flip i `avstamBord`) kräver en DFC i `lek.txt` och ett golden-foto med en DFC för att kunna mätas — byggs när Jesper tagit fotot.
 DFC: `byggLekPool` 9945/9952 lägger `faces[1].img` som egen post `face:1`; frontnamn till OCR-listan och Claude-listan (klientsidan, `identify.js` mappar exakta strängar redan); `kamIdentifiera` → `{namn, face}`; `avstamBord` behandlar face-byte som händelse som skriver `flipped` (följer `pol.tap`). En DFC i `lek.txt` + ett golden-foto. K-80: `kamAiNamnen` 14857 ordnar namnen efter lokala cands för beskärningen, sedan lekordning, före `slice(0,80)`; trunkering visas i `#kamOv`. `--ai` före/efter (ingen promptändring, men eval-värdig).
 
 ### K7/K8 — lärda referenser per lek (M+M) — sist

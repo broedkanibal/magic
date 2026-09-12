@@ -15632,7 +15632,7 @@ async function byggKamPool() {
        och tjugofyra per basic land (byggLekPool), så Pool.idx.names räknar
        bilder: 110 för Jespers lek på 36 kort, och siffran såg ut som någon
        annans lek. */
-    satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.`);
+    satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`);
     /* Kort som väntade på en pool får en ny chans. */
     for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
   } catch (e) {
@@ -15794,7 +15794,21 @@ function kamAiBokLage() {
   const per = {}; for (const k in kamAiBok.per) per[k] = Object.assign({}, kamAiBok.per[k]);
   return { sess: kamAiBok.sess, anrop: kamAiBok.anrop, fel: kamAiBok.fel, utan: kamAiBok.utan, ute: kamAiVantar, per };
 }
-function kamAiNamnen() { return [...new Set(namnUtanBaksida().filter(n => n && !n.includes(' // ')))].slice(0, 80); }
+/* Namnen Claude får välja bland (K-80): högst 80 — servern mappar svaret
+   mot exakta strängar. Före taket ordnas de så att det som ryms är det
+   som spelar roll: den lokala kedjans förslag för just den beskärningen
+   först (spårets cands), sedan lekens ordning. En Commander-lek på 100
+   namn tappar då aldrig det kort bilden redan pekar ut. Klientsidan bara —
+   prompten i api/identify.js rörs inte. */
+const KAM_AI_NAMN_TAK = 80;
+function kamAiNamnen(sparId) {
+  const alla = [...new Set(namnUtanBaksida().filter(n => n && !n.includes(' // ')))];
+  const t = sparId != null ? Kamera.spar.find(x => x.id === sparId) : null;
+  const forst = t && t.cands ? t.cands.map(c => c.name).filter(n => alla.includes(n)) : [];
+  const ordnade = [...new Set(forst.concat(alla))];
+  return ordnade.slice(0, KAM_AI_NAMN_TAK);
+}
+const kamAiNamnKapade = () => Math.max(0, [...new Set(namnUtanBaksida().filter(n => n && !n.includes(' // ')))].length - KAM_AI_NAMN_TAK);
 /* true = frågan är ute, och svaret — eller beskedet att det inte kom — går
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala
@@ -15811,7 +15825,7 @@ function kamFragaAI(canvas, id) {
     try {
       const url = canvas.toDataURL('image/jpeg', 0.85);
       const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen() }) });
+        body: JSON.stringify({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen(id) }) });
       if (!resp.ok) { info = { fel: resp.status }; kamAiBokfor(null, null, true); }
       else {
         const j = await resp.json();
