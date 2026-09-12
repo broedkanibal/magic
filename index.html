@@ -14732,6 +14732,8 @@ async function oppnaKamera(gameId) {
      visa bilden i stället för QR-koden. */
   await Moln.lyssna(spel.id, {
     roll: 'kamera',
+    /* Vald lek byts på datorn (game_players.lek_id): poolen följer med. */
+    spelare: () => byggKamPool(),
     kal: rad => { if (rad && rad.user_id === Moln.minId()) tillampaKalibrering(rad); },
     scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); },
     kam: m => kamKommando(m)
@@ -14814,43 +14816,72 @@ function sandBord(spar, nollstall, extra) {
     : { spar, fas: Kamera.lage, yta: Kamera.yta || null, rad: Kamera.rad || null, grund: grundGrader() }, bordExtra(extra)));
 }
 
+/* Vilken lek telefonen känner igen kort mot (dev/plan/lagen.md, D5-4): den
+   jag VALT i det här spelet (game_players.lek_id → decks), annars kontots
+   senast sparade lek, annars den gamla enleks-raden (lekar) tills den
+   flyttats. Nyckeln till poolen är lekens id, inte kontot: två lekar på
+   samma konto får var sin pool i IndexedDB, och att byta tillbaka är en
+   cacheträff. Ett byte på datorn når hit på två vägar — realtime på
+   game_players (lek_id) och kanalens 'lek' — och båda landar här; nyckeln
+   (id + uppdaterad) säger om något faktiskt ändrats. Kommer ett byte medan
+   poolen byggs (kamPoolOm) byggs den om efteråt. */
+let kamPoolNyckel = null, kamPoolOm = false;
+async function kamValdLek() {
+  let vald = null;
+  try { vald = await Moln.minLekIGame(kamLage.id); } catch (e) { vald = null; }
+  if (vald && vald.id) {
+    const rad = await Moln.hamtaLekRad(vald.id).catch(() => null);
+    if (rad && rad.kort && rad.kort.length) return rad;
+  }
+  let lista = [];
+  try { lista = await Moln.hamtaLekar(); } catch (e) { lista = []; }
+  for (const l of lista) {
+    const rad = await Moln.hamtaLekRad(l.id).catch(() => null);
+    if (rad && rad.kort && rad.kort.length) return rad;
+  }
+  /* Legacy: en lek per konto, och före det leken som kolumn på spelet. */
+  let lek = null;
+  try { lek = await Moln.hamtaMinLek(); } catch (e) { lek = null; }
+  if (!lek || !lek.kort || !lek.kort.length) { try { lek = await Moln.hamtaLek(kamLage.id); } catch (e) { lek = null; } }
+  return lek && lek.kort && lek.kort.length ? Object.assign({ namn: 'My deck' }, lek) : null;
+}
 async function byggKamPool() {
-  if (!kamLage || kamPoolBygger) return;
+  if (!kamLage) return;
+  if (kamPoolBygger) { kamPoolOm = true; return; }
   kamPoolBygger = true;
   /* Namnläsaren hämtas parallellt med poolen; går det inte fungerar allt
      som förut (Namn.las svarar null). */
   Namn.ladda().catch(() => {});
   try {
-    /* Kontots lek, inte spelets. Telefonen är inloggad som samma person som
-       sitter vid datorn, och det är just den kopplingen som gör att en lek
-       fotograferad på ett ställe finns på det andra. */
-    let lek = await Moln.hamtaMinLek();
-    /* Ligger den kvar i det gamla stället får den duga tills någon öppnat
-       dialogen och flyttat över den. */
-    if (!lek || !lek.kort || !lek.kort.length) {
-      try { lek = await Moln.hamtaLek(kamLage.id); } catch (e) { lek = null; }
-    }
-    if (!lek || !lek.kort || !lek.kort.length) {
-      satKamFin('pool', 'Ingen lek sparad — öppna "Min lek" och fotografera leken, eller klistra in listan. Tills dess ser jag korten men vet inte vilka de är.');
+    const lek = await kamValdLek();
+    if (!lek) {
+      kamPoolNyckel = null;
+      satKamFin('pool', 'No deck yet — open ⋯ → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
       return;
     }
+    const nyckel = (lek.id || 'konto') + ':' + (lek.ts || 0);
+    if (nyckel === kamPoolNyckel && Pool.idx) return;      // samma lek, samma version: inget att bygga
     let sist = 0;
-    await byggLekPool(lek, Moln.minId(), p => {
+    await byggLekPool(lek, lek.id || Moln.minId(), p => {
       const nu = Date.now(); if (nu - sist < 400) return; sist = nu;
       /* Procent, inte "40 av 110": total är poolens bilder, inte lekens kort,
          och ett tal större än leken väcker samma fråga som slutraden gjorde. */
-      satKamFin('pool', p.phase === 'img' ? `Lär mig leken… ${Math.round(100 * p.done / Math.max(1, p.total))} %` : 'Hämtar leken…');
+      satKamFin('pool', p.phase === 'img' ? `Learning ${lek.namn || 'the deck'}… ${Math.round(100 * p.done / Math.max(1, p.total))} %` : 'Fetching the deck…');
     });
+    kamPoolNyckel = nyckel;
     /* Lekens antal, inte poolens. Poolen bär upp till tolv konstverk per namn
        och tjugofyra per basic land (byggLekPool), så Pool.idx.names räknar
        bilder: 110 för Jespers lek på 36 kort, och siffran såg ut som någon
        annans lek. */
-    satKamFin('pool', `Känner igen din lek: ${lekKortAntal(lek)} kort.`);
+    satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.`);
     /* Kort som väntade på en pool får en ny chans. */
     for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
   } catch (e) {
-    satKamFin('pool', 'Kunde inte bygga igenkänningen: ' + (e.message || ''));
-  } finally { kamPoolBygger = false; }
+    satKamFin('pool', 'Could not build the recognition: ' + (e.message || ''));
+  } finally {
+    kamPoolBygger = false;
+    if (kamPoolOm) { kamPoolOm = false; byggKamPool(); }
+  }
 }
 
 async function kamIdentifiera(canvas, id, gissning, kort) {
@@ -17287,7 +17318,10 @@ async function portalStart() {
     if (stada) state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
   } catch (e) { toast('Saved screenshots could not be read', 'err'); }
 
-  try {
+  /* Setpoolen för skärmdumpar. Telefonen (kameran öppnades ovan) läser
+     aldrig skärmdumpar — dess pool är lekens (byggKamPool) — så den slipper
+     läsningen. */
+  if (!kameraEnhet) try {
     const rec = await idbTimeout(IDB.poolGet(prefs.pool || 'j25'), 4000);
     if (rec && rec.names && rec.names.length && rec.v >= 5) Pool.idx = rec;   // äldre pooler saknar detektormallen
   } catch (e) { /* poolen byggs om vid första avläsningen */ }
