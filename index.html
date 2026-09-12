@@ -397,6 +397,69 @@ button.ladagrp:hover .zonlbl{color:var(--txt)}
 .ladafot[hidden]{display:none}
 body.lasvy .ladarad{cursor:default}
 body.lasvy .ladarad .g{visibility:hidden}
+/* ── Uppstarten (MES-102) ───────────────────────────────────────────
+   Designen Mesa Camera Play 1a–1e: en checklista i inspektorns spalt —
+   lek, telefon, hur kameran arbetar, ett otappat kort (bara Follow the
+   table). Klara steg fälls ihop till en rad; det aktiva står öppet. */
+.oppstart{grid-area:mark;display:flex;flex-direction:column;min-height:0;min-width:0;background:#121821;border:1px solid var(--line);border-radius:12px;overflow:auto}
+.oppstart[hidden]{display:none}
+body.oppstart .kolmark{display:none}
+body.oppstart .brade{grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"perm mark"}
+body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;grid-template-areas:"lada perm mark"}
+@media (max-width:1100px){
+  body.oppstart .brade{grid-template-columns:minmax(0,1fr) 320px}
+  body.oppstart.ladaoppen .brade{grid-template-columns:280px minmax(0,1fr) 320px}
+}
+.opphd{padding:16px 18px 14px;border-bottom:1px solid #1c2330;display:flex;flex-direction:column;gap:3px}
+.opphd b{font-size:15px;font-weight:650}
+.opphd span{font-size:12px;color:var(--dim)}
+.oppsteg{display:flex;gap:12px;padding:13px 18px;border-bottom:1px solid #1c2330}
+.oppsteg[hidden]{display:none}
+.oppsteg.active{background:#151c27}
+.oppnr{width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px/1 var(--mono);border:1px solid #39445a;color:var(--dim2)}
+.oppsteg.done .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.oppsteg.active .oppnr{background:var(--acc);border-color:var(--acc);color:#20160a}
+.oppbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.opptit{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--txt);line-height:24px}
+.oppsteg.todo .opptit{color:var(--dim);font-weight:550}
+.opptit i{font-style:normal;font-size:11px;font-weight:500;color:var(--dim2)}
+.oppsum{font-size:12px;color:var(--dim)}
+.oppsteg:not(.done) .oppsum,.oppsteg:not(.active) .oppcont{display:none}
+.oppcont{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.opptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
+.opptxt b{color:var(--txt);font-weight:600}
+.oppopt{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);text-align:left;cursor:pointer;font:inherit}
+.oppopt:hover{border-color:var(--panelram2)}
+.oppopt.on{border-color:var(--acc);background:#1a1710}
+.oppopt .radio{width:16px;height:16px;border-radius:50%;border:1.5px solid #4a5a72;flex:none;display:grid;place-items:center}
+.oppopt.on .radio{border-color:var(--acc)}
+.oppopt.on .radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.oppopt .oppbody{gap:2px}
+.oppopt .oppbody b{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--txt)}
+.oppopt .oppbody span{font-size:11.5px;color:var(--dim);line-height:1.45}
+.oppopt .tag{font:600 9.5px/1 var(--sans);letter-spacing:.6px;text-transform:uppercase;color:var(--pa-acc);background:#f0a52a1f;border-radius:10px;padding:3px 6px}
+.oppmeta{font:11px/1 var(--mono);color:var(--dim);flex:none}
+.opprad{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.opprad .grow{flex:1}
+.oppwait{display:flex;align-items:center;gap:9px;font-size:12px;color:#e8c98a}
+.oppwait i{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:kampuls 1.2s ease-in-out infinite}
+.oppqr{align-self:flex-start;padding:10px;border-radius:10px;background:#fff;line-height:0}
+.oppqr canvas{width:150px;height:150px;image-rendering:pixelated}
+.oppqr .vantar{display:block;max-width:150px;line-height:1.4;color:#333;font-size:12px}
+.oppbild{position:relative}
+.oppbild .kalbild{height:auto;aspect-ratio:16/10;max-height:240px;border:1px solid var(--line)}
+.oppbild .kalbild img{width:100%;height:100%;object-fit:contain}
+.oppchip{position:absolute;left:10px;bottom:10px;z-index:3;height:22px;display:flex;align-items:center;padding:0 9px;border-radius:7px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:650 10.5px/1 var(--sans);box-shadow:0 6px 16px -4px #000e}
+.oppchip[hidden]{display:none}
+.oppval{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #1c2330;font-size:12.5px;color:var(--dim)}
+.oppval[hidden]{display:none}
+.oppval .grow{flex:1}
+.oppvaltxt{color:var(--dim2);font-size:11px;margin-left:4px}
+.oppfot{margin-top:auto;padding:12px 18px;border-top:1px solid #1c2330;display:flex;gap:8px;align-items:center}
+@media (max-width:620px){
+  .oppstart{position:fixed;inset:44px 0 0 0;z-index:185;border-radius:0}
+  body.oppstart .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
+}
 .ladaspok{position:fixed;z-index:950;width:63px;aspect-ratio:488/680;border-radius:4px;background:#1b2230 center/cover no-repeat;box-shadow:0 14px 30px -8px #000e,0 0 0 1px #f0a52a88;pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg)}
 @media (max-width:620px){
   .lada{position:fixed;inset:44px 0 0 0;z-index:180;border-radius:0}
@@ -2550,6 +2613,34 @@ body.ispel #addPlayerBtn{display:none}
         </div>
         <div class="insbody" id="insBody"></div>
       </aside>
+      <!-- Uppstarten (MES-102, designen Mesa Camera Play 1a–1e): en checklista i
+           inspektorns spalt när man går in i ett spel utan fungerande kamera —
+           lek, telefon, hur kameran arbetar, ett otappat kort. Ritas av
+           renderOppstart(); stegen byggs aldrig om i sin helhet, så QR-koden och
+           kamerans bild (#pbBild flyttas hit i steg 4) står kvar. -->
+      <aside class="oppstart" id="oppstart" hidden aria-label="Set up your table">
+        <div class="opphd"><b>Set up your table</b><span>About a minute. You can change all of it later.</span></div>
+        <div class="oppsteg" id="opp1"><span class="oppnr">1</span><div class="oppbody">
+          <div class="opptit">Pick your deck</div><div class="oppsum" id="opp1Sum"></div><div class="oppcont" id="opp1Cont"></div></div></div>
+        <div class="oppsteg" id="opp2"><span class="oppnr">2</span><div class="oppbody">
+          <div class="opptit">Connect your phone</div><div class="oppsum">Phone connected</div>
+          <div class="oppcont">
+            <div class="oppqr" id="oppQr"></div>
+            <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
+            <div class="opprad"><span class="oppwait"><i></i>Waiting for your phone…</span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button></div>
+          </div></div></div>
+        <div class="oppsteg" id="opp3"><span class="oppnr">3</span><div class="oppbody">
+          <div class="opptit">How should the camera work?</div><div class="oppsum" id="opp3Sum"></div><div class="oppcont" id="opp3Cont"></div></div></div>
+        <div class="oppsteg" id="opp4"><span class="oppnr">4</span><div class="oppbody">
+          <div class="opptit">Show it an untapped card<i id="opp4Tag">Follow the table only</i></div><div class="oppsum">Untapped angle saved</div>
+          <div class="oppcont">
+            <p class="opptxt" id="opp4Txt"></p>
+            <div class="oppbild" id="oppBild"><span class="oppchip" id="oppKortChip" hidden></span></div>
+            <div class="opprad" id="opp4Rad"></div>
+          </div></div></div>
+        <div class="oppval" id="oppGravRad" hidden><span class="grow">Graveyard in the picture? <span class="oppvaltxt">Optional</span></span><button type="button" class="btn sm" data-opp="grav" id="oppGravKnapp">Mark it</button></div>
+        <div class="oppfot"><button type="button" class="btn ghost sm" data-opp="utan">Play without the camera</button></div>
+      </aside>
       </div>
     </section>
 
@@ -2975,6 +3066,7 @@ body.ispel #addPlayerBtn{display:none}
     <div class="foot">
       <!-- Hela bordet till Claude: bara när kameran inte hittar korten (5c)
            — eller för byggaren. Telefonen skickar bilden. -->
+      <button class="btn" id="kamRedo" data-mode="redo" title="Go through deck, phone, mode and the untapped card again">Redo setup</button>
       <button class="btn" id="pbHelbild" hidden title="The phone sends the whole picture to Claude and puts out the cards it sees — for tables where the camera cannot find the cards by itself">✦ Let AI read the table</button>
       <span class="grow"></span>
       <span class="kamaipris" id="kamAiPris" hidden>A few cents per read</span>
@@ -4538,7 +4630,7 @@ function toast(msg, kind, undo) {
 /* ─────────── localStorage ─────────── */
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
             lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1',
-            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1' };
+            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1', oppstart: 'sthv.oppstart.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -7599,6 +7691,7 @@ function renderMode() {
   if (slot.dataset.h !== chip) { slot.dataset.h = chip; slot.innerHTML = chip; matFlikar(); if (kamOppen) dockaKamOv(); }
   if (rad && !rad.hidden) rad.hidden = true;   // raden under topbaren finns inte i Mesa Camera Play
   renderKamPop();
+  renderOppstart();         // efter pillret: stegen läser samma tillstånd
   renderTom();              // tomrutan följer samma läge som pillret
   /* Statusfältet bär bara steget om grundläget och granskningen (MES-98). */
   renderAutoBar();
@@ -7689,7 +7782,151 @@ function renderKamPop() {
   $('#pbHelbild').hidden = !(kamAnsluten && (fel === 'hittar' || DEBUG));
   $('#kamAiPris').hidden = fel !== 'hittar';
   $('#kamKoppla').hidden = prefs.autoLage !== true || fel === 'hittar';
+  $('#kamRedo').hidden = !redigerbar() || !!fel;
 }
+
+/* ── Uppstarten (MES-102) ───────────────────────────────────────────
+   Designen Mesa Camera Play 1a–1e: en checklista när man går in i ett spel
+   utan fungerande kamera — lek, telefon, hur kameran arbetar (Follow the
+   table rekommenderas), ett otappat kort (bara Follow the table). Stegen
+   läses ur samma tillstånd som resten av appen; bara lägesvalet och om
+   uppstarten är klar eller avböjd minns per spel (K.oppstart), för att
+   databasens förval ('skarm') inte går att skilja från ett val. Pillret
+   öppnar den igen i lägena av och väntar; "Redo setup" i kamerapanelen gör
+   om den. Kamerans bild (#pbBild) flyttas in i steg 4 medan steget står
+   framme och panelen är stängd — strömningen följer (kamStegSynk). */
+let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
+const oppMinne = () => LS.get(K.oppstart, {}) || {};
+function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
+function oppSatt(falt) {
+  if (!spelLage) return;
+  const m = oppMinne(); m[spelLage.id] = Object.assign({}, m[spelLage.id] || {}, falt); LS.set(K.oppstart, m);
+}
+const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
+/* om = "Redo setup": läget väljs igen och vinkeln sparas om. */
+function oppnaOppstart(om) {
+  if (!spelLage) return;
+  oppSatt(om ? { klar: false, avbojd: false, lage: false, grundOm: mittLage() === 'bord' } : { klar: false, avbojd: false });
+  oppLageVal = null;
+  if (kamOppen) closeOv('kamOv');
+  renderMode();
+}
+function flyttaPbBild(tillOpp) {
+  const b = $('#pbBild'), mal = tillOpp ? $('#oppBild') : $('#kamSkruv'); if (!b || !mal || b.parentElement === mal) return;
+  if (tillOpp) mal.insertBefore(b, mal.firstChild); else mal.insertBefore(b, $('#kamRad1'));
+  requestAnimationFrame(ritaPbLager);
+}
+const OPP_KLAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>';
+function oppDiff(el, html) { if (el && el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } }
+function renderOppstart() {
+  const el = $('#oppstart'); if (!el) return;
+  if (!spelLage) {                  // utanför ett spel: bara DOM, inga tillstånd (renderMode ritas tidigt)
+    if (!el.hidden) { el.hidden = true; document.body.classList.remove('oppstart'); matResize(); }
+    flyttaPbBild(false);
+    return;
+  }
+  const o = redigerbar() ? oppFor() : null, mig = minSpelare(), bord = mittLage() === 'bord';
+  let visa = !!o && !o.klar && !o.avbojd, aktiv = null;
+  const ordning = ['lek', 'tel', 'lage', 'vinkel'];
+  const steg = {};
+  if (visa) {
+    const grund = kamGrund != null ? kamGrund : kamGrundRad;
+    steg.lek = !!(mig && mig.lekId);
+    steg.tel = prefs.autoLage === true && kamAnsluten;
+    steg.lage = !!o.lage;
+    steg.vinkel = !bord || (grund != null && !o.grundOm);
+    aktiv = ordning.find(k => !steg[k]) || null;
+    if (!aktiv) { oppSatt({ klar: true, grundOm: false }); visa = false; }
+  }
+  oppOppen = visa;
+  if (visa) {
+    ordning.forEach((k, i) => {
+      const st = $('#opp' + (i + 1)), klass = steg[k] ? 'done' : k === aktiv ? 'active' : 'todo';
+      if (st.dataset.k !== klass) { st.dataset.k = klass; st.className = 'oppsteg ' + klass; st.querySelector('.oppnr').innerHTML = steg[k] ? OPP_KLAR : String(i + 1); }
+    });
+    $('#opp4').hidden = o.lage && !bord;          // Add only: inget otappat kort att visa
+    $('#opp4Tag').hidden = !!o.lage;
+    const lek = mig && mig.lek;
+    const s1 = lek ? `${lek.namn || 'Deck'} · ${lek.antal || 0} cards` : '';
+    if ($('#opp1Sum').textContent !== s1) $('#opp1Sum').textContent = s1;
+    const s3 = bord ? 'Follow the table' : 'Add only';
+    if ($('#opp3Sum').textContent !== s3) $('#opp3Sum').textContent = s3;
+    /* 1: leken. Listan hämtas en gång; står lekdialogen öppen (New deck…)
+       hämtas den på nytt när den stängts. */
+    if (aktiv === 'lek') {
+      const lekOv = $('#lekOv') && $('#lekOv').classList.contains('open');
+      if (lekOv) oppLekar = null;
+      else if (!oppLekar && !oppLekarHamtar) {
+        oppLekarHamtar = true;
+        lekHamtaLista().then(l => { oppLekar = l || []; }).catch(() => { oppLekar = []; })
+          .finally(() => { oppLekarHamtar = false; renderOppstart(); });
+      }
+      let h;
+      if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
+      else if (!oppLekar.length) h = '<p class="opptxt">The camera only looks for cards in the deck you play with. You have no decks yet — add your cards first.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="nylek">New deck…</button></div>';
+      else {
+        if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal))
+          oppLekVal = lekAktiv && oppLekar.some(l => l.id === lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
+        const val = oppLekar.find(l => l.id === oppLekVal);
+        h = '<p class="opptxt">The camera only looks for cards in the deck you play with.</p>'
+          + oppLekar.map(l => `<button type="button" class="oppopt${l.id === oppLekVal ? ' on' : ''}" data-opplek="${esc(l.id)}"><span class="radio"></span><span class="oppbody"><b><span class="pips">${pipsHtml(l.farger)}</span>${esc(l.namn)}</b></span><span class="oppmeta">${l.antal || 0} cards</span></button>`).join('')
+          + `<div class="opprad"><button type="button" class="btn prim sm" data-opp="spela">Play with ${esc(val.namn)}</button><button type="button" class="btn ghost sm" data-opp="nylek">New deck…</button></div>`;
+      }
+      oppDiff($('#opp1Cont'), h);
+    }
+    /* 2: telefonen. Steget sätter på kameran (auto) och ritar QR-koden varje
+       gång det kommer fram (lärdomen från MES-90). */
+    if (aktiv === 'tel') {
+      if (prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); setTimeout(renderMode, 0); }
+      if (!oppQrVisas) { oppQrVisas = true; ritaQr(oppLank(), $('#oppQr')); }
+    } else oppQrVisas = false;
+    /* 3: hur kameran arbetar. Follow the table är förvalt och rekommenderat. */
+    if (aktiv === 'lage') {
+      if (!oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
+      const opt = (v, rub, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${rub}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${LAGE_TXT[v]}</span></span></button>`;
+      oppDiff($('#opp3Cont'), opt('bord', 'Follow the table', 'Recommended') + opt('skarm', 'Add only') + '<div class="opprad"><button type="button" class="btn prim sm" data-opp="lage">Continue</button></div>');
+    }
+    /* 4: ett otappat kort — samma kort som grundläget tas ur (senasteMattaKort). */
+    if (aktiv === 'vinkel') {
+      const k = kamAnsluten ? senasteMattaKort(mig, senasteSpar) : null;
+      oppDiff($('#opp4Txt'), 'Lay one card on the table the way you hold cards <b>untapped</b>. '
+        + (k ? 'Is this how it lies?' : 'The camera finds it in a few seconds.'));
+      const ch = $('#oppKortChip'), namn = k ? namnAv(k) : '';
+      if (ch.textContent !== namn) ch.textContent = namn;
+      ch.hidden = !namn;
+      oppDiff($('#opp4Rad'), k ? `<button type="button" class="btn prim sm" data-opp="grund">Yes, it's untapped</button><span class="opptxt">Not right? Turn the card and wait a second.</span>` : '');
+    }
+  }
+  /* Bilden: i steg 4 så länge kamerapanelen är stängd; annars i panelen. */
+  const bild = visa && aktiv === 'vinkel' && !kamOppen && kamAnsluten;
+  if (bild !== oppstartBild) { oppstartBild = bild; flyttaPbBild(bild); kamStegSynk(); }
+  const gr = $('#oppGravRad'); gr.hidden = !bild;
+  if (bild) { const t = pbGravRitar ? 'Drag a box over the pile…' : kamGravRad ? 'Clear' : 'Mark it'; if ($('#oppGravKnapp').textContent !== t) $('#oppGravKnapp').textContent = t; }
+  const fore = document.body.classList.contains('oppstart');
+  el.hidden = !visa;
+  document.body.classList.toggle('oppstart', visa);
+  if (fore !== visa) matResize();
+}
+$('#oppstart').addEventListener('click', ev => {
+  const lk = ev.target.closest('[data-opplek]'); if (lk) { oppLekVal = lk.dataset.opplek; renderOppstart(); return; }
+  const lg = ev.target.closest('[data-opplage]'); if (lg) { oppLageVal = lg.dataset.opplage; renderOppstart(); return; }
+  const b = ev.target.closest('[data-opp]'); if (!b) return;
+  const a = b.dataset.opp;
+  if (a === 'spela' && oppLekVal) valjLekTill(oppLekVal).then(() => renderMode());
+  else if (a === 'nylek') oppnaLek();
+  else if (a === 'kopiera') navigator.clipboard.writeText(oppLank()).then(() => toast('Link copied', 'ok'), () => prompt('Copy the link:', oppLank()));
+  else if (a === 'lage') { const v = oppLageVal || 'bord'; oppSatt({ lage: true }); oppLageVal = null; bytLage(v).then(() => renderMode()); }
+  else if (a === 'grund') sparaGrundFranSenaste();
+  else if (a === 'grav') $('#pbGrav').click();
+  else if (a === 'utan') {
+    /* Utan kamera: uppstarten stängs, och en kamera som bara väntade på en
+       telefon stängs av. Pillret öppnar uppstarten igen. */
+    oppSatt({ avbojd: true });
+    if (prefs.autoLage === true && !kamAnsluten) { prefs.autoLage = false; savePrefs(); }
+    renderMode();
+  }
+});
+$('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true });
 
 /* Byter läge: min rad i game_players (alla ser det), lokalt prefs. Till
    Screen leads släpps nedtonade kort och nådatider — kameran tar inte bort
@@ -7724,7 +7961,13 @@ function modeKlick(ev) {
   const a = b.dataset.mode;
   /* Pillret: står kameran av startar ett klick den (panelen visar QR-koden),
      annars växlar det panelen. */
-  if (a === 'pill') { if (prefs.autoLage !== true) modeKlickAuto(); else visaKamSkruv(); return; }
+  if (a === 'pill') {
+    const m = kamPillModell();
+    if (spelLage && redigerbar() && (m.klass === 'av' || (m.klass === 'vantar' && !kamAnsluten))) { oppnaOppstart(); return; }
+    if (prefs.autoLage !== true) modeKlickAuto(); else visaKamSkruv();
+    return;
+  }
+  if (a === 'redo') { oppnaOppstart(true); return; }
   if (a === 'visaqr') { kamQrTvinga = true; kamStegSynk(); return; }
   if (a === 'vand') { kamVand = (kamVand + 90) % 360; sparaKamOrientering(); renderMode(); return; }
   if (a === 'spegel') { kamSpegel = !kamSpegel; sparaKamOrientering(); renderMode(); return; }
@@ -7783,13 +8026,16 @@ function renderTom() {
      signaturen byggdes den om var tredje sekund och en knapp man tabbat
      till tappade fokus. */
   const hittar = l === 'redo' && kamPillModell().fel === 'hittar';   // 5c: pillret säger varför
-  const sig = l + n + (harKo ? 'k' : '') + mittLage() + (hittar ? 'h' : '');
+  const opp = !!spelLage && oppOppen;
+  const sig = l + n + (harKo ? 'k' : '') + mittLage() + (hittar ? 'h' : '') + (opp ? 'o' : '');
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
+  if (opp) { el.innerHTML = '<p class="tomtyst">Your cards show up here once the camera is set up.</p>'; return; }
   if (hittar) { el.innerHTML = '<p class="tomtyst">No cards found yet.</p>'; return; }
   /* I ett spel säger pillret hur kameran mår (MES-98); mattan säger bara
      var korten kommer att synas — en rad, ingen knapp. */
   const TYST = {
+    av: 'Drag a card from your deck (/) onto the mat — or turn on the camera with the camera button above.',
     vantar: 'Your cards show up here once the camera is set up.',
     tappad: 'Your cards show up here once the camera is back.',
     startar: 'Your cards show up here in a moment.',
@@ -7811,10 +8057,6 @@ function renderTom() {
       p: "Paste a screenshot of a video call and Mesa finds each player's pane and reads the cards on their table — one player per pane. A cropped picture of one or more cards works too: those get added to your hand.",
       knappar: '<button class="btn prim big" data-mode="foto">Paste screenshot</button><button class="btn big" data-sok>Add a card by hand</button>',
       fin: 'Press <kbd>⌘V</kbd> anywhere in the app, or drag in an image file.<br>Pasting later adds the cards — your hand is only replaced if you re-read the board in the image view.' },
-    av: { ikon: IKON.telefon, h: 'Play with your real cards',
-      p: 'With the camera on, your phone watches the table. Cards you play show up here by themselves' + (bord ? ', and a card you tap on the table taps here too.' : '; you tap, move and count them on screen.'),
-      knappar: '<button class="btn prim big" data-mode="auto">Turn on camera</button>',
-      fin: 'You just scan a QR code with the phone — nothing to install. A card you add by hand comes from your deck (<kbd>/</kbd>).' },
     /* Kamerans övriga tillstånd säger pillret (MES-98); tomrutan har en rad
        för dem (TYST ovan) och ritar dem aldrig här. */
     redo: { ikon: IKON.kort, h: 'Play your first card',
@@ -17838,7 +18080,7 @@ function renderAutoBar() {
   /* Kamerans status bor i pillret och panelen sedan MES-98 (statusraden där
      är samma mening, autoRemsaModell). Fältet bär steget om grundläget —
      tills uppstarten tar det (MES-102) — och granskningen. */
-  const steg = autoBarAutoSynlig() ? grundSteg(minSpelare(), senasteSpar) : null;
+  const steg = autoBarAutoSynlig() && !oppOppen ? grundSteg(minSpelare(), senasteSpar) : null;
   if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
   const notHtml = steg
     ? `<span class="nottxt" title="${esc(`Put the cards as you want them untapped — is ${steg.namn} lying like that now?`)}">Put the cards as you want them untapped — is <b>${esc(steg.namn)}</b> lying like that now?</span>` +
@@ -18280,6 +18522,7 @@ function ritaKamLank() {
 async function visaKamOv() {
   if (!spelLage) return;
   kamOppen = true;
+  if (oppstartBild) { oppstartBild = false; flyttaPbBild(false); }   // bilden stod i uppstartens steg 4
   openOv('kamOv');
   kamStegSynk();
   renderMode();             // pillret får sin öppna ring, panelen sin plats under det
@@ -18483,6 +18726,7 @@ async function tagEmotGrundSvar(m) {
   if (!m.ok || m.grund == null) { toast('The untapped angle could not be saved — the camera has no measurement of the card angle right now. Try again with a card it found by itself.', 'err'); return; }
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
+  oppSatt({ grundOm: false }); renderMode();   // uppstartens steg 4 är klart
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
@@ -18585,7 +18829,7 @@ function kamStegSynk() {
      (Reconnect, Show the QR code) när den tystnat eller kör en gammal sida.
      En telefon som kommit tillbaka släcker begäran. */
   if (kamAnsluten && kamFas !== 'ingen') kamQrTvinga = false;
-  const skruv = kamOppen && kamAnsluten, visaQr = kamOppen && (kamQrTvinga || (!kamAnsluten && !kamHarVarit));
+  const skruv = (kamOppen || oppstartBild) && kamAnsluten, visaQr = kamOppen && (kamQrTvinga || (!kamAnsluten && !kamHarVarit));
   const qr = $('#kamStegQr'), sk = $('#kamSkruv');
   if (qr) qr.hidden = !visaQr;
   if (visaQr && !kamQrVisas) ritaKamLank();   // steget kom fram: koden ritas på nytt (se ritaKamLank)
