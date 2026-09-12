@@ -49,6 +49,9 @@ let kamGrund = 20;
    Sätts per prov med app.lek = new Map([['Sol Ring', 1]]). */
 let lekTal = new Map();
 const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
+/* Typraden (besvärjelseregeln, MODE-3): per namn i provet, annars tom. */
+let typRad = new Map();
+function typLinje(k) { return typRad.get(k.name) || ''; }
 `;
 const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
@@ -64,6 +67,7 @@ return {
      stubbspelaren: inget läge, vilket avstämningen läser som Table leads). */
   set lek(m) { lekTal = m; },
   set spelsatt(v) { if (v) state.players[0].lage = v; else delete state.players[0].lage; },
+  set typ(m) { typRad = m; },
   get senasteKamSpar() { return senasteKamSpar; },
   /* Steget att spara ett otappat läge (MES-27): det statusfältet ritar, ur
      mitt bord och senaste bordet — { namn, spar } eller null — och "Inte
@@ -93,7 +97,7 @@ return {
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); }
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); }
 };`)({ now: () => klocka.t }, () => 0, () => {});
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -907,13 +911,13 @@ prov('E5 första domen tas alltid: ett kort fött före grundläget, och ett lag
   assert.equal(app.kort[0].tapped, 0);
 });
 
-/* D5-8: antalspriorn. Leken har N av kortet: det N+1:e blir en fråga på
+/* D5-8 (Q = antalspriorn). Leken har N av kortet: det N+1:e blir en fråga på
    platsen (pending med overTak), aldrig ett kort och aldrig ett stopp. */
-prov('L1 utan lek: två Sol Ring blir två kort, som förut', () => {
+prov('Q1 utan lek: två Sol Ring blir två kort, som förut', () => {
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
   assert.equal(app.kort.length, 2); assert.equal(app.pending.length, 0);
 });
-prov('L2 leken har 1 Sol Ring: det andra spåret blir en fråga, inte ett kort; frågan ställs en gång', () => {
+prov('Q2 leken har 1 Sol Ring: det andra spåret blir en fråga, inte ett kort; frågan ställs en gång', () => {
   app.lek = new Map([['Sol Ring', 1]]);
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);
   assert.equal(app.kort.length, 1);
@@ -927,19 +931,100 @@ prov('L2 leken har 1 Sol Ring: det andra spåret blir en fråga, inte ett kort; 
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);       // spåret dör: frågan försvinner
   assert.equal(app.pending.length, 0); assert.equal(app.kort.length, 1);
 });
-prov('L3 spåret dör och ett nytt föds på annan plats i samma bord: samma kort binder om, ingen fråga', () => {
+prov('Q3 spåret dör och ett nytt föds på annan plats i samma bord: samma kort binder om, ingen fråga', () => {
   app.lek = new Map([['Sol Ring', 1]]);
   stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);
   stam([klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
   assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 0); assert.equal(app.kort[0].spar, 2);
 });
-prov('L4 leken har 4 Forest: fyra kort, det femte en fråga', () => {
+prov('Q4 leken har 4 Forest: fyra kort, det femte en fråga', () => {
   app.lek = new Map([['Forest', 4]]);
   const b = i => box(0.1 + i * 0.15, 0.2, 0.063, 0.088);
   stam([1, 2, 3, 4].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
   assert.equal(app.kort.length, 4);
   stam([1, 2, 3, 4, 5].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
   assert.equal(app.kort.length, 4); assert.equal(app.pending.length, 1); assert.equal(app.pending[0].tak, 4);
+});
+
+/* MODE-3: policymatrisen. P = policy. */
+prov('P1 Screen leads: spåret dör → bindningen släpps tyst, ingen nedtoning', () => {
+  app.spelsatt = 'skarm';
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1);
+  stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, undefined); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].borta, undefined);
+});
+prov('P2 Table leads: samma sak tonar ned kortet', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  stam([]); klocka.t += 3100; stam([]);
+  assert.ok(app.kort[0].lyft != null);
+});
+prov('P3 fysisk: kortet flyttat till graveyard digitalt medan spåret lever — spåret föds om på ny plats: tyst ombindning i sin zon, inget nytt kort', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  app.kort[0].zon = 'grav'; app.kort[0].fysisk = true;     // som flyttaTill gör
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1, 'spöke');
+  stam([klar(7, 'Ukud Cobra', { sen: 10, ...LANGT })]);   // detektorn födde ett nytt spår
+  assert.equal(app.kort.length, 1, 'spöke vid omfödsel'); assert.equal(app.kort[0].spar, 7); assert.equal(app.kort[0].zon, 'grav');
+  // spåret dör för gott: flaggan släpps, ingen nedtoning (kortet är i graveyard)
+  stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort[0].fysisk, undefined); assert.equal(app.kort[0].lyft, undefined); assert.equal(app.kort[0].spar, undefined);
+  // och ett nytt spår med namnet är nu ett nytt kort
+  stam([klar(9, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  assert.equal(app.kort.length, 2);
+});
+prov('P4 grundsteget bara i Table leads', () => {
+  app.grund = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.ok(app.steg(), 'bord: inget steg');
+  app.spelsatt = 'skarm';
+  assert.equal(app.steg(), null, 'skarm: steg');
+});
+prov('P5 besvärjelseregeln: ett instant som plockas upp inom 20 s går till graveyard i båda lägena; efter 20 s som vanligt', () => {
+  app.typ = new Map([['Lightning Bolt', 'Instant'], ['Ukud Cobra', 'Creature — Snake']]);
+  stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);
+  klocka.t += 4000;
+  stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]); klocka.t += 3100; stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);
+  const bolt = app.kort.find(k => k.name === 'Lightning Bolt');
+  assert.equal(bolt.zon, 'grav'); assert.ok(bolt.spellAuto); assert.equal(bolt.lyft, undefined);
+  // varelsen som plockas upp tonas ned (bord)
+  stam([]); klocka.t += 3100; stam([]);
+  assert.ok(app.kort.find(k => k.name === 'Ukud Cobra').lyft != null);
+  // efter 20 s: instantet är en permanent på bordet, inte en besvärjelse
+  app.nollstall(); klocka.t = 1e6; app.typ = new Map([['Lightning Bolt', 'Instant']]);
+  stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
+  klocka.t += 25000; stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
+  stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+  // Screen leads: samma regel, men en permanent släpps tyst
+  app.nollstall(); klocka.t = 1e6; app.spelsatt = 'skarm'; app.typ = new Map([['Lightning Bolt', 'Instant']]);
+  stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
+  stam([]); klocka.t += 3100; stam([]);
+  assert.equal(app.kort[0].zon, 'grav');
+});
+prov('P6 täckt: ett bifogat kort vars värd syns är inte borta när dess spår dör', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Bonesplitter', { sen: 20, ...LANGT })]);
+  const vard = app.kort.find(k => k.name === 'Ukud Cobra'), utr = app.kort.find(k => k.name === 'Bonesplitter');
+  utr.attachedTo = vard.cid;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]); klocka.t += 3100; stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(utr.lyft, undefined); assert.equal(utr.spar, undefined);
+  stam([]); klocka.t += 3100; stam([]);
+  assert.ok(vard.lyft != null);
+});
+prov('P7 kamerans läge: skrivs vid skapandet och vid en flytt större än darret, med ny stämpel', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0];
+  assert.ok(k.kam); assert.ok(Math.abs(k.kam.x - (PORT.x + PORT.w / 2)) < 1e-9); assert.equal(k.kam.nar, klocka.t);
+  const nar0 = k.kam.nar; klocka.t += 3000;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...box(PORT.x + 0.003, PORT.y, PORT.w, PORT.h) })]);   // darr
+  assert.equal(k.kam.nar, nar0);
+  klocka.t += 3000;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...box(PORT.x + 0.03, PORT.y, PORT.w, PORT.h) })]);    // flytt
+  assert.equal(k.kam.nar, klocka.t); assert.ok(Math.abs(k.kam.x - (PORT.x + 0.03 + PORT.w / 2)) < 1e-9);
+  // ett spår i rörelse ('ny') skriver inget
+  klocka.t += 3000;
+  stam([{ id: 1, tillstand: 'ny', namn: 'Ukud Cobra', saker: true, tappad: false, sen: 20, ...box(PORT.x + 0.2, PORT.y, PORT.w, PORT.h) }]);
+  assert.ok(Math.abs(k.kam.x - (PORT.x + 0.03 + PORT.w / 2)) < 1e-9);
 });
 
 console.log([...ok, ...fel].join('\n'));

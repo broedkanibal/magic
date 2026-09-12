@@ -5539,6 +5539,10 @@ function flyttaTill(i, zon) {
   if (!e || zonAv(e) === zon) return false;
   e.zon = zon;
   const hog = zon === ZON_GRAV || zon === ZON_EXIL;
+  /* Ligger kortet kvar fysiskt (spåret lever) är det borta digitalt men
+     kvar på bordet: fysisk (MODE-3) låter kameran binda om det tyst i sin
+     zon i stället för att lägga ut det igen. */
+  if (hog && e.spar != null) e.fysisk = true;
   /* En aura följer sin värd till graveyard — utrustning och fortifikationer
      blir kvar på mattan (losBifogade släpper dem där de låg). */
   if (hog) for (const k of c) {
@@ -5729,6 +5733,7 @@ function platsHtml(pl) {
     <span class="platstxt">${txt}${pl.namn ? `<i>${esc(pl.namn)}?</i>` : ''}</span></${tag}>`;
 }
 let gridStrukt = null, nyChipT = null;
+const spellSagda = new Set();          // besvärjelser mattan redan sagt till om
 function renderGrid(force) {
   /* Mitt i ett drag skrivs kortens lägen direkt på elementen; en omritning
      här (kamerans hjärtslag, en fjärrändring) rev draget. Väntar tills det
@@ -5821,6 +5826,13 @@ function renderGrid(force) {
   gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
 
   renderGravHog(cards, d);
+  /* Besvärjelseregeln (MODE-3): avstämningen la ett instant/sorcery i
+     graveyard när det plockades upp; mattan säger det, med ångra. En gång
+     per kort. */
+  if (arMitt(p)) for (const c of cards) if (c.spellAuto && !spellSagda.has(c.cid)) {
+    spellSagda.add(c.cid);
+    toast(`${namnAv(c)} resolved → graveyard`, 'ok', () => { delete c.zon; delete c.spellAuto; c.ny = Date.now(); save(); renderAll(true); });
+  }
   /* "Just played" tas bort av sig självt efter 2,5 s. */
   clearTimeout(nyChipT);
   if (matLage.nyN) nyChipT = setTimeout(() => renderGrid(true), 2600);
@@ -6063,7 +6075,7 @@ function fanStangSnart() { clearTimeout(fan.t); fan.t = setTimeout(fanStang, 130
    — eller bredvid de andra om det aldrig haft en plats. */
 function gravTillbaka(e) {
   const h = hand(); if (!redigerbar() || !h.includes(e)) return false;
-  delete e.zon;
+  delete e.zon; delete e.fysisk; delete e.spellAuto;
   if (e.x == null || e.y == null) {
     const v = matVy(), pos = slotBeside(h, matSlag(e), v.board);
     const k = clampKort(Object.assign({}, e, pos), v.board, gravRuta(v));
@@ -7802,7 +7814,7 @@ addEventListener('keydown', ev => { if (ev.key === 'Escape' && dnd && dnd.drar) 
    tillbaka. */
 function matAngra(msg, mutate) {
   const p = minSpelare() || player();
-  const FALT = ['x', 'y', 'z', 'zon', 'grp', 'gi', 'attachedTo', 'tapped', 'lyft'];
+  const FALT = ['x', 'y', 'z', 'zon', 'grp', 'gi', 'attachedTo', 'tapped', 'lyft', 'fysisk'];
   const fore = p.cards.slice();
   const snap = new Map(p.cards.map(c => [c, FALT.map(f => c[f])]));
   const sel = state.sel;
@@ -15891,6 +15903,13 @@ function glomSpar(ocksaLyft) {
    inom den andras ruta, vuxen en fjärdedel åt varje håll. Ett kort bredvid
    med en centimeters glipa ligger utanför. */
 const SAMMA_KORT_TACKNING = 0.3;
+/* Besvärjelseregeln (MODE-3): så länge efter att kameran lade ut kortet
+   räknas ett instant/sorcery som spelat när det plockas upp. typLinje
+   finns i appen; avstamning.cjs stubbar den, dubbletter.cjs saknar den
+   (typeof-vakten: då aldrig). Inne i skivan, så att inget nytt namn
+   utifrån behövs. */
+const SPELL_MS = 20000;
+const arBesvarjelse = k => typeof typLinje === 'function' && /\b(Instant|Sorcery)\b/i.test(typLinje(k) || '');
 const SAMMA_KORT_NARA = 0.25;
 const FARSK_MS = 500;   // `sen` under så här: detektorn gav spåret en region i någon av de senaste rutorna (takten 150 ms)
 function tackning(a, b) {
@@ -15970,7 +15989,7 @@ function spelPolicy(mig) {
   return { skapa: true, tap: bord, flytt: bord, saknas: bord, grund: bord };
 }
 function grundSteg(mig, spar) {
-  if (kamGrund !== null || grundAvbojd) return null;
+  if (kamGrund !== null || grundAvbojd || !spelPolicy(mig).grund) return null;   // Screen leads läser aldrig tap: inget grundläge att be om
   const k = senasteMattaKort(mig, spar);
   return k ? { namn: k.name, spar: k.spar } : null;
 }
@@ -16402,8 +16421,12 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
      lades in för hand eller ur en skärmdump innan kameran såg det. Förut
      söktes bara remsan, och varje omkoppling gav en dubblett av varje läst
      kort. */
+  /* Ett kort som lämnat mattan digitalt medan det ligger kvar fysiskt
+     (fysisk, MODE-3) binder om tyst i sin zon när spåret föds om — annars
+     återuppstod det som nytt kort så fort detektorn tappade och hittade det
+     igen. Flaggan släpps när spåret dör: då har kortet lämnat bordet också. */
   const ledigt = namn => {
-    const fria = namn ? mig.cards.filter(c => c.name === namn && paBordet(c) && (c.spar == null || !synliga.has(c.spar))) : [];
+    const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
     return fria.find(c => c.lyft != null) || fria.find(c => c.spar != null) || fria[0] || null;
   };
   /* Kortet följer spårets tap-läge — men bara när det finns ett läge att
@@ -16425,13 +16448,32 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
      spår) är en vridning och skriver; ett ledarbyte med samma dom skriver
      inget. Screen leads följer domen men rör aldrig tapped. kamTap sparas
      lokalt (slimKort) så att en rättning överlever en omladdning. */
+  /* Kamerans läge för kortet (k.kam: spårets mitt och mått i bildandelar,
+     MODE-3): skrivs när spåret ligger stilla eller är klart, inte ur
+     helbilden, och bara när mitten flyttat mer än AUTO_FLYTT av bredden —
+     mindre är detektorns darr. nar bumpas bara då. Skrivs i båda lägena:
+     det är ett minne; mattan speglar det i Table leads (MODE-5). */
+  const kamLage = (k, t) => {
+    if (t.w == null || t.h == null || franHelbild(t) || (t.tillstand !== 'stilla' && t.tillstand !== 'klar')) return;
+    const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
+    if (k.kam && Math.hypot(cx - k.kam.x, cy - k.kam.y) <= AUTO_FLYTT * t.w) return;
+    k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu }; andrat = true;
+  };
   const lagg = (k, t) => {
     const tap = t.tappad ? 1 : 0;
     if (tapSynk && (k.kamTap == null || tap !== k.kamTap)) {
       k.kamTap = tap;
       if (pol.tap && (k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
     }
+    kamLage(k, t);
     if (k.borta) { delete k.borta; andrat = true; }
+  };
+  /* Täckt: ett bifogat kort vars värd syns, eller ett kort i en hög vars
+     understa (gi 0) syns, är inte borta — det ligger under. */
+  const tackt = k => {
+    const v = k.attachedTo ? mig.cards.find(c => c.cid === k.attachedTo)
+            : k.grp ? mig.cards.find(c => c !== k && c.grp === k.grp && c.gi === 0) : null;
+    return !!(v && v.spar != null && synliga.has(v.spar));
   };
   /* 1. Samma spår, ett annat SÄKERT namn: omläsningen efter ett spöke fann
      ett annat kort på platsen. Det gamla tonas ned där det ligger, det nya
@@ -16494,7 +16536,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   const iAndraSpar = namn => spar.filter(t => !iFysiskt.has(t.id) && (bunden(t.id) || {}).name === namn).length;
   for (const g of fysiska) {
     if (g.kort || g.bundna || sparrat(g)) continue;
-    const paBord = mig.cards.filter(c => c.name === g.namn && paBordet(c)).length;
+    const paBord = mig.cards.filter(c => c.name === g.namn && (paBordet(c) || c.fysisk)).length;
     const paMattan = fysiska.filter(h => h.namn === g.namn && (h.kort || h.bundna || !sparrat(h))).length + iAndraSpar(g.namn);
     if (paBord >= paMattan) continue;
     const t = g.spar[0];
@@ -16509,7 +16551,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
       if (!hoppade.has(t.id) && !mig.pending.some(q => q.spar === t.id)) {
         const id = uid();
         for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
-        mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk ? !!t.tappad : null, namnLast: null,
+        mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk && pol.tap ? !!t.tappad : null, namnLast: null,
           overTak: true, tak, cands: [{ name: t.namn, sid: t.sid || null, score: 1 }] });
         andrat = true;
       }
@@ -16518,7 +16560,8 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
     }
     /* Utan sparat läge föds kortet otappat (se lagg). Statusfältet ber om
        läget ur det här kortet så snart det ligger på bordet (grundSteg). */
-    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu };
+    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && pol.tap && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu };
+    kamLage(g.kort, t);
     mig.cards.push(g.kort); andrat = true;
     autoSumKort(g.kort.cid, t);
     senasteKamSpar = t.id;
@@ -16562,7 +16605,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
          slår bara upp postens id — utan flytten stod miniatyren och
          panelen tomma för varje kamerakort (se tagEmotBeskarning). */
       for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
-      mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk ? !!t.tappad : null, namnLast: t.namnLast || null,   // tappad: kortet applyPick skapar föds så; null = ingen bedömning (inget sparat läge), så att svaret inte avtappar ett kort som tappats för hand
+      mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk && pol.tap ? !!t.tappad : null, namnLast: t.namnLast || null,   // tappad: kortet applyPick skapar föds så; null = ingen bedömning (inget sparat läge), så att svaret inte avtappar ett kort som tappats för hand
         cands: (t.cands || []).map(c => ({ name: c.name, sid: c.sid || null, score: c.score || 0.5 })) });
       andrat = true;
     }
@@ -16599,7 +16642,16 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   for (const k of mig.cards) {
     if (k.spar != null && !synliga.has(k.spar) && k.borta && nu - k.borta > BORTA_NAD) {
       delete k.spar; delete k.borta; andrat = true;
-      if (!kanLyftas(k)) continue;
+      /* Borta digitalt redan (graveyard/exile medan det låg kvar): nu har
+         det lämnat bordet också — flaggan släpps, inget mer att säga. */
+      const varFysisk = !!k.fysisk; delete k.fysisk;
+      if (varFysisk || !kanLyftas(k)) continue;
+      /* Besvärjelseregeln (båda lägena): ett instant eller sorcery som
+         kameran lade ut och som plockas upp inom SPELL_MS har spelats —
+         det går till graveyard, med ångra i mattan (spellAuto). */
+      if (k.ny && nu - k.ny < SPELL_MS && arBesvarjelse(k)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; continue; }
+      if (!pol.saknas) continue;                 // Screen leads: kameran tar aldrig bort — bindningen släpps tyst
+      if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
       k.lyft = nu;
       if (!prefs.lyftForklarad) { prefs.lyftForklarad = true; savePrefs(); lyftTips = k.cid; }
     }
