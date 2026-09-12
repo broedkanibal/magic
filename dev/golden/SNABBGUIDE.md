@@ -358,6 +358,14 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
 
    1 Mbit/s, 15 rutor i sekunden och 1080 px bredd ger ~4–5 MB för 40
    sekunder. Videon ska in i git; håll den under tio megabyte.
+
+   Två valfria tal sist, `start_s slut_s`, klipper i tiden — inspelningen
+   slutar ofta med Kontrollcenter över bilden när man stoppar den (fall 09
+   och 10), och det ska bort. Facits tider räknas från `start_s`. Utsnittet
+   anges alltid i den VISADE bilden, som i QuickTime, också för en liggande
+   inspelning (2556×1180): för fall 09/10 var kamerabilden `523 328 1510 852`
+   (bort med Safaris rader och de svarta kanterna). En ny inspelning har bara
+   Safari att klippa bort — kameravyn visar ingen text (MES-87).
 4. **Ta ut `bild.jpg`** — sista rutan, den som visar slutläget:
 
    ```bash
@@ -392,6 +400,13 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
      }
    }
    ```
+
+   Fler händelsetyper: `{ "t": 26.5, "tappar": "Plains" }` och `"otappar"` (K1:
+   tap-flip inom 8 s), `{ "t": 42.5, "flyttar": "Pharika's Chosen" }` (K2/MODE-5:
+   ett säkert spår med namnet står mer än 15 % av bredden från sitt läge före
+   flytten, inom 8 s), och en graveyard-ruta i bildandelar för högen i bild:
+   `"grav": { "x": 0, "y": 0.46, "w": 0.175, "h": 0.54 }` (K9-lite; utan rutan
+   blir högens översta kort ett falskt spår med säkert namn).
 
    `t` är sekunder in i videon (±0,5 s duger), `takt_ms` hur tätt rutorna matas
    in (150 = appens egen takt), `svans_s` hur många sekunder till kameran får
