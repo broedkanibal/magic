@@ -161,6 +161,7 @@ const AI_PA = PARAMS.get('ai') === '1';
    eller lär appen (MESA_REF/MESA_LAR = false på appens fönster). */
 const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GLOM_REF = PARAMS.get('glomref') === '1';
 const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade innan fallet räknas som klart
+let AUTO_FLYTT = 0.15;    // läses ur appen när den laddats (avstamBord:s gräns för en verklig flytt)
 
 let w = null, K = null, kamSag = null;  // appens fönster, dess Kamera-modul och kameravyns statusrad
 let fall = [], resultat = new Map(), senaste = null, kor = false, stoppa = false;
@@ -237,6 +238,7 @@ async function laddaApp() {
      byggLekPool, kamIdentifiera, visaVy) ligger direkt på fönstret. */
   for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
   K = w.eval('Kamera');
+  try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_LAR = LAR_PA;
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
@@ -450,6 +452,8 @@ function nyttProv(video) {
            skarAlla: new Map(), tidslinje: [], sig: '', sigT: '', stabilSedan: 0,
            sistaBord: null, s: 0,
            logg: video ? [] : null, bordLogg: video ? [] : null,
+           /* K5/MODE-5: lägesuppdateringar — och senaste läget per spår (i bredd-enheter) som de mäts mot. */
+           lagesUpp: 0, lagesSist: new Map(), lagesLista: [],
            pendande: new Set() };
 }
 /* Återanropen modulen får. I videoläget måste varje ruta vänta in det som
@@ -461,6 +465,18 @@ function aterkoppling(f, prov) {
     fas: () => {},
     bord: (spar, nollstall) => {
       if (!nollstall) prov.sistaBord = spar;
+      /* K5/MODE-5: en lägesuppdatering är en rapport där ett stilla eller
+         klart spår (inte helbildens) flyttat sin mitt mer än AUTO_FLYTT av
+         bredden sedan förra läget — exakt det datorns kamLage speglar i
+         Table leads. Första läget räknas inte. y räknas om till
+         bredd-enheter med analysmåtten. Ska vara 0 på ett stilla bord. */
+      if (!nollstall) for (const t of spar || []) {
+        if (t.w == null || t.h == null || (t.tillstand !== 'stilla' && t.tillstand !== 'klar') || (t.ai && t.ai.helbild)) continue;
+        const { aw, ah } = K.analysMatt, cx = t.x + t.w / 2, cy = (t.y + t.h / 2) * ah / aw;
+        const l = prov.lagesSist.get(t.id), flytt = l ? Math.hypot(cx - l.cx, cy - l.cy) : Infinity;
+        if (l && flytt > AUTO_FLYTT * t.w) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2) }); }
+        if (!l || flytt > AUTO_FLYTT * t.w) prov.lagesSist.set(t.id, { cx, cy });
+      }
       /* Bordet datorn fick, med videons tid: ett kort som kom och gick syns
          bara här. HELA posten per spår, som rapportera() skickar den — med
          läget (x, y, w, h) och `sen`, som datorns avstämning läser — så att
@@ -538,6 +554,11 @@ function avsluta(f, prov, tid, tak, takS) {
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
   res.takS = takS;
+  /* K5/MODE-5: lägesuppdateringarna, och per minut av fallets tid (videofallet räknar om till videons tid efteråt). */
+  res.lagesUpp = prov.lagesUpp;
+  for (const x of prov.lagesLista) { const i = K.spar.findIndex(t => t.id === x.id); x.nr = i >= 0 ? i + 1 : null; }
+  res.lagesLista = prov.lagesLista;
+  res.lagesPerMin = +(prov.lagesUpp / Math.max(1, tid) * 60000).toFixed(1);
   /* K7: hur många lärda referenser poolen bar när fallet dömdes, och med
      --lar-ref hur många fallet lärde EFTER domen. */
   if (REF_PA) res.ref = refAntal();
@@ -656,6 +677,7 @@ async function korVideoFall(f, vf, vid, cv) {
     }
     const res = avsluta(f, prov, Math.round(performance.now() - t0), tak, +(takVirt / 1000).toFixed(1));
     Object.assign(res, betygVideo(f, vf, prov, +(vt / 1000).toFixed(2), +dur.toFixed(2), takt));
+    res.lagesPerMin = +(res.lagesUpp / Math.max(1, vt) * 60000).toFixed(1);   // per minut av VIDEONS tid, inte väggurets
     res.bordLogg = prov.bordLogg;
     res.videoSpar = prov.logg;
     return res;
@@ -744,6 +766,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   const kant = over.filter(vidKant).slice(0, avskurna);
   const falska = over.filter(t => !kant.includes(t));
   const medRuta = synliga.filter(harRuta);
+  /* K5/MODE-5: lägesfelet — spårets mitt mot facitrutans mitt i analyspixlar,
+     delat med spårets bredd; medianen över rutträffarna. */
+  const lageFel = traffar.filter(p => p.plats).map(p => Math.hypot((p.t.x + p.t.w / 2 - p.k.x - p.k.w / 2) * aw, (p.t.y + p.t.h / 2 - p.k.y - p.k.h / 2) * ah) / (p.t.w * aw)).sort((a, b) => a - b);
   const dia = K.diagnos, tro = K.trosklar;
   return {
     id: f.id, kort: synliga.length, dolda: dolda.length,
@@ -757,6 +782,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     felNamn: synligaTraffar.filter(p => p.t.saker && p.t.namn && !ratt(p.t, p.k)).length + falska.filter(t => t.saker && t.namn).length,
     falska: falska.length, kant: kant.length, doldaHittade: doldaTraffar.length, skrap: alla.length - spar.length,
     tappad: synligaTraffar.filter(p => p.plats && p.t.tappad === !!p.k.tappad).length, tappadAv: synligaTraffar.filter(p => p.plats).length,
+    lageFel: lageFel.length ? +lageFel[lageFel.length >> 1].toFixed(2) : null,
     missade: synliga.filter(k => !harTraff(k)).map(k => k.namn),
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,

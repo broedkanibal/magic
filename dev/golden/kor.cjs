@@ -67,14 +67,17 @@ function skrivTabell(rs, gamla) {
     ['Rätt namn', 17, (r, g) => `${r.namn}/${r.kort}` + skiljer(r, g, 'namn')],
     ['Fel namn', 13, (r, g) => r.felNamn + skiljer(r, g, 'felNamn')],
     ['Falska', 13, (r, g) => r.falska + skiljer(r, g, 'falska')],
-    ['Plats', 7, r => r.platsAv ? `${r.plats}/${r.platsAv}` : '–'],
+    ['Plats', 12, r => r.platsAv ? `${r.plats}/${r.platsAv}` + (r.lageFel != null ? ` ±${r.lageFel}` : '') : '–'],
     ['Tappad', 8, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–'],
+    /* K5/MODE-5: lägesuppdateringar — rapporter där ett stilla kort flyttat mer än AUTO_FLYTT av sin bredd; per minut av fallets tid. */
+    ['Läge', 16, (r, g) => r.lagesUpp == null ? '–' : `${r.lagesUpp}${skiljer(r, g, 'lagesUpp')}${r.lagesPerMin != null ? ` (${r.lagesPerMin}/min)` : ''}`],
     ['Förlopp', 72, forlopp]
   ];
   const rad = celler => '  ' + celler.map((c, i) => String(c).padEnd(kolumner[i][1])).join('').trimEnd();
-  const summa = (lista, k) => lista.reduce((a, r) => a + (r[k] || 0), 0);
+  /* Summan är null när ingen rad bär fältet — en baslinje från före ett nytt mått ska inte stå som "(var 0)". */
+  const summa = (lista, k) => lista.some(r => r[k] != null) ? lista.reduce((a, r) => a + (r[k] || 0), 0) : null;
   const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv',
-    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv'].map(k => [k, summa(lista, k)]));
+    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'lagesUpp'].map(k => [k, summa(lista, k)]));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
   const gs = rs.map(r => gamla.get(r.id));
@@ -82,7 +85,8 @@ function skrivTabell(rs, gamla) {
   console.log('\n  Kort: synliga kort i facit (ett kort som ligger under ett annat är dolt och räknas inte).');
   console.log('  Hittade: kort kameran lade ut — också dolda kort den ändå såg, och falska spår. Därför kan talet bli större än Kort.');
   console.log('  Rätt namn: synliga kort som fick rätt namn med säkert svar. Fel namn: säkert svar men fel kort (ska vara 0).');
-  console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor. (var N): baslinjens tal.');
+  console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor; ± är medianfelet mellan spårets och rutans mitt i kortbredder. (var N): baslinjens tal.');
+  console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
   console.log('  Förlopp: bara videofall — utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
   console.log('  inte ligger kvar med säkert namn, och hur många av utspelen kameran såg i rätt ordning. Slutläget står i kolumnerna före.');
 }
@@ -144,6 +148,9 @@ function skrivTabell(rs, gamla) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     { const sidan = rader.find(x => x.includes(r.id)); if (sidan) console.log('  sidans rad: ' + sidan.replace(/^Kör\s+/, '')); }
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
+    if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
+      + ((r.lagesLista || []).length ? ' — ' + r.lagesLista.map(x => `spår ${x.nr != null ? '#' + x.nr : x.id} @${x.s} s flyttade ${x.flytt} kortbredder`).join(', ') : ''));
     /* Videofallet: förloppet i videons sekunder — vad facit säger, när
        kameran namngav kortet, och varje spår från födsel till död. Det är
        här man ser ett kort som kom fram sent, ett som aldrig blev säkert,
@@ -206,7 +213,8 @@ function skrivTabell(rs, gamla) {
     for (const [k, namn, merArBattre, avK] of [['namn', 'rätt namn', true, 'kort'], ['felNamn', 'fel namn', false, 'kort'], ['falska', 'falska', false, 'kort'],
                                                ['videoLagda', 'spelade kort som fick namn', true, 'videoLagdaAv'], ['videoBorta', 'borttagna kort som försvann', true, 'videoBortaAv'],
                                                ['videoOrdning', 'utspel i rätt ordning', true, 'videoOrdningAv'], ['videoFelUnder', 'säkra namn på kort som aldrig var i partiet', false, 'videoLagdaAv'],
-                                               ['videoDubbletter', 'dubbletter', false, 'kort'], ['videoTapp', 'tap-vridningar som sågs', true, 'videoTappAv']]) {
+                                               ['videoDubbletter', 'dubbletter', false, 'kort'], ['videoTapp', 'tap-vridningar som sågs', true, 'videoTappAv'],
+                                               ['lagesUpp', 'lägesuppdateringar', false, 'kort']]) {
       if (r[k] == null || g[k] == null || r[k] === g[k]) continue;
       ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]} (av ${r[avK]} kort)`);
     } }

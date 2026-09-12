@@ -193,6 +193,21 @@ räknas in i domen mot baslinjen.
 Fall 07 har inga tap-händelser i facit (`tap –`); de kommer med
 inspelningarna 09/10 (K2).
 
+## Lägesmåtten (K5/MODE-5)
+
+I Table leads speglar datorn kortens platser från kameran (MODE-5), och
+flyttar ett kort när spårets mitt gått mer än `AUTO_FLYTT` (15 %) av
+bredden sedan förra läget — samma regel som `kamLage` i `avstamBord`. Två
+mått i kolumnerna Läge och Plats, i `--detalj` (raden `läge:`) och i domen:
+
+| Mått | Vad | Mål |
+|---|---|---|
+| `lagesUpp` / `lagesPerMin` | rapporter där ett stilla eller klart spår flyttat mer än 15 % av sin bredd sedan förra rapporten (första läget räknas inte); per minut av fallets tid (videons tid i ett videofall) | 0 på ett stilla bord (01–06, 08); i 07 bara verkliga flyttar |
+| `lageFel` | medianen av avståndet mellan spårets och facitrutans mitt, i kortbredder — bara där facit har rutor (01, 02, 08) | så litet som möjligt; ett spår som täcker halva kortet ger ≈ 0,25 |
+
+Viloläget från K5 (`vilaX/vilaY` med hysteres) är det som ska hålla
+`lagesUpp` på 0: darr på en gräns ger ingen rapport, en verklig glidning en.
+
 ## Kortbaksidor
 
 Ett nedvänt kort på bordet (biblioteket, ett kort som vänts) blev en

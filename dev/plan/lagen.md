@@ -390,7 +390,7 @@ dialog). Om tile-protokollet visar sig skört i test byter vi till det.
 ### MODE-5 — positionsspegling i Table leads (M, två commits) — sist — BYGGD (MES-72)
 - Commit 1 (skivan): `k.kam` skrivs i `lagg`/vid skapande (MODE-3, prov P7: stilla/klar, inte 'ny', inte helbild, flytt > `AUTO_FLYTT·w` → ny `nar`).
 - Commit 2 (mattan): `camera_setups.ruta.vand` (0/90/180/270) + `spegel` i alla skrivare (`tagEmotGrundSvar`, `normaliseraKamRad`, `sparaKamOrientering`), läses av `lasKamOri` i båda läsarna, nollas när spelet lämnas; "Rotate ↻ / Mirror ⇋" i lägespanelen (Table leads, kamera ansluten); `kamTillMatta(kam, skala)` vrider/speglar kring bildens mitt, skalan = `CW / median(kam.w)` (bordet i kortenheter), bildens proportioner ur `kamUpplosning` (annars 4:3), regionen läggs till höger om graveyard-kolumnen; `speglaKamPos(p, v)` i `renderGrid` (efter `matPlacera`) för egna kamerabundna kort som inte är nedtonade/bifogade, bara när `kam.nar` eller orienteringen bytt (`kamRitad/kamOri`, runtime), klämmer bara mot graveyard-rutan — brädet växer; `.card` glider redan (left/top .22 s). Platshållare i Table leads vid spårets mitt. Drag av per bindning: pointerdown på ett kamerabundet kort i Table leads visar chippet "The table places this card · switch to Screen leads to move it". Screen leads rör aldrig lägen.
-- **Kvar (D-strömmen, K5):** måttet "position updates on a still board per minute" och medianfelet mot facits rutor i `kor.cjs` — kräver viloläget med hysteres på telefonen.
+- **Måttet byggt 2026-09-12 (MES-82):** `lagesUpp`/`lagesPerMin` (rapporter där ett stilla/klart spår flyttat mer än `AUTO_FLYTT` av bredden — samma regel som `kamLage`; per minut av fallets tid) och `lageFel` (medianen av mittavståndet mot facits rutor i kortbredder, 01/02/08) i `kor.html`/`kor.cjs`: kolumnerna Läge och Plats (±), raden `läge:` i `--detalj`, i domen mot baslinjen. Se SNABBGUIDE *Lägesmåtten*.
 
 ### MODE-6 — ingår i M9
 Bara gatingen: arket/bannern visas när `pol.saknas`; `kanLyftas`-undantagen (MODE-3).
@@ -409,7 +409,7 @@ som helst.
 ### K3 — tap-domen på två stilla rutor (S) — BYGGD (MES-74)
 `matcha`: den exponentiella rösten (`tappRost`, tre rutor från otappat, fyra tillbaka) ersatt av löpräknaren `tappRun`: två stilla rutor i följd med en annan dom än kortets vrider det, från vilket läge som helst; en glitchruta nollar bara räknaren. `fodSpar`, `domOm`, `svarAI`, `tillampaHelbild` primar `tappRun: 0`. Bänken T12 (glitchruta rör inget; vriden → tappad efter 3 rutor; tillbaka efter 3). Ingen hysteres behövdes. Golden: se historik.md.
 
-### K5 — viloläge för positionsrapporter (S) — BYGGD (MES-75; bänken V1/V2; kor.cjs-måttet återstår)
+### K5 — viloläge för positionsrapporter (S) — BYGGD (MES-75; bänken V1/V2; kor.cjs-måttet MES-82)
 `t.vilaX/vilaY` sätts när spåret varit stilla ≥2 rutor och flyttat > `3·stillaPx` (hysteres, som `autoSparLage` 15281); `tillstandsSignatur` 13900 får `round(vilaX)/round(vilaY)` — inte en rå 2 %-kvantisering (rapport varje ruta på en gräns). Bänk P1 (≤3 rapporter över en glidning) / P2 (jitter över gränsen → 0 extra). Kontrollera Supabase-kvoten (events/s). Golden LIKA BRA.
 
 ### K6 — antalsprior på telefonen (S) — BYGGD (MES-76; helbilden döms i `tillampaHelbild` för nya spår, inte i `kamAiPoster`)
