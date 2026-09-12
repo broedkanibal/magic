@@ -1720,6 +1720,15 @@ body.lekfoto .lekfoto.lagg.telefon{display:none}
 }
 .kamsenast img{width:34px;height:48px;object-fit:cover;border-radius:4px;background:#11161e;flex:none}
 .kamsenast span{font:12px var(--sans);color:#e6ecf5}
+/* Ren vy: telefonen sitter i hållaren och ingen tittar på den under spelet,
+   men texten och knapparna täckte halva kamerabilden (och en skärminspelning
+   för golden setet fick klippas runt dem). Nu syns bara bilden, spårrutorna
+   och pricken i hörnet (grön = datorn lyssnar). Ett tryck på skärmen visar
+   allt i några sekunder; ett fel visar det tills vidare (kamSag). */
+#vyKamera.ren:not(.visa) .kambotten{display:none}
+#vyKamera.ren:not(.visa) .kamtopp{background:none}
+#vyKamera.ren:not(.visa) .kamtopp > :not(.kamprick){display:none}
+#vyKamera.ren:not(.visa) .kamprick{opacity:.75}
 
 /* ═══════════════════════════════════════════════════════════════════
    PORTALEN — landningssida och lobby
@@ -15618,6 +15627,8 @@ function kamUpplosningRad(u) {
 function satKamFin(del, txt) { kamFinDel[del] = txt || ''; ritaKamFin(); }
 const kamSag = (l, txt, fin) => {
   const st = $('#kamStatus'); if (st && txt) st.textContent = txt;
+  /* Kameran startade inte, eller datorn stängde av den: texten ska synas. */
+  if (l === 'fel' || l === 'ingen') kamVisaText(0);
   if (fin !== undefined) satKamFin('fas', fin);
 };
 
@@ -15629,6 +15640,10 @@ async function oppnaKamera(gameId) {
   spelLage = { id: spel.id, kod: spel.kod, namn: spel.namn, vard: spel.vard, mig: Moln.minId() };
   $('#kamSpel').textContent = spel.namn || ('Game ' + spel.kod);
   visaVy('kamera');
+  /* Ren vy (CSS #vyKamera.ren): texten syns de första sekunderna, så att man
+     ser att kameran startar, och sedan bara bilden. */
+  $('#vyKamera').classList.add('ren');
+  kamVisaText(6000);
 
   /* Telefonen anmäler sig som kamera. Datorn ser den i närvarolistan och kan
      visa bilden i stället för QR-koden. */
@@ -17966,6 +17981,22 @@ $('#kamHelbild').onclick = async () => {
   try { if (!(await Kamera.helbild()) && !kamFinDel.ai) satKamFin('ai', Kamera.helbildPagar ? 'Claude is already looking.' : 'The camera is not ready yet — wait a few seconds and try again.'); }
   finally { b.disabled = false; }
 };
+/* Ren kameravy: ett tryck på skärmen visar texten och knapparna i åtta
+   sekunder, ett tryck till döljer dem. kamVisaText(0) visar tills vidare
+   (fel). Inga timers behövs för att dölja vid start i golden-sidan: den
+   anropar aldrig oppnaKamera. */
+let kamVisaT = 0;
+function kamVisaText(ms) {
+  const v = $('#vyKamera'); if (!v) return;
+  v.classList.add('visa'); clearTimeout(kamVisaT);
+  if (ms) kamVisaT = setTimeout(() => v.classList.remove('visa'), ms);
+}
+$('#vyKamera').addEventListener('pointerdown', ev => {
+  const v = $('#vyKamera');
+  if (!v.classList.contains('ren') || ev.target.closest('button,a,input')) return;
+  if (v.classList.contains('visa')) { clearTimeout(kamVisaT); v.classList.remove('visa'); }
+  else kamVisaText(8000);
+});
 $('#kamStang').onclick = async () => {
   stoppaStrom();
   Kamera.stopp();

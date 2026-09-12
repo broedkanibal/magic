@@ -344,6 +344,9 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
    telefoninspelning är tiotals megabyte och hör inte hemma i git).
 3. **Klipp och koda om** till mappen. Klippet ska vara *bara kamerabilden*:
    bort med iOS statusrad, appens rubrik, statustexten och webbläsarens rad.
+   Sedan 2026-09-12 visar kameravyn ingen text efter de första sex sekunderna
+   (ett tryck på skärmen visar den), så en ny inspelning har bara iOS och
+   Safari att klippa bort.
    Verktygen ligger i `dev/golden/video/` och använder bara macOS egna delar,
    ingen ffmpeg:
 
