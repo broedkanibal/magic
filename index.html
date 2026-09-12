@@ -418,47 +418,57 @@ body.lasvy .card{cursor:default}
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
   border:2px solid var(--blue);box-shadow:inset 0 0 0 4px #6b8cff1f;pointer-events:none;
 }
-.kortnamn,.kortakt{opacity:0;pointer-events:none;transition:opacity .1s}
-.card:hover .kortnamn,.card:hover .kortakt{opacity:1}
-.card:hover .kortakt{pointer-events:auto}
-/* Etiketten och knappraden ligger INNANFÖR kortet. Brädet klipper vid sin
-   kant, och ett kort på första raden hade annars fått sin etikett avskuren. */
-/* left:0;right:0 med auto-marginal i stället för left:50%. En absolut
-   placerad ruta med left:50% får bara HALVA kortets bredd som utrymme, och
-   krympte därför till hälften av vad den behövde — knappraden radbröt till en
-   lodrät kolumn som täckte hela kortet. */
-.kortnamn{
-  position:absolute;left:0;right:0;top:5px;margin:0 auto;width:max-content;
-  z-index:22;max-width:calc(100% - 10px);
-  display:flex;flex-direction:column;gap:1px;white-space:nowrap;
-  background:#070b11;border:1px solid #3a4658;border-radius:6px;
-  padding:4px 9px;box-shadow:0 6px 16px -4px #000e;
-  /* Rutan är bredast möjliga innehåll, men aldrig bredare än kortet. Utan
-     overflow här rann en lång andra rad rakt ut ur rutan och klipptes av
-     kortets egen kant — texten slutade mitt i ett ord, utan att något
-     antydde att den fortsatte. */
-  overflow:hidden;
+/* ── ord, P/T och hover-pill ──
+   Nyckelorden står som ord nere till vänster på kortet, P/T som en bricka
+   nere till höger (bas → total när det finns counters). Ett tappat kort är
+   hela elementet roterat 90°: brickorna vrids tillbaka kring sin mitt och
+   flyttas till det hörn som visuellt är nere till vänster respektive höger.
+   Gradienten i nederkanten ger orden botten under sig. */
+.card .bar{position:absolute;left:0;right:0;bottom:0;height:44px;border-radius:0 0 10px 10px;background:linear-gradient(#0000,#000b);pointer-events:none}
+.card.land .bar{height:26px;border-radius:0 0 8px 8px}
+.kwkort{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;pointer-events:none;z-index:3}
+.kwkort b{padding:2px 6px;font:700 9px/1.3 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:#e7ecf4;background:#0b1017e8;border:1px solid #3a4658;border-radius:4px;white-space:nowrap}
+.pt{
+  position:absolute;right:6px;bottom:6px;z-index:3;pointer-events:none;white-space:nowrap;
+  display:flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;
+  background:#0b1017ee;border:1px solid #4a5a72;font:700 13.5px/1.25 var(--mono);color:#f4f7fc;
 }
-/* Båda raderna kortas likadant. b hade ellipsis, i hade ingenting alls, och
-   det var just i som blev för lång: "1/1 · when this creature enters". */
-.kortnamn b,.kortnamn i{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.kortnamn b{font:600 11px/1.3 var(--sans);color:#f0f4fa}
-/* Andra raden — 3/3, flying — låg tidigare i --dim2 mot ett halvgenomskinligt
-   fält ovanpå kortkonsten. Den försvann i vad som råkade ligga bakom. */
-.kortnamn i{font:10.5px/1.35 var(--mono);color:#a9bad2;font-style:normal}
-/* Handlingsraden flyter över kortets nederkant — den ska inte skymma
-   konstverket eller namnet man just läste. */
-/* Fem knappar är bredare än ett litet kort. Raden bryter innanför kortets
-   kant i stället för att sticka ut — utanför klipper rutnätet, och på kortet
-   längst till vänster försvann halva raden. */
-.kortakt{
-  position:absolute;left:0;right:0;bottom:5px;margin:0 auto;width:max-content;
-  z-index:22;
-  display:flex;flex-wrap:wrap;justify-content:center;gap:4px;padding:4px;
-  max-width:calc(100% - 8px);
-  background:#070b11f2;border:1px solid #3a4658;border-radius:9px;
-  box-shadow:0 6px 16px -4px #000e;
+.pt.boost{border-color:#2f6b48}
+.pt.boost > b:first-child{color:#7e8ea6;font-weight:600}
+.pt i{font-style:normal;color:#66748a;font-size:11px}
+.pt .tot{color:#7fd6a2}
+.pt.loy{color:#dcc7ff;border-color:#5c4a80}
+/* Tappat: kortets +90° och brickans −90° ger upprätt text. Rotationen görs
+   kring hörnet (inte mitten, som skjuter ut den breda sidan), med en
+   translate FÖRE rotationen som lägger lådan innanför kortet: orden i det
+   hörn som visuellt är nere till vänster (lokalt nere till höger), P/T i det
+   som visuellt är nere till höger (lokalt uppe till höger). */
+.card.tappad .kwkort{left:auto;right:6px;bottom:6px;transform-origin:100% 100%;transform:rotate(-90deg) translateX(100%)}
+.card.tappad .pt{right:6px;bottom:auto;top:6px;transform-origin:100% 0;transform:rotate(-90deg) translateY(-100%)}
+/* Hover-pillen: ett syskon till kortet i brädlagret, aldrig roterat, skalat
+   mot zoomen så att den är läsbar också på ett utzoomat bräde. */
+.pill{
+  position:absolute;z-index:940;display:flex;align-items:center;gap:6px;padding:4px 6px 4px 9px;
+  border-radius:8px;background:#04070cf2;border:1px solid #3a4658;box-shadow:0 8px 22px -8px #000e;
+  white-space:nowrap;transform-origin:50% 100%;
 }
+.pill.under{transform-origin:50% 0}
+.pill .hint{font:11px/1 var(--sans);color:var(--dim)}
+.pill button{height:24px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 11px/1 var(--sans);cursor:pointer}
+.pill button.prim{background:var(--acc);border-color:var(--acc);color:#20160a}
+.pill button:hover{filter:brightness(1.12)}
+.pill .meny{width:26px;padding:0;font-size:15px;line-height:1}
+/* Kortmenyn (⋯ och högerklick). Ligger i mattan, i skärmkoordinater. */
+.matmeny{
+  position:absolute;z-index:960;min-width:200px;padding:5px;border-radius:9px;display:none;
+  background:#0b1017f8;border:1px solid var(--panelram2);box-shadow:0 14px 34px -10px #000e;
+}
+.matmeny.open{display:block}
+.matmeny .hd{padding:5px 9px 6px;margin-bottom:4px;border-bottom:1px solid var(--line);font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px}
+.matmeny button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:0;border-radius:6px;background:none;color:var(--txt);font:12.5px/1 var(--sans);text-align:left;cursor:pointer}
+.matmeny button:hover{background:var(--bg4)}
+.matmeny button.fara:hover{background:#3a1f22;color:#ff9099}
+.matmeny button i{width:7px;height:7px;border-radius:50%;flex:none}
 .kortakt-b{
   position:relative;
   width:26px;height:26px;border-radius:6px;background:var(--bg4);color:#cfd9e8;
@@ -4317,13 +4327,17 @@ function toast(msg, kind, undo) {
 }
 
 /* ─────────── localStorage ─────────── */
-const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v1', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
+const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
             lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
+/* Kortcachen byttes till v2 när nyckelorden (kw) och tokens (parts) började
+   sparas per kort (M0/M6): gamla poster saknar dem och hade annars aldrig
+   fyllts på. v1 tas bort så att den inte ligger kvar och äter kvoten. */
+LS.del('sthv.cards.v1');
 
 /* ─────────── IndexedDB för screenshots ─────────── */
 const IDB = (() => {
@@ -5502,10 +5516,17 @@ function kortHtml(e, i, extra, pos, bif) {
   const x = pos ? pos.x : e.x, y = pos ? pos.y : e.y, z = pos ? pos.z : e.z;
   const kl = ['card', land ? 'land' : '', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', e.lyft != null ? 'lyft' : '', extra || ''].filter(Boolean).join(' ');
-  return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" title="${esc(label)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}">
+  /* Nyckelorden ur Scryfall, upp till tre + "+N"; land och olästa kort
+     får inga. P/T som bas → total när kortet har counters. */
+  const f = card && card.faces[fi] || null;
+  const ord = (land || e.lyft != null || !card) ? [] : (card.kw || []);
+  const kwHtml = !ord.length ? '' : `<span class="kwkort">${ord.slice(0, 3).map(k => `<b>${esc(k)}</b>`).join('')}${ord.length > 3 ? `<b>+${ord.length - 3}</b>` : ''}</span>`;
+  return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}">
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
+    <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
-    ${e.lyft != null ? lyftRadHtml(e, i) : hoverRadHtml(e, i)}
+    ${kwHtml}${e.lyft != null || land ? '' : ptTile(e, f)}
+    ${e.lyft != null ? lyftRadHtml(e, i) : ''}
     ${bif ? `<span class="bifbricka" data-bif="${esc(e.cid)}" title="${bif} attached ${bif === 1 ? 'card' : 'cards'}">+${bif}</span>` : ''}
   </div>`;
 }
@@ -5513,6 +5534,20 @@ function kortHtml(e, i, extra, pos, bif) {
    sticker upp ovanför — som en equipment instucken under en creature. */
 function bifogadPlats(vard, k) {
   return { x: (vard.x || 0) + MATTA.XSTEP * (k + 1), y: (vard.y || 0) - 44 * (k + 1), z: Math.max(1, (vard.z || 1) - (k + 1)) };
+}
+/* P/T-brickan: basen i vitt; med counters basen i grått, en pil och totalen
+   i grönt. Scryfall ger styrka och tålighet som STRÄNGAR ('2', '*', '1+*'):
+   totalen räknas bara när båda är tal, annars står basen som den är. En
+   planeswalker visar sin lojalitet i stället. */
+function ptTile(e, f) {
+  if (!f) return '';
+  if (f.pow != null && f.tou != null) {
+    const pw = Number(f.pow), tw = Number(f.tou), sum = ctSum(e.cts);
+    const tot = (sum.p || sum.t) && !isNaN(pw) && !isNaN(tw) ? (pw + sum.p) + '/' + (tw + sum.t) : '';
+    return `<span class="pt${tot ? ' boost' : ''}"><b>${esc(f.pow + '/' + f.tou)}</b>${tot ? `<i>→</i><b class="tot">${esc(tot)}</b>` : ''}</span>`;
+  }
+  if (f.loy != null) return `<span class="pt loy"><b>${esc(String(f.loy))}</b></span>`;
+  return '';
 }
 /* Raden på ett nedtonat kort. Två saker man kan göra med ett kort som inte
    ligger på mattan: lägga det i graveyard, eller ta bort det — hand, exil,
@@ -5597,25 +5632,6 @@ function malIndex(i) {
   return ut;
 }
 
-/* Handlingsraden som visas när man hovrar ett kort. Fyra saker man faktiskt
-   gör under en tur: vrid kortet, lägg det på ett annat, lägg det i graveyard,
-   ta bort det. Ikonerna följer appens övriga streck. */
-function hoverRadHtml(e, i) {
-  /* Spans, inte knappar: kortet SJÄLVT är en <button>, och HTML tillåter inte
-     en knapp inuti en knapp — parsern lyfte ut dem ur kortet och la dem som
-     egna rutor i rutnätet. Etiketten ligger i knappen och inte i title, för
-     webbläsarens egen tooltip dröjer en sekund och hinner aldrig fram. */
-  const kn = (akt, etikett, ikon, extra) =>
-    `<span class="kortakt-b${extra || ''}" role="button" data-akt="${akt}" aria-label="${etikett}" data-i="${i}">`
-    + `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ikon}</svg>`
-    + `<i class="akttip">${etikett}</i></span>`;
-  return `<span class="kortakt" data-akt-for="${i}">
-    ${kn('tap', e.tapped ? 'Untap' : 'Tap', e.tapped ? IKON_UNTAP : IKON_TAP)}
-    ${kn('flip', e.flipped ? 'Turn face up' : 'Turn face down', e.flipped ? IKON_FRAMSIDA : IKON_BAKSIDA)}
-    ${kn('grav', 'Graveyard', IKON_GRAV)}
-    ${kn('del', 'Remove', IKON_KRYSS, ' fara')}
-  </span>`;
-}
 /* Platshållarna just nu (autoPlatser): bara på mitt eget bord, medan auto
    är på och telefonen är med. Någon annans bord får inga — deras kamera
    är deras. */
@@ -5676,7 +5692,7 @@ function renderGrid(force) {
   const strukt = cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + (lyftTips === c.cid ? 'T' : '')
-    + '·' + (zonAv(c) === ZON_GRAV ? 'g' : matSlag(c))).join('|')
+    + '·' + (zonAv(c) === ZON_GRAV ? 'g' : matSlag(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
     + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L');
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
@@ -5705,7 +5721,7 @@ function renderGrid(force) {
       const q = platsPos.get(el.dataset.spar);
       if (q) { el.style.left = Math.round(q.x) + 'px'; el.style.top = Math.round(q.y) + 'px'; }
     }
-    renderSel();
+    renderSel(); renderPill();
     return;
   }
 
@@ -5735,7 +5751,7 @@ function renderGrid(force) {
   emptyLasEl.classList.toggle('hide', cards.length > 0);
   if (!cards.length && !redigerbar()) $('#emptyLasTxt').textContent =
     (player().name || 'The player') + ' has nothing on the table yet';
-  renderSel();
+  renderSel(); renderPill();
 }
 
 /* Nedre bandet: Lands → Selected → Graveyard, med fast höjd. Höjden sätts av
@@ -5949,7 +5965,7 @@ gridWrap.addEventListener('wheel', ev => {
 let matPan = null;
 gridWrap.addEventListener('pointerdown', ev => {
   if (ev.button !== 0 && ev.button !== 1) return;
-  if (ev.target.closest('.card,.plats,.grav,.mattachrome,.empty,.lyftbanner')) return;
+  if (ev.target.closest('.card,.plats,.grav,.mattachrome,.empty,.lyftbanner,.pill,.matmeny')) return;
   if (ev.button === 0 && !matInzoomad()) return;
   const v = matVy();
   matPan = { x0: ev.clientX, y0: ev.clientY, pan: { x: v.pan.x, y: v.pan.y } };
@@ -6085,16 +6101,85 @@ function renderMark() { renderInspektor(); }
 /* Hovern på mattan: delegerad, med 90 ms fördröjning på vägen ut så att
    panelen inte blinkar mellan två kort. Ingen hover under ett drag. */
 gridEl.addEventListener('pointerover', ev => {
-  const el = ev.target.closest('.card'); if (!el) return;
   if (dnd && dnd.drar) return;
-  clearTimeout(matHoverT);
-  if (matHover !== el.dataset.cid) { matHover = el.dataset.cid; renderInspektor(); }
+  const el = ev.target.closest('.card');
+  if (el) {
+    clearTimeout(matHoverT);
+    if (matHover !== el.dataset.cid) { matHover = el.dataset.cid; renderInspektor(); renderPill(); }
+    return;
+  }
+  if (ev.target.closest('.pill')) clearTimeout(matHoverT);   // pekaren gick över till pillen
 });
 gridEl.addEventListener('pointerout', ev => {
-  const el = ev.target.closest('.card'); if (!el) return;
-  if (ev.relatedTarget && el.contains(ev.relatedTarget)) return;
+  const fran = ev.target.closest('.card,.pill'); if (!fran) return;
+  const till = ev.relatedTarget && ev.relatedTarget.closest ? ev.relatedTarget : null;
+  if (till && (fran.contains(till) || till.closest('.pill') || (till.closest('.card') && till.closest('.card').dataset.cid === matHover))) return;
   clearTimeout(matHoverT);
-  matHoverT = setTimeout(() => { matHover = null; renderInspektor(); }, 90);
+  matHoverT = setTimeout(() => { matHover = null; renderInspektor(); renderPill(); }, 90);
+});
+/* Hover-pillen: hint, primärknappen (Tap/Untap, senare Where did it go?)
+   och ⋯. Ritas när hovern byter kort och efter varje omritning; borta under
+   drag, på nedtonade kort och på någon annans bord. */
+function renderPill() {
+  let el = gridEl.querySelector('.pill');
+  const c = matHover != null ? hand().find(k => k.cid === matHover) : null;
+  if (!c || (dnd && dnd.drar) || !redigerbar() || c.lyft != null || zonAv(c) === ZON_GRAV) { if (el) el.remove(); return; }
+  const v = matVy(), r = matRect(c), under = r.y * v.z + v.pan.y < 110;
+  const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
+  const hint = nStack > 1 ? nStack + ' stacked · drag one out' : c.tapped ? 'Swing it back up' : 'Swing it sideways';
+  const html = `<span class="hint">${esc(hint)}</span>`
+    + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}</button>`
+    + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;
+  if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
+  if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
+  el.dataset.cid = c.cid;
+  el.classList.toggle('under', under);
+  const sk = Math.min(1.5, 1 / v.z);   // läsbar på ett utzoomat bräde, men inte jättelik
+  el.style.left = Math.round(r.x + r.w / 2) + 'px';
+  el.style.top = Math.round(under ? r.y + r.h + 10 : r.y - 10) + 'px';
+  el.style.transform = (under ? 'translate(-50%,0)' : 'translate(-50%,-100%)') + ` scale(${sk})`;
+}
+/* Kortmenyn: ⋯ i pillen och högerklick på kortet. */
+let matMenyEl = null;
+function openKortMeny(cid, cx, cy) {
+  const c = hand().find(k => k.cid === cid); if (!c || !redigerbar()) return;
+  if (!matMenyEl) {
+    matMenyEl = document.createElement('div'); matMenyEl.className = 'matmeny';
+    $('#zonPerm').appendChild(matMenyEl);
+    matMenyEl.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-ma]'); if (!b) return;
+      ev.stopPropagation();
+      const id = matMenyEl.dataset.cid; closeKortMeny();
+      const i = hand().findIndex(x => x.cid === id); if (i < 0) return;
+      kortMenyVal(b.dataset.ma, i);
+    });
+    addEventListener('mousedown', ev => { if (matMenyEl.classList.contains('open') && !matMenyEl.contains(ev.target)) closeKortMeny(); });
+    gridWrap.addEventListener('wheel', closeKortMeny, { passive: true });
+  }
+  const dfc = arDfc(cardOf(c));
+  matMenyEl.dataset.cid = cid;
+  matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
+    <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}</button>
+    <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}</button>
+    <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard</button>
+    <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board</button>`;
+  const r = $('#zonPerm').getBoundingClientRect();
+  matMenyEl.style.left = Math.max(4, Math.min(cx - r.left, r.width - 214)) + 'px';
+  matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175)) + 'px';
+  matMenyEl.classList.add('open');
+}
+function closeKortMeny() { if (matMenyEl) matMenyEl.classList.remove('open'); }
+function kortMenyVal(a, i) {
+  const c = hand()[i]; if (!c) return;
+  if (a === 'tap') tappa(i);
+  else if (a === 'flip') { state.sel = i; flipSel(); }
+  else if (a === 'grav') matAngra(namnAv(c) + ' → graveyard', () => { flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`)); flyttaTill(i, ZON_GRAV); });
+  else if (a === 'del') removeAt(i);
+}
+gridEl.addEventListener('contextmenu', ev => {
+  const el = ev.target.closest('.card'); if (!el || !redigerbar()) return;
+  ev.preventDefault();
+  openKortMeny(el.dataset.cid, ev.clientX, ev.clientY);
 });
 /* Graveyard-högen: ett lager per kort under det översta, förskjutna, så att
    antalet syns i högen själv. Formeln krymper steget när högen växer så att
@@ -6984,6 +7069,13 @@ gridEl.addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
   if (svalgKlick) { svalgKlick = false; ev.stopPropagation(); return; }   // klicket efter ett drag
   if (lyftTips && ev.target.closest('.card')) { lyftTips = null; setTimeout(() => { renderGrid(true); renderLyftRad(); }, 0); }
+  const pk = ev.target.closest('[data-pakt]');
+  if (pk) {
+    ev.stopPropagation();
+    const i = hand().findIndex(k => k.cid === pk.closest('.pill').dataset.cid); if (i < 0) return;
+    if (pk.dataset.pakt === 'tap') tappa(i); else openKortMeny(hand()[i].cid, ev.clientX, ev.clientY);
+    return;
+  }
   const ab = ev.target.closest('[data-akt]');
   if (ab) { ev.stopPropagation(); kortAktion(ab.dataset.akt, +ab.dataset.i); return; }
   const gb = ev.target.closest('[data-grav]');
@@ -7082,6 +7174,7 @@ gridEl.addEventListener('pointerdown', ev => {
   const i = +el.dataset.i, c = hand()[i];
   if (!c) return;
   ev.stopPropagation();                      // inte panorering
+  closeKortMeny();
   state.sel = i; renderSel(); renderDetail(); sparaUi();
   if (!redigerbar()) return;                 // titta, inte röra, på någon annans bord
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
@@ -7106,6 +7199,7 @@ addEventListener('pointermove', ev => {
   if (!dnd.drar) {
     if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
     dnd.drar = true;
+    renderPill();                            // borta under draget
     const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(c.cid)}"]`);
     if (el) el.classList.add('held');
     try { gridEl.setPointerCapture(dnd.pointerId); } catch (e) {}
@@ -9073,6 +9167,7 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
+    if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
     if (menuEl.classList.contains('open')) return closeMenu();
     if ($('#scanPanel').classList.contains('open')) return closeScan();
     if ($('#focusOv').classList.contains('open')) return closeFocus();
