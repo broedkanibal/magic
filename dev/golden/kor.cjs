@@ -183,6 +183,11 @@ function skrivTabell(rs, gamla) {
     }
     /* MES-83: varje födsel med närmaste lediga spår (avstånd mot gränsen, areakvot, ms utan region, täckning) och närmaste spår som redan hade en region. */
     for (const b of r.fodslar || []) console.log(`    född ${b.s} s @${b.cx},${b.cy} lång ${b.lang} (gräns ${b.grans}): ledigt ${b.narm ? `#${b.narm.id} ${b.narm.d} px, area ×${b.narm.area}, ${b.narm.sen} ms utan region, ${b.narm.st}${b.narm.namn ? ' ' + b.narm.namn : ''}, täckning ${b.narm.tackning}` : '–'}; upptaget ${b.upptaget ? `#${b.upptaget.id} ${b.upptaget.d} px` : '–'}`);
+    /* MES-94: varje lokal läsning — beskärningens storlek, bildens dom med poäng och ORB-inliers, namnläsarens svar — så att en säker bilddom går att spåra till sina tal. */
+    for (const l of r.lasningar || []) console.log(`    läst ${l.s} s spår ${l.nr != null ? '#' + l.nr : 'id ' + l.spar} ${l.w}×${l.h}: ${l.dom}${l.varfor ? ' [' + l.varfor + ']' : ''}${l.namn ? ' ' + l.namn : ''}`
+      + (l.bild ? ` — bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.accept ? ', accept' : ''}` : '')
+      + ((l.cands || []).length ? ' (' + l.cands.map(c => c.name + (c.score != null ? ' ' + c.score : '')).join(', ') + ')' : '')
+      + (l.ocr ? (l.ocr.hoppad ? ` [ocr hoppad: ${l.ocr.hoppad}]` : ` [ocr "${l.ocr.text || ''}" → ${l.ocr.namn || '–'} ${l.ocr.poang}/${l.ocr.marginal}${l.ocr.vand ? ' vänd' : ''}]`) : ''));
     for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
     for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.varfor ? ' [' + t.varfor + ']' : ''}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + (t.ocr.start != null ? ' @' + Math.round(t.ocr.start * 100) + '%' + (t.ocr.vand ? ' vänd' : '') : '') + ', ' + t.ocr.ms + ' ms]') : ''}`);
   }

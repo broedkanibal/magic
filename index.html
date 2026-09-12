@@ -11093,7 +11093,16 @@ function identifyAt(img, box, hint) {
   const rot0 = b && b.fit ? b.fit.rot : hint;
   const orb = orbIdentify(img, box, rot0, (r.results || []).slice(0, 15));
   const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: refSid(x.id), score: x.score }));
-  if (orb && orb.cand) {                       // sätt ORB:s val överst bland förslagen
+  /* Pekar ORB på samma kort som helhetslikhetens etta? Två vittnen räknas
+     bara när de säger samma namn (MES-94): i golden 09 var helheten säker
+     på Plains (0,77, flera Plains-konstverk bland de sex bästa) medan ORB:s
+     bästa var Serpent Assassin med 8 inliers — under egen gräns — och
+     "helhetssäker + minst 6 inliers" accepterade, med ORB:s kort överst.
+     ORB:s val står överst bara när det bär sig självt (ORB_ACCEPT) eller
+     håller med helheten; ett svagt ORB-val på ett annat kort är ingen
+     rangordning, bara brus. */
+  const orbSamma = !!(orb && orb.cand && b && orb.cand.name === b.name);
+  if (orb && orb.cand && (orb.inliers >= ORB_ACCEPT || orbSamma)) {   // sätt ORB:s val överst bland förslagen
     const j = cands.findIndex(x => x.sid === refSid(orb.cand.id) && x.name === orb.cand.name);
     if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
     else if (j < 0) cands.unshift({ name: orb.cand.name, sid: refSid(orb.cand.id), score: orb.cand.score });
@@ -11117,10 +11126,13 @@ function identifyAt(img, box, hint) {
     marg = b.score - (annan ? annan.score : 0);
   }
   const konf = !!(b && confident(b, marg, r.results));
-  const orbOK = orb && orb.inliers >= ORB_ACCEPT && (gScore >= 0.70 || orb.inliers >= 25);
+  /* Helhetslikheten som stöder ORB:s kort är DET kortets — ettans poäng
+     hör till ett annat kort när de inte är överens (MES-94). */
+  const orbScore = orb && orb.cand ? (orbSamma ? Math.max(gScore, orb.cand.score || 0) : (orb.cand.score || 0)) : 0;
+  const orbOK = orb && orb.inliers >= ORB_ACCEPT && (orbScore >= 0.70 || orb.inliers >= 25);
   const accept = orbOK
     || (!Pool.idx.orb && konf)
-    || (Pool.idx.orb && konf && orb && orb.inliers >= 6);
+    || (Pool.idx.orb && konf && orbSamma && orb.inliers >= 6);
   return { accept, score: gScore, rec: { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0 } };
 }
 
@@ -16000,7 +16012,10 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
     c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
     Moln.sandKam('beskarning', { spar: id, b64: c.toDataURL('image/jpeg', 0.7), namnLast });
   }
-  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor };
+  /* bild: vad bildmatchningen själv mätte — för golden-provets läsningslogg
+     (--detalj), så att en säker bilddom går att spåra till sina tal. */
+  const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0 };
+  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild };
 }
 
 /* ── Claude för kamerans osäkra beskärningar (MES-28 Del 3b) ──

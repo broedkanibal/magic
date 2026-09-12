@@ -456,6 +456,10 @@ function nyttProv(video) {
            logg: video ? [] : null, bordLogg: video ? [] : null,
            /* K5/MODE-5: lägesuppdateringar — och senaste läget per spår (i bredd-enheter) som de mäts mot. */
            lagesUpp: 0, lagesSist: new Map(), lagesLista: [],
+           /* Läsningarna: varje gång ett spår läses lokalt — tid, beskärningens
+              storlek, bildens dom (poäng, inliers, accept) och namnläsarens
+              svar. Det är här en säker bilddom går att spåra (MES-94). */
+           lasningar: [],
            pendande: new Set() };
 }
 /* Återanropen modulen får. I videoläget måste varje ruta vänta in det som
@@ -503,7 +507,13 @@ function aterkoppling(f, prov) {
           namnLast: t.namnLast ? { namn: t.namnLast.namn != null ? t.namnLast.namn : null, poang: t.namnLast.poang != null ? t.namnLast.poang : null } : null
         })) });
     },
-    identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return folj(w.kamIdentifiera(c, id, gissning, kort)); },
+    identifiera: (c, id, gissning, kort) => {
+      sparaBeskarning(f.id, c, id);
+      const s = prov.s, w0 = c ? c.width : 0, h0 = c ? c.height : 0;
+      const p = w.kamIdentifiera(c, id, gissning, kort);
+      if (p && typeof p.then === 'function') p.then(svar => { try { loggaLasning(prov, s, id, w0, h0, svar); } catch (e) {} }, () => {});
+      return folj(p);
+    },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
     lart: (id, namn, sid, kalla) => w.kamLart(id, namn, sid, kalla),
     aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas
@@ -535,6 +545,23 @@ function las(prov, ms, msRuta) {
   const svarade = spar.every(t => t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand' || t.tillstand === 'skrap') && !aiVantar() && !K.helbildVantar;
   return { spar, lage, klart: lart && svarade && ms - prov.stabilSedan >= STILLA_MS && ms > 2500 };
 }
+/* En lokal läsning av ett spår, som kamIdentifiera svarade. Högst 60 per
+   fall: ett spår som väntar på poolen frågar om var 1,5 s. */
+function loggaLasning(prov, s, id, w0, h0, svar) {
+  if (prov.lasningar.length >= 60) return;
+  const l = { s, spar: id, nr: null, w: w0, h: h0 };
+  if (svar == null) l.dom = 'inte redo';
+  else if (svar.skrap) l.dom = 'skräp';
+  else if (svar.baksida) l.dom = 'baksida';
+  else {
+    l.dom = svar.saker ? 'säker' : 'osäker'; l.varfor = svar.varfor || null; l.namn = svar.namn || null;
+    l.bild = svar.bild || null;
+    l.cands = (svar.cands || []).slice(0, 3).map(c => ({ name: c.name, score: c.score != null ? +(+c.score).toFixed(2) : null }));
+    const n = svar.namnLast;
+    l.ocr = n ? (n.hoppad ? { hoppad: n.hoppad } : { text: n.text, namn: n.namn, poang: n.poang, marginal: n.marginal, vand: !!n.vand }) : null;
+  }
+  prov.lasningar.push(l);
+}
 /* Spåren över tiden: när de föddes, vilka SÄKRA namn de bar och när, vad de
    bar sist och när de försvann. Slutläget säger inget om ett kort som lades
    ut och plockades bort igen — det är just det ett videofall provar. */
@@ -555,12 +582,14 @@ function loggaSpar(prov, spar) {
 function numreraOm(f, prov) {
   for (const p of beskarningar[f.id]) { const i = K.spar.findIndex(t => t.id === p.spar); p.nr = i >= 0 ? i + 1 : null; }
   for (const l of (prov.logg || [])) { const i = K.spar.findIndex(t => t.id === l.mid); l.nr = i >= 0 ? i + 1 : null; }
+  for (const l of prov.lasningar) { const i = K.spar.findIndex(t => t.id === l.spar); l.nr = i >= 0 ? i + 1 : null; }
 }
 function avsluta(f, prov, tid, tak, takS) {
   numreraOm(f, prov);
   const sort = prov.msProv.slice().sort((a, b) => a - b);
   const res = bedom(f, prov.sistaBord, tid, tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
   res.skurnaAlla = prov.skurnaAlla;
+  res.lasningar = prov.lasningar;
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
   res.takS = takS;

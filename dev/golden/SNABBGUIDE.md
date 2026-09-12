@@ -211,6 +211,13 @@ långt från närmaste lediga spår (mot gränsen 0,6 × långsidan), areakvoten
 hur länge det spåret stått utan region och hur mycket lådorna täcker
 varandra — det är där man ser varför ett kort blev två spår (MES-83).
 
+Och raden `läst …` för varje lokal läsning av ett spår (MES-94): videons
+tid, beskärningens storlek, domen med domskälet, bildens egen mätning
+(helhetslikhet, ORB-inliers, `accept` när bilden ensam räckte), de tre
+översta förslagen med poäng, och vad namnläsaren läste. Det är där en säker
+bilddom går att spåra till sina tal: i 09 stod "bild 0,77, 8 inliers,
+accept" med Plains överst i helheten men Serpent Assassin som ORB:s val.
+
 Viloläget från K5 (`vilaX/vilaY` med hysteres) är det som ska hålla
 `lagesUpp` på 0: darr på en gräns ger ingen rapport, en verklig glidning en.
 
