@@ -1389,6 +1389,13 @@ body.lasvy .hand::before{
   font:11.5px/1 var(--sans);
 }
 body.lasvy .lasband{display:flex}
+/* ── I ett spel (MES-101) ───────────────────────────────────────────
+   Ett kort läggs till för hand bara ur den egna leken (leklådan). Sökningen
+   efter valfritt kort, List och bildvägarna hör till lekbygget ("My decks")
+   och till lokalt läge. Raden under topbaren står bara kvar för bandet på
+   någon annans bord; "Clear my board" finns i menyn. */
+body.ispel .searchwrap,body.ispel #bulkBtn,body.ispel .handmeta,body.ispel #bildKnapp,body.ispel .utanspel{display:none!important}
+body.ispel:not(.lasvy) .handbar{display:none}
 
 /* Kort som just dök upp från kameran pulserar till en gång. */
 @keyframes nypuls{0%{box-shadow:0 0 0 0 #5fbf7f88}70%{box-shadow:0 0 0 12px #5fbf7f00}100%{box-shadow:0 0 0 0 #5fbf7f00}}
@@ -2552,8 +2559,8 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> select</span>
     <span><kbd>F</kbd> focus</span>
     <span><kbd>Space</kbd> flip</span>
-    <span><kbd>/</kbd> search</span>
-    <span><kbd>S</kbd> screenshot</span>
+    <span><kbd>/</kbd> find a card</span>
+    <span class="utanspel"><kbd>S</kbd> screenshot</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
     <span><kbd>Backspace</kbd> remove</span>
     <span><kbd>?</kbd> all shortcuts</span>
@@ -3102,10 +3109,10 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Building the board</h3>
           <dl>
-            <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> to the board</dd>
-            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Jump to the search box</dd>
-            <dt><kbd>B</kbd></dt><dd>Paste a list of names</dd>
-            <dt><kbd>I</kbd></dt><dd>Add cards from an image</dd>
+            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>In a game: open your deck and find a card in it. Outside a game: the search box</dd>
+            <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> to the board (outside a game)</dd>
+            <dt><kbd>B</kbd></dt><dd>Paste a list of names (outside a game)</dd>
+            <dt><kbd>I</kbd></dt><dd>Add cards from an image (outside a game)</dd>
             <dt><kbd>Backspace</kbd> <kbd>Del</kbd></dt><dd>Remove the selected card</dd>
             <dt><kbd>T</kbd></dt><dd>Tap or untap the selected card</dd>
             <dt><kbd>E</kbd></dt><dd>Put the selected card on another one — equip, fortify, attach</dd>
@@ -3116,7 +3123,7 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Image &amp; view</h3>
           <dl>
-            <dt><kbd>S</kbd></dt><dd>Image view — see the screenshot with markers</dd>
+            <dt><kbd>S</kbd></dt><dd>Image view — see the screenshot with markers (outside a game)</dd>
             <dt><kbd>R</kbd></dt><dd>Read the image again (in the image view)</dd>
             <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick a candidate when confirming a card</dd>
             <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom in / out on the table</dd>
@@ -6707,7 +6714,7 @@ function renderChrome(v) {
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
     + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
-    + `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>`;
+    + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
   el.dataset.h = html;
   el.innerHTML = html;
@@ -7797,8 +7804,6 @@ function renderTom() {
     telefon: svg(34, 34, '0 0 24 24', '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'),
     kort: svg(40, 30, '0 0 34 26', '<rect x="1.2" y="4.5" width="12" height="17" rx="2" transform="rotate(-9 7.2 13)"/><rect x="11" y="3.5" width="12" height="19" rx="2"/><rect x="20.8" y="4.5" width="12" height="17" rx="2" transform="rotate(9 26.8 13)"/>')
   };
-  const klistra = prim => `<button class="btn big${prim ? ' prim' : ''}" data-addtile>Paste a screenshot</button>`;
-  const sok = 'A card can always be added by name in the search box above (<kbd>/</kbd>).';
   const bord = mittLage() === 'bord';
   const V = {
     /* Det lokala bordet är oförändrat, ord för ord: där finns ingen telefon. */
@@ -7808,30 +7813,14 @@ function renderTom() {
       fin: 'Press <kbd>⌘V</kbd> anywhere in the app, or drag in an image file.<br>Pasting later adds the cards — your hand is only replaced if you re-read the board in the image view.' },
     av: { ikon: IKON.telefon, h: 'Play with your real cards',
       p: 'With the camera on, your phone watches the table. Cards you play show up here by themselves' + (bord ? ', and a card you tap on the table taps here too.' : '; you tap, move and count them on screen.'),
-      knappar: '<button class="btn prim big" data-mode="auto">Turn on camera</button>' + klistra(),
-      fin: 'You just scan a QR code with the phone — nothing to install. ' + sok },
-    vantar: { ikon: IKON.telefon, h: 'Waiting for the phone',
-      p: 'Scan the QR code with your phone and put it straight above your cards. The camera uses the whole picture.',
-      knappar: '<button class="btn prim big" data-mode="koppla">Show the QR code</button>' + klistra(),
-      fin: sok },
-    tappad: { ikon: IKON.telefon, h: 'The camera was lost',
-      p: 'Nothing on the table is being read right now. Reconnect the phone and it carries on where it stopped.',
-      knappar: '<button class="btn prim big" data-mode="koppla">Reconnect</button>' + klistra(),
-      fin: sok },
-    startar: { ikon: IKON.telefon, h: 'The camera is connected',
-      p: 'Hold the phone still for a second while it learns the light. The cards can stay where they are.',
-      knappar: klistra(), fin: sok },
-    gammal: { ikon: IKON.telefon, h: 'Reload the page on the phone',
-      p: 'The phone is running an older version of the page. Reload it there, and the camera reads the whole picture.',
-      knappar: klistra(), fin: sok },
+      knappar: '<button class="btn prim big" data-mode="auto">Turn on camera</button>',
+      fin: 'You just scan a QR code with the phone — nothing to install. A card you add by hand comes from your deck (<kbd>/</kbd>).' },
+    /* Kamerans övriga tillstånd säger pillret (MES-98); tomrutan har en rad
+       för dem (TYST ovan) och ritar dem aldrig här. */
     redo: { ikon: IKON.kort, h: 'Play your first card',
       p: bord ? 'Put a card down under the camera. It shows up here in a few seconds — and so does every tap.'
               : 'Put a card down under the camera. It shows up here in a few seconds.',
-      knappar: '', fin: '' },
-    okanda: { ikon: IKON.kort, h: `The camera sees ${n} ${n === 1 ? 'card' : 'cards'}`,
-      p: 'It is putting names on them. A card that is not in your deck gets no name — paste a picture of it and it is added.',
-      knappar: klistra(true),
-      fin: (harKo ? 'Cards waiting for a name can also be filled in with <b>Fill in</b> above. ' : '') + sok }
+      knappar: '', fin: '' }
   }[l];
   el.innerHTML = `<div class="empty-icon">${V.ikon}</div><h2>${V.h}</h2><p>${V.p}</p>`
     + (V.knappar ? `<div class="btnrow">${V.knappar}</div>` : '') + (V.fin ? `<p class="empty-fine">${V.fin}</p>` : '');
@@ -8047,7 +8036,9 @@ function removePlayer(id) {
    ══════════════════════════════════════════════════════════════════ */
 
 /* ─── autocomplete mot Scryfall ─── */
-function autocomplete(input, listEl, onPick) {
+/* kalla(q) → namn: en egen källa i stället för Scryfalls (granskningen i ett
+   spel söker bara i leken, MES-101). */
+function autocomplete(input, listEl, onPick, kalla) {
   let items = [], idx = -1, timer = null, seq = 0;
   const close = () => { listEl.classList.remove('open'); listEl.innerHTML = ''; items = []; idx = -1; };
   const hl = (n, q) => {
@@ -8072,9 +8063,9 @@ function autocomplete(input, listEl, onPick) {
     timer = setTimeout(async () => {
       const my = ++seq;
       try {
-        const d = await SF.autocomplete(q);
+        const lista = kalla ? await kalla(q) : ((await SF.autocomplete(q)) || {}).data || [];
         if (my !== seq || input.value.trim() !== q) return;
-        items = (d && d.data || []).slice(0, 14);
+        items = lista.slice(0, 14);
         idx = items.length ? 0 : -1;
         paint();
       } catch (e) { /* tyst — Enter gör fuzzy-sökning ändå */ }
@@ -10957,8 +10948,8 @@ addEventListener('keydown', ev => {
   if (!redigerbar() && skriver) return;
   if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); if (spelLage) oppnaLada(true); else { searchInput.focus(); searchInput.select(); } }
-  else if (lower === 'b') { ev.preventDefault(); openBulk(); }
-  else if (lower === 'i') { ev.preventDefault(); openOv('imgOv'); }
+  else if (lower === 'b' && (!spelLage || DEBUG)) { ev.preventDefault(); openBulk(); }
+  else if (lower === 'i' && (!spelLage || DEBUG)) { ev.preventDefault(); openOv('imgOv'); }
   else if (lower === 't') { ev.preventDefault(); tappa(state.sel); }
   else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); bifogaNarmaste(state.sel); }
   else if (lower === 'g') {
@@ -10966,7 +10957,7 @@ addEventListener('keydown', ev => {
     flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`));
     flyttaTill(state.sel, ZON_GRAV);
   }
-  else if (lower === 's') { ev.preventDefault(); openShot(); }
+  else if (lower === 's' && (!spelLage || DEBUG)) { ev.preventDefault(); openShot(); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
   else if (lower === 'd') {
@@ -11259,6 +11250,7 @@ addEventListener('dragenter', e => {
   if (++dragDepth !== 1) return;
   if (imgAddOppen()) { $('#imgDrop').classList.add('over'); return; }
   if ($('#shotOv').classList.contains('open')) { swStage.classList.add('dragover'); return; }
+  if (spelLage && !DEBUG) return;            // i ett spel läggs kort till ur leken (MES-101)
   /* Bildvyn slås INTE upp längre. Den la sig över precis det man siktade på,
      och numera betyder ett släpp i huvudvyn något annat än ett släpp i
      bildvyn — att byta vy mitt i dragningen hade alltså också bytt innebörd
@@ -11283,6 +11275,7 @@ addEventListener('drop', async e => {
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
   emptyEl.classList.remove('over');
+  if (spelLage && !DEBUG && !imgAddOppen() && !$('#shotOv').classList.contains('open')) return;   // MES-101
   /* VAR bilden hamnar avgör vad som händer, och det är hela regeln:
      huvudvyn lägger till, bildvyn läser om bordet. En bild som släpps bland
      korten är ett tillskott — det som redan ligger där ska stå kvar. Vill man
@@ -13274,7 +13267,13 @@ function pickCand(i) {
   const chosen = cands.splice(i, 1)[0] || { name: r.name, sid: r.id, score: r.score };
   applyPick(r.name, r.id, [chosen].concat(cands));
 }
-autocomplete($('#pickSearch'), $('#pickSuggest'), name => applyPick(name, null, null));
+autocomplete($('#pickSearch'), $('#pickSuggest'), name => applyPick(name, null, null),
+  q => spelLage && Array.isArray(lekKort) && lekKort.length ? lekNamnSok(q) : SF.autocomplete(q).then(d => (d && d.data) || []));
+/* Namnen i min lek som innehåller q, för granskningens sökning i ett spel. */
+function lekNamnSok(q) {
+  const n = norm(q);
+  return [...new Set(lekKort.map(k => k.name))].filter(x => norm(x).includes(n)).sort((a, b) => a.localeCompare(b));
+}
 
 $('#scanSkip').onclick = () => {
   const p = player(), t = SW.target;
@@ -13646,6 +13645,9 @@ async function askClaude() {
    ══════════════════════════════════════════════════════════════════ */
 addEventListener('paste', async ev => {
   if (isTyping(ev.target)) return;
+  /* I ett spel läggs ett kort till för hand bara ur leken (MES-101). Lekens
+     egen dialog har sin egen inklistring och påverkas inte. */
+  if (spelLage && !DEBUG) return;
   const items = Array.from((ev.clipboardData && ev.clipboardData.items) || []);
   const imgItem = items.find(i => i.kind === 'file' && /^image\//.test(i.type));
   if (imgItem) {
