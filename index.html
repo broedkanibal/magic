@@ -23,8 +23,6 @@
   --bandbg:#0b1017; --rutbg:#0f141c; --panelram:#333e50; --panelram2:#3d4a5f;
   --tand:#120e06; --tand2:#1a1408; --pa-acc:#ffd98a; --pa-acc2:#c9b485;
   --r:10px; --rs:7px;
-  --bandh:300px;                 /* Graveyard/Lands-radens höjd; Selected följer den */
-  --cardw:150px;
   --shadow:0 8px 28px -8px #000a, 0 2px 6px #0006;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
@@ -276,10 +274,8 @@ main{flex:1;display:flex;min-height:0}
 .zoomctl .fitbtn.on{background:var(--acc-d);color:#ffd98a}
 
 /* ─────────── bordet ───────────
-   Två zoner: permanents som fyller ytan, och ett nedre band med fast höjd
-   (Lands, Selected, Graveyard). Ingenting får skrolla — computeFit() krymper
-   kortbredden tills allt ryms. Måtten kommer ur designöverlämningen och gäller
-   ett fönster på 720×900, alltså halva skärmen bredvid videosamtalet. */
+   Mattan (Direction C v3): en fri yta med zoom och pan, graveyard-högen i
+   nedre vänstra hörnet och inspektorn i en kolumn till höger. */
 /* ── brädets tre ytor ───────────────────────────────────────────────
    Permanents uppe, Graveyard och Lands nere, Selected till höger över hela
    höjden. Selected låg förut i samma box som de andra två och fick 300 px att
@@ -407,14 +403,6 @@ body.tomhand .kolmark{display:none}
 .zonrub{display:flex;align-items:center;gap:8px;flex:none;height:18px;min-width:0}
 .zonlbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--zonlbl);white-space:nowrap}
 .zonlinje{flex:1;height:1px;background:var(--zonlinje);min-width:8px}
-.zonrakn{font:10px var(--mono);color:var(--zonrakn);white-space:nowrap}
-.zonchip{
-  display:flex;align-items:center;gap:4px;flex:none;padding:2px 6px;
-  border:1px dashed var(--chipram);border-radius:11px;
-  font:9px/1 var(--sans);color:var(--zonlbl);background:none;cursor:pointer;
-  text-transform:uppercase;letter-spacing:.4px;
-}
-.zonchip:hover,.zonchip.over{border-color:var(--acc);color:var(--pa-acc)}
 
 /* Kortet på mattan: absolut, med bredd/höjd inline (CW×CH för permanents,
    LW×LH för land) och z-index inline. Ett tappat kort är SAMMA element
@@ -541,46 +529,6 @@ body.lasvy .card{cursor:default}
 .ctron .cttile i{font-style:normal;margin-left:5px;opacity:.6}
 .ctrdone{height:28px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 11.5px/1 var(--sans);cursor:pointer}
 .ctrdone:hover{background:var(--bg4)}
-.kortakt-b{
-  position:relative;
-  width:26px;height:26px;border-radius:6px;background:var(--bg4);color:#cfd9e8;
-  display:grid;place-items:center;cursor:pointer;flex:none;user-select:none;
-}
-.kortakt-b:hover{background:var(--acc);color:#20160a}
-.kortakt-b.fara:hover{background:var(--red);color:#fff}
-/* Egen tooltip. Webbläsarens title dröjer en dryg sekund, och på en rad med
-   fem närliggande ikoner hinner man klicka innan man fått veta vad de gör. */
-.akttip{
-  position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);
-  padding:3px 7px;border-radius:5px;white-space:nowrap;
-  background:#070b11;border:1px solid #3a4658;box-shadow:0 6px 14px -6px #000e;
-  font:10.5px/1.25 var(--sans);font-style:normal;color:#e6ecf5;
-  opacity:0;pointer-events:none;transition:opacity .1s;
-}
-.kortakt-b:hover .akttip,.lakt-b:hover .akttip{opacity:1}
-/* Ytterknapparnas tooltip skulle annars hänga ut över radens kant och kapas.
-   Första och sista drar in sig mot mitten i stället. */
-.kortakt-b:first-child .akttip,.lakt-b:first-child .akttip{left:0;transform:none}
-.kortakt-b:last-child .akttip,.lakt-b:last-child .akttip{left:auto;right:0;transform:none}
-/* Handlingarna finns på ALLA kort, hur små de än är. Att gömma dem under en
-   viss storlek gjorde att de bara försvann, och då fanns ingen väg alls till
-   dem med musen. De krymper i stället, och raden bryter till flera rader när
-   den inte får plats på bredden. Flaggorna sätts av applySize(). */
-.grid[data-trangt] .kortakt{gap:3px;padding:3px}
-.grid[data-trangt] .kortakt-b{width:21px;height:21px}
-.grid[data-trangt] .kortakt-b svg{width:12px;height:12px}
-.grid[data-trangt] .kortnamn{padding:2px 6px}
-.grid[data-trangt] .kortnamn b{font-size:9.5px}
-.grid[data-trangt] .kortnamn i{display:none}
-/* Håller sig innanför kortet: en ruta som är bredare än sitt utrymme får
-   ingen centrerande automarginal och hade lagt sig snett åt vänster. */
-.grid[data-smakort] .kortakt{gap:2px;padding:2px;border-radius:7px;max-width:calc(100% - 4px)}
-.grid[data-smakort] .kortakt-b{width:17px;height:17px;border-radius:4px}
-.grid[data-smakort] .kortakt-b svg{width:10px;height:10px}
-.grid[data-smakort] .akttip{font-size:9.5px;padding:2px 5px}
-/* Etiketten däremot går inte att läsa på ett kort som är smalare än den
-   själv — där säger den ingenting som Selected inte säger bättre. */
-.grid[data-smakort] .kortnamn{display:none}
 
 /* Bifogade kort (equipment, auror) ligger bakom sin värd med titelraden
    uppstickande; värden bär en bricka med antalet. */
@@ -603,24 +551,6 @@ body.lasvy .card{cursor:default}
   content:'';position:absolute;inset:0;border-radius:inherit;
   border:3px solid var(--acc);pointer-events:none;z-index:2;
 }
-.card .idx{
-  position:absolute;top:5px;left:5px;z-index:2;
-  min-width:18px;height:18px;padding:0 5px;border-radius:5px;
-  background:#000000b8;backdrop-filter:blur(3px);
-  font:10px/18px var(--mono);color:#9fb0c6;text-align:center;
-  opacity:0;transition:opacity .12s;
-}
-/* Numret visas bara när man uttryckligen bett om numren. På det valda kortet
-   sa det ingenting som ramen inte redan säger. */
-.gridwrap.shownums .card .idx{opacity:1}
-.card .delbadge{
-  position:absolute;top:5px;right:5px;z-index:3;width:20px;height:20px;
-  border-radius:5px;background:#000000b8;backdrop-filter:blur(3px);
-  color:#c3d0e2;line-height:0;display:grid;place-items:center;
-  opacity:0;transition:opacity .12s,background .12s,color .12s;
-}
-.card:hover .delbadge{opacity:1}
-.card .delbadge:hover{background:var(--red);color:#fff}
 .card .flipbadge{
   position:absolute;bottom:5px;right:5px;z-index:2;width:20px;height:20px;
   border-radius:5px;background:#000000b8;backdrop-filter:blur(3px);
@@ -667,20 +597,6 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .btn.big{height:38px;padding:0 18px;font-size:13.5px;border-radius:9px}
 .empty-fine{color:var(--dim2)!important;font-size:12px!important}
 
-/* ─────────── detail pane ─────────── */
-/* Sidopanelen är borta. Selected-kolumnen i nedre bandet visar det valda
-   kortet, och en panel som visade samma sak tog 290 px av bredden bordet
-   behöver. Regeltexten läser man i fokusvyn (F). */
-.detail{display:none}
-.dpad{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
-.dimg{position:relative;width:100%;aspect-ratio:488/680;border-radius:4.7%/3.4%;background:#11161e;flex:none}
-.dimg img{width:100%;height:100%;display:block;border-radius:inherit;box-shadow:var(--shadow)}
-.dimg .flipbtn{
-  position:absolute;bottom:8px;right:8px;height:28px;padding:0 10px;border-radius:20px;
-  background:#000000c4;backdrop-filter:blur(4px);border:1px solid #ffffff22;
-  font-size:11.5px;font-weight:600;color:#dbe4f0;display:flex;align-items:center;gap:5px;
-}
-.dimg .flipbtn:hover{background:var(--acc);color:#20160a;border-color:var(--acc)}
 .dhead{display:flex;align-items:baseline;gap:8px}
 .dhead h2{margin:0;font-size:15.5px;font-weight:650;line-height:1.25;flex:1;min-width:0}
 .dtype{color:var(--dim);font-size:12.5px;font-weight:550;border-bottom:1px solid var(--line);padding-bottom:9px}
@@ -1257,20 +1173,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
    som nollställer appen och den som loggar ut — fanns bara inte. */
 .menu{max-height:calc(100vh - 62px);overflow-y:auto}
 
-@media (max-width:1100px){
-  :root{--cardw:124px}
-}
-@media (max-height:760px){
-  /* Bara sidorna och botten. Kortformen `padding` nollställer även padding-top,
-     och det gjorde basregelns uträknade toppmarginal till död kod på varje
-     skärm lägre än 760 px — vilket är de flesta bärbara. Det var därför den
-     gula ramens ÖVERKANT fortsatte klippas fast paddingen "var fixad": uppmätt
-     10 px där formeln bad om 11,3 vid 260 px breda kort och 16,2 vid 460.
-     Överkanten är den enda sida där lyftet och skalningen adderas i stället
-     för att ta ut varandra, så det är den enda som syns. */
-  .gridwrap{padding-left:10px;padding-right:10px;padding-bottom:10px}
-  .grid{gap:9px}
-}
 
 /* Innan det riktigt smala läget: ge flikarna plats genom att låta etiketterna
    gå först. Spelarflikarna är det enda i raden som inte går att nå någon
@@ -1313,13 +1215,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
    sämre än en knapp som inte finns: det som inte går att göra ska inte
    heller synas.
    ═══════════════════════════════════════════════════════════════════ */
-body.lasvy .kortakt,
-body.lasvy .lakt,
 body.lasvy .gravbadge,
-body.lasvy .delbadge,
-body.lasvy .mgstep,
-body.lasvy .fargval,
-body.lasvy .zonchip,
 body.lasvy .bifbricka[data-bif],
 body.lasvy #clearHand,
 body.lasvy .searchwrap,
@@ -1329,11 +1225,6 @@ body.lasvy #bildKnapp,
    kvar även på någon annans bord — annars är krysset i hörnet enda vägen ut,
    och det är inte där handen är. */
 body.lasvy #gravBack,body.lasvy #gravRemove,body.lasvy #gravFlytta{display:none!important}
-/* Hela kontrollraden, inte bara knapparna. Kvar blev annars en ensam siffra
-   under högen, som läser sig som att plus och minus gått sönder — och antalet
-   står redan i zonrubriken. */
-body.lasvy .lctrl{display:none!important}
-body.lasvy .card,body.lasvy .lkort{cursor:default}
 /* Tittar man på någon annans bord får hela brädytan en list i den spelarens
    färg — samma färg som pricken i fliken och som bandet nedan. Tre ställen,
    en färg: det går inte att missa vems kort man ser på. */
@@ -1380,65 +1271,6 @@ body.lasvy .lasband{display:flex}
    åt andra hållet: kameran lade ut → puls, kameran ser inte → nedtonat. */
 .card.lyft img{filter:grayscale(.8) brightness(.55)}
 .card.lyft{outline:1px dashed #e8b33a66;outline-offset:-1px}
-.card.lyft .kortakt{display:none}
-/* Samma nedtoning på ett landkort. !important för att den ska vinna över
-   gruppens markeringsnedtoning och hoverns återställning (.lgrupp.vald
-   .lkort:hover img{filter:none}) — nedtoningen är ett tillstånd, inte ett
-   urval, och den får inte blinka bort när pekaren passerar. */
-.lkort.lyft img{filter:grayscale(.8) brightness(.55)!important}
-.lkort.lyft{outline:1px dashed #e8b33a66;outline-offset:-1px}
-.lakt.lyftakt{border-color:#6b5522}
-/* Knapparna syns utan hover, som på ett nedtonat permanent — men bara på
-   det översta i en hög. Alla nedtonade land av samma namn är utbytbara, så
-   det översta räcker; de under får sina när man pekar på dem, och då viker
-   det översta undan så att raderna inte ligger på varandra. Samma sak bland
-   specialland, som ligger kant i kant och vars rader (tre knappar) är
-   bredare än ett smalt kort. */
-.lkort.lyft .lakt{opacity:1;pointer-events:auto}
-.llyft .lkort:not(:last-child):not(:hover) .lakt,
-.llyft:hover .lkort:last-child:not(:hover) .lakt,
-.lspec .lkort.lyft:has(~ .lkort.lyft):not(:hover) .lakt,
-.lspec .lrad:hover .lkort.lyft:not(:hover) .lakt{opacity:0;pointer-events:none}
-/* Landens rad i zonrubriken tar platsen som skärmdumpsknappen hade — den
-   smala Lands-kolumnen rymmer inte båda. */
-.kol-lands .zonrub:has(.lyftalla:not([hidden])) .zonchip{display:none}
-.lyftrad{
-  position:absolute;left:3px;right:3px;bottom:4px;
-  z-index:22;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 3px;
-  background:#070b11f2;border:1px solid #6b5522;border-radius:9px;box-shadow:0 6px 16px -4px #000e;
-}
-/* Etiketten får aldrig vara bredare än kortet — på små kort stack den ut på
-   båda sidor. Under smågränsen faller den bort helt, som kortnamnet gör. */
-.lyftlbl{font:600 8.5px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:var(--acc);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.lyftknappar{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
-.grid[data-smakort] .lyftlbl{display:none}
-/* Samma etikett på ett nedtonat LAND, så att det läses som ett nedtonat
-   permanent. Landkortet är 20–150 px brett och ligger omlott, så etiketten
-   är ett pillerchip i kortets överkant — knapparna hänger i nederkanten —
-   och aldrig bredare än kortet (ellips). En etikett per hög: bara det
-   översta (sista) kortet i den nedtonade stapeln bär den; ett specialland
-   ligger för sig och bär sin egen. Under 58 px (sattLandBredd) ryms inte
-   "Syns inte" ens i 8 px, och då faller den bort som på ett litet permanent
-   (data-smakort); zonrubrikens rad svarar för alla då. Räknat: nio
-   versaler à ~5 px + spärrning + kant ≈ 56 px. */
-.llyftlbl{
-  position:absolute;left:50%;top:3px;transform:translateX(-50%);z-index:8;
-  display:block;box-sizing:border-box;max-width:calc(100% - 2px);height:14px;padding:0 4px;
-  border-radius:7px;background:#0b1017f2;border:1px solid #6b5522;color:var(--acc);
-  font:600 8px/12px var(--sans);letter-spacing:.5px;text-transform:uppercase;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;
-}
-.llyft .lkort:not(:last-child) .llyftlbl{display:none}
-.lands[data-smaland] .llyftlbl{display:none}
-.grid[data-smakort] .lyftrad{padding:2px;gap:2px;border-radius:7px}
-.grid[data-smakort] .lyftknappar{gap:2px}
-/* Raden i zonrubriken: förstagångsförklaringen, och svaret för alla när tre
-   eller fler kort tonats ned på en gång. Förklaringen låg först inne i
-   kortet, men täckte då de knappar den beskrev på kort under ~110 px. */
-.lyftalla{display:inline-flex;align-items:center;gap:6px;min-width:0;font:11px var(--sans);color:#e8c98a;white-space:nowrap}
-.lyftalla[hidden]{display:none}
-.lyftalla .btn{height:20px;padding:0 7px;font-size:10.5px;flex:none}
-.lyftalla .lyfttip{min-width:0;overflow:hidden;text-overflow:ellipsis;color:#f0dcb0}
 .kalupp{display:flex;align-items:center;gap:6px;font:12px var(--sans);color:var(--dim)}
 .kalupp .btn.on{background:var(--acc-d);color:var(--pa-acc);border-color:var(--acc)}
 .kamskruv .kalupp{padding:2px 9px 8px;flex-wrap:wrap}
@@ -2147,70 +1979,12 @@ body.ispel #addPlayerBtn{display:none}
   #addPlayerBtn{font-size:0}                 /* bara plustecknet får plats */
   #addPlayerBtn svg{font-size:13px}
   .hints{display:none}
-  /* Manaraden ska rymmas utan att äta remsan: en tredjedel av ett kort, inte
-     en halv skärm. Symbolen är det enda som måste förbli läsbart på håll. */
-  /* .hand:s barn får uttrycklig ordning i det här läget, och utan en egen
-     hamnade manaraden först — alltså ovanför korten i stället för under dem.
-     Den ska ligga direkt efter remsan; sökraden är en verktygsrad längst ner.
-     Höjden i px, inte procent: .hand är flex:none här och har därför ingen
-     bestämd höjd att räkna procent på. */
-  /* Storlekarna följer --cardw, som redan är litet här. Fasta pixelmått
-     hade dragit åt ett annat håll än kortraden ovanför. */
-  .band{order:3;gap:8px;padding:8px 8px}
-  .mgn b{font-size:13px;min-width:15px}
-  .mgstep{width:17px;height:17px;font-size:12px}
-  .mgnamn,.mnamn{font-size:9.5px}
-
-  main{flex-direction:column}
-
-  /* kortet: fyller höjden som blir över */
-  .detail{order:1;width:auto;flex:1;min-height:0;border-left:none;border-bottom:1px solid var(--line)}
-  .dpad{padding:10px;gap:0;overflow:hidden}
-  /* Rutan tar utrymmet som blir över, bilden skalas in i den. max-height:100%
-     räckte inte — procent mot en grid-area vars höjd kommer från flex blir
-     obestämd, så bilden behöll sin egen höjd och rann ner bakom remsan.
-     object-fit binder alltid, oavsett hur höjden räknats fram. */
-  .dimg{flex:1;min-height:0;width:100%;aspect-ratio:auto;background:none}
-  .dimg img{display:block;width:100%;height:100%;object-fit:contain;box-shadow:none}
-  .dpad .dimg ~ *{display:none}          /* regeltexten står på kortet */
-
-  /* handen: granskningsrad, remsa, sökruta */
-  .hand{order:2;flex:none;min-height:0}
-  /* 60px breda kort gick inte att se vad de föreställde. 92px räcker för att
-     känna igen konstverket, och kostar bara ~45px av det stora kortet. */
-  /* Det valda kortet lyfts 5 px och skalas 1.035, alltså 5 + höjd*0.0175 över
-     sin ruta — vid stora kort mer än de 10 px paddingen gav, och då klipptes
-     den gula ramens överkant bort av rullytan. Uppmätt: kortets överkant låg
-     1 px ovanför ytan vid 260 px breda kort. Paddingen följer nu kortbredden
-     i stället för att vara en gissning som stämmer vid en viss storlek. */
-  .gridwrap{order:2;flex:none;height:148px;overflow-x:auto;overflow-y:hidden;
-    padding:max(14px, calc(5px + var(--cardw,150px) * 0.032)) max(12px, calc(var(--cardw,150px) * 0.022)) 10px}
-  .handbar{order:4;border-bottom:none;border-top:1px solid var(--line);padding:8px 10px}
-  .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:92px;gap:8px;justify-content:start}
-  .card{scroll-margin:10px}
-  .card.sel{transform:none}              /* lyftet får inte plats i remsan */
-  .card .skel{font-size:10px;padding:5px}
-  .card .idx{display:none}
-
-  /* i handraden får bara sökrutan plats */
-  #bulkBtn,.handmeta{display:none}
-  /* Vägen att lägga till från en bild ligger i rutan bland korten, inte i en
-     knapp här — den syns där man tittar och tar ingen plats i den här raden. */
+  /* Mattan på en smal skärm: inspektorn viker undan och mattan tar hela
+     bredden; listknappen också. */
+  .kolmark{display:none}
+  .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm";padding:6px}
+  #bulkBtn{display:none}
   .searchwrap{max-width:none;min-width:0}
-
-  /* tom hand: låt remsan bli stor nog för startmeddelandet */
-  /* .hand är flex:none och tar bara sin innehållshöjd — utan att den också
-     får växa hade remsan blivit 18px och startmeddelandet osynligt. */
-  body.tomhand .detail{display:none}
-  body.tomhand .kolmark{display:none}
-  body.tomhand .hand{flex:1;min-height:0}
-  body.tomhand .gridwrap{flex:1;height:auto}
-  body.tomhand .empty{padding:14px}
-  body.tomhand .empty h2{font-size:15px}
-  body.tomhand .empty p{font-size:12px}
-  body.tomhand .empty-icon,body.tomhand .empty-fine{display:none}
-  body.tomhand .empty .btnrow{flex-direction:column;width:100%}
-  body.tomhand .empty .btnrow .btn{width:100%;justify-content:center}
 }
 
 /* ── Topbarens nedfällning ──────────────────────────────────────────
@@ -2463,10 +2237,8 @@ body.ispel #addPlayerBtn{display:none}
         </div>
         <div class="mattachrome" id="mattaChrome"></div>
         <div class="gravhog" id="manaRow"></div>
-        <!-- Raden som svarar för alla nedtonade kort på en gång (renderLyftRad).
-             Den låg i zonrubriken; mattan har ingen, så den ligger som en
-             banderoll i mattans övre vänstra hörn tills M9 gör den till
-             mockupens gula banner. -->
+        <!-- Bannern när kameran tappat tre eller fler kort på en gång
+             (renderLyftBanner): Keep all / All to graveyard / One by one. -->
         <div class="lyftbanner" id="lyftAlla" data-lyftalla="alla" hidden></div>
         <!-- Tomrutan ritas av renderTom(): vad man gör med ett tomt bräde beror
              på läget. Id:t och klassen står kvar — drag-markeringen (.over),
@@ -3002,9 +2774,8 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Getting around</h3>
           <dl>
-            <dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Previous / next card</dd>
-            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>One row up / down in the grid</dd>
-            <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card</dd>
+            <dt><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></dt><dd>The nearest card in that direction</dd>
+            <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card in reading order</dd>
             <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen</dd>
             <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
@@ -3031,7 +2802,6 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>T</kbd></dt><dd>Tap or untap the selected card</dd>
             <dt><kbd>E</kbd></dt><dd>Put the selected card on another one — equip, fortify, attach</dd>
             <dt><kbd>G</kbd></dt><dd>Put the selected card in the graveyard</dd>
-            <dt><kbd>,</kbd> <kbd>.</kbd></dt><dd>Move the card left / right</dd>
             <dt><kbd>D</kbd></dt><dd>Duplicate the selected card</dd>
           </dl>
         </section>
@@ -3041,8 +2811,8 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>S</kbd></dt><dd>Image view — see the screenshot with markers</dd>
             <dt><kbd>R</kbd></dt><dd>Read the image again (in the image view)</dd>
             <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick a candidate when confirming a card</dd>
-            <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Bigger / smaller cards in the grid</dd>
-            <dt><kbd>0</kbd></dt><dd>Fit — the whole hand on one screen</dd>
+            <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom in / out on the table</dd>
+            <dt><kbd>0</kbd></dt><dd>Fit — the whole table on one screen</dd>
             <dt><kbd>?</kbd></dt><dd>This pane</dd>
           </dl>
         </section>
@@ -5155,7 +4925,7 @@ const Moln = (() => {
 })();
 
 /* ─────────── state ─────────── */
-const prefs = Object.assign({ cardw: 150, fit: true, shownums: false }, LS.get(K.prefs, {}));
+const prefs = Object.assign({ fit: true }, LS.get(K.prefs, {}));
 /* Anpassningen är på vid varje start. Zoomknapparna stänger av den, och förut
    låg det kvar i lagret: hade man någon gång klickat på minus stod korten kvar
    i den storleken för alltid, och brädet slutade tyst fylla sin yta. Zoomen är
@@ -5444,8 +5214,7 @@ function matFlikar() {
    Mäts efter rendering; konstanten är reservvärdet ur designen. */
 
 /* Kortstorleken är fast på mattan (MATTA.CW/CH, LW/LH); ytan växer i
-   stället och zoom/pan gör att man kommer åt allt. computeFit/applySize
-   som krympte --cardw finns inte längre. */
+   stället och zoom/pan gör att man kommer åt allt. */
 /* ─── handens rutnät ─── */
 let gridSig = null;   // null, inte '' — annars matchar en tom hand vid första renderingen och hoppas över
 function cardStatus(e) {
@@ -5571,8 +5340,6 @@ function flyttaTill(i, zon) {
     c.push(e);
   }
   state.sel = c.indexOf(e);
-  sorteraMana(player());
-  state.sel = c.indexOf(e);
   /* Högen är inte en plats man tittar på ett kort från, så urvalet följer inte
      med dit. Det stannar på brädet, där man är på väg att göra nästa sak. */
   if (hog) {
@@ -5584,23 +5351,6 @@ function flyttaTill(i, zon) {
   return true;
 }
 
-/* Manan flyttas FYSISKT sist i listan i stället för bara visuellt. Då behåller
-   varje kort ett giltigt index, och urval, piltangenter, dragsortering och
-   fokusremsan fungerar oförändrat — annars hade var och en av dem behövt en
-   egen översättning mellan visningsordning och lagringsordning.
-   Stabil och idempotent: när Scryfall svarat och typraden är känd faller
-   korten på plats en gång och stannar där. */
-function sorteraMana(p) {
-  const c = p.cards, hinkar = [[], [], [], []];
-  for (const e of c) hinkar[ZON_ORD[zonAv(e)] || 0].push(e);
-  const ny = hinkar[0].concat(hinkar[1], hinkar[2], hinkar[3]);
-  if (ny.every((e, i) => e === c[i])) return false;
-  const valt = p.id === state.active ? c[state.sel] : null;
-  c.length = 0; c.push(...ny);
-  if (valt) { const j = c.indexOf(valt); if (j >= 0) state.sel = j; }   // urvalet följer kortet, inte platsen
-  return true;
-}
-const antalSpell = () => delaHand().spell.length;
 
 /* Ett kort på mattan. Absolut placerat i brädkoordinater, storlek efter
    slag (land eller permanent), z-index ur kortets z. Ett tappat kort är
@@ -5872,10 +5622,6 @@ function renderGrid(force) {
   renderSel(); renderPill();
 }
 
-/* Nedre bandet: Lands → Selected → Graveyard, med fast höjd. Höjden sätts av
-   Selected-kolumnens innehåll (ett läsbart kort plus namn) och är därför en
-   konstant, inte en följd av kortbredden — det är skillnaden mot förra
-   layouten och det computeFit() nu räknar med. */
 /* En gravsten, genomskinlig, ovanpå det översta kortet — den säger "inte i
    spel" utan att man behöver läsa en etikett. */
 /* En hög med kort behöver en bild som säger "ur spel". Den förra stenen var
@@ -5905,7 +5651,6 @@ const IKON_BAKSIDA = '<path d="M10 4.2 4.6 6.6v10.8L10 19.8Z"/>'
 const IKON_FRAMSIDA = '<path d="M10 4.2 4.6 6.6v10.8L10 19.8Z"/>'
   + '<path d="M14 4.2l5.4 2.4v10.8L14 19.8Z"/><path d="M15.7 9.6h2.4M15.7 14.4h2.4"/>';
 const IKON_KRYSS = '<path d="M6 6l12 12M18 6 6 18"/>';
-const IKON_ATTACH = '<path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/>';
 /* Baksidan på ett Magic-kort. Ett kort som vänds ner är fortfarande på bordet
    och räknas med — det är bara inte synligt vad det är. */
 const BAKSIDA = 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
@@ -6110,7 +5855,7 @@ function gravTillbaka(e) {
   }
   matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1; e.z = matTopZ;
   state.sel = h.indexOf(e);
-  sorteraMana(player()); save(); renderAll(true);
+  save(); renderAll(true);
   return true;
 }
 function gravExil(e) { const i = hand().indexOf(e); return i >= 0 && redigerbar() ? flyttaTill(i, ZON_EXIL) : false; }
@@ -6316,7 +6061,7 @@ function matNav(dx, dy) {
     }
   }
   if (best != null) state.sel = best;
-  sparaUi(); renderSel(); renderDetail(); renderFocus();
+  sparaUi(); renderSel(); renderInspektor(); renderFocus();
 }
 
 /* ═══ FRI MATTA — inspektorn ═════════════════════════════════════════
@@ -6361,9 +6106,6 @@ function renderInspektor() {
     ${(sum.p || sum.t) ? `<div class="ctbox"><div class="ctrub"><span>Counters</span><b>${tecken(sum.p)}/${tecken(sum.t)} in total</b></div>
       <div class="cttiles">${Object.keys(grupper).map(l => `<span class="cttile">${esc(l)}${grupper[l] > 1 ? ' ×' + grupper[l] : ''}</span>`).join('')}</div></div>` : ''}`;
 }
-/* Namnen renderMark/renderDetail lever kvar som ingångar: tolv ställen
-   anropar dem efter en markering. */
-function renderMark() { renderInspektor(); }
 /* Hovern på mattan: delegerad, med 90 ms fördröjning på vägen ut så att
    panelen inte blinkar mellan två kort. Ingen hover under ett drag. */
 gridEl.addEventListener('pointerover', ev => {
@@ -6574,7 +6316,7 @@ function closeArk() {
   if (arkEl) arkEl.classList.remove('open');
   document.body.classList.remove('granskar');
   for (const el of gridEl.querySelectorAll('.aktuell')) el.classList.remove('aktuell');
-  renderLyftRad();
+  renderLyftBanner();
 }
 function arkRita() {
   if (!ark || !arkEl) return;
@@ -6619,7 +6361,7 @@ function arkGranska() {
   if (!lista.length) return;
   ark = { mode: 'lost', cid: lista[0], lista, pos: 0, hoppade: new Set() };
   openArk({ mode: 'lost', cid: lista[0] });
-  renderLyftRad();
+  renderLyftBanner();
 }
 /* Nästa kort i granskningen som fortfarande är nedtonat och inte hoppats
    över; inget kvar → stängt. Utanför en granskning: stängt. */
@@ -6918,7 +6660,7 @@ function renderSel() {
   /* Högen är ett stopp i navigeringen, alltså måste den kunna se vald ut. */
   const gr = manaRow.querySelector('.grav');
   if (gr) gr.classList.toggle('sel', delaHand().grav.includes(state.sel));
-  renderMark();
+  renderInspektor();
 }
 /* ─── detaljpanelen ─── */
 function faceInfoHtml(card, f, fi) {
@@ -6938,7 +6680,6 @@ function faceInfoHtml(card, f, fi) {
       <a href="${esc(card.uri)}" target="_blank" rel="noreferrer" style="margin-left:auto">Scryfall ↗</a>
     </div>`;
 }
-function renderDetail() { renderInspektor(); }
 /* ─── fokusläge ─── */
 let focusOpen = false;
 function renderFocus() {
@@ -6975,9 +6716,9 @@ function renderAll(forceGrid) {
   uppdateraLage();
   renderTabs();
   renderGrid(forceGrid);
-  renderLyftRad();
+  renderLyftBanner();
   if ($('#gravOv').classList.contains('open')) renderGrav();
-  renderDetail();
+  renderInspektor();
   renderFocus();
   renderShotUI();
   renderPending();
@@ -7363,13 +7104,6 @@ function removeAt(i) {
     save(); renderAll();
   });
 }
-function moveSel(dir) {
-  const h = hand(), i = state.sel, j = i + dir;
-  if (j < 0 || j >= h.length) return;
-  [h[i], h[j]] = [h[j], h[i]];
-  state.sel = j;
-  save(); renderAll();
-}
 /* Att vända ett kort betyder två olika saker beroende på kortet. Ett
    dubbelsidigt kort har en andra sida att visa. Alla andra har baksidan —
    och ett nervänt kort är fortfarande på bordet, man ser bara inte vad det
@@ -7548,13 +7282,13 @@ function tappa(i) {
   /* Ett nedtonat kort ligger inte där — tap är meningslöst (lyftRadHtml ritar ingen tap-knapp). */
   if (!e || !paMattan(e) || e.lyft != null) return;
   e.tapped = e.tapped ? 0 : 1;
-  save(); renderGrid(true); renderDetail();
+  save(); renderGrid(true); renderInspektor();
 }
 function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
   if (akt === 'flip') { state.sel = i; flipSel(); return; }
   if (akt === 'grav') {
-    flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`) || manaRow.querySelector(`.lkort[data-i="${i}"]`));
+    flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`));
     flyttaTill(i, ZON_GRAV);
     return;
   }
@@ -7587,7 +7321,7 @@ gridEl.addEventListener('click', ev => {
   const c = ev.target.closest('.card');
   if (!c) return;
   state.sel = +c.dataset.i;
-  renderSel(); renderDetail(); sparaUi();
+  renderSel(); renderInspektor(); sparaUi();
   /* Ett nedtonat kort: klicket öppnar frågan var det tog vägen. */
   const e = hand()[state.sel];
   if (e && e.lyft != null && redigerbar()) openArk({ mode: 'lost', cid: e.cid });
@@ -7692,7 +7426,7 @@ gridEl.addEventListener('pointerdown', ev => {
   ev.stopPropagation();                      // inte panorering
   closeKortMeny();
   if (matCtr && matCtr.cid !== c.cid) closeCounters();
-  state.sel = i; renderSel(); renderDetail(); sparaUi();
+  state.sel = i; renderSel(); renderInspektor(); sparaUi();
   if (!redigerbar()) return;                 // titta, inte röra, på någon annans bord
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   const pt = cpt(ev);
@@ -7819,18 +7553,25 @@ addEventListener('keydown', ev => { if (ev.key === 'Escape' && dnd && dnd.drar) 
    tillbaka. */
 function matAngra(msg, mutate) {
   const p = minSpelare() || player();
+  const FALT = ['x', 'y', 'z', 'zon', 'grp', 'gi', 'attachedTo', 'tapped', 'lyft'];
   const fore = p.cards.slice();
-  const snap = p.cards.map(c => ({ c, x: c.x, y: c.y, z: c.z, zon: c.zon, grp: c.grp, gi: c.gi, attachedTo: c.attachedTo, tapped: c.tapped, lyft: c.lyft }));
+  const snap = new Map(p.cards.map(c => [c, FALT.map(f => c[f])]));
   const sel = state.sel;
   mutate();
+  /* Bara det handlingen ändrade läggs tillbaka: kort vars fält ändrats, och
+     listordningen. Två ångra-notiser i följd (ett kort till graveyard, ett
+     till exile) får då var sin handling — förut återställde den äldre allt
+     som hänt efter den också. */
+  const rorda = [...snap].filter(([c, v]) => FALT.some((f, k) => c[f] !== v[k]));
+  const ordning = fore.length !== p.cards.length || fore.some((c, i) => p.cards[i] !== c);
   toast(msg, 'ok', () => {
-    p.cards.length = 0; p.cards.push(...fore);
-    for (const q of snap) {
-      q.c.x = q.x; q.c.y = q.y; q.c.z = q.z; q.c.grp = q.grp; q.c.gi = q.gi; q.c.tapped = q.tapped;
-      if (q.zon) q.c.zon = q.zon; else delete q.c.zon;
-      if (q.attachedTo) q.c.attachedTo = q.attachedTo; else delete q.c.attachedTo;
-      if (q.lyft != null) q.c.lyft = q.lyft; else delete q.c.lyft;
+    if (ordning) {
+      const nu = p.cards.slice();
+      p.cards.length = 0;
+      for (const c of fore) p.cards.push(c);
+      for (const c of nu) if (!fore.includes(c)) p.cards.push(c);   // kort som kommit till sedan dess
     }
+    for (const [c, v] of rorda) FALT.forEach((f, k) => { if (v[k] === undefined) delete c[f]; else c[f] = v[k]; });
     state.sel = clamp(sel, 0, Math.max(0, p.cards.length - 1));
     save(); renderAll(true);
   });
@@ -8083,76 +7824,28 @@ $('#fxPrev').onclick = () => step(-1);
 $('#fxNext').onclick = () => step(1);
 $('#fxStrip').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-i]');
-  if (b) { state.sel = +b.dataset.i; sparaUi(); renderFocus(); renderSel(); renderDetail(); }
+  if (b) { state.sel = +b.dataset.i; sparaUi(); renderFocus(); renderSel(); renderInspektor(); }
 });
 $('#fxImg').addEventListener('click', () => { if (redigerbar()) flipSel(); });
 
-/* Piltangenterna ska följa det man SER. I remsan är det ett stopp per ruta,
-   i manaraden ett per post — tre Swamp är en symbol med en trea, inte tre
-   stopp. Fokusvyn visar däremot varje kort för sig och navigerar rakt. */
-/* Navigeringsordningen ska följa det ÖGAT går: hela handraden från vänster
-   till höger, sedan nedre raden i den ordning den ritas — graveyard först,
-   sedan manan, sedan specialmanan — och därefter runt till handraden igen.
-   Tre Swamp är en post i raden, inte tre, så de är ett stopp. */
-/* Varje kort som går att markera med musen ska gå att nå med tangenterna.
-   Basland räknades tidigare som ETT stopp per färg: låg det två Swamp ute kom
-   man bara åt den ena, och vilken avgjordes av ordningen i kortlistan — den
-   andra gick att klicka på men aldrig att pila fram till. Det fungerade när
-   ramen ringade in hela färggruppen; sedan den sitter på ett enskilt kort är
-   det ett hål. Ordningen följer radens: färg för färg, otappade före tappade,
-   specialland sist. */
-function navIdx() {
-  const c = hand(), d = delaHand(), ut = [];
-  for (const i of d.spell) ut.push(i);
-  if (d.grav.length) ut.push(d.grav[0]);                 // högen är ett stopp
-  const grupp = new Map(), spec = [];
-  for (const i of d.mana) {
-    const sym = baslandSym(c[i]);
-    if (!sym) { spec.push(i); continue; }
-    if (!grupp.has(c[i].name)) grupp.set(c[i].name, { sym, o: [], t: [] });
-    grupp.get(c[i].name)[c[i].tapped ? 't' : 'o'].push(i);
-  }
-  const grupper = [...grupp.values()].sort((a, b) => MANA_ORD.indexOf(a.sym) - MANA_ORD.indexOf(b.sym));
-  for (const g of grupper) ut.push(...g.o, ...g.t);
-  for (const i of spec) ut.push(i);
-  return ut;
-}
-/* Var i nedre raden börjar den? Upp och ner ska landa längst till vänster i
-   grannraden, och då måste gränsen mellan raderna vara känd. */
-const navRad2 = () => { const d = delaHand(); return d.spell.length; };
-/* Vilken synlig post ett kortindex hör till. Den gamla varianten tog sista
-   posten med ett lägre index och byggde alltså på att listan var stigande —
-   men visningsordningen är det inte: graveyard ligger före manan i raden och
-   sist i kortlistan. Följden blev att höger från högen hoppade tillbaka till
-   första kortet och manan aldrig gick att nå med tangenterna. */
-function navPos(nav, i) {
-  const k = nav.indexOf(i);
-  if (k >= 0) return k;
-  /* Enda kortet som inte är sitt eget stopp är ett kort längre ner i högen —
-     den räknas som en enda plats, och urvalet kan peka på vilket som helst av
-     korten i den. */
-  const c = hand(), e = c[i];
-  if (!e) return 0;
-  if (zonAv(e) === ZON_GRAV) {
-    for (let j = 0; j < nav.length; j++) {
-      const n = c[nav[j]];
-      if (n && zonAv(n) === ZON_GRAV) return j;
-    }
-  }
-  return 0;
-}
-function snapNav(i) { const nav = navIdx(); return nav.length ? nav[navPos(nav, i)] : 0; }
+/* Piltangenterna på mattan: närmaste kort i den riktningen (matNav). I
+   fokusvyn bläddras korten i listordning. Home/End: första och sista kortet
+   i läsordning — rad för rad, vänster till höger. */
 function step(d) {
   const n = hand().length;
   if (!n) return;
-  if (focusOpen) { state.sel = clamp(state.sel + d, 0, n - 1); }
-  else { matNav(d, 0); return; }
-  save(); renderSel(); renderDetail(); renderFocus();
+  if (!focusOpen) { matNav(d, 0); return; }
+  state.sel = clamp(state.sel + d, 0, n - 1);
+  save(); renderSel(); renderInspektor(); renderFocus();
 }
-/* Upp och ner byter RAD, och landar alltid längst till vänster i den nya
-   raden. Att behålla kolumnen lät rimligt men blev oförutsägbart så fort
-   raderna hade olika många poster — nedre raden har inga kolumner alls. */
-function stepRow(d) { matNav(0, d); }
+function matYtterst(sist) {
+  const c = hand(), idx = [];
+  c.forEach((e, i) => { if (paMattan(e) && e.x != null) idx.push(i); });
+  if (!idx.length) return;
+  idx.sort((a, b) => (Math.round(c[a].y / 60) - Math.round(c[b].y / 60)) || (c[a].x - c[b].x));
+  state.sel = sist ? idx[idx.length - 1] : idx[0];
+  sparaUi(); renderSel(); renderInspektor(); renderFocus();
+}
 
 /* ─── hjälp & bulk ─── */
 $('#helpBtn').onclick = () => openOv('helpOv');
@@ -9723,21 +9416,18 @@ addEventListener('keydown', ev => {
   switch (k) {
     case 'ArrowLeft':  ev.preventDefault(); step(-1); return;
     case 'ArrowRight': ev.preventDefault(); step(1); return;
-    case 'ArrowUp':    ev.preventDefault(); focusOpen ? step(-1) : stepRow(-1); return;
-    case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : stepRow(1); return;
-    case 'Home':       ev.preventDefault(); state.sel = 0; sparaUi(); renderSel(); renderDetail(); renderFocus(); return;
-    case 'End':        ev.preventDefault(); state.sel = snapNav(Math.max(0, hand().length - 1)); sparaUi(); renderSel(); renderDetail(); renderFocus(); return;
+    case 'ArrowUp':    ev.preventDefault(); focusOpen ? step(-1) : matNav(0, -1); return;
+    case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : matNav(0, 1); return;
+    case 'Home':       ev.preventDefault(); matYtterst(false); return;
+    case 'End':        ev.preventDefault(); matYtterst(true); return;
     case ' ':          if (!redigerbar()) return; ev.preventDefault(); flipSel(); return;
     case 'Enter':
       ev.preventDefault();
-      if (!focusOpen && delaHand().grav.includes(state.sel)) { openGrav(); return; }
       focusOpen ? closeFocus() : openFocus();
       return;
     case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
     case 'Backspace':
     case 'Delete':     if (!redigerbar()) return; ev.preventDefault(); removeAt(state.sel); return;
-    case ',':          if (!redigerbar()) return; ev.preventDefault(); moveSel(-1); return;
-    case '.':          if (!redigerbar()) return; ev.preventDefault(); moveSel(1); return;
     case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
     case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
     case '0':          ev.preventDefault(); fitView(); return;
@@ -9752,7 +9442,7 @@ addEventListener('keydown', ev => {
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
   const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ' ||
-                  k === 'Backspace' || k === 'Delete' || k === ',' || k === '.';
+                  k === 'Backspace' || k === 'Delete';
   if (!redigerbar() && skriver) return;
   if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
@@ -9762,7 +9452,7 @@ addEventListener('keydown', ev => {
   else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); bifogaNarmaste(state.sel); }
   else if (lower === 'g') {
     ev.preventDefault();
-    flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`) || manaRow.querySelector(`.lkort[data-i="${state.sel}"]`));
+    flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`));
     flyttaTill(state.sel, ZON_GRAV);
   }
   else if (lower === 's') { ev.preventDefault(); openShot(); }
@@ -10062,7 +9752,6 @@ addEventListener('dragenter', e => {
      och numera betyder ett släpp i huvudvyn något annat än ett släpp i
      bildvyn — att byta vy mitt i dragningen hade alltså också bytt innebörd
      under fingret. */
-  $$('.zonchip', document).forEach(t => t.classList.add('over'));
   emptyEl.classList.add('over');
 });
 addEventListener('dragover', e => {
@@ -10073,7 +9762,6 @@ addEventListener('dragleave', e => {
   dragDepth = 0;
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
-  $$('.zonchip', document).forEach(t => t.classList.remove('over'));
   emptyEl.classList.remove('over');
 });
 addEventListener('drop', async e => {
@@ -10083,7 +9771,6 @@ addEventListener('drop', async e => {
   dragDepth = 0;
   swStage.classList.remove('dragover');
   $('#imgDrop').classList.remove('over');
-  $$('.zonchip', document).forEach(t => t.classList.remove('over'));
   emptyEl.classList.remove('over');
   /* VAR bilden hamnar avgör vad som händer, och det är hela regeln:
      huvudvyn lägger till, bildvyn läser om bordet. En bild som släpps bland
@@ -15541,7 +15228,7 @@ function ledarOrdning(a, b) {
 /* Vilka kort som tonas ned när kameran inte ser dem: allt på bordet, landen
    också (se nedtoningen i avstamBord). Graveyard är utanför — ett kort som
    flyttats dit för hand behöver inget besked. Zonrubrikernas rader räknar
-   var sin zon (renderLyftRad). */
+   var sin zon (renderLyftBanner). */
 function kanLyftas(c) { return zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil'; }
 /* Grundläget (tappat mäts mot det, se Kamera.tappad) sparas ur ett kort
    som ligger på bordet. Tills det är sparat spelas kamerans kort OTAPPADE:
@@ -16222,12 +15909,9 @@ function tagEmotBeskarning(m) {
 }
 
 /* Raden i zonrubriken när flera kort tonats ned på en gång — en svept matta,
-   en hand som låg still för länge, eller ett spel som är slut. Ett kort i
-   taget svarar man på kortet; tre eller fler får ett svar för alla.
-   Permanents och Lands har var sin rad och räknar var för sig: "Alla till
-   graveyard" i landen ska inte skicka iväg creatures man inte tittat på.
-   Landens rad bor i manaRow, som renderMana bygger om vid varje omritning —
-   därför anropas den här också ur renderGrid, inte bara ur renderAll. */
+   en hand som låg still för länge, eller ett spel som är slut. Upp till två
+   kort svarar man på kortet (chippet och arket, M9); tre eller fler får
+   bannern med ett svar för alla eller en granskning en och en. */
 /* ── Statusfältet, ritat ────────────────────────────────────────────
    Modellen står i avstämningen (autoRemsaModell); här blir den HTML, i
    fältet som granskningsdelen (renderPending) delar. Ritas ur renderMode —
@@ -16279,7 +15963,7 @@ function renderAutoBar() {
 }
 setInterval(() => { if (autoBarAutoSynlig()) renderAutoBar(); }, 1000);
 
-function renderLyftRad() {
+function renderLyftBanner() {
   const el = $('#lyftAlla'); if (!el) return;
   const p = player();
   const mitt = !!spelLage && redigerbar() && p;
