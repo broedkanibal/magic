@@ -561,6 +561,18 @@ body.granskar .card:not(.aktuell),body.granskar .plats:not(.aktuell){opacity:.25
 .arkfot{display:flex;justify-content:space-between;gap:6px;margin-top:2px}
 .arkfot button{background:none;border:0;color:var(--dim);font:11px var(--sans);cursor:pointer;padding:4px 2px}
 .arkfot button:hover{color:var(--txt)}
+/* MES-103: tangenten till höger om ett val, kamerans beskärning, sökningen i
+   leken och glansarket — designen Mesa Camera Play 2b–2d och 5d. */
+.arkval{position:relative}
+.arkval.medkbd{padding-right:32px}
+.arkval kbd{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px}
+.kortark .arkbild{display:flex;gap:10px;align-items:flex-start;margin-bottom:2px}
+.kortark .arkbild img{width:64px;border-radius:4px;flex:none;box-shadow:0 0 0 1px var(--line)}
+.kortark .arkbild p,.kortark .arktxt{margin:0;font:11.5px/1.45 var(--sans);color:var(--dim)}
+.arksok{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:8px;background:#0b1017;border:1px solid var(--line);color:var(--dim2);font:12px var(--sans);cursor:pointer;text-align:left}
+.arksok:hover{border-color:#4a5a72;color:var(--txt)}
+.arkknappar{display:flex;gap:6px}
+.ladanamnge{margin:6px 0 4px;padding:7px 10px;border-radius:8px;background:#1a1710;border:1px solid #e8b33a66;color:#f0dcb0;font-size:12px;line-height:1.4}
 body.lasvy .kortark{display:none!important}
 .matta .empty{z-index:15}
 body.lasvy .mattachrome .btn{display:none!important}
@@ -5822,7 +5834,7 @@ $('#deckSlot').addEventListener('click', lekKlick);
    valfritt kort"). Sideboarden står hopfälld sist. Lekknappen, Library-
    högen och / öppnar lådan. Listan är strängdiffad: den ritas om när
    mattan ritas om, och sökrutan rörs aldrig. */
-let ladaOppen = false, ladaFilter = 'alla', ladaSb = false, ladaHover = null, ladaDrag = null;
+let ladaOppen = false, ladaFilter = 'alla', ladaSb = false, ladaHover = null, ladaDrag = null, ladaNamnge = null, ladaAvArk = false;
 const ladaEl = $('#lada');
 function oppnaLada(sok) {
   if (!spelLage || !ladaEl) return;
@@ -5883,12 +5895,15 @@ function renderLada() {
         + (oppen ? ps.map(rad).join('') : '');
     }
     if (!lista) lista = `<div class="ladatom">${q ? 'No card in your deck matches.' : 'Every card in your deck is on the table.'}</div>`;
+    if (ladaNamnge) lista = '<div class="ladanamnge">Which card is this? Click it in your deck — the camera learns it.</div>' + lista;
   } else lista = '<div class="ladatom">Fetching your deck…</div>';
   const fe = $('#ladaFilter'); if (fe.dataset.h !== filter) { fe.dataset.h = filter; fe.innerHTML = filter; }
   const le = $('#ladaLista'); if (le.dataset.h !== lista) { le.dataset.h = lista; le.innerHTML = lista; }
   $('#ladaFot').hidden = !redigerbar();       // på någon annans bord drar man inget
 }
 ladaEl.addEventListener('click', ev => {
+  const nr = ladaNamnge && ev.target.closest('.ladarad');
+  if (nr) { const p = ladaPost(nr.dataset.li); if (p) ladaNamngeMed(p); return; }
   const f = ev.target.closest('[data-lfilter]'); if (f) { ladaFilter = f.dataset.lfilter; renderLada(); return; }
   if (ev.target.closest('[data-lsb]')) { ladaSb = !ladaSb; renderLada(); return; }
   const a = ev.target.closest('[data-lada]'); if (!a) return;
@@ -5946,6 +5961,17 @@ function ladaDragSlut() {
 }
 addEventListener('pointerup', () => { if (ladaDrag) ladaDragSlut(); });
 addEventListener('pointercancel', () => { if (ladaDrag) ladaDragSlut(); });
+/* "Which card is this?" besvarat ur leklådan: samma väg som en gissning i
+   arket (arkSvar 'gissa' → namngePend), med det valda kortet först. */
+function ladaNamngeMed(post) {
+  const p = malSpelare(), q = pendById(ladaNamnge);
+  if (!p || !q) { closeArk(); return; }
+  const list = [{ name: post.name, sid: post.sid }].concat((q.cands || []).filter(x => x.name !== post.name));
+  const samma = namngePend(p, q, post.name, post.sid, list);
+  closeArk(); save(); resolveAll();
+  toast(samma ? `${post.name} is already on the table` : post.name, 'ok');
+  renderAll();
+}
 /* Kortet ur leken på mattan, mitt under pekaren, och draget tar över.
    Undo tar bort det igen; Esc eller ett avbrutet drag gör detsamma
    (matDndSlut, fraLek). Ett kort som läggs för hand binds av kameran när
@@ -6218,7 +6244,7 @@ function kamDom(c) {
 function kortChip(e) {
   if (e.lyft != null) {
     if (!redigerbar()) return '<span class="kortchip lost">Camera lost it</span>';
-    return matLage.lyftN <= 2 ? '<span class="kortchip lost">Not on the table — where did it go?</span>' : '';
+    return matLage.lyftN <= 2 ? '<span class="kortchip lost">Where did it go?</span>' : '';
   }
   const dom = kamDom(e);
   if (dom === 'lost') return '<span class="kortchip dom">Lost sight of it…</span>';
@@ -6290,15 +6316,26 @@ function autoPlatserNu() {
    Samma storlek som ett permanent, på platsen kortet sedan tar över
    (platsPos). Den som står i granskningen är en knapp — klicket öppnar
    granskningen på just det kortet (oppnaGranskningFor). */
+/* Telefonens råd ("det blänker", "mönstret stör") gäller kortet som läses
+   just nu: den senaste läsplatshållaren får chippet "Hard to read" och ett
+   litet ark (MES-103, designen 5d). Räknas i renderGrid. */
+let platsRadSpar = null;
+const RAD_KORT = [['glare', 'glare'], ['pattern', 'table pattern'], ['small', 'too small'], ['light as', 'light table']];
+function radKort() {
+  const t = autoRadSkal(kamRad || '') || '', hit = RAD_KORT.find(([k]) => t.includes(k));
+  return hit ? hit[1] : '';
+}
 function platsHtml(pl) {
-  const fyll = pl.slag === 'fyll';
+  const fyll = pl.slag === 'fyll', rad = !fyll && pl.slag === 'laser' && pl.spar === platsRadSpar;
   const txt = fyll ? (pl.overTak ? 'One more?' : 'Fill in') : pl.slag === 'vantar' ? 'Asking Claude…' : 'Reading the card…';
   const titel = fyll ? (pl.overTak ? `Your deck has only ${pl.tak} × ${pl.namn} — click to decide` : 'The camera is unsure which card this is — click to fill it in')
     : pl.slag === 'vantar' ? 'The camera is asking Claude which card this is' : 'The camera is reading the card';
-  const tag = fyll ? 'button' : 'span';
+  const tag = fyll || rad ? 'button' : 'span';
   const pos = platsPos.get(pl.spar) || { x: 44, y: 82 };
-  return `<${tag} class="plats ${pl.slag}${ark && ark.pend === pl.pend ? ' aktuell' : ''}"${fyll ? ` type="button" data-pend="${esc(pl.pend)}" data-spar="${esc(pl.spar)}"` : ''} title="${titel}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600">
-    ${fyll ? `<span class="platsq">${pl.overTak ? '+1' : '?'}</span><span class="kortchip fraga">${pl.overTak ? `Your deck has only ${pl.tak} × ${esc(pl.namn || '')}` : "Camera couldn't read this — which card?"}</span>` : ''}
+  const kort = rad ? radKort() : '';
+  return `<${tag} class="plats ${pl.slag}${ark && ark.pend === pl.pend ? ' aktuell' : ''}"${fyll ? ` type="button" data-pend="${esc(pl.pend)}" data-spar="${esc(pl.spar)}"` : rad ? ` type="button" data-radspar="${esc(pl.spar)}"` : ''} title="${rad ? esc(kamRad) : titel}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600">
+    ${fyll ? `<span class="platsq">${pl.overTak ? '+1' : '?'}</span><span class="kortchip fraga">${pl.overTak ? `Your deck has only ${pl.tak} × ${esc(pl.namn || '')}` : 'Which card is this?'}</span>`
+      : rad ? `<span class="kortchip fraga">Hard to read${kort ? ' — ' + esc(kort) : ''}</span>` : ''}
     <span class="platstxt">${txt}${pl.namn ? `<i>${esc(pl.namn)}?</i>` : ''}</span></${tag}>`;
 }
 let gridStrukt = null, nyChipT = null;
@@ -6341,6 +6378,8 @@ function renderGrid(force) {
   const d = delaHand();
   const nuT = Date.now();
   matLage = { lyftN: cards.filter(c => c.lyft != null).length, nyN: cards.filter(c => c.ny && nuT - c.ny < 2500).length };
+  const senasteLas = kamAnsluten && kamRad ? platser.filter(pl => pl.slag === 'laser').sort((a, b) => b.sedan - a.sedan)[0] : null;
+  platsRadSpar = senasteLas ? senasteLas.spar : null;
   /* Två signaturer: strukturen (vilka kort, vilket tillstånd) och lägena.
      Ändras bara lägena patchas elementen på plats — en omritning av
      innerHTML river hover, solfjädern och counterpanelen, och kamerans
@@ -6349,7 +6388,7 @@ function renderGrid(force) {
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + kamDom(c) + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
     + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
-    + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
+    + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.lyftN + ',' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '');
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
@@ -6804,7 +6843,7 @@ function renderChrome(v) {
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<button type="button" class="ztxt${v.manuell ? ' manuell' : ''}" data-mat="fit" title="Fit the whole board (0)">${pct}</button>`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
-    + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
+    + (redigerbar() && !(spelLage && mittLage() === 'bord') ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
     + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
@@ -7191,15 +7230,25 @@ function openArk(a) {
       ev.stopPropagation();
       arkSvar(b.dataset.ark, b.dataset.n);
     });
-    addEventListener('mousedown', ev => { if (ark && !ark.lista && !arkEl.contains(ev.target)) closeArk(); });
+    /* Leklådan hör till arket medan den namnger kortet (MES-103). */
+    addEventListener('mousedown', ev => { if (ark && !ark.lista && !arkEl.contains(ev.target) && !(ladaNamnge && ladaEl.contains(ev.target))) closeArk(); });
     gridWrap.addEventListener('wheel', () => { if (ark && !ark.lista) closeArk(); }, { passive: true });
   }
   ark = Object.assign({ hoppade: new Set() }, ark && ark.lista ? { lista: ark.lista, pos: ark.pos, hoppade: ark.hoppade } : {}, a);
+  /* "Which card is this?": leklådan öppnas själv och en rad där namnger
+     kortet (designens fråga 3, MES-103). Före arkRita — lådan flyttar
+     mattan, och arket placeras mot kortets plats. Stängs igen med arket om
+     det var arket som öppnade den. */
+  if (ark.mode === 'olast' && spelLage) {
+    const q = pendById(ark.pend);
+    if (q && !q.overTak) { ladaNamnge = ark.pend; if (!ladaOppen) { ladaAvArk = true; oppnaLada(); } else renderLada(); }
+  }
   arkRita();
 }
 function closeArk() {
   if (!ark) return;
   ark = null;
+  if (ladaNamnge) { ladaNamnge = null; if (ladaAvArk) { ladaAvArk = false; stangLada(); } else renderLada(); }
   if (arkEl) arkEl.classList.remove('open');
   document.body.classList.remove('granskar');
   for (const el of gridEl.querySelectorAll('.aktuell')) el.classList.remove('aktuell');
@@ -7214,12 +7263,20 @@ function arkRita() {
     namn = namnAv(e); r = matRect(e);
     matVisa(e);
     const steg = ark.lista ? `${ark.pos + 1} of ${ark.lista.length} · ` : '';
-    html = `<div class="arkrub"><b>${esc(namn)} isn't on the table anymore</b><span>${steg}Where did it go?</span></div>
-      <button type="button" class="arkval prim" data-ark="grav"><b>Graveyard</b><span>Destroyed, sacrificed or discarded · Enter</span></button>
-      <button type="button" class="arkval" data-ark="exil"><b>Exile</b><span>Set aside, still on the table</span></button>
+    html = `<div class="arkrub"><b>${esc(namn)} isn't on the table</b><span>${steg}Where did it go?</span></div>
+      <button type="button" class="arkval prim medkbd" data-ark="grav"><b>Graveyard</b><span>Died, sacrificed or discarded</span><kbd>↵</kbd></button>
+      <button type="button" class="arkval" data-ark="exil"><b>Exile</b><span>Removed from the game</span></button>
       <button type="button" class="arkval" data-ark="hand"><b>Back to hand or library</b><span>Bounced, tucked away or shuffled in</span></button>
-      <button type="button" class="arkval" data-ark="kvar"><b>False alarm — it's still there</b><span>The camera just missed it</span></button>
-      <div class="arkfot"><button type="button" data-ark="senare">${ark.lista ? 'Decide later' : 'Decide later · Esc'}</button>${ark.lista ? '<button type="button" data-ark="stopp">Stop reviewing</button>' : ''}</div>`;
+      <button type="button" class="arkval" data-ark="kvar"><b>It's still there</b><span>The camera lost sight of it</span></button>
+      <div class="arkfot"><button type="button" data-ark="senare">Decide later</button>${ark.lista ? '<button type="button" data-ark="stopp">Stop reviewing</button>' : ''}</div>`;
+  } else if (ark.mode === 'rad') {
+    /* Glansarket (5d): telefonens råd, och vägen att säga vilket kort det är. */
+    const pos = platsPos.get(ark.spar) || platsPos.get(String(ark.spar)) || { x: 44, y: 82 };
+    r = { x: pos.x, y: pos.y, w: MATTA.CW, h: MATTA.CH };
+    const forsta = ((kamRad || '').split('. ')[0] || '').replace(/\.$/, '');
+    html = `<div class="arkrub"><b>This card is hard to read</b><span>${esc(forsta ? forsta + '.' : 'The camera cannot read it yet.')}</span></div>
+      <p class="arktxt">Move the lamp or tilt the phone a little — or tell the camera which card it is.</p>
+      <div class="arkknappar"><button type="button" class="btn sm" data-ark="vilket">Which card is it?</button><button type="button" class="btn sm ghost" data-ark="vanta">Wait</button></div>`;
   } else {
     const q = pendById(ark.pend); if (!q) return closeArk();
     const pos = platsPos.get(q.spar) || { x: 44, y: 82 };
@@ -7231,11 +7288,12 @@ function arkRita() {
       <button type="button" class="arkval" data-ark="token"><b>Not a card / it's a token</b><span>The camera stops asking about it</span></button>
       <button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>See what the camera saw</span></button>
       <div class="arkfot"><button type="button" data-ark="senare">Decide later · Esc</button></div>`
-      : `<div class="arkrub"><b>Camera couldn't read this</b><span>Which card is it?</span></div>
-      ${cands.map((c, n) => `<button type="button" class="arkval${n === 0 ? ' prim' : ''}" data-ark="gissa" data-n="${n}"><b>${esc(c.name)}</b>${n === 0 ? '<span>Best guess</span>' : ''}</button>`).join('')}
-      <button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>See what the camera saw, and search by name</span></button>
-      <button type="button" class="arkval" data-ark="token"><b>Not a card / it's a token</b><span>The camera stops asking about it</span></button>
-      <div class="arkfot"><button type="button" data-ark="senare">Leave it unread · Esc</button></div>`;
+      : `<div class="arkrub"><b>Which card is this?</b><span>The camera's best guesses from your deck</span></div>
+      ${arkBild(q) ? `<div class="arkbild"><img src="${arkBild(q)}" alt="What the camera saw"><p>What the camera saw. It's in your deck — pick it and the camera learns it.</p></div>` : ''}
+      ${cands.map((c, n) => { const kd = cardFor(c.name), typ = kd && kd.faces && kd.faces[0] ? kd.faces[0].type : ''; return `<button type="button" class="arkval medkbd${n === 0 ? ' prim' : ''}" data-ark="gissa" data-n="${n}"><b>${esc(c.name)}</b>${typ ? `<span>${esc(typ)}</span>` : ''}<kbd>${n + 1}</kbd></button>`; }).join('')}
+      <button type="button" class="arksok" data-ark="sok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>Search your deck</button>
+      ${DEBUG ? '<button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>The review view — for the builder</span></button>' : ''}
+      <div class="arkfot"><button type="button" data-ark="token">It's not a card</button><button type="button" data-ark="senare">Decide later</button></div>`;
   }
   arkEl.innerHTML = html;
   arkEl.classList.toggle('olast', ark.mode === 'olast');
@@ -7247,6 +7305,12 @@ function arkRita() {
   const mal = ark.mode === 'lost' ? gridEl.querySelector(`.card[data-cid="${CSS.escape(ark.cid)}"]`)
                                   : gridEl.querySelector(`.plats[data-pend="${CSS.escape(ark.pend)}"]`);
   if (mal) mal.classList.add('aktuell');
+}
+/* Kamerans beskärning av kortet, om den kommit (tagEmotBeskarning). */
+function arkBild(q) {
+  if (!q) return '';
+  for (const [k, v] of cropCache) if (k.startsWith(q.id + '@')) return v;
+  return '';
 }
 /* Granskning en och en: alla nedtonade kort i den ordning de tonades ned. */
 function arkGranska() {
@@ -7272,6 +7336,7 @@ function arkNasta() {
 function arkSvar(val, n) {
   if (!ark) return;
   const h = hand();
+  if (ark.mode === 'rad') { closeArk(); if (val === 'vilket') oppnaLada(true); return; }
   if (ark.mode === 'lost') {
     const e = h.find(k => k.cid === ark.cid), i = h.indexOf(e);
     if (val === 'stopp') return closeArk();
@@ -7280,13 +7345,14 @@ function arkSvar(val, n) {
     const cid = ark.cid;
     if (val === 'grav') matAngra(namnAv(e) + ' → graveyard', () => flyttaTill(i, ZON_GRAV));
     else if (val === 'exil') matAngra(namnAv(e) + ' → exile', () => flyttaTill(i, ZON_EXIL));
-    else if (val === 'hand') removeAt(i);
+    else if (val === 'hand') removeAt(i, `${namnAv(e)} → hand or library`);
     else if (val === 'kvar') { slappLyft(e); e.ny = Date.now(); save(); renderAll(true); }
     /* Omritningen har oftast redan gått vidare (kortet är inte nedtonat
        längre); bara om arket står kvar på samma kort stegas det här. */
     return ark && ark.cid === cid ? arkNasta() : null;
   }
   const p = malSpelare(), q = pendById(ark.pend);
+  if (val === 'sok') { oppnaLada(true); return; }             // leklådan står redan i namngivningsläge
   if (val === 'senare' || !q) return closeArk();
   if (val === 'crop') { const id = ark.pend; closeArk(); return oppnaGranskningFor(id); }
   if (val === 'token') {
@@ -7309,6 +7375,14 @@ addEventListener('keydown', ev => {
   if (t && t.closest && t.closest('input,textarea,select,[contenteditable]')) return;
   ev.preventDefault(); ev.stopPropagation();     // före appens egen Enter (fokusvyn)
   if (ark.mode === 'lost') arkSvar('grav'); else if (pendById(ark.pend) && (pendById(ark.pend).cands || []).length) arkSvar('gissa', 0);
+}, true);
+/* 1–3 väljer bland gissningarna i "Which card is this?" (före spelarbytet). */
+addEventListener('keydown', ev => {
+  if (!ark || ark.mode !== 'olast' || ev.metaKey || ev.ctrlKey || ev.altKey || !/^[1-3]$/.test(ev.key)) return;
+  const t = ev.target; if (t && t.closest && t.closest('input,textarea,select,[contenteditable]')) return;
+  const q = pendById(ark.pend); if (!q || q.overTak || !(q.cands || [])[+ev.key - 1]) return;
+  ev.preventDefault(); ev.stopPropagation();
+  arkSvar('gissa', +ev.key - 1);
 }, true);
 gridEl.addEventListener('contextmenu', ev => {
   const el = ev.target.closest('.card'); if (!el || !redigerbar()) return;
@@ -8471,6 +8545,8 @@ gridEl.addEventListener('dblclick', ev => { if (ev.target.closest('.card')) open
    Egen lyssnare — platsen är ingen .card, och korthanteraren ovan ska
    inte veta av den. */
 gridEl.addEventListener('click', ev => {
+  const r = ev.target.closest('.plats[data-radspar]');
+  if (r) { ev.stopPropagation(); openArk({ mode: 'rad', spar: +r.dataset.radspar }); return; }
   const p = ev.target.closest('.plats.fyll');
   if (!p || !p.dataset.pend) return;
   ev.stopPropagation();
@@ -18108,11 +18184,11 @@ function renderLyftBanner() {
   if (lyfta.length < 3 || (ark && ark.lista)) { el.hidden = true; el.innerHTML = ''; el.dataset.h = ''; return; }
   const t = lyfta.map(c => c.lyft), samtidigt = Math.max(...t) - Math.min(...t) < BORTA_NAD;
   const html = `<span>${samtidigt
-      ? `The camera lost ${lyfta.length} cards at once — a moved phone and a board wipe look the same from up here.`
-      : `The camera can't see ${lyfta.length} cards.`} Nothing was removed.</span>
-    <button class="btn sm" data-lyft="kvar" title="The camera missed them — they stay where they were">Keep all</button>
+      ? `The camera lost <b>${lyfta.length} cards</b> at once.`
+      : `The camera can't see <b>${lyfta.length} cards</b>.`} Nothing is removed until you choose.</span>
+    <button class="btn sm prim" data-lyft="kvar" title="The camera missed them — they stay where they were">They're still there</button>
     <button class="btn sm" data-lyft="grav" title="Every dimmed card goes to your graveyard">All to graveyard</button>
-    <button class="btn sm ghost" data-lyft="en" title="Decide for each card in turn">One by one</button>`;
+    <button class="btn sm" data-lyft="en" title="Decide for each card in turn">One by one</button>`;
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
   el.hidden = false;
 }
