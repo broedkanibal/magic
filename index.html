@@ -1370,6 +1370,28 @@ body.lasvy .lasband{display:flex}
 .lekfin{margin:0;font:11.8px/1.6 var(--sans);color:var(--dim2)}
 .lekfin kbd{font:11px var(--mono);color:var(--dim);background:var(--bg3);border:1px solid var(--line);border-radius:4px;padding:1px 4px}
 .lekrakn{flex:none;padding:2px 9px;border-radius:20px;background:var(--bg3);border:1px solid var(--line);font:11.5px var(--mono);color:var(--dim)}
+/* Lekväxlaren i rubriken och dess meny. */
+.lekvalj{display:inline-flex;align-items:center;gap:7px;min-width:0;max-width:46%;margin-left:6px;padding:3px 9px 3px 7px;border-radius:20px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 12.5px/1 var(--sans);cursor:pointer}
+.lekvalj:hover{border-color:var(--acc)}
+.lekvalj .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lekvalj .chev{color:var(--dim2);font-size:10px}
+.pips{display:inline-flex;gap:2px;flex:none}
+.pip{width:13px;height:13px;display:inline-block;flex:none}
+.pip svg{width:100%;height:100%;display:block}
+.pips:empty{display:none}
+.lekvaljmeny{position:absolute;left:14px;top:46px;z-index:30;min-width:280px;max-width:min(420px,90vw);padding:6px;border-radius:10px;background:#0b1017fa;border:1px solid var(--panelram2);box-shadow:0 16px 40px -12px #000f;display:flex;flex-direction:column;gap:2px}
+.lekvaljmeny[hidden]{display:none}
+.lekvaljrad{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border-radius:7px;border:0;background:none;color:var(--txt);font:12.5px/1.2 var(--sans);text-align:left;cursor:pointer}
+.lekvaljrad:hover{background:var(--bg3)}
+.lekvaljrad.on{background:#1c2433;outline:1px solid var(--acc)}
+.lekvaljrad .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lekvaljrad .antal{font:11px var(--mono);color:var(--dim2)}
+.lekvaljmeny hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.lekvaljmeny .akt{color:var(--dim)}
+.lekvaljmeny .akt.fara:hover{color:#ff9099}
+.lekvaljmeny input{width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid var(--acc);background:var(--bg);color:var(--txt);font:12.5px var(--sans)}
+.leksektion{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--zonlbl);padding:10px 4px 4px;display:flex;align-items:center;gap:8px}
+.leksektion::after{content:'';flex:1;height:1px;background:var(--zonlinje)}
 
 /* ── tomläget ── */
 .lektomt,.lekfylld{display:flex;flex-direction:column;gap:13px}
@@ -2406,7 +2428,11 @@ body.ispel #addPlayerBtn{display:none}
 <div class="ov" id="lekOv">
   <div class="modal lekmodal">
     <header>
-      <h2 id="lekTitel">Min lek</h2>
+      <h2 id="lekTitel">My decks</h2>
+      <!-- Lekväxlaren (D5-2): pips, namn, pil. Syns bara i lek-läget; lekLage
+           skriver #lekTitel för de andra lägena. Menyn ritas av lekRitaValj. -->
+      <button type="button" class="lekvalj" id="lekValj" hidden title="Switch deck, rename it, or make a new one"><span class="pips" id="lekPips"></span><span class="nm" id="lekNamn">My deck</span><span class="chev">▾</span></button>
+      <div class="lekvaljmeny" id="lekValjMeny" hidden></div>
       <span class="lekrakn" id="lekRakn" hidden></span>
       <button class="close" data-close="lekOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
@@ -2563,6 +2589,7 @@ body.ispel #addPlayerBtn{display:none}
               <ul class="leksuggest" id="lekKortSug"></ul>
             </label>
             <span class="kortkalla" id="lekKortKalla"></span>
+            <button type="button" class="btn sm" id="lekKortSb" hidden>Move to sideboard</button>
           </div>
         </div>
       </section>
@@ -4202,7 +4229,8 @@ function toast(msg, kind, undo) {
 
 /* ─────────── localStorage ─────────── */
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
-            lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1' };
+            lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1',
+            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -8084,13 +8112,72 @@ let minLek = null;
 
    Den läses bara när kontot inte gav någon lek, och den är ett utkast: den
    sås in i listan och måste sparas för att gälla någon annanstans. */
+/* Utan konto bor lekarna i webbläsaren, som en lista (sthv.lekar.v1) med
+   samma form som decks-raderna: {id, namn, kort, farger, antal, ts}. Den
+   gamla enleks-nyckeln (sthv.lek.v1) flyttas in som "My deck" första gången
+   och tas sedan bort. LS.set svarar false när lagret är fullt eller avstängt
+   i privat läge — utan konto är kopian det ENDA stället leken finns, och
+   att då säga "sparad" vore en ren lögn. */
 const lekLokal = {
-  las() { return LS.get(K.lek, null); },
-  /* Returvärdet betyder något: LS.set svarar false när lagret är fullt eller
-     avstängt i privat läge. Utan konto är den här kopian det ENDA stället
-     leken finns, och att då säga "sparad" vore en ren lögn. */
-  spara(lek) { return LS.set(K.lek, lek); }
+  lista() { const l = LS.get(K.lekar, null); return Array.isArray(l) ? l : []; },
+  rad(id) { return this.lista().find(l => l.id === id) || null; },
+  spara(rad) {
+    const l = this.lista().filter(x => x.id !== rad.id);
+    l.unshift(rad);
+    return LS.set(K.lekar, l);
+  },
+  radera(id) { return LS.set(K.lekar, this.lista().filter(x => x.id !== id)); },
+  migrera() {
+    const gammal = LS.get(K.lek, null);
+    if (!gammal || !gammal.kort || !gammal.kort.length) { if (gammal) LS.del(K.lek); return; }
+    if (!this.lista().length) {
+      const kort = gammal.kort;
+      this.spara({ id: 'lokal:' + uid(), namn: 'My deck', kort, farger: [], antal: kort.filter(k => !k.sb).reduce((a, k) => a + (k.n || 1), 0), ts: gammal.ts || Date.now() });
+    }
+    LS.del(K.lek);
+  }
 };
+/* Kontots lekar (eller de lokala) som dialogen växlar mellan, och den lek
+   som visas / senast valdes: {id, namn, farger, antal, ts}. lekAktiv ligger
+   också i localStorage så att menyn och flikarna kan svara utan nät. */
+let lekLista = [];
+let lekAktiv = LS.get(K.lekaktiv, null);
+const lekInfo = l => l ? { id: l.id, namn: l.namn, farger: l.farger || [], antal: l.antal || 0 } : null;
+const pipsHtml = farger => (farger || []).map(c => MANA_SVG[c] ? `<i class="pip">${MANA_SVG[c]}</i>` : '').join('');
+function lekSattAktiv(rad) {
+  lekAktiv = rad ? { id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0 } : null;
+  if (lekAktiv) LS.set(K.lekaktiv, lekAktiv); else LS.del(K.lekaktiv);
+  if (rad && rad.kort) sattLekTal(rad.kort);
+}
+/* Samma lager oavsett konto: inloggad → decks, annars webbläsarens lista.
+   Alla svarar med raden som sparats ({ok, rad}), eller {konflikt, rad}
+   när en annan enhet hann före. */
+async function lekHamtaLista() { return Moln.inloggad() ? await Moln.hamtaLekar() : lekLokal.lista().map(l => ({ id: l.id, namn: l.namn, farger: l.farger || [], antal: l.antal || 0, ts: l.ts || 0 })); }
+async function lekHamtaRad(id) { return Moln.inloggad() ? await Moln.hamtaLekRad(id) : lekLokal.rad(id); }
+async function lekSkapa(namn, kort, farger, antal) {
+  if (Moln.inloggad()) return await Moln.skapaLek(namn, kort, farger, antal);
+  const rad = { id: 'lokal:' + uid(), namn: namn || 'My deck', kort: kort || [], farger: farger || [], antal: antal || 0, ts: Date.now() };
+  if (!lekLokal.spara(rad)) throw new Error('The browser storage is full or switched off');
+  return rad;
+}
+async function lekSpara(id, data, sedd) {
+  if (Moln.inloggad()) return await Moln.sparaLek(id, data, sedd);
+  const gammal = lekLokal.rad(id); if (!gammal) return { ok: false, borta: true };
+  const rad = Object.assign({}, gammal, data, { ts: Date.now() });
+  return lekLokal.spara(rad) ? { ok: true, rad } : { ok: false, fel: 'The browser storage is full or switched off' };
+}
+async function lekDopOm(id, namn) { const r = await lekSpara(id, { namn }, null); return !!r.ok; }
+async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id) : lekLokal.radera(id); }
+/* Färgidentiteten ur raderna: unionen av korten i main + basländernas
+   färger, i ordningen WUBRG. C bara när leken har kort men ingen färg. */
+function lekFarger() {
+  const s = new Set();
+  for (const r of lekRader) if (r.sid && !r.sb && lekRadAntal(r) > 0) for (const c of (r.ci || [])) s.add(c);
+  const BL = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' };
+  for (const n of BASLAND_NAMN) if (lekBlAntal(n) > 0) s.add(BL[n]);
+  const ut = MANA_ORD.filter(c => c !== 'C' && s.has(c));
+  return ut.length ? ut : (lekRader.some(r => r.sid) ? ['C'] : []);
+}
 
 /* Arbetslistan. Nollställs när dialogen öppnas, aldrig medan den är öppen. */
 let lekRader = [];
@@ -8145,7 +8232,8 @@ function lekLage(v) {
         ? (iKo ? `Foto ${lekFotoRaknare + 1} av ${lekFotoRaknare + 1 + iKo}` : `Foto ${lekFotoRaknare + 1}`)
     : v === 'kort'
         ? (lekKortI != null && lekRader[lekKortI] && lekRader[lekKortI].fel ? 'Bekräfta kortet' : 'Kortet')
-    : 'Min lek';
+    : 'My decks';
+  lekRitaValj();
   lekRakna();
   lekFot();
 }
@@ -8154,10 +8242,11 @@ function lekLage(v) {
    byts OCH när listan ritas om — lekLage() körs i oppnaLek INNAN leken hämtats
    och sållts, så där är talet alltid noll, och det gamla stod kvar. */
 function lekRakna() {
-  const tot = lekTotalt();
-  const visa = lekLageNu === 'lek' && tot > 0;
+  const sb = lekRader.filter(r => r.sb).reduce((a, r) => a + lekRadAntal(r), 0);
+  const main = lekTotalt() - sb;
+  const visa = lekLageNu === 'lek' && (main > 0 || sb > 0);
   $('#lekRakn').hidden = !visa;
-  $('#lekRakn').textContent = visa ? (tot === 1 ? '1 kort' : `${tot} kort`) : '';
+  $('#lekRakn').textContent = visa ? `${main} ${main === 1 ? 'card' : 'cards'}${sb ? ` + ${sb} sideboard` : ''}` : '';
 }
 
 /* Foten äger ALLA knappar utom tomlägets. Det är därför det bara KAN finnas
@@ -8190,8 +8279,11 @@ function lekFot() {
       satt(A, '', null);
       satt(P, 'Lägg till namnen', lekLaggListan);
       break;
-    case 'kort':
+    case 'kort': {
       satt(T, 'Tillbaka till listan', () => { lekLage('lek'); ritaLek(); });
+      const sbB = $('#lekKortSb');
+      sbB.hidden = !(r && !r.fel);
+      if (r && !r.fel) { sbB.textContent = r.sb ? 'Move to main deck' : 'Move to sideboard'; sbB.onclick = lekKortSb; }
       if (r && r.fel) {
         const fler = lekNastaTrasig(lekKortI) != null;
         satt(A, fler ? 'Hoppa över' : '', () => lekKortSteg(1));
@@ -8201,6 +8293,7 @@ function lekFot() {
         satt(P, 'Tillbaka till listan', () => { lekLage('lek'); ritaLek(); });
       }
       break;
+    }
     default: {                              // 'lek'
       const tomt = $('#lekTomt').hidden === false;
       /* I tomläget ligger valet mellan foto och lista redan i kroppen, bredvid
@@ -8292,7 +8385,7 @@ async function lekSlaUpp(onProg) {
     try {
       const k = await lookup(rader[0].namn);
       for (const r of rader) {
-        r.name = k.name; r.sid = k.id; r.small = imgOf(k, 0, 'small'); r.felmsg = '';
+        r.name = k.name; r.sid = k.id; r.small = imgOf(k, 0, 'small'); r.ci = k.ci || []; r.felmsg = '';
         /* Bytte Scryfall ut namnet? Uppslagningen är luddig och byter gärna
            ut det den inte känner igen: "Dragon Flail" gav Flailing Drake,
            ett helt annat kort. Ett sådant byte måste bekräftas ÄVEN när
@@ -8318,7 +8411,7 @@ async function lekSlaUpp(onProg) {
      "Lightning Bolt" och "Lightning  Bolt" olika och båda landar rätt. */
   const av = new Map();
   for (let r of lekRader) {
-    const n = lekNyckel(r.name || r.namn);
+    const n = lekNyckel(r.name || r.namn) + (r.sb ? '|sb' : '');   // main och sideboard är två rader
     if (!n) continue;
     let f = av.get(n);
     if (!f) { av.set(n, r); continue; }
@@ -8361,8 +8454,19 @@ function lekSugUppBaslanden() {
 }
 
 /* ── dialogen ──────────────────────────────────────────────────────── */
-async function oppnaLek() {
+async function oppnaLek(valjId) {
   openOv('lekOv');
+  await lekLadda(valjId);
+}
+/* Laddar en lek in i dialogen: listan över lekar, sedan den valda (valjId,
+   annars den senast aktiva, annars den första). En tom lista på ett konto
+   sås ur den gamla enleks-raden — eller spelets gamla kolumn — som "My
+   deck", så att ingen lek går förlorad. Ett hämtningsfel får ALDRIG falla
+   vidare till nästa källa: en tom lek som egentligen var ett nätfel skulle
+   sås som utkast, och nästa sparning skriva över den riktiga med en gammal.
+   Varje öppning är en egen session: en nyare öppning äger listan, annars
+   såddes leken två gånger på ett trögt nät. */
+async function lekLadda(valjId) {
   const minSession = ++lekSession;
   lekRader = []; lekFoton = []; lekFilter = 'alla'; lekFotoRaknare = 0; lekNotis = '';
   lekBaseradPa = 0; lekKo = [];
@@ -8372,60 +8476,141 @@ async function oppnaLek() {
   lekKortI = null;
   lekLage('lek');
   $('#lekTa').value = '';
-  $('#lekStatus').textContent = 'Hämtar…';
-
-  /* Tre källor, i fallande ordning av sanning:
-       1. kontot — leken hör dit och följer dig mellan enheter
-       2. spelets gamla kolumn — bara för lekar sparade före kontotabellen,
-          och bara för att kunna flytta över dem
-       3. webbläsaren — för den som kör utan konto
-     Ett hämtningsfel får ALDRIG falla vidare till nästa källa: en tom lek
-     som egentligen var ett nätfel skulle sås som utkast, och nästa sparning
-     skriva över den riktiga leken med en gammal. */
-  let konto = null, fel = null, flyttad = false;
-  if (Moln.inloggad()) {
-    try { konto = await Moln.hamtaMinLek(); }
-    catch (e) { fel = e; }
-  }
-  /* En nyare öppning äger listan. Utan den här raden sådde två överlappande
-     öppningar — stäng och öppna igen medan hämtningen hänger på ett trögt
-     nät — leken TVÅ gånger: lekSa gör bara push, så varje kort fick en egen
-     rad till och varje basland dubblerades. Uppmätt: 16 kort blev 32, och
-     eftersom leken sparas på kontot hade den dubbletten skrivit över den
-     riktiga på alla enheter. */
-  if (minSession !== lekSession) return;
-  minLek = konto;
-
-  if (fel) {
-    $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken kunde inte hämtas.</b> Spara inte förrän du vet varför — det skulle skriva över den som finns.';
-    /* Listrutan stod kvar från förra öppningen och såg ut som en tom lek.
-       Sparning är ofarlig i det läget (inga rader = ingenting att skriva),
-       men en tom lista under ett felmeddelande läser sig som ett svar. */
+  $('#lekStatus').textContent = 'Fetching…';
+  $('#lekValjMeny').hidden = true;
+  try {
+    lekLokal.migrera();
+    lekLista = await lekHamtaLista();
+    if (minSession !== lekSession) return;
+    if (!lekLista.length) {
+      let gammal = null;
+      if (Moln.inloggad()) {
+        gammal = await Moln.hamtaMinLek();
+        if (minSession !== lekSession) return;
+        if ((!gammal || !gammal.kort || !gammal.kort.length) && spelLage) {
+          try { gammal = await Moln.hamtaLek(spelLage.id); } catch (e) { /* den gamla kolumnen är en bonus, inte ett krav */ }
+          if (minSession !== lekSession) return;
+        }
+      }
+      const kort = gammal && Array.isArray(gammal.kort) ? gammal.kort : [];
+      const rad = await lekSkapa('My deck', kort, [], kort.filter(k => !k.sb).reduce((a, k) => a + (k.n || 1), 0));
+      if (minSession !== lekSession) return;
+      lekLista = [{ id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0 }];
+    }
+    const onskad = valjId || (lekAktiv && lekAktiv.id);
+    const vald = lekLista.find(l => l.id === onskad) || lekLista[0];
+    const rad = await lekHamtaRad(vald.id);
+    if (minSession !== lekSession) return;
+    if (!rad) throw new Error('the deck is gone');
+    lekSattAktiv(rad);
+    lekBaseradPa = rad.ts || 0;
+    lekSa(rad.kort || [], 'sparat');
+    $('#lekStatus').textContent = '';
+  } catch (e) {
+    $('#lekStatus').innerHTML = '<b style="color:var(--red)">The deck could not be fetched.</b> Do not save until you know why — it would overwrite the one that exists.';
+    /* Listrutan stod kvar från förra öppningen och såg ut som en tom lek. */
     ritaLek();
     return;
   }
-
-  /* Ingen lek på kontot? Leta i det gamla stället innan vi ger upp. */
-  if ((!konto || !konto.kort || !konto.kort.length) && spelLage && Moln.inloggad()) {
-    try {
-      const gammal = await Moln.hamtaLek(spelLage.id);
-      if (minSession !== lekSession) return;
-      if (gammal && gammal.kort && gammal.kort.length) { konto = gammal; flyttad = true; }
-    } catch (e) { /* den gamla kolumnen är en bonus, inte ett krav */ }
-  }
-
-  if (konto && konto.kort && konto.kort.length) {
-    lekBaseradPa = konto.ts || 0;
-    lekSa(konto.kort, 'sparat');
-    if (flyttad) lekNotis = 'Din lek låg sparad i det här spelet. <b>Spara</b> så flyttas den till kontot och följer med till nästa spel.';
-  } else {
-    const lokal = lekLokal.las();
-    if (lokal && lokal.kort && lokal.kort.length) {
-      lekSa(lokal.kort, 'lokalt');
-      if (Moln.inloggad()) lekNotis = 'Leken finns bara i den här webbläsaren. <b>Spara</b> så hamnar den på kontot och följer med till dina andra enheter.';
-    }
-  }
   ritaLek();
+}
+
+/* ── Lekväxlaren ────────────────────────────────────────────────────
+   Rubrikens knapp öppnar listan: byt lek, ny lek, döp om, ta bort. Ett byte
+   med osparade ändringar frågar först, som stängningen gör. */
+function lekRitaValj() {
+  const v = $('#lekValj'); if (!v) return;
+  v.hidden = lekLageNu !== 'lek' || !lekAktiv;
+  if (v.hidden) { $('#lekValjMeny').hidden = true; return; }
+  const farger = lekRader.length || lekBlTotalt() ? lekFarger() : (lekAktiv.farger || []);
+  $('#lekPips').innerHTML = pipsHtml(farger);
+  $('#lekNamn').textContent = lekAktiv.namn || 'My deck';
+}
+function lekRitaValjMeny() {
+  const m = $('#lekValjMeny');
+  m.innerHTML = lekLista.map(l => `<button type="button" class="lekvaljrad${lekAktiv && l.id === lekAktiv.id ? ' on' : ''}" data-lekid="${esc(l.id)}">`
+      + `<span class="pips">${pipsHtml(l.farger)}</span><span class="nm">${esc(l.namn)}</span><span class="antal">${l.antal || 0} cards</span></button>`).join('')
+    + `<hr><button type="button" class="lekvaljrad akt" data-lekakt="ny">+ New deck</button>`
+    + `<button type="button" class="lekvaljrad akt" data-lekakt="namn">Rename this deck…</button>`
+    + `<button type="button" class="lekvaljrad akt fara" data-lekakt="bort">Delete this deck…</button>`;
+  m.hidden = false;
+}
+$('#lekValj').addEventListener('click', ev => {
+  ev.stopPropagation();
+  const m = $('#lekValjMeny');
+  if (!m.hidden) { m.hidden = true; return; }
+  lekRitaValjMeny();
+});
+addEventListener('mousedown', ev => { const m = $('#lekValjMeny'); if (m && !m.hidden && !m.contains(ev.target) && !ev.target.closest('#lekValj')) m.hidden = true; });
+$('#lekValjMeny').addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-lekid],[data-lekakt]'); if (!b) return;
+  ev.stopPropagation();
+  const m = $('#lekValjMeny');
+  if (b.dataset.lekid) {
+    if (lekAktiv && b.dataset.lekid === lekAktiv.id) { m.hidden = true; return; }
+    if (!await lekVillStanga()) return;
+    m.hidden = true;
+    await lekLadda(b.dataset.lekid);
+    return;
+  }
+  const akt = b.dataset.lekakt;
+  if (akt === 'ny') {
+    if (!await lekVillStanga()) return;
+    m.hidden = true;
+    try {
+      const rad = await lekSkapa(lekNyttNamn(), [], [], 0);
+      await lekLadda(rad.id);
+    } catch (e) { $('#lekStatus').innerHTML = `<b style="color:var(--red)">The deck could not be created.</b> ${esc(e.message || '')}`; }
+    return;
+  }
+  if (akt === 'namn') {
+    /* Namnfältet ersätter menyn: Enter sparar, Escape avbryter. */
+    m.innerHTML = `<input type="text" id="lekNamnIn" maxlength="40" value="${esc(lekAktiv.namn)}" placeholder="Deck name">`;
+    const inp = $('#lekNamnIn'); inp.focus(); inp.select();
+    inp.addEventListener('keydown', async e => {
+      e.stopPropagation();
+      if (e.key === 'Escape') { m.hidden = true; return; }
+      if (e.key !== 'Enter') return;
+      const namn = inp.value.trim().slice(0, 40); if (!namn) return;
+      m.hidden = true;
+      if (await lekDopOm(lekAktiv.id, namn)) {
+        lekAktiv.namn = namn; LS.set(K.lekaktiv, lekAktiv);
+        lekLista = lekLista.map(l => l.id === lekAktiv.id ? Object.assign({}, l, { namn }) : l);
+        lekRitaValj(); lekSyncSpel();
+      } else $('#lekStatus').innerHTML = '<b style="color:var(--red)">The name could not be saved.</b>';
+    });
+    return;
+  }
+  if (akt === 'bort') {
+    m.hidden = true;
+    const n = lekAktiv.antal || 0;
+    if (!await ask(`"${lekAktiv.namn}" and its ${n} cards are deleted from your account. This cannot be undone.`, { title: 'Delete this deck?', ok: 'Delete', danger: true })) return;
+    const id = lekAktiv.id;
+    if (!await lekRadera(id)) { $('#lekStatus').innerHTML = '<b style="color:var(--red)">The deck could not be deleted.</b>'; return; }
+    lekLista = lekLista.filter(l => l.id !== id);
+    lekSattAktiv(null); lekAndrat = false;
+    /* Var den vald i spelet tas valet bort hos alla (raderaLek nollade raden). */
+    const mig = spelLage && minSpelare();
+    if (mig && mig.lekId === id) { mig.lekId = null; mig.lek = null; renderTabs(); }
+    await lekLadda(null);
+  }
+});
+function lekNyttNamn() {
+  const namn = new Set(lekLista.map(l => l.namn));
+  if (!namn.has('New deck')) return 'New deck';
+  for (let i = 2; i < 100; i++) if (!namn.has('New deck ' + i)) return 'New deck ' + i;
+  return 'New deck';
+}
+/* Leken jag har vald i spelet får sin kopia (lek_info) uppdaterad när den
+   sparats eller döpts om, och telefonen bygger om sin pool. */
+function lekSyncSpel() {
+  if (!spelLage || !lekAktiv) return;
+  const mig = minSpelare();
+  if (mig && mig.lekId === lekAktiv.id) {
+    mig.lek = lekInfo(lekAktiv); renderTabs();
+    Moln.valjLek(spelLage.id, lekAktiv.id, mig.lek).catch(() => {});
+  }
+  Moln.sandKam('lek', { lekId: lekAktiv.id });
 }
 
 /* Sår listan ur en sparad lek. Basländerna går tillbaka till sifferfälten
@@ -8438,7 +8623,11 @@ function lekSa(kort, kalla) {
       lekBasland[k.name].per[kalla] = (lekBasland[k.name].per[kalla] || 0) + (k.n || 1);
       continue;
     }
-    lekRader.push({ namn: k.name, name: k.name, sid: k.sid, small: k.small,
+    /* Färgidentiteten: ur den sparade posten, annars ur kortcachen om
+       kortet råkar finnas där (migrerade lekar saknar den) — annars tom
+       tills nästa sparning slår upp den. */
+    const c = !k.ci && cardOf({ name: k.name }) || null;
+    lekRader.push({ namn: k.name, name: k.name, sid: k.sid, small: k.small, ci: k.ci || (c && c.ci) || [],
                     per: { [kalla]: k.n || 1 }, sak: 'hog', fel: false, remsa: null, sb: !!k.sb });
   }
 }
@@ -8951,8 +9140,10 @@ function ritaLek() {
 
   ritaLekRemsa();
 
-  const rader = lekFilter === 'fel' ? lekRader.filter(r => r.fel) : lekRader;
+  const rader = (lekFilter === 'fel' ? lekRader.filter(r => r.fel) : lekRader).slice().sort((a, b) => (a.sb ? 1 : 0) - (b.sb ? 1 : 0));
+  let sektion = false;
   $('#lekLista').innerHTML = rader.map(r => {
+    const rubrik = r.sb && !sektion ? (sektion = true, '<div class="leksektion">Sideboard</div>') : '';
     const i = lekRader.indexOf(r);
     const remsa = r.remsa ? `<img class="remsa" src="${r.remsa}" alt="">`
                           : '<span class="remsa tom"></span>';
@@ -8967,12 +9158,12 @@ function ritaLek() {
         : r.fann === false ? [`”${esc(r.namn)}”`, 'Finns inte på Scryfall — skriv om namnet', 'Rätta']
         : r.bytt       ? [`”${esc(r.namn)}”`, `Närmaste kort är ${esc(r.name)} — stämmer det?`, 'Bekräfta']
         :                [`”${esc(r.namn)}”`, 'Läst ur fotot — bekräfta kortet', 'Bekräfta'];
-      return `<div class="lekrad fel" data-rad="${i}">` +
+      return rubrik + `<div class="lekrad fel" data-rad="${i}">` +
         `<button class="lekrad-hd" data-se="${i}" title="Visa kortet stort">${remsa}${konst}` +
         `<span class="col"><span class="nm">${namn}</span><span class="ef">${under}</span></span>${antal}</button>` +
         `<button class="btn sm" data-se="${i}">${knapp}</button>${bort}</div>`;
     }
-    return `<div class="lekrad" data-rad="${i}">` +
+    return rubrik + `<div class="lekrad" data-rad="${i}">` +
       `<button class="lekrad-hd" data-se="${i}" title="Visa kortet stort">${remsa}${konst}` +
       `<span class="col"><span class="nm">${esc(r.name)}</span><span class="ef">${esc(lekKallText(r))}</span></span>` +
       `${antal}<span class="chev">›</span></button>${bort}</div>`;
@@ -8981,6 +9172,7 @@ function ritaLek() {
   $('#lekBasland').innerHTML = BASLAND_NAMN.map(n =>
     `<label class="lekbl"><span>${n}</span><input type="number" min="0" max="99" data-bl="${n}" value="${lekBlAntal(n)}"></label>`).join('');
 
+  lekRitaValj();
   lekRakna();
   lekFot();
 }
@@ -9119,6 +9311,17 @@ function lekKortJa() {
   if (nasta != null && lekRader[nasta].fel) lekOppnaKort(nasta, lekKortFran);
   else { lekLage('lek'); ritaLek(); }
 }
+/* Kortet byter sida: main ↔ sideboard. Finns namnet redan på andra sidan
+   slås raderna ihop. */
+function lekKortSb() {
+  const r = lekRader[lekKortI]; if (!r) return;
+  const nyckel = lekNyckel(r.name || r.namn), mal = !r.sb;
+  const annan = lekRader.find(x => x !== r && lekNyckel(x.name || x.namn) === nyckel && !!x.sb === mal);
+  if (annan) { for (const [k, v] of Object.entries(r.per)) annan.per[k] = (annan.per[k] || 0) + v; lekRader = lekRader.filter(x => x !== r); }
+  else r.sb = mal;
+  lekAndrat = true;
+  lekLage('lek'); ritaLek();
+}
 function lekKortTaBort() {
   const r = lekRader[lekKortI]; if (!r) return;
   const namn = r.name || r.namn || 'Kortet';
@@ -9140,12 +9343,12 @@ async function lekRatta(i, namn) {
     /* Finns namnet redan som en annan rad hör de ihop — slå ihop dem i
        stället för att låta samma kort ligga två gånger. */
     const nyckel = lekNyckel(k.name);
-    const annan = lekRader.find(x => x !== r && lekNyckel(x.name) === nyckel);
+    const annan = lekRader.find(x => x !== r && lekNyckel(x.name) === nyckel && !!x.sb === !!r.sb);
     if (annan) {
       for (const [kk, v] of Object.entries(r.per)) annan.per[kk] = (annan.per[kk] || 0) + v;
       lekRader = lekRader.filter(x => x !== r);
     } else {
-      r.name = k.name; r.sid = k.id; r.small = imgOf(k, 0, 'small');
+      r.name = k.name; r.sid = k.id; r.small = imgOf(k, 0, 'small'); r.ci = k.ci || [];
       r.fel = false; r.fann = true; r.sak = 'hog'; r.felmsg = ''; r.bytt = false;
       r.namn = k.name;
     }
@@ -9320,52 +9523,39 @@ async function lekSparaNu() {
       if (f) f.n += k.n; else slagna.push({ ...k });
     }
 
-    const lek = { kort: slagna, ts: Date.now() };
-    $('#lekStatus').textContent = 'Sparar…';
-    /* Webbläsarkopian först, och alltid. Den är inte lekens hem — kontot är
-       det — men den är det som finns kvar om nätet är borta, och den kostar
-       ingenting. Skrivs den sist går en lek förlorad om kontosparningen
-       fallerar, och det är just då man helst vill ha den kvar. */
-    const lokaltOk = lekLokal.spara(lek);
-
-    const inloggad = Moln.inloggad();
-    if (inloggad) {
-      /* Har någon annan enhet sparat sedan listan byggdes? Fråga innan vi
-         skriver över. Att bara skriva vore att tyst kasta någons arbete. */
-      let nuvarande = null;
-      try { nuvarande = await Moln.hamtaMinLek(); } catch (e) { /* nätfelet fångas av sparningen nedan */ }
-      if (nuvarande && (nuvarande.ts || 0) > lekBaseradPa) {
-        const antal = (nuvarande.kort || []).reduce((a, k) => a + (k.n || 1), 0);
-        const jaSkriv = await ask(
-          `En lek med ${antal} kort sparades från en annan enhet medan den här rutan stod öppen. ` +
-          `Sparar du nu ersätts den med de ${lekTotalt()} kort du ser här.`,
-          { title: 'Leken har ändrats någon annanstans', ok: 'Skriv över', danger: true });
-        if (!jaSkriv) { $('#lekStatus').innerHTML = '<b>Ingenting sparades.</b> Stäng och öppna rutan igen för att se den nyare leken.'; return; }
-      }
+    if (!lekAktiv) { $('#lekStatus').textContent = 'No deck is open.'; return; }
+    const farger = lekFarger();
+    const antal = slagna.filter(k => !k.sb).reduce((a2, k) => a2 + k.n, 0);
+    const data = { kort: slagna, farger, antal, namn: lekAktiv.namn };
+    $('#lekStatus').textContent = 'Saving…';
+    let res = await lekSpara(lekAktiv.id, data, lekBaseradPa || null);
+    /* Har någon annan enhet sparat sedan listan byggdes? Fråga innan vi
+       skriver över. Att bara skriva vore att tyst kasta någons arbete. */
+    if (res.konflikt) {
+      const jaSkriv = await ask(
+        `"${res.rad.namn}" was saved from another device while this window was open (${res.rad.antal || 0} cards). ` +
+        `Save now and it is replaced with the ${antal} cards you see here.`,
+        { title: 'The deck changed somewhere else', ok: 'Overwrite', danger: true });
+      if (!jaSkriv) { $('#lekStatus').innerHTML = '<b>Nothing was saved.</b> Close and open the window again to see the newer deck.'; return; }
+      res = await lekSpara(lekAktiv.id, data, null);
     }
-    if (!lokaltOk && !inloggad) {
-      $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken kunde inte sparas i webbläsaren.</b> Lagret är fullt eller avstängt — logga in, så sparas den på ditt konto i stället.';
+    if (!res.ok) {
+      $('#lekStatus').innerHTML = res.borta
+        ? '<b style="color:var(--red)">This deck no longer exists.</b> It was deleted from another device — make a new one from the menu above.'
+        : `<b style="color:var(--red)">The deck could not be saved.</b> ${esc(res.fel || 'Save again when you have network.')}`;
       return;
     }
-    if (inloggad) {
-      const ok = await Moln.sparaMinLek(lek);
-      if (!ok) {
-        $('#lekStatus').innerHTML = '<b style="color:var(--red)">Leken sparades i den här webbläsaren men nådde inte kontot.</b> Spara om när du har nät igen.';
-        minLek = null;
-        return;
-      }
-      minLek = lek;
-      lekBaseradPa = lek.ts;
-      /* Telefonen bygger om sin pool när leken ändras — säg till. Bara i ett
-         spel finns en kanal att säga det på. */
-      if (spelLage) Moln.sandKam('lek');
-    }
+    lekSattAktiv(res.rad);
+    lekBaseradPa = res.rad.ts || 0;
+    lekLista = lekLista.map(l => l.id === res.rad.id ? { id: res.rad.id, namn: res.rad.namn, farger: res.rad.farger || [], antal: res.rad.antal || 0, ts: res.rad.ts || 0 } : l);
+    /* Sparat: stängningsfrågan ska inte ställas (MES-12). */
+    lekAndrat = false;
+    lekSyncSpel();
     closeOv('lekOv');
-    const tot = kort.reduce((s, k) => s + k.n, 0);
     const kvar = lekTrasiga();
-    toast(kvar ? `${tot} kort sparade · ${kvar} rader utan namn lämnades kvar`
-               : inloggad ? `${tot} kort sparade på ditt konto — kameran känner nu igen din lek`
-                          : `${tot} kort sparade i den här webbläsaren`,
+    toast(kvar ? `${antal} cards saved · ${kvar} rows without a name were left as they are`
+               : Moln.inloggad() ? `${antal} cards saved to your account — the camera now recognises ${lekAktiv.namn}`
+                                 : `${antal} cards saved in this browser`,
           kvar ? 'err' : 'ok');
   } catch (e) {
     $('#lekStatus').innerHTML = `<b style="color:var(--red)">Sparningen gick fel.</b> ${esc(e.message || '')}`;
@@ -9380,9 +9570,7 @@ async function lekSparaNu() {
    vid varje öppning — så antalet behöver bara gå att FRÅGA efter.
    Utanför ett spel finns ingen minLek; den lokala kopian svarar i stället,
    annars ser en sparad lek ut att ha försvunnit så fort man lämnar spelet. */
-function minLekAntal() {
-  return lekKortAntal((minLek && minLek.kort) ? minLek : lekLokal.las());
-}
+function minLekAntal() { return lekAktiv ? (lekAktiv.antal || 0) : 0; }
 /* Antalet kort i en sparad lek: n per rad. Basic lands är vanliga rader med
    sitt antal sedan lekSparaNu, så de räknas här och inte i lekBlTotalt — den
    är dialogens arbetsrader. En lek från före antalen räknar 1 per rad. */
@@ -9429,7 +9617,7 @@ $('#menuBtn').onclick = ev => {
     ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">Avsluta spelet</button>' : ''}` : ''}
     <hr>
     <div class="hd">Igenkänning</div>
-    <button data-a="lek">Min lek${meta(n ? String(n) : 'tom')}</button>
+    <button data-a="lek">My decks${meta(lekAktiv ? `${esc(lekAktiv.namn)} · ${n}` : 'none yet')}</button>
     <button data-a="pool">Kortpool${meta(esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'ej byggd'))}</button>
     <button data-a="ai">AI-hjälp${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'PÅ' : 'KLAR') : aiKey() ? 'EGEN NYCKEL' : 'AV', AI.mode === 'server' ? 'var(--green)' : null)}</button>
     ${spelLage ? (prefs.autoLage === true
