@@ -186,6 +186,19 @@ kbd{
 .players.ikoner .ptab .num{display:inline-block}
 .players.ikoner .ptab .dot{display:block}
 .players.ikoner .ptab .vantar{display:none}
+/* Lekchippet på fliken (D5-3). */
+.lekchip{display:inline-flex;align-items:center;gap:4px;flex:none;height:18px;padding:0 6px 0 4px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--dim);font:600 10.5px/1 var(--mono);cursor:default}
+.lekchip .pip{width:11px;height:11px}
+.lekchip.egen{cursor:pointer}
+.lekchip.egen:hover{border-color:var(--acc);color:var(--txt)}
+.lekchip.tom{padding:0 7px;border:1px dashed var(--acc);color:var(--pa-acc);font:600 10px/1 var(--sans);cursor:pointer}
+.lekchip.tom:hover{background:var(--tand2)}
+.players.kompakt .ptab:not(.on) .lekchip,.players.ikoner .lekchip{display:none}
+.lekvalpop{position:fixed;z-index:960;min-width:260px;max-width:min(400px,92vw);padding:6px;border-radius:10px;background:#0b1017fa;border:1px solid var(--panelram2);box-shadow:0 16px 40px -12px #000f;display:flex;flex-direction:column;gap:2px}
+.lekvalpop[hidden]{display:none}
+.lekvalpop .lekvalrub{font:600 9.5px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:var(--dim2);padding:6px 9px 4px}
+.lekvalpop hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.lekvalpop .akt{color:var(--dim)}
 /* Läser man någon annans bord är den fliken blå, inte guld. Guld betyder
    "här kan du ändra", och det kan man inte på ett annat bord — den egna
    fliken behåller sitt du-märke, men i grått. */
@@ -5313,6 +5326,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
+      ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">du</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} kort behöver fyllas i">${p.pending.length}</span>` : ''}
       ${fardknapp ? `<span class="pen" data-rename="${esc(p.id)}" title="Rename (R)" role="button">
@@ -5322,6 +5336,20 @@ function renderTabs() {
     </button>`;
   }).join('');
   matFlikar();
+}
+/* Lekchippet på fliken (D5-3): i ett spel min egen valda lek (pips + antal,
+   namnet i title) eller "Pick a deck"; motståndarnas lek_info som pips +
+   antal. Lokalt bär den aktiva fliken den senast valda leken (lekAktiv).
+   Chippet är en egen klickyta ([data-lekvalj]) som öppnar valet, inte
+   fliken. Kollapsen (.kompakt/.ikoner) döljer det. */
+function lekChipHtml(p, mitt) {
+  let lek = null, egen = false;
+  if (spelLage) { lek = p.lekId && p.lek ? p.lek : null; egen = mitt; }
+  else { if (p.id !== state.active) return ''; lek = lekAktiv; egen = true; }
+  if (!lek) return egen ? `<span class="lekchip tom" data-lekvalj="${esc(p.id)}" role="button" title="Choose the deck the camera recognises">Pick a deck</span>` : '';
+  const n = lek.antal || 0;
+  return `<span class="lekchip${egen ? ' egen' : ''}"${egen ? ` data-lekvalj="${esc(p.id)}" role="button"` : ''} title="${esc(lek.namn || 'Deck')} · ${n} ${n === 1 ? 'card' : 'cards'}${egen ? ' — click to switch' : ''}">` +
+    `<span class="pips">${pipsHtml(lek.farger)}</span><span class="lant">${n}</span></span>`;
 }
 /* Mätningen är en egen funktion för att den måste göras OM när något annat i
    raden byter bredd. Modeplatsen gör det utan att flikarna ritas om: går
@@ -7725,9 +7753,81 @@ $('#playerTabs').addEventListener('click', ev => {
     if (p) removePlayer(p.id);   // ångerbar, så ingen fråga behövs
     return;
   }
+  const lv = ev.target.closest('[data-lekvalj]');
+  if (lv) { ev.stopPropagation(); oppnaLekVal(lv); return; }
   const tab = ev.target.closest('.ptab');
   if (tab) setActive(tab.dataset.pid);
 });
+/* ── Lekvalet (D5-3) ─────────────────────────────────────────────────
+   Popovern under chippet: kontots lekar (eller de lokala), och "Manage
+   decks…" som öppnar dialogen. Valet i ett spel skrivs till game_players
+   (lek_id + lek_info) så att alla ser det; lokalt blir det lekAktiv. */
+let lekValEl = null;
+async function oppnaLekVal(fran) {
+  if (!lekValEl) {
+    lekValEl = document.createElement('div'); lekValEl.className = 'lekvalpop'; lekValEl.hidden = true;
+    document.body.appendChild(lekValEl);
+    addEventListener('mousedown', ev => { if (!lekValEl.hidden && !lekValEl.contains(ev.target) && !ev.target.closest('[data-lekvalj]')) lekValEl.hidden = true; });
+    lekValEl.addEventListener('click', async ev => {
+      const b = ev.target.closest('[data-valj],[data-hantera]'); if (!b) return;
+      ev.stopPropagation();
+      lekValEl.hidden = true;
+      if (b.dataset.hantera != null) { oppnaLek(b.dataset.hantera || undefined); return; }
+      await valjLekTill(b.dataset.valj);
+    });
+  }
+  if (!lekValEl.hidden) { lekValEl.hidden = true; return; }
+  const r = fran.getBoundingClientRect();
+  lekValEl.style.left = Math.max(8, Math.min(r.left, innerWidth - 300)) + 'px';
+  lekValEl.style.top = (r.bottom + 6) + 'px';
+  lekValEl.innerHTML = '<div class="lekvalrub">Fetching your decks…</div>';
+  lekValEl.hidden = false;
+  let lista = [];
+  try { lekLokal.migrera(); lista = await lekHamtaLista(); } catch (e) { lista = null; }
+  if (lekValEl.hidden) return;
+  const mig = spelLage ? minSpelare() : null;
+  const valdId = spelLage ? (mig && mig.lekId) : (lekAktiv && lekAktiv.id);
+  lekValEl.innerHTML = (lista === null ? '<div class="lekvalrub">Your decks could not be fetched.</div>'
+    : !lista.length ? '<div class="lekvalrub">No decks yet — add your cards first.</div>'
+    : `<div class="lekvalrub">Which deck are you playing?</div>` + lista.map(l =>
+        `<button type="button" class="lekvaljrad${l.id === valdId ? ' on' : ''}" data-valj="${esc(l.id)}"><span class="pips">${pipsHtml(l.farger)}</span><span class="nm">${esc(l.namn)}</span><span class="antal">${l.antal || 0} cards</span></button>`).join(''))
+    + `<hr><button type="button" class="lekvaljrad akt" data-hantera="${esc(valdId || '')}">Manage decks…</button>`;
+}
+/* Valet i ett spel: optimistiskt på min rad, skrivningen i flykt gatas i
+   fjarrSpelare (lekValPagar), rullas tillbaka om den inte gick fram. Lokalt
+   bara lekAktiv. Lekens kort hämtas för antalspriorn (lekAntal). */
+async function valjLekTill(id) {
+  let rad = null;
+  try { rad = await lekHamtaRad(id); } catch (e) { rad = null; }
+  if (!rad) { toast('The deck could not be fetched', 'err'); return; }
+  const info = lekInfo(rad);
+  lekSattAktiv(rad);
+  if (!spelLage) { renderTabs(); return; }
+  const mig = minSpelare(); if (!mig) return;
+  const fore = { lekId: mig.lekId, lek: mig.lek };
+  mig.lekId = rad.id; mig.lek = info; renderTabs();
+  lekValPagar = true;
+  const ok = await Moln.valjLek(spelLage.id, rad.id, info).catch(() => false);
+  lekValPagar = false;
+  if (!ok) { mig.lekId = fore.lekId; mig.lek = fore.lek; renderTabs(); toast('The deck choice could not be saved', 'err'); return; }
+  Moln.sandKam('lek', { lekId: rad.id });
+  toast(`Playing ${rad.namn} — the camera recognises its ${rad.antal || 0} cards`, 'ok');
+}
+/* Vid inträdet i ett spel: har jag redan valt en lek där hämtas dess kort
+   för antalspriorn; annars, om kontot har exakt en lek, väljs den tyst. */
+async function lekVidIntrade() {
+  if (!spelLage || !Moln.inloggad()) return;
+  const mig = minSpelare(); if (!mig) return;
+  try {
+    if (mig.lekId) {
+      const rad = await Moln.hamtaLekRad(mig.lekId);
+      if (rad) lekSattAktiv(rad);
+      return;
+    }
+    const lista = await Moln.hamtaLekar();
+    if (lista.length === 1) await valjLekTill(lista[0].id);
+  } catch (e) { /* utan nät: valet får vänta */ }
+}
 $('#playerTabs').addEventListener('dblclick', ev => {
   const tab = ev.target.closest('.ptab');
   if (!tab) return;
@@ -17235,6 +17335,7 @@ async function oppnaSpel(gameId, farsk) {
   const samma = !farsk && ui.spel === spel.id && spelare.some(p => p.user_id === ui.active);
   state.active = samma ? ui.active : spelLage.mig;
   state.sel = samma ? (ui.sel || 0) : 0;
+  lekVidIntrade();
   await Moln.lyssna(spel.id, {
     bord: rad => fjarrBord(rad),
     spelare: () => hamtaOm(),
