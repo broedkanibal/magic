@@ -5665,13 +5665,13 @@ function autoPlatserNu() {
    granskningen på just det kortet (oppnaGranskningFor). */
 function platsHtml(pl) {
   const fyll = pl.slag === 'fyll';
-  const txt = fyll ? 'Fill in' : pl.slag === 'vantar' ? 'Asking Claude…' : 'Reading the card…';
-  const titel = fyll ? 'The camera is unsure which card this is — click to fill it in'
+  const txt = fyll ? (pl.overTak ? 'One more?' : 'Fill in') : pl.slag === 'vantar' ? 'Asking Claude…' : 'Reading the card…';
+  const titel = fyll ? (pl.overTak ? `Your deck has only ${pl.tak} × ${pl.namn} — click to decide` : 'The camera is unsure which card this is — click to fill it in')
     : pl.slag === 'vantar' ? 'The camera is asking Claude which card this is' : 'The camera is reading the card';
   const tag = fyll ? 'button' : 'span';
   const pos = platsPos.get(pl.spar) || { x: 44, y: 82 };
   return `<${tag} class="plats ${pl.slag}${ark && ark.pend === pl.pend ? ' aktuell' : ''}"${fyll ? ` type="button" data-pend="${esc(pl.pend)}" data-spar="${esc(pl.spar)}"` : ''} title="${titel}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600">
-    ${fyll ? `<span class="platsq">?</span><span class="kortchip fraga">Camera couldn't read this — which card?</span>` : ''}
+    ${fyll ? `<span class="platsq">${pl.overTak ? '+1' : '?'}</span><span class="kortchip fraga">${pl.overTak ? `Your deck has only ${pl.tak} × ${esc(pl.namn || '')}` : "Camera couldn't read this — which card?"}</span>` : ''}
     <span class="platstxt">${txt}${pl.namn ? `<i>${esc(pl.namn)}?</i>` : ''}</span></${tag}>`;
 }
 let gridStrukt = null, nyChipT = null;
@@ -6500,7 +6500,13 @@ function arkRita() {
     const pos = platsPos.get(q.spar) || { x: 44, y: 82 };
     r = { x: pos.x, y: pos.y, w: MATTA.CW, h: MATTA.CH };
     const cands = (q.cands || []).slice(0, 3);
-    html = `<div class="arkrub"><b>Camera couldn't read this</b><span>Which card is it?</span></div>
+    html = q.overTak
+      ? `<div class="arkrub"><b>Another ${esc(cands[0] ? cands[0].name : 'card')}?</b><span>Your deck has only ${q.tak} — a clone, an extra land, or a token?</span></div>
+      <button type="button" class="arkval prim" data-ark="gissa" data-n="0"><b>Add anyway</b><span>It is a real ${esc(cands[0] ? cands[0].name : 'card')} · Enter</span></button>
+      <button type="button" class="arkval" data-ark="token"><b>Not a card / it's a token</b><span>The camera stops asking about it</span></button>
+      <button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>See what the camera saw</span></button>
+      <div class="arkfot"><button type="button" data-ark="senare">Decide later · Esc</button></div>`
+      : `<div class="arkrub"><b>Camera couldn't read this</b><span>Which card is it?</span></div>
       ${cands.map((c, n) => `<button type="button" class="arkval${n === 0 ? ' prim' : ''}" data-ark="gissa" data-n="${n}"><b>${esc(c.name)}</b>${n === 0 ? '<span>Best guess</span>' : ''}</button>`).join('')}
       <button type="button" class="arkval" data-ark="crop"><b>Show me the crop</b><span>See what the camera saw, and search by name</span></button>
       <button type="button" class="arkval" data-ark="token"><b>Not a card / it's a token</b><span>The camera stops asking about it</span></button>
@@ -7389,7 +7395,34 @@ function autocomplete(input, listEl, onPick) {
 }
 
 const searchInput = $('#search');
-autocomplete(searchInput, $('#suggest'), name => { addCards([name]); searchInput.focus(); });
+/* Antalsvarningen (D5-8): leken har N av kortet och N ligger redan på
+   bordet. En fråga, aldrig ett stopp — kloner och extra land är legitima.
+   Räknar main + sideboard (lekAntal); utan vald lek ingen fråga. */
+async function laggTillMedVarning(names, efter) {
+  const p = spelLage ? (minSpelare() || player()) : player();
+  const over = [], iBatch = new Map();
+  for (const nm of names) {
+    const key = norm(nm), tak = lekAntal(nm);
+    const n = (iBatch.get(key) || 0) + 1; iBatch.set(key, n);
+    if (!isFinite(tak)) continue;
+    const verklig = p.cards.filter(c => paMattan(c) && norm(c.name) === key).length;
+    if (verklig + n > tak && !over.some(o => o.key === key)) over.push({ key, nm, tak, verklig, n: names.filter(x => norm(x) === key).length });
+  }
+  if (over.length) {
+    const o = over[0];
+    const msg = over.length === 1
+      ? (o.n === 1
+          ? `Your deck has ${o.tak} × ${o.nm} and ${o.verklig} ${o.verklig === 1 ? 'is' : 'are'} already on the board.`
+          : `Your deck has ${o.tak} × ${o.nm}; this adds ${o.n}${o.verklig ? ` on top of the ${o.verklig} already on the board` : ''}.`)
+      : `This adds more copies of ${over.length} cards than your deck has (${over.slice(0, 3).map(x => x.nm).join(', ')}${over.length > 3 ? '…' : ''}).`;
+    const ja = await ask(msg + ' Add anyway?', { title: 'More than the deck has', ok: 'Add anyway', nej: 'Cancel' });
+    if (!ja) { if (efter) efter(); return []; }
+  }
+  const added = addCards(names);
+  if (efter) efter();
+  return added;
+}
+autocomplete(searchInput, $('#suggest'), name => { laggTillMedVarning([name], () => searchInput.focus()); });
 
 /* ─── klick i rutnätet ─── */
 let svalgKlick = false;
@@ -9726,8 +9759,7 @@ $('#bulkGo').onclick = () => {
   if (!names.length) { $('#bulkInfo').textContent = 'No names found.'; return; }
   closeOv('bulkOv');
   $('#bulkTa').value = '';
-  addCards(names);
-  toast(`Added ${names.length} cards`, 'ok');
+  laggTillMedVarning(names).then(added => { if (added.length) toast(`Added ${added.length} cards`, 'ok'); });
 };
 $('#bulkTa').addEventListener('keydown', e => {
   e.stopPropagation();
@@ -12086,7 +12118,7 @@ function namngePend(p, q, name, sid, list) {
   p.pending.splice(p.pending.indexOf(q), 1);
   const bundet = q.spar != null && p.cards.find(c => c.spar === q.spar);
   const sammaKort = (!bundet && sammaKortVid(p, name, q.spar)) || null;
-  const gammalt = q.spar != null && (p.cards.find(c => c.name === name && c.spar == null && c.lyft != null && paMattan(c))
+  const gammalt = !q.overTak && q.spar != null && (p.cards.find(c => c.name === name && c.spar == null && c.lyft != null && paMattan(c))
                                   || p.cards.find(c => c.name === name && c.spar == null && paMattan(c)));
   if (bundet) { Object.assign(bundet, { name, sid: sid || undefined, cands: list }); }   // spåret hann bli ett kort — svaret gäller det
   else if (sammaKort) { /* kortet ligger redan på bordet */ }
@@ -15982,7 +16014,7 @@ function autoPlatser(spar, mig, extra) {
   for (const q of (mig && mig.pending) || []) {
     if (q.spar == null || !spar.some(t => t.id === q.spar) || ut.some(p => p.spar === q.spar)) continue;
     const sedan = e.sedd && e.sedd.has(q.spar) ? e.sedd.get(q.spar) : nu;
-    ut.push({ spar: q.spar, sedan, slag: 'fyll', namn: (q.cands && q.cands[0] && q.cands[0].name) || null, pend: q.id });
+    ut.push({ spar: q.spar, sedan, slag: 'fyll', namn: (q.cands && q.cands[0] && q.cands[0].name) || null, pend: q.id, overTak: !!q.overTak, tak: q.tak || null });
   }
   return ut.sort((a, b) => a.sedan - b.sedan || a.spar - b.spar);
 }
@@ -16326,6 +16358,24 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
     const paMattan = fysiska.filter(h => h.namn === g.namn && (h.kort || h.bundna || !sparrat(h))).length + iAndraSpar(g.namn);
     if (paBord >= paMattan) continue;
     const t = g.spar[0];
+    /* Antalspriorn (dev/plan/lagen.md, D5-8): leken har bara N av kortet
+       och N ligger redan på bordet. Kloner, extra basland och tokens är
+       legitima, så det är ingen spärr — kortet blir en fråga på platsen
+       ("Your deck has only N × name — one more?") i stället för ett kort.
+       Ligger en kopia i nådatiden (borta) väntar vi: det är oftast samma
+       kort som flyttats. Frågan ställs en gång per spår. */
+    const tak = lekAntal(g.namn);
+    if (isFinite(tak) && paBord >= tak && !mig.cards.some(c => c.name === g.namn && paBordet(c) && c.borta)) {
+      if (!hoppade.has(t.id) && !mig.pending.some(q => q.spar === t.id)) {
+        const id = uid();
+        for (const w of [220, 260]) { const d = cropCache.get('spar-' + t.id + '@' + w); if (d) cropCache.set(id + '@' + w, d); }
+        mig.pending.push({ id, spar: t.id, box: null, rot: 0, tappad: tapSynk ? !!t.tappad : null, namnLast: null,
+          overTak: true, tak, cands: [{ name: t.namn, sid: t.sid || null, score: 1 }] });
+        andrat = true;
+      }
+      g.overTak = true;
+      continue;
+    }
     /* Utan sparat läge föds kortet otappat (se lagg). Statusfältet ber om
        läget ur det här kortet så snart det ligger på bordet (grundSteg). */
     g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu };
@@ -16428,7 +16478,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
      alltid, och att fylla i gav ett andra kort. Ett spår som blivit skräp
      (Claudes "inget kort" efter PROVA_MS) syns inte längre — skräpet filtreras
      bort överst — så dess post tas bort här också. */
-  const pendKvar = mig.pending.filter(q => q.spar == null || (synliga.has(q.spar) && !iFysiskt.has(q.spar) && !sammaSomKlart.has(q.spar) && !bunden(q.spar)));
+  const pendKvar = mig.pending.filter(q => q.spar == null || (synliga.has(q.spar) && !bunden(q.spar) && (q.overTak || (!iFysiskt.has(q.spar) && !sammaSomKlart.has(q.spar)))));
   if (pendKvar.length !== mig.pending.length) { mig.pending = pendKvar; andrat = true; }
   if (andrat) { save(); renderAll(true); resolveAll(); }
   /* Nådatiden ska löpa ut även om telefonen är tyst. */

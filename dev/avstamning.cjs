@@ -907,6 +907,41 @@ prov('E5 första domen tas alltid: ett kort fött före grundläget, och ett lag
   assert.equal(app.kort[0].tapped, 0);
 });
 
+/* D5-8: antalspriorn. Leken har N av kortet: det N+1:e blir en fråga på
+   platsen (pending med overTak), aldrig ett kort och aldrig ett stopp. */
+prov('L1 utan lek: två Sol Ring blir två kort, som förut', () => {
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 2); assert.equal(app.pending.length, 0);
+});
+prov('L2 leken har 1 Sol Ring: det andra spåret blir en fråga, inte ett kort; frågan ställs en gång', () => {
+  app.lek = new Map([['Sol Ring', 1]]);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 1, 'ett kort till skapades');
+  assert.equal(app.pending.length, 1); assert.equal(app.pending[0].spar, 2); assert.equal(app.pending[0].overTak, true); assert.equal(app.pending[0].tak, 1);
+  assert.deepEqual(platsSlag(app.platser()), ['fyll:2=Sol Ring#']);
+  klocka.t += 3000;
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT }), klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
+  assert.equal(app.pending.length, 1, 'dubblett av frågan'); assert.equal(app.kort.length, 1);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);       // spåret dör: frågan försvinner
+  assert.equal(app.pending.length, 0); assert.equal(app.kort.length, 1);
+});
+prov('L3 spåret dör och ett nytt föds på annan plats i samma bord: samma kort binder om, ingen fråga', () => {
+  app.lek = new Map([['Sol Ring', 1]]);
+  stam([klar(1, 'Sol Ring', { sen: 20, ...PORT })]);
+  stam([klar(2, 'Sol Ring', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.pending.length, 0); assert.equal(app.kort[0].spar, 2);
+});
+prov('L4 leken har 4 Forest: fyra kort, det femte en fråga', () => {
+  app.lek = new Map([['Forest', 4]]);
+  const b = i => box(0.1 + i * 0.15, 0.2, 0.063, 0.088);
+  stam([1, 2, 3, 4].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
+  assert.equal(app.kort.length, 4);
+  stam([1, 2, 3, 4, 5].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
+  assert.equal(app.kort.length, 4); assert.equal(app.pending.length, 1); assert.equal(app.pending[0].tak, 4);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
