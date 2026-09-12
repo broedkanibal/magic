@@ -25,6 +25,11 @@ webhook-mottagare inte behövs* längst ner.
    lyssnar på dem ännu).
 5. Spara. Kopiera **Client ID** och **Client secret**.
 
+För att redigera appen igen sen (t.ex. ladda upp ikonen) — den listas inte
+under Workspace-inställningarnas förstasida: gå till **Applications** eller
+**AI & Agents** i vänstermenyn (Workspace settings), och klicka på "Claude AI
+agent".
+
 ## 2. Fyll i `.env.local`
 
 ```
@@ -54,16 +59,22 @@ ge tillbaka ett `refresh_token` säger scriptet ifrån — kör då om steg 3.
 ```js
 const agent = require('./dev/linear-agent/klient.cjs');
 
-// Skapa en issue, assignad till agenten som förval
+// Skapa en issue. Förval: assignee = Jesper, delegate = agenten.
 const issue = await agent.skapaIssue({ teamId: '...', title: '...', description: '...' });
 
 // Kommentera en befintlig issue
 await agent.kommentera(issueId, 'Text som agenten skrev.');
 
-// Assigna en befintlig issue till agenten
+// Sätt agenten som delegate på en befintlig issue. Förval: sätter också
+// assignee = Jesper (skicka { assigneeId: null } för att bara röra delegate).
 await agent.tilldelaAgent(issueId);
 
-// Ändra fält (status, prioritet, m.m.) eller ta bort
+// Börjar Claude Code faktiskt jobba på en issue: status -> In Progress
+// (lagets "started"-status), delegate = agenten, assignee = Jesper. En
+// issue som jobbas på ska aldrig stå kvar i Backlog — se CLAUDE.md.
+await agent.paborjaIssue(issueId);
+
+// Ändra fält (status, prioritet, assignee, delegate, m.m.) eller ta bort
 await agent.uppdateraIssue(issueId, { stateId: '...' });
 await agent.taBortIssue(issueId);
 ```
@@ -71,6 +82,26 @@ await agent.taBortIssue(issueId);
 Alla anrop går direkt mot Linears GraphQL-API med agentens egen token —
 oberoende av den vanliga Linear-MCP-kopplingen (den skriver alltid som
 Jesper, eftersom den är kopplad till hans konto).
+
+## Assignee vs delegate
+
+En app kan aldrig bli vanlig `assignee` i Linear — bara `delegate`. Det är
+avsiktligt (Linears egen dokumentation: "humans maintain ownership while
+agents act on their behalf") och gäller alla Linear-agenter, inte bara den
+här. Skriver du `assigneeId` = agentens användar-id i en `issueUpdate`
+omdirigerar Linear det tyst till `delegate` och lämnar `assignee` orörd.
+
+Var `assignee` redan null blir resultatet en issue utan synlig ägare. Mönstret
+andra använder — **alltid en människa som assignee, agenten som delegate
+bredvid** — är därför standard i klienten: `skapaIssue()` och
+`tilldelaAgent()` sätter `assigneeId` till Jesper som förval, tillsammans med
+`delegateId`. Så visar Linears UI issuen som ägd av en person, med agenten
+synlig som "delegated to Claude AI agent" — inte en tom assignee-avatar.
+
+## Ikon
+
+`ikon.png` (512×512) i den här mappen — ladda upp den som **Application
+icon** när du redigerar appen i Linear (samma sida som steg 1).
 
 ## Vad det INTE gör
 

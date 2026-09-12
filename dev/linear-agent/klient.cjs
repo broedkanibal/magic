@@ -11,6 +11,12 @@ const path = require('path');
 const ROT = path.join(__dirname, '..', '..');
 const TOKEN_FIL = path.join(__dirname, 'token.json');
 
+/* Praxis: en människa ska alltid stå som assignee, agenten som delegate
+   bredvid — annars ser Linear-UI:t ut som om issuen saknar ägare. Jesper
+   Funks Linear-användar-id (stabilt, hittas igen med list_users om det
+   nånsin behövs). */
+const JESPER_ID = '9d2c299c-942f-4080-814a-847d34a659b1';
+
 function lasEnvLokal(nycklar) {
   let text = '';
   try { text = fs.readFileSync(path.join(ROT, '.env.local'), 'utf8'); } catch (e) {}
@@ -86,26 +92,52 @@ async function agentAnvandarId() {
   return (agentIdCache = data.viewer.id);
 }
 
-async function skapaIssue({ teamId, title, description, assigneraTillAgenten = true }) {
-  const assigneeId = assigneraTillAgenten ? await agentAnvandarId() : undefined;
+async function skapaIssue({ teamId, title, description, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
+  const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
   const data = await graphql(
     `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }`,
-    { input: { teamId, title, description, assigneeId } }
+    { input: { teamId, title, description, assigneeId, delegateId } }
   );
   return data.issueCreate.issue;
 }
 
 async function uppdateraIssue(issueId, input) {
   const data = await graphql(
-    `mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success issue { id identifier } } }`,
+    `mutation($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success issue { id identifier state { name } assignee { name } delegate { name } } } }`,
     { id: issueId, input }
   );
   return data.issueUpdate.issue;
 }
 
-async function tilldelaAgent(issueId) {
-  const assigneeId = await agentAnvandarId();
-  return uppdateraIssue(issueId, { assigneeId });
+/* Sätter agenten som delegate OCH Jesper som assignee (förval) — Linear
+   tillåter aldrig en app som ren assignee, men utan en mänsklig assignee ser
+   issuen ägarlös ut i UI:t. Skicka { assigneeId: null } för att bara sätta
+   delegate och lämna en befintlig assignee orörd. */
+async function tilldelaAgent(issueId, { assigneeId = JESPER_ID } = {}) {
+  const delegateId = await agentAnvandarId();
+  return uppdateraIssue(issueId, assigneeId ? { assigneeId, delegateId } : { delegateId });
+}
+
+let startadStateCache = {};
+async function hittaStartadState(teamId) {
+  if (startadStateCache[teamId]) return startadStateCache[teamId];
+  const data = await graphql(
+    `query($id: String!) { team(id: $id) { states(first: 50) { nodes { id name type } } } }`,
+    { id: teamId }
+  );
+  const state = data.team.states.nodes.find(s => s.type === 'started');
+  if (!state) throw new Error(`Hittar ingen "started"-status för team ${teamId}`);
+  return (startadStateCache[teamId] = state.id);
+}
+
+/* Kallas när Claude Code faktiskt börjar jobba på en issue: sätter status
+   till lagets "started"-läge (t.ex. In Progress), agenten som delegate och
+   Jesper som assignee — i ett anrop. Praxis, se SNABBGUIDE.md. */
+async function paborjaIssue(issueId) {
+  const info = await graphql(`query($id: String!) { issue(id: $id) { team { id } } }`, { id: issueId });
+  const stateId = await hittaStartadState(info.issue.team.id);
+  const delegateId = await agentAnvandarId();
+  return uppdateraIssue(issueId, { stateId, delegateId, assigneeId: JESPER_ID });
 }
 
 async function kommentera(issueId, body) {
@@ -132,6 +164,7 @@ module.exports = {
   skapaIssue,
   uppdateraIssue,
   tilldelaAgent,
+  paborjaIssue,
   kommentera,
   arkiveraIssue,
   taBortIssue,

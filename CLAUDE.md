@@ -34,3 +34,9 @@ den vanliga Linear-MCP-kopplingen. MCP-kopplingen autentiserar som Jespers
 eget konto, så allt den skriver syns som honom. Se
 `dev/linear-agent/SNABBGUIDE.md`. Kräver att `node
 dev/linear-agent/installera.cjs` körts en gång (görs av Jesper).
+
+**Börjar du faktiskt jobba på en issue** (inte bara skapar den) — kör
+`agent.paborjaIssue(issueId)` direkt. Den flyttar issuen till lagets
+"started"-status (In Progress), sätter agenten som delegate och Jesper som
+assignee, i ett anrop. En issue som Claude Code jobbar på ska aldrig stå kvar
+i Backlog.
