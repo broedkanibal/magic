@@ -193,6 +193,28 @@ kbd{
 .lekchip.egen:hover{border-color:var(--acc);color:var(--txt)}
 .lekchip.tom{padding:0 7px;border:1px dashed var(--acc);color:var(--pa-acc);font:600 10px/1 var(--sans);cursor:pointer}
 .lekchip.tom:hover{background:var(--tand2)}
+/* ── Lekknappen i headern (MES-99) ──────────────────────────────────
+   Min lek i spelet: färgerna, namnet och "N left" — kort ur leken som inte
+   är utspelade, hand och bibliotek ihop. Ersätter lekchippet på min egen
+   flik; de andras flikar behåller sitt. Utan lek en streckad "Pick a deck". */
+.deckslot{display:flex;flex:0 1 auto;min-width:0}
+.deckslot[hidden]{display:none}
+.deckbtn{
+  display:inline-flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0;
+  height:30px;padding:0 9px 0 8px;border-radius:var(--rs);
+  background:var(--bg3);border:1px solid var(--line);color:var(--txt);
+  font:550 12.5px var(--sans);white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s;
+}
+.deckbtn:hover{background:var(--bg4);border-color:#4a5a72}
+.deckbtn .pips{display:inline-flex;gap:2px;flex:none}
+.deckbtn .pip{width:13px;height:13px}
+.deckbtn .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
+.deckbtn .cnt{flex:none;font:11.5px/1 var(--mono);color:var(--dim)}
+.deckbtn .cnt b{color:var(--txt);font-weight:600}
+.deckbtn .cv{display:inline-flex;flex:none;color:var(--dim2)}
+.deckbtn.on{background:var(--bg4);border-color:#4a5a72}
+.deckbtn.tom{background:#f0a52a14;border:1px dashed var(--acc);color:#ffd98a}
+.deckbtn.tom svg{flex:none;opacity:.85}
 .players.kompakt .ptab:not(.on) .lekchip,.players.ikoner .lekchip{display:none}
 .lekvalpop{position:fixed;z-index:960;min-width:260px;max-width:min(400px,92vw);padding:6px;border-radius:10px;background:#0b1017fa;border:1px solid var(--panelram2);box-shadow:0 16px 40px -12px #000f;display:flex;flex-direction:column;gap:2px}
 .lekvalpop[hidden]{display:none}
@@ -1229,6 +1251,7 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   /* "· 3 kort" är en bekräftelse, inte upplysning — den gröna pricken
      säger redan att det går, och talet står i statusfältet under. */
   .modechip.pa .langtxt{display:none}
+  .deckbtn .nm{max-width:12ch}
 }
 @media (max-width:860px){
   #addPlayerBtn{font-size:0;padding:0 7px}
@@ -1900,7 +1923,8 @@ body.ispel #startSpelBtn{display:none}
 .campill.av:hover{border-color:var(--panelram2);color:var(--txt)}
 .campill.av .led{background:#3a4658}
 .campill.open{box-shadow:0 0 0 2px #ffffff18}
-.ptab .lagemark{flex:none;font:11px/1 var(--sans);color:var(--dim2);opacity:.8}
+.ptab .lagemark{display:inline-flex;flex:none;font:11px/1 var(--sans);color:var(--dim2);opacity:.8}
+.ptab .lagemark svg{width:12px;height:12px}
 .players.ikoner .ptab .lagemark{display:none}
 .frusen span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .frusen .btn{height:24px;padding:0 8px;font-size:11.5px;margin-left:auto;flex:none}
@@ -2139,6 +2163,10 @@ body.ispel #addPlayerBtn{display:none}
   .spelknapp .kod{font-size:11px;letter-spacing:1.4px}
   .spelknapp .bjud span{display:none}       /* bara länkikonen kvar */
   .modechip{height:28px;padding:0 8px;font-size:11.5px;gap:6px}
+  /* Lekknappen behåller färgerna och talet, pillret lampan och lägets ikon:
+     namnen står i title och i panelerna de öppnar. */
+  .deckbtn,.campill{height:28px;padding:0 7px;gap:6px}
+  .deckbtn .nm,.deckbtn .cv,.campill .lbl,.campill .cv{display:none}
   .modeforklaring{display:none}             /* två meningar får inte plats */
   .frusen{font-size:11.5px;padding:0 8px}
   .autobar{height:40px;font-size:11.5px;padding:0 8px;gap:8px}
@@ -2162,6 +2190,7 @@ body.ispel #addPlayerBtn{display:none}
   /* Etiketten ligger i ett eget span just för det här: en naken textnod går
      inte att träffa med en väljare, och "Auto" blev kvar och sprängde lampan. */
   .modechip .lbl,.modechip .delare,.modechip svg{display:none}
+  .deckbtn .cnt,.campill .ikon{display:none}
   /* I halva lägena är modeknappen en vanlig .btn, och de fälldes aldrig — raden
      blev 408 px bred i ett 390 px fönster och menyknappen kapades på mitten.
      Modeplatsen får dessutom krympa: den är inte det sista man ger upp. */
@@ -2301,6 +2330,9 @@ body.ispel #addPlayerBtn{display:none}
     <div class="topspacer"></div>
     <!-- Modeplatsen. Allt om hur bordet läses av bor här och ingen annanstans;
          se renderMode(). -->
+    <!-- Lekknappen (MES-99): min lek i spelet — färgerna, namnet och hur många
+         kort som inte är utspelade. Ritas av renderDeckKnapp(). -->
+    <div class="deckslot" id="deckSlot" hidden></div>
     <div class="modeslot" id="modeSlot"></div>
     <div class="vr"></div>
     <!-- Kort ur en bild — i alla lägen, också när auto går. Det är vägen när
@@ -5524,7 +5556,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      ${spelLage ? `<span class="lagemark" title="${p.lage === 'bord' ? 'Follow the table — taps, moves and removed cards on the table show up here' : 'Add only — the camera puts new cards on the mat'}">${p.lage === 'bord' ? '⊞' : '▢'}</span>` : ''}
+      ${spelLage && !mitt ? `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Follow the table — taps, moves and removed cards on the table show up there' : 'Add only — the camera puts new cards on the mat'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>` : ''}
       ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">you</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} cards need filling in">${p.pending.length}</span>` : ''}
@@ -5534,22 +5566,46 @@ function renderTabs() {
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
     </button>`;
   }).join('');
+  renderDeckKnapp();
   matFlikar();
 }
-/* Lekchippet på fliken (D5-3): i ett spel min egen valda lek (pips + antal,
-   namnet i title) eller "Pick a deck"; motståndarnas lek_info som pips +
-   antal. Lokalt bär den aktiva fliken den senast valda leken (lekAktiv).
-   Chippet är en egen klickyta ([data-lekvalj]) som öppnar valet, inte
-   fliken. Kollapsen (.kompakt/.ikoner) döljer det. */
+/* Lekchippet på fliken (D5-3): motståndarnas lek_info som pips + antal.
+   Min egen lek i ett spel står i lekknappen i headern sedan MES-99
+   (renderDeckKnapp). Lokalt bär den aktiva fliken den senast valda leken
+   (lekAktiv) som förut; där är chippet en egen klickyta ([data-lekvalj]) som
+   öppnar valet. Kollapsen (.kompakt/.ikoner) döljer det. */
 function lekChipHtml(p, mitt) {
   let lek = null, egen = false;
-  if (spelLage) { lek = p.lekId && p.lek ? p.lek : null; egen = mitt; }
+  if (spelLage) { if (mitt) return ''; lek = p.lekId && p.lek ? p.lek : null; }
   else { if (p.id !== state.active) return ''; lek = lekAktiv; egen = true; }
   if (!lek) return egen ? `<span class="lekchip tom" data-lekvalj="${esc(p.id)}" role="button" title="Choose the deck the camera recognises">Pick a deck</span>` : '';
   const n = lek.antal || 0;
   return `<span class="lekchip${egen ? ' egen' : ''}"${egen ? ` data-lekvalj="${esc(p.id)}" role="button"` : ''} title="${esc(lek.namn || 'Deck')} · ${n} ${n === 1 ? 'card' : 'cards'}${egen ? ' — click to switch' : ''}">` +
     `<span class="pips">${pipsHtml(lek.farger)}</span><span class="lant">${n}</span></span>`;
 }
+/* Lekknappen i headern (MES-99): min valda lek — färgerna, namnet och hur
+   många av dess kort som inte är utspelade ("N left", hand och bibliotek
+   ihop, lekKvar). Utan vald lek "Pick a deck". Bara i ett spel. Öppnar
+   lekvalet tills leklådan finns (MES-100). Strängdiffad: den ritas både av
+   flikarna och av mattan, eftersom kamerans kort ibland bara ritar om mattan. */
+function renderDeckKnapp() {
+  const slot = $('#deckSlot'); if (!slot) return;
+  let html = '';
+  if (spelLage) {
+    const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
+    if (!lek) html = `<button type="button" class="deckbtn tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards">${M_LEK}<span class="nm">Pick a deck</span></button>`;
+    else {
+      const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null;
+      const kvar = k ? k.kvar : (lek.antal || 0), tot = k ? k.totalt : (lek.antal || 0);
+      html = `<button type="button" class="deckbtn" data-lekvalj="lek" title="${esc(lek.namn || 'Deck')} — ${kvar} of ${tot} cards not played yet"><span class="pips">${pipsHtml(lek.farger)}</span><span class="nm">${esc(lek.namn || 'Deck')}</span><span class="cnt"><b>${kvar}</b> left</span><span class="cv">${M_CV}</span></button>`;
+    }
+  }
+  if (slot.dataset.h !== html) { slot.dataset.h = html; slot.innerHTML = html; slot.hidden = !html; }
+}
+$('#deckSlot').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-lekvalj]'); if (!b) return;
+  ev.stopPropagation(); oppnaLekVal(b);
+});
 /* Mätningen är en egen funktion för att den måste göras OM när något annat i
    raden byter bredd. Modeplatsen gör det utan att flikarna ritas om: går
    telefonen från "Auto" till "Kameran tappad · koppla om" plus en fotoknapp
@@ -5880,6 +5936,7 @@ function platsHtml(pl) {
 let gridStrukt = null, nyChipT = null;
 const spellSagda = new Set();          // besvärjelser mattan redan sagt till om
 function renderGrid(force) {
+  renderDeckKnapp();
   /* Mitt i ett drag skrivs kortens lägen direkt på elementen; en omritning
      här (kamerans hjärtslag, en fjärrändring) rev draget. Väntar tills det
      släppts — fjarrIkapp ritar om då. */
@@ -7171,6 +7228,7 @@ const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stro
    table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
 const M_LAGE_SKARM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/></svg>';
 const M_LAGE_BORD = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="8" height="14" rx="1.8"/><rect x="13.5" y="5" width="8" height="14" rx="1.8"/><path d="M8 12h8M14 10l2 2-2 2"/></svg>';
+const M_LEK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 7v12a2 2 0 0 0 2 2h9"/></svg>';
 const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
 
@@ -8219,7 +8277,7 @@ async function lekVidIntrade() {
   try {
     if (mig.lekId) {
       const rad = await Moln.hamtaLekRad(mig.lekId);
-      if (rad) lekSattAktiv(rad);
+      if (rad) { lekSattAktiv(rad); renderTabs(); }
       return;
     }
     const lista = await Moln.hamtaLekar();
