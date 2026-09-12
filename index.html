@@ -3737,7 +3737,28 @@ body.ispel #addPlayerBtn{display:none}
     return { kps: _kpBuf.slice(), desc: o.desc.subarray(a * NB, b * NB), w: o.w, h: o.h };
   }
 
-  global.ORB = { features, refFeatures, queryFeatures, verify, match, ransac, pack, unpack,
+  /* EN referens till i en packad uppsättning (K7): de lärda referenserna
+     vävs in i poolen i minnet utan att allt packas om. Sista posten i off är
+     summan, och blir startpunkten för den nya. */
+  function packTill(o, f) {
+    const n0 = o.off[o.off.length - 1], n = f.kps.length;
+    const desc = new Uint8Array((n0 + n) * NB); desc.set(o.desc); desc.set(f.desc, n0 * NB);
+    const xy = new Int16Array((n0 + n) * 2); xy.set(o.xy);
+    for (let j = 0; j < n; j++) { xy[(n0 + j) * 2] = f.kps[j].x; xy[(n0 + j) * 2 + 1] = f.kps[j].y; }
+    const off = new Int32Array(o.off.length + 1); off.set(o.off); off[o.off.length] = n0 + n;
+    return { desc, xy, off, w: o.w, h: o.h };
+  }
+  /* Post i bort ur en packad uppsättning (K7: en lärd referens som föll för taket). */
+  function packUtan(o, i) {
+    const a = o.off[i], b = o.off[i + 1], n = b - a, tot = o.off[o.off.length - 1];
+    const desc = new Uint8Array((tot - n) * NB); desc.set(o.desc.subarray(0, a * NB)); desc.set(o.desc.subarray(b * NB), a * NB);
+    const xy = new Int16Array((tot - n) * 2); xy.set(o.xy.subarray(0, a * 2)); xy.set(o.xy.subarray(b * 2), a * 2);
+    const off = new Int32Array(o.off.length - 1);
+    for (let k = 0; k < off.length; k++) off[k] = k <= i ? o.off[k] : o.off[k + 1] - n;
+    return { desc, xy, off, w: o.w, h: o.h };
+  }
+
+  global.ORB = { features, refFeatures, queryFeatures, verify, match, ransac, pack, unpack, packTill, packUtan,
                  NB, PAT, REF_W, REF_H, REF_BLUR };
 })(window);
 
@@ -8950,6 +8971,7 @@ function lekRitaValjMeny() {
       + `<span class="pips">${pipsHtml(l.farger)}</span><span class="nm">${esc(l.namn)}</span><span class="antal">${l.antal || 0} cards</span></button>`).join('')
     + `<hr><button type="button" class="lekvaljrad akt" data-lekakt="ny">+ New deck</button>`
     + `<button type="button" class="lekvaljrad akt" data-lekakt="namn">Rename this deck…</button>`
+    + `<button type="button" class="lekvaljrad akt" data-lekakt="glomref">Forget learned photos…</button>`
     + `<button type="button" class="lekvaljrad akt fara" data-lekakt="bort">Delete this deck…</button>`;
   m.hidden = false;
 }
@@ -8997,6 +9019,17 @@ $('#lekValjMeny').addEventListener('click', async ev => {
         lekRitaValj(); lekSyncSpel();
       } else $('#lekStatus').innerHTML = '<b style="color:var(--red)">The name could not be saved.</b>';
     });
+    return;
+  }
+  if (akt === 'glomref') {
+    /* K8: referenserna lärda på telefonen (och här, om den här datorn varit
+       kamera) glöms för leken. Telefonen får bud via spelets kanal. */
+    m.hidden = true;
+    if (!lekAktiv) return;
+    if (!await ask('The camera has learned how your cards look from Claude\'s answers and your own confirmations. Forget those photos for this deck? It then recognises the cards from their printed artwork only, until it learns again.', { title: 'Forget learned photos?', ok: 'Forget' })) return;
+    await Ref.glom('lek:' + lekAktiv.id);
+    if (spelLage) Moln.sandKam('glomref', { lekId: lekAktiv.id });
+    $('#lekStatus').innerHTML = 'Learned photos forgotten.' + (spelLage ? ' The phone forgets them too.' : ' The phone forgets them next time it is connected to a game with this deck.');
     return;
   }
   if (akt === 'bort') {
@@ -10650,6 +10683,104 @@ const Pool = {
       if (rec && rec.names && rec.names.length && rec.descs && rec.v >= 7) { this.idx = rec; return rec; }
     } catch (e) {}
     return null;
+  },
+  /* En bild till i poolen i minnet (K7: lärda referenser): beskrivning,
+     särdrag, namn och id — utan ombygge, och utan att den sparade posten
+     rörs. Arrayerna byts hela; en identifiering mitt i ser antingen den
+     gamla eller den nya uppsättningen (inget await mellan bytena). */
+  async laggTill(rec, card) {
+    const D = Matcher.DESC;
+    const im = await loadImage(card.small, false);
+    const d = Matcher.describeImage(im);
+    const f = rec.orb ? ORB.refFeatures(im, 200) : null;
+    const descs = new Int8Array(rec.descs.length + D); descs.set(rec.descs); descs.set(d, rec.descs.length);
+    rec.descs = descs;
+    rec.names = rec.names.concat(card.name); rec.ids = (rec.ids || []).concat(card.id); rec.smalls = (rec.smalls || []).concat(card.small);
+    if (f) rec.orb = ORB.packTill(rec.orb, f);
+    return rec;
+  },
+  /* Posten med id:t bort ur poolen i minnet (K7: en lärd referens som föll för taket). */
+  taBort(rec, id) {
+    const i = (rec.ids || []).indexOf(id); if (i < 0) return rec;
+    const D = Matcher.DESC;
+    const descs = new Int8Array(rec.descs.length - D); descs.set(rec.descs.subarray(0, i * D)); descs.set(rec.descs.subarray((i + 1) * D), i * D);
+    rec.descs = descs;
+    rec.names = rec.names.filter((_, k) => k !== i); rec.ids = rec.ids.filter((_, k) => k !== i); rec.smalls = (rec.smalls || []).filter((_, k) => k !== i);
+    if (rec.orb) rec.orb = ORB.packUtan(rec.orb, i);
+    return rec;
+  }
+};
+
+/* ═══ LÄRDA REFERENSER (K7/K8, MES-80) ═══
+   Kameran lär sig hur JUST DINA kort ser ut i JUST DITT ljus. När Claude
+   svarat säkert om en beskärning (ett kort, 'hog') eller spelaren själv
+   bekräftat namnet i granskningen, sparas beskärningen som en liten jpeg
+   (REF_W×REF_H) som en referens till för namnet — högst REF_TAK per namn,
+   nyaste vinner — under IndexedDB-nyckeln 'ref:' + poolkoden (samma
+   objektlager som poolen). Referenserna ligger ALDRIG i den sparade
+   poolposten: de vävs in i poolen i minnet (Pool.laggTill) när poolen
+   laddas (byggLekPool) och när en ny lärs. Så glöms de utan ombygge, och
+   golden setet mäter utan dem om det inte ber om dem (MESA_REF/MESA_LAR på
+   appens fönster, satta av dev/golden/kor.html). Lärs på telefonen, där
+   poolen bor; datorns skärmdumpsväg lär inte. */
+const REF_TAK = 4, REF_W = 146, REF_H = 204;
+const Ref = {
+  kod: null, lista: [],                 // referenserna för poolen i minnet
+  nyckel: kod => 'ref:' + kod,
+  pa: () => window.MESA_REF !== false,  // läsa in lärda referenser
+  larPa: () => window.MESA_LAR !== false, // lära nya
+  async ladda(kod) {
+    let rec = null; try { rec = await IDB.poolGet(Ref.nyckel(kod)); } catch (e) {}
+    Ref.kod = kod; Ref.lista = rec && Array.isArray(rec.refs) ? rec.refs : [];
+    return Ref.lista;
+  },
+  async spara() {
+    if (!Ref.kod) return;
+    try { await IDB.poolPut({ code: Ref.nyckel(Ref.kod), refs: Ref.lista, ts: Date.now() }); } catch (e) {}
+  },
+  /* Väv in referenserna i poolen i minnet. Idempotent: rec.refIn minns
+     vilka som redan är med (finns bara i minnet — posten sparas före). */
+  async tillampa(rec) {
+    if (!rec || !Ref.pa() || Ref.kod !== rec.code) return rec;
+    if (!rec.refIn) rec.refIn = new Set();
+    for (const r of Ref.lista.slice()) {
+      if (rec.refIn.has(r.id)) continue;
+      rec.refIn.add(r.id);
+      try { await Pool.laggTill(rec, { id: Ref.poolId(r), name: r.name, small: r.bild }); } catch (e) {}
+    }
+    return rec;
+  },
+  antal: rec => (rec && rec.refIn) ? rec.refIn.size : 0,
+  poolId: r => (r.sid || r.name) + '#ref' + r.id,   // unikt per referens; refSid() ger kortets sid
+  /* Beskärningen som liten jpeg — det som sparas. */
+  bildAv(canvas) {
+    try {
+      const cv = document.createElement('canvas'); cv.width = REF_W; cv.height = REF_H;
+      const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high';
+      cx.drawImage(canvas, 0, 0, REF_W, REF_H);
+      return cv.toDataURL('image/jpeg', 0.8);
+    } catch (e) { return null; }
+  },
+  /* Lär: en bild av namnet. Högst REF_TAK per namn, den äldsta får gå. */
+  async lar(name, sid, bild, kalla) {
+    if (!Ref.larPa() || !Ref.kod || !name || !bild || name === BAKSIDA_NAMN) return false;
+    const mina = Ref.lista.filter(r => r.name === name).sort((a, b) => a.ts - b.ts);
+    while (mina.length >= REF_TAK) {
+      const bort = mina.shift(); Ref.lista = Ref.lista.filter(r => r !== bort);
+      if (Pool.idx && Pool.idx.refIn && Pool.idx.refIn.has(bort.id)) { Pool.taBort(Pool.idx, Ref.poolId(bort)); Pool.idx.refIn.delete(bort.id); }
+    }
+    const r = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, sid: sid || null, bild, ts: Date.now(), kalla: kalla || null };
+    Ref.lista.push(r);
+    await Ref.spara();
+    if (Pool.idx && Pool.idx.code === Ref.kod) await Ref.tillampa(Pool.idx);
+    return true;
+  },
+  /* Glöm allt lärt för poolen: posten bort, och poolen i minnet läses om ur
+     den sparade (som aldrig bär referenser). */
+  async glom(kod) {
+    try { await IDB.poolDel(Ref.nyckel(kod)); } catch (e) {}
+    if (Ref.kod === kod) Ref.lista = [];
+    if (Pool.idx && Pool.idx.code === kod) { const ren = await Pool.load(kod); Pool.idx = ren || null; }
   }
 };
 /* Basic lands ligger på bordet i varje spel men kommer sällan från samma set
@@ -10755,6 +10886,12 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
    konstverk till per landskapstyp — ett Mountain är ett Mountain oavsett
    tryckning, och den man har på bordet är sällan just den i listan. */
 async function byggLekPool(lek, userId, onProg) {
+  /* Poolen ur leken, med de lärda referenserna (K7) invävda i minnet. */
+  const rec = await byggLekPoolRa(lek, userId, onProg);
+  if (Ref.kod !== rec.code) await Ref.ladda(rec.code);
+  return Ref.tillampa(rec);
+}
+async function byggLekPoolRa(lek, userId, onProg) {
   /* Nyckeln är spelaren, inte spelet. Leken hör till kontot, och att bygga om
      hela poolen — en dryg minut och tusen bilder — bara för att man startat
      ett nytt spel med samma lek vore ren väntan utan orsak.
@@ -10897,16 +11034,18 @@ function cropURL(img, r, w) {
 
 /* Rankar och verifierar ETT område. Bruten ur avläsningsloopen så att den
    kan köras om på en justerad låda när första försöket inte höll. */
+/* En lärd referens (K7) har poolens id '<sid>#ref': utåt är den kortet. */
+const refSid = id => (typeof id === 'string' && id.indexOf('#ref') > 0) ? id.slice(0, id.indexOf('#ref')) : id;
 function identifyAt(img, box, hint) {
   const r = Matcher.scan(img, box, Pool.idx, { keep: 50, refine: 10, hint });
   const b = r.results[0];
   const rot0 = b && b.fit ? b.fit.rot : hint;
   const orb = orbIdentify(img, box, rot0, (r.results || []).slice(0, 15));
-  const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: x.id, score: x.score }));
+  const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: refSid(x.id), score: x.score }));
   if (orb && orb.cand) {                       // sätt ORB:s val överst bland förslagen
-    const j = cands.findIndex(x => x.sid === orb.cand.id);
+    const j = cands.findIndex(x => x.sid === refSid(orb.cand.id) && x.name === orb.cand.name);
     if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
-    else if (j < 0) cands.unshift({ name: orb.cand.name, sid: orb.cand.id, score: orb.cand.score });
+    else if (j < 0) cands.unshift({ name: orb.cand.name, sid: refSid(orb.cand.id), score: orb.cand.score });
   }
   /* Två oberoende bevis krävs. Enbart inliers räckte inte: ett område som
      inte var ett kort fick 20 geometriskt konsekventa träffar men bara 0.53 i
@@ -10915,7 +11054,18 @@ function identifyAt(img, box, hint) {
      (25+) får däremot stå på egna ben, för det är där kraftigt övertäckta
      kort räddas när helhetslikheten faller. */
   const gScore = b ? b.score : 0;
-  const konf = !!(b && confident(b, r.confidence, r.results));
+  /* Marginalen räknas mot tvåan vilken den än är. Med lärda referenser (K7)
+     kan ettan och tvåan vara två bilder av SAMMA kort — det är inte tvekan
+     utan bekräftelse, så då räknas marginalen mot första kortet med ett
+     annat namn. Bara när en referens är inblandad: utan referenser i poolen
+     är domen exakt som förut. */
+  let marg = r.confidence;
+  const tvaan = r.results && r.results[1];
+  if (b && tvaan && tvaan.name === b.name && (/#ref/.test(String(tvaan.id)) || /#ref/.test(String(b.id)))) {
+    const annan = r.results.find(x => x.name !== b.name);
+    marg = b.score - (annan ? annan.score : 0);
+  }
+  const konf = !!(b && confident(b, marg, r.results));
   const orbOK = orb && orb.inliers >= ORB_ACCEPT && (gScore >= 0.70 || orb.inliers >= 25);
   const accept = orbOK
     || (!Pool.idx.orb && konf)
@@ -15131,6 +15281,8 @@ const Kamera = (() => {
       t.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((t.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
       t.namn = k.namn; t.sid = k.sid; t.saker = !!k.saker; t.varfor = k.saker ? 'ai' : 'ai osäker';
       t.tillstand = k.saker ? 'klar' : 'okand';
+      /* Ett kort, säkert: beskärningen lärs som referens för namnet (K7). */
+      if (k.saker && k.sakerhet === 'hog' && cb.lart) { try { cb.lart(t.id, k.namn, k.sid, 'ai'); } catch (e) {} }
       rapportera(); return;
     }
     const skal = 1 / Math.sqrt(delar.length + (redanKlar ? 1 : 0));
@@ -15395,6 +15547,8 @@ const Kamera = (() => {
        eller ur ett foto", inte som läst av kameran eller Claude i kameran.
        Fotots egna Claude-anrop står i datorns bok. */
     if (namn) t.varfor = 'hand';
+    /* Spelaren bekräftade: beskärningen lärs som referens för namnet (K8). */
+    if (namn && cb.lart) { try { cb.lart(id, namn, sid, 'hand'); } catch (e) {} }
     rapportera();
   }
 
@@ -15497,6 +15651,7 @@ async function oppnaKamera(gameId) {
       upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
       identifiera: (canvas, id, gissning, kort) => kamIdentifiera(canvas, id, gissning, kort),
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
+      lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
       /* Om frågorna faktiskt går till Claude (samma villkor som kamFragaAI):
          rådet om avståndet väntar då på Claudes svar innan det säger något. */
       aiPa: () => AI.mode === 'server' && !!prefs.aiAuto,
@@ -15632,7 +15787,7 @@ async function byggKamPool() {
        och tjugofyra per basic land (byggLekPool), så Pool.idx.names räknar
        bilder: 110 för Jespers lek på 36 kort, och siffran såg ut som någon
        annans lek. */
-    satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`);
+    satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.${Ref.antal(Pool.idx) ? ` ${Ref.antal(Pool.idx)} learned photo${Ref.antal(Pool.idx) === 1 ? '' : 's'}.` : ''}${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`);
     /* Kort som väntade på en pool får en ny chans. */
     for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
   } catch (e) {
@@ -15643,6 +15798,23 @@ async function byggKamPool() {
   }
 }
 
+/* Senaste beskärningen per spår, liten (K7): det som lärs när Claude eller
+   spelaren sedan säger vilket kort det var. Högst 24 spår i minnet. */
+const kamSistaBild = new Map();
+function kamMinnsBild(id, canvas) {
+  if (!Ref.larPa()) return;
+  const bild = Ref.bildAv(canvas); if (!bild) return;
+  kamSistaBild.delete(id); kamSistaBild.set(id, { bild, lart: null });
+  while (kamSistaBild.size > 24) kamSistaBild.delete(kamSistaBild.keys().next().value);
+}
+/* Kameran fick facit för spåret — av Claude (ett kort, säkert) eller av
+   spelaren (granskningen). Bilden lärs för namnet, en gång per spår och namn. */
+function kamLart(id, namn, sid, kalla) {
+  const b = kamSistaBild.get(id); if (!b || !namn || b.lart === namn) return false;
+  b.lart = namn;
+  Ref.lar(namn, sid, b.bild, kalla).catch(() => {});
+  return true;
+}
 async function kamIdentifiera(canvas, id, gissning, kort) {
   if (!Pool.idx || !canvas) return null;          // poolen är inte klar än — spåret får vänta
   const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
@@ -15653,6 +15825,7 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
      igenom detektorn har varken spridning eller avvikelse, och ska inte bli
      en granskningspost med en träbit som miniatyr. */
   if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
+  kamMinnsBild(id, canvas);
   /* Namnet läses i workern medan illustrationen matchas på huvudtråden. */
   const namnP = Namn.las(canvas, namnUtanBaksida());
   let v;
@@ -15716,7 +15889,7 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
          inte bland sina fem. Poolens post för namnet tas in överst. */
       const i = Pool.idx.names.indexOf(namn.namn);
       if (i >= 0) {
-        cands.unshift({ name: namn.namn, sid: Pool.idx.ids[i], score: namn.poang });
+        cands.unshift({ name: namn.namn, sid: refSid(Pool.idx.ids[i]), score: namn.poang });
         if (!saker) { saker = true; varfor = 'namn ensamt'; }
         else { saker = starktNamn && BASICS.has(cands[1].name); varfor = saker ? 'namn slår land' : 'konflikt'; }
       }
@@ -15865,7 +16038,7 @@ function kamAiPoster(kort, sparId, prior) {
       if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) saker = false;
     }
     iSvaret.set(k.namn, (iSvaret.get(k.namn) || 0) + 1);
-    svar.push({ namn: k.namn, sid: Pool.idx.ids[i], saker, sakerhet: saker ? (k.sakerhet || 'lag') : (k.sakerhet === 'hog' ? 'fler än leken' : (k.sakerhet || 'lag')),
+    svar.push({ namn: k.namn, sid: refSid(Pool.idx.ids[i]), saker, sakerhet: saker ? (k.sakerhet || 'lag') : (k.sakerhet === 'hog' ? 'fler än leken' : (k.sakerhet || 'lag')),
                 x: Math.max(0, Math.min(1, (+k.x || 0) / 1000)), y: Math.max(0, Math.min(1, (+k.y || 0) / 1000)) });
   }
   return svar;
@@ -15980,6 +16153,9 @@ function kamKommando(m) {
   if (m.typ === 'helbild') { Kamera.helbild(); return; }     // provbordet bad Claude titta på hela bordet
   if (m.typ === 'glom') { Kamera.glomKort(m.spar); return; } // datorn rättade — läs om
   if (m.typ === 'namn') { Kamera.namnge(m.spar, m.namn, m.sid); return; } // granskningen gav kortet ett namn
+  /* Datorn glömde lekens lärda referenser (K8): posten bort här också, och
+     poolen i minnet läses om ur den sparade — statusraden berättar. */
+  if (m.typ === 'glomref') { Ref.glom('lek:' + m.lekId).then(() => { kamPoolNyckel = null; byggKamPool(); }); return; }
   if (m.typ === 'trosklar') { Kamera.satTrosklar(m.v); Moln.sandKam('trosklar', { v: Kamera.trosklar }); return; }
   if (m.typ === 'provbord') { provbord = !!m.pa; return; }
   if (m.typ === 'hej') { if (senastBord) Moln.sandKam('bord', Object.assign({ spar: senastBord, grund: grundGrader() }, bordExtra())); return; }

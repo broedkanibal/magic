@@ -35,6 +35,10 @@ const FALL = arg('--fall', '');
    låter kamerans osäkra spår fråga servern. Kostar pengar; jämförs mot och
    sparas i senaste-ai.json, inte senaste.json. */
 const AIFLAG = process.argv.includes('--ai');
+/* --ref: lekens lärda referenser (K7) med i poolen; --lar-ref: varje fall lär
+   facit in efter domen; --glom-ref: referenserna för golden-poolen tas bort
+   först. Baslinjen sparas aldrig med --ref (den mäter kameran utan lärdom). */
+const REFFLAG = process.argv.includes('--ref'), LARFLAG = process.argv.includes('--lar-ref'), GLOMFLAG = process.argv.includes('--glom-ref');
 const BASFIL = AIFLAG ? 'senaste-ai.json' : 'senaste.json';
 const BESKARNINGAR = arg('--beskarningar', '');   // mapp att skriva beskärningarna till: <fall>-spar<nr>.jpg
 
@@ -107,7 +111,8 @@ function skrivTabell(rs, gamla) {
   const cdp = (method, params) => new Promise(res => { const id = ++nr; svar.set(id, res); ws.send(JSON.stringify({ id, method, params: params || {} })); });
   const kor = async uttryck => { const r = await cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }); if (r.result && r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.text); return r.result && r.result.result ? r.result.result.value : undefined; };
   await cdp('Runtime.enable');
-  await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${AIFLAG ? '?ai=1' : ''}` });
+  const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1'].filter(Boolean).join('&');
+  await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
   process.stdout.write('förbereder (poolen, namnläsaren)…');
@@ -130,6 +135,8 @@ function skrivTabell(rs, gamla) {
   try { gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r])); } catch (e) { /* ingen baslinje — inget att jämföra med */ }
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
+  /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
+  if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}`).join(' · ')); }
   { const f0 = JSON.parse(json)[0]; if (f0) console.log('\n  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', systemprompt v' + f0.promptv : '') + ')' : '')
       + '\n  (lokal: konstverket jämförs med lekens kort; ocr: kortnamnet läses ur titelraden; ai: Claude frågas om det som är osäkert)'); }
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
@@ -219,7 +226,7 @@ function skrivTabell(rs, gamla) {
   /* --spara med --fall byter bara de körda fallen i baslinjen; övriga står kvar
      ur filen. Förut skrev "--fall 07 --spara" en baslinje med enbart fall 07,
      och alla andra fall slutade jämföras — just när ett nytt fall lagts till. */
-  if (SPARA) {
+  if (SPARA && !REFFLAG) {
     let rader = JSON.parse(json);
     if (FALL) {
       let gamla = []; try { gamla = JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')); } catch (e) {}
@@ -229,6 +236,7 @@ function skrivTabell(rs, gamla) {
     fs.writeFileSync(path.join(__dirname, BASFIL), '[\n' + rader.map(r => JSON.stringify(r)).join(',\n') + '\n]\n');
     console.log(`\nsparat som dev/golden/${BASFIL}${FALL ? ` (fall ${FALL}… bytta, övriga ur filen)` : ''} — lägg en rad i historik.md`);
   }
+  else if (REFFLAG) console.log('\n(--spara gäller inte med --ref: baslinjen mäter kameran utan lärda referenser)');
   else console.log('\n(--spara skriver ' + BASFIL + ')');
   ws.close(); chrome.kill(); server.kill();
   process.exit(samre.length ? 1 : 0);

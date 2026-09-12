@@ -61,6 +61,8 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
 | `node dev/golden/avstand.cjs --ai --fall 02,06` | samma, med Claude (kostar, ~5–10 cent för två fall): läser Claude korten där den lokala kedjan tappar dem? |
+| `node dev/golden/kor.cjs --lar-ref` | lär in facit efter varje fall, som om spelaren bekräftat korten (se *Lärda referenser*) |
+| `node dev/golden/kor.cjs --ref` | samma prov med de lärda referenserna i poolen; `--glom-ref` glömmer dem först |
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
 | `node dev/avstamning.cjs` | datorns sida: granskningslistan och bordet efteråt, ska sluta med `0 FEL` |
 | `node dev/dubbletter.cjs --fall 07` | eget mått: videofallets bordsrapporter genom datorns avstämning — var dubbletter och tap-fel uppstår (se *Dubbletter*) |
@@ -243,6 +245,32 @@ dubbletten på telefonen — två spår för ett kort, eller samma gissning på
 två kort — och datorn kan bara slå ihop dem när de ligger på samma plats.
 Tap: *kort mot spårets tappad* är datorns fel; *Spåren i loggen* är
 telefonens.
+
+## Lärda referenser
+
+Poolen bär Scryfalls konstverk; bordet visar kortet i rummets ljus, med
+blänk, vinkel och telefonens brus. Sedan MES-80 (K7/K8) lär sig kameran hur
+just dina kort ser ut: när Claude svarat säkert om en beskärning (ett kort)
+eller du själv bekräftat namnet i granskningen, sparas beskärningen (146×204
+jpeg) som en referens till för namnet — högst fyra per namn, nyaste vinner —
+i telefonens IndexedDB under `ref:` + poolkoden. Referenserna vävs in i
+poolen i minnet (`Pool.laggTill`) och rankas som vilket konstverk som helst;
+utåt heter de kortet (`refSid`). *Forget learned photos…* i lekens meny på
+datorn glömmer dem, på datorn och på telefonen.
+
+Golden setet mäter UTAN dem om det inte ber om dem — appen läser flaggorna
+`MESA_REF`/`MESA_LAR` på sitt fönster, som `kor.html` sätter:
+
+| Kommando | Gör |
+|---|---|
+| `node dev/golden/kor.cjs --lar-ref` | varje fall döms som vanligt, och EFTER domen får spåren facit (bara de som inte redan var säkert rätt — de frågas aldrig i spel): appens `kamLart` lär beskärningen. Raden `lärda referenser:` säger hur många per fall |
+| `node dev/golden/kor.cjs --ref` | poolen bär referenserna från förra `--lar-ref`; raden `metod:` visar `+ref` och tabellen jämförs mot samma baslinje — men `--spara` gäller inte |
+| `node dev/golden/kor.cjs --lar-ref --ref` | leave-one-out i följd: varje fall mäts med det de TIDIGARE fallen lärde, aldrig med sina egna. `--fall 06,05,04,03,02,01` vänder ordningen |
+| `node dev/golden/kor.cjs --glom-ref` | referenserna för golden-poolen bort innan något körs (kan kombineras med `--lar-ref`) |
+
+Måttet som räknas: `--ref` på fall som INTE lärt sig själva. Fallen 01–06
+är samma lek på samma bord i olika ljus, så `--lar-ref --fall 01` följt av
+`--ref --fall 02,03,04,05,06` säger vad ett spelat parti ger nästa.
 
 ## Lägga till ett nytt foto
 

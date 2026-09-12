@@ -152,7 +152,14 @@ const TAK_MS = 30000;
 /* ?ai=1 (kor.cjs --ai): kamerans osäkra spår får fråga servern — attrappen
    måste då köra riktiga anrop (MESA_AI=1). Annars stängs AI-hjälpen av, så att
    provet mäter det lokala och attrappens {n:0} aldrig räknas. */
-const AI_PA = new URLSearchParams(location.search).get('ai') === '1';
+const PARAMS = new URLSearchParams(location.search);
+const AI_PA = PARAMS.get('ai') === '1';
+/* ?ref=1 (kor.cjs --ref): lekens lärda referenser (K7) vävs in i poolen;
+   ?lar=1 (--lar-ref): efter varje fall lärs facit in, som om spelaren
+   bekräftat korten i granskningen; ?glomref=1 (--glom-ref): referenserna
+   för golden-poolen tas bort innan något körs. Utan flaggorna varken läser
+   eller lär appen (MESA_REF/MESA_LAR = false på appens fönster). */
+const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GLOM_REF = PARAMS.get('glomref') === '1';
 const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade innan fallet räknas som klart
 
 let w = null, K = null, kamSag = null;  // appens fönster, dess Kamera-modul och kameravyns statusrad
@@ -163,7 +170,9 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    efter fallet spårets nummer i resultatet (nr). Läses ut av
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
-const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : ''); } catch (e) { return 'lokal'; } };
+const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : '') + (REF_PA ? '+ref' : ''); } catch (e) { return 'lokal'; } };
+/* Antalet lärda referenser i poolen i minnet (K7), för statusraden. */
+const refAntal = () => { try { return w.eval('Ref').antal(w.eval('Pool').idx); } catch (e) { return 0; } };
 /* Modellen som svarar i kameraläget och promptversionen, som servern själv
    anger dem (modeller.kamera, promptv). Appens AI.model är standardmodellen:
    med ANTHROPIC_MODEL_KAMERA satt stod fel modell i resultatet. Versionen
@@ -228,6 +237,7 @@ async function laddaApp() {
      byggLekPool, kamIdentifiera, visaVy) ligger direkt på fönstret. */
   for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
   K = w.eval('Kamera');
+  w.MESA_REF = REF_PA; w.MESA_LAR = LAR_PA;
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
   for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'kamIdentifiera', 'visaVy']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
@@ -270,6 +280,8 @@ async function byggPool() {
   }
   /* Nyckeln bär antalet uppslagna namn: en pool byggd medan Scryfall
      svarade 429 får inte ligga kvar under samma nyckel som den hela. */
+  /* --glom-ref: de lärda referenserna för den här poolen bort, före bygget. */
+  if (GLOM_REF) { try { await w.eval('Ref').glom('lek:golden-' + h.toString(16) + '-' + kort.length); } catch (e) {} }
   const rec = await w.byggLekPool({ kort, ts: 1 }, 'golden-' + h.toString(16) + '-' + kort.length, p => {
     status(p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : `Hämtar leken… ${p.done || ''}`);
   });
@@ -467,6 +479,7 @@ function aterkoppling(f, prov) {
     },
     identifiera: (c, id, gissning, kort) => { sparaBeskarning(f.id, c, id); return folj(w.kamIdentifiera(c, id, gissning, kort)); },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
+    lart: (id, namn, sid, kalla) => w.kamLart(id, namn, sid, kalla),
     aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas
     /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
        modulen ingen, och det lokala provet mäter som förut. */
@@ -525,7 +538,29 @@ function avsluta(f, prov, tid, tak, takS) {
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
   res.takS = takS;
+  /* K7: hur många lärda referenser poolen bar när fallet dömdes, och med
+     --lar-ref hur många fallet lärde EFTER domen. */
+  if (REF_PA) res.ref = refAntal();
+  if (LAR_PA) res.larda = larAvFacit(res);
   return res;
+}
+
+/* --lar-ref: efter domen får spåren facit, som om spelaren bekräftat dem i
+   granskningen — bara de som inte redan var säkert rätt (de frågas aldrig i
+   spel, så de lär aldrig). Appens kamLart lär beskärningen för namnet
+   (Ref, IndexedDB under golden-poolens kod). Domen är redan satt: fallet
+   mäts alltid utan sina egna referenser. Körs fallen i följd med --ref
+   också, ser varje fall det de tidigare lärde. */
+function larAvFacit(res) {
+  let n = 0;
+  for (const p of res.traffar) {
+    if (p.dold) continue;
+    if (p.saker && p.namn && norm(p.namn) === norm(p.facit)) continue;
+    const t = K.spar[p.spar - 1]; if (!t) continue;
+    const i = poolRec ? poolRec.names.findIndex(x => norm(x) === norm(p.facit)) : -1;
+    try { if (w.kamLart(t.id, p.facit, i >= 0 ? poolRec.ids[i] : null, 'facit')) n++; } catch (e) {}
+  }
+  return n;
 }
 
 /* ── ett stillbildsfall ──────────────────────────────────────────── */
