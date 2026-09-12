@@ -500,31 +500,13 @@ body.lasvy .card{cursor:default}
    själv — där säger den ingenting som Selected inte säger bättre. */
 .grid[data-smakort] .kortnamn{display:none}
 
-/* ── attach-läget ──────────────────────────────────────────────────
-   Modalt inom brädet: allt utom de giltiga målen tonas ner, så frågan
-   "vad kan det här sitta på?" besvaras av bilden i stället för av text. */
-.matta.attachlage .card{opacity:.28;pointer-events:none;filter:grayscale(.6)}
-.matta.attachlage .card.mal{opacity:1;pointer-events:auto;filter:none;cursor:pointer}
-.matta.attachlage .card.mal::after{
-  content:'';position:absolute;inset:0;border-radius:inherit;z-index:5;
-  box-shadow:0 0 0 3px var(--acc),0 0 0 8px #e8b33a1f;pointer-events:none;
-}
-.matta.attachlage .card.mal:hover{transform:translateY(-5px)}
-.matta.attachlage .kortnamn,.matta.attachlage .kortakt{display:none}
-/* Banderollen ligger ovanpå i stället för i flödet: annars hade brädets
-   höjd ändrats mitt i en handling och alla kort räknats om och hoppat. */
-.attachbanner{
-  position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:40;
-  display:flex;align-items:center;gap:8px;
-  padding:6px 10px;border-radius:8px;
-  background:#1a1710f2;border:1px solid #e8b33a66;color:var(--acc);
-  box-shadow:0 8px 22px -8px #000c;
-}
-.attachbanner b{font:600 11.5px/1 var(--sans)}
-.attachbanner span{font:11px/1 var(--mono);color:var(--dim2)}
-.attachbanner kbd{
-  font:10px/1 var(--mono);background:var(--bg4);color:#cfd9e8;
-  border:1px solid var(--panelram2);border-radius:4px;padding:2px 4px;
+/* Bifogade kort (equipment, auror) ligger bakom sin värd med titelraden
+   uppstickande; värden bär en bricka med antalet. */
+.card.bifogad img{filter:brightness(.85)}
+.bifbricka{
+  position:absolute;right:-4px;bottom:-6px;z-index:4;
+  padding:1px 5px;border-radius:9px;background:var(--bg4);border:1px solid var(--panelram2);
+  font:600 9px/1.5 var(--sans);color:#cfd9e8;pointer-events:none;
 }
 
 /* Selected kort: lyft 3 px, ingen skalning. Skalningen fick kortet att växa
@@ -5450,6 +5432,11 @@ function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
   e.zon = zon;
+  /* En aura följer sin värd till graveyard — utrustning och fortifikationer
+     blir kvar på mattan (losBifogade släpper dem där de låg). */
+  if (zon === ZON_GRAV) for (const k of c) {
+    if (k.attachedTo === e.cid && /\bAura\b/i.test(typLinje(k))) { k.zon = ZON_GRAV; delete k.attachedTo; }
+  }
   /* Ett svar på "inte på mattan". Bindningen till spåret behålls: kortet
      ligger ofta kvar fysiskt en stund till, och utan den hade kameran lagt
      ut det igen som nytt. */
@@ -5499,7 +5486,7 @@ const antalSpell = () => delaHand().spell.length;
    det är så bifogade kort ritas bakom sin värd. En div, inte en button:
    knapparna i hover-raden ligger inuti, och HTML tillåter inte en knapp i
    en knapp. */
-function kortHtml(e, i, extra, pos) {
+function kortHtml(e, i, extra, pos, bif) {
   const card = cardOf(e);
   const st = cardStatus(e);
   const dfc = arDfc(card);
@@ -5519,6 +5506,7 @@ function kortHtml(e, i, extra, pos) {
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
     ${e.lyft != null ? lyftRadHtml(e, i) : hoverRadHtml(e, i)}
+    ${bif ? `<span class="bifbricka" data-bif="${esc(e.cid)}" title="${bif} attached ${bif === 1 ? 'card' : 'cards'}">+${bif}</span>` : ''}
   </div>`;
 }
 /* Var ett bifogat kort ligger: bakom sin värd, förskjutet så att titelraden
@@ -5580,7 +5568,9 @@ function bifogTyp(e) {
    vara kortet självt, och får inte redan sitta på något. */
 function giltigtMal(kalla, mal) {
   if (!kalla || !mal || kalla === mal) return false;
-  if (zonAv(mal) !== ZON_SPELL || mal.attachedTo) return false;
+  /* Värden ska ligga på mattan — land duger åt en Fortification — och får
+     inte själv sitta på något. */
+  if (!paMattanKort(mal) || mal.attachedTo) return false;
   const b = bifogTyp(kalla);
   return !!b && b.mal.test(typLinje(mal));
 }
@@ -5588,26 +5578,29 @@ function giltigtMal(kalla, mal) {
    samma regel som i Magic, och utan den skulle räknaren säga "1 attached"
    om ett kort som ligger löst. Körs vid varje omritning, den är billig. */
 function losBifogade(cards) {
-  const iSpel = new Set(delaHand().spell.map(i => cards[i].cid));
   let andrat = false;
   for (const e of cards) {
-    if (e.attachedTo && !(iSpel.has(e.attachedTo) && zonAv(e) === ZON_SPELL)) {
-      delete e.attachedTo; andrat = true;
-    }
+    if (!e.attachedTo) continue;
+    const vard = cards.find(x => x.cid === e.attachedTo);
+    if (vard && paMattanKort(vard) && zonAv(e) !== ZON_GRAV) continue;
+    /* Kortet ligger kvar där det syntes senast: platsen har hela tiden
+       varit härledd ur värden, så den skrivs ut på kortet innan bandet
+       släpps. */
+    if (vard) { const k = cards.filter(x => x.attachedTo === vard.cid).indexOf(e); Object.assign(e, bifogadPlats(vard, Math.max(0, k))); }
+    delete e.attachedTo; andrat = true;
   }
   return andrat;
 }
 function malIndex(i) {
-  const c = hand();
-  return delaHand().spell.filter(j => giltigtMal(c[i], c[j]));
+  const c = hand(), ut = [];
+  c.forEach((k, j) => { if (giltigtMal(c[i], k)) ut.push(j); });
+  return ut;
 }
 
 /* Handlingsraden som visas när man hovrar ett kort. Fyra saker man faktiskt
    gör under en tur: vrid kortet, lägg det på ett annat, lägg det i graveyard,
    ta bort det. Ikonerna följer appens övriga streck. */
 function hoverRadHtml(e, i) {
-  const b = bifogTyp(e);
-  const kanBifoga = b && malIndex(i).length;
   /* Spans, inte knappar: kortet SJÄLVT är en <button>, och HTML tillåter inte
      en knapp inuti en knapp — parsern lyfte ut dem ur kortet och la dem som
      egna rutor i rutnätet. Etiketten ligger i knappen och inte i title, för
@@ -5619,7 +5612,6 @@ function hoverRadHtml(e, i) {
   return `<span class="kortakt" data-akt-for="${i}">
     ${kn('tap', e.tapped ? 'Untap' : 'Tap', e.tapped ? IKON_UNTAP : IKON_TAP)}
     ${kn('flip', e.flipped ? 'Turn face up' : 'Turn face down', e.flipped ? IKON_FRAMSIDA : IKON_BAKSIDA)}
-    ${kanBifoga ? kn('attach', b.etikett, IKON_ATTACH) : ''}
     ${kn('grav', 'Graveyard', IKON_GRAV)}
     ${kn('del', 'Remove', IKON_KRYSS, ' fara')}
   </span>`;
@@ -5731,7 +5723,7 @@ function renderGrid(force) {
         return;
       }
     }
-    html.push(kortHtml(c, i));
+    html.push(kortHtml(c, i, '', null, cards.filter(x => x.attachedTo === c.cid && zonAv(x) !== ZON_GRAV).length));
   });
   gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
 
@@ -5744,7 +5736,6 @@ function renderGrid(force) {
   if (!cards.length && !redigerbar()) $('#emptyLasTxt').textContent =
     (player().name || 'The player') + ' has nothing on the table yet';
   renderSel();
-  if (attach) ritaAttach();                    // läget överlever en omritning
 }
 
 /* Nedre bandet: Lands → Selected → Graveyard, med fast höjd. Höjden sätts av
@@ -6929,47 +6920,41 @@ $('#zonPerm').addEventListener('click', ev => {
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
 });
 
-/* ── attach-läge ──────────────────────────────────────────────────
-   Man väljer kortet först och målet sedan. Läget är modalt inom brädet:
-   allt utom de giltiga målen släcks, så det syns direkt vad som går. */
-let attach = null;                 // { i, etikett, mal:[index] }
-function startaAttach(i) {
-  const e = hand()[i], b = bifogTyp(e);
-  if (!b) return;
+/* E: lägg det markerade kortet på närmaste giltiga värd — tangentbordets
+   väg till samma sak som att dra kortet på värden. */
+function bifogaNarmaste(i) {
+  const c = hand(), e = c[i];
+  if (!e || !bifogTyp(e) || !redigerbar()) return;
   const mal = malIndex(i);
   if (!mal.length) { toast('Nothing on the board can take that card', 'err'); return; }
-  attach = { i, etikett: b.etikett, mal };
-  ritaAttach();
+  const r = matRect(e), mx = r.x + r.w / 2, my = r.y + r.h / 2;
+  const j = mal.reduce((b, k) => {
+    const q = matRect(c[k]), d = Math.hypot(q.x + q.w / 2 - mx, q.y + q.h / 2 - my);
+    return b == null || d < b.d ? { k, d } : b;
+  }, null).k;
+  bifoga(e, c[j]);
 }
-function avbrytAttach() { attach = null; ritaAttach(); }
-function ritaAttach() {
-  const zon = $('#zonPerm');
-  zon.classList.toggle('attachlage', !!attach);
-  $$('.card', gridEl).forEach(el => el.classList.remove('mal'));
-  let banner = $('#attachBanner');
-  if (!attach) { if (banner) banner.remove(); return; }
-  const e = hand()[attach.i], namn = (cardOf(e) || e).name;
-  attach.mal.forEach(j => {
-    const el = gridEl.querySelector(`.card[data-i="${j}"]`);
-    if (el) el.classList.add('mal');
+/* Kortet sätts på värden: otappat, ur sin manahög. Ångra lossar det igen. */
+function bifoga(e, vard) {
+  const b = bifogTyp(e);
+  matAngra(namnAv(e) + ' ' + (b && b.etikett === 'Equip' ? 'equipped to ' : b && b.etikett === 'Fortify' ? 'fortifying ' : 'attached to ') + namnAv(vard), () => {
+    e.attachedTo = vard.cid; e.tapped = 0; e.grp = null; e.gi = null;
+    save(); renderAll(true);
   });
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'attachBanner'; banner.className = 'attachbanner';
-    zon.appendChild(banner);
-  }
-  banner.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.1.1l3-3a5 5 0 0 0-7.1-7.1L11.8 4.4"/><path d="M14 11a5 5 0 0 0-7.1-.1l-3 3a5 5 0 0 0 7.1 7.1l1.2-1.2"/></svg>
-    <b>Pick the card ${esc(namn)} goes on</b>
-    <span>${attach.mal.length} possible ${attach.mal.length === 1 ? 'target' : 'targets'} · <kbd>Esc</kbd> cancels</span>`;
 }
-function utforAttach(j) {
-  if (!attach || !attach.mal.includes(j)) return;
-  const c = hand();
-  c[attach.i].attachedTo = c[j].cid;
-  c[attach.i].tapped = 0;                 // det som sätts på något ligger som värden
-  attach = null;
-  ritaAttach();                           // banderoll och nedtoning bort
-  save(); renderAll(true);
+/* Vilken giltig värd kortet ligger över — samma överlappsregel som
+   manahögarna (24 % av kortets yta). */
+function bastVard(cards, cid) {
+  const me = cards.find(c => c.cid === cid);
+  if (!me || !bifogTyp(me)) return null;
+  const rm = matRect(me);
+  let best = null, bestOv = MATTA.JOIN_OV;
+  for (const o of cards) {
+    if (o.cid === cid || !giltigtMal(me, o)) continue;
+    const ov = overlapAndel(rm, matRect(o));
+    if (ov > bestOv) { bestOv = ov; best = o; }
+  }
+  return best ? best.cid : null;
 }
 
 /* Handlingarna bakom hover-radens knappar. Samma vägar används av
@@ -6984,7 +6969,6 @@ function tappa(i) {
 function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
   if (akt === 'flip') { state.sel = i; flipSel(); return; }
-  if (akt === 'attach') return startaAttach(i);
   if (akt === 'grav') {
     flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`) || manaRow.querySelector(`.lkort[data-i="${i}"]`));
     flyttaTill(i, ZON_GRAV);
@@ -6998,12 +6982,6 @@ gridEl.addEventListener('click', ev => {
      kort på någon annans bord. Det som ÄNDRAR stoppas här. */
   if (!redigerbar() && (ev.target.closest('[data-akt],[data-addtile],[data-delcard],[data-flip],[data-grav]'))) return;
   if (ev.target.closest('[data-addtile]')) { openOv('imgOv'); return; }
-  /* I attach-läget betyder ett klick "det här är målet", ingenting annat. */
-  if (attach) {
-    const m = ev.target.closest('.card.mal');
-    if (m) utforAttach(+m.dataset.i); else avbrytAttach();
-    return;
-  }
   if (svalgKlick) { svalgKlick = false; ev.stopPropagation(); return; }   // klicket efter ett drag
   if (lyftTips && ev.target.closest('.card')) { lyftTips = null; setTimeout(() => { renderGrid(true); renderLyftRad(); }, 0); }
   const ab = ev.target.closest('[data-akt]');
@@ -7099,7 +7077,6 @@ gridEl.addEventListener('pointerdown', ev => {
      webbläsaren inte alltid något click alls. */
   svalgKlick = false;
   if (ev.button !== 0) return;
-  if (attach) return;                        // i attach-läget pekar man ut ett mål
   const el = ev.target.closest('.card');
   if (!el || ev.target.closest('[data-akt],[data-delcard],[data-flip],[data-grav]')) return;
   const i = +el.dataset.i, c = hand()[i];
@@ -7109,6 +7086,12 @@ gridEl.addEventListener('pointerdown', ev => {
   if (!redigerbar()) return;                 // titta, inte röra, på någon annans bord
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   const pt = cpt(ev);
+  /* Ett bifogat kort ritas på en plats härledd ur värden; draget ska börja
+     där det syns. */
+  if (c.attachedTo) {
+    const vard = hand().find(k => k.cid === c.attachedTo);
+    if (vard) Object.assign(c, bifogadPlats(vard, Math.max(0, bifogadeTill(vard.cid).indexOf(c))));
+  }
   matTopZ = Math.max(matTopZ, ...hand().map(k => k.z || 0)) + 1;
   c.z = matTopZ;
   el.style.zIndex = c.z;
@@ -7142,7 +7125,10 @@ addEventListener('pointermove', ev => {
   /* Ett land över en annan hög: målhögen lyser och kortet bär chippet
      "Let go — the mana stacks here". Träffen avgörs på arean som
      överlappar (findJoin), inte på avstånd. */
-  const mal = (!over && matSlag(c) === 'land') ? findJoin(hand(), c.cid) : null;
+  /* Utrustning, aura, fortifikation: värden den ligger över lyser i stället. */
+  const vard = (!over && bifogTyp(c)) ? bastVard(hand(), c.cid) : null;
+  const mal = vard || ((!over && matSlag(c) === 'land') ? findJoin(hand(), c.cid) : null);
+  dnd.vard = vard;
   if (mal !== dnd.mal) {
     dnd.mal = mal;
     const malKort = mal ? hand().find(k => k.cid === mal) : null;
@@ -7151,9 +7137,14 @@ addEventListener('pointermove', ev => {
     if (malKort) for (const k of hand()) if (k.cid === mal || (grp && k.grp === grp)) {
       const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(k.cid)}"]`); if (el) el.classList.add('joinmal');
     }
-    matChip(mal ? c : null, 'Let go — the mana stacks here');
+    matChip(mal ? c : null, chipText());
   }
-  if (mal) matChip(c, 'Let go — the mana stacks here');
+  if (mal) matChip(c, chipText());
+  function chipText() {
+    if (!vard) return 'Let go — the mana stacks here';
+    const b = bifogTyp(c), v = hand().find(k => k.cid === vard);
+    return 'Let go — ' + (b.etikett === 'Equip' ? 'equip ' : b.etikett === 'Fortify' ? 'fortify ' : 'attach to ') + namnAv(v);
+  }
 });
 /* Chippet ovanför ett kort under drag. Ett enda element i brädlagret,
    flyttas med kortet, tas bort när draget släpps. */
@@ -7192,9 +7183,16 @@ function matDndSlut(ev, avbryt) {
   }
   const v = matVy(), k = clampKort(c, v.board, gravRuta(v));
   c.x = k.x; c.y = k.y;
+  /* Släppt på en värd: sätts på den. Ett bifogat kort som dragits ut ur
+     sin värd (mindre än 24 % kvar över den) lossnar där det släpptes. */
+  if (d.vard) { const vard = h.find(q => q.cid === d.vard); if (vard) { bifoga(c, vard); fjarrIkapp(); return; } }
+  if (c.attachedTo) {
+    const vard = h.find(q => q.cid === c.attachedTo);
+    if (!vard || overlapAndel(matRect(c), matRect(vard)) < MATTA.JOIN_OV) delete c.attachedTo;
+  }
   /* Ett land som släpps på en hög läggs sist i den; ett som dras ut ur sin
      hög lossnar, och högen räknas om från sitt basläge. */
-  if (matSlag(c) === 'land') restack(h, c.cid, () => 'g' + uid());
+  if (matSlag(c) === 'land' && !c.attachedTo) restack(h, c.cid, () => 'g' + uid());
   if (el) { el.classList.add('settle'); setTimeout(() => el.classList.remove('settle'), 340); }
   save(); renderGrid(true); fjarrIkapp();
 }
@@ -9075,7 +9073,6 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
-    if (attach) return avbrytAttach();
     if (menuEl.classList.contains('open')) return closeMenu();
     if ($('#scanPanel').classList.contains('open')) return closeScan();
     if ($('#focusOv').classList.contains('open')) return closeFocus();
@@ -9139,7 +9136,7 @@ addEventListener('keydown', ev => {
   else if (lower === 'b') { ev.preventDefault(); openBulk(); }
   else if (lower === 'i') { ev.preventDefault(); openOv('imgOv'); }
   else if (lower === 't') { ev.preventDefault(); tappa(state.sel); }
-  else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); startaAttach(state.sel); }
+  else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); bifogaNarmaste(state.sel); }
   else if (lower === 'g') {
     ev.preventDefault();
     flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`) || manaRow.querySelector(`.lkort[data-i="${state.sel}"]`));
