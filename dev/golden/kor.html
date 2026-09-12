@@ -248,13 +248,17 @@ async function laddaApp() {
 async function byggPool() {
   const r = await fetch('lek.txt', { cache: 'no-store' });
   if (!r.ok) throw new Error('lek.txt saknas');
-  const namn = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#')).map(l => l.replace(/^\d+\s*[xX]?\s+/, ''));
+  /* Antalet framför namnet (K6: "2 Plains") är lekens antal — priorn på
+     telefonen (kamLekAntal). Nyckeln till poolen bär bara namnen, som förut. */
+  const rader = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
+    .map(l => { const m = l.match(/^(\d+)\s*[xX]?\s+/); return { namn: m ? l.slice(m[0].length) : l, n: m ? +m[1] : 1 }; });
+  const namn = rader.map(x => x.namn);
   if (!namn.length) throw new Error('lek.txt är tom');
   let h = 2166136261; for (const c of namn.join('\n')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
   const kort = [], saknas = [];
   for (let i = 0; i < namn.length; i++) {
     status(`Slår upp leken: ${i + 1} av ${namn.length} — ${namn[i]}`);
-    try { const c = await w.lookup(namn[i]); kort.push({ sid: c.id, name: c.name, small: w.imgOf(c, 0, 'small'), n: 1 }); }
+    try { const c = await w.lookup(namn[i]); kort.push({ sid: c.id, name: c.name, small: w.imgOf(c, 0, 'small'), n: rader[i].n }); }
     /* Appens lookup skiljer på ett nätglapp/429 (tillfällig) och ett namn
        som inte finns (404): det första läker av en omladdning, det andra
        ska rättas i lek.txt. */
@@ -278,6 +282,9 @@ async function byggPool() {
   catch (e) { namnFel = e && e.message || String(e); }
   const Pool = w.eval('Pool');
   if (!Pool.idx || Pool.idx.code !== rec.code) Pool.idx = rec;
+  /* Antalspriorn (K6): appens byggKamPool fyller kartan ur leken; här byggs
+     poolen direkt, så kartan sätts här. */
+  try { w.eval('sattKamLekAntal')(kort); } catch (e) {}
   /* byggLekPool sväljer ett fel på baslandsfrågan. Syns det på antalet —
      inga fler kort än namn fast leken har basland — sparas inte poolen,
      så att nästa omladdning bygger om den i stället för att ärva luckan. */

@@ -403,7 +403,7 @@ Regel: ingen commit utan golden-delta i meddelandet; `api/identify.js`
 prompter rörs ALDRIG. Telefonsidan (12024–15076) kan gå i egen worktree när
 som helst.
 
-### K1 — harnessmått (M)
+### K1 — harnessmått (M) — BYGGD (MES-73: borta-fördröjning, tap-vridningar, dubbletter i `betygVideo`; 07 omsparad)
 `kor.html betygVideo` 758–816: `videoTapp/videoTappAv/videoTappFordrojning` (facit `{t, tappar|otappar: namn}`, första `bordLogg`-posten där säkert spår bär väntad `tappad`), `videoBortaFordrojning` (facit `tar_bort` → första rapport utan säkert spår), `videoDubbletter` (porta `sammaNamn` dubbletter.cjs 321–370, INTE `sparStatistik`); `kor.cjs` tabell/`--detalj`/dom (192–197); SNABBGUIDE. Acceptansraden i historik: 0 fel namn; 07 ≥ 5/5 namn, fördröjning ≤ 1,3 s; tap-flip ≤ 0,35 s; borta ≤ 1,0 s telefonsidan; dubbletter 0; lokalt ≥ 28/49 med `--ref`; `--ai` 41/41.
 
 ### K3 — tap-domen på två stilla rutor (S) — BYGGD (MES-74)
@@ -412,7 +412,7 @@ som helst.
 ### K5 — viloläge för positionsrapporter (S) — BYGGD (MES-75; bänken V1/V2; kor.cjs-måttet återstår)
 `t.vilaX/vilaY` sätts när spåret varit stilla ≥2 rutor och flyttat > `3·stillaPx` (hysteres, som `autoSparLage` 15281); `tillstandsSignatur` 13900 får `round(vilaX)/round(vilaY)` — inte en rå 2 %-kvantisering (rapport varje ruta på en gräns). Bänk P1 (≤3 rapporter över en glidning) / P2 (jitter över gränsen → 0 extra). Kontrollera Supabase-kvoten (events/s). Golden LIKA BRA.
 
-### K6 — antalsprior på telefonen (S)
+### K6 — antalsprior på telefonen (S) — BYGGD (MES-76; helbilden döms i `tillampaHelbild` för nya spår, inte i `kamAiPoster`)
 `kamLekAntal` (top-level `let` före 14714, rensas vid poolfel 14692) fylls i `byggKamPool` ur `lek.kort[].n` (main + sb); `lekPrior(cands, saker, antal, upptagna)` ren, i skivan bredvid `sammaPlats` 15176 (inga nya stubbar); `kamIdentifiera` 14799 degraderar till osäker `varfor:'fler än leken'`; **också** i `kamAiPoster` 14903 och helbildens poster (Claude-vägen läcker annars). `kor.html` sätter kartan per fall ur facit (`satLekAntal`), `lek.txt` får `2 Plains`/`2 Swamp` och 251 slutar strippa antal. avstamning L1–L3. Golden LIKA BRA (03/06 inom antal).
 
 ### K9-lite — uteslutningsruta för graveyard (S/M)

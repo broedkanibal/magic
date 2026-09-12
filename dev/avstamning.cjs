@@ -56,7 +56,7 @@ function typLinje(k) { return typRad.get(k.name) || ''; }
 const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
 return {
-  avstamBord, tackning, sammaPlats,
+  avstamBord, tackning, sammaPlats, lekPrior,
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
   get chip() { return { kamSer, kamLast, kamTot }; },
@@ -1025,6 +1025,16 @@ prov('P7 kamerans läge: skrivs vid skapandet och vid en flytt större än darre
   klocka.t += 3000;
   stam([{ id: 1, tillstand: 'ny', namn: 'Ukud Cobra', saker: true, tappad: false, sen: 20, ...box(PORT.x + 0.2, PORT.y, PORT.w, PORT.h) }]);
   assert.ok(Math.abs(k.kam.x - (PORT.x + 0.03 + PORT.w / 2)) < 1e-9);
+});
+
+/* K6: antalspriorn som ren funktion (telefonen läser den i kamIdentifiera och kamAiPoster). */
+prov('Q5 lekPrior: utan lek eller okänt namn står ett säkert svar; med lekens alla exemplar upptagna faller det', () => {
+  assert.equal(app.lekPrior(true, Infinity, 5), true);
+  assert.equal(app.lekPrior(true, null, 5), true);
+  assert.equal(app.lekPrior(true, 4, 3), true);
+  assert.equal(app.lekPrior(true, 4, 4), false);
+  assert.equal(app.lekPrior(true, 1, 1), false);
+  assert.equal(app.lekPrior(false, 4, 0), false);
 });
 
 console.log([...ok, ...fel].join('\n'));

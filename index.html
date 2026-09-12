@@ -15268,11 +15268,22 @@ const Kamera = (() => {
         continue;
       }
       const b = lada(p);
+      /* Antalspriorn (K6) för ett NYTT spår ur helbilden: lekens exemplar av
+         namnet är redan säkra spår (egna behållna eller helbildens) — då
+         föds det osäkert och går till granskningen. Appens karta och
+         lekPrior finns utanför modulen; bänken kör utan dem (typeof). */
+      let saker = !!k.saker;
+      if (saker && typeof kamLekAntal !== 'undefined' && kamLekAntal && typeof lekPrior === 'function') {
+        const tak = kamLekAntal.get(norm(k.namn));
+        const upptagna = spar.filter(t => t.tillstand !== 'skrap' && t.saker && t.namn === k.namn && !bort.has(t) && (!arHelbild(t) || behallna.has(t))).length
+                       + nya.filter(q => q.saker && q.namn === k.namn).length;
+        if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) saker = false;
+      }
       nya.push({ id: nastaId++, cx: p.cx, cy: p.cy, lang: m.lang, kort: m.kort, vinkel: gv, box: b, areaRef: b.w * b.h * 0.9,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, tappad: false, tappRun: 0,
-                 namn: k.namn, sid: k.sid, saker: !!k.saker, cands: [{ name: k.namn, sid: k.sid, score: 0 }],
+                 namn: k.namn, sid: k.sid, saker, cands: [{ name: k.namn, sid: k.sid, score: 0 }],
                  fragad: true, aiFragad: true, namnLast: null, ram: null, gissning: null,
-                 varfor: k.saker ? 'helbild' : 'helbild osäker', tillstand: k.saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
+                 varfor: saker ? 'helbild' : (k.saker ? 'fler än leken' : 'helbild osäker'), tillstand: saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
     }
     spar = spar.filter(t => !bort.has(t) && (!arHelbild(t) || behallna.has(t)));
     for (const t of nya) spar.push(t);
@@ -15544,6 +15555,16 @@ function sandBord(spar, nollstall, extra) {
    (id + uppdaterad) säger om något faktiskt ändrats. Kommer ett byte medan
    poolen byggs (kamPoolOm) byggs den om efteråt. */
 let kamPoolNyckel = null, kamPoolOm = false;
+/* Lekens antal per namn på telefonen (K6): ett prior för igenkänningen —
+   är lekens alla exemplar av ett namn redan säkra spår på bordet blir nästa
+   läsning osäker ('fler än leken') och går till granskningen i stället för
+   att bli ett kort. Main + sideboard. null utan lek (då gäller inget). */
+let kamLekAntal = null;
+function sattKamLekAntal(kort) {
+  if (!Array.isArray(kort) || !kort.length) { kamLekAntal = null; return; }
+  kamLekAntal = new Map();
+  for (const k of kort) { const key = norm(k.name); kamLekAntal.set(key, (kamLekAntal.get(key) || 0) + (Number(k.n) || 1)); }
+}
 async function kamValdLek() {
   let vald = null;
   try { vald = await Moln.minLekIGame(kamLage.id); } catch (e) { vald = null; }
@@ -15572,6 +15593,7 @@ async function byggKamPool() {
   Namn.ladda().catch(() => {});
   try {
     const lek = await kamValdLek();
+    sattKamLekAntal(lek && lek.kort);
     if (!lek) {
       kamPoolNyckel = null;
       satKamFin('pool', 'No deck yet — open ⋯ → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
@@ -15689,6 +15711,14 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
      krävde namnet även då. */
   const c0 = cands[0];
   if (saker && c0 && BASICS.has(c0.name) && sakertNamn && namn.namn !== c0.name) { saker = false; varfor = 'land mot namn'; }
+  /* Antalspriorn (K6): lekens exemplar av namnet är redan säkra spår på
+     bordet — det här är antingen ett kort utanför leken som liknar det,
+     eller en klon/ett extra land: granskningen får avgöra. */
+  if (saker && c0 && kamLekAntal) {
+    const tak = kamLekAntal.get(norm(c0.name));
+    const upptagna = Kamera.spar.filter(t => t.id !== id && t.tillstand !== 'skrap' && t.saker && t.namn === c0.name).length;
+    if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
+  }
   const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand } : null;
   if (!saker) {
     /* Beskärningen följer med så att datorn kan visa den i granskningen. */
@@ -15772,7 +15802,7 @@ function kamFragaAI(canvas, id) {
            utan lista. Inget av dem är ett besked om bordet. Betalt är det
            ändå: tokens följer med när servern hade dem. */
         if (j.varfor || !Array.isArray(j.kort)) { info = { fel: j.varfor || 'ingen kortlista', modell: j.modell || null }; kamAiBokfor(j.modell || null, j.usage || null, true); }
-        else { svar = kamAiPoster(j.kort); info = { modell: j.modell || null, antal: j.kort.length, usage: j.usage || null }; kamAiBokfor(j.modell || null, j.usage || null, false); }
+        else { svar = kamAiPoster(j.kort, id, true); info = { modell: j.modell || null, antal: j.kort.length, usage: j.usage || null }; kamAiBokfor(j.modell || null, j.usage || null, false); }
       }
     } catch (e) { info = { fel: 'nätet' }; kamAiBokfor(null, null, true); }
     /* Svarstiden är ett värde per anrop, inte per spår: den får ligga i
@@ -15785,13 +15815,24 @@ function kamFragaAI(canvas, id) {
 }
 /* Serverns poster → poolens namn och sid, läge 0–1. Ett namn som inte finns
    i poolen hoppas över (servern har redan tömt namn utanför leken). */
-function kamAiPoster(kort) {
+function kamAiPoster(kort, sparId, prior) {
   const svar = [];
+  const iSvaret = new Map();
   for (const k of kort) {
     if (!k || !k.namn) continue;
     const i = Pool.idx.names.indexOf(k.namn);
     if (i < 0) continue;
-    svar.push({ namn: k.namn, sid: Pool.idx.ids[i], saker: k.sakerhet === 'hog', sakerhet: k.sakerhet || 'lag',
+    let saker = k.sakerhet === 'hog';
+    /* Antalspriorn (K6) gäller Claudes svar också — annars läckte samma
+       kort in den vägen. Säkra spår med namnet (utom det som frågade) plus
+       tidigare poster i samma svar. */
+    if (prior && saker && kamLekAntal) {
+      const tak = kamLekAntal.get(norm(k.namn));
+      const upptagna = Kamera.spar.filter(t => t.id !== sparId && t.tillstand !== 'skrap' && t.saker && t.namn === k.namn).length + (iSvaret.get(k.namn) || 0);
+      if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) saker = false;
+    }
+    iSvaret.set(k.namn, (iSvaret.get(k.namn) || 0) + 1);
+    svar.push({ namn: k.namn, sid: Pool.idx.ids[i], saker, sakerhet: saker ? (k.sakerhet || 'lag') : (k.sakerhet === 'hog' ? 'fler än leken' : (k.sakerhet || 'lag')),
                 x: Math.max(0, Math.min(1, (+k.x || 0) / 1000)), y: Math.max(0, Math.min(1, (+k.y || 0) / 1000)) });
   }
   return svar;
@@ -15830,7 +15871,7 @@ async function kamHelbild(canvas, o) {
     const j = await resp.json();
     kamAiBokfor(j.modell || null, j.usage || null, !!j.varfor || !Array.isArray(j.kort));
     const kort = Array.isArray(j.kort) ? j.kort : [];
-    const svar = kamAiPoster(kort);
+    const svar = kamAiPoster(kort, null, false);   // priorn för helbilden döms i Kamera.tillampaHelbild, per nytt spår
     const ms = Math.round(performance.now() - t0);
     satKamFin('ai', svar.length ? `Claude såg ${svar.length} kort på bordet (${sek(ms)}).` : `Claude såg inga kort på bordet (${sek(ms)}).`);
     return { svar, info: { modell: j.modell || null, antal: kort.length, usage: j.usage || null, bild: { w: canvas.width, h: canvas.height, b64: b64.length, kvalitet: q } } };
@@ -16073,6 +16114,12 @@ function syskon(a, b) {
   if (!a.ai || !b.ai || franHelbild(a) || franHelbild(b)) return false;
   if (a.ai.klunga != null || b.ai.klunga != null) return a.ai.klunga === b.ai.klunga;
   return JSON.stringify(a.ai) === JSON.stringify(b.ai);    // äldre telefon: delarna bär samma ai-objekt (q.ai = t.ai i svarAI)
+}
+/* Antalspriorn (K6): får ett SÄKERT svar stå när leken har tak exemplar av
+   namnet och upptagna av dem redan är säkra spår? Ren, provas i
+   avstamning.cjs. Infinity/null = ingen lek: priorn gäller inte. */
+function lekPrior(saker, tak, upptagna) {
+  return !!saker && !(tak != null && isFinite(tak) && upptagna >= tak);
 }
 function sammaPlats(a, b) {
   if (a.w == null || b.w == null || syskon(a, b) || (farsktSpar(a) && farsktSpar(b))) return false;
