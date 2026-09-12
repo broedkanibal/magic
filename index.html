@@ -469,6 +469,34 @@ body.lasvy .card{cursor:default}
 .matmeny button:hover{background:var(--bg4)}
 .matmeny button.fara:hover{background:#3a1f22;color:#ff9099}
 .matmeny button i{width:7px;height:7px;border-radius:50%;flex:none}
+/* Counters-panelen (README "Counters i valfri storlek"): förvalen, Any
+   amount med två stegare, brickorna som sitter på kortet, Done. Gröna
+   toner som inspektorns counters-ruta. */
+.ctrpanel{
+  position:absolute;z-index:970;width:270px;padding:10px;border-radius:10px;display:none;
+  background:#0b1017fa;border:1px solid #2f6b48;box-shadow:0 16px 40px -12px #000f;
+}
+.ctrpanel.open{display:flex;flex-direction:column;gap:9px}
+.ctrpanel .ctrrub{display:flex;flex-direction:column;gap:2px}
+.ctrpanel .ctrrub b{font:650 12.5px/1.25 var(--sans);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctrpanel .ctrrub span{font:11px/1.3 var(--sans);color:#7fd6a2}
+.ctrpanel .lbl{font:600 9.5px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:var(--dim2)}
+.ctrpre{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.ctrpre button,.ctradd{height:30px;border-radius:6px;background:#12281c;border:1px solid #2f6b48;color:#9fe3ba;font:700 12px/1 var(--mono);cursor:pointer}
+.ctrpre button:hover,.ctradd:hover{background:#1a3a28}
+.ctrany{display:flex;flex-direction:column;gap:6px}
+.ctrsteg{display:flex;gap:10px}
+.ctrstep{display:flex;align-items:center;gap:4px;flex:1}
+.ctrstep b{font:600 10px/1 var(--sans);color:var(--dim2);width:12px}
+.ctrstep button{width:26px;height:26px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:700 14px/1 var(--sans);cursor:pointer}
+.ctrstep span{flex:1;text-align:center;font:700 13px/1 var(--mono);color:var(--txt)}
+.ctron{display:flex;flex-direction:column;gap:5px}
+.ctron .cttiles{display:flex;flex-wrap:wrap;gap:4px}
+.ctron .cttile{cursor:pointer}
+.ctron .cttile:hover{background:#3a1f22;border-color:var(--red);color:#ff9099}
+.ctron .cttile i{font-style:normal;margin-left:5px;opacity:.6}
+.ctrdone{height:28px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 11.5px/1 var(--sans);cursor:pointer}
+.ctrdone:hover{background:var(--bg4)}
 .kortakt-b{
   position:relative;
   width:26px;height:26px;border-radius:6px;background:var(--bg4);color:#cfd9e8;
@@ -5965,7 +5993,8 @@ gridWrap.addEventListener('wheel', ev => {
 let matPan = null;
 gridWrap.addEventListener('pointerdown', ev => {
   if (ev.button !== 0 && ev.button !== 1) return;
-  if (ev.target.closest('.card,.plats,.grav,.mattachrome,.empty,.lyftbanner,.pill,.matmeny')) return;
+  if (ev.target.closest('.card,.plats,.grav,.mattachrome,.empty,.lyftbanner,.pill,.matmeny,.ctrpanel')) return;
+  closeCounters();
   if (ev.button === 0 && !matInzoomad()) return;
   const v = matVy();
   matPan = { x0: ev.clientX, y0: ev.clientY, pan: { x: v.pan.x, y: v.pan.y } };
@@ -6129,6 +6158,7 @@ function renderPill() {
   const hint = nStack > 1 ? nStack + ' stacked · drag one out' : c.tapped ? 'Swing it back up' : 'Swing it sideways';
   const html = `<span class="hint">${esc(hint)}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}</button>`
+    + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card">+</button>`
     + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;
   if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
@@ -6161,6 +6191,7 @@ function openKortMeny(cid, cx, cy) {
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
     <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}</button>
     <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}</button>
+    <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…</button>
     <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard</button>
     <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board</button>`;
   const r = $('#zonPerm').getBoundingClientRect();
@@ -6172,9 +6203,91 @@ function closeKortMeny() { if (matMenyEl) matMenyEl.classList.remove('open'); }
 function kortMenyVal(a, i) {
   const c = hand()[i]; if (!c) return;
   if (a === 'tap') tappa(i);
+  else if (a === 'ctr') openCounters(c.cid, matMenyEl.style.left, matMenyEl.style.top);
   else if (a === 'flip') { state.sel = i; flipSel(); }
   else if (a === 'grav') matAngra(namnAv(c) + ' → graveyard', () => { flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`)); flyttaTill(i, ZON_GRAV); });
   else if (a === 'del') removeAt(i);
+}
+/* ═══ FRI MATTA — counters ═══════════════════════════════════════════
+   Counters ligger på kortet som en lista {p,t} (M0), så att +1/+0, +0/+1,
+   +7/+7 och negativa alla ryms. Panelen är enda stället de redigeras;
+   kortet visar bara summan i P/T-brickan, inspektorn detaljen. Inget
+   ångra — counters är snabba upprepade handlingar, som mana-räknaren var. */
+let matCtr = null, matCtrEl = null;   // { cid, p, t }
+function openCounters(cid, left, top) {
+  const c = hand().find(k => k.cid === cid); if (!c || !redigerbar()) return;
+  closeKortMeny();
+  if (!matCtrEl) {
+    matCtrEl = document.createElement('div'); matCtrEl.className = 'ctrpanel';
+    $('#zonPerm').appendChild(matCtrEl);
+    matCtrEl.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-ctr]'); if (!b) return;
+      ev.stopPropagation();
+      const a = b.dataset.ctr, k = matCtr && hand().find(x => x.cid === matCtr.cid);
+      if (!k) return closeCounters();
+      if (a === 'done') return closeCounters();
+      if (a === 'pre') return addCounter(k, { p: +b.dataset.p, t: +b.dataset.t });
+      if (a === 'p+') matCtr.p = Math.min(20, matCtr.p + 1);
+      if (a === 'p-') matCtr.p = Math.max(-20, matCtr.p - 1);
+      if (a === 't+') matCtr.t = Math.min(20, matCtr.t + 1);
+      if (a === 't-') matCtr.t = Math.max(-20, matCtr.t - 1);
+      if (a === 'add') return addCounter(k, { p: matCtr.p, t: matCtr.t });
+      if (a === 'bort') return removeCounter(k, b.dataset.l);
+      renderCtrPanel();
+    });
+    addEventListener('mousedown', ev => { if (matCtr && !matCtrEl.contains(ev.target)) closeCounters(); });
+    gridWrap.addEventListener('wheel', () => closeCounters(), { passive: true });
+  }
+  matCtr = { cid, p: 1, t: 1 };
+  /* Bredvid kortet, till höger; nära högerkanten till vänster om det. Från
+     menyn på menyns plats. */
+  const r0 = $('#zonPerm').getBoundingClientRect();
+  let x, y;
+  if (left != null) { x = parseFloat(left); y = parseFloat(top); }
+  else {
+    const v = matVy(), r = matRect(c), wr = gridWrap.getBoundingClientRect();
+    const sx = (r.x + r.w) * v.z + v.pan.x + (wr.left - r0.left) + 14, sy = r.y * v.z + v.pan.y + (wr.top - r0.top);
+    x = sx + 270 > r0.width - 8 ? Math.max(8, r.x * v.z + v.pan.x + (wr.left - r0.left) - 284) : sx;
+    y = sy;
+  }
+  matCtrEl.style.left = Math.max(4, Math.min(x, r0.width - 278)) + 'px';
+  matCtrEl.style.top = Math.max(4, Math.min(y, r0.height - 330)) + 'px';
+  matCtrEl.classList.add('open');
+  renderCtrPanel();
+}
+function closeCounters() { matCtr = null; if (matCtrEl) matCtrEl.classList.remove('open'); }
+const tecken = n => (n >= 0 ? '+' : '') + n;
+function renderCtrPanel() {
+  const c = matCtr && hand().find(k => k.cid === matCtr.cid);
+  if (!c) return closeCounters();
+  const sum = ctSum(c.cts);
+  const grupper = {};
+  for (const k of (c.cts || [])) { const l = ctLabel(k); grupper[l] = (grupper[l] || 0) + 1; }
+  const FORVAL = [{ p: 1, t: 1 }, { p: 1, t: 0 }, { p: 0, t: 1 }, { p: 2, t: 2 }];
+  matCtrEl.innerHTML = `
+    <div class="ctrrub"><b>Counters on ${esc(namnAv(c))}</b><span>${(sum.p || sum.t) ? 'Now ' + tecken(sum.p) + '/' + tecken(sum.t) + ' from counters' : 'No counters on it yet'}</span></div>
+    <div class="ctrpre">${FORVAL.map(k => `<button type="button" data-ctr="pre" data-p="${k.p}" data-t="${k.t}">${ctLabel(k)}</button>`).join('')}</div>
+    <div class="ctrany"><span class="lbl">Any amount</span>
+      <div class="ctrsteg">
+        <div class="ctrstep"><b>P</b><button type="button" data-ctr="p-">−</button><span>${tecken(matCtr.p)}</span><button type="button" data-ctr="p+">+</button></div>
+        <div class="ctrstep"><b>T</b><button type="button" data-ctr="t-">−</button><span>${tecken(matCtr.t)}</span><button type="button" data-ctr="t+">+</button></div>
+      </div>
+      <button type="button" class="ctradd" data-ctr="add">Add ${ctLabel({ p: matCtr.p, t: matCtr.t })} counter</button></div>
+    ${Object.keys(grupper).length ? `<div class="ctron"><span class="lbl">On the card</span><div class="cttiles">${Object.keys(grupper).map(l =>
+      `<span class="cttile" role="button" data-ctr="bort" data-l="${esc(l)}" title="Remove one">${esc(l)}${grupper[l] > 1 ? ' ×' + grupper[l] : ''}<i>×</i></span>`).join('')}</div></div>` : ''}
+    <button type="button" class="ctrdone" data-ctr="done">Done</button>`;
+}
+function addCounter(c, k) {
+  if (!k.p && !k.t) return;
+  c.cts = (c.cts || []).concat([{ p: k.p, t: k.t }]);
+  save(); renderGrid(true); renderInspektor(); renderCtrPanel();
+}
+function removeCounter(c, label) {
+  const list = (c.cts || []).slice();
+  const i = list.findIndex(k => ctLabel(k) === label);
+  if (i >= 0) list.splice(i, 1);
+  c.cts = list;
+  save(); renderGrid(true); renderInspektor(); renderCtrPanel();
 }
 gridEl.addEventListener('contextmenu', ev => {
   const el = ev.target.closest('.card'); if (!el || !redigerbar()) return;
@@ -7073,7 +7186,9 @@ gridEl.addEventListener('click', ev => {
   if (pk) {
     ev.stopPropagation();
     const i = hand().findIndex(k => k.cid === pk.closest('.pill').dataset.cid); if (i < 0) return;
-    if (pk.dataset.pakt === 'tap') tappa(i); else openKortMeny(hand()[i].cid, ev.clientX, ev.clientY);
+    if (pk.dataset.pakt === 'tap') tappa(i);
+    else if (pk.dataset.pakt === 'ctr') openCounters(hand()[i].cid);
+    else openKortMeny(hand()[i].cid, ev.clientX, ev.clientY);
     return;
   }
   const ab = ev.target.closest('[data-akt]');
@@ -7175,6 +7290,7 @@ gridEl.addEventListener('pointerdown', ev => {
   if (!c) return;
   ev.stopPropagation();                      // inte panorering
   closeKortMeny();
+  if (matCtr && matCtr.cid !== c.cid) closeCounters();
   state.sel = i; renderSel(); renderDetail(); sparaUi();
   if (!redigerbar()) return;                 // titta, inte röra, på någon annans bord
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
@@ -7199,6 +7315,7 @@ addEventListener('pointermove', ev => {
   if (!dnd.drar) {
     if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
     dnd.drar = true;
+    closeCounters();
     renderPill();                            // borta under draget
     const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(c.cid)}"]`);
     if (el) el.classList.add('held');
@@ -9167,6 +9284,7 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
+    if (matCtr) return closeCounters();
     if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
     if (menuEl.classList.contains('open')) return closeMenu();
     if ($('#scanPanel').classList.contains('open')) return closeScan();
