@@ -284,6 +284,21 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   Kamera.satTrosklar({ kvotMin: 0.9 }); s = await ruta(DIAG); Kamera.satTrosklar({ kvotMin: 0.55 });
   check(`T7 en missad ruta: tomMs=${s[0] && s[0].tomMs}, skymd=${s[0] && s[0].skymd}`, s.length === 1 && s[0].tomMs === 0);
 
+  // ── T12: tap-vridningen döms på två stilla rutor, en glitchruta rör inget (K3) ──
+  nystart(); await referens();
+  for (let i = 0; i < 8; i++) s = await ruta(KORT);
+  const id10 = s[0].id;
+  check(`T12 otappat från start: tappad ${s[0] && s[0].tappad}`, s.length === 1 && !s[0].tappad);
+  s = await ruta(g => kort(g, W, 54, 44, 42, 30, 180));      // en ruta liggande (glitch)
+  for (let i = 0; i < 8; i++) s = await ruta(KORT);
+  check(`T12 en glitchruta: samma id ${s[0] && s[0].id === id10}, tappad ${s[0] && s[0].tappad}`, s.length === 1 && s[0].id === id10 && !s[0].tappad);
+  let flip = null;
+  for (let i = 0; i < 12; i++) { s = await ruta(g => kort(g, W, 54, 44, 42, 30, 180)); if (flip == null && s[0] && s[0].tappad) flip = i + 1; }
+  check(`T12 vriden 90°: tappad ${s[0] && s[0].tappad} efter ${flip} rutor, samma id ${s[0] && s[0].id === id10}`, s.length === 1 && s[0].tappad && s[0].id === id10 && flip != null && flip <= 10);
+  let tillbaka = null;
+  for (let i = 0; i < 12; i++) { s = await ruta(KORT); if (tillbaka == null && s[0] && !s[0].tappad) tillbaka = i + 1; }
+  check(`T12 tillbaka: otappad efter ${tillbaka} rutor`, s.length === 1 && !s[0].tappad && tillbaka != null && tillbaka <= 10);
+
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);

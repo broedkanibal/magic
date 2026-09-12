@@ -406,8 +406,8 @@ som helst.
 ### K1 — harnessmått (M)
 `kor.html betygVideo` 758–816: `videoTapp/videoTappAv/videoTappFordrojning` (facit `{t, tappar|otappar: namn}`, första `bordLogg`-posten där säkert spår bär väntad `tappad`), `videoBortaFordrojning` (facit `tar_bort` → första rapport utan säkert spår), `videoDubbletter` (porta `sammaNamn` dubbletter.cjs 321–370, INTE `sparStatistik`); `kor.cjs` tabell/`--detalj`/dom (192–197); SNABBGUIDE. Acceptansraden i historik: 0 fel namn; 07 ≥ 5/5 namn, fördröjning ≤ 1,3 s; tap-flip ≤ 0,35 s; borta ≤ 1,0 s telefonsidan; dubbletter 0; lokalt ≥ 28/49 med `--ref`; `--ai` 41/41.
 
-### K3 — tap-domen på två stilla rutor (S)
-`matcha` 13319–13330: exponentiell röst → löpräknare (2 stilla rutor med annan vinkel = flip; +5° hysteres på flip-in-rutan om T9:s glitch-fall fallerar); `fodSpar` 13233/13245, `domOm` 13477, `svarAI` 14261, `tillampaHelbild` 14412 primar räknaren 0; kommentarerna 13225–13230, 13453–13457; bänken T9; golden LIKA BRA.
+### K3 — tap-domen på två stilla rutor (S) — BYGGD (MES-74)
+`matcha`: den exponentiella rösten (`tappRost`, tre rutor från otappat, fyra tillbaka) ersatt av löpräknaren `tappRun`: två stilla rutor i följd med en annan dom än kortets vrider det, från vilket läge som helst; en glitchruta nollar bara räknaren. `fodSpar`, `domOm`, `svarAI`, `tillampaHelbild` primar `tappRun: 0`. Bänken T12 (glitchruta rör inget; vriden → tappad efter 3 rutor; tillbaka efter 3). Ingen hysteres behövdes. Golden: se historik.md.
 
 ### K5 — viloläge för positionsrapporter (S)
 `t.vilaX/vilaY` sätts när spåret varit stilla ≥2 rutor och flyttat > `3·stillaPx` (hysteres, som `autoSparLage` 15281); `tillstandsSignatur` 13900 får `round(vilaX)/round(vilaY)` — inte en rå 2 %-kvantisering (rapport varje ruta på en gräns). Bänk P1 (≤3 rapporter över en glidning) / P2 (jitter över gränsen → 0 extra). Kontrollera Supabase-kvoten (events/s). Golden LIKA BRA.

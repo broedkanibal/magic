@@ -14073,12 +14073,12 @@ const Kamera = (() => {
     /* Tap-läget döms inte i födelserutan: ett spår föds oftast medan handen
        fortfarande håller i kortet, och vinkeln då är handens, inte kortets.
        Uppmätt i golden 07: tio av tolv tappade avläsningar kom på spår i
-       rörelse (tillstånd 'ny'), och korten föddes tappade på datorn. Rösten
-       börjar på noll och räknas bara i stilla rutor (matcha): tills något
-       är bevisat är kortet otappat. */
+       rörelse (tillstånd 'ny'), och korten föddes tappade på datorn.
+       Räknaren (tappRun) börjar på noll och räknas bara i stilla rutor
+       (matcha): tills två stilla rutor sagt annat är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: false, tappRost: 0 };
+                 tappad: false, tappRun: 0 };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (i < 0) return Object.assign(ny, { id: nastaId++, tillstand: 'ny' });
@@ -14090,7 +14090,7 @@ const Kamera = (() => {
       cands: flimmer ? g.cands : null, fragad: flimmer ? !!g.fragad : false,
       tillstand: flimmer ? g.tillstand : 'ny',
       gissning: flimmer ? (g.gissning || null) : (g.namn || g.gissning || null),
-      tappad: flimmer ? g.tappad : false, tappRost: flimmer ? g.tappRost : 0,
+      tappad: flimmer ? g.tappad : false, tappRun: 0,
       /* Frågan till Claude följer med ett flimmer: annars kastade svarAI
          svaret (aiFragad saknas) och tidsgränsen släppte provet på en gång. */
       provas: flimmer ? !!g.provas : false, aiFragad: flimmer ? !!g.aiFragad : false, aiFragadNar: flimmer ? (g.aiFragadNar || 0) : 0,
@@ -14169,12 +14169,14 @@ const Kamera = (() => {
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
-             Debounce över några rutor: en vinkel mitt emellan får inte slå
-             fram och tillbaka. Från noll tar det två stilla rutor. */
+             Löpräknare (K3): två stilla rutor i följd med en annan dom än
+             kortets vrider det — från vilket läge som helst. Den
+             exponentiella rösten som stod här förut tog tre rutor från
+             otappat och fyra tillbaka; en enda ruta med en vinkel mitt
+             emellan nollar räknaren och rör ingenting. */
           const t2 = tappad(f.vinkel, upp);
-          bast.tappRost = (bast.tappRost || 0) * 0.6 + (t2 ? 0.4 : -0.4);
-          if (bast.tappRost > 0.5) bast.tappad = true;
-          else if (bast.tappRost < -0.5) bast.tappad = false;
+          if (t2 === !!bast.tappad) bast.tappRun = 0;
+          else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= 2) { bast.tappad = t2; bast.tappRun = 0; }
         }
       } else if (fodNya) {
         spar.push(fodSpar(f, nu, upp));
@@ -14324,9 +14326,9 @@ const Kamera = (() => {
   }
   function domOm() {
     for (const t of spar.concat(spoken)) {
-      if (arHelbild(t) && t.regionNar == null) { t.vinkel = grundVinkel(); t.tappad = false; t.tappRost = -1; continue; }
+      if (arHelbild(t) && t.regionNar == null) { t.vinkel = grundVinkel(); t.tappad = false; t.tappRun = 0; continue; }
       if (t.vinkel == null) continue;
-      t.tappad = tappad(t.vinkel); t.tappRost = t.tappad ? 1 : -1;
+      t.tappad = tappad(t.vinkel); t.tappRun = 0;
     }
     if (spar.length) rapportera();
   }
@@ -15106,7 +15108,7 @@ const Kamera = (() => {
     delar.forEach((k, i) => {
       const p = lage(k), w = b.w * skal, h = b.h * skal;
       const q = (!redanKlar && i === 0) ? t : { id: nastaId++, fodd: t.fodd, sedd: t.sedd, stillaFran: t.stillaFran, tomMs: 0, skymd: true,
-                                                tappad: t.tappad, tappRost: t.tappRost, vinkel: t.vinkel, gissning: null, ram: null, aiFragad: true };
+                                                tappad: t.tappad, tappRun: 0, vinkel: t.vinkel, gissning: null, ram: null, aiFragad: true };
       q.cx = p.cx; q.cy = p.cy;
       q.box = { x: Math.round(p.cx - w / 2), y: Math.round(p.cy - h / 2), w: Math.max(4, Math.round(w)), h: Math.max(4, Math.round(h)) };
       q.lang = lang0 * skal; q.kort = kort0 * skal; q.areaRef = q.box.w * q.box.h * 0.9;
@@ -15257,7 +15259,7 @@ const Kamera = (() => {
       }
       const b = lada(p);
       nya.push({ id: nastaId++, cx: p.cx, cy: p.cy, lang: m.lang, kort: m.kort, vinkel: gv, box: b, areaRef: b.w * b.h * 0.9,
-                 sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, tappad: false, tappRost: -1,
+                 sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, tappad: false, tappRun: 0,
                  namn: k.namn, sid: k.sid, saker: !!k.saker, cands: [{ name: k.namn, sid: k.sid, score: 0 }],
                  fragad: true, aiFragad: true, namnLast: null, ram: null, gissning: null,
                  varfor: k.saker ? 'helbild' : 'helbild osäker', tillstand: k.saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
