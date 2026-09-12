@@ -843,26 +843,55 @@ body.lasvy .fkort{cursor:default}
 }
 .ov.open{display:flex;flex-direction:column}
 @keyframes fade{from{opacity:0}}
-/* ── Dockad: en vy som inte täcker bordet ────────────────────────────
-   Kameravyn öppnar man för att se om korten får ramar, och rättar sedan
-   bordet — samtidigt. Som modal mitt på skärmen täckte den just det bordet:
-   ett kort som dök upp medan man skruvade syntes inte förrän rutan stängts
-   (Jespers parti 2026-09-10). Dockad sitter den vid högerkanten, under
-   topbaren och statusfältet (--dock-top sätts av dockaKamOv), utan bakgrund och
-   utan att låsa något; bordet flyttar sig åt vänster (body.kamdockad) i
-   stället för att hamna bakom. z-index under menyn (200): menyn fälls ner
-   över samma hörn. Under 900 px finns ingen bredd att dela på — då är den
-   en vanlig modal, och regeln nedan gäller inte. */
-@media (min-width:900px){
-  .ov.dockad{
-    inset:var(--dock-top,46px) 0 0 auto;width:min(440px,40vw);z-index:190;
-    background:none;backdrop-filter:none;
-    border-left:1px solid var(--panelram);box-shadow:var(--shadow);
-  }
-  .ov.dockad .modal{margin:0;width:100%;max-width:none;height:100%;max-height:none;border:0;border-radius:0;box-shadow:none;background:#121821}
-  .ov.dockad .modal .body{flex:1;padding:12px}
-  body.kamdockad main{margin-right:min(440px,40vw)}
+/* ── Kamerapanelen: en popover under pillret (MES-98) ────────────────
+   Designen Mesa Camera Play: en panel under kamerapillret i stället för den
+   dockade kameravyn. Mattan trycks inte ihop — panelen ligger över
+   inspektorn — och den har ingen bakgrund och låser ingenting: man ska kunna
+   rätta ett kort medan den står öppen (kommentaren vid kamStegSynk). Stängs
+   med pillret, krysset eller Esc. --pop-top och --pop-right sätts av
+   dockaKamOv efter pillrets plats. */
+.ov.kampop{
+  inset:var(--pop-top,52px) var(--pop-right,12px) auto auto;width:min(400px,calc(100vw - 24px));
+  max-height:calc(100vh - var(--pop-top,52px) - 12px);z-index:190;
+  background:none;backdrop-filter:none;animation:none;
 }
+.ov.kampop .modal{
+  margin:0;width:100%;max-width:none;max-height:inherit;display:flex;flex-direction:column;overflow:hidden;
+  background:#121821;border:1px solid #3d4a5f;border-radius:12px;box-shadow:0 30px 80px -20px #000,0 0 0 1px #ffffff10;
+}
+.ov.kampop .pophd{display:flex;align-items:center;gap:8px;padding:12px 10px 10px 16px;border:0;background:none}
+.ov.kampop .pophd h2{margin:0;font-size:14px;font-weight:650;color:var(--txt)}
+.ov.kampop .pophd .st{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11.5px;color:#8fe0b0;white-space:nowrap}
+.ov.kampop .pophd .st i{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.ov.kampop .pophd .close{margin-left:auto;flex:none}
+.ov.kampop .pophd .st:not([hidden]) + .close{margin-left:4px}
+.ov.kampop .modal .body{flex:1;min-height:0;overflow:auto;padding:0 16px 14px;display:flex;flex-direction:column;gap:12px}
+.ov.kampop .foot{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid #1c2330;background:none}
+.ov.kampop .foot .grow{flex:1}
+.ov.kampop .kamskruv{margin:0;gap:10px}
+.ov.kampop .kamskruv .kalbild{margin:0}
+.ov.kampop .kamsteg .lead{margin-top:0}
+.kalbild.dold{display:none!important}
+.popsec{display:flex;flex-direction:column;gap:8px}
+.poplbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#5c6b82}
+.poptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
+.poptxt b{color:var(--txt);font-weight:600}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px;border-radius:9px;background:#0b1017;border:1px solid var(--line)}
+.seg button{display:flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 6px;border:0;border-radius:6px;background:none;font:600 12.5px var(--sans);color:var(--dim);cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:#232c3c;box-shadow:0 0 0 1px #4a5a72;color:var(--txt)}
+.popline{margin:0;font-size:12px;color:var(--dim);line-height:1.45}
+.popline b{color:var(--txt);font-weight:600}
+.kamverktyg{display:flex;flex-direction:column;gap:8px}
+.kamtool{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+.kamtool .t{flex:1;min-width:0}
+.kamtool .btn{flex:none}
+.kamfelknappar{display:flex;gap:8px}
+.kamaipris{font-size:11.5px;color:var(--dim2)}
+@media (max-width:620px){ .ov.kampop{inset:var(--pop-top,52px) 8px auto 8px;width:auto} }
+/* Mattan i ett spel säger bara var korten kommer att synas; hur kameran mår
+   står i pillret (MES-98). */
+#emptyHand .tomtyst{margin:0;color:var(--dim2);font-size:13px}
 .modal.kammodal{width:min(560px,94vw)}
 .ovclose{
   position:absolute;top:12px;right:14px;z-index:10;
@@ -1846,6 +1875,31 @@ body.ispel #startSpelBtn{display:none}
 .modechip.lage{background:var(--bg3);border-color:var(--line);color:var(--dim)}
 .modechip.lage:hover{border-color:var(--panelram2);color:var(--txt)}
 .modechip.lage .led{background:var(--dim2)}
+/* ── Kamerapillret (MES-98) ─────────────────────────────────────────
+   Den enda platsen där kamerans status står: några ord, en färg som säger
+   om den behöver en (grå av, bärnsten väntar, grön på, röd tappad) och en
+   ikon för spelläget. Öppnar kamerapanelen. */
+.campill{
+  display:inline-flex;align-items:center;gap:8px;flex:none;min-width:0;
+  height:30px;padding:0 9px 0 10px;border-radius:var(--rs);border:1px solid transparent;
+  font:550 12.5px var(--sans);white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s;
+}
+.campill .led{width:7px;height:7px;border-radius:50%;flex:none}
+.campill .lbl{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.campill .ikon,.campill .cv{display:inline-flex;flex:none;opacity:.75}
+.campill.pa{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.campill.pa:hover{background:#12291c;border-color:#3d8659}
+.campill.pa .led{background:var(--green);box-shadow:0 0 0 3px #57c78526}
+.campill.vantar{background:#1a1408;border-color:#4a3a17;color:#e8c98a}
+.campill.vantar:hover{background:#241c0d;border-color:#5d4a1d}
+.campill.vantar .led{background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:kampuls 1.2s ease-in-out infinite}
+.campill.tappad{background:#2a1414;border-color:#e2606a55;color:#f0a9ad}
+.campill.tappad:hover{background:#331818;border-color:#e2606a88}
+.campill.tappad .led{background:var(--red);box-shadow:0 0 0 3px #e2606a26;animation:kampuls 1.1s ease-in-out infinite}
+.campill.av{background:var(--bg3);border-color:var(--line);color:var(--dim)}
+.campill.av:hover{border-color:var(--panelram2);color:var(--txt)}
+.campill.av .led{background:#3a4658}
+.campill.open{box-shadow:0 0 0 2px #ffffff18}
 .ptab .lagemark{flex:none;font:11px/1 var(--sans);color:var(--dim2);opacity:.8}
 .players.ikoner .ptab .lagemark{display:none}
 .frusen span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1909,6 +1963,7 @@ body.ispel #startSpelBtn{display:none}
    "5 kort att fylla i" vid 640 px). Ryms inte steget och granskningen
    ihop ändå, viker steget: se @media nedan. */
 .autobar .not.grund{flex:none;gap:8px}
+.autobar .not.grund::before{content:none}
 .autobar .not b{color:#f0dcb0}
 .autobar .not .btn{height:26px;padding:0 9px;font-size:11.5px;flex:none}
 /* Granskningen: en tät klunga sist i raden — texten, upp till fyra
@@ -1938,11 +1993,10 @@ body.ispel #startSpelBtn{display:none}
 @media (max-width:1000px){ .autobar:has(.granska:not([hidden])) .not.grund{display:none} }
 @media (max-width:760px){ .autobar:has(.granska:not([hidden])) .not{display:none} }
 
-/* ── Kamerainställningarna, i den dockade kameravyn ─────────────────
-   Det man vill skruva på UNDER spelet ska inte ligga i en modal som täcker
-   bordet man skruvar mot. Skruvrummet var en popover under chippet; nu är
-   det andra steget i #kamOv (första är QR-koden), som dockas vid högerkanten
-   (.ov.dockad) så att bordet syns bredvid. */
+/* ── Kamerans bild och verktyg, i kamerapanelen ─────────────────────
+   Det man vill ändra UNDER spelet ska inte ligga i en modal som täcker
+   bordet man ändrar mot. Andra steget i #kamOv (första är QR-koden), som
+   sedan MES-98 är en popover under kamerapillret (.ov.kampop). */
 .kamskruv{display:none;flex-direction:column;margin:-4px -7px 0}
 .kamskruv.open{display:flex}
 .kamskruv-hd{display:flex;align-items:center;gap:8px;padding:8px 9px 6px;font-size:12.5px;color:var(--txt)}
@@ -2707,60 +2761,68 @@ body.ispel #addPlayerBtn{display:none}
   </div>
 </div>
 
-<!-- ── kameravyn: koppla, sedan skruva ──
-     Dockad vid högerkanten (.ov.dockad) så att bordet syns bredvid: man
-     skruvar och tittar på om korten får ramar, och ett kort som dyker upp
-     under tiden hamnar inte bakom en modal. Två steg i samma panel, ett i
-     taget (kamStegSynk): QR-koden tills telefonen svarat, sedan skruvrummet. -->
-<div class="ov dockad" id="kamOv">
+<!-- Kamerapanelen (MES-98, designen Mesa Camera Play): en popover under
+     kamerapillret. Hur kameran arbetar (två lägen), bilden, en statusrad och
+     två handlingar; när kameran själv har problem säger panelen vad man gör
+     (telefonen tystnade, en gammal sida, inga kort hittas). Två steg som förut
+     (kamStegSynk): QR-koden medan telefonen inte är med, bilden när den är
+     det. Id:na är de från den dockade vyn — strömningen, graveyard-rutan och
+     grundläget hänger på dem. Utvecklarverktygen bär dbg (?debug). -->
+<div class="ov kampop" id="kamOv">
   <div class="modal kammodal">
-    <header>
-      <h2 id="kamOvRubrik">Connect a camera</h2>
-      <button class="close" data-close="kamOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <header class="pophd">
+      <h2 id="kamOvRubrik">Camera</h2>
+      <span class="st" id="kamOvSt" hidden><i></i>Phone connected</span>
+      <button class="close" data-close="kamOv" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </header>
     <div class="body">
+      <div class="popsec" id="kamLageSec">
+        <span class="poplbl">How the camera works</span>
+        <div class="seg" id="kamSeg">
+          <button type="button" data-lage="skarm"><span class="ikon" data-ikon="skarm"></span>Add only</button>
+          <button type="button" data-lage="bord"><span class="ikon" data-ikon="bord"></span>Follow the table</button>
+        </div>
+        <p class="poptxt" id="kamLageTxt"></p>
+      </div>
+      <div class="popsec" id="kamFel" hidden></div>
       <div class="kamsteg" id="kamStegQr">
-        <p class="lead">Scan with the phone camera. You sign in with the same account, and
-          the phone becomes your camera in this game. Put it in a holder straight above
-          your cards — the camera uses the whole picture, there is nothing to mark. Keep
-          the deck and the graveyard out of the picture, and hold the phone still for a second
-          once it has started so it learns the light.</p>
+        <p class="lead">Scan the code with your phone's camera — nothing to install. You sign
+          in with the same account, and the phone becomes your camera in this game. Put it in
+          a holder straight above your cards, and keep the deck and the graveyard out of the
+          picture.</p>
         <div class="kamqr" id="kamQr"></div>
         <p class="kamlank"><code id="kamLank"></code>
           <button class="btn sm" id="kamKopiera">Copy link</button></p>
       </div>
-      <!-- Kamerans skruvrum. Det man ändrar UNDER spelet ska inte ligga i en
-           modal som täcker bordet man ändrar mot — man skruvar tröskeln och
-           tittar på om korten får ramar. Livebilden först och stor, en mening
-           om vad kameran ser, och reglagen bakom Avancerat. Tolv reglage i en
-           spelares ansikte var fel fråga: det spelaren behöver veta är om
-           kameran ser korten, och det svarar bilden och meningen på. Reglagen
-           är ett felsökningsverktyg (MES-26). -->
       <div class="kamskruv" id="kamSkruv">
-        <div class="kamskruv-hd">
+        <div class="kamskruv-hd dbg">
           <span class="led"></span><b>Camera is on</b>
           <span class="meta dbg" id="kamSkruvMeta"></span>
         </div>
         <div class="kalbild stor" id="pbBild">
-          <img id="pbImg" alt=""><canvas id="pbLager"></canvas>
+          <img id="pbImg" alt="The phone's picture"><canvas id="pbLager"></canvas>
           <div class="kalvantar" id="pbVantar">Waiting for a picture from the phone…</div>
           <span class="kamskruv-rakn dbg" id="kamSkruvRakn"></span>
           <span class="pbfarger dbg"><i style="background:#5fbf7f"></i>recognised <i style="background:#e2606a"></i>unknown <i style="background:#e8b33a"></i>reading <i style="background:#6b7280"></i>not a card</span>
         </div>
-        <p class="pbstatus" id="pbStatus"></p>
-        <!-- Grundläget: vinkeln ett otappat kort har i telefonens bild. Sparas ur
-             ett kort som ligger på bordet — steget i statusfältet vid första
-             kortet, eller knappen här — och gäller spelet. Tills det är sparat
-             spelas korten otappade. Texten och knappen sätts i visaKamGrund. -->
-        <div class="kalupp" id="kamGrund" title="The angle of the card in the picture decides whether it is tapped: more than 45° from the untapped angle counts as tapped. Until an angle is saved the cards are played untapped. The angle applies to this game">
-          <span id="kamGrundTxt">Untapped angle: not saved — put a card the way you want it untapped and press Save</span>
-          <button class="btn sm" id="kamGrundSpara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button>
+        <p class="popline" id="kamRad1" hidden></p>
+        <p class="pbstatus dbg" id="pbStatus"></p>
+        <!-- Verktygen gäller bara Follow the table: där speglar mattan bordet,
+             så orienteringen, graveyard-rutan och grundläget (vinkeln ett
+             otappat kort har i bilden, visaKamGrund) spelar roll. -->
+        <div class="kamverktyg" id="kamVerktyg" hidden>
+          <div class="kamtool"><span class="t">Mat turned or flipped?</span>
+            <button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">↻ Rotate</button>
+            <button type="button" class="btn sm" data-mode="spegel" id="kamSpegelKnapp" title="Mirror the camera picture left–right">⇋ Mirror</button></div>
+          <div class="kamtool"><span class="t">Graveyard in the picture?</span>
+            <button class="btn sm" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark it</button></div>
+          <div class="kamtool" id="kamGrund" title="The angle of the card in the picture decides whether it is tapped: more than 45° from the untapped angle counts as tapped. Until an angle is saved the cards are played untapped. The angle applies to this game">
+            <span class="t" id="kamGrundTxt">Untapped angle not saved</span>
+            <button class="btn sm" id="kamGrundSpara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button></div>
         </div>
-        <div class="pbknappar">
+        <div class="pbknappar dbg">
           <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
-          <button class="btn sm ghost" id="pbHelbild" title="The phone sends the whole picture to Claude and puts out the cards it sees — for tables where the camera cannot find the cards by itself">Read the whole table</button>
-          <button class="btn sm ghost" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark the graveyard</button>
         </div>
         <details class="pbavancerat dbg" id="pbAvancerat">
           <summary>Advanced</summary>
@@ -2768,13 +2830,16 @@ body.ispel #addPlayerBtn{display:none}
           <div class="pbreglage" id="pbReglage"></div>
           <div class="pbknappar"><button class="btn sm ghost" id="pbAter">Reset the thresholds</button></div>
         </details>
-        <hr>
-        <button class="btn danger" id="kamKoppla">Turn off camera</button>
       </div>
     </div>
     <div class="foot">
-      <span class="grow" id="kamOvStatus"></span>
-      <button class="btn" data-close="kamOv">Close</button>
+      <!-- Hela bordet till Claude: bara när kameran inte hittar korten (5c)
+           — eller för byggaren. Telefonen skickar bilden. -->
+      <button class="btn" id="pbHelbild" hidden title="The phone sends the whole picture to Claude and puts out the cards it sees — for tables where the camera cannot find the cards by itself">✦ Let AI read the table</button>
+      <span class="grow"></span>
+      <span class="kamaipris" id="kamAiPris" hidden>A few cents per read</span>
+      <span class="dbg" id="kamOvStatus"></span>
+      <button class="btn ghost" id="kamKoppla">Turn off camera</button>
     </div>
   </div>
 </div>
@@ -7102,6 +7167,11 @@ function renderAll(forceGrid) {
    auto kräver ett spel att koppla telefonen till. */
 const M_TELEFON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>';
 const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>';
+/* Spellägets ikon (MES-98): Add only = ett kort som läggs till, Follow the
+   table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
+const M_LAGE_SKARM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/></svg>';
+const M_LAGE_BORD = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="8" height="14" rx="1.8"/><rect x="13.5" y="5" width="8" height="14" rx="1.8"/><path d="M8 12h8M14 10l2 2-2 2"/></svg>';
+const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
 
 /* Frusna bordet står kvar tills telefonen kommer tillbaka, och texten ska
@@ -7127,10 +7197,10 @@ function modeIkon(mode, ikon, etikett, klass) {
 /* ══ BLOCK: MODES — lägeschippet. Planen: dev/plan/lagen.md ══ */
 function renderMode() {
   const slot = $('#modeSlot'), rad = $('#modeRad');
-  if (!slot || !rad) return;
+  if (!slot) return;
   clearTimeout(modeT);
   const p = player();
-  let chip = '', radKlass = '', radHtml = '';
+  let chip = '';
 
   if (!spelLage) {
     /* Lokalt bord: det finns inget spel att koppla en telefon till, så auto är
@@ -7140,85 +7210,113 @@ function renderMode() {
                     !harFoto && p && p.cards.length ? '' : ' prim');
 
   } else {
-    /* I ett spel (MODE-2): chippet säger läget och kamerans status —
-       "Screen leads · camera on" — och öppnar lägespanelen. Statusen i samma
-       ordning som förut: kameran av (A/F), tappad (E), väntar (B), gammal
-       telefon, lär sig ljuset, på (C). Knappen "Turn on camera" står kvar
-       bredvid chippet tills man valt väg (A), dämpad när auto stängts av (F). */
-    const lage = mittLage(), lageNamn = lage === 'bord' ? 'Follow the table' : 'Add only';
-    let status = '', klass = 'lage', extra = '';
-    if (prefs.autoLage == null) {
-      status = 'camera off';
-      const tomt = redigerbar() && !hand().length;
-      extra = `<button class="btn${tomt ? '' : ' prim'}" data-mode="auto" title="Point a phone camera at the table">${M_TELEFON}<span class="langtxt">Turn on camera</span></button>`
-            + modeIkon('foto', M_FOTO, 'Read the board from a photo');
-    } else if (prefs.autoLage === false) {
-      status = 'camera off';
-      extra = modeIkon('auto', M_TELEFON, 'Turn on camera') + modeIkon('foto', M_FOTO, 'Upload a photo of the board', ' prim');
-    } else if (!kamAnsluten && kamHarVarit) {
-      /* E. Bordet ljuger nu: korten ligger kvar som de låg när telefonen
-         tystnade. Det är den enda gången appen visar något den inte vet är
-         sant, och då ska den säga det rakt ut. */
-      status = 'camera lost'; klass = 'tappad';
-      extra = modeIkon('foto', M_FOTO, 'Read the board from a photo instead');
-      if (!lagePanelOppen) {
-        radKlass = 'frusen';
-        radHtml = `<span>Your board is frozen as it looked ${sedan(kamTappadNar)}. Nothing is being read.</span>` +
-                  '<button class="btn prim" data-mode="koppla">Reconnect</button>';
-      }
-      modeT = setTimeout(renderMode, 10000);
-    } else if (!kamAnsluten) {
-      status = 'waiting for phone'; klass = 'vantar';
-      extra = modeIkon('foto', M_FOTO, 'Read the board from a photo instead');
-    } else if (kamFas === 'ingen') {
-      status = 'reload the phone'; klass = 'vantar';
-    } else if (kamFas === 'ljus' || kamFas === 'lar') {
-      status = 'learning the light'; klass = 'vantar';
-    } else {
-      klass = 'pa';
-      if (lage === 'bord') { const n = autoKortPaBordet(minSpelare()); status = n || kamSer ? `${n} ${n === 1 ? 'card' : 'cards'}` : 'the table is empty'; }
-      else status = 'camera on';
-    }
-    chip = `<button class="modechip ${klass}" data-mode="lage" title="How the camera works, and its status"><span class="led"></span><span class="lbl">${lageNamn}<span class="langtxt"> · ${status}</span></span><span class="delare"></span>${M_KUGGE}</button>` + extra;
-    if (lagePanelOppen) { radKlass = 'lagepanel'; radHtml = lagePanelHtml(lage, status); }
+    /* I ett spel (MES-98): kamerapillret är den enda platsen där kamerans
+       status står — några ord, en färg, spellägets ikon — och öppnar
+       kamerapanelen. Tidigare stod samma sak i lägeschippet, statusfältet
+       och tomrutan. Står kameran av startar ett klick den. */
+    const m = kamPillModell();
+    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${m.lage === 'bord' ? 'Follow the table' : 'Add only'} — how the camera works, and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
+    /* Panelen säger hur länge bordet stått fruset. */
+    if (m.fel === 'tappad' && kamOppen) modeT = setTimeout(renderMode, 10000);
   }
 
   /* Strängdiffat: renderMode går vid varje hjärtslag från kameran, och en
      omritning av panelen hade rivit en knapp man håller på att trycka på. */
-  if (slot.dataset.h !== chip) { slot.dataset.h = chip; slot.innerHTML = chip; matFlikar(); }
-  rad.hidden = !radKlass;
-  rad.className = radKlass;
-  if (rad.dataset.h !== radHtml) { rad.dataset.h = radHtml; rad.innerHTML = radHtml; }
-  renderTom();              // tomrutan följer samma läge som chippet
-  /* Statusfältet följer samma flaggor: Auto-delen finns bara medan auto går
-     och telefonen är ansluten, och den bär frågan om grundläget (MES-32). */
+  if (slot.dataset.h !== chip) { slot.dataset.h = chip; slot.innerHTML = chip; matFlikar(); if (kamOppen) dockaKamOv(); }
+  if (rad && !rad.hidden) rad.hidden = true;   // raden under topbaren finns inte i Mesa Camera Play
+  renderKamPop();
+  renderTom();              // tomrutan följer samma läge som pillret
+  /* Statusfältet bär bara steget om grundläget och granskningen (MES-98). */
   renderAutoBar();
 }
 
-/* ── Lägespanelen (MODE-2) ──────────────────────────────────────────
-   Två kort med en mening var, kamerans status med dess knappar, varningen
-   när Table leads saknar sparat grundläge, och rådet om graveyard-högen
-   tills uteslutningsrutan finns (K9-lite). */
-let lagePanelOppen = false;
-function lagePanelHtml(lage, status) {
-  const mig = minSpelare();
-  const grundSaknas = lage === 'bord' && kamAnsluten && kamGrund === null;
-  const steg = grundSaknas ? grundSteg(mig, senasteSpar) : null;
-  const kort = (v, rub, txt) => `<button type="button" class="lagekort${lage === v ? ' on' : ''}" data-lage="${v}"><b>${rub}</b><span>${txt}</span></button>`;
-  const knappar = prefs.autoLage !== true
-      ? '<button type="button" class="btn sm prim" data-mode="auto">Turn on camera</button>'
-    : !kamAnsluten
-      ? `<button type="button" class="btn sm prim" data-mode="koppla">${kamHarVarit ? 'Reconnect' : 'Show QR'}</button><button type="button" class="btn sm ghost" data-mode="stang">Turn off camera</button>`
-      : '<button type="button" class="btn sm" data-mode="skruv">Camera settings</button><button type="button" class="btn sm ghost" data-mode="stang">Turn off camera</button>';
-  return `<div class="lagekorten">
-      ${kort('bord', 'Follow the table', 'Taps, moves and cards you remove on the table show up here. A fix you make here holds until the card moves again.')}
-      ${kort('skarm', 'Add only', 'The camera puts new cards on the mat. You tap, move and remove them here.')}
-    </div>
-    <div class="lagestatus"><span class="led"></span><span>Camera: ${esc(status)}</span><span class="grow"></span>${knappar}</div>
-    ${lage === 'bord' && kamAnsluten ? `<div class="lagerotera"><span>Camera view on the table</span><button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">Rotate ↻</button><button type="button" class="btn sm" data-mode="spegel" title="Mirror the camera picture left–right">${kamSpegel ? 'Unmirror' : 'Mirror'} ⇋</button></div>` : ''}
-    ${grundSaknas ? `<div class="lagevarn">Tap reading is off until you save the untapped angle.${steg ? ` <b>${esc(steg.namn)}</b> is lying untapped now?` : ' Put a card on the table as you want it untapped.'} ${steg ? '<button type="button" class="btn sm prim" data-mode="grund-spara">Save as untapped</button>' : ''}</div>` : ''}
-    <div class="lagefin">${kamGravRad ? 'Graveyard zone marked — cards on the pile are ignored by the camera.' : 'Keep your graveyard outside the frame — a card on top of the pile looks like a card in play. Or mark the pile under Camera settings.'}</div>`;
+/* Pillrets modell. Samma ordning som lägeschippet hade: kameran av, tappad,
+   väntar, gammal telefon, lär sig ljuset, hittar inga kort, på. Ordningen är
+   inte kosmetisk: kamFas, kamSer och kamYta deklareras med let långt ner i
+   filen och läses bara när en telefon svarat (se tomLage). fel säger vilken
+   av panelens felvarianter som gäller (5a–5c i designen). */
+function kamPillModell() {
+  const lage = mittLage();
+  if (prefs.autoLage !== true) return { klass: 'av', text: 'Camera off', lage };
+  if (!kamAnsluten) return kamHarVarit ? { klass: 'tappad', text: 'Camera lost', lage, fel: 'tappad' }
+                                       : { klass: 'vantar', text: 'Waiting for phone', lage };
+  if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
+  if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
+  if (kamHittarInte()) return { klass: 'vantar', text: "Camera · can't find your cards", lage, fel: 'hittar' };
+  const n = autoKortPaBordet(minSpelare());
+  return { klass: 'pa', text: n ? `Camera · ${n} ${n === 1 ? 'card' : 'cards'}` : 'Camera · ready', lage };
 }
+/* 5c: kameran är med men hittar inga kort. Ingen enda signal säger det;
+   ytans dom (mönster, blänk, för ljus duk) är den som gör att detektorn inte
+   ser kanterna. Pillret säger det först när det stått i 20 s med ett tomt
+   bord — ett kort som läses tar några sekunder och ska inte larma. */
+const KAM_HITTAR_MS = 20000;
+let kamHittarSedan = 0, kamHittarT = 0;
+function kamHittarInte() {
+  const yta = !!(kamYta && kamYta.dom && kamYta.dom !== 'lugn');
+  if (!yta || autoKortPaBordet(minSpelare())) { kamHittarSedan = 0; return false; }
+  if (!kamHittarSedan) kamHittarSedan = Date.now();
+  const kvar = KAM_HITTAR_MS - (Date.now() - kamHittarSedan);
+  if (kvar > 0) { clearTimeout(kamHittarT); kamHittarT = setTimeout(renderMode, kvar + 50); return false; }
+  return true;
+}
+function kamHittarRad() {
+  return kamRad || (kamYta && kamYta.rad) || "The table's pattern hides the card edges. Put a plain cloth or a large sheet of paper under your cards.";
+}
+
+/* ── Kamerapanelen (MES-98) ─────────────────────────────────────────
+   Delarna visas och döljs, byggs aldrig om: renderMode går vid varje
+   hjärtslag, och en omritning hade rivit knappen man håller på att trycka
+   på. Felvarianterna (5a–5c) ersätter läget och verktygen; bilden står kvar
+   när det är den som förklarar felet. */
+const LAGE_TXT = {
+  bord: 'Taps, moves and cards you remove on the table show up here. A fix you make here holds until the card moves again.',
+  skarm: 'The camera puts new cards on the mat. You tap, move and remove them here.'
+};
+let kamQrTvinga = false;   // Reconnect / Show the QR code: koden fram fast telefonen varit med
+function renderKamPop() {
+  const ov = $('#kamOv'); if (!ov || !spelLage) return;
+  const m = kamPillModell(), bord = m.lage === 'bord', fel = m.fel || '';
+  const rubTxt = fel === 'tappad' ? 'Your phone stopped sending' : fel === 'gammal' ? 'Reload Mesa on your phone'
+    : fel === 'hittar' ? "The camera can't find your cards" : kamAnsluten ? 'Camera' : 'Connect your phone';
+  const rub = $('#kamOvRubrik'); if (rub.textContent !== rubTxt) rub.textContent = rubTxt;
+  $('#kamOvSt').hidden = !kamAnsluten || !!fel;
+  $('#kamLageSec').hidden = !!fel;
+  for (const b of ov.querySelectorAll('#kamSeg [data-lage]')) {
+    b.classList.toggle('on', b.dataset.lage === m.lage);
+    const ik = b.querySelector('.ikon'); if (ik && !ik.innerHTML) ik.innerHTML = b.dataset.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM;
+  }
+  const lt = $('#kamLageTxt'); if (lt.textContent !== LAGE_TXT[m.lage]) lt.textContent = LAGE_TXT[m.lage];
+  const felHtml = fel === 'tappad'
+      ? `<p class="poptxt">The cards on the mat stay as they are — frozen as they looked ${sedan(kamTappadNar)}. Check that the phone's screen is on and Mesa is open on it, then reconnect.</p>`
+        + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn prim" data-mode="visaqr">Reconnect</button></div>')
+    : fel === 'gammal'
+      ? '<p class="poptxt">Your phone runs an older version of Mesa. Reload the page on the phone — the camera carries on where it stopped.</p>'
+        + (kamQrTvinga ? '' : '<div class="kamfelknappar"><button type="button" class="btn" data-mode="visaqr">Show the QR code</button></div>')
+    : fel === 'hittar' ? `<p class="poptxt">${esc(kamHittarRad())}</p>` : '';
+  const fe = $('#kamFel'); if (fe.dataset.h !== felHtml) { fe.dataset.h = felHtml; fe.innerHTML = felHtml; }
+  fe.hidden = !felHtml;
+  $('#pbBild').classList.toggle('dold', fel === 'gammal');
+  /* En statusrad: avstämningens egen mening (samma som statusfältet hade),
+     utan "Camera · " — panelen heter redan Camera — och med telefonens råd
+     efter sig när det finns ett. */
+  let r1 = '';
+  if (!fel && kamAnsluten) {
+    const mo = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
+    r1 = mo.text.replace(/^Camera · /, '');
+    r1 = r1 ? r1[0].toUpperCase() + r1.slice(1) : '';
+    if (mo.not) r1 += ' — ' + mo.not;
+    else if (kamSer && kamSer === kamLast && !mo.paVag.length) r1 += ' · all recognised';
+  }
+  const re = $('#kamRad1'); if (re.textContent !== r1) re.textContent = r1;
+  re.hidden = !r1;
+  $('#kamVerktyg').hidden = !(bord && kamAnsluten && !fel);
+  const sp = $('#kamSpegelKnapp'), spTxt = kamSpegel ? '⇋ Unmirror' : '⇋ Mirror'; if (sp && sp.textContent !== spTxt) sp.textContent = spTxt;
+  $('#pbHelbild').hidden = !(kamAnsluten && (fel === 'hittar' || DEBUG));
+  $('#kamAiPris').hidden = fel !== 'hittar';
+  $('#kamKoppla').hidden = prefs.autoLage !== true || fel === 'hittar';
+}
+
 /* Byter läge: min rad i game_players (alla ser det), lokalt prefs. Till
    Screen leads släpps nedtonade kort och nådatider — kameran tar inte bort
    något där. Till Table leads spelas senaste bordet upp EN gång så att
@@ -7226,7 +7324,6 @@ function lagePanelHtml(lage, status) {
    annars spelades ett dött bord upp. Optimistiskt med rollback. */
 async function bytLage(v) {
   v = v === 'bord' ? 'bord' : 'skarm';
-  lagePanelOppen = false;
   if (mittLage() === v) { renderMode(); return; }
   if (!spelLage) { prefs.lage = v; savePrefs(); renderMode(); return; }
   const mig = minSpelare(); if (!mig) return;
@@ -7243,43 +7340,42 @@ async function bytLage(v) {
   toast(v === 'bord' ? 'Follow the table — taps, moves and removed cards show up here' : 'Add only — the camera puts new cards on the mat', 'ok');
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
-addEventListener('mousedown', ev => {
-  if (!lagePanelOppen) return;
-  if (ev.target.closest('#modeRad') || ev.target.closest('[data-mode="lage"]')) return;
-  lagePanelOppen = false; renderMode();
-});
-/* Ett enda ställe tar emot klicken. Chippet ritas om vid varje rendering, så
-   en bindning mot dess id hade tappats efter första omritningen. */
+/* Ett enda ställe tar emot klicken: pillret, panelen och statusfältet.
+   Pillret ritas om vid varje rendering, så en bindning mot dess id hade
+   tappats efter första omritningen. */
 function modeKlick(ev) {
   const lb = ev.target.closest('[data-lage]');
   if (lb) { ev.stopPropagation(); bytLage(lb.dataset.lage); return; }
   const b = ev.target.closest('[data-mode]'); if (!b) return;
   const a = b.dataset.mode;
-  if (a === 'lage') { lagePanelOppen = !lagePanelOppen; renderMode(); return; }
+  /* Pillret: står kameran av startar ett klick den (panelen visar QR-koden),
+     annars växlar det panelen. */
+  if (a === 'pill') { if (prefs.autoLage !== true) modeKlickAuto(); else visaKamSkruv(); return; }
+  if (a === 'visaqr') { kamQrTvinga = true; kamStegSynk(); return; }
   if (a === 'vand') { kamVand = (kamVand + 90) % 360; sparaKamOrientering(); renderMode(); return; }
   if (a === 'spegel') { kamSpegel = !kamSpegel; sparaKamOrientering(); renderMode(); return; }
-  if (a === 'stang') { lagePanelOppen = false; stangAvAuto(true).then(() => renderMode()); return; }
+  if (a === 'stang') { stangAvAuto(true).then(() => renderMode()); return; }
   /* Ett foto är bara ett foto. Knappen stängde förut av auto för gott, utan
      att fråga: ett tryck för att läsa in bordet en gång, och kameran var borta
      resten av kvällen — dessutom i varje kommande spel, eftersom valet sparas
      i webbläsaren. Sedan MES-22 skickade den dessutom stopp till telefonen.
      Att ÖPPNA bildvyn ändrar ingenting alls; frusen-varningen släcks först när
-     ett foto faktiskt satt bordet, se avfrys() i appendAnalysis. Att släcka
-     den här hade varit att tysta varningen för den som öppnar rutan och
-     ångrar sig — bordet står då kvar exakt lika gammalt som förut. */
+     ett foto faktiskt satt bordet, se avfrys() i appendAnalysis. */
   if (a === 'foto') { openShot(); renderMode(); }
-  if (a === 'auto') { lagePanelOppen = false; prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
-  if (a === 'koppla') { lagePanelOppen = false; renderMode(); visaKamOv(); }
-  if (a === 'skruv') { lagePanelOppen = false; renderMode(); visaKamSkruv(); }
+  if (a === 'auto') modeKlickAuto();
+  if (a === 'koppla') { renderMode(); visaKamOv(); }
+  if (a === 'skruv') { renderMode(); visaKamSkruv(); }
   /* Det otappade läget ur kortet som ligger på bordet: samma kort som
      statusfältet nämner (senasteMattaKort). "Inte nu" håller undan
-     instruktionen resten av passet; kameravyn påminner och har knappen. */
+     instruktionen resten av passet; kamerapanelen har knappen. */
   if (a === 'grund-spara') { sparaGrundFranSenaste(); renderMode(); }
   if (a === 'grund-stang') { grundAvbojd = true; renderMode(); }
 }
+function modeKlickAuto() { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
 $('#modeSlot').addEventListener('click', modeKlick);
 $('#modeRad').addEventListener('click', modeKlick);
 $('#autoBar').addEventListener('click', modeKlick);
+$('#kamOv').addEventListener('click', modeKlick);
 
 /* ── Tomrutan ─────────────────────────────────────────────────────────
    Ett tomt bräde är det första man ser i ett spel, och det gjorde reklam för
@@ -7312,9 +7408,21 @@ function renderTom() {
   /* Varje bordsmeddelande ritar om modeplatsen, och därmed rutan. Utan
      signaturen byggdes den om var tredje sekund och en knapp man tabbat
      till tappade fokus. */
-  const sig = l + n + (harKo ? 'k' : '') + mittLage();
+  const hittar = l === 'redo' && kamPillModell().fel === 'hittar';   // 5c: pillret säger varför
+  const sig = l + n + (harKo ? 'k' : '') + mittLage() + (hittar ? 'h' : '');
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
+  if (hittar) { el.innerHTML = '<p class="tomtyst">No cards found yet.</p>'; return; }
+  /* I ett spel säger pillret hur kameran mår (MES-98); mattan säger bara
+     var korten kommer att synas — en rad, ingen knapp. */
+  const TYST = {
+    vantar: 'Your cards show up here once the camera is set up.',
+    tappad: 'Your cards show up here once the camera is back.',
+    startar: 'Your cards show up here in a moment.',
+    gammal: 'Your cards show up here once the phone is reloaded.',
+    okanda: 'Reading your cards…'
+  };
+  if (TYST[l]) { el.innerHTML = `<p class="tomtyst">${TYST[l]}</p>`; return; }
 
   const svg = (w, h, vb, inre) => `<svg width="${w}" height="${h}" viewBox="${vb}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inre}</svg>`;
   const IKON = {
@@ -7349,18 +7457,17 @@ function renderTom() {
     gammal: { ikon: IKON.telefon, h: 'Reload the page on the phone',
       p: 'The phone is running an older version of the page. Reload it there, and the camera reads the whole picture.',
       knappar: klistra(), fin: sok },
-    redo: { ikon: IKON.kort, h: 'Play a card on the table',
-      p: bord ? 'Cards you play show up here within seconds. Tap a card on the table and it taps here too — the table leads.'
-              : 'Cards you play show up here within seconds. You tap, move and count them on screen — the camera only adds.',
-      knappar: klistra(),
-      fin: (bord ? 'You can fix a mistake here; it holds until the card moves on the table. ' : 'You can also remove cards here. ') + 'Camera not recognising a card? Paste a picture of it — one or several cards in the same picture works.' },
+    redo: { ikon: IKON.kort, h: 'Play your first card',
+      p: bord ? 'Put a card down under the camera. It shows up here in a few seconds — and so does every tap.'
+              : 'Put a card down under the camera. It shows up here in a few seconds.',
+      knappar: '', fin: '' },
     okanda: { ikon: IKON.kort, h: `The camera sees ${n} ${n === 1 ? 'card' : 'cards'}`,
       p: 'It is putting names on them. A card that is not in your deck gets no name — paste a picture of it and it is added.',
       knappar: klistra(true),
       fin: (harKo ? 'Cards waiting for a name can also be filled in with <b>Fill in</b> above. ' : '') + sok }
   }[l];
   el.innerHTML = `<div class="empty-icon">${V.ikon}</div><h2>${V.h}</h2><p>${V.p}</p>`
-    + `<div class="btnrow">${V.knappar}</div><p class="empty-fine">${V.fin}</p>`;
+    + (V.knappar ? `<div class="btnrow">${V.knappar}</div>` : '') + (V.fin ? `<p class="empty-fine">${V.fin}</p>` : '');
 }
 
 /* Granskningsdelen av statusfältet: hur många kort som väntar på ett namn,
@@ -10395,7 +10502,6 @@ addEventListener('keydown', ev => {
   if (isTyping(ev.target)) return;
 
   if (k === 'Escape') {
-    if (lagePanelOppen) { lagePanelOppen = false; renderMode(); return; }
     if (ark) return closeArk();
     if (matCtr) return closeCounters();
     if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
@@ -10404,9 +10510,9 @@ addEventListener('keydown', ev => {
     if ($('#scanPanel').classList.contains('open')) return closeScan();
     if ($('#focusOv').classList.contains('open')) return closeFocus();
     if ($('#shotOv').classList.contains('open')) return closeShot();
-    /* Den dockade kameravyn står öppen bredvid bordet medan man gör annat:
-       en modal som öppnats ovanpå den ska stängas först. Den är sist. */
-    const o = $('.ov.open:not(.dockad)') || $('.ov.open'); if (o) return closeOv(o.id);
+    /* Kamerapanelen står öppen bredvid bordet medan man gör annat: en modal
+       som öppnats ovanpå den ska stängas först. Den är sist. */
+    const o = $('.ov.open:not(.kampop)') || $('.ov.open'); if (o) return closeOv(o.id);
     return;
   }
   if ($('#gravOv').classList.contains('open')) {
@@ -17333,36 +17439,26 @@ function autoBarAutoSynlig() { return !!spelLage && prefs.autoLage === true && k
 function renderAutoBar() {
   const el = $('#autoBar'); if (!el) return;
   const status = $('#autoStatus'), not = $('#autoNot'), granska = $('#pendBar');
-  const auto = autoBarAutoSynlig();
-  const steg = auto ? grundSteg(minSpelare(), senasteSpar) : null;
-  if (!auto) {
-    if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
-    /* Klassen följer med: ett dolt .not.grund tände annars regeln som
-       döljer miniatyrerna under 1300 px, fast inget steg syntes. */
-    if (!not.hidden) { not.hidden = true; not.innerHTML = ''; autoBarNotHtml = ''; }
-    not.classList.remove('grund');
-  } else {
-    const m = autoRemsaModell(senasteSpar, minSpelare(), { nu: Date.now(), sedd: sparSedd, lage: sparLage, losa: losaSpar, borttagna, ser: kamSer, sma: kamSma, fas: kamFas, rad: kamRad });
-    const statusHtml = `<span class="led"></span><span class="txt" title="${esc(m.text)}">${esc(m.text)}</span>`;
-    const stegTxt = steg ? `Put the cards as you want them untapped — is ${steg.namn} lying like that now?` : '';
-    /* Notisen har en prick framför sig som pulserar bara medan ett kort
-       läses (m.puls); steget har sina knappar i stället. */
-    const notHtml = steg
-      ? `<span class="nottxt" title="${esc(stegTxt)}">Put the cards as you want them untapped — is <b>${esc(steg.namn)}</b> lying like that now?</span>` +
-        '<button class="btn prim" data-mode="grund-spara" title="The angle of the card in the picture becomes the untapped angle for this game">Save as untapped angle</button>' +
-        '<button class="btn ghost" data-mode="grund-stang" title="Can be saved later in the camera view">Not now</button>'
-      : m.not ? `<span class="prick${m.puls ? ' puls' : ''}"></span><span class="nottxt" title="${esc(m.not)}">${esc(m.not)}</span>` : '';
-    if (statusHtml !== autoBarStatusHtml) { status.innerHTML = statusHtml; autoBarStatusHtml = statusHtml; }
-    if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
-    not.classList.toggle('grund', !!steg);   // steget får mer plats än en vanlig anmärkning (CSS .not.grund)
-    status.hidden = false;
-    not.hidden = !notHtml;
-  }
+  /* Kamerans status bor i pillret och panelen sedan MES-98 (statusraden där
+     är samma mening, autoRemsaModell). Fältet bär steget om grundläget —
+     tills uppstarten tar det (MES-102) — och granskningen. */
+  const steg = autoBarAutoSynlig() ? grundSteg(minSpelare(), senasteSpar) : null;
+  if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
+  const notHtml = steg
+    ? `<span class="nottxt" title="${esc(`Put the cards as you want them untapped — is ${steg.namn} lying like that now?`)}">Put the cards as you want them untapped — is <b>${esc(steg.namn)}</b> lying like that now?</span>` +
+      '<button class="btn prim" data-mode="grund-spara" title="The angle of the card in the picture becomes the untapped angle for this game">Save as untapped angle</button>' +
+      '<button class="btn ghost" data-mode="grund-stang" title="Can be saved later in the camera panel">Not now</button>'
+    : '';
+  if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
+  not.classList.toggle('grund', !!steg);   // steget får mer plats än en vanlig anmärkning (CSS .not.grund)
+  not.hidden = !notHtml;
   el.classList.toggle('varm', !granska.hidden || !!steg);
-  const synlig = auto || !granska.hidden;
+  const synlig = !!steg || !granska.hidden;
   if (el.hidden !== !synlig) { el.hidden = !synlig; dockaKamOv(); }   // fältet kommer och går: panelens överkant följer
 }
-setInterval(() => { if (autoBarAutoSynlig()) renderAutoBar(); }, 1000);
+/* Statusraden i panelen räknar tiden ("på väg"), så den ritas varje sekund
+   medan panelen står öppen. */
+setInterval(() => { if (autoBarAutoSynlig()) { renderAutoBar(); if (kamOppen) renderKamPop(); } }, 1000);
 
 function renderLyftBanner() {
   const el = $('#lyftAlla'); if (!el) return;
@@ -17765,13 +17861,13 @@ function kamStromIgen() {
 }
 function stangKamOv() {
   if (!kamOppen) return;
-  kamOppen = false;
+  kamOppen = false; kamQrTvinga = false;
   kamStegSynk();
+  renderMode();             // pillret tappar sin öppna ring
 }
 
-/* Kameravyn: en panel, två steg (kamStegSynk väljer). Dockad vid
-   högerkanten från 900 px (.ov.dockad) så att bordet syns bredvid; smalare
-   än så är den en modal. Chippet i topbaren växlar den (visaKamSkruv). */
+/* Kamerapanelen: en popover under pillret, två steg (kamStegSynk väljer).
+   Pillret växlar den (visaKamSkruv). */
 /* Länken och QR-koden ritas när QR-steget visas — också när telefonen
    tappas medan panelen står öppen (kamStegSynk), inte bara när panelen
    öppnas: annars stod ett tomt QR-steg där om panelen först öppnats med
@@ -17790,6 +17886,7 @@ async function visaKamOv() {
   kamOppen = true;
   openOv('kamOv');
   kamStegSynk();
+  renderMode();             // pillret får sin öppna ring, panelen sin plats under det
 }
 /* Fotraden: om telefonen är med. Vakterna finns för att $ är ren
    querySelector — en oskyddad rad här dödade hela skriptet. */
@@ -17799,22 +17896,17 @@ function visaKamSteg() {
     ? '<span class="kamlive"><i></i>The phone is connected</span>'
     : 'Waiting for the phone to connect…';
 }
-/* Panelens överkant: under topbaren, raden och statusfältet, vad de än är
-   höga just nu — fältet och frusen-raden kommer och går. Bordet får
-   marginalen (body.kamdockad) bara medan panelen faktiskt är dockad, alltså
-   öppen och bred nog. */
 function dockaKamOv() {
+  /* Sedan MES-98 dockas ingenting: panelen är en popover under pillret och
+     mattan trycks aldrig ihop. Namnet står kvar — statusfältet, fönstret och
+     panelens steg anropar det — och det lägger panelen under pillret. */
   const ov = $('#kamOv'); if (!ov) return;
-  const dockad = kamOppen && matchMedia('(min-width:900px)').matches;
-  const var_ = document.body.classList.contains('kamdockad');
-  document.body.classList.toggle('kamdockad', dockad);
-  /* Bordet blev 440 px smalare (eller bredare igen) — samma omräkning som
-     vid en fönsterändring, annars behöll landzonen sin gamla bredd och de
-     högra landgrupperna låg kvar under panelen. */
-  if (var_ !== dockad) { matResize(); renderTabs(); renderSel(); }
-  if (!dockad) return;
-  const m = $('main');
-  ov.style.setProperty('--dock-top', Math.round(m ? m.getBoundingClientRect().top : 46) + 'px');
+  if (document.body.classList.contains('kamdockad')) { document.body.classList.remove('kamdockad'); matResize(); }
+  if (!kamOppen) return;
+  const p = $('#modeSlot .campill') || $('#modeSlot');
+  const r = p ? p.getBoundingClientRect() : null;
+  ov.style.setProperty('--pop-top', Math.round(r && r.bottom ? r.bottom + 8 : 52) + 'px');
+  ov.style.setProperty('--pop-right', Math.max(8, Math.round(r && r.right ? innerWidth - r.right : 12)) + 'px');
 }
 /* Närvarolistan från kanalen. Kommer och går telefonen byter dialogen läge av
    sig själv — ingen knapp att trycka på någonstans. */
@@ -17976,7 +18068,7 @@ addEventListener('resize', () => { if (kamSkruvOppen) ritaPbLager(); if (kamOppe
 function visaKamGrund() {
   const el = $('#kamGrundTxt'), kn = $('#kamGrundSpara'); if (!el) return;
   const g = kamGrund !== undefined ? kamGrund : kamGrundRad;
-  el.textContent = g == null ? 'Untapped angle: not saved — put a card the way you want it untapped and press Save' : `Untapped angle: saved (${g}°)`;
+  el.textContent = g == null ? 'Untapped angle not saved — lay a card untapped and press Save' : `Untapped angle saved (${g}°)`;
   if (kn) kn.textContent = g == null ? 'Save' : 'Save again';
 }
 /* Datorn ber telefonen ta grundläget ur ett spår. Svaret (tagEmotGrundSvar)
@@ -18022,7 +18114,7 @@ async function sparaGravZon(r) {
 }
 function visaPbGrav() {
   const b = $('#pbGrav'); if (!b) return;
-  b.textContent = pbGravRitar ? 'Drag a box over the pile…' : kamGravRad ? 'Clear the graveyard zone' : 'Mark the graveyard';
+  b.textContent = pbGravRitar ? 'Drag a box over the pile…' : kamGravRad ? 'Clear' : 'Mark it';
   b.classList.toggle('on', pbGravRitar);
 }
 $('#pbGrav') && ($('#pbGrav').onclick = () => {
@@ -18093,13 +18185,16 @@ $('#kamKoppla').onclick = async () => {
    provbordets extrafält (visaProvbord) följer det, aldrig panelen i sig. */
 let kamSkruvOppen = false, kamQrVisas = false;
 function kamStegSynk() {
-  const skruv = kamOppen && kamAnsluten, visaQr = kamOppen && !kamAnsluten;
-  const qr = $('#kamStegQr'), sk = $('#kamSkruv'), rub = $('#kamOvRubrik');
-  if (qr) qr.hidden = skruv;
+  /* QR-koden står framme medan en telefon aldrig varit med — och på begäran
+     (Reconnect, Show the QR code) när den tystnat eller kör en gammal sida.
+     En telefon som kommit tillbaka släcker begäran. */
+  if (kamAnsluten && kamFas !== 'ingen') kamQrTvinga = false;
+  const skruv = kamOppen && kamAnsluten, visaQr = kamOppen && (kamQrTvinga || (!kamAnsluten && !kamHarVarit));
+  const qr = $('#kamStegQr'), sk = $('#kamSkruv');
+  if (qr) qr.hidden = !visaQr;
   if (visaQr && !kamQrVisas) ritaKamLank();   // steget kom fram: koden ritas på nytt (se ritaKamLank)
   kamQrVisas = visaQr;
   if (sk) sk.classList.toggle('open', skruv);
-  if (rub) rub.textContent = kamAnsluten ? 'Camera' : 'Connect a camera';
   visaKamSteg();
   if (skruv && !kamSkruvOppen) {
     kamSkruvOppen = true;
@@ -18123,8 +18218,9 @@ function kamStegSynk() {
   }
   kamStrom();
   dockaKamOv();
+  renderKamPop();
 }
-/* Chippet i topbaren växlar panelen. Namnen står kvar från popovertiden:
+/* Pillret i topbaren växlar panelen. Namnen står kvar från popovertiden:
    menyn och avstängningen anropar dem. */
 function stangKamSkruv() { if (kamOppen) closeOv('kamOv'); }
 function visaKamSkruv() { if (kamOppen) closeOv('kamOv'); else visaKamOv(); }
