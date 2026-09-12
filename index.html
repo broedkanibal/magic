@@ -391,7 +391,6 @@ body.tomhand .kolmark{display:none}
 .card.tappad img{filter:brightness(.86) saturate(.94)}
 /* Namnetiketten hör till den upprätta läsriktningen; på ett tappat kort
    väntar den på hover-pillen (M6). */
-.card.tappad .kortnamn{display:none}
 .card:hover,.card.sel{box-shadow:0 14px 26px -8px #000e}
 .card.held{transition:none;box-shadow:0 26px 40px -12px #000f;cursor:grabbing}
 /* Släppt kort sätter sig; nytt kort landar. */
@@ -707,18 +706,29 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .markrub .zonlinje{background:#3a2c10}
 /* Kortet ska bli så stort rutan tillåter. Med en fast bredd låg det och
    simmade i en kolumn som var högre än kortet behövde vara. */
-.markruta{
-  flex:1;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:var(--rutbg);border-radius:8px;padding:9px;
+.insbody{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.insimg{flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center}
+.insimg img{
+  max-width:100%;max-height:100%;aspect-ratio:488/680;object-fit:contain;
+  border-radius:3.5%/2.5%;box-shadow:0 10px 26px -8px #000e;cursor:zoom-in;
 }
-/* Kortet fyller den kortare av spaltens två riktningar. height:100% först, så
-   att det växer i en hög spalt; max-width håller det innanför bredden när det
-   är bredden som är trång. */
-.markruta img{
-  height:100%;width:auto;max-width:100%;max-height:100%;aspect-ratio:488/680;
-  object-fit:contain;border-radius:3.5%/2.5%;box-shadow:0 10px 26px -8px #000e;
-  cursor:zoom-in;
+.insimg .instom{
+  width:100%;aspect-ratio:488/680;max-height:100%;border:1.5px dashed var(--line);border-radius:10px;
+  display:grid;place-items:center;font-size:10.5px;color:var(--dim2);text-align:center;padding:12px;box-sizing:border-box;
 }
+.insnamn{display:flex;flex-direction:column;gap:2px;flex:none;min-width:0}
+.insnamn b{font:650 14px/1.25 var(--sans);color:var(--txt);overflow:hidden;text-overflow:ellipsis}
+.insnamn span{font:11px/1.3 var(--sans);color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kwrad{display:flex;flex-wrap:wrap;gap:4px;flex:none}
+.kwtile{
+  padding:2px 6px;border-radius:4px;background:#0b1017;border:1px solid var(--line);
+  font:700 9px/1.3 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim);white-space:nowrap;
+}
+.ctbox{flex:none;border:1px solid #2f6b48;background:#0c1a12;border-radius:8px;padding:7px 9px;display:flex;flex-direction:column;gap:5px}
+.ctbox .ctrub{display:flex;justify-content:space-between;align-items:baseline;font:600 9.5px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:#57c785}
+.ctbox .ctrub b{font:700 12px/1 var(--mono);color:#7fd6a2;letter-spacing:0;text-transform:none}
+.ctbox .cttiles{display:flex;flex-wrap:wrap;gap:4px}
+.cttile{padding:2px 7px;border-radius:5px;background:#12281c;border:1px solid #2f6b48;font:700 10.5px/1.4 var(--mono);color:#9fe3ba}
 .marktom{margin:auto;font-size:10.5px;color:var(--dim2);text-align:center;padding:0 8px}
 
 /* Graveyard: en stapel, ett lager per kort */
@@ -2372,21 +2382,19 @@ body.ispel #addPlayerBtn{display:none}
            kortet att bli litet mitt i den bredaste ytan på skärmen. Som egen
            spalt får det hela brädets höjd, och regeltexten går att läsa utan
            att öppna fokusvyn. -->
-      <aside class="kolmark" id="markKol">
+      <!-- Inspektorn (README "Pointing at"): följer hovern, och utan hover
+           visar den det markerade kortet. Bild, namn, typrad, förmågor som
+           ordbrickor, och counters när kortet har några. -->
+      <aside class="kolmark inspektor" id="markKol">
         <div class="zonrub markrub">
-          <span class="zonlbl">Selected</span><i class="zonlinje"></i>
+          <span class="zonlbl" id="insLabel">Last card</span><i class="zonlinje"></i>
           <span class="markhint"><kbd>F</kbd> enlarge</span>
         </div>
-        <div class="markruta"></div>
+        <div class="insbody" id="insBody"></div>
       </aside>
       </div>
     </section>
 
-    <aside class="detail">
-      <div class="dpad" id="detailPad">
-        <div class="dempty">No card selected.<br><span style="color:#4d5a6d">Click a card or use the arrow keys.</span></div>
-      </div>
-    </aside>
   </main>
 
   <footer class="hints" id="hintBar">
@@ -5499,7 +5507,6 @@ function kortHtml(e, i, extra, pos) {
   return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" title="${esc(label)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}">
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
-    ${hoverNamnHtml(e)}
     ${e.lyft != null ? lyftRadHtml(e, i) : hoverRadHtml(e, i)}
   </div>`;
 }
@@ -5606,19 +5613,6 @@ function hoverRadHtml(e, i) {
     ${kn('del', 'Remove', IKON_KRYSS, ' fara')}
   </span>`;
 }
-/* Etiketten ovanför kortet: namn, styrka/tålighet och de nyckelord som gör
-   skillnad i en tur. Regeltexten i sin helhet står i Selected. */
-function hoverNamnHtml(e) {
-  const c = cardOf(e);
-  if (!c) return `<span class="kortnamn"><b>${esc(e.name)}</b></span>`;
-  const f = c.faces[0] || {};
-  const pt = f.pow != null ? `${f.pow}/${f.tou}` : f.loy != null ? `${f.loy} loyalty` : '';
-  const nyckel = (f.oracle || '').split('\n')[0].split(/[,.(]/)[0].trim();
-  const kort = nyckel && nyckel.length < 42 && !/\s{2}/.test(nyckel) ? nyckel.toLowerCase() : '';
-  return `<span class="kortnamn"><b>${esc(c.name)}</b>${
-    pt || kort ? `<i>${esc([pt, kort].filter(Boolean).join(' · '))}</i>` : ''}</span>`;
-}
-
 /* Platshållarna just nu (autoPlatser): bara på mitt eget bord, medan auto
    är på och telefonen är med. Någon annans bord får inga — deras kamera
    är deras. */
@@ -6038,37 +6032,65 @@ function matNav(dx, dy) {
   sparaUi(); renderSel(); renderDetail(); renderFocus();
 }
 
-/* Selected visar det valda kortet så stort rutan tillåter. Det är den enda
-   platsen i appen där regeltexten går att läsa utan att öppna något. */
-function markHtml() {
-  const e = selCard();
-  if (!e) return '<div class="marktom">No card selected</div>';
-  const c = cardOf(e), dfc = arDfc(c);
-  /* 'large' (672×936), inte 'normal' (488×680). Spalten är numera hela brädets
-     höjd och blir på en stor skärm bredare än 488 px — då skalades bilden upp
-     och regeltexten, som är hela poängen med den här ytan, blev grynig. */
-  const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, e.flipped && dfc ? 1 : 0, 'large') : '');
-  /* Bara kortet. Namnet stod redan på bilden, och handlingarna finns på
-     kortet självt — här tog de bara plats från det man faktiskt ska läsa. */
-  return src ? `<img src="${esc(src)}" alt="${esc(c ? c.name : e.name)}" draggable="false" title="Click to enlarge (F)">`
-             : '<div class="marktom">No card selected</div>';
+/* ═══ FRI MATTA — inspektorn ═════════════════════════════════════════
+   Panelen till höger följer hovern ("Pointing at"); utan hover visar den
+   det markerade kortet ("Last card"). Bild i 'large' (672×936) — spalten
+   blir bredare än 488 px på en stor skärm, och regeltexten på bilden är
+   hela poängen med ytan. Nyckeln bär allt som ritas, så att en omritning
+   vid varje hjärtslag inte laddar om bilden. */
+let matHover = null, matHoverT = null;
+function inspektorKort() {
+  if (matHover != null) {
+    const k = hand().find(c => c.cid === matHover);
+    if (k) return { e: k, label: 'Pointing at' };
+  }
+  return { e: selCard(), label: 'Last card' };
 }
-/* Bara innehållet, inte hela bandet: en omritning av bandet river bilden och
-   laddar om den, och det blinkade vid varje piltryck. */
-function renderMark() {
-  const ruta = $('#markKol .markruta');
-  if (!ruta) return;
-  const e = selCard();
-  /* Nyckeln måste bära OM kortet är uppslaget, inte bara vilket det är.
-     Markerar man ett kort innan Scryfall svarat ritas "No card selected" och
-     nyckeln sätts — och när bilden sedan kommer är nyckeln oförändrad, så
-     rutan ritas aldrig om. Kortet fanns, men syntes aldrig. */
-  const nyckel = e ? [keyOf(e), e.flipped ? 1 : 0, cardOf(e) ? 1 : 0].join('·') : '';
-  if (ruta.dataset.k === nyckel) return;
-  ruta.dataset.k = nyckel;
-  ruta.innerHTML = markHtml();
+function renderInspektor() {
+  const body = $('#insBody'), lbl = $('#insLabel');
+  if (!body) return;
+  const { e, label } = inspektorKort();
+  const c = e ? cardOf(e) : null, dfc = arDfc(c);
+  const fi = e && e.flipped && dfc ? 1 : 0;
+  const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
+  const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
+  if (body.dataset.k === nyckel) return;
+  body.dataset.k = nyckel;
+  if (lbl) lbl.textContent = label;
+  if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">No card selected<br>Point at a card, or use the arrow keys.</div></div>'; return; }
+  const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, fi, 'large') : '');
+  const f = c && c.faces[fi] || null;
+  const namn = c ? c.name : e.name;
+  const typ = f ? f.type : (matSlag(e) === 'land' ? 'Land' : 'Permanent');
+  const kw = (c && c.kw) || [];
+  const grupper = {};
+  for (const k of (e.cts || [])) { const l = ctLabel(k); grupper[l] = (grupper[l] || 0) + 1; }
+  const tecken = n => (n >= 0 ? '+' : '') + n;
+  body.innerHTML = `
+    <div class="insimg">${src ? `<img src="${esc(src)}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">`
+      : `<div class="instom">${esc(namn)}<br><span style="color:#4d5a6d">${c ? '' : 'Fetching…'}</span></div>`}</div>
+    <div class="insnamn"><b>${esc(namn)}</b><span>${esc(typ)}</span></div>
+    ${kw.length ? `<div class="kwrad">${kw.map(k => `<span class="kwtile">${esc(k)}</span>`).join('')}</div>` : ''}
+    ${(sum.p || sum.t) ? `<div class="ctbox"><div class="ctrub"><span>Counters</span><b>${tecken(sum.p)}/${tecken(sum.t)} in total</b></div>
+      <div class="cttiles">${Object.keys(grupper).map(l => `<span class="cttile">${esc(l)}${grupper[l] > 1 ? ' ×' + grupper[l] : ''}</span>`).join('')}</div></div>` : ''}`;
 }
-
+/* Namnen renderMark/renderDetail lever kvar som ingångar: tolv ställen
+   anropar dem efter en markering. */
+function renderMark() { renderInspektor(); }
+/* Hovern på mattan: delegerad, med 90 ms fördröjning på vägen ut så att
+   panelen inte blinkar mellan två kort. Ingen hover under ett drag. */
+gridEl.addEventListener('pointerover', ev => {
+  const el = ev.target.closest('.card'); if (!el) return;
+  if (dnd && dnd.drar) return;
+  clearTimeout(matHoverT);
+  if (matHover !== el.dataset.cid) { matHover = el.dataset.cid; renderInspektor(); }
+});
+gridEl.addEventListener('pointerout', ev => {
+  const el = ev.target.closest('.card'); if (!el) return;
+  if (ev.relatedTarget && el.contains(ev.relatedTarget)) return;
+  clearTimeout(matHoverT);
+  matHoverT = setTimeout(() => { matHover = null; renderInspektor(); }, 90);
+});
 /* Graveyard-högen: ett lager per kort under det översta, förskjutna, så att
    antalet syns i högen själv. Formeln krymper steget när högen växer så att
    tjugo kort fortfarande ryms. Gravstenen ovanpå säger "inte i spel". */
@@ -6327,38 +6349,7 @@ function faceInfoHtml(card, f, fi) {
       <a href="${esc(card.uri)}" target="_blank" rel="noreferrer" style="margin-left:auto">Scryfall ↗</a>
     </div>`;
 }
-function renderDetail() {
-  const pad = $('#detailPad');
-  const e = selCard();
-  if (!e) {
-    pad.innerHTML = `<div class="dempty">No card selected.<br><span style="color:#4d5a6d">Click a card or use the arrow keys.</span></div>`;
-    return;
-  }
-  const card = cardOf(e);
-  if (!card) {
-    const err = felText(keyOf(e));
-    pad.innerHTML = `<div class="dempty">${err ? '⚠ ' : ''}<b style="color:var(--txt)">${esc(e.name)}</b><br>
-      <span style="color:#4d5a6d">${err ? esc(err) + ' on Scryfall' : 'Fetching…'}</span>
-      ${err ? `<div style="margin-top:14px"><button class="btn sm" id="retryCard">Try again</button></div>` : ''}</div>`;
-    const rb = $('#retryCard');
-    if (rb) rb.onclick = () => { failed.delete(keyOf(e)); renderAll(); resolveAll(); };
-    return;
-  }
-  const many = card.faces.length > 1 && card.faces[1].img;
-  const fi = e.flipped && many ? 1 : 0;
-  const f = card.faces[fi];
-  pad.innerHTML = `
-    <div class="dimg">
-      <img src="${esc(imgOf(card, fi, 'png') || imgOf(card, fi, 'large'))}" alt="${esc(f.name)}">
-      ${many ? `<button class="flipbtn" id="dFlip">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
-        Flip</button>` : ''}
-    </div>
-    ${faceInfoHtml(card, f, fi)}`;
-  const fb = $('#dFlip');
-  if (fb) fb.onclick = () => flipSel();
-}
-
+function renderDetail() { renderInspektor(); }
 /* ─── fokusläge ─── */
 let focusOpen = false;
 function renderFocus() {
@@ -7053,7 +7044,7 @@ manaRow.addEventListener('click', ev => {
 /* Selected har flyttat ut ur bandet till en egen spalt, och lyssnaren måste
    följa med. Låg den kvar på manaRow gjorde ett klick på det stora kortet
    ingenting alls — och det är den självklaraste vägen till fokusvyn. */
-$('#markKol').addEventListener('click', ev => { if (ev.target.closest('.markruta img')) openFocus(); });
+$('#markKol').addEventListener('click', ev => { if (ev.target.closest('.insimg img')) openFocus(); });
 
 /* ═══ FRI MATTA — pekare: drag, klick = tap, släpp på högen ══════════
    Pekarhändelser i stället för HTML5-drag: det senare ger ingen kontroll
