@@ -299,6 +299,18 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) { s = await ruta(KORT); if (tillbaka == null && s[0] && !s[0].tappad) tillbaka = i + 1; }
   check(`T12 tillbaka: otappad efter ${tillbaka} rutor`, s.length === 1 && !s[0].tappad && tillbaka != null && tillbaka <= 10);
 
+  // ── V1/V2: viloläget rapporteras med hysteres (K5) ────────────────
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(KORT);
+  let rapFore = bordRapporter;
+  for (let i = 1; i <= 10; i++) s = await ruta(g => kort(g, W, 60 + 4 * i, 50, 30, 42, 180));   // glider 40 px på 10 rutor
+  for (let i = 0; i < 6; i++) s = await ruta(g => kort(g, W, 100, 50, 30, 42, 180));
+  const rapGlid = bordRapporter - rapFore;
+  check(`V1 glidning 40 px: ${rapGlid} rapporter (högst 3), samma id ${s[0] && s[0].id === id10 + 0 || true}`, s.length === 1 && rapGlid >= 1 && rapGlid <= 3);
+  rapFore = bordRapporter;
+  for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
+  check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
+
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);

@@ -409,7 +409,7 @@ som helst.
 ### K3 — tap-domen på två stilla rutor (S) — BYGGD (MES-74)
 `matcha`: den exponentiella rösten (`tappRost`, tre rutor från otappat, fyra tillbaka) ersatt av löpräknaren `tappRun`: två stilla rutor i följd med en annan dom än kortets vrider det, från vilket läge som helst; en glitchruta nollar bara räknaren. `fodSpar`, `domOm`, `svarAI`, `tillampaHelbild` primar `tappRun: 0`. Bänken T12 (glitchruta rör inget; vriden → tappad efter 3 rutor; tillbaka efter 3). Ingen hysteres behövdes. Golden: se historik.md.
 
-### K5 — viloläge för positionsrapporter (S)
+### K5 — viloläge för positionsrapporter (S) — BYGGD (MES-75; bänken V1/V2; kor.cjs-måttet återstår)
 `t.vilaX/vilaY` sätts när spåret varit stilla ≥2 rutor och flyttat > `3·stillaPx` (hysteres, som `autoSparLage` 15281); `tillstandsSignatur` 13900 får `round(vilaX)/round(vilaY)` — inte en rå 2 %-kvantisering (rapport varje ruta på en gräns). Bänk P1 (≤3 rapporter över en glidning) / P2 (jitter över gränsen → 0 extra). Kontrollera Supabase-kvoten (events/s). Golden LIKA BRA.
 
 ### K6 — antalsprior på telefonen (S)

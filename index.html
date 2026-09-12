@@ -14158,7 +14158,7 @@ const Kamera = (() => {
            avstämning kallar färskt (rapportera, fältet sen). */
         bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
         if (ror > T.stillaPx) {
-          bast.stillaFran = nu; bast.ram = null;
+          bast.stillaFran = nu; bast.ram = null; bast.stillaN = 0;
           if ((bast.tillstand === 'stilla' || bast.tillstand === 'skrap') && !bast.namn) { bast.tillstand = 'ny'; bast.fragad = false; bast.skrapN = 0;
             /* Ett första "inget kort" kan ha varit en exponering som dippat — samma
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
@@ -14166,6 +14166,14 @@ const Kamera = (() => {
         }
         else {
           if (!bast.stillaFran) bast.stillaFran = nu;
+          /* Viloläget (K5): spårets läge i vila, med hysteres. Rapporteras
+             (tillstandsSignatur) bara när kortet legat stilla två rutor och
+             flyttat mer än tre stillaPx sedan förra vilan — darret på
+             gränsen till en kvantisering gav annars en rapport per ruta, och
+             en glidning gav en per ruta. Datorn läser läget ur rapporten
+             (k.kam, MODE-3/5). */
+          bast.stillaN = (bast.stillaN || 0) + 1;
+          if (bast.stillaN >= 2 && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) { bast.vilaX = bast.cx; bast.vilaY = bast.cy; }
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
@@ -14747,7 +14755,9 @@ const Kamera = (() => {
      ögonblick då ett kort låg skymt kvar i varje hjärtslag, och det andra
      av två kort med samma namn omlott fick aldrig sitt kort. Talet står här
      och inte som FARSK_MS: bänken kör modulen utan appens toppnivå. */
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}`).join('|') + `|sma${smaNu()}`;
+  /* :x,y = viloläget (K5), avrundat: en rapport när kortet lagt sig på en
+     ny plats, ingen för darr. */
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}`;
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
