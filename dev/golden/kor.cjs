@@ -53,7 +53,9 @@ function skrivTabell(rs, gamla) {
   const forlopp = (r, g) => (r.videoLagdaAv == null && r.videoBortaAv == null) ? '–'   // fältet saknas = foto; noll utspel är fortfarande ett videofall
     : `${r.videoLagda}/${r.videoLagdaAv} spelade${skiljer(r, g, 'videoLagda')}`
     + ` · ${r.videoBorta}/${r.videoBortaAv} borttagna${skiljer(r, g, 'videoBorta')}`
-    + ` · ordning ${r.videoOrdning}/${r.videoOrdningAv}${skiljer(r, g, 'videoOrdning')}`;
+    + ` · ordning ${r.videoOrdning}/${r.videoOrdningAv}${skiljer(r, g, 'videoOrdning')}`
+    + (r.videoDubbletter != null ? ` · dubbletter ${r.videoDubbletter}${skiljer(r, g, 'videoDubbletter')}` : '')
+    + (r.videoTappAv ? ` · tap ${r.videoTapp}/${r.videoTappAv}${skiljer(r, g, 'videoTapp')}` : '');
   const kolumner = [
     ['Fall', 42, r => r.id],
     ['Kort', 12, r => r.kort + (r.dolda ? ` +${r.dolda} dolt` : '')],
@@ -63,12 +65,12 @@ function skrivTabell(rs, gamla) {
     ['Falska', 13, (r, g) => r.falska + skiljer(r, g, 'falska')],
     ['Plats', 7, r => r.platsAv ? `${r.plats}/${r.platsAv}` : '–'],
     ['Tappad', 8, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–'],
-    ['Förlopp', 46, forlopp]
+    ['Förlopp', 72, forlopp]
   ];
   const rad = celler => '  ' + celler.map((c, i) => String(c).padEnd(kolumner[i][1])).join('').trimEnd();
   const summa = (lista, k) => lista.reduce((a, r) => a + (r[k] || 0), 0);
   const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv',
-    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder'].map(k => [k, summa(lista, k)]));
+    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv'].map(k => [k, summa(lista, k)]));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
   const gs = rs.map(r => gamla.get(r.id));
@@ -141,6 +143,11 @@ function skrivTabell(rs, gamla) {
        och ett som låg kvar efter att det plockats bort. */
     if (r.videoSpar) {
       console.log(`  video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms; ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median)`);
+      /* K1: borta-fördröjning (telefonsidan: första rapporten utan säkert spår), tap-vridningar och dubbletter ur bordsloggen. */
+      console.log(`  K1: borta-fördröjning ${r.videoBortaFordrojning == null ? '–' : r.videoBortaFordrojning + ' s'} (median${(r.videoBortaDt || []).length ? ': ' + r.videoBortaDt.join(', ') + ' s' : ''})`
+        + `; tap ${r.videoTappAv == null ? '– (inga tap-händelser i facit)' : `${r.videoTapp}/${r.videoTappAv}, fördröjning ${r.videoTappFordrojning == null ? '–' : r.videoTappFordrojning + ' s'}`}`
+        + `; dubbletter ${r.videoDubbletter}${Object.keys(r.videoDubbletterNamn || {}).length ? ' (' + Object.entries(r.videoDubbletterNamn).map(([n, q]) => `${n}: +${q.max} ${q.fran}–${q.till} s`).join(', ') + ')' : ''}`);
+      for (const x of r.videoTappHandelser || []) console.log(`    ${x.t} s ${x.vill ? 'tappar' : 'otappar'} ${x.namn}: ` + (x.dt == null ? 'SÅGS ALDRIG inom 8 s' : `sågs +${x.dt} s`));
       for (const h of r.videoHandelser || []) console.log(h.spelar
         ? `    ${h.t} s ut ${h.spelar}: ` + (h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`)
         : `    ${h.t} s bort ${h.tar_bort}: ` + (h.borta ? 'borta ur bordet' : 'LIGGER KVAR'));
@@ -191,7 +198,8 @@ function skrivTabell(rs, gamla) {
        egen — utspelade respektive bortplockade kort, inte korten i facit. */
     for (const [k, namn, merArBattre, avK] of [['namn', 'rätt namn', true, 'kort'], ['felNamn', 'fel namn', false, 'kort'], ['falska', 'falska', false, 'kort'],
                                                ['videoLagda', 'spelade kort som fick namn', true, 'videoLagdaAv'], ['videoBorta', 'borttagna kort som försvann', true, 'videoBortaAv'],
-                                               ['videoOrdning', 'utspel i rätt ordning', true, 'videoOrdningAv'], ['videoFelUnder', 'säkra namn på kort som aldrig var i partiet', false, 'videoLagdaAv']]) {
+                                               ['videoOrdning', 'utspel i rätt ordning', true, 'videoOrdningAv'], ['videoFelUnder', 'säkra namn på kort som aldrig var i partiet', false, 'videoLagdaAv'],
+                                               ['videoDubbletter', 'dubbletter', false, 'kort'], ['videoTapp', 'tap-vridningar som sågs', true, 'videoTappAv']]) {
       if (r[k] == null || g[k] == null || r[k] === g[k]) continue;
       ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]} (av ${r[avK]} kort)`);
     } }

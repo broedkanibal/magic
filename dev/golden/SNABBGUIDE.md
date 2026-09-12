@@ -176,6 +176,21 @@ i stället för 800 gav **sämre** — 3 → 2 namn, 1 → 3 falska, fördröjni
 väntan kortare för spelaren är platshållaren på bordet (MES-42): den står
 där efter en halv sekund, namnet kommer efter en till två.
 
+## Förloppsmåtten från K1 (dev/plan/lagen.md §7)
+
+Tre mått till ur ett videofalls **bordslogg** (datorns rapporter), inte ur
+slutläget. De står i Förlopp-cellen och i `--detalj` (raden `K1:`), och
+räknas in i domen mot baslinjen.
+
+| Mått | Vad | Mål (historik.md) |
+|---|---|---|
+| `videoBortaFordrojning` | medianen av tiden från facits `tar_bort` till första rapporten utan ett säkert spår med namnet | ≤ 1,0 s (datorns nåd på 3 s därtill) |
+| `videoTapp` / `videoTappAv` + `videoTappFordrojning` | facit `{ "t": 12.5, "tappar": "Ukud Cobra" }` eller `"otappar"`: sågs ett säkert spår med namnet bära det väntade tap-läget inom 8 s, och hur snart | ≤ 0,35 s |
+| `videoDubbletter` | största överskott av fysiska kort per namn mot facit i någon rapport — grupperat med appens `sammaPlats`/`syskon`/`ledarOrdning`, som steg 2 i `avstamBord` | 0 |
+
+Fall 07 har inga tap-händelser i facit (`tap –`); de kommer med
+inspelningarna 09/10 (K2).
+
 ## Kortbaksidor
 
 Ett nedvänt kort på bordet (biblioteket, ett kort som vänts) blev en

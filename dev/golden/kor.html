@@ -803,7 +803,64 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
   const felUnder = [];
   for (const l of logg) for (const e of l.sakra) if (!iPartiet.has(norm(e.namn))) felUnder.push({ spar: l.id, namn: e.namn, s: e.s });
   const dts = namngivna.map(x => x.dt).sort((a, b) => a - b);
+  /* K1 (dev/plan/lagen.md §7): tap-vridningar, borta-fördröjning och
+     dubbletter ur BORDSLOGGEN — datorns rapporter — inte slutläget.
+     Borta: första rapporten efter facits tid utan ett säkert spår med
+     namnet, när ett funnits. Tap: facit {t, tappar|otappar: namn}, första
+     rapporten inom 8 s där ett säkert spår med namnet bär det väntade
+     tappad. Dubbletter: per rapport och namn räknas fysiska kort med appens
+     egna sammaPlats/syskon/ledarOrdning (samma gruppering som steg 2 i
+     avstamBord) mot vad facit säger ligger där; ett tal över facit är en
+     dubblett som bara väntar på ett ja. */
+  const bl = prov.bordLogg || [];
+  const sakerMed = (r, namn) => (r.spar || []).filter(t => t.tillstand !== 'skrap' && t.saker && norm(t.namn || '') === norm(namn));
+  const bortaDt = [];
+  for (const x of bortagna) {
+    let sett = false, dt = null;
+    for (const r of bl) {
+      const finns = sakerMed(r, x.tar_bort).length > 0;
+      if (r.s < x.t - TOL) { if (finns) sett = true; continue; }
+      if (finns) { sett = true; continue; }
+      if (sett) { dt = +Math.max(0, r.s - x.t).toFixed(2); break; }
+    }
+    if (dt != null) bortaDt.push(dt);
+  }
+  bortaDt.sort((a, b) => a - b);
+  const tapp = h.filter(x => x.tappar || x.otappar);
+  const tappDt = [], tappHandelser = [];
+  for (const x of tapp) {
+    const namn = x.tappar || x.otappar, vill = !!x.tappar;
+    let dt = null;
+    for (const r of bl) {
+      if (r.s < x.t - TOL) continue;
+      if (r.s > x.t + 8) break;
+      if (sakerMed(r, namn).some(u => !!u.tappad === vill)) { dt = +Math.max(0, r.s - x.t).toFixed(2); break; }
+    }
+    tappHandelser.push({ t: x.t, namn, vill, dt });
+    if (dt != null) tappDt.push(dt);
+  }
+  tappDt.sort((a, b) => a - b);
+  const vantatN = (s, namn) => { let n = 0; for (const e of h) { if (e.spelar && norm(e.spelar) === norm(namn) && e.t - TOL <= s) n++; if (e.tar_bort && norm(e.tar_bort) === norm(namn) && e.t + TOL <= s) n--; } return Math.max(0, n); };
+  const harApp = typeof w.sammaPlats === 'function' && typeof w.syskon === 'function' && typeof w.ledarOrdning === 'function';
+  let dubbMax = 0; const dubbNamn = {};
+  for (const r of bl) {
+    const per = new Map();
+    for (const t of r.spar || []) { if (t.tillstand === 'skrap') continue; const n = t.namn || t.gissning; if (!n) continue; (per.get(n) || per.set(n, []).get(n)).push(t); }
+    for (const [n, l] of per) {
+      if (l.length < 2) continue;
+      let grupper = [];
+      if (harApp) { for (const t of l.slice().sort(w.ledarOrdning)) { const g = grupper.find(g => !g.some(u => w.syskon(u, t)) && g.some(u => w.sammaPlats(u, t))); if (g) g.push(t); else grupper.push([t]); } }
+      else grupper = l.map(t => [t]);
+      const o = Math.max(0, grupper.length - Math.max(1, vantatN(r.s, n)));
+      if (o) { dubbMax = Math.max(dubbMax, o); const q = dubbNamn[n] || (dubbNamn[n] = { max: 0, fran: r.s, till: r.s }); q.max = Math.max(q.max, o); q.till = r.s; }
+    }
+  }
+  const median = l => l.length ? l[l.length >> 1] : null;
   return {
+    videoBortaFordrojning: median(bortaDt), videoBortaDt: bortaDt,
+    videoTapp: tapp.length ? tappDt.length : null, videoTappAv: tapp.length ? tapp.length : null,
+    videoTappFordrojning: median(tappDt), videoTappHandelser: tappHandelser,
+    videoDubbletter: dubbMax, videoDubbletterNamn: dubbNamn,
     videoLangd: langd, videoTakt: takt, videoSekunder: korda,
     videoLagda: namngivna.length, videoLagdaAv: spelade.length,
     videoBorta: borta.filter(x => x.borta).length, videoBortaAv: borta.length,
