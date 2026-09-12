@@ -379,6 +379,8 @@ function sokTill(v, s) {
 
 async function korFall(f) {
   beskarningar[f.id] = [];
+  /* Graveyard-rutan (K9-lite) ur facit: { "grav": { x, y, w, h } } i bildandelar; utan = ingen ruta. */
+  try { if (K.satGrav) K.satGrav(f.facit.grav || null); } catch (e) {}
   const vf = f.facit.video || null;
   const kalla = vf ? await laddaVideo(`fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
                    : await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);

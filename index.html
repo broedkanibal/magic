@@ -2748,6 +2748,7 @@ body.ispel #addPlayerBtn{display:none}
           <button class="btn sm" id="pbRef" title="Ta om bilden av bordet — gör det när ljuset ändrats. Korten får ligga kvar">Ny referensbild</button>
           <button class="btn sm ghost" id="pbDiagnos" title="Sparar det telefonen ser som en fil, för felsökning">Spara diagnos</button>
           <button class="btn sm ghost" id="pbHelbild" title="Telefonen skickar hela bilden till Claude och lägger ut de kort den ser — för bord där kameran inte hittar korten själv">Läs av hela bordet</button>
+          <button class="btn sm ghost" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark the graveyard</button>
         </div>
         <details class="pbavancerat" id="pbAvancerat">
           <summary>Avancerat</summary>
@@ -5235,8 +5236,11 @@ let kamUpp = 'v';             // hur ett otappat kort ligger i telefonens bild: 
    spårens lägen läggs på brädet. Följer med i camera_setups.ruta så att
    alla ser samma bord. */
 let kamVand = 0, kamSpegel = false;
+/* Graveyard-rutan i bildandelar (K9-lite), ritad i kamerapanelen och sparad
+   i camera_setups.ruta.grav; telefonen föder inga spår där. */
+let kamGravRad = null;
 const kamOriNyckel = () => kamVand + (kamSpegel ? 'm' : '');
-function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); }
+function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); kamGravRad = r && r.grav && r.grav.w > 0 ? r.grav : null; }
 /* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
    hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
    utan fältet), null = inte sparat, tal = sparat. Vid null spelas korten
@@ -7165,7 +7169,7 @@ function lagePanelHtml(lage, status) {
     <div class="lagestatus"><span class="led"></span><span>Camera: ${esc(status)}</span><span class="grow"></span>${knappar}</div>
     ${lage === 'bord' && kamAnsluten ? `<div class="lagerotera"><span>Camera view on the table</span><button type="button" class="btn sm" data-mode="vand" title="Rotate the camera picture a quarter turn">Rotate ↻</button><button type="button" class="btn sm" data-mode="spegel" title="Mirror the camera picture left–right">${kamSpegel ? 'Unmirror' : 'Mirror'} ⇋</button></div>` : ''}
     ${grundSaknas ? `<div class="lagevarn">Tap reading is off until you save the untapped angle.${steg ? ` <b>${esc(steg.namn)}</b> is lying untapped now?` : ' Put a card on the table as you want it untapped.'} ${steg ? '<button type="button" class="btn sm prim" data-mode="grund-spara">Save as untapped</button>' : ''}</div>` : ''}
-    <div class="lagefin">Keep your graveyard outside the frame — a card on top of the pile looks like a card in play.</div>`;
+    <div class="lagefin">${kamGravRad ? 'Graveyard zone marked — cards on the pile are ignored by the camera.' : 'Keep your graveyard outside the frame — a card on top of the pile looks like a card in play. Or mark the pile under Camera settings.'}</div>`;
 }
 /* Byter läge: min rad i game_players (alla ser det), lokalt prefs. Till
    Screen leads släpps nedtonade kort och nådatider — kameran tar inte bort
@@ -14105,6 +14109,7 @@ const Kamera = (() => {
      Närmaste-granne på mittpunkten. Kort flyttar sig inte mellan två rutor
      om ingen håller i dem, och håller någon i dem är de ändå inte stilla. */
   function matcha(spar, fynd, mask, nu, dt, upp, fodNya = true) {
+    if (kal.grav) fynd = fynd.filter(f => !iGrav(f));   // högen är inte bordet (K9-lite)
     const kvar = new Set(spar);
     const anv = new Set();
     for (const f of fynd) {
@@ -14301,13 +14306,22 @@ const Kamera = (() => {
        startat, och ett läge som redan kommit med realtid ska stå kvar. */
     const upp = k && k.ruta ? (k.ruta.upp === 'h' ? 'h' : 'v') : kal.ruta.upp;
     const grund = k && k.ruta ? graderTillGrund(k.ruta.grund) : kal.grund;
-    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund };
+    const grav = k && k.ruta ? gravRuta(k.ruta.grav) : (kal.grav || null);
+    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav };
     spar = []; spoken = []; snittMinne = []; lage = 'lar';
     glomReferens();
     AH = 0;
     if (cb.bord) cb.bord([], true);
   }
   const graderTillGrund = g => (typeof g === 'number' && isFinite(g)) ? normGrund(g * Math.PI / 180) : null;
+  /* Graveyard-rutan (K9-lite): en rektangel i bildandelar där högen ligger.
+     Regioner med sin mitt i rutan blir aldrig spår — högens översta kort
+     är annars ett spökpermanent varje gång det byts — och rutan räknas
+     inte som fri yta (mattmodellen, ljusmätningen). null = ingen ruta. */
+  const gravRuta = r => r && typeof r.x === 'number' && typeof r.y === 'number' && r.w > 0 && r.h > 0
+    ? { x: Math.max(0, r.x), y: Math.max(0, r.y), w: Math.min(1, r.w), h: Math.min(1, r.h) } : null;
+  function satGrav(r) { kal.grav = gravRuta(r); }
+  const iGrav = f => { const g = kal.grav; if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
   /* Läget byts från datorn medan kameran går. Ingenting nollställs —
      referensen och spåren gäller lika bra — utan vinklarna som redan finns
      tolkas om, så att korten på datorn vrids på en gång. Rösten sätts fullt
@@ -14765,6 +14779,11 @@ const Kamera = (() => {
     const n = AW * AH;
     const fri = new Uint8Array(n).fill(1);
     if (blankM) for (let i = 0; i < n; i++) if (blankM[i]) fri[i] = 0;
+    if (kal.grav) {
+      const g = kal.grav, x0 = Math.max(0, Math.floor(g.x * AW)), x1 = Math.min(AW, Math.ceil((g.x + g.w) * AW));
+      const y0 = Math.max(0, Math.floor(g.y * AH)), y1 = Math.min(AH, Math.ceil((g.y + g.h) * AH));
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) fri[y * AW + x] = 0;
+    }
     for (const t of spar) {
       const m = 6;
       const x0 = Math.max(0, t.box.x - m), x1 = Math.min(AW - 1, t.box.x + t.box.w + m);
@@ -15379,7 +15398,7 @@ const Kamera = (() => {
     rapportera();
   }
 
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
@@ -15893,6 +15912,7 @@ function tillampaKalibrering(rad) {
 function tillampaKalRad(ruta) {
   Kamera.satUpp(ruta.upp);
   Kamera.satGrund(typeof ruta.grund === 'number' ? ruta.grund * Math.PI / 180 : null);
+  Kamera.satGrav(ruta.grav || null);
 }
 
 /* ── telefonens ström till datorn ────────────────────────────────────
@@ -17284,6 +17304,16 @@ function ritaPbLager() {
   const mx = (c.width - bw) / 2, my = (c.height - bh) / 2;
   const sx = bw / pbMatt.aw, sy = bh / pbMatt.ah;
   x.font = '600 11px ui-monospace, monospace'; x.textBaseline = 'bottom';
+  /* Graveyard-rutan: sparad (streckad, amber) eller den som ritas just nu. */
+  const gr = pbGravUtkast || kamGravRad;
+  if (gr && gr.w > 0 && gr.h > 0) {
+    x.save(); x.strokeStyle = '#e8b33a'; x.lineWidth = 2; x.setLineDash([6, 4]);
+    x.fillStyle = '#e8b33a22';
+    x.fillRect(mx + gr.x * bw, my + gr.y * bh, gr.w * bw, gr.h * bh);
+    x.strokeRect(mx + gr.x * bw, my + gr.y * bh, gr.w * bw, gr.h * bh);
+    x.fillStyle = '#e8b33a'; x.fillText('Graveyard', mx + gr.x * bw + 4, my + gr.y * bh + 14);
+    x.restore();
+  }
   for (const t of pbRa) {
     const cx = mx + t.cx * sx, cy = my + t.cy * sy;
     const w = t.lang * sx, h = t.kort * sx;
@@ -17550,11 +17580,57 @@ async function tagEmotGrundSvar(m) {
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund, vand: kamVand, spegel: kamSpegel }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
   toast(ok ? `Otappat läge sparat (${m.grund}°)` : 'Otappat läge kunde inte sparas i spelet — det gäller tills telefonen laddas om', ok ? 'ok' : 'err');
 }
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
+/* Graveyard-rutan (K9-lite): "Mark the graveyard" i kamerapanelen, dra en
+   rektangel över högen i förhandsbilden. Raden bär den (grav), telefonen
+   får den med realtid och föder inga spår där. */
+let pbGravRitar = false, pbGravStart = null, pbGravUtkast = null;
+function pbBildTillAndel(ev) {
+  const img = $('#pbImg'), c = $('#pbLager'); if (!img || !img.naturalWidth) return null;
+  const R = c.getBoundingClientRect();
+  const sk = Math.min(R.width / img.naturalWidth, R.height / img.naturalHeight);
+  const bw = img.naturalWidth * sk, bh = img.naturalHeight * sk, mx = (R.width - bw) / 2, my = (R.height - bh) / 2;
+  return { x: Math.max(0, Math.min(1, (ev.clientX - R.left - mx) / bw)), y: Math.max(0, Math.min(1, (ev.clientY - R.top - my) / bh)) };
+}
+async function sparaGravZon(r) {
+  kamGravRad = r && r.w > 0.01 && r.h > 0.01 ? r : null;
+  ritaPbLager(); visaPbGrav(); renderMode();
+  if (!spelLage) return;
+  const id = spelLage.id;
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
+  toast(ok ? (kamGravRad ? 'Graveyard zone saved — the camera ignores cards there' : 'Graveyard zone cleared') : 'The graveyard zone could not be saved', ok ? 'ok' : 'err');
+}
+function visaPbGrav() {
+  const b = $('#pbGrav'); if (!b) return;
+  b.textContent = pbGravRitar ? 'Drag a box over the pile…' : kamGravRad ? 'Clear the graveyard zone' : 'Mark the graveyard';
+  b.classList.toggle('on', pbGravRitar);
+}
+$('#pbGrav') && ($('#pbGrav').onclick = () => {
+  if (pbGravRitar) { pbGravRitar = false; pbGravUtkast = null; visaPbGrav(); ritaPbLager(); return; }
+  if (kamGravRad) { sparaGravZon(null); return; }
+  pbGravRitar = true; visaPbGrav();
+});
+$('#pbBild') && $('#pbBild').addEventListener('pointerdown', ev => {
+  if (!pbGravRitar) return;
+  const a = pbBildTillAndel(ev); if (!a) return;
+  ev.preventDefault(); pbGravStart = a; pbGravUtkast = { x: a.x, y: a.y, w: 0, h: 0 };
+  try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+});
+$('#pbBild') && $('#pbBild').addEventListener('pointermove', ev => {
+  if (!pbGravRitar || !pbGravStart) return;
+  const a = pbBildTillAndel(ev); if (!a) return;
+  pbGravUtkast = { x: Math.min(a.x, pbGravStart.x), y: Math.min(a.y, pbGravStart.y), w: Math.abs(a.x - pbGravStart.x), h: Math.abs(a.y - pbGravStart.y) };
+  ritaPbLager();
+});
+$('#pbBild') && $('#pbBild').addEventListener('pointerup', ev => {
+  if (!pbGravRitar || !pbGravStart) return;
+  const r = pbGravUtkast; pbGravRitar = false; pbGravStart = null; pbGravUtkast = null;
+  sparaGravZon(r && r.w > 0.01 && r.h > 0.01 ? { x: +r.x.toFixed(3), y: +r.y.toFixed(3), w: +r.w.toFixed(3), h: +r.h.toFixed(3) } : null);
+});
 /* Vrid/spegla kameravyn (lägespanelen): raden får orienteringen, mattan
    lägger om alla kamerabundna kort direkt. */
 async function sparaKamOrientering() {
@@ -17562,7 +17638,7 @@ async function sparaKamOrientering() {
   renderGrid(true);
   if (!spelLage) return;
   const id = spelLage.id;
-  await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel }, null, kamBildW || 0, kamBildH || 0);
+  await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
 }
 /* En telefon med äldre kod väntar på en ruta ('ingen') eller beskär efter en
    gammal, och datorn ritar då spåren på fel ställe. Raden skrivs om till hela
@@ -17583,7 +17659,7 @@ async function normaliseraKamRad(forsok) {
   /* Gick skrivningen inte fram står en telefon med äldre kod kvar i 'ingen'
      hela kvällen: ingen annan skriver raden. Några försök till, sedan får
      chippet och tomrutan säga åt en att ladda om telefonen. */
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
   if (!ok && (forsok || 0) < 3 && kamAnsluten && spelLage && spelLage.id === id)
     setTimeout(() => normaliseraKamRad((forsok || 0) + 1), 5000);
 }
@@ -17616,7 +17692,7 @@ function kamStegSynk() {
     /* Läget och grundläget läses ur spelets rad varje gång: de kan ha ändrats
        från en annan dator sedan telefonen anslöt. Telefonens eget besked
        (kamGrund) vinner i visningen så snart det finns. */
-    visaKamGrund();
+    visaKamGrund(); visaPbGrav();
     if (spelLage) { const id = spelLage.id; Moln.hamtaKalibrering(id)
       .then(k => { if (!spelLage || spelLage.id !== id) return; const r = k && k.ruta;
                    kamUpp = r && r.upp === 'h' ? 'h' : 'v'; kamGrundRad = r && typeof r.grund === 'number' ? r.grund : null; lasKamOri(r); visaKamGrund(); }).catch(() => {}); }
@@ -17973,7 +18049,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man

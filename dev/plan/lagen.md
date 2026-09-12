@@ -415,7 +415,7 @@ som helst.
 ### K6 — antalsprior på telefonen (S) — BYGGD (MES-76; helbilden döms i `tillampaHelbild` för nya spår, inte i `kamAiPoster`)
 `kamLekAntal` (top-level `let` före 14714, rensas vid poolfel 14692) fylls i `byggKamPool` ur `lek.kort[].n` (main + sb); `lekPrior(cands, saker, antal, upptagna)` ren, i skivan bredvid `sammaPlats` 15176 (inga nya stubbar); `kamIdentifiera` 14799 degraderar till osäker `varfor:'fler än leken'`; **också** i `kamAiPoster` 14903 och helbildens poster (Claude-vägen läcker annars). `kor.html` sätter kartan per fall ur facit (`satLekAntal`), `lek.txt` får `2 Plains`/`2 Swamp` och 251 slutar strippa antal. avstamning L1–L3. Golden LIKA BRA (03/06 inom antal).
 
-### K9-lite — uteslutningsruta för graveyard (S/M)
+### K9-lite — uteslutningsruta för graveyard (S/M) — BYGGD (MES-77): inga spår föds i rutan (enklare än `zon:'grav'`-spår — inget att filtrera nedströms); bänken GY1/GY2
 Rita rektangel på `#pbLager` 16403 (delas med bildens renderade rekt, inte `kamBildW/H`); `kamGravRad` bredvid `kamGrundRad` 5392; `grav` i ALLA `sparaKalibrering`-anrop (16533, 16556, ny `sparaGravZon`), läses 16592/16551, nollas 16938; telefon `tillampaKalRad` 14961 → `Kamera.satGrav`; `satKalibrering` 13446 bär `grav` från raden; `fodSpar` ger spår med mitt i rutan `zon:'grav'` (ingen identifiering, inte i `riktiga`, inte i helbildens signatur, ej i `friYta` så högen blir del av mattmodellen); rapportens spår får valfri `zon`; filtret 15621 `&& t.zon !== 'grav'`; `kor.html` 665/790, `dubbletter.cjs sammaNamn` 337; `forberedFall` 413 anropar `satGrav(facit.grav||null)`; bänk G2/G4. Lägespanelens text byts när rutan finns.
 
 ### MES-43 — dubbletter på telefonen (M, pågående)

@@ -311,6 +311,17 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
   check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
 
+  // ── GY1/GY2: graveyard-rutan (K9-lite) — inga spår föds i rutan, utanför som vanligt ──
+  nystart(); await referens();
+  Kamera.satGrav({ x: 0.1, y: 0.1, w: 0.35, h: 0.8 });   // KORT (60..90, 50..92) ligger i rutan
+  for (let i = 0; i < 8; i++) s = await ruta(KORT);
+  check(`GY1 kort i graveyard-rutan: ${s.length} spår (0)`, s.length === 0);
+  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 150, 50, 30, 42, 180));   // utanför rutan
+  check(`GY2 kort utanför rutan: ${s.length} spår, klart ${s[0] && s[0].st}`, s.length === 1 && s[0].st === 'klar');
+  Kamera.satGrav(null);
+  for (let i = 0; i < 8; i++) s = await ruta(g => { KORT(g); kort(g, W, 150, 50, 30, 42, 180); });
+  check(`GY2 rutan borta: ${s.length} spår (2)`, s.length === 2);
+
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
