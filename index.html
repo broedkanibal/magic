@@ -393,6 +393,17 @@ body.tomhand .kolmark{display:none}
    väntar den på hover-pillen (M6). */
 .card:hover,.card.sel{box-shadow:0 14px 26px -8px #000e}
 .card.held{transition:none;box-shadow:0 26px 40px -12px #000f;cursor:grabbing}
+/* Målhögen under ett drag: accentram med tonad insida. Efter hover-ringen i
+   ordningen, så att den vinner när pekaren står över målet. */
+.card.joinmal::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;pointer-events:none;
+  border:2.5px solid var(--acc);box-shadow:inset 0 0 0 5px #f0a52a2e;
+}
+.matchip{
+  position:absolute;z-index:950;transform:translate(-50%,-100%);pointer-events:none;
+  padding:4px 9px;border-radius:11px;background:#241a0efa;border:1px solid #f0a52a;
+  color:#ffd98a;font:600 10.5px/1.3 var(--sans);white-space:nowrap;box-shadow:0 6px 16px -4px #000e;
+}
 /* Släppt kort sätter sig; nytt kort landar. */
 @keyframes cSettle{0%{transform:scale(1.06)}60%{transform:scale(.985)}100%{transform:scale(1)}}
 @keyframes cSettleTapp{0%{transform:rotate(90deg) scale(1.06)}60%{transform:rotate(90deg) scale(.985)}100%{transform:rotate(90deg) scale(1)}}
@@ -5644,6 +5655,9 @@ function renderGrid(force) {
   const p = player(), cards = hand();
   /* Bara det egna bordet får skrivas: en teammates kort är en kopia. */
   if (losBifogade(cards) && arMitt(p)) save();
+  /* Manahögarna: en hög med ett kort upphör att vara en hög, och en hög vars
+     kort flyttats räknas om från basen. Bara mitt eget bord får skrivas. */
+  if (arMitt(p) && raknaOmHogar(cards)) save();
   const platser = autoPlatserNu();
   let v = matVy(p);
   /* Kort utan plats får en: gamla bord, kort ur sök/lista/kamera. Sparas
@@ -7125,7 +7139,33 @@ addEventListener('pointermove', ev => {
     const txt = manaRow.querySelector('.gravtxt');
     if (txt) txt.textContent = over ? 'Let go — ' + namnAv(c) + ' lands on top' : txt.dataset.txt || txt.textContent;
   }
+  /* Ett land över en annan hög: målhögen lyser och kortet bär chippet
+     "Let go — the mana stacks here". Träffen avgörs på arean som
+     överlappar (findJoin), inte på avstånd. */
+  const mal = (!over && matSlag(c) === 'land') ? findJoin(hand(), c.cid) : null;
+  if (mal !== dnd.mal) {
+    dnd.mal = mal;
+    const malKort = mal ? hand().find(k => k.cid === mal) : null;
+    const grp = malKort && malKort.grp;
+    for (const el of gridEl.querySelectorAll('.card.joinmal')) el.classList.remove('joinmal');
+    if (malKort) for (const k of hand()) if (k.cid === mal || (grp && k.grp === grp)) {
+      const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(k.cid)}"]`); if (el) el.classList.add('joinmal');
+    }
+    matChip(mal ? c : null, 'Let go — the mana stacks here');
+  }
+  if (mal) matChip(c, 'Let go — the mana stacks here');
 });
+/* Chippet ovanför ett kort under drag. Ett enda element i brädlagret,
+   flyttas med kortet, tas bort när draget släpps. */
+function matChip(c, text) {
+  let el = gridEl.querySelector('.matchip');
+  if (!c) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('span'); el.className = 'matchip'; gridEl.appendChild(el); }
+  const s = matStorlek(c);
+  el.textContent = text;
+  el.style.left = Math.round((c.x || 0) + s.w / 2) + 'px';
+  el.style.top = Math.round((c.y || 0) - 10) + 'px';
+}
 function matDndSlut(ev, avbryt) {
   if (!dnd) return;
   const d = dnd; dnd = null;
@@ -7133,6 +7173,8 @@ function matDndSlut(ev, avbryt) {
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
   const hog = manaRow.querySelector('.grav'); if (hog) hog.classList.remove('over');
+  matChip(null);
+  for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
   const h = hand(), i = h.findIndex(k => k.cid === d.cid), c = h[i];
   if (!c) { renderGrid(true); fjarrIkapp(); return; }
   if (!d.drar) { tappa(i); return; }         // ett klick: tappa/untappa
@@ -7150,6 +7192,9 @@ function matDndSlut(ev, avbryt) {
   }
   const v = matVy(), k = clampKort(c, v.board, gravRuta(v));
   c.x = k.x; c.y = k.y;
+  /* Ett land som släpps på en hög läggs sist i den; ett som dras ut ur sin
+     hög lossnar, och högen räknas om från sitt basläge. */
+  if (matSlag(c) === 'land') restack(h, c.cid, () => 'g' + uid());
   if (el) { el.classList.add('settle'); setTimeout(() => el.classList.remove('settle'), 340); }
   save(); renderGrid(true); fjarrIkapp();
 }
