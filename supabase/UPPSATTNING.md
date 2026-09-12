@@ -134,8 +134,19 @@ på en felsida efter Google-rutan.
    > — i `camera_setups` ligger bara kamerans läge (stående/liggande). Tabellen `scans`
    > används enbart för de kort som faktiskt spelas ut.
 
-Filen går att köra om utan att något går sönder, så om du behöver ändra
+5. Gör om samma sak med `supabase/lekar.sql` — den lägger till tabellen
+   `decks` (flera namngivna lekar per konto), kolumnerna `lek_id`,
+   `lek_info` och `lage` på `game_players` (vald lek och spelläge per
+   spelare och spel) och flyttar kontots gamla lek till en lek som heter
+   **My deck**. Går att köra om.
+
+Filerna går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.
+
+> **Databasen är källan.** Ändringar sedan 2026-09-12 (`lekar.sql`,
+> `lagen.sql`) appliceras av Claude direkt i projektet via Supabase-MCP;
+> filerna i `supabase/` förs för protokollet och för att kunna sätta upp
+> ett nytt projekt från noll. Kör man dem igen händer ingenting nytt.
 
 > **Har du kört `schema.sql` förut? Kör den igen.** Den senaste versionen
 > lägger till tabellen `lekar` — en rad per spelare, med den lek kameran

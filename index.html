@@ -4724,10 +4724,82 @@ const Moln = (() => {
     return true;
   }
 
-  /* Leken bor i game_players — den hör till spelaren i det här spelet. */
-  /* Leken hör till kontot. En rad per spelare i lekar, inte en kolumn per
-     spel: telefonen som fotograferar och datorn som spelar är två enheter,
-     och det enda som binder dem är inloggningen. */
+  /* ── Flera lekar (dev/plan/lagen.md, D5-1) ─────────────────────────
+     En rad per lek i decks: {id, namn, kort:[{name,sid,small,n,ci,sb}],
+     farger, antal, uppdaterad}. Listan hämtas utan kortlistan (lätt);
+     raden med korten när den behövs. uppdaterad skrivs uttryckligen vid
+     varje spar och bär överskrivningsskyddet: sparaLek skriver bara om
+     raden inte ändrats sedan `sedd` (ms) — annars {konflikt: true, rad}
+     med det som ligger på servern, så att dialogen kan fråga. */
+  const lekTs = r => r && r.uppdaterad ? Date.parse(r.uppdaterad) : 0;
+  async function hamtaLekar() {
+    const s = await klient(); if (!s || !inloggad()) return [];
+    const { data, error } = await s.from('decks').select('id, namn, farger, antal, uppdaterad')
+      .eq('user_id', minId()).order('uppdaterad', { ascending: false });
+    if (error) throw new Error(error.message || 'Lekarna kunde inte hämtas');
+    return (data || []).map(r => Object.assign({ ts: lekTs(r) }, r));
+  }
+  async function hamtaLekRad(id) {
+    const s = await klient(); if (!s || !inloggad() || !id) return null;
+    const { data, error } = await s.from('decks').select('*').eq('id', id).maybeSingle();
+    if (error) throw new Error(error.message || 'Leken kunde inte hämtas');
+    return data ? Object.assign({ ts: lekTs(data) }, data) : null;
+  }
+  async function skapaLek(namn, kort, farger, antal) {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const nu = new Date().toISOString();
+    const { data, error } = await s.from('decks')
+      .insert({ user_id: minId(), namn: namn || 'My deck', kort: kort || [], farger: farger || [], antal: antal || 0, skapad: nu, uppdaterad: nu })
+      .select('*').single();
+    if (error) throw new Error(error.message || 'Leken kunde inte skapas');
+    return Object.assign({ ts: lekTs(data) }, data);
+  }
+  /* data: {kort, farger, antal, namn} (det som ska ändras). sedd: ts på den
+     version man utgick från; null = skriv oavsett. */
+  async function sparaLek(id, data, sedd) {
+    const s = await klient(); if (!s || !inloggad()) return { ok: false };
+    const nu = new Date().toISOString();
+    let q = s.from('decks').update(Object.assign({}, data, { uppdaterad: nu })).eq('id', id).eq('user_id', minId());
+    if (sedd) q = q.lte('uppdaterad', new Date(sedd).toISOString());
+    const { data: rader, error } = await q.select('*');
+    if (error) { console.warn('Leken kunde inte sparas', error.message); return { ok: false, fel: error.message }; }
+    if (rader && rader.length) return { ok: true, rad: Object.assign({ ts: lekTs(rader[0]) }, rader[0]) };
+    /* Ingen rad skrevs: någon annan enhet hann före (eller leken är borta). */
+    const rad = await hamtaLekRad(id).catch(() => null);
+    return rad ? { ok: false, konflikt: true, rad } : { ok: false, borta: true };
+  }
+  async function dopOmLek(id, namn) {
+    const r = await sparaLek(id, { namn }, null);
+    return !!r.ok;
+  }
+  /* Först nollas kopian på mina game_players-rader — FK:n nollar bara lek_id. */
+  async function raderaLek(id) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    await s.from('game_players').update({ lek_id: null, lek_info: null }).eq('user_id', minId()).eq('lek_id', id);
+    const { error } = await s.from('decks').delete().eq('id', id).eq('user_id', minId());
+    if (error) { console.warn('Leken kunde inte tas bort', error.message); return false; }
+    return true;
+  }
+  /* Vald lek i ett spel: id + kopian motståndarna ser ({id, namn, farger, antal}). */
+  async function valjLek(gameId, lekId, info) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('game_players')
+      .update({ lek_id: lekId || null, lek_info: lekId ? (info || null) : null })
+      .eq('game_id', gameId).eq('user_id', minId());
+    if (error) { console.warn('Lekvalet kunde inte sparas', error.message); return false; }
+    return true;
+  }
+  async function minLekIGame(gameId) {
+    const s = await klient(); if (!s || !inloggad() || !gameId) return null;
+    const { data, error } = await s.from('game_players').select('lek_id, lek_info')
+      .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+    if (error) throw new Error(error.message || 'Lekvalet kunde inte hämtas');
+    return data && data.lek_id ? { id: data.lek_id, info: data.lek_info || null } : null;
+  }
+
+  /* LEGACY: en lek per konto (lekar). Läses tills dialogen (D5-2) och
+     telefonen (D5-4) gått över till decks; migreringen i lekar.sql har
+     redan flyttat innehållet till "My deck". Skrivs inte mer efter D5-2. */
   async function sparaMinLek(lek) {
     const s = await klient(); if (!s || !inloggad()) return false;
     const { error } = await s.from('lekar')
@@ -4930,6 +5002,7 @@ const Moln = (() => {
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage,
            avslutaSpel, lyssna, lamnaKanal, sandKam, sparaMinLek, hamtaMinLek, hamtaLek,
+           hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
            scanKlar, radeaScan, vantandeScans };
 })();
