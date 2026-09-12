@@ -24,3 +24,13 @@ När en ändring är beställd:
    (`--ai --spara`) först när ändringen ska behållas.
 
 Hur golden setet och AI-evalen körs: `dev/golden/SNABBGUIDE.md`.
+
+## Linear: skriv som "Claude AI agent", inte som Jesper
+
+Skapar, ändrar eller tar bort du (Claude Code) en Linear-issue, eller lägger
+en kommentar, på eget initiativ — inte för att Jesper bad om just den
+skrivningen i chatten — använd `dev/linear-agent/klient.cjs` i stället för
+den vanliga Linear-MCP-kopplingen. MCP-kopplingen autentiserar som Jespers
+eget konto, så allt den skriver syns som honom. Se
+`dev/linear-agent/SNABBGUIDE.md`. Kräver att `node
+dev/linear-agent/installera.cjs` körts en gång (görs av Jesper).
