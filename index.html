@@ -4768,7 +4768,15 @@ function normalizeCard(c) {
   return {
     id: c.id, name: c.name, cmc: c.cmc, ci: c.color_identity || [],
     set: c.set, setName: c.set_name, cn: c.collector_number, rarity: c.rarity,
-    layout: c.layout, uri: c.scryfall_uri, faces
+    layout: c.layout, uri: c.scryfall_uri, faces,
+    /* Nyckelorden (Flying, Deathtouch …) står som ord på mattans kort, och
+       tokens kortet skapar (all_parts) är underlaget för "Create token".
+       Poster i cachen från före de här fälten saknar dem — läs alltid med
+       (c.kw || []); cachen byts till v2 när orden faktiskt ritas (M6). */
+    kw: Array.isArray(c.keywords) ? c.keywords : [],
+    parts: Array.isArray(c.all_parts)
+      ? c.all_parts.filter(p => p.component === 'token').map(p => ({ id: p.id, name: p.name, type: p.type_line || '' }))
+      : []
   };
 }
 
@@ -5329,10 +5337,21 @@ if (!state || !Array.isArray(state.players) || !state.players.length) {
 /* Lagar en spelare som kommer utifrån — ur localStorage vid start, eller ur
    en rad från servern. Var sin egen loop tidigare; den behövde brytas ut när
    spelare började komma in en och en över realtid. */
+/* Lagar ett kort som kommer utifrån: ett id, och mattans fält (dev/plan/
+   lagen.md §2). cts är counters som en lista {p,t}; z är staplingsordningen
+   (arrayindex när den saknas). x/y sätts INTE här — ett kort utan plats
+   placeras av mattan när den ritas första gången, så att gamla bord och
+   kort från sök/lista/kamera alla får sin plats samma väg. */
+function normaliseraKort(c, i) {
+  c.cid = c.cid || uid();
+  if (!Array.isArray(c.cts)) c.cts = [];
+  if (c.z == null || !isFinite(c.z)) c.z = i;
+  return c;
+}
 function normalisera(p, i) {
   p.color = p.color || PALETTE[i % PALETTE.length];
   p.cards = Array.isArray(p.cards) ? p.cards : [];
-  p.cards.forEach(c => { c.cid = c.cid || uid(); });
+  p.cards.forEach(normaliseraKort);
   p.shots = Array.isArray(p.shots) ? p.shots : [];
   p.pending = Array.isArray(p.pending) ? p.pending : [];
   p.shotIdx = p.shotIdx || 0;
@@ -5457,7 +5476,14 @@ function slimDelat(cards) {
     /* Nedtoningen följer med: utan den kom ett lyft kort tillbaka som ett
        vanligt efter en omladdning, fast det fortfarande låg utanför mattan.
        En tidsstämpel är ofarlig att dela — hos de andra visar den samma sak. */
-    lyft: c.lyft || undefined
+    lyft: c.lyft || undefined,
+    /* Mattan: var kortet ligger, i vilken ordning, i vilken hög, och dess
+       counters — det de andra behöver för att se samma bord. != null, inte
+       ||: x 0, z 0 och gi 0 (högens första kort) är riktiga värden. */
+    x: c.x != null ? c.x : undefined, y: c.y != null ? c.y : undefined,
+    z: c.z != null ? c.z : undefined,
+    grp: c.grp || undefined, gi: c.gi != null ? c.gi : undefined,
+    cts: c.cts && c.cts.length ? c.cts : undefined
   }));
 }
 function slimKort(cards) {
@@ -5466,7 +5492,15 @@ function slimKort(cards) {
     tapped: c.tapped ? 1 : 0, attachedTo: c.attachedTo || undefined,
     zon: c.zon || undefined, lyft: c.lyft || undefined,
     box: c.box || undefined, rot: c.rot || undefined, shotId: c.shotId || undefined,
-    cands: c.cands ? c.cands.slice(0, 8) : undefined
+    cands: c.cands ? c.cands.slice(0, 8) : undefined,
+    x: c.x != null ? c.x : undefined, y: c.y != null ? c.y : undefined,
+    z: c.z != null ? c.z : undefined,
+    grp: c.grp || undefined, gi: c.gi != null ? c.gi : undefined,
+    cts: c.cts && c.cts.length ? c.cts : undefined,
+    /* Bara lokalt: kamerans senast antagna läge för kortet (bildandelar) och
+       "ligger kvar fysiskt fast det lämnat mattan digitalt" (Screen leads).
+       De andra har inget att göra med dem. */
+    kam: c.kam || undefined, fysisk: c.fysisk ? 1 : undefined
   }));
 }
 function save() {
@@ -6365,6 +6399,202 @@ function gravHtml(cards, idx) {
   </button>`;
 }
 
+/* ═══ FRI MATTA — geometri (ren, ingen DOM) ═══════════════════════════
+   Måtten och formlerna ur design_handoff_fri_matta/README.md (Direction C
+   v3). Allt här tar viewporten {w,h} som argument och läser aldrig DOM, så
+   det går att prova från konsolen: layoutAll(player().cards, {w:1060,h:792}).
+   Kortets x/y är det OTAPPADE kortets övre vänstra hörn i brädkoordinater;
+   ett tappat kort är samma element roterat 90° kring sin mitt, och matRect
+   ger träffytan som den faktiskt ligger. Brädet är större än fönstret och
+   mattan (viewporten) är fönstret mot det: pan är förskjutningen i
+   skärmpixlar, z zoomen. */
+const MATTA = {
+  CW: 178, CH: 248,            // permanent, px i brädkoordinater
+  LW: 128, LH: 178,            // land
+  STACK: 74, XSTEP: 17,        // manahög: synlig kant nedåt, förskjutning i sidled
+  PER_STACK: 4,                // kort per hög innan nästa kolumn
+  JOIN_OV: 0.24,               // minsta andel av kortets yta som ska överlappa en hög
+  ZOOM_MAX: 1.8, ZOOM_MIN: 0.3,
+  KANT: 8, TOPP: 50,           // marginal mot brädkanten, och under mattans chrome
+  VP: { w: 1060, h: 792 }      // designens viewport — reserv när mattan inte har mått
+};
+function matSlag(e) { return zonAv(e) === ZON_MANA ? 'land' : 'perm'; }
+function matStorlek(e) { return matSlag(e) === 'land' ? { w: MATTA.LW, h: MATTA.LH } : { w: MATTA.CW, h: MATTA.CH }; }
+function matRect(e) {
+  const s = matStorlek(e), x = e.x || 0, y = e.y || 0;
+  if (!e.tapped) return { x, y, w: s.w, h: s.h };
+  const cx = x + s.w / 2, cy = y + s.h / 2;
+  return { x: cx - s.h / 2, y: cy - s.w / 2, w: s.h, h: s.w };
+}
+/* Ytan skalas efter hur mycket kortyta som ligger på den, med tre gångers
+   luft — och växer aldrig mindre än viewporten. */
+function boardFor(cards, vp) {
+  vp = vp || MATTA.VP;
+  const need = cards.reduce((a, c) => a + (matSlag(c) === 'land' ? MATTA.LW * MATTA.LH : MATTA.CW * MATTA.CH), 0) * 3;
+  const s = Math.max(1, Math.sqrt(need / (vp.w * vp.h)));
+  return { w: Math.round(vp.w * s), h: Math.round(vp.h * s) };
+}
+/* Det brädet minst måste rymma: allt som redan ligger där. Utan den här
+   klämdes korten inåt efter en omladdning — brädet räknades om mindre än det
+   var när de placerades. */
+function bboxBoard(cards, vp) {
+  vp = vp || MATTA.VP;
+  let w = vp.w, h = vp.h;
+  for (const c of cards) {
+    if (c.x == null || c.y == null) continue;
+    const r = matRect(c);
+    w = Math.max(w, Math.ceil(r.x + r.w + MATTA.KANT));
+    h = Math.max(h, Math.ceil(r.y + r.h + MATTA.KANT));
+  }
+  return { w, h };
+}
+/* Växer när kort kommer till men KRYMPER ALDRIG av sig själv — annars
+   hoppar hela bordet varje gång ett kort går till graveyarden. */
+function grown(cards, cur, vp) {
+  const b = boardFor(cards, vp), bb = bboxBoard(cards, vp);
+  return { w: Math.max(cur ? cur.w : 0, b.w, bb.w), h: Math.max(cur ? cur.h : 0, b.h, bb.h) };
+}
+function fitZoom(board, vp) { vp = vp || MATTA.VP; return Math.max(MATTA.ZOOM_MIN, Math.min(1, Math.min(vp.w / board.w, vp.h / board.h))); }
+function clampPan(pan, z, board, vp) {
+  vp = vp || MATTA.VP;
+  const minX = Math.min(0, vp.w - board.w * z), minY = Math.min(0, vp.h - board.h * z);
+  return { x: Math.max(minX, Math.min(0, pan.x)), y: Math.max(minY, Math.min(0, pan.y)) };
+}
+/* Kortet får inte hamna utanför brädet, och inte under graveyard-rutan
+   (gravRuta = {x0,x1,y0,y1} i brädkoordinater, räknad ur högens element av
+   den som ritar). Krockar det flyttas det åt det håll som är kortast: upp om
+   det är närmare, annars höger om rutan. Returnerar {x,y}. */
+function clampKort(e, board, gravRuta) {
+  const s = matStorlek(e);
+  let x = Math.max(MATTA.KANT, Math.min(board.w - s.w - MATTA.KANT, e.x || 0));
+  let y = Math.max(MATTA.TOPP, Math.min(board.h - s.h - MATTA.KANT, e.y || 0));
+  const g = gravRuta;
+  if (g && x < g.x1 && x + s.w > g.x0 && y + s.h > g.y0 && y < g.y1) {
+    const upp = (y + s.h) - g.y0, hoger = g.x1 - x;
+    if (upp < hoger && g.y0 - s.h - MATTA.KANT > MATTA.TOPP) y = g.y0 - s.h - MATTA.KANT;
+    else x = Math.min(board.w - s.w - MATTA.KANT, g.x1 + MATTA.KANT);
+  }
+  return { x, y };
+}
+/* Hur stor del av rm som täcks av ro. */
+function overlapAndel(rm, ro) {
+  const ix = Math.max(0, Math.min(rm.x + rm.w, ro.x + ro.w) - Math.max(rm.x, ro.x));
+  const iy = Math.max(0, Math.min(rm.y + rm.h, ro.y + ro.h) - Math.max(rm.y, ro.y));
+  return rm.w * rm.h ? ix * iy / (rm.w * rm.h) : 0;
+}
+const paMattanKort = c => c && zonAv(c) !== ZON_GRAV && c.lyft == null;
+/* Träff mot en befintlig hög avgörs på arean som överlappar, inte på avstånd.
+   Returnerar cid för kortet i målhögen, eller null. Bara land. */
+function findJoin(cards, cid) {
+  const me = cards.find(c => c.cid === cid);
+  if (!me || matSlag(me) !== 'land' || !paMattanKort(me)) return null;
+  const rm = matRect(me);
+  let best = null, bestOv = MATTA.JOIN_OV;
+  for (const o of cards) {
+    if (o.cid === cid || matSlag(o) !== 'land' || !paMattanKort(o) || o.attachedTo) continue;
+    const ov = overlapAndel(rm, matRect(o));
+    if (ov > bestOv) { bestOv = ov; best = o; }
+  }
+  return best ? best.cid : null;
+}
+/* Lägger kortet sist i högen det släpptes på (eller löser det ur sin gamla)
+   och räknar om varje hög från sitt basläge: x = bas.x + i·XSTEP,
+   y = bas.y + i·STACK, z = 200 + i. En hög med ett kort upphör att vara en
+   hög. Muterar korten; returnerar true om något ändrades. nyGrp() ger id
+   åt en ny hög. */
+function restack(cards, cid, nyGrp) {
+  const mine = cards.find(c => c.cid === cid);
+  if (!mine || matSlag(mine) !== 'land') return false;
+  const mal = findJoin(cards, cid);
+  if (!mal && !mine.grp) return false;
+  if (mal) {
+    const t = cards.find(c => c.cid === mal);
+    const g = t.grp || nyGrp();
+    if (t.gi == null) { t.grp = g; t.gi = 0; }
+    mine.grp = g;
+    mine.gi = cards.reduce((a, c) => c.grp === g && c.cid !== cid ? Math.max(a, c.gi || 0) : a, 0) + 1;
+  } else { mine.grp = null; mine.gi = null; }
+  return raknaOmHogar(cards) || true;
+}
+/* Räknar om alla högar från basläget och löser högar med färre än två kort
+   på mattan. Returnerar true om något ändrades. */
+function raknaOmHogar(cards) {
+  let andrat = false;
+  const grupper = {};
+  for (const c of cards) if (c.grp) (grupper[c.grp] = grupper[c.grp] || []).push(c);
+  for (const k of Object.keys(grupper)) {
+    const list = grupper[k].filter(paMattanKort).sort((a, b) => (a.gi || 0) - (b.gi || 0));
+    if (list.length < 2) { for (const c of grupper[k]) { if (c.grp != null) andrat = true; c.grp = null; c.gi = null; } continue; }
+    const bas = list[0];
+    list.forEach((c, i) => {
+      const x = bas.x + i * MATTA.XSTEP, y = bas.y + i * MATTA.STACK, z = 200 + i;
+      if (c.gi !== i || c.x !== x || c.y !== y || c.z !== z) andrat = true;
+      c.gi = i; c.x = x; c.y = y; c.z = z;
+    });
+  }
+  return andrat;
+}
+const losStackar = raknaOmHogar;
+/* Nästa lediga plats bredvid de andra av samma slag: till höger om det
+   högraste, ny rad när det inte får plats. Returnerar {x,y}. */
+function slotBeside(cards, slag, board) {
+  const s = slag === 'land' ? { w: MATTA.LW, h: MATTA.LH } : { w: MATTA.CW, h: MATTA.CH };
+  const rad = cards.filter(c => paMattanKort(c) && matSlag(c) === slag && c.x != null && c.y != null);
+  if (!rad.length) return { x: slag === 'land' ? 300 : 44, y: slag === 'land' ? Math.round(82 + (board.h - 172) * 0.6) : 82 };
+  const sist = rad.reduce((a, b) => (b.x > a.x ? b : a), rad[0]);
+  let x = sist.x + s.w + 18, y = sist.y;
+  if (x + s.w + MATTA.KANT > board.w) { x = 44; y = sist.y + s.h + 16; }
+  return { x, y };
+}
+/* Solfjädrar ut allt i rader: permanents överst, landen under (i högar om de
+   är fler än åtta, eller alltid när bara landen läggs om). Rör inte tap-läget
+   — mockupens tidy avtappade manan, och det är kamerans eller spelarens sak.
+   Returnerar kopior med x/y/grp/gi/z satta; den som anropar skriver tillbaka.
+   gravRuta (brädkoordinater) håller landraden ur vägen för högen. */
+function layoutAll(cards, vp, landsOnly, gravRuta) {
+  vp = vp || MATTA.VP;
+  const board = boardFor(cards, vp);
+  const rows = (list, w, h, x0, y0, hAvail) => {
+    const n = list.length; if (!n) return [];
+    const room = Math.max(w, board.w - x0 - 24 - w);
+    const maxRows = Math.max(1, Math.floor(hAvail / (h + 16)));
+    let r = 1;
+    while (r < maxRows && room / Math.max(1, Math.ceil(n / r) - 1) < w * 0.9) r++;
+    const per = Math.ceil(n / r);
+    const step = Math.min(w + 24, room / Math.max(1, per - 1));
+    return list.map((c, i) => Object.assign({}, c, { grp: null, gi: null,
+      x: Math.round(x0 + (i % per) * step), y: y0 + Math.floor(i / per) * (h + 16) }));
+  };
+  const paMattan = cards.filter(paMattanKort).filter(c => !c.attachedTo);
+  const lands = paMattan.filter(c => matSlag(c) === 'land');
+  const permList = paMattan.filter(c => matSlag(c) === 'perm');
+  const stacking = lands.length > 8 || (landsOnly && lands.length > 2);
+  const perRows = stacking ? Math.min(MATTA.PER_STACK, lands.length) : 1;
+  const blockH = stacking ? (perRows - 1) * MATTA.STACK + MATTA.LH : MATTA.LH;
+  const perms = landsOnly ? [] : rows(permList, MATTA.CW, MATTA.CH, 44, 82, Math.max(MATTA.CH + 16, board.h - 150 - blockH - 82));
+  const permBottom = perms.length ? Math.max.apply(null, perms.map(c => c.y + MATTA.CH)) : 82;
+  const lY = Math.max(82, Math.min(board.h - 40 - blockH, (permList.length && !landsOnly ? permBottom + 42 : 82)));
+  const lX = gravRuta && lY + blockH > gravRuta.y0 ? Math.round(gravRuta.x1 + 14) : 44;
+  let laid;
+  if (stacking) {
+    const cols = [];
+    for (let i = 0; i < lands.length; i += MATTA.PER_STACK) cols.push(lands.slice(i, i + MATTA.PER_STACK));
+    const wide = MATTA.LW + (Math.min(MATTA.PER_STACK, lands.length) - 1) * MATTA.XSTEP;
+    const step = Math.min(wide + 40, (board.w - lX - 24 - wide) / Math.max(1, cols.length - 1));
+    laid = [];
+    cols.forEach((col, ci) => col.forEach((c, i) => laid.push(Object.assign({}, c, {
+      grp: col.length > 1 ? 'L' + ci : null, gi: col.length > 1 ? i : null,
+      x: Math.round(lX + ci * step + i * MATTA.XSTEP), y: lY + i * MATTA.STACK, z: 200 + ci * 10 + i }))));
+  } else {
+    laid = rows(lands, MATTA.LW, MATTA.LH, lX, lY, board.h - 40 - lY);
+  }
+  const by = {}; perms.concat(laid).forEach(c => { by[c.cid] = c; });
+  return cards.map(c => by[c.cid] || c);
+}
+const ctLabel = k => (k.p >= 0 ? '+' + k.p : k.p) + '/' + (k.t >= 0 ? '+' + k.t : k.t);
+const ctSum = cts => (cts || []).reduce((a, k) => ({ p: a.p + (k.p || 0), t: a.t + (k.t || 0) }), { p: 0, t: 0 });
+/* ═══ SLUT geometri ═══════════════════════════════════════════════════ */
+
 function renderSel() {
   const n = hand().length;
   state.sel = n ? clamp(state.sel, 0, n - 1) : 0;
@@ -6838,7 +7068,7 @@ function addCards(items, opts) {
     const o = typeof raw === 'string' ? { name: raw } : (raw || {});
     const nm = String(o.name || '').trim();
     if (!nm) continue;
-    const entry = { cid: uid(), name: nm, flipped: 0 };
+    const entry = normaliseraKort({ cid: uid(), name: nm, flipped: 0 }, p.cards.length);
     if (o.sid) entry.sid = o.sid;
     p.cards.push(entry);
     added.push(entry);
@@ -16843,7 +17073,7 @@ function fjarrBord(rad) {
   if (rad.version != null && p.version != null && rad.version <= p.version) return;  // äldre än det vi har
   p.version = rad.version;
   p.cards = Array.isArray(rad.kort) ? rad.kort : [];
-  p.cards.forEach(c => { c.cid = c.cid || uid(); });
+  p.cards.forEach(normaliseraKort);
   medFjarr(() => renderAll(true));
   /* Korten kom som namn, inte som bilder. Utan uppslagningen här står de kvar
      som namnlappar tills något annat råkar utlösa den — vilket för den som
@@ -16871,7 +17101,7 @@ function fjarrSpelare(lista) {
     const mitt = spelLage && p.user_id === spelLage.mig;
     const nyare = !mitt && (!g || (p.version || 0) > (g.version || 0));
     const kort = nyare ? (p.cards || []) : g.cards;
-    if (nyare) kort.forEach(c => { c.cid = c.cid || uid(); });
+    if (nyare) kort.forEach(normaliseraKort);
     /* Mitt eget namn kan ligga i ett byte som ännu inte hunnit fram. Läses
        serverns rad rakt av rullas inmatningen tillbaka mitt under fingrarna
        på den som skriver. */
