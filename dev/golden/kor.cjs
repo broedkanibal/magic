@@ -150,8 +150,8 @@ function skrivTabell(rs, gamla) {
     { const sidan = rader.find(x => x.includes(r.id)); if (sidan) console.log('  sidans rad: ' + sidan.replace(/^Kör\s+/, '')); }
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
-    if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
-      + ((r.lagesLista || []).length ? ' — ' + r.lagesLista.map(x => `spår ${x.nr != null ? '#' + x.nr : x.id} @${x.s} s flyttade ${x.flytt} kortbredder`).join(', ') : ''));
+    if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
+      + ((r.lagesLista || []).length ? ' — ' + r.lagesLista.map(x => `spår ${x.nr != null ? '#' + x.nr + ' (id ' + x.id + ')' : 'id ' + x.id} @${x.s} s flyttade ${x.flytt} kortbredder`).join(', ') : ''));
     /* Videofallet: förloppet i videons sekunder — vad facit säger, när
        kameran namngav kortet, och varje spår från födsel till död. Det är
        här man ser ett kort som kom fram sent, ett som aldrig blev säkert,
@@ -181,6 +181,8 @@ function skrivTabell(rs, gamla) {
       for (const l of r.skarLogg || []) { const s = `skurna ${l.skurna}${l.prov.length ? ' — ' + l.prov.join('; ') : ''}`; if (s !== forra) { forra = s; console.log(`    ruta ${l.ruta}: ${s}`); } }
       for (const p of r.tidslinje || []) console.log(`    ${p.s} s${p.ruta != null ? ' (ruta ' + p.ruta + ')' : ''} [${p.lage}]: ${p.spar || '–'}`);
     }
+    /* MES-83: varje födsel med närmaste lediga spår (avstånd mot gränsen, areakvot, ms utan region, täckning) och närmaste spår som redan hade en region. */
+    for (const b of r.fodslar || []) console.log(`    född ${b.s} s @${b.cx},${b.cy} lång ${b.lang} (gräns ${b.grans}): ledigt ${b.narm ? `#${b.narm.id} ${b.narm.d} px, area ×${b.narm.area}, ${b.narm.sen} ms utan region, ${b.narm.st}${b.narm.namn ? ' ' + b.narm.namn : ''}, täckning ${b.narm.tackning}` : '–'}; upptaget ${b.upptaget ? `#${b.upptaget.id} ${b.upptaget.d} px` : '–'}`);
     for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
     for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.varfor ? ' [' + t.varfor + ']' : ''}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + (t.ocr.start != null ? ' @' + Math.round(t.ocr.start * 100) + '%' + (t.ocr.vand ? ' vänd' : '') : '') + ', ' + t.ocr.ms + ' ms]') : ''}`);
   }

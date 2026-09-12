@@ -14339,7 +14339,22 @@ const Kamera = (() => {
          en flisa är alltid större än flisan, men inte alltid 1,6 gånger
          (granskningen: 560 mot 316 var på gränsen). */
       const vaxt = bast && bast.tillstand === 'skrap' ? 1.3 : T.areaVaxt;
-      if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt) {
+      /* Ett spår som krympt till en DEL av sig (snittet ovan: f.area <
+         0,6 × areaRef) minns hela lådan i fem sekunder (helBox). Kommer en
+         region som fyller den lådan igen — täcker den till hälften och har
+         ungefär dess yta — är det kortet som kom tillbaka helt, inte ett
+         nytt kort bredvid: spåret tar regionen, hur långt från delens mitt
+         den än ligger. Uppmätt i golden 07 (MES-83): Swamp-spåret krympte
+         till en halva när Plains ovanpå plockades bort (31,8 s), och hela
+         kortet föddes 33,75 s som ett nytt spår 75 px bort (gränsen 73) —
+         två spår över ett kort, som Claude gav samma säkra namn. */
+      let helt = false;
+      if (!(bast && bd < grans) || (bast.helBox && f.area > vaxt * bast.areaRef)) {
+        const h = [...kvar].find(t => !anv.has(t) && t.helBox && nu - t.helBox.nar < 5000 && ladTackning(t.helBox.box, f.box) >= 0.5
+                                      && f.area > 0.6 * t.helBox.areaRef && f.area < T.areaVaxt * t.helBox.areaRef);
+        if (h) { bast = h; bd = 0; helt = true; }
+      }
+      if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt && !helt) {
         if (bast.tillstand !== 'skrap') continue;
         /* Skräp under något mycket större: ett kort har lagts ovanpå. Skräpet
            får inte hålla platsen — spåret tas bort, utan spöke. */
@@ -14347,6 +14362,8 @@ const Kamera = (() => {
       }
       if (bast && bd < grans) {
         anv.add(bast); kvar.delete(bast);
+        if (helt) { bast.areaRef = bast.helBox.areaRef; delete bast.helBox; }   // hela kortet igen: måttet från före snittet
+        else if (bast.helBox && nu - bast.helBox.nar >= 5000) delete bast.helBox;
         const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
         /* En träff som är mycket MINDRE än spåret är en del av det: två kort
            kant i kant som skars isär (detektera, skar). Spåret tar delen
@@ -14356,7 +14373,7 @@ const Kamera = (() => {
            är säkert namngivet. Uppmätt i golden 06: Maul + Pacifism som
            en region, skuren till 71×53 och 71×49, och spåret behöll
            0,19×0,23 av bilden med namnet det gissat på klumpen. */
-        if (f.area < 0.6 * bast.areaRef) { bast.areaRef = f.area; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
+        if (f.area < 0.6 * bast.areaRef) { bast.helBox = { box: bast.box, areaRef: bast.areaRef, nar: nu }; bast.areaRef = f.area; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
         bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         /* sedd sätter helbilden också; regionNar bara här och i fodSpar, där
@@ -14393,6 +14410,13 @@ const Kamera = (() => {
           else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= 2) { bast.tappad = t2; bast.tappRun = 0; }
         }
       } else if (fodNya) {
+        /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
+           dess avstånd mot gränsen, och närmaste spår som redan tagit en
+           region i rutan. Bara de senaste 40; golden-provet skriver dem. */
+        let narm = null, upptaget = null;
+        for (const t of spar) { const d = Math.hypot(t.cx - f.cx, t.cy - f.cy); if (anv.has(t)) { if (!upptaget || d < upptaget.d) upptaget = { id: t.id, d: Math.round(d) }; } else if (!narm || d < narm.d) narm = { id: t.id, d: Math.round(d), area: +(f.area / Math.max(1, t.areaRef)).toFixed(2), sen: Math.round(nu - (t.regionNar || 0)), st: t.tillstand, namn: t.namn || null, tackning: +ladTackning(t.box, f.box).toFixed(2) }; }
+        (dia.fodslar || (dia.fodslar = [])).push({ s: +(nu / 1000).toFixed(2), cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), grans: Math.round(grans), narm, upptaget });
+        if (dia.fodslar.length > 40) dia.fodslar.shift();
         spar.push(fodSpar(f, nu, upp));
       }
     }

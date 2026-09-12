@@ -476,8 +476,16 @@ function aterkoppling(f, prov) {
         if (t.w == null || t.h == null || (t.tillstand !== 'stilla' && t.tillstand !== 'klar') || (t.ai && t.ai.helbild)) continue;
         const { aw, ah } = K.analysMatt, cx = t.x + t.w / 2, cy = (t.y + t.h / 2) * ah / aw;
         const l = prov.lagesSist.get(t.id), flytt = l ? Math.hypot(cx - l.cx, cy - l.cy) : Infinity;
-        if (l && flytt > AUTO_FLYTT * t.w) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2) }); }
-        if (!l || flytt > AUTO_FLYTT * t.w) prov.lagesSist.set(t.id, { cx, cy });
+        /* Ett spår vars låda samtidigt bytte storlek (mer än en fjärdedel av
+           ytan) flyttade inte: det var en klump som skars i sina kort, eller
+           en del som blev hela kortet igen (MES-84, uppmätt i 03 och 06 —
+           en klump av tre kort blev Flutterfox 0,61 kortbredder från
+           klumpens mitt). Datorn får ett kort på klumpens mitt en gång,
+           inte en darrande position. Storleksbytet räknas för sig. */
+        const area = t.w * t.h, snitt = l && l.area && (area < 0.75 * l.area || area > 1.33 * l.area);
+        if (l && flytt > AUTO_FLYTT * t.w && !snitt) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2) }); }
+        if (l && snitt) prov.lagesSnitt = (prov.lagesSnitt || 0) + 1;
+        if (!l || flytt > AUTO_FLYTT * t.w || snitt) prov.lagesSist.set(t.id, { cx, cy, area });
       }
       /* Bordet datorn fick, med videons tid: ett kort som kom och gick syns
          bara här. HELA posten per spår, som rapportera() skickar den — med
@@ -558,6 +566,7 @@ function avsluta(f, prov, tid, tak, takS) {
   res.takS = takS;
   /* K5/MODE-5: lägesuppdateringarna, och per minut av fallets tid (videofallet räknar om till videons tid efteråt). */
   res.lagesUpp = prov.lagesUpp;
+  res.lagesSnitt = prov.lagesSnitt || 0;   // lådor som bytte storlek på plats (klumpar som skars, delar som blev hela)
   for (const x of prov.lagesLista) { const i = K.spar.findIndex(t => t.id === x.id); x.nr = i >= 0 ? i + 1 : null; }
   res.lagesLista = prov.lagesLista;
   res.lagesPerMin = +(prov.lagesUpp / Math.max(1, tid) * 60000).toFixed(1);
@@ -804,6 +813,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     /* Delningen (MES-28 Del 2): erosionens delade, skärlinjernas skurna, kortreferensen och de prövade snitten i sista rutan. */
     delade: dia.delade, skurna: dia.skurna, kortRef: dia.kortRef || null, skarProv: dia.skarProv || [],
     skarLogg: dia.skarLogg || [],
+    fodslar: dia.fodslar || [],   // varför varje spår föddes (MES-83)
     traffar: traffar.map(p => ({ facit: p.k.namn, dold: !!p.k.dold, spar: p.t.id, namn: p.t.namn, saker: p.t.saker, iou: p.iou })),
     spar: alla
   };

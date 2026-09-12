@@ -204,6 +204,12 @@ mått i kolumnerna Läge och Plats, i `--detalj` (raden `läge:`) och i domen:
 |---|---|---|
 | `lagesUpp` / `lagesPerMin` | rapporter där ett stilla eller klart spår flyttat mer än 15 % av sin bredd sedan förra rapporten (första läget räknas inte); per minut av fallets tid (videons tid i ett videofall) | 0 på ett stilla bord (01–06, 08); i 07 bara verkliga flyttar |
 | `lageFel` | medianen av avståndet mellan spårets och facitrutans mitt, i kortbredder — bara där facit har rutor (01, 02, 08) | så litet som möjligt; ett spår som täcker halva kortet ger ≈ 0,25 |
+| `lagesSnitt` | lådor som bytte storlek på plats (mer än en fjärdedel av ytan): en klump som skars i sina kort, en del som blev hela kortet igen. Räknas inte som flytt (MES-84: i 03 och 06 var det enda "flyttarna") | – |
+
+`--detalj` skriver också raden `född …` för varje spår som föddes: var, hur
+långt från närmaste lediga spår (mot gränsen 0,6 × långsidan), areakvoten,
+hur länge det spåret stått utan region och hur mycket lådorna täcker
+varandra — det är där man ser varför ett kort blev två spår (MES-83).
 
 Viloläget från K5 (`vilaX/vilaY` med hysteres) är det som ska hålla
 `lagesUpp` på 0: darr på en gräns ger ingen rapport, en verklig glidning en.

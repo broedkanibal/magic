@@ -311,6 +311,22 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
   check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
 
+  // ── ST1/ST2: ett spår som krympt till en del tar hela kortet tillbaka (MES-83) ──
+  const langST = () => Kamera.spar[0] ? Math.round(Kamera.spar[0].lang) : null;
+  nystart(); await referens();
+  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 40, 56, 180));   // ett kort 40×56
+  const idST = s[0].id;
+  check(`ST1 kortet läses: ${s.length} spår, ${s[0] && s[0].st}, lång sida ${langST()} (56)`, s.length === 1 && s[0].st === 'klar' && langST() >= 52);
+  for (let i = 0; i < 6; i++) s = await ruta(g => kort(g, W, 60, 50, 40, 26, 180));   // bara övre halvan syns (ett snitt): spåret krymper till delen
+  check(`ST1 en del av kortet: ${s.length} spår, samma id ${s[0] && s[0].id === idST}, lång sida ${langST()} (40 eller 26)`, s.length === 1 && s[0].id === idST && langST() <= 42);
+  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 66, 56, 40, 56, 180));   // hela kortet igen, 6 px förskjutet: mitten 22 px från delens (gräns 0,6×56 = 34 — inom, men ytan 2,1× större hade avvisats)
+  check(`ST1 hela kortet igen: ${s.length} spår (1), samma id ${s[0] && s[0].id === idST}, namn ${s[0] && s[0].namn}, lång sida ${langST()} (56)`, s.length === 1 && s[0].id === idST && s[0].namn === 'Plains' && langST() >= 52);
+  nystart(); await referens();
+  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 40, 56, 180));
+  for (let i = 0; i < 6; i++) s = await ruta(g => kort(g, W, 60, 50, 40, 26, 180));
+  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 60, 50, 40, 26, 180) || kort(g, W, 130, 50, 40, 56, 180));   // delen kvar OCH ett nytt kort en bit bort
+  check(`ST2 ett nytt kort bredvid delen föds som eget spår: ${s.length} spår (2)`, s.length === 2);
+
   // ── GY1/GY2: graveyard-rutan (K9-lite) — inga spår föds i rutan, utanför som vanligt ──
   nystart(); await referens();
   Kamera.satGrav({ x: 0.1, y: 0.1, w: 0.35, h: 0.8 });   // KORT (60..90, 50..92) ligger i rutan
