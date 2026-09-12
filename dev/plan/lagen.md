@@ -364,11 +364,11 @@ dialog). Om tile-protokollet visar sig skört i test byter vi till det.
 - `lekAntal(namn)` utanför skivan (9181-området): summa `n` i vald leks `kort` (main + sb), `Infinity` utan lek eller okänt namn.
 - Verifiera: `dev/kolla.sh` oförändrat (stubbspelaren utan lage = bord); konsol `minSpelare().lage` → `'skarm'`; `await Moln.sattLage(spelLage.id,'bord')` → realtime → `'bord'`.
 
-### MODE-4 — kantstyrd tap-synk (S) — direkt efter MODE-1
-- `lagg()` 15665–15669: `const tap = t.tappad?1:0; if (tapSynk) { if (k.kamTap === undefined) { k.kamTap = tap; /* första bindningen: skrivs vid skapande */ } else if (tap !== k.kamTap) { k.kamTap = tap; if (pol.tap && (k.tapped?1:0) !== tap) { k.tapped = tap; andrat = true; } } }` — i Screen leads uppdateras `kamTap` men aldrig `tapped`.
-- `binder()` 15646 vid OM-bindning (kortet hade `kamTap`): sätt `k.kamTap = t.tappad` tyst (ny track utan fysisk händelse skriver inget); vid skapande 15737 som i dag (`tapped: tapSynk && t.tappad`, `kamTap` = domen). Ledarbyten mellan två spår för samma kort skriver då aldrig över en rättning.
-- Undo-toast/Untap all/pill/T-tangent/meny behöver INGEN särskild krok — kantstyrningen gör rättningen stabil av sig själv. Ta bort `ratt`-idén.
-- avstamning.cjs R1–R4: digital untap överlever tre hjärtslag; fysisk untap + tap följer igen; skarm skriver aldrig; ombindning skriver inte.
+### MODE-4 — kantstyrd tap-synk (S) — direkt efter MODE-1 — BYGGD (MES-69)
+- `lagg()`: `if (tapSynk && (k.kamTap == null || tap !== k.kamTap)) { k.kamTap = tap; if (pol.tap && (k.tapped?1:0) !== tap) { k.tapped = tap; andrat = true; } }` — kameran skriver bara när DESS EGEN dom ändras; i Screen leads uppdateras `kamTap` men aldrig `tapped`.
+- **Ändrat mot första utkastet, mätt i avstamning.cjs:** (1) den första domen för ett kort tas ALLTID — utan dom finns ingen rättning att skydda, och i Table leads är bordet sanningen (ett kort lagt till för hand som spelas tappat blir tappat direkt); (2) `binder()` rör INTE `kamTap`: ett nytt spår på samma plats med en annan dom ÄR vridningen (detektorn föder ett nytt spår när kortet vrids — S1/S5/S14/N3 föll med "tyst ombindning"), och ett ledarbyte med samma dom skriver ändå inget; (3) `kamTap` sparas lokalt i `slimKort` (inte delat) så att en rättning överlever en omladdning.
+- Skapande (`g.kort`) och `namngePend` sätter `kamTap` = domen när grundläget finns, annars undefined.
+- avstamning.cjs E1–E5: digital untap överlever tre hjärtslag; följer nästa vridning; skarm skriver aldrig; ombindning med samma dom skriver inte; första domen tas (före grundläget, och för handlagt kort).
 - Verifiera: Table leads med grund: fysiskt tappad → tappad; klicka → otappad och FÖRBLIR över hjärtslag; vrid fysiskt fram och tillbaka → följer igen.
 
 ### MODE-3 — policymatrisen i `avstamBord` (M) — efter M9

@@ -5121,7 +5121,8 @@ function slimKort(cards) {
     /* Bara lokalt: kamerans senast antagna läge för kortet (bildandelar) och
        "ligger kvar fysiskt fast det lämnat mattan digitalt" (Screen leads).
        De andra har inget att göra med dem. */
-    kam: c.kam || undefined, fysisk: c.fysisk ? 1 : undefined
+    kam: c.kam || undefined, fysisk: c.fysisk ? 1 : undefined,
+    kamTap: c.kamTap === 0 || c.kamTap === 1 ? c.kamTap : undefined
   }));
 }
 function save() {
@@ -11623,7 +11624,8 @@ function namngePend(p, q, name, sid, list) {
   else if (sammaKort) { /* kortet ligger redan på bordet */ }
   else if (gammalt) { gammalt.spar = q.spar; slappLyft(gammalt); if (q.tappad != null) gammalt.tapped = q.tappad ? 1 : 0; gammalt.ny = Date.now(); }   // null = ingen bedömning från kameran: det digitala tap-läget står kvar
   else p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list,
-                      spar: q.spar || undefined, tapped: q.tappad ? 1 : 0, ny: q.spar != null ? Date.now() : undefined });
+                      spar: q.spar || undefined, tapped: q.tappad ? 1 : 0, kamTap: q.spar != null && q.tappad != null ? (q.tappad ? 1 : 0) : undefined,
+                      ny: q.spar != null ? Date.now() : undefined });
   if (q.spar != null && spelLage) Moln.sandKam('namn', { spar: q.spar, namn: name, sid: sid || null });
   return sammaKort;
 }
@@ -15741,9 +15743,23 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
      tappningen gäller. undefined är en telefon utan läge alls — då dömer
      spåret som förut. Ett spår som syns är inte borta. */
   const tapSynk = kamGrund !== null;
+  const pol = spelPolicy(mig);
+  /* Kantstyrd tap-synk (MODE-4): kameran skriver tapped bara när DESS EGEN
+     dom (k.kamTap, kamerans senaste) ändras. En digital rättning står sig
+     då tills kortet fysiskt vrids igen — nivåstyrt skrev hjärtslaget över
+     den var tredje sekund. Den första domen för ett kort tas alltid: utan
+     dom finns ingen rättning att skydda, och i Table leads är bordet
+     sanningen. Domen följer det fysiska kortet, inte spåret: ett nytt spår
+     på samma plats med en annan dom (kortet vreds, detektorn födde ett nytt
+     spår) är en vridning och skriver; ett ledarbyte med samma dom skriver
+     inget. Screen leads följer domen men rör aldrig tapped. kamTap sparas
+     lokalt (slimKort) så att en rättning överlever en omladdning. */
   const lagg = (k, t) => {
     const tap = t.tappad ? 1 : 0;
-    if (tapSynk && (k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
+    if (tapSynk && (k.kamTap == null || tap !== k.kamTap)) {
+      k.kamTap = tap;
+      if (pol.tap && (k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
+    }
     if (k.borta) { delete k.borta; andrat = true; }
   };
   /* 1. Samma spår, ett annat SÄKERT namn: omläsningen efter ett spöke fann
@@ -15813,7 +15829,7 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
     const t = g.spar[0];
     /* Utan sparat läge föds kortet otappat (se lagg). Statusfältet ber om
        läget ur det här kortet så snart det ligger på bordet (grundSteg). */
-    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && t.tappad ? 1 : 0, spar: t.id, ny: nu };
+    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu };
     mig.cards.push(g.kort); andrat = true;
     autoSumKort(g.kort.cid, t);
     senasteKamSpar = t.id;

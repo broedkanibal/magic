@@ -849,6 +849,64 @@ prov('K7 ett osäkert spår med telefonens lågt vägda namn: notisen skriver de
   assert.equal(app.remsa().not, null);
 });
 
+/* MODE-4: kantstyrd tap-synk. Kameran skriver tapped bara när dess egen dom
+   ändras, så en digital rättning står sig över hjärtslagen. E = kant. */
+prov('E1 digital untap överlever tre hjärtslag med samma bord', () => {
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1); assert.equal(app.kort[0].kamTap, 1);
+  app.kort[0].tapped = 0;                                   // rättad på skärmen
+  for (let i = 0; i < 3; i++) { klocka.t += 3000; stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]); }
+  assert.equal(app.kort[0].tapped, 0, 'hjärtslaget skrev över rättningen');
+});
+prov('E2 efter rättningen följer kortet nästa fysiska vridning igen', () => {
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  app.kort[0].tapped = 0;
+  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);   // fysiskt otappat: domen byter, redan otappat
+  assert.equal(app.kort[0].tapped, 0); assert.equal(app.kort[0].kamTap, 0);
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);    // tappas igen fysiskt: följer
+  assert.equal(app.kort[0].tapped, 1);
+  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 0);
+});
+prov('E3 Screen leads: domen följs men tapped skrivs aldrig', () => {
+  app.spelsatt = 'skarm';
+  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 0);
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 0, 'skarm skrev tapped'); assert.equal(app.kort[0].kamTap, 1);
+  app.kort[0].tapped = 1;                                   // tappad på skärmen
+  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
+  assert.equal(app.kort[0].tapped, 1, 'skarm avtappade');
+});
+prov('E4 ombindning till ett nytt spår med samma dom skriver inte; nästa vridning gör det', () => {
+  stam([klar(1, 'Ukud Cobra', { tappad: false, sen: 20, ...PORT })]);
+  app.kort[0].tapped = 1;                                   // tappad på skärmen
+  stam([klar(7, 'Ukud Cobra', { tappad: false, sen: 10, ...LANGT })]);   // spåret dog, ett nytt på annan plats binder om
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 7);
+  assert.equal(app.kort[0].tapped, 1, 'ombindningen skrev över rättningen'); assert.equal(app.kort[0].kamTap, 0);
+  stam([klar(7, 'Ukud Cobra', { tappad: true, sen: 10, ...box(0.8, 0.1 + 0.088 - 0.063, 0.088, 0.063) })]);
+  assert.equal(app.kort[0].tapped, 1);
+  stam([klar(7, 'Ukud Cobra', { tappad: false, sen: 10, ...LANGT })]);
+  assert.equal(app.kort[0].tapped, 0, 'följer inte den fysiska vridningen efter ombindningen');
+});
+prov('E5 första domen tas alltid: ett kort fött före grundläget, och ett lagt till för hand', () => {
+  app.grund = null;                                          // inget grundläge: kortet föds otappat, utan dom
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 0); assert.equal(app.kort[0].kamTap, undefined);
+  app.grund = 20;                                            // grundläget sparat: första domen tas
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 1); assert.equal(app.kort[0].kamTap, 1);
+  // ett kort lagt till för hand som kameran binder: bordet är sanningen — första domen tas
+  app.nollstall(); klocka.t = 1e6;
+  app.kort.push({ cid: 'hand1', name: 'Ukud Cobra', flipped: 0, tapped: 0 });
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 1);
+  assert.equal(app.kort[0].tapped, 1); assert.equal(app.kort[0].kamTap, 1);
+  app.kort[0].tapped = 0;                                    // rättad: står sig
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 0);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
