@@ -17627,17 +17627,20 @@ function stangKamOv() {
 /* Länken och QR-koden ritas när QR-steget visas — också när telefonen
    tappas medan panelen står öppen (kamStegSynk), inte bara när panelen
    öppnas: annars stod ett tomt QR-steg där om panelen först öppnats med
-   telefonen ansluten. */
+   telefonen ansluten. Koden ritas om varje gång steget kommer fram
+   (kamStegSynk), inte bara när länken ändrats: kanvasen från spelets början
+   stod dold medan telefonen var med, och när telefonen stängdes kom en vit
+   ruta tillbaka — länken stod kvar, men koden i den var borta. */
 function ritaKamLank() {
   if (!spelLage) return;
   const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
-  const el = $('#kamLank'); if (el && el.textContent !== lank) { el.textContent = lank; ritaQr(lank); }
+  const el = $('#kamLank'); if (!el) return;
+  el.textContent = lank; ritaQr(lank);
 }
 async function visaKamOv() {
   if (!spelLage) return;
   kamOppen = true;
   openOv('kamOv');
-  if (!kamAnsluten) ritaKamLank();
   kamStegSynk();
 }
 /* Fotraden: om telefonen är med. Vakterna finns för att $ är ren
@@ -17787,7 +17790,9 @@ $('#kamKopiera').onclick = async () => {
    att få in i telefonen. */
 async function ritaQr(text, mal) {
   const box = mal || $('#kamQr');
-  box.innerHTML = '<span class="vantar">Drawing the code…</span>';
+  /* En kod som redan står där får stå kvar tills den nya är ritad — rutan
+     hoppar annars i storlek varje gång panelen öppnas. */
+  if (!box.querySelector('canvas')) box.innerHTML = '<span class="vantar">Drawing the code…</span>';
   try {
     const mod = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm');
     const qr = (mod.default || mod)(0, 'M');
@@ -17938,12 +17943,13 @@ $('#kamKoppla').onclick = async () => {
    steg i den dockade panelen (#kamOv) och står kvar tills man stänger den.
    kamSkruvOppen betyder att steget står framme — strömmen (kamStrom) och
    provbordets extrafält (visaProvbord) följer det, aldrig panelen i sig. */
-let kamSkruvOppen = false;
+let kamSkruvOppen = false, kamQrVisas = false;
 function kamStegSynk() {
-  const skruv = kamOppen && kamAnsluten;
+  const skruv = kamOppen && kamAnsluten, visaQr = kamOppen && !kamAnsluten;
   const qr = $('#kamStegQr'), sk = $('#kamSkruv'), rub = $('#kamOvRubrik');
   if (qr) qr.hidden = skruv;
-  if (kamOppen && !kamAnsluten) ritaKamLank();
+  if (visaQr && !kamQrVisas) ritaKamLank();   // steget kom fram: koden ritas på nytt (se ritaKamLank)
+  kamQrVisas = visaQr;
   if (sk) sk.classList.toggle('open', skruv);
   if (rub) rub.textContent = kamAnsluten ? 'Camera' : 'Connect a camera';
   visaKamSteg();
