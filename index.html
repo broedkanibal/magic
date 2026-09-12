@@ -1319,6 +1319,7 @@ body.lasvy .lasband{display:flex}
    popovern .kamskruv, inte som en flik i kameramodalen. */
 #pbBild{position:relative}
 #pbLager{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#pbImg:not([src]){visibility:hidden}   /* ingen bild än: Safari ritar annars en trasig bildikon över "Waiting for a picture" */
 .pbrad{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .pbtal{
   display:inline-flex;align-items:baseline;gap:5px;padding:3px 8px;border-radius:20px;
@@ -17560,6 +17561,19 @@ function kamStrom() {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) kamRordes = Date.now(); kamStrom(); });
 $('#kamOv') && ['pointermove', 'pointerdown', 'keydown'].forEach(ev => $('#kamOv').addEventListener(ev, () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true }));
 setInterval(() => { if (kamTittar) kamStrom(); }, 30000);
+/* Telefonen laddades om: den minns inte att datorn bad om förhandsbilden,
+   och datorn tror att den redan strömmar (kamTittar står kvar), så bilden
+   kom aldrig — bara spåren, som går utan begäran. Uppmätt 2026-09-12:
+   panelen sa "Waiting for a picture from the phone…" medan spåren ritades.
+   Närvaron hinner inte alltid märka en snabb omladdning, men telefonen
+   skickar alltid en nollställning när den startar. Då går begäran om, och
+   trösklarna med den (en omladdad telefon har standardvärdena).
+   startaStrom på telefonen tål att få den två gånger. */
+function kamStromIgen() {
+  if (!kamTittar) return;
+  Moln.sandKam('strom', { pa: true, bredd: 640 });
+  Moln.sandKam('trosklar', { v: pbTro });
+}
 function stangKamOv() {
   if (!kamOppen) return;
   kamOppen = false;
@@ -17642,6 +17656,7 @@ function kamNarvaro(kameror) {
      QR-koden stod framme → skruvrummet, och man ser det kameran ser; den
      försvann → koden igen. Ingen knapp att trycka på någonstans. */
   kamStegSynk();
+  if (kamAnsluten) kamStromIgen();   // telefonen kom tillbaka: den strömmar inte förrän den blir ombedd
   renderMode();
   toast(kamAnsluten ? 'The camera is connected' : 'The camera was disconnected', kamAnsluten ? 'ok' : 'err');
 }
@@ -17672,6 +17687,8 @@ function kamTogsEmot(m) {
        var kvar. */
     if (m.sma !== undefined) kamSma = m.sma || 0;
     if (m.upplosning !== undefined) kamUpplosning = m.upplosning || null;
+    /* Telefonen startade om (se kamStromIgen): förhandsbilden begärs igen. */
+    if (m.nollstall) kamStromIgen();
     /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
        Före fasbytets retur, och bara medan auto är på — som bordet självt. */
     if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
