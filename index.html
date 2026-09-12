@@ -8241,6 +8241,47 @@ $('#imgFile').onchange = async ev => {
 
 $('#addPlayerBtn').onclick = () => { if (addPlayer()) startRename(state.active); };
 
+/* Töm nollställer BORDET, inte bara en hand. Spelarna kommer från
+   skärmdumpen — deras namn och antal hör till just den omgången, och att
+   lämna kvar "Xepman" och "jesfunk" utan kort efter en tömning såg ut som att
+   knappen bara gjort halva jobbet. Efter tömning står en enda "Spelare 1"
+   kvar, som när appen är ny.
+   Handlaren försvann av misstag i MES-50 tillsammans med zoomknapparna;
+   knappen och menyraden fanns kvar men gjorde ingenting. Graveyard och exile
+   är zoner på samma kortlista, så de töms också. */
+$('#clearHand').onclick = () => {
+  /* I ett spel nollställer knappen BARA mitt eget bord. Att den lokalt river
+     hela bordet och alla spelare är rätt när spelarna är flikar i mitt eget
+     fönster — i ett spel är de andra människor. */
+  if (spelLage) {
+    if (!redigerbar()) return;
+    const mig = minSpelare(); if (!mig) return;
+    const antal = mig.cards.length + (mig.pending || []).length;
+    if (!antal) return;
+    const gamla = mig.cards, gammalPending = mig.pending;
+    mig.cards = []; mig.pending = []; state.sel = 0;
+    save(); renderAll(true);
+    toast(`${antal} cards removed from your board`, 'ok', () => {
+      mig.cards = gamla; mig.pending = gammalPending;
+      save(); renderAll(true);
+    });
+    return;
+  }
+  const antal = state.players.reduce((n, p) => n + p.cards.length + (p.pending || []).length, 0);
+  if (!antal) return;
+  const gammalt = { players: state.players, active: state.active, sel: state.sel };
+  state.players = [mkPlayer('Player 1', 0)];
+  state.active = state.players[0].id;
+  state.sel = 0;
+  save(); renderAll(true);
+  toast(`${antal} cards removed · board reset`, 'ok', () => {
+    state.players = gammalt.players;
+    state.active = gammalt.active;
+    state.sel = gammalt.sel;
+    save(); renderAll(true);
+  });
+};
+
 /* ─── zoom / fit ─── */
 
 let rsT = null;
