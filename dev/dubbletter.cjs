@@ -74,7 +74,8 @@ const kod = src.slice(a, b + SLUT.length);
    cropCache, prefs/savePrefs, save/renderAll/resolveAll/renderMode/
    uppdateraPbStatus/kamSkruvTal, kamFas/kamYta/kamRad/kamTot/kamLast/kamSer,
    BORTA_NAD/lyftT/lyftTips, hoppade/borttagna, slappLyft, glomSpar,
-   kamGrund/grundFraga, och LS för sammanfattningen (autoSum*). losaSpar,
+   kamGrund/grundFraga, lekAntal (lekens antal per namn, Infinity utan lek),
+   och LS för sammanfattningen (autoSum*). losaSpar,
    sparSedd och autoRemsaModell ligger INNE i utdraget. */
 const miljo = `
 const spelLage = { mig: 'p1', id: 'spel1' };
@@ -95,6 +96,8 @@ let hoppade = new Set(), borttagna = new Set();
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 function glomSpar() {}
 let kamGrund = null;
+let lekTal = new Map();
+const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
 let grundFragor = [];
 function grundFraga(namn, spar) { grundFragor.push({ namn, spar, nu: Date.now() }); }
 `;

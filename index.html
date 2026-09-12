@@ -5038,6 +5038,11 @@ const Moln = (() => {
          omläsning ger samma ordning. */
       spelare: (sp.data || []).map(p => ({
         user_id: p.user_id, name: p.namn, color: p.farg, plats: p.plats,
+        /* Spelläget och leken följer med raden (dev/plan/lagen.md): 'skarm'
+           är förvalet, lek_info är kopian motståndarna får se. Kolumnerna
+           finns först efter lekarnas migrering; saknas de blir det förvalen. */
+        lage: p.lage === 'bord' ? 'bord' : 'skarm',
+        lekId: p.lek_id || null, lek: p.lek_info || null,
         cards: (bord.get(p.user_id) || {}).kort || [],
         version: (bord.get(p.user_id) || {}).version || 0
       })).sort((a, b) =>
@@ -5331,6 +5336,13 @@ function normalisera(p, i) {
   p.shots = Array.isArray(p.shots) ? p.shots : [];
   p.pending = Array.isArray(p.pending) ? p.pending : [];
   p.shotIdx = p.shotIdx || 0;
+  /* Spelläget (Table leads/Screen leads) och vald lek kommer ur
+     game_players. Utan spel har spelaren inget läge här — mattan läser
+     prefs.lage då (mittLage) — och avstämningen läser ett saknat läge som
+     Table leads, vilket är vad harnessarnas stubbspelare ska vara. */
+  if (p.lage !== 'bord' && p.lage !== 'skarm') delete p.lage;
+  p.lekId = p.lekId || null;
+  p.lek = p.lek || null;
   /* Sparade tillstånd från före flaggan har ingen. Allt som inte ser ut som
      ett automatnamn har användaren skrivit själv — utan den regeln skulle
      första avläsningen efter uppgraderingen tyst radera namn hen skrivit.
@@ -5507,6 +5519,7 @@ const selCard = () => hand()[state.sel] || null;
 const shotMem = new Map();
 function shotURL(id) { const s = shotMem.get(id); return s ? s.url : ''; }
 
+/* ══ BLOCK: MAT — bordsvyn (fria mattan). Planen: dev/plan/lagen.md ══ */
 /* ══════════════════════════════════════════════════════════════════
    RENDERING
    ══════════════════════════════════════════════════════════════════ */
@@ -6506,6 +6519,7 @@ function modeIkon(mode, ikon, etikett, klass) {
   return `<button class="btn ikonknapp${klass || ''}" data-mode="${mode}" aria-label="${etikett}">${ikon}<i class="knapptip">${etikett}</i></button>`;
 }
 
+/* ══ BLOCK: MODES — lägeschippet. Planen: dev/plan/lagen.md ══ */
 function renderMode() {
   const slot = $('#modeSlot'), rad = $('#modeRad');
   if (!slot || !rad) return;
@@ -7438,6 +7452,9 @@ $('#playerTabs').addEventListener('dblclick', ev => {
   startRename(tab.dataset.pid);
 });
 let namnByte = false;
+/* Samma sak för spelläget och lekvalet: en skrivning till game_players som
+   ännu inte kommit tillbaka som en händelse. Sätts av bytLage/valjLek. */
+let lageByte = false, lekValPagar = false;
 function startRename(id) {
   const p = state.players.find(x => x.id === id);
   const tab = $(`.ptab[data-pid="${id}"]`);
@@ -7838,6 +7855,7 @@ function parseList(txt) {
     return Array.from({ length: count }, () => s);
   });
 }
+/* ══ BLOCK: DECKS — lekarna. Planen: dev/plan/lagen.md ══ */
 /* ══════════════════════════════════════════════════════════════════
    LEKEN
 
@@ -12021,6 +12039,9 @@ const idbTimeout = (pr, ms) => Promise.race([
    solen slutar sitta i skugga. Skillnaden mot en referens tagen i samma
    ljus, i samma ruta, bryr sig inte om det.
    ══════════════════════════════════════════════════════════════════ */
+/* ══ BLOCK: CAMERA — telefonens kameramodul. dev/kamerabank.cjs skär ut från
+   nästa rad till första '})();' i kolumn 0 — inga nya IIFE:er på kolumn 0
+   där inne. Planen: dev/plan/lagen.md ══ */
 const Kamera = (() => {
   /* ── Vad telefonen gör, i en mening ──────────────────────────────────
      Den tittar på hela mattan hela tiden, hittar varje kort som ligger där,
@@ -15131,6 +15152,9 @@ function glomSpar(ocksaLyft) {
   if (andrat) { save(); renderAll(true); }
 }
 
+/* ══ BLOCK: MODES — avstämningen. dev/avstamning.cjs och dev/dubbletter.cjs
+   skär ut från nästa rad till raden som deklarerar senasteSpar; allt skivan
+   läser utifrån måste stubbas i båda. Planen: dev/plan/lagen.md ══ */
 /* ── samma kort, två spår ──────────────────────────────────────────────
    Kameran kan se ETT kort som två spår. I Jespers parti 2026-09-10 var det
    helbilden: Claudes läge för Ukud Cobra hamnade strax utanför detektorns
@@ -16402,6 +16426,7 @@ function kamBild(m) {
   pbW = kamBildW; pbH = kamBildH;
   if (pbPa) { const pi = $('#pbImg'); pi.src = m.b64; $('#pbVantar').hidden = true; pi.decode().then(ritaPbLager).catch(() => {}); }
 }
+/* ══ BLOCK: MODES — mottagningen från telefonen. Planen: dev/plan/lagen.md ══ */
 function kamTogsEmot(m) {
   if (!m) return;
   /* Bara min egen telefon. Se sandKam(): allt annat i spelet är någon annans
@@ -16804,7 +16829,8 @@ function byggSpelare(lista) {
   state.players = lista.map((p, i) => normalisera({
     id: p.user_id, name: p.name, color: p.color, cards: p.cards || [],
     shots: [], shotIdx: 0, pending: [], pane: null,
-    namnkalla: 'anvandare', bildnamn: null, version: p.version
+    namnkalla: 'anvandare', bildnamn: null, version: p.version,
+    lage: p.lage, lekId: p.lekId, lek: p.lek
   }, i));
 }
 /* En ändrad bordsrad. Mitt eget bord hoppas över: jag har det redan, och min
@@ -16855,7 +16881,13 @@ function fjarrSpelare(lista) {
       version: nyare ? p.version : g.version,
       shots: g ? g.shots : [], shotIdx: g ? g.shotIdx : 0,
       pending: g ? g.pending : [], pane: g ? g.pane : null,
-      namnkalla: 'anvandare', bildnamn: null
+      namnkalla: 'anvandare', bildnamn: null,
+      /* Läget och leken tas alltid ur serverraden för de andra (som namnet);
+         min egen rad bara när inget byte ligger i flykt — annars rullas
+         valet tillbaka av omhämtningen innan skrivningen nått fram. */
+      lage: (mitt && g && lageByte) ? g.lage : p.lage,
+      lekId: (mitt && g && lekValPagar) ? g.lekId : p.lekId,
+      lek: (mitt && g && lekValPagar) ? g.lek : p.lek
     }, i);
   });
   if (!state.players.some(p => p.id === state.active)) state.active = spelLage.mig;

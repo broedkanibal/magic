@@ -7,6 +7,25 @@ datorseende i webbläsaren utan AI-modell; kommer ett AI-steg med i provet
 skrivs modellens namn här. Commit är den commit som `senaste.json` checkades
 in i, alltså koden som mättes.
 
+## Acceptans för läge 1 (Table leads), satt 2026-09-12
+
+Målen som kamerasträngen i `dev/plan/lagen.md` mäts mot, med golden setet som
+domare (`node dev/golden/kor.cjs`, `--ai` för Claude). Måtten för tap-flip,
+borta-fördröjning och dubbletter kommer med deluppgift K1; videofallen 09/10
+med K2.
+
+| Mått | I dag | Mål |
+|---|---|---|
+| Fel namn (säkert) | 0 | 0, alltid |
+| Video 07: rätt namn | 3/5 | 5/5 |
+| Video 07: fördröjning till namn (median) | 1,8 s | ≤ 1,3 s |
+| Tap-flip efter att kortet ligger stilla (video 09) | omätt (~0,3–0,45 s) | ≤ 0,35 s |
+| Borta-fördröjning telefonsidan (video 07/10) | omätt | ≤ 1,0 s (datorns nåd 3 s därtill) |
+| Falska spår, lokalt totalt | 3 | inte fler; 07 → 0 |
+| Dubbletter (video 07/09) | omätt | 0 |
+| Lokalt rätt namn utan Claude | 24/49 | ≥ 28/49 med lärda referenser (`--ref`) |
+| Med Claude (`--ai`) | 41/41 | 41/41 |
+
 | datum | commit | metod | fall | hittade | plats | namn | fel namn | falska | tappad | vad som ändrats |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 2026-09-09 | (golden set, före Del B) | lokal | 2 | 7/7 | 7/7 | 5/7 | 0 | 0 | 5/7 | Utgångsläget: fall 01–02 ur videon, fasta trösklar (avvikelse 25, spridning 15, blänk 235). Fall 02 fick två fel tap-lägen. |

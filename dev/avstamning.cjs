@@ -44,6 +44,11 @@ function glomSpar() {}
    proven — tap-synken från spåren gäller bara då; T- och G-serien sätter
    null och provar otappat-tills-sparat och steget i statusfältet. */
 let kamGrund = 20;
+/* Lekens antal per namn (dev/plan/lagen.md): ett prior och en varning, aldrig
+   ett tak. Utan lek Infinity — då beter sig avstämningen exakt som förut.
+   Sätts per prov med app.lek = new Map([['Sol Ring', 1]]). */
+let lekTal = new Map();
+const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
 `;
 const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
@@ -55,6 +60,10 @@ return {
   get borttagna() { return borttagna; },
   get hoppade() { return hoppade; },
   set grund(v) { kamGrund = v; },
+  /* Lekens antal per namn, och spelläget ('skarm' | 'bord' | null = som
+     stubbspelaren: inget läge, vilket avstämningen läser som Table leads). */
+  set lek(m) { lekTal = m; },
+  set spelsatt(v) { if (v) state.players[0].lage = v; else delete state.players[0].lage; },
   get senasteKamSpar() { return senasteKamSpar; },
   /* Steget att spara ett otappat läge (MES-27): det statusfältet ritar, ur
      mitt bord och senaste bordet — { namn, spar } eller null — och "Inte
@@ -84,7 +93,7 @@ return {
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; autoSum = null; lsMinne.clear(); }
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); }
 };`)({ now: () => klocka.t }, () => 0, () => {});
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
