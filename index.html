@@ -3267,7 +3267,7 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>R</kbd></dt><dd>Read the image again (in the image view)</dd>
             <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick a candidate when confirming a card</dd>
             <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom in / out on the table</dd>
-            <dt><kbd>0</kbd></dt><dd>Fit — the whole table on one screen</dd>
+            <dt><kbd>0</kbd></dt><dd>100% where the pointer is — or Fit, with the pointer off the table</dd>
             <dt><kbd>?</kbd></dt><dd>This pane</dd>
           </dl>
         </section>
@@ -6903,7 +6903,7 @@ function renderChrome(v) {
     + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg><span class="knapptip">Pan — click and drag anywhere to move the mat (S)</span></button></div>`
     + `<div class="zoomchip">`
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
-    + `<button type="button" class="ztxt${v.manuell ? ' manuell' : ''}" data-mat="fit" title="Fit the whole board (0)">${pct}</button>`
+    + `<button type="button" class="ztxt${v.manuell ? ' manuell' : ''}" data-mat="fit" title="Fit the whole board">${pct}</button>`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
     + (redigerbar() && !(spelLage && mittLage() === 'bord') ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
@@ -6923,10 +6923,13 @@ $('#mattaChrome').addEventListener('click', ev => {
   else if (a === 'tidy') stadaUpp();
   else if (a === 'valj' || a === 'pan') satMatVerktyg(a);
 });
-function zoomBy(mult) {
+function zoomBy(mult) { zoomTill(matVy().z * mult); }
+/* Zoomen till z, med punkten (i mattans koordinater) kvar under sig —
+   mitten av mattan om ingen punkt ges. */
+function zoomTill(z, punkt) {
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, v.z * mult));
-  const cx = v.vp.w / 2, cy = v.vp.h / 2;
+  const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, z));
+  const cx = punkt ? punkt.x : v.vp.w / 2, cy = punkt ? punkt.y : v.vp.h / 2;
   const bx = (cx - v.pan.x) / v.z, by = (cy - v.pan.y) / v.z;
   vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
   vy.pan = clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board, v.vp, v.ram);
@@ -6959,6 +6962,12 @@ function arTouchpad(ev) {
    zoomar mot pekaren. Två fingrar på touchpaden flyttar mattan åt alla
    håll; shift eller ett vågrätt hjul flyttar den i sidled. */
 let matHjulHand = null;
+/* Pekarens senaste läge över mattan, för 0-tangenten (100 % mot pekaren). */
+let matPekare = null;
+gridWrap.addEventListener('pointermove', ev => {
+  const r = gridWrap.getBoundingClientRect();
+  matPekare = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+});
 gridWrap.addEventListener('wheel', ev => {
   ev.preventDefault();
   const p = player(), v = matVy(p), vy = matVyFor(p);
@@ -11569,7 +11578,8 @@ addEventListener('keydown', ev => {
     case 'Delete':     if (!redigerbar()) return; ev.preventDefault(); removeAt(state.sel); return;
     case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
     case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
-    case '0':          ev.preventDefault(); fitView(); return;
+    case '0':          ev.preventDefault();   // över mattan: 100 % mot pekaren, annars fit
+                       gridWrap.matches(':hover') && matPekare ? zoomTill(1, matPekare) : fitView(); return;
     case '?':          ev.preventDefault(); openOv('helpOv'); return;
   }
   if (k >= '1' && k <= '9') {
