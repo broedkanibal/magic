@@ -5685,8 +5685,16 @@ let kamVand = 0, kamSpegel = false;
 /* Graveyard-rutan i bildandelar (K9-lite), ritad i kamerapanelen och sparad
    i camera_setups.ruta.grav; telefonen föder inga spår där. */
 let kamGravRad = null;
+/* Library-rutan (MES-122) i bildandelar, sparad i camera_setups.ruta.bib:
+   där spelaren lägger sin lek i uppstarten. Telefonen föder inga spår där
+   och säger när en lek ligger i den (Kamera.bib). */
+let kamBibRad = null;
 const kamOriNyckel = () => kamVand + (kamSpegel ? 'm' : '');
-function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); kamGravRad = r && r.grav && r.grav.w > 0 ? r.grav : null; }
+function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); kamGravRad = r && r.grav && r.grav.w > 0 ? r.grav : null; kamBibRad = r && r.bib && r.bib.w > 0 ? r.bib : null; }
+/* Raden i camera_setups byggs på ett ställe. Varje skrivning skickar hela
+   ruta, och en nyckel som inte stod med i alla fyra skrivarna försvann nästa
+   gång någon sparade orienteringen eller grundläget. over ersätter fält. */
+function kamRutaRad(over) { return Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad, bib: kamBibRad }, over || {}); }
 /* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
    hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
    utan fältet), null = inte sparat, tal = sparat. Vid null spelas korten
@@ -18284,6 +18292,74 @@ function senasteMattaKort(mig, spar) {
   const bundna = mig ? mig.cards.filter(c => c.spar != null && !c.borta && c.lyft == null && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil' && matt(c)) : [];
   return bundna.find(c => c.spar === senasteKamSpar) || bundna.sort((a, b) => (b.ny || 0) - (a.ny || 0))[0] || null;
 }
+/* ── uppstartens rutor (MES-122) ──────────────────────────────────────
+   Rena funktioner, provade i dev/avstamning.cjs (ZN). Bilden är telefonens
+   bild i andelar (x, y); vyn (u, v) är samma bild som spelaren ser den —
+   vriden (r = kamVand) och speglad (s = kamSpegel) som kamTillMatta lägger
+   korten på mattan. Graveyard- och library-rutan föreslås nere till vänster
+   i vyn, lika stora som provkortet med luft runtom. */
+function kamBildTillVy(p, r, s) {
+  const x = s ? 1 - p.x : p.x, y = p.y;
+  return r === 90 ? { u: 1 - y, v: x } : r === 180 ? { u: 1 - x, v: 1 - y } : r === 270 ? { u: y, v: 1 - x } : { u: x, v: y };
+}
+function kamVyTillBild(q, r, s) {
+  const x = r === 90 ? q.v : r === 180 ? 1 - q.u : r === 270 ? 1 - q.v : q.u;
+  const y = r === 90 ? 1 - q.u : r === 180 ? 1 - q.v : r === 270 ? q.u : q.v;
+  return { x: s ? 1 - x : x, y };
+}
+const avr3 = v => Math.round(v * 1000) / 1000;
+function vyRutaTillBild(q, r, s) {
+  const a = kamVyTillBild({ u: q.u, v: q.v }, r, s), b = kamVyTillBild({ u: q.u + q.w, v: q.v + q.h }, r, s);
+  /* Hörnen avrundas, inte bredden: två rutor som delar en kant ska göra
+     det också efter avrundningen. */
+  const x0 = avr3(Math.min(a.x, b.x)), y0 = avr3(Math.min(a.y, b.y)), x1 = avr3(Math.max(a.x, b.x)), y1 = avr3(Math.max(a.y, b.y));
+  return { x: x0, y: y0, w: avr3(x1 - x0), h: avr3(y1 - y0) };
+}
+function bildRutaTillVy(z, r, s) {
+  const a = kamBildTillVy({ x: z.x, y: z.y }, r, s), b = kamBildTillVy({ x: z.x + z.w, y: z.y + z.h }, r, s);
+  return { u: Math.min(a.u, b.u), v: Math.min(a.v, b.v), w: Math.abs(a.u - b.u), h: Math.abs(a.v - b.v) };
+}
+const KORT_KVOT = 88 / 63;
+/* Provkortets sidor i bildbredder: S den korta, L den långa. Ur
+   provbordets mått när de finns (analyspixlarna är kvadratiska), annars ur
+   spårets låda: en vriden låda är större än kortet, och minsta kvadrat mot
+   kortets form (88:63) och vinkeln räknar tillbaka. A = bildens höjd/bredd,
+   g = grundläget i grader (otappat korts axel), tappat = provkortet låg
+   tappat. null = orimligt — då gäller ett vanligt kort. */
+function provKortMatt(prov, ra, matt, A, g, tappat) {
+  const e = prov && ra && matt && matt.aw ? ra.find(x => x.id === prov.id) : null;
+  if (e && e.kort > 0 && e.lang / e.kort >= 1.2 && e.lang / e.kort <= 1.65) return { S: e.kort / matt.aw, L: e.lang / matt.aw };
+  if (!prov || !(prov.w > 0) || !(prov.h > 0) || !(A > 0)) return null;
+  const th = ((g || 0) + (tappat ? 90 : 0)) * Math.PI / 180, c = Math.abs(Math.cos(th)), sn = Math.abs(Math.sin(th));
+  const a = KORT_KVOT * c + sn, b = KORT_KVOT * sn + c, Wb = prov.w, Hb = prov.h * A;
+  const S = (Wb * a + Hb * b) / (a * a + b * b);
+  if (!(S > 0) || Math.abs(Wb - S * a) > 0.25 * Wb || Math.abs(Hb - S * b) > 0.25 * Hb) return null;
+  return { S, L: KORT_KVOT * S };
+}
+/* Förslaget: graveyard nere till vänster i vyn med 3 % luft (samma
+   fysiska luft åt båda hållen), library 0,2 rutbredd till höger. Rutan är
+   provkortet otappat (grundläget) × 1,3 — luft för en stökig hög.
+   trangt = rutorna fick krympas för att rymmas: kameran är för nära. */
+function zonForslag(S, L, g, A, r, s) {
+  const gr = (g || 0) * Math.PI / 180, c = Math.abs(Math.cos(gr)), sn = Math.abs(Math.sin(gr));
+  const zw = 1.3 * (L * c + S * sn), zh = 1.3 * (L * sn + S * c) / A;
+  const vrid = r === 90 || r === 270, Av = vrid ? 1 / A : A;
+  let w = vrid ? zh : zw, h = vrid ? zw : zh, trangt = false;
+  const mu = 0.03 * Math.min(1, Av), mv = mu / Av;
+  if (h > 1 - 2 * mv) { const k = (1 - 2 * mv) / h; w *= k; h *= k; trangt = true; }
+  let gap = 0.2 * w;
+  if (mu + 2 * w + gap > 1 - mu) gap = 0;
+  if (mu + 2 * w > 1 - mu) { const k = (1 - 2 * mu) / (2 * w); w *= k; h *= k; trangt = true; }
+  const G = { u: mu, v: 1 - mv - h, w, h }, B = { u: mu + w + gap, v: G.v, w, h };
+  return { grav: vyRutaTillBild(G, r, s), bib: vyRutaTillBild(B, r, s), trangt };
+}
+/* Library bredvid en flyttad graveyard: samma storlek, 0,2 rutbredd till
+   höger i vyn — till vänster om den inte ryms där. */
+function bibBredvid(grav, r, s) {
+  const G = bildRutaTillVy(grav, r, s), gap = 0.2 * G.w;
+  let u = G.u + G.w + gap; if (u + G.w > 1) u = Math.max(0, G.u - gap - G.w);
+  return vyRutaTillBild({ u, v: G.v, w: G.w, h: G.h }, r, s);
+}
 /* Steget statusfältet ber om: { namn, spar } så snart ett mätt kamerakort
    ligger på bordet och telefonen sagt att inget läge är sparat (null —
    undefined är en telefon som inte kan svara), tills man sparat eller
@@ -19718,7 +19794,7 @@ async function tagEmotGrundSvar(m) {
   if (!spelLage) return;
   oppSatt({ grundOm: false }); renderMode();   // uppstartens steg 4 är klart
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: m.grund, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: m.grund }), null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
   toast(ok ? `Untapped angle saved (${m.grund}°)` : 'The untapped angle could not be saved to the game — it applies until the phone reloads', ok ? 'ok' : 'err');
 }
@@ -19739,8 +19815,16 @@ async function sparaGravZon(r) {
   ritaPbLager(); visaPbGrav(); renderMode();
   if (!spelLage) return;
   const id = spelLage.id;
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
   toast(ok ? (kamGravRad ? 'Graveyard zone saved — the camera ignores cards there' : 'Graveyard zone cleared') : 'The graveyard zone could not be saved', ok ? 'ok' : 'err');
+}
+/* Uppstartens steg 4 (MES-122): graveyard- och library-rutan i en
+   skrivning — library ligger alltid bredvid graveyard. */
+async function sparaZoner(grav, bib) {
+  kamGravRad = grav || null; kamBibRad = bib || null;
+  ritaPbLager(); renderMode();
+  if (!spelLage) return false;
+  return Moln.sparaKalibrering(spelLage.id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
 }
 function visaPbGrav() {
   const b = $('#pbGrav'); if (!b) return;
@@ -19776,7 +19860,7 @@ async function sparaKamOrientering() {
   renderGrid(true);
   if (!spelLage) return;
   const id = spelLage.id;
-  await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
+  await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
 }
 /* En telefon med äldre kod väntar på en ruta ('ingen') eller beskär efter en
    gammal, och datorn ritar då spåren på fel ställe. Raden skrivs om till hela
@@ -19797,7 +19881,7 @@ async function normaliseraKamRad(forsok) {
   /* Gick skrivningen inte fram står en telefon med äldre kod kvar i 'ingen'
      hela kvällen: ingen annan skriver raden. Några försök till, sedan får
      chippet och tomrutan säga åt en att ladda om telefonen. */
-  const ok = await Moln.sparaKalibrering(id, { x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad }, null, kamBildW || 0, kamBildH || 0);
+  const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
   if (!ok && (forsok || 0) < 3 && kamAnsluten && spelLage && spelLage.id === id)
     setTimeout(() => normaliseraKamRad((forsok || 0) + 1), 5000);
 }
@@ -20209,7 +20293,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man

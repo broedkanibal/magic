@@ -57,6 +57,7 @@ const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
 return {
   avstamBord, tackning, sammaPlats, lekPrior,
+  kamBildTillVy, kamVyTillBild, provKortMatt, zonForslag, bibBredvid,
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
   get chip() { return { kamSer, kamLast, kamTot }; },
@@ -1112,6 +1113,62 @@ prov('Q5 lekPrior: utan lek eller okänt namn står ett säkert svar; med lekens
   assert.equal(app.lekPrior(true, 4, 4), false);
   assert.equal(app.lekPrior(true, 1, 1), false);
   assert.equal(app.lekPrior(false, 4, 0), false);
+});
+
+/* MES-122: uppstartens rutor. Raden i camera_setups byggs på ett ställe
+   (RR1), och graveyard/library föreslås i spelarens nedre vänstra hörn (ZN). */
+prov('RR1 varje skrivning av camera_setups-raden går genom kamRutaRad', () => {
+  const rader = src.split('\n').filter(l => l.includes('Moln.sparaKalibrering('));
+  assert.ok(rader.length >= 5, 'för få skrivare: ' + rader.length);
+  for (const l of rader) assert.ok(l.includes('kamRutaRad('), 'utan kamRutaRad: ' + l.trim().slice(0, 90));
+});
+const naraZ = (a, b, tol = 0.006) => Math.abs(a - b) <= tol;
+const inomZ = z => z.x >= -1e-9 && z.y >= -1e-9 && z.x + z.w <= 1 + 1e-9 && z.y + z.h <= 1 + 1e-9;
+const KS = 0.1, KL = 0.1 * 88 / 63, A43 = 0.75;
+prov('ZN1 vid 0°: graveyard nere till vänster, library till höger om den', () => {
+  const f = app.zonForslag(KS, KL, 90, A43, 0, false);
+  assert.ok(naraZ(f.grav.x, 0.0225), 'x ' + f.grav.x); assert.ok(naraZ(f.grav.y + f.grav.h, 0.97), 'nederkant ' + (f.grav.y + f.grav.h));
+  assert.ok(f.bib.x > f.grav.x + f.grav.w, 'library till höger'); assert.ok(naraZ(f.bib.y, f.grav.y));
+  assert.ok(naraZ(f.grav.w, 1.3 * KS, 0.002), 'kortbredd ' + f.grav.w); assert.ok(naraZ(f.grav.h, 1.3 * KL / A43, 0.002), 'korthöjd ' + f.grav.h);
+  assert.ok(!f.trangt && inomZ(f.grav) && inomZ(f.bib));
+});
+prov('ZN2 vid 180°: rutorna uppe till höger i bilden, library till vänster om graveyard', () => {
+  const f = app.zonForslag(KS, KL, 90, A43, 180, false);
+  assert.ok(naraZ(f.grav.x + f.grav.w, 1 - 0.0225), 'högerkant ' + (f.grav.x + f.grav.w)); assert.ok(naraZ(f.grav.y, 0.03), 'överkant ' + f.grav.y);
+  assert.ok(f.bib.x + f.bib.w < f.grav.x, 'library till vänster i bilden');
+});
+prov('ZN3 bild → vy → bild i alla vridningar, med och utan spegling; rutan har kortets form i bilden oavsett vridningen', () => {
+  for (const r of [0, 90, 180, 270]) for (const sp of [false, true]) {
+    const p = { x: 0.2, y: 0.7 }, q = app.kamVyTillBild(app.kamBildTillVy(p, r, sp), r, sp);
+    assert.ok(naraZ(q.x, p.x, 1e-9) && naraZ(q.y, p.y, 1e-9), `r ${r} s ${sp}`);
+    const f = app.zonForslag(KS, KL, 90, A43, r, sp);
+    assert.ok(inomZ(f.grav) && inomZ(f.bib), `inom bilden r ${r} s ${sp}`);
+    /* Högen ligger som kortet på bordet: vyns vridning ändrar var rutan
+       hamnar, inte vilken form den har i telefonens bild. */
+    assert.ok(!f.trangt && naraZ(f.grav.w, 1.3 * KS, 0.002) && naraZ(f.grav.h, 1.3 * KL / A43, 0.002), `form r ${r} s ${sp}: ${JSON.stringify(f.grav)}`);
+  }
+});
+prov('ZN4 spegling: vid 0° hamnar graveyard nere till höger i bilden', () => {
+  const f = app.zonForslag(KS, KL, 90, A43, 0, true);
+  assert.ok(naraZ(f.grav.x + f.grav.w, 1 - 0.0225)); assert.ok(f.bib.x + f.bib.w < f.grav.x);
+});
+prov('ZN5 kortets storlek ur lådan: snett, stående och tappat; och ur provbordet', () => {
+  const lada = th => { const r = th * Math.PI / 180, c = Math.abs(Math.cos(r)), sn = Math.abs(Math.sin(r)); return { w: KL * c + KS * sn, h: (KL * sn + KS * c) / A43 }; };
+  for (const [g, tappat, th] of [[90, false, 90], [30, false, 30], [90, true, 180], [120, false, 120]]) {
+    const m = app.provKortMatt(lada(th), null, null, A43, g, tappat);
+    assert.ok(m && Math.abs(m.S - KS) / KS < 0.02, `g ${g} tappat ${tappat}: S ${m && m.S}`);
+  }
+  const ur = app.provKortMatt({ id: 5, w: 0.5, h: 0.5 }, [{ id: 5, kort: 24, lang: 33.5 }], { aw: 240 }, A43, 90, false);
+  assert.ok(naraZ(ur.S, 0.1, 1e-9) && naraZ(ur.L, 33.5 / 240, 1e-9), 'provbordet ' + JSON.stringify(ur));
+  assert.equal(app.provKortMatt({ id: 1, w: 0.4, h: 0.02 }, null, null, A43, 90, false), null, 'orimlig låda');
+});
+prov('ZN6 ett för stort kort: rutorna krymps, ryms och överlappar inte; library följer en flyttad graveyard', () => {
+  const f = app.zonForslag(0.45, 0.45 * 88 / 63, 90, A43, 0, false);
+  assert.ok(f.trangt && inomZ(f.grav) && inomZ(f.bib) && f.bib.x >= f.grav.x + f.grav.w - 1e-9);
+  const g = { x: 0.3, y: 0.4, w: 0.13, h: 0.24 }, b = app.bibBredvid(g, 0, false);
+  assert.ok(naraZ(b.x, 0.3 + 0.13 * 1.2) && naraZ(b.y, 0.4) && naraZ(b.w, 0.13) && naraZ(b.h, 0.24), JSON.stringify(b));
+  const kant = app.bibBredvid({ x: 0.85, y: 0.4, w: 0.13, h: 0.24 }, 0, false);
+  assert.ok(kant.x + kant.w <= 0.85, 'till vänster vid kanten');
 });
 
 console.log([...ok, ...fel].join('\n'));
