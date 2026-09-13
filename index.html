@@ -485,9 +485,14 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);overflow:hidden}
 .zoomchip button{height:28px;border:0;background:none;color:var(--dim);cursor:pointer;font:inherit;padding:0}
 .zoomchip .zsteg{width:26px;display:grid;place-items:center;font:700 15px/1 var(--sans)}
-.zoomchip .zlage{width:28px;display:grid;place-items:center}
+.zoomchip .zlage{position:relative;width:28px;display:grid;place-items:center}
 .zoomchip .zlage+.zlage{border-left:1px solid var(--line)}
 .zoomchip .zlage.on{color:var(--green);background:#ffffff12}
+/* Select/Pan byts ofta i farten medan man jobbar med mattan, så tipset får
+   inte dröja som knapptip gör på modeplatsen (.12s) — det ska stå där
+   direkt, annars hinner man redan klicka innan det syns. */
+.zoomchip .zlage .knapptip{left:50%;right:auto;transform:translateX(-50%);transition:opacity .05s}
+.zoomchip .zlage:hover .knapptip,.zoomchip .zlage:focus-visible .knapptip{opacity:1}
 .zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:64px}
 .zoomchip .ztxt.manuell{color:var(--pa-acc)}
 .zoomchip button:hover{background:var(--bg4);color:var(--txt)}
@@ -6867,8 +6872,8 @@ function renderChrome(v) {
   const el = $('#mattaChrome'); if (!el) return;
   const pct = Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
   const html = `<div class="zoomchip">`
-    + `<button type="button" class="zlage${matVerktyg === 'valj' ? ' on' : ''}" data-mat="valj" title="Select — click and drag cards (S)" aria-label="Select"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"/></svg></button>`
-    + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" title="Pan — click and drag anywhere to move the mat (S)" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg></button></div>`
+    + `<button type="button" class="zlage${matVerktyg === 'valj' ? ' on' : ''}" data-mat="valj" aria-label="Select"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"/></svg><span class="knapptip">Select — click and drag cards (S)</span></button>`
+    + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg><span class="knapptip">Pan — click and drag anywhere to move the mat (S)</span></button></div>`
     + `<div class="zoomchip">`
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<button type="button" class="ztxt${v.manuell ? ' manuell' : ''}" data-mat="fit" title="Fit the whole board (0)">${pct}</button>`
