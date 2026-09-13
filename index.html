@@ -1010,26 +1010,31 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .exilhog b{font:700 14px/1 var(--mono);color:var(--txt)}
 .exilhog .zonlbl{font-size:8.5px;letter-spacing:.7px}
 .exilhog:hover{border-color:var(--acc);border-style:solid}
-/* Solfjädern: korten ligger absolut i ett tomt lager över högen och
-   flyttas med transform, så att öppning och stängning animeras. Lagret
-   släpper pekaren igenom; korten fångar den. */
-.gravfan{position:absolute;left:0;bottom:0;width:132px;height:0;pointer-events:none;z-index:30}
-.fkort{
-  position:absolute;left:20px;bottom:30px;width:92px;height:128px;pointer-events:auto;touch-action:none;
-  border-radius:5px;transform-origin:50% 100%;opacity:0;cursor:grab;background:#11161e;
-  transition:transform .24s cubic-bezier(.2,.8,.2,1),opacity .18s;box-shadow:0 8px 20px -6px #000e;
+/* Solfjädern (GRAVEYARD_ANIMATION.md §4): behållaren ligger på samma plats
+   och i samma storlek som högen i vila och släpper pekaren igenom; korten
+   fångar den. Korten monteras med transform:none — exakt ovanpå högen — och
+   får sitt utfällda läge först 24 ms senare, så att det är korten i högen
+   som far ut. De vrids kring underkanten, som kort i en hand. Transform,
+   z-index och transition (med 22 ms förskjutning per kort) sitter inline. */
+.gravfan{position:absolute;z-index:88;left:0;top:24px;width:104px;height:145px;pointer-events:none}
+.fkort{position:absolute;inset:0;pointer-events:auto;touch-action:none;cursor:grab;transform-origin:50% 100%}
+.fkort img,.fkort .fnamn{
+  width:100%;height:100%;display:block;border-radius:6px;background:#11161e;
+  border:1px solid #39414e;box-shadow:0 8px 18px -8px #000c;
 }
-.fkort img{width:100%;height:100%;object-fit:cover;border-radius:5px;display:block;pointer-events:none}
-.fkort .fnamn{display:block;padding:8px 6px;font:600 10.5px/1.3 var(--sans);color:var(--dim);word-break:break-word}
-.fkort.in{opacity:1}
-.fkort.hov{z-index:99!important;cursor:grab;box-shadow:0 0 0 2px var(--acc),0 14px 30px -8px #000f}
-/* Knapparna sitter ihop med kortets överkant (ingen glipa — pekaren ska
-   kunna nå dem utan att hovern tappas), motroterade så att de står rakt. */
-.fknapp{position:absolute;left:50%;top:-32px;display:none;gap:4px;padding-bottom:8px;white-space:nowrap;transform-origin:50% 100%}
-.fkort.hov .fknapp{display:flex}
-.fknapp button{height:24px;padding:0 8px;border-radius:6px;border:1px solid var(--line);background:#0b1017f2;color:var(--txt);font:600 11px/1 var(--sans);cursor:pointer}
-.fknapp button:hover{border-color:var(--acc);color:var(--pa-acc)}
-body.lasvy .fknapp{display:none!important}
+.fkort img{object-fit:cover;pointer-events:none}
+.fkort .fnamn{padding:8px 6px;font:600 10.5px/1.3 var(--sans);color:var(--dim);word-break:break-word}
+/* Hovrat kort: lyftet och skalan sitter i transformen; ramen blir accent. */
+.fkort.hov img,.fkort.hov .fnamn{border:2px solid var(--acc);box-shadow:0 22px 40px -10px #000f}
+/* Korten i solfjädern ÄR högen: den kollapsade högen döljs medan den är
+   utfälld, etiketten tänds och räknaren säger vad man kan göra. */
+.gravhog.fanpa .grav{opacity:0}
+.gravhog.fanpa .gravrub b{color:var(--acc)}
+.gravhog.fanpa .gravtxt{color:var(--pa-acc)}
+.gravhog.fanpa .gravtxt .gt-n{display:none}
+.gravhog.fanpa .gravtxt .gt-fan{display:inline}
+body.lasvy .gravhog.fanpa .gravtxt .gt-n{display:inline}
+body.lasvy .gravhog.fanpa .gravtxt .gt-fan{display:none}
 body.lasvy .fkort{cursor:default}
 
 
@@ -6813,7 +6818,7 @@ function renderGravHog(cards, d) {
     gravHogHtml = html;
     manaRow.innerHTML = html;
     /* En omritning river solfjädern; står den öppen ritas den om utan animation. */
-    if (fan.zon) fanRita(false);
+    if (fan.zon) fanRita();
   }
   if (vaxte) gravBumpa();
 }
@@ -6835,82 +6840,100 @@ function gravBumpa() {
   }, 500);
 }
 /* ═══ FRI MATTA — graveyard-solfjädern ═══════════════════════════════
-   Hovra högen så fjädrar korten ut i en båge ovanför den (README: steg 6).
-   Det hovrade kortet lyfts och får Return to play / Exile; drar man det
-   mer än 6 px blir det ett mattkort under pekaren (spawnFromGrave) och
-   det vanliga draget tar över. Lyssnarna är delegerade på manaRow —
-   innerHTML byggs om vid varje strukturändring — och tillståndet ligger
-   i `fan`. Samma fjäder för exile-högen. */
-const fan = { zon: null, hov: null, t: null, hovT: null, drag: null };
+   GRAVEYARD_ANIMATION.md §4–5. Hovra högen så veckas korten ut ur den i en
+   båge; det hovrade kortet lyfts och får Return to play / Exile; drar man
+   ett kort mer än 6 px blir det ett mattkort under pekaren (spawnFromGrave)
+   och det vanliga draget tar över. Två tillstånd, inte ett: zon (korten
+   finns i DOM, referensens fanOpen) och on (de är utfällda, fanOn) — det är
+   delningen som gör att korten animerar ut ur högen i stället för att dyka
+   upp utfällda. Tre timers, som alla rensas vid varje ny händelse — annars
+   stängs solfjädern under fingret. Lyssnarna är delegerade på manaRow;
+   samma fjäder för exile-högen. */
+const fan = { zon: null, on: false, hov: null, tOn: null, tOff: null, tClose: null, drag: null };
 function fanKort(zon) { const c = hand(), d = delaHand(); return (zon === ZON_EXIL ? d.exil : d.grav).map(i => c[i]); }
+/* Kort i av n (i = 0 överst i högen): steget i sidled kapas på 96 px och
+   aldrig mer än 828 px totalt — och inte bredare än mattan — och bågen
+   lägger korten i mitten högst, från −9° till +9°. */
 function fanGeom(n) {
   const fri = Math.max(240, ($('#zonPerm').clientWidth || MATTA.VP.w) - 190);
   const steg = n > 1 ? Math.min(96, 828 / (n - 1), fri / (n - 1)) : 0;
-  return i => { const t = n > 1 ? i / (n - 1) : 0.5; return { dx: i * steg, dy: -64 - Math.sin(t * Math.PI) * 30, a: -9 + t * 18 }; };
+  return i => { const t = n > 1 ? i / (n - 1) : 0; return { dx: i * steg, dy: -64 - Math.sin(t * Math.PI) * 30, a: -9 + t * 18 }; };
 }
-const fanTransform = (g, hov) => `translate(${Math.round(g.dx)}px,${Math.round(g.dy - (hov ? 20 : 0))}px) rotate(${g.a.toFixed(1)}deg)${hov ? ' scale(1.1)' : ''}`;
+const fanTransform = (g, hov) => `translate(${g.dx.toFixed(0)}px,${(g.dy - (hov ? 20 : 0)).toFixed(0)}px) rotate(${g.a.toFixed(1)}deg) scale(${hov ? 1.1 : 1})`;
+function fanTimrarBort() { clearTimeout(fan.tOn); clearTimeout(fan.tOff); clearTimeout(fan.tClose); fan.tOn = fan.tOff = fan.tClose = null; }
+/* Öppna: korten monteras ovanpå högen och fälls ut 24 ms senare — de
+   behöver ett startläge att animera från. Bara om man inte håller i ett kort. */
 function fanOppna(zon) {
   if (dnd || fan.drag) return;
-  clearTimeout(fan.t); fan.t = null;
-  if (fan.zon === zon) return;
-  fan.zon = zon; fan.hov = null;
-  fanRita(true);
+  fanTimrarBort();
+  if (fan.zon === zon && fan.on) return;
+  if (fan.zon !== zon) { fan.zon = zon; fan.on = false; fan.hov = null; fanRita(); }
+  fan.tOn = setTimeout(() => {
+    fan.tOn = null;
+    const el = $('#gravFan'); if (!el || fan.zon !== zon) return;
+    void el.offsetWidth;             // startläget räknat innan målet sätts, även i en dold flik
+    fan.on = true; fanLage();
+  }, 24);
 }
-function fanRita(anim) {
+/* Korten i DOM för zonen, i sitt nuvarande läge (utfällda om on). */
+function fanRita() {
   const el = $('#gravFan'); if (!el || !fan.zon) return;
   const lista = fanKort(fan.zon), n = lista.length;
-  if (!n) { fanStang(); return; }
-  const g = fanGeom(n), bas = fan.zon === ZON_EXIL ? 148 : 0;
-  /* Nyast överst och längst till höger — som toppen på högen. */
-  el.innerHTML = lista.slice().reverse().map((e, i) => {
-    const card = cardOf(e), src = card ? imgOf(card, 0, 'small') : '';
-    const knappar = fan.zon === ZON_EXIL
-      ? `<button type="button" data-fakt="ater">Return to play</button><button type="button" data-fakt="grav">To the graveyard</button>`
-      : `<button type="button" data-fakt="ater">Return to play</button><button type="button" data-fakt="exil">Exile</button>`;
-    return `<div class="fkort${anim ? '' : ' in'}${!anim && fan.hov === e.cid ? ' hov' : ''}" data-cid="${esc(e.cid)}" data-j="${n - 1 - i}" style="z-index:${i + 1};left:${20 + bas}px;transform:${anim ? 'translate(0,0) rotate(0deg)' : fanTransform(g(i), fan.hov === e.cid)};transition-delay:${anim ? i * 22 : 0}ms">
-      ${src ? `<img src="${esc(src)}" alt="${esc(namnAv(e))}" draggable="false">` : `<span class="fnamn">${esc(namnAv(e))}</span>`}
-      <span class="fknapp" style="transform:translateX(-50%) rotate(${(-g(i).a).toFixed(1)}deg)">${knappar}</span></div>`;
+  if (!n) { fanStangNu(); return; }
+  /* Exile-högens fjäder står över exile-högen, med underkanten i jämnhöjd. */
+  const ex = fan.zon === ZON_EXIL && manaRow.querySelector('.exilhog');
+  el.style.left = ex ? ex.offsetLeft + 'px' : '';
+  el.style.top = ex ? (ex.offsetTop + ex.offsetHeight - el.offsetHeight) + 'px' : '';
+  const g = fanGeom(n);
+  el.innerHTML = lista.map((e, i) => {
+    const card = cardOf(e), src = card ? imgOf(card, 0, 'small') : '', hov = fan.on && fan.hov === e.cid;
+    return `<div class="fkort${hov ? ' hov' : ''}" data-cid="${esc(e.cid)}" data-j="${i}" style="z-index:${hov ? 60 : i + 1};transform:${fan.on ? fanTransform(g(i), hov) : 'none'};transition:transform .3s cubic-bezier(.2,.9,.3,1) ${i * 22}ms">`
+      + (src ? `<img src="${esc(src)}" alt="${esc(namnAv(e))}" draggable="false">` : `<span class="fnamn">${esc(namnAv(e))}</span>`) + '</div>';
   }).join('');
-  if (anim) {
-    /* En framtvingad layout mellan startläget och målet, så att övergången
-       spelas — requestAnimationFrame står stilla i en dold flik. */
-    void el.offsetWidth;
-    el.querySelectorAll('.fkort').forEach((k, i) => { k.classList.add('in'); k.style.transform = fanTransform(g(i), false); });
-  }
+  manaRow.classList.toggle('fanpa', fan.on && fan.zon === ZON_GRAV);
 }
-function fanHovRita() {
+/* Lägena på plats: utfällt eller hemma, det hovrade kortet lyft. Varje korts
+   egen transition bär rörelsen. */
+function fanLage() {
   const el = $('#gravFan'); if (!el) return;
-  const n = el.querySelectorAll('.fkort').length, g = fanGeom(n);
-  el.querySelectorAll('.fkort').forEach((k, i) => {
-    const hov = k.dataset.cid === fan.hov;
+  const kort = [...el.querySelectorAll('.fkort')], g = fanGeom(kort.length);
+  kort.forEach((k, i) => {
+    const hov = fan.on && k.dataset.cid === fan.hov;
     k.classList.toggle('hov', hov);
-    if (k.classList.contains('in')) { k.style.transitionDelay = '0ms'; k.style.transform = fanTransform(g(i), hov); }
+    k.style.zIndex = hov ? 60 : i + 1;
+    k.style.transform = fan.on ? fanTransform(g(i), hov) : 'none';
   });
+  manaRow.classList.toggle('fanpa', fan.on && fan.zon === ZON_GRAV);
 }
 function fanHov(cid) {
-  clearTimeout(fan.hovT); fan.hovT = null;
+  if (!fan.zon) return;
+  if (fan.on) fanTimrarBort(); else fanOppna(fan.zon);   // stängningen pågick: ut igen
   if (fan.hov === cid) return;
-  fan.hov = cid; fanHovRita();
+  fan.hov = cid; fanLage();
   matHover = cid; renderInspektor();
 }
-function fanHovBort() {
-  clearTimeout(fan.hovT);
-  fan.hovT = setTimeout(() => {
-    if (fan.hov && matHover === fan.hov) { matHover = null; renderInspektor(); }
-    fan.hov = null; fanHovRita();
-  }, 60);
+/* Stäng: 130 ms innan korten flyger hem — så att man hinner röra sig mellan
+   högen och ett kort — och ytterligare 240 ms innan de avmonteras. */
+function fanStangSnart() {
+  fanTimrarBort();
+  if (fan.zon) fan.tOff = setTimeout(fanStang, 130);
 }
+/* Fäll ihop nu och avmontera när korten hunnit hem. */
 function fanStang() {
-  clearTimeout(fan.t); clearTimeout(fan.hovT); fan.t = fan.hovT = null;
+  fanTimrarBort();
   if (!fan.zon) return;
   if (fan.hov && matHover === fan.hov) { matHover = null; renderInspektor(); }
-  fan.zon = null; fan.hov = null;
-  const el = $('#gravFan'); if (!el) return;
-  const kort = el.querySelectorAll('.fkort');
-  kort.forEach(k => { k.classList.remove('in', 'hov'); k.style.transitionDelay = '0ms'; k.style.transform = 'translate(0,0) rotate(0deg)'; });
-  setTimeout(() => { if (!fan.zon) el.innerHTML = ''; }, 240);
+  fan.on = false; fan.hov = null; fanLage();
+  fan.tClose = setTimeout(fanStangNu, 240);
 }
-function fanStangSnart() { clearTimeout(fan.t); fan.t = setTimeout(fanStang, 130); }
+/* Avmontera direkt, utan animation. */
+function fanStangNu() {
+  fanTimrarBort();
+  if (fan.hov && matHover === fan.hov) { matHover = null; renderInspektor(); }
+  fan.zon = null; fan.on = false; fan.hov = null;
+  manaRow.classList.remove('fanpa');
+  const el = $('#gravFan'); if (el) { el.innerHTML = ''; el.style.left = el.style.top = ''; }
+}
 /* Tillbaka på mattan från en hög: zonen släpps, kortet landar där det låg
    — eller bredvid de andra om det aldrig haft en plats. */
 function gravTillbaka(e) {
@@ -6949,18 +6972,21 @@ function spawnFromGrave(cid, ev) {
   if (el) el.classList.add('held');
   try { gridEl.setPointerCapture(ev.pointerId); } catch (err) {}
 }
+/* Öppna på pekaren in över panelen (etikett, hög, räknare) — inte förrän den
+   lämnat panelen efter ett släpp (gravNyss). Ett kort i fjädern hovras;
+   stängningen startar när pekaren lämnar panelen med fjädern. */
 manaRow.addEventListener('pointerover', ev => {
+  if (ev.target.closest('.gravslapp')) return;
   const fk = ev.target.closest('.fkort');
-  if (fk) { clearTimeout(fan.t); fan.t = null; fanHov(fk.dataset.cid); return; }
-  if (ev.target.closest('[data-grav-open]')) { clearTimeout(fan.t); if (!gravNyss && delaHand().grav.length) fan.t = setTimeout(() => fanOppna(ZON_GRAV), 24); return; }
-  if (ev.target.closest('[data-exil-open]')) { clearTimeout(fan.t); fan.t = setTimeout(() => fanOppna(ZON_EXIL), 24); return; }
+  if (fk) { fanHov(fk.dataset.cid); return; }
+  if (ev.target.closest('#gravFan')) { if (fan.zon) fanOppna(fan.zon); return; }
+  if (ev.target.closest('.exilhog')) { fanOppna(ZON_EXIL); return; }
+  if (!gravNyss && delaHand().grav.length) fanOppna(ZON_GRAV);
 });
 manaRow.addEventListener('pointerout', ev => {
   const till = ev.relatedTarget;
-  const fk = ev.target.closest('.fkort');
-  if (fk && !(till && fk.contains(till))) fanHovBort();
   if (till && manaRow.contains(till)) return;
-  if (fan.zon) fanStangSnart(); else { clearTimeout(fan.t); fan.t = null; }
+  fanStangSnart();
 });
 manaRow.addEventListener('pointerdown', ev => {
   const fk = ev.target.closest('.fkort');
