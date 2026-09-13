@@ -14191,6 +14191,17 @@ const Kamera = (() => {
      Plains fick 103°. Men ett rakt kort mätt i en rektangel som med flit är
      5–25° fel vriden godkändes ändå, 12 av 12 (dev/golden/vriden.cjs). */
   const BESKAR_SNETT = 10 * Math.PI / 180;
+  /* Den tidiga läsningen (K4, MES-86). Ett spår som ännu inte legat stilla
+     i stillaMs, men vars form stått still i SPEK_RUTOR rutor i följd —
+     ingen rörelse över stillaPx och samma mått inom SPEK_FORM — läses med
+     den lokala kedjan medan det väntar. Rutan det läses i rör sig inte,
+     så beskärningen är inte suddig. Svaret gäller ändå inte förrän spåret
+     blivit 'stilla' på vanligt sätt: då tas ett SÄKERT tidigt svar om
+     spåret står där och har samma form som när det lästes (bekraftaSpek),
+     utan en läsning till. Allt annat — osäkert, skräp, flyttat — läses
+     som i dag när spåret är stilla. Aldrig en fråga till Claude för en
+     tidig läsning, och högst SPEK_MAX per spår. */
+  const SPEK_RUTOR = 2, SPEK_FORM = 0.06, SPEK_MAX = 2;
   /* Referensen är inte EN bildruta utan medel av några. En enda ruta bär
      hela sitt brus in i varje jämförelse som görs sedan, och skillnaden
      mellan rutorna är dessutom det enda måttet på hur mycket brus mattan
@@ -15437,7 +15448,11 @@ const Kamera = (() => {
            är säkert namngivet. Uppmätt i golden 06: Maul + Pacifism som
            en region, skuren till 71×53 och 71×49, och spåret behöll
            0,19×0,23 av bilden med namnet det gissat på klumpen. */
-        if (f.area < 0.6 * bast.areaRef) { bast.helBox = { box: bast.box, areaRef: bast.areaRef, nar: nu }; bast.areaRef = f.area; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
+        if (f.area < 0.6 * bast.areaRef) { bast.helBox = { box: bast.box, areaRef: bast.areaRef, nar: nu }; bast.areaRef = f.area; bast.spek = null; bast.formN = 0; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
+        /* Formen (K4): samma långsida och kortsida som förra rutan, inom
+           SPEK_FORM. En hand som håller i kortet, eller en skugga som hänger
+           med, ändrar regionens mått fast mitten står nästan still. */
+        const formLik = Math.abs(f.lang - bast.lang) <= SPEK_FORM * bast.lang && Math.abs(f.kort - bast.kort) <= SPEK_FORM * bast.kort;
         bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         /* sedd sätter helbilden också; regionNar bara här och i fodSpar, där
@@ -15446,6 +15461,9 @@ const Kamera = (() => {
         bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
         if (ror > T.stillaPx) {
           bast.stillaFran = nu; bast.ram = null; bast.stillaN = 0;
+          /* Kortet rör sig: en tidig läsning gäller en beskärning som inte
+             är kortet där det hamnar (K4). */
+          bast.formN = 0; if (bast.spek && !bast.namn) bast.spek = null;
           if ((bast.tillstand === 'stilla' || bast.tillstand === 'skrap') && !bast.namn) { bast.tillstand = 'ny'; bast.fragad = false; bast.skrapN = 0;
             /* Ett första "inget kort" kan ha varit en exponering som dippat — samma
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
@@ -15453,6 +15471,7 @@ const Kamera = (() => {
         }
         else {
           if (!bast.stillaFran) bast.stillaFran = nu;
+          bast.formN = formLik ? (bast.formN || 0) + 1 : 0;
           /* Viloläget (K5): spårets läge i vila, med hysteres. Rapporteras
              (tillstandsSignatur) bara när kortet legat stilla två rutor och
              flyttat mer än tre stillaPx sedan förra vilan — darret på
@@ -15846,7 +15865,15 @@ const Kamera = (() => {
     /* Stilla länge nog och ännu utan namn → identifiera, ett i taget. */
     for (const t of spar) {
       if (t.tillstand === 'ny' && nu - t.stillaFran >= T.stillaMs) t.tillstand = 'stilla';
+      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && t.spek && t.spek.svar && bekraftaSpek(t)) continue;
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !(t.igen > nu) && !identifierar) { identifiera(t, nu); break; }
+    }
+    /* …och är ingen stilla att läsa: ett spår som ännu väntar men har stått
+       formstilla läses tidigt (K4). De stillas läsning går alltid först. */
+    if (!identifierar) {
+      const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.spek && (q.formN || 0) >= SPEK_RUTOR
+                               && (q.spekN || 0) < SPEK_MAX && !(q.igen > nu) && !arHelbild(q));
+      if (t) spekulera(t, nu);
     }
     planeraHelbild(nu, g);
 
@@ -16345,6 +16372,47 @@ const Kamera = (() => {
     rapportera();
   }
 
+  /* Den tidiga läsningen (K4): samma lokala kedja som identifiera — ram,
+     beskärning, bild och titelrad — men svaret sparas på spåret (spek) i
+     stället för att döma det. Inget går till datorn och ingen fråga till
+     Claude: kamIdentifiera får spek, och ett osäkert svar kastas. Rör sig
+     spåret under läsningen (matcha nollar spek) gäller svaret ingenting. */
+  async function spekulera(t, nu) {
+    identifierar = true;
+    t.spekN = (t.spekN || 0) + 1;
+    const vantar = { vantar: true };
+    t.spek = vantar;
+    let svar = null;
+    const t0 = performance.now();
+    try {
+      t.ram = finLada(t.box, senasteG0, t);
+      const geo = { cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort };
+      const b = video ? beskar(t) : null;
+      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true });
+      if (t.spek !== vantar) return;
+      t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
+        ? { svar, geo, upptagna: spar.filter(q => q !== t && q.tillstand !== 'skrap' && q.saker && q.namn === svar.namn).length, nar: nu || 0 }
+        : { miss: true };
+    } catch (e) { if (t.spek === vantar) t.spek = { miss: true }; }
+    finally { identifierar = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
+  }
+  /* Spåret har blivit stilla med ett säkert tidigt svar. Det gäller om
+     kortet ligger där det låg när det lästes (inom viloläget, 3 stillaPx)
+     med samma mått (SPEK_FORM), och om inget annat spår blivit säkert på
+     samma namn sedan dess (antalspriorn räknades då). Annars kastas det,
+     och spåret läses som vanligt i samma varv. */
+  function bekraftaSpek(t) {
+    const s = t.spek, g = s.geo, svar = s.svar;
+    const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * T.stillaPx
+             && Math.abs(t.lang - g.lang) <= SPEK_FORM * g.lang && Math.abs(t.kort - g.kort) <= SPEK_FORM * g.kort;
+    const upptagna = spar.filter(q => q !== t && q.tillstand !== 'skrap' && q.saker && q.namn === svar.namn).length;
+    if (!lik || upptagna > s.upptagna) { t.spek = { miss: true }; return false; }
+    t.namn = svar.namn; t.sid = svar.sid || null; t.saker = true; t.cands = svar.cands || null; t.namnLast = svar.namnLast || null;
+    t.varfor = svar.varfor || null; t.spekKlar = true;
+    t.fragad = true; t.provas = false; t.tillstand = 'klar'; t.spek = null;
+    return true;
+  }
+
   /* Svaret från servern på en osäker beskärning (kamFragaAI). Ett kort:
      spåret får namnet — säkert bara vid 'hog', annars överst bland
      förslagen och kvar i granskningen. Flera kort: spåret delas i ett spår
@@ -16673,6 +16741,7 @@ const Kamera = (() => {
        namnger det. Flaggan behålls så att matcha() inte släpper det. */
     if (arHelbild(t)) { t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.varfor = 'helbild glömd'; t.tillstand = 'okand'; t.provas = false; t.aiInget = 0; return; }
     t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); t.provas = false; t.aiInget = 0;
+    t.spek = null; t.formN = 0; t.spekN = 0;
   }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
@@ -16794,7 +16863,7 @@ async function oppnaKamera(gameId) {
          "lär sig ljuset" ur exakt det, och behöver inte gissa ur tystnaden. */
       fas: () => { if (kamLage) Moln.sandKam('bord', Object.assign({ fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }, bordExtra())); },
       upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
-      identifiera: (canvas, id, gissning, kort) => kamIdentifiera(canvas, id, gissning, kort),
+      identifiera: (canvas, id, gissning, kort, o) => kamIdentifiera(canvas, id, gissning, kort, o),
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
       /* Om frågorna faktiskt går till Claude (samma villkor som kamFragaAI):
@@ -16960,7 +17029,9 @@ function kamLart(id, namn, sid, kalla) {
   Ref.lar(namn, sid, b.bild, kalla).catch(() => {});
   return true;
 }
-async function kamIdentifiera(canvas, id, gissning, kort) {
+/* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
+   ingen beskärning går till datorns granskning. */
+async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (!Pool.idx || !canvas) return null;          // poolen är inte klar än — spåret får vänta
   const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
   /* Ser beskärningen ut som ett kort MOT MATTAN? Spridning och andel
@@ -17057,7 +17128,7 @@ async function kamIdentifiera(canvas, id, gissning, kort) {
     if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
   }
   const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand } : null;
-  if (!saker) {
+  if (!saker && !(o && o.spek)) {
     /* Beskärningen följer med så att datorn kan visa den i granskningen. */
     const s = Math.min(1, 300 / canvas.width);
     const c = document.createElement('canvas'); c.width = Math.round(canvas.width * s); c.height = Math.round(canvas.height * s);

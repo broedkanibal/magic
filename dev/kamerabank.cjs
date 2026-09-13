@@ -422,7 +422,10 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`W5 tre kort + skakning 4,5 s: samma tre id kvar ${r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3}, rutor med alla tre hela ${helaRutor}/30 (${r.sist.map(t => Math.round(t.lang) + '×' + Math.round(t.kort) + '@' + Math.round(t.cx) + ',' + Math.round(t.cy) + (t.skymd ? ' skymd' : '')).join(', ')})`, r.sist.filter(t => idsW.has(t.id)).length === 3 && r.sist.length === 3 && helaRutor >= 24);
   nystart(); await refTra(); namnSvar = () => ({ skrap: true });
   r = await summa(34, () => rutaTra({}, TREW));                         // två omförsök à 1,5 s, sedan dom
-  check(`W8 skräp: beskärning utan textruta blir 'skrap' efter tre försök, inte okänd: ${r.sist.map(t => t.tillstand).join(',')}, frågor ${identifieringar}`, r.sist.length === 3 && r.sist.every(t => t.tillstand === 'skrap') && identifieringar === 9);
+  /* 12 = tre försök per kort som förut (9) plus en tidig läsning per kort
+     medan det väntade (K4, MES-86): skräp ur den tidiga läsningen räknas
+     inte som ett försök — domen faller på samma tre som i dag. */
+  check(`W8 skräp: beskärning utan textruta blir 'skrap' efter tre försök, inte okänd: ${r.sist.map(t => t.tillstand).join(',')}, frågor ${identifieringar}`, r.sist.length === 3 && r.sist.every(t => t.tillstand === 'skrap') && identifieringar === 12);
   /* W8b: skräp först, sedan ett riktigt namn — utan att kortet flyttats. */
   let forsok = 0; namnSvar = () => (++forsok <= 2 ? { skrap: true } : { namn: 'Plains', sid: 's1', saker: true, cands: [] });
   nystart(); await refTra(); r = await summa(30, () => rutaTra({}, g => kortPaTra(g, 60, 70)));
@@ -947,6 +950,48 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`GL8 grundFranSpar(helbildsspår utan region) = ${hb && Kamera.grundFranSpar(hb.id, false)}, okänt id = ${Kamera.grundFranSpar(9999, false)}, grund kvar ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'}`,
           !!hb && !Kamera.grundFranSpar(hb.id, false) && !Kamera.grundFranSpar(9999, false) && Math.abs(Kamera.grund - rad(150)) < 1e-9);
     nystart();
+  }
+
+  // ── K4 (MES-86): den tidiga läsningen ────────────────────────────
+  /* Ett spår som stått formstilla i två rutor läses medan det ännu är 'ny',
+     men får inget namn förrän det legat stilla i stillaMs — och tar då det
+     tidiga svaret utan en läsning till. Läsningarna loggas med spårets
+     tillstånd i ögonblicket de begärdes. */
+  {
+    const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
+    let lasLogg = [];
+    const logga = svar => (id, g) => { const t = Kamera.spar.find(x => x.id === id); lasLogg.push(t ? t.tillstand : '?'); return svar(id, g); };
+    /* Namn medan spåret väntar: får aldrig synas. */
+    const namnSomNy = l => l.filter(t => t.st === 'ny' && t.namn).length;
+    // K4a: kortet ligger still från första rutan
+    namnSvar = logga(saker); lasLogg = []; nystart(); await referens();
+    let nyMedNamn = 0, forstaKlar = null;
+    for (let i = 0; i < 10; i++) { s = await ruta(KORT); nyMedNamn += namnSomNy(s); if (forstaKlar == null && s[0] && s[0].st === 'klar') forstaKlar = i + 1; }
+    const t4a = Kamera.spar[0] || {};
+    check(`K4a stilla kort: läsningar ${JSON.stringify(lasLogg)}, klar i ruta ${forstaKlar} (stillaMs 800 = ruta 7), namn medan ny ${nyMedNamn}, via tidigt svar ${!!t4a.spekKlar}`,
+          lasLogg.length === 1 && lasLogg[0] === 'ny' && identifieringar === 1 && s.length === 1 && s[0].st === 'klar' && s[0].namn === 'Plains'
+          && nyMedNamn === 0 && forstaKlar >= 7 && !!t4a.spekKlar);
+    // K4b: läst tidigt, sedan flyttat 12 px och stilla igen — det tidiga svaret kastas, platsen läses om
+    namnSvar = logga(saker); lasLogg = []; nystart(); await referens();
+    nyMedNamn = 0;
+    for (let i = 0; i < 3; i++) { s = await ruta(KORT); nyMedNamn += namnSomNy(s); }
+    const lastFore = identifieringar;
+    for (let i = 0; i < 10; i++) { s = await ruta(g => kort(g, W, 72, 50, 30, 42, 180)); nyMedNamn += namnSomNy(s); }
+    check(`K4b läst tidigt, flyttat 12 px: läsningar före flytten ${lastFore}, alla ${JSON.stringify(lasLogg)}, sist ${s[0] && s[0].st} ${s[0] && s[0].namn}, namn medan ny ${nyMedNamn}`,
+          lastFore === 1 && identifieringar === 2 && lasLogg.every(x => x === 'ny') && s.length === 1 && s[0].st === 'klar' && nyMedNamn === 0);
+    // K4c: det tidiga svaret är osäkert — spåret läses som i dag när det är stilla
+    namnSvar = logga(osaker); lasLogg = []; nystart(); await referens();
+    for (let i = 0; i < 10; i++) s = await ruta(KORT);
+    check(`K4c osäkert tidigt svar: läsningar ${JSON.stringify(lasLogg)}, sist ${s[0] && s[0].st}`,
+          lasLogg.length === 2 && lasLogg[0] === 'ny' && lasLogg[1] === 'stilla' && s.length === 1 && s[0].st === 'okand');
+    // K4d: formen svänger (kortet 30 ↔ 34 brett runt samma mitt) — ingen tidig läsning, bara den vanliga
+    namnSvar = logga(saker); lasLogg = []; nystart(); await referens();
+    let formMax = 0;
+    for (let i = 0; i < 10; i++) { s = await ruta(g => (i % 2 ? kort(g, W, 58, 50, 34, 42, 180) : KORT(g))); formMax = Math.max(formMax, (Kamera.spar[0] && Kamera.spar[0].formN) || 0); }
+    check(`K4d formen svänger: läsningar ${JSON.stringify(lasLogg)}, formN högst ${formMax}, sist ${s[0] && s[0].st}`,
+          lasLogg.length === 1 && lasLogg[0] === 'stilla' && formMax < 2 && s.length === 1 && s[0].st === 'klar');
+    namnSvar = saker;
   }
 
   console.log([...ok, ...fel].join('\n'));

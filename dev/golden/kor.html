@@ -507,11 +507,11 @@ function aterkoppling(f, prov) {
           namnLast: t.namnLast ? { namn: t.namnLast.namn != null ? t.namnLast.namn : null, poang: t.namnLast.poang != null ? t.namnLast.poang : null } : null
         })) });
     },
-    identifiera: (c, id, gissning, kort) => {
+    identifiera: (c, id, gissning, kort, o) => {
       sparaBeskarning(f.id, c, id);
-      const s = prov.s, w0 = c ? c.width : 0, h0 = c ? c.height : 0;
-      const p = w.kamIdentifiera(c, id, gissning, kort);
-      if (p && typeof p.then === 'function') p.then(svar => { try { loggaLasning(prov, s, id, w0, h0, svar); } catch (e) {} }, () => {});
+      const s = prov.s, w0 = c ? c.width : 0, h0 = c ? c.height : 0, spek = !!(o && o.spek);
+      const p = w.kamIdentifiera(c, id, gissning, kort, o);
+      if (p && typeof p.then === 'function') p.then(svar => { try { loggaLasning(prov, s, id, w0, h0, svar, spek); } catch (e) {} }, () => {});
       return folj(p);
     },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
@@ -547,9 +547,9 @@ function las(prov, ms, msRuta) {
 }
 /* En lokal läsning av ett spår, som kamIdentifiera svarade. Högst 60 per
    fall: ett spår som väntar på poolen frågar om var 1,5 s. */
-function loggaLasning(prov, s, id, w0, h0, svar) {
+function loggaLasning(prov, s, id, w0, h0, svar, spek) {
   if (prov.lasningar.length >= 60) return;
-  const l = { s, spar: id, nr: null, w: w0, h: h0 };
+  const l = { s, spar: id, nr: null, w: w0, h: h0, spek: !!spek };   // spek: en tidig läsning (K4), gäller först när spåret är stilla
   if (svar == null) l.dom = 'inte redo';
   else if (svar.skrap) l.dom = 'skräp';
   else if (svar.baksida) l.dom = 'baksida';
