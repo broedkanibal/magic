@@ -472,7 +472,9 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 }
 .mattavp{position:absolute;inset:0;overflow:hidden;touch-action:none;user-select:none}
 .mattavp.inzoomad{cursor:grab}
-.mattavp.panorerar{cursor:grabbing}
+/* Mellanslag hållet över mattan: handen, även ovanpå korten. */
+.mattavp.handredo,.mattavp.handredo *{cursor:grab!important}
+.mattavp.panorerar,.mattavp.panorerar *{cursor:grabbing!important}
 .mattabrade{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 /* Övergången är none under drag och hjul, och .32s när zoomknapparna eller
    fit används — annars släpar zoomen efter pekaren. */
@@ -3197,6 +3199,7 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card in reading order</dd>
             <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen</dd>
             <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
+            <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat when zoomed in — or drag with two fingers on the trackpad</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
         </section>
@@ -6877,16 +6880,40 @@ function fitView() {
   matSkriv(p);
 }
 const matInzoomad = () => { const v = matVy(); return v.z > v.fit + 0.005; };
-/* Hjulet zoomar mot pekaren; shift eller ett vågrätt hjul panorerar. */
+/* Touchpad eller mushjul? Webbläsaren säger det inte. Touchpaden skickar
+   små steg i pixlar, ofta med ett vågrätt inslag, och wheelDeltaY = -3 ×
+   deltaY; mushjulet skickar hela hack — wheelDeltaY i jämna 120-steg
+   (Chrome, Safari) eller rader (Firefox, deltaMode 1). En gest avgörs på
+   sitt första steg och gäller tills hjulet varit stilla en stund, så att
+   ett tvetydigt steg mitt i ett drag inte slår om till zoom. */
+const hjulGest = { t: 0, touchpad: false };
+function arTouchpad(ev) {
+  const nu = performance.now();
+  if (nu - hjulGest.t > 220) {
+    hjulGest.touchpad = ev.deltaMode === 0 && (ev.deltaX !== 0 ||
+      (ev.wheelDeltaY ? ev.wheelDeltaY % 120 !== 0 : !Number.isInteger(ev.deltaY)));
+  }
+  hjulGest.t = nu;
+  return hjulGest.touchpad;
+}
+/* Hjulet: nypning på touchpaden (den kommer med ctrlKey) och mushjulet
+   zoomar mot pekaren. Två fingrar på touchpaden flyttar mattan åt alla
+   håll; shift eller ett vågrätt hjul flyttar den i sidled. */
+let matHjulHand = null;
 gridWrap.addEventListener('wheel', ev => {
   ev.preventDefault();
   const p = player(), v = matVy(p), vy = matVyFor(p);
   const r = gridWrap.getBoundingClientRect();
   const mx = ev.clientX - r.left, my = ev.clientY - r.top;
   gridEl.classList.remove('glider');
-  if (ev.shiftKey || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) {
-    const d = ev.shiftKey ? ev.deltaY : ev.deltaX;
-    vy.pan = clampPan({ x: v.pan.x - d, y: v.pan.y }, v.z, v.board, v.vp);
+  if (ev.ctrlKey) hjulGest.t = 0;               // nästa drag avgörs på nytt
+  else if (ev.shiftKey || arTouchpad(ev)) {
+    const sidled = ev.shiftKey && !ev.deltaX;   // shift + mushjul på Windows: bara deltaY
+    const dx = sidled ? ev.deltaY : ev.deltaX, dy = ev.shiftKey ? 0 : ev.deltaY;
+    vy.pan = clampPan({ x: v.pan.x - dx, y: v.pan.y - dy }, v.z, v.board, v.vp);
+    gridWrap.classList.add('panorerar');
+    clearTimeout(matHjulHand);
+    matHjulHand = setTimeout(() => { if (!matPan) gridWrap.classList.remove('panorerar'); }, 180);
     matSkriv(p); return;
   }
   const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, v.z * Math.exp(-ev.deltaY * 0.0016)));
@@ -6895,29 +6922,84 @@ gridWrap.addEventListener('wheel', ev => {
   vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp);
   matSkriv(p);
 }, { passive: false });
-/* Drag på tom yta panorerar när brädet är inzoomat. (Lasson på ett
-   utzoomat bräde kommer senare, som egen deluppgift.) */
-let matPan = null;
+/* Mellanslag hållet över mattan gör pekaren till en hand: drag flyttar
+   mattan, även ovanpå korten. Släpps tangenten utan att musen tryckts ned
+   är det ett vanligt Space — kortet vänds, på släppet i stället för
+   trycket. Utanför mattan vänder Space som förut, direkt. */
+let matHand = null;   // { anvand } medan mellanslag hålls över mattan
+function matHandNer(ev) {
+  if (matHand) { ev.preventDefault(); return true; }   // tangentrepetition
+  if (ev.repeat || !gridWrap.matches(':hover')) return false;
+  ev.preventDefault();
+  matHand = { anvand: false };
+  gridWrap.classList.add('handredo');
+  return true;
+}
+function matHandUpp(vand) {
+  if (!matHand) return;
+  const h = matHand; matHand = null;
+  gridWrap.classList.remove('handredo');
+  if (vand && !h.anvand && redigerbar()) flipSel();
+}
+addEventListener('keyup', ev => { if (ev.key === ' ') matHandUpp(true); });
+addEventListener('blur', () => matHandUpp(false));
+/* Drag flyttar mattan när brädet är inzoomat: vänsterknappen på tom yta,
+   mittenknappen, högerklick (två fingrar som klickar på touchpaden) och
+   vänsterknappen med mellanslag hållet. De två sista gäller även ovanpå
+   ett kort; högerklick på ett kort öppnar menyn, och menyn stängs när
+   draget kommer igång. Lyssnaren fångar (capture) så att handen hinner
+   före kortens egna drag. (Lasson på ett utzoomat bräde kommer senare,
+   som egen deluppgift.) */
+const MATT_UI = '.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark';
+let matPan = null, matPanSvalg = false;
 gridWrap.addEventListener('pointerdown', ev => {
-  if (ev.button !== 0 && ev.button !== 1) return;
-  if (ev.target.closest('.card,.plats,.grav,.mattachrome,.empty,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark')) return;
+  matPanSvalg = false;
+  if (ev.target.closest(MATT_UI)) return;
+  const hand = !!matHand && ev.button === 0, hoger = ev.button === 2;
+  if (!hand && !hoger) {
+    if (ev.button !== 0 && ev.button !== 1) return;
+    if (ev.target.closest('.card,.plats,.grav,.empty')) return;
+  }
   closeCounters();
-  if (ev.button === 0 && !matInzoomad()) return;
+  if (ev.button === 0 && !hand && !matInzoomad()) return;
+  if (hand) { matHand.anvand = true; ev.preventDefault(); ev.stopPropagation(); }
   const v = matVy();
-  matPan = { x0: ev.clientX, y0: ev.clientY, pan: { x: v.pan.x, y: v.pan.y } };
-  gridWrap.classList.add('panorerar');
+  matPan = { x0: ev.clientX, y0: ev.clientY, pan: { x: v.pan.x, y: v.pan.y }, hand, hoger, drog: false };
+  if (!hoger) gridWrap.classList.add('panorerar');
   gridEl.classList.remove('glider');
   try { gridWrap.setPointerCapture(ev.pointerId); } catch (e) {}
-});
+}, true);
 addEventListener('pointermove', ev => {
   if (!matPan) return;
+  const dx = ev.clientX - matPan.x0, dy = ev.clientY - matPan.y0;
+  if (!matPan.drog) {
+    if (Math.hypot(dx, dy) < 4) return;
+    matPan.drog = true;
+    if (matPan.hoger) { closeKortMeny(); gridWrap.classList.add('panorerar'); }
+  }
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  vy.pan = clampPan({ x: matPan.pan.x + (ev.clientX - matPan.x0), y: matPan.pan.y + (ev.clientY - matPan.y0) }, v.z, v.board, v.vp);
+  vy.pan = clampPan({ x: matPan.pan.x + dx, y: matPan.pan.y + dy }, v.z, v.board, v.vp);
   matSkriv(p);
 });
-const matPanSlut = () => { if (!matPan) return; matPan = null; gridWrap.classList.remove('panorerar'); };
+const matPanSlut = () => {
+  if (!matPan) return;
+  matPanSvalg = matPan.drog || matPan.hand;   // klicket (eller menyn) som följer ska inte göra något
+  matPan = null; gridWrap.classList.remove('panorerar');
+};
 addEventListener('pointerup', matPanSlut);
 addEventListener('pointercancel', matPanSlut);
+gridWrap.addEventListener('click', ev => {
+  if (matPanSvalg) { matPanSvalg = false; ev.preventDefault(); ev.stopPropagation(); }
+}, true);
+/* Högerklick på mattan: webbläsarens egen meny skulle stoppa draget (på
+   Mac öppnas den redan när knappen trycks ned), så den visas inte här.
+   Kortets meny har sin egen lyssnare; på Windows kommer contextmenu först
+   när knappen släpps, och efter ett drag sväljs den. */
+gridWrap.addEventListener('contextmenu', ev => {
+  if (matPanSvalg) { matPanSvalg = false; ev.preventDefault(); ev.stopPropagation(); return; }
+  if (ev.target.closest('.card,input,textarea,select,[contenteditable]')) return;
+  ev.preventDefault();
+}, true);
 /* Untap all: varje tappat kort på mitt bord ställs upp, med ångra. */
 function untapAlla() {
   if (!redigerbar()) return;
@@ -11240,7 +11322,8 @@ addEventListener('keydown', ev => {
     case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : matNav(0, 1); return;
     case 'Home':       ev.preventDefault(); matYtterst(false); return;
     case 'End':        ev.preventDefault(); matYtterst(true); return;
-    case ' ':          if (!redigerbar()) return; ev.preventDefault(); flipSel(); return;
+    case ' ':          if (matHandNer(ev)) return;
+                       if (!redigerbar()) return; ev.preventDefault(); flipSel(); return;
     case 'Enter':
       ev.preventDefault();
       focusOpen ? closeFocus() : openFocus();
