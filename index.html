@@ -3310,7 +3310,7 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>R</kbd></dt><dd>Read the image again (in the image view)</dd>
             <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick a candidate when confirming a card</dd>
             <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom in / out on the table</dd>
-            <dt><kbd>0</kbd></dt><dd>100% where the pointer is — or Fit, with the pointer off the table</dd>
+            <dt><kbd>0</kbd></dt><dd>Show every card on the table, clear of the library and graveyard</dd>
             <dt><kbd>?</kbd></dt><dd>This pane</dd>
           </dl>
         </section>
@@ -7118,9 +7118,11 @@ function zoomTill(z, punkt) {
   gridEl.classList.add('glider');
   matSkriv(p);
 }
+/* 0-tangenten: samma vy som efter Tidy up — alla kort på mattan centrerade,
+   ingen under graveyard- eller library-högen. */
 function fitView() {
-  const p = player(), vy = matVyFor(p);
-  vy.zoomManual = null; vy.pan = { x: 0, y: 0 };
+  const p = player(); if (!p) return;
+  luftigVy(p);
   gridEl.classList.add('glider');
   matSkriv(p);
 }
@@ -7184,12 +7186,6 @@ gridWrap.addEventListener('gesturechange', ev => {
 });
 gridWrap.addEventListener('gestureend', ev => { ev.preventDefault(); matGest = null; });
 let matHjulHand = null;
-/* Pekarens senaste läge över mattan, för 0-tangenten (100 % mot pekaren). */
-let matPekare = null;
-gridWrap.addEventListener('pointermove', ev => {
-  const r = gridWrap.getBoundingClientRect();
-  matPekare = { x: ev.clientX - r.left, y: ev.clientY - r.top };
-});
 gridWrap.addEventListener('wheel', ev => {
   ev.preventDefault();
   const p = player(), v = matVy(p), vy = matVyFor(p);
@@ -7383,10 +7379,12 @@ function stadaUpp() {
 }
 /* Vyn efter Tidy up (MES-120): korten mitt i mattan med LUFT_VY px luft
    runtom, under chromen och ur vägen för graveyard-högen — ovanför den eller
-   till höger om den, det som ger störst zoom. Aldrig över 100 %. */
+   till höger om den, det som ger störst zoom. Aldrig över 100 %. Rutan
+   som hölls kvar efter ett kort som lämnat mattan släpps: vyn räknas på
+   korten som ligger där nu. Också 0-tangenten (fitView). */
 function luftigVy(p) {
   const vy = matVyFor(p);
-  vy.board = null; vy.zoomManual = null; vy.pan = { x: 0, y: 0 };
+  vy.board = null; vy.zoomManual = null; vy.pan = { x: 0, y: 0 }; vy.ramHall = null;
   const v = matVy(p), ram = v.ram;
   if (!ram) return;
   const M = MATTA.LUFT_VY, topp = 52, rw = ram.x1 - ram.x0, rh = ram.y1 - ram.y0;
@@ -11825,8 +11823,7 @@ addEventListener('keydown', ev => {
     case 'Delete':     if (!redigerbar() || tangentKort() < 0) return; ev.preventDefault(); removeAt(tangentKort()); return;
     case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
     case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
-    case '0':          ev.preventDefault();   // över mattan: 100 % mot pekaren, annars fit
-                       gridWrap.matches(':hover') && matPekare ? zoomTill(1, matPekare) : fitView(); return;
+    case '0':          ev.preventDefault(); fitView(); return;   // alla kort i bild, fria från högarna
     case '?':          ev.preventDefault(); openOv('helpOv'); return;
   }
   if (k >= '1' && k <= '9') {
