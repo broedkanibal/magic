@@ -425,14 +425,17 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .opptit i{font-style:normal;font-size:11px;font-weight:500;color:var(--dim2)}
 .oppsum{font-size:12px;color:var(--dim)}
 .oppsteg:not(.done) .oppsum,.oppsteg.active .oppsum,.oppsteg:not(.active) .oppcont{display:none}
-/* Ett klart steg går att öppna igen för att ändra valet; det öppnade steget
-   behåller sin bock och fälls ihop igen med ett klick på raden. */
-.oppsteg.done{cursor:pointer}
-.oppsteg.done:not(.active):hover,.oppsteg.done:not(.active):focus-visible{background:#141a24;outline:none}
+/* Varje steg går att öppna med ett klick på raden (role=button sätts av
+   renderOppstart); ett klart steg behåller sin bock när det öppnats igen
+   och fälls ihop med ett klick på raden. */
+.oppsteg[role=button]{cursor:pointer}
+.oppsteg[role=button]:not(.active):hover,.oppsteg[role=button]:not(.active):focus-visible{background:#141a24;outline:none}
+.oppsteg.active[role=button]:focus-visible{outline:none;box-shadow:inset 2px 0 0 var(--acc)}
+.oppsteg.todo[role=button]:hover .opptit{color:var(--txt)}
 .oppsteg.done:not(.active) .opptit::after{content:'Change';margin-left:auto;font-size:11.5px;font-weight:500;color:var(--dim2);opacity:0;transition:opacity .12s}
 .oppsteg.done:not(.active):hover .opptit::after,.oppsteg.done:not(.active):focus-visible .opptit::after{opacity:1}
 .oppsteg.done.active .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
-.oppsteg.done.active .oppcont{cursor:auto}
+.oppsteg .oppcont{cursor:auto}
 .oppcont{display:flex;flex-direction:column;gap:12px;margin-top:8px}
 .opptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
 .opptxt b{color:var(--txt);font-weight:600}
@@ -8376,10 +8379,14 @@ function renderKamPop() {
    öppnar den igen i lägena av och väntar; "Redo setup" i kamerapanelen gör
    om den. Kamerans bild (#pbBild) flyttas in i steg 4 medan steget står
    framme och panelen är stängd — strömningen följer (kamStegSynk).
-   Ett klart steg öppnas igen med ett klick (oppVisat) för att byta lek,
-   visa QR-koden på nytt eller byta läge; det står framme i stället för
-   nästa ofärdiga steg tills valet bekräftats eller raden klickats igen. */
-let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false, oppVisat = null;
+   Vilket steg som helst öppnas med ett klick på raden (oppVisat) — ett
+   klart för att byta lek, visa QR-koden på nytt eller byta läge, ett
+   ofärdigt för att ta stegen i en annan ordning. Det står framme i stället
+   för nästa ofärdiga steg tills valet bekräftats eller raden klickats igen;
+   ett steg som öppnades ofärdigt släpps när det blir klart, så att
+   uppstarten går vidare som vanligt. */
+let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
+let oppVisat = null, oppVisatKlar = false, oppNasta = null;
 const OPP_ORDNING = ['lek', 'tel', 'lage', 'vinkel'];
 const oppMinne = () => LS.get(K.oppstart, {}) || {};
 function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
@@ -8420,19 +8427,23 @@ function renderOppstart() {
     steg.tel = prefs.autoLage === true && kamAnsluten;
     steg.lage = !!o.lage;
     steg.vinkel = !bord || (grund != null && !o.grundOm);
-    aktiv = ordning.find(k => !steg[k]) || null;
-    if (!aktiv) { oppSatt({ klar: true, grundOm: false }); visa = false; }
-    else if (oppVisat && steg[oppVisat]) aktiv = oppVisat;   // ett klart steg som öppnats igen
-    else oppVisat = null;
+    oppNasta = ordning.find(k => !steg[k]) || null;
+    if (!oppNasta) { oppSatt({ klar: true, grundOm: false }); visa = false; }
+    else {
+      if (oppVisat && !oppVisatKlar && steg[oppVisat]) oppVisat = null;   // öppnades ofärdigt, nu klart: vidare
+      aktiv = oppVisat || oppNasta;
+    }
   }
-  if (!visa) oppVisat = null;
+  if (!visa) oppVisat = oppNasta = null;
   oppOppen = visa;
   if (visa) {
     ordning.forEach((k, i) => {
-      const st = $('#opp' + (i + 1)), klass = steg[k] ? (k === aktiv ? 'done active' : 'done') : k === aktiv ? 'active' : 'todo';
-      if (st.dataset.k !== klass) {
-        st.dataset.k = klass; st.className = 'oppsteg ' + klass; st.querySelector('.oppnr').innerHTML = steg[k] ? OPP_KLAR : String(i + 1);
-        if (steg[k]) { st.tabIndex = 0; st.setAttribute('role', 'button'); st.setAttribute('aria-expanded', String(k === aktiv)); }
+      /* Klickbar är varje rad utom nästa steg när det står framme av sig självt. */
+      const st = $('#opp' + (i + 1)), klick = !(k === aktiv && !oppVisat);
+      const klass = (steg[k] ? 'done' : k === aktiv ? '' : 'todo') + (k === aktiv ? ' active' : '');
+      if (st.dataset.k !== klass + klick) {
+        st.dataset.k = klass + klick; st.className = 'oppsteg ' + klass.trim(); st.querySelector('.oppnr').innerHTML = steg[k] ? OPP_KLAR : String(i + 1);
+        if (klick) { st.tabIndex = 0; st.setAttribute('role', 'button'); st.setAttribute('aria-expanded', String(k === aktiv)); }
         else { st.removeAttribute('tabindex'); st.removeAttribute('role'); st.removeAttribute('aria-expanded'); }
       }
     });
@@ -8505,19 +8516,21 @@ function renderOppstart() {
   document.body.classList.toggle('oppstart', visa);
   if (fore !== visa) matResize();
 }
-/* Ett klart steg öppnas (eller fälls ihop) med ett klick på raden — inte på
-   innehållet i ett öppet steg. Valen läses om från det som gäller nu. */
+/* Ett steg öppnas (eller fälls ihop) med ett klick på raden — inte på
+   innehållet i ett öppet steg. Valen läses om från det som gäller nu. Nästa
+   ofärdiga steg är det som står framme annars, så ett klick på det släpper
+   bara det öppnade steget. */
 function oppVaxla(st) {
   const k = OPP_ORDNING[+st.id.slice(3) - 1];
-  if (oppVisat === k) oppVisat = null;
-  else { oppVisat = k; oppLekar = null; oppLekVal = null; oppLageVal = null; }
+  if (oppVisat === k || k === oppNasta) { if (!oppVisat) return; oppVisat = null; }
+  else { oppVisat = k; oppVisatKlar = st.classList.contains('done'); oppLekar = null; oppLekVal = null; oppLageVal = null; }
   renderOppstart();
 }
 $('#oppstart').addEventListener('click', ev => {
   const lk = ev.target.closest('[data-opplek]'); if (lk) { oppLekVal = lk.dataset.opplek; renderOppstart(); return; }
   const lg = ev.target.closest('[data-opplage]'); if (lg) { oppLageVal = lg.dataset.opplage; renderOppstart(); return; }
   const b = ev.target.closest('[data-opp]');
-  if (!b) { const st = ev.target.closest('.oppsteg.done'); if (st && !ev.target.closest('.oppcont')) oppVaxla(st); return; }
+  if (!b) { const st = ev.target.closest('.oppsteg[role=button]'); if (st && !ev.target.closest('.oppcont')) oppVaxla(st); return; }
   const a = b.dataset.opp;
   if (a === 'spela' && oppLekVal) {
     const mig = minSpelare(), samma = mig && mig.lekId === oppLekVal;
@@ -8539,7 +8552,7 @@ $('#oppstart').addEventListener('click', ev => {
   }
 });
 $('#oppstart').addEventListener('keydown', ev => {
-  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.oppsteg.done')) { ev.preventDefault(); oppVaxla(ev.target); }
+  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.oppsteg[role=button]')) { ev.preventDefault(); oppVaxla(ev.target); }
 });
 $('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true });
 
