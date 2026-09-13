@@ -229,13 +229,15 @@ nytt utseende (högvakten). Datorn parar ihop det med kortet som försvann.
 
 | Vad | Hur det mäts | Mål |
 |---|---|---|
-| **hög** i Förlopp | kort med `"till": "grav"` i facit där högen ändrades inom 4 s | alla |
+| **hög** i Förlopp | kort med `"till": "grav"` i facit där högen ändrades inom 6 s (datorns fönster) | alla |
 | **falska** i Förlopp | högändringar utan ett kort dit (en hand, bläddring) | 0 |
 | datorns utfall | `node dev/dubbletter.cjs --fall 10`: raden `högvakten:` visar vilka kort som gick till graveyard och vilka som står kvar med frågan | korten med `till` till graveyard, inga andra |
 
 I facit märks händelsen så här: `{ "t": 25.5, "tar_bort": "Trusty Retriever", "till": "grav" }`.
-Fallet behöver en `grav`-ruta. `--detalj` skriver högens ändringar och varje
-händelse. Uppspelningen i `dubbletter.cjs` kräver att fallet sparats om
+Fallet behöver en `grav`-ruta. `--detalj` skriver högens ändringar, varje
+händelse och raden `högvakt` för varje dom (hur många celler som ändrades, de
+största skillnaderna i gråsteg, gränsen) — det är där en missad eller falsk
+ändring går att spåra. Uppspelningen i `dubbletter.cjs` kräver att fallet sparats om
 (`--fall 10 --spara`) efter en kodändring.
 
 ## Kortbaksidor

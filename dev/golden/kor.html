@@ -720,6 +720,8 @@ async function korVideoFall(f, vf, vid, cv) {
     const res = avsluta(f, prov, Math.round(performance.now() - t0), tak, +(takVirt / 1000).toFixed(1));
     Object.assign(res, betygVideo(f, vf, prov, +(vt / 1000).toFixed(2), +dur.toFixed(2), takt));
     res.lagesPerMin = +(res.lagesUpp / Math.max(1, vt) * 60000).toFixed(1);   // per minut av VIDEONS tid, inte väggurets
+    /* Högvaktens domar (MES-85) bär modulens klocka; i videons sekunder går de att lägga bredvid facit. */
+    if (res.gravProv) res.gravProv = res.gravProv.map(p => Object.assign({}, p, { s: +(p.s - VIRT0 / 1000).toFixed(2) }));
     res.bordLogg = prov.bordLogg;
     res.videoSpar = prov.logg;
     return res;
@@ -845,6 +847,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     delade: dia.delade, skurna: dia.skurna, kortRef: dia.kortRef || null, skarProv: dia.skarProv || [],
     skarLogg: dia.skarLogg || [],
     fodslar: dia.fodslar || [],   // varför varje spår föddes (MES-83)
+    gravProv: dia.gravProv || [],   // högvaktens domar (MES-85)
     traffar: traffar.map(p => ({ facit: p.k.namn, dold: !!p.k.dold, spar: p.t.id, namn: p.t.namn, saker: p.t.saker, iou: p.iou })),
     spar: alla
   };
@@ -974,8 +977,9 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
   flyttDt.sort((a, b) => a - b);
   /* Högvakten (K10/K11, MES-85): facit {t, tar_bort, till: 'grav'} — kortet
      lades på graveyard-högen i bild. Högens ändringar ur bordsloggen (grav.n
-     steg upp; tiden = rapportens − sen). En ändring inom [t − TOL, t + 4 s]
-     räknas som sedd, en per händelse; ändringar utan händelse är falska.
+     steg upp; tiden = rapportens − sen). En ändring inom [t − TOL, t + 6 s]
+     (datorns fönster: 5 s efter att kortet försvann, och telefonen ser det
+     ungefär en sekund efter facit) räknas som sedd, en per händelse; ändringar utan händelse är falska.
      Bara när facit har en ruta. */
   const harGrav = !!f.facit.grav;
   const tillGrav = h.filter(x => x.tar_bort && x.till === 'grav');
@@ -987,7 +991,7 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
   }
   const gravTagen = new Set(), gravHandelser = [];
   for (const x of tillGrav) {
-    const i = gravAndr.findIndex((s, j) => !gravTagen.has(j) && s >= x.t - TOL && s <= x.t + 4);
+    const i = gravAndr.findIndex((s, j) => !gravTagen.has(j) && s >= x.t - TOL && s <= x.t + 6);
     if (i >= 0) gravTagen.add(i);
     gravHandelser.push({ t: x.t, namn: x.tar_bort, dt: i >= 0 ? +(gravAndr[i] - x.t).toFixed(2) : null });
   }

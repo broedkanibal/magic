@@ -14682,7 +14682,7 @@ const Kamera = (() => {
   const grundVinkel = () => kal.grund != null ? kal.grund : (kal.ruta.upp === 'h' ? 0 : Math.PI / 2);
   let lage = 'start';
   let snurra = null, wake = null, senast = 0, senastRef = 0, forra = 0;
-  let gravRef = null, gravForra = null, gravStillaFran = 0, gravN = 0, gravNar = null;   // högvakten (MES-85), se gravVakt
+  let gravRef = null, gravForra = null, gravStillaFran = 0, gravN = 0, gravNar = null, gravDomd = false, gravRorFran = 0;   // högvakten (MES-85), se gravVakt
   let senVb = 0, senVh = 0;    // videons mått senast — byter de räknas analysen om
   /* Upplösningen strömmen faktiskt gav — videons egna mått, med spårets
      getSettings som stöd — och den högsta telefonen säger sig klara
@@ -15951,6 +15951,7 @@ const Kamera = (() => {
     kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav };
     spar = []; spoken = []; snittMinne = []; lage = 'lar';
     glomReferens();
+    dia.gravProv = [];
     AH = 0;
     if (cb.bord) cb.bord([], true);
   }
@@ -15975,9 +15976,25 @@ const Kamera = (() => {
      det högen själv som såg ny ut när handen gick. Cellerna är sex över
      rutans kortsida: ett nytt kort ändrar en stor del av dem. Trösklarna är
      gissade och mäts i golden 10/11. */
-  const GRAV_ANDEL = 0.06, GRAV_DARR = 6;
-  function glomGravVakt() { gravRef = gravForra = null; gravStillaFran = 0; }
+  /* Mätt i golden 10/11 (MES-85): ett nytt översta kort ändrade 24–33 % av
+     cellerna mer än GRAV_SKILLNAD, brus (spårrutorna i skärminspelningen,
+     exponeringen) och en förskjuten hög högst 19 %. En stilla ruta får ha
+     GRAV_ROR av cellerna i rörelse — spårrutorna runt ett nytt kort flimrar
+     i 3 av 42 celler, en hand rör 24–95 %. Andelen gäller en ruta ritad
+     runt högen; är rutan stor mot kortet räcker GRAV_KORT av ett korts
+     celler (kortMatt) — annars ändrade ett nytt kort för lite av rutan
+     (bänken GY3: kortet 18 % av rutan). */
+  const GRAV_ANDEL = 0.2, GRAV_KORT = 0.6, GRAV_ROR = 0.1, GRAV_DARR = 6, GRAV_SKILLNAD = 15;   // gråsteg per cell, efter ljuset (gravSkillnad)
+  function glomGravVakt() { gravRef = gravForra = null; gravStillaFran = 0; gravDomd = false; gravRorFran = 0; }
+  /* Vaktens domar, en per stilla stund, och var 2:a sekund medan rutan rör
+     sig: det är så en missad eller falsk ändring går att spåra (kor.cjs
+     --detalj, raden högvakt). */
+  const gravLogg = (nu, p) => { (dia.gravProv || (dia.gravProv = [])).push(Object.assign({ s: +(nu / 1000).toFixed(2) }, p)); if (dia.gravProv.length > 60) dia.gravProv.shift(); };
   const gravLage = () => kal.grav ? { n: gravN, sen: gravNar != null ? Math.max(0, Math.round(forra - gravNar)) : null } : null;
+  /* Rutans celler: medianen per cell, inte medlet — en tunn linje (en
+     skugga, en kant, i golden spårrutorna appen ritar i skärminspelningen)
+     flyttar inte medianen, ett nytt konstverk som täcker cellen gör det. Och
+     spridningen: kortets struktur (en hand är slät). */
   function gravCeller(g) {
     const r = kal.grav; if (!r || !AW || !AH) return null;
     const x0 = Math.max(0, Math.floor(r.x * AW)), x1 = Math.min(AW, Math.ceil((r.x + r.w) * AW));
@@ -15985,37 +16002,79 @@ const Kamera = (() => {
     if (x1 - x0 < 6 || y1 - y0 < 6) return null;
     const c = Math.max(3, Math.round(Math.min(x1 - x0, y1 - y0) / 6));
     const gw = Math.ceil((x1 - x0) / c), gh = Math.ceil((y1 - y0) / c);
-    const m = new Float32Array(gw * gh), m2 = new Float32Array(gw * gh), n = new Uint32Array(gw * gh);
+    const vals = Array.from({ length: gw * gh }, () => []);
     for (let y = y0; y < y1; y++) {
       const ry = ((y - y0) / c | 0) * gw;
-      for (let x = x0; x < x1; x++) { const k = ry + ((x - x0) / c | 0), v = g[y * AW + x]; m[k] += v; m2[k] += v * v; n[k]++; }
+      for (let x = x0; x < x1; x++) vals[ry + ((x - x0) / c | 0)].push(g[y * AW + x]);
     }
-    const spr = new Float32Array(gw * gh);
-    for (let k = 0; k < m.length; k++) { m[k] /= n[k]; spr[k] = Math.sqrt(Math.max(0, m2[k] / n[k] - m[k] * m[k])); }
-    return { m, spr };
+    const m = new Float32Array(gw * gh), spr = new Float32Array(gw * gh);
+    for (let k = 0; k < vals.length; k++) {
+      const v = vals[k]; let s1 = 0, s2 = 0;
+      for (const x of v) { s1 += x; s2 += x * x; }
+      const mu = s1 / v.length; spr[k] = Math.sqrt(Math.max(0, s2 / v.length - mu * mu));
+      v.sort((p, q) => p - q); m[k] = v[v.length >> 1];
+    }
+    return { m, spr, c };
+  }
+  /* Skillnaden per cell mellan två bilder av rutan, sedan ljuset räknats
+     bort. Kamerans exponering gör inte alla celler lika mycket ljusare —
+     ett vitt kort flyttar sig mer än den mörka mattan — så det räcker inte
+     att dra bort ett gemensamt skift (fall 11: 14 celler ±17 utan att något
+     hänt). En rät linje ny = k·gammal + m anpassas till de tre fjärdedelar av
+     cellerna som stämmer bäst (två varv), och skillnaden är det som linjen
+     inte förklarar: ett nytt konstverk står kvar, exponeringen försvinner. */
+  function gravSkillnad(a, b) {
+    const n = a.m.length;
+    let urval = Array.from({ length: n }, (_, k) => k), kk = 1, mm = 0;
+    for (let varv = 0; varv < 2; varv++) {
+      let sx = 0, sy = 0, sxx = 0, sxy = 0;
+      for (const k of urval) { const x = b.m[k], y = a.m[k]; sx += x; sy += y; sxx += x * x; sxy += x * y; }
+      const q = urval.length, den = q * sxx - sx * sx;
+      kk = den > 1e-6 ? Math.min(1.5, Math.max(0.67, (q * sxy - sx * sy) / den)) : 1;   // en exponering, inte en anpassning till det nya kortet
+      mm = (sy - kk * sx) / q;
+      urval = urval.map(k => [k, Math.abs(a.m[k] - (kk * b.m[k] + mm))]).sort((p, r) => p[1] - r[1]).slice(0, Math.ceil(n * 0.75)).map(p => p[0]);
+    }
+    const d = new Float32Array(n);
+    for (let k = 0; k < n; k++) d[k] = Math.abs(a.m[k] - (kk * b.m[k] + mm));
+    return d;
   }
   function gravVakt(g, nu) {
     const c = gravCeller(g);
     if (!c) { glomGravVakt(); return; }
     let rort = 0;
-    if (gravForra && gravForra.m.length === c.m.length) { for (let k = 0; k < c.m.length; k++) if (Math.abs(c.m[k] - gravForra.m[k]) > GRAV_DARR) rort++; }
+    if (gravForra && gravForra.m.length === c.m.length) { const d = gravSkillnad(c, gravForra); for (let k = 0; k < d.length; k++) if (d[k] > GRAV_DARR) rort++; }
     else rort = c.m.length;
     gravForra = c;
-    if (rort > 0.05 * c.m.length) { gravStillaFran = nu; return; }
+    if (rort > GRAV_ROR * c.m.length) {
+      if (gravDomd || !gravRorFran) gravRorFran = nu;
+      else if (nu - gravRorFran >= 2000) { gravLogg(nu, { dom: 'rör sig', rort: +(rort / c.m.length).toFixed(2) }); gravRorFran = nu; }
+      gravStillaFran = nu; gravDomd = false; return;
+    }
     if (nu - gravStillaFran < T.stillaMs) return;
-    if (!gravRef || gravRef.m.length !== c.m.length) { gravRef = c; return; }
+    const domd = p => { if (!gravDomd) { gravDomd = true; gravRorFran = 0; gravLogg(nu, p); } };
+    if (!gravRef || gravRef.m.length !== c.m.length) { gravRef = c; domd({ dom: 'första', av: c.m.length }); return; }
+    /* Skillnaden per cell mot hur högen såg ut, räknad före jämförelsen byts —
+       de största följer med domen, så att gränsen går att mäta. */
+    const skill = gravSkillnad(c, gravRef);
+    const mat = { av: c.m.length, d: [...skill].sort((x, y) => y - x).slice(0, 14).map(Math.round), grans: GRAV_SKILLNAD };
     const byt = [];
-    for (let k = 0; k < c.m.length; k++) if (Math.abs(c.m[k] - gravRef.m[k]) > T.utseende) byt.push(c.spr[k]);
-    if (byt.length < GRAV_ANDEL * c.m.length) { gravRef = c; return; }   // ingen ändring värd namnet: jämförelsen följer ljusets drift
+    for (let k = 0; k < c.m.length; k++) if (skill[k] > GRAV_SKILLNAD) byt.push(c.spr[k]);
+    mat.byt = byt.length;
+    const km = kortMatt(), kortCeller = km && km.lang > 0 && km.kort > 0 ? km.lang * km.kort / (c.c * c.c) : Infinity;
+    const behov = Math.max(3, Math.min(GRAV_ANDEL * c.m.length, GRAV_KORT * kortCeller));
+    mat.behov = +behov.toFixed(1);
+    if (byt.length < behov) { gravRef = c; domd(Object.assign({ dom: 'samma' }, mat)); return; }   // ingen ändring värd namnet: jämförelsen följer ljusets drift
     /* Slätt är en hand, inte ett kort, och då står jämförelsen kvar. Handens
        insida är slät i varje cell den täcker helt, ett kort har konstverk och
        textrader nästan överallt. Bänken: ett nytt kort 1 slät cell av 9
        (median 24), en vilande hand 4 av 13 (median 9,5) — medianen ensam
        skilde dem inte åt. */
-    byt.sort((a, b) => a - b);
-    const slata = byt.filter(v => v < Math.max(2, T.spridning * 0.2)).length;
-    if (byt[byt.length >> 1] < Math.max(4, T.spridning * 0.5) || slata >= 0.25 * byt.length) return;
+    byt.sort((x, y) => x - y);
+    mat.slata = byt.filter(v => v < Math.max(2, T.spridning * 0.2)).length;
+    mat.median = +byt[byt.length >> 1].toFixed(1);
+    if (mat.median < Math.max(4, T.spridning * 0.5) || mat.slata >= 0.25 * byt.length) { domd(Object.assign({ dom: 'slät' }, mat)); return; }
     gravN++; gravNar = nu; gravRef = c;
+    gravDomd = false; domd(Object.assign({ dom: 'ändring' }, mat));
   }
   /* Läget byts från datorn medan kameran går. Ingenting nollställs —
      referensen och spåren gäller lika bra — utan vinklarna som redan finns

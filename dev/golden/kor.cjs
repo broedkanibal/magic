@@ -91,7 +91,7 @@ function skrivTabell(rs, gamla) {
   console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
   console.log('  Förlopp: bara videofall — utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
   console.log('  inte ligger kvar med säkert namn, och hur många av utspelen kameran såg i rätt ordning. Slutläget står i kolumnerna före.');
-  console.log('  hög: kort som lades på graveyard-högen i bild och som högvakten såg inom 4 s (MES-85); falska = högändringar utan ett kort dit.');
+  console.log('  hög: kort som lades på graveyard-högen i bild och som högvakten såg inom 6 s (MES-85); falska = högändringar utan ett kort dit.');
 }
 
 (async () => {
@@ -166,7 +166,7 @@ function skrivTabell(rs, gamla) {
         + `; dubbletter ${r.videoDubbletter}${Object.keys(r.videoDubbletterNamn || {}).length ? ' (' + Object.entries(r.videoDubbletterNamn).map(([n, q]) => `${n}: +${q.max} ${q.fran}–${q.till} s`).join(', ') + ')' : ''}`);
       for (const x of r.videoTappHandelser || []) console.log(`    ${x.t} s ${x.vill ? 'tappar' : 'otappar'} ${x.namn}: ` + (x.dt == null ? 'SÅGS ALDRIG inom 8 s' : `sågs +${x.dt} s`));
       if (r.videoGravAndringar) console.log(`  högvakten (MES-85): ändringar vid ${r.videoGravAndringar.length ? r.videoGravAndringar.join(', ') + ' s' : '–'}`);
-      for (const x of r.videoGravHandelser || []) console.log(`    ${x.t} s ${x.namn} till högen: ` + (x.dt == null ? 'HÖGEN ÄNDRADES INTE inom 4 s' : `högen ändrades +${x.dt} s`));
+      for (const x of r.videoGravHandelser || []) console.log(`    ${x.t} s ${x.namn} till högen: ` + (x.dt == null ? 'HÖGEN ÄNDRADES INTE inom 6 s' : `högen ändrades +${x.dt} s`));
       for (const x of r.videoFlyttHandelser || []) console.log(`    ${x.t} s flyttar ${x.namn}: ` + (x.dt == null ? (x.sedd ? 'SÅGS ALDRIG inom 8 s' : 'inget säkert spår med namnet före flytten') : `sågs +${x.dt} s`));
       for (const h of r.videoHandelser || []) console.log(h.spelar
         ? `    ${h.t} s ut ${h.spelar}: ` + (h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`)
@@ -186,6 +186,10 @@ function skrivTabell(rs, gamla) {
       for (const p of r.tidslinje || []) console.log(`    ${p.s} s${p.ruta != null ? ' (ruta ' + p.ruta + ')' : ''} [${p.lage}]: ${p.spar || '–'}`);
     }
     /* MES-83: varje födsel med närmaste lediga spår (avstånd mot gränsen, areakvot, ms utan region, täckning) och närmaste spår som redan hade en region. */
+    /* MES-85: högvaktens domar — en per stilla stund i graveyard-rutan, och var 2:a sekund medan den rör sig. */
+    for (const p of r.gravProv || []) console.log(`    högvakt ${p.s} s: ${p.dom}${p.byt != null ? ` — ${p.byt}/${p.av} celler ändrade${p.behov != null ? ` (krav ${p.behov})` : ''}` : p.av != null ? ` (${p.av} celler)` : ''}`
+      + `${p.median != null ? `, struktur ${p.median}, släta ${p.slata}` : ''}${p.rort != null ? ` (${Math.round(p.rort * 100)} % av cellerna rör sig)` : ''}`
+      + `${p.d ? ` [största skillnader ${p.d.join(' ')}; gräns ${p.grans}]` : ''}`);
     for (const b of r.fodslar || []) console.log(`    född ${b.s} s @${b.cx},${b.cy} lång ${b.lang} (gräns ${b.grans}): ledigt ${b.narm ? `#${b.narm.id} ${b.narm.d} px, area ×${b.narm.area}, ${b.narm.sen} ms utan region, ${b.narm.st}${b.narm.namn ? ' ' + b.narm.namn : ''}, täckning ${b.narm.tackning}` : '–'}; upptaget ${b.upptaget ? `#${b.upptaget.id} ${b.upptaget.d} px` : '–'}`);
     /* MES-94: varje lokal läsning — beskärningens storlek, bildens dom med poäng och ORB-inliers, namnläsarens svar — så att en säker bilddom går att spåra till sina tal. */
     for (const l of r.lasningar || []) console.log(`    läst ${l.s} s${l.spek ? ' (tidigt)' : ''} spår ${l.nr != null ? '#' + l.nr : 'id ' + l.spar} ${l.w}×${l.h}: ${l.dom}${l.varfor ? ' [' + l.varfor + ']' : ''}${l.namn ? ' ' + l.namn : ''}`

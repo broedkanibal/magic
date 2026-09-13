@@ -341,7 +341,19 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   // ── GY3–GY5: högvakten (MES-85) — ett nytt kort på högen räknas, en hand som sveper förbi eller vilar gör det inte ──
   const ZON = { x: 0.1, y: 0.1, w: 0.35, h: 0.8 };
   const HOG = g => kort(g, W, 60, 50, 30, 42, 180);      // högens översta kort
-  const NYTT = g => kort(g, W, 56, 46, 36, 50, 140);     // ett annat kort ovanpå, lite förskjutet
+  /* Ett annat kort ovanpå: mörkare ram, ljusare konstverk, lite större och
+     förskjutet. Inte samma kort bara mörkare — en jämn mörkning är
+     exponering för vakten (gravSkillnad räknar bort den) — och inte samma
+     kort snett på samma plats (bara hörnen skiljer). */
+  const NYTT = g => kort(g, W, 52, 44, 40, 56, 150, 0.4);
+  /* En hand som vilar på högen, med underarmen in från spelarens sida. En
+     riktig arm står aldrig helt still: kanterna darrar någon bildpunkt per
+     ruta (fall 11, 51–54 s: 21 % av cellerna rörde sig), och vakten dömer
+     inte medan rutan rör sig. En helt stilla, slät hand utan arm inne i
+     rutan i över stillaMs kan vakten ta för ett kort — datorn flyttar ändå
+     bara ett kort som samtidigt försvann från mattan. */
+  /* Måtten i bänkens skala (kortet 30 px ≈ 63 mm): underarmen ≈ 8 cm = 38 px, handflatan ≈ 9 cm. */
+  const ARM = (g, sl) => { for (let y = 70; y < H; y++) { const dx = Math.round((sl() - 0.5) * 6); for (let x = 52 + dx; x < 90 + dx; x++) g[y * W + x] = 150; } hand(g, W, 71, 66, 22, 26, 150); };
   nystart(); await referens(); Kamera.satGrav(ZON);
   for (let i = 0; i < 10; i++) await ruta(HOG);
   const gy0 = Kamera.grav ? Kamera.grav.n : null;
@@ -353,7 +365,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   const gy1 = Kamera.grav ? Kamera.grav.n : null;
   for (let i = 0; i < 4; i++) await ruta(g => { NYTT(g); hand(g, W, 40 + 15 * i, 80, 28, 22, 150); });   // en hand sveper förbi
   for (let i = 0; i < 10; i++) await ruta(NYTT);
-  for (let i = 0; i < 10; i++) await ruta(g => { NYTT(g); hand(g, W, 66, 70, 26, 30, 150); });           // en hand vilar på högen (1,5 s)
+  for (let i = 0; i < 10; i++) await ruta((g, sl) => { NYTT(g); ARM(g, sl); });                          // en hand med arm vilar på högen (1,5 s)
   for (let i = 0; i < 10; i++) await ruta(NYTT);
   check(`GY4 en hand sveper förbi och vilar på högen: ${Kamera.grav ? Kamera.grav.n - gy1 : null} ändringar (0)`, !!Kamera.grav && Kamera.grav.n - gy1 === 0);
   Kamera.satGrav(null);

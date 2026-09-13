@@ -1,0 +1,45 @@
+{
+  "id": "11-svartmatta-lampa-40cm-4kort-gravfallor",
+  "yta": "mörkgrå spelmatta (tyg), matt",
+  "ljus": "taklampa",
+  "telefon": "iPhone i hållare, liggande; skärminspelning av Mesas kameravy (MES-87)",
+  "hojd_cm": 40,
+  "ruta": {
+    "upp": "v"
+  },
+  "grav": {
+    "x": 0,
+    "y": 0.5,
+    "w": 0.25,
+    "h": 0.45
+  },
+  "kort": [
+    {
+      "namn": "Swamp"
+    }
+  ],
+  "video": {
+    "fil": "video.mp4",
+    "takt_ms": 150,
+    "svans_s": 5,
+    "handelser": [
+      { "t": 3.5, "spelar": "Swamp" },
+      { "t": 6.7, "spelar": "Pharika's Chosen" },
+      { "t": 10.3, "spelar": "Trusty Retriever" },
+      { "t": 14.3, "spelar": "Faithful Pikemaster" },
+      { "t": 28.0, "tar_bort": "Pharika's Chosen" },
+      { "t": 52.5, "tar_bort": "Trusty Retriever", "till": "grav" },
+      { "t": 65.3, "spelar": "Pharika's Chosen" },
+      { "t": 88.8, "tar_bort": "Pharika's Chosen" },
+      { "t": 89.5, "tar_bort": "Faithful Pikemaster", "till": "grav" }
+    ]
+  },
+  "hogen_rors": [
+    { "t": 27.0, "till_t": 29.5, "vad": "vänster hand rättar till graveyard-högen (och biblioteket) medan Pharika's Chosen tas till handen — ska ge frågan, inte auto" },
+    { "t": 36.0, "till_t": 42.5, "vad": "graveyard plockas upp, bläddras och läggs tillbaka — ingen ändring av mattan" },
+    { "t": 51.0, "till_t": 54.2, "vad": "vänster hand skymmer Swamp medan Trusty Retriever läggs på högen — bara Trusty till graveyard" },
+    { "t": 88.8, "till_t": 90.2, "vad": "Pharika's Chosen till handen och Faithful Pikemaster på högen samtidigt — båda ska frågas (B3)" }
+  ],
+  "avskurna": [],
+  "anteckning": "MES-85 fall 11 (B4), inspelat av Jesper 2026-09-13 enligt manuset: fallorna för högvakten. Samma uppställning som fall 10 men högen längre in från kanten: graveyard-högen (Night's Whisper överst) nere till vänster, biblioteket (kortbaksidan) till höger om den, utanför rutan. Källan: dev/videos/11-original.MP4 (2556×1180, 99,8 s), utsnitt 523 328 1510 852, klippt till 0–97,0 s (Kontrollcenter börjar mörka bilden redan vid 97,3 s — med 98,5 gav sista rutan en falsk högändring), 800 kbit/s för att hålla fallet under 10 MB. Mål: auto-graveyard bara för Trusty Retriever (52,5 s); frågan för Pharika's Chosen (28 s) och för båda i sista steget (88,8/89,5 s); ingen ändring av mattan när graveyard bläddras. hogen_rors är anteckningar för läsaren, inte händelser. Faithful Pikemaster lades en bit till vänster om högen — rutan börjar därför vid bildens kant. bild.jpg är rutan vid 97,5 s."
+}

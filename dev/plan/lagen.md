@@ -441,6 +441,15 @@ Premissen i utkastet (spår med `zon:'grav'` ur K9-lite) fanns inte: rutan föde
 - **B3 — strikt ett till ett:** en högändring per kort. Fler kort borta än ändringar ger frågan för alla. Tre eller fler på en gång ger bannern (MES-103:s "Nothing is removed until you choose"). Besvärjelseregeln tar en ändring i sitt fönster.
 - **B4 — facit:** fall 10 (`"till": "grav"` på händelserna) nu, och fall 11 med negativa fall (högen rättas till, graveyard bläddras, kort skyms) innan issuen stängs.
 - Avstämningen: GR1–GR10. `dubbletter.cjs` spelar upp `grav` ur bordsloggen.
+- **Fall 11 (fällorna, 2026-09-13)** fick vakten att missa båda korten på högen. Fyra ändringar, alla mätta med raden `högvakt` i `--detalj`:
+  1. **Medianen per cell i stället för medlet.** Spårrutorna som appen ritar i skärminspelningen flimrar över högen, och tunna linjer flyttade cellmedlet.
+  2. **Ljuset räknas bort.** En rät linje ny = k·gammal + m anpassas till de tre fjärdedelar av cellerna som stämmer bäst (`gravSkillnad`), eftersom exponeringen flyttar ljusa kort mer än den mörka mattan.
+  3. **En fast gräns på 15 gråsteg** (`GRAV_SKILLNAD`) i stället för `utseende`. `utseende` (35 på den mörka mattan) är gjord för kort mot matta, och ett kort på ett kort skiljer bara 20–35.
+  4. **Kravet på antal celler:** 20 % av rutan, eller 60 % av ett korts celler om rutan är stor mot kortet (`GRAV_KORT`, `kortMatt`). En stilla ruta får ha 10 % av cellerna i rörelse (`GRAV_ROR`).
+  - Uppmätt: ett nytt översta kort ändrade 24–33 % av cellerna, och brus eller en förskjuten hög högst 19 %.
+  - Klippet slutar vid 97,0 s, eftersom Kontrollcenter mörkar bilden redan vid 97,3 s.
+  - Resultat: **fall 10 hög 2/2 (+1,8/+2,2 s), fall 11 hög 2/2, falska 0 i båda.** Datorn i fall 11: Trusty Retriever till graveyard, Pharika's Chosen och Faithful Pikemaster frågas (B3), 0 falska auto-graveyard.
+  - **Känd gräns:** en helt stilla, slät hand utan arm inne i rutan i över `stillaMs` kan tas för ett kort. En riktig arm rör sig, och datorn flyttar ändå bara ett kort som samtidigt försvann från mattan.
 
 ### Klippt ur D
 K4 (spekulativ tidig läsning): sex exakta `identifieringar`-asserts i bänken (205, 232, 242, 371, 718, 761), skickar beskärning + OCR för varje 'ny' spår, omätt utan 09 — återbesök med 09 och ett formstabilt stillhetskriterium. K10/K11: byggd, se ovan. Transport-RTT (`sant`-stämpel) — senare.
