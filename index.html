@@ -977,6 +977,16 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .gravhog.over .gravsten{opacity:.1}
 .gravhog.over .gravrub b{color:var(--acc)}
 .gravhog.over .gravtxt{color:var(--pa-acc)}
+/* Instruktionsrutan under högen medan ett kort dras mot den (§2), med
+   kortets riktiga namn. Står relativt panelen: referensens top:752px ligger
+   226 px under panelens 526. */
+.gravslapp{
+  position:absolute;z-index:95;left:0;top:226px;width:212px;display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:8px;background:color-mix(in srgb,var(--tand2) 96.86%,transparent);
+  border:1px solid #8a6a22;box-shadow:0 12px 26px -10px #000;
+}
+.gravslapp i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.gravslapp span{font:600 10.5px/1.35 var(--sans);color:var(--pa-acc)}
 /* Exile: en liten räknare till höger om graveyard-högen, bara när något
    ligger där. Samma fjäder på hover. */
 .exilhog{
@@ -6748,6 +6758,14 @@ bibHogEl && bibHogEl.addEventListener('click', lekKlick);
    och skalas inte med zoomen, så luften är skärmpixlar (referensens fit är
    1 här). Är flera högar inom räckhåll vinner den vars mittpunkt är närmast,
    räknat i manhattan-avstånd. Returnerar 'grav', 'bib' eller null. */
+/* Instruktionsrutan under graveyard-högen (§2): tänds när ett kort dras mot
+   högen och säger vad som händer med just det kortet. null släcker den. */
+function gravSlappRuta(c) {
+  let el = manaRow.querySelector('.gravslapp');
+  if (!c) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.className = 'gravslapp'; manaRow.appendChild(el); }
+  el.innerHTML = `<i></i><span>Let go — ${esc(namnAv(c))} lands face up on top</span>`;
+}
 const HOG_LUFT = { grav: { l: 54, r: 44, t: 66, b: 66 }, bib: { l: 16, r: 8, t: 30, b: 20 } };
 function hogUnder(ev) {
   if (!ev) return null;
@@ -9147,6 +9165,7 @@ addEventListener('pointermove', ev => {
   if (over !== dnd.over) {
     dnd.over = over;
     manaRow.classList.toggle('over', over);
+    gravSlappRuta(over ? c : null);
     if (!over) matChip(null);
   }
   /* Ett land över en annan hög: målhögen lyser och kortet bär chippet
@@ -9168,7 +9187,6 @@ addEventListener('pointermove', ev => {
   }
   if (mal) matChip(c, chipText());
   if (overB) matChip(c, 'Let go — back to your hand or library');
-  else if (over) matChip(c, 'Let go — ' + namnAv(c) + ' goes to the graveyard');
   else if (dnd.fraLek && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
   function chipText() {
     if (!vard) return 'Let go — the mana stacks here';
@@ -9193,7 +9211,7 @@ function matDndSlut(ev, avbryt) {
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(d.cid)}"]`);
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
-  manaRow.classList.remove('over');
+  manaRow.classList.remove('over'); gravSlappRuta(null);
   const bib = bibHogEl && bibHogEl.querySelector('.bib'); if (bib) bib.classList.remove('over');
   matChip(null);
   for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
