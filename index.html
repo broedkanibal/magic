@@ -6994,7 +6994,43 @@ function arTouchpad(ev) {
 }
 /* Hjulet: nypning på touchpaden (den kommer med ctrlKey) och mushjulet
    zoomar mot pekaren. Två fingrar på touchpaden flyttar mattan åt alla
-   håll; shift eller ett vågrätt hjul flyttar den i sidled. */
+   håll; shift eller ett vågrätt hjul flyttar den i sidled.
+   Känsligheten (MES-108): nypningen följer fingrarna 1:1 — Chrome, Edge
+   och Firefox skickar den som deltaY = −100 · ln(skala), så exp(−deltaY /
+   100) är exakt fingrarnas skala. Mushjulet tar 25 % per hack (≈ 100 px;
+   Firefox räknar i rader, som räknas om). Ett snabbt snurrat hjul får högst
+   halvannat hack per händelse, så att zoomen inte hoppar. */
+const HJUL = { NYP: 0.01, HACK: Math.log(1.25) / 100, RAD: 33, SIDA: 800, MAX_NYP: 50, MAX_HJUL: 150 };
+function hjulPixlar(ev) {
+  return ev.deltaY * (ev.deltaMode === 1 ? HJUL.RAD : ev.deltaMode === 2 ? HJUL.SIDA : 1);
+}
+/* ctrl + mushjul (Windows) är inte en nypning: hela hack, eller rader. */
+function arNypning(ev) {
+  return ev.ctrlKey && ev.deltaMode === 0 && !(ev.wheelDeltaY && ev.wheelDeltaY % 120 === 0);
+}
+function matZoomMot(z, mx, my) {
+  const p = player(), v = matVy(p), vy = matVyFor(p);
+  const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, z));
+  const bx = (mx - v.pan.x) / v.z, by = (my - v.pan.y) / v.z;
+  vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
+  vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp, v.ram);
+  matSkriv(p);
+}
+/* Safari skickar nypningen som gesture-händelser, inte som ctrl + hjul.
+   ev.scale räknas från gestens början. */
+let matGest = null;
+gridWrap.addEventListener('gesturestart', ev => {
+  ev.preventDefault();
+  gridEl.classList.remove('glider');
+  matGest = { z: matVy().z };
+});
+gridWrap.addEventListener('gesturechange', ev => {
+  ev.preventDefault();
+  if (!matGest) return;
+  const r = gridWrap.getBoundingClientRect();
+  matZoomMot(matGest.z * ev.scale, ev.clientX - r.left, ev.clientY - r.top);
+});
+gridWrap.addEventListener('gestureend', ev => { ev.preventDefault(); matGest = null; });
 let matHjulHand = null;
 /* Pekarens senaste läge över mattan, för 0-tangenten (100 % mot pekaren). */
 let matPekare = null;
@@ -7005,6 +7041,7 @@ gridWrap.addEventListener('pointermove', ev => {
 gridWrap.addEventListener('wheel', ev => {
   ev.preventDefault();
   const p = player(), v = matVy(p), vy = matVyFor(p);
+  if (ev.ctrlKey && matGest) return;            // Safari: gesture-händelserna zoomar
   const r = gridWrap.getBoundingClientRect();
   const mx = ev.clientX - r.left, my = ev.clientY - r.top;
   gridEl.classList.remove('glider');
@@ -7018,11 +7055,9 @@ gridWrap.addEventListener('wheel', ev => {
     matHjulHand = setTimeout(() => { if (!matPan) gridWrap.classList.remove('panorerar'); }, 180);
     matSkriv(p); return;
   }
-  const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, v.z * Math.exp(-ev.deltaY * 0.0016)));
-  const bx = (mx - v.pan.x) / v.z, by = (my - v.pan.y) / v.z;
-  vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
-  vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp, v.ram);
-  matSkriv(p);
+  const nyp = arNypning(ev), max = nyp ? HJUL.MAX_NYP : HJUL.MAX_HJUL;
+  const d = Math.max(-max, Math.min(max, hjulPixlar(ev)));
+  matZoomMot(v.z * Math.exp(-d * (nyp ? HJUL.NYP : HJUL.HACK)), mx, my);
 }, { passive: false });
 /* Mellanslag hållet över mattan gör pekaren till en hand: drag flyttar
    mattan, även ovanpå korten. Släpps tangenten utan att musen tryckts ned
