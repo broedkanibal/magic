@@ -15906,6 +15906,7 @@ const Kamera = (() => {
      om ingen håller i dem, och håller någon i dem är de ändå inte stilla. */
   function matcha(spar, fynd, mask, nu, dt, upp, fodNya = true) {
     if (kal.grav) fynd = fynd.filter(f => !iGrav(f));   // högen är inte bordet (K9-lite)
+    if (kal.bib) fynd = fynd.filter(f => !iBib(f));     // leken är inte bordet (MES-122)
     const kvar = new Set(spar);
     const anv = new Set();
     for (const f of fynd) {
@@ -16136,7 +16137,9 @@ const Kamera = (() => {
     const upp = k && k.ruta ? (k.ruta.upp === 'h' ? 'h' : 'v') : kal.ruta.upp;
     const grund = k && k.ruta ? graderTillGrund(k.ruta.grund) : kal.grund;
     const grav = k && k.ruta ? gravRuta(k.ruta.grav) : (kal.grav || null);
-    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav };
+    const bib = k && k.ruta ? gravRuta(k.ruta.bib) : (kal.bib || null);
+    kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav, bib };
+    glomBib();
     spar = []; spoken = []; snittMinne = []; lage = 'lar';
     glomReferens();
     dia.gravProv = [];
@@ -16152,6 +16155,37 @@ const Kamera = (() => {
     ? { x: Math.max(0, r.x), y: Math.max(0, r.y), w: Math.min(1, r.w), h: Math.min(1, r.h) } : null;
   function satGrav(r) { kal.grav = gravRuta(r); glomGravVakt(); }
   const iGrav = f => { const g = kal.grav; if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
+  /* Library-rutan (MES-122): där spelaren lägger sin lek. Som graveyard-
+     rutan föder den inga spår och räknas inte som fri yta, men i stället för
+     en högvakt säger bibSag om en kortstor region ligger i rutan — det är så
+     datorn ser att leken lagts dit i uppstarten. En ändringsvakt vore fel
+     signal: en tom ruta som får en lek dömdes slät av gravSkillnad (duken runt
+     leken är det som ändrats), och en lek ser likadan ut när ett kort dras.
+     satBib nollställer bara när rutan faktiskt flyttats: varje skrivning av
+     raden i camera_setups kommer hit med realtid. */
+  const iZon = (g, f) => { if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
+  const iBib = f => iZon(kal.bib, f);
+  let bibFran = 0, bibSist = 0, bibLigger = false;
+  const glomBib = () => { bibFran = bibSist = 0; bibLigger = false; };
+  const sammaZon = (a, b) => (!a && !b) || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
+  function satBib(r) { const z = gravRuta(r); if (sammaZon(z, kal.bib || null)) return; kal.bib = z; glomBib(); }
+  /* En region med mitten i rutan och ett korts yta (0,3–1,6 × rutans: rutan
+     är ett kort med luft runtom) i stillaMs — handen som lägger leken gör
+     regionen för stor tills den gått. Luckor under bortaMs överbryggas, och
+     leken räknas lyft först efter två bortaMs utan region. osaker = bilden
+     kan ha flyttats eller ljuset slog i taket: då döms ingenting. */
+  function bibSag(fynd, nu, osaker) {
+    const z = kal.bib; if (!z || !AW || !AH) { glomBib(); return; }
+    if (osaker) return;
+    const zy = z.w * AW * z.h * AH;
+    const har = fynd.some(f => iBib(f) && f.lang * f.kort >= 0.3 * zy && f.lang * f.kort <= 1.6 * zy);
+    if (har) {
+      if (!bibFran || nu - bibSist > T.bortaMs) bibFran = nu;
+      bibSist = nu;
+      if (nu - bibFran >= T.stillaMs) bibLigger = true;
+    } else if (bibLigger && nu - bibSist > 2 * T.bortaMs) { bibLigger = false; bibFran = 0; }
+  }
+  const bibLage = () => kal.bib ? { ligger: bibLigger } : null;
   /* Högvakten (K10/K11, MES-85). Rutan föder inga spår, men datorn behöver
      veta när ett kort LADES på högen: då kan ett kort som just försvann från
      mattan gå dit utan att spelaren frågas. Vakten läser inget namn. Den
@@ -16451,6 +16485,7 @@ const Kamera = (() => {
 
     const { fynd, mask, texturerade } = detektera(g, ref, AW, AH);
     smaMinne.push(dia.smaKort); if (smaMinne.length > REF_RUTOR) smaMinne.shift();
+    bibSag(fynd, nu, klamd || felRader > 0);
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
 
     /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
@@ -16724,7 +16759,7 @@ const Kamera = (() => {
      och inte som FARSK_MS: bänken kör modulen utan appens toppnivå. */
   /* :x,y = viloläget (K5), avrundat: en rapport när kortet lagt sig på en
      ny plats, ingen för darr. */
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}`;
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}` : '');
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -16732,8 +16767,8 @@ const Kamera = (() => {
     const n = AW * AH;
     const fri = new Uint8Array(n).fill(1);
     if (blankM) for (let i = 0; i < n; i++) if (blankM[i]) fri[i] = 0;
-    if (kal.grav) {
-      const g = kal.grav, x0 = Math.max(0, Math.floor(g.x * AW)), x1 = Math.min(AW, Math.ceil((g.x + g.w) * AW));
+    for (const g of [kal.grav, kal.bib]) if (g) {
+      const x0 = Math.max(0, Math.floor(g.x * AW)), x1 = Math.min(AW, Math.ceil((g.x + g.w) * AW));
       const y0 = Math.max(0, Math.floor(g.y * AH)), y1 = Math.min(AH, Math.ceil((g.y + g.h) * AH));
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) fri[y * AW + x] = 0;
     }
@@ -16845,7 +16880,7 @@ const Kamera = (() => {
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
-    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage() };
+    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage(), bib: bibLage() };
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
@@ -17397,7 +17432,7 @@ const Kamera = (() => {
     rapportera();
   }
 
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
@@ -17414,6 +17449,7 @@ const Kamera = (() => {
            get rad() { return radAvstand() || (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
            get sma() { return smaNu(); },
+           get bib() { return bibLage(); },    // library-rutan (MES-122): { ligger } — en kortstor region i rutan; null utan ruta
            get grav() { return gravLage(); },   // högvakten (MES-85): { n ändringar av graveyard-högen, sen ms sedan den senaste }; null utan ruta                                                   // kortformade regioner för små att läsa, median över sex rutor
            get upplosning() { return upplosning ? Object.assign({}, upplosning) : null; },  // { w, h, max, begard }; null innan första rutan
            get ruta() { return Object.assign({}, kal.ruta); },
@@ -17544,6 +17580,7 @@ function bordExtra(extra) {
   const u = (extra && extra.upplosning) || Kamera.upplosning;
   return { sma: extra && extra.sma != null ? extra.sma : Kamera.sma, upplosning: u ? { w: u.w, h: u.h } : null,
            grav: extra && extra.grav !== undefined ? extra.grav : Kamera.grav,   // högvakten (MES-85); null utan ruta
+           bib: extra && extra.bib !== undefined ? extra.bib : Kamera.bib,       // leken i library-rutan (MES-122); null utan ruta — saknas nyckeln är telefonen äldre
            bok: kamAiBokLage() };   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
 }
 /* Grundläget som datorn och raden i camera_setups bär det: hela grader,
@@ -17958,6 +17995,7 @@ function tillampaKalRad(ruta) {
   Kamera.satUpp(ruta.upp);
   Kamera.satGrund(typeof ruta.grund === 'number' ? ruta.grund * Math.PI / 180 : null);
   Kamera.satGrav(ruta.grav || null);
+  Kamera.satBib(ruta.bib || null);
 }
 
 /* ── telefonens ström till datorn ────────────────────────────────────
