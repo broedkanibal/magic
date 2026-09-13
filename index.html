@@ -634,7 +634,7 @@ body.tomhand .kolmark{display:none}
 .card.tappad img{filter:brightness(.86) saturate(.94)}
 /* Namnetiketten hör till den upprätta läsriktningen; på ett tappat kort
    väntar den på hover-pillen (M6). */
-.card:hover,.card.sel{box-shadow:0 14px 26px -8px #000e}
+.card:hover{box-shadow:0 14px 26px -8px #000e}
 .card.held{transition:none;box-shadow:0 26px 40px -12px #000f;cursor:grabbing}
 /* Målhögen under ett drag: accentram med tonad insida. Efter hover-ringen i
    ordningen, så att den vinner när pekaren står över målet. */
@@ -655,8 +655,8 @@ body.tomhand .kolmark{display:none}
 body.lasvy .card{cursor:default}
 
 /* ── hovrat kort: ring, namnetikett och handlingsrad ──
-   Blå ring = hovrad, gul = markerad. Två olika färger så att de aldrig
-   förväxlas — man hovrar ofta ett annat kort än det man valt. */
+   Blå ring = hovrad, gul = markerad med lassot. Två olika färger så att de
+   aldrig förväxlas — kortkommandona verkar på det hovrade kortet. */
 .card:hover::before{
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
   border:2px solid var(--blue);box-shadow:inset 0 0 0 4px #6b8cff1f;pointer-events:none;
@@ -750,15 +750,11 @@ body.lasvy .card{cursor:default}
   font:600 9px/1.5 var(--sans);color:#cfd9e8;pointer-events:none;
 }
 
-/* Selected kort: lyft 3 px, ingen skalning. Skalningen fick kortet att växa
-   utanför sin plats och klippas av zonens kant — designen lyfter i stället
-   bara, och ringen ritas innanför kanten. */
-.card.sel img{box-shadow:0 8px 18px -6px #000e}
-/* Ringen låg 3px UTANFÖR kortet. Rullar man handen så att kortet går in under
-   sökraden klipper scrollytan just de pixlarna: kortet ser helt ut medan ramen
-   är kapad, vilket läses som ett fel. Ritad innanför kanten i stället — då
-   finns inget utanför kortet som kan klippas bort. */
-.card.sel::after,.card.multisel::after{
+/* Markerade kort (lassot, ⇧-klick). Det finns inget valt kort längre
+   (MES-118) — kortkommandona verkar på kortet under pekaren. Ringen ritas
+   innanför kanten: utanför klipptes den av scrollytan medan kortet såg helt
+   ut, vilket lästes som ett fel. */
+.card.multisel::after{
   content:'';position:absolute;inset:0;border-radius:inherit;
   border:3px solid var(--acc);pointer-events:none;z-index:2;
 }
@@ -768,7 +764,7 @@ body.lasvy .card{cursor:default}
   color:#c3d0e2;line-height:0;display:grid;place-items:center;
   opacity:0;transition:opacity .12s,background .12s;
 }
-.card:hover .flipbadge,.card.sel .flipbadge{opacity:1}
+.card:hover .flipbadge{opacity:1}
 .card .flipbadge:hover{background:var(--acc);color:#20160a}
 .card.pending img{opacity:0}
 .card .skel{
@@ -943,7 +939,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
   padding:10px;border:1px solid transparent;border-radius:9px;
   background:none;cursor:pointer;
 }
-.grav:hover,.grav.over,.grav.sel{background:#141c28;border-color:var(--acc)}
+.grav:hover,.grav.over{background:#141c28;border-color:var(--acc)}
 .gravstack{position:relative;display:block;width:104px;aspect-ratio:488/680;flex:none}
 /* Lagren ska synas som kort, inte som en skugga: ljusare kant och en egen
    yta, så att en hög med sex kort läses som sex och inte som ett. */
@@ -975,9 +971,8 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .grav.over .gravtxt{visibility:hidden}
 /* Just släppt: pekaren står kvar över högen, men hoverläget väntar tills den
    lämnat högen en gång. Annars såg högen hovrad ut utan att solfjädern
-   öppnades — pointerover kom aldrig under draget. Markeringen (.sel, när
-   mattan blev tom) ser likadan ut och väntar också. */
-.grav.nyss:is(:hover,.sel){background:none;border-color:transparent}
+   öppnades — pointerover kom aldrig under draget. */
+.grav.nyss:hover{background:none;border-color:transparent}
 .grav.nyss:hover .gravstack img{filter:grayscale(.6) brightness(.55) contrast(1.05)}
 /* Det släppta kortet landar överst i högen (designens cLand). */
 @keyframes gravLand{0%{transform:translateY(-40px) scale(1.14);opacity:0}60%{transform:translateY(4px) scale(.98)}100%{transform:none;opacity:1}}
@@ -2653,7 +2648,7 @@ body.ispel #addPlayerBtn{display:none}
            spalt får det hela brädets höjd, och regeltexten går att läsa utan
            att öppna fokusvyn. -->
       <!-- Inspektorn (README "Pointing at"): följer hovern, och utan hover
-           visar den det markerade kortet. Bild, namn, typrad, förmågor som
+           visar den kortet man senast pekade på. Bild, namn, typrad, förmågor som
            ordbrickor, och counters när kortet har några. -->
       <aside class="kolmark inspektor" id="markKol">
         <div class="zonrub markrub">
@@ -2696,9 +2691,10 @@ body.ispel #addPlayerBtn{display:none}
   </main>
 
   <footer class="hints" id="hintBar">
-    <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> select</span>
-    <span><kbd>F</kbd> focus</span>
+    <span>Point at a card: <kbd>T</kbd> tap</span>
     <span><kbd>Space</kbd> flip</span>
+    <span><kbd>G</kbd> graveyard</span>
+    <span><kbd>F</kbd> focus</span>
     <span><kbd>/</kbd> find a card</span>
     <span><kbd>S</kbd> select / pan</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
@@ -3230,9 +3226,8 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Getting around</h3>
           <dl>
-            <dt><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></dt><dd>The nearest card in that direction</dd>
-            <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card in reading order</dd>
-            <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen</dd>
+            <dt>Point at a card</dt><dd>The keys below act on the card under the pointer — there is no selected card</dd>
+            <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen; <kbd>←</kbd><kbd>→</kbd> step through the cards</dd>
             <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
             <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat — or drag with two fingers on the trackpad</dd>
             <dt><kbd>S</kbd></dt><dd>Switch between select and pan. In pan, click and drag anywhere to move the mat</dd>
@@ -3257,11 +3252,11 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> to the board (outside a game)</dd>
             <dt><kbd>B</kbd></dt><dd>Paste a list of names (outside a game)</dd>
             <dt><kbd>I</kbd></dt><dd>Add cards from an image (outside a game)</dd>
-            <dt><kbd>Backspace</kbd> <kbd>Del</kbd></dt><dd>Remove the selected card</dd>
-            <dt><kbd>T</kbd></dt><dd>Tap or untap the selected card</dd>
-            <dt><kbd>E</kbd></dt><dd>Put the selected card on another one — equip, fortify, attach</dd>
-            <dt><kbd>G</kbd></dt><dd>Put the selected card in the graveyard</dd>
-            <dt><kbd>D</kbd></dt><dd>Duplicate the selected card</dd>
+            <dt><kbd>Backspace</kbd> <kbd>Del</kbd></dt><dd>Remove the card under the pointer</dd>
+            <dt><kbd>T</kbd></dt><dd>Tap or untap the card under the pointer</dd>
+            <dt><kbd>E</kbd></dt><dd>Put the card under the pointer on another one — equip, fortify, attach</dd>
+            <dt><kbd>G</kbd></dt><dd>Put the card under the pointer in the graveyard</dd>
+            <dt><kbd>D</kbd></dt><dd>Duplicate the card under the pointer</dd>
           </dl>
         </section>
         <section>
@@ -5791,8 +5786,10 @@ function shotURL(id) { const s = shotMem.get(id); return s ? s.url : ''; }
    ══════════════════════════════════════════════════════════════════ */
 const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'), manaRow = $('#manaRow');
 /* Flera markerade kort (MES-113): lassot på tom yta i Select-läget, eller
-   shift + klick. Kort-id:n; state.sel är fortfarande kortet som inspektorn
-   och tangenterna utgår från. Se lassoStart och gruppAttFlytta. */
+   shift + klick. Kort-id:n. Det finns inget valt kort (MES-118): state.sel
+   är bara det man senast pekade på, som inspektorn visar utan hover och
+   fokusvyn öppnar på — tangenterna verkar på kortet under pekaren
+   (pekIndex). Se lassoStart och gruppAttFlytta. */
 const matValda = new Set();
 const emptyLasEl = $('#emptyLas');
 
@@ -7061,8 +7058,9 @@ gridWrap.addEventListener('wheel', ev => {
 }, { passive: false });
 /* Mellanslag hållet över mattan gör pekaren till en hand: drag flyttar
    mattan, även ovanpå korten. Släpps tangenten utan att musen tryckts ned
-   är det ett vanligt Space — kortet vänds, på släppet i stället för
-   trycket. Utanför mattan vänder Space som förut, direkt. */
+   är det ett vanligt Space — kortet under pekaren vänds, på släppet i
+   stället för trycket. Utanför mattan vänder Space direkt: fokusvyns kort,
+   eller kortet man pekar på i graveyard-fjädern. */
 let matHand = null;   // { anvand } medan mellanslag hålls över mattan
 function matHandNer(ev) {
   if (matHand) { ev.preventDefault(); return true; }   // tangentrepetition
@@ -7076,7 +7074,7 @@ function matHandUpp(vand) {
   if (!matHand) return;
   const h = matHand; matHand = null;
   gridWrap.classList.remove('handredo');
-  if (vand && !h.anvand && redigerbar()) flipSel();
+  if (vand && !h.anvand && redigerbar()) flipKort(pekIndex());
 }
 addEventListener('keyup', ev => { if (ev.key === ' ') matHandUpp(true); });
 addEventListener('blur', () => matHandUpp(false));
@@ -7149,8 +7147,9 @@ gridWrap.addEventListener('contextmenu', ev => {
 /* Lassot (Select-läget, vänsterknappen på tom yta): en ruta från där
    knappen trycktes ned. Kort som rutan rör blir markerade medan man drar;
    med shift läggs de till det som redan var markerat. Bifogade kort räknas
-   inte — de följer sin värd. Ett klick utan drag tömmer markeringen. Blir
-   det bara ett kort är det en vanlig markering. */
+   inte — de följer sin värd. Ett klick utan drag tömmer markeringen. Ett
+   ensamt kort förblir markerat: det finns inget valt kort att falla
+   tillbaka på (MES-118). */
 let lasso = null;
 function lassoStart(ev) {
   const r = gridWrap.getBoundingClientRect();
@@ -7185,7 +7184,6 @@ function lassoSlut() {
   if (!l.drog) { tomValda(); return; }
   const valda = valdaKort();
   if (valda.length) state.sel = hand().indexOf(valda[valda.length - 1]);
-  if (valda.length === 1) matValda.clear();
   renderSel(); sparaUi();
 }
 addEventListener('pointerup', lassoSlut);
@@ -7226,48 +7224,27 @@ function stadaUpp() {
     save(); renderAll(true);
   });
 }
-/* Piltangenterna på mattan: närmaste kort i den riktningen, mätt mellan
-   kortens mittpunkter med dubbelt straff för avvikelse i sidled. Finns
-   inget ditåt går man runt till det yttersta på andra sidan. */
-function matNav(dx, dy) {
-  const c = hand(); if (!c.length) return;
-  const idx = [];
-  c.forEach((e, i) => { if (paMattan(e) && e.x != null) idx.push(i); });
-  if (!idx.length) return;
-  const mitt = e => { const r = matRect(e); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; };
-  const cur = c[state.sel];
-  let best = null;
-  if (!cur || !paMattan(cur) || cur.x == null) best = idx[0];
-  else {
-    const m0 = mitt(cur);
-    let bd = Infinity;
-    for (const i of idx) {
-      if (i === state.sel) continue;
-      const m = mitt(c[i]), ddx = m.x - m0.x, ddy = m.y - m0.y;
-      const framat = dx ? ddx * dx > 8 : ddy * dy > 8;
-      if (!framat) continue;
-      const d = dx ? Math.abs(ddx) + 2 * Math.abs(ddy) : Math.abs(ddy) + 2 * Math.abs(ddx);
-      if (d < bd) { bd = d; best = i; }
-    }
-    if (best == null) {
-      let ev2 = -Infinity;
-      for (const i of idx) {
-        const m = mitt(c[i]), val = dx ? -m.x * dx : -m.y * dy;
-        if (val > ev2) { ev2 = val; best = i; }
-      }
-    }
-  }
-  if (best != null) state.sel = best;
-  sparaUi(); renderSel(); renderInspektor(); renderFocus();
-}
 
 /* ═══ FRI MATTA — inspektorn ═════════════════════════════════════════
    Panelen till höger följer hovern ("Pointing at"); utan hover visar den
-   det markerade kortet ("Last card"). Bild i 'large' (672×936) — spalten
+   kortet man senast pekade på ("Last card"). Bild i 'large' (672×936) — spalten
    blir bredare än 488 px på en stor skärm, och regeltexten på bilden är
    hela poängen med ytan. Nyckeln bär allt som ritas, så att en omritning
    vid varje hjärtslag inte laddar om bilden. */
 let matHover = null, matHoverT = null;
+/* Kortet kortkommandona verkar på (MES-118): det under pekaren — på mattan,
+   i dess hover-pill eller i graveyard-fjädern. Det finns inget valt kort;
+   pekar man inte på något gör T, G, E, D, Space och Backspace ingenting.
+   :hover kontrolleras på riktigt, eftersom matHover kan stå kvar på ett
+   kort som just gick till högen eller togs bort under pekaren. */
+function pekIndex() {
+  if (matHover == null) return -1;
+  const s = `[data-cid="${CSS.escape(matHover)}"]`;
+  const under = $$(`#grid .card${s},#grid .pill${s},#manaRow .fkort${s}`).some(el => el.matches(':hover'));
+  return under ? hand().findIndex(c => c.cid === matHover) : -1;
+}
+/* I fokusvyn är det kortet som visas; annars kortet under pekaren. */
+function tangentKort() { return focusOpen ? (selCard() ? state.sel : -1) : pekIndex(); }
 function inspektorKort() {
   if (ladaHover) return { e: { cid: 'lada', name: ladaHover.name, sid: ladaHover.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   if (matHover != null) {
@@ -7287,7 +7264,7 @@ function renderInspektor() {
   if (body.dataset.k === nyckel) return;
   body.dataset.k = nyckel;
   if (lbl) lbl.textContent = label;
-  if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">No card selected<br>Point at a card, or use the arrow keys.</div></div>'; return; }
+  if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">Point at a card to see it here</div></div>'; return; }
   const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, fi, 'large') : '');
   const f = c && c.faces[fi] || null;
   const namn = c ? c.name : e.name;
@@ -7305,13 +7282,19 @@ function renderInspektor() {
       <div class="cttiles">${Object.keys(grupper).map(l => `<span class="cttile">${esc(l)}${grupper[l] > 1 ? ' ×' + grupper[l] : ''}</span>`).join('')}</div></div>` : ''}`;
 }
 /* Hovern på mattan: delegerad, med 90 ms fördröjning på vägen ut så att
-   panelen inte blinkar mellan två kort. Ingen hover under ett drag. */
+   panelen inte blinkar mellan två kort. Ingen hover under ett drag. Kortet
+   blir också state.sel — inte ett valt kort, bara det som inspektorn visar
+   när pekaren lämnat mattan och som fokusvyn öppnar på. */
 gridEl.addEventListener('pointerover', ev => {
   if (dnd && dnd.drar) return;
   const el = ev.target.closest('.card');
   if (el) {
     clearTimeout(matHoverT);
-    if (matHover !== el.dataset.cid) { matHover = el.dataset.cid; renderInspektor(); renderPill(); }
+    if (matHover !== el.dataset.cid) {
+      matHover = el.dataset.cid;
+      const i = hand().findIndex(c => c.cid === matHover); if (i >= 0) state.sel = i;
+      renderInspektor(); renderPill();
+    }
     return;
   }
   if (ev.target.closest('.pill')) clearTimeout(matHoverT);   // pekaren gick över till pillen
@@ -7916,12 +7899,8 @@ const ctSum = cts => (cts || []).reduce((a, k) => ({ p: a.p + (k.p || 0), t: a.t
 function renderSel() {
   const n = hand().length;
   state.sel = n ? clamp(state.sel, 0, n - 1) : 0;
-  $$('.card[data-i]', gridEl).forEach(el => el.classList.toggle('sel', +el.dataset.i === state.sel));
-  const multi = flerValda();
-  $$('.card[data-cid]', gridEl).forEach(el => el.classList.toggle('multisel', multi && matValda.has(el.dataset.cid)));
-  /* Högen är ett stopp i navigeringen, alltså måste den kunna se vald ut. */
-  const gr = manaRow.querySelector('.grav');
-  if (gr) gr.classList.toggle('sel', delaHand().grav.includes(state.sel));
+  /* Bara lassots markering syns — det finns inget valt kort (MES-118). */
+  $$('.card[data-cid]', gridEl).forEach(el => el.classList.toggle('multisel', matValda.has(el.dataset.cid)));
   renderInspektor();
 }
 /* ─── detaljpanelen ─── */
@@ -8589,12 +8568,13 @@ function removeAt(i, msg) {
    och ett nervänt kort är fortfarande på bordet, man ser bara inte vad det
    är. Tidigare gjorde tangenten ingenting alls för vanliga kort. */
 const arDfc = c => !!(c && c.faces.length > 1 && c.faces[1].img);
-function flipSel() {
-  const e = selCard();
+function flipKort(i) {
+  const e = hand()[i];
   if (!e) return;
   e.flipped = e.flipped ? 0 : 1;
   save(); renderAll();
 }
+function flipSel() { flipKort(state.sel); }
 function setActive(id) {
   if (!state.players.some(p => p.id === id)) return;
   state.active = id;
@@ -9018,8 +8998,6 @@ gridEl.addEventListener('pointerdown', ev => {
   /* Shift + klick lägger till kortet i markeringen eller tar bort det —
      inget drag och ingen tap. */
   if (ev.shiftKey) {
-    const f = hand()[state.sel];
-    if (!matValda.size && f && f.cid !== c.cid) matValda.add(f.cid);
     if (matValda.has(c.cid)) matValda.delete(c.cid); else matValda.add(c.cid);
     state.sel = i; renderSel(); renderInspektor(); sparaUi();
     return;
@@ -9597,23 +9575,13 @@ $('#fxStrip').addEventListener('click', ev => {
 });
 $('#fxImg').addEventListener('click', () => { if (redigerbar()) flipSel(); });
 
-/* Piltangenterna på mattan: närmaste kort i den riktningen (matNav). I
-   fokusvyn bläddras korten i listordning. Home/End: första och sista kortet
-   i läsordning — rad för rad, vänster till höger. */
+/* Piltangenterna bläddrar i fokusvyn, i listordning. På mattan gör de
+   ingenting: det finns inget valt kort att flytta (MES-118). */
 function step(d) {
   const n = hand().length;
-  if (!n) return;
-  if (!focusOpen) { matNav(d, 0); return; }
+  if (!n || !focusOpen) return;
   state.sel = clamp(state.sel + d, 0, n - 1);
   save(); renderSel(); renderInspektor(); renderFocus();
-}
-function matYtterst(sist) {
-  const c = hand(), idx = [];
-  c.forEach((e, i) => { if (paMattan(e) && e.x != null) idx.push(i); });
-  if (!idx.length) return;
-  idx.sort((a, b) => (Math.round(c[a].y / 60) - Math.round(c[b].y / 60)) || (c[a].x - c[b].x));
-  state.sel = sist ? idx[idx.length - 1] : idx[0];
-  sparaUi(); renderSel(); renderInspektor(); renderFocus();
 }
 
 /* ─── hjälp & bulk ─── */
@@ -11630,21 +11598,17 @@ addEventListener('keydown', ev => {
       || $('#lekOv').classList.contains('open')) return;
 
   switch (k) {
-    case 'ArrowLeft':  ev.preventDefault(); step(-1); return;
-    case 'ArrowRight': ev.preventDefault(); step(1); return;
-    case 'ArrowUp':    ev.preventDefault(); focusOpen ? step(-1) : matNav(0, -1); return;
-    case 'ArrowDown':  ev.preventDefault(); focusOpen ? step(1) : matNav(0, 1); return;
-    case 'Home':       ev.preventDefault(); matYtterst(false); return;
-    case 'End':        ev.preventDefault(); matYtterst(true); return;
+    case 'ArrowLeft': case 'ArrowUp':    if (focusOpen) { ev.preventDefault(); step(-1); } return;
+    case 'ArrowRight': case 'ArrowDown': if (focusOpen) { ev.preventDefault(); step(1); } return;
     case ' ':          if (matHandNer(ev)) return;
-                       if (!redigerbar()) return; ev.preventDefault(); flipSel(); return;
+                       if (!redigerbar() || tangentKort() < 0) return; ev.preventDefault(); flipKort(tangentKort()); return;
     case 'Enter':
       ev.preventDefault();
-      focusOpen ? closeFocus() : openFocus();
+      vaxlaFokus();
       return;
     case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
     case 'Backspace':
-    case 'Delete':     if (!redigerbar()) return; ev.preventDefault(); removeAt(state.sel); return;
+    case 'Delete':     if (!redigerbar() || tangentKort() < 0) return; ev.preventDefault(); removeAt(tangentKort()); return;
     case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
     case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
     case '0':          ev.preventDefault();   // över mattan: 100 % mot pekaren, annars fit
@@ -11662,25 +11626,36 @@ addEventListener('keydown', ev => {
   const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ' ||
                   k === 'Backspace' || k === 'Delete';
   if (!redigerbar() && skriver) return;
-  if (lower === 'f') { ev.preventDefault(); focusOpen ? closeFocus() : openFocus(); }
+  /* T, E, G och D verkar på kortet under pekaren (tangentKort). T med
+     lassomarkerade kort tappar alla, när pekaren står på ett av dem eller
+     inte på något kort alls. */
+  const ti = tangentKort(), te = hand()[ti] || null;
+  if (lower === 'f') { ev.preventDefault(); vaxlaFokus(); }
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); if (spelLage) oppnaLada(true); else { searchInput.focus(); searchInput.select(); } }
   else if (lower === 'b' && (!spelLage || DEBUG)) { ev.preventDefault(); openBulk(); }
   else if (lower === 'i' && (!spelLage || DEBUG)) { ev.preventDefault(); openOv('imgOv'); }
-  else if (lower === 't') { ev.preventDefault(); if (flerValda()) tappaValda(); else tappa(state.sel); }
-  else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); bifogaNarmaste(state.sel); }
-  else if (lower === 'g') {
+  else if (lower === 't') {
+    if (matValda.size && (!te || matValda.has(te.cid))) { ev.preventDefault(); tappaValda(); }
+    else if (te) { ev.preventDefault(); tappa(ti); }
+  }
+  else if (lower === 'e' && te && paMattan(te) && bifogTyp(te)) { ev.preventDefault(); bifogaNarmaste(ti); }
+  else if (lower === 'g' && te && zonAv(te) !== ZON_GRAV) {
     ev.preventDefault();
-    flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`));
-    flyttaTill(state.sel, ZON_GRAV);
+    flygTillGrav(gridEl.querySelector(`.card[data-i="${ti}"]`));
+    flyttaTill(ti, ZON_GRAV);
   }
   else if (lower === 's') { ev.preventDefault(); satMatVerktyg(matVerktyg === 'pan' ? 'valj' : 'pan'); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
-  else if (lower === 'd') {
-    const e = selCard();
-    if (e) { ev.preventDefault(); addCards([e.name]); }
-  }
+  else if (lower === 'd' && te) { ev.preventDefault(); addCards([te.name]); }
 });
+/* F och Enter: fokusvyn öppnar på kortet under pekaren, annars på det man
+   senast pekade på. */
+function vaxlaFokus() {
+  if (focusOpen) { closeFocus(); return; }
+  const i = pekIndex(); if (i >= 0) state.sel = i;
+  openFocus();
+}
 function cyclePlayer(d) {
   const i = state.players.findIndex(p => p.id === state.active);
   setActive(state.players[(i + d + state.players.length) % state.players.length].id);
