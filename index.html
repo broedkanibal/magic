@@ -424,7 +424,15 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppsteg.todo .opptit{color:var(--dim);font-weight:550}
 .opptit i{font-style:normal;font-size:11px;font-weight:500;color:var(--dim2)}
 .oppsum{font-size:12px;color:var(--dim)}
-.oppsteg:not(.done) .oppsum,.oppsteg:not(.active) .oppcont{display:none}
+.oppsteg:not(.done) .oppsum,.oppsteg.active .oppsum,.oppsteg:not(.active) .oppcont{display:none}
+/* Ett klart steg går att öppna igen för att ändra valet; det öppnade steget
+   behåller sin bock och fälls ihop igen med ett klick på raden. */
+.oppsteg.done{cursor:pointer}
+.oppsteg.done:not(.active):hover,.oppsteg.done:not(.active):focus-visible{background:#141a24;outline:none}
+.oppsteg.done:not(.active) .opptit::after{content:'Change';margin-left:auto;font-size:11.5px;font-weight:500;color:var(--dim2);opacity:0;transition:opacity .12s}
+.oppsteg.done:not(.active):hover .opptit::after,.oppsteg.done:not(.active):focus-visible .opptit::after{opacity:1}
+.oppsteg.done.active .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.oppsteg.done.active .oppcont{cursor:auto}
 .oppcont{display:flex;flex-direction:column;gap:12px;margin-top:8px}
 .opptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
 .opptxt b{color:var(--txt);font-weight:600}
@@ -443,6 +451,8 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .opprad .grow{flex:1}
 .oppwait{display:flex;align-items:center;gap:9px;font-size:12px;color:#e8c98a}
 .oppwait i{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:kampuls 1.2s ease-in-out infinite}
+.oppwait.ok{color:#8fe0b0}
+.oppwait.ok i{background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26;animation:none}
 .oppqr{align-self:flex-start;padding:10px;border-radius:10px;background:#fff;line-height:0}
 .oppqr canvas{width:150px;height:150px;image-rendering:pixelated}
 .oppqr .vantar{display:block;max-width:150px;line-height:1.4;color:#333;font-size:12px}
@@ -2716,7 +2726,7 @@ body.ispel #addPlayerBtn{display:none}
           <div class="oppcont">
             <div class="oppqr" id="oppQr"></div>
             <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
-            <div class="opprad"><span class="oppwait"><i></i>Waiting for your phone…</span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button></div>
+            <div class="opprad"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button><button type="button" class="btn prim sm" data-opp="stang" id="opp2Klar" hidden>Done</button></div>
           </div></div></div>
         <div class="oppsteg" id="opp3"><span class="oppnr">3</span><div class="oppbody">
           <div class="opptit">How should the camera work?</div><div class="oppsum" id="opp3Sum"></div><div class="oppcont" id="opp3Cont"></div></div></div>
@@ -8365,8 +8375,12 @@ function renderKamPop() {
    databasens förval ('skarm') inte går att skilja från ett val. Pillret
    öppnar den igen i lägena av och väntar; "Redo setup" i kamerapanelen gör
    om den. Kamerans bild (#pbBild) flyttas in i steg 4 medan steget står
-   framme och panelen är stängd — strömningen följer (kamStegSynk). */
-let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
+   framme och panelen är stängd — strömningen följer (kamStegSynk).
+   Ett klart steg öppnas igen med ett klick (oppVisat) för att byta lek,
+   visa QR-koden på nytt eller byta läge; det står framme i stället för
+   nästa ofärdiga steg tills valet bekräftats eller raden klickats igen. */
+let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false, oppVisat = null;
+const OPP_ORDNING = ['lek', 'tel', 'lage', 'vinkel'];
 const oppMinne = () => LS.get(K.oppstart, {}) || {};
 function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
 function oppSatt(falt) {
@@ -8378,7 +8392,7 @@ const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.
 function oppnaOppstart(om) {
   if (!spelLage) return;
   oppSatt(om ? { klar: false, avbojd: false, lage: false, grundOm: mittLage() === 'bord' } : { klar: false, avbojd: false });
-  oppLageVal = null;
+  oppLageVal = null; oppVisat = null;
   if (kamOppen) closeOv('kamOv');
   renderMode();
 }
@@ -8398,7 +8412,7 @@ function renderOppstart() {
   }
   const o = redigerbar() ? oppFor() : null, mig = minSpelare(), bord = mittLage() === 'bord';
   let visa = !!o && !o.klar && !o.avbojd, aktiv = null;
-  const ordning = ['lek', 'tel', 'lage', 'vinkel'];
+  const ordning = OPP_ORDNING;
   const steg = {};
   if (visa) {
     const grund = kamGrund != null ? kamGrund : kamGrundRad;
@@ -8408,12 +8422,19 @@ function renderOppstart() {
     steg.vinkel = !bord || (grund != null && !o.grundOm);
     aktiv = ordning.find(k => !steg[k]) || null;
     if (!aktiv) { oppSatt({ klar: true, grundOm: false }); visa = false; }
+    else if (oppVisat && steg[oppVisat]) aktiv = oppVisat;   // ett klart steg som öppnats igen
+    else oppVisat = null;
   }
+  if (!visa) oppVisat = null;
   oppOppen = visa;
   if (visa) {
     ordning.forEach((k, i) => {
-      const st = $('#opp' + (i + 1)), klass = steg[k] ? 'done' : k === aktiv ? 'active' : 'todo';
-      if (st.dataset.k !== klass) { st.dataset.k = klass; st.className = 'oppsteg ' + klass; st.querySelector('.oppnr').innerHTML = steg[k] ? OPP_KLAR : String(i + 1); }
+      const st = $('#opp' + (i + 1)), klass = steg[k] ? (k === aktiv ? 'done active' : 'done') : k === aktiv ? 'active' : 'todo';
+      if (st.dataset.k !== klass) {
+        st.dataset.k = klass; st.className = 'oppsteg ' + klass; st.querySelector('.oppnr').innerHTML = steg[k] ? OPP_KLAR : String(i + 1);
+        if (steg[k]) { st.tabIndex = 0; st.setAttribute('role', 'button'); st.setAttribute('aria-expanded', String(k === aktiv)); }
+        else { st.removeAttribute('tabindex'); st.removeAttribute('role'); st.removeAttribute('aria-expanded'); }
+      }
     });
     $('#opp4').hidden = o.lage && !bord;          // Add only: inget otappat kort att visa
     $('#opp4Tag').hidden = !!o.lage;
@@ -8437,7 +8458,8 @@ function renderOppstart() {
       else if (!oppLekar.length) h = '<p class="opptxt">The camera only looks for cards in the deck you play with. You have no decks yet — add your cards first.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="nylek">New deck…</button></div>';
       else {
         if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal))
-          oppLekVal = lekAktiv && oppLekar.some(l => l.id === lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
+          oppLekVal = mig && oppLekar.some(l => l.id === mig.lekId) ? mig.lekId
+            : lekAktiv && oppLekar.some(l => l.id === lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
         const val = oppLekar.find(l => l.id === oppLekVal);
         h = '<p class="opptxt">The camera only looks for cards in the deck you play with.</p>'
           + oppLekar.map(l => `<button type="button" class="oppopt${l.id === oppLekVal ? ' on' : ''}" data-opplek="${esc(l.id)}"><span class="radio"></span><span class="oppbody"><b><span class="pips">${pipsHtml(l.farger)}</span>${esc(l.namn)}</b></span><span class="oppmeta">${l.antal || 0} cards</span></button>`).join('')
@@ -8450,6 +8472,11 @@ function renderOppstart() {
     if (aktiv === 'tel') {
       if (prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); setTimeout(renderMode, 0); }
       if (!oppQrVisas) { oppQrVisas = true; ritaQr(oppLank(), $('#oppQr')); }
+      /* Öppnat igen med telefonen ansluten: koden står kvar för en annan telefon. */
+      const w = $('#oppWait'), t = kamAnsluten ? 'Phone connected — scan again to switch phones' : 'Waiting for your phone…';
+      w.classList.toggle('ok', kamAnsluten);
+      if (w.lastElementChild.textContent !== t) w.lastElementChild.textContent = t;
+      $('#opp2Klar').hidden = !kamAnsluten;
     } else oppQrVisas = false;
     /* 3: hur kameran arbetar. Follow the table är förvalt och rekommenderat. */
     if (aktiv === 'lage') {
@@ -8478,15 +8505,29 @@ function renderOppstart() {
   document.body.classList.toggle('oppstart', visa);
   if (fore !== visa) matResize();
 }
+/* Ett klart steg öppnas (eller fälls ihop) med ett klick på raden — inte på
+   innehållet i ett öppet steg. Valen läses om från det som gäller nu. */
+function oppVaxla(st) {
+  const k = OPP_ORDNING[+st.id.slice(3) - 1];
+  if (oppVisat === k) oppVisat = null;
+  else { oppVisat = k; oppLekar = null; oppLekVal = null; oppLageVal = null; }
+  renderOppstart();
+}
 $('#oppstart').addEventListener('click', ev => {
   const lk = ev.target.closest('[data-opplek]'); if (lk) { oppLekVal = lk.dataset.opplek; renderOppstart(); return; }
   const lg = ev.target.closest('[data-opplage]'); if (lg) { oppLageVal = lg.dataset.opplage; renderOppstart(); return; }
-  const b = ev.target.closest('[data-opp]'); if (!b) return;
+  const b = ev.target.closest('[data-opp]');
+  if (!b) { const st = ev.target.closest('.oppsteg.done'); if (st && !ev.target.closest('.oppcont')) oppVaxla(st); return; }
   const a = b.dataset.opp;
-  if (a === 'spela' && oppLekVal) valjLekTill(oppLekVal).then(() => renderMode());
+  if (a === 'spela' && oppLekVal) {
+    const mig = minSpelare(), samma = mig && mig.lekId === oppLekVal;
+    oppVisat = null;
+    if (samma) renderMode(); else valjLekTill(oppLekVal).then(() => renderMode());
+  }
   else if (a === 'nylek') oppnaLek();
   else if (a === 'kopiera') navigator.clipboard.writeText(oppLank()).then(() => toast('Link copied', 'ok'), () => prompt('Copy the link:', oppLank()));
-  else if (a === 'lage') { const v = oppLageVal || 'bord'; oppSatt({ lage: true }); oppLageVal = null; bytLage(v).then(() => renderMode()); }
+  else if (a === 'stang') { oppVisat = null; renderOppstart(); }
+  else if (a === 'lage') { const v = oppLageVal || 'bord'; oppSatt({ lage: true }); oppLageVal = null; oppVisat = null; bytLage(v).then(() => renderMode()); }
   else if (a === 'grund') sparaGrundFranSenaste();
   else if (a === 'grav') $('#pbGrav').click();
   else if (a === 'utan') {
@@ -8496,6 +8537,9 @@ $('#oppstart').addEventListener('click', ev => {
     if (prefs.autoLage === true && !kamAnsluten) { prefs.autoLage = false; savePrefs(); }
     renderMode();
   }
+});
+$('#oppstart').addEventListener('keydown', ev => {
+  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.oppsteg.done')) { ev.preventDefault(); oppVaxla(ev.target); }
 });
 $('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true });
 
