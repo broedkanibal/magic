@@ -221,6 +221,23 @@ accept" med Plains överst i helheten men Serpent Assassin som ORB:s val.
 Viloläget från K5 (`vilaX/vilaY` med hysteres) är det som ska hålla
 `lagesUpp` på 0: darr på en gräns ger ingen rapport, en verklig glidning en.
 
+## Högvakten (K10/K11, MES-85)
+
+Ett kort som läggs på graveyard-högen i bild ska gå dit utan fråga i Follow
+the table. Telefonen läser inget namn där, den märker bara att högen fått ett
+nytt utseende (högvakten). Datorn parar ihop det med kortet som försvann.
+
+| Vad | Hur det mäts | Mål |
+|---|---|---|
+| **hög** i Förlopp | kort med `"till": "grav"` i facit där högen ändrades inom 4 s | alla |
+| **falska** i Förlopp | högändringar utan ett kort dit (en hand, bläddring) | 0 |
+| datorns utfall | `node dev/dubbletter.cjs --fall 10`: raden `högvakten:` visar vilka kort som gick till graveyard och vilka som står kvar med frågan | korten med `till` till graveyard, inga andra |
+
+I facit märks händelsen så här: `{ "t": 25.5, "tar_bort": "Trusty Retriever", "till": "grav" }`.
+Fallet behöver en `grav`-ruta. `--detalj` skriver högens ändringar och varje
+händelse. Uppspelningen i `dubbletter.cjs` kräver att fallet sparats om
+(`--fall 10 --spara`) efter en kodändring.
+
 ## Kortbaksidor
 
 Ett nedvänt kort på bordet (biblioteket, ett kort som vänts) blev en

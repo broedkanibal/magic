@@ -290,7 +290,10 @@ function spelaUpp(kalla, grund) {
     maxOverskott: facit ? Math.max(0, ...steg.map(r => r.overskott || 0)) : null,
     tapMotSpar: tapMotSpar.length,
     tapMotFacit: facit ? { par: tappadePar, steg: tappadeSteg.length, maxSamtidigt: maxTappade, kort: tappadeCid.size } : null,
-    grundFragor: app.grundFragor.length, granskning: app.pending.length
+    grundFragor: app.grundFragor.length, granskning: app.pending.length,
+    /* Högvakten (MES-85): kort som gick till graveyard för att högen i bild ändrades, med videons sekund, och kort som står nedtonade (frågan) i slutet. */
+    gravAuto: app.kort.filter(c => c.gravAuto).map(c => ({ namn: c.name, s: +((c.gravAuto - VIRT0) / 1000).toFixed(2) })),
+    nedtonade: app.kort.filter(c => c.lyft != null).map(c => c.name)
   };
   return { grund, tidslinje, skapade, tapMotSpar, totalt, perNamn, slut };
 }
@@ -398,6 +401,7 @@ function skrivTotalt(res, facit) {
     + (facit ? `; största samtidiga överskott: ${t.maxOverskott}` : ''));
   console.log(`  tap: kort mot spårets tappad — ${t.tapMotSpar} avvikelser` + (facit ? `; mot facit (alla otappade) — ${t.tapMotFacit.par} kort-steg tappade i ${t.tapMotFacit.steg} av ${t.steg} steg, högst ${t.tapMotFacit.maxSamtidigt} samtidigt, ${t.tapMotFacit.kort} olika kort` : '')
     + `; grundfrågor: ${t.grundFragor}; kvar i granskningen: ${t.granskning}`);
+  console.log('  högvakten (MES-85): ' + (t.gravAuto.length ? t.gravAuto.map(x => `${x.namn} → graveyard ${x.s} s`).join(', ') : 'ingen auto-graveyard') + `; nedtonade i slutet (frågan): ${t.nedtonade.length ? t.nedtonade.join(', ') : 'inga'}`);
   console.log('  slutbordet: ' + (res.slut.length ? res.slut.map(c => `${c.cid} ${c.namn}${c.tappad ? ' T' : ''}${c.nedtonad ? ' (nedtonat)' : c.nad ? ' (i nåd)' : ''}${c.spar != null ? ' spår ' + c.spar : ''}`).join(' · ') : '(tomt)'));
   if (facit) console.log('  facit slut: ' + facit.kort.map(k => k.namn).join(' · '));
 }
