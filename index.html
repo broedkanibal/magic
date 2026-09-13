@@ -6415,7 +6415,7 @@ function malIndex(i) {
    är deras. */
 function autoPlatserNu() {
   const mig = minSpelare();
-  if (!mig || player() !== mig || !kamAnsluten || prefs.autoLage === false) return [];
+  if (!mig || player() !== mig || !kamAnsluten || prefs.autoLage === false || oppstartPagar()) return [];
   return autoPlatser(senasteSpar, mig, { sedd: sparSedd, losa: losaSpar });
 }
 /* En platshållare på mattan: ett kort kameran ser men inte har namn på än.
@@ -8398,6 +8398,12 @@ let oppVisat = null, oppVisatKlar = false, oppNasta = null;
 const OPP_ORDNING = ['lek', 'tel', 'lage', 'vinkel'];
 const oppMinne = () => LS.get(K.oppstart, {}) || {};
 function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
+/* Uppstarten pågår (MES-122): spelets uppstart är varken klar eller avböjd.
+   Medan man ställer i ordning bordet spelas inget ut — inte provkortet, inte
+   leken — så avstämningen och platshållarna läser det. Ur det sparade, inte
+   ur oppOppen: den hänger på redigerbar() och släppte när man tittade på
+   någon annans bord. */
+function oppstartPagar() { if (!spelLage) return false; const o = oppFor(); return !o.klar && !o.avbojd; }
 function oppSatt(falt) {
   if (!spelLage) return;
   const m = oppMinne(); m[spelLage.id] = Object.assign({}, m[spelLage.id] || {}, falt); LS.set(K.oppstart, m);
@@ -18360,6 +18366,26 @@ function bibBredvid(grav, r, s) {
   let u = G.u + G.w + gap; if (u + G.w > 1) u = Math.max(0, G.u - gap - G.w);
   return vyRutaTillBild({ u, v: G.v, w: G.w, h: G.h }, r, s);
 }
+/* Provkortet (MES-122): spåret steg 4 tar vinkeln ur. Inte skräp och inte
+   i högarnas rutor; samma kort som förra gången så länge det syns, annars
+   helst ett som detektorn mätt (sen ≠ null), inte skymt, och det som kom
+   senast. matt = vinkeln går att spara nu — annars läge 2b (kortet syns
+   men telefonen har ingen egen mätning av det, se grundFranSpar). */
+function provkortSpar(spar, zoner, sedd, forraId) {
+  const inne = (t, r) => r && t.w != null && t.x + t.w / 2 >= r.x && t.x + t.w / 2 <= r.x + r.w && t.y + t.h / 2 >= r.y && t.y + t.h / 2 <= r.y + r.h;
+  const kand = (spar || []).filter(t => t.tillstand !== 'skrap' && t.w != null && !(zoner || []).some(r => inne(t, r)));
+  const t = kand.find(u => u.id === forraId) || kand.slice().sort((a, b) =>
+    ((b.sen != null) - (a.sen != null)) || (!!a.skymd - !!b.skymd) || (((sedd && sedd.get(b.id)) || 0) - ((sedd && sedd.get(a.id)) || 0)) || (b.id - a.id))[0];
+  return t ? { t, matt: t.sen != null && t.sen < 2000 && !t.skymd && !(t.ai && t.ai.helbild) } : null;
+}
+/* Start playing: provkortets spår, och spår som täcker det (ett andra spår
+   på samma kort, som S8), läggs i borttagna — så spelas det inte ut om det
+   ligger kvar. Spärren släpper när spåret försvinner. */
+function provkortUt(spar, provId) {
+  const prov = (spar || []).find(t => t.id === provId);
+  return (spar || []).filter(t => t.id === provId || (prov && t.w != null && prov.w != null && tackning(t, prov) >= 0.3)).map(t => t.id);
+}
+const oppstartSparr = () => typeof oppstartPagar === 'function' && oppstartPagar();
 /* Steget statusfältet ber om: { namn, spar } så snart ett mätt kamerakort
    ligger på bordet och telefonen sagt att inget läge är sparat (null —
    undefined är en telefon som inte kan svara), tills man sparat eller
@@ -18788,6 +18814,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      omladdning): sammanfattningen ska finnas när auto stängs av, även om
      inget kort hann bindas. */
   autoSumSakra();
+  /* Uppstarten pågår (MES-122): bordet ställs i ordning — provkortet,
+     graveyard-platsen, leken — och inget av det spelas ut. Spåren följs
+     (senasteSpar, sparSedd) så att steg 4 ser provkortet, men mitt bord
+     rörs inte: inga nya kort, inga frågor, ingen tap, inget till graveyard. */
+  if (oppstartSparr()) {
+    gravHandelser = []; losaSpar = new Set(); clearTimeout(lyftT);
+    for (const t of spar) if (!sparSedd.has(t.id)) sparSedd.set(t.id, nu);
+    for (const id of [...sparSedd.keys()]) if (!spar.some(t => t.id === id)) sparSedd.delete(id);
+    senasteSpar = spar; renderMode(); uppdateraPbStatus(); return;
+  }
   let andrat = false;
   mig.pending = mig.pending || [];
   /* Alla spår i meddelandet, innan något stäms av. Förut byggdes mängden

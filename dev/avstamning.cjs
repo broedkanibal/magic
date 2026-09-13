@@ -52,12 +52,17 @@ const lekAntal = namn => lekTal.has(namn) ? lekTal.get(namn) : Infinity;
 /* Typraden (besvärjelseregeln, MODE-3): per namn i provet, annars tom. */
 let typRad = new Map();
 function typLinje(k) { return typRad.get(k.name) || ''; }
+/* Uppstarten (MES-122): pågår den spelas inget ut. Av i alla prov utom UP. */
+let oppPagar = false;
+function oppstartPagar() { return oppPagar; }
 `;
 const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
 return {
   avstamBord, tackning, sammaPlats, lekPrior,
-  kamBildTillVy, kamVyTillBild, provKortMatt, zonForslag, bibBredvid,
+  kamBildTillVy, kamVyTillBild, provKortMatt, zonForslag, bibBredvid, provkortSpar, provkortUt,
+  set oppstart(v) { oppPagar = !!v; },
+  get spar() { return senasteSpar; },
   get kort() { return state.players[0].cards; },
   get pending() { return state.players[0].pending; },
   get chip() { return { kamSer, kamLast, kamTot }; },
@@ -98,7 +103,7 @@ return {
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); }
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false; }
 };`)({ now: () => klocka.t }, () => 0, () => {});
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -1169,6 +1174,77 @@ prov('ZN6 ett för stort kort: rutorna krymps, ryms och överlappar inte; librar
   assert.ok(naraZ(b.x, 0.3 + 0.13 * 1.2) && naraZ(b.y, 0.4) && naraZ(b.w, 0.13) && naraZ(b.h, 0.24), JSON.stringify(b));
   const kant = app.bibBredvid({ x: 0.85, y: 0.4, w: 0.13, h: 0.24 }, 0, false);
   assert.ok(kant.x + kant.w <= 0.85, 'till vänster vid kanten');
+});
+
+/* MES-122: medan uppstarten pågår spelas inget ut. UP = uppstarten. */
+prov('UP1 uppstarten pågår: ett känt spår blir inget kort och ingen fråga, men följs', () => {
+  app.oppstart = true;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
+  assert.deepEqual(app.spar.map(t => t.id), [1]);
+});
+prov('UP2 uppstarten pågår: ett okänt spår ger ingen granskning', () => {
+  app.oppstart = true;
+  stam([{ id: 2, tillstand: 'okand', namn: null, sen: 20, ...PORT }]);
+  klocka.t += 5000; stam([{ id: 2, tillstand: 'okand', namn: null, sen: 20, ...PORT }]);
+  assert.equal(app.pending.length, 0); assert.equal(app.kort.length, 0);
+});
+prov('UP3 uppstarten öppnas mitt i spelet: ett kort tappas inte och tonas inte ned', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1);
+  app.oppstart = true;
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort[0].tapped, 0);
+  klocka.t += 150; stam([]); klocka.t += 3100; stam([]);
+  assert.ok(!app.kort[0].borta); assert.equal(app.kort[0].lyft, undefined);
+});
+prov('UP4 Start playing: provkortet och ett andra spår ovanpå spärras', () => {
+  app.oppstart = true;
+  const spar = [klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LAND_ }), klar(3, 'Swamp', { sen: 20, ...LANGT })];
+  stam(spar);
+  const ut = app.provkortUt(app.spar, 1);
+  assert.deepEqual(ut.sort(), [1, 2]);
+  for (const id of ut) app.borttagna.add(id);
+  app.oppstart = false;
+  stam(spar);
+  assert.deepEqual(app.kort.map(k => k.name), ['Swamp']);
+});
+prov('UP5 provkortet lyfts: spärren släpper, och ett nytt kort med samma namn spelas', () => {
+  app.oppstart = true;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  for (const id of app.provkortUt(app.spar, 1)) app.borttagna.add(id);
+  app.oppstart = false;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 0);
+  klocka.t += 150; stam([]);
+  assert.ok(!app.borttagna.has(1));
+  klocka.t += 150; stam([klar(4, 'Ukud Cobra', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].spar, 4);
+});
+prov('UP6 högen ändras under uppstarten: ett kort som försvinner efteråt går inte till graveyard av det', () => {
+  app.oppstart = true;
+  stamG([], hog(0)); klocka.t += 1000; stamG([], hog(1));
+  app.oppstart = false;
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
+  klocka.t += 150; stamG([], hog(1)); klocka.t += 3100; stamG([], hog(1));
+  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+});
+prov('UP7 provkortSpar: ett mätt spår före ett ur helbilden, inte skräp, inte i rutorna, samma kort som förra gången', () => {
+  const hel = { id: 1, tillstand: 'klar', namn: 'Swamp', sen: null, ai: { helbild: true }, ...PORT };
+  const matt = { id: 2, tillstand: 'ny', namn: null, sen: 30, ...LANGT };
+  let r = app.provkortSpar([hel, matt], [], null, null);
+  assert.equal(r.t.id, 2); assert.equal(r.matt, true);
+  r = app.provkortSpar([hel], [], null, null);
+  assert.equal(r.t.id, 1); assert.equal(r.matt, false);
+  assert.equal(app.provkortSpar([{ id: 3, tillstand: 'skrap', sen: 10, ...PORT }], [], null, null), null);
+  assert.equal(app.provkortSpar([matt], [{ x: 0.78, y: 0.08, w: 0.1, h: 0.14 }], null, null), null);
+  r = app.provkortSpar([{ ...hel, sen: 40, ai: null }, matt], [], null, 1);
+  assert.equal(r.t.id, 1);
+});
+prov('UP8 lägesbytet spelar upp bordet medan uppstarten pågår: inget kort', () => {
+  app.oppstart = true;
+  app.avstamBord([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 0);
 });
 
 console.log([...ok, ...fel].join('\n'));
