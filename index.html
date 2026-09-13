@@ -502,6 +502,9 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .zoomchip .zlage:hover .knapptip,.zoomchip .zlage:focus-visible .knapptip{opacity:1}
 .zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:64px}
 .zoomchip .ztxt.manuell{color:var(--pa-acc)}
+.zoomchip input.ztxt{width:72px;height:28px;border-top:0;border-bottom:0;border-radius:0;background:none;text-align:center;outline:none;cursor:text}
+.zoomchip input.ztxt:hover{background:var(--bg4)}
+.zoomchip input.ztxt:focus{background:var(--bg4);color:var(--txt)}
 .zoomchip button:hover{background:var(--bg4);color:var(--txt)}
 /* Graveyard-högen ligger still i mattan, nere till vänster. */
 .gravhog{position:absolute;left:22px;bottom:14px;z-index:22;width:132px;display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -6903,12 +6906,13 @@ function renderChrome(v) {
     + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg><span class="knapptip">Pan — click and drag anywhere to move the mat (S)</span></button></div>`
     + `<div class="zoomchip">`
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
-    + `<button type="button" class="ztxt${v.manuell ? ' manuell' : ''}" data-mat="fit" title="Fit the whole board">${pct}</button>`
+    + `<input type="text" class="ztxt${v.manuell ? ' manuell' : ''}" id="matZoomTal" value="${pct}" inputmode="numeric" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Zoom level" title="Type a zoom level, 1–100%">`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
     + (redigerbar() && !(spelLage && mittLage() === 'bord') ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
     + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
+  if (document.activeElement && document.activeElement.id === 'matZoomTal') return;   // skriver man i procentrutan
   el.dataset.h = html;
   el.innerHTML = html;
 }
@@ -6918,10 +6922,40 @@ $('#mattaChrome').addEventListener('click', ev => {
   const a = b.dataset.mat;
   if (a === 'ut') zoomBy(0.8);
   else if (a === 'in') zoomBy(1.25);
-  else if (a === 'fit') fitView();
   else if (a === 'untap') untapAlla();
   else if (a === 'tidy') stadaUpp();
   else if (a === 'valj' || a === 'pan') satMatVerktyg(a);
+});
+/* Procentrutan: ett klick markerar talet, ett heltal 1–100 och Enter zoomar
+   mot mattans mitt. Under fit går inte — då blir det fit. Escape eller ett
+   klick utanför lämnar zoomen som den var. */
+$('#mattaChrome').addEventListener('mousedown', ev => {
+  const t = ev.target; if (t.id !== 'matZoomTal' || document.activeElement === t) return;
+  ev.preventDefault(); t.focus();   // annars flyttar mouseup markören och tar bort markeringen
+});
+$('#mattaChrome').addEventListener('focusin', ev => {
+  const t = ev.target; if (t.id !== 'matZoomTal') return;
+  t.value = String(Math.round(matVy().z * 100));
+  t.select();
+});
+$('#mattaChrome').addEventListener('input', ev => {
+  const t = ev.target; if (t.id !== 'matZoomTal') return;
+  t.value = t.value.replace(/\D/g, '').slice(0, 3);
+});
+$('#mattaChrome').addEventListener('keydown', ev => {
+  const t = ev.target; if (t.id !== 'matZoomTal') return;
+  ev.stopPropagation();
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    const n = parseInt(t.value, 10);
+    if (n > 0) zoomTill(Math.min(100, n) / 100);
+    t.blur();
+  } else if (ev.key === 'Escape') { ev.preventDefault(); t.blur(); }
+});
+$('#mattaChrome').addEventListener('focusout', ev => {
+  if (ev.target.id !== 'matZoomTal') return;
+  const el = $('#mattaChrome'); el.dataset.h = '';
+  renderChrome(matVy());
 });
 function zoomBy(mult) { zoomTill(matVy().z * mult); }
 /* Zoomen till z, med punkten (i mattans koordinater) kvar under sig —
