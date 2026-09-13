@@ -987,6 +987,20 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 }
 .gravslapp i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--acc)}
 .gravslapp span{font:600 10.5px/1.35 var(--sans);color:var(--pa-acc)}
+/* Man släpper (§3): toppkortet faller ner — samma rörelse som när ett kort
+   landar på bordet — räknaren studsar och en ring slår ut. Ringen är större
+   än kortet med flit: den läser som en stöt i bordet, inte som en glow.
+   .bump sitter på panelen i 500 ms (gravBumpa). */
+@keyframes cLand{0%{transform:translateY(-40px) scale(1.14);opacity:0}60%{transform:translateY(4px) scale(.98)}100%{transform:none;opacity:1}}
+@keyframes cBump{40%{transform:scale(1.18)}}
+@keyframes cRing{from{opacity:.7;transform:scale(.5)}to{opacity:0;transform:scale(1.5)}}
+.gravhog.bump .grav img{animation:cLand .5s cubic-bezier(.2,.8,.3,1)}
+.gravhog.bump .gravtxt{animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
+.gravring{
+  position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;
+  border-radius:50%;border:2px solid #e8c98a;pointer-events:none;animation:cRing .55s ease-out forwards;
+}
+@media (prefers-reduced-motion:reduce){.gravhog.bump .grav img,.gravhog.bump .gravtxt{animation:none}.gravring{display:none}}
 /* Exile: en liten räknare till höger om graveyard-högen, bara när något
    ligger där. Samma fjäder på hover. */
 .exilhog{
@@ -6780,15 +6794,45 @@ function hogUnder(ev) {
   }
   return bast;
 }
+/* Panelen ritas bara om när innehållet ändrats: en omritning startar om
+   landningen och river solfjädern, och renderGrid går vid varje hjärtslag
+   från kameran. Växer högen på samma bord spelas landningen (gravBumpa) —
+   vilken väg kortet än tog dit: släpp, G, menyn, bannern eller högvakten. */
+let gravHogHtml = '', gravForra = null;
 function renderGravHog(cards, d) {
   manaRow.hidden = false;
   manaRow.classList.toggle('medbib', renderBibHog());
   const ex = d.exil.length;
-  manaRow.innerHTML = `<div class="gravrub"><b>Graveyard</b><i></i></div>${gravHtml(cards, d.grav)}`
+  const html = `<div class="gravrub"><b>Graveyard</b><i></i></div>${gravHtml(cards, d.grav)}`
     + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to browse"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '')
     + `<div class="gravfan" id="gravFan"></div>`;
-  /* En omritning river solfjädern; står den öppen ritas den om utan animation. */
-  if (fan.zon) fanRita(false);
+  const pid = player().id, n = d.grav.length;
+  const vaxte = !!gravForra && gravForra.pid === pid && n > gravForra.n;
+  gravForra = { pid, n };
+  if (html !== gravHogHtml) {
+    gravHogHtml = html;
+    manaRow.innerHTML = html;
+    /* En omritning river solfjädern; står den öppen ritas den om utan animation. */
+    if (fan.zon) fanRita(false);
+  }
+  if (vaxte) gravBumpa();
+}
+/* Landningen (§3): .bump på panelen i 500 ms ger cLand på toppkortet och
+   cBump på räknaren, och ringen finns bara så länge — referensens
+   bumped: 'grav'. En ny landning inom halvsekunden börjar om. */
+let gravBumpT = null;
+function gravBumpa() {
+  clearTimeout(gravBumpT);
+  manaRow.classList.remove('bump');
+  const gammal = manaRow.querySelector('.gravring'); if (gammal) gammal.remove();
+  const hog = manaRow.querySelector('.grav'); if (!hog) return;
+  void manaRow.offsetWidth;          // startar om animationerna
+  manaRow.classList.add('bump');
+  hog.insertAdjacentHTML('beforeend', '<i class="gravring"></i>');
+  gravBumpT = setTimeout(() => {
+    manaRow.classList.remove('bump');
+    const r = manaRow.querySelector('.gravring'); if (r) r.remove();
+  }, 500);
 }
 /* ═══ FRI MATTA — graveyard-solfjädern ═══════════════════════════════
    Hovra högen så fjädrar korten ut i en båge ovanför den (README: steg 6).
@@ -9000,24 +9044,16 @@ function cpt(ev) {
   return { x: (ev.clientX - r.left - v.pan.x) / v.z, y: (ev.clientY - r.top - v.pan.y) / v.z };
 }
 const namnAv = c => (cardOf(c) || c).name || 'the card';
-/* Högen som just fick ett släppt kort (se .grav.nyss): hover och solfjäder
-   väntar tills pekaren lämnat högen. Landningen spelas på det omritade
-   elementet; ritas högen om under den halva sekunden klipps den bara av. */
+/* Panelen som just fick ett släppt kort: pekaren står kvar över den, och
+   solfjädern väntar tills den lämnat panelen en gång — som referensens
+   pointerenter, som inte kommer förrän pekaren gått ut och in igen (§4).
+   Landningen själv spelas av renderGravHog när högen växer. */
 let gravNyss = false;
-function gravSlappt() {
-  gravNyss = true;
-  const el = manaRow.querySelector('.grav'); if (!el) return;
-  el.classList.add('nyss');
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  el.classList.add('landar');
-  setTimeout(() => el.classList.remove('landar'), 520);
-}
+function gravSlappt() { gravNyss = true; }
 addEventListener('pointermove', ev => {
   if (!gravNyss) return;
-  const el = manaRow.querySelector('.grav');
-  if (el && el.contains(document.elementFromPoint(ev.clientX, ev.clientY))) return;
+  if (manaRow.contains(document.elementFromPoint(ev.clientX, ev.clientY))) return;
   gravNyss = false;
-  if (el) el.classList.remove('nyss');
 });
 function bifogadeTill(cid) { return hand().filter(k => k.attachedTo === cid); }
 function flyttaElement(k) {
@@ -9242,6 +9278,9 @@ function matDndSlut(ev, avbryt) {
     /* Tillbaka till startläget innan flytten, så att Return to play och
        Undo lägger kortet där det låg. */
     c.x = d.start.x; c.y = d.start.y;
+    /* Hovern och markeringen följer inte med ner i högen (§3). */
+    matValda.delete(c.cid);
+    if (matHover === c.cid) matHover = null;
     matAngra(namnAv(c) + ' → graveyard', () => flyttaTill(h.indexOf(c), ZON_GRAV));
     gravSlappt();
     fjarrIkapp(); return;
