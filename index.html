@@ -1036,6 +1036,22 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 body.lasvy .gravhog.fanpa .gravtxt .gt-n{display:inline}
 body.lasvy .gravhog.fanpa .gravtxt .gt-fan{display:none}
 body.lasvy .fkort{cursor:default}
+/* Knappraden vid det hovrade kortet (§4): Return to play och Exile. Står i
+   behållaren, ovanför kortets överkant. */
+.fakt{
+  position:absolute;z-index:60;pointer-events:auto;display:flex;align-items:center;gap:5px;padding:5px;border-radius:9px;
+  background:color-mix(in srgb,var(--bandbg) 96.86%,transparent);border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000;
+}
+.fakt button{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;border:0;cursor:pointer;white-space:nowrap}
+.fakt button svg{flex:none}
+.fakt [data-fakt="ater"]{background:var(--acc);color:#20160a;font:650 11px/1 var(--sans)}
+.fakt [data-fakt="ater"]:hover{background:#ffb943}
+.fakt [data-fakt="exil"]{background:#1b1428;border:1px solid #5c4a80;color:#d9c7f5;font:600 11px/1 var(--sans)}
+.fakt [data-fakt="exil"]:hover{background:#241a35}
+/* Exile-högens fjäder: "To the graveyard" i stället för Exile. */
+.fakt [data-fakt="grav"]{background:var(--bg3);border:1px solid var(--line);color:var(--txt);font:600 11px/1 var(--sans)}
+.fakt [data-fakt="grav"]:hover{border-color:var(--acc)}
+body.lasvy .fakt{display:none!important}
 
 
 /* knapp för att lägga ett kort i graveyard */
@@ -6890,6 +6906,7 @@ function fanRita() {
     return `<div class="fkort${hov ? ' hov' : ''}" data-cid="${esc(e.cid)}" data-j="${i}" style="z-index:${hov ? 60 : i + 1};transform:${fan.on ? fanTransform(g(i), hov) : 'none'};transition:transform .3s cubic-bezier(.2,.9,.3,1) ${i * 22}ms">`
       + (src ? `<img src="${esc(src)}" alt="${esc(namnAv(e))}" draggable="false">` : `<span class="fnamn">${esc(namnAv(e))}</span>`) + '</div>';
   }).join('');
+  fanKnappar(el, [...el.querySelectorAll('.fkort')], g);
   manaRow.classList.toggle('fanpa', fan.on && fan.zon === ZON_GRAV);
 }
 /* Lägena på plats: utfällt eller hemma, det hovrade kortet lyft. Varje korts
@@ -6903,7 +6920,22 @@ function fanLage() {
     k.style.zIndex = hov ? 60 : i + 1;
     k.style.transform = fan.on ? fanTransform(g(i), hov) : 'none';
   });
+  fanKnappar(el, kort, g);
   manaRow.classList.toggle('fanpa', fan.on && fan.zon === ZON_GRAV);
+}
+/* Knappraden vid det hovrade kortet: left dx − 30, top dy − 44 i
+   behållaren, där dy redan har lyftet. Bara på mitt eget bord. */
+const IKON_UPP = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V5m0 0-5.5 5.5M12 5l5.5 5.5"/></svg>';
+const IKON_EXIL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v9m4.5-6.8a8 8 0 1 1-9 0"/></svg>';
+function fanKnappar(el, kort, g) {
+  const gl = el.querySelector('.fakt'); if (gl) gl.remove();
+  const i = kort.findIndex(k => k.dataset.cid === fan.hov);
+  if (!fan.on || i < 0 || !redigerbar()) return;
+  const p = g(i);
+  el.insertAdjacentHTML('beforeend', `<div class="fakt" data-cid="${esc(fan.hov)}" style="left:${Math.round(p.dx - 30)}px;top:${Math.round(p.dy - 20 - 44)}px">`
+    + `<button type="button" data-fakt="ater">${IKON_UPP}Return to play</button>`
+    + (fan.zon === ZON_EXIL ? '<button type="button" data-fakt="grav">To the graveyard</button>' : `<button type="button" data-fakt="exil">${IKON_EXIL}Exile</button>`)
+    + '</div>');
 }
 function fanHov(cid) {
   if (!fan.zon) return;
@@ -9034,8 +9066,12 @@ manaRow.addEventListener('click', ev => {
   const fb = ev.target.closest('[data-fakt]');
   if (fb) {
     ev.stopPropagation();
-    const e = hand().find(k => k.cid === fb.closest('.fkort').dataset.cid); if (!e || !redigerbar()) return;
+    const e = hand().find(k => k.cid === fb.closest('.fakt').dataset.cid); if (!e || !redigerbar()) return;
     const a = fb.dataset.fakt, i = hand().indexOf(e);
+    /* Return to play stänger fjädern direkt; Exile släpper bara hovern, och
+       fjädern står kvar med resten av korten (som i referensen). */
+    if (a === 'ater') fanStangNu();
+    else { if (matHover === fan.hov) matHover = null; fan.hov = null; }
     if (a === 'ater') matAngra(namnAv(e) + ' ← ' + (zonAv(e) === ZON_EXIL ? 'exile' : 'graveyard'), () => gravTillbaka(e));
     else if (a === 'exil') matAngra(namnAv(e) + ' → exile', () => flyttaTill(i, ZON_EXIL));
     else if (a === 'grav') matAngra(namnAv(e) + ' → graveyard', () => flyttaTill(i, ZON_GRAV));
