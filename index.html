@@ -6994,13 +6994,13 @@ function arTouchpad(ev) {
    håll; shift eller ett vågrätt hjul flyttar den i sidled.
    Känsligheten (MES-108): Chrome, Edge och Firefox skickar nypningen som
    deltaY = −100 · ln(skala), så exp(−deltaY / 100) är fingrarnas skala.
-   1:1 kändes för långsamt — mattan zoomar i kvadrat mot fingrarna
-   (NYP_FART: sprid dem 1,5× och mattan blir 2,25×), i Safari också.
-   Mushjulet tar 50 % per hack (≈ 100 px; Firefox räknar i rader, som
-   räknas om). Ett snabbt snurrat hjul får högst halvannat hack per
-   händelse, så att zoomen inte hoppar. */
-const NYP_FART = 2;
-const HJUL = { NYP: 0.01 * NYP_FART, HACK: Math.log(1.5) / 100, RAD: 33, SIDA: 800, MAX_NYP: 50, MAX_HJUL: 150 };
+   1:1 kändes för långsamt, och 2 också — mattan zoomar med fingrarnas
+   skala upphöjd till NYP_FART (sprid dem 1,5× och mattan blir 2,76×), i
+   Safari också. Mushjulet tar 65 % per hack (≈ 100 px; Firefox räknar i
+   rader, som räknas om). Ett snabbt snurrat hjul får högst halvannat hack
+   per händelse, så att zoomen inte hoppar. */
+const NYP_FART = 2.5;
+const HJUL = { NYP: 0.01 * NYP_FART, HACK: Math.log(1.65) / 100, RAD: 33, SIDA: 800, MAX_NYP: 50, MAX_HJUL: 150 };
 function hjulPixlar(ev) {
   return ev.deltaY * (ev.deltaMode === 1 ? HJUL.RAD : ev.deltaMode === 2 ? HJUL.SIDA : 1);
 }
