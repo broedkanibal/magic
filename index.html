@@ -957,6 +957,21 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .grav.tom{border:1.5px dashed var(--line);color:var(--dim2)}
 .grav.tom .gravsten{position:static;transform:none;opacity:.35}
 .grav.tom:hover,.grav.tom.over{border-color:var(--acc);background:var(--tand2);color:var(--pa-acc)}
+/* Ett kort dras över högen (designens gravOver): översta kortet ljusnar och
+   gravstenen bleknar, så att högen själv säger "här". Texten står i chippet
+   på det dragna kortet — i högens etikett blev den för smal att läsa. */
+.grav.over .gravstack img{filter:grayscale(.2) brightness(.9)}
+.grav:not(.tom).over .gravsten{opacity:.1}
+.grav.over .gravtxt{visibility:hidden}
+/* Just släppt: pekaren står kvar över högen, men hoverläget väntar tills den
+   lämnat högen en gång. Annars såg högen hovrad ut utan att solfjädern
+   öppnades — pointerover kom aldrig under draget. Markeringen (.sel, när
+   mattan blev tom) ser likadan ut och väntar också. */
+.grav.nyss:is(:hover,.sel){background:none;border-color:transparent}
+.grav.nyss:hover .gravstack img{filter:grayscale(.6) brightness(.55) contrast(1.05)}
+/* Det släppta kortet landar överst i högen (designens cLand). */
+@keyframes gravLand{0%{transform:translateY(-40px) scale(1.14);opacity:0}60%{transform:translateY(4px) scale(.98)}100%{transform:none;opacity:1}}
+.grav.landar .gravstack img{animation:gravLand .5s cubic-bezier(.2,.8,.3,1)}
 /* Exile: en liten räknare till höger om graveyard-högen, bara när något
    ligger där. Samma fjäder på hover. */
 .exilhog{
@@ -6841,7 +6856,7 @@ function spawnFromGrave(cid, ev) {
 manaRow.addEventListener('pointerover', ev => {
   const fk = ev.target.closest('.fkort');
   if (fk) { clearTimeout(fan.t); fan.t = null; fanHov(fk.dataset.cid); return; }
-  if (ev.target.closest('[data-grav-open]')) { clearTimeout(fan.t); if (delaHand().grav.length) fan.t = setTimeout(() => fanOppna(ZON_GRAV), 24); return; }
+  if (ev.target.closest('[data-grav-open]')) { clearTimeout(fan.t); if (!gravNyss && delaHand().grav.length) fan.t = setTimeout(() => fanOppna(ZON_GRAV), 24); return; }
   if (ev.target.closest('[data-exil-open]')) { clearTimeout(fan.t); fan.t = setTimeout(() => fanOppna(ZON_EXIL), 24); return; }
 });
 manaRow.addEventListener('pointerout', ev => {
@@ -7516,8 +7531,8 @@ gridEl.addEventListener('contextmenu', ev => {
    antalet syns i högen själv. Formeln krymper steget när högen växer så att
    tjugo kort fortfarande ryms. Gravstenen ovanpå säger "inte i spel". */
 function gravHtml(cards, idx) {
-  if (!idx.length) return `<div class="grav tom" data-grav-open title="Cards that have been played end up here">
-      <span class="gravsten">${GRAVSTEN}</span><span class="gravtxt" data-txt="Empty">Empty</span></div>`;
+  if (!idx.length) return `<div class="grav tom${gravNyss ? ' nyss' : ''}" data-grav-open title="Cards that have been played end up here">
+      <span class="gravsten">${GRAVSTEN}</span><span class="gravtxt">Empty</span></div>`;
   const e = cards[idx[0]], card = cardOf(e);
   const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
   /* Fyra lager räcker för att säga "en hög": fler blir en grå kant utan
@@ -7527,13 +7542,13 @@ function gravHtml(cards, idx) {
   const lager = [];
   for (let k = synliga; k >= 1; k--)
     lager.push(`<i class="glager" style="transform:translate(${k * 5}px,${-k * 5}px) rotate(${(k * 1.5).toFixed(1)}deg)"></i>`);
-  return `<button class="grav" data-grav-open title="${n} ${n === 1 ? 'card' : 'cards'} in the graveyard — click to browse">
+  return `<button class="grav${gravNyss ? ' nyss' : ''}" data-grav-open title="${n} ${n === 1 ? 'card' : 'cards'} in the graveyard — click to browse">
     <span class="gravstack">
       ${lager.join('')}
       ${src ? `<img src="${esc(src)}" alt="" draggable="false">` : '<img alt="">'}
       <span class="gravsten">${GRAVSTEN}</span>
     </span>
-    <span class="gravtxt" data-txt="${n} ${n === 1 ? "card" : "cards"}">${n} ${n === 1 ? "card" : "cards"}</span>
+    <span class="gravtxt">${n} ${n === 1 ? "card" : "cards"}</span>
   </button>`;
 }
 
@@ -8766,6 +8781,25 @@ function overHogen(ev) {
   const r = el.getBoundingClientRect();
   return ev.clientX >= r.left - 40 && ev.clientX <= r.right + 40 && ev.clientY >= r.top - 50 && ev.clientY <= r.bottom + 30;
 }
+/* Högen som just fick ett släppt kort (se .grav.nyss): hover och solfjäder
+   väntar tills pekaren lämnat högen. Landningen spelas på det omritade
+   elementet; ritas högen om under den halva sekunden klipps den bara av. */
+let gravNyss = false;
+function gravSlappt() {
+  gravNyss = true;
+  const el = manaRow.querySelector('.grav'); if (!el) return;
+  el.classList.add('nyss');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.classList.add('landar');
+  setTimeout(() => el.classList.remove('landar'), 520);
+}
+addEventListener('pointermove', ev => {
+  if (!gravNyss) return;
+  const el = manaRow.querySelector('.grav');
+  if (el && el.contains(document.elementFromPoint(ev.clientX, ev.clientY))) return;
+  gravNyss = false;
+  if (el) el.classList.remove('nyss');
+});
 function bifogadeTill(cid) { return hand().filter(k => k.attachedTo === cid); }
 function flyttaElement(k) {
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(k.cid)}"]`);
@@ -8839,8 +8873,7 @@ addEventListener('pointermove', ev => {
     dnd.over = over;
     const hog = manaRow.querySelector('.grav');
     if (hog) hog.classList.toggle('over', over);
-    const txt = manaRow.querySelector('.gravtxt');
-    if (txt) txt.textContent = over ? 'Let go — ' + namnAv(c) + ' lands on top' : txt.dataset.txt || txt.textContent;
+    if (!over) matChip(null);
   }
   /* Ett land över en annan hög: målhögen lyser och kortet bär chippet
      "Let go — the mana stacks here". Träffen avgörs på arean som
@@ -8861,6 +8894,7 @@ addEventListener('pointermove', ev => {
   }
   if (mal) matChip(c, chipText());
   if (overB) matChip(c, 'Let go — back to your hand or library');
+  else if (over) matChip(c, 'Let go — ' + namnAv(c) + ' goes to the graveyard');
   else if (dnd.fraLek && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
   function chipText() {
     if (!vard) return 'Let go — the mana stacks here';
@@ -8916,6 +8950,7 @@ function matDndSlut(ev, avbryt) {
        Undo lägger kortet där det låg. */
     c.x = d.start.x; c.y = d.start.y;
     matAngra(namnAv(c) + ' → graveyard', () => flyttaTill(h.indexOf(c), ZON_GRAV));
+    gravSlappt();
     fjarrIkapp(); return;
   }
   const v = matVy(), k = clampKort(c, v.board, gravRuta(v));
