@@ -92,11 +92,32 @@ async function agentAnvandarId() {
   return (agentIdCache = data.viewer.id);
 }
 
-async function skapaIssue({ teamId, title, description, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
+/* Etiketter anges med namn ('Bug', 'Feature', 'Research' …) och slås upp
+   bland lagets och workspacets etiketter. Ett namn som inte finns är ett fel
+   — hellre det än en issue som tyst blir utan etikett. */
+async function hittaEtiketter(teamId, namn) {
+  if (!namn || !namn.length) return undefined;
+  const data = await graphql(
+    `query($id: String!) { team(id: $id) { labels(first: 250) { nodes { id name } } } issueLabels(first: 250, filter: { team: { null: true } }) { nodes { id name } } }`,
+    { id: teamId }
+  );
+  const alla = data.team.labels.nodes.concat(data.issueLabels.nodes);
+  return namn.map(n => {
+    const etikett = alla.find(e => e.name.toLowerCase() === n.toLowerCase());
+    if (!etikett) throw new Error(`Etiketten "${n}" finns inte — finns: ${[...new Set(alla.map(e => e.name))].join(', ')}`);
+    return etikett.id;
+  });
+}
+
+/* status: lagets state-typ — 'backlog', 'unstarted' (Todo), 'started' (In
+   Progress) … Utelämnad får issuen lagets förval (Backlog). */
+async function skapaIssue({ teamId, title, description, etiketter, status, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
   const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
+  const labelIds = await hittaEtiketter(teamId, etiketter);
+  const stateId = status ? await hittaState(teamId, status) : undefined;
   const data = await graphql(
     `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }`,
-    { input: { teamId, title, description, assigneeId, delegateId } }
+    { input: { teamId, title, description, assigneeId, delegateId, labelIds, stateId } }
   );
   return data.issueCreate.issue;
 }
@@ -118,16 +139,69 @@ async function tilldelaAgent(issueId, { assigneeId = JESPER_ID } = {}) {
   return uppdateraIssue(issueId, assigneeId ? { assigneeId, delegateId } : { delegateId });
 }
 
-let startadStateCache = {};
-async function hittaStartadState(teamId) {
-  if (startadStateCache[teamId]) return startadStateCache[teamId];
+/* typ: lagets state-typ ('backlog', 'unstarted', 'started' …), namn: en
+   bestämd kolumn ('In Progress', 'Blocked'). Ange ena eller båda; finns flera
+   träffar vinner den som ligger först på brädan. */
+let stateCache = {};
+async function hittaState(teamId, typ, namn) {
+  const nyckel = `${teamId}:${typ || ''}:${namn || ''}`;
+  if (stateCache[nyckel]) return stateCache[nyckel];
   const data = await graphql(
-    `query($id: String!) { team(id: $id) { states(first: 50) { nodes { id name type } } } }`,
+    `query($id: String!) { team(id: $id) { states(first: 50) { nodes { id name type position } } } }`,
     { id: teamId }
   );
-  const state = data.team.states.nodes.find(s => s.type === 'started');
-  if (!state) throw new Error(`Hittar ingen "started"-status för team ${teamId}`);
-  return (startadStateCache[teamId] = state.id);
+  const state = data.team.states.nodes
+    .filter(s => (!typ || s.type === typ) && (!namn || s.name.toLowerCase() === namn.toLowerCase()))
+    .sort((a, b) => a.position - b.position)[0];
+  if (!state) throw new Error(`Hittar ingen status ${namn ? `"${namn}"` : `av typen "${typ}"`} för team ${teamId}`);
+  return (stateCache[nyckel] = state.id);
+}
+
+const AVSLUTAD = ['completed', 'canceled', 'duplicate'];
+
+/* Körs innan en issue plockas upp ur Todo. Ger tillbaka:
+   - blockerare: issues som enligt Linears relationer blockerar den här och
+     inte är avslutade
+   - pagaende: lagets övriga issues i In Progress (inte Blocked), med början
+     av beskrivningen — för att se om arbetet krockar med något som byggs nu.
+   Bedömningen av krockar gör Claude Code; funktionen samlar bara underlaget. */
+async function kontrolleraInnanStart(issueId) {
+  const data = await graphql(
+    `query($id: String!) { issue(id: $id) { id identifier team { id }
+       inverseRelations(first: 50) { nodes { type issue { identifier title state { name type } } } } } }`,
+    { id: issueId }
+  );
+  const issue = data.issue;
+  const blockerare = issue.inverseRelations.nodes
+    .filter(r => r.type === 'blocks' && !AVSLUTAD.includes(r.issue.state.type))
+    .map(r => ({ identifier: r.issue.identifier, title: r.issue.title, status: r.issue.state.name }));
+  const pag = await graphql(
+    `query($team: ID!) { issues(first: 50, filter: { team: { id: { eq: $team } }, state: { type: { eq: "started" } } }) {
+       nodes { identifier title description state { name } } } }`,
+    { team: issue.team.id }
+  );
+  const pagaende = pag.issues.nodes
+    .filter(i => i.identifier !== issue.identifier && i.state.name.toLowerCase() !== 'blocked')
+    .map(i => ({ identifier: i.identifier, title: i.title, beskrivning: (i.description || '').slice(0, 400) }));
+  return { issue: issue.identifier, blockerare, pagaende };
+}
+
+/* Flyttar issuen till kolumnen "Blocked" och kommenterar vad den är blockad
+   av. blockeradAv: issue-nycklar (['MES-12']) som också läggs in som
+   "blocked by"-relationer, så att Linear visar kopplingen. */
+async function blockeraIssue(issueId, orsak, { blockeradAv = [] } = {}) {
+  const info = await graphql(`query($id: String!) { issue(id: $id) { id team { id } } }`, { id: issueId });
+  const stateId = await hittaState(info.issue.team.id, null, 'Blocked');
+  for (const nyckel of blockeradAv) {
+    const b = await graphql(`query($id: String!) { issue(id: $id) { id } }`, { id: nyckel });
+    await graphql(
+      `mutation($input: IssueRelationCreateInput!) { issueRelationCreate(input: $input) { success } }`,
+      { input: { issueId: b.issue.id, relatedIssueId: info.issue.id, type: 'blocks' } }
+    );
+  }
+  const issue = await uppdateraIssue(info.issue.id, { stateId });
+  await kommentera(info.issue.id, `**Blocked:** ${orsak}`);
+  return issue;
 }
 
 /* Kallas när Claude Code faktiskt börjar jobba på en issue: sätter status
@@ -135,7 +209,7 @@ async function hittaStartadState(teamId) {
    Jesper som assignee — i ett anrop. Praxis, se SNABBGUIDE.md. */
 async function paborjaIssue(issueId) {
   const info = await graphql(`query($id: String!) { issue(id: $id) { team { id } } }`, { id: issueId });
-  const stateId = await hittaStartadState(info.issue.team.id);
+  const stateId = await hittaState(info.issue.team.id, 'started', 'In Progress');
   const delegateId = await agentAnvandarId();
   return uppdateraIssue(issueId, { stateId, delegateId, assigneeId: JESPER_ID });
 }
@@ -161,10 +235,14 @@ async function taBortIssue(issueId) {
 module.exports = {
   graphql,
   agentAnvandarId,
+  hittaEtiketter,
+  hittaState,
   skapaIssue,
   uppdateraIssue,
   tilldelaAgent,
   paborjaIssue,
+  kontrolleraInnanStart,
+  blockeraIssue,
   kommentera,
   arkiveraIssue,
   taBortIssue,

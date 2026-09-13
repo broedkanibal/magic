@@ -60,7 +60,13 @@ ge tillbaka ett `refresh_token` säger scriptet ifrån — kör då om steg 3.
 const agent = require('./dev/linear-agent/klient.cjs');
 
 // Skapa en issue. Förval: assignee = Jesper, delegate = agenten.
-const issue = await agent.skapaIssue({ teamId: '...', title: '...', description: '...' });
+// etiketter: namn, slås upp i Linear (okänt namn = fel). status: state-typ —
+// 'unstarted' = Todo, 'backlog' = Backlog. Vilken etikett och status som
+// gäller står i CLAUDE.md.
+const issue = await agent.skapaIssue({
+  teamId: '...', title: '...', description: '...',
+  etiketter: ['Bug'], status: 'unstarted',
+});
 
 // Kommentera en befintlig issue
 await agent.kommentera(issueId, 'Text som agenten skrev.');
@@ -68,6 +74,14 @@ await agent.kommentera(issueId, 'Text som agenten skrev.');
 // Sätt agenten som delegate på en befintlig issue. Förval: sätter också
 // assignee = Jesper (skicka { assigneeId: null } för att bara röra delegate).
 await agent.tilldelaAgent(issueId);
+
+// Innan en issue plockas upp ur Todo: blockerare (öppna "blocked by"-
+// relationer) och pagaende (lagets övriga issues i In Progress) — se CLAUDE.md.
+const { blockerare, pagaende } = await agent.kontrolleraInnanStart(issueId);
+
+// Blockad: flytta till kolumnen "Blocked", kommentera orsaken, och lägg in
+// relationen när blockeraren är en issue.
+await agent.blockeraIssue(issueId, 'Väntar på att MES-12 ger oss X.', { blockeradAv: ['MES-12'] });
 
 // Börjar Claude Code faktiskt jobba på en issue: status -> In Progress
 // (lagets "started"-status), delegate = agenten, assignee = Jesper. En
