@@ -8380,6 +8380,9 @@ function kamPillModell() {
                                        : { klass: 'vantar', text: 'Waiting for phone', lage };
   if (kamFas === 'ingen') return { klass: 'vantar', text: 'Reload the phone', lage, fel: 'gammal' };
   if (kamFas === 'ljus' || kamFas === 'lar') return { klass: 'vantar', text: 'Camera · learning the light', lage };
+  /* Uppstarten är öppen (MES-122): bordet ställs i ordning, och ett tomt
+     bord är då inget fel — "can't find your cards" larmade förut mitt i steg 4. */
+  if (oppOppen) return { klass: 'vantar', text: 'Camera · setting up', lage };
   if (kamHittarInte()) return { klass: 'vantar', text: "Camera · can't find your cards", lage, fel: 'hittar' };
   const n = autoKortPaBordet(minSpelare());
   return { klass: 'pa', text: n ? `Camera · ${n} ${n === 1 ? 'card' : 'cards'}` : 'Camera · ready', lage };
