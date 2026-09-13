@@ -109,15 +109,33 @@ async function hittaEtiketter(teamId, namn) {
   });
 }
 
+/* Projektet anges med namn ('Mesa Magic') eller id och slås upp bland
+   lagets projekt. Ett namn som inte finns är ett fel, som för etiketterna —
+   annars hamnar issuen tyst utanför projektet och syns inte i dess vy. */
+async function hittaProjekt(teamId, projekt) {
+  if (!projekt) return undefined;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projekt)) return projekt;
+  const data = await graphql(
+    `query($id: String!) { team(id: $id) { projects(first: 250) { nodes { id name } } } }`,
+    { id: teamId }
+  );
+  const alla = data.team.projects.nodes;
+  const p = alla.find(x => x.name.toLowerCase() === projekt.toLowerCase());
+  if (!p) throw new Error(`Projektet "${projekt}" finns inte — finns: ${alla.map(x => x.name).join(', ')}`);
+  return p.id;
+}
+
 /* status: lagets state-typ — 'backlog', 'unstarted' (Todo), 'started' (In
-   Progress) … Utelämnad får issuen lagets förval (Backlog). */
-async function skapaIssue({ teamId, title, description, etiketter, status, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
+   Progress) … Utelämnad får issuen lagets förval (Backlog). projekt: namn
+   eller id, se hittaProjekt; utelämnat hamnar issuen utanför alla projekt. */
+async function skapaIssue({ teamId, title, description, etiketter, status, projekt, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
   const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
   const labelIds = await hittaEtiketter(teamId, etiketter);
   const stateId = status ? await hittaState(teamId, status) : undefined;
+  const projectId = await hittaProjekt(teamId, projekt);
   const data = await graphql(
     `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }`,
-    { input: { teamId, title, description, assigneeId, delegateId, labelIds, stateId } }
+    { input: { teamId, title, description, assigneeId, delegateId, labelIds, stateId, projectId } }
   );
   return data.issueCreate.issue;
 }
@@ -236,6 +254,7 @@ module.exports = {
   graphql,
   agentAnvandarId,
   hittaEtiketter,
+  hittaProjekt,
   hittaState,
   skapaIssue,
   uppdateraIssue,

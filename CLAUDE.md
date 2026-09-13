@@ -97,6 +97,14 @@ etikett: fråga hellre än att skapa en ny.
 | Claude Code påbörjar arbetet direkt | **In Progress** (`paborjaIssue`) |
 | Claude Code noterar något på eget initiativ, som ingen bett om | Backlog |
 
+**Projekt — annars syns issuen inte i projektvyn:**
+
+| Situation | Projekt |
+|---|---|
+| Uppföljning av en issue (MES-113 efter MES-107) | samma som issuen den följer upp |
+| Jesper har sagt vilket projekt | det |
+| Annars | fråga — gissa inte, som med `Release`-etiketterna |
+
 Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature'], status:
-'unstarted' })` — `'unstarted'` är Todo. Med MCP-kopplingen: `labels` och
-`state: "Todo"` i `save_issue`.
+'unstarted', projekt: 'Mesa Magic' })` — `'unstarted'` är Todo. Med
+MCP-kopplingen: `labels`, `state: "Todo"` och `project` i `save_issue`.
