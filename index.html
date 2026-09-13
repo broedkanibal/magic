@@ -471,9 +471,11 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
   box-shadow:inset 0 0 90px 20px #00000066, 0 0 0 1px var(--line);
 }
 .mattavp{position:absolute;inset:0;overflow:hidden;touch-action:none;user-select:none}
-.mattavp.inzoomad{cursor:grab}
-/* Mellanslag hållet över mattan: handen, även ovanpå korten. */
-.mattavp.handredo,.mattavp.handredo *{cursor:grab!important}
+/* Handen visas bara när vänsterknappen tar tag i mattan: i Pan-läget och
+   med mellanslag hållet — ovanpå korten också, men inte över mattans
+   chrome, menyer och paneler. */
+.mattavp.panlage,.mattavp.handredo,
+.mattavp:is(.panlage,.handredo) *:not(:where(.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark),:where(.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark) *){cursor:grab!important}
 .mattavp.panorerar,.mattavp.panorerar *{cursor:grabbing!important}
 .mattabrade{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 /* Övergången är none under drag och hjul, och .32s när zoomknapparna eller
@@ -483,6 +485,9 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);overflow:hidden}
 .zoomchip button{height:28px;border:0;background:none;color:var(--dim);cursor:pointer;font:inherit;padding:0}
 .zoomchip .zsteg{width:26px;display:grid;place-items:center;font:700 15px/1 var(--sans)}
+.zoomchip .zlage{width:28px;display:grid;place-items:center}
+.zoomchip .zlage+.zlage{border-left:1px solid var(--line)}
+.zoomchip .zlage.on{color:var(--green);background:#ffffff12}
 .zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:64px}
 .zoomchip .ztxt.manuell{color:var(--pa-acc)}
 .zoomchip button:hover{background:var(--bg4);color:var(--txt)}
@@ -2665,7 +2670,7 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>F</kbd> focus</span>
     <span><kbd>Space</kbd> flip</span>
     <span><kbd>/</kbd> find a card</span>
-    <span class="utanspel"><kbd>S</kbd> screenshot</span>
+    <span><kbd>S</kbd> select / pan</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
     <span><kbd>Backspace</kbd> remove</span>
     <span><kbd>?</kbd> all shortcuts</span>
@@ -3199,7 +3204,8 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>Home</kbd><kbd>End</kbd></dt><dd>First / last card in reading order</dd>
             <dt><kbd>F</kbd> <kbd>Enter</kbd></dt><dd>Focus mode — the card fills the screen</dd>
             <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
-            <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat when zoomed in — or drag with two fingers on the trackpad</dd>
+            <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat — or drag with two fingers on the trackpad</dd>
+            <dt><kbd>S</kbd></dt><dd>Switch between select and pan. In pan, click and drag anywhere to move the mat</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
         </section>
@@ -3230,7 +3236,6 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Image &amp; view</h3>
           <dl>
-            <dt><kbd>S</kbd></dt><dd>Image view — see the screenshot with markers (outside a game)</dd>
             <dt><kbd>R</kbd></dt><dd>Read the image again (in the image view)</dd>
             <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick a candidate when confirming a card</dd>
             <dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom in / out on the table</dd>
@@ -6533,8 +6538,9 @@ function matVy(p) {
   v.board = grown(p.cards.filter(paMattan), v.board, vp);
   const fit = fitZoom(v.board, vp);
   const z = v.zoomManual != null ? Math.max(fit, Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
-  v.pan = clampPan(v.pan, z, v.board, vp);
-  return { board: v.board, fit, z, pan: v.pan, vp, manuell: v.zoomManual != null };
+  const ram = matRam(p);
+  v.pan = clampPan(v.pan, z, v.board, vp, ram);
+  return { board: v.board, fit, z, pan: v.pan, vp, ram, manuell: v.zoomManual != null };
 }
 function matSkriv(p, vy) {
   const v = vy || matVy(p);
@@ -6843,6 +6849,9 @@ function renderChrome(v) {
   const el = $('#mattaChrome'); if (!el) return;
   const pct = Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
   const html = `<div class="zoomchip">`
+    + `<button type="button" class="zlage${matVerktyg === 'valj' ? ' on' : ''}" data-mat="valj" title="Select — click and drag cards (S)" aria-label="Select"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"/></svg></button>`
+    + `<button type="button" class="zlage${matVerktyg === 'pan' ? ' on' : ''}" data-mat="pan" title="Pan — click and drag anywhere to move the mat (S)" aria-label="Pan"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"/></svg></button></div>`
+    + `<div class="zoomchip">`
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<button type="button" class="ztxt${v.manuell ? ' manuell' : ''}" data-mat="fit" title="Fit the whole board (0)">${pct}</button>`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
@@ -6862,6 +6871,7 @@ $('#mattaChrome').addEventListener('click', ev => {
   else if (a === 'fit') fitView();
   else if (a === 'untap') untapAlla();
   else if (a === 'tidy') stadaUpp();
+  else if (a === 'valj' || a === 'pan') satMatVerktyg(a);
 });
 function zoomBy(mult) {
   const p = player(), v = matVy(p), vy = matVyFor(p);
@@ -6869,7 +6879,7 @@ function zoomBy(mult) {
   const cx = v.vp.w / 2, cy = v.vp.h / 2;
   const bx = (cx - v.pan.x) / v.z, by = (cy - v.pan.y) / v.z;
   vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
-  vy.pan = clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board, v.vp);
+  vy.pan = clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board, v.vp, v.ram);
   gridEl.classList.add('glider');
   matSkriv(p);
 }
@@ -6879,7 +6889,6 @@ function fitView() {
   gridEl.classList.add('glider');
   matSkriv(p);
 }
-const matInzoomad = () => { const v = matVy(); return v.z > v.fit + 0.005; };
 /* Touchpad eller mushjul? Webbläsaren säger det inte. Touchpaden skickar
    små steg i pixlar, ofta med ett vågrätt inslag, och wheelDeltaY = -3 ×
    deltaY; mushjulet skickar hela hack — wheelDeltaY i jämna 120-steg
@@ -6910,7 +6919,7 @@ gridWrap.addEventListener('wheel', ev => {
   else if (ev.shiftKey || arTouchpad(ev)) {
     const sidled = ev.shiftKey && !ev.deltaX;   // shift + mushjul på Windows: bara deltaY
     const dx = sidled ? ev.deltaY : ev.deltaX, dy = ev.shiftKey ? 0 : ev.deltaY;
-    vy.pan = clampPan({ x: v.pan.x - dx, y: v.pan.y - dy }, v.z, v.board, v.vp);
+    vy.pan = clampPan({ x: v.pan.x - dx, y: v.pan.y - dy }, v.z, v.board, v.vp, v.ram);
     gridWrap.classList.add('panorerar');
     clearTimeout(matHjulHand);
     matHjulHand = setTimeout(() => { if (!matPan) gridWrap.classList.remove('panorerar'); }, 180);
@@ -6919,7 +6928,7 @@ gridWrap.addEventListener('wheel', ev => {
   const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, v.z * Math.exp(-ev.deltaY * 0.0016)));
   const bx = (mx - v.pan.x) / v.z, by = (my - v.pan.y) / v.z;
   vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
-  vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp);
+  vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp, v.ram);
   matSkriv(p);
 }, { passive: false });
 /* Mellanslag hållet över mattan gör pekaren till en hand: drag flyttar
@@ -6943,26 +6952,35 @@ function matHandUpp(vand) {
 }
 addEventListener('keyup', ev => { if (ev.key === ' ') matHandUpp(true); });
 addEventListener('blur', () => matHandUpp(false));
-/* Drag flyttar mattan när brädet är inzoomat: vänsterknappen på tom yta,
-   mittenknappen, högerklick (två fingrar som klickar på touchpaden) och
-   vänsterknappen med mellanslag hållet. De två sista gäller även ovanpå
-   ett kort; högerklick på ett kort öppnar menyn, och menyn stängs när
-   draget kommer igång. Lyssnaren fångar (capture) så att handen hinner
-   före kortens egna drag. (Lasson på ett utzoomat bräde kommer senare,
-   som egen deluppgift.) */
+/* Två lägen, växlas med S eller väljaren i mattans chrome. Select: ett
+   vänsterdrag på tom yta flyttar inte mattan — den ytan hör till lasson,
+   som kommer som egen issue. Pan: vänsterknappen flyttar mattan var man
+   än tar tag, även ovanpå ett kort, och klicken gör ingenting. I båda
+   lägena flyttar mittenknappen, högerklick (två fingrar som klickar på
+   touchpaden) och vänsterknappen med mellanslag hållet; högerklick på ett
+   kort öppnar menyn, och menyn stängs när draget kommer igång. Lyssnaren
+   fångar (capture) så att handen hinner före kortens egna drag. */
+let matVerktyg = 'valj';   // 'valj' | 'pan' — sparas i webbläsaren
+try { if (localStorage.getItem('mesa.matVerktyg') === 'pan') matVerktyg = 'pan'; } catch (e) {}
+gridWrap.classList.toggle('panlage', matVerktyg === 'pan');
+function satMatVerktyg(l) {
+  matVerktyg = l;
+  try { localStorage.setItem('mesa.matVerktyg', l); } catch (e) {}
+  gridWrap.classList.toggle('panlage', l === 'pan');
+  const p = player(); if (p) matSkriv(p);
+}
 const MATT_UI = '.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark';
 let matPan = null, matPanSvalg = false;
 gridWrap.addEventListener('pointerdown', ev => {
   matPanSvalg = false;
   if (ev.target.closest(MATT_UI)) return;
-  const hand = !!matHand && ev.button === 0, hoger = ev.button === 2;
-  if (!hand && !hoger) {
-    if (ev.button !== 0 && ev.button !== 1) return;
-    if (ev.target.closest('.card,.plats,.grav,.empty')) return;
+  const hand = ev.button === 0 && (!!matHand || matVerktyg === 'pan'), hoger = ev.button === 2;
+  if (!hand && !hoger && ev.button !== 1) {
+    if (ev.button === 0 && !ev.target.closest('.card,.plats,.grav,.empty')) closeCounters();
+    return;
   }
   closeCounters();
-  if (ev.button === 0 && !hand && !matInzoomad()) return;
-  if (hand) { matHand.anvand = true; ev.preventDefault(); ev.stopPropagation(); }
+  if (hand) { if (matHand) matHand.anvand = true; ev.preventDefault(); ev.stopPropagation(); }
   const v = matVy();
   matPan = { x0: ev.clientX, y0: ev.clientY, pan: { x: v.pan.x, y: v.pan.y }, hand, hoger, drog: false };
   if (!hoger) gridWrap.classList.add('panorerar');
@@ -6978,7 +6996,7 @@ addEventListener('pointermove', ev => {
     if (matPan.hoger) { closeKortMeny(); gridWrap.classList.add('panorerar'); }
   }
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  vy.pan = clampPan({ x: matPan.pan.x + dx, y: matPan.pan.y + dy }, v.z, v.board, v.vp);
+  vy.pan = clampPan({ x: matPan.pan.x + dx, y: matPan.pan.y + dy }, v.z, v.board, v.vp, v.ram);
   matSkriv(p);
 });
 const matPanSlut = () => {
@@ -7298,7 +7316,7 @@ function matVisa(c) {
   const sx = r.x * v.z + v.pan.x, sy = r.y * v.z + v.pan.y;
   if (sx >= 0 && sy >= 0 && sx + r.w * v.z <= v.vp.w && sy + r.h * v.z <= v.vp.h) return;
   const vy = matVyFor(p);
-  vy.pan = clampPan({ x: v.vp.w / 2 - (r.x + r.w / 2) * v.z, y: v.vp.h / 2 - (r.y + r.h / 2) * v.z }, v.z, v.board, v.vp);
+  vy.pan = clampPan({ x: v.vp.w / 2 - (r.x + r.w / 2) * v.z, y: v.vp.h / 2 - (r.y + r.h / 2) * v.z }, v.z, v.board, v.vp, v.ram);
   gridEl.classList.add('glider'); matSkriv(p);
 }
 function openArk(a) {
@@ -7513,6 +7531,7 @@ const MATTA = {
   JOIN_OV: 0.24,               // minsta andel av kortets yta som ska överlappa en hög
   ZOOM_MAX: 1.8, ZOOM_MIN: 0.3,
   KANT: 8, TOPP: 50,           // marginal mot brädkanten, och under mattans chrome
+  RAND: 44,                    // så mycket av det yttersta kortet som syns när mattan dragits förbi kanten (px på skärmen)
   VP: { w: 1060, h: 792 }      // designens viewport — reserv när mattan inte har mått
 };
 function matSlag(e) { return zonAv(e) === ZON_MANA ? 'land' : 'perm'; }
@@ -7552,10 +7571,30 @@ function grown(cards, cur, vp) {
   return { w: Math.max(cur ? cur.w : 0, b.w, bb.w), h: Math.max(cur ? cur.h : 0, b.h, bb.h) };
 }
 function fitZoom(board, vp) { vp = vp || MATTA.VP; return Math.max(MATTA.ZOOM_MIN, Math.min(1, Math.min(vp.w / board.w, vp.h / board.h))); }
-function clampPan(pan, z, board, vp) {
+/* Rutan runt korten på mattan, i brädkoordinater — null utan kort. */
+function matRam(p) {
+  let r = null;
+  for (const c of p.cards) {
+    if (!paMattan(c) || c.x == null || c.y == null) continue;
+    const m = matRect(c);
+    if (!r) { r = { x0: m.x, y0: m.y, x1: m.x + m.w, y1: m.y + m.h }; continue; }
+    r.x0 = Math.min(r.x0, m.x); r.y0 = Math.min(r.y0, m.y);
+    r.x1 = Math.max(r.x1, m.x + m.w); r.y1 = Math.max(r.y1, m.y + m.h);
+  }
+  return r;
+}
+/* Panen hålls inom brädet. Med ram (rutan runt korten) får mattan dessutom
+   dras förbi kanten åt alla håll, även utzoomad, tills bara MATTA.RAND px
+   av det yttersta kortet syns. */
+function clampPan(pan, z, board, vp, ram) {
   vp = vp || MATTA.VP;
-  const minX = Math.min(0, vp.w - board.w * z), minY = Math.min(0, vp.h - board.h * z);
-  return { x: Math.max(minX, Math.min(0, pan.x)), y: Math.max(minY, Math.min(0, pan.y)) };
+  let minX = Math.min(0, vp.w - board.w * z), minY = Math.min(0, vp.h - board.h * z), maxX = 0, maxY = 0;
+  if (ram) {
+    const R = MATTA.RAND;
+    minX = Math.min(minX, R - ram.x1 * z); maxX = Math.max(maxX, vp.w - R - ram.x0 * z);
+    minY = Math.min(minY, R - ram.y1 * z); maxY = Math.max(maxY, vp.h - R - ram.y0 * z);
+  }
+  return { x: Math.max(minX, Math.min(maxX, pan.x)), y: Math.max(minY, Math.min(maxY, pan.y)) };
 }
 /* Kortet får inte hamna utanför brädet, och inte under graveyard-rutan
    (gravRuta = {x0,x1,y0,y1} i brädkoordinater, räknad ur högens element av
@@ -11358,7 +11397,7 @@ addEventListener('keydown', ev => {
     flygTillGrav(gridEl.querySelector(`.card[data-i="${state.sel}"]`));
     flyttaTill(state.sel, ZON_GRAV);
   }
-  else if (lower === 's' && (!spelLage || DEBUG)) { ev.preventDefault(); openShot(); }
+  else if (lower === 's') { ev.preventDefault(); satMatVerktyg(matVerktyg === 'pan' ? 'valj' : 'pan'); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
   else if (lower === 'd') {
