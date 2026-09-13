@@ -6903,7 +6903,7 @@ function fanRita() {
   const g = fanGeom(n);
   el.innerHTML = lista.map((e, i) => {
     const card = cardOf(e), src = card ? imgOf(card, 0, 'small') : '', hov = fan.on && fan.hov === e.cid;
-    return `<div class="fkort${hov ? ' hov' : ''}" data-cid="${esc(e.cid)}" data-j="${i}" style="z-index:${hov ? 60 : i + 1};transform:${fan.on ? fanTransform(g(i), hov) : 'none'};transition:transform .3s cubic-bezier(.2,.9,.3,1) ${i * 22}ms">`
+    return `<div class="fkort${hov ? ' hov' : ''}" data-cid="${esc(e.cid)}" style="z-index:${hov ? 60 : i + 1};transform:${fan.on ? fanTransform(g(i), hov) : 'none'};transition:transform .3s cubic-bezier(.2,.9,.3,1) ${i * 22}ms">`
       + (src ? `<img src="${esc(src)}" alt="${esc(namnAv(e))}" draggable="false">` : `<span class="fnamn">${esc(namnAv(e))}</span>`) + '</div>';
   }).join('');
   fanKnappar(el, [...el.querySelectorAll('.fkort')], g);
@@ -6982,16 +6982,18 @@ function gravTillbaka(e) {
   return true;
 }
 function gravExil(e) { const i = hand().indexOf(e); return i >= 0 && redigerbar() ? flyttaTill(i, ZON_EXIL) : false; }
-/* Draget ut ur fjädern: kortet blir ett mattkort mitt under pekaren och
-   det vanliga draget (dnd) tar över, med ångra som lägger tillbaka det. */
+/* Draget ut ur fjädern (§5): först när pekaren rört sig mer än 6 px blir
+   kortet ett mattkort mitt under pekaren, nytt och överst, fjädern stängs
+   direkt och det vanliga draget (dnd) tar över utan avbrott — kortet sitter
+   kvar i handen hela vägen ut. Ångra lägger tillbaka det. */
 function spawnFromGrave(cid, ev) {
   const h = hand(), e = h.find(k => k.cid === cid);
   if (!e || !redigerbar()) return;
   const fran = zonAv(e) === ZON_EXIL ? 'exile' : 'graveyard';
   const pt = cpt(ev), s = matStorlek(e);
-  fanStang();
+  fanStangNu();
   matAngra(namnAv(e) + ' ← ' + fran, () => {
-    delete e.zon; e.tapped = 0;
+    delete e.zon; e.tapped = 0; e.ny = Date.now();
     e.x = pt.x - s.w / 2; e.y = pt.y - s.h / 2;
     matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1; e.z = matTopZ;
     state.sel = h.indexOf(e);
@@ -9077,8 +9079,9 @@ manaRow.addEventListener('click', ev => {
     else if (a === 'grav') matAngra(namnAv(e) + ' → graveyard', () => flyttaTill(i, ZON_GRAV));
     return;
   }
-  const fk = ev.target.closest('.fkort');
-  if (fk) { const zon = fan.zon || ZON_GRAV, j = +fk.dataset.j; fanStang(); openGrav(zon); gravSel = j; renderGrav(); return; }
+  /* Släpps ett kort i fjädern utan att ha rört sig 6 px händer ingenting
+     (§5) — Return to play finns för den som hellre klickar. */
+  if (ev.target.closest('.fkort')) return;
   if (ev.target.closest('[data-grav-open]')) { fanStang(); openGrav(ZON_GRAV); return; }
   if (ev.target.closest('[data-exil-open]')) { fanStang(); openGrav(ZON_EXIL); return; }
 });
