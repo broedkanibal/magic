@@ -485,8 +485,12 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
    fit används — annars släpar zoomen efter pekaren. */
 .mattabrade.glider{transition:transform .32s cubic-bezier(.2,.8,.3,1)}
 .mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;gap:6px}
-.zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--bg3);overflow:hidden}
+.zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--bg3)}
 .zoomchip button{height:28px;border:0;background:none;color:var(--dim);cursor:pointer;font:inherit;padding:0}
+/* Hörnen rundas per knapp i stället för med overflow:hidden på chippet —
+   det klippte bort Select/Pan-tipset, som sticker ut nedanför chippets 28px. */
+.zoomchip>button:first-child{border-radius:6px 0 0 6px}
+.zoomchip>button:last-child{border-radius:0 6px 6px 0}
 .zoomchip .zsteg{width:26px;display:grid;place-items:center;font:700 15px/1 var(--sans)}
 .zoomchip .zlage{position:relative;width:28px;display:grid;place-items:center}
 .zoomchip .zlage+.zlage{border-left:1px solid var(--line)}
