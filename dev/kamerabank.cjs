@@ -338,6 +338,28 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) s = await ruta(g => { KORT(g); kort(g, W, 150, 50, 30, 42, 180); });
   check(`GY2 rutan borta: ${s.length} spår (2)`, s.length === 2);
 
+  // ── GY3–GY5: högvakten (MES-85) — ett nytt kort på högen räknas, en hand som sveper förbi eller vilar gör det inte ──
+  const ZON = { x: 0.1, y: 0.1, w: 0.35, h: 0.8 };
+  const HOG = g => kort(g, W, 60, 50, 30, 42, 180);      // högens översta kort
+  const NYTT = g => kort(g, W, 56, 46, 36, 50, 140);     // ett annat kort ovanpå, lite förskjutet
+  nystart(); await referens(); Kamera.satGrav(ZON);
+  for (let i = 0; i < 10; i++) await ruta(HOG);
+  const gy0 = Kamera.grav ? Kamera.grav.n : null;
+  for (let i = 0; i < 3; i++) await ruta(g => { HOG(g); hand(g, W, 70 + 10 * i, 70, 30, 25, 150); });   // handen lägger kortet
+  for (let i = 0; i < 10; i++) await ruta(NYTT);
+  const gy3 = Kamera.grav ? Kamera.grav.n - gy0 : null;
+  check(`GY3 ett kort läggs på högen: ${gy3} ändring (1), i rapporten n ${bordExtra && bordExtra.grav && bordExtra.grav.n}`,
+        gy3 === 1 && !!bordExtra && !!bordExtra.grav && bordExtra.grav.n === Kamera.grav.n);
+  const gy1 = Kamera.grav ? Kamera.grav.n : null;
+  for (let i = 0; i < 4; i++) await ruta(g => { NYTT(g); hand(g, W, 40 + 15 * i, 80, 28, 22, 150); });   // en hand sveper förbi
+  for (let i = 0; i < 10; i++) await ruta(NYTT);
+  for (let i = 0; i < 10; i++) await ruta(g => { NYTT(g); hand(g, W, 66, 70, 26, 30, 150); });           // en hand vilar på högen (1,5 s)
+  for (let i = 0; i < 10; i++) await ruta(NYTT);
+  check(`GY4 en hand sveper förbi och vilar på högen: ${Kamera.grav ? Kamera.grav.n - gy1 : null} ändringar (0)`, !!Kamera.grav && Kamera.grav.n - gy1 === 0);
+  Kamera.satGrav(null);
+  for (let i = 0; i < 8; i++) await ruta(NYTT);
+  check(`GY5 ingen ruta: grav ${JSON.stringify(Kamera.grav)} (null), i rapporten ${bordExtra && JSON.stringify(bordExtra.grav)}`, Kamera.grav === null && !!bordExtra && bordExtra.grav === null);
+
   // ── T9: varaktig ljusändring till 55 % — inga falska spår, referensen följer ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);

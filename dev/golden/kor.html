@@ -469,7 +469,7 @@ function aterkoppling(f, prov) {
   return {
     status: kamSag || (() => {}),
     fas: () => {},
-    bord: (spar, nollstall) => {
+    bord: (spar, nollstall, extra) => {
       if (!nollstall) prov.sistaBord = spar;
       /* K5/MODE-5: en lägesuppdatering är en rapport där ett stilla eller
          klart spår (inte helbildens) flyttat sin mitt mer än AUTO_FLYTT av
@@ -501,7 +501,9 @@ function aterkoppling(f, prov) {
          varje bord). Trimmat för storleken: högst tre kandidater, och av
          namnläsarens rad bara namn och poäng. */
       /* grund: telefonens grundläge i grader (null = inget sparat), som sandBord skickar det — uppspelningen (dubbletter.cjs) ska ha samma läge som datorn hade. */
+      /* grav: högvakten (MES-85) — { n, sen } som rapporten bär den, null utan ruta — så att uppspelningen ser samma högändringar som datorn. */
       if (prov.bordLogg) prov.bordLogg.push({ s: prov.s, fas: K ? K.lage : null, nollstall: !!nollstall, grund: K && K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null,
+        grav: extra && extra.grav ? extra.grav : null,
         spar: (spar || []).map(t => Object.assign({}, t, {
           cands: t.cands ? t.cands.slice(0, 3).map(c => ({ name: c.name, sid: c.sid || null, score: c.score != null ? c.score : null })) : null,
           namnLast: t.namnLast ? { namn: t.namnLast.namn != null ? t.namnLast.namn : null, poang: t.namnLast.poang != null ? t.namnLast.poang : null } : null
