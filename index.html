@@ -6348,6 +6348,7 @@ function platsHtml(pl) {
 }
 let gridStrukt = null, nyChipT = null;
 const spellSagda = new Set();          // besvärjelser mattan redan sagt till om
+const gravSagda = new Set();           // kort högvakten lagt i graveyard, redan visade (MES-85)
 function renderGrid(force) {
   renderDeckKnapp();
   /* Mitt i ett drag skrivs kortens lägen direkt på elementen; en omritning
@@ -6355,6 +6356,23 @@ function renderGrid(force) {
      släppts — fjarrIkapp ritar om då. */
   if (dnd && dnd.drar) { fjarrVantar = true; return; }
   const p = player(), cards = hand();
+  /* Högvakten (MES-85): avstämningen la ett kort i graveyard för att högen i
+     bild ändrades när det försvann. Mattan visar det som ett drag till
+     högen: samma flygtur (flygTillGrav, innan brädet ritas om — det
+     nedtonade kortet finns kvar från förra ritningen), överst i högen som i
+     flyttaTill, och en notis med ångra som ger tillbaka frågan. En gång per
+     kort, bara på mitt eget bord. */
+  if (arMitt(p)) for (const c of cards.filter(c => c.gravAuto && !gravSagda.has(c.cid))) {
+    gravSagda.add(c.cid);
+    flygTillGrav([...gridEl.querySelectorAll('.card[data-cid]')].find(el => el.dataset.cid === c.cid));
+    const valt = cards[state.sel];
+    cards.splice(cards.indexOf(c), 1);
+    const g = delaHand().grav;   // efter borttaget
+    cards.splice(g.length ? g[0] : cards.length, 0, c);
+    if (valt) state.sel = cards.indexOf(valt);
+    save();
+    toast(`${namnAv(c)} → graveyard`, 'ok', () => { delete c.zon; delete c.gravAuto; c.lyft = Date.now(); save(); renderAll(true); });
+  }
   /* Bara det egna bordet får skrivas: en teammates kort är en kopia. */
   if (losBifogade(cards) && arMitt(p)) save();
   /* Manahögarna: en hög med ett kort upphör att vara en hög, och en hög vars
@@ -17579,6 +17597,23 @@ const SAMMA_KORT_TACKNING = 0.3;
    (typeof-vakten: då aldrig). Inne i skivan, så att inget nytt namn
    utifrån behövs. */
 const SPELL_MS = 20000;
+/* Högvakten (K10/K11, MES-85): telefonens ändringar av graveyard-högen i
+   bild, i datorns klocka, och när varje kort försvann från mattan. Högen
+   blir stilla (stillaMs) en stund efter att kortets spår dött, men en hand
+   som skymde kortet kan vända på ordningen — därav fönstret åt båda hållen.
+   Gissat, mätt i golden 10/11. */
+const GRAV_FORE = 2500, GRAV_EFTER = 5000;
+let gravHandelser = [], gravSistaN = null, gravTid = new Map();
+function gravTaEmot(grav, nu) {
+  if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet
+  if (!grav || typeof grav.n !== 'number') { gravHandelser = []; gravSistaN = null; return; }   // ingen ruta
+  /* Ett lägre tal är en telefon som startat om: nytt utgångsläge, ingen
+     händelse. Det första talet efter en omladdning likaså. */
+  if (gravSistaN != null && grav.n > gravSistaN) for (let i = gravSistaN; i < grav.n; i++) gravHandelser.push({ nar: nu - (grav.sen || 0), tagen: false });
+  gravSistaN = grav.n;
+  gravHandelser = gravHandelser.filter(h => nu - h.nar < 60000);
+  for (const [cid, t] of gravTid) if (nu - t > 60000) gravTid.delete(cid);
+}
 const arBesvarjelse = k => typeof typLinje === 'function' && /\b(Instant|Sorcery)\b/i.test(typLinje(k) || '');
 const SAMMA_KORT_NARA = 0.25;
 const FARSK_MS = 500;   // `sen` under så här: detektorn gav spåret en region i någon av de senaste rutorna (takten 150 ms)
@@ -17659,7 +17694,7 @@ function senasteMattaKort(mig, spar) {
    Table leads ('bord', eller inget läge alls — harnessarnas stubbspelare)
    speglar tap, flytt och saknade kort; Screen leads ('skarm') lägger bara
    till. Att lägga till kort gäller alltid. Grinden i grundSteg och
-   tapSynk kopplas in i MODE-3 — här bara policyn. */
+   avstamBord läser den (MODE-3); högvakten (MES-85) följer pol.saknas. */
 function spelPolicy(mig) {
   const bord = !mig || mig.lage !== 'skarm';
   return { skapa: true, tap: bord, flytt: bord, saknas: bord, grund: bord };
@@ -18057,7 +18092,7 @@ function autoSumAvsluta(spar, mig, nu) {
   return autoSumSammanfatta(autoSum, spar, mig, nu);
 }
 
-function avstamBord(spar, nollstall, fas, yta, rad) {
+function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
   if (fas) kamFas = fas;
   if (yta) kamYta = yta;
@@ -18068,12 +18103,13 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
   spar = spar.filter(t => t.tillstand !== 'skrap');
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { glomSpar(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { glomSpar(); gravHandelser = []; gravSistaN = null; gravTid = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
   const nu = Date.now();
+  gravTaEmot(grav, nu);
   /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
      omladdning): sammanfattningen ska finnas när auto stängs av, även om
      inget kort hann bindas. */
@@ -18314,9 +18350,31 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
      tyst: raden sa fyra Forest när tre låg kvar, och ingenting på skärmen
      sa vilket av dem kameran tappat. Ett kort som redan flyttats till
      graveyard för hand behöver inget besked — bindningen släpps tyst. */
-  for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = nu; andrat = true; }
+  /* Högvakten (K10/K11, MES-85): ett kort som försvinner från mattan går
+     till graveyard utan fråga när högen i bild ändrades inom fönstret runt
+     det — en ändring per kort. Försvann fler kort än högen ändrats får alla
+     frågan, och försvann tre eller fler på en gång gäller bannern: det kan
+     lika gärna vara telefonen som flyttats (MES-103). Bara Table leads. */
+  const gravFonster = (tid, h) => h.nar >= tid - GRAV_FORE && h.nar <= tid + GRAV_EFTER;
+  const gravTa = tid => { const h = gravHandelser.find(h => !h.tagen && gravFonster(tid, h)); if (h) h.tagen = true; };
+  function gravAutoOm(k, tid) {
+    if (tid == null) return false;
+    const mina = gravHandelser.filter(h => !h.tagen && gravFonster(tid, h));
+    if (!mina.length) return false;
+    const grannar = mig.cards.filter(c => c === k || (paBordet(c) && (c.borta || c.lyft != null) && gravTid.has(c.cid) && Math.abs(gravTid.get(c.cid) - tid) <= GRAV_FORE + GRAV_EFTER));
+    if (grannar.length > mina.length) return false;
+    if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < BORTA_NAD).length >= 3) return false;
+    mina[0].tagen = true;
+    k.zon = ZON_GRAV; delete k.attachedTo; k.gravAuto = nu; gravTid.delete(k.cid);
+    /* En aura följer sin värd, som i flyttaTill. */
+    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; }
+    andrat = true;
+    return true;
+  }
+  for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = nu; gravTid.set(k.cid, nu); andrat = true; }
   for (const k of mig.cards) {
     if (k.spar != null && !synliga.has(k.spar) && k.borta && nu - k.borta > BORTA_NAD) {
+      const borta0 = k.borta;
       delete k.spar; delete k.borta; andrat = true;
       /* Borta digitalt redan (graveyard/exile medan det låg kvar): nu har
          det lämnat bordet också — flaggan släpps, inget mer att säga. */
@@ -18325,13 +18383,17 @@ function avstamBord(spar, nollstall, fas, yta, rad) {
       /* Besvärjelseregeln (båda lägena): ett instant eller sorcery som
          kameran lade ut och som plockas upp inom SPELL_MS har spelats —
          det går till graveyard, med ångra i mattan (spellAuto). */
-      if (k.ny && nu - k.ny < SPELL_MS && arBesvarjelse(k)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; continue; }
+      if (k.ny && nu - k.ny < SPELL_MS && arBesvarjelse(k)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; gravTa(borta0); continue; }   // högens ändring var besvärjelsen (MES-85)
       if (!pol.saknas) continue;                 // Screen leads: kameran tar aldrig bort — bindningen släpps tyst
       if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
+      if (gravAutoOm(k, borta0)) continue;       // högen i bild ändrades: det lades där (MES-85)
       k.lyft = nu;
       if (!prefs.lyftForklarad) { prefs.lyftForklarad = true; savePrefs(); lyftTips = k.cid; }
     }
   }
+  /* Efterskottet (MES-85): högen blev stilla först efter nådatiden, och
+     kortet hann tonas ned. Arket stänger sig självt (renderGrid). */
+  if (pol.saknas) for (const k of mig.cards) if (k.lyft != null && k.spar == null && gravTid.has(k.cid) && gravAutoOm(k, gravTid.get(k.cid))) slappLyft(k);
   for (const id of hoppade) if (!synliga.has(id)) hoppade.delete(id);
   /* Spärren följer det fysiska kortet: alla dess spår, inte bara det som var
      bundet när kortet togs bort. Annars släpptes den när det spåret dog medan
@@ -18956,7 +19018,7 @@ function kamTogsEmot(m) {
        läser det. En telefon utan fältet lämnar undefined. */
     if (m.grund !== undefined && m.grund !== kamGrund) { kamGrund = m.grund; visaKamGrund(); }
     if (m.dia) provbordData(m);
-    return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad);
+    return avstamBord(m.spar || [], m.nollstall, m.fas, m.yta, m.rad, m.grav);
   }
   if (m.typ === 'grund') return tagEmotGrundSvar(m);
   if (m.typ === 'bok') return tagEmotSenBok(m);

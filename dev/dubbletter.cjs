@@ -136,7 +136,7 @@ function lasKalla() {
     if (rad.bordLogg.some(r => r.spar == null)) throw new Error(`${rad.id}: bordLogg saknar hela spårposten (äldre format med bara namn och tillstånd) — kör om: node dev/golden/kor.cjs --fall ${FALL} --spara`);
     const facitFil = path.join(__dirname, 'golden', 'fall', rad.id, 'facit.json');
     const facit = JSON.parse(fs.readFileSync(facitFil, 'utf8'));
-    const handelser = rad.bordLogg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, slag: 'rapport', nr: i }));
+    const handelser = rad.bordLogg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, grav: r.grav, slag: 'rapport', nr: i }));
     return { namn: rad.id, handelser, facit: { handelser: (facit.video && facit.video.handelser) || [], kort: facit.kort || [] }, sekund: sek, bordLogg: rad.bordLogg };
   }
   if (LOGG) {
@@ -147,13 +147,13 @@ function lasKalla() {
     const logg = Array.isArray(R) ? R : R.bordLogg;
     if (!Array.isArray(logg) || !logg.length) throw new Error(`${LOGG}: ingen bordLogg — spara den med "Spara bordsloggen" i sammanfattningen när auto stängs av`);
     if (logg.some(r => r.spar == null)) throw new Error(`${LOGG}: rader utan spår — filen är ingen bordslogg`);
-    const handelser = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, slag: 'rapport', nr: i }));
+    const handelser = logg.map((r, i) => ({ t: VIRT0 + Math.round(r.s * 1000), s: r.s, fas: r.fas, nollstall: !!r.nollstall, spar: r.spar, grav: r.grav, slag: 'rapport', nr: i }));
     return { namn: (R.id || path.basename(LOGG)) + (R.kapad ? ' (kapad: de äldsta borden saknas)' : ''), handelser, facit: null, sekund: sek, bordLogg: logg };
   }
   const R = JSON.parse(fs.readFileSync(path.resolve(RAPPORTER.fil), 'utf8'));
   const logg = RAPPORTER.nyckel.split('.').reduce((o, k) => o == null ? undefined : o[k], R);
   if (!Array.isArray(logg)) throw new Error(`${RAPPORTER.nyckel} finns inte i ${RAPPORTER.fil}, eller är ingen lista`);
-  const handelser = logg.map((r, i) => ({ t: r.nu, s: r.nu / 1000, fas: undefined, nollstall: false, spar: r.spar, slag: 'rapport', nr: i }));
+  const handelser = logg.map((r, i) => ({ t: r.nu, s: r.nu / 1000, fas: undefined, nollstall: false, spar: r.spar, grav: r.grav, slag: 'rapport', nr: i }));
   return { namn: RAPPORTER.fil + ' ' + RAPPORTER.nyckel, handelser, facit: null, sekund: t => +(t / 1000).toFixed(2), bordLogg: logg.map(r => ({ s: r.nu / 1000, spar: r.spar })) };
 }
 
@@ -239,12 +239,12 @@ function spelaUpp(kalla, grund) {
     return rad;
   };
 
-  const kor = (slag, t, spar, nollstall, fas) => {
+  const kor = (slag, t, spar, nollstall, fas, grav) => {
     klocka.t = t;
     const fore = new Map(app.kort.map(c => [c.cid, c]));
     const foreBord = bordet(app);
     if (slag === 'nådtimer') { const tm = timers.shift(); tm.fn(); }
-    else app.avstamBord(spar, nollstall, fas);
+    else app.avstamBord(spar, nollstall, fas, undefined, undefined, grav);   // grav: högvakten (MES-85), undefined i äldre loggar
     const nya = app.kort.filter(c => !fore.has(c.cid));
     const rad = mat(slag, t, nollstall ? null : spar, fas);
     for (const c of nya) {
@@ -263,11 +263,11 @@ function spelaUpp(kalla, grund) {
     while (timers.length && timers[0].t <= h.t) kor('nådtimer', timers[0].t, senastRapport ? senastRapport.spar : [], false, senastFas);
     if (h.slag === 'hjärtslag') {
       if (!senastBord) continue;
-      kor('hjärtslag', h.t, senastBord, false, senastFas);
+      kor('hjärtslag', h.t, senastBord, false, senastFas, senastRapport ? senastRapport.grav : undefined);
     } else {
       if (h.nollstall) senastBord = null; else { senastBord = h.spar; senastRapport = h; }
       senastFas = h.fas;
-      kor('rapport', h.t, h.spar, h.nollstall, h.fas);
+      kor('rapport', h.t, h.spar, h.nollstall, h.fas, h.grav);
     }
   }
 

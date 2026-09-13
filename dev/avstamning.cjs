@@ -1027,6 +1027,83 @@ prov('P7 kamerans läge: skrivs vid skapandet och vid en flytt större än darre
   assert.ok(Math.abs(k.kam.x - (PORT.x + 0.03 + PORT.w / 2)) < 1e-9);
 });
 
+/* K10/K11 (MES-85): högvakten. GR = graveyard. hog(n, sen) är telefonens
+   högvakt i rapporten: n ändringar av högen, sen ms sedan den senaste. */
+const stamG = (spar, grav) => app.avstamBord(spar, false, 'kort', undefined, undefined, grav);
+const hog = (n, sen = 0) => ({ n, sen });
+const MITT = box(0.1, 0.1, 0.063, 0.088);
+prov('GR1 Table leads: kortet försvinner och högen ändras en sekund senare → graveyard utan fråga', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
+  klocka.t += 1000; stamG([], hog(1));            // högen blev stilla med ett nytt kort
+  klocka.t += 2100; stamG([], hog(1));            // nådatiden ute
+  const k = app.kort[0];
+  assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto); assert.equal(k.lyft, undefined); assert.equal(k.spar, undefined);
+});
+prov('GR2 Screen leads: samma sak — ingenting, kortet ligger kvar', () => {
+  app.spelsatt = 'skarm';
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(1));
+  klocka.t += 2100; stamG([], hog(1));
+  assert.equal(app.kort[0].zon, undefined); assert.equal(app.kort[0].gravAuto, undefined); assert.equal(app.kort[0].lyft, undefined);
+});
+prov('GR3 högen ändras inte: frågan som förut', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
+  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+});
+prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(1));
+  klocka.t += 2100; stamG([], hog(1));
+  for (const k of app.kort) { assert.equal(k.zon, undefined, k.name); assert.ok(k.lyft != null, k.name); }
+});
+prov('GR5 tre kort på en gång och tre ändringar: bannern, ingen auto', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT }), klar(3, 'Llanowar Elves', { sen: 20, ...MITT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(3));
+  klocka.t += 2100; stamG([], hog(3));
+  for (const k of app.kort) { assert.equal(k.zon, undefined, k.name); assert.ok(k.lyft != null, k.name); }
+});
+prov('GR6 efterskottet: högen blir stilla efter nådatiden — det nedtonade kortet går till graveyard', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
+  assert.ok(app.kort[0].lyft != null);
+  klocka.t += 900; stamG([], hog(1));             // 4 s efter att det försvann
+  assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].gravAuto); assert.equal(app.kort[0].lyft, undefined);
+});
+prov('GR7 högen ändrades tio sekunder innan kortet försvann: frågan', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
+  klocka.t += 10000; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
+  klocka.t += 150; stamG([], hog(1)); klocka.t += 3100; stamG([], hog(1));
+  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+});
+prov('GR8 telefonen startade om (talet sjunker): ingen falsk ändring', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(5));
+  klocka.t += 150; stamG([], hog(5));
+  klocka.t += 1000; stamG([], hog(0));
+  klocka.t += 2100; stamG([], hog(0));
+  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+});
+prov('GR9 besvärjelsen tar högens ändring: varelsen som plockades samtidigt frågas', () => {
+  app.typ = new Map([['Lightning Bolt', 'Instant'], ['Ukud Cobra', 'Creature — Snake']]);
+  stamG([klar(1, 'Lightning Bolt', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(1));
+  klocka.t += 2100; stamG([], hog(1));
+  assert.equal(app.kort.find(k => k.name === 'Lightning Bolt').zon, 'grav');
+  const cobra = app.kort.find(k => k.name === 'Ukud Cobra');
+  assert.equal(cobra.zon, undefined); assert.ok(cobra.lyft != null);
+});
+prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], null);
+  klocka.t += 150; stamG([], null); klocka.t += 3100; stamG([], null);
+  assert.ok(app.kort[0].lyft != null); assert.equal(app.kort[0].zon, undefined);
+});
+
 /* K6: antalspriorn som ren funktion (telefonen läser den i kamIdentifiera och kamAiPoster). */
 prov('Q5 lekPrior: utan lek eller okänt namn står ett säkert svar; med lekens alla exemplar upptagna faller det', () => {
   assert.equal(app.lekPrior(true, Infinity, 5), true);
