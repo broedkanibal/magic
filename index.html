@@ -6615,7 +6615,7 @@ function namnUtanBaksida() { return ((Pool.idx && Pool.idx.names) || []).filter(
 const matVyer = new Map();   // spelar-id → { board, pan, zoomManual }
 function matVyFor(p) {
   let v = matVyer.get(p.id);
-  if (!v) { v = { board: null, pan: { x: 0, y: 0 }, zoomManual: null }; matVyer.set(p.id, v); }
+  if (!v) { v = { board: null, pan: { x: 0, y: 0 }, zoomManual: null, ramHall: null }; matVyer.set(p.id, v); }
   return v;
 }
 /* Mattans mått. #app är display:none vid boot, i lobbyn och i kor.html —
@@ -6633,8 +6633,15 @@ function matVy(p) {
   v.board = grown(p.cards.filter(paMattan), v.board, vp);
   const fit = fitZoom(v.board, vp);
   const z = v.zoomManual != null ? Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
-  const ram = matRam(p);
+  /* Rutan runt korten krymper när det yttersta kortet lämnar mattan, och med
+     den hur långt mattan får dras förbi kanten. Panen får inte hoppa av det
+     — då flyttar alla kort på skärmen på en gång (GRAVEYARD_ANIMATION.md §6).
+     Den förra rutan hålls kvar tills panen ligger inom den nya, av sig själv
+     eller för att man dragit dit den. */
+  const nu = matRam(p), inom = clampPan(v.pan, z, v.board, vp, nu);
+  const ram = v.ramHall && (inom.x !== v.pan.x || inom.y !== v.pan.y) ? forenaRam(nu, v.ramHall) : nu;
   v.pan = clampPan(v.pan, z, v.board, vp, ram);
+  v.ramHall = ram;
   return { board: v.board, fit, z, pan: v.pan, vp, ram, manuell: v.zoomManual != null };
 }
 function matSkriv(p, vy) {
@@ -7905,6 +7912,10 @@ function matRam(p) {
     r.x1 = Math.max(r.x1, m.x + m.w); r.y1 = Math.max(r.y1, m.y + m.h);
   }
   return r;
+}
+/* Två rutor runt kort som en; null är ingen ruta. */
+function forenaRam(a, b) {
+  return !a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
 }
 /* Panen hålls inom brädet. Med ram (rutan runt korten) får mattan dessutom
    dras förbi kanten åt alla håll, även utzoomad, tills bara MATTA.RAND px
