@@ -625,7 +625,6 @@ body.tomhand .kolmark{display:none}
   box-shadow:0 4px 12px -3px #000c;
   transition:transform .34s cubic-bezier(.34,1.4,.5,1),left .22s cubic-bezier(.2,.8,.3,1),top .22s cubic-bezier(.2,.8,.3,1),opacity .3s,box-shadow .13s;
 }
-.card.land{border-radius:8px}
 .card img{
   width:100%;height:100%;display:block;object-fit:cover;
   border-radius:inherit;background:#11161e;
@@ -668,7 +667,6 @@ body.lasvy .card{cursor:default}
    flyttas till det hörn som visuellt är nere till vänster respektive höger.
    Gradienten i nederkanten ger orden botten under sig. */
 .card .bar{position:absolute;left:0;right:0;bottom:0;height:44px;border-radius:0 0 10px 10px;background:linear-gradient(#0000,#000b);pointer-events:none}
-.card.land .bar{height:26px;border-radius:0 0 8px 8px}
 .kwkort{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;pointer-events:none;z-index:3}
 .kwkort b{padding:2px 6px;font:700 9px/1.3 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:#e7ecf4;background:#0b1017e8;border:1px solid #3a4658;border-radius:4px;white-space:nowrap}
 .pt{
@@ -6587,7 +6585,7 @@ function matVy(p) {
   const v = matVyFor(p), vp = matVp();
   v.board = grown(p.cards.filter(paMattan), v.board, vp);
   const fit = fitZoom(v.board, vp);
-  const z = v.zoomManual != null ? Math.max(fit, Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
+  const z = v.zoomManual != null ? Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
   const ram = matRam(p);
   v.pan = clampPan(v.pan, z, v.board, vp, ram);
   return { board: v.board, fit, z, pan: v.pan, vp, ram, manuell: v.zoomManual != null };
@@ -6607,7 +6605,13 @@ function matResize() { const p = player(); if (!p) return; matSkriv(p); renderSe
 /* Graveyard-högens ruta i brädkoordinater. Högen ligger still i mattan, så
    dess ruta räknas om ur pan och zoom innan korten klämmer mot den. */
 function gravRuta(v) {
-  /* Library-högen står bredvid (MES-95): rutan täcker båda. */
+  const r = hogSkarm(); if (!r) return null;
+  return { x0: (r.x0 - v.pan.x) / v.z, x1: (r.x1 - v.pan.x) / v.z,
+           y0: (r.y0 - v.pan.y) / v.z, y1: (r.y1 - v.pan.y) / v.z };
+}
+/* Samma ruta i mattans skärmkoordinater (px från mattans hörn), eller null.
+   Library-högen står bredvid (MES-95): rutan täcker båda. */
+function hogSkarm() {
   const hogar = [manaRow.querySelector('.grav'), bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null].filter(Boolean);
   const w = gridWrap.getBoundingClientRect();
   if (!hogar.length || !w.width) return null;
@@ -6617,9 +6621,7 @@ function gravRuta(v) {
     r = r ? { left: Math.min(r.left, b.left), right: Math.max(r.right, b.right), top: Math.min(r.top, b.top), bottom: Math.max(r.bottom, b.bottom) }
           : { left: b.left, right: b.right, top: b.top, bottom: b.bottom };
   }
-  if (!r) return null;
-  return { x0: (r.left - w.left - v.pan.x) / v.z, x1: (r.right - w.left - v.pan.x) / v.z,
-           y0: (r.top - w.top - v.pan.y) / v.z, y1: (r.bottom - w.top - v.pan.y) / v.z };
+  return r ? { x0: r.left - w.left, x1: r.right - w.left, y0: r.top - w.top, y1: r.bottom - w.top } : null;
 }
 /* Platshållarnas platser: spår-id → {x,y}. Kortet som skapas ur spåret tar
    över platsen (matPlacera), så det landar exakt där platshållaren stod. */
@@ -6959,10 +6961,10 @@ function zoomBy(mult) { zoomTill(matVy().z * mult); }
    mitten av mattan om ingen punkt ges. */
 function zoomTill(z, punkt) {
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, z));
+  const nz = Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, z));
   const cx = punkt ? punkt.x : v.vp.w / 2, cy = punkt ? punkt.y : v.vp.h / 2;
   const bx = (cx - v.pan.x) / v.z, by = (cy - v.pan.y) / v.z;
-  vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
+  vy.zoomManual = Math.abs(nz - v.fit) <= 0.004 ? null : nz;
   vy.pan = clampPan({ x: cx - bx * nz, y: cy - by * nz }, nz, v.board, v.vp, v.ram);
   gridEl.classList.add('glider');
   matSkriv(p);
@@ -7011,9 +7013,9 @@ function arNypning(ev) {
 }
 function matZoomMot(z, mx, my) {
   const p = player(), v = matVy(p), vy = matVyFor(p);
-  const nz = Math.max(v.fit, Math.min(MATTA.ZOOM_MAX, z));
+  const nz = Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, z));
   const bx = (mx - v.pan.x) / v.z, by = (my - v.pan.y) / v.z;
-  vy.zoomManual = nz <= v.fit + 0.004 ? null : nz;
+  vy.zoomManual = Math.abs(nz - v.fit) <= 0.004 ? null : nz;
   vy.pan = clampPan({ x: mx - bx * nz, y: my - by * nz }, nz, v.board, v.vp, v.ram);
   matSkriv(p);
 }
@@ -7205,28 +7207,53 @@ function untapAlla() {
     save(); renderAll(true);
   });
 }
-/* Tidy up: allt i rader igen, landen i högar om de är många, och tillbaka
-   till fit. Rör inte tap-läget. */
+/* Tidy up: allt i rader igen, basländerna i en hög per färg, och en vy med
+   luft runt korten (luftigVy). Rör inte tap-läget. */
 function stadaUpp() {
   if (!redigerbar()) return;
   const p = minSpelare() || player();
-  const v = matVy(p);
+  const v = matVy(p), vy = matVyFor(p);
   const fore = p.cards.map(c => ({ c, x: c.x, y: c.y, grp: c.grp, gi: c.gi, z: c.z }));
-  const by = new Map(layoutAll(p.cards, v.vp, false, gravRuta(v)).map(c => [c.cid, c]));
+  const foreVy = { board: vy.board, zoomManual: vy.zoomManual, pan: vy.pan };
+  const by = new Map(layoutAll(p.cards, v.vp, false, null).map(c => [c.cid, c]));
   for (const c of p.cards) {
     const l = by.get(c.cid);
     if (!l || !paMattan(c) || c.attachedTo || l.x == null) continue;
     c.x = l.x; c.y = l.y; c.grp = l.grp || null; c.gi = l.gi != null ? l.gi : null;
     if (l.z != null) c.z = l.z;
   }
-  const vy = matVyFor(p);
-  vy.board = null; vy.zoomManual = null; vy.pan = { x: 0, y: 0 };
+  luftigVy(p);
   gridEl.classList.add('glider');
   save(); renderAll(true);
   toast('Fanned back into rows', 'ok', () => {
     fore.forEach(f => Object.assign(f.c, { x: f.x, y: f.y, grp: f.grp, gi: f.gi, z: f.z }));
+    Object.assign(vy, foreVy);
+    gridEl.classList.add('glider');
     save(); renderAll(true);
   });
+}
+/* Vyn efter Tidy up (MES-120): korten mitt i mattan med LUFT_VY px luft
+   runtom, under chromen och ur vägen för graveyard-högen — ovanför den eller
+   till höger om den, det som ger störst zoom. Aldrig över 100 %. */
+function luftigVy(p) {
+  const vy = matVyFor(p);
+  vy.board = null; vy.zoomManual = null; vy.pan = { x: 0, y: 0 };
+  const v = matVy(p), ram = v.ram;
+  if (!ram) return;
+  const M = MATTA.LUFT_VY, topp = 52, rw = ram.x1 - ram.x0, rh = ram.y1 - ram.y0;
+  const hel = { x0: M, x1: v.vp.w - M, y0: topp, y1: v.vp.h - M };
+  const hog = hogSkarm();
+  const rutor = hog ? [Object.assign({}, hel, { y1: Math.min(hel.y1, hog.y0 - M / 2) }),
+                       Object.assign({}, hel, { x0: Math.max(hel.x0, hog.x1 + M / 2) })] : [hel];
+  let bast = null;
+  for (const r of rutor) {
+    const z = Math.min(1, (r.x1 - r.x0) / rw, (r.y1 - r.y0) / rh);
+    if (z > 0 && (!bast || z > bast.z)) bast = { z, r };
+  }
+  if (!bast) return;
+  const z = Math.max(MATTA.ZOOM_MIN, bast.z), r = bast.r;
+  vy.zoomManual = Math.abs(z - v.fit) <= 0.004 ? null : z;
+  vy.pan = clampPan({ x: (r.x0 + r.x1) / 2 - (ram.x0 + rw / 2) * z, y: (r.y0 + r.y1) / 2 - (ram.y0 + rh / 2) * z }, z, v.board, v.vp, ram);
 }
 
 /* ═══ FRI MATTA — inspektorn ═════════════════════════════════════════
@@ -7684,9 +7711,12 @@ function gravHtml(cards, idx) {
    skärmpixlar, z zoomen. */
 const MATTA = {
   CW: 178, CH: 248,            // permanent, px i brädkoordinater
-  LW: 128, LH: 178,            // land
-  STACK: 74, XSTEP: 17,        // manahög: synlig kant nedåt, förskjutning i sidled
-  PER_STACK: 4,                // kort per hög innan nästa kolumn
+  LW: 178, LH: 248,            // land — samma storlek som övriga kort (MES-121)
+  HOG: 26,                     // landhög: varje kort förskjutet lika mycket i sidled som nedåt
+  XSTEP: 17,                   // bifogat kort: förskjutning i sidled bakom värden
+  LUFT: 36,                    // Tidy up: fri yta mellan korten, efter tap (brädkoordinater)
+  LUFT_VY: 64,                 // Tidy up: luft runt korten i vyn (px på skärmen)
+  BAS: ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'],   // basländerna, i högarnas ordning
   JOIN_OV: 0.24,               // minsta andel av kortets yta som ska överlappa en hög
   ZOOM_MAX: 1.8, ZOOM_MIN: 0.3,
   KANT: 8, TOPP: 50,           // marginal mot brädkanten, och under mattans chrome
@@ -7793,8 +7823,8 @@ function findJoin(cards, cid) {
   return best ? best.cid : null;
 }
 /* Lägger kortet sist i högen det släpptes på (eller löser det ur sin gamla)
-   och räknar om varje hög från sitt basläge: x = bas.x + i·XSTEP,
-   y = bas.y + i·STACK, z = 200 + i. En hög med ett kort upphör att vara en
+   och räknar om varje hög från sitt basläge: x = bas.x + i·HOG,
+   y = bas.y + i·HOG, z = 200 + i. En hög med ett kort upphör att vara en
    hög. Muterar korten; returnerar true om något ändrades. nyGrp() ger id
    åt en ny hög. */
 function restack(cards, cid, nyGrp) {
@@ -7822,7 +7852,7 @@ function raknaOmHogar(cards) {
     if (list.length < 2) { for (const c of grupper[k]) { if (c.grp != null) andrat = true; c.grp = null; c.gi = null; } continue; }
     const bas = list[0];
     list.forEach((c, i) => {
-      const x = bas.x + i * MATTA.XSTEP, y = bas.y + i * MATTA.STACK, z = 200 + i;
+      const x = bas.x + i * MATTA.HOG, y = bas.y + i * MATTA.HOG, z = 200 + i;
       if (c.gi !== i || c.x !== x || c.y !== y || c.z !== z) andrat = true;
       c.gi = i; c.x = x; c.y = y; c.z = z;
     });
@@ -7851,49 +7881,95 @@ function slotBeside(cards, slag, board) {
   }
   return { x, y };
 }
-/* Solfjädrar ut allt i rader: permanents överst, landen under (i högar om de
-   är fler än åtta, eller alltid när bara landen läggs om). Rör inte tap-läget
+/* Lägger ut allt i rader: permanents överst, landen under. Basländerna
+   ligger i en hög per färg (i BAS-ordning), aningen omlott — HOG px i sidled
+   och lika mycket nedåt; övriga land ligger var för sig. Rör inte tap-läget
    — mockupens tidy avtappade manan, och det är kamerans eller spelarens sak.
-   Returnerar kopior med x/y/grp/gi/z satta; den som anropar skriver tillbaka.
-   gravRuta (brädkoordinater) håller landraden ur vägen för högen. */
+   Varje kort eller hög tar sin verkliga plats, tappat eller inte, och LUFT
+   px fri yta till grannen: ett tappat kort överlappar aldrig ett annat.
+   Radbredden väljs så att allt tillsammans får ungefär viewportens
+   proportioner. Returnerar kopior med x/y/grp/gi/z satta; den som anropar
+   skriver tillbaka. gravRuta (brädkoordinater) håller rader ur vägen för
+   högen. */
+function baslandTyp(c) {
+  const m = /^(?:Snow-Covered )?(\w+)$/.exec((c.name || '').trim());
+  return m && MATTA.BAS.includes(m[1]) ? m[1] : null;
+}
 function layoutAll(cards, vp, landsOnly, gravRuta) {
   vp = vp || MATTA.VP;
-  const board = boardFor(cards, vp);
-  const rows = (list, w, h, x0, y0, hAvail) => {
-    const n = list.length; if (!n) return [];
-    const room = Math.max(w, board.w - x0 - 24 - w);
-    const maxRows = Math.max(1, Math.floor(hAvail / (h + 16)));
-    let r = 1;
-    while (r < maxRows && room / Math.max(1, Math.ceil(n / r) - 1) < w * 0.9) r++;
-    const per = Math.ceil(n / r);
-    const step = Math.min(w + 24, room / Math.max(1, per - 1));
-    return list.map((c, i) => Object.assign({}, c, { grp: null, gi: null,
-      x: Math.round(x0 + (i % per) * step), y: y0 + Math.floor(i / per) * (h + 16) }));
-  };
+  const L = MATTA.LUFT, H = MATTA.HOG, X0 = 44, Y0 = 82;
   const paMattan = cards.filter(paMattanKort).filter(c => !c.attachedTo);
   const lands = paMattan.filter(c => matSlag(c) === 'land');
-  const permList = paMattan.filter(c => matSlag(c) === 'perm');
-  const stacking = lands.length > 8 || (landsOnly && lands.length > 2);
-  const perRows = stacking ? Math.min(MATTA.PER_STACK, lands.length) : 1;
-  const blockH = stacking ? (perRows - 1) * MATTA.STACK + MATTA.LH : MATTA.LH;
-  const perms = landsOnly ? [] : rows(permList, MATTA.CW, MATTA.CH, 44, 82, Math.max(MATTA.CH + 16, board.h - 150 - blockH - 82));
-  const permBottom = perms.length ? Math.max.apply(null, perms.map(c => c.y + MATTA.CH)) : 82;
-  const lY = Math.max(82, Math.min(board.h - 40 - blockH, (permList.length && !landsOnly ? permBottom + 42 : 82)));
-  const lX = gravRuta && lY + blockH > gravRuta.y0 ? Math.round(gravRuta.x1 + 14) : 44;
-  let laid;
-  if (stacking) {
-    const cols = [];
-    for (let i = 0; i < lands.length; i += MATTA.PER_STACK) cols.push(lands.slice(i, i + MATTA.PER_STACK));
-    const wide = MATTA.LW + (Math.min(MATTA.PER_STACK, lands.length) - 1) * MATTA.XSTEP;
-    const step = Math.min(wide + 40, (board.w - lX - 24 - wide) / Math.max(1, cols.length - 1));
-    laid = [];
-    cols.forEach((col, ci) => col.forEach((c, i) => laid.push(Object.assign({}, c, {
-      grp: col.length > 1 ? 'L' + ci : null, gi: col.length > 1 ? i : null,
-      x: Math.round(lX + ci * step + i * MATTA.XSTEP), y: lY + i * MATTA.STACK, z: 200 + ci * 10 + i }))));
-  } else {
-    laid = rows(lands, MATTA.LW, MATTA.LH, lX, lY, board.h - 40 - lY);
+  const permList = landsOnly ? [] : paMattan.filter(c => matSlag(c) === 'perm');
+  /* En enhet är ett kort eller en hög; ruta är dess yta relativt ankaret
+     (första kortets otappade hörn). */
+  const enhet = kort => {
+    let r = null;
+    kort.forEach((c, i) => {
+      const m = matRect(Object.assign({}, c, { x: i * H, y: i * H }));
+      r = r ? { x0: Math.min(r.x0, m.x), y0: Math.min(r.y0, m.y), x1: Math.max(r.x1, m.x + m.w), y1: Math.max(r.y1, m.y + m.h) }
+            : { x0: m.x, y0: m.y, x1: m.x + m.w, y1: m.y + m.h };
+    });
+    return { kort, r };
+  };
+  const hogar = new Map(), ovriga = [];
+  for (const c of lands) {
+    const t = baslandTyp(c);
+    if (!t) { ovriga.push([c]); continue; }
+    const k = c.name.trim();
+    if (!hogar.has(k)) hogar.set(k, []);
+    hogar.get(k).push(c);
   }
-  const by = {}; perms.concat(laid).forEach(c => { by[c.cid] = c; });
+  const ordning = k => MATTA.BAS.indexOf(baslandTyp({ name: k })) * 2 + (/^Snow/.test(k) ? 1 : 0);
+  const landE = [...hogar.keys()].sort((a, b) => ordning(a) - ordning(b)).map(k => enhet(hogar.get(k)))
+    .concat(ovriga.map(enhet));
+  const permE = permList.map(c => enhet([c]));
+  const alla = permE.concat(landE);
+  if (!alla.length) return cards.slice();
+  const bredast = alla.reduce((a, e) => Math.max(a, e.r.x1 - e.r.x0), 0);
+  const summa = alla.reduce((a, e) => a + e.r.x1 - e.r.x0 + L, 0);
+  /* Hela uppställningen med radbredden radB: korten, och rutan de tar. */
+  const lagg = radB => {
+    const ut = [];
+    let nyGrp = 0, hoger = X0;
+    /* Enheterna i rader från y; returnerar y under sista raden. */
+    const flode = (enheter, y) => {
+      let i = 0;
+      while (i < enheter.length) {
+        const rad = [];
+        let x = X0;
+        const topp0 = y;
+        while (i < enheter.length) {
+          const e = enheter[i], w = e.r.x1 - e.r.x0, h = e.r.y1 - e.r.y0;
+          if (!rad.length && gravRuta && topp0 < gravRuta.y1 && topp0 + h > gravRuta.y0) x = Math.max(x, Math.round(gravRuta.x1 + 14));
+          if (rad.length && x + w > X0 + radB) break;
+          rad.push({ e, x: x - e.r.x0 }); x += w + L; i++;
+        }
+        hoger = Math.max(hoger, x - L);
+        const topp = Math.min.apply(null, rad.map(q => q.e.r.y0));
+        const botten = Math.max.apply(null, rad.map(q => q.e.r.y1));
+        for (const q of rad) {
+          const g = q.e.kort.length > 1 ? 'L' + (nyGrp++) : null;
+          q.e.kort.forEach((c, k) => ut.push(Object.assign({}, c, { grp: g, gi: g ? k : null,
+            x: Math.round(q.x + k * H), y: Math.round(y - topp + k * H), z: g ? 200 + k : c.z })));
+        }
+        y += botten - topp + L;
+      }
+      return y - L;
+    };
+    const permBotten = permE.length ? flode(permE, Y0) : Y0;
+    const botten = landE.length ? flode(landE, permE.length ? permBotten + L * 1.5 : Y0) : permBotten;
+    return { ut, w: hoger - X0, h: botten - Y0 };
+  };
+  /* Radbredden som ger störst zoom när allt ska rymmas i viewporten —
+     korten får mattans proportioner i stället för en smal pelare. */
+  let bast = null;
+  for (let b = bredast; ; b += (MATTA.CW + L) / 2) {
+    const f = lagg(b), z = Math.min(vp.w / f.w, vp.h / f.h);
+    if (!bast || z > bast.z + 1e-6) bast = Object.assign(f, { z });
+    if (b >= summa) break;
+  }
+  const by = {}; bast.ut.forEach(c => { by[c.cid] = c; });
   return cards.map(c => by[c.cid] || c);
 }
 const ctLabel = k => (k.p >= 0 ? '+' + k.p : k.p) + '/' + (k.t >= 0 ? '+' + k.t : k.t);
