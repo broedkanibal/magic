@@ -964,6 +964,19 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .gravsten svg{width:100%;height:100%;display:block}
 .gravtxt{font:10.5px var(--mono);color:var(--dim2);flex:none}
 .gravtxt .gt-fan{display:none}
+/* Ett kort dras mot högen (§2, gravOver): högen breddas och lagren glider
+   isär — den öppnar sig för kortet man håller i. Toppkortet ljusnar medan
+   gravstenen tonar bort, så högen går från "plats" till "kort" i samma
+   rörelse. Allt bärs av transitionerna som redan sitter på elementen. */
+.gravhog.over .grav{
+  width:122px;--gs:11;--gr:4.5;
+  box-shadow:0 0 0 3px var(--acc),0 0 32px -2px color-mix(in srgb,var(--acc) 60%,transparent);
+}
+.gravhog.over .gplats{border:1.5px solid color-mix(in srgb,var(--acc) 33.33%,transparent);background:color-mix(in srgb,var(--tand2) 20%,transparent)}
+.gravhog.over .grav img{filter:grayscale(.2) brightness(.9)}
+.gravhog.over .gravsten{opacity:.1}
+.gravhog.over .gravrub b{color:var(--acc)}
+.gravhog.over .gravtxt{color:var(--pa-acc)}
 /* Exile: en liten räknare till höger om graveyard-högen, bara när något
    ligger där. Samma fjäder på hover. */
 .exilhog{
@@ -6728,12 +6741,26 @@ function renderBibHog() {
   return !!html;
 }
 bibHogEl && bibHogEl.addEventListener('click', lekKlick);
-/* Är pekaren över Library-högen? Mindre luft än graveyard: högarna står
-   bredvid varandra, och graveyard vinner där zonerna möts. */
-function overBib(ev) {
-  const el = bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)'); if (!el || !ev) return false;
-  const r = el.getBoundingClientRect();
-  return ev.clientX >= r.left - 16 && ev.clientX <= r.right + 8 && ev.clientY >= r.top - 30 && ev.clientY <= r.bottom + 20;
+/* Vilken hög pekaren är över under ett drag (GRAVEYARD_ANIMATION.md §2).
+   Graveyards träffyta är större än högen och asymmetrisk — man kommer alltid
+   in från bordet, alltså från höger och ovanifrån. Library har mindre luft:
+   högarna står bredvid varandra. Panelerna ligger utanför brädets transform
+   och skalas inte med zoomen, så luften är skärmpixlar (referensens fit är
+   1 här). Är flera högar inom räckhåll vinner den vars mittpunkt är närmast,
+   räknat i manhattan-avstånd. Returnerar 'grav', 'bib' eller null. */
+const HOG_LUFT = { grav: { l: 54, r: 44, t: 66, b: 66 }, bib: { l: 16, r: 8, t: 30, b: 20 } };
+function hogUnder(ev) {
+  if (!ev) return null;
+  const hogar = { grav: manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)') };
+  let bast = null, bastD = Infinity;
+  for (const k in hogar) {
+    const el = hogar[k]; if (!el) continue;
+    const r = el.getBoundingClientRect(), p = HOG_LUFT[k];
+    if (!r.width || ev.clientX < r.left - p.l || ev.clientX > r.right + p.r || ev.clientY < r.top - p.t || ev.clientY > r.bottom + p.b) continue;
+    const d = Math.abs(ev.clientX - (r.left + r.right) / 2) + Math.abs(ev.clientY - (r.top + r.bottom) / 2);
+    if (d < bastD) { bastD = d; bast = k; }
+  }
+  return bast;
 }
 function renderGravHog(cards, d) {
   manaRow.hidden = false;
@@ -8955,13 +8982,6 @@ function cpt(ev) {
   return { x: (ev.clientX - r.left - v.pan.x) / v.z, y: (ev.clientY - r.top - v.pan.y) / v.z };
 }
 const namnAv = c => (cardOf(c) || c).name || 'the card';
-/* Är pekaren över graveyard-högen? Med luft runt, som i mockupen: man
-   siktar på högen, inte på dess exakta kant. */
-function overHogen(ev) {
-  const el = manaRow.querySelector('.grav'); if (!el || !ev) return false;
-  const r = el.getBoundingClientRect();
-  return ev.clientX >= r.left - 40 && ev.clientX <= r.right + 40 && ev.clientY >= r.top - 50 && ev.clientY <= r.bottom + 30;
-}
 /* Högen som just fick ett släppt kort (se .grav.nyss): hover och solfjäder
    väntar tills pekaren lämnat högen. Landningen spelas på det omritade
    elementet; ritas högen om under den halva sekunden klipps den bara av. */
@@ -9118,10 +9138,7 @@ addEventListener('pointermove', ev => {
   c.x = pt.x - dnd.off.ox; c.y = pt.y - dnd.off.oy;
   flyttaElement(c);
   bifogadeTill(c.cid).forEach((k, n) => flyttaElement(Object.assign({ cid: k.cid }, bifogadPlats(c, n))));
-  /* Library-högen först: graveyard-högens zon har luft åt sidorna och når
-     in över grannen, men den som pekar på själva leken menar leken. */
-  const overB = overBib(ev);
-  const over = !overB && overHogen(ev);
+  const hog = hogUnder(ev), overB = hog === 'bib', over = hog === 'grav';
   if (overB !== dnd.overBib) {
     dnd.overBib = overB;
     const b = bibHogEl && bibHogEl.querySelector('.bib'); if (b) b.classList.toggle('over', overB);
@@ -9129,8 +9146,7 @@ addEventListener('pointermove', ev => {
   }
   if (over !== dnd.over) {
     dnd.over = over;
-    const hog = manaRow.querySelector('.grav');
-    if (hog) hog.classList.toggle('over', over);
+    manaRow.classList.toggle('over', over);
     if (!over) matChip(null);
   }
   /* Ett land över en annan hög: målhögen lyser och kortet bär chippet
@@ -9177,7 +9193,7 @@ function matDndSlut(ev, avbryt) {
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(d.cid)}"]`);
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
-  const hog = manaRow.querySelector('.grav'); if (hog) hog.classList.remove('over');
+  manaRow.classList.remove('over');
   const bib = bibHogEl && bibHogEl.querySelector('.bib'); if (bib) bib.classList.remove('over');
   matChip(null);
   for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
