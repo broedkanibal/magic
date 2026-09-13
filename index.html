@@ -477,6 +477,9 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .mattavp.panlage,.mattavp.handredo,
 .mattavp:is(.panlage,.handredo) *:not(:where(.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark),:where(.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark) *){cursor:grab!important}
 .mattavp.panorerar,.mattavp.panorerar *{cursor:grabbing!important}
+/* Lassot: rutan i skärmkoordinater ovanpå mattan, medan man drar. */
+.lassoruta{position:absolute;z-index:30;border:1px solid var(--acc);border-radius:3px;
+  background:color-mix(in srgb,var(--acc) 12%,transparent);pointer-events:none}
 .mattabrade{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 /* Övergången är none under drag och hjul, och .32s när zoomknapparna eller
    fit används — annars släpar zoomen efter pekaren. */
@@ -748,7 +751,7 @@ body.lasvy .card{cursor:default}
    sökraden klipper scrollytan just de pixlarna: kortet ser helt ut medan ramen
    är kapad, vilket läses som ett fel. Ritad innanför kanten i stället — då
    finns inget utanför kortet som kan klippas bort. */
-.card.sel::after{
+.card.sel::after,.card.multisel::after{
   content:'';position:absolute;inset:0;border-radius:inherit;
   border:3px solid var(--acc);pointer-events:none;z-index:2;
 }
@@ -3226,6 +3229,7 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
             <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat — or drag with two fingers on the trackpad</dd>
             <dt><kbd>S</kbd></dt><dd>Switch between select and pan. In pan, click and drag anywhere to move the mat</dd>
+            <dt>Drag on the mat</dt><dd>In select: mark every card the box touches — <kbd>⇧</kbd> adds, <kbd>⇧</kbd>-click adds or removes one card. Drag a marked card to move them all; <kbd>T</kbd> taps them all; <kbd>Esc</kbd> or a click on the mat clears</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
         </section>
@@ -5779,6 +5783,10 @@ function shotURL(id) { const s = shotMem.get(id); return s ? s.url : ''; }
    RENDERING
    ══════════════════════════════════════════════════════════════════ */
 const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'), manaRow = $('#manaRow');
+/* Flera markerade kort (MES-113): lassot på tom yta i Select-läget, eller
+   shift + klick. Kort-id:n; state.sel är fortfarande kortet som inspektorn
+   och tangenterna utgår från. Se lassoStart och gruppAttFlytta. */
+const matValda = new Set();
 const emptyLasEl = $('#emptyLas');
 
 /* ─── spelarflikar ─── */
@@ -7014,7 +7022,7 @@ gridWrap.addEventListener('pointerdown', ev => {
   if (ev.target.closest(MATT_UI)) return;
   const hand = ev.button === 0 && (!!matHand || matVerktyg === 'pan'), hoger = ev.button === 2;
   if (!hand && !hoger && ev.button !== 1) {
-    if (ev.button === 0 && !ev.target.closest('.card,.plats,.grav,.empty')) closeCounters();
+    if (ev.button === 0 && !ev.target.closest('.card,.plats,.grav,.empty')) { closeCounters(); lassoStart(ev); }
     return;
   }
   closeCounters();
@@ -7056,6 +7064,50 @@ gridWrap.addEventListener('contextmenu', ev => {
   if (ev.target.closest('.card,input,textarea,select,[contenteditable]')) return;
   ev.preventDefault();
 }, true);
+/* Lassot (Select-läget, vänsterknappen på tom yta): en ruta från där
+   knappen trycktes ned. Kort som rutan rör blir markerade medan man drar;
+   med shift läggs de till det som redan var markerat. Bifogade kort räknas
+   inte — de följer sin värd. Ett klick utan drag tömmer markeringen. Blir
+   det bara ett kort är det en vanlig markering. */
+let lasso = null;
+function lassoStart(ev) {
+  const r = gridWrap.getBoundingClientRect();
+  lasso = { x0: ev.clientX - r.left, y0: ev.clientY - r.top, drog: false, el: null,
+            bas: ev.shiftKey ? new Set(matValda) : new Set() };
+  try { gridWrap.setPointerCapture(ev.pointerId); } catch (e) {}
+}
+addEventListener('pointermove', ev => {
+  if (!lasso) return;
+  const r = gridWrap.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  if (!lasso.drog) {
+    if (Math.abs(x - lasso.x0) + Math.abs(y - lasso.y0) < DND_TROSKEL) return;
+    lasso.drog = true;
+    lasso.el = document.createElement('div'); lasso.el.className = 'lassoruta';
+    gridWrap.appendChild(lasso.el);
+  }
+  const x0 = Math.min(x, lasso.x0), y0 = Math.min(y, lasso.y0), w = Math.abs(x - lasso.x0), h = Math.abs(y - lasso.y0);
+  Object.assign(lasso.el.style, { left: x0 + 'px', top: y0 + 'px', width: w + 'px', height: h + 'px' });
+  const v = matVy(), b = { x: (x0 - v.pan.x) / v.z, y: (y0 - v.pan.y) / v.z, w: w / v.z, h: h / v.z };
+  matValda.clear(); lasso.bas.forEach(cid => matValda.add(cid));
+  for (const c of hand()) {
+    if (!paMattan(c) || c.x == null || c.y == null || c.attachedTo) continue;
+    const m = matRect(c);
+    if (m.x < b.x + b.w && m.x + m.w > b.x && m.y < b.y + b.h && m.y + m.h > b.y) matValda.add(c.cid);
+  }
+  renderSel();
+});
+function lassoSlut() {
+  if (!lasso) return;
+  const l = lasso; lasso = null;
+  if (l.el) l.el.remove();
+  if (!l.drog) { tomValda(); return; }
+  const valda = valdaKort();
+  if (valda.length) state.sel = hand().indexOf(valda[valda.length - 1]);
+  if (valda.length === 1) matValda.clear();
+  renderSel(); sparaUi();
+}
+addEventListener('pointerup', lassoSlut);
+addEventListener('pointercancel', lassoSlut);
 /* Untap all: varje tappat kort på mitt bord ställs upp, med ångra. */
 function untapAlla() {
   if (!redigerbar()) return;
@@ -7783,6 +7835,8 @@ function renderSel() {
   const n = hand().length;
   state.sel = n ? clamp(state.sel, 0, n - 1) : 0;
   $$('.card[data-i]', gridEl).forEach(el => el.classList.toggle('sel', +el.dataset.i === state.sel));
+  const multi = flerValda();
+  $$('.card[data-cid]', gridEl).forEach(el => el.classList.toggle('multisel', multi && matValda.has(el.dataset.cid)));
   /* Högen är ett stopp i navigeringen, alltså måste den kunna se vald ut. */
   const gr = manaRow.querySelector('.grav');
   if (gr) gr.classList.toggle('sel', delaHand().grav.includes(state.sel));
@@ -8808,6 +8862,65 @@ function flyttaElement(k) {
   el.style.top = Math.round(k.y || 0) + 'px';
   el.style.zIndex = Math.max(1, Math.round(k.z || 1));
 }
+/* Markeringen av flera kort. Räknas mot bordet man tittar på: id:n från
+   ett annat bord matchar inget där. */
+function valdaKort() { return hand().filter(c => matValda.has(c.cid)); }
+function flerValda() { return valdaKort().length >= 2; }
+function tomValda() { if (!matValda.size) return; matValda.clear(); renderSel(); }
+const kortEl = cid => gridEl.querySelector(`.card[data-cid="${CSS.escape(cid)}"]`);
+/* Korten ett gruppdrag flyttar: de markerade som ligger fritt på mattan,
+   plus resten av varje manahög ett markerat land ligger i — högen räknas
+   om från sitt baskort, så den flyttas hel. Bifogade kort följer sin värd,
+   nedtonade ligger inte där, och kamerabundna placeras av bordet. */
+function gruppAttFlytta() {
+  const h = hand(), kam = spelLage && kamSpeglar(minSpelare());
+  const med = k => paMattan(k) && k.lyft == null && !k.attachedTo && !(kam && k.spar != null);
+  const grp = new Set(h.filter(k => matValda.has(k.cid) && med(k) && k.grp).map(k => k.grp));
+  return h.filter(k => med(k) && (matValda.has(k.cid) || (k.grp && grp.has(k.grp))));
+}
+function gruppDrag(ev) {
+  if (!dnd.drar) {
+    if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
+    dnd.drar = true;
+    closeCounters(); fanStang(); if (ark && !ark.lista) closeArk();
+    renderPill();
+    for (const g of dnd.grupp) { const el = kortEl(g.cid); if (el) el.classList.add('held'); }
+    try { gridEl.setPointerCapture(dnd.pointerId); } catch (e) {}
+  }
+  const pt = cpt(ev), dx = pt.x - dnd.p0.x, dy = pt.y - dnd.p0.y, h = hand();
+  for (const g of dnd.grupp) {
+    const k = h.find(q => q.cid === g.cid); if (!k) continue;
+    k.x = g.x + dx; k.y = g.y + dy;
+    flyttaElement(k);
+    bifogadeTill(k.cid).forEach((b, n) => flyttaElement(Object.assign({ cid: b.cid }, bifogadPlats(k, n))));
+  }
+}
+/* Släppt: varje kort kläms mot brädet och graveyard-rutan, högarna räknas
+   om. Inga högar, värdar eller graveyard-släpp för en grupp — det är en
+   flytt. Ett klick utan drag gör ingenting (ingen tap). */
+function gruppSlapp(d, avbryt) {
+  const h = hand();
+  for (const g of d.grupp) { const el = kortEl(g.cid); if (el) el.classList.remove('held'); }
+  if (!d.drar) return;
+  svalgKlick = true;
+  const v = matVy(), gr = gravRuta(v);
+  for (const g of d.grupp) {
+    const k = h.find(q => q.cid === g.cid); if (!k) continue;
+    if (avbryt) { k.x = g.x; k.y = g.y; continue; }
+    const p = clampKort(k, v.board, gr); k.x = p.x; k.y = p.y;
+  }
+  raknaOmHogar(h);
+  if (!avbryt) save();
+  renderGrid(true); fjarrIkapp();
+}
+/* T med flera markerade: tappar alla, eller ställer upp alla om alla
+   redan var tappade. */
+function tappaValda() {
+  const valda = valdaKort().filter(e => paMattan(e) && e.lyft == null);
+  const ny = valda.some(e => !e.tapped) ? 1 : 0;
+  valda.forEach(e => { e.tapped = ny; });
+  save(); renderGrid(true); renderInspektor();
+}
 gridEl.addEventListener('pointerdown', ev => {
   /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar
      webbläsaren inte alltid något click alls. */
@@ -8820,8 +8933,27 @@ gridEl.addEventListener('pointerdown', ev => {
   ev.stopPropagation();                      // inte panorering
   closeKortMeny();
   if (matCtr && matCtr.cid !== c.cid) closeCounters();
+  /* Shift + klick lägger till kortet i markeringen eller tar bort det —
+     inget drag och ingen tap. */
+  if (ev.shiftKey) {
+    const f = hand()[state.sel];
+    if (!matValda.size && f && f.cid !== c.cid) matValda.add(f.cid);
+    if (matValda.has(c.cid)) matValda.delete(c.cid); else matValda.add(c.cid);
+    state.sel = i; renderSel(); renderInspektor(); sparaUi();
+    return;
+  }
+  /* Ett markerat kort bland flera: draget tar med alla markerade, och ett
+     klick tappar inte. Ett omarkerat kort släpper markeringen. */
+  const grupp = flerValda() && matValda.has(c.cid);
+  if (!grupp) matValda.clear();
   state.sel = i; renderSel(); renderInspektor(); sparaUi();
   if (!redigerbar()) return;                 // titta, inte röra, på någon annans bord
+  if (grupp) {
+    const flytt = gruppAttFlytta();
+    if (flytt.length) dnd = { cid: c.cid, grupp: flytt.map(k => ({ cid: k.cid, x: k.x || 0, y: k.y || 0 })),
+                              p0: cpt(ev), x0: ev.clientX, y0: ev.clientY, drar: false, pointerId: ev.pointerId };
+    return;
+  }
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   /* Table leads: bordet bestämmer var ett kamerabundet kort ligger. */
   if (spelLage && kamSpeglar(minSpelare()) && c.spar != null) {
@@ -8845,6 +8977,7 @@ gridEl.addEventListener('pointerdown', ev => {
 });
 addEventListener('pointermove', ev => {
   if (!dnd) return;
+  if (dnd.grupp) { gruppDrag(ev); return; }
   const c = hand().find(k => k.cid === dnd.cid);
   if (!c) { dnd = null; return; }
   if (!dnd.drar) {
@@ -8923,6 +9056,7 @@ function matDndSlut(ev, avbryt) {
   const bib = bibHogEl && bibHogEl.querySelector('.bib'); if (bib) bib.classList.remove('over');
   matChip(null);
   for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
+  if (d.grupp) { gruppSlapp(d, avbryt); return; }
   const h = hand(), i = h.findIndex(k => k.cid === d.cid), c = h[i];
   if (!c) { renderGrid(true); fjarrIkapp(); return; }
   if (!d.drar) { tappa(i); return; }         // ett klick: tappa/untappa
@@ -11386,6 +11520,7 @@ addEventListener('keydown', ev => {
     if (matCtr) return closeCounters();
     if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
     if (fan.zon) return fanStang();
+    if (matValda.size) return tomValda();
     if (menuEl.classList.contains('open')) return closeMenu();
     if ($('#scanPanel').classList.contains('open')) return closeScan();
     if ($('#focusOv').classList.contains('open')) return closeFocus();
@@ -11448,7 +11583,7 @@ addEventListener('keydown', ev => {
   else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); if (spelLage) oppnaLada(true); else { searchInput.focus(); searchInput.select(); } }
   else if (lower === 'b' && (!spelLage || DEBUG)) { ev.preventDefault(); openBulk(); }
   else if (lower === 'i' && (!spelLage || DEBUG)) { ev.preventDefault(); openOv('imgOv'); }
-  else if (lower === 't') { ev.preventDefault(); tappa(state.sel); }
+  else if (lower === 't') { ev.preventDefault(); if (flerValda()) tappaValda(); else tappa(state.sel); }
   else if (lower === 'e' && selCard() && bifogTyp(selCard())) { ev.preventDefault(); bifogaNarmaste(state.sel); }
   else if (lower === 'g') {
     ev.preventDefault();
