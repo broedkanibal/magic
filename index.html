@@ -7454,7 +7454,9 @@ function lassoSlut() {
 }
 addEventListener('pointerup', lassoSlut);
 addEventListener('pointercancel', lassoSlut);
-/* Untap all: varje tappat kort på mitt bord ställs upp, med ångra. */
+/* Untap all: varje tappat kort på mitt bord ställs upp. Ingen notis
+   (MES-117): korten som reser sig är beskedet, och en grön rad med ångra
+   över mattan var brus i ett drag man gör varje tur. */
 function untapAlla() {
   if (!redigerbar()) return;
   const p = minSpelare() || player();
@@ -7462,10 +7464,6 @@ function untapAlla() {
   if (!tappade.length) { toast('Nothing is tapped'); return; }
   tappade.forEach(c => { c.tapped = 0; });
   save(); renderAll(true);
-  toast(`${tappade.length} ${tappade.length === 1 ? 'card' : 'cards'} stood back up`, 'ok', () => {
-    tappade.forEach(c => { c.tapped = 1; });
-    save(); renderAll(true);
-  });
 }
 /* Tidy up: allt i rader igen, basländerna i en hög per färg, och en vy med
    luft runt korten (luftigVy). Rör inte tap-läget. */
