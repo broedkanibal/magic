@@ -2868,6 +2868,7 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>S</kbd> select / pan</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
     <span><kbd>Backspace</kbd> remove</span>
+    <span><kbd>⌘Z</kbd> undo</span>
     <span><kbd>?</kbd> all shortcuts</span>
     <div class="status" id="status" hidden><span class="led"></span><span id="statusTxt"></span></div>
     <!-- En skrivning som inte gick fram. Utan den låg kortet på mitt eget bord
@@ -3422,6 +3423,7 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>B</kbd></dt><dd>Paste a list of names (outside a game)</dd>
             <dt><kbd>I</kbd></dt><dd>Add cards from an image (outside a game)</dd>
             <dt><kbd>Backspace</kbd> <kbd>Del</kbd></dt><dd>Remove the card under the pointer</dd>
+            <dt><kbd>⌘</kbd><kbd>Z</kbd></dt><dd>Undo the last thing you did on your board — a move, a tap, a card to the graveyard</dd>
             <dt><kbd>T</kbd></dt><dd>Tap or untap the card under the pointer</dd>
             <dt><kbd>E</kbd></dt><dd>Put the card under the pointer on another one — equip, fortify, attach</dd>
             <dt><kbd>G</kbd></dt><dd>Put the card under the pointer in the graveyard</dd>
@@ -6321,6 +6323,7 @@ function flygTillGrav(fran) {
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
+  angraPunkt();
   e.zon = zon;
   const hog = zon === ZON_GRAV || zon === ZON_EXIL;
   /* Ligger kortet kvar fysiskt (spåret lever) är det borta digitalt men
@@ -7086,6 +7089,7 @@ function fanStangNu() {
    — eller bredvid de andra om det aldrig haft en plats. */
 function gravTillbaka(e) {
   const h = hand(); if (!redigerbar() || !h.includes(e)) return false;
+  angraPunkt();
   delete e.zon; delete e.fysisk; delete e.spellAuto;
   if (e.x == null || e.y == null) {
     const v = matVy(), pos = slotBeside(h, matSlag(e), v.board);
@@ -7456,6 +7460,7 @@ function untapAlla() {
   const p = minSpelare() || player();
   const tappade = p.cards.filter(c => c.tapped && paMattan(c));
   if (!tappade.length) { toast('Nothing is tapped'); return; }
+  angraPunkt(p);
   tappade.forEach(c => { c.tapped = 0; });
   save(); renderAll(true);
   vridIn(tappade);
@@ -7466,6 +7471,7 @@ function stadaUpp() {
   if (!redigerbar()) return;
   const p = minSpelare() || player();
   const v = matVy(p);
+  angraPunkt(p);
   const by = new Map(layoutAll(p.cards, v.vp, false, null).map(c => [c.cid, c]));
   for (const c of p.cards) {
     const l = by.get(c.cid);
@@ -7747,10 +7753,12 @@ function renderCtrPanel() {
 }
 function addCounter(c, k) {
   if (!k.p && !k.t) return;
+  angraPunkt();
   c.cts = (c.cts || []).concat([{ p: k.p, t: k.t }]);
   save(); renderGrid(true); renderInspektor(); renderCtrPanel();
 }
 function removeCounter(c, label) {
+  angraPunkt();
   const list = (c.cts || []).slice();
   const i = list.findIndex(k => ctLabel(k) === label);
   if (i >= 0) list.splice(i, 1);
@@ -9107,6 +9115,7 @@ function addCards(items, opts) {
      bara blir en lokal avvikelse som ser ut som att vi ser olika saker. */
   const p = (opts && opts.player) || (spelLage ? (minSpelare() || player()) : player());
   if (spelLage && !arMitt(p)) return [];
+  angraPunkt(p);
   const added = [];
   for (const raw of items) {
     const o = typeof raw === 'string' ? { name: raw } : (raw || {});
@@ -9125,6 +9134,7 @@ function addCards(items, opts) {
 function removeAt(i, msg) {
   const h = hand();
   if (i < 0 || i >= h.length) return;
+  angraPunkt();
   const [gone] = h.splice(i, 1);
   /* Kameran ser kortet tills det lyfts. Utan spärren låg det på bordet igen
      tre sekunder senare, som ett nytt kort. */
@@ -9151,6 +9161,7 @@ const arDfc = c => !!(c && c.faces.length > 1 && c.faces[1].img);
 function flipKort(i) {
   const e = hand()[i];
   if (!e) return;
+  angraPunkt();
   e.flipped = e.flipped ? 0 : 1;
   save(); renderAll();
 }
@@ -9341,6 +9352,7 @@ function tappa(i) {
   const e = hand()[i];
   /* Ett nedtonat kort ligger inte där — tap är meningslöst (lyftRadHtml ritar ingen tap-knapp). */
   if (!e || !paMattan(e) || e.lyft != null) return;
+  angraPunkt();
   e.tapped = e.tapped ? 0 : 1;
   save(); renderGrid(true); renderInspektor();
   vridIn([e]);
@@ -9552,7 +9564,7 @@ function gruppSlapp(d, avbryt) {
     const p = clampKort(k, v.board, gr); k.x = p.x; k.y = p.y;
   }
   raknaOmHogar(h);
-  if (!avbryt) save();
+  if (!avbryt) { angraPunkt(null, d.fore); save(); }
   renderGrid(true); fjarrIkapp();
 }
 /* T med flera markerade: tappar alla, eller ställer upp alla om alla
@@ -9561,6 +9573,7 @@ function tappaValda() {
   const valda = valdaKort().filter(e => paMattan(e) && e.lyft == null);
   const ny = valda.some(e => !e.tapped) ? 1 : 0;
   const byter = valda.filter(e => !!e.tapped !== !!ny);
+  angraPunkt();
   valda.forEach(e => { e.tapped = ny; });
   save(); renderGrid(true); renderInspektor();
   vridIn(byter);
@@ -9593,7 +9606,8 @@ gridEl.addEventListener('pointerdown', ev => {
   if (grupp) {
     const flytt = gruppAttFlytta();
     if (flytt.length) dnd = { cid: c.cid, grupp: flytt.map(k => ({ cid: k.cid, x: k.x || 0, y: k.y || 0 })),
-                              p0: cpt(ev), x0: ev.clientX, y0: ev.clientY, drar: false, pointerId: ev.pointerId };
+                              p0: cpt(ev), x0: ev.clientX, y0: ev.clientY, drar: false, pointerId: ev.pointerId,
+                              fore: JSON.stringify(hand()) };
     return;
   }
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
@@ -9615,7 +9629,7 @@ gridEl.addEventListener('pointerdown', ev => {
   el.style.zIndex = c.z;
   dnd = { cid: c.cid, x0: ev.clientX, y0: ev.clientY, drar: false, pointerId: ev.pointerId, over: false,
           off: { ox: pt.x - (c.x || 0), oy: pt.y - (c.y || 0) },
-          start: { x: c.x, y: c.y, z: c.z } };
+          start: { x: c.x, y: c.y, z: c.z }, fore: JSON.stringify(hand()) };
 });
 addEventListener('pointermove', ev => {
   if (!dnd) return;
@@ -9708,13 +9722,18 @@ function matDndSlut(ev, avbryt) {
     c.x = d.start.x; c.y = d.start.y;
     renderGrid(true); fjarrIkapp(); return;
   }
+  /* Ångrapunkten är bordet som det var när kortet greps (d.fore). Det som
+     följer — högen, bifogningen — hör till samma drag och tar ingen egen.
+     Ett kort som just kom ur leken eller graveyard har ingen d.fore: dess
+     punkt togs när det skapades (matAngra), och ⌘Z lägger tillbaka det dit. */
+  if (d.fore) angraPunkt(null, d.fore);
   if (d.overBib) {
     /* Släppt på Library-högen: tillbaka till hand eller bibliotek, som
        "Back to hand or library" i arket — kamerans spår spärras (removeAt)
        så att kortet inte kommer tillbaka som ett nytt. Startläget först, så
        att Undo lägger det där det låg. */
     c.x = d.start.x; c.y = d.start.y;
-    removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`);
+    utanAngra(() => removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`));
     fjarrIkapp(); return;
   }
   if (d.over) {
@@ -9724,7 +9743,7 @@ function matDndSlut(ev, avbryt) {
     /* Hovern och markeringen följer inte med ner i högen (§3). */
     matValda.delete(c.cid);
     if (matHover === c.cid) matHover = null;
-    matAngra(namnAv(c) + ' → graveyard', () => flyttaTill(h.indexOf(c), ZON_GRAV));
+    utanAngra(() => flyttaTill(h.indexOf(c), ZON_GRAV));
     gravSlappt();
     fjarrIkapp(); return;
   }
@@ -9732,7 +9751,7 @@ function matDndSlut(ev, avbryt) {
   c.x = k.x; c.y = k.y;
   /* Släppt på en värd: sätts på den. Ett bifogat kort som dragits ut ur
      sin värd (mindre än 24 % kvar över den) lossnar där det släpptes. */
-  if (d.vard) { const vard = h.find(q => q.cid === d.vard); if (vard) { bifoga(c, vard); fjarrIkapp(); return; } }
+  if (d.vard) { const vard = h.find(q => q.cid === d.vard); if (vard) { utanAngra(() => bifoga(c, vard)); fjarrIkapp(); return; } }
   if (c.attachedTo) {
     const vard = h.find(q => q.cid === c.attachedTo);
     if (!vard || overlapAndel(matRect(c), matRect(vard)) < MATTA.JOIN_OV) delete c.attachedTo;
@@ -9754,9 +9773,54 @@ addEventListener('keydown', ev => { if (ev.key === 'Escape' && dnd && dnd.drar) 
    Förflyttningar på mattan — graveyard, exile, tillbaka i spel, bifogning —
    är vanliga drag, inte en radering, och ska inte avbrytas av en grön
    notis. mutate gör förflyttningen; msg finns kvar i signaturen så
-   anropsställena inte behöver ändras. */
+   anropsställena inte behöver ändras. ⌘Z ångrar dem (angra). */
 function matAngra(msg, mutate) {
+  angraPunkt();
   mutate();
+}
+/* ═══ ÅNGRA — ⌘Z (MES-128) ═══════════════════════════════════════════
+   Varje handling man själv gör på bordet — drag, tap, vända, graveyard,
+   exile, tillbaka i spel, bifoga, counters, Untap all, Tidy up, ta bort —
+   lägger först en ångrapunkt: hela kortlistan som den var, som text. ⌘Z
+   lägger tillbaka den senaste. Punkterna tas där handlingen börjar (i
+   funktionerna själva och i matAngra), inte i save(): save() körs också
+   när kameran ändrar bordet, och kamerans läsningar ska inte gå att ångra
+   bort. En punkt som är lika med bordet som det ser ut nu hoppas över —
+   en handling som inte ändrade något ska inte kosta ett ⌘Z. */
+const ANGRA_MAX = 60;
+let angraStack = [], angraTyst = 0;
+function angraPunkt(p, bild) {
+  p = p || player();
+  if (!p || angraTyst || fjarrLas || !arMitt(p)) return;
+  if (bild == null) bild = JSON.stringify(p.cards);
+  const sista = angraStack[angraStack.length - 1];
+  if (sista && sista.pid === p.id && sista.bild === bild) return;
+  angraStack.push({ pid: p.id, bild, sel: state.sel });
+  if (angraStack.length > ANGRA_MAX) angraStack.shift();
+}
+/* Kör fn utan en egen ångrapunkt — den som anropar har redan tagit
+   punkten från före hela handlingen. */
+function utanAngra(fn) { angraTyst++; try { return fn(); } finally { angraTyst--; } }
+function angra() {
+  if (dnd) return false;
+  while (angraStack.length) {
+    const s = angraStack.pop();
+    const p = state.players.find(q => q.id === s.pid);
+    if (!p || !arMitt(p) || JSON.stringify(p.cards) === s.bild) continue;
+    closeKortMeny(); closeCounters(); fanStangNu(); if (ark) closeArk();
+    p.cards = JSON.parse(s.bild);
+    /* Ett kort som togs bort för hand spärrade sitt kameraspår (removeAt).
+       Är det tillbaka ska kameran få binda det igen. */
+    for (const k of p.cards) if (k.spar != null) borttagna.delete(k.spar);
+    const finns = new Set(p.cards.map(k => k.cid));
+    for (const cid of [...matValda]) if (!finns.has(cid)) matValda.delete(cid);
+    if (matHover && !finns.has(matHover)) matHover = null;
+    if (p.id !== state.active) setActive(p.id);
+    state.sel = clamp(s.sel, 0, Math.max(0, p.cards.length - 1));
+    save(); renderAll(true);
+    return true;
+  }
+  return false;
 }
 
 /* ─── spelarflikar ─── */
@@ -10047,6 +10111,7 @@ $('#clearHand').onclick = () => {
     const mig = minSpelare(); if (!mig) return;
     const antal = mig.cards.length + (mig.pending || []).length;
     if (!antal) return;
+    angraPunkt(mig);
     const gamla = mig.cards, gammalPending = mig.pending;
     mig.cards = []; mig.pending = []; state.sel = 0;
     save(); renderAll(true);
@@ -12050,6 +12115,14 @@ menuEl.addEventListener('click', ev => {
 
 /* ─── globala tangenter ─── */
 const isTyping = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+/* ⌘Z (Ctrl+Z): ångra det senaste man gjorde på bordet (angra, MES-128).
+   I ett textfält är det fältets eget ångra, och bildvyn är inte bordet. */
+addEventListener('keydown', ev => {
+  if (!(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== 'z') return;
+  if (isTyping(ev.target) || $('#shotOv').classList.contains('open')) return;
+  ev.preventDefault();
+  angra();
+});
 addEventListener('keydown', ev => {
   const k = ev.key;
   if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
