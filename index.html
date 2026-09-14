@@ -20760,6 +20760,7 @@ $('#startSpelBtn').onclick = async () => {
   if (Moln.minId()) await visaLobby(); else visaVy('start');
 };
 $('#skapaSpelBtn').onclick = async () => {
+  hideToast();                              // en gammal notis om t.ex. ett avslutat spel hör inte hemma i det nya
   portalFel('#lobbyFel', '');
   const b = $('#skapaSpelBtn'); b.disabled = true;
   try { const g = await Moln.skapaSpel(null); await oppnaSpel(g.id, true); }
@@ -20768,6 +20769,7 @@ $('#skapaSpelBtn').onclick = async () => {
 };
 $('#joinForm').onsubmit = async ev => {
   ev.preventDefault();
+  hideToast();                              // en gammal notis om t.ex. ett avslutat spel hör inte hemma i det nya
   portalFel('#lobbyFel', '');
   const kod = $('#joinKod').value.trim().toUpperCase();
   if (!kod) return;
