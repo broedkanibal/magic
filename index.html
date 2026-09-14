@@ -404,8 +404,9 @@ body.lasvy .ladarad{cursor:default}
 body.lasvy .ladarad .g{visibility:hidden}
 /* ── Uppstarten (MES-102) ───────────────────────────────────────────
    Designen Mesa Camera Play 1a–1e: en checklista i inspektorns spalt —
-   lek, telefon, hur kameran arbetar, ett otappat kort (bara Follow the
-   table). Klara steg fälls ihop till en rad; det aktiva står öppet. */
+   lek, hur kameran arbetar, telefon (bara med kamera), ett otappat kort
+   (bara Follow the table). Klara steg fälls ihop till en rad; det aktiva
+   står öppet. */
 .oppstart{grid-area:mark;display:flex;flex-direction:column;min-height:0;min-width:0;background:#121821;border:1px solid var(--line);border-radius:12px;overflow:auto}
 .oppstart[hidden]{display:none}
 body.oppstart .kolmark{display:none}
@@ -427,7 +428,7 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .opptit{display:flex;align-items:center;gap:8px;min-height:24px;font-size:13.5px;font-weight:600;color:var(--txt);line-height:1.35}
 .oppsteg.todo .opptit{color:var(--dim);font-weight:550}
-/* Steg 3: kamerans två lägen under en rubrik, utan kamera för sig nedanför. */
+/* Steg 2: kamerans två lägen under en rubrik, utan kamera för sig nedanför. */
 .oppgrupp{font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);margin-bottom:-4px}
 .oppgrupp.skild{margin-top:4px;padding-top:12px;border-top:1px solid #1c2330}
 .oppsum{font-size:12px;color:var(--dim)}
@@ -529,8 +530,10 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppmattvant span{font-size:12.5px;max-width:44ch;line-height:1.55}
 @keyframes oppIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){.oppmattvant > *{animation:none}}
-.oppmatt.utanbild [data-oppm="vand"],.oppmatt.utanbild [data-oppm="spegel"]{display:none}
-.oppmatt.utanbild .oppmattlive i{background:#3a4658;box-shadow:none}
+/* Utan telefonens bild finns inget "What your phone sees" att säga, och inget
+   att vända eller spegla. Raden behåller sin höjd, så ramen står still när
+   bilden kommer. */
+.oppmatt.utanbild .oppmattrub{visibility:hidden}
 body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #lyftAlla,body.oppbild #emptyHand{visibility:hidden}
 /* I spelarens vy ritar canvasen själva bilden, vriden och speglad. */
 #pbBild.vy #pbImg{visibility:hidden}
@@ -2811,7 +2814,7 @@ body.ispel #addPlayerBtn{display:none}
       </aside>
       <!-- Uppstarten (MES-102, designen Mesa Camera Play 1a–1e): en checklista i
            inspektorns spalt när man går in i ett spel utan fungerande kamera —
-           lek, telefon, hur kameran arbetar, ett otappat kort. Ritas av
+           lek, hur kameran arbetar, telefon (bara med kamera), ett otappat kort. Ritas av
            renderOppstart(); stegen byggs aldrig om i sin helhet, så QR-koden och
            kamerans bild (#pbBild flyttas hit i steg 4) står kvar. -->
       <aside class="oppstart" id="oppstart" hidden aria-label="Set up your table">
@@ -2819,14 +2822,14 @@ body.ispel #addPlayerBtn{display:none}
         <div class="oppsteg" id="opp1"><span class="oppnr">1</span><div class="oppbody">
           <div class="opptit">Pick your deck</div><div class="oppsum" id="opp1Sum"></div><div class="oppcont" id="opp1Cont"></div></div></div>
         <div class="oppsteg" id="opp2"><span class="oppnr">2</span><div class="oppbody">
+          <div class="opptit">Choose game mode</div><div class="oppsum" id="opp2Sum"></div><div class="oppcont" id="opp2Cont"></div></div></div>
+        <div class="oppsteg" id="opp3"><span class="oppnr">3</span><div class="oppbody">
           <div class="opptit">Connect your phone</div><div class="oppsum">Phone connected</div>
           <div class="oppcont">
             <div class="oppqr" id="oppQr"></div>
             <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
-            <div class="opprad"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button><button type="button" class="btn prim sm" data-opp="stang" id="opp2Klar" hidden>Done</button></div>
+            <div class="opprad"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button><button type="button" class="btn prim sm" data-opp="stang" id="opp3Klar" hidden>Done</button></div>
           </div></div></div>
-        <div class="oppsteg" id="opp3"><span class="oppnr">3</span><div class="oppbody">
-          <div class="opptit">Choose game mode</div><div class="oppsum" id="opp3Sum"></div><div class="oppcont" id="opp3Cont"></div></div></div>
         <div class="oppsteg" id="opp4"><span class="oppnr">4</span><div class="oppbody">
           <div class="opptit">Set up your table in the picture</div><div class="oppsum">Card direction, graveyard and library set</div>
           <div class="oppcont">
@@ -8479,8 +8482,9 @@ function renderKamPop() {
 
 /* ── Uppstarten (MES-102) ───────────────────────────────────────────
    Designen Mesa Camera Play 1a–1e: en checklista när man går in i ett spel
-   utan fungerande kamera — lek, telefon, hur kameran arbetar (Follow the
-   table rekommenderas), ett otappat kort (bara Follow the table). Stegen
+   utan fungerande kamera — lek, hur kameran arbetar (Follow the table
+   rekommenderas), telefon (bara med kamera), ett otappat kort (bara Follow
+   the table). Stegen
    läses ur samma tillstånd som resten av appen; bara lägesvalet och om
    uppstarten är klar eller avböjd minns per spel (K.oppstart), för att
    databasens förval ('skarm') inte går att skilja från ett val. Pillret
@@ -8502,7 +8506,9 @@ let oppVisat = null, oppVisatKlar = false, oppNasta = null;
    efter tio (direkt med en telefon utan library-rutan). */
 let oppProvId = null, oppProvMatt = false, oppTappSvar = null, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
 let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger } | null; kamBibStod false = telefon utan fältet
-const OPP_ORDNING = ['lek', 'tel', 'lage', 'vinkel'];
+/* Telefonen efter spelläget: den behövs bara i kamerans två lägen, och
+   Without camera stänger uppstarten innan den kommer fram. */
+const OPP_ORDNING = ['lek', 'lage', 'tel', 'vinkel'];
 const oppMinne = () => LS.get(K.oppstart, {}) || {};
 function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
 /* Uppstarten pågår (MES-122): spelets uppstart är varken klar eller avböjd.
@@ -8674,12 +8680,13 @@ function renderOppstart() {
         else { st.removeAttribute('tabindex'); st.removeAttribute('role'); st.removeAttribute('aria-expanded'); }
       }
     });
-    $('#opp4').hidden = o.lage && !bord;          // Only add new cards: inget otappat kort att visa
+    $('#opp3').hidden = !o.lage;                  // telefonen bara efter ett av kamerans lägen
+    $('#opp4').hidden = !o.lage || !bord;         // Only add new cards: inget otappat kort att visa
     const lek = mig && mig.lek;
     const s1 = lek ? `${lek.namn || 'Deck'} · ${lek.antal || 0} cards` : '';
     if ($('#opp1Sum').textContent !== s1) $('#opp1Sum').textContent = s1;
     const s3 = LAGE_NAMN[bord ? 'bord' : 'skarm'];
-    if ($('#opp3Sum').textContent !== s3) $('#opp3Sum').textContent = s3;
+    if ($('#opp2Sum').textContent !== s3) $('#opp2Sum').textContent = s3;
     /* 1: leken. Listan hämtas en gång; står lekdialogen öppen (New deck…)
        hämtas den på nytt när den stängts. */
     if (aktiv === 'lek') {
@@ -8704,7 +8711,7 @@ function renderOppstart() {
       }
       oppDiff($('#opp1Cont'), h);
     }
-    /* 2: telefonen. Steget sätter på kameran (auto) och ritar QR-koden varje
+    /* 3: telefonen. Steget sätter på kameran (auto) och ritar QR-koden varje
        gång det kommer fram (lärdomen från MES-90). */
     if (aktiv === 'tel') {
       if (prefs.autoLage !== true) { prefs.autoLage = true; savePrefs(); autoSumStarta(); setTimeout(renderMode, 0); }
@@ -8713,14 +8720,14 @@ function renderOppstart() {
       const w = $('#oppWait'), t = kamAnsluten ? 'Phone connected — scan again to switch phones' : 'Waiting for your phone…';
       w.classList.toggle('ok', kamAnsluten);
       if (w.lastElementChild.textContent !== t) w.lastElementChild.textContent = t;
-      $('#opp2Klar').hidden = !kamAnsluten;
+      $('#opp3Klar').hidden = !kamAnsluten;
     } else oppQrVisas = false;
-    /* 3: spelläget (MES-123). Kamerans två lägen under With camera — Mirror
+    /* 2: spelläget (MES-123). Kamerans två lägen under With camera — Mirror
        my table förvalt och rekommenderat — och Without camera för sig. */
     if (aktiv === 'lage') {
       if (!oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
       const opt = (v, rub, txt, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${rub}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${txt}</span></span></button>`;
-      oppDiff($('#opp3Cont'), '<div class="oppgrupp">With camera</div>'
+      oppDiff($('#opp2Cont'), '<div class="oppgrupp">With camera</div>'
         + opt('bord', LAGE_NAMN.bord, LAGE_TXT.bord, 'Recommended') + opt('skarm', LAGE_NAMN.skarm, LAGE_TXT.skarm)
         + '<div class="oppgrupp skild">Without camera</div>'
         + opt('utan', 'Without camera', 'No phone. You put your cards on the mat yourself.')
@@ -8745,7 +8752,7 @@ function renderOppstart() {
   $('#oppMatt').classList.toggle('utanbild', !bild);
   $('#oppMattVant').hidden = bild;
   if (ram && !bild) {
-    const synliga = ordning.filter(k => k !== 'vinkel' || !$('#opp4').hidden);
+    const synliga = ordning.filter((k, i) => !$('#opp' + (i + 1)).hidden);
     const m = OPP_MATT[aktiv] || OPP_MATT.vinkel;
     oppDiff($('#oppMattVant'), `${m.ikon}<em>Step ${synliga.indexOf(aktiv) + 1} of ${synliga.length}</em><b>${m.h}</b><span>${m.p}</span>${m.knapp || ''}`);
   }
@@ -8800,7 +8807,7 @@ $('#oppstart').addEventListener('click', ev => {
   else if (a === 'starta') oppStarta();
   else if (a === 'utan') oppUtan();
 });
-/* Utan kamera (foten, eller Without camera i steg 3): uppstarten stängs, och
+/* Utan kamera (foten, eller Without camera i steg 2): uppstarten stängs, och
    en kamera som bara väntade på en telefon stängs av. Pillret öppnar
    uppstarten igen. */
 function oppUtan() {
@@ -8810,7 +8817,7 @@ function oppUtan() {
 }
 $('#oppMatt').addEventListener('click', ev => {
   const b = ev.target.closest('[data-oppm]'); if (!b) return;
-  if (b.dataset.oppm === 'tel') { if (oppVisat !== 'tel' && oppNasta !== 'tel') oppVaxla($('#opp2')); return; }
+  if (b.dataset.oppm === 'tel') { if (oppVisat !== 'tel' && oppNasta !== 'tel') oppVaxla($('#opp3')); return; }
   if (b.dataset.oppm === 'vand') kamVand = (kamVand + 90) % 360; else kamSpegel = !kamSpegel;
   oppGravFlyttad = null; sparaKamOrientering(); renderMode(); ritaPbLager();
 });
