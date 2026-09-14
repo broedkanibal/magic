@@ -41,6 +41,18 @@ dev/linear-agent/installera.cjs` körts en gång (görs av Jesper).
 assignee, i ett anrop. En issue som Claude Code jobbar på ska aldrig stå kvar
 i Backlog eller Todo.
 
+### Saknas issuen, skapa den automatiskt
+
+Ber Jesper om något i chatten som inte redan finns som en Linear-issue —
+skapa automatiskt en eller flera relevanta issues kopplade till det du ska
+jobba med, utan att fråga om lov först. Sök igenom laget om du är osäker på
+om det redan finns en matchande issue innan du skapar en ny. Följer du direkt
+upp med arbetet: kör `paborjaIssue` på den (kolumn In Progress, se ovan och
+kollen i nästa avsnitt). Etikett och projekt sätts enligt reglerna nedan.
+
+Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så
+att Jesper ser dem utan att behöva leta i Linear.
+
 ### Innan en issue plockas upp ur Todo
 
 Dubbelkolla två saker **innan** `paborjaIssue` körs:
