@@ -6556,8 +6556,7 @@ function platsHtml(pl) {
     <span class="platstxt">${txt}${pl.namn ? `<i>${esc(pl.namn)}?</i>` : ''}</span></${tag}>`;
 }
 let gridStrukt = null, nyChipT = null;
-const spellSagda = new Set();          // besvärjelser mattan redan sagt till om
-const gravSagda = new Set();           // kort högvakten lagt i graveyard, redan visade (MES-85)
+const gravSagda = new Set();           // kort högvakten lagt i graveyard, redan flugna dit (MES-85)
 function renderGrid(force) {
   renderDeckKnapp();
   /* Mitt i ett drag skrivs kortens lägen direkt på elementen; en omritning
@@ -6569,7 +6568,7 @@ function renderGrid(force) {
      bild ändrades när det försvann. Mattan visar det som ett drag till
      högen: samma flygtur (flygTillGrav, innan brädet ritas om — det
      nedtonade kortet finns kvar från förra ritningen), överst i högen som i
-     flyttaTill, och en notis med ångra som ger tillbaka frågan. En gång per
+     flyttaTill. En förflyttning, ingen radering — ingen notis. En gång per
      kort, bara på mitt eget bord. */
   if (arMitt(p)) for (const c of cards.filter(c => c.gravAuto && !gravSagda.has(c.cid))) {
     gravSagda.add(c.cid);
@@ -6580,7 +6579,6 @@ function renderGrid(force) {
     cards.splice(g.length ? g[0] : cards.length, 0, c);
     if (valt) state.sel = cards.indexOf(valt);
     save();
-    toast(`${namnAv(c)} → graveyard`, 'ok', () => { delete c.zon; delete c.gravAuto; c.lyft = Date.now(); save(); renderAll(true); });
   }
   /* Bara det egna bordet får skrivas: en teammates kort är en kopia. */
   if (losBifogade(cards) && arMitt(p)) save();
@@ -6675,13 +6673,6 @@ function renderGrid(force) {
   gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
 
   renderGravHog(cards, d);
-  /* Besvärjelseregeln (MODE-3): avstämningen la ett instant/sorcery i
-     graveyard när det plockades upp; mattan säger det, med ångra. En gång
-     per kort. */
-  if (arMitt(p)) for (const c of cards) if (c.spellAuto && !spellSagda.has(c.cid)) {
-    spellSagda.add(c.cid);
-    toast(`${namnAv(c)} resolved → graveyard`, 'ok', () => { delete c.zon; delete c.spellAuto; c.ny = Date.now(); save(); renderAll(true); });
-  }
   /* "Just played" tas bort av sig självt efter 2,5 s. */
   clearTimeout(nyChipT);
   if (matLage.nyN) nyChipT = setTimeout(() => renderGrid(true), 2600);
@@ -9138,7 +9129,11 @@ function removeAt(i, msg) {
   const sel = state.sel;
   state.sel = clamp(state.sel, 0, Math.max(0, h.length - 1));
   save(); renderAll();
-  toast(msg || `${gone.name} removed`, 'ok', () => {
+  /* Ångra-notisen är till för RIKTIG borttagning ur spelet. msg används för
+     förflyttningar (→ hand or library) — de är inte en borttagning och ska
+     inte se ut som en. */
+  if (msg) return;
+  toast(`${gone.name} removed`, 'ok', () => {
     const cur = hand();
     cur.splice(Math.min(i, cur.length), 0, gone);
     state.sel = sel;
@@ -9761,35 +9756,13 @@ addEventListener('pointerup', ev => matDndSlut(ev, false));
 addEventListener('pointercancel', ev => matDndSlut(ev, true));
 addEventListener('blur', () => matDndSlut(null, true));
 addEventListener('keydown', ev => { if (ev.key === 'Escape' && dnd && dnd.drar) matDndSlut(null, true); }, true);
-/* Ångra för allt som tar ett kort från mattan: ögonblicksbilden är
-   listan med samma objekt (som #clearHand och removeAt gör), så
-   runtime-fält som spar överlever — en kopia via slimKort hade tappat
-   kamerabindningen. mutate gör förflyttningen; toastens Undo lägger
-   tillbaka. */
+/* Bara riktig borttagning ur spelet (removeAt utan msg) får en ångra-notis.
+   Förflyttningar på mattan — graveyard, exile, tillbaka i spel, bifogning —
+   är vanliga drag, inte en radering, och ska inte avbrytas av en grön
+   notis. mutate gör förflyttningen; msg finns kvar i signaturen så
+   anropsställena inte behöver ändras. */
 function matAngra(msg, mutate) {
-  const p = minSpelare() || player();
-  const FALT = ['x', 'y', 'z', 'zon', 'grp', 'gi', 'attachedTo', 'tapped', 'lyft', 'fysisk'];
-  const fore = p.cards.slice();
-  const snap = new Map(p.cards.map(c => [c, FALT.map(f => c[f])]));
-  const sel = state.sel;
   mutate();
-  /* Bara det handlingen ändrade läggs tillbaka: kort vars fält ändrats, och
-     listordningen. Två ångra-notiser i följd (ett kort till graveyard, ett
-     till exile) får då var sin handling — förut återställde den äldre allt
-     som hänt efter den också. */
-  const rorda = [...snap].filter(([c, v]) => FALT.some((f, k) => c[f] !== v[k]));
-  const ordning = fore.length !== p.cards.length || fore.some((c, i) => p.cards[i] !== c);
-  toast(msg, 'ok', () => {
-    if (ordning) {
-      const nu = p.cards.slice();
-      p.cards.length = 0;
-      for (const c of fore) p.cards.push(c);
-      for (const c of nu) if (!fore.includes(c)) p.cards.push(c);   // kort som kommit till sedan dess
-    }
-    for (const [c, v] of rorda) FALT.forEach((f, k) => { if (v[k] === undefined) delete c[f]; else c[f] = v[k]; });
-    state.sel = clamp(sel, 0, Math.max(0, p.cards.length - 1));
-    save(); renderAll(true);
-  });
 }
 
 /* ─── spelarflikar ─── */
