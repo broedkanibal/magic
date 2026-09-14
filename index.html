@@ -1507,10 +1507,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 }
 
 /* poolstatus */
-.poolrow{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--line);border-radius:var(--rs);background:var(--bg)}
-.poolrow .nm{flex:1;min-width:0}
-.poolrow .nm b{display:block;font-size:13px}
-.poolrow .nm span{font-size:11.5px;color:var(--dim2)}
 .prog{height:5px;border-radius:3px;background:#ffffff12;overflow:hidden;margin-top:8px}
 .prog i{display:block;height:100%;width:0;background:var(--acc);border-radius:3px;transition:width .2s}
 /* Obestämt läge: ett band som glider fram och tillbaka. Säger "arbetar" utan
@@ -3437,44 +3433,14 @@ body.ispel #addPlayerBtn{display:none}
       </div>
       <p class="lead" style="border-top:1px solid var(--line);padding-top:12px">
         <b>How Mesa reads a screenshot:</b> it first looks for the video panes (black gaps separate them),
-        then for dark card borders against the light table in each pane, and finally matches every hit against the set's image signatures.
+        then for dark card borders against the light table in each pane, and finally matches every hit against the cards in your deck.
         Only cards that match clearly are added automatically — the rest end up in the confirm row at the top.
         <br><br>
-        Matching happens against <b>a limited set</b> (⋯ → Card pool). That is what makes it work:
-        780 cards can be told apart visually, all 30,000 MTG cards cannot.
+        Matching happens against <b>your deck</b> (⋯ → My decks). That is what makes it work:
+        a hundred cards can be told apart visually, all 30,000 MTG cards cannot.
         Card data and images come from <a href="https://scryfall.com" target="_blank" rel="noreferrer">Scryfall</a>.
         Everything is stored in this browser only.
       </p>
-    </div>
-  </div>
-</div>
-
-<!-- ── kortpool ── -->
-<div class="ov" id="poolOv">
-  <div class="modal">
-    <header>
-      <h2>Card pool to match against</h2>
-      <button class="close" data-close="poolOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    </header>
-    <div class="body">
-      <p class="lead">Scanning matches against a <b>limited</b> set — that is why it works. 780 cards can be told apart visually; 30&nbsp;000 cannot. Pick the set you are playing with.</p>
-      <div class="presets" id="poolPresets"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input class="keyin" id="poolCode" style="flex:1" placeholder="set code, e.g. j25" spellcheck="false" autocomplete="off">
-        <button class="btn" id="poolCheck">Check</button>
-      </div>
-      <label style="display:flex;gap:9px;align-items:center;font-size:12.8px;color:var(--dim)">
-        <input type="checkbox" id="poolLands" style="accent-color:var(--acc);width:15px;height:15px">
-        Also include ordinary basic lands (Plains, Island, Swamp, Mountain, Forest) from later years
-      </label>
-      <div class="poolrow" id="poolStatus"><div class="nm"><b>No pool selected</b><span>Pick a set above.</span></div></div>
-      <div class="prog" id="poolProg" hidden><i></i></div>
-      <p class="lead" style="font-size:11.5px">The index is built once per set: ~780 card images are fetched from Scryfall, get a 528-byte image signature, and are stored locally. Takes about half a minute and never has to be redone.</p>
-    </div>
-    <div class="foot">
-      <span class="grow" id="poolInfo"></span>
-      <button class="btn" data-close="poolOv">Close</button>
-      <button class="btn prim" id="poolBuild">Build index</button>
     </div>
   </div>
 </div>
@@ -4905,7 +4871,6 @@ const IDB = (() => {
     put: rec => tx('shots', 'readwrite', s => s.put(rec)),
     del: id => tx('shots', 'readwrite', s => s.delete(id)),
     all: () => tx('shots', 'readonly', s => s.getAll()),
-    clear: () => tx('shots', 'readwrite', s => s.clear()),
     poolGet: code => tx('pool', 'readonly', s => s.get(code)),
     poolPut: rec => tx('pool', 'readwrite', s => s.put(rec)),
     poolDel: code => tx('pool', 'readwrite', s => s.delete(code)),
@@ -4957,7 +4922,6 @@ const SF = (() => {
     fuzzy: q => get('/cards/named?fuzzy=' + encodeURIComponent(q)),
     exact: q => get('/cards/named?exact=' + encodeURIComponent(q)),
     byId: id => get('/cards/' + encodeURIComponent(id)),
-    set: code => get('/sets/' + encodeURIComponent(code)),
     raw: path => get(path)
   };
 })();
@@ -6186,7 +6150,7 @@ function ladaNamngeMed(post) {
   const list = [{ name: post.name, sid: post.sid }].concat((q.cands || []).filter(x => x.name !== post.name));
   const samma = namngePend(p, q, post.name, post.sid, list);
   closeArk(); save(); resolveAll();
-  toast(samma ? `${post.name} is already on the table` : post.name, 'ok');
+  if (samma) toast(`${post.name} is already on the table`);
   renderAll();
 }
 /* Kortet ur leken på mattan, mitt under pekaren, och draget tar över.
@@ -7926,7 +7890,7 @@ function arkSvar(val, n) {
     const list = [c].concat(cands.filter(x => x !== c));
     const samma = namngePend(p, q, c.name, c.sid, list);
     closeArk(); save(); resolveAll();
-    toast(samma ? `${c.name} is already on the table` : c.name, 'ok');
+    if (samma) toast(`${c.name} is already on the table`);
     renderAll();
   }
 }
@@ -8663,7 +8627,6 @@ function oppStarta() {
   for (const id of provkortUt(senasteSpar, oppProvId)) borttagna.add(id);
   gravHandelser = [];
   oppSatt({ startat: true }); oppProvId = null; oppProvLas = null; oppTappSvar = null;
-  toast('Your table is set up', 'ok');
   renderMode();
   if (!oppstartPagar()) avstamBord(senasteSpar);
 }
@@ -8875,7 +8838,6 @@ async function bytLage(v) {
   const ok = await Moln.sattLage(spelLage.id, v).catch(() => false);
   lageByte = false;
   if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved — try again', 'err'); return; }
-  toast(`${LAGE_NAMN[v]} — ${LAGE_TXT[v][0].toLowerCase()}${LAGE_TXT[v].slice(1)}`, 'ok');
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
 /* Ett enda ställe tar emot klicken: pillret, panelen och statusfältet.
@@ -12018,22 +11980,17 @@ $('#menuBtn').onclick = ev => {
     ${spelLage ? `<hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
+    ${prefs.autoLage === true
+      ? '<button data-a="manuell">Turn off camera</button>'
+      : '<button data-a="auto">Turn on camera</button>'}
     <button data-a="lamna">Back to my games</button>
     ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">End the game</button>' : ''}` : ''}
     <hr>
-    <div class="hd">Recognition</div>
+    <div class="hd">Deck &amp; recognition</div>
     <button data-a="lek">My decks${meta(lekAktiv ? `${esc(lekAktiv.namn)} · ${n}` : 'none yet')}</button>
-    <button data-a="pool">Card pool${meta(esc(Pool.idx ? Pool.idx.code.toUpperCase() + ' · ' + Pool.idx.names.length : 'not built'))}</button>
     <button data-a="ai">AI help${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'ON' : 'READY') : aiKey() ? 'OWN KEY' : 'OFF', AI.mode === 'server' ? 'var(--green)' : null)}</button>
-    ${spelLage ? (prefs.autoLage === true
-      ? '<button data-a="manuell">Turn off camera</button>'
-      : '<button data-a="auto">Turn on camera</button>') : ''}
-    <hr>
-    <button data-a="sharelink">Copy link to the hand</button>
-    <button data-a="export">Export everything (JSON)</button>
-    <button data-a="import">Import JSON…</button>
-    <button data-a="reset" class="danger">Reset the app</button>
-    ${spelLage ? '<button data-a="loggaut">Sign out</button>' : ''}`;
+    ${spelLage ? `<hr>
+    <button data-a="loggaut">Sign out</button>` : ''}`;
   const r = $('#menuBtn').getBoundingClientRect();
   menuEl.style.top = (r.bottom + 6) + 'px';
   menuEl.style.left = 'auto';
@@ -12056,90 +12013,11 @@ menuEl.addEventListener('click', ev => {
      alltså var den oåtkomlig i exakt det läge där man behövde den.
      Sammanfattningen (visaAutoSum) är beskedet att auto är av. */
   if (a === 'manuell') stangAvAuto(true);
-  if (a === 'pool') openPool();
   if (a === 'ai') openAI();
-  if (a === 'sharelink') shareLink();
-  if (a === 'export') exportJSON();
-  if (a === 'import') $('#importInput').click();
   if (a === 'lamna') tillbakaTillLobby();
   if (a === 'avsluta') avslutaSpelet();
   if (a === 'loggaut') loggaUtHelt();
-  if (a === 'reset') {
-    ask('Every player, board and image is removed and the page reloads. This cannot be undone.',
-        { title: 'Reset the app?', ok: 'Reset', danger: true }).then(yes => {
-      if (!yes) return;
-      [K.state, K.prefs].forEach(LS.del);
-      IDB.clear().catch(() => {}).then(() => location.reload());
-    });
-  }
 });
-
-/* ─── dela / exportera ─── */
-function b64e(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
-function b64d(s) { return decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))); }
-function shareLink() {
-  const p = player();
-  if (!p.cards.length) { toast('Your hand is empty'); return; }
-  const payload = { n: p.name, c: p.cards.map(c => c.name) };
-  const url = location.origin + location.pathname + location.search + '#h=' + b64e(JSON.stringify(payload));
-  navigator.clipboard.writeText(url).then(
-    () => toast('Link copied — whoever opens it sees the hand', 'ok'),
-    () => prompt('Copy the link:', url)
-  );
-}
-function exportJSON() {
-  const data = {
-    app: 'mesa', v: 1, ts: new Date().toISOString(),
-    players: state.players.map(p => ({ name: p.name, color: p.color, cards: p.cards.map(c => c.name) }))
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'mesa-' + new Date().toISOString().slice(0, 10) + '.json';
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-  toast('Exported', 'ok');
-}
-const importInput = document.createElement('input');
-importInput.type = 'file'; importInput.accept = '.json,application/json'; importInput.id = 'importInput'; importInput.hidden = true;
-document.body.appendChild(importInput);
-importInput.onchange = async () => {
-  const f = importInput.files && importInput.files[0];
-  importInput.value = '';
-  if (!f) return;
-  /* En import bygger om spelarlistan ur en fil. I ett spel är listan
-     deltagarna på servern, och de flikar filen skulle lägga till finns
-     ingenstans annat än i det här fönstret. */
-  if (spelLage) { toast('Import only works outside a game', 'err'); return; }
-  try {
-    const d = JSON.parse(await f.text());
-    if (!d || !Array.isArray(d.players)) throw 0;
-    d.players.forEach((pp, i) => {
-      const p = addPlayer(pp.name || 'Imported ' + (i + 1));
-      p.color = pp.color || p.color;
-      (pp.cards || []).forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
-    });
-    save(); renderAll(true); resolveAll();
-    toast(`Imported ${d.players.length} players`, 'ok');
-  } catch (e) { toast('Could not read the file', 'err'); }
-};
-async function importFromHash() {
-  const m = /[#&]h=([^&]+)/.exec(location.hash || '');
-  if (!m) return;
-  history.replaceState(null, '', location.pathname + location.search);
-  try {
-    const d = JSON.parse(b64d(m[1]));
-    if (!d || !Array.isArray(d.c) || !d.c.length) return;
-    if (spelLage) return;                 // en delad hand är en egen flik, och de finns bara lokalt
-    if (!await ask(`"${d.n || 'Shared'}" with ${d.c.length} cards will be added as a new player.`,
-                   { title: 'Open shared hand?', ok: 'Add' })) return;
-    /* Namnet kommer ur en länk någon annan skickat. Det skrivs alltid ut
-       escapat, men det ska inte kunna vara tusen tecken långt heller. */
-    const p = addPlayer(String(d.n || 'Shared hand').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 24) || 'Shared hand');
-    d.c.forEach(n => p.cards.push({ cid: uid(), name: String(n), flipped: 0 }));
-    save(); renderAll(true); resolveAll();
-  } catch (e) { /* trasig länk — strunt i det */ }
-}
 
 /* ─── globala tangenter ─── */
 const isTyping = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -12587,19 +12465,12 @@ async function addShot(blob, tillagg, tyst) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   KORTPOOL — bildsignaturer för ett a limited set.
-   Poolen måste vara liten för att matchningen ska fungera: ~780 kort
-   går att skilja åt visuellt, alla 30 000 MTG-kort gör det inte.
+   KORTPOOL — bildsignaturer för spelarens lek (byggLekPool).
+   Poolen måste vara liten för att matchningen ska fungera: en lek går
+   att skilja åt visuellt, alla 30 000 MTG-kort gör det inte.
    ══════════════════════════════════════════════════════════════════ */
-const POOL_PRESETS = [
-  { code: 'j25', name: 'Foundations Jumpstart' },
-  { code: 'fdn', name: 'Foundations' },
-  { code: 'jmp', name: 'Jumpstart' },
-  { code: 'j22', name: 'Jumpstart 2022' }
-];
 const Pool = {
   idx: null,
-  building: false,
   async load(code) {
     try {
       const rec = await IDB.poolGet(code);
@@ -12710,12 +12581,6 @@ const Ref = {
     if (Pool.idx && Pool.idx.code === kod) { const ren = await Pool.load(kod); Pool.idx = ren || null; }
   }
 };
-/* Basic lands ligger på bordet i varje spel men kommer sällan från samma set
-   som resten. Ett Foundations Jumpstart-set har bara tre konstverk per
-   landskap, så ett Island från ett annat år matchar inte. Därför hämtas
-   aktuella landskapskonstverk separat och läggs till i poolen. */
-const LAND_QUERY = 'type:basic -is:digital -is:funny year>=2023';
-
 async function fetchQuery(q, onProg, seen, cards, label, order) {
   /* order 'released' ger nyaste tryckningen först — det som ligger på ett
      bord i dag är oftare nytt än gammalt, och taket per namn tar de första. */
@@ -12735,36 +12600,9 @@ async function fetchQuery(q, onProg, seen, cards, label, order) {
   }
 }
 
-async function buildPool(code, onProg) {
-  const meta = await SF.set(code);
-  const cards = [], seen = new Set();
-  await fetchQuery('set:' + code, onProg, seen, cards, meta.name || code);
-  if (prefs.lands !== false) {
-    try {
-      const before = cards.length;
-      await fetchQuery(LAND_QUERY, onProg, seen, cards, 'basic lands');
-      // Tak per landskapstyp: fler konstverk ger inte bättre träffar, bara
-      // en större pool som alla andra kort får konkurrera med.
-      const perName = new Map(), keep = cards.slice(0, before);
-      for (let i = before; i < cards.length; i++) {
-        const c = cards[i], k = perName.get(c.name) || 0;
-        if (k >= 45) continue;
-        perName.set(c.name, k + 1);
-        keep.push(c);
-      }
-      cards.length = 0;
-      for (const c of keep) cards.push(c);
-    } catch (e) { /* utan landskap fungerar resten ändå */ }
-  }
-  if (!cards.length) throw new Error('This set has no cards with images.');
-  return byggPoolAv(cards, code, meta.name || code.toUpperCase(), onProg, prefs.lands !== false);
-}
-
-/* Bygger igenkänningspoolen ur en färdig kortlista. Setpoolen och lekpoolen
-   delar den här delen — det enda som skiljer dem är var listan kommer ifrån:
-   ett set från Scryfall, eller spelarens egen lek. Med leken som pool blir
-   igenkänningen något helt annat än med ett set: ett hundratal kandidater i
-   stället för åttahundra, och de kort som faktiskt kan ligga på bordet. */
+/* Bygger igenkänningspoolen ur en färdig kortlista — spelarens lek
+   (byggLekPool): ett hundratal kandidater, de kort som faktiskt kan ligga
+   på bordet. */
 async function byggPoolAv(cards, code, setName, onProg, lands) {
   const D = Matcher.DESC;
   const descs = new Int8Array(cards.length * D);
@@ -12883,12 +12721,17 @@ async function byggLekPoolRa(lek, userId, onProg) {
   cards.push({ id: 'baksida', name: BAKSIDA_NAMN, small: BAKSIDA });
   return byggPoolAv(cards, code, 'My deck', onProg || (() => {}), true);
 }
-async function ensurePool(onProg) {
-  const code = prefs.pool || 'j25';
-  if (Pool.idx && Pool.idx.code === code) return Pool.idx;
-  const cached = await Pool.load(code);
-  if (cached) return cached;
-  return buildPool(code, onProg || (() => {}));
+/* Datorns avläsningar — kortikonen, en inklistrad bild, telefonens
+   skanning — känner igen mot samma pool som kameran: spelarens lek. */
+async function ensureLekPool(onProg) {
+  const mig = spelLage && minSpelare();
+  const id = (mig && mig.lekId) || (lekAktiv && lekAktiv.id);
+  if (!id) return null;
+  if (Pool.idx && Pool.idx.code === 'lek:' + id && lekAktiv && lekAktiv.id === id
+      && (Pool.idx.ts || 0) >= (lekAktiv.ts || 0)) return Pool.idx;
+  const lek = await Moln.hamtaLekRad(id).catch(() => null);
+  if (!lek || !lek.kort || !lek.kort.length) return null;
+  return byggLekPool(lek, id, onProg || (() => {}));
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -13295,17 +13138,16 @@ async function analyzeShot(shotId) {
     await tick();
     const img = await loadImage(mem.url, false);
 
-    if (!Pool.idx || Pool.idx.code !== (prefs.pool || 'j25')) {
-      anEl.title.textContent = 'Preparing the card database';
-      anEl.note.textContent = 'Done once — then stored in the browser';
-      await ensurePool(p => {
-        if (p.phase === 'list') anStep(`Fetching the card list from Scryfall… ${p.done} cards${p.label ? ' (' + p.label + ')' : ''}`);
-        else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
-      });
-      anEl.title.textContent = spelLage ? 'Reading your board…' : 'Reading the screenshot…';
-      anEl.note.textContent = '';
-      anBar(0);
-    }
+    const lekPool = await ensureLekPool(p => {
+      anEl.title.textContent = 'Learning your deck';
+      anEl.note.textContent = 'Done once per deck — then stored in the browser';
+      if (p.phase === 'list') anStep(`Fetching the deck's artwork from Scryfall… ${p.done} cards`);
+      else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
+    });
+    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (⋯ → My decks)', 'err'); return 0; }
+    anEl.title.textContent = spelLage ? 'Reading your board…' : 'Reading the screenshot…';
+    anEl.note.textContent = '';
+    anBar(0);
     if (cancelAnalyze) return;
 
     /* I ett spel är spelarna inloggade människor med egna kameror. Då finns
@@ -13463,16 +13305,15 @@ async function analyzeExtra(shotId, tyst) {
     await tick();
     const img = await loadImage(mem.url, false);
 
-    if (!Pool.idx || Pool.idx.code !== (prefs.pool || 'j25')) {
-      anEl.title.textContent = 'Preparing the card database';
-      anEl.note.textContent = 'Done once — then stored in the browser';
-      await ensurePool(p => {
-        if (p.phase === 'list') anStep(`Fetching the card list from Scryfall… ${p.done} cards${p.label ? ' (' + p.label + ')' : ''}`);
-        else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
-      });
-      anEl.title.textContent = 'Reading the image…';
-      anEl.note.textContent = ''; anBar(0);
-    }
+    const lekPool = await ensureLekPool(p => {
+      anEl.title.textContent = 'Learning your deck';
+      anEl.note.textContent = 'Done once per deck — then stored in the browser';
+      if (p.phase === 'list') anStep(`Fetching the deck's artwork from Scryfall… ${p.done} cards`);
+      else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
+    });
+    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (⋯ → My decks)', 'err'); return 0; }
+    anEl.title.textContent = 'Reading the image…';
+    anEl.note.textContent = ''; anBar(0);
     if (cancelAnalyze) return 0;
 
     const iw = img.naturalWidth, ih = img.naturalHeight;
@@ -14365,7 +14206,7 @@ function openPicker(kind, id) {
   SW.out = { results: (item.cands || []).map(c => ({ name: c.name, id: c.sid, score: c.score })), confidence: 1 };
   scanPanel.classList.add('open');
   $('#shotOv').classList.add('picking');
-  $('#scanMeta').textContent = (prefs.pool || 'j25').toUpperCase();
+  $('#scanMeta').textContent = lekAktiv ? lekAktiv.namn : '';
   $('#pickImg').src = cropFor(item.cid || item.id, item.box, item.rot, 260) || '';
   $('#pickSearch').value = '';
   renderCands();
@@ -14381,11 +14222,11 @@ async function scanAt(box, hint) {
   SW.box = box; SW.target = { kind: 'new' }; SW.ai = null;
   scanPanel.classList.add('open');
   $('#shotOv').classList.add('picking');
-  $('#scanMeta').textContent = (prefs.pool || 'j25').toUpperCase();
+  $('#scanMeta').textContent = lekAktiv ? lekAktiv.namn : '';
   $('#pickImg').src = makeCrop(swImg, box, hint || 0, 260) || '';
   $('#pickSearch').value = '';
   candList.innerHTML = '';
-  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Searching…' : 'No card pool built — type the name instead.';
+  scanNoteEl.innerHTML = Pool.idx ? '<span class="spin"></span> Searching…' : 'No deck to match against — type the name instead.';
   $('#scanSkip').hidden = true;
   $('#scanAI').hidden = !aiEnabled();
   $('#scanTitle').textContent = 'Which card is this?';
@@ -14527,7 +14368,7 @@ function applyPick(name, sid, cands) {
   }
   save();
   resolveAll();                     // rättar även stavning till kortets riktiga namn
-  toast(sammaKort ? `${name} is already on the board` : name, 'ok');
+  if (sammaKort) toast(`${name} is already on the board`);
   if (SW.queue) SW.qi++;
   closeScan();
   renderAll();
@@ -14636,92 +14477,6 @@ function shotKey(ev) {
   else if (k.toLowerCase() === 's') { ev.preventDefault(); closeShot(); }
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   INSTÄLLNINGAR — kortpool och (valfritt) Claude
-   ══════════════════════════════════════════════════════════════════ */
-let poolCode = prefs.pool || 'j25';
-function openPool() {
-  openOv('poolOv');
-  $('#poolCode').value = poolCode;
-  $('#poolLands').checked = prefs.lands !== false;
-  renderPoolPresets();
-  showPoolStatus();
-}
-function renderPoolPresets() {
-  $('#poolPresets').innerHTML = POOL_PRESETS.map(p =>
-    `<button class="btn sm${p.code === poolCode ? ' on' : ''}" data-pc="${esc(p.code)}">${esc(p.name)}</button>`).join('');
-}
-$('#poolPresets').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-pc]');
-  if (!b) return;
-  poolCode = b.dataset.pc;
-  $('#poolCode').value = poolCode;
-  renderPoolPresets(); showPoolStatus();
-});
-$('#poolCode').addEventListener('input', () => {
-  poolCode = $('#poolCode').value.trim().toLowerCase();
-  renderPoolPresets(); showPoolStatus();
-});
-$('#poolCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('#poolBuild').click(); });
-async function showPoolStatus() {
-  const box = $('#poolStatus');
-  const rec = (Pool.idx && Pool.idx.code === poolCode) ? Pool.idx : await IDB.poolGet(poolCode).catch(() => null);
-  if (rec && rec.names) {
-    const active = prefs.pool === poolCode;
-    box.innerHTML = `<div class="nm"><b>${esc(rec.setName)} ${active ? '<span style="color:var(--green)">· in use</span>' : ''}</b>
-      <span>${rec.names.length} cards indexed</span></div>
-      ${active ? '' : '<button class="btn sm" id="poolUse">Use</button>'}
-      <button class="btn sm danger" id="poolDrop">Remove</button>`;
-    $('#poolBuild').textContent = 'Rebuild';
-    const u = $('#poolUse');
-    if (u) u.onclick = async () => {
-      prefs.pool = poolCode; savePrefs();
-      await Pool.load(poolCode);
-      showPoolStatus(); renderAll();
-      toast('Using ' + Pool.idx.setName, 'ok');
-    };
-    $('#poolDrop').onclick = async () => {
-      const wasActive = !!(Pool.idx && Pool.idx.code === poolCode);
-      const rec = wasActive ? Pool.idx : await IDB.poolGet(poolCode).catch(() => null);
-      await IDB.poolDel(poolCode).catch(() => {});
-      if (wasActive) Pool.idx = null;
-      showPoolStatus(); renderAll();
-      toast('The index for ' + poolCode.toUpperCase() + ' removed', 'ok', rec ? async () => {
-        await IDB.poolPut(rec).catch(() => {});
-        if (wasActive) Pool.idx = rec;
-        showPoolStatus(); renderAll();
-      } : null);
-    };
-    return;
-  }
-  box.innerHTML = `<div class="nm"><b>${esc(poolCode.toUpperCase())}</b><span>No index built yet — it's built automatically on the next read.</span></div>`;
-  $('#poolBuild').textContent = 'Build now';
-}
-$('#poolLands').onchange = () => { prefs.lands = $('#poolLands').checked; savePrefs(); showPoolStatus(); };
-$('#poolCheck').onclick = async () => {
-  $('#poolInfo').textContent = 'Checking…';
-  try { const m = await SF.set(poolCode); $('#poolInfo').textContent = `${m.name} — ${m.card_count} cards`; }
-  catch (e) { $('#poolInfo').textContent = 'Unknown set code.'; }
-};
-$('#poolBuild').onclick = async () => {
-  if (Pool.building) return;
-  Pool.building = true;
-  const prog = $('#poolProg'), bar = $('#poolProg i'), btn = $('#poolBuild');
-  prog.hidden = false; bar.style.width = '0%'; btn.disabled = true;
-  try {
-    const rec = await buildPool(poolCode, p => {
-      if (p.phase === 'list') $('#poolInfo').textContent = `Card list: ${p.done}${p.label ? ' — ' + p.label : ''}`;
-      else { bar.style.width = Math.round(100 * p.done / p.total) + '%'; $('#poolInfo').textContent = `Image signatures ${p.done} / ${p.total}`; }
-    });
-    prefs.pool = poolCode; savePrefs();
-    $('#poolInfo').textContent = '';
-    toast(`${rec.setName}: ${rec.names.length} cards`, 'ok');
-    showPoolStatus(); renderAll();
-  } catch (e) {
-    $('#poolInfo').textContent = 'Failed: ' + (e.message || 'unknown error');
-  } finally { Pool.building = false; btn.disabled = false; prog.hidden = true; }
-};
-
 /* ── Claude (valfritt, egen nyckel) ── */
 /* ══════════════════════════════════════════════════════════════════
    AI-HJÄLP
@@ -14781,7 +14536,6 @@ $('#aiSave').onclick = () => {
   savePrefs();
   $('#scanAI').hidden = !aiEnabled();
   closeOv('aiOv');
-  toast('Saved', 'ok');
 };
 $('#aiForget').onclick = () => {
   LS.del(K_AI); prefs.aiAuto = false; savePrefs();
@@ -20913,16 +20667,7 @@ async function portalStart() {
     if (stada) state.players.forEach(p => { p.shots = p.shots.filter(id => shotMem.has(id)); });
   } catch (e) { toast('Saved screenshots could not be read', 'err'); }
 
-  /* Setpoolen för skärmdumpar. Telefonen (kameran öppnades ovan) läser
-     aldrig skärmdumpar — dess pool är lekens (byggKamPool) — så den slipper
-     läsningen. */
-  if (!kameraEnhet) try {
-    const rec = await idbTimeout(IDB.poolGet(prefs.pool || 'j25'), 4000);
-    if (rec && rec.names && rec.names.length && rec.v >= 5) Pool.idx = rec;   // äldre pooler saknar detektormallen
-  } catch (e) { /* poolen byggs om vid första avläsningen */ }
-
   renderAll(true);
-  importFromHash();
   resolveAll();
   matResize();
 })();
