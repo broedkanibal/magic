@@ -125,10 +125,15 @@ async function hittaProjekt(teamId, projekt) {
   return p.id;
 }
 
+/* Issues som Claude Code skapar i det här repot hör till Mesa Magic — se
+   CLAUDE.md. */
+const PROJEKT_FORVAL = 'Mesa Magic';
+
 /* status: lagets state-typ — 'backlog', 'unstarted' (Todo), 'started' (In
    Progress) … Utelämnad får issuen lagets förval (Backlog). projekt: namn
-   eller id, se hittaProjekt; utelämnat hamnar issuen utanför alla projekt. */
-async function skapaIssue({ teamId, title, description, etiketter, status, projekt, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
+   eller id, se hittaProjekt; utelämnat blir det Mesa Magic, och null lägger
+   issuen utanför alla projekt. */
+async function skapaIssue({ teamId, title, description, etiketter, status, projekt = PROJEKT_FORVAL, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
   const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
   const labelIds = await hittaEtiketter(teamId, etiketter);
   const stateId = status ? await hittaState(teamId, status) : undefined;

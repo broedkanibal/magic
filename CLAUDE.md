@@ -120,5 +120,6 @@ projektvyn. Ett annat projekt bara om Jesper uttryckligen säger det i
 chatten.
 
 Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature'], status:
-'unstarted', projekt: 'Mesa Magic' })` — `'unstarted'` är Todo. Med
-MCP-kopplingen: `labels`, `state: "Todo"` och `project` i `save_issue`.
+'unstarted' })` — `'unstarted'` är Todo, och projektet blir Mesa Magic av
+sig självt (förval i klienten). Med MCP-kopplingen finns inget förval: sätt
+`labels`, `state: "Todo"` och `project: "Mesa Magic"` i `save_issue`.

@@ -62,8 +62,8 @@ const agent = require('./dev/linear-agent/klient.cjs');
 // Skapa en issue. Förval: assignee = Jesper, delegate = agenten.
 // etiketter: namn, slås upp i Linear (okänt namn = fel). status: state-typ —
 // 'unstarted' = Todo, 'backlog' = Backlog. projekt: namn eller id (okänt
-// namn = fel); utan det hamnar issuen utanför alla projekt. Vilken etikett,
-// status och vilket projekt som gäller står i CLAUDE.md.
+// namn = fel); förval 'Mesa Magic', null = utanför alla projekt. Vilken
+// etikett, status och vilket projekt som gäller står i CLAUDE.md.
 const issue = await agent.skapaIssue({
   teamId: '...', title: '...', description: '...',
   etiketter: ['Bug'], status: 'unstarted', projekt: 'Mesa Magic',
