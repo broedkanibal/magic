@@ -444,7 +444,7 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppsteg.done:not(.active):hover .opptit::after,.oppsteg.done:not(.active):focus-visible .opptit::after{opacity:1}
 .oppsteg.done.active .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
 .oppsteg .oppcont{cursor:auto}
-.oppcont{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.oppcont{display:flex;flex-direction:column;gap:16px;margin-top:12px}
 .opptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
 .opptxt b{color:var(--txt);font-weight:600}
 .oppopt{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);text-align:left;cursor:pointer;font:inherit}
@@ -744,8 +744,10 @@ body.tomhand .kolmark{display:none}
 .card.tappad img{filter:brightness(.86) saturate(.94)}
 /* Namnetiketten hör till den upprätta läsriktningen; på ett tappat kort
    väntar den på hover-pillen (M6). */
-.card:hover{box-shadow:0 14px 26px -8px #000e}
-.card.held{transition:none;box-shadow:0 26px 40px -12px #000f;cursor:grabbing}
+.card:hover{box-shadow:0 14px 26px -8px #000e;transform:scale(1.02)}
+.card.tappad:hover{transform:rotate(90deg) scale(1.02)}
+.card.held{transition:none;box-shadow:0 26px 40px -12px #000f;cursor:grabbing;transform:scale(1.05)}
+.card.tappad.held{transform:rotate(90deg) scale(1.05)}
 /* Målhögen under ett drag: accentram med tonad insida. Efter hover-ringen i
    ordningen, så att den vinner när pekaren står över målet. */
 .card.joinmal::before{
@@ -8550,7 +8552,7 @@ const OPP_SIDA = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none" st
 const oppIkon = inre => `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inre}</svg>`;
 const OPP_MATT = {
   lek: { ikon: oppIkon('<rect x="4" y="6" width="11" height="15" rx="1.8"/><path d="M8 3h10.2A1.8 1.8 0 0 1 20 4.8V17"/>'), h: 'Pick your deck',
-    p: 'The camera only looks for cards in the deck you play with. Pick it on the right.' },
+    p: 'Only cards from the deck you pick will be recognized once your phone is connected. Pick it on the right.' },
   tel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: 'Connect your phone',
     p: "Scan the code on the right with your phone's camera. The phone's picture shows up here." },
   lage: { ikon: oppIkon('<path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/>'), h: 'Choose game mode',
@@ -8699,13 +8701,13 @@ function renderOppstart() {
       }
       let h;
       if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
-      else if (!oppLekar.length) h = '<p class="opptxt">The camera only looks for cards in the deck you play with. You have no decks yet — add your cards first.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="nylek">New deck…</button></div>';
+      else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized once your phone is connected. You have no decks yet — add your cards first.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="nylek">New deck…</button></div>';
       else {
         if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal))
           oppLekVal = mig && oppLekar.some(l => l.id === mig.lekId) ? mig.lekId
             : lekAktiv && oppLekar.some(l => l.id === lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
         const val = oppLekar.find(l => l.id === oppLekVal);
-        h = '<p class="opptxt">The camera only looks for cards in the deck you play with.</p>'
+        h = '<p class="opptxt">Only cards from the deck you pick will be recognized once your phone is connected.</p>'
           + oppLekar.map(l => `<button type="button" class="oppopt${l.id === oppLekVal ? ' on' : ''}" data-opplek="${esc(l.id)}"><span class="radio"></span><span class="oppbody"><b><span class="pips">${pipsHtml(l.farger)}</span>${esc(l.namn)}</b></span><span class="oppmeta">${l.antal || 0} cards</span></button>`).join('')
           + `<div class="opprad"><button type="button" class="btn prim sm" data-opp="spela">Play with ${esc(val.namn)}</button><button type="button" class="btn ghost sm" data-opp="nylek">New deck…</button></div>`;
       }
