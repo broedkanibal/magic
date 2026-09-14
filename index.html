@@ -800,6 +800,11 @@ body.lasvy .card{cursor:default}
 .card .bar{position:absolute;left:0;right:0;bottom:0;height:44px;border-radius:0 0 10px 10px;background:linear-gradient(#0000,#000b);pointer-events:none}
 .kwkort{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;pointer-events:none;z-index:3}
 .kwkort b{padding:2px 6px;font:700 9px/1.3 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:#e7ecf4;background:#0b1017e8;border:1px solid #3a4658;border-radius:4px;white-space:nowrap}
+/* Ord som ett bifogat kort ger värden (MES-127): bifogningens bärnsten och en
+   länk, så att de skiljs från de tryckta. Krockar orden med P/T-brickan lyfts
+   kolumnen ovanför den (kwlyft, räknas i ordKrockar). */
+.kwkort b.giv{display:flex;align-items:center;gap:3px;color:#ffd98a;background:#1a1408f0;border-color:#8a5d10}
+.card.kwlyft .kwkort{bottom:32px}
 .pt{
   position:absolute;right:6px;bottom:6px;z-index:3;pointer-events:none;white-space:nowrap;
   display:flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;
@@ -809,6 +814,8 @@ body.lasvy .card{cursor:default}
 .pt.boost > b:first-child{color:#7e8ea6;font-weight:600}
 .pt i{font-style:normal;color:#66748a;font-size:11px}
 .pt .tot{color:#7fd6a2}
+.pt.minus{border-color:#6b2f36}
+.pt.minus .tot{color:#ff9099}
 .pt.loy{color:#dcc7ff;border-color:#5c4a80}
 /* Tappat: kortets +90° och brickans −90° ger upprätt text. Rotationen görs
    kring hörnet (inte mitten, som skjuter ut den breda sidan), med en
@@ -817,6 +824,7 @@ body.lasvy .card{cursor:default}
    som visuellt är nere till höger (lokalt uppe till höger). */
 .card.tappad .kwkort{left:auto;right:6px;bottom:6px;transform-origin:100% 100%;transform:rotate(-90deg) translateX(100%)}
 .card.tappad .pt{right:6px;bottom:auto;top:6px;transform-origin:100% 0;transform:rotate(-90deg) translateY(-100%)}
+.card.tappad.kwlyft .kwkort{right:32px}
 /* Hover-pillen: ett syskon till kortet i brädlagret, aldrig roterat, skalat
    mot zoomen så att den har samma storlek på skärmen som vid 100 %.
    ::before är en osynlig marginal runt den och en brygga ner till kortet
@@ -879,13 +887,9 @@ body.lasvy .card{cursor:default}
 .ctrdone:hover{background:var(--bg4)}
 
 /* Bifogade kort (equipment, auror) ligger bakom sin värd med titelraden
-   uppstickande; värden bär en bricka med antalet. */
+   uppstickande. Vad de ger står i värdens ord och P/T-bricka (MES-127);
+   titelraderna visar redan att något sitter på, så en antalsbricka behövs inte. */
 .card.bifogad img{filter:brightness(.85)}
-.bifbricka{
-  position:absolute;right:-4px;bottom:-6px;z-index:4;
-  padding:1px 5px;border-radius:9px;background:var(--bg4);border:1px solid var(--panelram2);
-  font:600 9px/1.5 var(--sans);color:#cfd9e8;pointer-events:none;
-}
 
 /* Markerade kort (lassot, ⇧-klick). Det finns inget valt kort längre
    (MES-118) — kortkommandona verkar på kortet under pekaren. Ringen ritas
@@ -1640,7 +1644,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
    heller synas.
    ═══════════════════════════════════════════════════════════════════ */
 body.lasvy .gravbadge,
-body.lasvy .bifbricka[data-bif],
 body.lasvy #clearHand,
 body.lasvy .searchwrap,
 body.lasvy #bulkBtn,
@@ -6368,7 +6371,7 @@ function flyttaTill(i, zon) {
    samma element roterat 90° (CSS .tappad). pos överstyr kortets egna x/y/z —
    det är så bifogade kort ritas bakom sin värd. En div, inte en button:
    knapparna i hover-raden ligger inuti, och HTML tillåter inte en knapp i
-   en knapp. */
+   en knapp. bif: korten som sitter på värden — det de ger ritas på den. */
 function kortHtml(e, i, extra, pos, bif) {
   const card = cardOf(e);
   const st = cardStatus(e);
@@ -6384,21 +6387,27 @@ function kortHtml(e, i, extra, pos, bif) {
   const sz = matStorlek(e);
   const x = pos ? pos.x : e.x, y = pos ? pos.y : e.y, z = pos ? pos.z : e.z;
   const dom = kamDom(e);
+  /* Nyckelorden ur Scryfall och de som bifogade kort ger (MES-127), upp till
+     tre + "+N"; land och olästa kort får inga. P/T som bas → total när
+     counters eller bifogade kort ändrar den. */
+  const f = card && card.faces[fi] || null;
+  const eff = bifEffekt(bif);
+  const visaOrd = !land && e.lyft == null && !!card;
+  const tryckt = visaOrd ? (card.kw || []) : [];
+  const givna = visaOrd ? eff.kw.filter(w => !tryckt.some(k => k.toLowerCase() === w.toLowerCase())) : [];
+  const ord = ordTak(tryckt, givna);
+  const pv = e.lyft != null || land ? null : ptVarden(e, f, eff);
+  const kwHtml = !ord.length ? '' : `<span class="kwkort">${ord.map(o => o.g ? `<b class="giv">${KEDJA}${esc(o.t)}</b>` : `<b>${esc(o.t)}</b>`).join('')}</span>`;
   const kl = ['card', land ? 'land' : '', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', e.lyft != null ? 'lyft' : '', dom ? 'dom-' + dom : '',
-              ark && ark.cid === e.cid ? 'aktuell' : '', extra || ''].filter(Boolean).join(' ');
-  /* Nyckelorden ur Scryfall, upp till tre + "+N"; land och olästa kort
-     får inga. P/T som bas → total när kortet har counters. */
-  const f = card && card.faces[fi] || null;
-  const ord = (land || e.lyft != null || !card) ? [] : (card.kw || []);
-  const kwHtml = !ord.length ? '' : `<span class="kwkort">${ord.slice(0, 3).map(k => `<b>${esc(k)}</b>`).join('')}${ord.length > 3 ? `<b>+${ord.length - 3}</b>` : ''}</span>`;
+              ark && ark.cid === e.cid ? 'aktuell' : '', ordKrockar(ord, pv, e.tapped ? sz.h : sz.w) ? 'kwlyft' : '',
+              extra || ''].filter(Boolean).join(' ');
   return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}">
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
     <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
-    ${kwHtml}${e.lyft != null || land ? '' : ptTile(e, f)}
+    ${kwHtml}${ptTile(pv)}
     ${kortChip(e)}
-    ${bif ? `<span class="bifbricka" data-bif="${esc(e.cid)}" title="${bif} attached ${bif === 1 ? 'card' : 'cards'}">+${bif}</span>` : ''}
   </div>`;
 }
 /* Var ett bifogat kort ligger: bakom sin värd, förskjutet så att titelraden
@@ -6406,18 +6415,85 @@ function kortHtml(e, i, extra, pos, bif) {
 function bifogadPlats(vard, k) {
   return { x: (vard.x || 0) + MATTA.XSTEP * (k + 1), y: (vard.y || 0) - 44 * (k + 1), z: Math.max(1, (vard.z || 1) - (k + 1)) };
 }
-/* P/T-brickan: basen i vitt; med counters basen i grått, en pil och totalen
-   i grönt. Scryfall ger styrka och tålighet som STRÄNGAR ('2', '*', '1+*'):
-   totalen räknas bara när båda är tal, annars står basen som den är. En
-   planeswalker visar sin lojalitet i stället. */
-function ptTile(e, f) {
-  if (!f) return '';
+/* Vad bifogade kort ger sin värd (MES-127): P/T och nyckelord ur oracle-
+   texten. Två mönster räcker för de flesta utrustningar och auror —
+   "Equipped/Enchanted creature gets +X/+Y" och "… has A, B and C", där orden
+   prövas mot en lista. En mening med villkor ("as long as", "for each", X …)
+   lämnas bort: appen gissar inte. Ett nedvänt kort ger ingenting synligt. */
+const GIVBARA = ['flying', 'first strike', 'double strike', 'deathtouch', 'lifelink', 'vigilance', 'trample', 'haste',
+  'reach', 'menace', 'hexproof', 'indestructible', 'defender', 'shroud', 'intimidate', 'fear'];
+const KEDJA = '<svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 9.5l3-3"/><path d="M7 4.5l1.2-1.2a2.8 2.8 0 014 4L11 8.5"/><path d="M9 11.5l-1.2 1.2a2.8 2.8 0 01-4-4L5 7.5"/></svg>';
+function bifEffekt(bif) {
+  const ut = { p: 0, t: 0, kw: [] };
+  const tal = x => Number(x.replace('−', '-'));
+  for (const a of bif || []) {
+    const c = cardOf(a);
+    if (!c || (a.flipped && !arDfc(c))) continue;
+    const f = c.faces[a.flipped ? 1 : 0] || c.faces[0];
+    const text = ((f && f.oracle) || '').replace(/\([^)]*\)/g, '');
+    for (const mening of text.split(/\n|(?<=\.)\s+/)) {
+      const m = mening.trim();
+      if (!/^(Equipped|Enchanted) creature\b/i.test(m)) continue;
+      if (/\b(as long as|for each|where|if|unless|until|during)\b/i.test(m) || /\bX\b/.test(m)) continue;
+      const pt = m.match(/\bgets ([+\-−]\d+)\/([+\-−]\d+)/);
+      if (pt) { ut.p += tal(pt[1]); ut.t += tal(pt[2]); }
+      const har = m.match(/\bhas ([^.]+)/);
+      if (har) for (const del of har[1].split(/,\s*(?:and\s+)?|\s+and\s+/)) {
+        const w = del.trim().toLowerCase();
+        if (GIVBARA.includes(w) && !ut.kw.some(k => k.toLowerCase() === w)) ut.kw.push(w[0].toUpperCase() + w.slice(1));
+      }
+    }
+  }
+  return ut;
+}
+/* Taket är tre ord + "+N". Är de fler viks tryckta ord ihop före givna — det
+   ett bifogat kort ger är det nya, och ska aldrig gömmas. */
+function ordTak(tryckt, givna) {
+  const alla = tryckt.length + givna.length;
+  if (alla <= 3) return [...tryckt.map(t => ({ t })), ...givna.map(t => ({ t, g: 1 }))];
+  const g = givna.slice(0, 3), t = tryckt.slice(0, 3 - g.length);
+  return [...t.map(t => ({ t })), { t: '+' + (alla - g.length - t.length) }, ...g.map(t => ({ t, g: 1 }))];
+}
+/* Får orden stå bredvid P/T-brickan? Brickan är högre än en ordrad, så både
+   nedersta ordet och ordet ovanför måste rymmas bredvid den — annars lyfts
+   kolumnen ovanför brickan (K2 i MES-127). Bredderna mäts med canvas i samma
+   typsnitt som CSS:en: ingen layout behövs, och det går också när brädet är
+   dolt. Ett tappat kort har orden längs långsidan. */
+let ordMatt = null;
+function ordKrockar(ord, pv, bredd) {
+  if (!ord.length || !pv) return false;
+  if (!ordMatt) {
+    const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    ordMatt = { g: document.createElement('canvas').getContext('2d'), sans: v('--sans'), mono: v('--mono') };
+  }
+  const { g, sans, mono } = ordMatt;
+  const matt = (text, font, spar) => { g.font = font; return g.measureText(text).width + spar * text.length; };
+  const ordB = o => matt(o.t.toUpperCase(), `700 9px ${sans}`, 0.7) + 14 + (o.g ? 11 : 0);
+  const ptB = 16 + matt(pv.bas, `700 13.5px ${mono}`, 0)
+    + (pv.tot ? 8 + matt('→', `11px ${mono}`, 0) + matt(pv.tot, `700 13.5px ${mono}`, 0) : 0);
+  const PTH = 13.5 * 1.25 + 6, RAD = 9 * 1.3 + 6 + 3;          // brickans höjd, ordradens steg
+  return ord.slice().reverse().some((o, j) => j * RAD < PTH && 6 + ordB(o) + 3 + ptB + 6 > bredd - 2);
+}
+/* P/T-brickan: basen i vitt; med counters eller bifogade kort basen i grått,
+   en pil och totalen — grön, röd när något drar ner den. Scryfall ger styrka
+   och tålighet som STRÄNGAR ('2', '*', '1+*'): totalen räknas bara när båda
+   är tal, annars står basen som den är. En planeswalker visar sin lojalitet
+   i stället. Utrustningens +1/+1 är ingen counter: den räknas in här men
+   läggs aldrig på kortet, och försvinner när utrustningen flyttas. */
+function ptVarden(e, f, eff) {
+  if (!f) return null;
   if (f.pow != null && f.tou != null) {
     const pw = Number(f.pow), tw = Number(f.tou), sum = ctSum(e.cts);
-    const tot = (sum.p || sum.t) && !isNaN(pw) && !isNaN(tw) ? (pw + sum.p) + '/' + (tw + sum.t) : '';
-    return `<span class="pt${tot ? ' boost' : ''}"><b>${esc(f.pow + '/' + f.tou)}</b>${tot ? `<i>→</i><b class="tot">${esc(tot)}</b>` : ''}</span>`;
+    const p = sum.p + eff.p, t = sum.t + eff.t;
+    const tot = (p || t) && !isNaN(pw) && !isNaN(tw) ? (pw + p) + '/' + (tw + t) : '';
+    return { bas: f.pow + '/' + f.tou, tot, minus: p < 0 || t < 0 };
   }
-  if (f.loy != null) return `<span class="pt loy"><b>${esc(String(f.loy))}</b></span>`;
+  if (f.loy != null) return { bas: String(f.loy), loy: true };
+  return null;
+}
+function ptTile(pv) {
+  if (pv && pv.loy) return `<span class="pt loy"><b>${esc(pv.bas)}</b></span>`;
+  if (pv) return `<span class="pt${pv.tot ? ' boost' : ''}${pv.tot && pv.minus ? ' minus' : ''}"><b>${esc(pv.bas)}</b>${pv.tot ? `<i>→</i><b class="tot">${esc(pv.tot)}</b>` : ''}</span>`;
   return '';
 }
 /* Chippet ovanför ett kort som säger vad kameran vet om det (README steg 7).
@@ -6647,7 +6723,7 @@ function renderGrid(force) {
         return;
       }
     }
-    html.push(kortHtml(c, i, '', null, cards.filter(x => x.attachedTo === c.cid && paMattan(x)).length));
+    html.push(kortHtml(c, i, '', null, cards.filter(x => x.attachedTo === c.cid && paMattan(x))));
   });
   gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
 
