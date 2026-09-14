@@ -8550,8 +8550,7 @@ function kamBildAsp() {
    grundläget, i spelarens nedre vänstra hörn (zonForslag). */
 function oppForslag(o) {
   const k = o.provKort && o.provKort.S > 0 ? o.provKort : { S: 0.13, L: 0.13 * KORT_KVOT };
-  const g = kamGrund != null ? kamGrund : kamGrundRad != null ? kamGrundRad : 90;
-  return zonForslag(k.S, k.L, g, kamBildAsp(), ((kamVand % 360) + 360) % 360, kamSpegel);
+  return zonForslag(k.S, k.L, kamBildAsp(), ((kamVand % 360) + 360) % 360, kamSpegel);
 }
 function oppDel(nr, titel, st, sum, lank, body) {
   const hd = `<div class="delhd"><span class="delnr">${st === 'done' ? OPP_KLAR_S : nr}</span><span>${titel}</span><span class="grow"></span>`
@@ -18557,14 +18556,16 @@ function provKortMatt(prov, ra, matt, A, g, tappat) {
   return { S, L: KORT_KVOT * S };
 }
 /* Förslaget: graveyard nere till vänster i vyn med 3 % luft (samma
-   fysiska luft åt båda hållen), library 0,2 rutbredd till höger. Rutan är
-   provkortet otappat (grundläget) × 1,3 — luft för en stökig hög.
+   fysiska luft åt båda hållen), library 0,2 rutbredd till höger. Platsen är
+   ett otappat kort som spelaren ser det — stående i vyn — lika stort som
+   provkortet med lite luft (ZON_LUFT). Provkortets vinkel spelar ingen roll:
+   ett snett lagt provkort gav förut en stor liggande ruta runt ett snett kort.
    trangt = rutorna fick krympas för att rymmas: kameran är för nära. */
-function zonForslag(S, L, g, A, r, s) {
-  const gr = (g || 0) * Math.PI / 180, c = Math.abs(Math.cos(gr)), sn = Math.abs(Math.sin(gr));
-  const zw = 1.3 * (L * c + S * sn), zh = 1.3 * (L * sn + S * c) / A;
-  const vrid = r === 90 || r === 270, Av = vrid ? 1 / A : A;
-  let w = vrid ? zh : zw, h = vrid ? zw : zh, trangt = false;
+const ZON_LUFT = 1.15;
+function zonForslag(S, L, A, r, s) {
+  /* Vyns bredd och höjd i bildbredder: vriden 90/270 är vyns bredd bildens höjd. */
+  const vrid = r === 90 || r === 270, Av = vrid ? 1 / A : A, vb = vrid ? A : 1, vh = vrid ? 1 : A;
+  let w = ZON_LUFT * S / vb, h = ZON_LUFT * L / vh, trangt = false;
   const mu = 0.03 * Math.min(1, Av), mv = mu / Av;
   if (h > 1 - 2 * mv) { const k = (1 - 2 * mv) / h; w *= k; h *= k; trangt = true; }
   let gap = 0.2 * w;
@@ -19825,7 +19826,7 @@ function ritaOppLager(G) {
     if (d.aktiv === 'bib') {
       /* Leken: ett kort i rutan (rutan är kortet × 1,3), stående i vyn —
          ligger platsen på tvären vrids den. */
-      const ligg = q.w > q.h, lw = (ligg ? q.h : q.w) / 1.3, lh = (ligg ? q.w : q.h) / 1.3;
+      const ligg = q.w > q.h, lw = (ligg ? q.h : q.w) / ZON_LUFT, lh = (ligg ? q.w : q.h) / ZON_LUFT;
       const lek = `<div class="lekrot" style="left:${px((q.w - lw) / 2)}px;top:${px((q.h - lh) / 2)}px;width:${px(lw)}px;height:${px(lh)}px${ligg ? ';transform:rotate(90deg)' : ''}"><div class="landring"></div><div class="lekskugga"></div><div class="lek"><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""></div></div>`;
       h += `<div class="bplats" style="${box(q)}">${lek}</div>` + chip(q, '#6b8cff', 'Put your library here');
     } else h += `<div class="bplats lagd" style="${box(q)}"></div>` + chip(q, '#6b8cff', 'Library');

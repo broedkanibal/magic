@@ -1131,30 +1131,31 @@ const naraZ = (a, b, tol = 0.006) => Math.abs(a - b) <= tol;
 const inomZ = z => z.x >= -1e-9 && z.y >= -1e-9 && z.x + z.w <= 1 + 1e-9 && z.y + z.h <= 1 + 1e-9;
 const KS = 0.1, KL = 0.1 * 88 / 63, A43 = 0.75;
 prov('ZN1 vid 0°: graveyard nere till vänster, library till höger om den', () => {
-  const f = app.zonForslag(KS, KL, 90, A43, 0, false);
+  const f = app.zonForslag(KS, KL, A43, 0, false);
   assert.ok(naraZ(f.grav.x, 0.0225), 'x ' + f.grav.x); assert.ok(naraZ(f.grav.y + f.grav.h, 0.97), 'nederkant ' + (f.grav.y + f.grav.h));
   assert.ok(f.bib.x > f.grav.x + f.grav.w, 'library till höger'); assert.ok(naraZ(f.bib.y, f.grav.y));
-  assert.ok(naraZ(f.grav.w, 1.3 * KS, 0.002), 'kortbredd ' + f.grav.w); assert.ok(naraZ(f.grav.h, 1.3 * KL / A43, 0.002), 'korthöjd ' + f.grav.h);
+  assert.ok(naraZ(f.grav.w, 1.15 * KS, 0.002), 'kortbredd ' + f.grav.w); assert.ok(naraZ(f.grav.h, 1.15 * KL / A43, 0.002), 'korthöjd ' + f.grav.h);
   assert.ok(!f.trangt && inomZ(f.grav) && inomZ(f.bib));
 });
 prov('ZN2 vid 180°: rutorna uppe till höger i bilden, library till vänster om graveyard', () => {
-  const f = app.zonForslag(KS, KL, 90, A43, 180, false);
+  const f = app.zonForslag(KS, KL, A43, 180, false);
   assert.ok(naraZ(f.grav.x + f.grav.w, 1 - 0.0225), 'högerkant ' + (f.grav.x + f.grav.w)); assert.ok(naraZ(f.grav.y, 0.03), 'överkant ' + f.grav.y);
   assert.ok(f.bib.x + f.bib.w < f.grav.x, 'library till vänster i bilden');
 });
-prov('ZN3 bild → vy → bild i alla vridningar, med och utan spegling; rutan har kortets form i bilden oavsett vridningen', () => {
+prov('ZN3 bild → vy → bild i alla vridningar, med och utan spegling; platsen står upprätt i vyn', () => {
   for (const r of [0, 90, 180, 270]) for (const sp of [false, true]) {
     const p = { x: 0.2, y: 0.7 }, q = app.kamVyTillBild(app.kamBildTillVy(p, r, sp), r, sp);
     assert.ok(naraZ(q.x, p.x, 1e-9) && naraZ(q.y, p.y, 1e-9), `r ${r} s ${sp}`);
-    const f = app.zonForslag(KS, KL, 90, A43, r, sp);
+    const f = app.zonForslag(KS, KL, A43, r, sp);
     assert.ok(inomZ(f.grav) && inomZ(f.bib), `inom bilden r ${r} s ${sp}`);
-    /* Högen ligger som kortet på bordet: vyns vridning ändrar var rutan
-       hamnar, inte vilken form den har i telefonens bild. */
-    assert.ok(!f.trangt && naraZ(f.grav.w, 1.3 * KS, 0.002) && naraZ(f.grav.h, 1.3 * KL / A43, 0.002), `form r ${r} s ${sp}: ${JSON.stringify(f.grav)}`);
+    /* Platsen är ett stående kort som spelaren ser det: vid 90/270 ligger
+       den därför på tvären i telefonens bild. */
+    const ligg = r === 90 || r === 270, bw = ligg ? 1.15 * KL : 1.15 * KS, bh = ligg ? 1.15 * KS / A43 : 1.15 * KL / A43;
+    assert.ok(!f.trangt && naraZ(f.grav.w, bw, 0.002) && naraZ(f.grav.h, bh, 0.002), `form r ${r} s ${sp}: ${JSON.stringify(f.grav)}`);
   }
 });
 prov('ZN4 spegling: vid 0° hamnar graveyard nere till höger i bilden', () => {
-  const f = app.zonForslag(KS, KL, 90, A43, 0, true);
+  const f = app.zonForslag(KS, KL, A43, 0, true);
   assert.ok(naraZ(f.grav.x + f.grav.w, 1 - 0.0225)); assert.ok(f.bib.x + f.bib.w < f.grav.x);
 });
 prov('ZN5 kortets storlek ur lådan: snett, stående och tappat; och ur provbordet', () => {
@@ -1168,7 +1169,7 @@ prov('ZN5 kortets storlek ur lådan: snett, stående och tappat; och ur provbord
   assert.equal(app.provKortMatt({ id: 1, w: 0.4, h: 0.02 }, null, null, A43, 90, false), null, 'orimlig låda');
 });
 prov('ZN6 ett för stort kort: rutorna krymps, ryms och överlappar inte; library följer en flyttad graveyard', () => {
-  const f = app.zonForslag(0.45, 0.45 * 88 / 63, 90, A43, 0, false);
+  const f = app.zonForslag(0.45, 0.45 * 88 / 63, A43, 0, false);
   assert.ok(f.trangt && inomZ(f.grav) && inomZ(f.bib) && f.bib.x >= f.grav.x + f.grav.w - 1e-9);
   const g = { x: 0.3, y: 0.4, w: 0.13, h: 0.24 }, b = app.bibBredvid(g, 0, false);
   assert.ok(naraZ(b.x, 0.3 + 0.13 * 1.2) && naraZ(b.y, 0.4) && naraZ(b.w, 0.13) && naraZ(b.h, 0.24), JSON.stringify(b));
