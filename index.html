@@ -752,8 +752,8 @@ body.tomhand .kolmark{display:none}
 .card.tappad img{filter:brightness(.86) saturate(.94)}
 /* Namnetiketten hör till den upprätta läsriktningen; på ett tappat kort
    väntar den på hover-pillen (M6). */
-.card:hover{box-shadow:0 14px 26px -8px #000e;transform:scale(1.02)}
-.card.tappad:hover{transform:rotate(90deg) scale(1.02)}
+.card:hover,.card.hov{box-shadow:0 14px 26px -8px #000e;transform:scale(1.02)}
+.card.tappad:hover,.card.tappad.hov{transform:rotate(90deg) scale(1.02)}
 .card.held{transition:none;box-shadow:0 26px 40px -12px #000f;cursor:grabbing;transform:scale(1.05)}
 .card.tappad.held{transform:rotate(90deg) scale(1.05)}
 /* Målhögen under ett drag: accentram med tonad insida. Efter hover-ringen i
@@ -777,7 +777,7 @@ body.lasvy .card{cursor:default}
 /* ── hovrat kort: ring, namnetikett och handlingsrad ──
    Blå ring = hovrad, gul = markerad med lassot. Två olika färger så att de
    aldrig förväxlas — kortkommandona verkar på det hovrade kortet. */
-.card:hover::before{
+.card:hover::before,.card.hov::before{
   content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
   border:2px solid var(--blue);box-shadow:inset 0 0 0 4px #6b8cff1f;pointer-events:none;
 }
@@ -7481,6 +7481,7 @@ function untapAlla() {
   if (!tappade.length) { toast('Nothing is tapped'); return; }
   tappade.forEach(c => { c.tapped = 0; });
   save(); renderAll(true);
+  vridIn(tappade);
 }
 /* Tidy up: allt i rader igen, basländerna i en hög per färg, och en vy med
    luft runt korten (luftigVy). Rör inte tap-läget. */
@@ -7620,6 +7621,12 @@ gridEl.addEventListener('pointerout', ev => {
 function renderPill() {
   let el = gridEl.querySelector('.pill');
   const c = matHover != null ? hand().find(k => k.cid === matHover) : null;
+  /* Det hovrade kortet lyfts (.hov) ur matHover och inte bara med :hover —
+     då står det kvar när pekaren går över till pillen och i 90 ms på väg
+     ut, som i designen. Inte under ett drag: där lyfter .held. */
+  const hovEl = matHover != null && !(dnd && dnd.drar) ? gridEl.querySelector(`.card[data-cid="${CSS.escape(matHover)}"]`) : null;
+  for (const k of gridEl.querySelectorAll('.card.hov')) if (k !== hovEl) k.classList.remove('hov');
+  if (hovEl) hovEl.classList.add('hov');
   if (!c || (dnd && dnd.drar) || !redigerbar() || c.lyft != null || !paMattan(c)) { if (el) el.remove(); return; }
   const v = matVy(), r = matRect(c), under = r.y * v.z + v.pan.y < 110;
   const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
@@ -9347,6 +9354,25 @@ function tappa(i) {
   if (!e || !paMattan(e) || e.lyft != null) return;
   e.tapped = e.tapped ? 0 : 1;
   save(); renderGrid(true); renderInspektor();
+  vridIn([e]);
+}
+/* Omritningen byter ut kortets element, så tap-vridningen spelades aldrig:
+   det nya elementet stod redan på sin plats. Här startar det i det förra
+   läget och släpps nästa ritning, så att .card-övergången (.34s, med
+   översving) vrider det dit — som i designen (Direction C v3). */
+function vridIn(kort) {
+  const els = [];
+  for (const e of kort) {
+    const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(e.cid)}"]`);
+    if (!el) continue;
+    const lyft = el.classList.contains('hov') || el.matches(':hover') ? ' scale(1.02)' : '';
+    el.style.transition = 'none';
+    el.style.transform = `rotate(${e.tapped ? 0 : 90}deg)${lyft}`;
+    els.push(el);
+  }
+  if (!els.length) return;
+  void els[0].offsetWidth;
+  for (const el of els) { el.style.transition = ''; el.style.transform = ''; }
 }
 function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
@@ -9545,8 +9571,10 @@ function gruppSlapp(d, avbryt) {
 function tappaValda() {
   const valda = valdaKort().filter(e => paMattan(e) && e.lyft == null);
   const ny = valda.some(e => !e.tapped) ? 1 : 0;
+  const byter = valda.filter(e => !!e.tapped !== !!ny);
   valda.forEach(e => { e.tapped = ny; });
   save(); renderGrid(true); renderInspektor();
+  vridIn(byter);
 }
 gridEl.addEventListener('pointerdown', ev => {
   /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar
@@ -9723,8 +9751,11 @@ function matDndSlut(ev, avbryt) {
   /* Ett land som släpps på en hög läggs sist i den; ett som dras ut ur sin
      hög lossnar, och högen räknas om från sitt basläge. */
   if (matSlag(c) === 'land' && !c.attachedTo) restack(h, c.cid, () => 'g' + uid());
-  if (el) { el.classList.add('settle'); setTimeout(() => el.classList.remove('settle'), 340); }
   save(); renderGrid(true); fjarrIkapp();
+  /* Efter omritningen: den byter ut elementet, och sätt-sig-studsen på det
+     gamla spelades aldrig. */
+  const satt = gridEl.querySelector(`.card[data-cid="${CSS.escape(c.cid)}"]`);
+  if (satt) { satt.classList.add('settle'); setTimeout(() => satt.classList.remove('settle'), 340); }
 }
 addEventListener('pointerup', ev => matDndSlut(ev, false));
 addEventListener('pointercancel', ev => matDndSlut(ev, true));
