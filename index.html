@@ -1788,6 +1788,9 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .lekvaljrad.on{background:#1c2433;outline:1px solid var(--acc)}
 .lekvaljrad .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lekvaljrad .antal{font:11px var(--mono);color:var(--dim2)}
+.lekvaljrad:disabled{opacity:.4;cursor:not-allowed}
+.lekvaljrad:disabled:hover{background:none}
+.lekvalnot{font-size:12px;line-height:1.45;color:var(--dim);padding:2px 9px 8px}
 .lekvaljmeny hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
 .lekvaljmeny .akt{color:var(--dim)}
 .lekvaljmeny .akt.fara:hover{color:#ff9099}
@@ -9730,7 +9733,7 @@ async function oppnaLekVal(fran) {
     document.body.appendChild(lekValEl);
     addEventListener('mousedown', ev => { if (!lekValEl.hidden && !lekValEl.contains(ev.target) && !ev.target.closest('[data-lekvalj]')) lekValEl.hidden = true; });
     lekValEl.addEventListener('click', async ev => {
-      const b = ev.target.closest('[data-valj],[data-hantera]'); if (!b) return;
+      const b = ev.target.closest('[data-valj],[data-hantera]'); if (!b || b.disabled) return;
       ev.stopPropagation();
       lekValEl.hidden = true;
       if (b.dataset.hantera != null) { oppnaLek(b.dataset.hantera || undefined); return; }
@@ -9748,16 +9751,31 @@ async function oppnaLekVal(fran) {
   if (lekValEl.hidden) return;
   const mig = spelLage ? minSpelare() : null;
   const valdId = spelLage ? (mig && mig.lekId) : (lekAktiv && lekAktiv.id);
+  const ute = lekISpel();
   lekValEl.innerHTML = (lista === null ? '<div class="lekvalrub">Your decks could not be fetched.</div>'
     : !lista.length ? '<div class="lekvalrub">No decks yet — add your cards first.</div>'
-    : `<div class="lekvalrub">Which deck are you playing?</div>` + lista.map(l =>
-        `<button type="button" class="lekvaljrad${l.id === valdId ? ' on' : ''}" data-valj="${esc(l.id)}"><span class="pips">${pipsHtml(l.farger)}</span><span class="nm">${esc(l.namn)}</span><span class="antal">${l.antal || 0} cards</span></button>`).join(''))
+    : `<div class="lekvalrub">Which deck are you playing?</div>` + (ute ? `<div class="lekvalnot">${esc(lekSparrTxt(ute))}</div>` : '') + lista.map(l =>
+        `<button type="button" class="lekvaljrad${l.id === valdId ? ' on' : ''}" data-valj="${esc(l.id)}"${ute && l.id !== valdId ? ' disabled' : ''}><span class="pips">${pipsHtml(l.farger)}</span><span class="nm">${esc(l.namn)}</span><span class="antal">${l.antal || 0} cards</span></button>`).join(''))
     + `<hr><button type="button" class="lekvaljrad akt" data-hantera="${esc(valdId || '')}">Manage decks…</button>`;
 }
+/* MES-112: leken byts inte medan kort ur den ligger i spel — bytet skulle
+   lämna dem på bordet utan lek att höra till, och lådan och kameran räknade
+   mot fel lista. Räknas som lekKvar räknar (alla zoner, namnet som nyckel,
+   tokens inte); är lekens lista inte hämtad än räknas alla mina kort. Bara i
+   ett spel: lokalt hör leken inte ihop med bordet. */
+function lekISpel() {
+  if (!spelLage) return 0;
+  const mig = minSpelare(); if (!mig || !mig.lekId) return 0;
+  const k = lekAktiv && lekAktiv.id === mig.lekId ? lekKvar() : null;
+  return k ? k.poster.reduce((s, p) => s + p.n - p.kvar, 0) : (mig.cards || []).length;
+}
+const lekSparrTxt = n => `${n} ${n === 1 ? 'card' : 'cards'} from this deck ${n === 1 ? 'is' : 'are'} in play. Put ${n === 1 ? 'it' : 'them'} back in your library to switch deck.`;
 /* Valet i ett spel: optimistiskt på min rad, skrivningen i flykt gatas i
    fjarrSpelare (lekValPagar), rullas tillbaka om den inte gick fram. Lokalt
    bara lekAktiv. Lekens kort hämtas för antalspriorn (lekAntal). */
 async function valjLekTill(id) {
+  const ute = lekISpel(), mig0 = spelLage ? minSpelare() : null;
+  if (ute && mig0 && id !== mig0.lekId) { toast(lekSparrTxt(ute)); return; }
   let rad = null;
   try { rad = await lekHamtaRad(id); } catch (e) { rad = null; }
   if (!rad) { toast('The deck could not be fetched', 'err'); return; }
