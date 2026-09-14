@@ -7443,9 +7443,7 @@ function untapAlla() {
 function stadaUpp() {
   if (!redigerbar()) return;
   const p = minSpelare() || player();
-  const v = matVy(p), vy = matVyFor(p);
-  const fore = p.cards.map(c => ({ c, x: c.x, y: c.y, grp: c.grp, gi: c.gi, z: c.z }));
-  const foreVy = { board: vy.board, zoomManual: vy.zoomManual, pan: vy.pan };
+  const v = matVy(p);
   const by = new Map(layoutAll(p.cards, v.vp, false, null).map(c => [c.cid, c]));
   for (const c of p.cards) {
     const l = by.get(c.cid);
@@ -7456,12 +7454,6 @@ function stadaUpp() {
   luftigVy(p);
   gridEl.classList.add('glider');
   save(); renderAll(true);
-  toast('Fanned back into rows', 'ok', () => {
-    fore.forEach(f => Object.assign(f.c, { x: f.x, y: f.y, grp: f.grp, gi: f.gi, z: f.z }));
-    Object.assign(vy, foreVy);
-    gridEl.classList.add('glider');
-    save(); renderAll(true);
-  });
 }
 /* Vyn efter Tidy up (MES-120): korten mitt i mattan med LUFT_VY px luft
    runtom, under chromen och ur vägen för graveyard-högen — ovanför den eller
@@ -8781,7 +8773,7 @@ $('#oppstart').addEventListener('click', ev => {
     if (samma) renderMode(); else valjLekTill(oppLekVal).then(() => renderMode());
   }
   else if (a === 'nylek') oppnaLek();
-  else if (a === 'kopiera') navigator.clipboard.writeText(oppLank()).then(() => toast('Link copied', 'ok'), () => prompt('Copy the link:', oppLank()));
+  else if (a === 'kopiera') navigator.clipboard.writeText(oppLank()).catch(() => prompt('Copy the link:', oppLank()));
   else if (a === 'stang') { oppVisat = null; renderOppstart(); }
   else if (a === 'lage') {
     const v = oppLageVal || 'bord'; oppLageVal = null; oppVisat = null;
@@ -9136,29 +9128,20 @@ function addPlayer(name) {
   setActive(p.id);
   return p;
 }
-function removePlayer(id) {
+/* Ingen ångra-notis längre (MES-124) — utan den kan raderingen inte göras
+   ogjord, så den bekräftas i stället, samma mönster som andra permanenta
+   raderingar (se ask()). */
+async function removePlayer(id) {
   if (state.players.length < 2) return;
   const i = state.players.findIndex(p => p.id === id);
   if (i < 0) return;
   const p = state.players[i];
-  /* Bildposterna sparas undan så att ångra kan lägga tillbaka dem — objekt-
-     URL:erna återskapas då ur blobbarna, de gamla är återkallade. */
-  const mems = p.shots.map(sid => shotMem.get(sid)).filter(Boolean).map(m => m.rec);
+  if (!await ask(`"${p.name}" and its photos are removed. This cannot be undone.`, { title: 'Remove this player?', ok: 'Remove', danger: true })) return;
   p.shots.forEach(sid => { const m = shotMem.get(sid); if (m) URL.revokeObjectURL(m.url); shotMem.delete(sid); IDB.del(sid).catch(() => {}); });
-  const prevActive = state.active, prevSel = state.sel;
   state.players.splice(i, 1);
   if (state.active === id) state.active = state.players[clamp(i, 0, state.players.length - 1)].id;
   state.sel = 0;
   save(); renderAll(true);
-  toast(`${p.name} removed`, 'ok', async () => {
-    state.players.splice(Math.min(i, state.players.length), 0, p);
-    state.active = prevActive; state.sel = prevSel;
-    for (const rec of mems) {
-      shotMem.set(rec.id, { rec, url: URL.createObjectURL(rec.blob) });
-      await IDB.put(rec).catch(() => {});
-    }
-    save(); renderAll(true);
-  });
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -9738,7 +9721,7 @@ $('#playerTabs').addEventListener('click', ev => {
   if (del) {
     ev.stopPropagation();
     const p = state.players.find(x => x.id === del.dataset.del);
-    if (p) removePlayer(p.id);   // ångerbar, så ingen fråga behövs
+    if (p) removePlayer(p.id);   // frågar själv innan den raderar
     return;
   }
   const lv = ev.target.closest('[data-lekvalj]');
@@ -10782,7 +10765,7 @@ function lekVisaQr(visa) {
 $('#lekQrTomt').onclick = () => lekVisaQr(true);
 $('#lekQrStang').onclick = () => lekVisaQr(false);
 $('#lekQrKopiera').onclick = async () => {
-  try { await navigator.clipboard.writeText($('#lekQrLank').textContent); toast('Link copied', 'ok'); } catch (e) { toast('Could not copy — select the link and copy it', 'err'); }
+  try { await navigator.clipboard.writeText($('#lekQrLank').textContent); } catch (e) { toast('Could not copy — select the link and copy it', 'err'); }
 };
 /* Meddelandet från telefonen, eller pollens fynd: leken har en nyare
    version på kontot. */
@@ -11921,10 +11904,7 @@ async function lekSparaNu() {
     }
     closeOv('lekOv');
     const kvar = lekTrasiga();
-    toast(kvar ? `${antal} cards saved · ${kvar} rows without a name were left as they are`
-               : Moln.inloggad() ? `${antal} cards saved to your account — the camera now recognises ${lekAktiv.namn}`
-                                 : `${antal} cards saved in this browser`,
-          kvar ? 'err' : 'ok');
+    if (kvar) toast(`${antal} cards saved · ${kvar} rows without a name were left as they are`, 'err');
   } catch (e) {
     $('#lekStatus').innerHTML = `<b style="color:var(--red)">Saving failed.</b> ${esc(e.message || '')}`;
   } finally {
@@ -11951,7 +11931,7 @@ $('#bulkGo').onclick = () => {
   if (!names.length) { $('#bulkInfo').textContent = 'No names found.'; return; }
   closeOv('bulkOv');
   $('#bulkTa').value = '';
-  laggTillMedVarning(names).then(added => { if (added.length) toast(`Added ${added.length} cards`, 'ok'); });
+  laggTillMedVarning(names);
 };
 $('#bulkTa').addEventListener('keydown', e => {
   e.stopPropagation();
@@ -12285,21 +12265,14 @@ $('#swInput').onchange = async () => {
   for (const f of fs) await addShot(f);
 };
 $('#swRescan').onclick = () => { if (SW.id) analyzeShot(SW.id); };
-/* Ta bort en skärmdump och allt som hör till den. Låg tidigare bakom en
-   confirm-ruta i två nästan identiska kopior. Det kunde sluta med att
-   ingenting hände: har man en gång kryssat i Chromes "hindra sidan från att
-   visa fler dialogrutor" svarar confirm() nej direkt, utan att visa något.
-   En knapp som tyst vägrar är värre än en som ångrar sig. */
+/* Ta bort en skärmdump och allt som hör till den. Ingen ångra-notis längre
+   (MES-124) — bekräftas i stället med ask(), som (till skillnad från
+   webbläsarens confirm()) inte kan tystas av Chromes "hindra sidan från att
+   visa fler dialogrutor". */
 async function dropShot(id) {
   const m = shotMem.get(id);
-  const snap = state.players.map(pp => ({
-    p: pp,
-    shots: pp.shots.slice(),
-    pending: (pp.pending || []).slice(),
-    shotIdx: pp.shotIdx,
-    boxes: pp.cards.filter(c => c.shotId === id).map(c => ({ c, box: c.box, shotId: c.shotId }))
-  }));
-  const nPend = snap.reduce((a, s) => a + s.pending.filter(q => q.shotId === id).length, 0);
+  const nPend = state.players.reduce((a, pp) => a + (pp.pending || []).filter(q => q.shotId === id).length, 0);
+  if (!await ask(nPend ? `The image and its ${nPend} unmatched cards are removed. This cannot be undone.` : 'The image is removed. This cannot be undone.', { title: 'Remove this image?', ok: 'Remove', danger: true })) return;
 
   if (m) { URL.revokeObjectURL(m.url); shotMem.delete(id); }
   state.players.forEach(pp => {
@@ -12311,21 +12284,6 @@ async function dropShot(id) {
   if (SW.id === id) SW.id = null;
   await IDB.del(id).catch(() => {});
   save(); renderAll(true);
-
-  toast(nPend ? `Image and ${nPend} cards removed` : 'Image removed', 'ok', async () => {
-    if (m) {
-      shotMem.set(id, { rec: m.rec, url: URL.createObjectURL(m.rec.blob) });
-      await IDB.put(m.rec).catch(() => {});
-    }
-    snap.forEach(s => {
-      s.p.shots = s.shots;
-      s.p.pending = s.pending;
-      s.p.shotIdx = s.shotIdx;
-      s.boxes.forEach(b => { b.c.box = b.box; b.c.shotId = b.shotId; });
-    });
-    save(); renderAll(true);
-    if ($('#shotOv').classList.contains('open')) loadShot(id);
-  });
 }
 $('#swDel').onclick = async () => {
   if (!SW.id) return;
@@ -13846,7 +13804,7 @@ async function claudePass(out, img) {
      kändes som att appen hängt sig. Fler än så är onödigt — takräkningen på
      servern och svarstiden är ändå gränsen. */
   const CONC = 3;
-  let next = 0, done = 0, added = 0, stop = false;
+  let next = 0, done = 0, stop = false;
   async function worker() {
     for (;;) {
       if (stop || cancelAnalyze) return;
@@ -13860,7 +13818,7 @@ async function claudePass(out, img) {
           const chosen = j >= 0 ? q.cands.splice(j, 1)[0] : { name: res.cand.name, sid: res.cand.id, score: res.cand.score };
           q.cands.unshift(chosen);
           q.ai = res.sure;
-          if (res.sure === 'hog') { q.byAI = true; r.acc.push(q); r.pend = r.pend.filter(x => x !== q); added++; }
+          if (res.sure === 'hog') { q.byAI = true; r.acc.push(q); r.pend = r.pend.filter(x => x !== q); }
         }
       } catch (e) {
         const err = claudeError(e);
@@ -13873,7 +13831,6 @@ async function claudePass(out, img) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONC, todo.length) }, worker));
-  if (added) anToast(`${added} uncertain cards were identified`, 'ok');
 }
 
 /* Hur stor del av den mindre rutan som ligger inom den större. */
@@ -13971,12 +13928,10 @@ function applyAnalysis(shotId, out, img) {
   save(); renderAll(true); resolveAll();
   const nc = out.reduce((a, r) => a + r.acc.length, 0);
   const np = out.reduce((a, r) => a + r.pend.length, 0);
-  /* Antalet hittade kort ska alltid framgå, även när inget kunde namnges —
-     annars ser en ruta med åtta oläsbara kort ut som en tom ruta. */
+  /* Hittas inget alls syns det inte i vyn — det behöver en notis. Hittas
+     kort framgår det redan av korten som dyker upp. */
   if (!nc && !np) toast('No cards found on the tables in this image', 'err');
   else if (!nc) toast(`${nc + np} cards found, none could be identified — fill them in yourself`, 'err');
-  else if (np) toast(`${nc + np} cards found · ${nc} identified · ${np} to fill in`, 'ok');
-  else toast(`${nc} cards identified`, 'ok');
   return nc + np;
 }
 
@@ -14053,14 +14008,10 @@ function appendAnalysis(shotId, out, img, ersatt, franHand) {
   save(); renderAll(true); resolveAll();
 
   const n = nya.length, v = nyaVantar.length;
-  const ord = ersatt ? 'on your board' : 'added';
   if (!n && !v) anToast(ersatt && p.cards.length
     ? 'No cards found in the image — your board is untouched'
     : 'No cards found in the image', 'err');
   else if (!n) anToast(`${v} cards found, none could be identified — fill them in yourself`, 'err');
-  else if (v) anToast(`${n} cards ${ord} · ${v} to fill in`, 'ok');
-  else if (ersatt) anToast(n === 1 ? `1 card on your board` : `${n} cards on your board`, 'ok');
-  else anToast(n === 1 ? `${nya[0].name} added` : `${n} cards added`, 'ok');
   return n + v;
 }
 
@@ -14439,10 +14390,8 @@ function nextPending() {
   }
   /* Kön är slut. Att bli stående kvar i bildvyn kändes som att ingenting
      hände — uppgiften var klar men vyn såg likadan ut. Stäng och visa handen. */
-  const n = SW.queue.length;
   SW.queue = null; SW.qi = 0;
   closeShot();
-  toast(n === 1 ? 'Done — 1 card reviewed' : `Done — ${n} cards reviewed`, 'ok');
 }
 $('#pendDrop').onclick = async () => {
   const q = player().pending || [];
@@ -18719,7 +18668,6 @@ function sparaBordLogg() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = data.id + '.json'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-  toast('Table log saved', 'ok');
 }
 const autoSumTomBok = () => ({ anrop: 0, fel: 0, utan: 0, per: {} });
 function autoSumNy(nu) { return { spel: spelLage ? spelLage.id : null, start: nu, slut: null, kort: {}, bok: {}, dator: autoSumTomBok() }; }
@@ -19461,7 +19409,6 @@ function tagEmotDiagnos(m) {
   a.download = `mesa-diagnos-${fil.tid.slice(0, 16).replace(/[:T]/g, '-')}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast('Diagnostics saved', 'ok');
 }
 $('#pbDiagnos') && ($('#pbDiagnos').onclick = () => { Moln.sandKam('diagnos'); toast('Fetching what the phone sees…'); });
 $('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); toast('The phone is asking Claude about the whole table…'); });
@@ -19532,7 +19479,7 @@ $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   LS.set('sthv.tro.v1', pbTro);
   Moln.sandKam('trosklar', { v: pbTro });
 });
-$('#pbRef') && ($('#pbRef').onclick = () => { Moln.sandKam('nyref'); toast('New reference picture — hold the phone still', 'ok'); });
+$('#pbRef') && ($('#pbRef').onclick = () => Moln.sandKam('nyref'));
 $('#pbAter') && ($('#pbAter').onclick = () => {
   pbTro = Object.assign({}, PB_STD);
   LS.set('sthv.tro.v1', pbTro); ritaPbReglage(); Moln.sandKam('trosklar', { v: pbTro });
@@ -19816,7 +19763,7 @@ function kamNarvaro(kameror) {
   kamStegSynk();
   if (kamAnsluten) kamStromIgen();   // telefonen kom tillbaka: den strömmar inte förrän den blir ombedd
   renderMode();
-  toast(kamAnsluten ? 'The camera is connected' : 'The camera was disconnected', kamAnsluten ? 'ok' : 'err');
+  if (!kamAnsluten) toast('The camera was disconnected', 'err');
 }
 /* En bildruta från telefonen. Måtten är telefonens egna; pbW/pbH följer dem. */
 let kamBildW = 0, kamBildH = 0;
@@ -19900,7 +19847,7 @@ function kamTogsEmot(m) {
 }
 $('#kamKopiera').onclick = async () => {
   const t = $('#kamLank').textContent;
-  try { await navigator.clipboard.writeText(t); toast('Link copied', 'ok'); }
+  try { await navigator.clipboard.writeText(t); }
   catch (e) { prompt('Copy the link:', t); }
 };
 
@@ -19982,7 +19929,7 @@ async function tagEmotGrundSvar(m) {
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: m.grund }), null, kamBildW || 0, kamBildH || 0);
   if (spelLage && spelLage.id === id && ok) kamGrundRad = m.grund;
-  if (!iSteg || !ok) toast(ok ? `Untapped angle saved (${m.grund}°)` : 'The untapped angle could not be saved to the game — it applies until the phone reloads', ok ? 'ok' : 'err');
+  if (!ok) toast('The untapped angle could not be saved to the game — it applies until the phone reloads', 'err');
 }
 $('#kamGrundSpara') && ($('#kamGrundSpara').onclick = sparaGrundFranSenaste);
 /* Graveyard-rutan (K9-lite): "Mark the graveyard" i kamerapanelen, dra en
@@ -20000,7 +19947,7 @@ async function sparaGravZon(r) {
   if (!spelLage) return;
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, kamRutaRad(), null, kamBildW || 0, kamBildH || 0);
-  toast(ok ? (kamGravRad ? 'Graveyard zone saved — the camera ignores cards there' : 'Graveyard zone cleared') : 'The graveyard zone could not be saved', ok ? 'ok' : 'err');
+  if (!ok) toast('The graveyard zone could not be saved', 'err');
 }
 /* Uppstartens steg 4 (MES-122): graveyard- och library-rutan i en
    skrivning — library ligger alltid bredvid graveyard. */
@@ -20164,8 +20111,7 @@ async function taEmotScan(rad) {
     await Moln.scanKlar(tagen.id, efter > innan ? 'ok' : null, 'klar');
     await Moln.radeaScan(tagen);
     if (efter > innan) {
-      const k = mig.cards[mig.cards.length - 1];
-      toast((k && k.name ? k.name : 'The card') + ' was put out', 'ok');
+      // kortet syns redan på bordet — ingen notis
     } else if (vantadeEfter > vantadeInnan) {
       /* Osäkert. Frågan ska komma direkt — man står vid bordet just nu och
          vet vilket kort man la dit, om tio minuter gör man inte det. */
@@ -20473,7 +20419,7 @@ const inbjudanLank = () => location.origin + location.pathname + '?join=' + (spe
 $('#spelKnapp').onclick = async () => {
   if (!spelLage) return;
   const lank = inbjudanLank();
-  try { await navigator.clipboard.writeText(lank); toast('Invitation link copied', 'ok'); }
+  try { await navigator.clipboard.writeText(lank); }
   catch (e) { prompt('Copy the link:', lank); }
 };
 
@@ -20529,7 +20475,6 @@ async function avslutaSpelet() {
   const id = spelLage.id;
   if (!await Moln.avslutaSpel(id)) { toast('The game could not be ended', 'err'); return; }
   await tillbakaTillLobby();
-  toast(`Game ${kod} has ended`, 'ok');
 }
 async function loggaUtHelt() {
   const ja = await ask('This device forgets who you are. Your games remain and you can sign in again.',
@@ -20573,7 +20518,7 @@ $('#lobbyMina').addEventListener('click', async ev => {
     const kod = slut.dataset.kod;
     if (!await ask(`No one can join ${kod} afterwards, and it disappears from everyone's lists. The cards stay.`,
                    { title: 'End the game?', ok: 'End', danger: true })) return;
-    if (await Moln.avslutaSpel(slut.dataset.avsluta)) { await visaLobby(); toast(`Game ${kod} has ended`, 'ok'); }
+    if (await Moln.avslutaSpel(slut.dataset.avsluta)) await visaLobby();
     else portalFel('#lobbyFel', 'The game could not be ended.');
     return;
   }
