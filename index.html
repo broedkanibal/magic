@@ -679,7 +679,6 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
   background:#0b1017f2;border:1px solid var(--line);color:var(--dim);box-shadow:0 4px 12px -4px #000c;
 }
 .kortchip.lost{border-color:#e8b33a99;color:#ffd98a;background:#241a0ef2}
-.kortchip.ny{border-color:#5fbf7f99;color:#9fe3ba;background:#0f2418f2}
 .kortchip.fraga{border-color:var(--acc);color:var(--pa-acc);background:#141c28f2}
 .card.tappad .kortchip{left:-8px;top:50%;transform:translate(-100%,-50%) rotate(-90deg)}
 /* Kamerans dom på ett bundet kort: mjuk kontur medan spåret rör sig eller
@@ -6500,8 +6499,8 @@ function ptTile(pv) {
    Nedtonat (lyft): frågan — men bara när högst två saknas; tre eller fler
    svarar bannern för. Kamerabundet kort: spårets dom medan den pågår
    ("moving", "reading", "lost sight…") så att latensen läses som att
-   kameran tittar, inte som ett fel. Nytt kort: "Just played" i 2,5 s, högst
-   tre åt gången. På någon annans bord bara konstaterandet. matLage räknas
+   kameran tittar, inte som ett fel. Ett nytt kort får inget chip (MES-135:
+   "Just played" är borttaget). På någon annans bord bara konstaterandet. matLage räknas
    i renderGrid inför varje omritning. */
 let matLage = { lyftN: 0, nyN: 0 };
 function kamDom(c) {
@@ -6522,7 +6521,6 @@ function kortChip(e) {
   if (dom === 'lost') return '<span class="kortchip dom">Lost sight of it…</span>';
   if (dom === 'moving') return '<span class="kortchip dom">Moving…</span>';
   if (dom === 'reading') return '<span class="kortchip dom">Reading…</span>';
-  if (e.ny && Date.now() - e.ny < 2500 && matLage.nyN <= 3) return '<span class="kortchip ny">Just played</span>';
   return '';
 }
 
@@ -6728,7 +6726,7 @@ function renderGrid(force) {
   gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
 
   renderGravHog(cards, d);
-  /* "Just played" tas bort av sig självt efter 2,5 s. */
+  /* Ett nytt kort (e.ny) ritas om efter 2,5 s, när det slutat vara nytt. */
   clearTimeout(nyChipT);
   if (matLage.nyN) nyChipT = setTimeout(() => renderGrid(true), 2600);
   /* Arket för ett nedtonat kort stänger sig när kortet kommit tillbaka
