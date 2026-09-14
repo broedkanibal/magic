@@ -834,6 +834,8 @@ body.lasvy .card{cursor:default}
 .pill button.prim{background:var(--acc);border-color:var(--acc);color:#20160a}
 .pill button:hover{filter:brightness(1.12)}
 .pill .meny{width:26px;padding:0;font-size:15px;line-height:1}
+/* Tangenten i Tap-knappen (MES-111): liten och i knappens egen färg. */
+.pill button kbd{min-width:0;margin-left:6px;padding:0 4px;border:0;border-radius:3px;background:#0000002e;color:inherit;font:600 9.5px/15px var(--mono);vertical-align:1px}
 /* Kortmenyn (⋯ och högerklick). Ligger i mattan, i skärmkoordinater. */
 .matmeny{
   position:absolute;z-index:960;min-width:200px;padding:5px;border-radius:9px;display:none;
@@ -845,6 +847,8 @@ body.lasvy .card{cursor:default}
 .matmeny button:hover{background:var(--bg4)}
 .matmeny button.fara:hover{background:#3a1f22;color:#ff9099}
 .matmeny button i{width:7px;height:7px;border-radius:50%;flex:none}
+/* Genvägen till höger i raden (MES-111), som i arket (.arkval kbd). */
+.matmeny button kbd{margin-left:auto;padding:0 5px;font-size:10px;line-height:15px;color:var(--dim2)}
 /* Counters-panelen (README "Counters i valfri storlek"): förvalen, Any
    amount med två stegare, brickorna som sitter på kortet, Done. Gröna
    toner som inspektorns counters-ruta. */
@@ -7620,7 +7624,7 @@ function renderPill() {
   const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
   const hint = nStack > 1 ? nStack + ' stacked · drag one out' : c.tapped ? 'Swing it back up' : 'Swing it sideways';
   const html = `<span class="hint">${esc(hint)}</span>`
-    + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}</button>`
+    + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
     + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card">+</button>`
     + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;
   if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
@@ -7663,11 +7667,11 @@ function openKortMeny(cid, cx, cy) {
   const dfc = arDfc(cardOf(c));
   matMenyEl.dataset.cid = cid;
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
-    <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}</button>
-    <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}</button>
+    <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}<kbd>T</kbd></button>
+    <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}<kbd>Space</kbd></button>
     <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…</button>
-    <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard</button>
-    <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board</button>`;
+    <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard<kbd>G</kbd></button>
+    <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board<kbd>⌫</kbd></button>`;
   const r = $('#zonPerm').getBoundingClientRect();
   matMenyEl.style.left = Math.max(4, Math.min(cx - r.left, r.width - 214)) + 'px';
   matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175)) + 'px';
