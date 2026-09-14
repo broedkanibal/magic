@@ -808,13 +808,17 @@ body.lasvy .card{cursor:default}
 .card.tappad .kwkort{left:auto;right:6px;bottom:6px;transform-origin:100% 100%;transform:rotate(-90deg) translateX(100%)}
 .card.tappad .pt{right:6px;bottom:auto;top:6px;transform-origin:100% 0;transform:rotate(-90deg) translateY(-100%)}
 /* Hover-pillen: ett syskon till kortet i brädlagret, aldrig roterat, skalat
-   mot zoomen så att den är läsbar också på ett utzoomat bräde. */
+   mot zoomen så att den har samma storlek på skärmen som vid 100 %.
+   ::before är en osynlig marginal runt den och en brygga ner till kortet
+   (--bro, satt i renderPill), så att hovern inte släpper på vägen dit. */
 .pill{
   position:absolute;z-index:940;display:flex;align-items:center;gap:6px;padding:4px 6px 4px 9px;
   border-radius:8px;background:#04070cf2;border:1px solid #3a4658;box-shadow:0 8px 22px -8px #000e;
   white-space:nowrap;transform-origin:50% 100%;
 }
+.pill::before{content:'';position:absolute;z-index:-1;left:-12px;right:-12px;top:-8px;bottom:calc(-2px - var(--bro,8px))}
 .pill.under{transform-origin:50% 0}
+.pill.under::before{top:calc(-2px - var(--bro,8px));bottom:-8px}
 .pill .hint{font:11px/1 var(--sans);color:var(--dim)}
 .pill button{height:24px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 11px/1 var(--sans);cursor:pointer}
 .pill button.prim{background:var(--acc);border-color:var(--acc);color:#20160a}
@@ -7537,30 +7541,43 @@ function renderInspektor() {
     ${(sum.p || sum.t) ? `<div class="ctbox"><div class="ctrub"><span>Counters</span><b>${tecken(sum.p)}/${tecken(sum.t)} in total</b></div>
       <div class="cttiles">${Object.keys(grupper).map(l => `<span class="cttile">${esc(l)}${grupper[l] > 1 ? ' ×' + grupper[l] : ''}</span>`).join('')}</div></div>` : ''}`;
 }
-/* Hovern på mattan: delegerad, med 90 ms fördröjning på vägen ut så att
-   panelen inte blinkar mellan två kort. Ingen hover under ett drag. Kortet
+/* Hovern på mattan: delegerad, med 180 ms respit på vägen ut så att
+   panelen inte blinkar och pillen hinner nås också med en slarvig rörelse.
+   Mellan två kort byter hovern direkt. Ingen hover under ett drag. Kortet
    blir också state.sel — inte ett valt kort, bara det som inspektorn visar
    när pekaren lämnat mattan och som fokusvyn öppnar på. */
+const PILL_RESPIT = 180;
+/* Står pekaren i pillen ligger pillen kvar där den står: { cid, x, y, under }.
+   Annars flyttar ett Tap den under pekaren — ett tappat kort är lägre — och
+   hovern släpper. Låset är en variabel och inte :hover, eftersom en
+   omritning byter ut pillens element. Släpps när pekaren är på kortet igen. */
+let pillLas = null;
 gridEl.addEventListener('pointerover', ev => {
   if (dnd && dnd.drar) return;
+  const p = ev.target.closest('.pill');
+  if (p) {
+    clearTimeout(matHoverT);
+    if (!pillLas || pillLas.cid !== p.dataset.cid)
+      pillLas = { cid: p.dataset.cid, x: +p.dataset.ax, y: +p.dataset.ay, under: p.classList.contains('under') };
+    return;
+  }
   const el = ev.target.closest('.card');
   if (el) {
     clearTimeout(matHoverT);
+    const slapp = pillLas != null; pillLas = null;
     if (matHover !== el.dataset.cid) {
       matHover = el.dataset.cid;
       const i = hand().findIndex(c => c.cid === matHover); if (i >= 0) state.sel = i;
       renderInspektor(); renderPill();
-    }
-    return;
+    } else if (slapp) renderPill();
   }
-  if (ev.target.closest('.pill')) clearTimeout(matHoverT);   // pekaren gick över till pillen
 });
 gridEl.addEventListener('pointerout', ev => {
   const fran = ev.target.closest('.card,.pill'); if (!fran) return;
   const till = ev.relatedTarget && ev.relatedTarget.closest ? ev.relatedTarget : null;
   if (till && (fran.contains(till) || till.closest('.pill') || (till.closest('.card') && till.closest('.card').dataset.cid === matHover))) return;
   clearTimeout(matHoverT);
-  matHoverT = setTimeout(() => { matHover = null; renderInspektor(); renderPill(); }, 90);
+  matHoverT = setTimeout(() => { matHover = null; pillLas = null; renderInspektor(); renderPill(); }, PILL_RESPIT);
 });
 /* Hover-pillen: hint, primärknappen (Tap/Untap, senare Where did it go?)
    och ⋯. Ritas när hovern byter kort och efter varje omritning; borta under
@@ -7569,13 +7586,13 @@ function renderPill() {
   let el = gridEl.querySelector('.pill');
   const c = matHover != null ? hand().find(k => k.cid === matHover) : null;
   /* Det hovrade kortet lyfts (.hov) ur matHover och inte bara med :hover —
-     då står det kvar när pekaren går över till pillen och i 90 ms på väg
-     ut, som i designen. Inte under ett drag: där lyfter .held. */
+     då står det kvar när pekaren går över till pillen och under respiten på
+     väg ut, som i designen. Inte under ett drag: där lyfter .held. */
   const hovEl = matHover != null && !(dnd && dnd.drar) ? gridEl.querySelector(`.card[data-cid="${CSS.escape(matHover)}"]`) : null;
   for (const k of gridEl.querySelectorAll('.card.hov')) if (k !== hovEl) k.classList.remove('hov');
   if (hovEl) hovEl.classList.add('hov');
   if (!c || (dnd && dnd.drar) || !redigerbar() || c.lyft != null || !paMattan(c)) { if (el) el.remove(); return; }
-  const v = matVy(), r = matRect(c), under = r.y * v.z + v.pan.y < 110;
+  const v = matVy(), r = matRect(c);
   const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
   const hint = nStack > 1 ? nStack + ' stacked · drag one out' : c.tapped ? 'Swing it back up' : 'Swing it sideways';
   const html = `<span class="hint">${esc(hint)}</span>`
@@ -7585,11 +7602,22 @@ function renderPill() {
   if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
   el.dataset.cid = c.cid;
+  /* Samma storlek på skärmen i alla zoomnivåer, och luften till kortet i
+     skärm-px. Under pekaren står den kvar (pillLas); bryggan räcker då ner
+     till kortet där det står nu. */
+  let under, ax, ay;
+  if (pillLas && pillLas.cid === c.cid) ({ under, x: ax, y: ay } = pillLas);
+  else {
+    under = r.y * v.z + v.pan.y < 110;
+    ax = r.x + r.w / 2;
+    ay = under ? r.y + r.h + 8 / v.z : r.y - 8 / v.z;
+  }
+  el.dataset.ax = ax; el.dataset.ay = ay;
   el.classList.toggle('under', under);
-  const sk = Math.min(1.5, 1 / v.z);   // läsbar på ett utzoomat bräde, men inte jättelik
-  el.style.left = Math.round(r.x + r.w / 2) + 'px';
-  el.style.top = Math.round(under ? r.y + r.h + 10 : r.y - 10) + 'px';
-  el.style.transform = (under ? 'translate(-50%,0)' : 'translate(-50%,-100%)') + ` scale(${sk})`;
+  el.style.setProperty('--bro', Math.max(0, Math.round((under ? ay - (r.y + r.h) : r.y - ay) * v.z)) + 'px');
+  el.style.left = ax + 'px';
+  el.style.top = ay + 'px';
+  el.style.transform = (under ? 'translate(-50%,0)' : 'translate(-50%,-100%)') + ` scale(${1 / v.z})`;
 }
 /* Kortmenyn: ⋯ i pillen och högerklick på kortet. */
 let matMenyEl = null;
