@@ -1242,6 +1242,19 @@ prov('UP7 provkortSpar: ett mätt spår före ett ur helbilden, inte skräp, int
   r = app.provkortSpar([{ ...hel, sen: 40, ai: null }, matt], [], null, 1);
   assert.equal(r.t.id, 1);
 });
+prov('UP9 provkortSpar: förra spåret släpps när det är skymt och en dubblett går att mäta; den låsta platsen går före', () => {
+  const skymd = { id: 1, tillstand: 'klar', namn: 'Plains', sen: 30, skymd: true, ...PORT };
+  const dubb = { id: 2, tillstand: 'klar', namn: 'Plains', sen: 20, ...PORT };
+  let r = app.provkortSpar([skymd, dubb], [], null, 1);
+  assert.equal(r.t.id, 2); assert.equal(r.matt, true);
+  r = app.provkortSpar([skymd], [], null, 1);
+  assert.equal(r.t.id, 1); assert.equal(r.matt, false);
+  const annat = { id: 5, tillstand: 'ny', namn: null, sen: 10, ...LANGT };
+  r = app.provkortSpar([dubb, annat], [], null, null, PORT);
+  assert.equal(r.t.id, 2); assert.equal(r.vidLas, true);
+  r = app.provkortSpar([annat], [], null, null, PORT);
+  assert.equal(r.t.id, 5); assert.equal(r.vidLas, false);
+});
 prov('UP8 lägesbytet spelar upp bordet medan uppstarten pågår: inget kort', () => {
   app.oppstart = true;
   app.avstamBord([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);

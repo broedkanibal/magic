@@ -543,6 +543,14 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
 .opplager .ovant{position:absolute;left:12px;bottom:12px;display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:8px;background:#0f141cf2;border:1px solid #3a4658;color:#e8c98a;font:12px var(--sans)}
 .opplager .ovant i{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:kampuls 1.2s ease-in-out infinite}
 .opplager .otips{position:absolute;left:50%;top:12px;transform:translateX(-50%);padding:7px 12px;border-radius:8px;background:#1a1710f2;border:1px solid #e8b33a66;color:#f0dcb0;font:12px var(--sans);white-space:nowrap;z-index:3}
+.opplager .olag{position:absolute;inset:0}
+/* Provkortet hittat: ramen landar runt kortet och en ring går ut en gång. */
+.opplager .okram{position:absolute;border:2px solid #5fbf7f;border-radius:7px;box-shadow:0 0 0 1px #0009,0 0 14px 2px #5fbf7f55;z-index:2}
+.opplager .okram.spela{animation:okramIn .5s cubic-bezier(.2,.9,.3,1.2) both}
+.opplager .okram.spela::after{content:'';position:absolute;inset:-2px;border-radius:7px;animation:okramRing .9s ease-out .35s both}
+@keyframes okramIn{from{opacity:0;transform:scale(1.3)}to{opacity:1;transform:none}}
+@keyframes okramRing{from{box-shadow:0 0 0 0 #5fbf7fcc}to{box-shadow:0 0 0 18px #5fbf7f00}}
+@media (prefers-reduced-motion: reduce){.opplager .okram.spela,.opplager .okram.spela::after{animation:none}}
 .gplats2{position:absolute;border:1.5px dashed #e8b33a99;background:#0b0f1573;color:#e8b33a;border-radius:6px;display:grid;place-items:center}
 .gplats2 svg{width:36%;max-width:34px;height:auto;opacity:.85}
 .gplats2.glod{box-shadow:0 0 0 6px #e8b33a24,0 0 28px 6px #e8b33a33}
@@ -8506,7 +8514,10 @@ let oppVisat = null, oppVisatKlar = false, oppNasta = null;
    spelaren flyttar (Move it); och när library-rutan sparades — leken räknas
    lagd tidigast en sekund efter, och knappen "My library is in place" kommer
    efter tio (direkt med en telefon utan library-rutan). */
-let oppProvId = null, oppProvMatt = false, oppTappSvar = null, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
+/* oppProvLas: provkortets plats, låst när ett mätt spår hittats —
+   { id, box (bildandelar), n }. n räknas upp vid varje ny låsning, och
+   bekräftelseramen spelar sin animering en gång per n. */
+let oppProvId = null, oppProvLas = null, oppLasN = 0, oppTappSvar = null, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
 let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger } | null; kamBibStod false = telefon utan fältet
 /* Telefonen efter spelläget: den behövs bara i kamerans två lägen, och
    Without camera stänger uppstarten innan den kommer fram. */
@@ -8528,7 +8539,7 @@ const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.
 function oppnaOppstart(om) {
   if (!spelLage) return;
   oppSatt(om ? { klar: false, avbojd: false, lage: false, grundOm: mittLage() === 'bord', b4: false, provKlar: false, gravKlar: false, bibKlar: false, startat: false } : { klar: false, avbojd: false });
-  oppLageVal = null; oppVisat = null; oppProvId = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
+  oppLageVal = null; oppVisat = null; oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
   if (kamOppen) closeOv('kamOv');
   renderMode();
 }
@@ -8567,9 +8578,14 @@ function oppDelLage(o) {
   return { prov, grav, bib, aktiv: !prov ? 'prov' : !grav ? 'grav' : !bib ? 'bib' : 'start' };
 }
 /* Bildens höjd/bredd: ur strömmens upplösning, annars ur förhandsbilden. */
+/* Förhandsbilden först: det är den platserna ritas på, och spårens andelar
+   gäller samma bild. Strömmens upplösning kan ha ett annat format, och då
+   blev graveyard-platsen smalare och högre än provkortet. */
 function kamBildAsp() {
+  const img = $('#pbImg'); if (img && img.naturalWidth) return img.naturalHeight / img.naturalWidth;
+  if (pbMatt && pbMatt.aw && pbMatt.ah) return pbMatt.ah / pbMatt.aw;
   if (kamUpplosning && kamUpplosning.w && kamUpplosning.h) return kamUpplosning.h / kamUpplosning.w;
-  const img = $('#pbImg'); return img && img.naturalWidth ? img.naturalHeight / img.naturalWidth : 0.75;
+  return 0.75;
 }
 /* Förslaget till graveyard- och library-rutan, ur provkortets storlek och
    grundläget, i spelarens nedre vänstra hörn (zonForslag). */
@@ -8585,8 +8601,18 @@ function oppDel(nr, titel, st, sum, lank, body) {
 function oppSteg4(o) {
   if (!o.b4) { oppSatt({ b4: true }); o = oppFor(); }
   const zoner = [kamGravRad, kamBibRad].filter(Boolean);
-  const p = kamAnsluten ? provkortSpar(senasteSpar, zoner, sparSedd, oppProvId) : null;
-  if (!o.provKlar || !oppProvId || !p || p.t.id === oppProvId) { oppProvId = p ? p.t.id : (o.provKlar ? oppProvId : null); oppProvMatt = !!(p && p.matt); }
+  const p = kamAnsluten ? provkortSpar(senasteSpar, zoner, sparSedd, oppProvId, !o.provKlar && oppProvLas ? oppProvLas.box : null) : null;
+  if (o.provKlar) { oppProvLas = null; if (!oppProvId && p) oppProvId = p.t.id; }
+  else {
+    /* Platsen låses när kortet går att mäta, och står still sedan: ett
+       spår som täcker den tar över id:t (en dubblett på samma kort), men
+       ramen flyttar sig inte. Flyttas kortet bort låses den nya platsen;
+       försvinner det släpps låset — utom medan telefonen räknar svaret. */
+    if (p && p.vidLas && oppProvLas) oppProvLas.id = p.t.id;
+    else if (p && p.matt) { oppProvLas = { id: p.t.id, box: { x: p.t.x, y: p.t.y, w: p.t.w, h: p.t.h }, n: ++oppLasN }; requestAnimationFrame(ritaPbLager); }
+    else if (oppTappSvar == null) oppProvLas = null;
+    oppProvId = oppProvLas ? oppProvLas.id : null;
+  }
   /* Leken ligger i sin ruta: telefonen säger det, provkortet är upplockat,
      och det har gått en sekund sedan rutan sparades. */
   let d = oppDelLage(o);
@@ -8596,9 +8622,12 @@ function oppSteg4(o) {
   }
   const knappar = av => `<div class="tapval"><button type="button" class="tapopt" data-opptap="0"${av ? ' disabled' : ''}>${OPP_UPP}<b>Untapped</b><span>Standing up</span></button><button type="button" class="tapopt" data-opptap="1"${av ? ' disabled' : ''}>${OPP_SIDA}<b>Tapped</b><span>Turned sideways</span></button></div>`;
   let prov;
-  if (!p) prov = `<p class="opptxt">Put one card from your deck on the table, the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`;
-  else if (p.matt && oppTappSvar == null) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
-  else prov = `<div class="opprad"><span class="oppwait"><i></i><span>Found it — measuring the angle…</span></span></div>${knappar(true)}<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>`;
+  /* "Found it" först när platsen är låst och knapparna går att trycka på.
+     Ett kort som syns men inte är mätt än räknas inte som hittat. */
+  if (oppTappSvar != null) prov = `<p class="opptxt">Found it.</p>${knappar(true)}<div class="opprad"><span class="oppwait"><i></i><span>Saving the angle…</span></span></div>`;
+  else if (oppProvLas) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
+  else prov = `<p class="opptxt">Put one card from your deck on the table, the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`
+    + (p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
   const grav = oppFlytt
     ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="gravklar">Done</button><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
@@ -8635,7 +8664,7 @@ async function oppSparaZoner(grav, bib) {
 function oppStarta() {
   for (const id of provkortUt(senasteSpar, oppProvId)) borttagna.add(id);
   gravHandelser = [];
-  oppSatt({ startat: true }); oppProvId = null; oppTappSvar = null;
+  oppSatt({ startat: true }); oppProvId = null; oppProvLas = null; oppTappSvar = null;
   toast('Your table is set up', 'ok');
   renderMode();
   if (!oppstartPagar()) avstamBord(senasteSpar);
@@ -8799,7 +8828,7 @@ $('#oppstart').addEventListener('click', ev => {
     else { oppSatt({ lage: true }); bytLage(v).then(() => renderMode()); }
   }
   else if (a === 'grund') sparaGrundFranSenaste();
-  else if (a === 'provom') { oppSatt({ provKlar: false }); oppTappSvar = null; renderMode(); }
+  else if (a === 'provom') { oppSatt({ provKlar: false }); oppTappSvar = null; oppProvLas = null; renderMode(); }
   else if (a === 'gravok') { const f = oppForslag(oppFor()); oppSparaZoner(f.grav, f.bib); }
   else if (a === 'gravflytt') { oppFlytt = true; oppGravFlyttad = oppGravFlyttad || oppForslag(oppFor()).grav; renderOppstart(); ritaPbLager(); }
   else if (a === 'gravklar') { if (oppGravFlyttad) oppSparaZoner(oppGravFlyttad, null); }
@@ -18640,12 +18669,21 @@ function bibBredvid(grav, r, s) {
    helst ett som detektorn mätt (sen ≠ null), inte skymt, och det som kom
    senast. matt = vinkeln går att spara nu — annars läge 2b (kortet syns
    men telefonen har ingen egen mätning av det, se grundFranSpar). */
-function provkortSpar(spar, zoner, sedd, forraId) {
+/* las = den låsta platsen (bildandelar): spåren som täcker den går före,
+   och vidLas säger att det valda gör det. Förra spåret behålls bara om det
+   går att mäta, eller om inget annat gör det — ett kort som fått två spår
+   (dubbletter, det ena skymt) fastnade förut på det skymda, och knapparna
+   kom aldrig. */
+function provkortSpar(spar, zoner, sedd, forraId, las) {
   const inne = (t, r) => r && t.w != null && t.x + t.w / 2 >= r.x && t.x + t.w / 2 <= r.x + r.w && t.y + t.h / 2 >= r.y && t.y + t.h / 2 <= r.y + r.h;
-  const kand = (spar || []).filter(t => t.tillstand !== 'skrap' && t.w != null && !(zoner || []).some(r => inne(t, r)));
-  const t = kand.find(u => u.id === forraId) || kand.slice().sort((a, b) =>
-    ((b.sen != null) - (a.sen != null)) || (!!a.skymd - !!b.skymd) || (((sedd && sedd.get(b.id)) || 0) - ((sedd && sedd.get(a.id)) || 0)) || (b.id - a.id))[0];
-  return t ? { t, matt: t.sen != null && t.sen < 2000 && !t.skymd && !(t.ai && t.ai.helbild) } : null;
+  const kan = t => t.sen != null && t.sen < 2000 && !t.skymd && !(t.ai && t.ai.helbild);
+  let kand = (spar || []).filter(t => t.tillstand !== 'skrap' && t.w != null && !(zoner || []).some(r => inne(t, r)));
+  const vid = las ? kand.filter(t => tackning(t, las) >= 0.3) : [];
+  if (vid.length) kand = vid;
+  const forra = kand.find(u => u.id === forraId);
+  const t = (forra && (kan(forra) || !kand.some(kan)) ? forra : null) || kand.slice().sort((a, b) =>
+    (kan(b) - kan(a)) || ((b.sen != null) - (a.sen != null)) || (!!a.skymd - !!b.skymd) || (((sedd && sedd.get(b.id)) || 0) - ((sedd && sedd.get(a.id)) || 0)) || (b.id - a.id))[0];
+  return t ? { t, matt: kan(t), vidLas: vid.length > 0 } : null;
 }
 /* Start playing: provkortets spår, och spår som täcker det (ett andra spår
    på samma kort, som S8), läggs i borttagna — så spelas det inte ut om det
@@ -19815,6 +19853,10 @@ function ritaPbLager() {
     x.drawImage(G.img, -iw / 2, -ih / 2, iw, ih); x.restore();
   }
   ritaOppLager(G);
+  /* Uppstartens steg 4 ritar inga spår: spelaren lägger ut provkortet och
+     flyttar det till högarna, och varje spår under handen blev en ruta.
+     Provkortet får en egen ram när det hittats (ritaOppLager). */
+  if (G.vy && !DEBUG) return;
   if (!pbMatt.aw || !pbMatt.ah) return;
   /* Spåren räknas i analysbildens pixlar, och analysbilden är telefonens
      HELA bild — samma bild som förhandsbilden. */
@@ -19857,35 +19899,46 @@ function ritaPbLager() {
    kortbaksidan (BAKSIDA), lagd som ett kort i rutan. */
 function ritaOppLager(G) {
   const el = $('#oppLager'); if (!el) return;
-  if (!G || !G.vy || !oppOppen) { oppDiff(el, ''); return; }
+  /* Två delar: lagret som ritas om (oppDiff) och bekräftelseramen, som
+     står kvar mellan ritningarna så att dess animering spelas en gång. */
+  const lag = el.querySelector('.olag') || el.appendChild(Object.assign(document.createElement('div'), { className: 'olag' }));
+  const ram = el.querySelector('.okram') || el.appendChild(Object.assign(document.createElement('div'), { className: 'okram', hidden: true }));
+  if (!G || !G.vy || !oppOppen) { oppDiff(lag, ''); ram.hidden = true; return; }
   const o = oppFor(), d = oppDelLage(o), px = v => Math.round(v);
   const chip = (q, farg, txt) => `<div class="ochip" style="left:${px(q.x)}px;top:${px(q.y)}px"><i style="background:${farg}"></i>${txt}</div>`;
   const box = q => `left:${px(q.x)}px;top:${px(q.y)}px;width:${px(q.w)}px;height:${px(q.h)}px`;
   let h = '';
+  const las = d.aktiv === 'prov' ? oppProvLas : null;
   const t = oppProvId != null ? senasteSpar.find(u => u.id === oppProvId) : null;
-  if (t && t.w != null && !d.bib) {
-    const q = pbRutaPx(G, t), ny = !d.prov;
-    const txt = ny ? (oppProvMatt && oppTappSvar == null ? 'This card' : 'Measuring the angle…') : d.aktiv === 'bib' ? 'Pick this card up' : 'This card · not played';
-    h += chip(q, ny ? (oppProvMatt && oppTappSvar == null ? '#5fbf7f' : '#e8b33a') : '#6b7280', txt);
-  }
-  if (d.aktiv === 'prov' && !t) h += `<div class="ovant"><i></i>Looking for a card…</div>`;
+  if (las) h += chip(pbRutaPx(G, las.box), '#5fbf7f', 'This card');
+  else if (t && t.w != null && d.prov && !d.bib) h += chip(pbRutaPx(G, t), '#6b7280', d.aktiv === 'bib' ? 'Pick this card up' : 'This card · not played');
+  if (d.aktiv === 'prov' && !las) h += `<div class="ovant"><i></i>Looking for a card…</div>`;
   const grav = d.aktiv === 'grav' ? (oppGravFlyttad || oppForslag(o).grav) : d.grav ? kamGravRad : null;
+  /* Platserna ritas lika stora som provkortet: rutan som sparas är kortet
+     × ZON_LUFT, luften är till för en slarvig hög, inte för ögat. */
+  const kortstor = q => ({ x: q.x + q.w * (1 - 1 / ZON_LUFT) / 2, y: q.y + q.h * (1 - 1 / ZON_LUFT) / 2, w: q.w / ZON_LUFT, h: q.h / ZON_LUFT });
   if (grav) {
-    const q = pbRutaPx(G, grav);
+    const q = kortstor(pbRutaPx(G, grav));
     h += `<div class="gplats2${d.aktiv === 'grav' && !oppFlytt ? ' glod' : ''}${oppFlytt ? ' flytt' : ''}" style="${box(q)}">${GRAVSTEN}</div>` + chip(q, '#e8b33a', d.aktiv === 'grav' ? 'Graveyard goes here' : 'Graveyard');
   }
   if (oppFlytt) h += `<div class="otips">Drag the spot where your graveyard will go</div>`;
   if ((d.aktiv === 'bib' || d.bib) && kamBibRad) {
-    const q = pbRutaPx(G, kamBibRad);
+    const q = kortstor(pbRutaPx(G, kamBibRad));
     if (d.aktiv === 'bib') {
-      /* Leken: ett kort i rutan (rutan är kortet × 1,3), stående i vyn —
-         ligger platsen på tvären vrids den. */
-      const ligg = q.w > q.h, lw = (ligg ? q.h : q.w) / ZON_LUFT, lh = (ligg ? q.w : q.h) / ZON_LUFT;
+      /* Leken: ett kort i platsen, stående i vyn — ligger platsen på tvären
+         vrids den. */
+      const ligg = q.w > q.h, lw = ligg ? q.h : q.w, lh = ligg ? q.w : q.h;
       const lek = `<div class="lekrot" style="left:${px((q.w - lw) / 2)}px;top:${px((q.h - lh) / 2)}px;width:${px(lw)}px;height:${px(lh)}px${ligg ? ';transform:rotate(90deg)' : ''}"><div class="landring"></div><div class="lekskugga"></div><div class="lek"><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""></div></div>`;
       h += `<div class="bplats" style="${box(q)}">${lek}</div>` + chip(q, '#6b8cff', 'Put your library here');
     } else h += `<div class="bplats lagd" style="${box(q)}"></div>` + chip(q, '#6b8cff', 'Library');
   }
-  oppDiff(el, h);
+  oppDiff(lag, h);
+  if (las) {
+    const q = pbRutaPx(G, las.box), m = 4;
+    ram.style.cssText = `left:${px(q.x - m)}px;top:${px(q.y - m)}px;width:${px(q.w + 2 * m)}px;height:${px(q.h + 2 * m)}px`;
+    if (ram.dataset.n !== String(las.n)) { ram.dataset.n = las.n; ram.classList.remove('spela'); void ram.offsetWidth; ram.classList.add('spela'); }
+    ram.hidden = false;
+  } else ram.hidden = true;
 }
 
 /* ── datorns kameradialog ────────────────────────────────────────────
@@ -20159,8 +20212,12 @@ async function tagEmotGrundSvar(m) {
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
   if (iSteg) {
-    const prov = senasteSpar.find(t => t.id === oppProvId) || null;
-    oppSatt({ grundOm: false, provKlar: true, tapp: tappat, provKort: provKortMatt(prov, pbRa, pbMatt, kamBildAsp(), m.grund, tappat) });
+    /* Storleken ur den låsta ramen — kortet som spelaren såg hittas — och
+       först om den inte går ihop med vinkeln ur spårets egna mått. Ett
+       dubblettspår på halva kortet gav förut en för liten graveyard-plats. */
+    const prov = oppProvLas ? Object.assign({ id: oppProvLas.id }, oppProvLas.box) : senasteSpar.find(t => t.id === oppProvId) || null;
+    const A = kamBildAsp();
+    oppSatt({ grundOm: false, provKlar: true, tapp: tappat, provKort: provKortMatt(prov, null, null, A, m.grund, tappat) || provKortMatt(prov, pbRa, pbMatt, A, m.grund, tappat) });
     oppTappSvar = null;
   } else oppSatt({ grundOm: false });
   renderMode();
@@ -20678,7 +20735,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; oppProvId = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
