@@ -4,6 +4,8 @@ Komplement till `README.md` i samma mapp. Den här filen beskriver **bara** grav
 
 Referensimplementationen är `Direction C v3 - Real board.dc.html` i samma mapp. Alla värden nedan är lästa ur den filen och är exakta — de ska inte tolkas om, bara flyttas in i `index.html`.
 
+**Geometrin är ersatt (MES-125, 2026-09-14):** högen ser nu ut som graveyard-platsen i uppstartens steg 4 — en streckad gul ram 108×144 med kortet (92×128) inuti, graveyard till vänster om library, ingen etikettrad ovanför och namn och antal i en rad under. Ett drag breddar inte högen; ramen blir hel och lyser. Facit är variant A1 i designytan "Mesa Table Piles" (https://claude.ai/code/artifact/74df34b4-36aa-4403-a4d7-1a2819619010). Måtten nedan (186/104/122 px, top:752px, solfjäderns start) gäller inte längre; rörelserna (landningen, solfjädern, instruktionsrutan) gör det.
+
 **Ett uttryckligt undantag:** referensfilen har en bugg där alla övriga kort på bordet rycker till när man släpper ett kort i graveyarden. Den ska **inte** följa med. Se avsnittet "Det som inte ska med" sist.
 
 ---

@@ -623,34 +623,44 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
 .zoomchip input.ztxt:hover{background:var(--bg4)}
 .zoomchip input.ztxt:focus{background:var(--bg4);color:var(--txt)}
 .zoomchip button:hover{background:var(--bg4);color:var(--txt)}
-/* Graveyard-högen (GRAVEYARD_ANIMATION.md, MES-119): en panel som står
-   still i mattan, nere till vänster. Referensens top:526px gäller en 792 px
-   hög matta; här räknas samma avstånd från mattans nederkant, så att högen
-   och instruktionsrutan under den (top:752px) står lika i alla fönster. */
-.gravhog{position:absolute;z-index:22;left:22px;top:calc(100% - 266px);width:186px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
-.gravrub{width:100%;display:flex;align-items:center;gap:8px;height:14px;flex:none}
-.gravrub b{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--dim);transition:color .16s}
-.gravrub i{flex:1;height:1px;background:var(--zonlinje)}
-/* Library-högen (MES-93, MES-95): leken bredvid graveyard, nere till
-   vänster, så att bordets två högar läses som ett par — också på en tom
-   matta, där graveyard förut stod ensam i hörnet. Talet är korten ur leken
-   som inte är utspelade; ett kort som släpps här går tillbaka. Överkanten
-   står i jämnhöjd med graveyard-panelens, så att rubrikerna ligger på rad. */
-.bibhog{position:absolute;left:22px;top:calc(100% - 266px);z-index:22;display:flex;flex-direction:column;align-items:center;gap:4px}
+/* Graveyard- och library-högen i spel ("Mesa Table Piles", A1): två lika
+   stora platser nere till vänster — graveyard till vänster, library till
+   höger, som i uppstartens steg 4. En plats är kortet (92×128) och 8 px luft
+   runt om; raden under säger namn och antal, ingen rubrik ovanför.
+   Överkanten räknas från mattans nederkant, så att högarna och
+   instruktionsrutan under dem står lika i alla fönster. */
+.gravhog{position:absolute;z-index:22;left:22px;top:calc(100% - 236px);width:108px;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.hograd{display:flex;align-items:center;gap:6px;height:12px;flex:none;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--dim);white-space:nowrap;transition:color .16s}
+.hograd > i{width:6px;height:6px;border-radius:2px;flex:none;background:#e8b33a}
+.hograd b{font:600 11px/1 var(--mono);color:var(--txt);letter-spacing:0;text-transform:none}
+/* Library-högen (MES-93, MES-95): leken på platsen som markerades i
+   uppstarten, med den blå ramen synlig runt om. Lyfter man leken (telefonens
+   ligger, se bibLyft) står ramen tom, andas och säger var leken ska
+   tillbaka. Talet är lekKvar (hand och bibliotek ihop); ett kort som släpps
+   här går tillbaka. */
+.bibhog{position:absolute;left:152px;top:calc(100% - 236px);z-index:22;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
 .bibhog[hidden]{display:none}
-.bibhog .zonlbl{color:var(--zonlbl)}
+.bibhog .hograd > i{background:#6b8cff}
 .bib{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-  width:72px;aspect-ratio:488/680;margin:6px 12px 6px 6px;padding:0;border-radius:6px;
-  border:1px solid #39414e;background:linear-gradient(160deg,#1f2837,#141a24);color:var(--txt);cursor:pointer;font:inherit;
-  box-shadow:4px -4px 0 -1px #1b1f26,4px -4px 0 0 #39414e,8px -8px 0 -1px #1b1f26,8px -8px 0 0 #2d3441;
+  position:relative;display:grid;place-items:center;width:108px;height:144px;box-sizing:border-box;flex:none;
+  padding:0;border-radius:6px;border:1.5px solid #6b8cff;background:#0b0f1540;color:#c9d4ff;cursor:pointer;font:inherit;
+  transition:border-color .16s,box-shadow .16s,background .16s;
 }
-.bib:hover,.bib.over{border-color:var(--acc);background:linear-gradient(160deg,#2a2618,#1a1710)}
-.bib b{font:700 18px/1 var(--mono)}
-.bib .bibtxt{font:10px var(--mono);color:var(--dim2)}
-.bib.tom{border:1.5px dashed var(--acc);background:#f0a52a10;box-shadow:none;padding:6px;text-align:center}
-.bib.tom .bibtxt{color:var(--pa-acc);font:600 10.5px/1.3 var(--sans)}
-.gravhog.medbib{left:104px}
+/* Leken: tre baksidor som i steg 4 (.lek img), inne i ramen. */
+.bib .biblek,.bib .bibspok{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px}
+.bib .biblek img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:5px;box-shadow:0 3px 8px #0008}
+.bib .biblek img:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
+.bib .biblek img:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
+.bib .bibspok{border-radius:5px;object-fit:cover;opacity:.1;filter:grayscale(1)}
+.bib .bibord{position:relative;padding:0 10px;font:600 11px/1.35 var(--sans);text-align:center;color:#c9d4ff}
+.bib:hover,.bib.over{border-color:#8fa8ff;box-shadow:0 0 0 6px #6b8cff26,0 0 28px 6px #6b8cff33}
+.bib.lyft,.bib.tom{border-style:dashed}
+.bib.lyft{background:#6b8cff0d;animation:bibAndas 2.4s ease-in-out infinite}
+.bib.tom{border-color:#6b8cff99}
+@keyframes bibAndas{0%,100%{box-shadow:0 0 0 0 #6b8cff00}50%{box-shadow:0 0 0 7px #6b8cff26,0 0 26px 4px #6b8cff2e}}
+@media (prefers-reduced-motion:reduce){.bib.lyft{animation:none}}
+/* Exile står till höger om den sista högen — library, när den finns. */
+.gravhog.medbib .exilhog{margin-left:138px}
 .lyftbanner{
   position:absolute;left:12px;top:12px;z-index:23;display:flex;align-items:center;gap:8px;
   padding:6px 10px;border-radius:8px;background:#1a1710f2;border:1px solid #e8b33a66;
@@ -1059,52 +1069,47 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    --gs och --gr steget och vridningen — gravOver öppnar högen genom att
    ändra dem, och transitionen på lagren bär rörelsen. */
 .grav{
-  position:relative;display:block;width:104px;aspect-ratio:488/680;flex:none;
-  padding:0;border:0;border-radius:7px;background:none;color:inherit;font:inherit;cursor:pointer;
-  --gs:5;--gr:1.5;
-  transition:width .22s cubic-bezier(.2,.8,.3,1),box-shadow .16s;
-  box-shadow:0 6px 16px -8px #000c;
+  position:relative;display:block;width:108px;height:144px;box-sizing:border-box;flex:none;
+  padding:0;border-radius:6px;border:1.5px dashed #e8b33a99;background:#0b0f1573;color:inherit;font:inherit;cursor:pointer;
+  --gs:1.5;--gr:0;          /* fyra lager ryms i ramens 6,5 px luft; vridningen kommer först under ett drag */
+  transition:border-color .16s,box-shadow .16s;
 }
+/* Lagren och toppkortet ligger inne i ramen, där kortet ligger på bordet. */
 .glager{
-  position:absolute;inset:0;border-radius:6px;transform-origin:50% 100%;
+  position:absolute;left:6.5px;top:6.5px;width:92px;height:128px;border-radius:5px;transform-origin:50% 100%;
   background:#1b1f26;border:1px solid #39414e;box-shadow:0 1px 2px #0009;
   transition:transform .22s cubic-bezier(.2,.8,.3,1);
   transform:translate(calc(var(--k) * var(--gs) * 1px),calc(var(--k) * var(--gs) * -1px)) rotate(calc(var(--k) * var(--gr) * 1deg));
 }
-/* Platsmarkeringen: syns bara som en svag kontur när högen är tom. */
-.gplats{position:absolute;inset:0;border-radius:6px;border:1.5px dashed #ffffff14;background:transparent;transition:border-color .16s,background .16s}
 /* Toppkortet ska vara läsbart som ett kort men tydligt dött — filtret är det
    enda som säger det, ingen overlay och ingen tint. */
 .grav img{
-  position:relative;z-index:2;width:100%;height:100%;object-fit:cover;display:block;border-radius:6px;
+  position:absolute;z-index:2;left:6.5px;top:6.5px;width:92px;height:128px;object-fit:cover;display:block;border-radius:5px;
   background:#11161e;box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05);
 }
+/* Gravstenen står bara i en tom plats, gul som i uppstarten (.gplats2). */
 .gravsten{
-  position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;
-  color:#e6e1d6;opacity:.5;filter:drop-shadow(0 2px 4px #000c);pointer-events:none;transition:opacity .18s;
+  position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;
+  color:#e8b33a;opacity:.85;pointer-events:none;transition:opacity .18s;
 }
-.grav.tom .gravsten{opacity:.32}
+.grav:not(.tom) .gravsten{opacity:0}
 .gravsten svg{width:100%;height:100%;display:block}
-.gravtxt{font:10.5px var(--mono);color:var(--dim2);flex:none}
-.gravtxt .gt-fan{display:none}
-/* Ett kort dras mot högen (§2, gravOver): högen breddas och lagren glider
-   isär — den öppnar sig för kortet man håller i. Toppkortet ljusnar medan
-   gravstenen tonar bort, så högen går från "plats" till "kort" i samma
-   rörelse. Allt bärs av transitionerna som redan sitter på elementen. */
+.gravtxt .gt-fan{display:none;font:500 10.5px/1 var(--sans);letter-spacing:0;text-transform:none}
+/* Ett kort dras mot högen (§2, gravOver): platsen står still, men ramen
+   blir hel och lyser som den föreslagna platsen i steg 4 (.gplats2.glod),
+   och lagren glider isär lite. Toppkortet ljusnar. Allt bärs av
+   transitionerna som redan sitter på elementen. */
 .gravhog.over .grav{
-  width:122px;--gs:11;--gr:4.5;
-  box-shadow:0 0 0 3px var(--acc),0 0 32px -2px color-mix(in srgb,var(--acc) 60%,transparent);
+  --gs:3;--gr:2.5;border-style:solid;border-color:#e8b33a;
+  box-shadow:0 0 0 6px #e8b33a24,0 0 28px 6px #e8b33a33;
 }
-.gravhog.over .gplats{border:1.5px solid color-mix(in srgb,var(--acc) 33.33%,transparent);background:color-mix(in srgb,var(--tand2) 20%,transparent)}
 .gravhog.over .grav img{filter:grayscale(.2) brightness(.9)}
-.gravhog.over .gravsten{opacity:.1}
-.gravhog.over .gravrub b{color:var(--acc)}
+.gravhog.over .gravsten{opacity:1}
 .gravhog.over .gravtxt{color:var(--pa-acc)}
 /* Instruktionsrutan under högen medan ett kort dras mot den (§2), med
-   kortets riktiga namn. Står relativt panelen: referensens top:752px ligger
-   226 px under panelens 526. */
+   kortets riktiga namn. Står relativt panelen, under raden. */
 .gravslapp{
-  position:absolute;z-index:95;left:0;top:226px;width:212px;display:flex;align-items:center;gap:8px;
+  position:absolute;z-index:95;left:0;top:174px;width:212px;display:flex;align-items:center;gap:8px;
   padding:7px 10px;border-radius:8px;background:color-mix(in srgb,var(--tand2) 96.86%,transparent);
   border:1px solid #8a6a22;box-shadow:0 12px 26px -10px #000;
 }
@@ -1118,14 +1123,14 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 @keyframes cBump{40%{transform:scale(1.18)}}
 @keyframes cRing{from{opacity:.7;transform:scale(.5)}to{opacity:0;transform:scale(1.5)}}
 .gravhog.bump .grav img{animation:cLand .5s cubic-bezier(.2,.8,.3,1)}
-.gravhog.bump .gravtxt{animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
+.gravhog.bump .gravtxt b{display:inline-block;animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
 .gravring{
   position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;
   border-radius:50%;border:2px solid #e8c98a;pointer-events:none;animation:cRing .55s ease-out forwards;
 }
-@media (prefers-reduced-motion:reduce){.gravhog.bump .grav img,.gravhog.bump .gravtxt{animation:none}.gravring{display:none}}
-/* Exile: en liten räknare till höger om graveyard-högen, bara när något
-   ligger där. Samma fjäder på hover. */
+@media (prefers-reduced-motion:reduce){.gravhog.bump .grav img,.gravhog.bump .gravtxt b{animation:none}.gravring{display:none}}
+/* Exile: en liten räknare till höger om högarna, bara när något ligger
+   där. Samma fjäder på hover. */
 .exilhog{
   position:absolute;left:100%;bottom:10px;margin-left:8px;display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:6px 9px;border-radius:8px;border:1px dashed var(--line);background:#0e131add;color:var(--dim);cursor:pointer;
@@ -1139,7 +1144,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
    får sitt utfällda läge först 24 ms senare, så att det är korten i högen
    som far ut. De vrids kring underkanten, som kort i en hand. Transform,
    z-index och transition (med 22 ms förskjutning per kort) sitter inline. */
-.gravfan{position:absolute;z-index:88;left:0;top:24px;width:104px;height:145px;pointer-events:none}
+.gravfan{position:absolute;z-index:88;left:8px;top:8px;width:92px;height:128px;pointer-events:none}
 .fkort{position:absolute;inset:0;pointer-events:auto;touch-action:none;cursor:grab;transform-origin:50% 100%}
 .fkort img,.fkort .fnamn{
   width:100%;height:100%;display:block;border-radius:6px;background:#11161e;
@@ -1149,10 +1154,9 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .fkort .fnamn{padding:8px 6px;font:600 10.5px/1.3 var(--sans);color:var(--dim);word-break:break-word}
 /* Hovrat kort: lyftet och skalan sitter i transformen; ramen blir accent. */
 .fkort.hov img,.fkort.hov .fnamn{border:2px solid var(--acc);box-shadow:0 22px 40px -10px #000f}
-/* Korten i solfjädern ÄR högen: den kollapsade högen döljs medan den är
-   utfälld, etiketten tänds och räknaren säger vad man kan göra. */
-.gravhog.fanpa .grav{opacity:0}
-.gravhog.fanpa .gravrub b{color:var(--acc)}
+/* Korten i solfjädern ÄR högen: korten i platsen döljs medan den är
+   utfälld — ramen står kvar — och raden säger vad man kan göra. */
+.gravhog.fanpa .grav img,.gravhog.fanpa .glager{opacity:0}
 .gravhog.fanpa .gravtxt{color:var(--pa-acc)}
 .gravhog.fanpa .gravtxt .gt-n{display:none}
 .gravhog.fanpa .gravtxt .gt-fan{display:inline}
@@ -6760,14 +6764,13 @@ function hogSkarm() {
   const w = gridWrap.getBoundingClientRect();
   if (!w.width) return null;
   const rutor = [];
-  /* Graveyard: referensens gravRect (x 6–146, y 508–740 runt panelen i
-     22,526), räknad från panelens hörn och inte från högen — högen breddas
-     under ett drag (gravOver), och klämningen ska inte ändras av det. */
+  /* Varje panel (platsen och raden under) med lite luft runt om. Platserna
+     står still också under ett drag, så rutan ändras inte av gravOver. */
+  const luft = r => ({ left: r.left - 16, right: r.right + 16, top: r.top - 18, bottom: r.bottom + 14 });
   const pan = manaRow.hidden ? null : manaRow.getBoundingClientRect();
-  if (pan && pan.width) rutor.push({ left: pan.left - 16, right: pan.left + 124, top: pan.top - 18, bottom: pan.top + 214 });
-  const bib = bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null;
-  const bb = bib && bib.getBoundingClientRect();
-  if (bb && bb.width) rutor.push({ left: bb.left, right: bb.right, top: bb.top, bottom: bb.bottom });
+  if (pan && pan.width) rutor.push(luft(pan));
+  const bb = bibHogEl && !bibHogEl.hidden ? bibHogEl.getBoundingClientRect() : null;
+  if (bb && bb.width) rutor.push(luft(bb));
   if (!rutor.length) return null;
   const r = rutor.reduce((a, b) => ({ left: Math.min(a.left, b.left), right: Math.max(a.right, b.right), top: Math.min(a.top, b.top), bottom: Math.max(a.bottom, b.bottom) }));
   return { x0: r.left - w.left, x1: r.right - w.left, y0: r.top - w.top, y1: r.bottom - w.top };
@@ -6862,21 +6865,35 @@ function speglaKamPos(p, v) {
   }
   return andrat;
 }
-/* Library-högen (MES-93, MES-95): leken som en hög bredvid graveyard — de
-   två ställen på bordet där korten som inte är i spel ligger. Talet är
-   lekKvar (hand och bibliotek ihop). Klick öppnar lekvalet (leklådan,
-   MES-100); ett kort som släpps på den går tillbaka till hand eller
-   bibliotek. Bara på mitt eget bord i ett spel. Strängdiffad. */
+/* Library-högen (MES-93, MES-95; "Mesa Table Piles" A1): leken på platsen
+   som markerades i uppstarten, till höger om graveyard — de två ställen på
+   bordet där korten som inte är i spel ligger. Talet är lekKvar (hand och
+   bibliotek ihop). Klick öppnar lekvalet (leklådan, MES-100); ett kort som
+   släpps på den går tillbaka till hand eller bibliotek. Bara på mitt eget
+   bord i ett spel. Strängdiffad. */
 const bibHogEl = $('#bibHog');
+/* Leken är lyft: telefonen ser library-rutan tom (kamBib.ligger, med
+   telefonens egen fördröjning i bibSag). Bara när det finns en ruta, en
+   ansluten telefon som skickar nyckeln och uppstarten är stängd — annars
+   ritas leken som liggande. */
+function bibLyft() {
+  if (!spelLage || !arMitt(player()) || oppOppen || !kamAnsluten || !kamBibRad || kamBibStod === false) return false;
+  return !!kamBib && kamBib.ligger === false;
+}
 function renderBibHog() {
   if (!bibHogEl) return false;
   let html = '';
   if (spelLage && arMitt(player())) {
     const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
-    if (!lek) html = `<span class="zonlbl">Library</span><button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibtxt">Pick a deck</span></button>`;
+    if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
     else {
       const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null, kvar = k ? k.kvar : (lek.antal || 0);
-      html = `<span class="zonlbl">Library</span><button type="button" class="bib" data-lekvalj="lek" title="${esc(lek.namn || 'Deck')} — ${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together). Drop a card here to put it back"><span class="pips">${pipsHtml(lek.farger)}</span><b>${kvar}</b><span class="bibtxt">left</span></button>`;
+      const lyft = bibLyft(), antal = `${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together)`;
+      const inne = lyft
+        ? `<img class="bibspok" src="${BAKSIDA}" alt="" draggable="false"><span class="bibord">Put your library back here</span>`
+        : `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span>`;
+      const titel = lyft ? `Your library is off its spot — put it back inside the frame. ${antal}` : `${esc(lek.namn || 'Deck')} — ${antal}. Drop a card here to put it back`;
+      html = `<button type="button" class="bib${lyft ? ' lyft' : ''}" data-lekvalj="lek" title="${titel}">${inne}</button><span class="hograd"><i></i>Library<b>${kvar}</b></span>`;
     }
   }
   if (bibHogEl.dataset.h !== html) { bibHogEl.dataset.h = html; bibHogEl.innerHTML = html; }
@@ -6885,9 +6902,10 @@ function renderBibHog() {
 }
 bibHogEl && bibHogEl.addEventListener('click', lekKlick);
 /* Vilken hög pekaren är över under ett drag (GRAVEYARD_ANIMATION.md §2).
-   Graveyards träffyta är större än högen och asymmetrisk — man kommer alltid
-   in från bordet, alltså från höger och ovanifrån. Library har mindre luft:
-   högarna står bredvid varandra. Panelerna ligger utanför brädets transform
+   Träffytorna är större än platserna och asymmetriska: man kommer in från
+   bordet, ovanifrån — och till library, som står längst till höger, också
+   från höger. Mot varandra har de lite luft, så att mellanrummet mellan
+   platserna inte tillhör någon av dem. Panelerna ligger utanför brädets transform
    och skalas inte med zoomen, så luften är skärmpixlar (referensens fit är
    1 här). Är flera högar inom räckhåll vinner den vars mittpunkt är närmast,
    räknat i manhattan-avstånd. Returnerar 'grav', 'bib' eller null. */
@@ -6899,7 +6917,7 @@ function gravSlappRuta(c) {
   if (!el) { el = document.createElement('div'); el.className = 'gravslapp'; manaRow.appendChild(el); }
   el.innerHTML = `<i></i><span>Let go — ${esc(namnAv(c))} lands face up on top</span>`;
 }
-const HOG_LUFT = { grav: { l: 54, r: 44, t: 66, b: 66 }, bib: { l: 16, r: 8, t: 30, b: 20 } };
+const HOG_LUFT = { grav: { l: 54, r: 10, t: 66, b: 40 }, bib: { l: 10, r: 44, t: 66, b: 40 } };
 function hogUnder(ev) {
   if (!ev) return null;
   const hogar = { grav: manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)') };
@@ -6922,7 +6940,7 @@ function renderGravHog(cards, d) {
   manaRow.hidden = false;
   manaRow.classList.toggle('medbib', renderBibHog());
   const ex = d.exil.length;
-  const html = `<div class="gravrub"><b>Graveyard</b><i></i></div>${gravHtml(cards, d.grav)}`
+  const html = gravHtml(cards, d.grav)
     + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to browse"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '')
     + `<div class="gravfan" id="gravFan"></div>`;
   const pid = player().id, n = d.grav.length;
@@ -7344,7 +7362,7 @@ gridWrap.addEventListener('pointerdown', ev => {
   if (ev.target.closest(MATT_UI)) return;
   const hand = ev.button === 0 && (!!matHand || matVerktyg === 'pan'), hoger = ev.button === 2;
   if (!hand && !hoger && ev.button !== 1) {
-    if (ev.button === 0 && !ev.target.closest('.card,.plats,.grav,.empty')) { closeCounters(); lassoStart(ev); }
+    if (ev.button === 0 && !ev.target.closest('.card,.plats,.grav,.bib,.empty')) { closeCounters(); lassoStart(ev); }
     return;
   }
   closeCounters();
@@ -7937,7 +7955,8 @@ gridEl.addEventListener('contextmenu', ev => {
 /* Graveyard-högen (GRAVEYARD_ANIMATION.md §1): lagren under toppkortet,
    min(antal-1, 4) stycken räknade nedifrån och upp — högst k först i DOM,
    alltså underst. Fyra lager räcker för att säga "en hög"; antalet står i
-   klartext under. Sedan platsmarkeringen, toppkortet och gravstenen.
+   raden under (tom: bara namnet). Sedan toppkortet och gravstenen, allt inne
+   i platsens ram.
    Räknaren står under högen, med solfjäderns text beredd bredvid (§4). */
 function gravHtml(cards, idx) {
   const n = idx.length, e = n ? cards[idx[0]] : null, card = e && cardOf(e);
@@ -7945,10 +7964,10 @@ function gravHtml(cards, idx) {
   const lager = [];
   for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
   const titel = n ? `${n} ${n === 1 ? 'card' : 'cards'} in the graveyard — click to browse` : 'Cards that have been played end up here';
-  return `<button type="button" class="grav${n ? '' : ' tom'}" data-grav-open title="${titel}">${lager.join('')}<i class="gplats"></i>`
+  return `<button type="button" class="grav${n ? '' : ' tom'}" data-grav-open title="${titel}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '')
     + `<span class="gravsten">${GRAVSTEN}</span></button>`
-    + `<span class="gravtxt"><span class="gt-n">${n ? `${n} ${n === 1 ? 'card' : 'cards'}` : 'Empty'}</span><span class="gt-fan">Drag one back out</span></span>`;
+    + `<span class="gravtxt hograd"><i></i>Graveyard<span class="gt-n">${n ? `<b>${n}</b>` : ''}</span><span class="gt-fan">Drag one back out</span></span>`;
 }
 
 /* ═══ FRI MATTA — geometri (ren, ingen DOM) ═══════════════════════════
@@ -8680,7 +8699,9 @@ function renderOppstart() {
     }
   }
   if (!visa) oppVisat = oppNasta = null;
+  const oppVar = oppOppen;
   oppOppen = visa;
+  if (oppVar !== visa) renderBibHog();
   if (visa) {
     ordning.forEach((k, i) => {
       /* Klickbar är varje rad utom nästa steg när det står framme av sig självt. */
@@ -19294,6 +19315,7 @@ async function stangAvAuto(fraga) {
   const sum = autoSumAvsluta(senasteSpar, minSpelare(), Date.now());
   if (kamAnsluten) Moln.sandKam('stopp');
   kamAnsluten = false;
+  renderBibHog();
   kamHarVarit = false;            // avstängd är inte tappad — bordet ljuger inte
   kamTappadNar = 0; kamLast = kamTot = kamSer = 0; kamFas = ''; kamSma = 0; kamUpplosning = null;
   prefs.autoLage = false; savePrefs();
@@ -19766,6 +19788,7 @@ function kamNarvaro(kameror) {
      bord" fast ingenting läste mitt. Närvaron bär redan avsändarens id. */
   kamAnsluten = kameror.some(k => k.id && k.id === Moln.minId());
   if (kamAnsluten === fanns) return;
+  renderBibHog();                 // utan telefon ritas leken som liggande
   /* Telefonen kan ha laddats om utan att säga det. Bryt bindningen när
      sessionen byts, åt båda hållen — nollställningsmeddelandet täcker
      kalibreringsvägen, den här raden täcker att telefonen bara försvinner
@@ -19823,8 +19846,10 @@ function kamTogsEmot(m) {
     /* Library-rutan (MES-122): { ligger } i varje bord från en telefon med
        rutan; en telefon med äldre kod skickar inte nyckeln alls (nollställningen
        bär den aldrig). */
+    const foreLyft = bibLyft();
     if (!m.nollstall) kamBibStod = m.bib !== undefined;
     if (m.bib !== undefined) kamBib = m.bib;
+    if (bibLyft() !== foreLyft) renderBibHog();     // leken lyftes eller lades tillbaka
     /* Telefonen startade om (se kamStromIgen): förhandsbilden begärs igen. */
     if (m.nollstall) kamStromIgen();
     /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
@@ -19866,6 +19891,7 @@ function kamTogsEmot(m) {
   if (m.typ === 'lek') { minLek = null; return; }
   if (m.typ === 'av') {
     kamAnsluten = false;
+    renderBibHog();
     if (kamHarVarit) kamTappadNar = Date.now();
     kamLast = kamTot = 0;
     kamStegSynk();          // panelen går tillbaka till koden
