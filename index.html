@@ -7553,7 +7553,7 @@ function renderInspektor() {
   body.dataset.k = nyckel;
   if (lbl) lbl.textContent = label;
   if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">Point at a card to see it here</div></div>'; return; }
-  const src = e.flipped && !dfc ? BAKSIDA : (c ? imgOf(c, fi, 'large') : '');
+  const src = e.flipped && !dfc ? BAKSIDA : (c ? (imgOf(c, fi, 'png') || imgOf(c, fi, 'large')) : '');
   const f = c && c.faces[fi] || null;
   const namn = c ? c.name : e.name;
   const typ = f ? f.type : (matSlag(e) === 'land' ? 'Land' : 'Permanent');
