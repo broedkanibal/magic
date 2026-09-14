@@ -425,9 +425,11 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppsteg.done .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
 .oppsteg.active .oppnr{background:var(--acc);border-color:var(--acc);color:#20160a}
 .oppbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.opptit{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--txt);line-height:24px}
+.opptit{display:flex;align-items:center;gap:8px;min-height:24px;font-size:13.5px;font-weight:600;color:var(--txt);line-height:1.35}
 .oppsteg.todo .opptit{color:var(--dim);font-weight:550}
-.opptit i{font-style:normal;font-size:11px;font-weight:500;color:var(--dim2)}
+/* Steg 3: kamerans två lägen under en rubrik, utan kamera för sig nedanför. */
+.oppgrupp{font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);margin-bottom:-4px}
+.oppgrupp.skild{margin-top:4px;padding-top:12px;border-top:1px solid #1c2330}
 .oppsum{font-size:12px;color:var(--dim)}
 .oppsteg:not(.done) .oppsum,.oppsteg.active .oppsum,.oppsteg:not(.active) .oppcont{display:none}
 /* Varje steg går att öppna med ett klick på raden (role=button sätts av
@@ -505,7 +507,9 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .gor .gnr{margin-top:1px;width:16px;height:16px;border-radius:50%;border:1px solid #39445a;display:grid;place-items:center;font:700 9.5px/1 var(--mono);color:var(--dim2);flex:none}
 .oppefter{display:flex;flex-direction:column;gap:12px}
 .oppefter:empty{display:none}
-/* Bilden i stort på mattan under steg 4; mattans eget innehåll viker undan. */
+/* Bildytan på mattan hela uppstarten (MES-123): i steg 1–3 och utan telefon
+   står en ram där bilden kommer och säger vad steget handlar om; i steg 4
+   med telefonen är den kamerans bild. Mattans eget innehåll viker undan. */
 .oppmatt{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px}
 .oppmatt[hidden]{display:none}
 .oppmattrub,.oppmattbild{width:min(960px,100%)}
@@ -519,8 +523,12 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppmattvant{width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);border:1px dashed var(--panelram2);border-radius:10px;background:#0b1017;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--dim)}
 .oppmattvant[hidden]{display:none}
 .oppmattvant svg{color:var(--dim2)}
+.oppmattvant > *{animation:oppIn .24s ease-out both}
+.oppmattvant em{font:600 10px/1 var(--sans);font-style:normal;letter-spacing:.7px;text-transform:uppercase;color:var(--dim2)}
 .oppmattvant b{font-size:15px;font-weight:650;color:var(--txt)}
 .oppmattvant span{font-size:12.5px;max-width:44ch;line-height:1.55}
+@keyframes oppIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.oppmattvant > *{animation:none}}
 .oppmatt.utanbild [data-oppm="vand"],.oppmatt.utanbild [data-oppm="spegel"]{display:none}
 .oppmatt.utanbild .oppmattlive i{background:#3a4658;box-shadow:none}
 body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #lyftAlla,body.oppbild #emptyHand{visibility:hidden}
@@ -2773,12 +2781,8 @@ body.ispel #addPlayerBtn{display:none}
         <div class="oppmatt" id="oppMatt" hidden>
           <div class="oppmattrub"><span class="zonlbl oppmattlive"><i></i>What your phone sees</span><span class="grow"></span><button type="button" class="btn ghost sm" data-oppm="vand" title="Turn the picture a quarter turn, so it looks the way you sit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Rotate</button><button type="button" class="btn ghost sm" data-oppm="spegel" title="Mirror the picture"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7 3 17h5z"/><path d="m16 7 5 10h-5z"/></svg>Mirror</button></div>
           <div class="oppmattbild" id="oppMattBild">
-            <div class="oppmattvant" id="oppMattVant" hidden>
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>
-              <b>Your phone's picture shows up here</b>
-              <span>Connect your phone, and this is where you lay out your test card, your graveyard and your library.</span>
-              <button type="button" class="btn prim sm" data-oppm="tel">Connect your phone</button>
-            </div>
+            <!-- Utan bild: vad steget handlar om (renderOppstart, OPP_MATT). -->
+            <div class="oppmattvant" id="oppMattVant" hidden></div>
           </div>
         </div>
         <!-- Library-högen (MES-93, MES-95): leken bredvid graveyard — bordets två
@@ -2834,9 +2838,9 @@ body.ispel #addPlayerBtn{display:none}
             <div class="opprad"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button><button type="button" class="btn prim sm" data-opp="stang" id="opp2Klar" hidden>Done</button></div>
           </div></div></div>
         <div class="oppsteg" id="opp3"><span class="oppnr">3</span><div class="oppbody">
-          <div class="opptit">How should the camera work?</div><div class="oppsum" id="opp3Sum"></div><div class="oppcont" id="opp3Cont"></div></div></div>
+          <div class="opptit">Choose game mode</div><div class="oppsum" id="opp3Sum"></div><div class="oppcont" id="opp3Cont"></div></div></div>
         <div class="oppsteg" id="opp4"><span class="oppnr">4</span><div class="oppbody">
-          <div class="opptit">Set up your table in the picture<i id="opp4Tag">Follow the table only</i></div><div class="oppsum">Test card, graveyard and library set</div>
+          <div class="opptit">Set up your table in the picture</div><div class="oppsum">Card direction, graveyard and library set</div>
           <div class="oppcont">
             <p class="opptxt" id="opp4Intro">Lay out your table the way you'll play. The picture on the left is what your phone sees.</p>
             <div class="oppbild" id="oppBild"></div>
@@ -3215,8 +3219,8 @@ body.ispel #addPlayerBtn{display:none}
       <div class="popsec" id="kamLageSec">
         <span class="poplbl">How the camera works</span>
         <div class="seg" id="kamSeg">
-          <button type="button" data-lage="skarm"><span class="ikon" data-ikon="skarm"></span>Add only</button>
-          <button type="button" data-lage="bord"><span class="ikon" data-ikon="bord"></span>Follow the table</button>
+          <button type="button" data-lage="skarm"><span class="ikon" data-ikon="skarm"></span>Only add new cards</button>
+          <button type="button" data-lage="bord"><span class="ikon" data-ikon="bord"></span>Mirror my table</button>
         </div>
         <p class="poptxt" id="kamLageTxt"></p>
       </div>
@@ -5980,7 +5984,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      ${spelLage && !mitt ? `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Follow the table — taps, moves and removed cards on the table show up there' : 'Add only — the camera puts new cards on the mat'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>` : ''}
+      ${spelLage && !mitt ? `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>` : ''}
       ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">you</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} cards need filling in">${p.pending.length}</span>` : ''}
@@ -8377,7 +8381,7 @@ function renderMode() {
        kamerapanelen. Tidigare stod samma sak i lägeschippet, statusfältet
        och tomrutan. Står kameran av startar ett klick den. */
     const m = kamPillModell();
-    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${m.lage === 'bord' ? 'Follow the table' : 'Add only'} — how the camera works, and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
+    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage === 'bord' ? 'bord' : 'skarm']} — how the camera works, and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
     /* Panelen säger hur länge bordet stått fruset. */
     if (m.fel === 'tappad' && kamOppen) modeT = setTimeout(renderMode, 10000);
   }
@@ -8436,9 +8440,10 @@ function kamHittarRad() {
    på. Felvarianterna (5a–5c) ersätter läget och verktygen; bilden står kvar
    när det är den som förklarar felet. */
 const LAGE_TXT = {
-  bord: 'Taps, moves and cards you remove on the table show up here. A fix you make here holds until the card moves again.',
-  skarm: 'The camera puts new cards on the mat. You tap, move and remove them here.'
+  bord: 'Everything you do with your cards shows up here: play, tap, move, remove.',
+  skarm: 'The camera adds cards as you play them. You tap and move them here.'
 };
+const LAGE_NAMN = { bord: 'Mirror my table', skarm: 'Only add new cards' };
 let kamQrTvinga = false;   // Reconnect / Show the QR code: koden fram fast telefonen varit med
 function renderKamPop() {
   const ov = $('#kamOv'); if (!ov || !spelLage) return;
@@ -8546,6 +8551,20 @@ function oppDiff(el, html) { if (el && el.dataset.h !== html) { el.dataset.h = h
 const OPP_KLAR_S = OPP_KLAR.replace('width="12" height="12"', 'width="10" height="10"');
 const OPP_UPP = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="4" width="14" height="26" rx="2.2"/><path d="M13 8.5h8" stroke-linecap="round"/></svg>';
 const OPP_SIDA = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="26" height="14" rx="2.2"/><path d="M8.5 21V13" stroke-linecap="round"/></svg>';
+/* Bildytans ram på mattan medan uppstarten står framme utan bild (MES-123):
+   en rad om vad steget handlar om, samma ram i alla steg. */
+const oppIkon = inre => `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inre}</svg>`;
+const OPP_MATT = {
+  lek: { ikon: oppIkon('<rect x="4" y="6" width="11" height="15" rx="1.8"/><path d="M8 3h10.2A1.8 1.8 0 0 1 20 4.8V17"/>'), h: 'Pick your deck',
+    p: 'The camera only looks for cards in the deck you play with. Pick it on the right.' },
+  tel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: 'Connect your phone',
+    p: "Scan the code on the right with your phone's camera. The phone's picture shows up here." },
+  lage: { ikon: oppIkon('<path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/>'), h: 'Choose game mode',
+    p: 'Let the camera mirror your table, let it only add new cards, or play without it.' },
+  vinkel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: "Your phone's picture shows up here",
+    p: 'Connect your phone, then lay out a card, your graveyard and your library in the picture.',
+    knapp: '<button type="button" class="btn prim sm" data-oppm="tel">Connect your phone</button>' }
+};
 /* Vilken del som står framme: provkortet, graveyard, leken — sedan Start playing. */
 function oppDelLage(o) {
   const prov = !!o.provKlar, grav = !!o.gravKlar, bib = !!o.bibKlar;
@@ -8581,7 +8600,7 @@ function oppSteg4(o) {
   }
   const knappar = av => `<div class="tapval"><button type="button" class="tapopt" data-opptap="0"${av ? ' disabled' : ''}>${OPP_UPP}<b>Untapped</b><span>Standing up</span></button><button type="button" class="tapopt" data-opptap="1"${av ? ' disabled' : ''}>${OPP_SIDA}<b>Tapped</b><span>Turned sideways</span></button></div>`;
   let prov;
-  if (!p) prov = `<p class="opptxt">Put any card from your deck on the table. It's only a test — it won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`;
+  if (!p) prov = `<p class="opptxt">Put one card from your deck on the table, the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`;
   else if (p.matt && oppTappSvar == null) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
   else prov = `<div class="opprad"><span class="oppwait"><i></i><span>Found it — measuring the angle…</span></span></div>${knappar(true)}<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>`;
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
@@ -8594,13 +8613,13 @@ function oppSteg4(o) {
   if (d.aktiv === 'bib') {
     const vantat = Date.now() - oppBibNar, knapp = kamBibStod === false || vantat >= 10000;
     if (!knapp && !oppBibT) oppBibT = setTimeout(() => { oppBibT = 0; renderMode(); }, 10000 - vantat + 50);
-    bib = `<ol class="gor"><li><span class="gnr">1</span><span>Pick up the test card</span></li><li><span class="gnr">2</span><span>Shuffle it into your library</span></li><li><span class="gnr">3</span><span>Put your library face down on the spot</span></li></ol>`
+    bib = `<ol class="gor"><li><span class="gnr">1</span><span>Pick up the card</span></li><li><span class="gnr">2</span><span>Shuffle it into your library</span></li><li><span class="gnr">3</span><span>Put your library face down on the spot</span></li></ol>`
       + `<div class="opprad"><span class="oppwait"><i></i><span>Waiting for your library…</span></span></div>`
       + (knapp ? `<div class="opprad"><button type="button" class="btn sm" data-opp="biblagd">My library is in place</button></div>` : '');
   }
   const st = k => d[k] ? 'done' : d.aktiv === k ? 'active' : 'todo';
   oppDiff($('#oppDelar'),
-    oppDel(1, 'Test card', st('prov'), o.tapp ? 'Tapped' : 'Untapped', ['provom', 'Change'], prov)
+    oppDel(1, 'Card direction', st('prov'), o.tapp ? 'Tapped' : 'Untapped', ['provom', 'Change'], prov)
     + oppDel(2, 'Graveyard', st('grav'), 'Bottom-left corner', ['gravom', 'Move'], grav)
     + oppDel(3, 'Library', st('bib'), 'In place', null, bib));
   oppDiff($('#oppEfter'), d.aktiv === 'start'
@@ -8639,7 +8658,9 @@ function renderOppstart() {
   const steg = {};
   if (visa) {
     const grund = kamGrund != null ? kamGrund : kamGrundRad;
-    steg.lek = !!(mig && mig.lekId);
+    /* Leken räknas vald först när spelaren valt den här (MES-123): ett nytt
+       spel landar i Pick your deck, också när kontots enda lek valts tyst. */
+    steg.lek = !!(mig && mig.lekId) && !!(o.lekOk || o.lage);
     steg.tel = prefs.autoLage === true && kamAnsluten;
     steg.lage = !!o.lage;
     /* Steg 4 är klart med Start playing — eller, på en dator som inte
@@ -8665,12 +8686,11 @@ function renderOppstart() {
         else { st.removeAttribute('tabindex'); st.removeAttribute('role'); st.removeAttribute('aria-expanded'); }
       }
     });
-    $('#opp4').hidden = o.lage && !bord;          // Add only: inget otappat kort att visa
-    $('#opp4Tag').hidden = !!o.lage;
+    $('#opp4').hidden = o.lage && !bord;          // Only add new cards: inget otappat kort att visa
     const lek = mig && mig.lek;
     const s1 = lek ? `${lek.namn || 'Deck'} · ${lek.antal || 0} cards` : '';
     if ($('#opp1Sum').textContent !== s1) $('#opp1Sum').textContent = s1;
-    const s3 = bord ? 'Follow the table' : 'Add only';
+    const s3 = LAGE_NAMN[bord ? 'bord' : 'skarm'];
     if ($('#opp3Sum').textContent !== s3) $('#opp3Sum').textContent = s3;
     /* 1: leken. Listan hämtas en gång; står lekdialogen öppen (New deck…)
        hämtas den på nytt när den stängts. */
@@ -8707,11 +8727,16 @@ function renderOppstart() {
       if (w.lastElementChild.textContent !== t) w.lastElementChild.textContent = t;
       $('#opp2Klar').hidden = !kamAnsluten;
     } else oppQrVisas = false;
-    /* 3: hur kameran arbetar. Follow the table är förvalt och rekommenderat. */
+    /* 3: spelläget (MES-123). Kamerans två lägen under With camera — Mirror
+       my table förvalt och rekommenderat — och Without camera för sig. */
     if (aktiv === 'lage') {
       if (!oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
-      const opt = (v, rub, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${rub}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${LAGE_TXT[v]}</span></span></button>`;
-      oppDiff($('#opp3Cont'), opt('bord', 'Follow the table', 'Recommended') + opt('skarm', 'Add only') + '<div class="opprad"><button type="button" class="btn prim sm" data-opp="lage">Continue</button></div>');
+      const opt = (v, rub, txt, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${rub}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${txt}</span></span></button>`;
+      oppDiff($('#opp3Cont'), '<div class="oppgrupp">With camera</div>'
+        + opt('bord', LAGE_NAMN.bord, LAGE_TXT.bord, 'Recommended') + opt('skarm', LAGE_NAMN.skarm, LAGE_TXT.skarm)
+        + '<div class="oppgrupp skild">Without camera</div>'
+        + opt('utan', 'Without camera', 'No phone. You put your cards on the mat yourself.')
+        + '<div class="opprad"><button type="button" class="btn prim sm" data-opp="lage">Continue</button></div>');
     }
     /* 4: provkortet, graveyard-platsen och leken (MES-122). */
     if (aktiv === 'vinkel') oppSteg4(o);
@@ -8723,12 +8748,19 @@ function renderOppstart() {
   const bild = steg4 && kamAnsluten;
   const dit = bild ? (smal ? 'panel' : 'matt') : false;
   if (dit !== oppstartBild) { oppstartBild = dit; flyttaPbBild(dit); kamStegSynk(); }
-  /* Mattan är kamerans bildyta hela steg 4 — också innan telefonen är med:
-     då står det där bilden kommer, och de digitala högarna viker undan. */
-  const ram = steg4 && !smal;
+  /* Mattan är kamerans bildyta hela uppstarten (MES-123) — i steg 1–3 och i
+     steg 4 innan telefonen är med står ramen där bilden kommer och säger vad
+     steget handlar om, och de digitala högarna viker undan. Samma ram i alla
+     steg, så att bara innehållet byts när man går vidare. */
+  const ram = visa && !kamOppen && !smal;
   $('#oppMatt').hidden = !ram;
   $('#oppMatt').classList.toggle('utanbild', !bild);
   $('#oppMattVant').hidden = bild;
+  if (ram && !bild) {
+    const synliga = ordning.filter(k => k !== 'vinkel' || !$('#opp4').hidden);
+    const m = OPP_MATT[aktiv] || OPP_MATT.vinkel;
+    oppDiff($('#oppMattVant'), `${m.ikon}<em>Step ${synliga.indexOf(aktiv) + 1} of ${synliga.length}</em><b>${m.h}</b><span>${m.p}</span>${m.knapp || ''}`);
+  }
   document.body.classList.toggle('oppbild', ram);
   const intro = dit === 'panel' ? "Lay out your table the way you'll play. The picture is what your phone sees." : "Lay out your table the way you'll play. The picture on the left is what your phone sees.";
   if ($('#opp4Intro').textContent !== intro) $('#opp4Intro').textContent = intro;
@@ -8758,13 +8790,17 @@ $('#oppstart').addEventListener('click', ev => {
   const a = b.dataset.opp;
   if (a === 'spela' && oppLekVal) {
     const mig = minSpelare(), samma = mig && mig.lekId === oppLekVal;
-    oppVisat = null;
+    oppVisat = null; oppSatt({ lekOk: true });
     if (samma) renderMode(); else valjLekTill(oppLekVal).then(() => renderMode());
   }
   else if (a === 'nylek') oppnaLek();
   else if (a === 'kopiera') navigator.clipboard.writeText(oppLank()).then(() => toast('Link copied', 'ok'), () => prompt('Copy the link:', oppLank()));
   else if (a === 'stang') { oppVisat = null; renderOppstart(); }
-  else if (a === 'lage') { const v = oppLageVal || 'bord'; oppSatt({ lage: true }); oppLageVal = null; oppVisat = null; bytLage(v).then(() => renderMode()); }
+  else if (a === 'lage') {
+    const v = oppLageVal || 'bord'; oppLageVal = null; oppVisat = null;
+    if (v === 'utan') oppUtan();
+    else { oppSatt({ lage: true }); bytLage(v).then(() => renderMode()); }
+  }
   else if (a === 'grund') sparaGrundFranSenaste();
   else if (a === 'provom') { oppSatt({ provKlar: false }); oppTappSvar = null; renderMode(); }
   else if (a === 'gravok') { const f = oppForslag(oppFor()); oppSparaZoner(f.grav, f.bib); }
@@ -8774,17 +8810,19 @@ $('#oppstart').addEventListener('click', ev => {
   else if (a === 'gravom') { oppSatt({ gravKlar: false, bibKlar: false }); oppFlytt = true; oppGravFlyttad = kamGravRad || oppForslag(oppFor()).grav; renderMode(); ritaPbLager(); }
   else if (a === 'biblagd') { oppSatt({ bibKlar: true }); renderMode(); }
   else if (a === 'starta') oppStarta();
-  else if (a === 'utan') {
-    /* Utan kamera: uppstarten stängs, och en kamera som bara väntade på en
-       telefon stängs av. Pillret öppnar uppstarten igen. */
-    oppSatt({ avbojd: true });
-    if (prefs.autoLage === true && !kamAnsluten) { prefs.autoLage = false; savePrefs(); }
-    renderMode();
-  }
+  else if (a === 'utan') oppUtan();
 });
+/* Utan kamera (foten, eller Without camera i steg 3): uppstarten stängs, och
+   en kamera som bara väntade på en telefon stängs av. Pillret öppnar
+   uppstarten igen. */
+function oppUtan() {
+  oppSatt({ avbojd: true });
+  if (prefs.autoLage === true && !kamAnsluten) { prefs.autoLage = false; savePrefs(); }
+  renderMode();
+}
 $('#oppMatt').addEventListener('click', ev => {
   const b = ev.target.closest('[data-oppm]'); if (!b) return;
-  if (b.dataset.oppm === 'tel') { oppVaxla($('#opp2')); return; }
+  if (b.dataset.oppm === 'tel') { if (oppVisat !== 'tel' && oppNasta !== 'tel') oppVaxla($('#opp2')); return; }
   if (b.dataset.oppm === 'vand') kamVand = (kamVand + 90) % 360; else kamSpegel = !kamSpegel;
   oppGravFlyttad = null; sparaKamOrientering(); renderMode(); ritaPbLager();
 });
@@ -8813,7 +8851,7 @@ async function bytLage(v) {
   const ok = await Moln.sattLage(spelLage.id, v).catch(() => false);
   lageByte = false;
   if (!ok) { mig.lage = fore; renderAll(true); toast('The mode could not be saved — try again', 'err'); return; }
-  toast(v === 'bord' ? 'Follow the table — taps, moves and removed cards show up here' : 'Add only — the camera puts new cards on the mat', 'ok');
+  toast(`${LAGE_NAMN[v]} — ${LAGE_TXT[v][0].toLowerCase()}${LAGE_TXT[v].slice(1)}`, 'ok');
   if (v === 'bord' && kamAnsluten && prefs.autoLage === true && senasteSpar.length) avstamBord(senasteSpar);
 }
 /* Ett enda ställe tar emot klicken: pillret, panelen och statusfältet.
@@ -9524,7 +9562,7 @@ gridEl.addEventListener('pointerdown', ev => {
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   /* Table leads: bordet bestämmer var ett kamerabundet kort ligger. */
   if (spelLage && kamSpeglar(minSpelare()) && c.spar != null) {
-    matChip(c, 'The table places this card · switch to Add only to move it');
+    matChip(c, 'The table places this card · switch to Only add new cards to move it');
     clearTimeout(matChipT); matChipT = setTimeout(() => matChip(null), 1800);
     return;
   }
@@ -9738,6 +9776,7 @@ async function oppnaLekVal(fran) {
       lekValEl.hidden = true;
       if (b.dataset.hantera != null) { oppnaLek(b.dataset.hantera || undefined); return; }
       await valjLekTill(b.dataset.valj);
+      if (spelLage) { oppSatt({ lekOk: true }); renderMode(); }   // valt här räknas som valt i uppstarten
     });
   }
   if (!lekValEl.hidden) { lekValEl.hidden = true; return; }
@@ -9790,7 +9829,6 @@ async function valjLekTill(id) {
   lekValPagar = false;
   if (!ok) { mig.lekId = fore.lekId; mig.lek = fore.lek; renderTabs(); toast('The deck choice could not be saved', 'err'); return; }
   Moln.sandKam('lek', { lekId: rad.id });
-  toast(`Playing ${rad.namn} — the camera recognises its ${rad.antal || 0} cards`, 'ok');
 }
 /* Vid inträdet i ett spel: har jag redan valt en lek där hämtas dess kort
    för antalspriorn; annars, om kontot har exakt en lek, väljs den tyst. */
@@ -19836,7 +19874,7 @@ function ritaOppLager(G) {
   const t = oppProvId != null ? senasteSpar.find(u => u.id === oppProvId) : null;
   if (t && t.w != null && !d.bib) {
     const q = pbRutaPx(G, t), ny = !d.prov;
-    const txt = ny ? (oppProvMatt && oppTappSvar == null ? 'Test card' : 'Measuring the angle…') : d.aktiv === 'bib' ? 'Test card · pick it up' : 'Test card · not played';
+    const txt = ny ? (oppProvMatt && oppTappSvar == null ? 'This card' : 'Measuring the angle…') : d.aktiv === 'bib' ? 'Pick this card up' : 'This card · not played';
     h += chip(q, ny ? (oppProvMatt && oppTappSvar == null ? '#5fbf7f' : '#e8b33a') : '#6b7280', txt);
   }
   if (d.aktiv === 'prov' && !t) h += `<div class="ovant"><i></i>Looking for a card…</div>`;
