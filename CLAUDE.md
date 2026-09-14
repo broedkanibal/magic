@@ -109,13 +109,15 @@ etikett: fråga hellre än att skapa en ny.
 | Claude Code påbörjar arbetet direkt | **In Progress** (`paborjaIssue`) |
 | Claude Code noterar något på eget initiativ, som ingen bett om | Backlog |
 
-**Projekt — annars syns issuen inte i projektvyn:**
+**Projekt — alltid Mesa Magic i det här repot:**
 
-| Situation | Projekt |
-|---|---|
-| Uppföljning av en issue (MES-113 efter MES-107) | samma som issuen den följer upp |
-| Jesper har sagt vilket projekt | det |
-| Annars | fråga — gissa inte, som med `Release`-etiketterna |
+Varje issue som Claude Code skapar medan det jobbar i det här repot hamnar i
+projektet **Mesa Magic** (laget Mesa). Det gäller alla sessioner kopplade
+till GitHub-repot `broedkanibal/magic` — huvudarbetsträdet och alla
+worktrees — oavsett om issuen är en bugg, en feature, research eller
+administration. Fråga inte och gissa inte: utan projekt syns issuen inte i
+projektvyn. Ett annat projekt bara om Jesper uttryckligen säger det i
+chatten.
 
 Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature'], status:
 'unstarted', projekt: 'Mesa Magic' })` — `'unstarted'` är Todo. Med
