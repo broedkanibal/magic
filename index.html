@@ -510,6 +510,14 @@ body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;g
 .oppmattlive i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px #57c78522}
 .oppmattbild .kalbild{width:100%;height:auto;aspect-ratio:16/10;max-height:calc(100vh - 230px);border:1px solid var(--line);margin:0 auto}
 .oppmattbild .kalbild img{width:100%;height:100%;object-fit:contain}
+/* Steg 4 utan telefon: bildytan står kvar och säger var bilden kommer. */
+.oppmattvant{width:100%;aspect-ratio:16/10;max-height:calc(100vh - 230px);border:1px dashed var(--panelram2);border-radius:10px;background:#0b1017;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;color:var(--dim)}
+.oppmattvant[hidden]{display:none}
+.oppmattvant svg{color:var(--dim2)}
+.oppmattvant b{font-size:15px;font-weight:650;color:var(--txt)}
+.oppmattvant span{font-size:12.5px;max-width:44ch;line-height:1.55}
+.oppmatt.utanbild [data-oppm="vand"],.oppmatt.utanbild [data-oppm="spegel"]{display:none}
+.oppmatt.utanbild .oppmattlive i{background:#3a4658;box-shadow:none}
 body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #lyftAlla,body.oppbild #emptyHand{visibility:hidden}
 /* I spelarens vy ritar canvasen själva bilden, vriden och speglad. */
 #pbBild.vy #pbImg{visibility:hidden}
@@ -2756,7 +2764,14 @@ body.ispel #addPlayerBtn{display:none}
              #pbBild flyttas hit (flyttaPbBild) och visas i spelarens vy. -->
         <div class="oppmatt" id="oppMatt" hidden>
           <div class="oppmattrub"><span class="zonlbl oppmattlive"><i></i>What your phone sees</span><span class="grow"></span><button type="button" class="btn ghost sm" data-oppm="vand" title="Turn the picture a quarter turn, so it looks the way you sit"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>Rotate</button><button type="button" class="btn ghost sm" data-oppm="spegel" title="Mirror the picture"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7 3 17h5z"/><path d="m16 7 5 10h-5z"/></svg>Mirror</button></div>
-          <div class="oppmattbild" id="oppMattBild"></div>
+          <div class="oppmattbild" id="oppMattBild">
+            <div class="oppmattvant" id="oppMattVant" hidden>
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>
+              <b>Your phone's picture shows up here</b>
+              <span>Connect your phone, and this is where you lay out your test card, your graveyard and your library.</span>
+              <button type="button" class="btn prim sm" data-oppm="tel">Connect your phone</button>
+            </div>
+          </div>
         </div>
         <!-- Library-högen (MES-93, MES-95): leken bredvid graveyard — bordets två
              högar som ett par. Ritas av renderBibHog(). -->
@@ -8695,11 +8710,17 @@ function renderOppstart() {
   }
   /* Bilden: i steg 4 så länge kamerapanelen är stängd — i stort på mattan,
      på en smal skärm i spalten (den ligger då över mattan). */
-  const bild = visa && aktiv === 'vinkel' && !kamOppen && kamAnsluten;
-  const dit = bild ? (matchMedia('(max-width:620px)').matches ? 'panel' : 'matt') : false;
+  const steg4 = visa && aktiv === 'vinkel' && !kamOppen, smal = matchMedia('(max-width:620px)').matches;
+  const bild = steg4 && kamAnsluten;
+  const dit = bild ? (smal ? 'panel' : 'matt') : false;
   if (dit !== oppstartBild) { oppstartBild = dit; flyttaPbBild(dit); kamStegSynk(); }
-  $('#oppMatt').hidden = dit !== 'matt';
-  document.body.classList.toggle('oppbild', dit === 'matt');
+  /* Mattan är kamerans bildyta hela steg 4 — också innan telefonen är med:
+     då står det där bilden kommer, och de digitala högarna viker undan. */
+  const ram = steg4 && !smal;
+  $('#oppMatt').hidden = !ram;
+  $('#oppMatt').classList.toggle('utanbild', !bild);
+  $('#oppMattVant').hidden = bild;
+  document.body.classList.toggle('oppbild', ram);
   const intro = dit === 'panel' ? "Lay out your table the way you'll play. The picture is what your phone sees." : "Lay out your table the way you'll play. The picture on the left is what your phone sees.";
   if ($('#opp4Intro').textContent !== intro) $('#opp4Intro').textContent = intro;
   if (dit) requestAnimationFrame(ritaPbLager);
@@ -8754,6 +8775,7 @@ $('#oppstart').addEventListener('click', ev => {
 });
 $('#oppMatt').addEventListener('click', ev => {
   const b = ev.target.closest('[data-oppm]'); if (!b) return;
+  if (b.dataset.oppm === 'tel') { oppVaxla($('#opp2')); return; }
   if (b.dataset.oppm === 'vand') kamVand = (kamVand + 90) % 360; else kamSpegel = !kamSpegel;
   oppGravFlyttad = null; sparaKamOrientering(); renderMode(); ritaPbLager();
 });
