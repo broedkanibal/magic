@@ -387,11 +387,16 @@ button.ladagrp:hover .zonlbl{color:var(--txt)}
 .ladarad:hover .g{color:var(--dim)}
 .ladarad .sw{width:18px;height:25px;border-radius:3px;flex:none;background:#1b2230 center 22%/cover no-repeat;box-shadow:inset 0 0 0 1.5px #0b0b0d}
 .ladarad .n{flex:1;min-width:0;font-size:12.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ladarad .c{display:inline-flex;align-items:center;gap:1px;flex:none}
-.ladarad .c > *{width:13px;height:13px}
+/* > .c: manaraden. Utan barnväljaren träffade regeln också den färglösa
+   brickan (.ms.c) och gjorde den till en flex-rad — siffran hamnade till
+   vänster i sin cirkel (MES-114). */
+.ladarad > .c{display:inline-flex;align-items:center;gap:1px;flex:none}
+.ladarad > .c > *{width:13px;height:13px;margin:0}
+/* Siffran på en ljusare bricka mot den mörka lådan (MES-114). */
+.ladarad .ms.c{background:#e4e0dc;font-size:9px}
 .ladarad .q{font:600 11px var(--mono);color:var(--dim);min-width:22px;text-align:right;flex:none}
 .ladarad.drar{background:#1a1710;box-shadow:inset 0 0 0 1px #f0a52a66}
-.ladarad.drar .n,.ladarad.drar .sw,.ladarad.drar .c{opacity:.45}
+.ladarad.drar .n,.ladarad.drar .sw,.ladarad.drar > .c{opacity:.45}
 .ladatom{padding:18px 8px;color:var(--dim2);font-size:12.5px;text-align:center}
 .ladafot{padding:10px 14px;border-top:1px solid #1c2330;font-size:11.5px;color:var(--dim2)}
 .ladafot[hidden]{display:none}
@@ -4728,8 +4733,12 @@ function rentNamn(raw) {
   return t;
 }
 
-function symbol(tok, big) {
+/* ikon: färgerna och {C} som Wizards egna symboler (MANA_SVG) i stället för
+   en bokstav på en platt bricka — leklådan (MES-114). Siffror och hybrider
+   har ingen egen ikon och ritas som förut. */
+function symbol(tok, big, ikon) {
   const t = tok.toUpperCase(), cls = big ? ' big' : '';
+  if (ikon && MANA_SVG[t]) return `<i class="ms xl${cls}">${MANA_SVG[t]}</i>`;
   if (t.includes('/')) {
     const [a, b] = t.split('/');
     const c1 = HEX[MSCOL[a]] || HEX.c, c2 = HEX[MSCOL[b]] || HEX.c;
@@ -4763,10 +4772,10 @@ function manaFigur(bokstav) { return MANA_SVG[bokstav] || esc(bokstav); }
 function symbolize(str, big) {
   return esc(str).replace(/\{([^}]{1,5})\}/g, (_, t) => symbol(t, big));
 }
-function manaHtml(cost, big) {
+function manaHtml(cost, big, ikon) {
   if (!cost) return '';
   const out = [];
-  cost.replace(/\{([^}]{1,5})\}/g, (_, t) => { out.push(symbol(t, big)); return ''; });
+  cost.replace(/\{([^}]{1,5})\}/g, (_, t) => { out.push(symbol(t, big, ikon)); return ''; });
   return out.join('');
 }
 
@@ -6081,7 +6090,7 @@ function renderLada() {
       const bild = p.small || (c ? imgOf(c, 0, 'small') : '');   // äldre lekposter saknar small: kortcachen har bilden
       return `<div class="ladarad" data-li="${p.i}" title="${esc(p.name)}${p.kvar > 1 ? ` — ${p.kvar} left` : ''}">`
         + `<span class="g">${M_GREPP}</span><span class="sw"${bild ? ` style="background-image:url('${esc(bild)}')"` : ''}></span>`
-        + `<span class="n">${esc(p.name)}</span><span class="c">${manaHtml(mana)}</span><span class="q">${p.kvar > 1 ? '×' + p.kvar : ''}</span></div>`;
+        + `<span class="n">${esc(p.name)}</span><span class="c">${manaHtml(mana, false, true)}</span><span class="q">${p.kvar > 1 ? '×' + p.kvar : ''}</span></div>`;
     };
     const traff = p => !q || norm(p.name).includes(q);
     for (const g of huvud) {
