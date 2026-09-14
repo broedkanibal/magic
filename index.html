@@ -2161,11 +2161,8 @@ body.lekfoto .lekfoto.lagg.telefon{display:none}
    med sina knappar. */
 .spelknapp.kompakt .delare,.spelknapp.kompakt .bjud span{display:none}
 .spelknapp.kompakt .bjud{gap:0}
-/* Utanför ett spel finns ingen kod, och i stället en väg in i ett. Den vägen
-   fanns inte alls förut: från det lokala bordet gick lobbyn inte att nå utan
-   att ladda om sidan. */
+/* Utanför ett spel finns ingen kod att bjuda in till. */
 body:not(.ispel) .spelknapp{display:none}
-body.ispel #startSpelBtn{display:none}
 
 /* ── Modeplatsen ────────────────────────────────────────────────────
    Ett och samma utrymme längst till höger, och det enda stället där det står
@@ -2435,7 +2432,6 @@ body.ispel #addPlayerBtn{display:none}
    så en ensam .portalgoogle förlorade och knappen blev guldfärgad. */
 .btn.portalgoogle{justify-content:center;gap:10px;background:#fff;color:#1f2530;border-color:#fff;font-weight:600}
 .btn.portalgoogle:hover{background:#f1f3f7;color:#1f2530;border-color:#f1f3f7}
-.portallokal{justify-content:center}
 .portaldelare{display:flex;align-items:center;gap:10px;color:var(--dim2);font:11px var(--mono)}
 .portaldelare::before,.portaldelare::after{content:'';flex:1;height:1px;background:var(--line)}
 .portaljoin{display:flex;gap:8px}
@@ -2543,7 +2539,7 @@ body.ispel #addPlayerBtn{display:none}
      Modeplatsen får dessutom krympa: den är inte det sista man ger upp. */
   .modeslot{min-width:0}
   .modeslot .btn{padding:0 7px}
-  .modeslot .btn .langtxt,#startSpelBtn{display:none}
+  .modeslot .btn .langtxt{display:none}
   .spelknapp .bjud,.spelknapp .delare{display:none}
   /* Kortikonen går före flikarna och läget. Samma ruta nås från
      "Drag in cards" i zonrubriken och från tomrutan, och raden blev redan
@@ -2558,7 +2554,7 @@ body.ispel #addPlayerBtn{display:none}
 
      Ligger utanför #app och byter av varandra med visaVy(). Appen har
      ingen router: den här filen ÄR sidan, och tre lägen räcker — inte
-     inloggad, inloggad utan spel, och i spel (eller lokalt läge).
+     inloggad, inloggad utan spel, och i spel.
      ══════════════════════════════════════════════════════════════════ -->
 <div id="vyStart" class="portal" hidden>
   <div class="portalkort">
@@ -2580,11 +2576,6 @@ body.ispel #addPlayerBtn{display:none}
       Continue with Google
     </button>
     <p class="portalfel" id="startFel" hidden></p>
-
-    <div class="portaldelare"><span>or</span></div>
-    <button class="btn portallokal" id="lokaltBtn">Use without an account</button>
-    <p class="portalfin">Without an account everything is saved only in this browser, and you
-      cannot invite anyone. You can sign in later.</p>
   </div>
 </div>
 
@@ -2606,7 +2597,6 @@ body.ispel #addPlayerBtn{display:none}
     <p class="portalfel" id="lobbyFel" hidden></p>
 
     <div id="lobbyMina" class="portalmina" hidden></div>
-    <button class="btn ghost sm" id="lobbyLokalt">Continue without a game</button>
   </div>
 </div>
 
@@ -2665,8 +2655,6 @@ body.ispel #addPlayerBtn{display:none}
         <span>Invite</span>
       </span>
     </button>
-    <!-- Utanför ett spel gick lobbyn inte att nå utan att ladda om sidan. -->
-    <button class="btn sm" id="startSpelBtn" title="Play with others at the same table">Start a game</button>
 
     <div class="vr"></div>
     <nav class="players" id="playerTabs"></nav>
@@ -8908,7 +8896,6 @@ $('#kamOv').addEventListener('click', modeKlick);
    andra: den LÄGGER TILL, och den tar man till när kameran inte känner igen
    ett kort. */
 function tomLage() {
-  if (!spelLage) return 'lokal';
   if (prefs.autoLage !== true) return 'av';
   if (!kamAnsluten) return kamHarVarit ? 'tappad' : 'vantar';
   /* 'ingen' kommer bara från en telefon med äldre kod (se renderMode): rutan
@@ -8955,11 +8942,6 @@ function renderTom() {
   };
   const bord = mittLage() === 'bord';
   const V = {
-    /* Det lokala bordet är oförändrat, ord för ord: där finns ingen telefon. */
-    lokal: { ikon: IKON.kamera, h: 'Read the board from a picture',
-      p: "Paste a screenshot of a video call and Mesa finds each player's pane and reads the cards on their table — one player per pane. A cropped picture of one or more cards works too: those get added to your hand.",
-      knappar: '<button class="btn prim big" data-mode="foto">Paste screenshot</button><button class="btn big" data-sok>Add a card by hand</button>',
-      fin: 'Press <kbd>⌘V</kbd> anywhere in the app, or drag in an image file.<br>Pasting later adds the cards — your hand is only replaced if you re-read the board in the image view.' },
     /* Kamerans övriga tillstånd säger pillret (MES-98); tomrutan har en rad
        för dem (TYST ovan) och ritar dem aldrig här. */
     redo: { ikon: IKON.kort, h: 'Play your first card',
@@ -20737,28 +20719,12 @@ async function loggaUtHelt() {
   location.reload();
 }
 
-async function startaLokalt() {
-  spelLage = null;
-  LS.set(K.lage, 'lokal');
-  await Moln.lamnaKanal();
-  visaVy('app');
-  renderAll(true); matResize();
-}
-
-$('#lokaltBtn').onclick = () => startaLokalt();
-$('#lobbyLokalt').onclick = () => startaLokalt();
 $('#loggaInBtn').onclick = async () => {
   portalFel('#startFel', '');
   try { LS.set(K.lage, 'moln'); await Moln.loggaIn(inbjudanIUrl()); }
   catch (e) { portalFel('#startFel', e.message || 'Sign-in could not start.'); }
 };
 $('#loggaUtBtn').onclick = () => loggaUtHelt();
-/* Från det lokala bordet fanns ingen väg till lobbyn alls — man fick ladda om
-   sidan. Är man inte inloggad är landningssidan rätt ställe att hamna på. */
-$('#startSpelBtn').onclick = async () => {
-  LS.set(K.lage, 'moln');
-  if (Moln.minId()) await visaLobby(); else visaVy('start');
-};
 $('#skapaSpelBtn').onclick = async () => {
   hideToast();                              // en gammal notis om t.ex. ett avslutat spel hör inte hemma i det nya
   portalFel('#lobbyFel', '');
@@ -20792,17 +20758,15 @@ $('#lobbyMina').addEventListener('click', async ev => {
   catch (e) { portalFel('#lobbyFel', e.message || 'Could not open the game.'); }
 });
 
-/* Vilken vy som ska visas vid start. Har man valt lokalt läge tidigare visas
-   appen direkt, utan att vänta på ett nätverksanrop — annars hade den som
-   inte använder spel fått en blink av landningssidan vid varje start. */
+/* Vilken vy som ska visas vid start. Man spelar bara inloggad: det lokala
+   läget utan spel finns inte längre, och en gammal 'lokal' i K.lage läses
+   inte. */
 async function portalStart() {
   const inbjudan = inbjudanIUrl();
   /* Telefonen som ska fotografera leken (D8-7): läget överlever rundturen
      till Google i sessionStorage, som kamerans. */
   const lekfotoParam = lekfotoIUrl();
   if (lekfotoParam) sessionStorage.setItem('sthv.lekfoto', lekfotoParam);
-  const sparatLage = LS.get(K.lage, null);
-  if (sparatLage === 'lokal' && !inbjudan && !lekfotoParam) { spelLage = null; visaVy('app'); return; }
 
   visaVy('start');
   if (lekfotoParam) {
@@ -20822,7 +20786,7 @@ async function portalStart() {
   }
   const { konfigurerad } = await Moln.start();
   if (!konfigurerad) {
-    portalFel('#startFel', 'Sign-in is not set up on this server. Carry on without an account.');
+    portalFel('#startFel', 'Sign-in is not set up on this server.');
     $('#loggaInBtn').disabled = true;
     return;
   }
@@ -20853,9 +20817,7 @@ async function portalStart() {
 }
 
 (async function boot() {
-  /* Portalen avgör vad som visas innan något ritas. Är lokalt läge valt sedan
-     tidigare visar den appen direkt utan att vänta på nätet — den som aldrig
-     använder spel ska inte betala en blink av landningssidan vid varje start. */
+  /* Portalen avgör vad som visas innan något ritas. */
   portalStart().catch(e => console.warn('Portalen kunde inte starta', e));
 
   /* Rita först, hydrera sen. Lagringen får aldrig gatea första ritningen —
