@@ -2882,7 +2882,6 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>/</kbd> find a card</span>
     <span><kbd>S</kbd> select / pan</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
-    <span><kbd>Backspace</kbd> remove</span>
     <span><kbd>⌘Z</kbd> undo</span>
     <span><kbd>?</kbd> all shortcuts</span>
     <div class="status" id="status" hidden><span class="led"></span><span id="statusTxt"></span></div>
@@ -3437,7 +3436,6 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> to the board (outside a game)</dd>
             <dt><kbd>B</kbd></dt><dd>Paste a list of names (outside a game)</dd>
             <dt><kbd>I</kbd></dt><dd>Add cards from an image (outside a game)</dd>
-            <dt><kbd>Backspace</kbd> <kbd>Del</kbd></dt><dd>Remove the card under the pointer</dd>
             <dt><kbd>⌘</kbd><kbd>Z</kbd></dt><dd>Undo the last thing you did on your board — a move, a tap, a card to the graveyard</dd>
             <dt><kbd>T</kbd></dt><dd>Tap or untap the card under the pointer</dd>
             <dt><kbd>E</kbd></dt><dd>Put the card under the pointer on another one — equip, fortify, attach</dd>
@@ -7623,7 +7621,7 @@ function luftigVy(p) {
 let matHover = null, matHoverT = null;
 /* Kortet kortkommandona verkar på (MES-118): det under pekaren — på mattan,
    i dess hover-pill eller i graveyard-fjädern. Det finns inget valt kort;
-   pekar man inte på något gör T, G, E, D, Space och Backspace ingenting.
+   pekar man inte på något gör T, G, E, D och Space ingenting.
    :hover kontrolleras på riktigt, eftersom matHover kan stå kvar på ett
    kort som just gick till högen eller togs bort under pekaren. */
 function pekIndex() {
@@ -7773,7 +7771,7 @@ function openKortMeny(cid, cx, cy) {
     <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…</button>
     ${tok.map((t, j) => `<button type="button" data-ma="tok${j}"><i style="background:#e0b44c"></i>Create ${esc(t.name)} token</button>`).join('')}
     <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard<kbd>G</kbd></button>
-    <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board<kbd>⌫</kbd></button>`;
+    <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board</button>`;
   const r = $('#zonPerm').getBoundingClientRect();
   matMenyEl.style.left = Math.max(4, Math.min(cx - r.left, r.width - 214)) + 'px';
   matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175 - 34 * tok.length)) + 'px';
@@ -12458,8 +12456,7 @@ addEventListener('keydown', ev => {
   const shotOpen = $('#shotOv').classList.contains('open');
   if (shotOpen) { shotKey(ev); return; }
   /* lekOv hör hit sedan dialogen fick knappar och fält: utan den styrde
-     Space, piltangenter och Backspace bordet UNDER överlägget, och
-     Backspace tar bort ett kort därifrån. */
+     Space och piltangenterna bordet UNDER överlägget. */
   if ($('#helpOv').classList.contains('open') || $('#bulkOv').classList.contains('open')
       || $('#lekOv').classList.contains('open')) return;
 
@@ -12473,8 +12470,6 @@ addEventListener('keydown', ev => {
       vaxlaFokus();
       return;
     case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
-    case 'Backspace':
-    case 'Delete':     if (!redigerbar() || tangentKort() < 0) return; ev.preventDefault(); removeAt(tangentKort()); return;
     case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
     case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
     case '0':          ev.preventDefault(); fitView(); return;   // alla kort i bild, fria från högarna
@@ -12488,8 +12483,7 @@ addEventListener('keydown', ev => {
   const lower = k.toLowerCase();
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
-  const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ' ||
-                  k === 'Backspace' || k === 'Delete';
+  const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ';
   if (!redigerbar() && skriver) return;
   /* T, E, G och D verkar på kortet under pekaren (tangentKort). T med
      lassomarkerade kort tappar alla, när pekaren står på ett av dem eller
