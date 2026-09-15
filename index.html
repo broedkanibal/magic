@@ -313,7 +313,7 @@ main{flex:1;display:flex;min-height:0}
   grid-template-rows:minmax(0,1fr);
   grid-template-areas:"perm mark";
 }
-.matta{grid-area:perm}
+.matta,.bord{grid-area:perm}
 .kolmark{grid-area:mark}
 @media (max-width:1100px){
   .brade{grid-template-columns:minmax(0,1fr) minmax(150px, 22%)}
@@ -501,6 +501,102 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
   background:radial-gradient(1250px 620px at 46% 26%, #18232f, #0a0f14 72%);
   box-shadow:inset 0 0 90px 20px #00000066, 0 0 0 1px var(--line);
 }
+/* ═══ BORDSVYN (MES-133) ═════════════════════════════════════════════
+   Designen "Mesa Table Seating", sida 3 "B with seats". I ett spel med
+   motståndare ligger mattorna i #bord: motståndarnas överst, kanten med
+   växeln på mitten och min matta (#zonPerm) under. Rutorna räknas av
+   bordLayout() och skrivs inline; här sitter övergången — samma 0,5 s för
+   allt — som står still medan kanten dras (.drar). Utan motståndare fyller
+   min matta #bord som förut. */
+.bord{position:relative;min-width:0;min-height:0;--bordk:cubic-bezier(.22,.8,.26,1)}
+.bord > .matta{position:absolute;left:0;top:0;width:100%;height:100%;z-index:1}
+.bord.sits > .matta,.bord.sits .omatta{transition:left .5s var(--bordk),top .5s var(--bordk),width .5s var(--bordk),height .5s var(--bordk)}
+.bord.sits .kant3{transition:top .5s var(--bordk)}
+.bord.drar > .matta,.bord.drar .omatta,.bord.drar .kant3{transition:none}
+/* Min mattas bräde glider i takt med rutan när nivån byts (bordGlid). */
+.mattabrade.bordglid{transition:transform .5s var(--bordk)}
+/* Flikarna ersätts av bordet i ett spel. */
+body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
+/* Min matta som list (nivå 2): innehållet viker, listen tar över. */
+.bord #gridWrap,.bord #mattaChrome{transition:opacity .3s}
+#zonPerm.f-list > :not(.minlist){opacity:0;pointer-events:none}
+.minlist{opacity:0;pointer-events:none}
+#zonPerm.f-list .minlist{opacity:1;pointer-events:auto}
+/* Kanten: ett 56 px band med växeln mitt på. Hela bandet går att dra,
+   också från en spelare i växeln. */
+.kant3{position:absolute;left:0;right:0;height:56px;z-index:8;cursor:row-resize;display:grid;place-items:center;touch-action:none;user-select:none}
+.kant3[hidden]{display:none}
+.kant3 .edgeline{position:absolute;left:14px;right:14px;top:50%;height:1px;background:#1c2330;transition:background .12s}
+.kant3:hover .edgeline,.bord.drar .kant3 .edgeline{background:#39445a}
+.ssw{position:relative;display:flex;align-items:center;gap:2px;max-width:calc(100% - 28px);height:34px;padding:3px 3px 3px 4px;border-radius:9px;
+  border:1px solid var(--line);background:#141922;box-shadow:0 8px 20px -10px #000e;cursor:default;transition:border-color .12s}
+.kant3:hover .ssw,.bord.drar .ssw{border-color:#39445a}
+.ssw .egrip{display:grid;place-items:center;flex:none;width:20px;height:26px;border-radius:5px;color:#4a5a72;cursor:row-resize}
+.ssw .egrip:hover,.bord.drar .ssw .egrip{color:var(--txt);background:var(--bg3)}
+.sseg{display:inline-flex;align-items:center;gap:7px;min-width:0;height:26px;padding:0 5px 0 8px;border-radius:5px;border:1px solid transparent;background:none;
+  color:var(--dim);font:550 12.5px var(--sans);white-space:nowrap;cursor:pointer;touch-action:none;transition:background .15s,color .15s,border-color .15s}
+.sseg:hover{background:var(--bg3);color:var(--txt)}
+.sseg .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sseg svg{flex:none;display:block}
+.sseg kbd{min-width:15px;padding:0 4px;font-size:10px;line-height:1.4;opacity:.8}
+.sseg.on{color:var(--txt)}
+.sseg.on kbd{opacity:1}
+.sseg.on.mine{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
+.sseg.on.mine kbd{background:#f0a52a2b;border-color:#f0a52a55;color:#ffd98a}
+.sseg.on.opp{background:color-mix(in srgb,var(--pc) 15%,transparent);border-color:color-mix(in srgb,var(--pc) 55%,transparent)}
+.sseg.on.opp kbd{background:color-mix(in srgb,var(--pc) 17%,transparent);border-color:color-mix(in srgb,var(--pc) 33%,transparent)}
+.sseg.on.alla{background:var(--bg4);border-color:#4a5a72}
+/* Fler än fyra motståndare: bara pricken och siffran, namnet i titeln. */
+.ssw.tat .sseg.opp .nm{display:none}
+.bdot{display:inline-block;flex:none;width:8px;height:8px;border-radius:50%;background:var(--pc,var(--blue));box-shadow:0 0 0 2px #0004 inset}
+/* En motståndares matta: ljuset från andra hållet, ramen i hens färg.
+   Full, kolumn eller list — innehållet tonar mellan dem. */
+.omatta{position:absolute;z-index:2;overflow:hidden;border-radius:12px;user-select:none;touch-action:none;cursor:pointer;
+  background:radial-gradient(1250px 620px at 54% 74%, #18232f, #0a0f14 72%)}
+.omatta.f-full{cursor:default}
+.omatta .ovinj{position:absolute;inset:0;z-index:25;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 0 90px 20px #00000066,inset 0 0 0 1px color-mix(in srgb,var(--pc) 40%,transparent)}
+.omatta.vald .ovinj{box-shadow:inset 0 0 90px 20px #00000066,inset 0 0 0 1.5px var(--pc)}
+.okropp{position:absolute;inset:0}
+.okropp,.okol,.olist{transition:opacity .3s}
+.omatta:not(.f-full) .okropp,.omatta:not(.f-kol) .okol,.omatta:not(.f-list) .olist{opacity:0;pointer-events:none}
+.oplate{position:absolute;z-index:24;left:12px;top:12px;display:flex;align-items:center;gap:6px;max-width:calc(100% - 24px);height:26px;padding:0 8px;border-radius:7px;
+  background:#0b1017e6;border:1px solid #39445a;font:550 12px var(--sans);color:var(--txt);white-space:nowrap;box-shadow:0 6px 16px -8px #000c}
+.oplate:empty{display:none}
+.oplate .plnamn{display:flex;align-items:center;gap:7px;min-width:0;height:24px;padding:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer}
+.oplate .plnamn b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.oplate .sub{font:11px/1 var(--mono);color:var(--dim)}
+.oplate .sep{flex:none;width:1px;height:12px;background:#39445a}
+.oplate .lagemark{display:inline-flex;flex:none;color:var(--dim)}
+.omatta.smal .oplate .sub,.omatta.smal .oplate .plnamn .sep{display:none}
+/* Kolumnen: en motståndare som inte är vald medan någon annan är det. */
+.okol{position:absolute;inset:0;z-index:26;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 8px 12px;
+  cursor:pointer;font:550 12px var(--sans);color:var(--txt);text-align:center;overflow:hidden}
+.okol:hover,.olist:hover,.minlist:hover{background:#ffffff08}
+.okol .kolhd{display:flex;flex-direction:column;align-items:center;gap:6px;max-width:100%}
+.okol .kolhd b{max-width:100%;font:650 12.5px var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.okol .kolsub{font:10.5px/1.3 var(--mono);color:var(--dim)}
+.okol .kolthumbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;justify-items:center;min-height:0;padding-top:4px;overflow:hidden}
+.okol .othumb{width:38px;height:53px}
+.okol .othumb.tappad{transform:rotate(90deg) scale(.72);margin:0}
+.okol .kolhogar{display:flex;flex-direction:column;gap:5px;margin-top:6px;font:600 9px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.okol .kolhogar span{display:flex;align-items:center;justify-content:center;gap:5px}
+.okol .kolhogar i{flex:none;width:6px;height:6px;border-radius:2px;background:#e8b33a}
+.okol .kolhogar i.b{background:#6b8cff}
+.okol .kolhogar b{font:600 10.5px/1 var(--mono);color:var(--txt);letter-spacing:0}
+.okol > kbd{margin-top:auto}
+/* Listen: 46 px, namnet, miniatyrerna och tangenten. */
+.olist,.minlist{position:absolute;left:0;right:0;top:0;height:46px;z-index:26;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;
+  cursor:pointer;font:550 12.5px var(--sans);color:var(--txt);white-space:nowrap;overflow:hidden;transition:background .12s,opacity .3s}
+.olist .thumbs,.minlist .thumbs{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;flex:0 1 auto}
+.olist .sub,.minlist .sub{font:11px/1 var(--mono);color:var(--dim)}
+.olist .sep,.minlist .sep{flex:none;width:1px;height:14px;background:var(--line)}
+.olist .grow,.minlist .grow{flex:1}
+.olist .stripkey,.minlist .stripkey{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:500;color:var(--dim2)}
+.olist > b,.olist .pips,.olist .sub,.olist .stripkey,.minlist > b,.minlist .sub,.minlist .stripkey{flex:none}
+.minlist .bdot{background:#e8b33a}
+.othumb{display:inline-block;flex:none;width:22px;height:31px;border-radius:3px;background:#11161e center/cover no-repeat;box-shadow:0 0 0 1px #0008}
+.othumb.tappad{transform:rotate(90deg);margin:0 5px}
 .mattavp{position:absolute;inset:0;overflow:hidden;touch-action:none;user-select:none}
 /* Handen visas bara när vänsterknappen tar tag i mattan: i Pan-läget och
    med mellanslag hållet — ovanpå korten också, men inte över mattans
@@ -2680,6 +2776,12 @@ body.ispel #addPlayerBtn{display:none}
            mot ytan. Id:n står kvar från zonlayouten så att delegeringarna
            (data-addtile på #zonPerm), renderTom (#emptyHand) och flygTillGrav
            (.grav i #manaRow) lever vidare oförändrade. -->
+      <!-- Bordsvyn (MES-133): motståndarnas mattor, kanten med växeln och min
+           matta i en yta. Rutorna räknas av renderBord(); utan motståndare
+           fyller min matta #bord som förut. -->
+      <div class="bord" id="bord">
+        <div class="omattor" id="oppMattor"></div>
+        <div class="kant3" id="kant" hidden title="Drag the edge up or down — or pick a player"></div>
       <section class="matta" id="zonPerm">
         <div class="mattavp" id="gridWrap">
           <div class="mattabrade" id="grid"></div>
@@ -2717,7 +2819,10 @@ body.ispel #addPlayerBtn{display:none}
           <h2 id="emptyLasTxt">Nothing on the table yet</h2>
           <p>The cards show up here by themselves as soon as they are played.</p>
         </div>
+        <!-- Mitt bord som list när en motståndare är stor (bordsvyn). -->
+        <div class="minlist" id="minList" role="button" title="Your table big (M)"></div>
       </section>
+      </div>
       <!-- Selected står inte längre nere i bandet mellan Lands och Graveyard.
            Ett Magic-kort är högt, och en kolumn som bara var 330 px hög tvingade
            kortet att bli litet mitt i den bredaste ytan på skärmen. Som egen
@@ -5770,7 +5875,7 @@ function save() {
 function sparaUi() {
   if (fjarrLas) return;
   if (!spelLage) { save(); return; }
-  LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel });
+  LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel, bord: bord.valt });
 }
 function sparaNu() {
   clearTimeout(saveT); saveT = null;
@@ -5779,7 +5884,7 @@ function sparaNu() {
   /* I spelläge är vilken flik man tittar på och vilket kort som är markerat
      enhetsvärden — de hör inte hemma på servern och ska inte följa med till
      de andras skärmar. */
-  LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel });
+  LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel, bord: bord.valt });
   const mig = minSpelare();
   if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards));
 }
@@ -5815,6 +5920,11 @@ const gridWrap = $('#gridWrap'), gridEl = $('#grid'), emptyEl = $('#emptyHand'),
    (pekIndex). Se lassoStart och gruppAttFlytta. */
 const matValda = new Set();
 const emptyLasEl = $('#emptyLas');
+/* Bordsvyn (MES-133): ytan, vem som är stor och min mattas mått. Här och
+   inte i blocket nedan, för att matVp och sparaUi läser dem. */
+const bordEl = $('#bord');
+const bord = { valt: 'all', sist: null, kantLive: null, nyssDrag: false, glidT: null };
+let bordMal = null, bordRef = null;
 
 /* ─── spelarflikar ─── */
 function renderTabs() {
@@ -5928,6 +6038,299 @@ function matFlikar() {
   const pa = box.querySelector('.ptab.on');
   if (pa) pa.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
+
+/* ═══ BORDSVYN (MES-133) ═════════════════════════════════════════════
+   Designen "Mesa Table Seating", sida 3 "B with seats"; logiken ur
+   design_handoff_bordsvy/src/logic-v3.js. I ett spel med motståndare
+   sitter de mitt emot: deras mattor överst, kanten med växeln
+   Me · spelare · All på mitten och mitt bord under. Tre nivåer:
+   0 mitt bord stort, motståndarna som 46 px-listor · 1 alla lika stora ·
+   2 en motståndare stor, de andra som 112 px-kolumner och mitt bord som
+   list. Allt glider med samma 0,5 s (CSS:en vid .bord).
+   Mitt bord är dagens matta och den enda som går att ändra: state.active
+   är alltid jag i ett spel, så player() och hand() pekar dit. Motståndarnas
+   mattor ritas här och går bara att titta på. bordMal är min mattas mått
+   enligt layouten — matVp läser det i stället för clientWidth, som mitt i
+   övergången är ett mellanläge, så att fit och pan glider i takt med rutan.
+   bordRef är måttet brädet räknas mot (mitt bord stort), så att brädet inte
+   växer åt ett håll för att mattan en stund var låg. Utan spel, eller
+   ensam i ett, finns ingen kant och mattan fyller ytan som förut. */
+const BORD = { KANT: 56, LIST: 46, GAP: 10, KOL: 112, MINH: 90, MINW: 200, STOR: 400 };
+const kantEl = $('#kant'), oppMattorEl = $('#oppMattor'), minListEl = $('#minList');
+const IKON_GREPP = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+const IKON_ALLA = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>';
+const IKON_BADA = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="2.5" y="2" width="11" height="5" rx="1.2"/><rect x="2.5" y="9" width="11" height="5" rx="1.2"/></svg>';
+/* Motståndarna i den ordning de sitter: den som har platsen efter min
+   först — till vänster om mig, nästa i tur — sedan vidare runt bordet.
+   Samma ordning i växeln, i kolumnerna och för tangenterna 1–9. */
+function motstandare() {
+  if (!spelLage) return [];
+  const mig = state.players.find(p => p.id === spelLage.mig);
+  const andra = state.players.filter(p => p.id !== spelLage.mig);
+  if (!mig || mig.plats == null) return andra;
+  const fore = p => p.plats != null && p.plats < mig.plats;
+  return andra.filter(p => !fore(p)).concat(andra.filter(fore));
+}
+const bordAktiv = () => !!spelLage && state.players.some(p => p.id !== spelLage.mig);
+const bordNiva = v => v === 'me' ? 0 : v === 'all' ? 1 : 2;
+/* Den som är stor just nu. Uppstarten behöver mitt bord; en motståndare
+   som gått ur spelet ger alla. */
+function bordValt() {
+  if (oppOppen) return 'me';
+  const v = bord.valt;
+  return v === 'me' || v === 'all' || motstandare().some(p => p.id === v) ? v : 'all';
+}
+/* Motståndarnas höjd — kantens läge — i varje nivå. */
+function bordNivaH(n, H) { return n === 0 ? BORD.LIST : n === 1 ? (H - BORD.KANT) / 2 : H - BORD.LIST - BORD.KANT; }
+/* Under 90 px höjd är en ruta en list, under 200 px bredd en kolumn. */
+function bordForm(r) { return r.h < BORD.MINH ? 'list' : r.w < BORD.MINW ? 'kol' : 'full'; }
+/* Rutorna i #bord: motståndarna på en rad överst, kanten, mitt bord under.
+   Med många motståndare smalnar kolumnerna så att den valda får minst
+   BORD.STOR. null utan motståndare, eller när ytan saknar mått (#app dold). */
+function bordLayout() {
+  const o = motstandare();
+  if (!o.length) return null;
+  const W = bordEl.clientWidth, H = bordEl.clientHeight;
+  if (W < 40 || H < 2 * BORD.LIST + BORD.KANT + 40) return null;
+  const valt = bordValt(), niva = bordNiva(valt), n = o.length;
+  const oppH = bord.kantLive != null ? bord.kantLive : bordNivaH(niva, H);
+  const kol = n > 1 ? Math.max(56, Math.min(BORD.KOL, (W - BORD.STOR) / (n - 1) - BORD.GAP)) : BORD.KOL;
+  const rutor = new Map();
+  let x = 0;
+  for (const p of o) {
+    const w = niva === 2 ? (p.id === valt ? W - (n - 1) * (kol + BORD.GAP) : kol) : (W - (n - 1) * BORD.GAP) / n;
+    rutor.set(p.id, { x, y: 0, w, h: oppH });
+    x += w + BORD.GAP;
+  }
+  const meY = oppH + BORD.KANT;
+  return { W, H, o, valt, niva, oppH, rutor, min: { x: 0, y: meY, w: W, h: H - meY } };
+}
+function bordRuta(el, r) {
+  const px = n => Math.round(n * 10) / 10 + 'px';
+  el.style.left = px(r.x); el.style.top = px(r.y); el.style.width = px(r.w); el.style.height = px(r.h);
+}
+function satHtml(el, html) { if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } }
+/* Miniatyrerna i en list eller kolumn: korten på mattan, tappade liggande. */
+function bordTummar(cards, max) {
+  return cards.filter(c => paMattan(c) && !c.attachedTo).slice(0, max).map(c => {
+    const card = cardOf(c), dfc = arDfc(card);
+    const src = c.flipped && !dfc ? BAKSIDA : card ? (imgOf(card, c.flipped && dfc ? 1 : 0, 'small') || '') : '';
+    return `<i class="othumb${c.tapped ? ' tappad' : ''}"${src ? ` style="background-image:url('${esc(src)}')"` : ''} title="${esc(card ? card.name : c.name)}"></i>`;
+  }).join('');
+}
+function bordListHtml(namn, pips, cards, tangent, hint) {
+  return `<i class="bdot"></i><b>${esc(namn)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span>`
+    + `<span class="thumbs">${bordTummar(cards, 40)}</span><span class="sub">${cards.filter(paMattan).length} on the table</span>`
+    + `<span class="grow"></span><span class="stripkey">${esc(hint || '')}${tangent ? `<kbd>${tangent}</kbd>` : ''}</span>`;
+}
+/* En motståndares lek som inte är spelad: lekens antal minus korten hen
+   har ute (tokens räknas inte). Hand och library ihop, som min hög. */
+function oppBibKvar(p) {
+  const lek = p.lekId && p.lek ? p.lek : null;
+  return lek ? Math.max(0, (lek.antal || 0) - p.cards.filter(c => !c.tok).length) : null;
+}
+/* Rutorna, kanten, min list och motståndarnas mattor. Ändrar min mattas
+   mått (bordMal): den som anropar ritar om min matta (matResize) efteråt —
+   renderAll gör det i renderGrid. */
+function renderBord() {
+  const L = bordLayout(), zp = $('#zonPerm');
+  bordEl.classList.toggle('medmotst', !!L);
+  if (!L) {
+    zp.style.left = zp.style.top = zp.style.width = zp.style.height = '';
+    zp.classList.remove('f-list');
+    bordMal = bordRef = null;
+    kantEl.hidden = true;
+    for (const m of oppMattor.values()) m.el.remove();
+    oppMattor.clear();
+    bordEl.classList.remove('sits');
+    return;
+  }
+  const form = bordForm(L.min);
+  bordRuta(zp, L.min);
+  zp.classList.toggle('f-list', form === 'list');
+  bordRef = { w: L.W, h: L.H - BORD.LIST - BORD.KANT };
+  bordMal = form === 'full' ? { w: L.min.w, h: L.min.h } : bordRef;
+  ritaMinList(form === 'list');
+  ritaKant(L);
+  ritaOppMattor(L);
+  /* Första ritningen hoppar till sitt läge; övergångarna slås på först när
+     rutorna har sina mått — annars glider mattan in från hela ytan. */
+  if (!bordEl.classList.contains('sits')) { void bordEl.offsetWidth; bordEl.classList.add('sits'); }
+}
+function ritaMinList(visa) {
+  const mig = minSpelare();
+  satHtml(minListEl, visa && mig ? bordListHtml('Your table', '', mig.cards, 'M', 'Your cards') : '');
+}
+/* Kanten: växeln Me · motståndarna · All (Both för två). */
+function ritaKant(L) {
+  kantEl.hidden = false;
+  kantEl.style.top = Math.round(L.oppH * 10) / 10 + 'px';
+  const n = L.o.length;
+  const seg = (id, cls, farg, ikon, namn, kbd, titel) =>
+    `<button type="button" class="sseg ${cls}${L.valt === id ? ' on' : ''}" data-seat="${esc(id)}"${farg ? ` style="--pc:${esc(farg)}"` : ''} title="${esc(titel)}">`
+    + `${ikon}<span class="nm">${esc(namn)}</span>${kbd ? `<kbd>${kbd}</kbd>` : ''}</button>`;
+  satHtml(kantEl, `<i class="edgeline"></i><div class="ssw${n > 4 ? ' tat' : ''}" role="group" aria-label="Whose table is big">`
+    + `<span class="egrip" title="Drag the edge up or down">${IKON_GREPP}</span>`
+    + seg('me', 'mine', '#e8b33a', '<i class="bdot"></i>', 'Me', 'M', 'Your table big, the others as strips (M)')
+    + L.o.map((p, i) => seg(p.id, 'opp', p.color, '<i class="bdot"></i>', p.name, i < 9 ? String(i + 1) : '',
+        `${p.name}'s table big` + (i < 9 ? ` (${i + 1})` : ''))).join('')
+    + seg('all', 'alla', '', n > 1 ? IKON_ALLA : IKON_BADA, n > 1 ? 'All' : 'Both', 'A', n > 1 ? 'Everyone at once (A)' : 'Both of you (A)')
+    + '</div>');
+}
+/* Motståndarnas mattor: en sektion per spelare, som står kvar mellan
+   ritningarna så att rutorna kan glida. */
+const oppMattor = new Map();   // spelar-id → { el, plate, kol, list, ... }
+function ritaOppMattor(L) {
+  for (const [pid, m] of oppMattor) if (!L.rutor.has(pid)) { m.el.remove(); oppMattor.delete(pid); }
+  L.o.forEach((p, i) => {
+    const m = oppMattor.get(p.id) || skapaOppMatta(p);
+    const r = L.rutor.get(p.id), form = bordForm(r);
+    bordRuta(m.el, r);
+    m.el.className = `omatta f-${form}${L.valt === p.id ? ' vald' : ''}${r.w < 380 ? ' smal' : ''}`;
+    m.el.style.setProperty('--pc', p.color || 'var(--blue)');
+    ritaOppDelar(p, m, i);
+  });
+}
+function skapaOppMatta(p) {
+  const el = document.createElement('section');
+  el.className = 'omatta'; el.dataset.pid = p.id;
+  el.innerHTML = '<div class="okropp"><div class="oplate"></div></div><span class="ovinj"></span>'
+    + '<div class="okol" role="button"></div><div class="olist" role="button"></div>';
+  oppMattorEl.appendChild(el);
+  const m = { el, plate: el.querySelector('.oplate'), kol: el.querySelector('.okol'), list: el.querySelector('.olist') };
+  oppMattor.set(p.id, m);
+  return m;
+}
+/* Skylten (full matta), kolumnen och listen. Alla tre ritas alltid, så att
+   de kan tona in och ut när rutan byter form. */
+function ritaOppDelar(p, m, i) {
+  const kbd = i < 9 ? String(i + 1) : '', pips = p.lek && p.lek.farger ? pipsHtml(p.lek.farger) : '';
+  const paBord = p.cards.filter(paMattan).length, grav = p.cards.filter(c => zonAv(c) === ZON_GRAV).length, bib = oppBibKvar(p);
+  const stor = `${p.name}'s table big` + (kbd ? ` (${kbd})` : '');
+  const lage = `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
+  satHtml(m.plate, `<button type="button" class="plnamn" title="${esc(stor)}"><i class="bdot"></i><b>${esc(p.name)}</b>`
+    + `${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span><span class="sub">${paBord} on the table</span></button>${lage}`);
+  m.kol.title = m.list.title = stor;
+  satHtml(m.kol, `<div class="kolhd"><i class="bdot"></i><b>${esc(p.name)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}</div>`
+    + `<span class="kolsub">${paBord} on the table</span><div class="kolthumbs">${bordTummar(p.cards, 12)}</div>`
+    + `<div class="kolhogar"><span><i></i>Graveyard<b>${grav}</b></span><span><i class="b"></i>Library<b>${bib == null ? '–' : bib}</b></span></div>`
+    + (kbd ? `<kbd>${kbd}</kbd>` : ''));
+  satHtml(m.list, bordListHtml(p.name, pips, p.cards, kbd, ''));
+}
+/* Nivåbytet glider: rutorna har övergången i CSS:en, min mattas bräde
+   får den en stund (samma kurva), annars hoppar korten medan rutan glider. */
+function bordGlid() {
+  gridEl.classList.add('bordglid');
+  clearTimeout(bord.glidT);
+  bord.glidT = setTimeout(() => gridEl.classList.remove('bordglid'), 560);
+}
+/* Välj vem som är stor: 'me', 'all' eller en motståndares id. */
+function bordValj(v) {
+  const o = motstandare();
+  if (!o.length || (v !== 'me' && v !== 'all' && !o.some(p => p.id === v))) return;
+  if (v !== 'me' && v !== 'all') bord.sist = v;
+  if (bord.valt === v) return;
+  bord.valt = v;
+  if (bordNiva(v) === 2 && hf.src) hfStang();          // mitt bord blir en list
+  closeKortMeny(); closeCounters();
+  bordGlid();
+  renderBord(); matResize();
+  sparaUi();
+}
+/* Till en nivå: mitt bord, alla, eller den motståndare som senast var stor
+   (annars den som sitter mitt emot). */
+function bordSteg(n) {
+  const o = motstandare(); if (!o.length) return;
+  const sist = o.find(p => p.id === bord.sist) || o[Math.floor((o.length - 1) / 2)];
+  bordValj(n === 0 ? 'me' : n === 1 ? 'all' : sist.id);
+}
+function bordStegNiva(d) { bordSteg(Math.max(0, Math.min(2, bordNiva(bordValt()) + d))); }
+/* Nästa motståndare åt höger (d = 1) eller vänster; från mitt bord eller
+   alla börjar det vid den första eller sista. */
+function bordSidled(d) {
+  const o = motstandare(); if (!o.length) return;
+  let i = o.findIndex(p => p.id === bordValt());
+  if (i < 0) i = d > 0 ? -1 : o.length;
+  bordValj(o[(i + d + o.length) % o.length].id);
+}
+/* Ett klick på tom yta i min matta gör den stor, som ett klick på Me. */
+function bordKlickMitt() { if (bordAktiv() && bordValt() !== 'me') bordValj('me'); }
+/* Tangenterna: 1–9 motståndarna i sittordning, M mitt bord, A alla,
+   ↑↓ nivån, ←→ och Tab nästa motståndare. true = hanterad. */
+function bordTangent(ev) {
+  if (!bordAktiv()) return false;
+  const k = ev.key, lower = k.toLowerCase();
+  if (lower === 'm') bordValj('me');
+  else if (lower === 'a') bordValj('all');
+  else if (k === 'ArrowUp') bordStegNiva(1);
+  else if (k === 'ArrowDown') bordStegNiva(-1);
+  else if (k === 'ArrowRight' || (k === 'Tab' && !ev.shiftKey)) bordSidled(1);
+  else if (k === 'ArrowLeft' || (k === 'Tab' && ev.shiftKey)) bordSidled(-1);
+  else if (k >= '1' && k <= '9') { const p = motstandare()[+k - 1]; if (!p) return false; bordValj(p.id); }
+  else return false;
+  return true;
+}
+/* Drag var som helst på kanten — också från en spelare i växeln — så följer
+   kanten pekaren, och vid släpp går den till närmaste nivå åt det håll man
+   drog (14 px räcker). Ett klick på bandet växlar mitt bord ↔ alla; ett
+   klick på en spelare väljer den (klicket nedan — ett drag som började på
+   knappen sväljer det). */
+function kantDrag(ev, franKnapp) {
+  const L = bordLayout(); if (!L) return;
+  ev.stopPropagation();
+  if (!franKnapp) ev.preventDefault();
+  const n0 = L.niva, h0 = bordNivaH(n0, L.H), y0 = ev.clientY;
+  let flyttad = false, live = h0;
+  const mv = e => {
+    const dy = e.clientY - y0;
+    if (!flyttad && Math.abs(dy) <= 4) return;
+    if (!flyttad) { flyttad = true; bordEl.classList.add('drar'); if (hf.src) hfStang(); closeKortMeny(); closeCounters(); }
+    live = Math.max(BORD.LIST, Math.min(L.H - BORD.LIST - BORD.KANT, h0 + dy));
+    bord.kantLive = live;
+    renderBord(); matResize();
+  };
+  const upp = e => {
+    removeEventListener('pointermove', mv); removeEventListener('pointerup', upp); removeEventListener('pointercancel', upp);
+    if (!flyttad) { if (!franKnapp && e.type === 'pointerup') bordValj(n0 === 0 ? 'all' : 'me'); return; }
+    if (franKnapp) { bord.nyssDrag = true; setTimeout(() => { bord.nyssDrag = false; }, 0); }
+    bord.kantLive = null;
+    bordEl.classList.remove('drar');
+    const dy = e.clientY - y0;
+    const kand = e.type !== 'pointerup' || Math.abs(dy) < 14 ? [] : [0, 1, 2].filter(k => dy > 0 ? k > n0 : k < n0);
+    bordGlid();
+    if (kand.length) bordSteg(kand.reduce((a, b) => Math.abs(bordNivaH(b, L.H) - live) < Math.abs(bordNivaH(a, L.H) - live) ? b : a));
+    else { renderBord(); matResize(); }
+  };
+  addEventListener('pointermove', mv); addEventListener('pointerup', upp); addEventListener('pointercancel', upp);
+}
+kantEl.addEventListener('pointerdown', ev => {
+  if (ev.button !== 0) return;
+  const knapp = ev.target.closest('.sseg');
+  if (!knapp && ev.target.closest('.ssw') && !ev.target.closest('.egrip')) return;   // luften mellan knapparna
+  kantDrag(ev, !!knapp);
+});
+kantEl.addEventListener('click', ev => {
+  const knapp = ev.target.closest('.sseg'); if (!knapp) return;
+  if (bord.nyssDrag) { bord.nyssDrag = false; return; }
+  bordValj(knapp.dataset.seat);
+});
+/* Ett klick var som helst i en motståndares ruta — matta, kolumn eller list
+   — gör hen stor. Ett drag gör det inte. */
+oppMattorEl.addEventListener('pointerdown', ev => {
+  const sek = ev.target.closest('.omatta'); if (!sek) return;
+  const pid = sek.dataset.pid, x0 = ev.clientX, y0 = ev.clientY, knapp = ev.button;
+  let drog = false;
+  const mv = e => { if (!drog && Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) > DND_TROSKEL) drog = true; };
+  const upp = e => {
+    removeEventListener('pointermove', mv); removeEventListener('pointerup', upp); removeEventListener('pointercancel', upp);
+    if (!drog && knapp === 0 && e.type === 'pointerup') bordValj(pid);
+  };
+  addEventListener('pointermove', mv); addEventListener('pointerup', upp); addEventListener('pointercancel', upp);
+});
+oppMattorEl.addEventListener('contextmenu', ev => ev.preventDefault());
+minListEl.addEventListener('click', () => bordValj('me'));
+/* Ytan byter storlek utan att fönstret gör det: inspektorn, uppstarten. */
+if (window.ResizeObserver) new ResizeObserver(() => { if (bordAktiv()) { renderBord(); matResize(); } }).observe(bordEl);
 
 /* ─── storlek på korten i rutnätet ─── */
 /* Nedre bandets höjd är FAST — den sätts av Selected-kolumnens innehåll, inte
@@ -6530,6 +6933,7 @@ function matVyFor(p) {
    då är måtten noll, och brädet räknas på designens viewport i stället så
    att inget blir NaN; riktig säger om något får sparas ur det. */
 function matVp() {
+  if (bordMal) return { w: bordMal.w, h: bordMal.h, riktig: true };   // bordsvyn: målmåttet, inte mellanläget
   const w = gridWrap.clientWidth, h = gridWrap.clientHeight;
   return (w > 40 && h > 40) ? { w, h, riktig: true } : { w: MATTA.VP.w, h: MATTA.VP.h, riktig: false };
 }
@@ -6538,7 +6942,7 @@ function matVp() {
 function matVy(p) {
   p = p || player();
   const v = matVyFor(p), vp = matVp();
-  v.board = grown(p.cards.filter(paMattan), v.board, vp);
+  v.board = grown(p.cards.filter(paMattan), v.board, bordRef || vp);
   const fit = fitZoom(v.board, vp);
   const z = v.zoomManual != null ? Math.max(MATTA.ZOOM_MIN, Math.min(MATTA.ZOOM_MAX, v.zoomManual)) : fit;
   /* Rutan runt korten krymper när det yttersta kortet lämnar mattan, och med
@@ -6550,7 +6954,7 @@ function matVy(p) {
   const ram = v.ramHall && (inom.x !== v.pan.x || inom.y !== v.pan.y) ? forenaRam(nu, v.ramHall) : nu;
   v.pan = clampPan(v.pan, z, v.board, vp, ram);
   v.ramHall = ram;
-  return { board: v.board, fit, z, pan: v.pan, vp, ram, manuell: v.zoomManual != null };
+  return { board: v.board, fit, z, pan: v.pan, vp, ref: bordRef || vp, ram, manuell: v.zoomManual != null };
 }
 function matSkriv(p, vy) {
   const v = vy || matVy(p);
@@ -6602,7 +7006,7 @@ function matPlacera(p, platser, v) {
   if (oplacerade.length) {
     const harPlats = cards.some(c => paMattan(c) && c.x != null && c.y != null);
     if (!harPlats && oplacerade.length >= 3) {
-      const by = new Map(layoutAll(cards, v.vp, false, g).map(c => [c.cid, c]));
+      const by = new Map(layoutAll(cards, v.ref, false, g).map(c => [c.cid, c]));
       for (const c of oplacerade) {
         const l = by.get(c.cid);
         if (!l || l.x == null) continue;
@@ -7423,8 +7827,9 @@ addEventListener('pointermove', ev => {
   vy.pan = clampPan({ x: matPan.pan.x + dx, y: matPan.pan.y + dy }, v.z, v.board, v.vp, v.ram);
   matSkriv(p);
 });
-const matPanSlut = () => {
+const matPanSlut = ev => {
   if (!matPan) return;
+  if (!matPan.drog && matPan.hand && ev && ev.type === 'pointerup') bordKlickMitt();
   matPanSvalg = matPan.drog || matPan.hand;   // klicket (eller menyn) som följer ska inte göra något
   matPan = null; gridWrap.classList.remove('panorerar');
 };
@@ -7479,7 +7884,7 @@ function lassoSlut() {
   if (!lasso) return;
   const l = lasso; lasso = null;
   if (l.el) l.el.remove();
-  if (!l.drog) { tomValda(); return; }
+  if (!l.drog) { tomValda(); bordKlickMitt(); return; }
   const valda = valdaKort();
   if (valda.length) state.sel = hand().indexOf(valda[valda.length - 1]);
   renderSel(); sparaUi();
@@ -7506,7 +7911,7 @@ function stadaUpp() {
   const p = minSpelare() || player();
   const v = matVy(p);
   angraPunkt(p);
-  const by = new Map(layoutAll(p.cards, v.vp, false, null).map(c => [c.cid, c]));
+  const by = new Map(layoutAll(p.cards, v.ref, false, null).map(c => [c.cid, c]));
   for (const c of p.cards) {
     const l = by.get(c.cid);
     if (!l || !paMattan(c) || c.attachedTo || l.x == null) continue;
@@ -8371,6 +8776,7 @@ function renderFocus() {
 function renderAll(forceGrid) {
   uppdateraLage();
   renderTabs();
+  renderBord();
   renderGrid(forceGrid);
   renderLyftBanner();
   renderInspektor();
@@ -9219,6 +9625,8 @@ function flipKort(i) {
 function flipSel() { flipKort(state.sel); }
 function setActive(id) {
   if (!state.players.some(p => p.id === id)) return;
+  /* Bordsvyn: i ett spel är jag alltid aktiv — en motståndare blir stor. */
+  if (spelLage && id !== spelLage.mig) { bordValj(id); return; }
   state.active = id;
   state.sel = 0;
   /* Att byta flik ändrar inte ett enda kort. Gick det genom save() skrevs hela
@@ -10203,7 +10611,7 @@ let lageByte = false, lekValPagar = false;
 function startRename(id) {
   const p = state.players.find(x => x.id === id);
   const tab = $(`.ptab[data-pid="${id}"]`);
-  if (!p || !tab) return;
+  if (!p || !tab || !tab.offsetParent) return;           // fliken är dold i ett spel (bordsvyn)
   if (!arMitt(p)) return;                    // bara sitt eget namn
   const nm = $('.nm', tab);
   if (!nm) return;
@@ -10308,7 +10716,7 @@ addEventListener('resize', () => {
      gjorde det, men landzonen behöll den bredd den fick vid inläsningen och
      svämmade över eller stod som frimärken. Hysteresen gör det extra viktigt:
      utan det här anropet fastnar den gamla bredden för gott. */
-  rsT = setTimeout(() => { matResize(); renderTabs(); renderSel(); }, 90);
+  rsT = setTimeout(() => { renderBord(); matResize(); renderTabs(); renderSel(); }, 90);
 });
 
 /* ─── överlägg ─── */
@@ -12315,26 +12723,33 @@ addEventListener('keydown', ev => {
       || $('#lekOv').classList.contains('open')) return;
 
   switch (k) {
-    case 'ArrowLeft': case 'ArrowUp':    if (focusOpen) { ev.preventDefault(); step(-1); } return;
-    case 'ArrowRight': case 'ArrowDown': if (focusOpen) { ev.preventDefault(); step(1); } return;
+    case 'ArrowLeft': case 'ArrowUp': case 'ArrowRight': case 'ArrowDown':
+      if (focusOpen) { ev.preventDefault(); step(k === 'ArrowLeft' || k === 'ArrowUp' ? -1 : 1); return; }
+      if (spelLage && bordTangent(ev)) ev.preventDefault();     // bordsvyn: ↑↓ nivån, ←→ nästa motståndare
+      return;
     case ' ':          if (matHandNer(ev)) return;
                        if (!redigerbar() || tangentKort() < 0) return; ev.preventDefault(); flipKort(tangentKort()); return;
     case 'Enter':
       ev.preventDefault();
       vaxlaFokus();
       return;
-    case 'Tab':        ev.preventDefault(); cyclePlayer(ev.shiftKey ? -1 : 1); return;
+    case 'Tab':        ev.preventDefault(); if (spelLage) bordTangent(ev); else cyclePlayer(ev.shiftKey ? -1 : 1); return;
     case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
     case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
     case '0':          ev.preventDefault(); fitView(); return;   // alla kort i bild, fria från högarna
     case '?':          ev.preventDefault(); openOv('helpOv'); return;
   }
   if (k >= '1' && k <= '9') {
+    /* I ett spel bara motståndarna, i den ordning de sitter (bordsvyn). */
+    if (spelLage) { if (bordTangent(ev)) ev.preventDefault(); return; }
     const p = state.players[+k - 1];
     if (p) { ev.preventDefault(); setActive(p.id); }
     return;
   }
   const lower = k.toLowerCase();
+  /* Bordsvyn: M mitt bord, A alla. A öppnar inget annat i ett spel sedan
+     leken fick L (MES-145). */
+  if (spelLage && (lower === 'm' || lower === 'a')) { if (bordTangent(ev)) ev.preventDefault(); return; }
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
   const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ';
@@ -20507,16 +20922,14 @@ async function oppnaSpel(gameId, farsk) {
      spelets lek, och knappen visade fel antal. */
   minLek = null;
   byggSpelare(spelare);
-  /* Den sparade fliken gäller ETT spel, och sedan förra versionen står det
-     vilket. Förut låg { active, sel } löst i en nyckel som delades av alla
-     spel: gick man med i ett nytt spel med samma gäng landade man på den man
-     råkat titta på sist i ett annat spel — någon annans bord, i skrivskyddat
-     läge, i ett spel man just gått med i. Saknas spelet, eller är det ett man
-     just gått med i, är svaret alltid mitt eget bord. */
+  /* Jag är alltid den aktiva spelaren: motståndarnas bord ritas bredvid
+     mitt i bordsvyn (MES-133), inte i stället för det. Det som sparas per
+     spel är vem som var stor — ett spel man just gått med i börjar med alla. */
   const ui = LS.get(K.ui, {});
-  const samma = !farsk && ui.spel === spel.id && spelare.some(p => p.user_id === ui.active);
-  state.active = samma ? ui.active : spelLage.mig;
-  state.sel = samma ? (ui.sel || 0) : 0;
+  const samma = !farsk && ui.spel === spel.id;
+  state.active = spelLage.mig;
+  state.sel = samma && ui.active === spelLage.mig ? (ui.sel || 0) : 0;
+  Object.assign(bord, { valt: samma && ui.bord ? ui.bord : 'all', sist: null, kantLive: null });
   lekVidIntrade();
   await Moln.lyssna(spel.id, {
     bord: rad => fjarrBord(rad),
@@ -20580,7 +20993,7 @@ function byggSpelare(lista) {
     id: p.user_id, name: p.name, color: p.color, cards: p.cards || [],
     shots: [], shotIdx: 0, pending: [], pane: null,
     namnkalla: 'anvandare', bildnamn: null, version: p.version,
-    lage: p.lage, lekId: p.lekId, lek: p.lek
+    lage: p.lage, lekId: p.lekId, lek: p.lek, plats: p.plats
   }, i));
 }
 /* En ändrad bordsrad. Mitt eget bord hoppas över: jag har det redan, och min
@@ -20594,7 +21007,10 @@ function fjarrBord(rad) {
   p.version = rad.version;
   p.cards = Array.isArray(rad.kort) ? rad.kort : [];
   p.cards.forEach(normaliseraKort);
-  medFjarr(() => renderAll(true));
+  /* Bordsvyn (MES-133): bara motståndarnas mattor ritas om. Mitt bord och
+     resten av sidan har inte ändrats — och hans matta är andra element, så
+     den ritas direkt också mitt i ett drag på mitt bord. */
+  renderBord(); renderInspektor();
   /* Korten kom som namn, inte som bilder. Utan uppslagningen här står de kvar
      som namnlappar tills något annat råkar utlösa den — vilket för den som
      BARA tittar på ett bord aldrig händer. */
@@ -20631,7 +21047,7 @@ function fjarrSpelare(lista) {
       version: nyare ? p.version : g.version,
       shots: g ? g.shots : [], shotIdx: g ? g.shotIdx : 0,
       pending: g ? g.pending : [], pane: g ? g.pane : null,
-      namnkalla: 'anvandare', bildnamn: null,
+      namnkalla: 'anvandare', bildnamn: null, plats: p.plats,
       /* Läget och leken tas alltid ur serverraden för de andra (som namnet);
          min egen rad bara när inget byte ligger i flykt — annars rullas
          valet tillbaka av omhämtningen innan skrivningen nått fram. */
@@ -20640,7 +21056,7 @@ function fjarrSpelare(lista) {
       lek: (mitt && g && lekValPagar) ? g.lek : p.lek
     }, i);
   });
-  if (!state.players.some(p => p.id === state.active)) state.active = spelLage.mig;
+  state.active = spelLage.mig;                // bordsvyn: jag är alltid aktiv
   lekFoljMin();
   medFjarr(() => renderAll(true));
   resolveAll();
