@@ -7843,11 +7843,12 @@ function hfHint() {
       ? '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (namnge ? 'this is the card' : redigerbar() && !hf.pid ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>'
       : '<span><kbd>Esc</kbd> put down</span>';
     if (keys.dataset.h !== kh) { keys.dataset.h = kh; keys.innerHTML = kh; }
-    if (hf.fokusSok) { hf.fokusSok = false; inp.focus(); inp.select(); }
   } else if (document.activeElement === inp) inp.blur();
   hfHintEl.classList.toggle('sok', pa);
   hfHintEl.classList.toggle('ingen', ingen);
   hfSokEl.hidden = !pa;
+  /* ⌘S: fokus först när raden syns — ett dolt fält tar inte emot fokus. */
+  if (pa && hf.fokusSok) { hf.fokusSok = false; inp.focus(); inp.select(); }
 }
 /* Sökfältet är ett riktigt fält (MES-147): ett klick ger det fokus,
    dubbelklick markerar allt, ⌘A likaså (fältets eget). Det skrivna går
