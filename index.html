@@ -1014,7 +1014,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 }
 @media (prefers-reduced-motion:reduce){.gravhog.bump .grav img,.gravhog.bump .gravtxt b{animation:none}.gravring{display:none}}
 /* Exile: en liten räknare till höger om högarna, bara när något ligger
-   där. Samma fjäder på hover. */
+   där. Ett klick tar upp korten i handen (solfjädern, MES-145). */
 .exilhog{
   position:absolute;left:100%;bottom:10px;margin-left:8px;display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:6px 9px;border-radius:8px;border:1px dashed var(--line);background:#0e131add;color:var(--dim);cursor:pointer;
@@ -3289,7 +3289,8 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Building the board</h3>
           <dl>
-            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>In a game: open your deck and find a card in it. Outside a game: the search box</dd>
+            <dt><kbd>L</kbd></dt><dd>In a game: pick up your library. Type a name to find a card, Enter puts it on the table</dd>
+            <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Outside a game: the search box</dd>
             <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> to the board (outside a game)</dd>
             <dt><kbd>B</kbd></dt><dd>Paste a list of names (outside a game)</dd>
             <dt><kbd>I</kbd></dt><dd>Add cards from an image (outside a game)</dd>
@@ -6704,7 +6705,7 @@ function renderBibHog() {
       const inne = lyft
         ? `<img class="bibspok" src="${BAKSIDA}" alt="" draggable="false"><span class="bibord">Put your library back here</span>`
         : `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span><span class="hchip bla">${IKON_HAND}<span>Pick up</span><b>${kvar}</b></span>`;
-      const titel = lyft ? `Your library is off its spot — put it back inside the frame. ${antal}` : `${esc(lek.namn || 'Deck')} — ${antal}. Drop a card here to put it back`;
+      const titel = lyft ? `Your library is off its spot — put it back inside the frame. ${antal}` : `${esc(lek.namn || 'Deck')} — ${antal}. Click to pick them up, or drop a card here to put it back`;
       html = `<button type="button" class="bib${lyft ? ' lyft' : ''}" data-lekvalj="lek" title="${titel}">${inne}</button><span class="hograd"><i></i>Library<b>${kvar}</b></span>`;
     }
   }
