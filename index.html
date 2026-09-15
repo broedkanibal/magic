@@ -710,6 +710,16 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .bib.tom{border-color:#6b8cff99}
 @keyframes bibAndas{0%,100%{box-shadow:0 0 0 0 #6b8cff00}50%{box-shadow:0 0 0 7px #6b8cff26,0 0 26px 4px #6b8cff2e}}
 @media (prefers-reduced-motion:reduce){.bib.lyft{animation:none}}
+/* Ett kort in i leken (MES-149): kopian vänds under flygningen, och högen
+   tar emot det — leken studsar, talet studsar, en blå ring slår ut. */
+.bibflyg{position:fixed;z-index:960;pointer-events:none;transform-style:preserve-3d;transform-origin:50% 50%}
+.bibflyg > *{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:8px;background:#11161e;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 14px 28px -10px #000e}
+.bibflyg .bak{transform:rotateY(180deg)}
+@keyframes bibLand{0%{transform:translateY(-10px) scale(1.06)}55%{transform:translateY(2px) scale(.98)}100%{transform:none}}
+.bibhog.bump .biblek{animation:bibLand .5s cubic-bezier(.2,.8,.3,1)}
+.bibhog.bump .hograd b{display:inline-block;animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
+.bibring{position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;border-radius:50%;border:2px solid #9fb4ff;pointer-events:none;animation:cRing .55s ease-out forwards}
+@media (prefers-reduced-motion:reduce){.bibhog.bump .biblek,.bibhog.bump .hograd b{animation:none}.bibring{display:none}}
 /* Exile står till höger om den sista högen — library, när den finns. */
 .gravhog.medbib .exilhog{margin-left:138px}
 .lyftbanner{
@@ -3447,6 +3457,8 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>T</kbd></dt><dd>Tap or untap the card under the pointer</dd>
             <dt><kbd>E</kbd></dt><dd>Put the card under the pointer on another one — equip, fortify, attach</dd>
             <dt><kbd>G</kbd></dt><dd>Put the card under the pointer in the graveyard</dd>
+            <dt><kbd>H</kbd></dt><dd>Return the card under the pointer to your hand</dd>
+            <dt><kbd>C</kbd></dt><dd>Counters on the card under the pointer</dd>
             <dt><kbd>D</kbd></dt><dd>Duplicate the card under the pointer</dd>
           </dl>
         </section>
@@ -6706,6 +6718,60 @@ function flygTillGrav(fran) {
   anim.finished.then(stad, stad);
   setTimeout(stad, 1200);
 }
+/* Return to hand (MES-149): kortet flyger in i library-högen — det lyfts
+   i en båge, vänds och läggs på leken som ett kort ur handen — och högen
+   tar emot det (bibBumpa). Mesa skiljer inte hand från bibliotek: kortet
+   räknas som inte spelat igen (lekKvar). Utan library-hög (ingen lek vald)
+   försvinner kortet utan flygning. */
+function flygTillBib(fran) {
+  const hog = bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null;
+  if (!fran || !hog || !fran.getBoundingClientRect) return;
+  const a = fran.getBoundingClientRect(), b = hog.getBoundingClientRect();
+  if (!a.width || !b.width || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const tapp = fran.classList.contains('tappad') ? 90 : 0;
+  const w = tapp ? a.height : a.width, hh = tapp ? a.width : a.height;   // kortets egna mått, före vridningen
+  const bild = fran.querySelector('img');
+  const k = document.createElement('div');
+  k.className = 'bibflyg';
+  k.style.cssText = 'left:' + (a.left + a.width / 2 - w / 2) + 'px;top:' + (a.top + a.height / 2 - hh / 2) + 'px;width:' + w + 'px;height:' + hh + 'px';
+  k.innerHTML = (bild && bild.src ? '<img class="fram" src="' + esc(bild.src) + '" alt="">' : '<span class="fram"></span>') + '<img class="bak" src="' + BAKSIDA + '" alt="">';
+  document.body.appendChild(k);
+  const sk = (b.width * 92 / 108) / w;
+  const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+  const anim = k.animate([
+    { transform: 'perspective(900px) translate(0px,0px) rotate(' + tapp + 'deg) scale(1) rotateY(0deg)' },
+    { transform: 'perspective(900px) translate(' + (dx * .5).toFixed(1) + 'px,' + (dy * .5 - 46).toFixed(1) + 'px) rotate(' + (tapp / 2 - 4) + 'deg) scale(' + ((1 + sk) / 2 * 1.08).toFixed(3) + ') rotateY(90deg)', offset: .5 },
+    { transform: 'perspective(900px) translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) rotate(-4deg) scale(' + sk.toFixed(3) + ') rotateY(180deg)' }
+  ], { duration: 520, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+  const stad = () => k.remove();
+  anim.finished.then(stad, stad);
+  setTimeout(stad, 1400);
+}
+/* Library-högen tar emot ett kort: leken studsar, talet studsar och en blå
+   ring slår ut — som graveyardens landning (gravBumpa). Väntar in flygningen. */
+let bibBumpT = null;
+function bibBumpa() {
+  const lugn = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => {
+    clearTimeout(bibBumpT);
+    if (!bibHogEl || bibHogEl.hidden) return;
+    bibHogEl.classList.remove('bump');
+    const gammal = bibHogEl.querySelector('.bibring'); if (gammal) gammal.remove();
+    const hog = bibHogEl.querySelector('.bib'); if (!hog) return;
+    void bibHogEl.offsetWidth;
+    bibHogEl.classList.add('bump');
+    if (!lugn) hog.insertAdjacentHTML('beforeend', '<i class="bibring"></i>');
+    bibBumpT = setTimeout(() => { bibHogEl.classList.remove('bump'); const r = bibHogEl.querySelector('.bibring'); if (r) r.remove(); }, 560);
+  }, lugn ? 0 : 470);
+}
+/* Return to hand: H, kortets meny och arkets "Back to hand or library".
+   Kamerans spår spärras (removeAt), och ⌘Z lägger tillbaka kortet. */
+function tillLeken(i) {
+  const e = hand()[i]; if (!e || !redigerbar()) return;
+  flygTillBib(kortEl(e.cid));
+  removeAt(i, namnAv(e) + ' → hand or library');
+  bibBumpa();
+}
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
@@ -8353,7 +8419,7 @@ function renderPill() {
   const hint = nStack > 1 ? nStack + ' stacked · drag one out' : c.tapped ? 'Swing it back up' : 'Swing it sideways';
   const html = `<span class="hint">${esc(hint)}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
-    + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card">+</button>`
+    + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card (C)">+</button>`
     + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;
   if (!el) { el = document.createElement('div'); el.className = 'pill'; gridEl.appendChild(el); }
   if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }
@@ -8397,10 +8463,10 @@ function openKortMeny(cid, cx, cy) {
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
     <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}<kbd>T</kbd></button>
     <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}<kbd>Space</kbd></button>
-    <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…</button>
+    <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…<kbd>C</kbd></button>
     ${tok.map((t, j) => `<button type="button" data-ma="tok${j}"><i style="background:#e0b44c"></i>Create ${esc(t.name)} token</button>`).join('')}
     <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard<kbd>G</kbd></button>
-    <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board</button>`;
+    <button type="button" data-ma="hand"><i style="background:#6b8cff"></i>Return to hand<kbd>H</kbd></button>`;
   const r = $('#zonPerm').getBoundingClientRect();
   matMenyEl.style.left = Math.max(4, Math.min(cx - r.left, r.width - 214)) + 'px';
   matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175 - 34 * tok.length)) + 'px';
@@ -8413,7 +8479,7 @@ function kortMenyVal(a, i) {
   else if (a === 'ctr') openCounters(c.cid, matMenyEl.style.left, matMenyEl.style.top);
   else if (a === 'flip') { state.sel = i; flipSel(); }
   else if (a === 'grav') matAngra(namnAv(c) + ' → graveyard', () => { flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`)); flyttaTill(i, ZON_GRAV); });
-  else if (a === 'del') removeAt(i);
+  else if (a === 'hand') tillLeken(i);
   else if (/^tok\d+$/.test(a)) {
     const t = tokDelar(cardOf(c))[+a.slice(3)], p = player();
     if (t) { angraPunkt(p); skapaTokens(p, c, [{ part: t, n: 1 }], true); }
@@ -8652,7 +8718,7 @@ function arkSvar(val, n) {
     const cid = ark.cid;
     if (val === 'grav') matAngra(namnAv(e) + ' → graveyard', () => flyttaTill(i, ZON_GRAV));
     else if (val === 'exil') matAngra(namnAv(e) + ' → exile', () => flyttaTill(i, ZON_EXIL));
-    else if (val === 'hand') removeAt(i, `${namnAv(e)} → hand or library`);
+    else if (val === 'hand') tillLeken(i);
     else if (val === 'kvar') { slappLyft(e); e.ny = Date.now(); save(); renderAll(true); }
     /* Omritningen har oftast redan gått vidare (kortet är inte nedtonat
        längre); bara om arket står kvar på samma kort stegas det här. */
@@ -10669,7 +10735,9 @@ function matDndSlut(ev, avbryt) {
        så att kortet inte kommer tillbaka som ett nytt. Startläget först, så
        att Undo lägger det där det låg. */
     c.x = d.start.x; c.y = d.start.y;
+    flygTillBib(el);
     utanAngra(() => removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`));
+    bibBumpa();
     fjarrIkapp(); return;
   }
   if (d.overExil) {
@@ -13055,9 +13123,9 @@ addEventListener('keydown', ev => {
   if (spelLage && (lower === 'm' || lower === 'a' || lower === 'u')) { if (bordTangent(ev)) ev.preventDefault(); return; }
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
-  const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ';
+  const skriver = ' t e g d n r h c '.includes(' ' + lower + ' ') || k === ' ';
   if (!redigerbar() && skriver) return;
-  /* T, E, G och D verkar på kortet under pekaren (tangentKort). T med
+  /* T, E, G, H, C och D verkar på kortet under pekaren (tangentKort). T med
      lassomarkerade kort tappar alla, när pekaren står på ett av dem eller
      inte på något kort alls. */
   const ti = tangentKort(), te = hand()[ti] || null;
@@ -13076,6 +13144,8 @@ addEventListener('keydown', ev => {
     flygTillGrav(gridEl.querySelector(`.card[data-i="${ti}"]`));
     flyttaTill(ti, ZON_GRAV);
   }
+  else if (lower === 'h' && te && paMattan(te)) { ev.preventDefault(); tillLeken(ti); }
+  else if (lower === 'c' && te && paMattan(te)) { ev.preventDefault(); openCounters(te.cid); }
   else if (lower === 's') { ev.preventDefault(); satMatVerktyg(matVerktyg === 'pan' ? 'valj' : 'pan'); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
