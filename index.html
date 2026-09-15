@@ -1280,6 +1280,13 @@ body.lasvy .hchip{display:none}
 .hints .hn{font:13.5px/1 var(--mono);color:#c9b485}
 .hints.ingen .hn{color:#ff9099}
 .hints.ingen .hq{border-color:#8a3a44}
+/* Fältet (MES-147): ett riktigt input. Fokus = markerat läge med accentram. */
+.hints input.hq{box-sizing:border-box;width:250px;outline:none;caret-color:var(--pa-acc);cursor:text;transition:border-color .12s,box-shadow .12s}
+.hints input.hq::placeholder{color:#7d6a45;font:500 14px var(--sans)}
+.hints input.hq:focus{border-color:var(--pa-acc);box-shadow:0 0 0 3px #f0a52a2e,inset 0 1px 0 #ffffff08}
+.hints input.hq::selection{background:#f0a52a66;color:#fff}
+.hints.ingen input.hq:focus{border-color:#c25563;box-shadow:0 0 0 3px #c2556329}
+.hints .hkeys{display:flex;align-items:center;gap:20px}
 @keyframes hfBlink{50%{opacity:0}}
 /* Enter: kortet flyger ur solfjädern till sin plats på mattan (480 ms). */
 .hfflyg{position:fixed;z-index:960;pointer-events:none;border-radius:6px;overflow:hidden;background:#11161e;transform-origin:50% 50%;box-shadow:0 8px 20px -8px #000c}
@@ -3457,6 +3464,7 @@ body.ispel #addPlayerBtn{display:none}
           <h3>Building the board</h3>
           <dl>
             <dt><kbd>L</kbd></dt><dd>In a game: pick up your library. Type a name to find a card, Enter puts it on the table</dd>
+            <dt><kbd>⌘S</kbd></dt><dd>In a game: pick up your library with the search field ready</dd>
             <dt><kbd>/</kbd> <kbd>A</kbd></dt><dd>Outside a game: the search box</dd>
             <dt><kbd>⌘V</kbd></dt><dd>Paste an image — whatever is found <b>is added</b> to the board (outside a game)</dd>
             <dt><kbd>B</kbd></dt><dd>Paste a list of names (outside a game)</dd>
@@ -7818,22 +7826,57 @@ const HF_LUPP = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" str
 function hfHint() {
   if (!hfSokEl || !hfHintEl) return;
   const pa = hfOppen();
-  let html = '', ingen = false;
-  if (pa && !hf.q) {
-    const hp = hf.pid ? hfSpelare() : null;
-    const kalla = hf.src === 'lib' ? 'your hands' : hp ? esc(hp.name) + '\'s ' + (hf.src === ZON_EXIL ? 'exile' : 'graveyard') : hf.src === ZON_EXIL ? 'exile' : 'the graveyard';
-    html = '<span class="hsok">' + HF_LUPP + '<span>' + (hfNamnge && hf.src === 'lib' ? 'Which card is this? Click it in your deck, or type its name' : 'Type a name to find a card in ' + kalla) + '</span></span><span><kbd>Esc</kbd> put down</span>';
-  } else if (pa) {
-    const L = hfTraffar().length, mi = L ? ((hf.mi % L) + L) % L : 0;
-    ingen = !L;
-    html = '<span class="hsok">' + HF_LUPP + '<span>Find</span><b class="hq"><span>' + esc(hf.q) + '</span><i class="caret"></i></b><span class="hn">' + (ingen ? 'no card' : (mi + 1) + ' of ' + L) + '</span></span>'
-      + '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (hfNamnge && hf.src === 'lib' ? 'this is the card' : redigerbar() && !hf.pid ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>';
-  }
+  if (!hfSokEl.firstChild) hfSokEl.innerHTML = '<span class="hsok">' + HF_LUPP + '<span>Find</span><input class="hq" id="hfQ" type="text" maxlength="24" autocomplete="off" spellcheck="false" aria-label="Find a card"><span class="hn"></span></span><span class="hkeys"></span>';
+  const inp = $('#hfQ'), hn = hfSokEl.querySelector('.hn'), keys = hfSokEl.querySelector('.hkeys');
+  let ingen = false;
+  if (pa) {
+    const namnge = hfNamnge && hf.src === 'lib', hp = hf.pid ? hfSpelare() : null;
+    const kalla = hf.src === 'lib' ? 'your hands' : hp ? hp.name + '\'s ' + (hf.src === ZON_EXIL ? 'exile' : 'graveyard') : hf.src === ZON_EXIL ? 'exile' : 'the graveyard';
+    const L = hf.q ? hfTraffar().length : 0, mi = L ? ((hf.mi % L) + L) % L : 0;
+    ingen = !!hf.q && !L;
+    if (inp.value !== hf.q) inp.value = hf.q;
+    const ph = namnge ? 'which card is this?' : 'a card in ' + kalla;
+    if (inp.placeholder !== ph) inp.placeholder = ph;
+    const tal = hf.q ? (ingen ? 'no card' : (mi + 1) + ' of ' + L) : (namnge ? 'or click it in your deck' : '');
+    if (hn.textContent !== tal) hn.textContent = tal;
+    const kh = hf.q
+      ? '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (namnge ? 'this is the card' : redigerbar() && !hf.pid ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>'
+      : '<span><kbd>Esc</kbd> put down</span>';
+    if (keys.dataset.h !== kh) { keys.dataset.h = kh; keys.innerHTML = kh; }
+    if (hf.fokusSok) { hf.fokusSok = false; inp.focus(); inp.select(); }
+  } else if (document.activeElement === inp) inp.blur();
   hfHintEl.classList.toggle('sok', pa);
   hfHintEl.classList.toggle('ingen', ingen);
-  if (hfSokEl.dataset.h !== html) { hfSokEl.dataset.h = html; hfSokEl.innerHTML = html; }
   hfSokEl.hidden = !pa;
 }
+/* Sökfältet är ett riktigt fält (MES-147): ett klick ger det fokus,
+   dubbelklick markerar allt, ⌘A likaså (fältets eget). Det skrivna går
+   rakt till sökningen; Tab/↑↓, Enter och Esc gör samma sak som utan fokus.
+   Utan fokus fungerar allt som förut: skriver man flyttar fokus hit. */
+hfSokEl.addEventListener('input', ev => {
+  if (ev.target.id !== 'hfQ') return;
+  hf.q = ev.target.value; hf.mi = 0; hf.mus = false;
+  if (hf.fas === 'open') { hfTimrarBort(); hf.fas = 'live'; }
+  hfLage();
+});
+hfSokEl.addEventListener('dblclick', ev => { if (ev.target.id === 'hfQ') ev.target.select(); });
+hfSokEl.addEventListener('keydown', ev => {
+  if (ev.target.id !== 'hfQ' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+  const k = ev.key, sluta = () => { ev.preventDefault(); ev.stopPropagation(); };
+  if (k === 'Escape') { sluta(); if (hf.q) { hf.q = ''; hf.mi = 0; hfLage(); } else { ev.target.blur(); hfStang(); } }
+  else if (k === 'Tab' || k === 'ArrowDown' || k === 'ArrowUp') { sluta(); hf.mi += (k === 'ArrowUp' || (k === 'Tab' && ev.shiftKey)) ? -1 : 1; hf.mus = false; hfLage(); }
+  else if (k === 'Enter') { sluta(); hfEnter(); }
+});
+/* ⌘S (Ctrl+S): library-solfjädern med sökfältet i fokus (MES-147). Står
+   den redan ute får fältet fokus; en annan hög byts mot library. */
+addEventListener('keydown', ev => {
+  if (!(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || (ev.key || '').toLowerCase() !== 's') return;
+  if (!spelLage || !arMitt(player())) return;
+  if (isTyping(ev.target) && ev.target.id !== 'hfQ') return;
+  ev.preventDefault();
+  hf.fokusSok = true;
+  if (hf.src === 'lib' && !hf.pid && hf.fas !== 'gather') hfHint(); else hfOppna('lib');
+}, true);
 /* Tangenterna medan korten är i handen (T3, sida 5). Allt skrivet går till
    sökningen — också L, T, G, F och S. Första träffen lyfts och de andra
    mörknar; Tab eller ↓ nästa träff, Shift+Tab eller ↑ föregående,
@@ -7856,9 +7899,11 @@ addEventListener('keydown', ev => {
   if (k.length === 1 && /[\p{L}\p{N} ',\-]/u.test(k)) {
     sluta();
     if (hf.q.length >= 24 || (k === ' ' && !hf.q)) return;
-    hf.q += k.toLowerCase(); hf.mi = 0; hf.mus = false;
+    hf.q += k; hf.mi = 0; hf.mus = false;
     if (hf.fas === 'open') { hfTimrarBort(); hf.fas = 'live'; }
     hfLage();
+    const inp = $('#hfQ');
+    if (inp && hfOppen()) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }   // resten skrivs i fältet
   }
 }, true);
 /* Enter: det lyfta kortet ut ur solfjädern och på nästa lediga plats på
