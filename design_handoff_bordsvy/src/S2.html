@@ -1,0 +1,28 @@
+<!--@css-->
+@keyframes in3{from{opacity:0}}
+.mat .strip,.mat .kol{animation:in3 .35s .12s both}
+<!--@end-->
+<!--@body-->
+<div class="app">
+  <header class="topbar">
+    @@HEADLEFT@@
+    <div class="topspacer"></div>
+    @@HEADRIGHT@@
+  </header>
+  <div class="main">
+    <div class="area" ref="{{ areaRef }}" onContextMenu="{{ noMenu }}">
+      @@MAT3@@
+      @@KANT@@
+    </div>
+    @@INSPECTOR@@
+  </div>
+  <footer class="hints">
+    <span class="ny"><kbd>1</kbd> Erik</span>
+    <span class="ny"><kbd>M</kbd> me</span>
+    <span class="ny"><kbd>A</kbd> both</span>
+    <span class="ny">click a table to make it big</span>
+    <span class="ny"><kbd>↑</kbd><kbd>↓</kbd> or drag the edge</span>
+    @@FOOT@@
+  </footer>
+</div>
+<!--@end-->

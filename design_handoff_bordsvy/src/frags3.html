@@ -1,0 +1,105 @@
+<!--@mat3-->
+<sc-for list="{{ mats }}" as="m" hint-placeholder-count="4">
+<section class="mat {{ m.cls }}" style="left:{{ m.x }};top:{{ m.y }};width:{{ m.w }};height:{{ m.h }};z-index:{{ m.z }};transition:{{ trans }}" onPointerDown="{{ m.down }}">
+  <div class="surface" style="transform:{{ m.tf }};transition:{{ transS }};opacity:{{ m.bodyOp }}">
+    <sc-for list="{{ m.cards }}" as="c" hint-placeholder-count="6">
+      <div class="card {{ c.cls }}" style="left:{{ c.x }};top:{{ c.y }};z-index:{{ c.z }}" onPointerEnter="{{ c.enter }}" onPointerLeave="{{ c.leave }}" onPointerDown="{{ c.down }}">
+        <i class="art {{ c.im }}"></i><span class="bar"></span>
+        <sc-if value="{{ c.kwShow }}" hint-placeholder-val="{{ false }}"><span class="kwkort"><sc-for list="{{ c.kw }}" as="k" hint-placeholder-count="1"><b>{{ k.label }}</b></sc-for></span></sc-if>
+        <sc-if value="{{ c.ptShow }}" hint-placeholder-val="{{ false }}"><span class="pt">{{ c.pt }}</span></sc-if>
+      </div>
+    </sc-for>
+  </div>
+  <span class="vinj" style="box-shadow:{{ m.shadow }}"></span>
+  <sc-if value="{{ m.lassoShow }}" hint-placeholder-val="{{ false }}"><i class="lassoruta" style="left:{{ m.lx }};top:{{ m.ly }};width:{{ m.lw }};height:{{ m.lh }}"></i></sc-if>
+  <div class="hogar3 {{ m.hogCls }}" style="left:{{ m.hogX }};top:{{ m.hogY }};transform:scale({{ m.ps }});opacity:{{ m.bodyOp }};pointer-events:{{ m.bodyPe }}" onPointerDown="{{ m.stop }}">
+    <div class="hogkol gravkol {{ m.gravKolCls }}" onPointerEnter="{{ m.gravEnter }}" onPointerLeave="{{ m.gravLeave }}">
+      <button class="grav3 {{ m.gravCls }}" onClick="{{ m.gravClick }}" onPointerEnter="{{ m.gravEnter }}" title="{{ m.gravTitle }}">
+        <sc-for list="{{ m.lager }}" as="l" hint-placeholder-count="1"><i class="glag3 {{ l.cls }}"></i></sc-for>
+        <sc-if value="{{ m.gravHas }}" hint-placeholder-val="{{ false }}"><i class="gtop3 {{ m.gravIm }}"></i></sc-if>
+        <span class="gsten3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"></path><path d="M12 7.6v6.2M9 10.4h6"></path><path d="M3.2 19.4h17.6"></path></svg></span>
+        <sc-if value="{{ m.bumpShow }}" hint-placeholder-val="{{ false }}"><i class="gring3"></i></sc-if>
+      </button>
+      <span class="hograd gravrad"><i></i>Graveyard<span class="gt-n"><sc-if value="{{ m.gravHas }}" hint-placeholder-val="{{ false }}"><b>{{ m.gravN }}</b></sc-if></span><span class="gt-fan">{{ m.fanTxt }}</span></span>
+      <sc-if value="{{ m.fanShow }}" hint-placeholder-val="{{ false }}">
+        <div class="gfan3 {{ m.fanCls }}">
+          <sc-for list="{{ m.fanCards }}" as="f" hint-placeholder-count="2"><div class="fk3 {{ f.cls }}" style="z-index:{{ f.z }};transform:{{ f.tf }};transition:{{ f.tr }}" onPointerEnter="{{ f.enter }}" onPointerLeave="{{ f.leave }}" onPointerDown="{{ f.down }}"><i class="art {{ f.im }}"></i></div></sc-for>
+          <sc-if value="{{ m.faktShow }}" hint-placeholder-val="{{ false }}">
+            <div class="fakt3" style="left:{{ m.faktX }};top:{{ m.faktY }}" onPointerEnter="{{ m.gravEnter }}">
+              <button class="ater" onClick="{{ m.onAter }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5m0 0-5.5 5.5M12 5l5.5 5.5"></path></svg>Return to play</button>
+              <button class="exil" onClick="{{ m.onExil }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v9m4.5-6.8a8 8 0 1 1-9 0"></path></svg>Exile</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ m.slappShow }}" hint-placeholder-val="{{ false }}"><div class="gravslapp3"><i></i><span>{{ m.slappTxt }}</span></div></sc-if>
+    </div>
+    <div class="hogkol bibkol">
+      <button class="bib3 {{ m.bibCls }}" title="{{ m.bibTitle }}"><span class="biblek3"><i class="im-baksida"></i><i class="im-baksida"></i><i class="im-baksida"></i></span></button>
+      <span class="hograd bibrad"><i></i>Library<b>{{ m.libN }}</b></span>
+    </div>
+    <sc-if value="{{ m.exilShow }}" hint-placeholder-val="{{ false }}"><div class="exil3" title="Cards in exile"><span class="zonlbl">Exile</span><b>{{ m.exilN }}</b></div></sc-if>
+  </div>
+  <sc-if value="{{ m.plateShow }}" hint-placeholder-val="{{ false }}">
+    <div class="plate tl {{ m.plateCls }}" style="opacity:{{ m.bodyOp }}" onPointerDown="{{ m.stop }}">
+      <button class="plnamn" onClick="{{ m.plateClick }}" title="{{ m.name }}’s table big"><i class="dot" style="background:{{ m.color }}"></i><b>{{ m.name }}</b><span class="pips"><sc-for list="{{ m.pips }}" as="p" hint-placeholder-count="2"><i class="pip {{ p.cls }}"></i></sc-for></span><span class="sep"></span><span class="sub">{{ m.onTable }}</span></button>
+      <span class="sep"></span>
+      <button class="turnbtn" onClick="{{ m.turnClick }}" title="Turn their cards (U)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"></path><path d="M20 4v5h-5"></path></svg><span class="tt">{{ m.turnTxt }}</span><kbd>U</kbd></button>
+    </div>
+  </sc-if>
+  <sc-if value="{{ m.chromeShow }}" hint-placeholder-val="{{ false }}">
+    <div class="mattachrome {{ m.chromeCls }}" style="opacity:{{ m.bodyOp }}" onPointerDown="{{ m.stop }}">
+      <div class="zoomchip"><button class="zlage {{ m.toolSel }}" onClick="{{ m.onSel }}" title="Select — drag cards, drag on the mat to mark several (S)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"></path></svg></button><button class="zlage {{ m.toolPan }}" onClick="{{ m.onPan }}" title="Pan — drag anywhere to move the mat (S, or hold Space)"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"></path></svg></button></div>
+      <div class="zoomchip"><button class="zsteg" onClick="{{ m.onZut }}" title="Zoom out (−)">−</button><button class="ztxt {{ m.zoomCls }}" onClick="{{ m.onFit }}" title="Back to fit (0)">{{ m.zoomTxt }}</button><button class="zsteg" onClick="{{ m.onZin }}" title="Zoom in (+)">+</button></div>
+      <sc-if value="{{ m.mineTools }}" hint-placeholder-val="{{ false }}"><button class="btn sm" onClick="{{ m.onUntap }}">Untap all</button><button class="btn sm" onClick="{{ m.onTidy }}">Tidy up</button></sc-if>
+    </div>
+  </sc-if>
+  <sc-if value="{{ m.stripShow }}" hint-placeholder-val="{{ false }}">
+    <div class="strip" role="button" onPointerDown="{{ m.stop }}" onClick="{{ m.stripClick }}">
+      <i class="dot" style="background:{{ m.color }}"></i><b>{{ m.stripName }}</b>
+      <span class="pips"><sc-for list="{{ m.pips }}" as="p" hint-placeholder-count="2"><i class="pip {{ p.cls }}"></i></sc-for></span>
+      <span class="sep"></span>
+      <span class="thumbs"><sc-for list="{{ m.thumbs }}" as="t" hint-placeholder-count="6"><i class="thumb {{ t.cls }}"></i></sc-for></span>
+      <span class="sub">{{ m.onTable }}</span>
+      <span class="grow"></span>
+      <span class="stripkey">{{ m.stripHint }}<kbd>{{ m.stripKey }}</kbd></span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ m.kolShow }}" hint-placeholder-val="{{ false }}">
+    <div class="kol" role="button" title="{{ m.kolTitle }}" onPointerDown="{{ m.stop }}" onClick="{{ m.kolClick }}">
+      <div class="kolhd"><i class="dot" style="background:{{ m.color }}"></i><b>{{ m.name }}</b><span class="pips"><sc-for list="{{ m.pips }}" as="p" hint-placeholder-count="2"><i class="pip {{ p.cls }}"></i></sc-for></span></div>
+      <span class="kolsub">{{ m.onTable }}</span>
+      <div class="kolthumbs"><sc-for list="{{ m.thumbs }}" as="t" hint-placeholder-count="6"><i class="thumb {{ t.cls }}"></i></sc-for></div>
+      <div class="kolhogar"><span><i style="background:#e8b33a"></i>Graveyard<b>{{ m.gravNk }}</b></span><span><i style="background:#6b8cff"></i>Library<b>{{ m.libNk }}</b></span></div>
+      <kbd class="kolkbd">{{ m.kolKey }}</kbd>
+    </div>
+  </sc-if>
+</section>
+</sc-for>
+<!--@end-->
+<!--@kant-->
+<div class="kant3 {{ kant.cls }}" style="top:{{ kant.y }};transition:{{ kant.trans }}" onPointerDown="{{ kantDown }}" title="Drag the edge up or down — or pick a player">
+  <i class="edgeline"></i>
+  <div class="ssw" role="group" aria-label="Whose table is big" onPointerDown="{{ stop }}">
+    <span class="egrip" onPointerDown="{{ kantDown }}" title="Drag"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg></span>
+    <sc-for list="{{ segs }}" as="s" hint-placeholder-count="5">
+      <button class="sseg {{ s.cls }}" onPointerDown="{{ s.down }}" onClick="{{ s.go }}" title="{{ s.title }}">
+        <sc-if value="{{ s.hasDot }}" hint-placeholder-val="{{ true }}"><i class="dot" style="background:{{ s.dot }}"></i></sc-if>
+        <sc-if value="{{ s.isAll4 }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="5" height="5" rx="1.2"></rect><rect x="9" y="2" width="5" height="5" rx="1.2"></rect><rect x="2" y="9" width="5" height="5" rx="1.2"></rect><rect x="9" y="9" width="5" height="5" rx="1.2"></rect></svg></sc-if>
+        <sc-if value="{{ s.isAll2 }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2.5" y="2" width="11" height="5" rx="1.2"></rect><rect x="2.5" y="9" width="11" height="5" rx="1.2"></rect></svg></sc-if>
+        <span>{{ s.label }}</span><kbd>{{ s.kbd }}</kbd>
+      </button>
+    </sc-for>
+  </div>
+</div>
+<!--@end-->
+<!--@foot-->
+<span class="sep"></span>
+<span class="ny"><kbd>S</kbd> select / pan</span>
+<span class="ny"><kbd>Space</kbd>+drag move a mat</span>
+<span class="ny"><kbd>U</kbd> turn their cards</span>
+<span class="sep"></span>
+<span><kbd>T</kbd> tap</span>
+<span><kbd>0</kbd> fit</span>
+<span><kbd>?</kbd> all shortcuts</span>
+<!--@end-->

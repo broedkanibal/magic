@@ -1,0 +1,1317 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+
+:root{
+  --bg:#0d1015; --bg2:#141922; --bg3:#1b2230; --bg4:#232c3c;
+  --line:#28313f; --txt:#e7ecf4; --dim:#93a1b6; --dim2:#66748a;
+  --acc:#f0a52a; --blue:#6b8cff; --red:#e2606a; --green:#57c785;
+  --zonlbl:#5c6b82; --zonlinje:#1c2330; --panelram2:#3d4a5f; --pa-acc:#ffd98a;
+  --rs:7px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0d1015;color:#e7ecf4;overflow:hidden;
+  font:14px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:#6b8cff} a:hover{color:#8ea6ff}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+kbd{display:inline-block;min-width:17px;text-align:center;padding:1px 5px;border-radius:4px;background:#212a38;
+  border:1px solid #333e50;border-bottom-width:2px;font:11px/1.5 var(--mono);color:#b9c6d8}
+
+.app{position:relative;display:flex;flex-direction:column;width:1440px;height:900px;background:#0d1015;overflow:hidden;user-select:none}
+.topbar{display:flex;align-items:center;gap:10px;height:46px;flex:none;padding:0 12px;
+  background:linear-gradient(#161c26,#11161e);border-bottom:1px solid #28313f;position:relative;z-index:30}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;letter-spacing:.2px;padding-right:4px}
+.brand svg{display:block}
+.vr{width:1px;height:20px;background:#28313f;flex:none}
+.topspacer{flex:1;min-width:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;
+  border:1px solid #28313f;color:#93a1b6;font-size:12.5px;font-weight:500;white-space:nowrap}
+.btn:hover{background:#232c3c;color:#e7ecf4;border-color:#3b485c}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:#1b2230}
+.btn.sm{height:26px;padding:0 8px;font-size:11.5px}
+.spelknapp{display:inline-flex;align-items:center;gap:8px;flex:none;height:30px;padding:0 9px;border-radius:7px;
+  background:#f0a52a14;border:1px dashed #e8b33a66}
+.spelknapp .kod{font:700 12.5px var(--mono);letter-spacing:2px;color:#f0a52a}
+.spelknapp .delare{width:1px;height:14px;background:#e8b33a44;flex:none}
+.spelknapp .bjud{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#c9a45e;white-space:nowrap}
+.deckbtn{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 9px 0 8px;border-radius:7px;
+  background:#1b2230;border:1px solid #28313f;color:#e7ecf4;font:550 12.5px var(--sans);white-space:nowrap}
+.deckbtn:hover{background:#232c3c;border-color:#4a5a72}
+.deckbtn .cnt{font:11.5px/1 var(--mono);color:#93a1b6}
+.deckbtn .cnt b{color:#e7ecf4;font-weight:600}
+.deckbtn .cv,.campill .cv,.campill .ikon{display:inline-flex;flex:none;opacity:.75}
+.campill{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 9px 0 10px;border-radius:7px;
+  font:550 12.5px var(--sans);white-space:nowrap;background:#0f2016;border:1px solid #2f6b47;color:#8fe0b0}
+.campill .led{width:7px;height:7px;border-radius:50%;background:#57c785;box-shadow:0 0 0 3px #57c78526}
+
+.hints{flex:none;display:flex;align-items:center;gap:14px;height:30px;padding:0 12px;background:#0b0f15;
+  border-top:1px solid #28313f;font-size:11.5px;color:#66748a;white-space:nowrap;overflow:hidden}
+.hints span{display:flex;align-items:center;gap:5px}
+.hints .sep{width:1px;height:13px;background:#28313f}
+.hints .ny{color:#c8d2e0}
+.hints .ny kbd{border-color:#f0a52a66;color:#ffd98a;background:#f0a52a1a}
+
+.main{position:relative;flex:1;min-height:0}
+.area{position:absolute;left:10px;top:10px;width:1041px;height:804px}
+
+/* Mattan — samma yta och vinjett som appen. */
+.mat{position:absolute;overflow:hidden;border-radius:12px;
+  background:radial-gradient(1250px 620px at 46% 26%,#18232f,#0a0f14 72%)}
+.mat.upp{background:radial-gradient(1250px 620px at 54% 74%,#18232f,#0a0f14 72%)}
+.mat .vinj{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:25}
+.surface{position:absolute;left:0;top:0;width:1px;height:1px;transform-origin:0 0}
+
+.card{position:absolute;width:178px;height:248px;border-radius:10px;background:#1a212c;cursor:grab;
+  box-shadow:0 4px 12px -3px #000c;transition:box-shadow .13s}
+.card .art{position:absolute;inset:0;border-radius:inherit;background:#11161e center/cover no-repeat}
+.card.tappad{transform:rotate(90deg)}
+.card.tappad .art{filter:brightness(.86) saturate(.94)}
+.card:hover{box-shadow:0 14px 26px -8px #000e}
+.card:hover::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
+  border:2px solid #6b8cff;box-shadow:inset 0 0 0 4px #6b8cff1f;pointer-events:none}
+.mat.las .card{cursor:default}
+.card .bar{position:absolute;left:0;right:0;bottom:0;height:44px;border-radius:0 0 10px 10px;background:linear-gradient(#0000,#000b);pointer-events:none}
+.card.land .bar{display:none}
+.kwkort{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;pointer-events:none;z-index:3}
+.kwkort b{padding:2px 6px;font:700 9px/1.3 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:#e7ecf4;
+  background:#0b1017e8;border:1px solid #3a4658;border-radius:4px;white-space:nowrap}
+.pt{position:absolute;right:6px;bottom:6px;z-index:3;pointer-events:none;white-space:nowrap;display:flex;align-items:center;
+  padding:2px 7px;border-radius:6px;background:#0b1017ee;border:1px solid #4a5a72;font:700 13.5px/1.25 var(--mono);color:#f4f7fc}
+.card.tappad .kwkort{left:auto;right:6px;bottom:6px;transform-origin:100% 100%;transform:rotate(-90deg) translateX(100%)}
+.card.tappad .pt{right:6px;bottom:auto;top:6px;transform-origin:100% 0;transform:rotate(-90deg) translateY(-100%)}
+
+/* Mattans chrome — kopia av renderChrome(). */
+.mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;gap:6px}
+.zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid #28313f;background:#1b2230}
+.zoomchip button{height:28px;color:#93a1b6}
+.zoomchip>button:first-child{border-radius:6px 0 0 6px}
+.zoomchip>button:last-child{border-radius:0 6px 6px 0}
+.zoomchip .zsteg{width:26px;display:grid;place-items:center;font:700 15px/1 var(--sans)}
+.zoomchip .zlage{width:28px;display:grid;place-items:center}
+.zoomchip .zlage+.zlage{border-left:1px solid #28313f}
+.zoomchip .zlage.on{color:#57c785;background:#ffffff12}
+.zoomchip .ztxt{display:grid;place-items:center;height:28px;padding:0 9px;border-left:1px solid #28313f;border-right:1px solid #28313f;
+  font:11.5px/1 var(--mono);color:#57c785;min-width:64px}
+.zoomchip button:hover{background:#232c3c;color:#e7ecf4}
+
+/* Högarna — full storlek som i appen, eller små när mattan är halv. */
+.piles{position:absolute;z-index:22;display:flex;align-items:flex-start;gap:14px;pointer-events:none}
+.piles.bl{left:22px;bottom:22px}
+.piles.tr{right:22px;top:16px;flex-direction:row-reverse}
+.pile{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.zonlbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;white-space:nowrap}
+.bib{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:72px;aspect-ratio:488/680;border-radius:6px;
+  border:1px solid #39414e;background:linear-gradient(160deg,#1f2837,#141a24);
+  box-shadow:4px -4px 0 -1px #1b1f26,4px -4px 0 0 #39414e,8px -8px 0 -1px #1b1f26,8px -8px 0 0 #2d3441}
+.bib b{font:700 18px/1 var(--mono)}
+.bib .bibtxt{font:10px var(--mono);color:#66748a}
+.grav{position:relative;width:104px;aspect-ratio:488/680;border-radius:7px}
+.glager{position:absolute;inset:0;border-radius:6px;background:#1b1f26;border:1px solid #39414e;transform-origin:50% 100%}
+.glager.k1{transform:translate(5px,-5px) rotate(1.5deg)}
+.gplats{position:absolute;inset:0;border-radius:6px;border:1.5px dashed #ffffff14}
+.gtop{position:absolute;inset:0;z-index:2;border-radius:6px;background:#11161e center/cover no-repeat;
+  box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05)}
+.gravsten{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;color:#e6e1d6;opacity:.32}
+.gravsten svg{width:100%;height:100%;display:block}
+.gravtxt{font:10.5px var(--mono);color:#66748a}
+.piles.mini{gap:10px}
+.piles.mini .pile{gap:5px}
+.piles.mini .bib{width:44px;gap:2px;box-shadow:3px -3px 0 -1px #1b1f26,3px -3px 0 0 #39414e}
+.piles.mini .bib b{font-size:13px}
+.piles.mini .bib .bibtxt{font-size:8.5px}
+.piles.mini .grav{width:44px}
+.piles.mini .gravsten{width:22px;height:22px}
+.piles.mini .gravtxt{display:none}
+.piles.mini .zonlbl{font-size:8px;letter-spacing:.7px}
+
+/* Spelarskylten på en annans matta: pricken, namnet, lekens färger. */
+.plate{position:absolute;z-index:24;display:flex;align-items:center;gap:7px;height:26px;padding:0 9px 0 8px;border-radius:7px;
+  background:#0b1017e6;border:1px solid #39445a;font:550 12px var(--sans);color:#e7ecf4;white-space:nowrap;box-shadow:0 6px 16px -8px #000c}
+.plate.tl{left:12px;top:12px}
+.plate .dot,.dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0004 inset;display:inline-block}
+.plate .sub{font:11px/1 var(--mono);color:#93a1b6}
+.plate .sep{width:1px;height:12px;background:#39445a}
+.pips{display:inline-flex;gap:2px;flex:none}
+.pip{display:inline-block;width:12px;height:12px;background:center/contain no-repeat}
+.lasband{position:absolute;z-index:24;display:flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:7px;
+  font:11.5px/1 var(--sans);white-space:nowrap}
+
+/* Inspektorn — "Pointing at". */
+.kolmark{position:absolute;left:1061px;top:10px;width:369px;height:804px;display:flex;flex-direction:column;gap:8px}
+.markrub{display:flex;align-items:center;gap:8px;height:14px;flex:none}
+.markrub .zonlinje{flex:1;height:1px}
+.markhint{font:9.5px/1 var(--sans);color:#41506a;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.markhint kbd{font:9px/1 var(--mono);background:#0006;border:1px solid #28313f;border-radius:3px;padding:2px 4px;color:#66748a;min-width:0}
+.insbody{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.insimg{flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center}
+.insart{display:block;width:100%;max-height:100%;aspect-ratio:488/680;border-radius:3.5%/2.5%;background:#11161e center/cover no-repeat;
+  box-shadow:0 10px 26px -8px #000e}
+.insnamn{display:flex;flex-direction:column;gap:2px;flex:none}
+.insnamn b{font:650 14px/1.25 var(--sans);color:#e7ecf4}
+.insnamn span{font:11px/1.3 var(--sans);color:#66748a}
+.kwrad{display:flex;flex-wrap:wrap;gap:4px;flex:none;min-height:18px}
+.kwtile{padding:2px 6px;border-radius:4px;background:#0b1017;border:1px solid #28313f;font:700 9px/1.3 var(--sans);letter-spacing:.7px;
+  text-transform:uppercase;color:#93a1b6;white-space:nowrap}
+
+.thumb{display:inline-block;width:22px;height:31px;border-radius:3px;background:#11161e center/cover no-repeat;box-shadow:0 0 0 1px #0008;flex:none}
+.thumb.tappad{transform:rotate(90deg);margin:0 5px}
+
+/* Iteration 2: vända kort, drag, lasso, Select/Pan. */
+.card.vand{transform:rotate(180deg)}
+.card.vand.tappad{transform:rotate(270deg)}
+.card.held{box-shadow:0 26px 40px -12px #000f;cursor:grabbing}
+.card.vald::after{content:'';position:absolute;inset:-4px;border-radius:13px;border:2px solid #f0a52a;box-shadow:0 0 0 4px #f0a52a26;pointer-events:none;z-index:5}
+.mat.panlage,.mat.panlage *{cursor:grab!important}
+.mat.panorerar,.mat.panorerar *{cursor:grabbing!important}
+.mat.panlage .card:hover::before{border-color:#6b8cff66}
+.mat .mattachrome *,.mat .plate *,.mat .lasband *,.mat .strip *{cursor:pointer!important}
+.lassoruta{position:absolute;z-index:30;border:1px solid #f0a52a;border-radius:3px;background:#f0a52a1f;pointer-events:none}
+.plate{padding:0 4px 0 8px;gap:6px}
+.plate .plnamn{display:flex;align-items:center;gap:7px;height:24px;color:#e7ecf4;font:550 12px var(--sans);white-space:nowrap}
+.turnbtn{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 4px 0 6px;border-radius:5px;color:#93a1b6;font:500 11px var(--sans);white-space:nowrap}
+.turnbtn:hover{background:#232c3c;color:#e7ecf4}
+.turnbtn kbd{font-size:9.5px;min-width:14px;padding:0 3px;line-height:1.3}
+.plate.smal .sub,.plate.smal .plnamn .sep,.plate.smal .turnbtn .tt{display:none}
+.lasband .turnbtn{margin-left:4px;color:inherit}
+.zoomchip .ztxt.manuell{color:#ffd98a}
+.zoomchip button.ztxt{cursor:pointer}
+.strip{position:absolute;inset:0;z-index:26;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;cursor:pointer;
+  font:550 12.5px var(--sans);color:#e7ecf4;white-space:nowrap;overflow:hidden;transition:background .12s}
+.strip:hover{background:#ffffff08}
+.strip .thumbs{display:flex;align-items:center;gap:4px}
+.strip .sub{font:11px/1 var(--mono);color:#93a1b6}
+.strip .sep{width:1px;height:14px;background:#28313f;flex:none}
+.strip .grow{flex:1}
+.strip .stripkey{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#66748a;font-weight:500}
+.strip .swap{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;border:1px solid #28313f;background:#1b2230;color:#93a1b6;font-size:11.5px}
+.strip .swap:hover{color:#e7ecf4;border-color:#4a5a72}
+.mat.peek{box-shadow:0 26px 50px -12px #000f}
+/* Kanten (B) — gemensam grund för varianterna. */
+.edge{position:absolute;left:0;width:1041px;z-index:8;cursor:row-resize;display:grid;place-items:center;touch-action:none}
+.edgeline{position:absolute;left:14px;right:14px;top:50%;height:1px;background:#1c2330;transition:background .12s}
+.edge:hover .edgeline,.edge.drar .edgeline{background:#39445a}
+.edgelbl{position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:6px;padding:0 8px;background:#0d1015;
+  font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;pointer-events:none}
+.edgelbl.l{left:22px}
+.edgelbl.r{right:22px}
+.grip{position:relative;display:flex;align-items:center;gap:8px;height:22px;padding:0 10px;border-radius:11px;background:#141922;
+  border:1px solid #28313f;color:#66748a;box-shadow:0 4px 12px -6px #000c;transition:border-color .12s,color .12s}
+.edge:hover .grip,.edge.drar .grip{border-color:#4a5a72;color:#e7ecf4}
+.grip .dets{display:flex;flex-direction:column;gap:2px}
+.det{display:block;width:5px;height:5px;border-radius:50%;background:#39445a}
+.det.on{background:#f0a52a}
+
+.esw{position:relative;display:flex;align-items:center;gap:2px;height:34px;padding:3px 3px 3px 4px;border-radius:9px;border:1px solid #28313f;
+  background:#141922;box-shadow:0 8px 20px -10px #000e;cursor:default}
+.esw .egrip{display:grid;place-items:center;width:20px;height:26px;border-radius:5px;color:#4a5a72;cursor:row-resize}
+.esw .egrip:hover{color:#e7ecf4;background:#1b2230}
+.eseg{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:6px;border:1px solid transparent;
+  color:#93a1b6;font:550 12px var(--sans);white-space:nowrap;transition:background .12s,color .12s,border-color .12s}
+.eseg:hover{background:#1b2230;color:#e7ecf4}
+.eseg svg{flex:none;display:block}
+.eseg.on{background:#232c3c;border-color:#4a5a72;color:#e7ecf4}
+.eseg.on.mine{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
+.eseg.on.t-them{background:#6b8cff1c;border-color:#6b8cff66;color:#dfe6ff}
+.eseg .dots{display:inline-flex;gap:3px}
+.mat.fokus .vinj{box-shadow:inset 0 0 90px 20px #00000066, inset 0 0 0 1.5px var(--fk, #6b8cff)}
+.pip-W{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Ccircle%20fill%3D'%23F8F6D8'%20cx%3D'50'%20cy%3D'50'%20r%3D'50'%2F%3E%3Cpath%20d%3D'M97.691%2057.064c-6.561-3.699-10.768-5.551-12.617-5.551-1.344%200-2.395%201.032-3.154%203.092-.758%202.063-2.27%203.09-4.541%203.09-.926%200-2.818-.336-5.678-1.008-1.598%202.44-2.398%203.996-2.398%204.668%200%20.926.689%202.016%202.064%203.281%201.375%201.262%202.535%201.891%203.482%201.891.602%200%201.416-.125%202.449-.379%201.031-.25%201.721-.377%202.064-.377%201.033%200%201.547%201.893%201.547%205.678%200%203.617-.84%209.168-2.523%2016.654-2.188-8.58-4.5-12.871-6.938-12.871-.338%200-1.031.252-2.082.76-1.053.502-1.83.754-2.334.754-2.438%200-4.625-2.227-6.561-6.688-3.869.59-5.805%202.567-5.805%205.934%200%201.684.777%203.027%202.336%204.035%201.553%201.008%202.334%201.727%202.334%202.145%200%202.273-3.324%205.764-9.969%2010.473-3.531%202.523-5.973%204.289-7.316%205.297%201.174-1.512%202.352-3.487%203.533-5.928%201.344-2.775%202.018-4.92%202.018-6.436%200-.84-.967-2.02-2.902-3.533-1.936-1.512-2.9-3.111-2.9-4.793%200-1.428.502-3.193%201.512-5.299-1.094-1.262-2.395-1.895-3.91-1.895-3.365%200-5.045%201.096-5.045%203.28v3.406c.082%202.776-2.02%204.164-6.311%204.164-3.279%200-8.791-.759-16.527-2.271%208.748-2.188%2013.121-4.711%2013.121-7.57%200%20.336-.168-.672-.504-3.028-.338-2.604%201.514-4.961%205.551-7.063-.758-3.867-2.773-5.806-6.057-5.806-.504%200-1.432.884-2.775%202.647-1.346%201.771-2.607%202.652-3.783%202.652-2.02%200-4.629-2.186-7.822-6.563-1.516-2.184-3.83-5.424-6.941-9.715%201.934%201.012%203.869%202.02%205.805%203.031%202.523%201.176%204.541%201.766%206.057%201.766%201.178%200%202.334-1.031%203.469-3.092%201.135-2.061%202.629-3.092%204.479-3.092.254%200%201.936.504%205.047%201.516%201.596-2.439%202.398-4.248%202.398-5.426%200-1.01-.611-2.166-1.83-3.471-1.221-1.303-2.334-1.955-3.344-1.955-.422%200-1.072.125-1.957.379-.881.252-1.533.379-1.953.379-1.516%200-2.273-1.893-2.273-5.678%200-1.01.969-6.77%202.904-17.285-.086%201.26.461%203.617%201.639%207.064%201.43%204.207%203.111%206.309%205.049%206.309.334%200%201.008-.252%202.018-.758%201.008-.504%201.807-.754%202.396-.754%201.934%200%203.531%201.094%204.795%203.277l1.893%203.406c1.766%200%203.238-.629%204.414-1.891%201.178-1.262%201.768-2.777%201.768-4.543%200-1.85-.777-3.26-2.334-4.227-1.559-.967-2.336-1.703-2.336-2.207%200-1.768%202.777-4.752%208.328-8.958%204.457-3.363%207.359-5.34%208.707-5.93-3.617%204.879-5.426%208.451-5.426%2010.724%200%201.178.713%202.441%202.145%203.785%201.766%201.598%202.775%202.734%203.027%203.406.84%201.938.756%204.586-.252%207.949%202.271%201.6%203.994%202.396%205.174%202.396%202.436%200%203.658-1.264%203.658-3.785%200-.252-.105-1.051-.314-2.396-.213-1.344-.273-2.102-.191-2.271.336-1.178%202.65-1.768%206.939-1.768%202.691%200%208.283.758%2016.781%202.273-1.852.504-4.627%201.26-8.326%202.27-3.365%201.01-5.049%202.145-5.049%203.406%200%20.59.209%201.598.631%203.027.42%201.432.633%202.48.633%203.156%200%201.176-.758%202.27-2.271%203.277l-4.291%203.031c1.01%201.852%201.682%202.945%202.02%203.279.84%201.008%201.975%201.514%203.406%201.514%201.01%200%201.934-.883%202.775-2.648.84-1.768%202.188-2.65%204.037-2.65%202.27%200%204.838%202.104%207.697%206.311%201.593%202.36%204.075%205.933%207.44%2010.727zm-28.007-7.316c0-5.381-1.979-10.051-5.932-14.006-3.953-3.953-8.621-5.93-14.004-5.93-5.469%200-10.18%201.957-14.131%205.869-3.953%203.91-5.973%208.6-6.055%2014.066-.086%205.383%201.912%2010.03%205.992%2013.938%204.08%203.912%208.811%205.869%2014.193%205.869%205.719%200%2010.492-1.873%2014.318-5.615%203.83-3.74%205.701-8.47%205.619-14.191zm-1.893%200c0%205.131-1.725%209.381-5.174%2012.74-3.451%203.367-7.74%205.049-12.869%205.049-4.963%200-9.211-1.723-12.742-5.174-3.531-3.445-5.299-7.652-5.299-12.615%200-4.877%201.785-9.064%205.359-12.553%203.578-3.49%207.803-5.238%2012.682-5.238%204.877%200%209.104%201.766%2012.68%205.301%203.574%203.533%205.363%207.695%205.363%2012.49z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-U{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Ccircle%20fill%3D'%23C1D7E9'%20cx%3D'50'%20cy%3D'50'%20r%3D'50'%2F%3E%3Cpath%20d%3D'M67.488%2083.719c-4.787%204.871-10.684%207.307-17.688%207.307-7.861%200-14.098-2.69-18.711-8.073-4.359-5.127-6.537-11.662-6.537-19.606%200-8.543%203.717-18.286%2011.15-29.224%206.064-8.969%2013.199-16.83%2021.402-23.58-1.197%205.469-1.793%209.355-1.793%2011.662%200%205.299%201.664%2010.467%204.996%2015.508%204.102%205.98%207.219%2010.426%209.357%2013.328%203.332%205.043%204.998%209.955%204.998%2014.737.002%207.093-2.391%2013.074-7.174%2017.941zm-.129-27.362c-1.281-2.861-2.777-4.762-4.486-5.703.256.514.385%201.24.385%202.18%200%201.795-.512%204.357-1.539%207.689l-1.664%205.127c0%202.99%201.492%204.486%204.484%204.486%203.16%200%204.742-2.095%204.742-6.281%200-2.134-.64-4.632-1.922-7.498z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-B{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Ccircle%20fill%3D%22%23CAC5C0%22%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%2F%3E%3Cpath%20d%3D%22M90.695%2048.14c0%205.463-2.008%209.189-6.02%2011.175-1.172.58-4.85%201.365-11.037%202.36-4.012.663-6.018%202.194-6.018%204.592v10.058c0%20.418.125%201.698.375%203.85l.377%203.975c0%201.242-.293%203.273-.879%206.085-1.588.33-3.428.702-5.518%201.12-.67-2.486-1.004-4.182-1.004-5.095%200-.411.105-1.034.313-1.863.207-.826.316-1.447.316-1.864%200-.575-.52-2.191-1.559-4.839h-1.945c-.258.414-.344.952-.26%201.613.334%201.408.459%202.607.377%203.6a282.655%20282.655%200%200%201-5.895%203.974c-.586-.164-.793-.247-.629-.247v-8.816c-.164-.412-.584-.575-1.254-.497h-1.504l-1.504%2011.67c-1.174.083-2.592.083-4.264%200-.588-2.73-1.631-6.785-3.135-12.167h-1.004c-.922%202.9-1.422%204.474-1.506%204.722%200%20.33.104.97.314%201.922.207.953.313%201.593.313%201.924%200%20.248-.084.868-.25%201.862l-.377%202.98a.862.862%200%200%201-.627.248c-2.508%200-4.182-.62-5.016-1.86-.836-1.244-1.172-2.982-1.004-5.219l1.004-14.898c0-.25.082-.58.25-.994.164-.414.25-.704.25-.868%200-.664-.711-1.989-2.131-3.975-.248-.08-1.549-.373-3.887-.87-1.424-.33-4.225-.909-8.402-1.739-5.771-1.073-8.654-5.668-8.654-13.782%200-12.086%205.018-22.143%2015.051-30.173.414%202.236%201.127%205.214%202.129%208.94.754.168%202.385.54%204.891%201.117.504.167%203.053%201.078%207.652%202.733-2.344-1.408-5.393-3.682-9.156-6.83-1.422-1.655-2.133-4.426-2.133-8.316%200-.911%201.59-1.989%204.768-3.232%202.84-1.159%204.975-1.818%206.396-1.986%204.514-.577%207.984-.87%2010.41-.87%2010.449%200%2018.891%202.65%2025.328%207.949-2.088%202.402-5.684%204.964-10.783%207.696%202.008.083%204.934-.7%208.779-2.36%203.844-1.653%205.475-2.483%204.891-2.483.668%200%202.008%201.327%204.014%203.975%201.504%201.986%202.715%203.769%203.637%205.337%202.674%204.721%204.471%209.81%205.393%2015.274%200%201.906.041%203.272.125%204.098v.994h.002Zm-48.031%202.235c0-3.558-1.568-6.932-4.703-10.122-3.137-3.187-6.502-4.778-10.096-4.778-3.178%200-5.977%201.335-8.402%204-2.426%202.666-3.637%205.625-3.637%208.874%200%202.83%201.379%204.666%204.139%205.498%201.756.5%204.219.793%207.398.874h6.898c5.598.083%208.403-1.366%208.403-4.346Zm13.668%2015.4v-3.851a120.953%20120.953%200%200%201-1.754-3.354c-.502-1.657-1.422-3.974-2.76-6.955l-1.381%2014.529c0%201.16-.25%201.738-.752%201.738-.334%200-.584-.081-.752-.245-.586-8.776-.879-12.584-.879-11.427v-4.344c-.168-.251-.375-.375-.625-.375-2.844%202.901-4.264%207.576-4.264%2014.032%200%203.56.33%205.753%201.002%206.582.67-.164%201.422-.455%202.258-.868.334-.167%201.295-.25%202.887-.25%201.584%200%203.51.497%205.766%201.49.836%200%201.254-2.234%201.254-6.703Zm28.344-17.303c0-3.333-1.254-6.312-3.762-8.935-2.51-2.622-5.395-3.936-8.652-3.936-3.512%200-6.795%201.591-9.846%204.778-3.053%203.187-4.578%206.519-4.578%209.996%200%202.9%201.42%204.346%204.264%204.346h14.422c5.433-.081%208.152-2.165%208.152-6.249Z%22%20fill%3D%22%230D0F0F%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-R{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Ccircle%20fill%3D'%23E49977'%20cx%3D'50'%20cy%3D'50'%20r%3D'50'%2F%3E%3Cpath%20d%3D'M91.965%2066.617c-3.736%208.912-11.16%2013.367-22.275%2013.367-2.037%200-4.246.254-6.621.762-3.564.764-5.346%201.828-5.346%203.186%200%20.424.295.91.891%201.463.592.553%201.104.826%201.527.826-2.123%200-.68.064%204.326.191%205.008.127%208.148.191%209.422.191-7.383%204.326-19.732%206.319-37.043%205.981-5.688-.084-10.566-2.588-14.639-7.51-3.992-4.669-5.984-9.888-5.984-15.658%200-6.108%202.057-11.308%206.176-15.595%204.113-4.282%209.229-6.427%2015.338-6.427%201.357%200%203.16.297%205.41.891%202.248.594%203.756.891%204.518.891%203.139%200%207.045-1.293%2011.713-3.883%204.666-2.588%206.875-3.883%206.621-3.883-.85%208.912-3.82%2014.896-8.914%2017.948-3.648%202.123-5.473%204.201-5.473%206.236%200%201.273.764%202.293%202.291%203.057%201.188.595%202.502.892%203.945.892%202.207%200%204.371-1.356%206.494-4.071%202.119-2.718%203.055-5.177%202.801-7.386-.254-2.545-.084-5.603.51-9.164.168-1.02.783-2.27%201.844-3.754%201.061-1.486%202.016-2.398%202.865-2.738%200%20.762-.275%202.037-.828%203.818-.553%201.781-.826%203.1-.826%203.947%200%201.867.508%203.309%201.527%204.326%201.525-.592%202.883-2.502%204.074-5.729%201.016-2.459%201.609-4.836%201.781-7.127-3.566-.17-6.982-1.781-10.248-4.838-3.268-3.057-4.9-6.365-4.9-9.928%200-.594.082-1.188.256-1.783.508.764%201.271%201.953%202.289%203.564%201.443%202.121%202.547%203.182%203.313%203.182%201.016%200%201.525-1.061%201.525-3.182%200-2.715-.723-5.176-2.164-7.383-1.613-2.631-3.693-3.947-6.238-3.947-1.189%200-2.971.637-5.344%201.91-2.379%201.271-4.543%201.91-6.492%201.91-.596%200-3.229-.766-7.895-2.293%208.23-1.355%2012.348-2.586%2012.348-3.691%200-2.885-5.645-4.838-16.93-5.855-1.105-.084-3.141-.254-6.111-.51.338-.424%202.758-.891%207.258-1.4%203.818-.422%206.492-.637%208.018-.637%2020.197%200%2033.012%209.805%2038.443%2029.408.934-.773%201.402-2.066%201.402-3.871%200-2.324-.68-5.25-2.037-8.777-.512-1.375-1.318-3.441-2.42-6.193%206.957%208.867%2010.439%2017.27%2010.439%2025.199%200%204.178-.979%207.973-2.93%2011.381-1.27%202.303-3.65%205.244-7.127%208.826-3.48%203.58-5.857%206.352-7.131%208.313%204.668-1.271%207.725-2.248%209.168-2.928%203.223-1.44%206.15-3.606%208.783-6.492%200%201.106-.467%202.762-1.4%204.967zm-55.502-50.025c0%201.525-.85%202.502-2.545%202.926l-3.311.51c-1.189.594-2.928%202.928-5.219%207-.256-1.271-.637-3.053-1.146-5.346-.764.086-2.035.764-3.818%202.037-.764.594-1.996%201.484-3.693%202.672.512-3.055%202.207-6.148%205.094-9.293%203.055-3.477%206.025-5.217%208.91-5.217%203.818%200%205.728%201.572%205.728%204.711zm22.15%2011.709c0%201.443-.785%202.654-2.355%203.629-1.57.977-3.119%201.465-4.646%201.465-2.037%200-3.863-1.146-5.473-3.438-1.955-2.801-3.947-4.625-5.984-5.477.424-.422.934-.635%201.529-.635.764%200%202.055.594%203.881%201.781%201.824%201.189%202.99%201.783%203.502%201.783.424%200%201.123-.594%202.1-1.783.975-1.188%202.057-1.781%203.246-1.781%202.8.001%204.2%201.487%204.2%204.456z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-G{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Cpath%20d%3D'M100%2049.998c0%2027.615-22.385%2050.002-50.002%2050.002-27.613%200-49.998-22.387-49.998-50.002%200-27.613%2022.385-49.998%2049.998-49.998%2027.617%200%2050.002%2022.385%2050.002%2049.998z'%20id%3D'Shape'%20fill%3D'%23A3C095'%2F%3E%3Cpath%20d%3D'M93.762%2056.225c0%201.668-.645%203.164-1.936%204.498-1.289%201.332-2.77%201.998-4.436%201.998-2.662%200-4.623-1.25-5.869-3.748l-5.871-.25c-1.252%200-3.709.543-7.371%201.625-3.914%201.082-6.164%201.957-6.746%202.623-.916.998-1.664%203.332-2.248%206.996-.502%202.998-.748%205.205-.748%206.621%200%202.246.352%203.893%201.061%204.934.709%201.041%202.166%201.916%204.371%202.623%202.205.707%203.561%201.104%204.061%201.187.332%200%20.873-.041%201.625-.125h1.498c1.08%200%202.205.17%203.373.5%201.666.5%202.375%201.166%202.125%202-1.168-.166-3.207.084-6.121.75l3.496%201.748c0%201-1.416%201.498-4.246%201.498-.752%200-1.771-.166-3.063-.498-1.291-.336-2.145-.5-2.559-.5h-1.625c-.082.832-.334%202.08-.75%203.746-1.418-.084-3.08-.918-4.996-2.498-1.918-1.58-3.123-2.373-3.621-2.373-.502%200-1.211.793-2.125%202.373-.918%201.58-1.375%202.664-1.375%203.248-1.082-.584-1.996-1.668-2.75-3.248-.332-1.084-.707-2.166-1.121-3.248-.832.084-2.375%201.834-4.621%205.248h-.627c-.166-.252-.795-2-1.873-5.248-2.582-.832-4.996-1.248-7.246-1.248-1.082%200-2.748.25-4.996.748l-3.496-.248c.498-.5%201.955-1.457%204.371-2.873%202.83-1.666%204.996-2.5%206.496-2.5.246%200%20.578.043%201%20.125.414.086.75.125%201%20.125.578%200%201.518-.312%202.809-.938%201.291-.623%202.039-1.186%202.246-1.684.211-.504.316-1.793.316-3.875%200-4.746-1.25-8.285-3.75-10.617-2.168-2.082-5.746-3.58-10.744-4.498-1.332%204.746-5.08%207.123-11.24%207.123-2%200-3.998-1.207-5.996-3.623-1.996-2.416-2.996-4.623-2.996-6.621%200-3.082%201.287-5.621%203.869-7.623-2.08-2.162-3.121-4.369-3.121-6.617%200-2.084.643-3.914%201.936-5.5%201.291-1.578%202.977-2.496%205.059-2.748-.166-2.662.707-4.496%202.623-5.496-.916-.914-1.373-2.537-1.373-4.869%200-2.748.916-5.039%202.748-6.871%201.83-1.832%204.121-2.75%206.869-2.75%203%200%205.457%201.045%207.371%203.125%202.416-8.244%207.621-12.367%2015.613-12.367%204.164%200%207.828%201.666%2010.994%204.998%201.166%201.248%201.748%201.916%201.748%201.996-1%200-.498-.188%201.5-.561%201.996-.375%203.453-.563%204.373-.563%203.246%200%206.119%201.207%208.619%203.623%202.164%202.166%203.664%204.912%204.498%208.244.58.084%201.498.332%202.748.748%201.83.92%202.748%202.498%202.748%204.748%200%20.418-.336%201.209-1%202.373%205.328%202.998%207.994%207.162%207.994%2012.492%200%201.498-.582%203.584-1.748%206.247%202.166%201.247%203.246%203.081%203.246%205.495zm-51.467%205.496v-1.623c0-1.914-.936-3.664-2.809-5.246-1.875-1.582-3.77-2.373-5.684-2.373-2.334%200-4.496.541-6.496%201.621%204.413-.248%209.411%202.293%2014.989%207.621zm-2.246-15.489c-1.25-1.418-2.332-2.875-3.25-4.373-3.498.916-5.246%201.957-5.246%203.121%201-.08%202.457.105%204.371.564%201.914.459%203.291.688%204.125.688zm7.621-3.873v-5.496c-2-.332-3.211-.5-3.623-.5v1.873l3.623%204.123zm16.238-3.498c-1-.416-2.875-1.25-5.621-2.498v10.742c3.912-2.25%205.785-4.998%205.621-8.244zm6.867%2014.741l-2.746-3.373c-1.664%201.167-3.352%202.354-5.061%203.561-1.709%201.207-3.186%202.563-4.432%204.06%203.747-2.002%207.829-3.414%2012.239-4.248z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+  
+/* ── Iteration 3: B med stolar ─────────────────────────────────────── */
+@keyframes cLand{0%{transform:translateY(-40px) scale(1.14);opacity:0}60%{transform:translateY(4px) scale(.98)}100%{transform:none;opacity:1}}
+@keyframes cBump{40%{transform:scale(1.18)}}
+@keyframes cRing{from{opacity:.7;transform:scale(.5)}to{opacity:0;transform:scale(1.5)}}
+@keyframes bibAndas{0%,100%{box-shadow:0 0 0 0 #6b8cff00}50%{box-shadow:0 0 0 7px #6b8cff26,0 0 26px 4px #6b8cff2e}}
+
+/* Spelarväxeln i headern: Me · spelare 1–3 · All. */
+.ssw{display:flex;align-items:center;gap:2px;height:30px;padding:2px;border-radius:7px;border:1px solid #28313f;background:#141922;flex:none}
+.sseg{display:inline-flex;align-items:center;gap:7px;height:24px;padding:0 5px 0 8px;border-radius:5px;border:1px solid transparent;
+  color:#93a1b6;font:550 12.5px var(--sans);white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.sseg:hover{background:#1b2230;color:#e7ecf4}
+.sseg .dot{width:8px;height:8px}
+.sseg svg{flex:none;display:block}
+.sseg kbd{min-width:15px;padding:0 4px;font-size:10px;line-height:1.4;opacity:.8}
+.sseg.on{color:#e7ecf4}
+.sseg.on kbd{opacity:1}
+.sseg.on.mine{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
+.sseg.on.mine kbd{background:#f0a52a2b;border-color:#f0a52a55;color:#ffd98a}
+.sseg.on.t-erik{background:#6b8cff26;border-color:#6b8cff8c;color:#ccd7ff}
+.sseg.on.t-erik kbd{background:#6b8cff2b;border-color:#6b8cff55;color:#c3d0ff}
+.sseg.on.t-sara{background:#b782ff26;border-color:#b782ff8c;color:#e6d6ff}
+.sseg.on.t-sara kbd{background:#b782ff2b;border-color:#b782ff55;color:#e6d6ff}
+.sseg.on.t-linus{background:#57c78526;border-color:#57c7858c;color:#c6f0d6}
+.sseg.on.t-linus kbd{background:#57c7852b;border-color:#57c78555;color:#c6f0d6}
+.sseg.on.alla{background:#232c3c;border-color:#4a5a72}
+.sseg .sep{width:1px;height:14px;background:#28313f;margin:0 1px}
+
+/* Mattorna: innehållet tonar när en matta blir kolumn eller list. */
+.mat .plate,.mat .mattachrome,.mat .kol,.mat .strip,.hogar3{transition:opacity .3s}
+.mat .strip{inset:auto;left:0;right:0;top:0;height:46px}
+/* Smala listor: miniatyrerna ger vika först — namn, antal och tangent står kvar. */
+.mat .strip .thumbs{min-width:0;overflow:hidden;flex:0 1 auto}
+.mat .strip > b,.mat .strip .pips,.mat .strip .sub,.mat .strip .stripkey,.mat .strip .sep{flex:none}
+.mattachrome.br{top:auto;bottom:10px}
+.card.borta{display:none}
+.card.landar{animation:cLand .45s cubic-bezier(.2,.8,.3,1)}
+
+/* Motståndaren som smal kolumn medan någon annan är vald. */
+.kol{position:absolute;left:0;right:0;top:0;bottom:0;z-index:26;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 8px 12px;
+  cursor:pointer;font:550 12px var(--sans);color:#e7ecf4;text-align:center;overflow:hidden}
+.kol:hover{background:#ffffff08}
+.kolhd{display:flex;flex-direction:column;align-items:center;gap:6px}
+.kolhd b{font:650 12.5px var(--sans);white-space:nowrap}
+.kolsub{font:10.5px/1.3 var(--mono);color:#93a1b6}
+.kolthumbs{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:7px;justify-items:center;padding-top:4px}
+.kol .thumb{width:38px;height:53px;border-radius:3px}
+.kol .thumb.tappad{transform:rotate(90deg) scale(.72);margin:0}
+.kolhogar{display:flex;flex-direction:column;gap:5px;margin-top:6px;font:600 9px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:#93a1b6}
+.kolhogar span{display:flex;align-items:center;justify-content:center;gap:5px}
+.kolhogar i{width:6px;height:6px;border-radius:2px;flex:none}
+.kolhogar b{font:600 10.5px/1 var(--mono);color:#e7ecf4;letter-spacing:0}
+.kolkbd{margin-top:auto}
+
+/* Kanten mellan motståndarna och mitt bord: ett 56 px band med
+   spelarväxeln mitt på. Hela bandet går att dra, också från en spelare. */
+.kant3{position:absolute;left:0;width:1041px;height:56px;z-index:8;cursor:row-resize;display:grid;place-items:center;touch-action:none}
+.kant3 .edgeline{position:absolute;left:14px;right:14px;top:50%;height:1px;background:#1c2330;transition:background .12s}
+.kant3:hover .edgeline,.kant3.drar .edgeline{background:#39445a}
+.kant3 .ssw{position:relative;height:34px;padding:3px 3px 3px 4px;gap:2px;border-radius:9px;box-shadow:0 8px 20px -10px #000e;cursor:default;transition:border-color .12s}
+.kant3:hover .ssw,.kant3.drar .ssw{border-color:#39445a}
+.kant3 .sseg{height:26px;cursor:pointer;touch-action:none}
+.kant3 .egrip{display:grid;place-items:center;width:20px;height:26px;border-radius:5px;color:#4a5a72;cursor:row-resize}
+.kant3 .egrip:hover,.kant3.drar .egrip{color:#e7ecf4;background:#1b2230}
+
+/* Högarna som i appen (MES-125, "Mesa Table Piles" A1): graveyard och
+   library i två lika stora platser, kortet 92×128 och 8 px luft, raden
+   under säger namn och antal. Speglade (motståndaren mitt emot) står de
+   uppe till höger, graveyard längst ut. */
+.hogar3{position:absolute;z-index:22;display:flex;align-items:flex-start;gap:22px;transform-origin:0 0;
+  transition:left .5s cubic-bezier(.22,.8,.26,1),top .5s cubic-bezier(.22,.8,.26,1),transform .5s cubic-bezier(.22,.8,.26,1),opacity .3s}
+.hogar3.speg{flex-direction:row-reverse}
+.hogkol{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.hograd{display:flex;align-items:center;gap:6px;height:12px;flex:none;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#93a1b6;white-space:nowrap;transition:color .16s}
+.hograd > i{width:6px;height:6px;border-radius:2px;flex:none;background:#e8b33a}
+.hograd b{font:600 11px/1 var(--mono);color:#e7ecf4;letter-spacing:0;text-transform:none}
+.bibrad > i{background:#6b8cff}
+.hograd .gt-fan{display:none;font:500 10.5px/1 var(--sans);letter-spacing:0;text-transform:none}
+.grav3{position:relative;display:block;width:108px;height:144px;box-sizing:border-box;flex:none;padding:0;border-radius:6px;
+  border:1.5px dashed #e8b33a99;background:#0b0f1573;cursor:pointer;transition:border-color .16s,box-shadow .16s}
+.glag3{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px;border-radius:5px;transform-origin:50% 100%;
+  background:#1b1f26;border:1px solid #39414e;box-shadow:0 1px 2px #0009;transition:transform .22s cubic-bezier(.2,.8,.3,1),opacity .2s}
+.glag3.k1{transform:translate(1.5px,-1.5px)}
+.glag3.k2{transform:translate(3px,-3px)}
+.glag3.k3{transform:translate(4.5px,-4.5px)}
+.gtop3{position:absolute;z-index:2;left:6.5px;top:6.5px;width:92px;height:128px;border-radius:5px;background:#11161e center/cover no-repeat;
+  box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05);transition:filter .16s,opacity .2s}
+.gsten3{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;color:#e8b33a;opacity:.85;pointer-events:none;transition:opacity .18s}
+.gsten3 svg{width:100%;height:100%;display:block}
+.grav3:not(.tom) .gsten3{opacity:0}
+.gravkol.over .grav3{border-style:solid;border-color:#e8b33a;box-shadow:0 0 0 6px #e8b33a24,0 0 28px 6px #e8b33a33}
+.gravkol.over .glag3.k1{transform:translate(3px,-3px) rotate(2.5deg)}
+.gravkol.over .glag3.k2{transform:translate(6px,-6px) rotate(5deg)}
+.gravkol.over .glag3.k3{transform:translate(9px,-9px) rotate(7.5deg)}
+.gravkol.over .gtop3{filter:grayscale(.2) brightness(.9)}
+.gravkol.over .gsten3{opacity:1}
+.gravkol.over .gravrad{color:#ffd98a}
+.gravkol.fanpa .gtop3,.gravkol.fanpa .glag3{opacity:0}
+.gravkol.fanpa .gravrad{color:#ffd98a}
+.gravkol.fanpa .gt-n{display:none}
+.gravkol.fanpa .gt-fan{display:inline}
+.gravkol.bump .gtop3{animation:cLand .5s cubic-bezier(.2,.8,.3,1)}
+.gravkol.bump .gravrad b{display:inline-block;animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
+.gring3{position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;border-radius:50%;border:2px solid #e8c98a;
+  pointer-events:none;animation:cRing .55s ease-out forwards}
+.gravslapp3{position:absolute;z-index:95;left:0;top:174px;width:212px;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+  background:#1a1408f7;border:1px solid #8a6a22;box-shadow:0 12px 26px -10px #000}
+.gravslapp3 i{flex:none;width:6px;height:6px;border-radius:50%;background:#f0a52a}
+.gravslapp3 span{font:600 10.5px/1.35 var(--sans);color:#ffd98a}
+.bib3{position:relative;display:grid;place-items:center;width:108px;height:144px;box-sizing:border-box;flex:none;padding:0;border-radius:6px;
+  border:1.5px solid #6b8cff;background:#0b0f1540;cursor:pointer;transition:border-color .16s,box-shadow .16s,background .16s}
+.biblek3{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px}
+.biblek3 i{position:absolute;inset:0;border-radius:5px;background:#1b2230 center/cover no-repeat;box-shadow:0 3px 8px #0008}
+.biblek3 i:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
+.biblek3 i:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
+.bib3:hover,.bib3.over{border-color:#8fa8ff;box-shadow:0 0 0 6px #6b8cff26,0 0 28px 6px #6b8cff33}
+.mat.las .bib3,.mat.las .grav3{cursor:default}
+.mat.las .bib3:hover{border-color:#6b8cff;box-shadow:none}
+.exil3{align-self:flex-end;display:flex;flex-direction:column;align-items:center;gap:3px;margin:0 0 30px -12px;padding:6px 9px;border-radius:8px;
+  border:1px dashed #28313f;background:#0e131add;color:#93a1b6}
+.exil3 b{font:700 14px/1 var(--mono);color:#e7ecf4}
+.exil3 .zonlbl{font-size:8.5px;letter-spacing:.7px}
+/* Solfjädern: korten startar exakt på högen och fälls ut i en båge — uppåt
+   ur mina högar, nedåt ur de speglade. */
+.gfan3{position:absolute;z-index:88;left:8px;top:8px;width:92px;height:128px;pointer-events:none}
+.fk3{position:absolute;left:0;top:0;width:92px;height:128px;pointer-events:auto;touch-action:none;cursor:grab;transform-origin:50% 100%}
+.gfan3.ned .fk3{transform-origin:50% 0}
+.fk3 .art{position:absolute;inset:0;border-radius:6px;background:#11161e center/cover no-repeat;border:1px solid #39414e;box-shadow:0 8px 18px -8px #000c}
+.fk3.hov .art{border:2px solid #f0a52a;box-shadow:0 22px 40px -10px #000f}
+.mat.las .fk3{cursor:default}
+.fakt3{position:absolute;z-index:60;pointer-events:auto;display:flex;align-items:center;gap:5px;padding:5px;border-radius:9px;
+  background:#0b1017f7;border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000}
+.fakt3 button{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;white-space:nowrap;font:600 11.5px var(--sans)}
+.fakt3 .ater{background:#f0a52a;color:#20160a}
+.fakt3 .ater:hover{background:#ffb943}
+.fakt3 .exil{background:#1d1728;color:#dcc7ff;border:1px solid #5c4a80}
+.fakt3 .exil:hover{background:#271e37}
+
+@keyframes in3{from{opacity:0}}
+.mat .strip,.mat .kol{animation:in3 .35s .12s both}
+  </style>
+</helmet>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"></path><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"></path></svg><span>Mesa</span></div>
+<button class="spelknapp" title="Copy the invitation link"><span class="kod">JX4QFD</span><span class="delare"></span><span class="bjud"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"></path><path d="M8 18H5a3 3 0 0 1 0-6h3"></path><path d="M8 12h8"></path></svg><span>Invite</span></span></button>
+    <div class="topspacer"></div>
+    <button class="deckbtn" title="My deck — 32 of 36 cards not played yet"><span class="nm">My deck</span><span class="cnt"><b>32</b> left</span><span class="cv"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+<button class="campill"><span class="led"></span><span class="ikon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"></rect><path d="M12 9v6M9 12h6"></path></svg></span><span class="lbl">Camera · 9 cards</span><span class="cv"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></span></button>
+<div class="vr"></div>
+<button class="btn ghost" title="Keyboard shortcuts (?)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"></circle><path d="M9.3 9.3a2.8 2.8 0 1 1 3.4 3.4v1.1"></path><path d="M12 17.2v.01"></path></svg></button>
+<button class="btn ghost" title="Menu"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg></button>
+  </header>
+  <div class="main">
+    <div class="area" ref="{{ areaRef }}" onContextMenu="{{ noMenu }}">
+      <sc-for list="{{ mats }}" as="m" hint-placeholder-count="4">
+<section class="mat {{ m.cls }}" style="left:{{ m.x }};top:{{ m.y }};width:{{ m.w }};height:{{ m.h }};z-index:{{ m.z }};transition:{{ trans }}" onPointerDown="{{ m.down }}">
+  <div class="surface" style="transform:{{ m.tf }};transition:{{ transS }};opacity:{{ m.bodyOp }}">
+    <sc-for list="{{ m.cards }}" as="c" hint-placeholder-count="6">
+      <div class="card {{ c.cls }}" style="left:{{ c.x }};top:{{ c.y }};z-index:{{ c.z }}" onPointerEnter="{{ c.enter }}" onPointerLeave="{{ c.leave }}" onPointerDown="{{ c.down }}">
+        <i class="art {{ c.im }}"></i><span class="bar"></span>
+        <sc-if value="{{ c.kwShow }}" hint-placeholder-val="{{ false }}"><span class="kwkort"><sc-for list="{{ c.kw }}" as="k" hint-placeholder-count="1"><b>{{ k.label }}</b></sc-for></span></sc-if>
+        <sc-if value="{{ c.ptShow }}" hint-placeholder-val="{{ false }}"><span class="pt">{{ c.pt }}</span></sc-if>
+      </div>
+    </sc-for>
+  </div>
+  <span class="vinj" style="box-shadow:{{ m.shadow }}"></span>
+  <sc-if value="{{ m.lassoShow }}" hint-placeholder-val="{{ false }}"><i class="lassoruta" style="left:{{ m.lx }};top:{{ m.ly }};width:{{ m.lw }};height:{{ m.lh }}"></i></sc-if>
+  <div class="hogar3 {{ m.hogCls }}" style="left:{{ m.hogX }};top:{{ m.hogY }};transform:scale({{ m.ps }});opacity:{{ m.bodyOp }};pointer-events:{{ m.bodyPe }}" onPointerDown="{{ m.stop }}">
+    <div class="hogkol gravkol {{ m.gravKolCls }}" onPointerEnter="{{ m.gravEnter }}" onPointerLeave="{{ m.gravLeave }}">
+      <button class="grav3 {{ m.gravCls }}" onClick="{{ m.gravClick }}" onPointerEnter="{{ m.gravEnter }}" title="{{ m.gravTitle }}">
+        <sc-for list="{{ m.lager }}" as="l" hint-placeholder-count="1"><i class="glag3 {{ l.cls }}"></i></sc-for>
+        <sc-if value="{{ m.gravHas }}" hint-placeholder-val="{{ false }}"><i class="gtop3 {{ m.gravIm }}"></i></sc-if>
+        <span class="gsten3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 19.2V10a5.4 5.4 0 0 1 10.8 0v9.2"></path><path d="M12 7.6v6.2M9 10.4h6"></path><path d="M3.2 19.4h17.6"></path></svg></span>
+        <sc-if value="{{ m.bumpShow }}" hint-placeholder-val="{{ false }}"><i class="gring3"></i></sc-if>
+      </button>
+      <span class="hograd gravrad"><i></i>Graveyard<span class="gt-n"><sc-if value="{{ m.gravHas }}" hint-placeholder-val="{{ false }}"><b>{{ m.gravN }}</b></sc-if></span><span class="gt-fan">{{ m.fanTxt }}</span></span>
+      <sc-if value="{{ m.fanShow }}" hint-placeholder-val="{{ false }}">
+        <div class="gfan3 {{ m.fanCls }}">
+          <sc-for list="{{ m.fanCards }}" as="f" hint-placeholder-count="2"><div class="fk3 {{ f.cls }}" style="z-index:{{ f.z }};transform:{{ f.tf }};transition:{{ f.tr }}" onPointerEnter="{{ f.enter }}" onPointerLeave="{{ f.leave }}" onPointerDown="{{ f.down }}"><i class="art {{ f.im }}"></i></div></sc-for>
+          <sc-if value="{{ m.faktShow }}" hint-placeholder-val="{{ false }}">
+            <div class="fakt3" style="left:{{ m.faktX }};top:{{ m.faktY }}" onPointerEnter="{{ m.gravEnter }}">
+              <button class="ater" onClick="{{ m.onAter }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V5m0 0-5.5 5.5M12 5l5.5 5.5"></path></svg>Return to play</button>
+              <button class="exil" onClick="{{ m.onExil }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v9m4.5-6.8a8 8 0 1 1-9 0"></path></svg>Exile</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ m.slappShow }}" hint-placeholder-val="{{ false }}"><div class="gravslapp3"><i></i><span>{{ m.slappTxt }}</span></div></sc-if>
+    </div>
+    <div class="hogkol bibkol">
+      <button class="bib3 {{ m.bibCls }}" title="{{ m.bibTitle }}"><span class="biblek3"><i class="im-baksida"></i><i class="im-baksida"></i><i class="im-baksida"></i></span></button>
+      <span class="hograd bibrad"><i></i>Library<b>{{ m.libN }}</b></span>
+    </div>
+    <sc-if value="{{ m.exilShow }}" hint-placeholder-val="{{ false }}"><div class="exil3" title="Cards in exile"><span class="zonlbl">Exile</span><b>{{ m.exilN }}</b></div></sc-if>
+  </div>
+  <sc-if value="{{ m.plateShow }}" hint-placeholder-val="{{ false }}">
+    <div class="plate tl {{ m.plateCls }}" style="opacity:{{ m.bodyOp }}" onPointerDown="{{ m.stop }}">
+      <button class="plnamn" onClick="{{ m.plateClick }}" title="{{ m.name }}’s table big"><i class="dot" style="background:{{ m.color }}"></i><b>{{ m.name }}</b><span class="pips"><sc-for list="{{ m.pips }}" as="p" hint-placeholder-count="2"><i class="pip {{ p.cls }}"></i></sc-for></span><span class="sep"></span><span class="sub">{{ m.onTable }}</span></button>
+      <span class="sep"></span>
+      <button class="turnbtn" onClick="{{ m.turnClick }}" title="Turn their cards (U)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"></path><path d="M20 4v5h-5"></path></svg><span class="tt">{{ m.turnTxt }}</span><kbd>U</kbd></button>
+    </div>
+  </sc-if>
+  <sc-if value="{{ m.chromeShow }}" hint-placeholder-val="{{ false }}">
+    <div class="mattachrome {{ m.chromeCls }}" style="opacity:{{ m.bodyOp }}" onPointerDown="{{ m.stop }}">
+      <div class="zoomchip"><button class="zlage {{ m.toolSel }}" onClick="{{ m.onSel }}" title="Select — drag cards, drag on the mat to mark several (S)"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 2l9 5.2-4 1.1-2.2 3.9z" fill="currentColor"></path></svg></button><button class="zlage {{ m.toolPan }}" onClick="{{ m.onPan }}" title="Pan — drag anywhere to move the mat (S, or hold Space)"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v13M1.5 8h13M6 3.5l2-2 2 2M6 12.5l2 2 2-2M3.5 6l-2 2 2 2M12.5 6l2 2-2 2"></path></svg></button></div>
+      <div class="zoomchip"><button class="zsteg" onClick="{{ m.onZut }}" title="Zoom out (−)">−</button><button class="ztxt {{ m.zoomCls }}" onClick="{{ m.onFit }}" title="Back to fit (0)">{{ m.zoomTxt }}</button><button class="zsteg" onClick="{{ m.onZin }}" title="Zoom in (+)">+</button></div>
+      <sc-if value="{{ m.mineTools }}" hint-placeholder-val="{{ false }}"><button class="btn sm" onClick="{{ m.onUntap }}">Untap all</button><button class="btn sm" onClick="{{ m.onTidy }}">Tidy up</button></sc-if>
+    </div>
+  </sc-if>
+  <sc-if value="{{ m.stripShow }}" hint-placeholder-val="{{ false }}">
+    <div class="strip" role="button" onPointerDown="{{ m.stop }}" onClick="{{ m.stripClick }}">
+      <i class="dot" style="background:{{ m.color }}"></i><b>{{ m.stripName }}</b>
+      <span class="pips"><sc-for list="{{ m.pips }}" as="p" hint-placeholder-count="2"><i class="pip {{ p.cls }}"></i></sc-for></span>
+      <span class="sep"></span>
+      <span class="thumbs"><sc-for list="{{ m.thumbs }}" as="t" hint-placeholder-count="6"><i class="thumb {{ t.cls }}"></i></sc-for></span>
+      <span class="sub">{{ m.onTable }}</span>
+      <span class="grow"></span>
+      <span class="stripkey">{{ m.stripHint }}<kbd>{{ m.stripKey }}</kbd></span>
+    </div>
+  </sc-if>
+  <sc-if value="{{ m.kolShow }}" hint-placeholder-val="{{ false }}">
+    <div class="kol" role="button" title="{{ m.kolTitle }}" onPointerDown="{{ m.stop }}" onClick="{{ m.kolClick }}">
+      <div class="kolhd"><i class="dot" style="background:{{ m.color }}"></i><b>{{ m.name }}</b><span class="pips"><sc-for list="{{ m.pips }}" as="p" hint-placeholder-count="2"><i class="pip {{ p.cls }}"></i></sc-for></span></div>
+      <span class="kolsub">{{ m.onTable }}</span>
+      <div class="kolthumbs"><sc-for list="{{ m.thumbs }}" as="t" hint-placeholder-count="6"><i class="thumb {{ t.cls }}"></i></sc-for></div>
+      <div class="kolhogar"><span><i style="background:#e8b33a"></i>Graveyard<b>{{ m.gravNk }}</b></span><span><i style="background:#6b8cff"></i>Library<b>{{ m.libNk }}</b></span></div>
+      <kbd class="kolkbd">{{ m.kolKey }}</kbd>
+    </div>
+  </sc-if>
+</section>
+</sc-for>
+      <div class="kant3 {{ kant.cls }}" style="top:{{ kant.y }};transition:{{ kant.trans }}" onPointerDown="{{ kantDown }}" title="Drag the edge up or down — or pick a player">
+  <i class="edgeline"></i>
+  <div class="ssw" role="group" aria-label="Whose table is big" onPointerDown="{{ stop }}">
+    <span class="egrip" onPointerDown="{{ kantDown }}" title="Drag"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg></span>
+    <sc-for list="{{ segs }}" as="s" hint-placeholder-count="5">
+      <button class="sseg {{ s.cls }}" onPointerDown="{{ s.down }}" onClick="{{ s.go }}" title="{{ s.title }}">
+        <sc-if value="{{ s.hasDot }}" hint-placeholder-val="{{ true }}"><i class="dot" style="background:{{ s.dot }}"></i></sc-if>
+        <sc-if value="{{ s.isAll4 }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="2" width="5" height="5" rx="1.2"></rect><rect x="9" y="2" width="5" height="5" rx="1.2"></rect><rect x="2" y="9" width="5" height="5" rx="1.2"></rect><rect x="9" y="9" width="5" height="5" rx="1.2"></rect></svg></sc-if>
+        <sc-if value="{{ s.isAll2 }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="2.5" y="2" width="11" height="5" rx="1.2"></rect><rect x="2.5" y="9" width="11" height="5" rx="1.2"></rect></svg></sc-if>
+        <span>{{ s.label }}</span><kbd>{{ s.kbd }}</kbd>
+      </button>
+    </sc-for>
+  </div>
+</div>
+    </div>
+    <aside class="kolmark">
+  <div class="markrub"><span class="zonlbl" style="color:{{ ins.col }}">{{ ins.label }}</span><i class="zonlinje" style="background:{{ ins.line }}"></i><span class="markhint"><kbd>F</kbd> enlarge</span></div>
+  <div class="insbody">
+    <div class="insimg"><i class="insart {{ ins.im }}"></i></div>
+    <div class="insnamn"><b>{{ ins.name }}</b><span>{{ ins.type }}</span></div>
+    <div class="kwrad"><sc-for list="{{ ins.kw }}" as="k" hint-placeholder-count="2"><span class="kwtile">{{ k.label }}</span></sc-for></div>
+  </div>
+  <div class="imgkat" style="display:none"><img data-im="anthem" loading="lazy" src="anthem.jpg" alt=""><img data-im="baksida" loading="lazy" src="baksida.jpg" alt=""><img data-im="bolt" loading="lazy" src="bolt.jpg" alt=""><img data-im="danitha" loading="lazy" src="danitha.jpg" alt=""><img data-im="delver" loading="lazy" src="delver.jpg" alt=""><img data-im="forest" loading="lazy" src="forest.jpg" alt=""><img data-im="island" loading="lazy" src="island.jpg" alt=""><img data-im="llanowar" loading="lazy" src="llanowar.jpg" alt=""><img data-im="mountain" loading="lazy" src="mountain.jpg" alt=""><img data-im="nighthawk" loading="lazy" src="nighthawk.jpg" alt=""><img data-im="pharika" loading="lazy" src="pharika.jpg" alt=""><img data-im="phoenix" loading="lazy" src="phoenix.jpg" alt=""><img data-im="pikemaster" loading="lazy" src="pikemaster.jpg" alt=""><img data-im="plains" loading="lazy" src="plains.jpg" alt=""><img data-im="serra" loading="lazy" src="serra.jpg" alt=""><img data-im="swamp" loading="lazy" src="swamp.jpg" alt=""><img data-im="swiftspear" loading="lazy" src="swiftspear.jpg" alt=""><img data-im="woodelves" loading="lazy" src="woodelves.jpg" alt=""></div>
+</aside>
+  </div>
+  <footer class="hints">
+    <span class="ny"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Sara · Erik · Linus</span>
+    <span class="ny"><kbd>M</kbd> me</span>
+    <span class="ny"><kbd>A</kbd> all</span>
+    <span class="ny">click a table to make it big</span>
+    <span class="ny"><kbd>←</kbd><kbd>→</kbd> next player</span>
+    <span class="ny"><kbd>↑</kbd><kbd>↓</kbd> or drag the edge</span>
+    <span class="sep"></span>
+<span class="ny"><kbd>S</kbd> select / pan</span>
+<span class="ny"><kbd>Space</kbd>+drag move a mat</span>
+<span class="ny"><kbd>U</kbd> turn their cards</span>
+<span class="sep"></span>
+<span><kbd>T</kbd> tap</span>
+<span><kbd>0</kbd> fit</span>
+<span><kbd>?</kbd> all shortcuts</span>
+  </footer>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"view":{"editor":"enum","options":["me","sara","erik","linus","all"],"default":"all"},"turn":{"editor":"enum","options":["upside down","cards upright","board upright"],"default":"cards upright"},"$preview":{"width":1440,"height":900}}'>
+
+var CW = 178, CH = 248;
+var CARDS = {"danitha":{"name":"Danitha Capashen, Paragon","type":"Legendary Creature — Human Knight","pow":"2","tou":"2","kw":["Lifelink","Vigilance","First strike"]},"pharika":{"name":"Pharika's Chosen","type":"Creature — Snake","pow":"1","tou":"1","kw":["Deathtouch"]},"pikemaster":{"name":"Faithful Pikemaster","type":"Creature — Rhino Monk Soldier","pow":"3","tou":"4","kw":[]},"nighthawk":{"name":"Vampire Nighthawk","type":"Creature — Vampire Shaman","pow":"2","tou":"3","kw":["Deathtouch","Flying","Lifelink"]},"swamp":{"name":"Swamp","type":"Basic Land — Swamp","pow":null,"tou":null,"kw":[]},"plains":{"name":"Plains","type":"Basic Land — Plains","pow":null,"tou":null,"kw":[]},"serra":{"name":"Serra Angel","type":"Creature — Angel","pow":"4","tou":"4","kw":["Flying","Vigilance"]},"swiftspear":{"name":"Monastery Swiftspear","type":"Creature — Human Monk","pow":"1","tou":"2","kw":["Prowess","Haste"]},"anthem":{"name":"Glorious Anthem","type":"Enchantment","pow":null,"tou":null,"kw":[]},"mountain":{"name":"Mountain","type":"Basic Land — Mountain","pow":null,"tou":null,"kw":[]},"bolt":{"name":"Lightning Bolt","type":"Instant","pow":null,"tou":null,"kw":[]},"island":{"name":"Island","type":"Basic Land — Island","pow":null,"tou":null,"kw":[]},"delver":{"name":"Delver of Secrets","type":"Creature — Human Wizard","pow":"1","tou":"1","kw":["Flying"]},"phoenix":{"name":"Arclight Phoenix","type":"Creature — Phoenix","pow":"3","tou":"2","kw":["Flying","Haste"]},"llanowar":{"name":"Llanowar Elves","type":"Creature — Elf Druid","pow":"1","tou":"1","kw":[]},"woodelves":{"name":"Wood Elves","type":"Creature — Elf Scout","pow":"1","tou":"1","kw":[]},"forest":{"name":"Forest","type":"Basic Land — Forest","pow":null,"tou":null,"kw":[]}};
+var TRANS = 'left .46s cubic-bezier(.2,.8,.3,1), top .46s cubic-bezier(.2,.8,.3,1), width .46s cubic-bezier(.2,.8,.3,1), height .46s cubic-bezier(.2,.8,.3,1), opacity .3s';
+var TRANS_S = 'transform .52s cubic-bezier(.2,.8,.3,1), opacity .25s';
+var PL = {
+  me: { name: 'Jesper', color: '#e8b33a', deck: 'My deck', colors: [], lib: 32, grav: [],
+    board: [
+      { k: 'danitha', x: 0, y: 0 }, { k: 'pharika', x: 215, y: 0, t: 1 }, { k: 'pikemaster', x: 450, y: 0 }, { k: 'nighthawk', x: 660, y: 0 },
+      { k: 'plains', x: 60, y: 300, z: 200 }, { k: 'plains', x: 77, y: 374, z: 201 },
+      { k: 'swamp', x: 320, y: 300, z: 202 }, { k: 'swamp', x: 337, y: 374, z: 203 }, { k: 'swamp', x: 580, y: 300, z: 204 }
+    ] },
+  erik: { name: 'Erik', color: '#6b8cff', fg: '#ccd7ff', deck: 'Boros Angels', colors: ['W', 'R'], lib: 34, grav: ['bolt', 'bolt'],
+    board: [
+      { k: 'serra', x: 0, y: 0 }, { k: 'swiftspear', x: 235, y: 0, t: 1 }, { k: 'anthem', x: 490, y: 0 },
+      { k: 'mountain', x: 60, y: 300, z: 200 }, { k: 'mountain', x: 77, y: 374, z: 201 }, { k: 'mountain', x: 560, y: 300, z: 202 },
+      { k: 'plains', x: 320, y: 300, z: 203 }, { k: 'plains', x: 337, y: 374, z: 204 }
+    ] },
+  sara: { name: 'Sara', color: '#b782ff', fg: '#e6d6ff', deck: 'Izzet Phoenix', colors: ['U', 'R'], lib: 38, grav: ['phoenix'],
+    board: [
+      { k: 'delver', x: 0, y: 0 }, { k: 'phoenix', x: 235, y: 0, t: 1 },
+      { k: 'island', x: 40, y: 300, z: 200 }, { k: 'island', x: 57, y: 374, z: 201 }, { k: 'mountain', x: 300, y: 300, z: 202 }
+    ] },
+  linus: { name: 'Linus', color: '#57c785', fg: '#c6f0d6', deck: 'Mono-Green Elves', colors: ['G'], lib: 40, grav: [],
+    board: [
+      { k: 'llanowar', x: 0, y: 0, t: 1 }, { k: 'woodelves', x: 250, y: 0 },
+      { k: 'forest', x: 40, y: 300, z: 200 }, { k: 'forest', x: 57, y: 374, z: 201 }, { k: 'forest', x: 300, y: 300, z: 202 }
+    ] }
+};
+function px(n) { return (Math.round(n * 10) / 10) + 'px'; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function rectOf(c) {
+  if (!c.t) return { x: c.x, y: c.y, w: CW, h: CH };
+  var cx = c.x + CW / 2, cy = c.y + CH / 2;
+  return { x: cx - CH / 2, y: cy - CW / 2, w: CH, h: CW };
+}
+function boxOf(b) {
+  var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  b.forEach(function (c) { var r = rectOf(c); x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y); x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h); });
+  var p = 22;
+  return { x0: x0 - p, y0: y0 - p, w: x1 - x0 + 2 * p, h: y1 - y0 + 2 * p };
+}
+/* Samma idé som mattans fit: hela brädet i bild, centrerat i ytan innanför
+   insets. rot vrider hela brädet — 180 = motståndaren mitt emot. */
+function fitTf(r, rot, box, ins, cap) {
+  var aw = Math.max(10, r.w - ins.l - ins.r), ah = Math.max(10, r.h - ins.t - ins.b);
+  var side = Math.abs(rot) % 180 === 90;
+  var ew = side ? box.h : box.w, eh = side ? box.w : box.h;
+  var s = Math.max(0.05, Math.min(aw / ew, ah / eh, cap));
+  var cx = ins.l + aw / 2, cy = ins.t + ah / 2;
+  return { s: s, tf: 'translate(' + px(cx) + ',' + px(cy) + ') rotate(' + rot + 'deg) scale(' + (Math.round(s * 1000) / 1000) + ') translate(' + px(-(box.x0 + box.w / 2)) + ',' + px(-(box.y0 + box.h / 2)) + ')' };
+}
+function cardList(self, pid) {
+  return PL[pid].board.map(function (c, i) {
+    var d = CARDS[c.k], land = /Land/.test(d.type);
+    return {
+      cls: (c.t ? 'tappad ' : '') + (land ? 'land' : ''), im: 'im-' + c.k,
+      x: px(c.x), y: px(c.y), z: c.z || (10 + i),
+      kwShow: !land && d.kw.length > 0, kw: d.kw.slice(0, 3).map(function (l) { return { label: l }; }),
+      ptShow: d.pow != null, pt: d.pow != null ? d.pow + '/' + d.tou : '',
+      enter: function () { self.setState({ hover: { pid: pid, k: c.k } }); },
+      leave: function () { self.setState({ hover: null, last: { pid: pid, k: c.k } }); }
+    };
+  });
+}
+function thumbs(pid) {
+  return PL[pid].board.map(function (c) { return { cls: 'im-' + c.k + (c.t ? ' tappad' : '') }; });
+}
+function insVals(st) {
+  var h = st.hover || st.last || { pid: 'me', k: 'danitha' };
+  var d = CARDS[h.k], p = PL[h.pid], mine = h.pid === 'me';
+  return {
+    im: 'im-' + h.k, name: d.name, type: d.type, kw: d.kw.map(function (l) { return { label: l }; }),
+    label: mine ? (st.hover ? 'Pointing at' : 'Last card') : p.name + '’s card',
+    col: mine ? '#f0a52a' : p.color, line: mine ? '#3a2c10' : p.color + '40'
+  };
+}
+/* En matta. r i ytans koordinater, o = { ins, cap, piles, plate, chrome, band, op, bodyOp, z, cls }. */
+function matObj(self, pid, r, rot, o) {
+  var p = PL[pid], mine = pid === 'me', box = boxOf(p.board);
+  var f = fitTf(r, rot, box, o.ins || { l: 20, t: 14, r: 20, b: 14 }, o.cap || 0.8);
+  var g = p.grav || [];
+  var m = {
+    key: pid, x: px(r.x), y: px(r.y), w: px(r.w), h: px(r.h),
+    op: o.op == null ? 1 : o.op, z: o.z || 1, pe: o.op === 0 ? 'none' : 'auto',
+    cls: (mine ? '' : 'las ') + (rot === 180 ? 'upp ' : '') + (o.cls || ''),
+    shadow: 'inset 0 0 90px 20px #00000066, inset 0 0 0 1px ' + (mine ? '#28313f' : p.color + '66'),
+    tf: f.tf, s: f.s, zoomTxt: Math.round(f.s * 100) + '% fit', bodyOp: o.bodyOp == null ? 1 : o.bodyOp,
+    cards: cardList(self, pid),
+    pilesShow: !!o.piles, pileCls: o.piles || '', lib: p.lib,
+    gravHas: g.length > 0, gravTom: g.length === 0, gravIm: g.length ? 'im-' + g[g.length - 1] : '',
+    gravTxt: g.length ? g.length + (g.length === 1 ? ' card' : ' cards') : 'Empty',
+    chrome: !!o.chrome, plateShow: !!o.plate, bandShow: !!o.band, bandX: o.bandX || '12px',
+    name: p.name, color: p.color, deck: p.deck,
+    pips: (p.colors || []).map(function (c) { return { cls: 'pip-' + c }; }),
+    onTable: p.board.length + ' on the table',
+    bandBg: p.color + '1f', bandBd: p.color + '6b', bandFg: p.fg || '#e7ecf4',
+    bandTxt: 'You are looking at ' + p.name + '’s table — you can look, not change',
+    plateClick: o.plateClick || null, enter: o.enter || null, leave: o.leave || null
+  };
+  return m;
+}
+/* Kortbilderna: läs de dolda <img>-ernas färdiga src och skriv .im-*-regler.
+   Först efter en stund, och en bild per steg i en egen liten <style>: allt
+   på en gång (en megabyte bilddata i en regel) höll artboardens tråd så
+   länge att editorn slutade få svar ("Preview stopped"). */
+function bildCss(n) {
+  if (n == null) { setTimeout(function () { bildCss(0); }, 1200); return; }
+  var ims = document.querySelectorAll('img[data-im]');
+  var klar = ims.length > 0 && Array.prototype.every.call(ims, function (im) { return (im.getAttribute('src') || '').indexOf(':') > 0; });
+  if (!klar && n < 40) { setTimeout(function () { bildCss(n + 1); }, 150); return; }
+  var lista = Array.prototype.slice.call(ims), i = 0;
+  (function nasta() {
+    if (i >= lista.length) return;
+    var im = lista[i++], k = im.getAttribute('data-im'), id = 'im-css-' + k;
+    if (!document.getElementById(id)) {
+      var el = document.createElement('style'); el.id = id;
+      el.textContent = '.im-' + k + '{background-image:url("' + (im.getAttribute('src') || im.currentSrc) + '")!important}';
+      document.head.appendChild(el);
+    }
+    setTimeout(nasta, 40);
+  })();
+}
+function skriver(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return true;
+  var t = e.target;
+  return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable));
+}
+
+/* ── Iteration 2: Select/Pan i mattorna, hjulet, lasso, vända motståndarens kort ──
+   Samma regler som appen (index.html, hjulet och satMatVerktyg): touchpaden
+   flyttar mattan, nypning och mushjul zoomar mot pekaren, S växlar Select/Pan,
+   mellanslag hållet eller mitten-/högerknappen flyttar i båda lägena. */
+var NYP_FART = Math.log(3.5) / Math.log(1.5);
+var HJUL = { NYP: 0.01 * NYP_FART, HACK: Math.log(1.65) / 100, RAD: 33, SIDA: 800, MAX_NYP: 50, MAX_HJUL: 150 };
+var TURNS = ['upside down', 'cards upright', 'board upright'];
+var TURN_TXT = { 'upside down': 'Upside down', 'cards upright': 'Cards upright', 'board upright': 'Board upright' };
+
+function S(self) { return self.state || {}; }
+function V2(self) { if (!self._v2) self._v2 = { rects: {}, gest: { t: 0, tp: false } }; return self._v2; }
+function vyOf(self, pid) { return (S(self).vy || {})[pid] || { px: 0, py: 0, z: 1 }; }
+function setVy(self, pid, v) { var all = Object.assign({}, S(self).vy || {}); all[pid] = { px: v.px, py: v.py, z: v.z }; self.setState({ vy: all }); }
+function posOf(self, pid, i) { var c = PL[pid].board[i]; return (S(self).pos || {})[pid + ':' + i] || { x: c.x, y: c.y }; }
+function tapOf(self, pid, i) { var t = (S(self).tap || {})[pid + ':' + i]; return t == null ? !!PL[pid].board[i].t : t; }
+function turnOf(self) { return S(self).turn || self.props.turn || 'cards upright'; }
+function toolOf(self) { return S(self).tool || 'valj'; }
+function panAktiv(self) { return toolOf(self) === 'pan' || !!S(self).space; }
+function scaleOf(self) { var a = self.area; return a ? (a.getBoundingClientRect().width / 1041) || 1 : 1; }
+function areaPt(self, ev) {
+  var a = self.area; if (!a) return { x: 0, y: 0, sc: 1 };
+  var r = a.getBoundingClientRect(), sc = r.width / 1041 || 1;
+  return { x: (ev.clientX - r.left) / sc, y: (ev.clientY - r.top) / sc, sc: sc };
+}
+function areaRef(self) { if (!self._ar) self._ar = function (el) { self.area = el; }; return self._ar; }
+function stopp(e) { if (e) e.stopPropagation(); }
+
+function fit2(r, rot, box, ins, cap) {
+  var aw = Math.max(10, r.w - ins.l - ins.r), ah = Math.max(10, r.h - ins.t - ins.b);
+  var side = Math.abs(rot) % 180 === 90, ew = side ? box.h : box.w, eh = side ? box.w : box.h;
+  return { s: Math.max(0.05, Math.min(aw / ew, ah / eh, cap)), cx: ins.l + aw / 2, cy: ins.t + ah / 2,
+    bcx: box.x0 + box.w / 2, bcy: box.y0 + box.h / 2, ew: ew, eh: eh };
+}
+/* Hur långt mattan får flyttas: så långt att hela brädet går att nå, plus
+   lite luft. I fit ryms allt, så där är det bara luften. */
+function klampVy(rr, v) {
+  var cw = rr.ew * rr.sFit * v.z, ch = rr.eh * rr.sFit * v.z;
+  var mx = Math.max(0, (cw - rr.r.w) / 2) + 30, my = Math.max(0, (ch - rr.r.h) / 2) + 30;
+  return { px: clamp(v.px, -mx, mx), py: clamp(v.py, -my, my), z: v.z };
+}
+/* Zooma med punkten q (i mattans koordinater) kvar under pekaren. */
+function zoomAt(self, pid, f, qx, qy) {
+  var rr = V2(self).rects[pid]; if (!rr) return;
+  var v = vyOf(self, pid), nz = clamp(v.z * f, 1, Math.max(1, 1.8 / rr.sFit));
+  if (qx == null) { qx = rr.r.w / 2; qy = rr.r.h / 2; }
+  var k = nz / v.z, ox = rr.cx + v.px, oy = rr.cy + v.py;
+  var nv = nz <= 1.0001 ? { px: 0, py: 0, z: 1 } : { px: qx - rr.cx - (qx - ox) * k, py: qy - rr.cy - (qy - oy) * k, z: nz };
+  setVy(self, pid, klampVy(rr, nv));
+}
+function hitMat(self, pt) {
+  var R = V2(self).rects, bast = null;
+  Object.keys(R).forEach(function (pid) {
+    var rr = R[pid];
+    if (rr.op < 0.05 || rr.r.w < 2 || rr.r.h < 2) return;
+    if (pt.x < rr.r.x || pt.x > rr.r.x + rr.r.w || pt.y < rr.r.y || pt.y > rr.r.y + rr.r.h) return;
+    if (!bast || rr.z > R[bast].z) bast = pid;
+  });
+  return bast;
+}
+/* Hjulet, som i appen. hooks.wheel(ev, pt) får ta händelsen först (kanten);
+   hooks.overscroll(pid, rest) får det som blev över när mattan tog stopp. */
+function v2Wheel(self, ev, hooks) {
+  ev.preventDefault();
+  var v2 = V2(self), pt = areaPt(self, ev), nu = performance.now();
+  if (nu - v2.gest.t > 220) v2.gest.tp = ev.deltaMode === 0 && (ev.deltaX !== 0 || (ev.wheelDeltaY ? ev.wheelDeltaY % 120 !== 0 : !Number.isInteger(ev.deltaY)));
+  v2.gest.t = nu;
+  if (hooks && hooks.wheel && hooks.wheel(ev, pt, v2.gest.tp)) return;
+  var pid = hitMat(self, pt); if (!pid) return;
+  var rr = v2.rects[pid], qx = pt.x - rr.r.x, qy = pt.y - rr.r.y;
+  if (ev.ctrlKey) { zoomAt(self, pid, Math.exp(-clamp(ev.deltaY, -HJUL.MAX_NYP, HJUL.MAX_NYP) * HJUL.NYP), qx, qy); return; }
+  if (ev.shiftKey || v2.gest.tp) {
+    var v = vyOf(self, pid), dx = ev.shiftKey && !ev.deltaX ? ev.deltaY : ev.deltaX, dy = ev.shiftKey ? 0 : ev.deltaY;
+    var want = { px: v.px - dx, py: v.py - dy, z: v.z }, nv = klampVy(rr, want);
+    if (nv.px !== v.px || nv.py !== v.py) setVy(self, pid, nv);
+    var rest = want.py - nv.py;
+    if (rest !== 0 && hooks && hooks.overscroll) hooks.overscroll(pid, rest);
+    return;
+  }
+  var d = ev.deltaY * (ev.deltaMode === 1 ? HJUL.RAD : ev.deltaMode === 2 ? HJUL.SIDA : 1);
+  zoomAt(self, pid, Math.exp(-clamp(d, -HJUL.MAX_HJUL, HJUL.MAX_HJUL) * HJUL.HACK), qx, qy);
+}
+function matDown(self, pid, e) {
+  if (e.button === 1 || e.button === 2 || panAktiv(self)) { startPan(self, pid, e); return; }
+  if (pid === 'me' && e.button === 0) startLasso(self, e);
+}
+function startPan(self, pid, e) {
+  var rr = V2(self).rects[pid]; if (!rr) return;
+  e.preventDefault(); e.stopPropagation();
+  var v0 = vyOf(self, pid), x0 = e.clientX, y0 = e.clientY, sc = scaleOf(self);
+  self.setState({ panning: pid });
+  function mv(ev) { setVy(self, pid, klampVy(rr, { px: v0.px + (ev.clientX - x0) / sc, py: v0.py + (ev.clientY - y0) / sc, z: v0.z })); }
+  function up() { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); self.setState({ panning: null }); }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+/* Select: dra ett kort (eller alla markerade), klick = tappa/untappa. Bara på
+   den egna mattan — någon annans bord går att titta på, inte ändra. */
+function cardDown(self, pid, i, e) {
+  if (pid !== 'me' || e.button !== 0 || panAktiv(self)) return;
+  e.stopPropagation(); e.preventDefault();
+  var key = pid + ':' + i, sel = S(self).sel || [], grupp = sel.indexOf(key) >= 0 ? sel : [key];
+  var rr = V2(self).rects[pid], s = rr.s, sc = scaleOf(self), x0 = e.clientX, y0 = e.clientY, flyttad = false, start = {};
+  grupp.forEach(function (k) { start[k] = posOf(self, pid, +k.split(':')[1]); });
+  var topz = V2(self).topz = (V2(self).topz || 500) + 1;
+  function mv(ev) {
+    var dx = (ev.clientX - x0) / sc, dy = (ev.clientY - y0) / sc;
+    if (!flyttad && Math.abs(dx) + Math.abs(dy) < 4) return;
+    flyttad = true;
+    var pos = Object.assign({}, S(self).pos || {}), zz = Object.assign({}, S(self).zz || {});
+    grupp.forEach(function (k) { pos[k] = { x: start[k].x + dx / s, y: start[k].y + dy / s }; zz[k] = topz; });
+    self.setState({ pos: pos, zz: zz, held: key });
+  }
+  function up() {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+    if (flyttad) { self.setState({ held: null }); return; }
+    var tap = Object.assign({}, S(self).tap || {}); tap[key] = !tapOf(self, pid, i);
+    self.setState({ tap: tap, held: null });
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+function kortRuta(self, rr, i) {
+  var p = posOf(self, 'me', i), t = tapOf(self, 'me', i), v = vyOf(self, 'me');
+  var sx = rr.cx + v.px + rr.s * (p.x + CW / 2 - rr.bcx), sy = rr.cy + v.py + rr.s * (p.y + CH / 2 - rr.bcy);
+  var hw = (t ? CH : CW) / 2 * rr.s, hh = (t ? CW : CH) / 2 * rr.s;
+  return { x: sx - hw, y: sy - hh, w: 2 * hw, h: 2 * hh };
+}
+function startLasso(self, e) {
+  var rr = V2(self).rects.me; if (!rr) return;
+  e.preventDefault();
+  var p0 = areaPt(self, e), x0 = p0.x - rr.r.x, y0 = p0.y - rr.r.y, bas = e.shiftKey ? (S(self).sel || []) : [], rorde = false;
+  function mv(ev) {
+    var p = areaPt(self, ev), x = p.x - rr.r.x, y = p.y - rr.r.y;
+    if (!rorde && Math.abs(x - x0) + Math.abs(y - y0) < 4) return;
+    rorde = true;
+    self.setState({ lasso: { x: Math.min(x, x0), y: Math.min(y, y0), w: Math.abs(x - x0), h: Math.abs(y - y0) } });
+  }
+  function up() {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+    var L = S(self).lasso;
+    if (!rorde || !L) { self.setState({ lasso: null, sel: bas }); return; }
+    var hits = bas.slice();
+    PL.me.board.forEach(function (c, i) {
+      var k = 'me:' + i; if (hits.indexOf(k) >= 0) return;
+      var b = kortRuta(self, rr, i);
+      if (b.x < L.x + L.w && b.x + b.w > L.x && b.y < L.y + L.h && b.y + b.h > L.y) hits.push(k);
+    });
+    self.setState({ lasso: null, sel: hits });
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+function vandNasta(self) { var i = TURNS.indexOf(turnOf(self)); self.setState({ turn: TURNS[(i + 1) % TURNS.length] }); }
+
+/* En matta i iteration 2: matObj plus vy (pan/zoom), korten var de dragits,
+   Select/Pan, lasso och hur motståndarens kort vänds. */
+function mat2(self, pid, r, rot, o) {
+  var p = PL[pid], mine = pid === 'me', turn = turnOf(self), st = S(self);
+  if (!mine && rot === 180 && turn === 'board upright') rot = 0;
+  var vand = !mine && rot === 180 && turn === 'cards upright';
+  var box = boxOf(p.board), f = fit2(r, rot, box, o.ins || { l: 20, t: 14, r: 20, b: 14 }, o.cap || 0.8);
+  var v = vyOf(self, pid), s = f.s * v.z;
+  V2(self).rects[pid] = { r: r, rot: rot, cx: f.cx, cy: f.cy, bcx: f.bcx, bcy: f.bcy, s: s, sFit: f.s, ew: f.ew, eh: f.eh,
+    op: o.op == null ? 1 : o.op, z: o.z || 1 };
+  var m = matObj(self, pid, r, rot, o);
+  m.tf = 'translate(' + px(f.cx + v.px) + ',' + px(f.cy + v.py) + ') rotate(' + rot + 'deg) scale(' + (Math.round(s * 1000) / 1000) + ') translate(' + px(-f.bcx) + ',' + px(-f.bcy) + ')';
+  m.s = s;
+  var fitNu = v.z === 1 && !v.px && !v.py;
+  m.zoomTxt = Math.round(s * 100) + '%' + (fitNu ? ' fit' : '');
+  m.zoomCls = fitNu ? '' : 'manuell';
+  m.cls += (panAktiv(self) ? ' panlage' : '') + (st.panning === pid ? ' panorerar' : '');
+  var sel = st.sel || [], zz = st.zz || {};
+  m.cards = p.board.map(function (c, i) {
+    var d = CARDS[c.k], land = /Land/.test(d.type), key = pid + ':' + i, q = posOf(self, pid, i);
+    return {
+      cls: (tapOf(self, pid, i) ? 'tappad ' : '') + (land ? 'land ' : '') + (vand ? 'vand ' : '') + (sel.indexOf(key) >= 0 ? 'vald ' : '') + (st.held === key ? 'held' : ''),
+      im: 'im-' + c.k, x: px(q.x), y: px(q.y), z: zz[key] || c.z || (10 + i),
+      kwShow: !land && d.kw.length > 0, kw: d.kw.slice(0, 3).map(function (l) { return { label: l }; }),
+      ptShow: d.pow != null, pt: d.pow != null ? d.pow + '/' + d.tou : '',
+      enter: function () { self.setState({ hover: { pid: pid, k: c.k, i: i } }); },
+      leave: function () { self.setState({ hover: null, last: { pid: pid, k: c.k } }); },
+      down: function (e) { cardDown(self, pid, i, e); }
+    };
+  });
+  m.down = function (e) { matDown(self, pid, e); };
+  m.stop = stopp;
+  var L = st.lasso;
+  m.lassoShow = mine && !!L;
+  m.lx = L && mine ? px(L.x) : '0px'; m.ly = L && mine ? px(L.y) : '0px'; m.lw = L && mine ? px(L.w) : '0px'; m.lh = L && mine ? px(L.h) : '0px';
+  m.toolSel = toolOf(self) === 'valj' ? 'on' : ''; m.toolPan = toolOf(self) === 'pan' ? 'on' : '';
+  m.onSel = function () { self.setState({ tool: 'valj' }); };
+  m.onPan = function () { self.setState({ tool: 'pan' }); };
+  m.onZin = function () { zoomAt(self, pid, 1.25); };
+  m.onZut = function () { zoomAt(self, pid, 0.8); };
+  m.onFit = function () { setVy(self, pid, { px: 0, py: 0, z: 1 }); };
+  m.onUntap = function () { var t = {}; PL.me.board.forEach(function (c, i) { t['me:' + i] = false; }); self.setState({ tap: t }); };
+  m.onTidy = function () { self.setState({ pos: {}, zz: {}, sel: [] }); setVy(self, 'me', { px: 0, py: 0, z: 1 }); };
+  m.turnTxt = TURN_TXT[turn];
+  m.turnClick = function (e) { if (e) e.stopPropagation(); vandNasta(self); };
+  m.plateCls = r.w < 380 ? 'smal' : '';
+  m.stripShow = false; m.stripOp = 0; m.stripPe = 'none'; m.thumbs = []; m.others = [];
+  m.stripName = ''; m.stripHint = ''; m.stripKey = ''; m.stripClick = null;
+  return m;
+}
+
+function hovPid(self) { var h = S(self).hover; return h ? h.pid : 'me'; }
+function v2Key(self, e) {
+  var k = e.key, lower = k.toLowerCase();
+  if (lower === 's') { self.setState({ tool: toolOf(self) === 'pan' ? 'valj' : 'pan' }); return true; }
+  if (k === ' ') { if (!S(self).space) self.setState({ space: true }); return true; }
+  if (k === '0') { self.setState({ vy: {} }); return true; }
+  if (k === '+' || k === '=') { zoomAt(self, hovPid(self), 1.25); return true; }
+  if (k === '-' || k === '_') { zoomAt(self, hovPid(self), 0.8); return true; }
+  if (lower === 'u') { vandNasta(self); return true; }
+  if (lower === 't') {
+    var h = S(self).hover;
+    if (h && h.pid === 'me' && h.i != null) { var tap = Object.assign({}, S(self).tap || {}); tap['me:' + h.i] = !tapOf(self, 'me', h.i); self.setState({ tap: tap }); }
+    return true;
+  }
+  if (k === 'Escape' && (S(self).sel || []).length) { self.setState({ sel: [] }); return true; }
+  return false;
+}
+function v2Mount(self, onKey, onKeyUp, hooks) {
+  bildCss();
+  self._k = function (e) { if (skriver(e)) return; if ((onKey && onKey(e)) || v2Key(self, e)) e.preventDefault(); };
+  self._ku = function (e) { if (onKeyUp) onKeyUp(e); if (e.key === ' ' && S(self).space) self.setState({ space: false }); };
+  self._w = function (e) { v2Wheel(self, e, hooks); };
+  window.addEventListener('keydown', self._k);
+  window.addEventListener('keyup', self._ku);
+  if (self.area) self.area.addEventListener('wheel', self._w, { passive: false });
+}
+function v2Unmount(self) {
+  window.removeEventListener('keydown', self._k);
+  window.removeEventListener('keyup', self._ku);
+  if (self.area) self.area.removeEventListener('wheel', self._w);
+}
+function v2Common(self) {
+  var t = toolOf(self);
+  return {
+    trans: S(self).drag ? 'none' : TRANS,
+    transS: S(self).drag || S(self).panning || S(self).held ? 'none' : TRANS_S,
+    ins: insVals(S(self)), areaRef: areaRef(self),
+    noMenu: function (e) { e.preventDefault(); },
+    toolTxt: t === 'pan' ? 'Pan' : 'Select', turnTxt: TURN_TXT[turnOf(self)]
+  };
+}
+
+
+/* ── Iteration 3: B med stolar ─────────────────────────────────────────
+   Spelarväxeln Me · spelare 1–3 · All. Den valda spelarens matta blir stor
+   och de andra krymper i samma rörelse — motståndarna till smala kolumner,
+   mitt bord till en list. Byter man från en spelare till en annan glider
+   kolumnerna i sidled. Varje matta har egen zoom, pan och fit, och högarna
+   ser ut och beter sig som i appen (MES-125): graveyard i en gul streckad
+   ram med solfjäder på hover, library i en blå ram med tre baksidor. */
+var W3 = 1041, H3 = 804, G3 = 56, STRIP3 = 46, GAP3 = 10, MINW3 = 112;
+var PILE_W = 238, PILE_H = 165, PILE_BOT = 71;
+var TRANS3 = 'left .5s cubic-bezier(.22,.8,.26,1), top .5s cubic-bezier(.22,.8,.26,1), width .5s cubic-bezier(.22,.8,.26,1), height .5s cubic-bezier(.22,.8,.26,1), opacity .3s';
+var TRANS3_S = 'transform .5s cubic-bezier(.22,.8,.26,1), opacity .25s';
+
+/* Landhögarna som i appen i dag: varje kort 26 px ner och 26 px åt sidan. */
+(function () {
+  function b(list) { return list.map(function (a) { return { k: a[0], x: a[1], y: a[2], t: a[3] ? 1 : 0, z: a[4] }; }); }
+  PL.me.board = b([['danitha', 0, 0], ['pharika', 215, 0, 1], ['pikemaster', 450, 0], ['nighthawk', 660, 0],
+    ['plains', 60, 300, 0, 200], ['plains', 86, 326, 0, 201], ['swamp', 320, 300, 0, 202], ['swamp', 346, 326, 0, 203], ['swamp', 580, 300, 0, 204]]);
+  PL.erik.board = b([['serra', 0, 0], ['swiftspear', 235, 0, 1], ['anthem', 490, 0],
+    ['mountain', 60, 300, 0, 200], ['mountain', 86, 326, 0, 201], ['mountain', 560, 300, 0, 202], ['plains', 320, 300, 0, 203], ['plains', 346, 326, 0, 204]]);
+  PL.sara.board = b([['delver', 0, 0], ['phoenix', 235, 0, 1], ['island', 40, 300, 0, 200], ['island', 66, 326, 0, 201], ['mountain', 300, 300, 0, 202]]);
+  PL.linus.board = b([['llanowar', 0, 0, 1], ['woodelves', 250, 0], ['forest', 40, 300, 0, 200], ['forest', 66, 326, 0, 201], ['forest', 300, 300, 0, 202]]);
+  PL.me.grav = ['pharika', 'swamp'];
+  PL.me.exil = [];
+})();
+
+function pileScale(r) { return clamp(Math.min(r.w / 1000, r.h / 600), 0.6, 1); }
+function insVals(st) {
+  var h = st.hover || st.last || { pid: 'me', k: 'danitha' };
+  var d = CARDS[h.k], p = PL[h.pid], mine = h.pid === 'me';
+  var label = h.grav ? (mine ? 'From your graveyard' : 'From ' + p.name + '’s graveyard')
+    : mine ? (st.hover ? 'Pointing at' : 'Last card') : p.name + '’s card';
+  return {
+    im: 'im-' + h.k, name: d.name, type: d.type, kw: d.kw.map(function (l) { return { label: l }; }),
+    label: label, col: mine ? '#f0a52a' : p.color, line: mine ? '#3a2c10' : p.color + '40'
+  };
+}
+/* Bara mattor i full storlek tar emot hjulet; en kolumn eller list zoomas inte. */
+function hitMat(self, pt) {
+  var R = V2(self).rects, bast = null;
+  Object.keys(R).forEach(function (pid) {
+    var rr = R[pid];
+    if (rr.form !== 'full') return;
+    if (pt.x < rr.r.x || pt.x > rr.r.x + rr.r.w || pt.y < rr.r.y || pt.y > rr.r.y + rr.r.h) return;
+    if (!bast || rr.z > R[bast].z) bast = pid;
+  });
+  return bast;
+}
+/* Ett klick var som helst i en spelares ruta gör den stor, som ett klick på
+   namnet. Ett drag gör det inte: det flyttar mattan (Pan), markerar (lasso på
+   min egen) eller flyttar ett av mina kort. Mina kort tappas av ett klick. */
+function valjRuta(self, pid) { if (self._valt !== pid) valjAv(self, pid); }
+function klickValj(self, pid, e) {
+  var x0 = e.clientX, y0 = e.clientY, flyttad = false;
+  function mv(ev) { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 4) flyttad = true; }
+  function up() { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); if (!flyttad) valjRuta(self, pid); }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+function matDown(self, pid, e) {
+  if (e.button === 1 || e.button === 2 || panAktiv(self)) { startPan(self, pid, e); return; }
+  if (e.button !== 0) return;
+  var rr = V2(self).rects.me;
+  if (pid === 'me' && rr && rr.form === 'full') { startLasso(self, e); return; }
+  klickValj(self, pid, e);
+}
+function startPan(self, pid, e) {
+  var rr = V2(self).rects[pid]; if (!rr) return;
+  e.preventDefault(); e.stopPropagation();
+  var v0 = vyOf(self, pid), x0 = e.clientX, y0 = e.clientY, sc = scaleOf(self), knapp = e.button, flyttad = false;
+  self.setState({ panning: pid });
+  function mv(ev) {
+    if (!flyttad && Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) <= 4) return;
+    flyttad = true;
+    setVy(self, pid, klampVy(rr, { px: v0.px + (ev.clientX - x0) / sc, py: v0.py + (ev.clientY - y0) / sc, z: v0.z }));
+  }
+  function up() {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+    self.setState({ panning: null });
+    if (!flyttad && knapp === 0) valjRuta(self, pid);
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+function startLasso(self, e) {
+  var rr = V2(self).rects.me; if (!rr) return;
+  e.preventDefault();
+  var p0 = areaPt(self, e), x0 = p0.x - rr.r.x, y0 = p0.y - rr.r.y, bas = e.shiftKey ? (S(self).sel || []) : [], rorde = false;
+  function mv(ev) {
+    var p = areaPt(self, ev), x = p.x - rr.r.x, y = p.y - rr.r.y;
+    if (!rorde && Math.abs(x - x0) + Math.abs(y - y0) < 4) return;
+    rorde = true;
+    self.setState({ lasso: { x: Math.min(x, x0), y: Math.min(y, y0), w: Math.abs(x - x0), h: Math.abs(y - y0) } });
+  }
+  function up() {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+    var L = S(self).lasso;
+    if (!rorde || !L) { self.setState({ lasso: null, sel: bas }); if (!rorde) valjRuta(self, 'me'); return; }
+    var hits = bas.slice();
+    PL.me.board.forEach(function (c, i) {
+      var k = 'me:' + i; if (c.gone || hits.indexOf(k) >= 0) return;
+      var b = kortRuta(self, rr, i);
+      if (b.x < L.x + L.w && b.x + b.w > L.x && b.y < L.y + L.h && b.y + b.h > L.y) hits.push(k);
+    });
+    self.setState({ lasso: null, sel: hits });
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+/* Drag ett av mina kort — eller alla markerade. Släpps det över graveyard
+   eller library hamnar det där; ett klick utan drag tappar det. */
+var HOG_LUFT3 = { grav: { l: 54, r: 10, t: 66, b: 40 }, bib: { l: 10, r: 44, t: 66, b: 40 } };
+function hogUnder3(self, ev) {
+  var h = (V2(self).hogar || {}).me; if (!h) return null;
+  var pt = areaPt(self, ev), bast = null, bd = Infinity;
+  ['grav', 'bib'].forEach(function (k) {
+    var q = h[k], l = HOG_LUFT3[k];
+    if (pt.x < q.x - l.l || pt.x > q.x + q.w + l.r || pt.y < q.y - l.t || pt.y > q.y + q.h + l.b) return;
+    var d = Math.abs(pt.x - (q.x + q.w / 2)) + Math.abs(pt.y - (q.y + q.h / 2));
+    if (d < bd) { bd = d; bast = k; }
+  });
+  return bast;
+}
+function cardDown(self, pid, i, e) {
+  if (pid !== 'me' || e.button !== 0 || panAktiv(self)) return;
+  e.stopPropagation(); e.preventDefault();
+  dragKort(self, pid, i, e.clientX, e.clientY, false);
+}
+function dragKort(self, pid, i, x0, y0, direkt) {
+  var key = pid + ':' + i, sel = S(self).sel || [], grupp = sel.indexOf(key) >= 0 ? sel : [key];
+  var rr = V2(self).rects[pid], s = rr.s, sc = scaleOf(self), flyttad = !!direkt, start = {};
+  grupp.forEach(function (k) { start[k] = posOf(self, pid, +k.split(':')[1]); });
+  var topz = V2(self).topz = (V2(self).topz || 500) + 1;
+  if (direkt) { var zz0 = Object.assign({}, S(self).zz || {}); zz0[key] = topz; self.setState({ held: key, zz: zz0 }); }
+  function mv(ev) {
+    var dx = (ev.clientX - x0) / sc, dy = (ev.clientY - y0) / sc;
+    if (!flyttad && Math.abs(dx) + Math.abs(dy) < 4) return;
+    flyttad = true;
+    var pos = Object.assign({}, S(self).pos || {}), zz = Object.assign({}, S(self).zz || {});
+    grupp.forEach(function (k) { pos[k] = { x: start[k].x + dx / s, y: start[k].y + dy / s }; zz[k] = topz; });
+    self.setState({ pos: pos, zz: zz, held: key, over: hogUnder3(self, ev) });
+  }
+  function up(ev) {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+    if (!flyttad) {
+      var tap = Object.assign({}, S(self).tap || {}); tap[key] = !tapOf(self, pid, i);
+      self.setState({ tap: tap, held: null });
+      return;
+    }
+    var over = hogUnder3(self, ev);
+    self.setState({ held: null, over: null });
+    if (over) laggPaHog(self, grupp, over);
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+function laggPaHog(self, grupp, over) {
+  grupp.forEach(function (key) {
+    var c = PL.me.board[+key.split(':')[1]]; if (!c || c.gone) return;
+    c.gone = true;
+    if (over === 'grav') PL.me.grav.unshift(c.k); else PL.me.lib += 1;
+  });
+  self.setState({ sel: [], bump: over === 'grav' ? 'me' : null, hover: null });
+  clearTimeout(self._bumpT); self._bumpT = setTimeout(function () { self.setState({ bump: null }); }, 500);
+}
+function landa(self, key) {
+  self.setState({ landar: key });
+  clearTimeout(self._landT); self._landT = setTimeout(function () { self.setState({ landar: null }); }, 480);
+}
+/* Solfjädern (GRAVEYARD_ANIMATION.md §4): två steg — korten monteras på
+   högen och fälls ut 24 ms senare — och stängningen väntar 130 ms så att
+   man hinner från högen till ett kort. */
+function fanGeo(n, ned, fri) {
+  var steg = n > 1 ? Math.min(96, 828 / (n - 1), fri / (n - 1)) : 0;
+  return function (i) {
+    var t = n > 1 ? i / (n - 1) : 0, dx = i * steg, dy = -64 - Math.sin(t * Math.PI) * 30, a = -9 + t * 18;
+    return ned ? { dx: -dx, dy: -dy, a: -a } : { dx: dx, dy: dy, a: a };
+  };
+}
+function fanTf(g, hov, ned) {
+  var lyft = hov ? (ned ? 20 : -20) : 0;
+  return 'translate(' + Math.round(g.dx) + 'px,' + Math.round(g.dy + lyft) + 'px) rotate(' + g.a.toFixed(1) + 'deg) scale(' + (hov ? 1.1 : 1) + ')';
+}
+function fanOpen(self, pid) {
+  clearTimeout(self._fanT);
+  if (!PL[pid].grav.length || S(self).held) return;
+  var f = S(self).fan;
+  if (f && f.pid === pid && f.on) return;
+  if (!f || f.pid !== pid) self.setState({ fan: { pid: pid, on: false, hov: null } });
+  self._fanT = setTimeout(function () { self.setState({ fan: { pid: pid, on: true, hov: null } }); }, 24);
+}
+function fanCloseSoon(self) {
+  clearTimeout(self._fanT);
+  self._fanT = setTimeout(function () {
+    var f = S(self).fan; if (!f) return;
+    self.setState({ fan: { pid: f.pid, on: false, hov: null } });
+    self._fanT = setTimeout(function () { self.setState({ fan: null }); }, 240);
+  }, 130);
+}
+function fanHov(self, pid, i) {
+  clearTimeout(self._fanT);
+  var f = S(self).fan; if (!f || f.pid !== pid) return;
+  self.setState({ fan: { pid: pid, on: true, hov: i }, hover: { pid: pid, k: PL[pid].grav[i], grav: true } });
+}
+function tillbaka(self, i) {
+  var k = PL.me.grav.splice(i, 1)[0]; if (!k) return;
+  var rr = V2(self).rects.me, v = vyOf(self, 'me');
+  var bx = rr.bcx + (rr.r.w / 2 + 80 - rr.cx - v.px) / rr.s, by = rr.bcy + (rr.r.h / 2 - rr.cy - v.py) / rr.s;
+  PL.me.board.push({ k: k, x: bx - CW / 2, y: by - CH / 2 });
+  landa(self, 'me:' + (PL.me.board.length - 1));
+  self.setState({ fan: PL.me.grav.length ? { pid: 'me', on: true, hov: null } : null, hover: null });
+}
+function exila(self, i) {
+  var k = PL.me.grav.splice(i, 1)[0]; if (!k) return;
+  PL.me.exil.unshift(k);
+  self.setState({ fan: PL.me.grav.length ? { pid: 'me', on: true, hov: null } : null, hover: null });
+}
+/* Dra ett kort ur min solfjäder: efter 6 px blir det ett kort på mattan
+   under pekaren, och det vanliga draget tar över. */
+function fanDown(self, pid, i, e) {
+  if (pid !== 'me' || e.button !== 0) return;
+  e.stopPropagation(); e.preventDefault();
+  var x0 = e.clientX, y0 = e.clientY, klar = false;
+  function bort() { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', bort); }
+  function mv(ev) {
+    if (klar || Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) < 6) return;
+    klar = true; bort();
+    var pt = areaPt(self, ev), rr = V2(self).rects.me, v = vyOf(self, 'me');
+    var bx = rr.bcx + (pt.x - rr.r.x - rr.cx - v.px) / rr.s, by = rr.bcy + (pt.y - rr.r.y - rr.cy - v.py) / rr.s;
+    var k = PL.me.grav.splice(i, 1)[0];
+    PL.me.board.push({ k: k, x: bx - CW / 2, y: by - CH / 2 });
+    self.setState({ fan: null, hover: null });
+    dragKort(self, 'me', PL.me.board.length - 1, ev.clientX, ev.clientY, true);
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', bort);
+}
+
+/* En matta i iteration 3. form: full, kol (smal kolumn) eller strip (list). */
+function mat3(self, pid, r, rot, o) {
+  var p = PL[pid], mine = pid === 'me', turn = turnOf(self), st = S(self);
+  if (!mine && rot === 180 && turn === 'board upright') rot = 0;
+  var vand = !mine && rot === 180 && turn === 'cards upright', speg = !mine && rot === 180;
+  var form = r.h < 90 ? 'strip' : r.w < 200 ? 'kol' : 'full', full = form === 'full';
+  var ps = pileScale(r), pw = 22 + PILE_W * ps + 24;
+  var ins = mine ? { l: pw, t: 56, r: 20, b: 20 } : speg ? { l: 20, t: 46, r: pw, b: 50 } : { l: pw, t: 46, r: 20, b: 50 };
+  var box = boxOf(p.board), f = fit2(r, rot, box, ins, 0.8);
+  var v = vyOf(self, pid), s = f.s * v.z;
+  V2(self).rects[pid] = { r: r, rot: rot, cx: f.cx, cy: f.cy, bcx: f.bcx, bcy: f.bcy, s: s, sFit: f.s, ew: f.ew, eh: f.eh,
+    op: full ? 1 : 0, z: o.z || 1, form: form };
+  var hogX = speg ? r.w - 22 - PILE_W * ps : 22, hogY = speg ? 16 : r.h - (PILE_BOT + PILE_H) * ps;
+  var gx = speg ? hogX + 130 * ps : hogX, bx = speg ? hogX : hogX + 130 * ps;
+  V2(self).hogar = V2(self).hogar || {};
+  V2(self).hogar[pid] = full ? { grav: { x: r.x + gx, y: r.y + hogY, w: 108 * ps, h: 144 * ps }, bib: { x: r.x + bx, y: r.y + hogY, w: 108 * ps, h: 144 * ps } } : null;
+  var sel = st.sel || [], zz = st.zz || {};
+  var cards = p.board.map(function (c, i) {
+    var d = CARDS[c.k], land = /Land/.test(d.type), key = pid + ':' + i, q = posOf(self, pid, i);
+    return {
+      cls: (c.gone ? 'borta ' : '') + (tapOf(self, pid, i) ? 'tappad ' : '') + (land ? 'land ' : '') + (vand ? 'vand ' : '')
+        + (sel.indexOf(key) >= 0 ? 'vald ' : '') + (st.held === key ? 'held ' : '') + (st.landar === key ? 'landar' : ''),
+      im: 'im-' + c.k, x: px(q.x), y: px(q.y), z: zz[key] || c.z || (10 + i),
+      kwShow: !land && d.kw.length > 0, kw: d.kw.slice(0, 3).map(function (l) { return { label: l }; }),
+      ptShow: d.pow != null, pt: d.pow != null ? d.pow + '/' + d.tou : '',
+      enter: function () { self.setState({ hover: { pid: pid, k: c.k, i: i } }); },
+      leave: function () { self.setState({ hover: null, last: { pid: pid, k: c.k } }); },
+      down: function (e) { cardDown(self, pid, i, e); }
+    };
+  });
+  var g = p.grav || [], ng = g.length, fan = st.fan && st.fan.pid === pid ? st.fan : null;
+  var lager = [];
+  for (var k = Math.min(ng - 1, 3); k >= 1; k--) lager.push({ cls: 'k' + k });
+  var geo = fanGeo(ng, speg, Math.max(240, r.w / ps - 190));
+  var fanCards = fan ? g.map(function (kk, i) {
+    var hov = fan.on && fan.hov === i;
+    return {
+      im: 'im-' + kk, cls: hov ? 'hov' : '', z: hov ? 60 : i + 1, tf: fan.on ? fanTf(geo(i), hov, speg) : 'none',
+      tr: 'transform .3s cubic-bezier(.2,.9,.3,1) ' + (i * 22) + 'ms',
+      enter: function () { fanHov(self, pid, i); }, leave: function () { fanCloseSoon(self); },
+      down: function (e) { fanDown(self, pid, i, e); }
+    };
+  }) : [];
+  var fakt = mine && fan && fan.on && fan.hov != null && fan.hov < ng, fg = fakt ? geo(fan.hov) : { dx: 0, dy: 0 };
+  var hallen = st.held && st.held.indexOf('me:') === 0 ? PL.me.board[+st.held.split(':')[1]] : null;
+  var namnH = hallen ? CARDS[hallen.k].name : '';
+  var col = mine ? '#e8b33a' : p.color;
+  return {
+    key: pid, x: px(r.x), y: px(r.y), w: px(r.w), h: px(r.h), z: o.z || 1, op: 1, pe: 'auto',
+    cls: (mine ? '' : 'las ') + (rot === 180 ? 'upp ' : '') + (panAktiv(self) ? 'panlage ' : '') + (st.panning === pid ? 'panorerar ' : '') + 'f-' + form,
+    shadow: 'inset 0 0 90px 20px #00000066, inset 0 0 0 ' + (o.valt ? '1.5px ' + (mine ? '#f0a52a99' : p.color) : '1px ' + (mine ? '#28313f' : p.color + '66')),
+    tf: 'translate(' + px(f.cx + v.px) + ',' + px(f.cy + v.py) + ') rotate(' + rot + 'deg) scale(' + (Math.round(s * 1000) / 1000) + ') translate(' + px(-f.bcx) + ',' + px(-f.bcy) + ')',
+    bodyOp: full ? 1 : 0, bodyPe: full ? 'auto' : 'none',
+    cards: cards, down: function (e) { matDown(self, pid, e); }, stop: stopp, enter: null, leave: null,
+    lassoShow: mine && !!st.lasso, lx: st.lasso && mine ? px(st.lasso.x) : '0px', ly: st.lasso && mine ? px(st.lasso.y) : '0px',
+    lw: st.lasso && mine ? px(st.lasso.w) : '0px', lh: st.lasso && mine ? px(st.lasso.h) : '0px',
+    hogCls: speg ? 'speg' : '', hogX: px(hogX), hogY: px(hogY), ps: Math.round(ps * 1000) / 1000,
+    gravKolCls: (mine && st.over === 'grav' ? 'over ' : '') + (fan && fan.on ? 'fanpa ' : '') + (st.bump === pid ? 'bump' : ''),
+    gravCls: ng ? '' : 'tom', lager: lager, gravHas: ng > 0, gravIm: ng ? 'im-' + g[0] : '', gravN: String(ng), bumpShow: st.bump === pid,
+    gravTitle: ng ? ng + (ng === 1 ? ' card' : ' cards') + ' in the graveyard — point at it to look through' : 'Cards that have been played end up here',
+    gravEnter: function () { fanOpen(self, pid); }, gravLeave: function () { fanCloseSoon(self); },
+    gravClick: function () { var ff = S(self).fan; if (ff && ff.pid === pid) self.setState({ fan: null }); else fanOpen(self, pid); },
+    fanShow: !!fan, fanCls: speg ? 'ned' : '', fanCards: fanCards, fanTxt: mine ? 'Drag one back out' : 'Point at one to read it',
+    faktShow: !!fakt, faktX: px(fg.dx - 30), faktY: px(fg.dy - 20 - 44),
+    onAter: function () { var ff = S(self).fan; if (ff && ff.hov != null) tillbaka(self, ff.hov); },
+    onExil: function () { var ff = S(self).fan; if (ff && ff.hov != null) exila(self, ff.hov); },
+    slappShow: mine && !!st.held && !!st.over,
+    slappTxt: st.over === 'bib' ? 'Let go — ' + namnH + ' goes back into your library' : 'Let go — ' + namnH + ' lands face up on top',
+    bibCls: mine && st.over === 'bib' ? 'over' : '', libN: String(p.lib),
+    bibTitle: mine ? 'My deck — ' + p.lib + ' cards not played yet. Drop a card here to put it back' : p.name + '’s library — ' + p.lib + ' cards',
+    exilShow: mine && p.exil.length > 0, exilN: String(mine ? p.exil.length : 0),
+    plateShow: !mine && full, plateCls: r.w < 380 ? 'smal' : '', plateClick: function () { valjAv(self, pid); },
+    name: mine ? 'You' : p.name, color: col, pips: (p.colors || []).map(function (c) { return { cls: 'pip-' + c }; }),
+    onTable: p.board.filter(function (c) { return !c.gone; }).length + ' on the table',
+    turnTxt: TURN_TXT[turn], turnClick: function (e) { if (e) e.stopPropagation(); vandNasta(self); },
+    chromeShow: full && r.w >= 420 && r.h >= 200, chromeCls: mine ? '' : 'br', mineTools: mine,
+    toolSel: toolOf(self) === 'valj' ? 'on' : '', toolPan: toolOf(self) === 'pan' ? 'on' : '',
+    zoomTxt: Math.round(s * 100) + '%' + (v.z === 1 && !v.px && !v.py ? ' fit' : ''), zoomCls: v.z === 1 && !v.px && !v.py ? '' : 'manuell',
+    onSel: function () { self.setState({ tool: 'valj' }); }, onPan: function () { self.setState({ tool: 'pan' }); },
+    onZin: function () { zoomAt(self, pid, 1.25); }, onZut: function () { zoomAt(self, pid, 0.8); },
+    onFit: function () { setVy(self, pid, { px: 0, py: 0, z: 1 }); },
+    onUntap: function () { var t = {}; PL.me.board.forEach(function (c, i) { t['me:' + i] = false; }); self.setState({ tap: t }); },
+    onTidy: function () { self.setState({ pos: {}, zz: {}, sel: [] }); setVy(self, 'me', { px: 0, py: 0, z: 1 }); },
+    stripShow: form === 'strip', stripName: mine ? 'Your table' : p.name, thumbs: p.board.filter(function (c) { return !c.gone; }).map(function (c) { return { cls: 'im-' + c.k + (c.t ? ' tappad' : '') }; }),
+    stripHint: mine ? 'Your cards' : '', stripKey: o.kbd, stripClick: function () { valjAv(self, pid); },
+    kolShow: form === 'kol', kolKey: o.kbd, kolClick: function () { valjAv(self, pid); }, kolTitle: p.name + '’s table big (' + o.kbd + ')',
+    gravNk: String(ng), libNk: String(p.lib)
+  };
+}
+
+/* Växeln: vilka som finns, vem som är vald, och stegen mellan lägena. */
+function valtOf(self, cfg) {
+  var s = S(self).valt; if (s) return s;
+  var v = self.props.view;
+  return cfg.ids.indexOf(v) >= 0 ? v : cfg.def;
+}
+function valjAv(self, v) {
+  var ch = { valt: v, fan: null };
+  if (v !== 'me' && v !== 'all') ch.sist = v;
+  self.setState(ch);
+}
+function nivaOf(v) { return v === 'me' ? 0 : v === 'all' ? 1 : 2; }
+/* Kantens läge i varje nivå: mina (motståndarna som listor), alla, en vald. */
+function nivaH(n) { return n === 0 ? STRIP3 : n === 1 ? (H3 - G3) / 2 : H3 - STRIP3 - G3; }
+function stegTill(self, cfg, n) {
+  var mitt = cfg.opps[Math.floor((cfg.opps.length - 1) / 2)];
+  valjAv(self, n === 0 ? 'me' : n === 1 ? 'all' : (S(self).sist || mitt));
+}
+function stegNiva(self, cfg, d) { stegTill(self, cfg, clamp(nivaOf(valtOf(self, cfg)) + d, 0, 2)); }
+function sidled(self, cfg, d) {
+  var v = valtOf(self, cfg), o = cfg.opps, i = o.indexOf(v);
+  if (i < 0) i = d > 0 ? -1 : o.length;
+  valjAv(self, o[(i + d + o.length) % o.length]);
+}
+/* Tangenterna: siffrorna är bara motståndarna, i den ordning de sitter
+   (1 Sara, 2 Erik, 3 Linus); M = mitt bord, A = alla. */
+function seatKnapp(cfg, id) { return id === 'me' ? 'M' : id === 'all' ? 'A' : String(cfg.opps.indexOf(id) + 1); }
+function seatKeys(self, cfg, e) {
+  var k = e.key, lower = k.toLowerCase(), n = +k;
+  if (lower === 'm') { valjAv(self, 'me'); return true; }
+  if (lower === 'a') { valjAv(self, 'all'); return true; }
+  if (n >= 1 && n <= cfg.opps.length) { valjAv(self, cfg.opps[n - 1]); return true; }
+  if (k === 'ArrowUp') { stegNiva(self, cfg, 1); return true; }
+  if (k === 'ArrowDown') { stegNiva(self, cfg, -1); return true; }
+  if (k === 'ArrowRight' || (k === 'Tab' && !e.shiftKey)) { sidled(self, cfg, 1); return true; }
+  if (k === 'ArrowLeft' || (k === 'Tab' && e.shiftKey)) { sidled(self, cfg, -1); return true; }
+  if (k === 'Escape' && S(self).fan) { self.setState({ fan: null }); return true; }
+  return false;
+}
+/* Kanten med spelarväxeln mitt på (som B1): dra var som helst på kanten —
+   också från en spelare i växeln — så följer kanten pekaren, och vid släpp
+   går den till närmaste nivå åt det håll man drog (14 px räcker). Ett klick
+   på kanten växlar mellan mitt bord och alla; ett klick på en spelare väljer
+   den (växelns onClick — ett drag som började på knappen sväljer klicket). */
+function kantDown(self, cfg, e, franSeg) {
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  if (!franSeg) e.preventDefault();
+  var n0 = nivaOf(valtOf(self, cfg)), h0 = nivaH(n0), y0 = e.clientY, sc = scaleOf(self), flyttad = false, live = h0;
+  function mv(ev) {
+    var dy = (ev.clientY - y0) / sc;
+    if (!flyttad && Math.abs(dy) <= 4) return;
+    flyttad = true;
+    live = clamp(h0 + dy, STRIP3, H3 - STRIP3 - G3);
+    self.setState({ kantLive: live, fan: null });
+  }
+  function up(ev) {
+    window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+    var dy = (ev.clientY - y0) / sc;
+    if (!flyttad) { if (!franSeg) valjAv(self, n0 === 0 ? 'all' : 'me'); return; }
+    if (franSeg) { self._nyssDrag = true; setTimeout(function () { self._nyssDrag = false; }, 0); }
+    self.setState({ kantLive: null });
+    if (Math.abs(dy) < 14) return;
+    var kand = [0, 1, 2].filter(function (n) { return dy > 0 ? n > n0 : n < n0; });
+    if (!kand.length) return;
+    stegTill(self, cfg, kand.reduce(function (a, b) { return Math.abs(nivaH(b) - live) < Math.abs(nivaH(a) - live) ? b : a; }));
+  }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+}
+function seatLayout(self, cfg) {
+  var st = S(self), v = valtOf(self, cfg), o = cfg.opps, n = o.length, niva = nivaOf(v);
+  self._valt = v;
+  var drar = st.kantLive != null, oppH = drar ? st.kantLive : nivaH(niva);
+  var mats = [], x = 0;
+  o.forEach(function (pid, i) {
+    var w = niva === 2 ? (pid === v ? W3 - (n - 1) * (MINW3 + GAP3) : MINW3) : (W3 - (n - 1) * GAP3) / n;
+    mats.push(mat3(self, pid, { x: x, y: 0, w: w, h: oppH }, 180, { valt: pid === v, kbd: seatKnapp(cfg, pid), z: 2 }));
+    x += w + GAP3;
+  });
+  var meY = oppH + G3;
+  mats.push(mat3(self, 'me', { x: 0, y: meY, w: W3, h: H3 - meY }, 0, { valt: v === 'me', kbd: 'M', z: 1 }));
+  var segs = cfg.ids.map(function (id) {
+    var p = PL[id], me = id === 'me', all = id === 'all', kbd = seatKnapp(cfg, id);
+    return {
+      label: me ? 'Me' : all ? cfg.allLabel : p.name, kbd: kbd, dot: me ? '#e8b33a' : all ? 'transparent' : p.color,
+      hasDot: !all, isAll4: all && n > 1, isAll2: all && n === 1, cls: (v === id ? 'on ' : '') + (me ? 'mine' : all ? 'alla' : 't-' + id),
+      title: me ? 'Your table big, the others as strips (M)'
+        : all ? (n > 1 ? 'Everyone at once (A)' : 'Both of you (A)') : p.name + '’s table big (' + kbd + ')',
+      go: function () { if (self._nyssDrag) { self._nyssDrag = false; return; } valjAv(self, id); },
+      down: function (e) { kantDown(self, cfg, e, true); }
+    };
+  });
+  return {
+    mats: mats, segs: segs, stop: stopp,
+    trans: drar ? 'none' : TRANS3,
+    transS: st.panning || st.held || drar ? 'none' : TRANS3_S,
+    kant: { y: px(oppH), cls: drar ? 'drar' : '', trans: drar ? 'none' : 'top .5s cubic-bezier(.22,.8,.26,1)' },
+    kantDown: function (e) { kantDown(self, cfg, e, false); }
+  };
+}
+
+/* B med stolar, fyra spelare: kolumnerna i den ordning de sitter — Sara
+   till vänster, Erik mitt emot, Linus till höger — och växeln i samma ordning. */
+var CFG4 = { opps: ['sara', 'erik', 'linus'], ids: ['me', 'sara', 'erik', 'linus', 'all'], def: 'all', allLabel: 'All' };
+class Component extends DCLogic {
+  componentDidMount() { var self = this; v2Mount(this, function (e) { return seatKeys(self, CFG4, e); }); }
+  componentWillUnmount() { v2Unmount(this); clearTimeout(this._fanT); clearTimeout(this._bumpT); clearTimeout(this._landT); }
+  renderVals() { return Object.assign(v2Common(this), seatLayout(this, CFG4)); }
+}
+
+</script>
+</body>
+</html>

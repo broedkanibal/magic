@@ -1,0 +1,9 @@
+<aside class="kolmark">
+  <div class="markrub"><span class="zonlbl" style="color:{{ ins.col }}">{{ ins.label }}</span><i class="zonlinje" style="background:{{ ins.line }}"></i><span class="markhint"><kbd>F</kbd> enlarge</span></div>
+  <div class="insbody">
+    <div class="insimg"><i class="insart {{ ins.im }}"></i></div>
+    <div class="insnamn"><b>{{ ins.name }}</b><span>{{ ins.type }}</span></div>
+    <div class="kwrad"><sc-for list="{{ ins.kw }}" as="k" hint-placeholder-count="2"><span class="kwtile">{{ k.label }}</span></sc-for></div>
+  </div>
+  @@IMGKAT@@
+</aside>

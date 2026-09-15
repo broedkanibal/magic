@@ -1,0 +1,136 @@
+/* ── Iteration 3: B med stolar ─────────────────────────────────────── */
+@keyframes cLand{0%{transform:translateY(-40px) scale(1.14);opacity:0}60%{transform:translateY(4px) scale(.98)}100%{transform:none;opacity:1}}
+@keyframes cBump{40%{transform:scale(1.18)}}
+@keyframes cRing{from{opacity:.7;transform:scale(.5)}to{opacity:0;transform:scale(1.5)}}
+@keyframes bibAndas{0%,100%{box-shadow:0 0 0 0 #6b8cff00}50%{box-shadow:0 0 0 7px #6b8cff26,0 0 26px 4px #6b8cff2e}}
+
+/* Spelarväxeln i headern: Me · spelare 1–3 · All. */
+.ssw{display:flex;align-items:center;gap:2px;height:30px;padding:2px;border-radius:7px;border:1px solid #28313f;background:#141922;flex:none}
+.sseg{display:inline-flex;align-items:center;gap:7px;height:24px;padding:0 5px 0 8px;border-radius:5px;border:1px solid transparent;
+  color:#93a1b6;font:550 12.5px var(--sans);white-space:nowrap;transition:background .15s,color .15s,border-color .15s}
+.sseg:hover{background:#1b2230;color:#e7ecf4}
+.sseg .dot{width:8px;height:8px}
+.sseg svg{flex:none;display:block}
+.sseg kbd{min-width:15px;padding:0 4px;font-size:10px;line-height:1.4;opacity:.8}
+.sseg.on{color:#e7ecf4}
+.sseg.on kbd{opacity:1}
+.sseg.on.mine{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
+.sseg.on.mine kbd{background:#f0a52a2b;border-color:#f0a52a55;color:#ffd98a}
+.sseg.on.t-erik{background:#6b8cff26;border-color:#6b8cff8c;color:#ccd7ff}
+.sseg.on.t-erik kbd{background:#6b8cff2b;border-color:#6b8cff55;color:#c3d0ff}
+.sseg.on.t-sara{background:#b782ff26;border-color:#b782ff8c;color:#e6d6ff}
+.sseg.on.t-sara kbd{background:#b782ff2b;border-color:#b782ff55;color:#e6d6ff}
+.sseg.on.t-linus{background:#57c78526;border-color:#57c7858c;color:#c6f0d6}
+.sseg.on.t-linus kbd{background:#57c7852b;border-color:#57c78555;color:#c6f0d6}
+.sseg.on.alla{background:#232c3c;border-color:#4a5a72}
+.sseg .sep{width:1px;height:14px;background:#28313f;margin:0 1px}
+
+/* Mattorna: innehållet tonar när en matta blir kolumn eller list. */
+.mat .plate,.mat .mattachrome,.mat .kol,.mat .strip,.hogar3{transition:opacity .3s}
+.mat .strip{inset:auto;left:0;right:0;top:0;height:46px}
+/* Smala listor: miniatyrerna ger vika först — namn, antal och tangent står kvar. */
+.mat .strip .thumbs{min-width:0;overflow:hidden;flex:0 1 auto}
+.mat .strip > b,.mat .strip .pips,.mat .strip .sub,.mat .strip .stripkey,.mat .strip .sep{flex:none}
+.mattachrome.br{top:auto;bottom:10px}
+.card.borta{display:none}
+.card.landar{animation:cLand .45s cubic-bezier(.2,.8,.3,1)}
+
+/* Motståndaren som smal kolumn medan någon annan är vald. */
+.kol{position:absolute;left:0;right:0;top:0;bottom:0;z-index:26;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 8px 12px;
+  cursor:pointer;font:550 12px var(--sans);color:#e7ecf4;text-align:center;overflow:hidden}
+.kol:hover{background:#ffffff08}
+.kolhd{display:flex;flex-direction:column;align-items:center;gap:6px}
+.kolhd b{font:650 12.5px var(--sans);white-space:nowrap}
+.kolsub{font:10.5px/1.3 var(--mono);color:#93a1b6}
+.kolthumbs{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:7px;justify-items:center;padding-top:4px}
+.kol .thumb{width:38px;height:53px;border-radius:3px}
+.kol .thumb.tappad{transform:rotate(90deg) scale(.72);margin:0}
+.kolhogar{display:flex;flex-direction:column;gap:5px;margin-top:6px;font:600 9px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:#93a1b6}
+.kolhogar span{display:flex;align-items:center;justify-content:center;gap:5px}
+.kolhogar i{width:6px;height:6px;border-radius:2px;flex:none}
+.kolhogar b{font:600 10.5px/1 var(--mono);color:#e7ecf4;letter-spacing:0}
+.kolkbd{margin-top:auto}
+
+/* Kanten mellan motståndarna och mitt bord: ett 56 px band med
+   spelarväxeln mitt på. Hela bandet går att dra, också från en spelare. */
+.kant3{position:absolute;left:0;width:1041px;height:56px;z-index:8;cursor:row-resize;display:grid;place-items:center;touch-action:none}
+.kant3 .edgeline{position:absolute;left:14px;right:14px;top:50%;height:1px;background:#1c2330;transition:background .12s}
+.kant3:hover .edgeline,.kant3.drar .edgeline{background:#39445a}
+.kant3 .ssw{position:relative;height:34px;padding:3px 3px 3px 4px;gap:2px;border-radius:9px;box-shadow:0 8px 20px -10px #000e;cursor:default;transition:border-color .12s}
+.kant3:hover .ssw,.kant3.drar .ssw{border-color:#39445a}
+.kant3 .sseg{height:26px;cursor:pointer;touch-action:none}
+.kant3 .egrip{display:grid;place-items:center;width:20px;height:26px;border-radius:5px;color:#4a5a72;cursor:row-resize}
+.kant3 .egrip:hover,.kant3.drar .egrip{color:#e7ecf4;background:#1b2230}
+
+/* Högarna som i appen (MES-125, "Mesa Table Piles" A1): graveyard och
+   library i två lika stora platser, kortet 92×128 och 8 px luft, raden
+   under säger namn och antal. Speglade (motståndaren mitt emot) står de
+   uppe till höger, graveyard längst ut. */
+.hogar3{position:absolute;z-index:22;display:flex;align-items:flex-start;gap:22px;transform-origin:0 0;
+  transition:left .5s cubic-bezier(.22,.8,.26,1),top .5s cubic-bezier(.22,.8,.26,1),transform .5s cubic-bezier(.22,.8,.26,1),opacity .3s}
+.hogar3.speg{flex-direction:row-reverse}
+.hogkol{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.hograd{display:flex;align-items:center;gap:6px;height:12px;flex:none;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#93a1b6;white-space:nowrap;transition:color .16s}
+.hograd > i{width:6px;height:6px;border-radius:2px;flex:none;background:#e8b33a}
+.hograd b{font:600 11px/1 var(--mono);color:#e7ecf4;letter-spacing:0;text-transform:none}
+.bibrad > i{background:#6b8cff}
+.hograd .gt-fan{display:none;font:500 10.5px/1 var(--sans);letter-spacing:0;text-transform:none}
+.grav3{position:relative;display:block;width:108px;height:144px;box-sizing:border-box;flex:none;padding:0;border-radius:6px;
+  border:1.5px dashed #e8b33a99;background:#0b0f1573;cursor:pointer;transition:border-color .16s,box-shadow .16s}
+.glag3{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px;border-radius:5px;transform-origin:50% 100%;
+  background:#1b1f26;border:1px solid #39414e;box-shadow:0 1px 2px #0009;transition:transform .22s cubic-bezier(.2,.8,.3,1),opacity .2s}
+.glag3.k1{transform:translate(1.5px,-1.5px)}
+.glag3.k2{transform:translate(3px,-3px)}
+.glag3.k3{transform:translate(4.5px,-4.5px)}
+.gtop3{position:absolute;z-index:2;left:6.5px;top:6.5px;width:92px;height:128px;border-radius:5px;background:#11161e center/cover no-repeat;
+  box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05);transition:filter .16s,opacity .2s}
+.gsten3{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:34px;height:34px;color:#e8b33a;opacity:.85;pointer-events:none;transition:opacity .18s}
+.gsten3 svg{width:100%;height:100%;display:block}
+.grav3:not(.tom) .gsten3{opacity:0}
+.gravkol.over .grav3{border-style:solid;border-color:#e8b33a;box-shadow:0 0 0 6px #e8b33a24,0 0 28px 6px #e8b33a33}
+.gravkol.over .glag3.k1{transform:translate(3px,-3px) rotate(2.5deg)}
+.gravkol.over .glag3.k2{transform:translate(6px,-6px) rotate(5deg)}
+.gravkol.over .glag3.k3{transform:translate(9px,-9px) rotate(7.5deg)}
+.gravkol.over .gtop3{filter:grayscale(.2) brightness(.9)}
+.gravkol.over .gsten3{opacity:1}
+.gravkol.over .gravrad{color:#ffd98a}
+.gravkol.fanpa .gtop3,.gravkol.fanpa .glag3{opacity:0}
+.gravkol.fanpa .gravrad{color:#ffd98a}
+.gravkol.fanpa .gt-n{display:none}
+.gravkol.fanpa .gt-fan{display:inline}
+.gravkol.bump .gtop3{animation:cLand .5s cubic-bezier(.2,.8,.3,1)}
+.gravkol.bump .gravrad b{display:inline-block;animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
+.gring3{position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;border-radius:50%;border:2px solid #e8c98a;
+  pointer-events:none;animation:cRing .55s ease-out forwards}
+.gravslapp3{position:absolute;z-index:95;left:0;top:174px;width:212px;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+  background:#1a1408f7;border:1px solid #8a6a22;box-shadow:0 12px 26px -10px #000}
+.gravslapp3 i{flex:none;width:6px;height:6px;border-radius:50%;background:#f0a52a}
+.gravslapp3 span{font:600 10.5px/1.35 var(--sans);color:#ffd98a}
+.bib3{position:relative;display:grid;place-items:center;width:108px;height:144px;box-sizing:border-box;flex:none;padding:0;border-radius:6px;
+  border:1.5px solid #6b8cff;background:#0b0f1540;cursor:pointer;transition:border-color .16s,box-shadow .16s,background .16s}
+.biblek3{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px}
+.biblek3 i{position:absolute;inset:0;border-radius:5px;background:#1b2230 center/cover no-repeat;box-shadow:0 3px 8px #0008}
+.biblek3 i:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
+.biblek3 i:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
+.bib3:hover,.bib3.over{border-color:#8fa8ff;box-shadow:0 0 0 6px #6b8cff26,0 0 28px 6px #6b8cff33}
+.mat.las .bib3,.mat.las .grav3{cursor:default}
+.mat.las .bib3:hover{border-color:#6b8cff;box-shadow:none}
+.exil3{align-self:flex-end;display:flex;flex-direction:column;align-items:center;gap:3px;margin:0 0 30px -12px;padding:6px 9px;border-radius:8px;
+  border:1px dashed #28313f;background:#0e131add;color:#93a1b6}
+.exil3 b{font:700 14px/1 var(--mono);color:#e7ecf4}
+.exil3 .zonlbl{font-size:8.5px;letter-spacing:.7px}
+/* Solfjädern: korten startar exakt på högen och fälls ut i en båge — uppåt
+   ur mina högar, nedåt ur de speglade. */
+.gfan3{position:absolute;z-index:88;left:8px;top:8px;width:92px;height:128px;pointer-events:none}
+.fk3{position:absolute;left:0;top:0;width:92px;height:128px;pointer-events:auto;touch-action:none;cursor:grab;transform-origin:50% 100%}
+.gfan3.ned .fk3{transform-origin:50% 0}
+.fk3 .art{position:absolute;inset:0;border-radius:6px;background:#11161e center/cover no-repeat;border:1px solid #39414e;box-shadow:0 8px 18px -8px #000c}
+.fk3.hov .art{border:2px solid #f0a52a;box-shadow:0 22px 40px -10px #000f}
+.mat.las .fk3{cursor:default}
+.fakt3{position:absolute;z-index:60;pointer-events:auto;display:flex;align-items:center;gap:5px;padding:5px;border-radius:9px;
+  background:#0b1017f7;border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000}
+.fakt3 button{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;white-space:nowrap;font:600 11.5px var(--sans)}
+.fakt3 .ater{background:#f0a52a;color:#20160a}
+.fakt3 .ater:hover{background:#ffb943}
+.fakt3 .exil{background:#1d1728;color:#dcc7ff;border:1px solid #5c4a80}
+.fakt3 .exil:hover{background:#271e37}

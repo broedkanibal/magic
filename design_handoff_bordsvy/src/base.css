@@ -1,0 +1,223 @@
+
+:root{
+  --bg:#0d1015; --bg2:#141922; --bg3:#1b2230; --bg4:#232c3c;
+  --line:#28313f; --txt:#e7ecf4; --dim:#93a1b6; --dim2:#66748a;
+  --acc:#f0a52a; --blue:#6b8cff; --red:#e2606a; --green:#57c785;
+  --zonlbl:#5c6b82; --zonlinje:#1c2330; --panelram2:#3d4a5f; --pa-acc:#ffd98a;
+  --rs:7px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0d1015;color:#e7ecf4;overflow:hidden;
+  font:14px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:#6b8cff} a:hover{color:#8ea6ff}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
+kbd{display:inline-block;min-width:17px;text-align:center;padding:1px 5px;border-radius:4px;background:#212a38;
+  border:1px solid #333e50;border-bottom-width:2px;font:11px/1.5 var(--mono);color:#b9c6d8}
+
+.app{position:relative;display:flex;flex-direction:column;width:1440px;height:900px;background:#0d1015;overflow:hidden;user-select:none}
+.topbar{display:flex;align-items:center;gap:10px;height:46px;flex:none;padding:0 12px;
+  background:linear-gradient(#161c26,#11161e);border-bottom:1px solid #28313f;position:relative;z-index:30}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;letter-spacing:.2px;padding-right:4px}
+.brand svg{display:block}
+.vr{width:1px;height:20px;background:#28313f;flex:none}
+.topspacer{flex:1;min-width:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;
+  border:1px solid #28313f;color:#93a1b6;font-size:12.5px;font-weight:500;white-space:nowrap}
+.btn:hover{background:#232c3c;color:#e7ecf4;border-color:#3b485c}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:#1b2230}
+.btn.sm{height:26px;padding:0 8px;font-size:11.5px}
+.spelknapp{display:inline-flex;align-items:center;gap:8px;flex:none;height:30px;padding:0 9px;border-radius:7px;
+  background:#f0a52a14;border:1px dashed #e8b33a66}
+.spelknapp .kod{font:700 12.5px var(--mono);letter-spacing:2px;color:#f0a52a}
+.spelknapp .delare{width:1px;height:14px;background:#e8b33a44;flex:none}
+.spelknapp .bjud{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#c9a45e;white-space:nowrap}
+.deckbtn{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 9px 0 8px;border-radius:7px;
+  background:#1b2230;border:1px solid #28313f;color:#e7ecf4;font:550 12.5px var(--sans);white-space:nowrap}
+.deckbtn:hover{background:#232c3c;border-color:#4a5a72}
+.deckbtn .cnt{font:11.5px/1 var(--mono);color:#93a1b6}
+.deckbtn .cnt b{color:#e7ecf4;font-weight:600}
+.deckbtn .cv,.campill .cv,.campill .ikon{display:inline-flex;flex:none;opacity:.75}
+.campill{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 9px 0 10px;border-radius:7px;
+  font:550 12.5px var(--sans);white-space:nowrap;background:#0f2016;border:1px solid #2f6b47;color:#8fe0b0}
+.campill .led{width:7px;height:7px;border-radius:50%;background:#57c785;box-shadow:0 0 0 3px #57c78526}
+
+.hints{flex:none;display:flex;align-items:center;gap:14px;height:30px;padding:0 12px;background:#0b0f15;
+  border-top:1px solid #28313f;font-size:11.5px;color:#66748a;white-space:nowrap;overflow:hidden}
+.hints span{display:flex;align-items:center;gap:5px}
+.hints .sep{width:1px;height:13px;background:#28313f}
+.hints .ny{color:#c8d2e0}
+.hints .ny kbd{border-color:#f0a52a66;color:#ffd98a;background:#f0a52a1a}
+
+.main{position:relative;flex:1;min-height:0}
+.area{position:absolute;left:10px;top:10px;width:1041px;height:804px}
+
+/* Mattan — samma yta och vinjett som appen. */
+.mat{position:absolute;overflow:hidden;border-radius:12px;
+  background:radial-gradient(1250px 620px at 46% 26%,#18232f,#0a0f14 72%)}
+.mat.upp{background:radial-gradient(1250px 620px at 54% 74%,#18232f,#0a0f14 72%)}
+.mat .vinj{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:25}
+.surface{position:absolute;left:0;top:0;width:1px;height:1px;transform-origin:0 0}
+
+.card{position:absolute;width:178px;height:248px;border-radius:10px;background:#1a212c;cursor:grab;
+  box-shadow:0 4px 12px -3px #000c;transition:box-shadow .13s}
+.card .art{position:absolute;inset:0;border-radius:inherit;background:#11161e center/cover no-repeat}
+.card.tappad{transform:rotate(90deg)}
+.card.tappad .art{filter:brightness(.86) saturate(.94)}
+.card:hover{box-shadow:0 14px 26px -8px #000e}
+.card:hover::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:4;
+  border:2px solid #6b8cff;box-shadow:inset 0 0 0 4px #6b8cff1f;pointer-events:none}
+.mat.las .card{cursor:default}
+.card .bar{position:absolute;left:0;right:0;bottom:0;height:44px;border-radius:0 0 10px 10px;background:linear-gradient(#0000,#000b);pointer-events:none}
+.card.land .bar{display:none}
+.kwkort{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:3px;align-items:flex-start;pointer-events:none;z-index:3}
+.kwkort b{padding:2px 6px;font:700 9px/1.3 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:#e7ecf4;
+  background:#0b1017e8;border:1px solid #3a4658;border-radius:4px;white-space:nowrap}
+.pt{position:absolute;right:6px;bottom:6px;z-index:3;pointer-events:none;white-space:nowrap;display:flex;align-items:center;
+  padding:2px 7px;border-radius:6px;background:#0b1017ee;border:1px solid #4a5a72;font:700 13.5px/1.25 var(--mono);color:#f4f7fc}
+.card.tappad .kwkort{left:auto;right:6px;bottom:6px;transform-origin:100% 100%;transform:rotate(-90deg) translateX(100%)}
+.card.tappad .pt{right:6px;bottom:auto;top:6px;transform-origin:100% 0;transform:rotate(-90deg) translateY(-100%)}
+
+/* Mattans chrome — kopia av renderChrome(). */
+.mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;gap:6px}
+.zoomchip{display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid #28313f;background:#1b2230}
+.zoomchip button{height:28px;color:#93a1b6}
+.zoomchip>button:first-child{border-radius:6px 0 0 6px}
+.zoomchip>button:last-child{border-radius:0 6px 6px 0}
+.zoomchip .zsteg{width:26px;display:grid;place-items:center;font:700 15px/1 var(--sans)}
+.zoomchip .zlage{width:28px;display:grid;place-items:center}
+.zoomchip .zlage+.zlage{border-left:1px solid #28313f}
+.zoomchip .zlage.on{color:#57c785;background:#ffffff12}
+.zoomchip .ztxt{display:grid;place-items:center;height:28px;padding:0 9px;border-left:1px solid #28313f;border-right:1px solid #28313f;
+  font:11.5px/1 var(--mono);color:#57c785;min-width:64px}
+.zoomchip button:hover{background:#232c3c;color:#e7ecf4}
+
+/* Högarna — full storlek som i appen, eller små när mattan är halv. */
+.piles{position:absolute;z-index:22;display:flex;align-items:flex-start;gap:14px;pointer-events:none}
+.piles.bl{left:22px;bottom:22px}
+.piles.tr{right:22px;top:16px;flex-direction:row-reverse}
+.pile{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.zonlbl{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;white-space:nowrap}
+.bib{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:72px;aspect-ratio:488/680;border-radius:6px;
+  border:1px solid #39414e;background:linear-gradient(160deg,#1f2837,#141a24);
+  box-shadow:4px -4px 0 -1px #1b1f26,4px -4px 0 0 #39414e,8px -8px 0 -1px #1b1f26,8px -8px 0 0 #2d3441}
+.bib b{font:700 18px/1 var(--mono)}
+.bib .bibtxt{font:10px var(--mono);color:#66748a}
+.grav{position:relative;width:104px;aspect-ratio:488/680;border-radius:7px}
+.glager{position:absolute;inset:0;border-radius:6px;background:#1b1f26;border:1px solid #39414e;transform-origin:50% 100%}
+.glager.k1{transform:translate(5px,-5px) rotate(1.5deg)}
+.gplats{position:absolute;inset:0;border-radius:6px;border:1.5px dashed #ffffff14}
+.gtop{position:absolute;inset:0;z-index:2;border-radius:6px;background:#11161e center/cover no-repeat;
+  box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05)}
+.gravsten{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;color:#e6e1d6;opacity:.32}
+.gravsten svg{width:100%;height:100%;display:block}
+.gravtxt{font:10.5px var(--mono);color:#66748a}
+.piles.mini{gap:10px}
+.piles.mini .pile{gap:5px}
+.piles.mini .bib{width:44px;gap:2px;box-shadow:3px -3px 0 -1px #1b1f26,3px -3px 0 0 #39414e}
+.piles.mini .bib b{font-size:13px}
+.piles.mini .bib .bibtxt{font-size:8.5px}
+.piles.mini .grav{width:44px}
+.piles.mini .gravsten{width:22px;height:22px}
+.piles.mini .gravtxt{display:none}
+.piles.mini .zonlbl{font-size:8px;letter-spacing:.7px}
+
+/* Spelarskylten på en annans matta: pricken, namnet, lekens färger. */
+.plate{position:absolute;z-index:24;display:flex;align-items:center;gap:7px;height:26px;padding:0 9px 0 8px;border-radius:7px;
+  background:#0b1017e6;border:1px solid #39445a;font:550 12px var(--sans);color:#e7ecf4;white-space:nowrap;box-shadow:0 6px 16px -8px #000c}
+.plate.tl{left:12px;top:12px}
+.plate .dot,.dot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:0 0 0 2px #0004 inset;display:inline-block}
+.plate .sub{font:11px/1 var(--mono);color:#93a1b6}
+.plate .sep{width:1px;height:12px;background:#39445a}
+.pips{display:inline-flex;gap:2px;flex:none}
+.pip{display:inline-block;width:12px;height:12px;background:center/contain no-repeat}
+.lasband{position:absolute;z-index:24;display:flex;align-items:center;gap:7px;height:26px;padding:0 10px;border-radius:7px;
+  font:11.5px/1 var(--sans);white-space:nowrap}
+
+/* Inspektorn — "Pointing at". */
+.kolmark{position:absolute;left:1061px;top:10px;width:369px;height:804px;display:flex;flex-direction:column;gap:8px}
+.markrub{display:flex;align-items:center;gap:8px;height:14px;flex:none}
+.markrub .zonlinje{flex:1;height:1px}
+.markhint{font:9.5px/1 var(--sans);color:#41506a;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.markhint kbd{font:9px/1 var(--mono);background:#0006;border:1px solid #28313f;border-radius:3px;padding:2px 4px;color:#66748a;min-width:0}
+.insbody{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.insimg{flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center}
+.insart{display:block;width:100%;max-height:100%;aspect-ratio:488/680;border-radius:3.5%/2.5%;background:#11161e center/cover no-repeat;
+  box-shadow:0 10px 26px -8px #000e}
+.insnamn{display:flex;flex-direction:column;gap:2px;flex:none}
+.insnamn b{font:650 14px/1.25 var(--sans);color:#e7ecf4}
+.insnamn span{font:11px/1.3 var(--sans);color:#66748a}
+.kwrad{display:flex;flex-wrap:wrap;gap:4px;flex:none;min-height:18px}
+.kwtile{padding:2px 6px;border-radius:4px;background:#0b1017;border:1px solid #28313f;font:700 9px/1.3 var(--sans);letter-spacing:.7px;
+  text-transform:uppercase;color:#93a1b6;white-space:nowrap}
+
+.thumb{display:inline-block;width:22px;height:31px;border-radius:3px;background:#11161e center/cover no-repeat;box-shadow:0 0 0 1px #0008;flex:none}
+.thumb.tappad{transform:rotate(90deg);margin:0 5px}
+
+/* Iteration 2: vända kort, drag, lasso, Select/Pan. */
+.card.vand{transform:rotate(180deg)}
+.card.vand.tappad{transform:rotate(270deg)}
+.card.held{box-shadow:0 26px 40px -12px #000f;cursor:grabbing}
+.card.vald::after{content:'';position:absolute;inset:-4px;border-radius:13px;border:2px solid #f0a52a;box-shadow:0 0 0 4px #f0a52a26;pointer-events:none;z-index:5}
+.mat.panlage,.mat.panlage *{cursor:grab!important}
+.mat.panorerar,.mat.panorerar *{cursor:grabbing!important}
+.mat.panlage .card:hover::before{border-color:#6b8cff66}
+.mat .mattachrome *,.mat .plate *,.mat .lasband *,.mat .strip *{cursor:pointer!important}
+.lassoruta{position:absolute;z-index:30;border:1px solid #f0a52a;border-radius:3px;background:#f0a52a1f;pointer-events:none}
+.plate{padding:0 4px 0 8px;gap:6px}
+.plate .plnamn{display:flex;align-items:center;gap:7px;height:24px;color:#e7ecf4;font:550 12px var(--sans);white-space:nowrap}
+.turnbtn{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 4px 0 6px;border-radius:5px;color:#93a1b6;font:500 11px var(--sans);white-space:nowrap}
+.turnbtn:hover{background:#232c3c;color:#e7ecf4}
+.turnbtn kbd{font-size:9.5px;min-width:14px;padding:0 3px;line-height:1.3}
+.plate.smal .sub,.plate.smal .plnamn .sep,.plate.smal .turnbtn .tt{display:none}
+.lasband .turnbtn{margin-left:4px;color:inherit}
+.zoomchip .ztxt.manuell{color:#ffd98a}
+.zoomchip button.ztxt{cursor:pointer}
+.strip{position:absolute;inset:0;z-index:26;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;cursor:pointer;
+  font:550 12.5px var(--sans);color:#e7ecf4;white-space:nowrap;overflow:hidden;transition:background .12s}
+.strip:hover{background:#ffffff08}
+.strip .thumbs{display:flex;align-items:center;gap:4px}
+.strip .sub{font:11px/1 var(--mono);color:#93a1b6}
+.strip .sep{width:1px;height:14px;background:#28313f;flex:none}
+.strip .grow{flex:1}
+.strip .stripkey{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#66748a;font-weight:500}
+.strip .swap{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:6px;border:1px solid #28313f;background:#1b2230;color:#93a1b6;font-size:11.5px}
+.strip .swap:hover{color:#e7ecf4;border-color:#4a5a72}
+.mat.peek{box-shadow:0 26px 50px -12px #000f}
+/* Kanten (B) — gemensam grund för varianterna. */
+.edge{position:absolute;left:0;width:1041px;z-index:8;cursor:row-resize;display:grid;place-items:center;touch-action:none}
+.edgeline{position:absolute;left:14px;right:14px;top:50%;height:1px;background:#1c2330;transition:background .12s}
+.edge:hover .edgeline,.edge.drar .edgeline{background:#39445a}
+.edgelbl{position:absolute;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:6px;padding:0 8px;background:#0d1015;
+  font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;pointer-events:none}
+.edgelbl.l{left:22px}
+.edgelbl.r{right:22px}
+.grip{position:relative;display:flex;align-items:center;gap:8px;height:22px;padding:0 10px;border-radius:11px;background:#141922;
+  border:1px solid #28313f;color:#66748a;box-shadow:0 4px 12px -6px #000c;transition:border-color .12s,color .12s}
+.edge:hover .grip,.edge.drar .grip{border-color:#4a5a72;color:#e7ecf4}
+.grip .dets{display:flex;flex-direction:column;gap:2px}
+.det{display:block;width:5px;height:5px;border-radius:50%;background:#39445a}
+.det.on{background:#f0a52a}
+
+.esw{position:relative;display:flex;align-items:center;gap:2px;height:34px;padding:3px 3px 3px 4px;border-radius:9px;border:1px solid #28313f;
+  background:#141922;box-shadow:0 8px 20px -10px #000e;cursor:default}
+.esw .egrip{display:grid;place-items:center;width:20px;height:26px;border-radius:5px;color:#4a5a72;cursor:row-resize}
+.esw .egrip:hover{color:#e7ecf4;background:#1b2230}
+.eseg{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:6px;border:1px solid transparent;
+  color:#93a1b6;font:550 12px var(--sans);white-space:nowrap;transition:background .12s,color .12s,border-color .12s}
+.eseg:hover{background:#1b2230;color:#e7ecf4}
+.eseg svg{flex:none;display:block}
+.eseg.on{background:#232c3c;border-color:#4a5a72;color:#e7ecf4}
+.eseg.on.mine{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
+.eseg.on.t-them{background:#6b8cff1c;border-color:#6b8cff66;color:#dfe6ff}
+.eseg .dots{display:inline-flex;gap:3px}
+.mat.fokus .vinj{box-shadow:inset 0 0 90px 20px #00000066, inset 0 0 0 1.5px var(--fk, #6b8cff)}
+.pip-W{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Ccircle%20fill%3D'%23F8F6D8'%20cx%3D'50'%20cy%3D'50'%20r%3D'50'%2F%3E%3Cpath%20d%3D'M97.691%2057.064c-6.561-3.699-10.768-5.551-12.617-5.551-1.344%200-2.395%201.032-3.154%203.092-.758%202.063-2.27%203.09-4.541%203.09-.926%200-2.818-.336-5.678-1.008-1.598%202.44-2.398%203.996-2.398%204.668%200%20.926.689%202.016%202.064%203.281%201.375%201.262%202.535%201.891%203.482%201.891.602%200%201.416-.125%202.449-.379%201.031-.25%201.721-.377%202.064-.377%201.033%200%201.547%201.893%201.547%205.678%200%203.617-.84%209.168-2.523%2016.654-2.188-8.58-4.5-12.871-6.938-12.871-.338%200-1.031.252-2.082.76-1.053.502-1.83.754-2.334.754-2.438%200-4.625-2.227-6.561-6.688-3.869.59-5.805%202.567-5.805%205.934%200%201.684.777%203.027%202.336%204.035%201.553%201.008%202.334%201.727%202.334%202.145%200%202.273-3.324%205.764-9.969%2010.473-3.531%202.523-5.973%204.289-7.316%205.297%201.174-1.512%202.352-3.487%203.533-5.928%201.344-2.775%202.018-4.92%202.018-6.436%200-.84-.967-2.02-2.902-3.533-1.936-1.512-2.9-3.111-2.9-4.793%200-1.428.502-3.193%201.512-5.299-1.094-1.262-2.395-1.895-3.91-1.895-3.365%200-5.045%201.096-5.045%203.28v3.406c.082%202.776-2.02%204.164-6.311%204.164-3.279%200-8.791-.759-16.527-2.271%208.748-2.188%2013.121-4.711%2013.121-7.57%200%20.336-.168-.672-.504-3.028-.338-2.604%201.514-4.961%205.551-7.063-.758-3.867-2.773-5.806-6.057-5.806-.504%200-1.432.884-2.775%202.647-1.346%201.771-2.607%202.652-3.783%202.652-2.02%200-4.629-2.186-7.822-6.563-1.516-2.184-3.83-5.424-6.941-9.715%201.934%201.012%203.869%202.02%205.805%203.031%202.523%201.176%204.541%201.766%206.057%201.766%201.178%200%202.334-1.031%203.469-3.092%201.135-2.061%202.629-3.092%204.479-3.092.254%200%201.936.504%205.047%201.516%201.596-2.439%202.398-4.248%202.398-5.426%200-1.01-.611-2.166-1.83-3.471-1.221-1.303-2.334-1.955-3.344-1.955-.422%200-1.072.125-1.957.379-.881.252-1.533.379-1.953.379-1.516%200-2.273-1.893-2.273-5.678%200-1.01.969-6.77%202.904-17.285-.086%201.26.461%203.617%201.639%207.064%201.43%204.207%203.111%206.309%205.049%206.309.334%200%201.008-.252%202.018-.758%201.008-.504%201.807-.754%202.396-.754%201.934%200%203.531%201.094%204.795%203.277l1.893%203.406c1.766%200%203.238-.629%204.414-1.891%201.178-1.262%201.768-2.777%201.768-4.543%200-1.85-.777-3.26-2.334-4.227-1.559-.967-2.336-1.703-2.336-2.207%200-1.768%202.777-4.752%208.328-8.958%204.457-3.363%207.359-5.34%208.707-5.93-3.617%204.879-5.426%208.451-5.426%2010.724%200%201.178.713%202.441%202.145%203.785%201.766%201.598%202.775%202.734%203.027%203.406.84%201.938.756%204.586-.252%207.949%202.271%201.6%203.994%202.396%205.174%202.396%202.436%200%203.658-1.264%203.658-3.785%200-.252-.105-1.051-.314-2.396-.213-1.344-.273-2.102-.191-2.271.336-1.178%202.65-1.768%206.939-1.768%202.691%200%208.283.758%2016.781%202.273-1.852.504-4.627%201.26-8.326%202.27-3.365%201.01-5.049%202.145-5.049%203.406%200%20.59.209%201.598.631%203.027.42%201.432.633%202.48.633%203.156%200%201.176-.758%202.27-2.271%203.277l-4.291%203.031c1.01%201.852%201.682%202.945%202.02%203.279.84%201.008%201.975%201.514%203.406%201.514%201.01%200%201.934-.883%202.775-2.648.84-1.768%202.188-2.65%204.037-2.65%202.27%200%204.838%202.104%207.697%206.311%201.593%202.36%204.075%205.933%207.44%2010.727zm-28.007-7.316c0-5.381-1.979-10.051-5.932-14.006-3.953-3.953-8.621-5.93-14.004-5.93-5.469%200-10.18%201.957-14.131%205.869-3.953%203.91-5.973%208.6-6.055%2014.066-.086%205.383%201.912%2010.03%205.992%2013.938%204.08%203.912%208.811%205.869%2014.193%205.869%205.719%200%2010.492-1.873%2014.318-5.615%203.83-3.74%205.701-8.47%205.619-14.191zm-1.893%200c0%205.131-1.725%209.381-5.174%2012.74-3.451%203.367-7.74%205.049-12.869%205.049-4.963%200-9.211-1.723-12.742-5.174-3.531-3.445-5.299-7.652-5.299-12.615%200-4.877%201.785-9.064%205.359-12.553%203.578-3.49%207.803-5.238%2012.682-5.238%204.877%200%209.104%201.766%2012.68%205.301%203.574%203.533%205.363%207.695%205.363%2012.49z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-U{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Ccircle%20fill%3D'%23C1D7E9'%20cx%3D'50'%20cy%3D'50'%20r%3D'50'%2F%3E%3Cpath%20d%3D'M67.488%2083.719c-4.787%204.871-10.684%207.307-17.688%207.307-7.861%200-14.098-2.69-18.711-8.073-4.359-5.127-6.537-11.662-6.537-19.606%200-8.543%203.717-18.286%2011.15-29.224%206.064-8.969%2013.199-16.83%2021.402-23.58-1.197%205.469-1.793%209.355-1.793%2011.662%200%205.299%201.664%2010.467%204.996%2015.508%204.102%205.98%207.219%2010.426%209.357%2013.328%203.332%205.043%204.998%209.955%204.998%2014.737.002%207.093-2.391%2013.074-7.174%2017.941zm-.129-27.362c-1.281-2.861-2.777-4.762-4.486-5.703.256.514.385%201.24.385%202.18%200%201.795-.512%204.357-1.539%207.689l-1.664%205.127c0%202.99%201.492%204.486%204.484%204.486%203.16%200%204.742-2.095%204.742-6.281%200-2.134-.64-4.632-1.922-7.498z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-B{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Ccircle%20fill%3D%22%23CAC5C0%22%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2250%22%2F%3E%3Cpath%20d%3D%22M90.695%2048.14c0%205.463-2.008%209.189-6.02%2011.175-1.172.58-4.85%201.365-11.037%202.36-4.012.663-6.018%202.194-6.018%204.592v10.058c0%20.418.125%201.698.375%203.85l.377%203.975c0%201.242-.293%203.273-.879%206.085-1.588.33-3.428.702-5.518%201.12-.67-2.486-1.004-4.182-1.004-5.095%200-.411.105-1.034.313-1.863.207-.826.316-1.447.316-1.864%200-.575-.52-2.191-1.559-4.839h-1.945c-.258.414-.344.952-.26%201.613.334%201.408.459%202.607.377%203.6a282.655%20282.655%200%200%201-5.895%203.974c-.586-.164-.793-.247-.629-.247v-8.816c-.164-.412-.584-.575-1.254-.497h-1.504l-1.504%2011.67c-1.174.083-2.592.083-4.264%200-.588-2.73-1.631-6.785-3.135-12.167h-1.004c-.922%202.9-1.422%204.474-1.506%204.722%200%20.33.104.97.314%201.922.207.953.313%201.593.313%201.924%200%20.248-.084.868-.25%201.862l-.377%202.98a.862.862%200%200%201-.627.248c-2.508%200-4.182-.62-5.016-1.86-.836-1.244-1.172-2.982-1.004-5.219l1.004-14.898c0-.25.082-.58.25-.994.164-.414.25-.704.25-.868%200-.664-.711-1.989-2.131-3.975-.248-.08-1.549-.373-3.887-.87-1.424-.33-4.225-.909-8.402-1.739-5.771-1.073-8.654-5.668-8.654-13.782%200-12.086%205.018-22.143%2015.051-30.173.414%202.236%201.127%205.214%202.129%208.94.754.168%202.385.54%204.891%201.117.504.167%203.053%201.078%207.652%202.733-2.344-1.408-5.393-3.682-9.156-6.83-1.422-1.655-2.133-4.426-2.133-8.316%200-.911%201.59-1.989%204.768-3.232%202.84-1.159%204.975-1.818%206.396-1.986%204.514-.577%207.984-.87%2010.41-.87%2010.449%200%2018.891%202.65%2025.328%207.949-2.088%202.402-5.684%204.964-10.783%207.696%202.008.083%204.934-.7%208.779-2.36%203.844-1.653%205.475-2.483%204.891-2.483.668%200%202.008%201.327%204.014%203.975%201.504%201.986%202.715%203.769%203.637%205.337%202.674%204.721%204.471%209.81%205.393%2015.274%200%201.906.041%203.272.125%204.098v.994h.002Zm-48.031%202.235c0-3.558-1.568-6.932-4.703-10.122-3.137-3.187-6.502-4.778-10.096-4.778-3.178%200-5.977%201.335-8.402%204-2.426%202.666-3.637%205.625-3.637%208.874%200%202.83%201.379%204.666%204.139%205.498%201.756.5%204.219.793%207.398.874h6.898c5.598.083%208.403-1.366%208.403-4.346Zm13.668%2015.4v-3.851a120.953%20120.953%200%200%201-1.754-3.354c-.502-1.657-1.422-3.974-2.76-6.955l-1.381%2014.529c0%201.16-.25%201.738-.752%201.738-.334%200-.584-.081-.752-.245-.586-8.776-.879-12.584-.879-11.427v-4.344c-.168-.251-.375-.375-.625-.375-2.844%202.901-4.264%207.576-4.264%2014.032%200%203.56.33%205.753%201.002%206.582.67-.164%201.422-.455%202.258-.868.334-.167%201.295-.25%202.887-.25%201.584%200%203.51.497%205.766%201.49.836%200%201.254-2.234%201.254-6.703Zm28.344-17.303c0-3.333-1.254-6.312-3.762-8.935-2.51-2.622-5.395-3.936-8.652-3.936-3.512%200-6.795%201.591-9.846%204.778-3.053%203.187-4.578%206.519-4.578%209.996%200%202.9%201.42%204.346%204.264%204.346h14.422c5.433-.081%208.152-2.165%208.152-6.249Z%22%20fill%3D%22%230D0F0F%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-R{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Ccircle%20fill%3D'%23E49977'%20cx%3D'50'%20cy%3D'50'%20r%3D'50'%2F%3E%3Cpath%20d%3D'M91.965%2066.617c-3.736%208.912-11.16%2013.367-22.275%2013.367-2.037%200-4.246.254-6.621.762-3.564.764-5.346%201.828-5.346%203.186%200%20.424.295.91.891%201.463.592.553%201.104.826%201.527.826-2.123%200-.68.064%204.326.191%205.008.127%208.148.191%209.422.191-7.383%204.326-19.732%206.319-37.043%205.981-5.688-.084-10.566-2.588-14.639-7.51-3.992-4.669-5.984-9.888-5.984-15.658%200-6.108%202.057-11.308%206.176-15.595%204.113-4.282%209.229-6.427%2015.338-6.427%201.357%200%203.16.297%205.41.891%202.248.594%203.756.891%204.518.891%203.139%200%207.045-1.293%2011.713-3.883%204.666-2.588%206.875-3.883%206.621-3.883-.85%208.912-3.82%2014.896-8.914%2017.948-3.648%202.123-5.473%204.201-5.473%206.236%200%201.273.764%202.293%202.291%203.057%201.188.595%202.502.892%203.945.892%202.207%200%204.371-1.356%206.494-4.071%202.119-2.718%203.055-5.177%202.801-7.386-.254-2.545-.084-5.603.51-9.164.168-1.02.783-2.27%201.844-3.754%201.061-1.486%202.016-2.398%202.865-2.738%200%20.762-.275%202.037-.828%203.818-.553%201.781-.826%203.1-.826%203.947%200%201.867.508%203.309%201.527%204.326%201.525-.592%202.883-2.502%204.074-5.729%201.016-2.459%201.609-4.836%201.781-7.127-3.566-.17-6.982-1.781-10.248-4.838-3.268-3.057-4.9-6.365-4.9-9.928%200-.594.082-1.188.256-1.783.508.764%201.271%201.953%202.289%203.564%201.443%202.121%202.547%203.182%203.313%203.182%201.016%200%201.525-1.061%201.525-3.182%200-2.715-.723-5.176-2.164-7.383-1.613-2.631-3.693-3.947-6.238-3.947-1.189%200-2.971.637-5.344%201.91-2.379%201.271-4.543%201.91-6.492%201.91-.596%200-3.229-.766-7.895-2.293%208.23-1.355%2012.348-2.586%2012.348-3.691%200-2.885-5.645-4.838-16.93-5.855-1.105-.084-3.141-.254-6.111-.51.338-.424%202.758-.891%207.258-1.4%203.818-.422%206.492-.637%208.018-.637%2020.197%200%2033.012%209.805%2038.443%2029.408.934-.773%201.402-2.066%201.402-3.871%200-2.324-.68-5.25-2.037-8.777-.512-1.375-1.318-3.441-2.42-6.193%206.957%208.867%2010.439%2017.27%2010.439%2025.199%200%204.178-.979%207.973-2.93%2011.381-1.27%202.303-3.65%205.244-7.127%208.826-3.48%203.58-5.857%206.352-7.131%208.313%204.668-1.271%207.725-2.248%209.168-2.928%203.223-1.44%206.15-3.606%208.783-6.492%200%201.106-.467%202.762-1.4%204.967zm-55.502-50.025c0%201.525-.85%202.502-2.545%202.926l-3.311.51c-1.189.594-2.928%202.928-5.219%207-.256-1.271-.637-3.053-1.146-5.346-.764.086-2.035.764-3.818%202.037-.764.594-1.996%201.484-3.693%202.672.512-3.055%202.207-6.148%205.094-9.293%203.055-3.477%206.025-5.217%208.91-5.217%203.818%200%205.728%201.572%205.728%204.711zm22.15%2011.709c0%201.443-.785%202.654-2.355%203.629-1.57.977-3.119%201.465-4.646%201.465-2.037%200-3.863-1.146-5.473-3.438-1.955-2.801-3.947-4.625-5.984-5.477.424-.422.934-.635%201.529-.635.764%200%202.055.594%203.881%201.781%201.824%201.189%202.99%201.783%203.502%201.783.424%200%201.123-.594%202.1-1.783.975-1.188%202.057-1.781%203.246-1.781%202.8.001%204.2%201.487%204.2%204.456z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+.pip-G{background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20100%20100'%3E%3Cg%20fill%3D'none'%3E%3Cpath%20d%3D'M100%2049.998c0%2027.615-22.385%2050.002-50.002%2050.002-27.613%200-49.998-22.387-49.998-50.002%200-27.613%2022.385-49.998%2049.998-49.998%2027.617%200%2050.002%2022.385%2050.002%2049.998z'%20id%3D'Shape'%20fill%3D'%23A3C095'%2F%3E%3Cpath%20d%3D'M93.762%2056.225c0%201.668-.645%203.164-1.936%204.498-1.289%201.332-2.77%201.998-4.436%201.998-2.662%200-4.623-1.25-5.869-3.748l-5.871-.25c-1.252%200-3.709.543-7.371%201.625-3.914%201.082-6.164%201.957-6.746%202.623-.916.998-1.664%203.332-2.248%206.996-.502%202.998-.748%205.205-.748%206.621%200%202.246.352%203.893%201.061%204.934.709%201.041%202.166%201.916%204.371%202.623%202.205.707%203.561%201.104%204.061%201.187.332%200%20.873-.041%201.625-.125h1.498c1.08%200%202.205.17%203.373.5%201.666.5%202.375%201.166%202.125%202-1.168-.166-3.207.084-6.121.75l3.496%201.748c0%201-1.416%201.498-4.246%201.498-.752%200-1.771-.166-3.063-.498-1.291-.336-2.145-.5-2.559-.5h-1.625c-.082.832-.334%202.08-.75%203.746-1.418-.084-3.08-.918-4.996-2.498-1.918-1.58-3.123-2.373-3.621-2.373-.502%200-1.211.793-2.125%202.373-.918%201.58-1.375%202.664-1.375%203.248-1.082-.584-1.996-1.668-2.75-3.248-.332-1.084-.707-2.166-1.121-3.248-.832.084-2.375%201.834-4.621%205.248h-.627c-.166-.252-.795-2-1.873-5.248-2.582-.832-4.996-1.248-7.246-1.248-1.082%200-2.748.25-4.996.748l-3.496-.248c.498-.5%201.955-1.457%204.371-2.873%202.83-1.666%204.996-2.5%206.496-2.5.246%200%20.578.043%201%20.125.414.086.75.125%201%20.125.578%200%201.518-.312%202.809-.938%201.291-.623%202.039-1.186%202.246-1.684.211-.504.316-1.793.316-3.875%200-4.746-1.25-8.285-3.75-10.617-2.168-2.082-5.746-3.58-10.744-4.498-1.332%204.746-5.08%207.123-11.24%207.123-2%200-3.998-1.207-5.996-3.623-1.996-2.416-2.996-4.623-2.996-6.621%200-3.082%201.287-5.621%203.869-7.623-2.08-2.162-3.121-4.369-3.121-6.617%200-2.084.643-3.914%201.936-5.5%201.291-1.578%202.977-2.496%205.059-2.748-.166-2.662.707-4.496%202.623-5.496-.916-.914-1.373-2.537-1.373-4.869%200-2.748.916-5.039%202.748-6.871%201.83-1.832%204.121-2.75%206.869-2.75%203%200%205.457%201.045%207.371%203.125%202.416-8.244%207.621-12.367%2015.613-12.367%204.164%200%207.828%201.666%2010.994%204.998%201.166%201.248%201.748%201.916%201.748%201.996-1%200-.498-.188%201.5-.561%201.996-.375%203.453-.563%204.373-.563%203.246%200%206.119%201.207%208.619%203.623%202.164%202.166%203.664%204.912%204.498%208.244.58.084%201.498.332%202.748.748%201.83.92%202.748%202.498%202.748%204.748%200%20.418-.336%201.209-1%202.373%205.328%202.998%207.994%207.162%207.994%2012.492%200%201.498-.582%203.584-1.748%206.247%202.166%201.247%203.246%203.081%203.246%205.495zm-51.467%205.496v-1.623c0-1.914-.936-3.664-2.809-5.246-1.875-1.582-3.77-2.373-5.684-2.373-2.334%200-4.496.541-6.496%201.621%204.413-.248%209.411%202.293%2014.989%207.621zm-2.246-15.489c-1.25-1.418-2.332-2.875-3.25-4.373-3.498.916-5.246%201.957-5.246%203.121%201-.08%202.457.105%204.371.564%201.914.459%203.291.688%204.125.688zm7.621-3.873v-5.496c-2-.332-3.211-.5-3.623-.5v1.873l3.623%204.123zm16.238-3.498c-1-.416-2.875-1.25-5.621-2.498v10.742c3.912-2.25%205.785-4.998%205.621-8.244zm6.867%2014.741l-2.746-3.373c-1.664%201.167-3.352%202.354-5.061%203.561-1.709%201.207-3.186%202.563-4.432%204.06%203.747-2.002%207.829-3.414%2012.239-4.248z'%20fill%3D'%230D0F0F'%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+  
