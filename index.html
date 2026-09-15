@@ -669,6 +669,10 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
    direkt, annars hinner man redan klicka innan det syns. */
 .zoomchip .zlage .knapptip{left:50%;right:auto;transform:translateX(-50%);transition:opacity .05s}
 .zoomchip .zlage:hover .knapptip,.zoomchip .zlage:focus-visible .knapptip{opacity:1}
+/* Untap all: samma direkta tips, med tangenten. */
+.mattachrome [data-mat="untap"]{position:relative}
+.mattachrome [data-mat="untap"] .knapptip{left:50%;right:auto;transform:translateX(-50%);transition:opacity .05s}
+.mattachrome [data-mat="untap"]:hover .knapptip,.mattachrome [data-mat="untap"]:focus-visible .knapptip{opacity:1}
 .zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:64px}
 .zoomchip .ztxt.manuell{color:var(--pa-acc)}
 .zoomchip input.ztxt{width:72px;height:28px;border-top:0;border-bottom:0;border-radius:0;background:none;text-align:center;outline:none;cursor:text}
@@ -2947,6 +2951,7 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>F</kbd> focus</span>
     <span><kbd>L</kbd> library</span>
     <span><kbd>S</kbd> select / pan</span>
+    <span><kbd>U</kbd> untap all</span>
     <span id="hintSpelare"><kbd>1</kbd>–<kbd>9</kbd> players</span>
     <span><kbd>⌘Z</kbd> undo</span>
     <span><kbd>?</kbd> all shortcuts</span>
@@ -3444,6 +3449,7 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>Space</kbd></dt><dd>Turn the card over — its other face, or face down</dd>
             <dt><kbd>Space</kbd> + drag</dt><dd>Move the mat — or drag with two fingers on the trackpad</dd>
             <dt><kbd>S</kbd></dt><dd>Switch between select and pan. In pan, click and drag anywhere to move the mat</dd>
+            <dt><kbd>U</kbd></dt><dd>Untap all — every tapped card on your table stands back up</dd>
             <dt>Drag on the mat</dt><dd>In select: mark every card the box touches — <kbd>⇧</kbd> adds, <kbd>⇧</kbd>-click adds or removes one card. Drag a marked card to move them all; <kbd>T</kbd> taps them all; <kbd>Esc</kbd> or a click on the mat clears</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
@@ -3456,7 +3462,6 @@ body.ispel #addPlayerBtn{display:none}
             <dt><kbd>←</kbd><kbd>→</kbd> <kbd>Tab</kbd></dt><dd>Next opponent (<kbd>⇧</kbd><kbd>Tab</kbd> back). Outside a game: next player</dd>
             <dt><kbd>M</kbd> <kbd>A</kbd></dt><dd>In a game, straight there: your table big — or everyone at once</dd>
             <dt>Click a table</dt><dd>Makes it big — a drag moves it instead</dd>
-            <dt><kbd>U</kbd></dt><dd>Turn the opponents' cards: upright, upside down, or the board as they see it</dd>
             <dt><kbd>N</kbd></dt><dd>New player (outside a game)</dd>
             <dt><kbd>R</kbd></dt><dd>Rename yourself</dd>
           </dl>
@@ -6242,7 +6247,7 @@ const hintSpelareEl = $('#hintSpelare');
 function ritaHintSpelare(L) {
   if (!hintSpelareEl) return;
   const n = L ? Math.min(9, L.o.length) : 0;
-  satHtml(hintSpelareEl, n ? `<kbd>↑</kbd><kbd>↓</kbd> tables · <kbd>1</kbd>${n > 1 ? `–<kbd>${n}</kbd>` : ''} ${n > 1 ? 'opponents' : 'opponent'} · <kbd>U</kbd> turn theirs`
+  satHtml(hintSpelareEl, n ? `<kbd>↑</kbd><kbd>↓</kbd> tables · <kbd>1</kbd>${n > 1 ? `–<kbd>${n}</kbd>` : ''} ${n > 1 ? 'opponents' : 'opponent'}`
     : '<kbd>1</kbd>–<kbd>9</kbd> players');
 }
 /* Kanten: växeln Me · All (Both för två) · motståndarna — samma ordning som
@@ -6306,7 +6311,7 @@ function ritaOppDelar(p, m, i) {
   const lage = `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
   satHtml(m.plate, `<button type="button" class="plnamn" title="${esc(stor)}"><i class="bdot"></i><b>${esc(p.name)}</b>`
     + `${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span><span class="sub">${paBord} on the table</span></button>${lage}`
-    + `<span class="sep"></span><button type="button" class="turnbtn" data-oppvand title="Turn their cards (U)">${IKON_VAND}<span class="tt">${VAND_TXT[oppVand]}</span><kbd>U</kbd></button>`);
+    + `<span class="sep"></span><button type="button" class="turnbtn" data-oppvand title="Turn their cards">${IKON_VAND}<span class="tt">${VAND_TXT[oppVand]}</span></button>`);
   m.kol.title = m.list.title = stor;
   satHtml(m.kol, `<div class="kolhd"><i class="bdot"></i><b>${esc(p.name)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}</div>`
     + `<span class="kolsub">${paBord} on the table</span><div class="kolthumbs">${bordTummar(p.cards, 12)}</div>`
@@ -6364,7 +6369,6 @@ function bordTangent(ev) {
   else if (k === 'ArrowRight' || (k === 'Tab' && !ev.shiftKey)) bordSidled(1);
   else if (k === 'ArrowLeft' || (k === 'Tab' && ev.shiftKey)) bordSidled(-1);
   else if (k >= '1' && k <= '9') { const p = motstandare()[+k - 1]; if (!p) return false; bordValj(p.id); }
-  else if (lower === 'u') oppVandNasta();
   else return false;
   return true;
 }
@@ -8017,7 +8021,7 @@ function renderChrome(v) {
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<input type="text" class="ztxt${v.manuell ? ' manuell' : ''}" id="matZoomTal" value="${pct}" inputmode="numeric" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Zoom level" title="Type a zoom level, 1–100%">`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
-    + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
+    + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap">Untap all<span class="knapptip">Untap all — stand every tapped card back up (U)</span></button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
     + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
@@ -13193,12 +13197,13 @@ addEventListener('keydown', ev => {
     return;
   }
   const lower = k.toLowerCase();
-  /* Bordsvyn: M mitt bord, A alla, U vänder motståndarnas kort. A öppnar
-     inget annat i ett spel sedan leken fick L (MES-145). */
-  if (spelLage && (lower === 'm' || lower === 'a' || lower === 'u')) { if (bordTangent(ev)) ev.preventDefault(); return; }
+  /* Bordsvyn: M mitt bord, A alla. A öppnar inget annat i ett spel sedan
+     leken fick L (MES-145). U är Untap all, längre ner (vändknappen på
+     motståndarens matta har ingen tangent). */
+  if (spelLage && (lower === 'm' || lower === 'a')) { if (bordTangent(ev)) ev.preventDefault(); return; }
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
-  const skriver = ' t e g d n r h c '.includes(' ' + lower + ' ') || k === ' ';
+  const skriver = ' t e g d n r h c u '.includes(' ' + lower + ' ') || k === ' ';
   if (!redigerbar() && skriver) return;
   /* T, E, G, H, C och D verkar på kortet under pekaren (tangentKort). T med
      lassomarkerade kort tappar alla, när pekaren står på ett av dem eller
@@ -13223,6 +13228,7 @@ addEventListener('keydown', ev => {
   else if (lower === 'c' && te && paMattan(te)) { ev.preventDefault(); openCounters(te.cid); }
   else if (lower === 'g' && !te && !matValda.size && spelLage && arMitt(player())) { ev.preventDefault(); closeFocus(); hfOppna(ZON_GRAV); }
   else if (lower === 's') { ev.preventDefault(); satMatVerktyg(matVerktyg === 'pan' ? 'valj' : 'pan'); }
+  else if (lower === 'u') { ev.preventDefault(); untapAlla(); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
   else if (lower === 'd' && te) { ev.preventDefault(); addCards([te.tok ? { name: te.name, sid: te.sid, tok: 1 } : te.name]); }
