@@ -6709,19 +6709,24 @@ function renderGrid(force) {
 
   /* Bifogade kort (equipment, auror) ritas bakom sin värd, förskjutna så
      att titelraden syns. De ligger kvar i samma cards-array, så
-     piltangenterna når dem som vanligt. */
+     piltangenterna når dem som vanligt. Värden ska ligga överst (MES-140):
+     z-index räcker inte, för bifogadPlats kläms vid 1 och en värd med z 0
+     eller 1 får då samma värde som sina bifogade kort — och vid lika vinner
+     det element som kommer sist. Därför skrivs de bifogade direkt FÖRE sin
+     värd, det längst bort först. Draget flyttar bara elementen, så ordningen
+     håller tills nästa omritning. */
   const html = [];
   cards.forEach((c, i) => {
     if (!paMattan(c)) return;
     if (c.attachedTo) {
       const vard = cards.find(x => x.cid === c.attachedTo);
-      if (vard && paMattan(vard)) {
-        const k = cards.filter(x => x.attachedTo === vard.cid).indexOf(c);
-        html.push(kortHtml(c, i, 'bifogad', bifogadPlats(vard, k)));
-        return;
-      }
+      if (vard && paMattan(vard)) return;              // ritas före sin värd, nedan
     }
-    html.push(kortHtml(c, i, '', null, cards.filter(x => x.attachedTo === c.cid && paMattan(x))));
+    const alla = cards.filter(x => x.attachedTo === c.cid);
+    for (let k = alla.length - 1; k >= 0; k--) {
+      if (paMattan(alla[k])) html.push(kortHtml(alla[k], cards.indexOf(alla[k]), 'bifogad', bifogadPlats(c, k)));
+    }
+    html.push(kortHtml(c, i, '', null, alla.filter(paMattan)));
   });
   gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
 
