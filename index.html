@@ -1193,6 +1193,32 @@ body.lasvy .hchip{display:none}
   font-size:11.5px;color:var(--dim2);overflow-x:auto;scrollbar-width:none;white-space:nowrap;
 }
 .hints::-webkit-scrollbar{display:none}
+/* Sökraden (MES-145, T3 på sida 5): tipsraden medan korten är i handen.
+   48 px hög och lägger sig över mattans nederkant i stället för att krympa
+   den. De vanliga tipsen döljs; status och sparfel står kvar. Det skrivna
+   står i ett eget fält på en rad, med markören direkt efter. */
+.hints .hsokrad{display:contents}
+.hints .hsokrad[hidden]{display:none}
+.hints.sok > span{display:none}
+.hints.sok,.hints.sok.hide{display:flex;height:48px;margin-top:-18px;position:relative;z-index:30;gap:20px;padding:0 16px;font-size:14px;background:#141008;border-top-color:#8a5d10;color:#c9b485;box-shadow:0 -12px 26px -14px #000e}
+.hints.sok.ingen{border-top-color:#6b2f36}
+.hints.sok span{gap:8px}
+.hints.sok kbd{font:12px/1.55 var(--mono);padding:1px 7px;min-width:24px}
+.hints .hsok{display:flex;align-items:center;gap:10px;font-size:15px;color:var(--pa-acc)}
+.hints .hsok > svg{width:18px;height:18px;flex:none}
+.hints .hq{display:inline-flex;align-items:center;height:32px;min-width:150px;padding:0 12px;border-radius:8px;background:#0b0f15;border:1px solid #8a5d10;box-shadow:inset 0 1px 0 #ffffff08;font:600 17px/1 var(--mono);color:#fff;white-space:pre}
+.hints .hq span{display:inline;white-space:pre}
+.hints .hq .caret{display:inline-block;width:2px;height:20px;margin-left:2px;vertical-align:middle;background:var(--pa-acc);animation:hfBlink 1s steps(1) infinite}
+.hints .hn{font:13.5px/1 var(--mono);color:#c9b485}
+.hints.ingen .hn{color:#ff9099}
+.hints.ingen .hq{border-color:#8a3a44}
+@keyframes hfBlink{50%{opacity:0}}
+/* Enter: kortet flyger ur solfjädern till sin plats på mattan (480 ms). */
+.hfflyg{position:fixed;z-index:960;pointer-events:none;border-radius:6px;overflow:hidden;background:#11161e;transform-origin:50% 50%;box-shadow:0 8px 20px -8px #000c}
+.hfflyg.hog{box-shadow:0 0 0 2px var(--acc),0 30px 50px -14px #000}
+.hfflyg img{width:100%;height:100%;object-fit:cover;display:block}
+.card.hfvantar{visibility:hidden}
+@media (prefers-reduced-motion:reduce){.hints .hq .caret{animation:none}}
 .hints span{display:flex;align-items:center;gap:5px}
 .hints .sep{width:1px;height:13px;background:var(--line)}
 .hints .status{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim2)}
@@ -2851,11 +2877,13 @@ body.ispel #addPlayerBtn{display:none}
   </main>
 
   <footer class="hints" id="hintBar">
+    <!-- Sökraden medan korten är i handen (MES-145). Ritas av hfHint(). -->
+    <div class="hsokrad" id="hfSok" hidden></div>
     <span>Point at a card: <kbd>T</kbd> tap</span>
     <span><kbd>Space</kbd> flip</span>
     <span><kbd>G</kbd> graveyard</span>
     <span><kbd>F</kbd> focus</span>
-    <span><kbd>/</kbd> find a card</span>
+    <span><kbd>L</kbd> library</span>
     <span><kbd>S</kbd> select / pan</span>
     <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
     <span><kbd>⌘Z</kbd> undo</span>
@@ -7161,6 +7189,7 @@ function hfLage(nu) {
   const byt = (hf.fok && hf.fok.it.key) !== (fok && fok.it.key);
   hf.fok = fok;
   if (byt) renderInspektor();
+  hfHint();
 }
 /* Högarnas lägen: lyft medan de reser sig, tom ram medan korten är ute. */
 function hfHogar() {
@@ -7210,6 +7239,7 @@ function hfStangNu() {
   hfEl.innerHTML = ''; hfEl.hidden = true; hfEl.classList.remove('sjunk', 'lyft');
   hfHogar();
   if (fok) renderInspektor();
+  hfHint();
 }
 /* Efter varje omritning av högarna (renderGravHog): korten i handen följer
    det som ligger i högen. En tom hög lägger ner handen — utom under ett
@@ -7279,6 +7309,117 @@ function hfOverBand(ev) {
   if (!ev || !hf.src) return false;
   const m = hfMatta.getBoundingClientRect();
   return ev.clientX >= m.left && ev.clientX <= m.right && ev.clientY >= m.bottom - 150 && ev.clientY <= m.bottom + 48;
+}
+/* Sökraden i tipsraden (T3): utan bokstäver en uppmaning, med bokstäver
+   fältet, "1 of 3" eller "no card" och tangenterna. */
+const hfSokEl = $('#hfSok'), hfHintEl = $('#hintBar');
+const HF_LUPP = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>';
+function hfHint() {
+  if (!hfSokEl || !hfHintEl) return;
+  const pa = hfOppen();
+  let html = '', ingen = false;
+  if (pa && !hf.q) {
+    const kalla = hf.src === 'lib' ? 'your hands' : hf.src === ZON_EXIL ? 'exile' : 'the graveyard';
+    html = '<span class="hsok">' + HF_LUPP + '<span>Type a name to find a card in ' + kalla + '</span></span><span><kbd>Esc</kbd> put down</span>';
+  } else if (pa) {
+    const L = hfTraffar().length, mi = L ? ((hf.mi % L) + L) % L : 0;
+    ingen = !L;
+    html = '<span class="hsok">' + HF_LUPP + '<span>Find</span><b class="hq"><span>' + esc(hf.q) + '</span><i class="caret"></i></b><span class="hn">' + (ingen ? 'no card' : (mi + 1) + ' of ' + L) + '</span></span>'
+      + '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (redigerbar() ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>';
+  }
+  hfHintEl.classList.toggle('sok', pa);
+  hfHintEl.classList.toggle('ingen', ingen);
+  if (hfSokEl.dataset.h !== html) { hfSokEl.dataset.h = html; hfSokEl.innerHTML = html; }
+  hfSokEl.hidden = !pa;
+}
+/* Tangenterna medan korten är i handen (T3, sida 5). Allt skrivet går till
+   sökningen — också L, T, G, F och S. Första träffen lyfts och de andra
+   mörknar; Tab eller ↓ nästa träff, Shift+Tab eller ↑ föregående,
+   Backspace suddar, Esc suddar först och lägger ner korten sedan, Enter
+   spelar det lyfta kortet. Capture och stopImmediatePropagation: före
+   arkets Enter och appens egna tangenter. Under ett drag är Esc dragets. */
+addEventListener('keydown', ev => {
+  if (!hf.src || hf.fas === 'gather') return;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey || isTyping(ev.target) || (dnd && dnd.drar)) return;
+  const k = ev.key, sluta = () => { ev.preventDefault(); ev.stopImmediatePropagation(); };
+  if (k === 'Escape') { sluta(); if (hf.q) { hf.q = ''; hf.mi = 0; hfLage(); } else hfStang(); return; }
+  if (k === 'Backspace') { sluta(); hf.q = hf.q.slice(0, -1); hf.mi = 0; hf.mus = false; hfLage(); return; }
+  if (k === 'Tab' || k === 'ArrowDown' || k === 'ArrowUp') {
+    sluta();
+    hf.mi += (k === 'ArrowUp' || (k === 'Tab' && ev.shiftKey)) ? -1 : 1; hf.mus = false;
+    hfLage(); return;
+  }
+  if (k === 'Enter') { sluta(); hfEnter(); return; }
+  if (k.length === 1 && /[\p{L}\p{N} ',\-]/u.test(k)) {
+    sluta();
+    if (hf.q.length >= 24 || (k === ' ' && !hf.q)) return;
+    hf.q += k.toLowerCase(); hf.mi = 0; hf.mus = false;
+    if (hf.fas === 'open') { hfTimrarBort(); hf.fas = 'live'; }
+    hfLage();
+  }
+}, true);
+/* Enter: det lyfta kortet ut ur solfjädern och på nästa lediga plats på
+   mattan (slotBeside), med en flygning från sin plats i solfjädern. Högen
+   räknas ner, det skrivna suddas och solfjädern ligger kvar. ⌘Z ångrar. */
+const HF_FLYG_MS = 480;
+function hfEnter() {
+  const fok = hf.fok;
+  if (!fok || !hf.src || !hfOppen() || !redigerbar() || hf.flyg) return;
+  const it = fok.it, h = hand(), m = hfMatta.getBoundingClientRect();
+  const fran = { x: m.left + fok.cx, y: m.top + fok.cy, w: HF.CW * fok.sc, th: fok.th };
+  let e = null;
+  if (hf.src === 'lib') {
+    matAngra(it.name + ' → table', () => {
+      e = normaliseraKort({ cid: uid(), name: it.name, flipped: 0, etb: 1 }, h.length);
+      if (it.sid) e.sid = it.sid;
+      hfLedig(e, h);
+      h.push(e); state.sel = h.length - 1;
+      save(); renderGrid(true); resolveAll();
+    });
+    if (e) setTimeout(tokensVidEtb, 0);
+  } else {
+    e = h.find(q => q.cid === it.cid); if (!e) return;
+    matAngra(namnAv(e) + ' ← ' + (hf.src === ZON_EXIL ? 'exile' : 'graveyard'), () => {
+      delete e.zon; delete e.fysisk; delete e.spellAuto; e.tapped = 0; e.ny = Date.now();
+      e.x = e.y = null;                       // räknas inte som upptagen plats
+      hfLedig(e, h);
+      state.sel = h.indexOf(e);
+      save(); renderGrid(true);
+    });
+  }
+  hf.q = ''; hf.mi = 0; hf.mus = false;
+  if (e) hfFlyg(e, it, fran);
+  hfLage();
+}
+/* Nästa lediga plats för kortet, överst. */
+function hfLedig(e, h) {
+  const v = matVy(), pos = slotBeside(h, matSlag(e), v.board);
+  const k = clampKort(Object.assign({}, e, pos), v.board, gravRuta(v));
+  e.x = k.x; e.y = k.y;
+  matTopZ = Math.max(matTopZ, ...h.map(q => q.z || 0)) + 1; e.z = matTopZ;
+}
+/* Flygningen: en kopia av kortet från sin plats i solfjädern (mitt, vinkel,
+   skala) till kortets plats på mattan. Mattkortet är dolt tills den landat. */
+function hfFlyg(e, it, fran) {
+  const el = gridEl.querySelector('.card[data-cid="' + CSS.escape(e.cid) + '"]');
+  if (!el || hfLugn()) return;
+  const r = el.getBoundingClientRect(); if (!r.width) return;
+  const f = document.createElement('div'); f.className = 'hfflyg hog';
+  if (it.bild) f.innerHTML = '<img src="' + esc(it.bild) + '" alt="" draggable="false">';
+  Object.assign(f.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  const dx = fran.x - (r.left + r.width / 2), dy = fran.y - (r.top + r.height / 2), sc = fran.w / r.width;
+  f.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) rotate(' + fran.th.toFixed(2) + 'deg) scale(' + sc.toFixed(3) + ')';
+  document.body.appendChild(f);
+  el.classList.add('hfvantar'); hf.flyg = true;
+  void f.offsetWidth;
+  f.style.transition = 'transform ' + HF_FLYG_MS + 'ms cubic-bezier(.3,.75,.25,1), box-shadow ' + HF_FLYG_MS + 'ms ease';
+  f.style.transform = 'none';
+  f.classList.remove('hog');
+  setTimeout(() => {
+    f.remove(); hf.flyg = false;
+    const satt = gridEl.querySelector('.card[data-cid="' + CSS.escape(e.cid) + '"]');
+    if (satt) { satt.classList.remove('hfvantar'); satt.classList.add('settle'); setTimeout(() => satt.classList.remove('settle'), 340); }
+  }, HF_FLYG_MS + 30);
 }
 /* Draget ut ur solfjädern: kortet blir ett mattkort mitt under pekaren,
    nytt och överst, och det vanliga draget (dnd) tar över utan avbrott —
@@ -12464,7 +12605,8 @@ addEventListener('keydown', ev => {
      inte på något kort alls. */
   const ti = tangentKort(), te = hand()[ti] || null;
   if (lower === 'f') { ev.preventDefault(); vaxlaFokus(); }
-  else if (lower === 'a' || k === '/') { ev.preventDefault(); closeFocus(); if (spelLage) oppnaLada(true); else { searchInput.focus(); searchInput.select(); } }
+  else if ((lower === 'a' || k === '/') && !spelLage) { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
+  else if (lower === 'l' && spelLage && arMitt(player())) { ev.preventDefault(); closeFocus(); hfOppna('lib'); }
   else if (lower === 'b' && (!spelLage || DEBUG)) { ev.preventDefault(); openBulk(); }
   else if (lower === 'i' && (!spelLage || DEBUG)) { ev.preventDefault(); openOv('imgOv'); }
   else if (lower === 't') {
