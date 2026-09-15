@@ -8009,7 +8009,7 @@ function renderChrome(v) {
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<input type="text" class="ztxt${v.manuell ? ' manuell' : ''}" id="matZoomTal" value="${pct}" inputmode="numeric" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Zoom level" title="Type a zoom level, 1–100%">`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
-    + (redigerbar() && !(spelLage && mittLage() === 'bord') ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
+    + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap" title="Stand every tapped card back up">Untap all</button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
     + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
