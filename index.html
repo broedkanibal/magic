@@ -533,20 +533,18 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .kant3:hover .ssw,.bord.drar .ssw{border-color:#39445a}
 .ssw .egrip{display:grid;place-items:center;flex:none;width:20px;height:26px;border-radius:5px;color:#4a5a72;cursor:row-resize}
 .ssw .egrip:hover,.bord.drar .ssw .egrip{color:var(--txt);background:var(--bg3)}
-.sseg{display:inline-flex;align-items:center;gap:7px;min-width:0;height:26px;padding:0 5px 0 8px;border-radius:5px;border:1px solid transparent;background:none;
+.sseg{display:inline-flex;align-items:center;gap:7px;min-width:0;height:26px;padding:0 9px 0 8px;border-radius:5px;border:1px solid transparent;background:none;
   color:var(--dim);font:550 12.5px var(--sans);white-space:nowrap;cursor:pointer;touch-action:none;transition:background .15s,color .15s,border-color .15s}
 .sseg:hover{background:var(--bg3);color:var(--txt)}
 .sseg .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .sseg svg{flex:none;display:block}
-.sseg kbd{min-width:15px;padding:0 4px;font-size:10px;line-height:1.4;opacity:.8}
+.ssw .spil{display:inline-flex;align-items:center;gap:2px;flex:none;margin-left:4px;padding:0 4px 0 8px;border-left:1px solid var(--line);cursor:default}
+.ssw .spil kbd{min-width:15px;padding:0 3px;font-size:10px;line-height:1.4;text-align:center;opacity:.75}
 .sseg.on{color:var(--txt)}
-.sseg.on kbd{opacity:1}
 .sseg.on.mine{background:linear-gradient(#f0a52a2b,#f0a52a2b),#1a212c;border-color:#f0a52a99;color:#ffdfae}
-.sseg.on.mine kbd{background:#f0a52a2b;border-color:#f0a52a55;color:#ffd98a}
 .sseg.on.opp{background:color-mix(in srgb,var(--pc) 15%,transparent);border-color:color-mix(in srgb,var(--pc) 55%,transparent)}
-.sseg.on.opp kbd{background:color-mix(in srgb,var(--pc) 17%,transparent);border-color:color-mix(in srgb,var(--pc) 33%,transparent)}
 .sseg.on.alla{background:var(--bg4);border-color:#4a5a72}
-/* Fler än fyra motståndare: bara pricken och siffran, namnet i titeln. */
+/* Fler än fyra motståndare: bara pricken, namnet i titeln. */
 .ssw.tat .sseg.opp .nm{display:none}
 .bdot{display:inline-block;flex:none;width:8px;height:8px;border-radius:50%;background:var(--pc,var(--blue));box-shadow:0 0 0 2px #0004 inset}
 /* En motståndares matta: ljuset från andra hållet, ramen i hens färg.
@@ -584,8 +582,7 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .okol .kolhogar i{flex:none;width:6px;height:6px;border-radius:2px;background:#e8b33a}
 .okol .kolhogar i.b{background:#6b8cff}
 .okol .kolhogar b{font:600 10.5px/1 var(--mono);color:var(--txt);letter-spacing:0}
-.okol > kbd{margin-top:auto}
-/* Listen: 46 px, namnet, miniatyrerna och tangenten. */
+/* Listen: 46 px, namnet och miniatyrerna. */
 .olist,.minlist{position:absolute;left:0;right:0;top:0;height:46px;z-index:26;display:flex;align-items:center;gap:10px;padding:0 12px 0 14px;
   cursor:pointer;font:550 12.5px var(--sans);color:var(--txt);white-space:nowrap;overflow:hidden;transition:background .12s,opacity .3s}
 .olist .thumbs,.minlist .thumbs{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;flex:0 1 auto}
@@ -3450,10 +3447,9 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Players</h3>
           <dl>
-            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>In a game: an opponent's table big, in the order you sit. Outside a game: switch to player</dd>
-            <dt><kbd>M</kbd> <kbd>A</kbd></dt><dd>In a game: your table big — or everyone at once</dd>
-            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>In a game: your table, everyone, one opponent — or drag the edge between the tables</dd>
+            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>In a game: step between your table, everyone and one opponent — or drag the edge between the tables</dd>
             <dt><kbd>←</kbd><kbd>→</kbd> <kbd>Tab</kbd></dt><dd>Next opponent (<kbd>⇧</kbd><kbd>Tab</kbd> back). Outside a game: next player</dd>
+            <dt><kbd>M</kbd> <kbd>A</kbd> <kbd>1</kbd>…<kbd>9</kbd></dt><dd>In a game, straight there: your table, everyone, or an opponent in the order you sit. Outside a game: <kbd>1</kbd>…<kbd>9</kbd> switch to player</dd>
             <dt>Click a table</dt><dd>Makes it big — a drag moves it instead</dd>
             <dt><kbd>U</kbd></dt><dd>Turn the opponents' cards: upright, upside down, or the board as they see it</dd>
             <dt><kbd>N</kbd></dt><dd>New player (outside a game)</dd>
@@ -6234,30 +6230,36 @@ function renderBord() {
 }
 function ritaMinList(visa) {
   const mig = minSpelare();
-  satHtml(minListEl, visa && mig ? bordListHtml('Your table', '', mig.cards, 'M', 'Your cards') : '');
+  satHtml(minListEl, visa && mig ? bordListHtml('Your table', '', mig.cards, '', 'Your cards') : '');
 }
 /* Tipsraden: bordets tangenter i ett spel med motståndare, annars flikarnas. */
 const hintSpelareEl = $('#hintSpelare');
 function ritaHintSpelare(L) {
   if (!hintSpelareEl) return;
   const n = L ? Math.min(9, L.o.length) : 0;
-  satHtml(hintSpelareEl, n ? `<kbd>M</kbd><kbd>A</kbd><kbd>1</kbd>${n > 1 ? `–<kbd>${n}</kbd>` : ''} tables · <kbd>U</kbd> turn theirs`
+  satHtml(hintSpelareEl, n ? `<kbd>↑</kbd><kbd>↓</kbd> tables${n > 1 ? ' · <kbd>←</kbd><kbd>→</kbd> players' : ''} · <kbd>U</kbd> turn theirs`
     : '<kbd>1</kbd>–<kbd>9</kbd> players');
 }
-/* Kanten: växeln Me · motståndarna · All (Both för två). */
+/* Kanten: växeln Me · All (Both för två) · motståndarna — samma ordning som
+   ↑↓ stegar: mitt bord, alla, en motståndare. Det som står i växeln är
+   pilarna, inte M / A / 1–9: de finns kvar som snabbhopp, i hjälpen och i
+   knapparnas titel. Ett märke per knapp hade ljugit om pilarna — från Me är
+   en motståndare två steg upp. */
 function ritaKant(L) {
   kantEl.hidden = false;
   kantEl.style.top = Math.round(L.oppH * 10) / 10 + 'px';
   const n = L.o.length;
-  const seg = (id, cls, farg, ikon, namn, kbd, titel) =>
+  const seg = (id, cls, farg, ikon, namn, titel) =>
     `<button type="button" class="sseg ${cls}${L.valt === id ? ' on' : ''}" data-seat="${esc(id)}"${farg ? ` style="--pc:${esc(farg)}"` : ''} title="${esc(titel)}">`
-    + `${ikon}<span class="nm">${esc(namn)}</span>${kbd ? `<kbd>${kbd}</kbd>` : ''}</button>`;
+    + `${ikon}<span class="nm">${esc(namn)}</span></button>`;
   satHtml(kantEl, `<i class="edgeline"></i><div class="ssw${n > 4 ? ' tat' : ''}" role="group" aria-label="Whose table is big">`
     + `<span class="egrip" title="Drag the edge up or down">${IKON_GREPP}</span>`
-    + seg('me', 'mine', '#e8b33a', '<i class="bdot"></i>', 'Me', 'M', 'Your table big, the others as strips (M)')
-    + L.o.map((p, i) => seg(p.id, 'opp', p.color, '<i class="bdot"></i>', p.name, i < 9 ? String(i + 1) : '',
+    + seg('me', 'mine', '#e8b33a', '<i class="bdot"></i>', 'Me', 'Your table big, the others as strips (M)')
+    + seg('all', 'alla', '', n > 1 ? IKON_ALLA : IKON_BADA, n > 1 ? 'All' : 'Both', n > 1 ? 'Everyone at once (A)' : 'Both of you (A)')
+    + L.o.map((p, i) => seg(p.id, 'opp', p.color, '<i class="bdot"></i>', p.name,
         `${p.name}'s table big` + (i < 9 ? ` (${i + 1})` : ''))).join('')
-    + seg('all', 'alla', '', n > 1 ? IKON_ALLA : IKON_BADA, n > 1 ? 'All' : 'Both', 'A', n > 1 ? 'Everyone at once (A)' : 'Both of you (A)')
+    + `<span class="spil" title="${n > 1 ? '↑ ↓ your table, everyone, one opponent · ← → next opponent' : '↑ ↓ your table, both of you, ' + esc(L.o[0].name) + '’s table'}">`
+    + `<kbd>↑</kbd><kbd>↓</kbd>${n > 1 ? '<kbd>←</kbd><kbd>→</kbd>' : ''}</span>`
     + '</div>');
 }
 /* Motståndarnas mattor: en sektion per spelare, som står kvar mellan
@@ -6302,9 +6304,8 @@ function ritaOppDelar(p, m, i) {
   m.kol.title = m.list.title = stor;
   satHtml(m.kol, `<div class="kolhd"><i class="bdot"></i><b>${esc(p.name)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}</div>`
     + `<span class="kolsub">${paBord} on the table</span><div class="kolthumbs">${bordTummar(p.cards, 12)}</div>`
-    + `<div class="kolhogar"><span><i></i>Graveyard<b>${grav}</b></span><span><i class="b"></i>Library<b>${bib == null ? '–' : bib}</b></span></div>`
-    + (kbd ? `<kbd>${kbd}</kbd>` : ''));
-  satHtml(m.list, bordListHtml(p.name, pips, p.cards, kbd, ''));
+    + `<div class="kolhogar"><span><i></i>Graveyard<b>${grav}</b></span><span><i class="b"></i>Library<b>${bib == null ? '–' : bib}</b></span></div>`);
+  satHtml(m.list, bordListHtml(p.name, pips, p.cards, '', ''));
 }
 /* Nivåbytet glider: rutorna har övergången i CSS:en, min mattas bräde
    får den en stund (samma kurva), annars hoppar korten medan rutan glider. */
