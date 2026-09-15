@@ -1109,6 +1109,18 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .exilhog b{font:700 14px/1 var(--mono);color:var(--txt)}
 .exilhog .zonlbl{font-size:8.5px;letter-spacing:.7px}
 .exilhog:hover{border-color:var(--acc);border-style:solid}
+/* Exile-platsen medan ett kort ur graveyard dras (MES-145): en plats
+   bredvid högarna, som graveyard men lila. Släpp där = exile. Räknaren
+   står dold under tiden, och högarna ligger över den sjunkna solfjädern. */
+.exilplats{position:absolute;left:100%;top:0;margin-left:8px;width:108px;height:144px;box-sizing:border-box;border-radius:6px;border:1.5px dashed #9d85d6aa;background:#140f1ecc;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:0 10px;text-align:center;pointer-events:none;animation:exilIn .18s ease-out;transition:border-color .16s,box-shadow .16s}
+.exilplats .zonlbl{color:#d9c7f5}
+.exilplats em{font:10px/1.3 var(--mono);font-style:normal;color:#b9a8dc;opacity:.8}
+.exilplats.over{border-style:solid;border-color:#b79cf0;box-shadow:0 0 0 6px #9d85d626,0 0 28px 6px #9d85d633}
+.gravhog.medbib .exilplats{margin-left:138px}
+.gravhog.exilvisas{z-index:27}
+.gravhog.exilvisas .exilhog{opacity:0}
+@keyframes exilIn{from{opacity:0;transform:scale(.94)}}
+@media (prefers-reduced-motion:reduce){.exilplats{animation:none}}
 /* Solfjädern (Mesa Deck in Play, B2 v2, MES-145): library, graveyard eller
    exile i handen längs mattans nederkant. Behållaren täcker mattan och
    släpper pekaren igenom; korten fångar den. Läge, vridning, z-index och
@@ -6943,7 +6955,7 @@ bibHogEl && bibHogEl.addEventListener('click', lekKlick);
    platserna inte tillhör någon av dem. Panelerna ligger utanför brädets transform
    och skalas inte med zoomen, så luften är skärmpixlar (referensens fit är
    1 här). Är flera högar inom räckhåll vinner den vars mittpunkt är närmast,
-   räknat i manhattan-avstånd. Returnerar 'grav', 'bib' eller null. */
+   räknat i manhattan-avstånd. Returnerar 'grav', 'bib', 'exil' eller null. */
 /* Instruktionsrutan under graveyard-högen (§2): tänds när ett kort dras mot
    högen och säger vad som händer med just det kortet. null släcker den. */
 function gravSlappRuta(c) {
@@ -6952,10 +6964,18 @@ function gravSlappRuta(c) {
   if (!el) { el = document.createElement('div'); el.className = 'gravslapp'; manaRow.appendChild(el); }
   el.innerHTML = `<i></i><span>Let go — ${esc(namnAv(c))} lands face up on top</span>`;
 }
-const HOG_LUFT = { grav: { l: 54, r: 10, t: 66, b: 40 }, bib: { l: 10, r: 44, t: 66, b: 40 } };
+/* Exile-platsen (MES-145): medan ett kort ur graveyard dras står en plats
+   bredvid högarna, och ett släpp där lägger kortet i exile. */
+function exilPlats(pa) {
+  let el = manaRow.querySelector('.exilplats');
+  manaRow.classList.toggle('exilvisas', !!pa);
+  if (!pa) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.className = 'exilplats'; el.innerHTML = '<span class="zonlbl">Exile</span><em>Let go here to exile it</em>'; manaRow.appendChild(el); }
+}
+const HOG_LUFT = { grav: { l: 54, r: 10, t: 66, b: 40 }, bib: { l: 10, r: 44, t: 66, b: 40 }, exil: { l: 10, r: 40, t: 66, b: 40 } };
 function hogUnder(ev) {
   if (!ev) return null;
-  const hogar = { grav: manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)') };
+  const hogar = { grav: manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)'), exil: manaRow.querySelector('.exilplats') };
   let bast = null, bastD = Infinity;
   for (const k in hogar) {
     const el = hogar[k]; if (!el) continue;
@@ -6984,6 +7004,7 @@ function renderGravHog(cards, d) {
     gravHogHtml = html;
     manaRow.innerHTML = html;
   }
+  if (dnd && dnd.fraZon === ZON_GRAV) exilPlats(true);   // omritningen tog bort platsen
   if (vaxte) gravBumpa();
   hfSynk();                          // en omritning byter ut högarna: deras lägen och solfjäderns kort
 }
@@ -7278,6 +7299,7 @@ function spawnFromGrave(cid, ev) {
   });
   dnd = { cid, fraZon: zonFore, x0: ev.clientX, y0: ev.clientY, drar: true, pointerId: ev.pointerId, over: false,
           off: { ox: s.w / 2, oy: s.h / 2 }, start: { x: e.x, y: e.y, z: e.z } };
+  if (zonFore === ZON_GRAV) exilPlats(true);
   svalgKlick = true;
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(cid)}"]`);
   if (el) el.classList.add('held');
@@ -9962,7 +9984,12 @@ addEventListener('pointermove', ev => {
   c.x = pt.x - dnd.off.ox; c.y = pt.y - dnd.off.oy;
   flyttaElement(c);
   bifogadeTill(c.cid).forEach((k, n) => flyttaElement(Object.assign({ cid: k.cid }, bifogadPlats(c, n))));
-  const hog = hogUnder(ev), overB = hog === 'bib', over = hog === 'grav';
+  const hog = hogUnder(ev), overB = hog === 'bib', over = hog === 'grav', overE = hog === 'exil';
+  if (overE !== !!dnd.overExil) {
+    dnd.overExil = overE;
+    const ep = manaRow.querySelector('.exilplats'); if (ep) ep.classList.toggle('over', overE);
+    if (!overE) matChip(null);
+  }
   if (overB !== dnd.overBib) {
     dnd.overBib = overB;
     const b = bibHogEl && bibHogEl.querySelector('.bib'); if (b) b.classList.toggle('over', overB);
@@ -9978,8 +10005,8 @@ addEventListener('pointermove', ev => {
      "Let go — the mana stacks here". Träffen avgörs på arean som
      överlappar (findJoin), inte på avstånd. */
   /* Utrustning, aura, fortifikation: värden den ligger över lyser i stället. */
-  const vard = (!over && !overB && bifogTyp(c)) ? bastVard(hand(), c.cid) : null;
-  const mal = vard || ((!over && !overB && hogbar(c)) ? findJoin(hand(), c.cid) : null);
+  const vard = (!over && !overB && !overE && bifogTyp(c)) ? bastVard(hand(), c.cid) : null;
+  const mal = vard || ((!over && !overB && !overE && hogbar(c)) ? findJoin(hand(), c.cid) : null);
   dnd.vard = vard;
   if (mal !== dnd.mal) {
     dnd.mal = mal;
@@ -9992,7 +10019,8 @@ addEventListener('pointermove', ev => {
     matChip(mal ? c : null, chipText());
   }
   if (mal) matChip(c, chipText());
-  if (overB) matChip(c, 'Let go — back to your hand or library');
+  if (overE) matChip(c, 'Let go — ' + namnAv(c) + ' goes to exile');
+  else if (overB) matChip(c, 'Let go — back to your hand or library');
   else if (dnd.fraFan && !over && hfOverBand(ev)) matChip(c, 'Let go to put it back');
   else if ((dnd.fraLek || dnd.fraFan) && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
   function chipText() {
@@ -10015,7 +10043,7 @@ function matChip(c, text) {
 function matDndSlut(ev, avbryt) {
   if (!dnd) return;
   const d = dnd; dnd = null;
-  hfEl.classList.remove('sjunk');
+  hfEl.classList.remove('sjunk'); exilPlats(false);
   /* Släppt över solfjädern, inte på en hög: tillbaka dit det kom ifrån,
      som med Esc (MES-145). */
   if (!avbryt && d.fraFan && d.drar && !d.over && !d.overBib && !d.overExil && hfOverBand(ev)) avbryt = true;
@@ -10061,6 +10089,15 @@ function matDndSlut(ev, avbryt) {
        att Undo lägger det där det låg. */
     c.x = d.start.x; c.y = d.start.y;
     utanAngra(() => removeAt(h.indexOf(c), `${namnAv(c)} → hand or library`));
+    fjarrIkapp(); return;
+  }
+  if (d.overExil) {
+    /* Släppt på exile-platsen (MES-145): ur graveyard till exile.
+       Ångrapunkten från spawnFromGrave täcker hela draget. */
+    c.x = d.start.x; c.y = d.start.y;
+    matValda.delete(c.cid);
+    if (matHover === c.cid) matHover = null;
+    utanAngra(() => flyttaTill(h.indexOf(c), ZON_EXIL));
     fjarrIkapp(); return;
   }
   if (d.over) {
