@@ -433,6 +433,54 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`BB7 raden bär rutan: bib ${JSON.stringify(Kamera.bib)}`, Kamera.bib !== null && Kamera.bib.ligger === false);
   Kamera.satGrav(null);
 
+  // ── BB8–BB10 (MES-138): en lek i plastfickor, en lek intill graveyard-högen, en hand som vilar på leken ──
+  /* Enfärgade fickor: ingen struktur alls, och större än kortet (fickan,
+     lekens tjocklek). Kortreglerna dömer den slät, och förut såg rutan den
+     aldrig — Jespers lek i gröna fickor låg i rutan i 7 s utan "ligger". */
+  const FICKLEK = g => {
+    for (let k = 3; k >= 1; k--) for (let yy = 50 + k; yy < 98 + k; yy++) for (let xx = 147 + k; xx < 182 + k; xx++) g[yy * W + xx] = 40;
+    for (let yy = 50; yy < 98; yy++) for (let xx = 147; xx < 182; xx++) g[yy * W + xx] = 55;
+  };
+  /* Telefonens avvikelse och spridning på Jespers bord (22–29 och 13–17 i
+     inspelningen), inte bänkens: på den brusfria bänken sjunker avvikelsen
+     av sig själv, spridningskravet med den, och en slät lek såg ut som ett
+     kort. Gäller BB8–BB10. */
+  const TELEFON = { autoUts: 0, utseende: 25, spridning: 15 };
+  nystart(); Kamera.satTrosklar(TELEFON); await referens(); Kamera.satBib(BIB);
+  for (let i = 0; i < 6; i++) await ruta(null);
+  const bb8Fore = liggerNu();
+  for (let i = 0; i < 3; i++) await ruta(g => { FICKLEK(g); hand(g, W, 178 + 6 * i, 88, 26, 30, 150); });
+  let bb8Ruta = -1;
+  for (let i = 0; i < 12; i++) { await ruta(FICKLEK); if (bb8Ruta < 0 && liggerNu()) bb8Ruta = i + 1; }
+  check(`BB8 lek i enfärgade fickor (slät, större än kortet): ligger före ${bb8Fore} (false), ligger efter ${bb8Ruta} rutor (≤ 8)`, !bb8Fore && bb8Ruta > 0 && bb8Ruta <= 8);
+
+  /* Graveyard-högen till vänster har vuxit ihop med leken: en region över
+     båda rutorna, större än 1,6 rutor och med mitten nära gränsen. */
+  const GZ = { x: 0.42, y: 0.3, w: 0.17, h: 0.38 };
+  const HOG9 = g => kort(g, W, 112, 52, 35, 46, 180);
+  nystart(); Kamera.satTrosklar(TELEFON); await referens(); Kamera.satGrav(GZ); Kamera.satBib(BIB);
+  for (let i = 0; i < 8; i++) await ruta(HOG9);
+  let bb9Ruta = -1;
+  for (let i = 0; i < 12; i++) { await ruta(g => { HOG9(g); FICKLEK(g); }); if (bb9Ruta < 0 && liggerNu()) bb9Ruta = i + 1; }
+  check(`BB9 leken intill graveyard-högen (en region): ligger efter ${bb9Ruta} rutor (≤ 8), spår ${Kamera.spar.length} (0)`, bb9Ruta > 0 && bb9Ruta <= 8 && Kamera.spar.length === 0);
+  Kamera.satGrav(null);
+
+  /* I spel: handen vilar på leken, med armen in från bildens nederkant, i
+     3 s. Leken är inte lyft — förut räknades den lyft efter två bortaMs. */
+  const VILA = (g, sl) => {
+    FICKLEK(g);
+    for (let y = 95; y < H; y++) { const dx = Math.round((sl() - 0.5) * 4); for (let x = 150 + dx; x < 182 + dx; x++) g[y * W + x] = 150; }
+    hand(g, W, 166, 84, 20, 16, 150);
+  };
+  nystart(); Kamera.satTrosklar(TELEFON); await referens(); Kamera.satBib(BIB);
+  for (let i = 0; i < 12; i++) await ruta(FICKLEK);
+  const bb10Fore = liggerNu();
+  let bb10Lyft = false;
+  for (let i = 0; i < 20; i++) { await ruta(VILA); if (!liggerNu()) bb10Lyft = true; }
+  for (let i = 0; i < 6; i++) await ruta(FICKLEK);
+  check(`BB10 en hand vilar på leken i 3 s: ligger före ${bb10Fore} (true), lyft under tiden ${bb10Lyft} (false), ligger efter ${liggerNu()} (true)`, bb10Fore && !bb10Lyft && liggerNu());
+  Kamera.satBib(null); Kamera.satTrosklar({ autoUts: 1 });
+
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
   check(`BB6 ingen library-ruta: bib ${JSON.stringify(Kamera.bib)} (null), i rapporten ${bordExtra && JSON.stringify(bordExtra.bib)}`, Kamera.bib === null && !!bordExtra && bordExtra.bib === null);
