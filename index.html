@@ -597,6 +597,45 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .minlist .bdot{background:#e8b33a}
 .othumb{display:inline-block;flex:none;width:22px;height:31px;border-radius:3px;background:#11161e center/cover no-repeat;box-shadow:0 0 0 1px #0008}
 .othumb.tappad{transform:rotate(90deg);margin:0 5px}
+/* Mina högar i en liten matta: samma skala som motståndarnas (--hs,
+   0,6–1, satt av renderBord). Nederkanten står kvar. */
+.bord #manaRow{transform:scale(var(--hs,1));transform-origin:0 100%}
+.bord #bibHog{left:calc(22px + 130px * var(--hs,1));transform:scale(var(--hs,1));transform-origin:0 100%}
+.bord.sits #manaRow,.bord.sits #bibHog{transition:transform .5s var(--bordk),left .5s var(--bordk)}
+/* Motståndarens kort. Brädet ritas spegelvänt (bordsvyn räknar lägena),
+   så korten står upprätt; "Upside down" vrider varje kort ett halvt varv,
+   som när man sitter mitt emot. Man tittar, man flyttar inte. */
+.ovp{position:absolute;inset:0;overflow:hidden}
+.obrade{position:absolute;left:0;top:0;width:1px;height:1px;transform-origin:0 0;will-change:transform}
+.bord.glid .obrade{transition:transform .5s var(--bordk)}
+.omatta .card{cursor:default}
+.omatta.panorerar,.omatta.panorerar *{cursor:grabbing!important}
+.omatta.vand-upp .card{transform:rotate(180deg)}
+.omatta.vand-upp .card.tappad{transform:rotate(270deg)}
+.omatta.vand-upp .card:hover{transform:rotate(180deg) scale(1.02)}
+.omatta.vand-upp .card.tappad:hover{transform:rotate(270deg) scale(1.02)}
+.omatta.vand-bord{background:radial-gradient(1250px 620px at 46% 26%, #18232f, #0a0f14 72%)}
+.ochrome{position:absolute;z-index:24;right:10px;bottom:10px;display:flex;align-items:center;gap:6px}
+.ochrome:empty{display:none}
+.ochrome .ztxt{display:grid;place-items:center;cursor:pointer}
+.turnbtn{display:inline-flex;align-items:center;gap:5px;flex:none;height:20px;padding:0 4px 0 6px;border:0;border-radius:5px;background:none;
+  color:var(--dim);font:500 11px var(--sans);white-space:nowrap;cursor:pointer}
+.turnbtn:hover{background:var(--bg4);color:var(--txt)}
+.turnbtn kbd{min-width:14px;padding:0 3px;font-size:9.5px;line-height:1.3}
+.omatta.smal .turnbtn .tt{display:none}
+/* Motståndarens högar (MES-125, speglade): uppe till höger med graveyard
+   längst ut; "Board upright" ställer dem nere till vänster som mina. */
+.ohogar{position:absolute;z-index:22;display:flex;align-items:flex-start;gap:22px}
+.ohogar.speg{right:22px;top:16px;flex-direction:row-reverse;transform-origin:100% 0}
+.ohogar:not(.speg){left:22px;bottom:22px;transform-origin:0 100%}
+.ohog{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.ohogar .grav,.ohogar .bib{cursor:default}
+.ohogar .bib:hover{border-color:#6b8cff;box-shadow:none}
+.ohogar .bibrad > i{background:#6b8cff}
+.oexil{align-self:flex-end;display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:30px;padding:6px 9px;border-radius:8px;
+  border:1px dashed var(--line);background:#0e131add;color:var(--dim)}
+.oexil b{font:700 14px/1 var(--mono);color:var(--txt)}
+.oexil .zonlbl{font-size:8.5px;letter-spacing:.7px}
 .mattavp{position:absolute;inset:0;overflow:hidden;touch-action:none;user-select:none}
 /* Handen visas bara när vänsterknappen tar tag i mattan: i Pan-läget och
    med mellanslag hållet — ovanpå korten också, men inte över mattans
@@ -6137,6 +6176,7 @@ function renderBord() {
   bordEl.classList.toggle('medmotst', !!L);
   if (!L) {
     zp.style.left = zp.style.top = zp.style.width = zp.style.height = '';
+    zp.style.removeProperty('--hs');
     zp.classList.remove('f-list');
     bordMal = bordRef = null;
     kantEl.hidden = true;
@@ -6148,6 +6188,7 @@ function renderBord() {
   const form = bordForm(L.min);
   bordRuta(zp, L.min);
   zp.classList.toggle('f-list', form === 'list');
+  zp.style.setProperty('--hs', form === 'full' ? hogSkala(L.min) : 1);
   bordRef = { w: L.W, h: L.H - BORD.LIST - BORD.KANT };
   bordMal = form === 'full' ? { w: L.min.w, h: L.min.h } : bordRef;
   ritaMinList(form === 'list');
@@ -6181,23 +6222,27 @@ function ritaKant(L) {
    ritningarna så att rutorna kan glida. */
 const oppMattor = new Map();   // spelar-id → { el, plate, kol, list, ... }
 function ritaOppMattor(L) {
-  for (const [pid, m] of oppMattor) if (!L.rutor.has(pid)) { m.el.remove(); oppMattor.delete(pid); }
+  for (const [pid, m] of oppMattor) if (!L.rutor.has(pid)) { m.el.remove(); oppMattor.delete(pid); oppVyer.delete(pid); }
   L.o.forEach((p, i) => {
     const m = oppMattor.get(p.id) || skapaOppMatta(p);
     const r = L.rutor.get(p.id), form = bordForm(r);
     bordRuta(m.el, r);
-    m.el.className = `omatta f-${form}${L.valt === p.id ? ' vald' : ''}${r.w < 380 ? ' smal' : ''}`;
+    m.el.className = `omatta f-${form} vand-${oppVand}${L.valt === p.id ? ' vald' : ''}${r.w < 380 ? ' smal' : ''}`;
     m.el.style.setProperty('--pc', p.color || 'var(--blue)');
     ritaOppDelar(p, m, i);
+    ritaOppKropp(p, m, r);
   });
 }
 function skapaOppMatta(p) {
   const el = document.createElement('section');
   el.className = 'omatta'; el.dataset.pid = p.id;
-  el.innerHTML = '<div class="okropp"><div class="oplate"></div></div><span class="ovinj"></span>'
+  el.innerHTML = '<div class="okropp"><div class="ovp"><div class="obrade"></div></div><div class="ohogar"></div>'
+    + '<div class="oplate"></div><div class="ochrome"></div></div><span class="ovinj"></span>'
     + '<div class="okol" role="button"></div><div class="olist" role="button"></div>';
   oppMattorEl.appendChild(el);
-  const m = { el, plate: el.querySelector('.oplate'), kol: el.querySelector('.okol'), list: el.querySelector('.olist') };
+  const q = k => el.querySelector(k);
+  const m = { el, brade: q('.obrade'), hogar: q('.ohogar'), plate: q('.oplate'), chrome: q('.ochrome'), kol: q('.okol'), list: q('.olist'),
+              sig: null, ram: null, geo: null };
   oppMattor.set(p.id, m);
   return m;
 }
@@ -6209,7 +6254,8 @@ function ritaOppDelar(p, m, i) {
   const stor = `${p.name}'s table big` + (kbd ? ` (${kbd})` : '');
   const lage = `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
   satHtml(m.plate, `<button type="button" class="plnamn" title="${esc(stor)}"><i class="bdot"></i><b>${esc(p.name)}</b>`
-    + `${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span><span class="sub">${paBord} on the table</span></button>${lage}`);
+    + `${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span><span class="sub">${paBord} on the table</span></button>${lage}`
+    + `<span class="sep"></span><button type="button" class="turnbtn" data-oppvand title="Turn their cards (U)">${IKON_VAND}<span class="tt">${VAND_TXT[oppVand]}</span><kbd>U</kbd></button>`);
   m.kol.title = m.list.title = stor;
   satHtml(m.kol, `<div class="kolhd"><i class="bdot"></i><b>${esc(p.name)}</b>${pips ? `<span class="pips">${pips}</span>` : ''}</div>`
     + `<span class="kolsub">${paBord} on the table</span><div class="kolthumbs">${bordTummar(p.cards, 12)}</div>`
@@ -6220,9 +6266,9 @@ function ritaOppDelar(p, m, i) {
 /* Nivåbytet glider: rutorna har övergången i CSS:en, min mattas bräde
    får den en stund (samma kurva), annars hoppar korten medan rutan glider. */
 function bordGlid() {
-  gridEl.classList.add('bordglid');
+  gridEl.classList.add('bordglid'); bordEl.classList.add('glid');
   clearTimeout(bord.glidT);
-  bord.glidT = setTimeout(() => gridEl.classList.remove('bordglid'), 560);
+  bord.glidT = setTimeout(() => { gridEl.classList.remove('bordglid'); bordEl.classList.remove('glid'); }, 560);
 }
 /* Välj vem som är stor: 'me', 'all' eller en motståndares id. */
 function bordValj(v) {
@@ -6267,6 +6313,7 @@ function bordTangent(ev) {
   else if (k === 'ArrowRight' || (k === 'Tab' && !ev.shiftKey)) bordSidled(1);
   else if (k === 'ArrowLeft' || (k === 'Tab' && ev.shiftKey)) bordSidled(-1);
   else if (k >= '1' && k <= '9') { const p = motstandare()[+k - 1]; if (!p) return false; bordValj(p.id); }
+  else if (lower === 'u') oppVandNasta();
   else return false;
   return true;
 }
@@ -6317,18 +6364,214 @@ kantEl.addEventListener('click', ev => {
 /* Ett klick var som helst i en motståndares ruta — matta, kolumn eller list
    — gör hen stor. Ett drag gör det inte. */
 oppMattorEl.addEventListener('pointerdown', ev => {
-  const sek = ev.target.closest('.omatta'); if (!sek) return;
-  const pid = sek.dataset.pid, x0 = ev.clientX, y0 = ev.clientY, knapp = ev.button;
+  const sek = ev.target.closest('.omatta'); if (!sek || ev.target.closest('.ochrome,.turnbtn')) return;
+  const pid = sek.dataset.pid, m = oppMattor.get(pid), full = sek.classList.contains('f-full') && m && m.geo;
+  const x0 = ev.clientX, y0 = ev.clientY, knapp = ev.button, v0 = Object.assign({}, oppVy(pid));
   let drog = false;
-  const mv = e => { if (!drog && Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) > DND_TROSKEL) drog = true; };
+  if (full) ev.preventDefault();
+  const mv = e => {
+    if (!drog) {
+      if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) <= DND_TROSKEL) return;
+      drog = true;
+      if (full) { sek.classList.add('panorerar'); bordEl.classList.remove('glid'); }
+    }
+    if (full) oppSatVy(pid, { px: v0.px + e.clientX - x0, py: v0.py + e.clientY - y0, z: v0.z });
+  };
   const upp = e => {
     removeEventListener('pointermove', mv); removeEventListener('pointerup', upp); removeEventListener('pointercancel', upp);
+    sek.classList.remove('panorerar');
     if (!drog && knapp === 0 && e.type === 'pointerup') bordValj(pid);
   };
   addEventListener('pointermove', mv); addEventListener('pointerup', upp); addEventListener('pointercancel', upp);
 });
 oppMattorEl.addEventListener('contextmenu', ev => ev.preventDefault());
 minListEl.addEventListener('click', () => bordValj('me'));
+/* ── Motståndarens matta: korten, vyn, högarna ─────────────────────────
+   Hens bord ritas spegelvänt — det som ligger närmast hen ligger längst
+   bort från mig, som när man sitter mitt emot — men varje kort står upprätt
+   så att det går att läsa ("Cards upright", förval). U byter till Upside
+   down (korten vända mot hen) och Board upright (bordet som hen ser det).
+   Vyn är designens: fit = alla kort i bild innanför högarna, skylten och
+   chippet, aldrig över 100 %; zoom och pan räknas från fit och sparas per
+   spelare medan man är kvar i spelet. */
+const VAND = ['upright', 'upp', 'bord'];
+const VAND_TXT = { upright: 'Cards upright', upp: 'Upside down', bord: 'Board upright' };
+const IKON_VAND = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>';
+let oppVand = 'upright';
+try { const v = localStorage.getItem('mesa.vandMotst'); if (VAND.includes(v)) oppVand = v; } catch (e) {}
+function oppVandNasta() {
+  oppVand = VAND[(VAND.indexOf(oppVand) + 1) % VAND.length];
+  try { localStorage.setItem('mesa.vandMotst', oppVand); } catch (e) {}
+  oppVyer.clear();                       // lägena byter plats: börja om i fit
+  bordGlid(); renderBord();
+}
+const oppVyer = new Map();   // spelar-id → { px, py, z } — z relativt fit, pan i skärmpixlar
+function oppVy(pid) { let v = oppVyer.get(pid); if (!v) { v = { px: 0, py: 0, z: 1 }; oppVyer.set(pid, v); } return v; }
+/* Högarnas skala i en matta: full i en stor, ned till 0,6 i en liten. */
+function hogSkala(r) { return Math.max(0.6, Math.min(1, r.w / 1000, r.h / 600)); }
+/* Var ett av hens kort ritas i hens matta: spegelvänt kring origo, så att
+   mittpunkten hamnar på (−x, −y) och kortet ändå står upprätt. Board
+   upright ritar det där hen har det. */
+function oppPos(c) {
+  const s = matStorlek(c), x = c.x || 0, y = c.y || 0, z = c.z || 1;
+  return oppVand === 'bord' ? { x, y, z } : { x: -x - s.w, y: -y - s.h, z };
+}
+/* Ett bifogat kort sticker upp ovanför sin värd på skärmen — i Upside down
+   nedanför, som det ligger på hens sida. */
+function oppBifPos(vp, k) {
+  const d = oppVand === 'upp' ? -1 : 1;
+  return { x: vp.x + d * MATTA.XSTEP * (k + 1), y: vp.y - d * 44 * (k + 1), z: Math.max(1, (vp.z || 1) - (k + 1)) };
+}
+/* Korten, högarna och vyn i en motståndares matta. Korten byggs bara om
+   när hens bord ändrats (signaturen); vyn skrivs varje gång, eftersom rutan
+   kan ha bytt storlek. */
+function ritaOppKropp(p, m, r) {
+  const cards = p.cards;
+  /* Kort utan plats (ett bord från före mattan) får en bredvid de andra,
+     som på mitt bord. Skrivs bara här: hens nästa rad ersätter dem ändå. */
+  const utan = cards.filter(c => paMattan(c) && !c.attachedTo && (c.x == null || c.y == null));
+  if (utan.length) {
+    const board = boardFor(cards.filter(paMattan), MATTA.VP);
+    for (const c of utan) { const pos = slotBeside(cards.filter(k => k !== c && k.x != null && k.y != null), matSlag(c), board); c.x = pos.x; c.y = pos.y; }
+  }
+  const sig = oppVand + '/' + cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
+    + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + '·' + (paMattan(c) ? matSlag(c) : zonAv(c))
+    + '·' + (c.cts || []).map(ctLabel).join(',') + '·' + c.x + ',' + c.y + ',' + c.z).join('|');
+  if (sig !== m.sig) {
+    m.sig = sig;
+    const html = [];
+    let ram = null;
+    const ta = (c, pos) => {
+      const q = matRect(Object.assign({}, c, pos));
+      ram = ram ? { x0: Math.min(ram.x0, q.x), y0: Math.min(ram.y0, q.y), x1: Math.max(ram.x1, q.x + q.w), y1: Math.max(ram.y1, q.y + q.h) }
+        : { x0: q.x, y0: q.y, x1: q.x + q.w, y1: q.y + q.h };
+    };
+    cards.forEach((c, i) => {
+      if (!paMattan(c)) return;
+      if (c.attachedTo) { const vard = cards.find(x => x.cid === c.attachedTo); if (vard && paMattan(vard)) return; }
+      const alla = cards.filter(x => x.attachedTo === c.cid && paMattan(x)), pos = oppPos(c);
+      for (let k = alla.length - 1; k >= 0; k--) {
+        const bp = oppBifPos(pos, k);
+        html.push(kortHtml(alla[k], cards.indexOf(alla[k]), 'bifogad', bp, null, true)); ta(alla[k], bp);
+      }
+      html.push(kortHtml(c, i, '', pos, alla, true)); ta(c, pos);
+    });
+    m.brade.innerHTML = html.join('');
+    m.ram = ram || { x0: -MATTA.VP.w, y0: -MATTA.VP.h, x1: 0, y1: 0 };
+  }
+  const speg = oppVand !== 'bord', ps = hogSkala(r);
+  m.hogar.className = 'ohogar' + (speg ? ' speg' : '');
+  m.hogar.style.transform = `scale(${Math.round(ps * 1000) / 1000})`;
+  satHtml(m.hogar, oppHogarHtml(p));
+  /* Fit: rutan innanför högarna (på deras sida), skylten överst och
+     chippet nederst, med 22 px luft runt korten. */
+  const pw = 22 + 238 * ps + 24, ins = speg ? { l: 20, t: 46, r: pw, b: 50 } : { l: pw, t: 46, r: 20, b: 50 };
+  const aw = Math.max(10, r.w - ins.l - ins.r), ah = Math.max(10, r.h - ins.t - ins.b);
+  const ew = m.ram.x1 - m.ram.x0 + 44, eh = m.ram.y1 - m.ram.y0 + 44;
+  m.geo = { r, cx: ins.l + aw / 2, cy: ins.t + ah / 2, bcx: (m.ram.x0 + m.ram.x1) / 2, bcy: (m.ram.y0 + m.ram.y1) / 2,
+            ew, eh, sFit: Math.max(0.05, Math.min(aw / ew, ah / eh, 1)) };
+  oppVyer.set(p.id, oppKlamp(m.geo, oppVy(p.id)));
+  oppSkriv(p.id, m);
+}
+/* Högarna: graveyard (toppkortet, lagren och antalet), library (antalet
+   som inte är spelat) och exile när där finns något. */
+function oppHogarHtml(p) {
+  const grav = p.cards.filter(c => zonAv(c) === ZON_GRAV), n = grav.length, exil = p.cards.filter(c => zonAv(c) === ZON_EXIL).length;
+  const top = n ? cardOf(grav[0]) : null, src = top ? imgOf(top, 0, 'normal') || imgOf(top, 0, 'small') : '', bib = oppBibKvar(p);
+  const lager = []; for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
+  return `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — point at it to see the top card` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
+    + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '') + `<span class="gravsten">${GRAVSTEN}</span></div>`
+    + `<span class="hograd"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`
+    + `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : ` — ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
+    + `<span class="hograd bibrad"><i></i>Library${bib == null ? '' : `<b>${bib}</b>`}</span></div>`
+    + (exil ? `<div class="oexil" title="Cards in exile"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
+}
+/* Så långt mattan får flyttas: hela brädet ska gå att nå, plus lite luft. */
+function oppKlamp(g, v) {
+  const cw = g.ew * g.sFit * v.z, ch = g.eh * g.sFit * v.z;
+  const mx = Math.max(0, (cw - g.r.w) / 2) + 30, my = Math.max(0, (ch - g.r.h) / 2) + 30;
+  return { px: Math.max(-mx, Math.min(mx, v.px)), py: Math.max(-my, Math.min(my, v.py)), z: v.z };
+}
+function oppSkriv(pid, m) {
+  const g = m.geo, v = oppVy(pid), s = g.sFit * v.z, fit = v.z === 1 && !v.px && !v.py, r1 = n => Math.round(n * 10) / 10;
+  m.brade.style.transform = `translate(${r1(g.cx + v.px)}px,${r1(g.cy + v.py)}px) scale(${Math.round(s * 1000) / 1000}) translate(${r1(-g.bcx)}px,${r1(-g.bcy)}px)`;
+  satHtml(m.chrome, g.r.w >= 420 && g.r.h >= 200 ? `<div class="zoomchip"><button type="button" class="zsteg" data-oz="ut" title="Zoom out (−)">−</button>`
+    + `<button type="button" class="ztxt${fit ? '' : ' manuell'}" data-oz="fit" title="Back to fit (0)">${Math.round(s * 100)}%${fit ? ' fit' : ''}</button>`
+    + `<button type="button" class="zsteg" data-oz="in" title="Zoom in (+)">+</button></div>` : '');
+}
+function oppSatVy(pid, v) {
+  const m = oppMattor.get(pid); if (!m || !m.geo) return;
+  oppVyer.set(pid, oppKlamp(m.geo, v));
+  oppSkriv(pid, m);
+}
+/* Zooma med punkten (q, i mattans pixlar) kvar under pekaren; mattans mitt
+   utan punkt. Aldrig ut förbi fit, aldrig över MATTA.ZOOM_MAX. */
+function oppZoom(pid, f, qx, qy) {
+  const m = oppMattor.get(pid); if (!m || !m.geo) return;
+  const g = m.geo, v = oppVy(pid), nz = Math.max(1, Math.min(Math.max(1, MATTA.ZOOM_MAX / g.sFit), v.z * f));
+  if (qx == null) { qx = g.r.w / 2; qy = g.r.h / 2; }
+  const k = nz / v.z, ox = g.cx + v.px, oy = g.cy + v.py;
+  oppSatVy(pid, nz <= 1.0001 ? { px: 0, py: 0, z: 1 } : { px: qx - g.cx - (qx - ox) * k, py: qy - g.cy - (qy - oy) * k, z: nz });
+}
+/* Den motståndarmatta pekaren står över (full storlek): + − och 0 gäller
+   den i stället för min. */
+let oppPek = null;
+function oppZoomTangent(f) {
+  if (!oppPek || !oppMattor.has(oppPek)) return false;
+  if (f) oppZoom(oppPek, f); else oppSatVy(oppPek, { px: 0, py: 0, z: 1 });
+  return true;
+}
+oppMattorEl.addEventListener('click', ev => {
+  const sek = ev.target.closest('.omatta'); if (!sek) return;
+  const oz = ev.target.closest('[data-oz]');
+  if (oz) {
+    ev.stopPropagation();
+    const a = oz.dataset.oz, pid = sek.dataset.pid;
+    bordEl.classList.add('glid'); clearTimeout(bord.glidT); bord.glidT = setTimeout(() => bordEl.classList.remove('glid'), 560);
+    if (a === 'fit') oppSatVy(pid, { px: 0, py: 0, z: 1 }); else oppZoom(pid, a === 'in' ? 1.25 : 0.8);
+  } else if (ev.target.closest('[data-oppvand]')) { ev.stopPropagation(); oppVandNasta(); }
+});
+/* Hjulet som på min matta: nypning och mushjul zoomar mot pekaren, två
+   fingrar på touchpaden flyttar mattan, shift flyttar i sidled. */
+oppMattorEl.addEventListener('wheel', ev => {
+  const sek = ev.target.closest('.omatta'); if (!sek) return;
+  ev.preventDefault();
+  const pid = sek.dataset.pid, m = oppMattor.get(pid);
+  if (!sek.classList.contains('f-full') || !m || !m.geo) return;
+  bordEl.classList.remove('glid');
+  const r = sek.getBoundingClientRect(), qx = ev.clientX - r.left, qy = ev.clientY - r.top, v = oppVy(pid);
+  if (ev.ctrlKey) hjulGest.t = 0;
+  else if (ev.shiftKey || arTouchpad(ev)) {
+    const sidled = ev.shiftKey && !ev.deltaX;
+    oppSatVy(pid, { px: v.px - (sidled ? ev.deltaY : ev.deltaX), py: v.py - (ev.shiftKey ? 0 : ev.deltaY), z: v.z });
+    return;
+  }
+  const nyp = arNypning(ev), max = nyp ? HJUL.MAX_NYP : HJUL.MAX_HJUL;
+  const d = Math.max(-max, Math.min(max, hjulPixlar(ev)));
+  oppZoom(pid, Math.exp(-d * (nyp ? HJUL.NYP : HJUL.HACK)), qx, qy);
+}, { passive: false });
+/* Inspektorn: hens kort när man pekar på det, graveyardens översta när man
+   pekar på högen. Samma respit på vägen ut som på min matta. */
+let oppHover = null, oppHoverT = null;
+oppMattorEl.addEventListener('pointerover', ev => {
+  const sek = ev.target.closest('.omatta');
+  oppPek = sek && sek.classList.contains('f-full') ? sek.dataset.pid : null;
+  const kort = ev.target.closest('.card'), grav = ev.target.closest('.ohogar .grav');
+  if (!sek || (!kort && !grav)) return;
+  const p = state.players.find(q => q.id === sek.dataset.pid); if (!p) return;
+  const cid = kort ? kort.dataset.cid : (p.cards.find(c => zonAv(c) === ZON_GRAV) || {}).cid;
+  if (!cid) return;
+  clearTimeout(oppHoverT);
+  if (!oppHover || oppHover.cid !== cid) { oppHover = { pid: p.id, cid, grav: !kort }; renderInspektor(); }
+});
+oppMattorEl.addEventListener('pointerout', ev => {
+  const fran = ev.target.closest('.card,.ohogar .grav'); if (!fran) return;
+  const till = ev.relatedTarget && ev.relatedTarget.closest ? ev.relatedTarget.closest('.card,.ohogar .grav') : null;
+  if (till === fran) return;
+  clearTimeout(oppHoverT);
+  oppHoverT = setTimeout(() => { oppHover = null; renderInspektor(); }, PILL_RESPIT);
+});
+oppMattorEl.addEventListener('pointerleave', () => { oppPek = null; });
 /* Ytan byter storlek utan att fönstret gör det: inspektorn, uppstarten. */
 if (window.ResizeObserver) new ResizeObserver(() => { if (bordAktiv()) { renderBord(); matResize(); } }).observe(bordEl);
 
@@ -6496,7 +6739,7 @@ function flyttaTill(i, zon) {
    det är så bifogade kort ritas bakom sin värd. En div, inte en button:
    knapparna i hover-raden ligger inuti, och HTML tillåter inte en knapp i
    en knapp. bif: korten som sitter på värden — det de ger ritas på den. */
-function kortHtml(e, i, extra, pos, bif) {
+function kortHtml(e, i, extra, pos, bif, las) {
   const card = cardOf(e);
   const st = cardStatus(e);
   const dfc = arDfc(card);
@@ -6532,7 +6775,7 @@ function kortHtml(e, i, extra, pos, bif) {
     <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
     ${kwHtml}${ptTile(pv)}
-    ${kortChip(e)}
+    ${kortChip(e, las)}
   </div>`;
 }
 /* Var ett bifogat kort ligger: bakom sin värd, förskjutet så att titelraden
@@ -6641,9 +6884,9 @@ function kamDom(c) {
   if (t.tillstand === 'stilla' && !t.namn) return 'reading';
   return '';
 }
-function kortChip(e) {
+function kortChip(e, las) {
   if (e.lyft != null) {
-    if (!redigerbar()) return '<span class="kortchip lost">Camera lost it</span>';
+    if (las || !redigerbar()) return '<span class="kortchip lost">Camera lost it</span>';
     return matLage.lyftN <= 2 ? '<span class="kortchip lost">Where did it go?</span>' : '';
   }
   const dom = kamDom(e);
@@ -7975,6 +8218,11 @@ function inspektorKort() {
     if (it.e) return { e: it.e, label: hf.src === ZON_EXIL ? 'From exile' : 'From the graveyard' };
     return { e: { cid: 'hf', name: it.name, sid: it.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   }
+  /* En motståndares kort (bordsvyn): hens namn och färg i rubriken. */
+  if (oppHover) {
+    const p = state.players.find(q => q.id === oppHover.pid), k = p && p.cards.find(c => c.cid === oppHover.cid);
+    if (k) return { e: k, label: oppHover.grav ? `From ${p.name}'s graveyard` : `${p.name}'s card`, col: p.color };
+  }
   if (matHover != null) {
     const k = hand().find(c => c.cid === matHover);
     if (k) return { e: k, label: zonAv(k) === ZON_GRAV ? 'From the graveyard' : zonAv(k) === ZON_EXIL ? 'From exile' : 'Pointing at' };
@@ -7984,14 +8232,14 @@ function inspektorKort() {
 function renderInspektor() {
   const body = $('#insBody'), lbl = $('#insLabel');
   if (!body) return;
-  const { e, label } = inspektorKort();
+  const { e, label, col } = inspektorKort();
   const c = e ? cardOf(e) : null, dfc = arDfc(c);
   const fi = e && e.flipped && dfc ? 1 : 0;
   const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
   const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
   if (body.dataset.k === nyckel) return;
   body.dataset.k = nyckel;
-  if (lbl) lbl.textContent = label;
+  if (lbl) { lbl.textContent = label; lbl.style.color = col || ''; }
   if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">Point at a card to see it here</div></div>'; return; }
   const src = e.flipped && !dfc ? BAKSIDA : (c ? (imgOf(c, fi, 'png') || imgOf(c, fi, 'large')) : '');
   const f = c && c.faces[fi] || null;
@@ -12734,9 +12982,9 @@ addEventListener('keydown', ev => {
       vaxlaFokus();
       return;
     case 'Tab':        ev.preventDefault(); if (spelLage) bordTangent(ev); else cyclePlayer(ev.shiftKey ? -1 : 1); return;
-    case '+': case '=': ev.preventDefault(); zoomBy(1.25); return;
-    case '-': case '_': ev.preventDefault(); zoomBy(0.8); return;
-    case '0':          ev.preventDefault(); fitView(); return;   // alla kort i bild, fria från högarna
+    case '+': case '=': ev.preventDefault(); if (!oppZoomTangent(1.25)) zoomBy(1.25); return;
+    case '-': case '_': ev.preventDefault(); if (!oppZoomTangent(0.8)) zoomBy(0.8); return;
+    case '0':          ev.preventDefault(); if (!oppZoomTangent(0)) fitView(); return;   // alla kort i bild, fria från högarna
     case '?':          ev.preventDefault(); openOv('helpOv'); return;
   }
   if (k >= '1' && k <= '9') {
@@ -12747,9 +12995,9 @@ addEventListener('keydown', ev => {
     return;
   }
   const lower = k.toLowerCase();
-  /* Bordsvyn: M mitt bord, A alla. A öppnar inget annat i ett spel sedan
-     leken fick L (MES-145). */
-  if (spelLage && (lower === 'm' || lower === 'a')) { if (bordTangent(ev)) ev.preventDefault(); return; }
+  /* Bordsvyn: M mitt bord, A alla, U vänder motståndarnas kort. A öppnar
+     inget annat i ett spel sedan leken fick L (MES-145). */
+  if (spelLage && (lower === 'm' || lower === 'a' || lower === 'u')) { if (bordTangent(ev)) ev.preventDefault(); return; }
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
   const skriver = ' t e g d n r '.includes(' ' + lower + ' ') || k === ' ';
@@ -12782,6 +13030,8 @@ addEventListener('keydown', ev => {
    senast pekade på. */
 function vaxlaFokus() {
   if (focusOpen) { closeFocus(); return; }
+  if (oppHover) return;                  // en motståndares kort: fokusvyn visar bara mina än
+
   const i = pekIndex(); if (i >= 0) state.sel = i;
   openFocus();
 }
