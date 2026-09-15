@@ -193,28 +193,6 @@ kbd{
 .lekchip.egen:hover{border-color:var(--acc);color:var(--txt)}
 .lekchip.tom{padding:0 7px;border:1px dashed var(--acc);color:var(--pa-acc);font:600 10px/1 var(--sans);cursor:pointer}
 .lekchip.tom:hover{background:var(--tand2)}
-/* ── Lekknappen i headern (MES-99) ──────────────────────────────────
-   Min lek i spelet: färgerna, namnet och "N left" — kort ur leken som inte
-   är utspelade, hand och bibliotek ihop. Ersätter lekchippet på min egen
-   flik; de andras flikar behåller sitt. Utan lek en streckad "Pick a deck". */
-.deckslot{display:flex;flex:0 1 auto;min-width:0}
-.deckslot[hidden]{display:none}
-.deckbtn{
-  display:inline-flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0;
-  height:30px;padding:0 9px 0 8px;border-radius:var(--rs);
-  background:var(--bg3);border:1px solid var(--line);color:var(--txt);
-  font:550 12.5px var(--sans);white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s;
-}
-.deckbtn:hover{background:var(--bg4);border-color:#4a5a72}
-.deckbtn .pips{display:inline-flex;gap:2px;flex:none}
-.deckbtn .pip{width:13px;height:13px}
-.deckbtn .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
-.deckbtn .cnt{flex:none;font:11.5px/1 var(--mono);color:var(--dim)}
-.deckbtn .cnt b{color:var(--txt);font-weight:600}
-.deckbtn .cv{display:inline-flex;flex:none;color:var(--dim2)}
-.deckbtn.on{background:var(--bg4);border-color:#4a5a72}
-.deckbtn.tom{background:#f0a52a14;border:1px dashed var(--acc);color:#ffd98a}
-.deckbtn.tom svg{flex:none;opacity:.85}
 .players.kompakt .ptab:not(.on) .lekchip,.players.ikoner .lekchip{display:none}
 .lekvalpop{position:fixed;z-index:960;min-width:260px;max-width:min(400px,92vw);padding:6px;border-radius:10px;background:#0b1017fa;border:1px solid var(--panelram2);box-shadow:0 16px 40px -12px #000f;display:flex;flex-direction:column;gap:2px}
 .lekvalpop[hidden]{display:none}
@@ -345,63 +323,6 @@ body.tomhand .brade{
   grid-template-columns:minmax(0,1fr);
   grid-template-areas:"perm";
 }
-/* ── Leklådan (MES-100) ─────────────────────────────────────────────
-   Resten av leken i spelet: korten som inte är utspelade, per typ, med
-   sökning inom leken. Ett kort dras ut på mattan — den enda vägen att lägga
-   till ett kort för hand i ett spel. Egen spalt till vänster om mattan. */
-body.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) clamp(224px, 26%, 520px);grid-template-areas:"lada perm mark"}
-body.ladaoppen.tomhand .brade{grid-template-columns:320px minmax(0,1fr);grid-template-areas:"lada perm"}
-@media (max-width:1100px){
-  body.ladaoppen .brade{grid-template-columns:280px minmax(0,1fr) minmax(150px, 22%)}
-  body.ladaoppen.tomhand .brade{grid-template-columns:280px minmax(0,1fr)}
-}
-.lada{grid-area:lada;display:flex;flex-direction:column;min-height:0;min-width:0;background:#121821;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.lada[hidden]{display:none}
-.ladahd{padding:12px 12px 12px 14px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #1c2330}
-.ladatit{display:flex;align-items:center;gap:6px;min-width:0}
-.ladatit .ladanamn{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
-.ladatit .ladanamn b{font-size:14px;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ladatit .byt{flex:none;height:24px;padding:0 8px;font-size:11.5px}
-.ladatit .close{flex:none}
-.ladasub{font-size:12px;color:var(--dim);margin-top:-4px}
-.ladasok{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:8px;background:#0b1017;border:1px solid var(--line);color:var(--dim2)}
-.ladasok:focus-within{border-color:#4a5a72}
-.ladasok input{flex:1;min-width:0;height:100%;border:0;background:none;outline:none;color:var(--txt);font:12.5px var(--sans)}
-.ladasok kbd{font-size:10px}
-.ladafilter{display:flex;gap:4px;flex-wrap:wrap}
-.ladafilter:empty{display:none}
-.lfchip{height:24px;display:inline-flex;align-items:center;gap:5px;padding:0 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg3);font:11.5px var(--sans);color:var(--dim);cursor:pointer}
-.lfchip:hover{color:var(--txt)}
-.lfchip b{font:600 10.5px var(--mono);color:var(--dim2)}
-.lfchip.on{background:#232c3c;border-color:#4a5a72;color:var(--txt)}
-.lfchip.on b{color:var(--dim)}
-.ladalista{flex:1;min-height:0;overflow:auto;padding:2px 8px 10px;display:flex;flex-direction:column;gap:1px}
-.ladagrp{display:flex;align-items:center;gap:8px;padding:9px 6px 3px;background:none;border:0;font:inherit;color:inherit;text-align:left}
-.ladagrp .zonlbl{color:var(--dim)}
-.ladagrp i{font:600 10.5px var(--mono);font-style:normal;color:var(--dim2)}
-button.ladagrp{cursor:pointer}
-button.ladagrp:hover .zonlbl{color:var(--txt)}
-.ladarad{display:flex;align-items:center;gap:10px;min-height:30px;padding:0 6px;border-radius:7px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
-.ladarad:hover{background:var(--bg3)}
-.ladarad .g{display:inline-flex;color:#4a5a72;flex:none}
-.ladarad:hover .g{color:var(--dim)}
-.ladarad .sw{width:18px;height:25px;border-radius:3px;flex:none;background:#1b2230 center 22%/cover no-repeat;box-shadow:inset 0 0 0 1.5px #0b0b0d}
-.ladarad .n{flex:1;min-width:0;font-size:12.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* > .c: manaraden. Utan barnväljaren träffade regeln också den färglösa
-   brickan (.ms.c) och gjorde den till en flex-rad — siffran hamnade till
-   vänster i sin cirkel (MES-114). */
-.ladarad > .c{display:inline-flex;align-items:center;gap:1px;flex:none}
-.ladarad > .c > *{width:13px;height:13px;margin:0}
-/* Siffran på en ljusare bricka mot den mörka lådan (MES-114). */
-.ladarad .ms.c{background:#e4e0dc;font-size:9px}
-.ladarad .q{font:600 11px var(--mono);color:var(--dim);min-width:22px;text-align:right;flex:none}
-.ladarad.drar{background:#1a1710;box-shadow:inset 0 0 0 1px #f0a52a66}
-.ladarad.drar .n,.ladarad.drar .sw,.ladarad.drar > .c{opacity:.45}
-.ladatom{padding:18px 8px;color:var(--dim2);font-size:12.5px;text-align:center}
-.ladafot{padding:10px 14px;border-top:1px solid #1c2330;font-size:11.5px;color:var(--dim2)}
-.ladafot[hidden]{display:none}
-body.lasvy .ladarad{cursor:default}
-body.lasvy .ladarad .g{visibility:hidden}
 /* ── Uppstarten (MES-102) ───────────────────────────────────────────
    Designen Mesa Camera Play 1a–1e: en checklista i inspektorns spalt —
    lek, hur kameran arbetar, telefon (bara med kamera), ett otappat kort
@@ -411,10 +332,8 @@ body.lasvy .ladarad .g{visibility:hidden}
 .oppstart[hidden]{display:none}
 body.oppstart .kolmark{display:none}
 body.oppstart .brade{grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"perm mark"}
-body.oppstart.ladaoppen .brade{grid-template-columns:320px minmax(0,1fr) 360px;grid-template-areas:"lada perm mark"}
 @media (max-width:1100px){
   body.oppstart .brade{grid-template-columns:minmax(0,1fr) 320px}
-  body.oppstart.ladaoppen .brade{grid-template-columns:280px minmax(0,1fr) 320px}
 }
 .opphd{padding:16px 18px 14px;border-bottom:1px solid #1c2330;display:flex;flex-direction:column;gap:3px}
 .opphd b{font-size:15px;font-weight:650}
@@ -577,11 +496,6 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
   .oppstart{position:fixed;inset:44px 0 0 0;z-index:185;border-radius:0}
   body.oppstart .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
 }
-.ladaspok{position:fixed;z-index:950;width:63px;aspect-ratio:488/680;border-radius:4px;background:#1b2230 center/cover no-repeat;box-shadow:0 14px 30px -8px #000e,0 0 0 1px #f0a52a88;pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg)}
-@media (max-width:620px){
-  .lada{position:fixed;inset:44px 0 0 0;z-index:180;border-radius:0}
-  body.ladaoppen .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
-}
 .matta{
   position:relative;min-width:0;min-height:0;overflow:hidden;border-radius:12px;
   background:radial-gradient(1250px 620px at 46% 26%, #18232f, #0a0f14 72%);
@@ -722,7 +636,6 @@ body.granskar .card:not(.aktuell),body.granskar .plats:not(.aktuell){opacity:.25
 .arksok{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-radius:8px;background:#0b1017;border:1px solid var(--line);color:var(--dim2);font:12px var(--sans);cursor:pointer;text-align:left}
 .arksok:hover{border-color:#4a5a72;color:var(--txt)}
 .arkknappar{display:flex;gap:6px}
-.ladanamnge{margin:6px 0 4px;padding:7px 10px;border-radius:8px;background:#1a1710;border:1px solid #e8b33a66;color:#f0dcb0;font-size:12px;line-height:1.4}
 body.lasvy .kortark{display:none!important}
 .matta .empty{z-index:15}
 body.lasvy .mattachrome .btn{display:none!important}
@@ -1622,7 +1535,6 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
   /* "· 3 kort" är en bekräftelse, inte upplysning — den gröna pricken
      säger redan att det går, och talet står i statusfältet under. */
   .modechip.pa .langtxt{display:none}
-  .deckbtn .nm{max-width:12ch}
 }
 @media (max-width:860px){
   #addPlayerBtn{font-size:0;padding:0 7px}
@@ -2538,10 +2450,10 @@ body.ispel #addPlayerBtn{display:none}
   .spelknapp .kod{font-size:11px;letter-spacing:1.4px}
   .spelknapp .bjud span{display:none}       /* bara länkikonen kvar */
   .modechip{height:28px;padding:0 8px;font-size:11.5px;gap:6px}
-  /* Lekknappen behåller färgerna och talet, pillret lampan och lägets ikon:
-     namnen står i title och i panelerna de öppnar. */
-  .deckbtn,.campill{height:28px;padding:0 7px;gap:6px}
-  .deckbtn .nm,.deckbtn .cv,.campill .lbl,.campill .cv{display:none}
+  /* Pillret behåller lampan och lägets ikon: namnen står i title och i
+     panelen det öppnar. */
+  .campill{height:28px;padding:0 7px;gap:6px}
+  .campill .lbl,.campill .cv{display:none}
   .modeforklaring{display:none}             /* två meningar får inte plats */
   .frusen{font-size:11.5px;padding:0 8px}
   .autobar{height:40px;font-size:11.5px;padding:0 8px;gap:8px}
@@ -2565,7 +2477,7 @@ body.ispel #addPlayerBtn{display:none}
   /* Etiketten ligger i ett eget span just för det här: en naken textnod går
      inte att träffa med en väljare, och "Auto" blev kvar och sprängde lampan. */
   .modechip .lbl,.modechip .delare,.modechip svg{display:none}
-  .deckbtn .cnt,.campill .ikon{display:none}
+  .campill .ikon{display:none}
   /* I halva lägena är modeknappen en vanlig .btn, och de fälldes aldrig — raden
      blev 408 px bred i ett 390 px fönster och menyknappen kapades på mitten.
      Modeplatsen får dessutom krympa: den är inte det sista man ger upp. */
@@ -2697,9 +2609,6 @@ body.ispel #addPlayerBtn{display:none}
     <div class="topspacer"></div>
     <!-- Modeplatsen. Allt om hur bordet läses av bor här och ingen annanstans;
          se renderMode(). -->
-    <!-- Lekknappen (MES-99): min lek i spelet — färgerna, namnet och hur många
-         kort som inte är utspelade. Ritas av renderDeckKnapp(). -->
-    <div class="deckslot" id="deckSlot" hidden></div>
     <div class="modeslot" id="modeSlot"></div>
     <div class="vr"></div>
     <!-- Kort ur en bild — i alla lägen, också när auto går. Det är vägen när
@@ -2771,25 +2680,6 @@ body.ispel #addPlayerBtn{display:none}
            mot ytan. Id:n står kvar från zonlayouten så att delegeringarna
            (data-addtile på #zonPerm), renderTom (#emptyHand) och flygTillGrav
            (.grav i #manaRow) lever vidare oförändrade. -->
-      <!-- Leklådan (MES-100): resten av leken i spelet. Ritas av renderLada(). -->
-      <aside class="lada" id="lada" hidden aria-label="Your deck">
-        <div class="ladahd">
-          <div class="ladatit">
-            <span class="ladanamn" id="ladaTit"></span>
-            <button type="button" class="btn ghost byt" data-lada="byt" data-lekvalj="lek" title="Play another deck">Switch</button>
-            <button type="button" class="close" data-lada="stang" aria-label="Close your deck" title="Close (Esc)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-          </div>
-          <div class="ladasub" id="ladaSub"></div>
-          <label class="ladasok">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></svg>
-            <input id="ladaSok" type="text" autocomplete="off" spellcheck="false" placeholder="Find a card in your deck">
-            <kbd>/</kbd>
-          </label>
-          <div class="ladafilter" id="ladaFilter"></div>
-        </div>
-        <div class="ladalista" id="ladaLista"></div>
-        <div class="ladafot" id="ladaFot">Drag a card onto the mat to play it.</div>
-      </aside>
       <section class="matta" id="zonPerm">
         <div class="mattavp" id="gridWrap">
           <div class="mattabrade" id="grid"></div>
@@ -5950,12 +5840,11 @@ function renderTabs() {
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>` : ''}
     </button>`;
   }).join('');
-  renderDeckKnapp();
   matFlikar();
 }
 /* Lekchippet på fliken (D5-3): motståndarnas lek_info som pips + antal.
-   Min egen lek i ett spel står i lekknappen i headern sedan MES-99
-   (renderDeckKnapp). Lokalt bär den aktiva fliken den senast valda leken
+   Min egen lek i ett spel står på library-högen (lekknappen i headern
+   togs bort i MES-145). Lokalt bär den aktiva fliken den senast valda leken
    (lekAktiv) som förut; där är chippet en egen klickyta ([data-lekvalj]) som
    öppnar valet. Kollapsen (.kompakt/.ikoner) döljer det. */
 function lekChipHtml(p, mitt) {
@@ -5967,176 +5856,25 @@ function lekChipHtml(p, mitt) {
   return `<span class="lekchip${egen ? ' egen' : ''}"${egen ? ` data-lekvalj="${esc(p.id)}" role="button"` : ''} title="${esc(lek.namn || 'Deck')} · ${n} ${n === 1 ? 'card' : 'cards'}${egen ? ' — click to switch' : ''}">` +
     `<span class="pips">${pipsHtml(lek.farger)}</span><span class="lant">${n}</span></span>`;
 }
-/* Lekknappen i headern (MES-99): min valda lek — färgerna, namnet och hur
-   många av dess kort som inte är utspelade ("N left", hand och bibliotek
-   ihop, lekKvar). Utan vald lek "Pick a deck". Bara i ett spel. Öppnar
-   lekvalet tills leklådan finns (MES-100). Strängdiffad: den ritas både av
-   flikarna och av mattan, eftersom kamerans kort ibland bara ritar om mattan. */
-function renderDeckKnapp() {
-  const slot = $('#deckSlot'); if (!slot) return;
-  let html = '';
-  if (spelLage) {
-    const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
-    if (!lek) html = `<button type="button" class="deckbtn tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards">${M_LEK}<span class="nm">Pick a deck</span></button>`;
-    else {
-      const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null;
-      const kvar = k ? k.kvar : (lek.antal || 0), tot = k ? k.totalt : (lek.antal || 0);
-      html = `<button type="button" class="deckbtn${ladaOppen ? ' on' : ''}" data-lekvalj="lek" aria-expanded="${ladaOppen}" title="${esc(lek.namn || 'Deck')} — ${kvar} of ${tot} cards not played yet"><span class="pips">${pipsHtml(lek.farger)}</span><span class="nm">${esc(lek.namn || 'Deck')}</span><span class="cnt"><b>${kvar}</b> left</span><span class="cv">${M_CV}</span></button>`;
-    }
-  }
-  if (slot.dataset.h !== html) { slot.dataset.h = html; slot.innerHTML = html; slot.hidden = !html; }
-  if (ladaOppen) { if (!spelLage) stangLada(); else renderLada(); }
-}
-/* Lekknappen och Library-högen: med vald lek växlar de leklådan, annars
-   öppnar de lekvalet. */
+/* Library-högen: med vald lek tar den upp korten i handen (solfjädern,
+   MES-145), annars öppnar den lekvalet ("Pick a deck"). */
 function lekKlick(ev) {
   const b = ev.target.closest('[data-lekvalj]'); if (!b) return;
   ev.stopPropagation();
   const mig = minSpelare();
-  if (spelLage && mig && mig.lekId) { if (bibHogEl && bibHogEl.contains(b)) hfOppna('lib'); else vaxlaLada(); } else oppnaLekVal(b);
+  if (spelLage && mig && mig.lekId) hfOppna('lib'); else oppnaLekVal(b);
 }
-$('#deckSlot').addEventListener('click', lekKlick);
 
-/* ── Leklådan (MES-100) ──────────────────────────────────────────────
-   Designen Mesa Camera Play, artboard 3: resten av leken i spelet — kort
-   som inte är utspelade (lekKvar, hand och bibliotek ihop), per typ, med
-   sökning och filter inom leken. Ett kort dras ut på mattan: det är den
-   enda vägen att lägga till ett kort för hand i ett spel (MES-36 stängdes
-   som "läge 3"; designen gjorde den till svaret i stället för "lägg till
-   valfritt kort"). Sideboarden står hopfälld sist. Lekknappen, Library-
-   högen och / öppnar lådan. Listan är strängdiffad: den ritas om när
-   mattan ritas om, och sökrutan rörs aldrig. */
-let ladaOppen = false, ladaFilter = 'alla', ladaSb = false, ladaHover = null, ladaDrag = null, ladaNamnge = null, ladaAvArk = false;
-const ladaEl = $('#lada');
-function oppnaLada(sok) {
-  if (!spelLage || !ladaEl) return;
-  const mig = minSpelare();
-  if (!mig || !mig.lekId) { const b = $('#deckSlot [data-lekvalj]'); if (b) oppnaLekVal(b); return; }
-  if (!ladaOppen) {
-    ladaOppen = true; ladaEl.hidden = false; document.body.classList.add('ladaoppen');
-    lekFoljMin(); renderLada(); renderDeckKnapp(); matResize();
-  }
-  if (sok) { const i = $('#ladaSok'); i.focus(); i.select(); }
-}
-function stangLada() {
-  if (!ladaOppen) return;
-  ladaOppen = false; ladaHover = null; ladaEl.hidden = true; document.body.classList.remove('ladaoppen');
-  renderDeckKnapp(); renderInspektor(); matResize();
-}
-function vaxlaLada() { if (ladaOppen) stangLada(); else oppnaLada(); }
-/* Postens plats i lekens lista — en lek kan ha samma namn två gånger
-   (huvudlek och sideboard, två tryckningar). */
-function ladaPost(i) {
-  const k = lekKvar(), p = k && k.poster[+i];
-  return p && p.kvar > 0 ? p : null;
-}
-function renderLada() {
-  if (!ladaOppen || !ladaEl) return;
-  const mig = minSpelare(), lek = mig && mig.lek;
-  if (!spelLage || !mig || !mig.lekId) { stangLada(); return; }
-  const k = lekAktiv && lekAktiv.id === mig.lekId ? lekKvar() : null;
-  const tit = `<span class="pips">${pipsHtml(lek ? lek.farger : [])}</span><b>${esc((lek && lek.namn) || 'Deck')}</b>`;
-  const te = $('#ladaTit'); if (te.dataset.h !== tit) { te.dataset.h = tit; te.innerHTML = tit; }
-  const sub = k ? `${k.kvar} of ${k.totalt} cards not played yet` : 'Fetching your deck…';
-  const se = $('#ladaSub'); if (se.textContent !== sub) se.textContent = sub;
-  let lista = '', filter = '';
-  if (k) {
-    const q = norm($('#ladaSok').value || '');
-    const grupper = lekGrupper(k.poster.filter(p => p.kvar > 0), renderLada);
-    const huvud = grupper.filter(g => g.key !== 'sb'), sb = grupper.find(g => g.key === 'sb');
-    const summa = ps => ps.reduce((a, p) => a + p.kvar, 0);
-    if (ladaFilter !== 'alla' && !huvud.some(g => g.key === ladaFilter)) ladaFilter = 'alla';
-    if (huvud.length > 1) filter = `<button type="button" class="lfchip${ladaFilter === 'alla' ? ' on' : ''}" data-lfilter="alla">All <b>${k.kvar}</b></button>`
-      + huvud.map(g => `<button type="button" class="lfchip${ladaFilter === g.key ? ' on' : ''}" data-lfilter="${g.key}">${g.rub} <b>${summa(g.poster)}</b></button>`).join('');
-    const rad = p => {
-      const c = lekKortData(p), mana = c && c.faces && c.faces[0] ? c.faces[0].mana : '';
-      const bild = p.small || (c ? imgOf(c, 0, 'small') : '');   // äldre lekposter saknar small: kortcachen har bilden
-      return `<div class="ladarad" data-li="${p.i}" title="${esc(p.name)}${p.kvar > 1 ? ` — ${p.kvar} left` : ''}">`
-        + `<span class="g">${M_GREPP}</span><span class="sw"${bild ? ` style="background-image:url('${esc(bild)}')"` : ''}></span>`
-        + `<span class="n">${esc(p.name)}</span><span class="c">${manaHtml(mana, false, true)}</span><span class="q">${p.kvar > 1 ? '×' + p.kvar : ''}</span></div>`;
-    };
-    const traff = p => !q || norm(p.name).includes(q);
-    for (const g of huvud) {
-      if (ladaFilter !== 'alla' && ladaFilter !== g.key) continue;
-      const ps = g.poster.filter(traff); if (!ps.length) continue;
-      lista += `<div class="ladagrp"><span class="zonlbl">${g.rub}</span><i>${summa(ps)}</i></div>` + ps.map(rad).join('');
-    }
-    if (sb && ladaFilter === 'alla') {
-      const ps = sb.poster.filter(traff), oppen = ladaSb || !!q;
-      if (ps.length) lista += `<button type="button" class="ladagrp" data-lsb aria-expanded="${oppen}"><span class="zonlbl">Sideboard</span><i>${summa(ps)}</i><span class="zonlbl">${oppen ? '▾' : '▸'}</span></button>`
-        + (oppen ? ps.map(rad).join('') : '');
-    }
-    if (!lista) lista = `<div class="ladatom">${q ? 'No card in your deck matches.' : 'Every card in your deck is on the table.'}</div>`;
-    if (ladaNamnge) lista = '<div class="ladanamnge">Which card is this? Click it in your deck — the camera learns it.</div>' + lista;
-  } else lista = '<div class="ladatom">Fetching your deck…</div>';
-  const fe = $('#ladaFilter'); if (fe.dataset.h !== filter) { fe.dataset.h = filter; fe.innerHTML = filter; }
-  const le = $('#ladaLista'); if (le.dataset.h !== lista) { le.dataset.h = lista; le.innerHTML = lista; }
-  $('#ladaFot').hidden = !redigerbar();       // på någon annans bord drar man inget
-}
-ladaEl.addEventListener('click', ev => {
-  const nr = ladaNamnge && ev.target.closest('.ladarad');
-  if (nr) { const p = ladaPost(nr.dataset.li); if (p) ladaNamngeMed(p); return; }
-  const f = ev.target.closest('[data-lfilter]'); if (f) { ladaFilter = f.dataset.lfilter; renderLada(); return; }
-  if (ev.target.closest('[data-lsb]')) { ladaSb = !ladaSb; renderLada(); return; }
-  const a = ev.target.closest('[data-lada]'); if (!a) return;
-  if (a.dataset.lada === 'stang') stangLada();
-  else if (a.dataset.lada === 'byt') { ev.stopPropagation(); oppnaLekVal(a); }
-});
-$('#ladaSok').addEventListener('input', renderLada);
-$('#ladaSok').addEventListener('keydown', ev => {
-  if (ev.key !== 'Escape') return;
-  ev.stopPropagation();
-  if (ev.target.value) { ev.target.value = ''; renderLada(); } else ev.target.blur();
-});
-/* Hover på en rad visar kortet i inspektorn ("In your deck"). */
-ladaEl.addEventListener('pointerover', ev => {
-  if (ladaDrag && ladaDrag.drar) return;
-  const r = ev.target.closest('.ladarad'); if (!r) return;
-  const p = ladaPost(r.dataset.li);
-  if (p && (!ladaHover || ladaHover.i !== p.i)) { ladaHover = p; renderInspektor(); }
-});
-ladaEl.addEventListener('pointerleave', () => { if (ladaHover) { ladaHover = null; renderInspektor(); } });
-/* Draget ut ur lådan: ett spök följer pekaren så länge den är i lådan; när
-   den når mattan blir kortet ett mattkort under pekaren (spawnFromLek) och
-   mattans vanliga drag tar över — landhögar, bifoga, graveyard och
-   Library-högen fungerar som för vilket kort som helst. Släpps det utanför
-   mattan händer ingenting. */
-ladaEl.addEventListener('pointerdown', ev => {
-  if (ev.button !== 0 || !redigerbar()) return;
-  const r = ev.target.closest('.ladarad'); if (!r) return;
-  const p = ladaPost(r.dataset.li); if (!p) return;
-  ev.preventDefault();
-  ladaDrag = { post: p, rad: r, x0: ev.clientX, y0: ev.clientY, pointerId: ev.pointerId, drar: false, spok: null };
-  try { r.setPointerCapture(ev.pointerId); } catch (e) {}
-});
-addEventListener('pointermove', ev => {
-  const d = ladaDrag; if (!d || ev.pointerId !== d.pointerId) return;
-  if (!d.drar) {
-    if (Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < DND_TROSKEL) return;
-    d.drar = true; d.rad.classList.add('drar');
-    d.spok = document.createElement('div'); d.spok.className = 'ladaspok';
-    const c = lekKortData(d.post), src = (c && (imgOf(c, 0, 'small') || imgOf(c, 0, 'normal'))) || d.post.small;
-    if (src) d.spok.style.backgroundImage = `url('${src}')`;
-    document.body.appendChild(d.spok);
-    if (ladaHover) { ladaHover = null; renderInspektor(); }
-  }
-  d.spok.style.left = ev.clientX + 'px'; d.spok.style.top = ev.clientY + 'px';
-  const w = gridWrap.getBoundingClientRect();
-  if (ev.clientX > w.left && ev.clientX < w.right && ev.clientY > w.top && ev.clientY < w.bottom) {
-    const post = d.post; ladaDragSlut(); spawnFromLek(post, ev);
-  }
-});
-function ladaDragSlut() {
-  const d = ladaDrag; ladaDrag = null; if (!d) return;
-  if (d.spok) d.spok.remove();
-  if (d.rad) { d.rad.classList.remove('drar'); try { d.rad.releasePointerCapture(d.pointerId); } catch (e) {} }
-}
-addEventListener('pointerup', () => { if (ladaDrag) ladaDragSlut(); });
-addEventListener('pointercancel', () => { if (ladaDrag) ladaDragSlut(); });
-/* "Which card is this?" besvarat ur leklådan: samma väg som en gissning i
+/* "Which card is this?" (MES-103) besvaras i library-solfjädern (MES-145):
+   arket öppnar den i namnläge, och ett klick på ett kort där — eller Enter
+   på det lyfta — namnger kortet. hfNamnge är den väntande postens id;
+   hfAvArk säger att det var arket som öppnade solfjädern, och då läggs
+   den ner med arket. */
+let hfNamnge = null, hfAvArk = false;
+/* "Which card is this?" besvarat i solfjädern: samma väg som en gissning i
    arket (arkSvar 'gissa' → namngePend), med det valda kortet först. */
-function ladaNamngeMed(post) {
-  const p = malSpelare(), q = pendById(ladaNamnge);
+function hfNamngeMed(post) {
+  const p = malSpelare(), q = pendById(hfNamnge);
   if (!p || !q) { closeArk(); return; }
   const list = [{ name: post.name, sid: post.sid }].concat((q.cands || []).filter(x => x.name !== post.name));
   const samma = namngePend(p, q, post.name, post.sid, list);
@@ -6598,7 +6336,6 @@ function platsHtml(pl) {
 let gridStrukt = null, nyChipT = null;
 const gravSagda = new Set();           // kort högvakten lagt i graveyard, redan flugna dit (MES-85)
 function renderGrid(force) {
-  renderDeckKnapp();
   /* Mitt i ett drag skrivs kortens lägen direkt på elementen; en omritning
      här (kamerans hjärtslag, en fjärrändring) rev draget. Väntar tills det
      släppts — fjarrIkapp ritar om då. */
@@ -6943,7 +6680,7 @@ function speglaKamPos(p, v) {
 /* Library-högen (MES-93, MES-95; "Mesa Table Piles" A1): leken på platsen
    som markerades i uppstarten, till höger om graveyard — de två ställen på
    bordet där korten som inte är i spel ligger. Talet är lekKvar (hand och
-   bibliotek ihop). Klick öppnar lekvalet (leklådan, MES-100); ett kort som
+   bibliotek ihop). Klick tar upp korten i handen (solfjädern, MES-145); ett kort som
    släpps på den går tillbaka till hand eller bibliotek. Bara på mitt eget
    bord i ett spel. Strängdiffad. */
 const bibHogEl = $('#bibHog');
@@ -7302,7 +7039,11 @@ addEventListener('pointermove', ev => {
   finally { hf.spawnar = false; }
   if (dnd) dnd.fraFan = true; else hfEl.classList.remove('sjunk');
 });
-addEventListener('pointerup', () => { hf.drag = null; });
+/* Ett klick (inget drag) på ett kort medan arket frågar "Which card is this?" svarar. */
+addEventListener('pointerup', ev => {
+  const d = hf.drag; hf.drag = null;
+  if (d && hfNamnge && d.it.post && ev.pointerId === d.pointerId) hfNamngeMed(d.it.post);
+});
 addEventListener('pointercancel', () => { hf.drag = null; });
 /* Mattans nedersta band, där solfjädern ligger (och tipsraden under). */
 function hfOverBand(ev) {
@@ -7320,12 +7061,12 @@ function hfHint() {
   let html = '', ingen = false;
   if (pa && !hf.q) {
     const kalla = hf.src === 'lib' ? 'your hands' : hf.src === ZON_EXIL ? 'exile' : 'the graveyard';
-    html = '<span class="hsok">' + HF_LUPP + '<span>Type a name to find a card in ' + kalla + '</span></span><span><kbd>Esc</kbd> put down</span>';
+    html = '<span class="hsok">' + HF_LUPP + '<span>' + (hfNamnge && hf.src === 'lib' ? 'Which card is this? Click it in your deck, or type its name' : 'Type a name to find a card in ' + kalla) + '</span></span><span><kbd>Esc</kbd> put down</span>';
   } else if (pa) {
     const L = hfTraffar().length, mi = L ? ((hf.mi % L) + L) % L : 0;
     ingen = !L;
     html = '<span class="hsok">' + HF_LUPP + '<span>Find</span><b class="hq"><span>' + esc(hf.q) + '</span><i class="caret"></i></b><span class="hn">' + (ingen ? 'no card' : (mi + 1) + ' of ' + L) + '</span></span>'
-      + '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (redigerbar() ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>';
+      + '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (hfNamnge && hf.src === 'lib' ? 'this is the card' : redigerbar() ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>';
   }
   hfHintEl.classList.toggle('sok', pa);
   hfHintEl.classList.toggle('ingen', ingen);
@@ -7341,6 +7082,7 @@ function hfHint() {
 addEventListener('keydown', ev => {
   if (!hf.src || hf.fas === 'gather') return;
   if (ev.metaKey || ev.ctrlKey || ev.altKey || isTyping(ev.target) || (dnd && dnd.drar)) return;
+  if (hfNamnge && !hf.q && /^[1-3]$/.test(ev.key)) return;   // arkets gissningar 1–3
   const k = ev.key, sluta = () => { ev.preventDefault(); ev.stopImmediatePropagation(); };
   if (k === 'Escape') { sluta(); if (hf.q) { hf.q = ''; hf.mi = 0; hfLage(); } else hfStang(); return; }
   if (k === 'Backspace') { sluta(); hf.q = hf.q.slice(0, -1); hf.mi = 0; hf.mus = false; hfLage(); return; }
@@ -7364,6 +7106,7 @@ addEventListener('keydown', ev => {
 const HF_FLYG_MS = 480;
 function hfEnter() {
   const fok = hf.fok;
+  if (hfNamnge && fok && fok.it.post) { hfNamngeMed(fok.it.post); return; }   // arket frågar vilket kort det är
   if (!fok || !hf.src || !hfOppen() || !redigerbar() || hf.flyg) return;
   const it = fok.it, h = hand(), m = hfMatta.getBoundingClientRect();
   const fran = { x: m.left + fok.cx, y: m.top + fok.cy, w: HF.CW * fok.sc, th: fok.th };
@@ -7826,7 +7569,6 @@ function inspektorKort() {
     if (it.e) return { e: it.e, label: hf.src === ZON_EXIL ? 'From exile' : 'From the graveyard' };
     return { e: { cid: 'hf', name: it.name, sid: it.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   }
-  if (ladaHover) return { e: { cid: 'lada', name: ladaHover.name, sid: ladaHover.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   if (matHover != null) {
     const k = hand().find(c => c.cid === matHover);
     if (k) return { e: k, label: zonAv(k) === ZON_GRAV ? 'From the graveyard' : zonAv(k) === ZON_EXIL ? 'From exile' : 'Pointing at' };
@@ -8102,25 +7844,24 @@ function openArk(a) {
       ev.stopPropagation();
       arkSvar(b.dataset.ark, b.dataset.n);
     });
-    /* Leklådan hör till arket medan den namnger kortet (MES-103). */
-    addEventListener('mousedown', ev => { if (ark && !ark.lista && !arkEl.contains(ev.target) && !(ladaNamnge && ladaEl.contains(ev.target))) closeArk(); });
+    /* Solfjädern och sökraden hör till arket medan de namnger kortet (MES-103, MES-145). */
+    addEventListener('mousedown', ev => { if (ark && !ark.lista && !arkEl.contains(ev.target) && !(hfNamnge && (hfEl.contains(ev.target) || ev.target.closest('#hintBar')))) closeArk(); });
     gridWrap.addEventListener('wheel', () => { if (ark && !ark.lista) closeArk(); }, { passive: true });
   }
   ark = Object.assign({ hoppade: new Set() }, ark && ark.lista ? { lista: ark.lista, pos: ark.pos, hoppade: ark.hoppade } : {}, a);
-  /* "Which card is this?": leklådan öppnas själv och en rad där namnger
-     kortet (designens fråga 3, MES-103). Före arkRita — lådan flyttar
-     mattan, och arket placeras mot kortets plats. Stängs igen med arket om
-     det var arket som öppnade den. */
+  /* "Which card is this?": library-solfjädern öppnas själv och ett klick
+     på ett kort där namnger kortet (MES-103, MES-145). Den läggs ner med
+     arket om det var arket som öppnade den. */
   if (ark.mode === 'olast' && spelLage) {
     const q = pendById(ark.pend);
-    if (q && !q.overTak) { ladaNamnge = ark.pend; if (!ladaOppen) { ladaAvArk = true; oppnaLada(); } else renderLada(); }
+    if (q && !q.overTak) { hfNamnge = ark.pend; if (hf.src !== 'lib' || hf.fas === 'gather') { hfAvArk = true; hfOppna('lib'); } hfHint(); }
   }
   arkRita();
 }
 function closeArk() {
   if (!ark) return;
   ark = null;
-  if (ladaNamnge) { ladaNamnge = null; if (ladaAvArk) { ladaAvArk = false; stangLada(); } else renderLada(); }
+  if (hfNamnge) { hfNamnge = null; if (hfAvArk && hf.src === 'lib') hfStang(); hfAvArk = false; hfHint(); }
   if (arkEl) arkEl.classList.remove('open');
   document.body.classList.remove('granskar');
   for (const el of gridEl.querySelectorAll('.aktuell')) el.classList.remove('aktuell');
@@ -8208,7 +7949,7 @@ function arkNasta() {
 function arkSvar(val, n) {
   if (!ark) return;
   const h = hand();
-  if (ark.mode === 'rad') { closeArk(); if (val === 'vilket') oppnaLada(true); return; }
+  if (ark.mode === 'rad') { closeArk(); if (val === 'vilket' && hf.src !== 'lib') hfOppna('lib'); return; }
   if (ark.mode === 'lost') {
     const e = h.find(k => k.cid === ark.cid), i = h.indexOf(e);
     if (val === 'stopp') return closeArk();
@@ -8224,7 +7965,7 @@ function arkSvar(val, n) {
     return ark && ark.cid === cid ? arkNasta() : null;
   }
   const p = malSpelare(), q = pendById(ark.pend);
-  if (val === 'sok') { oppnaLada(true); return; }             // leklådan står redan i namngivningsläge
+  if (val === 'sok') { if (hf.src !== 'lib' || hf.fas === 'gather') hfOppna('lib'); return; }   // solfjädern står redan i namnläge
   if (val === 'senare' || !q) return closeArk();
   if (val === 'crop') { const id = ark.pend; closeArk(); return oppnaGranskningFor(id); }
   if (val === 'token') {
@@ -8655,8 +8396,6 @@ const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stro
    table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
 const M_LAGE_SKARM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/></svg>';
 const M_LAGE_BORD = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="8" height="14" rx="1.8"/><rect x="13.5" y="5" width="8" height="14" rx="1.8"/><path d="M8 12h8M14 10l2 2-2 2"/></svg>';
-const M_GREPP = '<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="3" cy="3" r="1.2"/><circle cx="7" cy="3" r="1.2"/><circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/><circle cx="3" cy="11" r="1.2"/><circle cx="7" cy="11" r="1.2"/></svg>';
-const M_LEK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 7v12a2 2 0 0 0 2 2h9"/></svg>';
 const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const M_KUGGE = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>';
 
@@ -12564,7 +12303,6 @@ addEventListener('keydown', ev => {
     /* Kamerapanelen står öppen bredvid bordet medan man gör annat: en modal
        som öppnats ovanpå den ska stängas först. Den är sist. */
     const o = $('.ov.open:not(.kampop)'); if (o) return closeOv(o.id);
-    if (ladaOppen) return stangLada();
     const kp = $('.ov.open'); if (kp) return closeOv(kp.id);
     return;
   }
