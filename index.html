@@ -540,6 +540,7 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .sseg svg{flex:none;display:block}
 .sseg kbd{min-width:15px;padding:0 4px;font-size:10px;line-height:1.4;opacity:.8}
 .sseg.on kbd{opacity:1}
+.sseg.on.mine kbd{background:#f0a52a2b;border-color:#f0a52a55;color:#ffd98a}
 .sseg.on.opp kbd{background:color-mix(in srgb,var(--pc) 17%,transparent);border-color:color-mix(in srgb,var(--pc) 33%,transparent)}
 .ssw .spil{display:inline-flex;align-items:center;gap:2px;flex:none;margin-left:4px;padding:0 4px 0 8px;border-left:1px solid var(--line);cursor:default}
 .ssw .spil kbd{min-width:15px;padding:0 3px;font-size:10px;line-height:1.4;text-align:center;opacity:.75}
@@ -671,6 +672,7 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .zoomchip .zlage:hover .knapptip,.zoomchip .zlage:focus-visible .knapptip{opacity:1}
 /* Untap all: samma direkta tips, med tangenten. */
 .mattachrome [data-mat="untap"]{position:relative}
+.mattachrome [data-mat="untap"] kbd{min-width:14px;padding:0 3px;font-size:9.5px;line-height:1.3}
 .mattachrome [data-mat="untap"] .knapptip{left:50%;right:auto;transform:translateX(-50%);transition:opacity .05s}
 .mattachrome [data-mat="untap"]:hover .knapptip,.mattachrome [data-mat="untap"]:focus-visible .knapptip{opacity:1}
 .zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:64px}
@@ -2891,7 +2893,7 @@ body.ispel #addPlayerBtn{display:none}
           <p>The cards show up here by themselves as soon as they are played.</p>
         </div>
         <!-- Mitt bord som list när en motståndare är stor (bordsvyn). -->
-        <div class="minlist" id="minList" role="button" title="Your table big (M)"></div>
+        <div class="minlist" id="minList" role="button" title="Your table big (1)"></div>
       </section>
       </div>
       <!-- Selected står inte längre nere i bandet mellan Lands och Graveyard.
@@ -3458,9 +3460,10 @@ body.ispel #addPlayerBtn{display:none}
           <h3>Players</h3>
           <dl>
             <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>In a game: step between your table, everyone and one opponent — or drag the edge between the tables</dd>
-            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>In a game: that opponent's table big — the number stands next to their name. Outside a game: switch to player</dd>
+            <dt><kbd>1</kbd></dt><dd>In a game: your table big. Outside a game: switch to player</dd>
+            <dt><kbd>2</kbd>…<kbd>9</kbd></dt><dd>In a game: an opponent's table big, in the order you sit — the number stands next to their name. Outside a game: switch to player</dd>
+            <dt><kbd>E</kbd></dt><dd>In a game: everyone at once</dd>
             <dt><kbd>←</kbd><kbd>→</kbd> <kbd>Tab</kbd></dt><dd>Next opponent (<kbd>⇧</kbd><kbd>Tab</kbd> back). Outside a game: next player</dd>
-            <dt><kbd>M</kbd> <kbd>A</kbd></dt><dd>In a game, straight there: your table big — or everyone at once</dd>
             <dt>Click a table</dt><dd>Makes it big — a drag moves it instead</dd>
             <dt><kbd>N</kbd></dt><dd>New player (outside a game)</dd>
             <dt><kbd>R</kbd></dt><dd>Rename yourself</dd>
@@ -6136,8 +6139,9 @@ function matFlikar() {
 const BORD = { KANT: 56, LIST: 46, GAP: 10, KOL: 112, MINH: 90, MINW: 200, STOR: 400 };
 const kantEl = $('#kant'), oppMattorEl = $('#oppMattor'), minListEl = $('#minList');
 const IKON_GREPP = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
-const IKON_ALLA = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>';
-const IKON_BADA = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="2.5" y="2" width="11" height="5" rx="1.2"/><rect x="2.5" y="9" width="11" height="5" rx="1.2"/></svg>';
+/* Everyone: en klase av tre prickar, samma form som bdot (spelarens egen
+   prick i växeln) — en klunga av spelare, inte ett rutnät av rutor. */
+const IKON_ALLA = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="6" r="3"/><circle cx="11" cy="6" r="3" opacity=".55"/><circle cx="8" cy="11" r="3" opacity=".8"/></svg>';
 /* Motståndarna i den ordning de sitter: den som har platsen efter min
    först — till vänster om mig, nästa i tur — sedan vidare runt bordet.
    Samma ordning i växeln, i kolumnerna och för tangenterna 1–9. */
@@ -6246,16 +6250,14 @@ function ritaMinList(visa) {
 const hintSpelareEl = $('#hintSpelare');
 function ritaHintSpelare(L) {
   if (!hintSpelareEl) return;
-  const n = L ? Math.min(9, L.o.length) : 0;
-  satHtml(hintSpelareEl, n ? `<kbd>↑</kbd><kbd>↓</kbd> tables · <kbd>1</kbd>${n > 1 ? `–<kbd>${n}</kbd>` : ''} ${n > 1 ? 'opponents' : 'opponent'}`
+  const n = L ? Math.min(8, L.o.length) : 0;
+  satHtml(hintSpelareEl, n ? `<kbd>1</kbd> you · <kbd>2</kbd>${n > 1 ? `–<kbd>${n + 1}</kbd>` : ''} ${n > 1 ? 'opponents' : 'opponent'} · <kbd>E</kbd> everyone`
     : '<kbd>1</kbd>–<kbd>9</kbd> players');
 }
-/* Kanten: växeln Me · All (Both för två) · motståndarna — samma ordning som
-   ↑↓ stegar: mitt bord, alla, en motståndare. Motståndarna bär sin siffra
-   (1–9, i sittordning) — den pekar alltid ut samma spelare. Pilarna står en
-   gång, i slutet: ett pilmärke per knapp hade ljugit, från Me är en
-   motståndare två steg upp. M och A finns kvar som snabbhopp, i hjälpen och
-   i knapparnas titel. */
+/* Kanten: växeln Me · Everyone · motståndarna — samma ordning som ↑↓
+   stegar: mitt bord, alla, en motståndare. Varje knapp bär sin egen
+   tangent: 1 mitt bord, 2–9 motståndarna i sittordning, E Everyone.
+   Pilarna står en gång till, i slutet, för stegningen ↑↓←→. */
 function ritaKant(L) {
   kantEl.hidden = false;
   kantEl.style.top = Math.round(L.oppH * 10) / 10 + 'px';
@@ -6265,11 +6267,11 @@ function ritaKant(L) {
     + `${ikon}<span class="nm">${esc(namn)}</span>${kbd ? `<kbd>${kbd}</kbd>` : ''}</button>`;
   satHtml(kantEl, `<i class="edgeline"></i><div class="ssw${n > 4 ? ' tat' : ''}" role="group" aria-label="Whose table is big">`
     + `<span class="egrip" title="Drag the edge up or down">${IKON_GREPP}</span>`
-    + seg('me', 'mine', '#e8b33a', '<i class="bdot"></i>', 'Me', 'Your table big, the others as strips (M)')
-    + seg('all', 'alla', '', n > 1 ? IKON_ALLA : IKON_BADA, n > 1 ? 'All' : 'Both', n > 1 ? 'Everyone at once (A)' : 'Both of you (A)')
+    + seg('me', 'mine', '#e8b33a', '<i class="bdot"></i>', 'Me', 'Your table big, the others as strips (1)', '1')
+    + seg('all', 'alla', '', IKON_ALLA, 'Everyone', 'Everyone at once (E)', 'E')
     + L.o.map((p, i) => seg(p.id, 'opp', p.color, '<i class="bdot"></i>', p.name,
-        `${p.name}'s table big` + (i < 9 ? ` (${i + 1})` : ''), i < 9 ? String(i + 1) : '')).join('')
-    + `<span class="spil" title="${n > 1 ? '↑ ↓ your table, everyone, one opponent · ← → next opponent' : '↑ ↓ your table, both of you, ' + esc(L.o[0].name) + '’s table'}">`
+        `${p.name}'s table big` + (i < 8 ? ` (${i + 2})` : ''), i < 8 ? String(i + 2) : '')).join('')
+    + `<span class="spil" title="${n > 1 ? '↑ ↓ your table, everyone, one opponent · ← → next opponent' : '↑ ↓ your table, everyone, ' + esc(L.o[0].name) + '’s table'}">`
     + `<kbd>↑</kbd><kbd>↓</kbd>${n > 1 ? '<kbd>←</kbd><kbd>→</kbd>' : ''}</span>`
     + '</div>');
 }
@@ -6305,7 +6307,7 @@ function skapaOppMatta(p) {
 /* Skylten (full matta), kolumnen och listen. Alla tre ritas alltid, så att
    de kan tona in och ut när rutan byter form. */
 function ritaOppDelar(p, m, i) {
-  const kbd = i < 9 ? String(i + 1) : '', pips = p.lek && p.lek.farger ? pipsHtml(p.lek.farger) : '';
+  const kbd = i < 8 ? String(i + 2) : '', pips = p.lek && p.lek.farger ? pipsHtml(p.lek.farger) : '';
   const paBord = p.cards.filter(paMattan).length, grav = p.cards.filter(c => zonAv(c) === ZON_GRAV).length, bib = oppBibKvar(p);
   const stor = `${p.name}'s table big` + (kbd ? ` (${kbd})` : '');
   const lage = `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
@@ -6357,18 +6359,18 @@ function bordSidled(d) {
 }
 /* Ett klick på tom yta i min matta gör den stor, som ett klick på Me. */
 function bordKlickMitt() { if (bordAktiv() && bordValt() !== 'me') bordValj('me'); }
-/* Tangenterna: 1–9 motståndarna i sittordning, M mitt bord, A alla,
+/* Tangenterna: 1 mitt bord, 2–9 motståndarna i sittordning, E Everyone,
    ↑↓ nivån, ←→ och Tab nästa motståndare. true = hanterad. */
 function bordTangent(ev) {
   if (!bordAktiv()) return false;
   const k = ev.key, lower = k.toLowerCase();
-  if (lower === 'm') bordValj('me');
-  else if (lower === 'a') bordValj('all');
+  if (lower === 'e') bordValj('all');
   else if (k === 'ArrowUp') bordStegNiva(1);
   else if (k === 'ArrowDown') bordStegNiva(-1);
   else if (k === 'ArrowRight' || (k === 'Tab' && !ev.shiftKey)) bordSidled(1);
   else if (k === 'ArrowLeft' || (k === 'Tab' && ev.shiftKey)) bordSidled(-1);
-  else if (k >= '1' && k <= '9') { const p = motstandare()[+k - 1]; if (!p) return false; bordValj(p.id); }
+  else if (k === '1') bordValj('me');
+  else if (k >= '2' && k <= '9') { const p = motstandare()[+k - 2]; if (!p) return false; bordValj(p.id); }
   else return false;
   return true;
 }
@@ -8021,7 +8023,7 @@ function renderChrome(v) {
     + `<button type="button" class="zsteg" data-mat="ut" title="Zoom out (−)">−</button>`
     + `<input type="text" class="ztxt${v.manuell ? ' manuell' : ''}" id="matZoomTal" value="${pct}" inputmode="numeric" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Zoom level" title="Type a zoom level, 1–100%">`
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
-    + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap">Untap all<span class="knapptip">Untap all — stand every tapped card back up (U)</span></button>`
+    + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap">Untap all<kbd>U</kbd><span class="knapptip">Stand every tapped card back up</span></button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
     + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
@@ -13190,25 +13192,26 @@ addEventListener('keydown', ev => {
     case '?':          ev.preventDefault(); openOv('helpOv'); return;
   }
   if (k >= '1' && k <= '9') {
-    /* I ett spel bara motståndarna, i den ordning de sitter (bordsvyn). */
+    /* I ett spel: 1 mitt bord, 2–9 motståndarna i sittordning (bordsvyn). */
     if (spelLage) { if (bordTangent(ev)) ev.preventDefault(); return; }
     const p = state.players[+k - 1];
     if (p) { ev.preventDefault(); setActive(p.id); }
     return;
   }
   const lower = k.toLowerCase();
-  /* Bordsvyn: M mitt bord, A alla. A öppnar inget annat i ett spel sedan
-     leken fick L (MES-145). U är Untap all, längre ner (vändknappen på
-     motståndarens matta har ingen tangent). */
-  if (spelLage && (lower === 'm' || lower === 'a')) { if (bordTangent(ev)) ev.preventDefault(); return; }
+  /* T, E, G, H, C och D verkar på kortet under pekaren (tangentKort). T med
+     lassomarkerade kort tappar alla, när pekaren står på ett av dem eller
+     inte på något kort alls. Räknas ut redan här: E avgör mellan Everyone
+     och attach beroende på om det ligger ett fästbart kort under pekaren. */
+  const ti = tangentKort(), te = hand()[ti] || null;
+  const bifogbart = te && paMattan(te) && bifogTyp(te);
+  /* Bordsvyn: E Everyone (utom när E fäster kortet under pekaren i stället).
+     U är Untap all, längre ner. 1–9 hanteras redan ovan. */
+  if (spelLage && lower === 'e' && !bifogbart) { if (bordTangent(ev)) ev.preventDefault(); return; }
   /* Tangenter som ÄNDRAR bordet stoppas på någon annans flik. De som bara
      navigerar, förstorar eller söker släpps igenom — man ska kunna titta. */
   const skriver = ' t e g d n r h c u '.includes(' ' + lower + ' ') || k === ' ';
   if (!redigerbar() && skriver) return;
-  /* T, E, G, H, C och D verkar på kortet under pekaren (tangentKort). T med
-     lassomarkerade kort tappar alla, när pekaren står på ett av dem eller
-     inte på något kort alls. */
-  const ti = tangentKort(), te = hand()[ti] || null;
   if (lower === 'f') { ev.preventDefault(); vaxlaFokus(); }
   else if ((lower === 'a' || k === '/') && !spelLage) { ev.preventDefault(); closeFocus(); searchInput.focus(); searchInput.select(); }
   else if (lower === 'l' && spelLage && arMitt(player())) { ev.preventDefault(); closeFocus(); hfOppna('lib'); }
@@ -13218,7 +13221,7 @@ addEventListener('keydown', ev => {
     if (matValda.size && (!te || matValda.has(te.cid))) { ev.preventDefault(); tappaValda(); }
     else if (te) { ev.preventDefault(); tappa(ti); }
   }
-  else if (lower === 'e' && te && paMattan(te) && bifogTyp(te)) { ev.preventDefault(); bifogaNarmaste(ti); }
+  else if (lower === 'e' && bifogbart) { ev.preventDefault(); bifogaNarmaste(ti); }
   else if (lower === 'g' && te && zonAv(te) !== ZON_GRAV) {
     ev.preventDefault();
     flygTillGrav(gridEl.querySelector(`.card[data-i="${ti}"]`));
