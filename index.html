@@ -1039,6 +1039,15 @@ body.lasvy #emptyLas:not(.hide){display:grid}
   box-shadow:0 10px 28px -8px #000e;
 }
 .gravflyg img{width:100%;height:100%;object-fit:cover;display:block}
+/* Tokens slås ut ur kortet (MES-143): token väntar osynlig medan kopian
+   flyger, kortet lyser i bärnsten som en hög som tar emot, och ringarna är
+   graveyard-landningens stöt (cRing). Kortets nykort-puls ger vika för glöden. */
+.card.spawndold{visibility:hidden}
+.card.spawnglod{box-shadow:0 0 0 3px var(--acc),0 0 32px -2px #f0a52a99}
+.card.nykort.spawnglod{animation:none}
+.tokflyg{position:fixed;z-index:900;pointer-events:none;overflow:hidden;box-shadow:0 26px 40px -12px #000f;will-change:transform,opacity}
+.tokflyg img{width:100%;height:100%;object-fit:cover;display:block}
+.tokring{position:fixed;z-index:899;pointer-events:none;border-radius:50%;border:2px solid #e8c98a}
 
 /* Selected: kortet som är valt, stort nog att läsa */
 .markrub .zonlbl{color:var(--acc)}
@@ -6409,6 +6418,7 @@ function kortHtml(e, i, extra, pos, bif) {
   const kl = ['card', land ? 'land' : '', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', e.lyft != null ? 'lyft' : '', dom ? 'dom-' + dom : '',
               ark && ark.cid === e.cid ? 'aktuell' : '', ordKrockar(ord, pv, e.tapped ? sz.h : sz.w) ? 'kwlyft' : '',
+              tokDold.has(e.cid) ? 'spawndold' : '', (tokGlod.get(e.cid) || 0) > Date.now() ? 'spawnglod' : '',
               extra || ''].filter(Boolean).join(' ');
   return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}">
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
@@ -6512,6 +6522,9 @@ function ptTile(pv) {
    "Just played" är borttaget). På någon annans bord bara konstaterandet. matLage räknas
    i renderGrid inför varje omritning. */
 let matLage = { lyftN: 0, nyN: 0 };
+/* Tokens som ligger osynliga medan deras kopia flyger ut ur kortet, och
+   kort som lyser medan de gör det (tokSpawn, MES-143): cid → till när. */
+const tokDold = new Set(), tokGlod = new Map();
 function kamDom(c) {
   if (c.spar == null || !kamAnsluten || !spelLage) return '';
   if (c.borta) return 'lost';
@@ -9513,7 +9526,7 @@ function tokPlats(cards, bredvid, board) {
    sort på mattan läggs de nya i dess hög. Den som anropar har tagit
    ångrapunkten. */
 function skapaTokens(p, kalla, lista, sammaHog) {
-  const cards = p.cards, v = matVy(p), g = gravRuta(v);
+  const cards = p.cards, v = matVy(p), g = gravRuta(v), spawn = kanSpawna(p, kalla);
   let z = Math.max(matTopZ || 0, ...cards.map(k => k.z || 0));
   const nya = [];
   let forra = kalla;
@@ -9523,7 +9536,7 @@ function skapaTokens(p, kalla, lista, sammaHog) {
     if (fanns && !fanns.grp) { fanns.grp = grp; fanns.gi = 0; }
     let bas = fanns;
     for (let j = 0; j < n; j++) {
-      const e = normaliseraKort({ cid: uid(), name: part.name, sid: part.id, flipped: 0, tapped: tapped ? 1 : 0, tok: 1, ny: Date.now() }, cards.length);
+      const e = normaliseraKort({ cid: uid(), name: part.name, sid: part.id, flipped: 0, tapped: tapped ? 1 : 0, tok: 1, ny: spawn ? undefined : Date.now() }, cards.length);
       if (!bas) {
         const k = clampKort(Object.assign({}, e, tokPlats(cards, forra, v.board)), v.board, g);
         e.x = k.x; e.y = k.y; bas = e;
@@ -9536,8 +9549,81 @@ function skapaTokens(p, kalla, lista, sammaHog) {
     forra = nya[nya.length - 1] || forra;
   }
   matTopZ = z;
+  if (spawn) for (const e of nya) tokDold.add(e.cid);
   save(); renderAll(true); resolveAll();
+  if (spawn) tokSpawn(kalla, nya);
   return nya;
+}
+/* Tokens slås ut ur kortet (MES-143, variant B i designytan "Mesa Token
+   Spawn"): kortet lyser i bärnsten och en ring slår ut från det, tokens växer
+   fram ur kortets mitt och kastas i en båge till sin plats, där var och en
+   landar med en egen stöt. Token ligger osynlig på sin plats (tokDold) medan
+   en kopia flyger dit i skärmkoordinater, som flygTillGrav — en omritning av
+   mattan mitt i rörelsen river den inte. Glöden (tokGlod) bärs av kortHtml av
+   samma skäl. Utan rörelse, i en flik i bakgrunden eller på någon annans bord
+   läggs tokens ut direkt, med nya kortets puls. */
+const TOK_SPAWN = { forst: 80, isar: 140, flyg: 360, ring: 550, stot: 520 };
+const tokEl = cid => gridEl.querySelector(`.card[data-cid="${CSS.escape(cid)}"]`);
+function kanSpawna(p, kalla) {
+  return p === player() && !document.hidden && !!tokEl(kalla.cid) && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+function tokVisa(cid) { tokDold.delete(cid); const el = tokEl(cid); if (el) el.classList.remove('spawndold'); }
+/* Stöten: en ring som slår ut från (cx, cy), d px i diameter. */
+function tokRing(cx, cy, d, fran, till, ms) {
+  const el = document.createElement('i');
+  el.className = 'tokring';
+  el.style.cssText = `left:${cx - d / 2}px;top:${cy - d / 2}px;width:${d}px;height:${d}px`;
+  document.body.appendChild(el);
+  const a = el.animate([{ opacity: fran, transform: 'scale(.5)' }, { opacity: 0, transform: `scale(${till})` }], { duration: ms, easing: 'ease-out', fill: 'forwards' });
+  const bort = () => el.remove();
+  a.finished.then(bort, bort); setTimeout(bort, ms + 600);
+}
+async function tokSpawn(kalla, nya) {
+  const S = TOK_SPAWN, vanta = (p, ms) => Promise.race([p.catch(() => null), new Promise(r => setTimeout(r, ms))]);
+  setTimeout(() => nya.forEach(e => tokVisa(e.cid)), 4000);   // vad som än händer: synliga efter 4 s
+  /* Kopian behöver token-kortets bild: data först, sedan bilden. */
+  await vanta(Promise.all([...new Set(nya.map(e => e.sid))].map(lookupId)), 1500);
+  const bild = e => imgOf(cardOf(e), 0, 'normal');
+  await vanta(Promise.all([...new Set(nya.map(bild).filter(Boolean))].map(src => new Promise(r => { const im = new Image(); im.onload = im.onerror = r; im.src = src; }))), 1200);
+  const k = tokEl(kalla.cid);
+  if (!k || document.hidden) { nya.forEach(e => tokVisa(e.cid)); return; }
+  const a = k.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2, z = matVy().z;
+  const glodMs = S.forst + S.isar * (nya.length - 1) + S.flyg + 160;
+  tokGlod.set(kalla.cid, Date.now() + glodMs); k.classList.add('spawnglod');
+  setTimeout(() => { tokGlod.delete(kalla.cid); const el = tokEl(kalla.cid); if (el) el.classList.remove('spawnglod'); }, glodMs);
+  tokRing(ax, ay, 300 * z, .7, 1.5, S.ring);
+  nya.forEach((e, i) => setTimeout(() => tokFlyg(e, ax, ay, z, bild(e)), S.forst + S.isar * i));
+}
+/* En token ur kortets mitt (ax, ay) till sin plats: upp i en båge, ned,
+   förbi en aning och på plats. Landar den visas den riktiga token och en
+   mindre ring slår ut där. */
+function tokFlyg(e, ax, ay, z, src) {
+  const t = tokEl(e.cid);
+  if (!t || !src) { tokVisa(e.cid); return; }
+  const b = t.getBoundingClientRect(), bx = b.left + b.width / 2, by = b.top + b.height / 2;
+  const w = MATTA.CW * z, h = MATTA.CH * z, r = e.tapped ? 90 : 0, dx = ax - bx, dy = ay - by;
+  const kopia = document.createElement('div');
+  kopia.className = 'tokflyg';
+  kopia.style.cssText = `left:${bx - w / 2}px;top:${by - h / 2}px;width:${w}px;height:${h}px;border-radius:${10 * z}px`;
+  kopia.innerHTML = `<img src="${esc(src)}" alt="">`;
+  document.body.appendChild(kopia);
+  const anim = kopia.animate([
+    { offset: 0, opacity: 0, transform: `translate(${dx}px,${dy}px) scale(.3) rotate(${r}deg)`, easing: 'cubic-bezier(.2,.6,.4,1)' },
+    { offset: .05, opacity: 1 },
+    { offset: .33, transform: `translate(${dx * .45}px,${dy * .45 - 84 * z}px) scale(.8) rotate(${r - 4}deg)`, easing: 'cubic-bezier(.5,0,.8,.6)' },
+    { offset: .72, transform: `translate(0px,${4 * z}px) scale(1.04) rotate(${r}deg)`, easing: 'cubic-bezier(.2,.8,.3,1)' },
+    { offset: 1, opacity: 1, transform: `translate(0px,0px) scale(1) rotate(${r}deg)` },
+  ], { duration: TOK_SPAWN.flyg, fill: 'forwards' });
+  let klar = false;
+  const land = () => {
+    if (klar) return;
+    klar = true;
+    tokVisa(e.cid); kopia.remove();
+    const nu = tokEl(e.cid);
+    if (nu) { const q = nu.getBoundingClientRect(); tokRing(q.left + q.width / 2, q.top + q.height / 2, 220 * z, .55, 1.4, TOK_SPAWN.stot); }
+  };
+  anim.finished.then(land, land);
+  setTimeout(land, TOK_SPAWN.flyg + 700);
 }
 /* Kort som just kommit in på bordet bär etb tills deras data finns: då läses
    triggern en gång och flaggan släpps. Körs när uppslagningen är klar
