@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; background: #0d1015; }
+    a { color: #6b8cff; } a:hover { color: #9db0ff; }
+    .k { position: absolute; width: 178px; height: 248px; border-radius: 10px; box-shadow: 0 4px 12px -3px #000c; animation-iteration-count: infinite; animation-fill-mode: both; animation-timing-function: linear; }
+    .k img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: 10px; background: #11161e; }
+    .k3d { transform-style: preserve-3d; box-shadow: none; }
+    .k3d img { position: absolute; inset: 0; box-shadow: 0 4px 12px -3px #000c; animation-iteration-count: infinite; animation-fill-mode: both; animation-timing-function: linear; }
+    .k3d img.bak { transform: rotateY(180deg); }
+    .ring { position: absolute; display: block; border-radius: 50%; border: 2px solid #e8c98a; pointer-events: none; animation-iteration-count: infinite; animation-fill-mode: both; animation-timing-function: linear; }
+    @keyframes nuK1{0%{opacity:0;transform:translateY(-40px) scale(1.14);box-shadow:0 4px 12px -3px #000c;animation-timing-function:cubic-bezier(.2,.8,.3,1)}7.5%{opacity:1;transform:translateY(4px) scale(.98);box-shadow:0 4px 12px -3px #000c;animation-timing-function:cubic-bezier(.2,.8,.3,1)}12.5%{opacity:1;transform:none;box-shadow:0 4px 12px -3px #000c}92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes nuT1_0{0%,14.9%{opacity:0;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f00}15%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f88;animation-timing-function:ease-out}39.5%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 12px #5fbf7f00}92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes nuK3{0%{opacity:0;transform:translateY(-40px) scale(1.14);box-shadow:0 4px 12px -3px #000c;animation-timing-function:cubic-bezier(.2,.8,.3,1)}7.5%{opacity:1;transform:translateY(4px) scale(.98);box-shadow:0 4px 12px -3px #000c;animation-timing-function:cubic-bezier(.2,.8,.3,1)}12.5%{opacity:1;transform:none;box-shadow:0 4px 12px -3px #000c}92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes nuT3_0{0%,14.9%{opacity:0;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f00}15%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f88;animation-timing-function:ease-out}39.5%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 12px #5fbf7f00}92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes nuT3_1{0%,14.9%{opacity:0;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f00}15%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f88;animation-timing-function:ease-out}39.5%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 12px #5fbf7f00}92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+    @keyframes nuT3_2{0%,14.9%{opacity:0;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f00}15%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 0 #5fbf7f88;animation-timing-function:ease-out}39.5%{opacity:1;box-shadow:0 4px 12px -3px #000c, 0 0 0 12px #5fbf7f00}92%{opacity:1;transform:none}97%,100%{opacity:0;transform:none}}
+  </style>
+</helmet>
+<div style="box-sizing: border-box; min-height: 100vh; padding: 36px 40px 44px; background: #0d1015; color: #e7ecf4; font: 14px/1.45 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Helvetica,Arial,sans-serif; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; flex-direction: column; gap: 8px; max-width: 760px">
+    <span style="font: 700 11px/1 ui-monospace,SFMono-Regular,&quot;SF Mono&quot;,Menlo,monospace; letter-spacing: 1.2px; text-transform: uppercase; color: #f0a52a">Nuläge</span>
+    <h1 style="margin: 0; font: 650 24px/1.2 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Helvetica,Arial,sans-serif; color: #e7ecf4; text-wrap: pretty">Tokens dyker upp — men inte ur något</h1>
+    <p style="margin: 0; font: 14.5px/1.5 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Helvetica,Arial,sans-serif; color: #93a1b6; text-wrap: pretty">När Ancestral Blade eller Siege-Gang Commander läggs ut står tokens bara där bredvid, med samma gröna puls som varje nytt kort. Ingenting säger att det var kortet som skapade dem.</p>
+    
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 72px; align-items: flex-start; padding: 104px 56px 56px; border-radius: 12px; background: radial-gradient(1250px 620px at 46% 26%, #18232f, #0a0f14 72%); box-shadow: inset 0 0 90px 20px #00000066, 0 0 0 1px #28313f; overflow: hidden">
+    <div style="display: flex; flex-direction: column; gap: 18px">
+      <span style="font: 600 9.5px/1 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Helvetica,Arial,sans-serif; letter-spacing: .9px; text-transform: uppercase; color: #5c6b82">Ancestral Blade → 1 Soldier</span>
+      <div style="position: relative; flex: none; width: 374px; height: 248px; perspective: 1400px">
+        <div class="k" style="left: 0px; top: 0px; z-index: 10; animation-name: nuK1; animation-duration: {{cyk}}"><img src="blade.jpg" alt=""></div>
+        <div class="k" style="left: 196px; top: 0px; z-index: 20; animation-name: nuT1_0; animation-duration: {{cyk}}"><img src="soldier.jpg" alt=""></div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 18px">
+      <span style="font: 600 9.5px/1 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Helvetica,Arial,sans-serif; letter-spacing: .9px; text-transform: uppercase; color: #5c6b82">Siege-Gang Commander → 3 Goblins</span>
+      <div style="position: relative; flex: none; width: 426px; height: 300px; perspective: 1400px">
+        <div class="k" style="left: 0px; top: 0px; z-index: 10; animation-name: nuK3; animation-duration: {{cyk}}"><img src="siege.jpg" alt=""></div>
+        <div class="k" style="left: 196px; top: 0px; z-index: 20; animation-name: nuT3_0; animation-duration: {{cyk}}"><img src="goblin.jpg" alt=""></div>
+        <div class="k" style="left: 222px; top: 26px; z-index: 21; animation-name: nuT3_1; animation-duration: {{cyk}}"><img src="goblin.jpg" alt=""></div>
+        <div class="k" style="left: 248px; top: 52px; z-index: 22; animation-name: nuT3_2; animation-duration: {{cyk}}"><img src="goblin.jpg" alt=""></div>
+      </div>
+    </div>
+  </div>
+  <p style="margin: 0; max-width: 820px; font: 13px/1.5 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,Helvetica,Arial,sans-serif; color: #93a1b6; text-wrap: pretty"><b style="color: #e7ecf4">Idag:</b> token läggs ut när kortets data hämtats och ritas med <span style="font-family: ui-monospace,SFMono-Regular,&quot;SF Mono&quot;,Menlo,monospace; color: #e7ecf4">.nykort</span> (nypuls, 1,4 s). Alla tokens kommer samtidigt.</p>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"fart":{"editor":"enum","options":["1×","½×","¼×"],"default":"1×","section":"Animation"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const f = this.props.fart ?? '1×';
+    return { cyk: f === '¼×' ? '16s' : f === '½×' ? '8s' : '4s' };
+  }
+}
+</script>
+</body>
+</html>
