@@ -2921,7 +2921,7 @@ body.ispel #addPlayerBtn{display:none}
     <span><kbd>F</kbd> focus</span>
     <span><kbd>L</kbd> library</span>
     <span><kbd>S</kbd> select / pan</span>
-    <span><kbd>1</kbd>–<kbd>9</kbd> players</span>
+    <span id="hintSpelare"><kbd>1</kbd>–<kbd>9</kbd> players</span>
     <span><kbd>⌘Z</kbd> undo</span>
     <span><kbd>?</kbd> all shortcuts</span>
     <div class="status" id="status" hidden><span class="led"></span><span id="statusTxt"></span></div>
@@ -3425,11 +3425,14 @@ body.ispel #addPlayerBtn{display:none}
         <section>
           <h3>Players</h3>
           <dl>
-            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Switch to player</dd>
-            <dt><kbd>Tab</kbd></dt><dd>Next player</dd>
-            <dt><kbd>⇧</kbd><kbd>Tab</kbd></dt><dd>Previous player</dd>
-            <dt><kbd>N</kbd></dt><dd>New player</dd>
-            <dt><kbd>R</kbd></dt><dd>Rename the active player</dd>
+            <dt><kbd>1</kbd>…<kbd>9</kbd></dt><dd>In a game: an opponent's table big, in the order you sit. Outside a game: switch to player</dd>
+            <dt><kbd>M</kbd> <kbd>A</kbd></dt><dd>In a game: your table big — or everyone at once</dd>
+            <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>In a game: your table, everyone, one opponent — or drag the edge between the tables</dd>
+            <dt><kbd>←</kbd><kbd>→</kbd> <kbd>Tab</kbd></dt><dd>Next opponent (<kbd>⇧</kbd><kbd>Tab</kbd> back). Outside a game: next player</dd>
+            <dt>Click a table</dt><dd>Makes it big — a drag moves it instead</dd>
+            <dt><kbd>U</kbd></dt><dd>Turn the opponents' cards: upright, upside down, or the board as they see it</dd>
+            <dt><kbd>N</kbd></dt><dd>New player (outside a game)</dd>
+            <dt><kbd>R</kbd></dt><dd>Rename yourself</dd>
           </dl>
         </section>
         <section>
@@ -6175,6 +6178,7 @@ function oppBibKvar(p) {
    renderAll gör det i renderGrid. */
 function renderBord() {
   const L = bordLayout(), zp = $('#zonPerm');
+  ritaHintSpelare(L);
   bordEl.classList.toggle('medmotst', !!L);
   if (!L) {
     zp.style.left = zp.style.top = zp.style.width = zp.style.height = '';
@@ -6203,6 +6207,14 @@ function renderBord() {
 function ritaMinList(visa) {
   const mig = minSpelare();
   satHtml(minListEl, visa && mig ? bordListHtml('Your table', '', mig.cards, 'M', 'Your cards') : '');
+}
+/* Tipsraden: bordets tangenter i ett spel med motståndare, annars flikarnas. */
+const hintSpelareEl = $('#hintSpelare');
+function ritaHintSpelare(L) {
+  if (!hintSpelareEl) return;
+  const n = L ? Math.min(9, L.o.length) : 0;
+  satHtml(hintSpelareEl, n ? `<kbd>M</kbd><kbd>A</kbd><kbd>1</kbd>${n > 1 ? `–<kbd>${n}</kbd>` : ''} tables · <kbd>U</kbd> turn theirs`
+    : '<kbd>1</kbd>–<kbd>9</kbd> players');
 }
 /* Kanten: växeln Me · motståndarna · All (Both för två). */
 function ritaKant(L) {
@@ -10891,15 +10903,20 @@ let lageByte = false, lekValPagar = false;
 function startRename(id) {
   const p = state.players.find(x => x.id === id);
   const tab = $(`.ptab[data-pid="${id}"]`);
-  if (!p || !tab || !tab.offsetParent) return;           // fliken är dold i ett spel (bordsvyn)
-  if (!arMitt(p)) return;                    // bara sitt eget namn
-  const nm = $('.nm', tab);
+  if (!p || !arMitt(p)) return;              // bara sitt eget namn
+  /* I ett spel finns ingen flik (bordsvyn, MES-133): namnet skrivs i
+     menyns rubrik, där det står. */
+  let nm = tab && tab.offsetParent ? $('.nm', tab) : null;
+  if (!nm && spelLage) { if (!menuEl.classList.contains('open')) $('#menuBtn').click(); nm = menuEl.querySelector('.hd'); }
   if (!nm) return;
   const inp = document.createElement('input');
   inp.className = 'nameedit'; inp.value = p.name; inp.maxLength = 24;
   nm.replaceWith(inp);
   inp.focus(); inp.select();
+  let klar = false;                          // Enter och sedan blur: en gång
   const done = ok => {
+    if (klar) return;
+    klar = true;
     if (ok) {
       const v = inp.value.trim();
       if (v) {
@@ -10920,6 +10937,7 @@ function startRename(id) {
         }
       }
     }
+    if (menuEl.contains(inp)) closeMenu();
     renderAll();
   };
   inp.addEventListener('keydown', e => {
@@ -12926,8 +12944,8 @@ $('#menuBtn').onclick = ev => {
   const n = minLekAntal();
   menuEl.innerHTML = `
     <div class="hd">${esc((spelLage ? (minSpelare() || player()) : player()).name || 'Active player')}</div>
-    ${!spelLage || redigerbar() ? `<button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
-    <button data-a="clearhand" class="danger">Clear my board</button>` : '<button data-a="mitt">Back to my board</button>'}
+    <button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
+    <button data-a="clearhand" class="danger">Clear my board</button>
     ${spelLage ? `<hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
@@ -12957,7 +12975,6 @@ menuEl.addEventListener('click', ev => {
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
   if (a === 'lek') oppnaLek();
   if (a === 'bjudin') $('#spelKnapp').click();
-  if (a === 'mitt') { const m = minSpelare(); if (m) { state.active = m.id; save(); renderAll(true); } }
   if (a === 'auto') { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
   /* Utan den här raden fanns ingen väg tillbaka till manuellt läge: "Stäng av
      auto" satt i popovern, och popovern öppnas inte utan ansluten telefon —
