@@ -5880,6 +5880,7 @@ function slimKort(cards) {
     z: c.z != null ? c.z : undefined,
     grp: c.grp || undefined, gi: c.gi != null ? c.gi : undefined,
     cts: c.cts && c.cts.length ? c.cts : undefined,
+    tok: c.tok ? 1 : undefined,
     /* Bara lokalt: kamerans senast antagna läge för kortet (bildandelar) och
        "ligger kvar fysiskt fast det lämnat mattan digitalt" (Screen leads).
        De andra har inget att göra med dem. */
@@ -6178,7 +6179,7 @@ function spawnFromLek(post, ev) {
   const pt = cpt(ev);
   let e = null;
   matAngra(post.name + ' → table', () => {
-    e = normaliseraKort({ cid: uid(), name: post.name, flipped: 0 }, p.cards.length);
+    e = normaliseraKort({ cid: uid(), name: post.name, flipped: 0, etb: 1 }, p.cards.length);
     if (post.sid) e.sid = post.sid;
     const s = matStorlek(e);
     e.x = pt.x - s.w / 2; e.y = pt.y - s.h / 2;
@@ -6340,6 +6341,14 @@ function flyttaTill(i, zon) {
      blir kvar på mattan (losBifogade släpper dem där de låg). */
   if (hog) for (const k of c) {
     if (k.attachedTo === e.cid && /\bAura\b/i.test(typLinje(k))) { k.zon = ZON_GRAV; delete k.attachedTo; }
+  }
+  /* En token som lämnar mattan upphör att finnas (MES-105) — den har ingen
+     plats i en hög. Utrustning på den släpps där den låg (losBifogade). */
+  if (hog && e.tok) {
+    c.splice(i, 1);
+    state.sel = clamp(state.sel, 0, Math.max(0, c.length - 1));
+    save(); renderAll(true);
+    return true;
   }
   /* Ett svar på "inte på mattan". Bindningen till spåret behålls: kortet
      ligger ofta kvar fysiskt en stund till, och utan den hade kameran lagt
@@ -7743,17 +7752,18 @@ function openKortMeny(cid, cx, cy) {
     addEventListener('mousedown', ev => { if (matMenyEl.classList.contains('open') && !matMenyEl.contains(ev.target)) closeKortMeny(); });
     gridWrap.addEventListener('wheel', closeKortMeny, { passive: true });
   }
-  const dfc = arDfc(cardOf(c));
+  const dfc = arDfc(cardOf(c)), tok = tokDelar(cardOf(c));
   matMenyEl.dataset.cid = cid;
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
     <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}<kbd>T</kbd></button>
     <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}<kbd>Space</kbd></button>
     <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…</button>
+    ${tok.map((t, j) => `<button type="button" data-ma="tok${j}"><i style="background:#e0b44c"></i>Create ${esc(t.name)} token</button>`).join('')}
     <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard<kbd>G</kbd></button>
     <button type="button" data-ma="del" class="fara"><i style="background:var(--red)"></i>Remove from the board<kbd>⌫</kbd></button>`;
   const r = $('#zonPerm').getBoundingClientRect();
   matMenyEl.style.left = Math.max(4, Math.min(cx - r.left, r.width - 214)) + 'px';
-  matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175)) + 'px';
+  matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175 - 34 * tok.length)) + 'px';
   matMenyEl.classList.add('open');
 }
 function closeKortMeny() { if (matMenyEl) matMenyEl.classList.remove('open'); }
@@ -7764,6 +7774,10 @@ function kortMenyVal(a, i) {
   else if (a === 'flip') { state.sel = i; flipSel(); }
   else if (a === 'grav') matAngra(namnAv(c) + ' → graveyard', () => { flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`)); flyttaTill(i, ZON_GRAV); });
   else if (a === 'del') removeAt(i);
+  else if (/^tok\d+$/.test(a)) {
+    const t = tokDelar(cardOf(c))[+a.slice(3)], p = player();
+    if (t) { angraPunkt(p); skapaTokens(p, c, [{ part: t, n: 1 }], false); }
+  }
 }
 /* ═══ FRI MATTA — counters ═══════════════════════════════════════════
    Counters ligger på kortet som en lista {p,t} (M0), så att +1/+0, +0/+1,
@@ -9119,7 +9133,7 @@ async function resolveAll() {
   resolving = true;
   try {
     do { resolveOm = false; await resolveVarv(); } while (resolveOm);
-  } finally { resolving = false; renderAll(); }
+  } finally { resolving = false; tokensVidEtb(); renderAll(); }
 }
 async function resolveVarv() {
   const tried = new Set();
@@ -9206,6 +9220,7 @@ function addCards(items, opts) {
     if (!nm) continue;
     const entry = normaliseraKort({ cid: uid(), name: nm, flipped: 0 }, p.cards.length);
     if (o.sid) entry.sid = o.sid;
+    if (o.tok) entry.tok = 1; else entry.etb = 1;
     p.cards.push(entry);
     added.push(entry);
   }
@@ -9427,6 +9442,102 @@ function bastVard(cards, cid) {
     if (ov > bestOv) { bestOv = ov; best = o; }
   }
   return best ? best.cid : null;
+}
+
+/* ─── Tokens (MES-105) ───────────────────────────────────────────────
+   Tokens ett kort skapar står i kortcachen (parts: Scryfalls all_parts).
+   Kommer ett kort in på bordet med en "When … enters"-trigger som skapar
+   tokens läggs de ut direkt, bredvid kortet — och "then attach this
+   Equipment to it" sätter kortet på token, som Ancestral Blade. Bara det
+   texten säger rakt ut: ett antal i ord eller siffror, inget "may", "if"
+   eller X — appen gissar inte. Övriga triggrar (attack, dör, aktiverade
+   förmågor) går via kortets meny: Create … token. */
+const TOK_TAL = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+const regEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/* Kortets tokens, ett per namn. */
+function tokDelar(card) {
+  const ut = [];
+  for (const d of (card && card.parts) || []) if (d && d.id && d.name && !ut.some(x => x.name === d.name)) ut.push(d);
+  return ut;
+}
+/* { lista: [{ part, n, tapped }], fast } ur kortets enters-triggrar, eller null. */
+function etbTokens(card) {
+  const delar = tokDelar(card), f = card && card.faces[0];
+  if (!delar.length || !f) return null;
+  const namn = [f.name, f.name.split(',')[0]].filter(Boolean).map(regEsc).join('|');
+  const jag = new RegExp('\\b(?:' + namn + '|this (?:creature|artifact|enchantment|equipment|land|vehicle|permanent|planeswalker|battle|aura|spacecraft))\\b', 'i');
+  const lista = [];
+  let fast = false;
+  for (const rad of (f.oracle || '').replace(/\([^)]*\)/g, '').split('\n')) {
+    const m = rad.trim().match(/^When(?:ever)? ([^,]+), (.+)$/i);
+    if (!m || !/\benters\b/i.test(m[1]) || !jag.test(m[1])) continue;
+    for (const mening of m[2].split(/(?<=\.)\s+/)) {
+      if (/\b(may|if|unless|for each|equal to|where|instead)\b/i.test(mening) || /\bX\b/.test(mening)) continue;
+      const c = mening.match(/\bcreates? (.+?)\.?$/i);
+      if (!c) continue;
+      for (const bit of c[1].split(/,?\s+and\s+(?=(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s)/i)) {
+        const tal = bit.match(/^(an?|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s/i);
+        if (!tal || !/\btokens?\b/i.test(bit) || /\bcopy\b/i.test(bit)) continue;
+        const part = delar.find(d => new RegExp('\\b' + regEsc(d.name) + '\\b', 'i').test(bit)) || (delar.length === 1 ? delar[0] : null);
+        if (!part) continue;
+        lista.push({ part, n: Math.min(20, TOK_TAL[tal[1].toLowerCase()] || +tal[1] || 1), tapped: /\btapped\b/i.test(bit.split(/\btokens?\b/i)[0]) });
+      }
+      if (new RegExp('\\battach (?:it|this \\w+|' + namn + ') to it\\b', 'i').test(mening)) fast = true;
+    }
+  }
+  return lista.length ? { lista, fast: fast && lista.length === 1 && lista[0].n === 1 } : null;
+}
+/* Nästa lediga plats till höger om kortet — slotBeside om raden är full. */
+function tokPlats(cards, bredvid, board) {
+  if (!bredvid || bredvid.x == null || bredvid.y == null) return slotBeside(cards, 'perm', board);
+  const s = { w: MATTA.CW, h: MATTA.CH }, r = matRect(bredvid);
+  const alla = cards.filter(c => paMattanKort(c) && !c.attachedTo && c.x != null && c.y != null);
+  for (let x = r.x + r.w + 18; x + s.w + MATTA.KANT <= board.w; x += s.w + 18) {
+    const mitt = { x, y: bredvid.y, w: s.w, h: s.h };
+    if (!alla.some(c => overlapAndel(mitt, matRect(c)) > 0.25)) return { x, y: bredvid.y };
+  }
+  return slotBeside(cards, 'perm', board);
+}
+/* Lägger ut tokens bredvid kalla, överst. fast: kalla sätts på den (enda)
+   token, som då tar kallas plats — kortet hamnar bakom den. Den som anropar
+   har tagit ångrapunkten. */
+function skapaTokens(p, kalla, lista, fast) {
+  const cards = p.cards, v = matVy(p), g = gravRuta(v);
+  let z = Math.max(matTopZ || 0, ...cards.map(k => k.z || 0));
+  const nya = [];
+  let forra = kalla;
+  for (const { part, n, tapped } of lista) for (let j = 0; j < n; j++) {
+    const e = normaliseraKort({ cid: uid(), name: part.name, sid: part.id, flipped: 0, tapped: tapped ? 1 : 0, tok: 1, ny: Date.now() }, cards.length);
+    const pos = fast && kalla.x != null && kalla.y != null ? { x: kalla.x, y: kalla.y } : tokPlats(cards, forra, v.board);
+    const k = clampKort(Object.assign({}, e, pos), v.board, g);
+    e.x = k.x; e.y = k.y; e.z = ++z;
+    cards.push(e); nya.push(e); forra = e;
+  }
+  matTopZ = z;
+  if (fast && nya[0] && cards.includes(kalla)) { kalla.attachedTo = nya[0].cid; kalla.tapped = 0; kalla.grp = null; kalla.gi = null; }
+  save(); renderAll(true); resolveAll();
+  return nya;
+}
+/* Kort som just kommit in på bordet bär etb tills deras data finns: då läses
+   triggern en gång och flaggan släpps. Körs när uppslagningen är klar
+   (resolveAll) och när ett kort ur leken släppts — inte mitt i draget. Ett
+   nedvänt kort har inga förmågor. */
+function tokensVidEtb() {
+  if (kameraEnhet) return;
+  for (const p of spelLage ? [minSpelare()].filter(Boolean) : state.players) {
+    if (!arMitt(p)) continue;
+    for (const c of p.cards.slice()) {
+      if (!c.etb || (dnd && dnd.cid === c.cid)) continue;
+      if (!paMattan(c) || c.lyft != null || c.flipped) { delete c.etb; continue; }
+      const card = cardOf(c);
+      if (!card) { if (failed.has(keyOf(c))) delete c.etb; continue; }
+      delete c.etb;
+      const t = etbTokens(card);
+      if (!t) continue;
+      angraPunkt(p);
+      skapaTokens(p, c, t.lista, t.fast && !!bifogTyp(c));
+    }
+  }
 }
 
 /* Handlingarna bakom hover-radens knappar. Samma vägar används av
@@ -9784,6 +9895,8 @@ function matChip(c, text) {
 function matDndSlut(ev, avbryt) {
   if (!dnd) return;
   const d = dnd; dnd = null;
+  /* Ett kort ur leken väntar med sina tokens tills det släppts (tokensVidEtb). */
+  if (d.fraLek) setTimeout(tokensVidEtb, 0);
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(d.cid)}"]`);
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
@@ -12292,7 +12405,7 @@ addEventListener('keydown', ev => {
   else if (lower === 's') { ev.preventDefault(); satMatVerktyg(matVerktyg === 'pan' ? 'valj' : 'pan'); }
   else if (lower === 'n') { ev.preventDefault(); if (addPlayer()) startRename(state.active); }
   else if (lower === 'r') { ev.preventDefault(); startRename(state.active); }
-  else if (lower === 'd' && te) { ev.preventDefault(); addCards([te.name]); }
+  else if (lower === 'd' && te) { ev.preventDefault(); addCards([te.tok ? { name: te.name, sid: te.sid, tok: 1 } : te.name]); }
 });
 /* F och Enter: fokusvyn öppnar på kortet under pekaren, annars på det man
    senast pekade på. */
@@ -14494,7 +14607,7 @@ function namngePend(p, q, name, sid, list) {
   else if (gammalt) { gammalt.spar = q.spar; slappLyft(gammalt); if (q.tappad != null) gammalt.tapped = q.tappad ? 1 : 0; gammalt.ny = Date.now(); }   // null = ingen bedömning från kameran: det digitala tap-läget står kvar
   else p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list,
                       spar: q.spar || undefined, tapped: q.tappad ? 1 : 0, kamTap: q.spar != null && q.tappad != null ? (q.tappad ? 1 : 0) : undefined,
-                      ny: q.spar != null ? Date.now() : undefined });
+                      ny: q.spar != null ? Date.now() : undefined, etb: 1 });
   if (q.spar != null && spelLage) Moln.sandKam('namn', { spar: q.spar, namn: name, sid: sid || null });
   return sammaKort;
 }
@@ -14515,12 +14628,12 @@ function applyPick(name, sid, cands) {
     const bundet = SW.spar != null && p.cards.find(c => c.spar === SW.spar);
     sammaKort = (!bundet && sammaKortVid(p, name, SW.spar)) || null;
     if (bundet) Object.assign(bundet, { name, sid: sid || undefined, cands: list });
-    else if (!sammaKort) p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, cands: list });
+    else if (!sammaKort) p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, cands: list, etb: 1 });
     /* Spåret finns kvar: telefonen får namnet som ovan — annars läste
        avstämningen spårets eget säkra namn som ett annat kort på platsen. */
     if ((bundet || sammaKort) && spelLage) Moln.sandKam('namn', { spar: SW.spar, namn: name, sid: sid || null });
   } else {
-    p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, box: SW.box, rot: SW.fitRot || 0, shotId: SW.id, cands: list });
+    p.cards.push({ cid: uid(), name, sid: sid || undefined, flipped: 0, box: SW.box, rot: SW.fitRot || 0, shotId: SW.id, cands: list, etb: 1 });
   }
   save();
   resolveAll();                     // rättar även stavning till kortets riktiga namn
@@ -19200,7 +19313,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     }
     /* Utan sparat läge föds kortet otappat (se lagg). Statusfältet ber om
        läget ur det här kortet så snart det ligger på bordet (grundSteg). */
-    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && pol.tap && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu };
+    g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && pol.tap && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu, etb: 1 };
     kamLage(g.kort, t);
     mig.cards.push(g.kort); andrat = true;
     autoSumKort(g.kort.cid, t);
