@@ -974,51 +974,7 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .ms.big{width:18px;height:18px;font-size:11px;vertical-align:-3px}
 .dmana{display:flex;gap:1px;flex:none}
 
-/* ─────────── graveyard-vyn ─────────── */
-.gravhead{font:12px var(--mono);color:var(--dim2);margin-left:6px}
-/* Rubriken bär gravstenen, antalet och bläddringen. Pilarna sitter där för
-   att högen ska gå att gå igenom med musen — piltangenterna gör samma sak. */
-.gravhd{display:flex;align-items:center;gap:8px}
-.gravhd h2{margin:0}
-.gravhd .grow{flex:1}
-.gravhd-sten{width:22px;height:22px;flex:none;color:var(--dim);display:block}
-.gravhd-sten svg{width:100%;height:100%;display:block}
-.gnav{
-  width:28px;height:28px;flex:none;display:grid;place-items:center;
-  border:1px solid var(--line);border-radius:7px;background:var(--bg3);
-  color:var(--dim);cursor:pointer;
-}
-.gnav:hover{background:var(--bg4);color:var(--txt);border-color:#3b485c}
-.gnav[disabled]{opacity:.35;pointer-events:none}
-.gravtyp{font-size:12.5px;color:var(--dim)}
-.gravsenast{color:var(--acc)}
-.gravknappar{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
-.gravfot{margin:0;font:11.5px/1.5 var(--sans);color:var(--dim2)}
 .sbtag{font:600 9px/1 var(--sans);letter-spacing:.6px;padding:2px 4px;border-radius:4px;border:1px solid var(--line);color:var(--dim2);margin-right:6px;flex:none}
-/* .modal .body sätter kolumn, står längre ner i filen och vinner vid lika
-   specificitet. Tre klasser krävs för att komma åt riktningen härifrån. */
-.modal .body.gravbody{display:flex;flex-direction:row;gap:18px;min-height:0;align-items:stretch}
-/* min-width:0 krävs: utan den vägrar en flexkolumn krympa under sitt
-   innehålls naturliga bredd, och kortbilden la sig över texten bredvid. */
-.gravbig{flex:0 0 38%;min-width:0;display:flex;align-items:flex-start;justify-content:center}
-.gravbig img{max-width:100%;max-height:58vh;object-fit:contain;border-radius:10px;box-shadow:0 10px 30px -8px #000e}
-@media (max-width:680px){
-  .modal .body.gravbody{flex-direction:column}
-  .gravbig{flex:none}
-  .gravbig img{max-height:34vh}
-  .gravlist{max-height:22vh}
-}
-.gravempty{color:var(--dim2);font-size:13px;text-align:center}
-.gravside{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
-.gravinfo{font-size:12.5px;color:var(--dim);line-height:1.5}
-.gravinfo h3{font:600 21px/1.2 var(--sans);color:var(--txt);margin:0 0 3px}
-.gravlist{display:flex;gap:7px;flex-wrap:wrap;overflow-y:auto;min-height:0;align-content:flex-start}
-.gravlist button{
-  width:76px;aspect-ratio:488/680;padding:0;border:2px solid transparent;border-radius:6px;
-  background:#11161e;cursor:pointer;overflow:hidden;
-}
-.gravlist button img{width:100%;height:100%;object-fit:cover;display:block}
-.gravlist button.on{border-color:var(--acc)}
 
 /* ─────────── lägg till från bild ─────────── */
 .imgdrop{
@@ -1110,7 +1066,6 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 }
 .grav:not(.tom) .gravsten{opacity:0}
 .gravsten svg{width:100%;height:100%;display:block}
-.gravtxt .gt-fan{display:none;font:500 10.5px/1 var(--sans);letter-spacing:0;text-transform:none}
 /* Ett kort dras mot högen (§2, gravOver): platsen står still, men ramen
    blir hel och lyser som den föreslagna platsen i steg 4 (.gplats2.glod),
    och lagren glider isär lite. Toppkortet ljusnar. Allt bärs av
@@ -1154,47 +1109,55 @@ body.lasvy #emptyLas:not(.hide){display:grid}
 .exilhog b{font:700 14px/1 var(--mono);color:var(--txt)}
 .exilhog .zonlbl{font-size:8.5px;letter-spacing:.7px}
 .exilhog:hover{border-color:var(--acc);border-style:solid}
-/* Solfjädern (GRAVEYARD_ANIMATION.md §4): behållaren ligger på samma plats
-   och i samma storlek som högen i vila och släpper pekaren igenom; korten
-   fångar den. Korten monteras med transform:none — exakt ovanpå högen — och
-   får sitt utfällda läge först 24 ms senare, så att det är korten i högen
-   som far ut. De vrids kring underkanten, som kort i en hand. Transform,
-   z-index och transition (med 22 ms förskjutning per kort) sitter inline. */
-.gravfan{position:absolute;z-index:88;left:8px;top:8px;width:92px;height:128px;pointer-events:none}
-.fkort{position:absolute;inset:0;pointer-events:auto;touch-action:none;cursor:grab;transform-origin:50% 100%}
-.fkort img,.fkort .fnamn{
-  width:100%;height:100%;display:block;border-radius:6px;background:#11161e;
-  border:1px solid #39414e;box-shadow:0 8px 18px -8px #000c;
+/* Solfjädern (Mesa Deck in Play, B2 v2, MES-145): library, graveyard eller
+   exile i handen längs mattans nederkant. Behållaren täcker mattan och
+   släpper pekaren igenom; korten fångar den. Läge, vridning, z-index och
+   transition sitter inline (hfLage). Under ett drag sjunker den 110 px. */
+.handfan{position:absolute;inset:0;z-index:26;pointer-events:none;perspective:1800px;transition:translate .28s cubic-bezier(.2,.8,.3,1)}
+.handfan[hidden]{display:none}
+.handfan.sjunk{translate:0 110px}
+.handfan.sjunk .hkort{pointer-events:none}
+.handfan.lyft .hkort{opacity:0}
+.hkort{position:absolute;left:0;top:0;width:124px;height:173px;transform-origin:50% 100%;transform-style:preserve-3d;cursor:grab;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.hkort .bunt,.hkort .cf,.hkort .bak,.hkort .antal{backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.hkort .bunt{position:absolute;inset:0;border-radius:7px}
+.hkort .cf{position:absolute;inset:0;border-radius:7px;overflow:hidden;background:#11161e;box-shadow:0 10px 26px -8px #000e;transition:filter .15s}
+.hkort .cf img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.hkort .cf .fnamn{display:block;padding:10px 8px;font:600 11px/1.3 var(--sans);color:var(--dim);word-break:break-word}
+.hkort .bak{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px;transform:rotateY(180deg);box-shadow:0 6px 14px -4px #000c;pointer-events:none}
+.hkort.fok .cf{box-shadow:0 0 0 2px var(--acc),0 24px 44px -12px #000}
+.hkort.gv .cf img{filter:grayscale(.5) brightness(.8)}
+.hkort.mork .cf{filter:brightness(.34)}
+.hkort.drar .cf{filter:brightness(.4)}
+.hkort .antal{position:absolute;z-index:3;right:-8px;top:4px;min-width:28px;height:20px;padding:0 6px;border-radius:10px;background:#0b1017;border:1px solid #4a5a72;font:700 11px/18px var(--mono);color:#e7ecf4;text-align:center;box-shadow:0 4px 10px -3px #000c}
+body.lasvy .hkort{cursor:default}
+/* Högen medan korten är i handen: den reser sig (lift), sedan står ramen
+   tom, streckad och andas och säger hur man lägger ner korten. */
+.grav img,.grav .glager,.bib .biblek{transition:translate .19s ease-out,scale .19s ease-out,opacity .12s}
+.grav.hflyft img,.grav.hflyft .glager,.bib.hflyft .biblek{translate:-3px -18px;scale:1.07}
+.grav.hfute img,.grav.hfute .glager,.bib.hfute .biblek{opacity:0}
+.grav.hfute{border-style:dashed;background:#0b0f15f2;animation:andasG 2.4s ease-in-out infinite}
+.bib.hfute{border-style:dashed;background:#6b8cff0d;animation:bibAndas 2.4s ease-in-out infinite}
+.exilhog.hfute{border-color:var(--acc);border-style:solid}
+.utetxt{position:absolute;z-index:4;left:6px;right:6px;top:50%;translate:0 -50%;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.utetxt b{font:600 11px/1.35 var(--sans)}
+.utetxt em{font:10px/1.2 var(--mono);font-style:normal;opacity:.75}
+.bib .utetxt{color:#c9d4ff}
+.grav .utetxt{color:#f0dcb0}
+.hfute .utetxt{opacity:1}
+.grav.hfute .gravsten{opacity:0}
+/* Hover på en hög: "Pick up N" ovanför. */
+.hchip{position:absolute;left:54px;bottom:calc(100% + 10px);translate:-50% 5px;z-index:5;display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:7px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:650 11px/1 var(--sans);box-shadow:0 8px 20px -6px #000e;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s,translate .18s cubic-bezier(.2,.8,.3,1)}
+.hchip b{font:600 11px var(--mono);color:#fff}
+.hchip.bla{border-color:#6b8cff99;color:#c9d4ff}
+.hchip.gul{border-color:#e8b33a88;color:#f0dcb0}
+.grav:not(.tom):not(.hfute):hover .hchip,.bib:not(.tom):not(.hfute):not(.lyft):hover .hchip{opacity:1;translate:-50% 0}
+body.lasvy .hchip{display:none}
+@keyframes andasG{0%,100%{box-shadow:0 0 0 0 #e8b33a00}50%{box-shadow:0 0 0 7px #e8b33a22,0 0 26px 4px #e8b33a2a}}
+@media (prefers-reduced-motion:reduce){
+  .handfan,.hkort,.grav img,.grav .glager,.bib .biblek,.hchip{transition:none!important}
+  .grav.hfute,.bib.hfute{animation:none}
 }
-.fkort img{object-fit:cover;pointer-events:none}
-.fkort .fnamn{padding:8px 6px;font:600 10.5px/1.3 var(--sans);color:var(--dim);word-break:break-word}
-/* Hovrat kort: lyftet och skalan sitter i transformen; ramen blir accent. */
-.fkort.hov img,.fkort.hov .fnamn{border:2px solid var(--acc);box-shadow:0 22px 40px -10px #000f}
-/* Korten i solfjädern ÄR högen: korten i platsen döljs medan den är
-   utfälld — ramen står kvar — och raden säger vad man kan göra. */
-.gravhog.fanpa .grav img,.gravhog.fanpa .glager{opacity:0}
-.gravhog.fanpa .gravtxt{color:var(--pa-acc)}
-.gravhog.fanpa .gravtxt .gt-n{display:none}
-.gravhog.fanpa .gravtxt .gt-fan{display:inline}
-body.lasvy .gravhog.fanpa .gravtxt .gt-n{display:inline}
-body.lasvy .gravhog.fanpa .gravtxt .gt-fan{display:none}
-body.lasvy .fkort{cursor:default}
-/* Knappraden vid det hovrade kortet (§4): Return to play och Exile. Står i
-   behållaren, ovanför kortets överkant. */
-.fakt{
-  position:absolute;z-index:60;pointer-events:auto;display:flex;align-items:center;gap:5px;padding:5px;border-radius:9px;
-  background:color-mix(in srgb,var(--bandbg) 96.86%,transparent);border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000;
-}
-.fakt button{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:6px;border:0;cursor:pointer;white-space:nowrap}
-.fakt button svg{flex:none}
-.fakt [data-fakt="ater"]{background:var(--acc);color:#20160a;font:650 11px/1 var(--sans)}
-.fakt [data-fakt="ater"]:hover{background:#ffb943}
-.fakt [data-fakt="exil"]{background:#1b1428;border:1px solid #5c4a80;color:#d9c7f5;font:600 11px/1 var(--sans)}
-.fakt [data-fakt="exil"]:hover{background:#241a35}
-/* Exile-högens fjäder: "To the graveyard" i stället för Exile. */
-.fakt [data-fakt="grav"]{background:var(--bg3);border:1px solid var(--line);color:var(--txt);font:600 11px/1 var(--sans)}
-.fakt [data-fakt="grav"]:hover{border-color:var(--acc)}
-body.lasvy .fakt{display:none!important}
 
 
 /* knapp för att lägga ett kort i graveyard */
@@ -1659,7 +1622,6 @@ body.lasvy #bildKnapp,
 /* Bara de två som ÄNDRAR något. "Back to table" är navigation och ska finnas
    kvar även på någon annans bord — annars är krysset i hörnet enda vägen ut,
    och det är inte där handen är. */
-body.lasvy #gravBack,body.lasvy #gravRemove,body.lasvy #gravFlytta{display:none!important}
 /* Tittar man på någon annans bord får hela brädytan en list i den spelarens
    färg — samma färg som pricken i fliken och som bandet nedan. Tre ställen,
    en färg: det går inte att missa vems kort man ser på. */
@@ -2795,6 +2757,8 @@ body.ispel #addPlayerBtn{display:none}
           <div class="mattabrade" id="grid"></div>
         </div>
         <div class="mattachrome" id="mattaChrome"></div>
+        <!-- Solfjädern (MES-145): korten ur en hög i handen. Ritas av hfLage(). -->
+        <div class="handfan" id="handFan" hidden></div>
         <!-- Uppstartens steg 4 (MES-122): kamerans bild i stort på mattan medan
              bordet ställs i ordning — provkortet, graveyard-platsen, leken.
              #pbBild flyttas hit (flyttaPbBild) och visas i spelarens vy. -->
@@ -3305,43 +3269,6 @@ body.ispel #addPlayerBtn{display:none}
   </div>
 </div>
 
-<!-- ── graveyard ── -->
-<div class="ov" id="gravOv">
-  <div class="modal gravmodal" style="width:min(980px,94vw)">
-    <header class="gravhd">
-      <span class="gravhd-sten" id="gravHdSten"></span>
-      <h2 id="gravOvRub">Graveyard</h2>
-      <span class="gravhead" id="gravCount"></span>
-      <span class="grow"></span>
-      <button class="gnav" id="gravPrev" title="Previous card (←)" aria-label="Previous card">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
-      <button class="gnav" id="gravNext" title="Next card (→)" aria-label="Next card">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-      <span class="gravhead">browsing</span>
-      <button class="close" data-close="gravOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    </header>
-    <div class="body gravbody">
-      <div class="gravbig"><img id="gravImg" alt=""><div class="gravempty" id="gravEmpty" hidden>The graveyard is empty.</div></div>
-      <div class="gravside">
-        <div class="gravinfo" id="gravInfo"></div>
-        <div class="gravlist" id="gravList"></div>
-        <!-- Knapptexterna säger vad de gör MED KORTET, inte vad de gör med
-             vyn. "Return to play" och "Remove from game" gick att läsa som att
-             de gällde graveyarden eller hela spelet; med "card" i texten finns
-             ingen sådan tvekan. Den tredje knappen stänger vyn — krysset uppe
-             i hörnet är en väg tillbaka, men inte en man letar efter när
-             händerna är kvar nere vid de andra två. -->
-        <div class="gravknappar">
-          <button class="btn" id="gravBack" title="Put this card back on the battlefield">Return card to play</button>
-          <button class="btn" id="gravFlytta" title="Move this card to exile">Exile card</button>
-          <button class="btn danger" id="gravRemove" title="Take this card out of the game entirely — it leaves the graveyard too">Remove card from the game</button>
-          <button class="btn ghost" id="gravStang" title="Close the graveyard (Esc)">Back to table</button>
-        </div>
-        <p class="gravfot">Hover the pile on the table to fan the cards out.</p>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- ── lägg till kort från en bild ── -->
 <div class="ov" id="imgOv">
@@ -6026,7 +5953,7 @@ function lekKlick(ev) {
   const b = ev.target.closest('[data-lekvalj]'); if (!b) return;
   ev.stopPropagation();
   const mig = minSpelare();
-  if (spelLage && mig && mig.lekId) vaxlaLada(); else oppnaLekVal(b);
+  if (spelLage && mig && mig.lekId) { if (bibHogEl && bibHogEl.contains(b)) hfOppna('lib'); else vaxlaLada(); } else oppnaLekVal(b);
 }
 $('#deckSlot').addEventListener('click', lekKlick);
 
@@ -6800,6 +6727,8 @@ const IKON_KRYSS = '<path d="M6 6l12 12M18 6 6 18"/>';
 /* Baksidan på ett Magic-kort. Ett kort som vänds ner är fortfarande på bordet
    och räknas med — det är bara inte synligt vad det är. */
 const BAKSIDA = 'https://backs.scryfall.io/normal/0/a/0aeebaf5-8c7d-4636-9e82-8c27447861f7.jpg';
+/* Tre kort i en solfjäder: "Pick up" på högarna (MES-145). */
+const IKON_HAND = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="1.5" transform="rotate(-22 12 21)"/><rect x="8" y="3" width="8" height="12" rx="1.5"/><rect x="8" y="3" width="8" height="12" rx="1.5" transform="rotate(22 12 21)"/></svg>';
 /* Baksidans namn i kortpoolen (byggLekPool): ett nedvänt kort på bordet ska
    kännas igen som just det — inte bli en granskningspost med baksidan som
    miniatyr (Jespers skärmdump 2026-09-11, MES-42). Namnet skickas aldrig
@@ -6997,7 +6926,7 @@ function renderBibHog() {
       const lyft = bibLyft(), antal = `${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together)`;
       const inne = lyft
         ? `<img class="bibspok" src="${BAKSIDA}" alt="" draggable="false"><span class="bibord">Put your library back here</span>`
-        : `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span>`;
+        : `<span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span><span class="hchip bla">${IKON_HAND}<span>Pick up</span><b>${kvar}</b></span>`;
       const titel = lyft ? `Your library is off its spot — put it back inside the frame. ${antal}` : `${esc(lek.namn || 'Deck')} — ${antal}. Drop a card here to put it back`;
       html = `<button type="button" class="bib${lyft ? ' lyft' : ''}" data-lekvalj="lek" title="${titel}">${inne}</button><span class="hograd"><i></i>Library<b>${kvar}</b></span>`;
     }
@@ -7047,18 +6976,16 @@ function renderGravHog(cards, d) {
   manaRow.classList.toggle('medbib', renderBibHog());
   const ex = d.exil.length;
   const html = gravHtml(cards, d.grav)
-    + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to browse"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '')
-    + `<div class="gravfan" id="gravFan"></div>`;
+    + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to pick them up"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '');
   const pid = player().id, n = d.grav.length;
   const vaxte = !!gravForra && gravForra.pid === pid && n > gravForra.n;
   gravForra = { pid, n };
   if (html !== gravHogHtml) {
     gravHogHtml = html;
     manaRow.innerHTML = html;
-    /* En omritning river solfjädern; står den öppen ritas den om utan animation. */
-    if (fan.zon) fanRita();
   }
   if (vaxte) gravBumpa();
+  hfSynk();                          // en omritning byter ut högarna: deras lägen och solfjäderns kort
 }
 /* Landningen (§3): .bump på panelen i 500 ms ger cLand på toppkortet och
    cBump på räknaren, och ringen finns bara så länge — referensens
@@ -7077,134 +7004,229 @@ function gravBumpa() {
     const r = manaRow.querySelector('.gravring'); if (r) r.remove();
   }, 500);
 }
-/* ═══ FRI MATTA — graveyard-solfjädern ═══════════════════════════════
-   GRAVEYARD_ANIMATION.md §4–5. Hovra högen så veckas korten ut ur den i en
-   båge; det hovrade kortet lyfts och får Return to play / Exile; drar man
-   ett kort mer än 6 px blir det ett mattkort under pekaren (spawnFromGrave)
-   och det vanliga draget tar över. Två tillstånd, inte ett: zon (korten
-   finns i DOM, referensens fanOpen) och on (de är utfällda, fanOn) — det är
-   delningen som gör att korten animerar ut ur högen i stället för att dyka
-   upp utfällda. Tre timers, som alla rensas vid varje ny händelse — annars
-   stängs solfjädern under fingret. Lyssnarna är delegerade på manaRow;
-   samma fjäder för exile-högen. */
-const fan = { zon: null, on: false, hov: null, tOn: null, tOff: null, tClose: null, drag: null };
-function fanKort(zon) { const c = hand(), d = delaHand(); return (zon === ZON_EXIL ? d.exil : d.grav).map(i => c[i]); }
-/* Kort i av n (i = 0 överst i högen): steget i sidled kapas på 96 px och
-   aldrig mer än 828 px totalt — och inte bredare än mattan — och bågen
-   lägger korten i mitten högst, från −9° till +9°. */
-function fanGeom(n) {
-  const fri = Math.max(240, ($('#zonPerm').clientWidth || MATTA.VP.w) - 190);
-  const steg = n > 1 ? Math.min(96, 828 / (n - 1), fri / (n - 1)) : 0;
-  return i => { const t = n > 1 ? i / (n - 1) : 0; return { dx: i * steg, dy: -64 - Math.sin(t * Math.PI) * 30, a: -9 + t * 18 }; };
+/* ═══ SOLFJÄDERN — leken, graveyard och exile i handen (MES-145) ═══════
+   Designen "Mesa Deck in Play", sida 5 (B2 · chosen v2). Ett klick på en
+   hög lyfter den, korten vänds ur den och läggs i en solfjäder längs
+   mattans nederkant. Inget står ovanför och bordet dimmas inte. Kortet
+   under pekaren lyfts (dock-förstoring) och visas i inspektorn; kopior
+   ligger i en stapel med ×N. Klick utanför, klick på högen eller Esc
+   lägger ner korten: de far tillbaka in i högen.
+   Faser som i designen: lift (högen reser sig) → open (korten far ut,
+   16 ms isär) → live → gather (hem igen) → stängd. Geometrin är designens
+   (logic-B4.js) i mattans pixlar: en båge med radien 1300 kring en punkt
+   under mattans nederkant. Bågen ställer sig till höger om högarna så att
+   de går att klicka på; blir mattan för smal får den gå över dem. */
+const HF = { R: 1300, CW: 124, CH: 173, T: { lift: 190, open: 860, gather: 470 } };
+const hfEl = $('#handFan'), hfMatta = $('#zonPerm');
+const hf = { src: null, fas: 'stangd', items: [], sig: '', f: null, mus: false, fok: null, q: '', mi: 0, t: [], geo: null, drag: null };
+const hfOppen = () => hf.fas === 'open' || hf.fas === 'live';
+const hfLugn = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hfSenare(ms, fn) { hf.t.push(setTimeout(fn, ms)); }
+function hfTimrarBort() { hf.t.forEach(clearTimeout); hf.t = []; }
+/* Högen korten kommer ur: 'lib', ZON_GRAV eller ZON_EXIL. */
+function hfHogEl(src) {
+  if (src === 'lib') return bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null;
+  return manaRow.querySelector(src === ZON_EXIL ? '.exilhog' : '.grav');
 }
-const fanTransform = (g, hov) => `translate(${g.dx.toFixed(0)}px,${(g.dy - (hov ? 20 : 0)).toFixed(0)}px) rotate(${g.a.toFixed(1)}deg) scale(${hov ? 1.1 : 1})`;
-function fanTimrarBort() { clearTimeout(fan.tOn); clearTimeout(fan.tOff); clearTimeout(fan.tClose); fan.tOn = fan.tOff = fan.tClose = null; }
-/* Öppna: korten monteras ovanpå högen och fälls ut 24 ms senare — de
-   behöver ett startläge att animera från. Bara om man inte håller i ett kort. */
-function fanOppna(zon) {
-  if (dnd || fan.drag) return;
-  fanTimrarBort();
-  if (fan.zon === zon && fan.on) return;
-  if (fan.zon !== zon) { fan.zon = zon; fan.on = false; fan.hov = null; fanRita(); }
-  fan.tOn = setTimeout(() => {
-    fan.tOn = null;
-    const el = $('#gravFan'); if (!el || fan.zon !== zon) return;
-    void el.offsetWidth;             // startläget räknat innan målet sätts, även i en dold flik
-    fan.on = true; fanLage();
-  }, 24);
-}
-/* Korten i DOM för zonen, i sitt nuvarande läge (utfällda om on). */
-function fanRita() {
-  const el = $('#gravFan'); if (!el || !fan.zon) return;
-  const lista = fanKort(fan.zon), n = lista.length;
-  if (!n) { fanStangNu(); return; }
-  /* Exile-högens fjäder står över exile-högen, med underkanten i jämnhöjd. */
-  const ex = fan.zon === ZON_EXIL && manaRow.querySelector('.exilhog');
-  el.style.left = ex ? ex.offsetLeft + 'px' : '';
-  el.style.top = ex ? (ex.offsetTop + ex.offsetHeight - el.offsetHeight) + 'px' : '';
-  const g = fanGeom(n);
-  el.innerHTML = lista.map((e, i) => {
-    const card = cardOf(e), src = card ? imgOf(card, 0, 'small') : '', hov = fan.on && fan.hov === e.cid;
-    return `<div class="fkort${hov ? ' hov' : ''}" data-cid="${esc(e.cid)}" style="z-index:${hov ? 60 : i + 1};transform:${fan.on ? fanTransform(g(i), hov) : 'none'};transition:transform .3s cubic-bezier(.2,.9,.3,1) ${i * 22}ms">`
-      + (src ? `<img src="${esc(src)}" alt="${esc(namnAv(e))}" draggable="false">` : `<span class="fnamn">${esc(namnAv(e))}</span>`) + '</div>';
-  }).join('');
-  fanKnappar(el, [...el.querySelectorAll('.fkort')], g);
-  manaRow.classList.toggle('fanpa', fan.on && fan.zon === ZON_GRAV);
-}
-/* Lägena på plats: utfällt eller hemma, det hovrade kortet lyft. Varje korts
-   egen transition bär rörelsen. */
-function fanLage() {
-  const el = $('#gravFan'); if (!el) return;
-  const kort = [...el.querySelectorAll('.fkort')], g = fanGeom(kort.length);
-  kort.forEach((k, i) => {
-    const hov = fan.on && k.dataset.cid === fan.hov;
-    k.classList.toggle('hov', hov);
-    k.style.zIndex = hov ? 60 : i + 1;
-    k.style.transform = fan.on ? fanTransform(g(i), hov) : 'none';
-  });
-  fanKnappar(el, kort, g);
-  manaRow.classList.toggle('fanpa', fan.on && fan.zon === ZON_GRAV);
-}
-/* Knappraden vid det hovrade kortet: left dx − 30, top dy − 44 i
-   behållaren, där dy redan har lyftet. Bara på mitt eget bord. */
-const IKON_UPP = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V5m0 0-5.5 5.5M12 5l5.5 5.5"/></svg>';
-const IKON_EXIL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v9m4.5-6.8a8 8 0 1 1-9 0"/></svg>';
-function fanKnappar(el, kort, g) {
-  const gl = el.querySelector('.fakt'); if (gl) gl.remove();
-  const i = kort.findIndex(k => k.dataset.cid === fan.hov);
-  if (!fan.on || i < 0 || !redigerbar()) return;
-  const p = g(i);
-  el.insertAdjacentHTML('beforeend', `<div class="fakt" data-cid="${esc(fan.hov)}" style="left:${Math.round(p.dx - 30)}px;top:${Math.round(p.dy - 20 - 44)}px">`
-    + `<button type="button" data-fakt="ater">${IKON_UPP}Return to play</button>`
-    + (fan.zon === ZON_EXIL ? '<button type="button" data-fakt="grav">To the graveyard</button>' : `<button type="button" data-fakt="exil">${IKON_EXIL}Exile</button>`)
-    + '</div>');
-}
-function fanHov(cid) {
-  if (!fan.zon) return;
-  if (fan.on) fanTimrarBort(); else fanOppna(fan.zon);   // stängningen pågick: ut igen
-  if (fan.hov === cid) return;
-  fan.hov = cid; fanLage();
-  matHover = cid; renderInspektor();
-}
-/* Stäng: 130 ms innan korten flyger hem — så att man hinner röra sig mellan
-   högen och ett kort — och ytterligare 240 ms innan de avmonteras. */
-function fanStangSnart() {
-  fanTimrarBort();
-  if (fan.zon) fan.tOff = setTimeout(fanStang, 130);
-}
-/* Fäll ihop nu och avmontera när korten hunnit hem. */
-function fanStang() {
-  fanTimrarBort();
-  if (!fan.zon) return;
-  if (fan.hov && matHover === fan.hov) { matHover = null; renderInspektor(); }
-  fan.on = false; fan.hov = null; fanLage();
-  fan.tClose = setTimeout(fanStangNu, 240);
-}
-/* Avmontera direkt, utan animation. */
-function fanStangNu() {
-  fanTimrarBort();
-  if (fan.hov && matHover === fan.hov) { matHover = null; renderInspektor(); }
-  fan.zon = null; fan.on = false; fan.hov = null;
-  manaRow.classList.remove('fanpa');
-  const el = $('#gravFan'); if (el) { el.innerHTML = ''; el.style.left = el.style.top = ''; }
-}
-/* Tillbaka på mattan från en hög: zonen släpps, kortet landar där det låg
-   — eller bredvid de andra om det aldrig haft en plats. */
-function gravTillbaka(e) {
-  const h = hand(); if (!redigerbar() || !h.includes(e)) return false;
-  angraPunkt();
-  delete e.zon; delete e.fysisk; delete e.spellAuto;
-  if (e.x == null || e.y == null) {
-    const v = matVy(), pos = slotBeside(h, matSlag(e), v.board);
-    const k = clampKort(Object.assign({}, e, pos), v.board, gravRuta(v));
-    e.x = k.x; e.y = k.y;
+/* Korten i handen, per typ och med kopior i en stapel. Library: det som
+   inte är spelat ur leken (lekKvar), utan sideboarden. Graveyard och exile:
+   korten i zonen; stapelns kort är det översta av namnet i högen. */
+function hfKort(src) {
+  const ut = [];
+  if (src === 'lib') {
+    const k = lekKvar(); if (!k) return ut;
+    lekGrupper(k.poster.filter(p => p.kvar > 0 && !p.sb), hfSynk).forEach((g, gi) => g.poster.forEach((p, i) => {
+      const c = lekKortData(p);
+      ut.push({ key: 'p' + p.i, name: p.name, sid: p.sid, cnt: p.kvar, bild: p.small || (c ? imgOf(c, 0, 'small') : ''), post: p, first: i === 0 && gi > 0 });
+    }));
+    return ut;
   }
-  matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1; e.z = matTopZ;
-  state.sel = h.indexOf(e);
-  save(); renderAll(true);
-  return true;
+  const h = hand(), per = new Map();
+  for (const i of delaHand()[src] || []) {
+    const e = h[i], n = namnAv(e), x = per.get(n);
+    if (x) x.cids.push(e.cid); else per.set(n, { e, cids: [e.cid] });
+  }
+  const grupper = new Map(LEK_GRUPP_ORDNING.map(([key]) => [key, []]));
+  for (const [n, x] of per) grupper.get(lekGruppAv(typLinje(x.e))).push({ n, x });
+  let gi = 0;
+  for (const lista of grupper.values()) {
+    if (!lista.length) continue;
+    lista.sort((a, b) => a.n.localeCompare(b.n)).forEach(({ n, x }, i) => {
+      const c = cardOf(x.e);
+      ut.push({ key: 'n' + n, name: n, sid: x.e.sid, cnt: x.cids.length, bild: c ? imgOf(c, 0, 'small') : '', cid: x.cids[0], e: x.e, first: i === 0 && gi > 0 });
+    });
+    gi++;
+  }
+  return ut;
 }
-function gravExil(e) { const i = hand().indexOf(e); return i >= 0 && redigerbar() ? flyttaTill(i, ZON_EXIL) : false; }
+const hfSig = (src, items) => src + '|' + items.map(it => it.key + ':' + it.cnt + ':' + (it.bild ? 1 : 0)).join(',');
+/* Kopiorna bakom översta kortet: upp till tre kanter, som i designen. */
+function hfBunt(n) {
+  const s = [], l = Math.min(n - 1, 3);
+  for (let k = 1; k <= l; k++) { const o = (2.5 * k).toFixed(1); s.push(o + 'px -' + o + 'px 0 -1px #1b1f26', o + 'px -' + o + 'px 0 0 #3a4250'); }
+  s.push('0 10px 22px -10px #000c');
+  return s.join(', ');
+}
+function hfBygg() {
+  hfEl.innerHTML = hf.items.map(it => '<div class="hkort' + (hf.src === 'lib' ? '' : ' gv') + '" data-k="' + esc(it.key) + '">'
+    + '<span class="bunt" style="box-shadow:' + hfBunt(it.cnt) + '"></span>'
+    + '<span class="cf">' + (it.bild ? '<img src="' + esc(it.bild) + '" alt="' + esc(it.name) + '" draggable="false">' : '<span class="fnamn">' + esc(it.name) + '</span>') + '</span>'
+    + '<img class="bak" src="' + BAKSIDA + '" alt="" draggable="false">'
+    + (it.cnt > 1 ? '<b class="antal">×' + it.cnt + '</b>' : '') + '</div>').join('');
+}
+/* Mattans mått och var bågen får börja: till höger om högarna. */
+function hfYta() {
+  const m = hfMatta.getBoundingClientRect();
+  let x0 = 12;
+  for (const el of [manaRow, bibHogEl, manaRow.querySelector('.exilhog')]) {
+    if (!el || el.hidden) continue;
+    const r = el.getBoundingClientRect(); if (r.width) x0 = Math.max(x0, r.right - m.left + 12);
+  }
+  if (m.width - 12 - x0 < 420) x0 = 12;
+  return { W: m.width, H: m.height, x0 };
+}
+/* Var korten ligger hemma: underkantens mitt i högens ram, och skalan
+   ett kort i ramen har (92 av 124 px). */
+function hfHogRuta() {
+  const el = hfHogEl(hf.src), m = hfMatta.getBoundingClientRect();
+  if (!el) return { x: 76, y: m.height - 100, s: 0.742 };
+  const r = el.getBoundingClientRect(), k = Math.min(1, r.width / 108);
+  return { x: r.left - m.left + r.width * 46 / 108, y: r.top - m.top + r.height * 134 / 144, s: Math.max(0.3, k * 0.742) };
+}
+/* Träffarna på det skrivna, som index i hf.items (skriv för att hoppa). */
+function hfTraffar() {
+  const q = norm(hf.q), ut = [];
+  if (q) hf.items.forEach((it, i) => { if (norm(it.name).includes(q)) ut.push(i); });
+  return ut;
+}
+/* Alla korts lägen. nu = utan transition (omritning, fönstret ändrat). */
+function hfLage(nu) {
+  if (!hf.src) return;
+  const kort = hfEl.children, N = hf.items.length;
+  if (!N || kort.length !== N) return;
+  const { W, H, x0 } = hfYta(), { R, CW, CH } = HF;
+  const halvMax = Math.asin(clamp((W - 12 - x0 - CW) / 2 / R, 0, 1)) * 180 / Math.PI;
+  const sp = Math.min(35, 4 + N * 2.1, 2 * halvMax), utb = R * Math.sin(sp / 2 * Math.PI / 180) + CW / 2;
+  const CX = clamp(W * 560 / 1050, x0 + utb, Math.max(x0 + utb, W - 12 - utb)), PIVY = H - 44 + R;
+  hf.geo = { CX, sp, H };
+  const tr = hfTraffar(), L = tr.length, mi = L ? ((hf.mi % L) + L) % L : 0;
+  const f = hf.q && L && !hf.mus ? tr[mi] : hf.f;
+  const gw = hf.items.map((x, i) => f == null ? 0 : Math.exp(-((i - f) ** 2) / (2 * 1.3 * 1.3)));
+  const c = [0];
+  for (let i = 1; i < N; i++) c.push(c[i - 1] + 1 + 0.9 * (gw[i - 1] + gw[i]) + (hf.items[i].first ? 1.1 : 0));
+  const tot = c[N - 1] || 1, hemma = hf.fas === 'lift' || hf.fas === 'gather', hog = hfHogRuta(), lugn = nu || hfLugn(), q = norm(hf.q);
+  let fok = null;
+  for (let i = 0; i < N; i++) {
+    const it = hf.items[i], k = kort[i], th = N > 1 ? -sp / 2 + sp * c[i] / tot : 0, rad = th * Math.PI / 180;
+    const g = gw[i], sc = 1 + 0.34 * g, lift = 58 * g;
+    const px = CX + R * Math.sin(rad), py = PIVY - R * Math.cos(rad);
+    let left, top, tf, t;
+    if (hemma) { left = hog.x - CW / 2; top = hog.y - CH; tf = 'rotate(-4deg) translateY(0px) scale(' + hog.s.toFixed(3) + ') rotateY(180deg)'; }
+    else { left = px - CW / 2; top = py - CH; tf = 'rotate(' + th.toFixed(2) + 'deg) translateY(' + (-lift).toFixed(1) + 'px) scale(' + sc.toFixed(3) + ') rotateY(0deg)'; }
+    if (lugn || hf.fas === 'lift') t = 'none';
+    else if (hf.fas === 'open') { const dl = i * 16; t = 'left .6s cubic-bezier(.2,.8,.25,1) ' + dl + 'ms, top .6s cubic-bezier(.3,.9,.3,1) ' + dl + 'ms, transform .64s cubic-bezier(.2,.8,.25,1) ' + dl + 'ms'; }
+    else if (hf.fas === 'gather') { const dl = (N - 1 - i) * 9; t = 'left .38s cubic-bezier(.5,0,.75,.3) ' + dl + 'ms, top .38s cubic-bezier(.5,0,.75,.3) ' + dl + 'ms, transform .38s cubic-bezier(.5,0,.75,.3) ' + dl + 'ms'; }
+    else t = 'left .16s ease-out, top .16s ease-out, transform .16s ease-out';
+    k.style.transition = t;
+    k.style.left = left.toFixed(1) + 'px'; k.style.top = top.toFixed(1) + 'px'; k.style.transform = tf;
+    k.style.zIndex = i + 1 + (g > 0.5 ? 200 + Math.round(g * 60) : 0);
+    k.classList.toggle('fok', !hemma && g > 0.8);
+    k.classList.toggle('mork', !!q && !norm(it.name).includes(q));
+    if (f != null && Math.round(f) === i && !hemma) {
+      const hh = CH * sc / 2 + lift;            // kortets mitt: från underkanten upp längs det vridna kortet
+      fok = { it, i, cx: px + Math.sin(rad) * hh, cy: py - Math.cos(rad) * hh, th, sc };
+    }
+  }
+  const byt = (hf.fok && hf.fok.it.key) !== (fok && fok.it.key);
+  hf.fok = fok;
+  if (byt) renderInspektor();
+}
+/* Högarnas lägen: lyft medan de reser sig, tom ram medan korten är ute. */
+function hfHogar() {
+  for (const src of ['lib', ZON_GRAV, ZON_EXIL]) {
+    const el = hfHogEl(src); if (!el) continue;
+    const pa = hf.src === src && hf.fas !== 'stangd';
+    el.classList.toggle('hflyft', pa && hf.fas === 'lift');
+    el.classList.toggle('hfute', pa && hf.fas !== 'lift');
+    el.setAttribute('aria-expanded', pa ? 'true' : 'false');
+  }
+}
+/* Öppna högen src. Står en annan hög ute läggs den ner först; samma hög
+   igen lägger ner den. */
+function hfOppna(src) {
+  if (hf.src) {
+    if (hf.fas !== 'gather') { const annan = hf.src !== src; hfStang(annan ? () => hfSenare(40, () => hfOppna(src)) : null); return; }
+    hfStangNu();
+  }
+  if (src === 'lib') { lekFoljMin(); if (!lekKvar()) return; }     // leken hämtas: nästa klick
+  const items = hfKort(src);
+  if (!items.length) return;
+  Object.assign(hf, { src, items, sig: hfSig(src, items), f: null, mus: false, fok: null, q: '', mi: 0, fas: hfLugn() ? 'live' : 'lift' });
+  closeKortMeny(); closeCounters();
+  hfBygg();
+  hfEl.hidden = false;
+  hfEl.classList.remove('sjunk');
+  hfEl.classList.toggle('lyft', hf.fas === 'lift');
+  hfHogar(); hfLage();
+  if (hf.fas === 'live') return;
+  hfSenare(HF.T.lift, () => { hf.fas = 'open'; hfEl.classList.remove('lyft'); hfHogar(); hfLage(); });
+  hfSenare(HF.T.lift + HF.T.open, () => { if (hf.fas === 'open') { hf.fas = 'live'; hfLage(); } });
+}
+/* Lägg ner: korten far hem, sedan avmonteras de. efter körs när de är hemma. */
+function hfStang(efter) {
+  if (!hf.src || hf.fas === 'gather') return;
+  hfTimrarBort();
+  if (hfLugn() || !hfEl.children.length) { hfStangNu(); if (efter) efter(); return; }
+  hf.fas = 'gather'; hf.f = null; hf.q = ''; hf.drag = null;
+  hfEl.classList.remove('lyft', 'sjunk');
+  hfHogar(); hfLage();
+  hfSenare(HF.T.gather, () => { hfStangNu(); if (efter) efter(); });
+}
+function hfStangNu() {
+  hfTimrarBort();
+  const fok = hf.fok;
+  Object.assign(hf, { src: null, fas: 'stangd', items: [], sig: '', f: null, mus: false, fok: null, q: '', mi: 0, geo: null, drag: null });
+  hfEl.innerHTML = ''; hfEl.hidden = true; hfEl.classList.remove('sjunk', 'lyft');
+  hfHogar();
+  if (fok) renderInspektor();
+}
+/* Efter varje omritning av högarna (renderGravHog): korten i handen följer
+   det som ligger i högen. En tom hög lägger ner handen — utom under ett
+   drag, som kan avbrytas och lägga tillbaka kortet. */
+function hfSynk() {
+  hfHogar();
+  if (!hf.src || hf.fas === 'gather') return;
+  const items = hfKort(hf.src), sig = hfSig(hf.src, items);
+  if (sig === hf.sig) return;
+  if (!items.length && !dnd) { hfStang(); return; }
+  const fk = hf.fok && hf.fok.it.key;
+  hf.items = items; hf.sig = sig;
+  if (hf.f != null) { const j = items.findIndex(x => x.key === fk); hf.f = j >= 0 ? j : clamp(Math.round(hf.f), 0, Math.max(0, items.length - 1)); }
+  hfBygg(); hfLage(true);
+}
+/* Pekaren längs solfjädern tummar igenom den (designens skrubba): kortet
+   som står vid pekarens x lyfts. Ovanför korten står fokus kvar. */
+hfMatta.addEventListener('pointermove', ev => {
+  if (!hfOppen() || !hf.items.length || !hf.geo || dnd || hf.drag) return;
+  const m = hfMatta.getBoundingClientRect(), g = hf.geo;
+  if (ev.clientY - m.top < g.H - 300) return;
+  const N = hf.items.length, half = g.sp / 2 * Math.PI / 180;
+  const th = Math.asin(clamp((ev.clientX - m.left - g.CX) / HF.R, -1, 1));
+  const f = N > 1 && half > 0 ? clamp((th + half) / (2 * half) * (N - 1), 0, N - 1) : 0;
+  if (hf.f != null && hf.mus && Math.abs(f - hf.f) < 0.05) return;
+  hf.f = f; hf.mus = true;
+  if (hf.fas === 'open') { hfTimrarBort(); hf.fas = 'live'; }
+  hfLage();
+});
+/* Ett tryck utanför solfjädern lägger ner korten. Capture: mattans kort
+   stoppar pointerdown på vägen upp. Högarna öppnar och stänger själva. */
+addEventListener('pointerdown', ev => {
+  if (!hf.src || hf.fas === 'gather' || dnd) return;
+  const t = ev.target;
+  if (t && t.closest && t.closest('.hkort,[data-grav-open],[data-exil-open],.bib,.kortark,#hintBar')) return;
+  hfStang();
+}, true);
+addEventListener('resize', () => { if (hf.src) hfLage(true); });
 /* Draget ut ur fjädern (§5): först när pekaren rört sig mer än 6 px blir
    kortet ett mattkort mitt under pekaren, nytt och överst, fjädern stängs
    direkt och det vanliga draget (dnd) tar över utan avbrott — kortet sitter
@@ -7214,7 +7236,6 @@ function spawnFromGrave(cid, ev) {
   if (!e || !redigerbar()) return;
   const fran = zonAv(e) === ZON_EXIL ? 'exile' : 'graveyard';
   const pt = cpt(ev), s = matStorlek(e);
-  fanStangNu();
   matAngra(namnAv(e) + ' ← ' + fran, () => {
     delete e.zon; e.tapped = 0; e.ny = Date.now();
     e.x = pt.x - s.w / 2; e.y = pt.y - s.h / 2;
@@ -7229,36 +7250,6 @@ function spawnFromGrave(cid, ev) {
   if (el) el.classList.add('held');
   try { gridEl.setPointerCapture(ev.pointerId); } catch (err) {}
 }
-/* Öppna på pekaren in över panelen (etikett, hög, räknare) — inte förrän den
-   lämnat panelen efter ett släpp (gravNyss). Ett kort i fjädern hovras;
-   stängningen startar när pekaren lämnar panelen med fjädern. */
-manaRow.addEventListener('pointerover', ev => {
-  if (ev.target.closest('.gravslapp')) return;
-  const fk = ev.target.closest('.fkort');
-  if (fk) { fanHov(fk.dataset.cid); return; }
-  if (ev.target.closest('#gravFan')) { if (fan.zon) fanOppna(fan.zon); return; }
-  if (ev.target.closest('.exilhog')) { fanOppna(ZON_EXIL); return; }
-  if (!gravNyss && delaHand().grav.length) fanOppna(ZON_GRAV);
-});
-manaRow.addEventListener('pointerout', ev => {
-  const till = ev.relatedTarget;
-  if (till && manaRow.contains(till)) return;
-  fanStangSnart();
-});
-manaRow.addEventListener('pointerdown', ev => {
-  const fk = ev.target.closest('.fkort');
-  if (!fk || ev.button !== 0 || ev.target.closest('[data-fakt]') || !redigerbar()) return;
-  ev.preventDefault();
-  fan.drag = { cid: fk.dataset.cid, x0: ev.clientX, y0: ev.clientY, pointerId: ev.pointerId };
-});
-addEventListener('pointermove', ev => {
-  if (!fan.drag) return;
-  if (Math.abs(ev.clientX - fan.drag.x0) + Math.abs(ev.clientY - fan.drag.y0) < 6) return;
-  const d = fan.drag; fan.drag = null;
-  spawnFromGrave(d.cid, ev);
-});
-addEventListener('pointerup', () => { fan.drag = null; });
-addEventListener('pointercancel', () => { fan.drag = null; });
 /* Mattans egen list: zoomchippet (grönt "78% fit", gult "140%"), Untap all,
    Tidy up och bildvägen. Ritas bara om när texten ändrats — renderGrid går
    vid varje hjärtslag från kameran. */
@@ -7620,19 +7611,25 @@ function luftigVy(p) {
    vid varje hjärtslag inte laddar om bilden. */
 let matHover = null, matHoverT = null;
 /* Kortet kortkommandona verkar på (MES-118): det under pekaren — på mattan,
-   i dess hover-pill eller i graveyard-fjädern. Det finns inget valt kort;
+   eller i dess hover-pill. Det finns inget valt kort;
    pekar man inte på något gör T, G, E, D och Space ingenting.
    :hover kontrolleras på riktigt, eftersom matHover kan stå kvar på ett
    kort som just gick till högen eller togs bort under pekaren. */
 function pekIndex() {
   if (matHover == null) return -1;
   const s = `[data-cid="${CSS.escape(matHover)}"]`;
-  const under = $$(`#grid .card${s},#grid .pill${s},#manaRow .fkort${s}`).some(el => el.matches(':hover'));
+  const under = $$(`#grid .card${s},#grid .pill${s}`).some(el => el.matches(':hover'));
   return under ? hand().findIndex(c => c.cid === matHover) : -1;
 }
 /* I fokusvyn är det kortet som visas; annars kortet under pekaren. */
 function tangentKort() { return focusOpen ? (selCard() ? state.sel : -1) : pekIndex(); }
 function inspektorKort() {
+  /* Kortet som är lyft i solfjädern (MES-145). */
+  if (hf.fok && hf.src && hf.fas !== 'gather') {
+    const it = hf.fok.it;
+    if (it.e) return { e: it.e, label: hf.src === ZON_EXIL ? 'From exile' : 'From the graveyard' };
+    return { e: { cid: 'hf', name: it.name, sid: it.sid, flipped: 0, cts: [] }, label: 'In your deck' };
+  }
   if (ladaHover) return { e: { cid: 'lada', name: ladaHover.name, sid: ladaHover.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   if (matHover != null) {
     const k = hand().find(c => c.cid === matHover);
@@ -7900,7 +7897,7 @@ function matVisa(c) {
 }
 function openArk(a) {
   if (!redigerbar()) return;
-  closeKortMeny(); closeCounters(); fanStang();
+  closeKortMeny(); closeCounters(); if (!a || a.mode !== 'olast') hfStang();
   if (!arkEl) {
     arkEl = document.createElement('div'); arkEl.className = 'kortark';
     $('#zonPerm').appendChild(arkEl);
@@ -8079,11 +8076,12 @@ function gravHtml(cards, idx) {
   const src = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'small') : '';
   const lager = [];
   for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
-  const titel = n ? `${n} ${n === 1 ? 'card' : 'cards'} in the graveyard — click to browse` : 'Cards that have been played end up here';
+  const titel = n ? `${n} ${n === 1 ? 'card' : 'cards'} in the graveyard — click to pick them up` : 'Cards that have been played end up here';
   return `<button type="button" class="grav${n ? '' : ' tom'}" data-grav-open title="${titel}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '')
-    + `<span class="gravsten">${GRAVSTEN}</span></button>`
-    + `<span class="gravtxt hograd"><i></i>Graveyard<span class="gt-n">${n ? `<b>${n}</b>` : ''}</span><span class="gt-fan">Drag one back out</span></span>`;
+    + `<span class="gravsten">${GRAVSTEN}</span><span class="utetxt"><b>In your hands</b><em>click outside or Esc to put down</em></span>`
+    + (n ? `<span class="hchip gul">${IKON_HAND}<span>Pick up</span><b>${n}</b></span>` : '') + '</button>'
+    + `<span class="gravtxt hograd"><i></i>Graveyard<span class="gt-n">${n ? `<b>${n}</b>` : ''}</span></span>`;
 }
 
 /* ═══ FRI MATTA — geometri (ren, ingen DOM) ═══════════════════════════
@@ -8437,7 +8435,6 @@ function renderAll(forceGrid) {
   renderTabs();
   renderGrid(forceGrid);
   renderLyftBanner();
-  if ($('#gravOv').classList.contains('open')) renderGrav();
   renderInspektor();
   renderFocus();
   renderShotUI();
@@ -9750,27 +9747,11 @@ function rutaTangent(ev) {
 gridEl.addEventListener('keydown', rutaTangent);
 manaRow.addEventListener('keydown', rutaTangent);
 
-/* Graveyard-högen: klick öppnar högen. */
+/* Graveyard- och exile-högen: ett klick tar upp korten i handen
+   (solfjädern), ett klick till lägger ner dem. */
 manaRow.addEventListener('click', ev => {
-  const fb = ev.target.closest('[data-fakt]');
-  if (fb) {
-    ev.stopPropagation();
-    const e = hand().find(k => k.cid === fb.closest('.fakt').dataset.cid); if (!e || !redigerbar()) return;
-    const a = fb.dataset.fakt, i = hand().indexOf(e);
-    /* Return to play stänger fjädern direkt; Exile släpper bara hovern, och
-       fjädern står kvar med resten av korten (som i referensen). */
-    if (a === 'ater') fanStangNu();
-    else { if (matHover === fan.hov) matHover = null; fan.hov = null; }
-    if (a === 'ater') matAngra(namnAv(e) + ' ← ' + (zonAv(e) === ZON_EXIL ? 'exile' : 'graveyard'), () => gravTillbaka(e));
-    else if (a === 'exil') matAngra(namnAv(e) + ' → exile', () => flyttaTill(i, ZON_EXIL));
-    else if (a === 'grav') matAngra(namnAv(e) + ' → graveyard', () => flyttaTill(i, ZON_GRAV));
-    return;
-  }
-  /* Släpps ett kort i fjädern utan att ha rört sig 6 px händer ingenting
-     (§5) — Return to play finns för den som hellre klickar. */
-  if (ev.target.closest('.fkort')) return;
-  if (ev.target.closest('[data-grav-open]')) { fanStang(); openGrav(ZON_GRAV); return; }
-  if (ev.target.closest('[data-exil-open]')) { fanStang(); openGrav(ZON_EXIL); return; }
+  if (ev.target.closest('[data-grav-open]')) { hfOppna(ZON_GRAV); return; }
+  if (ev.target.closest('[data-exil-open]')) { hfOppna(ZON_EXIL); return; }
 });
 /* Selected har flyttat ut ur bandet till en egen spalt, och lyssnaren måste
    följa med. Låg den kvar på manaRow gjorde ett klick på det stora kortet
@@ -9835,7 +9816,7 @@ function gruppDrag(ev) {
   if (!dnd.drar) {
     if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
     dnd.drar = true;
-    closeCounters(); fanStang(); if (ark && !ark.lista) closeArk();
+    closeCounters(); if (ark && !ark.lista) closeArk();
     renderPill();
     for (const g of dnd.grupp) { const el = kortEl(g.cid); if (el) el.classList.add('held'); }
     try { gridEl.setPointerCapture(dnd.pointerId); } catch (e) {}
@@ -9938,7 +9919,7 @@ addEventListener('pointermove', ev => {
   if (!dnd.drar) {
     if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
     dnd.drar = true;
-    closeCounters(); fanStang(); if (ark && !ark.lista) closeArk();
+    closeCounters(); if (ark && !ark.lista) closeArk();
     renderPill();                            // borta under draget
     const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(c.cid)}"]`);
     if (el) el.classList.add('held');
@@ -10108,7 +10089,7 @@ function angra() {
     const s = angraStack.pop();
     const p = state.players.find(q => q.id === s.pid);
     if (!p || !arMitt(p) || JSON.stringify(p.cards) === s.bild) continue;
-    closeKortMeny(); closeCounters(); fanStangNu(); if (ark) closeArk();
+    closeKortMeny(); closeCounters(); if (ark) closeArk();
     p.cards = JSON.parse(s.bild);
     /* Ett kort som togs bort för hand spärrade sitt kameraspår (removeAt).
        Är det tillbaka ska kameran få binda det igen. */
@@ -10294,92 +10275,6 @@ function startRename(id) {
   inp.addEventListener('blur', () => done(true));
   inp.addEventListener('click', e => e.stopPropagation());
 }
-/* ─── graveyard-vyn ───────────────────────────────────────────────────
-   Högen visar bara det översta kortet. Vill man veta vad som ligger under
-   måste man kunna bläddra, och det ska gå med piltangenterna — en graveyard
-   med tolv kort är inget man vill klicka sig igenom. */
-let gravSel = 0, gravOvZon = ZON_GRAV;     // vilken hög överlägget bläddrar i
-function gravKort() { const c = hand(), d = delaHand(); return (gravOvZon === ZON_EXIL ? d.exil : d.grav).map(i => c[i]); }
-let gravHadeKort = false;
-function openGrav(zon) { gravOvZon = zon === ZON_EXIL ? ZON_EXIL : ZON_GRAV; gravSel = 0; gravHadeKort = gravKort().length > 0; openOv('gravOv'); renderGrav(); }
-function renderGrav() {
-  const lista = gravKort();
-  /* Tom hög betyder inget att bläddra i, och huvudvyn visar redan tomtillstånd
-     — men bara om man kom hit med kort. Klickar man på en tom hög ska den gå
-     att öppna och läsa. */
-  if (!lista.length && gravHadeKort) { gravHadeKort = false; closeOv('gravOv'); return; }
-  gravHadeKort = lista.length > 0;
-  const exil = gravOvZon === ZON_EXIL;
-  $('#gravOvRub').textContent = exil ? 'Exile' : 'Graveyard';
-  $('#gravEmpty').textContent = exil ? 'Nothing is exiled.' : 'The graveyard is empty.';
-  $('#gravFlytta').textContent = exil ? 'Put in the graveyard' : 'Exile card';
-  $('#gravFlytta').title = exil ? 'Move this card to the graveyard' : 'Move this card to exile — it stays out of play, but on the table';
-  $('#gravCount').textContent = lista.length
-    ? `${lista.length} ${lista.length === 1 ? 'card' : 'cards'} · newest first` : '';
-  $('#gravPrev').disabled = $('#gravNext').disabled = lista.length < 2;
-  $('#gravHdSten') && ($('#gravHdSten').innerHTML = GRAVSTEN);
-  if (!lista.length) {
-    $('#gravImg').removeAttribute('src'); $('#gravImg').hidden = true;
-    $('#gravEmpty').hidden = false;
-    $('#gravInfo').innerHTML = ''; $('#gravList').innerHTML = '';
-    $('#gravBack').disabled = $('#gravRemove').disabled = $('#gravFlytta').disabled = true;
-    return;
-  }
-  gravSel = clamp(gravSel, 0, lista.length - 1);
-  const e = lista[gravSel], card = cardOf(e);
-  $('#gravEmpty').hidden = true;
-  const stor = card ? imgOf(card, 0, 'normal') || imgOf(card, 0, 'large') : '';
-  const im = $('#gravImg');
-  if (stor) { im.src = stor; im.hidden = false; } else { im.removeAttribute('src'); im.hidden = true; }
-  const f = card && card.faces[0];
-  /* Bilden är stor nog att läsa regeltexten på, så här står bara namnet och
-     typraden — plus vilket kort som senast hamnade i högen, eftersom högen
-     ligger med det nyaste först och det inte syns någon annanstans. */
-  $('#gravInfo').innerHTML = `<h3>${esc(card ? card.name : e.name)}</h3>`
-    + `<div class="gravtyp">${f ? esc(f.type) : ''}${gravSel === 0 && lista.length > 1
-        ? `${f ? ' · ' : ''}<span class="gravsenast">added last</span>` : ''}</div>`;
-  $('#gravList').innerHTML = lista.map((x, j) => {
-    const c2 = cardOf(x), src = c2 ? imgOf(c2, 0, 'small') : '';
-    return `<button data-g="${j}" class="${j === gravSel ? 'on' : ''}" title="${esc(c2 ? c2.name : x.name)}">
-      ${src ? `<img src="${esc(src)}" alt="" draggable="false" loading="lazy">` : '<img alt="">'}</button>`;
-  }).join('');
-  $('#gravBack').disabled = $('#gravRemove').disabled = $('#gravFlytta').disabled = false;
-}
-function gravStep(d) {
-  const n = gravKort().length;
-  if (!n) return;
-  gravSel = clamp(gravSel + d, 0, n - 1);
-  renderGrav();
-}
-$('#gravList').addEventListener('click', ev => {
-  const b = ev.target.closest('[data-g]');
-  if (b) { gravSel = +b.dataset.g; renderGrav(); }
-});
-$('#gravPrev').onclick = () => gravStep(-1);
-$('#gravNext').onclick = () => gravStep(1);
-$('#gravStang').onclick = () => closeOv('gravOv');
-$('#gravBack').onclick = () => {
-  const e = gravKort()[gravSel];
-  if (e) gravTillbaka(e);             // tillbaka till den zon typraden pekar ut
-};
-/* Mellan högarna: graveyard → exile och tillbaka. */
-$('#gravFlytta').onclick = () => {
-  if (!redigerbar()) return;
-  const e = gravKort()[gravSel];
-  const i = e ? hand().indexOf(e) : -1;
-  if (i >= 0) flyttaTill(i, gravOvZon === ZON_EXIL ? ZON_GRAV : ZON_EXIL);
-};
-
-/* Ur spelet helt — samma sak som att ta bort ett kort på brädet, med samma
-   ångra-knapp. Ett kort kan hamna i graveyard av misstag under en avläsning,
-   och då är det inte "tillbaka i spel" man vill, utan bort. */
-$('#gravRemove').onclick = () => {
-  if (!redigerbar()) return;
-  const e = gravKort()[gravSel];
-  if (!e) return;
-  const i = hand().indexOf(e);
-  if (i >= 0) removeAt(i);
-};
 
 const imgAddOppen = () => $('#imgOv').classList.contains('open');
 $('#imgDrop').onclick = () => $('#imgFile').click();
@@ -12433,7 +12328,7 @@ addEventListener('keydown', ev => {
     if (ark) return closeArk();
     if (matCtr) return closeCounters();
     if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
-    if (fan.zon) return fanStang();
+    if (hf.src && hf.fas !== 'gather') return hfStang();
     if (matValda.size) return tomValda();
     if (menuEl.classList.contains('open')) return closeMenu();
     if ($('#scanPanel').classList.contains('open')) return closeScan();
@@ -12444,13 +12339,6 @@ addEventListener('keydown', ev => {
     const o = $('.ov.open:not(.kampop)'); if (o) return closeOv(o.id);
     if (ladaOppen) return stangLada();
     const kp = $('.ov.open'); if (kp) return closeOv(kp.id);
-    return;
-  }
-  if ($('#gravOv').classList.contains('open')) {
-    if (k === 'ArrowLeft' || k === 'ArrowUp') { ev.preventDefault(); gravStep(-1); }
-    else if (k === 'ArrowRight' || k === 'ArrowDown') { ev.preventDefault(); gravStep(1); }
-    else if (k === 'Home') { ev.preventDefault(); gravSel = 0; renderGrav(); }
-    else if (k === 'End') { ev.preventDefault(); gravSel = 1e9; renderGrav(); }
     return;
   }
   const shotOpen = $('#shotOv').classList.contains('open');
