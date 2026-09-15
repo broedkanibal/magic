@@ -7198,7 +7198,7 @@ function hfSynk() {
   if (!hf.src || hf.fas === 'gather') return;
   const items = hfKort(hf.src), sig = hfSig(hf.src, items);
   if (sig === hf.sig) return;
-  if (!items.length && !dnd) { hfStang(); return; }
+  if (!items.length && !dnd && !hf.spawnar) { hfStang(); return; }
   const fk = hf.fok && hf.fok.it.key;
   hf.items = items; hf.sig = sig;
   if (hf.f != null) { const j = items.findIndex(x => x.key === fk); hf.f = j >= 0 ? j : clamp(Math.round(hf.f), 0, Math.max(0, items.length - 1)); }
@@ -7227,14 +7227,47 @@ addEventListener('pointerdown', ev => {
   hfStang();
 }, true);
 addEventListener('resize', () => { if (hf.src) hfLage(true); });
-/* Draget ut ur fjädern (§5): först när pekaren rört sig mer än 6 px blir
-   kortet ett mattkort mitt under pekaren, nytt och överst, fjädern stängs
-   direkt och det vanliga draget (dnd) tar över utan avbrott — kortet sitter
-   kvar i handen hela vägen ut. Ångra lägger tillbaka det. */
+/* Draget ur solfjädern: ett tryck på ett kort väntar; rör sig pekaren
+   DND_TROSKEL px blir kortet ett mattkort under pekaren och mattans vanliga
+   drag tar över (spawnFromLek, spawnFromGrave) — landhögar, bifoga, högarna
+   och ⌘Z som för vilket kort som helst. Solfjädern sjunker under draget
+   (.sjunk, 110 px) och ligger kvar efteråt. Ett släpp över den eller Esc
+   lägger tillbaka kortet (matDndSlut). Titta, inte röra, på någon annans bord. */
+hfEl.addEventListener('pointerdown', ev => {
+  const k = ev.target.closest('.hkort');
+  if (!k || ev.button !== 0 || !hfOppen()) return;
+  ev.preventDefault();
+  const it = hf.items.find(x => x.key === k.dataset.k); if (!it) return;
+  hf.drag = { it, x0: ev.clientX, y0: ev.clientY, pointerId: ev.pointerId };
+});
+addEventListener('pointermove', ev => {
+  const d = hf.drag; if (!d || ev.pointerId !== d.pointerId) return;
+  if (Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) < DND_TROSKEL) return;
+  hf.drag = null;
+  if (!redigerbar()) return;
+  hfEl.classList.add('sjunk');
+  hf.spawnar = true;                         // omritningen i spawnen stänger inte en hög som blev tom
+  try { if (hf.src === 'lib') spawnFromLek(d.it.post, ev); else spawnFromGrave(d.it.cid, ev); }
+  finally { hf.spawnar = false; }
+  if (dnd) dnd.fraFan = true; else hfEl.classList.remove('sjunk');
+});
+addEventListener('pointerup', () => { hf.drag = null; });
+addEventListener('pointercancel', () => { hf.drag = null; });
+/* Mattans nedersta band, där solfjädern ligger (och tipsraden under). */
+function hfOverBand(ev) {
+  if (!ev || !hf.src) return false;
+  const m = hfMatta.getBoundingClientRect();
+  return ev.clientX >= m.left && ev.clientX <= m.right && ev.clientY >= m.bottom - 150 && ev.clientY <= m.bottom + 48;
+}
+/* Draget ut ur solfjädern: kortet blir ett mattkort mitt under pekaren,
+   nytt och överst, och det vanliga draget (dnd) tar över utan avbrott —
+   kortet sitter kvar i handen hela vägen ut. dnd.fraZon är högen det kom
+   ur: avbryts draget ligger det där igen (matDndSlut). Ångra lägger
+   tillbaka det. */
 function spawnFromGrave(cid, ev) {
   const h = hand(), e = h.find(k => k.cid === cid);
   if (!e || !redigerbar()) return;
-  const fran = zonAv(e) === ZON_EXIL ? 'exile' : 'graveyard';
+  const zonFore = zonAv(e), fran = zonFore === ZON_EXIL ? 'exile' : 'graveyard';
   const pt = cpt(ev), s = matStorlek(e);
   matAngra(namnAv(e) + ' ← ' + fran, () => {
     delete e.zon; e.tapped = 0; e.ny = Date.now();
@@ -7243,7 +7276,7 @@ function spawnFromGrave(cid, ev) {
     state.sel = h.indexOf(e);
     save(); renderGrid(true);
   });
-  dnd = { cid, x0: ev.clientX, y0: ev.clientY, drar: true, pointerId: ev.pointerId, over: false,
+  dnd = { cid, fraZon: zonFore, x0: ev.clientX, y0: ev.clientY, drar: true, pointerId: ev.pointerId, over: false,
           off: { ox: s.w / 2, oy: s.h / 2 }, start: { x: e.x, y: e.y, z: e.z } };
   svalgKlick = true;
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(cid)}"]`);
@@ -9960,7 +9993,8 @@ addEventListener('pointermove', ev => {
   }
   if (mal) matChip(c, chipText());
   if (overB) matChip(c, 'Let go — back to your hand or library');
-  else if (dnd.fraLek && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
+  else if (dnd.fraFan && !over && hfOverBand(ev)) matChip(c, 'Let go to put it back');
+  else if ((dnd.fraLek || dnd.fraFan) && !mal && !over) matChip(c, 'Let go to put ' + namnAv(c) + ' on the table');
   function chipText() {
     if (!vard) return 'Let go — the mana stacks here';
     const b = bifogTyp(c), v = hand().find(k => k.cid === vard);
@@ -9981,8 +10015,12 @@ function matChip(c, text) {
 function matDndSlut(ev, avbryt) {
   if (!dnd) return;
   const d = dnd; dnd = null;
+  hfEl.classList.remove('sjunk');
+  /* Släppt över solfjädern, inte på en hög: tillbaka dit det kom ifrån,
+     som med Esc (MES-145). */
+  if (!avbryt && d.fraFan && d.drar && !d.over && !d.overBib && !d.overExil && hfOverBand(ev)) avbryt = true;
   /* Ett kort ur leken väntar med sina tokens tills det släppts (tokensVidEtb). */
-  if (d.fraLek) setTimeout(tokensVidEtb, 0);
+  if (d.fraLek && !avbryt) setTimeout(tokensVidEtb, 0);
   const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(d.cid)}"]`);
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
@@ -9999,6 +10037,13 @@ function matDndSlut(ev, avbryt) {
     /* Ett kort ur leken som aldrig släpptes på mattan: tillbaka i leken. */
     h.splice(h.indexOf(c), 1);
     save(); renderAll(true); fjarrIkapp(); return;
+  }
+  if (avbryt && d.fraZon) {
+    /* Ett kort ur graveyard eller exile som aldrig släpptes på mattan:
+       tillbaka i sin hög. Ångrapunkten spawnFromGrave tog är bordet som
+       det var; den läggs tillbaka och förbrukas. Förut låg kortet kvar
+       på mattan efter Esc. */
+    angra(); fjarrIkapp(); return;
   }
   if (avbryt) {
     c.x = d.start.x; c.y = d.start.y;
@@ -10050,7 +10095,11 @@ function matDndSlut(ev, avbryt) {
 addEventListener('pointerup', ev => matDndSlut(ev, false));
 addEventListener('pointercancel', ev => matDndSlut(ev, true));
 addEventListener('blur', () => matDndSlut(null, true));
-addEventListener('keydown', ev => { if (ev.key === 'Escape' && dnd && dnd.drar) matDndSlut(null, true); }, true);
+addEventListener('keydown', ev => {
+  if (ev.key !== 'Escape' || !dnd || !dnd.drar) return;
+  ev.preventDefault(); ev.stopPropagation();   // bara draget: solfjädern och arket står kvar
+  matDndSlut(null, true);
+}, true);
 /* Bara riktig borttagning ur spelet (removeAt utan msg) får en ångra-notis.
    Förflyttningar på mattan — graveyard, exile, tillbaka i spel, bifogning —
    är vanliga drag, inte en radering, och ska inte avbrytas av en grön
