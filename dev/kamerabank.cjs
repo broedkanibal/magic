@@ -401,11 +401,16 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   nystart(); await referens(); Kamera.satBib(BIB);
   for (let i = 0; i < 6; i++) await ruta(null);
   const bb2Fore = liggerNu();
-  for (let i = 0; i < 3; i++) await ruta(g => { LEK(g); hand(g, W, 175 + 6 * i, 85, 26, 30, 150); });   // handen lägger leken
+  /* BB11 (MES-139): uppstartens kvittens. "tackt" medan handen lägger leken
+     — datorn säger Got it direkt — och "lek" när handen släppt men leken
+     inte legat still i stillaMs än — datorn ritar ramen runt. */
+  let bb11Tackt = false, bb11Lek = false;
+  for (let i = 0; i < 3; i++) { await ruta(g => { LEK(g); hand(g, W, 175 + 6 * i, 85, 26, 30, 150); }); if (Kamera.bib && Kamera.bib.tackt) bb11Tackt = true; }   // handen lägger leken
   let bb2Ruta = -1;
-  for (let i = 0; i < 12; i++) { await ruta(LEK); if (bb2Ruta < 0 && liggerNu()) bb2Ruta = i + 1; }
+  for (let i = 0; i < 12; i++) { await ruta(LEK); if (!liggerNu() && Kamera.bib && Kamera.bib.lek) bb11Lek = true; if (bb2Ruta < 0 && liggerNu()) bb2Ruta = i + 1; }
   check(`BB2 leken läggs i rutan: ligger före ${bb2Fore} (false), ligger efter ${bb2Ruta} rutor (≤ 8), i rapporten ${bordExtra && JSON.stringify(bordExtra.bib)}`,
         !bb2Fore && bb2Ruta > 0 && bb2Ruta <= 8 && !!bordExtra && !!bordExtra.bib && bordExtra.bib.ligger === true);
+  check(`BB11 (MES-139) täckt medan handen lägger leken: ${bb11Tackt} (true), en lek som ska ligga still innan den ligger: ${bb11Lek} (true)`, bb11Tackt && bb11Lek);
   let bb4Ruta = -1;
   for (let i = 0; i < 16; i++) { await ruta(null); if (bb4Ruta < 0 && !liggerNu()) bb4Ruta = i + 1; }
   check(`BB4 leken lyfts: ligger falsk efter ${bb4Ruta} rutor (≤ ${Math.ceil(2 * 700 / TAKT) + 2})`, bb4Ruta > 0 && bb4Ruta <= Math.ceil(2 * 700 / TAKT) + 2);

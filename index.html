@@ -476,6 +476,51 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
 .gplats2.flytt{border-style:solid;border-color:#e8b33a}
 .bplats{position:absolute;border:1.5px dashed #ffffff5c;border-radius:6px}
 .bplats.lagd{border-style:solid;border-color:#6b8cff}
+/* ── Library-platsens lägen och klart-kortet (MES-139, "Mesa Library Drop") ── */
+/* 2 · något täcker platsen: hörnen fäster direkt */
+.opplager .ofatt{position:absolute;z-index:2;animation:ofattIn .45s cubic-bezier(.2,.9,.3,1.25) both}
+.opplager .ofatt.stilla{animation:none}
+.opplager .ofatt i{position:absolute;width:14px;height:14px;border:0 solid #fff;filter:drop-shadow(0 0 6px #ffffff88)}
+.opplager .ofatt i:nth-child(1){left:0;top:0;border-top-width:2px;border-left-width:2px;border-top-left-radius:4px}
+.opplager .ofatt i:nth-child(2){right:0;top:0;border-top-width:2px;border-right-width:2px;border-top-right-radius:4px}
+.opplager .ofatt i:nth-child(3){left:0;bottom:0;border-bottom-width:2px;border-left-width:2px;border-bottom-left-radius:4px}
+.opplager .ofatt i:nth-child(4){right:0;bottom:0;border-bottom-width:2px;border-right-width:2px;border-bottom-right-radius:4px}
+@keyframes ofattIn{from{opacity:0;transform:scale(1.28)}to{opacity:1;transform:none}}
+/* 3 · handen har släppt: ramen ritas runt på den tid leken ska ligga still */
+.opplager .ospar{position:absolute;overflow:visible;z-index:2}
+.opplager .ospar rect{fill:none;stroke:#6b8cff;stroke-width:2.5;stroke-dasharray:100;stroke-dashoffset:100;animation:osparRunt .8s cubic-bezier(.4,0,.2,1) forwards;filter:drop-shadow(0 0 5px #6b8cffaa)}
+@keyframes osparRunt{to{stroke-dashoffset:0}}
+.opplager .ochip i.opuls{border-radius:50%;animation:kampuls 1.2s ease-in-out infinite}
+/* 4 · pling: provkortets gröna ram och ring, och en bock */
+.opplager .opling{position:absolute;z-index:2;border:2px solid #5fbf7f;border-radius:7px;box-shadow:0 0 0 1px #0009,0 0 14px 2px #5fbf7f55;animation:okramIn .5s cubic-bezier(.2,.9,.3,1.2) both}
+.opplager .opling::after{content:'';position:absolute;inset:-2px;border-radius:7px;animation:okramRing .9s ease-out .35s both}
+.opplager .obock{position:absolute;z-index:3;width:24px;height:24px;border-radius:50%;background:#3fb97a;color:#08140d;display:grid;place-items:center;box-shadow:0 0 0 3px #0d1015,0 4px 10px #000a;animation:obockIn .5s cubic-bezier(.2,.9,.3,1.4) .1s both}
+@keyframes obockIn{from{opacity:0;transform:scale(0)}60%{opacity:1;transform:scale(1.22)}to{opacity:1;transform:none}}
+.del.nyklar .delnr{animation:obockPop .5s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes obockPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:none}}
+/* 1b · reserven i bilden efter tio sekunder */
+.opplager .oreserv{position:absolute;z-index:3;display:flex;align-items:center;gap:10px;padding:6px 6px 6px 11px;border-radius:9px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:12px var(--sans);box-shadow:0 8px 22px -8px #000c;white-space:nowrap;pointer-events:auto;animation:oppIn .24s ease-out both}
+/* B · klart-kortet: bilden tonas ner, högarna syns i ett hål */
+.opplager .ohal{position:absolute;z-index:3;border-radius:12px;box-shadow:0 0 0 4000px #070a0ec4;animation:ohalIn .4s ease-out both}
+@keyframes ohalIn{from{opacity:0}to{opacity:1}}
+.opplager .oklarkort{position:absolute;z-index:4;left:50%;top:22%;transform:translateX(-50%);width:380px;max-width:calc(100% - 32px);display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:28px 28px 22px;border-radius:14px;background:#121821;border:1px solid var(--line);box-shadow:0 30px 70px -20px #000,0 0 0 1px #0006;pointer-events:auto;animation:oklarIn .5s cubic-bezier(.2,.9,.3,1.1) .15s both}
+@keyframes oklarIn{from{opacity:0;transform:translate(-50%,16px) scale(.97)}to{opacity:1;transform:translateX(-50%)}}
+.opplager .ostormark{width:56px;height:56px;border-radius:50%;background:#0f2016;border:1.5px solid #2f6b47;display:grid;place-items:center;color:#8fe0b0;box-shadow:0 0 0 8px #3fb97a12}
+.opplager .ostormark path{stroke-dasharray:24;stroke-dashoffset:24;animation:oRita .45s ease-out .55s forwards}
+@keyframes oRita{to{stroke-dashoffset:0}}
+.opplager .oklarkort h3{margin:4px 0 0;font-size:18px;font-weight:650;letter-spacing:-.2px;color:var(--txt)}
+.opplager .oklarkort p{margin:0;font-size:13px;line-height:1.55;color:var(--dim);max-width:30ch}
+.opplager .oklarkort .btn.prim{width:100%;justify-content:center;height:40px;font-size:14px;margin-top:6px;border-radius:9px;animation:oKnappGlod 2.4s ease-out 1.1s infinite}
+@keyframes oKnappGlod{0%{box-shadow:0 0 0 0 #f0a52a55}60%,100%{box-shadow:0 0 0 12px #f0a52a00}}
+/* Panelen säger samma sak som platsen */
+.oppwait.vit{color:#e7ecf4}
+.oppwait.vit i{background:#fff;box-shadow:0 0 0 3px #ffffff26}
+.oppwait.bla{color:#c9d4ff}
+.oppwait.bla i{background:#6b8cff;box-shadow:0 0 0 3px #6b8cff33;animation:kampuls 1.2s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){
+  .opplager .ofatt,.opplager .ospar rect,.opplager .opling,.opplager .opling::after,.opplager .obock,.opplager .oreserv,.opplager .ohal,.opplager .oklarkort,.opplager .ostormark path,.opplager .oklarkort .btn.prim,.opplager .ochip i.opuls,.del.nyklar .delnr,.oppwait.bla i{animation:none}
+  .opplager .ospar rect,.opplager .ostormark path{stroke-dashoffset:0}
+}
 /* Leken som sänks ner på library-platsen: kameran tittar ovanifrån, så
    något i luften ser större ut — leken krymper ner på platsen medan skuggan
    skärps, landar med en ring, vilar, tonar ut och börjar om. */
@@ -9411,7 +9456,12 @@ let oppVisat = null, oppVisatKlar = false, oppNasta = null;
    { id, box (bildandelar), n }. n räknas upp vid varje ny låsning, och
    bekräftelseramen spelar sin animering en gång per n. */
 let oppProvId = null, oppProvLas = null, oppLasN = 0, oppTappSvar = null, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
-let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger } | null; kamBibStod false = telefon utan fältet
+let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger, tackt, lek } | null (tackt/lek saknas hos en äldre telefon); kamBibStod false = telefon utan fältet
+/* Pling och klart-kortet (MES-139): oppBibSag = leken var klar vid förra
+   ritningen (null = inte sett än), oppPlingNar = när den blev klar här,
+   oppKlarDold = Change something har stängt klart-kortet. */
+let oppBibSag = null, oppPlingNar = 0, oppPlingT = 0, oppKlarDold = false;
+const OPP_PLING_MS = 1000;
 /* Telefonen efter spelläget: den behövs bara i kamerans två lägen, och
    Without camera stänger uppstarten innan den kommer fram. */
 const OPP_ORDNING = ['lek', 'lage', 'tel', 'vinkel'];
@@ -9433,6 +9483,7 @@ function oppnaOppstart(om) {
   if (!spelLage) return;
   oppSatt(om ? { klar: false, avbojd: false, lage: false, grundOm: mittLage() === 'bord', b4: false, provKlar: false, gravKlar: false, bibKlar: false, startat: false } : { klar: false, avbojd: false });
   oppLageVal = null; oppVisat = null; oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
+  oppBibSag = null; oppKlarDold = false;
   if (kamOppen) closeOv('kamOv');
   renderMode();
 }
@@ -9486,6 +9537,18 @@ function oppForslag(o) {
   const k = o.provKort && o.provKort.S > 0 ? o.provKort : { S: 0.13, L: 0.13 * KORT_KVOT };
   return zonForslag(k.S, k.L, kamBildAsp(), ((kamVand % 360) + 360) % 360, kamSpegel);
 }
+/* Library-platsens läge medan leken väntas in (MES-139): 'tom' — ingenting
+   där; 'tackt' — något täcker platsen, också med handen kvar: kvittensen
+   kommer direkt; 'kollar' — handen har släppt och leken ska ligga still i
+   stillaMs (också när telefonen redan sagt ligger, men provkortet ligger
+   kvar eller rutan sparades nyss). En äldre telefon skickar bara ligger. */
+function oppBibFas() {
+  const b = kamBib; if (!b) return 'tom';
+  return b.ligger || b.lek ? 'kollar' : b.tackt ? 'tackt' : 'tom';
+}
+/* Reserven "My library is in place" efter tio sekunder — direkt med en
+   telefon utan library-rutan. */
+const oppBibReserv = () => kamBibStod === false || Date.now() - oppBibNar >= 10000;
 function oppDel(nr, titel, st, sum, lank, body) {
   const hd = `<div class="delhd"><span class="delnr">${st === 'done' ? OPP_KLAR_S : nr}</span><span>${titel}</span><span class="grow"></span>`
     + (st === 'done' ? `<span class="delsum">${sum}</span>${lank ? `<button type="button" class="dellank" data-opp="${lank[0]}">${lank[1]}</button>` : ''}` : '') + '</div>';
@@ -9513,6 +9576,14 @@ function oppSteg4(o) {
     const provBorta = !oppProvId || !senasteSpar.some(t => t.id === oppProvId);
     if (kamBib && kamBib.ligger && provBorta && Date.now() - oppBibNar >= 1000) { oppSatt({ bibKlar: true }); o = oppFor(); d = oppDelLage(o); }
   }
+  /* Pling (MES-139): när leken nyss blev klar — av kameran eller knappen —
+     spelas den gröna ramen en gång, och klart-kortet kommer en sekund efter.
+     Klar redan när steget ritades första gången: kortet direkt. */
+  if (d.bib && oppBibSag === false) {
+    oppPlingNar = Date.now(); oppKlarDold = false;
+    clearTimeout(oppPlingT); oppPlingT = setTimeout(() => { oppPlingT = 0; renderMode(); }, OPP_PLING_MS + 20);
+  }
+  oppBibSag = d.bib;
   const knappar = av => `<div class="tapval"><button type="button" class="tapopt" data-opptap="0"${av ? ' disabled' : ''}>${OPP_UPP}<b>Untapped</b><span>Standing up</span></button><button type="button" class="tapopt" data-opptap="1"${av ? ' disabled' : ''}>${OPP_SIDA}<b>Tapped</b><span>Turned sideways</span></button></div>`;
   let prov;
   /* "Found it" först när platsen är låst och knapparna går att trycka på.
@@ -9529,17 +9600,20 @@ function oppSteg4(o) {
       + `<div class="hogval"><button type="button" class="btn prim" data-opp="gravok">Looks good</button><button type="button" class="btn" data-opp="gravflytt">Move it</button></div>`;
   let bib = '';
   if (d.aktiv === 'bib') {
-    const vantat = Date.now() - oppBibNar, knapp = kamBibStod === false || vantat >= 10000;
+    const vantat = Date.now() - oppBibNar, knapp = oppBibReserv(), fas = oppBibFas();
     if (!knapp && !oppBibT) oppBibT = setTimeout(() => { oppBibT = 0; renderMode(); }, 10000 - vantat + 50);
+    const vant = fas === 'tackt' ? '<span class="oppwait vit"><i></i><span>Something is on the spot…</span></span>'
+      : fas === 'kollar' ? '<span class="oppwait bla"><i></i><span>Checking your library…</span></span>'
+      : '<span class="oppwait"><i></i><span>Waiting for your library…</span></span>';
     bib = `<ol class="gor"><li><span class="gnr">1</span><span>Pick up the card</span></li><li><span class="gnr">2</span><span>Shuffle it into your library</span></li><li><span class="gnr">3</span><span>Put your library face down on the spot</span></li></ol>`
-      + `<div class="opprad"><span class="oppwait"><i></i><span>Waiting for your library…</span></span></div>`
+      + `<div class="opprad">${vant}</div>`
       + (knapp ? `<div class="opprad"><button type="button" class="btn sm" data-opp="biblagd">My library is in place</button></div>` : '');
   }
   const st = k => d[k] ? 'done' : d.aktiv === k ? 'active' : 'todo';
   oppDiff($('#oppDelar'),
     oppDel(1, 'Card direction', st('prov'), o.tapp ? 'Tapped' : 'Untapped', ['provom', 'Change'], prov)
     + oppDel(2, 'Graveyard', st('grav'), 'Bottom-left corner', ['gravom', 'Move'], grav)
-    + oppDel(3, 'Library', st('bib'), 'In place', null, bib));
+    + oppDel(3, 'Library', st('bib'), 'In place', null, bib).replace('class="del done"', Date.now() - oppPlingNar < OPP_PLING_MS ? 'class="del done nyklar"' : 'class="del done"'));
   oppDiff($('#oppEfter'), d.aktiv === 'start'
     ? `<p class="opptxt">All set — the camera knows where your graveyard and library are.</p><div class="opprad"><button type="button" class="btn prim" data-opp="starta">Start playing</button></div>` : '');
 }
@@ -9745,6 +9819,15 @@ $('#oppMatt').addEventListener('click', ev => {
   if (b.dataset.oppm === 'tel') { if (oppVisat !== 'tel' && oppNasta !== 'tel') oppVaxla($('#opp3')); return; }
   if (b.dataset.oppm === 'vand') kamVand = (kamVand + 90) % 360; else kamSpegel = !kamSpegel;
   oppGravFlyttad = null; sparaKamOrientering(); renderMode(); ritaPbLager();
+});
+/* Knapparna i bildlagret (MES-139): reserven när kameran inte ser leken,
+   och klart-kortets Start playing och Change something. */
+$('#oppLager') && $('#oppLager').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-oppl]'); if (!b) return;
+  const a = b.dataset.oppl;
+  if (a === 'biblagd') { oppSatt({ bibKlar: true }); renderMode(); }
+  else if (a === 'starta') oppStarta();
+  else if (a === 'dolj') { oppKlarDold = true; ritaPbLager(); }
 });
 $('#oppstart').addEventListener('keydown', ev => {
   if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.oppsteg[role=button]')) { ev.preventDefault(); oppVaxla(ev.target); }
@@ -17343,8 +17426,8 @@ const Kamera = (() => {
      raden i camera_setups kommer hit med realtid. */
   const iZon = (g, f) => { if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
   const iBib = f => iZon(kal.bib, f);
-  let bibFran = 0, bibSist = 0, bibSkymd = 0, bibLigger = false;
-  const glomBib = () => { bibFran = bibSist = bibSkymd = 0; bibLigger = false; };
+  let bibFran = 0, bibSist = 0, bibSkymd = 0, bibLigger = false, bibNu = null;
+  const glomBib = () => { bibFran = bibSist = bibSkymd = 0; bibLigger = false; bibNu = null; };
   const sammaZon = (a, b) => (!a && !b) || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
   function satBib(r) { const z = gravRuta(r); if (sammaZon(z, kal.bib || null)) return; kal.bib = z; glomBib(); }
   /* Rutan i analysens bildpunkter, som friYta() räknar den. */
@@ -17380,7 +17463,10 @@ const Kamera = (() => {
      överbryggas. Leken räknas lyft först efter två bortaMs där rutan varken
      har en lek eller är täckt av något annat: en hand som vilar på leken
      lyfter den inte. osaker = bilden kan ha flyttats eller ljuset slog i
-     taket: då döms ingenting. */
+     taket: då döms ingenting. bibNu är rutan just nu, för uppstartens
+     kvittens (MES-139): 'lek' — en leks form täcker halva rutan (handen har
+     släppt, leken ska ligga still i stillaMs); 'tackt' — något annat täcker
+     den, också en hand som håller leken; null — tom. */
   const BIB_STORST = 3;
   function bibSag(delar, nu, osaker) {
     const z = kal.bib; if (!z || !AW || !AH) { glomBib(); return; }
@@ -17393,6 +17479,7 @@ const Kamera = (() => {
       if (d.cnt <= BIB_STORST * zn && Math.min(d.w, d.h) >= 0.5 * Math.max(d.w, d.h) && d.cnt >= 0.6 * d.w * d.h) lek += d.inne;
     }
     dia.bib = { lek: Math.round(100 * lek / zn) / 100, tackt: Math.round(100 * tackt / zn) / 100 };
+    bibNu = lek >= 0.5 * zn ? 'lek' : tackt >= 0.5 * zn ? 'tackt' : null;
     if (lek >= 0.5 * zn) {
       if (!bibFran || nu - bibSist > T.bortaMs) bibFran = nu;
       bibSist = nu;
@@ -17402,7 +17489,7 @@ const Kamera = (() => {
       if (bibLigger && nu - Math.max(bibSist, bibSkymd) > 2 * T.bortaMs) { bibLigger = false; bibFran = 0; }
     }
   }
-  const bibLage = () => kal.bib ? { ligger: bibLigger } : null;
+  const bibLage = () => kal.bib ? { ligger: bibLigger, tackt: !!bibNu, lek: bibNu === 'lek' } : null;
   /* Högvakten (K10/K11, MES-85). Rutan föder inga spår, men datorn behöver
      veta när ett kort LADES på högen: då kan ett kort som just försvann från
      mattan gå dit utan att spelaren frågas. Vakten läser inget namn. Den
@@ -17976,7 +18063,7 @@ const Kamera = (() => {
      och inte som FARSK_MS: bänken kör modulen utan appens toppnivå. */
   /* :x,y = viloläget (K5), avrundat: en rapport när kortet lagt sig på en
      ny plats, ingen för darr. */
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}` : '');
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -18666,7 +18753,7 @@ const Kamera = (() => {
            get rad() { return radAvstand() || (yta && yta.dom !== 'lugn' ? yta.rad : null); },
            get analysMatt() { return { aw: AW, ah: AH }; },
            get sma() { return smaNu(); },
-           get bib() { return bibLage(); },    // library-rutan (MES-122): { ligger } — en kortstor region i rutan; null utan ruta
+           get bib() { return bibLage(); },    // library-rutan (MES-122): { ligger, tackt, lek } — leken ligger i rutan; något täcker den; en leks form täcker den (MES-139); null utan ruta
            get grav() { return gravLage(); },   // högvakten (MES-85): { n ändringar av graveyard-högen, sen ms sedan den senaste }; null utan ruta                                                   // kortformade regioner för små att läsa, median över sex rutor
            get upplosning() { return upplosning ? Object.assign({}, upplosning) : null; },  // { w, h, max, begard }; null innan första rutan
            get ruta() { return Object.assign({}, kal.ruta); },
@@ -20820,23 +20907,63 @@ function ritaOppLager(G) {
   else if (t && t.w != null && d.prov && !d.bib) h += chip(pbRutaPx(G, t), '#6b7280', d.aktiv === 'bib' ? 'Pick this card up' : 'This card · not played');
   if (d.aktiv === 'prov' && !las) h += `<div class="ovant"><i></i>Looking for a card…</div>`;
   const grav = d.aktiv === 'grav' ? (oppGravFlyttad || oppForslag(o).grav) : d.grav ? kamGravRad : null;
+  let gq = null;
   /* Platserna ritas lika stora som provkortet: rutan som sparas är kortet
      × ZON_LUFT, luften är till för en slarvig hög, inte för ögat. */
   const kortstor = q => ({ x: q.x + q.w * (1 - 1 / ZON_LUFT) / 2, y: q.y + q.h * (1 - 1 / ZON_LUFT) / 2, w: q.w / ZON_LUFT, h: q.h / ZON_LUFT });
   if (grav) {
-    const q = kortstor(pbRutaPx(G, grav));
+    const q = gq = kortstor(pbRutaPx(G, grav));
     h += `<div class="gplats2${d.aktiv === 'grav' && !oppFlytt ? ' glod' : ''}${oppFlytt ? ' flytt' : ''}" style="${box(q)}">${GRAVSTEN}</div>` + chip(q, '#e8b33a', d.aktiv === 'grav' ? 'Graveyard goes here' : 'Graveyard');
   }
   if (oppFlytt) h += `<div class="otips">Drag the spot where your graveyard will go</div>`;
+  /* Library-platsen (MES-139, designen "Mesa Library Drop"): 1 tom — leken
+     sänks ner, och efter tio sekunder står reserven bredvid; 2 något täcker
+     den — hörnen fäster direkt, också med handen kvar; 3 handen har släppt —
+     ramen ritas runt på stillaMs; 4 pling — samma gröna ram och ring som när
+     provkortet hittas, och en bock; sedan klart-kortet över bilden med
+     högarna i ett hål. Animeringarna spelas en gång: lagret skrivs bara om
+     när innehållet ändras (oppDiff). */
   if ((d.aktiv === 'bib' || d.bib) && kamBibRad) {
-    const q = kortstor(pbRutaPx(G, kamBibRad));
+    const q = kortstor(pbRutaPx(G, kamBibRad)), m = 4;
+    const f = { x: q.x - m, y: q.y - m, w: q.w + 2 * m, h: q.h + 2 * m };
+    const horn = stilla => `<div class="ofatt${stilla ? ' stilla' : ''}" style="${box(f)}"><i></i><i></i><i></i><i></i></div>`;
     if (d.aktiv === 'bib') {
-      /* Leken: ett kort i platsen, stående i vyn — ligger platsen på tvären
-         vrids den. */
-      const ligg = q.w > q.h, lw = ligg ? q.h : q.w, lh = ligg ? q.w : q.h;
-      const lek = `<div class="lekrot" style="left:${px((q.w - lw) / 2)}px;top:${px((q.h - lh) / 2)}px;width:${px(lw)}px;height:${px(lh)}px${ligg ? ';transform:rotate(90deg)' : ''}"><div class="landring"></div><div class="lekskugga"></div><div class="lek"><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""></div></div>`;
-      h += `<div class="bplats" style="${box(q)}">${lek}</div>` + chip(q, '#6b8cff', 'Put your library here');
-    } else h += `<div class="bplats lagd" style="${box(q)}"></div>` + chip(q, '#6b8cff', 'Library');
+      const fas = oppBibFas();
+      if (fas === 'tackt') h += horn(false) + chip(f, '#fff', 'Got it — let go of the deck');
+      else if (fas === 'kollar') h += horn(true)
+        + `<svg class="ospar" style="${box(f)}" viewBox="0 0 ${px(f.w)} ${px(f.h)}" aria-hidden="true"><rect x="1" y="1" width="${px(f.w) - 2}" height="${px(f.h) - 2}" rx="6" pathLength="100"/></svg>`
+        + `<div class="ochip" style="left:${px(f.x)}px;top:${px(f.y)}px"><i class="opuls" style="background:#6b8cff"></i>Checking — keep it still</div>`;
+      else {
+        /* Leken: ett kort i platsen, stående i vyn — ligger platsen på tvären
+           vrids den. */
+        const ligg = q.w > q.h, lw = ligg ? q.h : q.w, lh = ligg ? q.w : q.h;
+        const lek = `<div class="lekrot" style="left:${px((q.w - lw) / 2)}px;top:${px((q.h - lh) / 2)}px;width:${px(lw)}px;height:${px(lh)}px${ligg ? ';transform:rotate(90deg)' : ''}"><div class="landring"></div><div class="lekskugga"></div><div class="lek"><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""><img src="${BAKSIDA}" alt=""></div></div>`;
+        h += `<div class="bplats" style="${box(q)}">${lek}</div>` + chip(q, '#6b8cff', 'Put your library here');
+        /* Reserven i bilden, där blicken är: till höger om platsen, eller till
+           vänster när den inte får plats. */
+        if (oppBibReserv()) {
+          const hoger = q.x + q.w + 16 + 240 <= el.clientWidth;
+          h += `<div class="oreserv" style="${hoger ? `left:${px(q.x + q.w + 16)}px` : `right:${px(el.clientWidth - q.x + 16)}px`};top:${px(q.y + q.h - 34)}px">Can't see your library?<button type="button" class="btn sm" data-oppl="biblagd">It's in place</button></div>`;
+        }
+      }
+    } else if (Date.now() - oppPlingNar < OPP_PLING_MS) {
+      h += `<div class="opling" style="${box(f)}"></div><div class="obock" style="left:${px(f.x + f.w - 12)}px;top:${px(f.y + f.h - 12)}px">${OPP_KLAR.replace('width="12" height="12"', 'width="14" height="14"')}</div>`
+        + chip(f, '#5fbf7f', 'Library in place');
+    } else {
+      h += `<div class="bplats lagd" style="${box(q)}"></div>` + chip(q, '#6b8cff', 'Library');
+      if (d.aktiv === 'start' && !oppKlarDold) {
+        /* Klart-kortet (variant B): bilden tonas ner, högarna syns i ett hål
+           (med sina etiketter), och Start playing står mitt i blicken. */
+        const u = [gq, q].filter(Boolean);
+        const x0 = Math.min(...u.map(r => r.x)) - 10, y0 = Math.min(...u.map(r => r.y)) - 38;
+        const x1 = Math.max(...u.map(r => r.x + r.w)) + 10, y1 = Math.max(...u.map(r => r.y + r.h)) + 10;
+        h += `<div class="ohal" style="left:${px(x0)}px;top:${px(y0)}px;width:${px(x1 - x0)}px;height:${px(y1 - y0)}px"></div>`
+          + `<div class="oklarkort" role="dialog" aria-label="Your table is set up"><span class="ostormark">${OPP_KLAR.replace('width="12" height="12"', 'width="26" height="26"').replace('stroke-width="3"', 'stroke-width="2.6"')}</span>`
+          + `<h3>Your table is set up</h3><p>The camera knows where your graveyard and library are.</p>`
+          + `<button type="button" class="btn prim" data-oppl="starta">Start playing <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>`
+          + `<button type="button" class="btn ghost sm" data-oppl="dolj">Change something</button></div>`;
+      }
+    }
   }
   oppDiff(lag, h);
   if (las) {
