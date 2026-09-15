@@ -7776,7 +7776,7 @@ function kortMenyVal(a, i) {
   else if (a === 'del') removeAt(i);
   else if (/^tok\d+$/.test(a)) {
     const t = tokDelar(cardOf(c))[+a.slice(3)], p = player();
-    if (t) { angraPunkt(p); skapaTokens(p, c, [{ part: t, n: 1 }], false); }
+    if (t) { angraPunkt(p); skapaTokens(p, c, [{ part: t, n: 1 }], true); }
   }
 }
 /* ═══ FRI MATTA — counters ═══════════════════════════════════════════
@@ -8188,14 +8188,17 @@ function overlapAndel(rm, ro) {
 }
 const paMattanKort = c => c && paMattan(c) && c.lyft == null;
 /* Träff mot en befintlig hög avgörs på arean som överlappar, inte på avstånd.
-   Returnerar cid för kortet i målhögen, eller null. Bara land. */
+   Returnerar cid för kortet i målhögen, eller null. Land läggs på land, en
+   token på tokens med samma namn (MES-105). */
+const hogbar = c => matSlag(c) === 'land' || !!c.tok;
 function findJoin(cards, cid) {
   const me = cards.find(c => c.cid === cid);
-  if (!me || matSlag(me) !== 'land' || !paMattanKort(me)) return null;
+  if (!me || !hogbar(me) || !paMattanKort(me)) return null;
   const rm = matRect(me);
   let best = null, bestOv = MATTA.JOIN_OV;
   for (const o of cards) {
-    if (o.cid === cid || matSlag(o) !== 'land' || !paMattanKort(o) || o.attachedTo) continue;
+    if (o.cid === cid || !paMattanKort(o) || o.attachedTo) continue;
+    if (me.tok ? !(o.tok && o.name === me.name) : (matSlag(o) !== 'land' || o.tok)) continue;
     const ov = overlapAndel(rm, matRect(o));
     if (ov > bestOv) { bestOv = ov; best = o; }
   }
@@ -8208,7 +8211,7 @@ function findJoin(cards, cid) {
    åt en ny hög. */
 function restack(cards, cid, nyGrp) {
   const mine = cards.find(c => c.cid === cid);
-  if (!mine || matSlag(mine) !== 'land') return false;
+  if (!mine || !hogbar(mine)) return false;
   const mal = findJoin(cards, cid);
   if (!mal && !mine.grp) return false;
   if (mal) {
@@ -8302,7 +8305,13 @@ function layoutAll(cards, vp, landsOnly, gravRuta) {
   const ordning = k => MATTA.BAS.indexOf(baslandTyp({ name: k })) * 2 + (/^Snow/.test(k) ? 1 : 0);
   const landE = [...hogar.keys()].sort((a, b) => ordning(a) - ordning(b)).map(k => enhet(hogar.get(k)))
     .concat(ovriga.map(enhet));
-  const permE = permList.map(c => enhet([c]));
+  /* Tokens med samma namn ligger i en hög, som basländerna (MES-105). */
+  const permK = [], tokK = new Map();
+  for (const c of permList) {
+    if (c.tok && tokK.has(c.name)) { tokK.get(c.name).push(c); continue; }
+    const k = [c]; if (c.tok) tokK.set(c.name, k); permK.push(k);
+  }
+  const permE = permK.map(enhet);
   const alla = permE.concat(landE);
   if (!alla.length) return cards.slice();
   const bredast = alla.reduce((a, e) => Math.max(a, e.r.x1 - e.r.x0), 0);
@@ -9447,10 +9456,11 @@ function bastVard(cards, cid) {
 /* ─── Tokens (MES-105) ───────────────────────────────────────────────
    Tokens ett kort skapar står i kortcachen (parts: Scryfalls all_parts).
    Kommer ett kort in på bordet med en "When … enters"-trigger som skapar
-   tokens läggs de ut direkt, bredvid kortet — och "then attach this
-   Equipment to it" sätter kortet på token, som Ancestral Blade. Bara det
-   texten säger rakt ut: ett antal i ord eller siffror, inget "may", "if"
-   eller X — appen gissar inte. Övriga triggrar (attack, dör, aktiverade
+   tokens läggs de ut direkt, i en egen hög bredvid kortet. "then attach
+   this Equipment to it" (Ancestral Blade) följs inte: kortet ligger kvar där
+   det spelades, och E eller ett drag sätter det på token. Bara det texten
+   säger rakt ut: ett antal i ord eller siffror, inget "may", "if" eller X —
+   appen gissar inte. Övriga triggrar (attack, dör, aktiverade
    förmågor) går via kortets meny: Create … token. */
 const TOK_TAL = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
 const regEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -9460,14 +9470,13 @@ function tokDelar(card) {
   for (const d of (card && card.parts) || []) if (d && d.id && d.name && !ut.some(x => x.name === d.name)) ut.push(d);
   return ut;
 }
-/* { lista: [{ part, n, tapped }], fast } ur kortets enters-triggrar, eller null. */
+/* { lista: [{ part, n, tapped }] } ur kortets enters-triggrar, eller null. */
 function etbTokens(card) {
   const delar = tokDelar(card), f = card && card.faces[0];
   if (!delar.length || !f) return null;
   const namn = [f.name, f.name.split(',')[0]].filter(Boolean).map(regEsc).join('|');
   const jag = new RegExp('\\b(?:' + namn + '|this (?:creature|artifact|enchantment|equipment|land|vehicle|permanent|planeswalker|battle|aura|spacecraft))\\b', 'i');
   const lista = [];
-  let fast = false;
   for (const rad of (f.oracle || '').replace(/\([^)]*\)/g, '').split('\n')) {
     const m = rad.trim().match(/^When(?:ever)? ([^,]+), (.+)$/i);
     if (!m || !/\benters\b/i.test(m[1]) || !jag.test(m[1])) continue;
@@ -9482,10 +9491,9 @@ function etbTokens(card) {
         if (!part) continue;
         lista.push({ part, n: Math.min(20, TOK_TAL[tal[1].toLowerCase()] || +tal[1] || 1), tapped: /\btapped\b/i.test(bit.split(/\btokens?\b/i)[0]) });
       }
-      if (new RegExp('\\battach (?:it|this \\w+|' + namn + ') to it\\b', 'i').test(mening)) fast = true;
     }
   }
-  return lista.length ? { lista, fast: fast && lista.length === 1 && lista[0].n === 1 } : null;
+  return lista.length ? { lista } : null;
 }
 /* Nästa lediga plats till höger om kortet — slotBeside om raden är full. */
 function tokPlats(cards, bredvid, board) {
@@ -9498,23 +9506,36 @@ function tokPlats(cards, bredvid, board) {
   }
   return slotBeside(cards, 'perm', board);
 }
-/* Lägger ut tokens bredvid kalla, överst. fast: kalla sätts på den (enda)
-   token, som då tar kallas plats — kortet hamnar bakom den. Den som anropar
-   har tagit ångrapunkten. */
-function skapaTokens(p, kalla, lista, fast) {
+/* Lägger ut tokens i en egen hög per sort, aldrig på kortet som skapade dem:
+   första lediga plats till höger om kalla, nästa sort till höger om den
+   förra. Högen ritas som landhögarna (raknaOmHogar) och går att dra isär
+   och lägga ihop. sammaHog (kortets meny): ligger redan en token av samma
+   sort på mattan läggs de nya i dess hög. Den som anropar har tagit
+   ångrapunkten. */
+function skapaTokens(p, kalla, lista, sammaHog) {
   const cards = p.cards, v = matVy(p), g = gravRuta(v);
   let z = Math.max(matTopZ || 0, ...cards.map(k => k.z || 0));
   const nya = [];
   let forra = kalla;
-  for (const { part, n, tapped } of lista) for (let j = 0; j < n; j++) {
-    const e = normaliseraKort({ cid: uid(), name: part.name, sid: part.id, flipped: 0, tapped: tapped ? 1 : 0, tok: 1, ny: Date.now() }, cards.length);
-    const pos = fast && kalla.x != null && kalla.y != null ? { x: kalla.x, y: kalla.y } : tokPlats(cards, forra, v.board);
-    const k = clampKort(Object.assign({}, e, pos), v.board, g);
-    e.x = k.x; e.y = k.y; e.z = ++z;
-    cards.push(e); nya.push(e); forra = e;
+  for (const { part, n, tapped } of lista) {
+    const fanns = sammaHog ? cards.find(c => c.tok && c.name === part.name && paMattanKort(c) && !c.attachedTo && c.x != null && c.y != null) : null;
+    const grp = fanns || n > 1 ? (fanns && fanns.grp) || 'g' + uid() : null;
+    if (fanns && !fanns.grp) { fanns.grp = grp; fanns.gi = 0; }
+    let bas = fanns;
+    for (let j = 0; j < n; j++) {
+      const e = normaliseraKort({ cid: uid(), name: part.name, sid: part.id, flipped: 0, tapped: tapped ? 1 : 0, tok: 1, ny: Date.now() }, cards.length);
+      if (!bas) {
+        const k = clampKort(Object.assign({}, e, tokPlats(cards, forra, v.board)), v.board, g);
+        e.x = k.x; e.y = k.y; bas = e;
+      } else { e.x = bas.x; e.y = bas.y; }
+      e.z = ++z;
+      if (grp) { e.grp = grp; e.gi = cards.reduce((a, c) => c.grp === grp && c.gi != null ? Math.max(a, c.gi) : a, -1) + 1; }
+      cards.push(e); nya.push(e);
+    }
+    raknaOmHogar(cards);
+    forra = nya[nya.length - 1] || forra;
   }
   matTopZ = z;
-  if (fast && nya[0] && cards.includes(kalla)) { kalla.attachedTo = nya[0].cid; kalla.tapped = 0; kalla.grp = null; kalla.gi = null; }
   save(); renderAll(true); resolveAll();
   return nya;
 }
@@ -9535,7 +9556,7 @@ function tokensVidEtb() {
       const t = etbTokens(card);
       if (!t) continue;
       angraPunkt(p);
-      skapaTokens(p, c, t.lista, t.fast && !!bifogTyp(c));
+      skapaTokens(p, c, t.lista, false);
     }
   }
 }
@@ -9860,7 +9881,7 @@ addEventListener('pointermove', ev => {
      överlappar (findJoin), inte på avstånd. */
   /* Utrustning, aura, fortifikation: värden den ligger över lyser i stället. */
   const vard = (!over && !overB && bifogTyp(c)) ? bastVard(hand(), c.cid) : null;
-  const mal = vard || ((!over && !overB && matSlag(c) === 'land') ? findJoin(hand(), c.cid) : null);
+  const mal = vard || ((!over && !overB && hogbar(c)) ? findJoin(hand(), c.cid) : null);
   dnd.vard = vard;
   if (mal !== dnd.mal) {
     dnd.mal = mal;
@@ -9954,7 +9975,7 @@ function matDndSlut(ev, avbryt) {
   }
   /* Ett land som släpps på en hög läggs sist i den; ett som dras ut ur sin
      hög lossnar, och högen räknas om från sitt basläge. */
-  if (matSlag(c) === 'land' && !c.attachedTo) restack(h, c.cid, () => 'g' + uid());
+  if (hogbar(c) && !c.attachedTo) restack(h, c.cid, () => 'g' + uid());
   save(); renderGrid(true); fjarrIkapp();
   /* Efter omritningen: den byter ut elementet, och sätt-sig-studsen på det
      gamla spelades aldrig. */
