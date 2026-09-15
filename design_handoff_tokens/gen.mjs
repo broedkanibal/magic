@@ -54,13 +54,41 @@ const VAR = {
       ])),
     ],
   },
+  /* A: token åker ut från kortets högra sida — under kortet först (dold),
+     sedan ut lyft och lutad, 16 px förbi sin plats och tillbaka. Kortet viker
+     undan åt vänster medan tokens kommer ut. 180 ms mellan varje. */
   a: {
-    tokZ: i => 1 + i,                    // under kortet medan den glider ut
+    tokZ: i => 1 + i,                    // under kortet medan den åker ut
+    css: n => {
+      const s = i => 15 + 4.5 * i, sist = s(n - 1), vik = 'transform:translateX(-9px) rotate(-1.4deg)';
+      const kalla = [...LANDA, [15, 'transform:none', 'cubic-bezier(.3,0,.3,1)'], [19, vik, UT]];
+      if (sist + 5 > 19) kalla.push([sist + 5, vik, UT]);
+      kalla.push([sist + 11, 'transform:none'], ...SLUT);
+      return [
+        kf(`aK${n}`, kalla),
+        ...Array.from({ length: n }, (_, i) => {
+          const { dx, dy } = plats(i), t = s(i);
+          return kf(`aT${n}_${i}`, [
+            [[0, t], `opacity:0;transform:translate(${dx}px,${dy}px) scale(.96) rotate(0deg);box-shadow:${SKUGGA}`],
+            [t + 0.2, `opacity:1;transform:translate(${dx}px,${dy}px) scale(.96) rotate(0deg);box-shadow:${SKUGGA}`, 'cubic-bezier(.5,0,.75,.45)'],
+            [t + 5, `opacity:1;transform:translate(${Math.round(dx * 0.5)}px,${Math.round(dy * 0.5) - 8}px) scale(1.04) rotate(2.5deg);box-shadow:${LYFT}`, 'cubic-bezier(.15,.6,.3,1)'],
+            [t + 12, `opacity:1;transform:translate(16px,-3px) scale(1.03) rotate(1deg);box-shadow:${LYFT}`, UT],
+            [t + 15.5, `transform:translate(0px,0px) scale(.99) rotate(0deg);box-shadow:${SKUGGA}`, UT],
+            [t + 17.5, `transform:none;box-shadow:${SKUGGA}`],
+            ...SLUT,
+          ]);
+        }),
+      ];
+    },
+  },
+  /* A som den såg ut först: kort glidning, liten knuff. Ligger kvar för jämförelse. */
+  a1: {
+    tokZ: i => 1 + i,
     css: n => [
-      kf(`aK${n}`, [...LANDA, [15, 'transform:none', UT], [17.5, 'transform:translateX(-5px) rotate(-.8deg)', UT], [23, 'transform:none'], ...SLUT]),
+      kf(`a1K${n}`, [...LANDA, [15, 'transform:none', UT], [17.5, 'transform:translateX(-5px) rotate(-.8deg)', UT], [23, 'transform:none'], ...SLUT]),
       ...Array.from({ length: n }, (_, i) => {
         const { dx, dy } = plats(i), s = 15 + 3 * i;
-        return kf(`aT${n}_${i}`, [
+        return kf(`a1T${n}_${i}`, [
           [[0, s], `opacity:0;transform:translate(${dx}px,${dy}px) scale(.97);box-shadow:${SKUGGA}`],
           [s + 0.2, `opacity:1;transform:translate(${dx}px,${dy}px) scale(.97);box-shadow:${SKUGGA}`, 'cubic-bezier(.4,0,.6,1)'],
           [s + 5, `opacity:1;transform:translate(${Math.round(dx * 0.4)}px,${Math.round(dy * 0.4) - 12}px) scale(1.05);box-shadow:${LYFT}`, 'cubic-bezier(.3,.7,.2,1)'],
@@ -204,6 +232,14 @@ const filer = {
   }),
   'Main.dc.html': artboard('a', {
     etikett: 'Variant A · förslaget',
+    titel: 'Token åker ut från kortets sida',
+    varfor: 'Token ligger först gömd under kortet som spelades och åker ut från dess högra sida — lyft och lite lutad, en bit förbi sin plats och tillbaka, som ett kort man skjuter ut över bordet. Kortet viker undan åt andra hållet medan tokens kommer ut, och flera tokens åker ut en i taget och bygger upp högen.',
+    plus: 'Samma material som resten av mattan: lyftet från ett drag och studsen när ett kort sätter sig. Rörelsen går åt ett håll och är lätt att följa, också med tio tokens.',
+    minus: 'Lugnare än B — tittar man på den fysiska duken kan man missa den. Överslaget gör att högen rör sig en gång till innan den står still.',
+    notis: `${B('Tider (1×):')} kortet landar på 0,5 s. 0,1 s senare åker token ut: 0,19 s under kortet, 0,28 s ut och 16 px förbi sin plats med 2,5° lutning, 0,14 s tillbaka och sätter sig. Kortet viker 9 px och 1,4° åt vänster medan tokens kommer ut. Goblins 180 ms isär. ${B('I appen:')} token ritas på sin plats och animeras från kortets rect, som flygTillGrav fast åt andra hållet, med z under kortet medan den åker ut. Utan rörelse (prefers-reduced-motion) tonas token in på sin plats.`,
+  }),
+  'VariantA1.dc.html': artboard('a1', {
+    etikett: 'Variant A · första versionen',
     titel: 'Token dras fram under kortet',
     varfor: 'Token ligger först gömd under kortet som spelades och glider ut åt höger till sin plats, som när man drar fram ett kort under ett annat. Kortet ger ifrån sig en liten knuff när token lossnar. Flera tokens glider ut en i taget och bygger upp högen.',
     plus: 'Samma material som resten av mattan: lyftet från ett drag och studsen när ett kort sätter sig. Lugnt nog för tio tokens, och varje tur.',
@@ -232,7 +268,8 @@ for (const [namn, html] of Object.entries(filer)) writeFileSync(new URL(namn, im
 const canvas = {
   artboards: [
     { file: 'Nulage.dc.html', title: 'Nuläge', x: 0, y: 0, w: 1110, h: 800 },
-    { file: 'Main.dc.html', title: 'A · Dras fram under kortet', x: 1190, y: 0, w: 1110, h: 900 },
+    { file: 'Main.dc.html', title: 'A · Åker ut från sidan', x: 1190, y: 0, w: 1110, h: 900 },
+    { file: 'VariantA1.dc.html', title: 'A · första versionen', x: 2380, y: 0, w: 1110, h: 900 },
     { file: 'VariantB.dc.html', title: 'B · Slås ut ur kortet', x: 0, y: 1040, w: 1110, h: 900 },
     { file: 'VariantC.dc.html', title: 'C · Kopian vänds till token', x: 1190, y: 1040, w: 1110, h: 900 },
   ],
