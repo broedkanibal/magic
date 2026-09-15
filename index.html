@@ -629,7 +629,9 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .ohogar.speg{right:22px;top:16px;flex-direction:row-reverse;transform-origin:100% 0}
 .ohogar:not(.speg){left:22px;bottom:22px;transform-origin:0 100%}
 .ohog{display:flex;flex-direction:column;align-items:flex-start;gap:9px}
-.ohogar .grav,.ohogar .bib{cursor:default}
+.ohogar .bib,.ohogar .grav.tom{cursor:default}
+.ohogar .grav:not(.tom),.oexil{cursor:pointer}
+.omatta .hkort{cursor:default}
 .ohogar .bib:hover{border-color:#6b8cff;box-shadow:none}
 .ohogar .bibrad > i{background:#6b8cff}
 .oexil{align-self:flex-end;display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:30px;padding:6px 9px;border-radius:8px;
@@ -6222,7 +6224,7 @@ function ritaKant(L) {
    ritningarna så att rutorna kan glida. */
 const oppMattor = new Map();   // spelar-id → { el, plate, kol, list, ... }
 function ritaOppMattor(L) {
-  for (const [pid, m] of oppMattor) if (!L.rutor.has(pid)) { m.el.remove(); oppMattor.delete(pid); oppVyer.delete(pid); }
+  for (const [pid, m] of oppMattor) if (!L.rutor.has(pid)) { if (hf.pid === pid) hfStangNu(); m.el.remove(); oppMattor.delete(pid); oppVyer.delete(pid); }
   L.o.forEach((p, i) => {
     const m = oppMattor.get(p.id) || skapaOppMatta(p);
     const r = L.rutor.get(p.id), form = bordForm(r);
@@ -6231,6 +6233,7 @@ function ritaOppMattor(L) {
     m.el.style.setProperty('--pc', p.color || 'var(--blue)');
     ritaOppDelar(p, m, i);
     ritaOppKropp(p, m, r);
+    if (hf.pid === p.id && form !== 'full') hfStang();
   });
 }
 function skapaOppMatta(p) {
@@ -6277,7 +6280,7 @@ function bordValj(v) {
   if (v !== 'me' && v !== 'all') bord.sist = v;
   if (bord.valt === v) return;
   bord.valt = v;
-  if (bordNiva(v) === 2 && hf.src) hfStang();          // mitt bord blir en list
+  if (hf.src) hfStang();                               // solfjädern hör till en matta som byter storlek
   closeKortMeny(); closeCounters();
   bordGlid();
   renderBord(); matResize();
@@ -6364,7 +6367,7 @@ kantEl.addEventListener('click', ev => {
 /* Ett klick var som helst i en motståndares ruta — matta, kolumn eller list
    — gör hen stor. Ett drag gör det inte. */
 oppMattorEl.addEventListener('pointerdown', ev => {
-  const sek = ev.target.closest('.omatta'); if (!sek || ev.target.closest('.ochrome,.turnbtn')) return;
+  const sek = ev.target.closest('.omatta'); if (!sek || ev.target.closest('.ochrome,.turnbtn,.ohogar,.hkort')) return;
   const pid = sek.dataset.pid, m = oppMattor.get(pid), full = sek.classList.contains('f-full') && m && m.geo;
   const x0 = ev.clientX, y0 = ev.clientY, knapp = ev.button, v0 = Object.assign({}, oppVy(pid));
   let drog = false;
@@ -6463,6 +6466,7 @@ function ritaOppKropp(p, m, r) {
   m.hogar.className = 'ohogar' + (speg ? ' speg' : '');
   m.hogar.style.transform = `scale(${Math.round(ps * 1000) / 1000})`;
   satHtml(m.hogar, oppHogarHtml(p));
+  if (hf.pid === p.id) hfSynk();         // hens hög i solfjädern följer hens bord
   /* Fit: rutan innanför högarna (på deras sida), skylten överst och
      chippet nederst, med 22 px luft runt korten. */
   const pw = 22 + 238 * ps + 24, ins = speg ? { l: 20, t: 46, r: pw, b: 50 } : { l: pw, t: 46, r: 20, b: 50 };
@@ -6479,12 +6483,12 @@ function oppHogarHtml(p) {
   const grav = p.cards.filter(c => zonAv(c) === ZON_GRAV), n = grav.length, exil = p.cards.filter(c => zonAv(c) === ZON_EXIL).length;
   const top = n ? cardOf(grav[0]) : null, src = top ? imgOf(top, 0, 'normal') || imgOf(top, 0, 'small') : '', bib = oppBibKvar(p);
   const lager = []; for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
-  return `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — point at it to see the top card` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
+  return `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '') + `<span class="gravsten">${GRAVSTEN}</span></div>`
     + `<span class="hograd"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`
     + `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : ` — ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
     + `<span class="hograd bibrad"><i></i>Library${bib == null ? '' : `<b>${bib}</b>`}</span></div>`
-    + (exil ? `<div class="oexil" title="Cards in exile"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
+    + (exil ? `<div class="oexil" title="Cards in exile — click to look through them"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
 }
 /* Så långt mattan får flyttas: hela brädet ska gå att nå, plus lite luft. */
 function oppKlamp(g, v) {
@@ -6523,6 +6527,9 @@ function oppZoomTangent(f) {
 }
 oppMattorEl.addEventListener('click', ev => {
   const sek = ev.target.closest('.omatta'); if (!sek) return;
+  /* Hens graveyard eller exile: korten i solfjädern, att titta i. */
+  const hog = ev.target.closest('.ohogar .grav:not(.tom),.oexil');
+  if (hog) { ev.stopPropagation(); hfOppna(hog.classList.contains('oexil') ? ZON_EXIL : ZON_GRAV, sek.dataset.pid); return; }
   const oz = ev.target.closest('[data-oz]');
   if (oz) {
     ev.stopPropagation();
@@ -6572,6 +6579,7 @@ oppMattorEl.addEventListener('pointerout', ev => {
   oppHoverT = setTimeout(() => { oppHover = null; renderInspektor(); }, PILL_RESPIT);
 });
 oppMattorEl.addEventListener('pointerleave', () => { oppPek = null; });
+oppMattorEl.addEventListener('dblclick', ev => { if (ev.target.closest('.obrade .card') && oppHover && !focusOpen) vaxlaFokus(); });
 /* Ytan byter storlek utan att fönstret gör det: inspektorn, uppstarten. */
 if (window.ResizeObserver) new ResizeObserver(() => { if (bordAktiv()) { renderBord(); matResize(); } }).observe(bordEl);
 
@@ -7451,14 +7459,20 @@ function gravBumpa() {
    under mattans nederkant. Bågen ställer sig till höger om högarna så att
    de går att klicka på; blir mattan för smal får den gå över dem. */
 const HF = { R: 1300, CW: 124, CH: 173, T: { lift: 190, open: 860, gather: 470 } };
-const hfEl = $('#handFan'), hfMatta = $('#zonPerm');
-const hf = { src: null, fas: 'stangd', items: [], sig: '', f: null, mus: false, fok: null, q: '', mi: 0, t: [], geo: null, drag: null };
+/* hf.pid: en motståndares hög (bordsvyn, MES-133). Då ligger solfjädern i
+   hens matta (hfMatta) och går bara att titta i — inget drag, Enter lägger
+   inget på bordet. null = mina högar i min matta (hfHem). */
+const hfEl = $('#handFan'), hfHem = $('#zonPerm');
+let hfMatta = hfHem;
+const hf = { src: null, pid: null, fas: 'stangd', items: [], sig: '', f: null, mus: false, fok: null, q: '', mi: 0, t: [], geo: null, drag: null };
 const hfOppen = () => hf.fas === 'open' || hf.fas === 'live';
 const hfLugn = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hfSenare(ms, fn) { hf.t.push(setTimeout(fn, ms)); }
 function hfTimrarBort() { hf.t.forEach(clearTimeout); hf.t = []; }
+function hfSpelare() { return (hf.pid && state.players.find(p => p.id === hf.pid)) || player(); }
 /* Högen korten kommer ur: 'lib', ZON_GRAV eller ZON_EXIL. */
 function hfHogEl(src) {
+  if (hf.pid) { const m = oppMattor.get(hf.pid); return m && src !== 'lib' ? m.hogar.querySelector(src === ZON_EXIL ? '.oexil' : '.grav') : null; }
   if (src === 'lib') return bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null;
   return manaRow.querySelector(src === ZON_EXIL ? '.exilhog' : '.grav');
 }
@@ -7475,9 +7489,9 @@ function hfKort(src) {
     }));
     return ut;
   }
-  const h = hand(), per = new Map();
-  for (const i of delaHand()[src] || []) {
-    const e = h[i], n = namnAv(e), x = per.get(n);
+  const per = new Map();
+  for (const e of hfSpelare().cards.filter(k => zonAv(k) === src)) {
+    const n = namnAv(e), x = per.get(n);
     if (x) x.cids.push(e.cid); else per.set(n, { e, cids: [e.cid] });
   }
   const grupper = new Map(LEK_GRUPP_ORDNING.map(([key]) => [key, []]));
@@ -7512,7 +7526,7 @@ function hfBygg() {
 function hfYta() {
   const m = hfMatta.getBoundingClientRect();
   let x0 = 12;
-  for (const el of [manaRow, bibHogEl, manaRow.querySelector('.exilhog')]) {
+  if (!hf.pid) for (const el of [manaRow, bibHogEl, manaRow.querySelector('.exilhog')]) {
     if (!el || el.hidden) continue;
     const r = el.getBoundingClientRect(); if (r.width) x0 = Math.max(x0, r.right - m.left + 12);
   }
@@ -7588,14 +7602,23 @@ function hfHogar() {
 }
 /* Öppna högen src. Står en annan hög ute läggs den ner först; samma hög
    igen lägger ner den. */
-function hfOppna(src) {
+function hfOppna(src, pid) {
+  pid = pid || null;
+  /* Bordsvyn: mitt bord som list växer först till alla. */
+  if (!pid && bordAktiv() && bordNiva(bordValt()) === 2) bordValj('all');
   if (hf.src) {
-    if (hf.fas !== 'gather') { const annan = hf.src !== src; hfStang(annan ? () => hfSenare(40, () => hfOppna(src)) : null); return; }
+    if (hf.fas !== 'gather') { const annan = hf.src !== src || hf.pid !== pid; hfStang(annan ? () => hfSenare(40, () => hfOppna(src, pid)) : null); return; }
     hfStangNu();
   }
-  if (src === 'lib') { lekFoljMin(); if (!lekKvar()) return; }     // leken hämtas: nästa klick
+  if (src === 'lib') { if (pid) return; lekFoljMin(); if (!lekKvar()) return; }     // leken hämtas: nästa klick
+  /* En motståndares hög: solfjädern flyttar in i hens matta, som måste vara stor. */
+  const om = pid ? oppMattor.get(pid) : null;
+  if (pid && (!om || !om.el.classList.contains('f-full'))) return;
+  hf.pid = pid;
+  hfMatta = om ? om.el : hfHem;
+  if (om) om.el.querySelector('.okropp').appendChild(hfEl);
   const items = hfKort(src);
-  if (!items.length) return;
+  if (!items.length) { hfStangNu(); return; }
   Object.assign(hf, { src, items, sig: hfSig(src, items), f: null, mus: false, fok: null, q: '', mi: 0, fas: hfLugn() ? 'live' : 'lift' });
   closeKortMeny(); closeCounters();
   hfBygg();
@@ -7619,9 +7642,12 @@ function hfStang(efter) {
 }
 function hfStangNu() {
   hfTimrarBort();
-  const fok = hf.fok;
-  Object.assign(hf, { src: null, fas: 'stangd', items: [], sig: '', f: null, mus: false, fok: null, q: '', mi: 0, geo: null, drag: null });
+  const fok = hf.fok, forePid = hf.pid;
+  if (forePid) { const m = oppMattor.get(forePid); if (m) m.hogar.querySelectorAll('.hflyft,.hfute').forEach(el => el.classList.remove('hflyft', 'hfute')); }
+  Object.assign(hf, { src: null, pid: null, fas: 'stangd', items: [], sig: '', f: null, mus: false, fok: null, q: '', mi: 0, geo: null, drag: null });
   hfEl.innerHTML = ''; hfEl.hidden = true; hfEl.classList.remove('sjunk', 'lyft');
+  if (hfEl.parentNode !== hfHem) hfHem.insertBefore(hfEl, $('#oppMatt'));
+  hfMatta = hfHem;
   hfHogar();
   if (fok) renderInspektor();
   hfHint();
@@ -7642,10 +7668,10 @@ function hfSynk() {
 }
 /* Pekaren längs solfjädern tummar igenom den (designens skrubba): kortet
    som står vid pekarens x lyfts. Ovanför korten står fokus kvar. */
-hfMatta.addEventListener('pointermove', ev => {
+addEventListener('pointermove', ev => {
   if (!hfOppen() || !hf.items.length || !hf.geo || dnd || hf.drag) return;
   const m = hfMatta.getBoundingClientRect(), g = hf.geo;
-  if (ev.clientY - m.top < g.H - 300) return;
+  if (ev.clientY - m.top < g.H - 300 || ev.clientY > m.bottom || ev.clientX < m.left || ev.clientX > m.right) return;
   const N = hf.items.length, half = g.sp / 2 * Math.PI / 180;
   const th = Math.asin(clamp((ev.clientX - m.left - g.CX) / HF.R, -1, 1));
   const f = N > 1 && half > 0 ? clamp((th + half) / (2 * half) * (N - 1), 0, N - 1) : 0;
@@ -7659,7 +7685,7 @@ hfMatta.addEventListener('pointermove', ev => {
 addEventListener('pointerdown', ev => {
   if (!hf.src || hf.fas === 'gather' || dnd) return;
   const t = ev.target;
-  if (t && t.closest && t.closest('.hkort,[data-grav-open],[data-exil-open],.bib,.kortark,#hintBar')) return;
+  if (t && t.closest && t.closest('.hkort,[data-grav-open],[data-exil-open],.bib,.kortark,#hintBar,.ohogar')) return;
   hfStang();
 }, true);
 addEventListener('resize', () => { if (hf.src) hfLage(true); });
@@ -7671,7 +7697,7 @@ addEventListener('resize', () => { if (hf.src) hfLage(true); });
    lägger tillbaka kortet (matDndSlut). Titta, inte röra, på någon annans bord. */
 hfEl.addEventListener('pointerdown', ev => {
   const k = ev.target.closest('.hkort');
-  if (!k || ev.button !== 0 || !hfOppen()) return;
+  if (!k || ev.button !== 0 || !hfOppen() || hf.pid) return;     // hens kort: bara titta
   ev.preventDefault();
   const it = hf.items.find(x => x.key === k.dataset.k); if (!it) return;
   hf.drag = { it, x0: ev.clientX, y0: ev.clientY, pointerId: ev.pointerId };
@@ -7708,13 +7734,14 @@ function hfHint() {
   const pa = hfOppen();
   let html = '', ingen = false;
   if (pa && !hf.q) {
-    const kalla = hf.src === 'lib' ? 'your hands' : hf.src === ZON_EXIL ? 'exile' : 'the graveyard';
+    const hp = hf.pid ? hfSpelare() : null;
+    const kalla = hf.src === 'lib' ? 'your hands' : hp ? esc(hp.name) + '\'s ' + (hf.src === ZON_EXIL ? 'exile' : 'graveyard') : hf.src === ZON_EXIL ? 'exile' : 'the graveyard';
     html = '<span class="hsok">' + HF_LUPP + '<span>' + (hfNamnge && hf.src === 'lib' ? 'Which card is this? Click it in your deck, or type its name' : 'Type a name to find a card in ' + kalla) + '</span></span><span><kbd>Esc</kbd> put down</span>';
   } else if (pa) {
     const L = hfTraffar().length, mi = L ? ((hf.mi % L) + L) % L : 0;
     ingen = !L;
     html = '<span class="hsok">' + HF_LUPP + '<span>Find</span><b class="hq"><span>' + esc(hf.q) + '</span><i class="caret"></i></b><span class="hn">' + (ingen ? 'no card' : (mi + 1) + ' of ' + L) + '</span></span>'
-      + '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (hfNamnge && hf.src === 'lib' ? 'this is the card' : redigerbar() ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>';
+      + '<span><kbd>Tab</kbd> next match</span><span><kbd>Enter</kbd> ' + (hfNamnge && hf.src === 'lib' ? 'this is the card' : redigerbar() && !hf.pid ? 'to the table' : 'look') + '</span><span><kbd>Backspace</kbd> erase</span><span><kbd>Esc</kbd> clear</span>';
   }
   hfHintEl.classList.toggle('sok', pa);
   hfHintEl.classList.toggle('ingen', ingen);
@@ -7755,7 +7782,7 @@ const HF_FLYG_MS = 480;
 function hfEnter() {
   const fok = hf.fok;
   if (hfNamnge && fok && fok.it.post) { hfNamngeMed(fok.it.post); return; }   // arket frågar vilket kort det är
-  if (!fok || !hf.src || !hfOppen() || !redigerbar() || hf.flyg) return;
+  if (!fok || !hf.src || !hfOppen() || !redigerbar() || hf.flyg || hf.pid) return;
   const it = fok.it, h = hand(), m = hfMatta.getBoundingClientRect();
   const fran = { x: m.left + fok.cx, y: m.top + fok.cy, w: HF.CW * fok.sc, th: fok.th };
   let e = null;
@@ -8210,11 +8237,12 @@ function pekIndex() {
   return under ? hand().findIndex(c => c.cid === matHover) : -1;
 }
 /* I fokusvyn är det kortet som visas; annars kortet under pekaren. */
-function tangentKort() { return focusOpen ? (selCard() ? state.sel : -1) : pekIndex(); }
+function tangentKort() { return focusOpen ? (!fokusOpp && selCard() ? state.sel : -1) : pekIndex(); }
 function inspektorKort() {
   /* Kortet som är lyft i solfjädern (MES-145). */
   if (hf.fok && hf.src && hf.fas !== 'gather') {
     const it = hf.fok.it;
+    if (it.e && hf.pid) { const hp = hfSpelare(); return { e: it.e, label: `From ${hp.name}'s ${hf.src === ZON_EXIL ? 'exile' : 'graveyard'}`, col: hp.color }; }
     if (it.e) return { e: it.e, label: hf.src === ZON_EXIL ? 'From exile' : 'From the graveyard' };
     return { e: { cid: 'hf', name: it.name, sid: it.sid, flipped: 0, cts: [] }, label: 'In your deck' };
   }
@@ -8991,12 +9019,16 @@ function faceInfoHtml(card, f, fi) {
 }
 /* ─── fokusläge ─── */
 let focusOpen = false;
+/* Fokusvyn på en motståndares kort (bordsvyn): { pid, i } i hens lista. */
+let fokusOpp = null;
 function renderFocus() {
   if (!focusOpen) return;
-  const e = selCard(), p = player(), n = hand().length;
+  const fp = fokusOpp && state.players.find(q => q.id === fokusOpp.pid);
+  const p = fp || player(), lista = fp ? fp.cards : hand(), sel = fp ? Math.min(fokusOpp.i, lista.length - 1) : state.sel;
+  const e = lista[sel] || null, n = lista.length;
   const card = cardOf(e);
   $('#fxWho').innerHTML = `<span class="dot" style="background:${esc(p.color)}"></span><span>${esc(p.name)}</span>`;
-  $('#fxPos').textContent = n ? `${state.sel + 1} / ${n}` : '';
+  $('#fxPos').textContent = n ? `${sel + 1} / ${n}` : '';
   const many = card && card.faces.length > 1 && card.faces[1].img;
   const fi = e && e.flipped && many ? 1 : 0;
   const img = $('#fxImg');
@@ -9008,12 +9040,12 @@ function renderFocus() {
   else { img.removeAttribute('src'); img.hidden = true; }
   $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
     : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Your hand is empty'}</div>`;
-  $('#fxStrip').innerHTML = hand().map((x, i) => {
+  $('#fxStrip').innerHTML = lista.map((x, i) => {
     const c = cardOf(x);
     const dfc2 = arDfc(c);
     const f2 = x.flipped && dfc2 ? 1 : 0;
     const s2 = x.flipped && !dfc2 ? BAKSIDA : (c ? imgOf(c, f2, 'small') : '');
-    return `<button class="${i === state.sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : x.name)}">
+    return `<button class="${i === sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : x.name)}">
       ${s2 ? `<img src="${esc(s2)}" alt="">` : ''}</button>`;
   }).join('');
   const on = $('#fxStrip .on');
@@ -11024,21 +11056,27 @@ $$('.ov').forEach(ov => ov.addEventListener('mousedown', ev => {
 }));
 
 function openFocus() {
-  if (!hand().length) { toast('Your hand is empty'); return; }
+  if (!fokusOpp && !hand().length) { toast('Your hand is empty'); return; }
   focusOpen = true; openOv('focusOv'); renderFocus();
 }
-function closeFocus() { focusOpen = false; closeOv('focusOv'); }
+function closeFocus() { focusOpen = false; fokusOpp = null; closeOv('focusOv'); }
 $('#fxPrev').onclick = () => step(-1);
 $('#fxNext').onclick = () => step(1);
 $('#fxStrip').addEventListener('click', ev => {
   const b = ev.target.closest('button[data-i]');
+  if (b && fokusOpp) { fokusOpp.i = +b.dataset.i; renderFocus(); return; }
   if (b) { state.sel = +b.dataset.i; sparaUi(); renderFocus(); renderSel(); renderInspektor(); }
 });
-$('#fxImg').addEventListener('click', () => { if (redigerbar()) flipSel(); });
+$('#fxImg').addEventListener('click', () => { if (!fokusOpp && redigerbar()) flipSel(); });
 
 /* Piltangenterna bläddrar i fokusvyn, i listordning. På mattan gör de
    ingenting: det finns inget valt kort att flytta (MES-118). */
 function step(d) {
+  if (focusOpen && fokusOpp) {
+    const fp = state.players.find(q => q.id === fokusOpp.pid);
+    if (fp && fp.cards.length) { fokusOpp.i = clamp(fokusOpp.i + d, 0, fp.cards.length - 1); renderFocus(); }
+    return;
+  }
   const n = hand().length;
   if (!n || !focusOpen) return;
   state.sel = clamp(state.sel + d, 0, n - 1);
@@ -13030,7 +13068,13 @@ addEventListener('keydown', ev => {
    senast pekade på. */
 function vaxlaFokus() {
   if (focusOpen) { closeFocus(); return; }
-  if (oppHover) return;                  // en motståndares kort: fokusvyn visar bara mina än
+  /* En motståndares kort (bordsvyn): fokusvyn bläddrar i hens kort. */
+  if (oppHover) {
+    const p = state.players.find(q => q.id === oppHover.pid), i = p ? p.cards.findIndex(c => c.cid === oppHover.cid) : -1;
+    if (i >= 0) { fokusOpp = { pid: p.id, i }; openFocus(); }
+    return;
+  }
+  fokusOpp = null;
 
   const i = pekIndex(); if (i >= 0) state.sel = i;
   openFocus();
