@@ -14314,16 +14314,38 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
   /* ── flera kort (H4): en åtgärd är ett ångra och en sparning ── */
   function valdaKort() { return nu().kort.filter(k => y.valda.has(nyckel(k.name, k.sb))); }
-  function valjKort(pw, shift) {
-    const key = nyckel(pw.dataset.lsKort, pw.dataset.sb === '1');
-    if (shift) {
-      /* Shift tar hela raden (sektionen): är alla redan markerade släpps de. */
-      const sek = pw.closest('.lssek');
-      const alla = [...(sek ? sek.querySelectorAll('.lspw') : [pw])].map(e => nyckel(e.dataset.lsKort, e.dataset.sb === '1'));
-      const pa = !alla.every(x => y.valda.has(x));
-      alla.forEach(x => pa ? y.valda.add(x) : y.valda.delete(x));
-    } else if (y.valda.has(key)) y.valda.delete(key);
-    else y.valda.add(key);
+  /* Markeringen fungerar som i Finder (MES-185, Jesper 2026-09-16):
+     - klick markerar bara det kortet,
+     - ⌘-klick (Ctrl-klick) lägger till eller tar bort det,
+     - shift-klick markerar alla kort mellan förra klicket (ankaret) och det
+       här, i den ordning korten står på sidan, utöver det som var markerat
+       när ankaret sattes,
+     - klick på en tom yta släpper allt, ⌘A markerar allt. */
+  let valAnkare = null, valBas = new Set();
+  const kortOrdning = () => [...yta.querySelectorAll('.lspw')].map(e => nyckel(e.dataset.lsKort, e.dataset.sb === '1'));
+  function valjKort(pw, { shift = false, cmd = false } = {}) {
+    const key = nyckel(pw.dataset.lsKort, pw.dataset.sb === '1'), ordning = kortOrdning();
+    const a = valAnkare ? ordning.indexOf(valAnkare) : -1;
+    if (shift && a >= 0) {
+      const b = ordning.indexOf(key);
+      y.valda = new Set([...valBas, ...ordning.slice(Math.min(a, b), Math.max(a, b) + 1)]);
+    } else {
+      if (cmd) { if (!y.valda.delete(key)) y.valda.add(key); }
+      else y.valda = new Set([key]);
+      valAnkare = key;
+      valBas = new Set(y.valda); valBas.delete(key);
+    }
+    doljForstoring(); doljSnack();
+    ritaYta();
+  }
+  function slappMarkering() {
+    if (!y.valda.size) return;
+    y.valda.clear(); valAnkare = null; valBas = new Set();
+    ritaYta();
+  }
+  function markeraAlla() {
+    const alla = kortOrdning(); if (!alla.length) return;
+    y.valda = new Set(alla); valAnkare = alla[0]; valBas = new Set();
     doljForstoring(); doljSnack();
     ritaYta();
   }
@@ -14500,7 +14522,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (ev.key !== 'Escape' || !yta.isConnected || !yta.getClientRects().length) return;
     if (y.pop) { ev.preventDefault(); stangPop(); return; }
     if (isTyping(ev.target) || !y.valda.size) return;
-    ev.preventDefault(); y.valda.clear(); ritaYta();
+    ev.preventDefault(); slappMarkering();
   });
   /* Basländernas sid slås upp först när stegaren trycks — de flesta lekar
      har bara ett par av de fem. */
@@ -14889,7 +14911,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const bl = ev.target.closest('[data-ls-bl]'); if (bl) { stegaBasland(bl.dataset.lsBl, +bl.dataset.d); return; }
     const lv = ev.target.closest('[data-lv]'); if (lv) { valdaAtgard(lv.dataset.lv, lv); return; }
     const a = ev.target.closest('[data-lk]'), tc = ev.target.closest('[data-tc]'), pw = ev.target.closest('[data-ls-kort]');
-    if (!pw) return;
+    /* Ett klick bredvid korten (inte på ett kort, en knapp eller ett fält)
+       släpper markeringen. */
+    if (!pw) { if (!ev.target.closest('.lsselbar, .lstc, .lsblk, button, input, a')) slappMarkering(); return; }
     const name = pw.dataset.lsKort, sb = pw.dataset.sb === '1';
     if (a) { kortAtgard(name, sb, a.dataset.lk, pw.querySelector('.lspile')); return; }
     if (tc) {
@@ -14902,14 +14926,29 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       return;
     }
     if (ev.target.closest('[data-ls-chk]')) { oppnaKoll(name, sb, pw.querySelector('.lspile')); return; }
-    if (ev.target.closest('.lspile') && !ev.target.closest('.lstool')) valjKort(pw, ev.shiftKey);
+    if (pw.classList.contains('lspw') && !ev.target.closest('.lstool')) valjKort(pw, { shift: ev.shiftKey, cmd: ev.metaKey || ev.ctrlKey });
   });
   /* Shift-klick ska inte markera text på sidan. */
-  yta.addEventListener('mousedown', ev => { if (ev.shiftKey && ev.target.closest('.lspile')) ev.preventDefault(); });
+  yta.addEventListener('mousedown', ev => { if ((ev.shiftKey || ev.metaKey || ev.ctrlKey) && ev.target.closest('.lspw')) ev.preventDefault(); });
   yta.addEventListener('keydown', ev => {
     if ((ev.key !== 'Enter' && ev.key !== ' ') || !ev.target.classList.contains('lspile')) return;
     ev.preventDefault();
-    valjKort(ev.target.closest('.lspw'), ev.shiftKey);
+    /* Tangentbordet lägger till och tar bort, som ⌘-klick. */
+    valjKort(ev.target.closest('.lspw'), { shift: ev.shiftKey, cmd: true });
+  });
+  /* ⌘A och Backspace gäller korten när man senast klickade bland dem (eller
+     har fokus där) — inte i panelen, namnet eller ett fält. */
+  let ytaAktiv = false;
+  addEventListener('pointerdown', ev => {
+    const vag = ev.composedPath();
+    ytaAktiv = vag.includes(yta) || (ytaAktiv && ((popEl && vag.includes(popEl)) || (snackEl && vag.includes(snackEl))));
+  }, true);
+  addEventListener('keydown', ev => {
+    if (!yta.isConnected || !yta.getClientRects().length || y.pop || isTyping(ev.target) || $('.ov.open')) return;
+    if (!ytaAktiv && !yta.contains(document.activeElement)) return;
+    const k = (ev.key || '').toLowerCase();
+    if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && !ev.shiftKey && k === 'a') { ev.preventDefault(); markeraAlla(); }
+    else if ((k === 'backspace' || k === 'delete') && !ev.metaKey && !ev.ctrlKey && y.valda.size) { ev.preventDefault(); valdaAtgard('bort'); }
   });
   yta.addEventListener('scroll', () => placeraPop(), { passive: true });
 
