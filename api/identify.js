@@ -40,9 +40,14 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
    så en enskild sämre gissning stoppas där — det behövdes: den snabbare
    modellen läste commanderns namn ur överlägget på ett utbränt kort. */
 const MODEL_KORT  = process.env.ANTHROPIC_MODEL_CARD || 'claude-sonnet-5';
-/* Kameraläget: samma tunga modell som rutläget tills vidare, men med egen
-   miljövariabel så att den går att byta för sig — mätningen i kameraläget
-   nedan talar för den snabbare på beskärningarna. */
+/* Kameraläget: samma tunga modell som rutläget, med egen miljövariabel så
+   att den går att byta för sig. Beslut 2026-09-16 (MES-181): Opus 5 behålls.
+   Golden med Claude, alla 12 fall, två körningar per modell: Opus 57/57 namn
+   och 0 fel båda gångerna; Sonnet 5 54/57 båda gångerna och ett säkert fel
+   namn i den ena, trots att den läste hela bordet 1–7 s snabbare. Mätningen
+   på beskärningarna nedan (2026-09-10) talade för Sonnet; den på hela
+   kedjan gjorde det inte. Sätt ANTHROPIC_MODEL_KAMERA bara efter en ny
+   sådan mätning. */
 const MODEL_KAMERA = process.env.ANTHROPIC_MODEL_KAMERA || MODEL;
 /* Höjs när promterna eller lägena ändras. Utan den gick det inte att skilja
    "modellen svarade så här" från "deployen hade inte hunnit ut" — det kostade

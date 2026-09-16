@@ -87,6 +87,25 @@ Provat med nyckeln i `.env.local` 2026-09-10. En hel körning kostar ungefär
 i proportion till priset: Opus 10–20 cent, Sonnet under hälften, Fable det
 dubbla.
 
+**Beslut 2026-09-16: kameran kör Opus 5.** Mätt på alla 12 fall, två körningar
+per modell på samma kod (MES-180):
+
+| | Opus 5 | Sonnet 5 |
+|---|---|---|
+| Rätt namn | 57/57 båda gångerna | 54/57 båda gångerna |
+| Fel namn | 0 | 0 respektive **1** (fall 10: ett kort som inte finns i partiet) |
+| Falska | 1 | 2 |
+| Helbilden (hela bordet läses) | 4,6–11,1 s | 3,2–4,3 s |
+
+Sonnet tappade namn på korten som ligger omlott (03–06); videofallen var lika.
+Svarar inte Claude — slut på krediter, fel nyckel — skriver `kor.cjs`
+`VARNING: N anrop till Claude misslyckades` med Anthropics felmeddelande,
+vägrar `--spara` och slutar med felkod 1. Utan den varningen ser en körning
+med `--ai` ut som vanligt men mäter bara den lokala kedjan.
+Snabbheten vägde inte upp ett säkert fel namn. Närbildsläget (`card`, ett
+uppförstorat kort) kör fortfarande Sonnet 5 — det är ett annat läge med två
+oberoende inramningar som måste vara överens (beslut 2026-09-04).
+
 1. **Gör dagens modell och systemprompt till referens:**
    `node dev/golden/kor.cjs --ai --spara`
    Avviker ett fall mot vad du väntat dig, kör om just det innan du går
@@ -101,7 +120,10 @@ dubbla.
 4. **Byta modell i appen på riktigt** görs i Vercel: projektet *magic* →
    Settings → Environment Variables → lägg till `ANTHROPIC_MODEL_KAMERA` (till
    exempel `claude-sonnet-5`) för Production, och gör en ny deploy — variabeln
-   läses först då. I dag är den inte satt, så koden väljer `claude-opus-5`.
+   läses först då. I dag är den inte satt, så koden väljer `claude-opus-5`
+   (beslutet ovan). Kontrollera vad produktionen kör med
+   `curl -s https://magic-mauve-xi.vercel.app/api/identify` — fältet
+   `modeller.kamera`.
    Spara därefter en ny baslinje med den modellen.
 
 En ändring i systemprompten provas på samma sätt: kör steg 1 före ändringen och

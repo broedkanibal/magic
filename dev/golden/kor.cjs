@@ -97,7 +97,19 @@ function skrivTabell(rs, gamla) {
 (async () => {
   if (!fs.existsSync(CHROME)) { console.error('Hittar inte Chrome på ' + CHROME + ' — sätt CHROME=/sökväg/till/Chrome'); process.exit(2); }
   /* 1. attrappen, på en egen port så att en flik som redan kör inte störs */
-  const server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }, AIFLAG ? { MESA_AI: '1' } : {}), stdio: 'ignore' });
+  const server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }, AIFLAG ? { MESA_AI: '1' } : {}), stdio: ['ignore', 'pipe', 'pipe'] });
+  /* Attrappens utskrift läses (MES-181): ett anrop som Anthropic avvisar —
+     slut på krediter, fel nyckel, överbelastning — loggas där som
+     "identify/kamera: 400 …", och sidan faller då tyst tillbaka på den lokala
+     kedjan. 2026-09-16 sparades så en "AI-baslinje" på 31/57 som var den
+     lokala kedjan rakt av. Felen räknas och sägs sist, och --spara vägras. */
+  const aiFel = { n: 0, forsta: '' };
+  let serverRest = '';
+  const lasServer = d => {
+    serverRest += d; const rader = serverRest.split('\n'); serverRest = rader.pop();
+    for (const r of rader) { const m = r.match(/^identify\/\w+: ([45]\d\d)\b(.*)$/); if (m) { aiFel.n++; if (!aiFel.forsta) aiFel.forsta = (m[1] + m[2]).slice(0, 240); } }
+  };
+  server.stdout.on('data', lasServer); server.stderr.on('data', lasServer);
   await tills(() => fetch(`http://localhost:${PORT}/dev/golden/kor.html`).then(r => r.ok), 10000, 'attrappen');
   /* 2. Chrome, huvudlös, med egen profil som får ligga kvar */
   const profil = path.join(os.tmpdir(), 'mesa-golden-profil');
@@ -252,7 +264,9 @@ function skrivTabell(rs, gamla) {
   /* --spara med --fall byter bara de körda fallen i baslinjen; övriga står kvar
      ur filen. Förut skrev "--fall 07 --spara" en baslinje med enbart fall 07,
      och alla andra fall slutade jämföras — just när ett nytt fall lagts till. */
-  if (SPARA && !REFFLAG) {
+  if (aiFel.n) console.log(`\nVARNING: ${aiFel.n} anrop till Claude misslyckades — resultatet ovan är i praktiken den lokala kedjan. Första felet: ${aiFel.forsta}`);
+  if (SPARA && aiFel.n) { console.log(`\n--spara vägrat: ${BASFIL} skrivs inte när anrop till Claude misslyckats.`); process.exitCode = 1; }
+  else if (SPARA && !REFFLAG) {
     let rader = JSON.parse(json);
     if (FALL) {
       let gamla = []; try { gamla = JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')); } catch (e) {}
@@ -265,5 +279,5 @@ function skrivTabell(rs, gamla) {
   else if (REFFLAG) console.log('\n(--spara gäller inte med --ref: baslinjen mäter kameran utan lärda referenser)');
   else console.log('\n(--spara skriver ' + BASFIL + ')');
   ws.close(); chrome.kill(); server.kill();
-  process.exit(samre.length ? 1 : 0);
+  process.exit(samre.length || aiFel.n ? 1 : 0);
 })().catch(e => { console.error('\nkor.cjs: ' + (e && e.message || e)); process.exit(2); });
