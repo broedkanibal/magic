@@ -133,6 +133,57 @@ prov('sid-mängden ändras bara när ett kort kommer till eller försvinner', ()
   assert.notEqual(lekSlagSids(lekSlagTillampa(start, [lagg(K('Boros Charm', 'c1'), 1)]).kort), fore);
 });
 
+/* MES-169: byt kort och To check. */
+const charm = K('Boros Charm', 'c1');
+prov('byt: kortet får nytt namn, sid och bild, antalet följer med', () => {
+  const r = lekSlagTillampa(start, [{ typ: 'byt', name: 'Lightning Helix', sb: false, kort: charm }]);
+  assert.deepEqual(lista(r), ['16 Mountain', '2 Boros Charm', '4 Lightning Bolt']);
+  const c = r.kort.find(k => k.name === 'Boros Charm');
+  assert.equal(c.sid, 'c1'); assert.equal(c.small, 'https://img/c1.jpg');
+});
+prov('byt: finns det nya kortet redan på samma sida slås raderna ihop', () => {
+  const r = lekSlagTillampa(start, [{ typ: 'byt', name: 'Lightning Helix', sb: false, kort: bolt }]);
+  assert.deepEqual(lista(r), ['16 Mountain', '6 Lightning Bolt']);
+});
+prov('byt: samma namn på andra sidan slås inte ihop', () => {
+  const bas = { kort: [{ ...helix, n: 2 }, { ...bolt, n: 1, sb: 1 }] };
+  const r = lekSlagTillampa(bas, [{ typ: 'byt', name: 'Lightning Helix', sb: false, kort: bolt }]);
+  assert.deepEqual(lista(r), ['1 Lightning Bolt (sb)', '2 Lightning Bolt']);
+});
+prov('byt: osäkerheten försvinner med bytet; en annan tryckning av samma kort byter sid', () => {
+  const bas = { kort: [{ ...helix, n: 4, koll: { las: 'Lightnig Helix', kalla: 'Pasted list' } }] };
+  const r = lekSlagTillampa(bas, [{ typ: 'byt', name: 'Lightning Helix', sb: false, kort: K('Lightning Helix', 'h2') }]);
+  assert.equal(r.kort[0].sid, 'h2'); assert.equal(r.kort[0].n, 4); assert.equal(r.kort[0].koll, undefined);
+});
+prov('byt: ett kort som inte (längre) finns gör ingenting', () => {
+  const r = lekSlagTillampa(start, [{ typ: 'byt', name: 'Serra Angel', sb: false, kort: charm }]);
+  assert.deepEqual(lista(r), lista(start));
+});
+prov('konflikt: B lade till ett exemplar av kortet som A bytte — det följer med bytet', () => {
+  const b = lekSlagTillampa(start, [lagg(helix, 1)]);
+  const a = lekSlagTillampa(b, [{ typ: 'byt', name: 'Lightning Helix', sb: false, kort: charm }]);
+  assert.deepEqual(lista(a), ['16 Mountain', '3 Boros Charm', '4 Lightning Bolt']);
+});
+const osaker = { las: 'Lightnig Helix', kalla: 'Pasted list' };
+prov('koll: ett nytt kort bär sin osäkerhet in i raden, ett befintligt får ingen', () => {
+  const r = lekSlagTillampa(start, [lagg({ ...helix, koll: osaker }, 2), lagg({ ...charm, koll: osaker }, 1)]);
+  assert.equal(r.kort.find(k => k.name === 'Lightning Helix').koll, undefined);
+  assert.deepEqual(r.kort.find(k => k.name === 'Boros Charm').koll, osaker);
+});
+prov('koll: sätts och tas bort; sparas i raden och överlever en ny uppspelning', () => {
+  const r = lekSlagTillampa(start, [{ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: osaker }]);
+  assert.deepEqual(r.kort.find(k => k.name === 'Lightning Bolt').koll, osaker);
+  const t = lekSlagTillampa(JSON.parse(JSON.stringify(r)), []);
+  assert.deepEqual(t.kort.find(k => k.name === 'Lightning Bolt').koll, osaker);
+  const u = lekSlagTillampa(t, [{ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: null }]);
+  assert.equal('koll' in u.kort.find(k => k.name === 'Lightning Bolt'), false);
+});
+prov('koll: flytt till sideboard behåller osäkerheten, också när raderna slås ihop', () => {
+  const bas = { kort: [{ ...bolt, n: 3, koll: osaker }, { ...bolt, n: 1, sb: 1 }] };
+  const r = lekSlagTillampa(bas, [{ typ: 'sb', name: 'Lightning Bolt', sb: false, till: true }]);
+  assert.deepEqual(r.kort[0].koll, osaker); assert.equal(r.kort[0].n, 4);
+});
+
 for (const r of [...ok, ...fel]) console.log(r);
 console.log(`\nlekslag: ${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

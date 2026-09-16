@@ -11798,7 +11798,10 @@ async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id)
    Lekens sida sparar av sig själv (MES-168). Det som ändrats sedan den
    senast sparade raden ligger som en kö av ÄNDRINGAR, inte som en färdig
    lista: {typ:'antal', name, sb, d, kort?}, {typ:'bort', name, sb},
-   {typ:'sb', name, sb, till}, {typ:'namn', namn}. Det som visas är raden
+   {typ:'sb', name, sb, till}, {typ:'namn', namn}, {typ:'byt', name, sb,
+   kort} (MES-169: kortet byts mot ett annat, antalet följer med) och
+   {typ:'koll', name, sb, koll} (To check sätts eller, med null, tas bort).
+   Det som visas är raden
    med kön uppspelad. Hann en annan enhet (flik, telefon) spara under
    tiden läses dess rad in och samma kö spelas upp på den — båda enheternas
    ändringar finns kvar, och ingen behöver fråga vem som vinner.
@@ -11818,15 +11821,19 @@ function lekSlagTillampa(bas, ops) {
   const rad = (mall, n, sb) => {
     const k = { name: mall.name, sid: mall.sid, small: mall.small || null, n };
     if (mall.ci) k.ci = mall.ci;
+    if (mall.koll) k.koll = mall.koll;
     if (sb) k.sb = 1;
     return k;
   };
+  /* Två rader blir en: antalen läggs ihop, och en osäkerhet (To check) på
+     någon av dem står kvar. */
+  const slaIhop = (till, fran) => { till.n += fran.n; if (!till.koll && fran.koll) till.koll = fran.koll; };
   /* Raden som den ligger kan bära dubbletter (en äldre sparning); de slås
      ihop här, så att varje ändring bara har en rad att träffa. */
   for (const k of (bas && Array.isArray(bas.kort)) ? bas.kort : []) {
     if (!k || !k.name) continue;
     const n = Number(k.n) || 1, i = hitta(k.name, k.sb);
-    if (i >= 0) kort[i].n += n; else kort.push(rad(k, n, k.sb));
+    if (i >= 0) slaIhop(kort[i], { n, koll: k.koll }); else kort.push(rad(k, n, k.sb));
   }
   for (const op of ops || []) {
     if (!op) continue;
@@ -11844,8 +11851,22 @@ function lekSlagTillampa(bas, ops) {
       if (i < 0 || !!op.till === !!op.sb) continue;
       const [flytt] = kort.splice(i, 1);
       const j = hitta(op.name, op.till);
-      if (j >= 0) kort[j].n += flytt.n;
+      if (j >= 0) slaIhop(kort[j], flytt);
       else { if (op.till) flytt.sb = 1; else delete flytt.sb; kort.push(flytt); }
+    } else if (op.typ === 'byt') {
+      /* Kortet heter något annat (Mesa läste fel, eller en annan tryckning).
+         Det som ligger i raden NU byts, så att en annan enhets tillägg på
+         det gamla kortet följer med. Finns det nya kortet redan på samma
+         sida slås raderna ihop. Kortet man valt är inte längre osäkert —
+         utom när bytet självt bär en osäkerhet (ett ångrat byte). */
+      if (i < 0 || !op.kort || !op.kort.sid) continue;
+      const j = hitta(op.kort.name, op.sb);
+      if (j >= 0 && j !== i) { kort[j].n += kort[i].n; kort.splice(i, 1); continue; }
+      const n = kort[i].n;
+      kort[i] = rad(op.kort, n, op.sb);
+    } else if (op.typ === 'koll') {
+      if (i < 0) continue;
+      if (op.koll) kort[i].koll = op.koll; else delete kort[i].koll;
     }
   }
   return { namn, kort };
