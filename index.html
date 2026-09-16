@@ -13789,7 +13789,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     await stang();
     const s = ++y.session;
     Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
-                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [] });
+                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false });
     if (!id) {
       y.nyNamn = o.namn || 'New deck'; y.flik = null; y.namnRedigeras = true; y.laddar = false;
       rita();
@@ -13817,7 +13817,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
   /* Sparar det som väntar innan leken lämnas. Går det inte nu tar
      bakgrunden över kön, så att nästa lek kan öppnas direkt. */
-  async function stang() {
+  /* En stängning i taget: sidan som stängs och nästa lek som öppnas väntar
+     på samma sparning och samma städning. */
+  function stang() {
+    if (!y.stangP) y.stangP = stangNu().finally(() => { y.stangP = null; });
+    return y.stangP;
+  }
+  async function stangNu() {
     sluta();
     doljForstoring();
     if (y.namnRedigeras) namnKlar(true);
@@ -13829,6 +13835,14 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     while (y.flygP) await y.flygP;
     clearTimeout(y.sparT); y.sparT = null;
     if (y.ops.length && y.bas && y.spar !== 'borta') lekSparaIBakgrunden(y.bas.id, y.bas, y.ops.slice());
+    /* En lek utan kort ska inte ligga kvar i Your decks (MES-177): lämnas
+       den tom tas den bort. Ett ⌘Z hinner man bara göra medan sidan är
+       öppen. Utom när telefonen fått leken i Phone-fliken: då kan korten
+       vara på väg därifrån. */
+    else if (y.bas && y.spar !== 'borta' && !y.telVisad && !lekSlagTillampa(y.bas, []).kort.length) {
+      const id = y.bas.id;
+      if (await lekRadera(id).catch(() => false)) { lekEfterRadering(id); y.bas = null; y.spar = 'borta'; }
+    }
     y.ops = [];
   }
 
@@ -13906,6 +13920,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       if (!y.bas) { el.innerHTML = '<p class="lslead lsfel">The deck could not be created. Check your network and try again.</p>'; return; }
     }
     const url = lekQrUrl(y.bas.id);
+    y.telVisad = true;
     el.innerHTML = '<p class="lslead">Scan the code with your phone. It opens this deck there: photograph your cards about 30 at a time, and they show up here once the phone has saved them.</p>'
       + '<div class="lsqr"></div>'
       + `<div class="lsrad"><span class="lslank">${esc(url)}</span><button type="button" class="btn sm" data-ls="kopiera">${lsIk('copy', 13)}<span>Copy link</span></button></div>`;
@@ -14375,11 +14390,13 @@ async function oppnaLeksida(id, o = {}) {
   if (!id && !namn) { try { namn = lekNyttNamnAv(await lekHamtaLista()); } catch (e) { namn = 'New deck'; } }
   await leksida.yta.oppna(id || null, { namn });
 }
-function stangLeksida() {
+async function stangLeksida() {
   if (!leksidaOppen()) return;
   $('#vyLeksida').hidden = true;
   lsMenyerStang();
-  if (leksida.yta) leksida.yta.stang();
+  /* Home läses först när sparningen (och en tom leks borttagning) är klar:
+     annars visade listan leken som den var innan man gick tillbaka. */
+  if (leksida.yta) await leksida.yta.stang();
   if (leksida.fran === 'hem') { if (!$('#vyHem').hidden || $('#app').style.display === 'none') visaHem(); }
   else { oppLekar = null; if (spelLage) renderMode(); }
 }
@@ -22902,7 +22919,7 @@ const hemLekRad = r => ({ id: r.id, namn: r.namn, farger: r.farger || [], antal:
   sb: lekSlagSummor(r.kort).sb, omslag: lekOmslag(r.kort) });
 async function hemHamtaLekar() {
   lekLokal.migrera();
-  if (!Moln.inloggad()) return lekLokal.lista().map(hemLekRad);
+  if (!Moln.inloggad()) return hemUtanTomma(lekLokal.lista());
   let l = await Moln.hamtaLekar({ medKort: true });
   /* Kontot har inga lekar men en lek från före lekarna (profiles): den sås
      in som "My deck", som dialogen gjorde, så att ingen lek går förlorad. */
@@ -22913,7 +22930,19 @@ async function hemHamtaLekar() {
       l = await Moln.hamtaLekar({ medKort: true });
     }
   }
-  return l.map(hemLekRad);
+  return hemUtanTomma(l);
+}
+/* Tomma lekar (MES-177) — från före den regeln, eller från en Phone-flik
+   där inga kort kom — städas bort när de legat tomma i tio minuter. Yngre
+   än så kan telefonen fortfarande vara på väg att fylla dem, och de visas
+   inte i listan. */
+function hemUtanTomma(rader) {
+  const ut = [];
+  for (const r of rader || []) {
+    if ((r.kort || []).length) { ut.push(hemLekRad(r)); continue; }
+    if (Date.now() - (r.ts || 0) > 10 * 60e3) lekRadera(r.id).then(ok => { if (ok) lekEfterRadering(r.id); }).catch(() => {});
+  }
+  return ut;
 }
 function hemDagar(iso) {
   const t = Date.parse(iso || ''); if (!t) return '';
