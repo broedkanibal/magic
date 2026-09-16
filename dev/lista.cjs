@@ -8,7 +8,7 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('const LEK_RUBRIKER = {'), b = src.indexOf('/* ══ BLOCK: DECKS');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte parsern i index.html'); process.exit(2); }
 const kod = src.slice(a, b);
-const { parseDecklist, parseList, lekKanVaraNamn } = new Function('clamp', kod + '\nreturn { parseDecklist, parseList, lekKanVaraNamn };')((v, lo, hi) => v < lo ? lo : v > hi ? hi : v);
+const { parseDecklist, parseList, lekKanVaraNamn, lekNamnSkiljer, lekSkillnad } = new Function('clamp', kod + '\nreturn { parseDecklist, parseList, lekKanVaraNamn, lekNamnSkiljer, lekSkillnad };')((v, lo, hi) => v < lo ? lo : v > hi ? hi : v);
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -137,6 +137,32 @@ prov('MES-175: riktiga namn med skiljetecken går igenom — utan och med antal'
   assert.deepEqual(kort(l, false), ['1 Lightning Bolt', '1 Sol Ring', '1 Kongming, "Sleeping Dragon"']);
   assert.equal(l.hoppade, 0);
   assert.ok(!('medAntal' in l[0]), 'hjälpfältet läcker inte ut');
+});
+
+/* MES-183: vilka namn Scryfall rättade, och vad som markeras. */
+prov('samma kort i en annan form är ingen felstavning', () => {
+  const room = "Derelict Attic // Widow's Walk";
+  for (const skrev of ["Derelict Attic/Widow's Walk", "Derelict Attic / Widow's Walk", "Derelict Attic /// Widow's Walk",
+                       "derelict attic // widow’s walk", "Derelict Attic", "Widow's Walk"]) {
+    assert.equal(lekNamnSkiljer(skrev, room), false, skrev);
+  }
+  assert.equal(lekNamnSkiljer('Lim-Dul the Necromancer', 'Lim-Dûl the Necromancer'), false, 'accent');
+  assert.equal(lekNamnSkiljer("Valgavoth’s Onslaught", "Valgavoth's Onslaught"), false, 'krökt apostrof');
+  assert.equal(lekNamnSkiljer('lightning  bolt', 'Lightning Bolt'), false, 'skiftläge och blanksteg');
+});
+prov('en felstavning skiljer', () => {
+  assert.equal(lekNamnSkiljer('Spiteful Hexmager', 'Spiteful Hexmage'), true);
+  assert.equal(lekNamnSkiljer('Lightnig Helix', 'Lightning Helix'), true);
+  assert.equal(lekNamnSkiljer('Derelict Atic', "Derelict Attic // Widow's Walk"), true, 'felstavad sida');
+  assert.equal(lekNamnSkiljer('Derelict', "Derelict Attic // Widow's Walk"), true, 'bara en del av namnet');
+});
+const markerat = d => d.map(([t, m]) => m ? `[${t}]` : t).join('');
+prov('skillnaden markeras i det skrivna namnet', () => {
+  assert.equal(markerat(lekSkillnad('Spiteful Hexmager', 'Spiteful Hexmage')), 'Spiteful Hexmage[r]');
+  assert.equal(markerat(lekSkillnad('Lightnig Helix', 'Lightning Helix')), 'Lightn[ig] Helix');
+  assert.equal(markerat(lekSkillnad('Goblin Gude', 'Goblin Guide')), 'Goblin G[ud]e');
+  assert.equal(markerat(lekSkillnad('Lightning Bolt', 'Counterspell')), 'Lightning Bolt', 'helt olika: ingen markering');
+  assert.equal(markerat(lekSkillnad('', 'Counterspell')), '');
 });
 
 console.log([...ok, ...fel].join('\n'));

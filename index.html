@@ -11711,6 +11711,33 @@ function lekKanVaraNamn(namn, medAntal) {
   if ((t.match(/\p{L}/gu) || []).length < 2) return false;
   return t.split(' ').filter(w => w !== '//').length <= (medAntal ? 30 : 8);   // Fire // Ice är två ord
 }
+/* Skrev listan ett annat kort än det Scryfall gav? (MES-183) Fuzzy-uppslaget
+   rättar en felstavning tyst, och då ska kortet under To check. Men ett
+   skrivsätt som bara skiljer i formen är inte en felstavning: Room- och
+   splitkort med ett snedstreck (Arena skriver "A/B" eller "A /// B"), en
+   krökt apostrof, en accent som saknas, eller bara ena sidans namn. */
+const lekNamnForm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[’‘`´]/g, "'").toLowerCase().replace(/\s*\/+\s*/g, ' // ').replace(/\s+/g, ' ').trim();
+function lekNamnSkiljer(skrev, kortnamn) {
+  const a = lekNamnForm(skrev), b = lekNamnForm(kortnamn);
+  if (!a || a === b) return false;
+  return !b.split(' // ').includes(a);
+}
+/* Vad i det skrivna namnet skiljer sig från kortets? Gemensam början och
+   slut tas bort, och det som blir kvar markeras: "Spiteful Hexmage[r]".
+   Saknas bokstäver ("Lightnig") markeras tecknen runt hålet. Skiljer nästan
+   allt markeras ingenting — då säger markeringen inget. Ger [[text, markerad]]. */
+function lekSkillnad(skrev, kortnamn) {
+  const a = String(skrev || ''), b = String(kortnamn || ''), lika = (x, y) => x.toLowerCase() === y.toLowerCase();
+  let p = 0;
+  while (p < a.length && p < b.length && lika(a[p], b[p])) p++;
+  let s = 0;
+  while (s < a.length - p && s < b.length - p && lika(a[a.length - 1 - s], b[b.length - 1 - s])) s++;
+  let fran = p, till = a.length - s;
+  if (fran >= till) { fran = Math.max(0, p - 1); till = Math.min(a.length, a.length - s + 1); }
+  if (!a || fran >= till || till - fran > a.length * 0.6) return [[a, false]];
+  return [[a.slice(0, fran), false], [a.slice(fran, till), true], [a.slice(till), false]].filter(d => d[0]);
+}
 function parseDecklist(txt) {
   const rader = String(txt || '').split(/\r?\n/);
   const harRubrik = rader.some(l => lekRubrik(l) !== null);
@@ -14472,7 +14499,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       try {
         const k = await lookup(p.name);
         const kort = { name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), ci: k.ci || [] };
-        if (norm(k.name) !== norm(p.name) && !norm(k.name).startsWith(norm(p.name) + ' //')) kort.koll = { las: lsKort(p.name), kalla: 'Pasted list' };
+        if (lekNamnSkiljer(p.name, k.name)) kort.koll = { las: p.name.slice(0, 150), kalla: 'Pasted list' };
         ops.push({ typ: 'antal', name: k.name, sb: p.sb, d: p.n, kort });
         batch.push({ name: k.name, sb: p.sb, n: p.n });
       } catch (e) { saknas.push(p.name); }
