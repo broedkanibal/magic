@@ -5231,12 +5231,15 @@ const SF = (() => {
      kortuppslagning i fliken. Nu faller den ut som ett nätverksfel, vilket
      koden redan kan hantera. */
   const TIMEOUT = 12000;
-  async function get(path) {
+  async function get(path, body) {
     return enqueue(async () => {
       let r;
       const ac = typeof AbortController === 'function' ? new AbortController() : null;
       const t = ac ? setTimeout(() => ac.abort(), TIMEOUT) : null;
-      try { r = await fetch(BASE + path, { headers: { Accept: 'application/json' }, signal: ac ? ac.signal : undefined }); }
+      const opt = body
+        ? { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        : { headers: { Accept: 'application/json' } };
+      try { r = await fetch(BASE + path, Object.assign(opt, { signal: ac ? ac.signal : undefined })); }
       catch (e) { const err = new Error('offline'); err.offline = true; throw err; }
       finally { if (t) clearTimeout(t); }
       const d = await r.json().catch(() => null);
@@ -5253,6 +5256,8 @@ const SF = (() => {
     fuzzy: q => get('/cards/named?fuzzy=' + encodeURIComponent(q)),
     exact: q => get('/cards/named?exact=' + encodeURIComponent(q)),
     byId: id => get('/cards/' + encodeURIComponent(id)),
+    /* Många kort i ett anrop (högst 75): lekens förslag hämtar sina bilder så. */
+    collection: namn => get('/cards/collection', { identifiers: namn.slice(0, 75).map(name => ({ name })) }),
     raw: path => get(path)
   };
 })();
@@ -14171,6 +14176,30 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const on = ul.querySelector('li.on'); if (on) on.scrollIntoView({ block: 'nearest' });
     };
     const valj = (namn, n) => { stang(); inp.value = ''; laggTill(namn, n); inp.focus(); };
+    /* Autocomplete ger bara namn (MES-178). Korten som inte redan ligger i
+       cachen hämtas i ett anrop och läggs där — bilden i förslaget, och
+       tillägget sedan, behöver då ingen egen uppslagning. Ett namn försöks
+       en gång per sida. */
+    const provade = new Set();
+    async function hamtaBilder(namn, my) {
+      const saknas = namn.filter(n => !cardFor(n) && !provade.has(norm(n)));
+      if (!saknas.length) return;
+      saknas.forEach(n => provade.add(norm(n)));
+      let svar;
+      /* Samlingsuppslaget hittar inte "A // B" på hela namnet, bara på
+         framsidans (Emeritus of Conflict // Lightning Bolt). */
+      try { svar = await SF.collection(saknas.map(n => n.split(' // ')[0])); } catch (e) { return; }
+      for (const raw of (svar && svar.data) || []) {
+        const kort = normalizeCard(raw), key = norm(kort.name);
+        cardCache.set(key, kort);
+        /* Dubbelsidiga kort: autocomplete säger "A // B", kortet heter så
+           också, men framsidans namn ska hitta samma kort. */
+        const fram = norm(kort.name.split(' // ')[0]);
+        if (fram !== key && !aliasMap.has(fram)) aliasMap.set(fram, key);
+      }
+      saveCache();
+      if (my === seq && !ul.hidden) paint();
+    }
     inp.addEventListener('input', () => {
       const q = inp.value.trim();
       clearTimeout(timer);
@@ -14182,6 +14211,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
           if (my !== seq || inp.value.trim() !== q) return;
           items = lista.slice(0, 8); idx = items.length ? 0 : -1;
           paint();
+          hamtaBilder(items, my);
         } catch (e) { /* Enter slår upp namnet ändå */ }
       }, 150);
     });
@@ -14309,11 +14339,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!mal) { doljForstoring(); return; }
     if (mal === forstMal) return;
     forstMal = mal;
-    clearTimeout(forstT);
-    /* Kort väntan första gången, så att en pekare som bara passerar inte
-       blinkar bilder; från kort till kort byts den direkt. */
-    const direkt = forst && !forst.hidden;
-    forstT = setTimeout(() => { forstT = null; if (forstMal === mal) visaForstoring(mal); }, direkt ? 0 : 160);
+    clearTimeout(forstT); forstT = null;
+    /* Direkt, utan väntan (Jesper 2026-09-16). Verktyget placeras i en
+       lyssnare före den här, så bilden hamnar bredvid det. */
+    visaForstoring(mal);
   });
   yta.addEventListener('pointerleave', doljForstoring);
   yta.addEventListener('scroll', doljForstoring, { passive: true });
