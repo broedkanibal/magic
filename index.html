@@ -2670,6 +2670,7 @@ body.ispel #addPlayerBtn{display:none}
 .youhost{height:22px;display:inline-flex;align-items:center;padding:0 8px;border-radius:11px;background:#f0a52a1f;border:1px solid #f0a52a55;color:#ffd98a;font:600 11px var(--sans);white-space:nowrap;flex:none}
 .dots3{display:inline-flex;gap:3px;flex:none}
 .hemtom{margin:0;font:13px/1.6 var(--sans);color:var(--dim)}
+.hemtom .btn{margin-left:8px}
 /* Lekraden: samma på Home, i Pick your deck och för den som joinar. */
 .lrs{display:flex;flex-direction:column;gap:6px}
 .lr{display:flex;align-items:center;gap:12px;min-height:50px;padding:5px 10px 5px 6px;border-radius:10px;border:1px solid var(--line);background:var(--bg3);cursor:pointer;text-align:left}
@@ -5766,10 +5767,18 @@ const Moln = (() => {
   const lekTs = r => r && r.uppdaterad ? Date.parse(r.uppdaterad) : 0;
   /* medKort: Home vill ha omslaget och sideboardens antal, som bara står i
      kortlistan. Utan den är listan lätt nog att fråga var femtonde sekund. */
+  /* En fråga som studsar på 401 (token som gått ut medan fliken sov) görs
+     om en gång med en förnyad session, i stället för att bli ett fel. */
+  async function medFarskToken(s, fraga) {
+    const svar = await fraga();
+    if (!svar.error || svar.status !== 401) return svar;
+    const { error } = await s.auth.refreshSession();
+    return error ? svar : await fraga();
+  }
   async function hamtaLekar(o) {
     const s = await klient(); if (!s || !inloggad()) return [];
-    const { data, error } = await s.from('decks').select('id, namn, farger, antal, uppdaterad' + (o && o.medKort ? ', kort' : ''))
-      .eq('user_id', minId()).order('uppdaterad', { ascending: false });
+    const { data, error } = await medFarskToken(s, () => s.from('decks').select('id, namn, farger, antal, uppdaterad' + (o && o.medKort ? ', kort' : ''))
+      .eq('user_id', minId()).order('uppdaterad', { ascending: false }));
     if (error) throw new Error(error.message || 'The decks could not be fetched');
     return (data || []).map(r => Object.assign({ ts: lekTs(r) }, r));
   }
@@ -23402,7 +23411,7 @@ function rensaInbjudan() {
    ritaHem() är en ren funktion av datan, så att sidan går att prova med
    påhittade spel och lekar: visaVy('hem'); hem.spel = […]; ritaHemNu().
    ═══════════════════════════════════════════════════════════════════ */
-const hem = { spel: null, lekar: null, fel: '' };
+const hem = { spel: null, lekar: null, lekarFel: false, fel: '' };
 /* Omslaget: konsten ur kortet leken har flest av (basländer inte), som
    Scryfalls art_crop — samma adress som den lilla bilden, annan storlek. */
 function lekOmslag(kort) {
@@ -23473,7 +23482,8 @@ function ritaHem(d) {
       + `<button type="button" class="fara" data-hem="radera">${lsIk('trash', 14)}Delete deck…</button></div></div></div>`;
   };
   const spel = d.spel == null ? '<p class="hemtom">Fetching your games…</p>' : d.spel.map(spelRad).join('');
-  const lekar = d.lekar == null ? '<p class="hemtom">Fetching your decks…</p>'
+  const lekar = d.lekarFel ? '<p class="hemtom">Your decks could not be fetched. <button type="button" class="btn" data-hem="lekarigen">Try again</button></p>'
+    : d.lekar == null ? '<p class="hemtom">Fetching your decks…</p>'
     : !d.lekar.length ? '<p class="hemtom">No decks yet. Make one with <b>New deck</b> — the camera recognises your cards against the deck you play with.</p>'
     : `<div class="lrs">${d.lekar.map(lekRad).join('')}</div>`;
   return `<h1>Hi ${esc(d.namn || 'there')}</h1><div class="hcols">`
@@ -23489,7 +23499,7 @@ function ritaHem(d) {
 }
 function ritaHemNu() {
   $('#hemJag').innerHTML = sidaJagHtml();
-  $('#hemInnehall').innerHTML = ritaHem({ namn: Moln.mittNamn(), jag: Moln.minId(), spel: hem.spel, lekar: hem.lekar, fel: hem.fel });
+  $('#hemInnehall').innerHTML = ritaHem({ namn: Moln.mittNamn(), jag: Moln.minId(), spel: hem.spel, lekar: hem.lekar, lekarFel: hem.lekarFel, fel: hem.fel });
 }
 function hemFel(txt) {
   hem.fel = txt || '';
@@ -23501,10 +23511,12 @@ async function visaHem() {
   ritaHemNu();
   const [spel, lekar] = await Promise.all([Moln.minaSpel().catch(() => null), hemHamtaLekar().catch(() => null)]);
   /* En hämtning som föll blir en tom lista, inte ett evigt "Fetching". */
-  hem.spel = spel || []; hem.lekar = lekar || [];
+  /* Lekarna som inte kom visas i sin egen kolumn — aldrig som "No decks yet",
+     och inte under Join, där felen hör till spelen. */
+  hem.spel = spel || []; hem.lekar = lekar || []; hem.lekarFel = !lekar;
   const fel = hem.fel;
   ritaHemNu();
-  hemFel(fel || (lekar ? '' : 'Your decks could not be fetched.'));
+  hemFel(fel);
 }
 async function hemStartaSpel(knapp) {
   hideToast();                              // en gammal notis om t.ex. ett avslutat spel hör inte hemma i det nya
@@ -23566,6 +23578,7 @@ $('#vyHem').addEventListener('click', async ev => {
   lsMenyerStang();
   if (a === 'loggaut') { loggaUtHelt(); return; }
   if (a === 'starta') { hemStartaSpel(b); return; }
+  if (a === 'lekarigen') { visaHem(); return; }
   if (a === 'nylek') { oppnaLeksida(null, { fran: 'hem', namn: lekNyttNamnAv(hem.lekar) }); return; }
   const spel = ev.target.closest('[data-hem-spel]');
   if (spel && a === 'avsluta') {
