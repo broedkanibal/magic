@@ -2725,6 +2725,7 @@ body.ispel #addPlayerBtn{display:none}
 .lsfld input{flex:1;min-width:0;height:100%;background:none;border:0;outline:none;font-size:14px;color:var(--txt)}
 .lsfld input::placeholder{color:var(--dim2)}
 .lssug{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;margin:0;padding:4px;list-style:none;max-height:360px;overflow-y:auto;background:#151b25;border:1px solid var(--panelram);border-radius:var(--r);box-shadow:var(--shadow)}
+.lssug.upp{top:auto;bottom:calc(100% + 4px)}
 .lssug li{display:flex;align-items:center;gap:10px;padding:5px 9px;border-radius:6px;font-size:13.5px;color:var(--dim);cursor:pointer;min-width:0}
 .lssug li.on{background:var(--bg4);color:var(--txt)}
 .lssug .th{flex:none;width:28px;height:39px;border-radius:3px;overflow:hidden;background:#0b1016}
@@ -14354,8 +14355,19 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     let x = r.right + 12, top = r.top;
     if (x + W > innerWidth - 12) x = r.left - 12 - W;
     if (x < 12) { x = clamp(r.right - W, 12, innerWidth - 12 - W); top = r.bottom + 8; }
+    /* Change card…: förslagen hänger under fältet, utanför popoverns egen
+       höjd. Plats för dem räknas in, annars klipptes listan av fönstrets
+       nederkant (Jesper 2026-09-16). */
+    const ul = popEl.querySelector('.lssug'), RESERV = ul ? 250 : 0;
     popEl.style.left = Math.round(x) + 'px';
-    popEl.style.top = Math.round(clamp(top, 12, Math.max(12, innerHeight - 12 - H))) + 'px';
+    popEl.style.top = Math.round(clamp(top, 12, Math.max(12, innerHeight - 12 - H - RESERV))) + 'px';
+    const falt = ul && popEl.querySelector('.lsfld');
+    if (!falt) return;
+    /* Får listan ändå inte plats under (lågt fönster) öppnas den uppåt. */
+    const fr = falt.getBoundingClientRect(), under = innerHeight - fr.bottom - 16, over = fr.top - 16;
+    const upp = under < 160 && over > under;
+    ul.classList.toggle('upp', upp);
+    ul.style.maxHeight = Math.round(Math.max(100, Math.min(360, upp ? over : under))) + 'px';
   }
   function visaPop(html, ankare) {
     if (popSok) { popSok.stang(); popSok = null; }
@@ -14404,7 +14416,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       + `<div class="prow"><span class="grow"></span>${p.av > 1 && p.nr < p.av ? '<button type="button" class="btn sm ghost" data-lp="hoppa">Skip</button>' : ''}<button type="button" class="btn sm ghost" data-lp="avbryt">${p.av > 1 ? 'Stop' : 'Cancel'}</button></div>`,
       ankare || ankareFor(k.name, k.sb));
     const inp = popEl.querySelector('.lssok');
-    popSok = kopplaSok(inp, popEl.querySelector('.lssug'), { valj: namn => bytTill(namn), esc: () => stangPop() });
+    popSok = kopplaSok(inp, popEl.querySelector('.lssug'), { valj: namn => bytTill(namn), esc: () => stangPop(), anpassa: () => placeraPop() });
     /* Kortet Mesa valde, inte felstavningen: förslagen börjar på namnets
        början, så en felstavning gav inga förslag alls. */
     inp.value = k.name;
@@ -14633,7 +14645,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
           + (o.valj ? '' : `<span class="nbtn"><span class="nl">Add</span>${[1, 2, 3, 4].map(k => `<button type="button" tabindex="-1" data-n="${k}">${k}</button>`).join('')}</span>`) + '</li>';
       }).join('') + (items.length && !o.valj ? '<li class="sfot">Click a number to add that many copies. Enter adds one.</li>' : '');
       ul.hidden = !items.length;
-      const on = ul.querySelector('li.on'); if (on) on.scrollIntoView({ block: 'nearest' });
+      /* Rullar bara listan: scrollIntoView rullade också sidan bakom. */
+      const on = ul.querySelector('li.on');
+      if (on) {
+        if (on.offsetTop < ul.scrollTop) ul.scrollTop = on.offsetTop;
+        else if (on.offsetTop + on.offsetHeight > ul.scrollTop + ul.clientHeight) ul.scrollTop = on.offsetTop + on.offsetHeight - ul.clientHeight;
+      }
+      if (o.anpassa) o.anpassa();
     };
     const valj = o.valj ? namn => { stang(); o.valj(namn); } : (namn, n) => { stang(); inp.value = ''; laggTill(namn, n); inp.focus(); };
     /* Autocomplete ger bara namn (MES-178). Korten som inte redan ligger i
