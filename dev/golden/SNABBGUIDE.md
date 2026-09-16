@@ -461,7 +461,10 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
    ett säkert spår med namnet står mer än 15 % av bredden från sitt läge före
    flytten, inom 8 s), och en graveyard-ruta i bildandelar för högen i bild:
    `"grav": { "x": 0, "y": 0.46, "w": 0.175, "h": 0.54 }` (K9-lite; utan rutan
-   blir högens översta kort ett falskt spår med säkert namn).
+   blir högens översta kort ett falskt spår med säkert namn), och på samma sätt
+   `"bib"` för leken (library-rutan, MES-122). Appen har alltid båda rutorna
+   sedan uppstartens steg 4 — ligger leken i bild utan `"bib"` i facit mäter
+   provet leken som ett kort på bordet, vilket appen aldrig gör.
 
    `t` är sekunder in i videon (±0,5 s duger), `takt_ms` hur tätt rutorna matas
    in (150 = appens egen takt), `svans_s` hur många sekunder till kameran får

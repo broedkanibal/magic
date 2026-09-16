@@ -340,6 +340,29 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`OM1 handen över x 0–80 i 3 s: omtag ${omtagHand}, sedan ${s.length} spår, samma id ${s[0] && s[0].id === idOm}, skymt ${s[0] && s[0].skymd}`,
         omtagHand === 0 && s.length === 1 && s[0].id === idOm && !s[0].skymd);
 
+  // ── VX1/VX2: ett namngivet kort vars region växer ihop med något bredvid flyttar inte (MES-179) ──
+  /* Golden 11: Faithful Pikemaster växte ihop med leken bredvid — regionen
+     blev kortet och en flik av leken, lådan 1,3 × kortets höjd, och varje
+     sådan ruta flyttade kortet på datorn. Lådan blev kvar ihopvuxen och höll
+     kortet på bordet när det lagts på högen. Här: kortet 30 × 42, och
+     varannan ruta en flik 8 × 40 kant i kant till höger som går 8 px nedanför
+     (lådan 38 × 50, ytan 1,25 ×). Datorn får kortets låda, inte klumpens. */
+  const FLIK = g => { for (let yy = 60; yy < 100; yy++) for (let xx = 90; xx < 98; xx++) g[yy * W + xx] = 180; };
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(KORT);
+  const idVx = s[0] && s[0].id;
+  let vxStorst = 0;
+  for (let i = 0; i < 20; i++) {
+    s = await ruta(g => { KORT(g); if (i % 2 === 0) FLIK(g); });
+    const b = bord.find(t => t.id === idVx);
+    if (b) vxStorst = Math.max(vxStorst, Math.round(b.w * W) * Math.round(b.h * H));
+  }
+  check(`VX1 flik kant i kant varannan ruta i 3 s: ${s.length} spår, samma id ${s[0] && s[0].id === idVx}, största rapporterade låda ${vxStorst} px (kortet 1120)`,
+        s.length === 1 && s[0].id === idVx && vxStorst <= 1.1 * 28 * 40);
+  let vxBorta = null;
+  for (let i = 1; i <= 12; i++) { s = await ruta(FLIK); if (!s.some(t => t.id === idVx) && vxBorta == null) vxBorta = i * TAKT; }
+  check(`VX2 kortet lyfts, fliken ligger kvar: spåret borta efter ${vxBorta} ms`, vxBorta != null && vxBorta <= 1200);
+
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget

@@ -19246,6 +19246,31 @@ const Kamera = (() => {
         anv.add(bast); kvar.delete(bast);
         if (helt) { bast.areaRef = bast.helBox.areaRef; delete bast.helBox; }   // hela kortet igen: måttet från före snittet
         else if (bast.helBox && nu - bast.helBox.nar >= 5000) delete bast.helBox;
+        /* Ett namngivet kort vars region VÄXT runt det har inte flyttat:
+           regionen har vuxit ihop med något bredvid (leken, en hand).
+           Uppmätt i golden 11 (MES-179): Faithful Pikemaster växte ihop med
+           leken under sig (höjden 0,33 → 0,43 av bilden) — varje sådan ruta
+           blev en lägesuppdatering, och lådan gled i steg ut över leken och
+           höll kortet på bordet efter att det lagts på högen. Måttet är
+           kortets lång- och kortsida när det fick sitt namn (namnMatt, ur
+           ramen; ett tappat kort har samma mått): rymmer regionens låda
+           spårets och är den längre eller bredare än kortet med marginal,
+           är det kortet och något till. Spåret är sett men behåller mitt,
+           låda och tap-läge. Ramen själv nollas vid första darret, lådan
+           glider med i steg under varje gräns, och areaRef ligger efter —
+           i golden 09 låg Hooded Blightfang 1,4 × areaRef i 14 s med samma
+           låda som förut. 1,25: Blightfang tappat vid bildens kant fick en
+           låda med kortsidan 1,23 × kortets, och 1,12 tog tap-läget ifrån
+           det; ihopväxningarna i 11 var 1,3 × och mer. */
+        if (bast.tillstand === 'klar' && !bast.namnMatt) {
+          const r = bast.ram || bast.box, l = Math.max(r.w, r.h), k = Math.min(r.w, r.h);
+          if (k >= 0.6 * l && k <= 0.85 * l) bast.namnMatt = { l, k };   // bara en kortformad låda: en halva som fått namnet är inte kortets mått
+        }
+        const nm = bast.tillstand === 'klar' && !helt ? bast.namnMatt : null;
+        if (nm && ladTackning(bast.box, f.box) >= 0.9 && (Math.max(f.box.w, f.box.h) > 1.25 * nm.l || Math.min(f.box.w, f.box.h) > 1.25 * nm.k)) {
+          bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
+          continue;
+        }
         const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
         /* En träff som är mycket MINDRE än spåret är en del av det: två kort
            kant i kant som skars isär (detektera, skar). Spåret tar delen

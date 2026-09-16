@@ -393,8 +393,9 @@ function sokTill(v, s) {
 
 async function korFall(f) {
   beskarningar[f.id] = [];
-  /* Graveyard-rutan (K9-lite) ur facit: { "grav": { x, y, w, h } } i bildandelar; utan = ingen ruta. */
-  try { if (K.satGrav) K.satGrav(f.facit.grav || null); } catch (e) {}
+  /* Graveyard-rutan (K9-lite) ur facit: { "grav": { x, y, w, h } } i bildandelar; utan = ingen ruta.
+     Library-rutan (MES-122) på samma sätt: { "bib": { x, y, w, h } } där leken ligger. */
+  try { if (K.satGrav) K.satGrav(f.facit.grav || null); if (K.satBib) K.satBib(f.facit.bib || null); } catch (e) {}
   const vf = f.facit.video || null;
   const kalla = vf ? await laddaVideo(`fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
                    : await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
@@ -433,9 +434,11 @@ function stallUpp(f, kalla, kb, kh) {
      facit; rutan ignoreras, modulen läser hela bilden). start() kör första
      varvet av loopen synkront, och med förra fallets mått kvar i modulen
      gick den rutan genom steg() innan satKalibrering hann nollställa. */
-  /* Graveyard-rutan går i raden, som camera_setups.ruta.grav i appen —
-     satKalibrering läser den därifrån och nollar annars en ruta satt före. */
-  K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null }) });
+  /* Graveyard- och library-rutan går i raden, som camera_setups.ruta.grav/.bib
+     i appen — satKalibrering läser dem därifrån och nollar annars en ruta satt
+     före. I appen finns library-rutan alltid sedan uppstartens steg 4 (MES-122);
+     ett fall där leken ligger i bild utan "bib" i facit mäter leken som ett kort. */
+  K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: f.facit.bib || null }) });
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   return cv;
 }
