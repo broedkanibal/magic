@@ -326,6 +326,20 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`BL1 kort i ljus ficka på mörk matta: ${s.length} spår, ${s[0] && s[0].st}, blänkdomar ${blBlank}, skymt ${blSkymd.join('')}`,
         s.length === 1 && s[0].st === 'klar' && blBlank === 0 && blSkymd.every(v => v === 0));
 
+  // ── OM1: en hand över en tredjedel av bilden tar inte om referensen (MES-166) ──
+  /* Golden 12: handen platt över provkortet i 1,5 s tog om referensen med
+     handen i, och handens spöke stod kvar i referensen i 43 s. Omtaget ska
+     komma när bilden ändrats överallt (R2: telefonen flyttad), inte när en
+     hand ligger i bild. Här en hand/arm med struktur över x 0–80 i 3 s. */
+  nystart(); await referens();
+  for (let i = 0; i < 8; i++) s = await ruta(g => kort(g, W, 150, 50, 30, 42, 180));
+  const omtagFore = Kamera.omtag, idOm = s[0] && s[0].id;
+  for (let i = 0; i < 20; i++) s = await ruta(g => { kort(g, W, 150, 50, 30, 42, 180); for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < 80; xx++) g[yy * W + xx] = 165 + ((xx * 3 + yy * 5) % 11) * 3; });
+  const omtagHand = Kamera.omtag - omtagFore;
+  for (let i = 0; i < 4; i++) s = await ruta(g => kort(g, W, 150, 50, 30, 42, 180));
+  check(`OM1 handen över x 0–80 i 3 s: omtag ${omtagHand}, sedan ${s.length} spår, samma id ${s[0] && s[0].id === idOm}, skymt ${s[0] && s[0].skymd}`,
+        omtagHand === 0 && s.length === 1 && s[0].id === idOm && !s[0].skymd);
+
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget

@@ -17440,6 +17440,7 @@ const Kamera = (() => {
   const grundVinkel = () => kal.grund != null ? kal.grund : (kal.ruta.upp === 'h' ? 0 : Math.PI / 2);
   let lage = 'start';
   let snurra = null, wake = null, senast = 0, senastRef = 0, forra = 0;
+  let omtagRensa = false;   // referensen lärs om efter ett omtag: rensaRef fyller också händer och annat med struktur (MES-166)
   let gravRef = null, gravForra = null, gravStillaFran = 0, gravN = 0, gravNar = null, gravDomd = false, gravRorFran = 0;   // högvakten (MES-85), se gravVakt
   let senVb = 0, senVh = 0;    // videons mått senast — byter de räknas analysen om
   /* Upplösningen strömmen faktiskt gav — videons egna mått, med spårets
@@ -19154,11 +19155,14 @@ const Kamera = (() => {
        ur tröskeln: den drivs upp av just den flytt som ska upptäckas, och
        gränsen sprang då före (granskningen). Uppmätt på bänkens trä: 1–2
        i fas, 15–20 ur fas; en arm över 17 % av mattan ger 7. */
-    const avvik = avvikelse(g, fri);
-    dia.avvik = avvik;
-    if (avvik > Math.max(12, 4 * sigma * 1.13 + 8)) {
+    const avvGrans = Math.max(12, 4 * sigma * 1.13 + 8);
+    const avv = avvikelse(g, fri, avvGrans), avvik = avv.medel;
+    dia.avvik = avvik; dia.avvikSpridd = +avv.spridd.toFixed(2);
+    /* Bara en avvikelse över minst halva bilden tar om referensen: en hand
+       i bild är lokal (avvikelse(), MES-166). */
+    if (avvik > avvGrans && avv.spridd >= 0.5) {
       if (++felRader >= 10) {
-        omtag++; felRader = 0; glomReferens();
+        omtag++; felRader = 0; glomReferens(); omtagRensa = true;
         senasteG0 = g0; senasteG = g; senasteMask = mask;
         säg('ljus', 'Learning the light — hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
         return;
@@ -19217,10 +19221,29 @@ const Kamera = (() => {
 
   /* Medelavvikelse mellan rutan och referensen över fri yta, var tredje
      bildpunkt — måttet på om referensen fortfarande är den här bilden. */
-  function avvikelse(g, fri) {
+  function avvikelse(g, fri, grans) {
+    /* Spridningen (MES-166): andelen av bildens rutor (6 × 4) vars egen
+       medelavvikelse är över gränsen, räknat bland rutorna med fri yta.
+       En telefon som flyttats, eller ett ljus som ändrats, ger avvikelse
+       överallt; en hand eller en arm ger den där handen är. Förut räckte
+       medelvärdet, och en hand som låg över kortet i 1,5 s tog om
+       referensen med handen i: i golden 12 stod handens spöke kvar i
+       referensen i 43 s — texturerat, så driften rörde det aldrig — och
+       kortet som lades där efteråt slogs ihop med spöket och syntes inte. */
+    const KX = 6, KY = 4, rs = new Float64Array(KX * KY), rk = new Int32Array(KX * KY), rt = new Int32Array(KX * KY);
     let s = 0, k = 0;
-    for (let i = 0; i < g.length; i += 3) { if (!fri[i]) continue; s += Math.abs(g[i] - ref[i]); k++; }
-    return k ? s / k : 0;
+    for (let i = 0; i < g.length; i += 3) {
+      const x = i % AW, y = (i - x) / AW, c = Math.min(KY - 1, (y * KY / AH) | 0) * KX + Math.min(KX - 1, (x * KX / AW) | 0);
+      rt[c]++;
+      if (!fri[i]) continue;
+      const d = Math.abs(g[i] - ref[i]); s += d; k++; rs[c] += d; rk[c]++;
+    }
+    let over = 0, rutor = 0;
+    /* En ruta räknas först över 1,5 × gränsen: kameran exponerar om när en
+       hand skuggar halva bilden, och den andra halvan steg då 11–15 mot
+       gränsen 12 (golden 12) — handen själv gav 35–76. */
+    for (let c = 0; c < KX * KY; c++) { if (rk[c] < 0.2 * rt[c]) continue; rutor++; if (rs[c] / rk[c] > 1.5 * grans) over++; }
+    return { medel: k ? s / k : 0, spridd: rutor ? over / rutor : 0 };
   }
 
   /* Referensen får aldrig innehålla ett kort. Varje region i den som ser ut
@@ -19242,10 +19265,20 @@ const Kamera = (() => {
        inte hittats här — och då stått kvar i referensen som mönster,
        jämförts mot sig själva och varit osynliga. Värdet får stå kvar
        efteråt: rutan är samma scen. */
-    const { fynd } = detektera(ref, null, W, H, [], true);
+    const { fynd, texturerade } = detektera(ref, null, W, H, [], true);
     const refModell = modell;                                // mattmodellen av referensen
     Object.assign(dia, diaFore); modell = modellFore;
     const rutor = fynd.map(f => f.box).concat(spar.map(t => t.box));
+    /* Efter ett omtag (inte den första inlärningen) fylls också allt med
+       struktur som inte är ett kort — en hand, en arm — upp till 40 % av
+       bilden (MES-166). Omtaget kommer när bilden ändrats, och då är det
+       ofta just en hand som är i bild: i golden 12 stod handens spöke kvar
+       i 43 s, skyddat från driften för att det har struktur, och kortet
+       som lades där sedan syntes inte. Den första inlärningen görs med
+       telefonen i hållaren över ett bord som ser ut som det gör; mattans
+       eget mönster ska vara kvar där. */
+    if (omtagRensa) for (const b of texturerade || []) if (b.w * b.h <= 0.4 * W * H) rutor.push(b);
+    omtagRensa = false;
     /* HELA kortets låda fylls, utan marginal och utan undantag. Det prövades
        att bara fylla det som avvek starkt (mer än 50) från mattan, för att
        inte ta med en strimma i träet intill kortet ur referensen — men då
