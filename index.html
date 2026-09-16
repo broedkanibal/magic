@@ -2789,6 +2789,72 @@ body.ispel #addPlayerBtn{display:none}
 .lstool button.fara:hover{background:#3a1f22}
 .lstool b{font:600 12px var(--mono);color:var(--txt);min-width:14px;text-align:center}
 .lstool .sep{width:1px;height:18px;background:var(--line)}
+/* MES-169: markering (H4), New, Check (N8), To check och ångra-remsan (H3). */
+.lspile{cursor:pointer;outline:none}
+.lspile:focus-visible{box-shadow:0 0 0 2px var(--blue);border-radius:6px}
+.lsring{position:absolute;inset:-4px;border-radius:8px;pointer-events:none;z-index:2}
+.lspw.ny .lsring{border:2px solid #57c785aa;box-shadow:0 0 18px 1px #57c78540}
+.lspw.chk .lsring{border:2px solid var(--acc);box-shadow:0 0 0 4px #f0a52a22}
+.lspw.valt .lsring{border:2px solid var(--blue);box-shadow:0 0 16px 1px #6b8cff44}
+.lsnyb{position:absolute;left:-7px;top:-9px;z-index:4;height:18px;padding:0 7px;border-radius:9px;background:#0f2016;border:1px solid #2f6b47;color:#8fe0b0;font:650 10px/16px var(--sans);pointer-events:none}
+.lsselm{position:absolute;left:-8px;top:-8px;z-index:5;width:20px;height:20px;border-radius:50%;background:var(--blue);color:#08101f;display:grid;place-items:center;box-shadow:0 0 0 2px #0d1015;pointer-events:none}
+.lschkb{position:absolute;left:50%;bottom:-10px;translate:-50% 0;z-index:4;height:20px;padding:0 8px;border-radius:10px;background:#241c0d;border:1px solid var(--acc);color:#ffd98a;font:650 10.5px/18px var(--sans);white-space:nowrap;cursor:pointer}
+.lschkb:hover,.lschkb:focus-visible{background:#3a2c10;outline:none}
+/* Checkbrickan sitter där verktyget annars börjar: på ett osäkert kort
+   hänger verktyget under namnet i stället. */
+.lspw.chk .lstool{top:calc(100% + 14px)}
+.lsyta.valjer .lstool,.lsyta.poppar .lstool{display:none}
+.lsselbar{position:sticky;bottom:18px;z-index:45;margin-top:auto;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;border-radius:10px;background:#141c2af7;border:1px solid #3d4a6a;box-shadow:0 18px 40px -10px #000;font:13px var(--sans);color:#c9d4ff;flex:none;flex-wrap:wrap}
+.lsselbar b{font-weight:650;color:#fff}
+.lsselbar .grow{flex:1}
+.lsselbar .btn{flex:none}
+.lsselbar .fara,.lspop .fara{color:#ff9099}
+.lstc{display:flex;flex-direction:column;gap:8px;padding:12px 14px 14px;border-radius:12px;background:#17140d;border:1px solid #5a4520;flex:none}
+.lstchd{display:flex;align-items:center;gap:9px;min-width:0}
+.lstchd .tcd{width:8px;height:8px;border-radius:50%;background:var(--acc);flex:none}
+.lstchd b{font:650 13.5px var(--sans);color:#ffd98a;white-space:nowrap}
+.lstchd .tn{font:600 11px var(--mono);color:#c9a45e}
+.lstchd .sub{font:12px var(--sans);color:var(--dim);margin-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lstci{display:flex;align-items:center;gap:14px;padding:8px 10px 8px 12px;border-radius:9px;background:#0f141c;border:1px solid var(--line);min-width:0}
+.lstci .rd{display:flex;flex-direction:column;gap:5px;width:190px;flex:0 1 190px;min-width:0}
+.lstci .rd em{font:600 9.5px/1 var(--sans);font-style:normal;letter-spacing:.8px;text-transform:uppercase;color:var(--dim2)}
+.lstci .lsq{font:14px/20px var(--sans);color:#cfd9e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lstci .arr{display:inline-flex;color:var(--dim2);flex:none}
+.lstci .th{width:34px;height:47px;flex:none;border-radius:4px;overflow:hidden;background:#0b1016}
+.lstci .th img{width:100%;height:100%;object-fit:cover;display:block}
+.lstci .tcs{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lstci .tcs b{font:600 14px var(--sans);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lstci .tcs span{font:12px var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lstci .tb{display:flex;gap:6px;flex:none}
+/* Över lekens sida (420) och förstoringen (430), under dialogerna (.ov 440). */
+.lspop{position:fixed;z-index:436;width:330px;max-width:calc(100vw - 24px);padding:14px;border-radius:12px;background:#0f141cf8;border:1px solid #4a5a72;box-shadow:0 24px 50px -14px #000;display:flex;flex-direction:column;gap:10px}
+.lspop .ptag{font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--acc)}
+.lspop .plbl{font:11px/1 var(--sans);letter-spacing:.4px;text-transform:uppercase;color:var(--dim2)}
+.lspop .pq{font:14px/1.4 var(--sans);color:#cfd9e8;overflow-wrap:anywhere}
+.lspop h4{margin:0;font:650 15px/1.3 var(--sans);color:var(--txt);overflow-wrap:anywhere}
+.lspop .psub{font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lspop .prow{display:flex;gap:8px;align-items:center;min-width:0}
+.lspop .prow.top{align-items:flex-start;gap:12px}
+.lspop .pcol{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lspop .pth{width:58px;height:81px;flex:none;border-radius:5px;overflow:hidden;background:#0b1016}
+.lspop .pth img{width:100%;height:100%;object-fit:cover;display:block}
+.lspop .grow{flex:1}
+.lspop .pfel{margin:0;font:12.5px/1.5 var(--sans);color:#ff9099}
+.lspop .pfel.dim{color:var(--dim)}
+.lssnack{position:fixed;z-index:435;display:flex;align-items:center;gap:12px;height:40px;padding:0 8px 0 14px;border-radius:10px;background:#1b2230f5;border:1px solid #3d4a5f;box-shadow:0 18px 40px -14px #000;font:12.5px var(--sans);color:var(--txt);white-space:nowrap}
+.lsklar{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:10px;background:#0f141c;border:1px solid var(--line)}
+.lsklar .ic{display:inline-flex;color:#8fe0b0;flex:none;margin-top:1px}
+.lsklar div{display:flex;flex-direction:column;gap:3px}
+.lsklar b{font:600 13.5px var(--sans);color:var(--txt)}
+.lsklar span{font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lslistaklar{display:flex;flex-direction:column;gap:12px}
+.lshopp{display:flex;align-items:flex-start;gap:8px;margin:0;font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lshopp .ic{display:inline-flex;color:var(--dim2);flex:none;margin-top:2px}
+.lslas{display:flex;align-items:flex-start;gap:9px;font:12px/1.5 var(--sans);color:var(--dim2)}
+.lslas .ic{display:inline-flex;flex:none;margin-top:1px}
+.lsradh{justify-content:flex-end}
+.lsradh .lsprog{flex:1}
+.lsta.liten{min-height:90px}
 .lsbl{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start}
 .lsblk{display:flex;flex-direction:column;align-items:center;gap:7px}
 .lsblk .kf{width:56px;height:78px;display:block;border-radius:5px;object-fit:cover;background:#11161e;box-shadow:0 5px 12px -5px #000c}
@@ -13525,6 +13591,8 @@ const LS_IKON = {
   copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9a1.8 1.8 0 0 0 1.8 1.8h2.7"/>',
   trash: '<path d="M4 7h16"/><path d="M6.5 7l1 13h9l1-13"/><path d="M9.5 7V4.5h5V7"/>',
   rot: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
 };
 const lsIk = (n, s = 16, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LS_IKON[n]}</svg>`;
 /* Det inklistrade visas aldrig i sin helhet: ett namn kortas och escapas. */
@@ -13676,6 +13744,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     lyssnar: false, pollT: null,
     blHamtas: new Set(), ytaHtml: '', sok: null,
     angra: [],            // ⌘Z: omvändningarna, senaste sist
+    valda: new Set(),     // markerade kort (H4), nycklade som lekSlagNyckel
+    nya: new Set(),       // kort som kom in under den här öppningen (New-ringen)
+    pop: null,            // popovern: {typ:'koll'|'byt', name, sb, kor?, ...}
+    listaKlar: null,      // kvittot efter en inklistring (N7): {nr, main, sb, koll}
   };
   const nu = () => lekSlagTillampa(y.bas || { namn: y.nyNamn, kort: [] }, y.ops);
   const nyckel = (name, sb) => lekSlagNyckel(name, sb);
@@ -13685,8 +13757,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function andra(ops, o = {}) {
     ops = [].concat(ops);
     if (!o.utanAngra) {
-      const om = omvandning(ops);
-      if (om.length) { y.angra.push(om); if (y.angra.length > 100) y.angra.shift(); }
+      const om = omvandning(ops), topp = y.angra[y.angra.length - 1];
+      /* Flera steg i samma svep (Change… på markerade kort, ett i taget) är
+         ett ångra: det senare stegets omvändning körs först. */
+      if (om.length && o.grupp && topp && topp.grupp === o.grupp) topp.unshift(...om);
+      else if (om.length) { om.grupp = o.grupp || null; y.angra.push(om); if (y.angra.length > 100) y.angra.shift(); }
     }
     for (const op of ops) y.ops.push(op);
     if (y.spar !== 'fel') y.spar = 'andrat';
@@ -13704,6 +13779,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const fore = v, k = hitta(fore.kort, op.name, op.sb);
       v = lekSlagTillampa(fore, [op]);
       if (op.typ === 'namn') { if (y.bas) ut.push({ typ: 'namn', namn: fore.namn }); continue; }
+      if (op.typ === 'koll') { if (k) ut.push({ typ: 'koll', name: k.name, sb: !!op.sb, koll: k.koll || null }); continue; }
+      if (op.typ === 'byt') {
+        if (!k || !op.kort) continue;
+        const e = hitta(fore.kort, op.kort.name, op.sb);
+        /* Hopslaget med ett kort som redan fanns: dra av det som kom dit och
+           lägg tillbaka det gamla kortet. Annars byts det bara tillbaka —
+           med tryckning och osäkerhet. (ut vänds på slutet.) */
+        if (e && e !== k) ut.push({ typ: 'antal', name: k.name, sb: !!op.sb, d: k.n, kort: mallAv(k) }, { typ: 'antal', name: e.name, sb: !!op.sb, d: -k.n });
+        else ut.push({ typ: 'byt', name: op.kort.name, sb: !!op.sb, kort: mallAv(k) });
+        continue;
+      }
       if (op.typ === 'sb') {
         if (k && !!op.till !== !!op.sb) ut.push({ typ: 'antal', name: k.name, sb: !!op.till, d: -k.n }, { typ: 'antal', name: k.name, sb: !!op.sb, d: k.n, kort: mallAv(k) });
         continue;
@@ -13716,21 +13802,47 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
   function angraSenaste() {
     const om = y.angra.pop(); if (!om) return false;
+    if (snackOm === om) doljSnack();
     andra(om, { utanAngra: true });
     return true;
   }
   /* Remove all: ett steg, som ⌘Z (eller notisens Undo) lägger tillbaka. */
   function tomma() {
     const v = nu(); if (!v.kort.length) return;
-    const sum = lekSlagSummor(v.kort), n = sum.main + sum.sb, s = y.session;
+    const sum = lekSlagSummor(v.kort), n = sum.main + sum.sb;
     andra(v.kort.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb })));
-    const om = y.angra[y.angra.length - 1];
-    toast(`${n === 1 ? 'The card' : `All ${n} cards`} removed · ${LS_ANGRA} to undo`, undefined, () => {
+    snack(`${n === 1 ? 'The card' : `All ${n} cards`} removed`);
+  }
+  /* Ångra-remsan (H3) nere i kortytans hörn: ångrar just det steg den
+     berättar om, också när fler ändringar gjorts efter. ⌘Z på samma steg
+     tar bort den. */
+  let snackEl = null, snackT = null, snackOm = null;
+  function doljSnack() {
+    clearTimeout(snackT); snackT = null; snackOm = null;
+    if (snackEl) snackEl.hidden = true;
+  }
+  function snack(text) {
+    const om = y.angra[y.angra.length - 1], s = y.session;
+    const r = yta.getBoundingClientRect();
+    if (!om || !r.width) return;
+    if (!snackEl) {
+      snackEl = document.createElement('div'); snackEl.className = 'lssnack'; snackEl.hidden = true;
+      snackEl.addEventListener('mouseenter', () => { clearTimeout(snackT); snackT = null; });
+      snackEl.addEventListener('mouseleave', () => { if (!snackEl.hidden) { clearTimeout(snackT); snackT = setTimeout(doljSnack, 4000); } });
+      document.body.appendChild(snackEl);
+    }
+    snackEl.innerHTML = `<span>${esc(text)}</span><button type="button" class="btn sm">${lsIk('undo', 13)}Undo</button>`;
+    snackEl.querySelector('button').onclick = () => {
+      doljSnack();
       if (s !== y.session) return;
-      const i = y.angra.lastIndexOf(om);
-      if (i >= 0) y.angra.splice(i, 1);
+      const i = y.angra.lastIndexOf(om); if (i < 0) return;
+      y.angra.splice(i, 1);
       andra(om, { utanAngra: true });
-    });
+    };
+    snackEl.style.left = (r.left + 32) + 'px';
+    snackEl.style.bottom = Math.max(12, innerHeight - r.bottom + 26) + 'px';
+    snackEl.hidden = false; snackOm = om;
+    clearTimeout(snackT); snackT = setTimeout(doljSnack, 8000);
   }
   async function sparaNu() {
     clearTimeout(y.sparT); y.sparT = null;
@@ -13816,7 +13928,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     await stang();
     const s = ++y.session;
     Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
-                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false });
+                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null });
+    y.valda.clear(); y.nya.clear();
     if (!id) {
       y.nyNamn = o.namn || 'New deck'; y.flik = null; y.namnRedigeras = true; y.laddar = false;
       rita();
@@ -13852,7 +13965,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
   async function stangNu() {
     sluta();
-    doljForstoring();
+    doljForstoring(); stangPop(); doljSnack();
+    y.valda.clear();
     if (y.namnRedigeras) namnKlar(true);
     if (y.sok) y.sok.stang();
     y.session++;
@@ -13921,10 +14035,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         + '<p class="lslead">Suggestions show as you type. Click a number to add that many copies.</p>'
         + `<div class="lsaddto"><span>Add to</span><div class="lsseg">${sbKnapp(false)}${sbKnapp(true)}</div></div>`;
     } else if (y.flik === 'lista') {
-      h += '<p class="lslead">Paste the list from Moxfield, Arena, MTGO or plain text — Mesa recognises the format by itself. Cards after a “Sideboard” line go to the sideboard.</p>'
-        + '<textarea class="lsta" rows="9" maxlength="20000" spellcheck="false" placeholder="4 Lightning Bolt&#10;4 Monastery Swiftspear&#10;…&#10;&#10;Sideboard&#10;2 Rest in Peace"></textarea>'
-        + `<div class="lsrad"><button type="button" class="btn prim" data-ls="lista"${y.laser ? ' disabled' : ''}>Add the cards</button><span class="lsprog"></span></div>`
-        + '<p class="lskvitto" hidden></p>';
+      /* N6 innan, N7 efter: kvittot med Undo överst och ett mindre fält för
+         nästa lista. */
+      const las = `<div class="lsrad lsradh"><span class="lsprog"></span><button type="button" class="btn${y.listaKlar ? '' : ' prim big'}" data-ls="lista"${y.laser ? ' disabled' : ''}>Read the list</button></div>`;
+      h += y.listaKlar
+        ? '<div class="lslistaklar"></div><div class="zr"><span class="zonlbl">Paste another list</span><i class="zl"></i></div>'
+          + '<textarea class="lsta liten" rows="4" maxlength="20000" spellcheck="false" placeholder="Paste your list here"></textarea>' + las
+        : '<textarea class="lsta" rows="9" maxlength="20000" spellcheck="false" placeholder="Paste your list here&#10;&#10;4 Lightning Bolt&#10;4 Monastery Swiftspear&#10;…&#10;&#10;Sideboard&#10;2 Rest in Peace"></textarea>'
+          + '<p class="lslead">From Moxfield, Arena, MTGO or plain text, one card per line. Mesa recognizes the format by itself. Cards after a “Sideboard” line go to the sideboard.</p>'
+          + `<div class="lslas"><span class="ic">${lsIk('lock', 14)}</span><span>Mesa reads the list as plain text and adds only the names that exist in Magic.</span></div>` + las;
+      h += '<div class="lskvitto" hidden></div>';
     } else {
       h += '<div class="lstel"></div>';
     }
@@ -13956,6 +14076,14 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function ritaKvitto() {
     const el = panel.querySelector('.lskvitto'); if (!el) return;
     el.hidden = !y.kvitto; el.innerHTML = y.kvitto;
+    const k = panel.querySelector('.lslistaklar'), q = y.listaKlar;
+    if (!k || !q) return;
+    const tot = q.main + q.sb;
+    k.innerHTML = `<div class="lsklar"><span class="ic">${lsIk('check', 16, 2.6)}</span><div><b>${tot} ${tot === 1 ? 'card' : 'cards'} added from your list</b>`
+      + `<span>${q.main} in the deck${q.sb ? ` and ${q.sb} in the sideboard` : ''}.${q.koll ? ` ${q.koll} ${q.koll === 1 ? 'card' : 'cards'} to check, on the right.` : ''}</span></div></div>`
+      + q.rader.map(t => `<p class="lshopp"><span class="ic">${lsIk('minus', 14, 2.2)}</span><span>${t}</span></p>`).join('')
+      + `<div class="lsrad"><button type="button" class="btn" data-ls-angra="${q.nr}">${lsIk('undo', 13)}Undo — remove all ${tot}</button></div>`
+      + '<p class="lslead">Or change and remove single cards on the right.</p>';
   }
   function ritaNyss() {
     const el = panel.querySelector('.lsnyss'); if (!el) return;
@@ -13969,11 +14097,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function ritaYta() {
     if (y.laddar) return;
     const s = y.session, v = nu();
+    /* Markeringen och popovern följer korten: ett kort som försvunnit (en
+       annan enhet, ett ⌘Z) är inte längre markerat. */
+    const finns = new Set(v.kort.map(k => nyckel(k.name, k.sb)));
+    for (const x of [...y.valda]) if (!finns.has(x)) y.valda.delete(x);
+    if (y.pop && !finns.has(nyckel(y.pop.name, y.pop.sb)) && !y.pop.soker) stangPop();
+    yta.classList.toggle('valjer', y.valda.size > 0);
     let h;
     if (!v.kort.length) {
       h = `<div class="lstom"><span class="ico">${lsIk('deck', 26, 1.6)}</span><b>No cards yet</b><span>Add them one of the three ways on the left. They show up here, sorted by type, and you can change or remove every card.</span></div>`;
     } else {
-      const poster = v.kort.map(k => ({ name: k.name, sid: k.sid, small: k.small, n: k.n, sb: !!k.sb, key: norm(k.name) }));
+      const poster = v.kort.map(k => ({ name: k.name, sid: k.sid, small: k.small, n: k.n, sb: !!k.sb, koll: k.koll, key: norm(k.name) }));
       const grupper = lekGrupper(poster.filter(p => p.sb || !BASLAND_NAMN.includes(p.name)), () => { if (s === y.session) ritaYta(); });
       const main = [];
       let sbGrupp = null;
@@ -13984,10 +14118,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       }
       main.forEach(g => g.poster.sort((a, b) => a.name.localeCompare(b.name)));
       main.sort((a, b) => LS_GRUPP_ORDNING.indexOf(a.rub) - LS_GRUPP_ORDNING.indexOf(b.rub));
-      const sek = (rub, pl) => `<div class="lssek"><div class="zr"><span class="zonlbl">${esc(rub)}</span><span class="zn">${pl.reduce((t, p) => t + p.n, 0)}</span><i class="zl"></i></div><div class="lshogar">${pl.map(hog).join('')}</div></div>`;
-      h = (main.length ? `<div class="lssekrad">${main.map(g => sek(g.rub, g.poster)).join('')}</div>` : '')
+      const sek = (rub, pl) => `<div class="lssek" data-sek="${esc(rub)}"><div class="zr"><span class="zonlbl">${esc(rub)}</span><span class="zn">${pl.reduce((t, p) => t + p.n, 0)}</span><i class="zl"></i></div><div class="lshogar">${pl.map(hog).join('')}</div></div>`;
+      /* To check och markeringsraden står alltid i html:en (dolda när de är
+         tomma), så att ytans barn ligger på samma plats och lsMorf inte
+         flyttar innehåll mellan sektionerna när de dyker upp. Markeringsraden
+         flyter längst ner: överst (som i H4) tryckte den ner korten när det
+         första markerades, och nästa klick träffade fel. */
+      h = attKolla(v)
+        + (main.length ? `<div class="lssekrad">${main.map(g => sek(g.rub, g.poster)).join('')}</div>` : '')
         + basland(poster)
-        + (sbGrupp ? `<div class="lssekrad">${sek('Sideboard', sbGrupp.poster)}</div>` : '');
+        + (sbGrupp ? `<div class="lssekrad">${sek('Sideboard', sbGrupp.poster)}</div>` : '')
+        + selbar(v);
     }
     /* Samma html: inget byts, så bilderna blinkar inte och verktyget under
        pekaren står kvar. */
@@ -14004,14 +14145,48 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const under = yta.querySelector('.lspw:hover');
     if (under) placeraVerktyg(under);
     if (forstMal && !forstMal.isConnected) doljForstoring();
+    if (y.pop) placeraPop();
+  }
+  /* H4: raden över korten när något är markerat. */
+  function selbar(v) {
+    const valda = v.kort.filter(k => y.valda.has(nyckel(k.name, k.sb)));
+    if (!valda.length) return '<div class="lsselbar" hidden></div>';
+    const kopior = valda.reduce((t, k) => t + k.n, 0), allaSb = valda.every(k => k.sb);
+    return `<div class="lsselbar"><b>${valda.length} ${valda.length === 1 ? 'card' : 'cards'} selected</b><span>${kopior} ${kopior === 1 ? 'copy' : 'copies'}</span><span class="grow"></span>`
+      + `<button type="button" class="btn sm" data-lv="byt">${lsIk('swap', 13)}Change…</button>`
+      + `<button type="button" class="btn sm" data-lv="sb">${allaSb ? 'Move to main deck' : 'Move to sideboard'}</button>`
+      + `<button type="button" class="btn sm fara" data-lv="bort">${lsIk('trash', 13)}Remove</button>`
+      + `<button type="button" class="btn sm ghost" data-lv="rensa">Clear</button></div>`;
+  }
+  /* To check (N7, N8): kort Mesa inte var säker på. De ligger i leken ändå,
+     tills man säger något annat. */
+  function attKolla(v) {
+    const l = v.kort.filter(k => k.koll);
+    if (!l.length) return '<div class="lstc" hidden></div>';
+    const rad = k => {
+      const q = k.koll, foto = /^photo/i.test(q.kalla || '');
+      return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
+        + `<span class="rd"><em>${foto ? 'In the photo' : 'In your list'}</em><span class="lsq">“${esc(q.las || '')}”</span></span>`
+        + `<span class="arr">${lsIk('chev', 14, 2.2)}</span><span class="th">${k.small ? `<img src="${esc(k.small)}" alt="">` : ''}</span>`
+        + `<span class="tcs"><b>${esc(k.name)}?</b><span>From ${esc(q.kalla || 'your list')} · ${k.n} ${k.n === 1 ? 'copy' : 'copies'}${k.sb ? ' · Sideboard' : ''}</span></span>`
+        + `<span class="tb"><button type="button" class="btn sm prim" data-tc="ja">${lsIk('check', 12, 2.6)}Yes</button><button type="button" class="btn sm" data-tc="byt">Change</button></span></div>`;
+    };
+    return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${l.length}</span>`
+      + `<span class="sub">Mesa wasn’t sure. ${l.length === 1 ? 'It’s' : 'They’re'} in the deck until you say otherwise.</span></div>${l.map(rad).join('')}</div>`;
   }
   function hog(p) {
     const c = lekKortData(p), src = (c && imgOf(c, 0, 'normal')) || p.small || '';
+    const key = nyckel(p.name, p.sb), valt = y.valda.has(key), ny = !p.koll && y.nya.has(key);
     const lager = (p.n >= 3 ? '<i class="pl l2"></i>' : '') + (p.n >= 2 ? '<i class="pl l1"></i>' : '');
     const bild = src ? `<img class="kf" src="${esc(src)}" alt="" loading="lazy" draggable="false">` : `<span class="kf lsutan">${esc(p.name)}</span>`;
-    return `<div class="lspw" data-ls-kort="${esc(p.name)}" data-sb="${p.sb ? 1 : 0}"><div class="lspile">${lager}${bild}<span class="cnt">${p.n}</span>`
+    const merke = (valt || p.koll || ny ? '<i class="lsring"></i>' : '')
+      + (valt ? `<span class="lsselm">${lsIk('check', 11, 3)}</span>` : ny ? '<span class="lsnyb">New</span>' : '')
+      + (p.koll ? '<button type="button" class="lschkb" data-ls-chk title="Mesa wasn’t sure about this card">Check</button>' : '');
+    const kl = 'lspw' + (valt ? ' valt' : '') + (p.koll ? ' chk' : ny ? ' ny' : '');
+    return `<div class="${kl}" data-ls-kort="${esc(p.name)}" data-sb="${p.sb ? 1 : 0}"><div class="lspile" tabindex="0" aria-pressed="${valt}" aria-label="${esc(p.name)}, ${p.n} ${p.n === 1 ? 'copy' : 'copies'}">${lager}${bild}<span class="cnt">${p.n}</span>${merke}`
       + `<div class="lstool"><button type="button" data-lk="minus" title="One fewer">${lsIk('minus', 13, 2.4)}</button><b>${p.n}</b><button type="button" data-lk="plus" title="One more">${lsIk('plus', 13, 2.4)}</button>`
-      + `<i class="sep"></i><button type="button" data-lk="sb">${p.sb ? 'Move to main deck' : 'Move to sideboard'}</button>`
+      + `<i class="sep"></i><button type="button" data-lk="byt" title="Change it to another card — if Mesa read it wrong">${lsIk('swap', 13)}Change card…</button>`
+      + `<button type="button" data-lk="sb">${p.sb ? 'Move to main deck' : 'Move to sideboard'}</button>`
       + `<i class="sep"></i><button type="button" class="fara" data-lk="bort" title="Remove from the deck">${lsIk('x', 13, 2.4)}</button></div>`
       + `</div><span class="plab" title="${esc(p.name)}">${esc(p.name)}</span></div>`;
   }
@@ -14034,20 +14209,191 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
 
   /* ── ändringarna ── */
-  const mallAv = k => ({ name: k.name, sid: k.sid, small: k.small, ci: k.ci });
+  const mallAv = k => ({ name: k.name, sid: k.sid, small: k.small, ci: k.ci, koll: k.koll });
   const kortI = (name, sb) => nu().kort.find(k => nyckel(k.name, k.sb) === nyckel(name, sb));
+  const kopiorText = n => `${n} ${n === 1 ? 'copy' : 'copies'}`;
   function taBort(k) {
-    const s = y.session, sb = !!k.sb, n = k.n, mall = mallAv(k);
-    andra({ typ: 'bort', name: k.name, sb });
-    toast(`${k.name} removed`, undefined, () => { if (s === y.session) andra({ typ: 'antal', name: mall.name, sb, d: n, kort: mall }); });
+    y.valda.delete(nyckel(k.name, k.sb));
+    andra({ typ: 'bort', name: k.name, sb: !!k.sb });
+    snack(`Removed ${k.name}${k.n > 1 ? ` ×${k.n}` : ''}`);
   }
-  function kortAtgard(name, sb, a) {
+  function kortAtgard(name, sb, a, el) {
     const k = kortI(name, sb); if (!k) return;
     if (a === 'plus') andra({ typ: 'antal', name: k.name, sb, d: 1, kort: mallAv(k) });
     else if (a === 'minus') { if (k.n <= 1) taBort(k); else andra({ typ: 'antal', name: k.name, sb, d: -1 }); }
-    else if (a === 'sb') andra({ typ: 'sb', name: k.name, sb, till: !sb });
+    else if (a === 'sb') { andra({ typ: 'sb', name: k.name, sb, till: !sb }); snack(`Moved ${k.name} to the ${sb ? 'main deck' : 'sideboard'}`); }
     else if (a === 'bort') taBort(k);
+    else if (a === 'byt') oppnaByt([nyckel(k.name, sb)], el);
   }
+  /* ── flera kort (H4): en åtgärd är ett ångra och en sparning ── */
+  function valdaKort() { return nu().kort.filter(k => y.valda.has(nyckel(k.name, k.sb))); }
+  function valjKort(pw, shift) {
+    const key = nyckel(pw.dataset.lsKort, pw.dataset.sb === '1');
+    if (shift) {
+      /* Shift tar hela raden (sektionen): är alla redan markerade släpps de. */
+      const sek = pw.closest('.lssek');
+      const alla = [...(sek ? sek.querySelectorAll('.lspw') : [pw])].map(e => nyckel(e.dataset.lsKort, e.dataset.sb === '1'));
+      const pa = !alla.every(x => y.valda.has(x));
+      alla.forEach(x => pa ? y.valda.add(x) : y.valda.delete(x));
+    } else if (y.valda.has(key)) y.valda.delete(key);
+    else y.valda.add(key);
+    doljForstoring(); doljSnack();
+    ritaYta();
+  }
+  function valdaAtgard(a, el) {
+    const l = valdaKort();
+    if (a === 'rensa' || !l.length) { y.valda.clear(); ritaYta(); return; }
+    const n = l.length, kort = n === 1 ? l[0].name : `${n} cards`;
+    if (a === 'bort') {
+      y.valda.clear();
+      andra(l.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb })));
+      snack(`Removed ${kort}`);
+    } else if (a === 'sb') {
+      /* Markeringen släpps: raden och ångra-remsan delar kortytans nederkant. */
+      const till = !l.every(k => k.sb), flytt = l.filter(k => !!k.sb !== till);
+      y.valda.clear();
+      andra(flytt.map(k => ({ typ: 'sb', name: k.name, sb: !!k.sb, till })));
+      snack(`Moved ${flytt.length === 1 ? flytt[0].name : `${flytt.length} cards`} to the ${till ? 'sideboard' : 'main deck'}`);
+    } else if (a === 'byt') oppnaByt(l.map(k => nyckel(k.name, k.sb)), el);
+  }
+
+  /* ── popovern: Check (N8) och Change card… ──
+     En åt gången, i body så att kortytans omritning inte rör den. Change…
+     på flera markerade kort går igenom dem ett i taget, som ett ångra. */
+  let popEl = null, popSok = null, popAnkare = null, popGrupp = 0;
+  function stangPop() {
+    if (popSok) { popSok.stang(); popSok = null; }
+    y.pop = null; popAnkare = null;
+    yta.classList.remove('poppar');
+    if (popEl) { popEl.hidden = true; popEl.innerHTML = ''; }
+  }
+  function ankareFor(name, sb) {
+    const sel = `[data-ls-kort="${CSS.escape(name)}"][data-sb="${sb ? 1 : 0}"]`;
+    return yta.querySelector('.lspw' + sel + ' .lspile') || yta.querySelector('.lstci' + sel);
+  }
+  function placeraPop() {
+    if (!popEl || popEl.hidden || !y.pop) return;
+    let a = popAnkare && popAnkare.isConnected ? popAnkare : ankareFor(y.pop.name, y.pop.sb);
+    if (!a || !a.getClientRects().length) a = yta;
+    const r = a.getBoundingClientRect(), W = popEl.offsetWidth, H = popEl.offsetHeight;
+    let x = r.right + 12, top = r.top;
+    if (x + W > innerWidth - 12) x = r.left - 12 - W;
+    if (x < 12) { x = clamp(r.right - W, 12, innerWidth - 12 - W); top = r.bottom + 8; }
+    popEl.style.left = Math.round(x) + 'px';
+    popEl.style.top = Math.round(clamp(top, 12, Math.max(12, innerHeight - 12 - H))) + 'px';
+  }
+  function visaPop(html, ankare) {
+    if (popSok) { popSok.stang(); popSok = null; }
+    if (!popEl) {
+      popEl = document.createElement('div'); popEl.className = 'lspop'; popEl.hidden = true;
+      popEl.addEventListener('click', popKlick);
+      popEl.addEventListener('keydown', ev => {
+        if (ev.target.matches('input')) return;
+        ev.stopPropagation();
+        if (ev.key === 'Escape') { ev.preventDefault(); stangPop(); }
+      });
+      document.body.appendChild(popEl);
+    }
+    popEl.innerHTML = html;
+    popEl.hidden = false;
+    yta.classList.add('poppar');
+    if (ankare) popAnkare = ankare;
+    doljForstoring();
+    placeraPop();
+  }
+  const popTumme = k => `<span class="pth">${k.small ? `<img src="${esc(k.small)}" alt="">` : ''}</span>`;
+  function oppnaKoll(name, sb, ankare) {
+    const k = kortI(name, sb); if (!k || !k.koll) return;
+    y.pop = { typ: 'koll', name: k.name, sb: !!k.sb };
+    const q = k.koll, foto = /^photo/i.test(q.kalla || '');
+    visaPop(`<span class="ptag">${esc(q.kalla || 'Your list')} · check this card</span>`
+      + `<span class="plbl">${foto ? 'In the photo' : 'In your list'}</span><span class="pq">“${esc(q.las || '')}”</span>`
+      + `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}?</h4><span class="psub">Read as “${esc(q.las || '')}”. ${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}.</span></div></div>`
+      + `<div class="prow"><button type="button" class="btn prim sm" data-lp="ja">${lsIk('check', 13, 2.6)}Yes, that’s it</button>`
+      + `<button type="button" class="btn sm" data-lp="byt">${lsIk('swap', 13)}Change…</button><span class="grow"></span>`
+      + `<button type="button" class="btn sm ghost fara" data-lp="bort">${lsIk('trash', 13)}Remove</button></div>`, ankare);
+    const ja = popEl.querySelector('[data-lp="ja"]'); if (ja) ja.focus();
+  }
+  function oppnaByt(nycklar, ankare, fortsatt) {
+    const kort = nycklar.map(x => nu().kort.find(k => nyckel(k.name, k.sb) === x)).filter(Boolean);
+    const forra = fortsatt && y.pop && y.pop.typ === 'byt' ? y.pop : null;
+    if (!kort.length) { if (forra) { forra.ko = []; bytNasta(); } else stangPop(); return; }
+    y.pop = { typ: 'byt', name: kort[0].name, sb: !!kort[0].sb, ko: kort.slice(1).map(k => nyckel(k.name, k.sb)),
+              nr: forra ? forra.nr + 1 : 1, av: forra ? forra.av : kort.length,
+              grupp: forra ? forra.grupp : ++popGrupp, bytta: forra ? forra.bytta : [] };
+    const k = kort[0], p = y.pop;
+    visaPop(`<span class="ptag">Change card${p.av > 1 ? ` · ${p.nr} of ${p.av}` : ''}</span>`
+      + `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}</h4><span class="psub">${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}${k.koll ? ` · read as “${esc(k.koll.las || '')}”` : ''}. Pick the card it should be — ${k.n === 1 ? 'it changes' : 'they all change'} with it.</span></div></div>`
+      + `<div class="lssokwrap"><label class="lsfld"><span class="ic">${lsIk('search', 16)}</span><input type="text" class="lssok" placeholder="Type the right card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>`
+      + '<p class="pfel" hidden></p>'
+      + `<div class="prow"><span class="grow"></span>${p.av > 1 && p.nr < p.av ? '<button type="button" class="btn sm ghost" data-lp="hoppa">Skip</button>' : ''}<button type="button" class="btn sm ghost" data-lp="avbryt">${p.av > 1 ? 'Stop' : 'Cancel'}</button></div>`,
+      ankare || ankareFor(k.name, k.sb));
+    const inp = popEl.querySelector('.lssok');
+    popSok = kopplaSok(inp, popEl.querySelector('.lssug'), { valj: namn => bytTill(namn), esc: () => stangPop() });
+    inp.value = (k.koll && k.koll.las) || k.name;
+    inp.focus(); inp.select();
+    inp.dispatchEvent(new Event('input'));
+  }
+  function bytNasta() {
+    const p = y.pop; if (!p) return;
+    if (p.ko.length) { popAnkare = null; oppnaByt(p.ko, null, true); return; }
+    const b = p.bytta;
+    stangPop();
+    if (y.valda.size) { y.valda.clear(); ritaYta(); }
+    if (b.length) snack(b.length === 1 ? `Changed ${b[0][0]} to ${b[0][1]}` : `Changed ${b.length} cards`);
+  }
+  async function bytTill(namn) {
+    const p = y.pop; if (!p || p.typ !== 'byt' || !namn) return;
+    const s = y.session, fel = popEl.querySelector('.pfel');
+    p.soker = true;
+    if (fel) { fel.hidden = false; fel.classList.add('dim'); fel.textContent = 'Looking up…'; }
+    let c;
+    try { c = await lookup(namn); }
+    catch (e) {
+      p.soker = false;
+      if (y.pop !== p || !fel) return;
+      fel.classList.remove('dim');
+      fel.textContent = e && e.tillfallig ? 'The lookup did not get through — try again.' : `No card is called “${lsKort(namn)}” — check the spelling.`;
+      return;
+    }
+    if (s !== y.session || y.pop !== p) return;
+    const k = kortI(p.name, p.sb);
+    if (!k) { p.soker = false; bytNasta(); return; }
+    /* Samma kort som redan ligger där: då är det bara bekräftat. */
+    if (c.id !== k.sid || norm(c.name) !== norm(k.name) || k.koll) {
+      const fore = nyckel(k.name, k.sb), efter = nyckel(c.name, k.sb);
+      if (y.valda.delete(fore)) y.valda.add(efter);
+      if (y.nya.has(fore)) y.nya.add(efter);
+      andra({ typ: 'byt', name: k.name, sb: !!k.sb, kort: { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] } }, { grupp: 'byt' + p.grupp });
+      if (norm(c.name) !== norm(k.name) || c.id !== k.sid) p.bytta.push([k.name, c.name]);
+    }
+    /* Popovern stängs inte av omritningen (kortet heter något annat nu). */
+    p.soker = false;
+    bytNasta();
+  }
+  function popKlick(ev) {
+    const b = ev.target.closest('[data-lp]'); if (!b || !y.pop) return;
+    const p = y.pop, k = kortI(p.name, p.sb), a = b.dataset.lp;
+    if (a === 'avbryt') { const bytta = p.bytta || []; stangPop(); if (bytta.length) snack(bytta.length === 1 ? `Changed ${bytta[0][0]} to ${bytta[0][1]}` : `Changed ${bytta.length} cards`); return; }
+    if (a === 'hoppa') { bytNasta(); return; }
+    if (!k) { stangPop(); return; }
+    if (a === 'ja') { stangPop(); andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null }); }
+    else if (a === 'bort') { stangPop(); taBort(k); }
+    else if (a === 'byt') oppnaByt([nyckel(k.name, k.sb)], popAnkare);
+  }
+  addEventListener('mousedown', ev => {
+    if (!y.pop || !popEl || popEl.contains(ev.target)) return;
+    /* Knappen som öppnar popovern får öppna om den själv. */
+    if (ev.target.closest('[data-ls-chk], [data-tc], [data-lk="byt"], [data-lv="byt"]')) return;
+    stangPop();
+  });
+  addEventListener('resize', () => placeraPop());
+  addEventListener('keydown', ev => {
+    if (ev.key !== 'Escape' || !yta.isConnected || !yta.getClientRects().length) return;
+    if (y.pop) { ev.preventDefault(); stangPop(); return; }
+    if (isTyping(ev.target) || !y.valda.size) return;
+    ev.preventDefault(); y.valda.clear(); ritaYta();
+  });
   /* Basländernas sid slås upp först när stegaren trycks — de flesta lekar
      har bara ett par av de fem. */
   async function stegaBasland(namn, d) {
@@ -14086,11 +14432,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const e = y.nyss.find(x => x.nr === nr); if (!e) return;
     y.nyss = y.nyss.filter(x => x !== e);
     andra((e.batch || [e]).map(b => ({ typ: 'antal', name: b.name, sb: b.sb, d: -b.n })));
+    if (y.listaKlar && y.listaKlar.nr === nr) {
+      y.listaKlar = null; y.kvitto = '';
+      if (y.flik === 'lista') { ritaPanel(); return; }
+    }
     ritaNyss();
   }
-  /* Inklistringen läggs in direkt. Namn som inte finns hoppas över och sägs,
-     och ett namn Scryfall bytte ut sägs också — att bekräfta dem är etapp 2
-     (To check). */
+  /* Inklistringen läggs in direkt. Namn som inte finns hoppas över och sägs.
+     Ett namn Scryfall rättade (en felstavning) läggs också in, men under To
+     check med det som stod i listan (MES-169). Korten som inte fanns i leken
+     märks New. */
   async function lasLista() {
     const ta = panel.querySelector('.lsta'); if (!ta || y.laser) return;
     const poster = parseDecklist(ta.value), hoppade = poster.hoppade || 0;
@@ -14105,15 +14456,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       else if (unika.size < LS_LIST_TAK) unika.set(key, { name: p.name, n: p.n, sb: !!p.sb });
       else kapade++;
     }
-    const ops = [], batch = [], saknas = [], bytta = [];
+    const ops = [], batch = [], saknas = [];
     let i = 0;
     for (const p of unika.values()) {
       if (prog) prog.textContent = `Looking up ${++i} of ${unika.size}…`;
       try {
         const k = await lookup(p.name);
-        ops.push({ typ: 'antal', name: k.name, sb: p.sb, d: p.n, kort: { name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), ci: k.ci || [] } });
+        const kort = { name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), ci: k.ci || [] };
+        if (norm(k.name) !== norm(p.name) && !norm(k.name).startsWith(norm(p.name) + ' //')) kort.koll = { las: lsKort(p.name), kalla: 'Pasted list' };
+        ops.push({ typ: 'antal', name: k.name, sb: p.sb, d: p.n, kort });
         batch.push({ name: k.name, sb: p.sb, n: p.n });
-        if (norm(k.name) !== norm(p.name) && !norm(k.name).startsWith(norm(p.name) + ' //')) bytta.push(`${lsCitat(p.name)} as ${esc(k.name)}`);
       } catch (e) { saknas.push(p.name); }
     }
     y.laser = false;
@@ -14124,19 +14476,23 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
        en leklista, och det enda nyttiga svaret är hur en sådan ser ut. */
     if (!ops.length && !saknas.length) { y.kvitto = LS_LISTFORMAT; ritaKvitto(); return; }
     const delar = [];
-    if (ops.length) {
-      andra(ops);
-      const main = batch.filter(b => !b.sb).reduce((t, b) => t + b.n, 0), sb = batch.filter(b => b.sb).reduce((t, b) => t + b.n, 0);
-      y.nyss.unshift({ nr: ++y.nyssNr, name: 'Pasted list', n: main + sb, small: batch[0] && (kortI(batch[0].name, batch[0].sb) || {}).small, batch });
-      ta.value = '';
-      delar.push(`<b>Added ${main} ${main === 1 ? 'card' : 'cards'}${sb ? ` + ${sb} sideboard` : ''}.</b>`);
-    } else delar.push('<b>None of the names matched a card.</b>');
     if (saknas.length) delar.push(`${saknas.length === 1 ? 'No card is' : 'No cards are'} called ${lsUpprakna(saknas.map(lsCitat))} — check the spelling, or find ${saknas.length === 1 ? 'it' : 'them'} under Type.`);
-    if (bytta.length) delar.push(`Read ${lsUpprakna(bytta)} — check that ${bytta.length === 1 ? "it's" : "they're"} right.`);
     if (hoppade) delar.push(`${hoppade} ${hoppade === 1 ? "line wasn't a card and was" : "lines weren't cards and were"} skipped.`);
     if (kapade) delar.push(`Only the first ${LS_LIST_TAK} cards were read — paste the rest separately.`);
-    y.kvitto = delar.join(' ');
-    ritaKvitto(); ritaNyss();
+    if (!ops.length) {
+      y.kvitto = ['<b>None of the names matched a card.</b>', ...delar].join(' ');
+      ritaKvitto(); return;
+    }
+    const fanns = new Set(nu().kort.map(k => nyckel(k.name, k.sb)));
+    andra(ops);
+    for (const b of batch) if (!fanns.has(nyckel(b.name, b.sb))) y.nya.add(nyckel(b.name, b.sb));
+    const main = batch.filter(b => !b.sb).reduce((t, b) => t + b.n, 0), sb = batch.filter(b => b.sb).reduce((t, b) => t + b.n, 0);
+    const nr = ++y.nyssNr;
+    y.nyss.unshift({ nr, name: 'Pasted list', n: main + sb, small: batch[0] && (kortI(batch[0].name, batch[0].sb) || {}).small, batch });
+    const koll = new Set(ops.filter(o => o.kort.koll && (kortI(o.name, o.sb) || {}).koll).map(o => nyckel(o.name, o.sb))).size;
+    y.listaKlar = { nr, main, sb, koll, rader: delar };
+    y.kvitto = '';
+    if (s === y.session && y.flik === 'lista') ritaPanel(); else ritaNyss();
   }
   function namnKlar(spara) {
     const inp = huvud.querySelector('.lsnamnin');
@@ -14179,7 +14535,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
 
   /* Förslagen: namnen ur Scryfall, siffrorna lägger till så många exemplar.
      Egen lista i stället för autocomplete(): den ritar bara namn. */
-  function kopplaSok(inp, ul) {
+  function kopplaSok(inp, ul, o = {}) {
     let items = [], idx = -1, timer = null, seq = 0;
     const stang = () => { clearTimeout(timer); ul.hidden = true; ul.innerHTML = ''; items = []; idx = -1; };
     const hl = (n, q) => {
@@ -14192,12 +14548,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       ul.innerHTML = items.map((n, i) => {
         const c = cardFor(n), img = c && imgOf(c, 0, 'small');
         return `<li class="${i === idx ? 'on' : ''}" data-i="${i}"><span class="th">${img ? `<img src="${esc(img)}" alt="">` : ''}</span><span class="nm">${hl(n, q)}</span>`
-          + `<span class="nbtn"><span class="nl">Add</span>${[1, 2, 3, 4].map(k => `<button type="button" tabindex="-1" data-n="${k}">${k}</button>`).join('')}</span></li>`;
-      }).join('') + (items.length ? '<li class="sfot">Click a number to add that many copies. Enter adds one.</li>' : '');
+          + (o.valj ? '' : `<span class="nbtn"><span class="nl">Add</span>${[1, 2, 3, 4].map(k => `<button type="button" tabindex="-1" data-n="${k}">${k}</button>`).join('')}</span>`) + '</li>';
+      }).join('') + (items.length && !o.valj ? '<li class="sfot">Click a number to add that many copies. Enter adds one.</li>' : '');
       ul.hidden = !items.length;
       const on = ul.querySelector('li.on'); if (on) on.scrollIntoView({ block: 'nearest' });
     };
-    const valj = (namn, n) => { stang(); inp.value = ''; laggTill(namn, n); inp.focus(); };
+    const valj = o.valj ? namn => { stang(); o.valj(namn); } : (namn, n) => { stang(); inp.value = ''; laggTill(namn, n); inp.focus(); };
     /* Autocomplete ger bara namn (MES-178). Korten som inte redan ligger i
        cachen hämtas i ett anrop och läggs där — bilden i förslaget, och
        tillägget sedan, behöver då ingen egen uppslagning. Ett namn försöks
@@ -14248,7 +14604,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         if (t) valj(t, 1);
       } else if (ev.key === 'Escape') {
         ev.preventDefault();
-        if (!ul.hidden) stang(); else { inp.value = ''; inp.blur(); }
+        if (!ul.hidden) stang(); else if (o.esc) o.esc(); else { inp.value = ''; inp.blur(); }
       }
     });
     inp.addEventListener('blur', () => setTimeout(stang, 150));
@@ -14402,9 +14758,28 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   });
   yta.addEventListener('click', ev => {
     const bl = ev.target.closest('[data-ls-bl]'); if (bl) { stegaBasland(bl.dataset.lsBl, +bl.dataset.d); return; }
-    const a = ev.target.closest('[data-lk]'), pw = ev.target.closest('[data-ls-kort]');
-    if (a && pw) kortAtgard(pw.dataset.lsKort, pw.dataset.sb === '1', a.dataset.lk);
+    const lv = ev.target.closest('[data-lv]'); if (lv) { valdaAtgard(lv.dataset.lv, lv); return; }
+    const a = ev.target.closest('[data-lk]'), tc = ev.target.closest('[data-tc]'), pw = ev.target.closest('[data-ls-kort]');
+    if (!pw) return;
+    const name = pw.dataset.lsKort, sb = pw.dataset.sb === '1';
+    if (a) { kortAtgard(name, sb, a.dataset.lk, pw.querySelector('.lspile')); return; }
+    if (tc) {
+      const k = kortI(name, sb); if (!k) return;
+      if (tc.dataset.tc === 'ja') andra({ typ: 'koll', name: k.name, sb, koll: null });
+      else oppnaByt([nyckel(k.name, sb)], pw);
+      return;
+    }
+    if (ev.target.closest('[data-ls-chk]')) { oppnaKoll(name, sb, pw.querySelector('.lspile')); return; }
+    if (ev.target.closest('.lspile') && !ev.target.closest('.lstool')) valjKort(pw, ev.shiftKey);
   });
+  /* Shift-klick ska inte markera text på sidan. */
+  yta.addEventListener('mousedown', ev => { if (ev.shiftKey && ev.target.closest('.lspile')) ev.preventDefault(); });
+  yta.addEventListener('keydown', ev => {
+    if ((ev.key !== 'Enter' && ev.key !== ' ') || !ev.target.classList.contains('lspile')) return;
+    ev.preventDefault();
+    valjKort(ev.target.closest('.lspw'), ev.shiftKey);
+  });
+  yta.addEventListener('scroll', () => placeraPop(), { passive: true });
 
   return {
     oppna, stang,
