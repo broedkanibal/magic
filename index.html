@@ -2754,7 +2754,7 @@ body.ispel #addPlayerBtn{display:none}
 .jr .dim{font-size:12px;color:var(--dim)}
 .jr .th{width:26px;height:36px;border-radius:3px;overflow:hidden;flex:none;background:#0b1016}
 .jr .th img{width:100%;height:100%;object-fit:cover;display:block}
-.lsyta{position:relative;min-width:0;min-height:0;overflow:auto;padding:18px 32px 60px;display:flex;flex-direction:column;gap:22px}
+.lsyta{position:relative;min-width:0;min-height:0;overflow:hidden auto;padding:18px 32px 60px;display:flex;flex-direction:column;gap:22px}
 .lssekrad{display:flex;flex-wrap:wrap;gap:22px 36px;align-items:flex-start}
 .lssek{display:flex;flex-direction:column;gap:14px;min-width:0;max-width:100%}
 .lshogar{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;padding-top:6px}
@@ -2770,8 +2770,13 @@ body.ispel #addPlayerBtn{display:none}
 /* Pekar man på ett kort: antalet, sideboard och bort (H3 i etapp 2 bygger
    vidare på verktyget). Ligger i kortets eget element, så att pekaren inte
    lämnar kortet när den går ner till knapparna. */
-.lstool{position:absolute;z-index:40;left:-6px;top:calc(100% - 18px);display:none;align-items:center;gap:4px;padding:5px;border-radius:9px;background:#0b1017f7;border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000;white-space:nowrap}
-.lspw:hover .lstool,.lstool:focus-within{display:flex}
+.lstool{position:absolute;z-index:40;left:-6px;top:calc(100% - 18px);display:flex;visibility:hidden;opacity:0;transition:opacity .12s .18s,visibility 0s .3s;align-items:center;gap:4px;padding:5px;border-radius:9px;background:#0b1017f7;border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000;white-space:nowrap}
+/* Döljs med en fördröjning: pekaren som går snett från kortet till verktyget
+   passerar glappet mellan korten, och då ska verktyget inte hinna försvinna. */
+.lspw:hover .lstool,.lstool:focus-within{visibility:visible;opacity:1;transition-delay:0s}
+/* Nära ytans högerkant hänger verktyget åt vänster i stället, annars klipps
+   det av rullningen (placeraVerktyg). */
+.lspw.verktygvanster .lstool{left:auto;right:-6px}
 .lstool button{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:6px;font:600 11.5px/1 var(--sans);color:var(--dim)}
 .lstool button:hover{background:var(--bg3);color:var(--txt)}
 .lstool button.fara{color:#ff9099}
@@ -13554,6 +13559,27 @@ const LS_GRUPP = { creature: 'Creatures', planeswalker: 'Planeswalkers', spell: 
   artifact: 'Artifacts & enchantments', enchantment: 'Artifacts & enchantments', land: 'Lands', other: 'Other' };
 const LS_GRUPP_ORDNING = ['Creatures', 'Planeswalkers', 'Instants & sorceries', 'Artifacts & enchantments', 'Lands', 'Other'];
 
+/* Gör barnen i `el` lika med barnen i `mall` och behåller de element som
+   redan stämmer. Kortets hög är nycklad på namn och sida (data-ls-kort,
+   data-sb): kommer ett kort till eller försvinner byts de efterföljande ut,
+   men ett ändrat antal rör bara siffrorna. */
+function lsMorf(el, mall) {
+  const gamla = [...el.childNodes], nya = [...mall.childNodes];
+  nya.forEach((n, i) => {
+    const g = gamla[i];
+    if (!g) { el.appendChild(n); return; }
+    if (g.nodeType !== n.nodeType || g.nodeName !== n.nodeName
+        || (n.nodeType === 1 && (g.getAttribute('data-ls-kort') !== n.getAttribute('data-ls-kort') || g.getAttribute('data-sb') !== n.getAttribute('data-sb')))) {
+      el.replaceChild(n, g); return;
+    }
+    if (n.nodeType !== 1) { if (g.nodeValue !== n.nodeValue) g.nodeValue = n.nodeValue; return; }
+    for (const a of [...g.attributes]) if (!n.hasAttribute(a.name) && !(a.name === 'class' && g.classList.contains('verktygvanster'))) g.removeAttribute(a.name);
+    for (const a of n.attributes) if (g.getAttribute(a.name) !== a.value) g.setAttribute(a.name, a.value);
+    lsMorf(g, n);
+  });
+  for (let i = gamla.length - 1; i >= nya.length; i--) el.removeChild(gamla[i]);
+}
+
 function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   const y = {
     session: 0,
@@ -13827,7 +13853,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
        pekaren står kvar. */
     if (h === y.ytaHtml) return;
     y.ytaHtml = h;
-    yta.innerHTML = h;
+    /* Uppdateras på plats i stället för att bytas ut: −/+ i verktyget ska
+       lämna kortet och verktyget under pekaren kvar. Ett nytt element är inte
+       hovrat förrän pekaren rör sig, och ett verktyg som hänger åt vänster
+       ligger över grannkortet — då tog grannens verktyg över, och nästa
+       klick träffade fel kort. */
+    const mall = document.createElement('div');
+    mall.innerHTML = h;
+    lsMorf(yta, mall);
+    const under = yta.querySelector('.lspw:hover');
+    if (under) placeraVerktyg(under);
   }
   function hog(p) {
     const c = lekKortData(p), src = (c && imgOf(c, 0, 'normal')) || p.small || '';
@@ -14085,6 +14120,19 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     ev.stopPropagation();
     if (ev.target.classList.contains('lsta') && (ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') { ev.preventDefault(); lasLista(); }
   });
+  /* Verktyget är bredare än kortet. Det hänger åt höger från kortets vänsterkant,
+     men för ett kort längst till höger skulle det gå utanför ytan och klippas
+     av dess rullning — då hänger det åt vänster från kortets högerkant. */
+  function placeraVerktyg(pw) {
+    const tool = pw.querySelector('.lstool'); if (!tool) return;
+    pw.classList.remove('verktygvanster');
+    const r = tool.getBoundingClientRect(), y0 = yta.getBoundingClientRect();
+    if (!r.width) return;
+    const kant = y0.left + yta.clientWidth - 8;
+    if (r.right > kant && r.left + pw.getBoundingClientRect().width + 12 - r.width >= y0.left) pw.classList.add('verktygvanster');
+  }
+  yta.addEventListener('pointerover', ev => { const pw = ev.target.closest('.lspw'); if (pw && !pw.contains(ev.relatedTarget)) placeraVerktyg(pw); });
+  yta.addEventListener('focusin', ev => { const pw = ev.target.closest('.lspw'); if (pw) placeraVerktyg(pw); });
   yta.addEventListener('click', ev => {
     const bl = ev.target.closest('[data-ls-bl]'); if (bl) { stegaBasland(bl.dataset.lsBl, +bl.dataset.d); return; }
     const a = ev.target.closest('[data-lk]'), pw = ev.target.closest('[data-ls-kort]');
