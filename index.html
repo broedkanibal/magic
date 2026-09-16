@@ -323,47 +323,92 @@ body.tomhand .brade{
   grid-template-columns:minmax(0,1fr);
   grid-template-areas:"perm";
 }
-/* ── Uppstarten (MES-102) ───────────────────────────────────────────
-   Designen Mesa Camera Play 1a–1e: en checklista i inspektorns spalt —
-   lek, hur kameran arbetar, telefon (bara med kamera), ett otappat kort
-   (bara Follow the table). Klara steg fälls ihop till en rad; det aktiva
-   står öppet. */
-.oppstart{grid-area:mark;display:flex;flex-direction:column;min-height:0;min-width:0;background:#121821;border:1px solid var(--line);border-radius:12px;overflow:auto}
+/* ── Uppstarten "Get ready for the game" (MES-170) ──────────────────
+   Designen "Mesa Deck Builder" sida 4, G1–G6 och J1–J2: panelen till
+   vänster om mattan medan man gör sig redo — rubriken, Invite your friends
+   med spelarna, Get ready yourself som vertikal stepper och stegets handling
+   i en knapp i foten. Klara steg är en rad med summering och penna; det
+   aktiva står öppet. Inspektorn och tipsraden viker undan. */
+.oppstart{grid-area:opp;display:flex;flex-direction:column;min-height:0;min-width:0;background:#121821;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .oppstart[hidden]{display:none}
 body.oppstart .kolmark{display:none}
-body.oppstart .brade{grid-template-columns:minmax(0,1fr) 360px;grid-template-areas:"perm mark"}
+body.oppstart .brade{grid-template-columns:400px minmax(0,1fr);grid-template-areas:"opp perm"}
+body.oppstart .hints{display:none}
 @media (max-width:1100px){
-  body.oppstart .brade{grid-template-columns:minmax(0,1fr) 320px}
+  body.oppstart .brade{grid-template-columns:360px minmax(0,1fr)}
 }
-.opphd{padding:16px 18px 14px;border-bottom:1px solid #1c2330;display:flex;flex-direction:column;gap:3px}
-.opphd b{font-size:15px;font-weight:650}
-.opphd span{font-size:12px;color:var(--dim)}
-.oppsteg{display:flex;gap:12px;padding:13px 18px;border-bottom:1px solid #1c2330}
+.gphd{flex:none;padding:17px 22px 15px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;border-bottom:1px solid #1c2330}
+.gphd .wel{font:600 13px var(--sans);color:var(--pa-acc2)}
+.gphd .wel[hidden],.hostchip[hidden]{display:none}
+.gpt{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0}
+.gphd h1{margin:0;font:650 19px/1.25 var(--sans);letter-spacing:-.2px;color:var(--txt);white-space:nowrap}
+.hostchip{display:inline-flex;align-items:center;gap:7px;height:22px;padding:0 9px 0 8px;border-radius:11px;background:#f0a52a1f;border:1px solid #f0a52a55;color:#ffd98a;font:600 11.5px var(--sans);white-space:nowrap;flex:none}
+.gpmid{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
+.gpdel{flex:none;padding:14px 22px 16px;display:flex;flex-direction:column;gap:10px}
+.gpdel + .gpdel{border-top:1px solid #1c2330}
+.gpdh{display:flex;align-items:center;gap:10px}
+.gpdh .pn{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;flex:none;background:#1b2230;border:1px solid #39445a;font:700 11px var(--mono);color:var(--dim)}
+.gpdh b{font:650 14px var(--sans);color:var(--txt)}
+.lnk{display:flex;align-items:center;gap:9px;height:36px;padding:0 5px 0 11px;border-radius:9px;background:#0e131b;border:1px solid var(--panelram)}
+.lnk .ic{display:inline-flex;color:var(--dim2);flex:none}
+.lnk .lt{flex:1;min-width:0;font:12.5px var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lnk .btn{flex:none}
+.ppl{display:flex;flex-direction:column;gap:2px}
+.pr{display:flex;align-items:center;gap:9px;min-height:24px;font:13px var(--sans);color:var(--txt)}
+.pr b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pr .grow{flex:1}
+.pr .du{font-size:11.5px;color:var(--dim2);white-space:nowrap}
+.pr .rst{font-size:12px;white-space:nowrap}
+/* Den vertikala steppern. Linjen mellan stegen hör till varje steg utom
+   det sista synliga (sist): steg 3 och 4 står bara med ett kameraläge, och
+   de glider in när de kommer fram (G3). */
+.vs{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
+.oppsteg{position:relative;display:flex;gap:14px;padding-bottom:16px}
 .oppsteg[hidden]{display:none}
-.oppsteg.active{background:#151c27}
-.oppnr{width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px/1 var(--mono);border:1px solid #39445a;color:var(--dim2)}
-.oppsteg.done .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
-.oppsteg.active .oppnr{background:var(--acc);border-color:var(--acc);color:#20160a}
-.oppbody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.opptit{display:flex;align-items:center;gap:8px;min-height:24px;font-size:13.5px;font-weight:600;color:var(--txt);line-height:1.35}
-.oppsteg.todo .opptit{color:var(--dim);font-weight:550}
-/* Steg 2: kamerans två lägen under en rubrik, utan kamera för sig nedanför. */
+.oppsteg.sist{padding-bottom:0}
+.oppsteg::before{content:'';position:absolute;left:12px;top:32px;bottom:6px;width:1.5px;background:#28313f}
+.oppsteg.sist::before{display:none}
+.oppsteg.done::before{background:#2f6b47}
+#opp3,#opp4{animation:vsIn .5s ease-out both}
+@keyframes vsIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){#opp3,#opp4{animation:none}}
+.vn{position:relative;z-index:1;width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 12px/1 var(--mono);border:1px solid #39445a;color:var(--dim2);background:#121821}
+.oppsteg.done .vn{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.oppsteg.act .vn{background:var(--acc);border-color:var(--acc);color:#20160a}
+.vb{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:3px}
+.vtit{display:flex;align-items:center;gap:6px;min-height:20px;font:600 14px/20px var(--sans);color:var(--txt);white-space:nowrap;border-radius:6px;outline:none}
+.vtit .grow{flex:1}
+.oppsteg.todo .vtit{color:var(--dim);font-weight:550}
+.vsum{font:12px var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.vchg{flex:none;display:inline-flex;color:var(--dim2);padding:2px;border-radius:5px}
+.oppsteg:not(.done) .vsum,.oppsteg:not(.done) .vchg,.oppsteg.active .vsum,.oppsteg.active .vchg{display:none}
+/* Varje steg öppnas med ett klick på raden (role=button sätts av
+   renderOppstart); ett klart steg behåller sin bock när det öppnats igen. */
+.vtit[role=button]{cursor:pointer}
+.vtit[role=button]:hover .vchg,.vtit[role=button]:focus-visible .vchg{color:var(--txt);background:var(--bg3)}
+.oppsteg.todo .vtit[role=button]:hover,.oppsteg.todo .vtit[role=button]:focus-visible{color:var(--txt)}
+.vtit[role=button]:focus-visible{box-shadow:0 0 0 2px #f0a52a66}
+.oppsteg:not(.active) .oppcont{display:none}
+.oppcont{display:flex;flex-direction:column;gap:10px;margin-top:10px;cursor:auto}
+.gpfot{flex:none;padding:14px 22px 16px;border-top:1px solid #1c2330;background:#10151d;display:flex;flex-direction:column;align-items:stretch;gap:9px}
+.gpfot:empty{display:none}
+.gpfot .fb{height:40px;font-size:14px;border-radius:9px;gap:8px;justify-content:center}
+.gpfot .fh{font:12px/1.45 var(--sans);color:var(--dim2);text-align:center}
+.nydeck{display:flex}
+.nydeck .btn{flex:1;justify-content:center;height:36px}
+.qrrad{display:flex;gap:16px;align-items:center}
+.qrrad .qv{display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:0}
+.klar4{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:10px;background:#0f2016;border:1px solid #2f6b47}
+.klar4 .ck{width:26px;height:26px;border-radius:50%;background:#3fb97a;color:#08140d;display:grid;place-items:center;flex:none}
+.klar4 b{display:block;font:650 14px var(--sans);color:#d8f5e4}
+.klar4 span{font:12.5px/1.5 var(--sans);color:#9fcfb3}
+.oppstart .oppopt{padding:7px 11px}
+.oppstart .oppopt .oppbody span{font-size:12px}
+.oppstart .oppgrupp.skild{margin-top:0;padding-top:9px}
+.tapopt.on{border-color:var(--acc);background:#1a1710}
+/* Steg 2: kamerans två lägen under Hybrid modes, Digital table för sig nedanför. */
 .oppgrupp{font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);margin-bottom:-4px}
 .oppgrupp.skild{margin-top:4px;padding-top:12px;border-top:1px solid #1c2330}
-.oppsum{font-size:12px;color:var(--dim)}
-.oppsteg:not(.done) .oppsum,.oppsteg.active .oppsum,.oppsteg:not(.active) .oppcont{display:none}
-/* Varje steg går att öppna med ett klick på raden (role=button sätts av
-   renderOppstart); ett klart steg behåller sin bock när det öppnats igen
-   och fälls ihop med ett klick på raden. */
-.oppsteg[role=button]{cursor:pointer}
-.oppsteg[role=button]:not(.active):hover,.oppsteg[role=button]:not(.active):focus-visible{background:#141a24;outline:none}
-.oppsteg.active[role=button]:focus-visible{outline:none;box-shadow:inset 2px 0 0 var(--acc)}
-.oppsteg.todo[role=button]:hover .opptit{color:var(--txt)}
-.oppsteg.done:not(.active) .opptit::after{content:'Change';margin-left:auto;font-size:11.5px;font-weight:500;color:var(--dim2);opacity:0;transition:opacity .12s}
-.oppsteg.done:not(.active):hover .opptit::after,.oppsteg.done:not(.active):focus-visible .opptit::after{opacity:1}
-.oppsteg.done.active .oppnr{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
-.oppsteg .oppcont{cursor:auto}
-.oppcont{display:flex;flex-direction:column;gap:16px;margin-top:12px}
 .opptxt{margin:0;font-size:12.5px;color:var(--dim);line-height:1.55}
 .opptxt b{color:var(--txt);font-weight:600}
 .oppopt{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);text-align:left;cursor:pointer;font:inherit}
@@ -384,8 +429,8 @@ body.oppstart .brade{grid-template-columns:minmax(0,1fr) 360px;grid-template-are
 .oppwait.ok{color:#8fe0b0}
 .oppwait.ok i{background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26;animation:none}
 .oppqr{align-self:flex-start;padding:10px;border-radius:10px;background:#fff;line-height:0}
-.oppqr canvas{width:150px;height:150px;image-rendering:pixelated}
-.oppqr .vantar{display:block;max-width:150px;line-height:1.4;color:#333;font-size:12px}
+.oppqr canvas{width:132px;height:132px;image-rendering:pixelated}
+.oppqr .vantar{display:block;max-width:132px;line-height:1.4;color:#333;font-size:12px}
 .oppbild{position:relative}
 .oppbild .kalbild{height:auto;aspect-ratio:16/10;max-height:240px;border:1px solid var(--line)}
 .oppbild .kalbild img{width:100%;height:100%;object-fit:contain}
@@ -536,7 +581,6 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
 @keyframes lekSkugga{0%{opacity:0;transform:translate(34px,26px) scale(1.25)}42%{opacity:.55;transform:translate(3px,4px) scale(1)}80%{opacity:.55;transform:translate(3px,4px) scale(1)}94%,100%{opacity:0}}
 @keyframes lekRing{0%,40%{opacity:0;box-shadow:0 0 0 0 #ffffffb3}44%{opacity:1;box-shadow:0 0 0 0 #ffffffb3}66%,100%{opacity:1;box-shadow:0 0 0 16px #ffffff00}}
 @media (prefers-reduced-motion: reduce){.lek,.lekskugga,.landring{animation:none}.landring{display:none}}
-.oppfot{margin-top:auto;padding:12px 18px;border-top:1px solid #1c2330;display:flex;gap:8px;align-items:center}
 @media (max-width:620px){
   .oppstart{position:fixed;inset:44px 0 0 0;z-index:185;border-radius:0}
   body.oppstart .brade{grid-template-columns:minmax(0,1fr);grid-template-areas:"perm"}
@@ -3295,33 +3339,45 @@ body.ispel #addPlayerBtn{display:none}
         </div>
         <div class="insbody" id="insBody"></div>
       </aside>
-      <!-- Uppstarten (MES-102, designen Mesa Camera Play 1a–1e): en checklista i
-           inspektorns spalt när man går in i ett spel utan fungerande kamera —
-           lek, hur kameran arbetar, telefon (bara med kamera), ett otappat kort. Ritas av
-           renderOppstart(); stegen byggs aldrig om i sin helhet, så QR-koden och
-           kamerans bild (#pbBild flyttas hit i steg 4) står kvar. -->
-      <aside class="oppstart" id="oppstart" hidden aria-label="Set up your table">
-        <div class="opphd"><b>Set up your table</b><span>About a minute. You can change all of it later.</span></div>
-        <div class="oppsteg" id="opp1"><span class="oppnr">1</span><div class="oppbody">
-          <div class="opptit">Pick your deck</div><div class="oppsum" id="opp1Sum"></div><div class="oppcont" id="opp1Cont"></div></div></div>
-        <div class="oppsteg" id="opp2"><span class="oppnr">2</span><div class="oppbody">
-          <div class="opptit">Choose game mode</div><div class="oppsum" id="opp2Sum"></div><div class="oppcont" id="opp2Cont"></div></div></div>
-        <div class="oppsteg" id="opp3"><span class="oppnr">3</span><div class="oppbody">
-          <div class="opptit">Connect your phone</div><div class="oppsum">Phone connected</div>
-          <div class="oppcont">
-            <div class="oppqr" id="oppQr"></div>
-            <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
-            <div class="opprad"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><span class="grow"></span><button type="button" class="btn ghost sm" data-opp="kopiera">Copy link</button><button type="button" class="btn prim sm" data-opp="stang" id="opp3Klar" hidden>Done</button></div>
-          </div></div></div>
-        <div class="oppsteg" id="opp4"><span class="oppnr">4</span><div class="oppbody">
-          <div class="opptit">Set up your table in the picture</div><div class="oppsum">Card direction, graveyard and library set</div>
-          <div class="oppcont">
-            <p class="opptxt" id="opp4Intro">Lay out your table the way you'll play. The picture on the left is what your phone sees.</p>
-            <div class="oppbild" id="oppBild"></div>
-            <div class="delar" id="oppDelar"></div>
-            <div class="oppefter" id="oppEfter"></div>
-          </div></div></div>
-        <div class="oppfot"><button type="button" class="btn ghost sm" data-opp="utan">Play without the camera</button></div>
+      <!-- Uppstarten "Get ready for the game" (MES-170, "Mesa Deck Builder"
+           sida 4: G1–G6, L1–L6, J1–J2): panelen till vänster om mattan medan
+           man gör sig redo — rubriken, 1 Invite your friends (länken och
+           spelarna med status) och 2 Get ready yourself som vertikal stepper,
+           med stegets handling i foten. Ritas av renderOppstart(); stegen byggs
+           aldrig om i sin helhet, så QR-koden och kamerans bild (#pbBild
+           flyttas hit i steg 4 på en smal skärm) står kvar. -->
+      <aside class="oppstart" id="oppstart" hidden aria-label="Get ready for the game">
+        <div class="gphd"><span class="wel" id="oppWel" hidden></span><div class="gpt"><h1>Get ready for the game</h1><span class="hostchip" id="oppHost" hidden><i class="bdot"></i>You’re the host</span></div></div>
+        <div class="gpmid">
+          <section class="gpdel"><div class="gpdh"><span class="pn">1</span><b>Invite your friends</b></div>
+            <div class="lnk"><span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg></span><span class="lt">Anyone with the link can join</span><button type="button" class="btn sm" data-opp="bjud"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9a1.8 1.8 0 0 0 1.8 1.8h2.7"/></svg><span>Copy link</span></button></div>
+            <div class="ppl" id="oppFolk"></div></section>
+          <section class="gpdel"><div class="gpdh"><span class="pn">2</span><b>Get ready yourself</b></div>
+            <ol class="vs">
+              <li class="oppsteg" id="opp1"><span class="vn">1</span><div class="vb">
+                <div class="vtit"><span>Pick your deck</span><span class="grow"></span><span class="vsum" id="opp1Sum"></span><span class="vchg" title="Change"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span></div>
+                <div class="vc oppcont" id="opp1Cont"></div></div></li>
+              <li class="oppsteg" id="opp2"><span class="vn">2</span><div class="vb">
+                <div class="vtit"><span>Choose game mode</span><span class="grow"></span><span class="vsum" id="opp2Sum"></span><span class="vchg" title="Change"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span></div>
+                <div class="vc oppcont" id="opp2Cont"></div></div></li>
+              <li class="oppsteg" id="opp3" hidden><span class="vn">3</span><div class="vb">
+                <div class="vtit"><span>Connect your phone</span><span class="grow"></span><span class="vsum">Phone connected</span><span class="vchg" title="Change"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span></div>
+                <div class="vc oppcont">
+                  <div class="qrrad"><div class="oppqr" id="oppQr"></div><div class="qv"><span class="oppwait" id="oppWait"><i></i><span>Waiting for your phone…</span></span><button type="button" class="btn ghost sm" data-opp="kopiera"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9a1.8 1.8 0 0 0 1.8 1.8h2.7"/></svg><span>Copy link</span></button></div></div>
+                  <p class="opptxt">Scan the code with your phone's camera — nothing to install. Then put the phone in its holder, straight above your cards.</p>
+                </div></div></li>
+              <li class="oppsteg" id="opp4" hidden><span class="vn">4</span><div class="vb">
+                <div class="vtit"><span>Set up your table</span><span class="grow"></span><span class="vsum">Graveyard and library set</span></div>
+                <div class="vc oppcont">
+                  <p class="opptxt" id="opp4Intro" hidden></p>
+                  <div class="oppbild" id="oppBild"></div>
+                  <div class="delar" id="oppDelar"></div>
+                  <div class="oppefter" id="oppEfter"></div>
+                </div></div></li>
+            </ol>
+          </section>
+        </div>
+        <div class="gpfot" id="oppFot"></div>
       </aside>
       </div>
     </section>
@@ -6579,7 +6635,7 @@ function bordForm(r) { return r.h < BORD.MINH ? 'list' : r.w < BORD.MINW ? 'kol'
    BORD.STOR. null utan motståndare, eller när ytan saknar mått (#app dold). */
 function bordLayout() {
   const o = motstandare();
-  if (!o.length) return null;
+  if (!o.length || oppOppen) return null;
   const W = bordEl.clientWidth, H = bordEl.clientHeight;
   if (W < 40 || H < 2 * BORD.LIST + BORD.KANT + 40) return null;
   const valt = bordValt(), niva = bordNiva(valt), n = o.length;
@@ -6770,7 +6826,7 @@ function bordKlickMitt() { if (bordAktiv() && bordValt() !== 'me') bordValj('me'
 /* Tangenterna: 1 mitt bord, 2–9 motståndarna i sittordning, E Everyone,
    ↑↓ nivån, ←→ och Tab nästa motståndare. true = hanterad. */
 function bordTangent(ev) {
-  if (!bordAktiv()) return false;
+  if (!bordAktiv() || oppOppen) return false;
   const k = ev.key, lower = k.toLowerCase();
   if (lower === 'e') bordValj('all');
   else if (k === 'ArrowUp') bordStegNiva(1);
@@ -9796,12 +9852,12 @@ function renderKamPop() {
   $('#kamRedo').hidden = !redigerbar() || !!fel;
 }
 
-/* ── Uppstarten (MES-102) ───────────────────────────────────────────
-   Designen Mesa Camera Play 1a–1e: en checklista när man går in i ett spel
-   utan fungerande kamera — lek, hur kameran arbetar (Follow the table
-   rekommenderas), telefon (bara med kamera), ett otappat kort (bara Follow
-   the table). Stegen
-   läses ur samma tillstånd som resten av appen; bara lägesvalet och om
+/* ── Uppstarten (MES-102, "Get ready for the game" MES-170) ──────────
+   Designen "Mesa Deck Builder" sida 4 (G1–G6, L1–L6, J1–J2): panelen till
+   vänster när man går in i ett spel utan fungerande kamera — lek, spelläge
+   (Mirror my table rekommenderas), telefon (bara med ett kameraläge), bordet
+   i bilden (bara Mirror my table). Stegets handling står i panelens fot.
+   Stegen läses ur samma tillstånd som resten av appen; bara lägesvalet och om
    uppstarten är klar eller avböjd minns per spel (K.oppstart), för att
    databasens förval ('skarm') inte går att skilja från ett val. Pillret
    öppnar den igen i lägena av och väntar; "Redo setup" i kamerapanelen gör
@@ -9815,6 +9871,9 @@ function renderKamPop() {
    uppstarten går vidare som vanligt. */
 let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
 let oppVisat = null, oppVisatKlar = false, oppNasta = null;
+/* Untapped (0) eller Tapped (1) i steg 4:s första del: valt i panelen,
+   sparat med Continue i foten (G5). */
+let oppTappVal = 0;
 /* Steg 4 (MES-122): provkortets spår och om vinkeln går att spara nu
    (oppProvMatt); svaret (tappat) medan telefonen räknar; graveyard-rutan
    spelaren flyttar (Move it); och när library-rutan sparades — leken räknas
@@ -9831,7 +9890,7 @@ let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger, tackt, l
 let oppBibSag = null, oppPlingNar = 0, oppPlingT = 0, oppKlarDold = false;
 const OPP_PLING_MS = 1000;
 /* Telefonen efter spelläget: den behövs bara i kamerans två lägen, och
-   Without camera stänger uppstarten innan den kommer fram. */
+   Digital table stänger uppstarten innan den kommer fram. */
 const OPP_ORDNING = ['lek', 'lage', 'tel', 'vinkel'];
 const oppMinne = () => LS.get(K.oppstart, {}) || {};
 function oppFor() { const m = oppMinne(); return (spelLage && m[spelLage.id]) || {}; }
@@ -9875,9 +9934,9 @@ const OPP_SIDA = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none" st
 const oppIkon = inre => `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inre}</svg>`;
 const OPP_MATT = {
   lek: { ikon: oppIkon('<rect x="4" y="6" width="11" height="15" rx="1.8"/><path d="M8 3h10.2A1.8 1.8 0 0 1 20 4.8V17"/>'), h: 'Pick your deck',
-    p: 'Only cards from the deck you pick will be recognized once your phone is connected. Pick it on the right.' },
-  tel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: 'Connect your phone',
-    p: "Scan the code on the right with your phone's camera. The phone's picture shows up here." },
+    p: 'Only cards from the deck you pick will be recognized once your phone is connected. Pick it on the left.' },
+  tel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: 'Your phone’s picture shows up here',
+    p: 'Scan the code on the left. When the phone is in its holder, you’ll see your table here.' },
   lage: { ikon: oppIkon('<path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/>'), h: 'Choose game mode',
     p: 'Let the camera mirror your table, use it to add cards, or play on a digital table.' },
   vinkel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: "Your phone's picture shows up here",
@@ -9953,7 +10012,8 @@ function oppSteg4(o) {
     clearTimeout(oppPlingT); oppPlingT = setTimeout(() => { oppPlingT = 0; renderMode(); }, OPP_PLING_MS + 20);
   }
   oppBibSag = d.bib;
-  const knappar = av => `<div class="tapval"><button type="button" class="tapopt" data-opptap="0"${av ? ' disabled' : ''}>${OPP_UPP}<b>Untapped</b><span>Standing up</span></button><button type="button" class="tapopt" data-opptap="1"${av ? ' disabled' : ''}>${OPP_SIDA}<b>Tapped</b><span>Turned sideways</span></button></div>`;
+  const tapp = (v, av, ikon, rub, txt) => `<button type="button" class="tapopt${oppTappVal === v ? ' on' : ''}" data-opptap="${v}" aria-pressed="${oppTappVal === v}"${av ? ' disabled' : ''}>${ikon}<b>${rub}</b><span>${txt}</span></button>`;
+  const knappar = av => `<div class="tapval">${tapp(0, av, OPP_UPP, 'Untapped', 'Standing up')}${tapp(1, av, OPP_SIDA, 'Tapped', 'Turned sideways')}</div>`;
   let prov;
   /* "Found it" först när platsen är låst och knapparna går att trycka på.
      Ett kort som syns men inte är mätt än räknas inte som hittat. */
@@ -9964,10 +10024,10 @@ function oppSteg4(o) {
       : p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
   const grav = oppFlytt
-    ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="gravklar">Done</button><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
+    ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
     : `<p class="opptxt"><b>This is your graveyard spot.</b> Leave the test card where it is. When you play, cards that go to the graveyard go here.</p>`
       + (f && f.trangt ? `<p class="opptxt liten">The phone is close to the table, so the spots are smaller than a card. Raise the phone if you can.</p>` : '')
-      + `<div class="hogval"><button type="button" class="btn prim" data-opp="gravok">Looks good</button><button type="button" class="btn" data-opp="gravflytt">Move it</button></div>`;
+      + `<div class="opprad"><button type="button" class="btn sm" data-opp="gravflytt">Move it</button></div>`;
   let bib = '';
   if (d.aktiv === 'bib') {
     const vantat = Date.now() - oppBibNar, knapp = oppBibReserv(), fas = oppBibFas();
@@ -9985,7 +10045,12 @@ function oppSteg4(o) {
     + oppDel(2, 'Graveyard', st('grav'), 'Bottom-left corner', ['gravom', 'Move'], grav)
     + oppDel(3, 'Library', st('bib'), 'In place', null, bib).replace('class="del done"', Date.now() - oppPlingNar < OPP_PLING_MS ? 'class="del done nyklar"' : 'class="del done"'));
   oppDiff($('#oppEfter'), d.aktiv === 'start'
-    ? `<p class="opptxt">All set — the camera knows where your graveyard and library are.</p><div class="opprad"><button type="button" class="btn prim" data-opp="starta">Start playing</button></div>` : '');
+    ? `<div class="klar4"><span class="ck">${OPP_KLAR.replace('width="12" height="12"', 'width="15" height="15"')}</span><div><b>Your table is set up</b><span>The camera knows where your graveyard and library are.</span></div></div>` : '');
+  /* Handlingen i panelens fot (G5, G6, L1–L6). */
+  return d.aktiv === 'prov' ? { txt: 'Continue', a: 'tapp', av: oppTappSvar != null || !oppProvLas }
+    : d.aktiv === 'grav' ? (oppFlytt ? { txt: 'Done', a: 'gravklar', av: !oppGravFlyttad } : { txt: 'Looks good', a: 'gravok' })
+    : d.aktiv === 'bib' ? { txt: 'Start playing', av: true }
+    : { txt: 'Start playing<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>', a: 'starta' };
 }
 /* Graveyard (och library bredvid) sparas i en skrivning; leken väntas in. */
 async function oppSparaZoner(grav, bib) {
@@ -10005,6 +10070,36 @@ function oppStarta() {
   renderMode();
   if (!oppstartPagar()) avstamBord(senasteSpar);
 }
+/* Spelarlistan i Invite your friends (MES-170, G1/J1): alla i spelet i
+   sittordning, med vem som är jag och värden, och var var och en är
+   (game_players.status): lek = steg 1, uppstart = steg 2–4, redo = allt är
+   klart men Start playing inte tryckt, spelar = i spelet. Ingen status — en
+   rad från före kolumnen — står utan. */
+const OPP_STATUS = { lek: ['Picking a deck', '#e8c98a'], uppstart: ['Setting up', '#e8c98a'], redo: ['Ready', '#8fe0b0'], spelar: ['Playing', 'var(--dim)'] };
+function oppFolkHtml() {
+  const plats = p => p.plats == null ? 1e9 : p.plats;
+  return state.players.slice().sort((a, b) => plats(a) - plats(b)).map(p => {
+    const du = [p.id === spelLage.mig ? 'you' : '', p.id === spelLage.vard ? 'host' : ''].filter(Boolean).join(' · ');
+    const st = OPP_STATUS[p.status];
+    return `<div class="pr"><i class="bdot" style="--pc:${esc(p.color || 'var(--blue)')}"></i><b>${esc(p.name || 'Player')}</b>`
+      + `${du ? `<span class="du">${du}</span>` : ''}<span class="grow"></span>${st ? `<span class="rst" style="color:${st[1]}">${st[0]}</span>` : ''}</div>`;
+  }).join('');
+}
+/* Knappen i panelens fot bär stegets handling (G1–G6): { txt, a (data-opp),
+   av (gråad medan steget väntar), hint }. */
+function oppFotHtml(f) {
+  f = f || { txt: 'Continue', av: true };
+  return (f.hint ? `<span class="fh">${f.hint}</span>` : '')
+    + `<button type="button" class="btn prim fb" data-opp="${f.a || ''}"${f.av ? ' disabled' : ''}>${f.txt}</button>`;
+}
+function oppKopiera(lank, knapp) {
+  const s = knapp && knapp.querySelector('span');
+  navigator.clipboard.writeText(lank).then(() => {
+    if (!s) return;
+    s.textContent = 'Copied';
+    clearTimeout(knapp._t); knapp._t = setTimeout(() => { s.textContent = 'Copy link'; }, 1600);
+  }).catch(() => prompt('Copy the link:', lank));
+}
 function renderOppstart() {
   const el = $('#oppstart'); if (!el) return;
   if (!spelLage) {                  // utanför ett spel: bara DOM, inga tillstånd (renderMode ritas tidigt)
@@ -10014,7 +10109,7 @@ function renderOppstart() {
     return;
   }
   const o = redigerbar() ? oppFor() : null, mig = minSpelare(), bord = mittLage() === 'bord';
-  let visa = !!o && !o.klar && !o.avbojd, aktiv = null;
+  let visa = !!o && !o.klar && !o.avbojd, aktiv = null, fot = null;
   const ordning = OPP_ORDNING;
   const steg = {};
   if (visa) {
@@ -10037,20 +10132,40 @@ function renderOppstart() {
   if (!visa) oppVisat = oppNasta = null;
   const oppVar = oppOppen;
   oppOppen = visa;
-  if (oppVar !== visa) renderBibHog();
+  /* Motståndarnas mattor och kanten viker undan medan man gör sig redo
+     (G1–G6): de andra står i spelarlistan i panelen i stället. */
+  if (oppVar !== visa) { renderBibHog(); renderBord(); }
   if (visa) {
+    /* Rubriken: värden får "You're the host", den som gått med "Welcome to
+       Jesper's game" (J1). */
+    const arVard = spelLage.vard === spelLage.mig;
+    const vardNamn = (state.players.find(p => p.id === spelLage.vard) || {}).name;
+    const wel = arVard ? '' : `Welcome to ${vardNamn || 'the host'}’s game`, we = $('#oppWel');
+    if (we.textContent !== wel) we.textContent = wel;
+    we.hidden = arVard;
+    $('#oppHost').hidden = !arVard;
+    if (mig) $('#oppHost').style.setProperty('--pc', mig.color || 'var(--acc)');
+    oppDiff($('#oppFolk'), oppFolkHtml());
+    /* Steg 3 och 4 står bara med ett av kamerans lägen — det valda i steg 2
+       medan det står framme (G3), annars det sparade. Steg 4 bara i Mirror
+       my table. */
+    if (aktiv === 'lage' && !oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
+    const lageVal = aktiv === 'lage' ? oppLageVal : o.lage ? (bord ? 'bord' : 'skarm') : null;
+    const synlig = { lek: true, lage: true, tel: lageVal === 'bord' || lageVal === 'skarm', vinkel: lageVal === 'bord' };
+    const sist = ordning.filter(k => synlig[k]).pop();
     ordning.forEach((k, i) => {
-      /* Klickbar är varje rad utom nästa steg när det står framme av sig självt. */
-      const st = $('#opp' + (i + 1)), klick = !(k === aktiv && !oppVisat);
-      const klass = (steg[k] ? 'done' : k === aktiv ? '' : 'todo') + (k === aktiv ? ' active' : '');
+      /* Klickbar är varje rad utom nästa steg när det står framme av sig
+         självt. Raden är rubriken: ett klick i stegets innehåll är innehållets. */
+      const st = $('#opp' + (i + 1)), tit = st.querySelector('.vtit'), klick = !(k === aktiv && !oppVisat);
+      const klass = 'oppsteg ' + (steg[k] ? 'done' : k === aktiv ? 'act' : 'todo') + (k === aktiv ? ' active' : '') + (k === sist ? ' sist' : '');
+      if (st.hidden !== !synlig[k]) st.hidden = !synlig[k];
       if (st.dataset.k !== klass + klick) {
-        st.dataset.k = klass + klick; st.className = 'oppsteg ' + klass.trim(); st.querySelector('.oppnr').innerHTML = steg[k] ? OPP_KLAR : String(i + 1);
-        if (klick) { st.tabIndex = 0; st.setAttribute('role', 'button'); st.setAttribute('aria-expanded', String(k === aktiv)); }
-        else { st.removeAttribute('tabindex'); st.removeAttribute('role'); st.removeAttribute('aria-expanded'); }
+        st.dataset.k = klass + klick; st.className = klass;
+        st.querySelector('.vn').innerHTML = steg[k] ? OPP_KLAR : String(i + 1);
+        if (klick) { tit.tabIndex = 0; tit.setAttribute('role', 'button'); tit.setAttribute('aria-expanded', String(k === aktiv)); }
+        else { tit.removeAttribute('tabindex'); tit.removeAttribute('role'); tit.removeAttribute('aria-expanded'); }
       }
     });
-    $('#opp3').hidden = !o.lage;                  // telefonen bara efter ett av kamerans lägen
-    $('#opp4').hidden = !o.lage || !bord;         // Only add new cards: inget otappat kort att visa
     const lek = mig && mig.lek;
     const s1 = lek ? `${lek.namn || 'Deck'} · ${lek.antal || 0} cards` : '';
     if ($('#opp1Sum').textContent !== s1) $('#opp1Sum').textContent = s1;
@@ -10065,17 +10180,20 @@ function renderOppstart() {
         lekHamtaLista().then(l => { oppLekar = l || []; }).catch(() => { oppLekar = []; })
           .finally(() => { oppLekarHamtar = false; renderOppstart(); });
       }
+      const nylek = `<div class="nydeck"><button type="button" class="btn" data-opp="nylek">${lsIk('plus', 14, 2.4)}New deck</button></div>`;
       let h;
+      fot = { txt: 'Use this deck', av: true };
       if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
-      else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized once your phone is connected. You have no decks yet — add your cards first.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="nylek">New deck…</button></div>';
+      else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized. You have no decks yet — add your cards first.</p>' + nylek;
       else {
         if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal))
           oppLekVal = mig && oppLekar.some(l => l.id === mig.lekId) ? mig.lekId
             : lekAktiv && oppLekar.some(l => l.id === lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
         const val = oppLekar.find(l => l.id === oppLekVal);
-        h = '<p class="opptxt">Only cards from the deck you pick will be recognized once your phone is connected.</p>'
+        h = '<p class="opptxt">Only cards from the deck you pick will be recognized.</p>'
           + oppLekar.map(l => `<button type="button" class="oppopt${l.id === oppLekVal ? ' on' : ''}" data-opplek="${esc(l.id)}"><span class="radio"></span><span class="oppbody"><b><span class="pips">${pipsHtml(l.farger)}</span>${esc(l.namn)}</b></span><span class="oppmeta">${l.antal || 0} cards</span></button>`).join('')
-          + `<div class="opprad"><button type="button" class="btn prim sm" data-opp="spela">Play with ${esc(val.namn)}</button><button type="button" class="btn ghost sm" data-opp="nylek">New deck…</button></div>`;
+          + nylek;
+        fot = { txt: `Use ${esc(val.namn)}`, a: 'spela' };
       }
       oppDiff($('#opp1Cont'), h);
     }
@@ -10088,22 +10206,21 @@ function renderOppstart() {
       const w = $('#oppWait'), t = kamAnsluten ? 'Phone connected — scan again to switch phones' : 'Waiting for your phone…';
       w.classList.toggle('ok', kamAnsluten);
       if (w.lastElementChild.textContent !== t) w.lastElementChild.textContent = t;
-      $('#opp3Klar').hidden = !kamAnsluten;
+      fot = { txt: 'Continue', a: 'stang', av: !kamAnsluten };
     } else oppQrVisas = false;
-    /* 2: spelläget (MES-123). Kamerans två lägen under With camera — Mirror
-       my table förvalt och rekommenderat — och Without camera för sig. */
+    /* 2: spelläget (MES-123, namnen MES-170). Kamerans två lägen under Hybrid
+       modes — Mirror my table förvalt och rekommenderat — och Digital table
+       för sig under Digital mode. */
     if (aktiv === 'lage') {
-      if (!oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
-      const opt = (v, rub, txt, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${rub}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${txt}</span></span></button>`;
-      oppDiff($('#opp2Cont'), `<div class="oppgrupp">${LAGE_GRUPP.kamera}</div>`
-        + opt('bord', LAGE_NAMN.bord, LAGE_TXT.bord, 'Recommended') + opt('skarm', LAGE_NAMN.skarm, LAGE_TXT.skarm)
-        + `<div class="oppgrupp skild">${LAGE_GRUPP.utan}</div>`
-        + opt('utan', LAGE_NAMN.utan, LAGE_TXT.utan)
-        + '<div class="opprad"><button type="button" class="btn prim sm" data-opp="lage">Continue</button></div>');
+      const opt = (v, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${LAGE_NAMN[v]}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${LAGE_TXT[v]}</span></span></button>`;
+      oppDiff($('#opp2Cont'), `<div class="oppgrupp">${LAGE_GRUPP.kamera}</div>` + opt('bord', 'Recommended') + opt('skarm')
+        + `<div class="oppgrupp skild">${LAGE_GRUPP.utan}</div>` + opt('utan'));
+      fot = { txt: 'Continue', a: 'lage' };
     }
     /* 4: provkortet, graveyard-platsen och leken (MES-122). */
-    if (aktiv === 'vinkel') oppSteg4(o);
+    if (aktiv === 'vinkel') fot = oppSteg4(o);
     else { oppDiff($('#oppDelar'), ''); oppDiff($('#oppEfter'), ''); }
+    oppDiff($('#oppFot'), oppFotHtml(fot));
   }
   /* Bilden: i steg 4 så länge kamerapanelen är stängd — i stort på mattan,
      på en smal skärm i spalten (den ligger då över mattan). */
@@ -10111,11 +10228,12 @@ function renderOppstart() {
   const bild = steg4 && kamAnsluten;
   const dit = bild ? (smal ? 'panel' : 'matt') : false;
   if (dit !== oppstartBild) { oppstartBild = dit; flyttaPbBild(dit); kamStegSynk(); }
-  /* Mattan är kamerans bildyta hela uppstarten (MES-123) — i steg 1–3 och i
-     steg 4 innan telefonen är med står ramen där bilden kommer och säger vad
-     steget handlar om, och de digitala högarna viker undan. Samma ram i alla
-     steg, så att bara innehållet byts när man går vidare. */
-  const ram = visa && !kamOppen && !smal;
+  /* Mattan är kamerans bildyta hela uppstarten (MES-123): bordet viker
+     undan, och i steg 1, 3 och i steg 4 innan telefonen är med står ramen
+     där bilden kommer och säger vad steget handlar om. I steg 2 är mattan
+     tom (G3). */
+  const tom = visa && !kamOppen && !smal;
+  const ram = tom && (bild || aktiv !== 'lage');
   $('#oppMatt').hidden = !ram;
   $('#oppMatt').classList.toggle('utanbild', !bild);
   $('#oppMattVant').hidden = bild;
@@ -10124,9 +10242,12 @@ function renderOppstart() {
     const m = OPP_MATT[aktiv] || OPP_MATT.vinkel;
     oppDiff($('#oppMattVant'), `${m.ikon}<em>Step ${synliga.indexOf(aktiv) + 1} of ${synliga.length}</em><b>${m.h}</b><span>${m.p}</span>${m.knapp || ''}`);
   }
-  document.body.classList.toggle('oppbild', ram);
-  const intro = dit === 'panel' ? "Lay out your table the way you'll play. The picture is what your phone sees." : "Lay out your table the way you'll play. The picture on the left is what your phone sees.";
-  if ($('#opp4Intro').textContent !== intro) $('#opp4Intro').textContent = intro;
+  document.body.classList.toggle('oppbild', tom);
+  /* Bilden i spalten (smal skärm) behöver en rad om vad den är; på mattan
+     har den sin egen rubrik. */
+  const intro = dit === 'panel' ? "Lay out your table the way you'll play. The picture is what your phone sees." : '', ie = $('#opp4Intro');
+  if (ie.textContent !== intro) ie.textContent = intro;
+  ie.hidden = !intro;
   if (dit) requestAnimationFrame(ritaPbLager);
   const fore = document.body.classList.contains('oppstart');
   el.hidden = !visa;
@@ -10146,10 +10267,11 @@ function oppVaxla(st) {
 $('#oppstart').addEventListener('click', ev => {
   const lk = ev.target.closest('[data-opplek]'); if (lk) { oppLekVal = lk.dataset.opplek; renderOppstart(); return; }
   const lg = ev.target.closest('[data-opplage]'); if (lg) { oppLageVal = lg.dataset.opplage; renderOppstart(); return; }
+  /* Untapped / Tapped väljs här och sparas med Continue i foten (G5). */
   const tp = ev.target.closest('[data-opptap]');
-  if (tp) { if (oppProvId == null) return; oppTappSvar = tp.dataset.opptap === '1'; begarGrund(oppProvId, oppTappSvar); renderOppstart(); return; }
+  if (tp) { if (oppTappSvar != null) return; oppTappVal = +tp.dataset.opptap; renderOppstart(); return; }
   const b = ev.target.closest('[data-opp]');
-  if (!b) { const st = ev.target.closest('.oppsteg[role=button]'); if (st && !ev.target.closest('.oppcont')) oppVaxla(st); return; }
+  if (!b) { const tit = ev.target.closest('.vtit[role=button]'); if (tit) oppVaxla(tit.closest('.oppsteg')); return; }
   const a = b.dataset.opp;
   if (a === 'spela' && oppLekVal) {
     const mig = minSpelare(), samma = mig && mig.lekId === oppLekVal;
@@ -10157,12 +10279,17 @@ $('#oppstart').addEventListener('click', ev => {
     if (samma) renderMode(); else valjLekTill(oppLekVal).then(() => renderMode());
   }
   else if (a === 'nylek') oppnaLeksida(null, { fran: 'app' });
-  else if (a === 'kopiera') navigator.clipboard.writeText(oppLank()).catch(() => prompt('Copy the link:', oppLank()));
+  else if (a === 'bjud') oppKopiera(inbjudanLank(), b);
+  else if (a === 'kopiera') oppKopiera(oppLank(), b);
   else if (a === 'stang') { oppVisat = null; renderOppstart(); }
   else if (a === 'lage') {
     const v = oppLageVal || 'bord'; oppLageVal = null; oppVisat = null;
     if (v === 'utan') oppUtan();
     else { oppSatt({ lage: true }); bytLage(v).then(() => renderMode()); }
+  }
+  else if (a === 'tapp') {
+    if (oppProvId == null || oppTappSvar != null) return;
+    oppTappSvar = oppTappVal === 1; begarGrund(oppProvId, oppTappSvar); renderOppstart();
   }
   else if (a === 'grund') sparaGrundFranSenaste();
   else if (a === 'provom') { oppSatt({ provKlar: false }); oppTappSvar = null; oppProvLas = null; renderMode(); }
@@ -10175,9 +10302,8 @@ $('#oppstart').addEventListener('click', ev => {
   else if (a === 'starta') oppStarta();
   else if (a === 'utan') oppUtan();
 });
-/* Utan kamera (foten, eller Without camera i steg 2): uppstarten stängs, och
-   en kamera som bara väntade på en telefon stängs av. Pillret öppnar
-   uppstarten igen. */
+/* Digital table (steg 2): uppstarten stängs, och en kamera som bara väntade
+   på en telefon stängs av. Pillret öppnar uppstarten igen. */
 function oppUtan() {
   oppSatt({ avbojd: true });
   if (prefs.autoLage === true && !kamAnsluten) { prefs.autoLage = false; savePrefs(); }
@@ -10199,7 +10325,7 @@ $('#oppLager') && $('#oppLager').addEventListener('click', ev => {
   else if (a === 'dolj') { oppKlarDold = true; ritaPbLager(); }
 });
 $('#oppstart').addEventListener('keydown', ev => {
-  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.oppsteg[role=button]')) { ev.preventDefault(); oppVaxla(ev.target); }
+  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.vtit[role=button]')) { ev.preventDefault(); oppVaxla(ev.target.closest('.oppsteg')); }
 });
 $('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true });
 
