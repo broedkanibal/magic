@@ -14332,46 +14332,70 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
   /* Ett bekräftat kort (Yes under To check) flyger från frågan in i sin hög,
      och högen blinkar grönt med en bock (MES-185). `kalla` är bilden man
-     svarade vid, eller dess ruta. Ligger högen utanför det som syns flyger
-     kortet mot ytans nederkant och tonar bort — dit leken fortsätter. */
+     svarade vid, eller dess ruta.
+     Ligger högen utanför det som syns rullar ytan först dit, så att man ser
+     var kortet hamnar (Jesper 2026-09-16), och flygningen börjar när
+     rullningen är klar. Finns fler kort kvar att kolla rullar ytan sedan
+     tillbaka till frågorna — om man inte själv rullat under tiden. */
   function bekrafta(k, kalla) {
-    const key = nyckel(k.name, k.sb);
+    const key = nyckel(k.name, k.sb), minska = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const fran = kalla && (kalla.getBoundingClientRect ? kalla.getBoundingClientRect() : kalla);
-    let till = null, pile = null;
+    const s0 = y.session;
+    let pile = null;
     medAnimering([], () => andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null }), () => {
       const pw = [...yta.querySelectorAll('.lspw')].find(el => pwNyckel(el) === key);
       pile = pw && pw.querySelector('.lspile');
-      till = pile && pile.getBoundingClientRect();
     });
-    if (!till || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const yr = yta.getBoundingClientRect(), synlig = till.bottom > yr.top + 20 && till.top < yr.bottom - 20;
-    const blink = () => {
-      if (!synlig) return;
-      const r = document.createElement('div');
-      r.className = 'lsbekr';
-      r.innerHTML = `<span>${lsIk('check', 13, 3)}</span>`;
-      Object.assign(r.style, { left: till.left - 5 + 'px', top: till.top - 5 + 'px', width: till.width + 10 + 'px', height: till.height + 10 + 'px' });
-      document.body.appendChild(r);
-      r.animate([{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'scale(1)', offset: .25 }, { opacity: 1, offset: .7 }, { opacity: 0 }],
-                { duration: 1100, easing: 'ease-out', fill: 'forwards' }).onfinish = () => r.remove();
-      setTimeout(() => r.remove(), 2500);
-    };
-    const src = (pile.querySelector('img.kf') || {}).src || k.small;
-    if (!fran || !fran.width || !src) { blink(); return; }
-    const mal = synlig ? till : { left: till.left, top: yr.bottom - till.height * 0.5, width: till.width, height: till.height };
-    const flyg = document.createElement('img');
-    flyg.className = 'lsbekrflyg'; flyg.src = src; flyg.alt = '';
-    Object.assign(flyg.style, { left: mal.left + 'px', top: mal.top + 'px', width: mal.width + 'px', height: mal.height + 'px' });
-    document.body.appendChild(flyg);
-    const s = Math.max(fran.width, fran.height) / mal.height;
-    const dx = (fran.left + fran.width / 2) - (mal.left + mal.width / 2), dy = (fran.top + fran.height / 2) - (mal.top + mal.height / 2);
-    flyg.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 1 },
-                  { transform: 'none', opacity: synlig ? 1 : 0 }],
-                 { duration: 480, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' }).onfinish = () => landa();
-    /* Landar en gång: när flygningen är klar, eller efter en stund om fliken
-       låg i bakgrunden och inte spelade den. */
-    function landa() { if (!flyg.isConnected) return; flyg.remove(); blink(); }
-    setTimeout(landa, 1500);
+    if (!pile) return;
+    const till = pile.getBoundingClientRect(), yr = yta.getBoundingClientRect();
+    if (till.top >= yr.top + 8 && till.bottom <= yr.bottom - 8) { if (!minska) flygIn(till); return; }
+    const forra = yta.scrollTop;
+    const mal = clamp(forra + (till.top - yr.top) - (yta.clientHeight - till.height) / 2, 0, Math.max(0, yta.scrollHeight - yta.clientHeight));
+    yta.scrollTo({ top: mal, behavior: minska ? 'auto' : 'smooth' });
+    efterRullning(() => {
+      if (s0 !== y.session || !pile.isConnected) return;
+      if (minska) return;
+      flygIn(pile.getBoundingClientRect(), () => {
+        const kvar = nu().kort.some(c => c.koll);
+        if (kvar && s0 === y.session && Math.abs(yta.scrollTop - mal) < 4) yta.scrollTo({ top: forra, behavior: 'smooth' });
+      });
+    });
+
+    /* Klar när ytan slutat rulla, eller efter en stund (en rullning som inte
+       behövde flytta sig ger ingen scrollend). */
+    function efterRullning(fn) {
+      let klar = false;
+      const nu2 = () => { if (klar) return; klar = true; yta.removeEventListener('scrollend', nu2); fn(); };
+      yta.addEventListener('scrollend', nu2);
+      setTimeout(nu2, 800);
+    }
+    function flygIn(t, sedan) {
+      const blink = () => {
+        const r = document.createElement('div');
+        r.className = 'lsbekr';
+        r.innerHTML = `<span>${lsIk('check', 13, 3)}</span>`;
+        Object.assign(r.style, { left: t.left - 5 + 'px', top: t.top - 5 + 'px', width: t.width + 10 + 'px', height: t.height + 10 + 'px' });
+        document.body.appendChild(r);
+        r.animate([{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'scale(1)', offset: .25 }, { opacity: 1, offset: .7 }, { opacity: 0 }],
+                  { duration: 1100, easing: 'ease-out', fill: 'forwards' }).onfinish = () => r.remove();
+        setTimeout(() => r.remove(), 2500);
+        if (sedan) setTimeout(sedan, 900);
+      };
+      const src = (pile.querySelector('img.kf') || {}).src || k.small;
+      if (!fran || !fran.width || !src) { blink(); return; }
+      const flyg = document.createElement('img');
+      flyg.className = 'lsbekrflyg'; flyg.src = src; flyg.alt = '';
+      Object.assign(flyg.style, { left: t.left + 'px', top: t.top + 'px', width: t.width + 'px', height: t.height + 'px' });
+      document.body.appendChild(flyg);
+      const s = Math.max(fran.width, fran.height) / t.height;
+      const dx = (fran.left + fran.width / 2) - (t.left + t.width / 2), dy = (fran.top + fran.height / 2) - (t.top + t.height / 2);
+      flyg.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s})` }, { transform: 'none' }],
+                   { duration: 480, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' }).onfinish = () => landa();
+      /* Landar en gång: när flygningen är klar, eller efter en stund om fliken
+         låg i bakgrunden och inte spelade den. */
+      function landa() { if (!flyg.isConnected) return; flyg.remove(); blink(); }
+      setTimeout(landa, 1500);
+    }
   }
   /* Det som ändras på ytan syns (MES-185). Kort som tas bort (nycklarna i
      `bort`) krymper och tonar bort som kopior ovanpå sidan, och korten som
