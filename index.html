@@ -2811,6 +2811,9 @@ body.ispel #addPlayerBtn{display:none}
    2026-09-16). Markeringen står kvar och raden kommer tillbaka när popovern
    stängs. */
 .lsyta.poppar .lsselbar{visibility:hidden}
+/* Ett borttaget kort som krymper bort (medAnimering). Ligger i body, över
+   lekens sida men under popovern och ångra-remsan. */
+.lspile.lsbortflyg{position:fixed;z-index:434;pointer-events:none;margin:0;transform-origin:50% 60%}
 .lsselbar{position:sticky;bottom:18px;z-index:45;margin-top:auto;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;border-radius:10px;background:#141c2af7;border:1px solid #3d4a6a;box-shadow:0 18px 40px -10px #000;font:13px var(--sans);color:#c9d4ff;flex:none;flex-wrap:wrap}
 .lsselbar b{font-weight:650;color:#fff}
 .lsselbar .grow{flex:1}
@@ -13885,7 +13888,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function tomma() {
     const v = nu(); if (!v.kort.length) return;
     const sum = lekSlagSummor(v.kort), n = sum.main + sum.sb;
-    andra(v.kort.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb })));
+    medAnimering(v.kort.map(k => nyckel(k.name, k.sb)), () => andra(v.kort.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb }))));
     snack(`${n === 1 ? 'The card' : `All ${n} cards`} removed`);
   }
   /* Ångra-remsan (H3) nere i kortytans hörn: ångrar just det steg den
@@ -14301,8 +14304,45 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   const kopiorText = n => `${n} ${n === 1 ? 'copy' : 'copies'}`;
   function taBort(k) {
     y.valda.delete(nyckel(k.name, k.sb));
-    andra({ typ: 'bort', name: k.name, sb: !!k.sb });
+    medAnimering([nyckel(k.name, k.sb)], () => andra({ typ: 'bort', name: k.name, sb: !!k.sb }));
     snack(`Removed ${k.name}${k.n > 1 ? ` ×${k.n}` : ''}`);
+  }
+  /* Det som ändras på ytan syns (MES-185). Kort som tas bort (nycklarna i
+     `bort`) krymper och tonar bort som kopior ovanpå sidan, och korten som
+     står kvar glider från sin gamla plats till sin nya (FLIP) — också när
+     To check-raden ovanför försvinner. `efter` får mäta de nya platserna
+     innan glidningen börjar. Inget av det när systemet ber om mindre rörelse. */
+  const pwNyckel = el => nyckel(el.dataset.lsKort, el.dataset.sb === '1');
+  function medAnimering(bort, fn, efter) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); if (efter) efter(); return; }
+    const borta = new Set(bort), fore = new Map(), kopior = [], yr = yta.getBoundingClientRect();
+    for (const el of yta.querySelectorAll('.lspw')) {
+      const r = el.getBoundingClientRect(), key = pwNyckel(el);
+      fore.set(key, r);
+      if (!borta.has(key) || r.bottom < yr.top || r.top > yr.bottom) continue;
+      const pile = el.querySelector('.lspile'), p = pile.getBoundingClientRect();
+      const kopia = pile.cloneNode(true);
+      kopia.querySelectorAll('.lstool, .lschkb, .lsselm, .lsnyb, .lsring').forEach(e => e.remove());
+      kopia.removeAttribute('tabindex');
+      kopia.classList.add('lsbortflyg');
+      Object.assign(kopia.style, { left: p.left + 'px', top: p.top + 'px' });
+      document.body.appendChild(kopia);
+      kopior.push(kopia);
+    }
+    fn();
+    if (efter) efter();
+    for (const el of yta.querySelectorAll('.lspw')) {
+      const f = fore.get(pwNyckel(el)); if (!f) continue;
+      const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - r.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    }
+    for (const k of kopior) {
+      k.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'translateY(10px) scale(.55)' }],
+                { duration: 240, easing: 'cubic-bezier(.5,0,.8,.4)', fill: 'forwards' }).onfinish = () => k.remove();
+      /* En flik i bakgrunden spelar inga animeringar: kopian får inte bli kvar. */
+      setTimeout(() => k.remove(), 900);
+    }
   }
   function kortAtgard(name, sb, a, el) {
     const k = kortI(name, sb); if (!k) return;
@@ -14355,7 +14395,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const n = l.length, kort = n === 1 ? l[0].name : `${n} cards`;
     if (a === 'bort') {
       y.valda.clear();
-      andra(l.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb })));
+      medAnimering(l.map(k => nyckel(k.name, k.sb)), () => andra(l.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb }))));
       snack(`Removed ${kort}`);
     } else if (a === 'sb') {
       /* Markeringen släpps: raden och ångra-remsan delar kortytans nederkant. */
@@ -14561,7 +14601,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function angraNyss(nr) {
     const e = y.nyss.find(x => x.nr === nr); if (!e) return;
     y.nyss = y.nyss.filter(x => x !== e);
-    andra((e.batch || [e]).map(b => ({ typ: 'antal', name: b.name, sb: b.sb, d: -b.n })));
+    const lista = e.batch || [e], v = nu();
+    /* Kort som försvinner helt med ångrandet krymper bort som vid Remove. */
+    const bort = lista.filter(b => { const k = v.kort.find(c => nyckel(c.name, c.sb) === nyckel(b.name, b.sb)); return k && k.n <= b.n; }).map(b => nyckel(b.name, b.sb));
+    medAnimering(bort, () => andra(lista.map(b => ({ typ: 'antal', name: b.name, sb: b.sb, d: -b.n }))));
     if (y.listaKlar && y.listaKlar.nr === nr) {
       y.listaKlar = null; y.kvitto = '';
       if (y.flik === 'lista') { ritaPanel(); return; }
