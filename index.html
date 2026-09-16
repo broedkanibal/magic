@@ -13701,6 +13701,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (y.sok) y.sok.stang();
     y.session++;
     if (y.flygP || y.ops.length) await sparaNu();
+    /* En annan väntande sparning kan ha tagit flykten före oss: vänta ut
+       den, annars skickas samma kö två gånger. */
+    while (y.flygP) await y.flygP;
     clearTimeout(y.sparT); y.sparT = null;
     if (y.ops.length && y.bas && y.spar !== 'borta') lekSparaIBakgrunden(y.bas.id, y.bas, y.ops.slice());
     y.ops = [];
