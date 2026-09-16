@@ -11554,6 +11554,72 @@ async function lekSpara(id, data, sedd) {
 }
 async function lekDopOm(id, namn) { const r = await lekSpara(id, { namn }, null); return !!r.ok; }
 async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id) : lekLokal.radera(id); }
+/* ══ BLOCK: LEKSLAG ═══════════════════════════════════════════════════
+   Lekens sida sparar av sig själv (MES-168). Det som ändrats sedan den
+   senast sparade raden ligger som en kö av ÄNDRINGAR, inte som en färdig
+   lista: {typ:'antal', name, sb, d, kort?}, {typ:'bort', name, sb},
+   {typ:'sb', name, sb, till}, {typ:'namn', namn}. Det som visas är raden
+   med kön uppspelad. Hann en annan enhet (flik, telefon) spara under
+   tiden läses dess rad in och samma kö spelas upp på den — båda enheternas
+   ändringar finns kvar, och ingen behöver fråga vem som vinner.
+
+   Därför ändringar i stället för tal: två enheter som var för sig lägger
+   till en Lightning Bolt har lagt till två, inte satt antalet till
+   samma tal. Ett kort hittas på namnet (och sidan), inte på sid — samma
+   kort kan ha olika tryckning på två enheter.
+
+   Rena funktioner utan appens toppnivå: dev/lekslag.cjs klipper ut blocket
+   mellan markörerna och kör fallen utan webbläsare. */
+const lekSlagNyckel = (name, sb) => String(name || '').toLowerCase().replace(/\s+/g, ' ').trim() + (sb ? '|sb' : '');
+function lekSlagTillampa(bas, ops) {
+  let namn = (bas && bas.namn) || '';
+  const kort = [];
+  const hitta = (name, sb) => { const n = lekSlagNyckel(name, sb); return kort.findIndex(k => lekSlagNyckel(k.name, k.sb) === n); };
+  const rad = (mall, n, sb) => {
+    const k = { name: mall.name, sid: mall.sid, small: mall.small || null, n };
+    if (mall.ci) k.ci = mall.ci;
+    if (sb) k.sb = 1;
+    return k;
+  };
+  /* Raden som den ligger kan bära dubbletter (en äldre sparning); de slås
+     ihop här, så att varje ändring bara har en rad att träffa. */
+  for (const k of (bas && Array.isArray(bas.kort)) ? bas.kort : []) {
+    if (!k || !k.name) continue;
+    const n = Number(k.n) || 1, i = hitta(k.name, k.sb);
+    if (i >= 0) kort[i].n += n; else kort.push(rad(k, n, k.sb));
+  }
+  for (const op of ops || []) {
+    if (!op) continue;
+    if (op.typ === 'namn') { if (op.namn) namn = op.namn; continue; }
+    const i = hitta(op.name, op.sb);
+    if (op.typ === 'antal') {
+      const d = Math.round(Number(op.d) || 0);
+      if (i >= 0) { kort[i].n += d; if (kort[i].n <= 0) kort.splice(i, 1); }
+      /* Kortet finns inte (längre) i raden: ett tillägg lägger in det igen,
+         ett avdrag har ingenting att dra från. */
+      else if (d > 0 && op.kort && op.kort.sid) kort.push(rad(op.kort, d, op.sb));
+    } else if (op.typ === 'bort') {
+      if (i >= 0) kort.splice(i, 1);
+    } else if (op.typ === 'sb') {
+      if (i < 0 || !!op.till === !!op.sb) continue;
+      const [flytt] = kort.splice(i, 1);
+      const j = hitta(op.name, op.till);
+      if (j >= 0) kort[j].n += flytt.n;
+      else { if (op.till) flytt.sb = 1; else delete flytt.sb; kort.push(flytt); }
+    }
+  }
+  return { namn, kort };
+}
+/* Antalen som raden bär (decks.antal är huvudleken). */
+function lekSlagSummor(kort) {
+  let main = 0, sb = 0;
+  for (const k of kort || []) { const n = Number(k.n) || 1; if (k.sb) sb += n; else main += n; }
+  return { main, sb };
+}
+/* Mängden kort (sid) i leken, som en nyckel: poolen på telefonen byggs om
+   bara när den ändras, inte när ett antal gör det. */
+const lekSlagSids = kort => [...new Set((kort || []).map(k => k.sid).filter(Boolean))].sort().join(',');
+/* ══ SLUT: LEKSLAG ══ */
 /* Färgidentiteten ur raderna: unionen av korten i main + basländernas
    färger, i ordningen WUBRG. C bara när leken har kort men ingen färg. */
 function lekFarger() {

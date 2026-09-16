@@ -2,7 +2,7 @@
 # Körs före varje push (dev/plan/lagen.md §10). Slutar med kod 1 om något faller.
 # Syntaxen kontrolleras genom att klippa ut <script>-blocken ur index.html och
 # köra `node --check` på dem (headless Chrome hänger på Mesas sida) — sedan
-# de tre harnessarna: datorns avstämning, dubblettmåttet på videofall 07 och
+# harnessarna: datorns avstämning, dubblettmåttet på videofall 07 och
 # kamerabänken.
 set -e
 cd "$(dirname "$0")/.."
@@ -22,6 +22,7 @@ while ((m = re.exec(src))) {
 fs.rmSync(dir, { recursive: true, force: true });
 console.log("syntax: " + n + " script-block ok");'
 node dev/lista.cjs
+node dev/lekslag.cjs
 node dev/avstamning.cjs
 node dev/dubbletter.cjs --fall 07 > /dev/null && echo "dubbletter --fall 07: kördes"
 node dev/kamerabank.cjs
