@@ -2287,6 +2287,20 @@ body.lekfoto .lekfoto.lagg.telefon{display:none}
 #vyKamera.ren:not(.visa) .kamtopp{background:none}
 #vyKamera.ren:not(.visa) .kamtopp > :not(.kamprick){display:none}
 #vyKamera.ren:not(.visa) .kamprick{opacity:.75}
+/* Mörk skärm (MES-164): telefonen blev alldeles varm under ett spel, och
+   ingen tittar på bilden. När texten är dold är skärmen svart — nästan
+   gratis på en OLED-skärm — och spårrutorna ritas inte. Videon krymps
+   till en prick i stället för att döljas: en dold video kan webbläsaren
+   sluta avkoda, och då får analysen inga rutor. Ett tryck visar bilden
+   med texten. "Keep the picture on" stänger av det (golden-inspelningar). */
+.kammork{display:none}
+#vyKamera.ren.mork:not(.visa) #kamVideo{inset:auto;left:0;top:0;width:2px;height:2px}
+#vyKamera.ren.mork:not(.visa) .kamoverlay{display:none}
+#vyKamera.ren.mork:not(.visa) .kammork{
+  display:block;position:absolute;left:0;right:0;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 22px);
+  text-align:center;font:12.5px var(--sans);color:#6b7686;pointer-events:none;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    PORTALEN — landningssida och lobby
@@ -2768,6 +2782,7 @@ body.ispel #addPlayerBtn{display:none}
 <div id="vyKamera" class="kamera" hidden>
   <video id="kamVideo" playsinline muted autoplay></video>
   <canvas id="kamOverlay" class="kamoverlay"></canvas>
+  <p class="kammork">The camera is on · tap to see the picture</p>
 
   <div class="kamtopp">
     <span class="kamprick" id="kamPrick"></span>
@@ -2786,6 +2801,7 @@ body.ispel #addPlayerBtn{display:none}
          skruvas. Samma sak går att göra från provbordet på datorn. -->
     <div class="kamknappar">
       <button class="btn sm" id="kamHelbild" title="Sends the whole picture to Claude and puts out the cards it sees">Read the whole table</button>
+      <button class="btn ghost sm" id="kamMork" title="A dark screen keeps the phone cooler. The camera keeps reading the table.">Keep the picture on</button>
     </div>
     <div class="kamsenast" id="kamSenast" hidden>
       <img id="kamSenastBild" alt="">
@@ -4923,7 +4939,8 @@ function toast(msg, kind, undo) {
 /* ─────────── localStorage ─────────── */
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
             lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1',
-            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1', oppstart: 'sthv.oppstart.v1' };
+            lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1', oppstart: 'sthv.oppstart.v1',
+            kamBild: 'sthv.kambild.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -17352,8 +17369,12 @@ const Kamera = (() => {
        vid 560. ideal, inte exact: en telefon som inte klarar 4K ger det
        närmaste den har, och vad den gav syns i statusraden och diagnosen
        (upplosning). */
+    /* 15 bilder i sekunden, inte kamerans 30 (MES-164): analysen tar en
+       ruta var 150:e ms (TAKT_MS), knappt 7 i sekunden, och resten var
+       bara värme — telefonen blev alldeles varm under ett spel. ideal,
+       inte max: en kamera som inte kan gå ner ska ändå starta. */
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: BEGARD.w }, height: { ideal: BEGARD.h },
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: BEGARD.w }, height: { ideal: BEGARD.h }, frameRate: { ideal: 15 },
                advanced: [{ focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }, { exposureMode: 'continuous' }] },
       audio: false
     });
@@ -17695,10 +17716,12 @@ const Kamera = (() => {
       senVb = vb; senVh = vh; AH = 0;
       lasUpplosning(vb, vh);
     }
-    rita(vb, vh);
     const nu = performance.now();
     if (nu - senast < TAKT_MS) return;
     senast = nu;
+    /* Mörka skärmen (MES-164) krymper videon till en prick. Pausar
+       webbläsaren den ändå slutar rutorna komma — starta den igen. */
+    if (video.paused === true) video.play().catch(() => {});
 
     const r = rutaPx(vb, vh);
     if (!AH) {
@@ -17708,6 +17731,11 @@ const Kamera = (() => {
     }
     anaX.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, AW, AH);
     steg(gr(anaX.getImageData(0, 0, AW, AH).data, AW * AH), nu, AH);
+    /* Spårrutorna ritas efter varje analyssteg, inte i varje animationsruta
+       (MES-164): de ändras bara när steget körts, och 60 omritningar i
+       sekunden av samma rutor värmde telefonen. Ett svar från
+       identifieringen syns vid nästa steg, inom 150 ms. */
+    rita(vb, vh);
   }
 
   /* Ett analyssteg, från gråskalebild till spår. Fristående från videon så
@@ -18669,6 +18697,7 @@ const Kamera = (() => {
 
   function rita(vb, vh) {
     const R = ov.getBoundingClientRect();
+    if (!R.width || !R.height) return;   // dold: mörka skärmen (MES-164)
     if (ov.width !== R.width || ov.height !== R.height) { ov.width = R.width; ov.height = R.height; }
     ovc.clearRect(0, 0, ov.width, ov.height);
     const s = Math.min(ov.width / vb, ov.height / vh);
@@ -21491,6 +21520,18 @@ function kamVisaText(ms) {
   v.classList.add('visa'); clearTimeout(kamVisaT);
   if (ms) kamVisaT = setTimeout(() => v.classList.remove('visa'), ms);
 }
+/* Mörk skärm eller bilden kvar (MES-164). Mörkt är förvalt; valet minns
+   på telefonen. */
+function kamSatMork(mork) {
+  $('#vyKamera').classList.toggle('mork', mork);
+  $('#kamMork').textContent = mork ? 'Keep the picture on' : 'Dark screen';
+}
+kamSatMork(!LS.get(K.kamBild, false));
+$('#kamMork').onclick = () => {
+  const mork = !$('#vyKamera').classList.contains('mork');
+  LS.set(K.kamBild, !mork);
+  kamSatMork(mork);
+};
 $('#vyKamera').addEventListener('pointerdown', ev => {
   const v = $('#vyKamera');
   if (!v.classList.contains('ren') || ev.target.closest('button,a,input')) return;
