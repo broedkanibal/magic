@@ -2872,6 +2872,9 @@ body.ispel #addPlayerBtn{display:none}
 .lspop .grow{flex:1}
 .lspop .pfel{margin:0;font:12.5px/1.5 var(--sans);color:#ff9099}
 .lspop .pfel.dim{color:var(--dim)}
+.lspop .psteg{display:flex;align-items:flex-start;gap:7px;margin-top:-2px;font:12.5px/1.45 var(--sans);color:var(--dim)}
+.lspop .psteg svg{flex:none;margin-top:2px;color:#8fe0b0}
+.lspop .psteg b{color:var(--txt);font-weight:600}
 .lssnack{position:fixed;z-index:435;display:flex;align-items:center;gap:12px;height:40px;padding:0 8px 0 14px;border-radius:10px;background:#1b2230f5;border:1px solid #3d4a5f;box-shadow:0 18px 40px -14px #000;font:12.5px var(--sans);color:var(--txt);white-space:nowrap}
 .lsklar{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:10px;background:#0f141c;border:1px solid var(--line)}
 .lsklar .ic{display:inline-flex;color:#8fe0b0;flex:none;margin-top:1px}
@@ -14415,9 +14418,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!kort.length) { if (forra) { forra.ko = []; bytNasta(); } else stangPop(); return; }
     y.pop = { typ: 'byt', name: kort[0].name, sb: !!kort[0].sb, ko: kort.slice(1).map(k => nyckel(k.name, k.sb)),
               nr: forra ? forra.nr + 1 : 1, av: forra ? forra.av : kort.length,
-              grupp: forra ? forra.grupp : ++popGrupp, bytta: forra ? forra.bytta : [] };
+              grupp: forra ? forra.grupp : ++popGrupp, bytta: forra ? forra.bytta : [], senast: forra ? forra.senast : '' };
     const k = kort[0], p = y.pop;
+    /* Nästa kort i ett svep säger vad som hände med det förra, så att det
+       syns att valet gick igenom när rutan byter innehåll. */
     visaPop(`<span class="ptag">Change card${p.av > 1 ? ` · ${p.nr} of ${p.av}` : ''}</span>`
+      + (p.senast ? `<span class="psteg">${lsIk('check', 13, 2.6)}<span>${p.senast}</span></span>` : '')
       + `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}</h4><span class="psub">${k.koll ? `${kollSkrev(k)}. ` : ''}${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Pick the card it should be — ${k.n === 1 ? 'it changes' : 'they all change'} with it.</span></div></div>`
       + `<div class="lssokwrap"><label class="lsfld"><span class="ic">${lsIk('search', 16)}</span><input type="text" class="lssok" placeholder="Type the right card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>`
       + '<p class="pfel" hidden></p>'
@@ -14464,6 +14470,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       andra({ typ: 'byt', name: k.name, sb: !!k.sb, kort: { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] } }, { grupp: 'byt' + p.grupp });
       if (norm(c.name) !== norm(k.name) || c.id !== k.sid) p.bytta.push([k.name, c.name]);
     }
+    p.senast = norm(c.name) !== norm(k.name) ? `Changed ${esc(k.name)} to <b>${esc(c.name)}</b>`
+      : c.id !== k.sid ? `Changed the printing of <b>${esc(c.name)}</b>` : `Kept <b>${esc(k.name)}</b>`;
     /* Popovern stängs inte av omritningen (kortet heter något annat nu). */
     p.soker = false;
     bytNasta();
@@ -14472,14 +14480,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const b = ev.target.closest('[data-lp]'); if (!b || !y.pop) return;
     const p = y.pop, k = kortI(p.name, p.sb), a = b.dataset.lp;
     if (a === 'avbryt') { const bytta = p.bytta || []; stangPop(); if (bytta.length) snack(bytta.length === 1 ? `Changed ${bytta[0][0]} to ${bytta[0][1]}` : `Changed ${bytta.length} cards`); return; }
-    if (a === 'hoppa') { bytNasta(); return; }
+    if (a === 'hoppa') { p.senast = `Skipped <b>${esc(p.name)}</b>`; bytNasta(); return; }
     if (!k) { stangPop(); return; }
     if (a === 'ja') { stangPop(); andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null }); }
     else if (a === 'bort') { stangPop(); taBort(k); }
     else if (a === 'byt') oppnaByt([nyckel(k.name, k.sb)], popAnkare);
   }
   addEventListener('mousedown', ev => {
-    if (!y.pop || !popEl || popEl.contains(ev.target)) return;
+    /* Vägen räknas när händelsen började: ett klick på ett förslag byter
+       popoverns innehåll till nästa kort innan klicket når hit, och då låg
+       förslaget inte längre i popovern — nästa kort stängdes direkt. */
+    if (!y.pop || !popEl || ev.composedPath().includes(popEl)) return;
     /* Knappen som öppnar popovern får öppna om den själv. */
     if (ev.target.closest('[data-ls-chk], [data-tc], [data-lk="byt"], [data-lv="byt"]')) return;
     stangPop();
