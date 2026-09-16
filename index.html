@@ -2672,16 +2672,16 @@ body.ispel #addPlayerBtn{display:none}
 .sida{position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;background:var(--bg)}
 /* Över både Home och bordet, under dialogerna (.ov 440) som frågar. */
 .lsida{z-index:420}
-.sida .grow{flex:1;min-width:0}
+.sida .grow,.lsvard .grow{flex:1;min-width:0}
 .sidajag{display:inline-flex;align-items:center;gap:8px;font:550 12.5px var(--sans);color:var(--txt);white-space:nowrap}
 .eller{display:flex;align-items:center;gap:8px;font:600 10px var(--sans);letter-spacing:.8px;text-transform:uppercase;color:var(--dim2)}
 .eller::before,.eller::after{content:'';flex:1;height:1px;background:var(--line)}
-.sida .btn.big{height:38px;padding:0 18px;font-size:13.5px;border-radius:9px;justify-content:center}
-.sida .tag{font:600 9.5px/1 var(--sans);letter-spacing:.6px;text-transform:uppercase;color:var(--pa-acc);background:#f0a52a1f;border-radius:10px;padding:3px 6px;white-space:nowrap}
-.sida .zr{display:flex;align-items:center;gap:8px;min-width:0}
-.sida .zr .zl{flex:1;height:1px;background:var(--zonlinje);min-width:8px}
-.sida .zr .zn{font:600 10.5px var(--mono);color:var(--dim2)}
-.sida .zr .zonlbl{color:var(--dim)}
+.sida .btn.big,.lsvard .btn.big{height:38px;padding:0 18px;font-size:13.5px;border-radius:9px;justify-content:center}
+.sida .tag,.lsvard .tag{font:600 9.5px/1 var(--sans);letter-spacing:.6px;text-transform:uppercase;color:var(--pa-acc);background:#f0a52a1f;border-radius:10px;padding:3px 6px;white-space:nowrap}
+.sida .zr,.lsvard .zr{display:flex;align-items:center;gap:8px;min-width:0}
+.sida .zr .zl,.lsvard .zr .zl{flex:1;height:1px;background:var(--zonlinje);min-width:8px}
+.sida .zr .zn,.lsvard .zr .zn{font:600 10.5px var(--mono);color:var(--dim2)}
+.sida .zr .zonlbl,.lsvard .zr .zonlbl{color:var(--dim)}
 .lsmen{position:relative;flex:none}
 .lsmeny{position:absolute;right:0;top:calc(100% + 6px);z-index:30;padding:6px;border-radius:10px;background:#0b1017fa;border:1px solid var(--panelram2);box-shadow:0 16px 40px -12px #000f;display:flex;flex-direction:column;gap:2px;min-width:220px}
 .lsmeny[hidden]{display:none}
@@ -2730,6 +2730,35 @@ body.ispel #addPlayerBtn{display:none}
 .lrst{font:600 11.5px var(--sans);color:#e8c98a;white-space:nowrap}
 .lrm{display:grid;place-items:center;width:28px;height:28px;border-radius:7px;color:var(--dim2);flex:none}
 .lrm:hover{background:var(--bg4);color:var(--txt)}
+.lr:not([tabindex]){cursor:default}
+/* I Pick your deck (G1): radion, Last used och pennan. */
+.lr .radio{width:16px;height:16px;border-radius:50%;border:1.5px solid #4a5a72;flex:none;display:grid;place-items:center;margin-left:6px}
+.lr.on .radio{border-color:var(--acc)}
+.lr.on .radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.lr .tag{font:600 9.5px/1 var(--sans);letter-spacing:.6px;text-transform:uppercase;color:var(--pa-acc);background:#f0a52a1f;border-radius:10px;padding:3px 6px;white-space:nowrap}
+.lr:focus-visible{box-shadow:0 0 0 2px #f0a52a66}
+/* Uppstartens steg 1 (MES-170): lekytan i panelen och på mattan, och den
+   valda leken som högar (G1, G1Edit, G2). */
+.opp1lista{display:flex;flex-direction:column;gap:10px}
+.opp1lista:empty{display:none}
+.vback{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font:12px var(--sans);color:var(--dim2);background:none;border:0;padding:0;cursor:pointer}
+.vback:hover{color:var(--txt)}
+.opplspanel{display:flex;flex-direction:column;gap:14px}
+.opplspanel[hidden]{display:none}
+.opplspanel h3{display:none}
+.opplekmatt{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;min-height:0}
+.opplekmatt[hidden],.opplekvy[hidden],.oppls[hidden]{display:none}
+.opplekvy{flex:1;min-height:0;overflow:auto;padding:18px 32px 20px;display:flex;flex-direction:column;gap:20px}
+.opplekvy .lspile{cursor:default}
+.dplate{align-self:flex-start;display:flex;align-items:center;gap:9px;height:34px;padding:0 12px;border-radius:9px;background:#0b1017e6;border:1px solid #39445a;font:550 13px var(--sans);color:var(--txt);white-space:nowrap}
+.dplate b{font-weight:650}
+.dplate .n{font:12px var(--mono);color:var(--dim)}
+.dplate .sep{width:1px;height:14px;background:#39445a}
+.mfot4{margin:auto 0 0;display:flex;align-items:center;gap:8px;font:12.5px var(--sans);color:var(--dim2)}
+.oppls{flex:1;min-height:0;display:flex;flex-direction:column}
+.oppls .opplshuvud{flex:none;padding:14px 32px 0}
+.oppls .opplshuvud .lsnamn b{font-size:16px}
+.oppls .lsyta{flex:1;min-height:0}
 
 /* ── lekens sida ── */
 .dh{flex:none;display:flex;align-items:center;gap:12px;height:62px;padding:0 20px 0 14px;border-bottom:1px solid var(--line);background:#11161e}
@@ -3290,6 +3319,12 @@ body.ispel #addPlayerBtn{display:none}
         <div class="mattachrome" id="mattaChrome"></div>
         <!-- Solfjädern (MES-145): korten ur en hög i handen. Ritas av hfLage(). -->
         <div class="handfan" id="handFan" hidden></div>
+        <!-- Uppstartens steg 1 (MES-170, G1/G1Edit/G2): den valda leken som
+             högar, eller lekytans huvud och kort när en lek ändras eller byggs. -->
+        <div class="opplekmatt lsvard" id="oppLek" hidden>
+          <div class="opplekvy" id="oppLekVy" hidden></div>
+          <div class="oppls" id="oppLs" hidden><div class="lshuvud opplshuvud" id="oppLsHuvud"></div><section class="lsyta" id="oppLsYta"></section></div>
+        </div>
         <!-- Uppstartens steg 4 (MES-122): kamerans bild i stort på mattan medan
              bordet ställs i ordning — provkortet, graveyard-platsen, leken.
              #pbBild flyttas hit (flyttaPbBild) och visas i spelarens vy. -->
@@ -3356,7 +3391,9 @@ body.ispel #addPlayerBtn{display:none}
             <ol class="vs">
               <li class="oppsteg" id="opp1"><span class="vn">1</span><div class="vb">
                 <div class="vtit"><span>Pick your deck</span><span class="grow"></span><span class="vsum" id="opp1Sum"></span><span class="vchg" title="Change"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span></div>
-                <div class="vc oppcont" id="opp1Cont"></div></div></li>
+                <div class="vc oppcont"><div class="opp1lista" id="opp1Cont"></div>
+                  <!-- Lekytans panel (skapaLekYta) när en lek ändras eller byggs i steget (G1Edit, G2). -->
+                  <div class="opplspanel lsvard" id="oppLsPanel" hidden></div></div></div></li>
               <li class="oppsteg" id="opp2"><span class="vn">2</span><div class="vb">
                 <div class="vtit"><span>Choose game mode</span><span class="grow"></span><span class="vsum" id="opp2Sum"></span><span class="vchg" title="Change"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span></div>
                 <div class="vc oppcont" id="opp2Cont"></div></div></li>
@@ -8368,7 +8405,7 @@ hfSokEl.addEventListener('keydown', ev => {
    den redan ute får fältet fokus; en annan hög byts mot library. */
 addEventListener('keydown', ev => {
   if (!(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || (ev.key || '').toLowerCase() !== 's') return;
-  if (!spelLage || !arMitt(player()) || leksidaOppen()) return;
+  if (!spelLage || !arMitt(player()) || lekYtaAktiv()) return;
   if (isTyping(ev.target) && ev.target.id !== 'hfQ') return;
   ev.preventDefault();
   hf.fokusSok = true;
@@ -8381,7 +8418,7 @@ addEventListener('keydown', ev => {
    spelar det lyfta kortet. Capture och stopImmediatePropagation: före
    arkets Enter och appens egna tangenter. Under ett drag är Esc dragets. */
 addEventListener('keydown', ev => {
-  if (!hf.src || hf.fas === 'gather' || leksidaOppen()) return;
+  if (!hf.src || hf.fas === 'gather' || lekYtaAktiv()) return;
   if (ev.metaKey || ev.ctrlKey || ev.altKey || isTyping(ev.target) || (dnd && dnd.drar)) return;
   if (hfNamnge && !hf.q && /^[1-3]$/.test(ev.key)) return;   // arkets gissningar 1–3
   const k = ev.key, sluta = () => { ev.preventDefault(); ev.stopImmediatePropagation(); };
@@ -9894,6 +9931,10 @@ let oppVisat = null, oppVisatKlar = false, oppNasta = null;
 let oppTappVal = 0;
 /* Min status (MES-170) som den senast skickades: { spel, status, fel }. */
 let oppStatusSkickad = null;
+/* Steg 1 (MES-170): lekytan i panel och matta (oppLs, skapas första gången
+   en lek ändras), om den står framme, om leken är ny (G2), vilken lek den
+   öppnades med och om den laddat klart — och Last used. */
+let oppLs = null, oppLsOppen = false, oppLsNy = false, oppLsId = null, oppLsKlar = false, oppSenast = undefined;
 /* Steg 4 (MES-122): provkortets spår och om vinkeln går att spara nu
    (oppProvMatt); svaret (tappat) medan telefonen räknar; graveyard-rutan
    spelaren flyttar (Move it); och när library-rutan sparades — leken räknas
@@ -10124,6 +10165,71 @@ function oppStatus(status) {
   const skickad = oppStatusSkickad = { spel: spelLage.id, status, fel: 0 };
   Moln.sattStatus(spelLage.id, status).catch(() => false).then(ok => { if (!ok) skickad.fel = Date.now(); });
 }
+/* Last used (MES-170): min lek i det senast påbörjade av mina andra spel,
+   annars den som senast valdes på den här datorn. */
+async function oppSenastLek() {
+  if (Moln.inloggad()) {
+    const spel = await Moln.minaSpel().catch(() => null), jag = Moln.minId();
+    for (const g of spel || []) {
+      if (spelLage && g.id === spelLage.id) continue;
+      const p = (g.spelare || []).find(x => x.user_id === jag);
+      if (p && p.lek_id) return p.lek_id;
+    }
+  }
+  return lekAktiv ? lekAktiv.id : null;
+}
+/* Den valda leken som högar på mattan (G1): allt som går till library, också
+   basländerna, utan sideboarden. */
+function oppLekVyHtml(l) {
+  if (!l) return '';
+  const poster = (l.kort || []).filter(k => !k.sb).map(k => ({ name: k.name, sid: k.sid, small: k.small, n: Number(k.n) || 1, key: norm(k.name) }));
+  const main = [];
+  for (const g of lekGrupper(poster, () => renderOppstart())) {
+    const rub = LS_GRUPP[g.key] || g.rub, f = main.find(x => x.rub === rub);
+    if (f) f.poster.push(...g.poster); else main.push({ rub, poster: g.poster.slice() });
+  }
+  main.forEach(g => g.poster.sort((a, b) => a.name.localeCompare(b.name)));
+  main.sort((a, b) => LS_GRUPP_ORDNING.indexOf(a.rub) - LS_GRUPP_ORDNING.indexOf(b.rub));
+  const hog = p => {
+    const c = lekKortData(p), src = (c && imgOf(c, 0, 'normal')) || p.small || '';
+    const lager = (p.n >= 3 ? '<i class="pl l2"></i>' : '') + (p.n >= 2 ? '<i class="pl l1"></i>' : '');
+    return `<div class="lspw"><div class="lspile">${lager}${src ? `<img class="kf" src="${esc(src)}" alt="" loading="lazy" draggable="false">` : `<span class="kf lsutan">${esc(p.name)}</span>`}`
+      + `<span class="cnt">${p.n}</span></div><span class="plab" title="${esc(p.name)}">${esc(p.name)}</span></div>`;
+  };
+  const sek = g => `<div class="lssek"><div class="zr"><span class="zonlbl">${esc(g.rub)}</span><span class="zn">${g.poster.reduce((t, p) => t + p.n, 0)}</span><i class="zl"></i></div><div class="lshogar">${g.poster.map(hog).join('')}</div></div>`;
+  return `<div class="dplate"><span class="pips">${pipsHtml(l.farger)}</span><b>${esc(l.namn)}</b><span class="sep"></span><span class="n">${l.antal} ${l.antal === 1 ? 'card' : 'cards'}${l.sb ? ` · ${l.sb} sideboard` : ''}</span></div>`
+    + (main.length ? `<div class="lssekrad">${main.map(sek).join('')}</div>` : '')
+    + `<p class="mfot4">${lsIk('deck', 14)}These cards go into your library when you start playing.</p>`;
+}
+/* Pennan och New deck (G1Edit, G2): lekytan monteras i steget och på
+   mattan, med samma autosave som lekens sida. */
+async function oppRedigeraLek(id) {
+  if (!oppLs) oppLs = skapaLekYta({ panel: $('#oppLsPanel'), yta: $('#oppLsYta'), huvud: $('#oppLsHuvud'),
+    nar: { borta: () => oppLekKlar(false), andrat: () => { if (oppLsOppen) renderOppstart(); } } });
+  oppLsOppen = true; oppLsNy = !id; oppLsId = id || null; oppLsKlar = false;
+  renderOppstart();                 // behållarna syns innan ytan ritar (namnfältet ska få fokus)
+  const namn = id ? undefined : lekNyttNamnAv(oppLekar || []);
+  const ok = await oppLs.oppna(id || null, { namn });
+  if (!oppLsOppen) return;
+  oppLsKlar = !!ok;
+  renderOppstart();
+}
+/* Tillbaka till lekarna — eller Use this deck: leken sparas, ytan stängs
+   och leken väljs för spelet. En ny lek utan kort tas bort (MES-177). */
+async function oppLekKlar(anvand) {
+  if (!oppLs || !oppLsOppen) return;
+  oppLsOppen = false; oppLsKlar = false;
+  renderOppstart();
+  await oppLs.stang();
+  const id = oppLs.id;
+  oppLekar = null;
+  if (id) oppLekVal = id;
+  if (anvand && id) {
+    oppVisat = null; oppSatt({ lekOk: true });
+    await valjLekTill(id);
+  }
+  renderMode();
+}
 function oppKopiera(lank, knapp) {
   const s = knapp && knapp.querySelector('span');
   navigator.clipboard.writeText(lank).then(() => {
@@ -10137,7 +10243,9 @@ function renderOppstart() {
   if (!spelLage) {                  // utanför ett spel: bara DOM, inga tillstånd (renderMode ritas tidigt)
     if (!el.hidden) { el.hidden = true; document.body.classList.remove('oppstart'); matResize(); }
     flyttaPbBild(false); oppstartBild = false;
-    $('#oppMatt').hidden = true; document.body.classList.remove('oppbild');
+    $('#oppMatt').hidden = true; $('#oppLek').hidden = true; document.body.classList.remove('oppbild');
+    if (oppLsOppen) { oppLsOppen = oppLsKlar = false; oppLs.stang(); }
+    oppSenast = undefined;          // Last used räknas om i nästa spel
     return;
   }
   const o = redigerbar() ? oppFor() : null, mig = minSpelare(), bord = mittLage() === 'bord';
@@ -10162,6 +10270,9 @@ function renderOppstart() {
     }
   }
   if (!visa) oppVisat = oppNasta = null;
+  /* Lekytan hör till steg 1: går man vidare stängs den (och sparas). */
+  const lsVisa = oppLsOppen && visa && aktiv === 'lek';
+  if (oppLsOppen && !lsVisa) setTimeout(() => oppLekKlar(false), 0);
   /* Var jag är, för spelarlistan hos de andra och Home: Picking a deck i
      steg 1, Setting up i steg 2–4, Ready när bordet är klart men Start
      playing inte tryckt, Playing när uppstarten är klar eller avböjd. */
@@ -10209,30 +10320,46 @@ function renderOppstart() {
     if ($('#opp2Sum').textContent !== s3) $('#opp2Sum').textContent = s3;
     /* 1: leken. Listan hämtas en gång; står lekens sida öppen (New deck…)
        hämtas den på nytt när den stängts. */
+    /* 1: leken (G1). Listan och Last used hämtas en gång; står lekens sida
+       öppen hämtas de på nytt när den stängts. Pennan och New deck monterar
+       lekytan i steget (G1Edit, G2). */
     if (aktiv === 'lek') {
       if (leksidaOppen()) oppLekar = null;
       else if (!oppLekar && !oppLekarHamtar) {
         oppLekarHamtar = true;
-        lekHamtaLista().then(l => { oppLekar = l || []; }).catch(() => { oppLekar = []; })
+        Promise.all([hemHamtaLekar(), oppSenast === undefined ? oppSenastLek().catch(() => null) : oppSenast])
+          .then(([l, senast]) => { oppLekar = l || []; oppSenast = senast; }).catch(() => { oppLekar = []; })
           .finally(() => { oppLekarHamtar = false; renderOppstart(); });
       }
       const nylek = `<div class="nydeck"><button type="button" class="btn" data-opp="nylek">${lsIk('plus', 14, 2.4)}New deck</button></div>`;
       let h;
       fot = { txt: 'Use this deck', av: true };
-      if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
+      if (lsVisa) {
+        const i = oppLsKlar ? oppLs.info() : (oppLekar || []).find(l => l.id === oppLsId) || { namn: 'New deck', antal: 0, farger: [] };
+        h = `<button type="button" class="vback" data-opp="lektillbaka"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Back to your decks</button>`
+          + (oppLsNy ? '' : `<div class="lrs">${lekRadHtml(i, { on: true })}</div>`);
+        const antal = `${i.antal} ${i.antal === 1 ? 'card' : 'cards'}`;
+        fot = oppLsNy ? { txt: `Use this deck (${antal})`, a: 'lekklar', av: !oppLsKlar || !i.antal, hint: 'It’s saved in Your decks too, for later games.' }
+          : { txt: `Use ${esc(i.namn)} (${antal})`, a: 'lekklar', av: !oppLsKlar || !i.antal, hint: 'What you change is saved in Your decks too.' };
+      }
+      else if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
       else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized. You have no decks yet — add your cards first.</p>' + nylek;
       else {
-        if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal))
-          oppLekVal = mig && oppLekar.some(l => l.id === mig.lekId) ? mig.lekId
-            : lekAktiv && oppLekar.some(l => l.id === lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
+        if (!oppLekVal || !oppLekar.some(l => l.id === oppLekVal)) {
+          const finns = id => id && oppLekar.some(l => l.id === id);
+          oppLekVal = mig && finns(mig.lekId) ? mig.lekId : finns(oppSenast) ? oppSenast
+            : lekAktiv && finns(lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
+        }
         const val = oppLekar.find(l => l.id === oppLekVal);
         h = '<p class="opptxt">Only cards from the deck you pick will be recognized.</p>'
-          + oppLekar.map(l => `<button type="button" class="oppopt${l.id === oppLekVal ? ' on' : ''}" data-opplek="${esc(l.id)}"><span class="radio"></span><span class="oppbody"><b><span class="pips">${pipsHtml(l.farger)}</span>${esc(l.namn)}</b></span><span class="oppmeta">${l.antal || 0} cards</span></button>`).join('')
+          + `<div class="lrs" role="radiogroup" aria-label="Your decks">${oppLekar.map(l => lekRadHtml(l, { radio: true, on: l.id === oppLekVal, tag: l.id === oppSenast ? 'Last used' : '', andra: true })).join('')}</div>`
+          + '<p class="opptxt liten">The pencil opens a deck, so you can add, change or remove cards before you play.</p>'
           + nylek;
         fot = { txt: `Use ${esc(val.namn)}`, a: 'spela' };
       }
       oppDiff($('#opp1Cont'), h);
     }
+    $('#oppLsPanel').hidden = !lsVisa;
     /* 3: telefonen. Steget sätter på kameran (auto) och ritar QR-koden varje
        gång det kommer fram (lärdomen från MES-90). */
     if (aktiv === 'tel') {
@@ -10269,7 +10396,13 @@ function renderOppstart() {
      där bilden kommer och säger vad steget handlar om. I steg 2 är mattan
      tom (G3). */
   const tom = visa && !kamOppen && !smal;
-  const ram = tom && (bild || aktiv !== 'lage');
+  /* Steg 1: den valda leken som högar (G1), eller lekytan (G1Edit, G2). */
+  const lekVy = tom && aktiv === 'lek' && (lsVisa || !!(oppLekar && oppLekar.length && !leksidaOppen()));
+  $('#oppLek').hidden = !lekVy;
+  $('#oppLs').hidden = !(lekVy && lsVisa);
+  $('#oppLekVy').hidden = !(lekVy && !lsVisa);
+  if (lekVy && !lsVisa) oppDiff($('#oppLekVy'), oppLekVyHtml(oppLekar.find(l => l.id === oppLekVal)));
+  const ram = tom && !lekVy && (bild || aktiv !== 'lage');
   $('#oppMatt').hidden = !ram;
   $('#oppMatt').classList.toggle('utanbild', !bild);
   $('#oppMattVant').hidden = bild;
@@ -10301,6 +10434,7 @@ function oppVaxla(st) {
   renderOppstart();
 }
 $('#oppstart').addEventListener('click', ev => {
+  const pen = ev.target.closest('[data-opplekandra]'); if (pen) { oppRedigeraLek(pen.dataset.opplekandra); return; }
   const lk = ev.target.closest('[data-opplek]'); if (lk) { oppLekVal = lk.dataset.opplek; renderOppstart(); return; }
   const lg = ev.target.closest('[data-opplage]'); if (lg) { oppLageVal = lg.dataset.opplage; renderOppstart(); return; }
   /* Untapped / Tapped väljs här och sparas med Continue i foten (G5). */
@@ -10314,7 +10448,9 @@ $('#oppstart').addEventListener('click', ev => {
     oppVisat = null; oppSatt({ lekOk: true });
     if (samma) renderMode(); else valjLekTill(oppLekVal).then(() => renderMode());
   }
-  else if (a === 'nylek') oppnaLeksida(null, { fran: 'app' });
+  else if (a === 'nylek') oppRedigeraLek(null);
+  else if (a === 'lektillbaka') oppLekKlar(false);
+  else if (a === 'lekklar') oppLekKlar(true);
   else if (a === 'bjud') oppKopiera(inbjudanLank(), b);
   else if (a === 'kopiera') oppKopiera(oppLank(), b);
   else if (a === 'stang') { oppVisat = null; renderOppstart(); }
@@ -10361,7 +10497,9 @@ $('#oppLager') && $('#oppLager').addEventListener('click', ev => {
   else if (a === 'dolj') { oppKlarDold = true; ritaPbLager(); }
 });
 $('#oppstart').addEventListener('keydown', ev => {
-  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.vtit[role=button]')) { ev.preventDefault(); oppVaxla(ev.target.closest('.oppsteg')); }
+  if ((ev.key !== 'Enter' && ev.key !== ' ') || !ev.target.matches) return;
+  if (ev.target.matches('.vtit[role=button]')) { ev.preventDefault(); oppVaxla(ev.target.closest('.oppsteg')); }
+  else if (ev.target.matches('[data-opplek]')) { ev.preventDefault(); oppLekVal = ev.target.dataset.opplek; renderOppstart(); $(`#opp1Cont [data-opplek="${CSS.escape(oppLekVal)}"]`)?.focus(); }
 });
 $('#oppstart').addEventListener('pointermove', () => { kamRordes = Date.now(); if (!kamTittar) kamStrom(); }, { passive: true });
 
@@ -14283,6 +14421,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       + (y.bas ? `<button type="button" data-ls="glomref">${lsIk('rot', 14)}Forget learned photos…</button>` : '')
       + `<hr><button type="button" class="fara" data-ls="radera">${lsIk('trash', 14)}Delete deck…</button></div></div>`;
     ritaStatus();
+    if (nar.andrat) nar.andrat();
   }
   function ritaStatus() {
     const el = huvud.querySelector('.lsspar'); if (!el) return;
@@ -15244,6 +15383,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     oppna, stang,
     angra: angraSenaste,
     get id() { return y.bas ? y.bas.id : null; },
+    /* Leken som den ser ut nu, i lekradens form (uppstartens Pick your deck). */
+    info() {
+      const v = nu(), sum = lekSlagSummor(v.kort);
+      return { id: y.bas ? y.bas.id : null, namn: v.namn || y.nyNamn || 'New deck', farger: lekFargerAv(v.kort, y.bas && y.bas.farger),
+               antal: sum.main, sb: sum.sb, omslag: lekOmslag(v.kort), koll: v.kort.filter(k => k.koll).length };
+    },
     /* Finns det något som inte är sparat? (beforeunload) */
     vantar: () => !!(y.ops.length || y.flygP),
     sparaNu,
@@ -15254,6 +15399,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
 /* ── sidan runt ytan ── */
 const leksida = { yta: null, fran: 'hem' };
 const leksidaOppen = () => !$('#vyLeksida').hidden;
+/* En lekyta står framme — lekens sida, eller ytan i uppstartens steg 1
+   (MES-170). Då ångrar ⌘Z i leken, och bordets tangenter står still. */
+function lekYtaAktiv() { return leksidaOppen() || (!!oppLs && oppLsOppen && !$('#oppLs').hidden); }
 function sidaJagHtml() {
   const jag = Moln.minId(), farg = ((hem.spel || []).flatMap(g => g.spelare || []).find(p => p.user_id === jag) || {}).farg;
   return `<i class="bdot" style="--pc:${esc(farg || 'var(--acc)')}"></i>${esc(Moln.mittNamn() || 'You')}`;
@@ -15299,19 +15447,21 @@ async function oppnaMinaLekar() {
   if (!id) { try { const l = await lekHamtaLista(); id = l[0] ? l[0].id : null; } catch (e) { id = null; } }
   await oppnaLeksida(id);
 }
-/* ⌘Z på lekens sida ångrar lekens senaste ändring (MES-174). Bordets ⌘Z
-   (angra) står spärrat så länge sidan är öppen; i ett textfält gäller
-   fältets eget ångra. */
+/* ⌘Z i en lekyta ångrar lekens senaste ändring (MES-174) — på lekens sida
+   och i uppstartens steg 1 (MES-170). Bordets ⌘Z (angra) står spärrat så
+   länge en lekyta är aktiv; i ett textfält gäller fältets eget ångra. */
 addEventListener('keydown', ev => {
-  if (!leksidaOppen() || !(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || (ev.key || '').toLowerCase() !== 'z') return;
+  if (!lekYtaAktiv() || !(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || (ev.key || '').toLowerCase() !== 'z') return;
   if (isTyping(ev.target) || $('.ov.open')) return;
   ev.preventDefault();
-  if (leksida.yta) leksida.yta.angra();
+  const y = leksidaOppen() ? leksida.yta : oppLs;
+  if (y) y.angra();
 });
 /* En osparad ändring ska inte försvinna med fliken. */
 addEventListener('beforeunload', ev => {
-  if (!leksida.yta || !leksida.yta.vantar()) return;
-  leksida.yta.sparaNu();
+  const ytor = [leksida.yta, oppLs].filter(y => y && y.vantar());
+  if (!ytor.length) return;
+  ytor.forEach(y => y.sparaNu());
   ev.preventDefault(); ev.returnValue = '';
 });
 
@@ -15393,7 +15543,7 @@ const isTyping = el => el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA
    I ett textfält är det fältets eget ångra, och bildvyn är inte bordet. */
 addEventListener('keydown', ev => {
   if (!(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== 'z') return;
-  if (isTyping(ev.target) || $('#shotOv').classList.contains('open') || leksidaOppen()) return;
+  if (isTyping(ev.target) || $('#shotOv').classList.contains('open') || lekYtaAktiv()) return;
   ev.preventDefault();
   angra();
 });
@@ -15404,7 +15554,7 @@ addEventListener('keydown', ev => {
 
   if (k === 'Escape') {
     /* Över lekens sida finns bara dialogerna den själv öppnar. */
-    if (leksidaOppen()) { const o = $('.ov.open'); if (o) closeOv(o.id); return; }
+    if (lekYtaAktiv()) { const o = $('.ov.open'); if (o) closeOv(o.id); return; }
     if (ark) return closeArk();
     if (matCtr) return closeCounters();
     if (matMenyEl && matMenyEl.classList.contains('open')) return closeKortMeny();
@@ -15425,7 +15575,7 @@ addEventListener('keydown', ev => {
   /* lekOv hör hit sedan dialogen fick knappar och fält: utan den styrde
      Space och piltangenterna bordet UNDER överlägget. */
   if ($('#helpOv').classList.contains('open') || $('#bulkOv').classList.contains('open')
-      || $('#lekOv').classList.contains('open') || leksidaOppen()) return;
+      || $('#lekOv').classList.contains('open') || lekYtaAktiv()) return;
 
   switch (k) {
     case 'ArrowLeft': case 'ArrowUp': case 'ArrowRight': case 'ArrowDown':
@@ -21075,6 +21225,7 @@ function visaVy(namn) {
      ingen lek att visa alls. */
   if (namn !== 'app' && leksida.fran === 'app') { leksida.fran = 'hem'; leksidaTillbakaText(); }
   if ((namn === 'start' || namn === 'kamera') && leksidaOppen()) { $('#vyLeksida').hidden = true; if (leksida.yta) leksida.yta.stang(); }
+  if (namn !== 'app' && oppLsOppen) { oppLsOppen = oppLsKlar = false; oppLs.stang(); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -23904,7 +24055,24 @@ function lekOmslag(kort) {
   return bast ? bast.small.replace('/small/', '/art_crop/') : null;
 }
 const hemLekRad = r => ({ id: r.id, namn: r.namn, farger: r.farger || [], antal: r.antal || 0,
-  sb: lekSlagSummor(r.kort).sb, omslag: lekOmslag(r.kort) });
+  sb: lekSlagSummor(r.kort).sb, omslag: lekOmslag(r.kort), koll: (r.kort || []).filter(k => k.koll).length, kort: r.kort || [] });
+/* Lekraden (MES-168, MES-170): samma rad på Home och i uppstartens Pick your
+   deck (H1, G1, J1). l = hemLekRad. o.meny = Home (⋯ med Rename och Delete);
+   o.radio, o.on, o.tag (Last used) och o.andra (pennan) = uppstarten. */
+function lekRadHtml(l, o = {}) {
+  const meta = `${l.antal} ${l.antal === 1 ? 'card' : 'cards'}${l.sb && !o.radio ? ` · ${l.sb} sideboard` : ''}`;
+  const attr = o.radio ? ` data-opplek="${esc(l.id)}" tabindex="0" role="radio" aria-checked="${!!o.on}"`
+    : o.meny ? ` data-hem-lek="${esc(l.id)}" tabindex="0" role="button"` : '';
+  return `<div class="lr${o.on ? ' on' : ''}"${attr}>${o.radio ? '<span class="radio"></span>' : ''}`
+    + `<span class="lrc">${l.omslag ? `<img src="${esc(l.omslag)}" alt="" loading="lazy">` : ''}</span>`
+    + `<span class="lrt"><b><span class="pips">${pipsHtml(l.farger)}</span><span class="lrnamn">${esc(l.namn)}</span></b>`
+    + `<span class="lrm2"><span>${meta}</span>${l.koll ? `<span class="lrst">${l.koll} to check</span>` : ''}${o.tag ? `<span class="tag">${o.tag}</span>` : ''}</span></span>`
+    + (o.andra ? `<button type="button" class="lrm" data-opplekandra="${esc(l.id)}" title="Change this deck" aria-label="Change ${esc(l.namn)}">${lsIk('pencil', 14)}</button>` : '')
+    + (o.meny ? `<div class="lsmen"><button type="button" class="lrm" data-hem="meny" title="More">${LS_PRICKAR}</button><div class="lsmeny" hidden>`
+      + `<button type="button" data-hem="dopom">${lsIk('pencil', 14)}Rename</button><hr>`
+      + `<button type="button" class="fara" data-hem="radera">${lsIk('trash', 14)}Delete deck…</button></div></div>` : '')
+    + '</div>';
+}
 async function hemHamtaLekar() {
   lekLokal.migrera();
   if (!Moln.inloggad()) return hemUtanTomma(lekLokal.lista());
@@ -23956,20 +24124,11 @@ function ritaHem(d) {
         + `<button type="button" class="fara" data-hem="avsluta" data-kod="${esc(g.kod)}">${lsIk('x', 14)}End the game…</button></div></div>` : '')
       + '</div>';
   };
-  const lekRad = l => {
-    const meta = `${l.antal} ${l.antal === 1 ? 'card' : 'cards'}${l.sb ? ` · ${l.sb} sideboard` : ''}`;
-    return `<div class="lr" data-hem-lek="${esc(l.id)}" tabindex="0" role="button">`
-      + `<span class="lrc">${l.omslag ? `<img src="${esc(l.omslag)}" alt="" loading="lazy">` : ''}</span>`
-      + `<span class="lrt"><b><span class="pips">${pipsHtml(l.farger)}</span><span class="lrnamn">${esc(l.namn)}</span></b><span class="lrm2"><span>${meta}</span></span></span>`
-      + `<div class="lsmen"><button type="button" class="lrm" data-hem="meny" title="More">${LS_PRICKAR}</button><div class="lsmeny" hidden>`
-      + `<button type="button" data-hem="dopom">${lsIk('pencil', 14)}Rename</button><hr>`
-      + `<button type="button" class="fara" data-hem="radera">${lsIk('trash', 14)}Delete deck…</button></div></div></div>`;
-  };
   const spel = d.spel == null ? '<p class="hemtom">Fetching your games…</p>' : d.spel.map(spelRad).join('');
   const lekar = d.lekarFel ? '<p class="hemtom">Your decks could not be fetched. <button type="button" class="btn" data-hem="lekarigen">Try again</button></p>'
     : d.lekar == null ? '<p class="hemtom">Fetching your decks…</p>'
     : !d.lekar.length ? '<p class="hemtom">No decks yet. Make one with <b>New deck</b> — the camera recognises your cards against the deck you play with.</p>'
-    : `<div class="lrs">${d.lekar.map(lekRad).join('')}</div>`;
+    : `<div class="lrs">${d.lekar.map(l => lekRadHtml(l, { meny: true })).join('')}</div>`;
   return `<h1>Hi ${esc(d.namn || 'there')}</h1><div class="hcols">`
     + '<section class="hsec"><div class="hsh"><h2>Your games</h2></div>'
     + `<div class="hstart"><button type="button" class="btn prim big" data-hem="starta">${lsIk('plus', 15, 2.4)}Start a game</button>`
