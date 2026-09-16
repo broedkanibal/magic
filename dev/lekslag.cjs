@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path'), assert = require('assert');
 const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('/* ══ BLOCK: LEKSLAG'), b = src.indexOf('/* ══ SLUT: LEKSLAG ══ */');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte LEKSLAG i index.html'); process.exit(2); }
-const { lekSlagTillampa, lekSlagSummor, lekSlagSids } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids };')();
+const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekDialogOps } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekDialogOps };')();
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -182,6 +182,34 @@ prov('koll: flytt till sideboard behåller osäkerheten, också när raderna sl�
   const bas = { kort: [{ ...bolt, n: 3, koll: osaker }, { ...bolt, n: 1, sb: 1 }] };
   const r = lekSlagTillampa(bas, [{ typ: 'sb', name: 'Lightning Bolt', sb: false, till: true }]);
   assert.deepEqual(r.kort[0].koll, osaker); assert.equal(r.kort[0].n, 4);
+});
+
+/* MES-186: telefonens gamla dialog sparar skillnaden, inte hela listan. */
+const medKoll = { name: 'Spiteful Hexmage', sid: 's1', small: 'https://img/s1.jpg', n: 4, koll: { las: 'Spiteful Hexmager', kalla: 'Pasted list' } };
+const dialogBas = { namn: 'Deck', kort: [medKoll, { ...bolt, n: 4 }, { ...helix, n: 2 }, { ...mtn, n: 16 }] };
+const dialogLista = r => lekSlagTillampa(r, []).kort.map(k => ({ name: k.name, sid: k.sid, small: k.small, n: k.n, sb: k.sb }));
+prov('dialogen: oförändrad lista ger inga ändringar', () => {
+  assert.deepEqual(lekDialogOps(dialogBas, dialogLista(dialogBas)), []);
+});
+prov('dialogen: ökning, nytt kort och borttaget kort blir ändringar; To check står kvar', () => {
+  const tel = dialogLista(dialogBas).filter(k => k.name !== 'Lightning Helix');
+  tel.find(k => k.name === 'Lightning Bolt').n = 5;
+  tel.push({ name: 'Boros Charm', sid: 'c1', small: null, n: 2 });
+  const r = lekSlagTillampa(dialogBas, lekDialogOps(dialogBas, tel));
+  assert.deepEqual(lista(r), ['16 Mountain', '2 Boros Charm', '4 Spiteful Hexmage', '5 Lightning Bolt']);
+  assert.deepEqual(r.kort.find(k => k.name === 'Spiteful Hexmage').koll, medKoll.koll);
+});
+prov('dialogen: dubbletter i telefonens lista räknas ihop, inte dubbelt', () => {
+  const tel = dialogLista(dialogBas).concat([{ ...mtn, n: 2 }]);
+  assert.deepEqual(lekDialogOps(dialogBas, tel), [{ typ: 'antal', name: 'Mountain', sb: false, d: 2, kort: { name: 'Mountain', sid: 'm1', small: 'https://img/m1.jpg' } }]);
+});
+prov('konflikt: datorn ändrade under tiden — telefonens ändringar spelas upp på den nyare raden', () => {
+  const tel = dialogLista(dialogBas); tel.find(k => k.name === 'Mountain').n = 17;
+  const ops = lekDialogOps(dialogBas, tel);
+  const datorn = lekSlagTillampa(dialogBas, [lagg(helix, 1), { typ: 'koll', name: 'Lightning Bolt', sb: false, koll: { las: 'Lightnig Bolt', kalla: 'Pasted list' } }]);
+  const r = lekSlagTillampa(datorn, ops);
+  assert.deepEqual(lista(r), ['17 Mountain', '3 Lightning Helix', '4 Lightning Bolt', '4 Spiteful Hexmage']);
+  assert.ok(r.kort.find(k => k.name === 'Lightning Bolt').koll, 'datorns To check finns kvar');
 });
 
 for (const r of [...ok, ...fel]) console.log(r);

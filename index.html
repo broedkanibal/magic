@@ -12027,6 +12027,25 @@ function lekSlagSummor(kort) {
 /* Mängden kort (sid) i leken, som en nyckel: poolen på telefonen byggs om
    bara när den ändras, inte när ett antal gör det. */
 const lekSlagSids = kort => [...new Set((kort || []).map(k => k.sid).filter(Boolean))].sort().join(',');
+/* Telefonens gamla dialog (#lekOv) sparar en hel lista (MES-186).
+   Skillnaden mellan raden dialogen öppnade och listan den ska spara, som
+   ändringar (LEKSLAG). Ett kort nycklas på namn och sida, som i
+   sammanslagningen; ett kort som bytt sida blir ett avdrag och ett tillägg. */
+function lekDialogOps(bas, kort) {
+  const fore = new Map(lekSlagTillampa(bas, []).kort.map(k => [lekSlagNyckel(k.name, k.sb), k]));
+  const efter = new Map();
+  for (const k of kort) {
+    const key = lekSlagNyckel(k.name, k.sb), f = efter.get(key);
+    if (f) f.n += k.n; else efter.set(key, { ...k });
+  }
+  const ops = [];
+  for (const [key, k] of efter) {
+    const d = k.n - ((fore.get(key) || {}).n || 0);
+    if (d) ops.push({ typ: 'antal', name: k.name, sb: !!k.sb, d, kort: { name: k.name, sid: k.sid, small: k.small || null } });
+  }
+  for (const [key, k] of fore) if (!efter.has(key)) ops.push({ typ: 'bort', name: k.name, sb: !!k.sb });
+  return ops;
+}
 /* ══ SLUT: LEKSLAG ══ */
 /* Färgidentiteten ur raderna: unionen av korten i main + basländernas
    färger, i ordningen WUBRG. C bara när leken har kort men ingen färg. */
@@ -12067,6 +12086,9 @@ let lekNotis = '';
    stått öppen skulle en blind skrivning kasta den nyare leken, och sedan
    leken flyttade till kontot drabbar det alla enheter, inte ett spel. */
 let lekBaseradPa = 0;
+/* Raden dialogen utgick från. Sparningen skickar skillnaden mot den, inte
+   hela listan (MES-186). */
+let lekBasRad = null;
 /* ── lägena ────────────────────────────────────────────────────────
    Ett attribut på kroppen, inte fem hidden-flaggor. Det var just de
    flaggorna som tillät tillståndet användaren rapporterade: instruktioner
@@ -12410,7 +12432,7 @@ async function oppnaLek(valjId) {
 async function lekLadda(valjId) {
   const minSession = ++lekSession;
   lekRader = []; lekFoton = []; lekFilter = 'alla'; lekFotoRaknare = 0; lekNotis = '';
-  lekBaseradPa = 0; lekKo = [];
+  lekBaseradPa = 0; lekKo = []; lekBasRad = null;
   lekBasland = tomtBasland();
   lekBild = null;
   lekAndrat = false; lekKvitto = ''; lekKvittoVarn = false;
@@ -12445,6 +12467,7 @@ async function lekLadda(valjId) {
     if (!rad) throw new Error('the deck is gone');
     lekSattAktiv(rad);
     lekBaseradPa = rad.ts || 0;
+    lekBasRad = rad;
     lekSa(rad.kort || [], 'sparat');
     $('#lekStatus').textContent = '';
     if (!lekfotoLage && Moln.inloggad()) { Moln.lekKanal(m => lekFranTelefon(m)).catch(() => {}); lekPollStart(); }
@@ -13579,22 +13602,17 @@ async function lekSparaNu() {
       if (f) f.n += k.n; else slagna.push({ ...k });
     }
 
-    if (!lekAktiv) { $('#lekStatus').textContent = 'No deck is open.'; return; }
-    const farger = lekFarger();
+    if (!lekAktiv || !lekBasRad || lekBasRad.id !== lekAktiv.id) { $('#lekStatus').textContent = 'No deck is open.'; return; }
     const antal = slagna.filter(k => !k.sb).reduce((a2, k) => a2 + k.n, 0);
-    const data = { kort: slagna, farger, antal, namn: lekAktiv.namn };
+    /* Dialogen (telefonens lekfoto) sparar SKILLNADEN mot raden den öppnade,
+       som ändringar i samma kö som lekens sida (LEKSLAG), inte hela listan.
+       Förut skrevs listan över: det som bara finns i raden — To check (koll),
+       korttypernas färger — försvann, och en krock med datorn frågade
+       "Overwrite" och kastade datorns ändringar (MES-186). Nu spelas
+       telefonens ändringar upp på den nyare raden i stället. */
+    const ops = lekDialogOps(lekBasRad, slagna);
     $('#lekStatus').textContent = 'Saving…';
-    let res = await lekSpara(lekAktiv.id, data, lekBaseradPa || null);
-    /* Har någon annan enhet sparat sedan listan byggdes? Fråga innan vi
-       skriver över. Att bara skriva vore att tyst kasta någons arbete. */
-    if (res.konflikt) {
-      const jaSkriv = await ask(
-        `"${res.rad.namn}" was saved from another device while this window was open (${res.rad.antal || 0} cards). ` +
-        `Save now and it is replaced with the ${antal} cards you see here.`,
-        { title: 'The deck changed somewhere else', ok: 'Overwrite', danger: true });
-      if (!jaSkriv) { $('#lekStatus').innerHTML = '<b>Nothing was saved.</b> Close and open the window again to see the newer deck.'; return; }
-      res = await lekSpara(lekAktiv.id, data, null);
-    }
+    const res = ops.length ? await lekSparaKo(lekAktiv.id, lekBasRad, ops) : { ok: true, rad: lekBasRad };
     if (!res.ok) {
       $('#lekStatus').innerHTML = res.borta
         ? '<b style="color:var(--red)">This deck no longer exists.</b> It was deleted from another device — make a new one from the menu above.'
@@ -13603,6 +13621,7 @@ async function lekSparaNu() {
     }
     lekSattAktiv(res.rad);
     lekBaseradPa = res.rad.ts || 0;
+    lekBasRad = res.rad;
     lekLista = lekLista.map(l => l.id === res.rad.id ? { id: res.rad.id, namn: res.rad.namn, farger: res.rad.farger || [], antal: res.rad.antal || 0, ts: res.rad.ts || 0 } : l);
     /* Sparat: stängningsfrågan ska inte ställas (MES-12). */
     lekAndrat = false;
