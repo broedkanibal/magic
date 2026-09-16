@@ -3696,7 +3696,7 @@ body.ispel #addPlayerBtn{display:none}
       <div class="popsec" id="kamLageSec">
         <span class="poplbl">How the camera works</span>
         <div class="seg" id="kamSeg">
-          <button type="button" data-lage="skarm"><span class="ikon" data-ikon="skarm"></span>Only add new cards</button>
+          <button type="button" data-lage="skarm"><span class="ikon" data-ikon="skarm"></span>Use camera to add cards</button>
           <button type="button" data-lage="bord"><span class="ikon" data-ikon="bord"></span>Mirror my table</button>
         </div>
         <p class="poptxt" id="kamLageTxt"></p>
@@ -6430,7 +6430,7 @@ function renderTabs() {
       ${i < 9 ? `<span class="num">${i + 1}</span>` : ''}
       <span class="dot" style="background:${esc(p.color)}"></span>
       <span class="nm">${esc(p.name)}</span>
-      ${spelLage && !mitt ? `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>` : ''}
+      ${spelLage && !mitt ? `<span class="lagemark" title="${esc(p.name)} · ${p.lage === 'bord' ? 'Mirror my table' : 'Use camera to add cards'} — ${p.lage === 'bord' ? 'everything they do with their cards shows up there' : 'the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>` : ''}
       ${lekChipHtml(p, mitt)}
       ${mitt ? '<span class="jagmark">you</span>' : ''}
       ${(p.pending || []).length ? `<span class="vantar" title="${p.pending.length} cards need filling in">${p.pending.length}</span>` : ''}
@@ -6718,7 +6718,7 @@ function ritaOppDelar(p, m, i) {
   const kbd = i < 8 ? String(i + 2) : '', pips = p.lek && p.lek.farger ? pipsHtml(p.lek.farger) : '';
   const paBord = p.cards.filter(paMattan).length, grav = p.cards.filter(c => zonAv(c) === ZON_GRAV).length, bib = oppBibKvar(p);
   const stor = `${p.name}'s table big` + (kbd ? ` (${kbd})` : '');
-  const lage = `<span class="lagemark" title="${esc(p.name)} plays ${p.lage === 'bord' ? 'Mirror my table — everything they do with their cards shows up there' : 'Only add new cards — the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
+  const lage = `<span class="lagemark" title="${esc(p.name)} · ${p.lage === 'bord' ? 'Mirror my table' : 'Use camera to add cards'} — ${p.lage === 'bord' ? 'everything they do with their cards shows up there' : 'the camera adds cards as they play them'}">${p.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span>`;
   satHtml(m.plate, `<button type="button" class="plnamn" title="${esc(stor)}"><i class="bdot"></i><b>${esc(p.name)}</b>`
     + `${pips ? `<span class="pips">${pips}</span>` : ''}<span class="sep"></span><span class="sub">${paBord} on the table</span></button>${lage}`
     + `<span class="sep"></span><button type="button" class="turnbtn" data-oppvand title="Turn their cards">${IKON_VAND}<span class="tt">${VAND_TXT[oppVand]}</span></button>`);
@@ -9635,8 +9635,8 @@ function renderAll(forceGrid) {
    auto kräver ett spel att koppla telefonen till. */
 const M_TELEFON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/></svg>';
 const M_FOTO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.2"/></svg>';
-/* Spellägets ikon (MES-98): Add only = ett kort som läggs till, Follow the
-   table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
+/* Spellägets ikon (MES-98): Use camera to add cards = ett kort som läggs
+   till, Mirror my table = bordet och mattan i takt. Samma i pillret och i panelens segment. */
 const M_LAGE_SKARM = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 9v6M9 12h6"/></svg>';
 const M_LAGE_BORD = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="8" height="14" rx="1.8"/><rect x="13.5" y="5" width="8" height="14" rx="1.8"/><path d="M8 12h8M14 10l2 2-2 2"/></svg>';
 const M_CV = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
@@ -9741,11 +9741,16 @@ function kamHittarRad() {
    hjärtslag, och en omritning hade rivit knappen man håller på att trycka
    på. Felvarianterna (5a–5c) ersätter läget och verktygen; bilden står kvar
    när det är den som förklarar felet. */
+/* Lägesnamnen (MES-170, "Mesa Deck Builder" sida 4): kamerans två lägen
+   heter Hybrid modes, utan telefon och kamera Digital mode. Nycklarna står
+   kvar — bord/skarm i game_players.lage, utan = avbojd i uppstarten. */
 const LAGE_TXT = {
   bord: 'Everything you do with your cards shows up here: play, tap, move, remove.',
-  skarm: 'The camera adds cards as you play them. You tap and move them here.'
+  skarm: 'You tap, move and remove cards digitally.',
+  utan: 'No phone and no camera. You put your cards on the mat yourself.'
 };
-const LAGE_NAMN = { bord: 'Mirror my table', skarm: 'Only add new cards' };
+const LAGE_NAMN = { bord: 'Mirror my table', skarm: 'Use camera to add cards', utan: 'Digital table' };
+const LAGE_GRUPP = { kamera: 'Hybrid modes', utan: 'Digital mode' };
 let kamQrTvinga = false;   // Reconnect / Show the QR code: koden fram fast telefonen varit med
 function renderKamPop() {
   const ov = $('#kamOv'); if (!ov || !spelLage) return;
@@ -9874,7 +9879,7 @@ const OPP_MATT = {
   tel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: 'Connect your phone',
     p: "Scan the code on the right with your phone's camera. The phone's picture shows up here." },
   lage: { ikon: oppIkon('<path d="M14.5 4h-5L8 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4l-1.5-2Z"/><circle cx="12" cy="13" r="3.4"/>'), h: 'Choose game mode',
-    p: 'Let the camera mirror your table, let it only add new cards, or play without it.' },
+    p: 'Let the camera mirror your table, use it to add cards, or play on a digital table.' },
   vinkel: { ikon: oppIkon('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10.5 5.5h3"/>'), h: "Your phone's picture shows up here",
     p: 'Connect your phone, then lay out a card, your graveyard and your library in the picture.',
     knapp: '<button type="button" class="btn prim sm" data-oppm="tel">Connect your phone</button>' }
@@ -10090,10 +10095,10 @@ function renderOppstart() {
     if (aktiv === 'lage') {
       if (!oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
       const opt = (v, rub, txt, tag) => `<button type="button" class="oppopt${oppLageVal === v ? ' on' : ''}" data-opplage="${v}"><span class="radio"></span><span class="oppbody"><b>${rub}${tag ? `<span class="tag">${tag}</span>` : ''}</b><span>${txt}</span></span></button>`;
-      oppDiff($('#opp2Cont'), '<div class="oppgrupp">With camera</div>'
+      oppDiff($('#opp2Cont'), `<div class="oppgrupp">${LAGE_GRUPP.kamera}</div>`
         + opt('bord', LAGE_NAMN.bord, LAGE_TXT.bord, 'Recommended') + opt('skarm', LAGE_NAMN.skarm, LAGE_TXT.skarm)
-        + '<div class="oppgrupp skild">Without camera</div>'
-        + opt('utan', 'Without camera', 'No phone. You put your cards on the mat yourself.')
+        + `<div class="oppgrupp skild">${LAGE_GRUPP.utan}</div>`
+        + opt('utan', LAGE_NAMN.utan, LAGE_TXT.utan)
         + '<div class="opprad"><button type="button" class="btn prim sm" data-opp="lage">Continue</button></div>');
     }
     /* 4: provkortet, graveyard-platsen och leken (MES-122). */
@@ -11123,7 +11128,7 @@ gridEl.addEventListener('pointerdown', ev => {
   if (c.lyft != null) return;                // ett nedtonat kort ligger inte där (M9: arket)
   /* Table leads: bordet bestämmer var ett kamerabundet kort ligger. */
   if (spelLage && kamSpeglar(minSpelare()) && c.spar != null) {
-    matChip(c, 'The table places this card · switch to Only add new cards to move it');
+    matChip(c, `The table places this card · switch to ${LAGE_NAMN.skarm} to move it`);
     clearTimeout(matChipT); matChipT = setTimeout(() => matChip(null), 1800);
     return;
   }
