@@ -17895,8 +17895,13 @@ const Kamera = (() => {
       const vinkel = 0.5 * Math.atan2(2 * vxy, vxx - vyy);   // huvudaxelns vinkel, radianer
       const lang = 2 * Math.sqrt(3 * l1), kort = 2 * Math.sqrt(3 * l2);
       const r = { cx, cy, lang, kort, vinkel, area: fc, std: nuStd, box };
-      /* Inget kort är en fjärdedel av mattan. */
-      if (fc > 0.25 * n || lang > 0.6 * Math.max(W, H)) return Object.assign(r, { skal: 'kvot' });
+      /* Inget kort är en fjärdedel av mattan. Långsidan mäts mot bildens
+         KORTSIDA (MES-166): på bänkens 240×150 var 0,6 × långsidan (144)
+         lägre än höjden, men telefonens liggande 360×203 släppte igenom 216 —
+         en hand och ett kort i bildens hela höjd blev ett "kort" (golden 12:
+         152×152 medan provkortet lades). 0,6 × 203 = 122 px är ett kort sett
+         från drygt 20 cm; på 40 cm är det 65. */
+      if (fc > 0.25 * n || lang > 0.6 * Math.min(W, H)) return Object.assign(r, { skal: 'kvot' });
       const kvot = kort / lang;
       /* Ett kort: kvoten nära 0,72. Två kort som ligger ihop, en hand, eller
          en skugga faller utanför. */
