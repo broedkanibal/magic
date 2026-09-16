@@ -20706,6 +20706,13 @@ const Kamera = (() => {
     let namngivna = 0;
     for (const k of svar) {
       const p = { cx: k.x * AW, cy: k.y * AH };
+      /* Högen och leken är inte bordet (MES-180): Claude ser graveyard-
+         högens översta kort i hela bilden, och i golden 11 blev det säkra
+         spår på bordet — Night's Whisper medan högen bläddrades, och
+         Faithful Pikemaster efter att det lagts på högen. Detektorns
+         regioner och Claudes delar (svarAI) prövas mot rutorna; helbilden
+         gjorde det inte. */
+      if (iGrav(p) || iBib(p)) continue;
       /* …eller strax utanför ett eget spår som redan bär samma namn. Claudes
          läge är en uppskattning ur hela bilden; ett tappat kort är brett och
          lågt, och en punkt en tiondels kort utanför lådan blev ett nytt,

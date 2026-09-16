@@ -970,6 +970,17 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const d3 = kortSpar();
     check(`D3 tappat runt hörnet med hand: spår sist ${d3.length} (${fmt(d3)}), flest klara samtidigt ${flestKlara}`,
           d3.length === 1 && d3[0].tappad && flestKlara <= 1);
+    /* D4: helbildens kort i graveyard- och library-rutan är högarna, inte
+       bordet (MES-180). Golden 11: Claude såg högens översta kort, och det
+       blev säkra spår — Night's Whisper medan högen bläddrades, Faithful
+       Pikemaster efter att det lagts på högen. Ett kort utanför rutorna
+       blir ett spår som förut. */
+    nystart(); await referens(); Kamera.satGrav({ x: 0, y: 0.5, w: 0.25, h: 0.5 }); Kamera.satBib({ x: 0.25, y: 0.5, w: 0.2, h: 0.5 });
+    Kamera.tillampaHelbild([{ x: 0.12, y: 0.75, namn: 'Plains', sid: 's1', saker: true }, { x: 0.35, y: 0.75, namn: 'Swamp', sid: 's2', saker: true },
+                            { x: 110 / W, y: 40 / H, namn: 'Island', sid: 's3', saker: true }], { helbild: true, skal: 'auto' }, nu);
+    const d4 = Kamera.spar.map(t => t.namn);
+    Kamera.satGrav(null); Kamera.satBib(null);
+    check(`D4 helbildens kort i graveyard- och library-rutan: spår ${JSON.stringify(d4)}`, d4.length === 1 && d4[0] === 'Island');
   }
 
   // ── MES-29 skräp: Claudes "inget kort" och spår som prövas ─────────
