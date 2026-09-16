@@ -2814,10 +2814,18 @@ body.ispel #addPlayerBtn{display:none}
 /* Ett borttaget kort som krymper bort (medAnimering). Ligger i body, över
    lekens sida men under popovern och ångra-remsan. */
 .lspile.lsbortflyg{position:fixed;z-index:434;pointer-events:none;margin:0;transform-origin:50% 60%}
-/* Ett bekräftat kort på väg in i sin hög, och högens gröna blink (bekrafta). */
-.lsbekrflyg{position:fixed;z-index:434;pointer-events:none;border-radius:5px;object-fit:cover;box-shadow:0 18px 40px -12px #000;transform-origin:50% 50%}
-.lsbekr{position:fixed;z-index:434;pointer-events:none;border-radius:9px;border:2px solid #57c785;box-shadow:0 0 22px 2px #57c78566, inset 0 0 0 1px #57c78533}
-.lsbekr span{position:absolute;right:-9px;top:-9px;width:22px;height:22px;border-radius:50%;background:#57c785;color:#08140d;display:grid;place-items:center;box-shadow:0 0 0 2px #0d1015}
+/* Ett nyss bekräftat kort (bekrafta): ringen går från gul till grön, och
+   Check-brickan byts mot en grön Confirmed som poppar fram. Raden under To
+   check blir grön på samma sätt. */
+.lsring{transition:border-color .35s ease,box-shadow .35s ease}
+.lspw.bekr .lsring{border:2px solid #57c785;box-shadow:0 0 18px 1px #57c78559}
+.lsbekrb{position:absolute;left:50%;bottom:-10px;translate:-50% 0;z-index:4;display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px 0 6px;border-radius:10px;background:#0f2016;border:1px solid #57c785;color:#8fe0b0;font:650 10.5px/18px var(--sans);white-space:nowrap;pointer-events:none;animation:lsBekrPop .38s cubic-bezier(.2,.9,.3,1.35)}
+@keyframes lsBekrPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.lstci{transition:background-color .3s ease,border-color .3s ease}
+.lstci.bekr{background:#0f1a14;border-color:#2f6b47}
+.lstci.bekr .tcs b{color:#8fe0b0}
+.lstci .lsbekrok{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:7px;background:#0f2016;border:1px solid #2f6b47;color:#8fe0b0;font:600 12px var(--sans);animation:lsBekrPop .38s cubic-bezier(.2,.9,.3,1.35)}
+.lstci span.th{cursor:default}
 .lsselbar{position:sticky;bottom:18px;z-index:45;margin-top:auto;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;border-radius:10px;background:#141c2af7;border:1px solid #3d4a6a;box-shadow:0 18px 40px -10px #000;font:13px var(--sans);color:#c9d4ff;flex:none;flex-wrap:wrap}
 .lsselbar b{font-weight:650;color:#fff}
 .lsselbar .grow{flex:1}
@@ -13848,6 +13856,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     nya: new Set(),       // kort som kom in under den här öppningen (New-ringen)
     pop: null,            // popovern: {typ:'koll'|'byt', name, sb, kor?, ...}
     listaKlar: null,      // kvittot efter en inklistring (N7): {nr, main, sb, koll}
+    bekr: new Map(),      // nyss bekräftade kort, visas som Confirmed en stund: nyckel → {koll}
   };
   const nu = () => lekSlagTillampa(y.bas || { namn: y.nyNamn, kort: [] }, y.ops);
   const nyckel = (name, sb) => lekSlagNyckel(name, sb);
@@ -14030,7 +14039,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const s = ++y.session;
     Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
                       namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null });
-    y.valda.clear(); y.nya.clear();
+    y.valda.clear(); y.nya.clear(); y.bekr.clear();
     if (!id) {
       y.nyNamn = o.namn || 'New deck'; y.flik = null; y.namnRedigeras = true; y.laddar = false;
       rita();
@@ -14206,6 +14215,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const finns = new Set(v.kort.map(k => nyckel(k.name, k.sb)));
     for (const x of [...y.valda]) if (!finns.has(x)) y.valda.delete(x);
     if (y.pop && !finns.has(nyckel(y.pop.name, y.pop.sb)) && !y.pop.soker) stangPop();
+    /* Ett ⌘Z som gav tillbaka frågan, eller ett kort som försvann: inte Confirmed längre. */
+    for (const [x] of y.bekr) { const kk = v.kort.find(c => nyckel(c.name, c.sb) === x); if (!kk || kk.koll) y.bekr.delete(x); }
     yta.classList.toggle('valjer', y.valda.size > 0);
     let h;
     if (!v.kort.length) {
@@ -14265,10 +14276,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   /* To check (N7, N8): kort Mesa inte var säker på. De ligger i leken ändå,
      tills man säger något annat. */
   function attKolla(v) {
-    const l = v.kort.filter(k => k.koll);
+    const l = v.kort.filter(k => k.koll || y.bekr.has(nyckel(k.name, k.sb))), kvar = l.filter(k => k.koll).length;
     if (!l.length) return '<div class="lstc" hidden></div>';
     const rad = k => {
-      const q = k.koll, ligg = liggande(k);
+      const ligg = liggande(k), bekr = !k.koll && y.bekr.get(nyckel(k.name, k.sb));
+      if (bekr) {
+        return `<div class="lstci bekr" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
+          + `<span class="th${ligg ? ' ligg' : ''}">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : ''}</span>`
+          + `<div class="tcs"><b>${esc(k.name)}</b><span>${kollSkrev(k, bekr.koll)} · ${kopiorText(k.n)}${k.sb ? ' · Sideboard' : ''}</span></div>`
+          + `<div class="tb"><span class="lsbekrok">${lsIk('check', 13, 2.8)}Confirmed</span></div></div>`;
+      }
       return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
         + `<button type="button" class="th${ligg ? ' ligg' : ''}" data-tc="bild" title="Show ${esc(k.name)} larger">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : ''}</button>`
         + `<div class="tcs"><b>Did you mean ${esc(k.name)}?</b><span>${kollSkrev(k)} · ${kopiorText(k.n)}${k.sb ? ' · Sideboard' : ''}</span></div>`
@@ -14276,26 +14293,28 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         + `<button type="button" class="btn sm" data-tc="byt">${lsIk('swap', 12)}Pick another…</button>`
         + `<button type="button" class="btn sm ghost fara" data-tc="bort">${lsIk('trash', 12)}Remove</button></div></div>`;
     };
-    return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${l.length}</span>`
-      + `<span class="sub">${l.length === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card — ${l.length === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.</span></div>${l.map(rad).join('')}</div>`;
+    const sub = kvar ? `${kvar === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card — ${kvar === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.` : 'All checked.';
+    return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${kvar}</span>`
+      + `<span class="sub">${sub}</span></div>${l.map(rad).join('')}</div>`;
   }
   /* Room- och splitkort är tryckta på tvären: bilden vrids för att gå att läsa. */
   function liggande(k) { const c = lekKortData(k); return !!(c && c.layout === 'split'); }
   /* "Your list said “Spiteful Hexmage[r]”" — det som skiljer markerat. */
-  function kollSkrev(k) {
-    const q = k.koll || {}, foto = /^photo/i.test(q.kalla || '');
+  function kollSkrev(k, koll = k.koll) {
+    const q = koll || {}, foto = /^photo/i.test(q.kalla || '');
     const skrev = lekSkillnad(q.las || '', k.name).map(([t, m]) => m ? `<mark>${esc(t)}</mark>` : esc(t)).join('');
     return `${foto ? 'The photo read' : 'Your list said'} “${skrev}”`;
   }
   function hog(p) {
     const c = lekKortData(p), src = (c && imgOf(c, 0, 'normal')) || p.small || '';
-    const key = nyckel(p.name, p.sb), valt = y.valda.has(key), ny = !p.koll && y.nya.has(key);
+    const key = nyckel(p.name, p.sb), valt = y.valda.has(key), bekr = !p.koll && y.bekr.has(key), ny = !p.koll && !bekr && y.nya.has(key);
     const lager = (p.n >= 3 ? '<i class="pl l2"></i>' : '') + (p.n >= 2 ? '<i class="pl l1"></i>' : '');
     const bild = src ? `<img class="kf" src="${esc(src)}" alt="" loading="lazy" draggable="false">` : `<span class="kf lsutan">${esc(p.name)}</span>`;
-    const merke = (valt || p.koll || ny ? '<i class="lsring"></i>' : '')
+    const merke = (valt || p.koll || bekr || ny ? '<i class="lsring"></i>' : '')
       + (valt ? `<span class="lsselm">${lsIk('check', 11, 3)}</span>` : ny ? '<span class="lsnyb">New</span>' : '')
-      + (p.koll ? '<button type="button" class="lschkb" data-ls-chk title="Mesa wasn’t sure about this card">Check</button>' : '');
-    const kl = 'lspw' + (valt ? ' valt' : '') + (p.koll ? ' chk' : ny ? ' ny' : '');
+      + (p.koll ? '<button type="button" class="lschkb" data-ls-chk title="Mesa wasn’t sure about this card">Check</button>'
+        : bekr ? `<span class="lsbekrb">${lsIk('check', 11, 3)}Confirmed</span>` : '');
+    const kl = 'lspw' + (valt ? ' valt' : '') + (p.koll ? ' chk' : bekr ? ' bekr' : ny ? ' ny' : '');
     return `<div class="${kl}" data-ls-kort="${esc(p.name)}" data-sb="${p.sb ? 1 : 0}"><div class="lspile" tabindex="0" aria-pressed="${valt}" aria-label="${esc(p.name)}, ${p.n} ${p.n === 1 ? 'copy' : 'copies'}">${lager}${bild}<span class="cnt">${p.n}</span>${merke}`
       + `<div class="lstool"><button type="button" data-lk="minus" title="One fewer">${lsIk('minus', 13, 2.4)}</button><b>${p.n}</b><button type="button" data-lk="plus" title="One more">${lsIk('plus', 13, 2.4)}</button>`
       + `<i class="sep"></i><button type="button" data-lk="byt" title="Change it to another card — if Mesa read it wrong">${lsIk('swap', 13)}Change card…</button>`
@@ -14330,72 +14349,41 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     medAnimering([nyckel(k.name, k.sb)], () => andra({ typ: 'bort', name: k.name, sb: !!k.sb }));
     snack(`Removed ${k.name}${k.n > 1 ? ` ×${k.n}` : ''}`);
   }
-  /* Ett bekräftat kort (Yes under To check) flyger från frågan in i sin hög,
-     och högen blinkar grönt med en bock (MES-185). `kalla` är bilden man
-     svarade vid, eller dess ruta.
-     Ligger högen utanför det som syns rullar ytan först dit, så att man ser
-     var kortet hamnar (Jesper 2026-09-16), och flygningen börjar när
-     rullningen är klar. Finns fler kort kvar att kolla rullar ytan sedan
-     tillbaka till frågorna — om man inte själv rullat under tiden. */
-  function bekrafta(k, kalla) {
-    const key = nyckel(k.name, k.sb), minska = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const fran = kalla && (kalla.getBoundingClientRect ? kalla.getBoundingClientRect() : kalla);
-    const s0 = y.session;
-    let pile = null;
-    medAnimering([], () => andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null }), () => {
-      const pw = [...yta.querySelectorAll('.lspw')].find(el => pwNyckel(el) === key);
-      pile = pw && pw.querySelector('.lspile');
-    });
-    if (!pile) return;
-    const till = pile.getBoundingClientRect(), yr = yta.getBoundingClientRect();
-    if (till.top >= yr.top + 8 && till.bottom <= yr.bottom - 8) { if (!minska) flygIn(till); return; }
-    const forra = yta.scrollTop;
-    const mal = clamp(forra + (till.top - yr.top) - (yta.clientHeight - till.height) / 2, 0, Math.max(0, yta.scrollHeight - yta.clientHeight));
-    yta.scrollTo({ top: mal, behavior: minska ? 'auto' : 'smooth' });
-    efterRullning(() => {
-      if (s0 !== y.session || !pile.isConnected) return;
-      if (minska) return;
-      flygIn(pile.getBoundingClientRect(), () => {
-        const kvar = nu().kort.some(c => c.koll);
-        if (kvar && s0 === y.session && Math.abs(yta.scrollTop - mal) < 4) yta.scrollTo({ top: forra, behavior: 'smooth' });
-      });
-    });
-
-    /* Klar när ytan slutat rulla, eller efter en stund (en rullning som inte
-       behövde flytta sig ger ingen scrollend). */
-    function efterRullning(fn) {
-      let klar = false;
-      const nu2 = () => { if (klar) return; klar = true; yta.removeEventListener('scrollend', nu2); fn(); };
-      yta.addEventListener('scrollend', nu2);
-      setTimeout(nu2, 800);
-    }
-    function flygIn(t, sedan) {
-      const blink = () => {
-        const r = document.createElement('div');
-        r.className = 'lsbekr';
-        r.innerHTML = `<span>${lsIk('check', 13, 3)}</span>`;
-        Object.assign(r.style, { left: t.left - 5 + 'px', top: t.top - 5 + 'px', width: t.width + 10 + 'px', height: t.height + 10 + 'px' });
-        document.body.appendChild(r);
-        r.animate([{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'scale(1)', offset: .25 }, { opacity: 1, offset: .7 }, { opacity: 0 }],
-                  { duration: 1100, easing: 'ease-out', fill: 'forwards' }).onfinish = () => r.remove();
-        setTimeout(() => r.remove(), 2500);
-        if (sedan) setTimeout(sedan, 900);
-      };
-      const src = (pile.querySelector('img.kf') || {}).src || k.small;
-      if (!fran || !fran.width || !src) { blink(); return; }
-      const flyg = document.createElement('img');
-      flyg.className = 'lsbekrflyg'; flyg.src = src; flyg.alt = '';
-      Object.assign(flyg.style, { left: t.left + 'px', top: t.top + 'px', width: t.width + 'px', height: t.height + 'px' });
-      document.body.appendChild(flyg);
-      const s = Math.max(fran.width, fran.height) / t.height;
-      const dx = (fran.left + fran.width / 2) - (t.left + t.width / 2), dy = (fran.top + fran.height / 2) - (t.top + t.height / 2);
-      flyg.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s})` }, { transform: 'none' }],
-                   { duration: 480, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' }).onfinish = () => landa();
-      /* Landar en gång: när flygningen är klar, eller efter en stund om fliken
-         låg i bakgrunden och inte spelade den. */
-      function landa() { if (!flyg.isConnected) return; flyg.remove(); blink(); }
-      setTimeout(landa, 1500);
-    }
+  /* Ett bekräftat kort (Yes under To check) låg redan i leken — det ska inte
+     flytta sig, bara byta status (Jesper 2026-09-16, efter bug1/bug2.mov där
+     kortet flög och ytan rullade). Svaret sparas direkt, men en stund visas
+     frågan och kortet som Confirmed: raden blir grön med "✓ Confirmed" och
+     kortets gula Check-bricka blir grön. Sedan fälls raden ihop, och kortet
+     blir ett vanligt kort. Ett ⌘Z under tiden tar tillbaka frågan. */
+  const BEKR_MS = 1500;
+  function bekrafta(k) {
+    const key = nyckel(k.name, k.sb), e = { koll: k.koll };
+    y.bekr.set(key, e);
+    andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null });
+    setTimeout(() => slappBekr(key, e), BEKR_MS);
+  }
+  function slappBekr(key, e) {
+    if (y.bekr.get(key) !== e) return;
+    const rader = [...yta.querySelectorAll('.lstci')], rad = rader.find(r => pwNyckel(r) === key);
+    /* Är det den sista raden fälls hela To check-rutan ihop, annars bara raden. */
+    const el = rader.length === 1 && !nu().kort.some(c => c.koll) ? yta.querySelector('.lstc') : rad;
+    /* Omritningen tar bort raden (eller döljer rutan). Animeringen håller
+       höjden 0 och måste bort efteråt — rutan är samma element nästa gång
+       något ska kollas. Samma uppgift, så inget ritas däremellan. */
+    const klar = () => {
+      if (y.bekr.get(key) !== e) return;
+      y.bekr.delete(key); ritaYta();
+      if (el) { el.getAnimations().forEach(a => a.cancel()); el.style.overflow = ''; }
+    };
+    if (!el || matchMedia('(prefers-reduced-motion: reduce)').matches) return klar();
+    const gap = parseFloat(getComputedStyle(el.parentElement).rowGap) || 0, cs = getComputedStyle(el);
+    el.style.overflow = 'hidden';
+    el.animate([
+      { height: el.offsetHeight + 'px', opacity: 1, paddingTop: cs.paddingTop, paddingBottom: cs.paddingBottom, marginBottom: '0px' },
+      { height: '0px', opacity: 0, paddingTop: '0px', paddingBottom: '0px', marginBottom: -gap + 'px' },
+    ], { duration: 320, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = klar;
+    /* En flik i bakgrunden spelar inga animeringar. */
+    setTimeout(klar, 1200);
   }
   /* Det som ändras på ytan syns (MES-185). Kort som tas bort (nycklarna i
      `bort`) krymper och tonar bort som kopior ovanpå sidan, och korten som
@@ -14634,7 +14622,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (a === 'avbryt') { const bytta = p.bytta || []; stangPop(); if (bytta.length) snack(bytta.length === 1 ? `Changed ${bytta[0][0]} to ${bytta[0][1]}` : `Changed ${bytta.length} cards`); return; }
     if (a === 'hoppa') { p.senast = `Skipped <b>${esc(p.name)}</b>`; bytNasta(); return; }
     if (!k) { stangPop(); return; }
-    if (a === 'ja') { const bild = popEl.querySelector('.pbild img'), fran = bild && bild.getBoundingClientRect(); stangPop(); bekrafta(k, fran); }
+    if (a === 'ja') { stangPop(); bekrafta(k); }
     else if (a === 'bort') { stangPop(); taBort(k); }
     else if (a === 'byt') oppnaByt([nyckel(k.name, k.sb)], popAnkare);
   }
@@ -15052,7 +15040,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (tc) {
       const k = kortI(name, sb); if (!k) return;
       const t = tc.dataset.tc;
-      if (t === 'ja') bekrafta(k, pw.querySelector('.th img'));
+      if (t === 'ja') bekrafta(k);
       else if (t === 'bort') taBort(k);
       else if (t === 'bild') oppnaKoll(k.name, sb, tc);
       else oppnaByt([nyckel(k.name, sb)], pw);
