@@ -9901,13 +9901,13 @@ function oppSteg4(o) {
      Ett kort som syns men inte är mätt än räknas inte som hittat. */
   if (oppTappSvar != null) prov = `<p class="opptxt">Found it.</p>${knappar(true)}<div class="opprad"><span class="oppwait"><i></i><span>Saving the angle…</span></span></div>`;
   else if (oppProvLas) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
-  else prov = `<p class="opptxt">Put one card from your deck on the table, the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`
+  else prov = `<p class="opptxt">Put a test card on the table: any card from your deck, turned the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`
     + (p && p.kant ? `<p class="opptxt liten">Move the card in from the edge of the picture.</p>`
       : p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
   const grav = oppFlytt
     ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="gravklar">Done</button><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
-    : `<p class="opptxt"><b>Your graveyard goes here.</b> This is where you'll put your cards when they go to the graveyard.</p>`
+    : `<p class="opptxt"><b>This is your graveyard spot.</b> Leave the test card where it is. When you play, cards that go to the graveyard go here.</p>`
       + (f && f.trangt ? `<p class="opptxt liten">The phone is close to the table, so the spots are smaller than a card. Raise the phone if you can.</p>` : '')
       + `<div class="hogval"><button type="button" class="btn prim" data-opp="gravok">Looks good</button><button type="button" class="btn" data-opp="gravflytt">Move it</button></div>`;
   let bib = '';
@@ -9917,7 +9917,7 @@ function oppSteg4(o) {
     const vant = fas === 'tackt' ? '<span class="oppwait vit"><i></i><span>Something is on the spot…</span></span>'
       : fas === 'kollar' ? '<span class="oppwait bla"><i></i><span>Checking your library…</span></span>'
       : '<span class="oppwait"><i></i><span>Waiting for your library…</span></span>';
-    bib = `<ol class="gor"><li><span class="gnr">1</span><span>Pick up the card</span></li><li><span class="gnr">2</span><span>Shuffle it into your library</span></li><li><span class="gnr">3</span><span>Put your library face down on the spot</span></li></ol>`
+    bib = `<ol class="gor"><li><span class="gnr">1</span><span>Pick up the test card</span></li><li><span class="gnr">2</span><span>Shuffle it into your library</span></li><li><span class="gnr">3</span><span>Put your library face down on the spot</span></li></ol>`
       + `<div class="opprad">${vant}</div>`
       + (knapp ? `<div class="opprad"><button type="button" class="btn sm" data-opp="biblagd">My library is in place</button></div>` : '');
   }
@@ -22765,8 +22765,8 @@ function ritaOppLager(G) {
   let h = '';
   const las = d.aktiv === 'prov' ? oppProvLas : null;
   const t = oppProvId != null ? senasteSpar.find(u => u.id === oppProvId) : null;
-  if (las) h += chip(pbRutaPx(G, las.box), '#5fbf7f', 'This card');
-  else if (t && t.w != null && d.prov && !d.bib) h += chip(pbRutaPx(G, t), '#6b7280', d.aktiv === 'bib' ? 'Pick this card up' : 'This card · not played');
+  if (las) h += chip(pbRutaPx(G, las.box), '#5fbf7f', 'Test card');
+  else if (t && t.w != null && d.prov && !d.bib) h += chip(pbRutaPx(G, t), '#6b7280', d.aktiv === 'bib' ? 'Pick up the test card' : 'Test card · leave it here');
   if (d.aktiv === 'prov' && !las) h += `<div class="ovant"><i></i>Looking for a card…</div>`;
   const grav = d.aktiv === 'grav' ? (oppGravFlyttad || oppForslag(o).grav) : d.grav ? kamGravRad : null;
   let gq = null;
@@ -22775,7 +22775,7 @@ function ritaOppLager(G) {
   const kortstor = q => ({ x: q.x + q.w * (1 - 1 / ZON_LUFT) / 2, y: q.y + q.h * (1 - 1 / ZON_LUFT) / 2, w: q.w / ZON_LUFT, h: q.h / ZON_LUFT });
   if (grav) {
     const q = gq = kortstor(pbRutaPx(G, grav));
-    h += `<div class="gplats2${d.aktiv === 'grav' && !oppFlytt ? ' glod' : ''}${oppFlytt ? ' flytt' : ''}" style="${box(q)}">${GRAVSTEN}</div>` + chip(q, '#e8b33a', d.aktiv === 'grav' ? 'Graveyard goes here' : 'Graveyard');
+    h += `<div class="gplats2${d.aktiv === 'grav' && !oppFlytt ? ' glod' : ''}${oppFlytt ? ' flytt' : ''}" style="${box(q)}">${GRAVSTEN}</div>` + chip(q, '#e8b33a', d.aktiv === 'grav' ? 'Graveyard spot' : 'Graveyard');
   }
   if (oppFlytt) h += `<div class="otips">Drag the spot where your graveyard will go</div>`;
   /* Library-platsen (MES-139, designen "Mesa Library Drop"): 1 tom — leken
