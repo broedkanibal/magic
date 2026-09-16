@@ -19853,7 +19853,13 @@ const Kamera = (() => {
     const klara = spar.filter(q => q !== t && q.tillstand === 'klar' && !arHelbild(q)).map(q => q.lang * q.kort).sort((p, q) => p - q);
     const ref = klara.length ? klara[klara.length >> 1] : 0;
     const ettKort = ref ? lang0 * kort0 < 1.6 * ref : svar.length <= 1;
-    let delar = svar.slice();
+    /* Delarna i graveyard- och library-rutan är högarna, inte bordet (MES-180):
+       detektorns regioner filtreras på rutorna (iGrav/iBib), men en klunga
+       av högen och leken bredvid som sträckte sig utanför rutan frågades
+       Claude om, och varje namn Claude såg — Trusty Retriever som stack ut
+       ur högen — blev ett eget säkert spår på sin plats (golden 11). */
+    let delar = svar.filter(k => { const p = lage(k); return !iGrav(p) && !iBib(p); });
+    if (!delar.length && svar.length) { rapportera(); return; }
     if (delar.length > 1) {
       const inre = delar.filter(k => k.x > 0.08 && k.x < 0.92 && k.y > 0.08 && k.y < 0.92);
       if (inre.length) delar = inre;
