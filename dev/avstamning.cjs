@@ -60,7 +60,7 @@ const klocka = { t: 1e6 };
 const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
 return {
   avstamBord, tackning, sammaPlats, lekPrior,
-  kamBildTillVy, kamVyTillBild, provKortMatt, zonForslag, bibBredvid, provkortSpar, provkortUt,
+  kamBildTillVy, kamVyTillBild, provKortMatt, zonForslag, bibBredvid, provkortSpar, provkortUt, provLasSteg,
   set oppstart(v) { oppPagar = !!v; },
   get spar() { return senasteSpar; },
   get kort() { return state.players[0].cards; },
@@ -1254,6 +1254,53 @@ prov('UP9 provkortSpar: förra spåret släpps när det är skymt och en dubblet
   assert.equal(r.t.id, 2); assert.equal(r.vidLas, true);
   r = app.provkortSpar([annat], [], null, null, PORT);
   assert.equal(r.t.id, 5); assert.equal(r.vidLas, false);
+});
+prov('UP10 provkortets lås: inte på ett spår som rör sig eller nuddar bildens kant, bara på ett stilla kort inne i bilden (MES-166)', () => {
+  const las = spar => app.provLasSteg(null, app.provkortSpar(spar, [], null, null, null), false);
+  /* Ett nyfött spår utan stilla-fältet (äldre telefon): 'ny' rör sig. */
+  let p = app.provkortSpar([{ id: 1, tillstand: 'ny', sen: 20, ...PORT }], [], null, null);
+  assert.equal(p.matt, true); assert.equal(p.lasbar, false); assert.equal(las([{ id: 1, tillstand: 'ny', sen: 20, ...PORT }]).las, null);
+  /* Handen och kortet: stilla en stund, men lådan når nederkanten. */
+  const hand = { id: 2, tillstand: 'stilla', stilla: true, sen: 20, ...box(0.3, 0.4, 0.3, 0.6) };
+  p = app.provkortSpar([hand], [], null, null);
+  assert.equal(p.lasbar, false); assert.equal(p.kant, true); assert.equal(las([hand]).las, null);
+  /* Telefonen säger att ett läst kort rör sig: inget lås fast det inte är 'ny'. */
+  assert.equal(las([{ id: 3, tillstand: 'klar', namn: 'Plains', stilla: false, sen: 20, ...PORT }]).las, null);
+  /* Stilla inne i bilden: låst, med kortets egen ruta. */
+  const r = las([{ id: 4, tillstand: 'stilla', stilla: true, sen: 20, ...PORT }]);
+  assert.equal(r.ny, true); assert.equal(r.las.id, 4); assert.deepEqual(r.las.box, PORT);
+  /* Ett stilla kort går före handen som fortfarande är i bild. */
+  p = app.provkortSpar([{ id: 5, tillstand: 'ny', sen: 10, ...box(0.3, 0.3, 0.4, 0.7) }, { id: 4, tillstand: 'stilla', stilla: true, sen: 20, ...LANGT }], [], null, null);
+  assert.equal(p.t.id, 4); assert.equal(p.lasbar, true);
+});
+prov('UP11 provkortets lås: rutan följer kortet, och handen över kortet släpper det inte', () => {
+  const steg = (las, spar) => app.provLasSteg(las, app.provkortSpar(spar, [], null, las ? las.id : null, las ? las.box : null), false);
+  const las = { id: 1, box: PORT, n: 7 };
+  /* Samma kort, lite förskjutet: samma lås (ingen ny animering), ny ruta. */
+  const flytt = box(PORT.x + 0.01, PORT.y + 0.005, PORT.w, PORT.h);
+  let r = steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, sen: 20, ...flytt }]);
+  assert.equal(r.ny, false); assert.equal(r.las.n, 7); assert.deepEqual(r.las.box, flytt);
+  /* Handen täcker kortet: kortets spår skymt, handens klump rör sig. Låset står. */
+  r = steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, skymd: true, sen: 900, ...PORT }, { id: 6, tillstand: 'ny', stilla: false, sen: 10, ...box(0.35, 0.35, 0.3, 0.65) }]);
+  assert.equal(r.las, las);
+  /* Medan telefonen räknar svaret rörs låset inte, vad bordet än säger. */
+  assert.equal(app.provLasSteg(las, null, true).las, las);
+});
+prov('UP12 provkortets lås: ett flyttat kort låses på den nya platsen, och ett kort i rörelse släpper det gamla', () => {
+  const steg = (las, spar) => app.provLasSteg(las, app.provkortSpar(spar, [], null, las ? las.id : null, las ? las.box : null), false);
+  const las = { id: 1, box: PORT, n: 7 };
+  /* Kortet är på väg: rör sig, och inget ligger över den gamla platsen. */
+  assert.equal(steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: false, sen: 10, ...LANGT }]).las, null);
+  /* Kortet ligger stilla på den nya platsen medan handen fortfarande är över den gamla. */
+  const r = steg(las, [{ id: 8, tillstand: 'ny', stilla: false, sen: 10, ...box(0.38, 0.38, 0.12, 0.62) }, { id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, sen: 20, ...LANGT }]);
+  assert.equal(r.ny, true); assert.equal(r.las.id, 1); assert.deepEqual(r.las.box, LANGT);
+});
+prov('UP13 provkortets lås: ett spår som blivit kvar utan region håller inte platsen, ett skymt gör det', () => {
+  const steg = (las, spar) => app.provLasSteg(las, app.provkortSpar(spar, [], null, las ? las.id : null, las ? las.box : null), false);
+  const las = { id: 1, box: PORT, n: 7 };
+  assert.equal(steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, sen: 2500, ...PORT }]).las, null);
+  assert.equal(steg(las, [{ id: 1, tillstand: 'klar', namn: 'Plains', stilla: true, skymd: true, sen: 2500, ...PORT }]).las, las);
+  assert.equal(steg(las, []).las, null);
 });
 prov('UP8 lägesbytet spelar upp bordet medan uppstarten pågår: inget kort', () => {
   app.oppstart = true;

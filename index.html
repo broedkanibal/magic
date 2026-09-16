@@ -9577,13 +9577,14 @@ function oppSteg4(o) {
   const p = kamAnsluten ? provkortSpar(senasteSpar, zoner, sparSedd, oppProvId, !o.provKlar && oppProvLas ? oppProvLas.box : null) : null;
   if (o.provKlar) { oppProvLas = null; if (!oppProvId && p) oppProvId = p.t.id; }
   else {
-    /* Platsen låses när kortet går att mäta, och står still sedan: ett
-       spår som täcker den tar över id:t (en dubblett på samma kort), men
-       ramen flyttar sig inte. Flyttas kortet bort låses den nya platsen;
-       försvinner det släpps låset — utom medan telefonen räknar svaret. */
-    if (p && p.vidLas && oppProvLas) oppProvLas.id = p.t.id;
-    else if (p && p.matt) { oppProvLas = { id: p.t.id, box: { x: p.t.x, y: p.t.y, w: p.t.w, h: p.t.h }, n: ++oppLasN }; requestAnimationFrame(ritaPbLager); }
-    else if (oppTappSvar == null) oppProvLas = null;
+    /* Platsen låses när kortet ligger stilla inne i bilden och följer
+       kortet sedan; flyttas det låses den nya platsen, och försvinner det
+       släpps låset — utom medan handen täcker det eller telefonen räknar
+       svaret (provLasSteg, MES-166). */
+    const fore = oppProvLas, steg = provLasSteg(oppProvLas, p, oppTappSvar != null);
+    oppProvLas = steg.las;
+    if (steg.ny) oppProvLas.n = ++oppLasN;
+    if (oppProvLas && (!fore || fore.n !== oppProvLas.n || fore.box !== oppProvLas.box)) requestAnimationFrame(ritaPbLager);
     oppProvId = oppProvLas ? oppProvLas.id : null;
   }
   /* Leken ligger i sin ruta: telefonen säger det, provkortet är upplockat,
@@ -9608,7 +9609,8 @@ function oppSteg4(o) {
   if (oppTappSvar != null) prov = `<p class="opptxt">Found it.</p>${knappar(true)}<div class="opprad"><span class="oppwait"><i></i><span>Saving the angle…</span></span></div>`;
   else if (oppProvLas) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
   else prov = `<p class="opptxt">Put one card from your deck on the table, the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`
-    + (p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
+    + (p && p.kant ? `<p class="opptxt liten">Move the card in from the edge of the picture.</p>`
+      : p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
   const grav = oppFlytt
     ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn prim sm" data-opp="gravklar">Done</button><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
@@ -19697,16 +19699,57 @@ function bibBredvid(grav, r, s) {
    går att mäta, eller om inget annat gör det — ett kort som fått två spår
    (dubbletter, det ena skymt) fastnade förut på det skymda, och knapparna
    kom aldrig. */
+/* lasbar (MES-166) = platsen får låsas på spåret: mätt, stilla på telefonen
+   och inte vid bildens kant. Förut låstes första mätta spåret, och det
+   föddes medan handen höll kortet: en ruta runt hand och kort, i bildens
+   hela höjd, med "Found it" innan kortet ens låg. En hand kommer alltid in
+   från kanten, ett provkort ligger inne i bilden. stilla saknas hos en
+   äldre telefon — då räcker det att spåret lämnat 'ny'. kant = spåret är
+   mätt och stilla men nuddar kanten: steget ber om att flytta in kortet. */
+const PROV_KANT = 0.01;
+const provVidKant = t => t.x <= PROV_KANT || t.y <= PROV_KANT || t.x + t.w >= 1 - PROV_KANT || t.y + t.h >= 1 - PROV_KANT;
 function provkortSpar(spar, zoner, sedd, forraId, las) {
   const inne = (t, r) => r && t.w != null && t.x + t.w / 2 >= r.x && t.x + t.w / 2 <= r.x + r.w && t.y + t.h / 2 >= r.y && t.y + t.h / 2 <= r.y + r.h;
   const kan = t => t.sen != null && t.sen < 2000 && !t.skymd && !(t.ai && t.ai.helbild);
+  const stilla = t => t.stilla !== undefined ? !!t.stilla : t.tillstand !== 'ny';
+  const lasbar = t => kan(t) && stilla(t) && !provVidKant(t);
   let kand = (spar || []).filter(t => t.tillstand !== 'skrap' && t.w != null && !(zoner || []).some(r => inne(t, r)));
-  const vid = las ? kand.filter(t => tackning(t, las) >= 0.3) : [];
-  if (vid.length) kand = vid;
+  /* Spåren på den låsta platsen går före — utom när inget av dem går att
+     låsa och ett annat gör det: kortet har flyttats, och det som ligger
+     kvar över den gamla platsen är handen på väg bort. Bara ett spår som
+     detektorn ser nu, eller som är skymt, håller platsen: ett spår som
+     blivit kvar utan region (sen över 2 s) är inget bevis för att något
+     ligger där. */
+  const haller = t => t.skymd || (t.sen != null && t.sen < 2000);
+  const vid = las ? kand.filter(t => haller(t) && tackning(t, las) >= 0.3) : [];
+  if (vid.length && (vid.some(lasbar) || !kand.some(lasbar))) kand = vid;
   const forra = kand.find(u => u.id === forraId);
-  const t = (forra && (kan(forra) || !kand.some(kan)) ? forra : null) || kand.slice().sort((a, b) =>
-    (kan(b) - kan(a)) || ((b.sen != null) - (a.sen != null)) || (!!a.skymd - !!b.skymd) || (((sedd && sedd.get(b.id)) || 0) - ((sedd && sedd.get(a.id)) || 0)) || (b.id - a.id))[0];
-  return t ? { t, matt: kan(t), vidLas: vid.length > 0 } : null;
+  const t = (forra && (lasbar(forra) || (!kand.some(lasbar) && (kan(forra) || !kand.some(kan)))) ? forra : null) || kand.slice().sort((a, b) =>
+    (lasbar(b) - lasbar(a)) || (kan(b) - kan(a)) || ((b.sen != null) - (a.sen != null)) || (!!a.skymd - !!b.skymd) || (((sedd && sedd.get(b.id)) || 0) - ((sedd && sedd.get(a.id)) || 0)) || (b.id - a.id))[0];
+  return t ? { t, matt: kan(t), lasbar: lasbar(t), kant: kan(t) && stilla(t) && provVidKant(t), vidLas: kand === vid && vid.includes(t) } : null;
+}
+/* Provkortets lås, ett steg per ritning (MES-166). las = { id, box, n } eller
+   null; p = provkortSpar; vantar = telefonen räknar svaret på
+   Untapped/Tapped. Svar: { las, ny } — ny = ett nytt lås, ramen spelar sin
+   animering (n räknas upp av den som anropar).
+   - Går spåret att låsa följer rutan det: samma plats (täcker hälften av
+     låset) = samma lås med kortets ruta; annars är kortet flyttat och den
+     nya platsen låses.
+   - Går det inte, men något täcker låset (handen över kortet), står låset
+     kvar med sitt id.
+   - Annars släpps det: kortet är borta eller flyttat och inte stilla än.
+   Medan svaret räknas rörs ingenting. Förut flyttade sig ramen aldrig:
+   ett spår som täckte 30 % av låset behöll den gamla rutan, och en ruta
+   runt handen täcktes av allt — den stod kvar där kortet legat. */
+function provLasSteg(las, p, vantar) {
+  if (vantar) return { las, ny: false };
+  if (p && p.lasbar) {
+    const box = { x: p.t.x, y: p.t.y, w: p.t.w, h: p.t.h };
+    if (las && tackning(box, las.box) >= 0.5) return { las: { id: p.t.id, box, n: las.n }, ny: false };
+    return { las: { id: p.t.id, box, n: null }, ny: true };
+  }
+  if (las && p && p.vidLas) return { las, ny: false };
+  return { las: null, ny: false };
 }
 /* Start playing: provkortets spår, och spår som täcker det (ett andra spår
    på samma kort, som S8), läggs i borttagna — så spelas det inte ut om det

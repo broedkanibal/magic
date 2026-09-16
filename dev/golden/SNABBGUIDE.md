@@ -66,6 +66,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
 | `node dev/avstamning.cjs` | datorns sida: granskningslistan och bordet efteråt, ska sluta med `0 FEL` |
 | `node dev/dubbletter.cjs --fall 07` | eget mått: videofallets bordsrapporter genom datorns avstämning — var dubbletter och tap-fel uppstår (se *Dubbletter*) |
+| `node dev/golden/provlas.cjs` | eget mått: videofallens bordsrapporter genom uppstartens provkortslås (steg 4) — hur länge låset stod med en ruta större än ett kort; `--mot <fil>` jämför med en annan index.html |
 
 Flaggorna går att kombinera: `node dev/golden/kor.cjs --ai --fall 03 --detalj`.
 
