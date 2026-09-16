@@ -2743,6 +2743,7 @@ body.ispel #addPlayerBtn{display:none}
 .lsprog{font:12px var(--sans);color:var(--dim2)}
 .lskvitto{margin:0;padding:9px 11px;border-radius:9px;background:#0e131b;border:1px solid var(--line);font:12.5px/1.5 var(--sans);color:var(--dim)}
 .lskvitto b{color:var(--txt);font-weight:600}
+.lsexempel{display:block;margin:8px 0;padding:8px 10px;border-radius:7px;background:#0b1017;border:1px solid var(--line);font:12px/1.6 var(--mono);color:var(--txt)}
 .lsqr{align-self:flex-start;width:196px;height:196px;border-radius:10px;overflow:hidden;background:#fff;display:grid;place-items:center}
 .lsqr canvas{width:100%;height:100%;display:block}
 .lsqr .vantar{font:12px var(--sans);color:#555}
@@ -2796,6 +2797,11 @@ body.ispel #addPlayerBtn{display:none}
 .stp button:hover{color:var(--txt);background:var(--bg3)}
 .stp button[disabled]{opacity:.35;pointer-events:none}
 .stp b{min-width:20px;text-align:center;font:600 12.5px var(--mono);color:var(--txt)}
+/* Basländernas antal går att skriva in: siffran är ett fält som ser ut som
+   en siffra tills man klickar i det. */
+.stp .stpin{width:26px;height:22px;padding:0;border:0;border-radius:5px;background:transparent;text-align:center;font:600 12.5px var(--mono);color:var(--txt);outline:none;cursor:text}
+.stp .stpin:hover{background:var(--bg3)}
+.stp .stpin:focus{background:#1a1710;box-shadow:inset 0 0 0 1px var(--acc)}
 .blnot{font:12px/1.5 var(--sans);color:var(--dim2);max-width:230px;align-self:center}
 .lstom{align-self:center;margin-top:170px;width:min(470px,100%);display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .lstom .ico{display:inline-flex;color:var(--dim2);margin-bottom:4px}
@@ -11597,6 +11603,7 @@ function lekRad(line) {
   let n = 1;
   const m = s.match(/^(\d+)\s*[xX]?[\s.)]+/);
   if (m) { n = clamp(+m[1], 1, 99); s = s.slice(m[0].length); }
+  const medAntal = !!m;
   s = s.replace(/\^[^^]*\^/g, '');                                   // ^taggar^ (Archidekt)
   const kat = s.match(/\[([^\]]*)\]/);                                // [kategori]
   if (kat) { if (/commander/i.test(kat[1])) cmdr = true; s = s.replace(/\s*\[[^\]]*\]\s*/g, ' '); }
@@ -11605,7 +11612,23 @@ function lekRad(line) {
   s = s.replace(/\s*[·|]\s*[A-Za-z0-9]{2,6}\s*$/, '');                // "· M21"
   s = s.replace(/\s+/g, ' ').trim();
   if (!s) return null;
-  return { name: s, n, sb, cmdr };
+  return { name: s, n, sb, cmdr, medAntal };
+}
+/* Kan det här vara ett kortnamn? (MES-175) Det som klistras in är text från
+   vem som helst, och varje rad som blir ett "kort" skickas till Scryfall. En
+   mening, en adress eller kod ska aldrig dit — den hoppas över och räknas, så
+   att rutan kan säga hur en lista ska se ut i stället för att eka texten.
+   Inga kortnamn innehåller < > { } \ = ; $ @ | ` eller en adress. Längsta
+   namnet (ett Un-kort) är 141 tecken. En rad utan antal är ett löst namn
+   ("Lightning Bolt"): högst åtta ord och inga citattecken — med antal får
+   de riktiga undantagen plats (1 Kongming, "Sleeping Dragon"). */
+const LEK_INTE_NAMN = /[<>{}\\=;$@|`]|:\/\/|\bwww\./i;
+function lekKanVaraNamn(namn, medAntal) {
+  const t = String(namn || '');
+  if (t.length < 2 || t.length > 150 || LEK_INTE_NAMN.test(t)) return false;
+  if (!medAntal && /["“”]/.test(t)) return false;
+  if ((t.match(/\p{L}/gu) || []).length < 2) return false;
+  return t.split(' ').filter(w => w !== '//').length <= (medAntal ? 30 : 8);   // Fire // Ice är två ord
 }
 function parseDecklist(txt) {
   const rader = String(txt || '').split(/\r?\n/);
@@ -11619,7 +11642,7 @@ function parseDecklist(txt) {
     if (block.length === 2) mtgoSb = block[1];
   }
   const ut = [];
-  let sektion = 'main';
+  let sektion = 'main', hoppade = 0;
   rader.forEach((line, k) => {
     const l = line.trim();
     if (!l) return;
@@ -11630,10 +11653,16 @@ function parseDecklist(txt) {
     if (sektion === 'skip') return;
     const r = lekRad(l);
     if (!r) return;
+    const kan = lekKanVaraNamn(r.name, r.medAntal);
+    delete r.medAntal;
+    if (!kan) { hoppade++; return; }
     if (sektion === 'cmdr' || r.cmdr) { r.cmdr = true; r.n = 1; r.sb = false; }
     else if (sektion === 'sb' || (mtgoSb >= 0 && k >= mtgoSb)) r.sb = true;
     ut.push(r);
   });
+  /* Arrayen är densamma som förut; antalet överhoppade rader hänger med, icke
+     uppräkningsbart så att den fortfarande jämförs och sprids som en lista. */
+  Object.defineProperty(ut, 'hoppade', { value: hoppade });
   return ut;
 }
 /* Platt lista med main-korten, ett namn per exemplar — bordets List-ruta
@@ -13471,6 +13500,15 @@ const LS_IKON = {
   rot: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
 };
 const lsIk = (n, s = 16, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LS_IKON[n]}</svg>`;
+/* Det inklistrade visas aldrig i sin helhet: ett namn kortas och escapas. */
+const lsKort = t => { const u = String(t || ''); return u.length > 32 ? u.slice(0, 31).trimEnd() + '…' : u; };
+const lsCitat = t => `“${esc(lsKort(t))}”`;
+const lsUpprakna = l => l.slice(0, 3).join(', ') + (l.length > 3 ? ` and ${l.length - 3} more` : '');
+const LS_LIST_TAK = 250;
+const LS_BL_MIN = 0, LS_BL_MAX = 99;   // skrivet antal basländer
+const LS_LISTFORMAT = "<b>That doesn't look like a deck list.</b> Put one card on each line, with the number of copies first:"
+  + '<span class="lsexempel">4 Lightning Bolt<br>2 Counterspell<br><br>Sideboard<br>2 Rest in Peace</span>'
+  + 'Exports from Moxfield, Arena and MTGO work as they are.';
 const LS_ANGRA = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘Z' : 'Ctrl+Z';
 const LS_PRICKAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
 
@@ -13585,6 +13623,9 @@ function lsMorf(el, mall) {
     if (n.nodeType !== 1) { if (g.nodeValue !== n.nodeValue) g.nodeValue = n.nodeValue; return; }
     for (const a of [...g.attributes]) if (!n.hasAttribute(a.name) && !(a.name === 'class' && g.classList.contains('verktygvanster'))) g.removeAttribute(a.name);
     for (const a of n.attributes) if (g.getAttribute(a.name) !== a.value) g.setAttribute(a.name, a.value);
+    /* Ett fält man skrivit i följer inte längre sitt value-attribut: sätt
+       värdet (ett ⌘Z ska synas), men inte i det fält man skriver i just nu. */
+    if (g.nodeName === 'INPUT' && g !== document.activeElement && g.value !== (n.getAttribute('value') || '')) g.value = n.getAttribute('value') || '';
     lsMorf(g, n);
   });
   for (let i = gamla.length - 1; i >= nya.length; i--) el.removeChild(gamla[i]);
@@ -13840,7 +13881,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         + `<div class="lsaddto"><span>Add to</span><div class="lsseg">${sbKnapp(false)}${sbKnapp(true)}</div></div>`;
     } else if (y.flik === 'lista') {
       h += '<p class="lslead">Paste the list from Moxfield, Arena, MTGO or plain text — Mesa recognises the format by itself. Cards after a “Sideboard” line go to the sideboard.</p>'
-        + '<textarea class="lsta" rows="9" spellcheck="false" placeholder="4 Lightning Bolt&#10;4 Monastery Swiftspear&#10;…&#10;&#10;Sideboard&#10;2 Rest in Peace"></textarea>'
+        + '<textarea class="lsta" rows="9" maxlength="20000" spellcheck="false" placeholder="4 Lightning Bolt&#10;4 Monastery Swiftspear&#10;…&#10;&#10;Sideboard&#10;2 Rest in Peace"></textarea>'
         + `<div class="lsrad"><button type="button" class="btn prim" data-ls="lista"${y.laser ? ' disabled' : ''}>Add the cards</button><span class="lsprog"></span></div>`
         + '<p class="lskvitto" hidden></p>';
     } else {
@@ -13941,7 +13982,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       if (!c && !y.blHamtas.has(n)) { y.blHamtas.add(n); lookup(n).then(() => ritaYta()).catch(() => {}); }
       const src = c && imgOf(c, 0, 'small'), a = antal(n);
       return `<div class="lsblk">${src ? `<img class="kf" src="${esc(src)}" alt="${n}" title="${n}" draggable="false">` : `<span class="kf lsutan">${n}</span>`}`
-        + `<span class="stp"><button type="button" data-ls-bl="${n}" data-d="-1" title="One fewer ${n}"${a ? '' : ' disabled'}>${lsIk('minus', 12, 2.4)}</button><b>${a}</b>`
+        + `<span class="stp"><button type="button" data-ls-bl="${n}" data-d="-1" title="One fewer ${n}"${a ? '' : ' disabled'}>${lsIk('minus', 12, 2.4)}</button>`
+        + `<input class="stpin" type="text" inputmode="numeric" maxlength="2" value="${a}" data-ls-blin="${n}" aria-label="Number of ${n}" title="Type how many ${n} you play">`
         + `<button type="button" data-ls-bl="${n}" data-d="1" title="One more ${n}">${lsIk('plus', 12, 2.4)}</button></span></div>`;
     };
     const tot = BASLAND_NAMN.reduce((t, n) => t + antal(n), 0);
@@ -13968,20 +14010,30 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      har bara ett par av de fem. */
   async function stegaBasland(namn, d) {
     const s = y.session;
-    if (d < 0) { if (kortI(namn, false)) andra({ typ: 'antal', name: namn, sb: false, d: -1 }); return; }
+    if (d < 0) { if (kortI(namn, false)) andra({ typ: 'antal', name: namn, sb: false, d }); return true; }
     let c = cardFor(namn);
     if (!c) {
       try { c = await lookup(namn); }
-      catch (e) { toast(`Could not look up ${namn} — try again when you have network`, 'err'); return; }
+      catch (e) { toast(`Could not look up ${namn} — try again when you have network`, 'err'); return false; }
     }
-    if (s !== y.session) return;
-    andra({ typ: 'antal', name: c.name, sb: false, d: 1, kort: { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] } });
+    if (s !== y.session) return false;
+    andra({ typ: 'antal', name: c.name, sb: false, d, kort: { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] } });
+    return true;
+  }
+  /* Ett skrivet antal: bara heltal, 0–99. Tomt lägger tillbaka det som stod. */
+  async function sattBasland(inp) {
+    const namn = inp.dataset.lsBlin, fore = (kortI(namn, false) || { n: 0 }).n;
+    const text = inp.value.trim();
+    const n = /^\d+$/.test(text) ? clamp(parseInt(text, 10), LS_BL_MIN, LS_BL_MAX) : fore;
+    inp.value = n;
+    if (n !== fore && !await stegaBasland(namn, n - fore)) inp.value = fore;
   }
   async function laggTill(namn, n) {
     const s = y.session, sb = y.tillSb;
+    if (!lekKanVaraNamn(namn, true)) { toast("That doesn't look like a card name. Type it as it's printed on the card.", 'err'); return; }
     let k;
     try { k = await lookup(namn); }
-    catch (e) { toast(e && e.tillfallig ? 'The lookup did not get through — try again' : `“${namn}” is not on Scryfall`, 'err'); return; }
+    catch (e) { toast(e && e.tillfallig ? 'The lookup did not get through — try again' : `No card is called “${lsKort(namn)}” — check the spelling`, 'err'); return; }
     if (s !== y.session) return;
     const small = imgOf(k, 0, 'small');
     andra({ typ: 'antal', name: k.name, sb, d: n, kort: { name: k.name, sid: k.id, small, ci: k.ci || [] } });
@@ -13999,12 +14051,18 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      (To check). */
   async function lasLista() {
     const ta = panel.querySelector('.lsta'); if (!ta || y.laser) return;
-    const poster = parseDecklist(ta.value);
-    if (!poster.length) { y.kvitto = 'No card names found. Put one card per line, like <b>4 Lightning Bolt</b>.'; ritaKvitto(); return; }
+    const poster = parseDecklist(ta.value), hoppade = poster.hoppade || 0;
+    if (!poster.length) { y.kvitto = ta.value.trim() ? LS_LISTFORMAT : ''; ritaKvitto(); return; }
     const s = y.session, prog = panel.querySelector('.lsprog'), knapp = panel.querySelector('[data-ls="lista"]');
     y.laser = true; if (knapp) knapp.disabled = true;
     const unika = new Map();
-    for (const p of poster) { const key = nyckel(p.name, p.sb); const f = unika.get(key); if (f) f.n += p.n; else unika.set(key, { name: p.name, n: p.n, sb: !!p.sb }); }
+    let kapade = 0;
+    for (const p of poster) {
+      const key = nyckel(p.name, p.sb), f = unika.get(key);
+      if (f) f.n += p.n;
+      else if (unika.size < LS_LIST_TAK) unika.set(key, { name: p.name, n: p.n, sb: !!p.sb });
+      else kapade++;
+    }
     const ops = [], batch = [], saknas = [], bytta = [];
     let i = 0;
     for (const p of unika.values()) {
@@ -14013,22 +14071,29 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         const k = await lookup(p.name);
         ops.push({ typ: 'antal', name: k.name, sb: p.sb, d: p.n, kort: { name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), ci: k.ci || [] } });
         batch.push({ name: k.name, sb: p.sb, n: p.n });
-        if (norm(k.name) !== norm(p.name) && !norm(k.name).startsWith(norm(p.name) + ' //')) bytta.push(`“${esc(p.name)}” as ${esc(k.name)}`);
-      } catch (e) { saknas.push(esc(p.name)); }
+        if (norm(k.name) !== norm(p.name) && !norm(k.name).startsWith(norm(p.name) + ' //')) bytta.push(`${lsCitat(p.name)} as ${esc(k.name)}`);
+      } catch (e) { saknas.push(p.name); }
     }
     y.laser = false;
     if (s !== y.session) return;
     if (prog) prog.textContent = '';
     if (knapp) knapp.disabled = false;
+    /* Ingenting gick att använda och inga namn var ens nära: då var det inte
+       en leklista, och det enda nyttiga svaret är hur en sådan ser ut. */
+    if (!ops.length && !saknas.length) { y.kvitto = LS_LISTFORMAT; ritaKvitto(); return; }
+    const delar = [];
     if (ops.length) {
       andra(ops);
       const main = batch.filter(b => !b.sb).reduce((t, b) => t + b.n, 0), sb = batch.filter(b => b.sb).reduce((t, b) => t + b.n, 0);
-      y.nyss.unshift({ nr: ++y.nyssNr, name: 'Pasted list', n: main + sb, batch });
+      y.nyss.unshift({ nr: ++y.nyssNr, name: 'Pasted list', n: main + sb, small: batch[0] && (kortI(batch[0].name, batch[0].sb) || {}).small, batch });
       ta.value = '';
-      y.kvitto = `<b>Added ${main} ${main === 1 ? 'card' : 'cards'}${sb ? ` + ${sb} sideboard` : ''}.</b>`;
-    } else y.kvitto = '<b>Nothing was added.</b>';
-    if (bytta.length) y.kvitto += ` Read ${bytta.join(', ')} — check that those are right.`;
-    if (saknas.length) y.kvitto += ` Not found on Scryfall: ${saknas.join(', ')}.`;
+      delar.push(`<b>Added ${main} ${main === 1 ? 'card' : 'cards'}${sb ? ` + ${sb} sideboard` : ''}.</b>`);
+    } else delar.push('<b>None of the names matched a card.</b>');
+    if (saknas.length) delar.push(`${saknas.length === 1 ? 'No card is' : 'No cards are'} called ${lsUpprakna(saknas.map(lsCitat))} — check the spelling, or find ${saknas.length === 1 ? 'it' : 'them'} under Type.`);
+    if (bytta.length) delar.push(`Read ${lsUpprakna(bytta)} — check that ${bytta.length === 1 ? "it's" : "they're"} right.`);
+    if (hoppade) delar.push(`${hoppade} ${hoppade === 1 ? "line wasn't a card and was" : "lines weren't cards and were"} skipped.`);
+    if (kapade) delar.push(`Only the first ${LS_LIST_TAK} cards were read — paste the rest separately.`);
+    y.kvitto = delar.join(' ');
     ritaKvitto(); ritaNyss();
   }
   function namnKlar(spara) {
@@ -14238,6 +14303,37 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   yta.addEventListener('pointerleave', doljForstoring);
   yta.addEventListener('scroll', doljForstoring, { passive: true });
   yta.addEventListener('focusin', ev => { const pw = ev.target.closest('.lspw'); if (pw) placeraVerktyg(pw); });
+  /* Basländernas antalsfält: klick markerar siffran, bara siffror går att
+     skriva, Enter eller att klicka bort sparar, Esc ångrar. Tangenterna
+     stannar i fältet: ⌘Z där är fältets eget. */
+  yta.addEventListener('focusin', ev => {
+    const i = ev.target.closest('.stpin'); if (!i) return;
+    i.dataset.fore = i.value; i.dataset.nyfokus = '1';
+    requestAnimationFrame(() => { if (document.activeElement === i) i.select(); });
+  });
+  /* Musknappen som släpps efter klicket skulle annars flytta markören och
+     tappa markeringen. */
+  yta.addEventListener('mouseup', ev => {
+    const i = ev.target.closest('.stpin'); if (!i || !i.dataset.nyfokus) return;
+    delete i.dataset.nyfokus; ev.preventDefault(); i.select();
+  });
+  yta.addEventListener('input', ev => {
+    const i = ev.target.closest('.stpin'); if (!i) return;
+    const ren = (i.value.match(/\d+/) || [''])[0].slice(0, 2);   // inklistrat "3.7" blir 3, inte 37
+    if (ren !== i.value) i.value = ren;
+  });
+  yta.addEventListener('keydown', ev => {
+    const i = ev.target.closest('.stpin'); if (!i) return;
+    ev.stopPropagation();
+    if (ev.key === 'Enter') { ev.preventDefault(); i.blur(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); i.value = i.dataset.fore || i.value; i.dataset.avbryt = '1'; i.blur(); }
+    else if (ev.key.length === 1 && !/\d/.test(ev.key) && !ev.metaKey && !ev.ctrlKey) ev.preventDefault();
+  });
+  yta.addEventListener('focusout', ev => {
+    const i = ev.target.closest('.stpin'); if (!i) return;
+    if (i.dataset.avbryt) { delete i.dataset.avbryt; return; }
+    sattBasland(i);
+  });
   yta.addEventListener('click', ev => {
     const bl = ev.target.closest('[data-ls-bl]'); if (bl) { stegaBasland(bl.dataset.lsBl, +bl.dataset.d); return; }
     const a = ev.target.closest('[data-lk]'), pw = ev.target.closest('[data-ls-kort]');
