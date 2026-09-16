@@ -2814,6 +2814,10 @@ body.ispel #addPlayerBtn{display:none}
 /* Ett borttaget kort som krymper bort (medAnimering). Ligger i body, över
    lekens sida men under popovern och ångra-remsan. */
 .lspile.lsbortflyg{position:fixed;z-index:434;pointer-events:none;margin:0;transform-origin:50% 60%}
+/* Ett bekräftat kort på väg in i sin hög, och högens gröna blink (bekrafta). */
+.lsbekrflyg{position:fixed;z-index:434;pointer-events:none;border-radius:5px;object-fit:cover;box-shadow:0 18px 40px -12px #000;transform-origin:50% 50%}
+.lsbekr{position:fixed;z-index:434;pointer-events:none;border-radius:9px;border:2px solid #57c785;box-shadow:0 0 22px 2px #57c78566, inset 0 0 0 1px #57c78533}
+.lsbekr span{position:absolute;right:-9px;top:-9px;width:22px;height:22px;border-radius:50%;background:#57c785;color:#08140d;display:grid;place-items:center;box-shadow:0 0 0 2px #0d1015}
 .lsselbar{position:sticky;bottom:18px;z-index:45;margin-top:auto;display:flex;align-items:center;gap:10px;padding:9px 10px 9px 14px;border-radius:10px;background:#141c2af7;border:1px solid #3d4a6a;box-shadow:0 18px 40px -10px #000;font:13px var(--sans);color:#c9d4ff;flex:none;flex-wrap:wrap}
 .lsselbar b{font-weight:650;color:#fff}
 .lsselbar .grow{flex:1}
@@ -14307,6 +14311,49 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     medAnimering([nyckel(k.name, k.sb)], () => andra({ typ: 'bort', name: k.name, sb: !!k.sb }));
     snack(`Removed ${k.name}${k.n > 1 ? ` ×${k.n}` : ''}`);
   }
+  /* Ett bekräftat kort (Yes under To check) flyger från frågan in i sin hög,
+     och högen blinkar grönt med en bock (MES-185). `kalla` är bilden man
+     svarade vid, eller dess ruta. Ligger högen utanför det som syns flyger
+     kortet mot ytans nederkant och tonar bort — dit leken fortsätter. */
+  function bekrafta(k, kalla) {
+    const key = nyckel(k.name, k.sb);
+    const fran = kalla && (kalla.getBoundingClientRect ? kalla.getBoundingClientRect() : kalla);
+    let till = null, pile = null;
+    medAnimering([], () => andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null }), () => {
+      const pw = [...yta.querySelectorAll('.lspw')].find(el => pwNyckel(el) === key);
+      pile = pw && pw.querySelector('.lspile');
+      till = pile && pile.getBoundingClientRect();
+    });
+    if (!till || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const yr = yta.getBoundingClientRect(), synlig = till.bottom > yr.top + 20 && till.top < yr.bottom - 20;
+    const blink = () => {
+      if (!synlig) return;
+      const r = document.createElement('div');
+      r.className = 'lsbekr';
+      r.innerHTML = `<span>${lsIk('check', 13, 3)}</span>`;
+      Object.assign(r.style, { left: till.left - 5 + 'px', top: till.top - 5 + 'px', width: till.width + 10 + 'px', height: till.height + 10 + 'px' });
+      document.body.appendChild(r);
+      r.animate([{ opacity: 0, transform: 'scale(1.1)' }, { opacity: 1, transform: 'scale(1)', offset: .25 }, { opacity: 1, offset: .7 }, { opacity: 0 }],
+                { duration: 1100, easing: 'ease-out', fill: 'forwards' }).onfinish = () => r.remove();
+      setTimeout(() => r.remove(), 2500);
+    };
+    const src = (pile.querySelector('img.kf') || {}).src || k.small;
+    if (!fran || !fran.width || !src) { blink(); return; }
+    const mal = synlig ? till : { left: till.left, top: yr.bottom - till.height * 0.5, width: till.width, height: till.height };
+    const flyg = document.createElement('img');
+    flyg.className = 'lsbekrflyg'; flyg.src = src; flyg.alt = '';
+    Object.assign(flyg.style, { left: mal.left + 'px', top: mal.top + 'px', width: mal.width + 'px', height: mal.height + 'px' });
+    document.body.appendChild(flyg);
+    const s = Math.max(fran.width, fran.height) / mal.height;
+    const dx = (fran.left + fran.width / 2) - (mal.left + mal.width / 2), dy = (fran.top + fran.height / 2) - (mal.top + mal.height / 2);
+    flyg.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 1 },
+                  { transform: 'none', opacity: synlig ? 1 : 0 }],
+                 { duration: 480, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' }).onfinish = () => landa();
+    /* Landar en gång: när flygningen är klar, eller efter en stund om fliken
+       låg i bakgrunden och inte spelade den. */
+    function landa() { if (!flyg.isConnected) return; flyg.remove(); blink(); }
+    setTimeout(landa, 1500);
+  }
   /* Det som ändras på ytan syns (MES-185). Kort som tas bort (nycklarna i
      `bort`) krymper och tonar bort som kopior ovanpå sidan, och korten som
      står kvar glider från sin gamla plats till sin nya (FLIP) — också när
@@ -14544,7 +14591,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (a === 'avbryt') { const bytta = p.bytta || []; stangPop(); if (bytta.length) snack(bytta.length === 1 ? `Changed ${bytta[0][0]} to ${bytta[0][1]}` : `Changed ${bytta.length} cards`); return; }
     if (a === 'hoppa') { p.senast = `Skipped <b>${esc(p.name)}</b>`; bytNasta(); return; }
     if (!k) { stangPop(); return; }
-    if (a === 'ja') { stangPop(); andra({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null }); }
+    if (a === 'ja') { const bild = popEl.querySelector('.pbild img'), fran = bild && bild.getBoundingClientRect(); stangPop(); bekrafta(k, fran); }
     else if (a === 'bort') { stangPop(); taBort(k); }
     else if (a === 'byt') oppnaByt([nyckel(k.name, k.sb)], popAnkare);
   }
@@ -14962,7 +15009,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (tc) {
       const k = kortI(name, sb); if (!k) return;
       const t = tc.dataset.tc;
-      if (t === 'ja') andra({ typ: 'koll', name: k.name, sb, koll: null });
+      if (t === 'ja') bekrafta(k, pw.querySelector('.th img'));
       else if (t === 'bort') taBort(k);
       else if (t === 'bild') oppnaKoll(k.name, sb, tc);
       else oppnaByt([nyckel(k.name, sb)], pw);
