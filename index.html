@@ -2773,7 +2773,11 @@ body.ispel #addPlayerBtn{display:none}
 .lstool{position:absolute;z-index:40;left:-6px;top:calc(100% - 18px);display:flex;visibility:hidden;opacity:0;transition:opacity .12s .18s,visibility 0s .3s;align-items:center;gap:4px;padding:5px;border-radius:9px;background:#0b1017f7;border:1px solid #4a5a72;box-shadow:0 16px 34px -12px #000;white-space:nowrap}
 /* Döljs med en fördröjning: pekaren som går snett från kortet till verktyget
    passerar glappet mellan korten, och då ska verktyget inte hinna försvinna. */
-.lspw:hover .lstool,.lstool:focus-within{visibility:visible;opacity:1;transition-delay:0s}
+.lspw:hover .lstool,.lstool:has(:focus-visible){visibility:visible;opacity:1;transition-delay:0s}
+/* Men bara ett verktyg i taget: pekar man på ett annat kort försvinner det
+   förra direkt. (:focus-within höll förut kvar verktyget på kortet man just
+   klickat −/+ på, bredvid det nya.) */
+.lsyta:has(.lspw:hover) .lspw:not(:hover) .lstool{visibility:hidden;opacity:0;transition:none}
 /* Nära ytans högerkant hänger verktyget åt vänster i stället, annars klipps
    det av rullningen (placeraVerktyg). */
 .lspw.verktygvanster .lstool{left:auto;right:-6px}
@@ -2797,6 +2801,11 @@ body.ispel #addPlayerBtn{display:none}
 .lstom .ico{display:inline-flex;color:var(--dim2);margin-bottom:4px}
 .lstom b{font:650 17px var(--sans);color:var(--txt)}
 .lstom span{font:13px/1.6 var(--sans);color:var(--dim)}
+.lsmeny button[disabled]{opacity:.4;pointer-events:none}
+/* Förstoringen när man pekar på ett kort (MES-173): bredvid kortet, tar inte
+   emot pekaren, under dialogerna. */
+.lsforst{position:fixed;z-index:430;display:flex;gap:8px;pointer-events:none;filter:drop-shadow(0 24px 40px #000d)}
+.lsforst img{display:block;border-radius:4.75%/3.5%;object-fit:cover;background:#11161e}
 @media (max-width:900px){
   .hem{padding:24px 16px}
   .hcols{grid-template-columns:minmax(0,1fr);gap:28px}
@@ -13462,6 +13471,7 @@ const LS_IKON = {
   rot: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
 };
 const lsIk = (n, s = 16, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LS_IKON[n]}</svg>`;
+const LS_ANGRA = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘Z' : 'Ctrl+Z';
 const LS_PRICKAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
 
 /* ⋯-menyerna på sidorna: en öppen åt gången, stängs av ett klick utanför. */
@@ -13597,17 +13607,62 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     namnRedigeras: false,
     lyssnar: false, pollT: null,
     blHamtas: new Set(), ytaHtml: '', sok: null,
+    angra: [],            // ⌘Z: omvändningarna, senaste sist
   };
   const nu = () => lekSlagTillampa(y.bas || { namn: y.nyNamn, kort: [] }, y.ops);
   const nyckel = (name, sb) => lekSlagNyckel(name, sb);
 
   /* ── sparningen ── */
   function planera(ms) { clearTimeout(y.sparT); y.sparT = setTimeout(() => { y.sparT = null; sparaNu(); }, ms == null ? 1500 : ms); }
-  function andra(ops) {
-    for (const op of [].concat(ops)) y.ops.push(op);
+  function andra(ops, o = {}) {
+    ops = [].concat(ops);
+    if (!o.utanAngra) {
+      const om = omvandning(ops);
+      if (om.length) { y.angra.push(om); if (y.angra.length > 100) y.angra.shift(); }
+    }
+    for (const op of ops) y.ops.push(op);
     if (y.spar !== 'fel') y.spar = 'andrat';
     planera();
     ritaHuvud(); ritaYta();
+  }
+  /* ⌘Z (MES-174). Omvändningen räknas mot det som syns innan ändringen, en
+     ändring i taget, så att en inklistring eller Remove all blir ett steg.
+     Den är själv en vanlig ändring och sparas som en: mot en rad som en
+     annan enhet ändrat under tiden gäller den det som faktiskt ändrades. */
+  function omvandning(ops) {
+    let v = nu();
+    const ut = [], hitta = (lista, name, sb) => lista.find(x => nyckel(x.name, x.sb) === nyckel(name, sb));
+    for (const op of ops) {
+      const fore = v, k = hitta(fore.kort, op.name, op.sb);
+      v = lekSlagTillampa(fore, [op]);
+      if (op.typ === 'namn') { if (y.bas) ut.push({ typ: 'namn', namn: fore.namn }); continue; }
+      if (op.typ === 'sb') {
+        if (k && !!op.till !== !!op.sb) ut.push({ typ: 'antal', name: k.name, sb: !!op.till, d: -k.n }, { typ: 'antal', name: k.name, sb: !!op.sb, d: k.n, kort: mallAv(k) });
+        continue;
+      }
+      const efter = hitta(v.kort, op.name, op.sb), d = (efter ? efter.n : 0) - (k ? k.n : 0);
+      const mall = k || efter || op.kort;
+      if (d) ut.push({ typ: 'antal', name: mall.name, sb: !!op.sb, d: -d, kort: mallAv(mall) });
+    }
+    return ut.reverse();
+  }
+  function angraSenaste() {
+    const om = y.angra.pop(); if (!om) return false;
+    andra(om, { utanAngra: true });
+    return true;
+  }
+  /* Remove all: ett steg, som ⌘Z (eller notisens Undo) lägger tillbaka. */
+  function tomma() {
+    const v = nu(); if (!v.kort.length) return;
+    const sum = lekSlagSummor(v.kort), n = sum.main + sum.sb, s = y.session;
+    andra(v.kort.map(k => ({ typ: 'bort', name: k.name, sb: !!k.sb })));
+    const om = y.angra[y.angra.length - 1];
+    toast(`${n === 1 ? 'The card' : `All ${n} cards`} removed · ${LS_ANGRA} to undo`, undefined, () => {
+      if (s !== y.session) return;
+      const i = y.angra.lastIndexOf(om);
+      if (i >= 0) y.angra.splice(i, 1);
+      andra(om, { utanAngra: true });
+    });
   }
   async function sparaNu() {
     clearTimeout(y.sparT); y.sparT = null;
@@ -13693,7 +13748,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     await stang();
     const s = ++y.session;
     Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
-                      namnRedigeras: false, ytaHtml: '', tillSb: false });
+                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [] });
     if (!id) {
       y.nyNamn = o.namn || 'New deck'; y.flik = null; y.namnRedigeras = true; y.laddar = false;
       rita();
@@ -13723,6 +13778,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      bakgrunden över kön, så att nästa lek kan öppnas direkt. */
   async function stang() {
     sluta();
+    doljForstoring();
     if (y.namnRedigeras) namnKlar(true);
     if (y.sok) y.sok.stang();
     y.session++;
@@ -13750,6 +13806,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     huvud.innerHTML = del + '<span class="grow"></span><span class="lsspar" aria-live="polite"></span>'
       + `<div class="lsmen"><button type="button" class="btn ghost" data-ls="meny" title="More">${LS_PRICKAR}</button><div class="lsmeny" hidden>`
       + `<button type="button" data-ls="dopom">${lsIk('pencil', 14)}Rename</button>`
+      + `<button type="button" data-ls="tomma"${v.kort.length ? '' : ' disabled'}>${lsIk('x', 14)}Remove all cards</button>`
       + (y.bas ? `<button type="button" data-ls="glomref">${lsIk('rot', 14)}Forget learned photos…</button>` : '')
       + `<hr><button type="button" class="fara" data-ls="radera">${lsIk('trash', 14)}Delete deck…</button></div></div>`;
     ritaStatus();
@@ -13863,6 +13920,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     lsMorf(yta, mall);
     const under = yta.querySelector('.lspw:hover');
     if (under) placeraVerktyg(under);
+    if (forstMal && !forstMal.isConnected) doljForstoring();
   }
   function hog(p) {
     const c = lekKortData(p), src = (c && imgOf(c, 0, 'normal')) || p.small || '';
@@ -14083,6 +14141,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     }
     else if (a === 'glomref') glomRef();
     else if (a === 'radera') radera();
+    else if (a === 'tomma') tomma();
   });
   huvud.addEventListener('keydown', ev => {
     if (!ev.target.classList.contains('lsnamnin')) return;
@@ -14132,6 +14191,52 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (r.right > kant && r.left + pw.getBoundingClientRect().width + 12 - r.width >= y0.left) pw.classList.add('verktygvanster');
   }
   yta.addEventListener('pointerover', ev => { const pw = ev.target.closest('.lspw'); if (pw && !pw.contains(ev.relatedTarget)) placeraVerktyg(pw); });
+  /* Förstoringen (MES-173): pekar man på ett kort (inte på verktyget under
+     det) visas det stort bredvid, till höger om det får plats, annars till
+     vänster. Bilden är samma normal-bild som högen redan laddat, så den står
+     där direkt. Inte på pekskärm: där är ett tryck ett klick. */
+  let forst = null, forstMal = null, forstT = null;
+  function doljForstoring() {
+    clearTimeout(forstT); forstT = null; forstMal = null;
+    if (forst) forst.hidden = true;
+  }
+  function visaForstoring(mal) {
+    if (!mal.isConnected) return doljForstoring();
+    const pw = mal.closest('.lspw'), blk = mal.closest('.lsblk');
+    let c = null, small = null;
+    if (pw) { const k = kortI(pw.dataset.lsKort, pw.dataset.sb === '1'); if (k) { c = lekKortData(k); small = k.small; } }
+    else if (blk) { const b = blk.querySelector('[data-ls-bl]'); c = b && cardFor(b.dataset.lsBl); }
+    const bilder = c ? c.faces.map(f => f.img && (f.img.normal || f.img.large || f.img.small)).filter(Boolean) : [];
+    if (!bilder.length && small) bilder.push(small);
+    if (!bilder.length) return doljForstoring();
+    if (!forst) { forst = document.createElement('div'); forst.className = 'lsforst'; forst.hidden = true; document.body.appendChild(forst); }
+    const H = Math.max(200, Math.min(440, innerHeight - 24)), W = Math.round(H * 488 / 680), tot = bilder.length * W + (bilder.length - 1) * 8;
+    const html = bilder.map(src => `<img src="${esc(src)}" alt="" style="width:${W}px;height:${H}px">`).join('');
+    if (forst.innerHTML !== html) forst.innerHTML = html;
+    /* Bredvid både kortet och verktyget under det: verktyget är bredare än
+       kortet och skulle annars hamna under bilden. */
+    const r = mal.getBoundingClientRect(), tool = pw && pw.querySelector('.lstool');
+    const t = tool ? tool.getBoundingClientRect() : r;
+    let x = Math.max(r.right, t.right) + 14;
+    if (x + tot > innerWidth - 12) x = Math.min(r.left, t.left) - 14 - tot;
+    forst.style.left = clamp(x, 12, Math.max(12, innerWidth - 12 - tot)) + 'px';
+    forst.style.top = clamp(r.top + r.height / 2 - H / 2, 12, Math.max(12, innerHeight - 12 - H)) + 'px';
+    forst.hidden = false;
+  }
+  yta.addEventListener('pointerover', ev => {
+    if (ev.pointerType === 'touch') return;
+    const mal = ev.target.closest('.lstool') ? null : ev.target.closest('.lspile, .lsblk .kf');
+    if (!mal) { doljForstoring(); return; }
+    if (mal === forstMal) return;
+    forstMal = mal;
+    clearTimeout(forstT);
+    /* Kort väntan första gången, så att en pekare som bara passerar inte
+       blinkar bilder; från kort till kort byts den direkt. */
+    const direkt = forst && !forst.hidden;
+    forstT = setTimeout(() => { forstT = null; if (forstMal === mal) visaForstoring(mal); }, direkt ? 0 : 160);
+  });
+  yta.addEventListener('pointerleave', doljForstoring);
+  yta.addEventListener('scroll', doljForstoring, { passive: true });
   yta.addEventListener('focusin', ev => { const pw = ev.target.closest('.lspw'); if (pw) placeraVerktyg(pw); });
   yta.addEventListener('click', ev => {
     const bl = ev.target.closest('[data-ls-bl]'); if (bl) { stegaBasland(bl.dataset.lsBl, +bl.dataset.d); return; }
@@ -14141,6 +14246,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
 
   return {
     oppna, stang,
+    angra: angraSenaste,
     get id() { return y.bas ? y.bas.id : null; },
     /* Finns det något som inte är sparat? (beforeunload) */
     vantar: () => !!(y.ops.length || y.flygP),
@@ -14195,6 +14301,15 @@ async function oppnaMinaLekar() {
   if (!id) { try { const l = await lekHamtaLista(); id = l[0] ? l[0].id : null; } catch (e) { id = null; } }
   await oppnaLeksida(id);
 }
+/* ⌘Z på lekens sida ångrar lekens senaste ändring (MES-174). Bordets ⌘Z
+   (angra) står spärrat så länge sidan är öppen; i ett textfält gäller
+   fältets eget ångra. */
+addEventListener('keydown', ev => {
+  if (!leksidaOppen() || !(ev.metaKey || ev.ctrlKey) || ev.altKey || ev.shiftKey || (ev.key || '').toLowerCase() !== 'z') return;
+  if (isTyping(ev.target) || $('.ov.open')) return;
+  ev.preventDefault();
+  if (leksida.yta) leksida.yta.angra();
+});
 /* En osparad ändring ska inte försvinna med fliken. */
 addEventListener('beforeunload', ev => {
   if (!leksida.yta || !leksida.yta.vantar()) return;
