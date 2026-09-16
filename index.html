@@ -13927,7 +13927,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     }
     const url = lekQrUrl(y.bas.id);
     y.telVisad = true;
-    el.innerHTML = '<p class="lslead">Scan the code with your phone. It opens this deck there: photograph your cards about 30 at a time, and they show up here once the phone has saved them.</p>'
+    el.innerHTML = '<p class="lslead">Scan the code with your phone. It opens this deck there, and your cards show up here as soon as they\'re saved.</p>'
       + '<div class="lsqr"></div>'
       + `<div class="lsrad"><span class="lslank">${esc(url)}</span><button type="button" class="btn sm" data-ls="kopiera">${lsIk('copy', 13)}<span>Copy link</span></button></div>`;
     ritaQr(url, el.querySelector('.lsqr'));
