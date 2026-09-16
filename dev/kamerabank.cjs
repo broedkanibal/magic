@@ -311,6 +311,21 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
   check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
 
+  // ── BL1: ett kort i ljus plastficka på mörk matta är inget blänk (MES-166) ──
+  /* Golden 12: Pharika's Chosen i grön ficka på den mörka mattan i dagsljus
+     var mättat i fläckar och hade inget mörkare än mattan — blänkreglerna
+     friar bara på en mörk kant, och kortet dömdes som blänk varje ruta det
+     låg stilla. Här: ficka 150 i kanten, kortet 200–255 med konstverk och
+     textrader, mattan 70 — allt ljusare än mattan, textrutan mättad. */
+  const FICKA = g => { for (let yy = 50; yy < 92; yy++) for (let xx = 60; xx < 90; xx++) { const u = xx - 60, v = yy - 50;
+    g[yy * W + xx] = (u < 2 || v < 2 || u > 27 || v > 39) ? 150 : (v > 5 && v < 22) ? 200 + ((u * 7 + v * 3) % 5) * 6 : (v > 24 && (v % 3) === 0) ? 215 : 252; } };
+  nystart(); for (let i = 0; i < 6; i++) await ruta(null, 3, 70);
+  let blBlank = 0;
+  for (let i = 0; i < 12; i++) { s = await ruta(FICKA, 3, 70); blBlank += Kamera.diagnos.blanka; }
+  const blSkymd = []; for (let i = 0; i < 10; i++) { s = await ruta(FICKA, 3, 70); blBlank += Kamera.diagnos.blanka; blSkymd.push(s[0] && s[0].skymd ? 1 : 0); }
+  check(`BL1 kort i ljus ficka på mörk matta: ${s.length} spår, ${s[0] && s[0].st}, blänkdomar ${blBlank}, skymt ${blSkymd.join('')}`,
+        s.length === 1 && s[0].st === 'klar' && blBlank === 0 && blSkymd.every(v => v === 0));
+
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget

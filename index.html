@@ -17771,6 +17771,30 @@ const Kamera = (() => {
     const rmin = new Int32Array(H), rmax = new Int32Array(H), cmin = new Int32Array(W), cmax = new Int32Array(W);
     const ut = [], texturerade = [];
     let next = 1, smaPx = 0;
+    /* Kortets form (MES-166): hur väl bildpunkterna fyller sin vridna
+       rektangel längs huvudaxeln, och rektangelns sidkvot. Blänkreglerna
+       nedan friar en region på dess mörka kant — men ett kort i ljus
+       plastficka på en mörk matta har ingen: Pharika's Chosen i golden 12
+       var 5–28 % mättad och 0,0 % mörkare än mattan, och dömdes som blänk i
+       86 rutor medan det låg stilla. Formen skiljer dem: kortet fyllde sin
+       rektangel till 0,85–0,95, bänkens blänk till 0,45–0,70 (ett blänk som
+       flyttat sig är en halvmåne eller en fläck med hål). Kantstyrkan
+       skilde sämre: 12–16 mot 8–9 i telefonens video. */
+    const KORTFORM_FYLL = 0.8;
+    const kortform = (pix, p0, p1) => {
+      const c = p1 - p0; if (c < T.minArea) return false;
+      let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+      for (let q = p0; q < p1; q++) { const i = pix[q], x = i % W, y = (i - x) / W; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
+      const cx = sx / c, cy = sy / c, th = 0.5 * Math.atan2(2 * (sxy / c - cx * cy), (sxx / c - cx * cx) - (syy / c - cy * cy));
+      const co = Math.cos(th), si = Math.sin(th);
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+      for (let q = p0; q < p1; q++) {
+        const i = pix[q], x = i % W - cx, y = (i - i % W) / W - cy, u = x * co + y * si, v = y * co - x * si;
+        if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
+      }
+      const a = u1 - u0 + 1, b = v1 - v0 + 1, kvot = Math.min(a, b) / Math.max(a, b);
+      return c / (a * b) >= KORTFORM_FYLL && kvot >= T.kvotMin && kvot <= T.kvotMax;
+    };
     /* Domen över en samling bildpunkter (en region, eller en del av en som
        delats). Ortogonal fyllning: varje rad fylls mellan samlingens första
        och sista bildpunkt, varje kolumn likaså, och FÖRENINGEN är kroppen.
@@ -17808,13 +17832,17 @@ const Kamera = (() => {
          kanten drar ner hälften av kortet under det. Uppmätt på bänken: ett
          blänk som flyttat 15 px blev ett "kort" på 49×43 i 16 rutor av 30
          när halon inte längre räknades som blänkets gamla plats. */
-      /* Den mörka kanten friar här också, se mättnadsräkningen ovan. */
-      if (maxNu > bl && ljusa > 0.5 * fc && morkK < 0.03 * fc) return { skal: 'blank', box, std: nuStd };
+      /* Den mörka kanten friar här också, se mättnadsräkningen ovan — och
+         kortets form (kortform, MES-166). Formen räknas bara när mättnaden
+         annars skulle döma. */
+      const mattadUtanKant = (maxNu > bl && ljusa > 0.5 * fc && morkK < 0.03 * fc) || (satB > 0.05 * fc && morkK < 0.03 * fc);
+      const formFri = mattadUtanKant && kortform(pix, p0, p1);
+      if (!formFri && maxNu > bl && ljusa > 0.5 * fc && morkK < 0.03 * fc) return { skal: 'blank', box, std: nuStd };
       /* Mättnaden räknas en gång till, över KROPPEN: masken lämnar hål där
          referensen också var mättad, och ett blänk som flyttat sig hade sin
          kärna just i ett sådant hål. Uppmätt: 16 av 30 rutor med ett falskt
          kort när bara maskens bildpunkter räknades — kärnan låg utanför dem. */
-      if (satB > 0.05 * fc && morkK < 0.03 * fc) return { skal: 'blank', box, std: nuStd };
+      if (!formFri && satB > 0.05 * fc && morkK < 0.03 * fc) return { skal: 'blank', box, std: nuStd };
       /* …och platsen ett blänk LÄMNAT är en flat region där nästan varje
          bildpunkt är mörkare än en ljus referens — ljus i förhållande till
          MATTAN där (blänkets halo), inte bara ljus i sig: på en ljus matta
@@ -17959,7 +17987,7 @@ const Kamera = (() => {
          svarta kant och konstverk alltid gör det. Uppmätt: --scen starkt på
          diagnosfilerna gav 2 av 3 och 3 av 4 med mättnaden som enda domare,
          alla med kanten som friare; bänkens G4 (matta 210, ram 255) likaså. */
-      if (sat > 0.05 * cnt && mork < 0.03 * cnt) { dia.blanka++; continue; }
+      if (sat > 0.05 * cnt && mork < 0.03 * cnt && !kortform(ko, p0, tail)) { dia.blanka++; continue; }
       const r = bedom(ko, p0, tail);
       /* Allt med struktur — kort eller inte — skyddas från driften i
          referensen, se uppdateraRef(). En strimma är slät och får drivas in. */

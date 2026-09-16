@@ -1,0 +1,28 @@
+{
+  "id": "12-svartmatta-dagsljus-provkort",
+  "yta": "mörkgrå spelmatta (tyg), matt",
+  "ljus": "dagsljus, eftermiddag",
+  "telefon": "iPhone i hållare, liggande; skärminspelning av Mesas kameravy med Keep the picture on (MES-164)",
+  "ruta": { "upp": "v" },
+  "kort": [
+    { "namn": "Pharika's Chosen" }
+  ],
+  "video": {
+    "fil": "video.mp4",
+    "takt_ms": 150,
+    "svans_s": 5,
+    "handelser": [
+      { "t": 7.5, "spelar": "Pharika's Chosen" },
+      { "t": 40.5, "flyttar": "Pharika's Chosen" },
+      { "t": 52.5, "tar_bort": "Pharika's Chosen" },
+      { "t": 59.5, "spelar": "Pharika's Chosen" }
+    ]
+  },
+  "provkort": {
+    "anteckning": "Manuset för uppstartens steg 4 (MES-166). Handen: när handen är i bild. Vila: kortet ligger ensamt och stilla — där ska provkortet hittas. Tider i videons sekunder, ±0,5 s ur kontaktark.",
+    "handen": [[7.0, 7.5], [12.5, 16.5], [24.0, 30.5], [39.0, 41.5], [51.0, 53.0], [59.0, 60.0], [70.0, 75.0]],
+    "vila": [[8.0, 12.5], [17.0, 24.0], [31.0, 39.0], [42.0, 51.0], [60.5, 70.0], [75.5, 85.5]]
+  },
+  "avskurna": [],
+  "anteckning": "MES-166, inspelad av Jesper 2026-09-16 i uppstartens steg 4 (provkortet), med bilden på (Keep the picture on) — mobilens första inspelning samma dag var mörk och gick inte att använda. Manuset: (1) Pharika's Chosen läggs till vänster, handen ut; (2) handen platt över kortet ~3 s; (3) kortet lyfts, hålls i luften och läggs på samma ställe; (4) kortet skjuts åt höger; (5) kortet ut ur bild; (6) kortet in mitt i bilden; (7) handen bredvid och delvis över kortet; (8) stilla 10 s. Källan: dev/videos/bugs/provkort-untapped/case2/mobil-bild.mp4 (2556×1180, HEVC, 94,6 s, gitignorerad), utsnitt 523 328 1510 852 som fall 09–11, klippt till 8,0–93,5 s (klappen före, Kontrollcenter efter), 800 kbit/s. Datorns skärminspelning med ?debug samma pass: case2/dator-debug.mov. Buggen i inspelningen: kortet som ligger ensamt och stilla får inget spår (59,5–70 s: inget alls i 10 s), eller ett spår som står skymt (streckat) hela vilan, så att datorn säger Looking for a card. bild.jpg är rutan vid 85,0 s (slutläget)."
+}
