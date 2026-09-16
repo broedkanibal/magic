@@ -33,6 +33,8 @@ create table if not exists public.game_players (
   gick_med    timestamptz not null default now(),
   -- spelläget per spelare (lagen.sql): 'skarm' = Screen leads (förval), 'bord' = Table leads
   lage        text not null default 'skarm' check (lage in ('skarm', 'bord')),
+  -- var spelaren är i uppstarten (status.sql, MES-170); null = okänt
+  status      text check (status in ('lek', 'uppstart', 'redo', 'spelar')),
   primary key (game_id, user_id)
 );
 create index if not exists game_players_game on public.game_players(game_id);

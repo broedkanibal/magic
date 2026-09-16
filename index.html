@@ -5763,10 +5763,14 @@ const Moln = (() => {
     /* Home visar vilka som sitter vid varje bord (MES-168). gp_las låter mig
        läsa alla deltagarrader i mina spel, så en hämtning räcker för alla. */
     if (ut.length) {
-      const { data: sp } = await s.from('game_players')
-        .select('game_id, user_id, namn, farg, plats').in('game_id', ut.map(g => g.id)).order('plats');
+      /* status finns först efter supabase/status.sql (MES-170): saknas
+         kolumnen hämtas raderna utan den, som förut. lek_id ger Last used i
+         uppstartens Pick your deck. */
+      const hamta = falt => s.from('game_players').select(falt).in('game_id', ut.map(g => g.id)).order('plats');
+      let { data: sp, error } = await hamta('game_id, user_id, namn, farg, plats, lek_id, status');
+      if (error) ({ data: sp } = await hamta('game_id, user_id, namn, farg, plats, lek_id'));
       for (const g of ut) g.spelare = (sp || []).filter(p => p.game_id === g.id)
-        .map(p => ({ user_id: p.user_id, namn: p.namn, farg: p.farg }));
+        .map(p => ({ user_id: p.user_id, namn: p.namn, farg: p.farg, lek_id: p.lek_id || null, status: p.status || null }));
     }
     return ut;
   }
@@ -5797,6 +5801,7 @@ const Moln = (() => {
            finns först efter lekarnas migrering; saknas de blir det förvalen. */
         lage: p.lage === 'bord' ? 'bord' : 'skarm',
         lekId: p.lek_id || null, lek: p.lek_info || null,
+        status: p.status || null,          // MES-170: null före status.sql
         cards: (bord.get(p.user_id) || {}).kort || [],
         version: (bord.get(p.user_id) || {}).version || 0
       })).sort((a, b) =>
@@ -5996,6 +6001,17 @@ const Moln = (() => {
     if (error) { console.warn('Läget kunde inte sparas', error.message); return false; }
     return true;
   }
+  /* Var jag är i uppstarten (MES-170, supabase/status.sql): 'lek', 'uppstart',
+     'redo' eller 'spelar', på min egen rad och med samma policy som läget.
+     Alla i spelet ser den genom realtime på game_players. oppStatus skriver
+     bara när den ändras, aldrig per hjärtslag. */
+  async function sattStatus(gameId, status) {
+    const s = await klient(); if (!s || !inloggad()) return false;
+    const { error } = await s.from('game_players')
+      .update({ status }).eq('game_id', gameId).eq('user_id', minId());
+    if (error) { console.warn('Statusen kunde inte sparas', error.message); return false; }
+    return true;
+  }
 
   /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
      anropas, så en andra prenumeration för avläsningarna kan inte vara en
@@ -6182,7 +6198,7 @@ const Moln = (() => {
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
-           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage,
+           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, lyssna, lamnaKanal, sandKam, sparaMinLek, hamtaMinLek, hamtaLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
@@ -6230,6 +6246,8 @@ function normalisera(p, i) {
      prefs.lage då (mittLage) — och avstämningen läser ett saknat läge som
      Table leads, vilket är vad harnessarnas stubbspelare ska vara. */
   if (p.lage !== 'bord' && p.lage !== 'skarm') delete p.lage;
+  /* Status i uppstarten (MES-170): bara i ett spel, ur game_players. */
+  if (!['lek', 'uppstart', 'redo', 'spelar'].includes(p.status)) delete p.status;
   p.lekId = p.lekId || null;
   p.lek = p.lek || null;
   /* Sparade tillstånd från före flaggan har ingen. Allt som inte ser ut som
@@ -9874,6 +9892,8 @@ let oppVisat = null, oppVisatKlar = false, oppNasta = null;
 /* Untapped (0) eller Tapped (1) i steg 4:s första del: valt i panelen,
    sparat med Continue i foten (G5). */
 let oppTappVal = 0;
+/* Min status (MES-170) som den senast skickades: { spel, status, fel }. */
+let oppStatusSkickad = null;
 /* Steg 4 (MES-122): provkortets spår och om vinkeln går att spara nu
    (oppProvMatt); svaret (tappat) medan telefonen räknar; graveyard-rutan
    spelaren flyttar (Move it); och när library-rutan sparades — leken räknas
@@ -10092,6 +10112,18 @@ function oppFotHtml(f) {
   return (f.hint ? `<span class="fh">${f.hint}</span>` : '')
     + `<button type="button" class="btn prim fb" data-opp="${f.a || ''}"${f.av ? ' disabled' : ''}>${f.txt}</button>`;
 }
+/* Skriver min status när den ändrats — renderOppstart går på varje
+   hjärtslag. Min rad i listan ändras direkt. En skrivning som föll görs om
+   tidigast efter en minut (till exempel innan status.sql körts). */
+function oppStatus(status) {
+  const mig = minSpelare(); if (!spelLage || !mig || kameraEnhet) return;
+  const s = oppStatusSkickad && oppStatusSkickad.spel === spelLage.id ? oppStatusSkickad : null;
+  if (!s && mig.status === status) { oppStatusSkickad = { spel: spelLage.id, status }; return; }   // raden har den redan
+  mig.status = status;
+  if (s && s.status === status && !(s.fel && Date.now() - s.fel > 60000)) return;
+  const skickad = oppStatusSkickad = { spel: spelLage.id, status, fel: 0 };
+  Moln.sattStatus(spelLage.id, status).catch(() => false).then(ok => { if (!ok) skickad.fel = Date.now(); });
+}
 function oppKopiera(lank, knapp) {
   const s = knapp && knapp.querySelector('span');
   navigator.clipboard.writeText(lank).then(() => {
@@ -10130,6 +10162,10 @@ function renderOppstart() {
     }
   }
   if (!visa) oppVisat = oppNasta = null;
+  /* Var jag är, för spelarlistan hos de andra och Home: Picking a deck i
+     steg 1, Setting up i steg 2–4, Ready när bordet är klart men Start
+     playing inte tryckt, Playing när uppstarten är klar eller avböjd. */
+  if (o) oppStatus(!visa ? 'spelar' : aktiv === 'lek' ? 'lek' : aktiv === 'vinkel' && oppDelLage(o).aktiv === 'start' ? 'redo' : 'uppstart');
   const oppVar = oppOppen;
   oppOppen = visa;
   /* Motståndarnas mattor och kanten viker undan medan man gör sig redo
@@ -23901,14 +23937,17 @@ function hemDagar(iso) {
   const d = Math.floor((Date.now() - t) / 86400000);
   return d <= 0 ? 'Started today' : d === 1 ? 'Started yesterday' : `Started ${d} days ago`;
 }
-/* d = { namn, jag, spel: [{id, kod, vard, skapad, spelare:[{user_id, namn, farg}]}] | null,
+/* d = { namn, jag, spel: [{id, kod, vard, skapad, spelare:[{user_id, namn, farg, lek_id, status}]}] | null,
          lekar: [{id, namn, farger, antal, sb, omslag}] | null, fel } — null = hämtas. */
 function ritaHem(d) {
   const spelRad = g => {
     const sp = g.spelare || [], vard = g.vard === d.jag;
     const namn = sp.length ? sp.map(p => esc(p.namn || 'Player')).join(', ') : esc(g.namn || 'Game');
     const vardNamn = (sp.find(p => p.user_id === g.vard) || {}).namn;
-    const under = vard ? hemDagar(g.skapad) : vardNamn ? `${esc(vardNamn)} hosts` : '';
+    /* Statusraden (MES-170): Playing när någon spelar, annars Getting ready.
+       Utan någon status (före status.sql) som förut. */
+    const status = sp.some(p => p.status === 'spelar') ? 'Playing' : sp.some(p => p.status) ? 'Getting ready' : '';
+    const under = [status, vard ? (status ? '' : hemDagar(g.skapad)) : vardNamn ? `${esc(vardNamn)} hosts` : ''].filter(Boolean).join(' · ');
     return `<div class="gl" data-hem-spel="${esc(g.id)}"><span class="kod">${esc(g.kod)}</span>`
       + `<div class="gli"><b><span class="dots3">${sp.map(p => `<i class="bdot" style="--pc:${esc(p.farg || 'var(--blue)')}"></i>`).join('')}</span>${namn}</b>${under ? `<span>${under}</span>` : ''}</div>`
       + (vard ? '<span class="youhost">You host</span>' : '')
@@ -24140,7 +24179,7 @@ function byggSpelare(lista) {
     id: p.user_id, name: p.name, color: p.color, cards: p.cards || [],
     shots: [], shotIdx: 0, pending: [], pane: null,
     namnkalla: 'anvandare', bildnamn: null, version: p.version,
-    lage: p.lage, lekId: p.lekId, lek: p.lek, plats: p.plats
+    lage: p.lage, lekId: p.lekId, lek: p.lek, plats: p.plats, status: p.status
   }, i));
 }
 /* En ändrad bordsrad. Mitt eget bord hoppas över: jag har det redan, och min
@@ -24200,7 +24239,10 @@ function fjarrSpelare(lista) {
          valet tillbaka av omhämtningen innan skrivningen nått fram. */
       lage: (mitt && g && lageByte) ? g.lage : p.lage,
       lekId: (mitt && g && lekValPagar) ? g.lekId : p.lekId,
-      lek: (mitt && g && lekValPagar) ? g.lek : p.lek
+      lek: (mitt && g && lekValPagar) ? g.lek : p.lek,
+      /* Min status sätts här först (oppStatus) och skickas sedan: en
+         omhämtning före skrivningen ska inte rulla tillbaka listan. */
+      status: (mitt && g && oppStatusSkickad && oppStatusSkickad.spel === spelLage.id) ? g.status : p.status
     }, i);
   });
   state.active = spelLage.mig;                // bordsvyn: jag är alltid aktiv
