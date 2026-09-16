@@ -311,6 +311,26 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
   check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
 
+  // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
+  /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
+     region. Båda slår om bara för att tiden går — förut jämförde steget
+     signaturen före och efter sig självt, med samma klocka, och sådant blev
+     aldrig en rapport: sen stod kvar på 0 i varje hjärtslag. */
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(KORT);
+  const rs1 = [];
+  for (let i = 0; i < 10; i++) { const r0 = bordRapporter; s = await ruta(g => kort(g, W, 65, 50, 30, 42, 180)); rs1.push({ r: bordRapporter - r0, stilla: bord[0] && bord[0].stilla }); }
+  const vandS = rs1.findIndex(r => r.stilla === true);
+  check(`RS1 flyttat 5 px: stilla ${rs1.map(r => r.stilla ? 1 : 0).join('')}, rapporter ${rs1.map(r => r.r).join('')} — stilla igen efter stillaMs, i en egen rapport`,
+        rs1[0].stilla === false && vandS >= 4 && vandS <= 7 && rs1[vandS].r === 1 && s.length === 1 && s[0].st === 'klar');
+  /* Kortet borta, men en rund fläck fyller 45 % av lådan: ingen region för
+     spåret (fel kvot), inte tomt nog att räknas bort — spåret blir kvar. */
+  const flack = g => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const dx = x - 80, dy = y - 71; if (dx * dx + dy * dy <= 180) g[y * W + x] = 150; } };
+  let senMax = 0, rsTid = null;
+  for (let i = 1; i <= 20; i++) { await ruta(flack); const t = bord[0]; if (t && t.sen > senMax) senMax = t.sen; if (rsTid == null && t && t.sen >= 2000) rsTid = i * TAKT; }
+  check(`RS2 spåret utan region: ${Kamera.spar.length} spår kvar, rapporterat sen ${senMax} ms, sen ≥ 2 s rapporterat efter ${rsTid} ms`,
+        rsTid != null && rsTid <= 2400);
+
   // ── ST1/ST2: ett spår som krympt till en del tar hela kortet tillbaka (MES-83) ──
   const langST = () => Kamera.spar[0] ? Math.round(Kamera.spar[0].lang) : null;
   nystart(); await referens();

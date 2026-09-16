@@ -17428,7 +17428,7 @@ const Kamera = (() => {
     glomReferens();
     dia.gravProv = [];
     AH = 0;
-    if (cb.bord) cb.bord([], true);
+    if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); }
   }
   const graderTillGrund = g => (typeof g === 'number' && isFinite(g)) ? normGrund(g * Math.PI / 180) : null;
   /* Graveyard-rutan (K9-lite): en rektangel i bildandelar där högen ligger.
@@ -17714,7 +17714,7 @@ const Kamera = (() => {
        räknades de bara om vid ny kalibrering, och avståndsrådet och
        fragmentgolvet mättes mot fel skala tills någon drog om rutan. */
     if (vb !== senVb || vh !== senVh) {
-      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
+      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
       senVb = vb; senVh = vh; AH = 0;
       lasUpplosning(vb, vh);
     }
@@ -17758,7 +17758,6 @@ const Kamera = (() => {
     const dt = forra ? Math.min(2 * TAKT_MS, nu - forra) : TAKT_MS;
     forra = nu;
     const upp = (kal && kal.ruta && kal.ruta.upp) || 'v';
-    const fore = tillstandsSignatur();
 
     /* Referensen är mattan, tagen medan telefonen står stilla: medel av några
        rutor, och bruset mellan dem (medelabsolutskillnaden mellan två rutor
@@ -17779,7 +17778,7 @@ const Kamera = (() => {
       senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
       säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
       dia.ms = Math.round(performance.now() - tSteg);
-      if (refN < REF_RUTOR) { if (tillstandsSignatur() !== fore) rapportera(); return; }
+      if (refN < REF_RUTOR) { if (tillstandsSignatur() !== sandSignatur) rapportera(); return; }
       ref = refSum; for (let i = 0; i < n; i++) ref[i] /= refN;
       sigma = (refDiff / (refN - 1)) / 1.128;
       dia.sigma = sigma;
@@ -17883,8 +17882,7 @@ const Kamera = (() => {
     }
     planeraHelbild(nu, g);
 
-    const efter = tillstandsSignatur();
-    if (efter !== fore) rapportera();
+    if (tillstandsSignatur() !== sandSignatur) rapportera();
     /* Skräp räknas inte som kort: det är trä, en skugga, ett blänk som kom
        igenom. Det står kvar som spår så att det inte föds om varje ruta. */
     const riktiga = spar.filter(t => t.tillstand !== 'skrap');
@@ -18093,7 +18091,19 @@ const Kamera = (() => {
      och inte som FARSK_MS: bänken kör modulen utan appens toppnivå. */
   /* :x,y = viloläget (K5), avrundat: en rapport när kortet lagt sig på en
      ny plats, ingen för darr. */
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
+  /* :g när detektorn inte gett spåret en region på 2 s, och :s när det
+     legat stilla i stillaMs (fältet stilla): datorns provkortslås läser
+     båda (provkortSpar, MES-166). Förut stod `sen` kvar på 0 i varje
+     hjärtslag för ett spår som blivit kvar utan region (bänken RS2), och
+     låset hängde kvar där kortet legat. */
+  const arStilla = t => t.regionNar != null && forra - t.stillaFran >= T.stillaMs;
+  /* Signaturen i det senast skickade bordet. Stegen jämför mot den, inte mot
+     signaturen när steget började: klockan står redan på den nya rutan när
+     steget börjar, så en bit som slår om bara för att tiden gått (:f efter
+     500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
+     (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
+  let sandSignatur = null;
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -18211,6 +18221,7 @@ const Kamera = (() => {
      bilden så att datorn kan rita dem ovanpå sin egen bild av den. */
   function rapportera() {
     if (!cb.bord) return;
+    sandSignatur = tillstandsSignatur();
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
@@ -18218,6 +18229,7 @@ const Kamera = (() => {
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
+      stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
@@ -18740,7 +18752,7 @@ const Kamera = (() => {
   };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) cb.bord([], true); }
+  function nyReferens() { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
   function glomKort(id) {
     const t = spar.find(x => x.id === id); if (!t) return;
     /* Ett spår ur helbilden har ingen region att läsa om: det står kvar
