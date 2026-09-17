@@ -7,7 +7,9 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const sharp = require('sharp');
-const ort = require('onnxruntime-node');
+/* Laddas först när en modell behövs: synt.cjs använder bara sharp, och de två
+   biblioteken i samma process gav segfault i generatorn. */
+let ort = null;
 
 const HAR = __dirname;
 const CACHE = path.join(HAR, 'cache');
@@ -36,6 +38,7 @@ const VYER = {
 const MARGINAL = 0.08;              // beskar() i index.html
 
 async function laddaModell(namn, o) {
+  if (!ort) ort = require('onnxruntime-node');
   const m = MODELLER[namn]; if (!m) throw new Error('okänd modell ' + namn);
   const fil = path.join(HAR, 'modeller', m.fil);
   if (!fs.existsSync(fil)) throw new Error(`modellen saknas: ${fil} — se dev/embed/LÄS-MIG.md`);
@@ -60,6 +63,20 @@ async function vyRa(bild, sida, vy, o) {
   let W = meta.width, H = meta.height, x0 = 0, y0 = 0, w = W, h = H;
   if (o.marginal) { const f = MARGINAL / (1 + 2 * MARGINAL); x0 = W * f; y0 = H * f; w = W - 2 * x0; h = H - 2 * y0; }
   const r = VYER[vy] || VYER.hel;
+  if (o.op && (o.op.lag || o.op.sudd || o.op.varm)) {
+    /* Referensvarianter: skanningen görs lik ett foto — låg upplösning,
+       oskärpa, varmt ljus — så att gapet skanning/kamera krymper. */
+    let b = await s.toBuffer();
+    if (o.op.lag) b = await sharp(b).resize(o.op.lag).toBuffer();
+    if (o.op.sudd) b = await sharp(b).blur(o.op.sudd).toBuffer();
+    if (o.op.varm) b = await sharp(b).recomb([[1.08, 0, 0], [0, 0.9, 0], [0, 0, 0.62]]).toBuffer();
+    s = sharp(b); const m2 = await sharp(b).metadata(); W = m2.width; H = m2.height; x0 = 0; y0 = 0; w = W; h = H;
+  }
+  if (o.op && o.op.zoom) {
+    /* TTA på frågan: samma beskärning lite inzoomad/förskjuten. */
+    const z = o.op.zoom, nw = w / z, nh = h / z;
+    x0 += (w - nw) / 2 + (o.op.dx || 0) * w; y0 += (h - nh) / 2 + (o.op.dy || 0) * h; w = nw; h = nh;
+  }
   if (o.rot) {
     /* Referensen vrids FÖRST, sedan tas vyn ur det vridna kortet — så ser en
        fråga ut när kortet ligger vridet i beskärningen. */
@@ -108,7 +125,7 @@ async function baddaIn(modell, poster, vy, o) {
   const B = o.batch || 8; let ms = 0;
   for (let a = 0; a < kvar.length; a += B) {
     const idx = kvar.slice(a, a + B);
-    const raer = await Promise.all(idx.map(i => vyRa(poster[i].bild, modell.sida, vy, { rot: poster[i].rot, marginal: poster[i].marginal, karna: o.karna })));
+    const raer = await Promise.all(idx.map(i => vyRa(poster[i].bild, modell.sida, vy, { rot: poster[i].rot, marginal: poster[i].marginal, karna: o.karna, op: poster[i].op })));
     const t0 = performance.now();
     const v = await korBatch(modell, raer);
     ms += performance.now() - t0;
@@ -130,10 +147,16 @@ async function byggReferenser(modell, kort, vy, o) {
   o = o || {};
   const rotar = o.rotar || [0];
   const poster = [];
-  for (const c of kort) for (const rot of rotar) poster.push({ nyckel: (o.liten ? 's:' : 'n:') + c.id, bild: o.liten ? c.liten : c.bild, rot, namn: c.name, id: c.id });
+  const varianter = o.varianter || [null];       // null = skanningen som den är
+  for (const c of kort) for (const rot of rotar) for (const op of varianter)
+    poster.push({ nyckel: (o.liten ? 's:' : 'n:') + c.id + (op ? '#' + JSON.stringify(op) : ''), bild: o.liten ? c.liten : c.bild, rot, op, namn: c.name, id: c.id });
   const { vek } = await baddaIn(modell, poster, vy, { cache: 'ref', logg: o.logg, karna: o.karna });
   return { vek, namn: poster.map(p => p.namn), id: poster.map(p => p.id), rot: poster.map(p => p.rot) };
 }
+
+/* Dra bort en medelvektor och normera om. */
+function medelAv(vek) { const D = vek[0].length, m = new Float32Array(D); for (const v of vek) for (let k = 0; k < D; k++) m[k] += v[k] / vek.length; return m; }
+function centrera(v, medel) { const D = v.length, u = new Float32Array(D); let n = 0; for (let k = 0; k < D; k++) { u[k] = v[k] - medel[k]; n += u[k] * u[k]; } n = Math.sqrt(n) || 1; for (let k = 0; k < D; k++) u[k] /= n; return u; }
 
 const punkt = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 
@@ -166,4 +189,4 @@ function vidTroskel(rader, matt, tr) {
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const hash = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 10);
 
-module.exports = { MODELLER, VYER, MARGINAL, CACHE, HAR, laddaModell, vyRa, korBatch, baddaIn, lasLek, byggReferenser, rangordna, punkt, nollfelsTroskel, vidTroskel, mulberry32, hash };
+module.exports = { medelAv, centrera, MODELLER, VYER, MARGINAL, CACHE, HAR, laddaModell, vyRa, korBatch, baddaIn, lasLek, byggReferenser, rangordna, punkt, nollfelsTroskel, vidTroskel, mulberry32, hash };

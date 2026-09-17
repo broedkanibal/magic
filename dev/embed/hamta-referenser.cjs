@@ -34,7 +34,7 @@ async function sf(url) {
   throw new Error('Scryfall svarar 429 — vänta en stund och kör om');
 }
 
-async function sok(q, extra) {
+async function sok(q, extra, tak) {
   let url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(q)}&${extra}`;
   const ut = [];
   while (url) {
@@ -46,7 +46,7 @@ async function sok(q, extra) {
                 illustration: c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null,
                 small: iu.small, normal: iu.normal });
     }
-    url = d.has_more ? d.next_page : null;
+    url = d.has_more && !(tak && ut.length >= tak) ? d.next_page : null;   // tak: sluta bläddra när det räcker
   }
   return ut;
 }
@@ -93,7 +93,7 @@ async function konstverk(namnen, tak, fraga) {
     const n = +arg('edhrec'); ut = arg('ut', 'commander' + n);
     /* De mest spelade Commander-korten enligt EDHREC-rankningen: en rimlig
        bild av vad som ligger på ett Commander-bord. Baslanden läggs till. */
-    const alla = await sok('f:commander -t:basic -is:digital -is:funny game:paper', 'unique=cards&order=edhrec');
+    const alla = await sok('f:commander -t:basic -is:digital -is:funny game:paper', 'unique=cards&order=edhrec', n + 40);
     namnen = [...new Set(alla.map(c => c.name).filter(x => !x.includes(' // ')))].slice(0, n - 2).concat(['Plains', 'Swamp']);
   } else {
     namnen = lasLek(arg('lek', path.join(ROT, 'dev', 'golden', 'lek.txt'))); ut = arg('ut', 'lek-golden');

@@ -77,7 +77,8 @@ async function beskar(bild, meta, t) {
       manifest.push({ fil, fall: fall.id, namn: m.t.namn, kalla: m.kalla, bredd: r.info.width, hojd: r.info.height,
                       kortsidaPx: Math.round(Math.min(m.t.w * meta.width, m.t.h * meta.height)),
                       skymd: !!m.t.skymd, helbild: !!(m.t.ai && m.t.ai.helbild), viaAi: m.t.varfor === 'ai' || m.t.varfor === 'helbild',
-                      varfor: m.t.varfor, lada: { x: m.t.x, y: m.t.y, w: m.t.w, h: m.t.h } });
+                      varfor: m.t.varfor, ocr: m.t.ocr ? { namn: m.t.ocr.namn, poang: m.t.ocr.poang, marginal: m.t.ocr.marginal, hoppad: m.t.ocr.hoppad || null } : null,
+                      kalla2: /^(03|04|05|06)/.test(fall.id) ? 'kameraapp' : 'kameravy', lada: { x: m.t.x, y: m.t.y, w: m.t.w, h: m.t.h } });
     }
     console.log(`${fall.id}: ${mina.length} kort + ${varianter.length} varianter${kvar.length ? ' — utan låda: ' + kvar.join(', ') : ''}`);
   }
