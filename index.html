@@ -1519,22 +1519,6 @@ body.lasvy .hchip{display:none}
 .modal .foot .grow{flex:1;min-width:0;white-space:nowrap;color:var(--dim2);font-size:12px}
 .modal .foot .btn{flex:none}
 .modal p.lead{margin:0;color:var(--dim);font-size:12.8px;line-height:1.65}
-/* Sammanfattningen när auto stängs av (visaAutoSum): två kompakta
-   tabeller — korten och Claude-anropen — och noterna under. Talen i mono,
-   högerställda, så att kolumnerna går att läsa uppifrån och ned. */
-.autosum table{width:100%;border-collapse:collapse;font:12.5px/1.4 var(--sans);color:var(--txt)}
-.autosum th{font:600 10.5px/1 var(--sans);letter-spacing:.5px;text-transform:uppercase;color:var(--dim2);padding:0 6px 6px;text-align:left;border-bottom:1px solid var(--line)}
-.autosum td{padding:5px 6px;border-bottom:1px solid #ffffff0a;vertical-align:baseline}
-.autosum .tal{text-align:right;font-family:var(--mono);font-size:12px;white-space:nowrap}
-.autosum td.tal i{font-style:normal;color:var(--dim2);font-size:11px}
-.autosum .loggrad{display:flex;gap:10px;align-items:flex-start;margin:14px 0 0;font-size:12px;line-height:1.4;color:var(--dim)}
-.autosum .loggrad .btn{flex:none}
-.autosum .loggrad code{font-family:var(--mono);font-size:11px;color:var(--txt);white-space:nowrap}
-.autosum tr.sub td{color:var(--dim);padding-top:2px;padding-bottom:2px}
-.autosum tr.sub td:first-child{padding-left:20px}
-.autosum tr.summa td{font-weight:650;border-top:1px solid var(--line);border-bottom:0}
-.autosum .noter{margin:0;padding:0 0 0 18px;color:var(--dim);font-size:12px;line-height:1.5}
-.autosum .noter li{margin:3px 0}
 textarea.ta{
   width:100%;min-height:190px;resize:vertical;padding:11px 12px;
   background:var(--bg);border:1px solid var(--line);border-radius:var(--rs);
@@ -3921,21 +3905,6 @@ body.ispel #addPlayerBtn{display:none}
       <span class="grow"></span>
       <button class="btn" id="askNo">Cancel</button>
       <button class="btn prim" id="askYes">OK</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── auto är av: sammanfattningen av passet ── -->
-<div class="ov" id="autoSumOv">
-  <div class="modal autosum" style="width:min(520px,94vw)">
-    <header>
-      <h2>Camera is off</h2>
-      <button class="close" data-close="autoSumOv"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    </header>
-    <div class="body" id="autoSumBody"></div>
-    <div class="foot">
-      <span class="grow">Turn the camera back on from the menu or the chip.</span>
-      <button class="btn prim" data-close="autoSumOv">Close</button>
     </div>
   </div>
 </div>
@@ -15606,8 +15575,7 @@ menuEl.addEventListener('click', ev => {
   if (a === 'auto') { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
   /* Utan den här raden fanns ingen väg tillbaka till manuellt läge: "Stäng av
      auto" satt i popovern, och popovern öppnas inte utan ansluten telefon —
-     alltså var den oåtkomlig i exakt det läge där man behövde den.
-     Sammanfattningen (visaAutoSum) är beskedet att auto är av. */
+     alltså var den oåtkomlig i exakt det läge där man behövde den. */
   if (a === 'manuell') stangAvAuto(true);
   if (a === 'ai') openAI();
   if (a === 'lamna') tillbakaTillHem();
@@ -23183,8 +23151,10 @@ async function stangAvAuto(fraga) {
       'The phone stops watching the table. Cards you move there no longer show up here — you move them yourself or upload a photo. The camera can be turned on again from the menu.',
       { title: 'Turn off the camera?', ok: 'Turn off', nej: 'Keep the camera', danger: true })) return false;
   /* Passet sammanfattas FÖRE nollställningen: senaste bordet och mitt bord
-     är underlaget för "ännu utan namn", och glomSpar tar bindningarna. */
-  const sum = autoSumAvsluta(senasteSpar, minSpelare(), Date.now());
+     är underlaget för "ännu utan namn", och glomSpar tar bindningarna.
+     Ingen ruta visas längre (MES-194) — i ett spel ska avstängningen gå
+     rakt tillbaka till digitalt läge, utan att avbryta spelet. */
+  autoSumAvsluta(senasteSpar, minSpelare(), Date.now());
   if (kamAnsluten) Moln.sandKam('stopp');
   kamAnsluten = false;
   renderBibHog();
@@ -23195,76 +23165,14 @@ async function stangAvAuto(fraga) {
   stangKamSkruv();          // panelen stängs: utan auto finns inget att koppla eller skruva
   renderMode();
   renderGrid();             // platshållarna går med kameran
-  visaAutoSum(sum);
   return true;
 }
-/* ── sammanfattningen, ritad ────────────────────────────────────────
-   "Auto är av" var en notis som försvann på sex sekunder; nu är det en
-   ruta med det passet gav och kostade (autoSumSammanfatta), i .ov-stilen
-   som frågan som föregick den. Svenska tal: decimalkomma, tusental med
-   mellanslag, "≈ 0,12 USD", "2,1 s". Telefonens sista bok (stopp-svaret)
-   kommer efter att rutan öppnats — då ritas den om (tagEmotSenBok). */
-const svTal = (v, dec) => (dec != null ? (+v).toFixed(dec) : String(v)).replace('.', ',');
-const svHel = n => String(Math.round(+n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
-const svSek = ms => ms == null ? '–' : svTal(ms / 1000, 1) + ' s';
-const svUsd = usd => usd == null ? 'price unknown' : usd === 0 ? '0 USD' : '≈ ' + svTal(usd, usd < 0.1 ? 3 : 2) + ' USD';
-function svTid(ms) {
-  const sek = Math.round(ms / 1000);
-  if (sek < 60) return sek + ' s';
-  const min = Math.floor(sek / 60);
-  if (min < 60) return min + ' min' + (sek % 60 ? ' ' + (sek % 60) + ' s' : '');
-  return Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '');
-}
-let autoSumVisad = null;   // { spar, mig } — underlaget till rutan som är öppen, för omritningen när telefonens sista bok kommer
-function visaAutoSum(sum) {
-  const el = $('#autoSumBody'); if (!el) return;
-  autoSumVisad = { spar: senasteSpar, mig: minSpelare() };
-  el.innerHTML = autoSumHtml(sum);
-  openOv('autoSumOv');
-}
-function autoSumHtml(sum) {
-  if (!sum) return '<p class="lead">The camera read nothing this time.</p>';
-  const rad = (vad, n, tid, klass) => `<tr${klass ? ` class="${klass}"` : ''}><td>${vad}</td><td class="tal">${n}</td><td class="tal">${tid}</td></tr>`;
-  const kort = [
-    `<p class="lead">The camera was on for ${svTid(sum.ms)}. It found <b>${sum.hittade}</b> cards${sum.okanda ? `, ${sum.okanda} of them still without a name` : ''}.</p>`,
-    '<table><thead><tr><th>How the card got its name</th><th class="tal">Cards</th><th class="tal">Median</th></tr></thead><tbody>',
-    rad('Locally — artwork and title line', sum.lokal.n, svSek(sum.lokal.medianMs)),
-    rad('With Claude', sum.ai.n, svSek(sum.ai.medianMs))
-  ];
-  for (const m in sum.ai.per) kort.push(rad(esc(m), sum.ai.per[m].n, svSek(sum.ai.per[m].medianMs), 'sub'));
-  kort.push(rad('Filled in by hand or from a photo', sum.hand.n, '–'), rad('Still without a name', sum.okanda, '–'),
-            rad('All read', sum.lokal.n + sum.ai.n, svSek(sum.medianMs), 'summa'), '</tbody></table>');
-  const k = sum.kostnad;
-  const bokRad = (vem, b, klass) => {
-    const ut = [];
-    for (const m in b.per) { const q = b.per[m]; ut.push(`<tr class="${klass || ''}"><td>${vem} · ${esc(m)}</td><td class="tal">${q.anrop}${q.fel ? ` <i>(${q.fel} failed)</i>` : ''}</td><td class="tal">${svHel(q.in)}</td><td class="tal">${svHel(q.ut)}</td><td class="tal">${svUsd(q.usd)}</td></tr>`); }
-    return ut.join('');
-  };
-  const pengar = ['<table><thead><tr><th>Claude calls</th><th class="tal">Calls</th><th class="tal">Tokens in</th><th class="tal">Tokens out</th><th class="tal">Cost</th></tr></thead><tbody>',
-    bokRad('Phone', k.telefon), bokRad('Computer', k.dator),
-    `<tr class="summa"><td>Total</td><td class="tal">${k.totalt.anrop}${k.totalt.fel ? ` <i>(${k.totalt.fel} failed)</i>` : ''}</td><td class="tal">${svHel(k.totalt.in)}</td><td class="tal">${svHel(k.totalt.ut)}</td><td class="tal">${svUsd(k.totalt.usd)}</td></tr>`,
-    '</tbody></table>'];
-  const noter = [];
-  if (k.ingenBok) noter.push('The phone sent no cost ledger — the camera calls are not shown here. Reload the page on the phone next time.');
-  if (k.ute) noter.push(`${k.ute} ${k.ute === 1 ? 'question was' : 'questions were'} still on the way to Claude when the camera was turned off — ${k.ute === 1 ? 'it is' : 'they are'} not counted here.`);
-  if (k.totalt.utan) noter.push(`${k.totalt.utan} calls without token figures (the network or the server did not answer) — the cost is at least what is shown.`);
-  if (k.totalt.okandPris.length) noter.push('Price unknown for ' + k.totalt.okandPris.map(esc).join(', ') + ' — tokens are counted, not USD.');
-  /* Bordsloggen: allt telefonen sa under passet, för den som vill felsöka
-     en dubblett eller ett fel tap-läge efteråt (dev/dubbletter.cjs --logg). */
-  const lg = kamBordLogg && kamBordLogg.rader.length ? `<p class="loggrad"><button class="btn sm" id="autoSumLogg" type="button">Save the table log</button>
-    <span>${svHel(kamBordLogg.rader.length)} tables from the session${kamBordLogg.kapad ? ' (the oldest dropped)' : ''} — did one card become two, or tapped when it was not? The log replays the session: <code>node dev/dubbletter.cjs --logg file</code></span></p>` : '';
-  return kort.join('') + pengar.join('') + (noter.length ? '<ul class="noter">' + noter.map(n => '<li>' + n + '</li>').join('') + '</ul>' : '') + lg;
-}
-$('#autoSumBody').addEventListener('click', ev => { if (ev.target.closest('#autoSumLogg')) sparaBordLogg(); });
 /* Telefonens sista bok, skickad i stopp-svaret innan den lämnar kanalen.
-   Passet är redan stängt; boken läggs på det och rutan ritas om om den
-   fortfarande är öppen. */
+   Passet är redan stängt; boken läggs på det ändå, så kostnadssumman i
+   autoSum stämmer även om ingen läser den. */
 function tagEmotSenBok(m) {
   if (!m || !m.bok || !autoSum || !autoSum.slut) return;
-  if (!autoSumBok(m.bok, autoSum)) return;
-  const ov = $('#autoSumOv'), el = $('#autoSumBody');
-  if (!ov || !el || !ov.classList.contains('open') || !autoSumVisad) return;
-  el.innerHTML = autoSumHtml(autoSumSammanfatta(autoSum, autoSumVisad.spar, autoSumVisad.mig, autoSum.slut));
+  autoSumBok(m.bok, autoSum);
 }
 /* Datorns egna Claude-anrop medan auto är på: granskningens "Fråga Claude",
    fotot (claudePass → askClaudeFor, rutläget, namnet, närbilden), leken.
