@@ -2825,6 +2825,69 @@ body.ispel #addPlayerBtn{display:none}
 .jr .dim{font-size:12px;color:var(--dim)}
 .jr .th{width:26px;height:36px;border-radius:3px;overflow:hidden;flex:none;background:#0b1016}
 .jr .th img{width:100%;height:100%;object-fit:cover;display:block}
+/* Phone-fliken (N2–N5): stegen, fotocykeln, fotoremsan och läggningsguiden. */
+.lsps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
+.lsps li{position:relative;display:flex;gap:12px;padding-bottom:20px}
+.lsps li:last-child{padding-bottom:0}
+.lsps li::before{content:'';position:absolute;left:11px;top:29px;bottom:5px;width:1.5px;background:var(--line)}
+.lsps li:last-child::before{display:none}
+.lsps li.done::before{background:#2f6b47}
+.lsps .sn{position:relative;z-index:1;flex:none;width:23px;height:23px;border-radius:50%;display:grid;place-items:center;border:1px solid #39445a;font:700 11px var(--mono);color:var(--dim2);background:#121821}
+.lsps li.done .sn{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.lsps li.act .sn{background:var(--acc);border-color:var(--acc);color:#20160a}
+.lsps .sb{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px;padding-top:2px}
+.lsps .sb>b{font:600 13.5px/19px var(--sans);color:var(--txt)}
+.lsps li.todo .sb>b{color:var(--dim);font-weight:550}
+.lsps .sb>span{font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lsps li.done .sb>span{color:#8fe0b0}
+.lsnxt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:9px;background:#141c2a;border:1px solid #3d4a6a;font:12.5px/1.5 var(--sans);color:#c9d4ff}
+.lsnxt .ic{display:inline-flex;flex:none;margin-top:1px}
+.lsnxt b{color:#fff;font-weight:650}
+.lsvantar{display:flex;align-items:center;gap:9px;font:12px var(--sans);color:#e8c98a}
+.lsvantar i{width:7px;height:7px;border-radius:50%;flex:none;background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:lsPuls 1.6s ease-in-out infinite}
+@keyframes lsPuls{0%,100%{opacity:1}50%{opacity:.4}}
+.lscyk{display:flex;align-items:center;gap:9px;flex:none}
+.lscyk .lspt{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:11px;background:#1b2230;border:1px solid #39445a;font:600 11.5px var(--mono);color:var(--txt);letter-spacing:.4px;white-space:nowrap}
+.lscyk .ct{font:11.5px var(--sans);color:var(--dim2);min-width:0}
+.lscyk .zl{flex:1;height:1px;background:var(--zonlinje);min-width:6px}
+.lskort2{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:#0f141c;border:1px solid var(--line)}
+.lstelon{display:flex;align-items:center;gap:10px;font:12.5px/1.45 var(--sans);color:var(--dim)}
+.lstelon .led{width:8px;height:8px;border-radius:50%;flex:none;background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26}
+.lsfotorad{display:flex;align-items:center;gap:11px}
+.lsfotorad .ft{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lsfotorad .ft b{font:600 13px var(--sans);color:var(--txt)}
+.lsfotorad .ft span{font:12px var(--sans);color:var(--dim)}
+.lsfotorad .ok{display:inline-flex;color:#8fe0b0;flex:none}
+.lsfotorad.chk .ft span{color:#e8c98a}
+.lsmph{position:relative;flex:none;width:56px;height:40px;border-radius:5px;overflow:hidden;background:radial-gradient(60px 40px at 40% 30%,#26313c,#10151b);box-shadow:inset 0 0 0 1px #ffffff14}
+.lsmph i{position:absolute;top:5px;width:9px;height:28px;border-radius:1.5px;background:repeating-linear-gradient(#d8d0bd 0 2px,#4a4034 2px 4.5px)}
+.lsdropnot{margin:0;font:11.8px/1.55 var(--sans);color:var(--dim2)}
+.lsqrrad{display:flex;gap:14px;align-items:center;min-width:0}
+.lsqrrad .lsqr{width:128px;height:128px;flex:none}
+.lsqrrad .qv{display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:0;flex:1}
+.lsqrrad .qv .lslank{flex:none;align-self:stretch}
+/* läggningsguiden (lekGuide) */
+.lsg{position:relative;flex:none;align-self:flex-start;border-radius:12px;background:radial-gradient(700px 360px at 46% 26%,#1a2530,#0b1016 75%);box-shadow:inset 0 0 40px 8px #00000066,0 0 0 1px var(--line);overflow:hidden}
+.lsgarea{position:absolute}
+.lsgk{position:absolute;display:block;border-radius:4px;background:linear-gradient(#394351 0 17%,#1e2531 17%);box-shadow:0 3px 8px -2px #000c;animation-iteration-count:infinite;animation-fill-mode:both;animation-timing-function:linear;animation-duration:18s}
+.lsgk b{position:absolute;left:8%;right:26%;top:5.5%;height:6.5%;border-radius:2px;background:#b9c6d8;display:block}
+.lsgfr{position:absolute;inset:-9px;pointer-events:none;z-index:300;animation-iteration-count:infinite;animation-fill-mode:both;animation-timing-function:linear;animation-duration:18s}
+.lsgfr i{position:absolute;width:18px;height:18px;border:2.5px solid #e7ecf4}
+.lsgfr .c1{left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:6px}
+.lsgfr .c2{right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:6px}
+.lsgfr .c3{left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:6px}
+.lsgfr .c4{right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:6px}
+.lsgfl{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:310;animation-iteration-count:infinite;animation-fill-mode:both;animation-timing-function:linear;animation-duration:18s}
+.lsgch{position:absolute;left:50%;bottom:9px;translate:-50% 0;z-index:320;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:#0f2016f2;border:1px solid #2f6b47;color:#8fe0b0;font:650 11.5px var(--sans);white-space:nowrap;opacity:0;animation-iteration-count:infinite;animation-fill-mode:both;animation-timing-function:linear;animation-duration:18s}
+.lsglab{position:absolute;left:12px;top:9px;z-index:320;display:flex;align-items:center;gap:6px;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--dim);animation-iteration-count:infinite;animation-fill-mode:both;animation-timing-function:linear;animation-duration:18s}
+@media (prefers-reduced-motion: reduce){
+  .lsgk{animation:none!important;opacity:1!important}
+  .lsgfr,.lsgfl{animation:none!important}
+  .lsgch{display:none}
+  .lsglab{animation:none!important;opacity:0}
+  .lsglab:first-of-type{opacity:1}
+  .lsvantar i{animation:none}
+}
 .lsyta{position:relative;min-width:0;min-height:0;overflow:hidden auto;padding:18px 32px 60px;display:flex;flex-direction:column;gap:22px}
 .lssekrad{display:flex;flex-wrap:wrap;gap:22px 36px;align-items:flex-start}
 .lssek{display:flex;flex-direction:column;gap:14px;min-width:0;max-width:100%}
@@ -13011,8 +13074,6 @@ async function lekLadda(valjId) {
    femtonde sekund om något nyare finns — och laddar om listan om den inte
    har osparade ändringar; annars en notis med Reload. */
 let lekfotoLage = false, lekPollT = null;
-function lekfotoIUrl() { return (new URL(location.href).searchParams.get('lekfoto') || '').trim() || null; }
-function lekQrUrl(id) { const u = new URL(location.origin + location.pathname); u.searchParams.set('lekfoto', id); return u.toString(); }
 function lekVisaQr(visa) {
   const ruta = $('#lekQrRuta'); if (!ruta) return;
   if (!visa || !lekAktiv) { ruta.hidden = true; return; }
@@ -14216,6 +14277,7 @@ const LS_IKON = {
   rot: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
   swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  camera: '<path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2l1.4-2h7.8l1.4 2h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.4"/>',
 };
 const lsIk = (n, s = 16, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LS_IKON[n]}</svg>`;
 /* Det inklistrade visas aldrig i sin helhet: ett namn kortas och escapas. */
@@ -14321,6 +14383,103 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
   }, Math.min(30000, 2000 * 2 ** forsok));
 }
 
+/* ══ BLOCK: LEKKANALEN ════════════════════════════════════════════════
+   Datorn som bygger en lek och telefonen som fotograferar den är samma
+   konto på två enheter, och möts på broadcast-kanalen 'lek:<userId>'
+   (Moln.lekKanal). Förut sa telefonen bara till EN gång, när den sparat.
+   Nu berättar den var i arbetet den är, så att datorns Phone-flik kan visa
+   samma tre steg som telefonen har framför sig:
+
+     {typ:'hej',    lekId, roll:'tel'|'dator', foto, svar}  kopplad
+     {typ:'kamera', lekId, foto}                            kameran öppnad
+     {typ:'laser',  lekId, foto}                            fotot läses av
+     {typ:'sparad', lekId, foto, antal, nya, koll, ts}      sparat
+
+   'sparad' fanns förut och är den enda som ändrar data: datorn läser om
+   raden på den, och pollningen är bara reserv. `antal` är lekens hela
+   antal, som förut (lekEfterSpar skickar samma sak utan foto); `nya` är
+   det just det fotot lade till och `koll` hur många av dem som är osäkra.
+   De andra tre ritar bara om steget.
+
+   Ett 'hej' besvaras med ett 'hej' åt andra hållet (svar: true), så att en
+   enhet som kopplade upp sig först får veta att den andra finns. Svaret
+   besvaras inte — annars studsar de två för evigt.
+
+   Allt går genom EN mottagare (lekKanalMot), som sätts också utan konto:
+   då kan stubben mata samma väg utan telefon (dev/lekfoto-prov.js). */
+let lekKanalMottagare = null;
+function lekKanalMot(m) { if (lekKanalMottagare) lekKanalMottagare(m || {}); }
+function lekKanalLyssna(cb) {
+  lekKanalMottagare = cb;
+  if (Moln.inloggad()) Moln.lekKanal(lekKanalMot).catch(() => {});
+}
+function lekKanalSluta(cb) {
+  if (cb && lekKanalMottagare !== cb) return;
+  lekKanalMottagare = null;
+  Moln.lamnaLekKanal();
+}
+function lekKanalSag(m) { if (Moln.inloggad()) Moln.sandLek(m); }
+/* Telefonens länk: samma sida med ?lekfoto=<lekens id>. */
+function lekfotoIUrl() { return (new URL(location.href).searchParams.get('lekfoto') || '').trim() || null; }
+function lekQrUrl(id) { const u = new URL(location.origin + location.pathname); u.searchParams.set('lekfoto', id); return u.toString(); }
+/* Läggningsguiden (N3 på datorn, PN3 på telefonen). Porterad ur designytans
+   gen.mjs: två omgångar kort läggs i kolumner där bara namnraden syns, ramen
+   fälls ut, blixten går, "Photo N" bockas av, korten skjuts undan och nästa
+   omgång läggs. Korten är RITADE, inte riktiga — guiden visar hur de ska
+   ligga, inte vilka de är, och ska inte kosta ett nät.
+
+   Keyframesen räknas ut ur måtten och läggs i ett eget <style> per id,
+   en gång. */
+const LEK_GUIDE_CYK = '18s';
+const lekGuideSatta = new Set();
+function lekGuide(id, { cols, rows, w, off, gap, pad = 14 }) {
+  const h = Math.round(w * 680 / 488), N = cols * rows;
+  const W = cols * w + (cols - 1) * gap, H = h + (rows - 1) * off;
+  const p = x => (Math.round(x * 1000) / 1000) + '%';
+  let css = '', kort = '';
+  for (let b = 0; b < 2; b++) {
+    const bas = b * 50;
+    for (let k = 0; k < N; k++) {
+      const c = Math.floor(k / rows), r = k % rows;
+      const x = c * (w + gap), yy = r * off;
+      const dx = Math.round(W / 2 - x - w / 2), dy = Math.round(H + h - yy);
+      const t = bas + 2 + k * (26 / N);
+      const start = `translate(${dx}px,${dy}px) rotate(-9deg) scale(1.05)`;
+      const ut = `translate(${Math.round(W * 0.55)}px,-6px) rotate(5deg)`;
+      const namn = `${id}${b}_${k}`;
+      css += `@keyframes ${namn}{0%{opacity:0;transform:${start}}${p(t)}{opacity:0;transform:${start};animation-timing-function:cubic-bezier(.2,.8,.3,1)}`
+        + `${p(t + 0.5)}{opacity:1}${p(t + 2.2)}{opacity:1;transform:none}`
+        + `${p(bas + 42)}{opacity:1;transform:none;animation-timing-function:cubic-bezier(.5,0,.8,.5)}`
+        + `${p(bas + 46)}{opacity:0;transform:${ut}}100%{opacity:0;transform:${ut}}}\n`;
+      kort += `<i class="lsgk" style="left:${x}px;top:${yy}px;width:${w}px;height:${h}px;z-index:${b * 100 + k + 1};animation-name:${namn}"><b></b></i>`;
+    }
+  }
+  css += `@keyframes ${id}fr{0%,29%{opacity:0;transform:scale(1.08)}31.5%{opacity:1;transform:none}37%{opacity:1;transform:none}38.5%,79%{opacity:0;transform:scale(1.08)}81.5%{opacity:1;transform:none}87%{opacity:1;transform:none}88.5%,100%{opacity:0;transform:scale(1.08)}}
+@keyframes ${id}fl{0%,33.5%{opacity:0}34%{opacity:.85}36%,83.5%{opacity:0}84%{opacity:.85}86%,100%{opacity:0}}
+@keyframes ${id}c0{0%,34.5%{opacity:0;transform:translateY(6px)}35.5%{opacity:1;transform:none}41%{opacity:1;transform:none}42.5%,100%{opacity:0;transform:none}}
+@keyframes ${id}c1{0%,84.5%{opacity:0;transform:translateY(6px)}85.5%{opacity:1;transform:none}91%{opacity:1;transform:none}92.5%,100%{opacity:0;transform:none}}
+@keyframes ${id}l0{0%,48.5%{opacity:1}50%,98.5%{opacity:0}100%{opacity:1}}
+@keyframes ${id}l1{0%,48.5%{opacity:0}50%,98.5%{opacity:1}100%{opacity:0}}
+`;
+  if (!lekGuideSatta.has(id)) {
+    lekGuideSatta.add(id);
+    const st = document.createElement('style');
+    st.textContent = css;
+    document.head.appendChild(st);
+  }
+  const an = n => `animation-name:${id}${n}`;
+  return `<div class="lsg" style="width:${W + pad * 2}px;height:${H + 64}px">`
+    + `<span class="lsglab" style="${an('l0')}">${lsIk('camera', 12)}Photo 1</span>`
+    + `<span class="lsglab" style="${an('l1')}">${lsIk('camera', 12)}Photo 2</span>`
+    + `<div class="lsgarea" style="left:${pad}px;top:26px;width:${W}px;height:${H}px">${kort}`
+    + `<div class="lsgfr" style="${an('fr')}"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i></div></div>`
+    + `<div class="lsgfl" style="${an('fl')}"></div>`
+    + `<span class="lsgch" style="${an('c0')}">${lsIk('check', 13, 2.6)}Photo 1 taken</span>`
+    + `<span class="lsgch" style="${an('c1')}">${lsIk('check', 13, 2.6)}Photo 2 taken</span></div>`;
+}
+const LEK_LAGGTXT = 'In columns, overlapping, so only the name line of each card shows. About 30 cards at a time. Leave the basic lands out.';
+/* ══ SLUT: LEKKANALEN ══ */
+
 const LS_GRUPP = { creature: 'Creatures', planeswalker: 'Planeswalkers', spell: 'Instants & sorceries',
   artifact: 'Artifacts & enchantments', enchantment: 'Artifacts & enchantments', land: 'Lands', other: 'Other' };
 const LS_GRUPP_ORDNING = ['Creatures', 'Planeswalkers', 'Instants & sorceries', 'Artifacts & enchantments', 'Lands', 'Other'];
@@ -14372,7 +14531,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     pop: null,            // popovern: {typ:'koll'|'byt', name, sb, kor?, ...}
     listaKlar: null,      // kvittot efter en inklistring (N7): {nr, main, sb, koll}
     bekr: new Map(),      // nyss bekräftade kort, visas som Confirmed en stund: nyckel → {koll}
+    tel: null,            // telefonen i Phone-fliken: {ansluten, fas, foto, foton[]}
+    telHtml: '',          // senast ritade Phone-flik, så att guiden inte börjar om
   };
+  const telTom = () => ({ ansluten: false, fas: 'vantar', foto: 1, foton: [] });
+  y.tel = telTom();
   const nu = () => lekSlagTillampa(y.bas || { namn: y.nyNamn, kort: [] }, y.ops);
   const nyckel = (name, sb) => lekSlagNyckel(name, sb);
 
@@ -14528,12 +14691,14 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   /* ── andra enheter ── */
   function lyssna() {
     sluta();
-    if (!Moln.inloggad() || !y.bas) return;
+    if (!y.bas) return;
     const id = y.bas.id;
     y.lyssnar = true;
-    Moln.lekKanal(m => {
-      if (m && m.typ === 'sparad' && m.lekId === id && y.bas && y.bas.id === id && !(m.ts && m.ts <= y.bas.ts)) hamtaNyare();
-    }).catch(() => {});
+    /* Mottagaren sätts också utan konto: stubben matar samma väg. */
+    y.telCb = m => telHor(m, id);
+    lekKanalLyssna(y.telCb);
+    lekKanalSag({ typ: 'hej', lekId: id, roll: 'dator' });
+    if (!Moln.inloggad()) return;
     /* Kanalen missar det som hände medan den var nere: titta ändå ibland. */
     const poll = () => {
       y.pollT = setTimeout(async () => {
@@ -14550,7 +14715,39 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function sluta() {
     const lyssnade = y.lyssnar;
     y.lyssnar = false; clearTimeout(y.pollT); y.pollT = null;
-    if (lyssnade) Moln.lamnaLekKanal();
+    if (lyssnade) lekKanalSluta(y.telCb);
+    y.telCb = null;
+  }
+  /* Telefonen säger var den är. Meddelandet gäller den lek som ligger
+     framme; ett gammalt meddelande om en annan lek faller. */
+  function telHor(m, id) {
+    if (!m || m.lekId !== id || !y.bas || y.bas.id !== id) return;
+    if (m.typ === 'hej') {
+      if (m.roll === 'dator') return;                    // vårt eget, eller en annan dator
+      telSatt({ ansluten: true, fas: y.tel.fas === 'vantar' ? 'lagg' : y.tel.fas, foto: +m.foto || y.tel.foto });
+      if (!m.svar) lekKanalSag({ typ: 'hej', lekId: id, roll: 'dator', svar: true });
+      return;
+    }
+    if (m.typ === 'kamera' || m.typ === 'laser') {
+      telSatt({ ansluten: true, fas: m.typ, foto: +m.foto || y.tel.foto });
+      return;
+    }
+    if (m.typ !== 'sparad') return;
+    if (m.foto) {
+      const nr = +m.foto;
+      const f = y.tel.foton.find(x => x.nr === nr);
+      const post = { nr, nya: +m.nya || 0, koll: +m.koll || 0 };
+      if (f) Object.assign(f, post); else y.tel.foton.push(post);
+      y.tel.foton.sort((a, b) => a.nr - b.nr);
+      telSatt({ ansluten: true, fas: 'lagg', foto: nr + 1 });
+    }
+    if (!(m.ts && y.bas && m.ts <= y.bas.ts)) hamtaNyare();
+  }
+  function telSatt(d) {
+    Object.assign(y.tel, d);
+    if (y.flik !== 'tel') return;
+    ritaTel();
+    if (!nu().kort.length) ritaYta();      // tomläget bär samma steg
   }
   async function hamtaNyare() {
     /* En sparning i flykt får sin krock och läser in raden själv. */
@@ -14572,7 +14769,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     await stang();
     const s = ++y.session;
     Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
-                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null });
+                      namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null,
+                      tel: telTom(), telHtml: '' });
     y.valda.clear(); y.nya.clear(); y.bekr.clear();
     if (!id) {
       y.nyNamn = o.namn || 'New deck'; y.flik = null; y.namnRedigeras = true; y.laddar = false;
@@ -14699,24 +14897,79 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (y.flik === 'tel') ritaTel();
     ritaKvitto(); ritaNyss();
   }
-  /* Telefonen: dagens QR-väg (?lekfoto=<id>) tills etapp 5. Telefonen
-     sparar på kontot och säger till på lekkanalen, och sidan hämtar raden. */
+  /* Telefonen (N2–N5): QR-koden, de tre stegen och fotoremsan. Vilket steg
+     som är aktivt kommer ur telefonens egna meddelanden på lekkanalen
+     (telHor) — steg 2 och 3 börjar om för varje foto. */
   async function ritaTel() {
     const el = panel.querySelector('.lstel'); if (!el) return;
-    if (!Moln.inloggad()) { el.innerHTML = '<p class="lslead"><b>Sign in first.</b> Your phone reaches this deck through your account.</p>'; return; }
+    if (!Moln.inloggad()) { el.innerHTML = '<p class="lslead"><b>Sign in first.</b> Your phone reaches this deck through your account.</p>'; y.telHtml = ''; return; }
     if (!y.bas) {
       el.innerHTML = '<p class="lslead">Getting the deck ready for your phone…</p>';
+      y.telHtml = '';
       y.skapaTomt = true;
       await sparaNu();
       if (!panel.querySelector('.lstel')) return;
       if (!y.bas) { el.innerHTML = '<p class="lslead lsfel">The deck could not be created. Check your network and try again.</p>'; return; }
     }
-    const url = lekQrUrl(y.bas.id);
     y.telVisad = true;
-    el.innerHTML = '<p class="lslead">Scan the code with your phone. It opens this deck there, and your cards show up here as soon as they\'re saved.</p>'
-      + '<div class="lsqr"></div>'
-      + `<div class="lsrad"><span class="lslank">${esc(url)}</span><button type="button" class="btn sm" data-ls="kopiera">${lsIk('copy', 13)}<span>Copy link</span></button></div>`;
-    ritaQr(url, el.querySelector('.lsqr'));
+    telRita(panel.querySelector('.lstel'));
+  }
+  /* Tomma kortytan säger vad man väntar på, samma steg som panelen. */
+  function telTomt() {
+    const t = y.tel;
+    if (!t.ansluten) return ['phone', 'Waiting for your phone', 'Scan the code on the left. After that, every photo you take lands here, sorted by type.'];
+    if (t.fas === 'kamera') return ['camera', 'Your phone’s camera is open', 'Take the photo. The cards land here a few seconds later, sorted by type.'];
+    if (t.fas === 'laser') return ['camera', 'Reading the photo', 'It takes about half a minute. The cards land here, sorted by type.'];
+    return ['deck', 'Your first photo lands here', 'Lay out the cards and take the photo. They show up here a few seconds later, sorted by type.'];
+  }
+  function telRita(el) {
+    if (!el || !y.bas) return;
+    const t = y.tel, url = lekQrUrl(y.bas.id), harFoton = t.foton.length > 0;
+    const steg = [];
+    if (!harFoton) {
+      steg.push(t.ansluten
+        ? ['done', 1, 'Connect your phone', 'Phone connected.']
+        : ['act', 1, 'Connect your phone',
+           'Scan the code with your phone’s camera — nothing to install. Mesa opens on the phone, ready to photograph this deck.',
+           `<div class="lsqrrad"><div class="lsqr"></div><div class="qv"><span class="lsvantar"><i></i><span>Waiting for your phone…</span></span>`
+           + `<button type="button" class="btn sm" data-ls="kopiera">${lsIk('copy', 13)}<span>Copy link</span></button>`
+           + `<span class="lslank">${esc(url)}</span></div></div>`]);
+    }
+    const lagg = harFoton ? 'Lay out the next cards' : 'Lay out the cards';
+    const laggTxt = harFoton ? 'Move these aside and lay out the next ones the same way.' : LEK_LAGGTXT;
+    if (t.fas === 'kamera' || t.fas === 'laser') {
+      steg.push(['done', 2, lagg, 'Laid out for this photo.']);
+      steg.push(t.fas === 'laser'
+        ? ['act', 3, 'Take the photo', 'The photo is on its way into the deck. It takes about half a minute.',
+           '<span class="lsvantar"><i></i><span>Reading the photo…</span></span>']
+        : ['act', 3, 'Take the photo', 'Your phone’s camera is open — take the photo. Hold it straight above, every name inside the frame.',
+           '<span class="lsvantar"><i></i><span>Waiting for the photo…</span></span>']);
+    } else {
+      steg.push([t.ansluten ? 'act' : 'todo', 2, lagg, laggTxt,
+                 t.ansluten ? lekGuide('lsg1', { cols: 5, rows: 5, w: 40, off: 8, gap: 8, pad: 14 })
+                   + `<div class="lsnxt"><span class="ic">${lsIk('phone', 16)}</span><span>When they’re laid out, press <b>Open the camera</b> on your phone.</span></div>` : '']);
+      steg.push(['todo', 3, 'Take the photo', 'Starts by itself when your phone opens the camera.']);
+    }
+    const li = ([st, nr, tit, txt, mer]) => `<li class="${st}"><span class="sn">${st === 'done' ? lsIk('check', 13, 2.8) : nr}</span>`
+      + `<div class="sb"><b>${tit}</b>${txt ? `<span>${txt}</span>` : ''}${mer || ''}</div></li>`;
+    const fotorad = f => `<div class="lsfotorad${f.koll ? ' chk' : ''}"><span class="lsmph"><i style="left:6px"></i><i style="left:18px"></i><i style="left:30px"></i><i style="left:42px"></i></span>`
+      + `<div class="ft"><b>Photo ${f.nr}</b><span>${f.nya} ${f.nya === 1 ? 'card' : 'cards'} added${f.koll ? ` · ${f.koll} to check` : ''}</span></div>`
+      + `<span class="ok">${lsIk('check', 16, 2.4)}</span></div>`;
+    const h = (harFoton
+        ? `<div class="lskort2"><div class="lstelon"><span class="led"></span><span>Phone connected for deck photos. They land in this deck.</span></div>`
+          + t.foton.map(fotorad).join('') + '</div>'
+        : '')
+      + (t.ansluten ? `<div class="lscyk"><span class="lspt">${lsIk('camera', 12)}Photo ${t.foto}</span>`
+          + `<span class="ct">${harFoton ? 'Steps 2 and 3 start over for every photo.' : 'One photo at a time, about 30 cards.'}</span><i class="zl"></i></div>` : '')
+      + `<ol class="lsps">${steg.map(li).join('')}</ol>`
+      + (harFoton ? '<p class="lsdropnot">That was all of them? Nothing more to do — the deck is saved as you go.</p>' : '');
+    /* Samma html: rita inte om. Annars börjar guidens animering och QR-koden
+       om vid varje meddelande från telefonen. */
+    if (h === y.telHtml && el.childNodes.length) return;
+    y.telHtml = h;
+    el.innerHTML = h;
+    const qr = el.querySelector('.lsqr');
+    if (qr) ritaQr(url, qr);
   }
   function ritaKvitto() {
     const el = panel.querySelector('.lskvitto'); if (!el) return;
@@ -14767,7 +15020,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     yta.classList.toggle('valjer', y.valda.size > 0);
     let h;
     if (!v.kort.length) {
-      h = `<div class="lstom"><span class="ico">${lsIk('deck', 26, 1.6)}</span><b>No cards yet</b><span>Add them one of the three ways on the left. They show up here, sorted by type, and you can change or remove every card.</span></div>`;
+      const t = y.flik === 'tel' ? telTomt() : null;
+      h = t ? `<div class="lstom"><span class="ico">${lsIk(t[0], 26, 1.6)}</span><b>${t[1]}</b><span>${t[2]}</span></div>`
+        : `<div class="lstom"><span class="ico">${lsIk('deck', 26, 1.6)}</span><b>No cards yet</b><span>Add them one of the three ways on the left. They show up here, sorted by type, and you can change or remove every card.</span></div>`;
     } else {
       const poster = v.kort.map(k => ({ name: k.name, sid: k.sid, small: k.small, n: k.n, sb: !!k.sb, koll: k.koll, key: norm(k.name) }));
       const grupper = lekGrupper(poster.filter(p => p.sb || !BASLAND_NAMN.includes(p.name)), () => { if (s === y.session) ritaYta(); });
