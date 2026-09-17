@@ -9964,8 +9964,9 @@ function renderKamPop() {
 /* ── Uppstarten (MES-102, "Get ready for the game" MES-170) ──────────
    Designen "Mesa Deck Builder" sida 4 (G1–G6, L1–L6, J1–J2): panelen till
    vänster när man går in i ett spel utan fungerande kamera — lek, spelläge
-   (Mirror my table rekommenderas), telefon (bara med ett kameraläge), bordet
-   i bilden (bara Mirror my table). Stegets handling står i panelens fot.
+   (Mirror my table rekommenderas), telefon och bordet i bilden (bara med ett
+   kameraläge; i Use camera to add cards ger provkortet bara storleken,
+   MES-171). Stegets handling står i panelens fot.
    Stegen läses ur samma tillstånd som resten av appen; bara lägesvalet och om
    uppstarten är klar eller avböjd minns per spel (K.oppstart), för att
    databasens förval ('skarm') inte går att skilja från ett val. Pillret
@@ -10020,10 +10021,11 @@ function oppSatt(falt) {
   const m = oppMinne(); m[spelLage.id] = Object.assign({}, m[spelLage.id] || {}, falt); LS.set(K.oppstart, m);
 }
 const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
-/* om = "Redo setup": läget väljs igen och vinkeln sparas om. */
+/* om = "Redo setup": läget väljs igen och steg 4 görs om. Utan om (pillret)
+   står det som var klart kvar (oppOppnasIgen). */
 function oppnaOppstart(om) {
   if (!spelLage) return;
-  oppSatt(om ? { klar: false, avbojd: false, lage: false, grundOm: mittLage() === 'bord', b4: false, provKlar: false, gravKlar: false, bibKlar: false, startat: false } : { klar: false, avbojd: false });
+  oppSatt(oppOppnasIgen(oppFor(), om, mittLage()));
   oppLageVal = null; oppVisat = null; oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
   oppBibSag = null; oppKlarDold = false;
   if (kamOppen) closeOv('kamOv');
@@ -10098,6 +10100,7 @@ function oppDel(nr, titel, st, sum, lank, body) {
 }
 function oppSteg4(o) {
   if (!o.b4) { oppSatt({ b4: true }); o = oppFor(); }
+  const bord = mittLage() === 'bord';
   const zoner = [kamGravRad, kamBibRad].filter(Boolean);
   const p = kamAnsluten ? provkortSpar(senasteSpar, zoner, sparSedd, oppProvId, !o.provKlar && oppProvLas ? oppProvLas.box : null) : null;
   if (o.provKlar) { oppProvLas = null; if (!oppProvId && p) oppProvId = p.t.id; }
@@ -10130,13 +10133,19 @@ function oppSteg4(o) {
   const tapp = (v, av, ikon, rub, txt) => `<button type="button" class="tapopt${oppTappVal === v ? ' on' : ''}" data-opptap="${v}" aria-pressed="${oppTappVal === v}"${av ? ' disabled' : ''}>${ikon}<b>${rub}</b><span>${txt}</span></button>`;
   const knappar = av => `<div class="tapval">${tapp(0, av, OPP_UPP, 'Untapped', 'Standing up')}${tapp(1, av, OPP_SIDA, 'Tapped', 'Turned sideways')}</div>`;
   let prov;
-  /* "Found it" först när platsen är låst och knapparna går att trycka på.
-     Ett kort som syns men inte är mätt än räknas inte som hittat. */
-  if (oppTappSvar != null) prov = `<p class="opptxt">Found it.</p>${knappar(true)}<div class="opprad"><span class="oppwait"><i></i><span>Saving the angle…</span></span></div>`;
-  else if (oppProvLas) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
-  else prov = `<p class="opptxt">Put a test card on the table: any card from your deck, turned the way your untapped cards face. It won't be played.</p><div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>`
+  const letar = '<div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>'
     + (p && p.kant ? `<p class="opptxt liten">Move the card in from the edge of the picture.</p>`
       : p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
+  /* Use camera to add cards (MES-171, G5Size): provkortet ger bara
+     storleken — ingen tap-fråga, och telefonen räknar ingen vinkel. Låst =
+     hittat; Continue mäter storleken ur låset (provKortStorlek). */
+  if (!bord) prov = '<p class="opptxt">Put one card from your deck on the table. Mesa only needs its size, so the spots come out as big as your cards. It won’t be played.</p>'
+    + (oppProvLas ? '<div class="opprad"><span class="oppwait ok"><i></i><span>Found it — card size saved</span></span></div>' : letar);
+  /* "Found it" först när platsen är låst och knapparna går att trycka på.
+     Ett kort som syns men inte är mätt än räknas inte som hittat. */
+  else if (oppTappSvar != null) prov = `<p class="opptxt">Found it.</p>${knappar(true)}<div class="opprad"><span class="oppwait"><i></i><span>Saving the angle…</span></span></div>`;
+  else if (oppProvLas) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
+  else prov = `<p class="opptxt">Put a test card on the table: any card from your deck, turned the way your untapped cards face. It won't be played.</p>` + letar;
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
   const grav = oppFlytt
     ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
@@ -10156,13 +10165,14 @@ function oppSteg4(o) {
   }
   const st = k => d[k] ? 'done' : d.aktiv === k ? 'active' : 'todo';
   oppDiff($('#oppDelar'),
-    oppDel(1, 'Card direction', st('prov'), o.tapp ? 'Tapped' : 'Untapped', ['provom', 'Change'], prov)
+    (bord ? oppDel(1, 'Card direction', st('prov'), o.tapp ? 'Tapped' : 'Untapped', ['provom', 'Change'], prov)
+      : oppDel(1, 'Card size', st('prov'), 'Saved', ['provom', 'Change'], prov))
     + oppDel(2, 'Graveyard', st('grav'), 'Bottom-left corner', ['gravom', 'Move'], grav)
     + oppDel(3, 'Library', st('bib'), 'In place', null, bib).replace('class="del done"', Date.now() - oppPlingNar < OPP_PLING_MS ? 'class="del done nyklar"' : 'class="del done"'));
   oppDiff($('#oppEfter'), d.aktiv === 'start'
     ? `<div class="klar4"><span class="ck">${OPP_KLAR.replace('width="12" height="12"', 'width="15" height="15"')}</span><div><b>Your table is set up</b><span>The camera knows where your graveyard and library are.</span></div></div>` : '');
-  /* Handlingen i panelens fot (G5, G6, L1–L6). */
-  return d.aktiv === 'prov' ? { txt: 'Continue', a: 'tapp', av: oppTappSvar != null || !oppProvLas }
+  /* Handlingen i panelens fot (G5, G5Size, G6, L1–L6). */
+  return d.aktiv === 'prov' ? (bord ? { txt: 'Continue', a: 'tapp', av: oppTappSvar != null || !oppProvLas } : { txt: 'Continue', a: 'storlek', av: !oppProvLas })
     : d.aktiv === 'grav' ? (oppFlytt ? { txt: 'Done', a: 'gravklar', av: !oppGravFlyttad } : { txt: 'Looks good', a: 'gravok' })
     : d.aktiv === 'bib' ? { txt: 'Start playing', av: true }
     : { txt: 'Start playing<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>', a: 'starta' };
@@ -10314,10 +10324,11 @@ function renderOppstart() {
     steg.tel = prefs.autoLage === true && kamAnsluten;
     steg.lage = !!o.lage;
     /* Steg 4 är klart med Start playing — eller, på en dator som inte
-       börjat steget, när spelets rad redan bär vinkeln och båda rutorna.
-       Ett annat läge än Mirror my table gör det klart bara när läget valts
-       här (MES-192): game_players.lage är 'skarm' i ett nytt spel. */
-    steg.vinkel = (!!o.lage && !bord) || !!o.startat || (!o.b4 && !o.grundOm && grund != null && !!kamGravRad && !!kamBibRad);
+       börjat steget, när spelets rad redan bär båda rutorna, och i Mirror my
+       table vinkeln (oppSteg4Klar). Use camera to add cards har steget också
+       (MES-171), så game_players.lage 'skarm' i ett nytt spel gör det inte
+       klart innan läget valts (MES-192). */
+    steg.vinkel = oppSteg4Klar(o, bord, grund, !!kamGravRad && !!kamBibRad);
     oppNasta = ordning.find(k => !steg[k]) || null;
     if (!oppNasta) { oppSatt({ klar: true, grundOm: false }); visa = false; }
     else {
@@ -10350,11 +10361,11 @@ function renderOppstart() {
     if (mig) $('#oppHost').style.setProperty('--pc', mig.color || 'var(--acc)');
     oppDiff($('#oppFolk'), oppFolkHtml());
     /* Steg 3 och 4 står bara med ett av kamerans lägen — det valda i steg 2
-       medan det står framme (G3), annars det sparade. Steg 4 bara i Mirror
-       my table. */
+       medan det står framme (G3), annars det sparade. */
     if (aktiv === 'lage' && !oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
     const lageVal = aktiv === 'lage' ? oppLageVal : o.lage ? (bord ? 'bord' : 'skarm') : null;
-    const synlig = { lek: true, lage: true, tel: lageVal === 'bord' || lageVal === 'skarm', vinkel: lageVal === 'bord' };
+    const kamera = lageVal === 'bord' || lageVal === 'skarm';
+    const synlig = { lek: true, lage: true, tel: kamera, vinkel: kamera };
     const sist = ordning.filter(k => synlig[k]).pop();
     ordning.forEach((k, i) => {
       /* Klickbar är varje rad utom nästa steg när det står framme av sig
@@ -10374,6 +10385,10 @@ function renderOppstart() {
     if ($('#opp1Sum').textContent !== s1) $('#opp1Sum').textContent = s1;
     const s3 = LAGE_NAMN[bord ? 'bord' : 'skarm'];
     if ($('#opp2Sum').textContent !== s3) $('#opp2Sum').textContent = s3;
+    /* Steg 4 klart utan rutor: en uppstart i Use camera to add cards som var
+       klar innan steget fanns där (utan4, MES-171). */
+    const s4 = steg.vinkel && !(kamGravRad && kamBibRad) ? 'Skipped' : 'Graveyard and library set', s4el = $('#opp4 .vsum');
+    if (s4el.textContent !== s4) s4el.textContent = s4;
     /* 1: leken. Listan hämtas en gång; står lekens sida öppen (New deck…)
        hämtas den på nytt när den stängts. */
     /* 1: leken (G1). Listan och Last used hämtas en gång; står lekens sida
@@ -10519,6 +10534,12 @@ $('#oppstart').addEventListener('click', ev => {
   else if (a === 'tapp') {
     if (oppProvId == null || oppTappSvar != null) return;
     oppTappSvar = oppTappVal === 1; begarGrund(oppProvId, oppTappSvar); renderOppstart();
+  }
+  /* Use camera to add cards (G5Size): storleken ur låset, ingen vinkel. */
+  else if (a === 'storlek') {
+    if (!oppProvLas) return;
+    oppSatt({ provKlar: true, provKort: provKortStorlek(Object.assign({ id: oppProvLas.id }, oppProvLas.box), pbRa, pbMatt, kamBildAsp()) });
+    renderMode();
   }
   else if (a === 'grund') sparaGrundFranSenaste();
   else if (a === 'provom') { oppSatt({ provKlar: false }); oppTappSvar = null; oppProvLas = null; renderMode(); }
