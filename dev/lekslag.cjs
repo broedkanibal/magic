@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path'), assert = require('assert');
 const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('/* ══ BLOCK: LEKSLAG'), b = src.indexOf('/* ══ SLUT: LEKSLAG ══ */');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte LEKSLAG i index.html'); process.exit(2); }
-const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekDialogOps } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekDialogOps };')();
+const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekDialogOps, lekNyssKvar } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekDialogOps, lekNyssKvar };')();
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -210,6 +210,23 @@ prov('konflikt: datorn ändrade under tiden — telefonens ändringar spelas upp
   const r = lekSlagTillampa(datorn, ops);
   assert.deepEqual(lista(r), ['17 Mountain', '3 Lightning Helix', '4 Lightning Bolt', '4 Spiteful Hexmage']);
   assert.ok(r.kort.find(k => k.name === 'Lightning Bolt').koll, 'datorns To check finns kvar');
+});
+prov('Just added: raden står kvar så länge kortet är i leken, annars inte', () => {
+  const nyss = [{ nr: 2, name: 'Lightning Bolt', sb: false, n: 2 }, { nr: 1, name: 'Lightning Helix', sb: true, n: 1 }];
+  const kort = [{ name: 'lightning  BOLT', n: 2 }, { name: 'Lightning Helix', sb: 1, n: 1 }];
+  assert.deepEqual(lekNyssKvar(nyss, kort).map(e => e.nr), [2, 1], 'båda kvar');
+  /* En annan flik tog bort kortet: raden har inget att ångra. */
+  assert.deepEqual(lekNyssKvar(nyss, [{ name: 'Lightning Helix', sb: 1, n: 1 }]).map(e => e.nr), [1]);
+  /* Samma namn i main är inte sideboardens rad. */
+  assert.deepEqual(lekNyssKvar(nyss, [{ name: 'Lightning Helix', n: 1 }]).map(e => e.nr), []);
+  assert.deepEqual(lekNyssKvar(nyss, []), []);
+  assert.deepEqual(lekNyssKvar([], kort), []);
+});
+
+prov('Just added: en inklistrad lista står kvar tills alla dess kort är borta', () => {
+  const batch = [{ nr: 5, name: 'Pasted list', n: 3, batch: [{ name: 'Lightning Bolt', sb: false, n: 2 }, { name: 'Lightning Helix', sb: false, n: 1 }] }];
+  assert.equal(lekNyssKvar(batch, [{ name: 'Lightning Helix', n: 1 }]).length, 1, 'ett kort kvar räcker');
+  assert.equal(lekNyssKvar(batch, [{ name: 'Mountain', n: 4 }]).length, 0);
 });
 
 for (const r of [...ok, ...fel]) console.log(r);

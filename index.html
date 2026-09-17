@@ -12420,6 +12420,16 @@ const lekSlagSids = kort => [...new Set((kort || []).map(k => k.sid).filter(Bool
    Skillnaden mellan raden dialogen öppnade och listan den ska spara, som
    ändringar (LEKSLAG). Ett kort nycklas på namn och sida, som i
    sammanslagningen; ett kort som bytt sida blir ett avdrag och ett tillägg. */
+/* Just added-raderna (och listans kvitto) som fortfarande går att ångra:
+   de vars kort ligger i leken. Tog en annan flik, telefonen eller ett
+   Remove bort dem finns det ingenting att dra ifrån — ett ångra hade inte
+   gjort något, och raden ljuger om vad som står i leken. En rad för en
+   inklistrad lista (batch) räknas kvar så länge något av dess kort är
+   kvar. */
+function lekNyssKvar(nyss, kort) {
+  const finns = new Set((kort || []).map(k => lekSlagNyckel(k.name, k.sb)));
+  return (nyss || []).filter(e => (e.batch || [e]).some(b => finns.has(lekSlagNyckel(b.name, b.sb))));
+}
 function lekDialogOps(bas, kort) {
   const fore = new Map(lekSlagTillampa(bas, []).kort.map(k => [lekSlagNyckel(k.name, k.sb), k]));
   const efter = new Map();
@@ -14256,8 +14266,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     for (const op of ops) y.ops.push(op);
     if (y.spar !== 'fel') y.spar = 'andrat';
     planera();
+    const stadat = stadaNyss();
     ritaHuvud(); ritaYta();
-    if (y.listaKlar) ritaKvitto();
+    if (stadat) ritaNyss();
+    if (y.listaKlar || stadat) ritaKvitto();
   }
   /* ⌘Z (MES-174). Omvändningen räknas mot det som syns innan ändringen, en
      ändring i taget, så att en inklistring eller Remove all blir ett steg.
@@ -14370,7 +14382,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       planera(Math.min(30000, 2000 * 2 ** Math.min(4, y.felN - 1)));
     }
     /* Raden kan ha kommit tillbaka med en annan enhets ändringar i. */
+    const stadat = stadaNyss();
     ritaHuvud(); ritaYta();
+    if (stadat) { ritaNyss(); ritaKvitto(); }
     if (y.flik === 'tel' && res.ny) ritaTel();
   }
 
@@ -14411,7 +14425,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!rad) { y.spar = 'borta'; ritaHuvud(); return; }
     if (!(rad.ts > y.bas.ts)) return;
     y.bas = rad;
+    const stadat = stadaNyss();
     ritaHuvud(); ritaYta();
+    if (stadat) { ritaNyss(); ritaKvitto(); }
   }
 
   /* ── öppna och stänga ── */
@@ -14569,7 +14585,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const el = panel.querySelector('.lskvitto'); if (!el) return;
     el.hidden = !y.kvitto; el.innerHTML = y.kvitto;
     const k = panel.querySelector('.lslistaklar'), q = y.listaKlar;
-    if (!k || !q) return;
+    if (!k) return;
+    if (!q) { k.innerHTML = ''; return; }
     const tot = q.main + q.sb, v = nu();
     /* Räknas om vid varje ändring: det man redan svarat på är inte kvar. */
     const kvar = (q.koll || []).filter(x => { const kk = v.kort.find(c => nyckel(c.name, c.sb) === x); return kk && kk.koll; }).length;
@@ -14579,6 +14596,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       + q.rader.map(t => `<p class="lshopp"><span class="ic">${lsIk('minus', 14, 2.2)}</span><span>${t}</span></p>`).join('')
       + `<div class="lsrad"><button type="button" class="btn" data-ls-angra="${q.nr}">${lsIk('undo', 13)}Undo — remove all ${tot}</button></div>`
       + '<p class="lslead">Or change and remove single cards on the right.</p>';
+  }
+  /* Just added och kvittot följer leken (lekNyssKvar): tas korten bort här,
+     i en annan flik eller av telefonen, försvinner raden. Sant = något
+     ändrades, och raderna ska ritas om. */
+  function stadaNyss() {
+    if (!y.nyss.length) return false;
+    const kvar = lekNyssKvar(y.nyss, nu().kort);
+    if (kvar.length === y.nyss.length) return false;
+    y.nyss = kvar;
+    if (y.listaKlar && !kvar.some(e => e.nr === y.listaKlar.nr)) { y.listaKlar = null; y.kvitto = ''; }
+    return true;
   }
   function ritaNyss() {
     const el = panel.querySelector('.lsnyss'); if (!el) return;
