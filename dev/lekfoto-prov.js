@@ -33,8 +33,12 @@
     Moln.inloggad = () => true;
     Moln.minId = () => 'prov-user';
     Moln.mittNamn = () => 'Jesper';
-    Moln.hamtaLekar = async () => lekLokal.lista().map(l => ({ id: l.id, namn: l.namn, farger: l.farger || [], antal: l.antal || 0, ts: l.ts || 0 }));
+    /* medKort: true används av Home, som gömmer tomma lekar. */
+    Moln.hamtaLekar = async (o) => lekLokal.lista().map(l => Object.assign(
+      { id: l.id, namn: l.namn, farger: l.farger || [], antal: l.antal || 0, ts: l.ts || 0 },
+      o && o.medKort ? { kort: l.kort || [] } : {}));
     Moln.hamtaLekRad = async id => lekLokal.rad(id);
+    Moln.hamtaMinLek = async () => null;
     Moln.skapaLek = async (namn, kort, farger, antal) => {
       const rad = { id: 'prov:' + uid2(), namn: namn || 'New deck', kort: kort || [], farger: farger || [], antal: antal || 0, ts: Date.now() };
       lekLokal.spara(rad);

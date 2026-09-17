@@ -14,7 +14,7 @@
 
      const m = await import('./dev/lekmock.js');
      m.matning({ hogar: 3, djup: 12 });        // tabell över kolumnvalen
-     await m.mata(3, 12);                      // lägg in ett foto i dialogen
+     await m.mata(3, 12);                      // läs av ett syntetiskt foto
 
    Vad den INTE gör: den syntetiska bilden har perfekt ljus, ingen
    oskärpa och inget perspektiv. Den kan säga att geometrin är fel, den
@@ -96,13 +96,12 @@ export function matning({ djup = 12 } = {}) {
   return rader;
 }
 
-/* Lägger in en syntetisk solfjäder i den öppna lek-dialogen, som om den
-   släppts dit. Kräver att dialogen är öppen. */
+/* Läser av en syntetisk solfjäder genom telefonens fotoväg (MES-172), som
+   om den fotograferats. Kräver att telefonens lekfoto är öppet — i appen
+   via ?lekfoto=<lekens id>, i stubben via dev/lekfoto-prov.js. */
 export async function mata(hogar = 3, djup = 12, bredd = 3024) {
   const cv = fjader({ bredd, hogar, djup });
-  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92));
-  const fil = new File([blob], `lek-${hogar}x${djup}.jpg`, { type: 'image/jpeg' });
-  if (typeof lekTaEmotFil !== 'function') throw new Error('Öppna "Min lek" först.');
-  await lekTaEmotFil(fil);
-  return { facit: cv.facit, fotoKB: Math.round(blob.size / 1024), bild: cv.width + '×' + cv.height };
+  if (typeof telfotoLas !== 'function' || !telfoto || !telfoto.id) throw new Error('Öppna telefonens lekfoto först (?lekfoto=<id>).');
+  await telfotoLas({ canvas: cv, box: { x: 0.02, y: 0.02, w: 0.96, h: 0.96 }, hogar });
+  return { facit: cv.facit, bild: cv.width + '×' + cv.height };
 }
