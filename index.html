@@ -20166,7 +20166,7 @@ const Kamera = (() => {
       if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true });
       if (t.spek !== vantar) return;
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
-        ? { svar, geo, upptagna: spar.filter(q => q !== t && q.tillstand !== 'skrap' && q.saker && q.namn === svar.namn).length, nar: nu || 0 }
+        ? { svar, geo, upptagna: upptagna(svar.namn, t), nar: nu || 0 }
         : { miss: true };
       /* Ett SÄKERT tidigt svar tas på en gång (MES-214): namnet går till
          datorn 0,45–0,6 s före stillaMs. Läget är ännu preliminärt — kortet
@@ -20185,9 +20185,19 @@ const Kamera = (() => {
      namn — med det tidiga namnet (MES-214) hinner det nya spåret annars bli
      klart före det gamla dött, och ett basland fick då ett kort till
      (bänken D3: tappat runt hörnet med en hand över). */
+  /* Ett spår vars frånvaro redan är bevisad i den här rutan: ingen region,
+     och mattan under det ser tom ut (tomMs räknar). Det dör inom bortaMs. */
+  const bevisatBorta = q => !arHelbild(q) && !q.skymd && q.tomMs > 0 && q.regionNar !== forra;
+  /* Antalspriorns räkning (K6): säkra spår med namnet, utom spåret självt —
+     och utom dem som bevisat är på väg bort (MES-214). Ett kort som flyttas
+     med handen över sig föder ett NYTT spår där det släpps medan det gamla
+     ännu dör: i golden 12 dömdes den tidiga läsningen 42,3 s 'fler än leken'
+     för att kortets eget gamla spår räknades som ett exemplar till, och
+     namnet kom först 42,9 s, när det gamla dött. */
+  const upptagna = (namn, utom) => spar.filter(q => q !== utom && q.id !== utom && q.tillstand !== 'skrap' && q.saker && q.namn === namn && !bevisatBorta(q)).length;
   function slappFlyttat(t, nu) {
     for (const q of [...spar]) {
-      if (q === t || q.tillstand !== 'klar' || q.namn !== t.namn || arHelbild(q) || q.skymd || !(q.tomMs > 0) || q.regionNar === forra) continue;
+      if (q === t || q.tillstand !== 'klar' || q.namn !== t.namn || !bevisatBorta(q)) continue;
       spar.splice(spar.indexOf(q), 1); q.dog = nu || forra; spoken.push(q);
     }
   }
@@ -20200,8 +20210,7 @@ const Kamera = (() => {
     const s = t.spek, g = s.geo, svar = s.svar;
     const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * T.stillaPx
              && Math.abs(t.lang - g.lang) <= SPEK_FORM * g.lang && Math.abs(t.kort - g.kort) <= SPEK_FORM * g.kort;
-    const upptagna = spar.filter(q => q !== t && q.tillstand !== 'skrap' && q.saker && q.namn === svar.namn).length;
-    if (!lik || upptagna > s.upptagna) { t.spek = { miss: true }; return false; }
+    if (!lik || upptagna(svar.namn, t) > s.upptagna) { t.spek = { miss: true }; return false; }
     t.namn = svar.namn; t.sid = svar.sid || null; t.saker = true; t.cands = svar.cands || null; t.namnLast = svar.namnLast || null;
     t.varfor = svar.varfor || null; t.spekKlar = true;
     t.fragad = true; t.provas = false; t.tillstand = 'klar'; t.spek = null;
@@ -20600,7 +20609,7 @@ const Kamera = (() => {
               varken upplösning eller takt. */
            satMatare: f => { matare = typeof f === 'function' ? f : null; },
            get strom() { return stream; },
-           get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; },
+           get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna,
            get sigma() { return sigma; } };
 })();
 
@@ -20951,7 +20960,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      eller en klon/ett extra land: granskningen får avgöra. */
   if (saker && c0 && kamLekAntal) {
     const tak = kamLekAntal.get(norm(c0.name));
-    const upptagna = Kamera.spar.filter(t => t.id !== id && t.tillstand !== 'skrap' && t.saker && t.namn === c0.name).length;
+    const upptagna = Kamera.upptagna(c0.name, id);   // utan spår som bevisat är på väg bort: kortet som just flyttats är inte ett exemplar till (MES-214)
     if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) { saker = false; varfor = 'fler än leken'; }
   }
   const namnLast = namn ? { text: namn.text, namn: namn.namn, poang: namn.poang, marginal: namn.marginal, ms: namn.ms, hoppad: namn.hoppad || null, start: namn.start, vand: !!namn.vand } : null;
