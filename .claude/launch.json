@@ -79,6 +79,16 @@
       ],
       "port": 8242,
       "autoPort": true
+    },
+    {
+      "name": "mesa-208",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "python3 -m http.server ${PORT:-8243}"
+      ],
+      "port": 8243,
+      "autoPort": true
     }
   ]
 }

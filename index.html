@@ -80,6 +80,16 @@ kbd{
 .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;letter-spacing:.2px;padding-right:4px}
 .brand svg{display:block}
 .brand .sub{color:var(--dim2);font-weight:500;font-size:11px;letter-spacing:.4px;text-transform:uppercase}
+/* Märket ÄR menyn i spelvyn (MES-208). Det ska se ut som märket tills man
+   närmar sig — chevronen är den stående ledtråden, ramen och bakgrunden
+   kommer först i hover. Utan den egna paddingen blev träffytan 18 px hög
+   på en telefon, där namnet dessutom är dolt. */
+.brandmeny{gap:7px;height:30px;padding:0 7px 0 6px;margin-left:-4px;border:1px solid transparent;border-radius:var(--rs);transition:background .12s,border-color .12s}
+.brandmeny .cv{opacity:.5;transition:opacity .12s}
+.brandmeny:hover{background:var(--bg3);border-color:var(--line)}
+.brandmeny:hover .cv{opacity:.9}
+.brandmeny.open{background:var(--bg4);border-color:var(--panelram2)}
+.brandmeny.open .cv{opacity:.9;transform:rotate(180deg)}
 .vr{width:1px;height:20px;background:var(--line);flex:none}
 
 /* flex:1 här sköt ut "+ Spelare" till andra sidan raden — nav:en ska bara
@@ -3055,10 +3065,18 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 
 <div id="app">
   <header class="topbar">
-    <div class="brand">
+    <!-- Menyn sitter i märket, längst till vänster (MES-208). Den satt som tre
+         prickar längst till HÖGER, och den som inte redan visste att den fanns
+         hittade den inte: prickarna stod sist i en rad som slutar med ikoner,
+         och ingenting i dem sa vad de gällde. Uppe till vänster, i märket, är
+         där man letar efter en appmeny — och namnet plus chevronen säger att
+         det finns något under. Id:t står kvar: R, tomrutan och menyns egen
+         positionering hänger på #menuBtn. -->
+    <button class="brand brandmeny" id="menuBtn" aria-haspopup="menu" aria-expanded="false" title="Menu — player, game, table mode, deck">
       <svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg>
       <span>Mesa</span>
-    </div>
+      <svg class="cv" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
 
     <!-- Koden och "Bjud in" var två element för ETT ärende: talet man läser upp
          och länken man skickar är samma sak, sedd från två håll. Att koden dessutom
@@ -3098,9 +3116,6 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     </button>
     <button class="btn ghost" id="helpBtn" title="Keyboard shortcuts (?)">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.4 3.4v1.1"/><path d="M12 17.2v.01"/></svg>
-    </button>
-    <button class="btn ghost" id="menuBtn" title="Menu">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
     </button>
   </header>
   <!-- Raden under topbaren: förklaringen som står en gång innan man valt väg,
@@ -3622,7 +3637,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         then for dark card borders against the light table in each pane, and finally matches every hit against the cards in your deck.
         Only cards that match clearly are added automatically — the rest end up in the confirm row at the top.
         <br><br>
-        Matching happens against <b>your deck</b> (⋯ → My decks). That is what makes it work:
+        Matching happens against <b>your deck</b> (the Mesa menu, top left → My decks). That is what makes it work:
         a hundred cards can be told apart visually, all 30,000 MTG cards cannot.
         Card data and images come from <a href="https://scryfall.com" target="_blank" rel="noreferrer">Scryfall</a>.
         Everything is stored in this browser only.
@@ -12971,7 +12986,7 @@ $('#telFil').onchange = async ev => {
 async function telfotoLas(kalla) {
   if (telfoto.laser) return;
   if (!aiEnabled()) {
-    telfoto.fel = 'Reading a photo needs the AI help. Turn it on under ⋯ → AI help.';
+    telfoto.fel = 'Reading a photo needs the AI help. Turn it on under the Mesa menu → AI help.';
     telfotoSteg('fel'); return;
   }
   telfoto.laser = true;
@@ -14641,7 +14656,7 @@ $('#vyLeksida').addEventListener('keydown', ev => {
   const oppen = $$('#vyLeksida .lsmeny').some(m => !m.hidden);
   if (oppen) { ev.preventDefault(); lsMenyerStang(); }
 });
-/* Menyn i appen (⋯ → My decks): leken jag spelar med, annars den senast
+/* Menyn i appen (Mesa-märket uppe till vänster → My decks): leken jag spelar med, annars den senast
    valda, annars den första — och finns ingen lek alls, en ny. */
 async function oppnaMinaLekar() {
   const mig = spelLage && minSpelare();
@@ -14681,7 +14696,15 @@ $('#bulkTa').addEventListener('keydown', e => {
 
 /* ─── meny ─── */
 const menuEl = $('#menu');
-function closeMenu() { menuEl.classList.remove('open'); }
+/* Menyknappen ÄR märket uppe till vänster (MES-208), och den ska se öppen ut
+   medan menyn står öppen — annars är det enda som pekar tillbaka på vad man
+   tryckte på att rutan råkar ligga under den. */
+function menuKnappMark(pa) {
+  const k = $('#menuBtn'); if (!k) return;
+  k.classList.toggle('open', !!pa);
+  k.setAttribute('aria-expanded', pa ? 'true' : 'false');
+}
+function closeMenu() { menuEl.classList.remove('open'); menuKnappMark(false); }
 addEventListener('mousedown', e => { if (!menuEl.contains(e.target) && !e.target.closest('#menuBtn')) closeMenu(); });
 $('#menuBtn').onclick = ev => {
   ev.stopPropagation();
@@ -14712,11 +14735,14 @@ $('#menuBtn').onclick = ev => {
     <button data-a="ai">AI help${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'ON' : 'READY') : aiKey() ? 'OWN KEY' : 'OFF', AI.mode === 'server' ? 'var(--green)' : null)}</button>
     ${spelLage ? `<hr>
     <button data-a="loggaut">Sign out</button>` : ''}`;
+  /* Vänsterkant mot knappens vänsterkant (MES-208), inte längre höger mot
+     fönstret: rutan ska hänga under det man tryckte på. */
   const r = $('#menuBtn').getBoundingClientRect();
   menuEl.style.top = (r.bottom + 6) + 'px';
-  menuEl.style.left = 'auto';
-  menuEl.style.right = '12px';
+  menuEl.style.right = 'auto';
+  menuEl.style.left = Math.max(8, r.left) + 'px';
   menuEl.classList.add('open');
+  menuKnappMark(true);
 };
 menuEl.addEventListener('click', ev => {
   const b = ev.target.closest('button[data-a]');
@@ -15861,7 +15887,7 @@ async function analyzeShot(shotId) {
       if (p.phase === 'list') anStep(`Fetching the deck's artwork from Scryfall… ${p.done} cards`);
       else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
     });
-    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (⋯ → My decks)', 'err'); return 0; }
+    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (the Mesa menu, top left → My decks)', 'err'); return 0; }
     anEl.title.textContent = spelLage ? 'Reading your board…' : 'Reading the screenshot…';
     anEl.note.textContent = '';
     anBar(0);
@@ -16028,7 +16054,7 @@ async function analyzeExtra(shotId, tyst) {
       if (p.phase === 'list') anStep(`Fetching the deck's artwork from Scryfall… ${p.done} cards`);
       else { anBar(p.done / p.total); anStep(`Building image signatures… ${p.done} of ${p.total}`); }
     });
-    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (⋯ → My decks)', 'err'); return 0; }
+    if (!lekPool) { anToast('Pick a deck first — the cards are recognised against it (the Mesa menu, top left → My decks)', 'err'); return 0; }
     anEl.title.textContent = 'Reading the image…';
     anEl.note.textContent = ''; anBar(0);
     if (cancelAnalyze) return 0;
@@ -20633,7 +20659,7 @@ async function byggKamPool() {
     sattKamLekAntal(lek && lek.kort);
     if (!lek) {
       kamPoolNyckel = null;
-      satKamFin('pool', 'No deck yet — open ⋯ → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
+      satKamFin('pool', 'No deck yet — open the Mesa menu (top left) → My decks on the computer and add your cards. Until then I see the cards but cannot tell which they are.');
       return;
     }
     const nyckel = (lek.id || 'konto') + ':' + (lek.ts || 0);
