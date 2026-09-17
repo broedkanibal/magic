@@ -1770,6 +1770,14 @@ textarea.ta:focus{border-color:var(--acc);box-shadow:0 0 0 3px #f0a52a1f}
 .menu button:hover{background:var(--bg4);color:var(--txt)}
 .menu button.danger:hover{background:#3a1f22;color:#ff9099}
 .menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+/* Lägesraderna (MES-209): två val där ett alltid gäller. Bocken står kvar i
+   layouten också när den är osynlig — annars hoppar etiketterna i sidled när
+   man byter. */
+.menu button.val svg{flex:none;opacity:.65}
+.menu button.val .bock{margin-left:auto;font-size:12px;color:var(--green);visibility:hidden}
+.menu button.val.pa{color:var(--txt)}
+.menu button.val.pa svg{opacity:1;color:var(--blue)}
+.menu button.val.pa .bock{visibility:visible}
 .menu .hd{padding:6px 9px 3px;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:var(--dim2)}
 /* Menyn växte med spelet och igenkänningen och blev sexton rader. Utan tak
    gick den under skärmkanten på en låg bärbar, och de sista raderna — den
@@ -9518,7 +9526,7 @@ function renderMode() {
        kamerapanelen. Tidigare stod samma sak i lägeschippet, statusfältet
        och tomrutan. Står kameran av startar ett klick den. */
     const m = kamPillModell();
-    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage === 'bord' ? 'bord' : 'skarm']} — how the camera works, and its status"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
+    chip = `<button type="button" class="campill ${m.klass}${kamOppen ? ' open' : ''}" data-mode="pill" aria-expanded="${kamOppen}" title="${LAGE_NAMN[m.lage === 'bord' ? 'bord' : 'skarm']} — how the camera works, its status, and how to switch mode"><span class="led"></span><span class="ikon">${m.lage === 'bord' ? M_LAGE_BORD : M_LAGE_SKARM}</span><span class="lbl">${esc(m.text)}</span><span class="cv">${M_CV}</span></button>`;
     /* Panelen säger hur länge bordet stått fruset. */
     if (m.fel === 'tappad' && kamOppen) modeT = setTimeout(renderMode, 10000);
   }
@@ -14717,11 +14725,25 @@ $('#menuBtn').onclick = ev => {
      ställen som gör samma sak var precis det som gjorde raden oläslig. */
   const meta = (txt, farg) => `<span style="margin-left:auto;color:${farg || 'var(--dim2)'};font:10px var(--mono)">${txt}</span>`;
   const n = minLekAntal();
+  /* Lägesbytet har en egen rad här (MES-209). Det bodde bara i kamerapanelens
+     segment, och panelen når man bara genom kamerapillret — som dessutom gör
+     något ANNAT när kameran är av (öppnar uppstarten). Den som börjat i
+     Mirror my table och ville tillbaka hade alltså ingen synlig väg mitt i
+     ett spel. Menyn är den vägen: den finns i alla kameralägen, och den står
+     nu där man letar. Samma bytLage som segmentet, så panelen och menyn kan
+     aldrig säga olika saker. */
+  const lg = mittLage();
+  const lagerad = (v, ikon) => `<button data-a="lage-${v}" class="val${lg === v ? ' pa' : ''}" title="${esc(LAGE_TXT[v])}">`
+    + `${ikon}${esc(LAGE_NAMN[v])}<span class="bock">✓</span></button>`;
   menuEl.innerHTML = `
     <div class="hd">${esc((spelLage ? (minSpelare() || player()) : player()).name || 'Active player')}</div>
     <button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
     <button data-a="clearhand" class="danger">Clear my board</button>
     ${spelLage ? `<hr>
+    <div class="hd">Table mode</div>
+    ${lagerad('bord', M_LAGE_BORD)}
+    ${lagerad('skarm', M_LAGE_SKARM)}
+    <hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
     ${prefs.autoLage === true
@@ -14758,6 +14780,10 @@ menuEl.addEventListener('click', ev => {
      auto" satt i popovern, och popovern öppnas inte utan ansluten telefon —
      alltså var den oåtkomlig i exakt det läge där man behövde den. */
   if (a === 'manuell') stangAvAuto(true);
+  /* Lägesbytet mitt i spelet (MES-209) — samma väg som kamerapanelens
+     segment, och den enda som finns när kameran är av. */
+  if (a === 'lage-bord') bytLage('bord');
+  if (a === 'lage-skarm') bytLage('skarm');
   if (a === 'ai') openAI();
   if (a === 'lamna') tillbakaTillHem();
   if (a === 'avsluta') avslutaSpelet();
