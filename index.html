@@ -2306,6 +2306,9 @@ body.lekfoto .lekfoto.lagg.telefon{display:none}
   background:var(--red);box-shadow:0 0 0 3px #ff6b6b22;
 }
 .kamprick.pa{background:var(--green);box-shadow:0 0 0 3px #5fbf7f22}
+/* Inspelningsprovet (MES-190): en röd prick medan telefonen spelar in. */
+.kaminsp{position:fixed;top:calc(env(safe-area-inset-top, 0px) + 12px);right:14px;width:10px;height:10px;border-radius:50%;background:#e2606a;box-shadow:0 0 0 3px #e2606a33;z-index:30;pointer-events:none}
+.kaminsp[hidden]{display:none}
 .kambotten{
   position:relative;z-index:2;margin-top:auto;
   display:flex;flex-direction:column;gap:10px;
@@ -2624,6 +2627,9 @@ body:not(.debug) .dbg{display:none!important}
 .kamskruv .pbknappar .btn{flex:1 1 auto;justify-content:center}
 .kamskruv hr{border:0;border-top:1px solid var(--line);margin:2px 2px 5px;width:100%}
 .kamskruv .btn.danger{justify-content:center;width:100%}
+.pbinsp{border-top:1px solid var(--line);margin:2px 2px 0;padding-top:6px}
+.pbinsp .t{display:block;padding:0 9px 5px;font:600 12px/1.3 var(--sans);color:var(--dim)}
+.pbinspval{flex:1 1 100%;min-width:0;font-size:12px;background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 6px}
 /* I ett spel skapas spelare genom att någon går med, inte med en knapp. */
 body.ispel #addPlayerBtn{display:none}
 
@@ -3179,6 +3185,8 @@ body.ispel #addPlayerBtn{display:none}
   <video id="kamVideo" playsinline muted autoplay></video>
   <canvas id="kamOverlay" class="kamoverlay"></canvas>
   <p class="kammork">The camera is on · tap to see the picture</p>
+  <!-- Inspelningsprovet (MES-190, bara ?debug): syns medan telefonen spelar in. -->
+  <span class="kaminsp dbg" id="kamInsp" hidden title="Recording (MES-190)"></span>
 
   <div class="kamtopp">
     <span class="kamprick" id="kamPrick"></span>
@@ -3833,6 +3841,26 @@ body.ispel #addPlayerBtn{display:none}
         <div class="pbknappar dbg">
           <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
+        </div>
+        <!-- Inspelningsprovet (MES-190): kan telefonen spela in sin kamerabild
+             medan den känner igen kort? Passen styrs härifrån, se InspDator. -->
+        <div class="pbinsp dbg" id="pbInsp">
+          <span class="t">Recording probe · MES-190</span>
+          <div class="pbknappar">
+            <select id="pbInspPass" class="pbinspval">
+              <option value="A">A · Without recording · 10 min</option>
+              <option value="B">B · Recording · 10 min</option>
+              <option value="C">C · Recording, low bitrate · 3 min</option>
+            </select>
+            <button class="btn sm" id="pbInspStart">Start</button>
+            <button class="btn sm ghost" id="pbInspStopp">Stop</button>
+          </div>
+          <p class="pbstatus" id="pbInspStatus">Connect the phone with ?debug open on it, then start a pass.</p>
+          <div class="pbknappar">
+            <select id="pbInspFil" class="pbinspval"><option value="">No recordings loaded</option></select>
+            <button class="btn sm ghost" id="pbInspLista" title="Look for recordings in storage">↻</button>
+            <button class="btn sm ghost" id="pbInspHamta">Download recording + log</button>
+          </div>
         </div>
         <details class="pbavancerat dbg" id="pbAvancerat">
           <summary>Advanced</summary>
@@ -6129,6 +6157,31 @@ const Moln = (() => {
     return data;
   }
 
+  /* Inspelningsprovet (MES-190, bara ?debug): bitarna och loggarna i samma
+     privata hink som avläsningarna, under <uid>/inspelning/<pass>/. Ingen
+     rad i scans-tabellen — datorn ska inte tro att det är en avläsning.
+     Varje namn laddas upp en gång (hinken har ingen update-policy); ett
+     omförsök på en bit som redan kom fram räknas som klart. */
+  async function laddaUppInsp(pass, namn, blob, typ) {
+    const s = await klient(); if (!s || !inloggad()) throw new Error('Not signed in');
+    const up = await s.storage.from('scans').upload(`${minId()}/inspelning/${pass}/${namn}`, blob,
+      { contentType: typ || blob.type || 'application/octet-stream', upsert: false });
+    if (up.error && !/exist|duplicate|409/i.test((up.error.message || '') + ' ' + (up.error.statusCode || ''))) throw up.error;
+  }
+  async function listaInsp(pass) {
+    const s = await klient(); if (!s || !inloggad()) return [];
+    const { data, error } = await s.storage.from('scans')
+      .list(`${minId()}/inspelning${pass ? '/' + pass : ''}`, { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
+    if (error) { console.warn('Inspelningarna kunde inte listas', error.message); return []; }
+    return data || [];
+  }
+  async function hamtaInsp(pass, namn) {
+    const s = await klient(); if (!s || !inloggad()) return null;
+    const { data, error } = await s.storage.from('scans').download(`${minId()}/inspelning/${pass}/${namn}`);
+    if (error) { console.warn('Inspelningen kunde inte hämtas', namn, error.message); return null; }
+    return data;
+  }
+
   /* Tar en avläsning i anspråk. Villkoret sitter i databasen: två datorer
      som frågar samtidigt får bara en rad var, och den som förlorar får
      null tillbaka i stället för att behandla samma bild en gång till. */
@@ -6236,7 +6289,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, lyssna, lamnaKanal, sandKam, sparaMinLek, hamtaMinLek, hamtaLek,
+           avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek, hamtaLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -18401,6 +18454,7 @@ const Kamera = (() => {
   }
 
   let stream = null, video = null, ov = null, ovc = null;
+  let matare = null;           // MES-190: provet bakom ?debug får stegets tid och bildens ljus; null = inget prov
   let anaC = null, anaX = null, AH = 0;
   let ref = null;              // gråskala av tom matta, analysstorlek — medel av REF_RUTOR rutor
   let refSum = null, refFore = null, refDiff = 0, refN = 0;   // under insamlingen av referensen
@@ -20092,12 +20146,19 @@ const Kamera = (() => {
       vidSkala = r.w / AW;
     }
     anaX.drawImage(video, r.x, r.y, r.w, r.h, 0, 0, AW, AH);
-    steg(gr(anaX.getImageData(0, 0, AW, AH).data, AW * AH), nu, AH);
+    const g = gr(anaX.getImageData(0, 0, AW, AH).data, AW * AH);
+    /* Inspelningsprovet (MES-190, bara ?debug): bildens medelljus räknas
+       före steg(), som kan skriva i gråbilden. Utan prov händer ingenting. */
+    let ljus = 0;
+    if (matare) { let sum = 0, n = 0; for (let i = 0; i < g.length; i += 16, n++) sum += g[i]; ljus = n ? sum / n : 0; }
+    steg(g, nu, AH);
     /* Spårrutorna ritas efter varje analyssteg, inte i varje animationsruta
        (MES-164): de ändras bara när steget körts, och 60 omritningar i
        sekunden av samma rutor värmde telefonen. Ett svar från
        identifieringen syns vid nästa steg, inom 150 ms. */
     rita(vb, vh);
+    /* Hela stegets tid — krympningen, steg() och ritningen — till provet. */
+    if (matare) { try { matare(performance.now() - nu, ljus, dia.ms); } catch (e) { /* provet får aldrig stoppa analysen */ } }
   }
 
   /* Ett analyssteg, från gråskalebild till spår. Fristående från videon så
@@ -21208,6 +21269,11 @@ const Kamera = (() => {
            get grund() { return kal.grund; },   // radianer modulo π; null = inte sparat (upp gäller)
            get trosklar() { return Object.assign({}, T); },
            get diagnos() { return Object.assign({}, dia); },
+           /* Inspelningsprovet (MES-190): strömmen att spela in, och kroken som
+              får varje stegs tid. Strömmen lämnas ut som den är — provet ändrar
+              varken upplösning eller takt. */
+           satMatare: f => { matare = typeof f === 'function' ? f : null; },
+           get strom() { return stream; },
            get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; },
            get sigma() { return sigma; } };
 })();
@@ -21802,6 +21868,7 @@ function kamKommando(m) {
   kamDatorSvarade();
   if (m.typ === 'strom') { m.pa ? startaStrom(m.bredd) : stoppaStrom(); return; }
   if (m.typ === 'diagnos') { sandDiagnos(); return; }
+  if (m.typ === 'insp') { if (DEBUG) InspProv.kommando(m); return; }   // inspelningsprovet (MES-190)
   if (m.typ === 'lek') { byggKamPool(); return; }            // leken ändrades på datorn
   if (m.typ === 'nyref') { Kamera.nyReferens(); return; }    // ta om bilden av tom matta
   if (m.typ === 'helbild') { Kamera.helbild(); return; }     // provbordet bad Claude titta på hela bordet
@@ -23198,6 +23265,373 @@ $('#pbHelbild') && ($('#pbHelbild').onclick = () => { Moln.sandKam('helbild'); t
 /* Bilden byter storlek när Avancerat fälls ut; lagret mäts om direkt. */
 $('#pbAvancerat') && $('#pbAvancerat').addEventListener('toggle', () => requestAnimationFrame(ritaPbLager));
 
+/* ═══════════════════════════════════════════════════════════════════
+   INSPELNINGSPROVET (MES-190) — bara ?debug
+
+   Frågan: kan telefonen spela in sin egen kamerabild (MediaRecorder på
+   samma ström som analysen läser) utan att igenkänningen blir sämre, och
+   går filen att få hem? Datorn styr passen från kameradialogens debugrad
+   (InspDator), telefonen mäter, spelar in och laddar upp bitar till
+   scans/<uid>/inspelning/<pass>/ (InspProv). Provet ändrar ingenting i
+   strömmen: upplösning, takt och analys är desamma som i ett vanligt
+   spel. Utan ?debug når inga kommandon hit (kamKommando, kamTogsEmot).
+
+   Passen: A mäter bara (baslinjen), B spelar in med telefonens egen
+   bithastighet, C med en låg — och i C markeras tidsbasen med handen över
+   linsen. Loggarna läses av dev/insp/sammanfatta.cjs och
+   dev/insp/tidsbas.html; hur passen körs står i dev/insp/LÄS-MIG.md.
+   ══════════════════════════════════════════════════════════════════ */
+const INSP_PASS = {
+  A: { namn: 'Without recording', inspela: false, bps: null, max_s: 600 },
+  B: { namn: 'Recording', inspela: true, bps: null, max_s: 600 },
+  C: { namn: 'Recording, low bitrate', inspela: true, bps: 1500000, max_s: 180 }
+};
+const INSP_BIT_MS = 10000;      // en bit var 10:e sekund (MediaRecorder timeslice)
+const INSP_TICK_MS = 5000;      // statistiken samlas och skickas var 5:e sekund
+const inspKvantil = (a, q) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
+const inspVanta = ms => new Promise(r => setTimeout(r, ms));
+const inspFel = e => String((e && (e.name && e.message ? e.name + ': ' + e.message : e.message)) || e);
+function inspSpara(blob, namn) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = namn;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 20000);
+}
+
+/* ── Telefonen ─────────────────────────────────────────────────────── */
+const InspProv = (() => {
+  let P = null;                 // passet som pågår — hela objektet blir logg.json
+  let rec = null, tickT = null, maxT = null, gen = 0;
+  let fonster = null;           // det som samlats sedan förra raden
+  let bas = null, morkNu = false;
+  let bat = null;
+  const ko = [];                // bitar som väntar på uppladdning: { pass, namn, blob, typ, post }
+  let pumpar = false;
+
+  /* Första formatet som stöds. mp4 (H.264) först: det är vad golden-verktygen
+     (video/koda.swift, AVFoundation) läser. null = ingen MediaRecorder alls. */
+  function valjMime() {
+    if (typeof MediaRecorder === 'undefined') return null;
+    for (const t of ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'])
+      try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (e) {}
+    return '';
+  }
+  function installningar() {
+    try {
+      const t = Kamera.strom && Kamera.strom.getVideoTracks()[0], s = t && t.getSettings ? t.getSettings() : {};
+      return { w: s.width || null, h: s.height || null, fps: s.frameRate || null };
+    } catch (e) { return {}; }
+  }
+  function kvalitet(v) {
+    try { const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : null; return q ? { tot: q.totalVideoFrames, tappade: q.droppedVideoFrames } : null; }
+    catch (e) { return null; }
+  }
+  /* Safari har inte getBattery — där läser Jesper procenten själv. */
+  async function batteri() {
+    try { if (bat === null) bat = navigator.getBattery ? await navigator.getBattery() : false; } catch (e) { bat = false; }
+    return bat ? { niva: Math.round(bat.level * 100), laddar: !!bat.charging } : null;
+  }
+  const svara = (gor, id, data) => Moln.sandKam('insp', Object.assign({ gor, id }, data || {}));
+  const nyttFonster = () => { fonster = { t: performance.now(), steg: [], dia: [], ljus: [], rutor: 0, kval: kvalitet($('#kamVideo')) }; };
+
+  /* Kamerans egna rutor, inte analysens: requestVideoFrameCallback räknar
+     varje ruta videoelementet får. Visar om telefonen drar ner takten. */
+  function raknaRutor(v, g) {
+    if (!v.requestVideoFrameCallback) return;
+    const f = () => { if (g !== gen || !P) return; if (fonster) fonster.rutor++; v.requestVideoFrameCallback(f); };
+    v.requestVideoFrameCallback(f);
+  }
+
+  /* Kroken i Kamera-loopen. ms = hela steget (krympning + steg + ritning),
+     diaMs = bara steg(), ljus = bildens medelljus. Handen över linsen ger en
+     ruta som är mycket mörkare än bordet: tidsbasens markering. Tiden är
+     när rutan ritades av, i telefonens klocka. */
+  function matare(ms, ljus, diaMs) {
+    if (!P || !fonster) return;
+    fonster.steg.push(ms); if (diaMs != null) fonster.dia.push(diaMs); fonster.ljus.push(ljus);
+    const t = Date.now() - ms;
+    const mork = bas != null && ljus < 30 && ljus < 0.35 * bas;
+    if (mork && !morkNu) P.morka.push({ start: t, ljus: Math.round(ljus), bas: Math.round(bas) });
+    if (!mork && morkNu) { const s = P.morka[P.morka.length - 1]; if (s) s.slut = t; }
+    morkNu = mork;
+    if (!mork) bas = bas == null ? ljus : bas * 0.95 + ljus * 0.05;
+  }
+
+  async function tick(pass) {
+    /* Under en sekund sedan förra raden (stoppet kom direkt efter en rad):
+       inget att räkna, och en tom rad hade sett ut som en takt på noll. */
+    if (!pass || !fonster || performance.now() - fonster.t < 1000) return;
+    const batNu = await batteri();
+    const f = fonster; nyttFonster();
+    const s = (performance.now() - f.t) / 1000, k = kvalitet($('#kamVideo')), k0 = f.kval;
+    const r1 = x => x == null ? null : Math.round(x * 10) / 10;
+    const rad = {
+      t: Date.now(), s: r1((Date.now() - pass.start) / 1000), fonster_s: r1(s),
+      steg_s: s ? r1(f.steg.length / s) : null,
+      steg_ms: r1(inspKvantil(f.steg, 0.5)), steg_p95: r1(inspKvantil(f.steg, 0.95)),
+      dia_ms: r1(inspKvantil(f.dia, 0.5)),
+      rutor_s: f.rutor && s ? r1(f.rutor / s) : null,
+      kval_s: k && k0 && s ? r1((k.tot - k0.tot) / s) : null,
+      tappade: k && k0 ? k.tappade - k0.tappade : null,
+      ljus: r1(inspKvantil(f.ljus, 0.5)),
+      spa: installningar(), lage: Kamera.lage, spar: (Kamera.spar || []).length,
+      bytes: pass.bytes, delar: pass.delar.length,
+      ko: ko.filter(x => x.pass === pass.id).length,
+      ko_bytes: ko.filter(x => x.pass === pass.id).reduce((a, x) => a + x.blob.size, 0),
+      rec: pass.rec_tillstand ? pass.rec_tillstand() : null,
+      synlig: document.visibilityState, batteri: batNu
+    };
+    pass.tick.push(rad);
+    svara('tick', pass.id, { rad });
+  }
+
+  function koa(pass, blob, typ) {
+    const n = pass.delar.length + 1;
+    const post = { n, bytes: blob.size, t: Date.now(), klar: null, ms: null, forsok: 0, fel: null };
+    pass.delar.push(post); pass.bytes += blob.size;
+    ko.push({ pass: pass.id, namn: String(n).padStart(4, '0') + (/webm/.test(typ || '') ? '.webm' : '.mp4'), blob, typ: (typ || 'video/mp4').split(';')[0], post });
+    pumpa();
+  }
+  /* En bit i taget, i ordning. Går nätet ner växer kön; omförsöken glesas ut
+     till var 30:e sekund, och kön töms när nätet är tillbaka. */
+  async function pumpa() {
+    if (pumpar) return;
+    pumpar = true;
+    while (ko.length) {
+      const x = ko[0], t0 = performance.now();
+      try {
+        await Moln.laddaUppInsp(x.pass, x.namn, x.blob, x.typ);
+        x.post.ms = Math.round(performance.now() - t0); x.post.klar = Date.now(); ko.shift();
+      } catch (e) {
+        x.post.forsok++; x.post.fel = inspFel(e);
+        await inspVanta(Math.min(30000, 2000 * 2 ** Math.min(4, x.post.forsok - 1)));
+      }
+    }
+    pumpar = false;
+  }
+
+  async function start(m) {
+    if (P) await stopp('nytt pass');
+    const def = INSP_PASS[m.typ] || INSP_PASS.A, v = $('#kamVideo');
+    const pass = P = {
+      v: 1, id: m.id, typ: m.typ, def, start: Date.now(), ua: navigator.userAgent,
+      spa: installningar(), upplosning: Kamera.upplosning, mork: $('#vyKamera').classList.contains('mork'),
+      mime: null, mime_valt: null, rec_anrop: null, rec_start: null, rec_stopp: null,
+      fel: [], tick: [], delar: [], morka: [], ping: [], bytes: 0, stoppad: null, orsak: null
+    };
+    bas = null; morkNu = false; gen++;
+    nyttFonster(); raknaRutor(v, gen);
+    Kamera.satMatare(matare);
+    if (def.inspela) {
+      const mime = pass.mime_valt = valjMime();
+      if (mime === null) pass.fel.push({ t: Date.now(), fel: 'MediaRecorder is missing' });
+      else if (!Kamera.strom) pass.fel.push({ t: Date.now(), fel: 'No camera stream' });
+      else {
+        try {
+          const o = {}; if (mime) o.mimeType = mime; if (def.bps) o.videoBitsPerSecond = def.bps;
+          const r = rec = new MediaRecorder(Kamera.strom, o);
+          pass.rec_tillstand = () => r.state;
+          r.onstart = () => { pass.rec_start = Date.now(); pass.mime = r.mimeType || mime || null; };
+          r.ondataavailable = e => { if (e.data && e.data.size) koa(pass, e.data, r.mimeType || mime); };
+          r.onerror = e => pass.fel.push({ t: Date.now(), fel: inspFel(e && e.error || e) });
+          pass.rec_anrop = Date.now();
+          r.start(INSP_BIT_MS);
+          pass.mime = r.mimeType || mime || null;
+        } catch (e) { pass.fel.push({ t: Date.now(), fel: inspFel(e) }); rec = null; }
+      }
+    }
+    $('#kamInsp').hidden = !rec;
+    tickT = setInterval(() => tick(pass), INSP_TICK_MS);
+    maxT = setTimeout(() => stopp('tiden'), def.max_s * 1000);
+    svara('startad', pass.id, { typ: pass.typ, mime: pass.mime, spa: pass.spa, fel: pass.fel, ua: pass.ua, bat: await batteri() });
+  }
+
+  async function stopp(orsak) {
+    const pass = P;
+    if (!pass || pass.stoppad) return;
+    pass.stoppad = Date.now(); pass.orsak = orsak || 'datorn';
+    clearInterval(tickT); clearTimeout(maxT); tickT = maxT = null;
+    await tick(pass);                                   // det sista fönstret
+    Kamera.satMatare(null);
+    const r = rec; rec = null; $('#kamInsp').hidden = true;
+    if (r && r.state !== 'inactive') {
+      /* Sista biten kommer i dataavailable före stop. */
+      await new Promise(res => {
+        const t = setTimeout(res, 8000);
+        r.addEventListener('stop', () => { clearTimeout(t); res(); }, { once: true });
+        try { r.stop(); } catch (e) { clearTimeout(t); res(); }
+      });
+    }
+    pass.rec_stopp = Date.now();
+    delete pass.rec_tillstand;
+    P = null; fonster = null; gen++;
+    svara('laddar', pass.id, { ko: ko.filter(x => x.pass === pass.id).length });
+    const t0 = Date.now();
+    while (ko.some(x => x.pass === pass.id) && Date.now() - t0 < 180000) await inspVanta(500);
+    pass.kvar_i_ko = ko.filter(x => x.pass === pass.id).length;
+    let logg = false;
+    try { await Moln.laddaUppInsp(pass.id, 'logg.json', new Blob([JSON.stringify(pass)], { type: 'application/json' }), 'application/json'); logg = true; }
+    catch (e) { pass.fel.push({ t: Date.now(), fel: 'logg.json: ' + inspFel(e) }); }
+    svara('klar', pass.id, { delar: pass.delar.length, bytes: pass.bytes, kvar: pass.kvar_i_ko, logg, fel: pass.fel });
+  }
+
+  function kommando(m) {
+    if (m.gor === 'start') start(m).catch(e => svara('fel', m.id, { fel: inspFel(e) }));
+    else if (m.gor === 'stopp') stopp('datorn');
+    else if (m.gor === 'ping') {
+      const tTel = Date.now();
+      if (P) P.ping.push({ t0: m.t0, tTel });
+      svara('pong', m.id, { t0: m.t0, tTel });
+    }
+  }
+  return { kommando, get pa() { return !!P; } };
+})();
+
+/* ── Datorn ────────────────────────────────────────────────────────── */
+const InspDator = (() => {
+  let D = null;                 // passet: blir dator.json bredvid telefonens logg
+  let pingT = null, stoppT = null, visT = null;
+  const tid = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function passId(typ) {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `insp-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}-${typ}`;
+  }
+  const status = txt => { const el = $('#pbInspStatus'); if (el) el.textContent = txt; };
+  /* Klockornas förskjutning (telefon − dator) ur pingen med kortast tur och
+     retur: felet är högst halva den tiden. */
+  function bastaPing() {
+    const p = D ? D.ping.filter(x => x.tTel != null) : [];
+    return p.length ? p.reduce((a, x) => x.rtt < a.rtt ? x : a) : null;
+  }
+  function visa() {
+    if (!D) return;
+    const def = INSP_PASS[D.typ], r = D.tick[D.tick.length - 1], b = bastaPing(), d = [];
+    d.push(D.klar ? `${D.typ} · done` : D.stoppad ? `${D.typ} · stopping, uploading the rest…` : `${D.typ} · ${tid((Date.now() - D.startMs) / 1000)} / ${tid(def.max_s)}`);
+    if (!D.startad && !D.stoppad) d.push(Date.now() - D.startMs > 6000 ? 'no answer from the phone — open Mesa with ?debug on the phone and connect it again' : 'waiting for the phone…');
+    const fel = [].concat((D.startad && D.startad.fel) || [], (D.klar && D.klar.fel) || []);
+    if (fel.length) d.push('error: ' + [...new Set(fel.map(f => f.fel))].join(', '));
+    if (r) {
+      d.push(`${r.steg_s} steps/s`, `step ${r.steg_ms} ms (p95 ${r.steg_p95})`);
+      /* Avkodade rutor (getVideoPlaybackQuality) i första hand: requestVideoFrameCallback
+         stryps när videon inte syns, och den mörka skärmen krymper videon till en prick. */
+      const fps = r.kval_s != null ? r.kval_s : r.rutor_s;
+      if (fps != null) d.push(`${fps} fps`);
+      if (def.inspela) d.push(`${(r.bytes / 1e6).toFixed(1)} MB`, `parts ${r.delar}, queue ${r.ko}`);
+      if (r.batteri) d.push(`battery ${r.batteri.niva} %`);
+    }
+    if (D.klar) d.push(`${D.klar.delar} parts, ${(D.klar.bytes / 1e6).toFixed(1)} MB` + (D.klar.kvar ? `, ${D.klar.kvar} NOT uploaded` : '') + (D.klar.logg ? '' : ', log not uploaded'));
+    if (b) d.push(`clock ${b.off >= 0 ? '+' : ''}${Math.round(b.off)} ms ±${Math.round(b.rtt / 2)}`);
+    if (D.startad && D.startad.mime) d.push(D.startad.mime);
+    status(d.join(' · '));
+  }
+  function ping() {
+    if (!D || D.stoppad) return;
+    const t0 = Date.now();
+    D.ping.push({ t0 });
+    Moln.sandKam('insp', { gor: 'ping', id: D.id, t0 });
+  }
+  async function sparaDator(pass) {
+    try { await Moln.laddaUppInsp(pass.id, 'dator.json', new Blob([JSON.stringify(pass)], { type: 'application/json' }), 'application/json'); pass.sparad = true; }
+    catch (e) { console.warn('dator.json kunde inte laddas upp', inspFel(e)); }
+  }
+
+  function start() {
+    if (D && !D.klar && !D.stoppad) { toast('A pass is already running. Stop it first.', 'err'); return; }
+    const typ = ($('#pbInspPass') || {}).value || 'A', def = INSP_PASS[typ];
+    const pass = { v: 1, id: passId(typ), typ, start: new Date().toISOString(), startMs: Date.now(), spel: spelLage && spelLage.kod,
+                   ua: navigator.userAgent, ping: [], tick: [], startad: null, stoppad: null, klar: null };
+    if (!Moln.sandKam('insp', { gor: 'start', id: pass.id, typ })) { toast('No connection to the phone', 'err'); return; }
+    D = pass;
+    clearInterval(pingT); clearInterval(visT); clearTimeout(stoppT);
+    for (let i = 1; i <= 5; i++) setTimeout(ping, i * 1000);    // tätt i början: en bra ping direkt
+    pingT = setInterval(ping, 10000);
+    visT = setInterval(visa, 1000);
+    stoppT = setTimeout(() => stopp('tiden'), (def.max_s + 5) * 1000);   // telefonen stoppar själv; det här är reserven
+    visa();
+  }
+  function stopp(orsak) {
+    if (!D || D.stoppad) return;
+    D.stoppad = Date.now(); D.orsak = orsak || 'knappen';
+    clearInterval(pingT); clearTimeout(stoppT);
+    Moln.sandKam('insp', { gor: 'stopp', id: D.id });
+    /* Kommer inget klart från telefonen sparas datorns logg ändå. */
+    const pass = D;
+    setTimeout(() => { if (!pass.klar && !pass.sparad) { sparaDator(pass); clearInterval(visT); visa(); } }, 240000);
+    visa();
+  }
+
+  function tagEmot(m) {
+    if (m.gor === 'pong') {
+      const p = D && D.ping.find(x => x.t0 === m.t0 && x.tTel == null);
+      if (p) { p.t1 = Date.now(); p.tTel = m.tTel; p.rtt = p.t1 - p.t0; p.off = m.tTel - (p.t0 + p.t1) / 2; }
+      return;
+    }
+    if (!D || m.id !== D.id) return;
+    if (m.gor === 'startad') D.startad = { t: Date.now(), mime: m.mime, spa: m.spa, fel: m.fel, ua: m.ua, bat: m.bat };
+    else if (m.gor === 'tick' && m.rad) {
+      /* Kontrollen med kort: hur många kort mattan har när raden kommer. */
+      const kort = (minSpelare() || { cards: [] }).cards || [];
+      D.tick.push(Object.assign({ mottagen: Date.now(), kort: kort.length }, m.rad));
+    }
+    else if (m.gor === 'laddar') D.laddar = m.ko;
+    else if (m.gor === 'fel') D.fel = m.fel;
+    else if (m.gor === 'klar') {
+      D.klar = { t: Date.now(), delar: m.delar, bytes: m.bytes, kvar: m.kvar, logg: m.logg, fel: m.fel };
+      if (!D.stoppad) { D.stoppad = Date.now(); D.orsak = 'telefonen'; clearInterval(pingT); clearTimeout(stoppT); }
+      clearInterval(visT);
+      sparaDator(D).then(() => lista(D.id));
+      toast(`Pass ${D.typ} is done — ${m.delar} parts uploaded`);
+    }
+    visa();
+  }
+
+  async function lista(valj) {
+    const sel = $('#pbInspFil'); if (!sel) return;
+    const rader = await Moln.listaInsp();
+    const id = rader.map(r => r.name).filter(n => /^insp-/.test(n)).sort().reverse();
+    sel.innerHTML = id.length ? id.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') : '<option value="">No recordings yet</option>';
+    if (valj && id.includes(valj)) sel.value = valj;
+  }
+
+  /* Bitarna i ordning, ihopsatta till en fil, och båda loggarna i en. En
+     mp4 i bitar är fragmenterad mp4: första biten bär huvudet, och de följer
+     efter varandra som de spelades in. */
+  async function hamta() {
+    let id = ($('#pbInspFil') || {}).value;
+    if (!id) { await lista(); id = ($('#pbInspFil') || {}).value; }
+    if (!id) { toast('No recordings in storage yet', 'err'); return; }
+    status(`Fetching ${id}…`);
+    const filer = await Moln.listaInsp(id), namn = filer.map(f => f.name);
+    const delar = namn.filter(n => /^\d{4}\.(mp4|webm)$/.test(n)).sort();
+    const blobs = [];
+    for (const n of delar) {
+      const b = await Moln.hamtaInsp(id, n);
+      if (!b) { toast(`Part ${n} could not be fetched`, 'err'); return; }
+      blobs.push(b);
+      status(`Fetching ${id}… ${blobs.length}/${delar.length}`);
+    }
+    const logg = { id, delar: delar.length, hamtad: new Date().toISOString() };
+    for (const [fil, nyckel] of [['logg.json', 'telefon'], ['dator.json', 'dator']]) {
+      if (!namn.includes(fil)) continue;
+      const b = await Moln.hamtaInsp(id, fil);
+      try { if (b) logg[nyckel] = JSON.parse(await b.text()); } catch (e) {}
+    }
+    if (!logg.dator && D && D.id === id) logg.dator = D;
+    if (blobs.length) {
+      const webm = /webm$/.test(delar[0]);
+      inspSpara(new Blob(blobs, { type: webm ? 'video/webm' : 'video/mp4' }), `${id}.${webm ? 'webm' : 'mp4'}`);
+    }
+    inspSpara(new Blob([JSON.stringify(logg)], { type: 'application/json' }), `${id}-logg.json`);
+    status(`${id}: ${delar.length} parts, ${(blobs.reduce((a, b) => a + b.size, 0) / 1e6).toFixed(1)} MB` + (logg.telefon ? '' : ' · the phone log is missing'));
+  }
+
+  return { start, stopp, tagEmot, lista, hamta, get pass() { return D; } };
+})();
+$('#pbInspStart') && ($('#pbInspStart').onclick = () => InspDator.start());
+$('#pbInspStopp') && ($('#pbInspStopp').onclick = () => InspDator.stopp('knappen'));
+$('#pbInspLista') && ($('#pbInspLista').onclick = () => InspDator.lista());
+$('#pbInspHamta') && ($('#pbInspHamta').onclick = () => InspDator.hamta().catch(e => toast('The recording could not be fetched: ' + inspFel(e), 'err')));
+
 /* ── provbordet på datorn ────────────────────────────────────────────
    Trösklarna går inte att gissa rätt på från en kodfil: de beror på din
    matta, ditt ljus och din telefon. Här ser man vad kameran ser och skruvar
@@ -23643,6 +24077,7 @@ function kamTogsEmot(m) {
   if (m.typ === 'grund') return tagEmotGrundSvar(m);
   if (m.typ === 'bok') return tagEmotSenBok(m);
   if (m.typ === 'diagnos') return tagEmotDiagnos(m);
+  if (m.typ === 'insp') { if (DEBUG) InspDator.tagEmot(m); return; }   // inspelningsprovet (MES-190)
   if (m.typ === 'trosklar') {
     pbTro = m.v || pbTro;
     /* Inte ritaPbReglage(): telefonen ekar varje reglageändring, och en
