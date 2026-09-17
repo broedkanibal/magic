@@ -17733,7 +17733,27 @@ const Kamera = (() => {
   let spar = [];               // de kort som ligger på mattan just nu
   let spoken = [];             // nyss borttagna spår som minns var de låg
   let nastaId = 1;
-  let identifierar = false;
+  /* Läsningar som pågår (MES-214). Förut ett lås: EN läsning i taget, och
+     nästa kort väntade tills förra kortets titelrad var läst — 70–290 ms per
+     remsläge i workern, upp till sex lägen, dubbelt för ett vänt kort. Det
+     som faktiskt är seriellt är huvudtrådens del (ram, beskärning, Matcher +
+     ORB — synkront, en i taget av sig självt) och workern, som tar sina jobb
+     i tur och ordning. Därför: högst EN ny läsning startas per analyssteg,
+     så att ett steg aldrig bär mer än en matchning, men den behöver inte
+     vänta på att den förra svarat. LAS_SAMTIDIGT är taket för hur många
+     remsor som får stå i kö hos workern. t.laser märker spåret som läses. */
+  let lasande = 0;
+  const LAS_SAMTIDIGT = 3;
+  /* …och bara spår med ETT KORTS MÅTT läses bredvid ett annat: lång- och
+     kortsida inom en fjärdedel av kortreferensen (dia.kortRef, medianen av
+     de säkert namngivna spåren). Allt annat — klumpar, och allt innan det
+     första säkra kortet gett en referens — läses ett i taget som förut.
+     Uppmätt i golden 06: med fri samtidighet lästes klumpen Venomous
+     Hierophant + grannen (73×116) vid 0,9 s, innan detektorn hunnit skära
+     den (det gör den först när kortreferensen finns), blev 'okand' och
+     skars aldrig: 9 → 8 namn, 0 → 1 falska. Låset hade gett den tiden. */
+  const kortlik = t => { const r = dia.kortRef; return !!r && Math.abs(t.lang - r.lang) <= 0.25 * r.lang && Math.abs(t.kort - r.kort) <= 0.25 * r.kort; };
+  const farLasas = t => lasande === 0 || (lasande < LAS_SAMTIDIGT && kortlik(t));
   let brusRader = 0, brusLugna = 0;   // styrslingan för tröskeln (mönstergrenen)
   let utsRader = 0, utsLugna = 0, brusGolv = 0;   // …och för avvikelsen (modellgrenen): golvet den höjer när bruset spritter
   const cb = {};               // { status, bord, identifiera, fragaAI, helbild }
@@ -19579,6 +19599,7 @@ const Kamera = (() => {
        granskningen: efter PROVA_MS gäller den lokala domen. */
     for (const t of spar) if (t.provas && nu - (t.aiFragadNar || 0) > PROVA_MS) t.provas = false;
     /* Stilla länge nog och ännu utan namn → identifiera, ett i taget. */
+    let startad = false;   // högst en ny läsning per steg
     for (const t of spar) {
       if (t.tillstand === 'ny' && nu - t.stillaFran >= T.stillaMs) t.tillstand = 'stilla';
       /* Ett kort som fick sitt namn tidigt (spekulera) har nu vilat i
@@ -19589,13 +19610,13 @@ const Kamera = (() => {
          knuff på 0,13 kortbredder åtta sekunder senare räknades som 0,19. */
       if (t.spekTidig && nu - t.stillaFran >= T.stillaMs) { t.spekTidig = false; if (t.tillstand === 'klar' && t.regionNar === nu) { t.ram = finLada(t.box, senasteG0, t); sattVila(t, t.areaNu); } }
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && t.spek && t.spek.svar && bekraftaSpek(t)) continue;
-      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !(t.igen > nu) && !identifierar) { identifiera(t, nu); break; }
+      if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !t.laser && !(t.igen > nu) && farLasas(t)) { identifiera(t, nu); startad = true; break; }
     }
     /* …och är ingen stilla att läsa: ett spår som ännu väntar men har stått
        formstilla läses tidigt (K4). De stillas läsning går alltid först. */
-    if (!identifierar) {
-      const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.spek && (q.formN || 0) >= SPEK_RUTOR
-                               && (q.spekN || 0) < SPEK_MAX && !(q.igen > nu) && !arHelbild(q));
+    if (!startad && !spar.some(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.laser && !(q.igen > nu))) {
+      const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.spek && !q.laser && (q.formN || 0) >= SPEK_RUTOR
+                               && (q.spekN || 0) < SPEK_MAX && !(q.igen > nu) && !arHelbild(q) && farLasas(q));
       if (t) spekulera(t, nu);
     }
     planeraHelbild(nu, g);
@@ -20069,7 +20090,7 @@ const Kamera = (() => {
      det gällde inte här förut: bästa gissningen lades ut som om den vore
      sann. Ett spökes gamla namn lyfts fram bland förslagen om det finns där. */
   async function identifiera(t, nu) {
-    identifierar = true;
+    lasande++; t.laser = true;
     let svar = null, fel = false, c = null;
     /* Tiden den lokala kedjan tar — ramen, beskärningen, Matcher + ORB och
        namnläsaren — summerad över omförsöken (inte redo, skräp-omtag), så
@@ -20085,7 +20106,7 @@ const Kamera = (() => {
       const b = video ? beskar(t) : null; c = b && b.bild;
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
     } catch (e) { fel = true; }
-    finally { identifierar = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
+    finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
     /* null betyder "inte redo än" — leken byggs fortfarande. Spåret väntar
        en och en halv sekund och frågar igen; inte varje ruta, för varje
        fråga är en beskärning ur videon. Ett kastat fel är ett "vet inte":
@@ -20152,7 +20173,7 @@ const Kamera = (() => {
      Claude: kamIdentifiera får spek, och ett osäkert svar kastas. Rör sig
      spåret under läsningen (matcha nollar spek) gäller svaret ingenting. */
   async function spekulera(t, nu) {
-    identifierar = true;
+    lasande++; t.laser = true;
     t.spekN = (t.spekN || 0) + 1;
     const vantar = { vantar: true };
     t.spek = vantar;
@@ -20174,7 +20195,7 @@ const Kamera = (() => {
          spåret legat stilla i stillaMs (spekTidig, se steg). */
       if (t.spek.svar && bekraftaSpek(t)) { t.spekTidig = true; rapportera(); }
     } catch (e) { if (t.spek === vantar) t.spek = { miss: true }; }
-    finally { identifierar = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
+    finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
   }
   /* Kortet flyttades: spåret t har just fått ett SÄKERT namn, och ett annat
      klart spår med samma namn står utan region över matta som ser tom ut
@@ -20349,7 +20370,7 @@ const Kamera = (() => {
     if (egna.length && !(yta && yta.dom !== 'lugn')) { helbildSedan = 0; return; }
     /* Beskärningens fråga till servern räknas som obesvarad i PROVA_MS: ett
        svar som aldrig kommer (nätet) får inte hålla helbilden borta. */
-    const svarade = !identifierar && egna.every(t => (t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand') && !(t.aiFragad && !t.ai && nu - (t.aiFragadNar || 0) < PROVA_MS));
+    const svarade = lasande === 0 && egna.every(t => (t.fragad || t.tillstand === 'klar' || t.tillstand === 'okand') && !(t.aiFragad && !t.ai && nu - (t.aiFragadNar || 0) < PROVA_MS));
     const nytt = egenSignatur() !== helbildSig || !helbildBild || andelOver(g, helbildBild, T.utseende) > HELBILD_ANDRAD;
     if (!svarade || !nytt || ror > HELBILD_ROR) { helbildSedan = 0; return; }
     if (!helbildSedan) { helbildSedan = nu; return; }
