@@ -14306,8 +14306,21 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function angraSenaste() {
     const om = y.angra.pop(); if (!om) return false;
     if (snackOm === om) doljSnack();
-    andra(om, { utanAngra: true });
+    medAngring(om, () => andra(om, { utanAngra: true }));
     return true;
+  }
+  /* Ett ångrande ska synas lika tydligt som det man ångrar (MES-203): kort
+     som kommer tillbaka växer fram på sin plats, kort som försvinner (⌘Z på
+     ett kort man nyss lade till) krymper bort som vid Remove, och resten
+     glider undan. Vilka de är räknas ur ändringen innan den görs — kopiorna
+     av korten som ska bort måste finnas innan ytan ritas om. */
+  function medAngring(ops, fn) {
+    const fore = nu(), efter = lekSlagTillampa(fore, ops);
+    const fk = new Set(fore.kort.map(k => nyckel(k.name, k.sb)));
+    const ek = new Set(efter.kort.map(k => nyckel(k.name, k.sb)));
+    const bort = [...fk].filter(k => !ek.has(k));
+    const ater = efter.kort.filter(k => !fk.has(nyckel(k.name, k.sb))).map(k => ({ name: k.name, sb: !!k.sb }));
+    medAnimering(bort, fn, null, ater);
   }
   /* Remove all: ett steg, som ⌘Z (eller notisens Undo) lägger tillbaka. */
   function tomma() {
@@ -14340,7 +14353,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       if (s !== y.session) return;
       const i = y.angra.lastIndexOf(om); if (i < 0) return;
       y.angra.splice(i, 1);
-      andra(om, { utanAngra: true });
+      medAngring(om, () => andra(om, { utanAngra: true }));
     };
     snackEl.style.left = (r.left + 32) + 'px';
     snackEl.style.bottom = Math.max(12, innerHeight - r.bottom + 26) + 'px';
@@ -14799,11 +14812,14 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      `bort`) krymper och tonar bort som kopior ovanpå sidan, och korten som
      står kvar glider från sin gamla plats till sin nya (FLIP) — också när
      To check-raden ovanför försvinner. `efter` får mäta de nya platserna
-     innan glidningen börjar. Inget av det när systemet ber om mindre rörelse. */
+     innan glidningen börjar. Korten i `ater` är de som kommer tillbaka (ett
+     ångrande): de växer fram på sin plats, spegelbilden av krympningen.
+     Inget av det när systemet ber om mindre rörelse. */
   const pwNyckel = el => nyckel(el.dataset.lsKort, el.dataset.sb === '1');
-  function medAnimering(bort, fn, efter) {
+  const pwFor = (name, sb) => yta.querySelector(`.lspw[data-ls-kort="${CSS.escape(name)}"][data-sb="${sb ? 1 : 0}"]`);
+  function medAnimering(bort, fn, efter, ater) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); if (efter) efter(); return; }
-    const borta = new Set(bort), fore = new Map(), kopior = [], yr = yta.getBoundingClientRect();
+    const borta = new Set(bort), fore = new Map(), kopior = [], yr = yta.getBoundingClientRect(), skroll = yta.scrollTop;
     for (const el of yta.querySelectorAll('.lspw')) {
       const r = el.getBoundingClientRect(), key = pwNyckel(el);
       fore.set(key, r);
@@ -14819,11 +14835,15 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     }
     fn();
     if (efter) efter();
-    for (const el of yta.querySelectorAll('.lspw')) {
-      const f = fore.get(pwNyckel(el)); if (!f) continue;
-      const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - r.top;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
-      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    /* Kommer ett enda kort tillbaka ska man se var: platsen rullas fram, som
+       när ett inskrivet kort landar. En hel Remove all som ångras rullar
+       ingenstans — där kommer allt tillbaka på en gång. */
+    const tillbaka = (ater || []).map(a => pwFor(a.name, a.sb)).filter(Boolean);
+    if (tillbaka.length === 1) rullaFram(tillbaka[0]);
+    glid(fore, yta.scrollTop - skroll);
+    for (const el of tillbaka) {
+      el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.55)' }, { opacity: 1, transform: 'none' }],
+                 { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1.06)' });
     }
     for (const k of kopior) {
       k.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'translateY(10px) scale(.55)' }],
@@ -14831,6 +14851,25 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       /* En flik i bakgrunden spelar inga animeringar: kopian får inte bli kvar. */
       setTimeout(() => k.remove(), 900);
     }
+  }
+  /* FLIP: korten som står kvar glider från sin gamla plats till sin nya.
+     `ds` är hur mycket ytan rullat under tiden — annars hade alla kort glidit
+     lika långt när en plats rullades fram (eller när ytan krympte så mycket
+     att rullningen slog i botten). */
+  function glid(fore, ds) {
+    for (const el of yta.querySelectorAll('.lspw')) {
+      const f = fore.get(pwNyckel(el)); if (!f) continue;
+      const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - ds - r.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    }
+  }
+  /* Hela kortet ska synas, namnet under det med: rullningen räknas på kortets
+     ruta, inte på bilden. */
+  function rullaFram(mal) {
+    const r = (mal.closest('.lspw') || mal).getBoundingClientRect(), yr = yta.getBoundingClientRect();
+    if (r.top < yr.top + 12) yta.scrollTop -= yr.top + 12 - r.top;
+    else if (r.bottom > yr.bottom - 12) yta.scrollTop += r.bottom - (yr.bottom - 12);
   }
   /* Ett kort man skriver in ska synas landa (MES-201). Kortet flyger från
      förslagets miniatyr till sin plats i kortytan, korten som flyttar på sig
@@ -14845,20 +14884,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const fanns = fore.has(key);
     fn();
     const mal = tillaggsMal(name, sb);
-    if (mal) {
-      /* Hela kortet ska synas, namnet under det med: rullningen räknas på
-         kortets ruta, inte på bilden. */
-      const r = (mal.closest('.lspw') || mal).getBoundingClientRect(), yr = yta.getBoundingClientRect();
-      if (r.top < yr.top + 12) yta.scrollTop -= yr.top + 12 - r.top;
-      else if (r.bottom > yr.bottom - 12) yta.scrollTop += r.bottom - (yr.bottom - 12);
-    }
-    const ds = yta.scrollTop - skroll;
-    for (const el of yta.querySelectorAll('.lspw')) {
-      const f = fore.get(pwNyckel(el)); if (!f) continue;
-      const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - ds - r.top;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
-      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.3,1)' });
-    }
+    if (mal) rullaFram(mal);
+    glid(fore, yta.scrollTop - skroll);
     if (mal) flygTill(mal, kalla, !fanns);
   }
   /* Kortets plats: högen, eller basmarkens ruta — basmarkerna ligger i sin
