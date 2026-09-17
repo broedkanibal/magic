@@ -17591,7 +17591,7 @@ const Kamera = (() => {
     fyllnad: 0.72,  // hur mycket av sin vridna låda regionen ska fylla
     stillaPx: 1.6,  // rörelse i analyspixlar per ruta som räknas som stilla
     stillaMs: 800,  // hur länge ett kort ska ligga stilla innan det identifieras — 500 provat i golden 07 (2026-09-11): sämre, 3 → 2 namn, 1 → 3 falska, fördröjningen 1,8 → 2 s
-    bortaMs: 700,   // hur länge mattan UNDER ett spår ska ha sett tom ut innan kortet räknas som lyft
+    bortaMs: 450,   // hur länge mattan UNDER ett spår ska ha sett tom ut innan kortet räknas som lyft
     tomMin: 0.3,    // maskandel i rutan, i andel av kortets area, under vilken mattan räknas som tom
     skymdMin: 0.6,  // …över vilken något ligger över kortet: en hand, en arm, ett annat kort
     areaVaxt: 1.6,  // en träff så här mycket större än spåret är inte kortet
@@ -21278,15 +21278,36 @@ const FLIK_ID = (() => {
    Telefonen skickar HELA det den ser, inte händelser. Här jämförs det med
    mitt bord: varje kort som kameran följer bär sitt spår-id. Syns spåret är
    kortet kvar och tappat som kameran säger. Syns det inte längre får kortet
-   tre sekunders nåd — man lyfter kort för att läsa dem — och tonas sedan ned
-   PÅ SIN PLATS. Det lämnar aldrig bordet av sig självt.
+   en kort nåd (BORTA_NAD) och tonas sedan ned PÅ SIN PLATS. Det lämnar aldrig bordet av sig självt.
 
    Så var det inte förut: kortet flyttades till en remsa "Lyft från mattan"
    och togs ur bordet i samma stund. Medspelarna såg det försvinna innan man
    hunnit svara, en omladdning tappade remsan helt, och när auto stängdes av
    fylldes den av kort som aldrig lyfts (MES-22). Kameran får LÄGGA TILL kort
    och vrida dem; att ta bort ett kort är alltid människans beslut. */
-const BORTA_NAD = 3000;
+/* Nåden var tre sekunder till 2026-09-18 (MES-214), och ett lyft kort tonades
+   ned ~3,7 s efter att det lämnat bordet. Vad den skyddade mot, mätt med
+   dev/dubbletter.cjs --nad på golden-videornas rapporter:
+     - en hand över kortet: nej — det sköter telefonen. Ett skymt spår står
+       kvar hur länge som helst, och försvinner först när mattan UNDER det
+       sett tom ut i bortaMs. Försvinner spåret är frånvaron redan bevisad.
+     - spårbyten (kortet flyttas med handen över sig, eller tappas runt ett
+       hörn: det gamla spåret dör, ett nytt föds): sedan slappFlyttat släpps
+       det gamla spåret i samma rapport som det nya får sitt namn. I golden
+       12 var glappet förut 0,3 s.
+     - högvakten (MES-85): ett kort som läggs på graveyard-högen hann förut
+       oftast flyga dit utan att först tonas ned. Med kort nåd tonas det
+       ned och flyger sedan (efterskottet nedan) — samma slut.
+   Med nåd 400 ms: 0 nedtoningar som togs tillbaka i 07/09/10/11/12, och
+   nedtoningen +1,2–2,65 s efter facits tid i stället för +4–5,25 s. 600 ger
+   marginal över det uppmätta glappet. Att läsa ett kort och lägga tillbaka
+   det tonar nu ned det medan det är i handen, och tänder det när det ligger
+   igen — det lämnar fortfarande aldrig bordet av sig självt. */
+const BORTA_NAD = 600;
+/* "På en gång": tre eller fler kort som försvinner inom det här fönstret är
+   snarare telefonen som flyttats än korten (MES-103), och de får bannern i
+   stället för var sin fråga. Var BORTA_NAD så länge nåden var tre sekunder. */
+const SAMTIDIGT_MS = 3000;
 let lyftT = null;
 /* Spår som inte får skapa något: granskningar man hoppat över, och kort man
    själv tagit bort medan de låg kvar på mattan. Utan minnet stod kortet i
@@ -22326,7 +22347,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (!mina.length) return false;
     const grannar = mig.cards.filter(c => c === k || (paBordet(c) && (c.borta || c.lyft != null) && gravTid.has(c.cid) && Math.abs(gravTid.get(c.cid) - tid) <= GRAV_FORE + GRAV_EFTER));
     if (grannar.length > mina.length) return false;
-    if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < BORTA_NAD).length >= 3) return false;
+    if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < SAMTIDIGT_MS).length >= 3) return false;
     mina[0].tagen = true;
     k.zon = ZON_GRAV; delete k.attachedTo; k.gravAuto = nu; gravTid.delete(k.cid);
     /* En aura följer sin värd, som i flyttaTill. */
@@ -22461,7 +22482,7 @@ function renderLyftBanner() {
   /* Under tre saknade svarar korten själva (chippet + arket). Under en
      granskning en och en står arket för knapparna. */
   if (lyfta.length < 3 || (ark && ark.lista)) { el.hidden = true; el.innerHTML = ''; el.dataset.h = ''; return; }
-  const t = lyfta.map(c => c.lyft), samtidigt = Math.max(...t) - Math.min(...t) < BORTA_NAD;
+  const t = lyfta.map(c => c.lyft), samtidigt = Math.max(...t) - Math.min(...t) < SAMTIDIGT_MS;
   const html = `<span>${samtidigt
       ? `The camera lost <b>${lyfta.length} cards</b> at once.`
       : `The camera can't see <b>${lyfta.length} cards</b>.`} Nothing is removed until you choose.</span>
@@ -22989,7 +23010,7 @@ $('#pbInspHamta') && ($('#pbInspHamta').onclick = () => InspDator.hamta().catch(
    matta, ditt ljus och din telefon. Här ser man vad kameran ser och skruvar
    medan den går. Det som fungerar sparas i webbläsaren och skickas till
    telefonen varje gång den ansluter. */
-const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 700,
+const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 450,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 };
 const PB_REG = [
   ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],

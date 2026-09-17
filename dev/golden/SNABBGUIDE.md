@@ -309,6 +309,7 @@ blir.
 | `node dev/dubbletter.cjs --fall 07` | videofallet 07, mot facit (`video.handelser`) |
 | `node dev/dubbletter.cjs --logg ~/Downloads/pass-2026-09-11-1002.json` | **ett riktigt pass**, utan facit: loggen sparas i appen med knappen *Spara bordsloggen* i sammanfattningen som visas när auto stängs av (allt telefonen sa under passet, från det att auto slogs på) |
 | `node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn` | en inspelad rapportlista ur bänken, utan facit |
+| `node dev/dubbletter.cjs --fall 11 --nad 400` | samma uppspelning med en annan nådatid på datorn (förval: appens `BORTA_NAD`). Raden *nedtoningar* skriver varje gång ett kort tonades ned, kom tillbaka eller gick till graveyard, med tiden efter facits `tar_bort` — en nedtoning som "togs tillbaka" utan att kortet spelades ut igen är priset för en för kort nåd (MES-214) |
 | `… --json fil` | allt som mättes, som JSON |
 
 Facit bär inte tap-läge i ett videofall; korten ligger otappade, så varje

@@ -35,7 +35,7 @@ const cropCache = new Map();
 const prefs = { lyftForklarad: true }; const savePrefs = () => {};
 const save = () => {}, renderAll = () => {}, renderGrid = () => {}, resolveAll = () => {}, renderMode = () => {}, uppdateraPbStatus = () => {}, kamSkruvTal = () => {};
 let kamFas = '', kamYta = null, kamRad = '', kamTot = 0, kamLast = 0, kamSer = 0;
-const BORTA_NAD = 3000; let lyftT = null, lyftTips = null;
+const BORTA_NAD = 3000, SAMTIDIGT_MS = 3000; let lyftT = null, lyftTips = null;   // proven är skrivna mot tre sekunders nåd (klocka.t += 3100); appens värde står i index.html
 let hoppade = new Set(), borttagna = new Set();
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 function glomSpar() {}
