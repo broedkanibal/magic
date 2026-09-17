@@ -201,6 +201,13 @@ i stället för 800 gav **sämre** — 3 → 2 namn, 1 → 3 falska, fördröjni
 väntan kortare för spelaren är platshållaren på bordet (MES-42): den står
 där efter en halv sekund, namnet kommer efter en till två.
 
+Sedan MES-214 (2026-09-18) tas ett **säkert tidigt svar direkt**: ett spår
+som stått formstilla i två rutor läses medan det väntar (K4), och är svaret
+säkert blir kortet klart på en gång — 07 1,8 → 1,0 s, 09 1,85 → 1,25 s,
+10 1,35 → 0,8 s, 11 1,25 → 0,95 s, 12 1,95 → 1,35 s, samma namn och 0 fel.
+Läget är då preliminärt (`vilar: false`) och mäts om när kortet vilat i
+`stillaMs`. Ett osäkert tidigt svar kastas och kortet läses som förut.
+
 ## Förloppsmåtten från K1 (dev/plan/lagen.md §7)
 
 Tre mått till ur ett videofalls **bordslogg** (datorns rapporter), inte ur
@@ -225,7 +232,8 @@ mått i kolumnerna Läge och Plats, i `--detalj` (raden `läge:`) och i domen:
 
 | Mått | Vad | Mål |
 |---|---|---|
-| `lagesUpp` / `lagesPerMin` | rapporter där ett stilla eller klart spår flyttat mer än 15 % av sin bredd sedan förra rapporten (första läget räknas inte); per minut av fallets tid (videons tid i ett videofall) | 0 på ett stilla bord (01–06, 08); i 07 bara verkliga flyttar |
+| `lagesUpp` / `lagesPerMin` | gånger ett **namngivet kort som låg i vila** lämnade sin plats med mer än 15 % av sin bredd (första läget räknas inte); per minut av fallets tid (videons tid i ett videofall). Sedan MES-214 mäts telefonens viloläge (`vx`, `vy` i rapporten), inte lådan i den ruta rapporten råkade gå; stegen medan ett kort följs i en flytt (`vilar: false`) är samma flytt, och omankringen när det landat räknas inte. Bara klara spår: det är de datorn speglar | 0 på ett stilla bord (01–06, 08); i 07 bara verkliga flyttar |
+| *nästan* i `--detalj` | största flytten per spår mellan 0,10 och 0,15 kortbredder — en verklig liten knuff som ligger nära gränsen. Står ett fall och väger mellan två tal är det här man ser varför (07: Valkyrie's Sword 0,13 och Thriving Moor 0,148, båda knuffade av handen) | – |
 | `lageFel` | medianen av avståndet mellan spårets och facitrutans mitt, i kortbredder — bara där facit har rutor (01, 02, 08) | så litet som möjligt; ett spår som täcker halva kortet ger ≈ 0,25 |
 | `lagesSnitt` | lådor som bytte storlek på plats (mer än en fjärdedel av ytan): en klump som skars i sina kort, en del som blev hela kortet igen. Räknas inte som flytt (MES-84: i 03 och 06 var det enda "flyttarna") | – |
 
@@ -241,8 +249,13 @@ tid, beskärningens storlek, domen med domskälet, bildens egen mätning
 bilddom går att spåra till sina tal: i 09 stod "bild 0,77, 8 inliers,
 accept" med Plains överst i helheten men Serpent Assassin som ORB:s val.
 
-Viloläget från K5 (`vilaX/vilaY` med hysteres) är det som ska hålla
-`lagesUpp` på 0: darr på en gräns ger ingen rapport, en verklig glidning en.
+Läget från K5 (`vilaX/vilaY` med hysteres, tre `stillaPx`) är det som ska
+hålla `lagesUpp` på 0: darr på en gräns ger ingen rapport. Sedan MES-214
+följer läget ett namngivet kort också medan det flyttas — så länge regionen
+är hela kortet (ytan inom 15 % av den kortet hade när läget sattes). En
+region som bytt yta är kortet plus en hand, eller kortet med ett annat kort
+över hörnet: då hålls läget. `--detalj` skriver varje räknad flytt med
+varifrån, vart, spårets tillstånd och ytans kvot.
 
 ## Högvakten (K10/K11, MES-85)
 

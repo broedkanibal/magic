@@ -299,14 +299,19 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 12; i++) { s = await ruta(KORT); if (tillbaka == null && s[0] && !s[0].tappad) tillbaka = i + 1; }
   check(`T12 tillbaka: otappad efter ${tillbaka} rutor`, s.length === 1 && !s[0].tappad && tillbaka != null && tillbaka <= 10);
 
-  // ── V1/V2: viloläget rapporteras med hysteres (K5) ────────────────
+  // ── V1/V2: läget följer ett namngivet kort, med hysteres mot darr (K5, MES-214) ──
+  /* Ett klart kort som glider följs medan det rör sig: läget (vx) går i
+     rapporterna under glidningen med vilar false, och landar med vilar true
+     på den nya platsen — högst en rapport per ruta. Förut (K5) väntade läget
+     på två stilla rutor: högst 3 rapporter, alla efter glidningen. */
   nystart(); await referens();
   for (let i = 0; i < 10; i++) s = await ruta(KORT);
-  let rapFore = bordRapporter;
-  for (let i = 1; i <= 10; i++) s = await ruta(g => kort(g, W, 60 + 4 * i, 50, 30, 42, 180));   // glider 40 px på 10 rutor
+  let rapFore = bordRapporter, underVags = 0, vxMax = 0;
+  for (let i = 1; i <= 10; i++) { s = await ruta(g => kort(g, W, 60 + 4 * i, 50, 30, 42, 180)); if (bord[0] && bord[0].vilar === false && bord[0].vx * W > 77) underVags++; }   // glider 40 px på 10 rutor
   for (let i = 0; i < 6; i++) s = await ruta(g => kort(g, W, 100, 50, 30, 42, 180));
   const rapGlid = bordRapporter - rapFore;
-  check(`V1 glidning 40 px: ${rapGlid} rapporter (högst 3), samma id ${s[0] && s[0].id === id10 + 0 || true}`, s.length === 1 && rapGlid >= 1 && rapGlid <= 3);
+  check(`V1 glidning 40 px: ${rapGlid} rapporter (högst 16), läget följde i ${underVags} rutor under glidningen, landade på vx ${bord[0] && (bord[0].vx * W).toFixed(1)} vilar ${bord[0] && bord[0].vilar}`,
+        s.length === 1 && rapGlid >= 1 && rapGlid <= 16 && underVags >= 5 && bord[0] && bord[0].vilar === true && Math.abs(bord[0].vx * W - 115) < 2);
   rapFore = bordRapporter;
   for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 100 + (i % 2), 50, 30, 42, 180));   // darr ±1 px över gränsen
   check(`V2 darr ±1 px i 12 rutor: ${bordRapporter - rapFore} extra rapporter (0)`, bordRapporter - rapFore === 0);
@@ -1187,34 +1192,39 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     nystart();
   }
 
-  // ── K4 (MES-86): den tidiga läsningen ────────────────────────────
-  /* Ett spår som stått formstilla i två rutor läses medan det ännu är 'ny',
-     men får inget namn förrän det legat stilla i stillaMs — och tar då det
-     tidiga svaret utan en läsning till. Läsningarna loggas med spårets
+  // ── K4 (MES-86, MES-214): den tidiga läsningen ────────────────────
+  /* Ett spår som stått formstilla i två rutor läses medan det ännu är 'ny'.
+     Sedan MES-214 tas ett SÄKERT tidigt svar på en gång: spåret blir 'klar'
+     utan att vänta på stillaMs, och rapporten bär stilla false tills kortet
+     vilat — då mäts läget om (spekTidig) och en rapport med stilla true går.
+     Ett osäkert tidigt svar kastas som förut. Läsningarna loggas med spårets
      tillstånd i ögonblicket de begärdes. */
   {
     const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
     const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
     let lasLogg = [];
     const logga = svar => (id, g) => { const t = Kamera.spar.find(x => x.id === id); lasLogg.push(t ? t.tillstand : '?'); return svar(id, g); };
-    /* Namn medan spåret väntar: får aldrig synas. */
+    /* Namn medan spåret väntar: får aldrig synas — ett namn gör spåret klart. */
     const namnSomNy = l => l.filter(t => t.st === 'ny' && t.namn).length;
     // K4a: kortet ligger still från första rutan
     namnSvar = logga(saker); lasLogg = []; nystart(); await referens();
-    let nyMedNamn = 0, forstaKlar = null;
-    for (let i = 0; i < 10; i++) { s = await ruta(KORT); nyMedNamn += namnSomNy(s); if (forstaKlar == null && s[0] && s[0].st === 'klar') forstaKlar = i + 1; }
+    let nyMedNamn = 0, forstaKlar = null, forstaRapport = null;
+    for (let i = 0; i < 10; i++) { s = await ruta(KORT); nyMedNamn += namnSomNy(s); if (forstaKlar == null && s[0] && s[0].st === 'klar') { forstaKlar = i + 1; forstaRapport = bord[0] && { stilla: bord[0].stilla, namn: bord[0].namn }; } }
     const t4a = Kamera.spar[0] || {};
-    check(`K4a stilla kort: läsningar ${JSON.stringify(lasLogg)}, klar i ruta ${forstaKlar} (stillaMs 800 = ruta 7), namn medan ny ${nyMedNamn}, via tidigt svar ${!!t4a.spekKlar}`,
+    check(`K4a stilla kort: läsningar ${JSON.stringify(lasLogg)}, klar i ruta ${forstaKlar} (stillaMs 800 = ruta 7), namn medan ny ${nyMedNamn}, via tidigt svar ${!!t4a.spekKlar}, första rapporten ${JSON.stringify(forstaRapport)}, sist stilla ${bord[0] && bord[0].stilla} vx ${bord[0] && bord[0].vx != null ? (bord[0].vx * W).toFixed(1) : null}`,
           lasLogg.length === 1 && lasLogg[0] === 'ny' && identifieringar === 1 && s.length === 1 && s[0].st === 'klar' && s[0].namn === 'Plains'
-          && nyMedNamn === 0 && forstaKlar >= 7 && !!t4a.spekKlar);
-    // K4b: läst tidigt, sedan flyttat 12 px och stilla igen — det tidiga svaret kastas, platsen läses om
+          && nyMedNamn === 0 && forstaKlar != null && forstaKlar < 7 && !!t4a.spekKlar && !t4a.spekTidig
+          && forstaRapport && forstaRapport.stilla === false && forstaRapport.namn === 'Plains'
+          && bord[0].stilla === true && Math.abs(bord[0].vx * W - 75) < 2);
+    // K4b: läst tidigt, sedan flyttat 12 px och stilla igen — namnet sitter kvar på spåret (ingen ny läsning), och viloläget följer med till den nya platsen
     namnSvar = logga(saker); lasLogg = []; nystart(); await referens();
     nyMedNamn = 0;
     for (let i = 0; i < 3; i++) { s = await ruta(KORT); nyMedNamn += namnSomNy(s); }
     const lastFore = identifieringar;
     for (let i = 0; i < 10; i++) { s = await ruta(g => kort(g, W, 72, 50, 30, 42, 180)); nyMedNamn += namnSomNy(s); }
-    check(`K4b läst tidigt, flyttat 12 px: läsningar före flytten ${lastFore}, alla ${JSON.stringify(lasLogg)}, sist ${s[0] && s[0].st} ${s[0] && s[0].namn}, namn medan ny ${nyMedNamn}`,
-          lastFore === 1 && identifieringar === 2 && lasLogg.every(x => x === 'ny') && s.length === 1 && s[0].st === 'klar' && nyMedNamn === 0);
+    check(`K4b läst tidigt, flyttat 12 px: läsningar före flytten ${lastFore}, alla ${JSON.stringify(lasLogg)}, sist ${s[0] && s[0].st} ${s[0] && s[0].namn}, namn medan ny ${nyMedNamn}, vx ${bord[0] && bord[0].vx != null ? (bord[0].vx * W).toFixed(1) : null}`,
+          lastFore === 1 && identifieringar === 1 && s.length === 1 && s[0].st === 'klar' && s[0].namn === 'Plains' && nyMedNamn === 0
+          && bord[0] && Math.abs(bord[0].vx * W - 87) < 2 && bord[0].stilla === true);
     // K4c: det tidiga svaret är osäkert — spåret läses som i dag när det är stilla
     namnSvar = logga(osaker); lasLogg = []; nystart(); await referens();
     for (let i = 0; i < 10; i++) s = await ruta(KORT);

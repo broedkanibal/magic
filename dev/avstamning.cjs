@@ -1034,6 +1034,25 @@ prov('P7 kamerans läge: skrivs vid skapandet och vid en flytt större än darre
   assert.ok(Math.abs(k.kam.x - (PORT.x + 0.03 + PORT.w / 2)) < 1e-9);
 });
 
+prov('P8 kamerans läge läser telefonens viloläge (vx, vy), och ett läge på väg ankras om i vila (MES-214)', () => {
+  // lådan i rapporten ligger 0,004 fel (en hand intill) — läget är vilolägets
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...box(PORT.x + 0.004, PORT.y, PORT.w, PORT.h), vx: PORT.x + PORT.w / 2, vy: PORT.y + PORT.h / 2, vilar: true })]);
+  const k = app.kort[0];
+  assert.ok(Math.abs(k.kam.x - (PORT.x + PORT.w / 2)) < 1e-9); assert.ok(!k.kam.prel);
+  // kortet flyttas och följs: vilar false → läget skrivs som preliminärt
+  klocka.t += 300;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT, vx: PORT.x + 0.04 + PORT.w / 2, vy: PORT.y + PORT.h / 2, vilar: false })]);
+  assert.ok(Math.abs(k.kam.x - (PORT.x + 0.04 + PORT.w / 2)) < 1e-9); assert.equal(k.kam.prel, 1);
+  // …det landar 0,004 längre bort, långt under AUTO_FLYTT: ankras om ändå, med ny stämpel
+  klocka.t += 300; const nar1 = k.kam.nar;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT, vx: PORT.x + 0.044 + PORT.w / 2, vy: PORT.y + PORT.h / 2, vilar: true })]);
+  assert.ok(Math.abs(k.kam.x - (PORT.x + 0.044 + PORT.w / 2)) < 1e-9); assert.ok(!k.kam.prel); assert.ok(k.kam.nar > nar1);
+  // i vila: darr under AUTO_FLYTT skriver inget
+  klocka.t += 3000; const nar2 = k.kam.nar;
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT, vx: PORT.x + 0.046 + PORT.w / 2, vy: PORT.y + PORT.h / 2, vilar: true })]);
+  assert.equal(k.kam.nar, nar2);
+});
+
 /* K10/K11 (MES-85): högvakten. GR = graveyard. hog(n, sen) är telefonens
    högvakt i rapporten: n ändringar av högen, sen ms sedan den senaste. */
 const stamG = (spar, grav) => app.avstamBord(spar, false, 'kort', undefined, undefined, grav);

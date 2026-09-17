@@ -17566,6 +17566,10 @@ const Kamera = (() => {
      som i dag när spåret är stilla. Aldrig en fråga till Claude för en
      tidig läsning, och högst SPEK_MAX per spår. */
   const SPEK_RUTOR = 2, SPEK_FORM = 0.06, SPEK_MAX = 2;
+  /* Läget datorn speglar (MES-214), se matcha: regionen räknas som hela
+     kortet inom LAGE_HEL av ytan när läget sattes; en annan form måste stå
+     still i LAGE_TALAMOD rutor (2 s) innan den får flytta läget. */
+  const LAGE_HEL = 0.15, LAGE_TALAMOD = 14;
   /* Referensen är inte EN bildruta utan medel av några. En enda ruta bär
      hela sitt brus in i varje jämförelse som görs sedan, och skillnaden
      mellan rutorna är dessutom det enda måttet på hur mycket brus mattan
@@ -18727,6 +18731,13 @@ const Kamera = (() => {
     return axSkillnad(vinkel, bas) > Math.PI / 4;
   }
 
+  /* Viloläget (K5) sätts: spårets mitt, ytan det hade då (täckningsregeln
+     i matcha mäter mot den) och RUTAN läget gäller — ramen om den finns,
+     annars lådan. Rapporten bär rutans mitt (vx, vy): datorn speglar
+     kortets läge i vila, inte lådan i den ruta rapporten råkade gå
+     (MES-214). */
+  function sattVila(t, area) { t.vilaX = t.cx; t.vilaY = t.cy; if (area) t.vilaArea = area; t.vilaRuta = t.ram || t.box; }
+
   /* Hur stor del av den mindre lådan som ligger inom den andra (0–1). Samma
      mått som datorns tackning() i avstämningen, i analyspixlar. */
   function ladTackning(a, b) {
@@ -18911,7 +18922,7 @@ const Kamera = (() => {
              en glidning gav en per ruta. Datorn läser läget ur rapporten
              (k.kam, MODE-3/5). */
           bast.stillaN = (bast.stillaN || 0) + 1;
-          if (bast.stillaN >= 2 && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) { bast.vilaX = bast.cx; bast.vilaY = bast.cy; }
+          if (bast.tillstand !== 'klar' && bast.stillaN >= 2 && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) sattVila(bast, f.area);
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
@@ -18923,6 +18934,27 @@ const Kamera = (() => {
           const t2 = tappad(f.vinkel, upp);
           if (t2 === !!bast.tappad) bast.tappRun = 0;
           else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= 2) { bast.tappad = t2; bast.tappRun = 0; }
+        }
+        /* Läget datorn speglar, för ett NAMNGIVET kort (MES-214): det följer
+           spåret ruta för ruta — också medan kortet flyttas, namnet sitter
+           på spåret — så länge regionen är HELA kortet: ytan inom
+           LAGE_HEL av den kortet hade när läget senast sattes. Då är mitten
+           kortets, och hysteresen (tre stillaPx) räcker mot darr. En region
+           som bytt yta är kortet plus något (en hand, en skugga, grannen)
+           eller en del av det (ett kort som skjutits in över hörnet): mitten
+           har flyttat utan att kortet gjort det, och läget hålls. Uppmätt i
+           golden 07: Thriving Moor 117×88 → 106×76 (ytan ×0,78) med mitten
+           15–19 px bort när landhögen låg över dess hörn. Står den nya
+           formen still i LAGE_TALAMOD rutor, och är flytten större än en ren
+           täckning förklarar (andelen c flyttar mitten högst c/2 av
+           långsidan; här 0,75 c med marginal), är kortet både täckt och
+           flyttat: läget och ytan tas om. */
+        if (bast.tillstand === 'klar') {
+          bast.areaNu = f.area;
+          const d = bast.vilaX == null ? Infinity : Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY);
+          const avv = Math.abs(1 - f.area / (bast.vilaArea || f.area));
+          bast.helN = avv <= LAGE_HEL ? 0 : (ror > T.stillaPx ? 1 : (bast.helN || 0) + 1);
+          if (d > 3 * T.stillaPx && (avv <= LAGE_HEL || (bast.helN >= LAGE_TALAMOD && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
       } else if (fodNya) {
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
@@ -19511,6 +19543,13 @@ const Kamera = (() => {
     /* Stilla länge nog och ännu utan namn → identifiera, ett i taget. */
     for (const t of spar) {
       if (t.tillstand === 'ny' && nu - t.stillaFran >= T.stillaMs) t.tillstand = 'stilla';
+      /* Ett kort som fick sitt namn tidigt (spekulera) har nu vilat i
+         stillaMs: ramen mäts om på kortet där det lagt sig — samma ruta som
+         den vanliga läsningen hade mätt den i — och rapporten som biten :s
+         utlöser bär viloläget. Uppmätt i golden 07 (MES-214): ramen från den
+         tidiga läsningen av Valkyrie's Sword låg 6 px från viloläget, och en
+         knuff på 0,13 kortbredder åtta sekunder senare räknades som 0,19. */
+      if (t.spekTidig && nu - t.stillaFran >= T.stillaMs) { t.spekTidig = false; if (t.tillstand === 'klar' && t.regionNar === nu) { t.ram = finLada(t.box, senasteG0, t); sattVila(t, t.areaNu); } }
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && t.spek && t.spek.svar && bekraftaSpek(t)) continue;
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !(t.igen > nu) && !identifierar) { identifiera(t, nu); break; }
     }
@@ -19767,13 +19806,15 @@ const Kamera = (() => {
      hjärtslag för ett spår som blivit kvar utan region (bänken RS2), och
      låset hängde kvar där kortet legat. */
   const arStilla = t => t.regionNar != null && forra - t.stillaFran >= T.stillaMs;
+  /* I vila på sitt läge (MES-214): två stilla rutor, läget satt där kortet ligger, och inte det tidiga namnets preliminära läge (spekTidig). */
+  const arVila = t => (t.stillaN || 0) >= 2 && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * T.stillaPx;
   /* Signaturen i det senast skickade bordet. Stegen jämför mot den, inte mot
      signaturen när steget började: klockan står redan på den nya rutan när
      steget börjar, så en bit som slår om bara för att tiden gått (:f efter
      500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
      (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
   let sandSignatur = null;
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -19899,12 +19940,16 @@ const Kamera = (() => {
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
-      stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort
+      stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort; och kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
       lokalMs: t.lokalMs != null ? t.lokalMs : null,   // den lokala kedjans tid (identifiera); null = aldrig läst lokalt (helbild)
-      x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH
+      x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH,
+      /* Viloläget (K5, MES-214): mitten av rutan kortet senast VILADE i. x–h ovan är lådan just nu — den rör sig med en hand intill, och datorns kamLage speglar därför vx/vy. null tills kortet vilat en gång. */
+      vx: t.vilaRuta ? (t.vilaRuta.x + t.vilaRuta.w / 2) / AW : null, vy: t.vilaRuta ? (t.vilaRuta.y + t.vilaRuta.h / 2) / AH : null,
+      vw: t.vilaRuta ? t.vilaRuta.w / AW : null, vh: t.vilaRuta ? t.vilaRuta.h / AH : null,   // rutans mått, så att ett storleksbyte på plats går att skilja från en flytt
+      vilar: arVila(t)   // läget är kortets viloläge; false = på väg (flyttas, eller ett tidigt namn som inte vilat än): datorn ankrar om när det blir true
     })), false, extra);
   }
 
@@ -19998,6 +20043,7 @@ const Kamera = (() => {
     try {
       /* Ramen först: regionen räcker för att spåra, inte för att beskära. */
       t.ram = finLada(t.box, senasteG0, t);
+      if (t.vilaX != null) t.vilaRuta = t.ram || t.box;   // läget datorn speglar är ramens, som förut
       const b = video ? beskar(t) : null; c = b && b.bild;
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
     } catch (e) { fel = true; }
@@ -20038,6 +20084,8 @@ const Kamera = (() => {
     }
     t.fragad = true;
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
+    if (t.tillstand === 'klar' && t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
+    if (t.tillstand === 'klar') slappFlyttat(t, nu);
     /* Claude har redan sagt "inget kort" två gånger (aiInget), och spåret har
        bara skakat. matcha nollställer skräp som rör sig, och en ny betald
        fråga per skakning vore fel. Bara en säker lokal läsning ändrar domen. */
@@ -20074,6 +20122,7 @@ const Kamera = (() => {
     const t0 = performance.now();
     try {
       t.ram = finLada(t.box, senasteG0, t);
+      if (t.vilaX != null) t.vilaRuta = t.ram || t.box;
       const geo = { cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort };
       const b = video ? beskar(t) : null;
       if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true });
@@ -20081,8 +20130,28 @@ const Kamera = (() => {
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
         ? { svar, geo, upptagna: spar.filter(q => q !== t && q.tillstand !== 'skrap' && q.saker && q.namn === svar.namn).length, nar: nu || 0 }
         : { miss: true };
+      /* Ett SÄKERT tidigt svar tas på en gång (MES-214): namnet går till
+         datorn 0,45–0,6 s före stillaMs. Läget är ännu preliminärt — kortet
+         har stått formstilla i två rutor, inte vilat — och mäts om när
+         spåret legat stilla i stillaMs (spekTidig, se steg). */
+      if (t.spek.svar && bekraftaSpek(t)) { t.spekTidig = true; rapportera(); }
     } catch (e) { if (t.spek === vantar) t.spek = { miss: true }; }
     finally { identifierar = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(performance.now() - t0)); }
+  }
+  /* Kortet flyttades: spåret t har just fått ett SÄKERT namn, och ett annat
+     klart spår med samma namn står utan region över matta som ser tom ut
+     (tomMs räknar — frånvaron är bevisad i minst en ruta, och spåret hade
+     dött inom bortaMs). Det är samma kort på sin nya plats. Det gamla
+     spåret släpps på en gång, med spöke som vanligt, så att datorn binder om
+     kortet i samma rapport i stället för att se två klara spår med samma
+     namn — med det tidiga namnet (MES-214) hinner det nya spåret annars bli
+     klart före det gamla dött, och ett basland fick då ett kort till
+     (bänken D3: tappat runt hörnet med en hand över). */
+  function slappFlyttat(t, nu) {
+    for (const q of [...spar]) {
+      if (q === t || q.tillstand !== 'klar' || q.namn !== t.namn || arHelbild(q) || q.skymd || !(q.tomMs > 0) || q.regionNar === forra) continue;
+      spar.splice(spar.indexOf(q), 1); q.dog = nu || forra; spoken.push(q);
+    }
   }
   /* Spåret har blivit stilla med ett säkert tidigt svar. Det gäller om
      kortet ligger där det låg när det lästes (inom viloläget, 3 stillaPx)
@@ -20098,6 +20167,8 @@ const Kamera = (() => {
     t.namn = svar.namn; t.sid = svar.sid || null; t.saker = true; t.cands = svar.cands || null; t.namnLast = svar.namnLast || null;
     t.varfor = svar.varfor || null; t.spekKlar = true;
     t.fragad = true; t.provas = false; t.tillstand = 'klar'; t.spek = null;
+    if (t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
+    slappFlyttat(t, forra);
     return true;
   }
 
@@ -22004,9 +22075,17 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      det är ett minne; mattan speglar det i Table leads (MODE-5). */
   const kamLage = (k, t) => {
     if (t.w == null || t.h == null || franHelbild(t) || (t.tillstand !== 'stilla' && t.tillstand !== 'klar')) return;
-    const cx = t.x + t.w / 2, cy = t.y + t.h / 2;
-    if (k.kam && Math.hypot(cx - k.kam.x, cy - k.kam.y) <= AUTO_FLYTT * t.w) return;
-    k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu }; andrat = true;
+    /* Telefonens viloläge (vx, vy) när det finns: lådan i rapporten är den i rutan rapporten gick, och rör sig med en hand intill (MES-214). */
+    const cx = t.vx != null ? t.vx : t.x + t.w / 2, cy = t.vy != null ? t.vy : t.y + t.h / 2;
+    /* Ett läge som skrevs innan kortet vilat (telefonens vilar false: kortet
+       flyttas just nu, eller fick sitt namn tidigt, MES-214) är preliminärt:
+       när kortet lagt sig ankras det om på viloläget, hur liten skillnaden
+       än är — annars mäts nästa knuff mot en plats kortet aldrig låg på, och
+       en flytt som följts i steg om AUTO_FLYTT slutade upp till ett steg
+       fel. En telefon utan fältet: som förut. */
+    const vilar = t.vilar != null ? !!t.vilar : true;
+    if (k.kam && Math.hypot(cx - k.kam.x, cy - k.kam.y) <= AUTO_FLYTT * t.w && !(k.kam.prel && vilar)) return;
+    k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu }; if (!vilar) k.kam.prel = 1; andrat = true;
   };
   const lagg = (k, t) => {
     const tap = t.tappad ? 1 : 0;
