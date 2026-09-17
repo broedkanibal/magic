@@ -688,7 +688,7 @@ ${aDeckHead('', 0, { ny: true })}
     <div class="vag">
       <div class="vh"><span class="vi">${ic('paste', 17)}</span><b>Paste a list</b></div>
       <p class="vt">An export from Moxfield, Arena or MTGO, or plain text with one card per line.</p>
-      <div class="fchips"><span class="fchip">Moxfield</span><span class="fchip">Arena</span><span class="fchip">MTGO</span><span class="fchip">Plain text</span></div>
+      <p class="gnot">Mesa recognises the format by itself — no need to choose it.</p>
       <div class="ta" style="height:196px;color:var(--dim2)">4 Lightning Bolt
 4 Monastery Swiftspear (KTK) 118
 1 Danitha Capashen, Paragon
@@ -1265,3 +1265,6 @@ const canvas = {
 };
 writeFileSync(join(UT, 'canvas.json'), JSON.stringify(canvas, null, 2));
 console.log('canvas.json');
+
+// Delarna som gen2.mjs (sida 2 och 3) bygger vidare på.
+export { K, MC, I, ic, DOTS, LOGO, cost, pips, hc, cf, face, pile, qr, guide, BASE, doc, skriv, topbarSpel, topbarSida, A_CSS, aDeckHead, aKallor, aGrid, aTabs, CX, canvas, UT };
