@@ -2881,6 +2881,11 @@ body.ispel #addPlayerBtn{display:none}
 /* Ett borttaget kort som krymper bort (medAnimering). Ligger i body, över
    lekens sida men under popovern och ångra-remsan. */
 .lspile.lsbortflyg{position:fixed;z-index:434;pointer-events:none;margin:0;transform-origin:50% 60%}
+/* Ett inskrivet kort som flyger till sin plats (medTillagg, MES-201). Samma
+   lager som kopian vid borttagning, och samma mått som platsen det landar på
+   — flykten är en skalning, så bilden är skarp när kortet ligger still. */
+.lsinflyg{position:fixed;z-index:434;pointer-events:none;margin:0;transform-origin:50% 50%;border-radius:5px}
+img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 /* Ett nyss bekräftat kort (bekrafta): ringen går från gul till grön, och
    Check-brickan byts mot en grön Confirmed som poppar fram. Raden under To
    check blir grön på samma sätt. */
@@ -14799,6 +14804,87 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       setTimeout(() => k.remove(), 900);
     }
   }
+  /* Ett kort man skriver in ska synas landa (MES-201). Kortet flyger från
+     förslagets miniatyr till sin plats i kortytan, korten som flyttar på sig
+     glider undan (FLIP, som vid borttagning), och högen studsar när kortet
+     landar. Ligger platsen utanför den synliga delen rullas den fram först —
+     rullningen räknas bort ur FLIP, annars hade alla kort glidit lika långt.
+     Inget av det när systemet ber om mindre rörelse. */
+  function medTillagg(name, sb, fn, kalla) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { fn(); return; }
+    const key = nyckel(name, sb), fore = new Map(), skroll = yta.scrollTop;
+    for (const el of yta.querySelectorAll('.lspw')) fore.set(pwNyckel(el), el.getBoundingClientRect());
+    const fanns = fore.has(key);
+    fn();
+    const mal = tillaggsMal(name, sb);
+    if (mal) {
+      /* Hela kortet ska synas, namnet under det med: rullningen räknas på
+         kortets ruta, inte på bilden. */
+      const r = (mal.closest('.lspw') || mal).getBoundingClientRect(), yr = yta.getBoundingClientRect();
+      if (r.top < yr.top + 12) yta.scrollTop -= yr.top + 12 - r.top;
+      else if (r.bottom > yr.bottom - 12) yta.scrollTop += r.bottom - (yr.bottom - 12);
+    }
+    const ds = yta.scrollTop - skroll;
+    for (const el of yta.querySelectorAll('.lspw')) {
+      const f = fore.get(pwNyckel(el)); if (!f) continue;
+      const r = el.getBoundingClientRect(), dx = f.left - r.left, dy = f.top - ds - r.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    }
+    if (mal) flygTill(mal, kalla, !fanns);
+  }
+  /* Kortets plats: högen, eller basmarkens ruta — basmarkerna ligger i sin
+     egen rad och har ingen hög. */
+  function tillaggsMal(name, sb) {
+    const sel = `[data-ls-kort="${CSS.escape(name)}"][data-sb="${sb ? 1 : 0}"]`;
+    const pile = yta.querySelector('.lspw' + sel + ' .lspile');
+    if (pile || sb) return pile;
+    const bl = yta.querySelector(`.lsbl [data-ls-bl="${CSS.escape(name)}"]`);
+    return (bl && bl.closest('.lsblk').querySelector('.kf')) || null;
+  }
+  function flygTill(mal, kalla, nytt) {
+    const r = mal.getBoundingClientRect(); if (!r.width) return;
+    /* Utan en känd startpunkt (Enter utan ett valt förslag) stiger kortet upp
+       underifrån i stället. */
+    const k = kalla && kalla.width ? kalla : { left: r.left, top: r.top + 90, width: r.width * .45, height: r.height * .45 };
+    const kopia = mal.cloneNode(true);
+    kopia.querySelectorAll('.lstool, .lschkb, .lsselm, .lsnyb, .lsring, .lsbekrb').forEach(e => e.remove());
+    kopia.removeAttribute('tabindex');
+    kopia.classList.add('lsinflyg');
+    Object.assign(kopia.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    /* Kortbilden i rutnätet är större och kanske inte hämtad än: då flyger
+       miniatyren ur förslaget, som redan syns. */
+    const img = kopia.tagName === 'IMG' ? kopia : kopia.querySelector('img.kf');
+    const orig = mal.tagName === 'IMG' ? mal : mal.querySelector('img.kf');
+    if (img && kalla && kalla.src && !(orig && orig.complete && orig.naturalWidth)) img.src = kalla.src;
+    document.body.appendChild(kopia);
+    /* Platsen står tom tills kortet landar där — annars var kortet redan
+       framme innan det flög. Ett kort som redan låg i leken står kvar: det är
+       högen det nya exemplaret landar på. */
+    if (nytt) mal.style.opacity = '0';
+    const sx = k.left + k.width / 2 - (r.left + r.width / 2);
+    const sy = k.top + k.height / 2 - (r.top + r.height / 2);
+    const sc = clamp(k.width / r.width, .1, 1);
+    let klart = false;
+    const klar = () => {
+      if (klart) return;
+      klart = true;
+      kopia.remove();
+      mal.style.opacity = '';
+      mal.animate([{ transform: 'scale(.9)' }, { transform: 'scale(1.05)', offset: .45 }, { transform: 'none' }],
+                  { duration: 320, easing: 'cubic-bezier(.3,.9,.3,1)' });
+      const cnt = mal.querySelector && mal.querySelector('.cnt');
+      if (cnt) cnt.animate([{ transform: 'scale(.6)' }, { transform: 'scale(1.2)', offset: .5 }, { transform: 'none' }],
+                           { duration: 360, easing: 'cubic-bezier(.3,.9,.3,1)' });
+    };
+    kopia.animate([
+      { transform: `translate(${sx}px, ${sy}px) scale(${sc})`, opacity: .55 },
+      { opacity: 1, offset: .3 },
+      { transform: 'none', opacity: 1 },
+    ], { duration: 440, easing: 'cubic-bezier(.25,.75,.3,1)', fill: 'forwards' }).onfinish = klar;
+    /* En flik i bakgrunden spelar inga animeringar: kopian får inte bli kvar. */
+    setTimeout(klar, 1400);
+  }
   function kortAtgard(name, sb, a, el) {
     const k = kortI(name, sb); if (!k) return;
     if (a === 'plus') andra({ typ: 'antal', name: k.name, sb, d: 1, kort: mallAv(k) });
@@ -15041,7 +15127,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     inp.value = n;
     if (n !== fore && !await stegaBasland(namn, n - fore)) inp.value = fore;
   }
-  async function laggTill(namn, n) {
+  async function laggTill(namn, n, kalla) {
     const s = y.session, sb = y.tillSb;
     if (!lekKanVaraNamn(namn, true)) { toast("That doesn't look like a card name. Type it as it's printed on the card.", 'err'); return; }
     let k;
@@ -15049,7 +15135,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     catch (e) { toast(e && e.tillfallig ? 'The lookup did not get through — try again' : `No card is called “${lsKort(namn)}” — check the spelling`, 'err'); return; }
     if (s !== y.session) return;
     const small = imgOf(k, 0, 'small');
-    andra({ typ: 'antal', name: k.name, sb, d: n, kort: { name: k.name, sid: k.id, small, ci: k.ci || [] } });
+    if (kalla && !kalla.src) kalla.src = small;
+    medTillagg(k.name, sb, () => andra({ typ: 'antal', name: k.name, sb, d: n, kort: { name: k.name, sid: k.id, small, ci: k.ci || [] } }), kalla);
     y.nyss.unshift({ nr: ++y.nyssNr, name: k.name, sb, n, small });
     ritaNyss();
   }
@@ -15192,7 +15279,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       }
       if (o.anpassa) o.anpassa();
     };
-    const valj = o.valj ? namn => { stang(); o.valj(namn); } : (namn, n) => { stang(); inp.value = ''; laggTill(namn, n); inp.focus(); };
+    /* Varifrån kortet flyger (MES-201): förslagets miniatyr om den syns,
+       annars fältet man skrev i. Mäts innan listan stängs. */
+    const kallaAv = li => {
+      const bild = li && li.querySelector('.th img');
+      const el = bild || (li && li.querySelector('.th')) || inp.closest('.lsfld') || inp;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return null;
+      return { left: r.left, top: r.top, width: r.width, height: r.height, src: bild ? bild.currentSrc || bild.src : '' };
+    };
+    const valj = o.valj ? namn => { stang(); o.valj(namn); }
+      : (namn, n, li) => { const kalla = kallaAv(li); stang(); inp.value = ''; laggTill(namn, n, kalla); inp.focus(); };
     /* Autocomplete ger bara namn (MES-178). Korten som inte redan ligger i
        cachen hämtas i ett anrop och läggs där — bilden i förslaget, och
        tillägget sedan, behöver då ingen egen uppslagning. Ett namn försöks
@@ -15240,7 +15337,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       } else if (ev.key === 'Enter') {
         ev.preventDefault();
         const t = idx >= 0 && items[idx] ? items[idx] : inp.value.trim();
-        if (t) valj(t, 1);
+        if (t) valj(t, 1, ul.querySelector('li.on'));
       } else if (ev.key === 'Escape') {
         ev.preventDefault();
         if (!ul.hidden) stang(); else if (o.esc) o.esc(); else { inp.value = ''; inp.blur(); }
@@ -15251,7 +15348,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const li = ev.target.closest('li[data-i]'); if (!li) return;
       ev.preventDefault();
       const b = ev.target.closest('[data-n]');
-      valj(items[+li.dataset.i], b ? +b.dataset.n : 1);
+      valj(items[+li.dataset.i], b ? +b.dataset.n : 1, li);
     });
     return { stang };
   }
