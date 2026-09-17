@@ -16,8 +16,8 @@ Claude.
 Förbehållen:
 
 1. **">95 % på <50 ms" nås inte rakt av.** 95 % nås bara i bänken och bara
-   för vanliga kort som ligger för sig själva — inte för hela bordet: basland i högar och kort
-   som inte är rätt utskurna drar ner det till 85–90 %. Och 50 ms nås inte
+   för vanliga kort som ligger för sig själva — inte för hela bordet: basland
+   i högar och kort som inte är rätt utskurna drar ner det till 85–90 %. Och 50 ms nås inte
    här (98 ms med WebGPU, 250–700 ms utan). Slutmålet *namn inom 300 ms* nås
    med WebGPU.
 2. **Claude behövs kvar — i bakgrunden.** Ungefär **två av tre kort blir
@@ -37,8 +37,9 @@ Slutet set: bara lekens 28 namn (105 referensbilder) är kandidater.
 | Dagens hela lokala kedja i golden (bild + namnläsare) | — | 31 av 57 / 0 | — |
 | Dagens kedja + Claude (golden `--ai`) | 57/57 | 57 / 0–1 | 1 700–2 200 ms |
 | **MobileCLIP-S0**, bänken i Node, en referens per konstverk | **55/61 (90 %)** | 41 / 0 ² | — |
-| **MobileCLIP-S0, modulen i webbläsaren** (8 vektorer per konstverk) | **52/61 (85 %)** | 46 / 2 ³ | **98 ms** (WebGPU) |
+| **MobileCLIP-S0, modulen i webbläsaren** (8 vektorer per konstverk) | **52/61 (85 %)** | 46 / 1–2 ³ | **98 ms** (WebGPU) |
 | … med regeln "skymda spår blir aldrig säkra på modellen ensam" | samma | **39–42 / 0** | samma |
+| … + ORB som andra vittne på de tre bästa namnen (`bank.html`) | 52/61 | **46 / 1** ⁴ | 260 ms |
 | … + lärda referenser (K7/K8), bänken | 56/61 (92 %) | **49 / 0** | samma |
 | DINOv2-small (88 MB), med alla knep | 50/61 (82 %) | 27 / 0 ⁵ | ~2× långsammare |
 | MobileNetV4-small (10 MB), med alla knep | 48/61 (79 %) | 27 / 0 ⁵ | 16 ms WebGPU · 32 ms WASM |
@@ -50,7 +51,9 @@ plastficka med blänk i fall 11 (gravfällorna), litet i en dubbelt så stor
 låda, i två lådvarianter. Spåret är märkt `skymd` av kedjan själv — därav
 regeln på nästa rad. Skillnaden 52 mot 55 är receptet (8 vektorer i stället
 för 4 eller 16) och webbläsarens omskalning; se "Vad knepen gav".
-⁵ Tröskeln vald på samma 61 bilder — för snällt, men de når ändå inte upp.
+⁴ Felet är ett Plains som ligger ovanpå ett Swamp: bilden visar Plains, facit
+säger kortet under. ⁵ Tröskeln vald på samma 61 bilder — för snällt, men de
+når ändå inte upp.
 
 ### Uppdelat på källa
 
@@ -152,7 +155,7 @@ Ett annat tryck kostar alltså nästan ingenting — konsten bär. Poolens regel
 
 ## Vad de enkla knepen gav (MobileCLIP-S0, riktiga beskärningar, bänken)
 
-| Steg | Rätt överst | Säkra rätt / säkra fel ⁴ | Värt det? |
+| Steg | Rätt överst | Säkra rätt / säkra fel ⁸ | Värt det? |
 |---|---|---|---|
 | A. En referens per konstverk, fyra vridningar, centrerat | 55/61 | 41 / 0 | grunden |
 | B. + flera referenser per kort (skarp, lågupplöst, suddig, varm) | 55/61 | 45 / 2 (40 / 0 vid högre tröskel) | **ja** — försäkring mot oskärpa, gratis per fråga; syntetiska 77 → 88 % |
@@ -161,7 +164,7 @@ Ett annat tryck kostar alltså nästan ingenting — konsten bär. Poolens regel
 | E. + OCR-vittnet (namnläsaren ur golden-baslinjen) | — | 49 / 0 | inget extra: det namnläsaren kan läsa (14 kort) är redan säkert |
 | F. + deck-prior (säkra kort räknas bort ur kandidaterna) | 56/60 | 47 / 0 | liten vinst, gratis — behåll K6 |
 
-⁴ Tröskeln vald på det syntetiska setet (marginal > 0,11–0,145), prövad här.
+⁸ Tröskeln vald på det syntetiska setet (marginal > 0,11–0,145), prövad här.
 
 - **"Centrerat"** = referensernas medelvektor dras bort före jämförelsen, så
   att det alla Magic-kort har gemensamt (ram, textruta) inte räknas som
@@ -294,7 +297,7 @@ nivå skattad ur beskärningens marginal):
 
 | | Rätt överst | Säkra rätt | Säkra fel | ms per kort (median) |
 |---|---|---|---|---|
-| Modulen ensam · riktiga (61) | 52 (85 %) | 46 | 1 ⁶ | **98** |
+| Modulen ensam · riktiga (61) | 52 (85 %) | 46 | 1 (fall 11:s Swamp; skräpspärren tog den andra lådvarianten) | **98** |
 | Modulen ensam · syntetiska (var 8:e, 500) | 423 (85 %) | 289 (58 %) | 5 (1,0 %) | 119 |
 | Dagens kedja (Matcher + ORB) · riktiga | 40 (66 %) | 33 | 0 | ~500 |
 | Dagens kedja · syntetiska | 386 (77 %) | 333 (67 %) | 0 | ~490 |
