@@ -14522,7 +14522,7 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
    Nu berättar den var i arbetet den är, så att datorns Phone-flik kan visa
    samma tre steg som telefonen har framför sig:
 
-     {typ:'hej',    lekId, roll:'tel'|'dator', foto, svar}  kopplad
+     {typ:'hej',    lekId, roll, foto, fas, svar}             kopplad
      {typ:'kamera', lekId, foto}                            kameran öppnad
      {typ:'laser',  lekId, foto}                            fotot läses av
      {typ:'sparad', lekId, foto, antal, nya, koll, ts}      sparat
@@ -14535,7 +14535,9 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
 
    Ett 'hej' besvaras med ett 'hej' åt andra hållet (svar: true), så att en
    enhet som kopplade upp sig först får veta att den andra finns. Svaret
-   besvaras inte — annars studsar de två för evigt.
+   besvaras inte — annars studsar de två för evigt. Telefonen kan lägga ett
+   `fas` i sitt hej: det är enda vägen TILLBAKA (en avbruten kamera), när
+   'kamera' och 'laser' bara går framåt.
 
    Allt går genom EN mottagare (lekKanalMot), som sätts också utan konto:
    då kan stubben mata samma väg utan telefon (dev/lekfoto-prov.js). */
@@ -14745,7 +14747,7 @@ $('#vyLekfoto').addEventListener('click', ev => {
    (filfältet med capture), och fotot går samma väg. */
 async function telfotoKamera() {
   telfoto.sista = null;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#telFil').click(); telfotoSteg('kamera'); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { telfotoReserv(); return; }
   try {
     telfoto.strom = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 },
@@ -14753,9 +14755,9 @@ async function telfotoKamera() {
       audio: false
     });
   } catch (e) {
+    /* Nekat lov, eller en webbläsare som inte ger strömmen. */
     telfoto.strom = null;
-    $('#telFil').click();
-    telfotoSteg('kamera');
+    telfotoReserv();
     return;
   }
   const v = $('#telVideo');
@@ -14766,6 +14768,15 @@ async function telfotoKamera() {
   clearInterval(telfoto.skarpaT);
   telfoto.skarpaT = setInterval(telfotoSkarpa, 1200);
   telfotoSkarpa();
+}
+/* Telefonens egen kamera i stället för appens: filfältet med capture
+   öppnar den i ett eget fönster, och fotot kommer tillbaka i onchange.
+   Appens kameralager får inte stå framme då — bakom systemets kamera hade
+   det bara varit en svart bild med en ram som inte visar något. */
+function telfotoReserv() {
+  if (telfoto.steg !== 'lagg') { telfoto.steg = 'lagg'; telfotoRita(); }
+  telfotoSag('kamera');
+  $('#telFil').click();
 }
 function telfotoStoppKamera(steg) {
   clearInterval(telfoto.skarpaT); telfoto.skarpaT = 0;
@@ -14825,7 +14836,12 @@ function telfotoKnapp() {
 $('#telFil').onchange = async ev => {
   const fil = (ev.target.files || [])[0];
   ev.target.value = '';
-  if (!fil) { if (telfoto.steg === 'kamera') telfotoSteg('lagg'); return; }
+  if (!fil) {
+    /* Avbruten kamera: datorn står kvar på "Waiting for the photo…" om vi
+       inte säger ifrån. */
+    if (telfoto.steg === 'kamera') telfotoSteg('lagg'); else telfotoSag('hej', { roll: 'tel', svar: true, fas: 'lagg' });
+    return;
+  }
   if (lekArHeic(fil)) {
     telfoto.fel = 'The photo is HEIC, which the browser cannot read. Set Camera → Formats → Most Compatible on the iPhone, so photos are taken as JPEG.';
     telfotoSteg('fel'); return;
@@ -15186,7 +15202,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!m || m.lekId !== id || !y.bas || y.bas.id !== id) return;
     if (m.typ === 'hej') {
       if (m.roll === 'dator') return;                    // vårt eget, eller en annan dator
-      telSatt({ ansluten: true, fas: y.tel.fas === 'vantar' ? 'lagg' : y.tel.fas, foto: +m.foto || y.tel.foto });
+      telSatt({ ansluten: true, fas: m.fas || (y.tel.fas === 'vantar' ? 'lagg' : y.tel.fas), foto: +m.foto || y.tel.foto });
       if (!m.svar) lekKanalSag({ typ: 'hej', lekId: id, roll: 'dator', svar: true });
       return;
     }
