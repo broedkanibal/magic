@@ -84,14 +84,15 @@ function rad(etikett, rader, tr) {
   for (const typ of [...new Set(synt.map(t => t.typ))]) { const a = sA.filter(r => r.typ === typ), b = sB.filter(r => r.typ === typ), c = sC.filter(r => r.typ === typ); console.log(`    ${typ.padEnd(18)} A ${pct(a.filter(r => r.ratt).length, a.length).padStart(7)}   B ${pct(b.filter(r => r.ratt).length, b.length).padStart(7)}   C ${pct(c.filter(r => r.ratt).length, c.length).padStart(7)}   (n ${a.length})`); }
 
   /* ── riktiga: A–F ── */
-  const rikt = lasSet('riktiga');
-  const rQ = await fragor(modell, rikt, 'riktiga', false), rQt = await fragor(modell, rikt, 'riktiga', true);
+  const RSET = arg('rset', 'riktiga');               // --rset riktiga-forsamrad: samma beskärningar, försämrade (forsamra.cjs)
+  const rikt = lasSet(RSET);
+  const rQ = await fragor(modell, rikt, RSET, false), rQt = await fragor(modell, rikt, RSET, true);
   /* lärda referenser: varje riktig beskärning, rak och vänd */
   const lar = [];
-  for (const rot of [0, 180]) { const v = (await L.baddaIn(modell, rikt.map(t => ({ nyckel: t.nyckel, bild: t.bild, marginal: true, rot })), 'hel', { cache: 'riktiga', logg: true })).vek; rikt.forEach((t, i) => lar.push({ vek: v[i], namn: t.namn, tillf: TILLFALLE[t.fil.slice(0, 2)], fil: t.fil })); }
+  for (const rot of [0, 180]) { const v = (await L.baddaIn(modell, rikt.map(t => ({ nyckel: t.nyckel, bild: t.bild, marginal: true, rot })), 'hel', { cache: RSET, logg: true })).vek; rikt.forEach((t, i) => lar.push({ vek: v[i], namn: t.namn, tillf: TILLFALLE[t.fil.slice(0, 2)], fil: t.fil })); }
   const medLarda = (refs, medel, tillf) => { const mina = lar.filter(x => x.tillf !== tillf); return { vek: refs.vek.concat(mina.map(x => L.centrera(x.vek, medel))), namn: refs.namn.concat(mina.map(x => x.namn)), id: refs.id.concat(mina.map(x => 'lard:' + x.fil)), rot: refs.rot.concat(mina.map(() => 0)) }; };
   const rRad = (Q, refsAv, medel) => rikt.map((t, i) => { const d = dom(Q[i], refsAv(t), medel); return Object.assign(d, { ratt: d.gissning === t.namn, t }); });
-  console.log(`\n══ ${modell.namn} — riktiga beskärningar (${rikt.length})`);
+  console.log(`\n══ ${modell.namn} — ${RSET} (${rikt.length})`);
   const tr = trC.troskel;
   const rA = rRad(rQ, () => cA, mA), rB = rRad(rQ, () => cB, mB), rC = rRad(rQt, () => cB, mB), rD = rRad(rQt, t => medLarda(cB, mB, TILLFALLE[t.fil.slice(0, 2)]), mB);
   rad('A bas', rA, trB.troskel); rad('B + flera referenser', rB, trB.troskel); rad('C + TTA ×3', rC, tr); rad('D + lärda referenser (andra tillfällen)', rD, tr);
@@ -144,5 +145,5 @@ function rad(etikett, rader, tr) {
   console.log('  — fel som står kvar i C:');
   for (const r of rC.filter(r => !r.ratt)) console.log(`    ${r.t.fil.padEnd(16)} ${r.t.namn} → ${r.gissning} (marg ${r.marginal.toFixed(3)}; ${r.t.varfor}${r.t.skymd ? ', skymd' : ''}${r.t.helbild ? ', helbildslåda' : ''}; rätt på plats ${r.lista.findIndex(x => x.namn === r.t.namn) + 1})`);
   fs.mkdirSync(path.join(L.CACHE, 'resultat'), { recursive: true });
-  fs.writeFileSync(path.join(L.CACHE, 'resultat', `forbattra-${modell.namn}.json`), JSON.stringify({ troskel: tr, riktiga: { A: rA, B: rB, C: rC, D: rD }.valueOf ? Object.fromEntries(Object.entries({ A: rA, B: rB, C: rC, D: rD }).map(([k, v]) => [k, v.map(r => ({ fil: r.t.fil, namn: r.t.namn, gissning: r.gissning, marginal: r.marginal, poang: r.poang, ratt: r.ratt }))])) : null }));
+  fs.writeFileSync(path.join(L.CACHE, 'resultat', `forbattra-${modell.namn}${RSET === 'riktiga' ? '' : '-' + RSET}.json`), JSON.stringify({ troskel: tr, riktiga: { A: rA, B: rB, C: rC, D: rD }.valueOf ? Object.fromEntries(Object.entries({ A: rA, B: rB, C: rC, D: rD }).map(([k, v]) => [k, v.map(r => ({ fil: r.t.fil, namn: r.t.namn, gissning: r.gissning, marginal: r.marginal, poang: r.poang, ratt: r.ratt }))])) : null }));
 })().catch(e => { console.error('FEL', e); process.exit(1); });

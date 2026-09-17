@@ -75,6 +75,8 @@ function redovisa(namn, rader, o) {
     const mm = L.nollfelsTroskel(rs, r => r.marginal);
     console.log(`    ${String(g).padEnd(44)} ${String(rs.filter(r => r.ratt).length).padStart(4)}/${String(rs.length).padEnd(4)} ${pct(rs.filter(r => r.ratt).length / rs.length)}   säkra vid 0 fel ${pct(mm.andel)}`);
   }
+  /* Källa: Mesas egen kameravy (fall 01, 02, 07–12) mot kameraappen (03–06). */
+  for (const k of ['kameravy', 'kameraapp']) { const rs = rader.filter(r => r.meta && r.meta.kalla2 === k); if (rs.length) { const mm = L.nollfelsTroskel(rs, r => r.marginal); console.log(`    källa ${k.padEnd(38)} ${String(rs.filter(r => r.ratt).length).padStart(4)}/${String(rs.length).padEnd(4)} ${pct(rs.filter(r => r.ratt).length / rs.length)}   säkra vid 0 fel ${pct(mm.andel)}`); } }
   const land = rader.filter(r => BASLAND.has(r.namn)), ovr = rader.filter(r => !BASLAND.has(r.namn));
   if (land.length) console.log(`    basland ${land.filter(r => r.ratt).length}/${land.length}   övriga ${ovr.filter(r => r.ratt).length}/${ovr.length}`);
   if (o.fel) for (const r of rader.filter(r => !r.ratt)) console.log(`    FEL ${r.fil.padEnd(22)} ${r.namn} → ${r.gissning} (${r.poang.toFixed(3)}, marg ${r.marginal.toFixed(3)}, rätt på plats ${r.rang + 1})`);
