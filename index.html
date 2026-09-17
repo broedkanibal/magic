@@ -1007,6 +1007,7 @@ body.lasvy .card{cursor:default}
 .pill.under{transform-origin:50% 0}
 .pill.under::before{top:calc(-2px - var(--bro,8px));bottom:-8px}
 .pill .hint{font:11px/1 var(--sans);color:var(--dim)}
+.pill .hint kbd{margin:0 1px;padding:0 4px;border-radius:3px;background:#0000002e;color:var(--txt);font:600 9.5px/15px var(--mono);vertical-align:1px}
 .pill button{height:24px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 11px/1 var(--sans);cursor:pointer}
 .pill button.prim{background:var(--acc);border-color:var(--acc);color:#20160a}
 .pill button:hover{filter:brightness(1.12)}
@@ -8728,9 +8729,11 @@ function renderPill() {
   const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
   /* En manahög flyttas hel (MES-206); ur en tokenhög drar man fortfarande ut
      ett kort. Tap står kvar i knappen bredvid och rör bara det här kortet. */
-  const hint = nStack > 1 ? nStack + (manaHog(c) ? ' stacked · drag all · ⌃ drag one' : ' stacked · drag one out')
-    : c.tapped ? 'Swing it back up' : 'Swing it sideways';
-  const html = `<span class="hint">${esc(hint)}</span>`
+  const hint = nStack > 1
+    ? (manaHog(c) ? `${nStack} stacked — drag moves all, <kbd>⌃</kbd>+drag moves one`
+      : `${nStack} stacked — drag moves one out`)
+    : esc(c.tapped ? 'Swing it back up' : 'Swing it sideways');
+  const html = `<span class="hint">${hint}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
     + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card (C)">+</button>`
     + `<button type="button" class="meny" data-pakt="meny" title="Everything else you can do">⋯</button>`;

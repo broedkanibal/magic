@@ -89,6 +89,16 @@
       ],
       "port": 8243,
       "autoPort": true
+    },
+    {
+      "name": "mesa-hint",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "python3 -m http.server ${PORT:-8244}"
+      ],
+      "port": 8244,
+      "autoPort": true
     }
   ]
 }
