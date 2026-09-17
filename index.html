@@ -10313,8 +10313,10 @@ function renderOppstart() {
     steg.tel = prefs.autoLage === true && kamAnsluten;
     steg.lage = !!o.lage;
     /* Steg 4 är klart med Start playing — eller, på en dator som inte
-       börjat steget, när spelets rad redan bär vinkeln och båda rutorna. */
-    steg.vinkel = !bord || !!o.startat || (!o.b4 && !o.grundOm && grund != null && !!kamGravRad && !!kamBibRad);
+       börjat steget, när spelets rad redan bär vinkeln och båda rutorna.
+       Ett annat läge än Mirror my table gör det klart bara när läget valts
+       här (MES-192): game_players.lage är 'skarm' i ett nytt spel. */
+    steg.vinkel = (!!o.lage && !bord) || !!o.startat || (!o.b4 && !o.grundOm && grund != null && !!kamGravRad && !!kamBibRad);
     oppNasta = ordning.find(k => !steg[k]) || null;
     if (!oppNasta) { oppSatt({ klar: true, grundOm: false }); visa = false; }
     else {
