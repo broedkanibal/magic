@@ -14738,7 +14738,6 @@ $('#menuBtn').onclick = ev => {
      "Läs om mitt bord" finns inte längre: det är modeplatsens jobb, och två
      ställen som gör samma sak var precis det som gjorde raden oläslig. */
   const meta = (txt, farg) => `<span style="margin-left:auto;color:${farg || 'var(--dim2)'};font:10px var(--mono)">${txt}</span>`;
-  const n = minLekAntal();
   /* Lägesbytet har en egen rad här (MES-209). Det bodde bara i kamerapanelens
      segment, och panelen når man bara genom kamerapillret — som dessutom gör
      något ANNAT när kameran är av (öppnar uppstarten). Den som börjat i
@@ -14756,9 +14755,9 @@ $('#menuBtn').onclick = ev => {
      på att bli inaktuellt så fort man bytte läge. Bocken sitter nu på
      Digital table när kameran är av, annars på det lage som gäller. */
   menuEl.innerHTML = `
+    ${spelLage ? `<button data-a="lamna">Back to my games</button><hr>` : ''}
     <div class="hd">${esc((spelLage ? (minSpelare() || player()) : player()).name || 'Active player')}</div>
-    <button data-a="rename">Rename <kbd style="margin-left:auto">R</kbd></button>
-    <button data-a="clearhand" class="danger">Clear my board</button>
+    ${!spelLage ? `<button data-a="clearhand" class="danger">Clear my board</button>` : ''}
     ${spelLage ? `<hr>
     <div class="hd">Table mode</div>
     ${lagerad('bord', M_LAGE_BORD)}
@@ -14767,11 +14766,10 @@ $('#menuBtn').onclick = ev => {
     <hr>
     <div class="hd">Game ${esc(spelLage.kod)}</div>
     <button data-a="bjudin">Copy invitation link</button>
-    <button data-a="lamna">Back to my games</button>
+    <button data-a="clearhand" class="danger">Clear my board</button>
     ${spelLage.vard === Moln.minId() ? '<button data-a="avsluta" class="danger">End the game</button>' : ''}` : ''}
     <hr>
     <div class="hd">Deck &amp; recognition</div>
-    <button data-a="lek">My decks${meta(lekAktiv ? `${esc(lekAktiv.namn)} · ${n}` : 'none yet')}</button>
     <button data-a="ai">AI help${meta(AI.mode === 'server' ? (prefs.aiAuto ? 'ON' : 'READY') : aiKey() ? 'OWN KEY' : 'OFF', AI.mode === 'server' ? 'var(--green)' : null)}</button>
     ${spelLage ? `<hr>
     <button data-a="loggaut">Sign out</button>` : ''}`;
@@ -14788,10 +14786,8 @@ menuEl.addEventListener('click', ev => {
   const b = ev.target.closest('button[data-a]');
   if (!b) return;
   closeMenu();
-  const a = b.dataset.a, p = player();
-  if (a === 'rename') startRename(p.id);
+  const a = b.dataset.a;
   if (a === 'clearhand') $('#clearHand').click();   // samma väg, med ångra
-  if (a === 'lek') oppnaMinaLekar();
   if (a === 'bjudin') $('#spelKnapp').click();
   /* Lägesbytet mitt i spelet (MES-209) — samma väg som kamerapanelens
      segment, och den enda som finns när kameran är av. Var kameran av slår
