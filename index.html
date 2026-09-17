@@ -3070,6 +3070,9 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 .lstci .tcs span{font:12.5px/1.5 var(--sans);color:var(--dim);overflow-wrap:anywhere}
 .lstci mark,.lspop mark{background:#f0a52a2e;color:#ffd98a;border-radius:3px;padding:0 1px}
 .lstci .tb{display:flex;flex-wrap:wrap;gap:6px;flex:none}
+.lstci .lsrd{display:flex;flex-direction:column;gap:5px;flex:0 1 200px;min-width:130px}
+.lstci .lsrd em{font:600 9.5px/1 var(--sans);font-style:normal;letter-spacing:.8px;text-transform:uppercase;color:var(--dim2)}
+.lsstrip{display:block;width:100%;aspect-ratio:320/83;object-fit:cover;border-radius:5px;background:#0b1016;box-shadow:0 3px 10px -5px #000c}
 @container (max-width: 560px){
   .lstci .tb{flex:1 1 100%;padding-left:77px}
   .lstci .th.ligg + .tcs + .tb{padding-left:102px}
@@ -15217,7 +15220,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!y.bas || y.bas.id !== id) return;
     if (!rad) { y.spar = 'borta'; ritaHuvud(); return; }
     if (!(rad.ts > y.bas.ts)) return;
+    /* Kort som kom in från en annan enhet — telefonens foto, en annan flik
+       — märks New precis som de man lägger till själv. y.nya sattes förut
+       bara lokalt, och ett foto på trettio kort landade omärkt. */
+    const fore = new Set(nu().kort.map(k => nyckel(k.name, k.sb)));
     y.bas = rad;
+    for (const k of nu().kort) { const x = nyckel(k.name, k.sb); if (!fore.has(x)) y.nya.add(x); }
     const stadat = stadaNyss();
     ritaHuvud(); ritaYta();
     if (stadat) { ritaNyss(); ritaKvitto(); }
@@ -15543,11 +15551,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const ligg = liggande(k), bekr = !k.koll && y.bekr.get(nyckel(k.name, k.sb));
       if (bekr) {
         return `<div class="lstci bekr" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
+          + remsaHtml(bekr.koll)
           + `<span class="th${ligg ? ' ligg' : ''}">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : ''}</span>`
           + `<div class="tcs"><b>${esc(k.name)}</b><span>${kollSkrev(k, bekr.koll)} · ${kopiorText(k.n)}${k.sb ? ' · Sideboard' : ''}</span></div>`
           + `<div class="tb"><span class="lsbekrok">${lsIk('check', 13, 2.8)}Confirmed</span></div></div>`;
       }
       return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
+        + remsaHtml(k.koll)
         + `<button type="button" class="th${ligg ? ' ligg' : ''}" data-tc="bild" title="Show ${esc(k.name)} larger">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : ''}</button>`
         + `<div class="tcs"><b>Did you mean ${esc(k.name)}?</b><span>${kollSkrev(k)} · ${kopiorText(k.n)}${k.sb ? ' · Sideboard' : ''}</span></div>`
         + `<div class="tb"><button type="button" class="btn sm prim" data-tc="ja">${lsIk('check', 12, 2.6)}Yes</button>`
@@ -15557,6 +15567,14 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const sub = kvar ? `${kvar === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card — ${kvar === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.` : 'All checked.';
     return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${kvar}</span>`
       + `<span class="sub">${sub}</span></div>${l.map(rad).join('')}</div>`;
+  }
+  /* Titelraden ur fotot (N8). Den klipps ur KÄLLAN när fotot läses av
+     (lekRemsa) och sparas i kortets koll, inte i meddelandet: den ska finnas
+     kvar på datorn efter en omladdning, och den är hela kontrollen — det
+     modellen såg, bredvid kortet den gissade på. */
+  function remsaHtml(koll) {
+    return koll && koll.remsa
+      ? `<span class="lsrd"><em>In the photo</em><img class="lsstrip" src="${esc(koll.remsa)}" alt=""></span>` : '';
   }
   /* Room- och splitkort är tryckta på tvären: bilden vrids för att gå att läsa. */
   function liggande(k) { const c = lekKortData(k); return !!(c && c.layout === 'split'); }
@@ -15901,6 +15919,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     y.pop = { typ: 'koll', name: k.name, sb: !!k.sb };
     const q = k.koll, c = lekKortData(k), src = (c && imgOf(c, 0, 'normal')) || k.small;
     visaPop(`<span class="ptag">${esc(q.kalla || 'Your list')} · check this card</span>`
+      + (q.remsa ? `<span class="plbl">In the photo</span><img class="lsstrip" src="${esc(q.remsa)}" alt="">` : '')
       + `<span class="pbild${liggande(k) ? ' ligg' : ''}">${src ? `<img src="${esc(src)}" alt="${esc(k.name)}">` : ''}</span>`
       + `<div class="pcol"><h4>Did you mean ${esc(k.name)}?</h4><span class="psub">${kollSkrev(k)}. ${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}.</span></div>`
       + `<div class="prow"><button type="button" class="btn prim sm" data-lp="ja">${lsIk('check', 13, 2.6)}Yes, that’s it</button>`
