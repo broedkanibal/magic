@@ -39,6 +39,8 @@ ta bort sista noden (`Gemm`) och sätt `/flatten/Flatten_output_0` som utgång.
 | Bänken | `node bank.cjs --set riktiga --modell mobileclip-s0 --centrera --rotar 0,90,180,270` | träff, marginal, tröskel för 0 säkra fel, per typ |
 | Förbättringar | `node forbattra.cjs --modell mobileclip-s0` | A–F: flera referenser, TTA, lärda referenser, OCR-fusion, deck-prior |
 | Större lek | `node storre.cjs` | 28 → 126 namn, annat tryck av samma konst |
+| Recept och regel | `node recept.cjs`, `node regel.cjs` | hur många vektorer per konstverk som behövs; marginal/poäng/skymd som säkerhetsregel; kalibreringen marginal → andel rätt |
+| Bildkvalitet | `node forsamra.cjs`, sedan `forbattra.cjs --rset riktiga-forsamrad` | de riktiga beskärningarna försämrade en gång till (halv upplösning, hård jpeg ×2) |
 | Dagens kedja | `node utdrag.cjs` | klipper Matcher/ORB ur `index.html` → `cache/kedjan.js` (baslinjen i bank.html) |
 | Webbläsaren | `node server.cjs` → <http://localhost:8377/dev/embed/bank.html> | modulen `embed.js` mot samma set, ms per kort |
 | | `node webb.cjs tid.html "MAT('mobileclip-s0-vision.onnx','wasm',256)"` | tid per kort i huvudlös Chrome (ostrypt); `--gpu` för WebGPU |

@@ -287,7 +287,45 @@ beskärningarna. Tabellen visar träff, säkra rätt, **säkra fel** och ms per
 kort. Siffrorna nedan är körda i huvudlös Chrome (`webb.cjs`), eftersom
 browserpanelens dolda flik stryper trådarna.
 
-⏳ *siffrorna fylls i*
+Modulen (MobileCLIP-S0 fp32 på WebGPU — grafikkortet här saknar shader-f16
+så fp16 föll tillbaka), receptet 4 vridningar × skarp/suddig, tröskel
+marginal > 0,11, och kedjans skräpspärr `serUtSomKort` före modellen (mattans
+nivå skattad ur beskärningens marginal):
+
+| | Rätt överst | Säkra rätt | Säkra fel | ms per kort (median) |
+|---|---|---|---|---|
+| Modulen ensam · riktiga (61) | 52 (85 %) | 46 | 1 ⁶ | **98** |
+| Modulen ensam · syntetiska (var 8:e, 500) | 423 (85 %) | 289 (58 %) | 5 (1,0 %) | 119 |
+| Dagens kedja (Matcher + ORB) · riktiga | 40 (66 %) | 33 | 0 | ~500 |
+| Dagens kedja · syntetiska | 386 (77 %) | 333 (67 %) | 0 | ~490 |
+| **Två vittnen: modulen rangordnar, ORB kontrollerar de tre bästa** · riktiga | 52 (85 %) | **46** | **1** ⁶ | 260 |
+| Två vittnen · syntetiska | 424 (85 %) | **362 (72 %)** | 6 (1,2 %) ⁷ | 200 |
+| WASM-vägen (4 trådar i egen worker, belastad dator) | fungerar | — | — | 258 (p90 464) |
+
+⁶ Felet är `05-06`: ett Plains som ligger ovanpå ett Swamp — beskärningen är
+till största delen Plains, och både modellen och ORB (13 inliers) säger
+Plains. Det är en riktig bild av vad som syns; facit är kortet under.
+Fall 11:s två beskärningar (samma Swamp i plastficka) blir osäkra i
+tvåvittnesläget: ORB pekar på ett annat namn med 6–9 inliers, och då får
+modellens marginal (0,18–0,21) inte bestämma ensam. ⁷ Tre av de sex är
+kortet som ligger ÖVER (rätt om vad som syns); de tre andra är mörka svarta
+kort som blir Night's Whisper (ORB håller med, 6–12 inliers).
+
+Så många ORB-kontroller bär: av de 46 säkra riktiga bärs 45 av ORB (≥ 10
+inliers på modellens etta), 1 av modellen ensam. Med "modellen ensam får
+inte vara säker när ORB har ≥ 6 inliers på ett annat namn" föll säkra fel
+från 3 till 1 på de riktiga och från 49 till 46 säkra rätt.
+
+**Utanför leken:** slutet set betyder att modellen alltid svarar *något*.
+Prov med en lek på 16 av de 28 korten: 5 av 61 blev säkra FEL på modellen
+ensam. Ett kort som inte finns i leken (motståndarens, en token) måste
+stoppas av ORB-kontrollen eller Claude — modellen märker det inte själv.
+
+Självtestet (`SJALVTEST()`): lärd referens lyfter Pharika's Chosen från
+marginal 0,10 (osäker) till 0,36 (säker); posten läses tillbaka ur IndexedDB
+med samma svar; `taBort` återställer exakt; `utan` räknar bort ett namn.
+Att bädda in golden-leken (105 bilder, 840 vektorer) tog 86 s med WebGPU
+på den här datorn.
 
 ## Integrationsplanen (koden i `index.html` skrivs inte i natt)
 
@@ -325,7 +363,7 @@ inliers på modellens kandidater), **N** (namnläsaren, som i dag).
 | M:s etta bärs av O (≥ `ORB_ACCEPT` inliers) | **säker**, även vid låg marginal | `'modell+orb'` |
 | M:s etta = N:s namn (säkert eller svagt namn) | **säker** | `'modell+namn'` |
 | N säkert på ett ANNAT namn än M, M inte säker | N vinner som i dag | `'namn ensamt'` |
-| M säker men N säkert på annat, eller O ≥ 10 inliers på ett annat av de tre | **osäker** → Claude | `'konflikt'` |
+| M säker men N säkert på annat, eller O ≥ **6** inliers på ett annat av de tre | **osäker** → Claude | `'konflikt'` |
 | Annars | **osäker** → Claude | `'osäker'` |
 
 Landregeln (`confident`: 4 av 6 bästa samma basland) försvinner: modellen
@@ -333,6 +371,9 @@ räknar redan poäng per namn, så 24 konstverk konkurrerar inte med varandra.
 Regeln "land mot namn" och antalspriorn K6 behålls — K6 får dessutom verka
 tidigare: namn vars exemplar är slut skickas in som `utan`, så att modellen
 inte ens föreslår dem.
+
+Uppmätt i `bank.html` (två vittnen, riktiga): 46 säkra rätt, 1 säkert fel
+(ett Plains ovanpå ett Swamp — det som syns), mot dagens 33 / 0.
 
 Kort **i en klunga** ska aldrig bli säkra på modellen ensam: det är där de
 säkra felen uppstår (den svarar med det kort som syns mest). Spår vars låda

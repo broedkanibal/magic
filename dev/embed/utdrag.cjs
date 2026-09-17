@@ -4,8 +4,8 @@
    dev/matcher.js och dev/orb.js är gamla kopior (första committen); appens
    egna Matcher och ORB har ändrats sedan dess (HINT_SC, packTill …). För att
    baslinjen ska vara DAGENS kedja klipps blocken ur index.html vid körning:
-   Matcher, ORB, cropCanvas, orbIdentify, identifyAt, confident och deras
-   konstanter. index.html läses bara — ingenting skrivs dit.
+   Matcher, ORB, cropCanvas, orbIdentify, identifyAt, confident, skräpspärren
+   serUtSomKort och deras konstanter. index.html läses bara — ingenting skrivs dit.
 
      node dev/embed/utdrag.cjs      → dev/embed/cache/kedjan.js (gitignorerad) */
 const fs = require('fs');
@@ -31,8 +31,8 @@ const delar = [
   iife('global.Matcher = {'), iife('global.ORB = {'),
   'const Pool = { idx: null };',
   rad('const CONF = {'), rad('const BASICS = new Set('), rad('const ORB_ACCEPT ='), rad('const refSid ='),
-  funktion('confident'), funktion('cropCanvas'), funktion('orbIdentify'), funktion('identifyAt'),
-  'window.Kedjan = { Pool, identifyAt, confident, BASICS };',
+  funktion('confident'), funktion('cropCanvas'), funktion('orbIdentify'), funktion('identifyAt'), funktion('serUtSomKort'),
+  'window.Kedjan = { Pool, identifyAt, confident, BASICS, serUtSomKort };',
 ];
 fs.mkdirSync(path.join(__dirname, 'cache'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'cache', 'kedjan.js'), delar.join('\n\n') + '\n');
