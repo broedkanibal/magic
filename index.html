@@ -3936,6 +3936,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
             <dt><kbd>S</kbd></dt><dd>Switch between select and pan. In pan, click and drag anywhere to move the mat</dd>
             <dt><kbd>U</kbd></dt><dd>Untap all — every tapped card on your table stands back up</dd>
             <dt>Drag on the mat</dt><dd>In select: mark every card the box touches — <kbd>⇧</kbd> adds, <kbd>⇧</kbd>-click adds or removes one card. Drag a marked card to move them all; <kbd>T</kbd> taps them all; <kbd>Esc</kbd> or a click on the mat clears</dd>
+            <dt>Drag a mana stack</dt><dd>Moves the whole stack — a click still taps just the card you hit. <kbd>⌥</kbd> + drag takes one card out of the stack, as does ⋯ on the card</dd>
             <dt><kbd>Esc</kbd></dt><dd>Close overlay / leave the search box</dd>
           </dl>
         </section>
@@ -9057,7 +9058,10 @@ function renderPill() {
   if (!c || (dnd && dnd.drar) || !redigerbar() || c.lyft != null || !paMattan(c)) { if (el) el.remove(); return; }
   const v = matVy(), r = matRect(c);
   const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
-  const hint = nStack > 1 ? nStack + ' stacked · drag one out' : c.tapped ? 'Swing it back up' : 'Swing it sideways';
+  /* En manahög flyttas hel (MES-206); ur en tokenhög drar man fortfarande ut
+     ett kort. Tap står kvar i knappen bredvid och rör bara det här kortet. */
+  const hint = nStack > 1 ? nStack + (manaHog(c) ? ' stacked · drag moves all' : ' stacked · drag one out')
+    : c.tapped ? 'Swing it back up' : 'Swing it sideways';
   const html = `<span class="hint">${esc(hint)}</span>`
     + `<button type="button" class="prim" data-pakt="tap">${c.tapped ? 'Untap' : 'Tap'}<kbd>T</kbd></button>`
     + `<button type="button" class="meny" data-pakt="ctr" title="Counters on this card (C)">+</button>`
@@ -9100,17 +9104,20 @@ function openKortMeny(cid, cx, cy) {
     gridWrap.addEventListener('wheel', closeKortMeny, { passive: true });
   }
   const dfc = arDfc(cardOf(c)), tok = tokDelar(cardOf(c));
+  /* Ur en manahög: ⌥ + drag på datorn, den här raden på pekskärmen (MES-206). */
+  const losbar = manaHog(c) && hand().filter(k => k.grp === c.grp).length > 1;
   matMenyEl.dataset.cid = cid;
   matMenyEl.innerHTML = `<div class="hd">${esc(namnAv(c))}</div>
     <button type="button" data-ma="tap"><i style="background:var(--acc)"></i>${c.tapped ? 'Untap — stand it back up' : 'Tap — turn it sideways'}<kbd>T</kbd></button>
     <button type="button" data-ma="flip"><i style="background:var(--blue)"></i>${c.flipped ? 'Turn face up' : (dfc ? 'Transform' : 'Turn face down')}<kbd>Space</kbd></button>
     <button type="button" data-ma="ctr"><i style="background:#57c785"></i>Counters…<kbd>C</kbd></button>
+    ${losbar ? `<button type="button" data-ma="losa"><i style="background:#e0b44c"></i>Take it out of the stack<kbd>⌥ drag</kbd></button>` : ''}
     ${tok.map((t, j) => `<button type="button" data-ma="tok${j}"><i style="background:#e0b44c"></i>Create ${esc(t.name)} token</button>`).join('')}
     <button type="button" data-ma="grav"><i style="background:#b98ff0"></i>To the graveyard<kbd>G</kbd></button>
     <button type="button" data-ma="hand"><i style="background:#6b8cff"></i>Return to hand<kbd>H</kbd></button>`;
   const r = $('#zonPerm').getBoundingClientRect();
   matMenyEl.style.left = Math.max(4, Math.min(cx - r.left, r.width - 214)) + 'px';
-  matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175 - 34 * tok.length)) + 'px';
+  matMenyEl.style.top = Math.max(4, Math.min(cy - r.top + 6, r.height - 175 - 34 * (tok.length + (losbar ? 1 : 0)))) + 'px';
   matMenyEl.classList.add('open');
 }
 function closeKortMeny() { if (matMenyEl) matMenyEl.classList.remove('open'); }
@@ -9121,6 +9128,7 @@ function kortMenyVal(a, i) {
   else if (a === 'flip') { state.sel = i; flipSel(); }
   else if (a === 'grav') matAngra(namnAv(c) + ' → graveyard', () => { flygTillGrav(gridEl.querySelector(`.card[data-i="${i}"]`)); flyttaTill(i, ZON_GRAV); });
   else if (a === 'hand') tillLeken(i);
+  else if (a === 'losa') losaUrHog(c.cid);
   else if (/^tok\d+$/.test(a)) {
     const t = tokDelar(cardOf(c))[+a.slice(3)], p = player();
     if (t) { angraPunkt(p); skapaTokens(p, c, [{ part: t, n: 1 }], true); }
@@ -11445,6 +11453,36 @@ function gruppAttFlytta() {
   const grp = new Set(h.filter(k => matValda.has(k.cid) && med(k) && k.grp).map(k => k.grp));
   return h.filter(k => med(k) && (matValda.has(k.cid) || (k.grp && grp.has(k.grp))));
 }
+/* En manahög är en enhet på bordet: ett drag i vilket kort som helst i den
+   flyttar hela högen (MES-206). Gäller länder — tokenhögar drar man fortfarande
+   ut ett kort ur, för det är hela poängen med dem. Tap rör aldrig högen: ett
+   klick tappar bara kortet man klickade på. ⌥ under draget drar ut det
+   enskilda kortet, som förut; kortmenyn har samma väg för pekskärm. */
+function manaHog(c) { return !!c && !!c.grp && !c.tok && matSlag(c) === 'land'; }
+/* Korten i kortets hög, med samma villkor som ett gruppdrag. */
+function hogAttFlytta(c) {
+  const h = hand(), kam = spelLage && kamSpeglar(minSpelare());
+  return h.filter(k => k.grp === c.grp && paMattan(k) && k.lyft == null && !k.attachedTo && !(kam && k.spar != null));
+}
+/* Ett kort ut ur högen utan ⌥ och utan drag — kortmenyns väg, och den enda
+   som finns på en pekskärm. Kortet läggs bredvid högen, och högen löses upp
+   av raknaOmHogar om bara ett kort blir kvar. */
+function losaUrHog(cid) {
+  const h = hand(), c = h.find(k => k.cid === cid);
+  if (!c || !c.grp || !redigerbar()) return;
+  const hog = h.filter(k => k.grp === c.grp && paMattanKort(k));
+  const hoger = hog.reduce((a, b) => ((b.x || 0) > (a.x || 0) ? b : a), hog[0] || c);
+  angraPunkt();
+  c.grp = null; c.gi = null;
+  c.x = (hoger.x || 0) + matStorlek(c).w + 18;
+  c.y = hoger.y || 0;
+  const v = matVy(), pos = clampKort(c, v.board, gravRuta(v));
+  c.x = pos.x; c.y = pos.y;
+  matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1;
+  c.z = matTopZ;
+  raknaOmHogar(h);
+  save(); renderGrid(true); fjarrIkapp();
+}
 function gruppDrag(ev) {
   if (!dnd.drar) {
     if (Math.abs(ev.clientX - dnd.x0) + Math.abs(ev.clientY - dnd.y0) < DND_TROSKEL) return;
@@ -11464,11 +11502,15 @@ function gruppDrag(ev) {
 }
 /* Släppt: varje kort kläms mot brädet och graveyard-rutan, högarna räknas
    om. Inga högar, värdar eller graveyard-släpp för en grupp — det är en
-   flytt. Ett klick utan drag gör ingenting (ingen tap). */
+   flytt. Ett klick utan drag gör ingenting (ingen tap) — utom i en hög
+   (d.hog), där klicket är ett tap på kortet man tog i som vanligt. */
 function gruppSlapp(d, avbryt) {
   const h = hand();
   for (const g of d.grupp) { const el = kortEl(g.cid); if (el) el.classList.remove('held'); }
-  if (!d.drar) return;
+  if (!d.drar) {
+    if (d.hog) { const i = h.findIndex(k => k.cid === d.cid); if (i >= 0) tappa(i); }
+    return;
+  }
   svalgKlick = true;
   const v = matVy(), gr = gravRuta(v);
   for (const g of d.grupp) {
@@ -11529,6 +11571,19 @@ gridEl.addEventListener('pointerdown', ev => {
     matChip(c, `The table places this card · switch to ${LAGE_NAMN.skarm} to move it`);
     clearTimeout(matChipT); matChipT = setTimeout(() => matChip(null), 1800);
     return;
+  }
+  /* En manahög flyttas hel (MES-206). ⌥ drar ut det enskilda kortet ur
+     högen, som förut — och kortmenyn har "Take it out of the stack" för
+     pekskärmar, som inte har någon ⌥. Klicket utan drag tappar kortet
+     (gruppSlapp), så tap är orört. */
+  if (manaHog(c) && !ev.altKey) {
+    const flytt = hogAttFlytta(c);
+    if (flytt.length > 1) {
+      dnd = { cid: c.cid, hog: true, grupp: flytt.map(k => ({ cid: k.cid, x: k.x || 0, y: k.y || 0 })),
+              p0: cpt(ev), x0: ev.clientX, y0: ev.clientY, drar: false, pointerId: ev.pointerId,
+              fore: JSON.stringify(hand()) };
+      return;
+    }
   }
   const pt = cpt(ev);
   /* Ett bifogat kort ritas på en plats härledd ur värden; draget ska börja
