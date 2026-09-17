@@ -9970,7 +9970,7 @@ let oppStatusSkickad = null;
 /* Steg 1 (MES-170): lekytan i panel och matta (oppLs, skapas första gången
    en lek ändras), om den står framme, om leken är ny (G2), vilken lek den
    öppnades med och om den laddat klart — och Last used. */
-let oppLs = null, oppLsOppen = false, oppLsNy = false, oppLsId = null, oppLsKlar = false, oppSenast = undefined;
+let oppLs = null, oppLsOppen = false, oppLsId = null, oppLsKlar = false, oppSenast = undefined;
 /* Steg 4 (MES-122): provkortets spår och om vinkeln går att spara nu
    (oppProvMatt); svaret (tappat) medan telefonen räknar; graveyard-rutan
    spelaren flyttar (Move it); och när library-rutan sparades — leken räknas
@@ -10246,19 +10246,23 @@ function oppLekVyHtml(l) {
     + (main.length ? `<div class="lssekrad">${main.map(sek).join('')}</div>` : '')
     + `<p class="mfot4">${lsIk('deck', 14)}These cards go into your library when you start playing.</p>`;
 }
-/* Pennan och New deck (G1Edit, G2): lekytan monteras i steget och på
-   mattan, med samma autosave som lekens sida. */
+/* Pennan (G1Edit): en lek man redan har öppnas i steget och på mattan, med
+   samma autosave som lekens sida. */
 async function oppRedigeraLek(id) {
   if (!oppLs) oppLs = skapaLekYta({ panel: $('#oppLsPanel'), yta: $('#oppLsYta'), huvud: $('#oppLsHuvud'),
     nar: { borta: () => oppLekKlar(false), andrat: () => { if (oppLsOppen) renderOppstart(); } } });
-  oppLsOppen = true; oppLsNy = !id; oppLsId = id || null; oppLsKlar = false;
+  oppLsOppen = true; oppLsId = id; oppLsKlar = false;
   renderOppstart();                 // behållarna syns innan ytan ritar (namnfältet ska få fokus)
-  const namn = id ? undefined : lekNyttNamnAv(oppLekar || []);
-  const ok = await oppLs.oppna(id || null, { namn });
+  const ok = await oppLs.oppna(id);
   if (!oppLsOppen) return;
   oppLsKlar = !!ok;
   renderOppstart();
 }
+/* New deck (MES-204): steg 1 är en väljare. Att bygga en lek är ett eget
+   jobb — de tre sätten att lägga till kort hör hemma på lekens egen sida,
+   som läggs över spelet ('Back to the game'). valj: den nya leken är den
+   som är vald i steget när sidan stängs. */
+function oppNyLek() { oppnaLeksida(null, { fran: 'app', valj: true }); }
 /* Tillbaka till lekarna — eller Use this deck: leken sparas, ytan stängs
    och leken väljs för spelet. En ny lek utan kort tas bort (MES-177). */
 async function oppLekKlar(anvand) {
@@ -10370,11 +10374,9 @@ function renderOppstart() {
        klar innan steget fanns där (utan4, MES-171). */
     const s4 = steg.vinkel && !(kamGravRad && kamBibRad) ? 'Skipped' : 'Graveyard and library set', s4el = $('#opp4 .vsum');
     if (s4el.textContent !== s4) s4el.textContent = s4;
-    /* 1: leken. Listan hämtas en gång; står lekens sida öppen (New deck…)
-       hämtas den på nytt när den stängts. */
     /* 1: leken (G1). Listan och Last used hämtas en gång; står lekens sida
-       öppen hämtas de på nytt när den stängts. Pennan och New deck monterar
-       lekytan i steget (G1Edit, G2). */
+       öppen (pillret New deck) hämtas de på nytt när den stängts. Pennan
+       monterar lekytan i steget (G1Edit). */
     if (aktiv === 'lek') {
       if (leksidaOppen()) oppLekar = null;
       else if (!oppLekar && !oppLekarHamtar) {
@@ -10387,12 +10389,11 @@ function renderOppstart() {
       let h;
       fot = { txt: 'Use this deck', av: true };
       if (lsVisa) {
-        const i = oppLsKlar ? oppLs.info() : (oppLekar || []).find(l => l.id === oppLsId) || { namn: 'New deck', antal: 0, farger: [] };
+        const i = oppLsKlar ? oppLs.info() : (oppLekar || []).find(l => l.id === oppLsId) || { namn: 'Deck', antal: 0, farger: [] };
         h = `<button type="button" class="vback" data-opp="lektillbaka"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Back to your decks</button>`
-          + (oppLsNy ? '' : `<div class="lrs">${lekRadHtml(i, { on: true })}</div>`);
+          + `<div class="lrs">${lekRadHtml(i, { on: true })}</div>`;
         const antal = `${i.antal} ${i.antal === 1 ? 'card' : 'cards'}`;
-        fot = oppLsNy ? { txt: `Use this deck (${antal})`, a: 'lekklar', av: !oppLsKlar || !i.antal, hint: 'It’s saved in Your decks too, for later games.' }
-          : { txt: `Use ${esc(i.namn)} (${antal})`, a: 'lekklar', av: !oppLsKlar || !i.antal, hint: 'What you change is saved in Your decks too.' };
+        fot = { txt: `Use ${esc(i.namn)} (${antal})`, a: 'lekklar', av: !oppLsKlar || !i.antal, hint: 'What you change is saved in Your decks too.' };
       }
       else if (!oppLekar) h = '<p class="opptxt">Fetching your decks…</p>';
       else if (!oppLekar.length) h = '<p class="opptxt">Only cards from the deck you pick will be recognized. You have no decks yet — add your cards first.</p>' + nylek;
@@ -10501,7 +10502,7 @@ $('#oppstart').addEventListener('click', ev => {
     oppVisat = null; oppSatt({ lekOk: true });
     if (samma) renderMode(); else valjLekTill(oppLekVal).then(() => renderMode());
   }
-  else if (a === 'nylek') oppRedigeraLek(null);
+  else if (a === 'nylek') oppNyLek();
   else if (a === 'lektillbaka') oppLekKlar(false);
   else if (a === 'lekklar') oppLekKlar(true);
   else if (a === 'bjud') oppKopiera(inbjudanLank(), b);
@@ -15620,7 +15621,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
 }
 
 /* ── sidan runt ytan ── */
-const leksida = { yta: null, fran: 'hem' };
+const leksida = { yta: null, fran: 'hem', valj: false };
 const leksidaOppen = () => !$('#vyLeksida').hidden;
 /* En lekyta står framme — lekens sida, eller ytan i uppstartens steg 1
    (MES-170). Då ångrar ⌘Z i leken, och bordets tangenter står still. */
@@ -15633,10 +15634,12 @@ function leksidaTillbakaText() {
   $('#lsTillbakaTxt').textContent = leksida.fran === 'app' ? (spelLage ? 'Back to the game' : 'Back') : 'Home';
 }
 /* id: leken som ska öppnas; utan id en ny. fran: dit ‹ går ('hem' | 'app'),
-   annars det som syns under sidan. */
+   annars det som syns under sidan. valj: leken väljs i uppstartens steg 1
+   när sidan stängs (New deck därifrån, MES-204). */
 async function oppnaLeksida(id, o = {}) {
   if (!leksida.yta) leksida.yta = skapaLekYta({ panel: $('#lsPanel'), yta: $('#lsYta'), huvud: $('#lsHuvud'), nar: { borta: () => stangLeksida() } });
   leksida.fran = o.fran || ($('#app').style.display === 'none' ? 'hem' : 'app');
+  leksida.valj = !!o.valj;
   leksidaTillbakaText();
   $('#lsJag').innerHTML = sidaJagHtml();
   closeMenu();
@@ -15654,7 +15657,13 @@ async function stangLeksida() {
      annars visade listan leken som den var innan man gick tillbaka. */
   if (leksida.yta) await leksida.yta.stang();
   if (leksida.fran === 'hem') { if (!$('#vyHem').hidden || $('#app').style.display === 'none') visaHem(); }
-  else { oppLekar = null; if (spelLage) renderMode(); }
+  else {
+    oppLekar = null;
+    /* New deck ur steg 1 (MES-204): den nya leken är vald när man kommer
+       tillbaka. En lek utan kort är borttagen då (MES-177) och har inget id. */
+    if (leksida.valj && leksida.yta && leksida.yta.id) oppLekVal = leksida.yta.id;
+    if (spelLage) renderMode();
+  }
 }
 $('#lsTillbaka').onclick = () => stangLeksida();
 $('#vyLeksida').addEventListener('keydown', ev => {
