@@ -90,9 +90,9 @@ window.ORBBAS = async function (setNamn, o) {
 const LOKALT = { ort: 'node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'node_modules/onnxruntime-web/dist/' };
 async function embedRedo(o) {
   o = o || {};
-  const modell = o.modell || { webgpu: 'modeller/mobileclip-s0-vision.onnx', wasm: 'modeller/mobileclip-s0-vision.onnx' };
+  const modell = o.modell || { webgpu16: 'modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'modeller/mobileclip-s0-vision.onnx', wasm: 'modeller/mobileclip-s0-vision.onnx' };
   const l = await Embed.ladda(Object.assign({}, LOKALT, { modell, backend: o.backend || 'auto' }));
-  log(`modellen laddad: <b>${l.backend}</b>${l.tradar ? ', ' + l.tradar + ' trådar' : ''}, ${l.ms} ms (isolerad: ${!!self.crossOriginIsolated})`);
+  log(`modellen laddad: <b>${l.backend}</b> (${l.modell})${l.tradar ? ', ' + l.tradar + ' trådar' : ''}, ${l.ms} ms (isolerad: ${!!self.crossOriginIsolated})`);
   const kod = 'bank:' + (o.lek || 'lek-golden');
   let idx = o.byggOm ? null : await Embed.laddaLek(kod);
   if (!idx) {

@@ -13,6 +13,7 @@
    --liten    referenser ur Scryfalls small (146×204) i stället för normal
    --ut       cls | cls+medel (bara DINOv2)
    --sida     inmatningens sida i px (DINOv2 tar vilken multipel av 14 som helst)
+   --var N    bara var N:e bild i setet
    --json     skriv raderna till cache/resultat/<namn>.json
    Slutet set: bara lekens namn är kandidater. */
 const fs = require('fs');
@@ -91,6 +92,7 @@ function redovisa(namn, rader, o) {
   o.test = lasSet(o.set);
   if (arg('kalla')) o.test = o.test.filter(t => t.kalla === arg('kalla'));
   if (arg('max')) o.test = o.test.slice(0, +arg('max'));
+  if (arg('var')) o.test = o.test.filter((_, i) => i % +arg('var') === 0);   // var N:e bild
   for (const m of String(arg('modell', 'dinov2-small')).split(',')) {
     const t0 = Date.now();
     const r = await kor(m, o);

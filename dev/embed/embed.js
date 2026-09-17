@@ -41,7 +41,10 @@
   const MODELL_HF = 'https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/';
   const FORVAL = {
     ort: ORT_CDN + 'ort.webgpu.min.js', wasmPaths: ORT_CDN,
-    modell: { webgpu: MODELL_HF + 'vision_model_fp16.onnx', wasm: MODELL_HF + 'vision_model.onnx' },
+    /* fp16 är hälften så stor och lika träffsäker (55/61 båda), men går bara på
+       grafikkort med shader-f16 — på den här bänkens Intel-Mac föll den. int8
+       (den färdiga dynamiskt kvantiserade) är oanvändbar: 7/61 rätt. */
+    modell: { webgpu16: MODELL_HF + 'vision_model_fp16.onnx', webgpu: MODELL_HF + 'vision_model.onnx', wasm: MODELL_HF + 'vision_model.onnx' },
     backend: 'auto',                         // 'auto' | 'webgpu' | 'wasm'
   };
 
@@ -64,8 +67,9 @@
     return new Uint8Array(await svar.arrayBuffer());
   }
 
-  async function harWebGPU() {
-    try { return !!(global.navigator.gpu && await global.navigator.gpu.requestAdapter()); } catch (e) { return false; }
+  /* null = ingen WebGPU; annars { f16 } — om grafikkortet räknar med halvprecision. */
+  async function webGPU() {
+    try { const a = global.navigator.gpu && await global.navigator.gpu.requestAdapter(); return a ? { f16: a.features.has('shader-f16') } : null; } catch (e) { return null; }
   }
 
   /* Ladda modellen. Svar: { backend, ms, tradar }. Anropas en gång; senare anrop får samma löfte. */
@@ -79,17 +83,22 @@
       if (o.wasmPaths) ort.env.wasm.wasmPaths = new URL(o.wasmPaths, global.location.href).href;
       const tradar = global.crossOriginIsolated ? Math.min(4, global.navigator.hardwareConcurrency || 2) : 1;
       ort.env.wasm.numThreads = tradar;
-      const ordning = o.backend === 'auto' ? ((await harWebGPU()) ? ['webgpu', 'wasm'] : ['wasm']) : [o.backend];
+      /* Försöken i tur och ordning: [backend, modellfil]. Faller ett (ingen
+         shader-f16, drivrutinen säger nej, filen går inte att hämta) prövas nästa. */
+      const gpu = o.backend === 'wasm' ? null : await webGPU(), forsok = [];
+      if (gpu && gpu.f16 && o.modell.webgpu16) forsok.push(['webgpu', o.modell.webgpu16]);
+      if (gpu) forsok.push(['webgpu', o.modell.webgpu]);
+      if (o.backend !== 'webgpu') forsok.push(['wasm', o.modell.wasm]);
       /* Utan WebGPU räknar WASM — i en egen worker, så att sidan inte står still under körningen. */
-      if (ordning[0] === 'wasm') ort.env.wasm.proxy = true;
+      if (forsok.length && forsok[0][0] === 'wasm') ort.env.wasm.proxy = true;
       let fel = null;
-      for (const b of ordning) {
+      for (const [b, url] of forsok) {
         try {
-          const bytes = await hamtaModell(o.modell[b] || o.modell.wasm);
+          const bytes = await hamtaModell(url);
           session = await ort.InferenceSession.create(bytes, { executionProviders: [b], graphOptimizationLevel: 'all' });
           backend = b; inNamn = session.inputNames[0]; utNamn = session.outputNames[0];
           await kor(new Float32Array(3 * SIDA * SIDA));          // värm upp: första körningen kompilerar
-          return { backend, tradar: b === 'wasm' ? tradar : null, ms: Math.round(performance.now() - t0) };
+          return { backend, modell: url.split('/').pop(), tradar: b === 'wasm' ? tradar : null, ms: Math.round(performance.now() - t0) };
         } catch (e) { fel = e; session = null; }
       }
       laddar = null; throw fel || new Error('ingen backend');

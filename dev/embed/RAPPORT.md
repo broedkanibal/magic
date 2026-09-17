@@ -5,24 +5,25 @@ går att köra om — se [LÄS-MIG.md](LÄS-MIG.md).
 
 ## Svaret: GO — med två förbehåll
 
-**Ja, bygg in den.** En färdig bildmodell (MobileCLIP-S0, 45 MB) som körs i
-webbläsaren sätter rätt namn på **55 av 61 riktiga golden-beskärningar (90 %)**
-och på **42 av 43 vanliga kort (98 %)**. Dagens lokala bildkedja
-(Matcher + ORB) får 40 av 61 på exakt samma beskärningar. Med en
-säkerhetströskel som ger **0 säkra fel** blir 42–49 av 61 kort säkra direkt,
-mot 33 med dagens kedja — och svaret kommer på 0,1–0,25 s i stället för
-Claudes 1,7–2,2 s.
+**Ja, bygg in den — som bildvittne i stället för Matcher, inte som ersättare
+för Claude.** En färdig bildmodell (MobileCLIP-S0) som körs i webbläsaren
+sätter rätt namn på **52–55 av 61 riktiga golden-beskärningar (85–90 %)** och
+på **42 av 43 vanliga kort (98 %)**. Dagens bildkedja (Matcher + ORB) får
+40 av 61 på exakt samma beskärningar. Svaret kommer på **~100 ms** på den
+här datorn (WebGPU), mot ~500 ms för dagens bildkedja och 1,7–2,2 s för
+Claude.
 
 Förbehållen:
 
-1. **Målet ">95 % på <50 ms" nås inte rakt av.** 95 % nås för vanliga kort
-   som ligger för sig själva, inte för hela bordet: basland i högar och kort
-   som detektorn inte skurit ut rätt drar ner det till 90 %. Och 50 ms nås
-   inte på den här datorn (113 ms med WebGPU, ~240 ms utan). Slutmålet
-   *namn inom 300 ms* nås däremot.
-2. **Claude behövs kvar — men i bakgrunden.** Ungefär tre av fyra kort blir
-   säkra lokalt. Resten (landhögar, klungor, blänk i plastficka) går till
-   Claude som i dag, utan att de säkra korten väntar på det.
+1. **">95 % på <50 ms" nås inte rakt av.** 95 % nås för vanliga kort som
+   ligger för sig själva — inte för hela bordet: basland i högar och kort
+   som inte är rätt utskurna drar ner det till 85–90 %. Och 50 ms nås inte
+   här (98 ms med WebGPU, 250–700 ms utan). Slutmålet *namn inom 300 ms* nås
+   med WebGPU.
+2. **Claude behövs kvar — i bakgrunden.** Ungefär **två av tre kort blir
+   säkra lokalt utan ett enda säkert fel** (39–42 av 61; dagens bildkedja
+   33). Resten — landhögar, klungor, blänk i plastficka — går till Claude som
+   i dag, men de säkra korten väntar inte längre på det.
 
 ## Siffrorna i korthet
 
@@ -30,172 +31,228 @@ Riktiga beskärningar = de 60 korten i golden-fallen (+ 1 variant), skurna ur
 `bild.jpg` med spårlådorna ur AI-baslinjen, precis som `Kamera.beskar()` gör.
 Slutet set: bara lekens 28 namn (105 referensbilder) är kandidater.
 
-| Metod | Rätt namn överst | Säkra vid 0 säkra fel | Tid per kort (den här datorn) |
+| Metod | Rätt namn överst | Säkra rätt / säkra fel | Tid per kort (den här datorn) |
 |---|---|---|---|
-| Dagens bildkedja (Matcher + ORB), samma beskärningar | 40/61 (66 %) | 33/61 (54 %) | ~580 ms ¹ |
-| Dagens hela lokala kedja i golden (bild + namnläsare) | — | 31/57 | — |
-| Dagens kedja + Claude (golden `--ai`) | 57/57 | 57/57 | 1 700–2 200 ms |
-| **MobileCLIP-S0**, en referens per konstverk | **55/61 (90 %)** | 51/61 ² | 113 ms WebGPU · 243 ms WASM |
-| MobileCLIP-S0 + flera referenser per kort | 55/61 (90 %) | 42/61 (69 %) ³ | samma |
-| MobileCLIP-S0 + flera referenser + lärda referenser (K7/K8) | 56/61 (92 %) | **49/61 (80 %)** ³ | samma |
-| DINOv2-small (88 MB), med alla knep | 50/61 (82 %) | 27/61 | ~2× långsammare än MobileCLIP |
-| MobileNetV4-small (10 MB), med alla knep | 48/61 (79 %) | 27/61 | 16 ms WebGPU · 32 ms WASM |
+| Dagens bildkedja (Matcher + ORB), samma beskärningar | 40/61 (66 %) | 33 / 0 | ~500 ms ¹ |
+| Dagens hela lokala kedja i golden (bild + namnläsare) | — | 31 av 57 / 0 | — |
+| Dagens kedja + Claude (golden `--ai`) | 57/57 | 57 / 0–1 | 1 700–2 200 ms |
+| **MobileCLIP-S0**, bänken i Node, en referens per konstverk | **55/61 (90 %)** | 41 / 0 ² | — |
+| **MobileCLIP-S0, modulen i webbläsaren** (8 vektorer per konstverk) | **52/61 (85 %)** | 46 / 2 ³ | **98 ms** (WebGPU) |
+| … med regeln "skymda spår blir aldrig säkra på modellen ensam" | samma | **39–42 / 0** | samma |
+| … + lärda referenser (K7/K8), bänken | 56/61 (92 %) | **49 / 0** | samma |
+| DINOv2-small (88 MB), med alla knep | 50/61 (82 %) | 27 / 0 ⁵ | ~2× långsammare |
+| MobileNetV4-small (10 MB), med alla knep | 48/61 (79 %) | 27 / 0 ⁵ | 16 ms WebGPU · 32 ms WASM |
 
-¹ Mätt i huvudlös Chrome medan en annan session belastade datorn; ostört
-kanske hälften. Poängen står sig: inbäddningen är både snabbare och bättre.
-² Tröskeln vald på samma 61 bilder — för snällt. ³ Tröskeln vald på det
-**syntetiska** setet (marginal till tvåan > 0,11) och sedan prövad på de
-riktiga: 47–49 säkra rätt, 0–1 säkert fel (felet är en liten bit av ett kort
-i en jättelåda i fall 11, en beskärning dagens kedja själv kallade osäker).
+¹ Huvudlös Chrome medan en annan session belastade datorn; ostört kanske
+hälften. ² Tröskeln (marginal > 0,145) vald på det **syntetiska** setet och
+sedan prövad på de riktiga. ³ De två säkra felen är samma kort: ett Swamp i
+plastficka med blänk i fall 11 (gravfällorna), litet i en dubbelt så stor
+låda, i två lådvarianter. Spåret är märkt `skymd` av kedjan själv — därav
+regeln på nästa rad. Skillnaden 52 mot 55 är receptet (8 vektorer i stället
+för 4 eller 16) och webbläsarens omskalning; se "Vad knepen gav".
+⁵ Tröskeln vald på samma 61 bilder — för snällt, men de når ändå inte upp.
 
 ### Uppdelat på källa
 
-| Källa | Fall | MobileCLIP-S0 | Dagens bildkedja |
-|---|---|---|---|
-| Mesas egen kameravy (skärminspelning, 1080 px) | 01, 02, 07–12 | **23/24 (96 %)** | 19/24 |
-| Kameraappen (foton, nedskalade till 1080 px) | 03–06 | **32/37 (86 %)** | 21/37 |
+| Källa | Fall | MobileCLIP-S0 (bänken) | Modulen i webbläsaren | Dagens bildkedja |
+|---|---|---|---|---|
+| Mesas egen kameravy (skärminspelning, 1080 px) | 01, 02, 07–12 | **23/24 (96 %)** | 22/24 | 19/24 |
+| Kameraappen (foton, nedskalade till 1080 px) | 03–06 | **32/37 (86 %)** | 30/37 | 21/37 |
 
 Skillnaden mellan källorna beror på **scenerna, inte bildkvaliteten**:
-kameraapp-fallen är de svåra borden (8–12 kort omlott, landhögar, ribbor där
-detektorn inte hittar något och Claudes helbildslådor används). Alla fel
-utom ett är basland i en hög eller en helbildslåda.
+kameraapp-fallen är de svåra borden (8–12 kort omlott, landhögar, ribborna
+där detektorn inte hittar något och Claudes helbildslådor används).
 
 **Åt vilket håll snedvrider 1080 px och dubbel komprimering?** Mot det
 pessimistiska — appen borde göra bättre ifrån sig än golden visar:
 
 - Appen beskär ur 4K; golden-videorna är 1080 px, komprimerade två gånger
-  (skärminspelning → H.264 1 Mbit/s) och har dessutom appens gula/gröna
+  (skärminspelning → H.264 1 Mbit/s), och har dessutom appens gula/gröna
   spårrutor inbakade över korten.
-- Modellen är känslig för just det. Prov: samma 61 beskärningar försämrade
-  en gång till (halv upplösning + två varv hård jpeg) föll från 55 till 27
-  rätt med en referens per kort, och till 37 med flera referenser. Kvalitet
-  åt andra hållet borde alltså hjälpa — men hur mycket går inte att mäta:
-  det finns inget 4K-material i repot.
-- Kameraappens foton är skarpare än telefonens video (egen bildbehandling,
-  ingen rörelse), så fall 03–06 är *snällare* än video i skärpa men lika
-  nedskalade. Där är snedvridningen alltså blandad.
-- Det som **inte** finns i golden alls: andra telefoner, riktigt dåligt
-  ljus, kort i rörelse. Det täcks bara av det syntetiska setet.
+- Modellen är känslig för just det. Prov (`forsamra.cjs`): samma 61
+  beskärningar försämrade en gång till — halv upplösning + två varv hård
+  jpeg — föll från 55 till 27 rätt med en referens per kort, och till 37 med
+  flera. Bättre bild borde alltså ge bättre svar, men hur mycket går inte att
+  mäta: det finns inget 4K-material i repot.
+- Kameraappens foton (03–06) är skarpare än telefonens video (egen
+  bildbehandling, ingen rörelse) men lika nedskalade. Där är snedvridningen
+  blandad: snällare i skärpa, lika i upplösning.
+- Det som **inte** finns i golden alls: andra telefoner, riktigt dåligt ljus,
+  kort i rörelse. Det täcks bara av det syntetiska setet.
 
-Nästa mätning som skulle avgöra saken: låt appen spara sina egna
-beskärningar ur 4K under ett pass (MES-190-spåret) och kör dem genom bänken.
+Mätningen som avgör saken: låt appen spara sina egna beskärningar ur 4K
+under ett pass (MES-190-spåret) och kör dem genom bänken.
 
 ## Vad som går sönder, och varför
 
 Syntetiskt set: 4 000 bilder gjorda ur referensbilderna — kortet i en pose
 på ett underlag (riktiga bitar av golden-borden + ritat trä/duk/matta),
-spårets låda + 8 % marginal, och **en** förstärkt störning per bild.
-MobileCLIP-S0, andel rätt namn (var fjärde bild, n ≈ 37 per typ):
+spårets låda + 8 % marginal med lite fel, och **en** förstärkt störning per
+bild. Andel rätt namn; MobileCLIP på var fjärde bild (n ≈ 37 per typ), dagens
+kedja på var åttonde (n ≈ 19).
 
-| Störning | En referens | Flera referenser | Kommentar |
+| Störning | MobileCLIP, en referens | MobileCLIP, flera referenser | Dagens kedja (Matcher + ORB) |
 |---|---|---|---|
-| Lätt av allt (grund) | 100 % | 100 % | |
-| Varmt / kallt ljus | 100 / 97 % | 100 / 97 % | ofarligt |
-| Överexponerat | 97 % | 100 % | |
-| Underexponerat | 76 % | **100 %** | |
-| Skuggkant | 92 % | 100 % | |
-| Blänk från plastficka | 97 % | 100 % | men se riktiga fall 09–12 nedan |
-| Finger över kortet | 100 % | 100 % | |
-| Annat kort över (20–45 %) | 86 % | 89 % | svarar ofta med det ÖVRE kortet — rimligt |
-| Perspektiv (20–40° lutning) | 97 % | 97 % | |
-| Vridet 0–360° | 84 % | 89 % | 45°-lägen värst: lådan är mest bord |
-| Liggande i stående låda (helbild) | 92 % | 100 % | |
-| Låg upplösning (100–130 px) | 95 % | 100 % | |
-| Hård jpeg | 89 % | 97 % | |
-| **Oskärpa** | **61 %** | **97 %** | referensen är en skarp skanning |
-| **Rörelseoskärpa** | **30 %** | **87 %** | största svagheten |
-| Två–tre störningar samtidigt | 65 % | 78 % | |
-| Stresstest (~fem samtidigt) | 39 % | 48 % | värre än något golden-foto |
+| Lätt av allt (grund) | 100 % | 100 % | 100 % |
+| Varmt / kallt ljus | 100 / 97 % | 100 / 97 % | 100 / 89 % |
+| Över- / underexponerat | 97 / 76 % | 100 / **100 %** | 89 / 100 % |
+| Skuggkant | 92 % | 100 % | 100 % |
+| Blänk från plastficka | 97 % | 100 % | 95 % |
+| Finger över kortet | 100 % | 100 % | 100 % |
+| Annat kort över (20–45 %) | 86 % | 89 % | 89 % |
+| Annan bakgrund, slarvig låda | 97 % | 97 % | 95 % |
+| Perspektiv (20–40° lutning) | 97 % | 97 % | **72 %** |
+| Vridet 0–360° | 84 % | 89 % | **47 %** |
+| Liggande kort i stående låda (helbildens lådor) | 92 % | 100 % | **5 %** |
+| Låg upplösning (100–130 px) | 95 % | 100 % | 89 % |
+| Hård jpeg | 89 % | 97 % | 100 % |
+| **Oskärpa** | **61 %** | **97 %** | 95 % |
+| **Rörelseoskärpa** | **30 %** | **87 %** | 84 % |
+| Två–tre störningar samtidigt | 65 % | 78 % | 65 % |
+| Stresstest (~fem samtidigt) | 39 % | 48 % | 55 % |
+| **Alla** | **77 %** | **88 %** | **77 %** |
 
-Tre slutsatser:
+Fyra slutsatser:
 
-1. **Oskärpa är fienden, och den går att förebygga gratis.** Referensen är
-   en knivskarp skanning, frågan ett suddigt foto. Att bädda in varje
-   referens i fyra varianter (skarp, lågupplöst, suddig, varmt ljus) lyfter
-   oskärpa 61 → 97 % utan att kosta något per fråga.
-2. **Säkra fel uppstår när beskärningen innehåller ett annat kort.** Ett
-   kort som ligger över, eller en landhög, ger ett självsäkert svar på *det
-   andra* kortet. Det är detektorns problem, inte modellens — och skälet
-   till att Claude ska vara kvar som granskare av klungor.
-3. **Basland:** för sig själva 94 % rätt (266/284 syntetiska); i golden
+1. **Oskärpa är modellens fiende — och den går att förebygga gratis.**
+   Referensen är en knivskarp skanning, frågan ett suddigt foto. Att också
+   bädda in en suddig, lågupplöst variant av varje referens lyfter oskärpa
+   61 → 97 % utan att kosta något per fråga.
+2. **Modellen och ORB är bra på olika saker.** Modellen tål vridning,
+   perspektiv och lådor som inte sitter rätt; ORB tål oskärpa och — viktigast
+   — har **aldrig ett säkert fel** (0 av 500 syntetiska, 0 av 61 riktiga),
+   tack vare den geometriska kontrollen. Därför: modellen rangordnar, ORB
+   kontrollerar. Se planen i del 2.
+3. **Modellens säkra fel uppstår när beskärningen innehåller ett annat
+   kort**: ett kort som ligger över, en landhög, ett litet kort i en stor
+   låda. Den svarar då självsäkert med det som syns mest. Det är detektorns
+   problem, inte modellens — och skälet till att klungor ska fortsätta gå
+   till Claude.
+4. **Basland:** för sig själva 94 % rätt (266 av 284 syntetiska). I golden
    13–14 av 18, och alla fel är högar där Plains och Swamp ligger i samma
-   låda. 24 konstverk per landtyp är inget problem för modellen.
+   låda. 24 konstverk per landtyp är inget problem: poängen räknas per namn.
 
-Riktiga fel som står kvar (flera referenser): `03-07` Plains i landhög,
-`05-03` Scourge (helbildslåda, halvt under Pacifism), `05-06` Swamp under
-Plains, `06-05` Swamp i hög, `11-01` Swamp (litet kort i stor låda, två
-varianter). Inget vanligt kort som ligger för sig självt blev fel.
+Riktiga fel som står kvar: `03-07` Plains i landhög, `05-03` Scourge
+(helbildslåda, halvt under Pacifism), `05-06` Swamp under Plains, `06-05`
+Swamp i hög, `11-01` Swamp (ovan). **Inget vanligt kort som ligger för sig
+självt blev fel.**
 
 ### Samma konst i olika tryck
 
-⏳ *fylls i när `storre.cjs` är klar*
+Frågan är en tryckning som *inte* finns bland referenserna, men vars
+konstverk gör det (113 sådana tryckningar av lekens namn; Pacifism har 28).
 
-## Vad de enkla knepen gav (MobileCLIP-S0, riktiga beskärningar)
+| | Samma ramgeneration | Annan ramgeneration (t.ex. 2015 mot 2003) |
+|---|---|---|
+| Lätt störd | 168/168 (100 %) | 31/32 (97 %) |
+| Två–tre störningar | 116/160 (73 %) | 30/40 (75 %) |
 
-| Steg | Rätt överst | Säkra rätt / säkra fel (tröskel ur syntetiska) | Värt det? |
+Ett annat tryck kostar alltså nästan ingenting — konsten bär. Poolens regel
+"ett konstverk per namn räcker, vilket tryck som helst" håller.
+
+## Vad de enkla knepen gav (MobileCLIP-S0, riktiga beskärningar, bänken)
+
+| Steg | Rätt överst | Säkra rätt / säkra fel ⁴ | Värt det? |
 |---|---|---|---|
 | A. En referens per konstverk, fyra vridningar, centrerat | 55/61 | 41 / 0 | grunden |
-| B. + flera referenser per kort | 55/61 | 45 / 2 → 40 / 0 vid högre tröskel | **ja** — försäkring mot oskärpa, gratis per fråga |
+| B. + flera referenser per kort (skarp, lågupplöst, suddig, varm) | 55/61 | 45 / 2 (40 / 0 vid högre tröskel) | **ja** — försäkring mot oskärpa, gratis per fråga; syntetiska 77 → 88 % |
 | C. + test-time-augmentering ×3 | 55/61 | 47 / 1 | nej — tre gånger tiden, ingen vinst |
-| D. + lärda referenser (K7/K8) från andra tillfällen | 56/61 | **49 / 0** | **ja** — kameravyn 24/24 |
-| E. + OCR-vittnet | — | 49 / 0 | ger inget extra: allt namnläsaren kan läsa är redan säkert |
-| F. + deck-prior (säkra kort räknas bort) | 56/60 | 49 / 0 | liten vinst, gratis — behåll K6 |
+| D. + lärda referenser (K7/K8) från **andra** inspelningstillfällen | 56/61 | **49 / 0** | **ja** — kameravyn 24/24 |
+| E. + OCR-vittnet (namnläsaren ur golden-baslinjen) | — | 49 / 0 | inget extra: det namnläsaren kan läsa (14 kort) är redan säkert |
+| F. + deck-prior (säkra kort räknas bort ur kandidaterna) | 56/60 | 47 / 0 | liten vinst, gratis — behåll K6 |
 
-"Centrerat" = referensernas medelvektor dras bort före jämförelsen, så att
-det alla Magic-kort har gemensamt (ram, textruta) inte räknas som likhet.
-Det lyfte MobileCLIP från 50 till 55 rätt och är en rad kod.
+⁴ Tröskeln vald på det syntetiska setet (marginal > 0,11–0,145), prövad här.
 
-Hela kortet slår konstrutan: hel 55/61, bara konst 39/61, båda ihop 52/61.
+- **"Centrerat"** = referensernas medelvektor dras bort före jämförelsen, så
+  att det alla Magic-kort har gemensamt (ram, textruta) inte räknas som
+  likhet. Det lyfte MobileCLIP från 50 till 55 rätt och är en rad kod.
+- **Hela kortet slår konstrutan:** hel 55/61, bara konst 39/61, båda 52/61.
+- **Fyra vridningar av referensen behövs** (55 mot 51 med två): helbildens
+  lådor vet inte hur kortet ligger.
+- **Modulens recept** blev 4 vridningar × 2 varianter (skarp + suddig) = 8
+  vektorer per konstverk: 54/61 i bänken, 90 % syntetiskt, halva byggtiden
+  mot 16 vektorer (55/61, 91 %).
 
 ## Större lek
 
-⏳ *fylls i när `storre.cjs` är klar*
+Commander-stor kandidatmängd = de 98 mest spelade Commander-korten enligt
+EDHREC + baslanden (908 referensbilder). "Flera lekar samtidigt" =
+golden-leken + hela den mängden (126 namn).
+
+| Kandidater | Riktiga beskärningar | Syntetiska ur golden-leken | Säkra (marg > 0,11) |
+|---|---|---|---|
+| 28 namn (golden-leken) | 54/61 (89 %) | 89,9 % | 68 % |
+| 50 namn | — | 84,3 % | 59 % |
+| 75 namn | — | 82,3 % | 56 % |
+| 100 namn | — | 80,9 % | 53 % |
+| 126 namn (egen lek + motståndarens) | 48/61 (79 %) | 79,7 % | 52 % |
+| Commander-100 mot sig själv (syntetiska ur den) | — | 81,5 % | 53 % |
+
+Träffen faller **ungefär fem procentenheter per fördubbling** av antalet
+namn, och andelen säkra faller snabbare än träffen (marginalerna krymper).
+Antalet säkra **fel** växer inte (2 → 0 på de riktiga; 6–12 av 1 850 syntetiska
+hela vägen, de flesta kort som ligger över ett annat). Slutsats: håll
+kandidaterna till **spelarens egen lek** så länge det går (kameran ser
+spelarens eget bord), och låt deck-priorn krympa mängden under spelet.
+Motståndarens kort som kandidater kostar tio procentenheter.
 
 ## Tid och storlek
 
 Mätt i huvudlös Chrome (onnxruntime-web 1.22) på den här datorn: MacBook Pro
-2018, Intel i5-8259U, Iris Plus 655. En annan session belastade datorn under
-natten, så WASM-talen är snarare för höga än för låga.
+2018, Intel i5-8259U, Iris Plus 655. En annan session belastade datorn hela
+natten (load 11–34), så WASM-talen spretar; WebGPU-talen är stabila.
 
-| Modell | Storlek | WASM, 4 trådar | WebGPU | Node (jämförelse) |
-|---|---|---|---|---|
-| MobileCLIP-S0, fp32 | 45,5 MB | 243 ms (bäst 177) | **113 ms** | 55–63 ms |
-| MobileCLIP-S0, fp16 | 22,9 MB | ⏳ | ⏳ | — |
-| MobileCLIP-S0, int8 | 11,8 MB | ⏳ | — | ⏳ |
-| MobileNetV4-small | 10–15 MB | 32 ms | 16 ms | 3–6 ms |
-| DINOv2-small | 88,5 MB | ⏳ | ⏳ | 103–115 ms |
+| Modell | Storlek | Träff (riktiga) | WebGPU | WASM 4 trådar | WASM 1 tråd |
+|---|---|---|---|---|---|
+| MobileCLIP-S0, fp32 | 45,5 MB | 55/61 | **113–130 ms** | 243 ms (bäst 177; 690 under hård last) | 374 ms |
+| MobileCLIP-S0, fp16 | 22,9 MB | 55/61 — **ingen förlust** | gick inte här (grafikkortet saknar `shader-f16`) | 654 ms under hård last ≈ fp32 | — |
+| MobileCLIP-S0, int8 (färdig, dynamisk) | 11,8 MB | **7/61 — oanvändbar** | — | långsammare än fp32 i Node (133 mot 55 ms) | — |
+| MobileNetV4-small | 10–15 MB | 48/61 | 16 ms | 32 ms | — |
+| DINOv2-small | 88,5 MB | 50/61 | inte mätt | inte mätt (Node: 103–115 ms, dubbla MobileCLIP) | — |
 
-Förbehandlingen (canvas → 256×256 → tal) tar 1–3 ms. Jämförelsen mot
-referenserna (1 700 vektorer × 512 tal) tar under 1 ms.
+Hela modulens svar (förbehandling + modell + jämförelse mot 840 vektorer):
+**median 98 ms, p90 113 ms** med WebGPU. Att bädda in golden-leken (105
+bilder → 840 vektorer) tog 86 s; modellen laddar på 2–9 s första gången.
+
+**Kvantisering:** fp16 kostar ingenting i träff och halverar nedladdningen —
+använd den där grafikkortet klarar det (Apple-kretsar gör det). Den färdiga
+int8-filen förstör modellen; en egen, kalibrerad int8 är ett eget arbete och
+lockar inte: WASM blev inte snabbare av den.
 
 **Telefonen — en uppskattning, inte en mätning.** Datorn här är sju år
 gammal med inbyggd grafik; en iPhone 13 eller nyare har 1,5–2,5 gånger
-snabbare grafik. Rimligt: **50–120 ms med WebGPU** (Safari 26 / Chrome på
-Android). Utan WebGPU: 150–300 ms om sidan får köra WASM på flera trådar,
-400–900 ms på en tråd. Osäkerheten är stor — en faktor två åt båda håll —
-och går bara att få bort genom att öppna `bank.html` på telefonen. Det
-kräver https (WebGPU och trådar finns bara i säker kontext), alltså en
-förhandsdriftsättning; det gjordes inte i natt.
+snabbare grafik. Rimligt: **50–120 ms med WebGPU** (Safari 26, Chrome på
+Android). Utan WebGPU: 150–400 ms om sidan får köra WASM på flera trådar,
+400–900 ms på en tråd. Osäkerheten är en faktor två åt båda håll och går
+bara att få bort genom att öppna `bank.html` på telefonen. Det kräver https
+(WebGPU och trådar finns bara i säker kontext), alltså en
+förhandsdriftsättning — det gjordes inte i natt.
 
 ## Rekommenderad modell
 
-**MobileCLIP-S0 bildkodare, fp16 (23 MB) på WebGPU, fp32/int8 på WASM som
-reserv.** Den är bäst på varje mått som spelar roll, hälften så stor som
-DINOv2 och dubbelt så snabb. MobileNetV4 klarar 50 ms men bara 79 % — den
-duger inte som vittne.
+**MobileCLIP-S0:s bildkodare.** fp16 (23 MB) på WebGPU där det går, fp32
+(45 MB) annars, WASM som reserv. Bäst på varje mått som spelar roll, hälften
+så stor som DINOv2 och dubbelt så snabb. MobileNetV4 klarar 50 ms men bara
+79 % — den duger inte som vittne.
 
-Receptet: hela kortet (inte konstrutan), beskärningens 8 % marginal bortskuren,
-256×256, referenser i fyra vridningar × fyra varianter, centrering,
-cosinuslikhet, bästa referens per namn, säkert när marginalen till nästa
-**namn** är > 0,11–0,15.
+Receptet: hela kortet, beskärningens 8 % marginal bortskuren, 256×256,
+varje referens i fyra vridningar × skarp/suddig, centrering, cosinuslikhet,
+bästa referens per **namn**, säkert när marginalen till nästa namn är > 0,11
+(99 % rätt i kalibreringen) **och** spåret inte är skymt.
+
+**Att kolla före produktion:** vikterna är Apples (licensen "Apple Sample
+Code License" på Hugging Face). Läs den innan modellen skeppas i en produkt.
 
 ## Nästa steg
 
-1. Bygg modulen och provsidan (del 2 nedan) — klart i natt.
-2. Mät på Jespers telefon via en förhandsdriftsättning av `bank.html`.
-3. För in modulen som vittne i `kamIdentifiera` (planen i del 2).
-4. Spara appens egna 4K-beskärningar ur ett riktigt pass och kör dem i bänken.
-5. Landhögarna: detektorns sak. Tills dess går klungor till Claude.
+1. Mät på Jespers telefon: en förhandsdriftsättning av `bank.html` + modellen
+   (kräver https och COOP/COEP-huvuden).
+2. För in modulen som vittne i `kamIdentifiera` enligt planen i del 2, och
+   bevisa det med golden-måtten där.
+3. Spara appens egna 4K-beskärningar ur ett riktigt pass och kör dem i bänken.
+4. Centralt förräknade vektorer per Scryfall-id (annars tar en Commander-lek
+   en kvart att bädda in på telefonen).
+5. Landhögarna är detektorns sak. Tills dess går klungor till Claude.
 
 ---
 
