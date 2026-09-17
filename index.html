@@ -768,9 +768,9 @@ body.ispel #playerTabs,body.ispel .vr:has(+ #playerTabs){display:none}
 .mattachrome [data-mat="untap"] kbd{min-width:14px;padding:0 3px;font-size:9.5px;line-height:1.3}
 .mattachrome [data-mat="untap"] .knapptip{left:50%;right:auto;transform:translateX(-50%);transition:opacity .05s}
 .mattachrome [data-mat="untap"]:hover .knapptip,.mattachrome [data-mat="untap"]:focus-visible .knapptip{opacity:1}
-.zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:64px}
+.zoomchip .ztxt{padding:0 9px;border-left:1px solid var(--line);border-right:1px solid var(--line);font:11.5px/1 var(--mono);color:var(--green);min-width:84px}
 .zoomchip .ztxt.manuell{color:var(--pa-acc)}
-.zoomchip input.ztxt{width:72px;height:28px;border-top:0;border-bottom:0;border-radius:0;background:none;text-align:center;outline:none;cursor:text}
+.zoomchip input.ztxt{width:84px;height:28px;border-top:0;border-bottom:0;border-radius:0;background:none;text-align:center;outline:none;cursor:text}
 .zoomchip input.ztxt:hover{background:var(--bg4)}
 .zoomchip input.ztxt:focus{background:var(--bg4);color:var(--txt)}
 .zoomchip button:hover{background:var(--bg4);color:var(--txt)}
@@ -8556,8 +8556,8 @@ function spawnFromGrave(cid, ev) {
   try { gridEl.setPointerCapture(ev.pointerId); } catch (err) {}
 }
 /* Mattans egen list: zoomchippet (grönt "78% fit", gult "140%"), Untap all,
-   Tidy up och bildvägen. Ritas bara om när texten ändrats — renderGrid går
-   vid varje hjärtslag från kameran. */
+   Tidy up och bildvägen (inte i ett spel, MES-199). Ritas bara om när
+   texten ändrats — renderGrid går vid varje hjärtslag från kameran. */
 function renderChrome(v) {
   const el = $('#mattaChrome'); if (!el) return;
   const pct = Math.round(v.z * 100) + '%' + (v.manuell ? '' : ' fit');
@@ -8570,7 +8570,7 @@ function renderChrome(v) {
     + `<button type="button" class="zsteg" data-mat="in" title="Zoom in (+)">+</button></div>`
     + (redigerbar() ? `<button type="button" class="btn sm" data-mat="untap">Untap all<kbd>U</kbd><span class="knapptip">Stand every tapped card back up</span></button>`
       + `<button type="button" class="btn sm" data-mat="tidy" title="Fan every card back into tidy rows">Tidy up</button>` : '')
-    + (!spelLage || DEBUG ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
+    + (!spelLage ? `<button type="button" class="btn sm ghost" data-addtile title="Add cards from an image (I)">Add from image</button>` : '');
   if (el.dataset.h === html) return;
   if (document.activeElement && document.activeElement.id === 'matZoomTal') return;   // skriver man i procentrutan
   el.dataset.h = html;
@@ -9860,10 +9860,14 @@ function kamPillModell() {
    ser kanterna. Pillret säger det först när det stått i 20 s med ett tomt
    bord — ett kort som läses tar några sekunder och ska inte larma. */
 const KAM_HITTAR_MS = 20000;
-let kamHittarSedan = 0, kamHittarT = 0;
+/* Före första kortet (MES-200) är ett tomt bord inget tecken på något: man
+   har bara inte spelat än, och tomrutan står kvar på "Play your first card".
+   Klockan börjar gå först när kameran haft ett kort på bordet i spelet. */
+let kamHittarSedan = 0, kamHittarT = 0, kamHaftKort = false;
 function kamHittarInte() {
   const yta = !!(kamYta && kamYta.dom && kamYta.dom !== 'lugn');
-  if (!yta || autoKortPaBordet(minSpelare())) { kamHittarSedan = 0; return false; }
+  if (autoKortPaBordet(minSpelare())) kamHaftKort = true;
+  if (!yta || !kamHaftKort || autoKortPaBordet(minSpelare())) { kamHittarSedan = 0; return false; }
   if (!kamHittarSedan) kamHittarSedan = Date.now();
   const kvar = KAM_HITTAR_MS - (Date.now() - kamHittarSedan);
   if (kvar > 0) { clearTimeout(kamHittarT); kamHittarT = setTimeout(renderMode, kvar + 50); return false; }
@@ -10668,8 +10672,8 @@ function renderTom() {
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
   if (opp) { el.innerHTML = '<p class="tomtyst">Your cards show up here once the camera is set up.</p>'; return; }
-  /* Pillret larmar redan efter 20 s med tomt bord, också innan man spelat
-     något kort (MES-195): raden säger först vad som är normalt och pekar
+  /* Pillret larmar efter 20 s med tomt bord när man haft kort på bordet
+     (MES-195, MES-200): raden säger först vad som är normalt och pekar
      sedan dit där förklaringen står, i stället för att låta som ett fel. */
   if (hittar) { el.innerHTML = '<p class="tomtyst">Your cards show up here when you play them. If they don’t, click Camera above to see why.</p>'; return; }
   /* I ett spel säger pillret hur kameran mår (MES-98); mattan säger bara
@@ -24911,7 +24915,7 @@ async function lamnaSpelet() {
      schemalägger en skrivning, och hann spelet nollställas innan den gick
      skrev den ett tomt "Player 1" över det lokala bordet på disk. */
   glomSpar(true);
-  kamFas = ''; kamSer = 0; kamSma = 0; kamUpplosning = null;
+  kamFas = ''; kamSer = 0; kamSma = 0; kamUpplosning = null; kamHaftKort = false; kamHittarSedan = 0;
   stangKamSkruv();                          // panelen hör till spelet; före kanalen, den säger till telefonen
   if (saveT) sparaNu();                     // ut med det som ligger i debouncen
   await Moln.lamnaKanal();
