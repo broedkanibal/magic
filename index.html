@@ -10651,7 +10651,10 @@ function renderTom() {
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
   if (opp) { el.innerHTML = '<p class="tomtyst">Your cards show up here once the camera is set up.</p>'; return; }
-  if (hittar) { el.innerHTML = '<p class="tomtyst">No cards found yet.</p>'; return; }
+  /* Pillret larmar redan efter 20 s med tomt bord, också innan man spelat
+     något kort (MES-195): raden säger först vad som är normalt och pekar
+     sedan dit där förklaringen står, i stället för att låta som ett fel. */
+  if (hittar) { el.innerHTML = '<p class="tomtyst">Your cards show up here when you play them. If they don’t, click Camera above to see why.</p>'; return; }
   /* I ett spel säger pillret hur kameran mår (MES-98); mattan säger bara
      var korten kommer att synas — en rad, ingen knapp. */
   const TYST = {
