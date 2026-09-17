@@ -2053,6 +2053,13 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .spelknapp.kompakt .bjud{gap:0}
 /* Utanför ett spel finns ingen kod att bjuda in till. */
 body:not(.ispel) .spelknapp{display:none}
+/* Klicket kopierar länken, men chipet visar bara koden — utan den här
+   texten syntes aldrig att något hänt, hopfälld allra minst. Ett eget
+   element i stället för att skriva "Copied" i .kod: renderAll ritar om
+   koden på varje bordsuppdatering och skulle annars sudda ut den. */
+.spelknapp .kopieradtxt{display:none}
+.spelknapp.visarkopierad>*:not(.kopieradtxt){display:none}
+.spelknapp.visarkopierad .kopieradtxt{display:inline-block;font:700 12.5px var(--mono);letter-spacing:1px;color:var(--acc)}
 
 /* ── Modeplatsen ────────────────────────────────────────────────────
    Ett och samma utrymme längst till höger, och det enda stället där det står
@@ -3098,6 +3105,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6h3a3 3 0 0 1 0 6h-3"/><path d="M8 18H5a3 3 0 0 1 0-6h3"/><path d="M8 12h8"/></svg>
         <span>Invite</span>
       </span>
+      <span class="kopieradtxt">Copied</span>
     </button>
 
     <div class="vr"></div>
@@ -24099,7 +24107,11 @@ $('#spelKnapp').onclick = async () => {
   if (!spelLage) return;
   const lank = inbjudanLank();
   try { await navigator.clipboard.writeText(lank); }
-  catch (e) { prompt('Copy the link:', lank); }
+  catch (e) { prompt('Copy the link:', lank); return; }
+  const btn = $('#spelKnapp');
+  clearTimeout(btn._kopieradTimer);
+  btn.classList.add('visarkopierad');
+  btn._kopieradTimer = setTimeout(() => btn.classList.remove('visarkopierad'), 1400);
 };
 
 /* ── ut ur ett spel ─────────────────────────────────────────────────
