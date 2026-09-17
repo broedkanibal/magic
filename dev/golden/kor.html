@@ -458,7 +458,7 @@ function nyttProv(video) {
            sistaBord: null, s: 0,
            logg: video ? [] : null, bordLogg: video ? [] : null,
            /* K5/MODE-5: lägesuppdateringar — och senaste läget per spår (i bredd-enheter) som de mäts mot. */
-           lagesUpp: 0, lagesSist: new Map(), lagesLista: [],
+           lagesUpp: 0, lagesSist: new Map(), lagesLista: [], lagesNara: new Map(),
            /* Läsningarna: varje gång ett spår läses lokalt — tid, beskärningens
               storlek, bildens dom (poäng, inliers, accept) och namnläsarens
               svar. Det är här en säker bilddom går att spåra (MES-94). */
@@ -480,8 +480,9 @@ function aterkoppling(f, prov) {
          Table leads. Första läget räknas inte. y räknas om till
          bredd-enheter med analysmåtten. Ska vara 0 på ett stilla bord. */
       if (!nollstall) for (const t of spar || []) {
-        if (t.w == null || t.h == null || (t.tillstand !== 'stilla' && t.tillstand !== 'klar') || (t.ai && t.ai.helbild)) continue;
-        const { aw, ah } = K.analysMatt, cx = t.x + t.w / 2, cy = (t.y + t.h / 2) * ah / aw;
+        /* Bara KLARA spår (MES-214): det är de datorn speglar — kamLage skriver läget för ett bundet kort, och bara ett klart spår binder ett. Ett 'stilla' spår utan namn är ofta handen och högen den bygger (07, 18 s: klumpen 167×120 → 151×172, ytan ×1,29), och räknades förut som flytt eller storleksbyte beroende på vilken ruta rapporten gick i. */
+        if (t.w == null || t.h == null || t.tillstand !== 'klar' || (t.ai && t.ai.helbild)) continue;
+        const { aw, ah } = K.analysMatt, cx = t.vx != null ? t.vx : t.x + t.w / 2, cy = (t.vy != null ? t.vy : t.y + t.h / 2) * ah / aw;   // viloläget (vx, vy) som datorns kamLage läser det (MES-214)
         const l = prov.lagesSist.get(t.id), flytt = l ? Math.hypot(cx - l.cx, cy - l.cy) : Infinity;
         /* Ett spår vars låda samtidigt bytte storlek (mer än en fjärdedel av
            ytan) flyttade inte: det var en klump som skars i sina kort, eller
@@ -489,10 +490,15 @@ function aterkoppling(f, prov) {
            en klump av tre kort blev Flutterfox 0,61 kortbredder från
            klumpens mitt). Datorn får ett kort på klumpens mitt en gång,
            inte en darrande position. Storleksbytet räknas för sig. */
-        const area = t.w * t.h, snitt = l && l.area && (area < 0.75 * l.area || area > 1.33 * l.area);
-        if (l && flytt > AUTO_FLYTT * t.w && !snitt) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2) }); }
+        const area = t.vw != null ? t.vw * t.vh : t.w * t.h, snitt = l && l.area && (area < 0.75 * l.area || area > 1.33 * l.area);
+        /* Räknas: ett kort som LÅG I VILA lämnade sin plats. Stegen medan det följs i en flytt (förra läget preliminärt) är samma flytt, och omankringen i vila är landningen (MES-214). */
+        if (l && !l.prel && flytt > AUTO_FLYTT * t.w && !snitt) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2), fran: [Math.round(l.cx * aw), Math.round(l.cy * aw), l.s], till: [Math.round(cx * aw), Math.round(cy * aw)], st: t.tillstand, yta: l.area ? +(area / l.area).toFixed(2) : null }); }
+        /* Nästan-flyttar (MES-214): mellan två tredjedelar av gränsen och gränsen. En verklig liten knuff som hamnar på ena eller andra sidan om AUTO_FLYTT beroende på VAR referensläget togs syns bara här — störst per spår. */
+        else if (l && !snitt && flytt > AUTO_FLYTT * t.w * 2 / 3) { const q = prov.lagesNara.get(t.id); if (!q || flytt / t.w > q.flytt) prov.lagesNara.set(t.id, { id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(3) }); }
         if (l && snitt) prov.lagesSnitt = (prov.lagesSnitt || 0) + 1;
-        if (!l || flytt > AUTO_FLYTT * t.w || snitt) prov.lagesSist.set(t.id, { cx, cy, area });
+        /* Ett läge taget innan kortet vilat (vilar false: kortet flyttas, eller ett tidigt namn, MES-214) är preliminärt, som i datorns kamLage: första rapporten i vila ankrar om det utan att räknas. */
+        const vilar = t.vilar != null ? !!t.vilar : true;
+        if (!l || flytt > AUTO_FLYTT * t.w || snitt || (l.prel && vilar)) prov.lagesSist.set(t.id, { cx, cy, area, prel: !vilar, s: prov.s });
       }
       /* Bordet datorn fick, med videons tid: ett kort som kom och gick syns
          bara här. HELA posten per spår, som rapportera() skickar den — med
@@ -603,6 +609,7 @@ function avsluta(f, prov, tid, tak, takS) {
   res.lagesSnitt = prov.lagesSnitt || 0;   // lådor som bytte storlek på plats (klumpar som skars, delar som blev hela)
   for (const x of prov.lagesLista) { const i = K.spar.findIndex(t => t.id === x.id); x.nr = i >= 0 ? i + 1 : null; }
   res.lagesLista = prov.lagesLista;
+  res.lagesNara = [...prov.lagesNara.values()]; for (const x of res.lagesNara) { const i = K.spar.findIndex(t => t.id === x.id); x.nr = i >= 0 ? i + 1 : null; }
   res.lagesPerMin = +(prov.lagesUpp / Math.max(1, tid) * 60000).toFixed(1);
   /* K7: hur många lärda referenser poolen bar när fallet dömdes, och med
      --lar-ref hur många fallet lärde EFTER domen. */
@@ -963,16 +970,17 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
      namnet hade före t; första rapporten inom 8 s där ett sådant spår står
      mer än AUTO_FLYTT av bredden därifrån — det datorn speglar i Table leads. */
   const flytt = h.filter(x => x.flyttar);
+  const mittX = u => u.vx != null ? u.vx : u.x + u.w / 2, mittY = u => u.vy != null ? u.vy : u.y + u.h / 2;   // läget datorn speglar: viloläget när rapporten bär det (MES-214)
   const flyttDt = [], flyttHandelser = [];
   for (const x of flytt) {
     let fore = null, dt = null;
     for (const r of bl) {
       const u = sakerMed(r, x.flyttar)[0];
-      if (r.s < x.t - TOL) { if (u && u.w != null) fore = { cx: u.x + u.w / 2, cy: u.y + u.h / 2, w: u.w }; continue; }
+      if (r.s < x.t - TOL) { if (u && u.w != null) fore = { cx: mittX(u), cy: mittY(u), w: u.w }; continue; }
       if (r.s > x.t + 8) break;
       if (!fore || !u || u.w == null) continue;
       const { aw, ah } = K.analysMatt;
-      if (Math.hypot(u.x + u.w / 2 - fore.cx, (u.y + u.h / 2 - fore.cy) * ah / aw) > AUTO_FLYTT * fore.w) { dt = +Math.max(0, r.s - x.t).toFixed(2); break; }
+      if (Math.hypot(mittX(u) - fore.cx, (mittY(u) - fore.cy) * ah / aw) > AUTO_FLYTT * fore.w) { dt = +Math.max(0, r.s - x.t).toFixed(2); break; }
     }
     flyttHandelser.push({ t: x.t, namn: x.flyttar, dt, sedd: !!fore });
     if (dt != null) flyttDt.push(dt);

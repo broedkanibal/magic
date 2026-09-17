@@ -165,7 +165,8 @@ function skrivTabell(rs, gamla) {
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
     if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
-      + ((r.lagesLista || []).length ? ' — ' + r.lagesLista.map(x => `spår ${x.nr != null ? '#' + x.nr + ' (id ' + x.id + ')' : 'id ' + x.id} @${x.s} s flyttade ${x.flytt} kortbredder`).join(', ') : ''));
+      + ((r.lagesLista || []).length ? ' — ' + r.lagesLista.map(x => `spår ${x.nr != null ? '#' + x.nr + ' (id ' + x.id + ')' : 'id ' + x.id} @${x.s} s flyttade ${x.flytt} kortbredder${x.fran ? ` (${x.fran[0]},${x.fran[1]} @${x.fran[2]} s → ${x.till[0]},${x.till[1]}, ${x.st}, ytan ×${x.yta})` : ''}`).join(', ') : '')
+      + ((r.lagesNara || []).length ? '; nästan (0,10–0,15): ' + r.lagesNara.map(x => `${x.nr != null ? '#' + x.nr : 'id ' + x.id} @${x.s} s ${x.flytt}`).join(', ') : ''));
     /* Videofallet: förloppet i videons sekunder — vad facit säger, när
        kameran namngav kortet, och varje spår från födsel till död. Det är
        här man ser ett kort som kom fram sent, ett som aldrig blev säkert,
