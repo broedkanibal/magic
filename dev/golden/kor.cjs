@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--beskarningar <mapp>] [--ai] [--port 8239]
+/* Golden setet från terminalen. Kör: node dev/golden/kor.cjs [--spara] [--detalj] [--rutor] [--fall 03] [--beskarningar <mapp>] [--ai] [--port 8239] [--konsol]
 
    Startar attrappen (dev/stub-server.cjs), öppnar dev/golden/kor.html i en
    huvudlös Chrome, trycker "Kör alla", skriver tabellen, och med --spara
@@ -60,6 +60,7 @@ function skrivTabell(rs, gamla) {
     + ` · ordning ${r.videoOrdning}/${r.videoOrdningAv}${skiljer(r, g, 'videoOrdning')}`
     + (r.videoDubbletter != null ? ` · dubbletter ${r.videoDubbletter}${skiljer(r, g, 'videoDubbletter')}` : '')
     + (r.videoTappAv ? ` · tap ${r.videoTapp}/${r.videoTappAv}${skiljer(r, g, 'videoTapp')}` : '')
+    + (r.videoTappFalska ? ` · falska tap-flippar ${r.videoTappFalska}${skiljer(r, g, 'videoTappFalska')}` : '')
     + (r.videoFlyttAv ? ` · flytt ${r.videoFlytt}/${r.videoFlyttAv}${skiljer(r, g, 'videoFlytt')}` : '')
     + (r.videoGravAv ? ` · hög ${r.videoGrav}/${r.videoGravAv}${skiljer(r, g, 'videoGrav')}, falska ${r.videoGravFalska}${skiljer(r, g, 'videoGravFalska')}` : '');
   const kolumner = [
@@ -79,7 +80,7 @@ function skrivTabell(rs, gamla) {
   /* Summan är null när ingen rad bär fältet — en baslinje från före ett nytt mått ska inte stå som "(var 0)". */
   const summa = (lista, k) => lista.some(r => r[k] != null) ? lista.reduce((a, r) => a + (r[k] || 0), 0) : null;
   const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv',
-    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'videoFlytt', 'videoFlyttAv', 'videoGrav', 'videoGravAv', 'videoGravFalska', 'lagesUpp'].map(k => [k, summa(lista, k)]));
+    'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'videoTappFalska', 'videoFlytt', 'videoFlyttAv', 'videoGrav', 'videoGravAv', 'videoGravFalska', 'lagesUpp'].map(k => [k, summa(lista, k)]));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
   const gs = rs.map(r => gamla.get(r.id));
@@ -125,6 +126,8 @@ function skrivTabell(rs, gamla) {
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.id && svar.has(m.id)) { svar.get(m.id)(m); svar.delete(m.id); }
+    /* --konsol: sidans och appens console.log (också ur iframen) skrivs ut — för tillfälliga mätrader medan ett fall felsöks. */
+    else if (m.method === 'Runtime.consoleAPICalled' && process.argv.includes('--konsol')) console.log('  [konsol] ' + (m.params.args || []).map(a => a.value !== undefined ? a.value : a.description || '').join(' '));
     else if (m.method === 'Runtime.exceptionThrown') console.error('  [sidan] ' + (m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text).split('\n')[0]);
   };
   const cdp = (method, params) => new Promise(res => { const id = ++nr; svar.set(id, res); ws.send(JSON.stringify({ id, method, params: params || {} })); });
@@ -177,6 +180,7 @@ function skrivTabell(rs, gamla) {
       console.log(`  K1: borta-fördröjning ${r.videoBortaFordrojning == null ? '–' : r.videoBortaFordrojning + ' s'} (median${(r.videoBortaDt || []).length ? ': ' + r.videoBortaDt.join(', ') + ' s' : ''})`
         + `; tap ${r.videoTappAv == null ? '– (inga tap-händelser i facit)' : `${r.videoTapp}/${r.videoTappAv}, fördröjning ${r.videoTappFordrojning == null ? '–' : r.videoTappFordrojning + ' s'}`}`
         + `; dubbletter ${r.videoDubbletter}${Object.keys(r.videoDubbletterNamn || {}).length ? ' (' + Object.entries(r.videoDubbletterNamn).map(([n, q]) => `${n}: +${q.max} ${q.fran}–${q.till} s`).join(', ') + ')' : ''}`);
+      if ((r.videoTappFalskaLista || []).length) console.log('    FALSKA tap-flippar: ' + r.videoTappFalskaLista.map(x => `${x.s} s ${x.namn} → ${x.till ? 'tappad' : 'otappad'}`).join(', '));
       for (const x of r.videoTappHandelser || []) console.log(`    ${x.t} s ${x.vill ? 'tappar' : 'otappar'} ${x.namn}: ` + (x.dt == null ? 'SÅGS ALDRIG inom 8 s' : `sågs +${x.dt} s`));
       if (r.videoGravAndringar) console.log(`  högvakten (MES-85): ändringar vid ${r.videoGravAndringar.length ? r.videoGravAndringar.join(', ') + ' s' : '–'}`);
       for (const x of r.videoGravHandelser || []) console.log(`    ${x.t} s ${x.namn} till högen: ` + (x.dt == null ? 'HÖGEN ÄNDRADES INTE inom 6 s' : `högen ändrades +${x.dt} s`));
@@ -244,6 +248,7 @@ function skrivTabell(rs, gamla) {
                                                ['videoLagda', 'spelade kort som fick namn', true, 'videoLagdaAv'], ['videoBorta', 'borttagna kort som försvann', true, 'videoBortaAv'],
                                                ['videoOrdning', 'utspel i rätt ordning', true, 'videoOrdningAv'], ['videoFelUnder', 'säkra namn på kort som aldrig var i partiet', false, 'videoLagdaAv'],
                                                ['videoDubbletter', 'dubbletter', false, 'kort'], ['videoTapp', 'tap-vridningar som sågs', true, 'videoTappAv'],
+                                               ['videoTappFalska', 'falska tap-flippar', false, 'kort'],
                                                ['lagesUpp', 'lägesuppdateringar', false, 'kort'], ['videoFlytt', 'flyttar som sågs', true, 'videoFlyttAv'],
                                                ['videoGrav', 'kort till högen som högvakten såg', true, 'videoGravAv'], ['videoGravFalska', 'falska högändringar', false, 'kort']]) {
       if (r[k] == null || g[k] == null || r[k] === g[k]) continue;

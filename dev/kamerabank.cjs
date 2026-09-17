@@ -368,6 +368,20 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 1; i <= 12; i++) { s = await ruta(FLIK); if (!s.some(t => t.id === idVx) && vxBorta == null) vxBorta = i * TAKT; }
   check(`VX2 kortet lyfts, fliken ligger kvar: spåret borta efter ${vxBorta} ms`, vxBorta != null && vxBorta <= 1200);
 
+  // ── VX3: ett namngivet kort som tappas SNETT fryses inte, och tap-läget tas i första rutan (MES-214) ──
+  /* Den raka lådan runt ett kort som ligger 15° från vågrätt är 1,3 × kortets
+     kortsida: MES-179-regeln tog det för en ihopväxning och höll kvar det
+     gamla tap-läget (golden 09: +4,65 s). Regionens egna mått är desamma i
+     alla vinklar. Kortet vrids runt sitt hörn, så mitten flyttar: den
+     optimistiska domen tar tap-läget i första rutan. */
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
+  const idVx3 = s[0] && s[0].id, tapFore = s[0] && s[0].tappad;
+  let vx3Flip = null;
+  for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 118, 78, 30, 42, Math.PI / 2 - 15 * Math.PI / 180, 180)); const t = s.find(x => x.id === idVx3); if (vx3Flip == null && t && t.tappad) vx3Flip = i + 1; }
+  check(`VX3 tappat 15° snett runt hörnet: före tap=${tapFore}, tappad i ruta ${vx3Flip} (högst 2), spår ${s.length}, samma id ${!!s.find(x => x.id === idVx3)}`,
+        tapFore === false && vx3Flip != null && vx3Flip <= 2 && s.length === 1 && !!s.find(x => x.id === idVx3));
+
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget

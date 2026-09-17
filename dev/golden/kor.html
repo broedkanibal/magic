@@ -966,6 +966,20 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     if (dt != null) tappDt.push(dt);
   }
   tappDt.sort((a, b) => a - b);
+  /* Falska tap-flippar (MES-214): varje gång ett SÄKERT spår byter tap-läge
+     mellan två rapporter, utan att facit har en tappar/otappar-händelse för
+     namnet åt det hållet inom ±3 s. En optimistisk tap-dom som tas tillbaka
+     är två. Ett spår som föds tappat räknas inte (första läget). */
+  const tapSist = new Map(), tapFalska = [];
+  for (const r of bl) for (const u of r.spar || []) {
+    if (u.tillstand === 'skrap' || !u.saker || !u.namn) continue;
+    const f0 = tapSist.get(u.id);
+    if (f0 != null && f0 !== !!u.tappad) {
+      const ok = tapp.some(x => norm(x.tappar || x.otappar) === norm(u.namn) && !!x.tappar === !!u.tappad && Math.abs(r.s - x.t) <= 3);
+      if (!ok && tapFalska.length < 20) tapFalska.push({ s: r.s, namn: u.namn, till: !!u.tappad });
+    }
+    tapSist.set(u.id, !!u.tappad);
+  }
   /* Flytt (K2/MODE-5): facit {t, flyttar: namn}. Läget ett säkert spår med
      namnet hade före t; första rapporten inom 8 s där ett sådant spår står
      mer än AUTO_FLYTT av bredden därifrån — det datorn speglar i Table leads. */
@@ -1026,6 +1040,7 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     videoBortaFordrojning: median(bortaDt), videoBortaDt: bortaDt,
     videoTapp: tapp.length ? tappDt.length : null, videoTappAv: tapp.length ? tapp.length : null,
     videoTappFordrojning: median(tappDt), videoTappHandelser: tappHandelser,
+    videoTappFalska: tapFalska.length, videoTappFalskaLista: tapFalska,
     videoFlytt: flytt.length ? flyttDt.length : null, videoFlyttAv: flytt.length ? flytt.length : null,
     videoFlyttFordrojning: median(flyttDt), videoFlyttHandelser: flyttHandelser,
     videoGrav: harGrav && tillGrav.length ? gravHandelser.filter(x => x.dt != null).length : null, videoGravAv: harGrav && tillGrav.length ? tillGrav.length : null,

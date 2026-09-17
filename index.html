@@ -18738,6 +18738,21 @@ const Kamera = (() => {
      (MES-214). */
   function sattVila(t, area) { t.vilaX = t.cx; t.vilaY = t.cy; if (area) t.vilaArea = area; t.vilaRuta = t.ram || t.box; }
 
+  /* En TYDLIG tap-dom i en enda ruta (MES-214), för ett namngivet kort:
+     regionen är avlång nog att ha en axel (1,15), har kortets mått (långsida
+     och kortsida inom 0,85–1,3 av dem kortet hade när det fick sitt namn —
+     en hand som håller i kortet gör regionen större, ett finger över hörnet
+     mindre), och axeln ligger inom TAP_TYDLIG av grundläget eller av dess
+     kvartsvarv — inte mitt emellan, där en ruta till kan säga det andra. */
+  const TAP_TYDLIG = 20 * Math.PI / 180;
+  function tapTydlig(f, t, upp) {
+    const nm = t.namnMatt; if (!nm || !(f.lang >= 1.15 * f.kort)) return false;
+    if (f.lang < 0.85 * nm.l || f.lang > 1.3 * nm.l || f.kort < 0.85 * nm.k || f.kort > 1.3 * nm.k) return false;
+    const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+    const d = axSkillnad(f.vinkel, bas);
+    return d < TAP_TYDLIG || d > Math.PI / 2 - TAP_TYDLIG;
+  }
+
   /* Hur stor del av den mindre lådan som ligger inom den andra (0–1). Samma
      mått som datorns tackning() i avstämningen, i analyspixlar. */
   function ladTackning(a, b) {
@@ -18878,7 +18893,23 @@ const Kamera = (() => {
           if (k >= 0.6 * l && k <= 0.85 * l) bast.namnMatt = { l, k };   // bara en kortformad låda: en halva som fått namnet är inte kortets mått
         }
         const nm = bast.tillstand === 'klar' && !helt ? bast.namnMatt : null;
-        if (nm && ladTackning(bast.box, f.box) >= 0.9 && (Math.max(f.box.w, f.box.h) > 1.25 * nm.l || Math.min(f.box.w, f.box.h) > 1.25 * nm.k)) {
+        /* Vuxen runt kortet — men inte ett kort som VRIDITS (MES-214). Den
+           raka lådan växer också när kortet bara ligger snett: 15° ger en
+           kortsida på 1,32 × kortets, och regeln frös då spåret med sitt
+           gamla tap-läge tills kortet råkade ligga rakare. Uppmätt i golden
+           09: Hooded Blightfang tappades 31,5 s, regionen blev 70×59 mot
+           kortets 64×46 (inspelningens egen gröna spårruta runt det sneda
+           kortet växte ihop med det), och tap-läget slog om först 36,15 s —
+           +4,65 s mot 0,6 s före MES-179. Två friare: regionens EGNA mått
+           (lang/kort ur momenten, samma i alla vinklar) ryms inom 1,12 ×
+           kortets — en flik kant i kant ger 1,2 (bänken VX1); eller lådan är kortets låda vriden ett kvartsvarv (inom
+           1,3 ×) — det är en tappning, inte en granne. Ihopväxningen med
+           leken i 11 var 1,3 × och mer på höjden med bredden kvar, och
+           faller på båda. */
+        const vuxen = nm && ladTackning(bast.box, f.box) >= 0.9 && (Math.max(f.box.w, f.box.h) > 1.25 * nm.l || Math.min(f.box.w, f.box.h) > 1.25 * nm.k);
+        const sammaMatt = nm && f.lang <= 1.12 * nm.l && f.kort <= 1.12 * nm.k;
+        const kvartsvarv = nm && bast.box && f.box.w <= 1.3 * bast.box.h && f.box.h <= 1.3 * bast.box.w && f.box.w >= bast.box.h / 1.3 && f.box.h >= bast.box.w / 1.3 && Math.abs(bast.box.w - bast.box.h) > 0.15 * Math.max(bast.box.w, bast.box.h);
+        if (vuxen && !sammaMatt && !kvartsvarv) {
           bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
           continue;
         }
@@ -18911,6 +18942,13 @@ const Kamera = (() => {
             /* Ett första "inget kort" kan ha varit en exponering som dippat — samma
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
             if (bast.aiInget === 1) { bast.aiFragad = false; bast.ai = null; } }
+          /* Den optimistiska tap-domen (MES-214): första rutan där kortet syns
+             igen efter att handen släppt har mitten flyttat — kortet vreds
+             runt ett hörn — och räknas som rörelse, så den stilla domen
+             nedan kom två rutor senare (golden 09: +0,6 s). Är domen TYDLIG
+             (tapTydlig) tas den på en gång; säger de följande stilla rutorna
+             emot vrider löpräknaren tillbaka den — det är ångringen. */
+          if (bast.tillstand === 'klar') { const t2 = tappad(f.vinkel, upp); if (t2 !== !!bast.tappad && tapTydlig(f, bast, upp)) { bast.tappad = t2; bast.tappRun = 0; } }
         }
         else {
           if (!bast.stillaFran) bast.stillaFran = nu;
@@ -18933,7 +18971,7 @@ const Kamera = (() => {
              emellan nollar räknaren och rör ingenting. */
           const t2 = tappad(f.vinkel, upp);
           if (t2 === !!bast.tappad) bast.tappRun = 0;
-          else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= 2) { bast.tappad = t2; bast.tappRun = 0; }
+          else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= 2 || (bast.tillstand === 'klar' && tapTydlig(f, bast, upp))) { bast.tappad = t2; bast.tappRun = 0; }
         }
         /* Läget datorn speglar, för ett NAMNGIVET kort (MES-214): det följer
            spåret ruta för ruta — också medan kortet flyttas, namnet sitter

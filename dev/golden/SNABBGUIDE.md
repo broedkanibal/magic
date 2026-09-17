@@ -57,6 +57,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --ai` | med Claude (kostar) |
 | `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar modell och systemprompt-version |
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
+| `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
@@ -218,7 +219,12 @@ räknas in i domen mot baslinjen.
 |---|---|---|
 | `videoBortaFordrojning` | medianen av tiden från facits `tar_bort` till första rapporten utan ett säkert spår med namnet | ≤ 1,0 s (datorns nåd på 3 s därtill) |
 | `videoTapp` / `videoTappAv` + `videoTappFordrojning` | facit `{ "t": 12.5, "tappar": "Ukud Cobra" }` eller `"otappar"`: sågs ett säkert spår med namnet bära det väntade tap-läget inom 8 s, och hur snart | ≤ 0,35 s |
+| `videoTappFalska` (*falska tap-flippar*) | gånger ett säkert spår bytte tap-läge mellan två rapporter utan en `tappar`/`otappar`-händelse för namnet åt det hållet inom ±3 s i facit. En optimistisk tap-dom som tas tillbaka är två. I domen sedan MES-214 | 0 |
 | `videoDubbletter` | största överskott av fysiska kort per namn mot facit i någon rapport — grupperat med appens `sammaPlats`/`syskon`/`ledarOrdning`, som steg 2 i `avstamBord` | 0 |
+
+Tap-FÖRDRÖJNINGEN ingår inte i domen (bara antalet sedda vridningar) — läs
+den i `--detalj`. 2026-09-18 hade den gått från 0,6 s till 4,65 s utan att
+någon körning sa SÄMRE (MES-179 frös ett snett tappat kort); nu 0,3 s.
 
 Fall 07 har inga tap-händelser i facit (`tap –`); de kommer med
 inspelningarna 09/10 (K2).
