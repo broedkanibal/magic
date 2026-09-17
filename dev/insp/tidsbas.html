@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Tidsbasen · MES-190</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#16181d; --txt:#e6e8ee; --dim:#9aa1ad; --line:#2c3038; --acc:#6b8cff; --ok:#5fbf7f; --fel:#e2606a; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.5 -apple-system, system-ui, sans-serif; }
+  main { max-width:880px; margin:0 auto; padding:24px 16px 60px; }
+  h1 { font-size:20px; margin:0 0 4px; } p { color:var(--dim); margin:6px 0 14px; }
+  label { display:block; margin:10px 0 4px; font-weight:600; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; font-variant-numeric:tabular-nums; }
+  th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:6px; padding:7px 14px; font:inherit; cursor:pointer; margin-top:14px; }
+  button:disabled { opacity:.5; cursor:default; }
+  pre { background:#0e1014; border:1px solid var(--line); border-radius:6px; padding:10px; overflow:auto; font-size:12px; }
+  .ok { color:var(--ok); } .fel { color:var(--fel); }
+  canvas { display:block; width:100%; height:80px; background:#0e1014; border:1px solid var(--line); border-radius:6px; margin-top:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tidsbasen</h1>
+  <p>Inspelningsprovet (MES-190), pass C. Här räknas videons sekunder om till datorns klocka. Handen över linsen ger mörka rutor i videon, och telefonen loggade när den såg dem. Skillnaden är felet mellan inspelningens start och videons sekund 0. Klockan telefon − dator kommer från pingen i datorns logg.</p>
+
+  <label for="video">Videon (<code>insp-…-C.mp4</code> eller <code>.webm</code>)</label>
+  <input type="file" id="video" accept="video/*">
+  <label for="logg">Loggen (<code>insp-…-C-logg.json</code>)</label>
+  <input type="file" id="logg" accept="application/json,.json">
+  <br><button id="kor" disabled>Räkna</button>
+  <p id="status"></p>
+  <canvas id="kurva" width="1600" height="160"></canvas>
+  <div id="ut"></div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let videoFil = null, logg = null;
+const klar = () => { $('#kor').disabled = !(videoFil && logg); };
+$('#video').onchange = e => { videoFil = e.target.files[0] || null; klar(); };
+$('#logg').onchange = async e => {
+  const f = e.target.files[0]; logg = null;
+  try { logg = f ? JSON.parse(await f.text()) : null; } catch (err) { $('#status').textContent = 'Loggen gick inte att läsa: ' + err.message; }
+  klar();
+};
+
+/* Stegar genom videon, 1/15 s i taget (kamerans takt i spel), och läser
+   medelljuset i rutan vid varje steg. Sökning i stället för uppspelning:
+   Chrome pausar en video i en dold flik. En webm från MediaRecorder saknar
+   längd tills man sökt till slutet — det görs först. */
+const STEG_S = 1 / 15;
+function lasLjus(fil) {
+  return new Promise((klart, fel) => {
+    const v = document.createElement('video');
+    v.muted = true; v.preload = 'auto'; v.src = URL.createObjectURL(fil);
+    const c = document.createElement('canvas'); c.width = 32; c.height = 18;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    const rutor = [];
+    const sok = t => new Promise(res => { v.addEventListener('seeked', res, { once: true }); v.currentTime = t; });
+    v.onerror = () => fel(new Error('Videon gick inte att läsa i webbläsaren'));
+    v.onloadedmetadata = async () => {
+      try {
+        if (!isFinite(v.duration)) {
+          await sok(1e9);
+          if (!isFinite(v.duration)) await new Promise(res => v.addEventListener('durationchange', res, { once: true }));
+        }
+        const T = v.duration;
+        for (let t = 0; t < T; t += STEG_S) {
+          await sok(t);
+          x.drawImage(v, 0, 0, 32, 18);
+          const d = x.getImageData(0, 0, 32, 18).data;
+          let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+          rutor.push({ t, ljus: s / (d.length / 4) });
+          if (rutor.length % 30 === 0) $('#status').textContent = `Läser videon… ${t.toFixed(0)} av ${T.toFixed(0)} s`;
+        }
+        URL.revokeObjectURL(v.src);
+        klart(rutor);
+      } catch (e) { fel(e); }
+    };
+  });
+}
+
+/* Mörka avsnitt: samma regel som telefonen (InspProv i index.html) — under
+   30 och under 35 % av bordets vanliga ljus. Ett avsnitt kortare än 0,3 s
+   räknas inte. */
+function morkaAvsnitt(rutor) {
+  const sorterat = rutor.map(r => r.ljus).sort((a, b) => a - b);
+  const bas = sorterat[Math.floor(sorterat.length / 2)];
+  const ut = []; let pa = null;
+  for (const r of rutor) {
+    const mork = r.ljus < 30 && r.ljus < 0.35 * bas;
+    if (mork && !pa) pa = { start: r.t, min: r.ljus };
+    else if (mork && pa) pa.min = Math.min(pa.min, r.ljus);
+    else if (!mork && pa) { pa.slut = r.t; if (pa.slut - pa.start >= 0.3) ut.push(pa); pa = null; }
+  }
+  if (pa) { pa.slut = rutor[rutor.length - 1].t; ut.push(pa); }
+  return { bas, ut };
+}
+
+function rita(rutor, avsnitt) {
+  const c = $('#kurva'), x = c.getContext('2d'), W = c.width, H = c.height;
+  x.clearRect(0, 0, W, H);
+  const T = rutor.length ? rutor[rutor.length - 1].t : 1;
+  x.fillStyle = '#e2606a33';
+  for (const a of avsnitt) x.fillRect(a.start / T * W, 0, Math.max(2, (a.slut - a.start) / T * W), H);
+  x.strokeStyle = '#6b8cff'; x.lineWidth = 2; x.beginPath();
+  rutor.forEach((r, i) => { const px = r.t / T * W, py = H - r.ljus / 255 * H; i ? x.lineTo(px, py) : x.moveTo(px, py); });
+  x.stroke();
+}
+
+$('#kor').onclick = async () => {
+  $('#kor').disabled = true; $('#ut').innerHTML = '';
+  try {
+    const tel = logg.telefon, dat = logg.dator;
+    if (!tel || !tel.rec_start) throw new Error('Loggen saknar telefonens del eller inspelningens start (rec_start)');
+    const rutor = await lasLjus(videoFil);
+    const { bas, ut } = morkaAvsnitt(rutor);
+    rita(rutor, ut);
+    const telMork = (tel.morka || []).filter(m => !m.slut || m.slut - m.start >= 300);
+    const n = Math.min(ut.length, telMork.length);
+    const par = [];
+    for (let i = 0; i < n; i++) {
+      const telRel = (telMork[i].start - tel.rec_start) / 1000;
+      par.push({ i: i + 1, video: ut[i].start, telefon: telRel, korr: ut[i].start - telRel });
+    }
+    const korr = par.map(p => p.korr);
+    const medel = korr.length ? korr.reduce((a, b) => a + b, 0) / korr.length : null;
+    const spridning = korr.length ? Math.max(...korr) - Math.min(...korr) : null;
+    const ping = ((dat && dat.ping) || []).filter(p => p.tTel != null);
+    const basta = ping.length ? ping.reduce((a, p) => p.rtt < a.rtt ? p : a) : null;
+    const recStartDator = basta ? tel.rec_start - basta.off : null;
+    const godkand = spridning != null && spridning < 0.5 && n >= 2;
+
+    const f = x => x == null ? '–' : x.toFixed(2);
+    let h = `<table><tr><th>Markering</th><th>Videon (s)</th><th>Telefonens logg (s efter start)</th><th>Korrektion (s)</th></tr>`;
+    for (const p of par) h += `<tr><td>${p.i}</td><td>${f(p.video)}</td><td>${f(p.telefon)}</td><td>${f(p.korr)}</td></tr>`;
+    h += `</table>`;
+    h += `<table>
+      <tr><td>Rutor lästa</td><td>${rutor.length} (${f(rutor.length && rutor[rutor.length - 1].t)} s), bordets ljus ${bas.toFixed(0)}</td></tr>
+      <tr><td>Mörka avsnitt i videon / i telefonens logg</td><td>${ut.length} / ${telMork.length}${ut.length !== telMork.length ? ' <span class="fel">— olika många, paren kan vara fel</span>' : ''}</td></tr>
+      <tr><td>Korrektion, medel</td><td>${f(medel)} s</td></tr>
+      <tr><td>Spridning (största − minsta)</td><td class="${godkand ? 'ok' : 'fel'}">${f(spridning)} s — ${godkand ? 'under 0,5 s: godkänt' : 'inte godkänt (0,5 s är facits tolerans, och minst två markeringar behövs)'}</td></tr>
+      <tr><td>Klockan telefon − dator</td><td>${basta ? `${basta.off.toFixed(0)} ms ±${(basta.rtt / 2).toFixed(0)} ms (${ping.length} pingar)` : '– (ingen ping i datorns logg)'}</td></tr>
+      <tr><td>Inspelningens start i datorns klocka</td><td>${recStartDator ? new Date(recStartDator).toISOString() : '–'}</td></tr>
+    </table>`;
+    if (medel != null && recStartDator) {
+      h += `<p>Formeln för facit: <code>t_video = (t_dator − ${Math.round(recStartDator)}) / 1000 + ${medel.toFixed(2)}</code>, där t_dator är Date.now() på datorn i ms.</p>`;
+    }
+    const resultat = { id: logg.id, rutor: rutor.length, bas, markeringar: par, korrektion_s: medel, spridning_s: spridning, godkand,
+                       klocka_ms: basta && basta.off, klocka_fel_ms: basta && basta.rtt / 2, rec_start_dator: recStartDator };
+    h += `<pre>${JSON.stringify(resultat, null, 2)}</pre>`;
+    $('#ut').innerHTML = h;
+    $('#status').textContent = 'Klart.';
+  } catch (e) {
+    $('#status').textContent = 'Fel: ' + e.message;
+  }
+  $('#kor').disabled = false;
+};
+</script>
+</body>
+</html>
