@@ -2887,6 +2887,87 @@ body.ispel #addPlayerBtn{display:none}
   .lsglab{animation:none!important;opacity:0}
   .lsglab:first-of-type{opacity:1}
   .lsvantar i{animation:none}
+  .telslutare{animation:none}
+}
+/* ── telefonens lekfoto (PN2–PN5) ─────────────────────────────────────
+   Egen vy på telefonen, ovanpå allt annat. Kameran är ett lager i den. */
+.telfoto{z-index:430;overflow:hidden}
+.telhd{display:flex;align-items:center;gap:10px;padding:16px 16px 8px;flex:none}
+.telhd .brand{display:flex;align-items:center;gap:8px;font:650 15px var(--sans);color:var(--txt)}
+.telhd .grow{flex:1}
+.telcon{display:flex;align-items:center;gap:7px;font:12.5px var(--sans);color:#8fe0b0}
+.telcon .led{width:8px;height:8px;border-radius:50%;background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26}
+.telb{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:18px;padding:6px 16px 22px}
+.telfot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding-top:6px}
+.btnp{display:flex;align-items:center;justify-content:center;gap:9px;height:52px;border-radius:12px;font:650 16px var(--sans);border:0;width:100%}
+.btnp.prim{background:var(--acc);color:#20160a}
+.btnp.sek{background:var(--bg3);border:1px solid var(--line);color:var(--txt)}
+.telti{display:flex;flex-direction:column;gap:4px}
+.telti span{font:13px var(--sans);color:var(--dim)}
+.telti b{font:650 22px/1.2 var(--sans);color:var(--txt)}
+.teltx{margin:0;font:14px/1.5 var(--sans);color:var(--dim)}
+.teltx b{color:var(--txt);font-weight:600}
+.teltx.mitt{text-align:center}
+.telcyk{display:flex;align-items:center;gap:9px;font:600 11.5px var(--mono);color:var(--dim);letter-spacing:.4px}
+.telcyk i{flex:1;height:1px;background:var(--line)}
+.telpst{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:#121821;border:1px solid var(--line);flex:none}
+.telpst .s{display:flex;align-items:center;gap:7px;font:600 12.5px var(--sans);color:var(--dim);white-space:nowrap}
+.telpst .s .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1px solid #39445a;font:700 11px var(--mono);color:var(--dim2);flex:none}
+.telpst .s.ok .n{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.telpst .s.on{color:var(--txt)}
+.telpst .s.on .n{background:var(--acc);border-color:var(--acc);color:#20160a}
+.telpst>i{flex:1;height:1.5px;background:var(--line);min-width:8px}
+.telpst>i.ok{background:#2f6b47}
+.telok{display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 20px;border-radius:14px;background:#0f2016;border:1px solid #2f6b47;text-align:center}
+.telok .ck{width:48px;height:48px;border-radius:50%;background:#3fb97a;color:#08140d;display:grid;place-items:center;flex:none}
+.telok b{font:650 18px var(--sans);color:#d8f5e4}
+.telok span:last-child{font:14px/1.5 var(--sans);color:#9fcfb3}
+.telfel{display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 20px;border-radius:14px;background:#1a1114;border:1px solid #6b2f38;text-align:center}
+.telfel .ic{display:inline-flex;color:#ff9099}
+.telfel b{font:650 17px var(--sans);color:#ffd2d6}
+.telfel span:last-child{font:13.5px/1.5 var(--sans);color:#e3a8ae}
+.telvantar{display:flex;flex-direction:column;gap:8px;padding:20px 18px;border-radius:14px;background:#121821;border:1px solid var(--line)}
+.telvantar b{font:650 16px var(--sans);color:var(--txt)}
+.telvantar span{font:13.5px/1.5 var(--sans);color:var(--dim)}
+.telklar{display:flex;flex-direction:column;gap:8px}
+.telklar .ok{display:flex;align-items:center;gap:8px;font:600 14px var(--sans);color:#8fe0b0}
+.telklar .stor{font:700 44px/1 var(--sans);letter-spacing:-1px;color:var(--txt)}
+.telfk{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.telfk .c{position:relative;display:block;border-radius:5px;overflow:visible}
+.telfk .c img{width:100%;aspect-ratio:488/680;object-fit:cover;border-radius:5px;display:block}
+.telfk .c em{display:grid;place-items:center;width:100%;aspect-ratio:488/680;border-radius:5px;background:#0e131b;border:1px solid var(--line);font:600 9px/1.2 var(--sans);font-style:normal;color:var(--dim2);text-align:center;padding:4px}
+.telfk .c .q{position:absolute;right:-5px;top:-5px;width:20px;height:20px;border-radius:50%;background:var(--acc);color:#20160a;font:800 12px/20px var(--sans);text-align:center;box-shadow:0 0 0 2px var(--bg)}
+/* kameran */
+.telkam{position:absolute;inset:0;z-index:5;background:#0b1017}
+.telkam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0b1017}
+.telram{position:absolute;left:18px;right:18px;top:26%;aspect-ratio:346/186;pointer-events:none}
+.telram i{position:absolute;width:30px;height:30px;border:3px solid #fff}
+.telram .c1{left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:10px}
+.telram .c2{right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:10px}
+.telram .c3{left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:10px}
+.telram .c4{right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:10px}
+.telpiller{position:absolute;left:16px;right:16px;top:16px;display:flex;align-items:center;gap:8px}
+.telpiller .grow{flex:1}
+.telpiller .pil{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:5px 13px;border-radius:17px;background:#0b1017d9;border:1px solid #ffffff22;font:600 13px/1.25 var(--sans);color:var(--txt)}
+.telpiller .pil .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#20160a;font:700 11px var(--mono);margin-left:-5px;flex:none}
+.telskarpa{max-width:56%}
+.telskarpa .led{width:9px;height:9px;border-radius:50%;flex:none;background:var(--dim2)}
+.telskarpa[data-grad="ok"] .led{background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26}
+.telskarpa[data-grad="varn"] .led{background:var(--acc);box-shadow:0 0 0 3px #f0a52a26}
+.telskarpa[data-grad="fel"] .led{background:var(--red);box-shadow:0 0 0 3px #e2606a26}
+.teltips{position:absolute;left:24px;right:24px;bottom:172px;margin:0;text-align:center;font:600 14px/1.45 var(--sans);color:#fff;text-shadow:0 1px 6px #000}
+.telnere{position:absolute;left:0;right:0;bottom:0;height:150px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 24px 24px;background:linear-gradient(#0b101700,#0b1017ee 40%)}
+.telav,.teldeck{flex:1;min-width:0;font:600 15px var(--sans);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teldeck{text-align:right;color:var(--dim)}
+.telslutare{width:76px;height:76px;border-radius:50%;border:4px solid #fff;display:grid;place-items:center;flex:none;background:none;padding:0}
+.telslutare i{width:60px;height:60px;border-radius:50%;background:#fff;transition:transform .12s}
+.telslutare:active i{transform:scale(.88)}
+@media (max-height:700px){
+  .telram{top:22%}
+  .teltips{bottom:150px}
+  .telnere{height:128px}
+  .telslutare{width:66px;height:66px}
+  .telslutare i{width:52px;height:52px}
 }
 .lsyta{position:relative;min-width:0;min-height:0;overflow:hidden auto;padding:18px 32px 60px;display:flex;flex-direction:column;gap:22px}
 .lssekrad{display:flex;flex-wrap:wrap;gap:22px 36px;align-items:flex-start}
@@ -3268,6 +3349,41 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
       <span id="kamSenastTxt"></span>
     </div>
   </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     Telefonens lekfoto (MES-172).
+
+     ?lekfoto=<lekens id> öppnar den här vyn: samma tre steg som datorns
+     Phone-flik — Connect / Lay out / Take the photo — och kameran i appen
+     med ram och slutare. Kroppen ritas av telfotoRita(); kameran ligger
+     som ett eget lager över den.
+     ══════════════════════════════════════════════════════════════════ -->
+<div id="vyLekfoto" class="sida telfoto" hidden>
+  <div class="telhd">
+    <div class="brand"><svg width="18" height="18" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.6 28.2 9.2 16 15.8 3.8 9.2Z" fill="none" stroke="#6b8cff" stroke-width="2.1" stroke-linejoin="round"/><path d="M16 16.6 28.2 23.2 16 29.8 3.8 23.2Z" fill="#f0a52a"/></svg><span>Mesa</span></div>
+    <span class="grow"></span>
+    <span class="telcon" id="telCon"><span class="led"></span>Connected</span>
+  </div>
+  <div class="telb" id="telBody"></div>
+
+  <div class="telkam" id="telKam" hidden>
+    <video id="telVideo" playsinline muted autoplay></video>
+    <div class="telram" id="telRam"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i></div>
+    <div class="telpiller">
+      <span class="pil"><span class="n">3</span>Take the photo</span>
+      <span class="grow"></span>
+      <span class="pil telskarpa" id="telSkarpa"><span class="led"></span><span>Checking the picture…</span></span>
+    </div>
+    <p class="teltips">Hold the phone straight above the cards.<br>Every name inside the frame.</p>
+    <div class="telnere">
+      <button type="button" class="telav" data-tel="stang">Done</button>
+      <button type="button" class="telslutare" data-tel="knapp" aria-label="Take the photo"><i></i></button>
+      <span class="teldeck" id="telKamNamn"></span>
+    </div>
+  </div>
+
+  <input type="file" id="telFil" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" capture="environment" hidden>
 </div>
 
 <div id="app">
@@ -13497,19 +13613,49 @@ const LEK_TITELKVOT = 0.029;
    satt mot en nedskalad tumnagel och släppte igenom 2 px oskärpa som "bra". */
 const LEK_SKARPA_MIN = 150;
 
-function lekDuk() {
-  if (!lekBild) return null;
-  const c = lekBild.canvas, b = lekBild.box;
-  const sx = b.x * c.width, sy = b.y * c.height;
-  const sw = Math.max(1, b.w * c.width), sh = Math.max(1, b.h * c.height);
+/* Duken som SKICKAS: beskärningen ur källan, nedskalad till taket. Källan
+   är en duk (ett valt foto) eller telefonens video, och rutan ligger i
+   0–1 av källan. */
+function lekKallDuk(kalla, b) {
+  const cw = kalla.videoWidth || kalla.width, ch = kalla.videoHeight || kalla.height;
+  if (!cw || !ch) return null;
+  const sx = b.x * cw, sy = b.y * ch;
+  const sw = Math.max(1, b.w * cw), sh = Math.max(1, b.h * ch);
   let s = Math.min(1, Math.sqrt(LEK_MAXAREA / (sw * sh)), LEK_MAXSIDA / Math.max(sw, sh));
   const cv = document.createElement('canvas');
   cv.width = Math.max(1, Math.round(sw * s));
   cv.height = Math.max(1, Math.round(sh * s));
   const x = cv.getContext('2d');
   x.imageSmoothingQuality = 'high';
-  x.drawImage(c, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+  x.drawImage(kalla, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
   return cv;
+}
+function lekDuk() { return lekBild ? lekKallDuk(lekBild.canvas, lekBild.box) : null; }
+/* Domen om en bild, som ett värde: kortbredden i den duk som skickas,
+   skärpan och utbrändheten — och meningen som hör till. Talen och
+   trösklarna kom ur provbordet och är oförändrade: de MÄTER, de råder
+   inte. `kod` finns för att telefonens lampa ska kunna säga samma sak
+   med tre ord. */
+function lekDomAv(cv, hogar) {
+  const kolumner = hogar * 1.0952 - 0.0952;
+  const W = cv.width / kolumner;
+  const titel = W * LEK_TITELKVOT;
+  const { varians, utbrant } = lekSkarpa(cv);
+  let kod = 'ok', grad = 'ok', rub = 'The title lines are readable.', rad = '';
+  if (W < 286) {
+    kod = 'litet'; grad = 'fel'; rub = 'The cards are too small in the picture.';
+    rad = 'The title line cannot be read. Photograph fewer cards at a time, or drag the frame tighter around the cards.';
+  } else if (W < 340) {
+    kod = 'smalt'; grad = 'varn'; rub = 'The title line is barely there.';
+    rad = 'It might work. Expect a few rows to fill in by hand.';
+  } else if (varians < LEK_SKARPA_MIN) {
+    kod = 'suddigt'; grad = 'varn'; rub = 'The picture is blurry.';
+    rad = 'Hold the phone still, or move it closer to the table.';
+  } else if (utbrant > 0.08) {
+    kod = 'blankt'; grad = 'varn'; rub = 'The lamp is reflecting in the sleeves.';
+    rad = 'Move the light to the side, or tilt the table.';
+  }
+  return { kod, grad, rub, rad, W, titel, varians, utbrant };
 }
 
 /* Kvaliteten mäts i stället för att antas. En bild av kortgrafik ligger på
@@ -13586,16 +13732,13 @@ function lekMatSnart() {
 function lekMat() {
   if (!lekBild) return;
   const cv = lekDuk(); if (!cv) return;
-  const kolumner = lekBild.hogar * 1.0952 - 0.0952;
-  const W = cv.width / kolumner;
-  const titel = W * LEK_TITELKVOT;
-  const { varians, utbrant } = lekSkarpa(cv);
+  const d = lekDomAv(cv, lekBild.hogar);
   const tal = (namn, v, varn) => `<span class="pbtal${varn ? ' varn' : ''}">${namn} <b>${v}</b></span>`;
   $('#lekTal').innerHTML =
-    tal('card width', Math.round(W) + ' px', W < 340) +
-    tal('title line', titel.toFixed(1) + ' px', titel < 10) +
-    tal('sharpness', Math.round(varians), varians < LEK_SKARPA_MIN) +
-    tal('blown out', (utbrant * 100).toFixed(1) + ' %', utbrant > 0.08) +
+    tal('card width', Math.round(d.W) + ' px', d.W < 340) +
+    tal('title line', d.titel.toFixed(1) + ' px', d.titel < 10) +
+    tal('sharpness', Math.round(d.varians), d.varians < LEK_SKARPA_MIN) +
+    tal('blown out', (d.utbrant * 100).toFixed(1) + ' %', d.utbrant > 0.08) +
     tal('image', cv.width + '×' + cv.height, false);
 
   /* En lampa och en mening i stället för fem tal. Talen kom ur provbordet:
@@ -13603,26 +13746,12 @@ function lekMat() {
      åt ens om hen förstår dem. De kastas ändå inte — trösklarna är oprövade
      och det är samma människa som skruvar dem. De ligger ett klick bort,
      namngivna som mätvärden, och påstår ingenting. */
-  let grad = 'ok', rub = 'The title lines are readable.', rad = '';
-  if (W < 286) {
-    grad = 'fel'; rub = 'The cards are too small in the picture.';
-    rad = 'The title line cannot be read. Photograph fewer cards at a time, or drag the frame tighter around the cards.';
-  } else if (W < 340) {
-    grad = 'varn'; rub = 'The title line is barely there.';
-    rad = 'It might work. Expect a few rows to fill in by hand.';
-  } else if (varians < LEK_SKARPA_MIN) {
-    grad = 'varn'; rub = 'The picture is blurry.';
-    rad = 'Hold the phone still, or move it closer to the table.';
-  } else if (utbrant > 0.08) {
-    grad = 'varn'; rub = 'The lamp is reflecting in the sleeves.';
-    rad = 'Move the light to the side, or tilt the table.';
-  }
-  $('#lekKvalitet').dataset.grad = grad;
+  $('#lekKvalitet').dataset.grad = d.grad;
   const rubEl = $('#lekDomRub');
-  rubEl.textContent = rub;
+  rubEl.textContent = d.rub;
   /* Foten läser flaggan för att veta om primären ska heta "Läs av ändå". */
-  if (grad === 'fel') rubEl.dataset.rod = '1'; else delete rubEl.dataset.rod;
-  $('#lekDom').textContent = rad;
+  if (d.grad === 'fel') rubEl.dataset.rod = '1'; else delete rubEl.dataset.rod;
+  $('#lekDom').textContent = d.rad;
   lekFot();
 }
 
@@ -14479,6 +14608,336 @@ function lekGuide(id, { cols, rows, w, off, gap, pad = 14 }) {
 }
 const LEK_LAGGTXT = 'In columns, overlapping, so only the name line of each card shows. About 30 cards at a time. Leave the basic lands out.';
 /* ══ SLUT: LEKKANALEN ══ */
+
+/* ══ BLOCK: TELEFONENS LEKFOTO ════════════════════════════════════════
+   ?lekfoto=<lekens id> öppnar den här vyn på telefonen (portalStart).
+   Stegen är telefonens och datorns gemensamma — Connect / Lay out / Take
+   the photo — och steg 2 och 3 börjar om för varje foto (PN2–PN5).
+
+   Fotot går samma väg som förut: beskärningen skickas till /api/identify
+   med mode 'lek', namnen slås upp i Scryfall, och det som kom till läggs
+   in som ÄNDRINGAR (LEKSLAG) på lekens rad. Då slås telefonens och
+   datorns arbete ihop av sig självt i stället för att skriva över —
+   dialogen frågade förut "Overwrite?".
+
+   Ett kort Mesa inte var säker på (modellen tvekade, eller Scryfall bytte
+   ut namnet) läggs in ändå, med koll {las, kalla:'Photo N', remsa}.
+   Frågan ställs på datorn, under To check, med remsan ur fotot bredvid. */
+/* Kolumnerna läggningsguiden ber om. Talet är hela geometrin: kortbredden
+   i den skickade duken är bredden delad på antalet kolumner, och den
+   avgör både om titelraden går att läsa och hur bred remsan klipps.
+   OPRÖVAT på riktig telefon — se Linear MES-172. */
+const TELFOTO_HOGAR = 5;
+const telfoto = { id: null, bas: null, namn: '', steg: 'ansluter', foto: 1,
+                  sista: null, fel: '', strom: null, skarpaT: 0, wake: null, laser: false };
+
+async function telfotoOppna(id) {
+  spelLage = null;
+  telfoto.id = id; telfoto.bas = null; telfoto.namn = ''; telfoto.foto = 1;
+  telfoto.sista = null; telfoto.fel = ''; telfoto.steg = 'ansluter';
+  visaVy('lekfoto');
+  telfotoRita();
+  let rad = null;
+  try { rad = await lekHamtaRad(id); } catch (e) { rad = null; }
+  if (!rad) {
+    telfoto.steg = 'fel';
+    telfoto.fel = 'This deck could not be opened on the phone. Check that you are signed in with the same account as on the computer.';
+    telfotoRita();
+    return;
+  }
+  telfoto.bas = rad;
+  telfoto.namn = rad.namn || 'New deck';
+  telfoto.steg = 'ansluten';
+  lekKanalLyssna(telfotoHor);
+  telfotoSag('hej', { roll: 'tel' });
+  telfotoRita();
+}
+function telfotoSag(typ, extra) {
+  if (!telfoto.id) return;
+  lekKanalSag(Object.assign({ typ, lekId: telfoto.id, foto: telfoto.foto }, extra || {}));
+}
+/* Datorn säger hej när den börjar lyssna: svara, så att den vet att vi finns. */
+function telfotoHor(m) {
+  if (!m || m.lekId !== telfoto.id) return;
+  if (m.typ === 'hej' && m.roll === 'dator' && !m.svar) telfotoSag('hej', { roll: 'tel', svar: true });
+}
+function telfotoSteg(steg) {
+  telfoto.steg = steg;
+  telfotoRita();
+  if (steg === 'kamera' || steg === 'laser') telfotoSag(steg);
+}
+
+/* ── ritningen ── */
+const TELFOTO_STEGNAMN = ['Connect', 'Lay out', 'Photo'];
+function telfotoPst(st) {
+  return '<div class="telpst">' + TELFOTO_STEGNAMN.map((t, i) =>
+    (i ? `<i class="${st[i - 1] === 'ok' ? 'ok' : ''}"></i>` : '')
+    + `<span class="s ${st[i] || ''}"><span class="n">${st[i] === 'ok' ? lsIk('check', 12, 3) : i + 1}</span>${t}</span>`).join('') + '</div>';
+}
+const telfotoTill = () => `<div class="telti"><span>Adding cards to</span><b>${esc(telfoto.namn || 'this deck')}</b></div>`;
+function telfotoRita() {
+  const b = $('#telBody'); if (!b) return;
+  const t = telfoto;
+  $('#telKam').hidden = t.steg !== 'kamera';
+  $('#telCon').hidden = t.steg === 'fel';
+  $('#telKamNamn').textContent = t.namn || '';
+  let h = '';
+  if (t.steg === 'ansluter') {
+    h = `${telfotoPst(['on', '', ''])}<p class="teltx">Opening the deck…</p>`;
+  } else if (t.steg === 'fel') {
+    h = `<div class="telfel"><span class="ic">${lsIk('warn', 26, 1.6)}</span><b>It did not work</b><span>${esc(t.fel)}</span></div>`
+      + `<div class="telfot"><button type="button" class="btnp sek" data-tel="om">Try again</button></div>`;
+  } else if (t.steg === 'ansluten') {
+    h = telfotoPst(['ok', 'on', '']) + telfotoTill()
+      + `<div class="telok"><span class="ck">${lsIk('check', 26, 2.8)}</span><b>Connected to your computer</b>`
+      + `<span>The photos you take now land in ${esc(t.namn)}. The steps are the same here and on the computer.</span></div>`
+      + '<p class="teltx">Next: <b>lay out the first cards</b> on the table.</p>'
+      + '<div class="telfot"><button type="button" class="btnp prim" data-tel="lagg">Show me how</button></div>';
+  } else if (t.steg === 'lagg') {
+    h = telfotoPst(['ok', 'on', '']) + telfotoTill()
+      + `<div class="telcyk">Photo ${t.foto}<i></i></div>`
+      + lekGuide('telg', { cols: 5, rows: 5, w: 56, off: 12, gap: 8, pad: 13 })
+      + `<p class="teltx">${LEK_LAGGTXT}</p>`
+      + '<div class="telfot"><p class="teltx mitt">When they’re laid out:</p>'
+      + `<button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Open the camera</button></div>`;
+  } else if (t.steg === 'laser') {
+    h = telfotoPst(['ok', 'ok', 'on']) + telfotoTill()
+      + `<div class="telvantar"><div class="prog obestamd"><i></i></div><b>Reading photo ${t.foto}</b>`
+      + '<span>It takes about half a minute. Keep this page open — the cards land on the computer by themselves.</span></div>';
+  } else if (t.steg === 'klar') {
+    const q = t.sista || { nr: t.foto - 1, nya: 0, koll: 0, kort: [], extra: '' };
+    h = telfotoPst(['ok', 'ok', 'ok'])
+      + `<div class="telklar"><span class="ok">${lsIk('check', 17, 2.6)}Photo ${q.nr} read</span>`
+      + `<span class="stor">${q.nya} ${q.nya === 1 ? 'card' : 'cards'}</span>`
+      + `<span class="teltx">You’ll see them on the computer${q.koll ? ` — ${q.koll} to check` : ''}.</span>`
+      + (q.extra ? `<span class="teltx">${esc(q.extra)}</span>` : '') + '</div>'
+      + `<div class="telfk">${q.kort.slice(0, 8).map(k =>
+          `<span class="c">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : `<em>${esc(k.name)}</em>`}${k.koll ? '<span class="q">?</span>' : ''}</span>`).join('')}</div>`
+      + `<div class="telcyk">Photo ${t.foto} next<i></i></div>`
+      + '<p class="teltx">Move these cards aside and lay out the next ones the same way — steps 2 and 3 start over.</p>'
+      + `<div class="telfot"><button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take the next photo</button>`
+      + '<button type="button" class="btnp sek" data-tel="klart">Done</button></div>';
+  } else if (t.steg === 'klart') {
+    h = `<div class="telok"><span class="ck">${lsIk('check', 26, 2.8)}</span><b>That’s the deck</b>`
+      + `<span>${esc(t.namn)} has ${t.bas && t.bas.antal ? t.bas.antal : 0} cards. Finish it on the computer — basic lands, the cards to check, and the ones the photos missed.</span></div>`
+      + `<div class="telfot"><button type="button" class="btnp sek" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take another photo</button></div>`;
+  }
+  b.innerHTML = h;
+}
+$('#vyLekfoto').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-tel]'); if (!b) return;
+  const a = b.dataset.tel;
+  if (a === 'lagg') telfotoSteg('lagg');
+  else if (a === 'kamera') telfotoKamera();
+  else if (a === 'knapp') telfotoKnapp();
+  else if (a === 'stang') telfotoStoppKamera('klart');
+  else if (a === 'klart') { telfoto.steg = 'klart'; telfotoRita(); }
+  else if (a === 'om') telfotoOppna(telfoto.id);
+});
+
+/* ── kameran ── */
+/* Samma ström som i ett spel (Kamera.start): bakkameran, 4K om den finns,
+   och kontinuerlig fokus. Går den inte att öppna — en webbläsare utan
+   getUserMedia, eller ett nekat lov — tar telefonens EGEN kamera över
+   (filfältet med capture), och fotot går samma väg. */
+async function telfotoKamera() {
+  telfoto.sista = null;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('#telFil').click(); telfotoSteg('kamera'); return; }
+  try {
+    telfoto.strom = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 },
+               advanced: [{ focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }, { exposureMode: 'continuous' }] },
+      audio: false
+    });
+  } catch (e) {
+    telfoto.strom = null;
+    $('#telFil').click();
+    telfotoSteg('kamera');
+    return;
+  }
+  const v = $('#telVideo');
+  v.srcObject = telfoto.strom;
+  telfotoSteg('kamera');
+  await v.play().catch(() => {});
+  try { telfoto.wake = await navigator.wakeLock.request('screen'); } catch (e) { /* inte alla stödjer det */ }
+  clearInterval(telfoto.skarpaT);
+  telfoto.skarpaT = setInterval(telfotoSkarpa, 1200);
+  telfotoSkarpa();
+}
+function telfotoStoppKamera(steg) {
+  clearInterval(telfoto.skarpaT); telfoto.skarpaT = 0;
+  if (telfoto.strom) telfoto.strom.getTracks().forEach(t => t.stop());
+  telfoto.strom = null;
+  const v = $('#telVideo'); if (v) v.srcObject = null;
+  if (telfoto.wake) { try { telfoto.wake.release(); } catch (e) {} telfoto.wake = null; }
+  if (steg) { telfoto.steg = steg; telfotoRita(); }
+}
+/* Ramen i bildens koordinater. Videon fyller skärmen (object-fit: cover),
+   så en del av bilden ligger utanför — rutan räknas om till 0–1 av
+   KÄLLAN, inte av det som syns. */
+function telfotoRamBox() {
+  const v = $('#telVideo'), ram = $('#telRam');
+  const vb = v && v.videoWidth, vh = v && v.videoHeight;
+  if (!vb || !vh) return { x: 0.02, y: 0.02, w: 0.96, h: 0.96 };
+  const vr = v.getBoundingClientRect(), r = ram.getBoundingClientRect();
+  const sk = Math.max(vr.width / vb, vr.height / vh);
+  const dw = vb * sk, dh = vh * sk;
+  const ox = vr.left + (vr.width - dw) / 2, oy = vr.top + (vr.height - dh) / 2;
+  const x = clamp((r.left - ox) / dw, 0, 0.95), y = clamp((r.top - oy) / dh, 0, 0.95);
+  return { x, y, w: clamp(r.width / dw, 0.05, 1 - x), h: clamp(r.height / dh, 0.05, 1 - y) };
+}
+/* "Names are readable": den lokala skärpeheuristiken, samma dom som
+   provbordets (lekDomAv) på det som ligger i ramen just nu. */
+function telfotoSkarpa() {
+  const el = $('#telSkarpa'); if (!el || $('#telKam').hidden) return;
+  const cv = lekKallDuk($('#telVideo'), telfotoRamBox());
+  if (!cv) return;
+  const d = lekDomAv(cv, TELFOTO_HOGAR);
+  const txt = d.kod === 'ok' ? 'Names are readable'
+    : d.kod === 'litet' ? 'Move closer — the names are too small'
+    : d.kod === 'smalt' ? 'The names are small — move a little closer'
+    : d.kod === 'suddigt' ? 'Hold still — the picture is blurry'
+    : 'The lamp is reflecting — move the light';
+  el.dataset.grad = d.grad;
+  el.querySelector('span:last-child').textContent = txt;
+}
+function telfotoKnapp() {
+  const v = $('#telVideo');
+  if (!v || !v.videoWidth) { $('#telFil').click(); return; }
+  const box = telfotoRamBox();
+  /* Samma tak som ett valt foto: Safari på iOS ritar ingenting alls på en
+     duk över ungefär 16,7 miljoner bildpunkter. */
+  const KALLA_MAX = 12_000_000;
+  const kk = Math.min(1, Math.sqrt(KALLA_MAX / (v.videoWidth * v.videoHeight)));
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(1, Math.round(v.videoWidth * kk));
+  cv.height = Math.max(1, Math.round(v.videoHeight * kk));
+  const c = cv.getContext('2d');
+  c.imageSmoothingQuality = 'high';
+  c.drawImage(v, 0, 0, cv.width, cv.height);
+  telfotoStoppKamera();
+  telfotoLas({ canvas: cv, box, hogar: TELFOTO_HOGAR });
+}
+/* Telefonens egen kamera (reserven): en bild ur filfältet. */
+$('#telFil').onchange = async ev => {
+  const fil = (ev.target.files || [])[0];
+  ev.target.value = '';
+  if (!fil) { if (telfoto.steg === 'kamera') telfotoSteg('lagg'); return; }
+  if (lekArHeic(fil)) {
+    telfoto.fel = 'The photo is HEIC, which the browser cannot read. Set Camera → Formats → Most Compatible on the iPhone, so photos are taken as JPEG.';
+    telfotoSteg('fel'); return;
+  }
+  if (!lekFormatOk(fil.type)) {
+    telfoto.fel = `The format ${fil.type || 'unknown'} cannot be read. Formats that work: ${LEK_FORMATTEXT}.`;
+    telfotoSteg('fel'); return;
+  }
+  const url = URL.createObjectURL(fil);
+  try {
+    const img = await loadImage(url, false);
+    const KALLA_MAX = 12_000_000;
+    const kk = Math.min(1, Math.sqrt(KALLA_MAX / (img.naturalWidth * img.naturalHeight)));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.naturalWidth * kk));
+    cv.height = Math.max(1, Math.round(img.naturalHeight * kk));
+    const c = cv.getContext('2d');
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(img, 0, 0, cv.width, cv.height);
+    telfotoStoppKamera();
+    await telfotoLas({ canvas: cv, box: { x: 0.02, y: 0.02, w: 0.96, h: 0.96 }, hogar: TELFOTO_HOGAR });
+  } catch (e) {
+    telfoto.fel = `The image could not be read. Formats that work: ${LEK_FORMATTEXT}.`;
+    telfotoSteg('fel');
+  } finally { URL.revokeObjectURL(url); }
+};
+
+/* ── avläsningen ── */
+async function telfotoLas(kalla) {
+  if (telfoto.laser) return;
+  if (!aiEnabled()) {
+    telfoto.fel = 'Reading a photo needs the AI help. Turn it on under ⋯ → AI help.';
+    telfotoSteg('fel'); return;
+  }
+  telfoto.laser = true;
+  const nr = telfoto.foto;
+  telfotoSteg('laser');
+  try {
+    const duk = lekKallDuk(kalla.canvas, kalla.box);
+    const { b64 } = lekB64(duk);
+    const resp = await fetch(AI_ENDPOINT, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'lek', image: b64 })
+    });
+    if (!resp.ok) {
+      let msg = 'Error ' + resp.status;
+      try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      bokforDatorAi(null, null, true);
+      telfoto.fel = msg; telfotoSteg('fel'); return;
+    }
+    const j = await resp.json();
+    bokforDatorAi(j.modell, j.usage, !!j.varfor);
+    const kort = Array.isArray(j.kort) ? j.kort : [];
+    if (!kort.length) {
+      telfoto.fel = j.varfor ? 'The reading gave no answer to interpret. The deck is as it was.'
+        : 'No cards were found in the photo. Are the cards lying with the title line showing?';
+      telfotoSteg('fel'); return;
+    }
+    /* Samma namn flera gånger i fotot är flera exemplar. Remsan klipps ur
+       KÄLLAN (lekRemsa), inte ur den nedskalade duken: den ska gå att läsa
+       för en människa även när den var för liten för modellen. */
+    const unika = new Map();
+    let namnlosa = 0;
+    for (const k of kort) {
+      const namn = String(k.namn || '').trim();
+      if (!namn) { namnlosa++; continue; }
+      const key = lekSlagNyckel(namn, false), f = unika.get(key);
+      if (f) { f.n++; continue; }
+      unika.set(key, { namn, n: 1, sak: k.sakerhet, remsa: lekRemsa(k.x, k.y, kalla) });
+    }
+    const ops = [], lagda = [];
+    let osakra = 0, missade = 0;
+    for (const p of unika.values()) {
+      let k;
+      try { k = await lookup(p.namn); } catch (e) { missade += p.n; continue; }
+      const kort2 = { name: k.name, sid: k.id, small: imgOf(k, 0, 'small') || null, ci: k.ci || [] };
+      /* Osäkert: modellen tvekade, eller Scryfall bytte ut namnet. Den
+         luddiga sökningen byter gärna ut det den inte känner igen
+         ("Dragon Flail" gav Flailing Drake) — ett sådant byte måste
+         bekräftas ÄVEN när modellen var säker. */
+      if (p.sak !== 'hog' || lekNamnSkiljer(p.namn, k.name)) {
+        kort2.koll = { las: p.namn.slice(0, 150), kalla: 'Photo ' + nr };
+        if (p.remsa) kort2.koll.remsa = p.remsa;
+        osakra += p.n;
+      }
+      ops.push({ typ: 'antal', name: k.name, sb: false, d: p.n, kort: kort2 });
+      lagda.push({ name: k.name, small: kort2.small, n: p.n, koll: !!kort2.koll });
+    }
+    if (!ops.length) {
+      telfoto.fel = 'None of the names in the photo matched a card. Photograph fewer cards at a time, straight from above.';
+      telfotoSteg('fel'); return;
+    }
+    const res = await lekSparaKo(telfoto.id, telfoto.bas, ops);
+    if (!res.ok || !res.rad) {
+      telfoto.fel = (res && res.fel) || 'The deck could not be saved. Check your network and take the photo again.';
+      telfotoSteg('fel'); return;
+    }
+    telfoto.bas = res.rad;
+    telfoto.namn = res.rad.namn || telfoto.namn;
+    const nya = ops.reduce((t, o) => t + o.d, 0);
+    const extra = [];
+    const otydliga = Math.max(namnlosa, +j.otydliga || 0);
+    if (otydliga) extra.push(`${otydliga} ${otydliga === 1 ? 'card was' : 'cards were'} seen but could not be read.`);
+    if (missade) extra.push(`${missade} ${missade === 1 ? 'name' : 'names'} could not be looked up.`);
+    if (+j.kapade) extra.push('There were more cards in the picture than could be read — photograph fewer at a time.');
+    telfoto.sista = { nr, nya, koll: osakra, kort: lagda, extra: extra.join(' ') };
+    telfoto.foto = nr + 1;
+    lekKanalSag({ typ: 'sparad', lekId: telfoto.id, foto: nr, antal: res.rad.antal, nya, koll: osakra, ts: res.rad.ts });
+    telfotoSteg('klar');
+  } catch (e) {
+    telfoto.fel = 'The reading did not get through. ' + ((e && e.message) || '');
+    telfotoSteg('fel');
+  } finally { telfoto.laser = false; }
+}
+/* ══ SLUT: TELEFONENS LEKFOTO ══ */
 
 const LS_GRUPP = { creature: 'Creatures', planeswalker: 'Planeswalkers', spell: 'Instants & sorceries',
   artifact: 'Artifacts & enchantments', enchantment: 'Artifacts & enchantments', land: 'Lands', other: 'Other' };
@@ -21841,6 +22300,7 @@ function visaVy(namn) {
   $('#vyStart').hidden = namn !== 'start';
   $('#vyHem').hidden = namn !== 'hem';
   $('#vyKamera').hidden = namn !== 'kamera';
+  $('#vyLekfoto').hidden = namn !== 'lekfoto';
   $('#app').style.display = namn === 'app' ? '' : 'none';
   /* Lekens sida ligger ovanpå. Försvinner bordet under den (spelet
      avslutades) går ‹ till Home i stället; landningssidan och kameran har
@@ -25559,7 +26019,7 @@ async function portalStart() {
   const lekfoto = lekfotoParam || sessionStorage.getItem('sthv.lekfoto');
   sessionStorage.removeItem('sthv.lekfoto');
   rensaInbjudan();
-  if (lekfoto) { await oppnaLekfoto(lekfoto); return; }
+  if (lekfoto) { await telfotoOppna(lekfoto); return; }
   if (kod) {
     try {
       const id = await Moln.gaMed(kod);
