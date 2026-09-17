@@ -5476,8 +5476,12 @@ const SF = (() => {
     fuzzy: q => get('/cards/named?fuzzy=' + encodeURIComponent(q)),
     exact: q => get('/cards/named?exact=' + encodeURIComponent(q)),
     byId: id => get('/cards/' + encodeURIComponent(id)),
-    /* Många kort i ett anrop (högst 75): lekens förslag hämtar sina bilder så. */
-    collection: namn => get('/cards/collection', { identifiers: namn.slice(0, 75).map(name => ({ name })) }),
+    /* Många kort i ett anrop (högst 75): lekens förslag hämtar sina bilder så,
+       och hela leken slås upp så när den blir aktiv (MES-205). En post är ett
+       namn (sträng) eller en färdig identifierare — { id } för en tryckning. */
+    collection: poster => get('/cards/collection', {
+      identifiers: poster.slice(0, 75).map(p => typeof p === 'string' ? { name: p } : p)
+    }),
     raw: path => get(path)
   };
 })();
@@ -8955,6 +8959,20 @@ function inspektorKort() {
   }
   return { e: selCard(), label: 'Last card' };
 }
+/* "Fetching…" ska vara sant (MES-205). Inspektorn hämtade ingenting själv: låg
+   kortet inte i cachen stod texten kvar tills någon ANNAN del av appen råkade
+   slå upp just det kortet — för solfjäderns lekkort hände det aldrig, för de
+   ligger under sin tryckning. Hämtas här, en gång per nyckel, och ritas om när
+   svaret kommit. Gick det inte står det varför i stället för i all evighet. */
+const insHamtar = new Set();
+function insHamta(e) {
+  const k = keyOf(e);
+  if (!k || insHamtar.has(k) || failed.has(k) || !(e.sid || e.name)) return;
+  insHamtar.add(k);
+  (e.sid ? lookupId(e.sid) : lookup(e.name))
+    .catch(() => {})
+    .then(() => { insHamtar.delete(k); renderInspektor(); });
+}
 function renderInspektor() {
   const body = $('#insBody'), lbl = $('#insLabel');
   if (!body) return;
@@ -8962,7 +8980,10 @@ function renderInspektor() {
   const c = e ? cardOf(e) : null, dfc = arDfc(c);
   const fi = e && e.flipped && dfc ? 1 : 0;
   const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
-  const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
+  /* Ett fel är ett eget läge i nyckeln — annars byts "Fetching…" aldrig ut. */
+  const fel = e && !c ? felText(keyOf(e)) : '';
+  if (e && !c && !fel) insHamta(e);
+  const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, fel, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
   if (body.dataset.k === nyckel) return;
   body.dataset.k = nyckel;
   if (lbl) { lbl.textContent = label; lbl.style.color = col || ''; }
@@ -8977,7 +8998,7 @@ function renderInspektor() {
   const tecken = n => (n >= 0 ? '+' : '') + n;
   body.innerHTML = `
     <div class="insimg">${src ? `<img src="${esc(src)}" alt="${esc(namn)}" draggable="false" title="Click to enlarge (F)">`
-      : `<div class="instom">${esc(namn)}<br><span style="color:#4d5a6d">${c ? '' : 'Fetching…'}</span></div>`}</div>
+      : `<div class="instom">${esc(namn)}<br><span style="color:#4d5a6d">${c ? '' : fel ? 'Could not be fetched — ' + esc(fel) : 'Fetching…'}</span></div>`}</div>
     <div class="insnamn"><b>${esc(namn)}</b><span>${esc(typ)}</span></div>
     ${kw.length ? `<div class="kwrad">${kw.map(k => `<span class="kwtile">${esc(k)}</span>`).join('')}</div>` : ''}
     ${(sum.p || sum.t) ? `<div class="ctbox"><div class="ctrub"><span>Counters</span><b>${tecken(sum.p)}/${tecken(sum.t)} in total</b></div>
@@ -12306,11 +12327,58 @@ let lekLista = [];
 let lekAktiv = LS.get(K.lekaktiv, null);
 const lekInfo = l => l ? { id: l.id, namn: l.namn, farger: l.farger || [], antal: l.antal || 0 } : null;
 const pipsHtml = farger => (farger || []).map(c => MANA_SVG[c] ? `<i class="pip">${MANA_SVG[c]}</i>` : '').join('');
+/* Hela leken i kortcachen med en gång (MES-205).
+
+   Korten i solfjädern kommer ur en vald lek — ett känt, litet antal — men
+   inspektorn stod ändå på "Fetching…" i tiotals sekunder, ibland för alltid.
+   Två skäl: uppslagningen började först när högen öppnades och gick ett kort
+   i taget (95 ms isär i Scryfall-kön ⇒ ~15 s för sextio kort), och ett kort
+   som bara låg under sitt NAMN i cachen räknades som hämtat av leklådan men
+   hittades aldrig av inspektorn, som söker på tryckningen (id:<sid>).
+
+   Därför: så fort en lek blir aktiv hämtas de kort som saknas i ETT anrop per
+   75 (/cards/collection), och varje kort läggs under BÅDA nycklarna. */
+let lekForhamtning = null;
+async function lekForhamta(kort) {
+  const marke = (lekForhamtning = {});
+  if (!Array.isArray(kort) || !kort.length) return;
+  const saknas = [], sedda = new Set();
+  for (const k of kort) {
+    const namn = k && k.name;
+    /* Nyckeln inspektorn läser på. Ett namncachat kort utan id:<sid> ska med:
+       det är precis det fallet som stod och hängde. */
+    const nyckel = k && k.sid ? 'id:' + k.sid : norm(namn || '');
+    if (!nyckel || sedda.has(nyckel)) continue;
+    sedda.add(nyckel);
+    if (cardCache.has(nyckel) || failed.has(nyckel)) continue;
+    /* Samlingsuppslaget hittar inte "A // B" på hela namnet, bara framsidans. */
+    saknas.push(k.sid ? { id: k.sid } : { name: (namn || '').split(' // ')[0] });
+  }
+  if (!saknas.length) return;
+  for (let i = 0; i < saknas.length; i += 75) {
+    let svar;
+    try { svar = await SF.collection(saknas.slice(i, i + 75)); } catch (e) { return; }
+    if (lekForhamtning !== marke) return;                 // en annan lek hann bli aktiv
+    for (const raw of (svar && svar.data) || []) {
+      const c = normalizeCard(raw), key = norm(c.name);
+      cardCache.set('id:' + c.id, c);
+      cardCache.set(key, c);
+      const fram = norm(c.name.split(' // ')[0]);
+      if (fram !== key && !aliasMap.has(fram)) aliasMap.set(fram, key);
+    }
+    saveCache();
+    /* Ritas något av det som kom just nu? Inspektorn ritar bara om när dess
+       nyckel ändrats, så det här kostar inget när inget väntade. */
+    renderInspektor();
+    if (hf.src) hfSynk();
+  }
+}
 function lekSattAktiv(rad) {
   lekAktiv = rad ? { id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0 } : null;
   if (lekAktiv) LS.set(K.lekaktiv, lekAktiv); else LS.del(K.lekaktiv);
   if (rad && rad.kort) sattLekTal(rad.kort);
   lekKort = rad && Array.isArray(rad.kort) ? rad.kort : null;
+  lekForhamta(lekKort).catch(() => {});
 }
 /* Samma lager oavsett konto: inloggad → decks, annars webbläsarens lista.
    Alla svarar med raden som sparats ({ok, rad}), eller {konflikt, rad}
