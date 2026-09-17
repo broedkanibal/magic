@@ -337,18 +337,18 @@ body.oppstart .hints{display:none}
 @media (max-width:1100px){
   body.oppstart .brade{grid-template-columns:360px minmax(0,1fr)}
 }
-.gphd{flex:none;padding:17px 22px 15px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;border-bottom:1px solid #1c2330}
+.gphd{flex:none;padding:20px 22px 18px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;border-bottom:1px solid #1c2330}
 .gphd .wel{font:600 13px var(--sans);color:var(--pa-acc2)}
 .gphd .wel[hidden],.hostchip[hidden]{display:none}
 .gpt{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0}
-.gphd h1{margin:0;font:650 19px/1.25 var(--sans);letter-spacing:-.2px;color:var(--txt);white-space:nowrap}
+.gphd h1{margin:0;font:650 20px/1.25 var(--sans);letter-spacing:-.2px;color:var(--txt);white-space:nowrap}
 .hostchip{display:inline-flex;align-items:center;gap:7px;height:22px;padding:0 9px 0 8px;border-radius:11px;background:#f0a52a1f;border:1px solid #f0a52a55;color:#ffd98a;font:600 11.5px var(--sans);white-space:nowrap;flex:none}
 .gpmid{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
-.gpdel{flex:none;padding:14px 22px 16px;display:flex;flex-direction:column;gap:10px}
+.gpdel{flex:none;padding:20px 22px 22px;display:flex;flex-direction:column;gap:14px}
 .gpdel + .gpdel{border-top:1px solid #1c2330}
 .gpdh{display:flex;align-items:center;gap:10px}
-.gpdh .pn{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;flex:none;background:#1b2230;border:1px solid #39445a;font:700 11px var(--mono);color:var(--dim)}
-.gpdh b{font:650 14px var(--sans);color:var(--txt)}
+.gpdh .pn{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;background:#1b2230;border:1px solid #39445a;font:700 12px var(--mono);color:var(--dim)}
+.gpdh b{font:650 16px/1.25 var(--sans);letter-spacing:-.1px;color:var(--txt)}
 .lnk{display:flex;align-items:center;gap:9px;height:36px;padding:0 5px 0 11px;border-radius:9px;background:#0e131b;border:1px solid var(--panelram)}
 .lnk .ic{display:inline-flex;color:var(--dim2);flex:none}
 .lnk .lt{flex:1;min-width:0;font:12.5px var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -363,19 +363,19 @@ body.oppstart .hints{display:none}
    det sista synliga (sist): steg 3 och 4 står bara med ett kameraläge, och
    de glider in när de kommer fram (G3). */
 .vs{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
-.oppsteg{position:relative;display:flex;gap:14px;padding-bottom:16px}
+.oppsteg{position:relative;display:flex;gap:14px;padding-bottom:22px}
 .oppsteg[hidden]{display:none}
 .oppsteg.sist{padding-bottom:0}
-.oppsteg::before{content:'';position:absolute;left:12px;top:32px;bottom:6px;width:1.5px;background:#28313f}
+.oppsteg::before{content:'';position:absolute;left:11px;top:30px;bottom:6px;width:1.5px;background:#28313f}
 .oppsteg.sist::before{display:none}
 .oppsteg.done::before{background:#2f6b47}
 #opp3,#opp4{animation:vsIn .5s ease-out both}
 @keyframes vsIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){#opp3,#opp4{animation:none}}
-.vn{position:relative;z-index:1;width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 12px/1 var(--mono);border:1px solid #39445a;color:var(--dim2);background:#121821}
+.vn{position:relative;z-index:1;width:24px;height:24px;border-radius:50%;flex:none;display:grid;place-items:center;font:700 11.5px/1 var(--mono);border:1px solid #39445a;color:var(--dim2);background:#121821}
 .oppsteg.done .vn{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
 .oppsteg.act .vn{background:var(--acc);border-color:var(--acc);color:#20160a}
-.vb{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:3px}
+.vb{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:2px}
 .vtit{display:flex;align-items:center;gap:6px;min-height:20px;font:600 14px/20px var(--sans);color:var(--txt);white-space:nowrap;border-radius:6px;outline:none}
 .vtit .grow{flex:1}
 .oppsteg.todo .vtit{color:var(--dim);font-weight:550}
@@ -389,8 +389,9 @@ body.oppstart .hints{display:none}
 .oppsteg.todo .vtit[role=button]:hover,.oppsteg.todo .vtit[role=button]:focus-visible{color:var(--txt)}
 .vtit[role=button]:focus-visible{box-shadow:0 0 0 2px #f0a52a66}
 .oppsteg:not(.active) .oppcont{display:none}
-.oppcont{display:flex;flex-direction:column;gap:10px;margin-top:10px;cursor:auto}
-.gpfot{flex:none;padding:14px 22px 16px;border-top:1px solid #1c2330;background:#10151d;display:flex;flex-direction:column;align-items:stretch;gap:9px}
+.oppcont{display:flex;flex-direction:column;gap:12px;margin-top:12px;cursor:auto}
+.oppstart .lrs{gap:8px}
+.gpfot{flex:none;padding:20px 22px 20px;border-top:1px solid #1c2330;background:#10151d;display:flex;flex-direction:column;align-items:stretch;gap:9px}
 .gpfot:empty{display:none}
 .gpfot .fb{height:40px;font-size:14px;border-radius:9px;gap:8px;justify-content:center}
 .gpfot .fh{font:12px/1.45 var(--sans);color:var(--dim2);text-align:center}
@@ -402,9 +403,9 @@ body.oppstart .hints{display:none}
 .klar4 .ck{width:26px;height:26px;border-radius:50%;background:#3fb97a;color:#08140d;display:grid;place-items:center;flex:none}
 .klar4 b{display:block;font:650 14px var(--sans);color:#d8f5e4}
 .klar4 span{font:12.5px/1.5 var(--sans);color:#9fcfb3}
-.oppstart .oppopt{padding:7px 11px}
+.oppstart .oppopt{padding:10px 12px}
 .oppstart .oppopt .oppbody span{font-size:12px}
-.oppstart .oppgrupp.skild{margin-top:0;padding-top:9px}
+.oppstart .oppgrupp.skild{margin-top:0;padding-top:12px}
 .tapopt.on{border-color:var(--acc);background:#1a1710}
 /* Steg 2: kamerans två lägen under Hybrid modes, Digital table för sig nedanför. */
 .oppgrupp{font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);margin-bottom:-4px}
@@ -10406,9 +10407,10 @@ function renderOppstart() {
             : lekAktiv && finns(lekAktiv.id) ? lekAktiv.id : oppLekar[0].id;
         }
         const val = oppLekar.find(l => l.id === oppLekVal);
+        /* Last used står först (MES-193), de andra i listans ordning. */
+        const rader = oppLekar.filter(l => l.id === oppSenast).concat(oppLekar.filter(l => l.id !== oppSenast));
         h = '<p class="opptxt">Only cards from the deck you pick will be recognized.</p>'
-          + `<div class="lrs" role="radiogroup" aria-label="Your decks">${oppLekar.map(l => lekRadHtml(l, { radio: true, on: l.id === oppLekVal, tag: l.id === oppSenast ? 'Last used' : '', andra: true })).join('')}</div>`
-          + '<p class="opptxt liten">The pencil opens a deck, so you can add, change or remove cards before you play.</p>'
+          + `<div class="lrs" role="radiogroup" aria-label="Your decks">${rader.map(l => lekRadHtml(l, { radio: true, on: l.id === oppLekVal, tag: l.id === oppSenast ? 'Last used' : '', andra: true })).join('')}</div>`
           + nylek;
         fot = { txt: `Use ${esc(val.namn)}`, a: 'spela' };
       }
