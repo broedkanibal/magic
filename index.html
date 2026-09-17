@@ -22686,7 +22686,14 @@ const InspProv = (() => {
 
   function kommando(m) {
     if (m.gor === 'start') start(m).catch(e => svara('fel', m.id, { fel: inspFel(e) }));
-    else if (m.gor === 'stopp') stopp('datorn');
+    else if (m.gor === 'stopp') {
+      /* Inget pass igång — telefonens sida har laddats om under passet
+         (Safari gör det när minnet tryter) och anslöt sig själv igen. Utan
+         det här svaret stod datorn kvar i "stopping" i all evighet. */
+      if (!P) svara('klar', m.id, { delar: 0, bytes: 0, kvar: 0, logg: false,
+        fel: [{ t: Date.now(), fel: 'Telefonen hade inget pass igång — sidan laddades troligen om' }] });
+      else stopp('datorn');
+    }
     else if (m.gor === 'ping') {
       const tTel = Date.now();
       if (P) P.ping.push({ t0: m.t0, tTel });
@@ -22717,7 +22724,12 @@ const InspDator = (() => {
     const def = INSP_PASS[D.typ], r = D.tick[D.tick.length - 1], b = bastaPing(), d = [];
     d.push(D.klar ? `${D.typ} · done` : D.stoppad ? `${D.typ} · stopping, uploading the rest…` : `${D.typ} · ${tid((Date.now() - D.startMs) / 1000)} / ${tid(def.max_s)}`);
     if (!D.startad && !D.stoppad) d.push(Date.now() - D.startMs > 6000 ? 'no answer from the phone — open Mesa with ?debug on the phone and connect it again' : 'waiting for the phone…');
-    const fel = [].concat((D.startad && D.startad.fel) || [], (D.klar && D.klar.fel) || []);
+    /* Mätraderna kommer var 5:e sekund. Uteblir de mäter telefonen inte:
+       sidan har laddats om, eller skärmen har somnat. Förut syntes det bara
+       som att klockan stod ensam i raden, och passet var förlorat ändå. */
+    else if (!D.tick.length && Date.now() - D.startMs > 15000) d.push('THE PHONE IS NOT MEASURING — check the phone: is the page still showing the camera? Stop and start the pass again.');
+    if (D.omstart) d.push(`the phone restarted ${D.omstart} time(s) during the pass — the pass is not usable`);
+    const fel = [].concat((D.startad && D.startad.fel) || [], (D.klar && D.klar.fel) || [], D.fel || []);
     if (fel.length) d.push('error: ' + [...new Set(fel.map(f => f.fel))].join(', '));
     if (r) {
       d.push(`${r.steg_s} steps/s`, `step ${r.steg_ms} ms (p95 ${r.steg_p95})`);
@@ -22765,7 +22777,13 @@ const InspDator = (() => {
     Moln.sandKam('insp', { gor: 'stopp', id: D.id });
     /* Kommer inget klart från telefonen sparas datorns logg ändå. */
     const pass = D;
-    setTimeout(() => { if (!pass.klar && !pass.sparad) { sparaDator(pass); clearInterval(visT); visa(); } }, 240000);
+    /* Svarar telefonen inte inom en minut är den borta: spara datorns egen
+       logg och säg ifrån, i stället för att stå kvar i "stopping". */
+    setTimeout(() => {
+      if (pass.klar || pass.sparad) return;
+      pass.tyst = true; sparaDator(pass); clearInterval(visT);
+      if (D === pass) { status(`${pass.typ} · no answer from the phone when stopping — the phone log is missing. Start a new pass.`); }
+    }, 60000);
     visa();
   }
 
@@ -22834,7 +22852,10 @@ const InspDator = (() => {
     status(`${id}: ${delar.length} parts, ${(blobs.reduce((a, b) => a + b.size, 0) / 1e6).toFixed(1)} MB` + (logg.telefon ? '' : ' · the phone log is missing'));
   }
 
-  return { start, stopp, tagEmot, lista, hamta, get pass() { return D; } };
+  /* Telefonen startade om mitt i ett pass: mätningen är bruten, och det ska
+     synas i raden och i dator.json i stället för att passet ser tomt ut. */
+  function omstart() { if (D && !D.klar && D.startad) { D.omstart = (D.omstart || 0) + 1; visa(); } }
+  return { start, stopp, tagEmot, lista, hamta, omstart, get pass() { return D; } };
 })();
 $('#pbInspStart') && ($('#pbInspStart').onclick = () => InspDator.start());
 $('#pbInspStopp') && ($('#pbInspStopp').onclick = () => InspDator.stopp('knappen'));
@@ -23266,7 +23287,7 @@ function kamTogsEmot(m) {
     if (m.bib !== undefined) kamBib = m.bib;
     if (bibLyft() !== foreLyft) renderBibHog();     // leken lyftes eller lades tillbaka
     /* Telefonen startade om (se kamStromIgen): förhandsbilden begärs igen. */
-    if (m.nollstall) kamStromIgen();
+    if (m.nollstall) { kamStromIgen(); if (DEBUG) InspDator.omstart(); }   // telefonen startade om (MES-190: passet blir oanvändbart)
     /* Kostnadsboken följer med varje bord, fasbytet och hjärtslaget också.
        Före fasbytets retur, och bara medan auto är på — som bordet självt. */
     if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
