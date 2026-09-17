@@ -196,3 +196,142 @@ cosinuslikhet, bästa referens per namn, säkert när marginalen till nästa
 3. För in modulen som vittne i `kamIdentifiera` (planen i del 2).
 4. Spara appens egna 4K-beskärningar ur ett riktigt pass och kör dem i bänken.
 5. Landhögarna: detektorns sak. Tills dess går klungor till Claude.
+
+---
+
+# Del 2 — modulen, provsidan och planen
+
+## Modulen: `dev/embed/embed.js`
+
+En fristående fil med samma form som `dev/matcher.js` och `dev/orb.js`
+(`window.Embed`). Ingen ändring i `index.html`.
+
+| Anrop | Gör |
+|---|---|
+| `Embed.ladda({backend})` | hämtar onnxruntime-web + modellen (läggs i Cache Storage), väljer WebGPU om det finns, annars WASM (flera trådar om sidan är isolerad, annars en; då i en egen worker) |
+| `Embed.byggLek(kod, kort, {onProg})` | bäddar in lekens bilder: 8 vektorer per konstverk (4 vridningar × skarp/suddig). Sparar per kort och per lek i IndexedDB (`mesa-embed`) — en ändrad lek bäddar bara in de nya korten |
+| `Embed.laddaLek(kod)` / `glom(kod)` | läser / tar bort lekens post |
+| `Embed.identifiera(canvas, idx, {utan})` | svarar `{namn, id, saker, sakerhet, marginal, poang, cands, ms, backend}`. `utan` = namn som räknas bort (deck-prior) |
+| `Embed.laggTill(idx, {id, name, bild})` / `taBort(idx, id)` | lärda referenser (K7/K8), rak och vänd |
+
+`saker` = marginalen till nästa **namn** > 0,11. `sakerhet` = uppmätt andel
+rätt vid den marginalen (0,40 vid 0 … 0,99 vid 0,13 … 1,0 från 0,2).
+
+## Provsidan: `dev/embed/bank.html`
+
+```bash
+node dev/embed/server.cjs
+```
+
+Öppna <http://localhost:8377/dev/embed/bank.html>. Knapparna kör modulen,
+dagens kedja (Matcher + ORB, utklippt ur `index.html` av `utdrag.cjs`) och
+de två som vittnen tillsammans, mot de riktiga och de syntetiska
+beskärningarna. Tabellen visar träff, säkra rätt, **säkra fel** och ms per
+kort. Siffrorna nedan är körda i huvudlös Chrome (`webb.cjs`), eftersom
+browserpanelens dolda flik stryper trådarna.
+
+⏳ *siffrorna fylls i*
+
+## Integrationsplanen (koden i `index.html` skrivs inte i natt)
+
+Radnummer gäller `index.html` vid c5e8dad; funktionsnamnen är det som gäller
+om filen flyttat på sig.
+
+### 1. Var modulen går in: `kamIdentifiera` (rad ~20752)
+
+I dag: `serUtSomKort` → `Namn.las` (titelraden, i worker) parallellt med
+`identifyAt` (Matcher rangordnar hela poolen, ORB kontrollerar de 15 bästa)
+→ tvåvittnesvägningen → `{namn, saker, cands, varfor}`.
+
+Nytt: **modellen tar Matchers plats som den som rangordnar.**
+
+| Steg | I dag | Med modulen |
+|---|---|---|
+| Skräpspärr | `serUtSomKort` | oförändrad |
+| Rangordning | `Matcher.scan` över hela poolen (~300–500 ms) | `Embed.identifiera(canvas, idx, {utan})` (~100 ms), parallellt med `Namn.las` |
+| Geometrisk kontroll | `orbIdentify` på Matchers 15 bästa | `orbIdentify` på modellens **3 bästa namn** (alla deras konstverk), vridningen ur modellens svar |
+| Baksidan | poolens uppslag `BAKSIDA_NAMN` | baksidan bäddas in som ett eget namn — samma regel (`varfor: 'baksida'`) |
+| Reserv | — | modulen inte laddad / leken inte inbäddad än / fel → dagens `identifyAt` som förut |
+
+`identifyAt` behålls orörd för datorns skärmdumpsväg och som reserv.
+`kamIdentifiera` får en gren: `const e = Embed.redo && EmbedLek ? await
+Embed.identifiera(...) : null`.
+
+### 2. Hur tvåvittnes-fusionen ändras
+
+Tre vittnen i stället för två: **M** (modellen: namn + marginal), **O** (ORB:
+inliers på modellens kandidater), **N** (namnläsaren, som i dag).
+
+| Läge | Dom | `varfor` |
+|---|---|---|
+| M säker (marginal > 0,11) och varken O eller N säger emot | **säker** | `'modell'` |
+| M:s etta bärs av O (≥ `ORB_ACCEPT` inliers) | **säker**, även vid låg marginal | `'modell+orb'` |
+| M:s etta = N:s namn (säkert eller svagt namn) | **säker** | `'modell+namn'` |
+| N säkert på ett ANNAT namn än M, M inte säker | N vinner som i dag | `'namn ensamt'` |
+| M säker men N säkert på annat, eller O ≥ 10 inliers på ett annat av de tre | **osäker** → Claude | `'konflikt'` |
+| Annars | **osäker** → Claude | `'osäker'` |
+
+Landregeln (`confident`: 4 av 6 bästa samma basland) försvinner: modellen
+räknar redan poäng per namn, så 24 konstverk konkurrerar inte med varandra.
+Regeln "land mot namn" och antalspriorn K6 behålls — K6 får dessutom verka
+tidigare: namn vars exemplar är slut skickas in som `utan`, så att modellen
+inte ens föreslår dem.
+
+Kort **i en klunga** ska aldrig bli säkra på modellen ensam: det är där de
+säkra felen uppstår (den svarar med det kort som syns mest). Spår vars låda
+är större än `kortRef` tillåter (klump, `skymd`) går till Claude som i dag.
+
+### 3. Hur inbäddningarna byggs vid lekbygge
+
+- `byggKamPool` (rad ~20693) → efter `byggLekPool`: `Embed.byggLek('lek:' +
+  id, cards)` med **samma kortlista** som `byggPoolAv` får (alla konstverk,
+  24 per basland, baksidan). Körs i bakgrunden; kameran använder dagens
+  kedja tills posten finns. Statusraden: "Learning the deck… %" som i dag.
+- Kostnad: 8 körningar per bild. Golden-leken (105 bilder) ≈ 95 s på den här
+  datorn med WebGPU. Sparas **per kort** i IndexedDB, så ett nytt kort i
+  leken kostar 1 s, inte en ombyggnad.
+- En Commander-lek (≈ 900 bilder) tar en kvart lokalt — för långsamt. Där
+  bör vektorerna **räknas en gång centralt** och hämtas: de beror bara på
+  Scryfall-id och modellversion (8 × 512 tal ≈ 8 KB per bild som fp16).
+  Förslag: en tabell/bucket i Supabase som fylls av ett skript (samma kod som
+  `lib.cjs`), och `byggLek` frågar där först. Eget ärende.
+- Lärda referenser (K7/K8): `Ref.tillampa` → också `Embed.laggTill`,
+  `Pool.taBort` → också `Embed.taBort`. Mätt: +1 rätt och kameravyn 24/24.
+- Modellfilen (23 MB fp16) hämtas när poolen byggs, som tesseract i dag, och
+  läggs i Cache Storage. Går den inte att hämta: dagens kedja.
+- **WASM-trådar kräver att sajten är cross-origin isolated** (COOP/COEP i
+  `vercel.json`). Det påverkar allt sajten laddar från andra håll (Supabase,
+  jsdelivr, Scryfall-bilder) och måste provas för sig. Utan det: WebGPU
+  eller en tråd. Börja med WebGPU-vägen och låt WASM vara reserv.
+
+### 4. Claude som bakgrundsgranskare
+
+I dag ligger Claude på den kritiska vägen för 26 av 57 kort i golden (de
+lokalt osäkra): spåret **prövas** i 1,7–2,2 s innan kortet får ett namn.
+
+| | I dag | Med modulen |
+|---|---|---|
+| Säkert lokalt | 31/57 → klart direkt | ≈ 45–49/61 → klart på ~0,1–0,3 s |
+| Osäkert | `kamFragaAI`, spåret prövas | **samma väg** — men det gäller färre kort, mest klungor och landhögar |
+| Helbilden (`planeraHelbild`) | när detektorn inte ser något | oförändrad — och dess lådor är just de modellen klarar sämst (liggande kort i stående låda), så Claudes namn gäller där |
+| Granskning av säkra lokala svar | finns inte | **ny, billig:** helbildens svar jämförs med spårens säkra namn; skiljer de sig blir spåret osäkert och går till granskningen. Ingen extra kostnad — helbilden tas ändå högst två gånger i minuten |
+
+Ingen ändring i systemprompten behövs för något av detta.
+
+### 5. Golden-mått som ska bevisa att det blev bättre
+
+Kör `node dev/golden/kor.cjs` (utan `--ai`) före och efter, och `--ai` efter:
+
+| Mått | I dag | Mål |
+|---|---|---|
+| Rätt namn lokalt (utan `--ai`) | 31/57 | **≥ 45/57** |
+| Fel namn lokalt | 0 | **0** |
+| Falska | 5 | inte fler |
+| `namnViaAi` med `--ai` (kort som behövde Claude) | 26 | **≤ 12** |
+| Rätt namn med `--ai` | 57/57, 0 fel | oförändrat |
+| Tid per identifiering (spårets `lokalMs`) | ≈ 500 ms för bilddelen i bänken (belastad dator) | **≤ 300 ms** |
+| `videoFordrojning` (07, 09–12): tid från utspel till säkert namn | nu | kortare — K4 (`spekulera`) får ett svar på 0,1 s |
+| Nytt mått: `varfor` fördelat på `modell` / `modell+orb` / `modell+namn` | — | redovisas, så att det syns vilket vittne som bar |
+
+Och `bank.html` körs före varje ändring av receptet (`Embed.V` höjs då, och
+alla sparade vektorer byggs om).
