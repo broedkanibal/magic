@@ -165,6 +165,7 @@ function skrivTabell(rs, gamla) {
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     { const sidan = rader.find(x => x.includes(r.id)); if (sidan) console.log('  sidans rad: ' + sidan.replace(/^Kör\s+/, '')); }
+    if (r.tidDelar) console.log(`  stegtid: median ${r.ms} ms, max ${r.msMax} ms — ` + Object.entries(r.tidDelar).map(([k, v]) => `${k} ${v.median} (${v.max})`).join(', '));
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
     if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`

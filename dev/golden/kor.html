@@ -463,6 +463,7 @@ function nyttProv(video) {
               storlek, bildens dom (poäng, inliers, accept) och namnläsarens
               svar. Det är här en säker bilddom går att spåra (MES-94). */
            lasningar: [],
+           tidDelar: {},
            pendande: new Set() };
 }
 /* Återanropen modulen får. I videoläget måste varje ruta vänta in det som
@@ -540,6 +541,8 @@ function las(prov, ms, msRuta) {
   prov.s = +(ms / 1000).toFixed(2);
   if (msRuta != null) prov.msProv.push(msRuta);
   else if (K.diagnos.ms) prov.msProv.push(K.diagnos.ms);
+  /* Tidsprofilen (MES-214): varje del av steget, samlad per fall — medianerna skrivs i --detalj. */
+  { const t = K.diagnos.tid; if (t) for (const k in t) (prov.tidDelar[k] || (prov.tidDelar[k] = [])).push(t[k]); }
   /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
   if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && prov.skurnaAlla.length < 20) prov.skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
   for (const l of K.diagnos.skarLogg || []) if (!prov.skarAlla.has(l.ruta)) prov.skarAlla.set(l.ruta, l);
@@ -601,6 +604,7 @@ function avsluta(f, prov, tid, tak, takS) {
   const res = bedom(f, prov.sistaBord, tid, tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
   res.skurnaAlla = prov.skurnaAlla;
   res.lasningar = prov.lasningar;
+  res.tidDelar = Object.fromEntries(Object.entries(prov.tidDelar).map(([k, l]) => { const q = l.slice().sort((a, b) => a - b); return [k, { median: q[q.length >> 1], max: q[q.length - 1], n: q.length }]; }));
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
   res.takS = takS;
