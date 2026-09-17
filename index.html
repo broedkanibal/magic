@@ -22147,15 +22147,40 @@ const KORT_KVOT = 88 / 63;
    kortets form (88:63) och vinkeln räknar tillbaka. A = bildens höjd/bredd,
    g = grundläget i grader (otappat korts axel), tappat = provkortet låg
    tappat. null = orimligt — då gäller ett vanligt kort. */
-function provKortMatt(prov, ra, matt, A, g, tappat) {
+function provKortUrRa(prov, ra, matt) {
   const e = prov && ra && matt && matt.aw ? ra.find(x => x.id === prov.id) : null;
-  if (e && e.kort > 0 && e.lang / e.kort >= 1.2 && e.lang / e.kort <= 1.65) return { S: e.kort / matt.aw, L: e.lang / matt.aw };
+  return e && e.kort > 0 && e.lang / e.kort >= 1.2 && e.lang / e.kort <= 1.65 ? { S: e.kort / matt.aw, L: e.lang / matt.aw } : null;
+}
+function provKortMatt(prov, ra, matt, A, g, tappat) {
+  const ur = provKortUrRa(prov, ra, matt); if (ur) return ur;
   if (!prov || !(prov.w > 0) || !(prov.h > 0) || !(A > 0)) return null;
   const th = ((g || 0) + (tappat ? 90 : 0)) * Math.PI / 180, c = Math.abs(Math.cos(th)), sn = Math.abs(Math.sin(th));
   const a = KORT_KVOT * c + sn, b = KORT_KVOT * sn + c, Wb = prov.w, Hb = prov.h * A;
   const S = (Wb * a + Hb * b) / (a * a + b * b);
   if (!(S > 0) || Math.abs(Wb - S * a) > 0.25 * Wb || Math.abs(Hb - S * b) > 0.25 * Hb) return null;
   return { S, L: KORT_KVOT * S };
+}
+/* Provkortets storlek utan vinkel (MES-171). I Use camera to add cards
+   frågas inte hur kortet ligger och telefonen räknar ingen vinkel, så
+   vinkeln är okänd. Lådan först, som i Mirror my table: den vinkel mellan
+   0° och 90° som bäst förklarar lådans form ger storleken (minsta kvadrat
+   per vinkel, som provKortMatt, och minsta relativa fel på någon led).
+   Ett kort som ligger stående, på tvären eller snett ger samma storlek.
+   Går lådan inte ihop med ett kort: provbordets mått av spåret. null =
+   orimligt — då gäller ett vanligt kort (oppForslag). */
+function provKortStorlek(prov, ra, matt, A) {
+  if (prov && prov.w > 0 && prov.h > 0 && A > 0) {
+    const Wb = prov.w, Hb = prov.h * A;
+    let bast = null;
+    for (let grad = 0; grad <= 90; grad++) {
+      const th = grad * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
+      const a = KORT_KVOT * c + sn, b = KORT_KVOT * sn + c, S = (Wb * a + Hb * b) / (a * a + b * b);
+      const fel = Math.max(Math.abs(Wb - S * a) / Wb, Math.abs(Hb - S * b) / Hb);
+      if (!bast || fel < bast.fel) bast = { S, fel };
+    }
+    if (bast.S > 0 && bast.fel <= 0.25) return { S: bast.S, L: KORT_KVOT * bast.S };
+  }
+  return provKortUrRa(prov, ra, matt);
 }
 /* Förslaget: graveyard nere till vänster i vyn med 3 % luft (samma
    fysiska luft åt båda hållen), library 0,2 rutbredd till höger. Platsen är
@@ -22251,6 +22276,28 @@ function provLasSteg(las, p, vantar) {
 function provkortUt(spar, provId) {
   const prov = (spar || []).find(t => t.id === provId);
   return (spar || []).filter(t => t.id === provId || (prov && t.w != null && prov.w != null && tackning(t, prov) >= 0.3)).map(t => t.id);
+}
+/* Steg 4 klart (renderOppstart), ur uppstartens sparade fält o: med Start
+   playing — eller, på en dator som inte börjat steget, när spelets rad
+   redan bär båda rutorna, och i Mirror my table (bord) också vinkeln
+   (grund). Use camera to add cards har steget sedan MES-171 och behöver
+   ingen vinkel. grundOm = Redo setup: raden räknas inte, steget görs om.
+   utan4 = uppstarten var klar i Use camera to add cards innan steget fanns
+   där (oppOppnasIgen). zoner = raden har graveyard- och library-rutan. */
+function oppSteg4Klar(o, bord, grund, zoner) {
+  if (o.startat || (!bord && o.utan4)) return true;
+  return !o.b4 && !o.grundOm && !!zoner && (!bord || grund != null);
+}
+/* Fälten när uppstarten öppnas igen. om = Redo setup: läget väljs igen och
+   steg 4 görs om, i båda kameralägena. Annars (pillret) står det som var
+   klart kvar — och en uppstart som var klar i Use camera to add cards utan
+   Start playing gjordes innan steg 4 fanns där (MES-171): den ska inte
+   kräva steget nu (utan4). lage = mittLage(). */
+function oppOppnasIgen(o, om, lage) {
+  if (om) return { klar: false, avbojd: false, lage: false, grundOm: true, b4: false, provKlar: false, gravKlar: false, bibKlar: false, startat: false, utan4: false };
+  const f = { klar: false, avbojd: false };
+  if (o && o.klar && !o.startat && lage === 'skarm') f.utan4 = true;
+  return f;
 }
 const oppstartSparr = () => typeof oppstartPagar === 'function' && oppstartPagar();
 /* Steget statusfältet ber om: { namn, spar } så snart ett mätt kamerakort
