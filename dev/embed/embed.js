@@ -6,9 +6,11 @@
    kameran bäddas in och jämförs mot dem. Närmaste referens säger namnet,
    avståndet till nästa NAMN säger hur säkert det är.
 
-   Uppmätt (dev/embed/RAPPORT.md): 55 av 61 riktiga golden-beskärningar
-   rätt, 42 av 43 vanliga kort; dagens Matcher + ORB får 40 av 61 på samma
-   bilder. Marginal > 0,11 gav 99 % rätt i kalibreringen.
+   Uppmätt (dev/embed/RAPPORT.md): 52–55 av 61 riktiga golden-beskärningar
+   rätt, 39–42 av 43 vanliga kort; dagens Matcher + ORB får 40 av 61 på samma
+   bilder. Marginal > 0,11 gav 99 % rätt i kalibreringen. Sitter modulen
+   ensam blir 1 av 61 ett säkert fel (ett kort ovanpå ett annat); med ORB som
+   andra vittne (bank.html FUSION) 46 säkra rätt / 1 fel mot dagens 33 / 0.
 
    Receptet är det bänken mätte fram, och varje del är mätt:
      • hela kortet, inte konstrutan (55 mot 39 av 61)

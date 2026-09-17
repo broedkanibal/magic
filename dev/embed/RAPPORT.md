@@ -8,15 +8,15 @@ går att köra om — se [LÄS-MIG.md](LÄS-MIG.md).
 **Ja, bygg in den — som bildvittne i stället för Matcher, inte som ersättare
 för Claude.** En färdig bildmodell (MobileCLIP-S0) som körs i webbläsaren
 sätter rätt namn på **52–55 av 61 riktiga golden-beskärningar (85–90 %)** och
-på **42 av 43 vanliga kort (98 %)**. Dagens bildkedja (Matcher + ORB) får
+på **39–42 av 43 vanliga kort (91–98 %)**. Dagens bildkedja (Matcher + ORB) får
 40 av 61 på exakt samma beskärningar. Svaret kommer på **~100 ms** på den
 här datorn (WebGPU), mot ~500 ms för dagens bildkedja och 1,7–2,2 s för
 Claude.
 
 Förbehållen:
 
-1. **">95 % på <50 ms" nås inte rakt av.** 95 % nås för vanliga kort som
-   ligger för sig själva — inte för hela bordet: basland i högar och kort
+1. **">95 % på <50 ms" nås inte rakt av.** 95 % nås bara i bänken och bara
+   för vanliga kort som ligger för sig själva — inte för hela bordet: basland i högar och kort
    som inte är rätt utskurna drar ner det till 85–90 %. Och 50 ms nås inte
    här (98 ms med WebGPU, 250–700 ms utan). Slutmålet *namn inom 300 ms* nås
    med WebGPU.
