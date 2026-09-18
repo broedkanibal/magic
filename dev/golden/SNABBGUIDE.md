@@ -60,6 +60,8 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --ljus alla` | samma fall i sju ljus (mörkare, ljusare, varmare, kallare, låg kontrast, brus, sned gradient) med en sammanställning sist — var kedjan går sönder först (se *Samma fall i sju ljus*) |
 | `node dev/golden/kor.cjs --utan-modell` | utan bildmodellen (MES-225): reserven Matcher + ORB mäts — ska ge samma tal som före modellen (31/57, 0, 5). `--wasm` tvingar modellen till WASM i stället för WebGPU |
 | `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
+| `node dev/golden/kor.cjs --luft 0` | utan läsningen på första hela rutan (MES-227, `T.luft`): den tidiga läsningen väntar två formstilla rutor som förut. `--luft 1` tvingar den på |
+| `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
@@ -228,6 +230,13 @@ säkert blir kortet klart på en gång — 07 1,8 → 1,0 s, 09 1,85 → 1,25 s,
 10 1,35 → 0,8 s, 11 1,25 → 0,95 s, 12 1,95 → 1,35 s, samma namn och 0 fel.
 Läget är då preliminärt (`vilar: false`) och mäts om när kortet vilat i
 `stillaMs`. Ett osäkert tidigt svar kastas och kortet läses som förut.
+
+Sedan MES-227 (2026-09-18) läses ett nytt spår redan i **första rutan där
+regionen har ett korts mått och inget ligger över** (`T.luft`), i stället
+för efter två formstilla rutor: 07 1,0 → 0,6 s, 09 0,85 → 0,6 s, 10 0,8 →
+0,5 s. Uppmätt ruta för ruta (`--rutlogg`): kortet syns aldrig oskymt i
+luften i golden-videorna — handen täcker det tills det ligger — så det som
+återstår av fördröjningen är handen, inte kedjan.
 
 ## Förloppsmåtten från K1 (dev/plan/lagen.md §7)
 

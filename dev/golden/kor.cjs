@@ -57,6 +57,8 @@ const LJUS = arg('--ljus', '');
    profilens cache. */
 const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
 const UTAN_LEKEN = arg('--utan-leken', '');
+const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela rutan (MES-227) av eller på, oavsett appens förval
+const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -159,7 +161,7 @@ function skrivTabell(rs, gamla) {
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|'))].filter(Boolean).join('&');
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|'))].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -275,6 +277,7 @@ function skrivTabell(rs, gamla) {
     fs.writeFileSync(path.join(BESKARNINGAR, 'index.json'), JSON.stringify(index, null, 1) + '\n');
     console.log(`\n${index.length} beskärningar skrivna till ${BESKARNINGAR} (index.json listar dem)`);
   }
+  if (RUTLOGG) { const rl = JSON.parse(json).filter(r => r.rutLogg).map(r => ({ id: r.id, handelser: r.videoHandelser, spar: r.videoSpar, rutLogg: r.rutLogg })); fs.writeFileSync(RUTLOGG, JSON.stringify(rl) + '\n'); console.log(`\nrutloggen skriven till ${RUTLOGG} (${rl.length} videofall)`); }
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   /* Domen mot baslinjen skrivs alltid: BÄTTRE, LIKA BRA, SÄMRE eller BLANDAT,
      totalt och fall för fall. Förut syntes bara det som blev sämre, så en
@@ -315,7 +318,7 @@ function skrivTabell(rs, gamla) {
   if (aiFel.n) console.log(`\nVARNING: ${aiFel.n} anrop till Claude misslyckades — resultatet ovan är i praktiken den lokala kedjan. Första felet: ${aiFel.forsta}`);
   if (SPARA && aiFel.n) { console.log(`\n--spara vägrat: ${BASFIL} skrivs inte när anrop till Claude misslyckats.`); process.exitCode = 1; }
   else if (SPARA && !REFFLAG) {
-    let rader = JSON.parse(json);
+    let rader = JSON.parse(json); for (const r of rader) delete r.rutLogg;
     if (FALL) {
       let gamla = []; try { gamla = JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')); } catch (e) {}
       const korda = new Set(rader.map(r => r.id));

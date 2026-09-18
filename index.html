@@ -17747,6 +17747,23 @@ const Kamera = (() => {
      som i dag när spåret är stilla. Aldrig en fråga till Claude för en
      tidig läsning, och högst SPEK_MAX per spår. */
   const SPEK_RUTOR = 2, SPEK_FORM = 0.06, SPEK_MAX = 2;
+  /* Läsningen på första hela rutan (MES-227, T.luft). Uppmätt ruta för ruta
+     i golden 07/09–12 (kor.cjs --rutlogg): kortet syns aldrig oskymt "i
+     luften" — handen täcker det tills det ligger, och första rutan där
+     regionen har kortets egna mått är redan landningen (0–1 rutor i rörelse
+     per kort, och den enda är spårets mitt som hoppar från kort + hand till
+     kortet). Därifrån väntade den tidiga läsningen exakt två rutor (0,30 s)
+     på att formen skulle stå still. Med bildmodellen och ORB:s skalkontroll
+     behövs inte den väntan för att svaret ska vara rätt: ett kort ORB bär är
+     kortet, suddigt eller inte, och ett osäkert svar kastas som förut. Spåret
+     läses därför i första rutan där regionen har ETT KORTS MÅTT och inget
+     ligger över (kräver kortreferens — bordets första kort väntar som förut),
+     och ett säkert svar tas direkt; läget är preliminärt och mäts om när
+     kortet vilat (spekTidig, MES-214). Rör sig kortet medan läsningen pågår
+     nollas den (matcha), precis som förut. Missar den första läsningen får
+     spåret sin vanliga tidiga läsning när formen stått still — därför en
+     läsning mer per spår. */
+  const SPEK_MAX_LUFT = 3;
   /* Läget datorn speglar (MES-214), se matcha: regionen räknas som hela
      kortet inom LAGE_HEL av ytan när läget sattes; en annan form måste stå
      still i LAGE_TALAMOD rutor (2 s) innan den får flytta läget. */
@@ -17798,7 +17815,11 @@ const Kamera = (() => {
        se detektera() — och spridningen skalas i samma proportion; 25 och 15
        är då utgångsläget och skalans etta. Reglagen Avvikelse och Struktur
        tar över när någon drar i dem, som tröskelreglaget gör med auto. */
-    autoUts: 1
+    autoUts: 1,
+    /* Läsning på första hela rutan (MES-227), se steg(): 1 = ett nytt spår
+       läses i första rutan där regionen har ett korts mått och inget ligger
+       över, utan att vänta in SPEK_RUTOR formstilla rutor. */
+    luft: 1
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning;
@@ -19823,9 +19844,12 @@ const Kamera = (() => {
     /* …och är ingen stilla att läsa: ett spår som ännu väntar men har stått
        formstilla läses tidigt (K4). De stillas läsning går alltid först. */
     if (!startad && !spar.some(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.laser && !(q.igen > nu))) {
-      const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.spek && !q.laser && (q.formN || 0) >= SPEK_RUTOR
-                               && (q.spekN || 0) < SPEK_MAX && !(q.igen > nu) && !arHelbild(q) && farLasas(q));
-      if (t) { if (latens && !(t.ts && t.ts.stilla)) stampla(t, 'stilla'); spekulera(t, nu); }
+      const stilla3 = q => (q.formN || 0) >= SPEK_RUTOR;
+      const helRuta = q => !!T.luft && kortlik(q) && !q.skymd && q.regionNar === nu;   // MES-227: första rutan med ett korts mått, oskymt. Provat och backat: också bordets första kort (formstilla i två rutor, utan kortreferens) — 09 0,6 → 0,55 s och 12 1,35 → 1,2 s, men en falsk tap-flipp i 11 (Swamp-halvan fick namn en ruta tidigare, med handens vinkel)
+      const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.laser
+                               && (!q.spek ? (stilla3(q) || helRuta(q)) : (q.spek.miss && q.spek.luft && stilla3(q)))
+                               && (q.spekN || 0) < (T.luft ? SPEK_MAX_LUFT : SPEK_MAX) && !(q.igen > nu) && !arHelbild(q) && farLasas(q));
+      if (t) { if (latens && !(t.ts && t.ts.stilla)) stampla(t, 'stilla'); spekulera(t, nu, !stilla3(t)); }
     }
     ta('lasning');   // den synkrona delen av en läsning som startades i steget: ram, beskärning, Matcher + ORB
     planeraHelbild(nu, g);
@@ -20385,7 +20409,7 @@ const Kamera = (() => {
      stället för att döma det. Inget går till datorn och ingen fråga till
      Claude: kamIdentifiera får spek, och ett osäkert svar kastas. Rör sig
      spåret under läsningen (matcha nollar spek) gäller svaret ingenting. */
-  async function spekulera(t, nu) {
+  async function spekulera(t, nu, luft) {
     lasande++; t.laser = true;
     t.spekN = (t.spekN || 0) + 1;
     const vantar = { vantar: true };
@@ -20401,7 +20425,7 @@ const Kamera = (() => {
       if (t.spek !== vantar) return;
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
         ? { svar, geo, upptagna: upptagna(svar.namn, t), nar: nu || 0 }
-        : { miss: true };
+        : { miss: true, luft: !!luft };   // luft: läsningen på första hela rutan missade — den vanliga tidiga läsningen får sin chans (MES-227)
       /* Ett SÄKERT tidigt svar tas på en gång (MES-214): namnet går till
          datorn 0,45–0,6 s före stillaMs. Läget är ännu preliminärt — kortet
          har stått formstilla i två rutor, inte vilat — och mäts om när

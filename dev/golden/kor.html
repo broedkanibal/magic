@@ -180,6 +180,10 @@ const LJUS = PARAMS.get('ljus') || '';
 const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlokalt') === '1', EMBED_BACKEND = PARAMS.get('embedbackend') || 'auto';
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
+/* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
+const RUTLOGG = PARAMS.get('rutlogg') === '1';
+/* ?luft=0|1 (kor.cjs --luft): läsningen på första hela rutan (MES-227, Kamera T.luft) av eller på, oavsett appens förval. */
+const LUFT = PARAMS.get('luft');
 const LJUS_VARIANTER = {
   morkare:  { txt: 'mörkare (×0,55)' },
   ljusare:  { txt: 'ljusare (×1,45, klipper)' },
@@ -508,6 +512,7 @@ function stallUpp(f, kalla, kb, kh) {
      före. I appen finns library-rutan alltid sedan uppstartens steg 4 (MES-122);
      ett fall där leken ligger i bild utan "bib" i facit mäter leken som ett kort. */
   K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: f.facit.bib || null }) });
+  if (LUFT === '0' || LUFT === '1') K.satTrosklar({ luft: +LUFT });
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   return cv;
 }
@@ -623,6 +628,7 @@ function las(prov, ms, msRuta) {
   const sT = rad + '@' + lage;
   if (sT !== prov.sigT && prov.tidslinje.length < 400) { prov.sigT = sT; prov.tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
   if (prov.logg) loggaSpar(prov, spar);
+  if (RUTLOGG && prov.logg) { const kr = K.diagnos.kortRef; (prov.rutLogg || (prov.rutLogg = [])).push({ s: prov.s, kr: kr ? [kr.lang, kr.kort] : null, spar: spar.map(t => ({ id: t.id, st: t.tillstand, n: t.namn && t.saker ? t.namn : null, l: Math.round(t.lang), k: Math.round(t.kort), x: Math.round(t.cx), y: Math.round(t.cy), f: t.formN || 0, sk: t.skymd ? 1 : 0, r: t.regionNar != null && t.sedd === t.regionNar && t.regionNar >= (K.diagnos.nu || 0) ? 1 : 0, sp: t.spek ? (t.spek.svar ? 's' : t.spek.miss ? 'm' : 'v') : '', la: t.laser ? 1 : 0 })) }); }
   const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
   /* …och en helbild som är planerad eller på väg väntas in: den kommer
      3 s efter att bordet stått stilla, och fall 05 var annars "klart"
@@ -813,6 +819,7 @@ async function korVideoFall(f, vf, vid, cv) {
     /* Högvaktens domar (MES-85) bär modulens klocka; i videons sekunder går de att lägga bredvid facit. */
     if (res.gravProv) res.gravProv = res.gravProv.map(p => Object.assign({}, p, { s: +(p.s - VIRT0 / 1000).toFixed(2) }));
     res.bordLogg = prov.bordLogg;
+    if (RUTLOGG) res.rutLogg = prov.rutLogg || [];
     res.videoSpar = prov.logg;
     return res;
   } finally {
