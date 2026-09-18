@@ -911,7 +911,23 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      delat med spårets bredd; medianen över rutträffarna. */
   const lageFel = traffar.filter(p => p.plats).map(p => Math.hypot((p.t.x + p.t.w / 2 - p.k.x - p.k.w / 2) * aw, (p.t.y + p.t.h / 2 - p.k.y - p.k.h / 2) * ah) / (p.t.w * aw)).sort((a, b) => a - b);
   const dia = K.diagnos, tro = K.trosklar;
+  /* Land per TYP (MES-228): ett basland är sin typ — tryck, konstverk och
+     snö spelar ingen roll — och en hög redovisas som antal + typ. Facit
+     räknas per typ över de synliga korten (dolda för sig); kameran per typ
+     över de säkra spåren, där ett spår som bär en hög räknas med sitt antal
+     (t.hog). landRatt = så många av facits land som kameran har per typ;
+     landOver = land kameran har utöver facits synliga OCH dolda av typen. */
+  const LANDTYP = n => { const m = /^(?:Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.exec(String(n || '')); return m ? m[1] : null; };
+  const landF = {}, landD = {}, landK = {};
+  for (const k of synliga) { const ty = LANDTYP(k.namn); if (ty) landF[ty] = (landF[ty] || 0) + 1; }
+  for (const k of dolda) { const ty = LANDTYP(k.namn); if (ty) landD[ty] = (landD[ty] || 0) + 1; }
+  for (const t of K.spar) { if (t.tillstand === 'skrap' || !t.saker || !t.namn) continue; for (const n of (t.hog && t.hog.length ? t.hog : [t.namn])) { const ty = LANDTYP(n); if (ty) landK[ty] = (landK[ty] || 0) + 1; } }
+  const landTyper = [...new Set(Object.keys(landF).concat(Object.keys(landK)))];
   return {
+    landAv: Object.values(landF).reduce((a, b) => a + b, 0),
+    landRatt: landTyper.reduce((a, ty) => a + Math.min(landF[ty] || 0, landK[ty] || 0), 0),
+    landOver: landTyper.reduce((a, ty) => a + Math.max(0, (landK[ty] || 0) - (landF[ty] || 0) - (landD[ty] || 0)), 0),
+    landPerTyp: Object.fromEntries(landTyper.map(ty => [ty, { facit: landF[ty] || 0, dolda: landD[ty] || 0, kamera: landK[ty] || 0 }])),
     id: f.id, kort: synliga.length, dolda: dolda.length,
     hittade: spar.length,
     plats: synligaTraffar.filter(p => p.plats).length, platsAv: medRuta.length,

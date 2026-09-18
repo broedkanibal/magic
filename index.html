@@ -15637,6 +15637,22 @@ async function ensureLekPool(onProg) {
    detektorns egen gallring håller skräpet borta. */
 const CONF = { accept: 0.78, margin: 0.07, landScore: 0.62, landAgree: 4 };
 const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+/* Basland som TYP (MES-228). Ett Plains är ett Plains: vilket tryck, vilket
+   konstverk och om det är snötäckt spelar ingen roll för spelet, och kameran
+   ska inte låtsas veta det. landTyp ger typen för ett baslands namn —
+   "Snow-Covered Swamp" är typen Swamp — och null för allt annat (Thriving
+   Heath är ett kort med namn, som förut). landVisning ger namnet och
+   tryckningen bordet visar för typen: LEKENS egen — av lekens namn för
+   typen det som har flest exemplar, och poolens första post för det namnet
+   (byggLekPoolRa lägger lekens egna tryckningar först). */
+function landTyp(namn) { const m = /^(?:Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.exec(String(namn || '')); return m ? m[1] : null; }
+function landVisning(typ) {
+  const P = Pool.idx, namnen = P ? [...new Set(P.names.filter(n => landTyp(n) === typ))] : [];
+  if (!namnen.length) return { name: typ, sid: null };
+  const antal = n => (kamLekAntal && kamLekAntal.get(norm(n))) || 0;
+  const name = namnen.slice().sort((a, b) => antal(b) - antal(a) || (a === typ ? -1 : b === typ ? 1 : 0))[0];
+  return { name, sid: refSid(P.ids[P.names.indexOf(name)]) };
+}
 
 /* Ett landskap är ett landskap oavsett konstverk. Poolen innehåller drygt
    hundra varianter av varje, och de konkurrerar med varandra — därför får
@@ -15779,20 +15795,37 @@ function identifyAt(img, box, hint) {
    (kortRef, kortMatt — högvaktens krav halverades annars, och golden 11
    fick en falsk högändring). */
 const ORB_EMOT = 6, MODELL_NAMN = 3, ORB_SKALA = [0.8, 1.6], ORB_HEL = 1.08;
+/* Basland som typ (MES-228): modellens namn slås ihop per landtyp — bästa
+   poängen för typen gäller, och marginalen räknas till nästa ANNAT kort —
+   och ORB:s träffar räknas per typ. Ett basland får vara säkert på modellen
+   ensam utan ORB:s stöd: ORB känner igen ett KONSTVERK, och landet på bordet
+   är sällan ett av poolens 24 (tryck och konstverk spelar ingen roll). I
+   gengäld krävs en klarare marginal (LAND_MARGINAL; ensamma land i golden
+   ligger på 0,18–0,39, landhögar och bitar på 0,00–0,06), att spåret ligger
+   för sig självt, och att ORB inte bär ett annat kort. Två landtyper ur samma
+   utgåva delar ram och textruta, så en annan LANDTYP säger emot först vid
+   ORB_ACCEPT inliers. */
+const LAND_MARGINAL = 0.15;
 function identifyMedModell(img, box, e, ensamt) {
-  const P = Pool.idx, etta = e.namn;
-  const namn3 = new Set((e.cands || []).slice(0, MODELL_NAMN).map(c => c.name));
+  const P = Pool.idx;
+  const typNamn = n => { const t = landTyp(n); return t ? landVisning(t).name : n; };
+  const rang = [];
+  for (const c of e.cands || []) { const name = typNamn(c.name), f = rang.find(x => x.name === name); if (!f) rang.push({ name, sid: (landTyp(c.name) && landVisning(landTyp(c.name)).sid) || c.sid, score: c.score }); }
+  const etta = rang[0] ? rang[0].name : e.namn, marginal = rang[0] ? rang[0].score - (rang[1] ? rang[1].score : 0) : e.marginal;
+  e = Object.assign({}, e, { marginal, saker: marginal > Embed.TROSKEL, cands: rang });
+  const namn3 = new Set(rang.slice(0, MODELL_NAMN).map(c => c.name));
   const per = new Map(); let bast = { inliers: 0, namn: null, rot: e.rot || 0 };
   if (P.orb) {
-    const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(P.names[i])) vilka.push(i);
+    const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(typNamn(P.names[i]))) vilka.push(i);
     const r0 = ((e.rot || 0) % 360 + 360) % 360;
     for (const r of [r0, (r0 + 180) % 360]) {
       const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H), qf = cv ? ORB.queryFeatures(cv, 300) : null; if (!qf) continue;
       for (const i of vilka) {
         const ov = ORB.verify(qf, ORB.unpack(P.orb, i), {});
         const n = ov.model && ov.model.scale >= ORB_SKALA[0] && ov.model.scale <= ORB_SKALA[1] ? ov.inliers : 0;
-        if (n > (per.get(P.names[i]) || 0)) per.set(P.names[i], n);
-        if (n > bast.inliers) bast = { inliers: n, namn: P.names[i], rot: r, skala: ov.model ? ov.model.scale : null };
+        const pn = typNamn(P.names[i]);
+        if (n > (per.get(pn) || 0)) per.set(pn, n);
+        if (n > bast.inliers) bast = { inliers: n, namn: pn, rot: r, skala: ov.model ? ov.model.scale : null };
       }
       if (bast.inliers >= ORB_ACCEPT + 4) break;
     }
@@ -15809,11 +15842,13 @@ function identifyMedModell(img, box, e, ensamt) {
      rätta med låg marginal: Fencing Ace 0,067/16, Pikemaster 0,016/26,
      Blightfang 0,027/30); under det att modellen själv är säker. */
   const bar = bast.namn === etta && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
-  const emot = bast.namn !== etta && bast.inliers >= ORB_EMOT;
-  const ensam = !!(e.saker && ensamt && !emot && (!P.orb || stod >= ORB_EMOT));
+  const land = !!landTyp(etta);
+  const emot = bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT);
+  /* Provat och backat: ett land säkert också utan att spåret är ensamt, när ORB ger typen ett svagt stöd inom skalan. Golden 07 fick sitt Swamp (det ligger ensamt, men inspelningens egna streckade spårrutor gör regionen för stor, MES-223) — och golden 11 fick Swamp-halvan i plastfickan namngiven en gång till: dubbletter 0 → 1 och en falsk tap-flipp. En bit av ett kort får inte bli ett kort till. */
+  const ensam = !!(ensamt && !emot && (land ? e.marginal >= LAND_MARGINAL : (e.saker && (!P.orb || stod >= ORB_EMOT))));
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
   return { accept: bar || ensam, del: bar && bast.skala < ORB_HEL, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
-           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
+           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
 }
 
 /* Ett uppåtvänt Magic-kort har alltid en ljus textruta och ljusa raminslag.
@@ -21199,6 +21234,9 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   }
   if (!v) { try { v = identifyAt(canvas, box, 0); } catch (e) { return null; } }
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
+  /* Titelraden på ett basland säger typen (MES-228): "Snow-Covered Plains" och "Plains" är samma kort för kameran, med lekens eget namn för typen — annars stod de två vittnena emot varandra om samma land. */
+  const typAv = n => { const t = KamEmbed.redo() ? landTyp(n) : null; return t ? landVisning(t).name : n; };
+  if (namn && namn.namn) namn = Object.assign({}, namn, { namn: typAv(namn.namn) });
   /* Räckte modellen inte — ORB bar inte ettan, marginalen var inte säker, och
      titelraden håller inte med den — får Matcher + ORB en andra åsikt innan
      kortet går till Claude. Den gäller bara när den pekar på ett av
@@ -21248,7 +21286,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
   /* Domskälet, för diagnosen och golden-provet: 'bild…' är Matcher + ORB, 'modell…' bildmodellen + ORB. */
   const B = M ? 'modell' : 'bild';
-  let varfor = saker ? (M ? (M.bar ? 'modell+orb' : 'modell') : 'bild') : 'osäker';
+  let varfor = saker ? (M ? (M.bar ? 'modell+orb' : M.land ? 'modell land' : 'modell') : 'bild') : 'osäker';
   /* Två vittnen: illustrationen och namnet. Säkert när de håller med, eller
      när det ena är starkt nog att stå för sig — men ALDRIG när båda är
      säkra på var sitt kort: då går kortet till granskningen med bägge

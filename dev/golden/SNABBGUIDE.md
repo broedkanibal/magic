@@ -352,6 +352,7 @@ grafikkort, eller med `--wasm`: samma svar, 3–5 gånger långsammare).
 | `domskäl för de säkra rätta namnen` | raden under `metod:` — `modell+orb` (ORB bar modellens etta), `modell+namn` (titelraden höll med), `modell` (modellen ensam, med ORB:s svaga stöd), `bild…` (Matcher + ORB som andra åsikt, eller reserven); med `--ai` också `namnViaAi` |
 | `läst …` i `--detalj` | modellens poäng och marginal, *inte ensamt* (klunga, skymt eller större än ett kort), ORB:s inliers, på vilket namn, ettans egna inliers och **skalan** (ett helt kort i sin beskärning: 1,15–1,43; under 1,08 är spåret en bit av kortet; utanför 0,8–1,6 räknas träffen inte) |
 | Kort utanför leken | `--utan-leken "Namn1,Namn2"` — modellen svarar alltid med något av lekens namn, så det är ORB-kontrollen som ska stoppa dem. Mätt 2026-09-18 med 12 av 28 namn borttagna: 0 fel namn |
+| `land per typ` | raden under `metod:` (MES-228): facits synliga basland mot kamerans säkra, typ för typ — ett Plains är ett Plains, vilket tryck det än är, och "Snow-Covered Swamp" är typen Swamp. `landRatt`/`landAv`, och `landOver` = land kameran har utöver facits synliga och dolda. I domen |
 | Utan modellen | `--utan-modell` mäter reserven (modulen inte laddad, leken inte inbäddad): samma tal som före modellen |
 
 ## Kortbaksidor

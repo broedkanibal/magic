@@ -192,6 +192,9 @@ function skrivTabell(rs, gamla) {
     const rsV = JSON.parse(json), vf = {}; for (const r of rsV) for (const k in (r.varforRatt || {})) vf[k] = (vf[k] || 0) + r.varforRatt[k];
     if (Object.keys(vf).length) console.log('  domskäl för de säkra rätta namnen: ' + Object.entries(vf).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · ')
       + (AIFLAG ? ` — namnViaAi ${rsV.reduce((a, r) => a + (r.namnViaAi || 0), 0)}` : ''));
+    /* MES-228: land per typ — facits basland mot kamerans, typ för typ (en hög räknas med sitt antal). */
+    { const av = rsV.reduce((a, r) => a + (r.landAv || 0), 0), ratt = rsV.reduce((a, r) => a + (r.landRatt || 0), 0), over = rsV.reduce((a, r) => a + (r.landOver || 0), 0);
+      if (av) console.log(`  land per typ: ${ratt}/${av} rätt, ${over} för många — ` + rsV.filter(r => r.landAv || r.landOver).map(r => `${r.id.slice(0, 2)}: ${r.landRatt}/${r.landAv}${r.landOver ? ' (+' + r.landOver + ')' : ''}`).join(' · ')); }
     const sk = rsV.filter(r => r.videoSkuggaSynlig != null).map(r => `${r.id.slice(0, 2)}: rapport +${r.videoSkuggaRapport} s, synlig +${r.videoSkuggaSynlig} s (före +${r.videoSkuggaSynligFore}), blinkar ${r.videoSkuggaBlink}`);
     if (sk.length) console.log('  skuggan (median efter utspelet, MES-226): ' + sk.join(' · '));
     { const alla = k => rsV.flatMap(r => r[k] || []).sort((a, b) => a - b), e = alla('videoSkuggaEfter'), e0 = alla('videoSkuggaEfterFore'), med = l => l.length ? l[l.length >> 1] : null;
@@ -294,7 +297,8 @@ function skrivTabell(rs, gamla) {
                                                ['videoDubbletter', 'dubbletter', false, 'kort'], ['videoTapp', 'tap-vridningar som sågs', true, 'videoTappAv'],
                                                ['videoTappFalska', 'falska tap-flippar', false, 'kort'],
                                                ['lagesUpp', 'lägesuppdateringar', false, 'kort'], ['videoFlytt', 'flyttar som sågs', true, 'videoFlyttAv'],
-                                               ['videoGrav', 'kort till högen som högvakten såg', true, 'videoGravAv'], ['videoGravFalska', 'falska högändringar', false, 'kort']]) {
+                                               ['videoGrav', 'kort till högen som högvakten såg', true, 'videoGravAv'], ['videoGravFalska', 'falska högändringar', false, 'kort'],
+                                               ['landRatt', 'land rätt per typ', true, 'landAv'], ['landOver', 'land för många per typ', false, 'landAv']]) {
       if (r[k] == null || g[k] == null || r[k] === g[k]) continue;
       ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]} (av ${r[avK]} kort)`);
     } }
