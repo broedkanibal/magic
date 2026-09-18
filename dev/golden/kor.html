@@ -160,6 +160,39 @@ const AI_PA = PARAMS.get('ai') === '1';
    för golden-poolen tas bort innan något körs. Utan flaggorna varken läser
    eller lär appen (MESA_REF/MESA_LAR = false på appens fönster). */
 const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GLOM_REF = PARAMS.get('glomref') === '1';
+/* ?ljus=<variant> (kor.cjs --ljus): samma fall i ett annat ljus (MES-216).
+   Varje ruta — fotot en gång, videon ruta för ruta — går genom ljusFilter
+   innan modulen ser den. Ingen ny video, inga nya facit: kedjan mäts mot
+   samma sanning i sju ljus. Variantens namn står i resultatet (r.ljus) och
+   kor.cjs jämför mot den vanliga baslinjen, utan att spara. */
+const LJUS = PARAMS.get('ljus') || '';
+const LJUS_VARIANTER = {
+  morkare:  { txt: 'mörkare (×0,55)' },
+  ljusare:  { txt: 'ljusare (×1,45, klipper)' },
+  varmare:  { txt: 'varmare (R ×1,18, B ×0,82)' },
+  kallare:  { txt: 'kallare (R ×0,82, B ×1,18)' },
+  kontrast: { txt: 'lägre kontrast (×0,55 kring 128)' },
+  brus:     { txt: 'brus (σ ≈ 12 gråsteg)' },
+  gradient: { txt: 'sned ljusgradient (×0,5 → ×1,3 diagonalt)' }
+};
+function ljusFilter(cv, k) {
+  if (!LJUS || !LJUS_VARIANTER[LJUS]) return;
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height, im = x.getImageData(0, 0, W, H), d = im.data;
+  const kl = v => v < 0 ? 0 : v > 255 ? 255 : v;
+  if (LJUS === 'morkare') for (let i = 0; i < d.length; i += 4) { d[i] = d[i] * 0.55; d[i + 1] = d[i + 1] * 0.55; d[i + 2] = d[i + 2] * 0.55; }
+  else if (LJUS === 'ljusare') for (let i = 0; i < d.length; i += 4) { d[i] = kl(d[i] * 1.45); d[i + 1] = kl(d[i + 1] * 1.45); d[i + 2] = kl(d[i + 2] * 1.45); }
+  else if (LJUS === 'varmare') for (let i = 0; i < d.length; i += 4) { d[i] = kl(d[i] * 1.18); d[i + 2] = d[i + 2] * 0.82; }
+  else if (LJUS === 'kallare') for (let i = 0; i < d.length; i += 4) { d[i] = d[i] * 0.82; d[i + 2] = kl(d[i + 2] * 1.18); }
+  else if (LJUS === 'kontrast') for (let i = 0; i < d.length; i += 4) { d[i] = (d[i] - 128) * 0.55 + 128; d[i + 1] = (d[i + 1] - 128) * 0.55 + 128; d[i + 2] = (d[i + 2] - 128) * 0.55 + 128; }
+  else if (LJUS === 'brus') {
+    /* Deterministiskt: samma brus för samma ruta (k) varje körning. Gaussiskt via summan av tre likformiga. */
+    let seed = 1234567 + (k || 0) * 7919;
+    const u = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    for (let i = 0; i < d.length; i += 4) { const n = (u() + u() + u() - 1.5) * 24; d[i] = kl(d[i] + n); d[i + 1] = kl(d[i + 1] + n); d[i + 2] = kl(d[i + 2] + n); }
+  }
+  else if (LJUS === 'gradient') for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) { const g = 0.5 + 0.8 * (xx / W + yy / H) / 2, i = (yy * W + xx) * 4; d[i] = kl(d[i] * g); d[i + 1] = kl(d[i + 1] * g); d[i + 2] = kl(d[i + 2] * g); }
+  x.putImageData(im, 0, 0);
+}
 const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade innan fallet räknas som klart
 let AUTO_FLYTT = 0.15;    // läses ur appen när den laddats (avstamBord:s gräns för en verklig flytt)
 
@@ -418,6 +451,7 @@ function stallUpp(f, kalla, kb, kh) {
   const doc = w.document;
   const cv = doc.createElement('canvas'); cv.width = kb; cv.height = kh;
   cv.getContext('2d').drawImage(kalla, 0, 0, kb, kh);
+  ljusFilter(cv, 0);
   cv.videoWidth = kb; cv.videoHeight = kh; cv.play = () => Promise.resolve();
   cv.id = 'kamVideo'; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';
   const gammal = doc.getElementById('kamVideo'); if (gammal) gammal.replaceWith(cv);
@@ -719,7 +753,7 @@ async function korVideoFall(f, vf, vid, cv) {
     for (let k = 0; ; k++) {
       if (stoppa) throw new Error('stoppad');
       vt = k * takt;
-      if (vt <= sista) { await sokTill(vid, vt / 1000); cx.drawImage(vid, 0, 0, cv.width, cv.height); }
+      if (vt <= sista) { await sokTill(vid, vt / 1000); cx.drawImage(vid, 0, 0, cv.width, cv.height); ljusFilter(cv, k); }
       virt = VIRT0 + vt;
       prov.s = +(vt / 1000).toFixed(2);   // före rutan: bordsrapporterna under den ska bära DEN här tiden, inte förra rutans
       const tR = performance.now();
@@ -851,6 +885,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    ljus: LJUS || null,   // ljusvarianten (MES-216), null = fotot som det är
     /* Säkra rätta namn som servern (Claude) avgjorde. */
     namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && (p.t.varfor === 'ai' || p.t.varfor === 'helbild')).length,
     /* Helbilden, om fallet fick en: vad Claude såg, hur lång tid det tog och

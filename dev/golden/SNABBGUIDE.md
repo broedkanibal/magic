@@ -57,6 +57,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --ai` | med Claude (kostar) |
 | `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar modell och systemprompt-version |
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
+| `node dev/golden/kor.cjs --ljus alla` | samma fall i sju ljus (mörkare, ljusare, varmare, kallare, låg kontrast, brus, sned gradient) med en sammanställning sist — var kedjan går sönder först (se *Samma fall i sju ljus*) |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
@@ -298,6 +299,30 @@ händelse och raden `högvakt` för varje dom (hur många celler som ändrades, 
 största skillnaderna i gråsteg, gränsen) — det är där en missad eller falsk
 ändring går att spåra. Uppspelningen i `dubbletter.cjs` kräver att fallet sparats om
 (`--fall 10 --spara`) efter en kodändring.
+
+## Samma fall i sju ljus (MES-216)
+
+Utan nya foton eller videor: `node dev/golden/kor.cjs --ljus alla` kör hela
+setet sju gånger med varje ruta omräknad innan kameran ser den — fotot en
+gång, videon ruta för ruta — och skriver sist en sammanställning per fall
+och ljus, mot den vanliga baslinjen. En variant i taget: `--ljus morkare`.
+Sparas aldrig (`--spara` gäller inte).
+
+| Variant | Vad som görs med bilden |
+|---|---|
+| `morkare` | × 0,55 |
+| `ljusare` | × 1,45, klipper vid 255 (blänk och urblekta kort) |
+| `varmare` | rött × 1,18, blått × 0,82 (glödlampa) |
+| `kallare` | rött × 0,82, blått × 1,18 (dagsljus, lysrör) |
+| `kontrast` | (v − 128) × 0,55 + 128 (dis, matt skärm) |
+| `brus` | gaussiskt brus σ ≈ 12 gråsteg, samma brus för samma ruta varje körning |
+| `gradient` | × 0,5 i ena hörnet till × 1,3 i motsatta, diagonalt (en lampa vid sidan) |
+
+Det är ett **mått**, inte ett prov: slutkoden är 0 vad siffrorna än blir,
+och tabellen säger var kedjan går sönder först. En riktig inspelning i det
+ljuset slår alltid en omräknad — omräkningen rör inte kamerans exponering,
+brus eller skärpa — så en variant som faller är ett skäl att spela in, inte
+ett facit.
 
 ## Kortbaksidor
 

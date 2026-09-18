@@ -41,6 +41,11 @@ const AIFLAG = process.argv.includes('--ai');
 const REFFLAG = process.argv.includes('--ref'), LARFLAG = process.argv.includes('--lar-ref'), GLOMFLAG = process.argv.includes('--glom-ref');
 const BASFIL = AIFLAG ? 'senaste-ai.json' : 'senaste.json';
 const BESKARNINGAR = arg('--beskarningar', '');   // mapp att skriva beskärningarna till: <fall>-spar<nr>.jpg
+/* --ljus <variant>: samma fall i ett annat ljus (MES-216): morkare, ljusare,
+   varmare, kallare, kontrast, brus, gradient — eller 'alla' för alla sju i
+   följd (en tabell per variant och en sammanställning sist). Jämförs mot den
+   vanliga baslinjen; sparas aldrig. */
+const LJUS = arg('--ljus', '');
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = await f().catch(() => null); if (v) return v; if (Date.now() - t0 > ms) throw new Error('väntade förgäves på ' + vad); await vanta(250); } }
@@ -133,7 +138,13 @@ function skrivTabell(rs, gamla) {
   const cdp = (method, params) => new Promise(res => { const id = ++nr; svar.set(id, res); ws.send(JSON.stringify({ id, method, params: params || {} })); });
   const kor = async uttryck => { const r = await cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }); if (r.result && r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.text); return r.result && r.result.result ? r.result.result.value : undefined; };
   await cdp('Runtime.enable');
-  const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1'].filter(Boolean).join('&');
+  let gamla = new Map();
+  try { gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r])); } catch (e) { /* ingen baslinje — inget att jämföra med */ }
+  const varianter = LJUS === 'alla' ? ['morkare', 'ljusare', 'varmare', 'kallare', 'kontrast', 'brus', 'gradient'] : [LJUS];
+  const sammanstallning = [];
+  for (const ljus of varianter) {
+  if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
+  const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -153,8 +164,6 @@ function skrivTabell(rs, gamla) {
   /* 4. resultatet: samma JSON som Kopiera resultat, som en tabell med rubriker */
   const rader = await kor(`[...document.querySelectorAll('#rader tr')].map(tr => tr.innerText.replace(/\\s+/g, ' '))`);
   const json = await kor(`(() => { const rs = fall.map(f => resultat.get(f.id)).filter(r => r && !r.fel); return '[\\n' + rs.map(r => JSON.stringify(r)).join(',\\n') + '\\n]\\n'; })()`);
-  let gamla = new Map();
-  try { gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r])); } catch (e) { /* ingen baslinje — inget att jämföra med */ }
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
@@ -272,6 +281,7 @@ function skrivTabell(rs, gamla) {
   /* --spara med --fall byter bara de körda fallen i baslinjen; övriga står kvar
      ur filen. Förut skrev "--fall 07 --spara" en baslinje med enbart fall 07,
      och alla andra fall slutade jämföras — just när ett nytt fall lagts till. */
+  if (ljus) { sammanstallning.push({ ljus, rs, samre: samre.slice(), battre: battre.slice() }); if (varianter.length > 1 || SPARA) { if (SPARA) console.log('\n(--spara gäller inte med --ljus: baslinjen mäter fotona som de är)'); continue; } }
   if (aiFel.n) console.log(`\nVARNING: ${aiFel.n} anrop till Claude misslyckades — resultatet ovan är i praktiken den lokala kedjan. Första felet: ${aiFel.forsta}`);
   if (SPARA && aiFel.n) { console.log(`\n--spara vägrat: ${BASFIL} skrivs inte när anrop till Claude misslyckats.`); process.exitCode = 1; }
   else if (SPARA && !REFFLAG) {
@@ -286,6 +296,21 @@ function skrivTabell(rs, gamla) {
   }
   else if (REFFLAG) console.log('\n(--spara gäller inte med --ref: baslinjen mäter kameran utan lärda referenser)');
   else console.log('\n(--spara skriver ' + BASFIL + ')');
+  }
+  /* --ljus alla: sammanställningen — per variant och fall: rätt namn, fel namn, falska, förloppet — mot baslinjen. Där kedjan går sönder först. */
+  if (sammanstallning.length > 1) {
+    console.log('\n══ Sammanställning: kedjan i sju ljus (mot baslinjen) ══');
+    const kol = (v, n) => String(v).padEnd(n);
+    console.log('  ' + kol('fall', 8) + sammanstallning.map(x => kol(x.ljus, 16)).join('') + 'baslinje');
+    const g0 = sammanstallning[0].rs;
+    for (const r0 of g0) {
+      const g = gamla.get(r0.id);
+      const cell = r => `${r.namn}/${r.kort} ${r.felNamn}f ${r.falska}x` + (r.videoLagdaAv != null ? ` ${r.videoLagda}/${r.videoLagdaAv}s` : '');
+      console.log('  ' + kol(r0.id.slice(0, 2), 8) + sammanstallning.map(x => { const r = x.rs.find(q => q.id === r0.id); return kol(r ? cell(r) : '–', 16); }).join('') + (g ? cell(g) : '–'));
+    }
+    console.log('  (rätt namn/kort · f = fel namn · x = falska · s = spelade kort som fick namn)');
+    for (const x of sammanstallning) console.log(`  ${x.ljus}: ${x.samre.length ? 'SÄMRE — ' + x.samre.join('; ') : 'inte sämre'}${x.battre.length ? ' | bättre: ' + x.battre.join('; ') : ''}`);
+  }
   ws.close(); chrome.kill(); server.kill();
-  process.exit(samre.length || aiFel.n ? 1 : 0);
+  process.exit(sammanstallning.length ? 0 : (samre.length || aiFel.n ? 1 : 0));
 })().catch(e => { console.error('\nkor.cjs: ' + (e && e.message || e)); process.exit(2); });
