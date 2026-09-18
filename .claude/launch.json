@@ -99,6 +99,16 @@
       ],
       "port": 8244,
       "autoPort": true
+    },
+    {
+      "name": "mesa-embed",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=${PORT:-8377} node dev/embed/server.cjs"
+      ],
+      "port": 8377,
+      "autoPort": true
     }
   ]
 }

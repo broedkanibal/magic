@@ -1,0 +1,191 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Embed-bänken</title>
+<style>body{background:#0d1015;color:#e7ecf4;font:12px/1.5 ui-monospace,Menlo,monospace;padding:14px;max-width:1100px}
+pre{white-space:pre-wrap;margin:2px 0}b{color:#f0a52a}h1{font-size:15px}table{border-collapse:collapse;margin:8px 0}
+td,th{border:1px solid #2a313c;padding:2px 8px;text-align:right}td:first-child,th:first-child{text-align:left}
+button{background:#1b222c;color:#e7ecf4;border:1px solid #3a4452;padding:5px 10px;margin:0 6px 6px 0;font:inherit;cursor:pointer}</style>
+</head><body>
+<h1>Embed-bänken (MES-213)</h1>
+<!-- Kör igenkänningen i en riktig webbläsare mot golden-beskärningarna
+     (dev/embed/riktiga) och det syntetiska setet (dev/embed/cache/synt).
+     Startas med: node dev/embed/server.cjs → http://localhost:8377/dev/embed/bank.html
+     Förutsätter: node dev/embed/hamta-referenser.cjs, node dev/embed/synt.cjs,
+     node dev/embed/utdrag.cjs (dagens Matcher/ORB ur index.html → cache/kedjan.js).
+     Allt går också att köra från konsolen: await EMBED('riktiga'), await ORBBAS('synt', {var: 10}),
+     await FUSION('riktiga'), await EMBED('synt', {var: 8, backend: 'wasm'}). Modellfilerna: se LÄS-MIG.md. -->
+<div id="knappar">
+  <button onclick="EMBED('riktiga')">Embed-modulen · riktiga</button>
+  <button onclick="EMBED('synt',{var:8})">Embed-modulen · syntetiska (var 8:e)</button>
+  <button onclick="FUSION('riktiga')">Embed + ORB som två vittnen · riktiga</button>
+  <button onclick="FUSION('synt',{var:8})">Embed + ORB · syntetiska (var 8:e)</button><br>
+  <button onclick="ORBBAS('riktiga')">Dagens kedja (Matcher + ORB) · riktiga</button>
+  <button onclick="ORBBAS('synt',{var:10})">Dagens kedja · syntetiska (var 10:e)</button>
+</div>
+<div id="log"></div><div id="tabeller"></div>
+<script src="cache/kedjan.js"></script>
+<script src="embed.js"></script>
+<script>
+const log = m => { document.getElementById('log').insertAdjacentHTML('beforeend', '<pre>' + m + '</pre>'); console.log(m); };
+const bild = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bild ' + src)); i.src = src; });
+const pct = (a, b) => b ? (100 * a / b).toFixed(1) + ' %' : '—';
+/* Lämna över till renderaren utan timers: browserpanelens flik är dold och
+   setTimeout stryps där (samma knep som tick() i index.html). */
+const _mc = new MessageChannel(), _q = []; _mc.port1.onmessage = () => { const r = _q.shift(); if (r) r(); };
+const andas = () => new Promise(r => { _q.push(r); _mc.port2.postMessage(0); });
+
+async function lasSet(namn) {
+  const bas = namn === 'riktiga' ? 'riktiga/' : 'cache/' + namn + '/';
+  const m = await (await fetch(bas + 'manifest.json')).json();
+  return m.map(p => Object.assign({}, p, { url: bas + p.fil, typ: p.typ || p.fall }));
+}
+async function lasLek(lek) { return (await (await fetch('cache/' + (lek || 'lek-golden') + '.json')).json()).kort; }
+const canvasAv = im => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0); return c; };
+
+/* Poolen som appen bygger den (byggPoolAv): Matchers signatur + ORB-särdrag ur Scryfalls small. */
+async function byggOrbPool(lek) {
+  const kort = await lasLek(lek), D = Matcher.DESC, descs = new Int8Array(kort.length * D), feats = [];
+  for (let i = 0; i < kort.length; i++) {
+    const im = await bild(kort[i].smallFil);
+    descs.set(Matcher.describeImage(im), i * D); feats[i] = ORB.refFeatures(im, 200);
+    if (i % 20 === 0) await andas();
+  }
+  return { code: 'bank', names: kort.map(c => c.name), ids: kort.map(c => c.id), smalls: kort.map(c => c.smallFil), descs, orb: ORB.pack(feats), v: 7 };
+}
+
+function sammanfatta(rader) {
+  const per = new Map();
+  for (const r of rader) { const g = per.get(r.typ) || []; g.push(r); per.set(r.typ, g); }
+  const rad = (namn, rs) => ({ grupp: namn, n: rs.length, ratt: rs.filter(r => r.ratt).length, sakraRatt: rs.filter(r => r.saker && r.ratt).length, sakraFel: rs.filter(r => r.saker && !r.ratt).length,
+                               skrap: rs.filter(r => r.skrap).length, ms: +(rs.reduce((a, r) => a + r.ms, 0) / rs.length).toFixed(1) });
+  return [rad('ALLA', rader)].concat([...per.entries()].sort().map(([k, v]) => rad(k, v)));
+}
+function visa(titel, rader) {
+  const s = sammanfatta(rader);
+  document.getElementById('tabeller').insertAdjacentHTML('beforeend', `<h1>${titel}</h1><table><tr><th>grupp</th><th>n</th><th>rätt överst</th><th>säkra rätt</th><th>säkra FEL</th><th>skräpspärren sa nej</th><th>ms/kort</th></tr>` +
+    s.map(r => `<tr><td>${r.grupp}</td><td>${r.n}</td><td>${r.ratt} (${pct(r.ratt, r.n)})</td><td>${r.sakraRatt} (${pct(r.sakraRatt, r.n)})</td><td>${r.sakraFel}</td><td>${r.skrap}</td><td>${r.ms}</td></tr>`).join('') + '</table>');
+  return s;
+}
+async function spara(namn, data) { try { await fetch('/spara/' + namn + '.json', { method: 'POST', body: JSON.stringify(data) }); } catch (e) {} }
+
+/* Dagens kedja, bilden ensam: identifyAt (Matcher + ORB) som kamIdentifiera
+   anropar den — hela beskärningen som låda, hint 0. Namnläsaren (tesseract)
+   är inte med här; golden-baslinjen redovisar den. */
+window.ORBBAS = async function (setNamn, o) {
+  o = o || {};
+  if (!Kedjan.Pool.idx) { log('bygger poolen (Matcher + ORB) …'); const t = performance.now(); Kedjan.Pool.idx = await byggOrbPool(o.lek); log(`poolen: <b>${Kedjan.Pool.idx.names.length}</b> bilder, ${Math.round(performance.now() - t)} ms`); }
+  let test = await lasSet(setNamn); if (o.var) test = test.filter((_, i) => i % o.var === 0);
+  const rader = [];
+  for (let i = 0; i < test.length; i++) {
+    const t = test[i], cv = canvasAv(await bild(t.url)), t0 = performance.now();
+    let v = null; try { v = Kedjan.identifyAt(cv, { x: 0, y: 0, w: cv.width, h: cv.height }, 0); } catch (e) {}
+    const ms = performance.now() - t0, c = v && v.rec.cands[0];
+    rader.push({ fil: t.fil, typ: t.typ, namn: t.namn, gissning: c ? c.name : null, ratt: !!c && c.name === t.namn, saker: !!(v && v.accept), poang: v ? +v.score.toFixed(3) : 0, inliers: v ? v.rec.inliers : 0, ms });
+    if (i % 5 === 0) { await andas(); if (i % 50 === 0) log(`  ${setNamn}: ${i}/${test.length}`); }
+  }
+  const s = visa(`Dagens kedja (Matcher + ORB, bilden ensam) — ${setNamn}${o.var ? ', var ' + o.var + ':e' : ''}`, rader);
+  window.SENASTE = { s, rader };
+  await spara(`webb-orb-${setNamn}`, { s, rader });
+  return s;
+};
+/* Kedjans skräpspärr (serUtSomKort ur index.html) står FÖRE igenkänningen i
+   kamIdentifiera: en beskärning som inte ser ut som ett kort når aldrig
+   modellen. Appen känner mattans nivå (Kamera.mattNiva); här skattas den ur
+   beskärningens marginal — de yttre 8 % är bord. */
+const _scv = document.createElement('canvas'); _scv.width = 64; _scv.height = 90; const _sx = _scv.getContext('2d', { willReadFrequently: true });
+function arSkrap(kalla) {
+  _sx.drawImage(kalla, 0, 0, 64, 90);
+  const d = _sx.getImageData(0, 0, 64, 90).data, ring = [], mx = Math.round(64 * 0.08 / 1.16), my = Math.round(90 * 0.08 / 1.16);
+  for (let y = 0; y < 90; y++) for (let x = 0; x < 64; x++) if (x < mx || x >= 64 - mx || y < my || y >= 90 - my) { const i = (y * 64 + x) * 4; ring.push(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114); }
+  ring.sort((a, b) => a - b);
+  return !Kedjan.serUtSomKort(kalla, ring[ring.length >> 1], 1, null);
+}
+
+/* ── Embed-modulen (dev/embed/embed.js): samma set, samma tabell ── */
+const LOKALT = { ort: 'node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'node_modules/onnxruntime-web/dist/' };
+async function embedRedo(o) {
+  o = o || {};
+  const modell = o.modell || { webgpu16: 'modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'modeller/mobileclip-s0-vision.onnx', wasm: 'modeller/mobileclip-s0-vision.onnx' };
+  const l = await Embed.ladda(Object.assign({}, LOKALT, { modell, backend: o.backend || 'auto' }));
+  log(`modellen laddad: <b>${l.backend}</b> (${l.modell})${l.tradar ? ', ' + l.tradar + ' trådar' : ''}, ${l.ms} ms (isolerad: ${!!self.crossOriginIsolated})`);
+  const kod = 'bank:' + (o.lek || 'lek-golden');
+  let idx = o.byggOm ? null : await Embed.laddaLek(kod);
+  if (!idx) {
+    let kort = await lasLek(o.lek); if (o.max) kort = kort.slice(0, o.max);   // o.max: bara de första korten (snabbt prov av WASM-vägen)
+    const t = performance.now();
+    idx = await Embed.byggLek(kod, kort.map(c => ({ id: c.id, name: c.name, normal: c.normalFil })), { onProg: p => { if (p.done % 20 === 0) log(`  bäddar in leken: ${p.done}/${p.total}`); } });
+    log(`leken inbäddad: <b>${idx.names.length}</b> vektorer för ${kort.length} bilder, ${Math.round((performance.now() - t) / 1000)} s (${Math.round((performance.now() - t) / idx.names.length)} ms per vektor)`);
+  } else log(`leken ur IndexedDB: <b>${idx.names.length}</b> vektorer`);
+  return idx;
+}
+window.EMBED = async function (setNamn, o) {
+  o = o || {};
+  const idx = await embedRedo(o);
+  let test = await lasSet(setNamn); if (o.var) test = test.filter((_, i) => i % o.var === 0);
+  const rader = [];
+  for (let i = 0; i < test.length; i++) {
+    const t = test[i], im = await bild(t.url), r = await Embed.identifiera(im, idx);
+    const skrap = arSkrap(im);
+    rader.push({ fil: t.fil, typ: t.typ, namn: t.namn, gissning: r.namn, ratt: r.namn === t.namn, saker: r.saker && !skrap, skrap, marginal: +r.marginal.toFixed(4), poang: +r.poang.toFixed(4), ms: r.ms });
+    if (i % 50 === 0) log(`  ${setNamn}: ${i}/${test.length}`);
+  }
+  const s = visa(`Embed-modulen (${Embed.backend}) — ${setNamn}${o.var ? ', var ' + o.var + ':e' : ''} · säker = marginal > ${Embed.TROSKEL}`, rader);
+  const ms = rader.map(r => r.ms).sort((a, b) => a - b); log(`ms per kort: median <b>${ms[ms.length >> 1].toFixed(1)}</b>, p90 ${ms[Math.floor(ms.length * 0.9)].toFixed(1)}`);
+  window.SENASTE = { s, rader };
+  await spara(`webb-embed-${setNamn}-${Embed.backend}`, { s, rader, medianMs: ms[ms.length >> 1] });
+  return { s, medianMs: +ms[ms.length >> 1].toFixed(1), p90Ms: +ms[Math.floor(ms.length * 0.9)].toFixed(1) };
+};
+
+/* Två vittnen: bildmodellen rangordnar, ORB kontrollerar geometriskt de tre
+   bästa namnen (alla deras konstverk). Säkert när modellen är säker och ORB
+   inte säger emot starkt, eller när ORB bär modellens etta (≥ ORB_ACCEPT
+   inliers). Det är identifyAt med modellen i Matchers ställe. */
+window.FUSION = async function (setNamn, o) {
+  o = o || {};
+  const idx = await embedRedo(o);
+  if (!Kedjan.Pool.idx) { log('bygger poolen (ORB) …'); Kedjan.Pool.idx = await byggOrbPool(o.lek); }
+  const P = Kedjan.Pool.idx;
+  let test = await lasSet(setNamn); if (o.var) test = test.filter((_, i) => i % o.var === 0);
+  const rader = [];
+  for (let i = 0; i < test.length; i++) {
+    const t = test[i], im = await bild(t.url), cv = canvasAv(im), t0 = performance.now();
+    const e = await Embed.identifiera(cv, idx), tE = performance.now();
+    const namn3 = new Set(e.cands.slice(0, 3).map(c => c.name)), box = { x: 0, y: 0, w: cv.width, h: cv.height };
+    let bast = { inliers: 0, namn: null };
+    for (const rot of (e.rot === 90 || e.rot === 270 ? [90, 270] : [0, 180])) {
+      const qc = cropCanvas(cv, box, rot, ORB.REF_W, ORB.REF_H), qf = qc ? ORB.queryFeatures(qc, 300) : null; if (!qf) continue;
+      for (let k = 0; k < P.names.length; k++) { if (!namn3.has(P.names[k])) continue; const v = ORB.verify(qf, ORB.unpack(P.orb, k), {}); if (v.inliers > bast.inliers) bast = { inliers: v.inliers, namn: P.names[k] }; }
+      if (bast.inliers >= 14) break;
+    }
+    /* ORB säger emot redan vid 6 inliers på ett annat namn (uppmätt: 3 → 1 säkra fel på de riktiga, 49 → 46 säkra rätt). */
+    const orbBar = bast.inliers >= 10 && bast.namn === e.namn, orbEmot = bast.inliers >= 6 && bast.namn !== e.namn;
+    const skrap = arSkrap(cv);
+    const saker = !skrap && ((e.saker && !orbEmot) || orbBar);
+    rader.push({ fil: t.fil, typ: t.typ, namn: t.namn, gissning: e.namn, ratt: e.namn === t.namn, saker, skrap, embedSaker: e.saker, marginal: +e.marginal.toFixed(4), inliers: bast.inliers, orbNamn: bast.namn, ms: performance.now() - t0, msEmbed: tE - t0 });
+    if (i % 5 === 0) { await andas(); if (i % 50 === 0) log(`  ${setNamn}: ${i}/${test.length}`); }
+  }
+  const s = visa(`Två vittnen: Embed (${Embed.backend}) + ORB på de tre bästa — ${setNamn}${o.var ? ', var ' + o.var + ':e' : ''}`, rader);
+  window.SENASTE = { s, rader };
+  await spara(`webb-fusion-${setNamn}`, { s, rader });
+  return s;
+};
+/* Modulens övriga anrop: läs tillbaka ur IndexedDB, lär en referens (K7), ta bort den, glöm leken. */
+window.SJALVTEST = async function (o) {
+  const idx = await embedRedo(o), ut = {}, n0 = idx.names.length;
+  const fraga = await bild('riktiga/09-03-ai.jpg'), larbild = await bild('riktiga/12-01-ai.jpg');     // samma kort (Pharika's Chosen), två tillfällen
+  const fore = await Embed.identifiera(fraga, idx);
+  ut.fore = { namn: fore.namn, marginal: +fore.marginal.toFixed(3), saker: fore.saker, ms: +fore.ms.toFixed(1) };
+  await Embed.laggTill(idx, { id: 'test#ref1', name: "Pharika's Chosen", bild: larbild });
+  const med = await Embed.identifiera(fraga, idx);
+  ut.medLard = { namn: med.namn, marginal: +med.marginal.toFixed(3), saker: med.saker, vektorer: idx.names.length - n0 };
+  const tillbaka = await Embed.laddaLek(idx.kod);
+  ut.urIndexedDB = { vektorer: tillbaka.names.length, larda: tillbaka.larda, sammaSvar: (await Embed.identifiera(fraga, tillbaka)).namn === med.namn };
+  await Embed.taBort(idx, 'test#ref1');
+  const efter = await Embed.identifiera(fraga, idx);
+  ut.efterTaBort = { vektorer: idx.names.length, sammaSomFore: efter.namn === fore.namn && Math.abs(efter.marginal - fore.marginal) < 1e-4 };
+  const prior = await Embed.identifiera(fraga, idx, { utan: new Set([fore.namn]) });
+  ut.utan = { bortraknat: fore.namn, nyEtta: prior.namn };
+  ut.backend = Embed.backend;
+  log('självtest: ' + JSON.stringify(ut));
+  return ut;
+};
+log('redo');
+</script></body></html>
