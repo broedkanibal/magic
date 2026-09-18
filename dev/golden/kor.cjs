@@ -58,6 +58,7 @@ const LJUS = arg('--ljus', '');
 const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
 const UTAN_LEKEN = arg('--utan-leken', '');
 const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela rutan (MES-227) av eller på, oavsett appens förval
+const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
@@ -161,7 +162,7 @@ function skrivTabell(rs, gamla) {
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|'))].filter(Boolean).join('&');
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|'))].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */

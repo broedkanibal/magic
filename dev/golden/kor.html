@@ -513,6 +513,8 @@ function stallUpp(f, kalla, kb, kh) {
      ett fall där leken ligger i bild utan "bib" i facit mäter leken som ett kort. */
   K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: f.facit.bib || null }) });
   if (LUFT === '0' || LUFT === '1') K.satTrosklar({ luft: +LUFT });
+  /* ?tro=snabb:1,stillaMs:600 (kor.cjs --tro): valfria trösklar till Kamera.satTrosklar före varje fall — för prov som inte ska bli förval. */
+  if (PARAMS.get('tro')) K.satTrosklar(Object.fromEntries(PARAMS.get('tro').split(',').map(x => x.split(':')).filter(x => x.length === 2 && isFinite(+x[1])).map(([k, v]) => [k.trim(), +v])));
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   return cv;
 }

@@ -62,6 +62,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
 | `node dev/golden/kor.cjs --luft 0` | utan läsningen på första hela rutan (MES-227, `T.luft`): den tidiga läsningen väntar två formstilla rutor som förut. `--luft 1` tvingar den på |
 | `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
+| `node dev/golden/kor.cjs --fall 09 --tro "snabb:1"` | valfria trösklar till kameran före varje fall (`Kamera.satTrosklar`) — för prov som inte ska bli förval. Sparas aldrig som baslinje |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
@@ -354,6 +355,42 @@ grafikkort, eller med `--wasm`: samma svar, 3–5 gånger långsammare).
 | Kort utanför leken | `--utan-leken "Namn1,Namn2"` — modellen svarar alltid med något av lekens namn, så det är ORB-kontrollen som ska stoppa dem. Mätt 2026-09-18 med 12 av 28 namn borttagna: 0 fel namn |
 | `land per typ` | raden under `metod:` (MES-228): facits synliga basland mot kamerans säkra, typ för typ — ett Plains är ett Plains, vilket tryck det än är, och "Snow-Covered Swamp" är typen Swamp. `landRatt`/`landAv`, och `landOver` = land kameran har utöver facits synliga och dolda. I domen |
 | Utan modellen | `--utan-modell` mäter reserven (modulen inte laddad, leken inte inbäddad): samma tal som före modellen |
+
+## 1080p-provet på riktig telefon (MES-229)
+
+Frågan: blir spegeln snabbare med **1920×1080 i 30 rutor/s, varje ruta
+analyserad**, än med förvalet **4K i 15 rutor/s, en ruta var 150:e ms** —
+och räcker bildmodellen och ORB när titelraden är för liten att läsa?
+Golden kan inte svara (videorna är 15 rutor/s). Så här körs provet:
+
+1. Öppna spelet med `?debug` på **datorn och telefonen**. Koppla telefonen.
+2. Kameradialogen på datorn → *Latency · MES-215* → **Start**.
+3. **Pass 1, förvalet:** växeln *Picture mode · MES-229* av. Statusraden
+   ska säga *4K · 15 fps*. Spela ett kort parti: lägg ut 10–15 kort ett i
+   taget, tappa och otappa några, flytta ett par, lyft bort några.
+   **Stop** → **Save report** (`latens-….json`).
+4. **Pass 2, provet:** slå på växeln. Telefonen tar om sin referensbild
+   (håll den stilla, bordet tomt eller orört). Statusraden ska säga
+   *1080p · 30 fps* och vad telefonen faktiskt ger — står det 15 där gav
+   kameran inte 30. **Start** igen, samma parti med samma kort, **Save
+   report**.
+5. Slå av växeln när du är klar (*Reset the thresholds* gör det också).
+
+| Jämför i de två rapporterna | Var | Vad det säger |
+|---|---|---|
+| `bildlage` | överst i filen | att passet verkligen kördes i det läget (en post — två betyder att läget byttes mitt i) |
+| `summa.namn.hela_median` | ms, bild tagen → ritat på datorn | hela vägen till namnet: det tal målet 2 s gäller |
+| `summa.namn.telefon_median` | ms, bild → namn på telefonen | telefonens del — här syns om 1080p läser lika fort |
+| `summa.tap` och `summa.lage` (`hela_median`) | ms | tap och flytt: målet 300 ms |
+| `summa.borta.hela_median` | ms | ett lyft kort tonas ned |
+| raderna: `hittat − bild` per kort | ms | hur snart efter rutan spåret fanns — det 30 rutor/s ska korta |
+| antal rader med `vad: "namn"` mot antal kort du lade | – | fick alla kort namn? Färre i 1080p = upplösningen räcker inte |
+| granskningsposter och frågor till Claude under passet | sammanfattningen när auto stängs av | fler i 1080p = titelraden saknades där den behövdes |
+
+Kör gärna *Recording probe · MES-190* pass A i vardera läget också: loggen
+bär `bildlage`, och stegtiden (`tick`) visar om telefonen orkar ett steg
+var 33:e ms — ligger medianen över 33 tappar den rutor, och då är 30
+rutor/s ingen vinst.
 
 ## Kortbaksidor
 

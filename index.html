@@ -3504,6 +3504,15 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
         </div>
+        <!-- 1080p-provet (MES-229): 1920×1080 i 30 rutor/s i stället för 4K i 15,
+             varje ruta analyseras. Bara ?debug; förvalet ändras inte. Se ritaPbSnabb. -->
+        <div class="pbinsp dbg" id="pbSnabb">
+          <span class="t">Picture mode · MES-229</span>
+          <div class="pbknappar">
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pbSnabbVal"> 1080p · 30 fps, every frame analysed (test)</label>
+          </div>
+          <p class="pbstatus" id="pbSnabbStatus">Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.</p>
+        </div>
         <!-- Inspelningsprovet (MES-190): kan telefonen spela in sin kamerabild
              medan den känner igen kort? Passen styrs härifrån, se InspDator. -->
         <div class="pbinsp dbg" id="pbInsp">
@@ -17763,6 +17772,22 @@ const Kamera = (() => {
      långsammare — därför inte 400. */
   const AW_MIN = 240, AW_MAX = 360;
   const TAKT_MS = 150;         // analystakt: ~7 gånger i sekunden
+  /* 1080p-provet (MES-229, T.snabb, bara bakom ?debug): strömmen begärs i
+     1920×1080 och 30 rutor/s i stället för 4K i 15, och VARJE ruta
+     analyseras (30 ms mellan stegen: rAF går i 60, videon i 30). Frågan
+     provet ska svara på: reagerar spegeln fortare när kameran ser dubbelt så
+     ofta, och räcker bildmodellen och ORB utan titelraden (den är 8–11 px
+     hög vid 1080p, under namnläsarens golv)? Trösklarna som räknas i RUTOR
+     — formstilla rutor, vila, tap, omtag av referensen, referensens
+     insamling, tålamodet för läget, snittminnet, styrslingornas rader — är
+     satta vid 150 ms per ruta; R() räknar om dem till samma TID i provläget
+     och är identiteten annars, så förvalet är bit för bit som förut.
+     Rörelsetröskeln stillaPx är per ruta och räknas INTE om (en femtedel
+     vore under detektorns eget darr): i provläget tål "stilla" därför en
+     långsammare glidning — känt, och en del av det provet får visa. */
+  const TAKT_SNABB_MS = 30, RUTA_SNABB_MS = 1000 / 30;
+  const taktMs = () => T.snabb ? TAKT_SNABB_MS : TAKT_MS;
+  const R = n => T.snabb ? Math.max(n, Math.round(n * TAKT_MS / RUTA_SNABB_MS)) : n;
   const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
   /* Från så här långt från en axel mäts kortet vridet i beskärningen (beskar).
      Upp till 10° klarar den raka lådan alla kort (golden 02, k = 1), och vid
@@ -17854,11 +17879,14 @@ const Kamera = (() => {
     /* Läsning på första hela rutan (MES-227), se steg(): 1 = ett nytt spår
        läses i första rutan där regionen har ett korts mått och inget ligger
        över, utan att vänta in SPEK_RUTOR formstilla rutor. */
-    luft: 1
+    luft: 1,
+    /* 1080p-provet (MES-229): 1 = strömmen i 1920×1080 och 30 rutor/s, varje ruta analyseras. Förvalet 0 är 4K i 15 och en ruta var 150:e ms. */
+    snabb: 0
   };
   function satTrosklar(nya) {
-    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning;
+    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = !!T.snabb;
     Object.assign(T, nya || {});
+    if (!!T.snabb !== varSnabb) bytBildlage();
     /* Samma sak för avvikelsen: med autoUts på är den rutans egen, och det
        som skickas med är bara vad datorn råkade visa senast. */
     if (T.autoUts) { T.utseende = gammalUts; T.spridning = gammalSprid; }
@@ -18003,7 +18031,7 @@ const Kamera = (() => {
      har stått formstilla i två rutor (formN, samma mått som den tidiga
      läsningen räknar). En hand som lägger ett kort rör sig och byter form
      ruta för ruta; ett kort som släppts gör det inte. */
-  const skuggklar = t => kortlik(t) || (!dia.kortRef && (t.formN || 0) >= 1);
+  const skuggklar = t => kortlik(t) || (!dia.kortRef && (t.formN || 0) >= R(1));
   let brusRader = 0, brusLugna = 0;   // styrslingan för tröskeln (mönstergrenen)
   let utsRader = 0, utsLugna = 0, brusGolv = 0;   // …och för avvikelsen (modellgrenen): golvet den höjer när bruset spritter
   const cb = {};               // { status, bord, identifiera, fragaAI, helbild }
@@ -18684,7 +18712,7 @@ const Kamera = (() => {
        genom exakt samma prov som ett nytt — bara ordningen ändras, så ett
        inaktuellt minne kostar en profil och inget mer. */
     const SNITT_MINNE_RUTOR = 70, SNITT_MINNE_FACK = 2;
-    snittMinne = snittMinne.filter(m => rutaNr - m.nar <= SNITT_MINNE_RUTOR);
+    snittMinne = snittMinne.filter(m => rutaNr - m.nar <= R(SNITT_MINNE_RUTOR));
     const sammaLada = (a, b) => {
       const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
       return ox * oy >= 0.7 * Math.max(a.w * a.h, b.w * b.h);
@@ -19232,7 +19260,7 @@ const Kamera = (() => {
              en glidning gav en per ruta. Datorn läser läget ur rapporten
              (k.kam, MODE-3/5). */
           bast.stillaN = (bast.stillaN || 0) + 1;
-          if (bast.tillstand !== 'klar' && bast.stillaN >= 2 && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) sattVila(bast, f.area);
+          if (bast.tillstand !== 'klar' && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) sattVila(bast, f.area);
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
@@ -19243,7 +19271,7 @@ const Kamera = (() => {
              emellan nollar räknaren och rör ingenting. */
           const t2 = tappad(f.vinkel, upp);
           if (t2 === !!bast.tappad) bast.tappRun = 0;
-          else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= 2 || (bast.tillstand === 'klar' && tapTydlig(f, bast, upp))) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); }
+          else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= R(2) || (bast.tillstand === 'klar' && tapTydlig(f, bast, upp))) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); }
         }
         /* Läget datorn speglar, för ett NAMNGIVET kort (MES-214): det följer
            spåret ruta för ruta — också medan kortet flyttas, namnet sitter
@@ -19264,7 +19292,7 @@ const Kamera = (() => {
           const d = bast.vilaX == null ? Infinity : Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY);
           const avv = Math.abs(1 - f.area / (bast.vilaArea || f.area));
           bast.helN = avv <= LAGE_HEL ? 0 : (ror > T.stillaPx ? 1 : (bast.helN || 0) + 1);
-          if (d > 3 * T.stillaPx && (avv <= LAGE_HEL || (bast.helN >= LAGE_TALAMOD && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
+          if (d > 3 * T.stillaPx && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
       } else if (fodNya) {
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
@@ -19348,8 +19376,9 @@ const Kamera = (() => {
        ruta var 150:e ms (TAKT_MS), knappt 7 i sekunden, och resten var
        bara värme — telefonen blev alldeles varm under ett spel. ideal,
        inte max: en kamera som inte kan gå ner ska ändå starta. */
+    const vill = begart();
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: BEGARD.w }, height: { ideal: BEGARD.h }, frameRate: { ideal: 15 },
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: vill.w }, height: { ideal: vill.h }, frameRate: { ideal: vill.fps },
                advanced: [{ focusMode: 'continuous' }, { whiteBalanceMode: 'continuous' }, { exposureMode: 'continuous' }] },
       audio: false
     });
@@ -19655,6 +19684,21 @@ const Kamera = (() => {
      medan getCapabilities säger 3840×2160. Golden-provet (kor.html) och
      bänken har ingen ström med spår — då blir max null och rådet det gamla. */
   const BEGARD = { w: 3840, h: 2160 };
+  /* Vad som begärs av kameran: förvalet 4K i 15 rutor/s, eller 1080p i 30 i
+     provläget (MES-229). bytBildlage byter under gång — applyConstraints på
+     spåret, utan ny fråga om lov; videons mått byter då, och loop() tar om
+     referensen som vid varje storleksbyte. bildlage är det som följer med
+     varje bord: läget som begärdes och rutorna per sekund spåret säger sig ge. */
+  const begart = () => T.snabb ? { w: 1920, h: 1080, fps: 30 } : { w: BEGARD.w, h: BEGARD.h, fps: 15 };
+  function bytBildlage() {
+    const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null; if (!t || !t.applyConstraints) return;
+    const v = begart();
+    t.applyConstraints({ width: { ideal: v.w }, height: { ideal: v.h }, frameRate: { ideal: v.fps } }).catch(() => {}).then(() => { if (video) lasUpplosning(video.videoWidth, video.videoHeight); rapportera(); });
+  }
+  function bildlage() {
+    let fps = null; try { const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null, s = t && t.getSettings ? t.getSettings() : null; fps = s && s.frameRate ? Math.round(s.frameRate) : null; } catch (e) {}
+    return { lage: T.snabb ? '1080p30' : '4k15', fps, takt: taktMs() };
+  }
   function lasUpplosning(vb, vh) {
     let s = null, c = null;
     try {
@@ -19664,7 +19708,7 @@ const Kamera = (() => {
     const w = vb || (s && s.width) || 0, h = vh || (s && s.height) || 0;
     if (!w || !h) return;
     const max = c && c.width && c.width.max && c.height && c.height.max ? { w: c.width.max, h: c.height.max } : null;
-    upplosning = { w, h, max, begard: Object.assign({}, BEGARD) };
+    upplosning = { w, h, max, begard: { w: begart().w, h: begart().h } };
     if (cb.upplosning) cb.upplosning(Object.assign({}, upplosning));
   }
   /* Ger telefonen allt den kan? Utan svar från getCapabilities antas ja:
@@ -19692,7 +19736,7 @@ const Kamera = (() => {
       lasUpplosning(vb, vh);
     }
     const nu = performance.now();
-    if (nu - senast < TAKT_MS) return;
+    if (nu - senast < taktMs()) return;
     senast = nu;
     /* Mörka skärmen (MES-164) krymper videon till en prick. Pausar
        webbläsaren den ändå slutar rutorna komma — starta den igen. */
@@ -19741,7 +19785,7 @@ const Kamera = (() => {
        en paus (identifieringen tog lång tid, fliken var i bakgrunden) hade
        en enda tom ruta annars räckt för att släppa spåret, med ett dt större
        än hela bortaMs. Beviset ska bestå av flera rutor i rad. */
-    const dt = forra ? Math.min(2 * TAKT_MS, nu - forra) : TAKT_MS;
+    const dt = forra ? Math.min(2 * TAKT_MS, nu - forra) : taktMs();
     forra = nu;
     const upp = (kal && kal.ruta && kal.ruta.upp) || 'v';
 
@@ -19764,7 +19808,7 @@ const Kamera = (() => {
       senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
       säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
       dia.ms = Math.round(nuRiktig() - tSteg);
-      if (refN < REF_RUTOR) { if (tillstandsSignatur() !== sandSignatur) rapportera(); return; }
+      if (refN < R(REF_RUTOR)) { if (tillstandsSignatur() !== sandSignatur) rapportera(); return; }
       ref = refSum; for (let i = 0; i < n; i++) ref[i] /= refN;
       sigma = (refDiff / (refN - 1)) / 1.128;
       dia.sigma = sigma;
@@ -19805,7 +19849,7 @@ const Kamera = (() => {
 
     const { fynd, mask, texturerade, bibDelar } = detektera(g, ref, AW, AH);
     Object.assign(klocka, dia.tid); tFore = nuRiktig();
-    smaMinne.push(dia.smaKort); if (smaMinne.length > REF_RUTOR) smaMinne.shift();
+    smaMinne.push(dia.smaKort); if (smaMinne.length > R(REF_RUTOR)) smaMinne.shift();
     bibSag(bibDelar, nu, klamd || felRader > 0);
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
     ta('matcha');
@@ -19825,7 +19869,7 @@ const Kamera = (() => {
     /* Bara en avvikelse över minst halva bilden tar om referensen: en hand
        i bild är lokal (avvikelse(), MES-166). */
     if (avvik > avvGrans && avv.spridd >= 0.5) {
-      if (++felRader >= 10) {
+      if (++felRader >= R(10)) {
         omtag++; felRader = 0; glomReferens(); omtagRensa = true;
         senasteG0 = g0; senasteG = g; senasteMask = mask;
         säg('ljus', 'Learning the light — hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
@@ -19879,7 +19923,7 @@ const Kamera = (() => {
     /* …och är ingen stilla att läsa: ett spår som ännu väntar men har stått
        formstilla läses tidigt (K4). De stillas läsning går alltid först. */
     if (!startad && !spar.some(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.laser && !(q.igen > nu))) {
-      const stilla3 = q => (q.formN || 0) >= SPEK_RUTOR;
+      const stilla3 = q => (q.formN || 0) >= R(SPEK_RUTOR);
       const helRuta = q => !!T.luft && kortlik(q) && !q.skymd && q.regionNar === nu;   // MES-227: första rutan med ett korts mått, oskymt. Provat och backat: också bordets första kort (formstilla i två rutor, utan kortreferens) — 09 0,6 → 0,55 s och 12 1,35 → 1,2 s, men en falsk tap-flipp i 11 (Swamp-halvan fick namn en ruta tidigare, med handens vinkel)
       const t = spar.find(q => q.tillstand === 'ny' && !q.namn && !q.fragad && !q.laser
                                && (!q.spek ? (stilla3(q) || helRuta(q)) : (q.spek.miss && q.spek.luft && stilla3(q)))
@@ -20005,7 +20049,8 @@ const Kamera = (() => {
      Utan Claude dömer storleken ensam, som förut. null = inget råd. */
   function radAvstand() {
     if (!forLangtBort()) return null;
-    if (cb.aiPa && cb.aiPa()) {
+    /* …och i 1080p-provet (MES-229) likaså: där ligger VARJE kort under golvet (100–130 px kortsida), och frågan provet ställer är just om bildmodellen och ORB läser dem ändå. Rådet kommer först när de olästa små korten är fler än de lästa. */
+    if ((cb.aiPa && cb.aiPa()) || T.snabb) {
       const sma = spar.filter(t => t.tillstand !== 'skrap' && !arHelbild(t) && t.kort * vidSkala < KORT_MIN_PX);
       if (sma.some(t => t.provas || !t.fragad)) return null;
       const lasta = sma.filter(t => t.tillstand === 'klar').length;
@@ -20135,7 +20180,7 @@ const Kamera = (() => {
      låset hängde kvar där kortet legat. */
   const arStilla = t => t.regionNar != null && forra - t.stillaFran >= T.stillaMs;
   /* I vila på sitt läge (MES-214): två stilla rutor, läget satt där kortet ligger, och inte det tidiga namnets preliminära läge (spekTidig). */
-  const arVila = t => (t.stillaN || 0) >= 2 && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * T.stillaPx;
+  const arVila = t => (t.stillaN || 0) >= R(2) && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * T.stillaPx;
   /* Signaturen i det senast skickade bordet. Stegen jämför mot den, inte mot
      signaturen när steget började: klockan står redan på den nya rutan när
      steget börjar, så en bit som slår om bara för att tiden gått (:f efter
@@ -20231,12 +20276,12 @@ const Kamera = (() => {
     if (sigma == null) return;
     if (T.auto) {
       const fore = T.troskel;
-      if (dia.sprittMonster > 0.005) { brusLugna = 0; if (++brusRader >= 3) { T.troskel = Math.min(60, T.troskel + 2); brusRader = 0; } }
+      if (dia.sprittMonster > 0.005) { brusLugna = 0; if (++brusRader >= R(3)) { T.troskel = Math.min(60, T.troskel + 2); brusRader = 0; } }
       /* Ner under 0,25 %, inte 0,05 %: däremellan låg ett band där tröskeln
          varken steg eller sjönk, och efter en drift som drivit upp den till 60
          stod den kvar där för alltid (granskningen; uppmätt: 60 → 10 på en
          minut efter fixen när ådrorna åter ligger rätt). */
-      else { brusRader = 0; if (dia.sprittMonster < 0.0025 && ++brusLugna >= 20) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
+      else { brusRader = 0; if (dia.sprittMonster < 0.0025 && ++brusLugna >= R(20)) { brusLugna = 0; if (T.troskel > autoTroskel()) T.troskel -= 1; } }
       /* Kartan är det som faktiskt jämförs mot. Byggdes den bara om var
          annan sekund såg slingan aldrig sitt eget steg och tog nästa. */
       if (T.troskel !== fore && tros) { const d = T.troskel - fore; for (let i = 0; i < tros.length; i++) tros[i] += d; }
@@ -20250,8 +20295,8 @@ const Kamera = (() => {
          trä; Jespers bord 0,35 %), och med 0,5 % klättrade golvet till 27 och
          ett kort hakade i kvisten bredvid (R1). Två procent är det som
          förut gav falska spår. */
-      if (dia.sprittModell > 0.02) { utsLugna = 0; if (++utsRader >= 3) { brusGolv = Math.min(UTS_TAK, Math.max(brusGolv, T.utseende) + 2); utsRader = 0; } }
-      else { utsRader = 0; if (dia.sprittModell < 0.01 && ++utsLugna >= 20) { utsLugna = 0; if (brusGolv > 0) brusGolv -= 1; } }
+      if (dia.sprittModell > 0.02) { utsLugna = 0; if (++utsRader >= R(3)) { brusGolv = Math.min(UTS_TAK, Math.max(brusGolv, T.utseende) + 2); utsRader = 0; } }
+      else { utsRader = 0; if (dia.sprittModell < 0.01 && ++utsLugna >= R(20)) { utsLugna = 0; if (brusGolv > 0) brusGolv -= 1; } }
       dia.brusGolv = brusGolv;
     }
   }
@@ -20264,7 +20309,7 @@ const Kamera = (() => {
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
-    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage(), bib: bibLage() };
+    const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage(), bib: bibLage(), bildlage: bildlage() };
     if (latens) { extra.bortaTs = bortaTs.splice(0); extra.bildTid = bildTid; }
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
@@ -20913,6 +20958,7 @@ const Kamera = (() => {
            get sma() { return smaNu(); },
            get bib() { return bibLage(); },    // library-rutan (MES-122): { ligger, tackt, lek } — leken ligger i rutan; något täcker den; en leks form täcker den (MES-139); null utan ruta
            get grav() { return gravLage(); },   // högvakten (MES-85): { n ändringar av graveyard-högen, sen ms sedan den senaste }; null utan ruta                                                   // kortformade regioner för små att läsa, median över sex rutor
+           get bildlage() { return bildlage(); },   // MES-229: '4k15' eller '1080p30', rutor/s ur spåret, analystakten
            get upplosning() { return upplosning ? Object.assign({}, upplosning) : null; },  // { w, h, max, begard }; null innan första rutan
            get ruta() { return Object.assign({}, kal.ruta); },
            get grund() { return kal.grund; },   // radianer modulo π; null = inte sparat (upp gäller)
@@ -21056,6 +21102,7 @@ async function oppnaKamera(gameId) {
 function bordExtra(extra) {
   const u = (extra && extra.upplosning) || Kamera.upplosning;
   return { sma: extra && extra.sma != null ? extra.sma : Kamera.sma, upplosning: u ? { w: u.w, h: u.h } : null,
+           bildlage: (extra && extra.bildlage) || Kamera.bildlage,   // MES-229: '4k15' eller '1080p30', rutor/s, analystakt — Latency-panelen och inspelningsprovet säger vilket läge som kördes
            grav: extra && extra.grav !== undefined ? extra.grav : Kamera.grav,   // högvakten (MES-85); null utan ruta
            bib: extra && extra.bib !== undefined ? extra.bib : Kamera.bib,       // leken i library-rutan (MES-122); null utan ruta — saknas nyckeln är telefonen äldre
            bok: kamAiBokLage(),   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
@@ -21709,6 +21756,7 @@ let kamYta = null;               // ytans betyg ur telefonens referens: { dom, b
 let kamRad = '';                 // telefonens råd just nu: för långt bort, orolig yta
 let kamSma = 0;                  // kortformade regioner telefonen såg men inte kunde läsa (för små; aldrig spår) — ur varje bord, MES-31
 let kamUpplosning = null;        // { w, h } strömmen ger på telefonen; null tills första bordet, eller från en telefon utan fältet
+let kamBildlage = null;          // { lage: '4k15' | '1080p30', fps, takt } ur varje bord (MES-229); null från en telefon utan fältet
 
 /* Bindningen mellan ett kort och ett spår gäller BARA inom en kamerasession.
    Varje ny session numrerar om från 1, så ett kvarlämnat spar är i bästa fall
@@ -23156,7 +23204,7 @@ const InspProv = (() => {
     const def = INSP_PASS[m.typ] || INSP_PASS.A, v = $('#kamVideo');
     const pass = P = {
       v: 1, id: m.id, typ: m.typ, def, start: Date.now(), ua: navigator.userAgent,
-      spa: installningar(), upplosning: Kamera.upplosning, mork: $('#vyKamera').classList.contains('mork'),
+      spa: installningar(), upplosning: Kamera.upplosning, bildlage: Kamera.bildlage, mork: $('#vyKamera').classList.contains('mork'),
       mime: null, mime_valt: null, rec_anrop: null, rec_start: null, rec_stopp: null,
       fel: [], tick: [], delar: [], morka: [], ping: [], bytes: 0, stoppad: null, orsak: null
     };
@@ -23249,6 +23297,12 @@ const InspProv = (() => {
    rader skrivs om i DATORNS klocka. Rapporten är JSON — Save report — i
    samma anda som MES-166:s tidsbitar och dev/insp. Utan ?debug: inga
    stämplar, ingen ping, inget ändrat i kedjan. ══════════════════════════ */
+/* Bildläget som text (MES-229), för Latency-panelen och växeln. */
+function bildlageText() {
+  const b = kamBildlage, u = kamUpplosning;
+  if (!b) return 'picture mode unknown';
+  return `${b.lage === '1080p30' ? '1080p · 30 fps' : '4K · 15 fps'}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}`;
+}
 const LatensDator = (() => {
   let L = null, pingT = null, visT = null;
   const status = txt => { const el = $('#pbLatensStatus'); if (el) el.textContent = txt; };
@@ -23295,7 +23349,8 @@ const LatensDator = (() => {
   function visa() {
     if (!L) return;
     const rs = rader(), b = bastaPing(), d = [];
-    d.push(L.stoppad ? 'done' : 'measuring', `${rs.length} events`);
+    d.push(L.stoppad ? 'done' : 'measuring', bildlageText(), `${rs.length} events`);
+    if (kamBildlage && !L.bildlagen.some(x => x.lage === kamBildlage.lage && x.fps === kamBildlage.fps)) L.bildlagen.push(Object.assign({ fran: Date.now(), upplosning: kamUpplosning }, kamBildlage));
     for (const vad of ['namn', 'tap', 'lage', 'borta']) { const q = rs.filter(x => x.vad === vad && x.hela != null).map(x => x.hela); if (q.length) d.push(`${vad} ${med(q)} ms (${q.length})`); }
     const nat = rs.filter(x => x.nat != null).map(x => x.nat), dat = rs.filter(x => x.dator != null).map(x => x.dator);
     if (nat.length) d.push(`network ${med(nat)} ms`); if (dat.length) d.push(`computer ${med(dat)} ms`);
@@ -23304,7 +23359,7 @@ const LatensDator = (() => {
   }
   function start() {
     if (L && !L.stoppad) { toast('Already measuring.', 'err'); return; }
-    L = { v: 1, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null };
+    L = { v: 1, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [] };
     if (!Moln.sandKam('insp', { gor: 'ping', id: 'latens', t0: Date.now() })) { toast('No connection to the phone', 'err'); L = null; return; }
     for (let i = 1; i <= 4; i++) setTimeout(ping, i * 1000);
     clearInterval(pingT); clearInterval(visT);
@@ -23317,7 +23372,8 @@ const LatensDator = (() => {
     const b = bastaPing(), rs = rader();
     const summa = {};
     for (const vad of ['namn', 'tap', 'lage', 'borta']) { const q = rs.filter(x => x.vad === vad); summa[vad] = { n: q.length, hela_median: med(q.map(x => x.hela).filter(x => x != null)), telefon_median: med(q.map(x => x.telefon).filter(x => x != null)) }; }
-    const ut = { v: 1, start: L.start, stoppad: L.stoppad, spel: L.spel, ua: L.ua, klocka: b ? { off: Math.round(b.off), rtt: b.rtt, pingar: L.ping.length } : null,
+    /* bildlage (MES-229): vilket läge passet kördes i — '4k15' eller '1080p30', med upplösningen och rutorna per sekund telefonen faktiskt gav. Fler än ett = läget byttes under passet, och då går passet inte att jämföra. */
+    const ut = { v: 1, start: L.start, stoppad: L.stoppad, spel: L.spel, ua: L.ua, bildlage: L.bildlagen, klocka: b ? { off: Math.round(b.off), rtt: b.rtt, pingar: L.ping.length } : null,
                  summa, nat_median: med(rs.map(x => x.nat).filter(x => x != null)), dator_median: med(rs.map(x => x.dator).filter(x => x != null)),
                  rader: rs, ping: L.ping };
     inspSpara(new Blob([JSON.stringify(ut, null, 1)], { type: 'application/json' }), `latens-${(L.start || '').replace(/[:.]/g, '-').slice(0, 19)}.json`);
@@ -23493,7 +23549,8 @@ $('#pbInspHamta') && ($('#pbInspHamta').onclick = () => InspDator.hamta().catch(
    medan den går. Det som fungerar sparas i webbläsaren och skickas till
    telefonen varje gång den ansluter. */
 const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 450,
-                 tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000 };
+                 tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000,
+                 snabb: 0 };   // 1080p-provet (MES-229): av i förvalet, och Reset the thresholds ställer tillbaka det
 const PB_REG = [
   ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],
   ['spridning','Structure',    0,   40,  1,   'Minimum spread in grey levels within a region for it to count as a card. A card is at 28–47, a wood chip under 10'],
@@ -23512,6 +23569,8 @@ const PB_REG = [
   ['spokMs',   'Remembers place', 2000, 60000, 1000, 'How long a lifted card remembers where it was']
 ];
 let pbTro = Object.assign({}, PB_STD, LS.get('sthv.tro.v1', {}));
+/* 1080p-provet (MES-229) gäller bara bakom ?debug: reglagen skickas till telefonen också i ett vanligt spel, och ett prov som glömts påslaget får inte följa med dit. */
+if (!DEBUG) pbTro.snabb = 0;
 let pbPa = false, pbDia = null, pbRa = [], pbW = 0, pbH = 0, pbMatt = { aw: 0, ah: 0 };
 
 /* Provbordet var en flik bredvid kalibreringen i modalen. Nu är det
@@ -23552,9 +23611,21 @@ $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   Moln.sandKam('trosklar', { v: pbTro });
 });
 $('#pbRef') && ($('#pbRef').onclick = () => Moln.sandKam('nyref'));
+/* 1080p-provet (MES-229): växeln skriver T.snabb som vilket reglage som helst — sparas med de andra (sthv.tro.v1), går till telefonen, och Reset the thresholds ställer tillbaka den. Statusraden säger vad telefonen faktiskt kör (ur varje bord). */
+function ritaPbSnabb() {
+  const v = $('#pbSnabbVal'), s = $('#pbSnabbStatus'); if (!v || !s) return;
+  if (document.activeElement !== v) v.checked = !!pbTro.snabb;
+  s.textContent = kamBildlage ? `The phone runs ${bildlageText()}.` : 'Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.';
+}
+$('#pbSnabbVal') && ($('#pbSnabbVal').onchange = ev => {
+  pbTro.snabb = ev.target.checked ? 1 : 0;
+  LS.set('sthv.tro.v1', pbTro);
+  if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
+  ritaPbSnabb();
+});
 $('#pbAter') && ($('#pbAter').onclick = () => {
   pbTro = Object.assign({}, PB_STD);
-  LS.set('sthv.tro.v1', pbTro); ritaPbReglage(); Moln.sandKam('trosklar', { v: pbTro });
+  LS.set('sthv.tro.v1', pbTro); ritaPbReglage(); ritaPbSnabb(); Moln.sandKam('trosklar', { v: pbTro });
 });
 
 /* Siffrorna och ramarna. Täckningen är den mest talande: ligger den över
@@ -23904,6 +23975,7 @@ function kamTogsEmot(m) {
        var kvar. */
     if (m.sma !== undefined) kamSma = m.sma || 0;
     if (m.upplosning !== undefined) kamUpplosning = m.upplosning || null;
+    if (m.bildlage !== undefined) { kamBildlage = m.bildlage || null; ritaPbSnabb(); }
     /* Library-rutan (MES-122): { ligger } i varje bord från en telefon med
        rutan; en telefon med äldre kod skickar inte nyckeln alls (nollställningen
        bär den aldrig). */
