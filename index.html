@@ -15823,7 +15823,7 @@ function identifyMedModell(img, box, e, ensamt) {
   const etta = rang[0] ? rang[0].name : e.namn, marginal = rang[0] ? rang[0].score - (rang[1] ? rang[1].score : 0) : e.marginal;
   e = Object.assign({}, e, { marginal, saker: marginal > Embed.TROSKEL, cands: rang });
   const namn3 = new Set(rang.slice(0, MODELL_NAMN).map(c => c.name));
-  const per = new Map(); let bast = { inliers: 0, namn: null, rot: e.rot || 0 };
+  const per = new Map(), perSkala = new Map(); let bast = { inliers: 0, namn: null, rot: e.rot || 0 };
   if (P.orb) {
     const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(typNamn(P.names[i]))) vilka.push(i);
     const r0 = ((e.rot || 0) % 360 + 360) % 360;
@@ -15833,13 +15833,14 @@ function identifyMedModell(img, box, e, ensamt) {
         const ov = ORB.verify(qf, ORB.unpack(P.orb, i), {});
         const n = ov.model && ov.model.scale >= ORB_SKALA[0] && ov.model.scale <= ORB_SKALA[1] ? ov.inliers : 0;
         const pn = typNamn(P.names[i]);
-        if (n > (per.get(pn) || 0)) per.set(pn, n);
+        if (n > (per.get(pn) || 0)) { per.set(pn, n); perSkala.set(pn, ov.model.scale); }
         if (n > bast.inliers) bast = { inliers: n, namn: pn, rot: r, skala: ov.model ? ov.model.scale : null };
       }
       if (bast.inliers >= ORB_ACCEPT + 4) break;
     }
   }
-  const stod = per.get(etta) || 0;
+  /* Stödet för ettan räknas bara när träffens skala säger att beskärningen ramar in ett HELT kort (ORB_HEL): en bit av ett kort ger också träffar, men då är det inte kortet som ligger i rutan. */
+  const stod = (perSkala.get(etta) || 0) >= ORB_HEL ? (per.get(etta) || 0) : 0;
   /* ORB bär ettan — men inliers ensamma räcker inte: kort ur samma ram och
      med samma typrad delar särdrag. Uppmätt med 12 av lekens 28 namn borttagna
      (kor.cjs --utan-leken): Faithful Pikemaster, utanför leken, fick 19
@@ -21277,7 +21278,8 @@ function kamSparEnsamt(id) {
   if (!t || t.skymd || !(t.lang > 0)) return '';
   /* 'form' = bara kvoten talar (ingen kortreferens än), 'matt' = mätt mot kortreferensen. Skillnaden spelar roll där ORB inte behövs som stöd (landregeln i identifyMedModell): två kort intill varandra har också ett korts kvot. */
   if (!r) { const kvot = t.kort / t.lang; return kvot >= 0.62 && kvot <= 0.82 ? 'form' : ''; }
-  return t.lang <= 1.25 * r.lang && t.kort <= 1.25 * r.kort ? 'matt' : '';
+  /* Inom en fjärdedel ÅT BÅDA HÅLL, som kortlik i Kamera: ett spår som är mindre än ett kort är en BIT av ett kort, och en bit ser ut som vad som helst — övre halvan av ett Swamp i blank plastficka blev ett säkert Plains i golden 11 med brus (marginal 0,113, 6 inliers). */
+  return Math.abs(t.lang - r.lang) <= 0.25 * r.lang && Math.abs(t.kort - r.kort) <= 0.25 * r.kort ? 'matt' : '';
 }
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
