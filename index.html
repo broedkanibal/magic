@@ -15854,7 +15854,8 @@ function identifyMedModell(img, box, e, ensamt) {
   const land = !!landTyp(etta);
   const emot = bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT);
   /* Provat och backat: ett land säkert också utan att spåret är ensamt, när ORB ger typen ett svagt stöd inom skalan. Golden 07 fick sitt Swamp (det ligger ensamt, men inspelningens egna streckade spårrutor gör regionen för stor, MES-223) — och golden 11 fick Swamp-halvan i plastfickan namngiven en gång till: dubbletter 0 → 1 och en falsk tap-flipp. En bit av ett kort får inte bli ett kort till. */
-  const ensam = !!(ensamt && !emot && (land ? e.marginal >= LAND_MARGINAL : (e.saker && (!P.orb || stod >= ORB_EMOT))));
+  /* Landregeln — säkert utan ORB:s stöd — gäller bara ett spår som är MÄTT mot kortreferensen ('matt'). Före bordets första säkra kort finns bara formen, och då krävs ORB:s stöd som för vilket kort som helst: uppmätt i golden 04 i mörkare ljus (kor.cjs --ljus alla) växte Plains-högen ihop med Swamp bredvid till en region med ett korts kvot (288×394 mot kortens 190×251), och modellen sa Swamp med marginal 0,21 — ett säkert fel namn. */
+  const ensam = !!(ensamt && !emot && ((land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (e.saker && (!P.orb || stod >= ORB_EMOT))));
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
   return { accept: bar || ensam, del: bar && bast.skala < ORB_HEL, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
            modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
@@ -20460,6 +20461,7 @@ const Kamera = (() => {
     }
     t.fragad = true;
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
+    { const q = t.tillstand === 'klar' ? sammaKortSom(t) : null; if (q) { dubblettAv(t, q); rapportera(); return; } }
     if (t.tillstand === 'klar' && t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
     if (t.tillstand === 'klar') { slappFlyttat(t, nu); stampla(t, 'namn'); }
     /* Claude har redan sagt "inget kort" två gånger (aiInget), och spåret har
@@ -20550,6 +20552,23 @@ const Kamera = (() => {
      stod osäkert som "Trusty Retriever?" (modellen 0,42 mot 0,41) när lekens
      enda Trusty Retriever lades bredvid — två spår med samma namn, en
      dubblett som väntar på ett ja i granskningen. */
+  /* Samma kort sett av två spår (MES-225): ett spår som just fått ett säkert
+     namn, och vars låda täcker ett annat klart spår med SAMMA namn till minst
+     SAMMA_SPAR (0,3 av den mindre lådan — datorns egen gräns för "samma
+     fysiska kort", SAMMA_KORT_TACKNING), har läst det andra spårets kort: en
+     region intill som vuxit in över kortet, en bit av det, eller kortet i en
+     ruta till. Det är inget kort till. Uppmätt i golden 11 i kallare ljus
+     (kor.cjs --ljus alla): Swamp fick sitt namn i första hela rutan, och 70 s
+     senare bar ORB samma Swamp (18 inliers, skalan 1,18) i en region som
+     vuxit ihop med leken bredvid — två säkra Swamp, ett fel namn i domen. Det
+     äldre spåret behåller kortet; det nya blir skräp utan namn, så att en
+     rörelse nollställer det (matcha) och det läses om när lådan ändrats. */
+  const SAMMA_SPAR = 0.3;
+  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
+  function dubblettAv(t, q) {
+    t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
+    t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.gissning = null; t.del = false; t.varfor = 'samma kort som #' + q.id;
+  }
   function priorPaGissningar(t) {
     const tak = cb.lekTak && t.namn ? cb.lekTak(t.namn) : null;
     if (tak == null || upptagna(t.namn, null) < tak) return;
@@ -20569,6 +20588,8 @@ const Kamera = (() => {
     const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * T.stillaPx
              && Math.abs(t.lang - g.lang) <= SPEK_FORM * g.lang && Math.abs(t.kort - g.kort) <= SPEK_FORM * g.kort;
     if (!lik || upptagna(svar.namn, t) > s.upptagna) { t.spek = { miss: true }; return false; }
+    /* Samma kort som ett annat klart spår redan bär (sammaKortSom): det tidiga svaret kastas, och den vanliga läsningen dömer spåret som skräp. */
+    if (sammaKortSom(Object.assign({}, t, { namn: svar.namn }))) { t.spek = { miss: true }; return false; }
     t.namn = svar.namn; t.sid = svar.sid || null; t.saker = true; t.cands = svar.cands || null; t.namnLast = svar.namnLast || null; t.del = !!svar.del;
     t.varfor = svar.varfor || null; t.spekKlar = true;
     t.fragad = true; t.provas = false; t.tillstand = 'klar'; t.spek = null;
@@ -21253,9 +21274,10 @@ function kamLart(id, namn, sid, kalla) {
    aldrig. */
 function kamSparEnsamt(id) {
   const t = Kamera.spar.find(x => x.id === id), r = Kamera.diagnos.kortRef;
-  if (!t || t.skymd || !(t.lang > 0)) return false;
-  if (!r) { const kvot = t.kort / t.lang; return kvot >= 0.62 && kvot <= 0.82; }
-  return t.lang <= 1.25 * r.lang && t.kort <= 1.25 * r.kort;
+  if (!t || t.skymd || !(t.lang > 0)) return '';
+  /* 'form' = bara kvoten talar (ingen kortreferens än), 'matt' = mätt mot kortreferensen. Skillnaden spelar roll där ORB inte behövs som stöd (landregeln i identifyMedModell): två kort intill varandra har också ett korts kvot. */
+  if (!r) { const kvot = t.kort / t.lang; return kvot >= 0.62 && kvot <= 0.82 ? 'form' : ''; }
+  return t.lang <= 1.25 * r.lang && t.kort <= 1.25 * r.kort ? 'matt' : '';
 }
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
