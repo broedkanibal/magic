@@ -382,6 +382,24 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`VX3 tappat 15° snett runt hörnet: före tap=${tapFore}, tappad i ruta ${vx3Flip} (högst 2), spår ${s.length}, samma id ${!!s.find(x => x.id === idVx3)}`,
         tapFore === false && vx3Flip != null && vx3Flip <= 2 && s.length === 1 && !!s.find(x => x.id === idVx3));
 
+  // ── LT1: latensmätningens stämplar (MES-215) följer med rapporten bara när den är på ──
+  nystart(); await referens();
+  for (let i = 0; i < 8; i++) s = await ruta(KORT);
+  const utanTs = bord[0] && bord[0].ts === undefined && bordExtra && bordExtra.bortaTs === undefined;
+  Kamera.satLatens(true);
+  nystart(); await referens();
+  const tLt = Date.now();
+  for (let i = 0; i < 8; i++) s = await ruta(KORT);
+  const ts = bord[0] && bord[0].ts;
+  for (let i = 0; i < 12; i++) s = await ruta(g => kort(g, W, 54, 44, 42, 30, 180));   // tappas
+  const ts2 = bord[0] && bord[0].ts;
+  for (let i = 0; i < 8; i++) s = await ruta(null);   // lyfts
+  const borta = bordExtra && bordExtra.bortaTs;
+  Kamera.satLatens(false);
+  check(`LT1 latensstämplar: utan ${utanTs}, med ${JSON.stringify(ts)}, tap ${ts2 && ts2.tap != null}, borta ${JSON.stringify(borta)}`,
+        utanTs && !!ts && ts.hittat >= tLt && ts.stilla >= ts.hittat && ts.namn >= ts.stilla && ts.namnBild != null && !!ts2 && ts2.tap >= ts2.namn
+        && Array.isArray(borta) && borta.length === 1 && borta[0].namn === 'Plains' && borta[0].borta >= ts2.tap);
+
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget

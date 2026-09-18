@@ -710,6 +710,8 @@ async function korVideoFall(f, vf, vid, cv) {
      redan visar, och efteråt fortsätter den i riktig tid från videons slut. */
   const VIRT0 = Math.max(1e7, Math.ceil(w.performance.now()) + 1000);
   let virt = VIRT0;
+  /* Den riktiga klockan ligger kvar i performance.riktigNu: stegets tidsprofil och lokalMs mäts med den (MES-214), allt annat i modulen går på videons. */
+  if (!w.performance.riktigNu) w.performance.riktigNu = performance.now.bind(performance);
   w.performance.now = () => virt;
   rafManuell = true;
   try {
