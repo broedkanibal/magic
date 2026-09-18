@@ -190,6 +190,10 @@ function skrivTabell(rs, gamla) {
     const rsV = JSON.parse(json), vf = {}; for (const r of rsV) for (const k in (r.varforRatt || {})) vf[k] = (vf[k] || 0) + r.varforRatt[k];
     if (Object.keys(vf).length) console.log('  domskäl för de säkra rätta namnen: ' + Object.entries(vf).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · ')
       + (AIFLAG ? ` — namnViaAi ${rsV.reduce((a, r) => a + (r.namnViaAi || 0), 0)}` : ''));
+    const sk = rsV.filter(r => r.videoSkuggaSynlig != null).map(r => `${r.id.slice(0, 2)}: rapport +${r.videoSkuggaRapport} s, synlig +${r.videoSkuggaSynlig} s (före +${r.videoSkuggaSynligFore}), blinkar ${r.videoSkuggaBlink}`);
+    if (sk.length) console.log('  skuggan (median efter utspelet, MES-226): ' + sk.join(' · '));
+    { const alla = k => rsV.flatMap(r => r[k] || []).sort((a, b) => a - b), e = alla('videoSkuggaEfter'), e0 = alla('videoSkuggaEfterFore'), med = l => l.length ? l[l.length >> 1] : null;
+      if (e.length) console.log(`  skuggan, datorns egen del (från första rapporten med spåret till ritad plats), ${e.length} kort: median ${med(e)} s, störst ${e[e.length - 1]} s, inom 0,3 s: ${e.filter(v => v <= 0.3).length}/${e.length} — med regeln före MES-226: median ${med(e0)} s, störst ${e0[e0.length - 1]} s, inom 0,3 s: ${e0.filter(v => v <= 0.3).length}/${e0.length}`); }
     const fd = rsV.filter(r => r.videoFordrojning != null).map(r => `${r.id.slice(0, 2)}: ${r.videoFordrojning} s${r.videoFordrojningB != null ? ' (' + r.videoFordrojningB + ' med beräkningstid)' : ''}`);
     if (fd.length) console.log('  fördröjning till namn (median per videofall): ' + fd.join(' · ')); }
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
@@ -213,6 +217,10 @@ function skrivTabell(rs, gamla) {
       console.log(`  K1: borta-fördröjning ${r.videoBortaFordrojning == null ? '–' : r.videoBortaFordrojning + ' s'} (median${(r.videoBortaDt || []).length ? ': ' + r.videoBortaDt.join(', ') + ' s' : ''})`
         + `; tap ${r.videoTappAv == null ? '– (inga tap-händelser i facit)' : `${r.videoTapp}/${r.videoTappAv}, fördröjning ${r.videoTappFordrojning == null ? '–' : r.videoTappFordrojning + ' s'}`}`
         + `; dubbletter ${r.videoDubbletter}${Object.keys(r.videoDubbletterNamn || {}).length ? ' (' + Object.entries(r.videoDubbletterNamn).map(([n, q]) => `${n}: +${q.max} ${q.fran}–${q.till} s`).join(', ') + ')' : ''}`);
+      /* MES-226: skuggan — när bar en rapport kortets spår, och när ritade datorn det. */
+      if (r.videoSkuggaHandelser) console.log(`  skuggan: rapport ${r.videoSkuggaRapport == null ? '–' : '+' + r.videoSkuggaRapport + ' s'}, synlig på datorn ${r.videoSkuggaSynlig == null ? '–' : '+' + r.videoSkuggaSynlig + ' s'} (med regeln före MES-226: ${r.videoSkuggaSynligFore == null ? '–' : '+' + r.videoSkuggaSynligFore + ' s'}; median efter utspelet); per kort: `
+        + r.videoSkuggaHandelser.map(x => `${x.namn} rapport +${x.rapport} synlig +${x.synlig} (före +${x.synligFore}) namn +${x.namnDt}`).join(' · ')
+        + `; platser som ritades och försvann utan namn: ${r.videoSkuggaBlink}${(r.videoSkuggaBlinkLista || []).length ? ' (' + r.videoSkuggaBlinkLista.map(x => `#${x.id} ${x.fran}–${x.till} s`).join(', ') + ')' : ''}`);
       if ((r.videoTappFalskaLista || []).length) console.log('    FALSKA tap-flippar: ' + r.videoTappFalskaLista.map(x => `${x.s} s ${x.namn} → ${x.till ? 'tappad' : 'otappad'}`).join(', '));
       for (const x of r.videoTappHandelser || []) console.log(`    ${x.t} s ${x.vill ? 'tappar' : 'otappar'} ${x.namn}: ` + (x.dt == null ? 'SÅGS ALDRIG inom 8 s' : `sågs +${x.dt} s`));
       if (r.videoGravAndringar) console.log(`  högvakten (MES-85): ändringar vid ${r.videoGravAndringar.length ? r.videoGravAndringar.join(', ') + ' s' : '–'}`);

@@ -1877,6 +1877,8 @@ body.ispel:not(.lasvy) .handbar{display:none}
   color:var(--dim);background:linear-gradient(105deg,#1a212c 30%,#232c3c 50%,#1a212c 70%) 0 0/300% 100%;
   animation:sh 1.3s linear infinite;outline:1px dashed #ffffff2e;outline-offset:-1px;cursor:default;
 }
+.plats.tappad{transform:rotate(90deg)}
+.omatta.vand-upp .plats.tappad{transform:rotate(270deg)}
 .plats .platstxt{display:block}
 .plats .platstxt i{display:block;font-style:normal;color:var(--dim2)}
 .plats.fyll{cursor:pointer;outline-color:var(--acc);color:var(--txt)}
@@ -7317,6 +7319,10 @@ function radKort() {
   const t = autoRadSkal(kamRad || '') || '', hit = RAD_KORT.find(([k]) => t.includes(k));
   return hit ? hit[1] : '';
 }
+/* Skuggan ligger som kortet ligger (MES-226): tappad när spåret är det —
+   men bara där kortet sedan också blir det: bordet leder och grundläget är
+   sparat (samma villkor som tapSynk i avstamBord). */
+function platsTappad(pl) { return !!pl.tappad && kamGrund !== null && kamSpeglar(player()); }
 function platsHtml(pl) {
   const fyll = pl.slag === 'fyll', rad = !fyll && pl.slag === 'laser' && pl.spar === platsRadSpar;
   const txt = fyll ? (pl.overTak ? 'One more?' : 'Fill in') : pl.slag === 'vantar' ? 'Asking Claude…' : 'Reading the card…';
@@ -7325,7 +7331,7 @@ function platsHtml(pl) {
   const tag = fyll || rad ? 'button' : 'span';
   const pos = platsPos.get(pl.spar) || { x: 44, y: 82 };
   const kort = rad ? radKort() : '';
-  return `<${tag} class="plats ${pl.slag}${ark && ark.pend === pl.pend ? ' aktuell' : ''}"${fyll ? ` type="button" data-pend="${esc(pl.pend)}" data-spar="${esc(pl.spar)}"` : rad ? ` type="button" data-radspar="${esc(pl.spar)}"` : ''} title="${rad ? esc(kamRad) : titel}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600">
+  return `<${tag} class="plats ${pl.slag}${platsTappad(pl) ? ' tappad' : ''}${ark && ark.pend === pl.pend ? ' aktuell' : ''}"${fyll ? ` type="button" data-pend="${esc(pl.pend)}" data-spar="${esc(pl.spar)}"` : rad ? ` type="button" data-radspar="${esc(pl.spar)}"` : ''} title="${rad ? esc(kamRad) : titel}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:600">
     ${fyll ? `<span class="platsq">${pl.overTak ? '+1' : '?'}</span><span class="kortchip fraga">${pl.overTak ? `Your deck has only ${pl.tak} × ${esc(pl.namn || '')}` : 'Which card is this?'}</span>`
       : rad ? `<span class="kortchip fraga">Hard to read${kort ? ' — ' + esc(kort) : ''}</span>` : ''}
     <span class="platstxt">${txt}${pl.namn ? `<i>${esc(pl.namn)}?</i>` : ''}</span></${tag}>`;
@@ -7395,7 +7401,7 @@ function renderGrid(force) {
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + kamDom(c) + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
     + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
-    + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
+    + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (platsTappad(pl) ? 'T' : '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.lyftN + ',' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '');
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
@@ -7622,15 +7628,19 @@ function matPlacera(p, platser, v) {
   const kvar = new Set();
   for (const pl of platser) {
     kvar.add(pl.spar);
-    if (platsPos.has(pl.spar)) continue;
-    const upptagna = cards.concat([...platsPos.values()].map(q => ({ cid: 'plats', name: '', x: q.x, y: q.y, tapped: 0, cts: [] })));
-    /* Table leads: platshållaren står där spåret är i bilden. */
+    /* Table leads: platshållaren står där spåret är i bilden — och följer det
+       tills kortet fått sitt namn (MES-226): skuggan kommer nu i första
+       rapporten, medan kortet ännu kan glida en bit, och kortet som sedan
+       skapas tar platsen som den står då. Under sex bildpunkter är darr. */
     const t = kamSpeglar(p) ? senasteSpar.find(u => u.id === pl.spar) : null;
     if (t && t.w != null && t.h != null) {
       const m = kamTillMatta({ x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h }, kamSkala(p));
-      platsPos.set(pl.spar, clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g));
+      const ny = clampKort({ name: '', x: m.x - MATTA.CW / 2, y: m.y - MATTA.CH / 2 }, { w: 1e6, h: 1e6 }, g), var0 = platsPos.get(pl.spar);
+      if (!var0 || Math.hypot(var0.x - ny.x, var0.y - ny.y) > 6) platsPos.set(pl.spar, ny);
       continue;
     }
+    if (platsPos.has(pl.spar)) continue;
+    const upptagna = cards.concat([...platsPos.values()].map(q => ({ cid: 'plats', name: '', x: q.x, y: q.y, tapped: 0, cts: [] })));
     const pos = slotBeside(upptagna, 'perm', v.board);
     platsPos.set(pl.spar, clampKort({ name: '', x: pos.x, y: pos.y }, v.board, g));
   }
@@ -17932,6 +17942,12 @@ const Kamera = (() => {
      skars aldrig: 9 → 8 namn, 0 → 1 falska. Låset hade gett den tiden. */
   const kortlik = t => { const r = dia.kortRef; return !!r && Math.abs(t.lang - r.lang) <= 0.25 * r.lang && Math.abs(t.kort - r.kort) <= 0.25 * r.kort; };
   const farLasas = t => lasande === 0 || (lasande < LAS_SAMTIDIGT && kortlik(t));
+  /* Får datorn rita skuggan på en gång (MES-226)? Ett korts mått — eller,
+     före bordets första säkra kort, när ingen kortreferens finns: regionen
+     har stått formstilla i två rutor (formN, samma mått som den tidiga
+     läsningen räknar). En hand som lägger ett kort rör sig och byter form
+     ruta för ruta; ett kort som släppts gör det inte. */
+  const skuggklar = t => kortlik(t) || (!dia.kortRef && (t.formN || 0) >= 1);
   let brusRader = 0, brusLugna = 0;   // styrslingan för tröskeln (mönstergrenen)
   let utsRader = 0, utsLugna = 0, brusGolv = 0;   // …och för avvikelsen (modellgrenen): golvet den höjer när bruset spritter
   const cb = {};               // { status, bord, identifiera, fragaAI, helbild }
@@ -20067,7 +20083,7 @@ const Kamera = (() => {
      500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
      (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
   let sandSignatur = null;
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -20195,6 +20211,7 @@ const Kamera = (() => {
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
       stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort; och kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
+      kortlik: skuggklar(t),   // regionen har ETT KORTS MÅTT, eller har stått formstilla i två rutor: datorn ritar skuggan direkt, utan den halva sekund som skyddar mot en hand (MES-226)
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
@@ -22137,7 +22154,13 @@ function autoRemsaModell(spar, mig, extra) {
    granskningen — platsen öppnar den). Ett spår som är 'ny' (rör sig) får
    en plats först efter PLATS_DROJ: handen som lägger kortet är också ett
    spår i en halv sekund, och en plats som blinkar förbi för varje hand
-   vore värre än ingen. Skymda och klara spår får ingen: de syns i
+   vore värre än ingen. Undantaget (MES-226): ett spår som telefonen säger
+   har ETT KORTS MÅTT (kortlik) får platsen i första rapporten som bär det —
+   en hand har inte kortets lång- och kortsida på en fjärdedel när, och
+   spelaren ska se att bordet reagerar inom 0,3 s, inte efter 0,8 (uppmätt i
+   golden: rapporten kom i median +0,2 s efter utspelet, men platsen först
+   när spåret blev 'stilla', +0,8 s till). Platsen bär spårets tap-läge, så
+   att skuggan ligger som kortet ligger. Skymda och klara spår får ingen: de syns i
    kameravyn respektive på bordet. Samma underlag som statusfältet
    (autoRemsaModell), så att "2 på väg" och två platser alltid är samma
    två. Ren funktion, provad i dev/avstamning.cjs. */
@@ -22148,13 +22171,14 @@ function autoPlatser(spar, mig, extra) {
   const ut = [];
   for (const p of m.paVag) {
     const t = spar.find(u => u.id === p.spar);
-    if (p.slag === 'laser' && t && t.tillstand === 'ny' && nu - p.sedan < PLATS_DROJ) continue;
-    ut.push({ spar: p.spar, sedan: p.sedan, slag: p.slag, namn: p.namn, pend: null });
+    if (p.slag === 'laser' && t && t.tillstand === 'ny' && !t.kortlik && nu - p.sedan < PLATS_DROJ) continue;
+    ut.push({ spar: p.spar, sedan: p.sedan, slag: p.slag, namn: p.namn, pend: null, tappad: !!(t && t.tappad) });
   }
   for (const q of (mig && mig.pending) || []) {
     if (q.spar == null || !spar.some(t => t.id === q.spar) || ut.some(p => p.spar === q.spar)) continue;
     const sedan = e.sedd && e.sedd.has(q.spar) ? e.sedd.get(q.spar) : nu;
-    ut.push({ spar: q.spar, sedan, slag: 'fyll', namn: (q.cands && q.cands[0] && q.cands[0].name) || null, pend: q.id, overTak: !!q.overTak, tak: q.tak || null });
+    const tq = spar.find(t => t.id === q.spar);
+    ut.push({ spar: q.spar, sedan, slag: 'fyll', namn: (q.cands && q.cands[0] && q.cands[0].name) || null, pend: q.id, overTak: !!q.overTak, tak: q.tak || null, tappad: !!(tq && tq.tappad) });
   }
   return ut.sort((a, b) => a.sedan - b.sedan || a.spar - b.spar);
 }

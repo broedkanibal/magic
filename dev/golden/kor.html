@@ -1120,6 +1120,52 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     }
   }
   const median = l => l.length ? l[l.length >> 1] : null;
+  /* Skuggan (MES-226): hur snart efter utspelet bär en rapport ett spår på
+     kortets plats, och hur snart visar datorn det som en plats på bordet?
+     Platsen = lådan kortets spår hade när det fick sitt namn; ett spår räknas
+     när det täcker minst hälften av den mindre lådan (kortets första spår är
+     ofta ett annat än det som får namnet: kortet + handen, sedan kortet).
+     `rapport` är första rapporten som bär ett sådant spår; `synlig` första
+     rapporten där datorns regel (autoPlatser) ritar det: inte 'ny', eller
+     'ny' med ett korts mått (kortlik), eller sett i PLATS_DROJ. Negativa
+     tider (facits tid är ±0,5 s) räknas som 0. Och blinkarna: spår som
+     datorn hann rita som plats och som sedan dog utan namn och utan att ha
+     stått i granskningen — en skugga som försvinner tyst, men flimmer om de
+     blir många. */
+  const tack = (a, b) => { const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y), x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h); return Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / Math.max(1e-9, Math.min(a.w * a.h, b.w * b.h)); };
+  const PLATS_DROJ_S = 0.5, forstSedd = new Map();
+  for (const r of bl) for (const u of r.spar || []) if (!forstSedd.has(u.id)) forstSedd.set(u.id, r.s);
+  const ritas = (u, s) => u.tillstand !== 'skrap' && !u.skymd && u.tillstand !== 'klar' && (u.tillstand !== 'ny' || u.kortlik || s - forstSedd.get(u.id) >= PLATS_DROJ_S);
+  const skuggaHandelser = [];
+  for (const x of traffar) {
+    if (x.s == null) continue;
+    const l = logg.find(q => q.id === x.spar), mid = l && l.mid;
+    const rn = bl.find(r => r.s >= x.s - 1e-6 && (r.spar || []).some(u => u.id === mid)), lada = rn && rn.spar.find(u => u.id === mid);
+    if (!lada || lada.w == null) continue;
+    let rapport = null, synlig = null, synligFore = null;
+    for (const r of bl) {
+      if (r.s < x.t - TOL) continue;
+      if (r.s > x.s + 1e-6) break;
+      for (const u of r.spar || []) {
+        if (u.tillstand === 'skrap' || u.w == null || tack(u, lada) < 0.5) continue;
+        const klar = u.tillstand === 'klar' && u.saker;
+        if (rapport == null) rapport = r.s;
+        if (synlig == null && (ritas(u, r.s) || klar)) synlig = r.s;
+        if (synligFore == null && (ritas(Object.assign({}, u, { kortlik: false }), r.s) || klar)) synligFore = r.s;   // regeln före MES-226: alla nya spår väntar PLATS_DROJ
+      }
+      if (rapport != null && synlig != null && synligFore != null) break;
+    }
+    const dt = v => v == null ? null : +Math.max(0, v - x.t).toFixed(2);
+    skuggaHandelser.push({ t: x.t, namn: x.spelar, rapport: dt(rapport), synlig: dt(synlig), synligFore: dt(synligFore), namnDt: x.dt });
+  }
+  const sorterat = k => skuggaHandelser.map(x => x[k]).filter(v => v != null).sort((a, b) => a - b);
+  const skRapport = sorterat('rapport'), skSynlig = sorterat('synlig'), skSynligFore = sorterat('synligFore');
+  /* …och det datorn själv lägger till: från första rapporten med spåret till att platsen ritas. Det är den biten regeln styr — resten är handen över kortet. */
+  const efter = k => skuggaHandelser.filter(x => x.rapport != null && x[k] != null).map(x => +(x[k] - x.rapport).toFixed(2)).sort((a, b) => a - b);
+  const ritade = new Map();
+  for (const r of bl) for (const u of r.spar || []) { const q = ritade.get(u.id) || { ritad: false, namn: false, granskad: false, fran: null, sist: r.s }; if (ritas(u, r.s) && !q.ritad) { q.ritad = true; q.fran = r.s; } if (u.saker && u.namn) q.namn = true; if (u.tillstand === 'okand' && !u.provas) q.granskad = true; q.sist = r.s; ritade.set(u.id, q); }
+  const slutS = bl.length ? bl[bl.length - 1].s : 0;
+  const blinkar = [...ritade].filter(([id, q]) => q.ritad && !q.namn && !q.granskad && q.sist < slutS - 1e-6).map(([id, q]) => ({ id, fran: q.fran, till: q.sist }));
   /* Beräknad fördröjning (MES-215 del 2): videons fördröjning plus den
      verkliga tid som klockan stod still i fönstret [händelsen, sedd] —
      stegets övertid över takten (en telefon som ligger efter tappar rutor)
@@ -1147,6 +1193,8 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     videoGrav: harGrav && tillGrav.length ? gravHandelser.filter(x => x.dt != null).length : null, videoGravAv: harGrav && tillGrav.length ? tillGrav.length : null,
     videoGravFalska: harGrav ? gravAndr.length - gravTagen.size : null, videoGravAndringar: harGrav ? gravAndr : null, videoGravHandelser: gravHandelser,
     videoDubbletter: dubbMax, videoDubbletterNamn: dubbNamn,
+    /* MES-226: skuggan — median från utspelet till första rapporten med ett spår på kortets plats, och till att datorn ritar det; blinkarna är platser som ritades och försvann utan namn. */
+    videoSkuggaRapport: median(skRapport), videoSkuggaSynlig: median(skSynlig), videoSkuggaSynligFore: median(skSynligFore), videoSkuggaEfter: efter('synlig'), videoSkuggaEfterFore: efter('synligFore'), videoSkuggaHandelser: skuggaHandelser, videoSkuggaBlink: blinkar.length, videoSkuggaBlinkLista: blinkar.slice(0, 12),
     videoLangd: langd, videoTakt: takt, videoSekunder: korda,
     videoLagda: namngivna.length, videoLagdaAv: spelade.length,
     videoBorta: borta.filter(x => x.borta).length, videoBortaAv: borta.length,

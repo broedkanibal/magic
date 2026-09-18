@@ -240,6 +240,7 @@ räknas in i domen mot baslinjen.
 | `videoBortaFordrojning` | medianen av tiden från facits `tar_bort` till första rapporten utan ett säkert spår med namnet | ≤ 1,0 s (datorns nåd på 3 s därtill) |
 | `videoTapp` / `videoTappAv` + `videoTappFordrojning` | facit `{ "t": 12.5, "tappar": "Ukud Cobra" }` eller `"otappar"`: sågs ett säkert spår med namnet bära det väntade tap-läget inom 8 s, och hur snart | ≤ 0,35 s |
 | `videoTappFalska` (*falska tap-flippar*) | gånger ett säkert spår bytte tap-läge mellan två rapporter utan en `tappar`/`otappar`-händelse för namnet åt det hållet inom ±3 s i facit. En optimistisk tap-dom som tas tillbaka är två. I domen sedan MES-214 | 0 |
+| `videoSkuggaRapport` / `videoSkuggaSynlig` / `videoSkuggaEfter` (*skuggan*, MES-226) | per utspelat kort som fick namn: första rapporten med ett spår på kortets plats, första rapporten där datorns regel ritar det som en plats på bordet (`autoPlatser`: inte 'ny', eller 'ny' med ett korts mått, eller sett i 0,5 s), och skillnaden — datorns egen del. `…Fore` är samma med regeln före MES-226. `videoSkuggaBlink`: platser som ritades och försvann utan namn. I `--detalj` och under `metod:`; ingår inte i domen | datorns del ≤ 0,3 s |
 | `videoDubbletter` | största överskott av fysiska kort per namn mot facit i någon rapport — grupperat med appens `sammaPlats`/`syskon`/`ledarOrdning`, som steg 2 i `avstamBord` | 0 |
 
 Tap-FÖRDRÖJNINGEN ingår inte i domen (bara antalet sedda vridningar) — läs
