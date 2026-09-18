@@ -44,6 +44,11 @@ ta bort sista noden (`Gemm`) och sätt `/flatten/Flatten_output_0` som utgång.
 | Dagens kedja | `node utdrag.cjs` | klipper Matcher/ORB ur `index.html` → `cache/kedjan.js` (baslinjen i bank.html) |
 | Webbläsaren | `node server.cjs` → <http://localhost:8377/dev/embed/bank.html> | modulen `embed.js` mot samma set, ms per kort |
 | | `node webb.cjs tid.html "MAT('mobileclip-s0-vision.onnx','wasm',256)"` | tid per kort i huvudlös Chrome (ostrypt); `--gpu` för WebGPU |
+| Förräknat (MES-230) | `node forrakna.cjs --lekar` · `--lek <fil> --torr` | räknar lekens vektorer i Node och laddar upp dem (`card_embeddings`) — se [INLARNING.md](INLARNING.md) |
+| | `node webb.cjs bank.html "VEKTORER()" --gpu`, sedan `node forrakna-prov.cjs` | Node-receptet mot webbläsarens egna vektorer (cosinus per variant) |
+| | `node webb.cjs bank.html "EMBED('riktiga',{tagg:'forrakat',forrakade:'cache/forrakade/golden.json'})" --gpu`, `node jamfor.cjs <a> <b>` | igenkänning med förräknade mot lokalt räknade vektorer, kort för kort |
+| Lärda referenser (MES-231) | `node webb.cjs bank.html "LARDA()" --gpu` | samma referenser direkt och genom lagringens form: vektorerna, namnen, marginalerna |
+| | `node refmoln-prov.cjs` | synken mellan enheter (RefMoln ur index.html), ska sluta med `0 FEL` |
 
 Allt under `cache/`, `modeller/` och `node_modules/` är gitignorerat.
 

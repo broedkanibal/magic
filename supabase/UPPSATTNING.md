@@ -140,6 +140,12 @@ på en felsida efter Google-rutan.
    spelare och spel) och flyttar kontots gamla lek till en lek som heter
    **My deck**. Går att köra om.
 
+6. Kamerans lagring (MES-230/231): kör filerna i `supabase/migrations/` i
+   namnordning — `card_embeddings` (förräknade bildvektorer) och
+   `learned_refs` (lärda bilder per konto och lek). Utan dem räknar och lär
+   telefonen lokalt som förut. Vad de gör och hur förräkningen körs:
+   `dev/embed/INLARNING.md`.
+
 Filerna går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.
 
