@@ -127,6 +127,19 @@ som appen använder (alla konstverk, högst 12 per namn, 24 per basland,
 kortbaksidan), räknar det som saknas och laddar upp det. ~0,4 s per bild
 på den här datorn: en ny Commander-lek tar ungefär sex minuter, en gång.
 
+**Säger den "Tjänstenyckeln får inte läsa decks":** projektet ger inte
+rättigheter automatiskt, och `decks` är bara läsbar för inloggade. Antingen
+ger du rätten en gång (SQL Editor: `grant select on public.decks to service_role;`),
+eller så tar du ut lekarnas kort i SQL Editor och ger dem som fil:
+
+```sql
+select string_agg(distinct (k->>'sid') || '|' || (k->>'name'), E'\n')
+from public.decks d, jsonb_array_elements(d.kort) k where k->>'sid' is not null;
+```
+
+Spara svaret som `lekarnas-kort.txt` och kör `node dev/embed/forrakna.cjs --kortfil lekarnas-kort.txt`.
+(Så gjordes första uppladdningen 2026-09-18.)
+
 Andra sätt:
 
 | Kommando | Gör |

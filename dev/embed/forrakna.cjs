@@ -9,6 +9,8 @@
      node dev/embed/forrakna.cjs --lekar                 alla lekar i databasen
      node dev/embed/forrakna.cjs --lek dev/golden/lek.txt  en lekfil (ett namn per rad)
      node dev/embed/forrakna.cjs --namn "Sol Ring" --namn "Arcane Signet"
+     node dev/embed/forrakna.cjs --kortfil lekarnas-kort.txt   rader "sid|namn" (lekarnas egna kort, t.ex.
+                                                         ur SQL Editor) — när tjänstenyckeln inte får läsa decks
      … --torr                bara räkna, ladda inte upp: skriver cache/forrakade/<ut>.json
      … --om                  räkna om och skriv över det som redan finns
 
@@ -95,17 +97,29 @@ async function hamtaBild(url, fil) {
   let namnen = [], egna = [];
   if (arg('lekar')) {
     if (!rest) { console.error('--lekar läser databasen och kräver nycklarna (inte --torr).'); process.exit(2); }
-    const lekar = await rest('GET', 'decks?select=id,namn,kort');
+    let lekar;
+    try { lekar = await rest('GET', 'decks?select=id,namn,kort'); }
+    catch (e) {
+      if (/42501/.test(e.message)) { console.error('Tjänstenyckeln får inte läsa decks (rättigheterna ges uttryckligen i det här projektet). Kör med --kortfil, eller ge rätten: grant select on public.decks to service_role;'); process.exit(2); }
+      throw e;
+    }
     for (const d of lekar || []) for (const k of (d.kort || [])) {
       if (!k || !k.name) continue; namnen.push(k.name);
       if (k.sid) egna.push({ sid: k.sid, name: k.name, normal: typeof k.small === 'string' && k.small.includes('/small/') ? k.small.replace('/small/', '/normal/') : null });
     }
     console.log(`${(lekar || []).length} lekar i databasen`);
   }
+  if (arg('kortfil')) for (const rad of fs.readFileSync(path.resolve(arg('kortfil')), 'utf8').split('\n')) {
+    const i = rad.indexOf('|'); if (i < 0) continue;
+    const sid = rad.slice(0, i).trim(), name = rad.slice(i + 1).trim(); if (!name) continue;
+    namnen.push(name);
+    /* Scryfalls normal-bild ligger på en adress som följer av id:t. */
+    if (/^[0-9a-f-]{36}$/.test(sid)) egna.push({ sid, name, normal: `https://cards.scryfall.io/normal/front/${sid[0]}/${sid[1]}/${sid}.jpg` });
+  }
   if (arg('lek')) namnen.push(...U.lasLekfil(path.resolve(arg('lek'))));
   namnen.push(...alla('namn'));
   namnen = [...new Set(namnen)];
-  if (!namnen.length) { console.error('Ange --lekar, --lek <fil> eller --namn "<kort>".'); process.exit(2); }
+  if (!namnen.length) { console.error('Ange --lekar, --kortfil <fil>, --lek <fil> eller --namn "<kort>".'); process.exit(2); }
   console.log(`${namnen.length} namn — frågar Scryfall efter konstverken (samma urval som appen)…`);
   const kort = await U.lekensBilder(namnen, { egna, logg: true });
   console.log(`${kort.length} bilder (med kortbaksidan)`);
