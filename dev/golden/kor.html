@@ -166,6 +166,24 @@ const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GL
    samma sanning i sju ljus. Variantens namn står i resultatet (r.ljus) och
    kor.cjs jämför mot den vanliga baslinjen, utan att spara. */
 const LJUS = PARAMS.get('ljus') || '';
+/* Bildmodellen (MES-225) är med som i appen; ?embed=0 (kor.cjs --utan-modell)
+   stänger av den, och då mäts reserven — Matcher + ORB, kedjan från före
+   modellen. ?embedlokalt=1: onnxruntime-web och vikterna serveras av
+   attrappen ur dev/embed/node_modules och dev/embed/modeller (kor.cjs sätter
+   den när filerna finns), så att inget hämtas från nätet per körning; annars
+   hämtar modulen dem från jsdelivr och Hugging Face en gång och de ligger
+   kvar i profilens cache. ?embedbackend=wasm tvingar WASM-vägen.
+   ?utanleken=Namn1|Namn2 (--utan-leken): namnen tas bort ur leken innan
+   poolen byggs — korten ligger kvar på borden, men kedjan känner dem inte.
+   Varje säkert namn på ett sådant kort är ett FEL NAMN: provet på att ett
+   kort utanför leken stoppas (RAPPORT.md i dev/embed, "Utanför leken"). */
+const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlokalt') === '1', EMBED_BACKEND = PARAMS.get('embedbackend') || 'auto';
+const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
+let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
+/* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
+const RUTLOGG = PARAMS.get('rutlogg') === '1';
+/* ?luft=0|1 (kor.cjs --luft): läsningen på första hela rutan (MES-227, Kamera T.luft) av eller på, oavsett appens förval. */
+const LUFT = PARAMS.get('luft');
 const LJUS_VARIANTER = {
   morkare:  { txt: 'mörkare (×0,55)' },
   ljusare:  { txt: 'ljusare (×1,45, klipper)' },
@@ -204,7 +222,7 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    efter fallet spårets nummer i resultatet (nr). Läses ut av
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
-const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : '') + (REF_PA ? '+ref' : ''); } catch (e) { return 'lokal'; } };
+const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (w.eval('KamEmbed').redo() ? '+modell' : '') + (AI_PA ? '+ai' : '') + (REF_PA ? '+ref' : ''); } catch (e) { return 'lokal'; } };
 /* Antalet lärda referenser i poolen i minnet (K7), för statusraden. */
 const refAntal = () => { try { return w.eval('Ref').antal(w.eval('Pool').idx); } catch (e) { return 0; } };
 /* Modellen som svarar i kameraläget och promptversionen, som servern själv
@@ -273,6 +291,10 @@ async function laddaApp() {
   K = w.eval('Kamera');
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_LAR = LAR_PA;
+  /* Sökvägarna räknas från appens dokument (repots rot). */
+  w.MESA_EMBED = !EMBED_PA ? false : { ladda: Object.assign({ backend: EMBED_BACKEND }, EMBED_LOKALT ? {
+    ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/',
+    modell: { webgpu16: 'dev/embed/modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'dev/embed/modeller/mobileclip-s0-vision.onnx', wasm: 'dev/embed/modeller/mobileclip-s0-vision.onnx' } } : {}) };
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
   for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'kamIdentifiera', 'visaVy']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
@@ -297,6 +319,7 @@ async function byggPool() {
      telefonen (kamLekAntal). Nyckeln till poolen bär bara namnen, som förut. */
   const rader = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
     .map(l => { const m = l.match(/^(\d+)\s*[xX]?\s+/); return { namn: m ? l.slice(m[0].length) : l, n: m ? +m[1] : 1 }; });
+  if (UTAN_LEKEN.size) for (let i = rader.length - 1; i >= 0; i--) if (UTAN_LEKEN.has(rader[i].namn.toLowerCase())) rader.splice(i, 1);
   const namn = rader.map(x => x.namn);
   if (!namn.length) throw new Error('lek.txt är tom');
   let h = 2166136261; for (const c of namn.join('\n')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
@@ -329,6 +352,19 @@ async function byggPool() {
   catch (e) { namnFel = e && e.message || String(e); }
   const Pool = w.eval('Pool');
   if (!Pool.idx || Pool.idx.code !== rec.code) Pool.idx = rec;
+  /* Bildmodellen (MES-225): appen bäddar in leken i bakgrunden (byggKamPool);
+     här väntas den in, så att alla fall mäts med den. Första gången i en
+     profil tar det en halv till två minuter (WebGPU) — sedan ligger
+     vektorerna i profilens IndexedDB, per kort. Går den inte att ladda
+     mäter körningen reserven, och det sägs. */
+  embedInfo = null; let embedFel = null;
+  if (EMBED_PA) {
+    const t0 = performance.now(), KE = w.eval('KamEmbed');
+    status('Hämtar bildmodellen…');
+    const idx = await KE.bygg(rec, p => status(`Bäddar in leken… ${p.done} av ${p.total}${p.nya ? ' (' + p.nya + ' nya)' : ''}`));
+    if (idx && KE.redo()) embedInfo = { backend: KE.laddat && KE.laddat.backend, modell: KE.laddat && KE.laddat.modell, tradar: KE.laddat && KE.laddat.tradar, vektorer: idx.names.length, ms: Math.round(performance.now() - t0) };
+    else embedFel = KE.fel || 'okänt fel';
+  }
   /* Antalspriorn (K6): appens byggKamPool fyller kartan ur leken; här byggs
      poolen direkt, så kartan sätts här. */
   try { w.eval('sattKamLekAntal')(kort); } catch (e) {}
@@ -361,10 +397,13 @@ async function byggPool() {
   }
   $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
     + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`
-    + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.');
-  $('#metod').textContent = metod() === 'lokal+ocr'
-    ? 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken, och kortnamnet läst ur titelraden (tesseract.js). Ingen AI-modell.'
-    : 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken. Ingen namnläsare, ingen AI-modell.';
+    + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.')
+    + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s.`
+       : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
+    + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ett säkert namn på de korten är ett fel namn.` : '');
+  $('#metod').textContent = 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, '
+    + (embedInfo ? 'bildmodellen (MobileCLIP-S0, ' + embedInfo.backend + ') rangordnar lekens namn och ORB kontrollerar de tre bästa; Matcher + ORB som andra åsikt' : 'Matcher + ORB mot leken')
+    + (namnFel ? '. Ingen namnläsare' : ', och kortnamnet läst ur titelraden (tesseract.js)') + '. Ingen fråga till Claude utan ?ai=1.';
   poolKlar = true;
 }
 
@@ -473,6 +512,9 @@ function stallUpp(f, kalla, kb, kh) {
      före. I appen finns library-rutan alltid sedan uppstartens steg 4 (MES-122);
      ett fall där leken ligger i bild utan "bib" i facit mäter leken som ett kort. */
   K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: f.facit.bib || null }) });
+  if (LUFT === '0' || LUFT === '1') K.satTrosklar({ luft: +LUFT });
+  /* ?tro=snabb:1,stillaMs:600 (kor.cjs --tro): valfria trösklar till Kamera.satTrosklar före varje fall — för prov som inte ska bli förval. */
+  if (PARAMS.get('tro')) K.satTrosklar(Object.fromEntries(PARAMS.get('tro').split(',').map(x => x.split(':')).filter(x => x.length === 2 && isFinite(+x[1])).map(([k, v]) => [k.trim(), +v])));
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   return cv;
 }
@@ -562,6 +604,7 @@ function aterkoppling(f, prov) {
       return folj(p);
     },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
+    lekTak: n => w.kamLekTak(n),   // antalspriorn på gissningarna (MES-225), som i appen
     lart: (id, namn, sid, kalla) => w.kamLart(id, namn, sid, kalla),
     aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas
     /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
@@ -587,6 +630,7 @@ function las(prov, ms, msRuta) {
   const sT = rad + '@' + lage;
   if (sT !== prov.sigT && prov.tidslinje.length < 400) { prov.sigT = sT; prov.tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
   if (prov.logg) loggaSpar(prov, spar);
+  if (RUTLOGG && prov.logg) { const kr = K.diagnos.kortRef; (prov.rutLogg || (prov.rutLogg = [])).push({ s: prov.s, kr: kr ? [kr.lang, kr.kort] : null, spar: spar.map(t => ({ id: t.id, st: t.tillstand, n: t.namn && t.saker ? t.namn : null, l: Math.round(t.lang), k: Math.round(t.kort), x: Math.round(t.cx), y: Math.round(t.cy), f: t.formN || 0, sk: t.skymd ? 1 : 0, r: t.regionNar != null && t.sedd === t.regionNar && t.regionNar >= (K.diagnos.nu || 0) ? 1 : 0, sp: t.spek ? (t.spek.svar ? 's' : t.spek.miss ? 'm' : 'v') : '', la: t.laser ? 1 : 0 })) }); }
   const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
   /* …och en helbild som är planerad eller på väg väntas in: den kommer
      3 s efter att bordet stått stilla, och fall 05 var annars "klart"
@@ -777,6 +821,7 @@ async function korVideoFall(f, vf, vid, cv) {
     /* Högvaktens domar (MES-85) bär modulens klocka; i videons sekunder går de att lägga bredvid facit. */
     if (res.gravProv) res.gravProv = res.gravProv.map(p => Object.assign({}, p, { s: +(p.s - VIRT0 / 1000).toFixed(2) }));
     res.bordLogg = prov.bordLogg;
+    if (RUTLOGG) res.rutLogg = prov.rutLogg || [];
     res.videoSpar = prov.logg;
     return res;
   } finally {
@@ -868,7 +913,23 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      delat med spårets bredd; medianen över rutträffarna. */
   const lageFel = traffar.filter(p => p.plats).map(p => Math.hypot((p.t.x + p.t.w / 2 - p.k.x - p.k.w / 2) * aw, (p.t.y + p.t.h / 2 - p.k.y - p.k.h / 2) * ah) / (p.t.w * aw)).sort((a, b) => a - b);
   const dia = K.diagnos, tro = K.trosklar;
+  /* Land per TYP (MES-228): ett basland är sin typ — tryck, konstverk och
+     snö spelar ingen roll — och en hög redovisas som antal + typ. Facit
+     räknas per typ över de synliga korten (dolda för sig); kameran per typ
+     över de säkra spåren, där ett spår som bär en hög räknas med sitt antal
+     (t.hog). landRatt = så många av facits land som kameran har per typ;
+     landOver = land kameran har utöver facits synliga OCH dolda av typen. */
+  const LANDTYP = n => { const m = /^(?:Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.exec(String(n || '')); return m ? m[1] : null; };
+  const landF = {}, landD = {}, landK = {};
+  for (const k of synliga) { const ty = LANDTYP(k.namn); if (ty) landF[ty] = (landF[ty] || 0) + 1; }
+  for (const k of dolda) { const ty = LANDTYP(k.namn); if (ty) landD[ty] = (landD[ty] || 0) + 1; }
+  for (const t of K.spar) { if (t.tillstand === 'skrap' || !t.saker || !t.namn) continue; for (const n of (t.hog && t.hog.length ? t.hog : [t.namn])) { const ty = LANDTYP(n); if (ty) landK[ty] = (landK[ty] || 0) + 1; } }
+  const landTyper = [...new Set(Object.keys(landF).concat(Object.keys(landK)))];
   return {
+    landAv: Object.values(landF).reduce((a, b) => a + b, 0),
+    landRatt: landTyper.reduce((a, ty) => a + Math.min(landF[ty] || 0, landK[ty] || 0), 0),
+    landOver: landTyper.reduce((a, ty) => a + Math.max(0, (landK[ty] || 0) - (landF[ty] || 0) - (landD[ty] || 0)), 0),
+    landPerTyp: Object.fromEntries(landTyper.map(ty => [ty, { facit: landF[ty] || 0, dolda: landD[ty] || 0, kamera: landK[ty] || 0 }])),
     id: f.id, kort: synliga.length, dolda: dolda.length,
     hittade: spar.length,
     plats: synligaTraffar.filter(p => p.plats).length, platsAv: medRuta.length,
@@ -885,6 +946,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */
+    modell: embedInfo ? embedInfo.backend : null,
+    varforRatt: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).reduce((m, p) => { const k = p.t.varfor || '–'; m[k] = (m[k] || 0) + 1; return m; }, {}),
     ljus: LJUS || null,   // ljusvarianten (MES-216), null = fotot som det är
     /* Säkra rätta namn som servern (Claude) avgjorde. */
     namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && (p.t.varfor === 'ai' || p.t.varfor === 'helbild')).length,
@@ -1081,6 +1145,52 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     }
   }
   const median = l => l.length ? l[l.length >> 1] : null;
+  /* Skuggan (MES-226): hur snart efter utspelet bär en rapport ett spår på
+     kortets plats, och hur snart visar datorn det som en plats på bordet?
+     Platsen = lådan kortets spår hade när det fick sitt namn; ett spår räknas
+     när det täcker minst hälften av den mindre lådan (kortets första spår är
+     ofta ett annat än det som får namnet: kortet + handen, sedan kortet).
+     `rapport` är första rapporten som bär ett sådant spår; `synlig` första
+     rapporten där datorns regel (autoPlatser) ritar det: inte 'ny', eller
+     'ny' med ett korts mått (kortlik), eller sett i PLATS_DROJ. Negativa
+     tider (facits tid är ±0,5 s) räknas som 0. Och blinkarna: spår som
+     datorn hann rita som plats och som sedan dog utan namn och utan att ha
+     stått i granskningen — en skugga som försvinner tyst, men flimmer om de
+     blir många. */
+  const tack = (a, b) => { const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y), x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h); return Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / Math.max(1e-9, Math.min(a.w * a.h, b.w * b.h)); };
+  const PLATS_DROJ_S = 0.5, forstSedd = new Map();
+  for (const r of bl) for (const u of r.spar || []) if (!forstSedd.has(u.id)) forstSedd.set(u.id, r.s);
+  const ritas = (u, s) => u.tillstand !== 'skrap' && !u.skymd && u.tillstand !== 'klar' && (u.tillstand !== 'ny' || u.kortlik || s - forstSedd.get(u.id) >= PLATS_DROJ_S);
+  const skuggaHandelser = [];
+  for (const x of traffar) {
+    if (x.s == null) continue;
+    const l = logg.find(q => q.id === x.spar), mid = l && l.mid;
+    const rn = bl.find(r => r.s >= x.s - 1e-6 && (r.spar || []).some(u => u.id === mid)), lada = rn && rn.spar.find(u => u.id === mid);
+    if (!lada || lada.w == null) continue;
+    let rapport = null, synlig = null, synligFore = null;
+    for (const r of bl) {
+      if (r.s < x.t - TOL) continue;
+      if (r.s > x.s + 1e-6) break;
+      for (const u of r.spar || []) {
+        if (u.tillstand === 'skrap' || u.w == null || tack(u, lada) < 0.5) continue;
+        const klar = u.tillstand === 'klar' && u.saker;
+        if (rapport == null) rapport = r.s;
+        if (synlig == null && (ritas(u, r.s) || klar)) synlig = r.s;
+        if (synligFore == null && (ritas(Object.assign({}, u, { kortlik: false }), r.s) || klar)) synligFore = r.s;   // regeln före MES-226: alla nya spår väntar PLATS_DROJ
+      }
+      if (rapport != null && synlig != null && synligFore != null) break;
+    }
+    const dt = v => v == null ? null : +Math.max(0, v - x.t).toFixed(2);
+    skuggaHandelser.push({ t: x.t, namn: x.spelar, rapport: dt(rapport), synlig: dt(synlig), synligFore: dt(synligFore), namnDt: x.dt });
+  }
+  const sorterat = k => skuggaHandelser.map(x => x[k]).filter(v => v != null).sort((a, b) => a - b);
+  const skRapport = sorterat('rapport'), skSynlig = sorterat('synlig'), skSynligFore = sorterat('synligFore');
+  /* …och det datorn själv lägger till: från första rapporten med spåret till att platsen ritas. Det är den biten regeln styr — resten är handen över kortet. */
+  const efter = k => skuggaHandelser.filter(x => x.rapport != null && x[k] != null).map(x => +(x[k] - x.rapport).toFixed(2)).sort((a, b) => a - b);
+  const ritade = new Map();
+  for (const r of bl) for (const u of r.spar || []) { const q = ritade.get(u.id) || { ritad: false, namn: false, granskad: false, fran: null, sist: r.s }; if (ritas(u, r.s) && !q.ritad) { q.ritad = true; q.fran = r.s; } if (u.saker && u.namn) q.namn = true; if (u.tillstand === 'okand' && !u.provas) q.granskad = true; q.sist = r.s; ritade.set(u.id, q); }
+  const slutS = bl.length ? bl[bl.length - 1].s : 0;
+  const blinkar = [...ritade].filter(([id, q]) => q.ritad && !q.namn && !q.granskad && q.sist < slutS - 1e-6).map(([id, q]) => ({ id, fran: q.fran, till: q.sist }));
   /* Beräknad fördröjning (MES-215 del 2): videons fördröjning plus den
      verkliga tid som klockan stod still i fönstret [händelsen, sedd] —
      stegets övertid över takten (en telefon som ligger efter tappar rutor)
@@ -1108,6 +1218,8 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     videoGrav: harGrav && tillGrav.length ? gravHandelser.filter(x => x.dt != null).length : null, videoGravAv: harGrav && tillGrav.length ? tillGrav.length : null,
     videoGravFalska: harGrav ? gravAndr.length - gravTagen.size : null, videoGravAndringar: harGrav ? gravAndr : null, videoGravHandelser: gravHandelser,
     videoDubbletter: dubbMax, videoDubbletterNamn: dubbNamn,
+    /* MES-226: skuggan — median från utspelet till första rapporten med ett spår på kortets plats, och till att datorn ritar det; blinkarna är platser som ritades och försvann utan namn. */
+    videoSkuggaRapport: median(skRapport), videoSkuggaSynlig: median(skSynlig), videoSkuggaSynligFore: median(skSynligFore), videoSkuggaEfter: efter('synlig'), videoSkuggaEfterFore: efter('synligFore'), videoSkuggaHandelser: skuggaHandelser, videoSkuggaBlink: blinkar.length, videoSkuggaBlinkLista: blinkar.slice(0, 12),
     videoLangd: langd, videoTakt: takt, videoSekunder: korda,
     videoLagda: namngivna.length, videoLagdaAv: spelade.length,
     videoBorta: borta.filter(x => x.borta).length, videoBortaAv: borta.length,

@@ -1087,7 +1087,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const fr18 = identifieringar;
     for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
     check(`W18 inget kort, flyttad 3 px: ${forst18} → ${andra18} (en fråga till); inget kort igen, flyttad: ${fmt(t)}, aiInget ${t.aiInget}, lästes lokalt ${identifieringar - fr18}`,
-          ok18 && t.tillstand === 'skrap' && t.aiInget === 2 && t.aiFragad === true && identifieringar - fr18 === 1);
+          /* Två lokala läsningar sedan MES-227: spåret läses i första hela rutan efter flytten (T.luft) och, när den missar, en gång till när det ligger stilla. Frågan till Claude är fortfarande EN. */
+          ok18 && t.tillstand === 'skrap' && t.aiInget === 2 && t.aiFragad === true && identifieringar - fr18 >= 1 && identifieringar - fr18 <= 2);
     /* W19: ett svar på en fråga från före en nollställning gäller inte. */
     t = await ettOkant(); t.aiFragad = false;
     const ai19 = t.ai;

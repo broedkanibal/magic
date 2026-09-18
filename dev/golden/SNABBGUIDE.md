@@ -58,6 +58,11 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar modell och systemprompt-version |
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
 | `node dev/golden/kor.cjs --ljus alla` | samma fall i sju ljus (mörkare, ljusare, varmare, kallare, låg kontrast, brus, sned gradient) med en sammanställning sist — var kedjan går sönder först (se *Samma fall i sju ljus*) |
+| `node dev/golden/kor.cjs --utan-modell` | utan bildmodellen (MES-225): reserven Matcher + ORB mäts — ska ge samma tal som före modellen (31/57, 0, 5). `--wasm` tvingar modellen till WASM i stället för WebGPU |
+| `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
+| `node dev/golden/kor.cjs --luft 0` | utan läsningen på första hela rutan (MES-227, `T.luft`): den tidiga läsningen väntar två formstilla rutor som förut. `--luft 1` tvingar den på |
+| `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
+| `node dev/golden/kor.cjs --fall 09 --tro "snabb:1"` | valfria trösklar till kameran före varje fall (`Kamera.satTrosklar`) — för prov som inte ska bli förval. Sparas aldrig som baslinje |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
@@ -227,6 +232,13 @@ säkert blir kortet klart på en gång — 07 1,8 → 1,0 s, 09 1,85 → 1,25 s,
 Läget är då preliminärt (`vilar: false`) och mäts om när kortet vilat i
 `stillaMs`. Ett osäkert tidigt svar kastas och kortet läses som förut.
 
+Sedan MES-227 (2026-09-18) läses ett nytt spår redan i **första rutan där
+regionen har ett korts mått och inget ligger över** (`T.luft`), i stället
+för efter två formstilla rutor: 07 1,0 → 0,6 s, 09 0,85 → 0,6 s, 10 0,8 →
+0,5 s. Uppmätt ruta för ruta (`--rutlogg`): kortet syns aldrig oskymt i
+luften i golden-videorna — handen täcker det tills det ligger — så det som
+återstår av fördröjningen är handen, inte kedjan.
+
 ## Förloppsmåtten från K1 (dev/plan/lagen.md §7)
 
 Tre mått till ur ett videofalls **bordslogg** (datorns rapporter), inte ur
@@ -238,6 +250,7 @@ räknas in i domen mot baslinjen.
 | `videoBortaFordrojning` | medianen av tiden från facits `tar_bort` till första rapporten utan ett säkert spår med namnet | ≤ 1,0 s (datorns nåd på 3 s därtill) |
 | `videoTapp` / `videoTappAv` + `videoTappFordrojning` | facit `{ "t": 12.5, "tappar": "Ukud Cobra" }` eller `"otappar"`: sågs ett säkert spår med namnet bära det väntade tap-läget inom 8 s, och hur snart | ≤ 0,35 s |
 | `videoTappFalska` (*falska tap-flippar*) | gånger ett säkert spår bytte tap-läge mellan två rapporter utan en `tappar`/`otappar`-händelse för namnet åt det hållet inom ±3 s i facit. En optimistisk tap-dom som tas tillbaka är två. I domen sedan MES-214 | 0 |
+| `videoSkuggaRapport` / `videoSkuggaSynlig` / `videoSkuggaEfter` (*skuggan*, MES-226) | per utspelat kort som fick namn: första rapporten med ett spår på kortets plats, första rapporten där datorns regel ritar det som en plats på bordet (`autoPlatser`: inte 'ny', eller 'ny' med ett korts mått, eller sett i 0,5 s), och skillnaden — datorns egen del. `…Fore` är samma med regeln före MES-226. `videoSkuggaBlink`: platser som ritades och försvann utan namn. I `--detalj` och under `metod:`; ingår inte i domen | datorns del ≤ 0,3 s |
 | `videoDubbletter` | största överskott av fysiska kort per namn mot facit i någon rapport — grupperat med appens `sammaPlats`/`syskon`/`ledarOrdning`, som steg 2 i `avstamBord` | 0 |
 
 Tap-FÖRDRÖJNINGEN ingår inte i domen (bara antalet sedda vridningar) — läs
@@ -323,6 +336,61 @@ och tabellen säger var kedjan går sönder först. En riktig inspelning i det
 ljuset slår alltid en omräknad — omräkningen rör inte kamerans exponering,
 brus eller skärpa — så en variant som faller är ett skäl att spela in, inte
 ett facit.
+
+## Bildmodellen (MES-225)
+
+Sedan 2026-09-18 rangordnar en liten bildmodell (MobileCLIP-S0,
+`dev/embed/embed.js`) lekens namn för varje beskärning, och ORB kontrollerar
+de tre bästa. Golden kör den som appen gör. Raden `metod:` säger
+`+modell` och vilken väg den räknade: **WebGPU** (huvudlös Chrome får
+flaggorna `--enable-unsafe-webgpu --use-angle=metal`) eller **WASM** (utan
+grafikkort, eller med `--wasm`: samma svar, 3–5 gånger långsammare).
+
+| Vad | Hur |
+|---|---|
+| Vikterna och onnxruntime-web | ligger de under `dev/embed/modeller/` och `dev/embed/node_modules/` (se `dev/embed/LÄS-MIG.md`) serverar attrappen dem — inget hämtas per körning. Annars hämtas de en gång från Hugging Face och jsdelivr och ligger kvar i profilens cache |
+| Lekens inbäddning | görs första körningen i en profil (~2 min med WebGPU) och sparas per kort i profilens IndexedDB; sedan 1–7 s |
+| `domskäl för de säkra rätta namnen` | raden under `metod:` — `modell+orb` (ORB bar modellens etta), `modell+namn` (titelraden höll med), `modell` (modellen ensam, med ORB:s svaga stöd), `bild…` (Matcher + ORB som andra åsikt, eller reserven); med `--ai` också `namnViaAi` |
+| `läst …` i `--detalj` | modellens poäng och marginal, *inte ensamt* (klunga, skymt eller större än ett kort), ORB:s inliers, på vilket namn, ettans egna inliers och **skalan** (ett helt kort i sin beskärning: 1,15–1,43; under 1,08 är spåret en bit av kortet; utanför 0,8–1,6 räknas träffen inte) |
+| Kort utanför leken | `--utan-leken "Namn1,Namn2"` — modellen svarar alltid med något av lekens namn, så det är ORB-kontrollen som ska stoppa dem. Mätt 2026-09-18 med 12 av 28 namn borttagna: 0 fel namn |
+| `land per typ` | raden under `metod:` (MES-228): facits synliga basland mot kamerans säkra, typ för typ — ett Plains är ett Plains, vilket tryck det än är, och "Snow-Covered Swamp" är typen Swamp. `landRatt`/`landAv`, och `landOver` = land kameran har utöver facits synliga och dolda. I domen |
+| Utan modellen | `--utan-modell` mäter reserven (modulen inte laddad, leken inte inbäddad): samma tal som före modellen |
+
+## 1080p-provet på riktig telefon (MES-229)
+
+Frågan: blir spegeln snabbare med **1920×1080 i 30 rutor/s, varje ruta
+analyserad**, än med förvalet **4K i 15 rutor/s, en ruta var 150:e ms** —
+och räcker bildmodellen och ORB när titelraden är för liten att läsa?
+Golden kan inte svara (videorna är 15 rutor/s). Så här körs provet:
+
+1. Öppna spelet med `?debug` på **datorn och telefonen**. Koppla telefonen.
+2. Kameradialogen på datorn → *Latency · MES-215* → **Start**.
+3. **Pass 1, förvalet:** växeln *Picture mode · MES-229* av. Statusraden
+   ska säga *4K · 15 fps*. Spela ett kort parti: lägg ut 10–15 kort ett i
+   taget, tappa och otappa några, flytta ett par, lyft bort några.
+   **Stop** → **Save report** (`latens-….json`).
+4. **Pass 2, provet:** slå på växeln. Telefonen tar om sin referensbild
+   (håll den stilla, bordet tomt eller orört). Statusraden ska säga
+   *1080p · 30 fps* och vad telefonen faktiskt ger — står det 15 där gav
+   kameran inte 30. **Start** igen, samma parti med samma kort, **Save
+   report**.
+5. Slå av växeln när du är klar (*Reset the thresholds* gör det också).
+
+| Jämför i de två rapporterna | Var | Vad det säger |
+|---|---|---|
+| `bildlage` | överst i filen | att passet verkligen kördes i det läget (en post — två betyder att läget byttes mitt i) |
+| `summa.namn.hela_median` | ms, bild tagen → ritat på datorn | hela vägen till namnet: det tal målet 2 s gäller |
+| `summa.namn.telefon_median` | ms, bild → namn på telefonen | telefonens del — här syns om 1080p läser lika fort |
+| `summa.tap` och `summa.lage` (`hela_median`) | ms | tap och flytt: målet 300 ms |
+| `summa.borta.hela_median` | ms | ett lyft kort tonas ned |
+| raderna: `hittat − bild` per kort | ms | hur snart efter rutan spåret fanns — det 30 rutor/s ska korta |
+| antal rader med `vad: "namn"` mot antal kort du lade | – | fick alla kort namn? Färre i 1080p = upplösningen räcker inte |
+| granskningsposter och frågor till Claude under passet | sammanfattningen när auto stängs av | fler i 1080p = titelraden saknades där den behövdes |
+
+Kör gärna *Recording probe · MES-190* pass A i vardera läget också: loggen
+bär `bildlage`, och stegtiden (`tick`) visar om telefonen orkar ett steg
+var 33:e ms — ligger medianen över 33 tappar den rutor, och då är 30
+rutor/s ingen vinst.
 
 ## Kortbaksidor
 

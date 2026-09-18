@@ -830,6 +830,15 @@ prov('H1 ett spår som just föddes ("ny") får ingen plats förrän efter en ha
   stam([{ id: 1, tillstand: 'stilla', sen: 0, ...PORT }, { id: 2, tillstand: 'stilla', sen: 0, ...LANGT }]);
   assert.deepEqual(platsSlag(app.platser()), ['laser:1', 'laser:2'], 'i den ordning de sågs');
 });
+prov('H1b ett nytt spår med ett korts mått (kortlik) får platsen i första rapporten, med spårets tap-läge (MES-226)', () => {
+  stam([{ id: 1, tillstand: 'ny', kortlik: true, tappad: true, sen: 0, ...PORT }, { id: 2, tillstand: 'ny', sen: 0, ...LANGT }]);
+  const l = app.platser();
+  assert.deepEqual(platsSlag(l), ['laser:1'], 'handen (inte kortlik) väntar sin halva sekund');
+  assert.equal(l[0].tappad, true);
+  // spåret dör utan namn: platsen försvinner tyst, inget kort och ingen granskning
+  stam([]);
+  assert.deepEqual(platsSlag(app.platser()), []); assert.equal(app.kort.length, 0); assert.equal(app.pending.length, 0);
+});
 prov('H2 ett spår som väntar på Claude: "vantar" med gissningen; skymda och klara bundna får ingen plats', () => {
   stam([{ id: 1, tillstand: 'okand', provas: true, gissning: 'Plains', sen: 0, ...PORT }, klar(2, 'Forest', { sen: 10, ...LANGT }), { id: 3, tillstand: 'stilla', skymd: true, sen: 900, x: 0.1, y: 0.1, w: 0.063, h: 0.088 }]);
   assert.equal(app.kort.length, 1);

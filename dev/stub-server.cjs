@@ -65,7 +65,9 @@ function riktig(req, res) {
 }
 const TYPES = { '.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.md':'text/markdown',
   '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.webp':'image/webp', '.gif':'image/gif',
-  '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css' };
+  '.svg':'image/svg+xml', '.txt':'text/plain; charset=utf-8', '.css':'text/css',
+  /* onnxruntime-web ur dev/embed/node_modules (golden, MES-225): en modul måste komma som javascript, och wasm strömkompileras bara med sin egen typ. */
+  '.mjs':'text/javascript', '.wasm':'application/wasm', '.onnx':'application/octet-stream' };
 http.createServer((req, res) => {
   try { hantera(req, res); }
   catch (e) { console.error('stub: fel i begäran', e && e.message); try { res.writeHead(500); res.end('500'); } catch (e2) {} }
