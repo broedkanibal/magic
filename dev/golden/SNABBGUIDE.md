@@ -202,6 +202,23 @@ i stället för 800 gav **sämre** — 3 → 2 namn, 1 → 3 falska, fördröjni
 väntan kortare för spelaren är platshållaren på bordet (MES-42): den står
 där efter en halv sekund, namnet kommer efter en till två.
 
+**Videofallen går med låtsasklocka** — klockan står still medan ett steg
+räknar och medan en läsning väntar på workern, så fördröjningen ovan är
+videons egen och blind för beräkningstiden. Sedan MES-215 (2026-09-18)
+skriver `--detalj` också *med beräkningstid*: samma fördröjning plus den
+verkliga tid som klockan stod still i fönstret mellan händelsen och att
+den sågs — stegets övertid över takten (en telefon som ligger efter tappar
+rutor) och väntan på läsningarna (namnet kommer inte före workern är klar).
+All tid i fönstret räknas som seriell, också läsningar av andra kort, så
+talet är en **övre gräns för en telefon lika snabb som datorn provet körs
+på**; en telefon är 3–5 gånger långsammare, och den siffran ger bara
+latensmätningen på riktig telefon (`?debug` → *Latency*). Sist på raden
+står hur mycket verklig tid som stod still totalt i fallet. Exempel
+2026-09-18 på Macen: 07 namn 1,0 → 1,21 s, 09 tap 0,3 → 0,3 s, 12 flytt
+1,8 → 1,84 s. Måtten heter `videoFordrojningB`, `videoTappFordrojningB`,
+`videoFlyttFordrojningB`, `videoBortaFordrojningB` i `senaste.json`
+(`videoVerkligMs`, `videoVerkligRutor` är summan och antalet rutor).
+
 Sedan MES-214 (2026-09-18) tas ett **säkert tidigt svar direkt**: ett spår
 som stått formstilla i två rutor läses medan det väntar (K4), och är svaret
 säkert blir kortet klart på en gång — 07 1,8 → 1,0 s, 09 1,85 → 1,25 s,

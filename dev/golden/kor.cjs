@@ -176,7 +176,8 @@ function skrivTabell(rs, gamla) {
        här man ser ett kort som kom fram sent, ett som aldrig blev säkert,
        och ett som låg kvar efter att det plockats bort. */
     if (r.videoSpar) {
-      console.log(`  video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms; ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median)`);
+      console.log(`  video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms; ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median)`
+        + (r.videoVerkligMs != null ? `; med beräkningstid: namn ${r.videoFordrojningB == null ? '–' : r.videoFordrojningB + ' s'}, tap ${r.videoTappFordrojningB == null ? '–' : r.videoTappFordrojningB + ' s'}, flytt ${r.videoFlyttFordrojningB == null ? '–' : r.videoFlyttFordrojningB + ' s'}, borta ${r.videoBortaFordrojningB == null ? '–' : r.videoBortaFordrojningB + ' s'} (${(r.videoVerkligMs / 1000).toFixed(1)} s verklig tid som klockan stod still, ${r.videoVerkligRutor} rutor)` : ''));
       /* K1: borta-fördröjning (telefonsidan: första rapporten utan säkert spår), tap-vridningar och dubbletter ur bordsloggen. */
       console.log(`  K1: borta-fördröjning ${r.videoBortaFordrojning == null ? '–' : r.videoBortaFordrojning + ' s'} (median${(r.videoBortaDt || []).length ? ': ' + r.videoBortaDt.join(', ') + ' s' : ''})`
         + `; tap ${r.videoTappAv == null ? '– (inga tap-händelser i facit)' : `${r.videoTapp}/${r.videoTappAv}, fördröjning ${r.videoTappFordrojning == null ? '–' : r.videoTappFordrojning + ' s'}`}`

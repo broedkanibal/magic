@@ -464,6 +464,7 @@ function nyttProv(video) {
               svar. Det är här en säker bilddom går att spåra (MES-94). */
            lasningar: [],
            tidDelar: {},
+           verklig: [],   // per videoruta: { vt, ms, vanta } — verklig tid som klockan inte gick (MES-215)
            pendande: new Set() };
 }
 /* Återanropen modulen får. I videoläget måste varje ruta vänta in det som
@@ -725,7 +726,10 @@ async function korVideoFall(f, vf, vid, cv) {
       if (k === 0) await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, aterkoppling(f, prov));
       else korRaf(virt);
       const msRuta = k === 0 ? null : Math.round(performance.now() - tR);
+      const tV = performance.now();
       await vantaIn(prov);
+      /* Verklig tid per ruta (MES-215 del 2): steget (msRuta, med den synkrona delen av en läsning som startades i det) och väntan på läsningarna (workern, Claude). Klockan står still under båda; på telefonen går tiden. */
+      prov.verklig.push({ vt, ms: msRuta || 0, vanta: Math.round(performance.now() - tV) });
       const { spar, lage, klart } = las(prov, vt, msRuta);
       if (vt >= sista) {
         if (klart) break;
@@ -1042,7 +1046,24 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     }
   }
   const median = l => l.length ? l[l.length >> 1] : null;
+  /* Beräknad fördröjning (MES-215 del 2): videons fördröjning plus den
+     verkliga tid som klockan stod still i fönstret [händelsen, sedd] —
+     stegets övertid över takten (en telefon som ligger efter tappar rutor)
+     och väntan på läsningarna (namnet kommer inte före workern är klar).
+     All tid i fönstret räknas som seriell, också läsningar av andra kort,
+     så det är en övre gräns på en telefon lika snabb som den här datorn.
+     Golden var förut blint för det: klockan är videons. */
+  const verklig = prov.verklig || [];
+  const tillagg = (t0, t1) => { let ms = 0; for (const r of verklig) { const s = r.vt / 1000; if (s > t0 && s <= t1 + 1e-9) ms += Math.max(0, r.ms - takt) + r.vanta; } return ms / 1000; };
+  const berakna = (lista, tOf) => median(lista.map(x => +(x.dt + tillagg(tOf(x), tOf(x) + x.dt)).toFixed(2)).sort((a, b) => a - b));
+  const namnB = berakna(namngivna.filter(x => x.dt != null), x => x.t);
+  const tappB = berakna(tappHandelser.filter(x => x.dt != null), x => x.t);
+  const flyttB = berakna(flyttHandelser.filter(x => x.dt != null), x => x.t);
+  const bortaB = (() => { const l = []; for (const x of bortagna) { const i = bortagna.indexOf(x); if (bortaDt[i] != null) l.push({ t: x.t, dt: bortaDt[i] }); } return berakna(l, x => x.t); })();
+  const verkligSum = verklig.reduce((a, r) => a + Math.max(0, r.ms - takt) + r.vanta, 0);
   return {
+    videoFordrojningB: namnB, videoTappFordrojningB: tappB, videoFlyttFordrojningB: flyttB, videoBortaFordrojningB: bortaB,
+    videoVerkligMs: Math.round(verkligSum), videoVerkligRutor: verklig.length,
     videoBortaFordrojning: median(bortaDt), videoBortaDt: bortaDt,
     videoTapp: tapp.length ? tappDt.length : null, videoTappAv: tapp.length ? tapp.length : null,
     videoTappFordrojning: median(tappDt), videoTappHandelser: tappHandelser,
