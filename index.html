@@ -15303,6 +15303,7 @@ const Pool = {
     rec.descs = descs;
     rec.names = rec.names.filter((_, k) => k !== i); rec.ids = rec.ids.filter((_, k) => k !== i); rec.smalls = (rec.smalls || []).filter((_, k) => k !== i);
     if (rec.orb) rec.orb = ORB.packUtan(rec.orb, i);
+    KamEmbed.taBort(rec, id);   // samma referens bort ur bildmodellens inbäddning (MES-225)
     return rec;
   }
 };
@@ -15344,6 +15345,7 @@ const Ref = {
       rec.refIn.add(r.id);
       try { await Pool.laggTill(rec, { id: Ref.poolId(r), name: r.name, small: r.bild }); } catch (e) {}
     }
+    await KamEmbed.vavRef(rec);   // …och i bildmodellens inbäddning, när den finns (MES-225)
     return rec;
   },
   antal: rec => (rec && rec.refIn) ? rec.refIn.size : 0,
@@ -15377,6 +15379,86 @@ const Ref = {
     try { await IDB.poolDel(Ref.nyckel(kod)); } catch (e) {}
     if (Ref.kod === kod) Ref.lista = [];
     if (Pool.idx && Pool.idx.code === kod) { const ren = await Pool.load(kod); Pool.idx = ren || null; }
+    if (Pool.idx) await KamEmbed.vavRef(Pool.idx);
+  }
+};
+
+/* ═══ BILDMODELLEN I KEDJAN (MES-225) ═══
+   dev/embed/embed.js (MES-213): en färdig bildkodare (MobileCLIP-S0) som
+   rangordnar lekens NAMN för en beskärning på ~0,1 s. Den tar Matchers
+   plats i kamIdentifiera; ORB kontrollerar de tre bästa namnen och
+   namnläsaren läser titelraden som förut (identifyMedModell). Här bor bara
+   kopplingen: modulen hämtas när poolen byggs, lekens bilder bäddas in i
+   bakgrunden (Embed.byggLek sparar per kort i IndexedDB, så en ändrad lek
+   kostar bara de nya korten), och de lärda referenserna (K7/K8) följer
+   poolens krokar — Ref.tillampa lägger till, Pool.taBort tar bort. HUR
+   vektorerna lagras och delas mellan enheter är modulens sak, inte den här
+   filens. Tills inbäddningen finns — eller om modulen eller modellen inte
+   går att hämta — går kedjan som förut (identifyAt).
+   window.MESA_EMBED: false stänger av modellen (golden: --utan-modell); ett
+   objekt är inställningar — { modul, ladda } — där ladda går till
+   Embed.ladda (golden serverar onnxruntime och vikterna lokalt). */
+const KamEmbed = {
+  idx: null, kod: null, bygger: null, byggNyckel: null, fel: null, laddat: null, ko: Promise.resolve(),
+  pa: () => window.MESA_EMBED !== false,
+  konf: () => (window.MESA_EMBED && typeof window.MESA_EMBED === 'object') ? window.MESA_EMBED : {},
+  redo: () => !!(KamEmbed.idx && window.Embed && window.Embed.redo && Pool.idx && KamEmbed.kod === Pool.idx.code),
+  async modul() {
+    if (window.Embed) return window.Embed;
+    await new Promise((res, rej) => {
+      const el = document.createElement('script'); el.src = KamEmbed.konf().modul || 'dev/embed/embed.js';
+      el.onload = res; el.onerror = () => rej(new Error('could not load the image model module')); document.head.appendChild(el);
+    });
+    return window.Embed;
+  },
+  /* Scryfalls 'normal' (488×680) i stället för poolens 'small' (146×204):
+     modellen ser 256×256, och bänkens siffror är mätta på normal. */
+  storBild: u => (typeof u === 'string' && /scryfall/.test(u) && u.includes('/small/')) ? u.replace('/small/', '/normal/') : u,
+  /* Bädda in poolens bilder. Löftet ger inbäddningen, eller null (avstängd,
+     fel, eller leken byttes under bygget). Samma pool och version byggs
+     bara en gång; en sparad inbäddning med samma bilder tas som den är. */
+  bygg(rec, onProg) {
+    if (!KamEmbed.pa() || !rec || !rec.ids || !rec.ids.length) return Promise.resolve(null);
+    const nyckel = rec.code + ':' + (rec.ts || 0);
+    if (KamEmbed.bygger && KamEmbed.byggNyckel === nyckel) return KamEmbed.bygger;
+    if (KamEmbed.idx && KamEmbed.kod === rec.code && KamEmbed.klarNyckel === nyckel) return Promise.resolve(KamEmbed.idx);
+    KamEmbed.byggNyckel = nyckel;
+    const p = (async () => {
+      const E = await KamEmbed.modul();
+      KamEmbed.laddat = await E.ladda(KamEmbed.konf().ladda || null);
+      const kort = [];
+      rec.ids.forEach((id, i) => { if (!/#ref/.test(String(id))) kort.push({ id, name: rec.names[i], normal: KamEmbed.storBild(rec.smalls[i]) }); });
+      let idx = await E.laddaLek(rec.code);
+      const vill = new Set(kort.map(c => c.id)), har = idx ? new Set(idx.ids.filter(x => !/#ref/.test(String(x)))) : null;
+      if (!har || har.size !== vill.size || [...vill].some(x => !har.has(x))) idx = await E.byggLek(rec.code, kort, { onProg });
+      if (KamEmbed.byggNyckel !== nyckel) return null;
+      KamEmbed.idx = idx; KamEmbed.kod = rec.code; KamEmbed.klarNyckel = nyckel; KamEmbed.fel = idx && idx.fel ? idx.fel + ' images missing' : null;
+      await KamEmbed.vavRef(rec);
+      return idx;
+    })().catch(e => { KamEmbed.fel = (e && e.message) || String(e); return null; })
+        .finally(() => { if (KamEmbed.byggNyckel === nyckel) KamEmbed.bygger = null; });
+    KamEmbed.bygger = p;
+    return p;
+  },
+  /* De lärda referenserna som poolen bär ska inbäddningen också bära — och
+     inga andra: den sparade inbäddningen kan ha referenser från förra passet
+     (Embed.laggTill sparar posten), och de som glömts, fallit för taket
+     eller stängts av (MESA_REF) tas bort. En i taget (ko): två samtidiga
+     varv hade lagt samma referens två gånger. */
+  vavRef(rec) {
+    const varv = async () => {
+      const idx = KamEmbed.idx; if (!idx || !window.Embed || !rec || KamEmbed.kod !== rec.code) return;
+      const vill = new Map(); if (Ref.pa() && Ref.kod === rec.code) for (const r of Ref.lista) vill.set(Ref.poolId(r), r);
+      for (const id of [...new Set(idx.ids.filter(x => /#ref/.test(String(x))))]) if (!vill.has(id)) await Embed.taBort(idx, id);
+      const har = new Set(idx.ids);
+      for (const [id, r] of vill) { if (har.has(id)) continue; try { await Embed.laggTill(idx, { id, name: r.name, bild: await loadImage(r.bild, false) }); } catch (e) {} }
+    };
+    return (KamEmbed.ko = KamEmbed.ko.then(varv, varv).catch(() => {}));
+  },
+  taBort(rec, id) {
+    if (!KamEmbed.idx || !window.Embed || !rec || KamEmbed.kod !== rec.code || !/#ref/.test(String(id))) return;
+    const varv = () => Embed.taBort(KamEmbed.idx, id);
+    KamEmbed.ko = KamEmbed.ko.then(varv, varv).catch(() => {});
   }
 };
 async function fetchQuery(q, onProg, seen, cards, label, order) {
@@ -15651,6 +15733,77 @@ function identifyAt(img, box, hint) {
     || (!Pool.idx.orb && konf)
     || (Pool.idx.orb && konf && orbSamma && orb.inliers >= 6);
   return { accept, score: gScore, rec: { box, rot: orb ? orb.rot : rot0, cands, inliers: orb ? orb.inliers : 0 } };
+}
+
+/* Modellen i Matchers ställe (MES-225). e är Embed.identifiera:s svar:
+   lekens namn rangordnade, med marginalen från ettan till nästa NAMN. ORB
+   kontrollerar geometriskt de MODELL_NAMN bästa namnen — alla deras bilder
+   i poolen, också de lärda — i modellens vridning och den motsatta.
+   Svaret har identifyAt:s form, så att vägningen mot namnläsaren i
+   kamIdentifiera är densamma.
+   Säkert på bilden:
+     • 'modell+orb' — ORB bär modellens etta (≥ ORB_ACCEPT inliers, och inget
+       annat av de tre har fler). Uppmätt i dev/embed/bank.html: 45 av 46
+       säkra riktiga beskärningar bars så.
+     • 'modell' — marginalen över Embed.TROSKEL, spåret ligger för sig självt
+       (ensamt), ORB säger inte emot (≥ ORB_EMOT inliers på ett ANNAT av de
+       tre) och ger ettan ett svagt stöd (≥ ORB_EMOT). Stödet är spärren mot
+       kort UTANFÖR leken: modellen svarar alltid med något av lekens namn,
+       och med en lek på 16 av golden-lekens 28 kort blev 5 av 61 säkra fel
+       på modellen ensam (RAPPORT.md, "Utanför leken"). Ett kort i en klunga
+       eller ett skymt kort blir aldrig säkert på modellen ensam: den svarar
+       då självsäkert med det kort som syns mest.
+   Landregeln i confident() behövs inte här: modellen räknar poäng per namn,
+   så 24 konstverk per basland konkurrerar inte med varandra.
+   ORB:s SKALA är också ett bevis. RANSAC ger en likformig avbildning från
+   beskärningen till referensen, och dess skala säger hur stor del av
+   beskärningen kortet upptar. Uppmätt i golden (01, 03, 06, 10, 11): ett
+   helt kort i sin beskärning (8 % marginal) ger 1,15–1,43 — alla 24 säkra
+   läsningar; brusträffar med 4–13 inliers ger 0,35–0,79 (kortet skulle vara
+   dubbelt så stort som beskärningen), och ett halvt Swamp i plastficka
+   (golden 11, spåret är en BIT av kortet) 0,9–1,0. Därför räknas inliers
+   bara inom ORB_SKALA — en träff utanför är ingen geometrisk träff på det
+   kortet, varken som stöd eller som motsägelse — och ett kort som ORB bär
+   men vars skala ligger under ORB_HEL är rätt kort i en för liten ruta:
+   svaret märks `del`, och spåret får då inte ange kortens storlek
+   (kortRef, kortMatt — högvaktens krav halverades annars, och golden 11
+   fick en falsk högändring). */
+const ORB_EMOT = 6, MODELL_NAMN = 3, ORB_SKALA = [0.8, 1.6], ORB_HEL = 1.08;
+function identifyMedModell(img, box, e, ensamt) {
+  const P = Pool.idx, etta = e.namn;
+  const namn3 = new Set((e.cands || []).slice(0, MODELL_NAMN).map(c => c.name));
+  const per = new Map(); let bast = { inliers: 0, namn: null, rot: e.rot || 0 };
+  if (P.orb) {
+    const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(P.names[i])) vilka.push(i);
+    const r0 = ((e.rot || 0) % 360 + 360) % 360;
+    for (const r of [r0, (r0 + 180) % 360]) {
+      const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H), qf = cv ? ORB.queryFeatures(cv, 300) : null; if (!qf) continue;
+      for (const i of vilka) {
+        const ov = ORB.verify(qf, ORB.unpack(P.orb, i), {});
+        const n = ov.model && ov.model.scale >= ORB_SKALA[0] && ov.model.scale <= ORB_SKALA[1] ? ov.inliers : 0;
+        if (n > (per.get(P.names[i]) || 0)) per.set(P.names[i], n);
+        if (n > bast.inliers) bast = { inliers: n, namn: P.names[i], rot: r, skala: ov.model ? ov.model.scale : null };
+      }
+      if (bast.inliers >= ORB_ACCEPT + 4) break;
+    }
+  }
+  const stod = per.get(etta) || 0;
+  /* ORB bär ettan — men inliers ensamma räcker inte: kort ur samma ram och
+     med samma typrad delar särdrag. Uppmätt med 12 av lekens 28 namn borttagna
+     (kor.cjs --utan-leken): Faithful Pikemaster, utanför leken, fick 19
+     inliers på Fencing Ace (modellens marginal 0,006) och Maul of the
+     Skyclaves 10 på Ancestral Blade (0,055) — två säkra FEL. Dagens kedja har
+     samma spärr (ORB_ACCEPT och helhetslikhet ≥ 0,70, eller 25 inliers).
+     Därför: ju färre inliers, desto mer måste modellen själv hålla med —
+     25 bär ensamma; från 14 krävs en marginal som inte är brus (0,06; de
+     rätta med låg marginal: Fencing Ace 0,067/16, Pikemaster 0,016/26,
+     Blightfang 0,027/30); under det att modellen själv är säker. */
+  const bar = bast.namn === etta && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
+  const emot = bast.namn !== etta && bast.inliers >= ORB_EMOT;
+  const ensam = !!(e.saker && ensamt && !emot && (!P.orb || stod >= ORB_EMOT));
+  const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
+  return { accept: bar || ensam, del: bar && bast.skala < ORB_HEL, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
+           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
 }
 
 /* Ett uppåtvänt Magic-kort har alltid en ljus textruta och ljusa raminslag.
@@ -18366,7 +18519,8 @@ const Kamera = (() => {
     const sparen = under === undefined ? spar : under;
     const langar = [], korta = [];
     /* …och inte spår ur helbilden: deras låda är gissad, inte mätt. */
-    for (const t of sparen) if (t.tillstand === 'klar' && !arHelbild(t)) { langar.push(t.lang); korta.push(t.kort); }
+    /* …och inte spår som är en BIT av sitt kort (del, MES-225: ORB bar namnet men skalan sa att rutan är för liten). */
+    for (const t of sparen) if (t.tillstand === 'klar' && !arHelbild(t) && !t.del) { langar.push(t.lang); korta.push(t.kort); }
     const median = a => { a.sort((x, y) => x - y); return a[a.length >> 1]; };
     const kortRef = langar.length ? { lang: median(langar), kort: median(korta) } : null;
     dia.kortRef = kortRef && { lang: Math.round(kortRef.lang), kort: Math.round(kortRef.kort), av: langar.length };
@@ -20181,7 +20335,7 @@ const Kamera = (() => {
         const j = cands.findIndex(x => x.name === t.gissning);
         if (j > 0) { cands = cands.slice(); cands.unshift(cands.splice(j, 1)[0]); }
       }
-      t.namn = svar.namn || null; t.sid = svar.sid || null; t.saker = !!svar.saker; t.cands = cands; t.namnLast = svar.namnLast || null; t.varfor = svar.varfor || null;
+      t.namn = svar.namn || null; t.sid = svar.sid || null; t.saker = !!svar.saker; t.cands = cands; t.namnLast = svar.namnLast || null; t.varfor = svar.varfor || null; t.del = !!svar.del;
     }
     t.fragad = true;
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
@@ -20263,6 +20417,26 @@ const Kamera = (() => {
       if (q === t || q.tillstand !== 'klar' || q.namn !== t.namn || !bevisatBorta(q)) continue;
       spar.splice(spar.indexOf(q), 1); q.dog = nu || forra; spoken.push(q);
     }
+    priorPaGissningar(t);
+  }
+  /* Antalspriorn (K6) på GISSNINGARNA (MES-225): spåret t har just blivit
+     säkert, och lekens alla exemplar av namnet ligger därmed säkra på
+     bordet. Ett OSÄKERT spår som bär samma namn som sin bästa gissning
+     gissar då på ett kort som inte finns kvar att lägga: gissningen flyttas
+     sist bland förslagen, och nästa får stå överst. Ett prior, inget tak —
+     namnet står kvar bland förslagen (kloner och extra land är legitima), men
+     granskningen föreslår det inte först. Uppmätt i golden 10: Killing Glare
+     stod osäkert som "Trusty Retriever?" (modellen 0,42 mot 0,41) när lekens
+     enda Trusty Retriever lades bredvid — två spår med samma namn, en
+     dubblett som väntar på ett ja i granskningen. */
+  function priorPaGissningar(t) {
+    const tak = cb.lekTak && t.namn ? cb.lekTak(t.namn) : null;
+    if (tak == null || upptagna(t.namn, null) < tak) return;
+    for (const q of spar) {
+      if (q === t || q.saker || q.namn !== t.namn || q.tillstand === 'skrap' || !q.cands) continue;
+      const kvar = q.cands.filter(c => c.name !== t.namn), bort = q.cands.filter(c => c.name === t.namn);
+      q.cands = kvar.concat(bort); q.namn = kvar.length ? kvar[0].name : null; q.sid = kvar.length ? (kvar[0].sid || null) : null;
+    }
   }
   /* Spåret har blivit stilla med ett säkert tidigt svar. Det gäller om
      kortet ligger där det låg när det lästes (inom viloläget, 3 stillaPx)
@@ -20274,7 +20448,7 @@ const Kamera = (() => {
     const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * T.stillaPx
              && Math.abs(t.lang - g.lang) <= SPEK_FORM * g.lang && Math.abs(t.kort - g.kort) <= SPEK_FORM * g.kort;
     if (!lik || upptagna(svar.namn, t) > s.upptagna) { t.spek = { miss: true }; return false; }
-    t.namn = svar.namn; t.sid = svar.sid || null; t.saker = true; t.cands = svar.cands || null; t.namnLast = svar.namnLast || null;
+    t.namn = svar.namn; t.sid = svar.sid || null; t.saker = true; t.cands = svar.cands || null; t.namnLast = svar.namnLast || null; t.del = !!svar.del;
     t.varfor = svar.varfor || null; t.spekKlar = true;
     t.fragad = true; t.provas = false; t.tillstand = 'klar'; t.spek = null;
     if (t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
@@ -20458,7 +20632,7 @@ const Kamera = (() => {
      de egna säkra spåren (samma regel som kortRef i detektera), annars
      standardmåttet ur analysbredden. */
   function kortMatt() {
-    const egna = spar.filter(t => t.tillstand === 'klar' && t.saker && !arHelbild(t));
+    const egna = spar.filter(t => t.tillstand === 'klar' && t.saker && !arHelbild(t) && !t.del);   // del: rätt kort i en för liten ruta (MES-225)
     const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
     if (egna.length) return { lang: med(egna.map(t => t.lang)), kort: med(egna.map(t => t.kort)), kalla: 'spår' };
     const kort = HELBILD_KORT * AW;
@@ -20625,7 +20799,7 @@ const Kamera = (() => {
        namnger det. Flaggan behålls så att matcha() inte släpper det. */
     if (arHelbild(t)) { t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.varfor = 'helbild glömd'; t.tillstand = 'okand'; t.provas = false; t.aiInget = 0; return; }
     t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); t.provas = false; t.aiInget = 0;
-    t.spek = null; t.formN = 0; t.spekN = 0;
+    t.spek = null; t.formN = 0; t.spekN = 0; t.del = false;
   }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
@@ -20710,10 +20884,10 @@ let kamRaknare = 0;
    har olika ägare: datorns tystnad, kamerans fas, och lekbygget. Förut skrev
    de över varandra — fasen "lär mig ljuset" raderade "Lär mig leken… 40 %"
    mitt i bygget. */
-const kamFinDel = { dator: '', fas: '', pool: '', ai: '', bild: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"; bild: upplösningen strömmen gav
+const kamFinDel = { dator: '', fas: '', pool: '', modell: '', ai: '', bild: '' };   // ai: helbildens rad — "Frågar Claude…", "Claude såg 6 kort"; bild: upplösningen strömmen gav
 function ritaKamFin() {
   const f = $('#kamFin'); if (!f) return;
-  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.ai, kamFinDel.pool, kamFinDel.bild].filter(Boolean).map(esc).join('<br>');
+  f.innerHTML = [kamFinDel.dator, kamFinDel.fas, kamFinDel.ai, kamFinDel.pool, kamFinDel.modell, kamFinDel.bild].filter(Boolean).map(esc).join('<br>');
 }
 /* Vad strömmen gav, en rad på telefonen: så syns det om 4K-begäran gick
    igenom (getUserMedia i Kamera.start) utan att öppna diagnosen. */
@@ -20763,6 +20937,7 @@ async function oppnaKamera(gameId) {
       fas: () => { if (kamLage) Moln.sandKam('bord', Object.assign({ fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }, bordExtra())); },
       upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
       identifiera: (canvas, id, gissning, kort, o) => kamIdentifiera(canvas, id, gissning, kort, o),
+      lekTak: kamLekTak,
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
       /* Om frågorna faktiskt går till Claude (samma villkor som kamFragaAI):
@@ -20908,6 +21083,17 @@ async function byggKamPool() {
     satKamFin('pool', `Recognising ${lek.namn || 'your deck'}: ${lekKortAntal(lek)} cards.${Ref.antal(Pool.idx) ? ` ${Ref.antal(Pool.idx)} learned photo${Ref.antal(Pool.idx) === 1 ? '' : 's'}.` : ''}${kamAiNamnKapade() ? ` Claude sees the ${KAM_AI_NAMN_TAK} most likely names of ${KAM_AI_NAMN_TAK + kamAiNamnKapade()}.` : ''}`);
     /* Kort som väntade på en pool får en ny chans. */
     for (const t of Kamera.spar) if (!t.namn) Kamera.glomKort(t.id);
+    /* Bildmodellen (MES-225) bäddar in lekens bilder i bakgrunden: en halv
+       till två minuter första gången, sedan ur IndexedDB. Kameran går på
+       Matcher + ORB tills den är klar; raden säger hur långt den kommit. */
+    if (KamEmbed.pa()) {
+      let sistM = 0; const poolen = Pool.idx;
+      satKamFin('modell', 'Getting the image model…');
+      KamEmbed.bygg(poolen, p => {
+        const nu = Date.now(); if (nu - sistM < 400) return; sistM = nu;
+        satKamFin('modell', `Learning the artwork… ${Math.round(100 * p.done / Math.max(1, p.total))} %`);
+      }).then(idx => { if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable — recognising the slower way.' : '')); });
+    }
   } catch (e) {
     satKamFin('pool', 'Could not build the recognition: ' + (e.message || ''));
   } finally {
@@ -20933,6 +21119,21 @@ function kamLart(id, namn, sid, kalla) {
   Ref.lar(namn, sid, b.bild, kalla).catch(() => {});
   return true;
 }
+/* Ligger spåret för sig självt? Inte skymt, och inte större än ett kort
+   (lång- och kortsidan högst en fjärdedel över kortreferensen — samma mått
+   som kortlik i Kamera). Utan kortreferens — före första säkra kortet — vet
+   ingen hur stort ett kort är; då får formen räcka: ett korts kvot (0,72;
+   uppmätt 0,62–0,81 på bordet). Bara ett ensamt spår får bildmodellen vara
+   säker på utan att ORB bär det (identifyMedModell) — och också då krävs
+   ORB:s svaga stöd. Uppmätt i golden 09: bordets första kort, ett Plains
+   (marginal 0,31, 8 inliers), blev annars aldrig säkert, och dess tap sågs
+   aldrig. */
+function kamSparEnsamt(id) {
+  const t = Kamera.spar.find(x => x.id === id), r = Kamera.diagnos.kortRef;
+  if (!t || t.skymd || !(t.lang > 0)) return false;
+  if (!r) { const kvot = t.kort / t.lang; return kvot >= 0.62 && kvot <= 0.82; }
+  return t.lang <= 1.25 * r.lang && t.kort <= 1.25 * r.kort;
+}
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
 async function kamIdentifiera(canvas, id, gissning, kort, o) {
@@ -20948,9 +21149,33 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   kamMinnsBild(id, canvas);
   /* Namnet läses i workern medan illustrationen matchas på huvudtråden. */
   const namnP = Namn.las(canvas, namnUtanBaksida());
-  let v;
-  try { v = identifyAt(canvas, box, 0); } catch (e) { return null; }
+  /* Bildmodellen rangordnar och ORB kontrollerar de tre bästa (MES-225);
+     dagens Matcher + ORB är reserven — modulen inte laddad, leken inte
+     inbäddad än, eller ett fel i körningen. */
+  let v = null;
+  if (KamEmbed.redo()) {
+    try { const e = await Embed.identifiera(canvas, KamEmbed.idx); if (e && e.namn) v = identifyMedModell(canvas, box, e, kamSparEnsamt(id)); } catch (e) { v = null; }
+  }
+  if (!v) { try { v = identifyAt(canvas, box, 0); } catch (e) { return null; } }
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
+  /* Räckte modellen inte — ORB bar inte ettan, marginalen var inte säker, och
+     titelraden håller inte med den — får Matcher + ORB en andra åsikt innan
+     kortet går till Claude. Den gäller bara när den pekar på ett av
+     modellens tre bästa namn: två bildvittnen som säger olika är ingen dom.
+     Kostar 0,3–0,5 s, men bara för kort som annars väntat 2 s på Claude, och
+     ingenting kedjan klarade förut går förlorat. Uppmätt i golden 10: Trusty
+     Retriever låg tvåa hos modellen (0,45 mot 0,46) med 9 inliers i
+     modellens raka beskärning; Matchers inpassade låda gav 10 och en säker
+     dom, som förut. */
+  if (v.modell && !v.accept) {
+    const etta = v.rec.cands[0], hallerMed = namn && namn.namn && etta && namn.namn === etta.name && namn.poang >= 0.5 && namn.marginal >= 0.15;
+    if (!hallerMed) {
+      let v2 = null; try { v2 = identifyAt(canvas, box, 0); } catch (e) { v2 = null; }
+      const c2 = v2 && v2.rec.cands[0];
+      if (v2 && v2.accept && c2 && v.rec.cands.slice(0, MODELL_NAMN).some(c => c.name === c2.name)) v = Object.assign(v2, { efterModell: v.modell });
+    }
+  }
+  const M = v.modell || null;
   /* Läste titeln inget: kortet kan ligga upp och ner. Bilden vet vinkeln
      (matchningens rot, 0 eller 180 ± några grader); säger den 180 läses
      titeln en gång till ur botten, vänd. Bara då: att läsa vänt för varje
@@ -20972,11 +21197,17 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      förslagen — ett uppvänt kort ska aldrig få "(baksida)" i granskningen. */
   const alla = v.rec.cands || [];
   const b0 = alla[0], b1 = alla[1];
-  if (b0 && b0.name === BAKSIDA_NAMN && (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1))))
+  /* Med modellen (MES-225) är baksidan ett namn bland de andra: säker när
+     ORB bär den, eller när marginalen är klar och ORB inte pekar på ett av
+     de andra två — en baksida ligger ofta i en hög, så 'ensamt' krävs inte. */
+  if (b0 && b0.name === BAKSIDA_NAMN && (M ? (M.bar || (M.saker && !M.emot)) : (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1)))))
     return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept };
   const cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
-  let saker = !!(v.accept && cands[0]);
-  let varfor = saker ? 'bild' : 'osäker';   // domskälet, för diagnosen och golden-provet
+  /* Stod baksidan överst utan att räcka till gäller modellens dom inte tvåan. */
+  let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
+  /* Domskälet, för diagnosen och golden-provet: 'bild…' är Matcher + ORB, 'modell…' bildmodellen + ORB. */
+  const B = M ? 'modell' : 'bild';
+  let varfor = saker ? (M ? (M.bar ? 'modell+orb' : 'modell') : 'bild') : 'osäker';
   /* Två vittnen: illustrationen och namnet. Säkert när de håller med, eller
      när det ena är starkt nog att stå för sig — men ALDRIG när båda är
      säkra på var sitt kort: då går kortet till granskningen med bägge
@@ -21002,7 +21233,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
          kända felet (24 konstverk per land): Thriving Heath lästes 0,92 med
          marginal 0,31 och bilden var "säker" på Swamp (golden-fall 01). */
       if (saker && j > 0) { saker = starktNamn && BASICS.has(cands[0].name); varfor = saker ? 'namn slår land' : 'konflikt'; }
-      else { saker = true; varfor = j === 0 ? 'bild+namn' : 'namn'; }
+      else { saker = true; varfor = j === 0 ? B + '+namn' : 'namn'; }
       if (j > 0) cands.unshift(cands.splice(j, 1)[0]);
     } else if (sakertNamn && j < 0) {
       /* Namnet står ensamt: kortet finns i leken men bilden hittade det
@@ -21013,7 +21244,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
         if (!saker) { saker = true; varfor = 'namn ensamt'; }
         else { saker = starktNamn && BASICS.has(cands[1].name); varfor = saker ? 'namn slår land' : 'konflikt'; }
       }
-    } else if (svagtNamn && j === 0 && !saker) { saker = true; varfor = 'bild+svagt namn'; }
+    } else if (svagtNamn && j === 0 && !saker) { saker = true; varfor = B + '+svagt namn'; }
   }
   /* Ett basland blir aldrig säkert på bilden ensam när namnläsaren läst
      ett ANNAT namn tydligt: 24 konstverk per landtyp i poolen är för många
@@ -21042,8 +21273,12 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   /* bild: vad bildmatchningen själv mätte — för golden-provets läsningslogg
      (--detalj), så att en säker bilddom går att spåra till sina tal. */
   const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0 };
-  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild };
+  if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, ms: Math.round(M.ms) });
+  if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
+  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker) };
 }
+/* Lekens antal av ett namn (K6), för Kamera: null utan lek eller utanför den. */
+function kamLekTak(namn) { const n = kamLekAntal ? kamLekAntal.get(norm(namn)) : null; return n == null ? null : n; }
 
 /* ── Claude för kamerans osäkra beskärningar (MES-28 Del 3b) ──
    Det lokala svaret går först, och frågan till servern går i bakgrunden

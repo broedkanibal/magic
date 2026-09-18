@@ -46,6 +46,18 @@ const BESKARNINGAR = arg('--beskarningar', '');   // mapp att skriva beskärning
    följd (en tabell per variant och en sammanställning sist). Jämförs mot den
    vanliga baslinjen; sparas aldrig. */
 const LJUS = arg('--ljus', '');
+/* Bildmodellen (MES-225) körs som i appen. --utan-modell stänger av den
+   (reserven Matcher + ORB mäts — kedjan från före modellen); --wasm tvingar
+   WASM-vägen; --utan-leken "Namn1,Namn2" tar bort namnen ur leken, så att
+   korten på borden är kort utanför leken (varje säkert namn på dem är ett fel).
+   Chrome får WebGPU-flaggorna bara när modellen är med, så att --utan-modell
+   mäter exakt som förut. Ligger onnxruntime-web och vikterna lokalt
+   (dev/embed/node_modules, dev/embed/modeller — se dev/embed/LÄS-MIG.md)
+   serveras de av attrappen; annars hämtas de en gång och ligger kvar i
+   profilens cache. */
+const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
+const UTAN_LEKEN = arg('--utan-leken', '');
+const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = await f().catch(() => null); if (v) return v; if (Date.now() - t0 > ms) throw new Error('väntade förgäves på ' + vad); await vanta(250); } }
@@ -119,7 +131,8 @@ function skrivTabell(rs, gamla) {
   await tills(() => fetch(`http://localhost:${PORT}/dev/golden/kor.html`).then(r => r.ok), 10000, 'attrappen');
   /* 2. Chrome, huvudlös, med egen profil som får ligga kvar */
   const profil = path.join(os.tmpdir(), 'mesa-golden-profil');
-  const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run', '--no-default-browser-check', '--window-size=1400,1000', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const gpu = UTAN_MODELL || WASM ? [] : ['--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];   // som dev/embed/webb.cjs --gpu
+  const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run', '--no-default-browser-check', '--window-size=1400,1000'].concat(gpu, ['about:blank']), { stdio: ['ignore', 'ignore', 'pipe'] });
   let wsUrl = null, stderr = '';
   chrome.stderr.on('data', d => { stderr += d; const m = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/); if (m) wsUrl = m[1]; });
   await tills(async () => wsUrl, 15000, 'Chrome (DevTools-porten)');
@@ -145,12 +158,13 @@ function skrivTabell(rs, gamla) {
   const sammanstallning = [];
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
-  const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus].filter(Boolean).join('&');
+  const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|'))].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
   process.stdout.write('förbereder (poolen, namnläsaren)…');
-  const redo = await tills(async () => { const s = await status(); if (/^Fel/.test(s)) throw new Error(s); return /Redo|Kör ändå|ofullständig/.test(s) ? s : null; }, 5 * 60 * 1000, 'poolen');
+  const redo = await tills(async () => { const s = await status(); if (/^Fel/.test(s)) throw new Error(s); return /Redo|Kör ändå|ofullständig/.test(s) ? s : null; }, 20 * 60 * 1000, 'poolen');   // första inbäddningen av leken på WASM tar flera minuter
   console.log('\r' + redo);
   console.log(await kor(`(document.querySelector('#pool') || {}).textContent || ''`));
   console.log(await kor(`(document.querySelector('#metod') || {}).textContent || ''`));
@@ -170,7 +184,14 @@ function skrivTabell(rs, gamla) {
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
   if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}`).join(' · ')); }
   { const f0 = JSON.parse(json)[0]; if (f0) console.log('\n  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', systemprompt v' + f0.promptv : '') + ')' : '')
-      + '\n  (lokal: konstverket jämförs med lekens kort; ocr: kortnamnet läses ur titelraden; ai: Claude frågas om det som är osäkert)'); }
+      + (f0.modell ? ` — bildmodellen räknade på ${f0.modell === 'webgpu' ? 'WebGPU' : f0.modell === 'wasm' ? 'WASM' : f0.modell}` : ' — utan bildmodell (reserven Matcher + ORB)')
+      + '\n  (lokal: konstverket jämförs med lekens kort; ocr: kortnamnet läses ur titelraden; modell: bildmodellen rangordnar och ORB kontrollerar; ai: Claude frågas om det som är osäkert)');
+    /* MES-225: vilket vittne som bar de säkra rätta namnen, och hur många Claude behövdes för. */
+    const rsV = JSON.parse(json), vf = {}; for (const r of rsV) for (const k in (r.varforRatt || {})) vf[k] = (vf[k] || 0) + r.varforRatt[k];
+    if (Object.keys(vf).length) console.log('  domskäl för de säkra rätta namnen: ' + Object.entries(vf).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · ')
+      + (AIFLAG ? ` — namnViaAi ${rsV.reduce((a, r) => a + (r.namnViaAi || 0), 0)}` : ''));
+    const fd = rsV.filter(r => r.videoFordrojning != null).map(r => `${r.id.slice(0, 2)}: ${r.videoFordrojning} s${r.videoFordrojningB != null ? ' (' + r.videoFordrojningB + ' med beräkningstid)' : ''}`);
+    if (fd.length) console.log('  fördröjning till namn (median per videofall): ' + fd.join(' · ')); }
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
@@ -222,7 +243,7 @@ function skrivTabell(rs, gamla) {
     for (const b of r.fodslar || []) console.log(`    född ${b.s} s @${b.cx},${b.cy} lång ${b.lang} (gräns ${b.grans}): ledigt ${b.narm ? `#${b.narm.id} ${b.narm.d} px, area ×${b.narm.area}, ${b.narm.sen} ms utan region, ${b.narm.st}${b.narm.namn ? ' ' + b.narm.namn : ''}, täckning ${b.narm.tackning}` : '–'}; upptaget ${b.upptaget ? `#${b.upptaget.id} ${b.upptaget.d} px` : '–'}`);
     /* MES-94: varje lokal läsning — beskärningens storlek, bildens dom med poäng och ORB-inliers, namnläsarens svar — så att en säker bilddom går att spåra till sina tal. */
     for (const l of r.lasningar || []) console.log(`    läst ${l.s} s${l.spek ? ' (tidigt)' : ''} spår ${l.nr != null ? '#' + l.nr : 'id ' + l.spar} ${l.w}×${l.h}: ${l.dom}${l.varfor ? ' [' + l.varfor + ']' : ''}${l.namn ? ' ' + l.namn : ''}`
-      + (l.bild ? ` — bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.accept ? ', accept' : ''}` : '')
+      + (l.bild ? ` — ${l.bild.modell ? `modell ${l.bild.poang}, marginal ${l.bild.marginal}${l.bild.ensamt ? '' : ', inte ensamt'}, ${l.bild.ms} ms; ORB ${l.bild.inliers} inliers${l.bild.orbNamn ? ' på ' + l.bild.orbNamn : ''} (ettan ${l.bild.stod}${l.bild.skala != null ? ', skala ' + l.bild.skala : ''})` : `bild ${l.bild.poang}, ${l.bild.inliers} inliers${l.bild.efterModell ? ' (andra åsikten efter modellen)' : ''}`}${l.bild.accept ? ', accept' : ''}` : '')
       + ((l.cands || []).length ? ' (' + l.cands.map(c => c.name + (c.score != null ? ' ' + c.score : '')).join(', ') + ')' : '')
       + (l.ocr ? (l.ocr.hoppad ? ` [ocr hoppad: ${l.ocr.hoppad}]` : ` [ocr "${l.ocr.text || ''}" → ${l.ocr.namn || '–'} ${l.ocr.poang}/${l.ocr.marginal}${l.ocr.vand ? ' vänd' : ''}]`) : ''));
     for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);

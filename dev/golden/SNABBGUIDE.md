@@ -58,6 +58,8 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar modell och systemprompt-version |
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
 | `node dev/golden/kor.cjs --ljus alla` | samma fall i sju ljus (mörkare, ljusare, varmare, kallare, låg kontrast, brus, sned gradient) med en sammanställning sist — var kedjan går sönder först (se *Samma fall i sju ljus*) |
+| `node dev/golden/kor.cjs --utan-modell` | utan bildmodellen (MES-225): reserven Matcher + ORB mäts — ska ge samma tal som före modellen (31/57, 0, 5). `--wasm` tvingar modellen till WASM i stället för WebGPU |
+| `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
@@ -323,6 +325,24 @@ och tabellen säger var kedjan går sönder först. En riktig inspelning i det
 ljuset slår alltid en omräknad — omräkningen rör inte kamerans exponering,
 brus eller skärpa — så en variant som faller är ett skäl att spela in, inte
 ett facit.
+
+## Bildmodellen (MES-225)
+
+Sedan 2026-09-18 rangordnar en liten bildmodell (MobileCLIP-S0,
+`dev/embed/embed.js`) lekens namn för varje beskärning, och ORB kontrollerar
+de tre bästa. Golden kör den som appen gör. Raden `metod:` säger
+`+modell` och vilken väg den räknade: **WebGPU** (huvudlös Chrome får
+flaggorna `--enable-unsafe-webgpu --use-angle=metal`) eller **WASM** (utan
+grafikkort, eller med `--wasm`: samma svar, 3–5 gånger långsammare).
+
+| Vad | Hur |
+|---|---|
+| Vikterna och onnxruntime-web | ligger de under `dev/embed/modeller/` och `dev/embed/node_modules/` (se `dev/embed/LÄS-MIG.md`) serverar attrappen dem — inget hämtas per körning. Annars hämtas de en gång från Hugging Face och jsdelivr och ligger kvar i profilens cache |
+| Lekens inbäddning | görs första körningen i en profil (~2 min med WebGPU) och sparas per kort i profilens IndexedDB; sedan 1–7 s |
+| `domskäl för de säkra rätta namnen` | raden under `metod:` — `modell+orb` (ORB bar modellens etta), `modell+namn` (titelraden höll med), `modell` (modellen ensam, med ORB:s svaga stöd), `bild…` (Matcher + ORB som andra åsikt, eller reserven); med `--ai` också `namnViaAi` |
+| `läst …` i `--detalj` | modellens poäng och marginal, *inte ensamt* (klunga, skymt eller större än ett kort), ORB:s inliers, på vilket namn, ettans egna inliers och **skalan** (ett helt kort i sin beskärning: 1,15–1,43; under 1,08 är spåret en bit av kortet; utanför 0,8–1,6 räknas träffen inte) |
+| Kort utanför leken | `--utan-leken "Namn1,Namn2"` — modellen svarar alltid med något av lekens namn, så det är ORB-kontrollen som ska stoppa dem. Mätt 2026-09-18 med 12 av 28 namn borttagna: 0 fel namn |
+| Utan modellen | `--utan-modell` mäter reserven (modulen inte laddad, leken inte inbäddad): samma tal som före modellen |
 
 ## Kortbaksidor
 

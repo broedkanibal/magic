@@ -166,6 +166,20 @@ const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GL
    samma sanning i sju ljus. Variantens namn står i resultatet (r.ljus) och
    kor.cjs jämför mot den vanliga baslinjen, utan att spara. */
 const LJUS = PARAMS.get('ljus') || '';
+/* Bildmodellen (MES-225) är med som i appen; ?embed=0 (kor.cjs --utan-modell)
+   stänger av den, och då mäts reserven — Matcher + ORB, kedjan från före
+   modellen. ?embedlokalt=1: onnxruntime-web och vikterna serveras av
+   attrappen ur dev/embed/node_modules och dev/embed/modeller (kor.cjs sätter
+   den när filerna finns), så att inget hämtas från nätet per körning; annars
+   hämtar modulen dem från jsdelivr och Hugging Face en gång och de ligger
+   kvar i profilens cache. ?embedbackend=wasm tvingar WASM-vägen.
+   ?utanleken=Namn1|Namn2 (--utan-leken): namnen tas bort ur leken innan
+   poolen byggs — korten ligger kvar på borden, men kedjan känner dem inte.
+   Varje säkert namn på ett sådant kort är ett FEL NAMN: provet på att ett
+   kort utanför leken stoppas (RAPPORT.md i dev/embed, "Utanför leken"). */
+const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlokalt') === '1', EMBED_BACKEND = PARAMS.get('embedbackend') || 'auto';
+const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
+let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 const LJUS_VARIANTER = {
   morkare:  { txt: 'mörkare (×0,55)' },
   ljusare:  { txt: 'ljusare (×1,45, klipper)' },
@@ -204,7 +218,7 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    efter fallet spårets nummer i resultatet (nr). Läses ut av
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
-const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (AI_PA ? '+ai' : '') + (REF_PA ? '+ref' : ''); } catch (e) { return 'lokal'; } };
+const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (w.eval('KamEmbed').redo() ? '+modell' : '') + (AI_PA ? '+ai' : '') + (REF_PA ? '+ref' : ''); } catch (e) { return 'lokal'; } };
 /* Antalet lärda referenser i poolen i minnet (K7), för statusraden. */
 const refAntal = () => { try { return w.eval('Ref').antal(w.eval('Pool').idx); } catch (e) { return 0; } };
 /* Modellen som svarar i kameraläget och promptversionen, som servern själv
@@ -273,6 +287,10 @@ async function laddaApp() {
   K = w.eval('Kamera');
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_LAR = LAR_PA;
+  /* Sökvägarna räknas från appens dokument (repots rot). */
+  w.MESA_EMBED = !EMBED_PA ? false : { ladda: Object.assign({ backend: EMBED_BACKEND }, EMBED_LOKALT ? {
+    ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/',
+    modell: { webgpu16: 'dev/embed/modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'dev/embed/modeller/mobileclip-s0-vision.onnx', wasm: 'dev/embed/modeller/mobileclip-s0-vision.onnx' } } : {}) };
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
   for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'kamIdentifiera', 'visaVy']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
@@ -297,6 +315,7 @@ async function byggPool() {
      telefonen (kamLekAntal). Nyckeln till poolen bär bara namnen, som förut. */
   const rader = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
     .map(l => { const m = l.match(/^(\d+)\s*[xX]?\s+/); return { namn: m ? l.slice(m[0].length) : l, n: m ? +m[1] : 1 }; });
+  if (UTAN_LEKEN.size) for (let i = rader.length - 1; i >= 0; i--) if (UTAN_LEKEN.has(rader[i].namn.toLowerCase())) rader.splice(i, 1);
   const namn = rader.map(x => x.namn);
   if (!namn.length) throw new Error('lek.txt är tom');
   let h = 2166136261; for (const c of namn.join('\n')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
@@ -329,6 +348,19 @@ async function byggPool() {
   catch (e) { namnFel = e && e.message || String(e); }
   const Pool = w.eval('Pool');
   if (!Pool.idx || Pool.idx.code !== rec.code) Pool.idx = rec;
+  /* Bildmodellen (MES-225): appen bäddar in leken i bakgrunden (byggKamPool);
+     här väntas den in, så att alla fall mäts med den. Första gången i en
+     profil tar det en halv till två minuter (WebGPU) — sedan ligger
+     vektorerna i profilens IndexedDB, per kort. Går den inte att ladda
+     mäter körningen reserven, och det sägs. */
+  embedInfo = null; let embedFel = null;
+  if (EMBED_PA) {
+    const t0 = performance.now(), KE = w.eval('KamEmbed');
+    status('Hämtar bildmodellen…');
+    const idx = await KE.bygg(rec, p => status(`Bäddar in leken… ${p.done} av ${p.total}${p.nya ? ' (' + p.nya + ' nya)' : ''}`));
+    if (idx && KE.redo()) embedInfo = { backend: KE.laddat && KE.laddat.backend, modell: KE.laddat && KE.laddat.modell, tradar: KE.laddat && KE.laddat.tradar, vektorer: idx.names.length, ms: Math.round(performance.now() - t0) };
+    else embedFel = KE.fel || 'okänt fel';
+  }
   /* Antalspriorn (K6): appens byggKamPool fyller kartan ur leken; här byggs
      poolen direkt, så kartan sätts här. */
   try { w.eval('sattKamLekAntal')(kort); } catch (e) {}
@@ -361,10 +393,13 @@ async function byggPool() {
   }
   $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
     + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`
-    + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.');
-  $('#metod').textContent = metod() === 'lokal+ocr'
-    ? 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken, och kortnamnet läst ur titelraden (tesseract.js). Ingen AI-modell.'
-    : 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, Matcher + ORB mot leken. Ingen namnläsare, ingen AI-modell.';
+    + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.')
+    + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s.`
+       : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
+    + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ett säkert namn på de korten är ett fel namn.` : '');
+  $('#metod').textContent = 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, '
+    + (embedInfo ? 'bildmodellen (MobileCLIP-S0, ' + embedInfo.backend + ') rangordnar lekens namn och ORB kontrollerar de tre bästa; Matcher + ORB som andra åsikt' : 'Matcher + ORB mot leken')
+    + (namnFel ? '. Ingen namnläsare' : ', och kortnamnet läst ur titelraden (tesseract.js)') + '. Ingen fråga till Claude utan ?ai=1.';
   poolKlar = true;
 }
 
@@ -562,6 +597,7 @@ function aterkoppling(f, prov) {
       return folj(p);
     },
     fragaAI: (c, id) => w.kamFragaAI(c, id),
+    lekTak: n => w.kamLekTak(n),   // antalspriorn på gissningarna (MES-225), som i appen
     lart: (id, namn, sid, kalla) => w.kamLart(id, namn, sid, kalla),
     aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas
     /* Helbilden (MES-28 Del 4) bara med --ai: utan återkoppling planerar
@@ -885,6 +921,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */
+    modell: embedInfo ? embedInfo.backend : null,
+    varforRatt: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).reduce((m, p) => { const k = p.t.varfor || '–'; m[k] = (m[k] || 0) + 1; return m; }, {}),
     ljus: LJUS || null,   // ljusvarianten (MES-216), null = fotot som det är
     /* Säkra rätta namn som servern (Claude) avgjorde. */
     namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && (p.t.varfor === 'ai' || p.t.varfor === 'helbild')).length,
