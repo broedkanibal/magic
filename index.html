@@ -5502,6 +5502,67 @@ const Moln = (() => {
     return ut;
   }
 
+  /* Home-spellistan (MES-236, etapp 1 av MES-210/MES-224). Egen funktion:
+     minaSpel() ovan är orörd, uppstartens Last used läser den.
+     Skillnaden: avslutade spel är med, sidvis, och varje spel bär spelarna med
+     status och sedd samt senaste boards.andrad per spelare (senast = spelets
+     senaste händelse). Sidorna går bakåt i gick_med: fore = förra sidans
+     nasta, null = första sidan. Mina rader i game_players är en per spel
+     (nyckeln är game_id, user_id), så en sida med antal rader är antal spel.
+     status, sedd och startad finns inte överallt (status.sql, hem.sql):
+     saknas en kolumn hämtas raderna utan den och värdet blir null. */
+  async function hemSpel({ fore = null, antal = 20 } = {}) {
+    const s = await klient(); if (!s || !inloggad()) return { spel: [], nasta: null };
+    const saknas = (e, k) => e && (e.code === '42703' || e.code === 'PGRST204' || /column|schema cache/i.test(e.message || ''))
+      && (!k || (e.message || '').includes(k));
+    /* Provar med alla valfria kolumner; faller en på att den saknas tas just
+       den bort (eller alla, om felet inte säger vilken) och frågan görs om. */
+    async function medReserv(fraga, valfria) {
+      let kvar = valfria.slice();
+      for (;;) {
+        const svar = await medFarskToken(s, () => fraga(kvar));
+        if (!svar.error || !kvar.length || !saknas(svar.error)) return svar;
+        const bort = kvar.filter(k => saknas(svar.error, k));
+        kvar = bort.length ? kvar.filter(k => !bort.includes(k)) : [];
+      }
+    }
+    const { data, error } = await medReserv(v => {
+      let q = s.from('game_players')
+        .select('game_id, gick_med, games(id, kod, namn, skapad, avslutad, vard' + v.map(k => ', ' + k).join('') + ')')
+        .eq('user_id', minId())
+        .order('gick_med', { ascending: false }).limit(antal + 1);
+      return fore ? q.lt('gick_med', fore) : q;
+    }, ['startad']);
+    if (error) throw error;
+    const rader = (data || []).filter(r => r.games);
+    const nasta = rader.length > antal ? rader[antal - 1].gick_med : null;
+    const spel = rader.slice(0, antal).map(r => Object.assign({ startad: null }, r.games,
+      { gickMed: r.gick_med, jagVard: r.games.vard === minId(), senast: null, spelare: [] }));
+    if (!spel.length) return { spel, nasta };
+    const ids = spel.map(g => g.id);
+    const [sp, bd] = await Promise.all([
+      medReserv(v => s.from('game_players')
+        .select('game_id, user_id, namn, farg, plats' + v.map(k => ', ' + k).join(''))
+        .in('game_id', ids).order('plats'), ['status', 'sedd']),
+      medFarskToken(s, () => s.from('boards').select('game_id, user_id, andrad').in('game_id', ids))
+    ]);
+    if (sp.error) throw sp.error;
+    const andrad = new Map((bd.data || []).map(b => [b.game_id + ' ' + b.user_id, b.andrad]));
+    for (const g of spel) {
+      g.spelare = (sp.data || []).filter(p => p.game_id === g.id).map(p => ({
+        user_id: p.user_id, namn: p.namn, farg: p.farg, plats: p.plats,
+        status: p.status || null, sedd: p.sedd || null,
+        andrad: andrad.get(g.id + ' ' + p.user_id) || null
+      }));
+      for (const p of g.spelare) if (p.andrad && (!g.senast || p.andrad > g.senast)) g.senast = p.andrad;
+    }
+    return { spel, nasta };
+  }
+  /* In the game eller Away: sedd skrivs var 30:e s (hjartslag nedan), med
+     serverns klocka. Tre missade slag = borta. */
+  const HJARTSLAG_MS = 30000;
+  const iSpelet = (sedd, nu = Date.now()) => !!sedd && nu - Date.parse(sedd) < 3 * HJARTSLAG_MS;
+
   /* Hämtar spelet i sin helhet: deltagare och deras bord. Returneras i
      den form appen redan har i minnet, så att renderingen inte behöver
      veta att korten kom någon annanstans ifrån. */
@@ -5740,6 +5801,78 @@ const Moln = (() => {
     return true;
   }
 
+  /* Hjärtslaget (MES-236): game_players.sedd var 30:e sekund så länge ett spel
+     är öppet — spelvyn och telefonen går båda genom lyssna(), och lamnaKanal()
+     stoppar det. Klockan sitter i en Worker: en bakgrundsflik stryper sidans
+     egna timers (i Chrome till en gång i minuten efter fem minuter), en
+     Workers gör den inte. Går den inte att skapa blir det setInterval. Tiden
+     sätts av servern (triggern i hem.sql), klienten skickar bara att den lever.
+     Saknas kolumnen (hem.sql inte körd) tystnar hjärtslaget för sessionen. */
+  let slag = null, slagSpel = null, seddSaknas = false, slagVarnat = false;
+  function slagKlocka(fn) {
+    try {
+      const url = URL.createObjectURL(new Blob(
+        ['setInterval(() => postMessage(0), ' + HJARTSLAG_MS + ')'], { type: 'text/javascript' }));
+      const w = new Worker(url); URL.revokeObjectURL(url);
+      w.onmessage = fn;
+      return () => w.terminate();
+    } catch (e) {
+      const t = setInterval(fn, HJARTSLAG_MS);
+      return () => clearInterval(t);
+    }
+  }
+  async function slaHjarta() {
+    const gameId = slagSpel;
+    if (!gameId || seddSaknas || !inloggad()) return;
+    const s = await klient(); if (!s) return;
+    const { error } = await medFarskToken(s, () => s.from('game_players')
+      .update({ sedd: new Date().toISOString() }).eq('game_id', gameId).eq('user_id', minId()));
+    if (!error) return;
+    if (error.code === '42703' || error.code === 'PGRST204' || /sedd/.test(error.message || '')) { seddSaknas = true; stoppaHjartslag(); return; }
+    if (!slagVarnat) { slagVarnat = true; console.warn('Hjärtslaget kunde inte skrivas', error.message); }
+  }
+  const slagSynlig = () => { if (!document.hidden) slaHjarta(); };
+  function startaHjartslag(gameId) {
+    stoppaHjartslag();
+    if (seddSaknas) return;
+    slagSpel = gameId;
+    slag = slagKlocka(slaHjarta);
+    document.addEventListener('visibilitychange', slagSynlig);
+    addEventListener('online', slaHjarta);
+    slaHjarta();
+  }
+  function stoppaHjartslag() {
+    slagSpel = null;
+    if (slag) { slag(); slag = null; }
+    document.removeEventListener('visibilitychange', slagSynlig);
+    removeEventListener('online', slaHjarta);
+  }
+  /* Ett hjärtslag är en UPDATE på game_players som alla i spelet får genom
+     realtime, och varje sådan händelse hämtar i dag om hela spelet. Det ska
+     det inte göra för ett hjärtslag: raden jämförs med den förra från samma
+     spelare utan sedd, och är inget annat ändrat släpps händelsen. Det gamla
+     värdet i händelsen går inte att använda — med radsäkerhet påslagen bär
+     det bara primärnyckeln. Rader som inte setts förut släpps alltid fram. */
+  const gpSist = new Map();
+  const gpNyckel = n => JSON.stringify(Object.keys(n).filter(k => k !== 'sedd').sort().map(k => [k, n[k]]));
+  async function froGp(gameId) {
+    const s = await klient(); if (!s) return;
+    const { data } = await s.from('game_players').select('*').eq('game_id', gameId);
+    if (slagSpel !== gameId) return;
+    for (const r of (data || [])) if (!gpSist.has(r.user_id)) gpSist.set(r.user_id, gpNyckel(r));
+  }
+  function baraSedd(p) {
+    const n = p && p.new;
+    if (!p || p.eventType !== 'UPDATE' || !n || !n.user_id) {
+      if (p && p.eventType === 'DELETE' && p.old) gpSist.delete(p.old.user_id);
+      return false;
+    }
+    const nyckel = gpNyckel(n);
+    const forut = gpSist.get(n.user_id);
+    gpSist.set(n.user_id, nyckel);
+    return forut === nyckel;
+  }
+
   /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
      anropas, så en andra prenumeration för avläsningarna kan inte vara en
      egen kanal — den hade tystat borden. Allt hänger på samma. */
@@ -5755,7 +5888,7 @@ const Moln = (() => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
           p => lyssnare.bord && lyssnare.bord(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'game_players', filter: 'game_id=eq.' + gameId },
-          () => lyssnare.spelare && lyssnare.spelare())
+          p => { if (!baraSedd(p) && lyssnare.spelare) lyssnare.spelare(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'scans', filter: 'game_id=eq.' + gameId },
           p => lyssnare.scan && lyssnare.scan(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_setups', filter: 'game_id=eq.' + gameId },
@@ -5784,6 +5917,8 @@ const Moln = (() => {
         if (lyssnare.roll) { try { await kanal.track({ roll: lyssnare.roll, id: minId() }); } catch (e) {} }
         if (lyssnare.uppkopplad) lyssnare.uppkopplad();
       });
+    startaHjartslag(gameId);
+    froGp(gameId).catch(() => {});
   }
 
   /* ─── kameran ──────────────────────────────────────────────────────
@@ -5944,6 +6079,7 @@ const Moln = (() => {
     ovantat = null; clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
     if (lyssnare.sparat) lyssnare.sparat(true);
     lyssnare.sparat = null;
+    stoppaHjartslag(); gpSist.clear();
     if (!kanal) return;
     try { await kanal.unsubscribe(); } catch (e) {}
     kanal = null;
@@ -6016,7 +6152,7 @@ const Moln = (() => {
   }
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
-           skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
+           skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek, hamtaLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
