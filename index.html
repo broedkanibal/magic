@@ -5949,14 +5949,48 @@ const Moln = (() => {
     kanal = null;
   }
 
+  /* Tabeller som inte finns (migrationen ej körd) svarar med de här koderna.
+     Då frågas det inte igen under sidans liv, och appen går på det lokala. */
+  const saknasFel = e => !!e && (['PGRST202', 'PGRST205', '42P01', '42883'].includes(e.code) || /does not exist|Could not find the (table|function)/i.test(e.message || ''));
+  const saknas = {};
+
+  /* Förräknade bildvektorer (MES-230, card_embeddings): kamerans bildmodell
+     hämtar dem i stället för att räkna själv (dev/embed/embed.js, byggLek).
+     Svar: Map scryfall-id → Uint8Array (8 × 512 fp16). Tom om man inte är
+     inloggad, om tabellen saknas eller om nätet inte svarar — det som inte
+     kom räknar telefonen själv, som förut. 200 id:n per fråga, tre åt gången. */
+  async function hamtaVektorer(modell, ids) {
+    const ut = new Map();
+    const s = await klient();
+    if (!s || !inloggad() || saknas.vektorer || !ids || !ids.length) return ut;
+    const bitar = []; for (let i = 0; i < ids.length; i += 200) bitar.push(ids.slice(i, i + 200));
+    let nasta = 0;
+    const arbetare = async () => {
+      for (let b; (b = bitar[nasta++]) && !saknas.vektorer;) {
+        const { data, error } = await s.rpc('embed_vektorer', { p_modell: modell, p_ids: b });
+        if (error) { if (saknasFel(error)) saknas.vektorer = true; else console.warn('Förräknade vektorer kunde inte hämtas', error.message); return; }
+        for (const r of (data || [])) {
+          const bin = atob(r.vek), u = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+          ut.set(r.scryfall_id, u);
+        }
+      }
+    };
+    await Promise.all([arbetare(), arbetare(), arbetare()]);
+    return ut;
+  }
+
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek, hamtaLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
-           scanKlar, radeaScan, vantandeScans };
+           scanKlar, radeaScan, vantandeScans, hamtaVektorer };
 })();
+/* Bildmodellen (dev/embed/embed.js) frågar lagringen efter förräknade
+   vektorer innan den räknar själv (MES-230). */
+window.EmbedForrakade = (modell, ids) => Moln.hamtaVektorer(modell, ids);
 
 /* ─────────── state ─────────── */
 const prefs = Object.assign({ fit: true }, LS.get(K.prefs, {}));

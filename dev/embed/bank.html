@@ -111,8 +111,16 @@ async function embedRedo(o) {
   if (!idx) {
     let kort = await lasLek(o.lek); if (o.max) kort = kort.slice(0, o.max);   // o.max: bara de första korten (snabbt prov av WASM-vägen)
     const t = performance.now();
-    idx = await Embed.byggLek(kod, kort.map(c => ({ id: c.id, name: c.name, normal: c.normalFil })), { onProg: p => { if (p.done % 20 === 0) log(`  bäddar in leken: ${p.done}/${p.total}`); } });
-    log(`leken inbäddad: <b>${idx.names.length}</b> vektorer för ${kort.length} bilder, ${Math.round((performance.now() - t) / 1000)} s (${Math.round((performance.now() - t) / idx.names.length)} ms per vektor)`);
+    /* o.forrakade: en fil ur forrakna.cjs --torr (samma form som lagringen svarar
+       med) i tabellens ställe; utan den räknas allt här, som i appen utan tabell. */
+    const forrakade = o.forrakade ? async (modell, ids) => {
+      const j = await (await fetch(o.forrakade)).json();
+      if (j.modell !== modell) throw new Error(`filen är ${j.modell}, modulen vill ha ${modell}`);
+      return new Map(ids.filter(id => j.vek[id]).map(id => [id, Uint8Array.from(atob(j.vek[id]), ch => ch.charCodeAt(0))]));
+    } : null;
+    idx = await Embed.byggLek(kod, kort.map(c => ({ id: c.id, name: c.name, normal: c.normalFil })), { forrakade, onProg: p => { if (p.done % 20 === 0) log(`  bäddar in leken: ${p.done}/${p.total}`); } });
+    log(`leken inbäddad: <b>${idx.names.length}</b> vektorer för ${kort.length} bilder (${idx.hamtade} förräknade, ${idx.nya} räknade här), ${Math.round((performance.now() - t) / 1000)} s`);
+    window.BYGGT = { hamtade: idx.hamtade, nya: idx.nya, fel: idx.fel, ms: Math.round(performance.now() - t) };
   } else log(`leken ur IndexedDB: <b>${idx.names.length}</b> vektorer`);
   return idx;
 }
@@ -130,7 +138,7 @@ window.EMBED = async function (setNamn, o) {
   const s = visa(`Embed-modulen (${Embed.backend}) — ${setNamn}${o.var ? ', var ' + o.var + ':e' : ''} · säker = marginal > ${Embed.TROSKEL}`, rader);
   const ms = rader.map(r => r.ms).sort((a, b) => a - b); log(`ms per kort: median <b>${ms[ms.length >> 1].toFixed(1)}</b>, p90 ${ms[Math.floor(ms.length * 0.9)].toFixed(1)}`);
   window.SENASTE = { s, rader };
-  await spara(`webb-embed-${setNamn}-${Embed.backend}`, { s, rader, medianMs: ms[ms.length >> 1] });
+  await spara(`webb-embed-${setNamn}-${Embed.backend}${o.tagg ? "-" + o.tagg : ""}`, { s, rader, medianMs: ms[ms.length >> 1], bygge: window.BYGGT });
   return { s, medianMs: +ms[ms.length >> 1].toFixed(1), p90Ms: +ms[Math.floor(ms.length * 0.9)].toFixed(1) };
 };
 
@@ -166,6 +174,18 @@ window.FUSION = async function (setNamn, o) {
   window.SENASTE = { s, rader };
   await spara(`webb-fusion-${setNamn}`, { s, rader });
   return s;
+};
+/* Webbläsarens egna vektorer för leken (MES-230): facit som forrakna-prov.cjs
+   jämför Node-receptet mot. Sparas i cache/resultat/webb-vektorer.json. */
+window.VEKTORER = async function (o) {
+  const idx = await embedRedo(Object.assign({ forrakade: null }, o)), per = Embed.ROTAR.length * Embed.VARIANTER.length, ut = {};
+  for (let i = 0; i < idx.ids.length; i += per) {
+    const f = idx.ra.slice(i * Embed.DIM, (i + per) * Embed.DIM), b = new Uint8Array(f.buffer); let s = '';
+    for (let k = 0; k < b.length; k += 8192) s += String.fromCharCode.apply(null, b.subarray(k, k + 8192));
+    ut[idx.ids[i]] = btoa(s);
+  }
+  await spara('webb-vektorer', { backend: Embed.backend, modell: Embed.MODELL, vek: ut });
+  return { backend: Embed.backend, bilder: Object.keys(ut).length };
 };
 /* Modulens övriga anrop: läs tillbaka ur IndexedDB, lär en referens (K7), ta bort den, glöm leken. */
 window.SJALVTEST = async function (o) {

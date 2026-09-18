@@ -16,50 +16,10 @@ const path = require('path');
 const ROT = path.join(__dirname, '..', '..');
 const CACHE = path.join(__dirname, 'cache');
 const REF = path.join(CACHE, 'ref');
-const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
-const HUVUD = { 'User-Agent': 'MesaEmbedBank/0.1 (dev bench)', Accept: 'application/json' };
-
+const urval = require('./urval.cjs');
+const { BASICS, sok, lasLekfil: lasLek, vanta } = urval;
+const HUVUD = { 'User-Agent': 'MesaEmbedBank/0.1 (dev bench)' };
 const arg = (namn, forval) => { const i = process.argv.indexOf('--' + namn); return i < 0 ? forval : (process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : true); };
-const vanta = ms => new Promise(r => setTimeout(r, ms));
-
-async function sf(url) {
-  for (let forsok = 0; forsok < 5; forsok++) {
-    const svar = await fetch(url, { headers: HUVUD });
-    if (svar.status === 429) { await vanta(2000 * (forsok + 1)); continue; }
-    if (svar.status === 404) return { data: [] };
-    if (!svar.ok) throw new Error(`Scryfall ${svar.status} för ${url}`);
-    await vanta(120);
-    return svar.json();
-  }
-  throw new Error('Scryfall svarar 429 — vänta en stund och kör om');
-}
-
-async function sok(q, extra, tak) {
-  let url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(q)}&${extra}`;
-  const ut = [];
-  while (url) {
-    const d = await sf(url);
-    for (const c of (d.data || [])) {
-      const iu = c.image_uris || (c.card_faces && c.card_faces[0] && c.card_faces[0].image_uris);
-      if (!iu || !iu.small) continue;
-      ut.push({ id: c.id, name: c.name, set: c.set, released: c.released_at, frame: c.frame, full_art: !!c.full_art, border: c.border_color,
-                illustration: c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || null,
-                small: iu.small, normal: iu.normal });
-    }
-    url = d.has_more && !(tak && ut.length >= tak) ? d.next_page : null;   // tak: sluta bläddra när det räcker
-  }
-  return ut;
-}
-
-function lasLek(fil) {
-  const namn = [];
-  for (const rad of fs.readFileSync(fil, 'utf8').split('\n')) {
-    const r = rad.trim(); if (!r || r.startsWith('#')) continue;
-    const m = r.match(/^(\d+)\s+(.*)$/);
-    namn.push(m ? m[2] : r);
-  }
-  return [...new Set(namn)];
-}
 
 async function hamtaBild(url, fil) {
   if (fs.existsSync(fil) && fs.statSync(fil).size > 1000) return false;
@@ -70,21 +30,7 @@ async function hamtaBild(url, fil) {
   return true;
 }
 
-async function konstverk(namnen, tak, fraga) {
-  const kort = [], seen = new Set();
-  for (let i = 0; i < namnen.length; i += 20) {
-    const q = `(${namnen.slice(i, i + 20).map(n => '!"' + n.replace(/"/g, '') + '"').join(' or ')}) ${fraga}`;
-    const per = new Map();
-    for (const c of await sok(q, 'unique=art&order=released&dir=desc')) {
-      if (c.name.includes(' // ') || seen.has(c.id)) continue;
-      const k = per.get(c.name) || 0; if (k >= tak) continue;
-      per.set(c.name, k + 1); seen.add(c.id); kort.push(c);
-    }
-    process.stdout.write(`  ${Math.min(i + 20, namnen.length)}/${namnen.length} namn, ${kort.length} konstverk\r`);
-  }
-  process.stdout.write('\n');
-  return kort;
-}
+const konstverk = (namnen, tak, fraga) => urval.konstverk(namnen, tak, fraga, new Set(), true);
 
 (async () => {
   fs.mkdirSync(REF, { recursive: true });

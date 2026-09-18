@@ -186,7 +186,122 @@ function vidTroskel(rader, matt, tr) {
   return { sakraRatt: sr, sakraFel: sf, andel: rader.length ? sr / rader.length : 0 };
 }
 
+/* ── Receptet i embed.js, i Node (MES-230) ─────────────────────────────
+   Samma 8 vektorer per bild som Embed.byggLek räknar i webbläsaren: fyra
+   vridningar (0/90/180/270) × två varianter (skanningen som den är, och en
+   suddig: 150 px bred + tre varv lådfilter 3×1 och 1×3). Ordningen är
+   modulens: skarp 0, 90, 180, 270, sudd 0, 90, 180, 270. Webbläsaren ritar
+   med canvas; här gör sharp omskalningen. Hur nära det kommer är uppmätt i
+   forrakna-prov.cjs (dev/embed/INLARNING.md). */
+const RECEPT = { sida: 256, rotar: [0, 90, 180, 270], varianter: ['skarp', 'sudd'], suddBredd: 150, karna: 'webb' };
+
+/* Vrid en kvadratisk RGB-bild 90° medurs n gånger — exakt, utan omsampling. */
+function vridRa(raw, sida, rot) {
+  let a = raw;
+  for (let v = 0; v < ((rot / 90) % 4 + 4) % 4; v++) {
+    const b = Buffer.alloc(a.length);
+    for (let y = 0; y < sida; y++) for (let x = 0; x < sida; x++) {
+      const fran = (y * sida + x) * 3, till = (x * sida + (sida - 1 - y)) * 3;   // (x, y) → (sida-1-y, x)
+      b[till] = a[fran]; b[till + 1] = a[fran + 1]; b[till + 2] = a[fran + 2];
+    }
+    a = b;
+  }
+  return a;
+}
+/* Omskalning som webbläsarens canvas gör den (karna 'webb'): varje ny pixel
+   samplas bilinjärt i källan, utan förfiltrering — uppmätt i huvudlös Chrome
+   (drawImage med imageSmoothingQuality 'high'): 1,2 i medelavvikelse per
+   kanal mot 9–11 för sharps kärnor. Nedskalning blir då kornig (vikning). */
+function bilinjarRa(src, W, H, w, h) {
+  const ut = Buffer.alloc(w * h * 3), sx = W / w, sy = H / h;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const u = Math.max(0, Math.min(W - 1, (x + 0.5) * sx - 0.5)), v = Math.max(0, Math.min(H - 1, (y + 0.5) * sy - 0.5));
+    const x0 = Math.floor(u), y0 = Math.floor(v), x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1), a = u - x0, b = v - y0;
+    for (let c = 0; c < 3; c++) {
+      const p = (xx, yy) => src[(yy * W + xx) * 3 + c];
+      ut[(y * w + x) * 3 + c] = Math.round((p(x0, y0) * (1 - a) + p(x1, y0) * a) * (1 - b) + (p(x0, y1) * (1 - a) + p(x1, y1) * a) * b);
+    }
+  }
+  return ut;
+}
+/* En mipmapnivå: 2×2-medel. */
+function halveraRa(src, W, H) {
+  const w = Math.floor(W / 2), h = Math.floor(H / 2), ut = Buffer.alloc(w * h * 3);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let c = 0; c < 3; c++) {
+    const i = (yy, xx) => src[(yy * W + xx) * 3 + c];
+    ut[(y * w + x) * 3 + c] = Math.round((i(2 * y, 2 * x) + i(2 * y, 2 * x + 1) + i(2 * y + 1, 2 * x) + i(2 * y + 1, 2 * x + 1)) / 4);
+  }
+  return { data: ut, W: w, H: h };
+}
+/* Bild → rå RGB w×h med kärnan (sharps namn, eller 'webb'). 'webb': krymper
+   bilden mer än 2 gånger åt båda hållen tar Chrome en halverad mipmapnivå
+   först (uppmätt 488×680 → 150×209: 1,4 i avvikelse med, 11,8 utan; → 256×256,
+   där ena ledden krymper mindre än 2 gånger: ingen). */
+async function skalaRa(bild, w, h, karna, raw) {
+  const s = raw ? sharp(bild, { raw }) : sharp(bild).removeAlpha();
+  if (karna !== 'webb') return s.resize(w, h, { fit: 'fill', kernel: karna }).raw().toBuffer();
+  const { data, info } = await s.raw().toBuffer({ resolveWithObject: true });
+  let m = { data, W: info.width, H: info.height };
+  while (Math.min(m.W / w, m.H / h) >= 2) m = halveraRa(m.data, m.W, m.H);
+  return bilinjarRa(m.data, m.W, m.H, w, h);
+}
+/* Den suddiga varianten, pixel för pixel som suddig() i embed.js. */
+async function suddRa(bild, karna) {
+  const meta = await sharp(bild).metadata(), w = RECEPT.suddBredd, h = Math.round(w * meta.height / meta.width);
+  const a = Buffer.from(await skalaRa(bild, w, h, karna)), b = Buffer.alloc(a.length);
+  const varv = (fran, till, dx, dy) => {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let c = 0; c < 3; c++) {
+      let s = 0;
+      for (let k = -1; k <= 1; k++) { const xx = Math.min(w - 1, Math.max(0, x + k * dx)), yy = Math.min(h - 1, Math.max(0, y + k * dy)); s += fran[(yy * w + xx) * 3 + c]; }
+      till[(y * w + x) * 3 + c] = Math.min(255, Math.max(0, Math.round(s / 3)));   // Uint8ClampedArray avrundar
+    }
+  };
+  for (let i = 0; i < 3; i++) { varv(a, b, 1, 0); varv(b, a, 0, 1); }
+  return { raw: a, w, h };
+}
+/* Bildfil/Buffer → Float32Array(8 × DIM), normerade, i modulens ordning.
+   o.karna: sharps omskalning ned till 256 (skarp) och till 150 px (sudd);
+   o.upp: omskalningen från 150 px upp till 256. */
+async function receptVektorer(modell, bild, o) {
+  o = o || {};
+  const S = RECEPT.sida, ner = o.karna || RECEPT.karna, upp = o.upp || (ner === 'webb' ? 'webb' : 'cubic');
+  const skarp = await skalaRa(bild, S, S, ner);
+  const s = await suddRa(bild, ner);
+  const sudd = await skalaRa(s.raw, S, S, upp, { width: s.w, height: s.h, channels: 3 });
+  const raer = [];
+  for (const v of RECEPT.varianter) for (const r of RECEPT.rotar) raer.push(vridRa(v === 'sudd' ? sudd : skarp, S, r));
+  const vek = await korBatch(modell, raer), D = vek[0].length, ut = new Float32Array(vek.length * D);
+  vek.forEach((v, i) => ut.set(v, i * D));
+  return ut;
+}
+
+/* fp16 (IEEE 754 half) — lagringens format: 8 × 512 tal = 8 KB per bild. */
+function tillF16(f32) {
+  const ut = new Uint16Array(f32.length), fv = new Float32Array(1), iv = new Uint32Array(fv.buffer);
+  for (let i = 0; i < f32.length; i++) {
+    fv[0] = f32[i]; const x = iv[0], tecken = (x >>> 16) & 0x8000, e = (x >>> 23) & 0xff, m = x & 0x7fffff;
+    let h;
+    if (e === 0xff) h = tecken | 0x7c00 | (m ? 0x200 : 0);
+    else {
+      const ne = e - 127 + 15;
+      if (ne >= 0x1f) h = tecken | 0x7c00;
+      else if (ne <= 0) { if (ne < -10) h = tecken; else { const mm = m | 0x800000, sk = 14 - ne; h = tecken | (mm >>> sk); if ((mm >>> (sk - 1)) & 1 && ((mm & ((1 << (sk - 1)) - 1)) || (h & 1))) h++; } }
+      else { h = tecken | (ne << 10) | (m >>> 13); if ((m & 0x1000) && ((m & 0x2fff) || (h & 1))) h++; }   // avrunda till jämnt
+    }
+    ut[i] = h;
+  }
+  return ut;
+}
+function franF16(u16) {
+  const ut = new Float32Array(u16.length);
+  for (let i = 0; i < u16.length; i++) {
+    const h = u16[i], s = h & 0x8000 ? -1 : 1, e = (h >>> 10) & 0x1f, m = h & 0x3ff;
+    ut[i] = e === 0 ? s * m * 2 ** -24 : e === 31 ? (m ? NaN : s * Infinity) : s * (1 + m / 1024) * 2 ** (e - 15);
+  }
+  return ut;
+}
+
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const hash = s => crypto.createHash('sha1').update(s).digest('hex').slice(0, 10);
 
-module.exports = { medelAv, centrera, MODELLER, VYER, MARGINAL, CACHE, HAR, laddaModell, vyRa, korBatch, baddaIn, lasLek, byggReferenser, rangordna, punkt, nollfelsTroskel, vidTroskel, mulberry32, hash };
+module.exports = { RECEPT, receptVektorer, vridRa, tillF16, franF16, medelAv, centrera, MODELLER, VYER, MARGINAL, CACHE, HAR, laddaModell, vyRa, korBatch, baddaIn, lasLek, byggReferenser, rangordna, punkt, nollfelsTroskel, vidTroskel, mulberry32, hash };
