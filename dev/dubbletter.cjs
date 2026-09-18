@@ -50,8 +50,10 @@ const RAPP_I = process.argv.indexOf('--rapporter');
 const RAPPORTER = RAPP_I >= 0 ? { fil: process.argv[RAPP_I + 1], nyckel: process.argv[RAPP_I + 2] } : null;
 const LOGG = arg('--logg', '');            // en bordslogg sparad ur appen: knappen "Spara bordsloggen" i sammanfattningen när auto stängs av
 const JSONFIL = arg('--json', '');
-const SVANS_S = +arg('--svans', 3.5);      // så länge klockan går efter sista rapporten (hjärtslag och nådtimer får fyra)
+const SVANS_S = +arg('--svans', 3.5);
 const HTML = arg('--html', path.join(ROT, 'index.html'));
+/* --nad <ms>: datorns nådatid (BORTA_NAD i index.html, 3000) i uppspelningen — för att mäta vad en kortare nåd kostar i nedtoningar som tas tillbaka (MES-214). */
+const NAD_MS = +arg('--nad', (fs.readFileSync(HTML, 'utf8').match(/const BORTA_NAD = (\d+);/) || [0, 3000])[1]);   // förval: appens eget värde      // så länge klockan går efter sista rapporten (hjärtslag och nådtimer får fyra)
 const HJARTSLAG_MS = 3000;                 // index.html: setInterval(… senastBord …, 3000)
 const TOLERANS_S = 0.5;                    // facits tider är avlästa ur bildrutorna, ±0,5 s (facit.json)
 const VIRT0 = 1e6;                         // klockan startar långt från noll: noll betyder "aldrig" på flera ställen
@@ -91,7 +93,7 @@ const cropCache = new Map();
 const prefs = { lyftForklarad: true }; const savePrefs = () => {};
 const save = () => {}, renderAll = () => {}, resolveAll = () => {}, renderMode = () => {}, renderGrid = () => {}, uppdateraPbStatus = () => {}, kamSkruvTal = () => {};
 let kamFas = '', kamYta = null, kamRad = '', kamTot = 0, kamLast = 0, kamSer = 0;
-const BORTA_NAD = 3000; let lyftT = null, lyftTips = null;
+const BORTA_NAD = ${NAD_MS}, SAMTIDIGT_MS = 3000; let lyftT = null, lyftTips = null;
 let hoppade = new Set(), borttagna = new Set();
 function slappLyft(k) { delete k.lyft; if (lyftTips === k.cid) lyftTips = null; }
 function glomSpar() {}
@@ -206,7 +208,7 @@ function spelaUpp(kalla, grund) {
   const facit = kalla.facit;
   const namnen = new Set(facitNamn(facit));
   const alla = medHjartslag(kalla.handelser);
-  const tidslinje = [], skapade = [], tapMotSpar = [], steg = [];
+  const tidslinje = [], skapade = [], tapMotSpar = [], steg = [], nedton = [], lyftFore = new Map();
   let senastBord = null, senastFas = undefined, senastRapport = null;
   let forraSig = null;
   const sparI = (spar, id) => (spar || []).find(t => t.id === id);
@@ -247,6 +249,15 @@ function spelaUpp(kalla, grund) {
     else app.avstamBord(spar, nollstall, fas, undefined, undefined, grav);   // grav: högvakten (MES-85), undefined i äldre loggar
     const nya = app.kort.filter(c => !fore.has(c.cid));
     const rad = mat(slag, t, nollstall ? null : spar, fas);
+    /* Nedtoningar (MES-214): varje gång ett kort tonas ned (lyft sätts), kommer tillbaka (lyft släpps för att ett spår band det igen) eller går till graveyard av sig självt. */
+    for (const c of app.kort) {
+      const var0 = lyftFore.get(c.cid) || { lyft: false, grav: false };
+      const nu0 = { lyft: c.lyft != null, grav: !!(c.gravAuto || c.spellAuto) };
+      if (nu0.lyft && !var0.lyft) nedton.push({ s: rad.s, namn: c.name, cid: c.cid, vad: 'ned' });
+      if (!nu0.lyft && var0.lyft) nedton.push({ s: rad.s, namn: c.name, cid: c.cid, vad: nu0.grav ? 'grav efter nedtoning' : 'åter' });
+      if (nu0.grav && !var0.grav && !var0.lyft) nedton.push({ s: rad.s, namn: c.name, cid: c.cid, vad: 'grav' });
+      lyftFore.set(c.cid, nu0);
+    }
     for (const c of nya) {
       const t2 = sparI(spar, c.spar) || {};
       const p = foreBord.get(c.name) || { bundna: [], nedtonade: [], nad: [] };
@@ -293,7 +304,8 @@ function spelaUpp(kalla, grund) {
     grundFragor: app.grundFragor.length, granskning: app.pending.length,
     /* Högvakten (MES-85): kort som gick till graveyard för att högen i bild ändrades, med videons sekund, och kort som står nedtonade (frågan) i slutet. */
     gravAuto: app.kort.filter(c => c.gravAuto).map(c => ({ namn: c.name, s: +((c.gravAuto - VIRT0) / 1000).toFixed(2) })),
-    nedtonade: app.kort.filter(c => c.lyft != null).map(c => c.name)
+    nedtonade: app.kort.filter(c => c.lyft != null).map(c => c.name),
+    nedton
   };
   return { grund, tidslinje, skapade, tapMotSpar, totalt, perNamn, slut };
 }
@@ -401,6 +413,12 @@ function skrivTotalt(res, facit) {
     + (facit ? `; största samtidiga överskott: ${t.maxOverskott}` : ''));
   console.log(`  tap: kort mot spårets tappad — ${t.tapMotSpar} avvikelser` + (facit ? `; mot facit (alla otappade) — ${t.tapMotFacit.par} kort-steg tappade i ${t.tapMotFacit.steg} av ${t.steg} steg, högst ${t.tapMotFacit.maxSamtidigt} samtidigt, ${t.tapMotFacit.kort} olika kort` : '')
     + `; grundfrågor: ${t.grundFragor}; kvar i granskningen: ${t.granskning}`);
+  /* Nedtoningarna (MES-214): med facits tar_bort bredvid — hur snart efter att kortet plockades bort datorn visade det, och vilka nedtoningar som togs tillbaka (kortet låg kvar, eller flyttades). */
+  { const bort = facit && facit.handelser ? facit.handelser.filter(h => h.tar_bort) : [];
+    const rad = x => { const h = bort.filter(h => h.tar_bort === x.namn && x.s >= h.t - 0.5).sort((p, q) => q.t - p.t)[0]; return `${x.s} s ${x.namn}: ${x.vad}${h && x.vad !== 'åter' ? ` (+${(x.s - h.t).toFixed(2)} s efter facits tar_bort ${h.t} s)` : ''}`; };
+    console.log(`  nedtoningar (nåd ${NAD_MS} ms): ` + (t.nedton.length ? '\n    ' + t.nedton.map(rad).join('\n    ') : 'inga'));
+    const ater = t.nedton.filter(x => x.vad === 'åter').length;
+    console.log(`    → ${t.nedton.filter(x => x.vad === 'ned').length} nedtoningar, ${ater} togs tillbaka (kortet bands igen), ${t.nedton.filter(x => x.vad === 'grav efter nedtoning').length} gick till graveyard efter att först ha tonats ned, ${t.nedton.filter(x => x.vad === 'grav').length} direkt till graveyard`); }
   console.log('  högvakten (MES-85): ' + (t.gravAuto.length ? t.gravAuto.map(x => `${x.namn} → graveyard ${x.s} s`).join(', ') : 'ingen auto-graveyard') + `; nedtonade i slutet (frågan): ${t.nedtonade.length ? t.nedtonade.join(', ') : 'inga'}`);
   console.log('  slutbordet: ' + (res.slut.length ? res.slut.map(c => `${c.cid} ${c.namn}${c.tappad ? ' T' : ''}${c.nedtonad ? ' (nedtonat)' : c.nad ? ' (i nåd)' : ''}${c.spar != null ? ' spår ' + c.spar : ''}`).join(' · ') : '(tomt)'));
   if (facit) console.log('  facit slut: ' + facit.kort.map(k => k.namn).join(' · '));

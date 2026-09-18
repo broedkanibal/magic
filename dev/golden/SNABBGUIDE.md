@@ -57,6 +57,8 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --ai` | med Claude (kostar) |
 | `ANTHROPIC_MODEL_KAMERA=claude-sonnet-5 node dev/golden/kor.cjs --ai` | med en annan modell i kameran; raden `metod:` visar modell och systemprompt-version |
 | `node dev/golden/kor.cjs --spara` | gör körningen till ny baslinje (`--ai --spara` för Claude). Med `--fall` byts bara de fallen |
+| `node dev/golden/kor.cjs --ljus alla` | samma fall i sju ljus (mörkare, ljusare, varmare, kallare, låg kontrast, brus, sned gradient) med en sammanställning sist — var kedjan går sönder först (se *Samma fall i sju ljus*) |
+| `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
@@ -201,6 +203,30 @@ i stället för 800 gav **sämre** — 3 → 2 namn, 1 → 3 falska, fördröjni
 väntan kortare för spelaren är platshållaren på bordet (MES-42): den står
 där efter en halv sekund, namnet kommer efter en till två.
 
+**Videofallen går med låtsasklocka** — klockan står still medan ett steg
+räknar och medan en läsning väntar på workern, så fördröjningen ovan är
+videons egen och blind för beräkningstiden. Sedan MES-215 (2026-09-18)
+skriver `--detalj` också *med beräkningstid*: samma fördröjning plus den
+verkliga tid som klockan stod still i fönstret mellan händelsen och att
+den sågs — stegets övertid över takten (en telefon som ligger efter tappar
+rutor) och väntan på läsningarna (namnet kommer inte före workern är klar).
+All tid i fönstret räknas som seriell, också läsningar av andra kort, så
+talet är en **övre gräns för en telefon lika snabb som datorn provet körs
+på**; en telefon är 3–5 gånger långsammare, och den siffran ger bara
+latensmätningen på riktig telefon (`?debug` → *Latency*). Sist på raden
+står hur mycket verklig tid som stod still totalt i fallet. Exempel
+2026-09-18 på Macen: 07 namn 1,0 → 1,21 s, 09 tap 0,3 → 0,3 s, 12 flytt
+1,8 → 1,84 s. Måtten heter `videoFordrojningB`, `videoTappFordrojningB`,
+`videoFlyttFordrojningB`, `videoBortaFordrojningB` i `senaste.json`
+(`videoVerkligMs`, `videoVerkligRutor` är summan och antalet rutor).
+
+Sedan MES-214 (2026-09-18) tas ett **säkert tidigt svar direkt**: ett spår
+som stått formstilla i två rutor läses medan det väntar (K4), och är svaret
+säkert blir kortet klart på en gång — 07 1,8 → 1,0 s, 09 1,85 → 1,25 s,
+10 1,35 → 0,8 s, 11 1,25 → 0,95 s, 12 1,95 → 1,35 s, samma namn och 0 fel.
+Läget är då preliminärt (`vilar: false`) och mäts om när kortet vilat i
+`stillaMs`. Ett osäkert tidigt svar kastas och kortet läses som förut.
+
 ## Förloppsmåtten från K1 (dev/plan/lagen.md §7)
 
 Tre mått till ur ett videofalls **bordslogg** (datorns rapporter), inte ur
@@ -211,7 +237,12 @@ räknas in i domen mot baslinjen.
 |---|---|---|
 | `videoBortaFordrojning` | medianen av tiden från facits `tar_bort` till första rapporten utan ett säkert spår med namnet | ≤ 1,0 s (datorns nåd på 3 s därtill) |
 | `videoTapp` / `videoTappAv` + `videoTappFordrojning` | facit `{ "t": 12.5, "tappar": "Ukud Cobra" }` eller `"otappar"`: sågs ett säkert spår med namnet bära det väntade tap-läget inom 8 s, och hur snart | ≤ 0,35 s |
+| `videoTappFalska` (*falska tap-flippar*) | gånger ett säkert spår bytte tap-läge mellan två rapporter utan en `tappar`/`otappar`-händelse för namnet åt det hållet inom ±3 s i facit. En optimistisk tap-dom som tas tillbaka är två. I domen sedan MES-214 | 0 |
 | `videoDubbletter` | största överskott av fysiska kort per namn mot facit i någon rapport — grupperat med appens `sammaPlats`/`syskon`/`ledarOrdning`, som steg 2 i `avstamBord` | 0 |
+
+Tap-FÖRDRÖJNINGEN ingår inte i domen (bara antalet sedda vridningar) — läs
+den i `--detalj`. 2026-09-18 hade den gått från 0,6 s till 4,65 s utan att
+någon körning sa SÄMRE (MES-179 frös ett snett tappat kort); nu 0,3 s.
 
 Fall 07 har inga tap-händelser i facit (`tap –`); de kommer med
 inspelningarna 09/10 (K2).
@@ -225,7 +256,8 @@ mått i kolumnerna Läge och Plats, i `--detalj` (raden `läge:`) och i domen:
 
 | Mått | Vad | Mål |
 |---|---|---|
-| `lagesUpp` / `lagesPerMin` | rapporter där ett stilla eller klart spår flyttat mer än 15 % av sin bredd sedan förra rapporten (första läget räknas inte); per minut av fallets tid (videons tid i ett videofall) | 0 på ett stilla bord (01–06, 08); i 07 bara verkliga flyttar |
+| `lagesUpp` / `lagesPerMin` | gånger ett **namngivet kort som låg i vila** lämnade sin plats med mer än 15 % av sin bredd (första läget räknas inte); per minut av fallets tid (videons tid i ett videofall). Sedan MES-214 mäts telefonens viloläge (`vx`, `vy` i rapporten), inte lådan i den ruta rapporten råkade gå; stegen medan ett kort följs i en flytt (`vilar: false`) är samma flytt, och omankringen när det landat räknas inte. Bara klara spår: det är de datorn speglar | 0 på ett stilla bord (01–06, 08); i 07 bara verkliga flyttar |
+| *nästan* i `--detalj` | största flytten per spår mellan 0,10 och 0,15 kortbredder — en verklig liten knuff som ligger nära gränsen. Står ett fall och väger mellan två tal är det här man ser varför (07: Valkyrie's Sword 0,13 och Thriving Moor 0,148, båda knuffade av handen) | – |
 | `lageFel` | medianen av avståndet mellan spårets och facitrutans mitt, i kortbredder — bara där facit har rutor (01, 02, 08) | så litet som möjligt; ett spår som täcker halva kortet ger ≈ 0,25 |
 | `lagesSnitt` | lådor som bytte storlek på plats (mer än en fjärdedel av ytan): en klump som skars i sina kort, en del som blev hela kortet igen. Räknas inte som flytt (MES-84: i 03 och 06 var det enda "flyttarna") | – |
 
@@ -241,8 +273,13 @@ tid, beskärningens storlek, domen med domskälet, bildens egen mätning
 bilddom går att spåra till sina tal: i 09 stod "bild 0,77, 8 inliers,
 accept" med Plains överst i helheten men Serpent Assassin som ORB:s val.
 
-Viloläget från K5 (`vilaX/vilaY` med hysteres) är det som ska hålla
-`lagesUpp` på 0: darr på en gräns ger ingen rapport, en verklig glidning en.
+Läget från K5 (`vilaX/vilaY` med hysteres, tre `stillaPx`) är det som ska
+hålla `lagesUpp` på 0: darr på en gräns ger ingen rapport. Sedan MES-214
+följer läget ett namngivet kort också medan det flyttas — så länge regionen
+är hela kortet (ytan inom 15 % av den kortet hade när läget sattes). En
+region som bytt yta är kortet plus en hand, eller kortet med ett annat kort
+över hörnet: då hålls läget. `--detalj` skriver varje räknad flytt med
+varifrån, vart, spårets tillstånd och ytans kvot.
 
 ## Högvakten (K10/K11, MES-85)
 
@@ -262,6 +299,30 @@ händelse och raden `högvakt` för varje dom (hur många celler som ändrades, 
 största skillnaderna i gråsteg, gränsen) — det är där en missad eller falsk
 ändring går att spåra. Uppspelningen i `dubbletter.cjs` kräver att fallet sparats om
 (`--fall 10 --spara`) efter en kodändring.
+
+## Samma fall i sju ljus (MES-216)
+
+Utan nya foton eller videor: `node dev/golden/kor.cjs --ljus alla` kör hela
+setet sju gånger med varje ruta omräknad innan kameran ser den — fotot en
+gång, videon ruta för ruta — och skriver sist en sammanställning per fall
+och ljus, mot den vanliga baslinjen. En variant i taget: `--ljus morkare`.
+Sparas aldrig (`--spara` gäller inte).
+
+| Variant | Vad som görs med bilden |
+|---|---|
+| `morkare` | × 0,55 |
+| `ljusare` | × 1,45, klipper vid 255 (blänk och urblekta kort) |
+| `varmare` | rött × 1,18, blått × 0,82 (glödlampa) |
+| `kallare` | rött × 0,82, blått × 1,18 (dagsljus, lysrör) |
+| `kontrast` | (v − 128) × 0,55 + 128 (dis, matt skärm) |
+| `brus` | gaussiskt brus σ ≈ 12 gråsteg, samma brus för samma ruta varje körning |
+| `gradient` | × 0,5 i ena hörnet till × 1,3 i motsatta, diagonalt (en lampa vid sidan) |
+
+Det är ett **mått**, inte ett prov: slutkoden är 0 vad siffrorna än blir,
+och tabellen säger var kedjan går sönder först. En riktig inspelning i det
+ljuset slår alltid en omräknad — omräkningen rör inte kamerans exponering,
+brus eller skärpa — så en variant som faller är ett skäl att spela in, inte
+ett facit.
 
 ## Kortbaksidor
 
@@ -290,6 +351,7 @@ blir.
 | `node dev/dubbletter.cjs --fall 07` | videofallet 07, mot facit (`video.handelser`) |
 | `node dev/dubbletter.cjs --logg ~/Downloads/pass-2026-09-11-1002.json` | **ett riktigt pass**, utan facit: loggen sparas i appen med knappen *Spara bordsloggen* i sammanfattningen som visas när auto stängs av (allt telefonen sa under passet, från det att auto slogs på) |
 | `node dev/dubbletter.cjs --rapporter dev/avstamning-rapporter.json nyTelefon.horn` | en inspelad rapportlista ur bänken, utan facit |
+| `node dev/dubbletter.cjs --fall 11 --nad 400` | samma uppspelning med en annan nådatid på datorn (förval: appens `BORTA_NAD`). Raden *nedtoningar* skriver varje gång ett kort tonades ned, kom tillbaka eller gick till graveyard, med tiden efter facits `tar_bort` — en nedtoning som "togs tillbaka" utan att kortet spelades ut igen är priset för en för kort nåd (MES-214) |
 | `… --json fil` | allt som mättes, som JSON |
 
 Facit bär inte tap-läge i ett videofall; korten ligger otappade, så varje

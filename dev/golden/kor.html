@@ -160,6 +160,39 @@ const AI_PA = PARAMS.get('ai') === '1';
    för golden-poolen tas bort innan något körs. Utan flaggorna varken läser
    eller lär appen (MESA_REF/MESA_LAR = false på appens fönster). */
 const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GLOM_REF = PARAMS.get('glomref') === '1';
+/* ?ljus=<variant> (kor.cjs --ljus): samma fall i ett annat ljus (MES-216).
+   Varje ruta — fotot en gång, videon ruta för ruta — går genom ljusFilter
+   innan modulen ser den. Ingen ny video, inga nya facit: kedjan mäts mot
+   samma sanning i sju ljus. Variantens namn står i resultatet (r.ljus) och
+   kor.cjs jämför mot den vanliga baslinjen, utan att spara. */
+const LJUS = PARAMS.get('ljus') || '';
+const LJUS_VARIANTER = {
+  morkare:  { txt: 'mörkare (×0,55)' },
+  ljusare:  { txt: 'ljusare (×1,45, klipper)' },
+  varmare:  { txt: 'varmare (R ×1,18, B ×0,82)' },
+  kallare:  { txt: 'kallare (R ×0,82, B ×1,18)' },
+  kontrast: { txt: 'lägre kontrast (×0,55 kring 128)' },
+  brus:     { txt: 'brus (σ ≈ 12 gråsteg)' },
+  gradient: { txt: 'sned ljusgradient (×0,5 → ×1,3 diagonalt)' }
+};
+function ljusFilter(cv, k) {
+  if (!LJUS || !LJUS_VARIANTER[LJUS]) return;
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height, im = x.getImageData(0, 0, W, H), d = im.data;
+  const kl = v => v < 0 ? 0 : v > 255 ? 255 : v;
+  if (LJUS === 'morkare') for (let i = 0; i < d.length; i += 4) { d[i] = d[i] * 0.55; d[i + 1] = d[i + 1] * 0.55; d[i + 2] = d[i + 2] * 0.55; }
+  else if (LJUS === 'ljusare') for (let i = 0; i < d.length; i += 4) { d[i] = kl(d[i] * 1.45); d[i + 1] = kl(d[i + 1] * 1.45); d[i + 2] = kl(d[i + 2] * 1.45); }
+  else if (LJUS === 'varmare') for (let i = 0; i < d.length; i += 4) { d[i] = kl(d[i] * 1.18); d[i + 2] = d[i + 2] * 0.82; }
+  else if (LJUS === 'kallare') for (let i = 0; i < d.length; i += 4) { d[i] = d[i] * 0.82; d[i + 2] = kl(d[i + 2] * 1.18); }
+  else if (LJUS === 'kontrast') for (let i = 0; i < d.length; i += 4) { d[i] = (d[i] - 128) * 0.55 + 128; d[i + 1] = (d[i + 1] - 128) * 0.55 + 128; d[i + 2] = (d[i + 2] - 128) * 0.55 + 128; }
+  else if (LJUS === 'brus') {
+    /* Deterministiskt: samma brus för samma ruta (k) varje körning. Gaussiskt via summan av tre likformiga. */
+    let seed = 1234567 + (k || 0) * 7919;
+    const u = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    for (let i = 0; i < d.length; i += 4) { const n = (u() + u() + u() - 1.5) * 24; d[i] = kl(d[i] + n); d[i + 1] = kl(d[i + 1] + n); d[i + 2] = kl(d[i + 2] + n); }
+  }
+  else if (LJUS === 'gradient') for (let yy = 0; yy < H; yy++) for (let xx = 0; xx < W; xx++) { const g = 0.5 + 0.8 * (xx / W + yy / H) / 2, i = (yy * W + xx) * 4; d[i] = kl(d[i] * g); d[i + 1] = kl(d[i + 1] * g); d[i + 2] = kl(d[i + 2] * g); }
+  x.putImageData(im, 0, 0);
+}
 const STILLA_MS = 1500;   // så länge spåren ska ha stått oförändrade innan fallet räknas som klart
 let AUTO_FLYTT = 0.15;    // läses ur appen när den laddats (avstamBord:s gräns för en verklig flytt)
 
@@ -418,6 +451,7 @@ function stallUpp(f, kalla, kb, kh) {
   const doc = w.document;
   const cv = doc.createElement('canvas'); cv.width = kb; cv.height = kh;
   cv.getContext('2d').drawImage(kalla, 0, 0, kb, kh);
+  ljusFilter(cv, 0);
   cv.videoWidth = kb; cv.videoHeight = kh; cv.play = () => Promise.resolve();
   cv.id = 'kamVideo'; cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';
   const gammal = doc.getElementById('kamVideo'); if (gammal) gammal.replaceWith(cv);
@@ -458,11 +492,13 @@ function nyttProv(video) {
            sistaBord: null, s: 0,
            logg: video ? [] : null, bordLogg: video ? [] : null,
            /* K5/MODE-5: lägesuppdateringar — och senaste läget per spår (i bredd-enheter) som de mäts mot. */
-           lagesUpp: 0, lagesSist: new Map(), lagesLista: [],
+           lagesUpp: 0, lagesSist: new Map(), lagesLista: [], lagesNara: new Map(),
            /* Läsningarna: varje gång ett spår läses lokalt — tid, beskärningens
               storlek, bildens dom (poäng, inliers, accept) och namnläsarens
               svar. Det är här en säker bilddom går att spåra (MES-94). */
            lasningar: [],
+           tidDelar: {},
+           verklig: [],   // per videoruta: { vt, ms, vanta } — verklig tid som klockan inte gick (MES-215)
            pendande: new Set() };
 }
 /* Återanropen modulen får. I videoläget måste varje ruta vänta in det som
@@ -480,8 +516,9 @@ function aterkoppling(f, prov) {
          Table leads. Första läget räknas inte. y räknas om till
          bredd-enheter med analysmåtten. Ska vara 0 på ett stilla bord. */
       if (!nollstall) for (const t of spar || []) {
-        if (t.w == null || t.h == null || (t.tillstand !== 'stilla' && t.tillstand !== 'klar') || (t.ai && t.ai.helbild)) continue;
-        const { aw, ah } = K.analysMatt, cx = t.x + t.w / 2, cy = (t.y + t.h / 2) * ah / aw;
+        /* Bara KLARA spår (MES-214): det är de datorn speglar — kamLage skriver läget för ett bundet kort, och bara ett klart spår binder ett. Ett 'stilla' spår utan namn är ofta handen och högen den bygger (07, 18 s: klumpen 167×120 → 151×172, ytan ×1,29), och räknades förut som flytt eller storleksbyte beroende på vilken ruta rapporten gick i. */
+        if (t.w == null || t.h == null || t.tillstand !== 'klar' || (t.ai && t.ai.helbild)) continue;
+        const { aw, ah } = K.analysMatt, cx = t.vx != null ? t.vx : t.x + t.w / 2, cy = (t.vy != null ? t.vy : t.y + t.h / 2) * ah / aw;   // viloläget (vx, vy) som datorns kamLage läser det (MES-214)
         const l = prov.lagesSist.get(t.id), flytt = l ? Math.hypot(cx - l.cx, cy - l.cy) : Infinity;
         /* Ett spår vars låda samtidigt bytte storlek (mer än en fjärdedel av
            ytan) flyttade inte: det var en klump som skars i sina kort, eller
@@ -489,10 +526,15 @@ function aterkoppling(f, prov) {
            en klump av tre kort blev Flutterfox 0,61 kortbredder från
            klumpens mitt). Datorn får ett kort på klumpens mitt en gång,
            inte en darrande position. Storleksbytet räknas för sig. */
-        const area = t.w * t.h, snitt = l && l.area && (area < 0.75 * l.area || area > 1.33 * l.area);
-        if (l && flytt > AUTO_FLYTT * t.w && !snitt) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2) }); }
+        const area = t.vw != null ? t.vw * t.vh : t.w * t.h, snitt = l && l.area && (area < 0.75 * l.area || area > 1.33 * l.area);
+        /* Räknas: ett kort som LÅG I VILA lämnade sin plats. Stegen medan det följs i en flytt (förra läget preliminärt) är samma flytt, och omankringen i vila är landningen (MES-214). */
+        if (l && !l.prel && flytt > AUTO_FLYTT * t.w && !snitt) { prov.lagesUpp++; if (prov.lagesLista.length < 20) prov.lagesLista.push({ id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(2), fran: [Math.round(l.cx * aw), Math.round(l.cy * aw), l.s], till: [Math.round(cx * aw), Math.round(cy * aw)], st: t.tillstand, yta: l.area ? +(area / l.area).toFixed(2) : null }); }
+        /* Nästan-flyttar (MES-214): mellan två tredjedelar av gränsen och gränsen. En verklig liten knuff som hamnar på ena eller andra sidan om AUTO_FLYTT beroende på VAR referensläget togs syns bara här — störst per spår. */
+        else if (l && !snitt && flytt > AUTO_FLYTT * t.w * 2 / 3) { const q = prov.lagesNara.get(t.id); if (!q || flytt / t.w > q.flytt) prov.lagesNara.set(t.id, { id: t.id, nr: null, s: prov.s, flytt: +(flytt / t.w).toFixed(3) }); }
         if (l && snitt) prov.lagesSnitt = (prov.lagesSnitt || 0) + 1;
-        if (!l || flytt > AUTO_FLYTT * t.w || snitt) prov.lagesSist.set(t.id, { cx, cy, area });
+        /* Ett läge taget innan kortet vilat (vilar false: kortet flyttas, eller ett tidigt namn, MES-214) är preliminärt, som i datorns kamLage: första rapporten i vila ankrar om det utan att räknas. */
+        const vilar = t.vilar != null ? !!t.vilar : true;
+        if (!l || flytt > AUTO_FLYTT * t.w || snitt || (l.prel && vilar)) prov.lagesSist.set(t.id, { cx, cy, area, prel: !vilar, s: prov.s });
       }
       /* Bordet datorn fick, med videons tid: ett kort som kom och gick syns
          bara här. HELA posten per spår, som rapportera() skickar den — med
@@ -534,6 +576,8 @@ function las(prov, ms, msRuta) {
   prov.s = +(ms / 1000).toFixed(2);
   if (msRuta != null) prov.msProv.push(msRuta);
   else if (K.diagnos.ms) prov.msProv.push(K.diagnos.ms);
+  /* Tidsprofilen (MES-214): varje del av steget, samlad per fall — medianerna skrivs i --detalj. */
+  { const t = K.diagnos.tid; if (t) for (const k in t) (prov.tidDelar[k] || (prov.tidDelar[k] = [])).push(t[k]); }
   /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
   if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && prov.skurnaAlla.length < 20) prov.skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
   for (const l of K.diagnos.skarLogg || []) if (!prov.skarAlla.has(l.ruta)) prov.skarAlla.set(l.ruta, l);
@@ -595,6 +639,7 @@ function avsluta(f, prov, tid, tak, takS) {
   const res = bedom(f, prov.sistaBord, tid, tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
   res.skurnaAlla = prov.skurnaAlla;
   res.lasningar = prov.lasningar;
+  res.tidDelar = Object.fromEntries(Object.entries(prov.tidDelar).map(([k, l]) => { const q = l.slice().sort((a, b) => a - b); return [k, { median: q[q.length >> 1], max: q[q.length - 1], n: q.length }]; }));
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
   res.takS = takS;
@@ -603,6 +648,7 @@ function avsluta(f, prov, tid, tak, takS) {
   res.lagesSnitt = prov.lagesSnitt || 0;   // lådor som bytte storlek på plats (klumpar som skars, delar som blev hela)
   for (const x of prov.lagesLista) { const i = K.spar.findIndex(t => t.id === x.id); x.nr = i >= 0 ? i + 1 : null; }
   res.lagesLista = prov.lagesLista;
+  res.lagesNara = [...prov.lagesNara.values()]; for (const x of res.lagesNara) { const i = K.spar.findIndex(t => t.id === x.id); x.nr = i >= 0 ? i + 1 : null; }
   res.lagesPerMin = +(prov.lagesUpp / Math.max(1, tid) * 60000).toFixed(1);
   /* K7: hur många lärda referenser poolen bar när fallet dömdes, och med
      --lar-ref hur många fallet lärde EFTER domen. */
@@ -699,20 +745,25 @@ async function korVideoFall(f, vf, vid, cv) {
      redan visar, och efteråt fortsätter den i riktig tid från videons slut. */
   const VIRT0 = Math.max(1e7, Math.ceil(w.performance.now()) + 1000);
   let virt = VIRT0;
+  /* Den riktiga klockan ligger kvar i performance.riktigNu: stegets tidsprofil och lokalMs mäts med den (MES-214), allt annat i modulen går på videons. */
+  if (!w.performance.riktigNu) w.performance.riktigNu = performance.now.bind(performance);
   w.performance.now = () => virt;
   rafManuell = true;
   try {
     for (let k = 0; ; k++) {
       if (stoppa) throw new Error('stoppad');
       vt = k * takt;
-      if (vt <= sista) { await sokTill(vid, vt / 1000); cx.drawImage(vid, 0, 0, cv.width, cv.height); }
+      if (vt <= sista) { await sokTill(vid, vt / 1000); cx.drawImage(vid, 0, 0, cv.width, cv.height); ljusFilter(cv, k); }
       virt = VIRT0 + vt;
       prov.s = +(vt / 1000).toFixed(2);   // före rutan: bordsrapporterna under den ska bära DEN här tiden, inte förra rutans
       const tR = performance.now();
       if (k === 0) await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, aterkoppling(f, prov));
       else korRaf(virt);
       const msRuta = k === 0 ? null : Math.round(performance.now() - tR);
+      const tV = performance.now();
       await vantaIn(prov);
+      /* Verklig tid per ruta (MES-215 del 2): steget (msRuta, med den synkrona delen av en läsning som startades i det) och väntan på läsningarna (workern, Claude). Klockan står still under båda; på telefonen går tiden. */
+      prov.verklig.push({ vt, ms: msRuta || 0, vanta: Math.round(performance.now() - tV) });
       const { spar, lage, klart } = las(prov, vt, msRuta);
       if (vt >= sista) {
         if (klart) break;
@@ -834,6 +885,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    ljus: LJUS || null,   // ljusvarianten (MES-216), null = fotot som det är
     /* Säkra rätta namn som servern (Claude) avgjorde. */
     namnViaAi: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && (p.t.varfor === 'ai' || p.t.varfor === 'helbild')).length,
     /* Helbilden, om fallet fick en: vad Claude såg, hur lång tid det tog och
@@ -959,20 +1011,35 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     if (dt != null) tappDt.push(dt);
   }
   tappDt.sort((a, b) => a - b);
+  /* Falska tap-flippar (MES-214): varje gång ett SÄKERT spår byter tap-läge
+     mellan två rapporter, utan att facit har en tappar/otappar-händelse för
+     namnet åt det hållet inom ±3 s. En optimistisk tap-dom som tas tillbaka
+     är två. Ett spår som föds tappat räknas inte (första läget). */
+  const tapSist = new Map(), tapFalska = [];
+  for (const r of bl) for (const u of r.spar || []) {
+    if (u.tillstand === 'skrap' || !u.saker || !u.namn) continue;
+    const f0 = tapSist.get(u.id);
+    if (f0 != null && f0 !== !!u.tappad) {
+      const ok = tapp.some(x => norm(x.tappar || x.otappar) === norm(u.namn) && !!x.tappar === !!u.tappad && Math.abs(r.s - x.t) <= 3);
+      if (!ok && tapFalska.length < 20) tapFalska.push({ s: r.s, namn: u.namn, till: !!u.tappad });
+    }
+    tapSist.set(u.id, !!u.tappad);
+  }
   /* Flytt (K2/MODE-5): facit {t, flyttar: namn}. Läget ett säkert spår med
      namnet hade före t; första rapporten inom 8 s där ett sådant spår står
      mer än AUTO_FLYTT av bredden därifrån — det datorn speglar i Table leads. */
   const flytt = h.filter(x => x.flyttar);
+  const mittX = u => u.vx != null ? u.vx : u.x + u.w / 2, mittY = u => u.vy != null ? u.vy : u.y + u.h / 2;   // läget datorn speglar: viloläget när rapporten bär det (MES-214)
   const flyttDt = [], flyttHandelser = [];
   for (const x of flytt) {
     let fore = null, dt = null;
     for (const r of bl) {
       const u = sakerMed(r, x.flyttar)[0];
-      if (r.s < x.t - TOL) { if (u && u.w != null) fore = { cx: u.x + u.w / 2, cy: u.y + u.h / 2, w: u.w }; continue; }
+      if (r.s < x.t - TOL) { if (u && u.w != null) fore = { cx: mittX(u), cy: mittY(u), w: u.w }; continue; }
       if (r.s > x.t + 8) break;
       if (!fore || !u || u.w == null) continue;
       const { aw, ah } = K.analysMatt;
-      if (Math.hypot(u.x + u.w / 2 - fore.cx, (u.y + u.h / 2 - fore.cy) * ah / aw) > AUTO_FLYTT * fore.w) { dt = +Math.max(0, r.s - x.t).toFixed(2); break; }
+      if (Math.hypot(mittX(u) - fore.cx, (mittY(u) - fore.cy) * ah / aw) > AUTO_FLYTT * fore.w) { dt = +Math.max(0, r.s - x.t).toFixed(2); break; }
     }
     flyttHandelser.push({ t: x.t, namn: x.flyttar, dt, sedd: !!fore });
     if (dt != null) flyttDt.push(dt);
@@ -1014,10 +1081,28 @@ function betygVideo(f, vf, prov, korda, langd, takt) {
     }
   }
   const median = l => l.length ? l[l.length >> 1] : null;
+  /* Beräknad fördröjning (MES-215 del 2): videons fördröjning plus den
+     verkliga tid som klockan stod still i fönstret [händelsen, sedd] —
+     stegets övertid över takten (en telefon som ligger efter tappar rutor)
+     och väntan på läsningarna (namnet kommer inte före workern är klar).
+     All tid i fönstret räknas som seriell, också läsningar av andra kort,
+     så det är en övre gräns på en telefon lika snabb som den här datorn.
+     Golden var förut blint för det: klockan är videons. */
+  const verklig = prov.verklig || [];
+  const tillagg = (t0, t1) => { let ms = 0; for (const r of verklig) { const s = r.vt / 1000; if (s > t0 && s <= t1 + 1e-9) ms += Math.max(0, r.ms - takt) + r.vanta; } return ms / 1000; };
+  const berakna = (lista, tOf) => median(lista.map(x => +(x.dt + tillagg(tOf(x), tOf(x) + x.dt)).toFixed(2)).sort((a, b) => a - b));
+  const namnB = berakna(namngivna.filter(x => x.dt != null), x => x.t);
+  const tappB = berakna(tappHandelser.filter(x => x.dt != null), x => x.t);
+  const flyttB = berakna(flyttHandelser.filter(x => x.dt != null), x => x.t);
+  const bortaB = (() => { const l = []; for (const x of bortagna) { const i = bortagna.indexOf(x); if (bortaDt[i] != null) l.push({ t: x.t, dt: bortaDt[i] }); } return berakna(l, x => x.t); })();
+  const verkligSum = verklig.reduce((a, r) => a + Math.max(0, r.ms - takt) + r.vanta, 0);
   return {
+    videoFordrojningB: namnB, videoTappFordrojningB: tappB, videoFlyttFordrojningB: flyttB, videoBortaFordrojningB: bortaB,
+    videoVerkligMs: Math.round(verkligSum), videoVerkligRutor: verklig.length,
     videoBortaFordrojning: median(bortaDt), videoBortaDt: bortaDt,
     videoTapp: tapp.length ? tappDt.length : null, videoTappAv: tapp.length ? tapp.length : null,
     videoTappFordrojning: median(tappDt), videoTappHandelser: tappHandelser,
+    videoTappFalska: tapFalska.length, videoTappFalskaLista: tapFalska,
     videoFlytt: flytt.length ? flyttDt.length : null, videoFlyttAv: flytt.length ? flytt.length : null,
     videoFlyttFordrojning: median(flyttDt), videoFlyttHandelser: flyttHandelser,
     videoGrav: harGrav && tillGrav.length ? gravHandelser.filter(x => x.dt != null).length : null, videoGravAv: harGrav && tillGrav.length ? tillGrav.length : null,
