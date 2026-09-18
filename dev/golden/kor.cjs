@@ -140,6 +140,7 @@ function skrivTabell(rs, gamla) {
   await cdp('Runtime.enable');
   let gamla = new Map();
   try { gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r])); } catch (e) { /* ingen baslinje — inget att jämföra med */ }
+  let samre = [], battre = [];   // domen för den senaste (enda) körningen — slutkoden läser dem efter slingan
   const varianter = LJUS === 'alla' ? ['morkare', 'ljusare', 'varmare', 'kallare', 'kontrast', 'brus', 'gradient'] : [LJUS];
   const sammanstallning = [];
   for (const ljus of varianter) {
@@ -249,7 +250,7 @@ function skrivTabell(rs, gamla) {
   /* Domen mot baslinjen skrivs alltid: BÄTTRE, LIKA BRA, SÄMRE eller BLANDAT,
      totalt och fall för fall. Förut syntes bara det som blev sämre, så en
      körning med en annan modell som gick lika bra eller bättre sa ingenting. */
-  const samre = [], battre = [], rs = JSON.parse(json);
+  samre = []; battre = []; const rs = JSON.parse(json);
   const vad = r => `${r.ai || 'bara det lokala'}${r.promptv != null ? ', systemprompt v' + r.promptv : ''}`;
   for (const r of rs) { const g = gamla.get(r.id); if (!g) continue;
     /* Videofallen jämförs också på förloppet: ett kort som lades ut och
