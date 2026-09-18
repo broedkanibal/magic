@@ -187,6 +187,46 @@ window.VEKTORER = async function (o) {
   await spara('webb-vektorer', { backend: Embed.backend, modell: Embed.MODELL, vek: ut });
   return { backend: Embed.backend, bilder: Object.keys(ut).length };
 };
+/* Lärda referenser genom lagringen (MES-231). Samma referenser (K7/K8) läggs
+   till på två sätt: direkt, som när telefonen själv lärt sig dem, och efter
+   en tur genom lagringens form — raden som Moln.sparaRefs skickar (JSON),
+   och tillbaka som Moln.hamtaRefs lämnar den. Svar: är de inbäddade
+   vektorerna bit för bit desamma, och ger de samma namn och marginal på de
+   beskärningar som inte lärts in? Referenserna: ur kameraappens fall 03–06,
+   kort som ligger för sig själva (högst 4 per namn, som REF_TAK), gjorda till
+   146×204 jpeg som Ref.bildAv gör. Provet: resten av de riktiga. */
+window.LARDA = async function (o) {
+  o = Object.assign({ forrakade: 'cache/forrakade/golden.json' }, o);
+  const bas = await embedRedo(o), alla = await lasSet('riktiga');
+  const klon = (idx, kod) => Object.assign({}, idx, { kod, ra: idx.ra.slice(), names: idx.names.slice(), ids: idx.ids.slice(), rot: idx.rot.slice(), medel: idx.medel.slice(), vek: idx.vek.slice() });
+  const bildAvRef = im => { const cv = document.createElement('canvas'); cv.width = 146; cv.height = 204; const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.drawImage(im, 0, 0, 146, 204); return cv.toDataURL('image/jpeg', 0.8); };
+  const lar = [], perNamn = new Map(); let t = 1_758_000_000_000;
+  for (const r of alla) {
+    /* Bara det appen lär sig av: ett kort för sig självt (inte skymt, inte en
+       helbildslåda) — Claude bekräftar bara sådana som 'ett kort, säkert'. */
+    if (!/^0[3-6]-/.test(r.fil) || r.skymd || r.helbild || (perNamn.get(r.namn) || 0) >= 4) continue;
+    perNamn.set(r.namn, (perNamn.get(r.namn) || 0) + 1);
+    lar.push({ id: 'r' + lar.length, name: r.namn, sid: null, bild: bildAvRef(await bild(r.url)), ts: t += 1000, kalla: lar.length % 2 ? 'hand' : 'ai', fil: r.fil });
+  }
+  const larda = new Set(lar.map(r => r.fil)), test = alla.filter(r => !larda.has(r.fil));
+  /* Lagringens tur: Moln.sparaRefs rad → JSON → Moln.hamtaRefs form. */
+  const rader = JSON.stringify(lar.map(r => ({ user_id: 'u', deck_id: 'd', id: String(r.id), namn: r.name, sid: r.sid || null, bild: r.bild, kalla: r.kalla === 'ai' || r.kalla === 'hand' ? r.kalla : null, ts: Math.round(r.ts) })));
+  const genom = JSON.parse(rader).map(r => ({ id: r.id, name: r.namn, sid: r.sid || null, bild: r.bild, ts: Number(r.ts), kalla: r.kalla || null }));
+  const A = klon(bas, 'bank:larda-lokalt'), B = klon(bas, 'bank:larda-lagring'), U = klon(bas, 'bank:utan');
+  for (const r of lar) await Embed.laggTill(A, { id: r.id + '#ref', name: r.name, bild: await bild(r.bild) });
+  for (const r of genom) await Embed.laggTill(B, { id: r.id + '#ref', name: r.name, bild: await bild(r.bild) });
+  let lika = A.ra.length === B.ra.length; for (let i = 0; lika && i < A.ra.length; i++) if (A.ra[i] !== B.ra[i]) lika = false;
+  const svar = async idx => { const ut = []; for (const r of test) { const e = await Embed.identifiera(await bild(r.url), idx); ut.push({ fil: r.fil, ratt: e.namn === r.namn, namn: e.namn, saker: e.saker, marginal: e.marginal }); } return ut; };
+  const sa = await svar(A), sb = await svar(B), su = await svar(U);
+  const sum = xs => ({ ratt: xs.filter(x => x.ratt).length, sakraRatt: xs.filter(x => x.ratt && x.saker).length, sakraFel: xs.filter(x => !x.ratt && x.saker).length });
+  let sammaNamn = 0, sammaSaker = 0, dmax = 0;
+  sa.forEach((x, i) => { const y = sb[i]; if (x.namn === y.namn) sammaNamn++; if (x.saker === y.saker) sammaSaker++; dmax = Math.max(dmax, Math.abs(x.marginal - y.marginal)); });
+  const ut = { referenser: lar.length, bytes: rader.length, provade: test.length, vektorerBitForBit: lika, nyaVektorer: A.names.length - bas.names.length,
+               sammaNamn, sammaSaker, marginalStorstaSkillnad: dmax, lokalt: sum(sa), genomLagringen: sum(sb), utanLarda: sum(su), backend: Embed.backend };
+  log('lärda referenser genom lagringen: ' + JSON.stringify(ut));
+  await spara('webb-larda', Object.assign({ rader: { lokalt: sa, lagring: sb, utan: su } }, ut));
+  return ut;
+};
 /* Modulens övriga anrop: läs tillbaka ur IndexedDB, lär en referens (K7), ta bort den, glöm leken. */
 window.SJALVTEST = async function (o) {
   const idx = await embedRedo(o), ut = {}, n0 = idx.names.length;

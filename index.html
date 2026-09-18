@@ -5980,13 +5980,48 @@ const Moln = (() => {
     return ut;
   }
 
+  /* Lärda referenser (K7/K8) för en lek, på kontot (MES-231, learned_refs).
+     Formen är Ref.listas: {id, name, sid, bild, ts, kalla}. null = vet inte
+     (inte inloggad, tabellen saknas, nätet) — då gäller telefonens egna. */
+  async function hamtaRefs(lekId) {
+    const s = await klient();
+    if (!s || !inloggad() || saknas.refs || !lekId) return null;
+    const { data, error } = await s.from('learned_refs').select('id, namn, sid, bild, kalla, ts')
+      .eq('user_id', minId()).eq('deck_id', lekId);
+    if (error) { if (saknasFel(error)) saknas.refs = true; else console.warn('Lärda referenser kunde inte hämtas', error.message); return null; }
+    return (data || []).map(r => ({ id: r.id, name: r.namn, sid: r.sid || null, bild: r.bild, ts: Number(r.ts), kalla: r.kalla || null }));
+  }
+  /* Nya referenser upp. En som redan finns (samma id) lämnas orörd; taket
+     (4 per namn, nyast vinner) håller tabellens trigger. true = sparat. */
+  async function sparaRefs(lekId, refs) {
+    const s = await klient();
+    if (!s || !inloggad() || saknas.refs || !lekId || !refs || !refs.length) return false;
+    const rader = refs.filter(r => r && r.id && r.name && r.bild).map(r => ({
+      user_id: minId(), deck_id: lekId, id: String(r.id), namn: r.name, sid: r.sid || null, bild: r.bild,
+      kalla: r.kalla === 'ai' || r.kalla === 'hand' ? r.kalla : null, ts: Math.round(r.ts || Date.now())
+    }));
+    const { error } = await s.from('learned_refs').upsert(rader, { onConflict: 'user_id,deck_id,id', ignoreDuplicates: true });
+    if (error) { if (saknasFel(error)) saknas.refs = true; else console.warn('Lärda referenser kunde inte sparas', error.message); return false; }
+    return true;
+  }
+  /* Glöm lekens referenser på kontot: alla (ids null) eller de angivna. */
+  async function raderaRefs(lekId, ids) {
+    const s = await klient();
+    if (!s || !inloggad() || saknas.refs || !lekId) return false;
+    let q = s.from('learned_refs').delete().eq('user_id', minId()).eq('deck_id', lekId);
+    if (ids) q = q.in('id', ids.map(String));
+    const { error } = await q;
+    if (error) { if (saknasFel(error)) saknas.refs = true; else console.warn('Lärda referenser kunde inte raderas', error.message); return false; }
+    return true;
+  }
+
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek, hamtaLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
-           scanKlar, radeaScan, vantandeScans, hamtaVektorer };
+           scanKlar, radeaScan, vantandeScans, hamtaVektorer, hamtaRefs, sparaRefs, raderaRefs };
 })();
 /* Bildmodellen (dev/embed/embed.js) frågar lagringen efter förräknade
    vektorer innan den räknar själv (MES-230). */
@@ -14338,6 +14373,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!y.bas) return;
     if (!await ask('The camera has learned how your cards look from Claude\'s answers and your own confirmations. Forget those photos for this deck? It then recognises the cards from their printed artwork only, until it learns again.', { title: 'Forget learned photos?', ok: 'Forget' })) return;
     await Ref.glom('lek:' + y.bas.id);
+    await RefMoln.glom('lek:' + y.bas.id);   // kontots kopia också, annars kommer de tillbaka nästa spel (MES-231)
     if (spelLage) Moln.sandKam('glomref', { lekId: y.bas.id });
   }
   async function radera() {
@@ -15486,6 +15522,7 @@ async function byggLekPool(lek, userId, onProg) {
   /* Poolen ur leken, med de lärda referenserna (K7) invävda i minnet. */
   const rec = await byggLekPoolRa(lek, userId, onProg);
   if (Ref.kod !== rec.code) await Ref.ladda(rec.code);
+  await RefMoln.hamta(rec.code);   // referenser lärda på andra enheter (MES-231)
   return Ref.tillampa(rec);
 }
 async function byggLekPoolRa(lek, userId, onProg) {
@@ -15565,6 +15602,81 @@ async function ensureLekPool(onProg) {
   if (!lek || !lek.kort || !lek.kort.length) return null;
   return byggLekPool(lek, id, onProg || (() => {}));
 }
+
+/* ═══ LÄRDA REFERENSER MELLAN ENHETER (MES-231) ═══
+   Ref (K7/K8) lär sig på telefonen och sparar i telefonens IndexedDB. Här
+   hålls en kopia per konto och lek i tabellen learned_refs, så att nästa
+   spel — på vilken telefon eller dator som helst — börjar med det förra
+   spelet lärde. Telefonens lista är fortfarande den kameran läser; RefMoln
+   rör bara Ref.lista och Ref.spara, aldrig Ref:s eller Poolens insida.
+
+   • hamta(kod): när lekens pool byggs (byggLekPool) slås molnets lista ihop
+     med telefonens: nya därifrån läggs till, de här som aldrig laddats upp
+     skickas upp, och en referens som varit uppe (r.moln) men inte finns där
+     längre har glömts på en annan enhet eller fallit för taket — den tas bort
+     här också. Taket gäller efter ihopslagningen: REF_TAK per namn, nyast
+     vinner (samma regel som tabellens trigger, så de två kommer överens).
+   • skicka(kod): efter att kameran lärt sig (kamLart) — det nya upp.
+   • glom(kod): "Forget learned photos…" tömmer lekens referenser på kontot.
+
+   Saknas tabellen, är man utloggad eller offline: Moln svarar null/false och
+   allt är som förut — bara telefonens egna. window.MESA_REFMOLN = false
+   stänger av synken; Ref.pa() (MESA_REF, golden) gör det också. */
+const RefMoln = {
+  senast: new Map(),                     // kod → när molnet senast lästes
+  skickaT: null,
+  pa: () => window.MESA_REFMOLN !== false && Ref.pa(),
+  lekId: kod => { const m = /^lek:([0-9a-f-]{36})$/i.exec(String(kod || '')); return m ? m[1] : null; },
+  /* Ren ihopslagning (provas i dev/embed/refmoln-prov.cjs). lokal: Ref.lista,
+     moln: hamtaRefs-svaret. Svar: { lista, bort: de här som ska bort, upp }. */
+  slaIhop(lokal, moln, tak) {
+    const iMoln = new Map(moln.map(r => [String(r.id), r])), lista = [], bort = [];
+    for (const r of lokal) {
+      if (iMoln.has(String(r.id))) { r.moln = true; lista.push(r); iMoln.delete(String(r.id)); }
+      else if (r.moln) bort.push(r);            // glömd eller borttagen på en annan enhet
+      else lista.push(r);                        // lärd här, inte uppe än
+    }
+    for (const r of iMoln.values()) lista.push(Object.assign({}, r, { moln: true }));
+    const perNamn = new Map();
+    for (const r of lista) { const g = perNamn.get(r.name) || []; g.push(r); perNamn.set(r.name, g); }
+    const kvar = new Set();
+    for (const g of perNamn.values()) {
+      g.sort((a, b) => (b.ts - a.ts) || (String(b.id) < String(a.id) ? -1 : String(b.id) > String(a.id) ? 1 : 0));
+      g.forEach((r, i) => { if (i < (tak || REF_TAK)) kvar.add(r); else bort.push(r); });
+    }
+    const ut = lista.filter(r => kvar.has(r));
+    return { lista: ut, bort, upp: ut.filter(r => !r.moln) };
+  },
+  async hamta(kod, tvinga) {
+    const lekId = RefMoln.lekId(kod);
+    if (!RefMoln.pa() || !lekId || !Moln.inloggad() || Ref.kod !== kod) return false;
+    if (!tvinga && Date.now() - (RefMoln.senast.get(kod) || 0) < 60000) return false;
+    RefMoln.senast.set(kod, Date.now());
+    /* Högst 4 s: poolen väntar på svaret, och utan det går den på telefonens egna. */
+    const moln = await Promise.race([Moln.hamtaRefs(lekId), new Promise(r => setTimeout(() => r(null), 4000))]).catch(() => null);
+    if (!moln || Ref.kod !== kod) return false;
+    const { lista, bort, upp } = RefMoln.slaIhop(Ref.lista, moln);
+    Ref.lista = lista;
+    for (const r of bort) if (Pool.idx && Pool.idx.code === kod && Pool.idx.refIn && Pool.idx.refIn.has(r.id)) { Pool.taBort(Pool.idx, Ref.poolId(r)); Pool.idx.refIn.delete(r.id); }
+    await Ref.spara();
+    if (upp.length && await Moln.sparaRefs(lekId, upp) && Ref.kod === kod) { upp.forEach(r => { r.moln = true; }); await Ref.spara(); }
+    return true;
+  },
+  skicka(kod) {
+    if (!RefMoln.pa() || !RefMoln.lekId(kod)) return;
+    clearTimeout(RefMoln.skickaT);
+    RefMoln.skickaT = setTimeout(async () => {
+      if (Ref.kod !== kod || !Moln.inloggad()) return;
+      const upp = Ref.lista.filter(r => !r.moln);
+      if (upp.length && await Moln.sparaRefs(RefMoln.lekId(kod), upp) && Ref.kod === kod) { upp.forEach(r => { r.moln = true; }); await Ref.spara(); }
+    }, 1500);
+  },
+  async glom(kod) {
+    const lekId = RefMoln.lekId(kod); if (!lekId) return false;
+    RefMoln.senast.delete(kod);
+    return Moln.raderaRefs(lekId, null);
+  }
+};
 
 /* ══════════════════════════════════════════════════════════════════
    AUTOMATISK AVLÄSNING
@@ -20965,6 +21077,7 @@ function kamLart(id, namn, sid, kalla) {
   const b = kamSistaBild.get(id); if (!b || !namn || b.lart === namn) return false;
   b.lart = namn;
   Ref.lar(namn, sid, b.bild, kalla).catch(() => {});
+  RefMoln.skicka(Ref.kod);   // …och upp till kontot, för nästa spel på en annan enhet (MES-231)
   return true;
 }
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
