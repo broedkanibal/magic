@@ -41,12 +41,30 @@ alltid det översta kortet när ett steg säger "från bunten".
 | 11 | Thriving Heath | 22 | Flutterfox |
 
 **3. Två tokens,** lagda bredvid bunten, utanför bild:
-- **Soldier:** ett kort som inte är med ovan, **i plastficka**, baksidan upp.
-- **Rebel:** ett kort som inte är med ovan, **utan plastficka**, baksidan upp.
+- **Soldier:** en **Swamp**, **i plastficka**, baksidan upp.
+- **Rebel:** en **Plains**, **utan plastficka**, baksidan upp.
 
 **4. Graveyard och library** längst ner till vänster i bild: **graveyard**
-(tom plats) längst till vänster, och **library** (resten av leken, baksidan
-upp) direkt till höger om den.
+(tom plats) längst till vänster, och **library** direkt till höger om den:
+de 16 korten nedan, blandade, baksidan upp.
+
+| Kort | Antal |
+|---|---|
+| Swamp | 2 |
+| Plains | 3 |
+| Aphelia, Viper Whisperer | 1 |
+| Coat with Venom | 1 |
+| Faithful Pikemaster | 1 |
+| Hooded Blightfang | 1 |
+| Militant Inquisitor | 1 |
+| Night's Whisper | 1 |
+| Resistance Reunited | 1 |
+| Scourge of the Undercity | 1 |
+| Serpent Assassin | 1 |
+| Valkyrie's Sword | 1 |
+| Vraska's Finisher | 1 |
+
+Hela leken: 22 i bunten + 2 tokens + 16 i library = 40.
 
 **5. Telefonen** i hållaren på ~40 cm, samma bord, matta och ljus som när
 du spelar. Rör inte hållaren under inspelningen. **Pröva stående och
