@@ -10,6 +10,10 @@
    att genomföra (ingen Chrome, sidan föll).
 
    --fall 01,03      bara fallen vars mapp börjar så (videofall körs aldrig)
+   --tro "anaBredd:480"  valfria trösklar till kameran före varje fall, som
+                     kor.cjs --tro. Analysbredden (MES-244) mäts så:
+                     360 (förvalet), 480, 720 — kortets storlek i ANALYSbilden
+                     är det som avgör om kort omlott går att skilja åt.
    --faktorer 1,0.5  andra skalfaktorer än 1, 0,8, 0,65, 0,5, 0,4, 0,3
    --json <fil>      hela resultatet som JSON (varje fall × faktor med spåren)
    --utan-modell     utan bildmodellen (reserven Matcher + ORB); --wasm
@@ -42,6 +46,7 @@ const ROT = path.join(__dirname, '..', '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const FALL = arg('--fall', ''), FAKTORER = arg('--faktorer', ''), JSONFIL = arg('--json', '');
 const AIFLAG = process.argv.includes('--ai');
+const TRO = arg('--tro', '');   // valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
 /* Bildmodellen (MES-225) som i kor.cjs: med som i appen, WebGPU-flaggorna
    till Chrome, vikterna ur dev/embed när de ligger där. --utan-modell mäter
    reserven (Matcher + ORB, kedjan från före modellen), --wasm tvingar WASM.
@@ -109,6 +114,7 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { if (doende)
     const q = new URLSearchParams(); if (FALL) q.set('fall', FALL); if (FAKTORER) q.set('faktorer', FAKTORER); if (AIFLAG) q.set('ai', '1');
     if (UTAN_MODELL) q.set('embed', '0'); else if (EMBED_LOKALT) q.set('embedlokalt', '1');
     if (WASM) q.set('embedbackend', 'wasm');
+    if (TRO) q.set('tro', TRO);
     await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/avstand.html${q.size ? '?' + q : ''}` });
     let sist = '';
     const slut = await tills(async () => {
