@@ -4,7 +4,7 @@ Du följer stegen i ordning. Du behöver inte skriva något: manuset *är*
 facit (samma ordning står i `kort.txt`, som sessionen läser). Blir något
 fel, fortsätt, och säg till efteråt vilket steg det gällde.
 
-**Tid:** ~15 minuter med förberedelserna. Själva inspelningen är ~5 min (filen blir ~2 GB).
+**Tid:** ~15 minuter med förberedelserna. Själva inspelningen är ~6 min (filen blir ~2,5 GB).
 
 ---
 
