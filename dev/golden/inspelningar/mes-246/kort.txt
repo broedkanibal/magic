@@ -1,14 +1,20 @@
-# Manuset för inspelningen till MES-246 (läs kortet innan handen släpper).
+# Facit för inspelningen till MES-246 (läs kortet innan handen släpper).
+# Samma ordning som stegen i MANUS.md, som Jesper följer rakt av.
 # En handling per rad, i ordning, uppdelat i turer som i ett riktigt parti.
 # Ordlista:
 #   <kort>                     läggs ned på en fri plats
 #   <kort> tappad              läggs ned redan tappat (kommer in tappat)
 #   <kort> hög A / hög B       läggs på landhögen (A = Swamp, B = Plains)
-#   <kort> på <kort>           läggs ovanpå/fäst vid kortet, direkt
+#   <kort> på <kort>           fästs vid kortet direkt (equipment under creaturen,
+#                              förskjutet; auran så som Jesper brukar)
 #   token <typ> (<som>)        en token läggs ut; <som> = vad som föreställer den
-#   flytta <kort> till <kort>  ett kort som redan ligger flyttas (equip om)
-#   tappa / untappa <vad>      vrid kortet eller hela högen
+#   flytta <kort> till <kort>  ett kort som redan ligger flyttas och fästs under
+#                              det andra kortet (equip om)
+#   tappa / untappa <vad>      vrid kortet eller hela högen (bara det som står)
 #   <kort> till graveyard      flyttas från bordet till graveyard-högen
+#   <kort> från graveyard till spel   tas från graveyard-högen och läggs på bordet
+#   <kort> från graveyard till handen tas från graveyard-högen och lyfts ur bild
+#   <kort> från graveyard till exile  tas från graveyard-högen och läggs åt sidan, ut ur bild
 #   <kort> till handen         lyfts från bordet, ut ur bild
 #   <kort> överst i library    läggs från bordet överst på library, baksidan upp
 #   mill 3                     tre kort från library till graveyard, ett i taget
@@ -18,50 +24,63 @@
 Swamp hög A
 Thriving Moor tappad
 # --- Tur 2
+untappa Thriving Moor
 Plains hög B
-tappa hög A
-tappa hög B
+tappa hög A och hög B
 Fencing Ace
 # --- Tur 3
-untappa allt
+untappa hög A och hög B
 Swamp hög A
+tappa hög B och Thriving Moor
 Ancestral Blade
 token Soldier (kort i plastficka, baksidan upp)
 flytta Ancestral Blade till token Soldier
+tappa hög A
 Pharika's Chosen
 # --- Tur 4
-untappa allt
+untappa hög A, hög B och Thriving Moor
 tappa Fencing Ace
 Plains hög B
+tappa hög B
 Mirran Bardiche
 token Rebel (kort utan plastficka, baksidan upp)
 flytta Mirran Bardiche till token Rebel
 Ukud Cobra
 # --- Tur 5
-untappa allt
+untappa Fencing Ace och hög B
 Thriving Heath tappad
+tappa hög A och hög B
 Maul of the Skyclaves på Fencing Ace
 Killing Glare
 Killing Glare till graveyard
 Pharika's Chosen till graveyard
 # --- Tur 6
-untappa allt
+untappa Thriving Heath, hög A och hög B
 Swamp hög A
 Gorgon Flail
+tappa hög A
 flytta Gorgon Flail till Ukud Cobra
 Venomous Hierophant
 mill 3
 # --- Tur 7
-untappa allt
+untappa hög A
 Plains hög B
 Pacifism på Ukud Cobra
 Danitha Capashen, Paragon
+tappa hög B
 flytta Ancestral Blade till Danitha Capashen, Paragon
 bort token Soldier
 # --- Tur 8
-untappa allt
+untappa hög B
 Swamp hög A
-Trusty Retriever
 Ukud Cobra till handen
+Pacifism till graveyard
+Gorgon Flail till graveyard
+Trusty Retriever
+Gorgon Flail från graveyard till handen
 Flutterfox
 Flutterfox överst i library
+# --- Tur 9
+tappa Danitha Capashen, Paragon
+Pharika's Chosen från graveyard till spel
+Killing Glare från graveyard till exile
