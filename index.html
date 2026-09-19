@@ -9965,7 +9965,7 @@ function oppSatt(falt) {
   if (!spelLage) return;
   const m = oppMinne(); m[spelLage.id] = Object.assign({}, m[spelLage.id] || {}, falt); LS.set(K.oppstart, m);
 }
-const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
+const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1' + (DEBUG ? '&debug' : '');   // ?debug följer med (MES-240)
 /* om = "Redo setup": läget väljs igen och steg 4 görs om. Utan om (pillret)
    står det som var klart kvar (oppOppnasIgen). */
 function oppnaOppstart(om) {
@@ -24272,7 +24272,9 @@ function stangKamOv() {
    ruta tillbaka — länken stod kvar, men koden i den var borta. */
 function ritaKamLank() {
   if (!spelLage) return;
-  const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1';
+  /* ?debug följer med när datorn själv kör det (MES-240): annars öppnade
+     telefonen provet utan tidsstämplar — det tysta felet hälsokollen larmar för. */
+  const lank = location.origin + location.pathname + '?join=' + spelLage.kod + '&cam=1' + (DEBUG ? '&debug' : '');
   const el = $('#kamLank'); if (!el) return;
   el.textContent = lank; ritaQr(lank);
 }
