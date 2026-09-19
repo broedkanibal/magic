@@ -1,70 +1,140 @@
-# Inspelningen till MES-246: läs kortet innan handen släpper
+# Inspelningen till MES-246: manus att följa rakt av
 
-**Vad den ska visa:** hur kortet syns i bild på väg ner mot bordet, ruta för
-ruta, i vanlig speltakt. Den analyseras på datorn i efterhand. Mesa är inte
-igång under inspelningen.
+Du följer stegen i ordning. Du behöver inte skriva något: manuset *är*
+facit (samma ordning står i `kort.txt`, som sessionen läser). Blir något
+fel, fortsätt, och säg till efteråt vilket steg det gällde.
 
-**Tid:** ~15 minuter inklusive förberedelser. Själva inspelningen är ~4 min.
+**Tid:** ~15 minuter med förberedelserna. Själva inspelningen är ~5 min.
 
-## Före (en gång)
+---
 
-1. **Kamerainställning på iPhone:** Inställningar → Kamera → Spela in video →
-   **1080p HD i 60 bps**. Inställningar → Kamera → Format → **Mest kompatibelt**.
-2. **Bunten:** leta fram korten i `kort.txt` och lägg dem i manusets
-   ordning, överst först: 22 kort ur leken (Swamp ×4, Plains ×3, Thriving
-   Moor, Thriving Heath, Fencing Ace, Ancestral Blade, Pharika's Chosen,
-   Mirran Bardiche, Ukud Cobra, Maul of the Skyclaves, Killing Glare, Gorgon
-   Flail, Venomous Hierophant, Pacifism, Danitha Capashen, Trusty Retriever,
-   Flutterfox).
-3. **Tokens:** två kort som inte är med i manuset (t.ex. ur library-bunten),
-   båda med **baksidan upp**. Soldier-tokenen: kortet **i sin plastficka**
-   (fickans baksida uppåt). Rebel-tokenen: kortet **utan plastficka**. Alla
-   andra kort ligger i plastficka som vanligt.
-4. **Library och graveyard i bild**, som i spel: resten av leken (korten som
-   inte är med i manuset) som en bunt med baksidan upp nere till vänster, och
-   en tom plats för graveyard bredvid, och en tom plats för **exile** till
-   höger om graveyard. Exile har ingen ruta i Mesas uppstart än, så lägg den
-   där du skulle lägga den i spel, bara den syns i bild.
-5. **Telefonen i hållaren** på samma höjd som när du spelar (~40 cm), samma
-   bord, matta och ljus. Rör inte hållaren under inspelningen.
-6. **Bordet tomt** i bild, utom library.
+## A. Förbered (före inspelningen)
 
-## Inspelningen
+**1. Kameran.** På iPhone: Inställningar → Kamera → Spela in video →
+**1080p HD i 60 bps**. Och Inställningar → Kamera → Format → **Mest kompatibelt**.
 
-1. Öppna kameraappen → **Video** → tryck på inspelning.
-2. **Vänta 3 sekunder** med tomt bord.
-3. Gör **en rad i taget** i `kort.txt`, i **vanlig speltakt**. Sakta inte ner.
-   **2–3 sekunders paus** mellan raderna, handen helt ur bild. Raderna med
-   `# --- Tur` är bara rubriker.
-4. Hur varje sort görs:
+**2. Bunten.** Lägg de här 22 korten i en bunt, **nr 1 överst**. Du tar
+alltid det översta kortet när ett steg säger "från bunten".
 
-| I manuset | Så här |
-|---|---|
-| vanligt kort | lägg ned det på en fri plats |
-| `tappad` | lägg ned det **redan tappat** (Thriving-landen kommer in tappade) |
-| `hög A` / `hög B` | lägg landet på högen **så som du brukar stapla mana** |
-| `på X` | lägg det fäst vid X direkt, **förskjutet så som du brukar** |
-| `token … (kort i plastficka, baksidan upp)` | lägg tokenkortet i ficka, baksidan upp, bredvid kortet som skapade det |
-| `token … (kort utan plastficka, baksidan upp)` | lägg tokenkortet utan ficka, baksidan upp, bredvid kortet som skapade det |
-| `flytta X till Y` | ta upp X och lägg det vid Y, som när du equipar |
-| `tappa` / `untappa` | vrid kortet eller hela högen, så som du brukar |
-| `untappa allt` | vrid tillbaka allt som är tappat |
-| `till graveyard` | lägg kortet på graveyard-högen |
-| `från graveyard till spel` | ta kortet ur graveyard-högen och lägg det på en fri plats på bordet |
-| `från graveyard till exile` | ta kortet ur graveyard-högen och lägg det på exile-platsen |
-| `till handen` | lyft kortet och ta det ur bild |
-| `överst i library` | lägg kortet med baksidan upp överst på library |
-| `mill 3` | ta de tre översta korten från library och lägg dem på graveyard, ett i taget, med framsidan upp |
-| `bort …` | lyft bort tokenen ur bild |
+| Nr | Kort | Nr | Kort |
+|---|---|---|---|
+| 1 | Swamp | 12 | Maul of the Skyclaves |
+| 2 | Thriving Moor | 13 | Killing Glare |
+| 3 | Plains | 14 | Swamp |
+| 4 | Fencing Ace | 15 | Gorgon Flail |
+| 5 | Swamp | 16 | Venomous Hierophant |
+| 6 | Ancestral Blade | 17 | Plains |
+| 7 | Pharika's Chosen | 18 | Pacifism |
+| 8 | Plains | 19 | Danitha Capashen, Paragon |
+| 9 | Mirran Bardiche | 20 | Swamp |
+| 10 | Ukud Cobra | 21 | Trusty Retriever |
+| 11 | Thriving Heath | 22 | Flutterfox |
 
-5. När sista raden är gjord: **vänta 3 sekunder** och stoppa.
+**3. Två tokens,** lagda bredvid bunten, utanför bild:
+- **Soldier:** ett kort som inte är med ovan, **i plastficka**, baksidan upp.
+- **Rebel:** ett kort som inte är med ovan, **utan plastficka**, baksidan upp.
 
-Blir något fel spelar det ingen roll. Fortsätt, och skriv vad som hände sist
-i `kort.txt`. Det tar ~4–5 minuter.
+**4. Library:** resten av leken, som en bunt med baksidan upp, **nere till
+vänster** i bild. **Graveyard:** en tom plats direkt till höger om library.
 
-## Efter
+**5. Telefonen** i hållaren på ~40 cm, samma bord, matta och ljus som när
+du spelar. Rör inte hållaren under inspelningen.
+
+**6. Så här ligger bordet**, ungefär (bara för att korten ska få plats):
+
+```
+ ┌────────────────────────────────────────────────┐
+ │   creatures och andra kort, i rader            │
+ │   (mitten och uppåt)                           │
+ │                                                │
+ │   landen: hög A (Swamp)  hög B (Plains)        │
+ │           Thriving Moor  Thriving Heath        │
+ │                                                │
+ │ [library] [graveyard]                          │
+ └────────────────────────────────────────────────┘
+```
+
+---
+
+## B. Spela in
+
+**Varje steg:** gör det i vanlig speltakt (sakta inte ner), ta ut handen ur
+bild, och **vänta 2–3 sekunder** innan nästa steg.
+
+Starta videoinspelningen i kameraappen. **Vänta 3 sekunder** med bordet
+tomt (bara library i bild).
+
+### Tur 1
+1. Från bunten: **Swamp**. Lägg den där hög A ska vara.
+2. Från bunten: **Thriving Moor**. Lägg den **tappad** i landraden.
+
+### Tur 2
+3. Från bunten: **Plains**. Lägg den där hög B ska vara.
+4. **Tappa hög A** (Swamp).
+5. **Tappa hög B** (Plains).
+6. Från bunten: **Fencing Ace**. Lägg den i mitten.
+
+### Tur 3
+7. **Untappa allt** som är tappat (hög A, hög B, Thriving Moor).
+8. Från bunten: **Swamp**. Lägg den på hög A, så som du brukar stapla.
+9. Från bunten: **Ancestral Blade**. Lägg den på en fri plats.
+10. Ta **Soldier-tokenen** (i ficka, baksidan upp). Lägg den bredvid Ancestral Blade.
+11. **Flytta Ancestral Blade** och lägg den på Soldier-tokenen, så som du brukar equipa.
+12. Från bunten: **Pharika's Chosen**. Lägg den på en fri plats.
+
+### Tur 4
+13. **Untappa allt.**
+14. **Tappa Fencing Ace** (den anfaller).
+15. Från bunten: **Plains**. Lägg den på hög B.
+16. Från bunten: **Mirran Bardiche**. Lägg den på en fri plats.
+17. Ta **Rebel-tokenen** (utan ficka, baksidan upp). Lägg den bredvid Mirran Bardiche.
+18. **Flytta Mirran Bardiche** och lägg den på Rebel-tokenen.
+19. Från bunten: **Ukud Cobra**. Lägg den på en fri plats.
+
+### Tur 5
+20. **Untappa allt.**
+21. Från bunten: **Thriving Heath**. Lägg den **tappad** i landraden.
+22. Från bunten: **Maul of the Skyclaves**. Lägg den **direkt på Fencing Ace**.
+23. Från bunten: **Killing Glare**. Lägg den på bordet.
+24. **Killing Glare** till graveyard.
+25. **Pharika's Chosen** till graveyard (den dog).
+
+### Tur 6
+26. **Untappa allt.**
+27. Från bunten: **Swamp**. Lägg den på hög A.
+28. Från bunten: **Gorgon Flail**. Lägg den på en **fri plats** (inte på något kort).
+29. **Flytta Gorgon Flail** och lägg den på Ukud Cobra.
+30. Från bunten: **Venomous Hierophant**. Lägg den på en fri plats.
+31. **Mill 3:** ta översta kortet från library och lägg det **med framsidan upp** på graveyard. Gör så tre gånger, ett kort i taget.
+
+### Tur 7
+32. **Untappa allt.**
+33. Från bunten: **Plains**. Lägg den på hög B.
+34. Från bunten: **Pacifism**. Lägg den **direkt på Ukud Cobra**.
+35. Från bunten: **Danitha Capashen**. Lägg den på en fri plats.
+36. **Flytta Ancestral Blade** från Soldier-tokenen och lägg den på Danitha.
+37. **Soldier-tokenen dör:** lyft bort den ur bild.
+
+### Tur 8
+38. **Untappa allt.**
+39. Från bunten: **Swamp**. Lägg den på hög A.
+40. Från bunten: **Trusty Retriever**. Lägg den på en fri plats.
+41. **Ukud Cobra till handen:** lyft den ur bild. Pacifism och Gorgon Flail som satt på den: lägg dem på graveyard, så som i spel.
+42. Från bunten: **Flutterfox**. Lägg den på en fri plats.
+43. **Flutterfox överst i library:** lägg den med baksidan upp överst på library.
+
+### Tur 9
+44. **Untappa allt.**
+45. **Pharika's Chosen från graveyard till spel:** leta fram den i graveyard och lägg den på en fri plats.
+46. **Killing Glare från graveyard till exile:** leta fram den i graveyard och **lägg den åt sidan, ut ur bild**. Inte i library.
+
+**Vänta 3 sekunder** och stoppa inspelningen.
+
+---
+
+## C. Efter
 
 1. AirDropa videon till Macen.
-2. Lägg den i den här mappen: `dev/golden/inspelningar/mes-246/`
-   (filnamnet spelar ingen roll).
-3. Starta sessionen med prompten för MES-246.
+2. Lägg den i `dev/golden/inspelningar/mes-246/` (filnamnet spelar ingen roll).
+3. Blev något fel: skriv stegnumret och vad som hände sist i `kort.txt`.
+4. Starta sessionen med prompten för MES-246.
