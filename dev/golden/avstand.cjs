@@ -12,6 +12,9 @@
    --fall 01,03      bara fallen vars mapp börjar så (videofall körs aldrig)
    --faktorer 1,0.5  andra skalfaktorer än 1, 0,8, 0,65, 0,5, 0,4, 0,3
    --json <fil>      hela resultatet som JSON (varje fall × faktor med spåren)
+   --utan-modell     utan bildmodellen (reserven Matcher + ORB); --wasm
+                     tvingar modellen till WASM. Annars är den med, som i
+                     kor.cjs, och raden `metod:` säger +modell och vägen.
    --ai              med Claude, som kor.cjs --ai: attrappen kör riktiga
                      anrop (MESA_AI=1, nyckeln ur .env.local) och kamerans
                      osäkra spår frågar servern. KOSTAR PENGAR. Samma port
@@ -39,11 +42,17 @@ const ROT = path.join(__dirname, '..', '..');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const FALL = arg('--fall', ''), FAKTORER = arg('--faktorer', ''), JSONFIL = arg('--json', '');
 const AIFLAG = process.argv.includes('--ai');
+/* Bildmodellen (MES-225) som i kor.cjs: med som i appen, WebGPU-flaggorna
+   till Chrome, vikterna ur dev/embed när de ligger där. --utan-modell mäter
+   reserven (Matcher + ORB, kedjan från före modellen), --wasm tvingar WASM.
+   Skriptet skrevs före modellen och körde den förut utan GPU-flaggorna. */
+const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
+const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const CDP_TAK_MS = 120000;   // ett enskilt anrop till sidan; hela körningen har sitt eget tak nedan
 /* Sex fall × sex faktorer, var och en med kor.html:s tak på 30 s, plus
-   poolbygget första gången: 45 minuter räcker med marginal. */
-const KOR_TAK_MS = 45 * 60 * 1000;
+   poolbygget och lekens inbäddning första gången: 60 minuter räcker med marginal. */
+const KOR_TAK_MS = 60 * 60 * 1000;
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 const ledigPort = () => new Promise((res, rej) => { const s = net.createServer(); s.on('error', rej); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); }); });
 let doende = null;             // första felet från attrappen, Chrome eller förbindelsen — avbryter all väntan
@@ -77,7 +86,8 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { if (doende)
     });
     server.on('exit', k => dog(`attrappen slutade mitt i körningen (kod ${k})`));
     const profil = path.join(os.tmpdir(), 'mesa-avstand-profil');
-    chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run', '--no-default-browser-check', '--window-size=1400,1000', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const gpu = UTAN_MODELL || WASM ? [] : ['--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];   // som kor.cjs
+    chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run', '--no-default-browser-check', '--window-size=1400,1000'].concat(gpu, ['about:blank']), { stdio: ['ignore', 'ignore', 'pipe'] });
     chrome.on('exit', k => dog(`Chrome slutade (kod ${k})`));
     let wsUrl = null, stderr = '';
     chrome.stderr.on('data', d => { if (wsUrl) return; stderr += d; const m = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/); if (m) wsUrl = m[1]; });
@@ -97,6 +107,8 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { if (doende)
     const kor = async uttryck => { const r = await cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }); return r.result && r.result.result ? r.result.result.value : undefined; };
     await cdp('Runtime.enable');
     const q = new URLSearchParams(); if (FALL) q.set('fall', FALL); if (FAKTORER) q.set('faktorer', FAKTORER); if (AIFLAG) q.set('ai', '1');
+    if (UTAN_MODELL) q.set('embed', '0'); else if (EMBED_LOKALT) q.set('embedlokalt', '1');
+    if (WASM) q.set('embedbackend', 'wasm');
     await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/avstand.html${q.size ? '?' + q : ''}` });
     let sist = '';
     const slut = await tills(async () => {

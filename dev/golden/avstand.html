@@ -86,6 +86,10 @@ const FALL = (Q.get('fall') || '').split(',').map(s => s.trim()).filter(Boolean)
    den lokala kedjan tappar dem (MES-31). Kostar; attrappen måste köra
    riktiga anrop (MESA_AI=1). */
 const AI = Q.get('ai') === '1';
+/* Bildmodellen (MES-225) som i kor.cjs: parametrarna går vidare till
+   kor.html oförändrade (embed=0, embedlokalt=1, embedbackend=wasm). */
+const KOR_Q = new URLSearchParams(); if (AI) KOR_Q.set('ai', '1');
+for (const k of ['embed', 'embedlokalt', 'embedbackend']) if (Q.get(k)) KOR_Q.set(k, Q.get(k));
 /* Golvens tal, som i index.html. Bara för att räkna om kortsidan till
    "kapas beskärningen?" och för rubrikerna — själva domarna läses ur appen. */
 const KORT_MIN_PX = 150, BESKAR_BREDD = 720, MARGINAL = 1.16;
@@ -97,7 +101,7 @@ let kw = null, K = null;   // kor.html:s fönster och appens Kamera-modul (kor.h
 /* ── kor.html, med allt den gör vid start ─────────────────────────── */
 async function laddaKor() {
   const f = $('#kor');
-  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html' + (AI ? '?ai=1' : ''); });
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html' + (KOR_Q.size ? '?' + KOR_Q : ''); });
   kw = f.contentWindow;
   for (let i = 0; i < 100; i++) { try { if (typeof kw.korStillFall === 'function') break; } catch (e) {} await sleep(100); }
   for (const fn of ['korStillFall', 'stallUpp', 'bedom']) if (typeof kw[fn] !== 'function') throw new Error('kor.html saknar ' + fn);
@@ -177,7 +181,11 @@ async function korFaktor(f, img, faktor) {
            langtBort: !!(prov && prov.langtBort), sparKortPx: prov && prov.sparKortPx != null ? Math.round(prov.sparKortPx) : null, vidSkala: prov ? +prov.vidSkala.toFixed(2) : null,
            smaKort: prov ? prov.smaKort : 0, smaMax, sma: prov ? prov.sma : 0, avslag: prov ? prov.avslag : null,
            ocrHoppade: ocr.filter(t => t.ocr.hoppad === 'liten').length, ocrAv: ocr.length,
-           tidsgrans: !!res.tidsgrans, tid: res.tid, krascher: res.krascher || 0, missade: res.missade, spar: res.spar.map(t => ({ id: t.id, tillstand: t.tillstand, namn: t.namn, saker: t.saker, ocr: t.ocr ? { hoppad: t.ocr.hoppad, namn: t.ocr.namn, poang: t.ocr.poang } : null })) };
+           tidsgrans: !!res.tidsgrans, tid: res.tid, krascher: res.krascher || 0, missade: res.missade, varforRatt: res.varforRatt || {},
+           /* Var namnen fastnar (MES-244): facits kort mot spåren, och kedjans
+              läsningar — modellens marginal, ORB:s inliers och skala, domskälet,
+              titelraden, beskärningens storlek — så som kor.html loggar dem. */
+           traffar: res.traffar || [], lasningar: res.lasningar || [], spar: res.spar.map(t => ({ id: t.id, tillstand: t.tillstand, namn: t.namn, saker: t.saker, ocr: t.ocr ? { hoppad: t.ocr.hoppad, namn: t.ocr.namn, poang: t.ocr.poang } : null })) };
 }
 
 /* Ett faktorsteg utan egen kortsida (inga rutor, ingen kortreferens) får
@@ -269,7 +277,7 @@ function skrivTabell(R, fall) {
     }
     fyllKortPx(R);
     skrivTabell(R, fall);
-    window.RES = { faktorer: FAKTORER, telefonPx: TELEFON_PX, metod: (() => { try { return kw.eval('metod')(); } catch (e) { return null; } })(), rader: R };
+    window.RES = { faktorer: FAKTORER, telefonPx: TELEFON_PX, metod: (() => { try { return kw.eval('metod')(); } catch (e) { return null; } })(), modell: (() => { try { const k = kw.eval('embedInfo'); return k ? k.backend : null; } catch (e) { return null; } })(), rader: R };
     status('Klar.');
   } catch (e) { status('Fel: ' + (e && e.message || e)); console.error(e); }
 })();
