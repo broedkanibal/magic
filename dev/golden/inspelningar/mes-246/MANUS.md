@@ -10,7 +10,7 @@ igång under inspelningen.
 
 1. **Kamerainställning på iPhone:** Inställningar → Kamera → Spela in video →
    **1080p HD i 60 bps**. Inställningar → Kamera → Format → **Mest kompatibelt**.
-2. **Leta fram de 20 korten** i `kort.txt` och lägg dem i en bunt i
+2. **Leta fram de 21 korten** i `kort.txt` och lägg dem i en bunt i
    manusets ordning, överst först. Då blir det rätt av sig självt.
    Ha också en **Soldier-token** redo bredvid: ett token-kort, eller det du
    brukar använda som token.
