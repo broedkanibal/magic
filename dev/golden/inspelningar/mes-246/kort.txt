@@ -1,30 +1,67 @@
 # Manuset för inspelningen till MES-246 (läs kortet innan handen släpper).
-# En handling per rad, i ordning. "tappad" = läggs ned tappat,
-# "på X" = läggs ovanpå kortet X, "hög A/B" = läggs på den landhögen,
-# "token" = en token läggs ut (inget kort ur leken), "flytta X till Y" =
-# ett kort som redan ligger flyttas. Alla kortnamn finns i dev/golden/lek.txt;
-# tokenen gör det inte.
+# En handling per rad, i ordning, uppdelat i turer som i ett riktigt parti.
+# Ordlista:
+#   <kort>                     läggs ned på en fri plats
+#   <kort> tappad              läggs ned redan tappat (kommer in tappat)
+#   <kort> hög A / hög B       läggs på landhögen (A = Swamp, B = Plains)
+#   <kort> på <kort>           läggs ovanpå/fäst vid kortet, direkt
+#   token <typ> (<som>)        en token läggs ut; <som> = vad som föreställer den
+#   flytta <kort> till <kort>  ett kort som redan ligger flyttas (equip om)
+#   tappa / untappa <vad>      vrid kortet eller hela högen
+#   <kort> till graveyard      flyttas från bordet till graveyard-högen
+#   <kort> till handen         lyfts från bordet, ut ur bild
+#   <kort> överst i library    läggs från bordet överst på library, baksidan upp
+#   mill 3                     tre kort från library till graveyard, ett i taget
+#   bort <vad>                 lyfts bort ur bild (en token som dör)
+# Alla kortnamn finns i dev/golden/lek.txt; tokens gör det inte.
+# --- Tur 1
 Swamp hög A
+Thriving Moor tappad
+# --- Tur 2
+Plains hög B
+tappa hög A
+tappa hög B
 Fencing Ace
-Plains hög B
+# --- Tur 3
+untappa allt
 Swamp hög A
-Faithful Pikemaster
-Plains hög B
 Ancestral Blade
-token Soldier (Ancestral Blade skapar den)
+token Soldier (token-kort)
 flytta Ancestral Blade till token Soldier
-Valkyrie's Sword på Fencing Ace
-Swamp hög A
-Night's Whisper
-Serpent Assassin tappad
+Pharika's Chosen
+# --- Tur 4
+untappa allt
+tappa Fencing Ace
 Plains hög B
+Mirran Bardiche
+token Rebel (kort med baksidan upp)
+flytta Mirran Bardiche till token Rebel
+Ukud Cobra
+# --- Tur 5
+untappa allt
+Thriving Heath tappad
+Maul of the Skyclaves på Fencing Ace
 Killing Glare
-Gorgon Flail på Faithful Pikemaster
+Killing Glare till graveyard
+Pharika's Chosen till graveyard
+# --- Tur 6
+untappa allt
 Swamp hög A
-Hooded Blightfang tappad
-flytta Ancestral Blade till Hooded Blightfang
-Pacifism
-Ukud Cobra tappad
-Trusty Retriever
+Gorgon Flail
+flytta Gorgon Flail till Ukud Cobra
+Venomous Hierophant
+mill 3
+# --- Tur 7
+untappa allt
+Plains hög B
+Pacifism på Ukud Cobra
 Danitha Capashen, Paragon
+flytta Ancestral Blade till Danitha Capashen, Paragon
+bort token Soldier
+# --- Tur 8
+untappa allt
+Swamp hög A
+Trusty Retriever
+Ukud Cobra till handen
 Flutterfox
+Flutterfox överst i library
