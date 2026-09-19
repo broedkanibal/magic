@@ -2286,6 +2286,16 @@ body:not(.debug) .dbg{display:none!important}
 .pbfarger i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-left:6px}
 .pbfarger i:first-child{margin-left:0}
 .pbstatus{margin:0;padding:0 9px 8px;font:12.5px/1.45 var(--sans);color:var(--dim)}
+/* Hälsokollen i Latency-panelen (MES-240) */
+.pbhalsa{list-style:none;margin:0 9px 8px;padding:7px 9px;border-radius:7px;background:rgba(255,255,255,.035);font:12px/1.45 var(--sans);color:var(--dim)}
+.pbhalsa li{display:flex;gap:7px;padding:1px 0}
+.pbhalsa li i{flex:none;width:14px;font-style:normal;font-weight:700;text-align:center}
+.pbhalsa li.ok i{color:#6fcf8e}
+.pbhalsa li.varn i,.pbhalsa li.varn{color:#e8c98a}
+.pbhalsa li.fel i,.pbhalsa li.fel{color:#ff8a80}
+.pbhalsa li.vant i{color:var(--dim2)}
+.pbhalsa li.rubrik{font-weight:600;color:var(--txt);padding-bottom:4px}
+.pbhalsa li.rubrik.fel{color:#ff8a80}
 .pbstatus b{color:var(--txt)}
 .pbstatus .rad{display:block;margin-top:4px;color:#e8c98a}
 .pbstatus .fin{display:block;margin-top:2px;font-size:11px;color:var(--dim2)}
@@ -3543,6 +3553,9 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
             <button class="btn sm ghost" id="pbLatensStopp">Stop</button>
             <button class="btn sm ghost" id="pbLatensSpara">Save report</button>
           </div>
+          <!-- Hälsokollen (MES-240): uppdateras varje sekund, också före Start,
+               så att ett tyst fel syns direkt i stället för efter tio minuter. -->
+          <ul class="pbhalsa" id="pbLatensHalsa"></ul>
           <p class="pbstatus" id="pbLatensStatus">Connect the phone with ?debug open on it, then start. Every card gets a row: picture → found → still → name → sent → received → drawn.</p>
         </div>
         <details class="pbavancerat dbg" id="pbAvancerat">
@@ -21411,7 +21424,21 @@ function bordExtra(extra) {
            bib: extra && extra.bib !== undefined ? extra.bib : Kamera.bib,       // leken i library-rutan (MES-122); null utan ruta — saknas nyckeln är telefonen äldre
            bok: kamAiBokLage(),   // kostnadsboken (kamAiBokfor): datorn räknar skillnaden sedan auto slogs på
            /* Latensmätningen (MES-215, bara ?debug): spår som släppts sedan förra rapporten, rutans tid och när rapporten skickas — telefonens klocka. */
-           bortaTs: extra && extra.bortaTs, bildTid: extra && extra.bildTid, skickat: DEBUG ? Date.now() : undefined };
+           bortaTs: extra && extra.bortaTs, bildTid: extra && extra.bildTid, skickat: DEBUG ? Date.now() : undefined,
+           halsa: DEBUG ? kamHalsa() : undefined };   // hälsokollen (MES-240): datorn visar direkt om provet går fel
+}
+/* Telefonens hälsa för Latency-panelens hälsokoll (MES-240, bara ?debug).
+   Saknas fältet helt i bordet vet datorn att telefonen inte har ?debug —
+   då kommer inga tidsstämplar, och provet vore tio förlorade minuter. */
+function kamHalsa() {
+  const v = $('#vyKamera');
+  return {
+    mork: !!(v && v.classList.contains('ren') && v.classList.contains('mork') && !v.classList.contains('visa')),   // mörk skärm: en skärminspelning blir svart
+    dold: document.visibilityState !== 'visible',
+    modell: !KamEmbed.pa() ? 'av' : KamEmbed.redo() ? ((window.Embed && window.Embed.backend) || 'klar')
+          : KamEmbed.bygger ? 'laddar' : KamEmbed.fel ? 'fel' : 'vantar',
+    modellFel: KamEmbed.fel || null,
+  };
 }
 /* Grundläget som datorn och raden i camera_setups bär det: hela grader,
    0–179. null = inte sparat — det är så datorn vet om spelet ska frågas. */
@@ -22064,6 +22091,7 @@ let kamRad = '';                 // telefonens råd just nu: för långt bort, o
 let kamSma = 0;                  // kortformade regioner telefonen såg men inte kunde läsa (för små; aldrig spår) — ur varje bord, MES-31
 let kamUpplosning = null;        // { w, h } strömmen ger på telefonen; null tills första bordet, eller från en telefon utan fältet
 let kamBildlage = null;          // { lage: '4k15' | '1080p30', fps, takt } ur varje bord (MES-229); null från en telefon utan fältet
+let kamHalsaSenast = null;       // { t, halsa } ur senaste bordet (MES-240); halsa undefined = telefonen har inte ?debug
 
 /* Bindningen mellan ett kort och ett spår gäller BARA inom en kamerasession.
    Varje ny session numrerar om från 1, så ett kvarlämnat spar är i bästa fall
@@ -23664,9 +23692,66 @@ const LatensDator = (() => {
     d.push(b ? `clock ${b.off >= 0 ? '+' : ''}${Math.round(b.off)} ms ±${Math.round(b.rtt / 2)}` : 'clock: waiting for the phone');
     status(d.join(' · '));
   }
+  /* Hälsokollen (MES-240). Rader { niva: 'ok' | 'varn' | 'fel' | 'vant', txt }
+     ur det datorn vet just nu — varje bord bär telefonens hälsa, och
+     hjärtslaget var 3:e sekund gör att tystnad syns. Körs varje sekund,
+     också före Start. */
+  function halsaRader() {
+    const r = [], s = kamHalsaSenast, h = s && s.halsa, nu = Date.now();
+    const rad = (niva, txt) => r.push({ niva, txt });
+    if (!s) rad('fel', 'No reports from the phone yet. Open the camera on the phone and connect it.');
+    else if (nu - s.t > 6000) rad('fel', `No reports from the phone for ${Math.round((nu - s.t) / 1000)} s. Is the phone locked, or Mesa in the background? Wake it and keep Mesa open.`);
+    else rad('ok', 'Phone connected, reports arriving.');
+    if (s && !h) rad('fel', 'The phone is not in debug mode. Add ?debug to the address on the phone and reload. Without it the phone sends no timestamps.');
+    else if (h) {
+      rad('ok', 'Phone in debug mode: timestamps on.');
+      if (h.dold) rad('fel', 'Mesa is in the background on the phone. Bring it to the front.');
+      const mod = { webgpu: ['ok', 'Image model ready on WebGPU (fast path).'],
+                    wasm: ['varn', 'Image model on WASM (slower path; WebGPU needs iOS 26). The test still works — note it.'],
+                    klar: ['ok', 'Image model ready.'],
+                    laddar: ['vant', 'Image model loading on the phone. Wait until this turns green before you play.'],
+                    vantar: ['vant', 'Image model waiting for the deck. Pick your deck and let the phone finish learning it.'],
+                    fel: ['fel', `Image model unavailable (${h.modellFel || 'unknown error'}). The phone recognises the slower way — the test does not measure the model.`],
+                    av: ['varn', 'Image model switched off on the phone.'] }[h.modell];
+      if (mod) rad(mod[0], mod[1]);
+      if (h.mork) rad('varn', 'Dark screen is on: a screen recording will be black. Tap “Keep the picture on” on the phone before you record. Timing is fine either way.');
+      else rad('ok', 'The camera picture shows on the phone: a screen recording will work.');
+    }
+    if (!kamBildlage) { if (s) rad('vant', 'Picture mode not reported yet.'); }
+    else if (kamBildlage.lage === '1080p30' && kamBildlage.fps && kamBildlage.fps < 25) rad('varn', `1080p asks for 30 fps but the phone gives ${kamBildlage.fps}. Write that down.`);
+    else rad('ok', `Picture mode: ${kamBildlage.lage === '1080p30' ? '1080p · 30 fps' : '4K · 15 fps'}${kamBildlage.fps ? ` (the phone gives ${kamBildlage.fps} fps)` : ''}.`);
+    if (L && !L.stoppad) {
+      const sedan = nu - Date.parse(L.start), b = bastaPing(), n = rader().length;
+      if (b) rad('ok', `Clocks synced (±${Math.round(b.rtt / 2)} ms).`);
+      else if (sedan > 8000) rad('fel', 'No answer to the clock ping. Reload Mesa on the phone (with ?debug), then press Start again.');
+      else rad('vant', 'Syncing the clocks…');
+      if (n) rad('ok', `${n} card events recorded.`);
+      else if (sedan > 45000) rad('varn', 'No card events yet. Put a card on the table. If it stays at 0, stop, reload the phone and start again.');
+      else rad('vant', 'Waiting for the first card event. Put a card on the table.');
+      if (L.bildlagen.length > 1) rad('fel', 'The picture mode changed during this pass, so it cannot be compared. Stop, save, and start a new pass.');
+    }
+    return r;
+  }
+  function ritaHalsa() {
+    const el = $('#pbLatensHalsa'); if (!el) return;
+    const r = halsaRader(), fel = r.find(x => x.niva === 'fel'), vant = r.find(x => x.niva === 'vant'), varn = r.find(x => x.niva === 'varn');
+    const rub = fel ? { niva: 'fel', txt: 'Fix this before you play:' } : vant ? { niva: 'vant', txt: 'Almost ready…' }
+              : varn ? { niva: 'varn', txt: 'Ready to play — read the notes marked !' } : { niva: 'ok', txt: 'All good — you can play.' };
+    const ikon = { ok: '✓', varn: '!', fel: '✗', vant: '…' };
+    const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    el.innerHTML = `<li class="rubrik ${rub.niva}"><i>${ikon[rub.niva]}</i>${rub.txt}</li>` + r.map(x => `<li class="${x.niva}"><i>${ikon[x.niva]}</i><span>${esc(x.txt)}</span></li>`).join('');
+    /* I rapporten: varje gång uppsättningen fel och varningar ändras, så att
+       ett pass som gick snett syns i filen också. */
+    if (L && !L.stoppad) {
+      const nyck = r.filter(x => x.niva === 'fel' || x.niva === 'varn').map(x => x.txt).join(' | ');
+      const sist = L.halsa[L.halsa.length - 1];
+      if (!sist || sist.problem !== nyck) L.halsa.push({ t: Date.now(), problem: nyck });
+    }
+  }
+  if (DEBUG) setInterval(ritaHalsa, 1000);
   function start() {
     if (L && !L.stoppad) { toast('Already measuring.', 'err'); return; }
-    L = { v: 1, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [] };
+    L = { v: 1, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [], halsa: [] };
     if (!Moln.sandKam('insp', { gor: 'ping', id: 'latens', t0: Date.now() })) { toast('No connection to the phone', 'err'); L = null; return; }
     for (let i = 1; i <= 4; i++) setTimeout(ping, i * 1000);
     clearInterval(pingT); clearInterval(visT);
@@ -23682,6 +23767,7 @@ const LatensDator = (() => {
     /* bildlage (MES-229): vilket läge passet kördes i — '4k15' eller '1080p30', med upplösningen och rutorna per sekund telefonen faktiskt gav. Fler än ett = läget byttes under passet, och då går passet inte att jämföra. */
     const ut = { v: 1, start: L.start, stoppad: L.stoppad, spel: L.spel, ua: L.ua, bildlage: L.bildlagen, klocka: b ? { off: Math.round(b.off), rtt: b.rtt, pingar: L.ping.length } : null,
                  summa, nat_median: med(rs.map(x => x.nat).filter(x => x != null)), dator_median: med(rs.map(x => x.dator).filter(x => x != null)),
+                 halsa: L.halsa,   // hälsokollens fel och varningar under passet (MES-240)
                  rader: rs, ping: L.ping };
     inspSpara(new Blob([JSON.stringify(ut, null, 1)], { type: 'application/json' }), `latens-${(L.start || '').replace(/[:.]/g, '-').slice(0, 19)}.json`);
   }
@@ -24283,6 +24369,7 @@ function kamTogsEmot(m) {
     if (m.sma !== undefined) kamSma = m.sma || 0;
     if (m.upplosning !== undefined) kamUpplosning = m.upplosning || null;
     if (m.bildlage !== undefined) { kamBildlage = m.bildlage || null; ritaPbSnabb(); }
+    kamHalsaSenast = { t: Date.now(), halsa: m.halsa };   // hälsokollen (MES-240)
     /* Library-rutan (MES-122): { ligger } i varje bord från en telefon med
        rutan; en telefon med äldre kod skickar inte nyckeln alls (nollställningen
        bär den aldrig). */
@@ -24660,6 +24747,9 @@ function kamVisaText(ms) {
 function kamSatMork(mork) {
   $('#vyKamera').classList.toggle('mork', mork);
   $('#kamMork').textContent = mork ? 'Keep the picture on' : 'Dark screen';
+  /* ?debug (MES-240): en skärminspelning av den mörka skärmen blir svart —
+     det ska synas på telefonen innan man spelar in, inte efteråt. */
+  if (DEBUG) $('.kammork').textContent = mork ? 'The camera is on · Debug: a screen recording is black now — tap “Keep the picture on” before you record' : 'The camera is on · tap to see the picture';
 }
 kamSatMork(!LS.get(K.kamBild, false));
 $('#kamMork').onclick = () => {

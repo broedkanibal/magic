@@ -364,7 +364,14 @@ och räcker bildmodellen och ORB när titelraden är för liten att läsa?
 Golden kan inte svara (videorna är 15 rutor/s). Så här körs provet:
 
 1. Öppna spelet med `?debug` på **datorn och telefonen**. Koppla telefonen.
-2. Kameradialogen på datorn → *Latency · MES-215* → **Start**.
+2. Kameradialogen på datorn → *Latency · MES-215*. **Hälsokollen** (MES-240)
+   överst i panelen uppdateras varje sekund, också före Start: telefonen
+   ansluten, `?debug` på telefonen, bildmodellen redo (WebGPU eller WASM),
+   bildläge och verklig bildtakt, mörk skärm (en skärminspelning blir svart),
+   och under passet klockorna och antalet kortrader. Börja spela först när
+   rubriken säger *All good* eller *Ready to play*. Står det *Fix this*:
+   gör det raden säger. Fel och varningar under passet följer med i
+   rapporten (`halsa`). Sedan **Start**.
 3. **Pass 1, förvalet:** växeln *Picture mode · MES-229* av. Statusraden
    ska säga *4K · 15 fps*. Spela ett kort parti: lägg ut 10–15 kort ett i
    taget, tappa och otappa några, flytta ett par, lyft bort några.
