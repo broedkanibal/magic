@@ -34,25 +34,28 @@ alltid det översta kortet när ett steg säger "från bunten".
 - **Soldier:** ett kort som inte är med ovan, **i plastficka**, baksidan upp.
 - **Rebel:** ett kort som inte är med ovan, **utan plastficka**, baksidan upp.
 
-**4. Library:** resten av leken, som en bunt med baksidan upp, **nere till
-vänster** i bild. **Graveyard:** en tom plats direkt till höger om library.
+**4. Graveyard och library** längst ner till vänster i bild: **graveyard**
+(tom plats) längst till vänster, och **library** (resten av leken, baksidan
+upp) direkt till höger om den.
 
 **5. Telefonen** i hållaren på ~40 cm, samma bord, matta och ljus som när
 du spelar. Rör inte hållaren under inspelningen.
 
-**6. Så här ligger bordet**, ungefär (bara för att korten ska få plats):
+**6. Så här ligger bordet**, ungefär:
 
 ```
- ┌────────────────────────────────────────────────┐
- │   creatures och andra kort, i rader            │
- │   (mitten och uppåt)                           │
- │                                                │
- │   landen: hög A (Swamp)  hög B (Plains)        │
- │           Thriving Moor  Thriving Heath        │
- │                                                │
- │ [library] [graveyard]                          │
- └────────────────────────────────────────────────┘
+ ┌───────────────────────────────────────────────────────┐
+ │                                                       │
+ │   alla andra kort: creatures, equipment, tokens,      │
+ │   Thriving-landen …  (i rader, uppåt)                 │
+ │                                                       │
+ │                                                       │
+ │ [graveyard] [library] [Swamp-hög A] [Plains-hög B]    │
+ └───────────────────────────────────────────────────────┘
 ```
+
+Nedersta raden, från vänster: **graveyard, library, Swamp-högen, Plains-högen.**
+Allt annat ligger ovanför.
 
 ---
 
@@ -65,14 +68,14 @@ Starta videoinspelningen i kameraappen. **Vänta 3 sekunder** med bordet
 tomt (bara library i bild).
 
 ### Tur 1
-1. Från bunten: **Swamp**. Lägg den där hög A ska vara.
-2. Från bunten: **Thriving Moor**. Lägg den **tappad** i landraden.
+1. Från bunten: **Swamp**. Lägg den där Swamp-högen (hög A) ska vara, till höger om library.
+2. Från bunten: **Thriving Moor**. Lägg den **tappad** på en fri plats ovanför högarna.
 
 ### Tur 2
-3. Från bunten: **Plains**. Lägg den där hög B ska vara.
+3. Från bunten: **Plains**. Lägg den där Plains-högen (hög B) ska vara, till höger om Swamp-högen.
 4. **Tappa hög A** (Swamp).
 5. **Tappa hög B** (Plains).
-6. Från bunten: **Fencing Ace**. Lägg den i mitten.
+6. Från bunten: **Fencing Ace**. Lägg den på en fri plats.
 
 ### Tur 3
 7. **Untappa allt** som är tappat (hög A, hög B, Thriving Moor).
@@ -93,7 +96,7 @@ tomt (bara library i bild).
 
 ### Tur 5
 20. **Untappa allt.**
-21. Från bunten: **Thriving Heath**. Lägg den **tappad** i landraden.
+21. Från bunten: **Thriving Heath**. Lägg den **tappad** på en fri plats, bredvid Thriving Moor.
 22. Från bunten: **Maul of the Skyclaves**. Lägg den **direkt på Fencing Ace**.
 23. Från bunten: **Killing Glare**. Lägg den på bordet.
 24. **Killing Glare** till graveyard.
