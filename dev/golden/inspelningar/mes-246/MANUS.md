@@ -4,23 +4,24 @@ Du följer stegen i ordning. Du behöver inte skriva något: manuset *är*
 facit (samma ordning står i `kort.txt`, som sessionen läser). Blir något
 fel, fortsätt, och säg till efteråt vilket steg det gällde.
 
-**Tid:** ~15 minuter med förberedelserna. Själva inspelningen är ~5 min.
+**Tid:** ~15 minuter med förberedelserna. Själva inspelningen är ~5 min (filen blir ~2 GB).
 
 ---
 
 ## A. Förbered (före inspelningen)
 
-**1. Kameran.** På iPhone, Settings → Camera → Record Video:
-- **1080p HD at 60 fps**
-- **Auto FPS: Off** (annars sänker telefonen till 30 i svagt ljus)
-- **Enhanced Stabilisation: av**
-- **HDR Video: av**
-- **Lock Camera: på** (telefonen byter inte objektiv mitt i)
-- **Lock White Balance: på** (färgerna glider inte)
+**1. Kameran.** På iPhone, Settings → Camera:
+- Formats → **High Efficiency** (krävs för 4K i 60)
+- Record Video → **4K at 60 fps (High Efficiency)**
+- Record Video → **Auto FPS: Off** (annars sänker telefonen till 30 i svagt ljus)
+- Record Video → **Enhanced Stabilisation: av**
+- Record Video → **HDR Video: av**
+- Record Video → **Lock Camera: på** (telefonen byter inte objektiv mitt i)
+- Record Video → **Lock White Balance: på** (färgerna glider inte)
 
-Och Settings → Camera → Formats → **Most Compatible**. I kameraappen:
-Action-läget av. Inställningarna gör bilden mer lik den Mesa ser i
-webbläsaren (mindre bildbehandling).
+I kameraappen: **Video**, tryck på **0,5** (vidvinkeln), och ha Action-läget
+av. På 1× får bara ~10 kort plats på 40 cm, och stativet går inte högre.
+4K gör att sessionen kan räkna ner till 1080p och jämföra.
 
 **2. Bunten.** Lägg de här 22 korten i en bunt, **nr 1 överst**. Du tar
 alltid det översta kortet när ett steg säger "från bunten".
@@ -48,7 +49,9 @@ alltid det översta kortet när ett steg säger "från bunten".
 upp) direkt till höger om den.
 
 **5. Telefonen** i hållaren på ~40 cm, samma bord, matta och ljus som när
-du spelar. Rör inte hållaren under inspelningen.
+du spelar. Rör inte hållaren under inspelningen. **Pröva stående och
+liggande** och välj den där flest kort får plats. **Provlägg ~15 kort** och
+se att allt syns, också nedersta raden, innan du plockar ihop bunten.
 
 **6. Så här ligger bordet**, ungefär:
 
@@ -148,5 +151,5 @@ tomt (bara library i bild).
 
 1. AirDropa videon till Macen.
 2. Lägg den i `dev/golden/inspelningar/mes-246/` (filnamnet spelar ingen roll).
-3. Blev något fel: skriv stegnumret och vad som hände sist i `kort.txt`.
+3. Skriv sist i `kort.txt`: stående eller liggande, och om något blev fel (stegnumret och vad som hände).
 4. Starta sessionen med prompten för MES-246.
