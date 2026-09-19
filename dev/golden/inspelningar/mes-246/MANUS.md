@@ -44,18 +44,17 @@ du spelar. Rör inte hållaren under inspelningen.
 **6. Så här ligger bordet**, ungefär:
 
 ```
- ┌───────────────────────────────────────────────────────┐
- │                                                       │
- │   alla andra kort: creatures, equipment, tokens,      │
- │   Thriving-landen …  (i rader, uppåt)                 │
- │                                                       │
- │                                                       │
- │ [graveyard] [library] [Swamp-hög A] [Plains-hög B]    │
- └───────────────────────────────────────────────────────┘
+ ┌──────────────────────────────────────────────────────────────────────┐
+ │                                                                      │
+ │   alla andra kort: creatures, equipment, tokens …  (i rader, uppåt)  │
+ │                                                                      │
+ │                                                                      │
+ │ [graveyard] [library] [Swamp-hög A] [Plains-hög B] [Moor] [Heath]    │
+ └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Nedersta raden, från vänster: **graveyard, library, Swamp-högen, Plains-högen.**
-Allt annat ligger ovanför.
+Nedersta raden, från vänster: **graveyard, library, Swamp-högen,
+Plains-högen, Thriving Moor, Thriving Heath.** Allt annat ligger ovanför.
 
 ---
 
@@ -69,7 +68,7 @@ tomt (bara library i bild).
 
 ### Tur 1
 1. Från bunten: **Swamp**. Lägg den där Swamp-högen (hög A) ska vara, till höger om library.
-2. Från bunten: **Thriving Moor**. Lägg den **tappad** på en fri plats ovanför högarna.
+2. Från bunten: **Thriving Moor**. Lägg den **tappad** i nedersta raden, till höger om där Plains-högen ska vara.
 
 ### Tur 2
 3. Från bunten: **Plains**. Lägg den där Plains-högen (hög B) ska vara, till höger om Swamp-högen.
@@ -96,7 +95,7 @@ tomt (bara library i bild).
 
 ### Tur 5
 20. **Untappa allt.**
-21. Från bunten: **Thriving Heath**. Lägg den **tappad** på en fri plats, bredvid Thriving Moor.
+21. Från bunten: **Thriving Heath**. Lägg den **tappad** längst till höger i nedersta raden, till höger om Thriving Moor.
 22. Från bunten: **Maul of the Skyclaves**. Lägg den **direkt på Fencing Ace**.
 23. Från bunten: **Killing Glare**. Lägg den på bordet.
 24. **Killing Glare** till graveyard.
