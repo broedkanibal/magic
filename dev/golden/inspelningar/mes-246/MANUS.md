@@ -22,7 +22,9 @@ igång under inspelningen.
    andra kort ligger i plastficka som vanligt.
 4. **Library och graveyard i bild**, som i spel: resten av leken (korten som
    inte är med i manuset) som en bunt med baksidan upp nere till vänster, och
-   en tom plats för graveyard bredvid.
+   en tom plats för graveyard bredvid, och en tom plats för **exile** till
+   höger om graveyard. Exile har ingen ruta i Mesas uppstart än, så lägg den
+   där du skulle lägga den i spel, bara den syns i bild.
 5. **Telefonen i hållaren** på samma höjd som när du spelar (~40 cm), samma
    bord, matta och ljus. Rör inte hållaren under inspelningen.
 6. **Bordet tomt** i bild, utom library.
@@ -48,6 +50,8 @@ igång under inspelningen.
 | `tappa` / `untappa` | vrid kortet eller hela högen, så som du brukar |
 | `untappa allt` | vrid tillbaka allt som är tappat |
 | `till graveyard` | lägg kortet på graveyard-högen |
+| `från graveyard till spel` | ta kortet ur graveyard-högen och lägg det på en fri plats på bordet |
+| `från graveyard till exile` | ta kortet ur graveyard-högen och lägg det på exile-platsen |
 | `till handen` | lyft kortet och ta det ur bild |
 | `överst i library` | lägg kortet med baksidan upp överst på library |
 | `mill 3` | ta de tre översta korten från library och lägg dem på graveyard, ett i taget, med framsidan upp |
@@ -56,7 +60,7 @@ igång under inspelningen.
 5. När sista raden är gjord: **vänta 3 sekunder** och stoppa.
 
 Blir något fel spelar det ingen roll. Fortsätt, och skriv vad som hände sist
-i `kort.txt`. Det tar ~4 minuter.
+i `kort.txt`. Det tar ~4–5 minuter.
 
 ## Efter
 
