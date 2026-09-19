@@ -110,7 +110,7 @@ tomt (bara library i bild).
 ### Tur 5
 20. **Untappa allt.**
 21. Från bunten: **Thriving Heath**. Lägg den **tappad** längst till höger i nedersta raden, till höger om Thriving Moor.
-22. Från bunten: **Maul of the Skyclaves**. Fäst den **direkt under Fencing Ace** (som är tappad just nu, så lägg Maul tappad under den), förskjuten så att namnet syns.
+22. Från bunten: **Maul of the Skyclaves**. Fäst den **direkt under Fencing Ace**, förskjuten så att namnet syns.
 23. Från bunten: **Killing Glare**. Lägg den på bordet.
 24. **Killing Glare** till graveyard.
 25. **Pharika's Chosen** till graveyard (den dog).
