@@ -11,11 +11,11 @@ igång under inspelningen.
 1. **Kamerainställning på iPhone:** Inställningar → Kamera → Spela in video →
    **1080p HD i 60 bps**. Inställningar → Kamera → Format → **Mest kompatibelt**.
 2. **Bunten:** leta fram korten i `kort.txt` och lägg dem i manusets
-   ordning, överst först: 20 kort ur leken (Swamp ×4, Plains ×3, Thriving
+   ordning, överst först: 22 kort ur leken (Swamp ×4, Plains ×3, Thriving
    Moor, Thriving Heath, Fencing Ace, Ancestral Blade, Pharika's Chosen,
    Mirran Bardiche, Ukud Cobra, Maul of the Skyclaves, Killing Glare, Gorgon
    Flail, Venomous Hierophant, Pacifism, Danitha Capashen, Trusty Retriever,
-   Flutterfox). Det blir 24 kort, räkna högarna.
+   Flutterfox).
 3. **Tokens:** ett **Soldier-token-kort** (eller det token-kort du har). Till
    Rebel-tokenen använder du **ett kort med baksidan upp**, som du brukar när
    det saknas en token.
