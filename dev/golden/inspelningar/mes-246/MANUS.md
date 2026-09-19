@@ -10,15 +10,17 @@ fel, fortsätt, och säg till efteråt vilket steg det gällde.
 
 ## A. Förbered (före inspelningen)
 
-**1. Kameran.** På iPhone, Inställningar → Kamera:
-- Spela in video → **1080p HD i 60 bps**
-- Spela in video → **HDR-video: av**
-- Spela in video → **Förbättrad stabilisering: av**
-- Spela in video → **Lås kamera: på** (telefonen byter inte objektiv mitt i)
-- Format → **Mest kompatibelt**
+**1. Kameran.** På iPhone, Settings → Camera → Record Video:
+- **1080p HD at 60 fps**
+- **Auto FPS: Off** (annars sänker telefonen till 30 i svagt ljus)
+- **Enhanced Stabilisation: av**
+- **HDR Video: av**
+- **Lock Camera: på** (telefonen byter inte objektiv mitt i)
+- **Lock White Balance: på** (färgerna glider inte)
 
-I kameraappen: **Action-läget av**. Inställningarna gör bilden mer lik den
-Mesa ser i webbläsaren (mindre bildbehandling).
+Och Settings → Camera → Formats → **Most Compatible**. I kameraappen:
+Action-läget av. Inställningarna gör bilden mer lik den Mesa ser i
+webbläsaren (mindre bildbehandling).
 
 **2. Bunten.** Lägg de här 22 korten i en bunt, **nr 1 överst**. Du tar
 alltid det översta kortet när ett steg säger "från bunten".
