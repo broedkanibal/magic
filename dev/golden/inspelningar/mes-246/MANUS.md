@@ -16,9 +16,10 @@ igång under inspelningen.
    Mirran Bardiche, Ukud Cobra, Maul of the Skyclaves, Killing Glare, Gorgon
    Flail, Venomous Hierophant, Pacifism, Danitha Capashen, Trusty Retriever,
    Flutterfox).
-3. **Tokens:** ett **Soldier-token-kort** (eller det token-kort du har). Till
-   Rebel-tokenen använder du **ett kort med baksidan upp**, som du brukar när
-   det saknas en token.
+3. **Tokens:** två kort som inte är med i manuset (t.ex. ur library-bunten),
+   båda med **baksidan upp**. Soldier-tokenen: kortet **i sin plastficka**
+   (fickans baksida uppåt). Rebel-tokenen: kortet **utan plastficka**. Alla
+   andra kort ligger i plastficka som vanligt.
 4. **Library och graveyard i bild**, som i spel: resten av leken (korten som
    inte är med i manuset) som en bunt med baksidan upp nere till vänster, och
    en tom plats för graveyard bredvid.
@@ -41,8 +42,8 @@ igång under inspelningen.
 | `tappad` | lägg ned det **redan tappat** (Thriving-landen kommer in tappade) |
 | `hög A` / `hög B` | lägg landet på högen **så som du brukar stapla mana** |
 | `på X` | lägg det fäst vid X direkt, **förskjutet så som du brukar** |
-| `token … (token-kort)` | lägg ut token-kortet bredvid kortet som skapade det |
-| `token … (kort med baksidan upp)` | lägg ett kort med baksidan upp bredvid kortet som skapade det |
+| `token … (kort i plastficka, baksidan upp)` | lägg tokenkortet i ficka, baksidan upp, bredvid kortet som skapade det |
+| `token … (kort utan plastficka, baksidan upp)` | lägg tokenkortet utan ficka, baksidan upp, bredvid kortet som skapade det |
 | `flytta X till Y` | ta upp X och lägg det vid Y, som när du equipar |
 | `tappa` / `untappa` | vrid kortet eller hela högen, så som du brukar |
 | `untappa allt` | vrid tillbaka allt som är tappat |
