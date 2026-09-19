@@ -11,6 +11,7 @@
 #   tappa / untappa <vad>      vrid kortet eller hela högen
 #   <kort> till graveyard      flyttas från bordet till graveyard-högen
 #   <kort> från graveyard till spel   tas från graveyard-högen och läggs på bordet
+#   <kort> från graveyard till handen tas från graveyard-högen och lyfts ur bild
 #   <kort> från graveyard till exile  tas från graveyard-högen och läggs åt sidan, ut ur bild
 #   <kort> till handen         lyfts från bordet, ut ur bild
 #   <kort> överst i library    läggs från bordet överst på library, baksidan upp
@@ -64,10 +65,11 @@ bort token Soldier
 # --- Tur 8
 untappa allt
 Swamp hög A
-Trusty Retriever
 Ukud Cobra till handen
 Pacifism till graveyard
 Gorgon Flail till graveyard
+Trusty Retriever
+Gorgon Flail från graveyard till handen
 Flutterfox
 Flutterfox överst i library
 # --- Tur 9

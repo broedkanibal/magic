@@ -118,15 +118,16 @@ tomt (bara library i bild).
 ### Tur 8
 38. **Untappa allt.**
 39. Från bunten: **Swamp**. Lägg den på hög A.
-40. Från bunten: **Trusty Retriever**. Lägg den på en fri plats.
-41. **Ukud Cobra till handen:** lyft den ur bild. Pacifism och Gorgon Flail som satt på den: lägg dem på graveyard, så som i spel.
-42. Från bunten: **Flutterfox**. Lägg den på en fri plats.
-43. **Flutterfox överst i library:** lägg den med baksidan upp överst på library.
+40. **Ukud Cobra till handen:** lyft den ur bild. Pacifism och Gorgon Flail som satt på den: lägg dem på graveyard, så som i spel.
+41. Från bunten: **Trusty Retriever**. Lägg den på en fri plats.
+42. **Gorgon Flail från graveyard till handen** (Trusty Retriever tar tillbaka den): leta fram den i graveyard och lyft den ur bild.
+43. Från bunten: **Flutterfox**. Lägg den på en fri plats.
+44. **Flutterfox överst i library:** lägg den med baksidan upp överst på library.
 
 ### Tur 9
-44. **Untappa allt.**
-45. **Pharika's Chosen från graveyard till spel:** leta fram den i graveyard och lägg den på en fri plats.
-46. **Killing Glare från graveyard till exile:** leta fram den i graveyard och **lägg den åt sidan, ut ur bild**. Inte i library.
+45. **Untappa allt.**
+46. **Pharika's Chosen från graveyard till spel:** leta fram den i graveyard och lägg den på en fri plats.
+47. **Killing Glare från graveyard till exile:** leta fram den i graveyard och **lägg den åt sidan, ut ur bild**. Inte i library.
 
 **Vänta 3 sekunder** och stoppa inspelningen.
 
