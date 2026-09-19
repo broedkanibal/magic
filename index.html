@@ -18265,7 +18265,18 @@ const Kamera = (() => {
   const lasLogg = (t, start, svar, slag) => {
     if (!latens) return;
     const l = (t.ts || (t.ts = {})).las || (t.ts.las = []);
-    l.push({ slag, start, ms: Date.now() - start, saker: !!(svar && svar.saker), tider: (svar && svar.tider) || null });
+    /* Domen med (MES-244 punkt D): varför läsningen blev som den blev, och
+       talen den dömde på — modellens marginal, ORB:s inliers och skala,
+       beskärningens storlek och titelraden (läst eller hoppad, och varför).
+       Utan dem går det inte att se VARFÖR en läsning blev osäker och kortet
+       gick vidare till Claude, bara att den gjorde det. */
+    const B = svar && svar.bild, N = svar && svar.namnLast;
+    l.push({ slag, start, ms: Date.now() - start, saker: !!(svar && svar.saker), tider: (svar && svar.tider) || null,
+             namn: (svar && svar.namn) || null, varfor: (svar && svar.varfor) || (svar && svar.baksida ? 'baksida' : null),
+             dom: B ? { accept: !!B.accept, poang: B.poang, inliers: B.inliers, marginal: B.marginal != null ? B.marginal : null,
+                        skala: B.skala != null ? B.skala : null, ensamt: B.ensamt != null ? !!B.ensamt : null, stod: B.stod != null ? B.stod : null,
+                        orbNamn: B.orbNamn || null, del: !!B.del, efterModell: !!B.efterModell, w: B.w || null, h: B.h || null } : null,
+             titel: N ? { namn: N.namn || null, poang: N.poang, marginal: N.marginal, hoppad: N.hoppad || null, vand: !!N.vand } : null });
     if (l.length > 6) l.shift();
   };
   /* Stegtiden som histogram (4 ms per fack, sista facket 400 ms och över),
@@ -21815,7 +21826,8 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   }
   /* bild: vad bildmatchningen själv mätte — för golden-provets läsningslogg
      (--detalj), så att en säker bilddom går att spåra till sina tal. */
-  const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0 };
+  /* w/h: beskärningens storlek i bildpunkter — kortets storlek i bilden, som avståndsprovet mäter i (MES-244). */
+  const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0, w: canvas.width, h: canvas.height };
   if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, ms: Math.round(M.ms) });
   if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
   return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker), tider };

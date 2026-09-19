@@ -39,6 +39,40 @@ function telefon(d) {
   return `${kort} · modellen ${t.modell && t.modell.length ? t.modell.join(' → ') : '–'} · stegtid ${st} · batteri ${bat}`;
 }
 
+/* Läsningarna dom för dom (MES-244 punkt D). Varje spår bär sina sex
+   senaste läsningar med domen och talen den föll på. Här räknas de ihop:
+   hur ofta en läsning blev säker, vad som stod i domskälet när den inte
+   blev det, och talen bakom — så att en långsam kedja går att spåra till
+   ett kort som aldrig blev säkert lokalt och därför gick till Claude. */
+function lasDomar(d) {
+  const las = [];
+  for (const r of d.rader || []) for (const l of r.las || []) las.push(l);
+  if (!las.length) return '\n### Läsningarna\n\nRapporten bär inga läsningar (äldre än MES-242).';
+  const med = a => { const q = a.filter(x => x != null).sort((x, y) => x - y); return q.length ? q[q.length >> 1] : null; };
+  const osakra = las.filter(x => !x.saker), sakra = las.filter(x => x.saker);
+  const skal = {};
+  for (const x of osakra) { const k = x.varfor || (x.dom && x.dom.accept === false ? 'bilden räckte inte' : 'okänt'); skal[k] = (skal[k] || 0) + 1; }
+  const kortsida = las.map(x => x.dom && x.dom.w && x.dom.h ? Math.min(x.dom.w, x.dom.h) : null);
+  const hoppad = las.filter(x => x.titel && x.titel.hoppad).length;
+  const ut = ['\n### Läsningarna, dom för dom'];
+  ut.push(tabell(['mått', 'värde'], [
+    ['läsningar totalt', las.length],
+    ['varav säkra', `${sakra.length} (${pr(sakra.length / las.length)})`],
+    ['kortsidan i beskärningen (median px)', ms(med(kortsida))],
+    ['titelraden hoppad (för liten m.m.)', `${hoppad} (${pr(hoppad / las.length)})`],
+    ['ORB-inliers, median — säkra / osäkra', `${ms(med(sakra.map(x => x.dom && x.dom.inliers)))} / ${ms(med(osakra.map(x => x.dom && x.dom.inliers)))}`],
+    ['modellens marginal, median — säkra / osäkra',
+     `${(med(sakra.map(x => x.dom && x.dom.marginal)) ?? '–')} / ${(med(osakra.map(x => x.dom && x.dom.marginal)) ?? '–')}`],
+  ]));
+  const rader = Object.entries(skal).sort((a, b) => b[1] - a[1]).map(([k, n]) => [k, n, pr(n / (osakra.length || 1))]);
+  if (rader.length) ut.push('\n' + tabell(['varför läsningen inte blev säker', 'antal', 'andel av de osäkra'], rader));
+  const domskal = {};
+  for (const x of sakra) { const k = x.varfor || 'okänt'; domskal[k] = (domskal[k] || 0) + 1; }
+  const dr = Object.entries(domskal).sort((a, b) => b[1] - a[1]).map(([k, n]) => [k, n, pr(n / (sakra.length || 1))]);
+  if (dr.length) ut.push('\n' + tabell(['domskäl när läsningen blev säker', 'antal', 'andel av de säkra'], dr));
+  return ut.join('\n');
+}
+
 const pass = [];
 for (const f of filer) {
   const d = JSON.parse(fs.readFileSync(f, 'utf8'));
@@ -73,6 +107,8 @@ for (const f of filer) {
     statRad('Claude: svarstid', N.lasning && N.lasning.ai)]));
   const vagar = Object.entries(N.vag || {});
   if (vagar.length) ut.push('\n' + tabell(['väg', 'kort', 'andel', 'median från släpp', 'p95'], vagar.map(([v, x]) => [v, x.n, pr(x.andel), ms(x.fran_slapp.median), ms(x.fran_slapp.p95)])));
+
+  ut.push(lasDomar(d));
 
   ut.push('\n### Målen (MES-237), räknat från att handen släpper');
   const MAL = { syns: 'Något syns ≤ 0,3 s (median)', tap: 'Tap ≤ 0,3 s (median)', lage: 'Flytt ≤ 0,3 s (median)', borta: 'Borta ≤ 0,3 s (median)',
