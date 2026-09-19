@@ -74,6 +74,8 @@ Plains-högen, Thriving Moor, Thriving Heath.** Allt annat ligger ovanför.
 
 **Equipment och auror:** creaturen ligger överst, och equipmentet fästs under den, förskjutet så att namnraden syns (så som de flesta spelar). Gör du annorlunda: gör som du brukar.
 
+**Tappa och untappa:** stegen säger exakt vad som ska vridas. "Tappa hög A" = vrid hela Swamp-högen. Ett "untappa" gäller bara det som står, och det är alltid sådant som är tappat just då.
+
 **Varje steg:** gör det i vanlig speltakt (sakta inte ner), ta ut handen ur
 bild, och **vänta 2–3 sekunder** innan nästa steg.
 
@@ -82,68 +84,74 @@ tomt (bara library i bild).
 
 ### Tur 1
 1. Från bunten: **Swamp**. Lägg den där Swamp-högen (hög A) ska vara, till höger om library.
-2. Från bunten: **Thriving Moor**. Lägg den **tappad** i nedersta raden, till höger om där Plains-högen ska vara.
+2. Från bunten: **Thriving Moor**. Lägg den **tappad** i nedersta raden, till höger om där Plains-högen ska vara (den kommer in tappad).
 
 ### Tur 2
-3. Från bunten: **Plains**. Lägg den där Plains-högen (hög B) ska vara, till höger om Swamp-högen.
-4. **Tappa hög A** (Swamp).
-5. **Tappa hög B** (Plains).
+3. **Untappa Thriving Moor.**
+4. Från bunten: **Plains**. Lägg den där Plains-högen (hög B) ska vara, till höger om Swamp-högen.
+5. **Tappa hög A och hög B** (du betalar för Fencing Ace).
 6. Från bunten: **Fencing Ace**. Lägg den på en fri plats.
 
 ### Tur 3
-7. **Untappa allt** som är tappat (hög A, hög B, Thriving Moor).
+7. **Untappa hög A och hög B.**
 8. Från bunten: **Swamp**. Lägg den på hög A, så som du brukar stapla.
-9. Från bunten: **Ancestral Blade**. Lägg den på en fri plats.
-10. Ta **Soldier-tokenen** (i ficka, baksidan upp). Lägg den bredvid Ancestral Blade.
-11. **Flytta Ancestral Blade** och fäst den **under** Soldier-tokenen: lyft tokenen en aning, skjut in Blade under, förskjuten så att namnet syns.
-12. Från bunten: **Pharika's Chosen**. Lägg den på en fri plats.
+9. **Tappa hög B och Thriving Moor** (du betalar för Ancestral Blade).
+10. Från bunten: **Ancestral Blade**. Lägg den på en fri plats.
+11. Ta **Soldier-tokenen** (i ficka, baksidan upp). Lägg den bredvid Ancestral Blade.
+12. **Flytta Ancestral Blade** och fäst den **under** Soldier-tokenen: lyft tokenen en aning och skjut in Blade under, förskjuten så att namnet syns.
+13. **Tappa hög A** (du betalar för Pharika's Chosen).
+14. Från bunten: **Pharika's Chosen**. Lägg den på en fri plats.
 
 ### Tur 4
-13. **Untappa allt.**
-14. **Tappa Fencing Ace** (den anfaller).
-15. Från bunten: **Plains**. Lägg den på hög B.
-16. Från bunten: **Mirran Bardiche**. Lägg den på en fri plats.
-17. Ta **Rebel-tokenen** (utan ficka, baksidan upp). Lägg den bredvid Mirran Bardiche.
-18. **Flytta Mirran Bardiche** och fäst den **under** Rebel-tokenen, förskjuten så att namnet syns.
-19. Från bunten: **Ukud Cobra**. Lägg den på en fri plats.
+15. **Untappa hög A, hög B och Thriving Moor.**
+16. **Tappa Fencing Ace** (den anfaller).
+17. Från bunten: **Plains**. Lägg den på hög B.
+18. **Tappa hög B** (du betalar för Mirran Bardiche).
+19. Från bunten: **Mirran Bardiche**. Lägg den på en fri plats.
+20. Ta **Rebel-tokenen** (utan ficka, baksidan upp). Lägg den bredvid Mirran Bardiche.
+21. **Flytta Mirran Bardiche** och fäst den **under** Rebel-tokenen, förskjuten så att namnet syns.
+22. Från bunten: **Ukud Cobra**. Lägg den på en fri plats.
 
 ### Tur 5
-20. **Untappa allt.**
-21. Från bunten: **Thriving Heath**. Lägg den **tappad** längst till höger i nedersta raden, till höger om Thriving Moor.
-22. Från bunten: **Maul of the Skyclaves**. Fäst den **direkt under Fencing Ace**, förskjuten så att namnet syns.
-23. Från bunten: **Killing Glare**. Lägg den på bordet.
-24. **Killing Glare** till graveyard.
-25. **Pharika's Chosen** till graveyard (den dog).
+23. **Untappa Fencing Ace och hög B.**
+24. Från bunten: **Thriving Heath**. Lägg den **tappad** längst till höger i nedersta raden, till höger om Thriving Moor (den kommer in tappad).
+25. **Tappa hög A och hög B** (du betalar för Maul of the Skyclaves).
+26. Från bunten: **Maul of the Skyclaves**. Fäst den **direkt under Fencing Ace**, förskjuten så att namnet syns.
+27. Från bunten: **Killing Glare**. Lägg den på bordet.
+28. **Killing Glare** till graveyard.
+29. **Pharika's Chosen** till graveyard (Killing Glare dödade den).
 
 ### Tur 6
-26. **Untappa allt.**
-27. Från bunten: **Swamp**. Lägg den på hög A.
-28. Från bunten: **Gorgon Flail**. Lägg den på en **fri plats** (inte på något kort).
-29. **Flytta Gorgon Flail** och fäst den **under** Ukud Cobra, förskjuten så att namnet syns.
-30. Från bunten: **Venomous Hierophant**. Lägg den på en fri plats.
-31. **Mill 3:** ta översta kortet från library och lägg det **med framsidan upp** på graveyard. Gör så tre gånger, ett kort i taget.
+30. **Untappa Thriving Heath, hög A och hög B.**
+31. Från bunten: **Swamp**. Lägg den på hög A.
+32. Från bunten: **Gorgon Flail**. Lägg den på en **fri plats** (inte på något kort).
+33. **Tappa hög A** (du betalar för att equipa Gorgon Flail).
+34. **Flytta Gorgon Flail** och fäst den **under** Ukud Cobra, förskjuten så att namnet syns.
+35. Från bunten: **Venomous Hierophant**. Lägg den på en fri plats.
+36. **Mill 3:** ta översta kortet från library och lägg det **med framsidan upp** på graveyard. Gör så tre gånger, ett kort i taget.
 
 ### Tur 7
-32. **Untappa allt.**
-33. Från bunten: **Plains**. Lägg den på hög B.
-34. Från bunten: **Pacifism**. Fäst den vid Ukud Cobra **så som du brukar med auror**, under eller ovanpå.
-35. Från bunten: **Danitha Capashen**. Lägg den på en fri plats.
-36. **Flytta Ancestral Blade:** dra ut den under Soldier-tokenen och fäst den **under** Danitha, förskjuten så att namnet syns.
-37. **Soldier-tokenen dör:** lyft bort den ur bild.
+37. **Untappa hög A.**
+38. Från bunten: **Plains**. Lägg den på hög B.
+39. Från bunten: **Pacifism**. Fäst den vid Ukud Cobra **så som du brukar med auror**, under eller ovanpå.
+40. Från bunten: **Danitha Capashen**. Lägg den på en fri plats.
+41. **Tappa hög B** (du betalar för att equipa om Ancestral Blade).
+42. **Flytta Ancestral Blade:** dra ut den under Soldier-tokenen och fäst den **under** Danitha, förskjuten så att namnet syns.
+43. **Soldier-tokenen dör:** lyft bort den ur bild.
 
 ### Tur 8
-38. **Untappa allt.**
-39. Från bunten: **Swamp**. Lägg den på hög A.
-40. **Ukud Cobra till handen:** lyft den ur bild. Pacifism och Gorgon Flail som satt fast vid den blir kvar på bordet: lägg dem på graveyard, så som i spel.
-41. Från bunten: **Trusty Retriever**. Lägg den på en fri plats.
-42. **Gorgon Flail från graveyard till handen** (Trusty Retriever tar tillbaka den): leta fram den i graveyard och lyft den ur bild.
-43. Från bunten: **Flutterfox**. Lägg den på en fri plats.
-44. **Flutterfox överst i library:** lägg den med baksidan upp överst på library.
+44. **Untappa hög B.**
+45. Från bunten: **Swamp**. Lägg den på hög A.
+46. **Ukud Cobra till handen:** lyft den ur bild. Pacifism och Gorgon Flail som satt fast vid den blir kvar på bordet: lägg dem på graveyard, så som i spel.
+47. Från bunten: **Trusty Retriever**. Lägg den på en fri plats.
+48. **Gorgon Flail från graveyard till handen** (Trusty Retriever tar tillbaka den): leta fram den i graveyard och lyft den ur bild.
+49. Från bunten: **Flutterfox**. Lägg den på en fri plats.
+50. **Flutterfox överst i library:** lägg den med baksidan upp överst på library.
 
 ### Tur 9
-45. **Untappa allt.**
-46. **Pharika's Chosen från graveyard till spel:** leta fram den i graveyard och lägg den på en fri plats.
-47. **Killing Glare från graveyard till exile:** leta fram den i graveyard och **lägg den åt sidan, ut ur bild**. Inte i library.
+51. **Tappa Danitha** (hon anfaller).
+52. **Pharika's Chosen från graveyard till spel:** leta fram den i graveyard och lägg den på en fri plats.
+53. **Killing Glare från graveyard till exile:** leta fram den i graveyard och **lägg den åt sidan, ut ur bild**. Inte i library.
 
 **Vänta 3 sekunder** och stoppa inspelningen.
 
