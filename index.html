@@ -3556,7 +3556,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <!-- Hälsokollen (MES-240): uppdateras varje sekund, också före Start,
                så att ett tyst fel syns direkt i stället för efter tio minuter. -->
           <ul class="pbhalsa" id="pbLatensHalsa"></ul>
-          <p class="pbstatus" id="pbLatensStatus">Connect the phone with ?debug open on it, then start. Every card gets a row: picture → found → still → name → sent → received → drawn.</p>
+          <p class="pbstatus" id="pbLatensStatus">Connect the phone with ?debug open on it, then start. Every card gets a row per event — shadow, name, tap, move, gone — timed from when your hand lets go of the card until the computer has drawn it.</p>
         </div>
         <details class="pbavancerat dbg" id="pbAvancerat">
           <summary>Advanced</summary>
@@ -7634,6 +7634,7 @@ function renderGrid(force) {
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
   const sig = strukt + '#' + lagen;
   if (!force && sig === gridSig) { renderSel(); return; }
+  if (DEBUG && platser.length) try { LatensDator.platser(platser); } catch (e) {}   // skuggan på datorn (MES-242): ritas i den här omritningen
   const baraLagen = !force && strukt === gridStrukt;
   gridSig = sig; gridStrukt = strukt;
 
@@ -18241,10 +18242,37 @@ const Kamera = (() => {
   /* Latensmätningen (MES-215, bara ?debug): tidsstämplar i telefonens
      Date.now() per spår — bild (rutan ritades av), hittat, stilla, namn,
      tap, lage — och när ett spår släpptes. Följer med i rapporten bara när
-     latens är på (satLatens); annars som förut. */
+     latens är på (satLatens); annars som förut.
+     MES-242: rorelse är sista rutan där spåret rörde sig (mitten mer än
+     stillaPx), växte ihop med en hand (vuxen) eller var skymt — alltså
+     ungefär när handen släppte kortet, ± en ruta. Varje stämpel fryser
+     den som <vad>Ror, och namnet bär vägen det kom (<vad>Vag: lokal / ai /
+     klunga / dubblett / helbild / hand; okand = ingen väg stämplade, ett
+     hål i mätningen). skugga: första rapporten där spåret är kortlikt. */
   let latens = false, bildTid = 0;
-  const stampla = (t, vad) => { if (!latens) return; (t.ts || (t.ts = {}))[vad] = Date.now(); if (!t.ts.bild) t.ts.bild = bildTid; t.ts[vad + 'Bild'] = bildTid; };
-  const bortaTs = [];          // spår som släppts sedan förra rapporten: { id, borta, bild }
+  const stampla = (t, vad, vag) => {
+    if (!latens) return;
+    const ts = t.ts || (t.ts = {});
+    ts[vad] = Date.now(); if (!ts.bild) ts.bild = bildTid; ts[vad + 'Bild'] = bildTid;
+    if (ts.rorelse != null) ts[vad + 'Ror'] = ts.rorelse;
+    if (vag) ts[vad + 'Vag'] = vag;
+  };
+  const rutTid = () => bildTid || Date.now();   // rutans tid; bänken har ingen video (bildTid 0) och får klockan
+  const rorde = t => { if (latens) (t.ts || (t.ts = {})).rorelse = rutTid(); };
+  /* En läsning (identifiera eller spekulera): när den började, hur lång den
+     var, och kamIdentifieras delar (tider: modellen, ORB, titelraden). De
+     sex senaste per spår. */
+  const lasLogg = (t, start, svar, slag) => {
+    if (!latens) return;
+    const l = (t.ts || (t.ts = {})).las || (t.ts.las = []);
+    l.push({ slag, start, ms: Date.now() - start, saker: !!(svar && svar.saker), tider: (svar && svar.tider) || null });
+    if (l.length > 6) l.shift();
+  };
+  /* Stegtiden som histogram (4 ms per fack, sista facket 400 ms och över),
+     räknat sedan latens slogs på: datorn tar skillnaden mellan passets
+     början och slut och får median och p95 för just passet. */
+  const STEG_FACK = 4, stegHist = new Array(101).fill(0);
+  const bortaTs = [];          // spår som släppts sedan förra rapporten: { id, borta, bild, ror }
   let anaC = null, anaX = null, AH = 0;
   let ref = null;              // gråskala av tom matta, analysstorlek — medel av REF_RUTOR rutor
   let refSum = null, refFore = null, refDiff = 0, refN = 0;   // under insamlingen av referensen
@@ -19389,10 +19417,12 @@ const Kamera = (() => {
                  tappad: false, tappRun: 0 };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
-    if (latens) ny.ts = { bild: bildTid, hittat: Date.now() };
+    if (latens) ny.ts = { bild: bildTid, hittat: Date.now(), rorelse: rutTid() };
     if (i < 0) return Object.assign(ny, { id: nastaId++, tillstand: 'ny' });
     const g = spoken.splice(i, 1)[0];
     const flimmer = nu - g.dog < 1500;
+    /* Ett flimmer är samma spår med samma namn: stämplarna följer med, så att namnet inte räknas som ett nytt (MES-242). */
+    if (latens && flimmer && g.ts) ny.ts = Object.assign({}, g.ts, { rorelse: rutTid(), aterkom: Date.now() });
     return Object.assign(ny, {
       id: g.id, fodd: g.fodd,
       namn: flimmer ? g.namn : null, sid: flimmer ? g.sid : null, saker: flimmer ? !!g.saker : false,
@@ -19508,6 +19538,7 @@ const Kamera = (() => {
         const kvartsvarv = nm && bast.box && f.box.w <= 1.3 * bast.box.h && f.box.h <= 1.3 * bast.box.w && f.box.w >= bast.box.h / 1.3 && f.box.h >= bast.box.w / 1.3 && Math.abs(bast.box.w - bast.box.h) > 0.15 * Math.max(bast.box.w, bast.box.h);
         if (vuxen && !sammaMatt && !kvartsvarv) {
           bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
+          rorde(bast);   // en hand intill kortet: inte släppt än (MES-242)
           continue;
         }
         const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
@@ -19531,6 +19562,7 @@ const Kamera = (() => {
            avstämning kallar färskt (rapportera, fältet sen). */
         bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
         if (ror > T.stillaPx) {
+          rorde(bast);
           bast.stillaFran = nu; bast.ram = null; bast.stillaN = 0;
           /* Kortet rör sig: en tidig läsning gäller en beskärning som inte
              är kortet där det hamnar (K4). */
@@ -19627,11 +19659,11 @@ const Kamera = (() => {
     for (const t of kvar) {
       const fyll = mask ? maskI(mask, t.box, AW, AH) / Math.max(1, t.areaRef) : 0;
       if (fyll < T.tomMin) { t.tomMs += dt; t.skymd = false; }
-      else if (fyll >= T.skymdMin) { t.tomMs = Math.max(0, t.tomMs - dt); t.skymd = true; }
+      else if (fyll >= T.skymdMin) { t.tomMs = Math.max(0, t.tomMs - dt); t.skymd = true; rorde(t); }
       /* Ett spår ur helbilden har ingen mask under sig — det var därför det
          behövdes (golden 05: noll regioner) — så tom matta bevisar inget om
          det. Det står tills nästa helbild, eller tills bordet nollställs. */
-      if (t.tomMs > T.bortaMs && !arHelbild(t)) { spar.splice(spar.indexOf(t), 1); t.dog = nu; spoken.push(t); if (latens) bortaTs.push({ id: t.id, namn: t.namn || null, borta: Date.now(), bild: bildTid }); }
+      if (t.tomMs > T.bortaMs && !arHelbild(t)) { spar.splice(spar.indexOf(t), 1); t.dog = nu; spoken.push(t); if (latens) bortaTs.push({ id: t.id, namn: t.namn || null, borta: Date.now(), bild: bildTid, ror: t.ts ? t.ts.rorelse : null }); }
     }
     /* Spöken städas: för gamla, och de som ett levande spår flyttat in över. */
     while (spoken.length && nu - spoken[0].dog > T.spokMs) spoken.shift();
@@ -20237,6 +20269,7 @@ const Kamera = (() => {
     const riktiga = spar.filter(t => t.tillstand !== 'skrap');
     const skymda = riktiga.filter(t => t.skymd).length;
     dia.ms = Math.round(nuRiktig() - tSteg);
+    if (latens) stegHist[Math.min(100, Math.floor(dia.ms / STEG_FACK))]++;
     säg(riktiga.length ? 'kort' : 'tom', riktiga.length ? antalText(riktiga.length, skymda) : 'Ready — put cards on the table', radAvstand() || undefined);
   }
 
@@ -20603,6 +20636,13 @@ const Kamera = (() => {
   function rapportera() {
     if (!cb.bord) return;
     sandSignatur = tillstandsSignatur();
+    /* Latensmätningen (MES-242): skuggan när spåret först är kortlikt utan
+       namn (datorn ritar platsen då), och ett säkert namn som ingen väg
+       stämplat får en rad ändå, med vägen 'okand' — så syns hålet. */
+    if (latens) for (const t of spar) {
+      if (!t.namn && skuggklar(t) && !(t.ts && t.ts.skugga)) stampla(t, 'skugga');
+      if (t.tillstand === 'klar' && t.saker && t.namn && !(t.ts && t.ts.namn)) stampla(t, 'namn', 'okand');
+    }
     /* Tredje argumentet: det som inte är spår men hör till bordet — hur
        många kortformade regioner som var för små att läsa, och vilken
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
@@ -20712,7 +20752,7 @@ const Kamera = (() => {
        tog att känna igen. Väggklockan (performance.now), inte rutklockan nu:
        bänken och golden styr den själva. Frågan till Claude mäts för sig
        (kamFragaAI, ai.ms) och läggs till på datorn. */
-    const t0 = nuRiktig();
+    const t0 = nuRiktig(), lasStart = Date.now();
     try {
       /* Ramen först: regionen räcker för att spåra, inte för att beskära. */
       t.ram = finLada(t.box, senasteG0, t);
@@ -20721,6 +20761,7 @@ const Kamera = (() => {
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
+    lasLogg(t, lasStart, svar, 'las');
     /* null betyder "inte redo än" — leken byggs fortfarande. Spåret väntar
        en och en halv sekund och frågar igen; inte varje ruta, för varje
        fråga är en beskärning ur videon. Ett kastat fel är ett "vet inte":
@@ -20759,7 +20800,7 @@ const Kamera = (() => {
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
     { const q = t.tillstand === 'klar' ? sammaKortSom(t) : null; if (q) { dubblettAv(t, q); rapportera(); return; } }
     if (t.tillstand === 'klar' && t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
-    if (t.tillstand === 'klar') { slappFlyttat(t, nu); stampla(t, 'namn'); }
+    if (t.tillstand === 'klar') { slappFlyttat(t, nu); stampla(t, 'namn', 'lokal'); }
     /* Claude har redan sagt "inget kort" två gånger (aiInget), och spåret har
        bara skakat. matcha nollställer skräp som rör sig, och en ny betald
        fråga per skakning vore fel. Bara en säker lokal läsning ändrar domen. */
@@ -20777,6 +20818,7 @@ const Kamera = (() => {
     t.provas = false;
     if (t.tillstand === 'okand' && c && cb.fragaAI && !t.aiFragad) {
       t.aiFragad = true; t.aiFragadNar = nu || 0;
+      if (latens) (t.ts || (t.ts = {})).fraga = Date.now();   // frågan till Claude gick (MES-242)
       try { t.provas = cb.fragaAI(c, t.id) === true; } catch (e) { t.provas = false; }
     }
     rapportera();
@@ -20793,13 +20835,14 @@ const Kamera = (() => {
     const vantar = { vantar: true };
     t.spek = vantar;
     let svar = null;
-    const t0 = nuRiktig();
+    const t0 = nuRiktig(), lasStart = Date.now();
     try {
       t.ram = finLada(t.box, senasteG0, t);
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;
       const geo = { cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort };
       const b = video ? beskar(t) : null;
       if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true });
+      lasLogg(t, lasStart, svar, 'spek');
       if (t.spek !== vantar) return;
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
         ? { svar, geo, upptagna: upptagna(svar.namn, t), nar: nu || 0 }
@@ -20864,6 +20907,8 @@ const Kamera = (() => {
   function dubblettAv(t, q) {
     t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
     t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.gissning = null; t.del = false; t.varfor = 'samma kort som #' + q.id;
+    /* Spelaren ser kortet under det äldre spårets namn: stämpeln säger när det avgjordes (MES-242). */
+    stampla(t, 'namn', 'dubblett'); if (latens) t.ts.namnSom = q.namn;
   }
   function priorPaGissningar(t) {
     const tak = cb.lekTak && t.namn ? cb.lekTak(t.namn) : null;
@@ -20891,7 +20936,7 @@ const Kamera = (() => {
     t.fragad = true; t.provas = false; t.tillstand = 'klar'; t.spek = null;
     if (t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
     slappFlyttat(t, forra);
-    stampla(t, 'namn');
+    stampla(t, 'namn', 'lokal'); if (latens) t.ts.namnTidig = true;
     return true;
   }
 
@@ -20976,6 +21021,7 @@ const Kamera = (() => {
       t.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((t.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
       t.namn = k.namn; t.sid = k.sid; t.saker = !!k.saker; t.varfor = k.saker ? 'ai' : 'ai osäker';
       t.tillstand = k.saker ? 'klar' : 'okand';
+      if (k.saker) stampla(t, 'namn', 'ai');
       /* Ett kort, säkert: beskärningen lärs som referens för namnet (K7). */
       if (k.saker && k.sakerhet === 'hog' && cb.lart) { try { cb.lart(t.id, k.namn, k.sid, 'ai'); } catch (e) {} }
       rapportera(); return;
@@ -20992,6 +21038,9 @@ const Kamera = (() => {
       q.fragad = true; q.namnLast = q === t ? t.namnLast : null; q.ai = t.ai; q.varfor = k.saker ? 'ai' : 'ai osäker';
       q.tillstand = k.saker ? 'klar' : 'okand';
       if (q !== t) { q.lokalMs = t.lokalMs; spar.push(q); }   // klungans lokala tid gäller varje del; ai.ms ligger i det delade ai-objektet
+      /* En ny del ärver klungans stämplar — kortet lades när klungan gjorde det. */
+      if (latens && q !== t && t.ts) q.ts = { bild: t.ts.bild, hittat: t.ts.hittat, stilla: t.ts.stilla, stillaRor: t.ts.stillaRor, rorelse: t.ts.rorelse, fraga: t.ts.fraga, las: t.ts.las, klunga: t.id };
+      if (k.saker) stampla(q, 'namn', 'klunga');
     });
     if (!redanKlar) t.ram = null;
     rapportera();
@@ -21126,6 +21175,7 @@ const Kamera = (() => {
           eget.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((eget.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
           eget.namn = k.namn; eget.sid = k.sid; eget.saker = !!k.saker; eget.varfor = k.saker ? 'helbild' : 'helbild osäker';
           eget.tillstand = k.saker ? 'klar' : 'okand'; eget.fragad = true; eget.aiFragad = true; eget.provas = false; eget.aiInget = 0;
+          if (k.saker) stampla(eget, 'namn', 'helbild');
           eget.ai = Object.assign({}, eget.ai || {}, info, { helbild: false });
           namngivna++;
         }
@@ -21137,7 +21187,7 @@ const Kamera = (() => {
         behallna.add(g);
         g.cx = p.cx; g.cy = p.cy; g.box = lada(p); g.lang = m.lang; g.kort = m.kort; g.areaRef = g.box.w * g.box.h * 0.9;
         g.sedd = nu; g.tomMs = 0; g.ai = Object.assign({}, info);
-        if (k.saker && !g.saker) { g.saker = true; g.tillstand = 'klar'; g.varfor = 'helbild'; }
+        if (k.saker && !g.saker) { g.saker = true; g.tillstand = 'klar'; g.varfor = 'helbild'; stampla(g, 'namn', 'helbild'); }
         continue;
       }
       const b = lada(p);
@@ -21159,7 +21209,10 @@ const Kamera = (() => {
                  varfor: saker ? 'helbild' : (k.saker ? 'fler än leken' : 'helbild osäker'), tillstand: saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
     }
     spar = spar.filter(t => !bort.has(t) && (!arHelbild(t) || behallna.has(t)));
-    for (const t of nya) spar.push(t);
+    for (const t of nya) {
+      spar.push(t);
+      if (latens) { t.ts = { bild: bildTid, hittat: Date.now() }; if (t.saker) stampla(t, 'namn', 'helbild'); }
+    }
     helbildAntal++;
     helbildSig = egenSignatur();
     dia.helbild = { nr: helbildAntal, skal: info.skal, kort: svar.length, nya: nya.length, kvar: behallna.size, namngivna, bort: gamla.length - behallna.size + bort.size, ms: info.ms, matt: info.matt, modell: info.modell || null };
@@ -21250,7 +21303,7 @@ const Kamera = (() => {
        sammanfattningen när auto stängs av räknar båda som "fyllt i för hand
        eller ur ett foto", inte som läst av kameran eller Claude i kameran.
        Fotots egna Claude-anrop står i datorns bok. */
-    if (namn) t.varfor = 'hand';
+    if (namn) { t.varfor = 'hand'; stampla(t, 'namn', 'hand'); }
     /* Spelaren bekräftade: beskärningen lärs som referens för namnet (K8). */
     if (namn && cb.lart) { try { cb.lart(id, namn, sid, 'hand'); } catch (e) {} }
     rapportera();
@@ -21285,7 +21338,8 @@ const Kamera = (() => {
               får varje stegs tid. Strömmen lämnas ut som den är — provet ändrar
               varken upplösning eller takt. */
            satMatare: f => { matare = typeof f === 'function' ? f : null; },
-           satLatens: v => { latens = !!v; },
+           satLatens: v => { latens = !!v; stegHist.fill(0); },
+           get stegHist() { return latens ? stegHist.slice() : null; },   // MES-242: stegtiden sedan latens slogs på, 4 ms per fack
            get strom() { return stream; },
            get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna,
            get sigma() { return sigma; } };
@@ -21430,9 +21484,19 @@ function bordExtra(extra) {
 /* Telefonens hälsa för Latency-panelens hälsokoll (MES-240, bara ?debug).
    Saknas fältet helt i bordet vet datorn att telefonen inte har ?debug —
    då kommer inga tidsstämplar, och provet vore tio förlorade minuter. */
+/* Batteriet (MES-242): Chrome på Android ger det, Safari inte — då står
+   det null i rapporten och Jesper läser procenten själv. */
+let kamBat = null;
+if (DEBUG && typeof navigator !== 'undefined' && navigator.getBattery) navigator.getBattery().then(b => {
+  const satt = () => { kamBat = { niva: Math.round(b.level * 100), laddar: !!b.charging }; };
+  satt(); b.addEventListener('levelchange', satt); b.addEventListener('chargingchange', satt);
+}).catch(() => {});
 function kamHalsa() {
   const v = $('#vyKamera');
   return {
+    ua: navigator.userAgent,   // telefonens webbläsare och system (MES-242) — datorns ua säger ingenting om telefonen
+    steg: Kamera.stegHist,     // stegtiden som histogram sedan sidan laddades; datorn tar skillnaden över passet
+    bat: kamBat,
     mork: !!(v && v.classList.contains('ren') && v.classList.contains('mork') && !v.classList.contains('visa')),   // mörk skärm: en skärminspelning blir svart
     dold: document.visibilityState !== 'visible',
     modell: !KamEmbed.pa() ? 'av' : KamEmbed.redo() ? ((window.Embed && window.Embed.backend) || 'klar')
@@ -21604,17 +21668,24 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      en granskningspost med en träbit som miniatyr. */
   if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
   kamMinnsBild(id, canvas);
+  /* Läsningens delar för latensrapporten (MES-242, bara ?debug): tidpunkter
+     mellan stegen nedan, i performance.now(). */
+  const tq = DEBUG ? { t0: performance.now() } : null;
   /* Namnet läses i workern medan illustrationen matchas på huvudtråden. */
   const namnP = Namn.las(canvas, namnUtanBaksida());
   /* Bildmodellen rangordnar och ORB kontrollerar de tre bästa (MES-225);
      dagens Matcher + ORB är reserven — modulen inte laddad, leken inte
      inbäddad än, eller ett fel i körningen. */
   let v = null;
+  if (tq) tq.fore = performance.now();
   if (KamEmbed.redo()) {
     try { const e = await Embed.identifiera(canvas, KamEmbed.idx); if (e && e.namn) v = identifyMedModell(canvas, box, e, kamSparEnsamt(id)); } catch (e) { v = null; }
   }
+  if (tq) tq.modell = performance.now();
   if (!v) { try { v = identifyAt(canvas, box, 0); } catch (e) { return null; } }
+  if (tq) tq.bild = performance.now();
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
+  if (tq) tq.namn = performance.now();
   /* Titelraden på ett basland säger typen (MES-228): "Snow-Covered Plains" och "Plains" är samma kort för kameran, med lekens eget namn för typen — annars stod de två vittnena emot varandra om samma land. */
   const typAv = n => { const t = KamEmbed.redo() ? landTyp(n) : null; return t ? landVisning(t).name : n; };
   if (namn && namn.namn) namn = Object.assign({}, namn, { namn: typAv(namn.namn) });
@@ -21636,6 +21707,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
     }
   }
   const M = v.modell || null;
+  if (tq) tq.andra = performance.now();
   /* Läste titeln inget: kortet kan ligga upp och ner. Bilden vet vinkeln
      (matchningens rot, 0 eller 180 ± några grader); säger den 180 läses
      titeln en gång till ur botten, vänd. Bara då: att läsa vänt för varje
@@ -21655,13 +21727,24 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      ingen granskningspost, inget "kort" i statusfältet. Bilden dömer ensam:
      en baksida har ingen titelrad. Annars plockas baksidan bort ur
      förslagen — ett uppvänt kort ska aldrig få "(baksida)" i granskningen. */
+  if (tq) tq.vand = performance.now();
+  /* Delarna i ms. modell: bildmodellens egen körning (Embed.ms — väntan på en
+     upptagen modell ingår). orb: resten av bildvägen — ORB på modellens tre
+     (identifyMedModell), eller Matcher + ORB när modellen inte användes. orb2:
+     Matcher + ORB som andra åsikt. titel: titelradens egen tid i workern;
+     titelVant: hur länge bildvägen fick vänta på den. vand: titeln läst vänd. */
+  const tider = tq ? (() => {
+    const r = x => Math.max(0, Math.round(x)), mm = M && M.ms != null ? M.ms : 0;
+    return { modell: M ? r(mm) : null, orb: r(tq.bild - tq.fore - mm), orb2: r(tq.andra - tq.namn), titel: namn && namn.ms != null ? r(namn.ms) : null,
+             titelVant: r(tq.namn - tq.bild), vand: r(tq.vand - tq.andra), fore: r(tq.fore - tq.t0), total: r(tq.vand - tq.t0), backend: M ? M.backend || null : null };
+  })() : undefined;
   const alla = v.rec.cands || [];
   const b0 = alla[0], b1 = alla[1];
   /* Med modellen (MES-225) är baksidan ett namn bland de andra: säker när
      ORB bär den, eller när marginalen är klar och ORB inte pekar på ett av
      de andra två — en baksida ligger ofta i en hög, så 'ensamt' krävs inte. */
   if (b0 && b0.name === BAKSIDA_NAMN && (M ? (M.bar || (M.saker && !M.emot)) : (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1)))))
-    return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept };
+    return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept, tider };
   const cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   /* Stod baksidan överst utan att räcka till gäller modellens dom inte tvåan. */
   let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
@@ -21735,7 +21818,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   const bild = { accept: !!v.accept, poang: +(v.score || 0).toFixed(2), inliers: (v.rec && v.rec.inliers) || 0 };
   if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, ms: Math.round(M.ms) });
   if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
-  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker) };
+  return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker), tider };
 }
 /* Lekens antal av ett namn (K6), för Kamera: null utan lek eller utanför den. */
 function kamLekTak(namn) { const n = kamLekAntal ? kamLekAntal.get(norm(namn)) : null; return n == null ? null : n; }
@@ -23632,6 +23715,88 @@ const InspProv = (() => {
    rader skrivs om i DATORNS klocka. Rapporten är JSON — Save report — i
    samma anda som MES-166:s tidsbitar och dev/insp. Utan ?debug: inga
    stämplar, ingen ping, inget ändrat i kedjan. ══════════════════════════ */
+/* ── LATENSSUMMAN (MES-242) ─────────────────────────────────────────
+   Ren funktion över rapportens rader (datorns klocka): per händelse median,
+   p90, p95 och andel inom 0,3 s — räknat från släppet (fran_slapp = ritat −
+   sista rutan där spåret rörde sig eller var skymt) och, som förut, från
+   rutan där telefonen fattade beslutet (hela). Namnet får också andel
+   "klart före släpp" (fran_slapp < 0), andel per väg och läsningens delar.
+   'syns' är per spår det första som ritades — skuggan eller namnet.
+   Samma kod läser gamla rapporter (utan ror/vag/las): då är de nya
+   måtten tomma och bara hela, från hittat och från stilla finns.
+   dev/latens/analys.cjs plockar ut blocket härifrån till slutraden. */
+const LATENS_HANDELSER = ['skugga', 'namn', 'tap', 'lage', 'borta'];
+function latensStat(a) {
+  const q = a.filter(x => x != null && isFinite(x)).sort((x, y) => x - y);
+  const p = f => q.length ? q[Math.min(q.length - 1, Math.floor(f * q.length))] : null;
+  return { n: q.length, median: p(0.5), p90: p(0.9), p95: p(0.95), max: q.length ? q[q.length - 1] : null,
+           inom300: q.length ? +(q.filter(x => x <= 300).length / q.length).toFixed(3) : null };
+}
+function latensSumma(rader) {
+  const ut = {};
+  const andel = (k, n) => n ? +(k / n).toFixed(3) : null;
+  for (const vad of LATENS_HANDELSER) {
+    const alla = rader.filter(x => x.vad === vad);
+    /* Dubbletten är ett kort spelaren redan ser under det äldre spårets
+       namn: den räknas bland vägarna men inte i tiderna. */
+    const q = vad === 'namn' ? alla.filter(x => x.vag !== 'dubblett') : alla;
+    const e = { n: q.length, fran_slapp: latensStat(q.map(x => x.fran_slapp)), hela: latensStat(q.map(x => x.hela)),
+                hela_median: latensStat(q.map(x => x.hela)).median, telefon_median: latensStat(q.map(x => x.telefon)).median };
+    if (vad === 'namn') {
+      const fs = q.filter(x => x.fran_slapp != null);
+      e.fore_slapp = andel(fs.filter(x => x.fran_slapp < 0).length, fs.length);
+      e.over2s = andel(fs.filter(x => x.fran_slapp > 2000).length, fs.length);
+      e.fran_hittat = latensStat(q.map(x => x.ritat != null && x.hittat != null ? x.ritat - x.hittat : null));
+      e.fran_stilla = latensStat(q.map(x => x.ritat != null && x.stilla != null ? x.ritat - x.stilla : null));
+      e.vag = {};
+      for (const x of alla) { const v = x.vag || 'okänd (äldre rapport)'; (e.vag[v] || (e.vag[v] = { n: 0, fran_slapp: [] })).n++; e.vag[v].fran_slapp.push(x.fran_slapp); }
+      for (const v of Object.keys(e.vag)) { const f = e.vag[v]; e.vag[v] = { n: f.n, andel: andel(f.n, alla.length), fran_slapp: latensStat(f.fran_slapp) }; }
+      /* Läsningens delar per kort: läsningarna fram till namnet. vantan = från
+         släppet till första läsningen (stillhetsregeln plus kön), ko = från
+         stilla till första läsningen, las = läsningarnas summa, och delarna
+         ur kamIdentifiera. ai = Claudes svarstid när namnet kom därifrån. */
+      const d = { vantan: [], ko: [], antal: [], las: [], modell: [], orb: [], titel: [], titelVant: [], vand: [], ai: [], fraga_till_namn: [] };
+      for (const x of q) {
+        const l = (x.las || []).filter(y => y.start == null || x.stampel == null || y.start <= x.stampel);
+        if (l.length) {
+          const f = l[0].start, sum = k => l.reduce((a, y) => a + (y.tider && y.tider[k] != null ? y.tider[k] : 0), 0), med = k => l.some(y => y.tider && y.tider[k] != null);
+          d.vantan.push(f != null && x.slapp != null ? f - x.slapp : null);
+          d.ko.push(f != null && x.stilla != null ? f - x.stilla : null);
+          d.antal.push(l.length); d.las.push(l.reduce((a, y) => a + (y.ms || 0), 0));
+          d.modell.push(med('modell') ? sum('modell') : null); d.orb.push(med('orb') ? sum('orb') + sum('orb2') : null);
+          d.titel.push(med('titel') ? sum('titel') : null); d.titelVant.push(med('titelVant') ? sum('titelVant') : null); d.vand.push(med('vand') ? sum('vand') : null);
+        }
+        if (x.aiMs != null) d.ai.push(x.aiMs);
+        if (x.fraga != null && x.stampel != null) d.fraga_till_namn.push(x.stampel - x.fraga);
+      }
+      e.lasning = {}; for (const k of Object.keys(d)) e.lasning[k] = latensStat(d[k]);
+    }
+    ut[vad] = e;
+  }
+  /* Det första som syns per spår: skuggan eller namnet, det som ritades först. */
+  const forst = new Map();
+  for (const x of rader) {
+    if ((x.vad !== 'skugga' && x.vad !== 'namn') || x.ritat == null || x.vag === 'dubblett') continue;
+    const f = forst.get(x.spar); if (!f || x.ritat < f.ritat) forst.set(x.spar, x);
+  }
+  ut.syns = { n: forst.size, fran_slapp: latensStat([...forst.values()].map(x => x.fran_slapp)) };
+  return ut;
+}
+/* Målen i MES-237 mot summan: ja / nej / omätt (inga rader från släppet) /
+   för få (under 5). Värdet i ms. */
+function latensMal(summa) {
+  const r = [], dom = (st, ok) => !st || !st.n ? 'omätt' : st.n < 5 ? 'för få' : ok ? 'ja' : 'nej';
+  const s = k => summa[k] && summa[k].fran_slapp;
+  const rad = (id, mal, st, varde, ok) => r.push({ id, mal, n: st ? st.n : 0, varde, svar: dom(st, ok) });
+  const med = k => { const st = s(k); rad(k, `${{ syns: 'Something shows', tap: 'Tap', lage: 'Move', borta: 'Gone' }[k]} ≤ 0.3 s (median)`, st, st && st.median, st && st.median != null && st.median <= 300); };
+  for (const k of ['syns', 'tap', 'lage', 'borta']) med(k);
+  const n = s('namn');
+  rad('namn_median', 'Name ≤ 0.3 s (median)', n, n && n.median, n && n.median != null && n.median <= 300);
+  rad('namn_p95', 'Name, 95 % ≤ 0.6 s', n, n && n.p95, n && n.p95 != null && n.p95 <= 600);
+  rad('namn_tak', 'Name, none over 2 s', n, n && n.max, n && n.max != null && n.max <= 2000);
+  return r;
+}
+/* ── slut: LATENSSUMMAN ── */
 /* Bildläget som text (MES-229), för Latency-panelen och växeln. */
 function bildlageText() {
   const b = kamBildlage, u = kamUpplosning;
@@ -23640,6 +23805,36 @@ function bildlageText() {
 }
 const LatensDator = (() => {
   let L = null, pingT = null, visT = null;
+  /* Stegtiden ur telefonens histogram (4 ms per fack): skillnaden mellan
+     passets första och sista, så att bara passet räknas. */
+  const stegUr = (a, b) => {
+    if (!b) return null;
+    const d = b.map((x, i) => x - ((a && a[i]) || 0)), n = d.reduce((s, x) => s + x, 0);
+    if (!n) return null;
+    const p = f => { let k = 0; for (let i = 0; i < d.length; i++) { k += d[i]; if (k > f * n) return i * 4 + 2; } return (d.length - 1) * 4; };
+    return { n, median: p(0.5), p95: p(0.95) };
+  };
+  /* Telefonens uppgifter ur hälsan i varje bord (MES-242). */
+  function telefon(h) {
+    if (!h) return;
+    const t = L.tel;
+    if (h.ua) t.ua = h.ua;
+    if (h.modell && !t.modell.includes(h.modell)) t.modell.push(h.modell);
+    if (h.steg) { if (!t.steg0) t.steg0 = h.steg; t.steg1 = h.steg; }
+    if (h.bat) { if (!t.bat0) t.bat0 = Object.assign({ t: Date.now() }, h.bat); t.bat1 = Object.assign({ t: Date.now() }, h.bat); }
+  }
+  /* Platserna datorn ritat (autoPlatser, renderGrid): första gången per spår,
+     och ritat i nästa animationsruta. Rörelsen och hittat sparas som telefonen
+     senast sa dem, för en plats som ritades utan skuggstämpel. */
+  function platser(pl) {
+    if (!L || L.stoppad) return;
+    for (const p of pl) {
+      const k = String(p.spar); if (L.platser.has(k)) continue;
+      const z = L.sista.get(k) || {}, o = { spar: p.spar, slag: p.slag, satt: Date.now(), ritat: null, ror: z.rorelse, hittat: z.hittat, stilla: z.stilla };
+      L.platser.set(k, o);
+      requestAnimationFrame(() => { o.ritat = Date.now(); });
+    }
+  }
   const status = txt => { const el = $('#pbLatensStatus'); if (el) el.textContent = txt; };
   const med = a => { if (!a.length) return null; const q = a.slice().sort((x, y) => x - y); return q[q.length >> 1]; };
   const bastaPing = () => { const p = L ? L.ping.filter(x => x.rtt != null) : []; return p.length ? p.reduce((a, x) => x.rtt < a.rtt ? x : a) : null; };
@@ -23652,43 +23847,93 @@ const LatensDator = (() => {
      under passet. */
   function bord(m, mottaget) {
     if (!L || m.nollstall) return;
+    if (!L.stoppad) telefon(m.halsa);
     const r = { mottaget, skickat: m.skickat, ritat: null, rader: [] };
     for (const t of m.spar || []) {
       const ts = t.ts; if (!ts) continue;
+      L.sista.set(String(t.id), ts);
       const f = L.sedda.get(t.id) || L.sedda.set(t.id, {}).get(t.id);
-      for (const vad of ['namn', 'tap', 'lage']) {
+      for (const vad of ['skugga', 'namn', 'tap', 'lage']) {
         if (ts[vad] == null || f[vad] === ts[vad]) continue;
         f[vad] = ts[vad];
-        r.rader.push({ vad, spar: t.id, namn: t.namn, tappad: !!t.tappad, bild: ts[vad + 'Bild'] || ts.bild, hittat: ts.hittat, stilla: ts.stilla, stampel: ts[vad], skickat: m.skickat, mottaget });
+        const x = { vad, spar: t.id, namn: t.namn || ts.namnSom || null, tappad: !!t.tappad, bild: ts[vad + 'Bild'] || ts.bild, hittat: ts.hittat, stilla: ts.stilla, stampel: ts[vad],
+                    ror: ts[vad + 'Ror'], skickat: m.skickat, mottaget };
+        if (vad === 'namn') Object.assign(x, { vag: ts.namnVag || null, tidig: !!ts.namnTidig, varfor: t.varfor || null, fraga: ts.fraga, aiMs: t.ai && t.ai.ms != null ? t.ai.ms : null,
+                                               las: ts.las ? ts.las.map(l => Object.assign({}, l)) : null });
+        r.rader.push(x);
       }
     }
-    for (const b of m.bortaTs || []) r.rader.push({ vad: 'borta', spar: b.id, namn: b.namn, bild: b.bild, stampel: b.borta, skickat: m.skickat, mottaget });
+    for (const b of m.bortaTs || []) r.rader.push({ vad: 'borta', spar: b.id, namn: b.namn, bild: b.bild, stampel: b.borta, ror: b.ror, skickat: m.skickat, mottaget });
     if (!r.rader.length) return;
     L.rapporter.push(r);
     requestAnimationFrame(() => { r.ritat = Date.now(); });
   }
   function rader() {
-    const o = off();
-    return L.rapporter.flatMap(r => r.rader.map(x => {
-      const d = k => x[k] == null ? null : x[k] - o;   // telefonens tid i datorns klocka
-      return { vad: x.vad, spar: x.spar, namn: x.namn, tappad: x.tappad,
+    const o = off(), T = v => v == null ? null : v - o;   // telefonens tid i datorns klocka
+    const ut = L.rapporter.flatMap(r => r.rader.map(x => {
+      const d = k => T(x[k]);
+      const y = { vad: x.vad, spar: x.spar, namn: x.namn, tappad: x.tappad,
                bild: d('bild'), hittat: d('hittat'), stilla: d('stilla'), stampel: d('stampel'), skickat: d('skickat'), mottaget: x.mottaget, ritat: r.ritat,
+               ror: d('ror'),   // rörelsens slut (MES-242): sista rutan där spåret rörde sig eller var skymt
                /* bitarna i ms: bild → stämpeln (telefonens del), stämpeln → skickat, skickat → mottaget (nätet), mottaget → ritat (datorn), och hela vägen */
                telefon: x.stampel != null && x.bild != null ? x.stampel - x.bild : null,
                tillSkickat: x.skickat != null && x.stampel != null ? x.skickat - x.stampel : null,
                nat: x.skickat != null ? x.mottaget - (x.skickat - o) : null,
                dator: r.ritat != null ? r.ritat - x.mottaget : null,
                hela: r.ritat != null && x.bild != null ? r.ritat - (x.bild - o) : null };
+      if (x.vad === 'namn') Object.assign(y, { vag: x.vag, tidig: x.tidig, varfor: x.varfor, fraga: d('fraga'), aiMs: x.aiMs,
+                                                las: x.las ? x.las.map(l => Object.assign({}, l, { start: T(l.start) })) : null });
+      return y;
     }));
+    /* Skuggan ritas när datorn först ritar platsen — eller kortet med namn,
+       om det kom först. En plats utan skuggstämpel (spåret var inte kortlikt:
+       platsen kom efter PLATS_DROJ) får en rad ur datorns egen ritning. */
+    const namnRitat = new Map();
+    for (const y of ut) if (y.vad === 'namn' && y.vag !== 'dubblett' && y.ritat != null) { const k = String(y.spar); if (!namnRitat.has(k) || y.ritat < namnRitat.get(k)) namnRitat.set(k, y.ritat); }
+    const ritadSkugga = (y, k) => {
+      const p = L.platser.get(k), a = p && p.ritat != null ? p.ritat : null, b = namnRitat.has(k) ? namnRitat.get(k) : null;
+      y.ritat = a != null && (b == null || a <= b) ? a : b; y.via = y.ritat == null ? null : y.ritat === a ? 'plats' : 'namn';
+      y.dator = y.ritat != null && y.mottaget != null ? y.ritat - y.mottaget : null;
+      y.hela = y.ritat != null && y.bild != null ? y.ritat - y.bild : null;
+    };
+    const medSkugga = new Set();
+    for (const y of ut) if (y.vad === 'skugga') { const k = String(y.spar); medSkugga.add(k); ritadSkugga(y, k); }
+    for (const [k, p] of L.platser) if (!medSkugga.has(k) && p.ritat != null)
+      ut.push({ vad: 'skugga', spar: p.spar, kalla: 'dator', via: 'plats', slag: p.slag, ritat: p.ritat, ror: T(p.ror), hittat: T(p.hittat), stilla: T(p.stilla), hela: null });
+    /* Släppet: rörelsens slut när stämpeln sattes. Ett namn som blev klart
+       INNAN kortet låg still (MES-246) räknas från rörelsens slut när spåret
+       blev stilla — då blir fran_slapp negativt: klart före släpp. */
+    for (const y of ut) {
+      let slapp = y.ror;
+      if (y.vad === 'namn') {
+        const z = L.sista.get(String(y.spar));
+        if (z && z.stillaRor != null && z.stilla != null && T(z.stilla) > y.stampel && (slapp == null || T(z.stillaRor) > slapp)) slapp = T(z.stillaRor);
+      }
+      y.slapp = slapp;
+      y.fran_slapp = y.ritat != null && slapp != null ? y.ritat - slapp : null;
+    }
+    return ut;
   }
   function visa() {
     if (!L) return;
     const rs = rader(), b = bastaPing(), d = [];
     d.push(L.stoppad ? 'done' : 'measuring', bildlageText(), `${rs.length} events`);
     if (kamBildlage && !L.bildlagen.some(x => x.lage === kamBildlage.lage && x.fps === kamBildlage.fps)) L.bildlagen.push(Object.assign({ fran: Date.now(), upplosning: kamUpplosning }, kamBildlage));
-    for (const vad of ['namn', 'tap', 'lage', 'borta']) { const q = rs.filter(x => x.vad === vad && x.hela != null).map(x => x.hela); if (q.length) d.push(`${vad} ${med(q)} ms (${q.length})`); }
+    /* Från att handen släppte (MES-242): median och andel inom 0,3 s. */
+    const S = latensSumma(rs), f = [];
+    for (const [k, txt] of [['syns', 'shows'], ['namn', 'name'], ['tap', 'tap'], ['lage', 'move'], ['borta', 'gone']]) {
+      const st = S[k] && S[k].fran_slapp; if (!st || !st.n) continue;
+      f.push(`${txt} ${st.median} ms, ${Math.round(st.inom300 * 100)} % ≤ 0.3 s${k === 'namn' && S.namn.fore_slapp ? `, ${Math.round(S.namn.fore_slapp * 100)} % before release` : ''} (${st.n})`);
+    }
+    if (f.length) d.push('from release: ' + f.join(' · '));
+    const vagar = S.namn && S.namn.vag ? Object.entries(S.namn.vag).map(([v, x]) => `${v} ${x.n}`).join(', ') : '';
+    if (vagar) d.push(`names by path: ${vagar}`);
+    for (const vad of ['namn', 'tap', 'lage', 'borta']) { const q = rs.filter(x => x.vad === vad && x.hela != null).map(x => x.hela); if (q.length) d.push(`${vad} from decision ${med(q)} ms`); }
     const nat = rs.filter(x => x.nat != null).map(x => x.nat), dat = rs.filter(x => x.dator != null).map(x => x.dator);
     if (nat.length) d.push(`network ${med(nat)} ms`); if (dat.length) d.push(`computer ${med(dat)} ms`);
+    if (L.tel.modell.length) d.push(`model ${L.tel.modell.join(' → ')}`);
+    const st = stegUr(L.tel.steg0, L.tel.steg1); if (st) d.push(`phone step ${st.median} ms (p95 ${st.p95})`);
+    if (L.tel.bat0 && L.tel.bat1) d.push(`battery ${L.tel.bat0.niva} → ${L.tel.bat1.niva} %`);
     d.push(b ? `clock ${b.off >= 0 ? '+' : ''}${Math.round(b.off)} ms ±${Math.round(b.rtt / 2)}` : 'clock: waiting for the phone');
     status(d.join(' · '));
   }
@@ -23705,6 +23950,7 @@ const LatensDator = (() => {
     if (s && !h) rad('fel', 'The phone is not in debug mode. Add ?debug to the address on the phone and reload. Without it the phone sends no timestamps.');
     else if (h) {
       rad('ok', 'Phone in debug mode: timestamps on.');
+      if (h.ua === undefined) rad('varn', 'The phone runs an older Mesa: the report will miss release times, the shadow and the phone model. Reload Mesa on the phone.');
       if (h.dold) rad('fel', 'Mesa is in the background on the phone. Bring it to the front.');
       const mod = { webgpu: ['ok', 'Image model ready on WebGPU (fast path).'],
                     wasm: ['varn', 'Image model on WASM (slower path; WebGPU needs iOS 26). The test still works — note it.'],
@@ -23751,7 +23997,8 @@ const LatensDator = (() => {
   if (DEBUG) setInterval(ritaHalsa, 1000);
   function start() {
     if (L && !L.stoppad) { toast('Already measuring.', 'err'); return; }
-    L = { v: 1, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [], halsa: [] };
+    L = { v: 2, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [], halsa: [],
+          sista: new Map(), platser: new Map(), tel: { ua: null, modell: [], steg0: null, steg1: null, bat0: null, bat1: null } };
     if (!Moln.sandKam('insp', { gor: 'ping', id: 'latens', t0: Date.now() })) { toast('No connection to the phone', 'err'); L = null; return; }
     for (let i = 1; i <= 4; i++) setTimeout(ping, i * 1000);
     clearInterval(pingT); clearInterval(visT);
@@ -23762,11 +24009,12 @@ const LatensDator = (() => {
   function spara() {
     if (!L) { toast('Nothing measured yet.', 'err'); return; }
     const b = bastaPing(), rs = rader();
-    const summa = {};
-    for (const vad of ['namn', 'tap', 'lage', 'borta']) { const q = rs.filter(x => x.vad === vad); summa[vad] = { n: q.length, hela_median: med(q.map(x => x.hela).filter(x => x != null)), telefon_median: med(q.map(x => x.telefon).filter(x => x != null)) }; }
+    const summa = latensSumma(rs), t = L.tel;
     /* bildlage (MES-229): vilket läge passet kördes i — '4k15' eller '1080p30', med upplösningen och rutorna per sekund telefonen faktiskt gav. Fler än ett = läget byttes under passet, och då går passet inte att jämföra. */
-    const ut = { v: 1, start: L.start, stoppad: L.stoppad, spel: L.spel, ua: L.ua, bildlage: L.bildlagen, klocka: b ? { off: Math.round(b.off), rtt: b.rtt, pingar: L.ping.length } : null,
-                 summa, nat_median: med(rs.map(x => x.nat).filter(x => x != null)), dator_median: med(rs.map(x => x.dator).filter(x => x != null)),
+    const ut = { v: 2, start: L.start, stoppad: L.stoppad, spel: L.spel, ua: L.ua, bildlage: L.bildlagen, klocka: b ? { off: Math.round(b.off), rtt: b.rtt, pingar: L.ping.length } : null,
+                 /* Telefonen (MES-242): ua, bildmodellens väg (webgpu/wasm; fler = den bytte under passet), stegtiden under passet och batteriet (null i Safari). */
+                 telefon: { ua: t.ua, modell: t.modell, steg: stegUr(t.steg0, t.steg1), batteri: t.bat0 ? { start: t.bat0, stopp: t.bat1 } : null },
+                 summa, mal: latensMal(summa), nat_median: med(rs.map(x => x.nat).filter(x => x != null)), dator_median: med(rs.map(x => x.dator).filter(x => x != null)),
                  halsa: L.halsa,   // hälsokollens fel och varningar under passet (MES-240)
                  rader: rs, ping: L.ping };
     inspSpara(new Blob([JSON.stringify(ut, null, 1)], { type: 'application/json' }), `latens-${(L.start || '').replace(/[:.]/g, '-').slice(0, 19)}.json`);
@@ -23774,7 +24022,7 @@ const LatensDator = (() => {
   $('#pbLatensStart') && ($('#pbLatensStart').onclick = start);
   $('#pbLatensStopp') && ($('#pbLatensStopp').onclick = stopp);
   $('#pbLatensSpara') && ($('#pbLatensSpara').onclick = spara);
-  return { bord, pong, start, stopp, spara, get rader() { return rader(); } };
+  return { bord, pong, start, stopp, spara, platser, get rader() { return rader(); } };
 })();
 
 /* ── Datorn ────────────────────────────────────────────────────────── */

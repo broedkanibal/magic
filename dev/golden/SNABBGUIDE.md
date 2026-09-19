@@ -383,16 +383,75 @@ Golden kan inte svara (videorna är 15 rutor/s). Så här körs provet:
    report**.
 5. Slå av växeln när du är klar (*Reset the thresholds* gör det också).
 
-| Jämför i de två rapporterna | Var | Vad det säger |
+### Läsa rapporten mot målen (MES-242)
+
+**Kortast:** kör analysskriptet på filerna. Det skriver tabellerna nedan och
+säger *ja / nej / omätt* per mål i MES-237.
+
+```bash
+node dev/latens/analys.cjs dev/latens/latens-*.json
+```
+
+**Två sätt att mäta, samma rad.** Varje kort ger en rad per händelse.
+
+| Mått | Från | Till | Vad det svarar på |
+|---|---|---|---|
+| `fran_slapp` | **handen släppte** (`slapp`) | datorn ritat (`ritat`) | det spelaren märker — **målen gäller det här** |
+| `hela` | rutan där telefonen fattade beslutet (`bild`) | datorn ritat | bara sista biten: nätet och datorn, utan väntereglerna (det gamla måttet, ~0,1 s) |
+
+`slapp` är **sista rutan där spåret rörde sig, växte ihop med en hand
+eller var skymt** (telefonens `rorelse`, fryst per händelse som `…Ror`).
+Osäkerheten är en ruta: 67 ms i 4K · 15, 33 ms i 1080p · 30.
+
+**Händelserna**
+
+| `vad` | Vad spelaren ser | Mål (median från släppet) |
 |---|---|---|
-| `bildlage` | överst i filen | att passet verkligen kördes i det läget (en post — två betyder att läget byttes mitt i) |
-| `summa.namn.hela_median` | ms, bild tagen → ritat på datorn | hela vägen till namnet: det tal målet 2 s gäller |
-| `summa.namn.telefon_median` | ms, bild → namn på telefonen | telefonens del — här syns om 1080p läser lika fort |
-| `summa.tap` och `summa.lage` (`hela_median`) | ms | tap och flytt: målet 300 ms |
-| `summa.borta.hela_median` | ms | ett lyft kort tonas ned |
-| raderna: `hittat − bild` per kort | ms | hur snart efter rutan spåret fanns — det 30 rutor/s ska korta |
-| antal rader med `vad: "namn"` mot antal kort du lade | – | fick alla kort namn? Färre i 1080p = upplösningen räcker inte |
-| granskningsposter och frågor till Claude under passet | sammanfattningen när auto stängs av | fler i 1080p = titelraden saknades där den behövdes |
+| `skugga` | platsen på datorns bord, innan namnet (MES-226). `via: plats` = platsen ritades först, `via: namn` = kortet kom med namn direkt. `kalla: dator` = platsen ritades utan att telefonen sagt kortlik (efter en halv sekund) | ≤ 0,3 s |
+| `syns` (bara i `summa`) | per kort det första som ritades: skugga eller namn | ≤ 0,3 s |
+| `namn` | kortet med rätt namn | median ≤ 0,3 s, 95 % ≤ 0,6 s, inget över 2 s |
+| `tap` | kortet vrider sig | ≤ 0,3 s |
+| `lage` | kortet flyttar | ≤ 0,3 s |
+| `borta` | kortet lämnar bordet | ≤ 0,3 s |
+
+**Fälten på en namnrad**
+
+| Fält | Betyder |
+|---|---|
+| `vag` | vägen namnet kom: `lokal` (telefonens egen läsning), `ai` (Claude, ett kort), `klunga` (Claude delade en klump i flera kort), `dubblett` (samma kort som ett spår som redan har namn — räknas i vägarna men inte i tiderna), `helbild` (Claude på hela bilden), `hand` (någon fyllde i det). **`okand` = en väg som inte stämplar: ett hål i mätningen, säg till** |
+| `tidig` | namnet kom ur den tidiga läsningen (innan kortet legat stilla i 800 ms) |
+| `fran_slapp` **negativt** | namnet var klart **före** släppet (MES-246). `summa.namn.fore_slapp` är andelen |
+| `las` | läsningarna fram till namnet: `start`, `ms`, och `tider` = delarna (se nedan) |
+| `fraga`, `aiMs` | när frågan till Claude gick, och Claudes svarstid |
+
+**Läsningens delar** (`summa.namn.lasning`, median och p90 per kort)
+
+| Del | Vad |
+|---|---|
+| `vantan` | släppet → första läsningen: stillhetsregeln plus kön |
+| `ko` | stilla → första läsningen: bara kön (andra kort läses) |
+| `modell` | bildmodellens egen körning (väntan på en upptagen modell ingår) |
+| `orb` | ORB på modellens tre bästa, eller Matcher + ORB när modellen inte användes; `orb2` (andra åsikten) räknas in |
+| `titelVant` | hur länge bildvägen väntade på titelraden. `titel` är titelradens egen tid, som går parallellt |
+| `vand` | titelraden läst en gång till, upp och ner |
+| `antal` | läsningar per kort (fler än en = omförsök) |
+
+**Telefonen** (`telefon` överst i filen)
+
+| Fält | Betyder |
+|---|---|
+| `ua` | telefonens webbläsare och system (`ua` längre upp är datorns) |
+| `modell` | bildmodellens väg: `webgpu` (snabb) eller `wasm` (långsam). Två värden = den bytte under passet. Hälsokollen varnar för WASM |
+| `steg` | analysstegets tid under passet: median och p95 i ms. Över 33 ms i 1080p · 30 = telefonen tappar rutor |
+| `batteri` | procent vid start och stopp. `null` på iPhone: Safari ger inte batteriet, läs det själv |
+
+**Så läser du målen:** titta på tabellen *Målen (MES-237)* i
+analysskriptets utskrift. *omätt* = raderna saknar släppet (äldre rapport
+eller äldre Mesa på telefonen — hälsokollen säger till). *för få* = under
+5 rader. Kolla sedan två saker innan du litar på ett *ja*: att `vag` inte
+har några `okand`, och att `bildlage` bara har en post. Granskningsposter
+och frågor till Claude står inte i rapporten, utan i sammanfattningen när
+auto stängs av.
 
 Kör gärna *Recording probe · MES-190* pass A i vardera läget också: loggen
 bär `bildlage`, och stegtiden (`tick`) visar om telefonen orkar ett steg

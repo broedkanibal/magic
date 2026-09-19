@@ -400,6 +400,111 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
         utanTs && !!ts && ts.hittat >= tLt && ts.stilla >= ts.hittat && ts.namn >= ts.stilla && ts.namnBild != null && !!ts2 && ts2.tap >= ts2.namn
         && Array.isArray(borta) && borta.length === 1 && borta[0].namn === 'Plains' && borta[0].borta >= ts2.tap);
 
+  /* LT1b–LT1j (MES-242): rapporten mäter från att handen släpper. Varje
+     stämpel bär rörelsens slut (<vad>Ror: sista rutan där spåret rörde sig
+     eller var skymt), skuggan har en stämpel, och namnet stämplas på ALLA
+     vägar med vägen i namnVag. En missad väg ger fel siffror i tysthet, så
+     varje väg provas för sig, och uppsamlaren i rapportera (vägen 'okand')
+     provas med ett spår som ingen väg stämplat. */
+  {
+    const osaker = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.4 }] });
+    const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    const TAPPAT = g => kort(g, W, 54, 44, 42, 30, 180);
+    const fraga = t => { t.aiFragad = true; t.provas = true; t.aiFragadNar = nu; };
+    const klaraUtanNamnTs = () => Kamera.spar.filter(t => t.tillstand === 'klar' && t.saker && !(t.ts && t.ts.namn));
+    Kamera.satLatens(true);
+
+    /* LT1b: den lokala vägen — ordningen hittat ≤ rörelsens slut ≤ skugga ≤ namn, och läsningen loggad. */
+    namnSvar = saker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    const a = (Kamera.spar[0] || {}).ts || {};
+    check(`LT1b lokal: vag ${a.namnVag}, hittat ≤ namnRor ≤ skugga ≤ namn: ${a.hittat} ${a.namnRor} ${a.skugga} ${a.namn}, läsningar ${JSON.stringify(a.las)}`,
+          a.namnVag === 'lokal' && a.namnRor > 0 && a.hittat <= a.namnRor && a.namnRor <= a.skugga && a.skugga <= a.namn && a.skuggaRor === a.namnRor
+          && Array.isArray(a.las) && a.las.length >= 1 && a.las.every(l => l.start >= a.hittat && l.ms >= 0 && (l.slag === 'las' || l.slag === 'spek')) && a.las.some(l => l.saker));
+    /* LT1c: tap och borta bär sin egen rörelse — senare än namnets, och högst stämpeln. */
+    for (let i = 0; i < 12; i++) s = await ruta(TAPPAT);
+    const b = (Kamera.spar[0] || {}).ts || {};
+    for (let i = 0; i < 2; i++) s = await ruta(g => { TAPPAT(g); hand(g, W, 75, 59, 30, 24, 60); });   // handen över kortet: skymt
+    const handSlut = Date.now();
+    for (let i = 0; i < 8; i++) s = await ruta(null);
+    const bo = (bordExtra && bordExtra.bortaTs) || [];
+    check(`LT1c tap och borta: tapRor ${b.tapRor} (namnRor ${b.namnRor}, tap ${b.tap}), borta ${JSON.stringify(bo)}`,
+          b.namnRor > 0 && b.tapRor > b.namnRor && b.tapRor <= b.tap && bo.length === 1 && bo[0].ror > b.tapRor && bo[0].ror <= handSlut && bo[0].ror <= bo[0].borta);
+
+    /* LT1d: ett flimmer (borta och tillbaka inom 1,5 s) behåller namnets stämpel — inget nytt namn. */
+    nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    const f0 = Object.assign({}, (Kamera.spar[0] || {}).ts), fid = (Kamera.spar[0] || {}).id;
+    for (let i = 0; i < 5; i++) s = await ruta(null);
+    const dog = !Kamera.spar.some(t => t.id === fid);
+    for (let i = 0; i < 4; i++) s = await ruta(KORT);
+    const f1 = ((Kamera.spar.find(t => t.id === fid) || {}).ts) || {};
+    check(`LT1d flimmer: dog ${dog}, samma spår ${!!Kamera.spar.find(t => t.id === fid)}, namn ${f0.namn} → ${f1.namn}, återkom ${!!f1.aterkom}, utan namnstämpel ${klaraUtanNamnTs().length}`,
+          dog && f1.namn === f0.namn && f1.namnVag === 'lokal' && !!f1.aterkom && klaraUtanNamnTs().length === 0);
+
+    /* LT1e: Claude, ett kort — vägen 'ai', och frågans tid. */
+    namnSvar = osaker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    let t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
+    fraga(t); (t.ts || (t.ts = {})).fraga = Date.now();
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.5, y: 0.5 }], { antal: 1, ms: 1800 });
+    const e = t.ts || {};
+    check(`LT1e Claude: ${t.tillstand} vag ${e.namnVag}, fraga ≤ namn ${e.fraga} ${e.namn}, namnRor ${e.namnRor}`,
+          t.tillstand === 'klar' && e.namnVag === 'ai' && e.fraga <= e.namn && e.namnRor != null && e.namnRor <= e.namn);
+
+    /* LT1f: klungan — två kort i en beskärning: båda 'klunga', den nya delen ärver hittat och läsningarna. */
+    namnSvar = osaker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
+    fraga(t);
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.3, y: 0.5 }, { namn: 'Island', sid: 's3', saker: true, x: 0.7, y: 0.5 }], { antal: 2, ms: 1234 });
+    const kl = Kamera.spar.filter(x => x.ai && x.ai.klunga === t.id);
+    const ny = kl.find(x => x !== t) || {};
+    check(`LT1f klunga: ${kl.map(x => `#${x.id} ${x.namn} ${x.ts && x.ts.namnVag}`).join(', ')}, den nya ärver hittat ${ny.ts && ny.ts.hittat === (t.ts && t.ts.hittat)} och klunga ${ny.ts && ny.ts.klunga}`,
+          kl.length === 2 && kl.every(x => x.ts && x.ts.namnVag === 'klunga' && x.ts.namn != null) && !!ny.ts && ny.ts.hittat === t.ts.hittat && ny.ts.klunga === t.id);
+
+    /* LT1g: helbilden — ett nytt spår ur Claudes helbild får hittat och vägen 'helbild'. */
+    nystart(); await referens();
+    Kamera.tillampaHelbild([{ x: 110 / W, y: 70 / H, namn: 'Plains', sid: 's1', saker: true }], { helbild: true, skal: 'auto' }, nu);
+    const hb = Kamera.spar.find(x => x.varfor === 'helbild') || {};
+    check(`LT1g helbild: ${hb.tillstand} ${hb.namn}, vag ${hb.ts && hb.ts.namnVag}, hittat ≤ namn ${hb.ts && hb.ts.hittat} ${hb.ts && hb.ts.namn}`,
+          hb.tillstand === 'klar' && !!hb.ts && hb.ts.namnVag === 'helbild' && hb.ts.hittat <= hb.ts.namn);
+
+    /* LT1h: för hand — datorn namngav kortet i granskningen. */
+    namnSvar = osaker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
+    Kamera.namnge(t.id, 'Plains', 's1');
+    check(`LT1h för hand: ${t.tillstand} vag ${t.ts && t.ts.namnVag}`, t.tillstand === 'klar' && !!t.ts && t.ts.namnVag === 'hand');
+
+    /* LT1i: dubbletten — ett andra spår över ett klart kort läses till samma namn: 'dubblett', namnSom = kortets. */
+    namnSvar = saker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    const q = Kamera.spar[0] || {};
+    Kamera.spar.push({ id: 999, cx: q.cx, cy: q.cy, lang: q.lang, kort: q.kort, vinkel: q.vinkel, box: Object.assign({}, q.box), areaRef: q.areaRef,
+                       sedd: nu, fodd: nu, stillaFran: 0, tomMs: 0, skymd: false, regionNar: nu, tappad: false, tappRun: 0, tillstand: 'stilla', fragad: false });
+    for (let i = 0; i < 4; i++) s = await ruta(KORT);
+    const du = Kamera.spar.find(x => x.id === 999) || {};
+    check(`LT1i dubblett: #999 ${du.tillstand} (${du.varfor}), vag ${du.ts && du.ts.namnVag}, namnSom ${du.ts && du.ts.namnSom}`,
+          du.tillstand === 'skrap' && !!du.ts && du.ts.namnVag === 'dubblett' && du.ts.namnSom === 'Plains' && du.ts.namn != null);
+
+    /* LT1j: uppsamlaren — ett säkert spår som ingen väg stämplat får raden ändå, med vägen 'okand'. */
+    namnSvar = osaker; nystart(); await referens();
+    for (let i = 0; i < 8; i++) s = await ruta(KORT);
+    t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
+    t.tillstand = 'klar'; t.saker = true; t.namn = 'Plains';   // en väg som glömt stämpla
+    Kamera.rapportera();
+    const up = (bord.find(x => x.id === t.id) || {}).ts || {};
+    check(`LT1j uppsamlaren: vag ${up.namnVag}, namn ${up.namn}`, up.namnVag === 'okand' && up.namn != null);
+
+    /* LT1k: stegtiden räknas bara med latens på, och följer inte med utan. */
+    const hist = Kamera.stegHist;
+    Kamera.satLatens(false);
+    check(`LT1k stegtiden: ${hist && hist.reduce((x, y) => x + y, 0)} steg med latens, utan ${JSON.stringify(Kamera.stegHist)}`,
+          Array.isArray(hist) && hist.length === 101 && hist.reduce((x, y) => x + y, 0) > 0 && Kamera.stegHist === null);
+    namnSvar = saker;
+  }
+
   // ── RS1/RS2: rapporten säger när ett kort ligger stilla och när spåret blivit gammalt (MES-166) ──
   /* Datorns provkortslås låser bara ett stilla kort och släpper ett spår utan
      region. Båda slår om bara för att tiden går — förut jämförde steget
