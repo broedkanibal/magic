@@ -1,0 +1,246 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Läs kortet innan handen släpper — bildmodellen på inspelningens rutor</title>
+<style>
+body{font:13px/1.4 system-ui,sans-serif;margin:12px;background:#fafafa;color:#222}
+pre{font:12px/1.35 ui-monospace,Menlo,monospace;white-space:pre-wrap}
+iframe{width:360px;height:480px;border:1px solid #ccc;background:#000}
+</style>
+<p id="status">Laddar appen…</p>
+<pre id="ut"></pre>
+<iframe id="app" title="appen"></iframe>
+<script src="skar.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   MES-246 del 1 — vad säger bildmodellen på en beskärning ur inspelningen?
+
+   Kör: node dev/las-fore-slapp/las.cjs --jobb <namn.json> --ut <svar.json>
+
+   Sidan laddar appen (index.html) i en iframe precis som dev/golden/kor.html
+   och dev/golden/vriden.html gör, bygger golden-poolen ur dev/golden/lek.txt
+   med appens egen byggLekPool(), väntar in bildmodellen (KamEmbed) och kör
+   sedan kedjans EGNA funktioner på varje beskärning i jobbet:
+
+     Embed.identifiera(beskärning, KamEmbed.idx)   → namn, marginal, cands
+     identifyMedModell(beskärning, låda, e, ensamt) → ORB:s kontroll och domen
+     serUtSomKort(beskärning, mattNiva, skala)      → skräpfiltret
+
+   Beskärningen görs som Kamera.beskar(): lådan + 8 % marginal, nedskalad så
+   att kortsidan blir högst 720 px, vriden ett kvarts varv när lådan ligger.
+   beskar() är inte exporterad ur modulen, så den är kopierad hit — ändras den
+   i index.html ska den ändras här med.
+
+   Ingenting i index.html eller systemprompten rörs.
+   ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+const $ = s => document.querySelector(s);
+/* Tickaren ur kor.html: appens rAF och väntetiderna här går på en Worker, så
+   att allt löper även när fliken ligger i bakgrunden. */
+const tick = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 25)'], { type: 'text/javascript' })));
+const vantande = []; let rafKo = [];
+tick.onmessage = () => {
+  const nu = performance.now();
+  for (let i = vantande.length - 1; i >= 0; i--) if (vantande[i].tid <= nu) vantande.splice(i, 1)[0].res();
+  if (rafKo.length) { const k = rafKo; rafKo = []; for (const cb of k) { try { cb(nu); } catch (e) { console.error(e); } } }
+};
+const sleep = ms => new Promise(res => vantande.push({ tid: performance.now() + ms, res }));
+const status = t => { $('#status').textContent = t; };
+const rader = []; const skriv = s => { rader.push(s); $('#ut').textContent = rader.join('\n'); };
+const ladda = s => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('kunde inte läsa ' + s)); i.src = s; });
+const Q = new URLSearchParams(location.search), JOBB = Q.get('jobb') || 'jobb.json';
+let w = null, K = null, poolRec = null, embedInfo = null;
+
+/* ── appen ───────────────────────────────────────────────────────── */
+async function laddaApp() {
+  const f = $('#app');
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = '../../'; });
+  w = f.contentWindow;
+  for (let i = 0; i < 200; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
+  K = w.eval('Kamera');
+  w.MESA_REF = false; w.MESA_LAR = false;
+  w.MESA_EMBED = {};                      // förvalet: modulen hämtar modellen som i appen
+  try { w.eval('prefs').aiAuto = false; } catch (e) {}
+  if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
+  for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'identifyMedModell', 'serUtSomKort']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
+  w.requestAnimationFrame = cb => { rafKo.push(cb); return rafKo.length; };
+  w.cancelAnimationFrame = () => {};
+}
+
+/* Leken ur dev/golden/lek.txt, samma väg som kor.html. */
+async function byggPool() {
+  const r = await fetch('../golden/lek.txt', { cache: 'no-store' });
+  if (!r.ok) throw new Error('lek.txt saknas');
+  const rad = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'))
+    .map(l => { const m = l.match(/^(\d+)\s*[xX]?\s+/); return { namn: m ? l.slice(m[0].length) : l, n: m ? +m[1] : 1 }; });
+  const namn = rad.map(x => x.namn);
+  let h = 2166136261; for (const c of namn.join('\n')) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  const kort = [];
+  for (let i = 0; i < namn.length; i++) {
+    status(`Slår upp leken: ${i + 1} av ${namn.length} — ${namn[i]}`);
+    try { const c = await w.lookup(namn[i]); kort.push({ sid: c.id, name: c.name, small: w.imgOf(c, 0, 'small'), n: rad[i].n }); }
+    catch (e) { skriv('saknas i Scryfall: ' + namn[i]); }
+    await sleep(80);
+  }
+  poolRec = await w.byggLekPool({ kort, ts: 1 }, 'golden-' + h.toString(16) + '-' + kort.length,
+    p => status(p.phase === 'img' ? `Lär mig leken… ${p.done} av ${p.total}` : `Hämtar leken… ${p.done || ''}`));
+  const Pool = w.eval('Pool');
+  if (!Pool.idx || Pool.idx.code !== poolRec.code) Pool.idx = poolRec;
+  /* Bildmodellen: appen bäddar in leken i bakgrunden — vänta in den. */
+  const KE = w.eval('KamEmbed');
+  const t0 = performance.now();
+  status('Bäddar in leken i bildmodellen…');
+  const idx = await KE.bygg(poolRec, p => status(`Bildmodellen: ${p.done} av ${p.total} kort (${p.hamtade} förräknade, ${p.nya} nya)`));
+  if (!idx) throw new Error('bildmodellen gick inte att ladda: ' + (KE.fel || 'okänt fel'));
+  if (!KE.redo()) throw new Error('bildmodellen blev inte redo (KamEmbed.redo false)');
+  embedInfo = { backend: w.Embed.backend, modell: w.Embed.MODELL, vektorer: idx.names.length, troskel: w.Embed.TROSKEL, ms: Math.round(performance.now() - t0) };
+  skriv(`pool: ${poolRec.names.length} uppslag ur ${kort.length} namn · bildmodell ${embedInfo.modell} på ${embedInfo.backend}, ${embedInfo.vektorer} vektorer, tröskel ${embedInfo.troskel} (${embedInfo.ms} ms)`);
+}
+
+/* ── beskärningen: kopia av Kamera.beskar() ───────────────────────── */
+const BESKAR_BREDD = 720, MARG = 0.08;
+function beskar(bild, b, vinkel) {
+  const bx = b.x - b.w * MARG, by = b.y - b.h * MARG;
+  const bw = b.w * (1 + 2 * MARG), bh = b.h * (1 + 2 * MARG);
+  const liggande = bw > bh;
+  const skala = Math.min(1, BESKAR_BREDD / (liggande ? bh : bw));
+  const ow = Math.round((liggande ? bh : bw) * skala), oh = Math.round((liggande ? bw : bh) * skala);
+  const c = document.createElement('canvas'); c.width = ow; c.height = oh;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.imageSmoothingQuality = 'high';
+  if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(bild, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
+  else x.drawImage(bild, bx, by, bw, bh, 0, 0, ow, oh);
+  /* Kortets rektangel i beskärningen, när kortet ligger snett (BESKAR_SNETT i
+     appen är 10°). null = mät beskärningen som den är. */
+  let kort = null;
+  if (vinkel != null && Math.abs(Math.atan2(Math.sin(4 * vinkel), Math.cos(4 * vinkel))) / 4 >= 10 * Math.PI / 180) {
+    const u = (b.x + b.w / 2 - bx) / bw, v = (b.y + b.h / 2 - by) / bh;
+    const lang = Math.max(b.w, b.h) * skala, kt = Math.min(b.w, b.h) * skala;
+    kort = liggande ? { cx: v * ow, cy: (1 - u) * oh, lang, kort: kt, vinkel: vinkel - Math.PI / 2 }
+                    : { cx: u * ow, cy: v * oh, lang, kort: kt, vinkel };
+  }
+  return { bild: c, kort };
+}
+/* Halva upplösningen: 4K-utsnittet ritat i halv storlek = 1080p-kamerans
+   bildpunkter (approximation; en riktig 1080p-ström är sensorbinnad, inte
+   nedskalad — se rapporten). */
+function halvera(bild) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bild.width / 2)); c.height = Math.max(1, Math.round(bild.height / 2));
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+  x.drawImage(bild, 0, 0, c.width, c.height);
+  return c;
+}
+/* Rörelseoskärpa: medel av bilden förskjuten längs en riktning, som en
+   exponering på 1/30 s under en rörelse av <px> bildpunkter. */
+function suddaRorelse(bild, px, riktning) {
+  const n = Math.max(2, Math.round(px)), dx = Math.cos(riktning), dy = Math.sin(riktning);
+  const c = document.createElement('canvas'); c.width = bild.width; c.height = bild.height;
+  const x = c.getContext('2d');
+  x.globalAlpha = 1 / n;
+  for (let i = 0; i < n; i++) x.drawImage(bild, (i - (n - 1) / 2) * dx, (i - (n - 1) / 2) * dy);
+  x.globalAlpha = 1;
+  return c;
+}
+/* Hårdare komprimering: ett varv jpeg med låg kvalitet. */
+function pressa(bild, q) {
+  return new Promise(res => {
+    const d = bild.toDataURL('image/jpeg', q);
+    const im = new Image(); im.onload = () => {
+      const c = document.createElement('canvas'); c.width = bild.width; c.height = bild.height;
+      c.getContext('2d').drawImage(im, 0, 0); res(c);
+    }; im.src = d;
+  });
+}
+
+/* ── en beskärning genom kedjans vittnen ──────────────────────────── */
+async function doma(cv, ensamt) {
+  const box = { x: 0, y: 0, w: cv.width, h: cv.height };
+  const t0 = performance.now();
+  let e = null; try { e = await w.Embed.identifiera(cv, w.eval('KamEmbed').idx); } catch (err) { return { fel: String(err && err.message || err) }; }
+  if (!e || !e.namn) return { fel: 'modellen svarade inte' };
+  const modellMs = performance.now() - t0;
+  let v = null; try { v = w.identifyMedModell(cv, box, e, ensamt); } catch (err) { return { fel: 'identifyMedModell: ' + String(err && err.message || err) }; }
+  const M = v.modell || {};
+  let skrap = null; try { skrap = !w.serUtSomKort(cv, K.mattNiva, K.utseendeSkala); } catch (err) { skrap = null; }
+  return {
+    namn: v.rec.cands[0] ? v.rec.cands[0].name : null,
+    marginal: +(M.marginal != null ? M.marginal : e.marginal).toFixed(4),
+    saker: !!M.saker, accept: !!v.accept, del: !!v.del,
+    bar: !!M.bar, emot: !!M.emot, stod: M.stod || 0, land: !!M.land,
+    inliers: v.rec.inliers || 0, orbNamn: M.orbNamn || null, skala: M.skala != null ? +M.skala.toFixed(2) : null,
+    tva: v.rec.cands[1] ? v.rec.cands[1].name : null,
+    poang: e.poang != null ? +e.poang.toFixed(4) : null,
+    skrap, ms: Math.round(modellMs + (performance.now() - t0 - modellMs)), modellMs: Math.round(modellMs)
+  };
+}
+
+/* ── körningen ────────────────────────────────────────────────────── */
+(async () => {
+  try {
+    status('Laddar appen…');
+    await laddaApp();
+    await byggPool();
+    const jr = await fetch('bilder/' + JOBB, { cache: 'no-store' });
+    if (!jr.ok) throw new Error('hittar inte bilder/' + JOBB);
+    const jobb = await jr.json();
+    const poster = jobb.poster || [];
+    const svar = [];
+    const t0 = performance.now();
+    for (let i = 0; i < poster.length; i++) {
+      const p = poster[i];
+      if ((i % 5) === 0 || i === poster.length - 1) {
+        const gatt = (performance.now() - t0) / 1000, kvar = i ? gatt / i * (poster.length - i) : 0;
+        status(`Läser ${i + 1} av ${poster.length} — ${p.id} (${Math.round(gatt)} s gått, ~${Math.round(kvar)} s kvar)`);
+      }
+      let bild;
+      try { bild = await ladda('bilder/' + p.fil); } catch (e) { svar.push({ id: p.id, fel: 'bild saknas: ' + p.fil }); continue; }
+      const rad = { id: p.id, fonster: p.fonster, t: p.t, rel: p.rel, facit: p.facit || null, lager: {} };
+      /* (b) Går kortet att skära ut ur hand + kort-regionen? */
+      let mask = null;
+      if (p.mask) { const bin = atob(p.mask.m), bitar = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bitar[k] = bin.charCodeAt(k); mask = { w: p.mask.w, h: p.mask.h, bitar }; }
+      const sk = Skar.skar(bild, { kortLang: p.kortLang, kortKort: p.kortKort, mask, maskLada: p.region });
+      rad.skar = { ok: !!sk.ok, skal: sk.skal || null, synlig: sk.synlig != null ? sk.synlig : null,
+                   matta: sk.matta != null ? sk.matta : null, hud: sk.hud != null ? sk.hud : null,
+                   ute: sk.ute != null ? sk.ute : null, klump: sk.klump || 0, mattaMax: sk.mattaMax,
+                   klumpMatt: sk.klumpMatt || null, kortMatt: sk.kortMatt || null,
+                   rekt: sk.rekt ? { cx: Math.round(sk.rekt.cx), cy: Math.round(sk.rekt.cy),
+                                     lang: Math.round(sk.rekt.lang), kort: Math.round(sk.rekt.kort),
+                                     vinkel: +sk.rekt.vinkel.toFixed(3) } : null };
+      /* Hur nära facit ligger den utskurna rektangeln, när kortet redan
+         landat (rel ≥ 0): mitten i andelar av kortbredden. */
+      if (sk.rekt && p.mal) {
+        const mx = p.mal.x + p.mal.w / 2, my = p.mal.y + p.mal.h / 2;
+        rad.skar.fel = +(Math.hypot(sk.rekt.cx - mx, sk.rekt.cy - my) / p.kortKort).toFixed(3);
+      }
+      const varianter = p.varianter || ['4k'];
+      /* (c) Vad säger bildmodellen på beskärningen? */
+      for (const kalla of (p.kallor || ['skuren'])) {
+        let grund = null;
+        if (kalla === 'skuren') { if (!sk.rekt) continue; grund = Skar.rakUt(bild, sk.rekt, 720); }
+        else if (kalla === 'region') grund = beskar(bild, p.region, p.regionVinkel).bild;
+        if (!grund) continue;
+        for (const v of varianter) {
+          let cv = grund;
+          if (v === '1080p') cv = halvera(cv);
+          else if (v === 'sudd') cv = suddaRorelse(cv, p.suddPx || 8, p.suddRiktning || 0);
+          else if (v === '1080p+sudd') cv = suddaRorelse(halvera(cv), (p.suddPx || 8) / 2, p.suddRiktning || 0);
+          else if (v === '1080p+press') cv = await pressa(halvera(cv), 0.45);
+          else if (v === 'press') cv = await pressa(cv, 0.45);
+          else if (v === '1080p+sudd+press') cv = await pressa(suddaRorelse(halvera(cv), (p.suddPx || 8) / 2, p.suddRiktning || 0), 0.45);
+          const r = await doma(cv, p.ensamt === undefined ? 'matt' : p.ensamt);
+          r.px = { w: cv.width, h: cv.height };
+          rad.lager[kalla + ':' + v] = r;
+        }
+      }
+      svar.push(rad);
+      if ((i % 20) === 0) await sleep(0);
+    }
+    window.RES = { jobb: JOBB, embed: embedInfo, pool: poolRec ? poolRec.names.length : 0, svar };
+    skriv(`${svar.length} rutor lästa`);
+    status(`Klart: ${svar.length} rutor`);
+  } catch (e) {
+    console.error(e);
+    status('Fel: ' + ((e && e.message) || e));
+  }
+})();
+</script>
