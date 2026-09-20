@@ -68,6 +68,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |
 | `node dev/golden/avstand.cjs --ai --fall 02,06` | samma, med Claude (kostar, ~5–10 cent för två fall): läser Claude korten där den lokala kedjan tappar dem? |
+| `node dev/golden/avstand.cjs --faktorer 0.5 --tro "anaBredd:540"` | samma mått med en annan **analysbredd** (MES-244) — se *Avstånd*; `--utan-modell` och `--wasm` som i `kor.cjs` |
 | `node dev/golden/kor.cjs --lar-ref` | lär in facit efter varje fall, som om spelaren bekräftat korten (se *Lärda referenser*) |
 | `node dev/golden/kor.cjs --ref` | samma prov med de lärda referenserna i poolen; `--glom-ref` glömmer dem först |
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
@@ -186,6 +187,55 @@ i 06. Golvet går vid ~100 px: där är beskärningen för liten också för
 Claude, och under 90 px blir korten aldrig spår. Claude varierar körning till
 körning: en andra körning gav 3/4 i 02 på 0,65 och 10/11 i 06 på 0,8 — och
 där stod rådet inte längre tänt (långt bort: nej).
+
+**Mätt 2026-09-20 MED bildmodellen (MES-244).** Före det körde `avstand.cjs`
+Chrome utan grafikkortet och utan de lokala vikterna — provet mätte alltså
+inte kedjan som den ser ut sedan MES-225. Nu gör den som `kor.cjs`.
+
+**Två tal, inte ett.** Kameran analyserar bilden i högst 360 px bredd
+(`AW_MAX`), i både 4K och 1080p. På samma avstånd ser 1080p därför exakt
+samma analysbild som 4K; det enda som skiljer är upplösningen i
+**beskärningen** som modellen och ORB läser. Avståndsprovet skalar ner hela
+fotot och ändrar båda på en gång, så varje steg redovisar både kortsidan i
+beskärningen och kortsidan i analysbilden (`analys` i tabellen).
+
+| Kortsida i beskärningen | …i analysbilden | Rätt namn | Fel namn | Vad som stoppar |
+|---|---|---|---|---|
+| 250–380 px | 84–127 px | **22/22** | 0 | inget |
+| 180–250 px | 60–85 px | 12/20 | 0 | spår som bara är en bit av kortet, kort omlott |
+| 140–180 px | 42–84 px | 22/38 | 0 | två kort omlott blir ett spår |
+| 110–140 px | 43–84 px | 14/38 | 0 | samma; rena kort (01, 08) klarar 3/3 |
+| under ~100 px | 27–56 px | ~0 | 0 | korten blir aldrig spår (golvet 90 px, i videopixlar) |
+
+**Spärrarna runt modellen bromsar inte små kort.** ORB:s inliers blir inte
+färre när kortet krymper — ORB skalar om varje beskärning till samma
+storlek (Valkyrie's Sword: 16 inliers vid 380 px, 42 vid 152, 26 vid 114).
+ORB:s skala är ett förhållande. Titelraden hoppas över under ~150 px, men
+bara ett kort behövde den. Beskärningens bredd (720) slår aldrig till i
+1080p. Modellens marginal sjunker under ~115 px, och då bär ORB ensam.
+
+### Analysbredden — spaken för vidvinkeln (MES-244, E)
+
+Kortets storlek i **analysbilden** är det som avgör om två kort omlott går
+att skilja åt. Med vidvinkel (MES-241) blir ett kort ~42 px där, och då
+växer kort ihop. `--tro "anaBredd:480"` höjer bredden (tröskeln finns bara
+bakom `?debug`, förvalet 360 är orört); trösklarna som räknas i
+analyspixlar — minsta area och rörelsen — följer med bredden.
+
+Faktor 0,5, alltså korten hälften så stora i bilden, som med vidvinkel
+(beskärningarna 80–190 px), sju stillbildsfall:
+
+| Analysbredd | Rätt namn | Fel namn | Falska | Steg per ruta (median) |
+|---|---|---|---|---|
+| 360 (förval) | 8/44 | 0 | 2 | 26–77 ms |
+| 480 | 12/44 | 0 | 1 | 27–82 ms |
+| 540 (fotots egen bredd) | **24/44** | 0 | 3 | 68–115 ms |
+
+Fall 06 går 0/11 → 9/11. Vid full storlek (faktor 1) ger 480 däremot ingen
+vinst (23/44 som vid 360, en falsk mindre) och 720 kollapsar (4/44, 13
+falska, fem fall slog i provets 30-sekunderstak): en bredare analys hjälper
+bara när korten är SMÅ där, och varje ruta kostar 2–3 gånger mer att räkna
+— det är värme på telefonen (MES-164).
 
 **Rådet "Korten är små i bilden. Flytta telefonen närmare"** tändes förut
 på storleken ensam — också i 06 på faktor 0,8, där Claude läste 9 av 11.
@@ -356,12 +406,31 @@ grafikkort, eller med `--wasm`: samma svar, 3–5 gånger långsammare).
 | `land per typ` | raden under `metod:` (MES-228): facits synliga basland mot kamerans säkra, typ för typ — ett Plains är ett Plains, vilket tryck det än är, och "Snow-Covered Swamp" är typen Swamp. `landRatt`/`landAv`, och `landOver` = land kameran har utöver facits synliga och dolda. I domen |
 | Utan modellen | `--utan-modell` mäter reserven (modulen inte laddad, leken inte inbäddad): samma tal som före modellen |
 
-## 1080p-provet på riktig telefon (MES-229)
+## 1080p-provet på riktig telefon (MES-229, MES-244)
 
 Frågan: blir spegeln snabbare med **1920×1080 i 30 rutor/s, varje ruta
 analyserad**, än med förvalet **4K i 15 rutor/s, en ruta var 150:e ms** —
 och räcker bildmodellen och ORB när titelraden är för liten att läsa?
 Golden kan inte svara (videorna är 15 rutor/s). Så här körs provet:
+
+**Tre lägen sedan MES-244**, i listan *Picture mode* i provbordet
+(`?debug`); förvalet är orört:
+
+| Läge | Vad | När |
+|---|---|---|
+| 4K · 15 fps | förvalet, en ruta var 150:e ms | pass 1, jämförelsen |
+| 1080p · 30 fps | varje ruta analyseras (MES-229) | provar om tätare rutor ger snabbare spegel |
+| 1080p · 15 fps | **samma takt som förvalet** | det rena provet: bara upplösningen skiljer, alla ruttrösklar är förvalets. Också det svala alternativet (MES-243) |
+
+Listan *Analysis width* bredvid (360 px i förvalet, 480 och 720 som prov)
+är spaken för vidvinkeln — se *Avstånd*. Telefonen tar om sin referensbild
+vid båda bytena.
+
+**Rörelsen mäts över en tid sedan MES-244.** "Stilla" jämför spårets läge
+med läget 150 ms tillbaka i alla lägen. Förut jämfördes med föregående
+ruta, och i 1080p·30 kom de 4,5 gånger tätare: ett kort som fortfarande
+gled räknades då som stilla och kunde läsas suddigt. I förvalet är talet
+detsamma som förut.
 
 1. Öppna spelet med `?debug` på **datorn och telefonen**. Koppla telefonen.
 2. Kameradialogen på datorn → *Latency · MES-215*. **Hälsokollen** (MES-240)
@@ -372,16 +441,18 @@ Golden kan inte svara (videorna är 15 rutor/s). Så här körs provet:
    rubriken säger *All good* eller *Ready to play*. Står det *Fix this*:
    gör det raden säger. Fel och varningar under passet följer med i
    rapporten (`halsa`). Sedan **Start**.
-3. **Pass 1, förvalet:** växeln *Picture mode · MES-229* av. Statusraden
+3. **Pass 1, förvalet:** *Picture mode* på *4K · 15 fps*. Statusraden
    ska säga *4K · 15 fps*. Spela ett kort parti: lägg ut 10–15 kort ett i
    taget, tappa och otappa några, flytta ett par, lyft bort några.
    **Stop** → **Save report** (`latens-….json`).
-4. **Pass 2, provet:** slå på växeln. Telefonen tar om sin referensbild
+4. **Pass 2, provet:** välj *1080p · 30 fps* (och ett tredje pass i
+   *1080p · 15 fps*, som skiljer sig från förvalet bara i upplösning).
+   Telefonen tar om sin referensbild
    (håll den stilla, bordet tomt eller orört). Statusraden ska säga
    *1080p · 30 fps* och vad telefonen faktiskt ger — står det 15 där gav
    kameran inte 30. **Start** igen, samma parti med samma kort, **Save
    report**.
-5. Slå av växeln när du är klar (*Reset the thresholds* gör det också).
+5. Ställ tillbaka listan när du är klar (*Reset the thresholds* gör det också).
 
 ### Läsa rapporten mot målen (MES-242)
 
@@ -449,7 +520,7 @@ Osäkerheten är en ruta: 67 ms i 4K · 15, 33 ms i 1080p · 30.
 analysskriptets utskrift. *omätt* = raderna saknar släppet (äldre rapport
 eller äldre Mesa på telefonen — hälsokollen säger till). *för få* = under
 5 rader. Kolla sedan två saker innan du litar på ett *ja*: att `vag` inte
-har några `okand`, och att `bildlage` bara har en post. Granskningsposter
+har några `okand`, och att `bildlage` bara har en post (den bär också analysbredden, MES-244). Granskningsposter
 och frågor till Claude står inte i rapporten, utan i sammanfattningen när
 auto stängs av.
 

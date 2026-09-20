@@ -18065,7 +18065,7 @@ const Kamera = (() => {
   /* Analysbredden är inte fast längre: en ruta som täcker ett helt bord
      ger 20 px breda kort vid 240, och det räcker inte för att beskära ut
      något läsbart. En femtedel av videons bredd, mellan 240 och 360. */
-  let AW = 240;
+  let AW = 240, anaStd = 0;   // anaStd: bredden förvalsregeln (r.w/3, 240–360) ger — skalan för trösklarna i analyspixlar räknas mot den
   /* Väggklockan: golden byter ut performance.now i appens fönster mot
      videons klocka under ett videofall (kor.html), och då stod varje
      tidmätning — stegets delar, lokalMs — på noll. Provsidan lägger den
@@ -18125,9 +18125,15 @@ const Kamera = (() => {
      gånger så många bildpunkter vid 720, och samma glidning dubbelt så
      många. Utan omräkningen ger en bredare analys bara fler falska spår
      och kort som aldrig räknas som stilla — uppmätt i golden 06 vid 720
-     px: 1 av 11 namn och 9 falska. Vid förvalet 360 är båda identiteten.
-     Arean skalas med kvadraten, avståndet rakt av. */
-  const anaSkala = () => (AW || AW_MAX) / AW_MAX;
+     px: 1 av 11 namn och 9 falska. Arean skalas med kvadraten, avståndet
+     rakt av.
+     Skalan räknas mot den bredd FÖRVALSREGELN ger (anaStd, en tredjedel av
+     videon mellan 240 och 360) — inte mot AW_MAX. En smal videoruta och
+     bänken får analysbredden 240, och mot 360 hade trösklarna blivit
+     slappare där utan att någon bett om det: kamerabänkens SM5 (damm på 30
+     bildpunkter mot minArea 60) föll på just det. Så länge tröskeln står på
+     förvalet är skalan därför exakt 1, överallt. */
+  const anaSkala = () => (anaStd && AW ? AW / anaStd : 1);
   const minAreaPx = () => T.minArea * anaSkala() * anaSkala();
   const stillaPxNu = () => T.stillaPx * anaSkala();
   function rorelse(t, f, nu) {
@@ -20157,6 +20163,7 @@ const Kamera = (() => {
          hade tredjedelsregeln hållit kvar golden-fallens 1080 px breda foton
          vid 360 och provet aldrig gått att köra. */
       const anaTak = Math.max(AW_MIN, T.anaBredd > AW_MAX ? Math.min(T.anaBredd, r.w) : T.anaBredd);
+      anaStd = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 3)));
       AW = Math.max(AW_MIN, Math.min(anaTak, T.anaBredd > AW_MAX ? r.w : Math.round(r.w / 3)));
       AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH;
       vidSkala = r.w / AW;
@@ -20183,7 +20190,7 @@ const Kamera = (() => {
      i MES-22 är framtagna: en arm över ett känt kort, en handformad fläck,
      ett kort som lyfts, ett som flimrar förbi. */
   function steg(g0, nu, ah, aw, skala) {
-    if (aw && aw !== AW) { AW = aw; AH = 0; }
+    if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
     if (skala) vidSkala = skala;
     const n = AW * AH;
@@ -20811,7 +20818,7 @@ const Kamera = (() => {
      jämför mot — och bruset kommer ur filen. Att köra den genom steg() en
      gång till suddade den två gånger och satte bruset till noll. */
   function laddaReferens(r, sig, ah, aw) {
-    if (aw && aw !== AW) { AW = aw; AH = 0; }
+    if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
     glomReferens(); spar = []; spoken = []; snittMinne = [];
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
@@ -24004,7 +24011,7 @@ const LatensDator = (() => {
     if (!L) return;
     const rs = rader(), b = bastaPing(), d = [];
     d.push(L.stoppad ? 'done' : 'measuring', bildlageText(), `${rs.length} events`);
-    if (kamBildlage && !L.bildlagen.some(x => x.lage === kamBildlage.lage && x.fps === kamBildlage.fps)) L.bildlagen.push(Object.assign({ fran: Date.now(), upplosning: kamUpplosning }, kamBildlage));
+    if (kamBildlage && !L.bildlagen.some(x => x.lage === kamBildlage.lage && x.fps === kamBildlage.fps && x.ana === kamBildlage.ana)) L.bildlagen.push(Object.assign({ fran: Date.now(), upplosning: kamUpplosning }, kamBildlage));
     /* Från att handen släppte (MES-242): median och andel inom 0,3 s. */
     const S = latensSumma(rs), f = [];
     for (const [k, txt] of [['syns', 'shows'], ['namn', 'name'], ['tap', 'tap'], ['lage', 'move'], ['borta', 'gone']]) {
