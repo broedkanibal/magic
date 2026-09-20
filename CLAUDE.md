@@ -226,9 +226,20 @@ session har issuen just nu.** Inget annat.
 Tar sessionen slut utan att issuen är klar — **flytta tillbaka den till
 Todo** och kommentera vad som gjorts och vad som återstår. Ligger det en
 gren kvar: skriv vilken, och att den inte är ihopslagen. En issue som står
-i In Progress utan session är osynligt övergiven, och det var precis det
-som gjorde kolumnen oläsbar (38 issues, 22 av dem orörda i flera dagar,
-mätt 2026-09-20).
+i In Progress utan att någon jobbar på den är osynligt övergiven, och det
+var precis det som gjorde kolumnen oläsbar (38 issues, 22 av dem orörda i
+flera dagar, mätt 2026-09-20).
+
+**Bara den session som tog issuen lämnar tillbaka den.** Ingen annan får
+flytta en issue ur In Progress för att den ser övergiven ut.
+
+Skälet är att du inte kan se om någon jobbar: **subagenter syns aldrig i
+`ListAgents`.** En orkestrerande session kan ha sex agenter igång utan att
+en enda av dem syns utifrån. Den 20 september flyttades fyra issues till
+Todo för att de såg sessionslösa ut — en av dem mitt i sin sjunde mätkedja.
+
+Ser en issue övergiven ut och det inte är din: **fråga den session som har
+den**, eller den orkestrerande sessionen. Flytta den inte.
 
 De andra kolumnerna finns för att In Progress ska slippa betyda dem:
 
