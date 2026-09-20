@@ -61,12 +61,17 @@ const agent = require('./dev/linear-agent/klient.cjs');
 
 // Skapa en issue. Förval: assignee = Jesper, delegate = agenten.
 // etiketter: namn, slås upp i Linear (okänt namn = fel). status: state-typ —
-// 'unstarted' = Todo, 'backlog' = Backlog. projekt: namn eller id (okänt
-// namn = fel); förval 'Mesa Magic', null = utanför alla projekt. Vilken
-// etikett, status och vilket projekt som gäller står i CLAUDE.md.
+// 'unstarted' = Todo, 'backlog' = Backlog, 'started' = In Progress.
+// projekt: namn eller id (okänt namn = fel). Det finns inget förval — välj
+// ett av de fyra, eller null + etiketten 'Plattform' för det som inte hör
+// till någon leverans. Vilken etikett, status och vilket projekt som gäller
+// står i CLAUDE.md.
+//
+//   Spegelläget i realtid · Uppstarten vid bordet
+//   Lekbyggaren och vägen till spel · Spelvyn och bordsvyn
 const issue = await agent.skapaIssue({
   teamId: '...', title: '...', description: '...',
-  etiketter: ['Bug'], status: 'unstarted', projekt: 'Mesa Magic',
+  etiketter: ['Bug'], status: 'unstarted', projekt: 'Spegelläget i realtid',
 });
 
 // Kommentera en befintlig issue

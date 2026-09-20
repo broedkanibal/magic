@@ -125,15 +125,26 @@ async function hittaProjekt(teamId, projekt) {
   return p.id;
 }
 
-/* Issues som Claude Code skapar i det här repot hör till Mesa Magic — se
-   CLAUDE.md. */
-const PROJEKT_FORVAL = 'Mesa Magic';
+/* Sedan 2026-09-20 finns fyra projekt som var och en tar slut, i stället för
+   ett evigt "Mesa Magic" (arkiverat). Det finns därför inget vettigt förval:
+   den som skapar issuen väljer projekt, eller sätter projekt: null plus
+   etiketten "Plattform" för det som inte hör till någon leverans. Se
+   CLAUDE.md, avsnittet "Projekt — fyra, och de tar slut". */
+const PROJEKT_FORVAL = null;
+const PROJEKTEN = ['Spegelläget i realtid', 'Uppstarten vid bordet',
+  'Lekbyggaren och vägen till spel', 'Spelvyn och bordsvyn'];
 
 /* status: lagets state-typ — 'backlog', 'unstarted' (Todo), 'started' (In
    Progress) … Utelämnad får issuen lagets förval (Backlog). projekt: namn
    eller id, se hittaProjekt; utelämnat blir det Mesa Magic, och null lägger
    issuen utanför alla projekt. */
 async function skapaIssue({ teamId, title, description, etiketter, status, projekt = PROJEKT_FORVAL, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
+  if (projekt === undefined) projekt = PROJEKT_FORVAL;
+  if (projekt === null) {
+    console.warn(`[linear-agent] Inget projekt satt på "${title}". Det är rätt bara för\n` +
+      `  Plattform-saker (konton, drift, mätverktyg, arbetssätt) — sätt då etiketten "Plattform".\n` +
+      `  Annars välj ett av: ${PROJEKTEN.join(', ')}`);
+  }
   const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
   const labelIds = await hittaEtiketter(teamId, etiketter);
   const stateId = status ? await hittaState(teamId, status) : undefined;

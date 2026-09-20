@@ -3514,12 +3514,25 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
         </div>
-        <!-- 1080p-provet (MES-229): 1920×1080 i 30 rutor/s i stället för 4K i 15,
-             varje ruta analyseras. Bara ?debug; förvalet ändras inte. Se ritaPbSnabb. -->
+        <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
+             varje ruta; 1080p · 15 har samma takt som förvalet, så bara upplösningen
+             skiljer. Analysbredden (MES-244) är den bild detektorn ser. Bara ?debug;
+             förvalet ändras inte. Se ritaPbSnabb. -->
         <div class="pbinsp dbg" id="pbSnabb">
-          <span class="t">Picture mode · MES-229</span>
+          <span class="t">Picture mode · MES-229 · MES-244</span>
           <div class="pbknappar">
-            <label class="pbinspval" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pbSnabbVal"> 1080p · 30 fps, every frame analysed (test)</label>
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px">Stream
+              <select id="pbSnabbVal">
+                <option value="0">4K · 15 fps (default)</option>
+                <option value="1">1080p · 30 fps, every frame analysed (test)</option>
+                <option value="2">1080p · 15 fps, same pace as the default (test)</option>
+              </select></label>
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px">Analysis width
+              <select id="pbAnaVal">
+                <option value="360">360 px (default)</option>
+                <option value="480">480 px (test)</option>
+                <option value="720">720 px (test)</option>
+              </select></label>
           </div>
           <p class="pbstatus" id="pbSnabbStatus">Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.</p>
         </div>
@@ -16561,6 +16574,99 @@ function serUtSomKort(im, matt, skala, kort) {
   return celler > 0 && levande / celler >= 0.5;
 }
 
+/* ── beskärningen har ingen framsida (MES-258) ──────────────────────
+   Ett kort som ligger med baksidan upp I PLASTFICKA visar fickans egen
+   baksida, inte Magic-baksidan. Poolens baksideuppslag (BAKSIDA_NAMN,
+   MES-42) hjälper därför inte: uppmätt i MES-246:s inspelning rankades
+   Soldier-tokenen i grön ficka som "Thriving Heath" med marginal 0,071 —
+   under tröskeln 0,11, men bara knappt. En ficka i en annan färg eller ett
+   annat ljus kan gå över, och då blir det ett säkert FEL namn.
+
+   Fickans färg går inte att veta i förväg (grön, svart, röd, blå, vit …),
+   så domen faller på FORMEN i stället: en kortframsida har en layout — ram,
+   konstverksruta, textruta — medan fickans baksida är en enda yta med ett
+   blänk över. Måttet är beskärningen nedskalad hårt (fickans mattstruktur
+   och bildbruset medelvärdas bort — i 4K är de starkare än kortets egen
+   text) minus en kvadratisk anpassning (ljusrampen och blänket bort). Kvar
+   blir layouten, mätt som spridningen i det som blir över.
+   Ljusregeln i harTextruta() gör samma sak med ljusstyrka, och duger inte
+   här: en vit ficka och ett utbränt kort är båda ljusa.
+
+   Uppmätt 2026-09-20 (dev/embed/riktiga + MES-246:s inspelning, samma ruta
+   i BÅDE 4K och golden-fall 13:s 1080p):
+
+   | Beskärning | form |
+   |---|---|
+   | token i grön ficka, baksidan upp | 8,7 (1080p) · 9,2 (4K) |
+   | leken i gröna fickor (library-rutan) | 5,9 · 4,9 |
+   | Magic-baksidan utan ficka | 15,2 · 15,0 |
+   | kort utbrända av lampan i blanka fickor (fall 13) | 34–39 |
+   | golden-setets 61 riktiga beskärningar | lägst 24,4 |
+
+   Måttet ändrar sig knappt med upplösningen (samma kort i 4K och 1080p
+   ligger inom en enhet, och de 61 beskärningarna lägst 22,7 vid en
+   fjärdedels upplösning), därför ett fast tal — skalat med kamerans egen
+   avvikelse som i serUtSomKort, så att ett kort i svagt ljus inte döms.
+   BAK_FORM 12 ligger 1,3 gånger över fickan och 2 gånger under det
+   svagaste riktiga kortet.
+
+   UNDANTAGET, och skälet till BAK_UTBRAND: ett kort som lampan bränt ut helt
+   (MES-219) har ingen form kvar att mäta. Samma inspelning, 4K vid 200,2 s:
+   ett kort i blank ficka rakt under lampan blev ett vitt ark med form 6,4 —
+   under tröskeln, fast det ÄR ett kort. Det som skiljer är att rutan klipper
+   till vitt: 36 % av bildpunkterna ≥ 225 mot fickans 0–2 % (fall 16:s kort i
+   varmt ljus 0,2–33 %). Därför faller ingen dom alls när mer än 5 % av rutan
+   är så ljus — hellre ingen dom än ett kort som försvinner från bordet.
+   Svaret är null också när för lite av rutan syns. */
+const BAK_FORM = 12, BAK_UTBRAND = 0.05;
+function framsideForm(im, kort) {
+  const cv = document.createElement('canvas');
+  cv.width = 96; cv.height = Math.round(96 / Matcher.ASPECT);
+  const W = cv.width, H = cv.height;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  if (kort) {
+    /* Samma inpassning som serUtSomKort: det vridna kortet med sin egen 8 %
+       marginal rakt in i rutnätet, långsidan lodrätt. */
+    const fi = ((kort.vinkel % Math.PI) + Math.PI) % Math.PI;
+    const lc = Math.cos(fi), ls = Math.sin(fi), gu = W / ((1 + 2 * 0.08) * kort.kort), gv = H / ((1 + 2 * 0.08) * kort.lang);
+    c.setTransform(ls * gu, lc * gv, -lc * gu, ls * gv, W / 2 - gu * (ls * kort.cx - lc * kort.cy), H / 2 - gv * (lc * kort.cx + ls * kort.cy));
+    c.drawImage(im, 0, 0);
+  } else c.drawImage(im, 0, 0, im.width, im.height, 0, 0, W, H);
+  const d = c.getImageData(0, 0, W, H).data;
+  const mf = 0.08 / 1.16, x0 = Math.round(W * mf), x1 = W - x0, y0 = Math.round(H * mf), y1 = H - y0;
+  const G = 4, SW = Math.floor((x1 - x0) / G), SH = Math.floor((y1 - y0) / G);
+  const pu = [], pv = [], pl = [];
+  let ljusa = 0, alla = 0;
+  for (let j = 0; j < SH; j++) for (let i = 0; i < SW; i++) {
+    let s = 0, n = 0;
+    for (let y = y0 + j * G; y < y0 + (j + 1) * G; y++) for (let x = x0 + i * G; x < x0 + (i + 1) * G; x++) {
+      const p = (y * W + x) * 4; if (d[p + 3] < 250) continue;            // utanför videon
+      const l = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114;
+      s += l; n++; alla++; if (l >= 225) ljusa++;
+    }
+    if (n < G * G * 0.6) continue;
+    pl.push(s / n); pu.push(i / SW - 0.5); pv.push(j / SH - 0.5);
+  }
+  if (pl.length < SW * SH * 0.5) return null;                             // för lite av rutan syns: ingen dom
+  if (!alla || ljusa / alla > BAK_UTBRAND) return null;                   // utbränd ruta: formen är bortbränd, ingen dom
+  /* Minsta kvadrat mot 1, u, v, u², v², uv (Gauss med pivotering). */
+  const K = 6, bas = i => [1, pu[i], pv[i], pu[i] * pu[i], pv[i] * pv[i], pu[i] * pv[i]];
+  const A = [], b = new Float64Array(K);
+  for (let r = 0; r < K; r++) A.push(new Float64Array(K));
+  for (let i = 0; i < pl.length; i++) { const v = bas(i); for (let r = 0; r < K; r++) { b[r] += v[r] * pl[i]; for (let q = 0; q < K; q++) A[r][q] += v[r] * v[q]; } }
+  for (let k = 0; k < K; k++) {
+    let piv = k; for (let r = k + 1; r < K; r++) if (Math.abs(A[r][k]) > Math.abs(A[piv][k])) piv = r;
+    if (Math.abs(A[piv][k]) < 1e-9) return null;
+    const ra = A[k]; A[k] = A[piv]; A[piv] = ra; const bt = b[k]; b[k] = b[piv]; b[piv] = bt;
+    for (let r = 0; r < K; r++) { if (r === k) continue; const f = A[r][k] / A[k][k]; for (let q = k; q < K; q++) A[r][q] -= f * A[k][q]; b[r] -= f * b[k]; }
+  }
+  const ko = []; for (let r = 0; r < K; r++) ko.push(b[r] / A[r][r]);
+  let s = 0, q2 = 0;
+  for (let i = 0; i < pl.length; i++) { const v = bas(i); let p = 0; for (let r = 0; r < K; r++) p += ko[r] * v[r]; const e = pl[i] - p; s += e; q2 += e * e; }
+  const n = pl.length;
+  return Math.sqrt(Math.max(0, q2 / n - (s / n) ** 2));
+}
+
 /* ── namnläsaren ────────────────────────────────────────────────────
    Kortets NAMN ur titelraden, läst lokalt i webbläsaren och matchat mot
    lekens namn. Illustrationen ensam räckte inte: poolen bär 24 konstverk
@@ -18340,7 +18446,7 @@ const Kamera = (() => {
   /* Analysbredden är inte fast längre: en ruta som täcker ett helt bord
      ger 20 px breda kort vid 240, och det räcker inte för att beskära ut
      något läsbart. En femtedel av videons bredd, mellan 240 och 360. */
-  let AW = 240;
+  let AW = 240, anaStd = 0;   // anaStd: bredden förvalsregeln (r.w/3, 240–360) ger — skalan för trösklarna i analyspixlar räknas mot den
   /* Väggklockan: golden byter ut performance.now i appens fönster mot
      videons klocka under ett videofall (kor.html), och då stod varje
      tidmätning — stegets delar, lokalMs — på noll. Provsidan lägger den
@@ -18368,13 +18474,58 @@ const Kamera = (() => {
      insamling, tålamodet för läget, snittminnet, styrslingornas rader — är
      satta vid 150 ms per ruta; R() räknar om dem till samma TID i provläget
      och är identiteten annars, så förvalet är bit för bit som förut.
-     Rörelsetröskeln stillaPx är per ruta och räknas INTE om (en femtedel
-     vore under detektorns eget darr): i provläget tål "stilla" därför en
-     långsammare glidning — känt, och en del av det provet får visa. */
+     Rörelsetröskeln stillaPx räknas inte om — en femtedel vore under
+     detektorns eget darr. I stället mäts RÖRELSEN över samma tid i båda
+     lägena (ROR_FONSTER_MS, se rorelse()): i förvalet är den föregående
+     rutan 150 ms gammal, så det är samma tal som förut, och i provläget
+     jämförs med läget 150 ms tillbaka i stället för 33 ms. Utan det tålde
+     "stilla" en 4,5 gånger snabbare glidning i provläget, och ett kort som
+     fortfarande gled kunde läsas suddigt (MES-244). */
   const TAKT_SNABB_MS = 30, RUTA_SNABB_MS = 1000 / 30;
-  const taktMs = () => T.snabb ? TAKT_SNABB_MS : TAKT_MS;
-  const R = n => T.snabb ? Math.max(n, Math.round(n * TAKT_MS / RUTA_SNABB_MS)) : n;
+  /* Bildlägena (T.snabb): 0 = förvalet 4K · 15, 1 = 1080p · 30 med varje
+     ruta analyserad (MES-229), 2 = 1080p · 15 (MES-244, C). Läge 2 är det
+     RENA provet av upplösningen: takten, ruttrösklarna och rörelsefönstret
+     är desamma som i förvalet, så det enda som skiljer är hur många
+     bildpunkter kortet har i beskärningen. Det är också det svala
+     alternativet (MES-243) — hälften så många rutor som läge 1. */
+  const SNABB_30 = 1, SNABB_15 = 2;
+  const taktMs = () => T.snabb === SNABB_30 ? TAKT_SNABB_MS : TAKT_MS;
+  const R = n => T.snabb === SNABB_30 ? Math.max(n, Math.round(n * TAKT_MS / RUTA_SNABB_MS)) : n;
   const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
+  /* Rörelsen som "stilla" mäts mot (MES-244). T.stillaPx är analyspixlar,
+     och utan ett tidsfönster betyder det olika fart i olika bildlägen: i
+     1080p·30 kommer rutorna 4,5 gånger tätare, och ett kort som glider
+     4,5 gånger fortare räknades ändå som stilla. Här jämförs spårets mitt
+     med den senaste rutan som är minst ROR_FONSTER_MS gammal. I förvalet
+     (150 ms mellan rutorna) är det föregående rutan, alltså exakt samma tal
+     som före MES-244; i 1080p·30 är det rutan fem steg tillbaka. Historiken
+     är spårets egen och hålls kort. */
+  const ROR_FONSTER_MS = TAKT_MS;
+  /* Trösklarna som räknas i ANALYSPIXLAR följer analysbildens bredd
+     (MES-244, E). De är mätta vid 360 px (AW_MAX): samma damm är fyra
+     gånger så många bildpunkter vid 720, och samma glidning dubbelt så
+     många. Utan omräkningen ger en bredare analys bara fler falska spår
+     och kort som aldrig räknas som stilla — uppmätt i golden 06 vid 720
+     px: 1 av 11 namn och 9 falska. Arean skalas med kvadraten, avståndet
+     rakt av.
+     Skalan räknas mot den bredd FÖRVALSREGELN ger (anaStd, en tredjedel av
+     videon mellan 240 och 360) — inte mot AW_MAX. En smal videoruta och
+     bänken får analysbredden 240, och mot 360 hade trösklarna blivit
+     slappare där utan att någon bett om det: kamerabänkens SM5 (damm på 30
+     bildpunkter mot minArea 60) föll på just det. Så länge tröskeln står på
+     förvalet är skalan därför exakt 1, överallt. */
+  const anaSkala = () => (anaStd && AW ? AW / anaStd : 1);
+  const minAreaPx = () => T.minArea * anaSkala() * anaSkala();
+  const stillaPxNu = () => T.stillaPx * anaSkala();
+  function rorelse(t, f, nu) {
+    const h = t.rorH || (t.rorH = []);
+    let s = null;
+    for (let i = h.length - 1; i >= 0; i--) if (nu - h[i].s >= ROR_FONSTER_MS - 1) { s = h[i]; break; }
+    h.push({ s: nu, cx: f.cx, cy: f.cy });
+    while (h.length > 2 && nu - h[0].s > 3 * ROR_FONSTER_MS) h.shift();
+    const ref = s || t;   // ett nyfött spår har ingen historik: jämför med rutan innan, som förut
+    return Math.hypot(ref.cx - f.cx, ref.cy - f.cy);
+  }
   /* Från så här långt från en axel mäts kortet vridet i beskärningen (beskar).
      Upp till 10° klarar den raka lådan alla kort (golden 02, k = 1), och vid
      15° fäller den det första (1 av 4) — närmare en axel behövs inte
@@ -18429,11 +18580,11 @@ const Kamera = (() => {
   const T = {
     auto: 1,        // 1 = tröskeln räknas ur mattans uppmätta brus, 0 = reglaget bestämmer
     troskel: 26,    // gråskillnad mot tom matta som räknas som "något ligger här"
-    minArea: 60,    // minsta region i analyspixlar — under det är det damm
+    minArea: 60,    // minsta region i analyspixlar vid analysbredden 360 — under det är det damm (skalas med bredden, minAreaPx)
     kvotMin: 0.55,  // ett Magic-kort har kvoten 0,72 (uppmätt 0,62–0,81 på bordet); utanför spannet är det
     kvotMax: 0.95,  // inget kort utan en hand, en skugga, eller två kort ihop
     fyllnad: 0.72,  // hur mycket av sin vridna låda regionen ska fylla
-    stillaPx: 1.6,  // rörelse i analyspixlar per ruta som räknas som stilla
+    stillaPx: 1.6,  // rörelse i analyspixlar vid bredden 360, över ROR_FONSTER_MS, som räknas som stilla (skalas med bredden, stillaPxNu)
     stillaMs: 800,  // hur länge ett kort ska ligga stilla innan det identifieras — 500 provat i golden 07 (2026-09-11): sämre, 3 → 2 namn, 1 → 3 falska, fördröjningen 1,8 → 2 s
     bortaMs: 450,   // hur länge mattan UNDER ett spår ska ha sett tom ut innan kortet räknas som lyft
     tomMin: 0.3,    // maskandel i rutan, i andel av kortets area, under vilken mattan räknas som tom
@@ -18466,13 +18617,28 @@ const Kamera = (() => {
        läses i första rutan där regionen har ett korts mått och inget ligger
        över, utan att vänta in SPEK_RUTOR formstilla rutor. */
     luft: 1,
-    /* 1080p-provet (MES-229): 1 = strömmen i 1920×1080 och 30 rutor/s, varje ruta analyseras. Förvalet 0 är 4K i 15 och en ruta var 150:e ms. */
-    snabb: 0
+    /* Bildläget: 0 = förvalet 4K i 15 rutor/s, en ruta var 150:e ms;
+       1 = 1080p i 30 med varje ruta analyserad (MES-229); 2 = 1080p i 15,
+       alltså samma takt som förvalet (MES-244). */
+    snabb: 0,
+    /* Analysbildens bredd (MES-244, E). Detektorn ser bilden i den här
+       bredden, och kortets storlek DÄR avgör om två kort omlott går att
+       skilja åt — inte beskärningens upplösning. Med vidvinkel (MES-241)
+       blir ett kort ~42 px bred analysbild vid 360, och där växer kort
+       omlott ihop (golden 06: 9/11 → 3/11). Förvalet 360 är AW_MAX och
+       ändrar ingenting; bara bakom ?debug går den att höja, och då kostar
+       varje ruta mer att räkna (värme, MES-164). */
+    anaBredd: 360
   };
   function satTrosklar(nya) {
-    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = !!T.snabb;
+    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
     Object.assign(T, nya || {});
-    if (!!T.snabb !== varSnabb) bytBildlage();
+    if (T.snabb !== varSnabb) bytBildlage();
+    /* Analysbredden (MES-244) byter storlek på allt kameran räknar i
+       analyspixlar: mattmodellen, referensen och spåren. Den tas därför om
+       som vid ett byte av videons storlek — AH = 0 får loop() räkna om AW,
+       och referensen och spåren börjar om. */
+    if (T.anaBredd !== varAna) { AH = 0; glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
     /* Samma sak för avvikelsen: med autoUts på är den rutans egen, och det
        som skickas med är bara vad datorn råkade visa senast. */
     if (T.autoUts) { T.utseende = gammalUts; T.spridning = gammalSprid; }
@@ -19015,7 +19181,7 @@ const Kamera = (() => {
        skilde sämre: 12–16 mot 8–9 i telefonens video. */
     const KORTFORM_FYLL = 0.8;
     const kortform = (pix, p0, p1) => {
-      const c = p1 - p0; if (c < T.minArea) return false;
+      const c = p1 - p0; if (c < minAreaPx()) return false;
       let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
       for (let q = p0; q < p1; q++) { const i = pix[q], x = i % W, y = (i - x) / W; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
       const cx = sx / c, cy = sy / c, th = 0.5 * Math.atan2(2 * (sxy / c - cx * cy), (sxx / c - cx * cx) - (syy / c - cy * cy));
@@ -19161,7 +19327,7 @@ const Kamera = (() => {
           if (i >= bw && er[i - bw] && !sub[i - bw]) { sub[i - bw] = id; lok[t++] = i - bw; }
           if (i < bn - bw && er[i + bw] && !sub[i + bw]) { sub[i + bw] = id; lok[t++] = i + bw; }
         }
-        if (t < T.minArea) continue;
+        if (t < minAreaPx()) continue;
         /* Vidga tillbaka inom regionen, separabelt, och samla de globala indexen. */
         for (let i = 0; i < bn; i++) one[i] = sub[i] === id ? 1 : 0;
         for (let y = 0; y < bh; y++) { const row = y * bw; let acc = 0; for (let x = -R; x < bw; x++) { if (x + R < bw) acc += one[row + x + R]; if (x - R - 1 >= 0) acc -= one[row + x - R - 1]; if (x >= 0) rs[row + x] = acc > 0 ? 1 : 0; } }
@@ -19203,7 +19369,7 @@ const Kamera = (() => {
       const cnt = tail - p0;
       dia.regioner++;
       if (bz) bibDel(bz, bibDelar, ko, p0, tail, W, H);
-      if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; for (let q = p0; q < tail; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
+      if (cnt < minAreaPx()) { dia.forSma++; smaPx += cnt; for (let q = p0; q < tail; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
       /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
          kort: kort är ljusa men inte utbrända. Mättnaden räknas över regionen
          och en pixels ring runt den — bara regionens egna bildpunkter missade
@@ -19430,7 +19596,7 @@ const Kamera = (() => {
           const bitar = [], rest = [];
           let smula = false;
           for (const d of s.dela(valda)) {
-            if (d.length < T.minArea) { smula = true; break; }
+            if (d.length < minAreaPx()) { smula = true; break; }
             const b = bedom(d, 0, d.length);
             prov.delar.push(Math.round(b.lang || 0) + '×' + Math.round(b.kort || 0) + (b.skal ? ' ' + b.skal : ''));
             if (!b.skal && arKortStor(b)) { bitar.push(b); continue; }
@@ -19501,10 +19667,10 @@ const Kamera = (() => {
            33–43, och skars igen först när ett av dem blivit säkert och
            gett kortRef. */
         const minns = snittMinne.some(m => m.led === 0 && sammaLada(m.box, r.box));
-        if ((stort || okant || minns) && cnt >= 2 * T.minArea) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
+        if ((stort || okant || minns) && cnt >= 2 * minAreaPx()) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
         ut.push(r); continue;
       }
-      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * T.minArea) {
+      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * minAreaPx()) {
         if (cnt < 0.25 * n && provaDelar(p0, p1, r, tveksam)) continue;
         /* …och det erosionen inte kan dela skärs: kort kant i kant. Men
            inte en region som är bordet självt — över en fjärdedel av bilden
@@ -19840,7 +20006,7 @@ const Kamera = (() => {
           rorde(bast);   // en hand intill kortet: inte släppt än (MES-242)
           continue;
         }
-        const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
+        const ror = rorelse(bast, f, nu);
         /* En träff som är mycket MINDRE än spåret är en del av det: två kort
            kant i kant som skars isär (detektera, skar). Spåret tar delen
            som sin nya storlek på en gång — glidmedlet nedan hade hållit
@@ -19860,7 +20026,7 @@ const Kamera = (() => {
            detektorn faktiskt gav spåret en region. Det är vad datorns
            avstämning kallar färskt (rapportera, fältet sen). */
         bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
-        if (ror > T.stillaPx) {
+        if (ror > stillaPxNu()) {
           rorde(bast);
           bast.stillaFran = nu; bast.ram = null; bast.stillaN = 0;
           /* Kortet rör sig: en tidig läsning gäller en beskärning som inte
@@ -19888,7 +20054,7 @@ const Kamera = (() => {
              en glidning gav en per ruta. Datorn läser läget ur rapporten
              (k.kam, MODE-3/5). */
           bast.stillaN = (bast.stillaN || 0) + 1;
-          if (bast.tillstand !== 'klar' && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) sattVila(bast, f.area);
+          if (bast.tillstand !== 'klar' && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * stillaPxNu())) sattVila(bast, f.area);
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
@@ -19919,8 +20085,8 @@ const Kamera = (() => {
           bast.areaNu = f.area;
           const d = bast.vilaX == null ? Infinity : Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY);
           const avv = Math.abs(1 - f.area / (bast.vilaArea || f.area));
-          bast.helN = avv <= LAGE_HEL ? 0 : (ror > T.stillaPx ? 1 : (bast.helN || 0) + 1);
-          if (d > 3 * T.stillaPx && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
+          bast.helN = avv <= LAGE_HEL ? 0 : (ror > stillaPxNu() ? 1 : (bast.helN || 0) + 1);
+          if (d > 3 * stillaPxNu() && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
       } else if (fodNya) {
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
@@ -20317,7 +20483,7 @@ const Kamera = (() => {
      spåret, utan ny fråga om lov; videons mått byter då, och loop() tar om
      referensen som vid varje storleksbyte. bildlage är det som följer med
      varje bord: läget som begärdes och rutorna per sekund spåret säger sig ge. */
-  const begart = () => T.snabb ? { w: 1920, h: 1080, fps: 30 } : { w: BEGARD.w, h: BEGARD.h, fps: 15 };
+  const begart = () => T.snabb ? { w: 1920, h: 1080, fps: T.snabb === SNABB_30 ? 30 : 15 } : { w: BEGARD.w, h: BEGARD.h, fps: 15 };
   function bytBildlage() {
     const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null; if (!t || !t.applyConstraints) return;
     const v = begart();
@@ -20325,7 +20491,7 @@ const Kamera = (() => {
   }
   function bildlage() {
     let fps = null; try { const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null, s = t && t.getSettings ? t.getSettings() : null; fps = s && s.frameRate ? Math.round(s.frameRate) : null; } catch (e) {}
-    return { lage: T.snabb ? '1080p30' : '4k15', fps, takt: taktMs() };
+    return { lage: T.snabb === SNABB_30 ? '1080p30' : T.snabb === SNABB_15 ? '1080p15' : '4k15', fps, takt: taktMs(), ana: AW };
   }
   function lasUpplosning(vb, vh) {
     let s = null, c = null;
@@ -20372,7 +20538,14 @@ const Kamera = (() => {
 
     const r = rutaPx(vb, vh);
     if (!AH) {
-      AW = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 3)));
+      /* Förvalet (anaBredd 360 = AW_MAX): en tredjedel av videon, högst 360
+         — bit för bit som före MES-244. Höjs tröskeln över 360 (bara bakom
+         ?debug) gäller den rakt av, dock aldrig mer än videon själv: annars
+         hade tredjedelsregeln hållit kvar golden-fallens 1080 px breda foton
+         vid 360 och provet aldrig gått att köra. */
+      const anaTak = Math.max(AW_MIN, T.anaBredd > AW_MAX ? Math.min(T.anaBredd, r.w) : T.anaBredd);
+      anaStd = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 3)));
+      AW = Math.max(AW_MIN, Math.min(anaTak, T.anaBredd > AW_MAX ? r.w : Math.round(r.w / 3)));
       AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH;
       vidSkala = r.w / AW;
     }
@@ -20398,7 +20571,7 @@ const Kamera = (() => {
      i MES-22 är framtagna: en arm över ett känt kort, en handformad fläck,
      ett kort som lyfts, ett som flimrar förbi. */
   function steg(g0, nu, ah, aw, skala) {
-    if (aw && aw !== AW) { AW = aw; AH = 0; }
+    if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
     if (skala) vidSkala = skala;
     const n = AW * AH;
@@ -20809,7 +20982,7 @@ const Kamera = (() => {
      låset hängde kvar där kortet legat. */
   const arStilla = t => t.regionNar != null && forra - t.stillaFran >= T.stillaMs;
   /* I vila på sitt läge (MES-214): två stilla rutor, läget satt där kortet ligger, och inte det tidiga namnets preliminära läge (spekTidig). */
-  const arVila = t => (t.stillaN || 0) >= R(2) && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * T.stillaPx;
+  const arVila = t => (t.stillaN || 0) >= R(2) && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * stillaPxNu();
   /* Signaturen i det senast skickade bordet. Stegen jämför mot den, inte mot
      signaturen när steget började: klockan står redan på den nya rutan när
      steget börjar, så en bit som slår om bara för att tiden gått (:f efter
@@ -21026,7 +21199,7 @@ const Kamera = (() => {
      jämför mot — och bruset kommer ur filen. Att köra den genom steg() en
      gång till suddade den två gånger och satte bruset till noll. */
   function laddaReferens(r, sig, ah, aw) {
-    if (aw && aw !== AW) { AW = aw; AH = 0; }
+    if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
     glomReferens(); spar = []; spoken = []; snittMinne = [];
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
@@ -21084,7 +21257,7 @@ const Kamera = (() => {
        att kameravyn kan säga vad det är. Domen faller på en gång: baksidan
        är samma bild varje gång, och det är ingen exponering som dippat. */
     if (svar && svar.baksida) {
-      t.fragad = true; t.tillstand = 'skrap'; t.varfor = 'baksida'; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.namnLast = null; t.skrapN = 3;
+      t.fragad = true; t.tillstand = 'skrap'; t.varfor = svar.varfor || 'baksida'; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.namnLast = null; t.skrapN = 3;
       rapportera(); return;
     }
     if (svar) {
@@ -21225,7 +21398,7 @@ const Kamera = (() => {
      och spåret läses som vanligt i samma varv. */
   function bekraftaSpek(t) {
     const s = t.spek, g = s.geo, svar = s.svar;
-    const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * T.stillaPx
+    const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * stillaPxNu()
              && Math.abs(t.lang - g.lang) <= SPEK_FORM * g.lang && Math.abs(t.kort - g.kort) <= SPEK_FORM * g.kort;
     if (!lik || upptagna(svar.namn, t) > s.upptagna) { t.spek = { miss: true }; return false; }
     /* Samma kort som ett annat klart spår redan bär (sammaKortSom): det tidiga svaret kastas, och den vanliga läsningen dömer spåret som skräp. */
@@ -22051,6 +22224,19 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      de andra två — en baksida ligger ofta i en hög, så 'ensamt' krävs inte. */
   if (b0 && b0.name === BAKSIDA_NAMN && (M ? (M.bar || (M.saker && !M.emot)) : (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1)))))
     return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept, tider };
+  /* Baksidan I PLASTFICKA (MES-258): fickan döljer Magic-baksidan, så
+     uppslaget ovan känner inte igen den — beskärningen jagas i stället mot
+     lekens namn (uppmätt: "Thriving Heath", marginal 0,071, strax under
+     tröskeln). Formen får avgöra i stället för färgen (framsideForm).
+     Domen faller BARA när inget annat vittne sett ett kort: bilden har inte
+     accepterat något namn, modellen är inte säker på sitt, och titelraden är
+     oläst. Ett kort som fått ett säkert namn kan alltså aldrig falla här —
+     och ett kort utan säkert namn hade ändå blivit en granskningspost. */
+  if (!v.accept && !(M && (M.bar || M.saker)) && !(namn && namn.namn && namn.poang >= 0.5)) {
+    const form = framsideForm(canvas, kort);
+    if (form != null && form < BAK_FORM * (Kamera.utseendeSkala || 1))
+      return { baksida: true, varfor: 'baksida ficka', form: +form.toFixed(1), poang: b0 ? b0.score : 0, accept: false, tider };
+  }
   const cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   /* Stod baksidan överst utan att räcka till gäller modellens dom inte tvåan. */
   let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
@@ -24148,7 +24334,8 @@ function latensMal(summa) {
 function bildlageText() {
   const b = kamBildlage, u = kamUpplosning;
   if (!b) return 'picture mode unknown';
-  return `${b.lage === '1080p30' ? '1080p · 30 fps' : '4K · 15 fps'}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}`;
+  const namn = { '1080p30': '1080p · 30 fps', '1080p15': '1080p · 15 fps' }[b.lage] || '4K · 15 fps';
+  return `${namn}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}${b.ana && b.ana !== 360 ? `, analysis ${b.ana} px wide` : ''}`;
 }
 const LatensDator = (() => {
   let L = null, pingT = null, visT = null;
@@ -24265,7 +24452,7 @@ const LatensDator = (() => {
     if (!L) return;
     const rs = rader(), b = bastaPing(), d = [];
     d.push(L.stoppad ? 'done' : 'measuring', bildlageText(), `${rs.length} events`);
-    if (kamBildlage && !L.bildlagen.some(x => x.lage === kamBildlage.lage && x.fps === kamBildlage.fps)) L.bildlagen.push(Object.assign({ fran: Date.now(), upplosning: kamUpplosning }, kamBildlage));
+    if (kamBildlage && !L.bildlagen.some(x => x.lage === kamBildlage.lage && x.fps === kamBildlage.fps && x.ana === kamBildlage.ana)) L.bildlagen.push(Object.assign({ fran: Date.now(), upplosning: kamUpplosning }, kamBildlage));
     /* Från att handen släppte (MES-242): median och andel inom 0,3 s. */
     const S = latensSumma(rs), f = [];
     for (const [k, txt] of [['syns', 'shows'], ['namn', 'name'], ['tap', 'tap'], ['lage', 'move'], ['borta', 'gone']]) {
@@ -24312,7 +24499,8 @@ const LatensDator = (() => {
     }
     if (!kamBildlage) { if (s) rad('vant', 'Picture mode not reported yet.'); }
     else if (kamBildlage.lage === '1080p30' && kamBildlage.fps && kamBildlage.fps < 25) rad('varn', `1080p asks for 30 fps but the phone gives ${kamBildlage.fps}. Write that down.`);
-    else rad('ok', `Picture mode: ${kamBildlage.lage === '1080p30' ? '1080p · 30 fps' : '4K · 15 fps'}${kamBildlage.fps ? ` (the phone gives ${kamBildlage.fps} fps)` : ''}.`);
+    else if (kamBildlage.lage === '1080p15' && kamBildlage.fps && kamBildlage.fps > 20) rad('varn', `1080p · 15 asks for 15 fps but the phone gives ${kamBildlage.fps}. Write that down.`);
+    else rad('ok', `Picture mode: ${bildlageText()}.`);
     if (L && !L.stoppad) {
       const sedan = nu - Date.parse(L.start), b = bastaPing(), n = rader().length;
       if (b) rad('ok', `Clocks synced (±${Math.round(b.rtt / 2)} ms).`);
@@ -24538,7 +24726,8 @@ $('#pbInspHamta') && ($('#pbInspHamta').onclick = () => InspDator.hamta().catch(
    telefonen varje gång den ansluter. */
 const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 450,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000,
-                 snabb: 0 };   // 1080p-provet (MES-229): av i förvalet, och Reset the thresholds ställer tillbaka det
+                 snabb: 0,       // bildläget (MES-229, MES-244): 0 = 4K · 15 i förvalet, och Reset the thresholds ställer tillbaka det
+                 anaBredd: 360 };   // analysbildens bredd (MES-244): förvalet 360 px
 const PB_REG = [
   ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],
   ['spridning','Structure',    0,   40,  1,   'Minimum spread in grey levels within a region for it to count as a card. A card is at 28–47, a wood chip under 10'],
@@ -24599,14 +24788,25 @@ $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   Moln.sandKam('trosklar', { v: pbTro });
 });
 $('#pbRef') && ($('#pbRef').onclick = () => Moln.sandKam('nyref'));
-/* 1080p-provet (MES-229): växeln skriver T.snabb som vilket reglage som helst — sparas med de andra (sthv.tro.v1), går till telefonen, och Reset the thresholds ställer tillbaka den. Statusraden säger vad telefonen faktiskt kör (ur varje bord). */
+/* Bildläget och analysbredden (MES-229, MES-244): valen skriver T.snabb och
+   T.anaBredd som vilket reglage som helst — sparas med de andra
+   (sthv.tro.v1), går till telefonen, och Reset the thresholds ställer
+   tillbaka dem. Statusraden säger vad telefonen faktiskt kör (ur varje
+   bord). Telefonen tar om sin referensbild vid båda bytena. */
 function ritaPbSnabb() {
-  const v = $('#pbSnabbVal'), s = $('#pbSnabbStatus'); if (!v || !s) return;
-  if (document.activeElement !== v) v.checked = !!pbTro.snabb;
-  s.textContent = kamBildlage ? `The phone runs ${bildlageText()}.` : 'Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.';
+  const v = $('#pbSnabbVal'), a = $('#pbAnaVal'), s = $('#pbSnabbStatus'); if (!v || !s) return;
+  if (document.activeElement !== v) v.value = String(+pbTro.snabb || 0);
+  if (a && document.activeElement !== a) a.value = String(pbTro.anaBredd || 360);
+  s.textContent = kamBildlage ? `The phone runs ${bildlageText()}.` : 'Default: 4K · 15 fps, one frame every 150 ms, analysis 360 px wide. The phone retakes its reference picture when the mode changes.';
 }
 $('#pbSnabbVal') && ($('#pbSnabbVal').onchange = ev => {
-  pbTro.snabb = ev.target.checked ? 1 : 0;
+  pbTro.snabb = +ev.target.value || 0;
+  LS.set('sthv.tro.v1', pbTro);
+  if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
+  ritaPbSnabb();
+});
+$('#pbAnaVal') && ($('#pbAnaVal').onchange = ev => {
+  pbTro.anaBredd = +ev.target.value || 360;
   LS.set('sthv.tro.v1', pbTro);
   if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
   ritaPbSnabb();
