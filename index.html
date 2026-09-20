@@ -19412,10 +19412,13 @@ const Kamera = (() => {
     const markera = pix => { if (!delMark) delMark = new Uint8Array(n); else delMark.fill(0); for (let q = 0; q < pix.length; q++) delMark[pix[q]] = 1; return i => delMark[i] === 1; };
     /* inne(i): är bildpunkten i regionen — etikettkartan för en hel region, markeringen för en del. */
     const passaKort = (inne, r) => {
-      /* Minst två säkert namngivna kort bakom referensen: ett ensamt kan vara
+      /* Minst tre säkert namngivna kort bakom referensen: ett ensamt kan vara
          en flisa som fick namn (golden 14: 53×37 av Plains-högen), och med den
-         som mått lades varje riktigt kort som två eller tre. */
-      if (!T.omlott || !kortRef || langar.length < 2 || r.area < OMLOTT_MIN * refA) return null;
+         som mått lades varje riktigt kort som två eller tre; två räckte inte
+         heller — i golden 09 med tunn lek (--utan-leken) var referensen två
+         basland i plastficka, 56×42 mot kortens 70×55, och Hooded Blightfang
+         lades som två halvor med textrutans kant som "söm". */
+      if (!T.omlott || !kortRef || langar.length < 3 || r.area < OMLOTT_MIN * refA) return null;
       const tidigt = dom => { if (omlottProv.length < 12) omlottProv.push({ lang: Math.round(r.lang), kort: Math.round(r.kort), box: r.box, area: +(r.area / refA).toFixed(2), grader: [], dom }); return null; };
       if (r.area > OMLOTT_MAX * refA || r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H) || r.vinkel === undefined) return tidigt('stor');
       /* Bara en region som ett STILLA spår ligger på: en hand som lägger ett
