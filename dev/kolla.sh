@@ -25,4 +25,5 @@ node dev/lista.cjs
 node dev/lekslag.cjs
 node dev/avstamning.cjs
 node dev/dubbletter.cjs --fall 07 > /dev/null && echo "dubbletter --fall 07: kördes"
+node dev/delmarginal.cjs
 node dev/kamerabank.cjs
