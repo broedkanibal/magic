@@ -1,0 +1,72 @@
+{
+  "id": "13-svartmatta-lampa-40cm-10kort-tokens",
+  "yta": "svart spelmatta (tyg), matt, på ett lackat träbord",
+  "ljus": "taklampa rakt ovanför; bränner ut korten i blanka plastfickor i bildens mitt",
+  "telefon": "iPhone i hållare, liggande, kameraappen på 0,5× (vidvinkel), 4K 60 rutor/s — INTE en skärminspelning av Mesas kameravy, så inga spårrutor är inbakade i bilden",
+  "hojd_cm": 40,
+  "ruta": {
+    "upp": "v"
+  },
+  "grav": {
+    "x": 0,
+    "y": 0.58,
+    "w": 0.1,
+    "h": 0.34
+  },
+  "bib": {
+    "x": 0.1,
+    "y": 0.58,
+    "w": 0.16,
+    "h": 0.34
+  },
+  "kort": [
+    { "namn": "Fencing Ace" },
+    { "namn": "Ancestral Blade" },
+    { "namn": "Pharika's Chosen" },
+    { "namn": "Mirran Bardiche" },
+    { "namn": "Ukud Cobra" },
+    { "namn": "Swamp" },
+    { "namn": "Swamp", "dold": true },
+    { "namn": "Plains" },
+    { "namn": "Plains", "dold": true },
+    { "namn": "Thriving Moor" }
+  ],
+  "video": {
+    "fil": "video.mp4",
+    "takt_ms": 150,
+    "svans_s": 5,
+    "handelser": [
+      { "t": 7.7, "spelar": "Swamp" },
+      { "t": 15.9, "spelar": "Thriving Moor" },
+      { "t": 23.9, "otappar": "Thriving Moor" },
+      { "t": 29.3, "spelar": "Plains" },
+      { "t": 36.9, "tappar": "Swamp" },
+      { "t": 37.2, "tappar": "Plains" },
+      { "t": 39.2, "spelar": "Fencing Ace" },
+      { "t": 47.4, "otappar": "Swamp" },
+      { "t": 47.8, "otappar": "Plains" },
+      { "t": 54.5, "spelar": "Swamp" },
+      { "t": 64.0, "tappar": "Plains" },
+      { "t": 64.5, "tappar": "Thriving Moor" },
+      { "t": 66.6, "spelar": "Ancestral Blade" },
+      { "t": 84.0, "flyttar": "Ancestral Blade" },
+      { "t": 96.0, "tappar": "Swamp" },
+      { "t": 101.0, "spelar": "Pharika's Chosen" },
+      { "t": 115.5, "otappar": "Swamp" },
+      { "t": 117.5, "otappar": "Plains" },
+      { "t": 119.5, "otappar": "Thriving Moor" },
+      { "t": 129.5, "tappar": "Fencing Ace" },
+      { "t": 135.4, "spelar": "Plains" },
+      { "t": 146.5, "tappar": "Plains" },
+      { "t": 148.5, "spelar": "Mirran Bardiche" },
+      { "t": 158.5, "flyttar": "Mirran Bardiche" },
+      { "t": 167.1, "spelar": "Ukud Cobra" }
+    ]
+  },
+  "avskurna": [],
+  "tokens": [
+    { "t": 79.0, "typ": "Soldier", "som": "Swamp i grön plastficka, baksidan upp", "plats": "bredvid Ancestral Blade, sedan värd för den" },
+    { "t": 157.0, "typ": "Rebel", "som": "Plains utan plastficka, Magic-baksidan upp", "plats": "bredvid Mirran Bardiche, sedan värd för den" }
+  ],
+  "anteckning": "MES-257: turerna 1–4 ur MES-246:s inspelning (2026-09-20, Jespers manus i dev/golden/inspelningar/mes-246/MANUS.md, facit per steg i FACIT.md). Källan mes-246-video.mov (3840×2160, 59,92 rutor/s, 574,5 s, gitignorerad, bara i huvudarbetsträdet) klippt 0–172 s och omkodad till 1080×608, 15 rutor/s, 460 kbit/s med dev/golden/video/koda.swift — 460 i stället för 1000 för att hålla fallet under tio megabyte (172 s i 1 Mbit/s blir ~21 MB). Hela bilden är kamerabild, så utsnittet är 0 0 3840 2160. bild.jpg är rutan vid 171,8 s.\n\nVAD FALLET PROVAR som inget annat golden-fall gör: två TOKENS (baksidan upp — en Swamp i grön plastficka vid 79 s, en Plains utan ficka med Magic-baksidan vid 157 s), två ATTACH/equip (Ancestral Blade under Soldier-tokenen vid 84 s, Mirran Bardiche under Rebel-tokenen vid 158,5 s, båda förskjutna så att namnraden syns), och TVÅ LANDHÖGAR som byggs, tappas och untappas om vartannat (Swamp-högen A och Plains-högen B, sex tapp-grupper).\n\nTIDERNA är avlästa ur kontaktark med 1–3 sekunders steg och gäller ±0,5 s; de är satta vid LANDNINGEN, alltså hellre för tidigt än för sent (kor.htmls TOL är 2 s före facits tid). FACIT.md:s stegtider går INTE att använda rakt av här: rörelsedetektorn slår ihop steg som följer tätt på varandra (Ancestral Blade vid 66,6 s ligger inne i samma steg som tappningen av hög B och Thriving Moor), så tiderna ovan är lästa ur bilden.\n\nTOKENS ÄR MÅTT UTAN DOM (MES-247): appen har ingen tokenhantering, och facit har ingen händelsetyp för en token. De två tokens står därför i fältet \"tokens\" som anteckningar för läsaren, inte som händelser — och varje spår kameran lägger på dem räknas i kolumnen Falska. Detsamma gäller ATTACH: händelsen \"flyttar\" mäter bara att kortet bytte plats, inte att det blev bifogat (MES-127 / MES-140).\n\nSVÅRT MED FLIT: lampan bränner ut Fencing Ace, Ancestral Blade och Mirran Bardiche helt — de ligger i blanka plastfickor rakt under lampan och har varken läsbar titelrad eller läsbart konstverk i slutläget. Räkna med klart lägre tal än fallen 09–12.\n\nGRAVEYARD-rutan är tom hela klippet (den ligger längst till vänster i nedersta raden, till vänster om leken); den är med för att kameran ska ha samma två rutor som i uppstartens steg 4. Utan \"bib\" skulle leken mätas som ett kort på bordet.\n\nUPPMÄTT 2026-09-20 (main e118255, lokal+ocr+modell, WebGPU, poolen 114): 3 hittade, 0/8 rätt namn, 0 fel namn, 3 falska, 0/10 spelade, tap 0/13, flytt 0/2, land per typ 0/2. Två tillfälliga diagnosklipp ur samma video (inte incheckade) delar upp varför:\n  • bara mattan i bild (utsnitt 142 440 3342 1480): 8 hittade, fortfarande 0/8 rätt namn — det LJUSA TRÄBORDET runt mattan kostar alltså fem av åtta spår, men inget namn.\n  • mattans vänstra del (utsnitt 89 440 2151 1480, kortets långsida ~78 i stället för ~44 av 360 analyspunkter): 9 hittade, 3/6 rätt namn (Swamp 0,4 s, Plains 0,4 s, Thriving Moor sent), land per typ 2/2.\nDet är alltså KORTETS STORLEK I ANALYSBILDEN som avgör namnen, och träbordet som avgör hur många spår som ens föds. Titelraden hoppas över i alla tre varianterna (\"ocr hoppad: liten\"), så fallet mäter bildmodellen och ORB utan textläsaren."
+}
