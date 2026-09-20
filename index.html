@@ -16096,10 +16096,34 @@ function identifyAt(img, box, hint) {
    bara inom ORB_SKALA — en träff utanför är ingen geometrisk träff på det
    kortet, varken som stöd eller som motsägelse — och ett kort som ORB bär
    men vars skala ligger under ORB_HEL är rätt kort i en för liten ruta:
-   svaret märks `del`, och spåret får då inte ange kortens storlek
+   svaret märks `del`, spåret får då inte ange kortens storlek
    (kortRef, kortMatt — högvaktens krav halverades annars, och golden 11
-   fick en falsk högändring). */
+   fick en falsk högändring), och modellen måste själv hålla med med en
+   marginal över DEL_MARGINAL. */
 const ORB_EMOT = 6, MODELL_NAMN = 3, ORB_SKALA = [0.8, 1.6], ORB_HEL = 1.08;
+/* Marginalspärren för en `del`-träff (MES-259, ur MES-246 del 1).
+   Uppmätt i dev/las-fore-slapp/matning på 1 045 beskärningar ur en hand som
+   lägger ner kort: kedjans egen bilddom gav 3 säkra FEL namn, alla
+   "Night's Whisper" — ett library-kort som aldrig ligger på bordet, ett av
+   dem på tomt bord. Modellen svarar alltid med något av lekens namn, och när
+   beskärningen mest är hand blir svaret det kort vars konstverk är mörkast.
+   Alla tre var `del`: skala 0,87–0,94, marginal 0,0717–0,0766, 14–15 inliers.
+   MARGINALEN ENSAM SKILJER DEM INTE. Rätta läsningar i samma material ligger
+   så lågt som 0,0093 (26 inliers) och 0,0655 (19), alltså UNDER de felaktiga.
+   Det är skalan som skiljer: de rätta med låg marginal ramar in ett helt kort
+   (1,06–1,43), de felaktiga en bit av ett (0,87–0,94). ORB som bekräftelse
+   håller därför exakt så långt som skalan räcker — ORB bär ettan i 104
+   läsningar med hel ruta och ≥ 10 inliers, 0 fel namn — men en bit av ett
+   kort behöver modellens egen marginal bakom sig.
+   Därför gäller spärren bara `del`. Räknat på alla 8 lagren i
+   dev/las-fore-slapp/matning (4K, 1080p, region, sudd, press): 3 fel namn
+   → 0, och 2 av 690 rätta läsningar faller bort — båda enstaka rutor i
+   fönster som lästes rätt i flera andra rutor.
+   Provat och förkastat: marginalspärr på ALLT accept (0,08 rakt av, som
+   MES-259 först föreslog). Den tar samma 3 fel men kostar 15 rätta
+   läsningar i samma material, och skulle fälla de rätta golden-läsningar
+   som nämns nedan (Fencing Ace 0,067/16). */
+const DEL_MARGINAL = 0.08;
 /* Basland som typ (MES-228): modellens namn slås ihop per landtyp — bästa
    poängen för typen gäller, och marginalen räknas till nästa ANNAT kort —
    och ORB:s träffar räknas per typ. Ett basland får vara säkert på modellen
@@ -16146,15 +16170,19 @@ function identifyMedModell(img, box, e, ensamt) {
      Därför: ju färre inliers, desto mer måste modellen själv hålla med —
      25 bär ensamma; från 14 krävs en marginal som inte är brus (0,06; de
      rätta med låg marginal: Fencing Ace 0,067/16, Pikemaster 0,016/26,
-     Blightfang 0,027/30); under det att modellen själv är säker. */
-  const bar = bast.namn === etta && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
+     Blightfang 0,027/30); under det att modellen själv är säker.
+     Alla tre trapporna gäller en HEL ruta. Ramar träffen bara in en BIT av
+     ett kort (skalan under ORB_HEL) krävs dessutom DEL_MARGINAL — se där. */
+  const helRuta = !(bast.skala < ORB_HEL);
+  const bar = bast.namn === etta && (helRuta || e.marginal >= DEL_MARGINAL)
+    && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
   const land = !!landTyp(etta);
   const emot = bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT);
   /* Provat och backat: ett land säkert också utan att spåret är ensamt, när ORB ger typen ett svagt stöd inom skalan. Golden 07 fick sitt Swamp (det ligger ensamt, men inspelningens egna streckade spårrutor gör regionen för stor, MES-223) — och golden 11 fick Swamp-halvan i plastfickan namngiven en gång till: dubbletter 0 → 1 och en falsk tap-flipp. En bit av ett kort får inte bli ett kort till. */
   /* Landregeln — säkert utan ORB:s stöd — gäller bara ett spår som är MÄTT mot kortreferensen ('matt'). Före bordets första säkra kort finns bara formen, och då krävs ORB:s stöd som för vilket kort som helst: uppmätt i golden 04 i mörkare ljus (kor.cjs --ljus alla) växte Plains-högen ihop med Swamp bredvid till en region med ett korts kvot (288×394 mot kortens 190×251), och modellen sa Swamp med marginal 0,21 — ett säkert fel namn. */
   const ensam = !!(ensamt && !emot && ((land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (e.saker && (!P.orb || stod >= ORB_EMOT))));
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
-  return { accept: bar || ensam, del: bar && bast.skala < ORB_HEL, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
+  return { accept: bar || ensam, del: bar && !helRuta, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
            modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
 }
 
