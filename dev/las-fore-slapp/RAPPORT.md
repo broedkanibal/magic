@@ -355,9 +355,28 @@ node dev/las-fore-slapp/las.cjs --jobb allt.json --ut svar.json --port 8290
 node dev/las-fore-slapp/rapport.cjs svar.json --kalla skuren:4k
 ```
 
-Arbetsmappen ska ligga **utanför repot** — `gra.bin` blir 2,5 GB och de
-klippta rutorna 0,5 GB. `/tmp` töms när Macen startar om; lägg den hellre i
-`~/Library/Caches/`.
+Arbetsmappen ligger i **`dev/videos/mes-246-arbete/`** — `dev/videos/` är
+gitignorerad, så de tunga filerna (`gra.bin` 2,3 GB, de klippta rutorna
+0,5 GB, Chrome-profilen 0,45 GB) ligger i repots arbetsträd men checkas
+aldrig in. Lägg den **inte** i `/tmp`: den töms när Macen startar om, och det
+hände två gånger under natten den här mättes.
+
+Svaren som siffrorna i rapporten är räknade ur ligger däremot **incheckade**
+i `dev/las-fore-slapp/matning/` (2,7 MB), så tabellerna går att räkna om med
+`rapport.cjs` utan att köra om vare sig videon eller Chrome:
+
+```bash
+node dev/las-fore-slapp/rapport.cjs dev/las-fore-slapp/matning/svar-allt.json --kalla skuren:1080p
+node dev/las-fore-slapp/rapport.cjs dev/las-fore-slapp/matning/svar-allt.json --kalla skuren:4k --fps 30
+```
+
+| Fil | Vad |
+|---|---|
+| `svar-allt.json` | 1 698 rutor × (utskuren, region) × (4K, 1080p) — huvudmätningen |
+| `svar-forsamrad.json` | samma rutor med rörelseoskärpa och hård jpeg |
+| `svar-namn.json` | de stilla rutorna, som facit-namnen lästes ur |
+| `svar-token.json` | de två tokens och två kontrollkort |
+| `vidvinkel.json` | kortstorlek och kantskärpa mot platsen i bilden |
 
 ## Förslag: inspelningen som golden-fall 13 (görs inte här)
 
