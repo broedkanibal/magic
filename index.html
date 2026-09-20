@@ -19974,6 +19974,16 @@ const Kamera = (() => {
         if (d < bd) { bd = d; bast = t; }
       }
       const grans = 0.6 * Math.max(f.lang, 12);
+      /* …och när det närmaste spåret är en omlott-del väljs i stället det
+         spår inom gränsen som fyndet TÄCKER mest. Ett kort som lyfts från
+         ett annat lämnar två delar 25–30 px isär, och det hela kortets
+         fynd låg närmare den kvarblivna delen än sitt eget spår: golden 07
+         tog Plains-delen Thriving Moors fynd efter att Plains tagits bort,
+         och Thriving Moors namngivna spår dog i stället för spöket. */
+      if (bast && bd < grans && bast.omlott && !f.omlott) {
+        let bo = ladTackning(bast.box, f.box);
+        for (const t of spar) { if (anv.has(t) || t === bast || Math.hypot(t.cx - f.cx, t.cy - f.cy) >= grans) continue; const o = ladTackning(t.box, f.box); if (o > bo + 0.1) { bo = o; bast = t; bd = Math.hypot(t.cx - f.cx, t.cy - f.cy); } }
+      }
       /* En träff som är mycket större än spåret är inte kortet: det är kortet
          plus en hand, eller två kort som skjutits ihop. Uppmätt på bänken:
          en handformad fläck som fick ta över spåret vred tap-läget till
