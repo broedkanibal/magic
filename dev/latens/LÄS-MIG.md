@@ -63,10 +63,20 @@ det blocket, så app och skript kan aldrig räkna olika.
 `fran_slapp` får vara **negativt**: blir namnet klart innan kortet låg still
 räknas släppet från `stillaRor`, och andelen hamnar i `summa.namn.fore_slapp`.
 
-## Vad som INTE är provat på riktig telefon
+## Provat på riktig telefon 2026-09-20 (MES-263)
 
-Allt nedan är mätt i bänken (150 prov) och i golden, aldrig i ett riktigt
-parti. Telefonpasset (~10 min) ska titta efter just det här:
+Passet är kört: iPhone, iOS 18.7, svart matta, 4K · 15 fps, 2,5 min, 60
+rader (`latens-2026-09-20-svartmatta-4k15-verifiering.json`). Sex av de sju
+kontrollerna nedan var gröna direkt. Den sjunde — **är `fran_slapp`
+rimlig?** — gav svaret att telefonens `rorelse` klarar en riktig hand (tap
+78–415 ms, flytt 73–912 ms, alla positiva), men att **efterräkningen på
+datorn inte gjorde det**: tre namnrader låg på −13, −73 och −91 sekunder.
+Det var `rader()` som tog namnets släpp ur spårets *senaste* vila
+(`L.sista`), så ett kort som flyttades efter att det namngetts fick ett
+släpp ur framtiden. Rättat i MES-275; rapporter sparade före den säger nu
+`OBS: … släpp ur framtiden` när de läses med `analys.cjs`.
+
+Kontrollerna står kvar här, för nästa pass och nästa telefon:
 
 | Att kontrollera | Vad som är fel om det inte stämmer |
 |---|---|
@@ -78,8 +88,9 @@ parti. Telefonpasset (~10 min) ska titta efter just det här:
 | **`telefon.steg`** | stegtidens histogram är aldrig läst från en riktig telefon |
 | **`telefon.batteri`** | `null` på iPhone (Safari ger den inte) — det är väntat, inte ett fel |
 
-Rapporten kan alltså vara rätt byggd och ändå mäta fel, om `rorelse` inte
-motsvarar en riktig hand. Det är den enda verkligt öppna frågan.
+Rapporten kan alltså vara rätt byggd och ändå mäta fel. Efter MES-263 vet vi
+att `rorelse` motsvarar en riktig hand — kvar som oprövat står samma sak på
+en **Android**, och på en matta som inte är svart.
 
 ## Mätvärden som inte står någon annanstans
 
@@ -93,12 +104,32 @@ De två rapporterna från 2026-09-19 (MES-238), räknade med `analys.cjs`:
 | tap / flytt / borta, beslut → ritat | 98 / 103 / 97 ms | 97 / 100 / 101 ms |
 
 Måtten "från släppet" är **omätta** i båda — filerna är äldre än MES-242.
-Det är därför telefonpasset behövs.
+
+Telefonpasset 2026-09-20 (4K · 15, svart matta, MES-263). Namnraderna är
+räknade **med MES-275:s regel**; filen på disk är sparad före rättningen och
+`analys.cjs` säger ifrån om det:
+
+| från att handen släpper | median | p90 | p95 | inom 0,3 s |
+|---|---|---|---|---|
+| något syns | 97 ms | 271 | 275 | 100 % |
+| skugga | 91 ms | 271 | 275 | 100 % |
+| namn | 544 ms | 3 726 | 5 750 | 42 % |
+| tap | 267 ms | 415 | 415 | 60 % |
+| flytt | 89 ms | 591 | 912 | 75 % |
+| borta | 598 ms | 906 | 1 184 | 0 % |
+
+Namnet, samma pass: 3 727 ms från att spåret hittades, läsningarna 669 ms
+(bildmodellen 132, ORB 183, väntan på titelraden 315), två läsningar per
+kort. 58 % av namnen gick till Claude och kostade 2 843 ms i median — det är
+svansen, inte läsningen. Av målen i MES-237 klarar *något syns*, *tap* och
+*flytt* 0,3 s på medianen; **namn** (544 ms), **borta** (598 ms) och
+namnets svans gör det inte.
 
 ## Fällor, för den som bygger vidare
 
 | Fälla | Vad som hände, och vad man gör |
 |---|---|
+| **`L.sista` är spårets sista kända tillstånd, inte tillståndet vid stämpeln** | Namnets släpp hämtades därifrån och hoppade tiotals sekunder fram för kort som flyttades efter namngivningen (MES-275). Spårets `ts` byts dessutom ut under passet — klungan ärver ett annat spårs `ts`. **Allt som ska höra till en stämpel ska frysas när stämpeln sätts** (`<vad>Ror`) eller sparas i ordning (`L.vilor`) |
 | **Bänken har ingen video** | `bildTid` är 0 där, så prov som jämför ruttider gick igenom på nollor utan att mäta något. Lösningen är `rutTid()` (faller tillbaka på klockan). **Varje ny tidsstämpel ska provas i bänken för att den inte är noll** |
 | **Webbläsarpanelen är en dold flik** | `requestAnimationFrame` körs inte och timers stryps, så `ritat` blir `null` och nätet ser ut att ta sekunder. Prova `LatensDator` med `requestAnimationFrame = cb => setTimeout(cb, 0)` och stubbade `Moln.sandKam` och `inspSpara` |
 | **Golden fall 09 är en knivsegg** | samma kod ger 34/57 och 35/57 beroende på maskinens belastning (MES-249). Jämför alltid före/efter på samma dator i samma belastning, och läs raden `Poolen: N kort` (hel = 114, MES-260) |

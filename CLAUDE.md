@@ -78,39 +78,48 @@ avsnitt). Etikett, kolumn och projekt enligt reglerna nedan.
 Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så att
 Jesper ser dem utan att leta i Linear.
 
-### En bräda, fyra nivåer
+### En bräda, och testet för vad som är ett projekt
 
 Det finns **ett** ställe att titta på: lagets Issues, grupperad på status,
 med "visa sub-issues" avslagen. Inga sparade vyer — en vy som bara filtrerar
-på status är statusen förklädd till navigation, och då finns ingen plats där
-allt är representerat en gång.
+på status är statusen förklädd till navigation.
 
-Fyra nivåer, var och en med ett eget jobb:
+**Testet för ett projekt: kan du säga "klart" och mena det, med ett datum?**
+Går det inte är det ett *område*, och då är det en etikett.
+
+Det testet fälldes tre av fyra projekt den 20 september. "Uppstarten vid
+bordet" lät avgränsat men uppstarten får buggar för evigt; samma sak med
+spelvyn och lekarna. Kvar blev ett projekt, och det är ärligt — det är det
+enda som drivs mot mätbara siffror.
 
 | Nivå | Linear | Exempel | Jobb |
 |---|---|---|---|
-| Leverans som tar slut | **projekt** | Spegelläget i realtid | vad vi lovat, och när det är klart |
+| Leverans som tar slut | **projekt** | Spegelläget i realtid | vad vi driver mot ett mätbart mål |
 | Fas i leveransen | **milstolpe** | Etapp 1–4 | ordningen, och 6/19 i projektvyn |
-| Bestående tema | **etikett** | `kortigenkänning` | filtrera brädan tvärs igenom projekten |
+| Var i produkten | **områdesetikett** | `spelvyn` | kartan över appen |
+| Vad det handlar om | **ämnesetikett** | `kortigenkänning` | skär tvärs igenom områdena |
 | Klump som blir klar ihop | **parent + sub-issues** | MES-281, 0/6 | en rad på brädan i stället för sex |
 
-**Etikett eller parent?** Består temat och vill du kunna filtrera på det —
-etikett. Blir klumpen klar ihop och vill du se 6/19 — parent. Det ena
-ersätter inte det andra.
+**Varje issue ska ha minst en områdes- eller ämnesetikett.** Utan den
+försvinner den ur kartan när dess projekt tar slut.
 
-Var sparsam med parent-issues. En parent-rad kan bara säga ett läge, medan
-barnen ligger utspridda över flera kolumner — samma problem som med en issue
-där halva leveransen är ute. Gör en parent bara när barnen verkligen landar
-tillsammans.
-
-**De bestående temana** (teamets etiketter, utöver typ-etiketterna):
-
-| Tema | Vad |
+| Etikett | Vad |
 |---|---|
-| `kortigenkänning` | att kameran hittar kortet och sätter rätt namn — detektorn, läsningen, bildmodellen |
+| `uppstarten` | Set up your table: stegen, provkortet, kortstorleken, graveyard och library |
+| `spelvyn` | bordet under spelet: mattan, korten, leken i spel, bordsvyn, menyer |
+| `lekar` | lekens sida, lekfoton, Use camera to add cards, Get ready, Home-spellistan |
+| `kortigenkänning` | att kameran hittar kortet och sätter rätt namn — detektorn, läsningen, farten |
 | `kameran-uppställning` | hur telefonen står, vad den ser, hur varm den blir |
 | `golden` | mätverktyget självt |
-| `Plattform` | konton, drift, licenser, arbetssätt — hör inte till någon leverans |
+| `Plattform` | konton, drift, licenser, arbetssätt |
+
+**Etikett eller parent?** Består temat och vill du kunna filtrera på det —
+etikett. Blir klumpen klar ihop och vill du se 6/19 — parent. Var sparsam med
+parent-issues: en parent-rad kan bara säga ett läge medan barnen ligger i
+olika kolumner. Gör en bara när barnen verkligen landar tillsammans.
+
+**Skapar du ett nytt projekt** — skriv slutvillkoret som något som går att
+mäta. Går det inte att mäta är det ett område, och då blir det en etikett.
 
 Cykler används medvetet inte. Med tretton klara issues om dagen blir en
 veckocykel nittio rader, och det är ingen rytm.
@@ -217,9 +226,20 @@ session har issuen just nu.** Inget annat.
 Tar sessionen slut utan att issuen är klar — **flytta tillbaka den till
 Todo** och kommentera vad som gjorts och vad som återstår. Ligger det en
 gren kvar: skriv vilken, och att den inte är ihopslagen. En issue som står
-i In Progress utan session är osynligt övergiven, och det var precis det
-som gjorde kolumnen oläsbar (38 issues, 22 av dem orörda i flera dagar,
-mätt 2026-09-20).
+i In Progress utan att någon jobbar på den är osynligt övergiven, och det
+var precis det som gjorde kolumnen oläsbar (38 issues, 22 av dem orörda i
+flera dagar, mätt 2026-09-20).
+
+**Bara den session som tog issuen lämnar tillbaka den.** Ingen annan får
+flytta en issue ur In Progress för att den ser övergiven ut.
+
+Skälet är att du inte kan se om någon jobbar: **subagenter syns aldrig i
+`ListAgents`.** En orkestrerande session kan ha sex agenter igång utan att
+en enda av dem syns utifrån. Den 20 september flyttades fyra issues till
+Todo för att de såg sessionslösa ut — en av dem mitt i sin sjunde mätkedja.
+
+Ser en issue övergiven ut och det inte är din: **fråga den session som har
+den**, eller den orkestrerande sessionen. Flytta den inte.
 
 De andra kolumnerna finns för att In Progress ska slippa betyda dem:
 
@@ -253,28 +273,25 @@ Ordningen kommer ur `dev/plan/orkestrering.md`. Den filen är **regelboken**
 — kodområden, vad som inte får köras parallellt, hur en gren slås ihop —
 inte en egen kö. Två köer som inte stämmer överens är värre än ingen.
 
-**Projekt — fyra, och de tar slut:**
+**Projekt — ett, och det tar slut:**
 
 | Projekt | Klart när |
 |---|---|
 | **Spegelläget i realtid** | de tre löftena hålls (milstolpar: Etapp 1–4) |
-| **Uppstarten vid bordet** | en spelare kan ställa upp telefonen utan hjälp |
-| **Lekbyggaren och vägen till spel** | från ingen lek till pågående spel utan att lämna appen |
-| **Spelvyn och bordsvyn** | ett helt parti går att spela utan att vyn står i vägen |
 
-Varje issue Claude Code skapar i det här repot hamnar i ett av de fyra.
-Hör den till inget av dem — konton, drift, licenser, mätverktyg, arbetssätt
-— sätt **inget projekt** och etiketten `Plattform` i stället. Det området
-tar aldrig slut, och ett projekt som aldrig blir klart gör framstegsstapeln
-och måldatumet meningslösa.
+En ny issue hamnar i Spegelläget bara om den hör till de löftena. Allt annat
+får **inget projekt** — bara etiketter. Det är inte en brist: ett projekt som
+aldrig blir klart gör framstegsstapeln och måldatumet meningslösa, och
+kartan över appen är etiketterna.
 
 Hör issuen till en etapp i Spegelläget: sätt milstolpen också. Etapperna är
 **milstolpar i projektet**, inte parent-issues (MES-237 och MES-253–256 är
 stängda som ersatta av dem).
 
-Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature'], status:
-'unstarted', projekt: 'Spegelläget i realtid' })`. Med MCP-kopplingen: sätt
-`labels`, `state: "Todo"` och `project` i `save_issue`.
+Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature', 'spelvyn'],
+status: 'unstarted', projekt: null })` — eller `projekt: 'Spegelläget i
+realtid'` när den hör till löftena. Med MCP-kopplingen: sätt `labels` och
+`state: "Todo"`, och `project` bara i det fallet.
 
 ### Överblicken: `/läget`
 

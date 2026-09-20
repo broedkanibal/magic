@@ -65,7 +65,8 @@ function avsnitt(titel, rader) {
                 : d >= 2 ? '  ⚠ ' + d + ' dagar utan spår' : '';
     return rad(i) + flagg;
   }));
-  console.log('  (en session per rad — saknas en session är issuen övergiven och ska till Todo)');
+  console.log('  (saknas en session: subagenter syns inte i ListAgents, så det BEVISAR ingenting.');
+  console.log('   Fråga sessionen som har issuen innan någon flyttar den — se CLAUDE.md.)');
   console.log('  (✓ = issuenyckeln står i en commit-RUBRIK på main. Brödtexten räknas inte —');
   console.log('   ett bra meddelande korsrefererar andra issues, och det är omnämnanden, inte arbete.)');
 

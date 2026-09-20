@@ -87,6 +87,15 @@ for (const f of filer) {
   ut.push(`Telefonen: ${telefon(d)}`);
   if ((d.halsa || []).some(h => h.problem)) ut.push(`Hälsokollen under passet: ${[...new Set(d.halsa.filter(h => h.problem).map(h => h.problem))].join(' | ')}`);
 
+  /* Rapporter sparade före MES-275 kunde ta namnets släpp ur spårets sista
+     kända vila: ett kort som flyttades efter att det namngetts fick ett
+     släpp ur framtiden, och fran_slapp blev tiotals sekunder negativ. Raden
+     känns igen på att spåret redan hade vilat när namnet stämplades och
+     släppet ändå ligger efter rörelsens slut — den kombinationen kan en
+     rättad rapport inte innehålla. */
+  const gamlaSlapp = rader.filter(x => x.vad === 'namn' && x.slapp != null && x.ror != null && x.slapp > x.ror && x.stilla != null && x.stampel != null && x.stilla <= x.stampel);
+  if (gamlaSlapp.length) ut.push(`OBS: ${gamlaSlapp.length} namnrad${gamlaSlapp.length > 1 ? 'er' : ''} har ett släpp ur framtiden — rapporten är sparad före MES-275. Namnets "från släpp" går inte att lita på här.`);
+
   ut.push(`\n### Från att handen släpper (ms)${nya ? '' : ' — OMÄTT: rapporten saknar rörelsens slut (äldre än MES-242)'}`);
   ut.push(tabell(['händelse', 'n', 'median', 'p90', 'p95', 'inom 0,3 s'],
     ['syns', 'skugga', 'namn', 'tap', 'lage', 'borta'].map(k => statRad(NAMN[k], S[k] && S[k].fran_slapp, true))));

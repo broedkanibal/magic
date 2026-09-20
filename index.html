@@ -24386,6 +24386,15 @@ const LatensDator = (() => {
     for (const t of m.spar || []) {
       const ts = t.ts; if (!ts) continue;
       L.sista.set(String(t.id), ts);
+      /* Vilorna i ordning (MES-275). stilla stämplas en gång per spår, men
+         spårets ts kan bytas ut under passet (klungan ärver ett annat spårs
+         ts, ett id kan återanvändas) — och då är spårets SENAST kända vila
+         inte den som hör till en namnstämpel längre bak. Namnraden ska kunna
+         välja rätt vila, så var och en sparas när den dyker upp. */
+      if (ts.stilla != null && ts.stillaRor != null) {
+        const v = L.vilor.get(String(t.id)) || L.vilor.set(String(t.id), []).get(String(t.id));
+        if (!v.some(x => x.stilla === ts.stilla)) v.push({ stilla: ts.stilla, ror: ts.stillaRor });
+      }
       const f = L.sedda.get(t.id) || L.sedda.set(t.id, {}).get(t.id);
       for (const vad of ['skugga', 'namn', 'tap', 'lage']) {
         if (ts[vad] == null || f[vad] === ts[vad]) continue;
@@ -24435,13 +24444,19 @@ const LatensDator = (() => {
     for (const [k, p] of L.platser) if (!medSkugga.has(k) && p.ritat != null)
       ut.push({ vad: 'skugga', spar: p.spar, kalla: 'dator', via: 'plats', slag: p.slag, ritat: p.ritat, ror: T(p.ror), hittat: T(p.hittat), stilla: T(p.stilla), hela: null });
     /* Släppet: rörelsens slut när stämpeln sattes. Ett namn som blev klart
-       INNAN kortet låg still (MES-246) räknas från rörelsens slut när spåret
-       blev stilla — då blir fran_slapp negativt: klart före släpp. */
+       INNAN kortet låg still (MES-246) räknas i stället från rörelsens slut
+       när spåret blev stilla — då blir fran_slapp negativt: klart före släpp.
+       Bara då: hade spåret redan vilat när namnet stämplades är släppet
+       spårets eget, och en vila efter det hör till ett senare drag.
+       Förut lästes spårets SENAST kända vila (L.sista), och tre rader i
+       telefonpasset landade på −13, −73 och −91 s (MES-275): kort som
+       flyttades efter att de namngetts fick ett släpp ur framtiden. */
     for (const y of ut) {
       let slapp = y.ror;
-      if (y.vad === 'namn') {
-        const z = L.sista.get(String(y.spar));
-        if (z && z.stillaRor != null && z.stilla != null && T(z.stilla) > y.stampel && (slapp == null || T(z.stillaRor) > slapp)) slapp = T(z.stillaRor);
+      if (y.vad === 'namn' && y.stampel != null) {
+        const v = (L.vilor.get(String(y.spar)) || []).map(x => ({ stilla: T(x.stilla), ror: T(x.ror) })).sort((a, b) => a.stilla - b.stilla);
+        const efter = v.some(x => x.stilla <= y.stampel) ? null : v.find(x => x.stilla > y.stampel);
+        if (efter && (slapp == null || efter.ror > slapp)) slapp = efter.ror;
       }
       y.slapp = slapp;
       y.fran_slapp = y.ritat != null && slapp != null ? y.ritat - slapp : null;
@@ -24533,7 +24548,7 @@ const LatensDator = (() => {
   function start() {
     if (L && !L.stoppad) { toast('Already measuring.', 'err'); return; }
     L = { v: 2, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [], halsa: [],
-          sista: new Map(), platser: new Map(), tel: { ua: null, modell: [], steg0: null, steg1: null, bat0: null, bat1: null } };
+          sista: new Map(), vilor: new Map(), platser: new Map(), tel: { ua: null, modell: [], steg0: null, steg1: null, bat0: null, bat1: null } };
     if (!Moln.sandKam('insp', { gor: 'ping', id: 'latens', t0: Date.now() })) { toast('No connection to the phone', 'err'); L = null; return; }
     for (let i = 1; i <= 4; i++) setTimeout(ping, i * 1000);
     clearInterval(pingT); clearInterval(visT);

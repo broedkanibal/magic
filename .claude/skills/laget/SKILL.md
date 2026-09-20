@@ -23,12 +23,18 @@ issue på raden under KÖRS NU, och märk ut de två fallen som betyder något:
 
 | Vad du ser | Vad du skriver |
 |---|---|
-| Issue i In Progress **utan** session | `⚠ ingen session — övergiven, ska till Todo` |
+| Issue i In Progress **utan** session | `? ingen synlig session — kan vara en subagent` |
 | Session **utan** issue i In Progress | `⚠ sessionen jobbar på <MES-NN> som inte står i In Progress` |
 | Session vars issue är **Done** | `✓ klar — sessionen kan stängas` |
 
 Sessionens namn brukar bära issuenumret ("MES-250: …"). Gör det inte det,
 gissa inte — skriv namnet som det är och säg att kopplingen är oklar.
+
+**Säg aldrig att en issue är övergiven.** Subagenter syns inte i
+`ListAgents`, så en rad utan session bevisar ingenting — en orkestrerande
+session kan ha sex agenter igång utan att någon av dem syns. Föreslå att
+Jesper frågar sessionen som har issuen, och flytta den aldrig själv. Bara
+den session som tog issuen lämnar tillbaka den.
 
 ## Så skriver du svaret
 
