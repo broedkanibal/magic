@@ -76,6 +76,32 @@ Skälet är inte revir. En agents mätning jämför före mot efter på samma ko
 Byts koden under körningen jämförs två olika saker — och siffran ser exakt
 lika riktig ut som förut.
 
+## Kontroller som ljuger
+
+Sex gånger på ett dygn (2026-09-20) gav en kontroll ett svar som såg riktigt
+ut och aldrig hade jämförts med verkligheten. Alla sex är mätta, inte
+gissade:
+
+| Kontroll | Vad den svarade | Vad som gällde |
+|---|---|---|
+| Poolen i golden | tal som såg rimliga ut | halv pool — 17/57 två gånger (MES-260) |
+| `--utan-leken` | "0 fel namn" | mot en lista ingen skrivit ner (MES-266) |
+| En golden-körning | ingenting alls, i 4,5 timmar | klar, men hängd i nedstängningen (MES-270) |
+| `git log --grep=MES-NNN` | "koden är på main" | ett omnämnande i en annan commits text |
+| "ingen session i listan" | "ingen jobbar på den" | sju mätkedjor pågick i subagenter |
+| Latensrapporten | medianen klarar 0,3 s | 544 ms — tre rader låg på −13, −73 och −91 s (MES-275) |
+
+**Formen är densamma varje gång.** I fem av sex fall upptäcktes det av en
+slump, för att någon som råkade veta sanningen tittade på utskriften.
+
+Regeln som följer: **varje kontroll ska ha ett sätt att säga "jag vet
+inte"** i stället för att tyst svara fel. En pool som inte är hel ska vägra
+köra, inte varna. En körning som hänger ska ha skrivit sina tal innan den
+började stänga ner. En lista som avgör en släppgräns ska ligga i repot.
+
+Och: **ett tal som ingen någonsin kontrollräknat för hand är inte mätt** —
+det är bara utskrivet.
+
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 
 1. `git fetch`; utgå från en ren worktree på `origin/main`.
