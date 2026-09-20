@@ -358,3 +358,41 @@ node dev/las-fore-slapp/rapport.cjs svar.json --kalla skuren:4k
 Arbetsmappen ska ligga **utanför repot** — `gra.bin` blir 2,5 GB och de
 klippta rutorna 0,5 GB. `/tmp` töms när Macen startar om; lägg den hellre i
 `~/Library/Caches/`.
+
+## Förslag: inspelningen som golden-fall 13 (görs inte här)
+
+Inspelningen täcker det inget golden-fall gör: tokens (i ficka och utan),
+equip om, aura, graveyard till spel, till handen och till exile, mill, till
+handen från bordet, överst i library — och 60 rutor/s. Facit finns redan
+(`facit-slapp.json`), så steget som brukar ta tid är gjort.
+
+**Så här skulle jag göra det:**
+
+1. **Klipp en 15 rutor/s-version** som de andra fallen, med
+   `dev/golden/video/koda.swift`. Videon är redan bara kamerabild (ingen
+   iOS-rad, ingen Safari-rad), så utsnittet är hela bilden:
+   `swift dev/golden/video/koda.swift mes-246-video.mov video.mp4 0 0 3840 2160 1080 1000 15`.
+   Nio och en halv minut i 1080 px och 1 Mbit/s blir ~70 MB — **för stort för
+   git** (gränsen i SNABBGUIDE är tio megabyte). **Klipp ut en bit:** turerna
+   1–4 (0–170 s) räcker för nedläggning, tappat, land på hög, token i ficka,
+   token utan ficka och equip om, och blir ~12 MB. Vill man ha graveyard och
+   mill får det bli ett fall 14 av turerna 5–9.
+2. **`facit.json` ur `facit-slapp.json` och `kort.txt`.** Tiderna räknas om
+   mot `start_s`. Händelserna blir `spelar` för de 24 nedläggningarna,
+   `tappar`/`otappar` ur de steg som är vridningar, `tar_bort` för de lyfta
+   korten och `flyttar` för flyttarna. Graveyard- och library-rutorna
+   (`grav`, `bib`) måste med — de ligger båda i bild, och utan dem mäter
+   provet högarna som kort på bordet.
+3. **Namnen:** alla 19 avlästa namn finns i `dev/golden/lek.txt`. De fem
+   fönster som saknar namn (graveyard-högens översta efter mill, flytten,
+   tokenen som lyfts bort) ska stå som händelser utan namn, eller utelämnas.
+4. **Tokens, exile och attach räknas som mått utan dom** tills MES-247 och
+   MES-248 är byggda, precis som kommentaren i MES-246 säger.
+5. `node dev/golden/kor.cjs --fall 13 --detalj`, rad i `historik.md`,
+   `--spara`, och mappen + `senaste.json` i samma commit.
+
+**Det som är värt att veta innan:** fallet blir **svårt**. Bordet har upp
+till nio kort samtidigt, flera i blanka plastfickor som lampan bränner ut,
+två landhögar och ett kort längst ut i bilden där ljuset är halverat. Räkna
+med lägre tal än fallen 09–12 — det är poängen med ett nytt fall, men det
+ska sägas innan baslinjen sparas.
