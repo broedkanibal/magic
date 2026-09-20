@@ -18275,7 +18275,10 @@ const Kamera = (() => {
        omlott ihop (golden 06: 9/11 → 3/11). Förvalet 360 är AW_MAX och
        ändrar ingenting; bara bakom ?debug går den att höja, och då kostar
        varje ruta mer att räkna (värme, MES-164). */
-    anaBredd: 360
+    anaBredd: 360,
+    /* Kort omlott läggs med kortreferensens mått (MES-250, passaKort i
+       detektera): 1 = på, 0 = av — för golden-prov med --tro "omlott:0". */
+    omlott: 1
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
@@ -18531,7 +18534,7 @@ const Kamera = (() => {
   }
 
   /* Räknarna som diagnosfilen och popovern visar, uppdaterade av detektera(). */
-  const dia = { regioner: 0, forSma: 0, smaKort: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null, helbild: null };
+  const dia = { regioner: 0, forSma: 0, smaKort: 0, felKvot: 0, otat: 0, blanka: 0, flata: 0, delade: 0, omlott: 0, omlottProv: null, tackning: 0, spritt: 0, sprittModell: 0, sprittMonster: 0, troskel: 0, sigma: 0, gain: 1, matta: 0, avvik: 0, otsu: 0, golv: 0, brusGolv: 0, utseende: 0, kortRef: null, skurna: 0, skarProv: null, ms: 0, tid: null, helbild: null };
   /* Skillnaden räknas mot den bästa grannen i referensen, inte mot exakt
      samma bildpunkt. En telefon i en hållare skakar en pixel när någon
      nuddar bordet, och på en ådrad yta tänder det varje ådra: uppmätt 18 %
@@ -18680,7 +18683,7 @@ const Kamera = (() => {
      Ren funktion, prövbar. Masken följer med ut: spårningen behöver veta
      vad som ligger under ett spår som inte fick någon träff. */
   function detektera(nu, ref, W, H, under, hopp) {
-    dia.regioner = dia.forSma = dia.smaKort = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = dia.skurna = 0;
+    dia.regioner = dia.forSma = dia.smaKort = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = dia.skurna = dia.omlott = 0;
     const n = W * H;
     /* Tiden per del följer med i diagnosfilen: det är telefonen som ska
        hinna, och bänkens sandlåda säger inget om det. */
@@ -19267,6 +19270,200 @@ const Kamera = (() => {
       }
       return null;
     };
+    /* ── Kort omlott: kortmåttet som facit (MES-250) ──
+       Två kort som ligger PÅ varandra har ingen söm: bara det övre kortets
+       svarta kant tvärs över det undres konstverk, och ingen springa som
+       erosionen (dela) kan ta. Skärlinjen finner dalen men delarna faller
+       på formen — det undres synliga remsa är inget kort — och ligger
+       korten förskjutna åt båda hållen (golden 14: Maul under Mirran
+       Bardiche) skiljer ingen rak linje dem alls. Så länge KORTREFERENSEN
+       finns går klungan i stället att LÄGGA med kort: regionen vrids in i
+       kortens led (grundläget, sedan regionens egen axel och spårens),
+       rastreras i ett rutnät med en cell per analyspixel, och läggs
+       girigt med rektanglar av referensens mått, stående och liggande —
+       varje rektangel så gott som helt inne i regionen (OMLOTT_FYLL), den
+       som täcker mest av det ännu oförklarade först, och vid lika den vars
+       kant ligger mest längs regionens kant: ett kort i klungans ände,
+       inte mitt i den. Kvar efter högst OMLOTT_TAK kort får vara högst
+       OMLOTT_REST av regionen.
+       Bevisen mot en ensam stor region som också går att lägga med två
+       rektanglar — ett kort närmare kameran än referensen, ett kort med
+       sin halo eller skugga:
+         · varje kort förklarar minst OMLOTT_DEL kortareor som inget annat
+           förklarar, och den delen har ett korts struktur (spridningen
+           T.spridning), inte en halos,
+         · och det övre kortets kant SYNS: längs en kant som går inne i
+           regionen, över ett annat kort, ligger en mörk linje minst
+           OMLOTT_KANT under det ljusaste 3–6 bildpunkter bort på båda
+           sidor — på minst ett av de två korten i varje par som täcker
+           varandra. Ett ensamt stort kort har ingen sådan linje en bit in
+           från sin kant (konstverkets ram är en blyertslinje, 10–20 djup
+           efter suddningen; en kortkant över ett kort är 60–100).
+       Delarna döms som kort av bedom() på regionens bildpunkter inom var
+       sin rektangel: det undre kortets del rymmer också det övres
+       bildpunkter — dess låda är hela kortet, och läsningen får en
+       beskärning där grannen ligger över hörnet, som förut med klumpen.
+       Uppmätt i golden 14/15 (historik.md). T.omlott = 0 stänger av. */
+    const OMLOTT_MIN = 1.2, OMLOTT_MAX = 4.5, OMLOTT_FYLL = 0.9, OMLOTT_DEL = 0.2, OMLOTT_REST = 0.15, OMLOTT_TAK = 4, OMLOTT_KANT = 30, OMLOTT_KANTDEL = 0.5, OMLOTT_GAP = 6;
+    /* Minnet (hysteres, som snittminnet och i samma lista, led 'omlott'):
+       en region som lades förra gången läggs igen med sin vinkel först och
+       med lägre krav på fyllnad och rest, och utan kantbeviset — beviset
+       togs när minnet skrevs. Utan det flimrade fall 15:s klumpar varannan
+       ruta: avvikelsen stegar en enhet per ruta, masken flyttar en pixel,
+       och kantprofilen som mätte 45 mätte 18 en pixel bredvid. */
+    const omlottProv = [];
+    let delMark = null;   // markering av en dels bildpunkter (provaDelar), när passaKort läggs på en del i stället för en hel region
+    const markera = pix => { if (!delMark) delMark = new Uint8Array(n); else delMark.fill(0); for (let q = 0; q < pix.length; q++) delMark[pix[q]] = 1; return i => delMark[i] === 1; };
+    /* inne(i): är bildpunkten i regionen — etikettkartan för en hel region, markeringen för en del. */
+    const passaKort = (inne, r) => {
+      if (!T.omlott || !kortRef || r.area < OMLOTT_MIN * refA || r.area > OMLOTT_MAX * refA) return null;
+      if (r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H) || r.vinkel === undefined) return null;
+      const L = Math.round(kortRef.lang), K = Math.round(kortRef.kort);
+      if (L < 8 || K < 6) return null;
+      const minne = snittMinne.find(m => m.led === 'omlott' && sammaLada(m.box, r.box)) || null;
+      const fyllMin = minne ? OMLOTT_FYLL - 0.05 : OMLOTT_FYLL, restMax = minne ? OMLOTT_REST + 0.05 : OMLOTT_REST;
+      const vinklar = [];
+      for (const v of [minne ? minne.vinkel : null, grundVinkel(), r.vinkel, sparVinkel]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
+      const prov = { lang: Math.round(r.lang), kort: Math.round(r.kort), box: r.box, area: +(r.area / refA).toFixed(2), grader: [], dom: '', minne: !!minne };
+      if (omlottProv.length < 12) omlottProv.push(prov);
+      let stamp = null;
+      for (const v of vinklar) {
+        const cs = Math.cos(v), sn = Math.sin(v), b = r.box;
+        /* Rutnätet: lådans hörn vridna in i kortens led ger dess mått, en
+           cells kant runt om (kanten är "utanför regionen"), och varje cell
+           slås upp baklänges i regionens etikettkarta — inga hål av vridningen. */
+        let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+        for (const [x, y] of [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]]) {
+          const u = (x - r.cx) * cs + (y - r.cy) * sn, w = (y - r.cy) * cs - (x - r.cx) * sn;
+          if (u < u0) u0 = u; if (u > u1) u1 = u; if (w < v0) v0 = w; if (w > v1) v1 = w;
+        }
+        u0 = Math.floor(u0) - 1; v0 = Math.floor(v0) - 1;
+        const gw = Math.ceil(u1) + 1 - u0 + 1, gh = Math.ceil(v1) + 1 - v0 + 1;
+        if (gw * gh > 60000) { prov.dom = 'stor'; return null; }
+        const grid = new Uint8Array(gw * gh), pixAv = new Int32Array(gw * gh);
+        const pxAv = (cu, cv) => { const x = Math.round(r.cx + (u0 + cu) * cs - (v0 + cv) * sn), y = Math.round(r.cy + (u0 + cu) * sn + (v0 + cv) * cs); return x < 0 || y < 0 || x >= W || y >= H ? -1 : y * W + x; };
+        let A0 = 0;
+        for (let cv = 0; cv < gh; cv++) for (let cu = 0; cu < gw; cu++) { const i = pxAv(cu, cv), c = cv * gw + cu; pixAv[c] = i; if (i >= 0 && inne(i)) { grid[c] = 1; A0++; } }
+        if (!A0) continue;
+        const sw = gw + 1;
+        const integral = (g, S) => { for (let cv = 0; cv < gh; cv++) { let rad = 0; for (let cu = 0; cu < gw; cu++) { rad += g[cv * gw + cu]; S[(cv + 1) * sw + cu + 1] = S[cv * sw + cu + 1] + rad; } } };
+        const summa = (S, cu, cv, a, bb) => S[(cv + bb) * sw + cu + a] - S[cv * sw + cu + a] - S[(cv + bb) * sw + cu] + S[cv * sw + cu];
+        const S = new Int32Array(sw * (gh + 1)); integral(grid, S);
+        const rest = Uint8Array.from(grid), Sz = new Int32Array(sw * (gh + 1)); integral(rest, Sz);
+        let kvar = A0;
+        const lagda = [], stdar = [];
+        while (lagda.length < OMLOTT_TAK && kvar > restMax * A0) {
+          let bast = null;
+          for (const [a, bb] of [[L, K], [K, L]]) {
+            if (a + 2 > gw || bb + 2 > gh) continue;
+            const fyllTak = fyllMin * a * bb, ring = 2 * (a + bb) + 4;
+            for (let cv = 1; cv + bb < gh; cv++) for (let cu = 1; cu + a < gw; cu++) {
+              const fyll = summa(S, cu, cv, a, bb);
+              if (fyll < fyllTak) continue;
+              const vinst = summa(Sz, cu, cv, a, bb);
+              if (bast && vinst < 0.97 * bast.vinst) continue;
+              /* Kantstödet: ringen en cell utanför rektangeln — hur många av dess celler som INTE är region. */
+              const stod = ring - (summa(S, cu - 1, cv - 1, a + 2, bb + 2) - fyll);
+              if (!bast || vinst > 1.03 * bast.vinst || stod > bast.stod) bast = { cu, cv, a, b: bb, vinst, stod, fyll };
+            }
+          }
+          if (!bast || bast.vinst < OMLOTT_DEL * L * K) break;
+          /* Den nya delens struktur: spridningen över det den ensam förklarar. */
+          let s1 = 0, s2 = 0, k = 0;
+          for (let cv = bast.cv; cv < bast.cv + bast.b; cv++) for (let cu = bast.cu; cu < bast.cu + bast.a; cu++) { const c = cv * gw + cu; if (rest[c]) { const x = nu[pixAv[c]]; s1 += x; s2 += x * x; k++; rest[c] = 0; } }
+          const std = k ? Math.sqrt(Math.max(0, s2 / k - (s1 / k) ** 2)) : 0;
+          stdar.push(Math.round(std));
+          /* …minst T.spridning, och minst 0,4 av det första kortets: en
+             skugga eller halo på ett ådrat bord har 10–20, ett korts remsa
+             (namnraden, textrutan) 50–70 mot hela kortets 65–77. */
+          if (std < Math.max(T.spridning, 0.4 * (stdar[0] || 0))) { bast.flat = true; lagda.push(bast); break; }
+          kvar -= bast.vinst; lagda.push(bast); integral(rest, Sz);
+        }
+        const g = { grader: Math.round(v * 180 / Math.PI), kort: lagda.map(q => q.a + '×' + q.b + '@' + q.cu + ',' + q.cv + (q.flat ? ' flat' : '')), std: stdar, rest: +(kvar / A0).toFixed(2) };
+        prov.grader.push(g);
+        if (lagda.some(q => q.flat)) { g.dom = 'flat'; continue; }
+        if (lagda.length < 2) { g.dom = lagda.length ? 'ett' : 'inget'; continue; }
+        if (kvar > restMax * A0) { g.dom = 'rest'; continue; }
+        /* Kanten som syns. Profilen tvärs en kant: dalens djup = det
+           ljusaste 4–7 celler ut på båda sidor minus det mörkaste inom två
+           celler (rektangeln kan ligga en pixel fel mot kortet). Medel över
+           kantens celler, och andelen celler med en dal alls. Två kort som
+           täcker varandra: den enas kanter där de går inne i den andra —
+           det övre kortets syns, det undres inte, och ett av dem räcker.
+           Två kort kant i kant (glipa högst OMLOTT_GAP): sömmen mitt
+           emellan de kanter som vetter mot varandra. Varje kort ska ha
+           minst ett sådant bevis mot ett annat, annars är det ett kort
+           som lagts på måfå i ett stort ensamt kort (uppmätt med en för
+           liten referens på golden 14: Pharika's Chosen lades som två kort
+           sida vid sida, utan söm). */
+        const inneI = (q, cu, cv) => cu >= q.cu && cu < q.cu + q.a && cv >= q.cv && cv < q.cv + q.b;
+        const djupVid = (cu, cv, du, dv) => {
+          const varde = k2 => { const c = pxAv(cu + du * k2, cv + dv * k2); return c < 0 ? null : nu[c]; };
+          let ute1 = -Infinity, ute2 = -Infinity, mitt = Infinity;
+          for (let k2 = 4; k2 <= 7; k2++) { const p = varde(-k2), q = varde(k2); if (p != null && p > ute1) ute1 = p; if (q != null && q > ute2) ute2 = q; }
+          for (let k2 = -2; k2 <= 2; k2++) { const p = varde(k2); if (p != null && p < mitt) mitt = p; }
+          return ute1 === -Infinity || ute2 === -Infinity || mitt === Infinity ? null : Math.min(ute1, ute2) - mitt;
+        };
+        const matt = () => ({ sum: 0, k: 0, dal: 0 });
+        const prova = (m, cu, cv, du, dv) => { const d = djupVid(cu, cv, du, dv); if (d == null) return; m.sum += d; m.k++; if (d >= OMLOTT_KANT / 2) m.dal++; };
+        const ok = m => m.k >= 4 && m.sum / m.k >= OMLOTT_KANT && m.dal / m.k >= OMLOTT_KANTDEL;
+        const text = m => m.k ? Math.round(m.sum / m.k) + '/' + (m.dal / m.k).toFixed(2) : '–';
+        const kantOver = (q, p) => {
+          const m = matt();
+          for (let cu = q.cu + 2; cu < q.cu + q.a - 2; cu++) { if (inneI(p, cu, q.cv)) prova(m, cu, q.cv, 0, 1); if (inneI(p, cu, q.cv + q.b - 1)) prova(m, cu, q.cv + q.b - 1, 0, 1); }
+          for (let cv = q.cv + 2; cv < q.cv + q.b - 2; cv++) { if (inneI(p, q.cu, cv)) prova(m, q.cu, cv, 1, 0); if (inneI(p, q.cu + q.a - 1, cv)) prova(m, q.cu + q.a - 1, cv, 1, 0); }
+          return m;
+        };
+        const som = (p, q) => {
+          /* p och q kant i kant: sömmen mitt emellan de kanter som vetter mot varandra, längs den sträcka de delar. */
+          const m = matt();
+          const lo = (a0, a1, b0, b1) => Math.max(a0, b0), hi = (a0, a1, b0, b1) => Math.min(a1, b1);
+          if (p.cu + p.a <= q.cu + OMLOTT_GAP && p.cu + p.a > q.cu - 1) { const cu = Math.round((p.cu + p.a - 1 + q.cu) / 2); for (let cv = lo(p.cv, 0, q.cv, 0) + 2; cv < hi(0, p.cv + p.b, 0, q.cv + q.b) - 2; cv++) prova(m, cu, cv, 1, 0); }
+          else if (q.cu + q.a <= p.cu + OMLOTT_GAP && q.cu + q.a > p.cu - 1) { const cu = Math.round((q.cu + q.a - 1 + p.cu) / 2); for (let cv = lo(p.cv, 0, q.cv, 0) + 2; cv < hi(0, p.cv + p.b, 0, q.cv + q.b) - 2; cv++) prova(m, cu, cv, 1, 0); }
+          else if (p.cv + p.b <= q.cv + OMLOTT_GAP && p.cv + p.b > q.cv - 1) { const cv = Math.round((p.cv + p.b - 1 + q.cv) / 2); for (let cu = lo(p.cu, 0, q.cu, 0) + 2; cu < hi(0, p.cu + p.a, 0, q.cu + q.a) - 2; cu++) prova(m, cu, cv, 0, 1); }
+          else if (q.cv + q.b <= p.cv + OMLOTT_GAP && q.cv + q.b > p.cv - 1) { const cv = Math.round((q.cv + q.b - 1 + p.cv) / 2); for (let cu = lo(p.cu, 0, q.cu, 0) + 2; cu < hi(0, p.cu + p.a, 0, q.cu + q.a) - 2; cu++) prova(m, cu, cv, 0, 1); }
+          return m;
+        };
+        const bevis = new Int32Array(lagda.length);
+        g.kant = [];
+        let kantOk = true;
+        for (let i = 0; i < lagda.length && kantOk; i++) for (let j = i + 1; j < lagda.length; j++) {
+          const p = lagda[i], q = lagda[j];
+          const ox = Math.min(p.cu + p.a, q.cu + q.a) - Math.max(p.cu, q.cu), oy = Math.min(p.cv + p.b, q.cv + q.b) - Math.max(p.cv, q.cv);
+          let m1 = null, m2 = null, slag;
+          if (ox > 0 && oy > 0 && ox * oy >= 0.05 * L * K) { slag = 'över'; m1 = kantOver(p, q); m2 = kantOver(q, p); }
+          else if ((ox >= -OMLOTT_GAP && oy > 2) || (oy >= -OMLOTT_GAP && ox > 2)) { slag = 'söm'; m1 = som(p, q); }
+          else continue;   // varken över eller intill varandra: inget att kräva av paret
+          const funnet = ok(m1) || (m2 && ok(m2));
+          g.kant.push(slag + ' ' + text(m1) + (m2 ? ' ' + text(m2) : ''));
+          if (funnet) { bevis[i]++; bevis[j]++; }
+          else if (!minne) { kantOk = false; break; }
+        }
+        if (!minne && (!kantOk || Array.from(bevis).some(x => !x))) { g.dom = 'kant'; continue; }
+        /* Delarna: regionens bildpunkter inom var sin rektangel, dömda som kort. */
+        if (!stamp) stamp = new Uint8Array(n);
+        const delar = [];
+        for (const q of lagda) {
+          const pix = [];
+          for (let cv = q.cv; cv < q.cv + q.b; cv++) for (let cu = q.cu; cu < q.cu + q.a; cu++) { const c = cv * gw + cu, i = pixAv[c]; if (grid[c] && i >= 0 && stamp[i] !== 1) { stamp[i] = 1; pix.push(i); } }
+          for (const i of pix) stamp[i] = 0;
+          if (pix.length < minAreaPx()) break;
+          const d = bedom(Int32Array.from(pix), 0, pix.length);
+          if (d.skal || !arKortStor(d)) { g.dom = 'del ' + (d.skal || 'storlek'); break; }
+          d.omlott = true;
+          delar.push(d);
+        }
+        if (delar.length !== lagda.length) continue;
+        g.dom = 'lagd';
+        prov.dom = 'lagd ' + delar.length;
+        const post = { box: r.box, led: 'omlott', vinkel: v, nar: rutaNr, linjer: [] };
+        const j = snittMinne.findIndex(m => m.led === 'omlott' && sammaLada(m.box, r.box));
+        if (j >= 0) snittMinne[j] = post; else snittMinne.push(post);
+        return delar;
+      }
+      prov.dom = prov.dom || (prov.grader.length ? prov.grader.map(x => x.dom).join(',') : 'ingen vinkel');
+      return null;
+    };
     /* Delarna tar över om någon av dem är ett renare kort. En region som
        redan ÄR ett kort (bara tveksam) byts mot sina delar bara om de
        tillsammans är det mesta av den: ett kort med stort mörkt konstverk
@@ -19280,8 +19477,12 @@ const Kamera = (() => {
         const delar = dela(p0, p1, R);
         const bra = [];
         let yta = 0;
-        for (const pix of delar) { const d = bedom(pix, 0, pix.length); if (!d.skal && (!tveksam || d.kort / d.lang >= 0.64)) { bra.push(d); yta += d.area; } }
-        if (bra.length && (!tveksam || yta >= 0.6 * r.area)) { for (const d of bra) ut.push(d); dia.delade++; return true; }
+        for (const pix of delar) { const d = bedom(pix, 0, pix.length); if (!d.skal && (!tveksam || d.kort / d.lang >= 0.64)) { bra.push({ d, pix }); yta += d.area; } }
+        /* En del som blev "kort" kan vara två kort omlott som erosionen
+           skilde från en skugga intill (MES-250): den läggs med kort som en
+           region — golden 15 gav annars ett kort av Mirran Bardiche + Maul var
+           tredje ruta, när klumpen hängde ihop med en bit av bordet. */
+        if (bra.length && (!tveksam || yta >= 0.6 * r.area)) { for (const { d, pix } of bra) { const om = passaKort(markera(pix), d); if (om) { for (const x of om) ut.push(x); dia.omlott++; } else ut.push(d); } dia.delade++; return true; }
       }
       return false;
     };
@@ -19292,7 +19493,7 @@ const Kamera = (() => {
     };
     /* Pass två: besluten, i samma ordning som regionerna hittades. */
     for (const g of regioner) {
-      const { p0, p1, cnt, r } = g;
+      const { p0, p1, cnt, r } = g, id = lab[ko[p0]];
       /* Ett kort med en strimma i sidan passerar ibland kvoten ändå — som
          ett brett kort. Tveksamt är allt under 0,64 eller med luft i lådan;
          då prövas delningen, och delarna tar över om någon av dem är ett
@@ -19314,10 +19515,21 @@ const Kamera = (() => {
            33–43, och skars igen först när ett av dem blivit säkert och
            gett kortRef. */
         const minns = snittMinne.some(m => m.led === 0 && sammaLada(m.box, r.box));
+        /* …och ett "kort" som är större än referensen kan vara två kort
+           omlott (MES-250): Maul under Mirran Bardiche i golden 14 är en
+           region med kortets kvot på 1,5 kortareor. Lades regionen nyss
+           (omlott-minnet) prövas det först — annars tog erosionen den var
+           tredje ruta i golden 15 och gav ett kort av två. */
+        const omMinne = snittMinne.some(m => m.led === 'omlott' && sammaLada(m.box, r.box));
+        const iRegion = i => lab[i] === id;
+        if (omMinne) { const delar = passaKort(iRegion, r); if (delar) { for (const d of delar) ut.push(d); dia.omlott++; continue; } }
         if ((stort || okant || minns) && cnt >= 2 * minAreaPx()) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
+        if (!omMinne) { const delar = passaKort(iRegion, r); if (delar) { for (const d of delar) ut.push(d); dia.omlott++; continue; } }
         ut.push(r); continue;
       }
       if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * minAreaPx()) {
+        const omMinne = snittMinne.some(m => m.led === 'omlott' && sammaLada(m.box, r.box)), iRegion = i => lab[i] === id;
+        if (omMinne) { const delar = passaKort(iRegion, r); if (delar) { for (const d of delar) ut.push(d); dia.omlott++; continue; } }
         if (cnt < 0.25 * n && provaDelar(p0, p1, r, tveksam)) continue;
         /* …och det erosionen inte kan dela skärs: kort kant i kant. Men
            inte en region som är bordet självt — över en fjärdedel av bilden
@@ -19326,6 +19538,8 @@ const Kamera = (() => {
            med kortets kvot, fyra osäkra spår där det förut var noll. */
         const jatte = r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H);
         if (r.vinkel !== undefined && !jatte) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
+        /* …och det ingen linje delar läggs med kort (MES-250). */
+        if (!omMinne) { const delar = passaKort(iRegion, r); if (delar) { for (const d of delar) ut.push(d); dia.omlott++; continue; } }
       }
       if (!r.skal) { ut.push(r); continue; }
       rakna(r);
@@ -19350,6 +19564,7 @@ const Kamera = (() => {
     /* De accepterade regionerna, för diagnosfilen: det är dem spåren matchas mot. */
     dia.fynd = fynd.map(f => ({ cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), kort: Math.round(f.kort), area: f.area }));
     dia.skarProv = skarProv;
+    dia.omlottProv = omlottProv;
     skarLogg.push({ ruta: ++rutaNr, skurna: dia.skurna, prov: skarProv.map(p => p.lang + '×' + p.kort + ' ' + p.grader + '° ' + p.dom + (p.minne ? ' (minne)' : '')) });
     if (skarLogg.length > 40) skarLogg.shift();
     dia.skarLogg = skarLogg;
@@ -19526,7 +19741,7 @@ const Kamera = (() => {
        (matcha): tills två stilla rutor sagt annat är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: false, tappRun: 0 };
+                 tappad: false, tappRun: 0, omlott: !!f.omlott };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (latens) ny.ts = { bild: bildTid, hittat: Date.now(), rorelse: rutTid() };
@@ -19663,6 +19878,19 @@ const Kamera = (() => {
            en region, skuren till 71×53 och 71×49, och spåret behöll
            0,19×0,23 av bilden med namnet det gissat på klumpen. */
         if (f.area < 0.6 * bast.areaRef) { bast.helBox = { box: bast.box, areaRef: bast.areaRef, nar: nu }; bast.areaRef = f.area; bast.spek = null; bast.formN = 0; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
+        /* Kort omlott (MES-250): klumpen lades med kort, och spåret som bar
+           klumpen tar delen som sin storlek på en gång och läses om — också
+           ett säkert namngivet: namnet lästes på en beskärning med två kort
+           i och hör till ett av dem, inte säkert det här (golden 14:
+           namnläsaren tog det undre kortets namn på klumpen). Bara i rutan
+           delen kommer (spåret bar mer än 1,2 kortareor); sedan ÄR spåret
+           delen, och en ruta där klumpen kommer tillbaka hel rör inget. */
+        if (f.omlott && !bast.omlott && bast.areaRef > 1.2 * f.area) {
+          bast.areaRef = f.area; bast.spek = null; bast.formN = 0; bast.helBox = null;
+          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.gissning = null;
+          bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0;
+        }
+        if (f.omlott) bast.omlott = true;
         /* Formen (K4): samma långsida och kortsida som förra rutan, inom
            SPEK_FORM. En hand som håller i kortet, eller en skugga som hänger
            med, ändrar regionens mått fast mitten står nästan still. */

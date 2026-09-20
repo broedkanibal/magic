@@ -963,7 +963,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     sigma: +(K.sigma || 0).toFixed(2), troskel: tro.troskel, utseende: tro.utseende, spridning: tro.spridning, otsu: dia.otsu == null ? null : dia.otsu,
     yta: K.yta ? K.yta.dom : null, matta: dia.matta, regioner: dia.regioner, tackning: +(dia.tackning || 0).toFixed(3),
     /* Delningen (MES-28 Del 2): erosionens delade, skärlinjernas skurna, kortreferensen och de prövade snitten i sista rutan. */
-    delade: dia.delade, skurna: dia.skurna, kortRef: dia.kortRef || null, skarProv: dia.skarProv || [],
+    delade: dia.delade, skurna: dia.skurna, omlott: dia.omlott || 0, omlottProv: dia.omlottProv || [], kortRef: dia.kortRef || null, skarProv: dia.skarProv || [],
     skarLogg: dia.skarLogg || [],
     fodslar: dia.fodslar || [],   // varför varje spår föddes (MES-83)
     gravProv: dia.gravProv || [],   // högvaktens domar (MES-85)

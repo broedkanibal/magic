@@ -207,7 +207,8 @@ function skrivTabell(rs, gamla) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     { const sidan = rader.find(x => x.includes(r.id)); if (sidan) console.log('  sidans rad: ' + sidan.replace(/^Kör\s+/, '')); }
     if (r.tidDelar) console.log(`  stegtid: median ${r.ms} ms, max ${r.msMax} ms — ` + Object.entries(r.tidDelar).map(([k, v]) => `${k} ${v.median} (${v.max})`).join(', '));
-    console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, omlott ${r.omlott || 0}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    for (const p of r.omlottProv || []) console.log(`    omlott ${p.lang}×${p.kort} (${p.area} kortareor)${p.minne ? ' (minne)' : ''}: ${p.dom}${(p.grader || []).map(g => ' · ' + g.grader + '° ' + g.dom + ' rest ' + g.rest + (g.kant && g.kant.length ? ' kant ' + g.kant.join('; ') : '')).join('')}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
     if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
       + ((r.lagesLista || []).length ? ' — ' + r.lagesLista.map(x => `spår ${x.nr != null ? '#' + x.nr + ' (id ' + x.id + ')' : 'id ' + x.id} @${x.s} s flyttade ${x.flytt} kortbredder${x.fran ? ` (${x.fran[0]},${x.fran[1]} @${x.fran[2]} s → ${x.till[0]},${x.till[1]}, ${x.st}, ytan ×${x.yta})` : ''}`).join(', ') : '')
