@@ -41,6 +41,19 @@ function kortMatt(f) {
   return (ml && mk) ? { lang: ml, kort: mk, egen: true } : { lang: R.kortRef.lang, kort: R.kortRef.kort, egen: false };
 }
 
+/* Regionens fart och riktning mellan två rutor, i analysbildpunkter. */
+function granne(f, x, steg) { const i = f.rutor.indexOf(x); const g = f.rutor[i + steg]; return g && g.r ? g.r : null; }
+function fart(f, x) {
+  if (!x.r) return 1;
+  const a = granne(f, x, -1) || granne(f, x, 1); if (!a) return 1;
+  return Math.hypot(x.r.cx - a.cx, x.r.cy - a.cy);
+}
+function riktning(f, x) {
+  if (!x.r) return 0;
+  const a = granne(f, x, -1); if (!a) return 0;
+  return +Math.atan2(x.r.cy - a.cy, x.r.cx - a.cx).toFixed(3);
+}
+
 const poster = [];
 for (const f of R.fonster) {
   if (bara && !bara.has(f.nr)) continue;
@@ -67,10 +80,12 @@ for (const f of R.fonster) {
       /* Detektorns mask över regionens låda — det utskärningen har att gå på. */
       mask: masker.has(id) ? { w: masker.get(id).w, h: masker.get(id).h, m: masker.get(id).m } : null,
       kallor: KALLOR, varianter: VARIANTER,
-      /* Rörelseoskärpa vid 1/30 s: hur långt regionen flyttade sig sedan
-         förra rutan, i bildpunkter — det är sträckan en exponering skulle
-         smeta ut. Sätts av las.html:s suddaRorelse. */
-      suddPx: x.fart != null ? Math.round(x.fart * sk) : 10
+      /* Rörelseoskärpa vid 1/30 s: hur långt regionen flyttar sig på två
+         rutor i 60 per sekund — det är sträckan en exponering på 1/30 s
+         skulle smeta ut. Mätt på regionens mitt, i videobildpunkter.
+         Riktningen är rörelsens. Sätts av las.html:s suddaRorelse. */
+      suddPx: Math.max(2, Math.round(fart(f, x) * 2 * sk)),
+      suddRiktning: riktning(f, x)
     });
   }
 }

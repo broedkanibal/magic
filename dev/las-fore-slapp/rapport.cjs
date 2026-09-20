@@ -21,11 +21,16 @@ if (!FIL) { console.error('node rapport.cjs <svar.json> [--kalla skuren:4k]'); p
 const R = JSON.parse(fs.readFileSync(FIL, 'utf8'));
 const KALLA = arg('--kalla', 'skuren:4k');
 const JSONUT = arg('--json', '');
+/* --fps 30: bara varannan ruta räknas, som om kameran gått i 30 i stället för
+   60 per sekund. Reglerna "samma namn i N rutor" blir då dubbelt så långa i
+   tid, och det är hela skillnaden mellan 30 och 60 för den här frågan. */
+const FPS = +arg('--fps', 60);
 const svar = R.svar.filter(x => !x.fel);
 
 const perF = new Map();
 for (const s of svar) { if (!perF.has(s.fonster)) perF.set(s.fonster, []); perF.get(s.fonster).push(s); }
 for (const v of perF.values()) v.sort((a, b) => a.rel - b.rel);
+if (FPS === 30) for (const [k, v] of perF) perF.set(k, v.filter((_, i) => i % 2 === 0));
 
 const norm = n => String(n || '').trim().toLowerCase();
 const ratt = (s, kalla) => { const l = s.lager[kalla]; return !!(l && l.namn && s.facit && norm(l.namn) === norm(s.facit)); };
