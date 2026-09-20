@@ -18549,6 +18549,7 @@ const Kamera = (() => {
      remsor som får stå i kö hos workern. t.laser märker spåret som läses. */
   let lasande = 0;
   const LAS_SAMTIDIGT = 3;
+  const OMLOTT_NAMNLOS_MS = 6000;   // en omlott-del utan namn så länge, under ett namngivet kort, tas bort (matcha, MES-250)
   /* …och bara spår med ETT KORTS MÅTT läses bredvid ett annat: lång- och
      kortsida inom en fjärdedel av kortreferensen (dia.kortRef, medianen av
      de säkert namngivna spåren). Allt annat — klumpar, och allt innan det
@@ -19955,7 +19956,19 @@ const Kamera = (() => {
     const anv = new Set();
     for (const f of fynd) {
       let bast = null, bd = Infinity;
-      for (const t of spar) {
+      if (f.omlott) {
+        /* En del ur en klump (MES-250) tar det spår den TÄCKER mest, minst
+           till hälften — inte det närmaste. Två delars mitt ligger 60–70 px
+           isär, inom gränsen nedan för båda, och den del som råkade komma
+           först tog grannens spår: i golden 07 tog Swamp-delen Thriving
+           Moors namngivna spår, och Thriving Moor föddes om som ett nytt,
+           namnlöst spår ovanpå sig själv (dubblett +1, falskt +1). Täcker
+           delen inget spår föds den. */
+        let bo = 0.5;
+        for (const t of spar) { if (anv.has(t)) continue; const o = ladTackning(t.box, f.box); if (o > bo) { bo = o; bast = t; } }
+        if (bast) bd = 0;
+      }
+      else for (const t of spar) {
         if (anv.has(t)) continue;
         const d = Math.hypot(t.cx - f.cx, t.cy - f.cy);
         if (d < bd) { bd = d; bast = t; }
@@ -20194,6 +20207,18 @@ const Kamera = (() => {
          behövdes (golden 05: noll regioner) — så tom matta bevisar inget om
          det. Det står tills nästa helbild, eller tills bordet nollställs. */
       if (t.tomMs > T.bortaMs && !arHelbild(t)) { spar.splice(spar.indexOf(t), 1); t.dog = nu; spoken.push(t); if (latens) bortaTs.push({ id: t.id, namn: t.namn || null, borta: Date.now(), bild: bildTid, ror: t.ts ? t.ts.rorelse : null }); }
+    }
+    /* En omlott-del som inte fått namn på OMLOTT_NAMNLOS_MS och ligger till
+       70 % under ett säkert namngivet spår är ingen del vi kan visa: i
+       golden 07 föddes en del ovanpå Thriving Moor medan Swamp lades intill
+       (handen stod stilla tre rutor), och den stod sedan som skymd i 20 s
+       med masken under sig aldrig tom. Ett kort som verkligen ligger under
+       ett annat med namnraden dold (Maul under Mirran Bardiche, 55 %) eller
+       med den synlig (Resistance Reunited under Trusty Retriever, 58 %)
+       ligger under gränsen och står kvar. Utan spöke. */
+    for (const t of [...spar]) {
+      if (!t.omlott || t.namn || arHelbild(t) || nu - t.fodd < OMLOTT_NAMNLOS_MS) continue;
+      if (spar.some(b => b !== t && b.tillstand === 'klar' && b.namn && ladTackning(t.box, b.box) >= 0.7)) spar.splice(spar.indexOf(t), 1);
     }
     /* Spöken städas: för gamla, och de som ett levande spår flyttat in över. */
     while (spoken.length && nu - spoken[0].dog > T.spokMs) spoken.shift();
