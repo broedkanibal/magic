@@ -19414,18 +19414,27 @@ const Kamera = (() => {
       /* Minst två säkert namngivna kort bakom referensen: ett ensamt kan vara
          en flisa som fick namn (golden 14: 53×37 av Plains-högen), och med den
          som mått lades varje riktigt kort som två eller tre. */
-      if (!T.omlott || !kortRef || langar.length < 2 || r.area < OMLOTT_MIN * refA || r.area > OMLOTT_MAX * refA) return null;
-      if (r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H) || r.vinkel === undefined) return null;
+      if (!T.omlott || !kortRef || langar.length < 2 || r.area < OMLOTT_MIN * refA) return null;
+      const tidigt = dom => { if (omlottProv.length < 12) omlottProv.push({ lang: Math.round(r.lang), kort: Math.round(r.kort), box: r.box, area: +(r.area / refA).toFixed(2), grader: [], dom }); return null; };
+      if (r.area > OMLOTT_MAX * refA || r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H) || r.vinkel === undefined) return tidigt('stor');
       /* Bara en region som ett STILLA spår ligger på: en hand som lägger ett
          kort, ett kort som vrids, är regioner som byter form varje ruta, och
          i golden 07/09 lades de som två–tre kort (falska 3 → 7, dubbletter
-         +2, ⏱ tak i 07 av kostnaden). Ett spår som stått stilla en ruta
-         (stillaN, matcha) är beviset; en klump som just lagts får vänta en
-         ruta, och läsningen väntar ändå på stillheten. */
-      if (!sparen.some(t => (t.stillaN || 0) >= 1 && ladTackning(t.box, r.box) >= 0.5)) return null;
+         +2, ⏱ tak i 07 av kostnaden). Ett spår som stått stilla tre rutor
+         (stillaN, matcha; en ruta räckte inte — handen som tappar ett kort
+         står stilla en ruta) är beviset; en klump som just lagts får vänta
+         en halv sekund, och läsningen väntar ändå på stillheten. */
+      /* Minnets låda är KORTENS (de lagda rektanglarnas förening), inte
+         regionens: regionen bar en skugga i ena rutan (86×100) och inte i
+         nästa (58×98), och med regionens låda som minne missade matchningen
+         (70 % av den större). Nu räcker 70 % av den mindre. */
+      const minne = snittMinne.find(m => m.led === 'omlott' && ladTackning(m.box, r.box) >= 0.7) || null;
+      if (minne) for (const Lp of minne.linjer) Lp.tagen = false;
+      /* …utom en region som lades nyss (minnet): delarna är unga spår med
+         stillaN 0, och med spärren på dem föll läggningen var fjärde ruta. */
+      if (!minne && !sparen.some(t => (t.stillaN || 0) >= R(3) && ladTackning(t.box, r.box) >= 0.5)) return tidigt('rör sig');
       const L = Math.round(kortRef.lang), K = Math.round(kortRef.kort);
       if (L < 8 || K < 6) return null;
-      const minne = snittMinne.find(m => m.led === 'omlott' && sammaLada(m.box, r.box)) || null;
       const fyllMin = minne ? OMLOTT_FYLL - 0.05 : OMLOTT_FYLL, restMax = minne ? OMLOTT_REST + 0.05 : OMLOTT_REST;
       const vinklar = [];
       /* Grundläget först, också med minne: kort på ett bord ligger i regel i
@@ -19504,8 +19513,26 @@ const Kamera = (() => {
           }
           let bast = null;
           const urval = kand.filter(q => q.vinst >= 0.97 * basta);
+          /* Minnets läge först: ett läge vars mitt ligger inom tre bildpunkter
+             från en del som lades förra gången tas som det är. Utan det
+             hoppade läggningen mellan två lika bra lägen (cu 1 och 3) från
+             ruta till ruta, delarnas mitt flyttade 2–3 px, spåret rörde sig
+             mer än stillaPx varje ruta och lästes aldrig (golden 14: Trusty
+             Retriever säkert läst tre gånger i förtid, men 'ny' i 30 s). */
+          if (minne && minne.linjer.length) {
+            /* Det NÄRMASTE läget, inte det första inom tre: det första i
+               sökordningen låg alltid en cell åt samma håll, och läget kröp
+               en cell per ruta (golden 15: 22 → 20 → 18 → 16 → 14). */
+            let narm = null, nd = 3.001, nj = -1;
+            for (const q of urval) {
+              /* Mitten i bildpunkter: cellerna cu … cu+a−1 har mitten (a−1)/2 in — samma mått som bedom():s tyngdpunkt, annars låg samma läge en halv cell fel och det en cell bredvid vann varje ruta. */
+              const mx = r.cx + (u0 + q.cu + (q.a - 1) / 2) * cs - (v0 + q.cv + (q.b - 1) / 2) * sn, my = r.cy + (u0 + q.cu + (q.a - 1) / 2) * sn + (v0 + q.cv + (q.b - 1) / 2) * cs;
+              for (let j = 0; j < minne.linjer.length; j++) { const Lp = minne.linjer[j]; if (Lp.tagen) continue; const d = Math.hypot(Lp.x - mx, Lp.y - my); if (d < nd) { nd = d; narm = q; nj = j; } }
+            }
+            if (narm) { minne.linjer[nj].tagen = true; bast = narm; }
+          }
           const steg = Math.max(1, Math.ceil(urval.length / 24));   // högst ~24 kantmätningar per kort
-          for (let i = 0; i < urval.length; i += steg) { const q = urval[i]; q.kant = kantPoang(q); if (!bast || q.kant > bast.kant + 1 || (Math.abs(q.kant - bast.kant) <= 1 && q.stod > bast.stod)) bast = q; }
+          if (!bast) for (let i = 0; i < urval.length; i += steg) { const q = urval[i]; q.kant = kantPoang(q); if (!bast || q.kant > bast.kant + 1 || (Math.abs(q.kant - bast.kant) <= 1 && q.stod > bast.stod)) bast = q; }
           if (!bast || bast.vinst < OMLOTT_DEL * L * K) break;
           /* Den nya delens struktur: spridningen över det den ensam förklarar. */
           let s1 = 0, s2 = 0, k = 0;
@@ -19604,8 +19631,10 @@ const Kamera = (() => {
         if (delar.length !== lagda.length) continue;
         g.dom = 'lagd';
         prov.dom = 'lagd ' + delar.length;
-        const post = { box: r.box, led: 'omlott', vinkel: v, nar: rutaNr, linjer: [] };
-        const j = snittMinne.findIndex(m => m.led === 'omlott' && sammaLada(m.box, r.box));
+        let kx0 = Infinity, ky0 = Infinity, kx1 = -Infinity, ky1 = -Infinity;
+        for (const q of lagda) { const bb = ladaAv(q); if (bb.x < kx0) kx0 = bb.x; if (bb.y < ky0) ky0 = bb.y; if (bb.x + bb.w > kx1) kx1 = bb.x + bb.w; if (bb.y + bb.h > ky1) ky1 = bb.y + bb.h; }
+        const post = { box: { x: kx0, y: ky0, w: kx1 - kx0, h: ky1 - ky0 }, led: 'omlott', vinkel: v, nar: rutaNr, linjer: delar.map(d => ({ x: d.cx, y: d.cy })) };
+        const j = snittMinne.findIndex(m => m.led === 'omlott' && ladTackning(m.box, post.box) >= 0.7);
         if (j >= 0) snittMinne[j] = post; else snittMinne.push(post);
         return delar;
       }
@@ -19668,7 +19697,7 @@ const Kamera = (() => {
            region med kortets kvot på 1,5 kortareor. Lades regionen nyss
            (omlott-minnet) prövas det först — annars tog erosionen den var
            tredje ruta i golden 15 och gav ett kort av två. */
-        const omMinne = snittMinne.some(m => m.led === 'omlott' && sammaLada(m.box, r.box));
+        const omMinne = snittMinne.some(m => m.led === 'omlott' && ladTackning(m.box, r.box) >= 0.7);
         const iRegion = i => lab[i] === id;
         if (omMinne) { const delar = passaKort(iRegion, r); if (delar) { for (const d of delar) ut.push(d); dia.omlott++; continue; } }
         if ((stort || okant || minns) && cnt >= 2 * minAreaPx()) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
@@ -19676,7 +19705,7 @@ const Kamera = (() => {
         ut.push(r); continue;
       }
       if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * minAreaPx()) {
-        const omMinne = snittMinne.some(m => m.led === 'omlott' && sammaLada(m.box, r.box)), iRegion = i => lab[i] === id;
+        const omMinne = snittMinne.some(m => m.led === 'omlott' && ladTackning(m.box, r.box) >= 0.7), iRegion = i => lab[i] === id;
         if (omMinne) { const delar = passaKort(iRegion, r); if (delar) { for (const d of delar) ut.push(d); dia.omlott++; continue; } }
         if (cnt < 0.25 * n && provaDelar(p0, p1, r, tveksam)) continue;
         /* …och det erosionen inte kan dela skärs: kort kant i kant. Men
@@ -19713,6 +19742,7 @@ const Kamera = (() => {
     dia.fynd = fynd.map(f => ({ cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), kort: Math.round(f.kort), area: f.area }));
     dia.skarProv = skarProv;
     dia.omlottProv = omlottProv;
+    dia.omlottMinne = snittMinne.filter(m => m.led === 'omlott').map(m => ({ box: m.box, nar: m.nar, linjer: m.linjer.length }));
     skarLogg.push({ ruta: ++rutaNr, skurna: dia.skurna, prov: skarProv.map(p => p.lang + '×' + p.kort + ' ' + p.grader + '° ' + p.dom + (p.minne ? ' (minne)' : '')) });
     if (skarLogg.length > 40) skarLogg.shift();
     dia.skarLogg = skarLogg;
@@ -20146,6 +20176,17 @@ const Kamera = (() => {
        när det missar en ruta. Andelen räknas mot kortets egen area, inte
        lådans, av samma skäl. */
     for (const t of kvar) {
+      /* En omlott-del utan region, täckt till 60 % av ett spår som HAR
+         region i rutan: klumpen lades inte längre — regionen är ett kort
+         igen (en hand som lyfts, ett kort som vridits klart). Delen tas bort
+         efter R(5) sådana rutor i följd, utan spöke; masken under den är
+         annars aldrig tom (kortet ligger ju där) och den stod som skymd för
+         alltid — golden 09: tre kort fick var sitt extra spår vid tappningen.
+         Ett kort som verkligen ligger under får sin del igen nästa gång
+         klumpen läggs. */
+      if (t.omlott && !arHelbild(t) && [...anv].some(b => ladTackning(t.box, b.box) >= 0.6)) {
+        if ((t.omlottBorta = (t.omlottBorta || 0) + 1) >= R(5)) { spar.splice(spar.indexOf(t), 1); continue; }
+      } else t.omlottBorta = 0;
       const fyll = mask ? maskI(mask, t.box, AW, AH) / Math.max(1, t.areaRef) : 0;
       if (fyll < T.tomMin) { t.tomMs += dt; t.skymd = false; }
       else if (fyll >= T.skymdMin) { t.tomMs = Math.max(0, t.tomMs - dt); t.skymd = true; rorde(t); }
