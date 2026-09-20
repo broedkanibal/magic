@@ -222,20 +222,38 @@ växer kort ihop. `--tro "anaBredd:480"` höjer bredden (tröskeln finns bara
 bakom `?debug`, förvalet 360 är orört); trösklarna som räknas i
 analyspixlar — minsta area och rörelsen — följer med bredden.
 
-Faktor 0,5, alltså korten hälften så stora i bilden, som med vidvinkel
-(beskärningarna 80–190 px), sju stillbildsfall:
+**Mätt 2026-09-20** (sju stillbildsfall, bildmodellen på WebGPU, 0 fel namn
+i varje körning). Faktor 0,5 betyder att korten är hälften så stora i bilden
+— det vidvinkeln gör:
 
-| Analysbredd | Rätt namn | Fel namn | Falska | Steg per ruta (median) |
-|---|---|---|---|---|
-| 360 (förval) | 8/44 | 0 | 2 | 26–77 ms |
-| 480 | 12/44 | 0 | 1 | 27–82 ms |
-| 540 (fotots egen bredd) | **24/44** | 0 | 3 | 68–115 ms |
+| | Analysbredd 360 (förval) | 480 | 540–720 |
+|---|---|---|---|
+| **Full storlek** (kort 252 px i beskärningen) | 23/44 · 0 fel · 2 falska · 27 ms/ruta | 23/44 · 0 · 1 · 78 ms | 19/44 · 0 · 3 · 108 ms |
+| **Vidvinkel** (faktor 0,5, kort 126–190 px) | 9/44 · 0 fel · 3 falska · 15 ms/ruta | 12/44 · 0 · 1 · 88 ms | **24/44** · 0 · 3 · 68 ms |
 
-Fall 06 går 0/11 → 9/11. Vid full storlek (faktor 1) ger 480 däremot ingen
-vinst (23/44 som vid 360, en falsk mindre) och 720 kollapsar (4/44, 13
-falska, fem fall slog i provets 30-sekunderstak): en bredare analys hjälper
-bara när korten är SMÅ där, och varje ruta kostar 2–3 gånger mer att räkna
-— det är värme på telefonen (MES-164).
+Fall 06 (tolv kort omlott) är tydligast: 0/11 vid 360, 0/11 vid 480 och
+9/11 vid 540 — lika många som i full storlek.
+
+**Vinsten är bredden, inte att bilden råkar ritas 1:1.** Vid faktor 0,5 är
+fotot 540 px brett, så analysbredden 540 betyder ingen omskalning alls —
+och på telefonen är källan alltid mycket bredare. Kontrollprovet: faktor
+0,65 (fotot 702 px, alltså en nedskalning på 1,3 gånger) ger 06 6/11 vid
+360 och **9/11 vid 540**, och 02 2/4 → 4/4. Bredden räknas.
+
+**Priset, och varför förvalet står kvar på 360:**
+
+* Varje ruta kostar 3–4 gånger mer att räkna (19–32 ms → 88–149 ms i samma
+  fall). Det är värme på telefonen (MES-164), och i 1080p · 30 hinner den
+  inte med ett steg var 33:e ms.
+* Fin struktur i bordet räknas inte bort lika bra: fall 03 (träådring) gick
+  från 1 till 5 falska spår vid 540, och dammet i sista rutan från 10 till
+  51 regioner. Trösklarna som räknas i analyspixlar skalas med bredden, men
+  suddningen (3×3) och öppningen (fem grannar) är fasta.
+* I full storlek finns ingen vinst att hämta: korten är redan stora nog i
+  analysbilden.
+
+Alltså: en spak att ta till **när korten är små i analysbilden** — vidvinkel
+eller ett stort bord — inte en förbättring att slå på i största allmänhet.
 
 **Rådet "Korten är små i bilden. Flytta telefonen närmare"** tändes förut
 på storleken ensam — också i 06 på faktor 0,8, där Claude läste 9 av 11.
