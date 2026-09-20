@@ -10,7 +10,7 @@
 #
 #   bash dev/las-fore-slapp/kor-allt.sh \
 #        dev/material/arbete/2026-09-19-mes-246-las-fore-slapp/arb \
-#        dev/golden/inspelningar/mes-246/mes-246-video.mov
+#        dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov
 set -e
 ARB="${1:?arbetsmapp}"
 VIDEO="${2:?video}"
