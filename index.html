@@ -19416,12 +19416,24 @@ const Kamera = (() => {
          som mått lades varje riktigt kort som två eller tre. */
       if (!T.omlott || !kortRef || langar.length < 2 || r.area < OMLOTT_MIN * refA || r.area > OMLOTT_MAX * refA) return null;
       if (r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H) || r.vinkel === undefined) return null;
+      /* Bara en region som ett STILLA spår ligger på: en hand som lägger ett
+         kort, ett kort som vrids, är regioner som byter form varje ruta, och
+         i golden 07/09 lades de som två–tre kort (falska 3 → 7, dubbletter
+         +2, ⏱ tak i 07 av kostnaden). Ett spår som stått stilla en ruta
+         (stillaN, matcha) är beviset; en klump som just lagts får vänta en
+         ruta, och läsningen väntar ändå på stillheten. */
+      if (!sparen.some(t => (t.stillaN || 0) >= 1 && ladTackning(t.box, r.box) >= 0.5)) return null;
       const L = Math.round(kortRef.lang), K = Math.round(kortRef.kort);
       if (L < 8 || K < 6) return null;
       const minne = snittMinne.find(m => m.led === 'omlott' && sammaLada(m.box, r.box)) || null;
       const fyllMin = minne ? OMLOTT_FYLL - 0.05 : OMLOTT_FYLL, restMax = minne ? OMLOTT_REST + 0.05 : OMLOTT_REST;
       const vinklar = [];
-      for (const v of [minne ? minne.vinkel : null, grundVinkel(), r.vinkel, sparVinkel]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
+      /* Grundläget först, också med minne: kort på ett bord ligger i regel i
+         det ledet, och en klump har en oviss egen axel. Golden 14 låste
+         annars minnet vid regionens 79° efter en ruta där 90° föll, och de
+         vridna rektanglarnas lådor darrade så att delarna aldrig blev stilla
+         (⏱ tak, två spår 'ny' i 20 s). */
+      for (const v of [grundVinkel(), minne ? minne.vinkel : null, r.vinkel, sparVinkel]) if (v != null && !vinklar.some(u => axSkillnad(u, v) < 0.09)) vinklar.push(v);
       const prov = { lang: Math.round(r.lang), kort: Math.round(r.kort), box: r.box, area: +(r.area / refA).toFixed(2), grader: [], dom: '', minne: !!minne };
       if (omlottProv.length < 12) omlottProv.push(prov);
       let stamp = null;
@@ -19464,8 +19476,8 @@ const Kamera = (() => {
            den djupaste. */
         const kantPoang = q => {
           let sum = 0, k = 0;
-          for (let cu = q.cu + 2; cu < q.cu + q.a - 2; cu += 2) { for (const cv of [q.cv, q.cv + q.b - 1]) { const d = djupVid(cu, cv, 0, 1); if (d) { sum += d.djup; k++; } } }
-          for (let cv = q.cv + 2; cv < q.cv + q.b - 2; cv += 2) { for (const cu of [q.cu, q.cu + q.a - 1]) { const d = djupVid(cu, cv, 1, 0); if (d) { sum += d.djup; k++; } } }
+          for (let cu = q.cu + 2; cu < q.cu + q.a - 2; cu += 3) { for (const cv of [q.cv, q.cv + q.b - 1]) { const d = djupVid(cu, cv, 0, 1); if (d) { sum += d.djup; k++; } } }
+          for (let cv = q.cv + 2; cv < q.cv + q.b - 2; cv += 3) { for (const cu of [q.cu, q.cu + q.a - 1]) { const d = djupVid(cu, cv, 1, 0); if (d) { sum += d.djup; k++; } } }
           return k ? sum / k : 0;
         };
         let kvar = A0;
@@ -19492,7 +19504,7 @@ const Kamera = (() => {
           }
           let bast = null;
           const urval = kand.filter(q => q.vinst >= 0.97 * basta);
-          const steg = Math.max(1, Math.ceil(urval.length / 80));   // högst ~80 kantmätningar per kort
+          const steg = Math.max(1, Math.ceil(urval.length / 24));   // högst ~24 kantmätningar per kort
           for (let i = 0; i < urval.length; i += steg) { const q = urval[i]; q.kant = kantPoang(q); if (!bast || q.kant > bast.kant + 1 || (Math.abs(q.kant - bast.kant) <= 1 && q.stod > bast.stod)) bast = q; }
           if (!bast || bast.vinst < OMLOTT_DEL * L * K) break;
           /* Den nya delens struktur: spridningen över det den ensam förklarar. */
@@ -19509,6 +19521,12 @@ const Kamera = (() => {
         const g = { grader: Math.round(v * 180 / Math.PI), kort: lagda.map(q => q.a + '×' + q.b + '@' + q.cu + ',' + q.cv + (q.flat ? ' flat' : '')), std: stdar, rest: +(kvar / A0).toFixed(2) };
         prov.grader.push(g);
         if (lagda.some(q => q.flat)) { g.dom = 'flat'; continue; }
+        /* Ett enda kort förklarar regionen i den här vinkeln: då ÄR det ett
+           kort — vridet mot grundläget — hur många rektanglar en annan
+           vinkel än kan lägga i det (golden 09: ett kort mitt i tappningen,
+           70×55 mot referensens 62×45, lades som två i grundläget med
+           kortets egen kant som "bevis"). Vinkeln avgör inte; kortet gör. */
+        if (lagda.length === 1 && kvar <= restMax * A0) { g.dom = 'ett'; prov.dom = 'ett'; return null; }
         if (lagda.length < 2) { g.dom = lagda.length ? 'ett' : 'inget'; continue; }
         if (kvar > restMax * A0) { g.dom = 'rest'; continue; }
         /* Kanten som syns: medel över kantens celler, och andelen celler
@@ -21209,7 +21227,7 @@ const Kamera = (() => {
      beskärningen, genom samma led som bilden — så ser läsningen bara det
      som är kortet: namnraden och det som sticker fram. */
   function maskaTackt(b, t) {
-    if (!b || !b.geo || !t.tackt || !t.tackt.length) return;
+    if (!b || !b.geo || !t.tackt || !t.tackt.length) return false;
     const g = b.geo, x = b.bild.getContext('2d');
     const v = Math.max(0, Math.min(255, Math.round(modell ? modell.M / senasteGain : 128)));
     x.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
@@ -21220,6 +21238,7 @@ const Kamera = (() => {
       if (g.liggande) x.fillRect(v0 * g.ow, (1 - u1) * g.oh, (v1 - v0) * g.ow, (u1 - u0) * g.oh);
       else x.fillRect(u0 * g.ow, v0 * g.oh, (u1 - u0) * g.ow, (v1 - v0) * g.oh);
     }
+    return true;
   }
 
   /* Bänken: en färdig referens rakt in, utan insamlingsvarv. Referensen i
@@ -21258,8 +21277,8 @@ const Kamera = (() => {
       t.ram = finLada(t.box, senasteG0, t);
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;   // läget datorn speglar är ramens, som förut
       const b = video ? beskar(t) : null; c = b && b.bild;
-      maskaTackt(b, t);
-      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
+      const tackt = maskaTackt(b, t);
+      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, tackt ? { tackt: true } : undefined);
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
     lasLogg(t, lasStart, svar, 'las');
@@ -21342,8 +21361,8 @@ const Kamera = (() => {
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;
       const geo = { cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort };
       const b = video ? beskar(t) : null;
-      maskaTackt(b, t);
-      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true });
+      const tackt = maskaTackt(b, t);
+      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt });
       lasLogg(t, lasStart, svar, 'spek');
       if (t.spek !== vantar) return;
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
@@ -22168,7 +22187,10 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      Jespers bord till skräp. En bit trä, en skugga eller ett blänk som kom
      igenom detektorn har varken spridning eller avvikelse, och ska inte bli
      en granskningspost med en träbit som miniatyr. */
-  if (!serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
+  /* …utom en beskärning där grannens hörn är övermålat med mattans nivå
+     (o.tackt, MES-250): den ser ut som matta till större delen med flit.
+     Att det är ett kort har passaKort redan visat på formen och kanten. */
+  if (!(o && o.tackt) && !serUtSomKort(canvas, Kamera.mattNiva, Kamera.utseendeSkala, kort)) return { skrap: true };
   kamMinnsBild(id, canvas);
   /* Läsningens delar för latensrapporten (MES-242, bara ?debug): tidpunkter
      mellan stegen nedan, i performance.now(). */
