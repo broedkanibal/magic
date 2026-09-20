@@ -20189,15 +20189,18 @@ const Kamera = (() => {
        när det missar en ruta. Andelen räknas mot kortets egen area, inte
        lådans, av samma skäl. */
     for (const t of kvar) {
-      /* En omlott-del utan region, täckt till 60 % av ett spår som HAR
-         region i rutan: klumpen lades inte längre — regionen är ett kort
-         igen (en hand som lyfts, ett kort som vridits klart). Delen tas bort
-         efter R(5) sådana rutor i följd, utan spöke; masken under den är
-         annars aldrig tom (kortet ligger ju där) och den stod som skymd för
-         alltid — golden 09: tre kort fick var sitt extra spår vid tappningen.
-         Ett kort som verkligen ligger under får sin del igen nästa gång
-         klumpen läggs. */
-      if (t.omlott && !arHelbild(t) && [...anv].some(b => ladTackning(t.box, b.box) >= 0.6)) {
+      /* En omlott-del utan region, som till minst 30 % ligger under ett
+         spår som HAR region i rutan: klumpen lades inte längre — regionen
+         är ett kort igen (kortet ovanpå togs bort, en hand som lyfts, ett
+         kort som vridits klart). Delen tas bort efter R(5) sådana rutor i
+         följd, utan spöke; masken under den är annars aldrig tom (kortet
+         ligger ju där) och den stod som skymd för alltid — golden 09: tre
+         kort fick var sitt extra spår vid tappningen; golden 07: Plains-
+         delen stod kvar på Thriving Moor i 7 s efter att Plains tagits
+         bort (täckning 0,58 — samma som ett riktigt kort under, så
+         täckningen kan inte skilja dem; det gör bara regionen). Ett kort
+         som verkligen ligger under får sin region varje ruta. */
+      if (t.omlott && !arHelbild(t) && [...anv].some(b => ladTackning(t.box, b.box) >= 0.3)) {
         if ((t.omlottBorta = (t.omlottBorta || 0) + 1) >= R(5)) { spar.splice(spar.indexOf(t), 1); continue; }
       } else t.omlottBorta = 0;
       const fyll = mask ? maskI(mask, t.box, AW, AH) / Math.max(1, t.areaRef) : 0;
