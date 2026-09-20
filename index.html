@@ -3514,12 +3514,25 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <button class="btn sm dbg" id="pbRef" title="Retake the picture of the table — do it when the light has changed. The cards can stay">New reference picture</button>
           <button class="btn sm ghost dbg" id="pbDiagnos" title="Saves what the phone sees as a file, for troubleshooting">Save diagnostics</button>
         </div>
-        <!-- 1080p-provet (MES-229): 1920×1080 i 30 rutor/s i stället för 4K i 15,
-             varje ruta analyseras. Bara ?debug; förvalet ändras inte. Se ritaPbSnabb. -->
+        <!-- Bildläget (MES-229, MES-244): 4K · 15 är förvalet; 1080p · 30 analyserar
+             varje ruta; 1080p · 15 har samma takt som förvalet, så bara upplösningen
+             skiljer. Analysbredden (MES-244) är den bild detektorn ser. Bara ?debug;
+             förvalet ändras inte. Se ritaPbSnabb. -->
         <div class="pbinsp dbg" id="pbSnabb">
-          <span class="t">Picture mode · MES-229</span>
+          <span class="t">Picture mode · MES-229 · MES-244</span>
           <div class="pbknappar">
-            <label class="pbinspval" style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="pbSnabbVal"> 1080p · 30 fps, every frame analysed (test)</label>
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px">Stream
+              <select id="pbSnabbVal">
+                <option value="0">4K · 15 fps (default)</option>
+                <option value="1">1080p · 30 fps, every frame analysed (test)</option>
+                <option value="2">1080p · 15 fps, same pace as the default (test)</option>
+              </select></label>
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px">Analysis width
+              <select id="pbAnaVal">
+                <option value="360">360 px (default)</option>
+                <option value="480">480 px (test)</option>
+                <option value="720">720 px (test)</option>
+              </select></label>
           </div>
           <p class="pbstatus" id="pbSnabbStatus">Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.</p>
         </div>
@@ -18080,13 +18093,52 @@ const Kamera = (() => {
      insamling, tålamodet för läget, snittminnet, styrslingornas rader — är
      satta vid 150 ms per ruta; R() räknar om dem till samma TID i provläget
      och är identiteten annars, så förvalet är bit för bit som förut.
-     Rörelsetröskeln stillaPx är per ruta och räknas INTE om (en femtedel
-     vore under detektorns eget darr): i provläget tål "stilla" därför en
-     långsammare glidning — känt, och en del av det provet får visa. */
+     Rörelsetröskeln stillaPx räknas inte om — en femtedel vore under
+     detektorns eget darr. I stället mäts RÖRELSEN över samma tid i båda
+     lägena (ROR_FONSTER_MS, se rorelse()): i förvalet är den föregående
+     rutan 150 ms gammal, så det är samma tal som förut, och i provläget
+     jämförs med läget 150 ms tillbaka i stället för 33 ms. Utan det tålde
+     "stilla" en 4,5 gånger snabbare glidning i provläget, och ett kort som
+     fortfarande gled kunde läsas suddigt (MES-244). */
   const TAKT_SNABB_MS = 30, RUTA_SNABB_MS = 1000 / 30;
-  const taktMs = () => T.snabb ? TAKT_SNABB_MS : TAKT_MS;
-  const R = n => T.snabb ? Math.max(n, Math.round(n * TAKT_MS / RUTA_SNABB_MS)) : n;
+  /* Bildlägena (T.snabb): 0 = förvalet 4K · 15, 1 = 1080p · 30 med varje
+     ruta analyserad (MES-229), 2 = 1080p · 15 (MES-244, C). Läge 2 är det
+     RENA provet av upplösningen: takten, ruttrösklarna och rörelsefönstret
+     är desamma som i förvalet, så det enda som skiljer är hur många
+     bildpunkter kortet har i beskärningen. Det är också det svala
+     alternativet (MES-243) — hälften så många rutor som läge 1. */
+  const SNABB_30 = 1, SNABB_15 = 2;
+  const taktMs = () => T.snabb === SNABB_30 ? TAKT_SNABB_MS : TAKT_MS;
+  const R = n => T.snabb === SNABB_30 ? Math.max(n, Math.round(n * TAKT_MS / RUTA_SNABB_MS)) : n;
   const BESKAR_BREDD = 720;    // beskärningens bredd när ett kort ska identifieras
+  /* Rörelsen som "stilla" mäts mot (MES-244). T.stillaPx är analyspixlar,
+     och utan ett tidsfönster betyder det olika fart i olika bildlägen: i
+     1080p·30 kommer rutorna 4,5 gånger tätare, och ett kort som glider
+     4,5 gånger fortare räknades ändå som stilla. Här jämförs spårets mitt
+     med den senaste rutan som är minst ROR_FONSTER_MS gammal. I förvalet
+     (150 ms mellan rutorna) är det föregående rutan, alltså exakt samma tal
+     som före MES-244; i 1080p·30 är det rutan fem steg tillbaka. Historiken
+     är spårets egen och hålls kort. */
+  const ROR_FONSTER_MS = TAKT_MS;
+  /* Trösklarna som räknas i ANALYSPIXLAR följer analysbildens bredd
+     (MES-244, E). De är mätta vid 360 px (AW_MAX): samma damm är fyra
+     gånger så många bildpunkter vid 720, och samma glidning dubbelt så
+     många. Utan omräkningen ger en bredare analys bara fler falska spår
+     och kort som aldrig räknas som stilla — uppmätt i golden 06 vid 720
+     px: 1 av 11 namn och 9 falska. Vid förvalet 360 är båda identiteten.
+     Arean skalas med kvadraten, avståndet rakt av. */
+  const anaSkala = () => (AW || AW_MAX) / AW_MAX;
+  const minAreaPx = () => T.minArea * anaSkala() * anaSkala();
+  const stillaPxNu = () => T.stillaPx * anaSkala();
+  function rorelse(t, f, nu) {
+    const h = t.rorH || (t.rorH = []);
+    let s = null;
+    for (let i = h.length - 1; i >= 0; i--) if (nu - h[i].s >= ROR_FONSTER_MS - 1) { s = h[i]; break; }
+    h.push({ s: nu, cx: f.cx, cy: f.cy });
+    while (h.length > 2 && nu - h[0].s > 3 * ROR_FONSTER_MS) h.shift();
+    const ref = s || t;   // ett nyfött spår har ingen historik: jämför med rutan innan, som förut
+    return Math.hypot(ref.cx - f.cx, ref.cy - f.cy);
+  }
   /* Från så här långt från en axel mäts kortet vridet i beskärningen (beskar).
      Upp till 10° klarar den raka lådan alla kort (golden 02, k = 1), och vid
      15° fäller den det första (1 av 4) — närmare en axel behövs inte
@@ -18141,11 +18193,11 @@ const Kamera = (() => {
   const T = {
     auto: 1,        // 1 = tröskeln räknas ur mattans uppmätta brus, 0 = reglaget bestämmer
     troskel: 26,    // gråskillnad mot tom matta som räknas som "något ligger här"
-    minArea: 60,    // minsta region i analyspixlar — under det är det damm
+    minArea: 60,    // minsta region i analyspixlar vid analysbredden 360 — under det är det damm (skalas med bredden, minAreaPx)
     kvotMin: 0.55,  // ett Magic-kort har kvoten 0,72 (uppmätt 0,62–0,81 på bordet); utanför spannet är det
     kvotMax: 0.95,  // inget kort utan en hand, en skugga, eller två kort ihop
     fyllnad: 0.72,  // hur mycket av sin vridna låda regionen ska fylla
-    stillaPx: 1.6,  // rörelse i analyspixlar per ruta som räknas som stilla
+    stillaPx: 1.6,  // rörelse i analyspixlar vid bredden 360, över ROR_FONSTER_MS, som räknas som stilla (skalas med bredden, stillaPxNu)
     stillaMs: 800,  // hur länge ett kort ska ligga stilla innan det identifieras — 500 provat i golden 07 (2026-09-11): sämre, 3 → 2 namn, 1 → 3 falska, fördröjningen 1,8 → 2 s
     bortaMs: 450,   // hur länge mattan UNDER ett spår ska ha sett tom ut innan kortet räknas som lyft
     tomMin: 0.3,    // maskandel i rutan, i andel av kortets area, under vilken mattan räknas som tom
@@ -18178,13 +18230,28 @@ const Kamera = (() => {
        läses i första rutan där regionen har ett korts mått och inget ligger
        över, utan att vänta in SPEK_RUTOR formstilla rutor. */
     luft: 1,
-    /* 1080p-provet (MES-229): 1 = strömmen i 1920×1080 och 30 rutor/s, varje ruta analyseras. Förvalet 0 är 4K i 15 och en ruta var 150:e ms. */
-    snabb: 0
+    /* Bildläget: 0 = förvalet 4K i 15 rutor/s, en ruta var 150:e ms;
+       1 = 1080p i 30 med varje ruta analyserad (MES-229); 2 = 1080p i 15,
+       alltså samma takt som förvalet (MES-244). */
+    snabb: 0,
+    /* Analysbildens bredd (MES-244, E). Detektorn ser bilden i den här
+       bredden, och kortets storlek DÄR avgör om två kort omlott går att
+       skilja åt — inte beskärningens upplösning. Med vidvinkel (MES-241)
+       blir ett kort ~42 px bred analysbild vid 360, och där växer kort
+       omlott ihop (golden 06: 9/11 → 3/11). Förvalet 360 är AW_MAX och
+       ändrar ingenting; bara bakom ?debug går den att höja, och då kostar
+       varje ruta mer att räkna (värme, MES-164). */
+    anaBredd: 360
   };
   function satTrosklar(nya) {
-    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = !!T.snabb;
+    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
     Object.assign(T, nya || {});
-    if (!!T.snabb !== varSnabb) bytBildlage();
+    if (T.snabb !== varSnabb) bytBildlage();
+    /* Analysbredden (MES-244) byter storlek på allt kameran räknar i
+       analyspixlar: mattmodellen, referensen och spåren. Den tas därför om
+       som vid ett byte av videons storlek — AH = 0 får loop() räkna om AW,
+       och referensen och spåren börjar om. */
+    if (T.anaBredd !== varAna) { AH = 0; glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
     /* Samma sak för avvikelsen: med autoUts på är den rutans egen, och det
        som skickas med är bara vad datorn råkade visa senast. */
     if (T.autoUts) { T.utseende = gammalUts; T.spridning = gammalSprid; }
@@ -18727,7 +18794,7 @@ const Kamera = (() => {
        skilde sämre: 12–16 mot 8–9 i telefonens video. */
     const KORTFORM_FYLL = 0.8;
     const kortform = (pix, p0, p1) => {
-      const c = p1 - p0; if (c < T.minArea) return false;
+      const c = p1 - p0; if (c < minAreaPx()) return false;
       let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
       for (let q = p0; q < p1; q++) { const i = pix[q], x = i % W, y = (i - x) / W; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
       const cx = sx / c, cy = sy / c, th = 0.5 * Math.atan2(2 * (sxy / c - cx * cy), (sxx / c - cx * cx) - (syy / c - cy * cy));
@@ -18873,7 +18940,7 @@ const Kamera = (() => {
           if (i >= bw && er[i - bw] && !sub[i - bw]) { sub[i - bw] = id; lok[t++] = i - bw; }
           if (i < bn - bw && er[i + bw] && !sub[i + bw]) { sub[i + bw] = id; lok[t++] = i + bw; }
         }
-        if (t < T.minArea) continue;
+        if (t < minAreaPx()) continue;
         /* Vidga tillbaka inom regionen, separabelt, och samla de globala indexen. */
         for (let i = 0; i < bn; i++) one[i] = sub[i] === id ? 1 : 0;
         for (let y = 0; y < bh; y++) { const row = y * bw; let acc = 0; for (let x = -R; x < bw; x++) { if (x + R < bw) acc += one[row + x + R]; if (x - R - 1 >= 0) acc -= one[row + x - R - 1]; if (x >= 0) rs[row + x] = acc > 0 ? 1 : 0; } }
@@ -18915,7 +18982,7 @@ const Kamera = (() => {
       const cnt = tail - p0;
       dia.regioner++;
       if (bz) bibDel(bz, bibDelar, ko, p0, tail, W, H);
-      if (cnt < T.minArea) { dia.forSma++; smaPx += cnt; for (let q = p0; q < tail; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
+      if (cnt < minAreaPx()) { dia.forSma++; smaPx += cnt; for (let q = p0; q < tail; q++) { if (kalla[ko[q]] === 2) sprittP++; else sprittM++; } continue; }  // damm
       /* En region med en mättad kärna är ett blänk som flyttat sig, inte ett
          kort: kort är ljusa men inte utbrända. Mättnaden räknas över regionen
          och en pixels ring runt den — bara regionens egna bildpunkter missade
@@ -19142,7 +19209,7 @@ const Kamera = (() => {
           const bitar = [], rest = [];
           let smula = false;
           for (const d of s.dela(valda)) {
-            if (d.length < T.minArea) { smula = true; break; }
+            if (d.length < minAreaPx()) { smula = true; break; }
             const b = bedom(d, 0, d.length);
             prov.delar.push(Math.round(b.lang || 0) + '×' + Math.round(b.kort || 0) + (b.skal ? ' ' + b.skal : ''));
             if (!b.skal && arKortStor(b)) { bitar.push(b); continue; }
@@ -19213,10 +19280,10 @@ const Kamera = (() => {
            33–43, och skars igen först när ett av dem blivit säkert och
            gett kortRef. */
         const minns = snittMinne.some(m => m.led === 0 && sammaLada(m.box, r.box));
-        if ((stort || okant || minns) && cnt >= 2 * T.minArea) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
+        if ((stort || okant || minns) && cnt >= 2 * minAreaPx()) { const bitar = skarAllt(ko, p0, p1, r, 0); if (bitar) { for (const d of bitar) ut.push(d); dia.skurna++; continue; } }
         ut.push(r); continue;
       }
-      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * T.minArea) {
+      if ((r.skal === 'kvot' || r.skal === 'otat' || tveksam) && cnt >= 2 * minAreaPx()) {
         if (cnt < 0.25 * n && provaDelar(p0, p1, r, tveksam)) continue;
         /* …och det erosionen inte kan dela skärs: kort kant i kant. Men
            inte en region som är bordet självt — över en fjärdedel av bilden
@@ -19552,7 +19619,7 @@ const Kamera = (() => {
           rorde(bast);   // en hand intill kortet: inte släppt än (MES-242)
           continue;
         }
-        const ror = Math.hypot(bast.cx - f.cx, bast.cy - f.cy);
+        const ror = rorelse(bast, f, nu);
         /* En träff som är mycket MINDRE än spåret är en del av det: två kort
            kant i kant som skars isär (detektera, skar). Spåret tar delen
            som sin nya storlek på en gång — glidmedlet nedan hade hållit
@@ -19572,7 +19639,7 @@ const Kamera = (() => {
            detektorn faktiskt gav spåret en region. Det är vad datorns
            avstämning kallar färskt (rapportera, fältet sen). */
         bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false;
-        if (ror > T.stillaPx) {
+        if (ror > stillaPxNu()) {
           rorde(bast);
           bast.stillaFran = nu; bast.ram = null; bast.stillaN = 0;
           /* Kortet rör sig: en tidig läsning gäller en beskärning som inte
@@ -19600,7 +19667,7 @@ const Kamera = (() => {
              en glidning gav en per ruta. Datorn läser läget ur rapporten
              (k.kam, MODE-3/5). */
           bast.stillaN = (bast.stillaN || 0) + 1;
-          if (bast.tillstand !== 'klar' && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * T.stillaPx)) sattVila(bast, f.area);
+          if (bast.tillstand !== 'klar' && bast.stillaN >= R(2) && (bast.vilaX == null || Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY) > 3 * stillaPxNu())) sattVila(bast, f.area);
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
@@ -19631,8 +19698,8 @@ const Kamera = (() => {
           bast.areaNu = f.area;
           const d = bast.vilaX == null ? Infinity : Math.hypot(bast.cx - bast.vilaX, bast.cy - bast.vilaY);
           const avv = Math.abs(1 - f.area / (bast.vilaArea || f.area));
-          bast.helN = avv <= LAGE_HEL ? 0 : (ror > T.stillaPx ? 1 : (bast.helN || 0) + 1);
-          if (d > 3 * T.stillaPx && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
+          bast.helN = avv <= LAGE_HEL ? 0 : (ror > stillaPxNu() ? 1 : (bast.helN || 0) + 1);
+          if (d > 3 * stillaPxNu() && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
       } else if (fodNya) {
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
@@ -20029,7 +20096,7 @@ const Kamera = (() => {
      spåret, utan ny fråga om lov; videons mått byter då, och loop() tar om
      referensen som vid varje storleksbyte. bildlage är det som följer med
      varje bord: läget som begärdes och rutorna per sekund spåret säger sig ge. */
-  const begart = () => T.snabb ? { w: 1920, h: 1080, fps: 30 } : { w: BEGARD.w, h: BEGARD.h, fps: 15 };
+  const begart = () => T.snabb ? { w: 1920, h: 1080, fps: T.snabb === SNABB_30 ? 30 : 15 } : { w: BEGARD.w, h: BEGARD.h, fps: 15 };
   function bytBildlage() {
     const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null; if (!t || !t.applyConstraints) return;
     const v = begart();
@@ -20037,7 +20104,7 @@ const Kamera = (() => {
   }
   function bildlage() {
     let fps = null; try { const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null, s = t && t.getSettings ? t.getSettings() : null; fps = s && s.frameRate ? Math.round(s.frameRate) : null; } catch (e) {}
-    return { lage: T.snabb ? '1080p30' : '4k15', fps, takt: taktMs() };
+    return { lage: T.snabb === SNABB_30 ? '1080p30' : T.snabb === SNABB_15 ? '1080p15' : '4k15', fps, takt: taktMs(), ana: AW };
   }
   function lasUpplosning(vb, vh) {
     let s = null, c = null;
@@ -20084,7 +20151,13 @@ const Kamera = (() => {
 
     const r = rutaPx(vb, vh);
     if (!AH) {
-      AW = Math.max(AW_MIN, Math.min(AW_MAX, Math.round(r.w / 3)));
+      /* Förvalet (anaBredd 360 = AW_MAX): en tredjedel av videon, högst 360
+         — bit för bit som före MES-244. Höjs tröskeln över 360 (bara bakom
+         ?debug) gäller den rakt av, dock aldrig mer än videon själv: annars
+         hade tredjedelsregeln hållit kvar golden-fallens 1080 px breda foton
+         vid 360 och provet aldrig gått att köra. */
+      const anaTak = Math.max(AW_MIN, T.anaBredd > AW_MAX ? Math.min(T.anaBredd, r.w) : T.anaBredd);
+      AW = Math.max(AW_MIN, Math.min(anaTak, T.anaBredd > AW_MAX ? r.w : Math.round(r.w / 3)));
       AH = Math.max(24, Math.round(AW * r.h / r.w)); anaC.width = AW; anaC.height = AH;
       vidSkala = r.w / AW;
     }
@@ -20521,7 +20594,7 @@ const Kamera = (() => {
      låset hängde kvar där kortet legat. */
   const arStilla = t => t.regionNar != null && forra - t.stillaFran >= T.stillaMs;
   /* I vila på sitt läge (MES-214): två stilla rutor, läget satt där kortet ligger, och inte det tidiga namnets preliminära läge (spekTidig). */
-  const arVila = t => (t.stillaN || 0) >= R(2) && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * T.stillaPx;
+  const arVila = t => (t.stillaN || 0) >= R(2) && !t.spekTidig && t.vilaX != null && Math.hypot(t.cx - t.vilaX, t.cy - t.vilaY) <= 3 * stillaPxNu();
   /* Signaturen i det senast skickade bordet. Stegen jämför mot den, inte mot
      signaturen när steget började: klockan står redan på den nya rutan när
      steget börjar, så en bit som slår om bara för att tiden gått (:f efter
@@ -20937,7 +21010,7 @@ const Kamera = (() => {
      och spåret läses som vanligt i samma varv. */
   function bekraftaSpek(t) {
     const s = t.spek, g = s.geo, svar = s.svar;
-    const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * T.stillaPx
+    const lik = Math.hypot(t.cx - g.cx, t.cy - g.cy) <= 3 * stillaPxNu()
              && Math.abs(t.lang - g.lang) <= SPEK_FORM * g.lang && Math.abs(t.kort - g.kort) <= SPEK_FORM * g.kort;
     if (!lik || upptagna(svar.namn, t) > s.upptagna) { t.spek = { miss: true }; return false; }
     /* Samma kort som ett annat klart spår redan bär (sammaKortSom): det tidiga svaret kastas, och den vanliga läsningen dömer spåret som skräp. */
@@ -23813,7 +23886,8 @@ function latensMal(summa) {
 function bildlageText() {
   const b = kamBildlage, u = kamUpplosning;
   if (!b) return 'picture mode unknown';
-  return `${b.lage === '1080p30' ? '1080p · 30 fps' : '4K · 15 fps'}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}`;
+  const namn = { '1080p30': '1080p · 30 fps', '1080p15': '1080p · 15 fps' }[b.lage] || '4K · 15 fps';
+  return `${namn}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}${b.ana && b.ana !== 360 ? `, analysis ${b.ana} px wide` : ''}`;
 }
 const LatensDator = (() => {
   let L = null, pingT = null, visT = null;
@@ -23977,7 +24051,8 @@ const LatensDator = (() => {
     }
     if (!kamBildlage) { if (s) rad('vant', 'Picture mode not reported yet.'); }
     else if (kamBildlage.lage === '1080p30' && kamBildlage.fps && kamBildlage.fps < 25) rad('varn', `1080p asks for 30 fps but the phone gives ${kamBildlage.fps}. Write that down.`);
-    else rad('ok', `Picture mode: ${kamBildlage.lage === '1080p30' ? '1080p · 30 fps' : '4K · 15 fps'}${kamBildlage.fps ? ` (the phone gives ${kamBildlage.fps} fps)` : ''}.`);
+    else if (kamBildlage.lage === '1080p15' && kamBildlage.fps && kamBildlage.fps > 20) rad('varn', `1080p · 15 asks for 15 fps but the phone gives ${kamBildlage.fps}. Write that down.`);
+    else rad('ok', `Picture mode: ${bildlageText()}.`);
     if (L && !L.stoppad) {
       const sedan = nu - Date.parse(L.start), b = bastaPing(), n = rader().length;
       if (b) rad('ok', `Clocks synced (±${Math.round(b.rtt / 2)} ms).`);
@@ -24203,7 +24278,8 @@ $('#pbInspHamta') && ($('#pbInspHamta').onclick = () => InspDator.hamta().catch(
    telefonen varje gång den ansluter. */
 const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 450,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000,
-                 snabb: 0 };   // 1080p-provet (MES-229): av i förvalet, och Reset the thresholds ställer tillbaka det
+                 snabb: 0,       // bildläget (MES-229, MES-244): 0 = 4K · 15 i förvalet, och Reset the thresholds ställer tillbaka det
+                 anaBredd: 360 };   // analysbildens bredd (MES-244): förvalet 360 px
 const PB_REG = [
   ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],
   ['spridning','Structure',    0,   40,  1,   'Minimum spread in grey levels within a region for it to count as a card. A card is at 28–47, a wood chip under 10'],
@@ -24264,14 +24340,25 @@ $('#pbReglage') && $('#pbReglage').addEventListener('input', ev => {
   Moln.sandKam('trosklar', { v: pbTro });
 });
 $('#pbRef') && ($('#pbRef').onclick = () => Moln.sandKam('nyref'));
-/* 1080p-provet (MES-229): växeln skriver T.snabb som vilket reglage som helst — sparas med de andra (sthv.tro.v1), går till telefonen, och Reset the thresholds ställer tillbaka den. Statusraden säger vad telefonen faktiskt kör (ur varje bord). */
+/* Bildläget och analysbredden (MES-229, MES-244): valen skriver T.snabb och
+   T.anaBredd som vilket reglage som helst — sparas med de andra
+   (sthv.tro.v1), går till telefonen, och Reset the thresholds ställer
+   tillbaka dem. Statusraden säger vad telefonen faktiskt kör (ur varje
+   bord). Telefonen tar om sin referensbild vid båda bytena. */
 function ritaPbSnabb() {
-  const v = $('#pbSnabbVal'), s = $('#pbSnabbStatus'); if (!v || !s) return;
-  if (document.activeElement !== v) v.checked = !!pbTro.snabb;
-  s.textContent = kamBildlage ? `The phone runs ${bildlageText()}.` : 'Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.';
+  const v = $('#pbSnabbVal'), a = $('#pbAnaVal'), s = $('#pbSnabbStatus'); if (!v || !s) return;
+  if (document.activeElement !== v) v.value = String(+pbTro.snabb || 0);
+  if (a && document.activeElement !== a) a.value = String(pbTro.anaBredd || 360);
+  s.textContent = kamBildlage ? `The phone runs ${bildlageText()}.` : 'Default: 4K · 15 fps, one frame every 150 ms, analysis 360 px wide. The phone retakes its reference picture when the mode changes.';
 }
 $('#pbSnabbVal') && ($('#pbSnabbVal').onchange = ev => {
-  pbTro.snabb = ev.target.checked ? 1 : 0;
+  pbTro.snabb = +ev.target.value || 0;
+  LS.set('sthv.tro.v1', pbTro);
+  if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
+  ritaPbSnabb();
+});
+$('#pbAnaVal') && ($('#pbAnaVal').onchange = ev => {
+  pbTro.anaBredd = +ev.target.value || 360;
   LS.set('sthv.tro.v1', pbTro);
   if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
   ritaPbSnabb();
