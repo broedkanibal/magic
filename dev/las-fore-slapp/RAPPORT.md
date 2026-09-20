@@ -355,7 +355,7 @@ node dev/las-fore-slapp/las.cjs --jobb allt.json --ut svar.json --port 8290
 node dev/las-fore-slapp/rapport.cjs svar.json --kalla skuren:4k
 ```
 
-Arbetsmappen ligger i **`dev/videos/mes-246-arbete/`** — `dev/videos/` är
+Arbetsmappen ligger i **`dev/material/mes-246-arbete/`** — `dev/material/` är
 gitignorerad, så de tunga filerna (`gra.bin` 2,3 GB, de klippta rutorna
 0,5 GB, Chrome-profilen 0,45 GB) ligger i repots arbetsträd men checkas
 aldrig in. Lägg den **inte** i `/tmp`: den töms när Macen startar om, och det

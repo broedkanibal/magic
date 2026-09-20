@@ -543,7 +543,7 @@ Måttet som räknas: `--ref` på fall som INTE lärt sig själva. Fallen 01–06
 1. **Fotografera** med telefonen rakt ovanför bordet, som när du spelar.
    Från en video: öppna den i QuickTime, pausa på rätt ruta, tryck ⌘C, och i
    Förhandsvisning *Arkiv → Nytt från urklipp* och spara som JPEG. Själva
-   inspelningen ska inte in i git; vill du spara den, lägg den i `dev/videos/`.
+   inspelningen ska inte in i git; vill du spara den, lägg den i `dev/material/video/`.
    (Ska hela förloppet bli fallet i stället — kort som läggs ut och plockas
    bort medan kameran går — se *Lägga till en video* nedan.)
 2. **Skapa en mapp** i `dev/golden/fall/` med nästa nummer. Namnet är bara en
@@ -591,7 +591,7 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
 1. **Spela in** med telefonen: starta Mesas kameravy och gör en
    skärminspelning medan du lägger ut och plockar bort kort. Då syns appens
    egna spårrutor i bilden — det är avsiktligt, man ser vad kameran såg.
-2. **Lägg originalet i `dev/videos/`** (den mappen är gitignorerad — en
+2. **Lägg originalet i `dev/material/video/`** (den mappen är gitignorerad — en
    telefoninspelning är tiotals megabyte och hör inte hemma i git).
 3. **Klipp och koda om** till mappen. Klippet ska vara *bara kamerabilden*:
    bort med iOS statusrad, appens rubrik, statustexten och webbläsarens rad.
@@ -603,7 +603,7 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
 
    ```bash
    # x y bredd höjd = utsnittet i inspelningens bildpunkter; sedan utbredd, kbit/s, fps
-   swift dev/golden/video/koda.swift dev/videos/min-video.MP4 \
+   swift dev/golden/video/koda.swift dev/material/video/min-video.MP4 \
      dev/golden/fall/08-.../video.mp4 0 300 1180 1480 1080 1000 15
    ```
 

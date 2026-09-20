@@ -14,7 +14,14 @@ Bänken (`node dev/kamerabank.cjs`) provar syntetiska ytor och rörelse; det hä
 provar det bänken inte kan: ett riktigt bord, en riktig lampa, riktiga kort.
 
 Mappen följer med koden. Den är **inte** gitignorerad, till skillnad från
-`dev/bilder/`, `dev/diagnos/` och `dev/videos/`.
+`dev/bilder/`, `dev/diagnos/` och `dev/material/`.
+
+Stora filer som aldrig ska in i git ligger i `dev/material/` (hette
+`dev/videos/` till 2026-09-20), sorterade i undermappar: `video/`
+originalinspelningarna till videofallen, `foton/<datum>/` foton som ska bli
+fall, `buggar/` Jespers buggfilmer, `rutor/` enskilda rutor plockade ur en
+video, och en arbetsmapp per utredning (t.ex. `mes-246-arbete/`, som kan tas
+bort när som helst).
 
 ```
 dev/golden/
@@ -282,7 +289,7 @@ foto* och *Lägga till en video*. Här är detaljerna bakom.
 1. **Fotografera.** Telefonen i hållaren rakt över bordet, som när man
    spelar. Stillbild med kameraappen eller en ruta ur en video — lägg in den
    utvalda rutan som JPEG, inte telefonens egen videofil (den är tiotals
-   megabyte och hör hemma i det gitignorerade `dev/videos/`). Ska fallet
+   megabyte och hör hemma i det gitignorerade `dev/material/video/`). Ska fallet
    vara ett *videofall* går videon in i mappen, men klippt och omkodad till
    några megabyte — se *facit.json för ett videofall* längre ner.
    Skala bilden till högst 1080 px bred, kvalitet ~80, så blir den 150–250 kB.
@@ -394,7 +401,7 @@ alla kolumner utom Förlopp betyder exakt samma sak som för ett foto.
 ```
 
 - `fil` ligger i fallets egen mapp och checkas in (till skillnad från
-  originalinspelningen, som hör hemma i det gitignorerade `dev/videos/`).
+  originalinspelningen, som hör hemma i det gitignorerade `dev/material/video/`).
 - `takt_ms` är hur tätt rutorna matas in i modulen. 150 är appens egen takt;
   lägre än så hoppar modulen över rutor och mäter inget mer.
 - `svans_s` är hur många sekunder kameran får på **sista rutan** efter att

@@ -46,7 +46,7 @@ säger vad som stänger vilket löfte; det här säger vad som kan köras nu.
 | 6 | **MES-250** kort som ligger omlott (41 av 57 blir spår) | mesa-bygg-tung | detektorn (`detektera`, `matcha`, skärlinjerna) | 4 — **efter 3**, och inte samtidigt som 5 i samma funktioner |
 | 7 | **MES-221** läsningen i en worker | mesa-bygg-tung | läsningen + ny worker-fil | efter 5 |
 | 8 | **MES-258** plastfickans baksida i poolen | mesa-bygg | poolen (`Ref`, BAKSIDA_NAMN) | när som helst, liten |
-| 8b | **Jespers foton 2026-09-20** → golden-fall 13–15 (ljust trä, varmt ljus, plastfickor, omlott, landhög) | mesa-matning | bara `dev/golden` | **efter 1**. Underlaget med facit per bild: `dev/golden/inspelningar/foton-2026-09-20/UNDERLAG.md`; bilderna i `dev/videos/nya-foton/` (gitignorerad). Ger material till MES-218, 219, 220, 233 och 250 |
+| 8b | **Jespers foton 2026-09-20** → golden-fall 13–15 (ljust trä, varmt ljus, plastfickor, omlott, landhög) | mesa-matning | bara `dev/golden` | **efter 1**. Underlaget med facit per bild: `dev/golden/inspelningar/foton-2026-09-20/UNDERLAG.md`; bilderna i `dev/material/foton/2026-09-20/` (gitignorerad). Ger material till MES-218, 219, 220, 233 och 250 |
 | 9 | Buggklustret: MES-106, 234, 235, 217, 218, 219, 220 | mesa-bygg | ett i taget | fyller luckor |
 | senare | MES-247, MES-251 (tokens, attach) | mesa-bygg-tung | avstämningen + kameran | efter 4 (fall 13 ger måtten) och Jespers designval i MES-142 |
 
