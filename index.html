@@ -18390,6 +18390,16 @@ const Kamera = (() => {
      skars aldrig: 9 → 8 namn, 0 → 1 falska. Låset hade gett den tiden. */
   const kortlik = t => { const r = dia.kortRef; return !!r && Math.abs(t.lang - r.lang) <= 0.25 * r.lang && Math.abs(t.kort - r.kort) <= 0.25 * r.kort; };
   const farLasas = t => lasande === 0 || (lasande < LAS_SAMTIDIGT && kortlik(t));
+  /* En KLUNGA: spåret bär mer yta än ett kort. Detektorn skär inte sådana
+     (det gör den bara när den hittar en söm), namnläsaren har ingen enskild
+     titelrad att läsa, och bildmodellen ser flera konstverk i samma ruta —
+     den lokala kedjan slutar så gott som alltid 'okand' här, och kortet
+     kommer fram först när Claude svarat. 1,6 gånger kortreferensens yta är
+     samma gräns som svarAI redan använder för "mer än ett kort" (ettKort).
+     Utan kortreferens — före bordets första säkra kort — vet vi ingenting om
+     storleken, och då gäller den vanliga ordningen. */
+  const KLUNGA_YTA = 1.6;
+  const klungaSpar = t => { const r = dia.kortRef; return !!r && t.lang > 0 && t.kort > 0 && t.lang * t.kort >= KLUNGA_YTA * r.lang * r.kort; };
   /* Får datorn rita skuggan på en gång (MES-226)? Ett korts mått — eller,
      före bordets första säkra kort, när ingen kortreferens finns: regionen
      har stått formstilla i två rutor (formN, samma mått som den tidiga
@@ -19471,7 +19481,7 @@ const Kamera = (() => {
       tappad: flimmer ? g.tappad : false, tappRun: 0,
       /* Frågan till Claude följer med ett flimmer: annars kastade svarAI
          svaret (aiFragad saknas) och tidsgränsen släppte provet på en gång. */
-      provas: flimmer ? !!g.provas : false, aiFragad: flimmer ? !!g.aiFragad : false, aiFragadNar: flimmer ? (g.aiFragadNar || 0) : 0,
+      provas: flimmer ? !!g.provas : false, aiFragad: flimmer ? !!g.aiFragad : false, aiTidig: flimmer ? !!g.aiTidig : false, aiFragadNar: flimmer ? (g.aiFragadNar || 0) : 0,
       aiInget: flimmer ? (g.aiInget || 0) : 0, ai: flimmer ? (g.ai || null) : null,
       /* Lästiden hör till läsningen: ett flimmer behåller den, en omläsning
          (med ledtråd) mäter om. */
@@ -19589,7 +19599,7 @@ const Kamera = (() => {
            är säkert namngivet. Uppmätt i golden 06: Maul + Pacifism som
            en region, skuren till 71×53 och 71×49, och spåret behöll
            0,19×0,23 av bilden med namnet det gissat på klumpen. */
-        if (f.area < 0.6 * bast.areaRef) { bast.helBox = { box: bast.box, areaRef: bast.areaRef, nar: nu }; bast.areaRef = f.area; bast.spek = null; bast.formN = 0; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
+        if (f.area < 0.6 * bast.areaRef) { bast.helBox = { box: bast.box, areaRef: bast.areaRef, nar: nu }; bast.areaRef = f.area; bast.spek = null; bast.formN = 0; if (bast.tillstand !== 'klar') { bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.aiFragad = false; bast.aiTidig = false; bast.ai = null; bast.provas = false; bast.aiInget = 0; } }
         /* Formen (K4): samma långsida och kortsida som förra rutan, inom
            SPEK_FORM. En hand som håller i kortet, eller en skugga som hänger
            med, ändrar regionens mått fast mitten står nästan still. */
@@ -19609,7 +19619,7 @@ const Kamera = (() => {
           if ((bast.tillstand === 'stilla' || bast.tillstand === 'skrap') && !bast.namn) { bast.tillstand = 'ny'; bast.fragad = false; bast.skrapN = 0;
             /* Ett första "inget kort" kan ha varit en exponering som dippat — samma
                skäl som de lokala omförsöken. En fråga till efter rörelse, aldrig fler. */
-            if (bast.aiInget === 1) { bast.aiFragad = false; bast.ai = null; } }
+            if (bast.aiInget === 1) { bast.aiFragad = false; bast.aiTidig = false; bast.ai = null; } }
           /* Den optimistiska tap-domen (MES-214): första rutan där kortet syns
              igen efter att handen släppt har mitten flyttat — kortet vreds
              runt ett hörn — och räknas som rörelse, så den stilla domen
@@ -20288,6 +20298,13 @@ const Kamera = (() => {
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && t.spek && t.spek.svar && bekraftaSpek(t)) continue;
       if (t.tillstand === 'stilla' && !t.namn && !t.fragad && !t.laser && !(t.igen > nu) && farLasas(t)) { identifiera(t, nu); startad = true; break; }
     }
+    /* En klunga som ligger stilla frågas Claude på en gång, utan att vänta
+       på sin plats i läskön (MES-252, fragaTidigt). Högst en per steg: varje
+       fråga kostar en beskärning ur videon. */
+    if (cb.fragaAI) {
+      const kl = spar.find(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.aiFragad && !q.skymd && !arHelbild(q) && klungaSpar(q));
+      if (kl) fragaTidigt(kl, nu);
+    }
     /* …och är ingen stilla att läsa: ett spår som ännu väntar men har stått
        formstilla läses tidigt (K4). De stillas läsning går alltid först. */
     if (!startad && !spar.some(q => q.tillstand === 'stilla' && !q.namn && !q.fragad && !q.laser && !(q.igen > nu))) {
@@ -20777,6 +20794,43 @@ const Kamera = (() => {
     bedomYta(); lage = 'tom';
   }
 
+  /* ── Claude parallellt med den lokala läsningen (MES-252) ──
+     Frågan till Claude tar 1,5–6 s, och den lokala läsningen ligger FÖRE
+     den i tiden: spåret väntar på sin tur i kön (högst en ny läsning per
+     analyssteg, och en klunga får dessutom bara läsas när ingen annan
+     läsning pågår, farLasas), läses, och frågas först därefter. För en
+     klunga är den väntan ren förlust — kedjan kan inte skära den, och
+     svaret blir så gott som alltid 'okand'. Därför frågas en klunga direkt
+     när den ligger stilla, parallellt med att den lokala kedjan gör sitt.
+     Antalet frågor ändras inte (samma spår hade frågats ändå, en gång),
+     bara när de går i väg.
+
+     Det lokala svaret går fortfarande före: hinner läsningen göra spåret
+     säkert medan frågan är ute står det lokala namnet kvar (redanKlar i
+     svarAI), och hinner den döma beskärningen som skräp står den domen
+     (skrapvakten i svarAI). Kommer Claudes svar FÖRE den lokala läsningen
+     — kön måste då ligga flera sekunder efter — gäller Claudes svar, och
+     spåret läses inte lokalt i efterhand; det är samma ordning som
+     helbilden redan har. */
+  function fragaTidigt(t, nu) {
+    if (!video || !cb.fragaAI) return false;
+    const forraRam = t.ram;
+    let c = null;
+    try {
+      t.ram = finLada(t.box, senasteG0, t);
+      const b = beskar(t); c = b && b.bild;
+    } catch (e) { c = null; }
+    let ute = false;
+    if (c) { try { ute = cb.fragaAI(c, t.id, true) === true; } catch (e) { ute = false; } }
+    /* Gick frågan inte i väg (AI av, leken inte klar, taket per minut nått)
+       ska ingenting ha hänt: spåret läses och frågas som förut. */
+    if (!ute) { t.ram = forraRam; return false; }
+    if (t.vilaX != null) t.vilaRuta = t.ram || t.box;
+    t.aiFragad = true; t.aiFragadNar = nu || 0; t.provas = true; t.aiTidig = true;
+    if (latens) (t.ts || (t.ts = {})).fraga = Date.now();
+    return true;
+  }
+
   /* Låt igenkänningen avgöra vilket kort det är. Görs en gång per spår.
      Bara ett SÄKERT svar gör spåret klart; ett osäkert går till granskning
      på datorn med förslagen — det är det README lovar för skärmdumpar, och
@@ -21019,6 +21073,12 @@ const Kamera = (() => {
        avstämning läser dem som syskon — Claude har sagt att de är olika kort. */
     t.ai = Object.assign({ kort: svar ? svar.length : 0, klunga: id }, info || {});
     t.provas = false;                                  // svaret har kommit, vilket det än är
+    /* Den tidiga frågan (MES-252) gick i väg INNAN den lokala läsningen var
+       klar. Hann den döma beskärningen som skräp — en bit av bordet utan
+       ljus textruta, ett nedvänt kort, eller samma kort som ett annat spår
+       — står den domen, precis som när frågan aldrig ställdes: Claude ska
+       inte kunna väcka ett skräpspår till liv med ett namn ur leken. */
+    if (t.tillstand === 'skrap' && t.aiTidig) { rapportera(); return; }
     /* Inget svar (nätet, servern, oläsbart): den lokala domen står. */
     if (!svar) { rapportera(); return; }
     /* Claude såg INGET kort, inte ens ett den inte kunde namnge. antal räknar
@@ -21054,7 +21114,11 @@ const Kamera = (() => {
     }
     const redanKlar = t.tillstand === 'klar' && t.saker;
     if (redanKlar) delar = delar.filter(k => k.namn !== t.namn);
-    if (!delar.length || (redanKlar && ettKort)) { rapportera(); return; }
+    /* Den tidiga frågan lägger inte till klungans övriga kort när den lokala
+       läsningen hann bli säker: utfallet ska då vara exakt det som gällde
+       innan frågan började ställas tidigt (MES-252). Var frågan ställd på
+       vanligt vis — spåret var osäkert — delas klungan som förut. */
+    if (!delar.length || (redanKlar && (ettKort || t.aiTidig))) { rapportera(); return; }
     if (!redanKlar && delar.length === 1) {
       const k = delar[0];
       t.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((t.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
@@ -21328,7 +21392,7 @@ const Kamera = (() => {
        namnlöst i granskningen tills nästa helbild, eller tills datorn
        namnger det. Flaggan behålls så att matcha() inte släpper det. */
     if (arHelbild(t)) { t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.varfor = 'helbild glömd'; t.tillstand = 'okand'; t.provas = false; t.aiInget = 0; return; }
-    t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); t.provas = false; t.aiInget = 0;
+    t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.aiTidig = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); t.provas = false; t.aiInget = 0;
     t.spek = null; t.formN = 0; t.spekN = 0; t.del = false;
   }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
@@ -21470,7 +21534,7 @@ async function oppnaKamera(gameId) {
       upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
       identifiera: (canvas, id, gissning, kort, o) => kamIdentifiera(canvas, id, gissning, kort, o),
       lekTak: kamLekTak,
-      fragaAI: (canvas, id) => kamFragaAI(canvas, id),
+      fragaAI: (canvas, id, tidig) => kamFragaAI(canvas, id, tidig),
       lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
       /* Om frågorna faktiskt går till Claude (samma villkor som kamFragaAI):
          rådet om avståndet väntar då på Claudes svar innan det säger något. */
@@ -21927,7 +21991,7 @@ const kamAiNamnKapade = () => Math.max(0, [...new Set(namnUtanBaksida().filter(n
    alltid till Kamera.svarAI; spåret prövas under tiden (identifiera).
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala
    domen är allt som finns, och ett osäkert kort går till granskningen. */
-function kamFragaAI(canvas, id) {
+function kamFragaAI(canvas, id, tidig) {
   if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas) return false;
   const nu = Date.now();
   while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
@@ -21953,8 +22017,12 @@ function kamFragaAI(canvas, id) {
       }
     } catch (e) { info = { fel: 'nätet' }; kamAiBokfor(null, null, true); }
     /* Svarstiden är ett värde per anrop, inte per spår: den får ligga i
-       t.ai (syskon() jämför ai-objekten, och delarna ur en klunga delar det). */
+       t.ai (syskon() jämför ai-objekten, och delarna ur en klunga delar det).
+       Beskärningens mått följer med (MES-252): utan dem går svarstiden inte
+       att ställa mot hur stor bild frågan bar. */
     info.ms = Math.round(performance.now() - t0);
+    info.bild = { w: canvas.width, h: canvas.height };
+    info.tidig = tidig === true;
     try { Kamera.svarAI(id, svar, info); } catch (e) {}
     finally { kamAiVantar--; }
   })();

@@ -201,7 +201,27 @@ function skrivTabell(rs, gamla) {
     { const alla = k => rsV.flatMap(r => r[k] || []).sort((a, b) => a - b), e = alla('videoSkuggaEfter'), e0 = alla('videoSkuggaEfterFore'), med = l => l.length ? l[l.length >> 1] : null;
       if (e.length) console.log(`  skuggan, datorns egen del (från första rapporten med spåret till ritad plats), ${e.length} kort: median ${med(e)} s, störst ${e[e.length - 1]} s, inom 0,3 s: ${e.filter(v => v <= 0.3).length}/${e.length} — med regeln före MES-226: median ${med(e0)} s, störst ${e0[e0.length - 1]} s, inom 0,3 s: ${e0.filter(v => v <= 0.3).length}/${e0.length}`); }
     const fd = rsV.filter(r => r.videoFordrojning != null).map(r => `${r.id.slice(0, 2)}: ${r.videoFordrojning} s${r.videoFordrojningB != null ? ' (' + r.videoFordrojningB + ' med beräkningstid)' : ''}`);
-    if (fd.length) console.log('  fördröjning till namn (median per videofall): ' + fd.join(' · ')); }
+    if (fd.length) console.log('  fördröjning till namn (median per videofall): ' + fd.join(' · '));
+    /* MES-252: vad Claude kostade i TID och pengar. Ett anrop per rad i
+       aiSvar (delarna ur en klunga delar ai-objektet). Beskärningarna och
+       helbilderna räknas var för sig: en helbild är en annan sorts fråga. */
+    { const anrop = rsV.flatMap(r => r.aiSvar || []);
+      if (anrop.length) {
+        const pris = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] }[f0.ai] || null;
+        const med = l => l.length ? l.slice().sort((a, b) => a - b)[l.length >> 1] : null;
+        const sek = v => v == null ? '–' : (v / 1000).toFixed(1) + ' s';
+        const rad = (namn, as) => { if (!as.length) return '';
+          const ms = as.map(a => a.ms).filter(v => v != null).sort((a, b) => a - b);
+          const px = as.filter(a => a.w).map(a => a.w * a.h);
+          return `\n    ${namn}: ${as.length} st${as.filter(a => a.tidig).length ? ` (${as.filter(a => a.tidig).length} tidiga)` : ''}`
+            + `, svarstid median ${sek(med(ms))}, p90 ${sek(ms[Math.min(ms.length - 1, Math.floor(ms.length * 0.9))])}, störst ${sek(ms[ms.length - 1])}`
+            + (px.length ? `, bild median ${Math.round(Math.sqrt(med(px)))}² px` : '')
+            + `, tokens in ${as.reduce((a, x) => a + (x.in || 0), 0)} ut ${as.reduce((a, x) => a + (x.ut || 0), 0)}`
+            + (as.filter(a => a.fel != null).length ? `, fel ${as.filter(a => a.fel != null).length}` : ''); };
+        const kostnad = pris ? ' — ' + (anrop.reduce((a, x) => a + (x.in || 0) * pris[0] + (x.ut || 0) * pris[1], 0) / 1e6 * 100).toFixed(1) + ' cent' : '';
+        console.log(`  Claude: ${anrop.length} anrop${kostnad}`
+          + rad('beskärningar', anrop.filter(a => !a.helbild)) + rad('helbilder', anrop.filter(a => a.helbild)));
+      } } }
   /* --detalj: varje spår med vad namnläsaren såg, för att skruva trösklarna */
   if (process.argv.includes('--detalj')) for (const r of JSON.parse(json)) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));

@@ -603,7 +603,7 @@ function aterkoppling(f, prov) {
       if (p && typeof p.then === 'function') p.then(svar => { try { loggaLasning(prov, s, id, w0, h0, svar, spek); } catch (e) {} }, () => {});
       return folj(p);
     },
-    fragaAI: (c, id) => w.kamFragaAI(c, id),
+    fragaAI: (c, id, tidig) => w.kamFragaAI(c, id, tidig),
     lekTak: n => w.kamLekTak(n),   // antalspriorn på gissningarna (MES-225), som i appen
     lart: (id, namn, sid, kalla) => w.kamLart(id, namn, sid, kalla),
     aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas
@@ -955,6 +955,15 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     /* Helbilden, om fallet fick en: vad Claude såg, hur lång tid det tog och
        vilken låda spåren fick (kortMatt: spårens median eller standardmåttet). */
     helbild: dia.helbild ? { skal: dia.helbild.skal, kort: dia.helbild.kort, nya: dia.helbild.nya, namngivna: dia.helbild.namngivna, bort: dia.helbild.bort, ms: dia.helbild.ms, matt: dia.helbild.matt, modell: dia.helbild.modell } : null,
+    /* MES-252: ett anrop till Claude per rad — svarstid, beskärningens mått
+       och tokens. Delarna ur en klunga DELAR ai-objektet, så unika objekt är
+       anrop; `tidig` är frågan som gick i väg parallellt med den lokala
+       läsningen (fragaTidigt). Bara med --ai: utan den svarar attrappen på
+       nolltid och raderna vore brus i en baslinje. */
+    aiSvar: AI_PA ? [...new Set(K.spar.map(t => t.ai).filter(Boolean))].map(a => ({
+      ms: a.ms == null ? null : a.ms, w: a.bild ? a.bild.w : null, h: a.bild ? a.bild.h : null,
+      in: a.usage ? a.usage.input_tokens : null, ut: a.usage ? a.usage.output_tokens : null,
+      kort: a.kort == null ? null : a.kort, tidig: !!a.tidig, helbild: !!a.helbild, fel: a.fel == null ? null : a.fel })) : null,
     /* Hur många av de rätta, säkra namnen som namnläsaren också läste rätt,
        och hur många den läste rätt där bilden hade ett annat kort överst. */
     namnViaOcr: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k) && p.t.ocr && p.t.ocr.namn && norm(p.t.ocr.namn) === norm(p.k.namn)).length,

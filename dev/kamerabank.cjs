@@ -1262,6 +1262,47 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`W24 flimmer: samma id ${t24.id === id24}, lokalMs ${t24.lokalMs} (var ${ms24}); omläsning efter 3 s: ${fmt(t24b)}, lokalMs ${t24b.lokalMs}`,
           flimmer24 && t24b.id === id24 && t24b.tillstand === 'klar' && typeof t24b.lokalMs === 'number' && t24b.lokalMs > 0 && t24b.lokalMs < ms24 + 5 * 3);
     ctx.performance.now = pnFore;
+
+    /* ── MES-252: den tidiga frågan (fragaTidigt) ──
+       En klunga frågas Claude parallellt med den lokala läsningen, så
+       svaret kan komma när den lokala domen redan fallit. Bänken har ingen
+       video, så frågan ställs för hand — som ovan, men med aiTidig. */
+    const fragaTidig = t => { t.aiFragad = true; t.provas = true; t.aiFragadNar = nu; t.aiTidig = true; };
+    namnSvar = osaker;
+    /* W25: den lokala läsningen hann säga SKRÄP (en bit av bordet, ett
+       nedvänt kort, samma kort som ett annat spår). Claudes namn får inte
+       väcka spåret till liv. Utan den tidiga frågan (aiTidig) gäller den
+       gamla vägen oförändrat — det provar W25b. */
+    t = await ettOkant(); t.aiFragad = false; fragaTidig(t);
+    t.tillstand = 'skrap'; t.fragad = true; t.skrapN = 3; t.namn = null; t.saker = false;
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.5, y: 0.5 }], { antal: 1, ms: 900 });
+    check(`W25 tidig fråga, lokal skräpdom hann först: ${fmt(t)}, ai.ms ${t.ai && t.ai.ms}`,
+          t.tillstand === 'skrap' && t.namn === null && t.saker === false && t.provas === false && !!t.ai && t.ai.ms === 900);
+    /* W25b: samma svar på ett spår som är skräp UTAN tidig fråga går den
+       gamla vägen (den kan inte uppstå i dag, och vakten ändrar den inte). */
+    t = await ettOkant(); t.tillstand = 'skrap'; t.fragad = true; t.skrapN = 3; t.namn = null; t.saker = false;
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.5, y: 0.5 }], { antal: 1 });
+    check(`W25b skräp utan tidig fråga: ${fmt(t)}`, t.tillstand === 'klar' && t.namn === 'Plains');
+    /* W26: den lokala läsningen hann göra klungan SÄKER. Då står det lokala
+       namnet, och svaret lägger INTE till klungans övriga kort — utfallet
+       ska vara exakt det som gällde innan frågan började ställas tidigt. */
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    nystart(); await refTra();
+    for (let i = 0; i < 12; i++) await rutaTra({}, ETT);
+    t = Kamera.spar.find(x => x.tillstand === 'klar') || { id: -1 };
+    fragaTidig(t);
+    const fore26 = Kamera.spar.length;
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.3, y: 0.5 }, { namn: 'Swamp', sid: 's2', saker: true, x: 0.7, y: 0.5 }], { antal: 2, ms: 1500 });
+    check(`W26 tidig fråga, lokalt säker klunga: ${fmt(t)}, spår ${fore26} → ${Kamera.spar.length}, ai.ms ${t.ai && t.ai.ms}`,
+          t.tillstand === 'klar' && t.namn === 'Plains' && Kamera.spar.length === fore26 && !!t.ai && t.ai.ms === 1500);
+    /* W27: var spåret fortfarande osäkert när svaret kom delas klungan som
+       förut — den tidiga frågan ändrar bara NÄR frågan går i väg. */
+    namnSvar = osaker;
+    t = await ettOkant(); t.aiFragad = false; fragaTidig(t);
+    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.3, y: 0.5 }, { namn: 'Plains', sid: 's1', saker: true, x: 0.7, y: 0.5 }], { antal: 2, ms: 1500 });
+    const delar27 = bord.filter(x => x.ai && x.ai.klunga === t.id);
+    check(`W27 tidig fråga, osäkert spår: klungan delas i ${delar27.length} (${delar27.map(x => x.namn).join(',')})`,
+          delar27.length === 2 && delar27.every(x => x.namn === 'Plains' && x.tillstand === 'klar'));
   }
 
   // ── MES-30 grundläget: tappat mäts mot en bekräftad vinkel ──────────
