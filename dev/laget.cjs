@@ -44,17 +44,30 @@ function avsnitt(titel, rader) {
 
   console.log('LÄGET  ' + new Date().toLocaleString('sv-SE').slice(0, 16));
 
+  /* Rubrikraderna på main, en gång. Bara rubriken — INTE brödtexten: ett bra
+     commit-meddelande korsrefererar andra issues för att förklara varför något
+     gjordes, och en grep över hela texten läser de omnämnandena som arbete.
+     (Hittat 2026-09-20: MES-250 flaggades som klar av en commit om MES-265 som
+     bara nämnde den i brödtexten.) */
+  const rubriker = sh('git log origin/main --format=%ad\x1f%s --date=short')
+    .split('\n').filter(Boolean).map(r => r.split('\x1f'));
+  const kodPaMain = (nyckel) => {
+    const re = new RegExp('(^|[^A-Z0-9-])' + nyckel + '(?![0-9])');
+    const träff = rubriker.find(([, s]) => re.test(s));
+    return träff ? träff[0] : '';
+  };
+
   const korsNu = i_ar('In Progress').sort((a, b) => a.identifier.localeCompare(b.identifier));
   avsnitt('KÖRS NU — In Progress (' + korsNu.length + ')', korsNu.map(i => {
     const d = dagarSen(i.updatedAt);
-    // Ligger koden redan på main är issuen troligen klar och bara oöppnad.
-    const pa_main = sh('git log origin/main -1 --format=%ad --date=short --grep="' + i.identifier + '\\b"');
-    const flagg = pa_main ? '  ✓ kod på main sedan ' + pa_main + ' — troligen klar'
+    const pa_main = kodPaMain(i.identifier);
+    const flagg = pa_main ? '  ✓ nämnd i en commit-rubrik på main ' + pa_main + ' — kolla om den är klar'
                 : d >= 2 ? '  ⚠ ' + d + ' dagar utan spår' : '';
     return rad(i) + flagg;
   }));
   console.log('  (en session per rad — saknas en session är issuen övergiven och ska till Todo)');
-  console.log('  (✓ betyder att en commit på main nämner issuen: stäng den, eller säg varför den är kvar)');
+  console.log('  (✓ = issuenyckeln står i en commit-RUBRIK på main. Brödtexten räknas inte —');
+  console.log('   ett bra meddelande korsrefererar andra issues, och det är omnämnanden, inte arbete.)');
 
   const provas = i_ar('Provas');
   const behover = issues.filter(i => i.labels.nodes.some(l => l.name === 'Needs Jesper') && i.state.name !== 'Provas');
