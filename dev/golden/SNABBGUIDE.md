@@ -276,13 +276,28 @@ analyspixlar — minsta area och rörelsen — följer med bredden.
 i varje körning). Faktor 0,5 betyder att korten är hälften så stora i bilden
 — det vidvinkeln gör:
 
-| | Analysbredd 360 (förval) | 480 | 540–720 |
-|---|---|---|---|
-| **Full storlek** (kort 252 px i beskärningen) | 23/44 · 0 fel · 2 falska · 27 ms/ruta | 23/44 · 0 · 1 · 78 ms | 19/44 · 0 · 3 · 108 ms |
-| **Vidvinkel** (faktor 0,5, kort 126–190 px) | 9/44 · 0 fel · 3 falska · 15 ms/ruta | 12/44 · 0 · 1 · 88 ms | **24/44** · 0 · 3 · 68 ms |
+| | Analysbredd 360 (förval) | 480 | 540 | 720 |
+|---|---|---|---|---|
+| **Full storlek** (kort 252 px i beskärningen) | 23/44 · 0 fel · 2 falska · 27 ms/ruta | 23/44 · 0 · 1 · 78 ms | – | 19/44 · 0 · 3 · 108 ms |
+| **Vidvinkel** (faktor 0,5, kort 126–190 px) | 9/44 · 0 fel · 3 falska · 15 ms/ruta | 12/44 · 0 · 1 · 88 ms | **24/44** · 0 · 3 · 68 ms | se fotnoten |
 
 Fall 06 (tolv kort omlott) är tydligast: 0/11 vid 360, 0/11 vid 480 och
 9/11 vid 540 — lika många som i full storlek.
+
+**Var spaken tar slut.** I full storlek går det **23 → 23 → 19** rätta namn
+för 360 → 480 → 720: bredare analys ger först ingenting och sedan mindre än
+förvalet. Den hjälper alltså bara så länge korten är små i analysbilden, och
+någonstans mellan 540 och 720 vänder den. Läs inte tabellen som en stigande
+kurva.
+
+**Fotnoten om 720 i vidvinkelraden:** vid faktor 0,5 är fotot bara 540 px
+brett, och analysbredden tas aldrig större än videon själv — `anaBredd: 720`
+blir då 540. Det finns alltså **ingen 720-mätning med små kort**; 24/44 är
+540. En första körning vid 720 i full storlek (på koden före
+sammanslagningen, och med datorn belastad) slog dessutom i provets
+**30-sekunderstak i fem fall av sju** vid 176 ms per ruta — siffrorna därifrån
+går inte att använda, men taket i sig säger något som "108 ms/ruta" inte
+säger: vid den bredden hinner kedjan inte klart.
 
 **Vinsten är bredden, inte att bilden råkar ritas 1:1.** Vid faktor 0,5 är
 fotot 540 px brett, så analysbredden 540 betyder ingen omskalning alls —
