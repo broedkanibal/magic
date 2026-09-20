@@ -16304,6 +16304,99 @@ function serUtSomKort(im, matt, skala, kort) {
   return celler > 0 && levande / celler >= 0.5;
 }
 
+/* ── beskärningen har ingen framsida (MES-258) ──────────────────────
+   Ett kort som ligger med baksidan upp I PLASTFICKA visar fickans egen
+   baksida, inte Magic-baksidan. Poolens baksideuppslag (BAKSIDA_NAMN,
+   MES-42) hjälper därför inte: uppmätt i MES-246:s inspelning rankades
+   Soldier-tokenen i grön ficka som "Thriving Heath" med marginal 0,071 —
+   under tröskeln 0,11, men bara knappt. En ficka i en annan färg eller ett
+   annat ljus kan gå över, och då blir det ett säkert FEL namn.
+
+   Fickans färg går inte att veta i förväg (grön, svart, röd, blå, vit …),
+   så domen faller på FORMEN i stället: en kortframsida har en layout — ram,
+   konstverksruta, textruta — medan fickans baksida är en enda yta med ett
+   blänk över. Måttet är beskärningen nedskalad hårt (fickans mattstruktur
+   och bildbruset medelvärdas bort — i 4K är de starkare än kortets egen
+   text) minus en kvadratisk anpassning (ljusrampen och blänket bort). Kvar
+   blir layouten, mätt som spridningen i det som blir över.
+   Ljusregeln i harTextruta() gör samma sak med ljusstyrka, och duger inte
+   här: en vit ficka och ett utbränt kort är båda ljusa.
+
+   Uppmätt 2026-09-20 (dev/embed/riktiga + MES-246:s inspelning, samma ruta
+   i BÅDE 4K och golden-fall 13:s 1080p):
+
+   | Beskärning | form |
+   |---|---|
+   | token i grön ficka, baksidan upp | 8,7 (1080p) · 9,2 (4K) |
+   | leken i gröna fickor (library-rutan) | 5,9 · 4,9 |
+   | Magic-baksidan utan ficka | 15,2 · 15,0 |
+   | kort utbrända av lampan i blanka fickor (fall 13) | 34–39 |
+   | golden-setets 61 riktiga beskärningar | lägst 24,4 |
+
+   Måttet ändrar sig knappt med upplösningen (samma kort i 4K och 1080p
+   ligger inom en enhet, och de 61 beskärningarna lägst 22,7 vid en
+   fjärdedels upplösning), därför ett fast tal — skalat med kamerans egen
+   avvikelse som i serUtSomKort, så att ett kort i svagt ljus inte döms.
+   BAK_FORM 12 ligger 1,3 gånger över fickan och 2 gånger under det
+   svagaste riktiga kortet.
+
+   UNDANTAGET, och skälet till BAK_UTBRAND: ett kort som lampan bränt ut helt
+   (MES-219) har ingen form kvar att mäta. Samma inspelning, 4K vid 200,2 s:
+   ett kort i blank ficka rakt under lampan blev ett vitt ark med form 6,4 —
+   under tröskeln, fast det ÄR ett kort. Det som skiljer är att rutan klipper
+   till vitt: 36 % av bildpunkterna ≥ 225 mot fickans 0–2 % (fall 16:s kort i
+   varmt ljus 0,2–33 %). Därför faller ingen dom alls när mer än 5 % av rutan
+   är så ljus — hellre ingen dom än ett kort som försvinner från bordet.
+   Svaret är null också när för lite av rutan syns. */
+const BAK_FORM = 12, BAK_UTBRAND = 0.05;
+function framsideForm(im, kort) {
+  const cv = document.createElement('canvas');
+  cv.width = 96; cv.height = Math.round(96 / Matcher.ASPECT);
+  const W = cv.width, H = cv.height;
+  const c = cv.getContext('2d', { willReadFrequently: true });
+  if (kort) {
+    /* Samma inpassning som serUtSomKort: det vridna kortet med sin egen 8 %
+       marginal rakt in i rutnätet, långsidan lodrätt. */
+    const fi = ((kort.vinkel % Math.PI) + Math.PI) % Math.PI;
+    const lc = Math.cos(fi), ls = Math.sin(fi), gu = W / ((1 + 2 * 0.08) * kort.kort), gv = H / ((1 + 2 * 0.08) * kort.lang);
+    c.setTransform(ls * gu, lc * gv, -lc * gu, ls * gv, W / 2 - gu * (ls * kort.cx - lc * kort.cy), H / 2 - gv * (lc * kort.cx + ls * kort.cy));
+    c.drawImage(im, 0, 0);
+  } else c.drawImage(im, 0, 0, im.width, im.height, 0, 0, W, H);
+  const d = c.getImageData(0, 0, W, H).data;
+  const mf = 0.08 / 1.16, x0 = Math.round(W * mf), x1 = W - x0, y0 = Math.round(H * mf), y1 = H - y0;
+  const G = 4, SW = Math.floor((x1 - x0) / G), SH = Math.floor((y1 - y0) / G);
+  const pu = [], pv = [], pl = [];
+  let ljusa = 0, alla = 0;
+  for (let j = 0; j < SH; j++) for (let i = 0; i < SW; i++) {
+    let s = 0, n = 0;
+    for (let y = y0 + j * G; y < y0 + (j + 1) * G; y++) for (let x = x0 + i * G; x < x0 + (i + 1) * G; x++) {
+      const p = (y * W + x) * 4; if (d[p + 3] < 250) continue;            // utanför videon
+      const l = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114;
+      s += l; n++; alla++; if (l >= 225) ljusa++;
+    }
+    if (n < G * G * 0.6) continue;
+    pl.push(s / n); pu.push(i / SW - 0.5); pv.push(j / SH - 0.5);
+  }
+  if (pl.length < SW * SH * 0.5) return null;                             // för lite av rutan syns: ingen dom
+  if (!alla || ljusa / alla > BAK_UTBRAND) return null;                   // utbränd ruta: formen är bortbränd, ingen dom
+  /* Minsta kvadrat mot 1, u, v, u², v², uv (Gauss med pivotering). */
+  const K = 6, bas = i => [1, pu[i], pv[i], pu[i] * pu[i], pv[i] * pv[i], pu[i] * pv[i]];
+  const A = [], b = new Float64Array(K);
+  for (let r = 0; r < K; r++) A.push(new Float64Array(K));
+  for (let i = 0; i < pl.length; i++) { const v = bas(i); for (let r = 0; r < K; r++) { b[r] += v[r] * pl[i]; for (let q = 0; q < K; q++) A[r][q] += v[r] * v[q]; } }
+  for (let k = 0; k < K; k++) {
+    let piv = k; for (let r = k + 1; r < K; r++) if (Math.abs(A[r][k]) > Math.abs(A[piv][k])) piv = r;
+    if (Math.abs(A[piv][k]) < 1e-9) return null;
+    const ra = A[k]; A[k] = A[piv]; A[piv] = ra; const bt = b[k]; b[k] = b[piv]; b[piv] = bt;
+    for (let r = 0; r < K; r++) { if (r === k) continue; const f = A[r][k] / A[k][k]; for (let q = k; q < K; q++) A[r][q] -= f * A[k][q]; b[r] -= f * b[k]; }
+  }
+  const ko = []; for (let r = 0; r < K; r++) ko.push(b[r] / A[r][r]);
+  let s = 0, q2 = 0;
+  for (let i = 0; i < pl.length; i++) { const v = bas(i); let p = 0; for (let r = 0; r < K; r++) p += ko[r] * v[r]; const e = pl[i] - p; s += e; q2 += e * e; }
+  const n = pl.length;
+  return Math.sqrt(Math.max(0, q2 / n - (s / n) ** 2));
+}
+
 /* ── namnläsaren ────────────────────────────────────────────────────
    Kortets NAMN ur titelraden, läst lokalt i webbläsaren och matchat mot
    lekens namn. Illustrationen ensam räckte inte: poolen bär 24 konstverk
@@ -20824,7 +20917,7 @@ const Kamera = (() => {
        att kameravyn kan säga vad det är. Domen faller på en gång: baksidan
        är samma bild varje gång, och det är ingen exponering som dippat. */
     if (svar && svar.baksida) {
-      t.fragad = true; t.tillstand = 'skrap'; t.varfor = 'baksida'; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.namnLast = null; t.skrapN = 3;
+      t.fragad = true; t.tillstand = 'skrap'; t.varfor = svar.varfor || 'baksida'; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.namnLast = null; t.skrapN = 3;
       rapportera(); return;
     }
     if (svar) {
@@ -21784,6 +21877,19 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      de andra två — en baksida ligger ofta i en hög, så 'ensamt' krävs inte. */
   if (b0 && b0.name === BAKSIDA_NAMN && (M ? (M.bar || (M.saker && !M.emot)) : (v.accept || (b0.score >= 0.7 && (!b1 || b0.score - b1.score >= 0.1)))))
     return { baksida: true, varfor: 'baksida', poang: b0.score, accept: !!v.accept, tider };
+  /* Baksidan I PLASTFICKA (MES-258): fickan döljer Magic-baksidan, så
+     uppslaget ovan känner inte igen den — beskärningen jagas i stället mot
+     lekens namn (uppmätt: "Thriving Heath", marginal 0,071, strax under
+     tröskeln). Formen får avgöra i stället för färgen (framsideForm).
+     Domen faller BARA när inget annat vittne sett ett kort: bilden har inte
+     accepterat något namn, modellen är inte säker på sitt, och titelraden är
+     oläst. Ett kort som fått ett säkert namn kan alltså aldrig falla här —
+     och ett kort utan säkert namn hade ändå blivit en granskningspost. */
+  if (!v.accept && !(M && (M.bar || M.saker)) && !(namn && namn.namn && namn.poang >= 0.5)) {
+    const form = framsideForm(canvas, kort);
+    if (form != null && form < BAK_FORM * (Kamera.utseendeSkala || 1))
+      return { baksida: true, varfor: 'baksida ficka', form: +form.toFixed(1), poang: b0 ? b0.score : 0, accept: false, tider };
+  }
   const cands = alla.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: c.score }));
   /* Stod baksidan överst utan att räcka till gäller modellens dom inte tvåan. */
   let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
