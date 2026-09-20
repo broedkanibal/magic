@@ -60,6 +60,7 @@ const UTAN_LEKEN = arg('--utan-leken', '');
 const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela rutan (MES-227) av eller på, oavsett appens förval
 const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
+const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -162,7 +163,8 @@ function skrivTabell(rs, gamla) {
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|'))].filter(Boolean).join('&');
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
+                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -207,6 +209,8 @@ function skrivTabell(rs, gamla) {
     console.log('\n' + r.id + (r.missade.length ? ' — missade: ' + r.missade.join(', ') : ''));
     { const sidan = rader.find(x => x.includes(r.id)); if (sidan) console.log('  sidans rad: ' + sidan.replace(/^Kör\s+/, '')); }
     if (r.tidDelar) console.log(`  stegtid: median ${r.ms} ms, max ${r.msMax} ms — ` + Object.entries(r.tidDelar).map(([k, v]) => `${k} ${v.median} (${v.max})`).join(', '));
+    /* MES-221: räknetrådens frågor sedan sidan laddades (hela körningen hittills, inte bara fallet). */
+    if (r.lasworker) { const l = r.lasworker; console.log(`  räknetråd (${l.lage}): ${l.fragor} frågor — ${l.trad} i tråden, ${l.huvud} på huvudtråden, ${l.fel} fel, ${l.gammal} mot gammal pool, ${l.olika} olika i kontrollen; trådens räknetid median ${l.ms == null ? '–' : l.ms + ' ms'}, max ${l.msMax == null ? '–' : l.msMax + ' ms'}`); }
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
     if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
