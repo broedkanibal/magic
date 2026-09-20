@@ -19400,10 +19400,12 @@ const Kamera = (() => {
     const OMLOTT_MIN = 1.2, OMLOTT_MAX = 4.5, OMLOTT_FYLL = 0.9, OMLOTT_DEL = 0.2, OMLOTT_REST = 0.15, OMLOTT_TAK = 4, OMLOTT_KANT = 30, OMLOTT_KANTDEL = 0.5, OMLOTT_GAP = 6;
     /* Minnet (hysteres, som snittminnet och i samma lista, led 'omlott'):
        en region som lades förra gången läggs igen med sin vinkel först och
-       med lägre krav på fyllnad och rest, och utan kantbeviset — beviset
-       togs när minnet skrevs. Utan det flimrade fall 15:s klumpar varannan
-       ruta: avvikelsen stegar en enhet per ruta, masken flyttar en pixel,
-       och kantprofilen som mätte 45 mätte 18 en pixel bredvid. */
+       med lägre krav på fyllnad och rest. Kantbeviset krävs ALLTID: när
+       minnet fick hoppa över det (första utkastet) tog en hand över ett
+       kort i golden 07 och 09 minnets låda och lades som två kort — falska
+       3 → 8, dubbletter 0 → 3, lägesuppdateringar 1 → 8. Kanten mäts med
+       två cellers slack och läget väljs på kanten (kantPoang), så beviset
+       flimrar inte längre mellan rutor som det gjorde i utkastet. */
     const omlottProv = [];
     let delMark = null;   // markering av en dels bildpunkter (provaDelar), när passaKort läggs på en del i stället för en hel region
     const markera = pix => { if (!delMark) delMark = new Uint8Array(n); else delMark.fill(0); for (let q = 0; q < pix.length; q++) delMark[pix[q]] = 1; return i => delMark[i] === 1; };
@@ -19565,9 +19567,9 @@ const Kamera = (() => {
           const funnet = ok(m1) || (m2 && ok(m2));
           g.kant.push(slag + ' ' + text(m1) + (m2 ? ' ' + text(m2) : ''));
           if (funnet) { bevis[i]++; bevis[j]++; }
-          else if (!minne) { kantOk = false; break; }
+          else { kantOk = false; break; }
         }
-        if (!minne && (!kantOk || Array.from(bevis).some(x => !x))) { g.dom = 'kant'; continue; }
+        if (!kantOk || Array.from(bevis).some(x => !x)) { g.dom = 'kant'; continue; }
         /* Delarna: regionens bildpunkter inom var sin rektangel, dömda som kort. */
         if (!stamp) stamp = new Uint8Array(n);
         const delar = [];
