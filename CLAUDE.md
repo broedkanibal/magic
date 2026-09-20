@@ -131,17 +131,68 @@ etikett: fråga hellre än att skapa en ny.
 | Claude Code påbörjar arbetet direkt | **In Progress** (`paborjaIssue`) |
 | Claude Code noterar något på eget initiativ, som ingen bett om | Backlog |
 
-**Projekt — alltid Mesa Magic i det här repot:**
+### In Progress betyder en sak: en session kör den nu
 
-Varje issue som Claude Code skapar medan det jobbar i det här repot hamnar i
-projektet **Mesa Magic** (laget Mesa). Det gäller alla sessioner kopplade
-till GitHub-repot `broedkanibal/magic` — huvudarbetsträdet och alla
-worktrees — oavsett om issuen är en bugg, en feature, research eller
-administration. Fråga inte och gissa inte: utan projekt syns issuen inte i
-projektvyn. Ett annat projekt bara om Jesper uttryckligen säger det i
-chatten.
+Det här är regeln som gör kolumnerna sanna. **In Progress = en levande
+session har issuen just nu.** Inget annat.
+
+Tar sessionen slut utan att issuen är klar — **flytta tillbaka den till
+Todo** och kommentera vad som gjorts och vad som återstår. Ligger det en
+gren kvar: skriv vilken, och att den inte är ihopslagen. En issue som står
+i In Progress utan session är osynligt övergiven, och det var precis det
+som gjorde kolumnen oläsbar (38 issues, 22 av dem orörda i flera dagar,
+mätt 2026-09-20).
+
+De andra kolumnerna finns för att In Progress ska slippa betyda dem:
+
+| Kolumn | Betyder | Vem släpper den vidare |
+|---|---|---|
+| **Provas** | koden är på **main**, men det sista provet återstår — riktig telefon, ett riktigt spel, eller ett designval | Jesper |
+| **Blocked** | väntar på en annan issue; ingen ska plocka upp den | den som stänger blockeraren |
+| **Todo** | i kön, ingen session | vem som helst |
+
+`blockeraIssue(issueId, orsak, { blockeradAv })` flyttar till **Blocked**.
+Är det Jesper som behövs — inte en annan issue — hör den till **Provas**
+plus etiketten `Needs Jesper`.
+
+**Priority är köordningen, inte hur viktigt något känns:**
+
+| Priority | Betyder |
+|---|---|
+| **High** | näst på tur — plockas när något blir ledigt |
+| **Medium** | i kön, men senare |
+| Low / ingen | inte bedömd |
+
+Ordningen kommer ur `dev/plan/orkestrering.md`. Den filen är **regelboken**
+— kodområden, vad som inte får köras parallellt, hur en gren slås ihop —
+inte en egen kö. Två köer som inte stämmer överens är värre än ingen.
+
+**Projekt — fyra, och de tar slut:**
+
+| Projekt | Klart när |
+|---|---|
+| **Spegelläget i realtid** | de tre löftena hålls (milstolpar: Etapp 1–4) |
+| **Uppstarten vid bordet** | en spelare kan ställa upp telefonen utan hjälp |
+| **Lekbyggaren och vägen till spel** | från ingen lek till pågående spel utan att lämna appen |
+| **Spelvyn och bordsvyn** | ett helt parti går att spela utan att vyn står i vägen |
+
+Varje issue Claude Code skapar i det här repot hamnar i ett av de fyra.
+Hör den till inget av dem — konton, drift, licenser, mätverktyg, arbetssätt
+— sätt **inget projekt** och etiketten `Plattform` i stället. Det området
+tar aldrig slut, och ett projekt som aldrig blir klart gör framstegsstapeln
+och måldatumet meningslösa.
+
+Hör issuen till en etapp i Spegelläget: sätt milstolpen också. Etapperna är
+**milstolpar i projektet**, inte parent-issues (MES-237 och MES-253–256 är
+stängda som ersatta av dem).
 
 Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature'], status:
-'unstarted' })` — `'unstarted'` är Todo, och projektet blir Mesa Magic av
-sig självt (förval i klienten). Med MCP-kopplingen finns inget förval: sätt
-`labels`, `state: "Todo"` och `project: "Mesa Magic"` i `save_issue`.
+'unstarted', projekt: 'Spegelläget i realtid' })`. Med MCP-kopplingen: sätt
+`labels`, `state: "Todo"` och `project` i `save_issue`.
+
+### Överblicken: `/läget`
+
+Kör `node dev/laget.cjs` plus `ListAgents` — skillen `laget` gör båda och
+slår ihop dem. Den svarar på vad som körs, vad som väntar på Jesper, vad som
+är blockat, vilka grenar som inte är ihopslagna och vad som är näst på tur.
+Använd den när Jesper frågar hur det går, i stället för att läsa Linear.
