@@ -1,9 +1,11 @@
-# Orkestreringen av spegelläget (MES-237) — plan för en autonom session
+# Orkestreringen av spegelläget — plan för en autonom session
 
 Skriven 2026-09-20 som överlämning från MES-242-sessionen. Läses av den
 session som Jesper startar på **ultracode** för att köra etapperna utan
 avstämning efter varje issue. Linear är källan för status; etappkartan är
-`dev/plan/etapper.md`. Uppdatera den här filen när kön ändras.
+`dev/plan/etapper.md`. Arbetet hör till projektet *Spegelläget i
+realtid*, och etapperna är milstolpar i det — inte issues (de var det till
+2026-09-20). Uppdatera den här filen när kön ändras.
 
 ## Vad Jesper har godkänt (2026-09-20)
 

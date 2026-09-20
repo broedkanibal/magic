@@ -1,6 +1,6 @@
-# Spegelläget i etapper (MES-237)
+# Spegelläget i etapper (projektet *Spegelläget i realtid*)
 
-Kartan över vägen till målen i MES-237. Linear är källan för status; den
+Kartan över vägen till målen i projektet *Spegelläget i realtid*. Linear är källan för status; den
 här filen finns för att en ny Claude Code-session ska kunna läsa planen
 utan att gå till Linear. Uppdatera båda när något ändras.
 
@@ -18,12 +18,17 @@ ett kort vid ett annat.
 
 ## Etapperna
 
+Etapperna är **milstolpar** i projektet *Spegelläget i realtid*, inte issues.
+De var issues (MES-253 till 256, under MES-237) fram till 2026-09-20; de fem
+är stängda som ersatta och barn-issuesarna ligger oförändrade kvar på sin
+milstolpe.
+
 | Etapp | Issue | Innehåller | Ändrar hur appen känns? |
 |---|---|---|---|
-| 1 Mät klart | MES-253 | MES-244, 243, 164, 238, 242, 190, **249** | nej |
-| 2 Farten | MES-254 | MES-246, 221, 252, 222 | ja, namnet kommer tidigare |
-| 3 Träffsäkerheten | MES-255 | **MES-250**, 233, 106, 241, 245, 234, 235, 232, 220, 219, 218, 217, 223 | ja, färre fel och fler kort hittas |
-| 4 Handlingarna | MES-256 | MES-247, 251, 248 | ja, tokens, attach och zonerna |
+| 1 Mät klart | milstolpen *Etapp 1 · Mät klart* | MES-244, 243, 164, 238, 242, 190, **249** | nej |
+| 2 Farten | milstolpen *Etapp 2 · Farten* | MES-246, 221, 252, 222 | ja, namnet kommer tidigare |
+| 3 Träffsäkerheten | milstolpen *Etapp 3 · Träffsäkerheten* | **MES-250**, 233, 106, 241, 245, 234, 235, 232, 220, 219, 218, 217, 223 | ja, färre fel och fler kort hittas |
+| 4 Handlingarna | milstolpen *Etapp 4 · Handlingarna* | MES-247, 251, 248 | ja, tokens, attach och zonerna |
 
 Etapp 4 rör appen och avstämningen, inte igenkänningen, och kan byggas
 parallellt med 2 och 3 av en egen session.
