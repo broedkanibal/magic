@@ -5,6 +5,21 @@ vilka kort som faktiskt ligger där. Provet kör appens kamerakedja på varje
 foto och räknar hur många kort den hittar och namnger rätt. Här står det du
 behöver i vardagen; allt i detalj finns i [LÄS-MIG.md](LÄS-MIG.md).
 
+## Innan du litar på en körning
+
+Läs raden `Poolen:` varje gång. En hel pool är **114 kort ur `lek.txt`**
+(28 namn + baslandens konstverk). Står det färre: kasta körningen, siffrorna
+betyder ingenting.
+
+Poolen kan tyst bli ofullständig. Dödas den huvudlösa Chrome med `kill -9`
+hinner den inte spara poolen; nästa körning hämtar då om hela leken från
+Scryfall, slår i 429-gränsen, och `kor.cjs` kör vidare mot det halva som hann
+hämtas — **utan att varna**. Det har gett 17/57 två gånger, och såg ut som en
+verklig regression.
+
+**Låt därför Chrome avsluta självt.** MES-260 ska täppa till hålet; tills dess
+är raden `Poolen:` det enda som skiljer en giltig körning från skräp.
+
 ## Samma prov, två lägen
 
 | | Utan Claude | Med Claude |

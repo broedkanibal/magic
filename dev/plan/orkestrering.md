@@ -55,6 +55,25 @@ golden-körning åt gången på datorn (`pgrep -f kor.cjs`,
 `pgrep -f mesa-golden-profil`). Räkna med att golden, inte antalet
 agenter, sätter takten: en full körning tar 8–12 minuter.
 
+## Flera sessioner samtidigt: vem rör main
+
+Överenskommet 2026-09-20 mellan orkestreraren och MES-242-sessionen, efter att
+två commits landade i main mitt under en pågående golden-körning. Den gången
+var det bara dokumentation och körningen överlevde — hade det varit en kodfil
+hade agentens före/efter-jämförelse blivit ogiltig utan att något varnat.
+
+Gäller varje session som jobbar bredvid en orkestrerande session:
+
+| Vad du vill pusha | Hur |
+|---|---|
+| Dokumentation, material, planer | säg till orkestreraren först, pusha sedan |
+| Kod som golden täcker (`index.html`, `api/`, `dev/embed/`, `dev/golden/*.cjs`) | pusha inte till main — lämna en gren och säg till, så kör orkestreraren bänk och golden och slår ihop |
+| Vad som helst, medan ett merge-fönster är öppet | vänta; orkestreraren säger till när det öppnas och när det stängs |
+
+Skälet är inte revir. En agents mätning jämför före mot efter på samma kod.
+Byts koden under körningen jämförs två olika saker — och siffran ser exakt
+lika riktig ut som förut.
+
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 
 1. `git fetch`; utgå från en ren worktree på `origin/main`.
