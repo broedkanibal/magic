@@ -46,6 +46,7 @@ säger vad som stänger vilket löfte; det här säger vad som kan köras nu.
 | 6 | **MES-250** kort som ligger omlott (41 av 57 blir spår) | mesa-bygg-tung | detektorn (`detektera`, `matcha`, skärlinjerna) | 4 — **efter 3**, och inte samtidigt som 5 i samma funktioner |
 | 7 | **MES-221** läsningen i en worker | mesa-bygg-tung | läsningen + ny worker-fil | efter 5 |
 | 8 | **MES-258** plastfickans baksida i poolen | mesa-bygg | poolen (`Ref`, BAKSIDA_NAMN) | när som helst, liten |
+| 8b | **Jespers foton 2026-09-20** → golden-fall 13–15 (ljust trä, varmt ljus, plastfickor, omlott, landhög) | mesa-matning | bara `dev/golden` | **efter 1**. Underlaget med facit per bild: `dev/golden/inspelningar/foton-2026-09-20/UNDERLAG.md`; bilderna i `dev/material/foton/2026-09-20-ljust-tra-varmt-ljus-plastfickor/` (gitignorerad). Ger material till MES-218, 219, 220, 233 och 250 |
 | 9 | Buggklustret: MES-106, 234, 235, 217, 218, 219, 220 | mesa-bygg | ett i taget | fyller luckor |
 | senare | MES-247, MES-251 (tokens, attach) | mesa-bygg-tung | avstämningen + kameran | efter 4 (fall 13 ger måtten) och Jespers designval i MES-142 |
 
@@ -53,6 +54,25 @@ säger vad som stänger vilket löfte; det här säger vad som kan köras nu.
 golden-körning åt gången på datorn (`pgrep -f kor.cjs`,
 `pgrep -f mesa-golden-profil`). Räkna med att golden, inte antalet
 agenter, sätter takten: en full körning tar 8–12 minuter.
+
+## Flera sessioner samtidigt: vem rör main
+
+Överenskommet 2026-09-20 mellan orkestreraren och MES-242-sessionen, efter att
+två commits landade i main mitt under en pågående golden-körning. Den gången
+var det bara dokumentation och körningen överlevde — hade det varit en kodfil
+hade agentens före/efter-jämförelse blivit ogiltig utan att något varnat.
+
+Gäller varje session som jobbar bredvid en orkestrerande session:
+
+| Vad du vill pusha | Hur |
+|---|---|
+| Dokumentation, material, planer | säg till orkestreraren först, pusha sedan |
+| Kod som golden täcker (`index.html`, `api/`, `dev/embed/`, `dev/golden/*.cjs`) | pusha inte till main — lämna en gren och säg till, så kör orkestreraren bänk och golden och slår ihop |
+| Vad som helst, medan ett merge-fönster är öppet | vänta; orkestreraren säger till när det öppnas och när det stängs |
+
+Skälet är inte revir. En agents mätning jämför före mot efter på samma kod.
+Byts koden under körningen jämförs två olika saker — och siffran ser exakt
+lika riktig ut som förut.
 
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 

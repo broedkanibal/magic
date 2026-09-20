@@ -5,6 +5,21 @@ vilka kort som faktiskt ligger där. Provet kör appens kamerakedja på varje
 foto och räknar hur många kort den hittar och namnger rätt. Här står det du
 behöver i vardagen; allt i detalj finns i [LÄS-MIG.md](LÄS-MIG.md).
 
+## Innan du litar på en körning
+
+Läs raden `Poolen:` varje gång. En hel pool är **114 kort ur `lek.txt`**
+(28 namn + baslandens konstverk). Står det färre: kasta körningen, siffrorna
+betyder ingenting.
+
+Poolen kan tyst bli ofullständig. Dödas den huvudlösa Chrome med `kill -9`
+hinner den inte spara poolen; nästa körning hämtar då om hela leken från
+Scryfall, slår i 429-gränsen, och `kor.cjs` kör vidare mot det halva som hann
+hämtas — **utan att varna**. Det har gett 17/57 två gånger, och såg ut som en
+verklig regression.
+
+**Låt därför Chrome avsluta självt.** MES-260 ska täppa till hålet; tills dess
+är raden `Poolen:` det enda som skiljer en giltig körning från skräp.
+
 ## Samma prov, två lägen
 
 | | Utan Claude | Med Claude |
@@ -80,6 +95,41 @@ Flaggorna går att kombinera: `node dev/golden/kor.cjs --ai --fall 03 --detalj`.
 **Spara en baslinje bara när du vill jämföra mot den framöver** — ett nytt
 fall, eller en ändring som blev bättre. Skriv då en rad i `historik.md` och
 checka in båda.
+
+## När två körningar inte ger samma tal (MES-249)
+
+Provet är nästan, men inte helt, deterministiskt. Två saker flyttar talen
+utan att en rad kod har ändrats — kolla dem **innan** en skillnad tolkas som
+en regression:
+
+| Vad | Vilka fall | Vad som händer |
+|---|---|---|
+| **Poolen i profilen** | alla | Poolen byggs ur `lek.txt` + extra konstverk från Scryfall (högst 24 per basland) och sparas i profilens IndexedDB. Svarar Scryfall 429 mitt i, sväljs det tyst för konstverken: körningen fortsätter mot en tunnare pool, och lands­korten får färre ORB-träffar. Uppmätt 2026-09-20: en profil som gick i 429 gav fall 09 **2/4 namn och 1 falskt** i stället för 4/4 |
+| **Maskinens fart** | bara stillbildsfallen (01–06, 08, och provkortsfallet) | De går på väggklockan med ett tak (20 s). En seg webbläsare hinner inte: uppmätt samma dag gav en körning där stegtiden var 343 ms i median (normalt 35) fall 01 **0/3 namn** med `⏱ tak`, och totalen 32/57 i stället för 35/57 |
+
+**Videofallen (07, 09–12) är blinda för belastning.** De går med låtsasklocka:
+varje ruta väntas in och `performance.now()` är videons tid, så samma 307
+rutor analyseras oavsett om maskinen är tom eller har lastmedel 43. Provat
+2026-09-20 med 6 och med 24 snurrande processer: fall 09 gav samma siffror
+in på decimalen. Ett videofall som ändrar sig har alltså fått en annan
+**pool**, inte en annan maskin.
+
+Tre kontroller före varje slutsats:
+
+1. Raden **`Poolen: N kort`** ska vara samma i båda körningarna — 114 med
+   dagens `lek.txt`. Står det en röd rad om Scryfall, eller `⚠ pool` i
+   tabellen, är siffrorna skräp.
+2. **`⏱ tak`** på ett fall = det hann inte klart; talet gäller inte.
+3. Samma dator **och samma profil** (`TMPDIR`) i före- och efterkörningen.
+   Jämför aldrig bara mot `senaste.json` från en annan maskin eller profil.
+
+**Knivseggen i fall 09.** Bordets första kort, ett Plains, blir säkert bara
+genom ORB:s svaga stöd för modellens etta: `stod >= ORB_EMOT` i
+`identifyMedModell`, och `ORB_EMOT = 6`. Plains får **precis 6** inliers
+(en halv sekund tidigare: 4). En inlier mindre — till exempel för att
+poolen bär färre Plains-konstverk — och kortet blir aldrig säkert: fallet
+går från 4/4 till 3/4 utan att något annat ändras. Ser du 09 på 3/4, börja
+med poolen.
 
 ## Jämföra modeller
 
@@ -543,7 +593,8 @@ Måttet som räknas: `--ref` på fall som INTE lärt sig själva. Fallen 01–06
 1. **Fotografera** med telefonen rakt ovanför bordet, som när du spelar.
    Från en video: öppna den i QuickTime, pausa på rätt ruta, tryck ⌘C, och i
    Förhandsvisning *Arkiv → Nytt från urklipp* och spara som JPEG. Själva
-   inspelningen ska inte in i git; vill du spara den, lägg den i `dev/videos/`.
+   inspelningen ska inte in i git; vill du spara den, lägg den i
+   `dev/material/inspelningar/<datum>-<vad>/telefon.MP4`.
    (Ska hela förloppet bli fallet i stället — kort som läggs ut och plockas
    bort medan kameran går — se *Lägga till en video* nedan.)
 2. **Skapa en mapp** i `dev/golden/fall/` med nästa nummer. Namnet är bara en
@@ -591,8 +642,11 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
 1. **Spela in** med telefonen: starta Mesas kameravy och gör en
    skärminspelning medan du lägger ut och plockar bort kort. Då syns appens
    egna spårrutor i bilden — det är avsiktligt, man ser vad kameran såg.
-2. **Lägg originalet i `dev/videos/`** (den mappen är gitignorerad — en
-   telefoninspelning är tiotals megabyte och hör inte hemma i git).
+2. **Lägg originalet i `dev/material/inspelningar/`** (den mappen är
+   gitignorerad — en telefoninspelning är tiotals megabyte och hör inte hemma i
+   git). En egen mapp per inspelningstillfälle, döpt `<datum>-<fallets namn>`,
+   och filen `telefon.MP4` — t.ex.
+   `dev/material/inspelningar/2026-09-12-fall-09-svartmatta-lampa-40cm-4kort-tap/telefon.MP4`.
 3. **Klipp och koda om** till mappen. Klippet ska vara *bara kamerabilden*:
    bort med iOS statusrad, appens rubrik, statustexten och webbläsarens rad.
    Sedan 2026-09-12 visar kameravyn ingen text efter de första sex sekunderna
@@ -603,7 +657,8 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
 
    ```bash
    # x y bredd höjd = utsnittet i inspelningens bildpunkter; sedan utbredd, kbit/s, fps
-   swift dev/golden/video/koda.swift dev/videos/min-video.MP4 \
+   swift dev/golden/video/koda.swift \
+     dev/material/inspelningar/2026-09-12-fall-09-.../telefon.MP4 \
      dev/golden/fall/08-.../video.mp4 0 300 1180 1480 1080 1000 15
    ```
 

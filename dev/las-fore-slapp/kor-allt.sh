@@ -3,12 +3,13 @@
 #
 #   bash dev/las-fore-slapp/kor-allt.sh <arbetsmapp> <video>
 #
-# Arbetsmappen ska ligga i dev/videos/ (gitignorerad): gra.bin blir ~2,3 GB
-# och de klippta rutorna ~0,5 GB. Lägg den INTE i /tmp — den töms när Macen
-# startar om. Facit och de små JSON-filerna kopieras till
+# Arbetsmappen ska ligga i dev/material/arbete/<datum>-<issue>/ (gitignorerad):
+# gra.bin blir ~2,3 GB och de klippta rutorna ~0,5 GB. Lägg den INTE i /tmp —
+# den töms när Macen startar om. Facit och de små JSON-filerna kopieras till
 # dev/las-fore-slapp/facit/ och checkas in.
 #
-#   bash dev/las-fore-slapp/kor-allt.sh dev/videos/mes-246-arbete/arb \
+#   bash dev/las-fore-slapp/kor-allt.sh \
+#        dev/material/arbete/2026-09-19-mes-246-las-fore-slapp/arb \
 #        dev/golden/inspelningar/mes-246/mes-246-video.mov
 set -e
 ARB="${1:?arbetsmapp}"
