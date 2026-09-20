@@ -41,17 +41,60 @@ dev/linear-agent/installera.cjs` körts en gång (görs av Jesper).
 assignee, i ett anrop. En issue som Claude Code jobbar på ska aldrig stå kvar
 i Backlog eller Todo.
 
-### Saknas issuen, skapa den automatiskt
+### Tröskeln: vad som blir en issue, och vad som inte gör det
 
-Ber Jesper om något i chatten som inte redan finns som en Linear-issue —
-skapa automatiskt en eller flera relevanta issues kopplade till det du ska
-jobba med, utan att fråga om lov först. Sök igenom laget om du är osäker på
-om det redan finns en matchande issue innan du skapar en ny. Följer du direkt
-upp med arbetet: kör `paborjaIssue` på den (kolumn In Progress, se ovan och
-kollen i nästa avsnitt). Etikett och projekt sätts enligt reglerna nedan.
+Läs det här före varje `skapaIssue`. Det är den regel som avgör om Linear går
+att överblicka eller inte.
 
-Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så
-att Jesper ser dem utan att behöva leta i Linear.
+**En issue skapas när minst ett av tre stämmer:**
+
+| Villkor | Varför |
+|---|---|
+| Den kräver ett **beslut av Jesper** | ett designval, ett prov på telefonen, ett konto — han måste kunna se den |
+| Den **spänner över mer än en session** | någon annan måste kunna ta vid, och då behövs ett spår utanför chatten |
+| Den är ett **löfte om produkten** | något vi sagt ska fungera, som ska gå att mäta mot |
+
+**Annars: ingen issue.** En fix som en session gör klart, provar och slår ihop
+i samma svep är ett *commit-meddelande*, inte en issue. Skriv i stället
+meddelandet så att det bär hela historien: vad som var fel, vad som mättes,
+vad som ändrades. Det är där nästa session ändå letar.
+
+**Varför tröskeln finns:** 280 issues på tolv dagar, ~13 klara per dag. Ingen
+sortering i världen gör den högen överskådlig — bara filtrerbar. Det som
+minskar den är att färre saker blir issues från början. Rädslan att arbete
+"försvinner" utan en issue är obefogad: commit-meddelandet och `/läget` visar
+det redan.
+
+Är du osäker — **skapa den inte.** En fix som visar sig behöva en issue får en
+när den behövs, och då med bättre underlag. En issue som inte behövdes städas
+bort av en människa, och det är dyrare.
+
+### När du väl skapar en
+
+Sök igenom laget först, så att det inte blir en dubblett. Följer du direkt upp
+med arbetet: kör `paborjaIssue` (kolumn In Progress, se kollen i nästa
+avsnitt). Etikett, kolumn och projekt enligt reglerna nedan.
+
+Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så att
+Jesper ser dem utan att leta i Linear.
+
+### Jespers vy är "Väntar på mig"
+
+Fyra sparade vyer i Linear ersätter brädan, som med 280 kort inte kan ge
+överblick:
+
+| Vy | Svarar på |
+|---|---|
+| **1 · Väntar på mig** | Provas + `Needs Jesper`, minus det en session jobbar på — Jespers startsida |
+| **2 · Nu** | vad en session kör just nu |
+| **3 · Näst på tur** | Todo med Urgent eller High |
+| **4 · Blockerat** | vad som står stilla, och varför |
+
+Rapporterar du till Jesper: säg det som hör hemma i vy 1. Att agenterna
+snurrar behöver han inte läsa — `/läget` säger det på en rad.
+
+Cykler används medvetet inte. Med tretton klara issues om dagen blir en
+veckocykel nittio rader, och det är ingen rytm.
 
 ### Innan en issue plockas upp ur Todo
 
