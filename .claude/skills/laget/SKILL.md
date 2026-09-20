@@ -43,7 +43,7 @@ gör. Är ingenting angeläget, säg det.
 | Kolumn | Betyder |
 |---|---|
 | **In Progress** | en session kör den **nu** — inget annat |
-| **Provas** | koden är på main, väntar på Jespers prov eller designval |
+| **Provas** | väntar på Jesper — prov, designval eller konto, med eller utan kod |
 | **Blocked** | väntar på en annan issue; ingen ska plocka upp den |
 | **Todo** | i kön, ingen session |
 | **Backlog** | inte bedömd |

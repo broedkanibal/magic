@@ -190,13 +190,21 @@ De andra kolumnerna finns för att In Progress ska slippa betyda dem:
 
 | Kolumn | Betyder | Vem släpper den vidare |
 |---|---|---|
-| **Provas** | koden är på **main**, men det sista provet återstår — riktig telefon, ett riktigt spel, eller ett designval | Jesper |
+| **Provas** | **väntar på Jesper** — ett prov på riktig telefon, ett prov i ett riktigt spel, ett designval eller ett konto. Om det finns kod eller inte spelar ingen roll | Jesper |
 | **Blocked** | väntar på en annan issue; ingen ska plocka upp den | den som stänger blockeraren |
 | **Todo** | i kön, ingen session | vem som helst |
 
 `blockeraIssue(issueId, orsak, { blockeradAv })` flyttar till **Blocked**.
 Är det Jesper som behövs — inte en annan issue — hör den till **Provas**
-plus etiketten `Needs Jesper`.
+plus etiketten `Needs Jesper`. Det gäller också en issue där ingenting är
+byggt än för att designvalet är hans: den ligger i Provas, inte i In
+Progress. Annars syns han inte som flaskhalsen i sin egen vy, och det är
+hela poängen med kolumnen.
+
+**Är halva issuen levererad och andra halvan blockad — dela den.** En rad på
+brädan kan bara säga ett läge. MES-248 var det första fallet: del 1 ute i
+produktionen, del 2 blockad av MES-261, och kolumnen sa bara "Blocked" så
+att den som läste trodde att ingenting hänt.
 
 **Priority är köordningen, inte hur viktigt något känns:**
 
