@@ -78,23 +78,58 @@ avsnitt). Etikett, kolumn och projekt enligt reglerna nedan.
 Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så att
 Jesper ser dem utan att leta i Linear.
 
-### Jespers vy är "Väntar på mig"
+### En bräda, fyra nivåer
 
-Fyra sparade vyer i Linear ersätter brädan, som med 280 kort inte kan ge
-överblick:
+Det finns **ett** ställe att titta på: lagets Issues, grupperad på status,
+med "visa sub-issues" avslagen. Inga sparade vyer — en vy som bara filtrerar
+på status är statusen förklädd till navigation, och då finns ingen plats där
+allt är representerat en gång.
 
-| Vy | Svarar på |
+Fyra nivåer, var och en med ett eget jobb:
+
+| Nivå | Linear | Exempel | Jobb |
+|---|---|---|---|
+| Leverans som tar slut | **projekt** | Spegelläget i realtid | vad vi lovat, och när det är klart |
+| Fas i leveransen | **milstolpe** | Etapp 1–4 | ordningen, och 6/19 i projektvyn |
+| Bestående tema | **etikett** | `kortigenkänning` | filtrera brädan tvärs igenom projekten |
+| Klump som blir klar ihop | **parent + sub-issues** | MES-281, 0/6 | en rad på brädan i stället för sex |
+
+**Etikett eller parent?** Består temat och vill du kunna filtrera på det —
+etikett. Blir klumpen klar ihop och vill du se 6/19 — parent. Det ena
+ersätter inte det andra.
+
+Var sparsam med parent-issues. En parent-rad kan bara säga ett läge, medan
+barnen ligger utspridda över flera kolumner — samma problem som med en issue
+där halva leveransen är ute. Gör en parent bara när barnen verkligen landar
+tillsammans.
+
+**De bestående temana** (teamets etiketter, utöver typ-etiketterna):
+
+| Tema | Vad |
 |---|---|
-| **1 · Väntar på mig** | Provas + `Needs Jesper`, minus det en session jobbar på — Jespers startsida |
-| **2 · Nu** | vad en session kör just nu |
-| **3 · Näst på tur** | Todo med Urgent eller High |
-| **4 · Blockerat** | vad som står stilla, och varför |
-
-Rapporterar du till Jesper: säg det som hör hemma i vy 1. Att agenterna
-snurrar behöver han inte läsa — `/läget` säger det på en rad.
+| `kortigenkänning` | att kameran hittar kortet och sätter rätt namn — detektorn, läsningen, bildmodellen |
+| `kameran-uppställning` | hur telefonen står, vad den ser, hur varm den blir |
+| `golden` | mätverktyget självt |
+| `Plattform` | konton, drift, licenser, arbetssätt — hör inte till någon leverans |
 
 Cykler används medvetet inte. Med tretton klara issues om dagen blir en
 veckocykel nittio rader, och det är ingen rytm.
+
+### Arbetsytan har en gräns: 250 aktiva issues
+
+Linear-arbetsytan ligger på gratisnivån. **Stängda issues räknas tills de
+arkiveras.** Den 20 september slog laget i taket mitt under arbetet, och
+ingen session kunde skapa nya issues.
+
+Laget auto-arkiverar nu stängda issues efter en månad. Slår det i taket ändå:
+arkivera allt med statustypen `completed`, `canceled` eller `duplicate`.
+
+**Arkivera aldrig något med öppen status.** MES-109, MES-110 och MES-165 låg
+arkiverade med statusen Todo och syntes på brädan utan att returneras av en
+enda API-fråga — osynliga för varje mätning och varje kö. Det är det värsta
+tillståndet en issue kan ha.
+
+Tröskeln ovan är det som håller antalet nere i längden.
 
 ### Innan en issue plockas upp ur Todo
 
