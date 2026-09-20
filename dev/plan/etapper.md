@@ -20,7 +20,7 @@ ett kort vid ett annat.
 
 | Etapp | Issue | Innehåller | Ändrar hur appen känns? |
 |---|---|---|---|
-| 1 Mät klart | MES-253 | MES-244, 243, 164, 238, 242, 190 | nej |
+| 1 Mät klart | MES-253 | MES-244, 243, 164, 238, 242, 190, **249** | nej |
 | 2 Farten | MES-254 | MES-246, 221, 252, 222 | ja, namnet kommer tidigare |
 | 3 Träffsäkerheten | MES-255 | **MES-250**, 233, 106, 241, 245, 234, 235, 232, 220, 219, 218, 217, 223 | ja, färre fel och fler kort hittas |
 | 4 Handlingarna | MES-256 | MES-247, 251, 248 | ja, tokens, attach och zonerna |
@@ -52,6 +52,9 @@ parallellt med 2 och 3 av en egen session.
 * MES-247 (tokens) och MES-251 (attach) väntar på svaret i MES-246 del 1:
   syns en flytt som en flytt?
 * MES-243 (värmeprovet) väntar på MES-244 (vilka lägen som ska provas).
+* MES-249: golden-baslinjen (`dev/golden/senaste.json`) säger 4/4 namn i
+  fall 09, men koden mäter 3/4 i dag — också före MES-242. Etapp 2 och 3
+  döms mot den baslinjen, så red ut den innan de mäts.
 
 ## Regler som gäller i hela kedjan
 
