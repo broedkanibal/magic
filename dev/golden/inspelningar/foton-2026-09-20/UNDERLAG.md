@@ -5,22 +5,34 @@ plastficka som klipper till vitt) och MES-220 (avvikelsegränsen mätt i två
 ljus), plus material till MES-250 (kort omlott) och MES-233 (landhögar).
 Golden har nästan bara svart matta — det här är ytan och ljuset som fattas.
 
-Mappen är gitignorerad. Originalen från telefonen ska hit; filerna som ligger
-här nu är chattens nerskalade kopior (1500×1125, omkomprimerade) och duger
-som reserv. Recept för att göra fall av dem: *Lägga till ett nytt foto* i
-`dev/golden/SNABBGUIDE.md`.
+Mappen är gitignorerad och ligger bara i huvudarbetsträdet. Den heter sedan
+MES-264 `dev/material/foton/2026-09-20-ljust-tra-varmt-ljus-plastfickor/`
+(förut `dev/material/foton/2026-09-20/`). Originalen från telefonen ligger
+där: 5712×4284, ~7 MB var, liggande. Recept för att göra fall av dem:
+*Lägga till ett nytt foto* i `dev/golden/SNABBGUIDE.md`.
 
 ## Filerna
 
-| Fil | Uppställning | Ljus |
-|---|---|---|
-| `omlott-ljus1.jpg` | omlott + hög | varmt (lampa) |
-| `omlott-ljus2.jpg` | **samma** som ovan | kallare (dagsljus) |
-| `utspridd.jpg` | utspridd, inga omlott, ingen hög | varmt |
+| Fil | Uppställning | Ljus | Blev fall |
+|---|---|---|---|
+| `omlott-ljus1.jpg` | omlott + hög | varmt (lampa) | 14 |
+| `omlott-ljus2.jpg` | **samma** som ovan | se mätningen nedan | 15 |
+| `utspridd.jpg` | utspridd, inga omlott, ingen hög | varmt | 16 |
 
 De två första är ett **ljuspar**: samma kort på samma plats, bara ljuset
 skiljer. Det är paret MES-220 behöver. Den utspridda saknar sitt par —
 korten flyttades innan andra ljuset togs — så den blir ett eget fall.
+
+**Mätt i bilderna 2026-09-20 (MES-265):** `omlott-ljus2` är inte kallare än
+`omlott-ljus1` — den är **varmare**. R/B-kvoten är 2,68 mot 2,14 och
+medelljuset är i praktiken lika (128 mot 129). Beskrivningen "kallare
+(dagsljus)" stämmer alltså inte med bildpunkterna; det som faktiskt skiljer
+tagningarna är **blänket**. Över Pharika's Chosen går medelljuset 121 → 189,
+andelen mörka bildpunkter 24,4 % → 0,7 % och andelen utbrända 1,0 % → 3,0 %.
+Paret duger fortfarande för MES-220 — det är två ljus på samma bord — men
+det mäter blänk och färgtemperatur åt samma håll, inte varmt mot kallt.
+Fallnamnet `15-tra-dagsljus-…` bär kvar det gamla ordet; byt det gärna till
+`15-tra-lampa-50cm-11kort-omlott-blank` när något ändå rör mappen.
 
 ## Facit: `omlott-ljus1.jpg` och `omlott-ljus2.jpg` (11 kort)
 
@@ -48,9 +60,12 @@ Plains (utan ficka), Fencing Ace (ficka), Pharika's Chosen (blänk), Swamp
 (ficka), Mirran Bardiche, Trusty Retriever, Resistance Reunited, Maul of the
 Skyclaves (ficka). Inga omlott, ingen hög.
 
-**Kontrollera:** Mirran Bardiche ligger nere till vänster på bildkanten och
-kan vara avskuren. Är den det, utelämna den ur facit och skriv varför i
-mappens `facit.json` — ett kort som skärs av mäts som ett halvt kort.
+**Kontrollerat 2026-09-20 (MES-265): Mirran Bardiche är INTE avskuren.**
+Kortet ligger helt innanför bildkanten — alla fyra kanter syns mot bordet i
+originalet — men tätt: ~9 px marginal till vänsterkanten och ~7 px till
+nederkanten i den 1080 px breda bilden. Det står därför kvar i facit, och
+`avskurna` i fall 16 är tom. Skalar någon ner fallet med `avstand.cjs` är
+det kortet att titta på först.
 
 ## Namn och lek
 
@@ -59,7 +74,19 @@ får extra konstverk av poolbygget, som i appen.
 
 ## När fallen läggs in
 
-**Efter MES-249.** Nya fall ändrar golden-totalen, och baslinjen i
-`senaste.json` stämmer inte med vad koden mäter på den här datorn förrän den
-issuen är löst. Förslag på namn: `13-tra-lampa-50cm-11kort-omlott`,
-`14-tra-dagsljus-50cm-11kort-omlott`, `15-tra-lampa-50cm-8kort`.
+**Villkoret är uppfyllt.** MES-249 är stängd: svaret blev att baslinjen
+stämmer och att fall 09 är en knivsegg på `ORB_EMOT`, inte en regression.
+`senaste.json` är orörd och duger som domare igen.
+
+Kvar att tänka på: **nya fall ändrar golden-totalen.** Lägg därför till
+fallen och kör dem, men spara inte om baslinjen i samma steg — nya fall ska
+synas som nya fall, inte som en förändring i de gamla.
+
+Namnen är **14, 15 och 16** — inte 13. Fall 13 är MES-257:s, ur MES-246:s
+inspelning, och numret står i den issuens titel:
+
+* `14-tra-lampa-50cm-11kort-omlott`
+* `15-tra-dagsljus-50cm-11kort-omlott`
+* `16-tra-lampa-50cm-8kort`
+
+Mapparna är gjorda i MES-265 (2026-09-20) med de namnen.
