@@ -94,6 +94,15 @@ gissade:
 **Formen är densamma varje gång.** I fem av sex fall upptäcktes det av en
 slump, för att någon som råkade veta sanningen tittade på utskriften.
 
+En sjunde, natten till 2026-09-21: en session höll på att köra fyra
+minuters bänk på en gren som **redan låg i main**. Två sessioner hade fått
+samma uppdrag av Jesper, den ena hann före, och den andra visste inte om
+det. Det som räddade det var `git diff --stat origin/main` — tom.
+
+**Före varje sammanslagning:** `git diff --stat origin/main` och
+`git branch -r --contains <gren>`. Är diffen tom är arbetet redan ute, och
+mätningen hade tagit maskinen från någon annan i onödan.
+
 Regeln som följer: **varje kontroll ska ha ett sätt att säga "jag vet
 inte"** i stället för att tyst svara fel. En pool som inte är hel ska vägra
 köra, inte varna. En körning som hänger ska ha skrivit sina tal innan den
