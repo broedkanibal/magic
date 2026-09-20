@@ -81,6 +81,28 @@ Todo.
 Blockeringen släpper när blockeraren är klar: flytta då tillbaka issuen till
 Todo innan den plockas upp, och gör kollen igen.
 
+### Behöver issuen Jesper: etiketten "Needs Jesper"
+
+Kan en issue inte gå vidare utan något bara Jesper kan göra — ett prov på
+telefonen, en inspelning, ett designval, ett konto — kör
+`agent.markeraBehoverJesper(issueId, varfor)`. Den lägger etiketten
+**Needs Jesper** och en kommentar som säger konkret vad som behövs. Sedan
+stannar arbetet på den issuen; gå vidare med något annat. När Jesper gjort
+sitt: `agent.slappBehoverJesper(issueId)` innan arbetet tas upp igen.
+
+Etiketten är hur Jesper ser i Linear var han är flaskhalsen, utan att läsa
+chatten. Lägg den aldrig på för ett beslut du kan ta själv enligt
+reglerna här.
+
+### Agenterna i `.claude/agents/`
+
+`mesa-matning` (Sonnet, mäter utan kod), `mesa-bygg` (Opus, vanligt bygge)
+och `mesa-bygg-tung` (Fable, detektorn, läsningen, spärren mot fel namn,
+samtidighet). Effort ärvs från sessionen som startar dem — kör
+orkestrerande sessioner på xhigh eller ultracode. Agenterna slår aldrig
+ihop med main och pushar aldrig; det gör orkestreraren efter bänk och
+golden. Planen för orkestreringen: `dev/plan/orkestrering.md`.
+
 ### Etikett och kolumn när en issue skapas
 
 Gäller varje issue Claude Code skapar, via agent-klienten eller MCP-kopplingen.
