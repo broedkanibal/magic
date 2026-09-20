@@ -19409,7 +19409,10 @@ const Kamera = (() => {
     const markera = pix => { if (!delMark) delMark = new Uint8Array(n); else delMark.fill(0); for (let q = 0; q < pix.length; q++) delMark[pix[q]] = 1; return i => delMark[i] === 1; };
     /* inne(i): är bildpunkten i regionen — etikettkartan för en hel region, markeringen för en del. */
     const passaKort = (inne, r) => {
-      if (!T.omlott || !kortRef || r.area < OMLOTT_MIN * refA || r.area > OMLOTT_MAX * refA) return null;
+      /* Minst två säkert namngivna kort bakom referensen: ett ensamt kan vara
+         en flisa som fick namn (golden 14: 53×37 av Plains-högen), och med den
+         som mått lades varje riktigt kort som två eller tre. */
+      if (!T.omlott || !kortRef || langar.length < 2 || r.area < OMLOTT_MIN * refA || r.area > OMLOTT_MAX * refA) return null;
       if (r.area > 0.25 * n || r.lang > 0.6 * Math.max(W, H) || r.vinkel === undefined) return null;
       const L = Math.round(kortRef.lang), K = Math.round(kortRef.kort);
       if (L < 8 || K < 6) return null;
@@ -19443,10 +19446,34 @@ const Kamera = (() => {
         const summa = (S, cu, cv, a, bb) => S[(cv + bb) * sw + cu + a] - S[cv * sw + cu + a] - S[(cv + bb) * sw + cu] + S[cv * sw + cu];
         const S = new Int32Array(sw * (gh + 1)); integral(grid, S);
         const rest = Uint8Array.from(grid), Sz = new Int32Array(sw * (gh + 1)); integral(rest, Sz);
+        /* Profilen tvärs en kant: dalens djup = det ljusaste 4–7 celler ut på
+           båda sidor minus det mörkaste inom två celler (rektangeln kan
+           ligga en pixel fel mot kortet), och dalens nivå. */
+        const djupVid = (cu, cv, du, dv) => {
+          const varde = k2 => { const c = pxAv(cu + du * k2, cv + dv * k2); return c < 0 ? null : nu[c]; };
+          let ute1 = -Infinity, ute2 = -Infinity, mitt = Infinity;
+          for (let k2 = 4; k2 <= 7; k2++) { const p = varde(-k2), q = varde(k2); if (p != null && p > ute1) ute1 = p; if (q != null && q > ute2) ute2 = q; }
+          for (let k2 = -2; k2 <= 2; k2++) { const p = varde(k2); if (p != null && p < mitt) mitt = p; }
+          return ute1 === -Infinity || ute2 === -Infinity || mitt === Infinity ? null : { djup: Math.min(ute1, ute2) - mitt, mitt };
+        };
+        /* Kortets kant runt en lagd rektangel: medeldjupet längs alla fyra
+           sidorna, varannan cell. Ett kort har en svart kant runt om — mot
+           bordet och över grannen — och rektangeln som ligger på kortet får
+           den djupaste. */
+        const kantPoang = q => {
+          let sum = 0, k = 0;
+          for (let cu = q.cu + 2; cu < q.cu + q.a - 2; cu += 2) { for (const cv of [q.cv, q.cv + q.b - 1]) { const d = djupVid(cu, cv, 0, 1); if (d) { sum += d.djup; k++; } } }
+          for (let cv = q.cv + 2; cv < q.cv + q.b - 2; cv += 2) { for (const cu of [q.cu, q.cu + q.a - 1]) { const d = djupVid(cu, cv, 1, 0); if (d) { sum += d.djup; k++; } } }
+          return k ? sum / k : 0;
+        };
         let kvar = A0;
         const lagda = [], stdar = [];
         while (lagda.length < OMLOTT_TAK && kvar > restMax * A0) {
-          let bast = null;
+          /* Alla lägen som förklarar nästan lika mycket (inom 3 %) är
+             kandidater; bland dem vinner den vars kant är mörkast — inte den
+             i regionens ände: masken sträcker sig 10 px under kortet i en
+             skugga (golden 14/15), och rektangeln i änden låg 11 px fel. */
+          let basta = 0; const kand = [];
           for (const [a, bb] of [[L, K], [K, L]]) {
             if (a + 2 > gw || bb + 2 > gh) continue;
             const fyllTak = fyllMin * a * bb, ring = 2 * (a + bb) + 4;
@@ -19454,12 +19481,17 @@ const Kamera = (() => {
               const fyll = summa(S, cu, cv, a, bb);
               if (fyll < fyllTak) continue;
               const vinst = summa(Sz, cu, cv, a, bb);
-              if (bast && vinst < 0.97 * bast.vinst) continue;
+              if (vinst < 0.97 * basta) continue;
+              if (vinst > basta) basta = vinst;
               /* Kantstödet: ringen en cell utanför rektangeln — hur många av dess celler som INTE är region. */
               const stod = ring - (summa(S, cu - 1, cv - 1, a + 2, bb + 2) - fyll);
-              if (!bast || vinst > 1.03 * bast.vinst || stod > bast.stod) bast = { cu, cv, a, b: bb, vinst, stod, fyll };
+              kand.push({ cu, cv, a, b: bb, vinst, stod, fyll });
             }
           }
+          let bast = null;
+          const urval = kand.filter(q => q.vinst >= 0.97 * basta);
+          const steg = Math.max(1, Math.ceil(urval.length / 80));   // högst ~80 kantmätningar per kort
+          for (let i = 0; i < urval.length; i += steg) { const q = urval[i]; q.kant = kantPoang(q); if (!bast || q.kant > bast.kant + 1 || (Math.abs(q.kant - bast.kant) <= 1 && q.stod > bast.stod)) bast = q; }
           if (!bast || bast.vinst < OMLOTT_DEL * L * K) break;
           /* Den nya delens struktur: spridningen över det den ensam förklarar. */
           let s1 = 0, s2 = 0, k = 0;
@@ -19477,30 +19509,20 @@ const Kamera = (() => {
         if (lagda.some(q => q.flat)) { g.dom = 'flat'; continue; }
         if (lagda.length < 2) { g.dom = lagda.length ? 'ett' : 'inget'; continue; }
         if (kvar > restMax * A0) { g.dom = 'rest'; continue; }
-        /* Kanten som syns. Profilen tvärs en kant: dalens djup = det
-           ljusaste 4–7 celler ut på båda sidor minus det mörkaste inom två
-           celler (rektangeln kan ligga en pixel fel mot kortet). Medel över
-           kantens celler, och andelen celler med en dal alls. Två kort som
-           täcker varandra: den enas kanter där de går inne i den andra —
-           det övre kortets syns, det undres inte, och ett av dem räcker.
-           Två kort kant i kant (glipa högst OMLOTT_GAP): sömmen mitt
-           emellan de kanter som vetter mot varandra. Varje kort ska ha
-           minst ett sådant bevis mot ett annat, annars är det ett kort
-           som lagts på måfå i ett stort ensamt kort (uppmätt med en för
-           liten referens på golden 14: Pharika's Chosen lades som två kort
-           sida vid sida, utan söm). */
+        /* Kanten som syns: medel över kantens celler, och andelen celler
+           med en dal alls. Två kort som täcker varandra: den enas kanter
+           där de går inne i den andra — det övre kortets syns, det undres
+           inte, och ett av dem räcker. Två kort kant i kant (glipa högst
+           OMLOTT_GAP): sömmen mitt emellan de kanter som vetter mot
+           varandra. Varje kort ska ha minst ett sådant bevis mot ett annat,
+           annars är det ett kort som lagts på måfå i ett stort ensamt kort
+           (uppmätt med en för liten referens på golden 14: Pharika's Chosen
+           lades som två kort sida vid sida, utan söm). */
         const inneI = (q, cu, cv) => cu >= q.cu && cu < q.cu + q.a && cv >= q.cv && cv < q.cv + q.b;
-        const djupVid = (cu, cv, du, dv) => {
-          const varde = k2 => { const c = pxAv(cu + du * k2, cv + dv * k2); return c < 0 ? null : nu[c]; };
-          let ute1 = -Infinity, ute2 = -Infinity, mitt = Infinity;
-          for (let k2 = 4; k2 <= 7; k2++) { const p = varde(-k2), q = varde(k2); if (p != null && p > ute1) ute1 = p; if (q != null && q > ute2) ute2 = q; }
-          for (let k2 = -2; k2 <= 2; k2++) { const p = varde(k2); if (p != null && p < mitt) mitt = p; }
-          return ute1 === -Infinity || ute2 === -Infinity || mitt === Infinity ? null : Math.min(ute1, ute2) - mitt;
-        };
-        const matt = () => ({ sum: 0, k: 0, dal: 0 });
-        const prova = (m, cu, cv, du, dv) => { const d = djupVid(cu, cv, du, dv); if (d == null) return; m.sum += d; m.k++; if (d >= OMLOTT_KANT / 2) m.dal++; };
+        const matt = () => ({ sum: 0, k: 0, dal: 0, niv: 0 });
+        const prova = (m, cu, cv, du, dv) => { const d = djupVid(cu, cv, du, dv); if (d == null) return; m.sum += d.djup; m.niv += d.mitt; m.k++; if (d.djup >= OMLOTT_KANT / 2) m.dal++; };
         const ok = m => m.k >= 4 && m.sum / m.k >= OMLOTT_KANT && m.dal / m.k >= OMLOTT_KANTDEL;
-        const text = m => m.k ? Math.round(m.sum / m.k) + '/' + (m.dal / m.k).toFixed(2) : '–';
+        const text = m => m.k ? Math.round(m.sum / m.k) + '/' + (m.dal / m.k).toFixed(2) + '@' + Math.round(m.niv / m.k) : '–';
         const kantOver = (q, p) => {
           const m = matt();
           for (let cu = q.cu + 2; cu < q.cu + q.a - 2; cu++) { if (inneI(p, cu, q.cv)) prova(m, cu, q.cv, 0, 1); if (inneI(p, cu, q.cv + q.b - 1)) prova(m, cu, q.cv + q.b - 1, 0, 1); }
@@ -19520,11 +19542,24 @@ const Kamera = (() => {
         const bevis = new Int32Array(lagda.length);
         g.kant = [];
         let kantOk = true;
+        /* Lådan i bilden (analyspixlar, rak) för en lagd rektangel: hörnen vridna tillbaka. */
+        const ladaAv = q => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [cu, cv] of [[q.cu, q.cv], [q.cu + q.a, q.cv], [q.cu, q.cv + q.b], [q.cu + q.a, q.cv + q.b]]) { const x = r.cx + (u0 + cu) * cs - (v0 + cv) * sn, y = r.cy + (u0 + cu) * sn + (v0 + cv) * cs; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return { x: Math.round(x0), y: Math.round(y0), w: Math.round(x1 - x0), h: Math.round(y1 - y0) }; };
         for (let i = 0; i < lagda.length && kantOk; i++) for (let j = i + 1; j < lagda.length; j++) {
           const p = lagda[i], q = lagda[j];
           const ox = Math.min(p.cu + p.a, q.cu + q.a) - Math.max(p.cu, q.cu), oy = Math.min(p.cv + p.b, q.cv + q.b) - Math.max(p.cv, q.cv);
           let m1 = null, m2 = null, slag;
-          if (ox > 0 && oy > 0 && ox * oy >= 0.05 * L * K) { slag = 'över'; m1 = kantOver(p, q); m2 = kantOver(q, p); }
+          if (ox > 0 && oy > 0 && ox * oy >= 0.05 * L * K) {
+            slag = 'över'; m1 = kantOver(p, q); m2 = kantOver(q, p);
+            /* Vem ligger över? Den vars kant syns över den andra (djupast om
+               båda). Det undre kortet får det övres låda som TÄCKT: läsningen
+               målar över den i beskärningen (maskaTackt), så att bilden och
+               ORB bara ser det som faktiskt är kortet — uppmätt i golden 14
+               utan det: det undre kortets beskärning, till 70 % det övre,
+               fick det övres namn, och det övre blev "fler än leken". */
+            const niv = m => m.k ? m.niv / m.k : Infinity;
+            const pOver = ok(m1) && (!ok(m2) || niv(m1) <= niv(m2)), qOver = ok(m2) && !pOver;
+            if (pOver) (q.tackt || (q.tackt = [])).push(ladaAv(p)); else if (qOver) (p.tackt || (p.tackt = [])).push(ladaAv(q));
+          }
           else if ((ox >= -OMLOTT_GAP && oy > 2) || (oy >= -OMLOTT_GAP && ox > 2)) { slag = 'söm'; m1 = som(p, q); }
           else continue;   // varken över eller intill varandra: inget att kräva av paret
           const funnet = ok(m1) || (m2 && ok(m2));
@@ -19543,7 +19578,7 @@ const Kamera = (() => {
           if (pix.length < minAreaPx()) break;
           const d = bedom(Int32Array.from(pix), 0, pix.length);
           if (d.skal || !arKortStor(d)) { g.dom = 'del ' + (d.skal || 'storlek'); break; }
-          d.omlott = true;
+          d.omlott = true; d.tackt = q.tackt || null;
           delar.push(d);
         }
         if (delar.length !== lagda.length) continue;
@@ -19834,7 +19869,7 @@ const Kamera = (() => {
        (matcha): tills två stilla rutor sagt annat är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: false, tappRun: 0, omlott: !!f.omlott };
+                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (latens) ny.ts = { bild: bildTid, hittat: Date.now(), rorelse: rutTid() };
@@ -19984,6 +20019,7 @@ const Kamera = (() => {
           bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0;
         }
         if (f.omlott) bast.omlott = true;
+        bast.tackt = f.tackt || null;   // det övre kortets låda när det här är det undre (MES-250), annars inget
         /* Formen (K4): samma långsida och kortsida som förra rutan, inom
            SPEK_FORM. En hand som håller i kortet, eller en skugga som hänger
            med, ändrar regionens mått fast mitten står nästan still. */
@@ -21159,7 +21195,29 @@ const Kamera = (() => {
       kort = liggande ? { cx: v * ow, cy: (1 - u) * oh, lang: t.lang * s, kort: t.kort * s, vinkel: t.vinkel - Math.PI / 2 }
                       : { cx: u * ow, cy: v * oh, lang: t.lang * s, kort: t.kort * s, vinkel: t.vinkel };
     }
-    return { bild: c, kort };
+    return { bild: c, kort, geo: { r, bx, by, bw, bh, ow, oh, liggande } };
+  }
+
+  /* Det täckta hörnet målas över (MES-250): ett kort som ligger under ett
+     annat har hela kortets låda, och beskärningen rymmer grannens hörn —
+     bildmodellen och ORB såg då grannen (golden 14: Resistance Reunited
+     under Trusty Retriever fick namnet Trusty Retriever, och Trusty
+     Retrievers eget spår blev "fler än leken"). Det övre kortets låda
+     (t.tackt, analyspixlar, ur passaKort) fylls med mattans nivå i
+     beskärningen, genom samma led som bilden — så ser läsningen bara det
+     som är kortet: namnraden och det som sticker fram. */
+  function maskaTackt(b, t) {
+    if (!b || !b.geo || !t.tackt || !t.tackt.length) return;
+    const g = b.geo, x = b.bild.getContext('2d');
+    const v = Math.max(0, Math.min(255, Math.round(modell ? modell.M / senasteGain : 128)));
+    x.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+    const sx = g.r.w / AW, sy = g.r.h / AH;
+    for (const q of t.tackt) {
+      const px = g.r.x + (q.x - 1) * sx, py = g.r.y + (q.y - 1) * sy, pw = (q.w + 2) * sx, ph = (q.h + 2) * sy;
+      const u0 = (px - g.bx) / g.bw, u1 = (px + pw - g.bx) / g.bw, v0 = (py - g.by) / g.bh, v1 = (py + ph - g.by) / g.bh;
+      if (g.liggande) x.fillRect(v0 * g.ow, (1 - u1) * g.oh, (v1 - v0) * g.ow, (u1 - u0) * g.oh);
+      else x.fillRect(u0 * g.ow, v0 * g.oh, (u1 - u0) * g.ow, (v1 - v0) * g.oh);
+    }
   }
 
   /* Bänken: en färdig referens rakt in, utan insamlingsvarv. Referensen i
@@ -21198,6 +21256,7 @@ const Kamera = (() => {
       t.ram = finLada(t.box, senasteG0, t);
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;   // läget datorn speglar är ramens, som förut
       const b = video ? beskar(t) : null; c = b && b.bild;
+      maskaTackt(b, t);
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort);
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
@@ -21281,6 +21340,7 @@ const Kamera = (() => {
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;
       const geo = { cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort };
       const b = video ? beskar(t) : null;
+      maskaTackt(b, t);
       if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true });
       lasLogg(t, lasStart, svar, 'spek');
       if (t.spek !== vantar) return;
