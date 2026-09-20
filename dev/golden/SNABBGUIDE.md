@@ -96,6 +96,41 @@ Flaggorna går att kombinera: `node dev/golden/kor.cjs --ai --fall 03 --detalj`.
 fall, eller en ändring som blev bättre. Skriv då en rad i `historik.md` och
 checka in båda.
 
+## När två körningar inte ger samma tal (MES-249)
+
+Provet är nästan, men inte helt, deterministiskt. Två saker flyttar talen
+utan att en rad kod har ändrats — kolla dem **innan** en skillnad tolkas som
+en regression:
+
+| Vad | Vilka fall | Vad som händer |
+|---|---|---|
+| **Poolen i profilen** | alla | Poolen byggs ur `lek.txt` + extra konstverk från Scryfall (högst 24 per basland) och sparas i profilens IndexedDB. Svarar Scryfall 429 mitt i, sväljs det tyst för konstverken: körningen fortsätter mot en tunnare pool, och lands­korten får färre ORB-träffar. Uppmätt 2026-09-20: en profil som gick i 429 gav fall 09 **2/4 namn och 1 falskt** i stället för 4/4 |
+| **Maskinens fart** | bara stillbildsfallen (01–06, 08, och provkortsfallet) | De går på väggklockan med ett tak (20 s). En seg webbläsare hinner inte: uppmätt samma dag gav en körning där stegtiden var 343 ms i median (normalt 35) fall 01 **0/3 namn** med `⏱ tak`, och totalen 32/57 i stället för 35/57 |
+
+**Videofallen (07, 09–12) är blinda för belastning.** De går med låtsasklocka:
+varje ruta väntas in och `performance.now()` är videons tid, så samma 307
+rutor analyseras oavsett om maskinen är tom eller har lastmedel 43. Provat
+2026-09-20 med 6 och med 24 snurrande processer: fall 09 gav samma siffror
+in på decimalen. Ett videofall som ändrar sig har alltså fått en annan
+**pool**, inte en annan maskin.
+
+Tre kontroller före varje slutsats:
+
+1. Raden **`Poolen: N kort`** ska vara samma i båda körningarna — 114 med
+   dagens `lek.txt`. Står det en röd rad om Scryfall, eller `⚠ pool` i
+   tabellen, är siffrorna skräp.
+2. **`⏱ tak`** på ett fall = det hann inte klart; talet gäller inte.
+3. Samma dator **och samma profil** (`TMPDIR`) i före- och efterkörningen.
+   Jämför aldrig bara mot `senaste.json` från en annan maskin eller profil.
+
+**Knivseggen i fall 09.** Bordets första kort, ett Plains, blir säkert bara
+genom ORB:s svaga stöd för modellens etta: `stod >= ORB_EMOT` i
+`identifyMedModell`, och `ORB_EMOT = 6`. Plains får **precis 6** inliers
+(en halv sekund tidigare: 4). En inlier mindre — till exempel för att
+poolen bär färre Plains-konstverk — och kortet blir aldrig säkert: fallet
+går från 4/4 till 3/4 utan att något annat ändras. Ser du 09 på 3/4, börja
+med poolen.
+
 ## Jämföra modeller
 
 | Modell | ID | Pris in / ut per miljon tokens | I kameran |
