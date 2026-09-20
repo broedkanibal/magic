@@ -22254,6 +22254,16 @@ function gravTaEmot(grav, nu) {
   gravHandelser = gravHandelser.filter(h => nu - h.nar < 60000);
   for (const [cid, t] of gravTid) if (nu - t > 60000) gravTid.delete(cid);
 }
+/* Ett kort lyftes UR högen och ligger nu på mattan (MES-248): högens senaste
+   otagna ändring var det. Bakåt i tiden, för ändringen kommer när kortet
+   lämnar högen — inte när det landar på bordet, och däremellan hinner man
+   titta på det. GRAV_UR är gissad som fönstren ovan. Utan den skulle
+   ändringen ligga kvar och senare räknas som att något annat försvunnit. */
+const GRAV_UR = 10000;
+function gravTaUr(nu) {
+  const h = gravHandelser.filter(h => !h.tagen && h.nar <= nu && h.nar >= nu - GRAV_UR).sort((a, b) => b.nar - a.nar)[0];
+  if (h) h.tagen = true;
+}
 const arBesvarjelse = k => typeof typLinje === 'function' && /\b(Instant|Sorcery)\b/i.test(typLinje(k) || '');
 const SAMMA_KORT_NARA = 0.25;
 const FARSK_MS = 500;   // `sen` under så här: detektorn gav spåret en region i någon av de senaste rutorna (takten 150 ms)
@@ -22984,6 +22994,18 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
     return fria.find(c => c.lyft != null) || fria.find(c => c.spar != null) || fria[0] || null;
   };
+  /* Ett kort som ligger i graveyard och dyker upp på mattan igen är SAMMA
+     kort på väg tillbaka i spel (MES-248): reanimator, recursion, en
+     Trusty Retriever som hämtar tillbaka sin artifact. Kort lämnar
+     graveyard ofta, och utan det här skapades ett NYTT kort bredvid det som
+     låg kvar i högen — leken hade plötsligt ett exemplar för mycket och
+     bordet visade ett kort som inte finns. Överst i högen först: det är det
+     man tar. Ett kort som ligger kvar fysiskt (fysisk) rörs inte — det är
+     bundet i sin zon, inte på väg ut ur högen. */
+  const urGraven = namn => (namn ? mig.cards.find(c => c.name === namn && zonAv(c) === ZON_GRAV && !c.fysisk && !c.tok
+    && (c.spar == null || !synliga.has(c.spar))) : null) || null;
+  /* Digitala exemplar som INTE ligger på bordet: graveyard och exile. */
+  const iHog = namn => mig.cards.filter(c => c.name === namn && !paBordet(c) && !c.fysisk).length;
   /* Kortet följer spårets tap-läge — men bara när det finns ett läge att
      mäta mot. Utan sparat läge (kamGrund null) dömer telefonen mot en
      gissning ('v'/'h'), och det första kortet i Jespers parti lades ut
@@ -23103,13 +23125,31 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const paMattan = fysiska.filter(h => h.namn === g.namn && (h.kort || h.bundna || !sparrat(h))).length + iAndraSpar(g.namn);
     if (paBord >= paMattan) continue;
     const t = g.spar[0];
+    /* Tillbaka i spel ur graveyard (MES-248): EN FLYTT, samma kort, ingen
+       fråga. Men bara när ett nytt kort skulle ge fler exemplar än leken
+       har: annars är ett Forest till på mattan ett nytt land ur handen, inte
+       det som ligger i högen. Utan lek (tak Infinity) gäller regeln aldrig —
+       då beter sig avstämningen exakt som förut. Bara Table leads: i Screen
+       leads rör kameran inga zoner, den lägger bara till. */
+    const tak = lekAntal(g.namn);
+    const ur = pol.flytt && isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
+    if (ur) {
+      delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
+      ur.x = ur.y = null;                       // kortet tar platshållarens plats, som ett nyskapat (matPlacera)
+      ur.tapped = tapSynk && pol.tap && t.tappad ? 1 : 0;
+      ur.kamTap = tapSynk ? (t.tappad ? 1 : 0) : undefined;
+      ur.ny = nu; ur.etb = 1;
+      gravTaUr(nu);                             // högens ändring var kortet som lyftes ur den (MES-85)
+      binder(ur, t);
+      g.kort = ur; kamLage(ur, t); autoSumKort(ur.cid, t); senasteKamSpar = t.id;
+      continue;
+    }
     /* Antalspriorn (dev/plan/lagen.md, D5-8): leken har bara N av kortet
        och N ligger redan på bordet. Kloner, extra basland och tokens är
        legitima, så det är ingen spärr — kortet blir en fråga på platsen
        ("Your deck has only N × name — one more?") i stället för ett kort.
        Ligger en kopia i nådatiden (borta) väntar vi: det är oftast samma
        kort som flyttats. Frågan ställs en gång per spår. */
-    const tak = lekAntal(g.namn);
     if (isFinite(tak) && paBord >= tak && !mig.cards.some(c => c.name === g.namn && paBordet(c) && c.borta)) {
       if (!hoppade.has(t.id) && !mig.pending.some(q => q.spar === t.id)) {
         const id = uid();

@@ -1139,6 +1139,70 @@ prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut', () =
   assert.ok(app.kort[0].lyft != null); assert.equal(app.kort[0].zon, undefined);
 });
 
+/* GU (MES-248): ett kort som tas UR graveyard och läggs på bordet igen —
+   reanimator, recursion, Trusty Retriever. Samma kort flyttar tillbaka,
+   och bara när ett nytt kort skulle ge fler exemplar än leken har. */
+const iGrav = namn => app.kort.filter(c => c.zon === 'grav' && c.name === namn).length;
+prov('GU1 leken har 1 Trusty Retriever och den ligger i graveyard: kortet på mattan är SAMMA kort, tillbaka i spel', () => {
+  app.lek = new Map([['Trusty Retriever', 1]]);
+  app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 0, zon: 'grav', gravAuto: 1, tapped: 1, x: 40, y: 80 });
+  stam([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1, 'ett nytt kort skapades bredvid det i högen');
+  const k = app.kort[0];
+  assert.equal(k.cid, 'g'); assert.equal(k.zon, undefined); assert.equal(k.spar, 1);
+  assert.equal(k.gravAuto, undefined); assert.equal(k.tapped, 0); assert.equal(k.etb, 1);
+  assert.equal(k.x, null, 'platsen ska räknas om'); assert.equal(iGrav('Trusty Retriever'), 0);
+});
+prov('GU2 leken har 4 Forest, tre på bordet och ett i graveyard: det fjärde på mattan är ett NYTT kort ur handen', () => {
+  app.lek = new Map([['Forest', 4]]);
+  app.kort.push({ cid: 'g', name: 'Forest', flipped: 0, zon: 'grav' });
+  const b = i => box(0.1 + i * 0.15, 0.2, 0.063, 0.088);
+  stam([1, 2].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
+  assert.equal(app.kort.length, 3); assert.equal(iGrav('Forest'), 1);
+  stam([1, 2, 3].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
+  assert.equal(app.kort.length, 4, 'kortet i högen plockades upp i stället'); assert.equal(iGrav('Forest'), 1);
+  // det FJÄRDE på mattan skulle ge fem exemplar: nu är det kortet i högen
+  stam([1, 2, 3, 4].map(i => klar(i, 'Forest', { sen: 20, ...b(i) })));
+  assert.equal(app.kort.length, 4, 'ett femte Forest skapades'); assert.equal(iGrav('Forest'), 0);
+});
+prov('GU3 utan lek: som förut — ett nytt kort, högen orörd', () => {
+  app.kort.push({ cid: 'g', name: 'Ukud Cobra', flipped: 0, zon: 'grav' });
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 2); assert.equal(iGrav('Ukud Cobra'), 1);
+});
+prov('GU4 Screen leads: kameran rör inte högen — ett nytt kort, som förut', () => {
+  app.spelsatt = 'skarm'; app.lek = new Map([['Ukud Cobra', 1]]);
+  app.kort.push({ cid: 'g', name: 'Ukud Cobra', flipped: 0, zon: 'grav' });
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  assert.equal(iGrav('Ukud Cobra'), 1, 'kortet lyftes ur högen i Screen leads');
+});
+prov('GU5 kortet ligger kvar fysiskt (fysisk): bindningen är tyst i zonen, det lyfts inte ur högen', () => {
+  app.lek = new Map([['Ukud Cobra', 1]]);
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  app.kort[0].zon = 'grav'; app.kort[0].fysisk = true;          // som flyttaTill gör
+  stam([klar(7, 'Ukud Cobra', { sen: 10, ...LANGT })]);         // detektorn födde ett nytt spår
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].zon, 'grav');
+});
+prov('GU6 tappat kort ur högen: det föds tappat, som ett nytt kamerakort', () => {
+  app.lek = new Map([['Ukud Cobra', 1]]);
+  app.kort.push({ cid: 'g', name: 'Ukud Cobra', flipped: 0, zon: 'grav', tapped: 0 });
+  stam([klar(1, 'Ukud Cobra', { tappad: true, sen: 20, ...LAND_ })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].tapped, 1); assert.equal(app.kort[0].kamTap, 1);
+});
+prov('GU7 högens ändring tas av kortet som lyfts ur den: nästa kort som försvinner får frågan, inte graveyard', () => {
+  app.lek = new Map([['Trusty Retriever', 1], ['Ukud Cobra', 1]]);
+  app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 0, zon: 'grav' });
+  stamG([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(0));
+  klocka.t += 1000; stamG([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(1));   // högen ändrades: kortet lyftes ur den
+  klocka.t += 1000; stamG([klar(1, 'Trusty Retriever', { sen: 20, ...PORT }), klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(1));
+  assert.equal(iGrav('Trusty Retriever'), 0, 'kortet kom inte ur högen');
+  // nu försvinner Ukud Cobra utan att högen ändras: frågan, inte auto-graveyard
+  klocka.t += 150; stamG([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })], hog(1));
+  klocka.t += 3100; stamG([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })], hog(1));
+  const c = app.kort.find(k => k.name === 'Ukud Cobra');
+  assert.equal(c.zon, undefined, 'högens ändring räknades två gånger'); assert.ok(c.lyft != null);
+});
+
 /* K6: antalspriorn som ren funktion (telefonen läser den i kamIdentifiera och kamAiPoster). */
 prov('Q5 lekPrior: utan lek eller okänt namn står ett säkert svar; med lekens alla exemplar upptagna faller det', () => {
   assert.equal(app.lekPrior(true, Infinity, 5), true);
