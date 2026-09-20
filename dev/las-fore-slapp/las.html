@@ -196,10 +196,13 @@ async function doma(cv, ensamt) {
       try { bild = await ladda('bilder/' + p.fil); } catch (e) { svar.push({ id: p.id, fel: 'bild saknas: ' + p.fil }); continue; }
       const rad = { id: p.id, fonster: p.fonster, t: p.t, rel: p.rel, facit: p.facit || null, lager: {} };
       /* (b) Går kortet att skära ut ur hand + kort-regionen? */
-      const sk = Skar.skar(bild, { kortLang: p.kortLang, kortKort: p.kortKort });
+      let mask = null;
+      if (p.mask) { const bin = atob(p.mask.m), bitar = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bitar[k] = bin.charCodeAt(k); mask = { w: p.mask.w, h: p.mask.h, bitar }; }
+      const sk = Skar.skar(bild, { kortLang: p.kortLang, kortKort: p.kortKort, mask, maskLada: p.region });
       rad.skar = { ok: !!sk.ok, skal: sk.skal || null, synlig: sk.synlig != null ? sk.synlig : null,
                    matta: sk.matta != null ? sk.matta : null, hud: sk.hud != null ? sk.hud : null,
                    ute: sk.ute != null ? sk.ute : null, klump: sk.klump || 0, mattaMax: sk.mattaMax,
+                   klumpMatt: sk.klumpMatt || null, kortMatt: sk.kortMatt || null,
                    rekt: sk.rekt ? { cx: Math.round(sk.rekt.cx), cy: Math.round(sk.rekt.cy),
                                      lang: Math.round(sk.rekt.lang), kort: Math.round(sk.rekt.kort),
                                      vinkel: +sk.rekt.vinkel.toFixed(3) } : null };
@@ -240,3 +243,4 @@ async function doma(cv, ensamt) {
     status('Fel: ' + ((e && e.message) || e));
   }
 })();
+</script>

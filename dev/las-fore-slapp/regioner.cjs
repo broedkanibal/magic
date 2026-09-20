@@ -87,6 +87,7 @@ function regioner(i, raGra) {
       }
     }
     if (n < MINAREA) continue;
+    const pix = new Int32Array(t); pix.set(ko.subarray(0, t));
     const cx = sx / n, cy = sy / n;
     const vxx = sxx / n - cx * cx, vyy = syy / n - cy * cy, vxy = sxy / n - cx * cy;
     const tr = vxx + vyy, det = vxx * vyy - vxy * vxy;
@@ -97,7 +98,7 @@ function regioner(i, raGra) {
     const std = Math.sqrt(Math.max(0, gs2 / n - (gs / n) ** 2));
     ut.push({ cx: +cx.toFixed(1), cy: +cy.toFixed(1), lang: +lang.toFixed(1), kort: +kort.toFixed(1),
               vinkel: +vinkel.toFixed(3), area: n, box: { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 },
-              fyllnad: +(n / (lang * kort)).toFixed(3), kvot: +(kort / lang).toFixed(3), std: +std.toFixed(1) });
+              fyllnad: +(n / (lang * kort)).toFixed(3), kvot: +(kort / lang).toFixed(3), std: +std.toFixed(1), pix });
   }
   return ut.sort((a, b) => b.area - a.area);
 }
@@ -109,7 +110,7 @@ const tacker = (a, b) => {
   return x2 <= x || y2 <= y ? 0 : (x2 - x) * (y2 - y) / (b.w * b.h);
 };
 
-const ut = [];
+const ut = [], masker = [];
 for (const f of F.fonster) {
   /* Referensen: bordet som det låg före steget — medel av åtta suddade rutor. */
   const iB = Math.round(f.t_borjar * fps);
@@ -124,6 +125,16 @@ for (const f of F.fonster) {
     let vald = null, bast = 0;
     for (const r of rs) { const o = tacker(r.box, f.box); if (o > bast) { bast = o; vald = r; } }
     if (!vald) vald = rs[0] || null;
+    /* Maskens bildpunkter i regionens egen låda, bitpackade: det är precis
+       det detektorn ser (skiljer sig från bordet-som-det-låg), och det som
+       en utskärning i del 2 skulle ha att gå på. Kortets mörka konstverk
+       ligger med i masken; en tröskel på ljusstyrkan i beskärningen gör det
+       inte (mätt: 22 % av kortet är mörkare än mattans tak). */
+    if (vald) {
+      const b = vald.box, nb = b.w * b.h, bytes = Buffer.alloc((nb + 7) >> 3);
+      for (const q of vald.pix) { const x = q % W - b.x, y = ((q / W) | 0) - b.y; const k = y * b.w + x; bytes[k >> 3] |= 1 << (k & 7); }
+      masker.push({ id: `s${String(f.nr).padStart(2, '0')}-${String(i).padStart(6, '0')}`, w: b.w, h: b.h, m: bytes.toString('base64') });
+    }
     rutor.push({ i, t: +(i / fps).toFixed(3), antal: rs.length,
                  r: vald ? { lang: vald.lang, kort: vald.kort, kvot: vald.kvot, area: vald.area, fyllnad: vald.fyllnad,
                              std: vald.std, vinkel: vald.vinkel, box: vald.box, cx: vald.cx, cy: vald.cy,
@@ -139,4 +150,5 @@ for (const f of F.fonster) {
 }
 fs.closeSync(fd);
 fs.writeFileSync(path.join(ARB, 'regioner.json'), JSON.stringify({ kortRef, fps, bredd: W, hojd: H, troskel: TROSKEL, fonster: ut }) + '\n');
-console.log('skrivet: ' + path.join(ARB, 'regioner.json'));
+fs.writeFileSync(path.join(ARB, 'masker.json'), JSON.stringify({ bredd: W, hojd: H, masker }) + '\n');
+console.log('skrivet: ' + path.join(ARB, 'regioner.json') + ' och masker.json (' + masker.length + ' masker)');

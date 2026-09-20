@@ -28,26 +28,33 @@
   'use strict';
 
   /* ── bildpunkternas sorter ──────────────────────────────────────── */
-  /* Mattan är nästan svart (mätt i inspelningen: 15–45 gråsteg), handen är
-     varm och ljus (R klart över B), kortet är allt annat: ljus ram, vit
-     textruta, färgat konstverk, och plastfickans blänk. */
+  /* Mattan, handen och kortet. VILKA bildpunkter som inte är matta kommer
+     från detektorns egen mask (det som skiljer sig från bordet som det låg)
+     — samma mask som ger regionen. Det är viktigt: kortets mörka konstverk
+     och svarta ram är mörkare än mattans tak (uppmätt: 22 % av kortet ligger
+     under 60 i ljusstyrka), så en tröskel på ljusstyrkan i beskärningen
+     skulle klippa bort en femtedel av kortet.
+     Inom masken skiljs handen från kortet på färgen: huden är varm och
+     mättad (R − B 45–130, mättnad 0,45–0,85 i inspelningen), kortet i sin
+     plastficka är det inte. */
   const MATTA = 0, HUD = 1, KORT = 2;
-  function sortera(d, n, o) {
-    const s = new Uint8Array(n);
-    const mattaMax = o.mattaMax, hudDiff = o.hudDiff;
-    for (let i = 0, p = 0; i < n; i++, p += 4) {
-      const r = d[p], g = d[p + 1], b = d[p + 2];
+  function sortera(d, W, H, o) {
+    const s = new Uint8Array(W * H);
+    const M = o.mask, hudDiff = o.hudDiff, satMin = o.satMin;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (M && !M(x, y)) { s[i] = MATTA; continue; }
+      const p = i * 4, r = d[p], g = d[p + 1], b = d[p + 2];
       const v = r > g ? (r > b ? r : b) : (g > b ? g : b);
-      if (v <= mattaMax) { s[i] = MATTA; continue; }
-      /* Hud: rött över blått med god marginal, och inte alltför ljust
-         (en vit textruta har också r > b men bara någon enstaka nivå). */
-      const mattnad = v ? (v - (r < g ? (r < b ? r : b) : (g < b ? g : b))) / v : 0;
-      s[i] = (r - b >= hudDiff && r >= g && g >= b - 4 && mattnad >= 0.22 && mattnad <= 0.62) ? HUD : KORT;
+      if (!M && v <= o.mattaMax) { s[i] = MATTA; continue; }
+      const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+      const mattnad = v ? (v - mn) / v : 0;
+      s[i] = (r - b >= hudDiff && r >= g && g >= b - 6 && mattnad >= satMin) ? HUD : KORT;
     }
     return s;
   }
 
-  /* Mattans nivå ur bilden själv: den mörka toppen i histogrammet. */
+  /* Mattans nivå ur bilden själv — reserv när ingen mask skickas med. */
   function mattaNiva(d, n) {
     const h = new Int32Array(256);
     for (let i = 0, p = 0; i < n; i++, p += 4) {
@@ -56,7 +63,6 @@
     }
     let topp = 0, bast = -1;
     for (let v = 0; v < 110; v++) if (h[v] > bast) { bast = h[v]; topp = v; }
-    /* Gränsen läggs där histogrammet har sjunkit till en tiondel av toppen. */
     let g = topp;
     for (let v = topp; v < 200; v++) { if (h[v] < bast * 0.10) { g = v; break; } g = v; }
     return Math.max(topp + 8, Math.min(g, topp + 55));
@@ -129,7 +135,22 @@
     cx2.drawImage(bild, 0, 0, W, H);
     const d = cx2.getImageData(0, 0, W, H).data, n = W * H;
     const mattaMax = o.mattaMax != null ? o.mattaMax : mattaNiva(d, n);
-    const s = sortera(d, n, { mattaMax, hudDiff: o.hudDiff != null ? o.hudDiff : 26 });
+    /* Detektorns mask, om den följer med: bitar över regionens låda i
+       analysbildpunkter (360 px bred), och `maskLada` är samma låda i
+       beskärningens egna bildpunkter. */
+    let M = null;
+    if (o.mask && o.maskLada) {
+      const bitar = o.mask.bitar, mw = o.mask.w, mh = o.mask.h, L = o.maskLada;
+      M = (x, y) => {
+        const cxp = x / skala, cyp = y / skala;
+        const mx = Math.floor((cxp - L.x) * mw / L.w), my = Math.floor((cyp - L.y) * mh / L.h);
+        if (mx < 0 || my < 0 || mx >= mw || my >= mh) return false;
+        const k = my * mw + mx;
+        return (bitar[k >> 3] >> (k & 7)) & 1;
+      };
+    }
+    const s = sortera(d, W, H, { mask: M, mattaMax,
+      hudDiff: o.hudDiff != null ? o.hudDiff : 45, satMin: o.satMin != null ? o.satMin : 0.45 });
     const L = o.kortLang * skala, K = o.kortKort * skala;
     const kl = klumpar(s, W, H, KORT, Math.max(30, 0.02 * L * K));
     if (!kl.length) return { ok: false, skal: 'ingen kortklump', mattaMax };
@@ -152,7 +173,11 @@
       for (const q of pts) { const u = q[0] * c - q[1] * si, v = q[0] * si + q[1] * c; if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v; }
       for (const lagg of [[L, K], [K, L]]) {            // [bredd i u, höjd i v]
         const bu = lagg[0], bv = lagg[1];
-        if (u1 - u0 > bu + 3 || v1 - v0 > bv + 3) continue;   // klumpen ryms inte
+        /* Klumpen får vara något större än kortet: masken tar med kortets
+           skugga mot mattan, och den är ritad i analysbildpunkter (360 px)
+           som här blir tio gånger så grova. Mer än en fjärdedel över är
+           däremot inte ett kort. */
+        if (u1 - u0 > bu * 1.25 || v1 - v0 > bv * 1.25) continue;
         /* Fyra hörn: klumpen dras till vart och ett av rektangelns hörn. */
         for (const hu of [0, 1]) for (const hv of [0, 1]) {
           const ru0 = hu ? u1 - bu : u0, rv0 = hv ? v1 - bv : v0;
@@ -161,7 +186,9 @@
         }
       }
     }
-    if (!bast) return { ok: false, skal: 'kortet ryms inte i klumpen', mattaMax, klump: bl.antal };
+    if (!bast) return { ok: false, skal: 'kortet ryms inte i klumpen', mattaMax, klump: bl.antal,
+                        klumpMatt: { u: Math.round(mr.u1 - mr.u0), v: Math.round(mr.v1 - mr.v0) },
+                        kortMatt: { lang: Math.round(L), kort: Math.round(K) } };
 
     /* Rektangelns mitt tillbaka i bildens koordinater. */
     const c = Math.cos(bast.vinkel), si = Math.sin(bast.vinkel);
@@ -176,7 +203,9 @@
       rekt: { cx: mx / skala, cy: my / skala, lang: lang / skala, kort: kortS / skala, vinkel: langVinkel },
       synlig: +bast.synlig.toFixed(3), matta: +bast.matta.toFixed(3), hud: +bast.hud.toFixed(3),
       ute: +bast.ute.toFixed(3), tacker: +bast.tacker.toFixed(3), poang: +bast.poang.toFixed(3),
-      mattaMax, klump: bl.antal, arbW: W, arbH: H
+      mattaMax, klump: bl.antal, arbW: W, arbH: H,
+      klumpMatt: { u: Math.round(mr.u1 - mr.u0), v: Math.round(mr.v1 - mr.v0) },
+      kortMatt: { lang: Math.round(L), kort: Math.round(K) }
     };
   }
 

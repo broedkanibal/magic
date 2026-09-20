@@ -29,9 +29,13 @@ const stat = (bild, b) => {
   const m = s / n; return { medel: m, sigma: Math.sqrt(Math.max(0, s2 / n - m * m)) };
 };
 
-/* Kortreferensen ur materialet: medianen av lådor som har ett korts kvot. */
+/* Kortreferensen ur materialet: medianen av lådor som är ETT RAKT KORT —
+   kvoten inom 7 % av 0,716. Tas hela spannet 0,66–0,80 med följer tappade
+   kort, högar och kort som ligger snett med, och referensen blir för stor
+   (mätt: 35×46 i stället för 33×44), vilket får varje utskärning att
+   misslyckas. */
 const kvoter = [];
-for (const s of F.steg) if (s.box) { const l = Math.max(s.box.w, s.box.h), k = Math.min(s.box.w, s.box.h); if (k / l > 0.66 && k / l < 0.80) kvoter.push({ l, k }); }
+for (const s of F.steg) if (s.box) { const l = Math.max(s.box.w, s.box.h), k = Math.min(s.box.w, s.box.h); if (Math.abs(l * 0.716 - k) < 0.07 * k) kvoter.push({ l, k }); }
 const med = a => { const b = a.slice().sort((p, q) => p - q); return b[b.length >> 1]; };
 const kortRef = { lang: med(kvoter.map(x => x.l)), kort: med(kvoter.map(x => x.k)) };
 console.log(`kortreferens ur lådorna: ${kortRef.kort}×${kortRef.lang} i ${W} px bredd  →  ${Math.round(kortRef.kort * 3840 / W)}×${Math.round(kortRef.lang * 3840 / W)} px i 4K, ${Math.round(kortRef.kort * 1920 / W)}×${Math.round(kortRef.lang * 1920 / W)} px i 1080p  (${kvoter.length} lådor)`);

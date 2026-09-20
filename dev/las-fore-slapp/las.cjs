@@ -78,11 +78,11 @@ async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { if (doende)
     let sist = '';
     const slut = await tills(async () => {
       const s = await kor(`(document.querySelector('#status') || {}).textContent || ''`) || '';
-      if (s !== sist) { sist = s; process.stdout.write('\r  ' + s.padEnd(90).slice(0, 90)); }
+      if (s !== sist) { sist = s; console.error('  ' + s); }
       if (/^Fel/.test(s)) throw Object.assign(new Error(s), { fatal: true });
       return /^Klar/.test(s) ? s : null;
     }, TAK_MS, 'körningen');
-    console.log('\r' + ''.padEnd(92) + '\r' + slut);
+    console.log(slut);
     const res = await kor('JSON.stringify(window.RES)');
     if (UT) { fs.writeFileSync(UT, res + '\n'); console.log('skrivet: ' + UT); }
     else console.log(res);

@@ -16,6 +16,7 @@ const STEG = +arg('--steg', 1);
 const KALLOR = arg('--kallor', 'skuren,region').split(',').filter(Boolean);
 const VARIANTER = arg('--varianter', '4k,1080p').split(',').filter(Boolean);
 const BARA = arg('--fonster', '');
+const RELMIN = +arg('--relmin', -99), RELMAX = +arg('--relmax', 99);
 const bara = BARA ? new Set(BARA.split(',').map(Number)) : null;
 
 const R = JSON.parse(fs.readFileSync(path.join(ARB, 'regioner.json'), 'utf8'));
@@ -25,14 +26,31 @@ try { namn = JSON.parse(fs.readFileSync(path.join(ARB, 'namn.json'), 'utf8')); }
 const W = R.bredd, H = R.hojd, VW = KLIPP.bildW, VH = KLIPP.bildH;
 const sk = VW / W;                                   // analysbildpunkt → videobildpunkt
 const rutor = new Map(KLIPP.rutor.map(r => [r.id, r]));
+let masker = new Map();
+try { masker = new Map(JSON.parse(fs.readFileSync(path.join(ARB, 'masker.json'), 'utf8')).masker.map(m => [m.id, m])); } catch (e) {}
+
+/* Kortets mått för DET HÄR fönstret: medianen av regionens mått i rutorna
+   efter släppet, där regionen ÄR kortet. Vidvinkeln gör kort nära bildens
+   mitt större än kort vid kanten (31×43 till 37×52 i 360 px), så en enda
+   kortreferens för hela bordet är för trubbig för en utskärning. */
+function kortMatt(f) {
+  const l = [], k = [];
+  for (const x of f.rutor) { if (!x.r) continue; const rel = x.t - f.t_slapp; if (rel < 0.1 || rel > 0.35) continue; if (!x.r.kortlik) continue; l.push(x.r.lang); k.push(x.r.kort); }
+  const m = a => { if (!a.length) return null; const b = a.slice().sort((p, q) => p - q); return b[b.length >> 1]; };
+  const ml = m(l), mk = m(k);
+  return (ml && mk) ? { lang: ml, kort: mk, egen: true } : { lang: R.kortRef.lang, kort: R.kortRef.kort, egen: false };
+}
 
 const poster = [];
 for (const f of R.fonster) {
   if (bara && !bara.has(f.nr)) continue;
+  const km = kortMatt(f);
   let i = 0;
   for (const x of f.rutor) {
     const id = `s${String(f.nr).padStart(2, '0')}-${String(x.i).padStart(6, '0')}`;
     const k = rutor.get(id); if (!k) continue;
+    const rel = k.t - f.t_slapp;
+    if (rel < RELMIN || rel > RELMAX) continue;
     if ((i++ % STEG) !== 0) continue;
     const r = x.r ? x.r.box : f.box;
     /* Regionen i utsnittets egna bildpunkter. */
@@ -45,7 +63,9 @@ for (const f of R.fonster) {
       region: { x: +region.x.toFixed(1), y: +region.y.toFixed(1), w: +region.w.toFixed(1), h: +region.h.toFixed(1) },
       regionVinkel: x.r ? x.r.vinkel : 0,
       mal: { x: +mal.x.toFixed(1), y: +mal.y.toFixed(1), w: +mal.w.toFixed(1), h: +mal.h.toFixed(1) },
-      kortLang: Math.round(R.kortRef.lang * sk), kortKort: Math.round(R.kortRef.kort * sk),
+      kortLang: Math.round(km.lang * sk), kortKort: Math.round(km.kort * sk), kortEgen: km.egen,
+      /* Detektorns mask över regionens låda — det utskärningen har att gå på. */
+      mask: masker.has(id) ? { w: masker.get(id).w, h: masker.get(id).h, m: masker.get(id).m } : null,
       kallor: KALLOR, varianter: VARIANTER,
       /* Rörelseoskärpa vid 1/30 s: hur långt regionen flyttade sig sedan
          förra rutan, i bildpunkter — det är sträckan en exponering skulle
