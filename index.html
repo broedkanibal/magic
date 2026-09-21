@@ -3758,6 +3758,32 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 <!-- Kamerans skruvrum bor i #kamOv sedan MES-32 (den dockade kameravyn). -->
 <div id="toast"></div>
 <script>
+/* En canvas att räkna i: dokumentets på huvudtråden, en OffscreenCanvas i
+   läsningens räknetråd (LasWorker, MES-221), där document inte finns.
+   Matcher, ORB och cropCanvas skapar sina canvaser här, så att exakt samma
+   rader kör på båda ställena. */
+function nyCanvas() {
+  return typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1);
+}
+/* Kontexten för ritningarna som SKALAR beskärningen: Matchers grab()
+   (nedskalning till 176 px) och cropCanvas (skala och vridning till ORB:s
+   240 px). willReadFrequently på huvudtråden, som förut, men uttryckligen
+   INTE i räknetråden: en OffscreenCanvas som läser tillbaka ofta rastrerar
+   på CPU:n, och Chromes skalning ('high') ger då andra bildpunkter än
+   huvudtrådens, vars källa är den GPU-backade beskärningen. Uppmätt i
+   grab(): 14 516 av 88 000 bildpunkter olika, som mest 99 gråsteg — nog
+   för att flytta ORB:s val. Med accelererad canvas i tråden och
+   beskärningen som ImageBitmap är ritningen bit för bit densamma, också
+   över hundra läsningar — i alla vinklar utom 90° och 270°, där Chromes
+   huvudtråd ritar på ett tredje sätt som varken CPU- eller GPU-vägen i en
+   tråd ger (2 000 av 80 000 bildpunkter, som mest 41 gråsteg); det gäller
+   ORB efter modellen när modellen svarat med en vriden referens
+   (Embed.ROTAR). En ritning i samma storlek (grayOf) är lika överallt.
+   dev/lasworker-prov.html mäter det. */
+function ritKontext(cv) {
+  return cv.getContext('2d', { willReadFrequently: typeof document !== 'undefined' });
+}
+
 /* ══════════════════════════════════════════════════════════════════
    Visuell kortmatchning mot en begränsad kortpool.
 
@@ -3777,8 +3803,13 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
    Sökningen sker i tre steg: grovt över hela poolen, fint kring de bästa,
    och till sist lokal klättring per kandidat — inklusive fri bredd/höjd
    för att kompensera för att kameran ser bordet snett.
+
+   Modulen är en namngiven funktion, inte en anonym IIFE: läsningens
+   räknetråd (LasWorker, MES-221) bygger sin kod ur matcherModul.toString(),
+   så att telefonen och tråden kör exakt samma rader. global är window på
+   huvudtråden och self i tråden.
    ══════════════════════════════════════════════════════════════════ */
-(function (global) {
+function matcherModul(global) {
   'use strict';
 
   const ASPECT = 0.716;                      // kortets bredd / höjd
@@ -3804,11 +3835,11 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
   const OPT = { highpass: true, hpRadius: 2 };
 
   /* ── arbetsytor ── */
-  const gcv = document.createElement('canvas');
-  const gctx = gcv.getContext('2d', { willReadFrequently: true });
+  const gcv = nyCanvas();
+  const gctx = ritKontext(gcv);   // nedskalningen: accelererad i räknetråden, se ritKontext
   const GRAB_W = 176, MARGIN = 0.55;
 
-  const rcv = document.createElement('canvas');
+  const rcv = nyCanvas();
   const rctx = rcv.getContext('2d', { willReadFrequently: true });
   rctx.imageSmoothingEnabled = true;
   rctx.imageSmoothingQuality = 'high';
@@ -4139,7 +4170,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
      högpassfilter: filtret kostade mer än allt annat i detektorsvepet
      tillsammans, och z-normaliseringen räcker för att detektera. */
   const G8W = 8, G8H = 11, G8N = G8W * G8H;
-  const g8cv = document.createElement('canvas');
+  const g8cv = nyCanvas();
   g8cv.width = 32; g8cv.height = 44;
   const g8x = g8cv.getContext('2d', { willReadFrequently: true });
   g8x.imageSmoothingEnabled = true;
@@ -4195,7 +4226,8 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
     tune(k) { if (k) Object.assign(P, k); },
     tuneW(k) { if (k) for (const key in k) Object.assign(W[key], k[key]); }
   };
-})(window);
+}
+matcherModul(window);
 
 /* ══════════════════════════════════════════════════════════════════
    Lokala särdrag med geometrisk verifiering — ORB i miniatyr.
@@ -4210,10 +4242,13 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
                       Det sista är hela poängen: helhetsjämförelsen hade
                       inget sätt att säga "det här är inte ett kort".
 
+   Namngiven funktion av samma skäl som matcherModul: räknetråden
+   (LasWorker, MES-221) bygger sin kod ur orbModul.toString().
+
    OpenCV.js har ORB men saknar findHomography i standardbygget och väger
    10 MB. Det här är ~400 rader och följer med i filen.
    ══════════════════════════════════════════════════════════════════ */
-(function (global) {
+function orbModul(global) {
   'use strict';
 
   const NB = 32;                       // 256 bitar per deskriptor
@@ -4246,8 +4281,8 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
   })();
 
   /* ── gråskala ur en bild eller canvas ── */
-  const gcv = document.createElement('canvas');
-  const gcx = gcv.getContext('2d', { willReadFrequently: true });
+  const gcv = nyCanvas();
+  const gcx = gcv.getContext('2d', { willReadFrequently: true });   // samma storlek in som ut: lika på CPU och GPU (ritKontext)
   function grayOf(src, w, h) {
     gcv.width = w; gcv.height = h;
     gcx.imageSmoothingEnabled = true;
@@ -4446,7 +4481,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
      referens nedskalad och oskärpt gav 10/10. Det var den enskilt
      viktigaste inställningen. */
   const REF_W = 240, REF_H = Math.round(240 / 0.716), REF_BLUR = 1.2;
-  const rcv = document.createElement('canvas');
+  const rcv = nyCanvas();
   rcv.width = REF_W; rcv.height = REF_H;
   const rcx = rcv.getContext('2d', { willReadFrequently: true });
   function refFeatures(img, maxKp) {
@@ -4513,7 +4548,8 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
 
   global.ORB = { features, refFeatures, queryFeatures, verify, match, ransac, pack, unpack, packTill, packUtan,
                  NB, PAT, REF_W, REF_H, REF_BLUR };
-})(window);
+}
+orbModul(window);
 
 /* ══════════════════════════════════════════════════════════════════
    Automatisk avläsning av en skärmdump från ett videosamtal.
@@ -16030,12 +16066,29 @@ function cropURL(img, r, w) {
    kan köras om på en justerad låda när första försöket inte höll. */
 /* En lärd referens (K7) har poolens id '<sid>#ref': utåt är den kortet. */
 const refSid = id => (typeof id === 'string' && id.indexOf('#ref') > 0) ? id.slice(0, id.indexOf('#ref')) : id;
-function identifyAt(img, box, hint) {
-  const r = Matcher.scan(img, box, Pool.idx, { keep: 50, refine: 10, hint });
-  const b = r.results[0];
+/* Bildvägens RÄKNING (MES-221): Matchers svep över poolen och ORB:s
+   verifiering av de femton bästa — 180–300 ms på Macen, tre till fem gånger
+   det på en telefon. Bruten ur identifyAt så att den kan köra i läsningens
+   räknetråd (LasWorker) medan huvudtråden analyserar nästa ruta. Samma rader
+   på huvudtråden och i tråden; P är poolen att räkna mot (Pool.idx här, trådens
+   kopia där) och svaret är ren data utan canvaser, så att det går att skicka
+   mellan trådarna. Domen fälls i domIdentifyAt. */
+function skannaOchOrb(img, box, hint, P, stopp) {
+  const r = Matcher.scan(img, box, P, { keep: 50, refine: 10, hint });
+  const results = (r.results || []).map(x => ({ i: x.i, name: x.name, id: x.id, score: x.score, fit: x.fit }));
+  const b = results[0];
   const rot0 = b && b.fit ? b.fit.rot : hint;
-  const orb = orbIdentify(img, box, rot0, (r.results || []).slice(0, 15));
-  const cands = (r.results || []).slice(0, 8).map(x => ({ name: x.name, sid: refSid(x.id), score: x.score }));
+  const o = orbIdentify(img, box, rot0, results.slice(0, 15), P, stopp);
+  return { results, confidence: r.confidence, rot0, orb: o ? { inliers: o.inliers, rot: o.rot, cand: o.cand ? { i: o.cand.i, name: o.cand.name, id: o.cand.id, score: o.cand.score } : null } : null };
+}
+function identifyAt(img, box, hint) {
+  return domIdentifyAt(skannaOchOrb(img, box, hint, Pool.idx, ORB_ACCEPT + 4), box);
+}
+/* Domen över räkningen — exakt identifyAt:s dom från före MES-221, med
+   skannaOchOrb:s svar (s) i stället för Matchers och ORB:s egna objekt. */
+function domIdentifyAt(s, box) {
+  const results = s.results, b = results[0], rot0 = s.rot0, orb = s.orb;
+  const cands = results.slice(0, 8).map(x => ({ name: x.name, sid: refSid(x.id), score: x.score }));
   /* Pekar ORB på samma kort som helhetslikhetens etta? Två vittnen räknas
      bara när de säger samma namn (MES-94): i golden 09 var helheten säker
      på Plains (0,77, flera Plains-konstverk bland de sex bästa) medan ORB:s
@@ -16062,13 +16115,13 @@ function identifyAt(img, box, hint) {
      utan bekräftelse, så då räknas marginalen mot första kortet med ett
      annat namn. Bara när en referens är inblandad: utan referenser i poolen
      är domen exakt som förut. */
-  let marg = r.confidence;
-  const tvaan = r.results && r.results[1];
+  let marg = s.confidence;
+  const tvaan = results[1];
   if (b && tvaan && tvaan.name === b.name && (/#ref/.test(String(tvaan.id)) || /#ref/.test(String(b.id)))) {
-    const annan = r.results.find(x => x.name !== b.name);
+    const annan = results.find(x => x.name !== b.name);
     marg = b.score - (annan ? annan.score : 0);
   }
-  const konf = !!(b && confident(b, marg, r.results));
+  const konf = !!(b && confident(b, marg, results));
   /* Helhetslikheten som stöder ORB:s kort är DET kortets — ettans poäng
      hör till ett annat kort när de inte är överens (MES-94). */
   const orbScore = orb && orb.cand ? (orbSamma ? Math.max(gScore, orb.cand.score || 0) : (orb.cand.score || 0)) : 0;
@@ -16148,7 +16201,29 @@ const DEL_MARGINAL = 0.08;
    utgåva delar ram och textruta, så en annan LANDTYP säger emot först vid
    ORB_ACCEPT inliers. */
 const LAND_MARGINAL = 0.15;
-function identifyMedModell(img, box, e, ensamt) {
+/* ORB-svepet i identifyMedModell (MES-221): frågans särdrag per vridning
+   (rots, i den ordningen) och verifiering mot poolens bilder vilka. Bryter
+   efter en vridning som bär stopp inliers inom skalan, som förut. Svaret är
+   träffarna i den ordning de mättes, med poolens namn per index, så att
+   huvudtråden kan se att tråden räknade mot samma pool. Samma rader på
+   huvudtråden och i räknetråden (LasWorker); P är poolen att räkna mot. */
+function orbSvep(img, box, rots, vilka, stopp, skala, P) {
+  const ut = [];
+  let bast = 0;
+  for (const r of rots) {
+    const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H), qf = cv ? ORB.queryFeatures(cv, 300) : null; if (!qf) continue;
+    for (const i of vilka) {
+      const ov = ORB.verify(qf, ORB.unpack(P.orb, i), {});
+      const sc = ov.model ? ov.model.scale : null;
+      const n = sc != null && sc >= skala[0] && sc <= skala[1] ? ov.inliers : 0;
+      ut.push({ r, i, namn: P.names[i], inliers: ov.inliers, skala: sc });
+      if (n > bast) bast = n;
+    }
+    if (bast >= stopp) break;
+  }
+  return ut;
+}
+async function identifyMedModell(img, box, e, ensamt) {
   const P = Pool.idx;
   const typNamn = n => { const t = landTyp(n); return t ? landVisning(t).name : n; };
   const rang = [];
@@ -16160,16 +16235,14 @@ function identifyMedModell(img, box, e, ensamt) {
   if (P.orb) {
     const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(typNamn(P.names[i]))) vilka.push(i);
     const r0 = ((e.rot || 0) % 360 + 360) % 360;
-    for (const r of [r0, (r0 + 180) % 360]) {
-      const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H), qf = cv ? ORB.queryFeatures(cv, 300) : null; if (!qf) continue;
-      for (const i of vilka) {
-        const ov = ORB.verify(qf, ORB.unpack(P.orb, i), {});
-        const n = ov.model && ov.model.scale >= ORB_SKALA[0] && ov.model.scale <= ORB_SKALA[1] ? ov.inliers : 0;
-        const pn = typNamn(P.names[i]);
-        if (n > (per.get(pn) || 0)) { per.set(pn, n); perSkala.set(pn, ov.model.scale); }
-        if (n > bast.inliers) bast = { inliers: n, namn: pn, rot: r, skala: ov.model ? ov.model.scale : null };
-      }
-      if (bast.inliers >= ORB_ACCEPT + 4) break;
+    /* Räkningen i räknetråden när den finns (MES-221), annars här; samma
+       träffar i samma ordning, så domen nedan är densamma. */
+    const traffar = await LasWorker.orb(img, box, [r0, (r0 + 180) % 360], vilka, ORB_ACCEPT + 4, ORB_SKALA, P);
+    for (const h of traffar) {
+      const n = h.skala != null && h.skala >= ORB_SKALA[0] && h.skala <= ORB_SKALA[1] ? h.inliers : 0;
+      const pn = typNamn(P.names[h.i]);
+      if (n > (per.get(pn) || 0)) { per.set(pn, n); perSkala.set(pn, h.skala); }
+      if (n > bast.inliers) bast = { inliers: n, namn: pn, rot: h.r, skala: h.skala };
     }
   }
   /* Stödet för ettan räknas bara när träffens skala säger att beskärningen ramar in ett HELT kort (ORB_HEL): en bit av ett kort ger också träffar, men då är det inte kortet som ligger i rutan. */
@@ -16197,6 +16270,190 @@ function identifyMedModell(img, box, e, ensamt) {
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
   return { accept: bar || ensam, del: bar && !helRuta, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
            modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
+}
+
+/* ═══ LÄSNINGENS RÄKNETRÅD (MES-221) ═══
+   Bildvägens räkning — Matcher + ORB (skannaOchOrb) och ORB-svepet efter
+   modellen (orbSvep) — är 180–300 ms synkron JavaScript på Macen (MES-214
+   punkt 8), tre till fem gånger det på en telefon, och kördes på
+   huvudtråden: analysen av nästa ruta fick vänta, och med en läsning per
+   ruta (MES-246 del 2) hade den frusit. Här kör räkningen i en Worker;
+   domen (domIdentifyAt, resten av identifyMedModell) fälls på huvudtråden
+   som förut.
+
+   Tråden får exakt appens kod: källan byggs ur Function.toString() av
+   nyCanvas, ritKontext, matcherModul, orbModul, cropCanvas, orbIdentify,
+   orbSvep och skannaOchOrb — ingen kopia att hålla i takt, och det tråden
+   räknar är det huvudtråden hade räknat. Canvaserna är OffscreenCanvas där.
+   Beskärningen går över som ImageBitmap (createImageBitmap, ~0,01 ms, ingen
+   kopia av pixlarna) — inte getImageData: två avläsningar av beskärningen
+   får Chrome att byta den till CPU-rastrering, och då ritar HUVUDTRÅDEN
+   annorlunda efteråt (se ritKontext). Svaren är ren data.
+   Bit för bit samma svar som huvudtråden: dev/lasworker-prov.html.
+
+   Tre saker som gör att en tråd kan se rätt ut och ändå vara fel:
+   1. ORDNINGEN. Varje fråga har ett eget id och svaret paras på det, aldrig
+      på turordning. Frågan hör till den läsning (kamIdentifiera) som ställde
+      den, och läsningen till sitt spår, som förut: identifiera/spekulera i
+      Kamera bär spåret i sitt eget löfte, och ett spår som dött eller
+      flyttat under tiden döms där precis som när Namn.las eller modellen
+      svarade sent. Ett svar kan inte hamna på ett annat spår.
+   2. POOLEN. Tråden räknar mot sin kopia; en lärd referens (K7) ändrar
+      poolen i minnet. Poolens stämpel (kod, alla id, storlekarna) följer
+      med varje fråga och tråden vägrar en fråga mot en annan stämpel, och
+      svaret bär poolens namn per index, som huvudtråden kontrollerar mot sin
+      pool innan det används. Stämmer det inte räknas frågan om på
+      huvudtråden — aldrig ett namn ur en gammal pool.
+   3. EN TRÅD SOM DÖR ELLER TYSTNAR. Kommer inget svar på TAK_MS trots att
+      frågor väntar avvisas de, tråden dödas och frågorna räknas på
+      huvudtråden; efter FEL_TAK fel i följd stängs tråden av för sidan.
+      Utan det hade en hängd tråd låst läsningen (lasande i Kamera) för
+      alltid, och inget kort på bordet fått ett namn till.
+
+   window.MESA_LASWORKER: false = allt på huvudtråden (som före MES-221);
+   'kontroll' = tråden OCH huvudtråden räknar och varje skillnad loggas
+   (golden: kor.cjs --lasworker). stat räknar frågorna: trad, huvud, fel,
+   gammal (poolen hann ändras) och olika (kontrollen). */
+const LasWorker = (() => {
+  const TAK_MS = 8000, FEL_TAK = 3;
+  let w = null, nr = 0, skickad = null, felIRad = 0, av = false, klocka = null;
+  const vantar = new Map();   // id → { res, rej }
+  const stat = { fragor: 0, trad: 0, huvud: 0, fel: 0, gammal: 0, olika: 0, ms: [] };
+  const lage = () => (typeof window !== 'undefined' && window.MESA_LASWORKER !== undefined) ? window.MESA_LASWORKER : true;
+  const stod = () => typeof Worker === 'function' && typeof OffscreenCanvas === 'function' && typeof createImageBitmap === 'function' && typeof Blob === 'function' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function';
+  const kod = () => [nyCanvas, ritKontext, matcherModul, orbModul, cropCanvas, orbIdentify, orbSvep, skannaOchOrb, lasWorkerKropp].map(f => f.toString()).join('\n') + '\nmatcherModul(self); orbModul(self); lasWorkerKropp();\n';
+  /* Klockan går bara medan frågor väntar och nollas vid varje svar: den mäter
+     "inget svar på TAK_MS", inte hur gammal en fråga i kön är — tre läsningar
+     med var sin andra åsikt kan stå i kö på en långsam telefon. */
+  const arm = () => { if (!klocka && vantar.size) klocka = setTimeout(() => { klocka = null; stang('inget svar på ' + TAK_MS + ' ms'); }, TAK_MS); };
+  const avarm = () => { if (klocka) { clearTimeout(klocka); klocka = null; } };
+  function stang(varfor) {
+    avarm();
+    if (w) { try { w.terminate(); } catch (e) {} }
+    w = null; skickad = null;
+    for (const v of vantar.values()) v.rej(new Error(varfor));
+    vantar.clear();
+    stat.fel++;
+    if (++felIRad >= FEL_TAK && !av) { av = true; console.warn('LasWorker: avstängd efter ' + felIRad + ' fel i följd (' + varfor + ') — läsningen räknar på huvudtråden'); }
+  }
+  function skapa() {
+    if (w) return w;
+    if (av || lage() === false || !stod()) return null;
+    try {
+      const url = URL.createObjectURL(new Blob([kod()], { type: 'text/javascript' }));
+      const ny = new Worker(url); URL.revokeObjectURL(url);
+      ny.onmessage = ev => {
+        const m = ev.data || {}, v = vantar.get(m.id); if (!v) return;
+        vantar.delete(m.id); avarm(); arm();
+        if (m.ok) { felIRad = 0; v.res(m.svar); } else v.rej(new Error(m.fel || 'fel i tråden'));
+      };
+      ny.onerror = ev => stang('fel i tråden: ' + ((ev && ev.message) || ''));
+      w = ny;
+    } catch (e) { w = null; stang('kunde inte skapa tråden: ' + ((e && e.message) || e)); }
+    return w;
+  }
+  const stamp = P => P ? P.code + '|' + (P.ids || []).join(',') + '|' + (P.descs ? P.descs.length : 0) + '|' + (P.orb && P.orb.off ? P.orb.off[P.orb.off.length - 1] : 0) : '';
+  /* Poolen till tråden, en gång per stämpel — en kopia (structured clone), huvudtråden behåller sin. */
+  function pool(P) {
+    const s = stamp(P);
+    if (s !== skickad) { w.postMessage({ typ: 'pool', stamp: s, pool: { names: P.names, ids: P.ids, descs: P.descs, orb: P.orb || null } }); skickad = s; }
+    return s;
+  }
+  async function fraga(typ, img, P, m) {
+    if (!skapa()) return null;
+    /* Beskärningen som ImageBitmap — en GPU-kopia, ingen avläsning av
+       canvasen (se ovan). Går den inte att göra räknar huvudtråden. */
+    const bm = await createImageBitmap(img);
+    if (!w) { bm.close(); return null; }   // tråden dog medan bitmapen gjordes
+    const s = pool(P), id = ++nr;
+    return new Promise((res, rej) => {
+      vantar.set(id, { res, rej });
+      w.postMessage(Object.assign({ typ, id, stamp: s, bm, w: bm.width, h: bm.height }, m), [bm]);
+      arm();
+    });
+  }
+  /* Kontrollen: samma räkning på huvudtråden, och skillnaden loggad (de fem
+     första). Talen rundas till tre decimaler: en canvas som rastrerar en
+     bildpunkt annorlunda i tråden syns som en liten poängskillnad, och det
+     är inliers, ordning och namn som avgör domen. */
+  const r3 = x => x == null ? null : Math.round(x * 1000) / 1000;
+  function jamfor(vad, a, b) {
+    const sa = JSON.stringify(a), sb = JSON.stringify(b);
+    if (sa === sb) return;
+    stat.olika++;
+    if (stat.olika <= 5) console.warn('LasWorker kontroll: ' + vad + ' skiljer sig\n  tråden: ' + sa.slice(0, 600) + '\n  huvud:  ' + sb.slice(0, 600));
+  }
+  const klar = s => { stat.ms.push(s.ms); if (stat.ms.length > 200) stat.ms.shift(); };
+  /* orbSvep i tråden, annars på huvudtråden — samma träffar i samma ordning. */
+  async function orb(img, box, rots, vilka, stopp, skala, P) {
+    stat.fragor++;
+    let svar = null;
+    if (lage() !== false && !av) {
+      try { const s = await fraga('orb', img, P, { box, rots, vilka, stopp, skala }); if (s) { svar = s.traffar; klar(s); } } catch (e) { svar = null; }
+      if (svar && !svar.every(h => P.names[h.i] === h.namn)) { stat.gammal++; svar = null; }
+    }
+    if (svar && lage() === 'kontroll') jamfor('orbSvep', svar.map(h => [h.r, h.i, h.inliers, r3(h.skala)]), orbSvep(img, box, rots, vilka, stopp, skala, P).map(h => [h.r, h.i, h.inliers, r3(h.skala)]));
+    if (!svar) { stat.huvud++; return orbSvep(img, box, rots, vilka, stopp, skala, P); }
+    stat.trad++; return svar;
+  }
+  /* skannaOchOrb i tråden, annars på huvudtråden — samma resultat, samma ORB-val. */
+  async function skanna(img, box, hint, P, stopp) {
+    stat.fragor++;
+    let svar = null;
+    if (lage() !== false && !av) {
+      try { svar = await fraga('skanna', img, P, { hint, stopp }); if (svar) klar(svar); } catch (e) { svar = null; }
+      if (svar && !(svar.results.every(x => P.names[x.i] === x.name && (P.ids || [])[x.i] === x.id) && (!svar.orb || !svar.orb.cand || (P.names[svar.orb.cand.i] === svar.orb.cand.name)))) { stat.gammal++; svar = null; }
+    }
+    if (svar && lage() === 'kontroll') {
+      const proj = s => ({ r: s.results.map(x => [x.i, r3(x.score)]), k: r3(s.confidence), rot0: r3(s.rot0), orb: s.orb ? [s.orb.inliers, s.orb.rot, s.orb.cand ? s.orb.cand.i : null] : null });
+      jamfor('skannaOchOrb', proj(svar), proj(skannaOchOrb(img, box, hint, P, stopp)));
+    }
+    if (!svar) { stat.huvud++; return skannaOchOrb(img, box, hint, P, stopp); }
+    stat.trad++; return svar;
+  }
+  /* Tråden skapas och får poolen nu, så att bordets första läsning inte betalar starten. */
+  function varm() { if (skapa() && Pool.idx) pool(Pool.idx); }
+  return { orb, skanna, varm, stat, get aktiv() { return !!w; }, get avstangd() { return av; } };
+})();
+/* Trådens kropp: poolen och frågorna. Körs i tråden, aldrig här — koden
+   följer med i LasWorker.kod() som text, efter Matcher, ORB och räkningen. */
+function lasWorkerKropp() {
+  'use strict';
+  let P = null, stamp = null;
+  /* Uppvärmning när poolen kommer: de accelererade canvaserna får sin
+     GPU-kontext och två skanningar av en kortstor bild värmer JIT:en —
+     uppmätt utan: första räkningen 0,9–1,4 s, sedan ~50–100 ms. Svaren
+     kastas; det kostar ~0,3 s i tråden, en gång per pool. */
+  const varm = () => {
+    try {
+      const W = 300, H = 419, c = new OffscreenCanvas(W, H), x = c.getContext('2d');
+      x.fillStyle = '#6b5a3e'; x.fillRect(0, 0, W, H); x.fillStyle = '#000'; x.fillRect(24, 34, W - 48, H - 68);
+      x.fillStyle = '#c9b27a'; x.fillRect(34, 44, W - 68, H - 88); x.fillStyle = '#334'; x.fillRect(48, 78, W - 96, 150);
+      for (let i = 0; i < 9; i++) { x.fillStyle = i % 2 ? '#8a3' : '#c52'; x.fillRect(60 + (i * 37) % 150, 90 + (i * 53) % 110, 26, 22); }
+      x.fillStyle = '#f2ead8'; x.fillRect(48, 260, W - 96, 120); x.fillStyle = '#222'; for (let i = 0; i < 6; i++) x.fillRect(60, 270 + i * 18, 120 + (i * 40) % 90, 5);
+      const box = { x: 0, y: 0, w: W, h: H };
+      for (let i = 0; i < 2; i++) skannaOchOrb(c, box, 0, P, 14);
+      if (P.orb) orbSvep(c, box, [0, 180], [0, 1, 2].filter(i => i < P.names.length), 14, [0.8, 1.6], P);
+    } catch (e) { /* bara uppvärmning */ }
+  };
+  self.onmessage = ev => {
+    const m = ev.data;
+    if (m.typ === 'pool') { P = m.pool; stamp = m.stamp; varm(); return; }
+    try {
+      if (!P || m.stamp !== stamp) { self.postMessage({ id: m.id, ok: false, fel: 'pool' }); return; }
+      /* Bitmapen ritas direkt (drawImage tar en ImageBitmap; grab och
+         cropCanvas läser dess width/height) — en GPU-källa, som
+         huvudtrådens beskärning. */
+      const img = m.bm, t0 = performance.now();
+      let svar;
+      if (m.typ === 'orb') svar = { traffar: orbSvep(img, m.box, m.rots, m.vilka, m.stopp, m.skala, P) };
+      else if (m.typ === 'skanna') svar = skannaOchOrb(img, { x: 0, y: 0, w: m.w, h: m.h }, m.hint, P, m.stopp);
+      else throw new Error('okänd fråga ' + m.typ);
+      svar.ms = Math.round(performance.now() - t0);
+      self.postMessage({ id: m.id, ok: true, svar });
+    } catch (e) { self.postMessage({ id: m.id, ok: false, fel: String((e && e.message) || e) }); }
+    finally { if (m.bm && m.bm.close) m.bm.close(); }
+  };
 }
 
 /* Ett uppåtvänt Magic-kort har alltid en ljus textruta och ljusa raminslag.
@@ -17512,9 +17769,9 @@ function cropCanvas(img, box, rot, outW, outH) {
   const cx = box.x + cw / 2, cy = box.y + ch / 2;
   const rad = (rot || 0) * Math.PI / 180;
   const oh = outH || Math.max(8, Math.round(outW * ch / cw));
-  const cv = document.createElement('canvas');
+  const cv = nyCanvas();   // en OffscreenCanvas i räknetråden (MES-221)
   cv.width = outW; cv.height = oh;
-  const c = cv.getContext('2d', { willReadFrequently: true });
+  const c = ritKontext(cv);   // accelererad i räknetråden: samma bildpunkter som huvudtråden i alla vinklar utom 90° och 270° (se ritKontext)
   c.imageSmoothingEnabled = true;
   c.imageSmoothingQuality = 'high';
   c.fillStyle = '#0b0f15';
@@ -17538,8 +17795,11 @@ function makeCrop(img, box, rot, outW) {
    Den avgör också vändningen — ligger kortet upp och ner hittas det som
    en 180-graders transform, och beskärningen kan rätas upp. */
 const ORB_ACCEPT = 10;
-function orbIdentify(img, box, rot, cands) {
-  if (!Pool.idx || !Pool.idx.orb || !cands.length) return null;
+/* P: poolen att verifiera mot — Pool.idx på huvudtråden, trådens egen kopia i
+   räknetråden (LasWorker, MES-221). stopp: så många inliers i första
+   vridningen gör den motsatta onödig (ORB_ACCEPT + 4 hos anroparna). */
+function orbIdentify(img, box, rot, cands, P, stopp) {
+  if (!P || !P.orb || !cands.length) return null;
   const mk = r => {
     const cv = cropCanvas(img, box, r, ORB.REF_W, ORB.REF_H);
     return cv ? ORB.queryFeatures(cv, 300) : null;
@@ -17548,12 +17808,12 @@ function orbIdentify(img, box, rot, cands) {
   const sweep = (qf, r) => {
     if (!qf) return;
     for (const c of cands) {
-      const v = ORB.verify(qf, ORB.unpack(Pool.idx.orb, c.i), {});
+      const v = ORB.verify(qf, ORB.unpack(P.orb, c.i), {});
       if (v.inliers > best.inliers) best = { inliers: v.inliers, cand: c, rot: r };
     }
   };
   sweep(mk(rot), rot);
-  if (best.inliers < ORB_ACCEPT + 4) sweep(mk(rot + 180), rot + 180);
+  if (best.inliers < stopp) sweep(mk(rot + 180), rot + 180);
   return best;
 }
 /* Håll den aktiva spelarens skärmdump laddad så beskärningar går att göra
@@ -21634,6 +21894,7 @@ async function oppnaKamera(gameId) {
   });
 
   try {
+    LasWorker.varm();   // räknetråden (MES-221) skapas nu, så att bordets första läsning inte betalar starten
     await Kamera.start({ video: $('#kamVideo'), overlay: $('#kamOverlay') }, {
       status: kamSag,
       bord: (spar, nollstall, extra) => sandBord(spar, nollstall, extra),
@@ -21867,6 +22128,12 @@ function kamSparEnsamt(id) {
   /* Inom en fjärdedel ÅT BÅDA HÅLL, som kortlik i Kamera: ett spår som är mindre än ett kort är en BIT av ett kort, och en bit ser ut som vad som helst — övre halvan av ett Swamp i blank plastficka blev ett säkert Plains i golden 11 med brus (marginal 0,113, 6 inliers). */
   return Math.abs(t.lang - r.lang) <= 0.25 * r.lang && Math.abs(t.kort - r.kort) <= 0.25 * r.kort ? 'matt' : '';
 }
+/* identifyAt för kameran (MES-221): räkningen i räknetråden när den finns,
+   domen på huvudtråden — samma dom som identifyAt, som skärmdumpsvägen
+   fortfarande kör synkront. */
+async function kamIdentifyAt(img, box, hint) {
+  return domIdentifyAt(await LasWorker.skanna(img, box, hint, Pool.idx, ORB_ACCEPT + 4), box);
+}
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
 async function kamIdentifiera(canvas, id, gissning, kort, o) {
@@ -21891,10 +22158,10 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   let v = null;
   if (tq) tq.fore = performance.now();
   if (KamEmbed.redo()) {
-    try { const e = await Embed.identifiera(canvas, KamEmbed.idx); if (e && e.namn) v = identifyMedModell(canvas, box, e, kamSparEnsamt(id)); } catch (e) { v = null; }
+    try { const e = await Embed.identifiera(canvas, KamEmbed.idx); if (e && e.namn) v = await identifyMedModell(canvas, box, e, kamSparEnsamt(id)); } catch (e) { v = null; }
   }
   if (tq) tq.modell = performance.now();
-  if (!v) { try { v = identifyAt(canvas, box, 0); } catch (e) { return null; } }
+  if (!v) { try { v = await kamIdentifyAt(canvas, box, 0); } catch (e) { return null; } }
   if (tq) tq.bild = performance.now();
   let namn = null; try { namn = await namnP; } catch (e) { namn = null; }
   if (tq) tq.namn = performance.now();
@@ -21913,7 +22180,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (v.modell && !v.accept) {
     const etta = v.rec.cands[0], hallerMed = namn && namn.namn && etta && namn.namn === etta.name && namn.poang >= 0.5 && namn.marginal >= 0.15;
     if (!hallerMed) {
-      let v2 = null; try { v2 = identifyAt(canvas, box, 0); } catch (e) { v2 = null; }
+      let v2 = null; try { v2 = await kamIdentifyAt(canvas, box, 0); } catch (e) { v2 = null; }
       const c2 = v2 && v2.rec.cands[0];
       if (v2 && v2.accept && c2 && v.rec.cands.slice(0, MODELL_NAMN).some(c => c.name === c2.name)) v = Object.assign(v2, { efterModell: v.modell });
     }

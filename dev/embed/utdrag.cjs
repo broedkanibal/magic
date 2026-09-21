@@ -12,10 +12,13 @@ const fs = require('fs');
 const path = require('path');
 
 const html = fs.readFileSync(path.join(__dirname, '..', '..', 'index.html'), 'utf8');
-function iife(marke) {
-  const m = html.indexOf(marke); if (m < 0) throw new Error('hittar inte ' + marke);
-  const a = html.lastIndexOf('(function (global) {', m), b = html.indexOf('})(window);', m);
-  return html.slice(a, b + '})(window);'.length);
+/* Matcher och ORB är namngivna modulfunktioner sedan MES-221 (läsningens
+   räknetråd bygger sin kod ur dem): från "function <namn>(global) {" till
+   och med anropet "<namn>(window);". */
+function modul(namn) {
+  const a = html.indexOf('\nfunction ' + namn + '(global) {'); if (a < 0) throw new Error('hittar inte function ' + namn);
+  const slut = '\n' + namn + '(window);', b = html.indexOf(slut, a); if (b < 0) throw new Error('hittar inte ' + namn + '(window)');
+  return html.slice(a + 1, b + slut.length);
 }
 function funktion(namn) {
   const a = html.indexOf('\nfunction ' + namn + '('); if (a < 0) throw new Error('hittar inte function ' + namn);
@@ -26,13 +29,21 @@ function rad(borjan) {
   const a = html.indexOf('\n' + borjan); if (a < 0) throw new Error('hittar inte ' + borjan);
   return html.slice(a + 1, html.indexOf('\n', a + 1));
 }
+/* Ett block från raden borjan till och med första raden slut (båda vid radens början). */
+function block(borjan, slut) {
+  const a = html.indexOf('\n' + borjan); if (a < 0) throw new Error('hittar inte ' + borjan);
+  const b = html.indexOf('\n' + slut, a); if (b < 0) throw new Error('hittar inte ' + slut + ' efter ' + borjan);
+  return html.slice(a + 1, b + 1 + slut.length);
+}
 const delar = [
   '/* UTKLIPPT UR index.html av dev/embed/utdrag.cjs — ändra inte här. */',
-  iife('global.Matcher = {'), iife('global.ORB = {'),
+  funktion('nyCanvas'), funktion('ritKontext'), modul('matcherModul'), modul('orbModul'),
   'const Pool = { idx: null };',
   rad('const CONF = {'), rad('const BASICS = new Set('), rad('const ORB_ACCEPT ='), rad('const refSid ='),
-  funktion('confident'), funktion('cropCanvas'), funktion('orbIdentify'), funktion('identifyAt'), funktion('serUtSomKort'),
-  'window.Kedjan = { Pool, identifyAt, confident, BASICS, serUtSomKort };',
+  funktion('confident'), funktion('cropCanvas'), funktion('orbIdentify'), funktion('skannaOchOrb'), funktion('domIdentifyAt'), funktion('identifyAt'), funktion('serUtSomKort'),
+  /* Läsningens räknetråd (MES-221) med sin räkning, för dev/lasworker-prov.html. */
+  funktion('orbSvep'), block('const LasWorker = (() => {', '})();'), funktion('lasWorkerKropp'),
+  'window.Kedjan = { Pool, identifyAt, confident, BASICS, serUtSomKort, skannaOchOrb, domIdentifyAt, orbSvep, LasWorker };',
 ];
 fs.mkdirSync(path.join(__dirname, 'cache'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'cache', 'kedjan.js'), delar.join('\n\n') + '\n');
