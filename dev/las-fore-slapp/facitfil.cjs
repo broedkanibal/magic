@@ -28,7 +28,7 @@ const steg = S.steg.map(s => ({
   namn: namn[String(s.nr)] || null
 }));
 fs.writeFileSync(path.join(UT, 'facit-slapp.json'), JSON.stringify({
-  video: 'mes-246-video.mov', bredd: F.bredd, hojd: F.hojd, fps: F.fps, rutor: F.rutor,
+  video: 'dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov', bredd: F.bredd, hojd: F.hojd, fps: F.fps, rutor: F.rutor,
   kortRef: S.kortRef, steg
 }, null, 1) + '\n');
 

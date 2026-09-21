@@ -184,6 +184,8 @@ let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inb�
 const RUTLOGG = PARAMS.get('rutlogg') === '1';
 /* ?luft=0|1 (kor.cjs --luft): läsningen på första hela rutan (MES-227, Kamera T.luft) av eller på, oavsett appens förval. */
 const LUFT = PARAMS.get('luft');
+/* ?lasworker=0|1|kontroll (kor.cjs --lasworker): läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda och varje skillnad loggas (--konsol). Statistiken står i --detalj. */
+const LASWORKER = PARAMS.get('lasworker');
 const LJUS_VARIANTER = {
   morkare:  { txt: 'mörkare (×0,55)' },
   ljusare:  { txt: 'ljusare (×1,45, klipper)' },
@@ -291,6 +293,7 @@ async function laddaApp() {
   K = w.eval('Kamera');
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_LAR = LAR_PA;
+  if (LASWORKER === '0') w.MESA_LASWORKER = false; else if (LASWORKER === 'kontroll') w.MESA_LASWORKER = 'kontroll';
   /* Sökvägarna räknas från appens dokument (repots rot). */
   w.MESA_EMBED = !EMBED_PA ? false : { ladda: Object.assign({ backend: EMBED_BACKEND }, EMBED_LOKALT ? {
     ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/',
@@ -684,6 +687,8 @@ function avsluta(f, prov, tid, tak, takS) {
   res.skurnaAlla = prov.skurnaAlla;
   res.lasningar = prov.lasningar;
   res.tidDelar = Object.fromEntries(Object.entries(prov.tidDelar).map(([k, l]) => { const q = l.slice().sort((a, b) => a - b); return [k, { median: q[q.length >> 1], max: q[q.length - 1], n: q.length }]; }));
+  /* Räknetråden (MES-221): frågorna sedan sidan laddades — i tråden, på huvudtråden, fel, mot en gammal pool, olika i kontrollen — och trådens egen räknetid (median och max, ms). Räknas över hela körningen, inte per fall. */
+  try { const s = w.eval('LasWorker.stat'), q = s.ms.slice().sort((a, b) => a - b); res.lasworker = { fragor: s.fragor, trad: s.trad, huvud: s.huvud, fel: s.fel, gammal: s.gammal, olika: s.olika, ms: q.length ? q[q.length >> 1] : null, msMax: q.length ? q[q.length - 1] : null, lage: LASWORKER || 'på' }; } catch (e) {}
   res.skarLogg = [...prov.skarAlla.values()].sort((a, b) => a.ruta - b.ruta);
   res.tidslinje = prov.tidslinje;
   res.takS = takS;

@@ -1,7 +1,9 @@
 # Går det att läsa kortet innan handen släpper det? (MES-246 del 1)
 
 Natten 19–20 september 2026, på Jespers inspelning
-`dev/golden/inspelningar/mes-246/mes-246-video.mov`. Allt som mättes ligger
+`dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov`
+(flyttad dit 2026-09-20, MES-264; låg till dess i
+`dev/golden/inspelningar/mes-246/`, där en symlänk står kvar). Allt som mättes ligger
 under `dev/las-fore-slapp/` och går att köra om — se **Köra om** sist.
 **Ingenting i kamerakedjan (`index.html`) eller systemprompten är rört.**
 
@@ -391,7 +393,7 @@ handen från bordet, överst i library — och 60 rutor/s. Facit finns redan
 1. **Klipp en 15 rutor/s-version** som de andra fallen, med
    `dev/golden/video/koda.swift`. Videon är redan bara kamerabild (ingen
    iOS-rad, ingen Safari-rad), så utsnittet är hela bilden:
-   `swift dev/golden/video/koda.swift mes-246-video.mov video.mp4 0 0 3840 2160 1080 1000 15`.
+   `swift dev/golden/video/koda.swift dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov video.mp4 0 0 3840 2160 1080 1000 15`.
    Nio och en halv minut i 1080 px och 1 Mbit/s blir ~70 MB — **för stort för
    git** (gränsen i SNABBGUIDE är tio megabyte). **Klipp ut en bit:** turerna
    1–4 (0–170 s) räcker för nedläggning, tappat, land på hög, token i ficka,

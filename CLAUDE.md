@@ -41,17 +41,104 @@ dev/linear-agent/installera.cjs` körts en gång (görs av Jesper).
 assignee, i ett anrop. En issue som Claude Code jobbar på ska aldrig stå kvar
 i Backlog eller Todo.
 
-### Saknas issuen, skapa den automatiskt
+### Tröskeln: vad som blir en issue, och vad som inte gör det
 
-Ber Jesper om något i chatten som inte redan finns som en Linear-issue —
-skapa automatiskt en eller flera relevanta issues kopplade till det du ska
-jobba med, utan att fråga om lov först. Sök igenom laget om du är osäker på
-om det redan finns en matchande issue innan du skapar en ny. Följer du direkt
-upp med arbetet: kör `paborjaIssue` på den (kolumn In Progress, se ovan och
-kollen i nästa avsnitt). Etikett och projekt sätts enligt reglerna nedan.
+Läs det här före varje `skapaIssue`. Det är den regel som avgör om Linear går
+att överblicka eller inte.
 
-Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så
-att Jesper ser dem utan att behöva leta i Linear.
+**En issue skapas när minst ett av tre stämmer:**
+
+| Villkor | Varför |
+|---|---|
+| Den kräver ett **beslut av Jesper** | ett designval, ett prov på telefonen, ett konto — han måste kunna se den |
+| Den **spänner över mer än en session** | någon annan måste kunna ta vid, och då behövs ett spår utanför chatten |
+| Den är ett **löfte om produkten** | något vi sagt ska fungera, som ska gå att mäta mot |
+
+**Annars: ingen issue.** En fix som en session gör klart, provar och slår ihop
+i samma svep är ett *commit-meddelande*, inte en issue. Skriv i stället
+meddelandet så att det bär hela historien: vad som var fel, vad som mättes,
+vad som ändrades. Det är där nästa session ändå letar.
+
+**Varför tröskeln finns:** 280 issues på tolv dagar, ~13 klara per dag. Ingen
+sortering i världen gör den högen överskådlig — bara filtrerbar. Det som
+minskar den är att färre saker blir issues från början. Rädslan att arbete
+"försvinner" utan en issue är obefogad: commit-meddelandet och `/läget` visar
+det redan.
+
+Är du osäker — **skapa den inte.** En fix som visar sig behöva en issue får en
+när den behövs, och då med bättre underlag. En issue som inte behövdes städas
+bort av en människa, och det är dyrare.
+
+### När du väl skapar en
+
+Sök igenom laget först, så att det inte blir en dubblett. Följer du direkt upp
+med arbetet: kör `paborjaIssue` (kolumn In Progress, se kollen i nästa
+avsnitt). Etikett, kolumn och projekt enligt reglerna nedan.
+
+Berätta alltid i chatten vilka issues du skapat — id, titel och länk — så att
+Jesper ser dem utan att leta i Linear.
+
+### En bräda, och testet för vad som är ett projekt
+
+Det finns **ett** ställe att titta på: lagets Issues, grupperad på status,
+med "visa sub-issues" avslagen. Inga sparade vyer — en vy som bara filtrerar
+på status är statusen förklädd till navigation.
+
+**Testet för ett projekt: kan du säga "klart" och mena det, med ett datum?**
+Går det inte är det ett *område*, och då är det en etikett.
+
+Det testet fälldes tre av fyra projekt den 20 september. "Uppstarten vid
+bordet" lät avgränsat men uppstarten får buggar för evigt; samma sak med
+spelvyn och lekarna. Kvar blev ett projekt, och det är ärligt — det är det
+enda som drivs mot mätbara siffror.
+
+| Nivå | Linear | Exempel | Jobb |
+|---|---|---|---|
+| Leverans som tar slut | **projekt** | Spegelläget i realtid | vad vi driver mot ett mätbart mål |
+| Fas i leveransen | **milstolpe** | Etapp 1–4 | ordningen, och 6/19 i projektvyn |
+| Var i produkten | **områdesetikett** | `spelvyn` | kartan över appen |
+| Vad det handlar om | **ämnesetikett** | `kortigenkänning` | skär tvärs igenom områdena |
+| Klump som blir klar ihop | **parent + sub-issues** | MES-281, 0/6 | en rad på brädan i stället för sex |
+
+**Varje issue ska ha minst en områdes- eller ämnesetikett.** Utan den
+försvinner den ur kartan när dess projekt tar slut.
+
+| Etikett | Vad |
+|---|---|
+| `uppstarten` | Set up your table: stegen, provkortet, kortstorleken, graveyard och library |
+| `spelvyn` | bordet under spelet: mattan, korten, leken i spel, bordsvyn, menyer |
+| `lekar` | lekens sida, lekfoton, Use camera to add cards, Get ready, Home-spellistan |
+| `kortigenkänning` | att kameran hittar kortet och sätter rätt namn — detektorn, läsningen, farten |
+| `kameran-uppställning` | hur telefonen står, vad den ser, hur varm den blir |
+| `golden` | mätverktyget självt |
+| `Plattform` | konton, drift, licenser, arbetssätt |
+
+**Etikett eller parent?** Består temat och vill du kunna filtrera på det —
+etikett. Blir klumpen klar ihop och vill du se 6/19 — parent. Var sparsam med
+parent-issues: en parent-rad kan bara säga ett läge medan barnen ligger i
+olika kolumner. Gör en bara när barnen verkligen landar tillsammans.
+
+**Skapar du ett nytt projekt** — skriv slutvillkoret som något som går att
+mäta. Går det inte att mäta är det ett område, och då blir det en etikett.
+
+Cykler används medvetet inte. Med tretton klara issues om dagen blir en
+veckocykel nittio rader, och det är ingen rytm.
+
+### Arbetsytan har en gräns: 250 aktiva issues
+
+Linear-arbetsytan ligger på gratisnivån. **Stängda issues räknas tills de
+arkiveras.** Den 20 september slog laget i taket mitt under arbetet, och
+ingen session kunde skapa nya issues.
+
+Laget auto-arkiverar nu stängda issues efter en månad. Slår det i taket ändå:
+arkivera allt med statustypen `completed`, `canceled` eller `duplicate`.
+
+**Arkivera aldrig något med öppen status.** MES-109, MES-110 och MES-165 låg
+arkiverade med statusen Todo och syntes på brädan utan att returneras av en
+enda API-fråga — osynliga för varje mätning och varje kö. Det är det värsta
+tillståndet en issue kan ha.
+
+Tröskeln ovan är det som håller antalet nere i längden.
 
 ### Innan en issue plockas upp ur Todo
 
@@ -131,17 +218,84 @@ etikett: fråga hellre än att skapa en ny.
 | Claude Code påbörjar arbetet direkt | **In Progress** (`paborjaIssue`) |
 | Claude Code noterar något på eget initiativ, som ingen bett om | Backlog |
 
-**Projekt — alltid Mesa Magic i det här repot:**
+### In Progress betyder en sak: en session kör den nu
 
-Varje issue som Claude Code skapar medan det jobbar i det här repot hamnar i
-projektet **Mesa Magic** (laget Mesa). Det gäller alla sessioner kopplade
-till GitHub-repot `broedkanibal/magic` — huvudarbetsträdet och alla
-worktrees — oavsett om issuen är en bugg, en feature, research eller
-administration. Fråga inte och gissa inte: utan projekt syns issuen inte i
-projektvyn. Ett annat projekt bara om Jesper uttryckligen säger det i
-chatten.
+Det här är regeln som gör kolumnerna sanna. **In Progress = en levande
+session har issuen just nu.** Inget annat.
 
-Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature'], status:
-'unstarted' })` — `'unstarted'` är Todo, och projektet blir Mesa Magic av
-sig självt (förval i klienten). Med MCP-kopplingen finns inget förval: sätt
-`labels`, `state: "Todo"` och `project: "Mesa Magic"` i `save_issue`.
+Tar sessionen slut utan att issuen är klar — **flytta tillbaka den till
+Todo** och kommentera vad som gjorts och vad som återstår. Ligger det en
+gren kvar: skriv vilken, och att den inte är ihopslagen. En issue som står
+i In Progress utan att någon jobbar på den är osynligt övergiven, och det
+var precis det som gjorde kolumnen oläsbar (38 issues, 22 av dem orörda i
+flera dagar, mätt 2026-09-20).
+
+**Bara den session som tog issuen lämnar tillbaka den.** Ingen annan får
+flytta en issue ur In Progress för att den ser övergiven ut.
+
+Skälet är att du inte kan se om någon jobbar: **subagenter syns aldrig i
+`ListAgents`.** En orkestrerande session kan ha sex agenter igång utan att
+en enda av dem syns utifrån. Den 20 september flyttades fyra issues till
+Todo för att de såg sessionslösa ut — en av dem mitt i sin sjunde mätkedja.
+
+Ser en issue övergiven ut och det inte är din: **fråga den session som har
+den**, eller den orkestrerande sessionen. Flytta den inte.
+
+De andra kolumnerna finns för att In Progress ska slippa betyda dem:
+
+| Kolumn | Betyder | Vem släpper den vidare |
+|---|---|---|
+| **Provas** | **väntar på Jesper** — ett prov på riktig telefon, ett prov i ett riktigt spel, ett designval eller ett konto. Om det finns kod eller inte spelar ingen roll | Jesper |
+| **Blocked** | väntar på en annan issue; ingen ska plocka upp den | den som stänger blockeraren |
+| **Todo** | i kön, ingen session | vem som helst |
+
+`blockeraIssue(issueId, orsak, { blockeradAv })` flyttar till **Blocked**.
+Är det Jesper som behövs — inte en annan issue — hör den till **Provas**
+plus etiketten `Needs Jesper`. Det gäller också en issue där ingenting är
+byggt än för att designvalet är hans: den ligger i Provas, inte i In
+Progress. Annars syns han inte som flaskhalsen i sin egen vy, och det är
+hela poängen med kolumnen.
+
+**Är halva issuen levererad och andra halvan blockad — dela den.** En rad på
+brädan kan bara säga ett läge. MES-248 var det första fallet: del 1 ute i
+produktionen, del 2 blockad av MES-261, och kolumnen sa bara "Blocked" så
+att den som läste trodde att ingenting hänt.
+
+**Priority är köordningen, inte hur viktigt något känns:**
+
+| Priority | Betyder |
+|---|---|
+| **High** | näst på tur — plockas när något blir ledigt |
+| **Medium** | i kön, men senare |
+| Low / ingen | inte bedömd |
+
+Ordningen kommer ur `dev/plan/orkestrering.md`. Den filen är **regelboken**
+— kodområden, vad som inte får köras parallellt, hur en gren slås ihop —
+inte en egen kö. Två köer som inte stämmer överens är värre än ingen.
+
+**Projekt — ett, och det tar slut:**
+
+| Projekt | Klart när |
+|---|---|
+| **Spegelläget i realtid** | de tre löftena hålls (milstolpar: Etapp 1–4) |
+
+En ny issue hamnar i Spegelläget bara om den hör till de löftena. Allt annat
+får **inget projekt** — bara etiketter. Det är inte en brist: ett projekt som
+aldrig blir klart gör framstegsstapeln och måldatumet meningslösa, och
+kartan över appen är etiketterna.
+
+Hör issuen till en etapp i Spegelläget: sätt milstolpen också. Etapperna är
+**milstolpar i projektet**, inte parent-issues (MES-237 och MES-253–256 är
+stängda som ersatta av dem).
+
+Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature', 'spelvyn'],
+status: 'unstarted', projekt: null })` — eller `projekt: 'Spegelläget i
+realtid'` när den hör till löftena. Med MCP-kopplingen: sätt `labels` och
+`state: "Todo"`, och `project` bara i det fallet.
+
+### Överblicken: `/läget`
+
+Kör `node dev/laget.cjs` plus `ListAgents` — skillen `laget` gör båda och
+slår ihop dem. Den svarar på vad som körs, vad som väntar på Jesper, vad som
+är blockat, vilka grenar som inte är ihopslagna och vad som är näst på tur.
+Använd den när Jesper frågar hur det går, i stället för att läsa Linear.

@@ -1,0 +1,178 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Räknetråden — prov (MES-221)</title>
+<!-- Provar läsningens räknetråd (LasWorker i index.html) utan golden och utan
+     nätet: en syntetisk pool av procedurellt ritade "kort", och samma
+     räkning på huvudtråden och i tråden — svaren ska vara identiska, bit
+     för bit. Provar också att ett svar mot en pool som hann ändras kastas,
+     att avstängd tråd räknar på huvudtråden, och hur lång tid tråden tar.
+
+       node dev/embed/utdrag.cjs          (dagens kedja ur index.html → dev/embed/cache/kedjan.js)
+       PORT=8290 node dev/stub-server.cjs  och öppna http://localhost:8290/dev/lasworker-prov.html
+
+     Slutraden säger OK eller FEL; allt står också i window.PROV. -->
+<script src="embed/cache/kedjan.js"></script>
+<style>body{font:13px/1.4 ui-monospace,Menlo,monospace;margin:16px;background:#fff;color:#111}.fel{color:#b00}.ok{color:#070}</style>
+<pre id="ut"></pre>
+<script>
+'use strict';
+const ut = document.getElementById('ut');
+const PROV = window.PROV = { rader: [], fel: 0 };
+function skriv(t, klass) { PROV.rader.push(t); const s = document.createElement('span'); s.textContent = t + '\n'; if (klass) s.className = klass; ut.appendChild(s); }
+function check(namn, ok, info) { if (!ok) PROV.fel++; skriv((ok ? 'OK  ' : 'FEL ') + namn + (info ? ' — ' + info : ''), ok ? 'ok' : 'fel'); }
+
+/* Ett syntetiskt kort: svart kant, färgad ram, konstverk med figurer, textrader — så
+   att både Matchers signatur och ORB:s hörn får något att bita i. Deterministiskt ur k. */
+function lcg(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function kortBild(k, W, H) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'), r = lcg(1000 + k * 7919);
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  x.fillStyle = `hsl(${(k * 47) % 360} 40% ${55 + (k % 3) * 8}%)`; x.fillRect(W * 0.03, H * 0.03, W * 0.94, H * 0.94);
+  x.fillStyle = '#eee'; x.fillRect(W * 0.07, H * 0.04, W * 0.86, H * 0.06);          // titelrad
+  x.fillStyle = `hsl(${(k * 131) % 360} 60% 30%)`; x.fillRect(W * 0.075, H * 0.105, W * 0.85, H * 0.445);   // konstverk
+  for (let i = 0; i < 14; i++) {                                                     // figurer i konstverket
+    x.fillStyle = `hsl(${Math.floor(r() * 360)} 70% ${40 + Math.floor(r() * 50)}%)`;
+    const cx = W * (0.1 + r() * 0.8), cy = H * (0.12 + r() * 0.42), rr = W * (0.03 + r() * 0.09);
+    if (r() < 0.5) { x.beginPath(); x.arc(cx, cy, rr, 0, 7); x.fill(); } else x.fillRect(cx - rr, cy - rr * 0.7, rr * 2, rr * 1.4);
+  }
+  x.fillStyle = '#f4f0e6'; x.fillRect(W * 0.07, H * 0.6, W * 0.86, H * 0.33);       // textruta
+  x.fillStyle = '#222';
+  for (let i = 0; i < 6; i++) x.fillRect(W * 0.1, H * (0.63 + i * 0.05), W * (0.3 + r() * 0.5), H * 0.012);
+  return c;
+}
+/* Frågan: kortet k ritat i en beskärning med 8 % marginal (som beskar()), lite
+   vridet och skalat, på en "matta" — som kameran ser det. */
+function fraga(k, W, rotDeg, skala) {
+  const H = Math.round(W / 0.716), c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#6b5a3e'; x.fillRect(0, 0, W, H);
+  const bild = kortBild(k, 300, 419), m = 0.08;
+  x.translate(W / 2, H / 2); x.rotate(rotDeg * Math.PI / 180); x.scale(skala, skala);
+  x.drawImage(bild, -W * (1 - 2 * m) / 2, -H * (1 - 2 * m) / 2, W * (1 - 2 * m), H * (1 - 2 * m));
+  return c;
+}
+function byggPool(n) {
+  const names = [], ids = [], refs = [], D = Matcher.DESC;
+  const descs = new Int8Array(n * D);
+  for (let k = 0; k < n; k++) {
+    const im = kortBild(k, 300, 419);
+    descs.set(Matcher.describeImage(im), k * D);
+    refs.push(ORB.refFeatures(im, 200));
+    names.push(k % 4 === 3 ? 'Plains' : 'Kort ' + k); ids.push('s' + k);   // två Plains — som en landtyp med flera konstverk
+  }
+  return { code: 'prov', names, ids, descs, orb: ORB.pack(refs), v: 7 };
+}
+const r3 = v => v == null ? null : Math.round(v * 1000) / 1000;
+const projSkanna = s => ({ r: s.results.map(x => [x.i, x.name, x.id, r3(x.score), x.fit ? [r3(x.fit.sc), r3(x.fit.sy), r3(x.fit.dx), r3(x.fit.dy), r3(x.fit.rot)] : null]), k: r3(s.confidence), rot0: r3(s.rot0), orb: s.orb ? [s.orb.inliers, s.orb.rot, s.orb.cand ? [s.orb.cand.i, s.orb.cand.name] : null] : null });
+const projOrb = t => t.map(h => [h.r, h.i, h.namn, h.inliers, r3(h.skala)]);
+const lika = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const nu = () => performance.now();
+
+(async () => {
+  const { Pool, LasWorker, skannaOchOrb, domIdentifyAt, orbSvep } = Kedjan;
+  const ORB_ACCEPT = 10, STOPP = ORB_ACCEPT + 4, SKALA = [0.8, 1.6];
+  Pool.idx = byggPool(12);
+  skriv(`poolen: ${Pool.idx.names.length} kort, ${Pool.idx.orb.off[Pool.idx.orb.off.length - 1]} ORB-punkter`);
+  check('tråden finns i den här webbläsaren (Worker + OffscreenCanvas + createImageBitmap)', typeof Worker === 'function' && typeof OffscreenCanvas === 'function' && typeof createImageBitmap === 'function');
+  window.MESA_LASWORKER = 'kontroll';
+  LasWorker.varm();
+  check('tråden skapad av varm()', LasWorker.aktiv);
+
+  /* 0. Ritningen själv, bit för bit: grab():s nedskalning ('high', 300 → 176 px)
+     av en GPU-backad beskärning på huvudtråden mot samma ritning i en tråd
+     med ImageBitmap som källa och accelererad OffscreenCanvas som mål (som
+     LasWorker gör). Uppmätt 2026-09-20: 0 px olika — men 14 516 px olika (max
+     99 gråsteg) om trådens canvas har willReadFrequently, och lika många om
+     beskärningen lästs av två gånger med getImageData på huvudtråden. */
+  {
+    const q = fraga(2, 300, -4, 1.05);
+    const grabRita = (cv, img, iw, ih, attr) => { const box = { x: 0, y: 0, w: iw, h: ih }, MARGIN = 0.55, GRAB_W = 176; const tw = box.w * (1 + 2 * MARGIN), th = box.h * (1 + 2 * MARGIN); const gw = GRAB_W, gh = Math.max(8, Math.round(gw * th / tw)); cv.width = gw; cv.height = gh; const g = cv.getContext('2d', attr); g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.fillStyle = '#7f7f7f'; g.fillRect(0, 0, gw, gh); const x0 = box.x - box.w * MARGIN, y0 = box.y - box.h * MARGIN, s = gw / tw; const sx = Math.max(0, Math.floor(x0)), sy = Math.max(0, Math.floor(y0)), sx2 = Math.min(iw, Math.ceil(x0 + tw)), sy2 = Math.min(ih, Math.ceil(y0 + th)); g.drawImage(img, sx, sy, sx2 - sx, sy2 - sy, (sx - x0) * s, (sy - y0) * s, (sx2 - sx) * s, (sy2 - sy) * s); return g.getImageData(0, 0, gw, gh).data; };
+    const huvud = grabRita(document.createElement('canvas'), q, q.width, q.height, { willReadFrequently: true });
+    const wk = new Worker(URL.createObjectURL(new Blob([`const grabRita = ${grabRita.toString()}; self.onmessage = ev => { const m = ev.data; const d = grabRita(new OffscreenCanvas(1, 1), m.bm, m.w, m.h, { willReadFrequently: m.wrf }); self.postMessage(d.buffer, [d.buffer]); };`], { type: 'text/javascript' })));
+    const iTrad = async wrf => { const bm = await createImageBitmap(q); return new Promise(res => { wk.onmessage = ev => res(new Uint8ClampedArray(ev.data)); wk.postMessage({ bm, w: q.width, h: q.height, wrf }, [bm]); }); };
+    const diff = (a, b) => { let n = 0, mx = 0; for (let i = 0; i < a.length; i++) { const d = Math.abs(a[i] - b[i]); if (d) { n++; if (d > mx) mx = d; } } return { n, mx }; };
+    const acc = diff(huvud, await iTrad(false)), cpu = diff(huvud, await iTrad(true));
+    wk.terminate();
+    check('grab-ritningen i tråden (accelererad canvas, ImageBitmap) = huvudtrådens, bit för bit', acc.n === 0, `${acc.n} px olika (max ${acc.mx}); med willReadFrequently i tråden: ${cpu.n} px olika (max ${cpu.mx})`);
+  }
+
+  /* 1. Samma svar i tråden som på huvudtråden, för tolv frågor i olika lägen. */
+  const fall = [];
+  for (let k = 0; k < 12; k++) fall.push({ k, rot: [0, 3, -4, 180, 177, 2][k % 6], sk: [1, 0.95, 1.05, 0.9, 1, 1.1][k % 6] });
+  let olikaSkanna = 0, olikaOrb = 0, rattSkanna = 0, rattOrb = 0, tTrad = [], tHuvud = [];
+  for (const f of fall) {
+    const q = fraga(f.k, 300, f.rot, f.sk), box = { x: 0, y: 0, w: q.width, h: q.height };
+    const P = Pool.idx;
+    let t0 = nu(); const sH = skannaOchOrb(q, box, 0, P, STOPP); tHuvud.push(nu() - t0);
+    t0 = nu(); const sT = await LasWorker.skanna(q, box, 0, P, STOPP); tTrad.push(nu() - t0);
+    if (!lika(projSkanna(sH), projSkanna(sT))) { olikaSkanna++; skriv('  skanna skiljer sig, kort ' + f.k + ':\n    huvud ' + JSON.stringify(projSkanna(sH)).slice(0, 300) + '\n    tråd  ' + JSON.stringify(projSkanna(sT)).slice(0, 300), 'fel'); }
+    const d = domIdentifyAt(sT, box); if (d.rec.cands[0] && d.rec.cands[0].name === P.names[f.k]) rattSkanna++;
+    const vilka = [f.k, (f.k + 1) % 12, (f.k + 5) % 12], rots = [f.rot < 90 || f.rot > 270 ? 0 : 180, f.rot < 90 || f.rot > 270 ? 180 : 0];
+    const oH = orbSvep(q, box, rots, vilka, STOPP, SKALA, P), oT = await LasWorker.orb(q, box, rots, vilka, STOPP, SKALA, P);
+    if (!lika(projOrb(oH), projOrb(oT))) { olikaOrb++; skriv('  orbSvep skiljer sig, kort ' + f.k + ':\n    huvud ' + JSON.stringify(projOrb(oH)) + '\n    tråd  ' + JSON.stringify(projOrb(oT)), 'fel'); }
+    const bast = oT.reduce((a, h) => (h.inliers > a.inliers ? h : a), { inliers: 0 }); if (bast.i === f.k) rattOrb++;
+  }
+  check('skannaOchOrb: tråden = huvudtråden i alla 12 frågor', olikaSkanna === 0, `${12 - olikaSkanna}/12 lika; rätt kort överst ${rattSkanna}/12`);
+  check('orbSvep: tråden = huvudtråden i alla 12 frågor', olikaOrb === 0, `${12 - olikaOrb}/12 lika; ORB:s flesta inliers på rätt kort ${rattOrb}/12`);
+  check('kontrollen i LasWorker såg samma sak (stat.olika)', LasWorker.stat.olika === 0, 'olika ' + LasWorker.stat.olika);
+  /* Känd avvikelse: vid EXAKT 90° och 270° (modellen svarade med en vriden
+     referens, Embed.ROTAR) ritar Chromes huvudtråd beskärningen på ett sätt
+     som ingen kombination i en tråd ger — 1 500–2 000 av 80 000 bildpunkter,
+     som mest 41 gråsteg. Räknas här, fäller inte provet; golden med
+     --lasworker kontroll säger hur ofta det ändrar en dom på riktiga kort. */
+  {
+    let olika90 = 0, poster = 0, inl = 0;
+    const olikaFore = LasWorker.stat.olika;
+    for (let k = 0; k < 12; k += 3) {
+      const q = fraga(k, 300, 90, 1), box = { x: 0, y: 0, w: q.width, h: q.height }, P = Pool.idx, vilka = [k, (k + 1) % 12, (k + 5) % 12];
+      const oH = orbSvep(q, box, [90, 270], vilka, STOPP, SKALA, P), oT = await LasWorker.orb(q, box, [90, 270], vilka, STOPP, SKALA, P);
+      for (let i = 0; i < Math.max(oH.length, oT.length); i++) { poster++; if (!oH[i] || !oT[i] || oH[i].inliers !== oT[i].inliers || r3(oH[i].skala) !== r3(oT[i].skala)) { olika90++; inl += Math.abs(((oH[i] || {}).inliers || 0) - ((oT[i] || {}).inliers || 0)); } }
+    }
+    LasWorker.stat.olika = olikaFore;   // räknas inte som fel i provet
+    skriv(`  känd avvikelse vid 90°/270°: ${olika90} av ${poster} ORB-poster skiljer sig (inliers sammanlagt ${inl})`);
+  }
+  const med = l => { const q = l.slice().sort((a, b) => a - b); return Math.round(q[q.length >> 1]); };
+  skriv(`  tid per skanna, vägg: huvudtråden median ${med(tHuvud)} ms, tråden (fråga→svar, med kontrollens egen räkning inräknad i vänteperioden) ${med(tTrad)} ms; trådens egen räknetid median ${med(LasWorker.stat.ms)} ms, max ${Math.max(...LasWorker.stat.ms)} ms`);
+  check('alla frågor räknades i tråden', LasWorker.stat.trad === 28 && LasWorker.stat.huvud === 0, `trad ${LasWorker.stat.trad} (24 + 4 vid 90°), huvud ${LasWorker.stat.huvud}, fel ${LasWorker.stat.fel}`);
+
+  /* 2. Poolen hann ändras (samma stämpel, annat namn på ett index): svaret kastas och huvudtråden räknar. */
+  {
+    const P = Pool.idx, gammalt = P.names[2]; P.names = P.names.slice(); P.names[2] = 'Bytt namn';
+    const q = fraga(2, 300, 0, 1), box = { x: 0, y: 0, w: q.width, h: q.height };
+    const fore = LasWorker.stat.gammal, huvudFore = LasWorker.stat.huvud;
+    const s = await LasWorker.skanna(q, box, 0, P, STOPP);
+    check('namnet på index 2 bytt utan ny stämpel: trådens svar kastas, huvudtråden räknar', LasWorker.stat.gammal === fore + 1 && LasWorker.stat.huvud === huvudFore + 1 && s.results.every(x => P.names[x.i] === x.name), `gammal ${LasWorker.stat.gammal - fore}, huvud ${LasWorker.stat.huvud - huvudFore}, namnet i svaret ${s.results[0] && s.results[0].name}`);
+    P.names[2] = gammalt;
+  }
+  /* 3. Poolen bytt på riktigt (ny stämpel: ett id till): tråden får den nya och räknar mot den. */
+  {
+    const P = Pool.idx; P.ids = P.ids.concat('s-ny'); P.names = P.names.concat('Nytt kort');
+    const D = Matcher.DESC, descs = new Int8Array(P.descs.length + D); descs.set(P.descs); descs.set(Matcher.describeImage(kortBild(99, 300, 419)), P.descs.length); P.descs = descs;
+    P.orb = ORB.packTill(P.orb, ORB.refFeatures(kortBild(99, 300, 419), 200));
+    const q = fraga(99, 300, 0, 1), box = { x: 0, y: 0, w: q.width, h: q.height };
+    const tradFore = LasWorker.stat.trad;
+    const s = await LasWorker.skanna(q, box, 0, P, STOPP);
+    check('ny stämpel (ett kort till): tråden räknar mot den nya poolen och hittar det nya kortet', LasWorker.stat.trad === tradFore + 1 && s.results[0] && s.results[0].name === 'Nytt kort', `trad +${LasWorker.stat.trad - tradFore}, överst ${s.results[0] && s.results[0].name}`);
+  }
+  /* 4. Avstängd (MESA_LASWORKER = false): allt på huvudtråden, samma svar. */
+  {
+    window.MESA_LASWORKER = false;
+    const P = Pool.idx, q = fraga(5, 300, 0, 1), box = { x: 0, y: 0, w: q.width, h: q.height };
+    const huvudFore = LasWorker.stat.huvud;
+    const s = await LasWorker.skanna(q, box, 0, P, STOPP);
+    check('MESA_LASWORKER = false: huvudtråden räknar', LasWorker.stat.huvud === huvudFore + 1 && lika(projSkanna(s), projSkanna(skannaOchOrb(q, box, 0, P, STOPP))));
+    window.MESA_LASWORKER = 'kontroll';
+  }
+  /* 5. Många frågor på en gång: svaren paras på id, inte på ordning — varje svar hör till sin fråga. */
+  {
+    const P = Pool.idx, jobb = [];
+    for (let k = 0; k < 8; k++) { const q = fraga(k, 300, 0, 1), box = { x: 0, y: 0, w: q.width, h: q.height }; jobb.push(LasWorker.skanna(q, box, 0, P, STOPP).then(s => ({ k, namn: s.results[0] && s.results[0].name }))); }
+    const svar = await Promise.all(jobb);
+    check('åtta frågor samtidigt: varje svar hör till sin fråga', svar.every(s => s.namn === P.names[s.k]), svar.map(s => `${s.k}:${s.namn}`).join(' '));
+  }
+  skriv('');
+  skriv(PROV.fel ? `FEL: ${PROV.fel} prov föll` : 'OK: alla prov gick igenom', PROV.fel ? 'fel' : 'ok');
+  PROV.klar = true;
+})().catch(e => { skriv('KRASCH: ' + (e && e.stack || e), 'fel'); PROV.fel++; PROV.klar = true; });
+</script>

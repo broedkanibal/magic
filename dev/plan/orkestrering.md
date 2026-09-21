@@ -1,9 +1,11 @@
-# Orkestreringen av spegelläget (MES-237) — plan för en autonom session
+# Orkestreringen av spegelläget — plan för en autonom session
 
 Skriven 2026-09-20 som överlämning från MES-242-sessionen. Läses av den
 session som Jesper startar på **ultracode** för att köra etapperna utan
 avstämning efter varje issue. Linear är källan för status; etappkartan är
-`dev/plan/etapper.md`. Uppdatera den här filen när kön ändras.
+`dev/plan/etapper.md`. Arbetet hör till projektet *Spegelläget i
+realtid*, och etapperna är milstolpar i det — inte issues (de var det till
+2026-09-20). Uppdatera den här filen när kön ändras.
 
 ## Vad Jesper har godkänt (2026-09-20)
 
@@ -73,6 +75,41 @@ Gäller varje session som jobbar bredvid en orkestrerande session:
 Skälet är inte revir. En agents mätning jämför före mot efter på samma kod.
 Byts koden under körningen jämförs två olika saker — och siffran ser exakt
 lika riktig ut som förut.
+
+## Kontroller som ljuger
+
+Sex gånger på ett dygn (2026-09-20) gav en kontroll ett svar som såg riktigt
+ut och aldrig hade jämförts med verkligheten. Alla sex är mätta, inte
+gissade:
+
+| Kontroll | Vad den svarade | Vad som gällde |
+|---|---|---|
+| Poolen i golden | tal som såg rimliga ut | halv pool — 17/57 två gånger (MES-260) |
+| `--utan-leken` | "0 fel namn" | mot en lista ingen skrivit ner (MES-266) |
+| En golden-körning | ingenting alls, i 4,5 timmar | klar, men hängd i nedstängningen (MES-270) |
+| `git log --grep=MES-NNN` | "koden är på main" | ett omnämnande i en annan commits text |
+| "ingen session i listan" | "ingen jobbar på den" | sju mätkedjor pågick i subagenter |
+| Latensrapporten | medianen klarar 0,3 s | 544 ms — tre rader låg på −13, −73 och −91 s (MES-275) |
+
+**Formen är densamma varje gång.** I fem av sex fall upptäcktes det av en
+slump, för att någon som råkade veta sanningen tittade på utskriften.
+
+En sjunde, natten till 2026-09-21: en session höll på att köra fyra
+minuters bänk på en gren som **redan låg i main**. Två sessioner hade fått
+samma uppdrag av Jesper, den ena hann före, och den andra visste inte om
+det. Det som räddade det var `git diff --stat origin/main` — tom.
+
+**Före varje sammanslagning:** `git diff --stat origin/main` och
+`git branch -r --contains <gren>`. Är diffen tom är arbetet redan ute, och
+mätningen hade tagit maskinen från någon annan i onödan.
+
+Regeln som följer: **varje kontroll ska ha ett sätt att säga "jag vet
+inte"** i stället för att tyst svara fel. En pool som inte är hel ska vägra
+köra, inte varna. En körning som hänger ska ha skrivit sina tal innan den
+började stänga ner. En lista som avgör en släppgräns ska ligga i repot.
+
+Och: **ett tal som ingen någonsin kontrollräknat för hand är inte mätt** —
+det är bara utskrivet.
 
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 

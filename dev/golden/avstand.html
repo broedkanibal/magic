@@ -86,6 +86,10 @@ const FALL = (Q.get('fall') || '').split(',').map(s => s.trim()).filter(Boolean)
    den lokala kedjan tappar dem (MES-31). Kostar; attrappen måste köra
    riktiga anrop (MESA_AI=1). */
 const AI = Q.get('ai') === '1';
+/* Bildmodellen (MES-225) som i kor.cjs: parametrarna går vidare till
+   kor.html oförändrade (embed=0, embedlokalt=1, embedbackend=wasm). */
+const KOR_Q = new URLSearchParams(); if (AI) KOR_Q.set('ai', '1');
+for (const k of ['embed', 'embedlokalt', 'embedbackend', 'tro']) if (Q.get(k)) KOR_Q.set(k, Q.get(k));
 /* Golvens tal, som i index.html. Bara för att räkna om kortsidan till
    "kapas beskärningen?" och för rubrikerna — själva domarna läses ur appen. */
 const KORT_MIN_PX = 150, BESKAR_BREDD = 720, MARGINAL = 1.16;
@@ -97,7 +101,7 @@ let kw = null, K = null;   // kor.html:s fönster och appens Kamera-modul (kor.h
 /* ── kor.html, med allt den gör vid start ─────────────────────────── */
 async function laddaKor() {
   const f = $('#kor');
-  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html' + (AI ? '?ai=1' : ''); });
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = 'kor.html' + (KOR_Q.size ? '?' + KOR_Q : ''); });
   kw = f.contentWindow;
   for (let i = 0; i < 100; i++) { try { if (typeof kw.korStillFall === 'function') break; } catch (e) {} await sleep(100); }
   for (const fn of ['korStillFall', 'stallUpp', 'bedom']) if (typeof kw[fn] !== 'function') throw new Error('kor.html saknar ' + fn);
@@ -134,7 +138,7 @@ async function korFaktor(f, img, faktor) {
      under korFall, och numreraOm itererar listan när fallet är klart. */
   kw.eval('beskarningar')[f.id] = [];
   const cv = kw.stallUpp(f, c, kb, kh);
-  let klar = false, prov = null, smaMax = 0;
+  let klar = false, prov = null, smaMax = 0, anaBredd = null;
   const p = kw.korStillFall(f, cv);
   p.then(() => { klar = true; }, () => { klar = true; });
   /* Golven avläses medan fallet kör: sista provet före klart gäller, och
@@ -145,6 +149,7 @@ async function korFaktor(f, img, faktor) {
       const vidSkala = kb * K.ruta.w / K.analysMatt.aw;   // videopixlar per analyspixel, som modulen räknar den
       const dia = K.diagnos;
       smaMax = Math.max(smaMax, dia.smaKort || 0);
+      anaBredd = K.analysMatt.aw;   // analysbilden detektorn ser (MES-244, T.anaBredd)
       prov = { langtBort: /^The cards are small in the picture/.test(K.rad || ''), vidSkala, lage: K.lage, antalSpar: spar.length,
                sparKortPx: med(spar.map(t => t.kort * vidSkala)), sma: K.sma, smaKort: dia.smaKort || 0,
                kortRef: dia.kortRef ? Object.assign({}, dia.kortRef) : null,
@@ -172,12 +177,19 @@ async function korFaktor(f, img, faktor) {
      räknat ur en uppskattad kortsida med en kopierad konstant. */
   const besk = kw.eval('beskarningar')[f.id] || [];
   const beskBredd = besk.length ? Math.max(...besk.map(p => p.w || 0)) : null;
-  return { fall: f.id, faktor, bredd: kb, hojd: kh, kort: res.kort, hittade: res.hittade, namn: res.namn, osakra: res.osakra, felNamn: res.felNamn, falska: res.falska,
+  /* Analysbredden och stegtiden (MES-244, E): kortets storlek i ANALYSbilden
+     avgör om kort omlott går att skilja åt, och bredare analys kostar mer per
+     ruta — priset i värme på telefonen (MES-164). */
+  return { anaBredd, stegMs: res.ms, stegMax: res.msMax, fall: f.id, faktor, bredd: kb, hojd: kh, kort: res.kort, hittade: res.hittade, namn: res.namn, osakra: res.osakra, felNamn: res.felNamn, falska: res.falska,
            kortPx: kortPx != null ? Math.round(kortPx) : null, kortKalla, beskBredd, kapad: beskBredd != null && beskBredd >= BESKAR_BREDD,
            langtBort: !!(prov && prov.langtBort), sparKortPx: prov && prov.sparKortPx != null ? Math.round(prov.sparKortPx) : null, vidSkala: prov ? +prov.vidSkala.toFixed(2) : null,
            smaKort: prov ? prov.smaKort : 0, smaMax, sma: prov ? prov.sma : 0, avslag: prov ? prov.avslag : null,
            ocrHoppade: ocr.filter(t => t.ocr.hoppad === 'liten').length, ocrAv: ocr.length,
-           tidsgrans: !!res.tidsgrans, tid: res.tid, krascher: res.krascher || 0, missade: res.missade, spar: res.spar.map(t => ({ id: t.id, tillstand: t.tillstand, namn: t.namn, saker: t.saker, ocr: t.ocr ? { hoppad: t.ocr.hoppad, namn: t.ocr.namn, poang: t.ocr.poang } : null })) };
+           tidsgrans: !!res.tidsgrans, tid: res.tid, krascher: res.krascher || 0, missade: res.missade, varforRatt: res.varforRatt || {},
+           /* Var namnen fastnar (MES-244): facits kort mot spåren, och kedjans
+              läsningar — modellens marginal, ORB:s inliers och skala, domskälet,
+              titelraden, beskärningens storlek — så som kor.html loggar dem. */
+           traffar: res.traffar || [], lasningar: res.lasningar || [], spar: res.spar.map(t => ({ id: t.id, tillstand: t.tillstand, namn: t.namn, saker: t.saker, ocr: t.ocr ? { hoppad: t.ocr.hoppad, namn: t.ocr.namn, poang: t.ocr.poang } : null })) };
 }
 
 /* Ett faktorsteg utan egen kortsida (inga rutor, ingen kortreferens) får
@@ -200,7 +212,7 @@ function skrivTabell(R, fall) {
   const rad = (namn, celler) => '  ' + namn.padEnd(42) + celler.map(c => String(c).padEnd(16)).join('').trimEnd();
   /* Vad som kördes, som kor.cjs skriver det: med Claude också modellen. */
   const met = (() => { try { const m = kw.eval('metod')(), a = kw.eval('aiModell')(); return m + (a ? ` (${a})` : ''); } catch (e) { return AI ? '+ai' : 'lokal'; } })();
-  skriv(`metod: ${met}`);
+  skriv(`metod: ${met}${R.some(r => r.anaBredd) ? ` · analysbredd ${[...new Set(R.map(r => r.anaBredd).filter(Boolean))].join('/')} px` : ''}`);
   skriv('Rätt namn/kort · fel namn · falska, per fall och faktor (⏱ = slog i taket på 30 s). Faktor 1 = bild.jpg som den är.');
   skriv(rad('Fall', FAKTORER.map(x => 'faktor ' + x)));
   for (const f of fall) skriv(rad(f.id, FAKTORER.map(x => cell(R.find(r => r.fall === f.id && r.faktor === x)))));
@@ -222,6 +234,7 @@ function skrivTabell(R, fall) {
         + `   hittade ${String(r.hittade).padStart(2)}   rätt ${String(r.namn + '/' + r.kort).padStart(5)}   fel ${r.felNamn}   falska ${String(r.falska).padStart(2)}`
         + `   långt bort ${ja(r.langtBort).padEnd(3)}   små ${r.smaKort}/${r.smaMax}/${r.sma}   ocr hoppade ${r.ocrHoppade} av ${String(r.ocrAv).padEnd(2)}   kapad ${ja(r.kapad).padEnd(3)}`
         + (a ? `   avslag ${String(a.regioner).padStart(2)}: damm ${String(a.damm).padStart(2)} · blänk ${a.blank} · kvot ${a.kvot} · otät ${a.otat} · slät ${a.flat} · liten ${a.liten}` : '')
+        + `   analys ${String(r.anaBredd || '–').padStart(3)} px   steg ${r.stegMs == null ? '–' : Math.round(r.stegMs)} ms (max ${r.stegMax == null ? '–' : Math.round(r.stegMax)})`
         + `   ${(r.tid / 1000).toFixed(1)} s${r.tidsgrans ? ' ⏱' : ''}${r.krascher ? ' ✗' + r.krascher : ''}`);
     }
   }
@@ -269,7 +282,7 @@ function skrivTabell(R, fall) {
     }
     fyllKortPx(R);
     skrivTabell(R, fall);
-    window.RES = { faktorer: FAKTORER, telefonPx: TELEFON_PX, metod: (() => { try { return kw.eval('metod')(); } catch (e) { return null; } })(), rader: R };
+    window.RES = { faktorer: FAKTORER, telefonPx: TELEFON_PX, metod: (() => { try { return kw.eval('metod')(); } catch (e) { return null; } })(), modell: (() => { try { const k = kw.eval('embedInfo'); return k ? k.backend : null; } catch (e) { return null; } })(), rader: R };
     status('Klar.');
   } catch (e) { status('Fel: ' + (e && e.message || e)); console.error(e); }
 })();
