@@ -72,6 +72,18 @@ Gäller varje session som jobbar bredvid en orkestrerande session:
 | Kod som golden täcker (`index.html`, `api/`, `dev/embed/`, `dev/golden/*.cjs`) | pusha inte till main — lämna en gren och säg till, så kör orkestreraren bänk och golden och slår ihop |
 | Vad som helst, medan ett merge-fönster är öppet | vänta; orkestreraren säger till när det öppnas och när det stängs |
 
+**Bara den session som tog en issue lämnar tillbaka den.** Ser en issue
+övergiven ut och den inte är din: fråga den orkestrerande sessionen först,
+flytta den inte. **Frånvaron av en session i `ListAgents` bevisar ingenting**
+— arbete som görs av subagenter syns aldrig där. En orkestrerande session
+kan ha fem agenter igång i egna worktrees, och utifrån ser det ut som en
+ensam session utan issues.
+
+Natten till 2026-09-21 flyttades fyra issues till Todo på den grunden. Alla
+fyra hade en levande ägare; en var mitt i sin sjunde mätkedja. Ingen mätning
+gick förlorad — Linears status är en etikett, inte en spärr — men bilden av
+arbetet var fel i flera timmar.
+
 Skälet är inte revir. En agents mätning jämför före mot efter på samma kod.
 Byts koden under körningen jämförs två olika saker — och siffran ser exakt
 lika riktig ut som förut.
