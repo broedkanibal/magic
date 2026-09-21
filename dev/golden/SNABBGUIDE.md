@@ -76,6 +76,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --utan-modell` | utan bildmodellen (MES-225): reserven Matcher + ORB mäts — ska ge samma tal som före modellen (31/57, 0, 5). `--wasm` tvingar modellen till WASM i stället för WebGPU |
 | `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
 | `node dev/golden/kor.cjs --luft 0` | utan läsningen på första hela rutan (MES-227, `T.luft`): den tidiga läsningen väntar två formstilla rutor som förut. `--luft 1` tvingar den på |
+| `node dev/golden/kor.cjs --cdp-tak 300000` | tidsgränsen för ett anrop till Chrome i ms (förval 120 000). Svarar Chrome inte stoppar körningen med orsaken och slutkod 2 i stället för att hänga; attrappen och Chrome stängs alltid (MES-270) |
 | `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
 | `node dev/golden/kor.cjs --fall 09 --tro "snabb:1"` | valfria trösklar till kameran före varje fall (`Kamera.satTrosklar`) — för prov som inte ska bli förval. Sparas aldrig som baslinje |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
