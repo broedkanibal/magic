@@ -24,13 +24,12 @@ partiet till måttet.
 
 ```
 A rutor (skript, ingen agent)
-   ├→ B händelsefacit   general-purpose, model sonnet
-   └→ C identitetsfacit  general-purpose, model opus
-             └→ D utkast till analys och plan   general-purpose, model opus
+ → B händelsefacit          general-purpose, model sonnet
+   → C identitetsfacit      general-purpose, model opus   (behöver B:s platser)
+     → D utkast till analys general-purpose, model opus   (behöver B och C)
 ```
 
-B och C körs parallellt när A är klar. D när båda är klara. Starta B och C i
-samma meddelande. Två mappar:
+I tur och ordning: varje del behöver den förras fil. Två mappar:
 
 | Vad | Var | I git? |
 |---|---|---|
@@ -54,28 +53,37 @@ Klar = skriv tomma filen `KLAR-B` / `KLAR-C` / `KLAR-D` bredvid. Aldrig
 försvinna när det städas. `general-purpose` skriver rakt in i det här
 arbetsträdet.
 
-**2. Vakthund i bakgrunden.** Direkt efter att B och C startats (i
-bakgrunden, samma meddelande), starta det här som `run_in_background` i
-Bash. Det avslutar när båda är klara, eller när ingen av filerna vuxit
-på 30 min — och då väcks orkestreraren:
+**2. Vakthund i bakgrunden.** Varje agent startas i bakgrunden, och i
+samma meddelande startas vakten nedan som `run_in_background` i Bash.
+Den avslutar när agenten är klar, när filen inte vuxit på N minuter,
+eller efter den totala tiden — och varje avslut väcker orkestreraren:
 
 ```bash
-M=dev/golden/inspelningar/2026-09-21-parti; T0=$(date +%s)
+# vakt <fil som ska växa> <KLAR-fil> <stilla-minuter> <max-minuter>
+F=$1; K=$2; S=$(( $3 * 60 )); MAX=$(( $4 * 60 )); T0=$(date +%s)
 while true; do
-  [ -e $M/KLAR-B ] && [ -e $M/KLAR-C ] && { echo "båda klara"; exit 0; }
-  N=$(stat -f %m $M/handelser.tsv $M/platser.tsv 2>/dev/null | sort -n | tail -1)
-  [ -n "$N" ] && [ $(( $(date +%s) - N )) -gt 1800 ] && { echo "STILLA 30 min"; exit 1; }
-  [ $(( $(date +%s) - T0 )) -gt 9000 ] && { echo "TID 2,5 h"; exit 1; }
+  [ -e "$K" ] && { echo "KLAR"; exit 0; }
+  N=$(stat -f %m "$F" 2>/dev/null); [ -z "$N" ] && N=$T0
+  [ $(( $(date +%s) - N )) -gt $S ] && { echo "STILLA"; exit 1; }
+  [ $(( $(date +%s) - T0 )) -gt $MAX ] && { echo "TID"; exit 1; }
   sleep 120
 done
 ```
 
+| Del | fil | KLAR | stilla | max |
+|---|---|---|---|---|
+| B | `handelser.tsv` | `KLAR-B` | 30 | 120 |
+| C | `platser.tsv` | `KLAR-C` | 30 | 90 |
+| D | `dev/plan/spegeln-utkast.md` | `KLAR-D` | 45 | 75 |
+
+Spara skriptet som `/tmp/vakt.sh` och kör t.ex.
+`bash /tmp/vakt.sh dev/golden/inspelningar/2026-09-21-parti/handelser.tsv dev/golden/inspelningar/2026-09-21-parti/KLAR-B 30 120`.
+
 Väcks orkestreraren med `STILLA` eller `TID`: skicka **ett** meddelande
-till agenten som inte är klar ("skriv det du har och avsluta"), vänta 10
-min, stoppa den sedan (`TaskStop`) och gå vidare med det som ligger på
-disk. Starta aldrig om en agent från noll — starta den på nytt med samma
-prompt, så tar den vid enligt punkt 1. Högst **en** omstart per agent.
-Samma vakthund för D, med 60 min i stället för 30 och `KLAR-D`.
+till agenten ("skriv det du har och avsluta"), vänta 10 min, stoppa den
+sedan (`TaskStop`) och gå vidare med det som ligger på disk. Starta aldrig
+om från noll — samma prompt igen tar vid enligt punkt 1. Högst **en**
+omstart per agent. Väcks den med `KLAR`: nästa del.
 
 **3. Tidsbudget och commit.** Hela passet får ta högst **5 h**. Vad som
 än finns då — hela eller halva facit — skriv resultatfilen, committa
@@ -84,8 +92,7 @@ main; **pusha inte**) och skicka notisen. Ett halvt facit med tydlig
 lucka är värt mer än inget, och en commit är det enda som överlever en
 session som stängs.
 
-Tidsgränser per del, ungefär: A 15 min, B och C 2 h vardera (parallellt),
-D 1 h.
+Tidsgränser per del: A 15 min, B 2 h, C 1,5 h, D 1,25 h — 5 h totalt.
 
 ## A · Bildrutor
 
