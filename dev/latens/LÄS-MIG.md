@@ -9,6 +9,32 @@ Hur du **läser** en rapport står i `dev/golden/SNABBGUIDE.md`, avsnittet
 *Läsa rapporten mot målen (MES-242)*. Den här filen är för den som ska
 **ändra** mätningen, och för den som undrar vad som ännu inte är bevisat.
 
+## Filerna här: namn
+
+Panelen sparar `latens-<starttid>.json`. Döp om den direkt till
+
+```
+latens-<datum>-<issue>-<läge>-<längd>-<vad>.json
+```
+
+| Del | Exempel | Varför |
+|---|---|---|
+| datum | `2026-09-21` | passets dag — mapparna sorteras i tidsordning |
+| issue | `mes-238` | vilken fråga passet svarar på |
+| läge | `4k15` / `1080p30` | samma ord som `bildlage.lage` i filen; två lägen jämförs aldrig av misstag |
+| längd | `20min` | avrundat — säger direkt om passet räcker för värme (20 min) eller bara för tider |
+| vad | `pass-1`, `prov`, `verifiering`, `varme` | skiljer pass samma dag åt |
+
+Anteckningar från passet (klockslag och fel, batteri, värme) läggs bredvid med
+samma namn och `.md`. **Filmer läggs aldrig här** — mappen är i git. De går
+till `dev/material/inspelningar/<datum>-<issue>-<vad>/dator.mov`.
+
+| Fil | Pass |
+|---|---|
+| `latens-2026-09-19-mes-238-4k15-8min-pass-1.json` | första telefonpasset, 4K (7,6 min) |
+| `latens-2026-09-19-mes-238-1080p30-3min-pass-2.json` | samma dag, 1080p (3,2 min) |
+| `latens-2026-09-20-mes-263-4k15-3min-verifiering.json` | verifieringen av MES-242:s mått (2,5 min) |
+
 ## Mätpunkterna och var de sätts
 
 Allt ligger bakom `latens` (telefonen, `Kamera.satLatens`, på med `?debug`)
@@ -66,7 +92,7 @@ räknas släppet från `stillaRor`, och andelen hamnar i `summa.namn.fore_slapp`
 ## Provat på riktig telefon 2026-09-20 (MES-263)
 
 Passet är kört: iPhone, iOS 18.7, svart matta, 4K · 15 fps, 2,5 min, 60
-rader (`latens-2026-09-20-svartmatta-4k15-verifiering.json`). Sex av de sju
+rader (`latens-2026-09-20-mes-263-4k15-3min-verifiering.json`). Sex av de sju
 kontrollerna nedan var gröna direkt. Den sjunde — **är `fran_slapp`
 rimlig?** — gav svaret att telefonens `rorelse` klarar en riktig hand (tap
 78–415 ms, flytt 73–912 ms, alla positiva), men att **efterräkningen på
