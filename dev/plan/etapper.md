@@ -44,6 +44,15 @@ parallellt med 2 och 3 av en egen session.
 * **Det som saknas är att HITTA korten:** 41 av 57 blir spår, och de
   som fattas ligger omlott (MES-250). De korten går till Claude, och det
   är det som gör namnen långsamma.
+* **Claude-vägen går inte att snabba upp genom mindre bild** (MES-252,
+  mätt 2026-09-21). Helbilderna står för 13 av 20 anrop och 35 366 av
+  45 276 indatatokens, och tar 5,8–12,0 s styck. Beskärningarna är redan
+  små: 210 respektive 100 bildtokens mot helbildens 1 170. Claudes
+  svarstid varierar dessutom **2–17 s mellan körningar på samma kod**, så
+  tiondelar är omätbara. Enda kvarvarande spaken är `output_config`
+  (`effort`) i kameraläget, och den kräver en egen eval. **Mät inte om
+  det här** — vägen till fartlöftet går genom att färre kort frågas, inte
+  genom att frågan blir billigare.
 * **Namn i dag:** 0,84 s i median på telefon, hälften via Claude
   (1,5–6 s). Lokalt rätt namn 35/57, med Claude 57/57, 0 fel.
 
