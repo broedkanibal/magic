@@ -19261,8 +19261,12 @@ const Kamera = (() => {
       /* …och platsen det FLYTTAT TILL är spegelbilden: en ljus, flat region
          där nästan varje bildpunkt är ljusare än referensen och som når upp
          mot mättnad någonstans. Ett kort som läggs där är också ljusare —
-         men aldrig flatt. En ljus flisa är flat men når inte mättnad. */
-      if (ref && ljusare > 0.85 * fc && nuSum / fc > 150 && nuStd < 32 && maxNu > 0.92 * bl) return { skal: 'blank', box, std: nuStd };
+         men aldrig flatt. En ljus flisa är flat men når inte mättnad.
+         Kortformen friar här som i de två första reglerna: ett överexponerat
+         kort på svart matta (4K, kanten osynlig mot mattan) är ljust, rätt
+         flatt och ljusare överallt — Pacifism 2026-09-21 kastades varje ruta,
+         spåret stod skymt och provkortet låstes aldrig (bänken BL2). */
+      if (!formFri && ref && ljusare > 0.85 * fc && nuSum / fc > 150 && nuStd < 32 && maxNu > 0.92 * bl) return { skal: 'blank', box, std: nuStd };
       const cx = sx / fc, cy = sy / fc;
       const vxx = sxx / fc - cx * cx, vyy = syy / fc - cy * cy, vxy = sxy / fc - cx * cy;
       /* Egenvärden och huvudaxelns vinkel. */

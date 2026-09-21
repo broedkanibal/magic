@@ -331,6 +331,24 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`BL1 kort i ljus ficka på mörk matta: ${s.length} spår, ${s[0] && s[0].st}, blänkdomar ${blBlank}, skymt ${blSkymd.join('')}`,
         s.length === 1 && s[0].st === 'klar' && blBlank === 0 && blSkymd.every(v => v === 0));
 
+  // ── BL2: ett överexponerat kort på svart matta, utan synlig kant, är inget blänk ──
+  /* Jesper 2026-09-21, provkortet Pacifism på den svarta mattan i 4K: kortet
+     var 206 i snitt mot mattans 120, 15 % utbränt, spridningen 26 och kanten
+     osynlig mot mattan. Blänkreglerna 1 och 2 friar ett kortformat område
+     (MES-166), men regel 4 ("platsen blänket flyttat till": ljusare än
+     referensen överallt, ljust, flatt, nära mättnad) gjorde det inte — kortet
+     kastades varje ruta, spåret stod "skymt" och provkortet låstes aldrig.
+     Här: mattan 120, ramen 200, konstverk 205–221, textrader 220, textrutan
+     250 — inget under mattan, spridningen ~31 (regeln kräver under 32). Utan
+     rättningen dömer regel 4 kortet som blänk i varje ruta. */
+  const OVEREXP = g => { for (let yy = 50; yy < 92; yy++) for (let xx = 60; xx < 90; xx++) { const u = xx - 60, v = yy - 50;
+    g[yy * W + xx] = (u < 2 || v < 2 || u > 27 || v > 39) ? 200 : (v > 5 && v < 22) ? 205 + ((u * 7 + v * 3) % 5) * 4 : (v > 24 && (v % 3) === 0) ? 220 : 250; } };
+  nystart(); for (let i = 0; i < 6; i++) await ruta(null, 3, 120);
+  let bl2Blank = 0; const bl2Skymd = [];
+  for (let i = 0; i < 22; i++) { s = await ruta(OVEREXP, 3, 120); bl2Blank += Kamera.diagnos.blanka; if (i >= 12) bl2Skymd.push(s[0] && s[0].skymd ? 1 : 0); }
+  check(`BL2 överexponerat kort utan kant på svart matta: ${s.length} spår, ${s[0] && s[0].st}, blänkdomar ${bl2Blank}, skymt ${bl2Skymd.join('')}`,
+        s.length === 1 && s[0].st === 'klar' && bl2Blank === 0 && bl2Skymd.every(v => v === 0));
+
   // ── OM1: en hand över en tredjedel av bilden tar inte om referensen (MES-166) ──
   /* Golden 12: handen platt över provkortet i 1,5 s tog om referensen med
      handen i, och handens spöke stod kvar i referensen i 43 s. Omtaget ska
