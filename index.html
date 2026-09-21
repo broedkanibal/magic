@@ -18630,8 +18630,13 @@ const Kamera = (() => {
        varje ruta mer att räkna (värme, MES-164). */
     anaBredd: 360,
     /* Kort omlott läggs med kortreferensens mått (MES-250, passaKort i
-       detektera): 1 = på, 0 = av — för golden-prov med --tro "omlott:0". */
-    omlott: 1
+       detektera): 1 = på, 0 = av. Förvalet är AV (Jesper 2026-09-21): delningen
+       ger 36/57 + 18–19/36 rätt namn mot 35/57 + 15/36 med 0 fel, men tre
+       signaler är omätta — ⏱ tak i fyra ljusfall på ren maskin, stegtiden i
+       golden 16 (22 → 38 ms utan att något delas där) och en dubblett till i
+       09 med --utan-leken. Slås på i golden med --tro "omlott:1", på
+       telefonen med Kamera.satTrosklar({ omlott: 1 }) (provbordets kanal). */
+    omlott: 0
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
@@ -19657,7 +19662,8 @@ const Kamera = (() => {
        sin rektangel: det undre kortets del rymmer också det övres
        bildpunkter — dess låda är hela kortet, och läsningen får en
        beskärning där grannen ligger över hörnet, som förut med klumpen.
-       Uppmätt i golden 14/15 (historik.md). T.omlott = 0 stänger av. */
+       Uppmätt i golden 14/15 (historik.md). T.omlott = 1 slår på; förvalet
+       är av tills taket, stegtiden i 16 och dubbletten i 09 är mätta. */
     const OMLOTT_MIN = 1.2, OMLOTT_MAX = 4.5, OMLOTT_FYLL = 0.9, OMLOTT_DEL = 0.2, OMLOTT_REST = 0.15, OMLOTT_TAK = 4, OMLOTT_KANT = 30, OMLOTT_KANTDEL = 0.5, OMLOTT_GAP = 6;
     /* Minnet (hysteres, som snittminnet och i samma lista, led 'omlott'):
        en region som lades förra gången läggs igen med sin vinkel först och
