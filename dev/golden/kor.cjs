@@ -64,7 +64,10 @@ const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens rä
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
-async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = await f().catch(() => null); if (v) return v; if (Date.now() - t0 > ms) throw new Error('väntade förgäves på ' + vad); await vanta(250); } }
+/* Ett hårt fel (e.hart: Chrome dog, eller ett anrop svarade inte inom
+   tidsgränsen) avbryter väntan direkt — förut svaldes det, och körningen
+   väntade ut hela taket på en flik som inte fanns (MES-270). */
+async function tills(f, ms, vad) { const t0 = Date.now(); for (;;) { const v = await f().catch(e => { if (e && e.hart) throw e; return null; }); if (v) return v; if (Date.now() - t0 > ms) throw new Error('väntade förgäves på ' + vad); await vanta(250); } }
 
 /* Terminalens tabell: en rad per fall med rubriker. Antalet kort i facit står
    först, så att en ändring får sin skala (9 av 10 är inte 9 av 40), och
@@ -116,10 +119,22 @@ function skrivTabell(rs, gamla) {
   console.log('  hög: kort som lades på graveyard-högen i bild och som högvakten såg inom 6 s (MES-85); falska = högändringar utan ett kort dit.');
 }
 
+/* MES-270: barnen (attrappen och Chrome) städas ALLTID när processen slutar —
+   också vid ett fel eller en tidsgräns. Förut överlevde de en krasch, och en
+   kvarglömd attrapp på porten svarade nästa körning med gammal kod. */
+const barn = [];
+process.on('exit', () => { for (const c of barn) { try { c.kill('SIGKILL'); } catch (e) {} } });
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130));
+/* Tidsgränsen för ett enskilt anrop till Chrome (MES-270). Ett svar som
+   aldrig kommer — fliken har kraschat, eller svaret tappades — hängde förut
+   körningen i timmar med 0 % CPU. 2 min räcker gott för det tyngsta anropet. */
+const CDP_TAK_MS = +arg('--cdp-tak', 120000);
+
 (async () => {
   if (!fs.existsSync(CHROME)) { console.error('Hittar inte Chrome på ' + CHROME + ' — sätt CHROME=/sökväg/till/Chrome'); process.exit(2); }
   /* 1. attrappen, på en egen port så att en flik som redan kör inte störs */
   const server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }, AIFLAG ? { MESA_AI: '1' } : {}), stdio: ['ignore', 'pipe', 'pipe'] });
+  barn.push(server);
   /* Attrappens utskrift läses (MES-181): ett anrop som Anthropic avvisar —
      slut på krediter, fel nyckel, överbelastning — loggas där som
      "identify/kamera: 400 …", och sidan faller då tyst tillbaka på den lokala
@@ -137,6 +152,7 @@ function skrivTabell(rs, gamla) {
   const profil = path.join(os.tmpdir(), 'mesa-golden-profil');
   const gpu = UTAN_MODELL || WASM ? [] : ['--enable-unsafe-webgpu', '--enable-features=WebGPU', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'];   // som dev/embed/webb.cjs --gpu
   const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', '--user-data-dir=' + profil, '--no-first-run', '--no-default-browser-check', '--window-size=1400,1000'].concat(gpu, ['about:blank']), { stdio: ['ignore', 'ignore', 'pipe'] });
+  barn.push(chrome);
   let wsUrl = null, stderr = '';
   chrome.stderr.on('data', d => { stderr += d; const m = stderr.match(/DevTools listening on (ws:\/\/[^\s]+)/); if (m) wsUrl = m[1]; });
   await tills(async () => wsUrl, 15000, 'Chrome (DevTools-porten)');
@@ -147,14 +163,29 @@ function skrivTabell(rs, gamla) {
   let nr = 0; const svar = new Map();
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
+    if (m.method === 'Inspector.targetCrashed') { avbryt('fliken i Chrome kraschade (Inspector.targetCrashed) — troligen slut på minne'); return; }
     if (m.id && svar.has(m.id)) { svar.get(m.id)(m); svar.delete(m.id); }
     /* --konsol: sidans och appens console.log (också ur iframen) skrivs ut — för tillfälliga mätrader medan ett fall felsöks. */
     else if (m.method === 'Runtime.consoleAPICalled' && process.argv.includes('--konsol')) console.log('  [konsol] ' + (m.params.args || []).map(a => a.value !== undefined ? a.value : a.description || '').join(' '));
     else if (m.method === 'Runtime.exceptionThrown') console.error('  [sidan] ' + (m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text).split('\n')[0]);
   };
-  const cdp = (method, params) => new Promise(res => { const id = ++nr; svar.set(id, res); ws.send(JSON.stringify({ id, method, params: params || {} })); });
+  /* Varje anrop har en tidsgräns, och en kraschad flik eller en stängd
+     förbindelse avbryter allt som väntar, med orsaken i klartext (MES-270). */
+  let dod = null;
+  const avbryt = orsak => { if (dod) return; dod = orsak; for (const [, f] of svar) f({ dod: orsak }); svar.clear(); };
+  ws.onclose = () => avbryt('förbindelsen till Chrome stängdes');
+  chrome.on('exit', kod => avbryt('Chrome avslutades (kod ' + kod + ')'));
+  const cdp = (method, params, ms = CDP_TAK_MS) => new Promise((res, rej) => {
+    const hart = t => Object.assign(new Error(t), { hart: true });
+    if (dod) return rej(hart(`${method}: ${dod}`));
+    const id = ++nr;
+    const t = setTimeout(() => { svar.delete(id); rej(hart(`${method} svarade inte på ${Math.round(ms / 1000)} s — fliken har troligen kraschat eller hängt (MES-270)`)); }, ms);
+    svar.set(id, m => { clearTimeout(t); if (m.dod) rej(hart(`${method}: ${m.dod}`)); else res(m); });
+    ws.send(JSON.stringify({ id, method, params: params || {} }));
+  });
   const kor = async uttryck => { const r = await cdp('Runtime.evaluate', { expression: uttryck, awaitPromise: true, returnByValue: true }); if (r.result && r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.text); return r.result && r.result.result ? r.result.result.value : undefined; };
   await cdp('Runtime.enable');
+  await cdp('Inspector.enable');
   let gamla = new Map();
   try { gamla = new Map(JSON.parse(fs.readFileSync(path.join(__dirname, BASFIL), 'utf8')).map(r => [r.id, r])); } catch (e) { /* ingen baslinje — inget att jämföra med */ }
   let samre = [], battre = [];   // domen för den senaste (enda) körningen — slutkoden läser dem efter slingan
@@ -183,7 +214,13 @@ function skrivTabell(rs, gamla) {
   console.log('');
   /* 4. resultatet: samma JSON som Kopiera resultat, som en tabell med rubriker */
   const rader = await kor(`[...document.querySelectorAll('#rader tr')].map(tr => tr.innerText.replace(/\\s+/g, ' '))`);
-  const json = await kor(`(() => { const rs = fall.map(f => resultat.get(f.id)).filter(r => r && !r.fel); return '[\\n' + rs.map(r => JSON.stringify(r)).join(',\\n') + '\\n]\\n'; })()`);
+  /* Resultatet hämtas ETT FALL I TAGET (MES-270). Förut kom alla fallen i ett
+     enda svar, och med 16 fall kom det aldrig: körningen hängde efter Klar. i
+     timmar, 2 av 2 gånger, medan 12 fall åt gången gick igenom 20 av 20. */
+  const ids = await kor(`fall.map(f => f.id).filter(id => { const r = resultat.get(id); return r && !r.fel; })`);
+  const delar = [];
+  for (const id of ids) delar.push(await kor(`JSON.stringify(resultat.get(${JSON.stringify(id)}))`));
+  const json = '[\n' + delar.join(',\n') + '\n]\n';
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
@@ -354,6 +391,6 @@ function skrivTabell(rs, gamla) {
     console.log('  (rätt namn/kort · f = fel namn · x = falska · s = spelade kort som fick namn)');
     for (const x of sammanstallning) console.log(`  ${x.ljus}: ${x.samre.length ? 'SÄMRE — ' + x.samre.join('; ') : 'inte sämre'}${x.battre.length ? ' | bättre: ' + x.battre.join('; ') : ''}`);
   }
-  ws.close(); chrome.kill(); server.kill();
+  try { ws.close(); } catch (e) {}
   process.exit(sammanstallning.length ? 0 : (samre.length || aiFel.n ? 1 : 0));
-})().catch(e => { console.error('\nkor.cjs: ' + (e && e.message || e)); process.exit(2); });
+})().catch(e => { console.error('\nkor.cjs: ' + (e && e.message || e) + '\n  Ingen tabell skrevs. Attrappen och Chrome är stängda; kör om (gärna i satser med --fall om det upprepas).'); process.exit(2); });
