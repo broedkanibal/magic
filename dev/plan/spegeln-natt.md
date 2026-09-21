@@ -24,9 +24,9 @@ partiet till måttet.
 
 ```
 A rutor (skript, ingen agent)
-   ├→ B händelsefacit   mesa-matning, model sonnet
-   └→ C identitetsfacit  Agent, model opus
-             └→ D utkast till analys och plan   Agent, model opus (eller orkestreraren själv)
+   ├→ B händelsefacit   general-purpose, model sonnet
+   └→ C identitetsfacit  general-purpose, model opus
+             └→ D utkast till analys och plan   general-purpose, model opus
 ```
 
 B och C körs parallellt när A är klar. D när båda är klara. Starta B och C i
@@ -40,6 +40,52 @@ samma meddelande. Två mappar:
 Avgränsning: **sekund 240–540** (minut 4–9), den värsta biten. Inte hela
 filmen: ett facit med fel i sig gör alla mätningar efteråt fel, och 5 min
 går att kontrollera på morgonen.
+
+## Så att natten inte går förlorad
+
+Tre saker gör att ett avbrott aldrig kastar bort gjort arbete, och att
+sessionen inte sitter fast.
+
+**1. Agenterna skriver medan de jobbar, och kan ta vid.** Alla tre
+prompterna säger: skriv till filen **var 20:e rad** (inte i slutet), och
+finns filen redan när du startar — läs sista raden och fortsätt därifrån.
+Klar = skriv tomma filen `KLAR-B` / `KLAR-C` / `KLAR-D` bredvid. Aldrig
+`mesa-matning` här: den kör i ett eget worktree, och filer där kan
+försvinna när det städas. `general-purpose` skriver rakt in i det här
+arbetsträdet.
+
+**2. Vakthund i bakgrunden.** Direkt efter att B och C startats (i
+bakgrunden, samma meddelande), starta det här som `run_in_background` i
+Bash. Det avslutar när båda är klara, eller när ingen av filerna vuxit
+på 30 min — och då väcks orkestreraren:
+
+```bash
+M=dev/golden/inspelningar/2026-09-21-parti; T0=$(date +%s)
+while true; do
+  [ -e $M/KLAR-B ] && [ -e $M/KLAR-C ] && { echo "båda klara"; exit 0; }
+  N=$(stat -f %m $M/handelser.tsv $M/platser.tsv 2>/dev/null | sort -n | tail -1)
+  [ -n "$N" ] && [ $(( $(date +%s) - N )) -gt 1800 ] && { echo "STILLA 30 min"; exit 1; }
+  [ $(( $(date +%s) - T0 )) -gt 9000 ] && { echo "TID 2,5 h"; exit 1; }
+  sleep 120
+done
+```
+
+Väcks orkestreraren med `STILLA` eller `TID`: skicka **ett** meddelande
+till agenten som inte är klar ("skriv det du har och avsluta"), vänta 10
+min, stoppa den sedan (`TaskStop`) och gå vidare med det som ligger på
+disk. Starta aldrig om en agent från noll — starta den på nytt med samma
+prompt, så tar den vid enligt punkt 1. Högst **en** omstart per agent.
+Samma vakthund för D, med 60 min i stället för 30 och `KLAR-D`.
+
+**3. Tidsbudget och commit.** Hela passet får ta högst **5 h**. Vad som
+än finns då — hela eller halva facit — skriv resultatfilen, committa
+facit-mappen och utkastet på grenen `natt-2026-09-22` (skapa den från
+main; **pusha inte**) och skicka notisen. Ett halvt facit med tydlig
+lucka är värt mer än inget, och en commit är det enda som överlever en
+session som stängs.
+
+Tidsgränser per del, ungefär: A 15 min, B och C 2 h vardera (parallellt),
+D 1 h.
 
 ## A · Bildrutor
 
@@ -56,7 +102,7 @@ till höger) och `kam-NNN.jpg` (kamerabilden, 705 × 438 px, med Mesas egna
 spårrutor inritade). Öppna två rutor och kontrollera att beskärningen
 träffar kamerabilden innan B och C startas; annars justera `KAM` i skriptet.
 
-## B · Händelsefacit — `mesa-matning` (sonnet)
+## B · Händelsefacit — `general-purpose` med `model: sonnet`
 
 Prompt:
 
@@ -80,12 +126,16 @@ Prompt:
 > ligger omlott med ett annat är en egen plats: skriv `omlott med Pn` i
 > kommentaren. Leken (grön hög) och graveyard-högen är inte platser.
 >
+> Skriv till filen var 20:e händelse, inte i slutet. Finns
+> `handelser.tsv` redan: läs sista raden och fortsätt från nästa sekund.
+> När du är klar: skapa den tomma filen `KLAR-B` i samma mapp.
+>
 > Är du osäker på en ruta: skriv `osäker` i kommentaren i stället för att
 > gissa. Ändra ingen kod. Skriv till sist `handelser-sammanfattning.md`:
 > antal platser, antal händelser per typ, lista på rutor du var osäker på,
 > och som mest var bordet hade hur många kort samtidigt.
 
-## C · Identitetsfacit — Agent med `model: opus`
+## C · Identitetsfacit — `general-purpose` med `model: opus`
 
 Prompt:
 
@@ -114,7 +164,7 @@ Prompt:
 > Ändra ingen kod. Skriv till sist `platser-sammanfattning.md`: antal
 > säkra / troliga / osäkra, och vilka rutor Jesper bör titta på själv.
 
-## D · Utkast till analys och plan — Agent med `model: opus`
+## D · Utkast till analys och plan — `general-purpose` med `model: opus`
 
 Prompt:
 
@@ -143,6 +193,10 @@ Prompt:
 > (`las[].dom.marginal`, `inliers`) hade blivit säkra med bara lekens 28
 > kort som kandidater.
 >
+> Skriv utkastet avsnitt för avsnitt till filen medan du jobbar, så att
+> ett avbrott lämnar de färdiga avsnitten kvar; skapa `KLAR-D` i
+> facit-mappen när det är klart.
+>
 > Ändra ingen kod. Skapa inga issues. Skriv `dev/plan/spegeln-utkast.md`
 > för en icke-expert: rubriker, tabeller, vad före hur. Markera allt som
 > kräver ett beslut av Jesper med **BESLUT**. Avsluta med en lista över
@@ -151,9 +205,12 @@ Prompt:
 ## När allt är klart
 
 Orkestreraren skriver `dev/plan/spegeln-natt-resultat.md` med: vad som
-kördes, hur lång tid varje del tog, var filerna ligger, och de tre
-viktigaste siffrorna ur D. Skicka sedan en push-notis till Jesper
-(`PushNotification`) med en rad. Committa inte, pusha inte.
+kördes, hur lång tid varje del tog, var filerna ligger, vad som är halvt
+eller saknas, och de tre viktigaste siffrorna ur D. Committa
+`dev/golden/inspelningar/2026-09-21-parti/`, `dev/plan/spegeln-utkast.md`
+och resultatfilen på grenen `natt-2026-09-22` (**pusha inte**), och skicka
+sedan en push-notis till Jesper (`PushNotification`) med en rad. Lämna
+sedan sessionen i vila: inga fler agenter, inga loopar.
 
 ## Om något stannar
 
