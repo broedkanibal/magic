@@ -515,7 +515,7 @@ body.oppstart .hints{display:none}
 body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbild #manaRow,body.oppbild #lyftAlla,body.oppbild #emptyHand{visibility:hidden}
 /* I spelarens vy ritar canvasen själva bilden, vriden och speglad. */
 #pbBild.vy #pbImg{visibility:hidden}
-.opplager{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden}
+.opplager{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden;container-type:size}
 .opplager .ochip{position:absolute;height:22px;display:flex;align-items:center;gap:6px;padding:0 8px;border-radius:7px;background:#0f141cf2;border:1px solid #3a4658;color:#cfd9e8;font:650 10.5px/1 var(--sans);box-shadow:0 6px 16px -4px #000e;white-space:nowrap;transform:translateY(calc(-100% - 6px));z-index:3}
 .opplager .ochip i{width:7px;height:7px;border-radius:2px;flex:none}
 .opplager .ovant{position:absolute;left:12px;bottom:12px;display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:8px;background:#0f141cf2;border:1px solid #3a4658;color:#e8c98a;font:12px var(--sans)}
@@ -562,8 +562,16 @@ body.oppbild #gridWrap,body.oppbild #mattaChrome,body.oppbild #bibHog,body.oppbi
 /* B · klart-kortet: bilden tonas ner, högarna syns i ett hål */
 .opplager .ohal{position:absolute;z-index:3;border-radius:12px;box-shadow:0 0 0 4000px #070a0ec4;animation:ohalIn .4s ease-out both}
 @keyframes ohalIn{from{opacity:0}to{opacity:1}}
-.opplager .oklarkort{position:absolute;z-index:4;left:50%;top:22%;transform:translateX(-50%);width:380px;max-width:calc(100% - 32px);display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:28px 28px 22px;border-radius:14px;background:#121821;border:1px solid var(--line);box-shadow:0 30px 70px -20px #000,0 0 0 1px #0006;pointer-events:auto;animation:oklarIn .5s cubic-bezier(.2,.9,.3,1.1) .15s both}
-@keyframes oklarIn{from{opacity:0;transform:translate(-50%,16px) scale(.97)}to{opacity:1;transform:translateX(-50%)}}
+.opplager .oklarkort{position:absolute;z-index:4;left:50%;top:50%;transform:translate(-50%,-50%);width:380px;max-width:calc(100% - 32px);max-height:calc(100% - 16px);overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:28px 28px 22px;border-radius:14px;background:#121821;border:1px solid var(--line);box-shadow:0 30px 70px -20px #000,0 0 0 1px #0006;pointer-events:auto;animation:oklarIn .5s cubic-bezier(.2,.9,.3,1.1) .15s both}
+@keyframes oklarIn{from{opacity:0;transform:translate(-50%,calc(-50% + 16px)) scale(.97)}to{opacity:1;transform:translate(-50%,-50%)}}
+/* Låg bild (liggande telefon i smal panel): kortet måste få plats i bilden,
+   annars klipps Start playing bort. Märket går, luften krymper. */
+@container (max-height: 380px){
+  .opplager .oklarkort{gap:8px;padding:16px 20px 12px}
+  .opplager .oklarkort .ostormark{display:none}
+  .opplager .oklarkort h3{margin:0}
+  .opplager .oklarkort .btn.prim{margin-top:2px}
+}
 .opplager .ostormark{width:56px;height:56px;border-radius:50%;background:#0f2016;border:1.5px solid #2f6b47;display:grid;place-items:center;color:#8fe0b0;box-shadow:0 0 0 8px #3fb97a12}
 .opplager .ostormark path{stroke-dasharray:24;stroke-dashoffset:24;animation:oRita .45s ease-out .55s forwards}
 @keyframes oRita{to{stroke-dashoffset:0}}
