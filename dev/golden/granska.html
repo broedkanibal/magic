@@ -95,7 +95,7 @@ select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav
   <div id="fot">
     <span>Klicka på en rad för att se den i filmen.</span>
     <span id="raknare"></span>
-    <span id="version" style="margin-left:10px;opacity:.6">v5</span>
+    <span id="version" style="margin-left:10px;opacity:.6">v6</span>
   </div>
 </div>
 <input type="file" id="filer" multiple accept="video/*,.tsv,text/tab-separated-values" hidden>
@@ -261,9 +261,19 @@ function rita() {
         pi.style.flex = '1';
         pi.oninput = () => { r.plats = pi.value.trim() || '-'; };
         const snabb = document.createElement('div'); snabb.style.display = 'flex'; snabb.style.gap = '4px';
-        for (const val of ['ensamt', 'hög A', 'hög B', 'hög C']) {
+        for (const val of ['ensamt', 'hög A', 'hög B', 'hög C', 'ny hög']) {
           const b = document.createElement('button'); b.textContent = val;
           b.onclick = () => { r.plats = val; rita(); };
+          snabb.appendChild(b);
+        }
+        /* Lägg till lagret på den hög som redan står i fältet: "hög A, under". */
+        for (const val of ['överst', 'under']) {
+          const b = document.createElement('button'); b.textContent = '+ ' + val;
+          b.title = 'Läggs till det som redan står, t.ex. "hög A, under"';
+          b.onclick = () => {
+            const bas = (r.plats && r.plats !== '-' ? r.plats : 'hög A').replace(/,\s*(överst|under)$/, '');
+            r.plats = bas + ', ' + val; rita();
+          };
           snabb.appendChild(b);
         }
         pr.append(pl, pi, snabb);
