@@ -109,6 +109,16 @@
       ],
       "port": 8377,
       "autoPort": true
+    },
+    {
+      "name": "mesa-granska",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=${PORT:-8765} node dev/golden/granska-server.cjs"
+      ],
+      "port": 8765,
+      "autoPort": true
     }
   ]
 }

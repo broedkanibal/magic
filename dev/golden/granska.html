@@ -1,0 +1,262 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Granska händelser — golden set</title>
+<!--
+  Granska en händelselista mot filmen. Mätverktyg, inte appkod.
+
+  Öppna filen i webbläsaren och släpp in två saker:
+    1. videon (kamera.mp4 — bara mattan)
+    2. händelselistan (handelser-utkast.tsv)
+
+  Ett klick på en rad spolar filmen till två sekunder före händelsen.
+  Rätta i fälten, ta bort rader, lägg till rader. "Spara TSV" laddar ner
+  den rättade listan. Inget lämnar datorn; sidan har inget nätverk.
+-->
+<style>
+:root{--bg:#0d1015;--fg:#e7ecf4;--dim:#8b96a5;--linje:#232a33;--panel:#12161c;--falt:#0a0d11;
+      --vald:#5ee38a;--ruta:#4aa3ff;--varning:#f0a52a;--tapp:#f0d23c}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;overflow:hidden}
+[hidden]{display:none!important}
+body.drar::after{content:"Släpp kamera.mp4 och handelser-utkast.tsv";position:fixed;inset:8px;border:2px dashed var(--ruta);
+  background:rgba(74,163,255,.08);display:flex;align-items:center;justify-content:center;font-size:18px;pointer-events:none;z-index:9}
+
+#scen{flex:1;display:flex;flex-direction:column;min-width:0;padding:10px;gap:8px}
+#film{flex:1;min-height:0;background:#000;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative}
+video{max-width:100%;max-height:100%;display:block}
+#tom{color:var(--dim);text-align:center;padding:30px;font-size:14px;line-height:1.7}
+#styr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tid{font:13px ui-monospace,Menlo,monospace;color:var(--dim);min-width:130px}
+#nu{color:var(--fg)}
+#panel{width:560px;flex:none;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--linje)}
+#topp{padding:10px 12px;border-bottom:1px solid var(--linje);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#lista{flex:1;overflow-y:auto;padding:0 0 60px}
+h1{font-size:14px;margin:0;flex:1}
+button{background:#1a2029;color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#4b5868}
+button.primar{border-color:#3c6b46;background:#16251b}
+kbd{font:11px ui-monospace,Menlo,monospace;color:var(--dim);border:1px solid #2c3541;border-radius:3px;padding:0 4px}
+input,select{background:var(--falt);color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:3px 5px;font:inherit}
+input:focus,select:focus{outline:1px solid var(--ruta)}
+
+.rad{display:grid;grid-template-columns:52px 96px 1fr 26px;gap:6px;align-items:center;padding:5px 10px;border-bottom:1px solid #1a1f27;cursor:pointer}
+.rad:hover{background:#161b23}
+.rad.aktiv{background:#1b2a20;box-shadow:inset 2px 0 0 var(--vald)}
+.rad.osaker{box-shadow:inset 2px 0 0 var(--varning)}
+.rad.aktiv.osaker{box-shadow:inset 2px 0 0 var(--vald),inset 4px 0 0 var(--varning)}
+.rad.info{opacity:.55}
+.tid{font:12px ui-monospace,Menlo,monospace;color:var(--dim)}
+.rad.aktiv .tid{color:var(--vald)}
+.mer{grid-column:1/-1;display:grid;grid-template-columns:52px 1fr;gap:6px;align-items:start;padding-top:4px}
+.tal{color:var(--dim);font-size:11.5px;grid-column:2}
+.till{grid-column:2;display:flex;gap:6px;align-items:center}
+.till span{color:var(--dim);font-size:11.5px}
+.bort{background:none;border:0;color:var(--dim);padding:2px 4px;font-size:14px}
+.bort:hover{color:#ff8080}
+select.h-tappar,select.h-otappar{color:var(--tapp)}
+select.h-spelar{color:var(--vald)}
+select.h-tar_bort{color:#ff9d9d}
+select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav_exile{color:var(--dim)}
+#fot{position:fixed;right:0;bottom:0;width:560px;background:#0f141a;border-top:1px solid var(--linje);padding:8px 12px;display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--dim)}
+#raknare{margin-left:auto;font:12px ui-monospace,Menlo,monospace}
+</style>
+
+<div id="scen">
+  <div id="film">
+    <div id="tom">Släpp <b>kamera.mp4</b> och <b>handelser-utkast.tsv</b> här.<br>
+      Filerna ligger i <code>dev/material/inspelningar/&lt;passet&gt;/</code><br>
+      respektive <code>dev/golden/inspelningar/&lt;passet&gt;/</code>.</div>
+    <video id="v" hidden controls playsinline></video>
+  </div>
+  <div id="styr">
+    <button id="spela">Spela <kbd>mellanslag</kbd></button>
+    <button id="back">−2 s <kbd>←</kbd></button>
+    <button id="fram">+2 s <kbd>→</kbd></button>
+    <button id="forra">Förra raden <kbd>k</kbd></button>
+    <button id="nasta">Nästa rad <kbd>j</kbd></button>
+    <label style="display:flex;gap:5px;align-items:center;color:var(--dim)"><input type="checkbox" id="auto" checked style="width:auto"> hoppa 2 s före</label>
+    <span id="tid"><span id="nu">0:00.0</span> / <span id="slut">0:00</span></span>
+  </div>
+</div>
+
+<div id="panel">
+  <div id="topp">
+    <h1>Händelser</h1>
+    <button id="ladda">Öppna filer…</button>
+    <button id="ny">+ rad vid tiden</button>
+    <button id="spara" class="primar">Spara TSV</button>
+  </div>
+  <div id="lista"></div>
+  <div id="fot">
+    <span>Klicka på en rad för att se den i filmen.</span>
+    <span id="raknare"></span>
+  </div>
+</div>
+<input type="file" id="filer" multiple accept="video/*,.tsv,text/tab-separated-values" hidden>
+
+<script>
+const HANDELSER = ['spelar','tappar','otappar','flyttar','tar_bort','drar','grav_till_hand','grav_exile','klapp','slut'];
+const INFO = new Set(['drar','klapp','slut','grav_till_hand','grav_exile']);
+const v = document.getElementById('v');
+let rader = [], huvud = ['t','handelse','kort','till','osaker','tal'], aktiv = -1, filnamn = 'handelser.tsv';
+
+const mmss = s => { s = Math.max(0, s); const m = Math.floor(s/60); const r = s - m*60;
+  return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); };
+const mmssKort = s => { const m = Math.floor(s/60); const r = Math.round(s - m*60);
+  return m + ':' + (r < 10 ? '0' : '') + r; };
+
+function lasTSV(text) {
+  const rows = text.split(/\r?\n/).filter(r => r.trim() !== '').map(r => r.split('\t'));
+  huvud = rows[0];
+  const i = n => huvud.indexOf(n);
+  rader = rows.slice(1).map(c => ({
+    t: parseFloat(c[i('t')]) || 0,
+    handelse: (c[i('handelse')] || '').trim(),
+    kort: (c[i('kort')] || '-').trim(),
+    till: (c[i('till')] || '-').trim(),
+    osaker: (c[i('osaker')] || '-').trim(),
+    tal: (c[i('tal')] || '').trim(),
+  })).sort((a, b) => a.t - b.t);
+  rita();
+}
+
+function skrivTSV() {
+  const ut = [huvud.join('\t')];
+  for (const r of rader.slice().sort((a,b) => a.t - b.t))
+    ut.push([r.t.toFixed(2), r.handelse, r.kort || '-', r.till || '-', r.osaker || '-', r.tal].join('\t'));
+  return ut.join('\n') + '\n';
+}
+
+function rita() {
+  const lista = document.getElementById('lista');
+  lista.textContent = '';
+  rader.sort((a, b) => a.t - b.t);
+  rader.forEach((r, k) => {
+    const d = document.createElement('div');
+    d.className = 'rad' + (k === aktiv ? ' aktiv' : '') + (r.osaker && r.osaker !== '-' ? ' osaker' : '') + (INFO.has(r.handelse) ? ' info' : '');
+    d.onclick = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return; gaTill(k); };
+
+    const tid = document.createElement('div');
+    tid.className = 'tid'; tid.textContent = mmssKort(r.t);
+    tid.title = r.t.toFixed(2) + ' s';
+
+    const h = document.createElement('select');
+    h.className = 'h-' + r.handelse;
+    for (const o of HANDELSER) { const e = document.createElement('option'); e.value = e.textContent = o; h.appendChild(e); }
+    h.value = r.handelse;
+    h.onchange = () => { r.handelse = h.value; rita(); };
+
+    const kort = document.createElement('input');
+    kort.value = r.kort; kort.setAttribute('list', 'lek');
+    kort.oninput = () => { r.kort = kort.value.trim() || '-'; };
+
+    const bort = document.createElement('button');
+    bort.className = 'bort'; bort.textContent = '×'; bort.title = 'ta bort raden';
+    bort.onclick = () => { if (confirm('Ta bort raden vid ' + mmssKort(r.t) + '?')) { rader.splice(k, 1); rita(); } };
+
+    d.append(tid, h, kort, bort);
+
+    if (k === aktiv) {
+      const mer = document.createElement('div'); mer.className = 'mer';
+      const till = document.createElement('div'); till.className = 'till';
+      const lbl = document.createElement('span'); lbl.textContent = 'på kort:';
+      const ti = document.createElement('input'); ti.value = r.till; ti.setAttribute('list', 'lek'); ti.style.flex = '1';
+      ti.oninput = () => { r.till = ti.value.trim() || '-'; };
+      const tlbl = document.createElement('span'); tlbl.textContent = 'tid:';
+      const tt = document.createElement('input'); tt.type = 'number'; tt.step = '0.1'; tt.value = r.t.toFixed(1); tt.style.width = '80px';
+      tt.onchange = () => { r.t = parseFloat(tt.value) || 0; rita(); };
+      const osak = document.createElement('button');
+      osak.textContent = r.osaker && r.osaker !== '-' ? 'osäker: ' + r.osaker + ' — klart' : 'markera osäker';
+      osak.onclick = () => { r.osaker = (r.osaker && r.osaker !== '-') ? '-' : 'kolla'; rita(); };
+      till.append(lbl, ti, tlbl, tt, osak);
+      const tal = document.createElement('div'); tal.className = 'tal'; tal.textContent = r.tal;
+      mer.append(till, tal);
+      d.appendChild(mer);
+    }
+    lista.appendChild(d);
+  });
+  const osakra = rader.filter(r => r.osaker && r.osaker !== '-').length;
+  document.getElementById('raknare').textContent = rader.length + ' rader' + (osakra ? ' · ' + osakra + ' osäkra' : '');
+  const a = lista.children[aktiv];
+  if (a) a.scrollIntoView({ block: 'nearest' });
+}
+
+function gaTill(k) {
+  aktiv = Math.max(0, Math.min(rader.length - 1, k));
+  const r = rader[aktiv];
+  if (v.src) { v.currentTime = Math.max(0, r.t - (document.getElementById('auto').checked ? 2 : 0)); v.play(); }
+  rita();
+}
+
+// filer in
+function tallrik(fs) {
+  for (const f of fs) {
+    if (/\.(mp4|mov|m4v)$/i.test(f.name)) {
+      v.src = URL.createObjectURL(f); v.hidden = false; document.getElementById('tom').hidden = true;
+    } else if (/\.tsv$/i.test(f.name) || /\.txt$/i.test(f.name)) {
+      filnamn = f.name; f.text().then(lasTSV);
+    }
+  }
+}
+document.getElementById('ladda').onclick = () => document.getElementById('filer').click();
+document.getElementById('filer').onchange = e => tallrik(e.target.files);
+document.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drar'); });
+document.addEventListener('dragleave', e => { if (e.relatedTarget === null) document.body.classList.remove('drar'); });
+document.addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drar'); tallrik(e.dataTransfer.files); });
+
+document.getElementById('spara').onclick = () => {
+  const b = new Blob([skrivTSV()], { type: 'text/tab-separated-values' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+  a.download = filnamn.replace(/\.tsv$/, '') + '-rattad.tsv'; a.click();
+};
+document.getElementById('ny').onclick = () => {
+  const t = v.src ? v.currentTime : 0;
+  rader.push({ t, handelse: 'spelar', kort: '-', till: '-', osaker: 'ny', tal: '(tillagd för hand)' });
+  rader.sort((a, b) => a.t - b.t);
+  aktiv = rader.findIndex(r => r.t === t); rita();
+};
+document.getElementById('spela').onclick = () => v.paused ? v.play() : v.pause();
+document.getElementById('back').onclick = () => v.currentTime = Math.max(0, v.currentTime - 2);
+document.getElementById('fram').onclick = () => v.currentTime += 2;
+document.getElementById('forra').onclick = () => gaTill(aktiv - 1);
+document.getElementById('nasta').onclick = () => gaTill(aktiv + 1);
+v.addEventListener('timeupdate', () => {
+  document.getElementById('nu').textContent = mmss(v.currentTime);
+  document.getElementById('slut').textContent = mmssKort(v.duration || 0);
+});
+document.addEventListener('keydown', e => {
+  if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === ' ') { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); v.currentTime = Math.max(0, v.currentTime - 2); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); v.currentTime += 2; }
+  else if (e.key === 'j') gaTill(aktiv + 1);
+  else if (e.key === 'k') gaTill(aktiv - 1);
+});
+</script>
+<datalist id="lek"></datalist>
+<script>
+// Leken, för att slippa stava kortnamn — fylls av dev/golden/lek.txt om sidan
+// körs från en server, annars av listan nedan.
+const LEK = ['Ancestral Blade','Aphelia, Viper Whisperer','Coat with Venom','Danitha Capashen, Paragon','Faithful Pikemaster','Fencing Ace','Flutterfox','Gorgon Flail','Hooded Blightfang','Killing Glare','Maul of the Skyclaves','Militant Inquisitor','Mirran Bardiche',"Night's Whisper",'Pacifism',"Pharika's Chosen",'Plains','Resistance Reunited','Scourge of the Undercity','Serpent Assassin','Swamp','Thriving Heath','Thriving Moor','Trusty Retriever','Ukud Cobra',"Valkyrie's Sword",'Venomous Hierophant',"Vraska's Finisher",'Soldier','-'];
+const dl = document.getElementById('lek');
+for (const n of LEK) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); }
+
+/* Körs sidan från en server går filmen och listan att peka ut i adressen:
+   granska.html?video=<sökväg>&tsv=<sökväg>, båda relativa repots rot. */
+(function () {
+  if (!/^https?:$/.test(location.protocol)) return;
+  const q = new URLSearchParams(location.search);
+  const rot = '/';
+  if (q.get('video')) {
+    v.src = rot + q.get('video').replace(/^\//, '');
+    v.hidden = false; document.getElementById('tom').hidden = true;
+  }
+  if (q.get('tsv')) {
+    const p = q.get('tsv').replace(/^\//, '');
+    filnamn = p.split('/').pop();
+    fetch(rot + p).then(r => r.ok ? r.text() : Promise.reject(r.status)).then(lasTSV)
+      .catch(e => { document.getElementById('raknare').textContent = 'kunde inte läsa ' + p + ' (' + e + ')'; });
+  }
+})();
+</script>
