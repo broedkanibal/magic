@@ -41,6 +41,10 @@ input,select{background:var(--falt);color:var(--fg);border:1px solid #2c3541;bor
 input:focus,select:focus{outline:1px solid var(--ruta)}
 
 .rad{display:grid;grid-template-columns:52px 96px 1fr 26px;gap:6px;align-items:center;padding:5px 10px;border-bottom:1px solid #1a1f27;cursor:pointer}
+.kortfalt{display:flex;gap:6px;align-items:center;min-width:0}
+.kortfalt input{flex:1;min-width:0}
+.mal{color:var(--dim);font-size:11.5px;white-space:nowrap}
+.mal.saknas{color:var(--varning)}
 .rad:hover{background:#161b23}
 .rad.aktiv{background:#1b2a20;box-shadow:inset 2px 0 0 var(--vald)}
 .rad.osaker{box-shadow:inset 2px 0 0 var(--varning)}
@@ -98,6 +102,11 @@ select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav
 <script>
 const HANDELSER = ['spelar','tappar','otappar','flyttar','tar_bort','drar','grav_till_hand','grav_exile','klapp','slut'];
 const INFO = new Set(['drar','klapp','slut','grav_till_hand','grav_exile']);
+/* Vart ett kort tar vägen när det lämnar bordet. Bara `grav` syns i bilden
+   som en växande hög; hand och exile ser likadana ut — kortet bara försvinner
+   — men de ska ändå stå rätt, eftersom graveyardsiffran på det digitala
+   bordet bara får stiga för `grav`. */
+const MAL = { 'grav': 'graveyard', 'hand': 'handen', 'exile': 'exile', 'ur_bild': 'ut ur bild (vet ej)', '-': '(inte satt)' };
 const v = document.getElementById('v');
 let rader = [], huvud = ['t','handelse','kort','till','osaker','tal'], aktiv = -1, filnamn = 'handelser.tsv';
 
@@ -155,14 +164,45 @@ function rita() {
     bort.className = 'bort'; bort.textContent = '×'; bort.title = 'ta bort raden';
     bort.onclick = () => { if (confirm('Ta bort raden vid ' + mmssKort(r.t) + '?')) { rader.splice(k, 1); rita(); } };
 
-    d.append(tid, h, kort, bort);
+    const kortrad = document.createElement('div');
+    kortrad.className = 'kortfalt';
+    kortrad.appendChild(kort);
+    if (r.handelse === 'tar_bort') {
+      const m = document.createElement('span');
+      m.className = 'mal' + (!r.till || r.till === '-' ? ' saknas' : '');
+      m.textContent = '→ ' + (MAL[r.till] || r.till);
+      kortrad.appendChild(m);
+    } else if (r.handelse === 'flyttar' && r.till && r.till !== '-') {
+      const m = document.createElement('span');
+      m.className = 'mal'; m.textContent = 'på ' + r.till;
+      kortrad.appendChild(m);
+    }
+
+    d.append(tid, h, kortrad, bort);
 
     if (k === aktiv) {
       const mer = document.createElement('div'); mer.className = 'mer';
       const till = document.createElement('div'); till.className = 'till';
-      const lbl = document.createElement('span'); lbl.textContent = 'på kort:';
-      const ti = document.createElement('input'); ti.value = r.till; ti.setAttribute('list', 'lek'); ti.style.flex = '1';
-      ti.oninput = () => { r.till = ti.value.trim() || '-'; };
+      const lbl = document.createElement('span');
+      let ti;
+      if (r.handelse === 'tar_bort') {
+        lbl.textContent = 'lämnar bordet till:';
+        ti = document.createElement('select'); ti.style.flex = '1';
+        for (const m of ['grav','hand','exile','ur_bild','-']) {
+          const o = document.createElement('option'); o.value = m; o.textContent = MAL[m]; ti.appendChild(o);
+        }
+        ti.value = MAL[r.till] ? r.till : '-';
+        ti.onchange = () => { r.till = ti.value; rita(); };
+      } else if (r.handelse === 'flyttar') {
+        lbl.textContent = 'läggs på kortet:';
+        ti = document.createElement('input'); ti.value = r.till === '-' ? '' : r.till;
+        ti.placeholder = 'tomt om kortet bara flyttas'; ti.setAttribute('list', 'lek'); ti.style.flex = '1';
+        ti.oninput = () => { r.till = ti.value.trim() || '-'; };
+      } else {
+        lbl.textContent = 'till:';
+        ti = document.createElement('input'); ti.value = r.till; ti.setAttribute('list', 'lek'); ti.style.flex = '1';
+        ti.oninput = () => { r.till = ti.value.trim() || '-'; };
+      }
       const tlbl = document.createElement('span'); tlbl.textContent = 'tid:';
       const tt = document.createElement('input'); tt.type = 'number'; tt.step = '0.1'; tt.value = r.t.toFixed(1); tt.style.width = '80px';
       tt.onchange = () => { r.t = parseFloat(tt.value) || 0; rita(); };
@@ -177,7 +217,10 @@ function rita() {
     lista.appendChild(d);
   });
   const osakra = rader.filter(r => r.osaker && r.osaker !== '-').length;
-  document.getElementById('raknare').textContent = rader.length + ' rader' + (osakra ? ' · ' + osakra + ' osäkra' : '');
+  const utanMal = rader.filter(r => r.handelse === 'tar_bort' && (!r.till || r.till === '-')).length;
+  document.getElementById('raknare').textContent = rader.length + ' rader'
+    + (osakra ? ' · ' + osakra + ' osäkra' : '')
+    + (utanMal ? ' · ' + utanMal + ' utan mål' : '');
   const a = lista.children[aktiv];
   if (a) a.scrollIntoView({ block: 'nearest' });
 }
