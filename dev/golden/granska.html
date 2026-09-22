@@ -95,6 +95,7 @@ select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav
   <div id="fot">
     <span>Klicka på en rad för att se den i filmen.</span>
     <span id="raknare"></span>
+    <span id="version" style="margin-left:10px;opacity:.6">v5</span>
   </div>
 </div>
 <input type="file" id="filer" multiple accept="video/*,.tsv,text/tab-separated-values" hidden>
@@ -114,6 +115,14 @@ const mmss = s => { s = Math.max(0, s); const m = Math.floor(s/60); const r = s 
   return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); };
 const mmssKort = s => { const m = Math.floor(s/60); const r = Math.round(s - m*60);
   return m + ':' + (r < 10 ? '0' : '') + r; };
+/* Läser "4:06.6" (minuter:sekunder) och "246.6" (bara sekunder). */
+const tolkaTid = txt => {
+  const t = String(txt).trim().replace(',', '.');
+  const m = /^(\d+):(\d{1,2}(?:\.\d+)?)$/.exec(t);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? n : null;
+};
 
 function lasTSV(text) {
   const rows = text.split(/\r?\n/).filter(r => r.trim() !== '').map(r => r.split('\t'));
@@ -214,9 +223,10 @@ function rita() {
       }
       const tlbl = document.createElement('span');
       tlbl.textContent = 'i filmen vid:';
-      tlbl.title = 'Sekunden händelsen bokförs på. Nu satt där du började prata.';
-      const tt = document.createElement('input'); tt.type = 'number'; tt.step = '0.1'; tt.value = r.t.toFixed(1); tt.style.width = '72px';
-      tt.onchange = () => { r.t = parseFloat(tt.value) || 0; rita(); };
+      tlbl.title = 'Tiden i filmen där händelsen bokförs. Nu satt där du började prata.';
+      const tt = document.createElement('input'); tt.type = 'text'; tt.value = mmss(r.t); tt.style.width = '86px';
+      tt.title = 'Minuter:sekunder, t.ex. 4:06.6. Sekunder går också bra (246.6).';
+      tt.onchange = () => { const n = tolkaTid(tt.value); if (n !== null) { r.t = Math.round(n * 10) / 10; } rita(); };
       const satt = document.createElement('button');
       satt.textContent = 'sätt till filmens läge';
       satt.title = 'Pausa filmen i rutan där handen släpper kortet och tryck här.';
@@ -241,12 +251,14 @@ function rita() {
       till.append(tlbl, tt, satt, osak);
       if (ihop) till.append(ihop);
       const tal = document.createElement('div'); tal.className = 'tal'; tal.textContent = r.tal;
-      if (['spelar','flyttar'].includes(r.handelse)) {
+      if (['spelar','flyttar','tappar','otappar','tar_bort'].includes(r.handelse)) {
         const pr = document.createElement('div'); pr.className = 'till';
-        const pl = document.createElement('span'); pl.textContent = 'hamnar:';
-        pl.title = 'Ligger kortet ensamt, eller omlott med andra? Skriv högens namn, t.ex. "hög A".';
+        const pl = document.createElement('span');
+        pl.textContent = r.handelse === 'spelar' || r.handelse === 'flyttar' ? 'hamnar:' : 'vilket kort:';
+        pl.title = 'Vilket av korten med samma namn? Ligger det ensamt eller i en hög — och var i högen?';
         const pi = document.createElement('input'); pi.value = r.plats === '-' ? '' : r.plats;
-        pi.placeholder = 'ensamt · hög A · omlott på Plains'; pi.style.flex = '1';
+        pi.placeholder = 'ensamt · hög A · hög A, översta · hög A, de två nedersta';
+        pi.style.flex = '1';
         pi.oninput = () => { r.plats = pi.value.trim() || '-'; };
         const snabb = document.createElement('div'); snabb.style.display = 'flex'; snabb.style.gap = '4px';
         for (const val of ['ensamt', 'hög A', 'hög B', 'hög C']) {
