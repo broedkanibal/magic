@@ -184,8 +184,10 @@ function rita() {
       const mer = document.createElement('div'); mer.className = 'mer';
       const till = document.createElement('div'); till.className = 'till';
       const lbl = document.createElement('span');
-      let ti;
-      if (r.handelse === 'tar_bort') {
+      let ti = null;
+      if (!['tar_bort', 'flyttar'].includes(r.handelse)) {
+        // inget mål och inget kort att lägga på: visa inte fältet alls
+      } else if (r.handelse === 'tar_bort') {
         lbl.textContent = 'lämnar bordet till:';
         ti = document.createElement('select'); ti.style.flex = '1';
         for (const m of ['grav','hand','exile','ur_bild','-']) {
@@ -203,15 +205,24 @@ function rita() {
         ti = document.createElement('input'); ti.value = r.till; ti.setAttribute('list', 'lek'); ti.style.flex = '1';
         ti.oninput = () => { r.till = ti.value.trim() || '-'; };
       }
-      const tlbl = document.createElement('span'); tlbl.textContent = 'tid:';
-      const tt = document.createElement('input'); tt.type = 'number'; tt.step = '0.1'; tt.value = r.t.toFixed(1); tt.style.width = '80px';
+      const tlbl = document.createElement('span');
+      tlbl.textContent = 'i filmen vid:';
+      tlbl.title = 'Sekunden händelsen bokförs på. Nu satt där du började prata.';
+      const tt = document.createElement('input'); tt.type = 'number'; tt.step = '0.1'; tt.value = r.t.toFixed(1); tt.style.width = '72px';
       tt.onchange = () => { r.t = parseFloat(tt.value) || 0; rita(); };
+      const satt = document.createElement('button');
+      satt.textContent = 'sätt till filmens läge';
+      satt.title = 'Pausa filmen i rutan där handen släpper kortet och tryck här.';
+      satt.onclick = () => { if (v.src) { r.t = Math.round(v.currentTime * 10) / 10; rita(); } };
       const osak = document.createElement('button');
       osak.textContent = r.osaker && r.osaker !== '-' ? 'osäker: ' + r.osaker + ' — klart' : 'markera osäker';
       osak.onclick = () => { r.osaker = (r.osaker && r.osaker !== '-') ? '-' : 'kolla'; rita(); };
-      till.append(lbl, ti, tlbl, tt, osak);
+      if (ti) till.append(lbl, ti);
+      till.append(tlbl, tt, satt, osak);
       const tal = document.createElement('div'); tal.className = 'tal'; tal.textContent = r.tal;
-      mer.append(till, tal);
+      const hjalp = document.createElement('div'); hjalp.className = 'tal';
+      hjalp.textContent = 'Tiden är där du började säga meningen, alltså strax efter att handen släppte. En halv sekund fel gör ingen skada. Vill du ha den exakt: pausa i rutan där du släpper och tryck "sätt till filmens läge".';
+      mer.append(till, tal, hjalp);
       d.appendChild(mer);
     }
     lista.appendChild(d);
