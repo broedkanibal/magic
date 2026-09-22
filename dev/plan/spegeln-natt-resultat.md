@@ -24,11 +24,12 @@ kontroller, jämförelse) och en när förklaringen var klar.
 | 2 omkörning | de tre berörda tabellagenterna, återupptagna med kontrollens fynd | 10:45–10:53 | 8 min | — | KLAR |
 | 2 kontroll 2 | ny general-purpose · Opus, samma 8 rutor blint | 10:54–11:33 | 39 min | — | KLAR |
 | 3 jämförelsen | `v2/jamfor.cjs` + orkestreraren | 11:34 | 1 min | ~10 min | — |
-| 4 förklaringen | 1 × general-purpose · Opus | 11:36– | pågår | ~30 min | |
+| 4 förklaringen | 1 × general-purpose · Opus | 11:36–11:58 | 23 min | ~30 min | KLAR |
 
-Tvåtimmarsbudgeten gick ut 11:26, mitt i kontroll 2. Steg 1–3 committades
-som "det som finns" när steg 3 var klart (11:36), och steg 4 kördes ändå till
-slut eftersom sessionen levde och det var sista steget. Skillnaden mot planen
+Hela passet: 09:26–12:00, 2 h 34 min av 2 h. Tvåtimmarsbudgeten gick ut
+11:26, mitt i kontroll 2. Steg 1–3 committades som "det som finns" när steg
+3 var klart (11:36, commit `1ed6ffe`), och steg 4 kördes ändå till slut
+eftersom sessionen levde och det var sista steget. Skillnaden mot planen
 är att agenterna läser bilder tre gånger långsammare än planen räknade med:
 en Opus-agent behövde 10–18 minuter för sin första ruta och 4–8 minuter per
 ruta därefter.
@@ -85,8 +86,6 @@ förklaringen.
 
 ## Vad som saknas eller är svagt
 
-- **Steg 4 pågår** när den här versionen av filen skrivs; avsnittet nedan
-  uppdateras när den är klar.
 - `x`/`y` är ögonmått i heltalsprocent; kontroll 2 ser skillnader på några
   procentenheter, mest i de undre högarna där kortets nederkant går utanför
   bilden. Jämförelsen använder dem inte.
@@ -115,4 +114,27 @@ handen eller utanför bild i slutet — rimligt, det är inte ett fel.
 
 ## Steg 4: förklaringen
 
-*Uppdateras när `KLAR-4` finns.*
+`dev/plan/spegeln-utkast-v2.md` (561 rader, nio avsnitt) svarar på de fyra
+frågorna med rutnummer och kodrader som bevis, tar ställning till R1–R6 och
+slutar med tio issue-kandidater (avsnitt 8, inga skapade) och fem **BESLUT**
+(avsnitt 9). Kortversionen:
+
+| Fråga | Svar |
+|---|---|
+| Tappningar speglas? | Nej. I de två rutor som granskats kort för kort (290, 480) är noll av mattans tappade kort speglade; de liggande korten på bordet är andra kort. Rapporten: 54 av 108 tap-domar under passet vände spårets egen förra dom; ett Swamp-spår fick tolv domar i rad på 105 s utan att röras. Vägen beslut → ritat är snabb (101 ms) — domen är fel, inte långsam |
+| Varför för många kort? | Nästan hela överskottet är kort kameran tappat bort och som ingen svarat på (nedtonade under bannern). Dras de bort går `diff_kort` från +4 till −1 i median, och 15 rutor av 31 hamnar inom ±1 i stället för 5 |
+| Varför tar granskningen aldrig slut? | Den är tom i 13 av 31 rutor men aldrig länge. 6 av 7 lästa poster gissar namnet på ett kort som redan ligger på bordet: ett andra spår på samma kort. Spärren i `avstamBord` tittar på spårets eget namn i stället för kandidatlistan |
+| Ligger korten rätt? | Grovt ja, fint nej: bordet blandar lägen räknade med olika skalor, och ett kort låg utanför vänsterkanten i tio rutor i rad (350–440) |
+
+Om nattpassets regler: R1, R3 och R6 håller och blir starkare; **R2 byggde
+på fel facit** (räknade spår, inte kort — land är den del av bordet som
+stämmer bäst, 0,84 korts medelavvikelse); R4 går inte att avgöra med
+tiosekundersrutor; R5 siktar på fel spöke. Tappningar, lägesskalan och tokens
+saknas helt i R1–R6.
+
+Två sidofynd i koden, inte prövade: platshållaren "Asking Claude… [object
+Object]?" (ett objekt skickas där en sträng ska stå) och ett helbildsspår som
+inte kan dö (grön ruta över tom matta i `kam-240.jpg`).
+
+Nästa steg är Jespers: de fem besluten i avsnitt 9, och vilka av de tio
+kandidaterna som ska bli issues.
