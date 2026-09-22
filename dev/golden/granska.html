@@ -117,13 +117,15 @@ const mmssKort = s => { const m = Math.floor(s/60); const r = Math.round(s - m*6
 
 function lasTSV(text) {
   const rows = text.split(/\r?\n/).filter(r => r.trim() !== '').map(r => r.split('\t'));
-  huvud = rows[0];
-  const i = n => huvud.indexOf(n);
+  const kallhuvud = rows[0];                 // filens egen ordning, för inläsningen
+  const i = n => kallhuvud.indexOf(n);       // plats saknas i äldre filer: i('plats') = -1
+  huvud = ['t','handelse','kort','till','plats','osaker','tal'];   // skrivs alltid med plats
   rader = rows.slice(1).map(c => ({
     t: parseFloat(c[i('t')]) || 0,
     handelse: (c[i('handelse')] || '').trim(),
     kort: (c[i('kort')] || '-').trim(),
     till: (c[i('till')] || '-').trim(),
+    plats: (i('plats') >= 0 ? (c[i('plats')] || '-') : '-').trim(),
     osaker: (c[i('osaker')] || '-').trim(),
     tal: (c[i('tal')] || '').trim(),
   })).sort((a, b) => a.t - b.t);
@@ -133,7 +135,7 @@ function lasTSV(text) {
 function skrivTSV() {
   const ut = [huvud.join('\t')];
   for (const r of rader.slice().sort((a,b) => a.t - b.t))
-    ut.push([r.t.toFixed(2), r.handelse, r.kort || '-', r.till || '-', r.osaker || '-', r.tal].join('\t'));
+    ut.push([r.t.toFixed(2), r.handelse, r.kort || '-', r.till || '-', r.plats || '-', r.osaker || '-', r.tal].join('\t'));
   return ut.join('\n') + '\n';
 }
 
@@ -176,6 +178,11 @@ function rita() {
       const m = document.createElement('span');
       m.className = 'mal'; m.textContent = 'på ' + r.till;
       kortrad.appendChild(m);
+    }
+    if (r.plats && r.plats !== '-') {
+      const pl = document.createElement('span');
+      pl.className = 'mal plats'; pl.textContent = r.plats;
+      kortrad.appendChild(pl);
     }
 
     d.append(tid, h, kortrad, bort);
@@ -220,6 +227,22 @@ function rita() {
       if (ti) till.append(lbl, ti);
       till.append(tlbl, tt, satt, osak);
       const tal = document.createElement('div'); tal.className = 'tal'; tal.textContent = r.tal;
+      if (['spelar','flyttar'].includes(r.handelse)) {
+        const pr = document.createElement('div'); pr.className = 'till';
+        const pl = document.createElement('span'); pl.textContent = 'hamnar:';
+        pl.title = 'Ligger kortet ensamt, eller omlott med andra? Skriv högens namn, t.ex. "hög A".';
+        const pi = document.createElement('input'); pi.value = r.plats === '-' ? '' : r.plats;
+        pi.placeholder = 'ensamt · hög A · omlott på Plains'; pi.style.flex = '1';
+        pi.oninput = () => { r.plats = pi.value.trim() || '-'; };
+        const snabb = document.createElement('div'); snabb.style.display = 'flex'; snabb.style.gap = '4px';
+        for (const val of ['ensamt', 'hög A', 'hög B', 'hög C']) {
+          const b = document.createElement('button'); b.textContent = val;
+          b.onclick = () => { r.plats = val; rita(); };
+          snabb.appendChild(b);
+        }
+        pr.append(pl, pi, snabb);
+        mer.appendChild(pr);
+      }
       const hjalp = document.createElement('div'); hjalp.className = 'tal';
       hjalp.textContent = 'Tiden är där du började säga meningen, alltså strax efter att handen släppte. En halv sekund fel gör ingen skada. Vill du ha den exakt: pausa i rutan där du släpper och tryck "sätt till filmens läge".';
       mer.append(till, tal, hjalp);
