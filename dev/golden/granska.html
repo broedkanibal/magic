@@ -223,9 +223,23 @@ function rita() {
       satt.onclick = () => { if (v.src) { r.t = Math.round(v.currentTime * 10) / 10; rita(); } };
       const osak = document.createElement('button');
       osak.textContent = r.osaker && r.osaker !== '-' ? 'osäker: ' + r.osaker + ' — klart' : 'markera osäker';
+      let ihop = null;
+      if (r.handelse === 'flyttar') {
+        /* Ett par som flyttas ihop är en rad per kort, samma tid: bordet har
+           två kortobjekt och båda ska följa med. Utrustningens rad behåller
+           kreaturet i `till`, så att det syns att de fortfarande sitter ihop. */
+        ihop = document.createElement('button');
+        ihop.textContent = '+ kort som flyttade med';
+        ihop.onclick = () => {
+          rader.push({ t: r.t, handelse: 'flyttar', kort: '-', till: r.kort,
+            plats: 'på ' + r.kort, osaker: 'vilket kort', tal: '(flyttade ihop med ' + r.kort + ')' });
+          rita();
+        };
+      }
       osak.onclick = () => { r.osaker = (r.osaker && r.osaker !== '-') ? '-' : 'kolla'; rita(); };
       if (ti) till.append(lbl, ti);
       till.append(tlbl, tt, satt, osak);
+      if (ihop) till.append(ihop);
       const tal = document.createElement('div'); tal.className = 'tal'; tal.textContent = r.tal;
       if (['spelar','flyttar'].includes(r.handelse)) {
         const pr = document.createElement('div'); pr.className = 'till';
@@ -332,7 +346,7 @@ for (const n of LEK) { const o = document.createElement('option'); o.value = n; 
   if (q.get('tsv')) {
     const p = q.get('tsv').replace(/^\//, '');
     filnamn = p.split('/').pop();
-    fetch(rot + p).then(r => r.ok ? r.text() : Promise.reject(r.status)).then(lasTSV)
+    fetch(rot + p, { cache: 'no-store' }).then(r => r.ok ? r.text() : Promise.reject(r.status)).then(lasTSV)
       .catch(e => { document.getElementById('raknare').textContent = 'kunde inte läsa ' + p + ' (' + e + ')'; });
   }
 })();
