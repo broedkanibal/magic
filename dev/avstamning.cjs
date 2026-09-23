@@ -1143,6 +1143,63 @@ prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut', () =
    reanimator, recursion, Trusty Retriever. Samma kort flyttar tillbaka,
    och bara när ett nytt kort skulle ge fler exemplar än leken har. */
 const iGrav = namn => app.kort.filter(c => c.zon === 'grav' && c.name === namn).length;
+/* TV (dev/spegelfacit, passet 2026-09-22): ett klart spår som stått utan
+   region i minst 2 s och lägger sig en bit bort är inte längre ett bevis
+   för kortet — men bara när ett annat kort kan förklara det (tvivelSteg,
+   annatKortDar). vila(t, dx) = spåret vilar dx bildandelar till höger om PORT. */
+const vila = (dx, rest) => Object.assign({ x: PORT.x + dx, y: PORT.y, w: PORT.w, h: PORT.h, vx: PORT.x + dx + PORT.w / 2, vy: PORT.y + PORT.h / 2, vilar: true }, rest);
+const UNDER = box(PORT.x + 0.02, PORT.y - 0.02, 0.063, 0.088);   // svärdet under Pharika, förskjutet så att en del syns
+prov('TV1 kortet ovanpå lyfts till graveyard, kortet under tar spåret: det övre lämnar bordet, det undre ligger kvar', () => {
+  stamG([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0) }), klar(2, "Valkyrie's Sword", { sen: 20, skymd: true, ...UNDER })], hog(0));
+  klocka.t += 150; stamG([klar(1, "Pharika's Chosen", { sen: 2100, skymd: true, ...vila(0) }), klar(2, "Valkyrie's Sword", { sen: 2250, skymd: true, ...UNDER })], hog(0));
+  klocka.t += 1500; stamG([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0.015) }), klar(2, "Valkyrie's Sword", { sen: 3750, skymd: true, ...UNDER })], hog(0));
+  const ph = app.kort.find(k => k.name === "Pharika's Chosen"), sv = app.kort.find(k => k.name === "Valkyrie's Sword");
+  assert.ok(ph.borta, 'Pharika i nåd'); assert.equal(sv.spar, 2);
+  assert.ok(Math.abs(ph.kam.x - (PORT.x + PORT.w / 2)) < 1e-9, 'läget står kvar där kortet låg');
+  klocka.t += 1500; stamG([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0.015) }), klar(2, "Valkyrie's Sword", { sen: 5250, skymd: true, ...UNDER })], hog(1));   // högen ändras
+  klocka.t += 1600; stamG([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0.015) }), klar(2, "Valkyrie's Sword", { sen: 6850, skymd: true, ...UNDER })], hog(1));   // nådatiden (bänkens 3 s) ute
+  assert.equal(ph.zon, 'grav'); assert.ok(ph.gravAuto);
+  assert.equal(sv.zon, undefined); assert.equal(sv.lyft, undefined); assert.equal(app.kort.length, 2, 'inget nytt kort');
+  assert.equal(app.pending.length, 0, 'ingen fråga om spåret');
+});
+prov('TV2 samma rörelse utan kort under: en flytt under handen, samma kort', () => {
+  stam([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0) })]);
+  klocka.t += 150; stam([klar(1, "Pharika's Chosen", { sen: 2100, skymd: true, ...vila(0) })]);
+  klocka.t += 1500; stam([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0.015) })]);
+  const k = app.kort[0];
+  assert.equal(k.spar, 1); assert.ok(!k.borta); assert.ok(Math.abs(k.kam.x - (PORT.x + 0.015 + PORT.w / 2)) < 1e-9, 'kortet flyttar');
+});
+prov('TV3 spåret var utan region i under 2 s: som förut, också med ett kort under', () => {
+  stam([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0) }), klar(2, "Valkyrie's Sword", { sen: 20, skymd: true, ...UNDER })]);
+  klocka.t += 150; stam([klar(1, "Pharika's Chosen", { sen: 1500, skymd: true, ...vila(0) }), klar(2, "Valkyrie's Sword", { sen: 1650, skymd: true, ...UNDER })]);
+  klocka.t += 300; stam([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0.015) }), klar(2, "Valkyrie's Sword", { sen: 1950, skymd: true, ...UNDER })]);
+  assert.equal(app.kort.find(k => k.name === "Pharika's Chosen").spar, 1); assert.ok(!app.kort.find(k => k.name === "Pharika's Chosen").borta);
+});
+prov('TV4 kortet på annat håll: spöksspåret tar ett annat kort, Ukud (1 i leken) följer spåret med dess namn', () => {
+  app.lek = new Map([['Ukud Cobra', 1]]);
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...vila(0) })]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 2100, skymd: true, ...vila(0) }), { id: 3, tillstand: 'okand', namn: 'Ukud Cobra', saker: false, gissning: null, sen: 20, ...LANGT }]);
+  klocka.t += 5000; stam([klar(1, 'Ukud Cobra', { sen: 20, ...vila(0.02) }), { id: 3, tillstand: 'okand', namn: 'Ukud Cobra', saker: false, gissning: null, sen: 20, ...LANGT }]);
+  assert.equal(app.kort.length, 1, 'inget nytt kort'); assert.equal(app.kort[0].spar, 3); assert.ok(!app.kort[0].borta);
+  assert.equal(app.pending.length, 0, 'spöksspåret blir ingen fråga, och frågan på spår 3 är besvarad');
+  // telefonen läser om spöksspåret: det nya namnet gäller
+  klocka.t += 150; stam([klar(1, 'Killing Glare', { sen: 20, ...vila(0.02), varfor: 'bild' }), { id: 3, tillstand: 'okand', namn: 'Ukud Cobra', saker: false, gissning: null, sen: 20, ...LANGT }]);
+  assert.ok(app.kort.some(k => k.name === 'Killing Glare' && k.spar === 1));
+});
+prov('TV5 landhögen: ett Swamp ovanpå ett annat Swamp — samma namn förklarar inget, kortet står kvar', () => {
+  stam([klar(1, 'Swamp', { sen: 20, ...vila(0) }), klar(2, 'Swamp', { sen: 20, skymd: true, ...UNDER })]);
+  klocka.t += 150; stam([klar(1, 'Swamp', { sen: 2100, skymd: true, ...vila(0) }), klar(2, 'Swamp', { sen: 2250, skymd: true, ...UNDER })]);
+  klocka.t += 1500; stam([klar(1, 'Swamp', { sen: 20, ...vila(0.015) }), klar(2, 'Swamp', { sen: 3750, skymd: true, ...UNDER })]);
+  assert.ok(app.kort.every(k => !k.borta && k.lyft == null)); assert.equal(app.kort.length, 2);
+});
+prov('TV6 spåret läses om till ett annat kort och högen ändras en sekund senare: det gamla kortet gick till graveyard', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(0));
+  const ukud = app.kort.find(k => k.name === 'Ukud Cobra');
+  assert.ok(ukud.lyft != null);
+  klocka.t += 1200; stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(1));
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto); assert.equal(ukud.lyft, undefined);
+});
 prov('GU1 leken har 1 Trusty Retriever och den ligger i graveyard: kortet på mattan är SAMMA kort, tillbaka i spel', () => {
   app.lek = new Map([['Trusty Retriever', 1]]);
   app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 0, zon: 'grav', gravAuto: 1, tapped: 1, x: 40, y: 80 });
