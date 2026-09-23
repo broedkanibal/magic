@@ -18762,6 +18762,8 @@ const Kamera = (() => {
   let blankM = null;           // 1 där referensen är blänk — räknas aldrig
   let yta = null;              // { dom, brus, textur, blank } — ytans betyg vid referensen
   let senasteG = null, senasteG0 = null, senasteMask = null;   // för diagnosfilen: efter och FÖRE suddning
+  let senasteGNar = 0;   // performance.now() när senasteG kom — förhandsbildens spärr litar bara på en färsk analysruta
+  let stromG = null;     // analysrutan när förhandsbilden senast skickades (bildAndrad)
   /* Skärlinjerna ruta för ruta, de senaste 40: ett snitt som flimrar mellan
      rutorna syns bara här — diagnosen i övrigt är sista rutan. */
   const skarLogg = [];
@@ -21056,7 +21058,7 @@ const Kamera = (() => {
     if (avvik > avvGrans && avv.spridd >= 0.5) {
       if (++felRader >= R(10)) {
         omtag++; felRader = 0; glomReferens(); omtagRensa = true;
-        senasteG0 = g0; senasteG = g; senasteMask = mask;
+        senasteG0 = g0; senasteG = g; senasteMask = mask; senasteGNar = performance.now();
         säg('ljus', 'Learning the light — hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
         return;
       }
@@ -21085,7 +21087,7 @@ const Kamera = (() => {
       bedomYta();
     }
     styrTroskel();
-    senasteG0 = g0; senasteG = g; senasteMask = mask;
+    senasteG0 = g0; senasteG = g; senasteMask = mask; senasteGNar = performance.now();
     ta('ref');
 
     /* Ett svar som aldrig kommer får inte hålla kortet borta från
@@ -21947,6 +21949,17 @@ const Kamera = (() => {
     for (let i = 0; i < a.length; i += 4) { n++; const d = a[i] - b[i]; if (d > tr || d < -tr) k++; }
     return n ? k / n : 0;
   }
+  /* Förhandsbilden till datorn (startaStrom) skickas bara när bilden ändrats
+     sedan förra skickade rutan: mer än HELBILD_ROR av analysrutan avviker med
+     mer än T.utseende — samma mått som säger att en hand rör sig. Ett kort som
+     läggs ut täcker 2–4 % av rutan och syns alltså. Utan en färsk analysruta
+     (analysen står, telefonen är nyss startad) svarar den ja: då går
+     strömmen som förut, hellre för mycket än en bild som fastnat. */
+  function bildAndrad() {
+    if (!senasteG || performance.now() - senasteGNar > 1000) return true;
+    return !stromG || andelOver(senasteG, stromG, T.utseende) > HELBILD_ROR;
+  }
+  function bildSkickad() { stromG = senasteG; }
   function planeraHelbild(nu, g) {
     if (!cb.helbild || helbildPagar || !ref) { helbildSedan = 0; helbildForra = null; return; }
     const ror = helbildForra ? andelOver(g, helbildForra, T.utseende) : 0;
@@ -22190,7 +22203,7 @@ const Kamera = (() => {
     rapportera();
   }
 
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
@@ -22913,17 +22926,30 @@ function tillampaKalRad(ruta) {
    Datorn ber om bilden när den behöver den — medan Kamerainställningar är
    öppna — och säger till när den inte gör det längre. Tre bildrutor i
    sekunden räcker gott för att se var korten ligger, och det är bara då
-   strömmen går alls. */
+   strömmen går alls.
+
+   Varje ruta går genom Supabase Realtime och räknas som egress: ~26 kB
+   styck, alltså ~285 MB i timmen vid 3/s. Gratisnivåns 5 GB tog slut i
+   september 2026 (6,2 GB, uppmätt i Supabase Usage 2026-09-23) utan en
+   enda användare — bara kameraprov med panelen öppen. Därför skickas en
+   ruta bara när bilden ändrats sedan förra skickade (Kamera.bildAndrad),
+   och annars en var STROM_STILLA_MS så att bilden aldrig står gammal
+   längre än så. Ett stilla bord kostar då en femtondel. */
 let stromT = null;
 const STROM_MS = 330;
+const STROM_STILLA_MS = 5000;
 let stromBredd = 380;
+let stromSkickad = 0;
 function startaStrom(bredd) {
   if (bredd) stromBredd = bredd;
+  stromSkickad = 0;   // en ny begäran (datorn öppnade panelen, telefonen startade om) får sin ruta direkt
   if (stromT) return;
   stromT = setInterval(async () => {
     if (!kamLage) return stoppaStrom();
+    const nu = Date.now();
+    if (stromSkickad && nu - stromSkickad < STROM_STILLA_MS && !Kamera.bildAndrad()) return;
     const d = await Kamera.forhandsbild(stromBredd);
-    if (d) Moln.sandKam('bild', { b64: d.url, w: d.w, h: d.h });
+    if (d) { Moln.sandKam('bild', { b64: d.url, w: d.w, h: d.h }); Kamera.bildSkickad(); stromSkickad = nu; }
   }, STROM_MS);
 }
 /* Diagnosen går i två meddelanden: kanalen har ett tak per meddelande, och
@@ -25582,8 +25608,10 @@ function ritaOppLager(G) {
    små kort får rätt färg på sina ramar. */
 /* Panelen är dockad och får stå öppen hela kvällen — bilden ska inte strömmas
    från telefonen (3 bilder/s) medan ingen tittar: fliken är dold, eller
-   panelen har legat orörd i tio minuter. Rör man panelen igen går den vidare. */
-const KAM_STROM_VILA_MS = 10 * 60 * 1000;
+   panelen har legat orörd i tre minuter. Rör man panelen igen går den vidare.
+   Var tio minuter till 2026-09-23: varje ruta är egress i Supabase, och
+   gratisnivåns 5 GB tog slut (se startaStrom på telefonen). */
+const KAM_STROM_VILA_MS = 3 * 60 * 1000;
 let kamRordes = Date.now();
 function kamStrom() {
   const vill = kamSkruvOppen && !document.hidden && Date.now() - kamRordes < KAM_STROM_VILA_MS;
