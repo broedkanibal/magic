@@ -483,9 +483,36 @@ band (titelrad, konstverkets horisont, typrad) ser ut som en solfjäder i
 masken. På utvalda bildrutor med handritad låda räknas tre staplade
 Plains/Swamp rätt (harnesset i MES-250), så signalen finns i bilden —
 inte i den låda och den upplösning telefonen har i drift. Högraderna i
-spegelfacit står kvar på 4 av 12. Nästa steg är telefonens: beskärningen
-i 720 px i stället för analysbilden, eller högen räknad ur hur spårets
-låda växer när ett kort läggs på.
+spegelfacit står kvar på 4 av 12.
+
+### Högbänken: räkningen i beskärningen (2026-09-24)
+
+Andra försöket flyttade räkningen till **beskärningen** (720 px bred, en
+halv kortsida runt lådan) och krävde att varje band **läser som ett
+kortnamn** med namnläsaren innan det räknas — ett ensamt korts band ska
+aldrig läsa som två. Måttet för det är `node dev/hogbank.cjs`: 68
+beskärningar ur passets video och golden-fotona med telefonens egna lådor
+(`dev/hogbank/facit.json`: 13 högar, 13 fästa par, 39 ensamma kort, 3 med
+hand eller skymt), ett prov med slutkod. `--beskarningar <mapp>` sparar
+bilderna, `--gra <mapp>` gråbilderna som PGM, `--remsor <mapp>` remsorna
+namnläsaren fick, med det lästa i filnamnet. Grinden var rätt n och
+tappade på alla högar, rätt undre namn på tre av fyra par och n 1 på
+varje ensamt kort.
+
+**Grinden nåddes inte, och skälet är materialet, inte geometrin.**
+Kandidatbanden (textrader i titelhöjd, sökta i sju vridningar för
+solfjäderns lutning, `Kamera.hogBand`) hittar titelraderna, men
+namnläsaren läser rätt namn ur kanske en remsa av tre: titelraden är
+15 px hög i passets 1080p-video och 17 px i golden 14, och "Swamp" blir
+"N Sweep romans". Hela beskärningen som gles text (psm 11) läser
+ingenting alls, inte heller i dubbel skala. Utan namnbevis faller resten:
+ett korts typrad och regeltext liknar en titelrad (normerad korrelation
+0,6–0,8, lika hög som mellan två riktiga titlar), så varken form eller
+likhet skiljer "kort under" från "samma kort". Bästa bänkresultat: högar
+0/13, par 2/13, ensamma 13/39. Koden (`hogLas` i index.html, oanvänd av
+appen) ligger kvar på grenen för nästa försök; det som återstår att pröva
+är bevis som inte är text — kortets svarta kant mellan två titelrader,
+eller telefonens 4K-beskärning där titelraden är dubbelt så hög.
 
 ## Samma fall i sju ljus (MES-216)
 

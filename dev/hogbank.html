@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>Högbänken — högläsningen på riktiga beskärningar</title>
+<style>
+body{font:14px system-ui,sans-serif;margin:16px;color:#222}
+iframe{width:100%;height:240px;border:1px solid #ccc;border-radius:6px;background:#000}
+#status{font-weight:600}
+</style>
+</head>
+<body>
+<p id="status">laddar…</p>
+<p>Drivs av <code>node dev/hogbank.cjs</code>. Appen laddas i ramen nedan så att högläsningen körs med exakt den kod telefonen har.</p>
+<iframe id="app" title="appen"></iframe>
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   HÖGBÄNKEN (MES-250) — högläsningen på beskärningar ur riktiga bilder
+
+   Bänken mäter EN sak: räknar högläsningen (hogLas i index.html) rätt
+   antal kort, rätt antal tappade och rätt namn på kortet under, ur en
+   beskärning skuren som appen skär den? Bilderna är rutor ur passets video
+   och golden-fotona; lådan per fall kommer ur telefonens egen bordslogg
+   (eller är satt för hand där loggen inte hade ett spår på högen — det
+   står i facit). Beskärningen tas som beskar() i Kamera tar den, fast med
+   en halv kortsida runt lådan och 720 px bred, uppskalad när källan är
+   mindre — det är där titelraderna i en stapel ligger 25–30 px isär i
+   stället för 5–7 på analysbilden.
+
+   Appen laddas i en iframe och drivs härifrån: ingen kopia av modulen,
+   inget som kan glida isär från den riktiga (som dev/golden/kor.html).
+   ═══════════════════════════════════════════════════════════════════ */
+'use strict';
+const $ = s => document.querySelector(s);
+const status = t => { $('#status').textContent = t; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let w = null, K = null, Namn = null, namnLista = [];
+
+async function laddaApp() {
+  const f = $('#app');
+  await new Promise((res, rej) => { f.onload = res; f.onerror = rej; f.src = '../'; });
+  w = f.contentWindow;
+  for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
+  K = w.eval('Kamera'); Namn = w.eval('Namn');
+  if (!K || typeof K.hogBand !== 'function' || typeof w.hogLas !== 'function') throw new Error('appen saknar Kamera.hogBand eller hogLas');
+  status('Hämtar namnläsaren (tesseract.js)…');
+  await Namn.ladda();
+  const r = await fetch('golden/lek.txt', { cache: 'no-store' });
+  if (!r.ok) throw new Error('lek.txt saknas');
+  namnLista = (await r.text()).split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#')).map(l => l.replace(/^\d+\s*[xX]?\s+/, ''));
+  status('Redo');
+}
+const laddaBild = src => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bilden gick inte att läsa: ' + src)); i.src = src; });
+
+/* Beskärningen som beskar() gör den — rätad om den ligger — fast med en
+   halv kortsida runt lådan och `bredd` px bred. Skalan får gå upp (källan
+   1080 px bred ger ~360 px för en hög), som mest 2,5×. */
+function beskar(img, lada, kortPx, bredd) {
+  const W0 = img.naturalWidth, H0 = img.naturalHeight, m = 0.5 * kortPx;
+  const x0 = Math.max(0, lada.x * W0 - m), y0 = Math.max(0, lada.y * H0 - m);
+  const x1 = Math.min(W0, (lada.x + lada.w) * W0 + m), y1 = Math.min(H0, (lada.y + lada.h) * H0 + m);
+  const bx = x0, by = y0, bw = x1 - x0, bh = y1 - y0;
+  const liggande = bw > bh;
+  const skala = Math.min(2.5, bredd / (liggande ? bh : bw));
+  const ow = Math.round((liggande ? bh : bw) * skala), oh = Math.round((liggande ? bw : bh) * skala);
+  const c = document.createElement('canvas'); c.width = ow; c.height = oh;
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+  if (liggande) { x.translate(ow / 2, oh / 2); x.rotate(-Math.PI / 2); x.drawImage(img, bx, by, bw, bh, -oh / 2, -ow / 2, oh, ow); }
+  else x.drawImage(img, bx, by, bw, bh, 0, 0, ow, oh);
+  return { bild: c, liggande, skala, K: kortPx * skala, kalla: { bx, by, bw, bh } };
+}
+
+/* Ett fall: { id, bild (URL), lada {x,y,w,h} andelar, kortPx, namn, grundLodrat }.
+   Ger per fall svaret ur hogLas, tiden, och med o.beskarningar bilden. */
+async function korFall(fall, o) {
+  o = o || {};
+  const ut = [];
+  for (const f of fall) {
+    status('Kör ' + f.id);
+    const post = { id: f.id };
+    try {
+      const img = await laddaBild(f.bild);
+      const b = beskar(img, f.lada, f.kortPx, o.bredd || 720);
+      const t0 = performance.now();
+      const r = await w.hogLas(b.bild, { K: b.K, L: 1.4 * b.K, namn: f.namn || null, namnLista, liggande: b.liggande, grundLodrat: f.grundLodrat !== false, remsor: !!o.remsor });
+      post.ms = Math.round(performance.now() - t0);
+      if (r && r.remsor) { post.remsor = r.remsor; delete r.remsor; }
+      post.svar = r; post.liggande = b.liggande; post.K = Math.round(b.K); post.w = b.bild.width; post.h = b.bild.height;
+      if (o.beskarningar) post.b64 = b.bild.toDataURL('image/jpeg', 0.85);
+      /* Gråbilden som hogLas räknar på, rå (base64 av W×H byte) — för att
+         skruva på bandsökningen i node utan namnläsaren. */
+      if (o.gra) {
+        const im = b.bild.getContext('2d').getImageData(0, 0, b.bild.width, b.bild.height).data;
+        const g = new Uint8Array(b.bild.width * b.bild.height);
+        for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = (im[j] * 77 + im[j + 1] * 151 + im[j + 2] * 28) >> 8;
+        let s = ''; for (let i = 0; i < g.length; i += 8192) s += String.fromCharCode.apply(null, g.subarray(i, i + 8192));
+        post.gra = btoa(s);
+      }
+    } catch (e) { post.fel = e && e.message || String(e); }
+    ut.push(post);
+  }
+  status('Klar');
+  return ut;
+}
+window.hogbank = { laddaApp, korFall };
+laddaApp().catch(e => status('Fel: ' + (e && e.message || e)));
+</script>
+</body>
+</html>

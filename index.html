@@ -16789,7 +16789,62 @@ const Namn = (() => {
     const ms = Math.round(performance.now() - t0);
     return bast ? Object.assign(bast, { ms }) : { namn: null, poang: 0, marginal: 0, text: '', ms };
   }
-  return { ladda, las, likhet, get klar() { return klar; } };
+  /* En remsa som REDAN är en textrad (högläsningen, MES-250): ett
+     kandidatband ur beskärningen, utskuret och vridet rättvänt av hogLas.
+     Läses som den är — inget letande 4–14 % ner — och matchas mot leken
+     som las(). null = läsaren finns inte. */
+  async function lasRad(canvas, namnLista) {
+    if (!workerP) return null;
+    let w; try { w = await workerP; } catch (e) { return null; }
+    const t0 = performance.now();
+    const namn = [...new Set(namnLista || [])];
+    let text = '';
+    try { text = (await w.recognize(canvas)).data.text || ''; } catch (e) { return null; }
+    let bast = null;
+    for (const rad of text.split('\n').map(r => r.trim()).filter(Boolean)) {
+      const b = bastaFonster(rad, namn);
+      if (!bast || b.poang > bast.poang) bast = Object.assign(b, { text: rad });
+    }
+    const ms = Math.round(performance.now() - t0);
+    return bast ? Object.assign(bast, { ms }) : { namn: null, poang: 0, marginal: 0, text: '', ms };
+  }
+  /* Bästa namnet i ett FÖNSTER av raden (högläsningen): remsan ur en
+     beskärning bär ofta skräp runt namnet — manasymbolen, grannens kant,
+     en bit av rutan appen ritar — och hela raden mot namnet ger då 0,5 för
+     ett namn som står klart och tydligt mitt i. Varje följd av ord prövas,
+     lika lång som namnet ±1 ord. En träff som står direkt efter ordet
+     land är typraden (Basic Land — Swamp) och räknas inte. */
+  /* Bokstavsavstånd (Levenshtein) som kvot av namnets längd: Dice på
+     bokstavspar straffar ett kort namn hårt för två feltecken ("Sweep" mot
+     "Swamp" ger 0,25), medan avståndet ger 0,6. */
+  function avstandsLikhet(a, b) {
+    a = tvatta(a); b = tvatta(b);
+    if (!a.length || !b.length) return 0;
+    let f = new Int32Array(b.length + 1); for (let j = 0; j <= b.length; j++) f[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      const g = new Int32Array(b.length + 1); g[0] = i;
+      for (let j = 1; j <= b.length; j++) g[j] = Math.min(f[j] + 1, g[j - 1] + 1, f[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      f = g;
+    }
+    return Math.max(0, 1 - f[b.length] / Math.max(a.length, b.length));
+  }
+  function bastaFonster(rad, namn) {
+    const ord = tvatta(rad).split(' ').filter(Boolean);
+    let b1 = { namn: null, poang: 0 }, b2 = { namn: null, poang: 0 };
+    const prova = (text, n, fore) => {
+      if (/\bland$/.test(fore)) return;
+      const p = Math.max(likhet(text, n), avstandsLikhet(text, n));
+      if (p > b1.poang && n !== b1.namn) { b2 = b1; b1 = { namn: n, poang: p }; }
+      else if (p > b1.poang) b1 = { namn: n, poang: p };
+      else if (p > b2.poang && n !== b1.namn) b2 = { namn: n, poang: p };
+    };
+    for (const n of namn) {
+      const k = tvatta(n).split(' ').filter(Boolean).length;
+      for (let i = 0; i < ord.length; i++) for (let m = Math.max(1, k - 1); m <= k + 1 && i + m <= ord.length; m++) prova(ord.slice(i, i + m).join(' '), n, ord.slice(0, i).join(' '));
+    }
+    return { namn: b1.namn, poang: +b1.poang.toFixed(2), marginal: +(b1.poang - b2.poang).toFixed(2), nast: b2.namn };
+  }
+  return { ladda, las, lasRad, likhet, get klar() { return klar; } };
 })();
 
 let analyzing = false, cancelAnalyze = false;
@@ -18983,6 +19038,142 @@ const Kamera = (() => {
       const [basta, antal] = Object.entries(rost).sort((p, q) => q[1] - p[1])[0];
       if (antal >= 3) t.hog = basta === '1' ? null : { n: +basta.split('/')[0], tappade: +basta.split('/')[1] };
     }
+  }
+  /* ── Högläsningen i beskärningen (MES-250, omtag 2026-09-24) ──
+     Räkningen ur titelraderna görs inte på analysbilden (360 px bred: ett
+     kort 58 px, titelraderna i en stapel 5–7 px isär) utan i BESKÄRNINGEN,
+     samma bild som namnläsningen får, upp till 720 px, där raderna ligger
+     25–30 px isär med kortets svarta kant emellan. Det här är den
+     geometriska halvan: ett kandidatband är en TEXTRAD I TITELHÖJD — rader
+     med en lång ljus löpning (≥ 0,5 kortsidor) som bär mörk text (många
+     växlingar), så tjock som titelns bokstäver (≥ 0,02 kortsidor; uppmätt
+     9 av 339 i golden 14), med en textfri ljus marginal eller en mörk kant
+     på var sida — titelrutans egna marginaler, eller kortet ovanpå. Ljusa
+     löpningar ensamma dög inte: kort med ljus ram (artefakterna, de vita)
+     är ljusa över hela ytan, och ett ensamt Swamp har ljusa band nog
+     (titel, horisont, typrad) för att se ut som en solfjäder — räkningen
+     på analysbilden sa "två eller fler" på ett ensamt kort i 8 av 13
+     mätningar (passet 2026-09-22). Vad bandet SÄGER avgör hogLas utanför
+     modulen: ett band räknas bara om namnläsaren läser ett namn i leken.
+     Solfjädern lutar, och korten i den lutar olika (passet: 6–18°), så
+     rutnätet läggs i bildens axlar (beskärningen är rätad efter grund-
+     läget) och bilden söks i sju vridningar (0, ±6, ±12, ±18°); banden
+     slås ihop över vinklarna och bär var sin vinkel. En enda uppmätt
+     lutning per beskärning (Sobel, listräkning, projektionsprofil) dög
+     inte: appens ritade rutor och mattans kanter är axelräta och röstar
+     alltid på 0°, och en solfjäder har ingen enda vinkel.
+     g: gråbild W×H (0–255), K kortets kortsida i bildens pixlar. Ger
+     { band, vinklar, nivaer }; ett band { dir: 'h'|'v', vinkel, p0, p1
+     (tvärs bandet, i bilden VRIDEN med vinkel), a0, a1 (längs), cx, cy
+     (bandets mitt i den ovridna bilden), tjock, text, trans, ljus, rot
+     (0 = den mörka sidan före bandet eller okänd, 180 = efter), poang },
+     troligast först. */
+  function hogBand(g0, W0, H0, K, o) {
+    o = o || {}; K = +K;
+    if (!K || W0 < 16 || H0 < 16) return { band: [], vinklar: [], nivaer: null };
+    const vinklar = o.vinkel != null ? [+o.vinkel] : (o.vinklar || [0, -5, 5, -10, 10, -15, 15]);
+    const vrid = (g, W, H, th) => {
+      const c = Math.cos(th), s = Math.sin(th), cx = W / 2, cy = H / 2, u = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) { const dy = y - cy, ox = cx - dy * s, oy = cy + dy * c; for (let x = 0; x < W; x++) { const dx = x - cx, sx = Math.round(ox + dx * c), sy = Math.round(oy + dx * s); u[y * W + x] = sx >= 0 && sy >= 0 && sx < W && sy < H ? g[sy * W + sx] : 0; } }
+      return u;
+    };
+    const sok = (g, W, H) => {
+      const n = W * H, hist = new Int32Array(256);
+      for (let i = 0; i < n; i++) hist[g[i]]++;
+      const perc = q => { let s = 0; const m = q * n; for (let v = 0; v < 256; v++) { s += hist[v]; if (s >= m) return v; } return 255; };
+      const p01 = perc(0.01), med = perc(0.5), p99 = perc(0.99), spann = p99 - med;
+      const nivaer = { p01, med, p99 };
+      if (spann < 25) return { band: [], nivaer };
+      const Tljus = med + 0.5 * spann;
+      const gapL = Math.max(2, Math.round(0.06 * K)), lopMin = Math.round(0.5 * K);
+      const textMin = Math.max(4, Math.round(0.02 * K)), textMax = Math.round(0.09 * K), margMin = 2, margMax = Math.round(0.03 * K);
+      /* Per rad (dir 'h') eller kolumn ('v'): den längsta ljusa löpningen
+         där text räknas som luckor, dess läge och antalet växlingar i den. */
+      const skanna = (antal, langd, stegI, stegJ) => {
+        const L = new Int32Array(antal), l0 = new Int32Array(antal), l1 = new Int32Array(antal), tr = new Int32Array(antal), lj = new Float32Array(antal);
+        for (let i = 0; i < antal; i++) {
+          const bas = i * stegI;
+          let start = -1, sist = -1, trans = 0, forra = false, bast = 0, sum = 0, cnt = 0;
+          for (let j = 0; j <= langd; j++) {
+            const v = j < langd ? g[bas + j * stegJ] : -1, on = v >= Tljus;
+            if (on) { if (start < 0) { start = j; trans = 0; sum = 0; cnt = 0; } else if (!forra) trans++; sist = j; forra = true; sum += v; cnt++; }
+            else if (start >= 0) {
+              if (forra) { trans++; forra = false; }
+              if (j - sist > gapL || j === langd) { const len = sist - start + 1; if (len > bast) { bast = len; l0[i] = start; l1[i] = sist; tr[i] = trans; lj[i] = sum / Math.max(1, cnt); } start = -1; }
+            }
+          }
+          L[i] = bast;
+        }
+        return { L, l0, l1, tr, lj };
+      };
+      const band = (r, antal, dir) => {
+        const ut = [];
+        const text = i => r.L[i] >= lopMin && r.tr[i] >= 8, marg = i => r.L[i] >= lopMin && r.tr[i] < 8, ljusRad = i => r.L[i] >= lopMin;
+        let i0 = -1, sistText = -1;
+        const grupper = [];
+        for (let i = 0; i <= antal; i++) {
+          const t = i < antal && text(i);
+          if (t) { if (i0 < 0) i0 = i; sistText = i; }
+          else if (i0 >= 0 && (i - sistText > 2 || i === antal)) { grupper.push([i0, sistText]); i0 = -1; }
+        }
+        for (const [t0, t1] of grupper) {
+          const tj = t1 - t0 + 1;
+          if (tj < textMin || tj > textMax) continue;
+          /* sidorna: textfri ljus marginal, sedan vad som helst; eller direkt mörkt (kanten, kortet ovanpå) */
+          const sida = rikt => {
+            let m = 0, i = rikt > 0 ? t1 + 1 : t0 - 1;
+            while (i >= 0 && i < antal && m < margMax && marg(i)) { m++; i += rikt; }
+            const nasta = i >= 0 && i < antal ? (ljusRad(i) ? (text(i) ? 'text' : 'ljus') : 'mork') : 'kant';
+            return { m, nasta };
+          };
+          const fore = sida(-1), efter = sida(1);
+          const ok = s => s.m >= margMin || s.nasta === 'mork' || s.nasta === 'kant';
+          if (!ok(fore) || !ok(efter) || (fore.m < margMin && efter.m < margMin)) continue;
+          let a0 = Infinity, a1 = -Infinity, trans = 0, ljus = 0, c = 0;
+          for (let i = t0; i <= t1; i++) { if (!ljusRad(i)) continue; if (r.l0[i] < a0) a0 = r.l0[i]; if (r.l1[i] > a1) a1 = r.l1[i]; if (r.tr[i] > trans) trans = r.tr[i]; ljus += r.lj[i]; c++; }
+          if (!c) continue;
+          ljus /= c;
+          const p0 = t0 - fore.m, p1 = t1 + efter.m;
+          const rot = fore.nasta === 'mork' && efter.nasta !== 'mork' ? 0 : efter.nasta === 'mork' && fore.nasta !== 'mork' ? 180 : 0;
+          const poang = Math.min(1, (a1 - a0) / K) + (tj >= 0.025 * K && tj <= 0.06 * K ? 1 : 0.5) + (fore.m >= margMin && efter.m >= margMin ? 0.5 : 0) + (ljus - med) / spann;
+          /* stark = ser ut som en titelrad i allt: lång, text i titelhöjd, marginal på båda sidor */
+          const stark = (a1 - a0) >= 0.7 * K && tj >= 0.022 * K && tj <= 0.06 * K;
+          ut.push({ dir, p0, p1, a0, a1, tjock: p1 - p0 + 1, text: tj, trans, ljus, rot, poang, stark });
+        }
+        return ut;
+      };
+      return { band: band(skanna(H, W, W, 1), H, 'h').concat(band(skanna(W, H, 1, W), W, 'v')), nivaer };
+    };
+    const alla = [];
+    let nivaer = null;
+    const cx = W0 / 2, cy = H0 / 2;
+    for (const v of vinklar) {
+      const th = v * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+      const r = sok(v ? vrid(g0, W0, H0, th) : g0, W0, H0);
+      if (!nivaer) nivaer = r.nivaer;
+      for (const b of r.band) {
+        b.vinkel = v;
+        /* bandets mitt tillbaka till den ovridna bilden: källa = mitt + R(v)·(p − mitt) */
+        const px = b.dir === 'h' ? (b.a0 + b.a1) / 2 : (b.p0 + b.p1) / 2, py = b.dir === 'h' ? (b.p0 + b.p1) / 2 : (b.a0 + b.a1) / 2;
+        const dx = px - cx, dy = py - cy;
+        b.cx = cx + dx * c - dy * s; b.cy = cy + dx * s + dy * c;
+        alla.push(b);
+      }
+    }
+    /* Samma band i flera vinklar: samma riktning, mitten inom 0,06 K tvärs
+       bandet och 0,4 K längs det — det bästa (och rakaste) behålls. */
+    /* Samma band i flera vinklar: det med TUNNAST text är rätast lagt — snett
+       mot rutnätet smetas bokstäverna ut över fler rader. Starka först, sedan de ljusaste. */
+    alla.sort((p, q) => p.text - q.text || Math.abs(p.vinkel) - Math.abs(q.vinkel));
+    const ut = [];
+    for (const b of alla) {
+      const th = b.vinkel * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+      const tx = b.dir === 'h' ? c : -s, ty = b.dir === 'h' ? s : c;   // längs bandet i den ovridna bilden
+      const dubblett = ut.some(q => { if (q.dir !== b.dir) return false; const dx = q.cx - b.cx, dy = q.cy - b.cy, langs = dx * tx + dy * ty, tvars = -dx * ty + dy * tx; return Math.abs(tvars) < 0.06 * K && Math.abs(langs) < 0.4 * K; });
+      if (!dubblett) ut.push(b);
+    }
+    ut.sort((p, q) => (q.stark ? 1 : 0) - (p.stark ? 1 : 0) || q.ljus - p.ljus);
+    return { band: ut, vinklar, nivaer };
   }
   /* …och bara spår med ETT KORTS MÅTT läses bredvid ett annat: lång- och
      kortsida inom en fjärdedel av kortreferensen (dia.kortRef, medianen av
@@ -22355,7 +22546,7 @@ const Kamera = (() => {
   }
 
   return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
-           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell, hogMat,
+           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell, hogMat, hogBand,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
            helbild: () => helbild('knapp'), tillampaHelbild,
@@ -22709,6 +22900,126 @@ async function kamIdentifyAt(img, box, hint) {
 }
 /* o.spek: en tidig läsning (Kamera, K4) — svaret är inte spårets än, så
    ingen beskärning går till datorns granskning. */
+/* ── Högläsningen (MES-250): hur många kort ligger i beskärningen, och vad
+   heter det som sticker fram? ──
+   Kandidatbanden ur Kamera.hogBand (textrader i titelhöjd, i sju
+   vridningar) läses ett och ett med namnläsaren, och BARA ett band som
+   läser ett namn i leken räknas. Det översta kortet är det vars kropp
+   (kortets rektangel från titelraden och en långsida bort) inte rymmer
+   något annat bands mitt; de andra banden vars kroppar överlappar det är
+   korten under. Samma landtyp som det översta → en manahög { n, tappade };
+   ett annat namn → under. Bandets riktning mot grundläget säger tappat: en
+   titelrad ligger tvärs kortets långsida. Ett svar utan namnbevis är inget
+   svar: null.
+   o: { K (kortsidan i beskärningens pixlar), L, namn (spårets namn, om
+   det har ett), namnLista, liggande (beskärningen vreds −90° för att den
+   låg), grundLodrat (otappade kort står lodrätt i bilden), maxBand, maxLas }. */
+async function hogLas(canvas, o) {
+  o = o || {};
+  const t0 = performance.now();
+  const W = canvas ? canvas.width : 0, H = canvas ? canvas.height : 0, K = o.K || 0, L = o.L || 1.4 * K;
+  if (!K || !W || !H || !Namn.klar) return null;
+  const namnLista = o.namnLista || namnUtanBaksida();
+  if (!namnLista.length) return null;
+  const im = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const g = new Uint8Array(W * H);
+  for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = (im[j] * 77 + im[j + 1] * 151 + im[j + 2] * 28) >> 8;
+  const sokt = Kamera.hogBand(g, W, H, K, o.vinklar ? { vinklar: o.vinklar } : undefined);
+  const tBand = Math.round(performance.now() - t0);
+  const MAX_BAND = o.maxBand || 6, MAX_LAS = o.maxLas || 8;
+  const band = sokt.band.slice(0, MAX_BAND);
+  /* Banden ligger i var sin vridning av bilden: remsan skärs ur samma
+     vridning (en vriden kopia per vinkel, gjord vid behov). Samma
+     avbildning som hogBand: bildpunkt (x, y) i den vridna bilden är
+     källans mitt + R(vinkel)·(x, y). */
+  const vridna = new Map();
+  const kallaFor = v => {
+    if (!v) return canvas;
+    if (!vridna.has(v)) { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.translate(W / 2, H / 2); x.rotate(-v * Math.PI / 180); x.drawImage(canvas, -W / 2, -H / 2); vridna.set(v, c); }
+    return vridna.get(v);
+  };
+  const remsa = (b, rot) => {
+    const kalla = kallaFor(b.vinkel), pad = Math.max(2, Math.round(0.25 * b.tjock));
+    let sx, sy, sw, sh;
+    if (b.dir === 'h') { sx = Math.max(0, b.a0 - pad); sy = Math.max(0, b.p0 - pad); sw = Math.min(W, b.a1 + pad + 1) - sx; sh = Math.min(H, b.p1 + pad + 1) - sy; }
+    else { sx = Math.max(0, b.p0 - pad); sy = Math.max(0, b.a0 - pad); sw = Math.min(W, b.p1 + pad + 1) - sx; sh = Math.min(H, b.a1 + pad + 1) - sy; }
+    const tjock = b.dir === 'h' ? sh : sw, lang = b.dir === 'h' ? sw : sh;
+    const k = Math.max(1, Math.min(5, 80 / tjock));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(lang * k)); c.height = Math.max(1, Math.round(tjock * k));
+    const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+    x.translate(c.width / 2, c.height / 2);
+    if (b.dir === 'h') { if (rot === 180) x.rotate(Math.PI); x.drawImage(kalla, sx, sy, sw, sh, -c.width / 2, -c.height / 2, c.width, c.height); }
+    else { x.rotate(rot === -90 ? -Math.PI / 2 : Math.PI / 2); x.drawImage(kalla, sx, sy, sw, sh, -c.height / 2, -c.width / 2, c.height, c.width); }
+    /* Kontrasten sträcks (5:e–95:e percentilen → svart–vitt): remsan ur en
+       1080-bild är 15 px hög i källan och blek, och läsaren tappar tecken. */
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height), a = d.data, hist = new Int32Array(256), n = c.width * c.height;
+    for (let i = 0; i < a.length; i += 4) hist[(a[i] * 77 + a[i + 1] * 151 + a[i + 2] * 28) >> 8]++;
+    const perc = q => { let s = 0; for (let v = 0; v < 256; v++) { s += hist[v]; if (s >= q * n) return v; } return 255; };
+    const lo = perc(0.05), hi = perc(0.95);
+    if (hi - lo > 20) { const f = 255 / (hi - lo); for (let i = 0; i < a.length; i += 4) { const v = Math.max(0, Math.min(255, Math.round(((a[i] * 77 + a[i + 1] * 151 + a[i + 2] * 28) / 256 - lo) * f))); a[i] = a[i + 1] = a[i + 2] = v; } x.putImageData(d, 0, 0); }
+    return c;
+  };
+  /* Hur bandet vänds: kanten (kortets överkant) ligger före bandet (b.rot 0)
+     eller efter (180). Vågrätt: kant ovanför = rättvänt. Lodrätt: kant till
+     vänster = kortets topp pekar åt vänster = texten läses nerifrån och upp
+     (+90); kant till höger = uppifrån och ner (−90). */
+  const rotAv = b => b.dir === 'h' ? (b.rot === 180 ? 180 : 0) : (b.rot === 180 ? -90 : 90);
+  let lasningar = 0;
+  const remsorUt = [];   // o.remsor (bänken): remsorna som de skickades till läsaren, med svaret
+  const las = async (b, rot) => { lasningar++; const c = remsa(b, rot); if (o.remsor) remsorUt.push({ dir: b.dir, vinkel: b.vinkel, p: b.p0, rot, b64: c.toDataURL('image/png') }); const r = await Namn.lasRad(c, namnLista); if (o.remsor && r) remsorUt[remsorUt.length - 1].text = r.text + ' -> ' + r.namn + ' ' + r.poang; return r ? Object.assign(r, { rot }) : null; };
+  const lasta = [];
+  for (const b of band) {
+    if (lasningar >= MAX_LAS) break;
+    const rot = rotAv(b);
+    let r = await las(b, rot);
+    /* andra vändningen bara när bandet ser ut som en titel och läste ingenting alls */
+    if ((!r || r.poang < 0.3) && b.stark && lasningar < MAX_LAS) {
+      const r2 = await las(b, b.dir === 'h' ? (rot === 0 ? 180 : 0) : -rot);
+      if (r2 && (!r || r2.poang > r.poang)) r = r2;
+    }
+    lasta.push(Object.assign({}, b, { namn: r && r.poang >= 0.6 && r.marginal >= 0.1 ? r.namn : null, poang: r ? r.poang : 0, text: r ? r.text : '', rot: r ? r.rot : rot, lasMs: r ? r.ms : 0 }));
+  }
+  const ms = Math.round(performance.now() - t0);
+  const bandUt = lasta.map(b => ({ dir: b.dir, vinkel: b.vinkel, stark: !!b.stark, p: Math.round((b.p0 + b.p1) / 2), a0: b.a0, a1: b.a1, tjock: b.tjock, rot: b.rot, namn: b.namn, poang: b.poang, text: b.text }));
+  const bevis = lasta.filter(b => b.namn);
+  if (!bevis.length) return { n: null, tappade: null, topp: null, under: [], over: null, band: bandUt, kandidater: sokt.band.length, lasningar, ms, msBand: tBand, remsor: o.remsor ? remsorUt : undefined };
+  /* Kortets kropp bakom bandet, i den OVRIDNA bilden: från titelraden och
+     en långsida bort åt det håll texten står (rot), K bred. e1/e2 är den
+     vridna bildens axlar i källan; kroppen är en vriden rektangel. */
+  const kropp = b => {
+    const th = b.vinkel * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+    const e1 = { x: c, y: s }, e2 = { x: -s, y: c };
+    let rikt, langs;   // rikt: från bandet in i kortet; langs: bandets egen riktning
+    if (b.dir === 'h') { rikt = b.rot === 180 ? { x: -e2.x, y: -e2.y } : e2; langs = e1; }
+    else { rikt = b.rot === -90 ? { x: -e1.x, y: -e1.y } : e1; langs = e2; }
+    return { cx: b.cx + rikt.x * 0.45 * L, cy: b.cy + rikt.y * 0.45 * L, rikt, langs, hl: L / 2, hk: K / 2 };
+  };
+  const inne = (r, p, m) => { const dx = p.x - r.cx, dy = p.y - r.cy, u = dx * r.rikt.x + dy * r.rikt.y, v = dx * r.langs.x + dy * r.langs.y; return Math.abs(u) < r.hl - m && Math.abs(v) < r.hk - m; };
+  const lada = r => { const ex = Math.abs(r.rikt.x) * r.hl + Math.abs(r.langs.x) * r.hk, ey = Math.abs(r.rikt.y) * r.hl + Math.abs(r.langs.y) * r.hk; return { x: r.cx - ex, y: r.cy - ey, w: 2 * ex, h: 2 * ey }; };
+  const overlapp = (a, b) => { const A = lada(a), B = lada(b); const w = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x), h = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y); return w > 0 && h > 0 ? w * h / Math.min(A.w * A.h, B.w * B.h) : 0; };
+  for (const b of bevis) { b.kropp = kropp(b); b.mitt = { x: b.cx, y: b.cy }; }
+  const toppar = bevis.filter(b => !bevis.some(q => q !== b && inne(b.kropp, q.mitt, 0.05 * K)));
+  const medlemmar = T => bevis.filter(b => b !== T && overlapp(b.kropp, T.kropp) >= 0.3);
+  let topp = null;
+  const kandidater = toppar.length ? toppar : bevis;
+  if (o.namn) topp = kandidater.find(b => b.namn === o.namn) || null;
+  if (!topp) topp = kandidater.slice().sort((p, q) => medlemmar(q).length - medlemmar(p).length || q.poang - p.poang)[0];
+  const under = medlemmar(topp);
+  const typ = landTyp(topp.namn);
+  /* Tappat: bandets riktning i BILDEN (beskärningen kan vara vriden −90°)
+     mot grundläget — en titelrad ligger tvärs kortets långsida. */
+  const bildVagrat = b => (b.dir === 'h') !== !!o.liggande;
+  const otappatVagrat = o.grundLodrat !== false;
+  const tappad = b => bildVagrat(b) !== otappatVagrat;
+  const iHogen = typ ? under.filter(b => landTyp(b.namn) === typ) : [];
+  const n = 1 + iHogen.length;
+  const tappade = [topp].concat(iHogen).filter(tappad).length;
+  const andra = [...new Set(under.filter(b => !typ || landTyp(b.namn) !== typ).map(b => b.namn))];
+  const over = o.namn && o.namn !== topp.namn && under.some(b => b.namn === o.namn) ? topp.namn : null;
+  return { n, tappade, topp: topp.namn, toppTappad: tappad(topp), under: andra, over, band: bandUt, kandidater: sokt.band.length, lasningar, ms, msBand: tBand, remsor: o.remsor ? remsorUt : undefined };
+}
+
 async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (!Pool.idx || !canvas) return null;          // poolen är inte klar än — spåret får vänta
   const box = { x: 0, y: 0, w: canvas.width, h: canvas.height };
