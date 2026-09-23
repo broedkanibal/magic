@@ -61,7 +61,7 @@ input:focus,select:focus{outline:1px solid var(--ruta)}
 select.h-tappar,select.h-otappar{color:var(--tapp)}
 select.h-spelar,select.h-grav_till_bord{color:var(--vald)}
 select.h-tar_bort{color:#ff9d9d}
-select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav_exile{color:var(--dim)}
+select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav_exile,select.h-grav_ur_bild{color:var(--dim)}
 #fot{position:fixed;right:0;bottom:0;width:560px;background:#0f141a;border-top:1px solid var(--linje);padding:8px 12px;display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--dim)}
 #raknare{margin-left:auto;font:12px ui-monospace,Menlo,monospace}
 </style>
@@ -101,12 +101,12 @@ select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav
 <input type="file" id="filer" multiple accept="video/*,.tsv,text/tab-separated-values" hidden>
 
 <script>
-const HANDELSER = ['spelar','grav_till_bord','tappar','otappar','flyttar','tar_bort','drar','grav_till_hand','grav_exile','klapp','slut'];
+const HANDELSER = ['spelar','grav_till_bord','tappar','otappar','flyttar','tar_bort','drar','grav_till_hand','grav_exile','grav_ur_bild','klapp','slut'];
 /* Kort som kommer ut på bordet: spelat ur handen, eller tillbaka ur
    graveyard. Samma fält (fäst vid, ligger på mattan); grav_till_bord säger
    dessutom att graveyardhögen minskar. */
 const TILL_BORDET = new Set(['spelar', 'grav_till_bord']);
-const INFO = new Set(['drar','klapp','slut','grav_till_hand','grav_exile']);
+const INFO = new Set(['drar','klapp','slut','grav_till_hand','grav_exile','grav_ur_bild']);   // grav_ur_bild: ur graveyard, vet ej vart — för bordet samma sak som de andra två
 /* Vart ett kort tar vägen när det lämnar bordet. Bara `grav` syns i bilden
    som en växande hög; hand och exile ser likadana ut — kortet bara försvinner
    — men de ska ändå stå rätt, eftersom graveyardsiffran på det digitala

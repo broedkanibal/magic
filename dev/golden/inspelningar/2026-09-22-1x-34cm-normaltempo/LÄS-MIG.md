@@ -35,7 +35,7 @@ Klappen vid 21,84 s är synkpunkten mellan de två filmerna.
 | Kolumn | Vad |
 |---|---|
 | `t` | sekund i telefonens film |
-| `handelse` | `spelar`, `grav_till_bord` (ur graveyard ut på bordet — som `spelar`, och graveyardhögen minskar), `tappar`, `otappar`, `flyttar`, `tar_bort`, plus `drar`, `grav_till_hand`, `grav_exile`, `klapp`, `slut` |
+| `handelse` | `spelar`, `grav_till_bord` (ur graveyard ut på bordet — som `spelar`, och graveyardhögen minskar), `tappar`, `otappar`, `flyttar`, `tar_bort`, plus `drar`, `grav_till_hand`, `grav_exile`, `grav_ur_bild` (ur graveyard, vet ej om hand eller exile), `klapp`, `slut` |
 | `kort` | kortnamnet, som i `dev/golden/lek.txt` |
 | `till` | för `tar_bort`: `grav`, `hand`, `exile`, `ur_bild`. För `spelar` och `flyttar`: kortet det är **fäst vid i spelet** (utrustning, aura) — oavsett om det ligger över eller under på mattan. I granskningssidan: "fäst vid (i spelet)" |
 | `plats` | var det **fysiskt ligger**: ensamt eller vilken hög, och överst/under — aldrig ett kortnamn. I granskningssidan: "ligger på mattan". Se ordlistan nedan |
@@ -65,8 +65,8 @@ behöver den inte.
 
 ### Händelser som inte syns på bordet
 
-`drar` (library minskar), `grav_till_hand` och `grav_exile` (graveyardhögen
-minskar) står med för att siffrorna under högarna ska gå att kontrollera.
+`drar` (library minskar), `grav_till_hand`, `grav_exile` och `grav_ur_bild`
+(graveyardhögen minskar; `ur_bild` när det inte syns vart kortet tog vägen) står med för att siffrorna under högarna ska gå att kontrollera.
 De räknas inte som handlingar på mattan.
 
 ## Fästa kort som tappas
