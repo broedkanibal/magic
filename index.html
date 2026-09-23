@@ -18647,7 +18647,14 @@ const Kamera = (() => {
        golden 16 (22 → 38 ms utan att något delas där) och en dubblett till i
        09 med --utan-leken. Slås på i golden med --tro "omlott:1", på
        telefonen med Kamera.satTrosklar({ omlott: 1 }) (provbordets kanal). */
-    omlott: 0
+    omlott: 0,
+    /* Landhögen mäts på telefonen (MES-250, matHogar): 1 = på, 0 = av. Förvalet
+       är AV (2026-09-23): titelradsräkningen på analysbilden gav "två eller
+       fler" på ett ensamt Swamp i 8 av 13 mätningar och på högen med tre kort
+       i 3 av 8 (passet 2026-09-22) — den ser högen sämre än ett ensamt kort.
+       Kedjan rapport → avstamBord → manahög är hel och provad (bänken LH1–LH8);
+       slås på i golden med --tro "hog:1", på telefonen med Kamera.satTrosklar({ hog: 1 }). */
+    hog: 0
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
@@ -18832,8 +18839,9 @@ const Kamera = (() => {
      datorn lägger n kort i en manahög. Antalet räknas ur TITELRADERNA i
      spårets låda: varje kort i en solfjäder blottar sin ljusa titelrad, ett
      tunt band (3–20 % av kortsidan) med en lång ljus löpning (minst 60 % av
-     kortsidan), och banden ligger med solfjäderns jämna steg (0,17–0,6
-     kortsidor, stegen lika inom 50 %). Ett ensamt band är ett korts titelrad
+     kortsidan), och banden ligger med solfjäderns jämna steg (0,15–0,42
+     kortsidor, stegen lika inom 50 %; ett ensamt korts titelrad och typrad
+     ligger 0,5–0,7 kortsidor isär och räknas därför aldrig som en hög). Ett ensamt band är ett korts titelrad
      eller typrad och säger inget; ett korts egna band (titel, typrad,
      textruta) ligger inte med jämna steg. Bandets riktning mot grundläget
      säger om kortet ligger tappat: titelraden ligger tvärs kortets långsida.
@@ -18844,7 +18852,7 @@ const Kamera = (() => {
      bättre än fel namn, och en hög som räknas för lågt är ett kort för
      lite, inte ett kort som inte finns. */
   const HOG_MS = 500;               // hur ofta ett spår mäts om
-  const HOG_MIN = 1.2;              // regionen minst så många kortytor innan högen mäts alls
+  const HOG_MIN = 1.0;              // regionen minst så många kortytor innan högen mäts alls (masken täcker 1,06–1,17 för tre tätt staplade Swamp, passet 2026-09-22)
   const HOG_TAK = 6;                // fler kort än så i en hög läggs aldrig ut ur en mätning
   const arBasland = namn => /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(namn || '');
   /* Titelraderna i lådan. g är analysbilden (osuddad), lådan i analyspixlar,
@@ -18912,7 +18920,7 @@ const Kamera = (() => {
         let k = 1, d0 = null;
         for (let j = i + 1; j < p.length; j++) {
           const d = p[j] - p[j - 1];
-          if (d < 0.17 * K || d > 0.6 * K) break;
+          if (d < 0.15 * K || d > 0.42 * K) break;
           if (d0 != null && (d > 1.5 * d0 || d < d0 / 1.5)) break;
           d0 = d0 == null ? d : (d0 + d) / 2; k++;
         }
@@ -18931,9 +18939,10 @@ const Kamera = (() => {
   /* Högarna mäts efter matchningen, ur rutan där spåret fick sin region:
      bara klara basland, stilla, oskymda, och högst varannan halvsekund. */
   function matHogar(g0, nu) {
+    if (!T.hog) return;
     const kr = dia.kortRef;
     for (const t of spar) {
-      if (t.tillstand !== 'klar' || !t.namn || !arBasland(t.namn) || arHelbild(t)) { if (t.hog) t.hog = null; t.hogSett = null; continue; }
+      if (t.tillstand !== 'klar' || !t.namn || !arBasland(t.namn) || arHelbild(t)) { if (t.hog) t.hog = null; t.hogHist = null; continue; }
       if (t.regionNar !== nu || t.skymd || (t.stillaN || 0) < R(2) || nu - (t.hogNar || 0) < HOG_MS) continue;
       /* Kortets mått: de spåret hade när det fick sitt namn (namnMatt) — då
          var det ETT kort. Kortreferensen (medianen över alla klara spår) är
@@ -18943,7 +18952,7 @@ const Kamera = (() => {
       if (!refA) continue;
       t.hogNar = nu;
       const area = t.areaNu || t.areaRef || 0;
-      if (area < HOG_MIN * refA) { t.hog = null; t.hogSett = null; continue; }
+      if (area < HOG_MIN * refA) { t.hog = null; t.hogHist = null; continue; }
       /* Lådan är maskens, och på en mörk matta täcker masken inte hela högen
          (passet: tre Swamp gav 1,3–1,5 kortytor); en fjärdedels kortsida runt om. */
       const marg = Math.round(0.25 * K), lada = { x: t.box.x - marg, y: t.box.y - marg, w: t.box.w + 2 * marg, h: t.box.h + 2 * marg };
@@ -18957,19 +18966,22 @@ const Kamera = (() => {
          masken som inte täcker): mätt på passet 2026-09-22 gav banden ensamma
          2–4 kort på ett ensamt Swamp, och ytan är det som håller dem i schack. */
       const ytaN = Math.round(area / refA);
-      let n = m && m.n >= 2 && m.n <= ytaN + 1 ? m.n : 0, tapp = n ? m.tappade : 0;
+      let n = m && m.n >= 2 && m.n <= ytaN + 2 ? m.n : 0, tapp = n ? m.tappade : 0;
       /* Ytan som golv, försiktigt: en KORTLIK region på 1,6–3,2 kortytor är
          minst två kort. En hand intill kortet är inte kortlik, och en hand
          över en hög är skymd. */
       const kvot = t.kort / Math.max(1, t.lang);
       if (n < 2 && area >= 1.6 * refA && area <= 3.2 * refA && kvot >= 0.5) { n = 2; tapp = t.tappad ? 2 : 0; }
       n = Math.min(HOG_TAK, n);
-      /* Två mätningar i rad med samma tal innan högen rapporteras: en enda
-         ruta ska varken skapa ett kort på datorn eller ta bort ett. */
-      const sett = t.hogSett;
-      t.hogSett = n >= 2 ? { n, tappade: Math.min(n, tapp) } : null;
-      if (n >= 2 && sett && sett.n === n) t.hog = { n, tappade: Math.min(n, tapp) };
-      else if (n < 2 && !sett) t.hog = null;
+      /* Rösten över de senaste fem mätningarna (2,5 s): högen rapporteras
+         när minst tre säger samma tal ≥ 2, och släpps när minst tre säger
+         ett kort. Uppmätt i passet 2026-09-22: högen mätte 3, 0, 3, 0, 3 —
+         varannan mätning tom — och ett ensamt Swamp 2 eller 3 i enstaka
+         mätningar; en enda ruta ska varken skapa ett kort eller ta bort ett. */
+      const h = (t.hogHist = t.hogHist || []); h.push(n >= 2 ? n + '/' + Math.min(n, tapp) : '1'); if (h.length > 5) h.shift();
+      const rost = {}; for (const v of h) rost[v] = (rost[v] || 0) + 1;
+      const [basta, antal] = Object.entries(rost).sort((p, q) => q[1] - p[1])[0];
+      if (antal >= 3) t.hog = basta === '1' ? null : { n: +basta.split('/')[0], tappade: +basta.split('/')[1] };
     }
   }
   /* …och bara spår med ETT KORTS MÅTT läses bredvid ett annat: lång- och

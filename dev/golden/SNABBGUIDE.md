@@ -465,16 +465,27 @@ som när man drar mana ovanpå varandra) och sätter tapped på de översta
 | Datorn | `avstamBord` steg 4b: högen växer på en gång, krymper först när telefonen sagt det lägre talet i 2 s (`HOG_KRYMP_MS`), aldrig fler kort än leken har; ett kort som lämnar högen tonas ned med frågan. Bänken `dev/avstamning.cjs` LH1–LH8 |
 
 Måttet är `node dev/spegelfacit/kor.cjs --ai` + `jamfor.cjs`: raderna med
-"hög A" i facit. **Läget 2026-09-23:** mekanismen är hel (bänken LH1–LH8,
-golden LIKA BRA, 0 fel namn) men högen i passet 2026-09-22 fick aldrig
-fältet: masken täcker bara 1,3–1,5 kortytor av tre mörka Swamp på svart
-matta, och titelraderna räknas inte säkert i den levande bilden — utan
-ytgränsen gav banden 2–4 kort på ett ensamt Swamp, med den ger de inget.
-På utvalda rutor (harnesset i MES-250) räknas tre staplade Plains/Swamp
-rätt; tappade kort i solfjäder nedåt och blandade högar räknas för lågt.
-Högraderna står kvar på 4 av 12. Nästa steg är telefonens, inte datorns:
-en säkrare räkning (beskärningen i 720 px i stället för analysbilden, eller
-högen räknad ur hur spåret växer när ett kort läggs på).
+"hög A" i facit. **Läget 2026-09-23: telefonens mätning är AV som förval**
+(`T.hog = 0`; `--tro "hog:1"` slår på den). Kedjan rapport → `avstamBord` →
+manahög är hel och provad (bänken LH1–LH8), men räkningen ur titelraderna
+på analysbilden håller inte i den levande bilden — mätt i passet
+2026-09-22 med Claude:
+
+| Spår | Mätningar | Sa "två eller fler" |
+|---|---|---|
+| ett ensamt Swamp (spår 15) | 13 | 8 |
+| högen med två kort | 16 | 2 |
+| högen med tre kort | 8 | 3 |
+
+Den ser alltså högen sämre än ett ensamt kort: ett ensamt korts ljusa
+band (titelrad, konstverkets horisont, typrad) ser ut som en solfjäder i
+360 px, och tre tätt staplade Swamp fyller bara 1,06–1,17 kortytor i
+masken. På utvalda bildrutor med handritad låda räknas tre staplade
+Plains/Swamp rätt (harnesset i MES-250), så signalen finns i bilden —
+inte i den låda och den upplösning telefonen har i drift. Högraderna i
+spegelfacit står kvar på 4 av 12. Nästa steg är telefonens: beskärningen
+i 720 px i stället för analysbilden, eller högen räknad ur hur spårets
+låda växer när ett kort läggs på.
 
 ## Samma fall i sju ljus (MES-216)
 
