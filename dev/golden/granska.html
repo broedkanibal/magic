@@ -1,0 +1,501 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Granska händelser — golden set</title>
+<!--
+  Granska en händelselista mot filmen. Mätverktyg, inte appkod.
+
+  Öppna filen i webbläsaren och släpp in två saker:
+    1. videon (kamera.mp4 — bara mattan)
+    2. händelselistan (handelser-utkast.tsv)
+
+  Ett klick på en rad spolar filmen till två sekunder före händelsen.
+  Rätta i fälten, ta bort rader, lägg till rader. "Spara TSV" laddar ner
+  den rättade listan. Inget lämnar datorn; sidan har inget nätverk.
+-->
+<style>
+:root{--bg:#0d1015;--fg:#e7ecf4;--dim:#8b96a5;--linje:#232a33;--panel:#12161c;--falt:#0a0d11;
+      --vald:#5ee38a;--ruta:#4aa3ff;--varning:#f0a52a;--tapp:#f0d23c}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;overflow:hidden}
+[hidden]{display:none!important}
+body.drar::after{content:"Släpp kamera.mp4 och handelser-utkast.tsv";position:fixed;inset:8px;border:2px dashed var(--ruta);
+  background:rgba(74,163,255,.08);display:flex;align-items:center;justify-content:center;font-size:18px;pointer-events:none;z-index:9}
+
+#scen{flex:1;display:flex;flex-direction:column;min-width:0;padding:10px;gap:8px}
+#film{flex:1;min-height:0;background:#000;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative}
+video{max-width:100%;max-height:100%;display:block}
+#tom{color:var(--dim);text-align:center;padding:30px;font-size:14px;line-height:1.7}
+#styr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tid{font:13px ui-monospace,Menlo,monospace;color:var(--dim);min-width:130px}
+#nu{color:var(--fg)}
+#panel{width:560px;flex:none;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--linje)}
+#topp{padding:10px 12px;border-bottom:1px solid var(--linje);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#lista{flex:1;overflow-y:auto;padding:0 0 60px}
+h1{font-size:14px;margin:0;flex:1}
+button{background:#1a2029;color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:#4b5868}
+button.primar{border-color:#3c6b46;background:#16251b}
+kbd{font:11px ui-monospace,Menlo,monospace;color:var(--dim);border:1px solid #2c3541;border-radius:3px;padding:0 4px}
+input,select{background:var(--falt);color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:3px 5px;font:inherit}
+input:focus,select:focus{outline:1px solid var(--ruta)}
+
+.rad{display:grid;grid-template-columns:52px 96px 1fr 26px;gap:6px;align-items:center;padding:5px 10px;border-bottom:1px solid #1a1f27;cursor:pointer}
+.kortfalt{display:flex;gap:6px;align-items:center;min-width:0}
+.kortfalt input{flex:1;min-width:0}
+.mal{color:var(--dim);font-size:11.5px;white-space:nowrap}
+.mal.saknas{color:var(--varning)}
+.rad:hover{background:#161b23}
+.rad.aktiv{background:#1b2a20;box-shadow:inset 2px 0 0 var(--vald)}
+.rad.osaker{box-shadow:inset 2px 0 0 var(--varning)}
+.rad.aktiv.osaker{box-shadow:inset 2px 0 0 var(--vald),inset 4px 0 0 var(--varning)}
+.rad.info{opacity:.55}
+.tid{font:12px ui-monospace,Menlo,monospace;color:var(--dim)}
+.rad.aktiv .tid{color:var(--vald)}
+.mer{grid-column:1/-1;display:grid;grid-template-columns:52px 1fr;gap:6px;align-items:start;padding-top:4px}
+.tal{color:var(--dim);font-size:11.5px;grid-column:2}
+.till{grid-column:2;display:flex;gap:6px;align-items:center}
+.till span{color:var(--dim);font-size:11.5px;white-space:nowrap}
+.bort{background:none;border:0;color:var(--dim);padding:2px 4px;font-size:14px}
+.bort:hover{color:#ff8080}
+select.h-tappar,select.h-otappar{color:var(--tapp)}
+select.h-spelar,select.h-grav_till_bord{color:var(--vald)}
+select.h-tar_bort{color:#ff9d9d}
+select.h-drar,select.h-klapp,select.h-slut,select.h-grav_till_hand,select.h-grav_exile{color:var(--dim)}
+#fot{position:fixed;right:0;bottom:0;width:560px;background:#0f141a;border-top:1px solid var(--linje);padding:8px 12px;display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--dim)}
+#raknare{margin-left:auto;font:12px ui-monospace,Menlo,monospace}
+</style>
+
+<div id="scen">
+  <div id="film">
+    <div id="tom">Släpp <b>kamera.mp4</b> och <b>handelser-utkast.tsv</b> här.<br>
+      Filerna ligger i <code>dev/material/inspelningar/&lt;passet&gt;/</code><br>
+      respektive <code>dev/golden/inspelningar/&lt;passet&gt;/</code>.</div>
+    <video id="v" hidden controls playsinline></video>
+  </div>
+  <div id="styr">
+    <button id="spela">Spela <kbd>mellanslag</kbd></button>
+    <button id="back">−2 s <kbd>←</kbd></button>
+    <button id="fram">+2 s <kbd>→</kbd></button>
+    <button id="forra">Förra raden <kbd>k</kbd></button>
+    <button id="nasta">Nästa rad <kbd>j</kbd></button>
+    <label style="display:flex;gap:5px;align-items:center;color:var(--dim)"><input type="checkbox" id="auto" checked style="width:auto"> hoppa 2 s före</label>
+    <span id="tid"><span id="nu">0:00.0</span> / <span id="slut">0:00</span></span>
+  </div>
+</div>
+
+<div id="panel">
+  <div id="topp">
+    <h1>Händelser</h1>
+    <button id="ladda">Öppna filer…</button>
+    <button id="ny">+ rad vid tiden</button>
+    <button id="spara" class="primar">Spara TSV</button>
+  </div>
+  <div id="lista"></div>
+  <div id="fot">
+    <span>Klicka på en rad för att se den i filmen.</span>
+    <span id="raknare"></span>
+    <span id="version" style="margin-left:10px;opacity:.6">v6</span>
+  </div>
+</div>
+<input type="file" id="filer" multiple accept="video/*,.tsv,text/tab-separated-values" hidden>
+
+<script>
+const HANDELSER = ['spelar','grav_till_bord','tappar','otappar','flyttar','tar_bort','drar','grav_till_hand','grav_exile','klapp','slut'];
+/* Kort som kommer ut på bordet: spelat ur handen, eller tillbaka ur
+   graveyard. Samma fält (fäst vid, ligger på mattan); grav_till_bord säger
+   dessutom att graveyardhögen minskar. */
+const TILL_BORDET = new Set(['spelar', 'grav_till_bord']);
+const INFO = new Set(['drar','klapp','slut','grav_till_hand','grav_exile']);
+/* Vart ett kort tar vägen när det lämnar bordet. Bara `grav` syns i bilden
+   som en växande hög; hand och exile ser likadana ut — kortet bara försvinner
+   — men de ska ändå stå rätt, eftersom graveyardsiffran på det digitala
+   bordet bara får stiga för `grav`. */
+const MAL = { 'grav': 'graveyard', 'hand': 'handen', 'exile': 'exile', 'ur_bild': 'ut ur bild (vet ej)', '-': '(inte satt)' };
+const v = document.getElementById('v');
+let rader = [], huvud = ['t','handelse','kort','till','osaker','tal'], aktiv = -1, filnamn = 'handelser.tsv';
+
+const mmss = s => { s = Math.max(0, s); const m = Math.floor(s/60); const r = s - m*60;
+  return m + ':' + (r < 10 ? '0' : '') + r.toFixed(1); };
+const mmssKort = s => { const m = Math.floor(s/60); const r = Math.round(s - m*60);
+  return m + ':' + (r < 10 ? '0' : '') + r; };
+/* Läser "4:06.6" (minuter:sekunder) och "246.6" (bara sekunder). */
+const tolkaTid = txt => {
+  const t = String(txt).trim().replace(',', '.');
+  const m = /^(\d+):(\d{1,2}(?:\.\d+)?)$/.exec(t);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const n = parseFloat(t);
+  return Number.isFinite(n) ? n : null;
+};
+
+/* "på Ukud Cobra" i platsfältet: ett kort där en plats ska stå. */
+const FEL_PLATS = /^på\s/i;
+
+function lasTSV(text) {
+  const rows = text.split(/\r?\n/).filter(r => r.trim() !== '').map(r => r.split('\t'));
+  const kallhuvud = rows[0];                 // filens egen ordning, för inläsningen
+  const i = n => kallhuvud.indexOf(n);       // plats saknas i äldre filer: i('plats') = -1
+  huvud = ['t','handelse','kort','till','plats','osaker','tal'];   // skrivs alltid med plats
+  rader = rows.slice(1).map(c => ({
+    t: parseFloat(c[i('t')]) || 0,
+    handelse: (c[i('handelse')] || '').trim(),
+    kort: (c[i('kort')] || '-').trim(),
+    till: (c[i('till')] || '-').trim(),
+    plats: (i('plats') >= 0 ? (c[i('plats')] || '-') : '-').trim(),
+    osaker: (c[i('osaker')] || '-').trim(),
+    tal: (c[i('tal')] || '').trim(),
+  })).sort((a, b) => a.t - b.t);
+  /* Äldre utkast (och knappen "+ kort som flyttade med") skrev kreaturet i
+     plats som "på X" fast det redan stod i till. Plats är var kortet ligger
+     på mattan, inte vad det sitter på: samma uppgift två gånger tas bort. */
+  for (const r of rader) if (r.till !== '-' && r.plats === 'på ' + r.till) r.plats = '-';
+  rita();
+}
+
+function skrivTSV() {
+  const ut = [huvud.join('\t')];
+  for (const r of rader.slice().sort((a,b) => a.t - b.t))
+    ut.push([r.t.toFixed(2), r.handelse, r.kort || '-', r.till || '-', r.plats || '-', r.osaker || '-', r.tal].join('\t'));
+  return ut.join('\n') + '\n';
+}
+
+/* Högarna ur platsfältet, så att bokstäverna inte behöver hållas i huvudet.
+   Ett minnesstöd, inte en exakt bokföring: varje kort som nämns med en hög
+   räknas dit tills en senare rad lägger det någon annanstans.
+   "hög A + B ihop" slår ihop B i A. */
+const HOG = /hög\s+([A-Z])\b/g;
+function hogar(tMax) {
+  /* Ett kort per post, inte per namn: två Swamp är två kort i högen. */
+  const kort = [];                 // { namn, bok }; bok null = ligger inte i en hög
+  const hitta = (namn, bok) => {
+    let i = bok ? kort.findIndex(k => k.namn === namn && k.bok === bok) : -1;
+    if (i < 0) i = kort.findIndex(k => k.namn === namn);
+    return i;
+  };
+  for (const r of rader.slice().sort((a, b) => a.t - b.t)) {
+    if (r.t > tMax) break;
+    const p = r.plats || '-';
+    const bok = [...p.matchAll(HOG)].map(m => m[1]);
+    if (/ihop/.test(p) && bok.length >= 2) {
+      for (const k of kort) if (bok.slice(1).includes(k.bok)) k.bok = bok[0];
+      continue;
+    }
+    if (r.kort === '-') continue;
+    if (r.handelse === 'tar_bort') { const i = hitta(r.kort, bok[0]); if (i >= 0) kort.splice(i, 1); continue; }
+    const b = bok[0] || null;
+    if (TILL_BORDET.has(r.handelse)) kort.push({ namn: r.kort, bok: b });
+    else if (r.handelse === 'flyttar') {
+      const i = hitta(r.kort, null);
+      if (i >= 0) kort[i].bok = b; else kort.push({ namn: r.kort, bok: b });
+    }
+    /* Ett kort som fästs vid ett annat bildar ingen hög (ovanpå/under har
+       ingen bokstav): högar är kort som bara ligger staplade, som länder. */
+  }
+  const ut = new Map();
+  for (const k of kort) if (k.bok) { if (!ut.has(k.bok)) ut.set(k.bok, []); ut.get(k.bok).push(k.namn); }
+  return new Map([...ut].sort());
+}
+function nastaBokstav() {
+  const anv = new Set();
+  for (const r of rader) for (const m of (r.plats || '').matchAll(HOG)) anv.add(m[1]);
+  for (const b of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') if (!anv.has(b)) return b;
+  return '?';
+}
+const hogText = kort => {
+  const n = new Map(); for (const k of kort) n.set(k, (n.get(k) || 0) + 1);
+  return [...n].map(([k, c]) => c > 1 ? k + ' ×' + c : k).join(', ');
+};
+
+function rita() {
+  const lista = document.getElementById('lista');
+  lista.textContent = '';
+  rader.sort((a, b) => a.t - b.t);
+  rader.forEach((r, k) => {
+    const d = document.createElement('div');
+    d.className = 'rad' + (k === aktiv ? ' aktiv' : '') + (r.osaker && r.osaker !== '-' ? ' osaker' : '') + (INFO.has(r.handelse) ? ' info' : '');
+    d.onclick = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') return; gaTill(k); };
+
+    const tid = document.createElement('div');
+    tid.className = 'tid'; tid.textContent = mmssKort(r.t);
+    tid.title = r.t.toFixed(2) + ' s';
+
+    const h = document.createElement('select');
+    h.className = 'h-' + r.handelse;
+    for (const o of HANDELSER) { const e = document.createElement('option'); e.value = e.textContent = o; h.appendChild(e); }
+    h.value = r.handelse;
+    h.onchange = () => { r.handelse = h.value; rita(); };
+
+    const kort = document.createElement('input');
+    kort.value = r.kort === '-' ? '' : r.kort; kort.placeholder = 'vilket kort?'; kort.setAttribute('list', 'lek');
+    kort.oninput = () => { r.kort = kort.value.trim() || '-'; };
+
+    const bort = document.createElement('button');
+    bort.className = 'bort'; bort.textContent = '×'; bort.title = 'ta bort raden';
+    bort.onclick = () => { if (confirm('Ta bort raden vid ' + mmssKort(r.t) + '?')) { rader.splice(k, 1); rita(); } };
+
+    const kortrad = document.createElement('div');
+    kortrad.className = 'kortfalt';
+    kortrad.appendChild(kort);
+    if (r.handelse === 'tar_bort') {
+      const m = document.createElement('span');
+      m.className = 'mal' + (!r.till || r.till === '-' ? ' saknas' : '');
+      m.textContent = '→ ' + (MAL[r.till] || r.till);
+      kortrad.appendChild(m);
+    } else if ((r.handelse === 'flyttar' || TILL_BORDET.has(r.handelse)) && r.till && r.till !== '-') {
+      const m = document.createElement('span');
+      m.className = 'mal'; m.textContent = 'fäst vid ' + r.till;
+      kortrad.appendChild(m);
+    }
+    if (r.plats && r.plats !== '-') {
+      const pl = document.createElement('span');
+      pl.className = 'mal plats' + (FEL_PLATS.test(r.plats) ? ' saknas' : ''); pl.textContent = r.plats;
+      kortrad.appendChild(pl);
+    }
+
+    d.append(tid, h, kortrad, bort);
+
+    if (k === aktiv) {
+      const mer = document.createElement('div'); mer.className = 'mer';
+      const till = document.createElement('div'); till.className = 'till';
+      const lbl = document.createElement('span');
+      let ti = null;
+      if (!['tar_bort', 'flyttar'].includes(r.handelse)) {
+        // inget mål och inget kort att lägga på: visa inte fältet alls
+      } else if (r.handelse === 'tar_bort') {
+        lbl.textContent = 'lämnar bordet till:';
+        ti = document.createElement('select'); ti.style.flex = '1';
+        for (const m of ['grav','hand','exile','ur_bild','-']) {
+          const o = document.createElement('option'); o.value = m; o.textContent = MAL[m]; ti.appendChild(o);
+        }
+        ti.value = MAL[r.till] ? r.till : '-';
+        ti.onchange = () => { r.till = ti.value; rita(); };
+      } else if (r.handelse === 'flyttar') {
+        /* Egen rad längre ner (fastRad): spelets koppling, inte platsen. */
+      } else {
+        lbl.textContent = 'till:';
+        ti = document.createElement('input'); ti.value = r.till; ti.setAttribute('list', 'lek'); ti.style.flex = '1';
+        ti.oninput = () => { r.till = ti.value.trim() || '-'; };
+      }
+      const tlbl = document.createElement('span');
+      tlbl.textContent = 'i filmen vid:';
+      tlbl.title = 'Tiden i filmen där händelsen bokförs. Nu satt där du började prata.';
+      const tt = document.createElement('input'); tt.type = 'text'; tt.value = mmss(r.t); tt.style.width = '86px';
+      tt.title = 'Minuter:sekunder, t.ex. 4:06.6. Sekunder går också bra (246.6).';
+      tt.onchange = () => { const n = tolkaTid(tt.value); if (n !== null) { r.t = Math.round(n * 10) / 10; } rita(); };
+      const satt = document.createElement('button');
+      satt.textContent = 'sätt till filmens läge';
+      satt.title = 'Pausa filmen i rutan där handen släpper kortet och tryck här.';
+      satt.onclick = () => { if (v.src) { r.t = Math.round(v.currentTime * 10) / 10; rita(); } };
+      const osak = document.createElement('button');
+      osak.textContent = r.osaker && r.osaker !== '-' ? 'osäker: ' + r.osaker + ' — klart' : 'markera osäker';
+      let ihop = null;
+      if (r.handelse === 'flyttar') {
+        /* Ett par som flyttas ihop är en rad per kort, samma tid: bordet har
+           två kortobjekt och båda ska följa med. Utrustningens rad behåller
+           kreaturet i `till`, så att det syns att de fortfarande sitter ihop. */
+        /* En hög som flyttas: en rad per kort i högen, samma bokstav och
+           inget "fäst vid" — korten ligger bara staplade. Annars är det ett
+           fäst par, och det andra kortet sitter på det här. */
+        const hogBok = ((r.plats || '').match(/hög\s+([A-Z])\b/) || [])[1];
+        ihop = document.createElement('button');
+        if (hogBok) {
+          const iHogen = (hogar(r.t - 0.001).get(hogBok) || []).slice();
+          const j = iHogen.indexOf(r.kort); if (j >= 0) iHogen.splice(j, 1);
+          ihop.textContent = '+ resten av hög ' + hogBok + (iHogen.length ? ' (' + iHogen.length + ')' : '');
+          ihop.title = iHogen.length ? hogText(iHogen) : 'Inga andra kort i hög ' + hogBok + ' enligt raderna före — lägger till en tom rad';
+          ihop.onclick = () => oppnaNy((iHogen.length ? iHogen : ['-']).map(namn =>
+            ({ t: r.t, handelse: 'flyttar', kort: namn, till: '-', plats: 'hög ' + hogBok,
+               osaker: namn === '-' ? 'vilket kort' : '-', tal: '(hög ' + hogBok + ' flyttade ihop)' })));
+        } else {
+          ihop.textContent = '+ kort som sitter på det';
+          ihop.title = 'Utrustning eller aura som flyttade med: ny rad med "fäst vid" ' + r.kort;
+          ihop.onclick = () => oppnaNy([{ t: r.t, handelse: 'flyttar', kort: '-', till: r.kort,
+            plats: '-', osaker: 'vilket kort', tal: '(flyttade ihop med ' + r.kort + ')' }]);
+        }
+      }
+      let fastRad = null, fastHjalp = null;
+      if (r.handelse === 'flyttar' || TILL_BORDET.has(r.handelse)) {
+        fastRad = document.createElement('div'); fastRad.className = 'till';
+        const fl = document.createElement('span'); fl.textContent = 'fäst vid (i spelet):';
+        const fi = document.createElement('input'); fi.value = r.till === '-' ? '' : r.till;
+        fi.placeholder = 'kreaturet utrustningen eller auran sitter på — tomt om inget';
+        fi.setAttribute('list', 'lek'); fi.style.flex = '1';
+        fi.oninput = () => { r.till = fi.value.trim() || '-'; };
+        /* Knapparna under "ligger på mattan" byter med fäst vid: rita om. */
+        fi.onchange = () => rita();
+        fastRad.append(fl, fi);
+        fastHjalp = document.createElement('div'); fastHjalp.className = 'tal';
+        fastHjalp.textContent = 'Vilket kort det sitter på enligt reglerna, både när det spelas direkt på kortet och när det flyttas dit. Över eller under väljs i "ligger på mattan". Skjuts det senare in under: en flyttar-rad med samma "fäst vid" och "under".';
+      }
+      osak.onclick = () => { r.osaker = (r.osaker && r.osaker !== '-') ? '-' : 'kolla'; rita(); };
+      if (ti) till.append(lbl, ti);
+      till.append(tlbl, tt, satt, osak);
+      if (ihop) till.append(ihop);
+      const tal = document.createElement('div'); tal.className = 'tal'; tal.textContent = r.tal;
+      if (fastRad) mer.append(fastRad, fastHjalp);
+      if (['spelar','grav_till_bord','flyttar','tappar','otappar','tar_bort'].includes(r.handelse)) {
+        const pr = document.createElement('div'); pr.className = 'till';
+        const pl = document.createElement('span');
+        const hamnar = TILL_BORDET.has(r.handelse) || r.handelse === 'flyttar';
+        const fast = hamnar && r.till && r.till !== '-';
+        pl.textContent = hamnar ? 'ligger på mattan:' : 'vilket kort:';
+        pl.title = 'Vilket av korten med samma namn? Ligger det ensamt eller i en hög — och var i högen?';
+        const pi = document.createElement('input'); pi.value = r.plats === '-' ? '' : r.plats;
+        if (FEL_PLATS.test(r.plats)) pi.style.borderColor = 'var(--varning)';
+        pi.placeholder = fast ? 'ovanpå eller under ' + r.till
+          : hamnar ? 'tomt = ensamt · hög A · ny hög D · hög A, under' : 'ensamt · hög A · hög A, översta · hög A, de två nedersta';
+        pi.style.flex = '1';
+        pi.oninput = () => { r.plats = pi.value.trim() || '-'; };
+        const snabb = document.createElement('div'); snabb.style.display = 'flex'; snabb.style.gap = '4px';
+        /* Knapparna är högarna som finns fram till den här raden, med korten
+           i knappens tips, och "ny hög" tar nästa lediga bokstav själv. */
+        const finns = hogar(r.t);
+        const knappar = [];
+        if (fast) {
+          /* Ett fäst kort ligger ovanpå eller under sitt kort — ingen hög. */
+          knappar.push(['ovanpå ' + r.till, 'ovanpå', 'Ligger ovanpå kortet det är fäst vid']);
+          knappar.push(['under ' + r.till, 'under', 'Ligger under kortet det är fäst vid']);
+        } else {
+          knappar.push(['ensamt', 'ensamt', 'Rör inget annat kort']);
+          for (const [b, kort] of finns) knappar.push(['hög ' + b, 'hög ' + b, hogText(kort)]);
+          const ny = nastaBokstav();
+          knappar.push(['ny hög ' + ny, 'ny hög ' + ny, 'Läggs staplat på ett kort som låg ensamt, så att en hög föds']);
+        }
+        for (const [txt, val, tips] of knappar) {
+          const b = document.createElement('button'); b.textContent = txt; b.title = tips;
+          b.onclick = () => { r.plats = val; rita(); };
+          snabb.appendChild(b);
+        }
+        /* Lägg till lagret på den hög som redan står i fältet: "hög A, under". */
+        if (!fast) for (const val of ['överst', 'under']) {
+          const b = document.createElement('button'); b.textContent = '+ ' + val;
+          b.title = 'Läggs till det som redan står, t.ex. "hög A, under"';
+          b.onclick = () => {
+            const bas = (r.plats && r.plats !== '-' ? r.plats : 'hög A').replace(/,\s*(överst|under)$/, '');
+            r.plats = bas + ', ' + val; rita();
+          };
+          snabb.appendChild(b);
+        }
+        pr.append(pl, pi, snabb);
+        mer.appendChild(pr);
+        if (finns.size) {
+          const lg = document.createElement('div'); lg.className = 'tal';
+          lg.textContent = 'Högarna hittills: ' + [...finns].map(([b, kort]) => b + ' — ' + hogText(kort)).join(' · ');
+          mer.appendChild(lg);
+        }
+        if (hamnar) {
+          const ph = document.createElement('div'); ph.className = 'tal';
+          ph.textContent = FEL_PLATS.test(r.plats)
+            ? 'Här står ett kort, inte en plats. Vilket kort det sitter på skrivs i "fäst vid"; här skrivs ensamt, vilken hög, eller ovanpå/under.'
+            : fast
+            ? 'Ett fäst kort bildar ingen hög: välj bara om det ligger ovanpå eller under ' + r.till + '.'
+            : 'Var det fysiskt ligger. Hög = kort som bara ligger staplade utan att vara fästa, som länder. Sitter kortet på ett annat: fyll i "fäst vid" ovanför först. Tomt räcker för ett ensamt kort med unikt namn.';
+          mer.appendChild(ph);
+        }
+      }
+      const hjalp = document.createElement('div'); hjalp.className = 'tal';
+      hjalp.textContent = 'Tiden är där du började säga meningen, alltså strax efter att handen släppte. En halv sekund fel gör ingen skada. Vill du ha den exakt: pausa i rutan där du släpper och tryck "sätt till filmens läge".';
+      mer.append(till, tal, hjalp);
+      d.appendChild(mer);
+    }
+    lista.appendChild(d);
+  });
+  const osakra = rader.filter(r => r.osaker && r.osaker !== '-').length;
+  const utanMal = rader.filter(r => r.handelse === 'tar_bort' && (!r.till || r.till === '-')).length;
+  document.getElementById('raknare').textContent = rader.length + ' rader'
+    + (osakra ? ' · ' + osakra + ' osäkra' : '')
+    + (utanMal ? ' · ' + utanMal + ' utan mål' : '');
+  const a = lista.children[aktiv];
+  if (a) a.scrollIntoView({ block: 'nearest' });
+}
+
+/* En tillagd rad öppnas direkt, med markören i kortfältet — annars hamnade
+   den hopfälld under raden man stod på, utan namn, och det såg ut som att
+   knappen inte gjorde något. Filmen står kvar. */
+function oppnaNy(nya) {
+  rader.push(...nya);
+  rader.sort((a, b) => a.t - b.t);
+  aktiv = rader.indexOf(nya[0]);
+  rita();
+  const f = document.querySelector('.rad.aktiv .kortfalt input');
+  if (f && nya[0].kort === '-') f.focus();
+}
+
+function gaTill(k) {
+  aktiv = Math.max(0, Math.min(rader.length - 1, k));
+  const r = rader[aktiv];
+  if (v.src) { v.currentTime = Math.max(0, r.t - (document.getElementById('auto').checked ? 2 : 0)); v.play(); }
+  rita();
+}
+
+// filer in
+function tallrik(fs) {
+  for (const f of fs) {
+    if (/\.(mp4|mov|m4v)$/i.test(f.name)) {
+      v.src = URL.createObjectURL(f); v.hidden = false; document.getElementById('tom').hidden = true;
+    } else if (/\.tsv$/i.test(f.name) || /\.txt$/i.test(f.name)) {
+      filnamn = f.name; f.text().then(lasTSV);
+    }
+  }
+}
+document.getElementById('ladda').onclick = () => document.getElementById('filer').click();
+document.getElementById('filer').onchange = e => tallrik(e.target.files);
+document.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drar'); });
+document.addEventListener('dragleave', e => { if (e.relatedTarget === null) document.body.classList.remove('drar'); });
+document.addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('drar'); tallrik(e.dataTransfer.files); });
+
+document.getElementById('spara').onclick = () => {
+  const b = new Blob([skrivTSV()], { type: 'text/tab-separated-values' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+  a.download = filnamn.replace(/\.tsv$/, '') + '-rattad.tsv'; a.click();
+};
+document.getElementById('ny').onclick = () => {
+  const t = v.src ? v.currentTime : 0;
+  rader.push({ t, handelse: 'spelar', kort: '-', till: '-', osaker: 'ny', tal: '(tillagd för hand)' });
+  rader.sort((a, b) => a.t - b.t);
+  aktiv = rader.findIndex(r => r.t === t); rita();
+};
+document.getElementById('spela').onclick = () => v.paused ? v.play() : v.pause();
+document.getElementById('back').onclick = () => v.currentTime = Math.max(0, v.currentTime - 2);
+document.getElementById('fram').onclick = () => v.currentTime += 2;
+document.getElementById('forra').onclick = () => gaTill(aktiv - 1);
+document.getElementById('nasta').onclick = () => gaTill(aktiv + 1);
+v.addEventListener('timeupdate', () => {
+  document.getElementById('nu').textContent = mmss(v.currentTime);
+  document.getElementById('slut').textContent = mmssKort(v.duration || 0);
+});
+document.addEventListener('keydown', e => {
+  if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === ' ') { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); v.currentTime = Math.max(0, v.currentTime - 2); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); v.currentTime += 2; }
+  else if (e.key === 'j') gaTill(aktiv + 1);
+  else if (e.key === 'k') gaTill(aktiv - 1);
+});
+</script>
+<datalist id="lek"></datalist>
+<script>
+// Leken, för att slippa stava kortnamn — fylls av dev/golden/lek.txt om sidan
+// körs från en server, annars av listan nedan.
+const LEK = ['Ancestral Blade','Aphelia, Viper Whisperer','Coat with Venom','Danitha Capashen, Paragon','Faithful Pikemaster','Fencing Ace','Flutterfox','Gorgon Flail','Hooded Blightfang','Killing Glare','Maul of the Skyclaves','Militant Inquisitor','Mirran Bardiche',"Night's Whisper",'Pacifism',"Pharika's Chosen",'Plains','Resistance Reunited','Scourge of the Undercity','Serpent Assassin','Swamp','Thriving Heath','Thriving Moor','Trusty Retriever','Ukud Cobra',"Valkyrie's Sword",'Venomous Hierophant',"Vraska's Finisher",'Soldier','-'];
+const dl = document.getElementById('lek');
+for (const n of LEK) { const o = document.createElement('option'); o.value = n; dl.appendChild(o); }
+
+/* Körs sidan från en server går filmen och listan att peka ut i adressen:
+   granska.html?video=<sökväg>&tsv=<sökväg>, båda relativa repots rot. */
+(function () {
+  if (!/^https?:$/.test(location.protocol)) return;
+  const q = new URLSearchParams(location.search);
+  const rot = '/';
+  if (q.get('video')) {
+    v.src = rot + q.get('video').replace(/^\//, '');
+    v.hidden = false; document.getElementById('tom').hidden = true;
+  }
+  if (q.get('tsv')) {
+    const p = q.get('tsv').replace(/^\//, '');
+    filnamn = p.split('/').pop();
+    fetch(rot + p, { cache: 'no-store' }).then(r => r.ok ? r.text() : Promise.reject(r.status)).then(lasTSV)
+      .catch(e => { document.getElementById('raknare').textContent = 'kunde inte läsa ' + p + ' (' + e + ')'; });
+  }
+})();
+</script>
