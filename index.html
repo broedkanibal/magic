@@ -23053,7 +23053,22 @@ const FLIK_ID = (() => {
    nedtoningen +1,2–2,65 s efter facits tid i stället för +4–5,25 s. 600 ger
    marginal över det uppmätta glappet. Att läsa ett kort och lägga tillbaka
    det tonar nu ned det medan det är i handen, och tänder det när det ligger
-   igen — det lämnar fortfarande aldrig bordet av sig självt. */
+   igen — det lämnar fortfarande aldrig bordet av sig självt.
+
+   En flytt som går via nedtoning (kortet tonas ned och binds om på nya
+   platsen några sekunder senare) lagas INTE med en längre nåd. Mätt
+   2026-09-23 i passet 2026-09-22 (dev/spegelfacit, rad 29, 35, 59, 61):
+   det nya spåret med kortets namn kommer 1,65–4,8 s efter att det gamla
+   dog — handen håller kortet, och telefonen läser det först när det ligger.
+   Nåd 2 s döljer nedtoningen i tre av fyra, 5 s i alla fyra, men flytten
+   syns ändå först när det nya spåret fått namnet (+3,52, +6,79, +3,15,
+   +7,53 s efter facit, oförändrat), och varje borttagning blir lika mycket
+   senare: tar_bort i medianen +2,58 → +3,57 s (2 s) → +6,40 s (5 s), och
+   med 5 s föll en borttagning ur fönstret i den lokala loggen. Att binda
+   kortet tidigare till ett namnlöst spår intill går inte heller: ett sådant
+   fanns vid döden bara i 59/61 — och vid varje riktig borttagning i golden
+   11 (handen med kortet). Samma kort binds redan om när namnet kommer
+   (ledigt tar det nedtonade först), utan dubblett. */
 const BORTA_NAD = 600;
 /* "På en gång": tre eller fler kort som försvinner inom det här fönstret är
    snarare telefonen som flyttats än korten (MES-103), och de får bannern i
