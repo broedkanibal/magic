@@ -1558,6 +1558,76 @@ prov('UP8 lägesbytet spelar upp bordet medan uppstarten pågår: inget kort', (
   assert.equal(app.kort.length, 0);
 });
 
+/* ── Landhögen (MES-250): ett spår med hog = { n, tappade } är n basland i en manahög ── */
+const landhog = (n, tappade = 0) => ({ n, tappade });
+const iHog = id => app.kort.filter(c => c.spar === id && c.lyft == null).sort((a, b) => a.gi - b.gi);
+prov('LH1 hög med två: två Swamp på samma spår, i en hög (grp/gi), otappade', () => {
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2), ...PORT })]);
+  const h = iHog(1);
+  assert.equal(app.kort.length, 2); assert.equal(h.length, 2);
+  assert.ok(h[0].grp && h[0].grp === h[1].grp, 'samma hög'); assert.deepEqual(h.map(c => c.gi), [0, 1]);
+  assert.deepEqual(h.map(c => c.tapped ? 1 : 0), [0, 0]);
+  assert.ok(h[1].kam && h[1].kam.x === h[0].kam.x, 'kortet i högen bär spårets läge');
+});
+prov('LH2 högen växer 1 → 3 med två tappade: de översta två tappade', () => {
+  stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].grp, null);
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(3, 2), ...PORT })]);
+  const h = iHog(1);
+  assert.equal(h.length, 3); assert.deepEqual(h.map(c => c.tapped ? 1 : 0), [0, 1, 1]);
+  /* Hjärtslaget skriver inte om tap-läget (kantstyrt). */
+  h[2].tapped = 0;
+  stam([klar(1, 'Swamp', { sen: 900, hog: landhog(3, 2), ...PORT })]);
+  assert.deepEqual(iHog(1).map(c => c.tapped ? 1 : 0), [0, 1, 0], 'en digital rättning står sig');
+});
+prov('LH3 högen krymper 3 → 2 först efter HOG_KRYMP_MS; det översta kortet tonas ned', () => {
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(3), ...PORT })]);
+  assert.equal(iHog(1).length, 3);
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2), ...PORT })]);
+  assert.equal(iHog(1).length, 3, 'en ruta räcker inte');
+  klocka.t += 2100;
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2), ...PORT })]);
+  assert.equal(iHog(1).length, 2);
+  const ned = app.kort.filter(c => c.lyft != null);
+  assert.equal(ned.length, 1); assert.equal(ned[0].spar, undefined); assert.equal(ned[0].grp, null);
+  /* …och tillbaka till ett: högen löses upp. */
+  klocka.t += 100;
+  stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);
+  klocka.t += 2100;
+  stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);
+  assert.equal(iHog(1).length, 1); assert.equal(iHog(1)[0].grp, null);
+});
+prov('LH4 ett Swamp till bredvid högen är ett nytt kort, inte "ett för mycket"', () => {
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2), ...PORT }), klar(2, 'Swamp', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 3); assert.equal(iHog(2).length, 1);
+  assert.equal(app.kort.filter(c => c.spar === 2)[0].grp, null);
+});
+prov('LH5 leken har två Swamp: högen får inte tre', () => {
+  app.lek = new Map([['Swamp', 2]]);
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(3), ...PORT })]);
+  assert.equal(app.kort.length, 2);
+});
+prov('LH6 hög på ett kort som inte är basland ignoreras (MES-251)', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, hog: landhog(2), ...PORT })]);
+  assert.equal(app.kort.length, 1); assert.equal(app.kort[0].grp, null);
+});
+prov('LH7 hela högen tappas och otappas', () => {
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2, 2), tappad: true, ...LAND_ })]);
+  assert.deepEqual(iHog(1).map(c => c.tapped ? 1 : 0), [1, 1]);
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2, 0), ...PORT })]);
+  assert.deepEqual(iHog(1).map(c => c.tapped ? 1 : 0), [0, 0]);
+});
+prov('LH8 ett nedtonat Swamp tas tillbaka in i högen innan ett nytt skapas', () => {
+  stam([klar(1, 'Swamp', { sen: 20, ...PORT }), klar(2, 'Swamp', { sen: 20, ...LANGT })]);
+  assert.equal(app.kort.length, 2);
+  stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);
+  klocka.t += 3100; stam([klar(1, 'Swamp', { sen: 900, ...PORT })]);
+  assert.equal(app.kort.filter(c => c.lyft != null).length, 1, 'kort 2 nedtonat');
+  stam([klar(1, 'Swamp', { sen: 20, hog: landhog(2), ...PORT })]);
+  assert.equal(app.kort.length, 2, 'inget nytt kort'); assert.equal(iHog(1).length, 2);
+  assert.equal(app.kort.filter(c => c.lyft != null).length, 0);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

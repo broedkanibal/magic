@@ -7657,8 +7657,11 @@ function renderGrid(force) {
     v = matVy(p);
     if (arMitt(p) && v.vp.riktig && !fjarrLas) save();
   }
-  /* Table leads: kamerabundna kort ligger där bordet lägger dem. */
+  /* Table leads: kamerabundna kort ligger där bordet lägger dem. En
+     kamerahög (MES-250) räknas om från sitt basläge efteråt — annars låg
+     alla dess kort på samma fläck tills nästa omritning. */
   if (speglaKamPos(p, v)) {
+    if (arMitt(p)) raknaOmHogar(cards);
     v = matVy(p);
     if (v.vp.riktig && !fjarrLas) save();
   }
@@ -18823,6 +18826,152 @@ const Kamera = (() => {
   let lasande = 0;
   const LAS_SAMTIDIGT = 3;
   const OMLOTT_NAMNLOS_MS = 6000;   // en omlott-del utan namn så länge, under ett namngivet kort, tas bort (matcha, MES-250)
+  /* ── Landhögen (MES-250, beslut 2026-09-23) ──
+     Basland som ligger på varandra skärs INTE i enskilda kort: spåret bär en
+     hög — hur många kort (n) och hur många av dem som är tappade — och
+     datorn lägger n kort i en manahög. Antalet räknas ur TITELRADERNA i
+     spårets låda: varje kort i en solfjäder blottar sin ljusa titelrad, ett
+     tunt band (3–20 % av kortsidan) med en lång ljus löpning (minst 60 % av
+     kortsidan), och banden ligger med solfjäderns jämna steg (0,17–0,6
+     kortsidor, stegen lika inom 50 %). Ett ensamt band är ett korts titelrad
+     eller typrad och säger inget; ett korts egna band (titel, typrad,
+     textruta) ligger inte med jämna steg. Bandets riktning mot grundläget
+     säger om kortet ligger tappat: titelraden ligger tvärs kortets långsida.
+     Uppmätt (dev/spegelfacit-passet 2026-09-22 och golden 14/15, harnesset
+     i MES-250): tre staplade Plains/Swamp räknas rätt; tappade kort i
+     solfjäder nedåt och blandade högar räknas för lågt — då bär ytan golvet:
+     en kortlik region på 1,6–3,2 kortytor är minst två kort. Fel n är
+     bättre än fel namn, och en hög som räknas för lågt är ett kort för
+     lite, inte ett kort som inte finns. */
+  const HOG_MS = 500;               // hur ofta ett spår mäts om
+  const HOG_MIN = 1.2;              // regionen minst så många kortytor innan högen mäts alls
+  const HOG_TAK = 6;                // fler kort än så i en hög läggs aldrig ut ur en mätning
+  const arBasland = namn => /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(namn || '');
+  /* Titelraderna i lådan. g är analysbilden (osuddad), lådan i analyspixlar,
+     K och L kortreferensens sidor, vinkel regionens egen axel (rutnätet
+     vrids dit så att banden blir raka), grund grundläget. Ger { n, tappade,
+     band } där n är 0 när inga band med jämnt steg finns. */
+  function hogMat(g, W, H, box, K, L, vinkel, grund) {
+    const cs = Math.cos(vinkel), sn = Math.sin(vinkel), cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const [x, y] of [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]]) {
+      const u = (x - cx) * cs + (y - cy) * sn, v = (y - cy) * cs - (x - cx) * sn;
+      if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
+    }
+    u0 = Math.floor(u0) - 2; v0 = Math.floor(v0) - 2;
+    const gw = Math.ceil(u1) + 2 - u0 + 1, gh = Math.ceil(v1) + 2 - v0 + 1, n = gw * gh;
+    if (gw < 8 || gh < 8 || n > 60000) return null;
+    const val = new Float32Array(n), inne = new Uint8Array(n), s = [];
+    for (let cv = 0; cv < gh; cv++) for (let cu = 0; cu < gw; cu++) {
+      const xf = cx + (u0 + cu) * cs - (v0 + cv) * sn, yf = cy + (u0 + cu) * sn + (v0 + cv) * cs, x = Math.round(xf), y = Math.round(yf);
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      const c = cv * gw + cu; val[c] = g[y * W + x]; inne[c] = 1;
+      if (xf >= box.x && xf <= box.x + box.w && yf >= box.y && yf <= box.y + box.h) s.push(val[c]);
+    }
+    if (s.length < 64) return null;
+    s.sort((a, b) => a - b);
+    /* Nivåerna: medianen är kortyta i en hög; det ljusaste (99:e percentilen) är titelraden. */
+    const med = s[s.length >> 1], ljust = s[Math.floor(0.99 * s.length)];
+    if (ljust - med < 40) return { n: 0, tappade: 0, band: 0 };
+    const Thi = med + 0.5 * (ljust - med), Tlo = med + 0.3 * (ljust - med);
+    const B = new Uint8Array(n); for (let i = 0; i < n; i++) if (inne[i] && val[i] >= Tlo) B[i] = 1;
+    const runMin = Math.max(6, Math.round(0.6 * K));
+    /* Per rad och per kolumn: längsta ljusa löpningen (över Tlo, någonstans över Thi) och antalet sådana. */
+    const radLop = new Int32Array(gh), radN = new Int32Array(gh), kolLop = new Int32Array(gw), kolN = new Int32Array(gw);
+    for (let cv = 0; cv < gh; cv++) {
+      let start = -1, topp = false;
+      for (let cu = 0; cu <= gw; cu++) {
+        const c = cv * gw + cu, on = cu < gw && B[c];
+        if (on) { if (start < 0) { start = cu; topp = false; } if (val[c] >= Thi) topp = true; }
+        else if (start >= 0) { const len = cu - start; if (len >= runMin && topp) { radN[cv]++; if (len > radLop[cv]) radLop[cv] = len; } start = -1; }
+      }
+    }
+    for (let cu = 0; cu < gw; cu++) {
+      let start = -1, topp = false;
+      for (let cv = 0; cv <= gh; cv++) {
+        const c = cv * gw + cu, on = cv < gh && B[c];
+        if (on) { if (start < 0) { start = cv; topp = false; } if (val[c] >= Thi) topp = true; }
+        else if (start >= 0) { const len = cv - start; if (len >= runMin && topp) { kolN[cu]++; if (len > kolLop[cu]) kolLop[cu] = len; } start = -1; }
+      }
+    }
+    /* Rader (kolumner) i följd med långa löpningar: en grupp så tjock som en titelrad är ett band. */
+    const tjockMin = Math.max(3, Math.round(0.06 * K)), tjockMax = Math.max(5, Math.round(0.2 * K));
+    const band = (lop, m) => {
+      const ut = []; let start = -1;
+      for (let i = 0; i <= m; i++) {
+        const on = i < m && lop[i] > 0;
+        if (on && start < 0) start = i;
+        if (!on && start >= 0) { const h = i - start; if (h >= tjockMin && h <= tjockMax) ut.push((start + i - 1) / 2); start = -1; }
+      }
+      return ut;
+    };
+    /* Den längsta följden av band med jämnt steg. */
+    const run = p => {
+      let bast = 0;
+      for (let i = 0; i < p.length; i++) {
+        let k = 1, d0 = null;
+        for (let j = i + 1; j < p.length; j++) {
+          const d = p[j] - p[j - 1];
+          if (d < 0.17 * K || d > 0.6 * K) break;
+          if (d0 != null && (d > 1.5 * d0 || d < d0 / 1.5)) break;
+          d0 = d0 == null ? d : (d0 + d) / 2; k++;
+        }
+        if (k > bast) bast = k;
+      }
+      return bast;
+    };
+    const bu = band(radLop, gh), bv = band(kolLop, gw), ru = run(bu), rv = run(bv);
+    /* Band längs u (rader) ligger längs regionens axel; ligger axeln längs grundläget är de titelrader på TAPPADE kort. */
+    const tappU = axSkillnad(vinkel, grund) < Math.PI / 4;
+    let nn = 0, tapp = 0;
+    if (ru >= 2) { nn += ru; if (tappU) tapp += ru; }
+    if (rv >= 2) { nn += rv; if (!tappU) tapp += rv; }
+    return { n: nn, tappade: tapp, band: bu.length + bv.length };
+  }
+  /* Högarna mäts efter matchningen, ur rutan där spåret fick sin region:
+     bara klara basland, stilla, oskymda, och högst varannan halvsekund. */
+  function matHogar(g0, nu) {
+    const kr = dia.kortRef;
+    for (const t of spar) {
+      if (t.tillstand !== 'klar' || !t.namn || !arBasland(t.namn) || arHelbild(t)) { if (t.hog) t.hog = null; t.hogSett = null; continue; }
+      if (t.regionNar !== nu || t.skymd || (t.stillaN || 0) < R(2) || nu - (t.hogNar || 0) < HOG_MS) continue;
+      /* Kortets mått: de spåret hade när det fick sitt namn (namnMatt) — då
+         var det ETT kort. Kortreferensen (medianen över alla klara spår) är
+         reserven: med två klara spår varav högen var referensen högen själv
+         (passet 2026-09-22: 86×70 mot kortets 78×58, och ytan blev 1,0). */
+      const nm = t.namnMatt, K = nm ? nm.k : kr && kr.av ? kr.kort : 0, L = nm ? nm.l : kr && kr.av ? kr.lang : 0, refA = K * L;
+      if (!refA) continue;
+      t.hogNar = nu;
+      const area = t.areaNu || t.areaRef || 0;
+      if (area < HOG_MIN * refA) { t.hog = null; t.hogSett = null; continue; }
+      /* Lådan är maskens, och på en mörk matta täcker masken inte hela högen
+         (passet: tre Swamp gav 1,3–1,5 kortytor); en fjärdedels kortsida runt om. */
+      const marg = Math.round(0.25 * K), lada = { x: t.box.x - marg, y: t.box.y - marg, w: t.box.w + 2 * marg, h: t.box.h + 2 * marg };
+      /* Rutnätet läggs i GRUNDLÄGET, inte i regionens egen axel: en
+         solfjäder drar regionens axel snett (77° i passet med korten på 90°),
+         och titelraderna följer korten. Sex grader åt vardera hållet för en
+         hög som ligger lite snett mot bordet (golden 14: 10°). */
+      let m = null;
+      for (const dv of [0, 6, -6]) { const r = hogMat(g0, AW, AH, lada, K, L, grundVinkel() + dv * Math.PI / 180, grundVinkel()); if (r && (!m || r.n > m.n)) m = r; }
+      /* Banden får aldrig säga fler kort än ytan rymmer (ett kort till, för
+         masken som inte täcker): mätt på passet 2026-09-22 gav banden ensamma
+         2–4 kort på ett ensamt Swamp, och ytan är det som håller dem i schack. */
+      const ytaN = Math.round(area / refA);
+      let n = m && m.n >= 2 && m.n <= ytaN + 1 ? m.n : 0, tapp = n ? m.tappade : 0;
+      /* Ytan som golv, försiktigt: en KORTLIK region på 1,6–3,2 kortytor är
+         minst två kort. En hand intill kortet är inte kortlik, och en hand
+         över en hög är skymd. */
+      const kvot = t.kort / Math.max(1, t.lang);
+      if (n < 2 && area >= 1.6 * refA && area <= 3.2 * refA && kvot >= 0.5) { n = 2; tapp = t.tappad ? 2 : 0; }
+      n = Math.min(HOG_TAK, n);
+      /* Två mätningar i rad med samma tal innan högen rapporteras: en enda
+         ruta ska varken skapa ett kort på datorn eller ta bort ett. */
+      const sett = t.hogSett;
+      t.hogSett = n >= 2 ? { n, tappade: Math.min(n, tapp) } : null;
+      if (n >= 2 && sett && sett.n === n) t.hog = { n, tappade: Math.min(n, tapp) };
+      else if (n < 2 && !sett) t.hog = null;
+    }
+  }
   /* …och bara spår med ETT KORTS MÅTT läses bredvid ett annat: lång- och
      kortsida inom en fjärdedel av kortreferensen (dia.kortRef, medianen av
      de säkert namngivna spåren). Allt annat — klumpar, och allt innan det
@@ -20369,7 +20518,7 @@ const Kamera = (() => {
            delen, och en ruta där klumpen kommer tillbaka hel rör inget. */
         if (f.omlott && !bast.omlott && bast.areaRef > 1.2 * f.area) {
           bast.areaRef = f.area; bast.spek = null; bast.formN = 0; bast.helBox = null;
-          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.gissning = null;
+          bast.tillstand = 'ny'; bast.fragad = false; bast.namn = null; bast.sid = null; bast.cands = null; bast.saker = false; bast.ram = null; bast.namnMatt = null; bast.gissning = null; bast.hog = null;
           bast.aiFragad = false; bast.ai = null; bast.provas = false; bast.aiInget = 0;
         }
         if (f.omlott) bast.omlott = true;
@@ -21038,6 +21187,8 @@ const Kamera = (() => {
     bibSag(bibDelar, nu, klamd || felRader > 0);
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
     ta('matcha');
+    matHogar(g0, nu);   // landhögarna (MES-250): n kort och tappade, ur titelraderna i spårets låda
+    ta('hog');
 
     /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
        flyttats ser en annan bit av bordet, och då tas referensen om — utan
@@ -21373,7 +21524,7 @@ const Kamera = (() => {
      500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
      (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
   let sandSignatur = null;
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.hog ? ':H' + t.hog.n + '/' + t.hog.tappade : ''}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '');
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -21506,6 +21657,7 @@ const Kamera = (() => {
     if (latens) { extra.bortaTs = bortaTs.splice(0); extra.bildTid = bildTid; }
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
+      hog: t.hog ? { n: t.hog.n, tappade: t.hog.tappade } : null,   // landhögen (MES-250): spåret är n basland på varandra, tappade av dem tappade; null = ett kort
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
       stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort; och kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
       kortlik: skuggklar(t),   // regionen har ETT KORTS MÅTT, eller har stått formstilla i två rutor: datorn ritar skuggan direkt, utan den halva sekund som skyddar mot en hand (MES-226)
@@ -22191,7 +22343,7 @@ const Kamera = (() => {
   }
 
   return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, nyReferens, glomKort, namnge, svarAI, rapportera,
-           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
+           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell, hogMat,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
            helbild: () => helbild('knapp'), tillampaHelbild,
@@ -23261,6 +23413,17 @@ function ledarOrdning(a, b) {
    för lite än ett kort som ljuger om vad som ligger där. */
 const ATER_MS = 2000;
 const ATER_VANTA = 5000;     // så länge efter återkomsten väntar regeln på att spåret lagt sig; sedan gäller det som förut
+/* ── landhögen (MES-250, beslut 2026-09-23) ──
+   Ett klart baslandsspår med hog = { n, tappade } är n fysiska kort på
+   varandra. Datorn lägger n kort i en manahög (grp/gi, som när man drar
+   mana ovanpå varandra) och sätter tapped på de översta M — vilka av korten
+   som är tappade spelar ingen roll för land. Högen växer på en gång (ett
+   kort lades på); den krymper först när telefonen sagt det lägre talet i
+   HOG_KRYMP_MS, så att en missad titelrad i en ruta inte tar bort ett kort
+   och skapar det igen. Fler kort än leken har får högen aldrig. */
+const HOG_LAND = /^(?:Snow-Covered )?(?:Plains|Island|Swamp|Mountain|Forest|Wastes)$/;
+const HOG_KRYMP_MS = 2000, HOG_MAX = 6;
+let hogKrymp = new Map();    // spår-id → { n: det lägre talet telefonen sagt, sedan }
 let sparSen = new Map();     // spår-id → `sen` i förra bordet
 let sparAter = new Map();    // spår-id → { nar, kam }: spåret fick region efter ATER_MS utan, och kortets läge (k.kam) innan
 let tvivel = new Map();      // spår-id → namnet det bar när det kom tillbaka på en ny plats
@@ -23965,7 +24128,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   spar = spar.filter(t => t.tillstand !== 'skrap');
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { glomSpar(); gravHandelser = []; gravSistaN = null; gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { glomSpar(); gravHandelser = []; gravSistaN = null; gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); hogKrymp = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
@@ -24066,9 +24229,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (k.kam && Math.hypot(cx - k.kam.x, cy - k.kam.y) <= AUTO_FLYTT * t.w && !(k.kam.prel && vilar)) return;
     k.kam = { x: cx, y: cy, w: t.w, h: t.h, nar: nu }; if (!vilar) k.kam.prel = 1; andrat = true;
   };
-  const lagg = (k, t) => {
+  const lagg = (k, t, utanTap) => {
     const tap = t.tappad ? 1 : 0;
-    if (tapSynk && (k.kamTap == null || tap !== k.kamTap)) {
+    if (!utanTap && tapSynk && (k.kamTap == null || tap !== k.kamTap)) {   // utanTap: kortet ligger i en hög, och högen sätter tap-läget per kort (MES-250)
       k.kamTap = tap;
       if (pol.tap && (k.tapped ? 1 : 0) !== tap) { k.tapped = tap; andrat = true; }
     }
@@ -24102,7 +24265,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const fysiska = [];
   for (const t of spar.filter(t => t.tillstand === 'klar' && t.namn).sort(ledarOrdning)) {
     const g = fysiska.find(g => g.namn === t.namn && !g.spar.some(u => syskon(u, t)) && g.spar.some(u => sammaPlats(u, t)));
-    if (g) g.spar.push(t); else fysiska.push({ namn: t.namn, spar: [t], kort: null, bundna: null });
+    if (g) g.spar.push(t); else fysiska.push({ namn: t.namn, spar: [t], kort: null, bundna: null, hog: t.hog && t.hog.n >= 2 && HOG_LAND.test(t.namn) ? t.hog : null });   // ledarens hög (MES-250)
   }
   const iFysiskt = new Set(fysiska.flatMap(g => g.spar.map(t => t.id)));
   /* Ett borttaget kort spärrar tills det lyfts — kortet, inte bara spårets
@@ -24147,7 +24310,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   for (const g of fysiska) {
     if (g.kort || g.bundna || sparrat(g)) continue;
     const paBord = mig.cards.filter(c => c.name === g.namn && (paBordet(c) || c.fysisk)).length;
-    const paMattan = fysiska.filter(h => h.namn === g.namn && (h.kort || h.bundna || !sparrat(h))).length + iAndraSpar(g.namn);
+    /* En hög räknas som sina n kort (MES-250): annars såg ett nytt Swamp bredvid högen ut som ett för mycket. */
+    const paMattan = fysiska.filter(h => h.namn === g.namn && (h.kort || h.bundna || !sparrat(h))).reduce((a, h) => a + (h.hog ? h.hog.n : 1), 0) + iAndraSpar(g.namn);
     if (paBord >= paMattan) continue;
     const t = g.spar[0];
     /* Tillbaka i spel ur graveyard (MES-248): EN FLYTT, samma kort, ingen
@@ -24194,9 +24358,47 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     autoSumKort(g.kort.cid, t);
     senasteKamSpar = t.id;
   }
+  /* 4b. Landhögen (MES-250): n kort på ledarens spår, i en manahög, de
+     översta M tappade. Bara basland: allt annat omlott är MES-251. */
   for (const g of fysiska) {
-    if (g.bundna) for (const c of g.bundna) { const t = g.spar.find(t => t.id === c.spar); lagg(c, t); autoSumKort(c.cid, t); }
-    else if (g.kort) lagg(g.kort, g.spar[0]);
+    const t = g.spar[0];
+    if (!HOG_LAND.test(g.namn)) continue;
+    const iHogen = mig.cards.filter(c => c.spar === t.id && paBordet(c) && c.lyft == null).sort((a, b) => (a.gi || 0) - (b.gi || 0));
+    if (!iHogen.length) { hogKrymp.delete(t.id); continue; }
+    const sagt = g.hog ? Math.min(HOG_MAX, g.hog.n) : 1;
+    let n = sagt;
+    if (sagt < iHogen.length) {
+      const k0 = hogKrymp.get(t.id);
+      if (!k0 || k0.n !== sagt) { hogKrymp.set(t.id, { n: sagt, sedan: nu }); n = iHogen.length; }
+      else if (nu - k0.sedan < HOG_KRYMP_MS) n = iHogen.length;
+    } else hogKrymp.delete(t.id);
+    /* Krymper: de översta lämnar högen — som ett kort vars spår dog: nedtonat, med frågan. */
+    while (iHogen.length > n) { const k = iHogen.pop(); delete k.spar; delete k.borta; k.grp = null; k.gi = null; if (kanLyftas(k)) { k.lyft = nu; gravTid.set(k.cid, nu); } andrat = true; }
+    /* Växer: ett ledigt kort med namnet först (nedtonat, utan spår), sedan ett nytt — aldrig fler än leken har. */
+    while (iHogen.length < n) {
+      let k = ledigt(g.namn);
+      if (!k) {
+        const tak = lekAntal(g.namn), paBord = mig.cards.filter(c => c.name === g.namn && (paBordet(c) || c.fysisk)).length;
+        if (isFinite(tak) && paBord >= tak) break;
+        k = { cid: uid(), name: g.namn, sid: t.sid || undefined, flipped: 0, tapped: 0, ny: nu, etb: 1 };
+        mig.cards.push(k); autoSumKort(k.cid, t);
+      } else { if (k.lyft != null) slappLyft(k); delete k.borta; }
+      k.spar = t.id; k.kamTap = undefined;
+      if (iHogen[0].kam) k.kam = Object.assign({}, iHogen[0].kam);
+      iHogen.push(k); andrat = true;
+    }
+    if (iHogen.length >= 2) {
+      const grp = 'kh' + t.id;
+      iHogen.forEach((c, i) => { if (c.grp !== grp || c.gi !== i) { c.grp = grp; c.gi = i; andrat = true; } });
+      /* Tappade: de översta M. Kantstyrt som lagg — kamerans dom per kort skrivs bara när den ändras. */
+      const M = g.hog ? Math.max(0, Math.min(iHogen.length, g.hog.tappade || 0)) : (t.tappad ? iHogen.length : 0);
+      iHogen.forEach((c, i) => { const tap = i >= iHogen.length - M ? 1 : 0; if (tapSynk && (c.kamTap == null || tap !== c.kamTap)) { c.kamTap = tap; if (pol.tap && (c.tapped ? 1 : 0) !== tap) { c.tapped = tap; andrat = true; } } });
+      g.hogKort = iHogen;
+    } else if (iHogen[0].grp != null && String(iHogen[0].grp).startsWith('kh')) { iHogen[0].grp = null; iHogen[0].gi = null; andrat = true; }
+  }
+  for (const g of fysiska) {
+    if (g.bundna) for (const c of g.bundna) { const t = g.spar.find(t => t.id === c.spar); if (!t) continue; lagg(c, t, !!g.hogKort); autoSumKort(c.cid, t); }   // utan spår: kortet lämnade just högen (4b)
+    else if (g.kort) lagg(g.kort, g.spar[0], !!g.hogKort);
   }
   /* 5. Spår som inte är klara. Ett bundet håller sitt kort. Ett osäkert som
      ligger på ett klart kort med samma namn är samma kort sett en gång till —

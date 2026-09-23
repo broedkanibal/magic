@@ -34,6 +34,12 @@ function laddaHandler() {
       const m = env.match(/^\s*ANTHROPIC_API_KEY\s*=\s*("?)(.*?)\1\s*$/m);
       if (m && m[2]) process.env.ANTHROPIC_API_KEY = m[2];
     }
+    /* Utan nyckel svarade attrappen som attrappen fast --ai var satt, och
+       golden/spegelfacit skrev "Med Claude … 0 namn via Claude" som om det
+       vore ett resultat (MES-250, 2026-09-23: en worktree har ingen
+       .env.local — den är gitignorerad). En kontroll som ljuger: hellre
+       stanna. */
+    if (!process.env.ANTHROPIC_API_KEY) { console.error(`stub-server: MESA_AI=1 men ingen ANTHROPIC_API_KEY — varken i miljön eller i ${path.join(ROOT, '.env.local')} (en worktree saknar filen: ln -s /Users/jesperfunk/Code/magic/.env.local .env.local)`); process.exit(2); }
     /* Dynamisk import: package.json säger "type": "module", så handlern är en
        ES-modul och stubben en .cjs — require() går inte. */
     return (await import(require('url').pathToFileURL(path.join(ROOT, 'api', 'identify.js')).href)).default;

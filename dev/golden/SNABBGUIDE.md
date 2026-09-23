@@ -447,6 +447,35 @@ största skillnaderna i gråsteg, gränsen) — det är där en missad eller fal
 ändring går att spåra. Uppspelningen i `dubbletter.cjs` kräver att fallet sparats om
 (`--fall 10 --spara`) efter en kodändring.
 
+## Landhögen (MES-250)
+
+Basland som ligger på varandra skärs inte i enskilda kort (beslut
+2026-09-23). Spåret bär i stället en **hög**: fältet `hog: { n, tappade }`
+i rapporten och bordsloggen — n basland på varandra, `tappade` av dem
+tappade; `null` är ett kort. Datorn lägger n kort i en manahög (`grp`/`gi`,
+som när man drar mana ovanpå varandra) och sätter tapped på de översta
+`tappade`. Vilka av korten som är tappade spelar ingen roll för land.
+
+| Vad | Hur |
+|---|---|
+| Antalet | räknas ur **titelraderna** i spårets låda på analysbilden (`hogMat` i Kamera): varje kort i en solfjäder blottar sin ljusa titelrad, ett tunt band med en lång ljus löpning, och banden ligger med solfjäderns jämna steg (0,17–0,6 kortsidor). Ett ensamt band säger inget; ett korts egna band (titel, typrad, textruta) ligger inte med jämna steg |
+| Tappade | bandens riktning mot grundläget: titelraden ligger tvärs kortets långsida, så ett band längs grundläget hör till ett tappat kort |
+| Golvet | en kortlik region på 1,6–3,2 kortytor är minst två kort, också när inga band räknas |
+| När | bara ett klart basland (`arBasland`), stilla och oskymt, högst varannan halvsekund; ett spår som slutar vara klart tappar sin hög |
+| Datorn | `avstamBord` steg 4b: högen växer på en gång, krymper först när telefonen sagt det lägre talet i 2 s (`HOG_KRYMP_MS`), aldrig fler kort än leken har; ett kort som lämnar högen tonas ned med frågan. Bänken `dev/avstamning.cjs` LH1–LH8 |
+
+Måttet är `node dev/spegelfacit/kor.cjs --ai` + `jamfor.cjs`: raderna med
+"hög A" i facit. **Läget 2026-09-23:** mekanismen är hel (bänken LH1–LH8,
+golden LIKA BRA, 0 fel namn) men högen i passet 2026-09-22 fick aldrig
+fältet: masken täcker bara 1,3–1,5 kortytor av tre mörka Swamp på svart
+matta, och titelraderna räknas inte säkert i den levande bilden — utan
+ytgränsen gav banden 2–4 kort på ett ensamt Swamp, med den ger de inget.
+På utvalda rutor (harnesset i MES-250) räknas tre staplade Plains/Swamp
+rätt; tappade kort i solfjäder nedåt och blandade högar räknas för lågt.
+Högraderna står kvar på 4 av 12. Nästa steg är telefonens, inte datorns:
+en säkrare räkning (beskärningen i 720 px i stället för analysbilden, eller
+högen räknad ur hur spåret växer när ett kort läggs på).
+
 ## Samma fall i sju ljus (MES-216)
 
 Utan nya foton eller videor: `node dev/golden/kor.cjs --ljus alla` kör hela

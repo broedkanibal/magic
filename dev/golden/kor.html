@@ -928,7 +928,8 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   const landF = {}, landD = {}, landK = {};
   for (const k of synliga) { const ty = LANDTYP(k.namn); if (ty) landF[ty] = (landF[ty] || 0) + 1; }
   for (const k of dolda) { const ty = LANDTYP(k.namn); if (ty) landD[ty] = (landD[ty] || 0) + 1; }
-  for (const t of K.spar) { if (t.tillstand === 'skrap' || !t.saker || !t.namn) continue; for (const n of (t.hog && t.hog.length ? t.hog : [t.namn])) { const ty = LANDTYP(n); if (ty) landK[ty] = (landK[ty] || 0) + 1; } }
+  /* t.hog är sedan MES-250 { n, tappade } (n basland på varandra); formen med en namnlista är äldre och står kvar för säkerhets skull. */
+  for (const t of K.spar) { if (t.tillstand === 'skrap' || !t.saker || !t.namn) continue; for (const n of (t.hog && t.hog.n ? Array(t.hog.n).fill(t.namn) : t.hog && t.hog.length ? t.hog : [t.namn])) { const ty = LANDTYP(n); if (ty) landK[ty] = (landK[ty] || 0) + 1; } }
   const landTyper = [...new Set(Object.keys(landF).concat(Object.keys(landK)))];
   return {
     landAv: Object.values(landF).reduce((a, b) => a + b, 0),
