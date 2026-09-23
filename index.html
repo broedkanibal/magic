@@ -23132,11 +23132,23 @@ const SAMMA_KORT_TACKNING = 0.3;
    utifrån behövs. */
 const SPELL_MS = 20000;
 /* Högvakten (K10/K11, MES-85): telefonens ändringar av graveyard-högen i
-   bild, i datorns klocka, och när varje kort försvann från mattan. Högen
-   blir stilla (stillaMs) en stund efter att kortets spår dött, men en hand
-   som skymde kortet kan vända på ordningen — därav fönstret åt båda hållen.
-   Gissat, mätt i golden 10/11. */
-const GRAV_FORE = 2500, GRAV_EFTER = 5000;
+   bild, i datorns klocka, och när varje kort försvann från mattan.
+
+   Fönstret börjar EFTER att kortet försvann, inte före. Telefonen dömer
+   ett spår borta först när mattan under det sett tom ut i bortaMs (450 ms),
+   och högen först när den legat stilla i stillaMs (800 ms) — efter att
+   handen släppt kortet där och lämnat den. Ett kort som lagts på högen kan
+   alltså inte ge en ändring tidigare än stillaMs − bortaMs = 350 ms efter
+   att dess spår dog, och i verkligheten mer: handen ska dit också.
+   Förut fick ändringen komma 2,5 s FÖRE ("en hand som skymde kortet kan
+   vända på ordningen", gissat). Mätt 2026-09-23 i golden 10/11 och i passet
+   2026-09-22 (dev/spegelfacit, båda loggarna): varje kort som verkligen
+   lades på högen gav sin ändring +1,05 till +4,5 s efter att spåret dog —
+   ingen före. Det som kom före var armen över högen: Mirran Bardiche
+   flyttades ovanpå Ukud Cobra 113,6 s medan armen låg över högen, högen
+   "ändrades" −1,35 och +0,15 s runt spårets död, och kortet flög till
+   graveyard. */
+const GRAV_TIDIGAST = 350, GRAV_EFTER = 5000;
 let gravHandelser = [], gravSistaN = null, gravTid = new Map();
 function gravTaEmot(grav, nu) {
   if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet
@@ -24244,13 +24256,13 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      det — en ändring per kort. Försvann fler kort än högen ändrats får alla
      frågan, och försvann tre eller fler på en gång gäller bannern: det kan
      lika gärna vara telefonen som flyttats (MES-103). Bara Table leads. */
-  const gravFonster = (tid, h) => h.nar >= tid - GRAV_FORE && h.nar <= tid + GRAV_EFTER;
+  const gravFonster = (tid, h) => h.nar >= tid + GRAV_TIDIGAST && h.nar <= tid + GRAV_EFTER;
   const gravTa = tid => { const h = gravHandelser.find(h => !h.tagen && gravFonster(tid, h)); if (h) h.tagen = true; };
   function gravAutoOm(k, tid) {
     if (tid == null) return false;
     const mina = gravHandelser.filter(h => !h.tagen && gravFonster(tid, h));
     if (!mina.length) return false;
-    const grannar = mig.cards.filter(c => c === k || (paBordet(c) && (c.borta || c.lyft != null) && gravTid.has(c.cid) && Math.abs(gravTid.get(c.cid) - tid) <= GRAV_FORE + GRAV_EFTER));
+    const grannar = mig.cards.filter(c => c === k || (paBordet(c) && (c.borta || c.lyft != null) && gravTid.has(c.cid) && Math.abs(gravTid.get(c.cid) - tid) <= GRAV_EFTER - GRAV_TIDIGAST));   // två kort vars fönster delar någon ändring
     if (grannar.length > mina.length) return false;
     if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < SAMTIDIGT_MS).length >= 3) return false;
     mina[0].tagen = true;

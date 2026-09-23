@@ -1133,6 +1133,24 @@ prov('GR9 besvärjelsen tar högens ändring: varelsen som plockades samtidigt f
   const cobra = app.kort.find(k => k.name === 'Ukud Cobra');
   assert.equal(cobra.zon, undefined); assert.ok(cobra.lyft != null);
 });
+/* Fönstret börjar efter att spåret dog (GRAV_TIDIGAST, 350 ms = telefonens
+   stillaMs − bortaMs): armen över högen medan kortet flyttas någon annanstans
+   gav i passet 2026-09-22 två "ändringar" −1,35 och +0,15 s runt spårets död. */
+prov('GR11 högen ändras medan kortet ligger kvar skymt, spåret dör efteråt: frågan, inte graveyard', () => {
+  stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([klar(1, 'Mirran Bardiche', { sen: 1500, skymd: true, ...PORT })], hog(1));   // armen över högen
+  klocka.t += 1350; stamG([], hog(1));                                                               // spåret dör 1,35 s efter ändringen
+  klocka.t += 150; stamG([], hog(2));                                                                // och en till, 0,15 s efter
+  klocka.t += 3100; stamG([], hog(2));
+  assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+});
+prov('GR12 ändringen 0,4 s efter att spåret dog räcker: graveyard', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 400; stamG([], hog(1));
+  klocka.t += 2700; stamG([], hog(1));
+  assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].gravAuto);
+});
 prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], null);
   klocka.t += 150; stamG([], null); klocka.t += 3100; stamG([], null);
