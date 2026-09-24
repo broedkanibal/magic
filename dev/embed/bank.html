@@ -227,6 +227,28 @@ window.LARDA = async function (o) {
   await spara('webb-larda', Object.assign({ rader: { lokalt: sa, lagring: sb, utan: su } }, ut));
   return ut;
 };
+/* Råvektorerna bakom LARDA, till Node (MES-232, larda-varianter.cjs): lekens
+   vektorer som modulen byggt dem (ra, medel, names, ids, rot) och för varje
+   riktig beskärning frågans vektor (som identifiera räknar den) samt samma
+   beskärning som LÄRD referens — Ref.bildAv-jpeg 146×204, rak och vänd,
+   exakt vad Embed.laggTill bäddar in. Varianterna på hur lärda referenser
+   ska räknas provas sedan i Node på samma tal, utan Chrome i vägen. */
+window.LARDA_DUMP = async function (o) {
+  o = Object.assign({ forrakade: 'cache/forrakade/golden.json' }, o);
+  const idx = await embedRedo(o), alla = await lasSet('riktiga');
+  const bildAvRef = im => { const cv = document.createElement('canvas'); cv.width = 146; cv.height = 204; const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.drawImage(im, 0, 0, 146, 204); return cv.toDataURL('image/jpeg', 0.8); };
+  const f32 = a => Array.from(a, x => +x.toFixed(6));
+  const kort = [];
+  for (const r of alla) {
+    const im = await bild(r.url), q = await Embed.identifiera(im, idx, { vektor: true }), ref = await bild(bildAvRef(im));
+    const l0 = (await Embed.identifiera(ref, idx, { vektor: true, rot: 0 })).vektor, l180 = (await Embed.identifiera(ref, idx, { vektor: true, rot: 180 })).vektor;
+    kort.push({ fil: r.fil, namn: r.namn, fall: r.fall, skymd: !!r.skymd, helbild: !!r.helbild, kalla2: r.kalla2, q: f32(q.vektor), svar: { namn: q.namn, marginal: +q.marginal.toFixed(4), saker: q.saker }, l0: f32(l0), l180: f32(l180) });
+    if (kort.length % 10 === 0) log(`  dump: ${kort.length}/${alla.length}`);
+  }
+  const ut = { backend: Embed.backend, modell: Embed.MODELL, troskel: Embed.TROSKEL, bygge: window.BYGGT || null, lek: { names: idx.names, ids: idx.ids, rot: idx.rot, medel: f32(idx.medel), ra: f32(idx.ra) }, kort };
+  await spara('larda-dump', ut);
+  return { backend: Embed.backend, kort: kort.length, vektorer: idx.names.length, bygge: window.BYGGT || null };
+};
 /* Modulens övriga anrop: läs tillbaka ur IndexedDB, lär en referens (K7), ta bort den, glöm leken. */
 window.SJALVTEST = async function (o) {
   const idx = await embedRedo(o), ut = {}, n0 = idx.names.length;
