@@ -26,9 +26,9 @@ milstolpe.
 | Etapp | Issue | Innehåller | Ändrar hur appen känns? |
 |---|---|---|---|
 | 1 Mät klart | milstolpen *Etapp 1 · Mät klart* | MES-244, 243, 164, 238, 242, 190, **249** | nej |
-| 2 Farten | milstolpen *Etapp 2 · Farten* | MES-246, 221, 252, 222 | ja, namnet kommer tidigare |
-| 3 Träffsäkerheten | milstolpen *Etapp 3 · Träffsäkerheten* | **MES-250**, 233, 106, 241, 245, 234, 235, 232, 220, 219, 218, 217, 223 | ja, färre fel och fler kort hittas |
-| 4 Handlingarna | milstolpen *Etapp 4 · Handlingarna* | MES-247, 251, 248 | ja, tokens, attach och zonerna |
+| 2 Farten | milstolpen *Etapp 2 · Farten* | MES-246, 221, 252, 222, 287 | ja, namnet kommer tidigare |
+| 3 Träffsäkerheten | milstolpen *Etapp 3 · Träffsäkerheten* | **MES-250**, 233, 106, 241, 245, 234, 235, 232, 220, 219, 218, 217, 223, 288 | ja, färre fel och fler kort hittas |
+| 4 Handlingarna | milstolpen *Etapp 4 · Handlingarna* | MES-247, 251, 248, 291, 292 | ja, tokens, attach och zonerna |
 
 Etapp 4 rör appen och avstämningen, inte igenkänningen, och kan byggas
 parallellt med 2 och 3 av en egen session.
