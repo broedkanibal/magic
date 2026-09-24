@@ -111,6 +111,16 @@
       "autoPort": true
     },
     {
+      "name": "mesa-rita",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=${PORT:-8287} node dev/golden/rita-server.cjs"
+      ],
+      "port": 8287,
+      "autoPort": true
+    },
+    {
       "name": "mesa-granska",
       "runtimeExecutable": "sh",
       "runtimeArgs": [

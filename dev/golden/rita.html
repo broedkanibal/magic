@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rita facit — golden set</title>
+<!--
+  Ritverktyget för facit (MES-286). Mätverktyg, inte appkod.
+  Starta:  node dev/golden/rita-server.cjs   → http://localhost:8287/
+  Varje kort ritas med två klick på de övre hörnen längs namnraden; resten
+  (synligt, dold, tappad, hög) räknas fram ur hörnen och ordningen i
+  rita-geometri.cjs — samma fil som rita-kontroll.cjs räknar om med.
+  markera.html står kvar för raka rektanglar.
+-->
+<style>
+:root{--bg:#0d1015;--fg:#e7ecf4;--dim:#8b96a5;--linje:#232a33;--panel:#12161c;--falt:#0a0d11;
+      --kort:#f0d23c;--vald:#5ee38a;--ruta:#4aa3ff;--varning:#f0a52a;--fel:#ff6b6b;--token:#c58cff;--bak:#6fc3c9}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;overflow:hidden}
+[hidden]{display:none!important}
+#scen{flex:1;display:flex;flex-direction:column;min-width:0}
+#verktyg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--linje)}
+#verktyg select{max-width:330px}
+#info{color:var(--dim);font:12px ui-monospace,Menlo,monospace;margin-left:auto;white-space:nowrap}
+#duk{flex:1;position:relative;min-height:0;outline:none}
+canvas{position:absolute;inset:0;display:block;touch-action:none}
+#laddar{position:absolute;left:10px;top:10px;background:rgba(13,16,21,.85);padding:4px 10px;border-radius:4px;color:var(--varning);font-size:12px}
+#tips{padding:5px 10px;border-top:1px solid var(--linje);color:var(--dim);font-size:11.5px;display:flex;gap:14px}
+#tips b{color:var(--fg);font-weight:600}
+#status{margin-left:auto;color:var(--fg)}
+#panel{width:390px;flex:none;overflow-y:auto;background:var(--panel);border-left:1px solid var(--linje);padding:10px 12px 60px}
+h1{font-size:15px;margin:0 0 6px}
+h2{font-size:11.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 6px;display:flex;align-items:center;gap:8px}
+h2 .antal{color:var(--fg);font-weight:normal;letter-spacing:0;text-transform:none}
+button,select{background:#1a2029;color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:4px 9px;font:inherit;cursor:pointer}
+button:hover{border-color:#4b5868}
+button.aktiv{border-color:var(--vald);color:var(--vald)}
+button.primar{border-color:#3c6b46;background:#16251b}
+button kbd,.kbd{font:11px ui-monospace,Menlo,monospace;color:var(--dim);margin-left:4px}
+input[type=text]{width:100%;background:var(--falt);color:var(--fg);border:1px solid #2c3541;border-radius:4px;padding:5px 7px;font:inherit}
+input[type=text].fel{border-color:var(--fel)}
+.dim{color:var(--dim)} .varn{color:var(--varning)} .felt{color:var(--fel)} .ok{color:var(--vald)}
+.ruta{border:1px solid var(--linje);border-radius:5px;padding:8px 9px;background:var(--bg);margin-bottom:6px}
+.rad{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.rad + .rad{margin-top:5px}
+.tagg{font:11px ui-monospace,Menlo,monospace;border:1px solid #2c3541;border-radius:3px;padding:0 5px;color:var(--dim);white-space:nowrap}
+.tagg.dold{color:var(--dim);border-style:dashed} .tagg.tapp{color:var(--kort)} .tagg.hog{color:var(--ruta)} .tagg.fast{color:var(--token)} .tagg.fel{color:var(--fel);border-color:var(--fel)}
+#kortlista .k{display:flex;gap:6px;align-items:center;padding:3px 6px;border-radius:4px;cursor:pointer;border:1px solid transparent}
+#kortlista .k:hover{background:#161b23}
+#kortlista .k.vald{border-color:var(--vald);background:rgba(94,227,138,.07)}
+#kortlista .nr{font:600 11px ui-monospace,Menlo,monospace;min-width:28px;color:var(--dim)}
+#kortlista .namn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#kortlista .namn.saknas{color:var(--fel)}
+#check .c{display:flex;gap:6px;align-items:center;padding:1px 4px;border-radius:3px;cursor:pointer}
+#check .c:hover{background:#161b23}
+#check .c.bockad{color:var(--dim)}
+#check .c .box{font:12px ui-monospace,Menlo,monospace;width:14px}
+#check .c.bockad .box{color:var(--vald)}
+#handelser div{font:12px ui-monospace,Menlo,monospace;padding:1px 0}
+#handelser .t{color:var(--dim);display:inline-block;min-width:52px}
+#lagen{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+#lagen span{font:10.5px ui-monospace,Menlo,monospace;border:1px solid #2c3541;border-radius:3px;padding:0 4px;cursor:pointer;color:var(--dim)}
+#lagen span.ritad{color:var(--fg);border-color:#4b5868}
+#lagen span.klar{color:var(--vald);border-color:#3c6b46}
+#lagen span.avv{color:var(--fel);border-color:var(--fel)}
+#lagen span.nu{outline:2px solid var(--ruta)}
+#utkast{background:#2a2112;border:1px solid var(--varning);border-radius:5px;padding:8px;margin-bottom:8px}
+#melding{min-height:1.4em;margin-top:6px;font-size:12px}
+#hjalp{position:fixed;inset:40px;margin:auto;max-width:720px;max-height:80vh;overflow:auto;background:#141920;border:1px solid #2c3541;border-radius:8px;padding:16px 20px;z-index:9;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#hjalp table{border-collapse:collapse;width:100%}
+#hjalp td{padding:3px 8px;border-bottom:1px solid #1d232c;vertical-align:top}
+#hjalp td:first-child{white-space:nowrap;font:12px ui-monospace,Menlo,monospace;color:var(--kort)}
+label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim)}
+#forslag{position:absolute;left:0;right:0;top:100%;z-index:5;background:#141920;border:1px solid #2c3541;border-radius:0 0 4px 4px;max-height:260px;overflow:auto}
+#forslag div{padding:3px 8px;cursor:pointer} #forslag div.nu{background:#1d3024;color:var(--vald)}
+</style>
+</head>
+<body>
+<div id="scen">
+  <div id="verktyg">
+    <select id="kalla" title="Vad som ritas: ett golden-foto eller en video"></select>
+    <button id="b-rita" type="button" class="aktiv" title="Två klick: kortets övre hörn längs namnraden, i läsriktningen">Rita<kbd>N</kbd></button>
+    <button id="b-valj" type="button" title="Klick väljer (igen = kortet under), dra flyttar, ⌥-dra vrider">Välj<kbd>V</kbd></button>
+    <button id="b-las" type="button" title="Nya kort får samma storlek som de som redan ritats — bara riktningen tas ur klicken">Lås storlek<kbd>L</kbd></button>
+    <button id="b-spara" type="button" class="primar">Spara<kbd>⌘S</kbd></button>
+    <button id="b-hjalp" type="button">Tangenter<kbd>?</kbd></button>
+    <span id="info">–</span>
+  </div>
+  <div id="duk" tabindex="0"><canvas id="canvas"></canvas><div id="laddar" hidden>hämtar rutan…</div></div>
+  <div id="tips"><span id="tipstext"></span><span id="status"></span></div>
+</div>
+
+<aside id="panel">
+  <h1>Rita facit</h1>
+  <div id="utkast" hidden></div>
+  <div id="kallinfo" class="dim"></div>
+
+  <section id="lagesdel" hidden>
+    <h2>Läge <span class="antal" id="lagesrubrik"></span></h2>
+    <div class="ruta">
+      <div class="rad">
+        <button type="button" id="b-forra" title="Förra läget">◀<kbd>[</kbd></button>
+        <button type="button" id="b-nasta" title="Nästa läge">▶<kbd>]</kbd></button>
+        <button type="button" id="b-bak" title="Tiden bakåt 0,5 s (⇧ 0,1 s, ⌥ 2 s)">−0,5 s<kbd>←</kbd></button>
+        <button type="button" id="b-fram" title="Tiden framåt 0,5 s (⇧ 0,1 s, ⌥ 2 s)">+0,5 s<kbd>→</kbd></button>
+        <label class="val"><input type="checkbox" id="klar"> klart<span class="kbd">D</span></label>
+      </div>
+      <div class="rad dim" id="lagestid"></div>
+      <div id="lagen"></div>
+    </div>
+    <h2>Händelser sedan förra ritade läget</h2>
+    <div id="handelser" class="ruta"></div>
+    <h2>Mot händelsefacit <span class="antal" id="kontrollrubrik"></span></h2>
+    <div id="kontroll" class="ruta"></div>
+  </section>
+
+  <h2>Valt kort <span class="antal" id="valdid"></span></h2>
+  <div id="valt" class="ruta">
+    <div class="rad" style="position:relative"><input type="text" id="namn" placeholder="kortnamn — Enter tar första förslaget" autocomplete="off" spellcheck="false"><div id="forslag" hidden></div></div>
+    <div class="rad" id="valtfalt"></div>
+    <div class="rad" id="valtfast"></div>
+    <div class="rad">
+      <button type="button" id="b-upp" title="Ett steg upp i ordningen (⇧↑ överst)">Upp<kbd>↑</kbd></button>
+      <button type="button" id="b-ner" title="Ett steg ner (⇧↓ underst)">Ner<kbd>↓</kbd></button>
+      <button type="button" id="b-tap" title="Vrid 90°">Vrid 90°<kbd>T</kbd></button>
+      <button type="button" id="b-grav" title="Kortet ligger i graveyard-högen — räknas inte som kort i spel">Graveyard<kbd>G</kbd></button>
+      <button type="button" id="b-bib" title="Kortet ligger i library — räknas inte som kort i spel">Library<kbd>B</kbd></button>
+      <button type="button" id="b-bort" title="Ta bort kortet">Ta bort<kbd>⌫</kbd></button>
+    </div>
+  </div>
+
+  <h2 id="checkrubrik">Facit <span class="antal" id="checkantal"></span></h2>
+  <div id="check" class="ruta"></div>
+
+  <h2>Korten, översta först <span class="antal" id="kortantal"></span></h2>
+  <div id="kortlista" class="ruta"></div>
+
+  <h2>Spara</h2>
+  <div class="ruta">
+    <label class="val" id="ladaval" title="Jespers beslut: lådan runt kortets synliga del skrivs i facit, så att golden mäter plats och tap-läge i fallet. Ändrar baslinjen."><input type="checkbox" id="lada" checked> skriv lådan x/y/w/h i facit (golden mäter plats och tap)</label>
+    <div class="rad" style="margin-top:6px"><button type="button" id="b-spara2" class="primar">Spara till repot<kbd>⌘S</kbd></button><span id="sparinfo" class="dim"></span></div>
+    <div id="melding"></div>
+  </div>
+</aside>
+
+<div id="hjalp" hidden>
+  <h1>Tangenter</h1>
+  <table>
+    <tr><td>N · V</td><td><b>Rita</b>: två klick på kortets övre hörn längs namnraden, i läsriktningen (eller dra från det ena till det andra). Resten ritas ut, också det som ligger under ett annat kort. <b>Välj</b>: klick väljer översta kortet, samma ställe igen väljer kortet under; dra flyttar; ⌥-dra vrider runt mitten. I Rita-läget väljer ⌘-klick.</td></tr>
+    <tr><td>hörnen</td><td>dra ett hörn på det valda kortet — det diagonalt motsatta står kvar</td></tr>
+    <tr><td>L</td><td>lås storleken: nya kort får medianen av de ritade korten, klicken ger bara riktningen</td></tr>
+    <tr><td>Enter</td><td>skriv namnet på det valda kortet (lekens namn, <code>token Soldier</code>, <code>baksida</code>); Enter igen tillbaka till bilden</td></tr>
+    <tr><td>↑ ↓ · ⇧↑ ⇧↓</td><td>det valda kortet ett steg upp/ner i ordningen · överst/underst. Senast ritat hamnar överst</td></tr>
+    <tr><td>T · Q E</td><td>vrid 90° · vrid −1°/+1° (⇧ 0,2°)</td></tr>
+    <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse eller token, annars kortet det ligger mest omlott med) · lossa</td></tr>
+    <tr><td>G · B</td><td>kortet ligger i graveyard · i library (räknas inte som kort i spel)</td></tr>
+    <tr><td>⌫</td><td>ta bort det valda kortet</td></tr>
+    <tr><td>[ ]</td><td>video: förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort, med samma id</td></tr>
+    <tr><td>← →</td><td>video: flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) — om en hand syns</td></tr>
+    <tr><td>D</td><td>video: läget är ritat klart</td></tr>
+    <tr><td>0 · 1 · + −</td><td>hela bilden · 100 % · zooma. Nyp eller ⌘/ctrl-hjul zoomar mot pekaren, hjul/två fingrar panorerar, mellanslag-dra eller högerdra panorerar</td></tr>
+    <tr><td>⌘S · ⌘Z · ⇧⌘Z</td><td>spara till repot · ångra · gör om. Utkastet sparas i webbläsaren hela tiden</td></tr>
+    <tr><td>Esc</td><td>avbryt ett påbörjat kort, avmarkera</td></tr>
+  </table>
+  <p class="dim">Fyllt = synligt. Streckat = under ett annat kort. Det tunna bandet på det valda kortet är namnraden — syns mindre än hälften är kortet <b>dold</b>.</p>
+</div>
+
+<script src="rita-geometri.cjs"></script>
+<script src="rita-handelser.cjs"></script>
+<script>
+'use strict';
+const G = window.RitaGeo, Hd = window.RitaHandelser;
+const el = id => document.getElementById(id);
+const cv = el('canvas'), cx = cv.getContext('2d'), duk = el('duk');
+const kopia = o => JSON.parse(JSON.stringify(o));
+const iFalt = () => /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '');
+const fmtT = t => t == null ? '' : (Math.round(t * 100) / 100).toFixed(2).replace('.', ',');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ── Tillstånd ────────────────────────────────────────────────────────────
+   dok är det som sparas: för ett foto { kort }, för en video { lagen: { nr: läge } }.
+   Ett kort är { id, namn, horn, z, fast?, zon? } — allt annat räknas fram. */
+const S = {
+  kallor: null, lek: [], typer: {},
+  kalla: null,             // { sort: 'foto'|'video', id, … }
+  bild: null, W: 0, H: 0, grund: 'v',
+  facit: null,             // foto: facit.json som den lästes
+  checklista: [],          // foto: facits namn när filen öppnades
+  u: null,                 // video: händelseunderlaget (rita-handelser.cjs)
+  lagenFil: null,          // video: lagen.json som den lästes
+  dok: null, filDok: '',   // det som ritas, och samma sak som den stod i filen (JSON)
+  nr: 1, temp: null,       // video: aktuellt läge, och ett ännu inte ändrat läge (kopia av förra)
+  vald: null, lage: 'rita', las: false,
+  vantar: null,            // första klicket i Rita: { p, skarm, tid }
+  nastaNamn: null,
+  undo: [], redo: [],
+  raknat: {}, forslag: {}, cache: new Map(),
+};
+
+/* ── Vyn ──────────────────────────────────────────────────────────────── */
+const V = { s: 1, ox: 0, oy: 0 };
+let dpr = 1;
+function passaCanvas() {
+  const b = duk.getBoundingClientRect();
+  dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(b.width * dpr); cv.height = Math.round(b.height * dpr);
+  cv.style.width = b.width + 'px'; cv.style.height = b.height + 'px';
+  ritaSnart();
+}
+new ResizeObserver(passaCanvas).observe(duk);
+function helaBilden() {
+  if (!S.W) return;
+  const b = duk.getBoundingClientRect();
+  V.s = Math.min(b.width / S.W, b.height / S.H) * 0.98;
+  V.ox = (b.width - S.W * V.s) / 2; V.oy = (b.height - S.H * V.s) / 2;
+  ritaSnart();
+}
+function zooma(f, px, py) {
+  const b = duk.getBoundingClientRect();
+  if (px == null) { px = b.width / 2; py = b.height / 2; }
+  const ny = Math.max(0.02, Math.min(8, V.s * f));
+  V.ox = px - (px - V.ox) * ny / V.s; V.oy = py - (py - V.oy) * ny / V.s; V.s = ny;
+  ritaSnart();
+}
+const skarm = ([x, y]) => [V.ox + x * S.W * V.s, V.oy + y * S.H * V.s];
+const andel = ([sx, sy]) => [(sx - V.ox) / (V.s * S.W), (sy - V.oy) / (V.s * S.H)];
+function pek(e) { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
+
+/* ── Kort i den aktuella bilden ───────────────────────────────────────── */
+function lageNu() { return S.kalla && S.kalla.sort === 'video' ? (S.dok.lagen[S.nr] || S.temp) : null; }
+function kortNu() {
+  if (!S.dok) return [];
+  if (S.kalla.sort === 'foto') return S.dok.kort;
+  const l = lageNu(); return l ? l.kort : [];
+}
+const kortId = id => kortNu().find(k => k.id === id);
+function nastaId() {
+  let m = 0;
+  if (S.kalla.sort === 'foto') for (const k of S.dok.kort) m = Math.max(m, k.id);
+  else for (const l of Object.values(S.dok.lagen).concat(S.temp ? [S.temp] : [])) for (const k of l.kort) m = Math.max(m, k.id);
+  return m + 1;
+}
+function normaliseraZ(kort) { kort.slice().sort((a, b) => a.z - b.z).forEach((k, i) => { k.z = i + 1; }); }
+
+/* ── Ändringar, ångra, utkast ─────────────────────────────────────────── */
+function bild() { return JSON.stringify({ dok: S.dok, nr: S.nr, temp: S.temp }); }
+function fore() { S.undo.push(bild()); if (S.undo.length > 80) S.undo.shift(); S.redo = []; }
+function efter() {
+  if (S.kalla.sort === 'video' && S.temp && !S.dok.lagen[S.nr]) { S.dok.lagen[S.nr] = S.temp; S.temp = null; }
+  normaliseraZ(kortNu());
+  tomCache();
+  sparaUtkastSnart(); raknaOm(); visa();
+}
+/* Ett läges högbokstäver beror på lägena före: en ändring gör det ändrade
+   läget och alla efter det inaktuella, inget före. */
+function tomCache() {
+  if (!S.kalla || S.kalla.sort !== 'video') { S.cache.clear(); return; }
+  for (const nr of [...S.cache.keys()]) if (nr >= S.nr) S.cache.delete(nr);
+}
+function andra(fn) { fore(); fn(); efter(); }
+function aterstall(snap) {
+  const o = JSON.parse(snap); S.dok = o.dok; S.temp = o.temp;
+  const byt = o.nr !== S.nr; S.nr = o.nr;
+  if (S.vald != null && !kortId(S.vald)) S.vald = null;
+  S.cache.clear(); sparaUtkastSnart(); raknaOm(); visa();
+  if (byt) laddaLagesbild();
+}
+function angra() { if (!S.undo.length) return; S.redo.push(bild()); aterstall(S.undo.pop()); melding('ångrat'); }
+function gorOm() { if (!S.redo.length) return; S.undo.push(bild()); aterstall(S.redo.pop()); melding('gjort om'); }
+const utkastNyckel = () => `mesa-rita:${S.kalla.sort}:${S.kalla.id}`;
+let utkastTimer;
+function sparaUtkastSnart() {
+  clearTimeout(utkastTimer);
+  utkastTimer = setTimeout(() => {
+    try {
+      if (JSON.stringify(S.dok) === S.filDok) localStorage.removeItem(utkastNyckel());
+      else localStorage.setItem(utkastNyckel(), JSON.stringify({ tid: new Date().toISOString(), dok: S.dok }));
+    } catch (e) {}
+    visaSparinfo();
+  }, 400);
+}
+const osparat = () => S.dok && JSON.stringify(S.dok) !== S.filDok;
+function visaSparinfo() { el('sparinfo').textContent = !S.dok ? '' : osparat() ? 'osparade ändringar (utkastet ligger i webbläsaren)' : 'sparat'; el('sparinfo').className = osparat() ? 'varn' : 'dim'; }
+function erbjudUtkast() {
+  let u = null;
+  try { u = JSON.parse(localStorage.getItem(utkastNyckel()) || 'null'); } catch (e) {}
+  const ruta = el('utkast');
+  if (!u || JSON.stringify(u.dok) === S.filDok) { ruta.hidden = true; return; }
+  const n = u.dok.kort ? u.dok.kort.length + ' kort' : Object.keys(u.dok.lagen || {}).length + ' lägen';
+  ruta.innerHTML = `Det finns ett osparat utkast från ${new Date(u.tid).toLocaleString('sv-SE')} (${n}). <div class="rad" style="margin-top:6px"><button type="button" id="u-ja">Återställ utkastet</button><button type="button" id="u-nej">Kasta det</button></div>`;
+  ruta.hidden = false;
+  el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; S.vald = null; S.cache.clear(); ruta.hidden = true; raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
+  el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} ruta.hidden = true; };
+}
+
+/* ── Framräknat ────────────────────────────────────────────────────────
+   I en video beror högarnas bokstäver på läget före, så lägena räknas i
+   ordning och sparas i en cache som töms vid varje ändring. */
+function ritadeNr() { return Object.keys(S.dok.lagen).map(Number).sort((a, b) => a - b); }
+function raknaLage(nr) {
+  if (S.cache.has(nr)) return S.cache.get(nr);
+  const fore_ = ritadeNr().filter(n => n < nr).pop();
+  const f = fore_ != null ? raknaLage(fore_) : { raknat: {}, anvanda: [] };
+  const l = S.dok.lagen[nr] || (nr === S.nr ? S.temp : null);
+  const tidigare = {};
+  for (const [id, r] of Object.entries(f.raknat)) if (r.hog) tidigare[id] = r.hog;
+  const raknat = l ? G.raknaKort(l.kort, { W: S.W, H: S.H, grund: S.grund, tidigare, anvanda: f.anvanda }) : {};
+  const anvanda = [...new Set(f.anvanda.concat(Object.values(raknat).map(r => r.hog).filter(Boolean)))];
+  const ut = { raknat, anvanda, tidigare };
+  S.cache.set(nr, ut);
+  return ut;
+}
+function raknaOm() {
+  if (!S.dok || !S.W) { S.raknat = {}; S.forslag = {}; return; }
+  const kort = kortNu();
+  S.raknat = S.kalla.sort === 'foto' ? G.raknaKort(kort, { W: S.W, H: S.H, grund: S.grund }) : raknaLage(S.nr).raknat;
+  S.forslag = G.fastForslag(kort, S.W, S.H, S.typer);
+}
+
+/* ── Rita ────────────────────────────────────────────────────────────── */
+let ritaPlanerad = false;
+function ritaSnart() { if (!ritaPlanerad) { ritaPlanerad = true; requestAnimationFrame(() => { ritaPlanerad = false; rita(); }); } }
+function farg(k, a) {
+  const vald = k.id === S.vald, n = String(k.namn || '').trim();
+  const r = S.raknat[k.id] || {};
+  const bas = vald ? [94, 227, 138] : !n || (G.arLekkort(n) && !S.lek.includes(n)) ? [255, 107, 107]
+    : k.zon ? [150, 150, 150] : G.arToken(n) ? [197, 140, 255] : G.arBaksida(n) ? [111, 195, 201] : r.dold ? [175, 185, 198] : [240, 210, 60];
+  return `rgba(${bas.join(',')},${a})`;
+}
+function bana(p) { cx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) cx.lineTo(p[i][0], p[i][1]); cx.closePath(); }
+function rita() {
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = cv.width / dpr, H = cv.height / dpr;
+  cx.fillStyle = '#0d1015'; cx.fillRect(0, 0, W, H);
+  if (!S.bild) { cx.fillStyle = '#5b6573'; cx.font = '13px ui-monospace, Menlo, monospace'; cx.textAlign = 'center'; cx.fillText(S.kalla ? 'hämtar bilden…' : 'välj ett fall eller en video', W / 2, H / 2); cx.textAlign = 'left'; return; }
+  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+  cx.drawImage(S.bild, V.ox, V.oy, S.W * V.s, S.H * V.s);
+  const kort = kortNu().slice().sort((a, b) => a.z - b.z);
+  const poly = new Map(kort.map(k => [k.id, k.horn.map(skarm)]));
+  // 1. hela konturen streckad — det som ligger under ett annat kort syns bara så
+  for (const k of kort) { cx.beginPath(); bana(poly.get(k.id)); cx.setLineDash([6, 5]); cx.lineWidth = 1.2; cx.strokeStyle = farg(k, 0.8); cx.stroke(); }
+  cx.setLineDash([]);
+  // 2. det synliga, fyllt, uppifrån: klippt utanför varje kort med högre z
+  for (let i = kort.length - 1; i >= 0; i--) {
+    const k = kort[i];
+    cx.save();
+    for (let j = i + 1; j < kort.length; j++) { cx.beginPath(); cx.rect(-1e5, -1e5, 2e5, 2e5); bana(poly.get(kort[j].id)); cx.clip('evenodd'); }
+    cx.beginPath(); bana(poly.get(k.id)); cx.clip();
+    cx.fillStyle = farg(k, k.id === S.vald ? 0.2 : 0.13); cx.fill();
+    cx.lineWidth = k.id === S.vald ? 3.5 : 2.4; cx.strokeStyle = farg(k, 1); cx.stroke();
+    cx.restore();
+  }
+  // 3. namnraden på det valda kortet
+  const v = kortId(S.vald);
+  if (v) {
+    const nr = G.NAMNRAD, h = v.horn, p = (s, t) => skarm([h[0][0] + s * (h[1][0] - h[0][0]) + t * (h[3][0] - h[0][0]), h[0][1] + s * (h[1][1] - h[0][1]) + t * (h[3][1] - h[0][1])]);
+    const s0 = nr.x0 / G.KORT_B, s1 = nr.x1 / G.KORT_B, t0 = nr.y0 / G.KORT_H, t1 = nr.y1 / G.KORT_H;
+    cx.beginPath(); bana([p(s0, t0), p(s1, t0), p(s1, t1), p(s0, t1)]);
+    cx.fillStyle = 'rgba(94,227,138,.18)'; cx.fill(); cx.lineWidth = 1; cx.strokeStyle = 'rgba(94,227,138,.9)'; cx.stroke();
+    // namnradens början: en prick i hörn 0, så att läsriktningen syns
+    const [a, b] = poly.get(v.id)[0]; cx.beginPath(); cx.arc(a, b, 4, 0, 7); cx.fillStyle = '#5ee38a'; cx.fill();
+  }
+  // 4. etiketter mitt i det synliga
+  cx.font = '600 11.5px ui-monospace, Menlo, monospace'; cx.textBaseline = 'middle';
+  for (const k of kort) {
+    const r = S.raknat[k.id] || {};
+    let mx, my;
+    [mx, my] = skarm(r.etikett || G.mitt(k.horn));
+    const delar = [`#${k.id} ${k.namn || '?'}`];
+    if (r.dold) delar.push('dold'); if (r.tappad) delar.push('⟳'); if (r.hog) delar.push('hög ' + r.hog);
+    if (k.fast != null) { const f = kortId(k.fast); delar.push('↳ ' + (f ? f.namn : '?')); }
+    if (k.zon) delar.push(k.zon === 'grav' ? 'graveyard' : 'library');
+    const text = delar.join(' · '), b = cx.measureText(text).width + 8;
+    cx.fillStyle = 'rgba(13,16,21,.78)'; cx.fillRect(mx - b / 2, my - 9, b, 18);
+    cx.fillStyle = farg(k, 1); cx.textAlign = 'center'; cx.fillText(text, mx, my + 0.5); cx.textAlign = 'left';
+  }
+  // 5. handtag
+  if (v) for (const [x, y] of poly.get(v.id)) { cx.fillStyle = '#0d1015'; cx.fillRect(x - 5, y - 5, 10, 10); cx.strokeStyle = '#5ee38a'; cx.lineWidth = 2; cx.strokeRect(x - 5, y - 5, 10, 10); }
+  // 6. påbörjat kort
+  if (S.vantar && S.pekare) {
+    const h = nyttHorn(S.vantar.p, andel(S.pekare));
+    if (h) { cx.beginPath(); bana(h.map(skarm)); cx.setLineDash([4, 4]); cx.lineWidth = 2; cx.strokeStyle = '#5ee38a'; cx.stroke(); cx.setLineDash([]); }
+    const [a, b] = skarm(S.vantar.p); cx.beginPath(); cx.arc(a, b, 4, 0, 7); cx.fillStyle = '#5ee38a'; cx.fill();
+  }
+}
+
+/* ── Pekaren ──────────────────────────────────────────────────────────── */
+const HANDTAG_PX = 9;
+let drag = null, mellanslag = false;
+function lasLangd() {
+  const b = kortNu().map(k => G.bredd(k.horn, S.W, S.H)).sort((a, c) => a - c);
+  return b.length ? b[b.length >> 1] : null;
+}
+function nyttHorn(p0, p1) {
+  if (Math.hypot((p1[0] - p0[0]) * S.W, (p1[1] - p0[1]) * S.H) * V.s < 6) return null;
+  if (S.las && lasLangd()) return G.hornUrPar(1, p1, 0, p0, S.W, S.H, lasLangd());
+  return G.hornUrTva(p0, p1, S.W, S.H);
+}
+function traffar(p) {   // kort under punkten, översta först
+  const [fx, fy] = andel(p), x = fx * S.W, y = fy * S.H;
+  return kortNu().filter(k => G.iPolygon(G.tillPx(k.horn, S.W, S.H), x, y)).sort((a, b) => b.z - a.z);
+}
+function handtag(p) {
+  const v = kortId(S.vald);
+  if (!v) return -1;
+  return v.horn.map(skarm).findIndex(([x, y]) => Math.abs(p[0] - x) <= HANDTAG_PX && Math.abs(p[1] - y) <= HANDTAG_PX);
+}
+let senastKlick = null;
+function valjVid(p) {
+  const t = traffar(p);
+  if (!t.length) { valj(null); return null; }
+  let k = t[0];
+  if (senastKlick && Math.hypot(p[0] - senastKlick[0], p[1] - senastKlick[1]) < 5) {
+    const i = t.findIndex(x => x.id === S.vald);
+    if (i >= 0) k = t[(i + 1) % t.length];
+  }
+  senastKlick = p;
+  valj(k.id);
+  return k;
+}
+function skapa(p1) {
+  const h = nyttHorn(S.vantar.p, p1);
+  S.vantar = null;
+  if (!h) { ritaSnart(); return; }
+  const namn = S.nastaNamn || '';
+  S.nastaNamn = null;
+  let id;
+  andra(() => {
+    const kort = kortNu(); id = nastaId();
+    kort.push({ id, namn, horn: h, z: kort.reduce((m, k) => Math.max(m, k.z), 0) + 1 });
+    S.vald = id;
+    if (namn) fastUrFacit();
+  });
+  if (!namn) { el('namn').focus(); el('namn').select(); }
+}
+cv.addEventListener('pointerdown', e => {
+  if (!S.bild) return;
+  e.preventDefault(); duk.focus();
+  if (iFalt()) document.activeElement.blur();
+  const p = pek(e);
+  cv.setPointerCapture(e.pointerId);
+  if (e.button === 1 || e.button === 2 || mellanslag) { drag = { typ: 'pan', start: p, ox: V.ox, oy: V.oy }; return; }
+  const hi = handtag(p);
+  if (hi >= 0 && !S.vantar) { fore(); drag = { typ: 'horn', i: hi, start: p, urspr: kopia(kortId(S.vald).horn), flyttad: false }; return; }
+  if (S.lage === 'rita' && !(e.metaKey || e.ctrlKey)) {
+    if (S.vantar) { skapa(andel(p)); return; }
+    S.vantar = { p: andel(p), skarm: p };
+    drag = { typ: 'nytt', start: p, flyttad: false };
+    ritaSnart(); return;
+  }
+  const k = valjVid(p);
+  if (!k) return;
+  fore();
+  drag = { typ: e.altKey ? 'vrid' : 'flytta', start: p, urspr: kopia(k.horn), flyttad: false, id: k.id };
+});
+cv.addEventListener('pointermove', e => {
+  const p = pek(e); S.pekare = p;
+  if (!drag) { if (S.vantar) ritaSnart(); cv.style.cursor = S.lage === 'rita' ? 'crosshair' : 'default'; if (handtag(p) >= 0) cv.style.cursor = 'grab'; return; }
+  if (drag.typ === 'pan') { V.ox = drag.ox + p[0] - drag.start[0]; V.oy = drag.oy + p[1] - drag.start[1]; ritaSnart(); return; }
+  if (!drag.flyttad && Math.hypot(p[0] - drag.start[0], p[1] - drag.start[1]) < 4) return;
+  drag.flyttad = true;
+  if (drag.typ === 'nytt') { ritaSnart(); return; }
+  const k = kortId(drag.id != null ? drag.id : S.vald);
+  if (!k) return;
+  if (drag.typ === 'horn') {
+    const j = (drag.i + 2) % 4, h = G.hornUrPar(drag.i, andel(p), j, drag.urspr[j], S.W, S.H, S.las ? G.bredd(drag.urspr, S.W, S.H) : null);
+    if (h) k.horn = h;
+  } else if (drag.typ === 'flytta') {
+    k.horn = G.flytta(drag.urspr, (p[0] - drag.start[0]) / (V.s * S.W), (p[1] - drag.start[1]) / (V.s * S.H));
+  } else if (drag.typ === 'vrid') {
+    const m = skarm(G.mitt(drag.urspr));
+    const a0 = Math.atan2(drag.start[1] - m[1], drag.start[0] - m[0]), a1 = Math.atan2(p[1] - m[1], p[0] - m[0]);
+    k.horn = G.vrid(drag.urspr, (a1 - a0) * 180 / Math.PI, S.W, S.H);
+  }
+  ritaSnart();
+});
+cv.addEventListener('pointerup', e => {
+  const d = drag; drag = null;
+  if (!d) return;
+  if (d.typ === 'pan') return;
+  if (d.typ === 'nytt') { if (d.flyttad) skapa(andel(pek(e))); return; }
+  if (d.flyttad) efter(); else { S.undo.pop(); visa(); }
+});
+cv.addEventListener('pointercancel', () => { drag = null; ritaSnart(); });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) zooma(Math.exp(-e.deltaY * 0.01), ...pek(e));
+  else { V.ox -= e.deltaX; V.oy -= e.deltaY; ritaSnart(); }
+}, { passive: false });
+
+/* ── Val och kortets fält ─────────────────────────────────────────────── */
+function valj(id) { S.vald = id; visa(); }
+function visaValt() {
+  const k = kortId(S.vald), r = k ? S.raknat[k.id] : null;
+  el('valdid').textContent = k ? '#' + k.id : '–';
+  const namn = el('namn');
+  namn.disabled = !k;
+  if (document.activeElement !== namn) namn.value = k ? k.namn : '';
+  const n = k ? String(k.namn || '').trim() : '';
+  namn.classList.toggle('fel', !!k && (!n || (G.arLekkort(n) && !S.lek.includes(n))));
+  if (!k || !r) { el('valtfalt').innerHTML = `<span class="dim">${S.nastaNamn ? `nästa kort får namnet <b>${esc(S.nastaNamn)}</b>` : 'inget valt — rita ett kort, eller klicka i listan'}</span>`; el('valtfast').innerHTML = ''; return; }
+  const t = [];
+  t.push(`<span class="tagg" title="andelen av kortet som syns">synligt ${Math.round(r.synlig * 100)} %</span>`);
+  t.push(`<span class="tagg${r.dold ? ' dold' : ''}" title="andelen av namnraden som syns — under hälften = dold">namnrad ${Math.round(r.namnrad * 100)} %${r.dold ? ' · DOLD' : ''}</span>`);
+  t.push(`<span class="tagg${r.tappad ? ' tapp' : ''}">${r.tappad ? 'tappad' : 'otappad'} · ${Math.round(G.vinkel(k.horn, S.W, S.H))}°</span>`);
+  if (r.hog) t.push(`<span class="tagg hog">hög ${r.hog}</span>`);
+  if (r.avskuret) t.push('<span class="tagg fel" title="mer än 2 % av kortet ligger utanför bilden — hamnar i avskurna">avskuret</span>');
+  if (k.zon) t.push(`<span class="tagg">${k.zon === 'grav' ? 'graveyard' : 'library'}</span>`);
+  t.push(`<span class="tagg" title="namnradens längd">${Math.round(G.bredd(k.horn, S.W, S.H))} px</span>`);
+  if (n && G.arLekkort(n) && !S.lek.includes(n)) t.push('<span class="tagg fel">finns inte i lek.txt</span>');
+  el('valtfalt').innerHTML = t.join(' ');
+  const typ = G.typAv(n, S.typer);
+  let f = '';
+  if (k.fast != null) { const v = kortId(k.fast); f = `<span class="tagg fast">fäst vid #${k.fast} ${esc(v ? v.namn : '(finns inte)')}</span> <button type="button" id="b-lossa">Lossa<kbd>⇧F</kbd></button>`; }
+  else if (S.forslag[k.id] != null) { const v = kortId(S.forslag[k.id]); f = `<span class="varn">förslag: fäst vid #${v.id} ${esc(v.namn)}</span> <button type="button" id="b-fast">Fäst<kbd>F</kbd></button>`; }
+  else if (G.kanFastas(typ)) f = '<span class="dim">equipment/aura — ligger inte omlott med någon varelse eller token</span>';
+  const vardFor = kortNu().filter(o => o.fast === k.id);
+  if (vardFor.length) f += ` <span class="tagg fast">bär ${vardFor.map(o => '#' + o.id + ' ' + esc(o.namn)).join(', ')}</span>`;
+  el('valtfast').innerHTML = f || `<span class="dim">${typ ? 'typ: ' + typ : n ? 'typen okänd' : ''}</span>`;
+  if (el('b-lossa')) el('b-lossa').onclick = () => lossa();
+  if (el('b-fast')) el('b-fast').onclick = () => fast();
+}
+el('namn').addEventListener('focus', () => { if (kortId(S.vald)) fore(); });
+/* Förslagen: lekens namn plus token och baksida — först de som börjar med
+   det skrivna, sedan de där ett ord börjar så, sist de som innehåller det.
+   Enter tar det markerade förslaget (första om inget annat valts) och går
+   tillbaka till bilden, så att "ukud⏎" räcker för Ukud Cobra. */
+let forslagNu = [], forslagI = 0;
+function visaForslag() {
+  const q = el('namn').value.trim().toLowerCase(), box = el('forslag');
+  if (!q || document.activeElement !== el('namn')) { box.hidden = true; forslagNu = []; return; }
+  const alla = S.allaNamn || [];
+  const a = alla.filter(n => n.toLowerCase().startsWith(q)), b = alla.filter(n => !a.includes(n) && n.toLowerCase().split(/[\s,'-]+/).some(w => w.startsWith(q))), c = alla.filter(n => !a.includes(n) && !b.includes(n) && n.toLowerCase().includes(q));
+  forslagNu = a.concat(b, c).slice(0, 10); forslagI = Math.min(forslagI, Math.max(0, forslagNu.length - 1));
+  box.innerHTML = forslagNu.map((n, i) => `<div class="${i === forslagI ? 'nu' : ''}" data-i="${i}">${esc(n)}</div>`).join('');
+  box.hidden = !forslagNu.length;
+  for (const d of box.children) d.onmousedown = e => { e.preventDefault(); forslagI = +d.dataset.i; tagNamn(); };
+}
+function satNamn(n) {
+  const k = kortId(S.vald); if (!k) return;
+  k.namn = n;
+  tomCache(); raknaOm(); visa(); sparaUtkastSnart();
+}
+function tagNamn() {
+  const v = el('namn').value.trim();
+  if (forslagNu.length && !(S.allaNamn || []).includes(v)) { el('namn').value = forslagNu[forslagI]; satNamn(forslagNu[forslagI]); }
+  el('forslag').hidden = true; forslagNu = [];
+  el('namn').blur(); duk.focus();
+}
+el('namn').addEventListener('input', () => { forslagI = 0; satNamn(el('namn').value); visaForslag(); });
+el('namn').addEventListener('blur', () => { el('forslag').hidden = true; if (kortId(S.vald)) { fastUrFacit(); efter(); } });
+el('namn').addEventListener('keydown', e => {
+  e.stopPropagation();   // fönstrets tangenter (Enter fokuserar fältet, ⌫ tar bort kortet) gäller inte här
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); el('namn').blur(); spara(); return; }
+  if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); tagNamn(); }
+  else if (e.key === 'Escape') { e.preventDefault(); el('forslag').hidden = true; forslagNu = []; el('namn').blur(); duk.focus(); }
+  else if (e.key === 'ArrowDown' && forslagNu.length) { e.preventDefault(); forslagI = (forslagI + 1) % forslagNu.length; visaForslag(); }
+  else if (e.key === 'ArrowUp' && forslagNu.length) { e.preventDefault(); forslagI = (forslagI - 1 + forslagNu.length) % forslagNu.length; visaForslag(); }
+});
+
+/* ── Handlingar ───────────────────────────────────────────────────────── */
+function medValt(fn) { const k = kortId(S.vald); if (!k) { melding('inget kort valt'); return; } andra(() => fn(k)); }
+function flyttaZ(steg) {
+  medValt(k => {
+    const kort = kortNu().slice().sort((a, b) => a.z - b.z), i = kort.indexOf(k);
+    const j = steg === 'topp' ? kort.length - 1 : steg === 'botten' ? 0 : Math.max(0, Math.min(kort.length - 1, i + steg));
+    kort.splice(i, 1); kort.splice(j, 0, k); kort.forEach((x, n) => { x.z = n + 1; });
+  });
+}
+function fast() {
+  medValt(k => {
+    let v = S.forslag[k.id];
+    if (v == null) {   // inget typförslag: kortet det ligger mest omlott med
+      let bast = 0;
+      for (const o of kortNu()) { if (o === k || o.zon) continue; const x = G.overlapp(k.horn, o.horn, S.W, S.H); if (x > bast) { bast = x; v = o.id; } }
+    }
+    if (v == null) { melding('ligger inte omlott med något kort'); return; }
+    k.fast = v;
+    for (const o of kortNu()) if (o.id === v && o.fast === k.id) delete o.fast;   // ett par, inte två
+  });
+}
+function lossa() { medValt(k => { delete k.fast; }); }
+function zon(z) { medValt(k => { if (k.zon === z) delete k.zon; else k.zon = z; }); }
+function taBort() {
+  const id = S.vald; if (!kortId(id)) return;
+  andra(() => {
+    const kort = kortNu(); kort.splice(kort.findIndex(k => k.id === id), 1);
+    for (const k of kort) if (k.fast === id) delete k.fast;
+    S.vald = null;
+  });
+}
+function vridValt(g) { medValt(k => { k.horn = G.vrid(k.horn, g, S.W, S.H); }); }
+
+/* Passet 2026-09-22: fäst tas ur händelsefacits kolumn till. De par facit
+   säger finns vid lägets tid, och där båda namnen är ritade en gång,
+   fästs; par facit inte längre har lossas. */
+function fastUrFacit() {
+  if (!S.u || S.u.sort !== 'handelser') return;
+  const l = lageNu(); if (!l) return;
+  const v = S.u.vantat(l.t).kandidater[0];
+  const kort = l.kort.filter(k => !k.zon), med = n => kort.filter(k => k.namn === n);
+  const vill = new Set(v.fast.map(p => p.join(' + ')));
+  for (const k of kort) if (k.fast != null) { const h = kort.find(o => o.id === k.fast); if (!h || !vill.has([k.namn, h.namn].sort().join(' + '))) delete k.fast; }
+  for (const [a, b] of v.fast) {
+    const ka = med(a), kb = med(b);
+    if (ka.length !== 1 || kb.length !== 1) continue;
+    const [x, y] = G.kanFastas(G.typAv(b, S.typer)) && !G.kanFastas(G.typAv(a, S.typer)) ? [kb[0], ka[0]] : [ka[0], kb[0]];
+    if (x.fast === y.id || y.fast === x.id) continue;
+    x.fast = y.id;
+  }
+}
+
+/* ── Tangenter ────────────────────────────────────────────────────────── */
+window.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); spara(); return; }
+  if (e.key === ' ' && !iFalt()) { mellanslag = true; e.preventDefault(); return; }
+  if (iFalt()) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) gorOm(); else angra(); return; }
+  if (e.metaKey || e.ctrlKey) return;
+  const k = e.key;
+  if (k === 'Escape') { if (!el('hjalp').hidden) el('hjalp').hidden = true; else if (S.vantar) { S.vantar = null; ritaSnart(); } else valj(null); return; }
+  if (k === '?' || k === 'h' || k === 'H') { el('hjalp').hidden = !el('hjalp').hidden; return; }
+  if (!S.dok) return;
+  const steg = e.shiftKey ? 0.1 : e.altKey ? 2 : 0.5;
+  switch (k) {
+    case 'n': case 'N': byt('rita'); break;
+    case 'v': case 'V': byt('valj'); break;
+    case 'l': case 'L': lasa(); break;
+    case 'Enter': if (kortId(S.vald)) { e.preventDefault(); el('namn').focus(); el('namn').select(); } break;
+    case 'Delete': case 'Backspace': e.preventDefault(); taBort(); break;
+    case 'ArrowUp': e.preventDefault(); flyttaZ(e.shiftKey ? 'topp' : 1); break;
+    case 'ArrowDown': e.preventDefault(); flyttaZ(e.shiftKey ? 'botten' : -1); break;
+    case 'ArrowLeft': e.preventDefault(); flyttaTid(-steg); break;
+    case 'ArrowRight': e.preventDefault(); flyttaTid(steg); break;
+    case '[': gaTill(S.nr - 1); break;
+    case ']': gaTill(S.nr + 1); break;
+    case 'd': case 'D': klar(); break;
+    case 't': case 'T': vridValt(90); break;
+    case 'q': case 'Q': vridValt(e.shiftKey ? -0.2 : -1); break;
+    case 'e': case 'E': vridValt(e.shiftKey ? 0.2 : 1); break;
+    case 'f': fast(); break;
+    case 'F': lossa(); break;
+    case 'g': case 'G': zon('grav'); break;
+    case 'b': case 'B': zon('bib'); break;
+    case '0': helaBilden(); break;
+    case '1': { const b = duk.getBoundingClientRect(); zooma(1 / V.s, b.width / 2, b.height / 2); break; }
+    case '+': case '=': zooma(1.25); break;
+    case '-': zooma(0.8); break;
+  }
+});
+window.addEventListener('keyup', e => { if (e.key === ' ') mellanslag = false; });
+window.addEventListener('beforeunload', e => { if (osparat()) { e.preventDefault(); e.returnValue = ''; } });
+function byt(l) { S.lage = l; S.vantar = null; el('b-rita').classList.toggle('aktiv', l === 'rita'); el('b-valj').classList.toggle('aktiv', l === 'valj'); visaTips(); ritaSnart(); }
+function lasa() {
+  if (!S.las && !lasLangd()) { melding('rita ett kort först — låset tar storleken från de ritade'); return; }
+  S.las = !S.las; el('b-las').classList.toggle('aktiv', S.las);
+  melding(S.las ? `storleken låst: ${Math.round(lasLangd())} px namnrad` : 'storleken fri');
+}
+function visaTips() {
+  el('tipstext').innerHTML = S.lage === 'rita'
+    ? '<b>Rita:</b> klicka kortets övre vänstra hörn och sedan övre högra, längs namnraden i läsriktningen · ⌘-klick väljer · ? tangenter'
+    : '<b>Välj:</b> klick väljer, samma ställe igen = kortet under · dra flyttar · ⌥-dra vrider · dra ett hörn · ? tangenter';
+}
+
+/* ── Panelen ──────────────────────────────────────────────────────────── */
+function visa() {
+  if (!S.dok) return;
+  visaValt(); visaLista(); visaCheck(); visaLage(); visaSparinfo(); visaInfo(); ritaSnart();
+}
+function visaInfo() {
+  el('info').textContent = S.W ? `${S.W}×${S.H} · ${Math.round(V.s * 100)} % · ${S.lage === 'rita' ? 'Rita' : 'Välj'}${S.las ? ' · låst' : ''}` : '–';
+}
+function visaLista() {
+  const kort = kortNu().slice().sort((a, b) => b.z - a.z);
+  el('kortantal').textContent = kort.length ? `${kort.length} kort` : '';
+  el('kortlista').innerHTML = kort.length ? kort.map(k => {
+    const r = S.raknat[k.id] || {}, n = String(k.namn || '').trim();
+    const t = [];
+    if (r.dold) t.push('<span class="tagg dold">dold</span>');
+    if (r.tappad) t.push('<span class="tagg tapp">⟳</span>');
+    if (r.hog) t.push(`<span class="tagg hog">${r.hog}</span>`);
+    if (k.fast != null) t.push(`<span class="tagg fast">↳#${k.fast}</span>`);
+    if (r.avskuret) t.push('<span class="tagg fel">avskuret</span>');
+    if (k.zon) t.push(`<span class="tagg">${k.zon}</span>`);
+    return `<div class="k${k.id === S.vald ? ' vald' : ''}" data-id="${k.id}"><span class="nr">#${k.id}</span><span class="namn${!n || (G.arLekkort(n) && !S.lek.includes(n)) ? ' saknas' : ''}">${esc(n || '(namn saknas)')}</span><span class="dim">${Math.round((r.synlig || 0) * 100)}%</span>${t.join('')}</div>`;
+  }).join('') : '<span class="dim">Inga kort än.</span>';
+  for (const d of el('kortlista').children) if (d.dataset.id) d.onclick = () => valj(+d.dataset.id);
+}
+/* Checklistan: facits namn (foto) eller det händelsefacit väntar sig i
+   läget (video), bockade mot de ritade lekkorten. Klick på en obockad rad
+   ger namnet till det valda kortet om det saknar namn, annars nästa kort. */
+function visaCheck() {
+  let vantat = {}, rubrik = 'Facit', not = '';
+  if (S.kalla.sort === 'foto') { for (const n of S.checklista) vantat[n] = (vantat[n] || 0) + 1; not = S.checklista.length ? '' : 'facit har inga namn'; }
+  else {
+    const l = lageNu();
+    const dom = l ? Hd.jamfor(l.kort, S.u.vantat(l.t), { raknat: S.raknat }) : null;
+    const k = l ? S.u.vantat(l.t).kandidater : [];
+    const best = dom && dom.rad != null ? k.find(x => x.rad === dom.rad) : k[k.length - 1];
+    vantat = best ? best.antal : {};
+    rubrik = 'Väntat i läget';
+  }
+  el('checkrubrik').firstChild.textContent = rubrik + ' ';
+  const ritat = {};
+  for (const k of kortNu()) { if (k.zon || G.arBaksida(k.namn)) continue; const n = String(k.namn || '').trim(); if (n) ritat[n] = (ritat[n] || 0) + 1; }
+  const rader = [];
+  let bockade = 0, totalt = 0;
+  for (const n of Object.keys(vantat).sort()) for (let i = 0; i < vantat[n]; i++) {
+    const b = i < (ritat[n] || 0); totalt++; if (b) bockade++;
+    rader.push(`<div class="c${b ? ' bockad' : ''}" data-namn="${esc(n)}"><span class="box">${b ? '✓' : '☐'}</span>${esc(n)}</div>`);
+  }
+  const extra = Object.keys(ritat).filter(n => (ritat[n] || 0) > (vantat[n] || 0)).map(n => `${esc(n)}${ritat[n] - (vantat[n] || 0) > 1 ? ' ×' + (ritat[n] - (vantat[n] || 0)) : ''}`);
+  el('check').innerHTML = (rader.join('') || `<span class="dim">${not || 'inga kort väntas'}</span>`) + (extra.length ? `<div class="varn" style="margin-top:5px">ritat utöver: ${extra.join(', ')}</div>` : '');
+  el('checkantal').textContent = totalt ? `${bockade}/${totalt}` : '';
+  for (const d of el('check').querySelectorAll('.c')) d.onclick = () => {
+    const k = kortId(S.vald);
+    if (k && !String(k.namn || '').trim()) andra(() => { k.namn = d.dataset.namn; fastUrFacit(); });
+    else { S.nastaNamn = d.dataset.namn; byt('rita'); visaValt(); melding(`nästa kort får namnet ${d.dataset.namn}`); }
+  };
+}
+
+/* ── Video: lägena ────────────────────────────────────────────────────── */
+function visaLage() {
+  el('lagesdel').hidden = S.kalla.sort !== 'video';
+  if (S.kalla.sort !== 'video') return;
+  const l = lageNu(), f = S.u.forslag[S.nr - 1];
+  el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length}${S.dok.lagen[S.nr] ? '' : ' · inte ritat (kopia av förra)'}`;
+  el('lagestid').innerHTML = `${fmtT(l.t)} s${Math.abs(l.t - f.t) > 0.001 ? ` (föreslaget ${fmtT(f.t)})` : ''} · <span class="dim">${esc(f.etikett)}</span>`;
+  el('klar').checked = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
+  // händelserna sedan förra ritade läget
+  const forra = ritadeNr().filter(n => n < S.nr).pop();
+  const t0 = forra != null ? S.dok.lagen[forra].t : -1;
+  const h = S.u.mellan(t0, l.t);
+  el('handelser').innerHTML = (h.length ? h.map(x => `<div><span class="t">${x.t != null ? fmtT(x.t) : ''}</span>${esc(x.text)}${x.osaker ? ` <span class="varn">(osäker: ${esc(x.osaker)})</span>` : ''}</div>`).join('') : '<span class="dim">inga</span>')
+    + `<div class="dim" style="margin-top:4px">${forra != null ? `sedan läge ${forra} (${fmtT(t0)} s)` : 'från början'}</div>`;
+  // mot händelsefacit
+  const v = S.u.vantat(l.t), dom = Hd.jamfor(l.kort, v, { raknat: S.raknat });
+  el('kontrollrubrik').innerHTML = dom.ok ? '<span class="ok">stämmer</span>' : `<span class="felt">${dom.avvikelser.length} avvikelser</span>`;
+  el('kontroll').innerHTML = (dom.ok ? '<span class="ok">Antalet kort per namn stämmer' + (S.u.sort === 'handelser' ? ', liksom tappade och fästa' : '') + '.</span>' : dom.avvikelser.map(a => `<div class="felt">${esc(Hd.avvikelseText(a))}</div>`).join(''))
+    + (S.u.sort === 'steg' ? `<div class="dim" style="margin-top:4px">${v.fonster ? `manusrad ${v.fonster[0]}–${v.fonster[1]} möjliga` : ''}${dom.rad ? ` · stämmer bäst med rad ${dom.rad}: ${esc(dom.text || '')}` : ''}</div>` : '');
+  // lägesremsan
+  el('lagen').innerHTML = S.u.forslag.map((x, i) => {
+    const nr = i + 1, r = S.dok.lagen[nr];
+    let c = '';
+    if (r) {
+      c = r.klar ? 'klar' : 'ritad';
+      const cache = S.cache.get(nr);   // tappade bara där läget redan är uträknat — annars räknas alla lägen om vid varje ändring
+      if (!Hd.jamfor(r.kort, S.u.vantat(r.t), cache ? { raknat: cache.raknat } : { utanTapp: true }).ok) c += ' avv';
+    }
+    return `<span class="${c}${nr === S.nr ? ' nu' : ''}" data-nr="${nr}" title="${fmtT(x.t)} s · ${esc(x.etikett)}">${nr}</span>`;
+  }).join('');
+  for (const s of el('lagen').children) s.onclick = () => gaTill(+s.dataset.nr);
+}
+function oppnaLage(nr) {
+  S.nr = nr; S.temp = null;
+  if (!S.dok.lagen[nr]) {
+    const forra = ritadeNr().filter(n => n < nr).pop();
+    const kort = forra != null ? kopia(S.dok.lagen[forra].kort) : [];
+    for (const k of kort) if (k.fast != null && !kort.some(o => o.id === k.fast)) delete k.fast;
+    const f = S.u.forslag[nr - 1];
+    S.temp = { nr, t: f.t, forslag: f.t, kort };
+    fastUrFacit();
+  }
+  if (S.vald != null && !kortId(S.vald)) S.vald = null;
+  S.cache.delete(nr); raknaOm(); visa(); laddaLagesbild();
+}
+function gaTill(nr) {
+  if (!S.kalla || S.kalla.sort !== 'video') return;
+  nr = Math.max(1, Math.min(S.u.forslag.length, nr));
+  if (nr === S.nr) return;
+  S.vantar = null;
+  oppnaLage(nr);
+}
+function flyttaTid(d) {
+  if (!S.kalla || S.kalla.sort !== 'video') return;
+  andra(() => { const l = lageNu(); l.t = Math.max(0, Math.round((l.t + d) * 100) / 100); fastUrFacit(); });
+  laddaLagesbildSnart();
+}
+function klar() {
+  if (!S.kalla || S.kalla.sort !== 'video') return;
+  andra(() => { const l = lageNu(); l.klar = !l.klar; });
+  melding(lageNu().klar ? `läge ${S.nr} klart` : `läge ${S.nr} inte klart`);
+}
+let bildTimer, bildNr = 0;
+function laddaLagesbildSnart() { clearTimeout(bildTimer); bildTimer = setTimeout(laddaLagesbild, 150); }
+function laddaLagesbild() {
+  const l = lageNu(); if (!l) return;
+  const nr = ++bildNr;
+  el('laddar').hidden = false;
+  laddaBild(`/api/ruta?kalla=${encodeURIComponent(S.kalla.id)}&t=${l.t}`).then(img => {
+    if (nr !== bildNr) return;
+    el('laddar').hidden = true;
+    const forst = !S.W;
+    S.bild = img; S.W = img.naturalWidth; S.H = img.naturalHeight;
+    if (forst) { helaBilden(); S.cache.clear(); raknaOm(); visa(); }
+    ritaSnart();
+  }).catch(e => { if (nr === bildNr) { el('laddar').hidden = true; melding('rutan gick inte att hämta: ' + e.message, true); } });
+}
+
+/* ── Öppna en källa ───────────────────────────────────────────────────── */
+function laddaBild(url) {
+  return new Promise((ok, fel) => { const img = new Image(); img.onload = () => ok(img); img.onerror = () => fel(new Error(url)); img.src = url; });
+}
+const redigerbar = k => { const o = { id: k.id, namn: k.namn, horn: k.horn, z: k.z }; if (k.fast != null) o.fast = k.fast; if (k.zon) o.zon = k.zon; return o; };
+async function oppna(varde) {
+  if (osparat() && !confirm('Det finns osparade ändringar (utkastet ligger kvar i webbläsaren). Byta ändå?')) { el('kalla').value = `${S.kalla.sort}:${S.kalla.id}`; return; }
+  const [sort, id] = [varde.slice(0, varde.indexOf(':')), varde.slice(varde.indexOf(':') + 1)];
+  try { localStorage.setItem('mesa-rita:senast', varde); } catch (e) {}
+  Object.assign(S, { bild: null, W: 0, H: 0, dok: null, filDok: '', vald: null, vantar: null, undo: [], redo: [], temp: null, u: null, facit: null, raknat: {}, forslag: {}, nastaNamn: null });
+  S.cache.clear(); el('utkast').hidden = true; ritaSnart();
+  if (sort === 'foto') {
+    const k = S.kallor.foton.find(f => f.id === id);
+    S.kalla = Object.assign({ sort }, k);
+    const facit = JSON.parse(await fetch(`fall/${id}/facit.json`, { cache: 'no-store' }).then(r => r.text()));
+    S.facit = facit; S.grund = (facit.ruta && facit.ruta.upp) || 'v';
+    S.checklista = (facit.kort || []).map(x => x.namn).concat(facit.avskurna || []).filter(Boolean);
+    const ritat = facit.rita ? (facit.kort || []).filter(x => x.horn).concat(facit.rita.ovriga || []) : [];
+    S.dok = { kort: ritat.map(redigerbar), lada: facit.rita ? facit.rita.lada !== false : true };
+    S.filDok = JSON.stringify(S.dok);
+    el('lada').checked = S.dok.lada; el('ladaval').hidden = false;
+    el('kallinfo').innerHTML = `<b>${esc(id)}</b> · ritas på ${esc(k.original || k.fallbild)}${k.not ? `<div class="varn">${esc(k.not)}</div>` : ''}${facit.rita ? '' : '<div class="dim">inte ritat än — facit är en namnlista</div>'}`;
+    el('laddar').hidden = false;
+    const img = await laddaBild('/' + k.bild);
+    el('laddar').hidden = true;
+    S.bild = img; S.W = img.naturalWidth; S.H = img.naturalHeight;
+    helaBilden(); raknaOm(); visa(); erbjudUtkast();
+  } else {
+    const v = S.kallor.videor.find(x => x.id === id);
+    S.kalla = Object.assign({ sort }, v); S.grund = v.grund || 'v';
+    const txt = f => fetch('/' + f, { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(f); return r.text(); });
+    const filer = v.handelser ? { handelser: await txt(v.handelser) } : { steg: await txt(v.steg), manus: await txt(v.manus) };
+    S.u = Hd.underlag(v, filer, S.lek);
+    let lagen = null;
+    if (v.lagen) lagen = JSON.parse(await txt(v.mapp + '/lagen.json'));
+    S.lagenFil = lagen;
+    S.dok = { lagen: {} };
+    if (lagen) for (const l of lagen.lagen || []) {
+      let nr = l.nr;
+      if (!(nr >= 1 && nr <= S.u.forslag.length)) nr = S.u.forslag.reduce((b, f, i) => Math.abs(f.t - (l.forslag || l.t)) < Math.abs(S.u.forslag[b - 1].t - (l.forslag || l.t)) ? i + 1 : b, 1);
+      S.dok.lagen[nr] = { nr, t: l.t, forslag: l.forslag != null ? l.forslag : S.u.forslag[nr - 1].t, klar: !!l.klar, kort: l.kort.map(redigerbar) };
+    }
+    S.filDok = JSON.stringify(S.dok);
+    el('ladaval').hidden = true;
+    el('kallinfo').innerHTML = `<b>${esc(v.namn)}</b><div class="dim">${esc(v.video)}${v.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · ${S.u.forslag.length} föreslagna lägen · ${lagen ? Object.keys(S.dok.lagen).length + ' ritade' : 'inget ritat än'}</div>`;
+    const forstaOklara = S.u.forslag.findIndex((f, i) => !(S.dok.lagen[i + 1] && S.dok.lagen[i + 1].klar));
+    oppnaLage(forstaOklara < 0 ? 1 : forstaOklara + 1);
+    erbjudUtkast();
+  }
+}
+
+/* ── Spara ────────────────────────────────────────────────────────────── */
+function post(k, r, iKort, medLada) {
+  const o = { namn: String(k.namn).trim(), id: k.id };
+  if (!iKort && r.avskuret) o.avskuret = true;
+  if (k.zon) o.zon = k.zon;
+  if (r.dold) o.dold = true;
+  if (medLada && r.x != null) Object.assign(o, { x: r.x, y: r.y, w: r.w, h: r.h });
+  o.tappad = r.tappad; o.synlig = r.synlig; o.namnrad = r.namnrad;
+  if (r.hog) o.hog = r.hog;
+  if (k.fast != null) o.fast = k.fast;
+  o.z = k.z; o.horn = k.horn;
+  return o;
+}
+function rundade(kort) { const ut = kort.map(k => Object.assign(redigerbar(k), { horn: G.rundaHorn(k.horn) })); normaliseraZ(ut); return ut.sort((a, b) => a.z - b.z); }
+function hinder(kort) {
+  const fel = [];
+  const utan = kort.filter(k => !String(k.namn || '').trim()).length;
+  if (utan) fel.push(`${utan} kort utan namn`);
+  const okanda = kort.map(k => String(k.namn || '').trim()).filter(n => n && G.arLekkort(n) && !S.lek.includes(n));
+  if (okanda.length) fel.push('namn som inte finns i lek.txt: ' + [...new Set(okanda)].join(', '));
+  const ff = G.fastFel(kort, S.W, S.H);
+  if (ff.length) fel.push(ff.map(f => `${f.namn}: ${f.fel}`).join('; '));
+  return fel;
+}
+function byggFacit() {
+  const kort = rundade(S.dok.kort);
+  const r = G.raknaKort(kort, { W: S.W, H: S.H, grund: S.grund });
+  const iKort = [], ovriga = [];
+  for (const k of kort) {
+    const d = r[k.id];
+    if (G.arLekkort(k.namn) && !d.avskuret && !k.zon) iKort.push(post(k, d, true, S.dok.lada)); else ovriga.push(post(k, d, false, false));
+  }
+  const f = kopia(S.facit);
+  f.kort = iKort;
+  f.avskurna = ovriga.filter(k => G.arLekkort(k.namn) && k.avskuret && !k.zon).map(k => k.namn);
+  const rita_ = { version: 1, bild: S.kalla.original ? String(S.kalla.original).replace(/@[\d.]+$/, '') : S.kalla.fallbild };
+  if (S.kalla.t != null && S.kalla.original) rita_.t = S.kalla.t;
+  Object.assign(rita_, { bredd: S.W, hojd: S.H, lada: S.dok.lada, ritad: new Date().toISOString().slice(0, 10), ovriga });
+  f.rita = rita_;
+  return { f, kort };
+}
+function byggLagen() {
+  const nrs = ritadeNr().sort((a, b) => S.dok.lagen[a].t - S.dok.lagen[b].t);
+  let tidigare = {}, anvanda = [], forraT = -1;
+  const lagen = [], allaKort = [];
+  for (const nr of nrs) {
+    const l = S.dok.lagen[nr], kort = rundade(l.kort);
+    const r = G.raknaKort(kort, { W: S.W, H: S.H, grund: S.grund, tidigare, anvanda });
+    lagen.push({ nr, t: l.t, forslag: l.forslag, klar: !!l.klar, handelser: S.u.mellan(forraT, l.t), kort: kort.map(k => post(k, r[k.id], false, true)) });
+    allaKort.push(...kort.map(k => Object.assign({ lage: nr }, k)));
+    tidigare = {}; for (const k of kort) if (r[k.id].hog) tidigare[k.id] = r[k.id].hog;
+    anvanda = [...new Set(anvanda.concat(Object.values(tidigare)))];
+    forraT = l.t;
+  }
+  const v = S.kalla;
+  return { f: {
+    _: 'Facit i stillastående lägen ur en video, ritat i dev/golden/rita.html (MES-286). Ett läge per händelse (eller klump av händelser), med tiden i videons sekunder, händelserna sedan förra ritade läget, och korten: hörnen (andelar av bilden, medsols från namnradens början), z (ordningen, högre = överst) och det framräknade (rita-geometri.cjs). Samma id = samma fysiska kort genom hela filmen. Kontroll: node dev/golden/rita-kontroll.cjs.',
+    kalla: v.id, video: v.video, bredd: S.W, hojd: S.H, grund: S.grund,
+    handelsefacit: v.handelser || [v.steg, v.manus],
+    lagen,
+  }, kort: allaKort, nrs };
+}
+async function spara() {
+  if (!S.dok || !S.W) return;
+  let text, sort, fel = [];
+  if (S.kalla.sort === 'foto') {
+    const { f, kort } = byggFacit();
+    fel = hinder(kort);
+    if (fel.length) { melding('Sparas inte: ' + fel.join(' · '), true); return; }
+    const kvar = {}; for (const n of S.checklista) kvar[n] = (kvar[n] || 0) + 1;
+    for (const k of kort) if (kvar[k.namn]) kvar[k.namn]--;
+    const saknas = Object.entries(kvar).filter(([, n]) => n > 0).map(([n, c]) => c > 1 ? `${n} ×${c}` : n);
+    if (saknas.length && !confirm(`Facit hade kort som inte är ritade: ${saknas.join(', ')}.\nDe försvinner ur facit om du sparar. Spara ändå?`)) return;
+    text = G.formatera(f) + '\n'; sort = 'facit';
+  } else {
+    const { f, kort, nrs } = byggLagen();
+    for (const nr of nrs) { const ff = hinder(S.dok.lagen[nr].kort); if (ff.length) fel.push(`läge ${nr}: ${ff.join(', ')}`); }
+    if (fel.length) { melding('Sparas inte: ' + fel.join(' · '), true); return; }
+    if (!kort.length && !confirm('Inga kort ritade. Spara ändå?')) return;
+    text = G.formatera(f) + '\n'; sort = 'lagen';
+  }
+  const svar = await fetch('/api/spara', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sort, id: S.kalla.id, text }) }).then(r => r.json()).catch(e => ({ fel: e.message }));
+  if (svar.fel) { melding('Sparandet misslyckades: ' + svar.fel, true); return; }
+  if (sort === 'facit') { S.facit = JSON.parse(text); S.kalla.ritad = true; }
+  else S.kalla.lagen = true;
+  S.filDok = JSON.stringify(S.dok);
+  try { localStorage.removeItem(utkastNyckel()); } catch (e) {}
+  visaSparinfo(); fyllKallor();
+  melding(`sparat: ${svar.fil} — kör node dev/golden/rita-kontroll.cjs`);
+}
+el('b-spara').onclick = spara; el('b-spara2').onclick = spara;
+el('lada').onchange = () => andra(() => { S.dok.lada = el('lada').checked; });
+
+let meldTimer;
+function melding(text, fel) {
+  el('melding').textContent = text; el('melding').className = fel ? 'felt' : 'ok';
+  el('status').textContent = text.length > 90 ? text.slice(0, 90) + '…' : text; el('status').className = fel ? 'felt' : '';
+  clearTimeout(meldTimer); meldTimer = setTimeout(() => { el('status').textContent = ''; }, fel ? 10000 : 4000);
+}
+
+/* ── Knapparna ────────────────────────────────────────────────────────── */
+el('b-rita').onclick = () => byt('rita'); el('b-valj').onclick = () => byt('valj'); el('b-las').onclick = lasa;
+el('b-hjalp').onclick = () => { el('hjalp').hidden = !el('hjalp').hidden; };
+el('b-upp').onclick = () => flyttaZ(1); el('b-ner').onclick = () => flyttaZ(-1); el('b-tap').onclick = () => vridValt(90);
+el('b-grav').onclick = () => zon('grav'); el('b-bib').onclick = () => zon('bib'); el('b-bort').onclick = taBort;
+el('b-forra').onclick = () => gaTill(S.nr - 1); el('b-nasta').onclick = () => gaTill(S.nr + 1);
+el('b-bak').onclick = e => flyttaTid(e.shiftKey ? -0.1 : -0.5); el('b-fram').onclick = e => flyttaTid(e.shiftKey ? 0.1 : 0.5);
+el('klar').onchange = () => { klar(); };
+el('kalla').onchange = () => oppna(el('kalla').value).catch(e => melding('gick inte att öppna: ' + e.message, true));
+
+function fyllKallor() {
+  const k = S.kallor, val = el('kalla').value;
+  el('kalla').innerHTML = '<optgroup label="Golden-fall (foton)">' + k.foton.map(f => `<option value="foto:${esc(f.id)}">${f.ritad ? '✓ ' : ''}${esc(f.id)}${f.original ? ' · original' : ''}</option>`).join('') + '</optgroup>'
+    + '<optgroup label="Videor (lägen)">' + k.videor.map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id)}${v.finns ? '' : ' (videon saknas)'}</option>`).join('') + '</optgroup>';
+  if (val) el('kalla').value = val;
+}
+async function start() {
+  visaTips();
+  const [kallor, lek, typer] = await Promise.all([
+    fetch('/api/kallor').then(r => r.json()),
+    fetch('lek.txt').then(r => r.text()),
+    fetch('rita-typer.json').then(r => r.json()).catch(() => ({ typer: {} })),
+  ]);
+  S.kallor = kallor; S.typer = typer.typer || {};
+  S.lek = lek.split(/\r?\n/).map(s => s.trim()).filter(s => s && !s.startsWith('#')).map(s => s.replace(/^\d+\s*[xX]?\s+/, ''));
+  S.allaNamn = S.lek.concat(['token Soldier', 'token Rebel', 'baksida']);
+  fyllKallor();
+  let forst = new URLSearchParams(location.search).get('kalla');
+  try { forst = forst || localStorage.getItem('mesa-rita:senast'); } catch (e) {}
+  const alla = [...el('kalla').options].map(o => o.value);
+  if (!forst || !alla.includes(forst)) forst = alla[0];
+  el('kalla').value = forst;
+  await oppna(forst);
+}
+start().catch(e => melding('start: ' + e.message, true));
+window.ritaFels = { S, V, G, Hd, oppna, spara, byggFacit, byggLagen, andra, efter };   // för felsökning från konsolen (window.rita är ritfunktionen)
+</script>
+</body>
+</html>

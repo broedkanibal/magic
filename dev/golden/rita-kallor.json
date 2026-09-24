@@ -1,0 +1,32 @@
+{
+  "_": "Källorna i ritverktyget (MES-286), läses av rita-server.cjs och rita-kontroll.cjs. foton: golden-fall som ritas på originalet där det finns (bilden eller en ruta ur en video vid t sekunder) — koordinaterna är andelar, så de gäller också fallets nerskalade bild.jpg. Fall som inte står här ritas på sin bild.jpg. ordning: fallen först i listan, i den ordning de är värda mest. videor: en lagen.json per källa i mappen; handelser (passet) eller steg + manus (MES-246) är händelsefacit. grund: 'v' = ett otappat kort står lodrätt i bilden.",
+  "ordning": ["03", "04", "05", "06", "14", "15", "16", "13"],
+  "foton": {
+    "13-svartmatta-lampa-40cm-10kort-tokens": {
+      "video": "dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov",
+      "t": 171.8,
+      "kalla": "mes-246",
+      "not": "golden 13 är de första 172 s av MES-246 med samma utsnitt; bild.jpg är rutan vid 171,8 s"
+    },
+    "14-tra-lampa-50cm-11kort-omlott": { "bild": "dev/material/foton/2026-09-20-ljust-tra-varmt-ljus-plastfickor/omlott-ljus1.jpg" },
+    "15-tra-dagsljus-50cm-11kort-omlott": { "bild": "dev/material/foton/2026-09-20-ljust-tra-varmt-ljus-plastfickor/omlott-ljus2.jpg" },
+    "16-tra-lampa-50cm-8kort": { "bild": "dev/material/foton/2026-09-20-ljust-tra-varmt-ljus-plastfickor/utspridd.jpg" }
+  },
+  "videor": {
+    "mes-246": {
+      "namn": "MES-246 — kameraappen i 4K 60, vidvinkel, Jespers manus (tokens, landhögar, fäst)",
+      "video": "dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov",
+      "mapp": "dev/golden/inspelningar/mes-246",
+      "grund": "v",
+      "steg": "dev/golden/inspelningar/mes-246/facit-slapp.json",
+      "manus": "dev/golden/inspelningar/mes-246/kort.txt"
+    },
+    "2026-09-22-1x-34cm-normaltempo": {
+      "namn": "Passet 2026-09-22 — skärminspelning av kameravyn, 1x, 34 cm, normalt tempo",
+      "video": "dev/material/inspelningar/2026-09-22-1x-34cm-normaltempo/kamera.mp4",
+      "mapp": "dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo",
+      "grund": "v",
+      "handelser": "dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo/handelser.tsv"
+    }
+  }
+}
