@@ -365,7 +365,10 @@ function raknaOm() {
   const kort = kortNu();
   /* Ett namnlöst kort i zonen bib är leken själv (ritat före 2026-09-24, då
      B bara satte zonen): det heter library. */
-  for (const k of kort) if (k.zon === 'bib' && !String(k.namn || '').trim()) k.namn = 'library';
+  for (const k of kort) {
+    if (k.zon === 'bib' && !String(k.namn || '').trim()) k.namn = 'library';
+    if (G.arLibrary(k.namn)) { k.namn = 'library'; k.zon = 'bib'; }   // skrivet för hand, i vilken stavning som helst
+  }
   S.raknat = S.kalla.sort === 'foto' ? G.raknaKort(kort, { W: S.W, H: S.H, grund: S.grund }) : raknaLage(S.nr).raknat;
   S.forslag = G.fastForslag(kort, S.W, S.H, S.typer);
 }
