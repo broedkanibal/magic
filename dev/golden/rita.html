@@ -1006,6 +1006,8 @@ el('kalla').onchange = () => oppna(el('kalla').value).catch(e => melding('gick i
 
 function fyllKallor() {
   const k = S.kallor, val = el('kalla').value;
+  const isort = (a, b) => a.id.localeCompare(b.id, 'sv', { numeric: true });
+  k.foton = [...k.foton].sort(isort); k.videor = [...k.videor].sort(isort);
   el('kalla').innerHTML = '<optgroup label="Golden-fall (foton)">' + k.foton.map(f => `<option value="foto:${esc(f.id)}">${f.ritad ? '✓ ' : ''}${esc(f.id)}${f.original ? ' · original' : ''}</option>`).join('') + '</optgroup>'
     + '<optgroup label="Videor (lägen)">' + k.videor.map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id)}${v.finns ? '' : ' (videon saknas)'}</option>`).join('') + '</optgroup>';
   if (val) el('kalla').value = val;
