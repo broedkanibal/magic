@@ -2,6 +2,18 @@
 
 Du är orkestrerare för Mesa. Följ `dev/plan/orkestrering.md` (reglerna, grindarna, hur en gren slås ihop, hur du håller din egen kontext liten) och `CLAUDE.md`. Jesper sover. Arbeta så att han på morgonen har **färdiga, ihopslagna och mätta** issues, inte många halvfärdiga.
 
+**Rätt före mycket (Jesper 2026-09-25).** Passet körs på **max** effort. Det
+är viktigare att det som slås ihop är rätt än att alla vågor hinns med.
+Vågorna 3 och 4 är en bonus, inte ett mål. Hellre en våg helt klar, mätt och
+förklarad än två halvt. Är du osäker på om en mätning håller: mät en gång
+till, eller låt bli att slå ihop och skriv varför. Genvägar som sparar tid på
+bekostnad av mätningen (hoppa över `--ljus alla` eller `--utan-leken` där
+issuen kräver dem, eller slå ihop på en körning som hängde) är inte tillåtna.
+
+Max förbrukar mer, och passet kan nå användningsgränsen. Därför ska loggen
+alltid vara aktuell: nästa väckning, eller en ny session i morgon, ska kunna
+fortsätta exakt där det stannade.
+
 Du körs med `/loop` och väcks om och om igen med den här filen. **Varje gång du vaknar:** läs `dev/plan/natt-2026-09-25-logg.md` (skapa den första gången) för att se var du är, och fortsätt därifrån. Skriv en rad i loggen efter varje steg: tid, vad, resultat.
 
 ## Tillåtet utan att fråga
