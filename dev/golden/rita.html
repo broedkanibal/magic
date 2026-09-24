@@ -256,7 +256,8 @@ function efter() {
    läget och alla efter det inaktuella, inget före. */
 function tomCache() {
   if (!S.kalla || S.kalla.sort !== 'video') { S.cache.clear(); return; }
-  for (const nr of [...S.cache.keys()]) if (nr >= S.nr) S.cache.delete(nr);
+  const l = lageNu();
+  for (const nr of [...S.cache.keys()]) { const x = S.dok.lagen[nr]; if (nr === S.nr || !x || !l || foreITid(l, x)) S.cache.delete(nr); }
 }
 function andra(fn) { fore(); fn(); efter(); }
 function aterstall(snap) {
@@ -298,11 +299,19 @@ function erbjudUtkast() {
    I en video beror högarnas bokstäver på läget före, så lägena räknas i
    ordning och sparas i en cache som töms vid varje ändring. */
 function ritadeNr() { return Object.keys(S.dok.lagen).map(Number).sort((a, b) => a - b); }
+/* Lägena i tidsordning (lika tid: lägesnumret) — samma ordning som
+   rita-kontroll.cjs och lagen.json. foreITid(a, b): a ligger före b. */
+const foreITid = (a, b) => a.t < b.t || (a.t === b.t && a.nr < b.nr);
+function forraRitade(l) {
+  let bast = null;
+  for (const x of Object.values(S.dok.lagen)) if (x !== l && x.nr !== l.nr && foreITid(x, l) && (!bast || foreITid(bast, x))) bast = x;
+  return bast;
+}
 function raknaLage(nr) {
   if (S.cache.has(nr)) return S.cache.get(nr);
-  const fore_ = ritadeNr().filter(n => n < nr).pop();
-  const f = fore_ != null ? raknaLage(fore_) : { raknat: {}, anvanda: [] };
   const l = S.dok.lagen[nr] || (nr === S.nr ? S.temp : null);
+  const forra = l ? forraRitade(l) : null;
+  const f = forra ? raknaLage(forra.nr) : { raknat: {}, anvanda: [] };
   const tidigare = {};
   for (const [id, r] of Object.entries(f.raknat)) if (r.hog) tidigare[id] = r.hog;
   const raknat = l ? G.raknaKort(l.kort, { W: S.W, H: S.H, grund: S.grund, tidigare, anvanda: f.anvanda }) : {};
@@ -729,12 +738,12 @@ function visaLage() {
   el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length}${S.dok.lagen[S.nr] ? '' : ' · inte ritat (kopia av förra)'}`;
   el('lagestid').innerHTML = `${fmtT(l.t)} s${Math.abs(l.t - f.t) > 0.001 ? ` (föreslaget ${fmtT(f.t)})` : ''} · <span class="dim">${esc(f.etikett)}</span>`;
   el('klar').checked = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
-  // händelserna sedan förra ritade läget
-  const forra = ritadeNr().filter(n => n < S.nr).pop();
-  const t0 = forra != null ? S.dok.lagen[forra].t : -1;
+  // händelserna sedan förra ritade läget (i tid — som i lagen.json)
+  const forra = forraRitade(l);
+  const t0 = forra ? forra.t : -1;
   const h = S.u.mellan(t0, l.t);
   el('handelser').innerHTML = (h.length ? h.map(x => `<div><span class="t">${x.t != null ? fmtT(x.t) : ''}</span>${esc(x.text)}${x.osaker ? ` <span class="varn">(osäker: ${esc(x.osaker)})</span>` : ''}</div>`).join('') : '<span class="dim">inga</span>')
-    + `<div class="dim" style="margin-top:4px">${forra != null ? `sedan läge ${forra} (${fmtT(t0)} s)` : 'från början'}</div>`;
+    + `<div class="dim" style="margin-top:4px">${forra ? `sedan läge ${forra.nr} (${fmtT(t0)} s)` : 'från början'}</div>`;
   // mot händelsefacit
   const v = S.u.vantat(l.t), dom = Hd.jamfor(l.kort, v, { raknat: S.raknat });
   el('kontrollrubrik').innerHTML = dom.ok ? '<span class="ok">stämmer</span>' : `<span class="felt">${dom.avvikelser.length} avvikelser</span>`;
@@ -776,6 +785,7 @@ function gaTill(nr) {
 function flyttaTid(d) {
   if (!S.kalla || S.kalla.sort !== 'video') return;
   andra(() => { const l = lageNu(); l.t = Math.max(0, Math.round((l.t + d) * 100) / 100); fastUrFacit(); });
+  S.cache.clear(); raknaOm(); visa();   // tiden kan ha flyttat läget förbi ett annat: hela kedjan räknas om
   laddaLagesbildSnart();
 }
 function klar() {
@@ -892,7 +902,7 @@ function byggFacit() {
   return { f, kort };
 }
 function byggLagen() {
-  const nrs = ritadeNr().sort((a, b) => S.dok.lagen[a].t - S.dok.lagen[b].t);
+  const nrs = ritadeNr().sort((a, b) => foreITid(S.dok.lagen[a], S.dok.lagen[b]) ? -1 : 1);
   let tidigare = {}, anvanda = [], forraT = -1;
   const lagen = [], allaKort = [];
   for (const nr of nrs) {
