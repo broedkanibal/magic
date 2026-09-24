@@ -874,10 +874,19 @@ gröna bandet på det valda kortet är namnraden.
 | F · ⇧F | fäst vid förslaget · lossa |
 | G · B | kortet ligger i graveyard · i library (räknas inte som kort i spel) |
 | ⌫ | ta bort det valda kortet |
+| R | vrid **visningen** 90° så att korten går att läsa i en bild som är tagen på tvären. Bara visningen: hörnen sparas i bildens egen riktning |
 | 0 · 1 · + − | hela bilden · 100 % · zooma (nyp eller ⌘-hjul zoomar mot pekaren, två fingrar panorerar) |
 | ⌘S · ⌘Z · ⇧⌘Z | spara till repot · ångra · gör om |
 | [ ] · ← → · D | video: förra/nästa läge · flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) · läget är klart |
 | ? | alla tangenter |
+
+**Bilder tagna på tvären** (03, 05, 06: korten ligger vågrätt i bilden fast
+de är otappade). Igenkänningen bryr sig inte — kameran vrider varje kort
+efter kortets egen axel. Det som påverkas är **tap-läget**, som mäts mot
+grundläget. Välj därför *otappade kort ligger: vågrätt i bilden (h)* i
+panelen; det skrivs som `ruta.upp` i facit, samma grundläge som kameran får
+i golden. Räknas de flesta kort som tappade varnar verktyget. Tryck R tills
+korten går att läsa.
 
 Namn: lekens (ur `lek.txt`), `token Soldier` (eller annan typ) och
 `baksida`. Fallets egen namnlista står som en checklista; ett klick på ett

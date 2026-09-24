@@ -84,6 +84,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <button id="b-valj" type="button" title="Klick väljer (igen = kortet under), dra flyttar, ⌥-dra vrider">Välj<kbd>V</kbd></button>
     <button id="b-las" type="button" title="Nya kort får samma storlek som de som redan ritats — bara riktningen tas ur klicken">Lås storlek<kbd>L</kbd></button>
     <button id="b-spara" type="button" class="primar">Spara<kbd>⌘S</kbd></button>
+    <button id="b-vrid" type="button" title="Vrid bara visningen 90° så att korten går att läsa — facit påverkas inte">Vrid vyn<kbd>R</kbd></button>
     <button id="b-hjalp" type="button">Tangenter<kbd>?</kbd></button>
     <span id="info">–</span>
   </div>
@@ -138,6 +139,8 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
 
   <h2>Spara</h2>
   <div class="ruta">
+    <label class="val" id="grundval" title="Grundläget: hur ett OTAPPAT kort ligger i bilden. Tappat = namnraden mer än 45° därifrån. Skrivs som ruta.upp i facit — samma grundläge som kameran får i golden."><span>otappade kort ligger</span> <select id="grund"><option value="v">lodrätt i bilden (v)</option><option value="h">vågrätt i bilden (h)</option></select></label>
+    <div id="grundvarning" class="varn" hidden style="margin:4px 0 6px"></div>
     <label class="val" id="ladaval" title="Jespers beslut: lådan runt kortets synliga del skrivs i facit, så att golden mäter plats och tap-läge i fallet. Ändrar baslinjen."><input type="checkbox" id="lada" checked> skriv lådan x/y/w/h i facit (golden mäter plats och tap)</label>
     <div class="rad" style="margin-top:6px"><button type="button" id="b-spara2" class="primar">Spara till repot<kbd>⌘S</kbd></button><span id="sparinfo" class="dim"></span></div>
     <div id="melding"></div>
@@ -159,6 +162,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>[ ]</td><td>video: förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort, med samma id</td></tr>
     <tr><td>← →</td><td>video: flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) — om en hand syns</td></tr>
     <tr><td>D</td><td>video: läget är ritat klart</td></tr>
+    <tr><td>R</td><td>vrid visningen 90° så att korten går att läsa. Bara visningen — hörnen sparas i bildens egna riktning</td></tr>
     <tr><td>0 · 1 · + −</td><td>hela bilden · 100 % · zooma. Nyp eller ⌘/ctrl-hjul zoomar mot pekaren, hjul/två fingrar panorerar, mellanslag-dra eller högerdra panorerar</td></tr>
     <tr><td>⌘S · ⌘Z · ⇧⌘Z</td><td>spara till repot · ångra · gör om. Utkastet sparas i webbläsaren hela tiden</td></tr>
     <tr><td>Esc</td><td>avbryt ett påbörjat kort, avmarkera</td></tr>
@@ -199,7 +203,7 @@ const S = {
 };
 
 /* ── Vyn ──────────────────────────────────────────────────────────────── */
-const V = { s: 1, ox: 0, oy: 0 };
+const V = { s: 1, ox: 0, oy: 0, rot: 0 };
 let dpr = 1;
 function passaCanvas() {
   const b = duk.getBoundingClientRect();
@@ -209,13 +213,18 @@ function passaCanvas() {
   ritaSnart();
 }
 new ResizeObserver(passaCanvas).observe(duk);
+/* Vyn kan vridas i steg om 90° (R) så att korten går att läsa. Det är bara
+   visningen: hörnen sparas alltid i bildens egna andelar. rot är antal
+   kvartsvarv medsols; vW, vH är den vridna bildens mått. */
+const vW = () => V.rot % 2 ? S.H : S.W, vH = () => V.rot % 2 ? S.W : S.H;
 function helaBilden() {
   if (!S.W) return;
   const b = duk.getBoundingClientRect();
-  V.s = Math.min(b.width / S.W, b.height / S.H) * 0.98;
-  V.ox = (b.width - S.W * V.s) / 2; V.oy = (b.height - S.H * V.s) / 2;
+  V.s = Math.min(b.width / vW(), b.height / vH()) * 0.98;
+  V.ox = (b.width - vW() * V.s) / 2; V.oy = (b.height - vH() * V.s) / 2;
   ritaSnart();
 }
+function vridVyn() { V.rot = (V.rot + 1) % 4; try { localStorage.setItem(`mesa-rita:vy:${S.kalla.sort}:${S.kalla.id}`, V.rot); } catch (e) {} helaBilden(); visaInfo(); }
 function zooma(f, px, py) {
   const b = duk.getBoundingClientRect();
   if (px == null) { px = b.width / 2; py = b.height / 2; }
@@ -223,8 +232,10 @@ function zooma(f, px, py) {
   V.ox = px - (px - V.ox) * ny / V.s; V.oy = py - (py - V.oy) * ny / V.s; V.s = ny;
   ritaSnart();
 }
-const skarm = ([x, y]) => [V.ox + x * S.W * V.s, V.oy + y * S.H * V.s];
-const andel = ([sx, sy]) => [(sx - V.ox) / (V.s * S.W), (sy - V.oy) / (V.s * S.H)];
+function tillVy(px, py) { return V.rot === 1 ? [S.H - py, px] : V.rot === 2 ? [S.W - px, S.H - py] : V.rot === 3 ? [py, S.W - px] : [px, py]; }
+function franVy(rx, ry) { return V.rot === 1 ? [ry, S.H - rx] : V.rot === 2 ? [S.W - rx, S.H - ry] : V.rot === 3 ? [S.W - ry, rx] : [rx, ry]; }
+const skarm = ([x, y]) => { const [rx, ry] = tillVy(x * S.W, y * S.H); return [V.ox + rx * V.s, V.oy + ry * V.s]; };
+const andel = ([sx, sy]) => { const [px, py] = franVy((sx - V.ox) / V.s, (sy - V.oy) / V.s); return [px / S.W, py / S.H]; };
 function pek(e) { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
 
 /* ── Kort i den aktuella bilden ───────────────────────────────────────── */
@@ -262,6 +273,7 @@ function tomCache() {
 function andra(fn) { fore(); fn(); efter(); }
 function aterstall(snap) {
   const o = JSON.parse(snap); S.dok = o.dok; S.temp = o.temp;
+  if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; }
   const byt = o.nr !== S.nr; S.nr = o.nr;
   if (S.vald != null && !kortId(S.vald)) S.vald = null;
   S.cache.clear(); sparaUtkastSnart(); raknaOm(); visa();
@@ -291,7 +303,7 @@ function erbjudUtkast() {
   const n = u.dok.kort ? u.dok.kort.length + ' kort' : Object.keys(u.dok.lagen || {}).length + ' lägen';
   ruta.innerHTML = `Det finns ett osparat utkast från ${new Date(u.tid).toLocaleString('sv-SE')} (${n}). <div class="rad" style="margin-top:6px"><button type="button" id="u-ja">Återställ utkastet</button><button type="button" id="u-nej">Kasta det</button></div>`;
   ruta.hidden = false;
-  el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; S.vald = null; S.cache.clear(); ruta.hidden = true; raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
+  el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; } S.vald = null; S.cache.clear(); ruta.hidden = true; raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
   el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} ruta.hidden = true; };
 }
 
@@ -344,7 +356,12 @@ function rita() {
   cx.fillStyle = '#0d1015'; cx.fillRect(0, 0, W, H);
   if (!S.bild) { cx.fillStyle = '#5b6573'; cx.font = '13px ui-monospace, Menlo, monospace'; cx.textAlign = 'center'; cx.fillText(S.kalla ? 'hämtar bilden…' : 'välj ett fall eller en video', W / 2, H / 2); cx.textAlign = 'left'; return; }
   cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
-  cx.drawImage(S.bild, V.ox, V.oy, S.W * V.s, S.H * V.s);
+  cx.save(); cx.translate(V.ox, V.oy); cx.scale(V.s, V.s);
+  if (V.rot === 1) { cx.translate(S.H, 0); cx.rotate(Math.PI / 2); }
+  else if (V.rot === 2) { cx.translate(S.W, S.H); cx.rotate(Math.PI); }
+  else if (V.rot === 3) { cx.translate(0, S.W); cx.rotate(-Math.PI / 2); }
+  cx.drawImage(S.bild, 0, 0, S.W, S.H);
+  cx.restore();
   const kort = kortNu().slice().sort((a, b) => a.z - b.z);
   const poly = new Map(kort.map(k => [k.id, k.horn.map(skarm)]));
   // 1. hela konturen streckad — det som ligger under ett annat kort syns bara så
@@ -476,7 +493,8 @@ cv.addEventListener('pointermove', e => {
     const j = (drag.i + 2) % 4, h = G.hornUrPar(drag.i, andel(p), j, drag.urspr[j], S.W, S.H, S.las ? G.bredd(drag.urspr, S.W, S.H) : null);
     if (h) k.horn = h;
   } else if (drag.typ === 'flytta') {
-    k.horn = G.flytta(drag.urspr, (p[0] - drag.start[0]) / (V.s * S.W), (p[1] - drag.start[1]) / (V.s * S.H));
+    const a0 = andel(drag.start), a1 = andel(p);
+    k.horn = G.flytta(drag.urspr, a1[0] - a0[0], a1[1] - a0[1]);
   } else if (drag.typ === 'vrid') {
     const m = skarm(G.mitt(drag.urspr));
     const a0 = Math.atan2(drag.start[1] - m[1], drag.start[0] - m[0]), a1 = Math.atan2(p[1] - m[1], p[0] - m[0]);
@@ -654,6 +672,7 @@ window.addEventListener('keydown', e => {
     case 'g': case 'G': zon('grav'); break;
     case 'b': case 'B': zon('bib'); break;
     case '0': helaBilden(); break;
+    case 'r': case 'R': vridVyn(); break;
     case '1': { const b = duk.getBoundingClientRect(); zooma(1 / V.s, b.width / 2, b.height / 2); break; }
     case '+': case '=': zooma(1.25); break;
     case '-': zooma(0.8); break;
@@ -676,10 +695,18 @@ function visaTips() {
 /* ── Panelen ──────────────────────────────────────────────────────────── */
 function visa() {
   if (!S.dok) return;
-  visaValt(); visaLista(); visaCheck(); visaLage(); visaSparinfo(); visaInfo(); ritaSnart();
+  visaValt(); visaLista(); visaCheck(); visaLage(); visaSparinfo(); visaInfo(); visaGrundvarning(); ritaSnart();
+}
+/* De flesta kort tappade = nästan alltid fel grundläge: bilden är tagen på
+   tvären, och ett otappat kort ligger vågrätt i den. */
+function visaGrundvarning() {
+  const r = Object.values(S.raknat), t = r.filter(x => x.tappad).length;
+  const v = S.kalla && S.kalla.sort === 'foto' && r.length >= 3 && t > r.length / 2;
+  el('grundvarning').hidden = !v;
+  if (v) el('grundvarning').textContent = `${t} av ${r.length} kort räknas som tappade. Ligger otappade kort ${S.grund === 'v' ? 'vågrätt' : 'lodrätt'} i bilden? Byt grundläget ovanför.`;
 }
 function visaInfo() {
-  el('info').textContent = S.W ? `${S.W}×${S.H} · ${Math.round(V.s * 100)} % · ${S.lage === 'rita' ? 'Rita' : 'Välj'}${S.las ? ' · låst' : ''}` : '–';
+  el('info').textContent = S.W ? `${S.W}×${S.H} · ${Math.round(V.s * 100)} %${V.rot ? ` · vyn ${V.rot * 90}°` : ''} · ${S.lage === 'rita' ? 'Rita' : 'Välj'}${S.las ? ' · låst' : ''}` : '–';
 }
 function visaLista() {
   const kort = kortNu().slice().sort((a, b) => b.z - a.z);
@@ -824,12 +851,14 @@ async function oppna(varde) {
     const k = S.kallor.foton.find(f => f.id === id);
     S.kalla = Object.assign({ sort }, k);
     const facit = JSON.parse(await fetch(`fall/${id}/facit.json`, { cache: 'no-store' }).then(r => r.text()));
-    S.facit = facit; S.grund = (facit.ruta && facit.ruta.upp) || 'v';
+    S.facit = facit; S.grund = (facit.ruta && facit.ruta.upp) === 'h' ? 'h' : 'v';
     S.checklista = (facit.kort || []).map(x => x.namn).concat(facit.avskurna || []).filter(Boolean);
     const ritat = facit.rita ? (facit.kort || []).filter(x => x.horn).concat(facit.rita.ovriga || []) : [];
-    S.dok = { kort: ritat.map(redigerbar), lada: facit.rita ? facit.rita.lada !== false : true };
+    S.dok = { kort: ritat.map(redigerbar), lada: facit.rita ? facit.rita.lada !== false : true, grund: S.grund };
     S.filDok = JSON.stringify(S.dok);
     el('lada').checked = S.dok.lada; el('ladaval').hidden = false;
+    el('grund').value = S.grund; el('grundval').hidden = false;
+    try { V.rot = +(localStorage.getItem(`mesa-rita:vy:foto:${id}`) || 0) % 4; } catch (e) { V.rot = 0; }
     el('kallinfo').innerHTML = `<b>${esc(id)}</b> · ritas på ${esc(k.original || k.fallbild)}${k.not ? `<div class="varn">${esc(k.not)}</div>` : ''}${facit.rita ? '' : '<div class="dim">inte ritat än — facit är en namnlista</div>'}`;
     el('laddar').hidden = false;
     const img = await laddaBild('/' + k.bild);
@@ -839,6 +868,8 @@ async function oppna(varde) {
   } else {
     const v = S.kallor.videor.find(x => x.id === id);
     S.kalla = Object.assign({ sort }, v); S.grund = v.grund || 'v';
+    el('grundval').hidden = true;
+    try { V.rot = +(localStorage.getItem(`mesa-rita:vy:video:${id}`) || 0) % 4; } catch (e) { V.rot = 0; }
     const txt = f => fetch('/' + f, { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(f); return r.text(); });
     const filer = v.handelser ? { handelser: await txt(v.handelser) } : { steg: await txt(v.steg), manus: await txt(v.manus) };
     S.u = Hd.underlag(v, filer, S.lek);
@@ -894,6 +925,7 @@ function byggFacit() {
   }
   const f = kopia(S.facit);
   f.kort = iKort;
+  f.ruta = Object.assign({}, f.ruta || {}, { upp: S.grund });
   f.avskurna = ovriga.filter(k => G.arLekkort(k.namn) && k.avskuret && !k.zon).map(k => k.namn);
   const rita_ = { version: 1, bild: S.kalla.original ? String(S.kalla.original).replace(/@[\d.]+$/, '') : S.kalla.fallbild };
   if (S.kalla.t != null && S.kalla.original) rita_.t = S.kalla.t;
@@ -952,6 +984,7 @@ async function spara() {
 }
 el('b-spara').onclick = spara; el('b-spara2').onclick = spara;
 el('lada').onchange = () => andra(() => { S.dok.lada = el('lada').checked; });
+el('grund').onchange = () => andra(() => { S.dok.grund = S.grund = el('grund').value; });
 
 let meldTimer;
 function melding(text, fel) {
@@ -962,6 +995,7 @@ function melding(text, fel) {
 
 /* ── Knapparna ────────────────────────────────────────────────────────── */
 el('b-rita').onclick = () => byt('rita'); el('b-valj').onclick = () => byt('valj'); el('b-las').onclick = lasa;
+el('b-vrid').onclick = () => vridVyn();
 el('b-hjalp').onclick = () => { el('hjalp').hidden = !el('hjalp').hidden; };
 el('b-upp').onclick = () => flyttaZ(1); el('b-ner').onclick = () => flyttaZ(-1); el('b-tap').onclick = () => vridValt(90);
 el('b-grav').onclick = () => zon('grav'); el('b-bib').onclick = () => zon('bib'); el('b-bort').onclick = taBort;
