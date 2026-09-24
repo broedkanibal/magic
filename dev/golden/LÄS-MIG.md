@@ -31,6 +31,13 @@ dev/golden/
   LÄS-MIG.md         den här filen
   lek.txt            leken kedjan känner igen mot — ett kortnamn per rad
   markera.html       annoteringsverktyget: ritar facit.json i webbläsaren
+  rita.html          ritverktyget för kort omlott (MES-286): kortens hörn och
+                     ordning; dold, tappad, hög och fäst räknas fram. Startas
+                     med rita-server.cjs; geometrin i rita-geometri.cjs,
+                     videolägena mot händelsefacit i rita-handelser.cjs,
+                     källorna i rita-kallor.json, korttyperna i
+                     rita-typer.json. Kontroll: rita-kontroll.cjs, prov:
+                     rita-prov.cjs. Se SNABBGUIDE.md, *Rita facit*
   kor.html           provkörningen, i webbläsaren
   kor.cjs            samma provkörning från terminalen, i en huvudlös Chrome
   vriden.html/.cjs   skräpfiltret mot kort i vinkel och mot bordet utan kort
@@ -379,6 +386,11 @@ foto* och *Lägga till en video*. Här är detaljerna bakom.
   en kant syns. Det räknas inte i nämnaren — ingen kamera ser det — men
   hittas det ändå räknas det inte som falskt.
 - En post får ha bara `namn`. Då provas namnet men inte platsen.
+- Ett fall ritat i `rita.html` (MES-286) har blocket `rita` (bildens storlek,
+  vilken bild som ritades på, och `ovriga`: tokens, baksidor, avskurna) och
+  per kort `id`, `horn`, `z`, `synlig`, `namnrad`, `hog` och `fast`. kor.html
+  läser inga av dem — bara `namn`, `dold`, `x/y/w/h` och `tappad`, som
+  verktyget räknar fram ur hörnen. `rita-kontroll.cjs` räknar om dem.
 
 ### facit.json för ett videofall
 

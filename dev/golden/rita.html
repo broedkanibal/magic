@@ -739,7 +739,7 @@ function visaLage() {
   const v = S.u.vantat(l.t), dom = Hd.jamfor(l.kort, v, { raknat: S.raknat });
   el('kontrollrubrik').innerHTML = dom.ok ? '<span class="ok">stämmer</span>' : `<span class="felt">${dom.avvikelser.length} avvikelser</span>`;
   el('kontroll').innerHTML = (dom.ok ? '<span class="ok">Antalet kort per namn stämmer' + (S.u.sort === 'handelser' ? ', liksom tappade och fästa' : '') + '.</span>' : dom.avvikelser.map(a => `<div class="felt">${esc(Hd.avvikelseText(a))}</div>`).join(''))
-    + (S.u.sort === 'steg' ? `<div class="dim" style="margin-top:4px">${v.fonster ? `manusrad ${v.fonster[0]}–${v.fonster[1]} möjliga` : ''}${dom.rad ? ` · stämmer bäst med rad ${dom.rad}: ${esc(dom.text || '')}` : ''}</div>` : '');
+    + (S.u.sort === 'steg' ? `<div class="dim" style="margin-top:4px">${!v.fonster ? '' : v.fonster[1] < 1 ? 'före första manusraden' : v.fonster[0] === v.fonster[1] ? `efter manusrad ${v.fonster[0]}` : `efter någon av manusraderna ${Math.max(1, v.fonster[0])}–${v.fonster[1]}`}${dom.rad ? ` · stämmer bäst med rad ${dom.rad}: ${esc(dom.text || '')}` : ''}</div>` : '');
   // lägesremsan
   el('lagen').innerHTML = S.u.forslag.map((x, i) => {
     const nr = i + 1, r = S.dok.lagen[nr];

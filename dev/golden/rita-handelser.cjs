@@ -175,7 +175,7 @@ function underlag(kalla, filer, leknamn) {
       sort: 'handelser', rader,
       forslag: forslagPass(rader),
       mellan: (t0, t1) => rader.filter(r => r.t > t0 + 1e-6 && r.t <= t1 + 1e-6)
-        .map(r => ({ t: r.t, text: `${r.handelse}${sant(r.kort) ? ' ' + r.kort : ''}${sant(r.till) ? ' → ' + r.till : ''}${sant(r.plats) ? ' · ' + r.plats : ''}`, osaker: sant(r.osaker) ? r.osaker : null })),
+        .map(r => Object.assign({ t: r.t, text: `${r.handelse}${sant(r.kort) ? ' ' + r.kort : ''}${sant(r.till) ? ' → ' + r.till : ''}${sant(r.plats) ? ' · ' + r.plats : ''}` }, sant(r.osaker) ? { osaker: r.osaker } : {})),
       vantat: t => { const v = vantatPass(rader, t); return { kandidater: [{ antal: v.antal, tappade: v.tappade, fast: v.fast, rad: null }] }; },
     };
   }

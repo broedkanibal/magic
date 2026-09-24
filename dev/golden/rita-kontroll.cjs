@@ -16,7 +16,10 @@
         "baksida" bara utanför kort[]
      3. i en video: antalet kort per namn i varje läge mot händelsefacit
         (rita-handelser.cjs) — i passet också tappade per namn och fästa par
-   Slutkod 1 vid en enda avvikelse, 2 om något inte gick att läsa.
+   Slutkod 1 vid en enda avvikelse, 2 om något inte gick att läsa. Antalet
+   mot händelsefacit fäller bara lägen som är markerade klara (D i
+   rita.html); i ett halvritat läge skrivs avvikelserna ut med en punkt.
+   Exporten till högbänken tar bara klara lägen.
 
    Med --hogbank skrivs en post per hög (n, tappade), per fäst par (vilket
    kort som ligger över och under) och per ensamt kort, med lådan runt
@@ -117,8 +120,8 @@ function kontrolleraFoto(id, facit) {
 
 /* ── Videolägena ──────────────────────────────────────────────────────── */
 function kontrolleraVideo(id, cfg, lagen) {
-  const fel = [], W = lagen.bredd, H = lagen.hojd, grund = lagen.grund || cfg.grund || 'v';
-  if (!(W > 0 && H > 0)) return { fel: ['bredd/hojd saknas'], lagen: [] };
+  const fel = [], info = [], W = lagen.bredd, H = lagen.hojd, grund = lagen.grund || cfg.grund || 'v';
+  if (!(W > 0 && H > 0)) return { fel: ['bredd/hojd saknas'], info, lagen: [] };
   const filer = cfg.handelser ? { handelser: las(cfg.handelser) } : { steg: las(cfg.steg), manus: las(cfg.manus) };
   const u = Hd.underlag(cfg, filer, LEK);
   let tidigare = {}, anvanda = [], forraT = -Infinity;
@@ -133,8 +136,10 @@ function kontrolleraVideo(id, cfg, lagen) {
     const raknat = G.raknaKort(kort, { W, H, grund, tidigare, anvanda });
     for (const k of kort) fel.push(...jamforKort(k, raknat[k.id], true, v), ...kollaNamn(k, v, false));
     for (const f of G.fastFel(kort, W, H)) fel.push(`${v} ${f.namn} (id ${f.id}): ${f.fel}`);
+    /* Antalet mot händelsefacit fäller bara ett läge som är markerat klart —
+       ett halvritat läge får checkas in. Det skrivs ut ändå. */
     const dom = Hd.jamfor(kort, u.vantat(l.t));
-    for (const a of dom.avvikelser) fel.push(`${v} ${Hd.avvikelseText(a)}`);
+    for (const a of dom.avvikelser) (l.klar ? fel : info).push(`${v} ${Hd.avvikelseText(a)}${l.klar ? '' : ' (läget inte klart)'}`);
     const mellan = u.mellan(forraT === -Infinity ? -1 : forraT, l.t).map(h => h.text);
     if (JSON.stringify(mellan) !== JSON.stringify((l.handelser || []).map(h => h.text)))
       fel.push(`${v} händelserna före läget stämmer inte med händelsefacit — öppna källan i rita.html och spara om`);
@@ -143,7 +148,7 @@ function kontrolleraVideo(id, cfg, lagen) {
     forraT = l.t;
     ut.push({ t: l.t, kort, raknat, klar: !!l.klar, rad: dom.rad });
   }
-  return { fel, lagen: ut, W, H, grund };
+  return { fel, info, lagen: ut, W, H, grund };
 }
 
 /* ── Högbänkens format ─────────────────────────────────────────────────── */
@@ -256,12 +261,14 @@ async function main() {
     const klara = r.lagen.filter(l => l.klar).length;
     console.log(`${r.fel.length ? '✗' : '✓'} ${kid}: ${r.lagen.length} lägen ritade (${klara} markerade klara), ${r.lagen.reduce((a, l) => a + l.kort.length, 0)} kort${r.fel.length ? ` — ${r.fel.length} avvikelser` : ''}`);
     for (const f of r.fel) console.log('    ' + f);
+    for (const f of r.info) console.log('    · ' + f);
     avvikelser += r.fel.length;
     if (HOGBANK) {
+      /* Bara klara lägen: ett halvritat läge har kort som saknas, och de hade blivit fel facit. */
       const kalla = 'rita-' + kid;
       const kortPx = Math.round(median([].concat(...r.lagen.map(l => l.kort.filter(k => G.arLekkort(k.namn)).map(k => G.bredd(k.horn, r.W, r.H))))) || 0);
       bank.kallor[kalla] = { video: cfg.video, kortPx, grundLodrat: r.grund !== 'h' };
-      for (const l of r.lagen) bank.fall.push(...hogbankPoster(kalla, l.t, l.kort, l.raknat, r.W, r.H));
+      for (const l of r.lagen.filter(x => x.klar)) bank.fall.push(...hogbankPoster(kalla, l.t, l.kort, l.raknat, r.W, r.H));
     }
   }
 

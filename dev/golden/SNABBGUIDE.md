@@ -725,6 +725,8 @@ Måttet som räknas: `--ref` på fall som INTE lärt sig själva. Fallen 01–06
    }
    ```
    Ligger ett kort under ett annat så att bara en kant syns: `{ "namn": "Swamp", "dold": true }`.
+   Ligger korten omlott: rita facit i `rita.html` i stället (se *Rita facit*
+   nedan) — då räknas dold, hög och tappad fram ur kortens former.
    Vill du också prova *var* korten ligger kan du rita
    rutor i stället (frivilligt): kör `npm run dev`, öppna
    <http://localhost:8232/dev/golden/markera.html>, släpp in bilden, dra en
@@ -835,6 +837,119 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
    varje spår från födsel till död, i videons sekunder.
 8. **Spara och checka in** som för ett foto: `--fall 08 --spara`, en rad i
    `historik.md`, mappen och `senaste.json` i samma commit.
+
+## Rita facit: kortens former, ordning och lägen (MES-286)
+
+**Vad det är.** Facit för kort som ligger omlott var bedömningar: "dold"
+kryssades i för hand, och ingenting sa vilka kort som ligger i samma hög
+eller vad som är fäst vid vad. I `rita.html` ritar du i stället varje korts
+**form** — fyra hörn — och **ordningen**. Resten räknas fram ur det, samma
+kod i webbläsaren och i kontrollen (`rita-geometri.cjs`).
+
+**Starta:** `node dev/golden/rita-server.cjs` och öppna
+<http://localhost:8287/> — eller posten **mesa-rita** i browserpanelen.
+Välj ett golden-fall eller en video i listan uppe till vänster.
+`markera.html` finns kvar för raka rektanglar.
+
+### Ett kort på två klick
+
+Klicka kortets **övre vänstra hörn och sedan övre högra, längs namnraden i
+läsriktningen**. Verktyget vet att kortet är 63 × 88 mm och ritar resten —
+också det som ligger under ett annat kort. Skriv några bokstäver av namnet
+och tryck Enter (`ukud⏎` ger Ukud Cobra). Rita det understa kortet först:
+det senast ritade hamnar överst.
+
+Ett tappat kort ritas likadant: namnradens början och slut, var den än
+pekar. Fyllt på bilden = synligt, streckat = under ett annat kort. Det
+gröna bandet på det valda kortet är namnraden.
+
+| Tangent | Gör |
+|---|---|
+| N · V | **Rita** (två klick) · **Välj** (klick väljer, samma ställe igen = kortet under, dra flyttar, ⌥-dra vrider). I Rita väljer ⌘-klick |
+| dra ett hörn | det valda kortets hörn; det diagonalt motsatta står kvar |
+| Enter | skriv namnet på det valda kortet |
+| ↑ ↓ · ⇧↑ ⇧↓ | ett steg upp/ner i ordningen · överst/underst |
+| T · Q E | vrid 90° · vrid ±1° (⇧ 0,2°) |
+| L | lås storleken till de ritade kortens — klicken ger bara riktningen |
+| F · ⇧F | fäst vid förslaget · lossa |
+| G · B | kortet ligger i graveyard · i library (räknas inte som kort i spel) |
+| ⌫ | ta bort det valda kortet |
+| 0 · 1 · + − | hela bilden · 100 % · zooma (nyp eller ⌘-hjul zoomar mot pekaren, två fingrar panorerar) |
+| ⌘S · ⌘Z · ⇧⌘Z | spara till repot · ångra · gör om |
+| [ ] · ← → · D | video: förra/nästa läge · flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) · läget är klart |
+| ? | alla tangenter |
+
+Namn: lekens (ur `lek.txt`), `token Soldier` (eller annan typ) och
+`baksida`. Fallets egen namnlista står som en checklista; ett klick på ett
+namn ger det till nästa kort du ritar.
+
+### Vad som räknas fram
+
+| Fält | Hur |
+|---|---|
+| `synlig` | andelen av kortet som ligger i bild och inte under ett kort med högre `z` |
+| `namnrad` | samma sak för namnraden |
+| `dold` | **mindre än halva namnraden syns** (Jespers beslut). Ett kort under ett annat med namnraden fri är alltså inte dolt |
+| `tappad` | namnraden står mer än 45° från grundläget (`ruta.upp`) |
+| avskuret | mer än 2 % av kortet utanför bilden — står då i `avskurna` |
+| `x y w h` | lådan runt kortets **synliga** del — golden mäter plats och tap-läge mot den (Jespers beslut; rutan "skriv lådan" i panelen) |
+| `hog` | A, B … för kort som ligger omlott utan att vara fästa. En hög behåller sin bokstav hela filmen |
+| `fast` | **föreslås, räknas inte**: ett equipment eller en aura omlott med en varelse eller token. F bekräftar. I passet 2026-09-22 sätts det ur händelsefacits kolumn `till` |
+
+Korttyperna ligger i `rita-typer.json`, hämtade en gång från Scryfall
+(`node dev/golden/rita-kontroll.cjs --hamta-typer` när `lek.txt` ändras).
+
+### Vad som sparas
+
+| Källa | Fil | Vad |
+|---|---|---|
+| golden-foto | `fall/<id>/facit.json` | samma fil som i dag. Varje kort får `id`, `horn` (fyra punkter i andelar av bilden, medsols från namnradens början), `z` och fälten ovan. Tokens, baksidor och avskurna står i `rita.ovriga` — kor.html räknar bara `kort` |
+| video | `inspelningar/<källa>/lagen.json` | ett läge per händelse: tiden, händelserna sedan förra ritade läget, och korten med samma `id` genom hela filmen |
+
+Fotona ritas på **originalen** där de finns: 14–16 i 5712 × 4284 ur
+`dev/material/foton/`, 13 på 4K-rutan vid 171,8 s ur MES-246. Andelarna
+gäller också fallets nerskalade `bild.jpg`. Utkastet ligger i webbläsaren
+hela tiden; ⌘S skriver till repot. Servern får bara skriva de två filerna.
+
+### Videolägena
+
+Verktyget föreslår ett läge efter varje händelse: **MES-246** vid
+`t_stilla` ur `facit-slapp.json` (66 lägen), **passet 2026-09-22** 2 s efter
+tiden i `handelser.tsv` (händelser tätare än 2,5 s får ett gemensamt läge;
+46 lägen). Syns en hand: ← →. Ett nytt läge börjar med förra ritade lägets
+kort, så bara det som ändrats behöver röras. Bredvid bilden står
+händelserna sedan förra läget och **kontrollen mot händelsefacit**: antalet
+kort per namn (i passet också tappade per namn och fästa par). I MES-246 är
+stegen och manusraderna inte parade i förväg — ett läge godkänns om det
+stämmer med läget efter någon av manusraderna mellan två nedläggningar med
+namn. Rutorna tas med `ruta.swift` och sparas i `dev/material/rita/`.
+
+### Kontrollen
+
+```bash
+node dev/golden/rita-kontroll.cjs
+```
+
+Räknar om allt framräknat ur hörnen och ordningen och jämför med filerna,
+kontrollerar namnen mot `lek.txt` och antalen mot händelsefacit. Slutkod 1
+vid en avvikelse. Antalen fäller bara lägen som är markerade klara (D) — ett
+halvritat läge får checkas in. Med `--hogbank ut.json` skrivs det ritade i
+högbänkens format (MES-250): en post per hög, per fäst par och per ensamt
+kort, bara klara lägen. `node dev/golden/rita-prov.cjs` provar geometrin
+själv.
+
+### När Jesper har ritat
+
+1. `node dev/golden/rita-kontroll.cjs` ska vara grönt.
+2. Golden **före** (koden utan nytt facit) och **efter**, på samma dator,
+   port och profil (se *När två körningar inte ger samma tal*).
+3. Spara den nya baslinjen och skriv en rad i `historik.md`: vilka fall som
+   fick nytt facit och hur totalen ändrades. Egen commit med bara facit och
+   baslinje.
+
+Totalen **ska** ändras: fall med kort som var felaktigt dolda får fler
+synliga kort, och med lådan mäts plats och tap-läge där. `vriden.cjs` och
+`avstand.cjs` läser också lådorna — de mäter fler fall när fler är ritade.
 
 ## Ett nytt foto är ett nytt prov, inte en beställning
 
