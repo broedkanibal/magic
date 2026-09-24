@@ -86,6 +86,7 @@ function kollaForm(kort, var_) {
 function kollaNamn(k, var_, iKort) {
   const n = String(k.namn || '').trim();
   if (!n) return [`${var_} id ${k.id}: saknar namn`];
+  if (G.arLibrary(n)) return iKort ? [`${var_} library: leken hör inte hemma i kort[] (kor.html räknar den som ett kort)`] : k.zon === 'bib' ? [] : [`${var_} library (id ${k.id}): ligger inte i zonen bib`];
   if (G.arToken(n) || G.arBaksida(n)) return iKort ? [`${var_} ${n}: en token eller baksida hör inte hemma i kort[] (kor.html räknar den som ett kort)`] : [];
   return LEK.includes(n) ? [] : [`${var_} ${n}: finns inte i lek.txt`];
 }
@@ -115,6 +116,11 @@ function kontrolleraFoto(id, facit) {
   const stod = (facit.avskurna || []).slice().sort();
   if (JSON.stringify(avsk) !== JSON.stringify(stod)) fel.push(`avskurna står ${JSON.stringify(stod)}, ritat ${JSON.stringify(avsk)}`);
   for (const f of G.fastFel(alla, W, H)) fel.push(`${f.namn} (id ${f.id}): ${f.fel}`);
+  /* Den ritade leken ska ligga inom facits library-ruta: det är den rutan
+     golden ger appen, så att leken inte mäts som ett kort. */
+  const lib = alla.filter(k => G.arLibrary(k.namn));
+  if (lib.length && JSON.stringify(G.bibUrRitat(facit.bib, lib, W, H)) !== JSON.stringify(facit.bib || null))
+    fel.push(`library är ritat men ligger inte inom facits bib ${JSON.stringify(facit.bib || null)} — spara om fallet i rita.html`);
   return { fel, kort: alla, W, H, grund, raknat };
 }
 

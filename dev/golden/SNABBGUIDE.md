@@ -872,9 +872,10 @@ gröna bandet på det valda kortet är namnraden.
 | T · Q E | vrid 90° · vrid ±1° (⇧ 0,2°) |
 | L | lås storleken till de ritade kortens — klicken ger bara riktningen |
 | F · ⇧F | fäst vid förslaget · lossa |
-| G · B | kortet ligger i graveyard · i library (räknas inte som kort i spel) |
+| G | kortet ligger i graveyard (räknas inte som kort i spel) |
+| B | **leken** (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den heter `library` och sparas som facits library-ruta `bib`, som golden ger appen så att leken inte mäts som ett kort. B på ett av lekens kort: kortet ligger i library |
 | ⌫ | ta bort det valda kortet |
-| R | vrid **visningen** 90° så att korten går att läsa i en bild som är tagen på tvären. Bara visningen: hörnen sparas i bildens egen riktning |
+| R · ⇧R | vrid **visningen** 90° moturs · medurs så att korten går att läsa i en bild som är tagen på tvären. Bara visningen: hörnen sparas i bildens egen riktning |
 | 0 · 1 · + − | hela bilden · 100 % · zooma (nyp eller ⌘-hjul zoomar mot pekaren, två fingrar panorerar) |
 | ⌘S · ⌘Z · ⇧⌘Z | spara till repot · ångra · gör om |
 | [ ] · ← → · D | video: förra/nästa läge · flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) · läget är klart |
@@ -888,8 +889,8 @@ panelen; det skrivs som `ruta.upp` i facit, samma grundläge som kameran får
 i golden. Räknas de flesta kort som tappade varnar verktyget. Tryck R tills
 korten går att läsa.
 
-Namn: lekens (ur `lek.txt`), `token Soldier` (eller annan typ) och
-`baksida`. Fallets egen namnlista står som en checklista; ett klick på ett
+Namn: lekens (ur `lek.txt`), `token Soldier` (eller annan typ), `baksida`
+och `library` (leken själv, se B). Fallets egen namnlista står som en checklista; ett klick på ett
 namn ger det till nästa kort du ritar.
 
 ### Vad som räknas fram

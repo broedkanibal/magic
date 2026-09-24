@@ -49,11 +49,15 @@ const AB = [[0, 0], [1, 0], [1, 1], [0, 1]];   // hörnens läge längs namnrade
 const runda = (v, n = 4) => { const f = 10 ** n; return Math.round(v * f) / f; };
 
 /* ── Kortnamnen ─────────────────────────────────────────────────────────
-   Tre sorters namn: lekens (ur lek.txt), "token <typ>" och "baksida". Bara
-   lekens kort hör hemma i facits kort[] — det är dem kor.html räknar. */
+   Fyra sorters namn: lekens (ur lek.txt), "token <typ>", "baksida" och
+   "library" — själva leken som ligger med baksidan upp. Bara lekens kort hör
+   hemma i facits kort[] — det är dem kor.html räknar. Library ligger alltid
+   i zonen 'bib' och ger facits library-ruta (bib), som golden ger appen så
+   att leken inte mäts som ett kort. */
 const arToken = n => /^token\s+\S/i.test(String(n || '').trim());
 const arBaksida = n => /^baksida$/i.test(String(n || '').trim());
-const arLekkort = n => !!String(n || '').trim() && !arToken(n) && !arBaksida(n);
+const arLibrary = n => /^library$/i.test(String(n || '').trim());
+const arLekkort = n => !!String(n || '').trim() && !arToken(n) && !arBaksida(n) && !arLibrary(n);
 /* typAv: 'equipment' | 'aura' | 'creature' | 'land' | 'token' | 'baksida' | 'annat' | null
    (null = typen okänd: namnet saknas i typfilen). */
 function typAv(namn, typer) {
@@ -61,6 +65,7 @@ function typAv(namn, typer) {
   if (!n) return null;
   if (arToken(n)) return 'token';
   if (arBaksida(n)) return 'baksida';
+  if (arLibrary(n)) return 'library';
   const rad = typer && typer[n];
   if (!rad) return null;
   if (/\bEquipment\b/.test(rad)) return 'equipment';
@@ -124,6 +129,21 @@ function lada(p) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of p) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   return { x0, y0, x1, y1 };
+}
+/* Facits library-ruta (bib, andelar av bilden) ur ritade "library". Ligger
+   den ritade leken redan inom facits ruta står rutan kvar — den är en plats,
+   satt med marginal, som uppstartens. Annars blir rutan lådan runt det
+   ritade, med en marginal på en tiondel av lådans längsta sida. Inget ritat
+   = rutan som den var. */
+function bibUrRitat(bib, kort, W, H) {
+  const lib = (kort || []).filter(k => arLibrary(k.namn) && k.horn);
+  if (!lib.length) return bib || null;
+  const l = lada([].concat(...lib.map(k => k.horn)));
+  const inom = bib && l.x0 >= bib.x - 1e-4 && l.y0 >= bib.y - 1e-4 && l.x1 <= bib.x + bib.w + 1e-4 && l.y1 <= bib.y + bib.h + 1e-4;
+  if (inom) return bib;
+  const m = 0.1 * Math.max((l.x1 - l.x0) * W, (l.y1 - l.y0) * H);
+  const x0 = Math.max(0, l.x0 - m / W), y0 = Math.max(0, l.y0 - m / H), x1 = Math.min(1, l.x1 + m / W), y1 = Math.min(1, l.y1 + m / H);
+  return { x: runda(x0, 3), y: runda(y0, 3), w: runda(x1 - x0, 3), h: runda(y1 - y0, 3) };
 }
 const ladorMots = (a, b) => a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
 function yta(p) { let s = 0; for (let i = 0; i < p.length; i++) { const [x1, y1] = p[i], [x2, y2] = p[(i + 1) % p.length]; s += x1 * y2 - x2 * y1; } return s / 2; }
@@ -225,7 +245,7 @@ function synlighet(kort, i, W, H) {
    annars nästa bokstav som aldrig använts — en hög behåller sin bokstav hela
    filmen, som i händelsefacit. Utan läget före delas bokstäverna ut i
    ordningen efter klumpens understa kort. */
-const iSpel = k => !k.zon && !arBaksida(k.namn);
+const iSpel = k => !k.zon && !arBaksida(k.namn) && !arLibrary(k.namn);
 function bokstav(n) { let s = ''; n++; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
 function hogar(kort, W, H, tidigare = {}, anvanda = []) {
   const idx = kort.map((k, i) => i).filter(i => iSpel(kort[i]));
@@ -333,7 +353,7 @@ function formatera(v, ind = '') {
 
 const G = {
   KORT_B, KORT_H, KVOT, NAMNRAD, DOLD_UNDER, TAPP_GRANS, AVSKUREN_OVER, OVERLAPP_MIN,
-  runda, rundaHorn, arToken, arBaksida, arLekkort, typAv, kanFastas, kanBaraFast,
+  runda, rundaHorn, arToken, arBaksida, arLibrary, arLekkort, bibUrRitat, typAv, kanFastas, kanBaraFast,
   tillPx, tillAndel, hornUrTva, hornUrPar, flytta, mitt, vrid, bredd, vinkel, arTappad,
   lada, iPolygon, snittYta, overlapp, synlighet, hogar, bokstav, fastForslag, raknaKort, fastFel,
   formatera,

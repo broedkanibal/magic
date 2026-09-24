@@ -65,6 +65,10 @@ input[type=text].fel{border-color:var(--fel)}
 #lagen span.klar{color:var(--vald);border-color:#3c6b46}
 #lagen span.avv{color:var(--fel);border-color:var(--fel)}
 #lagen span.nu{outline:2px solid var(--ruta)}
+#sagor{border:1px solid #3c6b46;background:#111a14;border-radius:5px;padding:8px 10px 8px 8px;margin-bottom:8px}
+#sagor ol{margin:0;padding-left:22px} #sagor li{margin:3px 0} #sagor li b{color:var(--vald)}
+#sagor .dim{margin-top:6px;font-size:11.5px}
+#hjalp tr.grupp td{border:0;padding:12px 8px 4px;font:600 11.5px system-ui,sans-serif;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
 #utkast{background:#2a2112;border:1px solid var(--varning);border-radius:5px;padding:8px;margin-bottom:8px}
 #melding{min-height:1.4em;margin-top:6px;font-size:12px}
 #hjalp{position:fixed;inset:40px;margin:auto;max-width:720px;max-height:80vh;overflow:auto;background:#141920;border:1px solid #2c3541;border-radius:8px;padding:16px 20px;z-index:9;box-shadow:0 10px 40px rgba(0,0,0,.6)}
@@ -84,7 +88,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <button id="b-valj" type="button" title="Klick väljer (igen = kortet under), dra flyttar, ⌥-dra vrider">Välj<kbd>V</kbd></button>
     <button id="b-las" type="button" title="Nya kort får samma storlek som de som redan ritats — bara riktningen tas ur klicken">Lås storlek<kbd>L</kbd></button>
     <button id="b-spara" type="button" class="primar">Spara<kbd>⌘S</kbd></button>
-    <button id="b-vrid" type="button" title="Vrid bara visningen 90° så att korten går att läsa — facit påverkas inte">Vrid vyn<kbd>R</kbd></button>
+    <button id="b-vrid" type="button" title="Vrid visningen 90° moturs (⇧R medurs) så att korten går att läsa — facit påverkas inte">Vrid vyn ⟲<kbd>R</kbd></button>
     <button id="b-hjalp" type="button">Tangenter<kbd>?</kbd></button>
     <span id="info">–</span>
   </div>
@@ -95,6 +99,24 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
 <aside id="panel">
   <h1>Rita facit</h1>
   <div id="utkast" hidden></div>
+  <div id="sagor">
+    <ol id="sagor-foto">
+      <li><b>Vrid vyn</b> tills korten står rätt: <kbd>R</kbd> (moturs) eller knappen ⟲. Räknas otappade kort som tappade: byt <i>otappade kort ligger</i> under Spara.</li>
+      <li><b>Rita ett kort:</b> klicka kortets <i>övre vänstra</i> hörn och sedan <i>övre högra</i>, längs namnraden. Resten av kortet ritas ut av sig självt, också det som ligger under ett annat kort. Börja med korten som ligger <b>underst</b>.</li>
+      <li><b>Skriv namnet</b> i rutan som öppnas och tryck <kbd>Enter</kbd>. (Eller klicka ett namn i listan <i>Facit</i> innan du ritar.)</li>
+      <li><b>Hamnade det i fel ordning?</b> Kortet du ritar sist hamnar överst. Välj kortet med ⌘-klick och flytta det med <kbd>↑</kbd> <kbd>↓</kbd>.</li>
+      <li><b>Ligger leken i bild?</b> Rita den som ett kort och tryck <kbd>B</kbd> — inget namn behövs.</li>
+      <li><b>När alla namn i <i>Facit</i> är bockade:</b> spara med <kbd>⌘S</kbd>.</li>
+    </ol>
+    <ol id="sagor-video" hidden>
+      <li><b>Vrid vyn</b> tills korten står rätt: <kbd>R</kbd>.</li>
+      <li>Läget börjar med förra lägets kort. <b>Rör bara det som ändrats:</b> <kbd>V</kbd>, klicka ett kort och dra det, eller dra ett hörn.</li>
+      <li><b>Nya kort</b> ritas som på ett foto: övre vänstra hörnet, sedan övre högra, och namnet.</li>
+      <li>Skymmer en hand? Flytta tiden med <kbd>←</kbd> <kbd>→</kbd>.</li>
+      <li>Stämmer läget: <kbd>D</kbd> (klart) och <kbd>]</kbd> till nästa. Spara med <kbd>⌘S</kbd> när du vill.</li>
+    </ol>
+    <div class="dim">Felklick: <kbd>Esc</kbd> · ångra: <kbd>⌘Z</kbd> · allt annat: <kbd>?</kbd></div>
+  </div>
   <div id="kallinfo" class="dim"></div>
 
   <section id="lagesdel" hidden>
@@ -126,7 +148,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
       <button type="button" id="b-ner" title="Ett steg ner (⇧↓ underst)">Ner<kbd>↓</kbd></button>
       <button type="button" id="b-tap" title="Vrid 90°">Vrid 90°<kbd>T</kbd></button>
       <button type="button" id="b-grav" title="Kortet ligger i graveyard-högen — räknas inte som kort i spel">Graveyard<kbd>G</kbd></button>
-      <button type="button" id="b-bib" title="Kortet ligger i library — räknas inte som kort i spel">Library<kbd>B</kbd></button>
+      <button type="button" id="b-bib" title="Leken själv (baksidan upp): inget namn behövs, sparas som facits library-ruta. På ett av lekens kort: kortet ligger i library">Library<kbd>B</kbd></button>
       <button type="button" id="b-bort" title="Ta bort kortet">Ta bort<kbd>⌫</kbd></button>
     </div>
   </div>
@@ -150,24 +172,30 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
 <div id="hjalp" hidden>
   <h1>Tangenter</h1>
   <table>
-    <tr><td>N · V</td><td><b>Rita</b>: två klick på kortets övre hörn längs namnraden, i läsriktningen (eller dra från det ena till det andra). Resten ritas ut, också det som ligger under ett annat kort. <b>Välj</b>: klick väljer översta kortet, samma ställe igen väljer kortet under; dra flyttar; ⌥-dra vrider runt mitten. I Rita-läget väljer ⌘-klick.</td></tr>
-    <tr><td>hörnen</td><td>dra ett hörn på det valda kortet — det diagonalt motsatta står kvar</td></tr>
-    <tr><td>L</td><td>lås storleken: nya kort får medianen av de ritade korten, klicken ger bara riktningen</td></tr>
+    <tr class="grupp"><td colspan="2">Det du behöver</td></tr>
+    <tr><td>R · ⇧R</td><td>vrid vyn 90° moturs · medurs, så att korten står rätt. Bara visningen — hörnen sparas i bildens egen riktning</td></tr>
+    <tr><td>två klick</td><td><b>rita ett kort</b>: kortets övre vänstra hörn, sedan övre högra, längs namnraden (eller dra från det ena till det andra). Resten ritas ut, också det som ligger under ett annat kort</td></tr>
     <tr><td>Enter</td><td>skriv namnet på det valda kortet (lekens namn, <code>token Soldier</code>, <code>baksida</code>); Enter igen tillbaka till bilden</td></tr>
+    <tr><td>⌘-klick</td><td>välj ett kort. Samma ställe igen väljer kortet under</td></tr>
     <tr><td>↑ ↓ · ⇧↑ ⇧↓</td><td>det valda kortet ett steg upp/ner i ordningen · överst/underst. Senast ritat hamnar överst</td></tr>
-    <tr><td>T · Q E</td><td>vrid 90° · vrid −1°/+1° (⇧ 0,2°)</td></tr>
-    <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse eller token, annars kortet det ligger mest omlott med) · lossa</td></tr>
-    <tr><td>G · B</td><td>kortet ligger i graveyard · i library (räknas inte som kort i spel)</td></tr>
-    <tr><td>⌫</td><td>ta bort det valda kortet</td></tr>
-    <tr><td>[ ]</td><td>video: förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort, med samma id</td></tr>
-    <tr><td>← →</td><td>video: flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) — om en hand syns</td></tr>
-    <tr><td>D</td><td>video: läget är ritat klart</td></tr>
-    <tr><td>R</td><td>vrid visningen 90° så att korten går att läsa. Bara visningen — hörnen sparas i bildens egna riktning</td></tr>
-    <tr><td>0 · 1 · + −</td><td>hela bilden · 100 % · zooma. Nyp eller ⌘/ctrl-hjul zoomar mot pekaren, hjul/två fingrar panorerar, mellanslag-dra eller högerdra panorerar</td></tr>
-    <tr><td>⌘S · ⌘Z · ⇧⌘Z</td><td>spara till repot · ångra · gör om. Utkastet sparas i webbläsaren hela tiden</td></tr>
-    <tr><td>Esc</td><td>avbryt ett påbörjat kort, avmarkera</td></tr>
+    <tr><td>Esc · ⌫</td><td>avbryt ett påbörjat kort / avmarkera · ta bort det valda kortet</td></tr>
+    <tr><td>⌘Z · ⇧⌘Z · ⌘S</td><td>ångra · gör om · spara till repot. Utkastet sparas i webbläsaren hela tiden</td></tr>
+    <tr><td>0 · 1 · + −</td><td>hela bilden · 100 % · zooma. Nyp eller ⌘-hjul zoomar mot pekaren, två fingrar eller mellanslag-dra panorerar</td></tr>
+    <tr class="grupp"><td colspan="2">Rätta ett kort</td></tr>
+    <tr><td>V · N</td><td><b>Välj</b>-läget: klick väljer, dra flyttar, ⌥-dra vrider runt mitten · tillbaka till <b>Rita</b></td></tr>
+    <tr><td>dra ett hörn</td><td>på det valda kortet — det diagonalt motsatta står kvar</td></tr>
+    <tr><td>T · Q E</td><td>vrid det valda kortet 90° · −1°/+1° (⇧ 0,2°)</td></tr>
+    <tr><td>L</td><td>lås storleken: nya kort får samma storlek som de redan ritade, klicken ger bara riktningen</td></tr>
+    <tr class="grupp"><td colspan="2">Ibland</td></tr>
+    <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse) · lossa</td></tr>
+    <tr><td>B</td><td><b>leken</b> (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den sparas som facits library-ruta, så att golden inte mäter leken som ett kort. B igen ångrar</td></tr>
+    <tr><td>G</td><td>kortet ligger i graveyard (räknas inte som kort i spel)</td></tr>
+    <tr class="grupp"><td colspan="2">Bara i video</td></tr>
+    <tr><td>[ ]</td><td>förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort</td></tr>
+    <tr><td>← →</td><td>flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) — om en hand skymmer</td></tr>
+    <tr><td>D</td><td>läget är ritat klart</td></tr>
   </table>
-  <p class="dim">Fyllt = synligt. Streckat = under ett annat kort. Det tunna bandet på det valda kortet är namnraden — syns mindre än hälften är kortet <b>dold</b>.</p>
+  <p class="dim">Gult = synligt kort. Streckat = den del som ligger under ett annat kort. Det gröna bandet på det valda kortet är namnraden — syns mindre än hälften av den är kortet <b>dolt</b>. Rött = namn saknas.</p>
 </div>
 
 <script src="rita-geometri.cjs"></script>
@@ -224,7 +252,7 @@ function helaBilden() {
   V.ox = (b.width - vW() * V.s) / 2; V.oy = (b.height - vH() * V.s) / 2;
   ritaSnart();
 }
-function vridVyn() { V.rot = (V.rot + 1) % 4; try { localStorage.setItem(`mesa-rita:vy:${S.kalla.sort}:${S.kalla.id}`, V.rot); } catch (e) {} helaBilden(); visaInfo(); }
+function vridVyn(steg = 3) { V.rot = (V.rot + steg) % 4; try { localStorage.setItem(`mesa-rita:vy:${S.kalla.sort}:${S.kalla.id}`, V.rot); } catch (e) {} helaBilden(); visaInfo(); }
 function zooma(f, px, py) {
   const b = duk.getBoundingClientRect();
   if (px == null) { px = b.width / 2; py = b.height / 2; }
@@ -335,6 +363,9 @@ function raknaLage(nr) {
 function raknaOm() {
   if (!S.dok || !S.W) { S.raknat = {}; S.forslag = {}; return; }
   const kort = kortNu();
+  /* Ett namnlöst kort i zonen bib är leken själv (ritat före 2026-09-24, då
+     B bara satte zonen): det heter library. */
+  for (const k of kort) if (k.zon === 'bib' && !String(k.namn || '').trim()) k.namn = 'library';
   S.raknat = S.kalla.sort === 'foto' ? G.raknaKort(kort, { W: S.W, H: S.H, grund: S.grund }) : raknaLage(S.nr).raknat;
   S.forslag = G.fastForslag(kort, S.W, S.H, S.typer);
 }
@@ -396,7 +427,7 @@ function rita() {
     const delar = [`#${k.id} ${k.namn || '?'}`];
     if (r.dold) delar.push('dold'); if (r.tappad) delar.push('⟳'); if (r.hog) delar.push('hög ' + r.hog);
     if (k.fast != null) { const f = kortId(k.fast); delar.push('↳ ' + (f ? f.namn : '?')); }
-    if (k.zon) delar.push(k.zon === 'grav' ? 'graveyard' : 'library');
+    if (k.zon && !G.arLibrary(k.namn)) delar.push(k.zon === 'grav' ? 'graveyard' : 'library');
     const text = delar.join(' · '), b = cx.measureText(text).width + 8;
     cx.fillStyle = 'rgba(13,16,21,.78)'; cx.fillRect(mx - b / 2, my - 9, b, 18);
     cx.fillStyle = farg(k, 1); cx.textAlign = 'center'; cx.fillText(text, mx, my + 0.5); cx.textAlign = 'left';
@@ -534,7 +565,8 @@ function visaValt() {
   t.push(`<span class="tagg${r.tappad ? ' tapp' : ''}">${r.tappad ? 'tappad' : 'otappad'} · ${Math.round(G.vinkel(k.horn, S.W, S.H))}°</span>`);
   if (r.hog) t.push(`<span class="tagg hog">hög ${r.hog}</span>`);
   if (r.avskuret) t.push('<span class="tagg fel" title="mer än 2 % av kortet ligger utanför bilden — hamnar i avskurna">avskuret</span>');
-  if (k.zon) t.push(`<span class="tagg">${k.zon === 'grav' ? 'graveyard' : 'library'}</span>`);
+  if (G.arLibrary(n)) t.push('<span class="tagg ok" title="sparas som facits library-ruta (bib), som golden ger appen så att leken inte mäts som ett kort">leken · sparas som library-rutan</span>');
+  else if (k.zon) t.push(`<span class="tagg">${k.zon === 'grav' ? 'graveyard' : 'library'}</span>`);
   t.push(`<span class="tagg" title="namnradens längd">${Math.round(G.bredd(k.horn, S.W, S.H))} px</span>`);
   if (n && G.arLekkort(n) && !S.lek.includes(n)) t.push('<span class="tagg fel">finns inte i lek.txt</span>');
   el('valtfalt').innerHTML = t.join(' ');
@@ -568,6 +600,7 @@ function visaForslag() {
 function satNamn(n) {
   const k = kortId(S.vald); if (!k) return;
   k.namn = n;
+  if (G.arLibrary(n)) k.zon = 'bib';
   tomCache(); raknaOm(); visa(); sparaUtkastSnart();
 }
 function tagNamn() {
@@ -609,7 +642,19 @@ function fast() {
   });
 }
 function lossa() { medValt(k => { delete k.fast; }); }
-function zon(z) { medValt(k => { if (k.zon === z) delete k.zon; else k.zon = z; }); }
+/* B på ett kort utan lekens namn (tomt, baksida, library) gör det till själva
+   leken: namnet "library" och zonen bib — inget namn att skriva. B igen tar
+   tillbaka det. På ett av lekens kort betyder B som förut: kortet ligger i library. */
+function zon(z) {
+  medValt(k => {
+    const n = String(k.namn || '').trim();
+    if (z === 'bib' && !G.arLekkort(n) && !G.arToken(n)) {
+      if (G.arLibrary(n)) { k.namn = ''; delete k.zon; } else { k.namn = 'library'; k.zon = 'bib'; }
+      return;
+    }
+    if (k.zon === z) delete k.zon; else k.zon = z;
+  });
+}
 function taBort() {
   const id = S.vald; if (!kortId(id)) return;
   andra(() => {
@@ -672,7 +717,8 @@ window.addEventListener('keydown', e => {
     case 'g': case 'G': zon('grav'); break;
     case 'b': case 'B': zon('bib'); break;
     case '0': helaBilden(); break;
-    case 'r': case 'R': vridVyn(); break;
+    case 'r': vridVyn(3); break;   // moturs (rot räknas medsols)
+    case 'R': vridVyn(1); break;
     case '1': { const b = duk.getBoundingClientRect(); zooma(1 / V.s, b.width / 2, b.height / 2); break; }
     case '+': case '=': zooma(1.25); break;
     case '-': zooma(0.8); break;
@@ -688,7 +734,7 @@ function lasa() {
 }
 function visaTips() {
   el('tipstext').innerHTML = S.lage === 'rita'
-    ? '<b>Rita:</b> klicka kortets övre vänstra hörn och sedan övre högra, längs namnraden i läsriktningen · ⌘-klick väljer · ? tangenter'
+    ? '<b>Rita:</b> klicka kortets övre vänstra hörn, sedan övre högra (längs namnraden) · R vrider vyn · ⌘-klick väljer · Esc avbryter · ? tangenter'
     : '<b>Välj:</b> klick väljer, samma ställe igen = kortet under · dra flyttar · ⌥-dra vrider · dra ett hörn · ? tangenter';
 }
 
@@ -700,7 +746,8 @@ function visa() {
 /* De flesta kort tappade = nästan alltid fel grundläge: bilden är tagen på
    tvären, och ett otappat kort ligger vågrätt i den. */
 function visaGrundvarning() {
-  const r = Object.values(S.raknat), t = r.filter(x => x.tappad).length;
+  const iSpel = new Set(kortNu().filter(k => !k.zon && G.arLekkort(k.namn)).map(k => k.id));
+  const r = Object.entries(S.raknat).filter(([id]) => iSpel.has(+id)).map(([, x]) => x), t = r.filter(x => x.tappad).length;
   const v = S.kalla && S.kalla.sort === 'foto' && r.length >= 3 && t > r.length / 2;
   el('grundvarning').hidden = !v;
   if (v) el('grundvarning').textContent = `${t} av ${r.length} kort räknas som tappade. Ligger otappade kort ${S.grund === 'v' ? 'vågrätt' : 'lodrätt'} i bilden? Byt grundläget ovanför.`;
@@ -925,6 +972,8 @@ function byggFacit() {
   }
   const f = kopia(S.facit);
   f.kort = iKort;
+  const bib = G.bibUrRitat(S.facit.bib, kort, S.W, S.H);
+  if (bib) f.bib = bib;
   f.ruta = Object.assign({}, f.ruta || {}, { upp: S.grund });
   f.avskurna = ovriga.filter(k => G.arLekkort(k.namn) && k.avskuret && !k.zon).map(k => k.namn);
   const rita_ = { version: 1, bild: S.kalla.original ? String(S.kalla.original).replace(/@[\d.]+$/, '') : S.kalla.fallbild };
@@ -1021,7 +1070,7 @@ async function start() {
   ]);
   S.kallor = kallor; S.typer = typer.typer || {};
   S.lek = lek.split(/\r?\n/).map(s => s.trim()).filter(s => s && !s.startsWith('#')).map(s => s.replace(/^\d+\s*[xX]?\s+/, ''));
-  S.allaNamn = S.lek.concat(['token Soldier', 'token Rebel', 'baksida']);
+  S.allaNamn = S.lek.concat(['token Soldier', 'token Rebel', 'baksida', 'library']);
   fyllKallor();
   let forst = new URLSearchParams(location.search).get('kalla');
   try { forst = forst || localStorage.getItem('mesa-rita:senast'); } catch (e) {}
