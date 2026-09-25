@@ -1,52 +1,73 @@
-# Nattpasset 2026-09-25 — morgonrapporten
+# Nattpasset 2026-09-25: rapporten
 
-Skrivs löpande av orkestreraren under natten. Instruktionen:
-`dev/plan/orkestrering-natt-2026-09-25.md`; loggen steg för steg:
-`dev/plan/natt-2026-09-25-logg.md`.
+Passet började 00:33 och kördes klart autonomt på Jespers begäran (07:26). Det
+slutade 10:20. Instruktionen: `dev/plan/orkestrering-natt-2026-09-25.md`.
+Loggen steg för steg: `dev/plan/natt-2026-09-25-logg.md`.
 
 ## Kort sagt
 
-Passet pågår.
+| | Antal | Vilka |
+|---|---|---|
+| Ute i produktionen | 5 | steg 0 (facit), MES-293, MES-291, MES-289, MES-294 |
+| Besvarade utredningar | 2 | MES-287 (nej som ersättare för ORB), MES-288 steg 0 (ja, färdiga detektorer hittar nästan alla kort) |
+| Byggda men inte ihopslagna | 2 | MES-232 (nya fel namn i andra ljus), MES-295 (ingen mätbar effekt) |
+| Nya fel namn i produktionen | 0 | |
 
-* **Steg 0 är klart.** Jespers ritade facit ligger i golden (afa24cb). Det avslöjade **ett fel namn** i fall 14 som fanns redan före; det följs upp i MES-296.
-* **MES-293 är ute i produktionen** (4f11291): tap-läget ändras bara vid tydlig dom, och skalan fryses efter uppstarten. Issuen står i **Provas**, eftersom dess egen mätning kräver ett nytt parti och 20°-gränsen behöver ditt beslut.
-* **MES-232 är inte ihopslagen.** Stödregeln är bättre i vanligt ljus men ger **3 nya fel namn** när ljuset ändras. Mätningen visade också att **produktionen i dag ger 6 fel namn i sju ljus med lärda referenser, mot 0 utan dem.** Ditt beslut, med val A–D på MES-232; förslaget är att stänga av lärda referenser tills en variant klarar sju ljus.
-* **Våg 2 är ute i produktionen** (e49bdce). MES-291: ett tappat kort väntar 5 s innan det tonas ned (Done). MES-289: lekfotot tappar inga kort tyst (Provas, väntar på ditt lekfoto). Båda granskades av en fristående agent innan de slogs ihop, och båda rättades efter granskningen.
-* **Jesper bad 07:26 om att passet körs klart autonomt.** Våg 3: **MES-294 är ute** (264bc9a, Done), men regel 1 gav ingen mätbar effekt. **MES-287 är besvarad** (Done): att räta ut kortet ersätter inte ORB, men kan komplettera den med en skalspärr som inte är byggd. Koden är inte ihopslagen. Våg 4 (MES-295, MES-288 steg 0) startar.
+**Tre fynd väger tyngst:**
 
-## Klart och ihopslaget
+1. **En färdig detektor (OWLv2) hittar 62 av 66 kort** på dina ritade foton, mot dagens 29. Ytterligare en slutsats följer av det: upplösningen avgör. Dagens detektor ser 360 px, och en liten modell går från 40 till 58 kort när den får 1280 px i stället för 640.
+2. **Lärda referenser ger fel namn i produktionen i dag:** 6 i sju ljus, mot 0 utan dem (MES-232).
+3. **Tap-regeln från MES-293 fäller vridna kort på måtten**, inte på vinkeln. Pharika's Chosen ligger 71°, alltså inom 20°, men måttkollen jämför en rak låda med ett vridet kort. Rättelsen är liten.
+
+## Klart och i produktionen
 
 | Issue | Vad | Commit | Före → efter |
 |---|---|---|---|
-| MES-286 (steg 0) | Jespers ritade facit för golden 03–06 och 13–15, ny baslinje för alla 16 fallen. Ingen kodändring | afa24cb | se *Ändringar i golden-baslinjen* |
-| MES-287 (Done, ej ihopslagen kod) | Bänkstudie: räta ut kortet och jämför hela bilden i stället för ORB | grenen `mes-287-rak` | **Ersätter inte ORB:** 0 säkra fel men färre säkra namn (36 mot 46 av 61). **Kompletterar:** först den uträtade, ORB bara när den är osäker ger 47/61 och sparar ORB för 38–56 % av korten, men gav 1 nytt fel namn i 04 mörkare, så en skalspärr behövs först. 23–31 ms per kort. Koden inte ihopslagen: poolen byggde gråbilder (~600 kB) även med växeln av |
-| MES-294 (Done) | Granskningens spärr jämför med namnet posten visar (Jespers regel 1) | 264bc9a | **Ingen mätbar effekt:** telefonen ger redan osäkra kort listans etta. Granskningsposterna på 09-22 var desamma (3 med Claude, 15 utan). Av 7 dubbletter var 4 flyttade kort på en annan plats, 1 ett nedtonat kort som kom tillbaka och 2 på samma plats. Golden tecken för tecken lik; avstämningen 176 → 181 OK |
-| MES-291 (Done) | Ett tappat kort väntar 5 s innan det tonas ned, och graveyard-högen avbryter väntan. Rättat efter granskningen: svar under väntan, handflytt till graveyard | ab2580b | Passet 09-22: flyttar via nedtoning **4 → 0**, nedtoningar **17 → 10**, längsta tid innan en borttagning syns 3,0 → 6,3 s (accepterat pris). Golden teckenidentisk, 0 nya fel i sju ljus och utan leken; avstämningen 161 → 176 OK; 8 000 slumpade pass utan kort som fastnar |
-| MES-289 (i **Provas**) | Namnlösa och ej uppslagna poster blir platshållare under To check; kapade räknas på klar-skärmen; den för höga totalen (ett förlorat svar lade in fotot två gånger) rättad; Try again började om på Photo 1 rättat; en krock plus nätfel kastar inte längre osparade ändringar | e49bdce | Nytt prov 33 OK (4/6 → 6/6 kort in i leken), lekslag 33 → 41; golden teckenidentisk. Kvar: tre sätt att få dubbletter som också finns på main |
-| MES-293 (i **Provas**) | Tap-läget ändras bara vid tydlig dom: ett korts mått och högst 20° från grundläget. Skalan fryses till provkortets mått när uppstarten är klar | 4f11291 | Golden: namn 49/97 lika, fel namn bara MES-296, falska 3, plats 40/76, tap **37 → 38/40**; 0 fel namn i sju ljus och utan leken; bänken 154 OK. Passet 09-22: tap-domar som vände tillbaka **11 → 1**, falska vridningar **4 → 2**, skalan bytt **15 → 1** gång. Sämre: Pharika's Chosen (tappad 20–22° snett) visas inte längre tappad; `diff_tappade` 1,00 → 1,42 (ett räknemått, se MES-293); golden 13 tap 3/3 → 2/3 (två Plains i en hög) |
+| MES-286, steg 0 (Provas, videorna kvar) | Dina ritade facit för golden 03–06 och 13–15, ny baslinje | afa24cb | hittade 64/93 → 64/97 · plats 10/10 → **40/76** · namn 50/93 → 49/97 · **fel namn 0 → 1** (MES-296) · falska 6 → 3 · tap 10/10 → **37/40**. Samma kamerakod; bara facit skiljer |
+| MES-293 (Provas) | Tap-läget ändras bara vid tydlig dom; skalan fryst efter uppstarten | 4f11291 | Tap-domar som vände tillbaka **11 → 1**, falska vridningar **4 → 2**, skalan bytt **15 → 1** gång; golden tap 37 → **38/40**; 0 nya fel namn i sju ljus |
+| MES-291 (Done) | Ett tappat kort väntar 5 s innan nedtoning; graveyard-högen avbryter | ab2580b | Flyttar via nedtoning **4 → 0**, nedtoningar **17 → 10**; längsta tid innan en borttagning syns 3,0 → 6,3 s (accepterat pris); rättat efter oberoende granskning |
+| MES-289 (Provas) | Lekfotot tappar inga kort tyst: namnlösa blir platshållare under To check; den för höga totalen (ett förlorat svar lade in fotot två gånger) rättad | e49bdce | Provet 4/6 → **6/6** kort in i leken; ett helt oläsligt foto ger felet som förut; tre dubblettvägar kvar, också på main; rättat efter oberoende granskning |
+| MES-294 (Done) | Granskningens spärr jämför med namnet posten visar (din regel 1) | 264bc9a | **Ingen mätbar effekt:** telefonen ger redan osäkra kort listans etta. Av 7 dubbletter var 4 flyttade kort på en annan plats |
+| MES-288 steg 0 (Provas) | Nollprov: färdiga detektorer mot dina ritade facit | 2765480 (bara utredningen) | Dagens 29/66 · **OWLv2 62/66** (0 falska, 11 av 15 högar, 11,5 s/bild) · YOLO-World s **58/66 på 1280 px** (0,6 s) · Grounding DINO 57 · MobileSAM 42 |
 
-## Inte klart
+Alla ihopslagningar hade `kolla.sh` grönt. Golden var inte sämre och gav 0 nya fel namn, också i sju ljus och med `--utan-leken`. Produktionen var identisk med filen efter varje push.
 
-| Issue | Var det stannade | Gren |
+## Inte ihopslaget
+
+| Issue | Varför | Gren på GitHub |
 |---|---|---|
-| MES-232 (i **Provas**) | Stödregeln byggd och mätt. I vanligt ljus: golden med lärda 34 → 35/59 och 14 → 16/38, inga nya fel, `--utan-leken` med lärda 2 → 1 fel. I sju ljus med lärda: rätt 332 → 353, **fel namn 6 → 7** (3 nya, 2 rättade). Slås inte ihop | `mes-232-larda-stod` på GitHub |
+| MES-232 (Provas) | Stödregeln var bättre i vanligt ljus men gav **3 nya fel namn** i sju ljus (alla basländer) | `mes-232-larda-stod` |
+| MES-287 (Done) | Svaret är leveransen: **ersätter inte ORB**, men kan komplettera den med en skalspärr som inte är byggd. Koden byggde poolens gråbilder även med växeln av, så den skulle ha kostat på telefonen utan att ge något | `mes-287-rak` |
+| MES-295 (Provas) | **Ingen mätbar effekt:** kameran ser borden rakt uppifrån. I partiet 09-21 kunde ändringen ha gjort det sämre | `mes-295-grundlage-per-plats` |
 
 ## Väntar på Jesper
 
 | Issue | Vad som behövs |
 |---|---|
-| MES-296 (ny, Backlog) | **Avgjort 07:20:** det räknas som **fel namn**, eftersom kortet följer Trusty Retriever och tap och flytt då blir fel. Kvar är en rättelse i läsningen. Tidigare fråga: I golden 14 ligger Trusty Retriever ovanpå Resistance Reunited; bara namnraden på det undre kortet syns. Kameran ser högen som ett kort och ger det det undre kortets namn, säkert. Ska golden räkna det som **fel namn** (så gör den nu, det strängare valet) eller som ett **missat kort**? Och ska det rättas i spärren (namnraden ger inte ett säkert namn mot bildens förslag) eller i delningen (MES-250)? |
-| MES-286 | Videorna i ritverktyget. Fotona är klara |
-| MES-232 (Provas) | **Ett beslut: hur ska kamerans egna foton (lärda referenser) användas?** I dag är de på i appen och ger 6 fel namn i sju ljus, mot 0 utan dem. **A. Stäng av dem** tills en variant klarar sju ljus (förslaget; redan mätt som vanlig golden). B. Ta bort dem ur bildmodellens rangordning men behåll dem för ORB (omätt). C. Stödregeln med en spärr för basländer, eftersom alla nya fel var land (omätt). D. Behåll som i dag. MES-290 väntar på det här |
-| MES-289 (Provas) | **Ett lekfoto** där korten försvann (beskrivet i issuen). Titta också på raden under To check ("Which card is this?") och ändra den om du vill. **Ladda om öppna flikar och telefonen**: en flik som laddades före driftsättningen gör en platshållare till en vanlig rad |
-| MES-293 (Provas) | **Ett parti och ett beslut.** (1) Spela ett parti med telefonen: v2-mätningen (tappade kort på bordet mot mattan) kräver en telefoninspelning, och det finns ingen av partiet 2026-09-21. (2) 20°-gränsen: Pharika's Chosen låg tappad 20–22° snett och visas inte längre som tappad. Behåll 20°, eller vidga till exempel till 25°? |
+| **MES-232** | **Hur ska lärda referenser användas?** I dag ger de 6 fel namn i sju ljus. A: stäng av dem tills en variant klarar sju ljus (redan mätt säkert). B: ut ur bildmodellen men kvar för ORB. C: stödregeln utan basländer. D: behåll |
+| **MES-288** | **Hyra en GPU (uppskattat 10–40 dollar) för att träna en egen detektor?** OWLv2 kan märka upp riktiga rutor gratis på Macen. En liten Apache-licensierad modell (inte Ultralytics, som är AGPL) på ~1000 px beräknas ta 0,1–0,2 s på telefonen |
+| **MES-293** | **Ett parti med telefonen** (v2-mätningen kräver en telefoninspelning). 20°-frågan är ersatt: felet sitter i måttkollen, se nästa steg |
+| **MES-295** | Ska grenen ligga kvar eller läggas ned? Nyttan är omätt, och de riktiga orsakerna till missade tappningar är andra (måttkollen, kort vridna ~60°, högar) |
+| **MES-289** | **Ett lekfoto** där korten försvann (beskrivet i issuen). **Ladda om öppna flikar och telefonen**: en flik som laddades före driftsättningen gör en platshållare till en vanlig rad. Titta gärna på raden under To check ("Which card is this?") |
+| MES-296 | Avgjort: högen i fall 14 räknas som **fel namn**. Kvar är en rättelse i läsningen (Backlog) |
+| MES-286 | Videorna i ritverktyget |
+| MES-291 | Inte blockerande: i Table leads går det inte att dra ett kort under väntan, som ett nedtonat kort förut |
 
-## Ändringar i golden-baslinjen
+## Nästa steg för att hitta fler kort (förslag)
 
-| Commit | Vad | Varför |
+| # | Vad | Varför |
 |---|---|---|
-| afa24cb | 16 fall, samma kamerakod: hittade 64/93 → 64/97 · plats 10/10 → **40/76** · namn 50/93 → 49/97 · **fel namn 0 → 1** · falska 6 → **3** · tappad 10/10 → **37/40** | Jespers ritade facit (MES-286). Fler synliga kort; plats och tap mäts nu i 03–06 och 13–15. 13: tokens och library har egna hörn (falska 3 → 0). 14: fel namnet ovan, som det gamla facit (en namnlista) inte kunde se. Bruset kontrollerades: 01, 02, 07–12 och 16 var tecken för tecken lika |
+| 1 | **Rätta måttkollen i `tapTydlig`** så att den jämför den vridna rektangeln med kortets mått | Slarvigt tappade kort (60–75°) speglas inte i dag; det fäller Pharika och Fencing Ace. Liten ändring, mätbar i golden och spegelfacit |
+| 2 | **Pröva högre analysupplösning i dagens detektor** (analysbredden, MES-244/274) | Nollprovet visar att upplösningen avgör. Dagens detektor ser 360 px. Billigt att mäta i golden, ingen träning |
+| 3 | **MES-288 steg 1–2:** OWLv2 som lärare och en egen liten detektor | Upp till 62 av 66 kort i stället för 29, också på ribbor och svart matta |
+| 4 | **MES-296:** namnraden ska inte ge ett säkert namn när bildmodellen säger ett annat kort | Det enda fel namnet i golden |
+| 5 | **MES-232 val C**, mätt i sju ljus, sedan MES-290 (lekens egna foton som referenser) | Lärda foton gav +21 rätt namn i sju ljus med stödregeln. Felen gällde bara basländer |
+| 6 | Kortet under i en hög med bara en kant framme | Ingen modell klarar det. Det kräver högens historik (MES-233) eller syntetiska högar i träningen |
 
 ## Att veta om mätningen
 
-* **Poolen kan bli ofullständig utan att det syns.** Får Scryfall 429 skrivs en trasig pool (29 kort i stället för 114) in i profilen, och nästa körning i samma profil läser bara tillbaka den utan att varna. Steg 0-agenten märkte det och bytte profil. Nattens agenter har fått regeln "läs raden Poolen och byt profil om den är kort". Att golden inte vägrar köra på en halv pool är samma sorts kontroll som ljuger som MES-260.
+* **Baslinjen `senaste.json` är från afa24cb.** Main ger i dag tappad 38/40 (MES-293), filen säger 37/40. Den bör sparas om vid nästa golden-körning (`--spara`).
+* **Poolen kan bli ofullständig utan att golden säger ifrån.** Scryfall 429 skrev en pool på 29 eller 61 kort (i stället för 114) till profilen tre gånger i natt. Nästa körning i samma profil läste bara tillbaka den. Agenterna märkte det på raden "Poolen". Golden borde vägra köra på en halv pool, som i MES-260.
+* **`pgrep -f kor.cjs` kan ljuga åt båda hållen.** Den träffade en annan agents sovande skal vars kommandorad innehöll ordet. En låsfil vore säkrare.
+* **Två agenter delar en golden-kö dåligt.** En agent som kör direkt efter varandra stänger ute den andra i timmar; det hände i natt. Luckan på en minut mellan körningar hjälpte.
+* **Modellerna för nollprovet** (OWLv2 m.fl., venv och vikter) ligger kvar i worktreen `.claude/worktrees/agent-a48fd23ee4fabc982/`, utanför git, om steg 1 ska använda dem.
