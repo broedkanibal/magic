@@ -23095,8 +23095,9 @@ const FLIK_ID = (() => {
    hunnit svara, en omladdning tappade remsan helt, och när auto stängdes av
    fylldes den av kort som aldrig lyfts (MES-22). Kameran får LÄGGA TILL kort
    och vrida dem; att ta bort ett kort är alltid människans beslut. */
-/* Nåden var tre sekunder till 2026-09-18 (MES-214), och ett lyft kort tonades
-   ned ~3,7 s efter att det lämnat bordet. Vad den skyddade mot, mätt med
+/* Den korta nåden (i dag SLAPP_MS i avstamBord) var tre sekunder till
+   2026-09-18 (MES-214), och ett lyft kort tonades ned ~3,7 s efter att det
+   lämnat bordet. Vad den skyddade mot, mätt med
    dev/dubbletter.cjs --nad på golden-videornas rapporter:
      - en hand över kortet: nej — det sköter telefonen. Ett skymt spår står
        kvar hur länge som helst, och försvinner först när mattan UNDER det
@@ -23137,9 +23138,10 @@ const FLIK_ID = (() => {
    Kort som läggs på högen går dit lika fort som förut men utan att tonas ned
    först: rad 18 och 34 (+3,10, +2,67 s), och i golden 10 båda korten
    (+1,8, +2,2 s; dev/dubbletter.cjs). Rad 44 läses om till kortet under
-   (steg 1 i avstamBord) och tonas ned direkt som förut. Priset: ett kort som lämnar
-   bordet utan att högen visar det — till handen, exile, eller när högen
-   ändrades innan telefonen släppt spåret — tonas ned först efter väntan:
+   (steg 1 i avstamBord) och tonas ned direkt som förut. Priset: ett kort
+   som lämnar bordet utan att högen visar det — till handen, exile, eller
+   när högen ändrades innan telefonen släppt spåret — tonas ned först efter
+   väntan:
    rad 66 +1,89 → +6,29 s (högens ändring gick inte att ge det, ett Swamp
    försvann samtidigt), rad 34 i den lokala loggen +7,92 → +12,27 s, och i
    golden 07, 11 och 12 kommer nedtoningen ~4,4 s senare. Slutbordet är
