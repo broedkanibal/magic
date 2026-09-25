@@ -49,6 +49,7 @@ ta bort sista noden (`Gemm`) och sätt `/flatten/Flatten_output_0` som utgång.
 | | `node webb.cjs bank.html "EMBED('riktiga',{tagg:'forrakat',forrakade:'cache/forrakade/golden.json'})" --gpu`, `node jamfor.cjs <a> <b>` | igenkänning med förräknade mot lokalt räknade vektorer, kort för kort |
 | Lärda referenser (MES-231) | `node webb.cjs bank.html "LARDA()" --gpu` | samma referenser direkt och genom lagringens form: vektorerna, namnen, marginalerna |
 | | `node refmoln-prov.cjs` | synken mellan enheter (RefMoln ur index.html), ska sluta med `0 FEL` |
+| Hur lärda ska räknas (MES-232) | `node webb.cjs bank.html "LARDA_DUMP()" --gpu`, sedan `node larda-varianter.cjs [--kort]` | råvektorerna för leken och varje beskärning (som fråga och som lärd referens) till Node; varianterna — dagens blandning, stöd bara för ettan, egen medelvektor, högre tröskel … — på samma delning som `LARDA`, och rapportens del D-protokoll. `--kort` listar varje beskärning som byter svar |
 
 Allt under `cache/`, `modeller/` och `node_modules/` är gitignorerat.
 

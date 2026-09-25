@@ -182,14 +182,21 @@ Avbryts körningen: kör samma kommando igen.
   mätt. Att hämtade och egna tal blandas är ofarligt (de jämförs aldrig med
   varandra, bara med kamerans bild), men träffen på en iPhone kan skilja
   någon procent. Mät genom att öppna `bank.html` på telefonen.
-- **Hjälper de lärda bilderna bildmodellen?** I `LARDA` gjorde de det inte:
-  med 14 lärda bilder föll träffen från 39 till 36 av 47, och säkra svar
-  från 32 till 24. Kamerans foton liknar varandra mer än de liknar
-  Scryfalls bilder, så ett lärt foto av kort A drar också till sig foton
-  av kort B från samma bord. Det gäller *hur* bildmodellen använder dem
-  (MES-225), inte hur de sparas. Lärda bilder hjälper fortfarande den
-  gamla bildkedjan (Matcher + ORB), som de byggdes för. Uppföljning:
-  MES-232.
+- **Hjälper de lärda bilderna bildmodellen?** Bara på ett sätt — som
+  stöd, inte i rangordningen (MES-232, 2026-09-25). Blandade rakt in i
+  leken (som till 2026-09-25) gjorde de modellen sämre: med 14 lärda
+  bilder föll träffen från 39 till 36 av 47, och säkra svar från 32 till
+  24. Kamerans foton liknar varandra mer än de liknar Scryfalls bilder, så
+  ett lärt foto av kort A drog till sig foton av kort B — förlusten låg
+  helt hos kort som *saknade* egen lärd bild (26/24 → 23/14 rätt/säkra),
+  medan kort med en vann lite (13/8 → 13/10). Nu rangordnar Scryfalls
+  bilder ensamma, och en lärd bild får bara höja marginalen för det kort
+  som redan står överst — och bara när de lärda bilderna sinsemellan
+  också pekar på det kortet. Bänken (`larda-varianter.cjs`): 39 rätt /
+  34 säkra / 2 säkra fel mot 39 / 32 / 2 utan lärda; med lärda ur alla
+  andra inspelningstillfällen 53 / 49 / 2 av 61 mot 53 / 46 / 2. Lärda
+  bilder hjälper fortfarande den gamla bildkedjan (Matcher + ORB) som
+  förut — där rankas de som vilket konstverk som helst.
 
 ## Filerna
 

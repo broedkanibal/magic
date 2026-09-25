@@ -166,6 +166,16 @@ Ett annat tryck kostar alltså nästan ingenting — konsten bär. Poolens regel
 
 ⁸ Tröskeln vald på det syntetiska setet (marginal > 0,11–0,145), prövad här.
 
+Steg D höll inte i webbläsarmodulen (MES-232, 2026-09-25): med 14 lärda
+referenser ur fall 03–06 föll de 47 övriga beskärningarna från 39 till 36
+rätt och från 32 till 24 säkra, och del D-protokollet självt (lärda ur alla
+andra tillfällen, alla 61) gav 51/44/2 mot 53/46/2 utan. Kamerafoton liknar
+varandra mer än de liknar skanningarna; här hade nästan varje namn lärda
+referenser så stölden jämnade ut sig, och TTA ×3 och 16 vektorer per
+konstverk gjorde resten. Lösningen: lärda referenser rangordnar inte, de får
+bara stödja lekens etta när de lärda sinsemellan också pekar på den — 39/34/2
+på de 47 och 53/49/2 på del D-protokollet (`larda-varianter.cjs`).
+
 - **"Centrerat"** = referensernas medelvektor dras bort före jämförelsen, så
   att det alla Magic-kort har gemensamt (ram, textruta) inte räknas som
   likhet. Det lyfte MobileCLIP från 50 till 55 rätt och är en rad kod.

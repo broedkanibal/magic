@@ -21,8 +21,15 @@
        ett foto; den suddiga varianten lyfte oskärpa från 61 till 97 %.
      • referensernas medelvektor dras bort före jämförelsen: det alla
        Magic-kort har gemensamt ska inte räknas som likhet (50 → 55)
-     • poäng per NAMN = bästa referensen för namnet; alla konstverk och
-       lärda referenser (K7/K8) är bara fler bilder av samma namn
+     • poäng per NAMN = bästa referensen för namnet; alla konstverk är bara
+       fler bilder av samma namn
+     • lärda referenser (K7/K8, kamerans egna foton) rangordnar INTE: de
+       får bara stödja lekens etta, och bara när de lärda sinsemellan också
+       pekar på den (MES-232). Kamerafoton liknar varandra mer än de liknar
+       Scryfalls skanningar, så ett lärt foto av kort A drog till sig foton
+       av kort B: i bänken 39 → 36 rätt och 32 → 24 säkra av 47 med dagens
+       blandning, 39 → 39 rätt och 32 → 34 säkra med stödregeln, 0 nya fel
+       (dev/embed/larda-varianter.cjs)
 
    Modellen körs med onnxruntime-web: WebGPU när det finns, annars WASM
    (flera trådar om sidan är cross-origin isolated, annars en). Samma form
@@ -187,12 +194,26 @@
   const satt = (lager, v) => idb(lager, 'readwrite', s => s.put(v)).catch(() => null);
   const stryk = (lager, k) => idb(lager, 'readwrite', s => s.delete(k)).catch(() => null);
 
-  /* Posten i minnet: ra = normerade vektorer som modellen gav dem, vek = centrerade. */
+  /* Posten i minnet: ra = normerade vektorer som modellen gav dem, vek = centrerade.
+     Lärda referenser (id med '#ref', som KamEmbed och Ref.poolId märker dem)
+     får dessutom sin EGEN medelvektor (medelLard) och vektorerna centrerade
+     med den (vekLard, i ordningen lardIdx): kamerafoton jämförda med
+     kamerafoton, utan det de har gemensamt — röstningen i rangordna
+     (MES-232). Inget av det sparas; laddaLek räknar om det. */
   function centrera(idx) {
     const N = idx.names.length, c = new Float32Array(N * DIM);
     for (let i = 0; i < N; i++) { let n = 0; for (let k = 0; k < DIM; k++) { const v = idx.ra[i * DIM + k] - idx.medel[k]; c[i * DIM + k] = v; n += v * v; } n = Math.sqrt(n) || 1; for (let k = 0; k < DIM; k++) c[i * DIM + k] /= n; }
-    idx.vek = c; return idx;
+    const lardIdx = []; idx.ids.forEach((x, i) => { if (/#ref/.test(String(x))) lardIdx.push(i); });
+    let medelLard = null, vekLard = null;
+    if (lardIdx.length) {
+      medelLard = new Float32Array(DIM); for (const i of lardIdx) for (let k = 0; k < DIM; k++) medelLard[k] += idx.ra[i * DIM + k] / lardIdx.length;
+      vekLard = new Float32Array(lardIdx.length * DIM);
+      lardIdx.forEach((i, j) => { let n = 0; for (let k = 0; k < DIM; k++) { const v = idx.ra[i * DIM + k] - medelLard[k]; vekLard[j * DIM + k] = v; n += v * v; } n = Math.sqrt(n) || 1; for (let k = 0; k < DIM; k++) vekLard[j * DIM + k] /= n; });
+    }
+    idx.vek = c; idx.lardIdx = lardIdx; idx.medelLard = medelLard; idx.vekLard = vekLard; return idx;
   }
+  /* Posten som den sparas: utan det centrera räknar fram. */
+  const utanRaknat = idx => Object.assign({}, idx, { vek: undefined, lardIdx: undefined, medelLard: undefined, vekLard: undefined });
 
   /* Förräknade vektorer: 8 × 512 fp16 (little-endian) → Float32Array, varje
      vektor normerad på nytt (fp16 flyttar längden en tiotusendel). null om
@@ -260,20 +281,22 @@
   async function glom(kod) { await stryk('lek', kod); }
 
   /* En lärd referens (K7/K8): kamerans egen beskärning av ett kort med känt namn,
-     rak och vänd. Medelvektorn rörs inte — den hör till Scryfall-bilderna. */
+     rak och vänd. Medelvektorn rörs inte — den hör till Scryfall-bilderna.
+     ref.id ska innehålla '#ref' (Ref.poolId i appen): det är så rangordna
+     skiljer en lärd referens från lekens bilder. */
   async function laggTill(idx, ref) {
     await ladda();
     const nya = [await kor(fragaTensor(ref.bild, { rot: 0 })), await kor(fragaTensor(ref.bild, { rot: 180 }))];
     const N = idx.names.length, ra = new Float32Array((N + 2) * DIM); ra.set(idx.ra); ra.set(nya[0], N * DIM); ra.set(nya[1], (N + 1) * DIM);
     idx.ra = ra; idx.names = idx.names.concat([ref.name, ref.name]); idx.ids = idx.ids.concat([ref.id, ref.id]); idx.rot = idx.rot.concat([0, 180]); idx.larda = (idx.larda || 0) + 1;
-    centrera(idx); await satt('lek', Object.assign({}, idx, { vek: undefined }));
+    centrera(idx); await satt('lek', utanRaknat(idx));
     return idx;
   }
   async function taBort(idx, id) {
     const behall = idx.ids.map((x, i) => x === id ? -1 : i).filter(i => i >= 0), ra = new Float32Array(behall.length * DIM);
     behall.forEach((i, j) => ra.set(idx.ra.subarray(i * DIM, (i + 1) * DIM), j * DIM));
     idx.ra = ra; idx.names = behall.map(i => idx.names[i]); idx.ids = behall.map(i => idx.ids[i]); idx.rot = behall.map(i => idx.rot[i]);
-    centrera(idx); await satt('lek', Object.assign({}, idx, { vek: undefined }));
+    centrera(idx); await satt('lek', utanRaknat(idx));
     return idx;
   }
 
@@ -283,16 +306,38 @@
     return 1;
   }
 
-  /* Rangordna en färdig vektor mot leken. o.utan: Set med namn som räknas bort (deck-prior). */
+  /* Rangordna en färdig vektor mot leken. o.utan: Set med namn som räknas bort (deck-prior).
+     Lekens bilder (Scryfall) rangordnar. De lärda referenserna (K7/K8) står
+     utanför rangordningen och får bara STÖDJA ettan: dess poäng höjs till
+     den bästa lärda referensen för samma namn — så att marginalen växer när
+     kameran redan sett just det kortet — men bara när de lärda sinsemellan
+     också pekar på ettan (röstningen: frågan och de lärda centrerade med de
+     lärdas egen medelvektor, så att det kamerafoton har gemensamt tar ut
+     sig). Ett lärt foto av kort B kan alltså aldrig lyfta B över A, och
+     aldrig göra en osäker, felaktig etta säker. Uppmätt (MES-232,
+     dev/embed/larda-varianter.cjs, 47 golden-beskärningar som inte lärts):
+     dagens blandning 36 rätt / 24 säkra / 3 säkra fel, utan lärda 39 / 32 / 2,
+     stödregeln 39 / 34 / 2; med lärda ur alla andra inspelningstillfällen
+     (61) 53 / 49 / 2 mot 53 / 46 / 2 utan. Svarets stod = true när ettan bars. */
   function rangordna(q, idx, o) {
     const c = new Float32Array(DIM); let n = 0; for (let k = 0; k < DIM; k++) { c[k] = q[k] - idx.medel[k]; n += c[k] * c[k]; } n = Math.sqrt(n) || 1; for (let k = 0; k < DIM; k++) c[k] /= n;
-    const per = new Map(), N = idx.names.length, utan = o && o.utan;
+    const per = new Map(), perLard = new Map(), N = idx.names.length, utan = o && o.utan, li = idx.lardIdx || [];
+    let l = 0;
     for (let i = 0; i < N; i++) {
-      const namn = idx.names[i]; if (utan && utan.has(namn)) continue;
+      const namn = idx.names[i], lard = l < li.length && li[l] === i; if (lard) l++;
+      if (utan && utan.has(namn)) continue;
       let s = 0; const b = i * DIM; for (let k = 0; k < DIM; k++) s += c[k] * idx.vek[b + k];
+      if (lard) { if (!(perLard.get(namn) > s)) perLard.set(namn, s); continue; }
       const f = per.get(namn); if (!f || s > f.poang) per.set(namn, { namn, poang: s, id: idx.ids[i], rot: idx.rot[i] });
     }
-    return [...per.values()].sort((a, b) => b.poang - a.poang);
+    const lista = [...per.values()].sort((a, b) => b.poang - a.poang), a = lista[0];
+    if (a && perLard.get(a.namn) > a.poang && idx.vekLard) {
+      const ck = new Float32Array(DIM); let m = 0; for (let k = 0; k < DIM; k++) { ck[k] = q[k] - idx.medelLard[k]; m += ck[k] * ck[k]; } m = Math.sqrt(m) || 1;
+      let bastNamn = null, bastS = -Infinity;
+      li.forEach((i, j) => { const namn = idx.names[i]; if (utan && utan.has(namn)) return; let s = 0; const b = j * DIM; for (let k = 0; k < DIM; k++) s += ck[k] * idx.vekLard[b + k]; if (s / m > bastS) { bastS = s / m; bastNamn = namn; } });
+      if (bastNamn === a.namn) { a.poang = perLard.get(a.namn); a.stod = true; }
+    }
+    return lista;
   }
 
   /* Svaret för en beskärning (canvas, bild eller video):
@@ -307,7 +352,7 @@
     const lista = rangordna(q, idx, o), a = lista[0], b = lista[1];
     if (!a) return null;
     const marginal = a.poang - (b ? b.poang : 0);
-    return { namn: a.namn, id: a.id, rot: a.rot, poang: a.poang, marginal, saker: marginal > ((o && o.troskel) || TROSKEL), sakerhet: sakerhetAv(marginal),
+    return { namn: a.namn, id: a.id, rot: a.rot, poang: a.poang, marginal, saker: marginal > ((o && o.troskel) || TROSKEL), sakerhet: sakerhetAv(marginal), stod: !!a.stod,
              cands: lista.slice(0, 5).map(x => ({ name: x.namn, sid: x.id, score: x.poang })), ms: performance.now() - t0, backend, vektor: o && o.vektor ? q : undefined };
   }
 
