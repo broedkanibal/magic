@@ -30,18 +30,28 @@ a = p.parse_args()
 FALL = alla_fall()
 MASK = {f['id']: kortyta(f) for f in FALL}
 HB = las_hogbank()
-TROSKLAR = [round(0.02 * i, 2) for i in range(1, 46)]
+TROSKLAR = [0.001, 0.002, 0.005, 0.01, 0.015] + [round(0.02 * i, 2) for i in range(1, 46)] + [0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.985, 0.99, 0.992, 0.994, 0.996, 0.998, 0.999]
+FOR_MANGA = 400   # fler lådor än så över tröskeln är ingen rimlig arbetspunkt (och NMS:en tar minuter): hoppa över
+
+def bild_for(res, f):
+    """Körningens post för fallet: golden-bilden, eller originalfotot (2×2 rutor) — lådorna är andelar, så de gäller båda."""
+    b = res['bilder'].get(f['bild'])
+    if b: return b
+    return next((v for v in res['bilder'].values() if str(v.get('id', '')).startswith(f['id'])), None)
 
 def bedom_fall(res, f, fraga, troskel, storlek, sam):
-    b = res['bilder'].get(f['bild'])
+    b = bild_for(res, f)
     if not b: return None
     return bedom(f, filtrera(b['det'], fraga, troskel, f, storlek, sam, a.inneslut), mask=MASK[f['id']])
 
 def valj_troskel(res, fraga, storlek, sam):
     if a.troskel is not None: return a.troskel
     f = next(x for x in FALL if x['kort_id'] == TROSKELFALL)
-    bast = (-99, 0)
+    bast = (-9999, None)
+    b = bild_for(res, f)
+    if not b: return None
     for t in TROSKLAR:
+        if sum(1 for d in b['det'] if d[4] >= t and (fraga == 'alla' or d[5] == fraga)) > FOR_MANGA: continue
         r = bedom_fall(res, f, fraga, t, storlek, sam)
         if r is None: return None
         v = r['eget'] - r['falsk']

@@ -37,6 +37,7 @@ p.add_argument('--fragor', default='', help='kommaseparerade textfrågor (open-v
 p.add_argument('--imgsz', type=int, default=640, help='YOLO-Worlds indatastorlek')
 p.add_argument('--bildfraga', default='', help='OWLv2: en bild på ett kort som fråga i stället för text (bildstyrd detektion)')
 p.add_argument('--lag', type=float, default=0.02, help='golvtröskel: allt över sparas')
+p.add_argument('--punkter', type=int, default=32, help='MobileSAM: punkter per sida i rutnätet för automatiska masker')
 a = p.parse_args()
 LAG_TROSKEL = a.lag
 
@@ -57,6 +58,11 @@ print(f'{len(bilder)} bilder, modell {a.modell}, frågor {FRAGOR}', flush=True)
 # ── modellerna: var och en ger detekt(pil_bild) -> [[x0,y0,x1,y1,poäng,etikett], …] i pixlar ──
 import torch
 torch.set_grad_enabled(False)
+# TRADAR=2 när golden kör samtidigt på datorn: då får den andra mätningen
+# kvar sina kärnor. Tiden per bild blir då inte jämförbar med 4 trådar.
+TRADAR = int(os.environ.get('TRADAR') or 0)
+if TRADAR: torch.set_num_threads(TRADAR)
+print(f'torch-trådar {torch.get_num_threads()}', flush=True)
 
 def ladda(modell):
     if modell == 'owlv2':
@@ -107,7 +113,7 @@ def ladda(modell):
     if modell == 'mobilesam':
         from mobile_sam import sam_model_registry, SamAutomaticMaskGenerator
         sam = sam_model_registry['vit_t'](checkpoint=os.path.join(VIKTER, 'MobileSAM-master', 'weights', 'mobile_sam.pt')).eval()
-        gen = SamAutomaticMaskGenerator(sam, points_per_side=32, pred_iou_thresh=0.7, stability_score_thresh=0.8, min_mask_region_area=200)
+        gen = SamAutomaticMaskGenerator(sam, points_per_side=a.punkter, pred_iou_thresh=0.7, stability_score_thresh=0.8, min_mask_region_area=200)
         import cv2
         def detekt(im):
             arr = np.array(im.convert('RGB'))
@@ -128,7 +134,7 @@ def ladda(modell):
                 kvot = min(rw, rh) / max(rw, rh)
                 ut.append([x, y, x + w, y + h, float(mk['predicted_iou']), f'fyll={fyll:.2f} kvot={kvot:.2f} stab={mk["stability_score"]:.2f}'])
             return ut
-        return detekt, 'ChaoningZhang/MobileSAM vit_t, automatiska masker 32×32 punkter', 'Apache-2.0'
+        return detekt, f'ChaoningZhang/MobileSAM vit_t, automatiska masker {a.punkter}×{a.punkter} punkter', 'Apache-2.0'
     raise SystemExit('okänd modell ' + modell)
 
 t = time.perf_counter()
