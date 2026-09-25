@@ -37,7 +37,7 @@ function block(borjan, slut) {
 }
 const delar = [
   '/* UTKLIPPT UR index.html av dev/embed/utdrag.cjs — ändra inte här. */',
-  funktion('nyCanvas'), funktion('ritKontext'), modul('matcherModul'), modul('orbModul'),
+  funktion('nyCanvas'), funktion('ritKontext'), modul('matcherModul'), modul('orbModul'), modul('rakModul'),   // rakModul: den uträtade jämförelsen (MES-287)
   'const Pool = { idx: null };',
   rad('const CONF = {'), rad('const BASICS = new Set('), rad('const ORB_ACCEPT ='), rad('const refSid ='),
   funktion('confident'), funktion('cropCanvas'), funktion('orbIdentify'), funktion('skannaOchOrb'), funktion('domIdentifyAt'), funktion('identifyAt'), funktion('serUtSomKort'),

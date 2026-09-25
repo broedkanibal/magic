@@ -18,10 +18,12 @@ button{background:#1b222c;color:#e7ecf4;border:1px solid #3a4452;padding:5px 10p
   <button onclick="FUSION('riktiga')">Embed + ORB som två vittnen · riktiga</button>
   <button onclick="FUSION('synt',{var:8})">Embed + ORB · syntetiska (var 8:e)</button><br>
   <button onclick="ORBBAS('riktiga')">Dagens kedja (Matcher + ORB) · riktiga</button>
-  <button onclick="ORBBAS('synt',{var:10})">Dagens kedja · syntetiska (var 10:e)</button>
+  <button onclick="ORBBAS('synt',{var:10})">Dagens kedja · syntetiska (var 10:e)</button><br>
+  <button onclick="RAK('riktiga')">Uträtad jämförelse (NCC/ECC) + ORB, samma rad · riktiga (MES-287)</button>
+  <button onclick="RAK('synt',{var:8})">Uträtad + ORB · syntetiska (var 8:e)</button>
 </div>
 <div id="log"></div><div id="tabeller"></div>
-<script src="cache/kedjan.js"></script>
+<script src="cache/kedjan.js"></script>   <!-- bär också Rak (rakModul ur index.html, MES-287) -->
 <script src="embed.js"></script>
 <script>
 const log = m => { document.getElementById('log').insertAdjacentHTML('beforeend', '<pre>' + m + '</pre>'); console.log(m); };
@@ -174,6 +176,65 @@ window.FUSION = async function (setNamn, o) {
   window.SENASTE = { s, rader };
   await spara(`webb-fusion-${setNamn}`, { s, rader });
   return s;
+};
+/* ── MES-287: uträtad helbildsjämförelse (rakModul i index.html, via cache/kedjan.js) som kontroll av modellens
+   tre bästa namn — mätt på SAMMA rad som ORB, så att varje regel (bara NCC,
+   NCC + ECC, ORB, eller ORB bara när NCC är osäker) kan räknas ut i efterhand
+   ur raderna (dev/embed/rak-analys.cjs). Tiderna mäts var för sig:
+   msEmbed (modellen), msRak0 (NCC på alla bilder av de tre namnen, två
+   vridningar), msRak1 (samma + ECC på bästa bild per namn), msOrb (ORB som
+   FUSION gör den). Ingen dom fälls här — bara måtten. */
+async function byggRakPool(lek, g) {
+  const kort = await lasLek(lek), lista = [];
+  for (const c of kort) lista.push({ id: c.id, name: c.name, bild: await bild(c.smallFil) });
+  return Rak.byggPool(lista, { g });
+}
+window.RAK = async function (setNamn, o) {
+  o = o || {};
+  const idx = await embedRedo(o);
+  if (!Kedjan.Pool.idx) { log('bygger poolen (ORB) …'); Kedjan.Pool.idx = await byggOrbPool(o.lek); }
+  const P = Kedjan.Pool.idx, g = o.g || Rak.G;
+  const t0p = performance.now();
+  if (!window.RAKPOOL || RAKPOOL.g !== g) { RAKPOOL = await byggRakPool(o.lek, g); RAKPOOL.g = g; log(`gråpoolen: ${RAKPOOL.names.length} bilder ${RAKPOOL.w}×${RAKPOOL.h}, ${Math.round(performance.now() - t0p)} ms`); }
+  let test = await lasSet(setNamn); if (o.var) test = test.filter((_, i) => i % o.var === 0);
+  const rader = [];
+  for (let i = 0; i < test.length; i++) {
+    const t = test[i], im = await bild(t.url), cv = canvasAv(im), box = { x: 0, y: 0, w: cv.width, h: cv.height };
+    const t0 = performance.now();
+    const e = await Embed.identifiera(cv, idx); const tE = performance.now();
+    const namn3 = new Set(e.cands.slice(0, 3).map(c => c.name)), rots = (e.rot === 90 || e.rot === 270 ? [90, 270] : [0, 180]);
+    const r0 = Rak.kontrollera(cv, box, rots, namn3, RAKPOOL, { ecc: false }); const t1 = performance.now();
+    const sid = {}; for (const c of e.cands.slice(0, 3)) sid[c.name] = c.sid;
+    const r1 = Rak.kontrollera(cv, box, rots, namn3, RAKPOOL, { ecc: true, iters: o.iters, sid }); const t2 = performance.now();
+    /* ORB exakt som FUSION: två vridningar, alla bilder av de tre namnen, bryt vid 14. Per namn: bästa inliers och dess skala. */
+    let bast = { inliers: 0, namn: null }; const orbPer = {};
+    for (const rot of rots) {
+      const qc = cropCanvas(cv, box, rot, ORB.REF_W, ORB.REF_H), qf = qc ? ORB.queryFeatures(qc, 300) : null; if (!qf) continue;
+      for (let k = 0; k < P.names.length; k++) {
+        if (!namn3.has(P.names[k])) continue;
+        const v = ORB.verify(qf, ORB.unpack(P.orb, k), {}), sk = v.model ? +v.model.scale.toFixed(3) : null;
+        if (!orbPer[P.names[k]] || v.inliers > orbPer[P.names[k]].inliers) orbPer[P.names[k]] = { inliers: v.inliers, skala: sk, rot };
+        if (v.inliers > bast.inliers) bast = { inliers: v.inliers, namn: P.names[k], skala: sk, rot };
+      }
+      if (bast.inliers >= 14) break;
+    }
+    const t3 = performance.now();
+    const skrap = arSkrap(cv);
+    const kompakt = r => { const ut = {}; for (const n in r.per) { const x = r.per[n]; ut[n] = { ncc: +x.ncc.toFixed(4), nccC: +x.nccC.toFixed(4), rot: x.rot, id: x.id }; if (x.rho != null) Object.assign(ut[n], { rho: +x.rho.toFixed(4), ncc2: +x.ncc2.toFixed(4), nccC2: +x.nccC2.toFixed(4), iter: x.iter, p: x.p }); } return ut; };
+    /* ratta: högbänkens fall godtar flera namn (överst, over, under, annat); annars facits ena namn. */
+    const ratta = t.ratta || [t.namn];
+    rader.push({ fil: t.fil, typ: t.typ, namn: t.namn, ratta, skymd: !!t.skymd, helbild: !!t.helbild, kortsidaPx: t.kortsidaPx, gissning: e.namn, ratt: ratta.includes(e.namn), embedSaker: e.saker, marginal: +e.marginal.toFixed(4), rot: e.rot,
+                 cands: e.cands.slice(0, 3).map(c => [c.name, +c.score.toFixed(4)]), skrap,
+                 rak0: kompakt(r0), rak1: kompakt(r1), orb: { bast, per: orbPer },
+                 msEmbed: +(tE - t0).toFixed(2), msRak0: +(t1 - tE).toFixed(2), msRak1: +(t2 - t1).toFixed(2), msOrb: +(t3 - t2).toFixed(2) });
+    if (i % 5 === 0) { await andas(); if (i % 50 === 0) log(`  ${setNamn}: ${i}/${test.length}`); }
+  }
+  const med = k => { const v = rader.map(r => r[k]).sort((a, b) => a - b); return +v[v.length >> 1].toFixed(1); };
+  const ut = { n: rader.length, ratt: rader.filter(r => r.ratt).length, medianMs: { embed: med('msEmbed'), rak0: med('msRak0'), rak1: med('msRak1'), orb: med('msOrb') }, backend: Embed.backend, g };
+  log('RAK: ' + JSON.stringify(ut));
+  window.SENASTE = { ut, rader };
+  await spara(`webb-rak-${setNamn}${o.tagg ? '-' + o.tagg : ''}`, { ut, rader });
+  return ut;
 };
 /* Webbläsarens egna vektorer för leken (MES-230): facit som forrakna-prov.cjs
    jämför Node-receptet mot. Sparas i cache/resultat/webb-vektorer.json. */

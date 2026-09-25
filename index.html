@@ -4559,6 +4559,312 @@ function orbModul(global) {
 }
 orbModul(window);
 
+/* ══ Uträtad helbildsjämförelse (MES-287) ══
+   Ett tredje bildvittne, provat i dev/embed/bank.html: beskärningen rätas ut
+   till ett rakt kort i liten gråskala (64 × 89) och jämförs pixel mot pixel
+   med kandidaternas referenser (Scryfalls small i samma storlek). Först
+   passas den in med ECC (Evangelidis & Psarakis 2008, samma algoritm som
+   cv::findTransformECC) — affint, två pyramidnivåer, några pixlar och grader
+   — och sedan räknas korrelationen (rho, −1…1). Uppmätt i bänken: ett rätt
+   kort ger 0,94–0,97 efter inpassning, fel kort ur samma ram 0,79–0,88.
+   Centrering (lekens medelkort dras bort) ger ett andra mått, nccC, som är
+   känsligare men mer brusigt; domen fälls på rho.
+
+   Används i identifyMedModell BARA när Kamera.trosklar.rak är på (förval
+   av): bär den ettan (rho ≥ T och M över nästa namn) hoppas ORB över; säger
+   den emot (ett annat namn bärs) blir kortet osäkert utan ORB; annars ORB
+   som förut. I bänken (dev/embed/rak-analys.cjs, 2026-09-25): riktiga 61
+   beskärningar 48 säkra rätt / 1 säkert fel mot ORB:s 46 / 1 (felet är
+   ORB:s eget, ett Plains ovanpå ett Swamp), syntetiska 500: 380 / 5 mot
+   362 / 6, ORB behövdes för 35–44 % av korten. Ensam ersätter den inte ORB:
+   0 säkra fel på alla tre seten men 36 / 320 / 32 säkra rätt mot ORB:s
+   46 / 362 / 39 — sämst på kort som ligger under ett annat och i skugga.
+   Räknar på huvudtråden (~25 ms på Macen); ORB går i räknetråden (MES-221).
+   Poolen bär gråbilderna (rec.rak, byggPoolAv); en pool utan dem (byggd
+   före den här versionen) ger ORB som förut. Bänken klipper modulen ur
+   index.html (dev/embed/utdrag.cjs) så att den mäter samma kod. */
+function rakModul(global) {
+  'use strict';
+  const ASPEKT = 0.716;                 // 63 / 88
+  const MARGINAL = 0.08;                // beskar() — beskärningens marginal
+  const G = 64;                         // gråbildens bredd; höjden följer kortets form
+  const T = 0.88, M = 0.03;             // bär: rho ≥ T och M över nästa namn (valda på det syntetiska setet, 0 säkra fel)
+
+  const cv = typeof document !== 'undefined' ? document.createElement('canvas') : (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : null);
+  const cx = cv ? cv.getContext('2d', { willReadFrequently: true }) : null;
+  const nu = () => (typeof performance !== 'undefined' ? performance : Date).now();
+
+  /* Källa (bild/canvas) med låda → gråbild w×h (0–255). rot i 90-steg vrider
+     källan som cropCanvas (samma tecken), så att kortet står upprätt. Skalan
+     är lådans egen: en liggande låda som vrids 90° blir förvrängd precis som
+     hos ORB — det är det ECC får rätta till. */
+  function graUr(kalla, box, rot, w, h) {
+    cv.width = w; cv.height = h;
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+    cx.fillStyle = '#000'; cx.fillRect(0, 0, w, h);
+    const rad = (rot || 0) * Math.PI / 180;
+    cx.translate(w / 2, h / 2); cx.scale(w / box.w, h / box.h); cx.rotate(-rad); cx.translate(-(box.x + box.w / 2), -(box.y + box.h / 2));
+    try { cx.drawImage(kalla, 0, 0); } catch (e) { return null; }
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    const d = cx.getImageData(0, 0, w, h).data, g = new Float32Array(w * h);
+    for (let i = 0, p = 0; p < g.length; p++, i += 4) g[p] = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+    return g;
+  }
+  /* Ett varv 3×3-lådfilter: tar udden av vikningen från canvasens nedskalning. */
+  function sudda(g, w, h) {
+    const t = new Float32Array(g.length), u = new Float32Array(g.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const l = Math.max(0, x - 1), r = Math.min(w - 1, x + 1), o = y * w; t[o + x] = (g[o + l] + g[o + x] + g[o + r]) / 3; }
+    for (let y = 0; y < h; y++) { const a = Math.max(0, y - 1) * w, b = y * w, c = Math.min(h - 1, y + 1) * w; for (let x = 0; x < w; x++) u[b + x] = (t[a + x] + t[b + x] + t[c + x]) / 3; }
+    return u;
+  }
+  function halvera(g, w, h) {
+    const w2 = w >> 1, h2 = h >> 1, u = new Float32Array(w2 * h2);
+    for (let y = 0; y < h2; y++) for (let x = 0; x < w2; x++) { const o = 2 * y * w + 2 * x; u[y * w2 + x] = (g[o] + g[o + 1] + g[o + w] + g[o + w + 1]) / 4; }
+    return { g: u, w: w2, h: h2 };
+  }
+  /* Nollmedel och enhetslängd; medel: en bild som dras bort först (centrering). */
+  function norm(g, medel) {
+    const n = g.length, z = new Float32Array(n); let m = 0;
+    for (let i = 0; i < n; i++) { z[i] = medel ? g[i] - medel[i] : g[i]; m += z[i]; }
+    m /= n; let s = 0;
+    for (let i = 0; i < n; i++) { z[i] -= m; s += z[i] * z[i]; }
+    s = Math.sqrt(s) || 1;
+    for (let i = 0; i < n; i++) z[i] /= s;
+    return z;
+  }
+  const punkt = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+
+  /* ── Referenserna ──
+     graRef: en referensbild (Scryfalls small) → gråbild w×h som byte.
+     packa: referensernas gråbilder till poolens post (rec.rak): en platt
+     Uint8Array per id — ~600 kB för en pool på 114 bilder.
+     poolAv: posten → det kontrollera räknar mot (normerade bilder, medelkortet,
+     halva storleken för den grova inpassningen), räknat en gång per post.
+     Namnen tas ur poolen P (id → namn), så lärda referenser (#ref, utan
+     gråbild) faller utanför och lämnas åt ORB. */
+  function graRef(im, o) {
+    const w = (o && o.g) || G, h = Math.round(w / ASPEKT), iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+    const g = graUr(im, { x: 0, y: 0, w: iw, h: ih }, 0, w, h); if (!g) return null;
+    const s = sudda(g, w, h), u = new Uint8Array(w * h);
+    for (let i = 0; i < u.length; i++) u[i] = Math.max(0, Math.min(255, Math.round(s[i])));
+    return { w, h, gra: u };
+  }
+  function packa(ids, graer) {
+    const w = graer.find(Boolean).w, h = graer.find(Boolean).h, n = w * h, med = [];
+    for (let i = 0; i < ids.length; i++) if (graer[i]) med.push(i);
+    const gra = new Uint8Array(med.length * n);
+    med.forEach((i, k) => gra.set(graer[i].gra, k * n));
+    return { w, h, ids: med.map(i => ids[i]), gra };
+  }
+  const poolCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function poolAv(rak, P) {
+    let pool = poolCache && poolCache.get(rak);
+    if (pool && pool.stamp === (P.ids || []).length) return pool;
+    const w = rak.w, h = rak.h, n = w * h, namnAv = new Map(); (P.ids || []).forEach((id, i) => namnAv.set(String(id), P.names[i]));
+    const gra = [], names = [], ids = [], medel = new Float32Array(n);
+    for (let k = 0; k < rak.ids.length; k++) {
+      const namn = namnAv.get(String(rak.ids[k])); if (namn == null) continue;
+      const g = Float32Array.from(rak.gra.subarray(k * n, (k + 1) * n));
+      gra.push(g); names.push(namn); ids.push(rak.ids[k]);
+    }
+    for (const g of gra) for (let i = 0; i < n; i++) medel[i] += g[i] / gra.length;
+    pool = { w, h, names, ids, gra, nrm: gra.map(g => norm(g)), nrmC: gra.map(g => norm(g, medel)), medel, halva: gra.map(g => halvera(g, w, h).g), stamp: (P.ids || []).length };
+    if (poolCache) poolCache.set(rak, pool);
+    return pool;
+  }
+  /* Bänkens väg (dev/embed/bank.html): referenserna som bilder → samma pool. */
+  async function byggPool(kort, o) {
+    const graer = [], ids = [], names = [];
+    for (const c of kort) { const im = c.bild || await bildAv(c.small || c.normal); graer.push(graRef(im, o)); ids.push(c.id); names.push(c.name); }
+    return poolAv(packa(ids, graer), { ids, names });
+  }
+  function bildAv(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bild ' + src)); i.src = src; }); }
+
+  /* ── ECC: affin inpassning av frågan I (Iw×Ih) mot mallen T (w×h) ──
+     p = [a, b, c, d, tx, ty]: mallens (x, y) → frågans ((1+a)x + b·y + tx, c·x + (1+d)y + ty).
+     Svar: { p, rho, iter }; rho = korrelationen (−1…1) vid slutet.
+     Stegkontroll utöver OpenCV: ett steg begränsas (translation ≤ w/6,
+     linjärt ≤ 0,2 per varv), och sjunker korrelationen tas steget tillbaka
+     och inpassningen stannar — utan det sken den iväg på svaga bilder. */
+  function gradient(I, w, h) {
+    const gx = new Float32Array(w * h), gy = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const o = y * w + x;
+      gx[o] = (I[o + (x < w - 1 ? 1 : 0)] - I[o - (x > 0 ? 1 : 0)]) / (x > 0 && x < w - 1 ? 2 : 1);
+      gy[o] = (I[o + (y < h - 1 ? w : 0)] - I[o - (y > 0 ? w : 0)]) / (y > 0 && y < h - 1 ? 2 : 1);
+    }
+    return { gx, gy };
+  }
+  function los6(H, b) {
+    /* Gauss–Jordan med pivotering, 6×6. Svar null om singulär. */
+    const A = []; for (let i = 0; i < 6; i++) { A.push(Array.from(H.subarray(i * 6, i * 6 + 6))); A[i].push(b[i]); }
+    for (let c = 0; c < 6; c++) {
+      let p = c; for (let r = c + 1; r < 6; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+      if (Math.abs(A[p][c]) < 1e-12) return null;
+      [A[c], A[p]] = [A[p], A[c]];
+      for (let r = 0; r < 6; r++) { if (r === c) continue; const f = A[r][c] / A[c][c]; if (!f) continue; for (let k = c; k < 7; k++) A[r][k] -= f * A[c][k]; }
+    }
+    const x = new Float64Array(6); for (let i = 0; i < 6; i++) x[i] = A[i][6] / A[i][i];
+    return x;
+  }
+  function eccNiva(Tz, w, h, I, Iw, Ih, grad, p, iters) {
+    const n = w * h, gx = grad.gx, gy = grad.gy;
+    const iw = new Float32Array(n), jx = new Float32Array(n), jy = new Float32Array(n);
+    const Gk = [new Float32Array(n), new Float32Array(n), new Float32Array(n), new Float32Array(n), new Float32Array(n), new Float32Array(n)];
+    const H = new Float64Array(36), ip = new Float64Array(6), tp = new Float64Array(6), err = new Float64Array(6), forra = new Float64Array(6);
+    const maxT = w / 6, maxL = 0.2;
+    let rho = -2, iter = 0;
+    const sampla = (S, x, y) => {
+      const x0 = Math.floor(x), y0 = Math.floor(y), ax = x - x0, ay = y - y0, x1 = x0 + 1, y1 = y0 + 1;
+      const o00 = y0 * Iw + x0, o01 = y0 * Iw + x1, o10 = y1 * Iw + x0, o11 = y1 * Iw + x1;
+      return (S[o00] * (1 - ax) + S[o01] * ax) * (1 - ay) + (S[o10] * (1 - ax) + S[o11] * ax) * ay;
+    };
+    for (iter = 0; iter < iters; iter++) {
+      /* Varpa frågan och dess gradient till mallens rutnät (kanten upprepas utanför bilden). */
+      let mI = 0, mx = 0, my = 0;
+      for (let y = 0, k = 0; y < h; y++) for (let x = 0; x < w; x++, k++) {
+        let u = (1 + p[0]) * x + p[1] * y + p[4], v = p[2] * x + (1 + p[3]) * y + p[5];
+        if (u < 0) u = 0; else if (u > Iw - 1.001) u = Iw - 1.001;
+        if (v < 0) v = 0; else if (v > Ih - 1.001) v = Ih - 1.001;
+        iw[k] = sampla(I, u, v); jx[k] = sampla(gx, u, v); jy[k] = sampla(gy, u, v);
+        mI += iw[k]; mx += jx[k]; my += jy[k];
+      }
+      mI /= n; mx /= n; my /= n;
+      let iNorm2 = 0;
+      for (let k = 0; k < n; k++) { iw[k] -= mI; iNorm2 += iw[k] * iw[k]; }
+      const corr = punkt(Tz, iw);
+      const nyRho = corr / (Math.sqrt(iNorm2) || 1);            // Tz har längd 1
+      /* Sjönk korrelationen av förra steget: ta tillbaka det och stanna. */
+      if (iter > 0 && nyRho < rho - 1e-3) { p.set(forra); break; }
+      const klar = Math.abs(nyRho - rho) < 1e-4; rho = nyRho;
+      if (klar) { iter++; break; }
+      /* Jacobianen för affin varp: dI/dp = [gx·x, gx·y, gy·x, gy·y, gx, gy], nollmedel per kolumn. */
+      const cm = [0, 0, 0, 0, 0, 0];
+      for (let y = 0, k = 0; y < h; y++) for (let x = 0; x < w; x++, k++) {
+        const a = jx[k] - mx, b = jy[k] - my;
+        Gk[0][k] = a * x; Gk[1][k] = a * y; Gk[2][k] = b * x; Gk[3][k] = b * y; Gk[4][k] = a; Gk[5][k] = b;
+        for (let j = 0; j < 6; j++) cm[j] += Gk[j][k];
+      }
+      for (let j = 0; j < 6; j++) { const c = cm[j] / n; const g = Gk[j]; for (let k = 0; k < n; k++) g[k] -= c; }
+      for (let i = 0; i < 6; i++) { ip[i] = punkt(Gk[i], iw); tp[i] = punkt(Gk[i], Tz); for (let j = i; j < 6; j++) { const v = punkt(Gk[i], Gk[j]); H[i * 6 + j] = v; H[j * 6 + i] = v; } }
+      const iph = los6(H, ip); if (!iph) break;
+      let lamN = iNorm2, lamD = corr;
+      for (let i = 0; i < 6; i++) { lamN -= ip[i] * iph[i]; lamD -= tp[i] * iph[i]; }
+      if (lamD <= 0) break;                                      // fast (samma villkor som OpenCV)
+      const lam = lamN / lamD;
+      for (let i = 0; i < 6; i++) err[i] = lam * tp[i] - ip[i];
+      const dp = los6(H, err); if (!dp) break;
+      /* Steget begränsas: största tillåtna translation w/6, linjärt 0,2. */
+      let s = 1;
+      for (let i = 0; i < 4; i++) if (Math.abs(dp[i]) * s > maxL) s = maxL / Math.abs(dp[i]);
+      for (let i = 4; i < 6; i++) if (Math.abs(dp[i]) * s > maxT) s = maxT / Math.abs(dp[i]);
+      forra.set(p);
+      for (let i = 0; i < 6; i++) p[i] += s * dp[i];
+    }
+    return { p, rho, iter };
+  }
+  /* Två nivåer: halv storlek först (grov inpassning), sedan full. o.niva:
+     'grov' = bara den halva (p skalas upp), 'fin' = bara den fulla, annars båda.
+     o.grov: mall och fråga i halv storlek om de redan finns (poolen bär mallens). */
+  function ecc(T, w, h, I, Iw, Ih, p0, o) {
+    o = o || {};
+    const iters = o.iters || 12, p = Float64Array.from(p0);
+    let r = null;
+    if (o.niva !== 'fin' && w >= 32 && h >= 32) {
+      const t2 = o.grov && o.grov.T ? o.grov.T : halvera(T, w, h).g, i2 = o.grov && o.grov.I ? o.grov.I : halvera(I, Iw, Ih);
+      const q = Float64Array.from(p); q[4] /= 2; q[5] /= 2;
+      r = eccNiva(norm(t2), w >> 1, h >> 1, i2.g, i2.w, i2.h, i2.grad || (i2.grad = gradient(i2.g, i2.w, i2.h)), q, iters);
+      p.set(q); p[4] *= 2; p[5] *= 2;
+      r.p = p;
+    }
+    if (o.niva !== 'grov') r = eccNiva(norm(T), w, h, I, Iw, Ih, o.grad || gradient(I, Iw, Ih), p, iters);
+    return r;
+  }
+  /* Varpa frågan med p till mallens rutnät (för NCC efter ECC). */
+  function varpa(I, Iw, Ih, w, h, p) {
+    const u8 = new Float32Array(w * h);
+    for (let y = 0, k = 0; y < h; y++) for (let x = 0; x < w; x++, k++) {
+      let u = (1 + p[0]) * x + p[1] * y + p[4], v = p[2] * x + (1 + p[3]) * y + p[5];
+      if (u < 0) u = 0; else if (u > Iw - 1.001) u = Iw - 1.001;
+      if (v < 0) v = 0; else if (v > Ih - 1.001) v = Ih - 1.001;
+      const x0 = Math.floor(u), y0 = Math.floor(v), ax = u - x0, ay = v - y0, o = y0 * Iw + x0;
+      u8[k] = (I[o] * (1 - ax) + I[o + 1] * ax) * (1 - ay) + (I[o + Iw] * (1 - ax) + I[o + Iw + 1] * ax) * ay;
+    }
+    return u8;
+  }
+
+  /* ── Kontrollen ──
+     kalla: beskärningen (canvas/bild) med 8 % marginal; box: lådan i den;
+     rots: vridningar att pröva (som ORB: modellens och den motsatta);
+     namn: kandidatnamnen (Set, poolens namn); pool: poolAv:s svar.
+     o.ecc: inpassning. Per namn prövas grovt (halv storlek) den bild NCC
+     valde och den bild modellen pekade på (o.sid: namn → id), i båda
+     vridningarna; den bästa av dem passas in fint.
+     Svar per namn: ncc (rå), nccC (centrerad), rot, id, och med ecc:
+     rho (ECC:s korrelation, rå), ncc2/nccC2 (rå/centrerad efter inpassning), p, iter. */
+  function kontrollera(kalla, box, rots, namn, pool, o) {
+    o = o || {};
+    const t0 = nu();
+    const w = pool.w, h = pool.h, f = MARGINAL / (1 + 2 * MARGINAL);
+    const inre = { x: box.x + box.w * f, y: box.y + box.h * f, w: box.w * (1 - 2 * f), h: box.h * (1 - 2 * f) };
+    const fragor = [];
+    for (const rot of rots) {
+      let g = graUr(kalla, inre, rot, w, h); if (!g) continue;
+      g = sudda(g, w, h);
+      fragor.push({ rot, g, nrm: norm(g), nrmC: norm(g, pool.medel) });
+    }
+    const per = {};
+    for (let i = 0; i < pool.names.length; i++) {
+      const n = pool.names[i]; if (!namn.has(n)) continue;
+      for (const q of fragor) {
+        const ncc = punkt(q.nrm, pool.nrm[i]), nccC = punkt(q.nrmC, pool.nrmC[i]);
+        const f0 = per[n];
+        if (!f0 || nccC > f0.c) per[n] = { c: nccC, ncc, nccC, rot: q.rot, id: pool.ids[i], i };
+      }
+    }
+    if (o.ecc) {
+      /* Frågan med marginal, så att inpassningen får leta några pixlar utanför kortet. */
+      const Iw = Math.round(w * (1 + 2 * MARGINAL)), Ih = Math.round(h * (1 + 2 * MARGINAL)), ox = (Iw - w) / 2, oy = (Ih - h) / 2;
+      const medMarg = new Map();
+      const fraga = rot => { if (!medMarg.has(rot)) { const g = graUr(kalla, box, rot, Iw, Ih); if (!g) return null; const I = sudda(g, Iw, Ih); medMarg.set(rot, { I, grad: gradient(I, Iw, Ih), halv: halvera(I, Iw, Ih) }); } return medMarg.get(rot); };
+      for (const n in per) {
+        const r = per[n], kand = new Set([r.i]);
+        if (o.sid && o.sid[n] != null) { const j = pool.ids.indexOf(o.sid[n]); if (j >= 0) kand.add(j); }
+        let bast = null;
+        for (const i of kand) for (const rot of rots) {
+          const q = fraga(rot); if (!q) continue;
+          const g = ecc(pool.gra[i], w, h, q.I, Iw, Ih, [0, 0, 0, 0, ox, oy], { niva: 'grov', iters: o.iters, grov: { T: pool.halva[i], I: q.halv } });
+          if (!bast || g.rho > bast.rho) bast = { i, rot, rho: g.rho, p: g.p, q };
+        }
+        if (!bast) continue;
+        const e = ecc(pool.gra[bast.i], w, h, bast.q.I, Iw, Ih, bast.p, { niva: 'fin', iters: o.iters, grad: bast.q.grad });
+        const varpad = varpa(bast.q.I, Iw, Ih, w, h, e.p);
+        r.i = bast.i; r.id = pool.ids[bast.i]; r.rot = bast.rot;
+        r.rho = e.rho; r.iter = e.iter; r.p = Array.from(e.p).map(x => +x.toFixed(4));
+        r.ncc2 = punkt(norm(varpad), pool.nrm[bast.i]); r.nccC2 = punkt(norm(varpad, pool.medel), pool.nrmC[bast.i]);
+        r.c = r.nccC2;
+      }
+    }
+    let bast = null;
+    for (const n in per) { const r = per[n]; if (!bast || r.c > bast.c) bast = Object.assign({ namn: n }, r); }
+    return { bast, per, ms: nu() - t0 };
+  }
+  /* Domen ur kontrollera:s svar (med ecc), i typnamn (typAv: poolens namn →
+     namnet modellen räknar med, t.ex. baslandets typ): bar = ettan bärs,
+     emot = ett annat namn bärs i stället. rho per typnamn = bästa bildens. */
+  function dom(svar, etta, typAv) {
+    const per = new Map();
+    for (const n in svar.per) { const r = svar.per[n], t = typAv ? typAv(n) : n; if (r.rho == null) continue; const f = per.get(t); if (!f || r.rho > f.rho) per.set(t, { rho: r.rho, rot: r.rot, id: r.id }); }
+    const e = per.get(etta), annan = [...per.entries()].filter(([t]) => t !== etta).sort((a, b) => b[1].rho - a[1].rho)[0];
+    const rhoE = e ? e.rho : -1, rhoA = annan ? annan[1].rho : -1;
+    return { bar: rhoE >= T && rhoE - rhoA >= M, emot: rhoA >= T && rhoA - rhoE >= M, rho: +rhoE.toFixed(3), annan: annan ? annan[0] : null, rhoAnnan: +rhoA.toFixed(3), rot: e ? e.rot : null, ms: +svar.ms.toFixed(1) };
+  }
+
+  global.Rak = { G, ASPEKT, MARGINAL, T, M, graRef, packa, poolAv, byggPool, kontrollera, dom, graUr, sudda, norm, ecc, varpa, punkt, gradient, halvera };
+}
+rakModul(window);
+
 /* ══════════════════════════════════════════════════════════════════
    Automatisk avläsning av en skärmdump från ett videosamtal.
 
@@ -15968,6 +16274,7 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
   const descs = new Int8Array(cards.length * D);
   const tmpl = new Float32Array(88);          // "genomsnittskortet" för detektorn
   const feats = new Array(cards.length);      // lokala särdrag per kort
+  const graer = new Array(cards.length);      // gråbild per kort för den uträtade jämförelsen (MES-287, Rak)
   const EMPTY = { kps: [], desc: new Uint8Array(0) };
   let tmplN = 0;
   let done = 0, fail = 0, next = 0;
@@ -15992,15 +16299,19 @@ async function byggPoolAv(cards, code, setName, onProg, lands) {
           tmplN++;
         }
         feats[i] = ORB.refFeatures(im, 200);
+        try { graer[i] = Rak.graRef(im); } catch (e) { graer[i] = null; }
       } catch (e) { fail++; }
       onProg({ phase: 'img', done: ++done, total: cards.length, fail });
     }
   }
   await Promise.all(Array.from({ length: 8 }, worker));
+  /* rak: referensernas gråbilder (MES-287), ~600 kB. Samma version som förut:
+     en sparad pool utan dem ger ORB som förut när växeln (T.rak) är på. */
   const rec = {
     code, setName, ts: Date.now(),
     names: cards.map(c => c.name), ids: cards.map(c => c.id), smalls: cards.map(c => c.small),
-    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 7, lands: !!lands
+    descs, fail, tmpl: Array.from(tmpl, v => v / Math.max(1, tmplN)), orb: ORB.pack(feats), v: 7, lands: !!lands,
+    rak: graer.some(Boolean) ? Rak.packa(cards.map(c => c.id), graer) : null
   };
   await IDB.poolPut(rec);
   Pool.idx = rec;
@@ -16425,9 +16736,22 @@ async function identifyMedModell(img, box, e, ensamt) {
   e = Object.assign({}, e, { marginal, saker: marginal > Embed.TROSKEL, cands: rang });
   const namn3 = new Set(rang.slice(0, MODELL_NAMN).map(c => c.name));
   const per = new Map(), perSkala = new Map(); let bast = { inliers: 0, namn: null, rot: e.rot || 0 };
-  if (P.orb) {
+  const r0 = ((e.rot || 0) % 360 + 360) % 360;
+  /* Den uträtade jämförelsen (MES-287, Rak) före ORB — bara med växeln på
+     (Kamera.trosklar.rak, förval av; golden: --tro "rak:1") och en pool som
+     bär gråbilderna. Bär den ettan hoppas ORB över; säger den emot blir
+     kortet osäkert utan ORB; annars ORB som förut. Räknar på huvudtråden. */
+  let rak = null;
+  if (P.rak && typeof Kamera !== 'undefined' && Kamera.trosklar && Kamera.trosklar.rak && typeof Rak !== 'undefined') {
+    try {
+      const vilkaNamn = new Set(P.names.filter(n => namn3.has(typNamn(n)))), sid = {};
+      for (const c of e.cands || []) if (namn3.has(typNamn(c.name)) && sid[c.name] == null) sid[c.name] = c.sid;
+      const svar = Rak.kontrollera(img, box, [r0, (r0 + 180) % 360], vilkaNamn, Rak.poolAv(P.rak, P), { ecc: true, sid });
+      rak = Rak.dom(svar, etta, typNamn);
+    } catch (err) { rak = null; }
+  }
+  if (P.orb && !(rak && (rak.bar || rak.emot))) {
     const vilka = []; for (let i = 0; i < P.names.length; i++) if (namn3.has(typNamn(P.names[i]))) vilka.push(i);
-    const r0 = ((e.rot || 0) % 360 + 360) % 360;
     /* Räkningen i räknetråden när den finns (MES-221), annars här; samma
        träffar i samma ordning, så domen nedan är densamma. */
     const traffar = await LasWorker.orb(img, box, [r0, (r0 + 180) % 360], vilka, ORB_ACCEPT + 4, ORB_SKALA, P);
@@ -16453,16 +16777,18 @@ async function identifyMedModell(img, box, e, ensamt) {
      Alla tre trapporna gäller en HEL ruta. Ramar träffen bara in en BIT av
      ett kort (skalan under ORB_HEL) krävs dessutom DEL_MARGINAL — se där. */
   const helRuta = !(bast.skala < ORB_HEL);
-  const bar = bast.namn === etta && (helRuta || e.marginal >= DEL_MARGINAL)
-    && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker));
+  /* Rak bär ettan: säkert utan ORB (rho ≥ 0,88 efter inpassning kräver ett helt kort i rutan — en bit av ett kort når 0,78–0,79, uppmätt på golden 11:s Swamp i plastficka). Rak emot: osäkert utan ORB. */
+  const bar = (rak && rak.bar) || (bast.namn === etta && (helRuta || e.marginal >= DEL_MARGINAL)
+    && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker)));
   const land = !!landTyp(etta);
-  const emot = bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT);
+  const emot = (rak && rak.emot) || (bast.namn !== etta && bast.inliers >= (land && landTyp(bast.namn) ? ORB_ACCEPT : ORB_EMOT));
+  if (rak && rak.bar) bast = { inliers: bast.inliers, namn: etta, rot: rak.rot != null ? rak.rot : bast.rot, skala: bast.skala };
   /* Provat och backat: ett land säkert också utan att spåret är ensamt, när ORB ger typen ett svagt stöd inom skalan. Golden 07 fick sitt Swamp (det ligger ensamt, men inspelningens egna streckade spårrutor gör regionen för stor, MES-223) — och golden 11 fick Swamp-halvan i plastfickan namngiven en gång till: dubbletter 0 → 1 och en falsk tap-flipp. En bit av ett kort får inte bli ett kort till. */
   /* Landregeln — säkert utan ORB:s stöd — gäller bara ett spår som är MÄTT mot kortreferensen ('matt'). Före bordets första säkra kort finns bara formen, och då krävs ORB:s stöd som för vilket kort som helst: uppmätt i golden 04 i mörkare ljus (kor.cjs --ljus alla) växte Plains-högen ihop med Swamp bredvid till en region med ett korts kvot (288×394 mot kortens 190×251), och modellen sa Swamp med marginal 0,21 — ett säkert fel namn. */
   const ensam = !!(ensamt && !emot && ((land && ensamt === 'matt' && e.marginal >= LAND_MARGINAL) || (e.saker && (!P.orb || stod >= ORB_EMOT))));
   const cands = (e.cands || []).map(c => ({ name: c.name, sid: refSid(c.sid), score: c.score }));
-  return { accept: bar || ensam, del: bar && !helRuta, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
-           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend } };
+  return { accept: bar || ensam, del: bar && !(rak && rak.bar) && !helRuta, score: e.poang, rec: { box, rot: bast.rot, cands, inliers: bast.inliers },
+           modell: { marginal: e.marginal, saker: !!e.saker, ensamt: !!ensamt, bar, emot, stod, land, orbNamn: bast.namn, skala: bast.skala, ms: e.ms, backend: e.backend, rak: rak || undefined } };
 }
 
 /* ═══ LÄSNINGENS RÄKNETRÅD (MES-221) ═══
@@ -18829,7 +19155,12 @@ const Kamera = (() => {
        golden 16 (22 → 38 ms utan att något delas där) och en dubblett till i
        09 med --utan-leken. Slås på i golden med --tro "omlott:1", på
        telefonen med Kamera.satTrosklar({ omlott: 1 }) (provbordets kanal). */
-    omlott: 0
+    omlott: 0,
+    /* Den uträtade helbildsjämförelsen (MES-287, Rak) som kontroll före ORB
+       i identifyMedModell: 1 = på, 0 = av. Förvalet är AV — bänken säger att
+       den kompletterar ORB (ORB behövs för 35–44 % av korten) men inte
+       ersätter den. Slås på i golden med --tro "rak:1". */
+    rak: 0
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
@@ -22864,7 +23195,7 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   let saker = !!(v.accept && cands[0] && !(M && b0 && b0.name === BAKSIDA_NAMN));
   /* Domskälet, för diagnosen och golden-provet: 'bild…' är Matcher + ORB, 'modell…' bildmodellen + ORB. */
   const B = M ? 'modell' : 'bild';
-  let varfor = saker ? (M ? (M.bar ? 'modell+orb' : M.land ? 'modell land' : 'modell') : 'bild') : 'osäker';
+  let varfor = saker ? (M ? (M.bar ? (M.rak && M.rak.bar ? 'modell+rak' : 'modell+orb') : M.land ? 'modell land' : 'modell') : 'bild') : 'osäker';
   /* Två vittnen: illustrationen och namnet. Säkert när de håller med, eller
      när det ena är starkt nog att stå för sig — men ALDRIG när båda är
      säkra på var sitt kort: då går kortet till granskningen med bägge

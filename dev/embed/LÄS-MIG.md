@@ -49,6 +49,7 @@ ta bort sista noden (`Gemm`) och sätt `/flatten/Flatten_output_0` som utgång.
 | | `node webb.cjs bank.html "EMBED('riktiga',{tagg:'forrakat',forrakade:'cache/forrakade/golden.json'})" --gpu`, `node jamfor.cjs <a> <b>` | igenkänning med förräknade mot lokalt räknade vektorer, kort för kort |
 | Lärda referenser (MES-231) | `node webb.cjs bank.html "LARDA()" --gpu` | samma referenser direkt och genom lagringens form: vektorerna, namnen, marginalerna |
 | | `node refmoln-prov.cjs` | synken mellan enheter (RefMoln ur index.html), ska sluta med `0 FEL` |
+| Uträtad jämförelse (MES-287) | `node hog-beskar.cjs`, sedan `node webb.cjs bank.html "RAK('riktiga')" --gpu` (också `'synt', {var: 8}` och `'hog'`) | modellen + NCC/ECC (`Rak` ur index.html) + ORB på samma rad; `node rak-analys.cjs --L 0.80 --fel` räknar reglerna — se [RAK.md](RAK.md) |
 
 Allt under `cache/`, `modeller/` och `node_modules/` är gitignorerat.
 
