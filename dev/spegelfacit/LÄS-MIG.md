@@ -21,9 +21,10 @@ Flaggor:
 | `--fore 2 --efter 10` | 2 | fönstret runt facits tid, i sekunder |
 | `--utan-lek` | 2 | utan lekens antal (då kan inget kort lyftas ur graveyard) |
 | `--nad 2000` | 2 | datorns väntan innan ett tappat kort tonas ned (`BORTA_NAD`, förval appens värde) — för att jämföra väntetider på samma logg (MES-291) |
+| `--html fil` | 2 | en annan `index.html` än trädets, t.ex. `git show main:index.html > /tmp/main.html` — före och efter på samma logg (MES-294) |
 | `--logg fil` | 2 | en bordslogg sparad ur appen i ett riktigt pass ("Spara bordsloggen") i stället för steg 1 |
 
-Mått över tid. `tappade` och `antal` läser steg 2:s `--json bord.json` och
+Mått över tid. `tappade`, `antal` och `granskning` läser steg 2:s `--json bord.json` och
 samplar var tionde sekund som v2-facit för partiet 2026-09-21 (`--steg 1`
 för varje sekund); `skala` spelar upp loggen själv:
 
@@ -31,6 +32,7 @@ för varje sekund); `skala` spelar upp loggen själv:
 |---|---|
 | `node dev/spegelfacit/tappade.cjs bord.json` | tappade kort på mattan mot på bordet (`diff_tappade`, MES-293) |
 | `node dev/spegelfacit/antal.cjs bord.json` | kort på mattan mot på bordet (`diff_kort`), samma sak utan de nedtonade, och hur många som är nedtonade (MES-291) |
+| `node dev/spegelfacit/granskning.cjs bord.json [--poster]` | granskningen ("N cards to fill in"): varje post som skapades, om den gissar ett kort som redan ligger på bordet — på samma plats, på annan plats eller nedtonat — och kön över tid (MES-294) |
 | `node dev/spegelfacit/skala.cjs [--korning logg.json]` | glider korten isär — skalan över tid (MES-293) |
 
 ## Vad som räknas
