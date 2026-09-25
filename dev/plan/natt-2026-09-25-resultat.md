@@ -1,7 +1,7 @@
 # Nattpasset 2026-09-25: rapporten
 
 Passet började 00:33 och kördes klart autonomt på Jespers begäran (07:26). Det
-slutade 10:20. Instruktionen: `dev/plan/orkestrering-natt-2026-09-25.md`.
+slutade 12:20. Instruktionen: `dev/plan/orkestrering-natt-2026-09-25.md`.
 Loggen steg för steg: `dev/plan/natt-2026-09-25-logg.md`.
 
 ## Kort sagt
