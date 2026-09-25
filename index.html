@@ -5793,8 +5793,13 @@ const Moln = (() => {
        skrivningen igenom (lekSparaKo, MES-289). */
     if (error) { console.warn('Leken kunde inte sparas', error.message); return { ok: false, fel: error.message, forsok: Date.parse(nu) }; }
     if (rader && rader.length) return { ok: true, rad: Object.assign({ ts: lekTs(rader[0]) }, rader[0]) };
-    /* Ingen rad skrevs: någon annan enhet hann före (eller leken är borta). */
-    const rad = await hamtaLekRad(id).catch(() => null);
+    /* Ingen rad skrevs: någon annan enhet hann före (eller leken är borta).
+       Faller omläsningen på nätet vet vi ingenting — det är ett fel att
+       försöka igen, inte en borttagen lek. Förut blev det "borta": datorn
+       kastade sina osparade ändringar och telefonen sitt lästa foto (MES-289). */
+    let rad;
+    try { rad = await hamtaLekRad(id); }
+    catch (e) { return { ok: false, fel: (e && e.message) || 'The deck could not be fetched' }; }
     return rad ? { ok: false, konflikt: true, rad } : { ok: false, borta: true };
   }
   async function dopOmLek(id, namn) {

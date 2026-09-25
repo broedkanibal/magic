@@ -321,7 +321,7 @@ function doma(r) {
 /* ── lekSparaKo direkt: kön växer mellan försöken ─────────────────── */
 async function sparaKoProv(fil) {
   const ctx = nyCtx(null), app = ladda(fil)(ctx);
-  const L =(name, id, d = 1) => ({ typ: 'antal', name, sb: false, d, kort: { name, sid: id, small: null } });
+  const L = (name, id, d = 1) => ({ typ: 'antal', name, sb: false, d, kort: { name, sid: id, small: null } });
   const bas = kopia(ctx.server.rad);
   ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
   const a = await app.lekSparaKo('lek1', bas, [L('Sol Ring', 'sr')]);
@@ -332,6 +332,74 @@ async function sparaKoProv(fil) {
     const l = leken(ctx);
     assert.equal(l.totalt, 3, `leken fick ${l.totalt}, ska vara 1 Sol Ring + 2 Counterspell`);
     assert.equal(l.rad.find(k => k.name === 'Sol Ring').n, 1);
+  });
+}
+
+/* ── Moln.sparaLek mot en påhittad databas ───────────────────────────
+   Attrappen ovan svarar som sparaLek. Här provas sparaLek själv — utklippt
+   ur Moln, mot en låtsad Supabase-klient — så att tiden den lämnar i
+   `forsok` verkligen är den tid raden bär om skrivningen gick igenom, och
+   så att en omläsning som faller på ett nätfel inte blir "leken är borta". */
+function laddaMoln(fil, db) {
+  const src = fs.readFileSync(fil, 'utf8');
+  const a = src.indexOf('  const lekTs = r =>'), b = src.indexOf('  async function dopOmLek(', a);
+  if (a < 0 || b < 0) throw new Error('hittar inte lekens rader i Moln i ' + fil);
+  /* Låtsasklienten: from('decks') med update/eq/lte/select och
+     select/eq/maybeSingle — det sparaLek och hamtaLekRad använder. */
+  const klient = {
+    from: () => {
+      const q = { op: 'select', data: null, filt: [] };
+      const kor = async () => {
+        const f = q.op === 'update' ? db.fel.shift() : db.lasFel.shift();
+        if (f === 'nere') return { data: null, error: { message: 'TypeError: Failed to fetch' } };
+        const traff = db.rader.filter(r => q.filt.every(t => t(r)));
+        if (q.op === 'update') traff.forEach(r => Object.assign(r, JSON.parse(JSON.stringify(q.data))));
+        if (f === 'tappat') return { data: null, error: { message: 'TypeError: Failed to fetch' } };
+        const ut = JSON.parse(JSON.stringify(traff));
+        return q.op === 'enda' ? { data: ut[0] || null, error: null } : { data: ut, error: null };
+      };
+      const b = {
+        update(d) { q.op = 'update'; q.data = d; return b; },
+        eq(k, v) { q.filt.push(r => r[k] === v); return b; },
+        lte(k, v) { q.filt.push(r => Date.parse(r[k]) <= Date.parse(v)); return b; },
+        select() { return q.op === 'update' ? kor() : b; },
+        maybeSingle() { q.op = 'enda'; return kor(); },
+      };
+      return b;
+    },
+    auth: { refreshSession: async () => ({ error: null }) },
+  };
+  return new Function('klientObj', `
+const klient = async () => klientObj, inloggad = () => true, minId = () => 'u1';
+const console = { warn() {}, log() {}, error() {} };   // sparaLek varnar i konsolen vid fel
+${src.slice(a, b)}
+return { sparaLek, hamtaLekRad };`)(klient);
+}
+async function molnProv(fil) {
+  const iso = ms => new Date(ms).toISOString();
+  const db = { rader: [{ id: 'lek1', user_id: 'u1', namn: 'Boros', kort: [], antal: 0, uppdaterad: iso(Date.now() - 60000) }], fel: [], lasFel: [] };
+  const M = laddaMoln(fil, db);
+  const bas = await M.hamtaLekRad('lek1');
+  db.fel.push('tappat');
+  const a = await M.sparaLek('lek1', { kort: [{ name: 'Sol Ring', sid: 'sr', n: 1 }], antal: 1 }, bas.ts);
+  const efter = await M.hamtaLekRad('lek1');
+  prov('Moln.sparaLek: ett svar som aldrig kom bär tiden raden fick (forsok = radens ts)', () => {
+    assert.equal(a.ok, false);
+    assert.ok(a.forsok, 'forsok saknas');
+    assert.equal(efter.ts, a.forsok);
+    assert.equal(efter.antal, 1, 'raden skrevs');
+  });
+  /* Konflikt (raden ändrad efter bas) och omläsningen faller på nätet. */
+  db.lasFel.push('nere');
+  const c = await M.sparaLek('lek1', { antal: 5 }, bas.ts);
+  prov('Moln.sparaLek: konflikt där omläsningen faller på nätet är ett fel att försöka igen — inte "leken är borta"', () => {
+    assert.equal(c.ok, false);
+    assert.ok(!c.borta, 'borta: ' + JSON.stringify(c));
+    assert.ok(c.fel, JSON.stringify(c));
+  });
+  const d = await M.sparaLek('lek-som-inte-finns', { antal: 5 }, bas.ts);
+  prov('Moln.sparaLek: en lek som verkligen är borta är fortfarande borta', () => {
+    assert.equal(d.borta, true, JSON.stringify(d));
   });
 }
 
@@ -367,6 +435,7 @@ function rad(f, x) {
   console.log('samma foto två gånger: leken får båda — appen kan inte veta att det är samma fysiska kort (mätning, inget fel)\n');
   doma(efter);
   await sparaKoProv(FIL);
+  await molnProv(FIL);
   for (const r of [...ok, ...fel]) console.log(r);
   console.log(`\nlekfoto: ${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);
