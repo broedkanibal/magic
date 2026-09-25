@@ -571,3 +571,15 @@ Inga är skapade. Titel + en rad, sorterade efter hur mycket de flyttar.
 | 3 | **Vänta längre innan ett kort tonas ned — anta först att det flyttas — men sluta vänta när graveyard-högen växer.** Kort till hand/exile blir senare; accepterat. → MES-291. Flyttar och utspel animeras → MES-292 (design, prompten i `dev/plan/design-prompt-animeringar.md`). |
 | 4 | **Bara regel 1** (spärren tittar på postens kandidatlista): tar samma 6 av 7 poster. Regel 2 (två spår som täcker varandra > 70 % = samma kort) **tas inte** — Jesper: ett equipment på en varelse täcker ofta mer än 70 % och skulle försvinna. Mät mot golden 13 (equip, aura). |
 | 5 | **(a)** skalan fryses efter uppstarten. |
+
+### Uppföljning av beslut 4 (MES-294, 2026-09-25)
+
+Regel 1 är byggd, men "tar 6 av 7" höll inte när det mättes. Telefonen sätter
+ett osäkert spårs namn till kandidatlistans etta sedan 2026-09-06, så spärren
+tittade i praktiken redan på listan: i 6 114 rader med ett osäkert spår (passet
+2026-09-22, golden 07 och 09–13, och MES-246:s tur 7 med och utan Claude)
+skiljer sig listans etta aldrig från både namnet och ledtråden. Passet 2026-09-22 spelas upp exakt som förut. Där gissar
+7 av 15 poster (utan Claude) ett kort som redan ligger på bordet, men bara två
+på samma plats; fyra ligger på en annan plats (bland dem ett flyttat kort vars
+gamla spår stod kvar) och ett är nedtonat. Siffrorna:
+`dev/spegelfacit/granskning.cjs` och commit-meddelandet för MES-294.
