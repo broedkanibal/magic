@@ -7330,8 +7330,15 @@ function flyttaTill(i, zon) {
   const hog = zon === ZON_GRAV || zon === ZON_EXIL;
   /* Ligger kortet kvar fysiskt (spåret lever) är det borta digitalt men
      kvar på bordet: fysisk (MODE-3) låter kameran binda om det tyst i sin
-     zon i stället för att lägga ut det igen. */
-  if (hog && e.spar != null) e.fysisk = true;
+     zon i stället för att lägga ut det igen. Ett kort i väntan (borta,
+     MES-291) har ett dött spår: det ligger inte kvar, och bindningen släpps
+     som för ett nedtonat kort. Annars band nästa exemplar med samma namn
+     till graveyard-kortet (ledigt tar ett fysisk kort), och inget kort
+     syntes på mattan. */
+  if (hog && e.spar != null) {
+    if (e.borta) { delete e.spar; delete e.borta; }
+    else e.fysisk = true;
+  }
   /* En aura följer sin värd till graveyard — utrustning och fortifikationer
      blir kvar på mattan (losBifogade släpper dem där de låg). */
   if (hog) for (const k of c) {
@@ -7503,8 +7510,11 @@ function ptTile(pv) {
 /* Chippet ovanför ett kort som säger vad kameran vet om det (README steg 7).
    Nedtonat (lyft): frågan — men bara när högst två saknas; tre eller fler
    svarar bannern för. Kamerabundet kort: spårets dom medan den pågår
-   ("moving", "reading", "lost sight…") så att latensen läses som att
-   kameran tittar, inte som ett fel. Ett nytt kort får inget chip (MES-135:
+   ("moving", "reading") så att latensen läses som att kameran tittar, inte
+   som ett fel. Ett kort vars spår dött och som väntar (borta, MES-291) får
+   inget chip: det antas ha flyttats och ser ut som förut tills väntan är
+   slut — "Lost sight of it…" stod förut i nådens 0,6 s, och hade stått i
+   hela väntans 5 s. Ett nytt kort får inget chip (MES-135:
    "Just played" är borttaget). På någon annans bord bara konstaterandet. matLage räknas
    i renderGrid inför varje omritning. */
 let matLage = { lyftN: 0, nyN: 0 };
@@ -7512,8 +7522,7 @@ let matLage = { lyftN: 0, nyN: 0 };
    kort som lyser medan de gör det (tokSpawn, MES-143): cid → till när. */
 const tokDold = new Set(), tokGlod = new Map();
 function kamDom(c) {
-  if (c.spar == null || !kamAnsluten || !spelLage) return '';
-  if (c.borta) return 'lost';
+  if (c.spar == null || c.borta || !kamAnsluten || !spelLage) return '';
   const t = senasteSpar.find(u => u.id === c.spar);
   if (!t) return '';
   if (t.tillstand === 'ny') return 'moving';
@@ -7526,7 +7535,6 @@ function kortChip(e, las) {
     return matLage.lyftN <= 2 ? '<span class="kortchip lost">Where did it go?</span>' : '';
   }
   const dom = kamDom(e);
-  if (dom === 'lost') return '<span class="kortchip dom">Lost sight of it…</span>';
   if (dom === 'moving') return '<span class="kortchip dom">Moving…</span>';
   if (dom === 'reading') return '<span class="kortchip dom">Reading…</span>';
   return '';
@@ -17753,11 +17761,11 @@ function appendAnalysis(shotId, out, img, ersatt, franHand) {
       const t0 = senasteSpar.find(x => x.id === q.spar);
       const samma = (t0 && p.cards.find(c => paBordet(c) && c.name === k.name && c.spar != null
                        && senasteSpar.some(u => u.id === c.spar && sammaPlats(u, t0)))) || null;
-      const gammalt = !samma && (p.cards.find(c => paBordet(c) && c.name === k.name && c.spar == null && c.lyft != null)
-                              || p.cards.find(c => paBordet(c) && c.name === k.name && c.spar == null));
+      /* Kortet i väntan först (MES-291), sedan ett nedtonat, sedan ett obundet — se kortSomKomTillbaka. */
+      const gammalt = !samma && kortSomKomTillbaka(p.cards, k.name, k);
       if (samma || gammalt) p.cards.splice(p.cards.indexOf(k), 1);
       /* q.tappad null = kameran har ingen bedömning (inget otappat läge sparat): rör inte kortets tap-läge. */
-      if (gammalt) { gammalt.spar = q.spar; slappLyft(gammalt); if (q.tappad != null) gammalt.tapped = q.tappad ? 1 : 0; gammalt.ny = Date.now(); }
+      if (gammalt) bindTillbaka(gammalt, q);
       else if (!samma) { k.spar = q.spar; if (q.tappad != null) k.tapped = q.tappad ? 1 : 0; }
       p.pending.splice(p.pending.indexOf(q), 1);
       Moln.sandKam('namn', { spar: q.spar, namn: k.name, sid: k.sid || null });
@@ -18050,11 +18058,11 @@ function namngePend(p, q, name, sid, list) {
   p.pending.splice(p.pending.indexOf(q), 1);
   const bundet = q.spar != null && p.cards.find(c => c.spar === q.spar);
   const sammaKort = (!bundet && sammaKortVid(p, name, q.spar)) || null;
-  const gammalt = !q.overTak && q.spar != null && (p.cards.find(c => c.name === name && c.spar == null && c.lyft != null && paMattan(c))
-                                  || p.cards.find(c => c.name === name && c.spar == null && paMattan(c)));
+  /* Kortet i väntan först (MES-291), sedan ett nedtonat, sedan ett obundet — se kortSomKomTillbaka. */
+  const gammalt = !q.overTak && q.spar != null && kortSomKomTillbaka(p.cards, name);
   if (bundet) { Object.assign(bundet, { name, sid: sid || undefined, cands: list }); }   // spåret hann bli ett kort — svaret gäller det
   else if (sammaKort) { /* kortet ligger redan på bordet */ }
-  else if (gammalt) { gammalt.spar = q.spar; slappLyft(gammalt); if (q.tappad != null) gammalt.tapped = q.tappad ? 1 : 0; gammalt.ny = Date.now(); }   // null = ingen bedömning från kameran: det digitala tap-läget står kvar
+  else if (gammalt) bindTillbaka(gammalt, q);
   else p.cards.push({ cid: q.id, name, sid: sid || undefined, flipped: 0, box: q.box, rot: q.rot, shotId: q.shotId, cands: list,
                       spar: q.spar || undefined, tapped: q.tappad ? 1 : 0, kamTap: q.spar != null && q.tappad != null ? (q.tappad ? 1 : 0) : undefined,
                       ny: q.spar != null ? Date.now() : undefined, etb: 1 });
@@ -23375,6 +23383,27 @@ function annatKortDar(t, k, spar, cards) {
   return dar ? { dar } : null;
 }
 const paBordetZon = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil';
+/* Kortet som kom tillbaka: ett svar med ett namn på kamerans fråga om ett
+   spår — granskningen (namngePend) eller kortikonen (applyPick) — tar ett
+   kort med namnet som redan ligger på mattan, i stället för att skapa ett
+   till. Samma ordning som ledigt i avstamBord (MES-291): först ett kort som
+   väntar (borta — dess spår dog nyss, och det antas ha flyttats; det är det
+   som ligger där nu), sedan ett nedtonat, sedan ett obundet. Utan kortet i
+   väntan skapades ett andra kort när man svarade inom väntans 5 s, och
+   originalet tonades ned när den tog slut. utom: kortet svaret själv
+   skapade (kortikonen). */
+function kortSomKomTillbaka(cards, namn, utom) {
+  const fria = cards.filter(c => c !== utom && c.name === namn && paBordetZon(c));
+  return fria.find(c => c.spar != null && c.borta) || fria.find(c => c.spar == null && c.lyft != null) || fria.find(c => c.spar == null) || null;
+}
+/* Kortet som kom tillbaka binds till svarets spår: väntan och nedtoningen
+   släpps, och kamerans tap-läge gäller när den har ett (q.tappad null =
+   ingen bedömning: det digitala tap-läget står kvar). */
+function bindTillbaka(k, q) {
+  k.spar = q.spar; delete k.borta; slappLyft(k);
+  if (q.tappad != null) k.tapped = q.tappad ? 1 : 0;
+  k.ny = Date.now();
+}
 function tvivelSteg(spar, cards, nu) {
   let andrat = false;
   const finns = new Set(spar.map(t => t.id));
@@ -24097,14 +24126,16 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      (fysisk, MODE-3) binder om tyst i sin zon när spåret föds om — annars
      återuppstod det som nytt kort så fort detektorn tappade och hittade det
      igen. Flaggan släpps när spåret dör: då har kortet lämnat bordet också. */
-  /* Ordningen (MES-291): först ett kort vars spår just dött — i väntan
-     (borta) eller i samma meddelande. Det är kortet som flyttats: läggs det
-     ner på en ny plats flyttar det dit utan att tonas ned. Förut gick ett
-     nedtonat kort före, och ett Swamp man flyttat kunde bli kvar nedtonat
-     medan ett annat, sedan länge nedtonat, hoppade till den nya platsen. */
+  /* Ordningen (MES-291): först ett kort på mattan vars spår just dött — i
+     väntan (borta) eller i samma meddelande. Det är kortet som flyttats:
+     läggs det ner på en ny plats flyttar det dit utan att tonas ned. Förut
+     gick ett nedtonat kort före, och ett Swamp man flyttat kunde bli kvar
+     nedtonat medan ett annat, sedan länge nedtonat, hoppade till den nya
+     platsen. Ett fysisk kort (i graveyard digitalt) kommer efter det
+     nedtonade, som förut. Samma ordning som kortSomKomTillbaka. */
   const ledigt = namn => {
     const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
-    return fria.find(c => c.spar != null) || fria.find(c => c.lyft != null) || fria[0] || null;
+    return fria.find(c => c.spar != null && paBordet(c)) || fria.find(c => c.lyft != null) || fria.find(c => c.spar != null) || fria[0] || null;
   };
   /* Ett kort som ligger i graveyard och dyker upp på mattan igen är SAMMA
      kort på väg tillbaka i spel (MES-248): reanimator, recursion, en
