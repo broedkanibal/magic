@@ -63,7 +63,9 @@ const KORNING = LOGG ? '' : path.resolve(arg('--korning', path.join(materialMapp
 const MD = arg('--md', ''), TSV = arg('--tsv', ''), JSONFIL = arg('--json', '');
 const FORE = +arg('--fore', 2), EFTER = +arg('--efter', 10);
 const UTAN_LEK = process.argv.includes('--utan-lek');
-const HTML = path.join(ROT, 'index.html');
+/* --html <fil>: en annan index.html (t.ex. main:s, ur `git show main:index.html`),
+   så att före och efter spelas upp på samma logg från samma träd (MES-294). */
+const HTML = path.resolve(arg('--html', path.join(ROT, 'index.html')));
 const SVANS_S = 3.5, HJARTSLAG_MS = 3000, VIRT0 = 1e6, GRUND_PROD = 90;
 /* Ett annat namn får svara mot en rad bara nära facits tid: annars blev ett
    falskt tap på kortet som lades ut nio sekunder senare "fel kort" för raden. */
@@ -469,5 +471,5 @@ if (TSV) {
   fs.writeFileSync(path.resolve(TSV), 's\ttyp\tcid\tnamn\tdetalj\n' + h.map(x => [x.s, x.typ, x.cid || '', x.namn || '', [x.varfor && 'varför ' + x.varfor, x.fran && !Array.isArray(x.fran) && 'från ' + x.fran, x.d != null && x.d + ' kortbredder', x.vid && 'vid ' + x.vid, x.overTak && 'över lekens antal'].filter(Boolean).join(', ')].join('\t')).join('\n') + '\n');
   console.log(`det digitala bordets tidslinje skriven till ${TSV} (${h.length} ändringar)`);
 }
-if (JSONFIL) { fs.writeFileSync(path.resolve(JSONFIL), JSON.stringify({ pass: PASS, kalla: k.namn, fore: FORE, efter: EFTER, grund: spel.grund, rader: res.rader, over: res.over, tidslinje: h, bilder: spel.bilder }) + '\n'); console.log(`allt skrivet till ${JSONFIL}`); }
+if (JSONFIL) { fs.writeFileSync(path.resolve(JSONFIL), JSON.stringify({ pass: PASS, kalla: k.namn, logg: LOGG ? path.resolve(LOGG) : KORNING, html: path.relative(ROT, HTML), fore: FORE, efter: EFTER, grund: spel.grund, rader: res.rader, over: res.over, tidslinje: h, bilder: spel.bilder }) + '\n'); console.log(`allt skrivet till ${JSONFIL}`); }
 process.exit(0);

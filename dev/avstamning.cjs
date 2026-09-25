@@ -1775,6 +1775,88 @@ prov('UP8 lägesbytet spelar upp bordet medan uppstarten pågår: inget kort', (
   assert.equal(app.kort.length, 0);
 });
 
+/* B4 (MES-294, Jespers beslut 4 2026-09-24, regel 1): spärren "ett osäkert
+   spår som ligger på ett klart kort med samma namn är samma kort" jämför med
+   det namn granskningsposten skulle VISA — kandidatlistans etta, och en
+   väntande posts egen lista — inte bara med spårets eget namn och
+   ledtråden. Platsen är sammaPlats som förut (två färska spår är inte samma
+   kort), och regel 2 (mer än 70 % täckning är ett kort, oavsett namn) togs
+   inte. Regeln ändrar bara något när namnet posten visar skiljer sig från
+   spårets eget och ledtrådens — B4a, B4b, B4d:s tredje del och B4e fäller
+   på main. B4c och B4d:s två första delar visar att fästa kort och
+   landhögen är som förut, B4e att regeln går ihop med väntan (MES-291). */
+const osaker = (id, rest) => Object.assign({ id, tillstand: 'okand', saker: false, gissning: null, tappad: false, sen: 10 }, LAND_, rest);
+prov('B4a antalspriorn tog spårets namn men lämnade kortet överst i listan: posten hade frågat om kortet den ligger på — ingen post', () => {
+  /* priorPaGissningar på telefonen: alla lekens exemplar är säkra, så namnet
+     tas bort — men är det enda förslaget står det kvar överst (namn null). */
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 1500, ...PORT }), osaker(2, { namn: null, cands: [{ name: 'Ukud Cobra', score: 0.4 }] })]);
+  assert.equal(app.pending.length, 0, 'en post som frågar om kortet den ligger på');
+  assert.equal(app.kort.length, 1); assert.equal(app.chip.kamSer, 1, 'kameran ser två kort');
+});
+prov('B4b en väntande post som visar namnet på kortet den ligger på tas bort; spårets nya läsning får en egen post', () => {
+  /* Båda färska när posten lades (kanske två kort): "Ukud Cobra?". Spåret
+     läses om, fortfarande osäkert, till ett annat namn — posten står kvar
+     med den lista den fick. */
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT }), osaker(2, { namn: 'Ukud Cobra', cands: [{ name: 'Ukud Cobra', score: 0.4 }] })]);
+  assert.equal(app.pending.length, 1); assert.equal(app.pending[0].cands[0].name, 'Ukud Cobra');
+  const omlast = { namn: 'Llanowar Elves', cands: [{ name: 'Llanowar Elves', score: 0.4 }, { name: 'Ukud Cobra', score: 0.3 }] };
+  stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 1500, ...PORT }), osaker(2, omlast)]);
+  assert.equal(app.pending.length, 0, 'posten "Ukud Cobra?" på Ukud Cobra står kvar');
+  /* Ett kort som lagts ovanpå göms inte: nästa rapport frågar om det spåret nu läser. */
+  stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 1650, ...PORT }), osaker(2, omlast)]);
+  assert.equal(app.pending.length, 1); assert.equal(app.pending[0].cands[0].name, 'Llanowar Elves');
+  assert.equal(app.kort.length, 1);
+});
+prov('B4c ett equipment och en aura på en varelse slås inte ihop med den, fast de täcker den till mer än 70 % och varelsen står tvåa i listan', () => {
+  const vard = klar(1, 'Danitha Capashen, Paragon', { skymd: true, sen: 1500, ...PORT });
+  const blad = box(0.404, 0.408, 0.063, 0.088), aura = box(0.396, 0.392, 0.063, 0.088);   // förskjutna så att namnraden syns
+  assert.ok(app.tackning(blad, PORT) > 0.7 && app.tackning(aura, PORT) > 0.7, 'täcker mer än 70 %');
+  const danitha = { name: 'Danitha Capashen, Paragon', score: 0.3 };
+  const b = osaker(2, { ...blad, namn: 'Ancestral Blade', cands: [{ name: 'Ancestral Blade', score: 0.4 }, danitha] });
+  const p = osaker(3, { ...aura, namn: 'Pacifism', cands: [{ name: 'Pacifism', score: 0.4 }, danitha] });
+  stam([vard, b, p]);
+  assert.deepEqual(app.pending.map(q => q.cands[0].name).sort(), ['Ancestral Blade', 'Pacifism']);
+  /* Blir de säkra är de egna kort bredvid värden. */
+  stam([vard, Object.assign({}, b, { tillstand: 'klar', saker: true }), Object.assign({}, p, { tillstand: 'klar', saker: true })]);
+  assert.deepEqual(app.kort.map(c => c.name).sort(), ['Ancestral Blade', 'Danitha Capashen, Paragon', 'Pacifism']);
+  assert.equal(app.pending.length, 0);
+});
+prov('B4d landhögen: ett andra Swamp omlott med det första, osäkert med Swamp överst — samma som på main utom när antalspriorn tagit namnet', () => {
+  const undre = box(0.2, 0.2, 0.05, 0.07), ovre = box(0.2, 0.215, 0.05, 0.07);   // som S13: förskjutet en femtedel
+  const andra = rest => osaker(2, Object.assign({ ...ovre, namn: 'Swamp', cands: [{ name: 'Swamp', score: 0.4 }, { name: 'Plains', score: 0.3 }] }, rest));
+  /* Båda färska: detektorn ser två kort — det andra exemplaret får sin post, som på main. */
+  stam([klar(1, 'Swamp', { sen: 10, ...undre }), andra()]);
+  assert.equal(app.pending.length, 1, 'det andra exemplaret fick ingen post'); assert.equal(app.kort.length, 1);
+  /* Det undre utan region (sen över FARSK_MS): samma kort — så gör main redan, regel 1 ändrar det inte. */
+  stam([klar(1, 'Swamp', { skymd: true, sen: 900, ...undre }), andra()]);
+  assert.equal(app.pending.length, 0); assert.equal(app.kort.length, 1);
+  /* Det enda som ändras: antalspriorn har tagit namnet (lekens alla Swamp ligger
+     säkra) och Swamp står kvar överst. Main lade en post, regel 1 räknar det som
+     samma kort — ett riktigt exemplar till syns då först när det läses säkert. */
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Swamp', { sen: 10, ...undre })]);
+  stam([klar(1, 'Swamp', { skymd: true, sen: 900, ...undre }), andra({ namn: null, cands: [{ name: 'Swamp', score: 0.4 }] })]);
+  assert.equal(app.pending.length, 0, 'posten "Swamp?" på Swamp, som på main'); assert.equal(app.kort.length, 1);
+  /* Läses det säkert är det ett kort till, också när det undre är färskt. */
+  stam([klar(1, 'Swamp', { sen: 10, ...undre }), klar(2, 'Swamp', { sen: 10, ...ovre })]);
+  assert.equal(app.kort.length, 2);
+});
+prov('B4e med väntan (MES-291): det klara spåret dör medan det osäkra ligger kvar — posten kommer, och svaret tar kortet i väntan', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...PORT })]);
+  const k = app.kort[0];
+  const o = osaker(2, { namn: null, cands: [{ name: 'Ukud Cobra', score: 0.4 }] });
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 900, ...PORT }), o]);
+  assert.equal(app.pending.length, 0, 'samma kort');
+  klocka.t += 150; stam([o]);                                  // det klara spåret dör: kortet väntar
+  assert.ok(k.borta, 'väntar inte'); assert.equal(k.lyft, undefined);
+  assert.equal(app.pending.length, 1, 'ingen post när kortet under är borta');
+  klocka.t += 1000; app.namnge(app.pending[0], 'Ukud Cobra');
+  assert.equal(app.kort.length, 1, 'ett andra Ukud Cobra'); assert.equal(k.spar, 2); assert.equal(k.borta, undefined);
+  klocka.t += 3000; stam([Object.assign({}, o, { tillstand: 'klar', namn: 'Ukud Cobra', saker: true, varfor: 'hand' })]);
+  assert.equal(app.kort.length, 1); assert.equal(k.lyft, undefined, 'tonades ned');
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

@@ -24485,12 +24485,39 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      En överhoppad granskning spärrar bara så länge spåret är osäkert: hann
      leken byggas klart och läsningen bli säker var svaret "vet inte", inte
      "det där är inget kort". Ett borttaget kort spärrar tills det lyfts. */
+  /* Samma kort som ett klart (MES-294, Jespers beslut 4 2026-09-24, regel 1):
+     spärren jämför med det namn granskningsposten skulle VISA, inte bara
+     spårets eget. Posten visar kandidatlistans etta (cands[0]), och en post
+     som redan väntar visar listan den fick när den lades — spåret kan ha
+     lästs om sedan. Utan det frågade posten om ett kort som låg där, med
+     det kortets namn, när spårets eget namn var ett annat eller inget:
+     antalspriorn på telefonen (priorPaGissningar) tar bort namnet på ett
+     osäkert spår vars alla exemplar redan är säkra, men lämnar det överst i
+     listan när det är det enda förslaget.
+     Bara namnet vidgas. Platsen är sammaPlats som förut — två färska spår
+     räknas inte som samma kort — och regel 2 i beslutet (två färska spår
+     som täcker varandra till mer än 70 % är ett kort) togs inte: ett
+     equipment på en varelse täcker ofta mer och hade kunnat försvinna.
+     Mätt 2026-09-25 (dev/spegelfacit/granskning.cjs, dev/dubbletter.cjs):
+     passet 2026-09-22 och golden 07–13 ger samma bord som förut. Telefonen
+     sätter redan ett osäkert spårs namn till listans etta (identifiera), så
+     skillnaden uppstår bara i fallen ovan. Posterna som där gissar ett kort
+     som redan ligger på bordet är mest kort på en ANNAN plats (spåren
+     täcker varandra under en tredjedel, t.ex. ett kort som flyttats), ett
+     nedtonat kort som kommer tillbaka och ett som hålls av ett osäkert spår;
+     bara ett — ett Swamp i högen, båda spåren färska i 0,45 s — hade
+     färskhetsundantaget kunnat ta. */
+  const postensNamn = t => {
+    const q = mig.pending.find(q => q.spar === t.id && !q.overTak);
+    return new Set([t.namn, t.gissning, t.cands && t.cands[0] && t.cands[0].name, q && q.cands && q.cands[0] && q.cands[0].name].filter(Boolean));
+  };
   const sammaSomKlart = new Set();
   for (const t of spar) {
     if (iFysiskt.has(t.id)) continue;
     let k = bunden(t.id);
     if (!k && t.tillstand === 'okand' && !borttagna.has(t.id)) {
-      if (fysiska.some(g => (g.namn === t.namn || g.namn === t.gissning) && g.spar.some(u => sammaPlats(u, t)))) { sammaSomKlart.add(t.id); continue; }
+      const namn = postensNamn(t);
+      if (fysiska.some(g => namn.has(g.namn) && g.spar.some(u => sammaPlats(u, t)))) { sammaSomKlart.add(t.id); continue; }
       /* Ledtråden väntar också på Claude. Ett spår som föds där ett nedtonat
          kort låg bär kortets namn som gissning; är det bordet och inte kortet
          (referensens spöke, en skugga) tog bindningen tillbaka det lyfta
