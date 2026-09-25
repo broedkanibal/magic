@@ -46,7 +46,7 @@ function domORB(r) {
    11:s Swamp i plastficka (modellen säker på Plains, rho 0,78 — under T men
    ingen motsägelse), som ORB stoppar med 9 inliers på Swamp. */
 function domRAK(r, k) {
-  const m = rak(r, k.matt), bar = m.etta >= k.T && m.etta - m.annan >= k.M, emot = m.annan - m.etta >= k.M && m.annan >= k.T;
+  const m = rak(r, k.matt), bar = m.etta >= k.T && m.etta - m.annan >= k.M && r.marginal >= (k.modMarg || 0), emot = m.annan - m.etta >= k.M && m.annan >= k.T;
   const stod = m.etta >= (k.L == null ? k.T : k.L);
   const saker = !r.skrap && (bar || (k.modell && r.embedSaker && stod && !emot));
   return { saker, bar, emot, etta: m.etta, annan: m.annan };
@@ -68,7 +68,9 @@ const med = xs => { const v = xs.slice().sort((a, b) => a - b); return v.length 
 const p90 = xs => { const v = xs.slice().sort((a, b) => a - b); return v.length ? v[Math.floor(v.length * 0.9)] : 0; };
 
 (async () => {
-  const synt = las('synt'), riktiga = las('riktiga'), hog = las('hog');
+  /* --tagg utan (lek-golden-utan: 12 av 28 namn borttagna): trösklarna tas ur
+     det vanliga syntetiska setet, och riktiga/hog läses med taggen. */
+  const synt = las('synt') || (TAGG && JSON.parse(fs.readFileSync(path.join(RES, 'webb-rak-synt.json'), 'utf8'))), riktiga = las('riktiga'), hog = las('hog');
   if (!synt) { console.error('saknar cache/resultat/webb-rak-synt.json'); process.exit(1); }
   const S = synt.rader;
   /* Trösklar: på synt, 0 säkra fel, flest säkra rätt. */
@@ -88,11 +90,16 @@ const p90 = xs => { const v = xs.slice().sort((a, b) => a - b); return v.length 
   /* --L 0.80: stödtröskeln satt för hand (prövad på de riktiga: fall 11:s
      Swamp i plastficka ligger på rho 0,78–0,79, just över syntens 0,78). */
   if (arg('L')) for (const v of val) if (v.k.matt === 'rho' && v.k.modell) { v.k.L = +arg('L'); v.s = summera(S, r => domRAK(r, v.k)); v.k.hand = true; }
+  /* --M 0.05 --modMarg 0.06: trösklarna för "bär" satta för hand (kort UTANFÖR
+     leken, bänken med lek-golden-utan: tvillingkort som Thriving Heath/Moor når
+     rho 0,91–0,94 — inom de rätta kortens 0,94–0,97 — med 0,03–0,05 till nästa
+     namn och modellens marginal 0,02–0,04). */
+  for (const v of val) { if (arg('M')) v.k.M = +arg('M'); if (arg('T')) v.k.T = +arg('T'); if (arg('modMarg')) v.k.modMarg = +arg('modMarg'); if (arg('M') || arg('T') || arg('modMarg')) { v.s = summera(S, r => domRAK(r, v.k)); v.k.hand = true; } }
   console.log('══ Trösklar valda på syntetiska (0 säkra fel, flest säkra rätt) ══');
   for (const v of val) console.log(`  ${v.k.matt.padEnd(6)} modell-säker ${v.k.modell ? 'ja ' : 'nej'}  T ≥ ${v.k.T}  M ≥ ${v.k.M}${v.k.L != null ? '  L ≥ ' + v.k.L : ''}  → säkra rätt ${v.s.sakraRatt}/${v.s.n}`);
   /* Också: den lägsta tröskeln som ger 0 fel på synt när modellen INTE får vara säker ensam, för jämförelse. */
   const regler = [['ORB (som i dag)', r => domORB(r)]];
-  for (const v of val) regler.push([`RAK ${v.k.matt}${v.k.modell ? '' : ' utan modell-säker'} (T ${v.k.T}, M ${v.k.M})`, r => domRAK(r, v.k)]);
+  for (const v of val) regler.push([`RAK ${v.k.matt}${v.k.modell ? '' : ' utan modell-säker'} (T ${v.k.T}, M ${v.k.M}${v.k.modMarg ? ', marg ' + v.k.modMarg : ''})`, r => domRAK(r, v.k)]);
   const bastRho = val.find(v => v.k.matt === 'rho' && v.k.modell);
   if (bastRho) regler.push([`KOMBI rho → ORB när osäker`, r => domKOMBI(r, bastRho.k)]);
 

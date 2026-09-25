@@ -147,7 +147,30 @@ fortfarande behöver ORB.
 kedjan oförändrad. `varfor` blir `modell+rak` när Rak bar ettan. Räkningen
 går på huvudtråden — ett bygge bör flytta den till räknetråden (MES-221).
 
-Golden med växeln av och på: se `dev/golden/historik.md` 2026-09-25.
+### Golden med växeln av och på (2026-09-25, port 8291, egen profil)
+
+Samma port och profil, uppvärmningen kastad, `Poolen: 114 kort` i varje
+körning, inget `⏱ tak`. FÖRE = main 4789db7 ur en kopia (`git archive`),
+AV = grenen med `T.rak = 0`, PÅ = `--tro "rak:1"`.
+
+| Sats | main 4789db7 | växeln AV | växeln PÅ |
+|---|---|---|---|
+| 01–12: rätt namn · fel · falska · förlopp | 35/59 · 0 · 3 · 19/22 spelade, 9/9 borttagna | tabellen teckenidentisk | tabellen teckenidentisk |
+| 13–16: rätt namn · fel · falska | 14/38 · 1 (det kända i 14, MES-296) · 0 | tabellen teckenidentisk | tabellen teckenidentisk |
+| domskäl 01–12 | modell+orb 20 · modell+namn 12 · modell land 2 · bild 1 | samma | **modell+rak 15** · modell+orb 5 · modell+namn 12 · modell land 2 · bild 1 |
+| domskäl 13–16 | modell+orb 10 · modell+namn 2 · modell land 1 · bild 1 | samma | **modell+rak 6** · modell+orb 4 · modell+namn 2 · modell land 1 · bild 1 |
+| stegtid, median per fall (ms) | – | 34 31 36 19 29 32 33 33 14 16 17 15 · 17 32 28 22 | 36 32 37 19 27 33 34 32 13 15 17 14 · 17 30 28 23 |
+| fördröjning till namn, videofallen (s) | – | 07 0,6 · 09 0,6 · 10 0,5 · 11 0,85 · 12 1,35 | samma |
+
+Med växeln på bär den uträtade jämförelsen 21 av de 30 namn ORB bar förut
+(70 %), och ORB räknas inte alls för dem: räknetrådens frågor (ORB-svep)
+föll från 83 till 48 i 01–12 (kumulativt över fallen) och från 45 till 36 i
+13–16. Inget namn byter dom, inget nytt fel, inga nya falska. Stegtiden (analysen av en ruta) rörs inte: Rak kör i
+läsningen, inte i rutans steg. Fördröjningen till namn i videofallen är
+densamma på Macen — läsningen är inte flaskhalsen där.
+
+`--utan-leken` (MES-266:s tolv namn efter tvillingprincipen) och `--ljus
+alla` med växeln på: se `dev/golden/historik.md` 2026-09-25.
 
 ## Så körs det om
 

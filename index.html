@@ -4588,7 +4588,17 @@ function rakModul(global) {
   const ASPEKT = 0.716;                 // 63 / 88
   const MARGINAL = 0.08;                // beskar() — beskärningens marginal
   const G = 64;                         // gråbildens bredd; höjden följer kortets form
-  const T = 0.88, M = 0.03;             // bär: rho ≥ T och M över nästa namn (valda på det syntetiska setet, 0 säkra fel)
+  /* bär: rho ≥ T och M över nästa namn. T valt på det syntetiska setet (0 säkra
+     fel). M höjdes 0,03 → 0,05 efter bänken med 12 av lekens 28 namn borttagna
+     (kort UTANFÖR leken, dev/embed/cache/lek-golden-utan.json) och golden
+     --utan-leken: tvillingkort — Thriving Heath mot Thriving Moor, Resistance
+     Reunited mot Danitha Capashen — når rho 0,89–0,94 på fel kort, inom de
+     rätta kortens 0,94–0,97, men med bara 0,03–0,05 till nästa namn. Med 0,03
+     gav golden --utan-leken två NYA säkra fel (02 och 06); med 0,05 ger bänken
+     0 på de 28 beskärningar som ligger utanför leken. Knivsegg (0,049 mot
+     0,05) — därför kräver identifyMedModell dessutom modellens egen marginal
+     ≥ 0,06, samma trappa som ORB:s 14 inliers. */
+  const T = 0.88, M = 0.05;
 
   const cv = typeof document !== 'undefined' ? document.createElement('canvas') : (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(8, 8) : null);
   const cx = cv ? cv.getContext('2d', { willReadFrequently: true }) : null;
@@ -16748,6 +16758,10 @@ async function identifyMedModell(img, box, e, ensamt) {
       for (const c of e.cands || []) if (namn3.has(typNamn(c.name)) && sid[c.name] == null) sid[c.name] = c.sid;
       const svar = Rak.kontrollera(img, box, [r0, (r0 + 180) % 360], vilkaNamn, Rak.poolAv(P.rak, P), { ecc: true, sid });
       rak = Rak.dom(svar, etta, typNamn);
+      /* Bär bara när modellen själv håller med (marginal ≥ 0,06, som ORB:s
+         14-inlierstrappa): tvillingkort utanför leken får rho 0,89–0,94 på fel
+         kort med modellens marginal 0,02–0,04 (golden --utan-leken 02 och 06). */
+      if (rak.bar && !(e.marginal >= 0.06)) rak.bar = false;
     } catch (err) { rak = null; }
   }
   if (P.orb && !(rak && (rak.bar || rak.emot))) {
@@ -16777,7 +16791,7 @@ async function identifyMedModell(img, box, e, ensamt) {
      Alla tre trapporna gäller en HEL ruta. Ramar träffen bara in en BIT av
      ett kort (skalan under ORB_HEL) krävs dessutom DEL_MARGINAL — se där. */
   const helRuta = !(bast.skala < ORB_HEL);
-  /* Rak bär ettan: säkert utan ORB (rho ≥ 0,88 efter inpassning kräver ett helt kort i rutan — en bit av ett kort når 0,78–0,79, uppmätt på golden 11:s Swamp i plastficka). Rak emot: osäkert utan ORB. */
+  /* Rak bär ettan: säkert utan ORB (rho ≥ 0,88 efter inpassning kräver ett helt kort i rutan — en bit av ett kort når 0,78–0,79, uppmätt på golden 11:s Swamp i plastficka — och 0,05 till nästa namn, se rakModul). Rak emot: osäkert utan ORB. */
   const bar = (rak && rak.bar) || (bast.namn === etta && (helRuta || e.marginal >= DEL_MARGINAL)
     && (bast.inliers >= 25 || (bast.inliers >= 14 && e.marginal >= 0.06) || (bast.inliers >= ORB_ACCEPT && !!e.saker)));
   const land = !!landTyp(etta);
