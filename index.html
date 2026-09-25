@@ -12584,6 +12584,13 @@ function lekSlagSummor(kort) {
   for (const k of kort || []) { const n = Number(k.n) || 1; if (k.sb) sb += n; else main += n; }
   return { main, sb };
 }
+/* Korten man kan spela med: allt utom platshållarna ur ett lekfoto (MES-289).
+   decks.antal är deras antal — det spelet, motståndarna (lek_info), library
+   och kameran räknar med, som innan platshållarna fanns. Lekens sida och Home
+   räknar platshållarna också (lekSlagSummor på hela raden), eftersom de står
+   under To check där. */
+const lekSpelbara = kort => (kort || []).filter(k => k && !k.okand);
+const lekSpelAntal = kort => lekSlagSummor(lekSpelbara(kort)).main;
 /* Mängden kort (sid) i leken, som en nyckel: poolen på telefonen byggs om
    bara när den ändras, inte när ett antal gör det. */
 const lekSlagSids = kort => [...new Set((kort || []).map(k => k.sid).filter(Boolean))].sort().join(',');
@@ -12869,7 +12876,8 @@ function minLekAntal() { return lekAktiv ? (lekAktiv.antal || 0) : 0; }
 /* Antalet kort i en sparad lek: n per rad. Basländerna är vanliga rader med
    sitt antal, så de räknas med. En lek från före antalen räknar 1 per rad. */
 function lekKortAntal(lek) {
-  return lek && lek.kort ? lek.kort.reduce((s, k) => s + (k.n || 1), 0) : 0;
+  /* Platshållarna ur ett lekfoto (MES-289) är inga kort kameran letar efter. */
+  return lek && lek.kort ? lekSpelbara(lek.kort).reduce((s, k) => s + (k.n || 1), 0) : 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -12976,7 +12984,7 @@ async function lekSparaKo(id, bas, ops, o = {}) {
   for (let varv = 0; varv < 3; varv++) {
     const v = lekSlagTillampa(rad, ops);
     const kort = v.kort.map(k => { if (k.ci) return k; const ci = lekCiAv(k); return ci ? Object.assign({}, k, { ci }) : k; });
-    const data = { kort, namn: v.namn || rad.namn || 'My deck', antal: lekSlagSummor(kort).main, farger: lekFargerAv(kort, rad.farger) };
+    const data = { kort, namn: v.namn || rad.namn || 'My deck', antal: lekSpelAntal(kort), farger: lekFargerAv(kort, rad.farger) };
     const res = await lekSpara(id, data, rad.ts || null);
     if (res.ok) return res;
     if (res.forsok) forsok.push({ ts: res.forsok, n: ops.length });
@@ -13244,8 +13252,11 @@ function telfotoRita() {
       + `<div class="telfot"><button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take the next photo</button>`
       + '<button type="button" class="btnp sek" data-tel="klart">Done</button></div>';
   } else if (t.steg === 'klart') {
+    /* Alla fotade kort, också de som inte gick att läsa (MES-289) — samma tal
+       som lekens sida på datorn. decks.antal räknar bara kort att spela med. */
+    const n = t.bas ? lekSlagSummor(t.bas.kort || []).main : 0;
     h = `<div class="telok"><span class="ck">${lsIk('check', 26, 2.8)}</span><b>That’s the deck</b>`
-      + `<span>${esc(t.namn)} has ${t.bas && t.bas.antal ? t.bas.antal : 0} cards. Finish it on the computer — basic lands, the cards to check, and the ones the photos missed.</span></div>`
+      + `<span>${esc(t.namn)} has ${n} ${n === 1 ? 'card' : 'cards'}. Finish it on the computer — basic lands, the cards to check, and the ones the photos missed.</span></div>`
       + `<div class="telfot"><button type="button" class="btnp sek" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take another photo</button></div>`;
   }
   b.innerHTML = h;
@@ -13461,15 +13472,21 @@ async function telfotoLas(kalla) {
       ops.push({ typ: 'antal', name: k.name, sb: false, d: p.n, kort: kort2 });
       lagda.push({ name: k.name, small: kort2.small, n: p.n, koll: !!kort2.koll });
     }
+    /* Gick inget namn i hela fotot att läsa är det fotot som är fel — för
+       suddigt, för mörkt, för många kort — och det ska tas om. Då läggs
+       ingenting in, som förut: platshållare från ett foto som sedan togs om
+       hade blivit kvar i leken, och totalen för hög på ett nytt sätt
+       (granskningen av MES-289). Platshållare bara för de enstaka korten i
+       ett foto där andra namn gick att läsa. */
+    if (!ops.length) {
+      telfoto.fel = 'None of the names in the photo matched a card. Photograph fewer cards at a time, straight from above.';
+      telfotoSteg('fel'); return;
+    }
     for (const o of okanda) {
       const kort2 = lekOkandKort(o.las, 'Photo ' + nr, o.remsa, uid().slice(0, 6));
       ops.push({ typ: 'antal', name: kort2.name, sb: false, d: o.n, kort: kort2 });
       lagda.push({ name: o.las || 'Unreadable', small: null, n: o.n, koll: true });
       osakra += o.n;
-    }
-    if (!ops.length) {
-      telfoto.fel = 'None of the names in the photo matched a card. Photograph fewer cards at a time, straight from above.';
-      telfotoSteg('fel'); return;
     }
     const nya = ops.reduce((t, o) => t + o.d, 0);
     /* Kort Mesa såg men som inte kom med i svaret alls — modellen fick inte
@@ -13702,7 +13719,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
            en lek man ångrade sig om ska inte bli liggande som en tom rad. */
         const v = lekSlagTillampa({ namn: y.nyNamn, kort: [] }, ops);
         if (!v.kort.length && !y.skapaTomt) return { tomt: true };
-        const rad = await lekSkapa(v.namn || y.nyNamn || 'New deck', v.kort, lekFargerAv(v.kort, []), lekSlagSummor(v.kort).main);
+        const rad = await lekSkapa(v.namn || y.nyNamn || 'New deck', v.kort, lekFargerAv(v.kort, []), lekSpelAntal(v.kort));
         return { ok: true, rad, ny: true };
       } catch (e) { return { ok: false, fel: (e && e.message) || 'error' }; }
     })();
@@ -15081,9 +15098,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     get id() { return y.bas ? y.bas.id : null; },
     /* Leken som den ser ut nu, i lekradens form (uppstartens Pick your deck). */
     info() {
+      /* Uppstarten (Use … (N cards)): korten man spelar med, utan
+         platshållarna ur ett lekfoto (MES-289) — de står under To check. */
       const v = nu(), sum = lekSlagSummor(v.kort);
       return { id: y.bas ? y.bas.id : null, namn: v.namn || y.nyNamn || 'New deck', farger: lekFargerAv(v.kort, y.bas && y.bas.farger),
-               antal: sum.main, sb: sum.sb, omslag: lekOmslag(v.kort), koll: v.kort.filter(k => k.koll).length };
+               antal: lekSpelAntal(v.kort), sb: sum.sb, omslag: lekOmslag(v.kort), koll: v.kort.filter(k => k.koll).length };
     },
     /* Finns det något som inte är sparat? (beforeunload) */
     vantar: () => !!(y.ops.length || y.flygP),
@@ -22609,6 +22628,8 @@ let kamPoolNyckel = null, kamPoolOm = false;
    att bli ett kort. Main + sideboard. null utan lek (då gäller inget). */
 let kamLekAntal = null;
 function sattKamLekAntal(kort) {
+  /* Platshållarna ur ett lekfoto (MES-289) har inget namn att lita på. */
+  kort = Array.isArray(kort) ? lekSpelbara(kort) : kort;
   if (!Array.isArray(kort) || !kort.length) { kamLekAntal = null; return; }
   kamLekAntal = new Map();
   for (const k of kort) { const key = norm(k.name); kamLekAntal.set(key, (kamLekAntal.get(key) || 0) + (Number(k.n) || 1)); }
@@ -26366,13 +26387,18 @@ function lekOmslag(kort) {
   }
   return bast ? bast.small.replace('/small/', '/art_crop/') : null;
 }
+/* antal: korten man spelar med (decks.antal); okand: platshållarna ur ett
+   lekfoto (MES-289), som bara Home räknar med — uppstarten visar det som går
+   till library. */
 const hemLekRad = r => ({ id: r.id, namn: r.namn, farger: r.farger || [], antal: r.antal || 0,
+  okand: lekSlagSummor((r.kort || []).filter(k => k && k.okand)).main,
   sb: lekSlagSummor(r.kort).sb, omslag: lekOmslag(r.kort), koll: (r.kort || []).filter(k => k.koll).length, kort: r.kort || [] });
 /* Lekraden (MES-168, MES-170): samma rad på Home och i uppstartens Pick your
    deck (H1, G1, J1). l = hemLekRad. o.meny = Home (⋯ med Rename och Delete);
    o.radio, o.on, o.tag (Last used) och o.andra (pennan) = uppstarten. */
 function lekRadHtml(l, o = {}) {
-  const meta = `${l.antal} ${l.antal === 1 ? 'card' : 'cards'}${l.sb && !o.radio ? ` · ${l.sb} sideboard` : ''}`;
+  const n = l.antal + (o.meny ? (l.okand || 0) : 0);
+  const meta = `${n} ${n === 1 ? 'card' : 'cards'}${l.sb && !o.radio ? ` · ${l.sb} sideboard` : ''}`;
   const attr = o.radio ? ` data-opplek="${esc(l.id)}" tabindex="0" role="radio" aria-checked="${!!o.on}"`
     : o.meny ? ` data-hem-lek="${esc(l.id)}" tabindex="0" role="button"` : '';
   return `<div class="lr${o.on ? ' on' : ''}"${attr}>${o.radio ? '<span class="radio"></span>' : ''}`
@@ -26554,7 +26580,7 @@ $('#vyHem').addEventListener('click', async ev => {
   if (a === 'dopom') { hemDopOm(lek); return; }
   if (a === 'radera') {
     const l = (hem.lekar || []).find(x => x.id === lek.dataset.hemLek); if (!l) return;
-    const n = l.antal + l.sb;
+    const n = l.antal + l.sb + (l.okand || 0);
     if (!await ask(`"${l.namn}" and its ${n} ${n === 1 ? 'card' : 'cards'} are deleted${Moln.inloggad() ? ' from your account' : ''}. This cannot be undone.`,
                    { title: 'Delete this deck?', ok: 'Delete', danger: true })) return;
     if (!await lekRadera(l.id)) { hemFel('The deck could not be deleted.'); return; }

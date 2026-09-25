@@ -4,16 +4,22 @@
    Klipper ut telfotoLas (och det den sparar med — LEKSLAG, lekSparaKo,
    lekFargerAv, lekNamnSkiljer) ur index.html och matar den med påhittade
    svar från /api/identify i läget 'lek': tomma namn, namn som inte går att
-   slå upp, fler kort än servern tar emot (kapade), dubbletter över två
-   foton, samma foto två gånger, och nätfel i sparningen — också ett nätfel
-   där raden ändå skrevs. Scryfall och servern (decks-raden) är attrapper.
+   slå upp, ett helt oläsligt foto, fler kort än servern tar emot (kapade),
+   dubbletter över två foton, samma foto två gånger, och nätfel i
+   sparningen — också ett nätfel där raden ändå skrevs. Scryfall och servern
+   (decks-raden) är attrapper.
 
    Frågan varje fall svarar på: blir varje kort som svaret visar en rad i
    leken — ett vanligt kort, eller en post under To check — och säger
    telefonens klar-skärm hur många som inte kom med alls?
 
+   Sedan spelet (granskningen av MES-289): platshållarna kommer aldrig in i
+   spelets lek eller kamerans pool, och spelets antal är lika överallt. Det
+   provet körs också mot index.html med varje filter bortplockat, ett i
+   taget — det ska fällas varje gång (mutationsprovet).
+
      node dev/lekfoto.cjs                   provet mot index.html (ingår i dev/kolla.sh)
-     node dev/lekfoto.cjs --mot <fil>       samma fall mot en annan index.html också,
+     node dev/lekfoto.cjs --mot <fil>       fallen mot en annan index.html också,
                                             som tabell FÖRE → EFTER (till exempel
                                             git show 22644e3:index.html > /tmp/fore.html)
 
@@ -25,14 +31,15 @@ const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? proce
 const FIL = path.join(__dirname, '..', 'index.html');
 const MOT = arg('--mot', '');
 
-/* ── appen, utklippt ─────────────────────────────────────────────── */
-function ladda(fil) {
-  const src = fs.readFileSync(fil, 'utf8');
-  const skar = (fran, till) => {
-    const a = src.indexOf(fran), b = src.indexOf(till, a);
-    if (a < 0 || b < 0) throw new Error(`hittar inte "${fran}" … "${till}" i ${fil}`);
-    return src.slice(a, b);
-  };
+const skarUr = (src, namn) => (fran, till) => {
+  const a = src.indexOf(fran), b = src.indexOf(till, a);
+  if (a < 0 || b < 0) throw new Error(`hittar inte "${fran}" … "${till}" i ${namn}`);
+  return src.slice(a, b);
+};
+
+/* ── telefonens avläsning, utklippt ──────────────────────────────── */
+function laddaSrc(src, namn = 'index.html') {
+  const skar = skarUr(src, namn);
   const kod = [
     skar('/* ══ BLOCK: LEKSLAG', '/* ══ SLUT: LEKSLAG ══ */'),
     skar('const LEK_BL_FARG', '/* Namnet på en ny lek'),
@@ -65,6 +72,7 @@ const uid = () => Math.random().toString(36).slice(2, 9) + 'abc';
 return { lekSlagTillampa, lekSlagSummor, lekFargerAv, lekSparaKo, telfotoLas,
   telfotoIgen: typeof telfotoIgen === 'function' ? telfotoIgen : null };`);
 }
+const ladda = fil => laddaSrc(fs.readFileSync(fil, 'utf8'), fil);
 
 /* ── attrapperna ─────────────────────────────────────────────────── */
 const kopia = o => JSON.parse(JSON.stringify(o));
@@ -158,13 +166,30 @@ function leken(ctx) {
 const SOL = post('Sol Ring', 170, 120), SIG = post('Arcane Signet', 170, 240), THA = post('Thalia, Guardian of Thraben', 170, 360);
 const TRE = { kort: [SOL, SIG, THA], otydliga: 0, kapade: 0 };
 const TRE_FACIT = { 'Sol Ring': 1, 'Arcane Signet': 1, 'Thalia, Guardian of Thraben': 1 };
+/* Fyra kort att spela med och två oläsliga titelrader. */
+const TOMMA = { kort: [SOL, SIG, post('', 170, 480, 'lag'), post('Lightning Bolt', 500, 120, 'medel'), post('', 500, 240, 'lag'), THA], otydliga: 0 };
+const OLASLIGT = { kort: [post('', 170, 120, 'lag'), post('', 170, 240, 'lag'), post('', 170, 360, 'lag')], otydliga: 0 };
+const HUVUDFEL = 'None of the names in the photo matched a card. Photograph fewer cards at a time, straight from above.';
 const FALL = [
   { id: 'tomma', namn: 'två titelrader gick inte att läsa (tomt namn)',
     poster: 6, facit: { 'Sol Ring': 1, 'Arcane Signet': 1, 'Thalia, Guardian of Thraben': 1, 'Lightning Bolt': 1, okand: 2 },
-    kor: async (app, ctx) => foto(app, ctx, { kort: [SOL, SIG, post('', 170, 480, 'lag'), post('Lightning Bolt', 500, 120, 'medel'), post('', 500, 240, 'lag'), THA], otydliga: 0 }) },
+    kor: async (app, ctx) => foto(app, ctx, TOMMA) },
   { id: 'uppslag', namn: 'namn som inte går att slå upp (404 och nätfel)',
     poster: 4, facit: { 'Sol Ring': 1, 'Lightning Bolt': 1, okand: 2 },
     kor: async (app, ctx) => foto(app, ctx, { kort: [post('Blixtpil', 170, 120, 'lag'), post('Lightnig Bolt', 170, 240), post('Brainstorm', 170, 360), SOL], otydliga: 0 }) },
+  { id: 'olasligt', namn: 'helt oläsligt foto: inget namn gick att läsa',
+    poster: 3, facit: {},
+    kor: async (app, ctx) => foto(app, ctx, OLASLIGT) },
+  { id: 'olasligt-uppslag', namn: 'inget av namnen gick att slå upp (404, nätfel)',
+    poster: 2, facit: {},
+    kor: async (app, ctx) => foto(app, ctx, { kort: [post('Blixtpil', 170, 120, 'lag'), post('Brainstorm', 170, 240)], otydliga: 0 }) },
+  { id: 'olasligt-omtag', namn: 'oläsligt foto, sedan taget om',
+    poster: 3, facit: TRE_FACIT,
+    kor: async (app, ctx) => {
+      await foto(app, ctx, OLASLIGT);
+      ctx.fall.felskarm = ctx.telfoto.steg === 'fel';
+      await foto(app, ctx, TRE);
+    } },
   { id: 'kapade', namn: 'fler kort än servern tar emot (kapade) + två tomma',
     poster: 4, facit: { 'Sol Ring': 1, 'Arcane Signet': 1, okand: 2 },
     /* Servern räknar in de kapade i otydliga: modellen missade 1, servern kapade 3. */
@@ -176,7 +201,7 @@ const FALL = [
       await foto(app, ctx, { kort: [post('Lightning Bolt', 170, 120), post('', 170, 240, 'lag'), post('Blixtpil', 170, 360, 'lag')], otydliga: 0 });
     } },
   { id: 'samma', namn: 'samma tre kort fotade två gånger (mäts)', matning: true,
-    poster: 6, facit: { 'Sol Ring': 1, 'Arcane Signet': 1, 'Thalia, Guardian of Thraben': 1 },
+    poster: 6, facit: TRE_FACIT,
     kor: async (app, ctx) => { await foto(app, ctx, TRE); await foto(app, ctx, TRE); } },
   { id: 'tappat-nere', namn: 'nätfel efter att raden skrevs, nätet nere → Try again',
     poster: 3, facit: TRE_FACIT,
@@ -216,6 +241,16 @@ const FALL = [
       ctx.datorn([{ typ: 'antal', name: 'Plains', sb: false, d: 4, kort: { name: 'Plains', sid: 'pl', small: null } }]);
       await foto(app, ctx, TRE);
     } },
+  /* Känt, också på main, INTE rättat (MES-289, granskningen): tidsstämpeln
+     känner igen en egen skrivning bara om ingen annan skrev emellan. */
+  { id: 'kant-a', namn: 'KÄNT: svaret försvann, datorn sparade emellan → Try again', matning: true,
+    poster: 3, facit: Object.assign({ Plains: 4 }, TRE_FACIT),
+    kor: async (app, ctx) => {
+      ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
+      await foto(app, ctx, TRE);
+      ctx.datorn([{ typ: 'antal', name: 'Plains', sb: false, d: 4, kort: { name: 'Plains', sid: 'pl', small: null } }]);
+      ctx.fall.igen = await igen(app, ctx, TRE);
+    } },
 ];
 
 async function korAlla(fil) {
@@ -252,7 +287,7 @@ function doma(r) {
     assert.deepEqual(l.okandRader.map(k => k.koll.remsa).sort(), ['remsa:170,480', 'remsa:500,240'], 'var sin remsa');
     assert.ok(l.okandRader.every(k => k.koll.las === '' && k.koll.kalla === 'Photo 1' && !k.sid), 'tomt läst namn, Photo 1, inget sid');
     assert.equal(l.koll, 1, 'Lightning Bolt (medel) under To check som förut');
-    assert.equal(l.antal, 6, 'lekens antal räknar platshållarna');
+    assert.equal(l.antal, 4, 'decks.antal räknar bara kort att spela med');
   });
   prov('tomma namn: klar-skärmen och datorn får 6 nya, 3 att kolla', () => {
     const x = R('tomma');
@@ -267,6 +302,26 @@ function doma(r) {
     assert.deepEqual(l.okandRader.map(k => k.koll.las).sort(), ['Blixtpil', 'Brainstorm']);
     const lb = l.rad.find(k => k.name === 'Lightning Bolt');
     assert.ok(lb && lb.koll && lb.koll.las === 'Lightnig Bolt', 'rättat namn ska kollas');
+  });
+  prov('helt oläsligt foto: felet som förut, inga platshållare, leken orörd, samma fotonummer', () => {
+    const x = R('olasligt');
+    assert.equal(x.steg, 'fel'); assert.equal(x.ctx.telfoto.fel, HUVUDFEL);
+    assert.equal(x.leken.totalt, 0, `leken fick ${x.leken.totalt}`); assert.equal(x.ctx.server.skrivna, 0, 'ingen skrivning');
+    assert.equal(x.ctx.telfoto.foto, 1, 'fotot räknas inte');
+    assert.ok(!x.ctx.kanal.some(m => m.typ === 'sparad'), 'datorn får inget "sparad"');
+    assert.equal(x.ctx.telfoto.osparat, null, 'inget att spara igen');
+  });
+  prov('inget av namnen gick att slå upp: samma fel, inga platshållare', () => {
+    const x = R('olasligt-uppslag');
+    assert.equal(x.steg, 'fel'); assert.equal(x.ctx.telfoto.fel, HUVUDFEL);
+    assert.equal(x.leken.totalt, 0); assert.equal(x.ctx.server.skrivna, 0);
+  });
+  prov('oläsligt foto som tas om: bara det nya fotots kort — inga platshållare kvar, totalen stämmer', () => {
+    const x = R('olasligt-omtag');
+    assert.ok(x.fall.felskarm, 'första fotot gav felet');
+    assert.equal(x.leken.totalt, 3, `leken fick ${x.leken.totalt} av 3`);
+    assert.equal(x.leken.okand, 0);
+    assert.equal(x.ctx.telfoto.foto, 2, 'omtaget var Photo 1, nästa är Photo 2');
   });
   prov('kapade: posterna i svaret blir rader, och klar-skärmen säger hur många som inte lästes och att de ska fotas igen', () => {
     const x = R('kapade');
@@ -319,9 +374,9 @@ function doma(r) {
 }
 
 /* ── lekSparaKo direkt: kön växer mellan försöken ─────────────────── */
+const L = (name, id, d = 1) => ({ typ: 'antal', name, sb: false, d, kort: { name, sid: id, small: null } });
 async function sparaKoProv(fil) {
   const ctx = nyCtx(null), app = ladda(fil)(ctx);
-  const L = (name, id, d = 1) => ({ typ: 'antal', name, sb: false, d, kort: { name, sid: id, small: null } });
   const bas = kopia(ctx.server.rad);
   ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
   const a = await app.lekSparaKo('lek1', bas, [L('Sol Ring', 'sr')]);
@@ -403,6 +458,168 @@ async function molnProv(fil) {
   });
 }
 
+/* ── spelet: platshållarna räknas inte, och antalet är lika överallt ────
+   Granskningen av MES-289: platshållarna räknades i decks.antal, som spelet
+   läser på flera ställen (lek_info till motståndarna, deras chip och
+   library-räkning, uppstarten, lekväxlaren), medan lekKvar inte räknade dem
+   — 60 för motståndarna, 58 för mig. Nu räknar spelet bara kort att spela
+   med, överallt, som innan platshållarna fanns; lekens sida och Home räknar
+   dem också, eftersom de står under To check där.
+
+   Utklippt: lekInfo, lekSattAktiv, lekKvar (spelets lek), lekKortAntal och
+   sattKamLekAntal (kameran), byggLekPoolRa (kamerans pool), oppLekVyHtml,
+   hemLekRad och lekRadHtml (uppstarten och Home) — mot attrapper för det
+   de läser utanför sig. */
+function laddaSpel(src, namn = 'index.html') {
+  const skar = skarUr(src, namn);
+  const kod = [
+    skar('/* ══ BLOCK: LEKSLAG', '/* ══ SLUT: LEKSLAG ══ */'),
+    skar('const LEK_BL_FARG', '/* Namnet på en ny lek'),
+    skar('const lekInfo = ', '\nconst pipsHtml'),
+    skar('function lekSattAktiv(rad) {', '/* Samma lager oavsett konto'),
+    skar('let lekTal = null;', '/* Typgrupperna i leklådan.'),
+    skar('/* Typgrupperna i leklådan.', '/* ── fotot in'),
+    skar('function lekKortAntal(lek) {', '/* ═══'),
+    skar('async function byggLekPoolRa(', '/* Datorns avläsningar'),
+    skar('let kamLekAntal = null;', 'async function kamValdLek()'),
+    skar('function oppLekVyHtml(l) {', '/* Pennan (G1Edit)'),
+    skar('function lekOmslag(kort) {', 'async function hemHamtaLekar()'),
+  ].join('\n');
+  const miljo = `
+const norm = s => String(s || '').toLowerCase().replace(/\\s+/g, ' ').trim();
+const MANA_ORD = ['W', 'U', 'B', 'R', 'G', 'C'];
+const LS = { get: (k, d) => d, set: () => true, del: () => {} }, K = { lekaktiv: 'lekaktiv' };
+const lekForhamta = async () => {};
+let lekAktiv = null;
+const spelLage = null, minSpelare = () => ({ cards: [] });
+/* Kortcachen: varje namn är en artefakt utan färger (typen sorterar bara). */
+const cardCache = new Map(), cardFor = name => ({ name, faces: [{ type: 'Artifact' }] });
+const lookup = async () => { throw new Error('inget nät i provet'); }, lookupId = lookup;
+const Pool = { idx: null, load: async () => null };
+const fetchQuery = async q => { ctx.fragor.push(q); };
+const byggPoolAv = async (cards, code) => ({ cards, code });
+const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+const BASLAND_NAMN = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
+const BAKSIDA = 'baksida.jpg', BAKSIDA_NAMN = '(baksida)';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pipsHtml = () => '', lsIk = () => '', LS_PRICKAR = '', imgOf = () => null, renderOppstart = () => {};
+const LS_GRUPP = { creature: 'Creatures', planeswalker: 'Planeswalkers', spell: 'Instants & sorceries',
+  artifact: 'Artifacts & enchantments', enchantment: 'Artifacts & enchantments', land: 'Lands', other: 'Other' };
+const LS_GRUPP_ORDNING = ['Creatures', 'Planeswalkers', 'Instants & sorceries', 'Artifacts & enchantments', 'Lands', 'Other'];
+`;
+  return new Function('ctx', miljo + kod + `
+return { lekSlagSummor, lekFargerAv, lekInfo, lekSattAktiv, lekKvar, lekKortAntal, byggLekPoolRa, sattKamLekAntal,
+  oppLekVyHtml, hemLekRad, lekRadHtml,
+  get lekAktiv() { return lekAktiv; }, get lekKort() { return lekKort; }, get lekTal() { return lekTal; },
+  get kamLekAntal() { return kamLekAntal; } };`);
+}
+
+/* Kontrollerna, som [namn, fel|null]. Leken byggs av telefonens riktiga
+   avläsning (fallet "tomma": fyra kort + två oläsliga titelrader) och
+   sparas med den riktiga lekSparaKo — decks.antal kommer därifrån. */
+const OKAND = /unreadable card/i;
+async function spelKontroller(src) {
+  const ut = [], kolla = (namn, f) => { try { f(); ut.push([namn, null]); } catch (e) { ut.push([namn, e.message]); } };
+  const ctx = nyCtx(null), tel = laddaSrc(src)(ctx);
+  ctx.fall = {}; oppna(ctx);
+  await foto(tel, ctx, TOMMA);
+  const rad = kopia(ctx.server.rad), SPEL = 4, LEKEN = 6;
+  const S = { fragor: [] }, s = laddaSpel(src)(S);
+  s.lekSattAktiv(rad);
+  s.sattKamLekAntal(rad.kort);
+  const pool = await s.byggLekPoolRa(rad, 'u1');
+  const hr = s.hemLekRad(rad), vy = s.oppLekVyHtml(hr);
+  kolla('spelets lek (lekSattAktiv): inga platshållare i lekKort eller lekTal', () => {
+    assert.ok(s.lekKort.length && s.lekKort.every(k => !k.okand), 'en platshållare i lekKort');
+    assert.ok(![...s.lekTal.keys()].some(n => OKAND.test(n)), 'en platshållare i lekTal');
+  });
+  kolla('kamerans pool (byggLekPoolRa): inga platshållare bland korten eller i frågorna till Scryfall', () => {
+    assert.ok(pool.cards.length >= SPEL && !pool.cards.some(c => OKAND.test(c.name)), 'en platshållare i poolen');
+    assert.ok(S.fragor.length && !S.fragor.some(q => OKAND.test(q)), 'en platshållare i frågan: ' + S.fragor.join(' | '));
+  });
+  kolla('kamerans antal per namn (sattKamLekAntal): inga platshållare', () => {
+    assert.ok(![...s.kamLekAntal.keys()].some(n => OKAND.test(n)));
+  });
+  kolla('uppstartens library (oppLekVyHtml): inga platshållare bland högarna', () => {
+    assert.ok(!OKAND.test(vy), 'platshållaren står bland korten som går till library');
+  });
+  const tal = { 'decks.antal (lekväxlaren, lekAktiv)': rad.antal, 'lek_info till motståndarna (lekInfo)': s.lekInfo(rad).antal,
+    'menyn och chipet (lekAktiv.antal)': s.lekAktiv.antal, 'mitt library (lekKvar)': (s.lekKvar() || {}).totalt,
+    'kamerans statusrad (lekKortAntal)': s.lekKortAntal(rad), 'uppstartens lekrad (hemLekRad)': hr.antal };
+  kolla(`spelets antal är lika överallt (${SPEL}): ${Object.values(tal).join(' · ')}`, () => {
+    for (const [var_, n] of Object.entries(tal)) assert.equal(n, SPEL, `${var_} = ${n}`);
+    assert.match(s.lekRadHtml(hr, { radio: true }), new RegExp(`>${SPEL} cards<`), 'uppstartens rad');
+    assert.match(vy, new RegExp(`>${SPEL} cards<`), 'uppstartens skylt över högarna');
+  });
+  kolla(`lekens sida och Home räknar platshållarna också (${LEKEN}) — de står under To check där`, () => {
+    assert.equal(s.lekSlagSummor(rad.kort).main, LEKEN, 'lekens sida');
+    const home = s.lekRadHtml(hr, { meny: true });
+    assert.match(home, new RegExp(`>${LEKEN} cards<`), 'Home');
+    assert.match(home, />3 to check</, 'Home: 3 to check');
+  });
+  kolla('lekens färger (lekFargerAv): platshållarna gör inte färgerna okända', () => {
+    assert.deepEqual(s.lekFargerAv(rad.kort, ['U']), ['W', 'R']);
+  });
+  return ut;
+}
+/* Varje filter bortplockat, ett i taget: kontrollerna ska fällas. Står
+   raden inte längre i index.html (koden skrevs om) är det ett FEL här —
+   uppdatera då mutationen, så att provet fortsätter att vakta filtret. */
+const MUTATIONER = [
+  ['spelets lek (lekSattAktiv)', 'rad.kort.filter(k => !k.okand)', 'rad.kort'],
+  ['decks.antal (lekSparaKo)', 'antal: lekSpelAntal(kort)', 'antal: lekSlagSummor(kort).main'],
+  ['kamerans statusrad (lekKortAntal)', 'lekSpelbara(lek.kort).reduce', 'lek.kort.reduce'],
+  ['kamerans antal per namn (sattKamLekAntal)', 'kort = Array.isArray(kort) ? lekSpelbara(kort) : kort;', ''],
+  ['kamerans pool (byggLekPoolRa)', '(lek.kort || []).filter(k => !k.okand).map(k => k.name)', '(lek.kort || []).map(k => k.name)'],
+  ['uppstartens library (oppLekVyHtml)', '.filter(k => !k.sb && !k.okand)', '.filter(k => !k.sb)'],
+  ['lekens färger (lekFargerAv)', 'if (k.sb || k.okand) continue;', 'if (k.sb) continue;'],
+  ['lekSpelbara självt', 'filter(k => k && !k.okand)', 'filter(k => k)'],
+];
+async function spelProv(fil) {
+  const src = fs.readFileSync(fil, 'utf8');
+  for (const [namn, f] of await spelKontroller(src)) prov(namn, () => { if (f) throw new Error(f); });
+  for (const [namn, fran, till] of MUTATIONER) {
+    const n = src.split(fran).length - 1;
+    if (n !== 1) { fel.push(`FEL  mutationen "${namn}": raden står ${n} gånger i index.html — uppdatera MUTATIONER i dev/lekfoto.cjs`); continue; }
+    let r;
+    try { r = await spelKontroller(src.replace(fran, () => till)); } catch (e) { r = [['laddningen', e.message]]; }
+    const fallna = r.filter(([, f]) => f).map(([k]) => k.split(' (')[0].split(':')[0]);
+    prov(`utan filtret i ${namn} fälls provet (${fallna.length} av ${r.length}: ${fallna.join(', ')})`, () => assert.ok(fallna.length > 0, 'ingen kontroll föll'));
+  }
+}
+
+/* ── kända luckor, också på main (inte rättade, se MES-289) ─────────
+   Granskningen återskapade tre sätt att få dubbletter som tidsstämpeln
+   inte fångar. De skrivs ut som mätning — inget FEL — så att den som rättar
+   dem (ett skriv-id i raden, n räknat mot hela kön) ser dem bli rätt. */
+async function kandaLuckor(fil) {
+  const rad = ctx => (ctx.server.rad.kort || []).map(k => `${k.n} ${k.name}`).join(', ');
+  const ut = [];
+  { /* B: datorn — kön växer efter ett försvunnet svar, och nästa försök faller efter igenkänningen. */
+    const ctx = nyCtx(null), app = ladda(fil)(ctx);
+    let bas = kopia(ctx.server.rad), forsok = [];
+    const ops = [L('Sol Ring', 'sr'), L('Arcane Signet', 'as')];
+    ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
+    let r = await app.lekSparaKo('lek1', bas, ops.slice(), { forsok });
+    if (r.rad) bas = r.rad; if (r.forsok) forsok = r.forsok;
+    ops.push(L('Counterspell', 'cs'));
+    ctx.server.fel.push(undefined, 'nere'); ctx.server.nereLas = 1;
+    r = await app.lekSparaKo('lek1', bas, ops.slice(), { forsok });
+    if (r.rad) bas = r.rad; if (r.forsok) forsok = r.forsok;
+    await app.lekSparaKo('lek1', bas, ops.slice(), { forsok });
+    ut.push(['B datorn: kön växte efter ett försvunnet svar', rad(ctx), '1 Sol Ring, 1 Arcane Signet, 1 Counterspell']);
+  }
+  { /* C: pollningen — hamtaNyare sätter y.bas till vår egen skrivning medan y.ops ligger kvar. */
+    const ctx = nyCtx(null), app = ladda(fil)(ctx);
+    const ops = [L('Sol Ring', 'sr'), L('Arcane Signet', 'as')];
+    ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
+    const r1 = await app.lekSparaKo('lek1', kopia(ctx.server.rad), ops.slice(), { forsok: [] });
+    await app.lekSparaKo('lek1', kopia(ctx.server.rad), ops.slice(), { forsok: r1.forsok || [] });
+    ut.push(['C pollningen läste in vår egen skrivning', rad(ctx), '1 Sol Ring, 1 Arcane Signet']);
+  }
+  return ut;
+}
+
 /* ── utskriften ──────────────────────────────────────────────────── */
 /* Jämfört med facit, rad för rad: kort som saknas (borta) och kort som
    kom in fler gånger än de fotades (för många). Platshållarna räknas som
@@ -418,7 +635,7 @@ function rad(f, x) {
   }
   const tc = l.koll + l.okand;
   return `${String(l.totalt).padStart(2)} i leken (${tc} To check, ${l.okand} platsh.)`
-    + (borta ? `, ${borta} borta` : '') + (over ? `, ${over} för många` : '');
+    + (borta ? `, ${borta} borta` : '') + (over ? `, ${over} för många` : '') + (x.steg === 'fel' ? ', felskärm' : '');
 }
 (async () => {
   const efter = await korAlla(FIL);
@@ -432,10 +649,17 @@ function rad(f, x) {
   const skarm = r => (r.get('kapade').sista || {}).extra || '(ingen text)';
   if (fore) console.log(`\nklar-skärmen, kapade — före: "${skarm(fore)}"`);
   console.log(`klar-skärmen, kapade${fore ? ' — efter' : ''}: "${skarm(efter)}"`);
-  console.log('samma foto två gånger: leken får båda — appen kan inte veta att det är samma fysiska kort (mätning, inget fel)\n');
+  console.log('samma foto två gånger: leken får båda — appen kan inte veta att det är samma fysiska kort (mätning, inget fel)');
+  console.log('\nkända luckor, också på main (mätning, inget fel — MES-289):');
+  const kanda = await kandaLuckor(FIL);
+  const a = efter.get('kant-a');
+  console.log(`  A telefonen: svaret försvann, datorn sparade emellan → Try again: ${(a.leken.rad || []).map(k => `${k.n} ${k.name}`).join(', ')}  (facit: 1 av varje + 4 Plains)`);
+  for (const [namn, fick, facit] of kanda) console.log(`  ${namn}: ${fick}  (facit: ${facit})`);
+  console.log('');
   doma(efter);
   await sparaKoProv(FIL);
   await molnProv(FIL);
+  await spelProv(FIL);
   for (const r of [...ok, ...fel]) console.log(r);
   console.log(`\nlekfoto: ${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);
