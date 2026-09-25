@@ -1,0 +1,941 @@
+{
+ "_": "Högbänken (MES-250), se dev/hogbank.cjs. kallor: bilden eller videon, kortets kortsida i bildens pixlar (spårets kort × bildbredd/aw ur loggen), och om otappade kort står lodrätt i bilden. fall: lada i andelar av bilden — ur telefonens bordslogg (spegel-ai-mes250.json vid sekunden s, respektive senaste.json för golden) där inget annat sägs; lada_kalla: 'hand' = satt för hand där loggen inte hade ett spår på just högen. namn = spårets eget namn. vantat: n kort i högen (samma landtyp som det översta), tappade av dem, under = namn som sticker fram under, over = det översta när spåret bär det undre kortets namn. nullOk: inget svar godtas (hand, skymt). annat: namn under som tolereras men inte krävs. typ: hog | par | ensam | hand.",
+ "kallor": {
+  "pass": {
+   "video": "dev/material/inspelningar/2026-09-22-1x-34cm-normaltempo/kamera.mp4",
+   "kortPx": 165,
+   "grundLodrat": true,
+   "_": "1080×610, aw 360: kort 55 × 3"
+  },
+  "g01": {
+   "bild": "dev/golden/fall/01-tra-lampa-60cm-3kort/bild.jpg",
+   "kortPx": 378,
+   "grundLodrat": true
+  },
+  "g02": {
+   "bild": "dev/golden/fall/02-tra-lampa-150cm-4kort/bild.jpg",
+   "kortPx": 231,
+   "grundLodrat": true
+  },
+  "g03": {
+   "bild": "dev/golden/fall/03-tra-lampa-40cm-11kort-overlapp/bild.jpg",
+   "kortPx": 180,
+   "grundLodrat": false
+  },
+  "g04": {
+   "bild": "dev/golden/fall/04-tra-dagsljus-40cm-8kort-overlapp/bild.jpg",
+   "kortPx": 168,
+   "grundLodrat": true
+  },
+  "g05": {
+   "bild": "dev/golden/fall/05-ribbor-dagsljus-40cm-6kort-overlapp/bild.jpg",
+   "kortPx": 180,
+   "grundLodrat": false
+  },
+  "g06": {
+   "bild": "dev/golden/fall/06-ljusgra-dagsljus-40cm-12kort-overlapp/bild.jpg",
+   "kortPx": 159,
+   "grundLodrat": false
+  },
+  "g14": {
+   "bild": "dev/golden/fall/14-tra-lampa-50cm-11kort-omlott/bild.jpg",
+   "kortPx": 168,
+   "grundLodrat": true
+  },
+  "g15": {
+   "bild": "dev/golden/fall/15-tra-dagsljus-50cm-11kort-omlott/bild.jpg",
+   "kortPx": 159,
+   "grundLodrat": true
+  },
+  "g16": {
+   "bild": "dev/golden/fall/16-tra-lampa-50cm-8kort/bild.jpg",
+   "kortPx": 159,
+   "grundLodrat": true
+  }
+ },
+ "fall": [
+  {
+   "id": "pass-75-hog-2-tappade",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 75,
+   "lada": { "x": 0.436, "y": 0.552, "w": 0.289, "h": 0.438 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 2,
+    "tappade": 2,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-117-hog-2",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 117,
+   "lada": { "x": 0.444, "y": 0.557, "w": 0.186, "h": 0.409 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 2,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-124-hog-2",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 124,
+   "lada": { "x": 0.383, "y": 0.562, "w": 0.244, "h": 0.429 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 2,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-213-hog-3",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 213,
+   "lada": { "x": 0.356, "y": 0.557, "w": 0.297, "h": 0.433 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-220-hog-3-2-tappade",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 220,
+   "lada": { "x": 0.442, "y": 0.557, "w": 0.244, "h": 0.433 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 2,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-224-hog-3-2-tappade",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 224,
+   "lada": { "x": 0.444, "y": 0.562, "w": 0.239, "h": 0.429 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 2,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-253-hog-3",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 253,
+   "lada": { "x": 0.45, "y": 0.532, "w": 0.217, "h": 0.458 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "pass-262-hog-3-tappade",
+   "typ": "hog",
+   "kalla": "pass",
+   "s": 262,
+   "lada": { "x": 0.444, "y": 0.552, "w": 0.231, "h": 0.438 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 3,
+    "under": null
+   }
+  },
+  {
+   "id": "g14-plains-hog-3",
+   "typ": "hog",
+   "kalla": "g14",
+   "lada": { "x": 0.704, "y": 0.105, "w": 0.171, "h": 0.364 },
+   "lada_kalla": "hand",
+   "namn": "Plains",
+   "vantat": {
+    "n": 3,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "g15-plains-hog-3",
+   "typ": "hog",
+   "kalla": "g15",
+   "lada": { "x": 0.697, "y": 0.204, "w": 0.175, "h": 0.281 },
+   "namn": "Plains",
+   "vantat": {
+    "n": 3,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "g03-plains-hog-2",
+   "typ": "hog",
+   "kalla": "g03",
+   "lada": { "x": 0.074, "y": 0.316, "w": 0.287, "h": 0.156 },
+   "lada_kalla": "hand",
+   "namn": "Plains",
+   "vantat": {
+    "n": 2,
+    "tappade": 0,
+    "under": null
+   }
+  },
+  {
+   "id": "g03-klump-heath-plains",
+   "typ": "hog",
+   "kalla": "g03",
+   "lada": { "x": 0.006, "y": 0.129, "w": 0.417, "h": 0.34 },
+   "namn": null,
+   "vantat": {
+    "n": 2,
+    "tappade": 0
+   },
+   "annat": [
+    "Thriving Heath"
+   ]
+  },
+  {
+   "id": "g04-plains-hog-2",
+   "typ": "hog",
+   "kalla": "g04",
+   "lada": { "x": 0.538, "y": 0.495, "w": 0.118, "h": 0.245 },
+   "lada_kalla": "hand",
+   "namn": "Plains",
+   "vantat": {
+    "n": 2,
+    "tappade": 0
+   },
+   "annat": [
+    "Swamp"
+   ]
+  },
+  {
+   "id": "pass-117-mirran-pa-ukud",
+   "typ": "par",
+   "kalla": "pass",
+   "s": 117,
+   "lada": { "x": 0.5, "y": 0.089, "w": 0.158, "h": 0.389 },
+   "namn": "Ukud Cobra",
+   "vantat": {
+    "n": 1,
+    "topp": "Mirran Bardiche",
+    "under": "Ukud Cobra",
+    "over": "Mirran Bardiche"
+   }
+  },
+  {
+   "id": "pass-124-ukud-pa-mirran",
+   "typ": "par",
+   "kalla": "pass",
+   "s": 124,
+   "lada": { "x": 0.503, "y": 0.094, "w": 0.183, "h": 0.443 },
+   "namn": "Ukud Cobra",
+   "vantat": {
+    "n": 1,
+    "topp": "Ukud Cobra",
+    "under": "Mirran Bardiche",
+    "over": null
+   }
+  },
+  {
+   "id": "pass-213-svard-pa-trusty",
+   "typ": "par",
+   "kalla": "pass",
+   "s": 213,
+   "lada": { "x": 0.289, "y": 0.059, "w": 0.169, "h": 0.419 },
+   "namn": "Trusty Retriever",
+   "vantat": {
+    "n": 1,
+    "topp": "Valkyrie's Sword",
+    "under": "Trusty Retriever",
+    "over": "Valkyrie's Sword"
+   }
+  },
+  {
+   "id": "pass-253-mirran-pa-scourge",
+   "typ": "par",
+   "kalla": "pass",
+   "s": 253,
+   "lada": { "x": 0.519, "y": 0.064, "w": 0.158, "h": 0.369 },
+   "namn": "Mirran Bardiche",
+   "vantat": {
+    "n": 1,
+    "topp": "Mirran Bardiche",
+    "under": "Scourge of the Undercity",
+    "over": null
+   }
+  },
+  {
+   "id": "pass-262-svard-trusty-tappade",
+   "typ": "par",
+   "kalla": "pass",
+   "s": 262,
+   "lada": { "x": 0.245, "y": 0.074, "w": 0.26, "h": 0.42 },
+   "lada_kalla": "hand",
+   "namn": null,
+   "vantat": {
+    "n": 1,
+    "topp": "Valkyrie's Sword",
+    "under": "Trusty Retriever"
+   }
+  },
+  {
+   "id": "pass-262-mirran-pa-scourge",
+   "typ": "par",
+   "kalla": "pass",
+   "s": 262,
+   "lada": { "x": 0.525, "y": 0.064, "w": 0.208, "h": 0.463 },
+   "namn": null,
+   "vantat": {
+    "n": 1,
+    "topp": "Mirran Bardiche",
+    "under": "Scourge of the Undercity"
+   }
+  },
+  {
+   "id": "g14-trusty-pa-rr",
+   "typ": "par",
+   "kalla": "g14",
+   "lada": { "x": 0.508, "y": 0.611, "w": 0.175, "h": 0.37 },
+   "namn": "Resistance Reunited",
+   "vantat": {
+    "n": 1,
+    "topp": "Trusty Retriever",
+    "under": "Resistance Reunited",
+    "over": "Trusty Retriever"
+   }
+  },
+  {
+   "id": "g15-trusty-pa-rr",
+   "typ": "par",
+   "kalla": "g15",
+   "lada": { "x": 0.489, "y": 0.611, "w": 0.178, "h": 0.363 },
+   "namn": "Trusty Retriever",
+   "vantat": {
+    "n": 1,
+    "topp": "Trusty Retriever",
+    "under": "Resistance Reunited",
+    "over": null
+   }
+  },
+  {
+   "id": "g05-pacifism-pa-scourge",
+   "typ": "par",
+   "kalla": "g05",
+   "lada": { "x": 0.463, "y": 0.556, "w": 0.333, "h": 0.208 },
+   "lada_kalla": "hand",
+   "namn": "Pacifism",
+   "vantat": {
+    "n": 1,
+    "topp": "Pacifism",
+    "under": "Scourge of the Undercity",
+    "over": null
+   }
+  },
+  {
+   "id": "g05-plains-pa-swamp",
+   "typ": "par",
+   "kalla": "g05",
+   "lada": { "x": 0.074, "y": 0.389, "w": 0.324, "h": 0.188 },
+   "lada_kalla": "hand",
+   "namn": "Plains",
+   "vantat": {
+    "n": 1,
+    "topp": "Plains",
+    "under": "Swamp",
+    "over": null
+   }
+  },
+  {
+   "id": "g06-plains-pa-2-swamp",
+   "typ": "par",
+   "kalla": "g06",
+   "lada": { "x": 0.097, "y": 0.351, "w": 0.236, "h": 0.191 },
+   "lada_kalla": "hand",
+   "namn": "Plains",
+   "vantat": {
+    "n": 1,
+    "topp": "Plains",
+    "under": "Swamp",
+    "over": null
+   }
+  },
+  {
+   "id": "g14-mirran-pa-maul-dold",
+   "typ": "par",
+   "kalla": "g14",
+   "lada": { "x": 0.736, "y": 0.53, "w": 0.183, "h": 0.382 },
+   "namn": "Mirran Bardiche",
+   "vantat": {
+    "n": 1,
+    "topp": "Mirran Bardiche",
+    "under": null,
+    "over": null
+   },
+   "annat": [
+    "Maul of the Skyclaves"
+   ],
+   "_": "Mauls namnrad är dold: inget under väntas, men Maul tolereras om resten av kortet skulle läsas"
+  },
+  {
+   "id": "g15-mirran-pa-maul-dold",
+   "typ": "par",
+   "kalla": "g15",
+   "lada": { "x": 0.739, "y": 0.533, "w": 0.178, "h": 0.37 },
+   "namn": "Mirran Bardiche",
+   "vantat": {
+    "n": 1,
+    "topp": "Mirran Bardiche",
+    "under": null,
+    "over": null
+   },
+   "annat": [
+    "Maul of the Skyclaves"
+   ]
+  },
+  {
+   "id": "pass-75-flutterfox",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 75,
+   "lada": { "x": 0.431, "y": 0.113, "w": 0.181, "h": 0.379 },
+   "namn": "Flutterfox",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-75-pharika",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 75,
+   "lada": { "x": 0.614, "y": 0.108, "w": 0.164, "h": 0.369 },
+   "namn": "Pharika's Chosen",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-117-swamp-tappad",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 117,
+   "lada": { "x": 0.678, "y": 0.567, "w": 0.25, "h": 0.369 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-117-pharika",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 117,
+   "lada": { "x": 0.708, "y": 0.103, "w": 0.172, "h": 0.384 },
+   "namn": "Pharika's Chosen",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-124-swamp-tappad",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 124,
+   "lada": { "x": 0.678, "y": 0.567, "w": 0.25, "h": 0.365 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-213-killing-glare-spar-ukud",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 213,
+   "lada": { "x": 0.497, "y": 0.064, "w": 0.161, "h": 0.369 },
+   "namn": "Ukud Cobra",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null,
+    "topp": "Killing Glare"
+   },
+   "_": "spåret bär Ukud Cobras namn i loggen fast Killing Glare ligger där (Ukud gick i graveyard 200 s, Killing Glare ut 194 s på samma plats): kortet är Killing Glare, ensamt"
+  },
+  {
+   "id": "pass-213-mirran",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 213,
+   "lada": { "x": 0.689, "y": 0.054, "w": 0.164, "h": 0.369 },
+   "namn": "Mirran Bardiche",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-220-pharika",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 220,
+   "lada": { "x": 0.111, "y": 0.084, "w": 0.136, "h": 0.345 },
+   "namn": null,
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-224-pharika-tappad",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 224,
+   "lada": { "x": 0.064, "y": 0.084, "w": 0.222, "h": 0.34 },
+   "namn": "Pharika's Chosen",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-253-pharika-tappad",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 253,
+   "lada": { "x": 0.061, "y": 0.094, "w": 0.214, "h": 0.33 },
+   "namn": "Pharika's Chosen",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-262-pharika-tappad",
+   "typ": "ensam",
+   "kalla": "pass",
+   "s": 262,
+   "lada": { "x": 0.061, "y": 0.094, "w": 0.214, "h": 0.33 },
+   "namn": "Pharika's Chosen",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g14-fencing-ace-tappad",
+   "typ": "ensam",
+   "kalla": "g14",
+   "lada": { "x": 0.383, "y": 0.022, "w": 0.214, "h": 0.211 },
+   "namn": "Fencing Ace",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g14-swamp",
+   "typ": "ensam",
+   "kalla": "g14",
+   "lada": { "x": 0.394, "y": 0.307, "w": 0.175, "h": 0.267 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g14-pharika",
+   "typ": "ensam",
+   "kalla": "g14",
+   "lada": { "x": 0.167, "y": 0.367, "w": 0.183, "h": 0.307 },
+   "namn": "Pharika's Chosen",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g14-plains-ensam-tappad",
+   "typ": "ensam",
+   "kalla": "g14",
+   "lada": { "x": 0.006, "y": 0.152, "w": 0.258, "h": 0.248 },
+   "namn": "Plains",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g15-fencing-ace-tappad",
+   "typ": "ensam",
+   "kalla": "g15",
+   "lada": { "x": 0.378, "y": 0.03, "w": 0.217, "h": 0.2 },
+   "namn": "Fencing Ace",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g15-plains-ensam-tappad",
+   "typ": "ensam",
+   "kalla": "g15",
+   "lada": { "x": 0.006, "y": 0.148, "w": 0.253, "h": 0.252 },
+   "namn": "Plains",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g15-swamp",
+   "typ": "ensam",
+   "kalla": "g15",
+   "lada": { "x": 0.408, "y": 0.296, "w": 0.147, "h": 0.27 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-fencing-ace-tappad",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.383, "y": 0.026, "w": 0.211, "h": 0.2 },
+   "namn": "Fencing Ace",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-plains-tappad",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.006, "y": 0.148, "w": 0.242, "h": 0.263 },
+   "namn": "Plains",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-swamp",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.403, "y": 0.296, "w": 0.153, "h": 0.278 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-rr",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.511, "y": 0.607, "w": 0.15, "h": 0.278 },
+   "namn": "Resistance Reunited",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-maul",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.767, "y": 0.619, "w": 0.144, "h": 0.27 },
+   "namn": "Maul of the Skyclaves",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-trusty",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.253, "y": 0.696, "w": 0.169, "h": 0.289 },
+   "namn": "Trusty Retriever",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g16-mirran",
+   "typ": "ensam",
+   "kalla": "g16",
+   "lada": { "x": 0.006, "y": 0.715, "w": 0.147, "h": 0.278 },
+   "namn": "Mirran Bardiche",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g03-swamp",
+   "typ": "ensam",
+   "kalla": "g03",
+   "lada": { "x": 0.122, "y": 0.51, "w": 0.294, "h": 0.138 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g03-flutterfox",
+   "typ": "ensam",
+   "kalla": "g03",
+   "lada": { "x": 0.436, "y": 0.467, "w": 0.233, "h": 0.123 },
+   "namn": "Flutterfox",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g03-mirran",
+   "typ": "ensam",
+   "kalla": "g03",
+   "lada": { "x": 0.456, "y": 0.592, "w": 0.211, "h": 0.144 },
+   "namn": "Mirran Bardiche",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g04-thriving-moor",
+   "typ": "ensam",
+   "kalla": "g04",
+   "lada": { "x": 0.397, "y": 0.493, "w": 0.125, "h": 0.23 },
+   "namn": "Thriving Moor",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g05-maul",
+   "typ": "ensam",
+   "kalla": "g05",
+   "lada": { "x": 0.444, "y": 0.253, "w": 0.269, "h": 0.149 },
+   "lada_kalla": "hand",
+   "namn": "Maul of the Skyclaves",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g05-vraska",
+   "typ": "ensam",
+   "kalla": "g05",
+   "lada": { "x": 0.481, "y": 0.403, "w": 0.269, "h": 0.153 },
+   "lada_kalla": "hand",
+   "namn": "Vraska's Finisher",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g06-rr",
+   "typ": "ensam",
+   "kalla": "g06",
+   "lada": { "x": 0.322, "y": 0.188, "w": 0.225, "h": 0.119 },
+   "namn": "Resistance Reunited",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g06-vraska",
+   "typ": "ensam",
+   "kalla": "g06",
+   "lada": { "x": 0.592, "y": 0.188, "w": 0.2, "h": 0.117 },
+   "namn": "Vraska's Finisher",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g06-trusty",
+   "typ": "ensam",
+   "kalla": "g06",
+   "lada": { "x": 0.397, "y": 0.719, "w": 0.211, "h": 0.121 },
+   "namn": "Trusty Retriever",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g01-maul",
+   "typ": "ensam",
+   "kalla": "g01",
+   "lada": { "x": 0.183, "y": 0.128, "w": 0.328, "h": 0.3 },
+   "namn": "Maul of the Skyclaves",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g01-thriving-heath",
+   "typ": "ensam",
+   "kalla": "g01",
+   "lada": { "x": 0.583, "y": 0.492, "w": 0.383, "h": 0.39 },
+   "namn": "Thriving Heath",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g01-svard",
+   "typ": "ensam",
+   "kalla": "g01",
+   "lada": { "x": 0.117, "y": 0.498, "w": 0.372, "h": 0.368 },
+   "namn": "Valkyrie's Sword",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g02-plains",
+   "typ": "ensam",
+   "kalla": "g02",
+   "lada": { "x": 0.764, "y": 0.596, "w": 0.217, "h": 0.206 },
+   "namn": "Plains",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "g02-thriving-heath",
+   "typ": "ensam",
+   "kalla": "g02",
+   "lada": { "x": 0.458, "y": 0.616, "w": 0.211, "h": 0.216 },
+   "namn": "Thriving Heath",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   }
+  },
+  {
+   "id": "pass-218-hog-hand-over",
+   "typ": "hand",
+   "kalla": "pass",
+   "s": 218,
+   "lada": { "x": 0.45, "y": 0.562, "w": 0.206, "h": 0.429 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 2,
+    "under": null
+   },
+   "nullOk": true,
+   "_": "armen över högens nederdel: rätt svar eller inget svar"
+  },
+  {
+   "id": "pass-226-hog-hand-over",
+   "typ": "hand",
+   "kalla": "pass",
+   "s": 226,
+   "lada": { "x": 0.444, "y": 0.562, "w": 0.239, "h": 0.429 },
+   "namn": "Swamp",
+   "vantat": {
+    "n": 3,
+    "tappade": 2,
+    "under": null
+   },
+   "nullOk": true,
+   "_": "handen sveper suddig över högen"
+  },
+  {
+   "id": "pass-226-ukud-halvskymd",
+   "typ": "hand",
+   "kalla": "pass",
+   "s": 226,
+   "lada": { "x": 0.5, "y": 0.01, "w": 0.15, "h": 0.241 },
+   "namn": "Ukud Cobra",
+   "vantat": {
+    "n": 1,
+    "under": null,
+    "over": null
+   },
+   "nullOk": true,
+   "_": "handen täcker halva kortet"
+  }
+ ]
+}
