@@ -20323,10 +20323,67 @@ const Kamera = (() => {
      45° från den axel ett otappat kort har är det tappat. Utan sparat
      grundläge (kal.grund null) är axeln lodrät för upp 'v' och vågrät för
      'h' — samma dom som förut, då "närmare y-axeln än x-axeln" avgjorde.
-     upp får skickas med (steg, matcha, bänken) men grundläget vinner. */
-  function tappad(vinkel, upp) {
-    const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+     upp får skickas med (steg, matcha, bänken) men grundläget vinner. bas
+     är grundläget PÅ PLATSEN (grundVid, MES-295) när det räknats; utan bas
+     gäller det sparade för hela bordet. */
+  function tappad(vinkel, upp, bas) {
+    if (bas == null) bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
     return axSkillnad(vinkel, bas) > Math.PI / 4;
+  }
+
+  /* Grundläget PÅ PLATSEN (MES-295, Jespers beslut 2 2026-09-24).
+     Uppstarten vet en enda sak om hur ett otappat kort ligger: provkortets
+     vinkel (kal.grund; upp när den inte sparats), mätt där provkortet råkade
+     ligga — platsen sparas inte. Om bordets form vet den ingenting: mattans
+     eller bordets hörn frågas aldrig efter, och graveyard- och library-
+     rutan är raka rektanglar i bilden, utan perspektiv. Ser kameran mattan
+     snett ligger samma otappade kort i en annan vinkel i ett annat hörn av
+     bilden, och en enda vinkel ska räcka för hela bordet.
+     Beslutet: ingen ny fråga i uppstarten; grundläget räknas per plats ur
+     de OTAPPADE kort som redan ligger i närheten. Försiktigt, eftersom kort
+     sällan läggs exakt raka (korten i golden-fotona ligger upp till 15° snett
+     av sig själva) och en enda granne annars flyttar grundläget åt sitt eget
+     håll:
+       * bara kort vars egen dom är säker räknas (grundGranne): säkert
+         namngivna — inte en hand eller en bit bord —, stilla i två rutor,
+         med en egen region (inte helbildens gissade låda), ett korts mått
+         (regionens egna lång- och kortsida inom 15 % av kortreferensen,
+         dia.kortRef — samma mått i alla vinklar; två kort som blivit en
+         region har en annan axel), inte omlott, täckt eller skymt, och
+         otappade med en TYDLIG dom mot det sparade grundläget (inom
+         TAP_TYDLIG). Grundläget på en plats hamnar därför aldrig mer än 20°
+         från det sparade: grannarna flyttar var 20°-fönstren ligger, men kan
+         inte ensamma vända ett kort.
+       * bara grannar inom GRUND_NARA kortlängder, med vikten 1 − avståndet
+         delat med den gränsen — och inte kortet självt eller något som
+         ligger på det (närmare än en halv kortlängd, eller som täcker
+         hälften av dess låda: en dubblett eller en hög drar grundläget mot
+         kortets egen vinkel).
+       * det sparade grundläget väger som ett kort mitt på platsen
+         (GRUND_EGEN): en granne en kortlängd bort flyttar grundläget drygt
+         en tredjedel av vägen mot sig, tre grannar ungefär två tredjedelar.
+     Vinklarna medlas som axlar (dubbla vinkeln), så att 179° och 1° är
+     samma riktning. Utan grannar gäller det sparade grundläget, som förut —
+     så spelar ett bord med ett enda kort precis som i dag. */
+  const GRUND_NARA = 2.5, GRUND_EGEN = 1;
+  const grundGranne = (n, G, r) => n.tillstand === 'klar' && n.saker && !n.tappad && !n.omlott && !n.tackt && !n.skymd
+    && n.vinkel != null && n.regionNar != null && (n.stillaN || 0) >= R(2)
+    && n.lang >= 1.15 * n.kort && Math.abs(n.lang - r.lang) <= 0.15 * r.lang && Math.abs(n.kort - r.kort) <= 0.15 * r.kort
+    && axSkillnad(n.vinkel, G) < TAP_TYDLIG;
+  function grundVid(x, y, upp, utom) {
+    const G = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+    const r = dia.kortRef;
+    if (x == null || y == null || !r || !(r.lang > 0)) return G;
+    let sx = GRUND_EGEN, sy = 0;
+    for (const n of spar) {
+      if (n === utom || !grundGranne(n, G, r)) continue;
+      const L = r.lang, d = Math.hypot(n.cx - x, n.cy - y);
+      if (d < 0.5 * L || d >= GRUND_NARA * L) continue;
+      if (utom && utom.box && n.box && ladTackning(n.box, utom.box) > 0.5) continue;
+      const w = 1 - d / (GRUND_NARA * L);
+      sx += w * Math.cos(2 * (n.vinkel - G)); sy += w * Math.sin(2 * (n.vinkel - G));
+    }
+    return sy === 0 ? G : normGrund(G + Math.atan2(sy, sx) / 2);
   }
 
   /* Viloläget (K5) sätts: spårets mitt, ytan det hade då (täckningsregeln
@@ -20344,14 +20401,15 @@ const Kamera = (() => {
      emellan, där en ruta till kan säga det andra. Ett spår utan namn har
      inga egna mått, och prövas mot de namngivna kortens (kortMatt, bara när
      det finns sådana — MES-293): korten är lika stora, och två kort intill
-     varandra som blivit en region är 1,4 kortlängder långa. */
+     varandra som blivit en region är 1,4 kortlängder långa. Grundläget är
+     det på platsen (bas, grundVid — MES-295) när det räknats. */
   const TAP_TYDLIG = 20 * Math.PI / 180;
-  function tapTydlig(f, t, upp) {
+  function tapTydlig(f, t, upp, bas) {
     let nm = t.namnMatt;
     if (!nm && t.tillstand !== 'klar') { const km = kortMatt(); if (km.kalla === 'spår') nm = { l: km.lang, k: km.kort }; }
     if (!nm || !(f.lang >= 1.15 * f.kort)) return false;
     if (f.lang < 0.85 * nm.l || f.lang > 1.3 * nm.l || f.kort < 0.85 * nm.k || f.kort > 1.3 * nm.k) return false;
-    const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
+    if (bas == null) bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
     const d = axSkillnad(f.vinkel, bas);
     return d < TAP_TYDLIG || d > Math.PI / 2 - TAP_TYDLIG;
   }
@@ -20592,7 +20650,7 @@ const Kamera = (() => {
              nedan kom två rutor senare (golden 09: +0,6 s). Är domen TYDLIG
              (tapTydlig) tas den på en gång; säger en följande stilla ruta
              lika tydligt emot vrids den tillbaka — det är ångringen. */
-          if (bast.tillstand === 'klar') { const t2 = tappad(f.vinkel, upp); if (t2 !== !!bast.tappad && tapTydlig(f, bast, upp)) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); } }
+          if (bast.tillstand === 'klar') { const bas = grundVid(f.cx, f.cy, upp, bast), t2 = tappad(f.vinkel, upp, bas); if (t2 !== !!bast.tappad && tapTydlig(f, bast, upp, bas)) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); } }
         }
         else {
           if (!bast.stillaFran) bast.stillaFran = nu;
@@ -20618,9 +20676,11 @@ const Kamera = (() => {
              förra: blänk som gör regionen sned nära 45°, två kort intill
              varandra som blir en region med vågrät axel, och handen. Ett
              Swamp-spår fick tolv domar i rad på 105 s utan att röras. Skräp
-             är inget kort och döms inte. */
-          const t2 = tappad(f.vinkel, upp);
-          if (t2 !== !!bast.tappad && bast.tillstand !== 'skrap' && tapTydlig(f, bast, upp)) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); }
+             är inget kort och döms inte. Grundläget är det på kortets plats
+             (grundVid, MES-295): de otappade korten i närheten, annars det
+             sparade. */
+          const bas = grundVid(f.cx, f.cy, upp, bast), t2 = tappad(f.vinkel, upp, bas);
+          if (t2 !== !!bast.tappad && bast.tillstand !== 'skrap' && tapTydlig(f, bast, upp, bas)) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); }
         }
         /* Läget datorn speglar, för ett NAMNGIVET kort (MES-214): det följer
            spåret ruta för ruta — också medan kortet flyttas, namnet sitter
@@ -21026,6 +21086,10 @@ const Kamera = (() => {
     domOm();
     return true;
   }
+  /* Omdömningen går mot det SPARADE grundläget, som förut: grannarna som
+     grundläget på platsen räknas ur (grundVid, MES-295) dömdes själva mot
+     det gamla och står mitt i sin egen omdömning. Grundläget på platsen tar
+     över i matcha ruta för ruta, och bara med en tydlig dom. */
   function domOm() {
     for (const t of spar.concat(spoken)) {
       if (arHelbild(t) && t.regionNar == null) { t.vinkel = grundVinkel(); t.tappad = false; t.tappRun = 0; continue; }
@@ -22399,7 +22463,7 @@ const Kamera = (() => {
   }
 
   return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera,
-           detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
+           detektera, matcha, tappad, grundVid, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
            helbild: () => helbild('knapp'), tillampaHelbild,

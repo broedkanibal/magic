@@ -1399,6 +1399,74 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`GL8 grundFranSpar(helbildsspår utan region) = ${hb && Kamera.grundFranSpar(hb.id, false)}, okänt id = ${Kamera.grundFranSpar(9999, false)}, grund kvar ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'}`,
           !!hb && !Kamera.grundFranSpar(hb.id, false) && !Kamera.grundFranSpar(9999, false) && Math.abs(Kamera.grund - rad(150)) < 1e-9);
     nystart();
+
+    /* ── MES-295: grundläget PÅ PLATSEN ur de otappade korten i närheten ──
+       Fyra otappade, säkert namngivna grannar som alla lutar `lut` grader
+       (kameran ser den här delen av mattan snett), och ett provkort mitt
+       emellan. Utan sparat grundläge gäller upp 'v' (90°). kortVriden(θ) ger
+       långaxeln 90° + θ. Provkortet får inget namn (identifieringen svarar
+       "inte redo"): det prövas då mot grannarnas mått (kortMatt), som är
+       mätta i samma vinkel — ett namn taget på ett rakt kort ger måtten
+       45×33 mot 40×28 för ett vridet i bänkens rastrering, och då är ingen
+       dom tydlig alls. Kontrollen är grannar som lutar 25°: samma mått,
+       men ingen tydlig otappad dom mot det sparade grundläget, så de räknas
+       inte — grundläget på platsen är det sparade, som förut. */
+    const GRANNAR = [[70, 50], [170, 50], [95, 110], [145, 110]];
+    const GX = 120, GY = 50;
+    const grannar = lut => g => { for (const [x, y] of GRANNAR) kortVriden(g, W, x, y, 30, 42, rad(lut), 180); };
+    const scen = (lut, test) => g => { grannar(lut)(g); if (test != null) kortVriden(g, W, GX, GY, 30, 42, rad(test), 180); };
+    const provet = () => Kamera.spar.find(t => Math.hypot(t.cx - GX, t.cy - GY) < 10) || null;
+    const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    /* Grannarna först (namngivna), sedan provkortet i läget `fore`, sedan
+       samma kort vridet på plats till `efter`. */
+    const kor295 = async (lut, fore, efter) => {
+      nystart(); await referens();
+      namnSvar = saker;
+      for (let i = 0; i < 10; i++) await ruta(grannar(lut));
+      namnSvar = () => null;
+      for (let i = 0; i < 10; i++) await ruta(scen(lut, fore));
+      const p0 = provet(), tapFore = p0 ? p0.tappad : null;
+      for (let i = 0; i < 8; i++) await ruta(scen(lut, efter));
+      const p = provet();
+      const lokal = p ? grader(Kamera.grundVid(p.cx, p.cy, 'v', p)) : null;
+      namnSvar = saker;
+      return { p, tapFore, lokal, txt: `grannar ${Kamera.spar.filter(t => t !== p).map(t => grader(t.vinkel)).join('/')}°, provkortet ${p ? grader(p.vinkel) : '-'}°, tappat före ${tapFore}, efter ${p && p.tappad}, grundläget på platsen ${lokal}°` };
+    };
+    /* GP1 otap: provkortet ligger tappat (långaxeln 0°) och vrids tillbaka
+       till 118° — otappat, men 28° från det sparade grundläget: ingen
+       tydlig dom mot 90°. Grannarna lutar 18° (108°), grundläget på platsen
+       blir ~101°, och 118° ligger inom 20° av det: otappat. GP2 kontrollen:
+       grannar som lutar 25° räknas inte, och kortet står kvar tappat. */
+    let r = await kor295(18, -90, 28);
+    check(`GP1 grannar lutar 18°, tappat kort vrids tillbaka till 118°: ${r.txt}`,
+          !!r.p && r.tapFore === true && r.p.tappad === false && r.lokal >= 96 && r.lokal <= 106);
+    r = await kor295(25, -90, 28);
+    check(`GP2 samma sak, grannarna lutar 25° (räknas inte): ${r.txt}`, !!r.p && r.tapFore === true && r.p.tappad === true && r.lokal === 90);
+    /* GP3 tap: ett otappat kort (90°) vrids till 28° — 62° från det sparade
+       grundläget (ingen tydlig dom), men över 70° från grundläget på
+       platsen: tappat. GP4 kontrollen: står kvar otappat. */
+    r = await kor295(18, 0, -62);
+    check(`GP3 grannar lutar 18°, otappat kort vrids till 28°: ${r.txt}`, !!r.p && r.tapFore === false && r.p.tappad === true);
+    r = await kor295(25, 0, -62);
+    check(`GP4 samma sak, grannarna lutar 25° (räknas inte): ${r.txt}`, !!r.p && r.tapFore === false && r.p.tappad === false);
+    /* GP5 raka grannar: grundläget på platsen stannar vid det sparade (inom
+       ett par grader). Utan grannar, och utan plats, är det exakt det
+       sparade — ett bord med ett enda kort spelar som förut. */
+    r = await kor295(0, 0, 0);
+    nystart(); await referens();
+    for (let i = 0; i < 10; i++) await ruta(g => kortVriden(g, W, GX, GY, 30, 42, rad(15), 180));
+    const ensam = provet();
+    check(`GP5 raka grannar: grundläget på platsen ${r.lokal}°; utan grannar ${ensam ? grader(Kamera.grundVid(ensam.cx, ensam.cy, 'v', ensam)) : '-'}° (sparat 90°)`,
+          Math.abs(r.lokal - 90) <= 2 && !!ensam && Kamera.grundVid(ensam.cx, ensam.cy, 'v', ensam) === Math.PI / 2 && Kamera.grundVid(null, null, 'v') === Math.PI / 2);
+    /* GP6 ett sparat grundläge flyttar med: 120° sparat, grannarna lutar
+       samma 18° mot det (138°) — grundläget på platsen ligger mellan. */
+    nystart(); await referens();
+    Kamera.satGrund(rad(120));
+    namnSvar = saker;
+    for (let i = 0; i < 10; i++) await ruta(grannar(48));
+    const lok6 = grader(Kamera.grundVid(GX, GY, 'v'));
+    check(`GP6 sparat grundläge 120°, grannarna på ${Kamera.spar.map(t => (grader(t.vinkel) + 180) % 180).join('/')}°: grundläget på platsen ${lok6}°`, lok6 > 122 && lok6 < 138);
+    nystart();
   }
 
   // ── K4 (MES-86, MES-214): den tidiga läsningen ────────────────────
