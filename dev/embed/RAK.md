@@ -185,21 +185,68 @@ kopia (`git archive`), AV = grenen med `T.rak = 0`, PÅ = `--tro "rak:1"`.
 
 | Sats | main 4789db7 | växeln AV | växeln PÅ, M 0,03 (första commiten) | växeln PÅ, M 0,05 + marginal 0,06 |
 |---|---|---|---|---|
-| 01–12: rätt namn · fel · falska · förlopp | 35/59 · 0 · 3 · 19/22 spelade, 9/9 borttagna | tabellen teckenidentisk | tabellen teckenidentisk | se historik.md |
-| 13–16: rätt namn · fel · falska | 14/38 · 1 (det kända i 14, MES-296) · 0 | tabellen teckenidentisk | tabellen teckenidentisk | se historik.md |
-| domskäl 01–12 | modell+orb 20 · modell+namn 12 · modell land 2 · bild 1 | samma | modell+rak 15 · modell+orb 5 · … | se historik.md |
-| domskäl 13–16 | modell+orb 10 · modell+namn 2 · modell land 1 · bild 1 | samma | modell+rak 6 · modell+orb 4 · … | se historik.md |
-| `--utan-leken` 01–12 | 12/59 · 2 fel (01, 08 — kända) · 9 falska | samma | 13/59 · **4 fel** (02 och 06 nya) | se historik.md |
-| `--utan-leken` 13–16 | 8/38 · 0 fel · 4 falska | samma | 8/38 · **1 fel** (16 nytt) | se historik.md |
-| stegtid, median per fall (ms) | – | 34 31 36 19 29 32 33 33 14 16 17 15 · 17 32 28 22 | 36 32 37 19 27 33 34 32 13 15 17 14 · 17 30 28 23 | – |
-| fördröjning till namn, videofallen (s) | – | 07 0,6 · 09 0,6 · 10 0,5 · 11 0,85 · 12 1,35 | samma | – |
+| 01–12: rätt namn · fel · falska · förlopp | 35/59 · 0 · 3 · 19/22 spelade, 9/9 borttagna | tabellen teckenidentisk | tabellen teckenidentisk | tabellen teckenidentisk |
+| 13–16: rätt namn · fel · falska | 14/38 · 1 (det kända i 14, MES-296: spår #7 `[namn]` Resistance Reunited) · 0 | tabellen teckenidentisk | tabellen teckenidentisk | tabellen teckenidentisk, samma spår |
+| domskäl 01–12 | modell+orb 20 · modell+namn 12 · modell land 2 · bild 1 | samma | modell+rak 15 · modell+orb 5 · … | modell+rak 13 · modell+orb 7 · … |
+| domskäl 13–16 | modell+orb 10 · modell+namn 2 · modell land 1 · bild 1 | samma | modell+rak 6 · modell+orb 4 · … | modell+rak 5 · modell+orb 5 · … |
+| `--utan-leken` 01–12 | 12/59 · 2 fel (01, 08 — kända) · 9 falska | samma | 13/59 · **4 fel** (02 och 06 nya) | tabellen teckenidentisk med AV (modell+rak 1) |
+| `--utan-leken` 13–16 | 8/38 · 0 fel · 4 falska | samma | 8/38 · **1 fel** (16 nytt) | tabellen teckenidentisk med AV (modell+rak 2) |
+| räknetrådens ORB-frågor, kumulativt (01–12 · 13–16) | – | 83 · 45 | 48 · 36 | 54 · 37 |
+| stegtid, median per fall (ms) | – | 34 31 36 19 29 32 33 33 14 16 17 15 · 17 32 28 22 | 36 32 37 19 27 33 34 32 13 15 17 14 · 17 30 28 23 | 39 31 38 19 29 33 34 33 14 15 17 14 · 17 31 30 23 |
+| fördröjning till namn, videofallen (s) | – | 07 0,6 · 09 0,6 · 10 0,5 · 11 0,85 · 12 1,35 | samma | samma |
 
-Med M 0,03 bar den uträtade jämförelsen 21 av de 30 namn ORB bar förut
-(70 %): räknetrådens frågor föll från 83 till 48 i 01–12 (kumulativt) och
-från 45 till 36 i 13–16; inget namn bytte dom i den vanliga golden, inget
-nytt fel, inga nya falska — men `--utan-leken` avslöjade tvillingarna.
-Stegtiden (analysen av en ruta) rörs inte: Rak kör i läsningen, inte i
-rutans steg.
+Med de slutliga trösklarna bär den uträtade jämförelsen 18 av de 30 namn
+ORB bar förut (60 %; 21 med M 0,03), och ORB räknas inte alls för dem.
+Inget namn byter dom, inget nytt fel, inga nya falska. Stegtiden (analysen
+av en ruta) rörs inte: Rak kör i läsningen, inte i rutans steg.
+Fördröjningen till namn i videofallen är densamma på Macen — läsningen är
+inte flaskhalsen där.
+
+### `--ljus alla` med växeln på (M 0,05 + marginal 0,06): ett nytt fel
+
+Sju ljus × två satser, `Poolen: 114` i alla fjorton, inget `⏱ tak`. Före =
+MES-291:s och MES-293:s körningar på samma `index.html`: 0 fel namn i alla
+fjorton. Efter: **0 fel namn i tretton, 1 fel i fall 04 i mörkare ljus**
+(rätt namn/kort · fel · falska per ljus, 01–12 → 13–16):
+
+| | mörkare | ljusare | varmare | kallare | kontrast | brus | gradient |
+|---|---|---|---|---|---|---|---|
+| 01–12 | 36/59 · **1** · 5 | 34 · 0 · 2 | 33 · 0 · 2 | 37 · 0 · 4 | 36 · 0 · 4 | 30 · 0 · 4 | 33 · 0 · 3 |
+| 13–16 | 13/38 · 0 · 2 | 3 · 0 · 5 | 12 · 0 · 2 | 10 · 0 · 0 | 13 · 0 · 2 | 12 · 0 · 2 | 10 · 0 · 4 |
+
+Felet, spår för spår (`--ljus morkare --fall 04 --detalj --beskarningar`,
+växeln på och av; stillbildsfallen går på väggklockan, så spårmängden
+skiljer sig mellan körningarna — 10 spår med växeln på, 7 utan): spår #1,
+en låda 0,178 × 0,193 (nästan kvadratisk) över Ancestral Blade som ligger
+vridet, blev **säker `[modell+rak]` Ancestral Blade** — rho 0,891, 0,22 över
+nästa namn, modellens marginal 0,063 (knivsegg mot 0,06) — medan ORB gav 5
+inliers vid skalan 0,505 (utanför `ORB_SKALA`, räknas inte) och utan
+växeln lämnade spåret osäkert. Namnet är rätt kort på rätt plats, men lådan
+är inte kortets: golden parar den inte med facit (IoU < 0,3) och räknar
+ett säkert namn på en oparad låda som fel namn. **ECC:s egen skala säger
+samma sak som ORB:s:** inpassningen gav skalan 0,79 (mallen fyller bara
+79 % av rutan — rutan är större än kortet). I bänken ligger rätta bärande
+kort på 0,90–0,98 i median, p5 0,75–0,83. Skalan är alltså det som fattas
+i domen: samma spärr som `ORB_SKALA`/`ORB_HEL`, fast ur `p`. Den är inte
+byggd — tiden tog slut — och därför står växeln kvar AV.
+
+Andra celler som skiljer sig från MES-291:s körning är stillbilder utan
+fel namn (väggklockan), som förut.
+
+## Vad ett bygge behöver (förslag till issue)
+
+1. **Skalspärr ur ECC:s `p`**: bär bara när sqrt|det| ligger inom ungefär
+   0,85–1,15 (mät gränsen i bänken: rätta bärande kort p5 0,75–0,83, fel
+   0,79–1,01 — spärren tar 04-mörkare-fallet men kostar några procent av
+   de rätta), annars osäker eller `del`. Mät om golden, `--utan-leken` och
+   `--ljus alla` med växeln på.
+2. **Räknetråden**: Rak går i dag på huvudtråden (23–31 ms på Macen, mer på
+   en telefon); flytta den till `LasWorker` som ORB (MES-221).
+3. **Telefonen**: tiden via Latency-panelen (Jesper).
+4. **Tvillingkort** är gränsen för metoden: samma ram och layout ger rho
+   0,89–0,94 på fel kort. Marginalkraven (0,05 till nästa namn, modellens
+   0,06) håller `--utan-leken` i golden, men de är valda på just de
+   tolv namnen — en ny lek med andra tvillingar behöver mätas om.
 
 ## Så körs det om
 

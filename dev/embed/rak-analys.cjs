@@ -31,10 +31,14 @@ const ratta = r => new Set(r.ratta || [r.namn]);
 const arRatt = (r, namn) => ratta(r).has(namn);
 
 /* Måtten per namn ur raden. */
+/* Inpassningens skala: sqrt|det| av den affina varpens linjära del. Ett helt
+   kort i sin ruta ger ≈ 1 (uppmätt 0,90–0,98 på rätta kort); en bit av ett
+   kort (kortet större än rutan) > 1, en ruta större än kortet (klunga) < 1. */
+const skalaAv = p => p ? Math.sqrt(Math.abs((1 + p[0]) * (1 + p[3]) - p[1] * p[2])) : null;
 function rak(r, matt) {
-  const per = r[matt === 'nccC' ? 'rak0' : 'rak1'], lista = Object.keys(per).map(n => ({ namn: n, v: per[n][matt] })).sort((a, b) => b.v - a.v);
+  const per = r[matt === 'nccC' ? 'rak0' : 'rak1'], lista = Object.keys(per).map(n => ({ namn: n, v: per[n][matt], skala: skalaAv(per[n].p) })).sort((a, b) => b.v - a.v);
   const etta = lista.find(x => x.namn === r.gissning), annan = lista.find(x => x.namn !== r.gissning);
-  return { bast: lista[0], etta: etta ? etta.v : -1, annan: annan ? annan.v : -1 };
+  return { bast: lista[0], etta: etta ? etta.v : -1, annan: annan ? annan.v : -1, skala: etta ? etta.skala : null };
 }
 function domORB(r) {
   const b = r.orb.bast, bar = b.inliers >= 10 && b.namn === r.gissning, emot = b.inliers >= 6 && b.namn !== r.gissning;
@@ -46,7 +50,8 @@ function domORB(r) {
    11:s Swamp i plastficka (modellen säker på Plains, rho 0,78 — under T men
    ingen motsägelse), som ORB stoppar med 9 inliers på Swamp. */
 function domRAK(r, k) {
-  const m = rak(r, k.matt), bar = m.etta >= k.T && m.etta - m.annan >= k.M && r.marginal >= (k.modMarg || 0), emot = m.annan - m.etta >= k.M && m.annan >= k.T;
+  const m = rak(r, k.matt), hel = !k.skala || (m.skala != null && m.skala >= k.skala[0] && m.skala <= k.skala[1]);
+  const bar = m.etta >= k.T && m.etta - m.annan >= k.M && r.marginal >= (k.modMarg || 0) && hel, emot = m.annan - m.etta >= k.M && m.annan >= k.T;
   const stod = m.etta >= (k.L == null ? k.T : k.L);
   const saker = !r.skrap && (bar || (k.modell && r.embedSaker && stod && !emot));
   return { saker, bar, emot, etta: m.etta, annan: m.annan };
@@ -94,7 +99,8 @@ const p90 = xs => { const v = xs.slice().sort((a, b) => a - b); return v.length 
      leken, bänken med lek-golden-utan: tvillingkort som Thriving Heath/Moor når
      rho 0,91–0,94 — inom de rätta kortens 0,94–0,97 — med 0,03–0,05 till nästa
      namn och modellens marginal 0,02–0,04). */
-  for (const v of val) { if (arg('M')) v.k.M = +arg('M'); if (arg('T')) v.k.T = +arg('T'); if (arg('modMarg')) v.k.modMarg = +arg('modMarg'); if (arg('M') || arg('T') || arg('modMarg')) { v.s = summera(S, r => domRAK(r, v.k)); v.k.hand = true; } }
+  /* --skala 0.85,1.18: bär bara när inpassningens skala säger att kortet fyller rutan (som ORB_SKALA/ORB_HEL). */
+  for (const v of val) { if (arg('M')) v.k.M = +arg('M'); if (arg('T')) v.k.T = +arg('T'); if (arg('modMarg')) v.k.modMarg = +arg('modMarg'); if (arg('skala')) v.k.skala = String(arg('skala')).split(',').map(Number); if (arg('M') || arg('T') || arg('modMarg') || arg('skala')) { v.s = summera(S, r => domRAK(r, v.k)); v.k.hand = true; } }
   console.log('══ Trösklar valda på syntetiska (0 säkra fel, flest säkra rätt) ══');
   for (const v of val) console.log(`  ${v.k.matt.padEnd(6)} modell-säker ${v.k.modell ? 'ja ' : 'nej'}  T ≥ ${v.k.T}  M ≥ ${v.k.M}${v.k.L != null ? '  L ≥ ' + v.k.L : ''}  → säkra rätt ${v.s.sakraRatt}/${v.s.n}`);
   /* Också: den lägsta tröskeln som ger 0 fel på synt när modellen INTE får vara säker ensam, för jämförelse. */
