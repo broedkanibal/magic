@@ -5788,10 +5788,18 @@ const Moln = (() => {
     let q = s.from('decks').update(Object.assign({}, data, { uppdaterad: nu })).eq('id', id).eq('user_id', minId());
     if (sedd) q = q.lte('uppdaterad', new Date(sedd).toISOString());
     const { data: rader, error } = await q.select('*');
-    if (error) { console.warn('Leken kunde inte sparas', error.message); return { ok: false, fel: error.message }; }
+    /* forsok: tiden vi försökte skriva. Ett fel kan vara ett svar som
+       aldrig kom fram fast raden skrevs — bär raden sedan den tiden gick
+       skrivningen igenom (lekSparaKo, MES-289). */
+    if (error) { console.warn('Leken kunde inte sparas', error.message); return { ok: false, fel: error.message, forsok: Date.parse(nu) }; }
     if (rader && rader.length) return { ok: true, rad: Object.assign({ ts: lekTs(rader[0]) }, rader[0]) };
-    /* Ingen rad skrevs: någon annan enhet hann före (eller leken är borta). */
-    const rad = await hamtaLekRad(id).catch(() => null);
+    /* Ingen rad skrevs: någon annan enhet hann före (eller leken är borta).
+       Faller omläsningen på nätet vet vi ingenting — det är ett fel att
+       försöka igen, inte en borttagen lek. Förut blev det "borta": datorn
+       kastade sina osparade ändringar och telefonen sitt lästa foto (MES-289). */
+    let rad;
+    try { rad = await hamtaLekRad(id); }
+    catch (e) { return { ok: false, fel: (e && e.message) || 'The deck could not be fetched' }; }
     return rad ? { ok: false, konflikt: true, rad } : { ok: false, borta: true };
   }
   async function dopOmLek(id, namn) {
@@ -10278,7 +10286,8 @@ async function oppSenastLek() {
    basländerna, utan sideboarden. */
 function oppLekVyHtml(l) {
   if (!l) return '';
-  const poster = (l.kort || []).filter(k => !k.sb).map(k => ({ name: k.name, sid: k.sid, small: k.small, n: Number(k.n) || 1, key: norm(k.name) }));
+  /* Platshållarna ur ett lekfoto (MES-289) går inte till library. */
+  const poster = (l.kort || []).filter(k => !k.sb && !k.okand).map(k => ({ name: k.name, sid: k.sid, small: k.small, n: Number(k.n) || 1, key: norm(k.name) }));
   const main = [];
   for (const g of lekGrupper(poster, () => renderOppstart())) {
     const rub = LS_GRUPP[g.key] || g.rub, f = main.find(x => x.rub === rub);
@@ -12453,8 +12462,11 @@ async function lekForhamta(kort) {
 function lekSattAktiv(rad) {
   lekAktiv = rad ? { id: rad.id, namn: rad.namn, farger: rad.farger || [], antal: rad.antal || 0, ts: rad.ts || 0 } : null;
   if (lekAktiv) LS.set(K.lekaktiv, lekAktiv); else LS.del(K.lekaktiv);
-  if (rad && rad.kort) sattLekTal(rad.kort);
-  lekKort = rad && Array.isArray(rad.kort) ? rad.kort : null;
+  /* Platshållarna ur ett lekfoto (MES-289) är inga kort att spela: de står
+     under To check tills någon väljer kortet. */
+  const kort = rad && Array.isArray(rad.kort) ? rad.kort.filter(k => !k.okand) : null;
+  if (rad && rad.kort) sattLekTal(kort);
+  lekKort = kort;
   lekForhamta(lekKort).catch(() => {});
 }
 /* Samma lager oavsett konto: inloggad → decks, annars webbläsarens lista.
@@ -12496,6 +12508,24 @@ async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id)
    Rena funktioner utan appens toppnivå: dev/lekslag.cjs klipper ut blocket
    mellan markörerna och kör fallen utan webbläsare. */
 const lekSlagNyckel = (name, sb) => String(name || '').toLowerCase().replace(/\s+/g, ' ').trim() + (sb ? '|sb' : '');
+/* Ett kort ur ett lekfoto som Mesa inte kunde göra till ett kort (MES-289):
+   titelraden gick inte att läsa, eller namnet gick inte att slå upp. Förut
+   föll det bort tyst — det enda spåret var en mening på telefonens
+   klar-skärm, och lekens antal stämde inte med de fotade korten. Nu ligger
+   det i leken som en PLATSHÅLLARE: det räknas i antalet och står under To
+   check med remsan ur fotot, tills någon väljer kortet (byt) eller tar bort
+   det. Raden bär okand: 1 och inget sid; spelet, kamerans pool och lekens
+   färger hoppar över den. Namnet är bara en nyckel — unikt (id), så att två
+   oläsliga kort aldrig slås ihop till en rad (vart och ett har sin remsa),
+   och inget riktigt kort heter så. */
+const LEK_OKAND_NAMN = 'Unreadable card';
+function lekOkandKort(las, kalla, remsa, id) {
+  const koll = { las: String(las || '').slice(0, 150), kalla };
+  if (remsa) koll.remsa = remsa;
+  return { name: `${LEK_OKAND_NAMN} ${id}`, sid: null, small: null, okand: 1, koll };
+}
+/* Ett riktigt kort (med tryckning) eller en platshållare — det som får bli en rad. */
+const lekSlagKort = k => !!(k && (k.sid || k.okand));
 function lekSlagTillampa(bas, ops) {
   let namn = (bas && bas.namn) || '';
   const kort = [];
@@ -12504,6 +12534,7 @@ function lekSlagTillampa(bas, ops) {
     const k = { name: mall.name, sid: mall.sid, small: mall.small || null, n };
     if (mall.ci) k.ci = mall.ci;
     if (mall.koll) k.koll = mall.koll;
+    if (mall.okand) k.okand = 1;
     if (sb) k.sb = 1;
     return k;
   };
@@ -12526,7 +12557,7 @@ function lekSlagTillampa(bas, ops) {
       if (i >= 0) { kort[i].n += d; if (kort[i].n <= 0) kort.splice(i, 1); }
       /* Kortet finns inte (längre) i raden: ett tillägg lägger in det igen,
          ett avdrag har ingenting att dra från. */
-      else if (d > 0 && op.kort && op.kort.sid) kort.push(rad(op.kort, d, op.sb));
+      else if (d > 0 && lekSlagKort(op.kort)) kort.push(rad(op.kort, d, op.sb));
     } else if (op.typ === 'bort') {
       if (i >= 0) kort.splice(i, 1);
     } else if (op.typ === 'sb') {
@@ -12540,8 +12571,10 @@ function lekSlagTillampa(bas, ops) {
          Det som ligger i raden NU byts, så att en annan enhets tillägg på
          det gamla kortet följer med. Finns det nya kortet redan på samma
          sida slås raderna ihop. Kortet man valt är inte längre osäkert —
-         utom när bytet självt bär en osäkerhet (ett ångrat byte). */
-      if (i < 0 || !op.kort || !op.kort.sid) continue;
+         utom när bytet självt bär en osäkerhet (ett ångrat byte). En
+         platshållare (MES-289) blir ett riktigt kort på samma sätt, och ett
+         ångrat byte gör det tillbaka till en platshållare. */
+      if (i < 0 || !lekSlagKort(op.kort)) continue;
       const j = hitta(op.kort.name, op.sb);
       if (j >= 0 && j !== i) { kort[j].n += kort[i].n; kort.splice(i, 1); continue; }
       const n = kort[i].n;
@@ -12559,6 +12592,13 @@ function lekSlagSummor(kort) {
   for (const k of kort || []) { const n = Number(k.n) || 1; if (k.sb) sb += n; else main += n; }
   return { main, sb };
 }
+/* Korten man kan spela med: allt utom platshållarna ur ett lekfoto (MES-289).
+   decks.antal är deras antal — det spelet, motståndarna (lek_info), library
+   och kameran räknar med, som innan platshållarna fanns. Lekens sida och Home
+   räknar platshållarna också (lekSlagSummor på hela raden), eftersom de står
+   under To check där. */
+const lekSpelbara = kort => (kort || []).filter(k => k && !k.okand);
+const lekSpelAntal = kort => lekSlagSummor(lekSpelbara(kort)).main;
 /* Mängden kort (sid) i leken, som en nyckel: poolen på telefonen byggs om
    bara när den ändras, inte när ett antal gör det. */
 const lekSlagSids = kort => [...new Set((kort || []).map(k => k.sid).filter(Boolean))].sort().join(',');
@@ -12844,7 +12884,8 @@ function minLekAntal() { return lekAktiv ? (lekAktiv.antal || 0) : 0; }
 /* Antalet kort i en sparad lek: n per rad. Basländerna är vanliga rader med
    sitt antal, så de räknas med. En lek från före antalen räknar 1 per rad. */
 function lekKortAntal(lek) {
-  return lek && lek.kort ? lek.kort.reduce((s, k) => s + (k.n || 1), 0) : 0;
+  /* Platshållarna ur ett lekfoto (MES-289) är inga kort kameran letar efter. */
+  return lek && lek.kort ? lekSpelbara(lek.kort).reduce((s, k) => s + (k.n || 1), 0) : 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -12913,7 +12954,7 @@ function lekFargerAv(kort, forra) {
   const s = new Set();
   let okand = false, main = false;
   for (const k of kort || []) {
-    if (k.sb) continue;
+    if (k.sb || k.okand) continue;     // en platshållare ur ett foto (MES-289) har inga färger
     main = true;
     if (LEK_BL_FARG[k.name]) { s.add(LEK_BL_FARG[k.name]); continue; }
     const ci = k.ci || lekCiAv(k);
@@ -12935,19 +12976,38 @@ function lekNyttNamnAv(lista) {
    efter raden vi utgick från) läses den nyare raden in och samma kö spelas
    upp på den — högst tre varv, sedan får nästa försök ta det. Kortens färger
    följer med i raden när de är kända, så att identiteten går att räkna utan
-   att hämta korten igen. */
-async function lekSparaKo(id, bas, ops) {
-  let rad = bas;
+   att hämta korten igen.
+
+   Ett försök vars svar aldrig kom fram — nätet föll efter att raden skrevs —
+   kan ändå ha gått igenom (MES-289). Spelades samma kö då upp igen på den
+   nyare raden lades korten in två gånger: ett foto på trettio kort som
+   sparades om efter ett nätfel gav sextio. Varje sådant försök lämnar
+   därför tiden det skrev ({ts, n}: n = antalet ändringar i kön då) i
+   `forsok`, som följer med svaret och skickas med nästa gång samma kö
+   sparas (o.forsok). Bär raden en av de tiderna ligger de n första
+   ändringarna redan i den, och bara resten spelas upp. Kön får bara växa
+   i slutet mellan försöken. */
+async function lekSparaKo(id, bas, ops, o = {}) {
+  let rad = bas, forsok = (o.forsok || []).slice();
   for (let varv = 0; varv < 3; varv++) {
     const v = lekSlagTillampa(rad, ops);
     const kort = v.kort.map(k => { if (k.ci) return k; const ci = lekCiAv(k); return ci ? Object.assign({}, k, { ci }) : k; });
-    const data = { kort, namn: v.namn || rad.namn || 'My deck', antal: lekSlagSummor(kort).main, farger: lekFargerAv(kort, rad.farger) };
+    const data = { kort, namn: v.namn || rad.namn || 'My deck', antal: lekSpelAntal(kort), farger: lekFargerAv(kort, rad.farger) };
     const res = await lekSpara(id, data, rad.ts || null);
     if (res.ok) return res;
+    if (res.forsok) forsok.push({ ts: res.forsok, n: ops.length });
+    /* Kom inget svar alls: titta en gång om skrivningen gick igenom ändå. */
+    const nu = res.konflikt ? res.rad : res.forsok ? await lekHamtaRad(id).catch(() => null) : null;
+    const gick = nu && forsok.find(f => f.ts === nu.ts);
+    if (gick) {
+      ops = ops.slice(Math.min(gick.n, ops.length)); forsok = [];
+      if (!ops.length) return { ok: true, rad: nu };
+      rad = nu; continue;
+    }
     if (res.konflikt && res.rad) { rad = res.rad; continue; }
-    return res;
+    return Object.assign({}, res, { forsok });
   }
-  return { ok: false, fel: 'The deck kept changing on another device', rad };
+  return { ok: false, fel: 'The deck kept changing on another device', rad, forsok };
 }
 /* Efter en sparning: är leken den som spelas (eller senast valdes) följer
    leklådan, motståndarnas kopia (lek_info) och telefonens pool med. Poolen
@@ -12975,13 +13035,14 @@ function lekEfterRadering(id) {
 /* En kö som inte hann sparas innan sidan stängdes eller en annan lek öppnades
    (nätet borta) ges inte upp: den försöker igen i bakgrunden, med växande
    väntan, och säger ifrån först när det verkligen inte går. */
-function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
+function lekSparaIBakgrunden(id, bas, ops, forsok = 0, skrivna = []) {
   setTimeout(async () => {
     let res;
-    try { res = await lekSparaKo(id, bas, ops); } catch (e) { res = { ok: false }; }
+    try { res = await lekSparaKo(id, bas, ops, { forsok: skrivna }); } catch (e) { res = { ok: false }; }
     if (res.ok) { lekEfterSpar(bas, res.rad); return; }
     if (res.borta) return;
-    if (forsok < 8) lekSparaIBakgrunden(id, res.rad || bas, ops, forsok + 1);
+    /* skrivna: försöken vars svar aldrig kom (lekSparaKo, MES-289). */
+    if (forsok < 8) lekSparaIBakgrunden(id, res.rad || bas, ops, forsok + 1, res.forsok || skrivna);
     else toast('Your latest changes to a deck could not be saved', 'err');
   }, Math.min(30000, 2000 * 2 ** forsok));
 }
@@ -13104,12 +13165,17 @@ const LEK_LAGGTXT = 'In columns, overlapping, so only the name line of each card
    avgör både om titelraden går att läsa och hur bred remsan klipps.
    OPRÖVAT på riktig telefon — se Linear MES-172. */
 const TELFOTO_HOGAR = 5;
+/* osparat: ett läst foto vars sparning inte gick igenom (telfotoSpara). */
 const telfoto = { id: null, bas: null, namn: '', steg: 'ansluter', foto: 1,
-                  sista: null, fel: '', strom: null, skarpaT: 0, wake: null, laser: false };
+                  sista: null, fel: '', strom: null, skarpaT: 0, wake: null, laser: false, osparat: null };
 
 async function telfotoOppna(id) {
   spelLage = null;
-  telfoto.id = id; telfoto.bas = null; telfoto.namn = ''; telfoto.foto = 1;
+  /* Samma lek igen (Try again efter ett fel): räkningen av fotona fortsätter.
+     Började den om på 1 skrev datorns Phone-flik över sitt "Photo 1", och
+     fotonas antal där gick inte längre ihop med lekens (MES-289). */
+  if (telfoto.id !== id) { telfoto.foto = 1; telfoto.osparat = null; }
+  telfoto.id = id; telfoto.bas = null; telfoto.namn = '';
   telfoto.sista = null; telfoto.fel = ''; telfoto.steg = 'ansluter';
   visaVy('lekfoto');
   telfotoRita();
@@ -13194,8 +13260,11 @@ function telfotoRita() {
       + `<div class="telfot"><button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take the next photo</button>`
       + '<button type="button" class="btnp sek" data-tel="klart">Done</button></div>';
   } else if (t.steg === 'klart') {
+    /* Alla fotade kort, också de som inte gick att läsa (MES-289) — samma tal
+       som lekens sida på datorn. decks.antal räknar bara kort att spela med. */
+    const n = t.bas ? lekSlagSummor(t.bas.kort || []).main : 0;
     h = `<div class="telok"><span class="ck">${lsIk('check', 26, 2.8)}</span><b>That’s the deck</b>`
-      + `<span>${esc(t.namn)} has ${t.bas && t.bas.antal ? t.bas.antal : 0} cards. Finish it on the computer — basic lands, the cards to check, and the ones the photos missed.</span></div>`
+      + `<span>${esc(t.namn)} has ${n} ${n === 1 ? 'card' : 'cards'}. Finish it on the computer — basic lands, the cards to check, and the ones the photos missed.</span></div>`
       + `<div class="telfot"><button type="button" class="btnp sek" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take another photo</button></div>`;
   }
   b.innerHTML = h;
@@ -13208,7 +13277,8 @@ $('#vyLekfoto').addEventListener('click', ev => {
   else if (a === 'knapp') telfotoKnapp();
   else if (a === 'stang') telfotoStoppKamera('klart');
   else if (a === 'klart') { telfoto.steg = 'klart'; telfotoRita(); }
-  else if (a === 'om') telfotoOppna(telfoto.id);
+  /* Ett läst foto som inte gick att spara sparas igen — inget nytt foto. */
+  else if (a === 'om') { if (telfoto.osparat) telfotoIgen(); else telfotoOppna(telfoto.id); }
 });
 
 /* ── kameran ── */
@@ -13373,21 +13443,30 @@ async function telfotoLas(kalla) {
     }
     /* Samma namn flera gånger i fotot är flera exemplar. Remsan klipps ur
        KÄLLAN (lekRemsa), inte ur den nedskalade duken: den ska gå att läsa
-       för en människa även när den var för liten för modellen. */
-    const unika = new Map();
-    let namnlosa = 0;
+       för en människa även när den var för liten för modellen.
+
+       Varje post i svaret blir ett kort i leken (MES-289). En post utan namn
+       (titelraden gick inte att läsa) och ett namn som inte gick att slå upp
+       föll förut bort, med bara en mening på klar-skärmen som spår. Nu blir
+       de platshållare (lekOkandKort) under To check, med remsan — det är
+       den väg prompten i läget 'lek' redan lovar: "appen visar en
+       uppförstorad bild av just den remsan". Namnlösa slås aldrig ihop:
+       vart och ett har sin egen remsa. */
+    const unika = new Map(), okanda = [];
     for (const k of kort) {
       const namn = String(k.namn || '').trim();
-      if (!namn) { namnlosa++; continue; }
+      if (!namn) { okanda.push({ las: '', n: 1, remsa: lekRemsa(k.x, k.y, kalla) }); continue; }
       const key = lekSlagNyckel(namn, false), f = unika.get(key);
       if (f) { f.n++; continue; }
       unika.set(key, { namn, n: 1, sak: k.sakerhet, remsa: lekRemsa(k.x, k.y, kalla) });
     }
     const ops = [], lagda = [];
-    let osakra = 0, missade = 0;
+    let osakra = 0;
     for (const p of unika.values()) {
       let k;
-      try { k = await lookup(p.namn); } catch (e) { missade += p.n; continue; }
+      /* Finns inte, eller nätet föll: namnet ligger kvar i platshållaren, och
+         datorns Pick the card… börjar sökningen på det. */
+      try { k = await lookup(p.namn); } catch (e) { okanda.push({ las: p.namn, n: p.n, remsa: p.remsa }); continue; }
       const kort2 = { name: k.name, sid: k.id, small: imgOf(k, 0, 'small') || null, ci: k.ci || [] };
       /* Osäkert: modellen tvekade, eller Scryfall bytte ut namnet. Den
          luddiga sökningen byter gärna ut det den inte känner igen
@@ -13401,31 +13480,69 @@ async function telfotoLas(kalla) {
       ops.push({ typ: 'antal', name: k.name, sb: false, d: p.n, kort: kort2 });
       lagda.push({ name: k.name, small: kort2.small, n: p.n, koll: !!kort2.koll });
     }
+    /* Gick inget namn i hela fotot att läsa är det fotot som är fel — för
+       suddigt, för mörkt, för många kort — och det ska tas om. Då läggs
+       ingenting in, som förut: platshållare från ett foto som sedan togs om
+       hade blivit kvar i leken, och totalen för hög på ett nytt sätt
+       (granskningen av MES-289). Platshållare bara för de enstaka korten i
+       ett foto där andra namn gick att läsa. */
     if (!ops.length) {
       telfoto.fel = 'None of the names in the photo matched a card. Photograph fewer cards at a time, straight from above.';
       telfotoSteg('fel'); return;
     }
-    const res = await lekSparaKo(telfoto.id, telfoto.bas, ops);
-    if (!res.ok || !res.rad) {
-      telfoto.fel = (res && res.fel) || 'The deck could not be saved. Check your network and take the photo again.';
-      telfotoSteg('fel'); return;
+    for (const o of okanda) {
+      const kort2 = lekOkandKort(o.las, 'Photo ' + nr, o.remsa, uid().slice(0, 6));
+      ops.push({ typ: 'antal', name: kort2.name, sb: false, d: o.n, kort: kort2 });
+      lagda.push({ name: o.las || 'Unreadable', small: null, n: o.n, koll: true });
+      osakra += o.n;
     }
-    telfoto.bas = res.rad;
-    telfoto.namn = res.rad.namn || telfoto.namn;
     const nya = ops.reduce((t, o) => t + o.d, 0);
-    const extra = [];
-    const otydliga = Math.max(namnlosa, +j.otydliga || 0);
-    if (otydliga) extra.push(`${otydliga} ${otydliga === 1 ? 'card was' : 'cards were'} seen but could not be read.`);
-    if (missade) extra.push(`${missade} ${missade === 1 ? 'name' : 'names'} could not be looked up.`);
-    if (+j.kapade) extra.push('There were more cards in the picture than could be read — photograph fewer at a time.');
-    telfoto.sista = { nr, nya, koll: osakra, kort: lagda, extra: extra.join(' ') };
-    telfoto.foto = nr + 1;
-    lekKanalSag({ typ: 'sparad', lekId: telfoto.id, foto: nr, antal: res.rad.antal, nya, koll: osakra, ts: res.rad.ts });
-    telfotoSteg('klar');
+    /* Kort Mesa såg men som inte kom med i svaret alls — modellen fick inte
+       med dem, eller de var fler än servern tar emot i ett foto (kapade,
+       räknade in i otydliga) — går inte att lägga in: det finns ingen remsa
+       och ingen plats. De måste fotas igen, och klar-skärmen säger hur många. */
+    const kapade = Math.max(0, +j.kapade || 0), ej = Math.max(kapade, +j.otydliga || 0);
+    const extra = ej ? `${ej} ${ej === 1 ? 'card was' : 'cards were'} seen but not read — photograph ${ej === 1 ? 'it' : 'them'} again${kapade ? ', fewer at a time' : ''}.` : '';
+    await telfotoSpara({ nr, ops, sista: { nr, nya, koll: osakra, kort: lagda, extra }, forsok: [] });
   } catch (e) {
     telfoto.fel = 'The reading did not get through. ' + ((e && e.message) || '');
     telfotoSteg('fel');
   } finally { telfoto.laser = false; }
+}
+/* Sparningen av ett läst foto. Går den inte igenom ligger fotot kvar
+   (telfoto.osparat), och Try again sparar SAMMA kö igen i stället för att be
+   om ett nytt foto — med tiderna för de försök vars svar aldrig kom fram
+   (lekSparaKo). Förut bad felet om ett nytt foto: hade sparningen ändå gått
+   igenom lades samma kort in två gånger, och leken fick fler kort än som
+   fotats (MES-289). */
+async function telfotoSpara(p) {
+  telfoto.osparat = p;
+  const res = await lekSparaKo(telfoto.id, telfoto.bas, p.ops, { forsok: p.forsok });
+  if (!res.ok || !res.rad) {
+    if (res.forsok) p.forsok = res.forsok;
+    if (res.rad) telfoto.bas = res.rad;
+    if (res.borta) telfoto.osparat = null;
+    telfoto.fel = res.borta ? 'This deck no longer exists — it was deleted, perhaps on the computer.'
+      : 'The photo was read, but the deck could not be saved. Check your network and press Try again — you don’t need to take the photo again.';
+    telfotoSteg('fel'); return false;
+  }
+  telfoto.osparat = null;
+  telfoto.bas = res.rad;
+  telfoto.namn = res.rad.namn || telfoto.namn;
+  telfoto.sista = p.sista;
+  telfoto.foto = p.nr + 1;
+  lekKanalSag({ typ: 'sparad', lekId: telfoto.id, foto: p.nr, antal: res.rad.antal, nya: p.sista.nya, koll: p.sista.koll, ts: res.rad.ts });
+  telfotoSteg('klar');
+  return true;
+}
+async function telfotoIgen() {
+  const p = telfoto.osparat;
+  if (!p || telfoto.laser) return;
+  telfoto.laser = true;
+  telfotoSteg('laser');
+  try { await telfotoSpara(p); }
+  catch (e) { telfoto.fel = 'The deck could not be saved. ' + ((e && e.message) || ''); telfotoSteg('fel'); }
+  finally { telfoto.laser = false; }
 }
 /* ══ SLUT: TELEFONENS LEKFOTO ══ */
 
@@ -13464,6 +13581,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     nyNamn: '',           // en ny lek har ingen rad förrän den fått sitt första kort
     ops: [],              // ändringar som inte är sparade (LEKSLAG)
     flygP: null, flyger: 0, sparT: null, felN: 0,
+    forsok: [],           // sparningar vars svar aldrig kom fram (lekSparaKo, MES-289)
     spar: 'tom',          // 'tom' | 'andrat' | 'sparar' | 'sparat' | 'fel' | 'borta'
     skapaTomt: false,     // telefonen behöver raden innan det finns kort
     laddar: false,
@@ -13604,12 +13722,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     y.flyger = n; y.spar = 'sparar'; ritaStatus();
     y.flygP = (async () => {
       try {
-        if (y.bas) return await lekSparaKo(y.bas.id, y.bas, ops);
+        if (y.bas) return await lekSparaKo(y.bas.id, y.bas, ops, { forsok: y.forsok });
         /* En ny lek skapas med sitt första kort. Bara ett namn räcker inte:
            en lek man ångrade sig om ska inte bli liggande som en tom rad. */
         const v = lekSlagTillampa({ namn: y.nyNamn, kort: [] }, ops);
         if (!v.kort.length && !y.skapaTomt) return { tomt: true };
-        const rad = await lekSkapa(v.namn || y.nyNamn || 'New deck', v.kort, lekFargerAv(v.kort, []), lekSlagSummor(v.kort).main);
+        const rad = await lekSkapa(v.namn || y.nyNamn || 'New deck', v.kort, lekFargerAv(v.kort, []), lekSpelAntal(v.kort));
         return { ok: true, rad, ny: true };
       } catch (e) { return { ok: false, fel: (e && e.message) || 'error' }; }
     })();
@@ -13618,7 +13736,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (res.tomt) { y.spar = 'tom'; ritaStatus(); return; }
     if (res.ok) {
       const forra = y.bas;
-      y.bas = res.rad; y.ops.splice(0, n); y.felN = 0; y.skapaTomt = false;
+      y.bas = res.rad; y.ops.splice(0, n); y.felN = 0; y.skapaTomt = false; y.forsok = [];
       y.spar = y.ops.length ? 'andrat' : 'sparat';
       lekEfterSpar(forra, res.rad);
       if (res.ny) { lyssna(); if (nar.skapad) nar.skapad(res.rad); }
@@ -13627,6 +13745,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       y.spar = 'borta'; y.ops = [];
     } else {
       if (res.rad) y.bas = res.rad;
+      /* Försök vars svar aldrig kom: nästa försök ska inte lägga in dem igen (MES-289). */
+      if (res.forsok) y.forsok = res.forsok;
       y.felN++; y.spar = 'fel';
       planera(Math.min(30000, 2000 * 2 ** Math.min(4, y.felN - 1)));
     }
@@ -13722,7 +13842,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   async function oppna(id, o = {}) {
     await stang();
     const s = ++y.session;
-    Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
+    Object.assign(y, { bas: null, ops: [], felN: 0, forsok: [], spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
                       namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null,
                       tel: telTom(), telHtml: '' });
     y.valda.clear(); y.nya.clear(); y.bekr.clear();
@@ -13771,7 +13891,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
        den, annars skickas samma kö två gånger. */
     while (y.flygP) await y.flygP;
     clearTimeout(y.sparT); y.sparT = null;
-    if (y.ops.length && y.bas && y.spar !== 'borta') lekSparaIBakgrunden(y.bas.id, y.bas, y.ops.slice());
+    if (y.ops.length && y.bas && y.spar !== 'borta') lekSparaIBakgrunden(y.bas.id, y.bas, y.ops.slice(), 0, y.forsok);
     /* En lek utan kort ska inte ligga kvar i Your decks (MES-177): lämnas
        den tom tas den bort. Ett ⌘Z hinner man bara göra medan sidan är
        öppen. Utom när telefonen fått leken i Phone-fliken: då kan korten
@@ -13978,7 +14098,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       h = t ? `<div class="lstom"><span class="ico">${lsIk(t[0], 26, 1.6)}</span><b>${t[1]}</b><span>${t[2]}</span></div>`
         : `<div class="lstom"><span class="ico">${lsIk('deck', 26, 1.6)}</span><b>No cards yet</b><span>Add them one of the three ways on the left. They show up here, sorted by type, and you can change or remove every card.</span></div>`;
     } else {
-      const poster = v.kort.map(k => ({ name: k.name, sid: k.sid, small: k.small, n: k.n, sb: !!k.sb, koll: k.koll, key: norm(k.name) }));
+      /* Platshållarna ur ett lekfoto (MES-289) står bara under To check:
+         de har ingen bild och ingen typ att sorteras efter. */
+      const poster = v.kort.filter(k => !k.okand).map(k => ({ name: k.name, sid: k.sid, small: k.small, n: k.n, sb: !!k.sb, koll: k.koll, key: norm(k.name) }));
       const grupper = lekGrupper(poster.filter(p => p.sb || !BASLAND_NAMN.includes(p.name)), () => { if (s === y.session) ritaYta(); });
       const main = [];
       let sbGrupp = null;
@@ -14043,6 +14165,18 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
           + `<div class="tcs"><b>${esc(k.name)}</b><span>${kollSkrev(k, bekr.koll)} · ${kopiorText(k.n)}${k.sb ? ' · Sideboard' : ''}</span></div>`
           + `<div class="tb"><span class="lsbekrok">${lsIk('check', 13, 2.8)}Confirmed</span></div></div>`;
       }
+      /* En platshållare ur ett foto (MES-289): Mesa har inget kort att fråga
+         om. Samma rad som de andra, med remsan, en tom kortplats och bara
+         två val — välj kortet (samma sökruta som Pick another…) eller ta
+         bort det. */
+      if (k.okand) {
+        return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
+          + remsaHtml(k.koll)
+          + '<span class="th"></span>'
+          + `<div class="tcs"><b>Which card is this?</b><span>${okandSkrev(k)} · ${kopiorText(k.n)}${k.sb ? ' · Sideboard' : ''}</span></div>`
+          + `<div class="tb"><button type="button" class="btn sm prim" data-tc="byt">${lsIk('swap', 12)}Pick the card…</button>`
+          + `<button type="button" class="btn sm ghost fara" data-tc="bort">${lsIk('trash', 12)}Remove</button></div></div>`;
+      }
       return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
         + remsaHtml(k.koll)
         + `<button type="button" class="th${ligg ? ' ligg' : ''}" data-tc="bild" title="Show ${esc(k.name)} larger">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : ''}</button>`
@@ -14051,10 +14185,21 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         + `<button type="button" class="btn sm" data-tc="byt">${lsIk('swap', 12)}Pick another…</button>`
         + `<button type="button" class="btn sm ghost fara" data-tc="bort">${lsIk('trash', 12)}Remove</button></div></div>`;
     };
-    const sub = kvar ? `${kvar === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card — ${kvar === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.` : 'All checked.';
+    const oka = l.filter(k => k.koll && k.okand).length, nara = kvar - oka;
+    const delar = [];
+    if (nara) delar.push(`${nara === 1 ? 'This name' : 'These names'} didn’t match a card exactly. Mesa picked the closest card — ${nara === 1 ? 'it’s' : 'they’re'} in the deck until you say otherwise.`);
+    if (oka) delar.push(`${oka === 1 ? 'One card' : `${oka} cards`} from the photos couldn’t be named — read ${oka === 1 ? 'its' : 'their'} title line and pick the card.`);
+    const sub = delar.length ? delar.join(' ') : 'All checked.';
     return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${kvar}</span>`
       + `<span class="sub">${sub}</span></div>${l.map(rad).join('')}</div>`;
   }
+  /* En platshållare (MES-289): det fotot läste, om något. */
+  function okandSkrev(k) {
+    const las = k.koll && k.koll.las;
+    return las ? `The photo read “${esc(las)}”` : 'The name could not be read';
+  }
+  /* Namnet i notiserna: en platshållares nyckel är inget att visa. */
+  const visNamn = k => !k.okand ? k.name : k.koll && k.koll.las ? `“${k.koll.las}”` : 'the unreadable card';
   /* Titelraden ur fotot (N8). Den klipps ur KÄLLAN när fotot läses av
      (lekRemsa) och sparas i kortets koll, inte i meddelandet: den ska finnas
      kvar på datorn efter en omladdning, och den är hela kontrollen — det
@@ -14107,13 +14252,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   }
 
   /* ── ändringarna ── */
-  const mallAv = k => ({ name: k.name, sid: k.sid, small: k.small, ci: k.ci, koll: k.koll });
+  const mallAv = k => ({ name: k.name, sid: k.sid, small: k.small, ci: k.ci, koll: k.koll, okand: k.okand });
   const kortI = (name, sb) => nu().kort.find(k => nyckel(k.name, k.sb) === nyckel(name, sb));
   const kopiorText = n => `${n} ${n === 1 ? 'copy' : 'copies'}`;
   function taBort(k) {
     y.valda.delete(nyckel(k.name, k.sb));
     medAnimering([nyckel(k.name, k.sb)], () => andra({ typ: 'bort', name: k.name, sb: !!k.sb }));
-    snack(`Removed ${k.name}${k.n > 1 ? ` ×${k.n}` : ''}`);
+    snack(`Removed ${visNamn(k)}${k.n > 1 ? ` ×${k.n}` : ''}`);
   }
   /* Ett bekräftat kort (Yes under To check) låg redan i leken — det ska inte
      flytta sig, bara byta status (Jesper 2026-09-16, efter bug1/bug2.mov där
@@ -14422,11 +14567,18 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
               nr: forra ? forra.nr + 1 : 1, av: forra ? forra.av : kort.length,
               grupp: forra ? forra.grupp : ++popGrupp, bytta: forra ? forra.bytta : [], senast: forra ? forra.senast : '' };
     const k = kort[0], p = y.pop;
+    /* En platshållare ur ett foto (MES-289) har inget kort att byta från:
+       rutan visar remsan ur fotot, som frågan i To check, och sökningen
+       börjar på det fotot läste. */
+    const topp = k.okand
+      ? (k.koll && k.koll.remsa ? `<span class="plbl">In the photo</span><img class="lsstrip" src="${esc(k.koll.remsa)}" alt="">` : '')
+        + `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>Which card is this?</h4><span class="psub">${okandSkrev(k)}. ${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Type the name on the title line and pick the card.</span></div></div>`
+      : `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}</h4><span class="psub">${k.koll ? `${kollSkrev(k)}. ` : ''}${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Pick the card it should be — ${k.n === 1 ? 'it changes' : 'they all change'} with it.</span></div></div>`;
     /* Nästa kort i ett svep säger vad som hände med det förra, så att det
        syns att valet gick igenom när rutan byter innehåll. */
-    visaPop(`<span class="ptag">Change card${p.av > 1 ? ` · ${p.nr} of ${p.av}` : ''}</span>`
+    visaPop(`<span class="ptag">${k.okand ? 'Pick the card' : 'Change card'}${p.av > 1 ? ` · ${p.nr} of ${p.av}` : ''}</span>`
       + (p.senast ? `<span class="psteg">${lsIk('check', 13, 2.6)}<span>${p.senast}</span></span>` : '')
-      + `<div class="prow top">${popTumme(k)}<div class="pcol"><h4>${esc(k.name)}</h4><span class="psub">${k.koll ? `${kollSkrev(k)}. ` : ''}${kopiorText(k.n)}${k.sb ? ' in the sideboard' : ''}. Pick the card it should be — ${k.n === 1 ? 'it changes' : 'they all change'} with it.</span></div></div>`
+      + topp
       + `<div class="lssokwrap"><label class="lsfld"><span class="ic">${lsIk('search', 16)}</span><input type="text" class="lssok" placeholder="Type the right card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>`
       + '<p class="pfel" hidden></p>'
       + `<div class="prow"><span class="grow"></span>${p.av > 1 && p.nr < p.av ? '<button type="button" class="btn sm ghost" data-lp="hoppa">Skip</button>' : ''}<button type="button" class="btn sm ghost" data-lp="avbryt">${p.av > 1 ? 'Stop' : 'Cancel'}</button></div>`,
@@ -14434,8 +14586,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const inp = popEl.querySelector('.lssok');
     popSok = kopplaSok(inp, popEl.querySelector('.lssug'), { valj: namn => bytTill(namn), esc: () => stangPop(), anpassa: () => placeraPop() });
     /* Kortet Mesa valde, inte felstavningen: förslagen börjar på namnets
-       början, så en felstavning gav inga förslag alls. */
-    inp.value = k.name;
+       början, så en felstavning gav inga förslag alls. En platshållare har
+       inget kort — där börjar sökningen på det fotot läste, om något. */
+    inp.value = k.okand ? ((k.koll && k.koll.las) || '') : k.name;
     inp.focus(); inp.select();
     inp.dispatchEvent(new Event('input'));
   }
@@ -14470,9 +14623,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       if (y.valda.delete(fore)) y.valda.add(efter);
       if (y.nya.has(fore)) y.nya.add(efter);
       andra({ typ: 'byt', name: k.name, sb: !!k.sb, kort: { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] } }, { grupp: 'byt' + p.grupp });
-      if (norm(c.name) !== norm(k.name) || c.id !== k.sid) p.bytta.push([k.name, c.name]);
+      if (norm(c.name) !== norm(k.name) || c.id !== k.sid) p.bytta.push([visNamn(k), c.name]);
     }
-    p.senast = norm(c.name) !== norm(k.name) ? `Changed ${esc(k.name)} to <b>${esc(c.name)}</b>`
+    p.senast = norm(c.name) !== norm(k.name) ? `Changed ${esc(visNamn(k))} to <b>${esc(c.name)}</b>`
       : c.id !== k.sid ? `Changed the printing of <b>${esc(c.name)}</b>` : `Kept <b>${esc(k.name)}</b>`;
     /* Popovern stängs inte av omritningen (kortet heter något annat nu). */
     p.soker = false;
@@ -14953,9 +15106,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     get id() { return y.bas ? y.bas.id : null; },
     /* Leken som den ser ut nu, i lekradens form (uppstartens Pick your deck). */
     info() {
+      /* Uppstarten (Use … (N cards)): korten man spelar med, utan
+         platshållarna ur ett lekfoto (MES-289) — de står under To check. */
       const v = nu(), sum = lekSlagSummor(v.kort);
       return { id: y.bas ? y.bas.id : null, namn: v.namn || y.nyNamn || 'New deck', farger: lekFargerAv(v.kort, y.bas && y.bas.farger),
-               antal: sum.main, sb: sum.sb, omslag: lekOmslag(v.kort), koll: v.kort.filter(k => k.koll).length };
+               antal: lekSpelAntal(v.kort), sb: sum.sb, omslag: lekOmslag(v.kort), koll: v.kort.filter(k => k.koll).length };
     },
     /* Finns det något som inte är sparat? (beforeunload) */
     vantar: () => !!(y.ops.length || y.flygP),
@@ -15894,7 +16049,8 @@ async function byggLekPoolRa(lek, userId, onProg) {
      leken; Matcher rankar alla på samma varv. Tjugo namn per fråga: en
      fråga med alla namn i leken blir annars lång. */
   const KONST_TAK = 12;
-  const namnen = [...new Set((lek.kort || []).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
+  /* Platshållarna ur ett lekfoto (MES-289) har inget namn att söka på. */
+  const namnen = [...new Set((lek.kort || []).filter(k => !k.okand).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
   for (let i = 0; i < namnen.length; i += 20) {
     try {
       const extra = [];
@@ -22480,6 +22636,8 @@ let kamPoolNyckel = null, kamPoolOm = false;
    att bli ett kort. Main + sideboard. null utan lek (då gäller inget). */
 let kamLekAntal = null;
 function sattKamLekAntal(kort) {
+  /* Platshållarna ur ett lekfoto (MES-289) har inget namn att lita på. */
+  kort = Array.isArray(kort) ? lekSpelbara(kort) : kort;
   if (!Array.isArray(kort) || !kort.length) { kamLekAntal = null; return; }
   kamLekAntal = new Map();
   for (const k of kort) { const key = norm(k.name); kamLekAntal.set(key, (kamLekAntal.get(key) || 0) + (Number(k.n) || 1)); }
@@ -26329,13 +26487,18 @@ function lekOmslag(kort) {
   }
   return bast ? bast.small.replace('/small/', '/art_crop/') : null;
 }
+/* antal: korten man spelar med (decks.antal); okand: platshållarna ur ett
+   lekfoto (MES-289), som bara Home räknar med — uppstarten visar det som går
+   till library. */
 const hemLekRad = r => ({ id: r.id, namn: r.namn, farger: r.farger || [], antal: r.antal || 0,
+  okand: lekSlagSummor((r.kort || []).filter(k => k && k.okand)).main,
   sb: lekSlagSummor(r.kort).sb, omslag: lekOmslag(r.kort), koll: (r.kort || []).filter(k => k.koll).length, kort: r.kort || [] });
 /* Lekraden (MES-168, MES-170): samma rad på Home och i uppstartens Pick your
    deck (H1, G1, J1). l = hemLekRad. o.meny = Home (⋯ med Rename och Delete);
    o.radio, o.on, o.tag (Last used) och o.andra (pennan) = uppstarten. */
 function lekRadHtml(l, o = {}) {
-  const meta = `${l.antal} ${l.antal === 1 ? 'card' : 'cards'}${l.sb && !o.radio ? ` · ${l.sb} sideboard` : ''}`;
+  const n = l.antal + (o.meny ? (l.okand || 0) : 0);
+  const meta = `${n} ${n === 1 ? 'card' : 'cards'}${l.sb && !o.radio ? ` · ${l.sb} sideboard` : ''}`;
   const attr = o.radio ? ` data-opplek="${esc(l.id)}" tabindex="0" role="radio" aria-checked="${!!o.on}"`
     : o.meny ? ` data-hem-lek="${esc(l.id)}" tabindex="0" role="button"` : '';
   return `<div class="lr${o.on ? ' on' : ''}"${attr}>${o.radio ? '<span class="radio"></span>' : ''}`
@@ -26517,7 +26680,7 @@ $('#vyHem').addEventListener('click', async ev => {
   if (a === 'dopom') { hemDopOm(lek); return; }
   if (a === 'radera') {
     const l = (hem.lekar || []).find(x => x.id === lek.dataset.hemLek); if (!l) return;
-    const n = l.antal + l.sb;
+    const n = l.antal + l.sb + (l.okand || 0);
     if (!await ask(`"${l.namn}" and its ${n} ${n === 1 ? 'card' : 'cards'} are deleted${Moln.inloggad() ? ' from your account' : ''}. This cannot be undone.`,
                    { title: 'Delete this deck?', ok: 'Delete', danger: true })) return;
     if (!await lekRadera(l.id)) { hemFel('The deck could not be deleted.'); return; }

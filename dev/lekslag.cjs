@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path'), assert = require('assert');
 const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('/* ══ BLOCK: LEKSLAG'), b = src.indexOf('/* ══ SLUT: LEKSLAG ══ */');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte LEKSLAG i index.html'); process.exit(2); }
-const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar };')();
+const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort: typeof lekOkandKort === "function" ? lekOkandKort : null };')();
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -231,6 +231,59 @@ prov('Just added: en inklistrad lista står kvar tills alla dess kort är borta'
   const batch = [{ nr: 5, name: 'Pasted list', n: 3, batch: [{ name: 'Lightning Bolt', sb: false, n: 2 }, { name: 'Lightning Helix', sb: false, n: 1 }] }];
   assert.equal(lekNyssKvar(batch, [{ name: 'Lightning Helix', n: 1 }]).length, 1, 'ett kort kvar räcker');
   assert.equal(lekNyssKvar(batch, [{ name: 'Mountain', n: 4 }]).length, 0);
+});
+
+/* MES-289: ett kort ur ett foto som Mesa inte kunde göra till ett kort —
+   tomt namn, eller ett namn som inte gick att slå upp — ligger i leken som en
+   platshållare under To check tills någon väljer kortet eller tar bort det. */
+const okand = (las, id, remsa = 'data:remsa-' + id) => lekOkandKort(las, 'Photo 2', remsa, id);
+prov('platshållare: läggs in, räknas i antalet, bär remsan och inget sid', () => {
+  const r = lekSlagTillampa(telBas, [foto(okand('', 'a1'), 1), foto(okand('Blixtpil', 'b2'), 2)]);
+  const p = r.kort.filter(k => k.okand);
+  assert.equal(p.length, 2);
+  assert.deepEqual(p.map(k => k.koll.las).sort(), ['', 'Blixtpil']);
+  assert.ok(p.every(k => !k.sid && k.koll.kalla === 'Photo 2' && k.koll.remsa));
+  assert.equal(lekSlagSummor(r.kort).main, lekSlagSummor(telBas.kort).main + 3);
+  assert.equal(lekSlagSids(r.kort), lekSlagSids(telBas.kort), 'ingen tryckning — poolen byggs inte om');
+});
+prov('platshållare: två oläsliga kort blir två rader, aldrig en', () => {
+  const r = lekSlagTillampa({ kort: [] }, [foto(okand('', 'a1'), 1), foto(okand('', 'a2'), 1)]);
+  assert.equal(r.kort.length, 2);
+  assert.notEqual(r.kort[0].koll.remsa, r.kort[1].koll.remsa);
+});
+prov('platshållare: överlever en ny uppspelning av den sparade raden', () => {
+  const r = lekSlagTillampa({ kort: [] }, [foto(okand('', 'a1'), 1)]);
+  const t = lekSlagTillampa(JSON.parse(JSON.stringify(r)), []);
+  assert.equal(t.kort.length, 1); assert.equal(t.kort[0].okand, 1); assert.ok(t.kort[0].koll.remsa);
+});
+prov('platshållare: Pick the card (byt) gör den till ett riktigt kort utan To check', () => {
+  const p = okand('', 'a1');
+  const r = lekSlagTillampa({ kort: [] }, [foto(p, 1), { typ: 'byt', name: p.name, sb: false, kort: charm }]);
+  assert.deepEqual(lista(r), ['1 Boros Charm']);
+  assert.equal(r.kort[0].okand, undefined); assert.equal(r.kort[0].koll, undefined); assert.equal(r.kort[0].sid, 'c1');
+});
+prov('platshållare: kortet man väljer fanns redan — raderna slås ihop', () => {
+  const p = okand('Lightnig Bolt', 'a1');
+  const r = lekSlagTillampa(telBas, [foto(p, 1), { typ: 'byt', name: p.name, sb: false, kort: bolt }]);
+  assert.equal(r.kort.find(k => k.name === 'Lightning Bolt').n, 5);
+  assert.equal(r.kort.filter(k => k.okand).length, 0);
+});
+prov('platshållare: ett ångrat byte (mallen med okand) gör den till platshållare igen', () => {
+  const p = okand('', 'a1');
+  const valt = lekSlagTillampa({ kort: [] }, [foto(p, 1), { typ: 'byt', name: p.name, sb: false, kort: charm }]);
+  /* Så ser omvändningen ut (mallAv i lekytan bär okand och koll). */
+  const mall = { name: p.name, sid: null, small: null, koll: p.koll, okand: 1 };
+  const r = lekSlagTillampa(valt, [{ typ: 'byt', name: 'Boros Charm', sb: false, kort: mall }]);
+  assert.equal(r.kort.length, 1); assert.equal(r.kort[0].okand, 1); assert.deepEqual(r.kort[0].koll, p.koll);
+});
+prov('platshållare: Remove tar bort den', () => {
+  const p = okand('', 'a1');
+  const r = lekSlagTillampa({ kort: [] }, [foto(p, 1), { typ: 'bort', name: p.name, sb: false }]);
+  assert.deepEqual(r.kort, []);
+});
+prov('ett kort utan tryckning som inte är en platshållare läggs fortfarande inte in', () => {
+  const r = lekSlagTillampa({ kort: [] }, [{ typ: 'antal', name: 'X', sb: false, d: 1, kort: { name: 'X' } }]);
+  assert.deepEqual(r.kort, []);
 });
 
 for (const r of [...ok, ...fel]) console.log(r);
