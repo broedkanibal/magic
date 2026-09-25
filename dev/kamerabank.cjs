@@ -400,6 +400,56 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   check(`VX3 tappat 15° snett runt hörnet: före tap=${tapFore}, tappad i ruta ${vx3Flip} (högst 2), spår ${s.length}, samma id ${!!s.find(x => x.id === idVx3)}`,
         tapFore === false && vx3Flip != null && vx3Flip <= 2 && s.length === 1 && !!s.find(x => x.id === idVx3));
 
+  // ── TT1: tap-läget ändras bara vid en TYDLIG dom (MES-293, Jespers beslut 1) ──
+  /* Ett namngivet kort som ligger 50° från grundläget — som när blänk i en
+     ficka gör regionen sned nära 45° — vrids inte, hur många stilla rutor
+     det än ligger: domen är otydlig (tapTydlig kräver 20° från grundläget
+     eller kvartsvarvet). Förut vred löpräknaren det efter två rutor. Vrids
+     kortet till 88° tas tappningen, och ett snett läge efteråt vrider inte
+     tillbaka. */
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
+  const idTt = s[0] && s[0].id, klarTt = !!(s[0] && s[0].st === 'klar');
+  const tt = () => s.find(x => x.id === idTt);
+  let ttSnett = 0, ttTapp = null, ttTillbaka = 0;
+  for (let i = 0; i < 12; i++) { s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 50 * Math.PI / 180, 180)); if (tt() && tt().tappad) ttSnett++; }
+  for (let i = 0; i < 6; i++) { s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 88 * Math.PI / 180, 180)); if (ttTapp == null && tt() && tt().tappad) ttTapp = i + 1; }
+  for (let i = 0; i < 12; i++) { s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 50 * Math.PI / 180, 180)); if (tt() && !tt().tappad) ttTillbaka++; }
+  check(`TT1 tydlig dom: klart före ${klarTt}; 50° i 12 rutor: tappad i ${ttSnett}; 88°: tappad i ruta ${ttTapp} (högst 2); 50° igen i 12 rutor: otappad i ${ttTillbaka}; samma id ${!!tt()}`,
+        klarTt && ttSnett === 0 && ttTapp != null && ttTapp <= 2 && ttTillbaka === 0 && !!tt() && s.length === 1);
+  /* TT2: ett spår UTAN namn (osäkert svar, granskningen) har inga egna mått
+     och prövas mot de namngivna kortens (kortMatt): samma regel — 50° vrider
+     inget, 88° med ett korts mått vrider det. Utan måttet stod ett tappat
+     kort som ingen kunnat namnge otappat för alltid (golden 13–15: Plains
+     tappat i hörnet, spåret okand). */
+  {
+    nystart(); await referens();
+    const namnFore = namnSvar;
+    for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 60, 50, 30, 42, 0, 180));
+    const idA = s[0] && s[0].id, klarA = !!(s[0] && s[0].st === 'klar');
+    namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: false, cands: [{ name: 'Plains', sid: 's1', score: 0.5 }] });
+    const TVA = v => g => { kortVriden(g, W, 60, 50, 30, 42, 0, 180); kortVriden(g, W, 170, 75, 30, 42, v * Math.PI / 180, 180); };
+    const b = () => s.find(x => x.id !== idA);
+    let bSnett = 0, bTapp = null, bTillbaka = 0;
+    for (let i = 0; i < 12; i++) { s = await ruta(TVA(50)); if (b() && b().tappad) bSnett++; }
+    const stB = b() && b().st;
+    for (let i = 0; i < 6; i++) { s = await ruta(TVA(88)); if (bTapp == null && b() && b().tappad) bTapp = i + 1; }
+    for (let i = 0; i < 12; i++) { s = await ruta(TVA(50)); if (b() && !b().tappad) bTillbaka++; }
+    namnSvar = namnFore;
+    check(`TT2 spår utan namn mot de namngivnas mått: A klart ${klarA}, B ${stB}; 50° i 12 rutor: tappad i ${bSnett}; 88°: tappad i ruta ${bTapp} (högst 2); 50° igen: otappad i ${bTillbaka}; spår ${s.length}`,
+          klarA && stB !== 'klar' && bSnett === 0 && bTapp != null && bTapp <= 2 && bTillbaka === 0 && s.length === 2);
+  }
+  /* TT3: ett kort som fick sitt namn medan det låg 12° snett. Dess raka låda
+     är då större än kortet, och ett mått ur lådan gjorde varje senare dom
+     otydlig: kortet tappas rent (90°) men vrids aldrig. */
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 12 * Math.PI / 180, 180));
+  const idT3 = s[0] && s[0].id, klarT3 = !!(s[0] && s[0].st === 'klar');
+  let t3Tapp = null;
+  for (let i = 0; i < 6; i++) { s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 90 * Math.PI / 180, 180)); const t = s.find(x => x.id === idT3); if (t3Tapp == null && t && t.tappad) t3Tapp = i + 1; }
+  check(`TT3 namngivet 12° snett, sedan tappat rent: klart ${klarT3}, tappad i ruta ${t3Tapp} (högst 2), samma id ${!!s.find(x => x.id === idT3)}`,
+        klarT3 && t3Tapp != null && t3Tapp <= 2 && !!s.find(x => x.id === idT3));
+
   // ── LT1: latensmätningens stämplar (MES-215) följer med rapporten bara när den är på ──
   nystart(); await referens();
   for (let i = 0; i < 8; i++) s = await ruta(KORT);
@@ -1307,10 +1357,13 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`GL3 satKalibrering läser ruta.grund i grader: 150 → ${g150 == null ? g150 : grader(g150) + '°'}; en rad utan grund (golden-facit, bänken) → ${Kamera.grund}`,
           g150 != null && Math.abs(g150 - rad(150)) < 1e-9 && Kamera.grund === null);
     /* GL4: grundFranSpar dömer om spåren som redan finns. Ett stående kort
-       (axel 90°) och ett vridet 60° (axel 150°): med upp 'v' är det vridna
-       tappat. Bekräftas det vridna som otappat blir grundläget 150°: det
-       vridna otappat och det stående (60° från grundläget) tappat — på en
-       gång, i rapporten, och det står sig ruta för ruta. */
+       (axel 90°) och ett vridet 60° (axel 150°): med upp 'v' ligger det
+       vridna ~56° från axeln — ingen TYDLIG dom (MES-293: inom 20° av
+       grundläget eller kvartsvarvet), så det står otappat som det föddes.
+       Bekräftas det vridna som otappat blir grundläget 150°: det vridna
+       otappat och det stående (60° från grundläget) tappat — på en gång, i
+       rapporten (satGrund dömer om varje spår mot den nya axeln), och det
+       står sig ruta för ruta: 60° är ingen tydlig dom åt något håll. */
     nystart(); await referens();
     const TVA_V = g => { KORT(g); kortVriden(g, W, 160, 75, 30, 42, rad(60), 180); };
     for (let i = 0; i < 10; i++) s = await ruta(TVA_V);
@@ -1321,7 +1374,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        togs — det är den som jämförs, inte sista rutans. */
     const vAx = vridet ? vridet.vinkel : 0;
     const fore = `före: stående tap=${staende && staende.tappad}, vridet tap=${vridet && vridet.tappad} (axel ${vridet && grader(vAx)}°)`;
-    const okFore = !!staende && !!vridet && !staende.tappad && vridet.tappad;
+    const okFore = !!staende && !!vridet && !staende.tappad && !vridet.tappad;
     const fann = okFore && Kamera.grundFranSpar(vridet.id, false);
     const rap = t => t && (bord.find(x => x.id === t.id) || {}).tappad;
     const direkt = `rapporten direkt: stående ${rap(staende)}, vridet ${rap(vridet)}`;

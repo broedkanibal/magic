@@ -7941,7 +7941,24 @@ function matPlacera(p, platser, v) {
    Ritas bara när kamerans stämpel (kam.nar) eller orienteringen bytt —
    annars flyttar hjärtslaget om korten var tredje sekund. Klämmer bara
    mot graveyard-rutan: brädet växer i stället (grown i matVy). */
+/* Skalan är FRYST när uppstarten är klar (MES-293, Jespers beslut 5
+   2026-09-24): provkortet i steg 4 är redan mätt, och dess kortsida
+   (provKort.S, i bildbredder) är CW på brädet. Förut räknades skalan om ur
+   medianen av de bundna kortens bredd i bilden — den ändras varje gång ett
+   kort kommer, går, tappas (lådan blir bred) eller skyms i en hög — medan
+   speglaKamPos bara ritar om kort vars egen stämpel ändrats: bordet blandade
+   lägen räknade med olika skalor, och korten gled isär. Kortsidan och inte
+   lådans bredd: i en vy som vridits ett kvarts varv (kamVand) är lådans
+   bredd kortets långsida. null utan mätt provkort (uppstarten avböjd, klar
+   på en annan dator, eller ett spel från före steg 4) — då gäller medianen
+   som förut. */
+function kamSkalaFryst() {
+  if (!spelLage) return null;
+  const o = oppFor(), k = o.provKort;
+  return o.klar && k && k.S > 0 ? MATTA.CW / Math.max(0.03, k.S) : null;
+}
 function kamSkala(p) {
+  const fryst = kamSkalaFryst(); if (fryst) return fryst;
   const w = p.cards.filter(c => c.kam && c.kam.w).map(c => c.kam.w).sort((a, b) => a - b);
   const med = w.length ? w[Math.floor(w.length / 2)] : 0.12;
   return MATTA.CW / Math.max(0.03, med);
@@ -7958,7 +7975,11 @@ function kamTillMatta(kam, skala) {
 function kamSpeglar(p) { return !!spelLage && arMitt(p) && mittLage() === 'bord' && kamAnsluten; }
 function speglaKamPos(p, v) {
   if (!kamSpeglar(p)) return false;
-  const skala = kamSkala(p), g = gravRuta(v), ori = kamOriNyckel(), stort = { w: 1e6, h: 1e6 };
+  /* Den frysta skalan hör till nyckeln: byts den (uppstarten blev klar, eller
+     gjordes om med telefonen på ett annat avstånd) ritas alla kort om med den
+     nya, så att inget kort står kvar räknat med den gamla. */
+  const fryst = kamSkalaFryst();
+  const skala = fryst || kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + (fryst ? '|' + fryst.toFixed(3) : ''), stort = { w: 1e6, h: 1e6 };
   let andrat = false;
   for (const c of p.cards) {
     if (c.spar == null || !c.kam || c.lyft != null || !paMattan(c) || c.attachedTo) continue;
@@ -20151,15 +20172,20 @@ const Kamera = (() => {
      (MES-214). */
   function sattVila(t, area) { t.vilaX = t.cx; t.vilaY = t.cy; if (area) t.vilaArea = area; t.vilaRuta = t.ram || t.box; if (t.tillstand === 'klar') stampla(t, 'lage'); }
 
-  /* En TYDLIG tap-dom i en enda ruta (MES-214), för ett namngivet kort:
-     regionen är avlång nog att ha en axel (1,15), har kortets mått (långsida
-     och kortsida inom 0,85–1,3 av dem kortet hade när det fick sitt namn —
-     en hand som håller i kortet gör regionen större, ett finger över hörnet
-     mindre), och axeln ligger inom TAP_TYDLIG av grundläget eller av dess
-     kvartsvarv — inte mitt emellan, där en ruta till kan säga det andra. */
+  /* En TYDLIG tap-dom i en enda ruta (MES-214): regionen är avlång nog att
+     ha en axel (1,15), har kortets mått (långsida och kortsida inom 0,85–1,3
+     av dem kortet hade när det fick sitt namn — en hand som håller i kortet
+     gör regionen större, ett finger över hörnet mindre), och axeln ligger
+     inom TAP_TYDLIG av grundläget eller av dess kvartsvarv — inte mitt
+     emellan, där en ruta till kan säga det andra. Ett spår utan namn har
+     inga egna mått, och prövas mot de namngivna kortens (kortMatt, bara när
+     det finns sådana — MES-293): korten är lika stora, och två kort intill
+     varandra som blivit en region är 1,4 kortlängder långa. */
   const TAP_TYDLIG = 20 * Math.PI / 180;
   function tapTydlig(f, t, upp) {
-    const nm = t.namnMatt; if (!nm || !(f.lang >= 1.15 * f.kort)) return false;
+    let nm = t.namnMatt;
+    if (!nm && t.tillstand !== 'klar') { const km = kortMatt(); if (km.kalla === 'spår') nm = { l: km.lang, k: km.kort }; }
+    if (!nm || !(f.lang >= 1.15 * f.kort)) return false;
     if (f.lang < 0.85 * nm.l || f.lang > 1.3 * nm.l || f.kort < 0.85 * nm.k || f.kort > 1.3 * nm.k) return false;
     const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
     const d = axSkillnad(f.vinkel, bas);
@@ -20199,8 +20225,8 @@ const Kamera = (() => {
        fortfarande håller i kortet, och vinkeln då är handens, inte kortets.
        Uppmätt i golden 07: tio av tolv tappade avläsningar kom på spår i
        rörelse (tillstånd 'ny'), och korten föddes tappade på datorn.
-       Räknaren (tappRun) börjar på noll och räknas bara i stilla rutor
-       (matcha): tills två stilla rutor sagt annat är kortet otappat. */
+       Tills en tydlig dom i en stilla ruta sagt annat (matcha, MES-293)
+       är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
                  tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null };
@@ -20400,8 +20426,8 @@ const Kamera = (() => {
              igen efter att handen släppt har mitten flyttat — kortet vreds
              runt ett hörn — och räknas som rörelse, så den stilla domen
              nedan kom två rutor senare (golden 09: +0,6 s). Är domen TYDLIG
-             (tapTydlig) tas den på en gång; säger de följande stilla rutorna
-             emot vrider löpräknaren tillbaka den — det är ångringen. */
+             (tapTydlig) tas den på en gång; säger en följande stilla ruta
+             lika tydligt emot vrids den tillbaka — det är ångringen. */
           if (bast.tillstand === 'klar') { const t2 = tappad(f.vinkel, upp); if (t2 !== !!bast.tappad && tapTydlig(f, bast, upp)) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); } }
         }
         else {
@@ -20418,14 +20444,19 @@ const Kamera = (() => {
           /* Tap-läget döms bara i rutor där kortet ligger stilla: medan det
              flyttas är vinkeln handens (se fodSpar), och ett kort som redan
              är bundet på datorn behåller sin senaste dom tills det landat.
-             Löpräknare (K3): två stilla rutor i följd med en annan dom än
-             kortets vrider det — från vilket läge som helst. Den
-             exponentiella rösten som stod här förut tog tre rutor från
-             otappat och fyra tillbaka; en enda ruta med en vinkel mitt
-             emellan nollar räknaren och rör ingenting. */
+             Och bara när domen är TYDLIG (MES-293, Jespers beslut 1
+             2026-09-24): regionen har ett korts mått och axeln ligger inom
+             20° av grundläget eller av dess kvartsvarv (tapTydlig). Annars
+             står läget kvar, hur många rutor som än säger annat.
+             Löpräknaren (K3) som stod här vred kortet efter två stilla rutor
+             med en annan dom också när domen var otydlig, och i partiet
+             2026-09-21 var 54 av 108 tap-domar en omvändning av spårets egen
+             förra: blänk som gör regionen sned nära 45°, två kort intill
+             varandra som blir en region med vågrät axel, och handen. Ett
+             Swamp-spår fick tolv domar i rad på 105 s utan att röras. Skräp
+             är inget kort och döms inte. */
           const t2 = tappad(f.vinkel, upp);
-          if (t2 === !!bast.tappad) bast.tappRun = 0;
-          else if ((bast.tappRun = (bast.tappRun || 0) + 1) >= R(2) || (bast.tillstand === 'klar' && tapTydlig(f, bast, upp))) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); }
+          if (t2 !== !!bast.tappad && bast.tillstand !== 'skrap' && tapTydlig(f, bast, upp)) { bast.tappad = t2; bast.tappRun = 0; stampla(bast, 'tap'); }
         }
         /* Läget datorn speglar, för ett NAMNGIVET kort (MES-214): det följer
            spåret ruta för ruta — också medan kortet flyttas, namnet sitter
