@@ -55,9 +55,45 @@ function typLinje(k) { return typRad.get(k.name) || ''; }
 /* Uppstarten (MES-122): pågår den spelas inget ut. Av i alla prov utom UP. */
 let oppPagar = false;
 function oppstartPagar() { return oppPagar; }
+/* Det svaren utanför utdraget läser (se svarKod nedan): mattan, molnet,
+   handen och högarna. delaHand ger index per zon, som appens. */
+const ZON_EXIL = 'exil';
+const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_EXIL; };
+const Moln = { sandKam() {} };
+const hand = () => state.players[0].cards, angraPunkt = () => {}, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+function delaHand() {
+  const d = { spell: [], mana: [], grav: [], exil: [] };
+  hand().forEach((c, i) => { const z = zonAv(c); d[z === ZON_GRAV ? 'grav' : z === ZON_EXIL ? 'exil' : z === ZON_MANA ? 'mana' : 'spell'].push(i); });
+  return d;
+}
 `;
+/* Svaren som binder ett kort till ett spår utanför avstämningen (MES-291):
+   granskningens svar (namngePend, med sammaKortVid) och handflytten till
+   graveyard eller exile (flyttaTill). Ur samma index.html, så att proven kör
+   appens egen kod. En funktion slutar vid första "}" i början av en rad. */
+const funk = namn => {
+  const i = src.indexOf('function ' + namn + '('), j = src.indexOf('\n}\n', i);
+  if (i < 0 || j < 0) throw new Error('hittar inte ' + namn + ' i ' + fil);
+  return src.slice(i, j + 3);
+};
+const svarKod = ['sammaKortVid', 'namngePend', 'flyttaTill'].map(funk).join('\n');
+/* Timrarna (MES-291): avstamBord ställer en timer som låter nåden och
+   väntan löpa ut när telefonen är tyst. Här virtuella: tid(t) flyttar
+   klockan till t och kör timrarna som hinner gå ut, i ordning, med klockan
+   på deras tid. Ett prov som inte anropar tid() kör aldrig någon timer. */
 const klocka = { t: 1e6 };
-const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + `
+const timrar = []; let timerN = 0;
+const setTimeoutV = (fn, ms) => { const id = ++timerN; timrar.push({ id, t: klocka.t + (+ms || 0), fn }); return id; };
+const clearTimeoutV = id => { const i = timrar.findIndex(x => x.id === id); if (i >= 0) timrar.splice(i, 1); };
+const tid = t => {
+  for (;;) {
+    timrar.sort((x, y) => x.t - y.t);
+    if (!timrar.length || timrar[0].t > t) break;
+    const tm = timrar.shift(); klocka.t = tm.t; tm.fn();
+  }
+  klocka.t = t;
+};
+const app = new Function('Date', 'setTimeout', 'clearTimeout', miljo + kod + svarKod + `
 return {
   avstamBord, tackning, sammaPlats, lekPrior,
   kamBildTillVy, kamVyTillBild, provKortMatt, provKortStorlek, zonForslag, bibBredvid, provkortSpar, provkortUt, provLasSteg,
@@ -100,12 +136,16 @@ return {
   summa() { return autoSumSammanfatta(autoSum, senasteSpar, state.players[0], Date.now()); },
   avsluta() { return autoSumAvsluta(senasteSpar, state.players[0], Date.now()); },
   kostnad: aiKostnad, pris: aiPris,
+  /* Svaren utanför avstämningen (MES-291): granskningens svar på en post, och handflytten till en hög. */
+  namnge(q, namn) { return namngePend(state.players[0], q, namn, null, null); },
+  flytta(i, zon) { return flyttaTill(i, zon); },
+  tillbaka(namn, utom) { return kortSomKomTillbaka(state.players[0].cards, namn, utom); },
   /* Nollställningen går genom avstamBord: det är där "senaste kortet"
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
   nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false; }
-};`)({ now: () => klocka.t }, () => 0, () => {});
+};`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
 const box = (x, y, w, h) => ({ x, y, w, h });
@@ -116,7 +156,7 @@ const LANGT = box(0.8, 0.1, 0.063, 0.088);
 const klar = (id, namn, rest) => Object.assign({ id, tillstand: 'klar', namn, saker: true, tappad: false }, rest);
 const ok = [], fel = [];
 const prov = (namn, f) => {
-  app.nollstall(); klocka.t = 1e6;
+  app.nollstall(); klocka.t = 1e6; timrar.length = 0;
   try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); }
 };
 
@@ -1155,6 +1195,183 @@ prov('GR10 utan ruta (grav null) eller en telefon utan vakten: som förut', () =
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], null);
   klocka.t += 150; stamG([], null); klocka.t += 3100; stamG([], null);
   assert.ok(app.kort[0].lyft != null); assert.equal(app.kort[0].zon, undefined);
+});
+
+/* VN (MES-291, Jespers beslut 3): ett kort kameran tappar antas först ha
+   flyttats. Det väntar otonat i BORTA_NAD (3000 i provet, 5000 i appen) och
+   tonas ned först sedan; läggs det ner på en ny plats under väntan flyttar
+   det dit; växer graveyard-högen slutar väntan direkt. Det som inte ska
+   tonas ned — besvärjelsen, ett täckt kort, Screen leads — avgörs efter den
+   korta nåden (SLAPP_MS, 600 ms) som förut. */
+const mitt = b => b.x + b.w / 2;
+prov('VN0 appens väntan är 5 s och den korta nåden 600 ms (Jespers beslut 3, mätt i passet 2026-09-22)', () => {
+  assert.equal(+((src.match(/const BORTA_NAD = (\d+);/) || [])[1]), 5000, 'BORTA_NAD i index.html');
+  assert.equal(+((src.match(/const SLAPP_MS = (\d+);/) || [])[1]), 600, 'SLAPP_MS i index.html');
+});
+prov('VN1 väntan: ett tappat kort står kvar otonat och bundet under väntan, och tonas ned när den är slut', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);
+  klocka.t += 1000; stam([]);                     // 1 s: efter den korta nåden, mitt i väntan
+  assert.ok(k.borta, 'väntar'); assert.equal(k.lyft, undefined, 'tonat under väntan'); assert.equal(k.spar, 1);
+  klocka.t += 1500; stam([]);                     // 2,5 s: fortfarande väntan
+  assert.equal(k.lyft, undefined, 'tonat vid 2,5 s');
+  klocka.t += 650; stam([]);                      // 3,15 s: väntan slut
+  assert.ok(k.lyft != null, 'nedtonat efter väntan'); assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
+});
+prov('VN2 flytt under väntan: samma namn på en ny plats är samma kort — det flyttar dit och tonas aldrig ned', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0], cid = k.cid;
+  klocka.t += 150; stam([]);
+  klocka.t += 2000; stam([]);
+  assert.equal(k.lyft, undefined);
+  klocka.t += 500; stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);   // 2,5 s: lagt på nya platsen, läst
+  assert.equal(app.kort.length, 1, 'ett andra kort'); assert.equal(app.kort[0].cid, cid);
+  assert.equal(k.spar, 2); assert.equal(k.borta, undefined); assert.equal(k.lyft, undefined);
+  assert.ok(Math.abs(k.kam.x - mitt(LANGT)) < 1e-9, 'läget följde med: ' + k.kam.x);
+  klocka.t += 3000; stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);
+  assert.equal(k.lyft, undefined, 'tonat efteråt');
+});
+prov('VN3 flytt under väntan när ett annat kort med samma namn redan är nedtonat: det väntande flyttar, det nedtonade står kvar', () => {
+  stam([klar(1, 'Swamp', { sen: 20, ...PORT }), klar(2, 'Swamp', { sen: 20, ...LANGT })]);
+  const a = app.kort.find(c => c.spar === 1), b = app.kort.find(c => c.spar === 2);
+  klocka.t += 150; stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);            // B tappas …
+  klocka.t += 3100; stam([klar(1, 'Swamp', { sen: 20, ...PORT })]);           // … och tonas ned
+  assert.ok(b.lyft != null, 'B nedtonat');
+  klocka.t += 150; stam([]);                                                   // A tappas
+  klocka.t += 2000; stam([klar(3, 'Swamp', { sen: 20, ...MITT })]);           // och läggs ner på en ny plats
+  assert.equal(app.kort.length, 2);
+  assert.equal(a.spar, 3, 'A band om'); assert.equal(a.lyft, undefined); assert.ok(Math.abs(a.kam.x - mitt(MITT)) < 1e-9);
+  assert.ok(b.lyft != null, 'B står kvar nedtonat'); assert.equal(b.spar, undefined);
+});
+prov('VN4 graveyard-högen växer under väntan: kortet går dit direkt, utan att vänta ut väntan eller tonas ned', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(1));            // 1 s efter att spåret dog, långt före väntans slut
+  const k = app.kort[0];
+  assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto); assert.equal(k.lyft, undefined); assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
+});
+prov('VN5 två kort tappas och högen växer en gång: båda väntar; läggs det ena ner på en ny plats går det andra till graveyard', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
+  const u = app.kort.find(c => c.name === 'Ukud Cobra'), g = app.kort.find(c => c.name === 'Grizzly Bears');
+  klocka.t += 150; stamG([], hog(0));
+  klocka.t += 1000; stamG([], hog(1));            // vilket av dem? går inte att säga: båda väntar vidare
+  assert.equal(u.zon, undefined); assert.equal(g.zon, undefined); assert.equal(u.lyft, undefined); assert.equal(g.lyft, undefined);
+  klocka.t += 500; stamG([klar(3, 'Grizzly Bears', { sen: 20, ...MITT })], hog(1));   // björnen flyttades
+  assert.equal(g.spar, 3); assert.equal(g.zon, undefined); assert.equal(g.lyft, undefined);
+  assert.equal(u.zon, 'grav', 'Ukud till graveyard'); assert.ok(u.gravAuto); assert.equal(u.lyft, undefined);
+});
+prov('VN6 armen över högen före och strax efter att spåret dog kortar inte väntan: kortet väntar, tonas ned efteråt, inte graveyard', () => {
+  stamG([klar(1, 'Mirran Bardiche', { sen: 20, ...PORT })], hog(0));
+  klocka.t += 150; stamG([klar(1, 'Mirran Bardiche', { sen: 1500, skymd: true, ...PORT })], hog(1));
+  klocka.t += 1350; stamG([], hog(1));
+  klocka.t += 150; stamG([], hog(2));             // 0,15 s efter döden: för tidigt för att vara kortet
+  klocka.t += 1000; stamG([], hog(2));
+  const k = app.kort[0];
+  assert.equal(k.zon, undefined); assert.equal(k.lyft, undefined, 'tonat under väntan'); assert.ok(k.borta);
+  klocka.t += 2000; stamG([], hog(2));
+  assert.equal(k.zon, undefined); assert.ok(k.lyft != null, 'nedtonat efter väntan');
+});
+prov('VN7 det som inte tonas ned väntar inte: besvärjelsen går till graveyard och Screen leads släpper efter den korta nåden', () => {
+  app.typ = new Map([['Lightning Bolt', 'Instant']]);
+  stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 700; stam([]);
+  assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].spellAuto);
+  app.nollstall(); klocka.t = 1e6; app.spelsatt = 'skarm';
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  klocka.t += 150; stam([]);
+  klocka.t += 700; stam([]);
+  assert.equal(app.kort[0].spar, undefined, 'bindningen släppt'); assert.equal(app.kort[0].borta, undefined); assert.equal(app.kort[0].lyft, undefined);
+});
+/* Svar och handflyttar under väntan (granskningen av MES-291). Förut var
+   ett kort i väntan redan nedtonat efter 0,6 s, och svaren tog det som
+   nedtonat; nu har det kvar sitt döda spår i hela väntan. */
+const okandLangt = id => ({ id, tillstand: 'okand', namn: null, saker: false, gissning: null, sen: 20,
+  cands: [{ name: 'Grizzly Bears', score: 0.4 }, { name: 'Ukud Cobra', score: 0.3 }], ...LANGT });
+prov('VN8 granskningens svar under väntan: kortet i väntan är kortet som kom tillbaka — inget andra kort, och det tonas inte ned', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);                                   // lyfts: spåret dör
+  klocka.t += 1500; stam([okandLangt(2)]);                     // läggs ner där telefonen inte kan läsa det: en fråga
+  assert.equal(app.pending.length, 1, 'ingen fråga'); assert.ok(k.borta, 'väntar inte');
+  klocka.t += 1500; app.namnge(app.pending[0], 'Ukud Cobra'); // svaret, 3,15 s efter att spåret dog
+  assert.equal(app.kort.length, 1, 'ett andra Ukud Cobra'); assert.equal(k.spar, 2); assert.equal(k.borta, undefined); assert.equal(app.pending.length, 0);
+  const lastKlar = Object.assign(okandLangt(2), { tillstand: 'klar', namn: 'Ukud Cobra', saker: true, varfor: 'hand' });
+  klocka.t += 100; stam([lastKlar]);
+  klocka.t += 3000; stam([lastKlar]);                          // där väntan hade tagit slut
+  assert.equal(app.kort.length, 1); assert.equal(k.lyft, undefined, 'originalet tonades ned'); assert.equal(k.spar, 2);
+  assert.ok(Math.abs(k.kam.x - mitt(LANGT)) < 1e-9, 'läget följde med: ' + k.kam.x);
+});
+prov('VN9 handflytt till graveyard under väntan: bindningen släpps, och nästa exemplar med samma namn blir ett kort på mattan', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([]);                                   // spåret dör; högen syntes inte
+  klocka.t += 1000; stam([]);
+  assert.ok(k.borta, 'väntar inte');
+  app.flytta(app.kort.indexOf(k), 'grav');                     // spelaren lägger det i graveyard själv
+  assert.equal(k.zon, 'grav'); assert.equal(k.fysisk, undefined, 'fysisk på ett kort med dött spår'); assert.equal(k.spar, undefined); assert.equal(k.borta, undefined);
+  klocka.t += 300; stam([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })]);   // ett annat exemplar läggs ut och läses
+  const matta = app.kort.filter(c => c.zon !== 'grav');
+  assert.equal(matta.length, 1, 'inget kort på mattan'); assert.equal(matta[0].spar, 2);
+  assert.equal(k.spar, undefined, 'graveyard-kortet band det nya spåret');
+});
+prov('VN10 timern: med hjärtslag var tredje sekund tonas kortet ned när väntan tar slut, inte vid rapporten efter', () => {
+  const T0 = klocka.t;
+  tid(T0); stam([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })]);
+  const k = app.kort[0];
+  tid(T0 + 150); stam([]);                                     // spåret dör
+  for (let t = T0 + 150 + 2900; t < T0 + 12000; t += 2900) { tid(t); stam([]); }   // hjärtslagen: samma tomma bord
+  assert.ok(k.lyft != null, 'aldrig nedtonat');
+  assert.ok(k.lyft - T0 <= 150 + 3000 + 150, `nedtonat vid ${k.lyft - T0} ms, väntan slut vid ${150 + 3000}`);
+});
+prov('VN11 timern spelar upp telefonens bord som det kom: ett spår som tvivlas på binder inte det lyfta kortet igen', () => {
+  /* Passet 2026-09-22, 154 s: Pharika's Chosen lyfts från svärdet under sig;
+     spåret lägger sig på svärdet med Pharikas namn (tvivelSteg: kortet under).
+     Den gamla timern spelade upp det avstämda bordet, där spåret saknas, och
+     då glömde tvivelSteg det. */
+  const T0 = klocka.t, UNDER = box(PORT.x + 0.02, PORT.y - 0.02, 0.063, 0.088);
+  const vila = (dx, rest) => Object.assign({ x: PORT.x + dx, y: PORT.y, w: PORT.w, h: PORT.h, vx: PORT.x + dx + PORT.w / 2, vy: PORT.y + PORT.h / 2, vilar: true }, rest);
+  const b3 = () => [klar(1, "Pharika's Chosen", { sen: 20, ...vila(0.015) }), klar(2, "Valkyrie's Sword", { sen: 3750, skymd: true, ...UNDER })];
+  tid(T0); stam([klar(1, "Pharika's Chosen", { sen: 20, ...vila(0) }), klar(2, "Valkyrie's Sword", { sen: 20, skymd: true, ...UNDER })]);
+  tid(T0 + 150); stam([klar(1, "Pharika's Chosen", { sen: 2100, skymd: true, ...vila(0) }), klar(2, "Valkyrie's Sword", { sen: 2250, skymd: true, ...UNDER })]);
+  tid(T0 + 1650); stam(b3());
+  const ph = app.kort.find(c => c.name === "Pharika's Chosen");
+  assert.ok(ph.borta, 'Pharika väntar inte');
+  tid(T0 + 1650 + 3000 + 400);                                 // telefonen tyst: timern tar väntan till slut
+  assert.ok(ph.lyft != null, 'timern tonade inte ned');
+  tid(T0 + 1650 + 3000 + 900); stam(b3());                     // nästa rapport, samma bord
+  assert.ok(ph.lyft != null && ph.spar == null, `Pharika band spöksspåret igen: spar ${ph.spar}, lyft ${ph.lyft}`);
+});
+prov('VN12 kortSomKomTillbaka: väntande före nedtonat före obundet, aldrig kortet självt eller ett i graveyard', () => {
+  const c = (cid, rest) => Object.assign({ cid, name: 'Swamp', flipped: 0 }, rest);
+  const obundet = c('o'), ned = c('n', { lyft: 1 }), vant = c('v', { spar: 7, borta: 1 }), bundet = c('b', { spar: 8 }), grav = c('g', { zon: 'grav', spar: 9, borta: 1 }), sjalv = c('s', { spar: 10, borta: 1 });
+  app.kort.push(obundet, ned, bundet, grav, sjalv, vant);
+  assert.equal(app.tillbaka('Swamp', sjalv), vant, 'väntande först');
+  app.kort.splice(app.kort.indexOf(vant), 1);
+  assert.equal(app.tillbaka('Swamp', sjalv), ned, 'sedan nedtonat');
+  app.kort.splice(app.kort.indexOf(ned), 1);
+  assert.equal(app.tillbaka('Swamp', sjalv), obundet, 'sedan obundet');
+  app.kort.splice(app.kort.indexOf(obundet), 1);
+  assert.equal(app.tillbaka('Swamp', sjalv), null, 'ett bundet, ett i graveyard eller kortet självt');
+});
+prov('VN13 ett täckt kort väntar inte: det släpps efter den korta nåden, och står inte i vägen när högen växer för ett annat kort', () => {
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Bonesplitter', { sen: 20, ...MITT }), klar(3, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
+  const vard = app.kort.find(k => k.name === 'Ukud Cobra'), utr = app.kort.find(k => k.name === 'Bonesplitter'), bj = app.kort.find(k => k.name === 'Grizzly Bears');
+  utr.attachedTo = vard.cid;
+  klocka.t += 150; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));   // utrustningen skyms av värden, björnen lyfts
+  klocka.t += 1000; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));  // högen växer: björnen lades där
+  klocka.t += 150; stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(1));
+  assert.equal(utr.borta, undefined, 'utrustningen väntar'); assert.equal(utr.spar, undefined); assert.equal(utr.lyft, undefined);
+  assert.equal(bj.zon, 'grav', 'björnen fick inte högens ändring'); assert.ok(bj.gravAuto);
+});
+prov('VN14 besvärjelsen räknas från när den plockades upp: ett instant som plockas upp efter 19,8 s går till graveyard', () => {
+  app.typ = new Map([['Lightning Bolt', 'Instant']]);
+  stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
+  klocka.t += 19800; stam([klar(1, 'Lightning Bolt', { sen: 20, ...PORT })]);
+  stam([]);                                                    // plockas upp 19,8 s efter att det lades ut
+  klocka.t += 700; stam([]);                                   // nåden slut 20,5 s efter
+  assert.equal(app.kort[0].zon, 'grav'); assert.ok(app.kort[0].spellAuto); assert.equal(app.kort[0].lyft, undefined);
 });
 
 /* GU (MES-248): ett kort som tas UR graveyard och läggs på bordet igen —

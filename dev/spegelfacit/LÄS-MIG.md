@@ -20,7 +20,18 @@ Flaggor:
 | `--md fil`, `--tsv fil`, `--json fil` | 2 | rapporten som markdown; det digitala bordets tidslinje (en rad per ändring); allt |
 | `--fore 2 --efter 10` | 2 | fönstret runt facits tid, i sekunder |
 | `--utan-lek` | 2 | utan lekens antal (då kan inget kort lyftas ur graveyard) |
+| `--nad 2000` | 2 | datorns väntan innan ett tappat kort tonas ned (`BORTA_NAD`, förval appens värde) — för att jämföra väntetider på samma logg (MES-291) |
 | `--logg fil` | 2 | en bordslogg sparad ur appen i ett riktigt pass ("Spara bordsloggen") i stället för steg 1 |
+
+Mått över tid. `tappade` och `antal` läser steg 2:s `--json bord.json` och
+samplar var tionde sekund som v2-facit för partiet 2026-09-21 (`--steg 1`
+för varje sekund); `skala` spelar upp loggen själv:
+
+| Kommando | Mäter |
+|---|---|
+| `node dev/spegelfacit/tappade.cjs bord.json` | tappade kort på mattan mot på bordet (`diff_tappade`, MES-293) |
+| `node dev/spegelfacit/antal.cjs bord.json` | kort på mattan mot på bordet (`diff_kort`), samma sak utan de nedtonade, och hur många som är nedtonade (MES-291) |
+| `node dev/spegelfacit/skala.cjs [--korning logg.json]` | glider korten isär — skalan över tid (MES-293) |
 
 ## Vad som räknas
 

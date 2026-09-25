@@ -72,7 +72,10 @@ const TACK = 0.2;   // två kortrutor på mattan "ligger ihop" när de delar en 
 
 /* ── utdraget ur index.html (som dev/dubbletter.cjs) ── */
 const src = fs.readFileSync(HTML, 'utf8');
-const NAD_MS = +((src.match(/const BORTA_NAD = (\d+);/) || [0, 3000])[1]);
+/* --nad <ms>: datorns väntan innan ett tappat kort tonas ned (BORTA_NAD) i
+   uppspelningen — för att jämföra väntetider på samma logg (MES-291).
+   Förval: appens eget värde. */
+const NAD_MS = +arg('--nad', (src.match(/const BORTA_NAD = (\d+);/) || [0, 3000])[1]);
 const AUTO_FLYTT = +((src.match(/const AUTO_FLYTT = ([\d.]+);/) || [0, 0.15])[1]);
 const SLUT = 'let senasteSpar = [];';
 const a = src.indexOf('/* ── samma kort, två spår'), b = src.indexOf(SLUT, a);
