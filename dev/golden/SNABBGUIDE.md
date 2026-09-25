@@ -921,6 +921,16 @@ Fotona ritas på **originalen** där de finns: 14–16 i 5712 × 4284 ur
 gäller också fallets nerskalade `bild.jpg`. Utkastet ligger i webbläsaren
 hela tiden; ⌘S skriver till repot. Servern får bara skriva de två filerna.
 
+### Utkast, vridning och en annan dator
+
+Det du ritar men inte sparat (utkastet) och vyns vridning sparas hela tiden
+som filer i `dev/golden/rita-utkast/` — de syns alltså i alla webbläsare på
+datorn. **Skicka till GitHub** (⇧⌘S, under Spara) committar fallets filer
+(det sparade facit eller `lagen.json`, utkastet och vridningen) och pushar
+till main. På en annan dator: `git pull`, starta servern och öppna fallet.
+Videorna själva ligger i den gitignorerade `dev/material/` och följer inte
+med — en video går bara att rita på en dator där filen finns.
+
 ### Videolägena
 
 Verktyget föreslår ett läge efter varje händelse: **MES-246** vid

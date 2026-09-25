@@ -164,7 +164,8 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <label class="val" id="grundval" title="Grundläget: hur ett OTAPPAT kort ligger i bilden. Tappat = namnraden mer än 45° därifrån. Skrivs som ruta.upp i facit — samma grundläge som kameran får i golden."><span>otappade kort ligger</span> <select id="grund"><option value="v">lodrätt i bilden (v)</option><option value="h">vågrätt i bilden (h)</option></select></label>
     <div id="grundvarning" class="varn" hidden style="margin:4px 0 6px"></div>
     <label class="val" id="ladaval" title="Jespers beslut: lådan runt kortets synliga del skrivs i facit, så att golden mäter plats och tap-läge i fallet. Ändrar baslinjen."><input type="checkbox" id="lada" checked> skriv lådan x/y/w/h i facit (golden mäter plats och tap)</label>
-    <div class="rad" style="margin-top:6px"><button type="button" id="b-spara2" class="primar">Spara till repot<kbd>⌘S</kbd></button><span id="sparinfo" class="dim"></span></div>
+    <div class="rad" style="margin-top:6px"><button type="button" id="b-spara2" class="primar">Spara till repot<kbd>⌘S</kbd></button><button type="button" id="b-dela" title="Committar det här fallets ritning (sparad och osparad) och pushar till main">Skicka till GitHub<kbd>⇧⌘S</kbd></button><span id="sparinfo" class="dim"></span></div>
+    <div class="dim" style="margin-top:5px;font-size:11.5px">Allt du ritar syns i alla webbläsare på den här datorn. <b>Skicka till GitHub</b> så finns det också på en annan dator, efter <code>git pull</code> där.</div>
     <div id="melding"></div>
   </div>
 </aside>
@@ -179,7 +180,8 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>⌘-klick</td><td>välj ett kort. Samma ställe igen väljer kortet under</td></tr>
     <tr><td>↑ ↓ · ⇧↑ ⇧↓</td><td>det valda kortet ett steg upp/ner i ordningen · överst/underst. Senast ritat hamnar överst</td></tr>
     <tr><td>Esc · ⌫</td><td>avbryt ett påbörjat kort / avmarkera · ta bort det valda kortet</td></tr>
-    <tr><td>⌘Z · ⇧⌘Z · ⌘S</td><td>ångra · gör om · spara till repot. Utkastet sparas i webbläsaren hela tiden</td></tr>
+    <tr><td>⌘Z · ⇧⌘Z · ⌘S</td><td>ångra · gör om · spara till repot. Utkastet sparas hela tiden, på datorn och i webbläsaren</td></tr>
+    <tr><td>⇧⌘S</td><td>skicka till GitHub: fallets ritning (sparad och osparad) och vridningen committas och pushas. På en annan dator: <code>git pull</code></td></tr>
     <tr><td>0 · 1 · + −</td><td>hela bilden · 100 % · zooma. Nyp eller ⌘-hjul zoomar mot pekaren, två fingrar eller mellanslag-dra panorerar</td></tr>
     <tr class="grupp"><td colspan="2">Rätta ett kort</td></tr>
     <tr><td>V · N</td><td><b>Välj</b>-läget: klick väljer, dra flyttar, ⌥-dra vrider runt mitten · tillbaka till <b>Rita</b></td></tr>
@@ -252,7 +254,12 @@ function helaBilden() {
   V.ox = (b.width - vW() * V.s) / 2; V.oy = (b.height - vH() * V.s) / 2;
   ritaSnart();
 }
-function vridVyn(steg = 3) { V.rot = (V.rot + steg) % 4; try { localStorage.setItem(`mesa-rita:vy:${S.kalla.sort}:${S.kalla.id}`, V.rot); } catch (e) {} helaBilden(); visaInfo(); }
+function vridVyn(steg = 3) {
+  V.rot = (V.rot + steg) % 4;
+  try { localStorage.setItem(`mesa-rita:vy:${S.kalla.sort}:${S.kalla.id}`, V.rot); } catch (e) {}
+  postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, vy: V.rot });
+  helaBilden(); visaInfo();
+}
 function zooma(f, px, py) {
   const b = duk.getBoundingClientRect();
   if (px == null) { px = b.width / 2; py = b.height / 2; }
@@ -310,29 +317,47 @@ function aterstall(snap) {
 function angra() { if (!S.undo.length) return; S.redo.push(bild()); aterstall(S.undo.pop()); melding('ångrat'); }
 function gorOm() { if (!S.redo.length) return; S.undo.push(bild()); aterstall(S.redo.pop()); melding('gjort om'); }
 const utkastNyckel = () => `mesa-rita:${S.kalla.sort}:${S.kalla.id}`;
-let utkastTimer;
+/* Utkastet ligger på två ställen: i webbläsaren (som förut) och som fil på
+   datorn (dev/golden/rita-utkast/, via servern) — så att det syns i alla
+   webbläsare, och följer med till GitHub när det skickas upp. */
+const api = (url, o) => fetch(url, Object.assign({ cache: 'no-store' }, o)).then(r => r.json()).catch(e => ({ fel: e.message }));
+const postJson = (url, body) => api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+let utkastTimer, serverTimer;
+function sparaServerSnart(utkast) {
+  clearTimeout(serverTimer);
+  const k = { sort: S.kalla.sort, id: S.kalla.id, utkast };
+  serverTimer = setTimeout(() => postJson('/api/utkast', k), 800);
+}
+async function hamtaServer(sort, id) {
+  const srv = await api(`/api/utkast?sort=${sort}&id=${encodeURIComponent(id)}`);
+  S.srvUtkast = (srv && srv.utkast) || null;
+  let r = srv && srv.vy;
+  if (!r) { try { r = +(localStorage.getItem(`mesa-rita:vy:${sort}:${id}`) || 0); } catch (e) { r = 0; } }
+  V.rot = ((r || 0) % 4 + 4) % 4;
+}
 function sparaUtkastSnart() {
   clearTimeout(utkastTimer);
   utkastTimer = setTimeout(() => {
-    try {
-      if (JSON.stringify(S.dok) === S.filDok) localStorage.removeItem(utkastNyckel());
-      else localStorage.setItem(utkastNyckel(), JSON.stringify({ tid: new Date().toISOString(), dok: S.dok }));
-    } catch (e) {}
+    const u = JSON.stringify(S.dok) === S.filDok ? null : { tid: new Date().toISOString(), dok: S.dok };
+    try { if (!u) localStorage.removeItem(utkastNyckel()); else localStorage.setItem(utkastNyckel(), JSON.stringify(u)); } catch (e) {}
+    sparaServerSnart(u);
     visaSparinfo();
   }, 400);
 }
 const osparat = () => S.dok && JSON.stringify(S.dok) !== S.filDok;
-function visaSparinfo() { el('sparinfo').textContent = !S.dok ? '' : osparat() ? 'osparade ändringar (utkastet ligger i webbläsaren)' : 'sparat'; el('sparinfo').className = osparat() ? 'varn' : 'dim'; }
+function visaSparinfo() { el('sparinfo').textContent = !S.dok ? '' : osparat() ? 'osparade ändringar (utkastet ligger på datorn)' : 'sparat'; el('sparinfo').className = osparat() ? 'varn' : 'dim'; }
 function erbjudUtkast() {
   let u = null;
   try { u = JSON.parse(localStorage.getItem(utkastNyckel()) || 'null'); } catch (e) {}
+  const s2 = S.srvUtkast;
+  if (s2 && s2.dok && (!u || String(s2.tid) > String(u.tid))) u = s2;   // det nyaste, var det än ligger
   const ruta = el('utkast');
   if (!u || JSON.stringify(u.dok) === S.filDok) { ruta.hidden = true; return; }
   const n = u.dok.kort ? u.dok.kort.length + ' kort' : Object.keys(u.dok.lagen || {}).length + ' lägen';
   ruta.innerHTML = `Det finns ett osparat utkast från ${new Date(u.tid).toLocaleString('sv-SE')} (${n}). <div class="rad" style="margin-top:6px"><button type="button" id="u-ja">Återställ utkastet</button><button type="button" id="u-nej">Kasta det</button></div>`;
   ruta.hidden = false;
   el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; } S.vald = null; S.cache.clear(); ruta.hidden = true; raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
-  el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} ruta.hidden = true; };
+  el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null; ruta.hidden = true; };
 }
 
 /* ── Framräknat ────────────────────────────────────────────────────────
@@ -616,7 +641,7 @@ el('namn').addEventListener('input', () => { forslagI = 0; satNamn(el('namn').va
 el('namn').addEventListener('blur', () => { el('forslag').hidden = true; if (kortId(S.vald)) { fastUrFacit(); efter(); } });
 el('namn').addEventListener('keydown', e => {
   e.stopPropagation();   // fönstrets tangenter (Enter fokuserar fältet, ⌫ tar bort kortet) gäller inte här
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); el('namn').blur(); spara(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); el('namn').blur(); if (e.shiftKey) dela(); else spara(); return; }
   if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); tagNamn(); }
   else if (e.key === 'Escape') { e.preventDefault(); el('forslag').hidden = true; forslagNu = []; el('namn').blur(); duk.focus(); }
   else if (e.key === 'ArrowDown' && forslagNu.length) { e.preventDefault(); forslagI = (forslagI + 1) % forslagNu.length; visaForslag(); }
@@ -689,7 +714,7 @@ function fastUrFacit() {
 
 /* ── Tangenter ────────────────────────────────────────────────────────── */
 window.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); spara(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (e.shiftKey) dela(); else spara(); return; }
   if (e.key === ' ' && !iFalt()) { mellanslag = true; e.preventDefault(); return; }
   if (iFalt()) return;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) gorOm(); else angra(); return; }
@@ -908,7 +933,7 @@ async function oppna(varde) {
     S.filDok = JSON.stringify(S.dok);
     el('lada').checked = S.dok.lada; el('ladaval').hidden = false;
     el('grund').value = S.grund; el('grundval').hidden = false;
-    try { V.rot = +(localStorage.getItem(`mesa-rita:vy:foto:${id}`) || 0) % 4; } catch (e) { V.rot = 0; }
+    await hamtaServer('foto', id);
     el('kallinfo').innerHTML = `<b>${esc(id)}</b> · ritas på ${esc(k.original || k.fallbild)}${k.not ? `<div class="varn">${esc(k.not)}</div>` : ''}${facit.rita ? '' : '<div class="dim">inte ritat än — facit är en namnlista</div>'}`;
     el('laddar').hidden = false;
     const img = await laddaBild('/' + k.bild);
@@ -919,7 +944,7 @@ async function oppna(varde) {
     const v = S.kallor.videor.find(x => x.id === id);
     S.kalla = Object.assign({ sort }, v); S.grund = v.grund || 'v';
     el('grundval').hidden = true;
-    try { V.rot = +(localStorage.getItem(`mesa-rita:vy:video:${id}`) || 0) % 4; } catch (e) { V.rot = 0; }
+    await hamtaServer('video', id);
     const txt = f => fetch('/' + f, { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(f); return r.text(); });
     const filer = v.handelser ? { handelser: await txt(v.handelser) } : { steg: await txt(v.steg), manus: await txt(v.manus) };
     S.u = Hd.underlag(v, filer, S.lek);
@@ -1031,9 +1056,21 @@ async function spara() {
   else S.kalla.lagen = true;
   S.filDok = JSON.stringify(S.dok);
   try { localStorage.removeItem(utkastNyckel()); } catch (e) {}
+  clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null;
   visaSparinfo(); fyllKallor();
   melding(`sparat: ${svar.fil} — kör node dev/golden/rita-kontroll.cjs`);
 }
+/* Skicka till GitHub: servern committar källans filer (det sparade, utkastet
+   och vridningen) och pushar till main. På en annan dator: git pull. */
+async function dela() {
+  if (!S.kalla) return;
+  if (osparat()) { clearTimeout(serverTimer); await postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: { tid: new Date().toISOString(), dok: S.dok } }); }
+  melding('skickar till GitHub…');
+  const r = await postJson('/api/dela', { sort: S.kalla.sort, id: S.kalla.id });
+  if (r.fel) { melding('Skickades inte: ' + r.fel, true); return; }
+  melding(r.pushat && r.pushat.length ? `skickat till GitHub (${r.commit || r.pushat[0].split(' ')[0]})${osparat() ? ' — med utkastet; spara med ⌘S när det är klart' : ''}` : 'inget nytt att skicka — allt finns redan på GitHub');
+}
+el('b-dela').onclick = dela;
 el('b-spara').onclick = spara; el('b-spara2').onclick = spara;
 el('lada').onchange = () => andra(() => { S.dok.lada = el('lada').checked; });
 el('grund').onchange = () => andra(() => { S.dok.grund = S.grund = el('grund').value; });

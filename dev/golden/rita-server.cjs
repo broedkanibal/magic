@@ -14,6 +14,13 @@
                            befintligt dev/golden/fall/<id>/, eller lagen.json i en
                            källas mapp under dev/golden/inspelningar/. Inget annat.
 
+     /api/utkast           utkastet och vyns vridning per källa, som filer i
+                           dev/golden/rita-utkast/ — så att det som ritats men
+                           inte sparats syns i alla webbläsare på datorn
+     POST /api/dela        committar källans filer (facit.json eller lagen.json,
+                           utkastet, vridningen) och pushar till main — så att de
+                           syns på en annan dator efter git pull
+
    Lyssnar bara på 127.0.0.1 och serverar bara dev/golden/ och dev/material/
    (aldrig en punktfil), så att .env.local och resten av repot inte syns. */
 'use strict';
@@ -123,6 +130,72 @@ function spara(kropp) {
   return path.relative(ROT, fil);
 }
 
+/* ── /api/utkast och /api/dela ────────────────────────────────────────── */
+const UTKAST = path.join(ROT, 'dev', 'golden', 'rita-utkast');
+const VYFIL = path.join(UTKAST, 'vy.json');
+function kallaOk(sort, id) {
+  if (typeof id !== 'string' || !/^[0-9A-Za-z][0-9A-Za-z._-]*$/.test(id) || id.includes('..')) throw new Error('ogiltigt id');
+  if (sort === 'foto') { if (!finns(`dev/golden/fall/${id}/facit.json`)) throw new Error('okänt fall ' + id); }
+  else if (sort === 'video') { if (!(kallor().videor || {})[id]) throw new Error('okänd videokälla ' + id); }
+  else throw new Error('okänd sort ' + sort);
+}
+const utkastFil = (sort, id) => path.join(UTKAST, `${sort}--${id}.json`);
+const lasJson = (f, annars) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return annars; } };
+function skrivAtomiskt(fil, text) { fs.mkdirSync(path.dirname(fil), { recursive: true }); fs.writeFileSync(fil + '.tmp', text); fs.renameSync(fil + '.tmp', fil); }
+function hamtaUtkast(sort, id) {
+  kallaOk(sort, id);
+  return { utkast: lasJson(utkastFil(sort, id), null), vy: (lasJson(VYFIL, {})[`${sort}:${id}`] || 0) };
+}
+function sparaUtkast({ sort, id, utkast, vy }) {
+  kallaOk(sort, id);
+  if (utkast === null) { try { fs.unlinkSync(utkastFil(sort, id)); } catch (e) {} }
+  else if (utkast !== undefined) {
+    if (!utkast || typeof utkast.tid !== 'string' || !utkast.dok) throw new Error('utkastet saknar tid eller dok');
+    skrivAtomiskt(utkastFil(sort, id), JSON.stringify(utkast) + '\n');
+  }
+  if (vy !== undefined) {
+    const alla = lasJson(VYFIL, {}), n = ((Number(vy) % 4) + 4) % 4;
+    if (n) alla[`${sort}:${id}`] = n; else delete alla[`${sort}:${id}`];
+    skrivAtomiskt(VYFIL, JSON.stringify(alla, null, 2) + '\n');
+  }
+  return true;
+}
+/* git i repots rot. Ett annat git-kommando samtidigt (index.lock) väntas ut
+   ett par gånger i stället för att fälla. */
+function git(args) {
+  for (let i = 0; ; i++) {
+    const r = spawnSync('git', args, { cwd: ROT, encoding: 'utf8' });
+    const fel = (r.stderr || '') + (r.stdout || '');
+    if (r.status === 0) return r.stdout.trim();
+    if (i < 3 && /index\.lock/.test(fel)) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500); continue; }
+    throw new Error(`git ${args[0]}: ${fel.trim().split('\n').slice(-2).join(' ')}`);
+  }
+}
+function dela({ sort, id }) {
+  kallaOk(sort, id);
+  if (git(['rev-parse', '--abbrev-ref', 'HEAD']) !== 'main') throw new Error('arbetsträdet står inte på main');
+  const filer = [];
+  if (sort === 'foto') filer.push(`dev/golden/fall/${id}/facit.json`);
+  else { const v = kallor().videor[id]; if (finns(`${v.mapp}/lagen.json`)) filer.push(`${v.mapp}/lagen.json`); }
+  if (fs.existsSync(utkastFil(sort, id))) filer.push(path.relative(ROT, utkastFil(sort, id)));
+  if (`${sort}:${id}` in lasJson(VYFIL, {})) filer.push(path.relative(ROT, VYFIL));   // vridningen bara när källan har en
+  const andrade = filer.filter(f => git(['status', '--porcelain', '--', f]) !== '');
+  const utkastBort = git(['ls-files', '--deleted', '--', path.relative(ROT, utkastFil(sort, id))]);
+  if (utkastBort) andrade.push(utkastBort);
+  let commit = null;
+  if (andrade.length) {
+    git(['add', '-A', '--', ...andrade]);
+    git(['commit', '-q', '-m', `Ritverktyget: ${id} (Jespers ritning)\n\nSkickat från rita.html: ${andrade.join(', ')}.`, '--', ...andrade]);
+    commit = git(['log', '-1', '--format=%h']);
+  }
+  const fore = git(['log', '--format=%h %s', 'origin/main..HEAD']);
+  if (!fore) return { commit, pushat: [], filer: andrade };
+  try { git(['push', '-q', 'origin', 'HEAD:main']); }
+  catch (e) { throw new Error(`committat lokalt (${commit || 'inget nytt'}) men inte skickat: ${e.message}. Be Claude skicka upp det.`); }
+  return { commit, pushat: fore.split('\n'), filer: andrade };
+}
+const lasKropp = (req, fn) => { let k = ''; req.on('data', d => { k += d; if (k.length > 20e6) req.destroy(); }); req.on('end', () => fn(k)); };
+
 /* ── Statiska filer ───────────────────────────────────────────────────── */
 function skickaFil(req, res, rel) {
   const fil = path.join(ROT, rel);
@@ -166,6 +239,9 @@ http.createServer((req, res) => {
       }).catch(e => json(res, 500, { fel: e.message }));
       return;
     }
+    if (p === '/api/utkast' && req.method === 'GET') return json(res, 200, hamtaUtkast(u.searchParams.get('sort'), u.searchParams.get('id')));
+    if (p === '/api/utkast' && req.method === 'POST') { lasKropp(req, k => { try { json(res, 200, { ok: sparaUtkast(JSON.parse(k)) }); } catch (e) { json(res, 400, { fel: e.message }); } }); return; }
+    if (p === '/api/dela' && req.method === 'POST') { lasKropp(req, k => { try { json(res, 200, Object.assign({ ok: true }, dela(JSON.parse(k)))); } catch (e) { json(res, 400, { fel: e.message }); } }); return; }
     if (p === '/api/spara' && req.method === 'POST') {
       let kropp = '';
       req.on('data', d => { kropp += d; if (kropp.length > 20e6) req.destroy(); });
