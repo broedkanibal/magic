@@ -23085,8 +23085,10 @@ const FLIK_ID = (() => {
 /* ── avstämning: telefonens bord blir mitt digitala bord ─────────────
    Telefonen skickar HELA det den ser, inte händelser. Här jämförs det med
    mitt bord: varje kort som kameran följer bär sitt spår-id. Syns spåret är
-   kortet kvar och tappat som kameran säger. Syns det inte längre får kortet
-   en kort nåd (BORTA_NAD) och tonas sedan ned PÅ SIN PLATS. Det lämnar aldrig bordet av sig självt.
+   kortet kvar och tappat som kameran säger. Syns det inte längre antas det
+   först ha flyttats: det väntar (BORTA_NAD) och tonas sedan ned PÅ SIN
+   PLATS, om det inte binds på en ny plats eller graveyard-högen växer under
+   tiden (MES-291). Det lämnar aldrig bordet av sig självt.
 
    Så var det inte förut: kortet flyttades till en remsa "Lyft från mattan"
    och togs ur bordet i samma stund. Medspelarna såg det försvinna innan man
@@ -23112,21 +23114,37 @@ const FLIK_ID = (() => {
    det tonar nu ned det medan det är i handen, och tänder det när det ligger
    igen — det lämnar fortfarande aldrig bordet av sig självt.
 
-   En flytt som går via nedtoning (kortet tonas ned och binds om på nya
-   platsen några sekunder senare) lagas INTE med en längre nåd. Mätt
-   2026-09-23 i passet 2026-09-22 (dev/spegelfacit, rad 29, 35, 59, 61):
-   det nya spåret med kortets namn kommer 1,65–4,8 s efter att det gamla
-   dog — handen håller kortet, och telefonen läser det först när det ligger.
-   Nåd 2 s döljer nedtoningen i tre av fyra, 5 s i alla fyra, men flytten
-   syns ändå först när det nya spåret fått namnet (+3,52, +6,79, +3,15,
-   +7,53 s efter facit, oförändrat), och varje borttagning blir lika mycket
-   senare: tar_bort i medianen +2,58 → +3,57 s (2 s) → +6,40 s (5 s), och
-   med 5 s föll en borttagning ur fönstret i den lokala loggen. Att binda
-   kortet tidigare till ett namnlöst spår intill går inte heller: ett sådant
-   fanns vid döden bara i 59/61 — och vid varje riktig borttagning i golden
-   11 (handen med kortet). Samma kort binds redan om när namnet kommer
-   (ledigt tar det nedtonade först), utan dubblett. */
-const BORTA_NAD = 600;
+   Väntan, 5 s (MES-291, Jespers beslut 3 2026-09-24). Av 82 "kortet är
+   borta"-domar i partiet 2026-09-21 var högst 10 riktiga; resten var kort
+   omlott och flyttar där handen täckte kortet hela vägen. Det nya spåret
+   med kortets namn kommer 1,65–4,8 s efter att det gamla dog (passet
+   2026-09-22, rad 29, 35, 59, 61): handen håller kortet, och telefonen
+   läser det först när det ligger. Med 600 ms tonades kortet ned och tändes
+   igen på nya platsen; nu väntar det otonat och flyttar dit. Flytten syns
+   lika sent som förut (när namnet kommer) — det som försvinner är
+   nedtoningen emellan. Två saker kortar väntan:
+     - graveyard-högen växer (högvakten, gravAutoKan i avstamBord): kortet
+       går till graveyard direkt, utan att först tonas ned;
+     - kortet är inget som tonas ned (besvärjelsen, ett täckt kort, Screen
+       leads): det avgörs efter den korta nåden SLAPP_MS, 600 ms, som förut.
+   Mätt 2026-09-25 med dev/spegelfacit/jamfor.cjs --nad på passet 2026-09-22
+   (Claude-loggen; den lokala i parentes), 600 ms i dag mot väntan + högen:
+     väntan                       0,6 s (i dag)   2 s        5 s
+     flyttar via nedtoning        4 av 4          1          0
+     nedtoningar i hela passet    17 (16)         11 (10)    10 (9)
+       varav utan facitrad        10 (9)          5 (5)      5 (6)
+     tar_bort, längst efter facit +3,00 s         +3,29 s    +6,29 s
+   Kort som läggs på högen går dit lika fort som förut men utan att tonas ned
+   först: rad 18 och 34 (+3,10, +2,67 s), och i golden 10 båda korten
+   (+1,8, +2,2 s; dev/dubbletter.cjs). Rad 44 läses om till kortet under
+   (steg 1 i avstamBord) och tonas ned direkt som förut. Priset: ett kort som lämnar
+   bordet utan att högen visar det — till handen, exile, eller när högen
+   ändrades innan telefonen släppt spåret — tonas ned först efter väntan:
+   rad 66 +1,89 → +6,29 s (högens ändring gick inte att ge det, ett Swamp
+   försvann samtidigt), rad 34 i den lokala loggen +7,92 → +12,27 s, och i
+   golden 07, 11 och 12 kommer nedtoningen ~4,4 s senare. Slutbordet är
+   detsamma i golden 07–13. Det priset är Jespers beslut. */
+const BORTA_NAD = 5000;
 /* "På en gång": tre eller fler kort som försvinner inom det här fönstret är
    snarare telefonen som flyttats än korten (MES-103), och de får bannern i
    stället för var sin fråga. Var BORTA_NAD så länge nåden var tre sekunder. */
@@ -23203,6 +23221,13 @@ const SAMMA_KORT_TACKNING = 0.3;
    (typeof-vakten: då aldrig). Inne i skivan, så att inget nytt namn
    utifrån behövs. */
 const SPELL_MS = 20000;
+/* Den korta nåden (MES-291): ett kort vars spår dött och som INTE ska tonas
+   ned — besvärjelsen (till graveyard), ett kort under sin värd eller sin
+   hög, Screen leads, ett kort som redan ligger i graveyard digitalt — avgörs
+   efter så här lång tid, som när hela nåden var 600 ms. Bara nedtoningen
+   väntar den långa väntan (BORTA_NAD). Inne i skivan, så att
+   dev/avstamning.cjs och uppspelningarna har den utan en stubbe. */
+const SLAPP_MS = 600;
 /* Högvakten (K10/K11, MES-85): telefonens ändringar av graveyard-högen i
    bild, i datorns klocka, och när varje kort försvann från mattan.
 
@@ -24013,6 +24038,7 @@ function autoSumAvsluta(spar, mig, nu) {
 
 function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
+  senasteRa = spar;   // telefonens bord som det kom — det nåd-timern spelar upp
   if (fas) kamFas = fas;
   if (yta) kamYta = yta;
   kamRad = rad || '';
@@ -24069,9 +24095,14 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      (fysisk, MODE-3) binder om tyst i sin zon när spåret föds om — annars
      återuppstod det som nytt kort så fort detektorn tappade och hittade det
      igen. Flaggan släpps när spåret dör: då har kortet lämnat bordet också. */
+  /* Ordningen (MES-291): först ett kort vars spår just dött — i väntan
+     (borta) eller i samma meddelande. Det är kortet som flyttats: läggs det
+     ner på en ny plats flyttar det dit utan att tonas ned. Förut gick ett
+     nedtonat kort före, och ett Swamp man flyttat kunde bli kvar nedtonat
+     medan ett annat, sedan länge nedtonat, hoppade till den nya platsen. */
   const ledigt = namn => {
     const fria = namn ? mig.cards.filter(c => c.name === namn && (paBordet(c) || c.fysisk) && (c.spar == null || !synliga.has(c.spar))) : [];
-    return fria.find(c => c.lyft != null) || fria.find(c => c.spar != null) || fria[0] || null;
+    return fria.find(c => c.spar != null) || fria.find(c => c.lyft != null) || fria[0] || null;
   };
   /* Ett kort som ligger i graveyard och dyker upp på mattan igen är SAMMA
      kort på väg tillbaka i spel (MES-248): reanimator, recursion, en
@@ -24330,14 +24361,21 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      lika gärna vara telefonen som flyttats (MES-103). Bara Table leads. */
   const gravFonster = (tid, h) => h.nar >= tid + GRAV_TIDIGAST && h.nar <= tid + GRAV_EFTER;
   const gravTa = tid => { const h = gravHandelser.find(h => !h.tagen && gravFonster(tid, h)); if (h) h.tagen = true; };
-  function gravAutoOm(k, tid) {
-    if (tid == null) return false;
+  /* Högens ändring som kortet (försvunnet vid tid) får, eller null. Bara
+     frågan — gravAutoOm tar ändringen. Väntan nedan frågar i varje bord. */
+  function gravAutoKan(k, tid) {
+    if (tid == null) return null;
     const mina = gravHandelser.filter(h => !h.tagen && gravFonster(tid, h));
-    if (!mina.length) return false;
+    if (!mina.length) return null;
     const grannar = mig.cards.filter(c => c === k || (paBordet(c) && (c.borta || c.lyft != null) && gravTid.has(c.cid) && Math.abs(gravTid.get(c.cid) - tid) <= GRAV_EFTER - GRAV_TIDIGAST));   // två kort vars fönster delar någon ändring
-    if (grannar.length > mina.length) return false;
-    if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < SAMTIDIGT_MS).length >= 3) return false;
-    mina[0].tagen = true;
+    if (grannar.length > mina.length) return null;
+    if (grannar.filter(c => Math.abs((c === k ? tid : gravTid.get(c.cid)) - tid) < SAMTIDIGT_MS).length >= 3) return null;
+    return mina[0];
+  }
+  function gravAutoOm(k, tid) {
+    const h = gravAutoKan(k, tid);
+    if (!h) return false;
+    h.tagen = true;
     k.zon = ZON_GRAV; delete k.attachedTo; k.gravAuto = nu; gravTid.delete(k.cid);
     /* En aura följer sin värd, som i flyttaTill. */
     for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; }
@@ -24345,24 +24383,42 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     return true;
   }
   for (const k of mig.cards) if (k.spar != null && !synliga.has(k.spar) && !k.borta) { k.borta = nu; gravTid.set(k.cid, nu); andrat = true; }
+  /* Väntan (MES-291, Jespers beslut 3 2026-09-24): ett kort kameran tappat
+     antas först ha FLYTTATS. Det står kvar på sin plats, otonat och bundet
+     till sitt döda spår, i BORTA_NAD. Läggs det ner någon annanstans under
+     tiden binder spåret där om det — ledigt tar det väntande kortet först —
+     och kortet flyttar dit utan att tonas ned (animeringen väntar på
+     MES-292). Graveyard-högen som växer bevisar att kortet lämnat bordet:
+     då slutar väntan, och kortet går dit som förut. Bara när högens ändring
+     går att ge just det här kortet (gravAutoKan: fler försvunna kort än
+     ändringar, eller tre på en gång, väntar vidare) — annars skulle högen
+     skicka ett kort som bara flyttats till graveyard.
+     Bara nedtoningen väntar. Allt annat avgörs efter den korta nåden
+     (SLAPP_MS) som förut: besvärjelsen går till graveyard, ett täckt kort
+     och Screen leads släpps tyst. Besvärjelsen mäts från när den plockades
+     upp (borta0), inte från när nåden tog slut. */
+  const besvarjelse = (k, borta0) => !!k.ny && borta0 - k.ny < SPELL_MS && arBesvarjelse(k);
+  const tonasNed = (k, borta0) => kanLyftas(k) && !k.fysisk && !besvarjelse(k, borta0) && pol.saknas && !tackt(k);
   for (const k of mig.cards) {
-    if (k.spar != null && !synliga.has(k.spar) && k.borta && nu - k.borta > BORTA_NAD) {
-      const borta0 = k.borta;
-      delete k.spar; delete k.borta; andrat = true;
-      /* Borta digitalt redan (graveyard/exile medan det låg kvar): nu har
-         det lämnat bordet också — flaggan släpps, inget mer att säga. */
-      const varFysisk = !!k.fysisk; delete k.fysisk;
-      if (varFysisk || !kanLyftas(k)) continue;
-      /* Besvärjelseregeln (båda lägena): ett instant eller sorcery som
-         kameran lade ut och som plockas upp inom SPELL_MS har spelats —
-         det går till graveyard, med ångra i mattan (spellAuto). */
-      if (k.ny && nu - k.ny < SPELL_MS && arBesvarjelse(k)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; gravTa(borta0); continue; }   // högens ändring var besvärjelsen (MES-85)
-      if (!pol.saknas) continue;                 // Screen leads: kameran tar aldrig bort — bindningen släpps tyst
-      if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
-      if (gravAutoOm(k, borta0)) continue;       // högen i bild ändrades: det lades där (MES-85)
-      k.lyft = nu;
-      if (!prefs.lyftForklarad) { prefs.lyftForklarad = true; savePrefs(); lyftTips = k.cid; }
-    }
+    if (k.spar == null || synliga.has(k.spar) || !k.borta) continue;
+    const vantat = nu - k.borta;
+    if (vantat <= SLAPP_MS) continue;                                                        // nåden: inget avgörs än
+    if (vantat <= BORTA_NAD && tonasNed(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
+    const borta0 = k.borta;
+    delete k.spar; delete k.borta; andrat = true;
+    /* Borta digitalt redan (graveyard/exile medan det låg kvar): nu har
+       det lämnat bordet också — flaggan släpps, inget mer att säga. */
+    const varFysisk = !!k.fysisk; delete k.fysisk;
+    if (varFysisk || !kanLyftas(k)) continue;
+    /* Besvärjelseregeln (båda lägena): ett instant eller sorcery som
+       kameran lade ut och som plockas upp inom SPELL_MS har spelats —
+       det går till graveyard, med ångra i mattan (spellAuto). */
+    if (besvarjelse(k, borta0)) { k.zon = ZON_GRAV; delete k.attachedTo; k.spellAuto = nu; gravTa(borta0); continue; }   // högens ändring var besvärjelsen (MES-85)
+    if (!pol.saknas) continue;                 // Screen leads: kameran tar aldrig bort — bindningen släpps tyst
+    if (tackt(k)) continue;                    // ligger under sin värd eller sin hög
+    if (gravAutoOm(k, borta0)) continue;       // högen i bild ändrades: det lades där (MES-85)
+    k.lyft = nu;
+    if (!prefs.lyftForklarad) { prefs.lyftForklarad = true; savePrefs(); lyftTips = k.cid; }
   }
   /* Efterskottet (MES-85): högen blev stilla först efter nådatiden, och
      kortet hann tonas ned. Arket stänger sig självt (renderGrid). */
@@ -24384,9 +24440,19 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const pendKvar = mig.pending.filter(q => q.spar == null || (synliga.has(q.spar) && !bunden(q.spar) && (q.overTak || (!iFysiskt.has(q.spar) && !sammaSomKlart.has(q.spar)))));
   if (pendKvar.length !== mig.pending.length) { mig.pending = pendKvar; andrat = true; }
   if (andrat) { save(); renderAll(true); resolveAll(); }
-  /* Nådatiden ska löpa ut även om telefonen är tyst. */
+  /* Nåden och väntan ska löpa ut även om telefonen är tyst — och när de gör
+     det, inte vid nästa bord: timern ställs på det kort vars tid tar slut
+     först (den korta nåden, eller väntan för ett kort som tonas ned). Förut
+     startades den om med hela nåden vid varje bord, och hjärtslaget var
+     tredje sekund hade skjutit en lång väntan framför sig till nästa
+     rapport (MES-291). Timern spelar upp telefonens senaste bord som det
+     kom (senasteRa), inte det avstämda: där saknas spåren tvivelSteg tagit
+     bort, och då glömde tvivelSteg dem — ett spår som burit ett lyft korts
+     namn band kortet igen i nästa rapport (Pharika's Chosen i passet
+     2026-09-22, 154 s, när timern hann gå före rapporten). */
   clearTimeout(lyftT);
-  if (mig.cards.some(k => k.borta)) lyftT = setTimeout(() => avstamBord(senasteSpar), BORTA_NAD + 100);
+  const frister = mig.cards.filter(k => k.borta).map(k => k.borta + (nu - k.borta <= SLAPP_MS ? SLAPP_MS : BORTA_NAD));
+  if (frister.length) lyftT = setTimeout(() => avstamBord(senasteRa), Math.max(0, Math.min(...frister) - nu) + 100);
   senasteSpar = spar;
   /* Även när ingenting ändrades på bordet kan förhållandet lästa/sedda ha
      gjort det: ett kort som just lagts ner är sett men ännu inte läst — och
@@ -24395,6 +24461,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   if (!andrat) { renderMode(); renderGrid(); }
   uppdateraPbStatus();
 }
+let senasteRa = [];   // telefonens senaste bord före avstämningen (skräp och tvivel kvar), för nåd-timern
 let senasteSpar = [];
 
 /* Beskärningen av ett kort telefonen var osäker på — den bild granskningen

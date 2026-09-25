@@ -22,9 +22,10 @@
      - klockan satt till rapportens tid,
      - hjärtslaget härmat: telefonen skickar senaste bordet igen var tredje
        sekund (setInterval i index.html), som det är — också `sen`,
-     - nådtimern härmad: avstamBord sätter en setTimeout på BORTA_NAD + 100
-       som kör avstämningen igen när telefonen är tyst; här en virtuell
-       timer som fyrar när klockan passerar dess tid,
+     - nådtimern härmad: avstamBord sätter en setTimeout på det kort vars
+       nåd eller väntan tar slut först (MES-291) som kör avstämningen igen
+       när telefonen är tyst; här en virtuell timer som fyrar när klockan
+       passerar dess tid,
      - det grundläge telefonen hade när loggen skrevs (kor.html loggar det
        per bord; null i ett golden-fall), och som jämförelse det andra läget
        (ett sparat tal respektive inget).
