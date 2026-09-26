@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Spegelläget mot händelsefacit, steg 1: videon genom kamerakedjan.
 
-   Kör:  node dev/spegelfacit/kor.cjs [--pass 2026-09-22-1x-34cm-normaltempo] [--ai] [--port 8263] [--ut fil.json] [--konsol]
+   Kör:  node dev/spegelfacit/kor.cjs [--pass 2026-09-22-1x-34cm-normaltempo] [--ai] [--port 8263] [--ut fil.json] [--konsol] [--tro "tapTapp:60"]
    Sedan: node dev/spegelfacit/jamfor.cjs (läser filen och jämför med facit)
 
    Kör passets kamera.mp4 (dev/material/inspelningar/<pass>/, utanför git)
@@ -34,6 +34,7 @@ const { ROT, PASS_FORVAL, materialMapp, lasFacit } = require('./facit.cjs');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const PASS = arg('--pass', PASS_FORVAL);
 const AIFLAG = process.argv.includes('--ai');
+const TRO = arg('--tro', '');   // "tapTapp:60,tapOtapp:25" — valfria trösklar till Kamera.satTrosklar, som golden-kor.cjs --tro (MES-298)
 const PORT = +arg('--port', 8263);
 const UT = path.resolve(arg('--ut', path.join(materialMapp(PASS), `spegel-${AIFLAG ? 'ai' : 'lokal'}.json`)));
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -138,7 +139,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
      en ny port hämtas hela leken från Scryfall, och svarar den 429 blir
      poolen tunn. Då väntas en minut och sidan laddas om, som sidan själv
      säger; en tunn pool mäts aldrig (--tunn-pool kör ändå, för felsökning). */
-  const param = [AIFLAG && 'ai=1', EMBED_LOKALT && 'embedlokalt=1'].filter(Boolean).join('&');
+  const param = [AIFLAG && 'ai=1', EMBED_LOKALT && 'embedlokalt=1', TRO && 'tro=' + encodeURIComponent(TRO)].filter(Boolean).join('&');
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   let poolRad = '', poolN = 0;
   for (let forsok = 1; ; forsok++) {

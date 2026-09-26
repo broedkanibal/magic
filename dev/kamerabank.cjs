@@ -449,6 +449,53 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 6; i++) { s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 90 * Math.PI / 180, 180)); const t = s.find(x => x.id === idT3); if (t3Tapp == null && t && t.tappad) t3Tapp = i + 1; }
   check(`TT3 namngivet 12° snett, sedan tappat rent: klart ${klarT3}, tappad i ruta ${t3Tapp} (högst 2), samma id ${!!s.find(x => x.id === idT3)}`,
         klarT3 && t3Tapp != null && t3Tapp <= 2 && !!s.find(x => x.id === idT3));
+  /* TT4–TT6: ett kort som tappas SLARVIGT, 60–80° (MES-298). Måttkollen i
+     tapTydlig jämförde förut regionens egna mått (ur momenten, lika i alla
+     vinklar) med kortets RAKA låda — och den är större än kortet så fort
+     kortet ligger snett. Pharika's Chosen i spegelfacit 2026-09-22: tappat
+     71°, men lådan togs om efter ett flimmer medan kortet låg tappat och
+     snett (78×66 mot 66×48), och domen fälldes. Nu jämförs med namnForm:
+     ramen, eller lådan uträtad med kortets vinkel. */
+  /* TT4: namngivet 16° snett (den raka lådan 1,1–1,3 × kortet), sedan
+     tappat 75°. */
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 16 * Math.PI / 180, 180));
+  const idT4 = s[0] && s[0].id, klarT4 = !!(s[0] && s[0].st === 'klar');
+  let t4Tapp = null;
+  for (let i = 0; i < 6; i++) { s = await ruta(g => kortVriden(g, W, 112, 72, 30, 42, 75 * Math.PI / 180, 180)); const t = s.find(x => x.id === idT4); if (t4Tapp == null && t && t.tappad) t4Tapp = i + 1; }
+  check(`TT4 namngivet 16° snett, sedan tappat 75°: klart ${klarT4}, tappad i ruta ${t4Tapp} (högst 2), samma id ${!!s.find(x => x.id === idT4)}`,
+        klarT4 && t4Tapp != null && t4Tapp <= 2 && !!s.find(x => x.id === idT4));
+  /* TT5: Pharika-fallet. Namngivet rakt, handen skymmer kortet i 0,6 s
+     (spåret dör och återuppstår med namnet, flimmer under 1,5 s) och kortet
+     ligger sedan tappat 72° snett, stilla. Måttet får inte tas om ur det
+     sneda kortet: förut gjordes det, ur den raka lådan, och kortet blev
+     aldrig tappat. */
+  nystart(); await referens();
+  for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
+  const idT5 = s[0] && s[0].id, klarT5 = !!(s[0] && s[0].st === 'klar');
+  for (let i = 0; i < 4; i++) s = await ruta(null);
+  const doT5 = !s.find(x => x.id === idT5);
+  let t5Tapp = null, t5Id = null;
+  for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 113, 73, 30, 42, 72 * Math.PI / 180, 180)); const t = s.find(x => x.id === idT5); if (t) t5Id = t.id; if (t5Tapp == null && t && t.tappad) t5Tapp = i + 1; }
+  check(`TT5 namngivet rakt, borta 0,6 s, tillbaka tappat 72°: klart ${klarT5}, spåret dog ${doT5}, samma id tillbaka ${t5Id === idT5}, tappad i ruta ${t5Tapp} (högst 3)`,
+        klarT5 && doT5 && t5Id === idT5 && t5Tapp != null && t5Tapp <= 3);
+  /* TT6: gränsen är T.tapTapp (70° som förval, Jespers beslut). 66° är
+     otydligt och vrider inget; med tapTapp 60 (--tro "tapTapp:60" i golden)
+     vrider samma 66° kortet. 78° vrider med förvalet. (66°, inte 65°: det
+     lilla syntetiska kortet ritas 10 % mindre i vissa vinklar — 65°, 67°,
+     71° — och faller då på måttkollens 0,85, vilket riktiga kort inte gör:
+     Pharika's Chosen är 65×47 rakt och 66×48 tappad.) */
+  const t6 = async (vinkel, tro) => {
+    nystart(); if (tro) Kamera.satTrosklar(tro); await referens();
+    for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
+    const id = s[0] && s[0].id; let tapp = null;
+    for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 112, 72, 30, 42, vinkel * Math.PI / 180, 180)); const t = s.find(x => x.id === id); if (tapp == null && t && t.tappad) tapp = i + 1; }
+    Kamera.satTrosklar({ tapOtapp: 20, tapTapp: 70 });
+    return tapp;
+  };
+  const t6a = await t6(66), t6b = await t6(66, { tapTapp: 60 }), t6c = await t6(78);
+  check(`TT6 tappat 66° med förvalet: tappad i ruta ${t6a} (ska aldrig); med tapTapp 60: i ruta ${t6b} (högst 2); 78° med förvalet: i ruta ${t6c} (högst 2); förvalet ${Kamera.trosklar.tapOtapp}/${Kamera.trosklar.tapTapp}`,
+        t6a == null && t6b != null && t6b <= 2 && t6c != null && t6c <= 2 && Kamera.trosklar.tapOtapp === 20 && Kamera.trosklar.tapTapp === 70);
 
   // ── LT1: latensmätningens stämplar (MES-215) följer med rapporten bara när den är på ──
   nystart(); await referens();

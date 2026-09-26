@@ -16,6 +16,7 @@ Flaggor:
 |---|---|---|
 | `--ai` | 1 | med Claude (kostar; sparas som `spegel-ai.json`) — jämför sedan med `--korning dev/material/inspelningar/<pass>/spegel-ai.json` |
 | `--pass <mapp>` | 1, 2 | ett annat pass (förval `2026-09-22-1x-34cm-normaltempo`); graveyard- och library-rutorna står i `ZONER` i `kor.cjs` |
+| `--tro "tapTapp:60,tapOtapp:25"` | 1 | valfria trösklar till kameran (`Kamera.satTrosklar`), som `--tro` i golden — t.ex. tap-domens gränser (MES-298). Aldrig förval |
 | `--port 8263` | 1 | attrappens port. Poolen sparas i Chrome-profilen **per port**: byt inte i onödan, första körningen på en ny port hämtar leken från Scryfall |
 | `--md fil`, `--tsv fil`, `--json fil` | 2 | rapporten som markdown; det digitala bordets tidslinje (en rad per ändring); allt |
 | `--fore 2 --efter 10` | 2 | fönstret runt facits tid, i sekunder |
