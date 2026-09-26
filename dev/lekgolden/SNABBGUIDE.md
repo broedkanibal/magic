@@ -43,8 +43,8 @@ Körs från repots rot. Kräver Chrome och `ANTHROPIC_API_KEY` i `.env.local`.
 | `node dev/lekgolden/kor.cjs --las-om 09,13` | läser om fotona med Claude (kostar), fast de finns i cachen. `--las-om alla` läser om allt |
 | `node dev/lekgolden/kor.cjs --spridning` | foton som lästs mer än en gång, svar för svar: hur mycket Claude varierar på samma bild |
 | `node dev/lekgolden/kor.cjs --bara-cache` | anropar aldrig Claude eller Scryfall — det som saknas hoppas över |
-| `node dev/lekgolden/kor.cjs --svar sista` | använd det senaste svaret för varje foto (förval: det första — se *Cachen*) |
-| `node dev/lekgolden/kor.cjs --spara` | gör körningen till ny baslinje (`dev/lekgolden/senaste.json`); skriv då en rad i `historik.md` |
+| `node dev/lekgolden/kor.cjs --svar sista` | använd det senaste svaret för varje foto (`--svar 2` det andra). Förval: det baslinjen sparades med, annars det första — se *Cachen* |
+| `node dev/lekgolden/kor.cjs --spara` | gör körningen till ny baslinje (`dev/lekgolden/senaste.json`); skriv då en rad i `historik.md`. Med `--foto`, `--set` eller en beskärning byts bara det som kördes. Går inte ihop med `--las-om` |
 | `node dev/lekgolden/kor.cjs --beskarningar /tmp/dukar` | sparar dukarna som skickades till Claude — titta på dem när ett foto blir fel |
 | `node dev/lekgolden/kor.cjs --skarm 390x844` | telefonskärmen som kamerans ram räknas på (förval 390×844) |
 | `ANTHROPIC_MODEL=claude-sonnet-5 node dev/lekgolden/kor.cjs` | en annan modell — får egna svar i cachen; raden `metod:` visar vilken |

@@ -61,12 +61,16 @@ const FOTO_VAL = lista(arg('--foto', ''));
 const SET_VAL = lista(arg('--set', ''));
 const LAS_OM = arg('--las-om', '');
 const BARA_CACHE = flagga('--bara-cache');
-const SVARVAL = arg('--svar', 'forsta');
 const PARALLELLT = Math.max(1, +arg('--parallellt', 4));
 const SPARA = flagga('--spara'), DETALJ = flagga('--detalj'), SPRIDNING = flagga('--spridning');
 const [SKARM_B, SKARM_H] = arg('--skarm', '390x844').split('x').map(Number);
 const BESKARNINGAR = arg('--beskarningar', '');
 const BASFIL = path.join(__dirname, 'senaste.json');
+/* Baslinjen läses först: den säger vilket svar per foto den gjordes med
+   (det första, eller --svar sista|N när den sparades så), och det svaret
+   används också nu om --svar inte ges — annars jämförs olika läsningar. */
+let BAS = null; try { BAS = JSON.parse(fs.readFileSync(BASFIL, 'utf8')); } catch (e) {}
+const SVARVAL = arg('--svar', '') || (BAS && BAS.svar) || 'forsta';
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 /* Pris per miljon tokens (in, ut) — samma tabell som dev/golden/SNABBGUIDE.md. */
 const PRIS = { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-fable-5-1': [10, 50], 'claude-haiku-4-5': [1, 5] };
@@ -456,6 +460,9 @@ const kortnamn = f => fotoId(f).replace('foto-', '');
 const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
 
 (async () => {
+  /* --las-om visar de nya svaren, men nästa körning använder de första (--svar).
+     En baslinje av de nya hade då inte gått att köra om — vägra hellre. */
+  if (SPARA && LAS_OM) { console.error('--spara och --las-om i samma körning: baslinjen hade fått de nya svaren, men nästa körning använder de första. Kör --las-om först och spara sedan med --svar sista om de nya ska gälla.'); process.exit(2); }
   const facitFel = provaFacit();
   if (facitFel.length) { console.error('Facit stämmer inte — rätta ' + path.join(MAPP, 'facit.json') + ' först:\n  ' + facitFel.join('\n  ')); process.exit(2); }
   const fotoOk = f => !FOTO_VAL || FOTO_VAL.some(p => fotoMatchar(f, p));
@@ -528,7 +535,7 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
   fs.writeFileSync(SF_FIL, JSON.stringify(sfCache));
 
   /* 4. tabellerna */
-  let bas = null; try { bas = JSON.parse(fs.readFileSync(BASFIL, 'utf8')); } catch (e) {}
+  const bas = BAS;
   const g = (del, lage, id) => bas && bas[del] && bas[del][lage] && bas[del][lage][id];
   const cell = (m, gm, k, fmt) => (fmt ? fmt(m) : m[k]) + var_(m, gm, k);
   const felCell = m => m.felNamn + (m.felSakra ? ` (${m.felSakra} utan koll)` : '');
@@ -560,7 +567,11 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
   const exakt = rs => Object.values(rs).filter(m => m.ratt === m.facit && m.alla === m.facit).length;
   console.log('\n══ Summering ══');
   const rader = [];
-  const gTot = (del, lage) => bas && bas[del] && bas[del][lage] ? totalt(bas[del][lage]) : null;
+  /* Baslinjens totaler över SAMMA foton och set som kördes nu (--foto, --set). */
+  const gTot = (del, lage) => {
+    const b = bas && bas[del] && bas[del][lage], ids = Object.keys(res[del][lage]);
+    return b && ids.every(id => b[id]) ? totalt(Object.fromEntries(ids.map(id => [id, b[id]]))) : null;
+  };
   for (const lage of LAGEN) for (const del of ['set', 'foton']) {
     const t = totalt(res[del][lage]), gt = gTot(del, lage), n = Object.keys(res[del][lage]).length;
     if (!n) continue;
@@ -624,7 +635,7 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
     console.log('\n  Mot baslinjen (' + (bas.datum || '?') + '):');
     for (const lage of LAGEN) for (const del of ['set', 'foton']) {
       const t = totalt(res[del][lage]), gt = gTot(del, lage);
-      if (!gt) continue;
+      if (!gt || !Object.keys(res[del][lage]).length) continue;
       const battre = MATT.filter(k => HOGT_AR_BRA[k] ? t[k] > gt[k] : t[k] < gt[k]), varre = MATT.filter(k => HOGT_AR_BRA[k] ? t[k] < gt[k] : t[k] > gt[k]);
       const dom = !battre.length && !varre.length ? 'LIKA BRA' : !varre.length ? 'BÄTTRE' : !battre.length ? 'SÄMRE' : 'BLANDAT';
       if (varre.length) samre = true;
@@ -636,8 +647,9 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
     const ren = rs => Object.fromEntries(Object.entries(rs).map(([id, m]) => [id, Object.fromEntries(Object.entries(m).filter(([k]) => !['lista', 'felsteg', 'saknasSvar', 'usage', 'box'].includes(k)))]));
     const ny = { datum: new Date().toISOString().slice(0, 16).replace('T', ' '), modell: modeller[0] || MODELL, promptv: pv[0] != null ? pv[0] : PROMPTV, lekblock: LEKBLOCK,
       besk: BESK_KOD_SHA, facit: FACIT_SHA, skarm: `${SKARM_B}x${SKARM_H}`, svar: SVARVAL,
-      foton: Object.assign({}, bas && bas.foton, Object.fromEntries(LAGEN.map(l => [l, ren(res.foton[l])]))),
-      set: Object.assign({}, bas && bas.set, Object.fromEntries(LAGEN.map(l => [l, ren(res.set[l])]))) };
+      /* Med --foto, --set eller en beskärning byts bara det som kördes; resten står kvar. */
+      foton: Object.assign({}, bas && bas.foton, Object.fromEntries(LAGEN.map(l => [l, Object.assign({}, bas && bas.foton && bas.foton[l], ren(res.foton[l]))]))),
+      set: Object.assign({}, bas && bas.set, Object.fromEntries(LAGEN.map(l => [l, Object.assign({}, bas && bas.set && bas.set[l], ren(res.set[l]))]))) };
     fs.writeFileSync(BASFIL, JSON.stringify(ny, null, 1) + '\n');
     console.log(`\n  Sparat som baslinje: ${path.relative(ROT, BASFIL)} — skriv en rad i dev/lekgolden/historik.md.`);
   }
