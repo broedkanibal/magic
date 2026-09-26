@@ -15799,12 +15799,25 @@ const Pool = {
    laddas (byggLekPool) och när en ny lärs. Så glöms de utan ombygge, och
    golden setet mäter utan dem om det inte ber om dem (MESA_REF/MESA_LAR på
    appens fönster, satta av dev/golden/kor.html). Lärs på telefonen, där
-   poolen bor; datorns skärmdumpsväg lär inte. */
+   poolen bor; datorns skärmdumpsväg lär inte.
+
+   ANVÄNDS INTE I IGENKÄNNINGEN, tills vidare (MES-232 val A, 2026-09-26).
+   Blandade med Scryfalls bilder gav de 6 fel namn i golden --ljus alla --ref
+   mot 0 utan dem: kamerafoton liknar varandra mer än skanningarna, så ett
+   lärt foto av kort A drar till sig kort B. De lärs, sparas och synkas
+   (RefMoln) precis som förut — bara vävandet in i poolen (tillampa: ORB och
+   Matcher) och i bildmodellens inbäddning (KamEmbed.vavRef) står still.
+   Tre växlar, alltså:
+     Ref.pa()     — MESA_REF !== false:        läsa in och synka (förval på)
+     Ref.anvand() — MESA_REF_ANVAND === true:  använda i igenkänningen
+                                                (förval AV; golden --ref-anvand)
+     Ref.larPa()  — MESA_LAR !== false:        lära nya (förval på) */
 const REF_TAK = 4, REF_W = 146, REF_H = 204;
 const Ref = {
   kod: null, lista: [],                 // referenserna för poolen i minnet
   nyckel: kod => 'ref:' + kod,
-  pa: () => window.MESA_REF !== false,  // läsa in lärda referenser
+  pa: () => window.MESA_REF !== false,  // läsa in och synka lärda referenser
+  anvand: () => Ref.pa() && window.MESA_REF_ANVAND === true,  // väva in dem i igenkänningen — AV som förval (MES-232 A)
   larPa: () => window.MESA_LAR !== false, // lära nya
   async ladda(kod) {
     let rec = null; try { rec = await IDB.poolGet(Ref.nyckel(kod)); } catch (e) {}
@@ -15816,9 +15829,12 @@ const Ref = {
     try { await IDB.poolPut({ code: Ref.nyckel(Ref.kod), refs: Ref.lista, ts: Date.now() }); } catch (e) {}
   },
   /* Väv in referenserna i poolen i minnet. Idempotent: rec.refIn minns
-     vilka som redan är med (finns bara i minnet — posten sparas före). */
+     vilka som redan är med (finns bara i minnet — posten sparas före).
+     Med Ref.anvand() av (förval, MES-232) vävs ingenting in. En sparad
+     inbäddning från ett pass då de användes städas av KamEmbed.bygg, som
+     alltid kör vavRef när inbäddningen laddats. */
   async tillampa(rec) {
-    if (!rec || !Ref.pa() || Ref.kod !== rec.code) return rec;
+    if (!rec || !Ref.anvand() || Ref.kod !== rec.code) return rec;
     if (!rec.refIn) rec.refIn = new Set();
     for (const r of Ref.lista.slice()) {
       if (rec.refIn.has(r.id)) continue;
@@ -15923,12 +15939,12 @@ const KamEmbed = {
   /* De lärda referenserna som poolen bär ska inbäddningen också bära — och
      inga andra: den sparade inbäddningen kan ha referenser från förra passet
      (Embed.laggTill sparar posten), och de som glömts, fallit för taket
-     eller stängts av (MESA_REF) tas bort. En i taget (ko): två samtidiga
+     eller stängts av (Ref.anvand(), MES-232) tas bort. En i taget (ko): två samtidiga
      varv hade lagt samma referens två gånger. */
   vavRef(rec) {
     const varv = async () => {
       const idx = KamEmbed.idx; if (!idx || !window.Embed || !rec || KamEmbed.kod !== rec.code) return;
-      const vill = new Map(); if (Ref.pa() && Ref.kod === rec.code) for (const r of Ref.lista) vill.set(Ref.poolId(r), r);
+      const vill = new Map(); if (Ref.anvand() && Ref.kod === rec.code) for (const r of Ref.lista) vill.set(Ref.poolId(r), r);
       for (const id of [...new Set(idx.ids.filter(x => /#ref/.test(String(x))))]) if (!vill.has(id)) await Embed.taBort(idx, id);
       const har = new Set(idx.ids);
       for (const [id, r] of vill) { if (har.has(id)) continue; try { await Embed.laggTill(idx, { id, name: r.name, bild: await loadImage(r.bild, false) }); } catch (e) {} }
@@ -16114,7 +16130,10 @@ async function ensureLekPool(onProg) {
 
    Saknas tabellen, är man utloggad eller offline: Moln svarar null/false och
    allt är som förut — bara telefonens egna. window.MESA_REFMOLN = false
-   stänger av synken; Ref.pa() (MESA_REF, golden) gör det också. */
+   stänger av synken; Ref.pa() (MESA_REF, golden) gör det också. Synken
+   hänger INTE på Ref.anvand(): lärda foton synkas också när kameran inte
+   använder dem (MES-232 val A), så att de finns när en variant som klarar
+   sju ljus slås på. */
 const RefMoln = {
   senast: new Map(),                     // kod → när molnet senast lästes
   skickaT: null,

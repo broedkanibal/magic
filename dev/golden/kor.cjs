@@ -37,8 +37,11 @@ const FALL = arg('--fall', '');
 const AIFLAG = process.argv.includes('--ai');
 /* --ref: lekens lärda referenser (K7) med i poolen; --lar-ref: varje fall lär
    facit in efter domen; --glom-ref: referenserna för golden-poolen tas bort
-   först. Baslinjen sparas aldrig med --ref (den mäter kameran utan lärdom). */
-const REFFLAG = process.argv.includes('--ref'), LARFLAG = process.argv.includes('--lar-ref'), GLOMFLAG = process.argv.includes('--glom-ref');
+   först. Baslinjen sparas aldrig med --ref (den mäter kameran utan lärdom).
+   Sedan MES-232 (val A) läser appen in referenserna men använder dem inte i
+   igenkänningen: --ref mäter det förvalet. --ref-anvand (innebär --ref) slår
+   på användningen igen (MESA_REF_ANVAND), som före MES-232 — för val C. */
+const REFANVAND = process.argv.includes('--ref-anvand'), REFFLAG = process.argv.includes('--ref') || REFANVAND, LARFLAG = process.argv.includes('--lar-ref'), GLOMFLAG = process.argv.includes('--glom-ref');
 const BASFIL = AIFLAG ? 'senaste-ai.json' : 'senaste.json';
 const BESKARNINGAR = arg('--beskarningar', '');   // mapp att skriva beskärningarna till: <fall>-spar<nr>.jpg
 /* --ljus <variant>: samma fall i ett annat ljus (MES-216): morkare, ljusare,
@@ -193,7 +196,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   const sammanstallning = [];
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
-  const param = [AIFLAG && 'ai=1', REFFLAG && 'ref=1', LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
+  const param = [AIFLAG && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
@@ -224,7 +227,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   console.log('');
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
-  if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}`).join(' · ')); }
+  if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}, ${r.refSparade || 0} sparade`).join(' · ')); }
   { const f0 = JSON.parse(json)[0]; if (f0) console.log('\n  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', systemprompt v' + f0.promptv : '') + ')' : '')
       + (f0.modell ? ` — bildmodellen räknade på ${f0.modell === 'webgpu' ? 'WebGPU' : f0.modell === 'wasm' ? 'WASM' : f0.modell}` : ' — utan bildmodell (reserven Matcher + ORB)')
       + '\n  (lokal: konstverket jämförs med lekens kort; ocr: kortnamnet läses ur titelraden; modell: bildmodellen rangordnar och ORB kontrollerar; ai: Claude frågas om det som är osäkert)');

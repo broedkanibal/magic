@@ -158,8 +158,11 @@ const AI_PA = PARAMS.get('ai') === '1';
    ?lar=1 (--lar-ref): efter varje fall lärs facit in, som om spelaren
    bekräftat korten i granskningen; ?glomref=1 (--glom-ref): referenserna
    för golden-poolen tas bort innan något körs. Utan flaggorna varken läser
-   eller lär appen (MESA_REF/MESA_LAR = false på appens fönster). */
-const REF_PA = PARAMS.get('ref') === '1', LAR_PA = PARAMS.get('lar') === '1', GLOM_REF = PARAMS.get('glomref') === '1';
+   eller lär appen (MESA_REF/MESA_LAR = false på appens fönster).
+   Sedan MES-232 (val A) läser appen in referenserna men ANVÄNDER dem inte i
+   igenkänningen — ?ref=1 mäter alltså appens förval. ?refanvand=1
+   (--ref-anvand) slår på användningen (MESA_REF_ANVAND), som före MES-232. */
+const REF_PA = PARAMS.get('ref') === '1' || PARAMS.get('refanvand') === '1', REF_ANVAND = PARAMS.get('refanvand') === '1', LAR_PA = PARAMS.get('lar') === '1', GLOM_REF = PARAMS.get('glomref') === '1';
 /* ?ljus=<variant> (kor.cjs --ljus): samma fall i ett annat ljus (MES-216).
    Varje ruta — fotot en gång, videon ruta för ruta — går genom ljusFilter
    innan modulen ser den. Ingen ny video, inga nya facit: kedjan mäts mot
@@ -224,9 +227,12 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    efter fallet spårets nummer i resultatet (nr). Läses ut av
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
-const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (w.eval('KamEmbed').redo() ? '+modell' : '') + (AI_PA ? '+ai' : '') + (REF_PA ? '+ref' : ''); } catch (e) { return 'lokal'; } };
+const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (w.eval('KamEmbed').redo() ? '+modell' : '') + (AI_PA ? '+ai' : '') + (REF_ANVAND ? '+ref' : REF_PA ? '+ref(oanvända)' : ''); } catch (e) { return 'lokal'; } };
 /* Antalet lärda referenser i poolen i minnet (K7), för statusraden. */
 const refAntal = () => { try { return w.eval('Ref').antal(w.eval('Pool').idx); } catch (e) { return 0; } };
+/* …och hur många som är sparade för poolen (Ref.lista, ur IndexedDB), oavsett
+   om de används: sedan MES-232 lärs och sparas de fast poolen inte bär dem. */
+const refSparade = () => { try { const R = w.eval('Ref'), P = w.eval('Pool').idx; return P && R.kod === P.code ? R.lista.length : 0; } catch (e) { return 0; } };
 /* Modellen som svarar i kameraläget och promptversionen, som servern själv
    anger dem (modeller.kamera, promptv). Appens AI.model är standardmodellen:
    med ANTHROPIC_MODEL_KAMERA satt stod fel modell i resultatet. Versionen
@@ -292,7 +298,7 @@ async function laddaApp() {
   for (let i = 0; i < 100; i++) { try { if (w.eval('typeof Kamera') === 'object') break; } catch (e) {} await sleep(100); }
   K = w.eval('Kamera');
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
-  w.MESA_REF = REF_PA; w.MESA_LAR = LAR_PA;
+  w.MESA_REF = REF_PA; w.MESA_REF_ANVAND = REF_ANVAND; w.MESA_LAR = LAR_PA;
   if (LASWORKER === '0') w.MESA_LASWORKER = false; else if (LASWORKER === 'kontroll') w.MESA_LASWORKER = 'kontroll';
   /* Sökvägarna räknas från appens dokument (repots rot). */
   w.MESA_EMBED = !EMBED_PA ? false : { ladda: Object.assign({ backend: EMBED_BACKEND }, EMBED_LOKALT ? {
@@ -703,6 +709,7 @@ function avsluta(f, prov, tid, tak, takS) {
      --lar-ref hur många fallet lärde EFTER domen. */
   if (REF_PA) res.ref = refAntal();
   if (LAR_PA) res.larda = larAvFacit(res);
+  if (REF_PA || LAR_PA) res.refSparade = refSparade();
   return res;
 }
 
