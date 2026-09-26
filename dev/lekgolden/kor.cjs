@@ -47,7 +47,7 @@
    dev/lekgolden/SNABBGUIDE.md. */
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
-const { spawn, execFileSync } = require('child_process');
+const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 
 const ROT = path.join(__dirname, '..', '..');
@@ -61,7 +61,7 @@ const FOTO_VAL = lista(arg('--foto', ''));
 const SET_VAL = lista(arg('--set', ''));
 const LAS_OM = arg('--las-om', '');
 const BARA_CACHE = flagga('--bara-cache');
-const SVARVAL = arg('--svar', 'sista');
+const SVARVAL = arg('--svar', 'forsta');
 const PARALLELLT = Math.max(1, +arg('--parallellt', 4));
 const SPARA = flagga('--spara'), DETALJ = flagga('--detalj'), SPRIDNING = flagga('--spridning');
 const [SKARM_B, SKARM_H] = arg('--skarm', '390x844').split('x').map(Number);
@@ -299,29 +299,55 @@ function nyckelAv(f, lage, b) {
 }
 const cacheFil = (f, lage, id) => path.join(SVARMAPP, `${f.replace(/\.\w+$/, '')}.${lage}.${id}.json`);
 function lasCache(f, lage, id) { try { return JSON.parse(fs.readFileSync(cacheFil(f, lage, id), 'utf8')); } catch (e) { return null; } }
-function valjSvar(c) {
+/* Vilket svar som används när ett foto lästs flera gånger: det första, så
+   att baslinjen står still när några foton läses om för att mäta spridningen.
+   Ett foto som läses om i DEN HÄR körningen (--las-om) visas med sitt nya
+   svar. --svar sista|N väljer ett annat för alla. */
+function valjSvar(c, nytt) {
   if (!c || !c.svar || !c.svar.length) return null;
-  const i = SVARVAL === 'forsta' ? 0 : SVARVAL === 'sista' ? c.svar.length - 1 : Math.min(c.svar.length, Math.max(1, +SVARVAL)) - 1;
+  const val = nytt ? 'sista' : SVARVAL;
+  const i = val === 'forsta' ? 0 : val === 'sista' ? c.svar.length - 1 : Math.min(c.svar.length, Math.max(1, +val)) - 1;
   return Object.assign({ nr: i + 1, av: c.svar.length }, c.svar[i]);
 }
 
 /* ══ Scryfall: appens lookup, med svaren sparade ════════════════════════ */
 const SF_FIL = path.join(SVARMAPP, 'scryfall.json');
 let sfCache = {}; try { sfCache = JSON.parse(fs.readFileSync(SF_FIL, 'utf8')); } catch (e) {}
-const sfRakna = { natet: 0, cache: 0 };
+const sfRakna = { natet: 0, cache: 0, spärr: 0 };
 const OVERGAENDE = new Set([408, 425, 429, 500, 502, 503, 504]);
+/* Scryfall spärrar i 60 s den som går över ~10 anrop i sekunden (429, med
+   Retry-After), och varnar för en blockering av nätet om det fortsätter.
+   Appens kö (SF, 95 ms mellan anropen) ligger precis på gränsen: första
+   körningen 2026-09-26 fick 429 på 8 av 36 namn, och de blev platshållare —
+   provet mätte Scryfalls spärr i stället för avläsningen. Här går nätanropen
+   därför högst ett per SF_TAKT ms, och ett 429 väntas ut och görs om (högst
+   tre gånger) innan svaret lämnas till appens kod. Avbrottssignalen (SF:s
+   12 s) skickas inte vidare: väntan på spärren ska inte bli "no connection".
+   Hur många gånger spärren slog till står i utskriften. */
+const SF_TAKT = 250;
+let sfSenast = 0;
 async function sfFetch(url, opt = {}) {
   const k = opt.method === 'POST' ? url + ' ' + opt.body : url;
   let e = sfCache[k];
   if (e) sfRakna.cache++;
   else {
     if (BARA_CACHE) throw new TypeError('--bara-cache: ' + url + ' finns inte i cachen');
-    const r = await fetch(url, { method: opt.method || 'GET', body: opt.body, signal: opt.signal,
-      headers: Object.assign({}, opt.headers, { 'User-Agent': 'Mesa-lekgolden/1 (MES-289)' }) });
-    e = { status: r.status, body: await r.text() };
-    sfRakna.natet++;
+    for (let forsok = 0; ; forsok++) {
+      const vant = SF_TAKT - (Date.now() - sfSenast);
+      if (vant > 0) await vanta(vant);
+      sfSenast = Date.now();
+      const r = await fetch(url, { method: opt.method || 'GET', body: opt.body,
+        headers: Object.assign({}, opt.headers, { 'User-Agent': 'Mesa-lekgolden/1 (MES-289)' }) });
+      e = { status: r.status, body: await r.text() };
+      sfRakna.natet++;
+      if (r.status !== 429 || forsok >= 3) break;
+      sfRakna.spärr++;
+      const s = Math.min(90, Math.max(5, +r.headers.get('retry-after') || 60));
+      process.stdout.write(`  (Scryfall: 429 — väntar ${s} s)\n`);
+      await vanta(s * 1000 + 500);
+    }
     /* Ett övergående fel (429, 5xx) sparas inte — det säger inget om namnet. */
-    if (!OVERGAENDE.has(r.status)) sfCache[k] = e;
+    if (!OVERGAENDE.has(e.status)) sfCache[k] = e;
   }
   return { ok: e.status >= 200 && e.status < 300, status: e.status, json: async () => JSON.parse(e.body) };
 }
@@ -385,21 +411,22 @@ async function spela(foton, lage, avl, svarFor) {
    Osäkra: kort med namn under To check (modellen tvekade, eller Scryfall
    rättade namnet). */
 function doma(r, facit, kant) {
-  const mesa = new Map(); let olasliga = 0, osakra = 0;
+  const mesa = new Map(), sakra = new Map(); let olasliga = 0, osakra = 0;
   for (const k of r.kort) {
     if (k.sb) continue;
     const n = Number(k.n) || 1;
     if (k.okand) { olasliga += n; continue; }
     mesa.set(k.name, (mesa.get(k.name) || 0) + n);
-    if (k.koll) osakra += n;
+    if (k.koll) osakra += n; else sakra.set(k.name, (sakra.get(k.name) || 0) + n);
   }
-  let ratt = 0, saknas = 0, extra = 0, kantN = 0, felNamn = 0;
+  let ratt = 0, saknas = 0, extra = 0, kantN = 0, felNamn = 0, felSakra = 0;
   const saknade = [], extras = [], fela = [];
   for (const [n, f] of facit) { const m = mesa.get(n) || 0; ratt += Math.min(f, m); if (m < f) { saknas += f - m; saknade.push(`${f - m} ${n}`); } }
   for (const [n, m] of mesa) {
     const over = m - (facit.get(n) || 0);
     if (over <= 0) continue;
-    if (!LEKEN.has(n)) { felNamn += over; fela.push(`${over} ${n}`); continue; }
+    /* Ett fel namn utan To check är det värsta: det går rakt in i leken. */
+    if (!LEKEN.has(n)) { felNamn += over; felSakra += sakra.get(n) || 0; fela.push(`${over} ${n}${sakra.get(n) ? ' (utan koll)' : ''}`); continue; }
     extra += over; extras.push(`${over} ${n}`);
     kantN += Math.min(over, (kant && kant.get(n)) || 0);
   }
@@ -409,7 +436,7 @@ function doma(r, facit, kant) {
   const otydliga = svaren.reduce((a, j) => a + (+j.otydliga || 0), 0);
   const felsteg = r.steg.filter(s => s.steg === 'fel').map(s => `${s.foto}: ${s.fel}`);
   const saknasSvar = r.steg.filter(s => s.saknas).map(s => s.foto);
-  return { facit: summa(facit), alla: r.alla, spelbara: r.spelbara, ratt, saknas, extra, kant: kantN, felNamn, olasliga, osakra,
+  return { facit: summa(facit), alla: r.alla, spelbara: r.spelbara, ratt, saknas, extra, kant: kantN, felNamn, felSakra, olasliga, osakra,
     poster, tomma, otydliga, felsteg, saknasSvar, lista: { saknade, extras, fela } };
 }
 
@@ -456,7 +483,7 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
   else if (jobb.length) {
     console.log(`Claude (${MODELL}, läget 'lek', systemprompt v${PROMPTV}): ${jobb.length} läsningar, ${PARALLELLT} åt gången — riktiga anrop, kostar pengar.`);
     fs.mkdirSync(SVARMAPP, { recursive: true });
-    let klara = 0;
+    let klara = 0; const antal = jobb.length;
     const arbetare = async () => {
       for (let jb; (jb = jobb.shift());) {
         const [f, lage] = jb, b = avl.get(f + '|' + lage);
@@ -465,7 +492,7 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
         if (r.status === 429 || r.status >= 500) { await vanta(8000); r = await fragaClaude(b.b64); }
         klara++; nyaAnrop++;
         const j = r.j || {};
-        console.log(`  ${String(klara).padStart(2)}/${klara + jobb.length}  ${f} ${lage.padEnd(4)}  ${r.status}  ${(r.ms / 1000).toFixed(0).padStart(3)} s  ${Array.isArray(j.kort) ? j.kort.length + ' poster' : (j.error || j.varfor || '?')}`);
+        console.log(`  ${String(klara).padStart(2)}/${antal}  ${f} ${lage.padEnd(4)}  ${r.status}  ${(r.ms / 1000).toFixed(0).padStart(3)} s  ${Array.isArray(j.kort) ? j.kort.length + ' poster' : (j.error || j.varfor || '?')}`);
         if (r.status !== 200) { anropsFel.push(`${f} ${lage}: ${r.status} ${j.error || ''}`); continue; }
         const c = lasCache(f, lage, b.nyckel.id) || { nyckel: b.nyckel.delar, svar: [] };
         c.svar.push({ tid: new Date().toISOString(), ms: r.ms, bildSha: b.bildSha, status: r.status, j });
@@ -475,9 +502,9 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
     };
     await Promise.all(Array.from({ length: Math.min(PARALLELLT, jobb.length) }, arbetare));
   }
-  const svarFor = (f, lage) => valjSvar(cacher.get(f + '|' + lage));
+  const svarFor = (f, lage) => valjSvar(cacher.get(f + '|' + lage), omlas(f) && !BARA_CACHE);
   const bytesAndrade = [];
-  for (const [k, c] of cacher) { const s = valjSvar(c), b = avl.get(k); if (s && s.bildSha && s.bildSha !== b.bildSha) bytesAndrade.push(k.replace('|', ' ')); }
+  for (const [k, c] of cacher) { const s = svarFor(...k.split('|')), b = avl.get(k); if (s && s.bildSha && s.bildSha !== b.bildSha) bytesAndrade.push(k.replace('|', ' ')); }
 
   /* 3. varje foto för sig, och seten */
   const res = { foton: {}, set: {} };
@@ -504,17 +531,18 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
   let bas = null; try { bas = JSON.parse(fs.readFileSync(BASFIL, 'utf8')); } catch (e) {}
   const g = (del, lage, id) => bas && bas[del] && bas[del][lage] && bas[del][lage][id];
   const cell = (m, gm, k, fmt) => (fmt ? fmt(m) : m[k]) + var_(m, gm, k);
+  const felCell = m => m.felNamn + (m.felSakra ? ` (${m.felSakra} utan koll)` : '');
   for (const lage of LAGEN) {
     const namn = lage === 'hela' ? 'HELA — filväljarens väg, rutan {.02,.02,.96,.96}' : `RAM — kamerans ram (telfotoRamBox) på en ${SKARM_B}×${SKARM_H}-skärm, fotot som video`;
     console.log(`\n══ ${namn} ══`);
     console.log('\nSeten (fotona spelas upp i ordning på en tom lek, som Photo 1, Photo 2 …):');
     tabell(['Set', 'Foton', 'Facit', 'Mesa (spelbara)', 'Rätt', 'Saknas', 'Extra', 'Fel namn', 'Oläsliga', 'Osäkra', 'Poster', 'Otydl'],
       Object.entries(res.set[lage]).map(([s, m]) => { const gm = g('set', lage, s); return [s, m.foton, m.facit, cell(m, gm, 'alla', m => `${m.alla} (${m.spelbara})`), cell(m, gm, 'ratt'), cell(m, gm, 'saknas'), cell(m, gm, 'extra'),
-        cell(m, gm, 'felNamn'), cell(m, gm, 'olasliga'), cell(m, gm, 'osakra'), m.poster, m.otydliga]; }));
+        cell(m, gm, 'felNamn', felCell), cell(m, gm, 'olasliga'), cell(m, gm, 'osakra'), m.poster, m.otydliga]; }));
     console.log('\nVarje foto för sig, mot fotots hela grupper (kant räknas inte):');
     tabell(['Foto', 'Duk', 'Lampan', 'Facit', 'Poster (tomma)', 'Otydl', 'Mesa (spelbara)', 'Rätt', 'Saknas', 'Extra (kant)', 'Fel namn', 'Oläsliga', 'Osäkra', 'Svar', 'Tid'],
       Object.entries(res.foton[lage]).map(([f, m]) => { const gm = g('foton', lage, f); return [f, m.duk, m.lampan, m.facit, `${m.poster} (${m.tomma})`, m.otydliga, cell(m, gm, 'alla', m => `${m.alla} (${m.spelbara})`),
-        cell(m, gm, 'ratt'), cell(m, gm, 'saknas'), cell(m, gm, 'extra', m => `${m.extra} (${m.kant})`), cell(m, gm, 'felNamn'), cell(m, gm, 'olasliga'), cell(m, gm, 'osakra'), m.svarNr, m.ms ? Math.round(m.ms / 1000) + ' s' : '–']; }));
+        cell(m, gm, 'ratt'), cell(m, gm, 'saknas'), cell(m, gm, 'extra', m => `${m.extra} (${m.kant})`), cell(m, gm, 'felNamn', felCell), cell(m, gm, 'olasliga'), cell(m, gm, 'osakra'), m.svarNr, m.ms ? Math.round(m.ms / 1000) + ' s' : '–']; }));
     const fel = [...Object.entries(res.set[lage]).flatMap(([s, m]) => m.felsteg.map(t => `${s} ${t}`)), ...Object.entries(res.foton[lage]).flatMap(([, m]) => m.saknasSvar.map(t => t + ': inget svar i cachen'))];
     if (fel.length) console.log('\n  Telefonens felskärm eller inget svar:\n    ' + [...new Set(fel)].join('\n    '));
     if (DETALJ) {
@@ -528,7 +556,7 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
 
   /* 5. summeringen */
   const tot = (rs, k) => Object.values(rs).reduce((a, m) => a + (m[k] || 0), 0);
-  const totalt = rs => Object.fromEntries(['facit', 'alla', 'spelbara', 'ratt', 'saknas', 'extra', 'kant', 'felNamn', 'olasliga', 'osakra'].map(k => [k, tot(rs, k)]));
+  const totalt = rs => Object.fromEntries(['facit', 'alla', 'spelbara', 'ratt', 'saknas', 'extra', 'kant', 'felNamn', 'felSakra', 'olasliga', 'osakra'].map(k => [k, tot(rs, k)]));
   const exakt = rs => Object.values(rs).filter(m => m.ratt === m.facit && m.alla === m.facit).length;
   console.log('\n══ Summering ══');
   const rader = [];
@@ -537,13 +565,14 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
     const t = totalt(res[del][lage]), gt = gTot(del, lage), n = Object.keys(res[del][lage]).length;
     if (!n) continue;
     rader.push([`${lage} · ${del === 'set' ? n + ' set' : n + ' foton'}`, t.facit, `${t.alla} (${t.spelbara})`, `${t.ratt}/${t.facit}` + var_(t, gt, 'ratt'), t.saknas + var_(t, gt, 'saknas'),
-      (del === 'foton' ? `${t.extra} (${t.kant})` : t.extra) + var_(t, gt, 'extra'), t.felNamn + var_(t, gt, 'felNamn'), t.olasliga + var_(t, gt, 'olasliga'), t.osakra + var_(t, gt, 'osakra'),
+      (del === 'foton' ? `${t.extra} (${t.kant})` : t.extra) + var_(t, gt, 'extra'), felCell(t) + var_(t, gt, 'felNamn'), t.olasliga + var_(t, gt, 'olasliga'), t.osakra + var_(t, gt, 'osakra'),
       del === 'set' ? `${exakt(res.set[lage])}/${n}` : '']);
   }
   tabell(['', 'Facit', 'Mesa (spelbara)', 'Rätt', 'Saknas', 'Extra', 'Fel namn', 'Oläsliga', 'Osäkra', 'Exakt rätt'], rader);
   console.log('\n  Facit: korten som ska in. Mesa: kort i leken efteråt, med platshållarna; (spelbara) utan dem = decks.antal.');
   console.log('  Rätt: per namn min(facit, Mesa). Saknas: facit − rätt. Extra: fler av ett namn än facit (dubbletter, kort ur ett annat foto);');
-  console.log('  (kant): av dem, namn ur grupper som bara syns kapade vid fotots kant. Fel namn: ett namn som inte finns i leken (ska vara 0).');
+  console.log('  (kant): av dem, namn ur grupper som bara syns kapade vid fotots kant. Fel namn: ett kort som inte finns i leken (ska vara 0);');
+  console.log('  (utan koll): av dem, kort som inte står under To check — de går rakt in i leken, det värsta felet.');
   console.log('  Oläsliga: platshållare (Unreadable card) — titelraden gick inte att läsa eller namnet att slå upp. Osäkra: kort med namn under To check.');
   console.log('  Poster: kort i Claudes svar (tomma: utan namn). Otydl: kort Claude såg men inte tog med. Lampan: telefonens dom om duken (lekDomAv).');
   console.log('  Exakt rätt: set där leken blev precis facit — alla kort rätt, inga extra, inga platshållare. (var N): baslinjens tal.');
@@ -556,14 +585,14 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
   const tider = anvanda.map(s => s.ms).filter(Boolean).sort((a, b) => a - b);
   console.log(`\n  metod: lekfoto — Claude ${modeller.join(', ') || MODELL} via api/identify.js i läget 'lek', systemprompt v${pv.join(', ') || PROMPTV} (lekblocket ${LEKBLOCK})`
     + `\n         beskärning: telefonens lekKallDuk/lekB64/telfotoRamBox (kod ${BESK_KOD_SHA}) i ${version} · avläsning: telfotoLas + lekSparaKo i Node · uppslagning: appens lookup mot Scryfall`
-    + `\n         facit ${FACIT_SHA} · ${foton.length} foton × ${LAGEN.length} beskärningar = ${anvanda.length} svar (${SVARVAL === 'sista' ? 'det senaste' : 'svar ' + SVARVAL} per foto)`);
+    + `\n         facit ${FACIT_SHA} · ${foton.length} foton × ${LAGEN.length} beskärningar = ${anvanda.length} svar (${SVARVAL === 'forsta' ? 'det första' : SVARVAL === 'sista' ? 'det senaste' : 'svar ' + SVARVAL} per foto${LAS_OM ? ', det nya för de omlästa' : ''})`);
   if (pv.length && !pv.includes(PROMPTV)) console.log(`  OBS: svaren kom från systemprompt v${pv.join(', ')}, api/identify.js säger nu v${PROMPTV}.`);
   if (bas && (bas.promptv !== PROMPTV || bas.modell !== (modeller[0] || MODELL) || bas.lekblock !== LEKBLOCK)) console.log(`  OBS: baslinjen gjordes med ${bas.modell}, systemprompt v${bas.promptv} (lekblocket ${bas.lekblock}).`);
   if (bas && bas.facit !== FACIT_SHA) console.log(`  OBS: baslinjen gjordes mot ett annat facit (${bas.facit}).`);
   console.log(`  Claude: ${nyaAnrop} nya anrop i den här körningen${anropsFel.length ? ', ' + anropsFel.length + ' misslyckades' : ''}. Svaren som används: ${anvanda.length} anrop, ${tin} tokens in / ${tut} ut`
     + (pris ? ` ≈ $${((tin * pris[0] + tut * pris[1]) / 1e6).toFixed(2)} om allt läses om` : '')
     + (tider.length ? `; svarstid median ${Math.round(tider[tider.length >> 1] / 1000)} s, längst ${Math.round(tider[tider.length - 1] / 1000)} s.` : '.'));
-  console.log(`  Scryfall: ${sfRakna.natet} anrop mot nätet, ${sfRakna.cache} ur cachen (${SF_FIL.replace(ROT + '/', '')}).`);
+  console.log(`  Scryfall: ${sfRakna.natet} anrop mot nätet${sfRakna.spärr ? ` (varav ${sfRakna.spärr} spärrade med 429 och gjorda om)` : ''}, ${sfRakna.cache} ur cachen (${SF_FIL.replace(ROT + '/', '')}).`);
   if (anropsFel.length) console.log('  Misslyckade anrop:\n    ' + anropsFel.join('\n    '));
   if (bytesAndrade.length) console.log(`  OBS: duken som skickades nu skiljer sig i bytes från den som lästes (${bytesAndrade.join(', ')}) — samma kod och mått, men kodaren gav andra bytes. Svaret gäller ändå samma beskärning.`);
 
@@ -605,8 +634,7 @@ const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
   if (SPARA) {
     if (anropsFel.length || BARA_CACHE && jobb.length) { console.log('\n  --spara vägras: alla foton har inte ett svar.'); process.exit(2); }
     const ren = rs => Object.fromEntries(Object.entries(rs).map(([id, m]) => [id, Object.fromEntries(Object.entries(m).filter(([k]) => !['lista', 'felsteg', 'saknasSvar', 'usage', 'box'].includes(k)))]));
-    let commit = ''; try { commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROT, encoding: 'utf8' }).trim(); } catch (e) {}
-    const ny = { datum: new Date().toISOString().slice(0, 16).replace('T', ' '), commit, modell: modeller[0] || MODELL, promptv: pv[0] != null ? pv[0] : PROMPTV, lekblock: LEKBLOCK,
+    const ny = { datum: new Date().toISOString().slice(0, 16).replace('T', ' '), modell: modeller[0] || MODELL, promptv: pv[0] != null ? pv[0] : PROMPTV, lekblock: LEKBLOCK,
       besk: BESK_KOD_SHA, facit: FACIT_SHA, skarm: `${SKARM_B}x${SKARM_H}`, svar: SVARVAL,
       foton: Object.assign({}, bas && bas.foton, Object.fromEntries(LAGEN.map(l => [l, ren(res.foton[l])]))),
       set: Object.assign({}, bas && bas.set, Object.fromEntries(LAGEN.map(l => [l, ren(res.set[l])]))) };
