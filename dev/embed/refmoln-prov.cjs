@@ -15,7 +15,11 @@
         samma fyra, den äldsta borta, och poolen i minnet släpper den
      D  offline: det som lärts utan nät laddas upp vid nästa poolbygge
      E  "Forget learned photos…": tabellen töms, telefon 2 släpper de uppladdade
-     F  en annan lek och en annan spelare rörs inte */
+     F  en annan lek och en annan spelare rörs inte
+     G  appens förval sedan MES-232 (val A): lärda referenser synkas som i B,
+        men poolen bär inga — de används inte i igenkänningen
+   B–F körs med MESA_REF_ANVAND = true (poolen bär referenserna, som före
+   MES-232), så att det de säger om poolen fortfarande provas. */
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -86,7 +90,7 @@ function nyEnhet(namn, tabell, o) {
   let klocka = o.klocka || 1_700_000_000_000, fro = [...(o.fro || namn)].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0;
   const Datum = { now: () => klocka };
   const Matte = Object.assign(Object.create(Math), { random: () => { fro = (fro * 1664525 + 1013904223) >>> 0; return fro / 4294967296; } });
-  const ctx = vm.createContext({ window: { MESA_REFMOLN: o.utanSynk ? false : undefined }, IDB, Pool, Moln, BAKSIDA_NAMN: '(card back)', Date: Datum, Math: Matte,
+  const ctx = vm.createContext({ window: { MESA_REFMOLN: o.utanSynk ? false : undefined, MESA_REF_ANVAND: o.anvand === false ? undefined : true }, IDB, Pool, Moln, BAKSIDA_NAMN: '(card back)', Date: Datum, Math: Matte,
     setTimeout: (f) => { timers.push(f); return timers.length; }, clearTimeout: () => {}, Promise, Map, Set, String, Object, Array, Number, JSON, console, document: {} });
   vm.runInContext(REF_KOD + '\n' + REFMOLN_KOD + '\n;this.Ref = Ref; this.RefMoln = RefMoln; this.REF_TAK = REF_TAK;', ctx);
   Object.assign(enhet, {
@@ -185,6 +189,20 @@ const idsAv = xs => xs.map(r => r.id).sort().join(',');
   prov('F telefon 1:s lek 1 ser varken lek 2 eller den andra spelarens', t1.lista().length === 0);
   await t2.byggPool(LEK2);
   prov('F telefon 2 ser lek 2 när den leken byggs', t2.lista().length === 1 && t2.lista()[0].name === 'Plains');
+
+  /* G: appens förval (MESA_REF_ANVAND inte satt): synkas, men poolen bär inga. */
+  {
+    const tabellG = nyTabell();
+    const g1 = nyEnhet('förval 1', tabellG, { anvand: false, klocka: 1_700_000_000_000 }), g2 = nyEnhet('förval 2', tabellG, { anvand: false, klocka: 1_700_000_500_000 });
+    await g1.byggPool(LEK);
+    await g1.lar('Pacifism', bild('G1'), 'ai'); await g1.lar('Swamp', bild('G2'), 'hand');
+    prov('G förval: Ref.anvand() av, Ref.pa() och RefMoln.pa() på', !g1.Ref.anvand() && g1.Ref.pa() && g1.RefMoln.pa());
+    prov('G förval: lärda och sparade i IndexedDB', g1.lista().length === 2 && JSON.parse(g1.idb.get('ref:' + LEK)).refs.length === 2);
+    prov('G förval: uppe i tabellen', idsAv(tabellG.rader) === idsAv(g1.lista()));
+    await g2.byggPool(LEK);
+    prov('G förval: telefon 2 får dem vid poolbygget', JSON.stringify(g2.lista()) === JSON.stringify(g1.lista()));
+    prov('G förval: ingen av poolerna bär dem', [g1, g2].every(e => !e.Pool.idx.ids.some(x => /#ref/.test(x))), { g1: g1.Pool.idx.ids, g2: g2.Pool.idx.ids });
+  }
 
   console.log(`\n${ok} OK, ${fel} FEL`);
   process.exit(fel ? 1 : 0);

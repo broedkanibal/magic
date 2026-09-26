@@ -86,7 +86,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/avstand.cjs --ai --fall 02,06` | samma, med Claude (kostar, ~5–10 cent för två fall): läser Claude korten där den lokala kedjan tappar dem? |
 | `node dev/golden/avstand.cjs --faktorer 0.5 --tro "anaBredd:540"` | samma mått med en annan **analysbredd** (MES-244) — se *Avstånd*; `--utan-modell` och `--wasm` som i `kor.cjs` |
 | `node dev/golden/kor.cjs --lar-ref` | lär in facit efter varje fall, som om spelaren bekräftat korten (se *Lärda referenser*) |
-| `node dev/golden/kor.cjs --ref` | samma prov med de lärda referenserna i poolen; `--glom-ref` glömmer dem först |
+| `node dev/golden/kor.cjs --ref` | samma prov med de lärda referenserna inlästa som i appen — sedan MES-232 används de inte i igenkänningen, så resultatet ska vara detsamma som utan. `--ref-anvand` väver in dem som före MES-232; `--glom-ref` glömmer dem först |
 | `node dev/kamerabank.cjs` | bänken: syntetiska bord och rörelse, ska sluta med `0 FEL` |
 | `node dev/avstamning.cjs` | datorns sida: granskningslistan och bordet efteråt, ska sluta med `0 FEL` |
 | `node dev/dubbletter.cjs --fall 07` | eget mått: videofallets bordsrapporter genom datorns avstämning — var dubbletter och tap-fel uppstår (se *Dubbletter*) |
@@ -679,19 +679,27 @@ poolen i minnet (`Pool.laggTill`) och rankas som vilket konstverk som helst;
 utåt heter de kortet (`refSid`). *Forget learned photos…* i lekens meny på
 datorn glömmer dem, på datorn och på telefonen.
 
+**Sedan MES-232 (val A, 2026-09-26) används de inte i igenkänningen.**
+Blandade med Scryfalls bilder gav de 6 fel namn i `--ljus alla --ref` mot 0
+utan dem. De lärs, sparas och synkas mellan enheter (`RefMoln`) som förut,
+men vävs varken in i poolen eller i bildmodellen. Tre växlar på appens
+fönster: `MESA_REF` (läsa in och synka, förval på), `MESA_REF_ANVAND`
+(använda i igenkänningen, förval **av**) och `MESA_LAR` (lära nya, förval på).
+
 Golden setet mäter UTAN dem om det inte ber om dem — appen läser flaggorna
 `MESA_REF`/`MESA_LAR` på sitt fönster, som `kor.html` sätter:
 
 | Kommando | Gör |
 |---|---|
 | `node dev/golden/kor.cjs --lar-ref` | varje fall döms som vanligt, och EFTER domen får spåren facit (bara de som inte redan var säkert rätt — de frågas aldrig i spel): appens `kamLart` lär beskärningen. Raden `lärda referenser:` säger hur många per fall |
-| `node dev/golden/kor.cjs --ref` | poolen bär referenserna från förra `--lar-ref`; raden `metod:` visar `+ref` och tabellen jämförs mot samma baslinje — men `--spara` gäller inte |
-| `node dev/golden/kor.cjs --lar-ref --ref` | leave-one-out i följd: varje fall mäts med det de TIDIGARE fallen lärde, aldrig med sina egna. `--fall 06,05,04,03,02,01` vänder ordningen |
+| `node dev/golden/kor.cjs --ref` | appens förval: referenserna från förra `--lar-ref` läses in men används inte (`metod:` visar `+ref(oanvända)`); raden `lärda referenser:` visar `0 i poolen, N sparade`. Ska ge samma tabell som utan `--ref` |
+| `node dev/golden/kor.cjs --ref-anvand` | poolen och bildmodellen bär referenserna, som före MES-232 (`metod:` visar `+ref`). Det här mäter en variant som ska slås på igen (val C). Tabellen jämförs mot samma baslinje — men `--spara` gäller inte |
+| `node dev/golden/kor.cjs --lar-ref --ref-anvand` | leave-one-out i följd: varje fall mäts med det de TIDIGARE fallen lärde, aldrig med sina egna. `--fall 06,05,04,03,02,01` vänder ordningen |
 | `node dev/golden/kor.cjs --glom-ref` | referenserna för golden-poolen bort innan något körs (kan kombineras med `--lar-ref`) |
 
-Måttet som räknas: `--ref` på fall som INTE lärt sig själva. Fallen 01–06
+Måttet som räknas: `--ref-anvand` på fall som INTE lärt sig själva. Fallen 01–06
 är samma lek på samma bord i olika ljus, så `--lar-ref --fall 01` följt av
-`--ref --fall 02,03,04,05,06` säger vad ett spelat parti ger nästa.
+`--ref-anvand --fall 02,03,04,05,06` säger vad ett spelat parti ger nästa.
 
 ## Lägga till ett nytt foto
 
