@@ -5788,10 +5788,9 @@ const Moln = (() => {
     let q = s.from('decks').update(Object.assign({}, data, { uppdaterad: nu })).eq('id', id).eq('user_id', minId());
     if (sedd) q = q.lte('uppdaterad', new Date(sedd).toISOString());
     const { data: rader, error } = await q.select('*');
-    /* forsok: tiden vi försökte skriva. Ett fel kan vara ett svar som
-       aldrig kom fram fast raden skrevs — bär raden sedan den tiden gick
-       skrivningen igenom (lekSparaKo, MES-289). */
-    if (error) { console.warn('Leken kunde inte sparas', error.message); return { ok: false, fel: error.message, forsok: Date.parse(nu) }; }
+    /* Ett fel kan vara ett svar som aldrig kom fram fast raden skrevs.
+       lekSparaKo känner igen det på ändringarnas id:n i raden (klara, MES-289). */
+    if (error) { console.warn('Leken kunde inte sparas', error.message); return { ok: false, fel: error.message }; }
     if (rader && rader.length) return { ok: true, rad: Object.assign({ ts: lekTs(rader[0]) }, rader[0]) };
     /* Ingen rad skrevs: någon annan enhet hann före (eller leken är borta).
        Faller omläsningen på nätet vet vi ingenting — det är ett fel att
@@ -12526,9 +12525,32 @@ function lekOkandKort(las, kalla, remsa, id) {
 }
 /* Ett riktigt kort (med tryckning) eller en platshållare — det som får bli en rad. */
 const lekSlagKort = k => !!(k && (k.sid || k.okand));
+/* Varje ändring får ett id när den skickas första gången (lekSparaKo), och
+   raden bär id:na på de senaste ändringarna som redan ligger i den
+   (decks.klara, MES-289). En ändring vars id står där spelas inte upp igen.
+
+   Varför: ett försök vars svar försvann kan ändå ha skrivits. Spelades
+   samma kö upp igen på den nyare raden lades korten in två gånger — och
+   tidsstämpeln som förut skulle känna igen den egna skrivningen gjorde det
+   bara om ingen annan skrev emellan (telefonen 3 → 6), räknade fel när kön
+   växte mellan försöken (datorn 1+1+1 → 2+2+1) och fanns inte alls när
+   pollningen läste in den egna skrivningen (1+1 → 2+2). Med id:n i raden är
+   varje ändring gjord högst en gång, var den än spelas upp: sparningen,
+   datorns vy, telefonen och pollningen.
+
+   En rad utan klara (före kolumnen, en äldre flik) spelar upp allt, som
+   förut. Listan kapas till de senaste LEK_KLARA_TAK; kön som sparas nu
+   står alltid kvar i den, hur lång den än är. */
+const LEK_KLARA_TAK = 400;
+const lekSlagKlara = bas => new Set(bas && Array.isArray(bas.klara) ? bas.klara : []);
+function lekSlagKlaraEfter(bas, ops) {
+  const nya = [...new Set((ops || []).map(op => op && op.id).filter(Boolean))], ko = new Set(nya);
+  const gamla = (bas && Array.isArray(bas.klara) ? bas.klara : []).filter(id => id && !ko.has(id));
+  return gamla.concat(nya).slice(-Math.max(LEK_KLARA_TAK, nya.length));
+}
 function lekSlagTillampa(bas, ops) {
   let namn = (bas && bas.namn) || '';
-  const kort = [];
+  const kort = [], klara = lekSlagKlara(bas);
   const hitta = (name, sb) => { const n = lekSlagNyckel(name, sb); return kort.findIndex(k => lekSlagNyckel(k.name, k.sb) === n); };
   const rad = (mall, n, sb) => {
     const k = { name: mall.name, sid: mall.sid, small: mall.small || null, n };
@@ -12550,6 +12572,7 @@ function lekSlagTillampa(bas, ops) {
   }
   for (const op of ops || []) {
     if (!op) continue;
+    if (op.id && klara.has(op.id)) continue;      // ligger redan i raden (MES-289)
     if (op.typ === 'namn') { if (op.namn) namn = op.namn; continue; }
     const i = hitta(op.name, op.sb);
     if (op.typ === 'antal') {
@@ -12981,33 +13004,40 @@ function lekNyttNamnAv(lista) {
    Ett försök vars svar aldrig kom fram — nätet föll efter att raden skrevs —
    kan ändå ha gått igenom (MES-289). Spelades samma kö då upp igen på den
    nyare raden lades korten in två gånger: ett foto på trettio kort som
-   sparades om efter ett nätfel gav sextio. Varje sådant försök lämnar
-   därför tiden det skrev ({ts, n}: n = antalet ändringar i kön då) i
-   `forsok`, som följer med svaret och skickas med nästa gång samma kö
-   sparas (o.forsok). Bär raden en av de tiderna ligger de n första
-   ändringarna redan i den, och bara resten spelas upp. Kön får bara växa
-   i slutet mellan försöken. */
-async function lekSparaKo(id, bas, ops, o = {}) {
-  let rad = bas, forsok = (o.forsok || []).slice();
+   sparades om efter ett nätfel gav sextio. Därför får varje ändring ett id
+   här, första gången den skickas — på objektet självt, så att samma
+   ändring bär samma id i datorns kö (y.ops), bakgrundens kopia av den och
+   telefonens osparade foto — och raden skrivs med id:na i klara
+   (lekSlagKlaraEfter). En ändring som redan ligger i raden hoppas över av
+   lekSlagTillampa, vilken rad kön än spelas upp på. Kom inget svar alls
+   läses raden en gång: ligger allt redan där är sparningen klar. */
+const lekOpId = () => uid();
+async function lekSparaKo(id, bas, ops) {
+  for (const op of ops) if (op && !op.id) op.id = lekOpId();
+  const kvar = r => { const g = lekSlagKlara(r); return ops.filter(op => op && !g.has(op.id)).length; };
+  let rad = bas;
   for (let varv = 0; varv < 3; varv++) {
+    /* Allt ligger redan i raden (vår egen skrivning, inläst): inget att skriva. */
+    if (ops.length && !kvar(rad)) return { ok: true, rad };
     const v = lekSlagTillampa(rad, ops);
     const kort = v.kort.map(k => { if (k.ci) return k; const ci = lekCiAv(k); return ci ? Object.assign({}, k, { ci }) : k; });
-    const data = { kort, namn: v.namn || rad.namn || 'My deck', antal: lekSpelAntal(kort), farger: lekFargerAv(kort, rad.farger) };
+    const data = { kort, namn: v.namn || rad.namn || 'My deck', antal: lekSpelAntal(kort), farger: lekFargerAv(kort, rad.farger),
+                   klara: lekSlagKlaraEfter(rad, ops) };
     const res = await lekSpara(id, data, rad.ts || null);
     if (res.ok) return res;
-    if (res.forsok) forsok.push({ ts: res.forsok, n: ops.length });
-    /* Kom inget svar alls: titta en gång om skrivningen gick igenom ändå. */
-    const nu = res.konflikt ? res.rad : res.forsok ? await lekHamtaRad(id).catch(() => null) : null;
-    const gick = nu && forsok.find(f => f.ts === nu.ts);
-    if (gick) {
-      ops = ops.slice(Math.min(gick.n, ops.length)); forsok = [];
-      if (!ops.length) return { ok: true, rad: nu };
-      rad = nu; continue;
-    }
     if (res.konflikt && res.rad) { rad = res.rad; continue; }
-    return Object.assign({}, res, { forsok });
+    if (res.borta) return res;
+    /* Kom inget svar alls: titta en gång om skrivningen gick igenom ändå. Har
+       raden fler av våra ändringar än den vi utgick från spelas resten upp på
+       den (inget, om allt kom fram); annars är det ett fel att försöka igen,
+       med raden som den ligger. */
+    const nu = await lekHamtaRad(id).catch(() => null);
+    if (!nu) return res;
+    if (kvar(nu) < kvar(rad)) { rad = nu; continue; }
+    return Object.assign({}, res, { rad: nu });
   }
-  return { ok: false, fel: 'The deck kept changing on another device', rad, forsok };
+  if (ops.length && !kvar(rad)) return { ok: true, rad };
+  return { ok: false, fel: 'The deck kept changing on another device', rad };
 }
 /* Efter en sparning: är leken den som spelas (eller senast valdes) följer
    leklådan, motståndarnas kopia (lek_info) och telefonens pool med. Poolen
@@ -13035,14 +13065,13 @@ function lekEfterRadering(id) {
 /* En kö som inte hann sparas innan sidan stängdes eller en annan lek öppnades
    (nätet borta) ges inte upp: den försöker igen i bakgrunden, med växande
    väntan, och säger ifrån först när det verkligen inte går. */
-function lekSparaIBakgrunden(id, bas, ops, forsok = 0, skrivna = []) {
+function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
   setTimeout(async () => {
     let res;
-    try { res = await lekSparaKo(id, bas, ops, { forsok: skrivna }); } catch (e) { res = { ok: false }; }
+    try { res = await lekSparaKo(id, bas, ops); } catch (e) { res = { ok: false }; }
     if (res.ok) { lekEfterSpar(bas, res.rad); return; }
     if (res.borta) return;
-    /* skrivna: försöken vars svar aldrig kom (lekSparaKo, MES-289). */
-    if (forsok < 8) lekSparaIBakgrunden(id, res.rad || bas, ops, forsok + 1, res.forsok || skrivna);
+    if (forsok < 8) lekSparaIBakgrunden(id, res.rad || bas, ops, forsok + 1);
     else toast('Your latest changes to a deck could not be saved', 'err');
   }, Math.min(30000, 2000 * 2 ** forsok));
 }
@@ -13503,7 +13532,7 @@ async function telfotoLas(kalla) {
        och ingen plats. De måste fotas igen, och klar-skärmen säger hur många. */
     const kapade = Math.max(0, +j.kapade || 0), ej = Math.max(kapade, +j.otydliga || 0);
     const extra = ej ? `${ej} ${ej === 1 ? 'card was' : 'cards were'} seen but not read — photograph ${ej === 1 ? 'it' : 'them'} again${kapade ? ', fewer at a time' : ''}.` : '';
-    await telfotoSpara({ nr, ops, sista: { nr, nya, koll: osakra, kort: lagda, extra }, forsok: [] });
+    await telfotoSpara({ nr, ops, sista: { nr, nya, koll: osakra, kort: lagda, extra } });
   } catch (e) {
     telfoto.fel = 'The reading did not get through. ' + ((e && e.message) || '');
     telfotoSteg('fel');
@@ -13511,15 +13540,14 @@ async function telfotoLas(kalla) {
 }
 /* Sparningen av ett läst foto. Går den inte igenom ligger fotot kvar
    (telfoto.osparat), och Try again sparar SAMMA kö igen i stället för att be
-   om ett nytt foto — med tiderna för de försök vars svar aldrig kom fram
-   (lekSparaKo). Förut bad felet om ett nytt foto: hade sparningen ändå gått
-   igenom lades samma kort in två gånger, och leken fick fler kort än som
-   fotats (MES-289). */
+   om ett nytt foto — samma ändringar med samma id:n, så att det som redan
+   kom fram inte läggs in igen (lekSparaKo). Förut bad felet om ett nytt
+   foto: hade sparningen ändå gått igenom lades samma kort in två gånger,
+   och leken fick fler kort än som fotats (MES-289). */
 async function telfotoSpara(p) {
   telfoto.osparat = p;
-  const res = await lekSparaKo(telfoto.id, telfoto.bas, p.ops, { forsok: p.forsok });
+  const res = await lekSparaKo(telfoto.id, telfoto.bas, p.ops);
   if (!res.ok || !res.rad) {
-    if (res.forsok) p.forsok = res.forsok;
     if (res.rad) telfoto.bas = res.rad;
     if (res.borta) telfoto.osparat = null;
     telfoto.fel = res.borta ? 'This deck no longer exists — it was deleted, perhaps on the computer.'
@@ -13581,7 +13609,6 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     nyNamn: '',           // en ny lek har ingen rad förrän den fått sitt första kort
     ops: [],              // ändringar som inte är sparade (LEKSLAG)
     flygP: null, flyger: 0, sparT: null, felN: 0,
-    forsok: [],           // sparningar vars svar aldrig kom fram (lekSparaKo, MES-289)
     spar: 'tom',          // 'tom' | 'andrat' | 'sparar' | 'sparat' | 'fel' | 'borta'
     skapaTomt: false,     // telefonen behöver raden innan det finns kort
     laddar: false,
@@ -13722,7 +13749,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     y.flyger = n; y.spar = 'sparar'; ritaStatus();
     y.flygP = (async () => {
       try {
-        if (y.bas) return await lekSparaKo(y.bas.id, y.bas, ops, { forsok: y.forsok });
+        if (y.bas) return await lekSparaKo(y.bas.id, y.bas, ops);
         /* En ny lek skapas med sitt första kort. Bara ett namn räcker inte:
            en lek man ångrade sig om ska inte bli liggande som en tom rad. */
         const v = lekSlagTillampa({ namn: y.nyNamn, kort: [] }, ops);
@@ -13736,7 +13763,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (res.tomt) { y.spar = 'tom'; ritaStatus(); return; }
     if (res.ok) {
       const forra = y.bas;
-      y.bas = res.rad; y.ops.splice(0, n); y.felN = 0; y.skapaTomt = false; y.forsok = [];
+      y.bas = res.rad; y.ops.splice(0, n); y.felN = 0; y.skapaTomt = false;
       y.spar = y.ops.length ? 'andrat' : 'sparat';
       lekEfterSpar(forra, res.rad);
       if (res.ny) { lyssna(); if (nar.skapad) nar.skapad(res.rad); }
@@ -13744,9 +13771,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     } else if (res.borta) {
       y.spar = 'borta'; y.ops = [];
     } else {
+      /* Raden kan bära ändringar ur kön vars svar aldrig kom: deras id:n står
+         i klara, och nästa försök (och vyn) hoppar över dem (MES-289). */
       if (res.rad) y.bas = res.rad;
-      /* Försök vars svar aldrig kom: nästa försök ska inte lägga in dem igen (MES-289). */
-      if (res.forsok) y.forsok = res.forsok;
       y.felN++; y.spar = 'fel';
       planera(Math.min(30000, 2000 * 2 ** Math.min(4, y.felN - 1)));
     }
@@ -13842,7 +13869,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   async function oppna(id, o = {}) {
     await stang();
     const s = ++y.session;
-    Object.assign(y, { bas: null, ops: [], felN: 0, forsok: [], spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
+    Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
                       namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null,
                       tel: telTom(), telHtml: '' });
     y.valda.clear(); y.nya.clear(); y.bekr.clear();
@@ -13891,7 +13918,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
        den, annars skickas samma kö två gånger. */
     while (y.flygP) await y.flygP;
     clearTimeout(y.sparT); y.sparT = null;
-    if (y.ops.length && y.bas && y.spar !== 'borta') lekSparaIBakgrunden(y.bas.id, y.bas, y.ops.slice(), 0, y.forsok);
+    if (y.ops.length && y.bas && y.spar !== 'borta') lekSparaIBakgrunden(y.bas.id, y.bas, y.ops.slice());
     /* En lek utan kort ska inte ligga kvar i Your decks (MES-177): lämnas
        den tom tas den bort. Ett ⌘Z hinner man bara göra medan sidan är
        öppen. Utom när telefonen fått leken i Phone-fliken: då kan korten

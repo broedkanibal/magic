@@ -9,6 +9,12 @@
    sparningen — också ett nätfel där raden ändå skrevs. Scryfall och servern
    (decks-raden) är attrapper.
 
+   Dubbletter efter ett försvunnet svar (MES-289, A–C): varje ändring har ett
+   id och raden bär id:na på det som redan ligger i den (decks.klara). A
+   (telefonen, datorn sparade emellan), B (datorns kö växte mellan försöken)
+   och C (pollningen läste in datorns egen skrivning) provas här — och mot
+   index.html med id-mekanismen bortplockad, bit för bit, där de ska fällas.
+
    Frågan varje fall svarar på: blir varje kort som svaret visar en rad i
    leken — ett vanligt kort, eller en post under To check — och säger
    telefonens klar-skärm hur många som inte kom med alls?
@@ -108,7 +114,9 @@ function nyCtx(app0) {
      `sedd`, annars {konflikt, rad}. fel-kön styr nästa sparning:
        'nere'    nätet föll innan något skrevs
        'tappat'  raden skrevs, men svaret kom aldrig fram
-     Båda svarar som den riktiga: {ok: false, fel, forsok: tiden den försökte skriva}. */
+     Båda svarar som den riktiga: {ok: false, fel}. forsok (tiden den försökte
+     skriva) svarade den riktiga före decks.klara; det står kvar för --mot
+     mot en äldre index.html, och dagens kod läser det inte. */
   ctx.lekSpara = async (id, data, sedd) => {
     const f = ctx.server.fel.shift(), rad = ctx.server.rad;
     const ts = ++klocka;
@@ -241,9 +249,9 @@ const FALL = [
       ctx.datorn([{ typ: 'antal', name: 'Plains', sb: false, d: 4, kort: { name: 'Plains', sid: 'pl', small: null } }]);
       await foto(app, ctx, TRE);
     } },
-  /* Känt, också på main, INTE rättat (MES-289, granskningen): tidsstämpeln
-     känner igen en egen skrivning bara om ingen annan skrev emellan. */
-  { id: 'kant-a', namn: 'KÄNT: svaret försvann, datorn sparade emellan → Try again', matning: true,
+  /* A (MES-289): tidsstämpeln som förut skulle känna igen den egna
+     skrivningen gjorde det bara om ingen annan skrev emellan — 3 blev 6. */
+  { id: 'kant-a', namn: 'A: svaret försvann, datorn sparade emellan → Try again',
     poster: 3, facit: Object.assign({ Plains: 4 }, TRE_FACIT),
     kor: async (app, ctx) => {
       ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
@@ -371,6 +379,13 @@ function doma(r) {
     assert.equal(l.totalt, 7);
     assert.equal(l.rad.find(k => k.name === 'Plains').n, 4);
   });
+  prov('A: svaret försvann, datorn sparade emellan → Try again: fotots kort EN gång, datorns 4 Plains kvar', () => {
+    const x = R('kant-a');
+    assert.equal(x.fall.igen, 'sparat igen');
+    assert.equal(x.steg, 'klar');
+    assert.equal(x.leken.totalt, 7, `leken fick ${x.leken.totalt} av 7: ${x.leken.rad.map(k => k.n + ' ' + k.name).join(', ')}`);
+    assert.equal(x.leken.rad.find(k => k.name === 'Plains').n, 4);
+  });
 }
 
 /* ── lekSparaKo direkt: kön växer mellan försöken ─────────────────── */
@@ -379,8 +394,12 @@ async function sparaKoProv(fil) {
   const ctx = nyCtx(null), app = ladda(fil)(ctx);
   const bas = kopia(ctx.server.rad);
   ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
-  const a = await app.lekSparaKo('lek1', bas, [L('Sol Ring', 'sr')]);
-  const b = await app.lekSparaKo('lek1', bas, [L('Sol Ring', 'sr'), L('Counterspell', 'cs', 2)], { forsok: a.forsok });
+  /* Kön är samma objekt mellan försöken (datorns y.ops, telefonens osparade
+     foto): det nya läggs till i slutet. */
+  const ko = [L('Sol Ring', 'sr')];
+  const a = await app.lekSparaKo('lek1', bas, ko.slice());
+  ko.push(L('Counterspell', 'cs', 2));
+  const b = await app.lekSparaKo('lek1', bas, ko.slice(), { forsok: a.forsok });
   prov('lekSparaKo: första försöket gick igenom utan svar, kön växte — bara det nya spelas upp', () => {
     assert.equal(a.ok, false);
     assert.ok(b.ok, JSON.stringify(b));
@@ -392,9 +411,10 @@ async function sparaKoProv(fil) {
 
 /* ── Moln.sparaLek mot en påhittad databas ───────────────────────────
    Attrappen ovan svarar som sparaLek. Här provas sparaLek själv — utklippt
-   ur Moln, mot en låtsad Supabase-klient — så att tiden den lämnar i
-   `forsok` verkligen är den tid raden bär om skrivningen gick igenom, och
-   så att en omläsning som faller på ett nätfel inte blir "leken är borta". */
+   ur Moln, mot en låtsad Supabase-klient — så att klara verkligen hamnar i
+   raden också när svaret aldrig kom fram, så att en omläsning som faller på
+   ett nätfel inte blir "leken är borta", och A hela vägen: telefonens och
+   datorns lekSparaKo mot den riktiga sparaLek. */
 function laddaMoln(fil, db) {
   const src = fs.readFileSync(fil, 'utf8');
   const a = src.indexOf('  const lekTs = r =>'), b = src.indexOf('  async function dopOmLek(', a);
@@ -432,17 +452,18 @@ return { sparaLek, hamtaLekRad };`)(klient);
 }
 async function molnProv(fil) {
   const iso = ms => new Date(ms).toISOString();
+  const vila = () => new Promise(r => setTimeout(r, 3));   // sparaLek stämplar i ms: två skrivningar ska inte dela tid
   const db = { rader: [{ id: 'lek1', user_id: 'u1', namn: 'Boros', kort: [], antal: 0, uppdaterad: iso(Date.now() - 60000) }], fel: [], lasFel: [] };
   const M = laddaMoln(fil, db);
   const bas = await M.hamtaLekRad('lek1');
   db.fel.push('tappat');
-  const a = await M.sparaLek('lek1', { kort: [{ name: 'Sol Ring', sid: 'sr', n: 1 }], antal: 1 }, bas.ts);
+  const a = await M.sparaLek('lek1', { kort: [{ name: 'Sol Ring', sid: 'sr', n: 1 }], antal: 1, klara: ['op1'] }, bas.ts);
   const efter = await M.hamtaLekRad('lek1');
-  prov('Moln.sparaLek: ett svar som aldrig kom bär tiden raden fick (forsok = radens ts)', () => {
+  prov('Moln.sparaLek: ett svar som aldrig kom är ett fel — och raden bär ändringens id (klara)', () => {
     assert.equal(a.ok, false);
-    assert.ok(a.forsok, 'forsok saknas');
-    assert.equal(efter.ts, a.forsok);
+    assert.ok(a.fel, JSON.stringify(a));
     assert.equal(efter.antal, 1, 'raden skrevs');
+    assert.deepEqual(efter.klara, ['op1']);
   });
   /* Konflikt (raden ändrad efter bas) och omläsningen faller på nätet. */
   db.lasFel.push('nere');
@@ -455,6 +476,36 @@ async function molnProv(fil) {
   const d = await M.sparaLek('lek-som-inte-finns', { antal: 5 }, bas.ts);
   prov('Moln.sparaLek: en lek som verkligen är borta är fortfarande borta', () => {
     assert.equal(d.borta, true, JSON.stringify(d));
+  });
+
+  /* A hela vägen, mot den riktiga sparaLek: telefonens foto skrivs men
+     svaret försvinner och omläsningen faller; datorn (som läst raden före
+     fotot) lägger till 4 Plains; en äldre flik sparar utan klara (update
+     sätter bara de fält den får); telefonen trycker Try again med samma
+     kö-objekt som sitt osparade foto. */
+  const db2 = { rader: [{ id: 'lek1', user_id: 'u1', namn: 'Boros', kort: [], antal: 0, farger: [], klara: [], uppdaterad: iso(Date.now() - 60000) }], fel: [], lasFel: [] };
+  const M2 = laddaMoln(fil, db2);
+  const kopp = () => ladda(fil)({ lekSpara: M2.sparaLek, lekHamtaRad: M2.hamtaLekRad, telfoto: {}, kanal: [], steg: [] });
+  const tel = kopp(), dator = kopp();
+  const telBas = await M2.hamtaLekRad('lek1'), datorBas = await M2.hamtaLekRad('lek1');
+  const fotot = [L('Sol Ring', 'sr'), L('Arcane Signet', 'as'), L('Counterspell', 'cs')];
+  await vila();
+  db2.fel.push('tappat'); db2.lasFel.push('nere');
+  const t1 = await tel.lekSparaKo('lek1', telBas, fotot);
+  await vila();
+  const dr = await dator.lekSparaKo('lek1', datorBas, [L('Plains', 'pl', 4)]);
+  await vila();
+  const radNu = await M2.hamtaLekRad('lek1');
+  await M2.sparaLek('lek1', { namn: 'Boros 2', kort: radNu.kort, antal: radNu.antal }, radNu.ts);
+  await vila();
+  const t2 = await tel.lekSparaKo('lek1', telBas, fotot);
+  const slut = db2.rader[0], tal = n => (slut.kort.find(k => k.name === n) || {}).n || 0;
+  prov(`A mot den riktiga sparaLek: telefonen fel → datorn +4 Plains → en äldre flik sparar → Try again: ${slut.kort.map(k => k.n + ' ' + k.name).join(', ')}`, () => {
+    assert.equal(t1.ok, false, 'första försöket ska ha gett fel');
+    assert.ok(dr.ok && t2.ok, JSON.stringify({ dr: dr.ok, t2 }));
+    assert.deepEqual([tal('Sol Ring'), tal('Arcane Signet'), tal('Counterspell'), tal('Plains')], [1, 1, 1, 4]);
+    assert.equal(slut.namn, 'Boros 2');
+    assert.ok(fotot.every(op => slut.klara.includes(op.id)), 'fotots id:n står kvar i klara efter den äldre flikens skrivning');
   });
 }
 
@@ -588,15 +639,31 @@ async function spelProv(fil) {
   }
 }
 
-/* ── kända luckor, också på main (inte rättade, se MES-289) ─────────
-   Granskningen återskapade tre sätt att få dubbletter som tidsstämpeln
-   inte fångar. De skrivs ut som mätning — inget FEL — så att den som rättar
-   dem (ett skriv-id i raden, n räknat mot hela kön) ser dem bli rätt. */
-async function kandaLuckor(fil) {
-  const rad = ctx => (ctx.server.rad.kort || []).map(k => `${k.n} ${k.name}`).join(', ');
-  const ut = [];
-  { /* B: datorn — kön växer efter ett försvunnet svar, och nästa försök faller efter igenkänningen. */
-    const ctx = nyCtx(null), app = ladda(fil)(ctx);
+/* ── A, B och C: dubbletter efter ett försvunnet svar (MES-289) ────────
+   Granskningen av e49bdce återskapade tre sätt att få dubbletter som
+   tidsstämpeln (forsok) inte fångade. Med ändringarnas id:n i raden
+   (decks.klara) ska alla tre ge rätt antal. Varje fall ger [namn, fel|null,
+   det leken fick]. forsok skickas fortfarande med mellan försöken — det gör
+   ingenting i dagens kod, men låter --mot köra samma fall mot en äldre
+   index.html med dess eget skydd. */
+async function luckor(src) {
+  const ut = [], kolla = (namn, fick, f) => { let e = null; try { f(); } catch (x) { e = x.message; } ut.push([namn, e, fick]); };
+  const txt = kort => (kort || []).map(k => `${k.n} ${k.name}`).join(', ');
+  const tal = (kort, n) => ((kort || []).find(k => k.name === n) || {}).n || 0;
+  { /* A: telefonen — svaret försvann, omläsningen föll, datorn sparade emellan, Try again. */
+    const app0 = laddaSrc(src)(nyCtx(null));
+    const ctx = nyCtx(app0), app = laddaSrc(src)(ctx);
+    ctx.fall = {}; oppna(ctx);
+    ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
+    await foto(app, ctx, TRE);
+    ctx.datorn([{ typ: 'antal', name: 'Plains', sb: false, d: 4, kort: { name: 'Plains', sid: 'pl', small: null } }]);
+    await igen(app, ctx, TRE);
+    const k = ctx.server.rad.kort;
+    kolla('A telefonen: svaret försvann, datorn sparade emellan → Try again', txt(k),
+      () => assert.deepEqual(['Sol Ring', 'Arcane Signet', 'Thalia, Guardian of Thraben', 'Plains'].map(n => tal(k, n)), [1, 1, 1, 4]));
+  }
+  { /* B: datorn — kön växer efter ett försvunnet svar, och nästa försök faller också. */
+    const ctx = nyCtx(null), app = laddaSrc(src)(ctx);
     let bas = kopia(ctx.server.rad), forsok = [];
     const ops = [L('Sol Ring', 'sr'), L('Arcane Signet', 'as')];
     ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
@@ -606,18 +673,53 @@ async function kandaLuckor(fil) {
     ctx.server.fel.push(undefined, 'nere'); ctx.server.nereLas = 1;
     r = await app.lekSparaKo('lek1', bas, ops.slice(), { forsok });
     if (r.rad) bas = r.rad; if (r.forsok) forsok = r.forsok;
-    await app.lekSparaKo('lek1', bas, ops.slice(), { forsok });
-    ut.push(['B datorn: kön växte efter ett försvunnet svar', rad(ctx), '1 Sol Ring, 1 Arcane Signet, 1 Counterspell']);
+    r = await app.lekSparaKo('lek1', bas, ops.slice(), { forsok });
+    const k = ctx.server.rad.kort;
+    kolla('B datorn: kön växte efter ett försvunnet svar, nästa försök föll också', txt(k), () => {
+      assert.ok(r.ok, 'sista försöket ska gå igenom');
+      assert.deepEqual(['Sol Ring', 'Arcane Signet', 'Counterspell'].map(n => tal(k, n)), [1, 1, 1]);
+    });
   }
-  { /* C: pollningen — hamtaNyare sätter y.bas till vår egen skrivning medan y.ops ligger kvar. */
-    const ctx = nyCtx(null), app = ladda(fil)(ctx);
+  { /* C: pollningen — datorns sparning skrevs men svaret försvann; pollningen
+       (hamtaNyare) sätter y.bas till den egna skrivningen medan y.ops ligger
+       kvar. Både vyn (nu() = lekSlagTillampa(y.bas, y.ops)) och nästa
+       sparning ska visa korten en gång. */
+    const ctx = nyCtx(null), app = laddaSrc(src)(ctx);
     const ops = [L('Sol Ring', 'sr'), L('Arcane Signet', 'as')];
     ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
     const r1 = await app.lekSparaKo('lek1', kopia(ctx.server.rad), ops.slice(), { forsok: [] });
-    await app.lekSparaKo('lek1', kopia(ctx.server.rad), ops.slice(), { forsok: r1.forsok || [] });
-    ut.push(['C pollningen läste in vår egen skrivning', rad(ctx), '1 Sol Ring, 1 Arcane Signet']);
+    const yBas = kopia(ctx.server.rad);                       // hamtaNyare
+    const vy = app.lekSlagTillampa(yBas, ops).kort;           // nu()
+    await app.lekSparaKo('lek1', yBas, ops.slice(), { forsok: r1.forsok || [] });
+    const k = ctx.server.rad.kort;
+    kolla('C pollningen läste in datorns egen skrivning', `vyn ${txt(vy)} · raden ${txt(k)}`, () => {
+      assert.deepEqual(['Sol Ring', 'Arcane Signet'].map(n => tal(vy, n)), [1, 1], 'vyn');
+      assert.deepEqual(['Sol Ring', 'Arcane Signet'].map(n => tal(k, n)), [1, 1], 'raden');
+    });
   }
   return ut;
+}
+/* Id-mekanismen bortplockad, bit för bit: fallen ska fällas. `alla` = alla
+   tre ska falla; annars räcker ett. Står raden inte längre i index.html är
+   det ett FEL — uppdatera mutationen. */
+const LUCKMUTATIONER = [
+  ['id-hoppet helt (lekSlagKlara ser inga id:n)', 'const lekSlagKlara = bas => new Set(bas && Array.isArray(bas.klara) ? bas.klara : []);', 'const lekSlagKlara = bas => new Set();', true],
+  ['hoppet i lekSlagTillampa', 'if (op.id && klara.has(op.id)) continue;', '', false],
+  ['klara skrivs inte (lekSparaKo)', ',\n                   klara: lekSlagKlaraEfter(rad, ops) };', ' };', true],
+  ['id:n sätts inte (lekSparaKo)', 'for (const op of ops) if (op && !op.id) op.id = lekOpId();', '', true],
+];
+async function luckProv(fil) {
+  const src = fs.readFileSync(fil, 'utf8');
+  for (const [namn, f, fick] of await luckor(src)) prov(`${namn}: ${fick}`, () => { if (f) throw new Error(f); });
+  for (const [namn, fran, till, alla] of LUCKMUTATIONER) {
+    const n = src.split(fran).length - 1;
+    if (n !== 1) { fel.push(`FEL  mutationen "${namn}": raden står ${n} gånger i index.html — uppdatera LUCKMUTATIONER i dev/lekfoto.cjs`); continue; }
+    let r;
+    try { r = await luckor(src.replace(fran, () => till)); } catch (e) { r = [['laddningen', e.message, '']]; }
+    const fallna = r.filter(([, f]) => f).map(([k]) => k.split(' ')[0]);
+    prov(`utan ${namn} fälls ${alla ? 'A, B och C' : 'provet'} (${fallna.length} av ${r.length}: ${fallna.join(', ') || 'inget'})`,
+      () => assert.ok(alla ? fallna.length === r.length : fallna.length > 0, 'fälldes inte'));
+  }
 }
 
 /* ── utskriften ──────────────────────────────────────────────────── */
@@ -650,15 +752,15 @@ function rad(f, x) {
   if (fore) console.log(`\nklar-skärmen, kapade — före: "${skarm(fore)}"`);
   console.log(`klar-skärmen, kapade${fore ? ' — efter' : ''}: "${skarm(efter)}"`);
   console.log('samma foto två gånger: leken får båda — appen kan inte veta att det är samma fysiska kort (mätning, inget fel)');
-  console.log('\nkända luckor, också på main (mätning, inget fel — MES-289):');
-  const kanda = await kandaLuckor(FIL);
-  const a = efter.get('kant-a');
-  console.log(`  A telefonen: svaret försvann, datorn sparade emellan → Try again: ${(a.leken.rad || []).map(k => `${k.n} ${k.name}`).join(', ')}  (facit: 1 av varje + 4 Plains)`);
-  for (const [namn, fick, facit] of kanda) console.log(`  ${namn}: ${fick}  (facit: ${facit})`);
+  console.log('\ndubbletter efter ett försvunnet svar (MES-289, facit: varje kort en gång, 4 Plains i A):');
+  const lE = await luckor(fs.readFileSync(FIL, 'utf8'));
+  const lF = MOT ? await luckor(fs.readFileSync(MOT, 'utf8')) : null;
+  lE.forEach(([namn, f, fick], i) => console.log(`  ${namn}:${lF ? `\n    FÖRE  ${lF[i][2]}${lF[i][1] ? '  (fel)' : ''}\n    EFTER` : ''} ${fick}${f ? '  (fel)' : ''}`));
   console.log('');
   doma(efter);
   await sparaKoProv(FIL);
   await molnProv(FIL);
+  await luckProv(FIL);
   await spelProv(FIL);
   for (const r of [...ok, ...fel]) console.log(r);
   console.log(`\nlekfoto: ${ok.length} OK, ${fel.length} FEL`);
