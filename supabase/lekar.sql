@@ -23,6 +23,11 @@ create table if not exists public.decks (
   -- skrivs uttryckligen av klienten vid varje spar (defaulten gäller bara insert)
   uppdaterad  timestamptz not null default now()
 );
+-- id:na på de senaste ändringarna som redan ligger i raden (MES-289,
+-- migrations/20260926120000_decks_klara.sql): en ändring vars svar försvann
+-- spelas inte upp två gånger.
+alter table public.decks
+  add column if not exists klara jsonb not null default '[]'::jsonb;
 create index if not exists decks_user_uppdaterad on public.decks(user_id, uppdaterad desc);
 alter table public.decks enable row level security;
 

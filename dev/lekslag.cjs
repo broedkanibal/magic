@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path'), assert = require('assert');
 const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('/* ══ BLOCK: LEKSLAG'), b = src.indexOf('/* ══ SLUT: LEKSLAG ══ */');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte LEKSLAG i index.html'); process.exit(2); }
-const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort: typeof lekOkandKort === "function" ? lekOkandKort : null };')();
+const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort, lekSlagKlaraEfter, LEK_KLARA_TAK } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort: typeof lekOkandKort === "function" ? lekOkandKort : null, lekSlagKlaraEfter, LEK_KLARA_TAK };')();
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -284,6 +284,57 @@ prov('platshållare: Remove tar bort den', () => {
 prov('ett kort utan tryckning som inte är en platshållare läggs fortfarande inte in', () => {
   const r = lekSlagTillampa({ kort: [] }, [{ typ: 'antal', name: 'X', sb: false, d: 1, kort: { name: 'X' } }]);
   assert.deepEqual(r.kort, []);
+});
+
+/* MES-289: varje ändring har ett id, och raden bär id:na på det som redan
+   ligger i den (decks.klara). En ändring som redan ligger där spelas inte upp
+   igen — ett svar som försvann ger inga dubbletter. */
+const medId = (op, id) => Object.assign({ id }, op);
+prov('klara: en ändring vars id står i raden spelas inte upp igen', () => {
+  const bas = { kort: [{ ...bolt, n: 1 }], klara: ['x1'] };
+  const r = lekSlagTillampa(bas, [medId(lagg(bolt, 1), 'x1'), medId(lagg(helix, 2), 'x2')]);
+  assert.deepEqual(lista(r), ['1 Lightning Bolt', '2 Lightning Helix']);
+});
+prov('klara: alla slags ändringar hoppas över (bort, sb, byt, koll, namn)', () => {
+  const bas = { namn: 'A', kort: [{ ...bolt, n: 2 }, { ...helix, n: 1 }], klara: ['b', 's', 'y', 'k', 'n'] };
+  const r = lekSlagTillampa(bas, [
+    medId({ typ: 'bort', name: 'Lightning Helix', sb: false }, 'b'),
+    medId({ typ: 'sb', name: 'Lightning Bolt', sb: false, till: true }, 's'),
+    medId({ typ: 'byt', name: 'Lightning Bolt', sb: false, kort: mtn }, 'y'),
+    medId({ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: { las: 'x' } }, 'k'),
+    medId({ typ: 'namn', namn: 'B' }, 'n')]);
+  assert.deepEqual(lista(r), ['1 Lightning Helix', '2 Lightning Bolt']);
+  assert.equal(r.namn, 'A'); assert.equal(r.kort.find(k => k.name === 'Lightning Bolt').koll, undefined);
+});
+prov('klara: en ändring utan id spelas upp (datorns vy innan den skickats, äldre kod)', () => {
+  const r = lekSlagTillampa({ kort: [{ ...bolt, n: 1 }], klara: ['x1'] }, [lagg(bolt, 1)]);
+  assert.deepEqual(lista(r), ['2 Lightning Bolt']);
+});
+prov('klara: en rad utan klara (null, saknas, inte en lista) spelar upp allt, som förut', () => {
+  for (const klara of [undefined, null, {}, 'x1']) {
+    const r = lekSlagTillampa({ kort: [{ ...bolt, n: 1 }], klara }, [medId(lagg(bolt, 1), 'x1')]);
+    assert.deepEqual(lista(r), ['2 Lightning Bolt'], JSON.stringify(klara));
+  }
+  assert.deepEqual(lista(lekSlagTillampa(null, [medId(lagg(bolt, 1), 'x1')])), ['1 Lightning Bolt']);
+});
+prov('klara: samma kö uppspelad två gånger på sin egen skrivning ger samma lek (svaret som försvann)', () => {
+  const ko = [medId(lagg(bolt, 1), 'a'), medId(lagg(helix, 1), 'b')];
+  const skriven = lekSlagTillampa({ kort: [] }, ko);
+  const rad = { ...skriven, klara: lekSlagKlaraEfter({ kort: [] }, ko) };
+  assert.deepEqual(lista(lekSlagTillampa(rad, ko)), lista(skriven));
+});
+prov('lekSlagKlaraEfter: radens id:n följt av köns, utan dubbletter; ändringar utan id lämnar inget', () => {
+  assert.deepEqual(lekSlagKlaraEfter({ klara: ['a', 'b'] }, [{ id: 'b' }, { id: 'c' }, lagg(bolt, 1), null]), ['a', 'b', 'c']);
+  assert.deepEqual(lekSlagKlaraEfter({}, [{ id: 'c' }]), ['c']);
+  assert.deepEqual(lekSlagKlaraEfter({ klara: null }, []), []);
+});
+prov(`lekSlagKlaraEfter: kapas till de senaste ${LEK_KLARA_TAK}, men kön som sparas står alltid kvar`, () => {
+  const gamla = Array.from({ length: LEK_KLARA_TAK }, (_, i) => 'g' + i);
+  const k = lekSlagKlaraEfter({ klara: gamla }, [{ id: 'ny' }]);
+  assert.equal(k.length, LEK_KLARA_TAK); assert.equal(k[k.length - 1], 'ny'); assert.equal(k[0], 'g1');
+  const stor = Array.from({ length: LEK_KLARA_TAK + 50 }, (_, i) => ({ id: 'q' + i }));
+  const k2 = lekSlagKlaraEfter({ klara: gamla }, stor);
+  assert.equal(k2.length, LEK_KLARA_TAK + 50); assert.ok(stor.every(op => k2.includes(op.id)));
 });
 
 for (const r of [...ok, ...fel]) console.log(r);
