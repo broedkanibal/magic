@@ -20354,13 +20354,15 @@ const Kamera = (() => {
      bara när det finns sådana — MES-293): korten är lika stora, och två kort
      intill varandra som blivit en region är 1,4 kortlängder långa.
      Måtten jämförs i SAMMA slags mått på båda sidor (MES-298): regionens
-     egna lång- och kortsida ur momenten, som är desamma i alla vinklar
-     (namnForm, kortMatt och f.lang/f.kort). Förut jämfördes de med namnMatt,
-     kortets RAKA låda längs bildens kanter — och den är större än kortet så
-     fort kortet ligger snett. Pharika's Chosen i spegelfacit 2026-09-22
-     tappades 71° (tydligt), men lådan hade sparats medan kortet låg tappat
-     och snett: 78×66 mot regionens 66×48, och domen fälldes. Samma sak
-     fällde Fencing Ace i golden 14 (kortsidan 48 mot gränsen 48,45). */
+     egna lång- och kortsida ur momenten (f.lang/f.kort, desamma i alla
+     vinklar) mot kortets egna sidor, namnForm — ramen när namnet sattes,
+     eller lådan uträtad med kortets vinkel då (se matcha). Förut
+     jämfördes de med namnMatt, den RAKA lådan längs bildens kanter, och den
+     är större än kortet så fort kortet ligger snett. Pharika's Chosen i
+     spegelfacit 2026-09-22 tappades 71° (tydligt), men lådan hade tagits om
+     efter ett flimmer medan kortet låg tappat och snett: 78×66 mot
+     regionens 66×48, och domen fälldes i varje ruta. Samma sak fällde
+     Fencing Ace i golden 14 (kortsidan 48 mot gränsen 48,45). */
   function tapTydlig(f, t, upp) {
     let nm = t.namnForm;
     if (!nm && t.tillstand !== 'klar') { const km = kortMatt(); if (km.kalla === 'spår') nm = { l: km.lang, k: km.kort }; }
@@ -20539,10 +20541,27 @@ const Kamera = (() => {
           const r = bast.ram || bast.box, l = Math.max(r.w, r.h), k = Math.min(r.w, r.h);
           if (k >= 0.6 * l && k <= 0.85 * l) bast.namnMatt = { l, k };   // bara en kortformad låda: en halva som fått namnet är inte kortets mått
         }
-        /* Samma mått ur regionens moment (namnForm, MES-298): lika i alla
-           vinklar, och det tap-domen (tapTydlig) jämför med. Samma krav på
-           kortform som namnMatt. */
-        if (bast.tillstand === 'klar' && !bast.namnForm && f.kort >= 0.6 * f.lang && f.kort <= 0.85 * f.lang) bast.namnForm = { l: f.lang, k: f.kort };
+        /* Kortets egna mått (namnForm, MES-298) — det tap-domen (tapTydlig)
+           jämför regionens mått med. Ramen är kortets kant, funnen med
+           kortets kvot, och gäller som den är. Utan ram är det lådan, och
+           en rak låda runt ett kort som ligger φ snett är w = L·cos φ +
+           K·sin φ och h = L·sin φ + K·cos φ: L och K löses ut, med φ ur
+           regionens axel (rakt kort, φ ≈ 0: lådan som den är). Över 30° blir
+           lösningen osäker, och måttet tas i en senare ruta. Ramen och
+           lådan, inte regionens moment: regionen kan vara en hög eller ett
+           kort som skärs av bildkanten när namnet sätts (spegelfacit
+           2026-09-22: Swamp i en hög, 78×58 mot ramens 59×39; Ancestral
+           Blade vid överkanten, 62×38 mot 73×58 — båda gav med momentens
+           mått en falsk eller missad vridning). */
+        if (bast.tillstand === 'klar' && !bast.namnForm) {
+          const r = bast.ram || bast.box, L = Math.max(r.w, r.h), K = Math.min(r.w, r.h);
+          const a = Math.abs(f.vinkel) % (Math.PI / 2), fi = bast.ram ? 0 : Math.min(a, Math.PI / 2 - a);
+          if (fi <= Math.PI / 6) {
+            const c = Math.cos(fi), s = Math.sin(fi), det = c * c - s * s;
+            const l = (c * L - s * K) / det, k = (c * K - s * L) / det;
+            if (k >= 0.6 * l && k <= 0.85 * l) bast.namnForm = { l, k };
+          }
+        }
         const nm = bast.tillstand === 'klar' && !helt ? bast.namnMatt : null;
         /* Vuxen runt kortet — men inte ett kort som VRIDITS (MES-214). Den
            raka lådan växer också när kortet bara ligger snett: 15° ger en
