@@ -479,9 +479,11 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 113, 73, 30, 42, 72 * Math.PI / 180, 180)); const t = s.find(x => x.id === idT5); if (t) t5Id = t.id; if (t5Tapp == null && t && t.tappad) t5Tapp = i + 1; }
   check(`TT5 namngivet rakt, borta 0,6 s, tillbaka tappat 72°: klart ${klarT5}, spåret dog ${doT5}, samma id tillbaka ${t5Id === idT5}, tappad i ruta ${t5Tapp} (högst 3)`,
         klarT5 && doT5 && t5Id === idT5 && t5Tapp != null && t5Tapp <= 3);
-  /* TT6: gränsen är T.tapTapp (70° som förval, Jespers beslut). 66° är
-     otydligt och vrider inget; med tapTapp 60 (--tro "tapTapp:60" i golden)
-     vrider samma 66° kortet. 78° vrider med förvalet. (66°, inte 65°: det
+  /* TT6: gränsen är T.tapTapp (65° som förval, Jespers val 2026-09-26;
+     var 70°). Med förvalet vrider 68° kortet (66° ligger så nära gränsen
+     att det lilla syntetiska kortets uppmätta vinkel vinglar under den i
+     några rutor); med tapTapp 70 (--tro "tapTapp:70" i golden) är 66°
+     otydligt och vrider inget. 78° vrider med förvalet. (66°, inte 65°: det
      lilla syntetiska kortet ritas 10 % mindre i vissa vinklar — 65°, 67°,
      71° — och faller då på måttkollens 0,85, vilket riktiga kort inte gör:
      Pharika's Chosen är 65×47 rakt och 66×48 tappad.) */
@@ -490,12 +492,12 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
     const id = s[0] && s[0].id; let tapp = null;
     for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 112, 72, 30, 42, vinkel * Math.PI / 180, 180)); const t = s.find(x => x.id === id); if (tapp == null && t && t.tappad) tapp = i + 1; }
-    Kamera.satTrosklar({ tapOtapp: 20, tapTapp: 70 });
+    Kamera.satTrosklar({ tapOtapp: 20, tapTapp: 65 });
     return tapp;
   };
-  const t6a = await t6(66), t6b = await t6(66, { tapTapp: 60 }), t6c = await t6(78);
-  check(`TT6 tappat 66° med förvalet: tappad i ruta ${t6a} (ska aldrig); med tapTapp 60: i ruta ${t6b} (högst 2); 78° med förvalet: i ruta ${t6c} (högst 2); förvalet ${Kamera.trosklar.tapOtapp}/${Kamera.trosklar.tapTapp}`,
-        t6a == null && t6b != null && t6b <= 2 && t6c != null && t6c <= 2 && Kamera.trosklar.tapOtapp === 20 && Kamera.trosklar.tapTapp === 70);
+  const t6a = await t6(68), t6b = await t6(66, { tapTapp: 70 }), t6c = await t6(78);
+  check(`TT6 tappat 68° med förvalet: tappad i ruta ${t6a} (högst 2); 66° med tapTapp 70: i ruta ${t6b} (ska aldrig); 78° med förvalet: i ruta ${t6c} (högst 2); förvalet ${Kamera.trosklar.tapOtapp}/${Kamera.trosklar.tapTapp}`,
+        t6a != null && t6a <= 2 && t6b == null && t6c != null && t6c <= 2 && Kamera.trosklar.tapOtapp === 20 && Kamera.trosklar.tapTapp === 65);
 
   // ── LT1: latensmätningens stämplar (MES-215) följer med rapporten bara när den är på ──
   nystart(); await referens();
