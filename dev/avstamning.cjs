@@ -1505,6 +1505,27 @@ prov('GU1 leken har 1 Trusty Retriever och den ligger i graveyard: kortet på ma
   assert.deepEqual(k.cts, [], 'countrarna blev kvar på bordet'); assert.equal(k.flipped, 0, 'sidan blev kvar på bordet');
   assert.equal(k.x, null, 'platsen ska räknas om'); assert.equal(iGrav('Trusty Retriever'), 0);
 });
+prov('GU1b högvakten tog fel: kortet kommer tillbaka på mattan strax efter gravAuto och behåller countrar och sida; efter GRAV_ATER_MS är det ett nytt objekt', () => {
+  const kor = (vanta) => {
+    app.nollstall(); klocka.t = 1e6;
+    app.lek = new Map([['Ukud Cobra', 1]]);
+    stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+    const k = app.kort[0];
+    k.cts = [{ t: '+1/+1', n: 2 }]; k.flipped = 1;
+    klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
+    klocka.t += 1000; stamG([], hog(1));            // högen ändrades av något annat
+    klocka.t += 2100; stamG([], hog(1));
+    assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto, 'högvakten tog det');
+    klocka.t += vanta; stamG([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(1));   // kortet låg bara på ett nytt ställe
+    assert.equal(app.kort.length, 1, 'ett nytt kort skapades'); assert.equal(k.zon, undefined); assert.equal(k.spar, 2);
+    return k;
+  };
+  const strax = kor(3000);
+  assert.deepEqual(strax.cts, [{ t: '+1/+1', n: 2 }], 'countrarna försvann på ett kort som aldrig lämnat bordet');
+  assert.equal(strax.flipped, 1, 'sidan vändes på ett kort som aldrig lämnat bordet');
+  const senare = kor(60000);
+  assert.deepEqual(senare.cts, []); assert.equal(senare.flipped, 0);
+});
 prov('GU2 leken har 4 Forest, tre på bordet och ett i graveyard: det fjärde på mattan är ett NYTT kort ur handen', () => {
   app.lek = new Map([['Forest', 4]]);
   app.kort.push({ cid: 'g', name: 'Forest', flipped: 0, zon: 'grav' });

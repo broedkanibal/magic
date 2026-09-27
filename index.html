@@ -23546,6 +23546,18 @@ const SLAPP_MS = 600;
    "ändrades" −1,35 och +0,15 s runt spårets död, och kortet flög till
    graveyard. */
 const GRAV_TIDIGAST = 350, GRAV_EFTER = 5000;
+/* Ett kort som högvakten lagt i graveyard (gravAuto) och som kameran ser
+   på mattan igen inom så här lång tid var aldrig där: högen ändrades av
+   något annat medan kortet bara flyttades. Då är det samma objekt, och
+   countrarna och sidan ska vara kvar (urGraven i avstamBord) — kamerans
+   flytt går inte att ångra. Varför 20 s, som SPELL_MS: att få tillbaka ett
+   kort som verkligen dött kräver en besvärjelse eller en förmåga efter att
+   det lagts på högen, och det tar i praktiken längre tid; ett felaktigt
+   gravAuto kommer tillbaka så fort spåret läses igen, inom BORTA_NAD plus
+   en läsning — några sekunder. Skulle ett verkligt återkommande hamna inom
+   fönstret blir countrarna kvar, och det syns och går att rätta för hand;
+   det omvända felet (tappade countrar) gör det inte. */
+const GRAV_ATER_MS = 20000;
 let gravHandelser = [], gravSistaN = null, gravTid = new Map();
 function gravTaEmot(grav, nu) {
   if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet
@@ -24570,8 +24582,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const tak = lekAntal(g.namn);
     const ur = pol.flytt && isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
     if (ur) {
+      const aldrigDar = ur.gravAuto != null && nu - ur.gravAuto < GRAV_ATER_MS;   // högvakten tog fel (GRAV_ATER_MS)
       delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
-      ur.cts = []; ur.flipped = 0;              // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
+      if (!aldrigDar) { ur.cts = []; ur.flipped = 0; }   // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
       ur.x = ur.y = null;                       // kortet tar platshållarens plats, som ett nyskapat (matPlacera)
       ur.tapped = tapSynk && pol.tap && t.tappad ? 1 : 0;
       ur.kamTap = tapSynk ? (t.tappad ? 1 : 0) : undefined;
