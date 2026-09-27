@@ -71,6 +71,7 @@ input[type=text].fel{border-color:var(--fel)}
 #gor .vad{font-size:12px;margin-bottom:8px;line-height:1.45}
 #gor .vad ul{margin:2px 0 6px;padding-left:18px} #gor .vad li{margin:1px 0}
 #gor .vad .del{font-weight:600;margin-top:4px}
+#gor .vad .harnast{font-size:11.5px;margin-top:2px}
 #gor .vad{border-bottom:1px solid #2c3541;padding-bottom:6px}
 #gor .rubrik{font-weight:700;margin-bottom:4px}
 #gor ol{margin:0 0 6px;padding-left:20px}
@@ -955,7 +956,12 @@ function vadHandeMedBord(rubrik, del1, l) {
     if (b.grav.length) rader.push(`<li><b>Graveyard:</b> ${Object.entries(g).map(([n, c]) => esc(c > 1 ? `${c} × ${n}` : n)).join(', ')}</li>`);
     del2 = `<div class="del">På bordet nu, enligt ${S.u.sort === 'steg' ? 'manuset' : 'facit'}</div>` + (rader.length ? `<ul>${rader.join('')}</ul>` : '<div class="dim">inga kort än — bara leken</div>');
   }
-  return `<div class="del">${rubrik}</div>${del1}${del2}`;
+  let del3 = '';
+  if (S.u.harnast) {
+    const n = S.u.harnast(l.t, 3).map(x => S.u.sort === 'steg' ? klartext(x.rad) : klartextPass(x)).filter(Boolean);
+    if (n.length) del3 = `<div class="harnast dim">Härnäst i ${S.u.sort === 'steg' ? 'manuset' : 'facit'}: ${n.map(esc).join(' → ')}. <i>Syns något av det redan i bilden, rita det — namnet står här.</i></div>`;
+  }
+  return `<div class="del">${rubrik}</div>${del1}${del2}${del3}`;
 }
 function uppgifter(l, dom) {
   const ut = [], iSpel = n => l.kort.filter(k => !k.zon && String(k.namn || '').trim() === n).sort((a, b) => b.z - a.z);

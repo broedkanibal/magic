@@ -289,6 +289,8 @@ function underlag(kalla, filer, leknamn) {
           handelse: r.handelse, kort: sant(r.kort) ? r.kort : null, till: sant(r.till) ? r.till : null, plats: sant(r.plats) ? r.plats : null }, sant(r.osaker) ? { osaker: r.osaker } : {})),
       vantat: t => { const v = vantatPass(rader, t); return { kandidater: [{ antal: v.antal, tappade: v.tappade, fast: v.fast, rad: null }] }; },
       bord: t => passBord(rader, t),
+      harnast: (t, n) => rader.filter(r => r.t > t + 1e-6 && PA_BORDET.has(r.handelse)).slice(0, n)
+        .map(r => ({ handelse: r.handelse, kort: sant(r.kort) ? r.kort : null, till: sant(r.till) ? r.till : null, plats: sant(r.plats) ? r.plats : null })),
     };
   }
   const steg = (typeof filer.steg === 'string' ? JSON.parse(filer.steg) : filer.steg).steg;
@@ -307,6 +309,9 @@ function underlag(kalla, filer, leknamn) {
       return ut;
     },
     bord: t => { let sist = -1; manus.forEach((r, i) => { if (radTid[i] <= t + 1e-6) sist = i; }); return manusBord(manus, sist); },
+    /* de närmaste raderna efter läget — ihopparningen kan ha lagt en rad ett
+       läge för sent, och då syns kortet redan i bilden */
+    harnast: (t, n) => manus.filter((r, i) => radTid[i] > t + 1e-6).slice(0, n).map(r => ({ rad: r.text, tur: r.tur })),
     vantat: t => {
       const [fran, tillI] = fonsterSteg(steg, manus, ank, t);
       const kand = [];
