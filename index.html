@@ -24773,8 +24773,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      eller som aura på sin värd — upphör att finnas (MES-105), som i
      flyttaTill. Förut låg den kvar i högen. Här och inte i gravAutoOm:
      looparna ovan går över mig.cards. */
-  for (let j = mig.cards.length - 1; j >= 0; j--) if (mig.cards[j].tok && mig.cards[j].zon === ZON_GRAV) { mig.cards.splice(j, 1); andrat = true; }
-  if (andrat) state.sel = clamp(state.sel, 0, Math.max(0, mig.cards.length - 1));
+  let tokBort = false;
+  for (let j = mig.cards.length - 1; j >= 0; j--) if (mig.cards[j].tok && mig.cards[j].zon === ZON_GRAV) { mig.cards.splice(j, 1); tokBort = andrat = true; }
+  if (tokBort) state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));   // inte clamp: harnessarnas utdrag (dubbletter.cjs) har den inte
   for (const id of hoppade) if (!synliga.has(id)) hoppade.delete(id);
   /* Spärren följer det fysiska kortet: alla dess spår, inte bara det som var
      bundet när kortet togs bort. Annars släpptes den när det spåret dog medan
