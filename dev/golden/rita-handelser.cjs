@@ -197,13 +197,22 @@ function radTyp(r) {
 }
 const PASSAR = { tapp: { 'vridet/flyttat': 2, 'ändrat på plats': 1 }, flytt: { 'vridet/flyttat': 2, 'ändrat på plats': 1.5 },
   bort: { borta: 2, 'vridet/flyttat': 1, 'ändrat på plats': 1 }, ny: { 'ändrat på plats': 2, 'nytt (stor låda)': 1.5, 'vridet/flyttat': 1 } };
-function radSteg(steg, manus, ank) {
+function radSteg(steg, manus, ank, extra) {
   const ut = new Array(manus.length).fill(null);
-  const ankare = steg.filter(s => ank[s.nr] != null);
-  for (const a of ankare) ut[ank[a.nr]] = a.nr;
+  /* Ankarpar {s: steg, r: rad}: detektorns nedläggningar med namn, och
+     (extra) det Jespers ritning visar — ett kort som finns i ett ritat
+     läge har lagts ut senast i det lägets steg. Ritningen går före
+     detektorn för samma rad; paren hålls stigande i både steg och rad. */
+  const perRad = new Map();
+  for (const [sn, r] of Object.entries(ank)) perRad.set(r, +sn);
+  for (const p of extra || []) perRad.set(p.r, p.s);
+  const par = [...perRad].map(([r, sn]) => ({ s: sn, r })).sort((a, b) => a.s - b.s || a.r - b.r);
+  const ankare = []; for (const p of par) if (!ankare.length || p.r > ankare[ankare.length - 1].r) ankare.push(p);
+  for (const a of ankare) ut[a.r] = a.s;
   let forraS = 0, forraR = -1;
-  for (const a of ankare.concat([null])) {
-    const slutR = a ? ank[a.nr] : manus.length;
+  for (const a0 of ankare.concat([null])) {
+    const a = a0 && { nr: a0.s };
+    const slutR = a0 ? a0.r : manus.length;
     const S = steg.filter(s => s.nr > forraS && (a ? s.nr < a.nr : true));
     const R = []; for (let i = forraR + 1; i < slutR; i++) R.push(i);
     if (R.length) {
@@ -295,13 +304,38 @@ function underlag(kalla, filer, leknamn) {
   }
   const steg = (typeof filer.steg === 'string' ? JSON.parse(filer.steg) : filer.steg).steg;
   const manus = lasManus(filer.manus, leknamn);
-  const till = manusTillstand(manus), ank = ankare(steg, manus), rs = radSteg(steg, manus, ank);
+  const till = manusTillstand(manus), ank = ankare(steg, manus);
   const ts = s => +(+s.t_stilla).toFixed(2);   // samma avrundning som lägenas tider: steg 2 på 3,472 s hör till läget på 3,47 s
-  const radTid = manus.map((r, i) => rs[i] != null ? ts(steg[rs[i] - 1]) : Infinity);
+  let rs, radTid, ritNyckel = null;
+  const parning = extra => { rs = radSteg(steg, manus, ank, extra); radTid = manus.map((r, i) => rs[i] != null ? ts(steg[rs[i] - 1]) : Infinity); };
+  parning([]);
   return {
     sort: 'steg', steg, manus, ankare: ank,
     forslag: forslagSteg(steg),
-    radSteg: rs,
+    get radSteg() { return rs; },
+    /* Ritningen rättar parningen: för varje ritat läge (i ordning) blir ett
+       namn som tillkommit sedan förra ritade läget ett ankare för nästa
+       oanvända manusrad som lägger ut det namnet, och ett namn som
+       försvunnit ett ankare för raden som tar bort det. */
+    medRitning: (lagen, iSpel) => {
+      const lista = Object.values(lagen || {}).sort((a, b) => a.nr - b.nr);
+      const nyckel = JSON.stringify(lista.map(l => [l.nr, l.kort.filter(iSpel).map(k => k.namn).sort()]));
+      if (nyckel === ritNyckel) return;
+      ritNyckel = nyckel;
+      const extra = [], anvand = new Set();
+      const nasta = (falt, namn) => { const i = manus.findIndex((r, k) => !anvand.has(k) && r[falt] === namn); if (i >= 0) anvand.add(i); return i; };
+      let forra = {};
+      for (const l of lista) {
+        const f = forslagSteg(steg)[l.nr - 1]; if (!f) continue;
+        const nu = {}; for (const k of l.kort.filter(iSpel)) nu[k.namn] = (nu[k.namn] || 0) + 1;
+        for (const n of new Set(Object.keys(nu).concat(Object.keys(forra)))) {
+          const d = (nu[n] || 0) - (forra[n] || 0);
+          for (let q = 0; q < Math.abs(d); q++) { const i = nasta(d > 0 ? 'plus' : 'minus', n); if (i >= 0) extra.push({ s: f.steg, r: i }); }
+        }
+        forra = nu;
+      }
+      parning(extra);
+    },
     mellan: (t0, t1) => {
       const ut = steg.filter(s => ts(s) > t0 + 1e-6 && ts(s) <= t1 + 1e-6)
         .map(s => ({ t: ts(s), text: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}${ank[s.nr] != null ? ` (= manusrad ${ank[s.nr] + 1})` : ''}` }));
