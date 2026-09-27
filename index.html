@@ -2527,7 +2527,6 @@ body.ispel #addPlayerBtn{display:none}
 .lsqr{align-self:flex-start;width:196px;height:196px;border-radius:10px;overflow:hidden;background:#fff;display:grid;place-items:center}
 .lsqr canvas{width:100%;height:100%;display:block}
 .lsqr .vantar{font:12px var(--sans);color:#555}
-.lslank{flex:1;min-width:0;font:11px var(--mono);color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lsnyss{display:flex;flex-direction:column;gap:6px}
 .lsnyss:empty{display:none}
 .jr{display:flex;align-items:center;gap:10px;font:13px var(--sans);min-height:32px;color:var(--txt)}
@@ -2535,47 +2534,60 @@ body.ispel #addPlayerBtn{display:none}
 .jr .dim{font-size:12px;color:var(--dim)}
 .jr .th{width:26px;height:36px;border-radius:3px;overflow:hidden;flex:none;background:#0b1016}
 .jr .th img{width:100%;height:100%;object-fit:cover;display:block}
-/* Phone-fliken (N2–N5): stegen, fotocykeln, fotoremsan och läggningsguiden. */
-.lsps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
-.lsps li{position:relative;display:flex;gap:12px;padding-bottom:20px}
-.lsps li:last-child{padding-bottom:0}
-.lsps li::before{content:'';position:absolute;left:11px;top:29px;bottom:5px;width:1.5px;background:var(--line)}
-.lsps li:last-child::before{display:none}
-.lsps li.done::before{background:#2f6b47}
-.lsps .sn{position:relative;z-index:1;flex:none;width:23px;height:23px;border-radius:50%;display:grid;place-items:center;border:1px solid #39445a;font:700 11px var(--mono);color:var(--dim2);background:#121821}
-.lsps li.done .sn{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
-.lsps li.act .sn{background:var(--acc);border-color:var(--acc);color:#20160a}
-.lsps .sb{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px;padding-top:2px}
-.lsps .sb>b{font:600 13.5px/19px var(--sans);color:var(--txt)}
-.lsps li.todo .sb>b{color:var(--dim);font-weight:550}
-.lsps .sb>span{font:12.5px/1.5 var(--sans);color:var(--dim)}
-.lsps li.done .sb>span{color:#8fe0b0}
-.lsnxt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:9px;background:#141c2a;border:1px solid #3d4a6a;font:12.5px/1.5 var(--sans);color:#c9d4ff}
-.lsnxt .ic{display:inline-flex;flex:none;margin-top:1px}
-.lsnxt b{color:#fff;font-weight:650}
-.lsvantar{display:flex;align-items:center;gap:9px;font:12px var(--sans);color:#e8c98a}
-.lsvantar i{width:7px;height:7px;border-radius:50%;flex:none;background:var(--acc);box-shadow:0 0 0 3px #f0a52a26;animation:lsPuls 1.6s ease-in-out infinite}
 @keyframes lsPuls{0%,100%{opacity:1}50%{opacity:.4}}
-.lscyk{display:flex;align-items:center;gap:9px;flex:none}
-.lscyk .lspt{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:11px;background:#1b2230;border:1px solid #39445a;font:600 11.5px var(--mono);color:var(--txt);letter-spacing:.4px;white-space:nowrap}
-.lscyk .ct{font:11.5px var(--sans);color:var(--dim2);min-width:0}
-.lscyk .zl{flex:1;height:1px;background:var(--zonlinje);min-width:6px}
-.lskort2{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;background:#0f141c;border:1px solid var(--line)}
-.lstelon{display:flex;align-items:center;gap:10px;font:12.5px/1.45 var(--sans);color:var(--dim)}
-.lstelon .led{width:8px;height:8px;border-radius:50%;flex:none;background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26}
-.lsfotorad{display:flex;align-items:center;gap:11px}
-.lsfotorad .ft{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.lsfotorad .ft b{font:600 13px var(--sans);color:var(--txt)}
-.lsfotorad .ft span{font:12px var(--sans);color:var(--dim)}
-.lsfotorad .ok{display:inline-flex;color:#8fe0b0;flex:none}
-.lsfotorad.chk .ft span{color:#e8c98a}
-.lsmph{position:relative;flex:none;width:56px;height:40px;border-radius:5px;overflow:hidden;background:radial-gradient(60px 40px at 40% 30%,#26313c,#10151b);box-shadow:inset 0 0 0 1px #ffffff14}
-.lsmph i{position:absolute;top:5px;width:9px;height:28px;border-radius:1.5px;background:repeating-linear-gradient(#d8d0bd 0 2px,#4a4034 2px 4.5px)}
-.lsdropnot{margin:0;font:11.8px/1.55 var(--sans);color:var(--dim2)}
-.lsqrrad{display:flex;gap:14px;align-items:center;min-width:0}
-.lsqrrad .lsqr{width:128px;height:128px;flex:none}
-.lsqrrad .qv{display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:0;flex:1}
-.lsqrrad .qv .lslank{flex:none;align-self:stretch}
+/* Take photos medan man fotar (MES-322, sida M rad 1 och 4, N6, J9, J10):
+   panelen säger vad den väntar på, fotona står som rader, och Finish the
+   deck står alltid längst ned. */
+.lstel.lfpanel{flex:1 0 auto}
+.lftit{display:flex;flex-direction:column;gap:6px}
+.lftit b{font:700 17px/1.3 var(--sans);color:var(--txt)}
+.lftit span{font:13px/1.5 var(--sans);color:var(--dim)}
+.lfqr{align-self:flex-start;border-radius:12px;overflow:hidden;background:#fff}
+.lfqr .lsqr{width:170px;height:170px;border-radius:0}
+.lfvantar{display:flex;align-items:center;gap:9px;font:600 13px var(--sans);color:var(--acc)}
+.lfvantar i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--acc);animation:lsPuls 1.6s ease-in-out infinite}
+.lflank{align-self:flex-start;background:none;border:0;padding:0;font:600 13px var(--sans);color:var(--acc);cursor:pointer}
+.lflank:hover{color:#ffc15a}
+.lfansl{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:10px;background:#0f1d15;border:1px solid #24503a;font:500 13px var(--sans);color:#bfe8cf}
+.lfansl i{width:8px;height:8px;border-radius:50%;flex:none;background:#57c785}
+.lffoto{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;background:#141922;border:1px solid var(--line)}
+.lffoto .th{position:relative;width:44px;height:51px;border-radius:4px;overflow:hidden;flex:none;display:grid;place-items:center;background:radial-gradient(50px 44px at 40% 30%,#26313c,#10151b);box-shadow:inset 0 0 0 1px #ffffff14;color:var(--dim)}
+.lffoto .th img{width:100%;height:100%;object-fit:cover;display:block}
+.lffoto .th i{position:absolute;top:6px;width:8px;height:38px;border-radius:1.5px;background:repeating-linear-gradient(#d8d0bd 0 2px,#4a4034 2px 4.5px)}
+.lffoto .ft{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.lffoto .ft b{font:650 13.5px var(--sans);color:var(--txt)}
+.lffoto .ft span{font:500 12.5px/1.35 var(--sans);color:var(--dim)}
+.lffoto .lfv{flex:none;display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:4px 2px;font:600 12.5px var(--sans);color:var(--dim);cursor:pointer}
+.lffoto .lfv:hover{color:var(--txt)}
+.lffoto.tom .th{filter:grayscale(.6) brightness(.55)}
+.lffoto.tom .ft span{color:#6f7d93}
+.lffoto.las{background:#1d1810;border-color:#6a5220}
+.lffoto.las .th{background:#1b2230;box-shadow:none;color:var(--acc);animation:lsPuls 1.6s ease-in-out infinite}
+.lffoto.las .ft span{color:var(--acc)}
+.lffoto.bort .th{filter:grayscale(1) brightness(.45)}
+.lffoto.bort .ft span{color:#6f7d93}
+.lffoto.omtas{background:#10172a;border-color:#2a3a66}
+.lffoto.omtas .th{background:#141c30;box-shadow:none;color:#b9c8ff}
+.lffoto.omtas .ft span{color:#c7d0dd}
+.lfnot{margin:0;font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lffot{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.lffot>span{font:500 13px var(--sans);color:var(--dim)}
+.lffot .lfklar{height:48px;width:100%;border-radius:10px;background:#1b2230;border:1px solid #3d4a5f;color:var(--txt);font:650 15px var(--sans);display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer}
+.lffot .lfklar:hover{background:#222b3b;border-color:#56657c}
+.lffot .lfnasta{margin:0;font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lfigen{align-self:flex-start}
+/* Kortytan medan man fotar: vad den väntar på (N1, N2) och namnen att
+   kolla, bara nämnda (N3). */
+.lstom.lfvant{align-self:stretch;flex:1 0 auto;margin:0;width:auto;min-height:320px;justify-content:center;gap:12px;border:1.5px dashed #39445a;border-radius:16px;padding:40px}
+.lstom.lfvant .ico{width:64px;height:64px;border-radius:16px;display:grid;place-items:center;background:#141922;border:1px solid var(--line);margin:0}
+.lstom.lfvant b{font-size:19px}
+.lstom.lfvant span{max-width:440px;font-size:14px}
+.lfkoll{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:12px 16px;border-radius:12px;background:#17140e;border:1px solid #6a5220;flex:none}
+.lfkoll i{width:9px;height:9px;border-radius:50%;flex:none;background:var(--acc)}
+.lfkoll b{font:700 14.5px var(--sans);color:var(--txt)}
+.lfkoll span{font:13px var(--sans);color:var(--dim)}
+.lsblk.noll .kf{opacity:.55}
+.lsblk .blfoto{font:500 10.5px var(--sans);color:#57c785;white-space:nowrap}
 /* läggningsguiden (lekGuide) */
 .lsg{position:relative;flex:none;align-self:flex-start;border-radius:12px;background:radial-gradient(700px 360px at 46% 26%,#1a2530,#0b1016 75%);box-shadow:inset 0 0 40px 8px #00000066,0 0 0 1px var(--line);overflow:hidden}
 .lsgarea{position:absolute}
@@ -2596,7 +2608,7 @@ body.ispel #addPlayerBtn{display:none}
   .lsgch{display:none}
   .lsglab{animation:none!important;opacity:0}
   .lsglab:first-of-type{opacity:1}
-  .lsvantar i{animation:none}
+  .lfvantar i,.lffoto.las .th{animation:none}
   .telslutare{animation:none}
 }
 /* ── telefonens lekfoto (PN2–PN5) ─────────────────────────────────────
@@ -13648,6 +13660,64 @@ function lsMorf(el, mall) {
   for (let i = gamla.length - 1; i >= nya.length; i--) el.removeChild(gamla[i]);
 }
 
+/* ══ BLOCK: LEKFOTO PÅ DATORN ═════════════════════════════════════════
+   Datorns del av lekfotot medan man fotar (MES-322), byggd efter sida M i
+   designytan "Mesa Deck Photo Flow E": rad 1 (N1, N2), rad 4 (N3, IP1, N4,
+   HD2), N6 (efter Remove photo) och J9, J10 (Retake).
+
+   Här står det som går att prova utan webbläsare: vad panelen säger om
+   läget och om varje foto. Ritningen och händelserna står i skapaLekYta
+   (telRita). dev/lekfoto-dator.cjs klipper ut blocket mellan markörerna.
+
+   y.tel, lekytans bild av telefonen:
+     ansluten  telefonen har sagt hej
+     fas       'vantar' | 'lagg' | 'kamera' | 'laser' (telefonens steg)
+     foto      numret på nästa foto, som telefonen säger det: numren är
+               telefonens, också när ett foto inte gav några kort
+     foton     fotona som landat, i nummerordning: {nr, nya, koll}
+     klar      Finish the deck är tryckt. Vad som händer sedan bygger
+               MES-323; tills dess visas To check och basländerna som förut. */
+const lfAntal = (n, en, fler) => `${n} ${n === 1 ? en : fler}`;
+
+/* Raden för ett foto i panelen (N3, IP1). */
+function lfFotoRad(f) {
+  if (f.las) return { typ: 'las', rub: `Photo ${f.nr}`, txt: 'Reading, about half a minute' };
+  const delar = [`${lfAntal(+f.nya || 0, 'card', 'cards')} added`];
+  if (+f.koll) delar.push(`${lfAntal(+f.koll, 'name', 'names')} to check`);
+  return { typ: 'klar', rub: `Photo ${f.nr}`, txt: delar.join(' · ') };
+}
+/* Raderna i panelen: de landade fotona och, medan telefonen läser ett, det
+   fotot sist (N4). */
+function lfRader(t) {
+  const rader = (t.foton || []).map(lfFotoRad);
+  if (t.ansluten && t.fas === 'laser' && !(t.foton || []).some(f => f.nr === t.foto)) rader.push(lfFotoRad({ nr: t.foto, las: true }));
+  return rader;
+}
+/* Rubriken under fotoraderna, och vad panelen väntar på. */
+function lfLage(t) {
+  if (!t.ansluten) {
+    return { typ: 'koppla', rub: 'Connect your phone',
+             txt: 'Scan the code with your phone’s camera. Nothing to install. Your phone becomes the camera, and the cards land here.',
+             vantar: 'Waiting for your phone', nasta: 'Next: lay out the cards and take the photos.' };
+  }
+  if (t.fas === 'laser') return { typ: 'laser', rub: `Photo ${t.foto} is being read`, txt: 'The cards land on the right when it’s done.' };
+  if (!(t.foton || []).length) {
+    return { typ: 'lagg', rub: 'Lay out 10–15 cards at a time',
+             txt: 'In columns, overlapping, so each name shows. Then take the photo with your phone. Basic lands can be in the photo or not.',
+             vantar: `Waiting for photo ${t.foto}`, guide: 4 };
+  }
+  return { typ: 'nasta', rub: 'Lay out the next 10–15 cards', txt: `Move the photographed cards aside first, then take photo ${t.foto}.`,
+           vantar: `Waiting for photo ${t.foto}`, guide: 3 };
+}
+/* Finish the deck står längst ned så snart ett foto landat (N3, IP1, N4). */
+const lfKanAvsluta = t => !!t.ansluten && !t.klar && (t.foton || []).length > 0;
+/* Namnen att kolla nämns bara medan man fotar (N3): de kollas när leken
+   görs klar, ett i taget (MES-323). */
+function lfKollText(n) {
+  return n ? { rub: `${lfAntal(n, 'name', 'names')} to check`, txt: `You check ${n === 1 ? 'it' : 'them'} when you finish the deck.` } : null;
+}
+/* ══ SLUT: LEKFOTO PÅ DATORN ══ */
+
 function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   const y = {
     session: 0,
@@ -13671,10 +13741,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     pop: null,            // popovern: {typ:'koll'|'byt', name, sb, kor?, ...}
     listaKlar: null,      // kvittot efter en inklistring (N7): {nr, main, sb, koll}
     bekr: new Map(),      // nyss bekräftade kort, visas som Confirmed en stund: nyckel → {koll}
-    tel: null,            // telefonen i Phone-fliken: {ansluten, fas, foto, foton[]}
-    telHtml: '',          // senast ritade Phone-flik, så att guiden inte börjar om
+    tel: null,            // telefonen i Take photos-fliken: {ansluten, fas, foto, foton[], klar} (LEKFOTO PÅ DATORN)
+    telHtml: '',          // senast ritade Take photos-flik, så att guiden inte börjar om
   };
-  const telTom = () => ({ ansluten: false, fas: 'vantar', foto: 1, foton: [] });
+  const telTom = () => ({ ansluten: false, fas: 'vantar', foto: 1, foton: [], klar: false });
+  /* Man fotar: Take photos står framme och Finish the deck är inte tryckt. */
+  const fotar = () => y.flik === 'tel' && !y.tel.klar;
   y.tel = telTom();
   const nu = () => lekSlagTillampa(y.bas || { namn: y.nyNamn, kort: [] }, y.ops);
   const nyckel = (name, sb) => lekSlagNyckel(name, sb);
@@ -13881,17 +13953,20 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const post = { nr, nya: +m.nya || 0, koll: +m.koll || 0 };
       if (f) Object.assign(f, post); else y.tel.foton.push(post);
       y.tel.foton.sort((a, b) => a.nr - b.nr);
-      telSatt({ ansluten: true, fas: 'lagg', foto: nr + 1 });
+      /* Ett nytt foto efter Finish the deck: man fotar igen. */
+      telSatt({ ansluten: true, fas: 'lagg', foto: nr + 1, klar: false });
     }
-    if (!(m.ts && y.bas && m.ts <= y.bas.ts)) hamtaNyare();
+    if (!(m.ts && y.bas && m.ts <= y.bas.ts)) hamtaNyare({ foto: !!m.foto });
   }
   function telSatt(d) {
+    const klar = y.tel.klar;
     Object.assign(y.tel, d);
     if (y.flik !== 'tel') return;
     ritaTel();
-    if (!nu().kort.length) ritaYta();      // tomläget bär samma steg
+    /* Tomläget bär samma steg, och To check visas helt först efter Finish. */
+    if (!nu().kort.length || klar !== y.tel.klar) ritaYta();
   }
-  async function hamtaNyare() {
+  async function hamtaNyare(o = {}) {
     /* En sparning i flykt får sin krock och läser in raden själv. */
     if (!y.bas || y.flygP) return;
     const id = y.bas.id;
@@ -13902,13 +13977,31 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!(rad.ts > y.bas.ts)) return;
     /* Kort som kom in från en annan enhet — telefonens foto, en annan flik
        — märks New precis som de man lägger till själv. y.nya sattes förut
-       bara lokalt, och ett foto på trettio kort landade omärkt. */
+       bara lokalt, och ett foto på trettio kort landade omärkt. Ett nytt
+       foto (N3) tar över New-märkningen: det är det senaste fotots kort som
+       är nya, inte allt sedan sidan öppnades. */
     const fore = new Set(nu().kort.map(k => nyckel(k.name, k.sb)));
     y.bas = rad;
-    for (const k of nu().kort) { const x = nyckel(k.name, k.sb); if (!fore.has(x)) y.nya.add(x); }
+    const landade = [];
+    for (const k of nu().kort) { const x = nyckel(k.name, k.sb); if (!fore.has(x)) landade.push(x); }
+    if (o.foto && landade.length) y.nya.clear();
+    for (const x of landade) y.nya.add(x);
     const stadat = stadaNyss();
     ritaHuvud(); ritaYta();
     if (stadat) { ritaNyss(); ritaKvitto(); }
+    if (o.foto) landa(landade);
+  }
+  /* Korten ur ett foto landar ett i taget (N3), i den ordning de står. En
+     flik i bakgrunden spelar inga animeringar: då står de bara där. */
+  function landa(nycklar) {
+    if (!nycklar.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const alla = new Set(nycklar), el = [...yta.querySelectorAll('.lspw')].filter(e => alla.has(pwNyckel(e)));
+    const steg = Math.min(250, 3000 / Math.max(1, el.length));
+    el.forEach((e, i) => {
+      const a = e.animate([{ opacity: 0, transform: 'translateY(12px) scale(.96)' }, { opacity: 1, transform: 'none' }],
+                          { duration: 420, delay: i * steg, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'backwards' });
+      setTimeout(() => a.cancel(), i * steg + 1500);
+    });
   }
 
   /* ── öppna och stänga ── */
@@ -14011,15 +14104,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (y.sok) { y.sok.stang(); y.sok = null; }
     if (!y.flik) {
       const vk = (flik, ikon, rub, txt) => `<button type="button" class="vk" data-ls-flik="${flik}"><span class="vi">${lsIk(ikon, 18)}</span><span class="vt"><b>${rub}</b><span>${txt}</span></span><span class="vc">${lsIk('chev', 16)}</span></button>`;
-      panel.innerHTML = '<h3>Add cards</h3><p class="lslead">Pick a way to start. You can mix them later — a photo first, then a few names typed in.</p>'
-        + vk('tel', 'phone', 'Scan with your phone<span class="tag">Recommended</span>', 'Photograph your physical deck, about 30 cards at a time.')
+      /* Sida M, rad 1:s lapp: det första sättet heter Take photos och säger
+         10–15 kort åt gången (förut Scan with your phone, about 30). */
+      panel.innerHTML = '<h3>Add cards</h3><p class="lslead">Pick a way to start. You can mix them later: a photo first, then a few names typed in.</p>'
+        + vk('tel', 'camera', 'Take photos<span class="tag">Recommended</span>', 'Photograph your physical deck, 10–15 cards at a time.')
         + '<span class="eller">or</span>' + vk('lista', 'paste', 'Paste a list', 'From Moxfield, Arena, MTGO or plain text.')
         + '<span class="eller">or</span>' + vk('skriv', 'type', 'Type card names', 'One card at a time, with suggestions.');
       return;
     }
     const flik = (k, ikon, txt) => `<button type="button" class="${y.flik === k ? 'on' : ''}" data-ls-flik="${k}">${lsIk(ikon, 14)}${txt}</button>`;
     const sbKnapp = sb => `<button type="button" class="${y.tillSb === sb ? 'on' : ''}" data-ls-sb="${sb ? 1 : 0}">${sb ? 'Sideboard' : 'Main deck'}</button>`;
-    let h = `<h3>Add cards</h3><div class="lsseg">${flik('tel', 'phone', 'Phone')}${flik('lista', 'paste', 'Paste a list')}${flik('skriv', 'type', 'Type')}</div>`;
+    let h = `<h3>Add cards</h3><div class="lsseg">${flik('tel', 'camera', 'Take photos')}${flik('lista', 'paste', 'Paste a list')}${flik('skriv', 'type', 'Type')}</div>`;
     if (y.flik === 'skriv') {
       h += `<div class="lssokwrap"><label class="lsfld"><span class="ic">${lsIk('search', 16)}</span><input type="text" class="lssok" placeholder="Type a card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>`
         + '<p class="lslead">Suggestions show as you type. Click a number to add that many copies.</p>'
@@ -14036,9 +14131,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
           + `<div class="lslas"><span class="ic">${lsIk('lock', 14)}</span><span>Mesa reads the list as plain text and adds only the names that exist in Magic.</span></div>` + las;
       h += '<div class="lskvitto" hidden></div>';
     } else {
-      h += '<div class="lstel"></div>';
+      /* Take photos fyller panelen: Finish the deck står längst ned. Just
+         added hör till Type och Paste a list. */
+      h += '<div class="lstel lfpanel"></div>';
     }
-    h += '<div class="lsnyss"></div>';
+    if (y.flik !== 'tel') h += '<div class="lsnyss"></div>';
     panel.innerHTML = h;
     if (y.flik === 'skriv') y.sok = kopplaSok(panel.querySelector('.lssok'), panel.querySelector('.lssug'));
     if (y.flik === 'tel') ritaTel();
@@ -14061,55 +14158,34 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     y.telVisad = true;
     telRita(panel.querySelector('.lstel'));
   }
-  /* Tomma kortytan säger vad man väntar på, samma steg som panelen. */
+  /* Tomma kortytan säger vad den väntar på (N1, N2). */
   function telTomt() {
-    const t = y.tel;
-    if (!t.ansluten) return ['phone', 'Waiting for your phone', 'Scan the code on the left. After that, every photo you take lands here, sorted by type.'];
-    if (t.fas === 'kamera') return ['camera', 'Your phone’s camera is open', 'Take the photo. The cards land here a few seconds later, sorted by type.'];
-    if (t.fas === 'laser') return ['camera', 'Reading the photo', 'It takes about half a minute. The cards land here, sorted by type.'];
-    return ['deck', 'Your first photo lands here', 'Lay out the cards and take the photo. They show up here a few seconds later, sorted by type.'];
+    if (!y.tel.ansluten) return ['phone', 'Waiting for your phone', 'Scan the code on the left with your phone. After that, every photo you take lands here, sorted by type.'];
+    return ['camera', 'Your first photo lands here', 'Lay out the cards and take the photo with your phone. They show up here a few seconds later, sorted by type. Basic lands are counted at the bottom.'];
   }
+  /* Take photos (sida M): N1 innan telefonen kopplats, N2 innan första
+     fotot, sedan fotoraderna och vad panelen väntar på (N3, N4). Texterna
+     står i LEKFOTO PÅ DATORN. */
   function telRita(el) {
     if (!el || !y.bas) return;
-    const t = y.tel, url = lekQrUrl(y.bas.id), harFoton = t.foton.length > 0;
-    const steg = [];
-    if (!harFoton) {
-      steg.push(t.ansluten
-        ? ['done', 1, 'Connect your phone', 'Phone connected.']
-        : ['act', 1, 'Connect your phone',
-           'Scan the code with your phone’s camera — nothing to install. Mesa opens on the phone, ready to photograph this deck.',
-           `<div class="lsqrrad"><div class="lsqr"></div><div class="qv"><span class="lsvantar"><i></i><span>Waiting for your phone…</span></span>`
-           + `<button type="button" class="btn sm" data-ls="kopiera">${lsIk('copy', 13)}<span>Copy link</span></button>`
-           + `<span class="lslank">${esc(url)}</span></div></div>`]);
-    }
-    const lagg = harFoton ? 'Lay out the next cards' : 'Lay out the cards';
-    const laggTxt = harFoton ? 'Move these aside and lay out the next ones the same way.' : LEK_LAGGTXT;
-    if (t.fas === 'kamera' || t.fas === 'laser') {
-      steg.push(['done', 2, lagg, 'Laid out for this photo.']);
-      steg.push(t.fas === 'laser'
-        ? ['act', 3, 'Take the photo', 'The photo is on its way into the deck. It takes about half a minute.',
-           '<span class="lsvantar"><i></i><span>Reading the photo…</span></span>']
-        : ['act', 3, 'Take the photo', 'Your phone’s camera is open — take the photo. Hold it straight above, every name inside the frame.',
-           '<span class="lsvantar"><i></i><span>Waiting for the photo…</span></span>']);
+    const t = y.tel, url = lekQrUrl(y.bas.id), l = lfLage(t);
+    let h;
+    if (l.typ === 'koppla') {
+      h = `<div class="lftit"><b>${l.rub}</b><span>${l.txt}</span></div>`
+        + '<div class="lfqr"><div class="lsqr"></div></div>'
+        + `<span class="lfvantar"><i></i>${l.vantar}</span>`
+        + '<button type="button" class="lflank" data-ls="kopiera"><span>Copy the link instead</span></button>'
+        + `<div class="lffot"><p class="lfnasta">${l.nasta}</p></div>`;
     } else {
-      steg.push([t.ansluten ? 'act' : 'todo', 2, lagg, laggTxt,
-                 t.ansluten ? lekGuide('lsg1', { cols: 5, rows: 5, w: 40, off: 8, gap: 8, pad: 14 })
-                   + `<div class="lsnxt"><span class="ic">${lsIk('phone', 16)}</span><span>When they’re laid out, press <b>Open the camera</b> on your phone.</span></div>` : '']);
-      steg.push(['todo', 3, 'Take the photo', 'Starts by itself when your phone opens the camera.']);
+      h = '<div class="lfansl"><i></i>Phone connected</div>'
+        + lfRader(t).map(fotoRadHtml).join('')
+        + (t.klar ? fotoKlarHtml()
+          : `<div class="lftit"><b>${l.rub}</b><span>${l.txt}</span></div>`
+            + (l.guide ? lekGuide('lfg' + l.guide, { cols: 3, rows: l.guide, w: 54, off: 15, gap: 50, pad: 49 }) : '')
+            + (l.vantar ? `<span class="lfvantar"><i></i>${l.vantar}</span>` : '')
+            + (lfKanAvsluta(t) ? '<div class="lffot"><span>Photographed every card?</span>'
+              + `<button type="button" class="lfklar" data-ls="fotoklar">${lsIk('check', 16, 2.6)}Finish the deck</button></div>` : ''));
     }
-    const li = ([st, nr, tit, txt, mer]) => `<li class="${st}"><span class="sn">${st === 'done' ? lsIk('check', 13, 2.8) : nr}</span>`
-      + `<div class="sb"><b>${tit}</b>${txt ? `<span>${txt}</span>` : ''}${mer || ''}</div></li>`;
-    const fotorad = f => `<div class="lsfotorad${f.koll ? ' chk' : ''}"><span class="lsmph"><i style="left:6px"></i><i style="left:18px"></i><i style="left:30px"></i><i style="left:42px"></i></span>`
-      + `<div class="ft"><b>Photo ${f.nr}</b><span>${f.nya} ${f.nya === 1 ? 'card' : 'cards'} added${f.koll ? ` · ${f.koll} to check` : ''}</span></div>`
-      + `<span class="ok">${lsIk('check', 16, 2.4)}</span></div>`;
-    const h = (harFoton
-        ? `<div class="lskort2"><div class="lstelon"><span class="led"></span><span>Phone connected for deck photos. They land in this deck.</span></div>`
-          + t.foton.map(fotorad).join('') + '</div>'
-        : '')
-      + (t.ansluten ? `<div class="lscyk"><span class="lspt">${lsIk('camera', 12)}Photo ${t.foto}</span>`
-          + `<span class="ct">${harFoton ? 'Steps 2 and 3 start over for every photo.' : 'One photo at a time, about 30 cards.'}</span><i class="zl"></i></div>` : '')
-      + `<ol class="lsps">${steg.map(li).join('')}</ol>`
-      + (harFoton ? '<p class="lsdropnot">That was all of them? Nothing more to do — the deck is saved as you go.</p>' : '');
     /* Samma html: rita inte om. Annars börjar guidens animering och QR-koden
        om vid varje meddelande från telefonen. */
     if (h === y.telHtml && el.childNodes.length) return;
@@ -14117,6 +14193,29 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     el.innerHTML = h;
     const qr = el.querySelector('.lsqr');
     if (qr) ritaQr(url, qr);
+  }
+  /* En fotorad (N3, N4). Tumnageln är ritad tills fotot självt finns på
+     datorn. */
+  function fotoRadHtml(r) {
+    const th = r.typ === 'las' ? lsIk('camera', 16, 2.1)
+      : '<i style="left:6px"></i><i style="left:15px"></i><i style="left:24px"></i><i style="left:33px"></i>';
+    return `<div class="lffoto ${r.typ}"><span class="th">${th}</span>`
+      + `<div class="ft"><b>${esc(r.rub)}</b><span>${esc(r.txt)}</span></div></div>`;
+  }
+  /* Efter Finish the deck: vad som händer då bygger MES-323. Till dess gör
+     knappen det appen gjorde när man var klar med fotona — To check och
+     basländerna står på kortytan som förut — och fotona står kvar, med en
+     väg tillbaka till kameran (Take more photos, ID0). */
+  function fotoKlarHtml() {
+    return `<button type="button" class="btn lfigen" data-ls="fotoigen">${lsIk('camera', 14)}Take more photos</button>`;
+  }
+  function fotoKlar(klar) {
+    y.tel.klar = !!klar;
+    ritaTel(); ritaYta();
+    if (klar) {
+      const tc = yta.querySelector('.lstc:not([hidden])');
+      if (tc) tc.scrollIntoView({ block: 'start', behavior: 'smooth' }); else yta.scrollTop = 0;
+    }
   }
   function ritaKvitto() {
     const el = panel.querySelector('.lskvitto'); if (!el) return;
@@ -14168,7 +14267,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     let h;
     if (!v.kort.length) {
       const t = y.flik === 'tel' ? telTomt() : null;
-      h = t ? `<div class="lstom"><span class="ico">${lsIk(t[0], 26, 1.6)}</span><b>${t[1]}</b><span>${t[2]}</span></div>`
+      h = t ? `<div class="lstom lfvant"><span class="ico">${lsIk(t[0], 30, 2)}</span><b>${t[1]}</b><span>${t[2]}</span></div>`
         : `<div class="lstom"><span class="ico">${lsIk('deck', 26, 1.6)}</span><b>No cards yet</b><span>Add them one of the three ways on the left. They show up here, sorted by type, and you can change or remove every card.</span></div>`;
     } else {
       /* Platshållarna ur ett lekfoto (MES-289) står bara under To check:
@@ -14227,6 +14326,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   /* To check (N7, N8): kort Mesa inte var säker på. De ligger i leken ändå,
      tills man säger något annat. */
   function attKolla(v) {
+    /* Medan man fotar nämns namnen att kolla bara (N3). De kollas när leken
+       görs klar; kortets Check-bricka går att trycka på ändå. */
+    if (fotar()) {
+      const k = lfKollText(v.kort.filter(x => x.koll).length);
+      return k ? `<div class="lfkoll"><i></i><b>${k.rub}</b><span>${k.txt}</span></div>` : '<div class="lstc" hidden></div>';
+    }
     const l = v.kort.filter(k => k.koll || y.bekr.has(nyckel(k.name, k.sb))), kvar = l.filter(k => k.koll).length;
     if (!l.length) return '<div class="lstc" hidden></div>';
     const rad = k => {
@@ -14292,10 +14397,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function hog(p) {
     const c = lekKortData(p), src = (c && imgOf(c, 0, 'normal')) || p.small || '';
     const key = nyckel(p.name, p.sb), valt = y.valda.has(key), bekr = !p.koll && y.bekr.has(key), ny = !p.koll && !bekr && y.nya.has(key);
+    /* Ett nytt kort att kolla bär både New och Check (sida M, N3); ringen är Checks. */
+    const nyKoll = !!p.koll && y.nya.has(key);
     const lager = (p.n >= 3 ? '<i class="pl l2"></i>' : '') + (p.n >= 2 ? '<i class="pl l1"></i>' : '');
     const bild = src ? `<img class="kf" src="${esc(src)}" alt="" loading="lazy" draggable="false">` : `<span class="kf lsutan">${esc(p.name)}</span>`;
     const merke = (valt || p.koll || bekr || ny ? '<i class="lsring"></i>' : '')
-      + (valt ? `<span class="lsselm">${lsIk('check', 11, 3)}</span>` : ny ? '<span class="lsnyb">New</span>' : '')
+      + (valt ? `<span class="lsselm">${lsIk('check', 11, 3)}</span>` : ny || nyKoll ? '<span class="lsnyb">New</span>' : '')
       + (p.koll ? '<button type="button" class="lschkb" data-ls-chk title="Mesa wasn’t sure about this card">Check</button>'
         : bekr ? `<span class="lsbekrb">${lsIk('check', 11, 3)}Confirmed</span>` : '');
     const kl = 'lspw' + (valt ? ' valt' : '') + (p.koll ? ' chk' : bekr ? ' bekr' : ny ? ' ny' : '');
@@ -14314,14 +14421,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const c = cardFor(n);
       if (!c && !y.blHamtas.has(n)) { y.blHamtas.add(n); lookup(n).then(() => ritaYta()).catch(() => {}); }
       const src = c && imgOf(c, 0, 'small'), a = antal(n);
-      return `<div class="lsblk">${src ? `<img class="kf" src="${esc(src)}" alt="${n}" title="${n}" draggable="false">` : `<span class="kf lsutan">${n}</span>`}`
+      return `<div class="lsblk${a ? '' : ' noll'}">${src ? `<img class="kf" src="${esc(src)}" alt="${n}" title="${n}" draggable="false">` : `<span class="kf lsutan">${n}</span>`}`
         + `<span class="stp"><button type="button" data-ls-bl="${n}" data-d="-1" title="One fewer ${n}"${a ? '' : ' disabled'}>${lsIk('minus', 12, 2.4)}</button>`
         + `<input class="stpin" type="text" inputmode="numeric" maxlength="2" value="${a}" data-ls-blin="${n}" aria-label="Number of ${n}" title="Type how many ${n} you play">`
         + `<button type="button" data-ls-bl="${n}" data-d="1" title="One more ${n}">${lsIk('plus', 12, 2.4)}</button></span></div>`;
     };
     const tot = BASLAND_NAMN.reduce((t, n) => t + antal(n), 0);
+    /* Basländerna får vara med på fotona (sida M, N2): medan man fotar räknas
+       de därifrån (N3). */
+    const not = fotar() ? 'Counted from the photos so far.' : 'Set how many you play here.';
     return `<div class="lssek"><div class="zr"><span class="zonlbl">Basic lands</span><span class="zn">${tot}</span><i class="zl"></i></div>`
-      + `<div class="lsbl">${BASLAND_NAMN.map(blk).join('')}<span class="blnot">Leave these out of the photos. Set how many you play here.</span></div></div>`;
+      + `<div class="lsbl">${BASLAND_NAMN.map(blk).join('')}<span class="blnot">${not}</span></div></div>`;
   }
 
   /* ── ändringarna ── */
@@ -15003,7 +15113,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   panel.addEventListener('click', ev => {
     const f = ev.target.closest('[data-ls-flik]');
     if (f) {
-      y.flik = f.dataset.lsFlik; ritaPanel();
+      /* Kortytan hör till fliken: Take photos säger vad den väntar på. */
+      y.flik = f.dataset.lsFlik; ritaPanel(); ritaYta();
       const falt = panel.querySelector('.lssok, .lsta'); if (falt) falt.focus();
       return;
     }
@@ -15023,11 +15134,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       tc.classList.remove('blink'); void tc.offsetWidth; tc.classList.add('blink');
     }
     else if (b.dataset.ls === 'kopiera' && y.bas) {
-      const url = lekQrUrl(y.bas.id), txt = b.querySelector('span');
+      const url = lekQrUrl(y.bas.id), txt = b.querySelector('span'), fore = txt ? txt.textContent : '';
       navigator.clipboard.writeText(url)
-        .then(() => { if (txt) { txt.textContent = 'Copied'; setTimeout(() => { txt.textContent = 'Copy link'; }, 1600); } })
+        .then(() => { if (txt && fore !== 'Copied') { txt.textContent = 'Copied'; setTimeout(() => { txt.textContent = fore; }, 1600); } })
         .catch(() => prompt('Copy the link:', url));
     }
+    else if (b.dataset.ls === 'fotoklar') fotoKlar(true);
+    else if (b.dataset.ls === 'fotoigen') fotoKlar(false);
   });
   panel.addEventListener('keydown', ev => {
     if (!ev.target.matches('input, textarea')) return;
