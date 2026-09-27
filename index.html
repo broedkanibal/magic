@@ -13778,6 +13778,14 @@ function lfUndoGiltig(t, u) {
   return true;
 }
 const lfLandade = t => lfFotoLista(t).filter(f => LF_LANDAT.includes(lfLageAv(t, f))).map(f => f.fid);
+/* Datorns eget läge för ett foto (lokal) gäller tills telefonen säger samma
+   sak, eller tills telefonen skickar en ny post för fotot efter att datorns
+   meddelande gått iväg (lokalSagd): telefonen skickar inte om posten när den
+   fått fotobort eller fotoater, men nästa post den skickar vet om det. */
+function lfLokalIn(t, fid, lage) {
+  if (!t.lokal || !t.lokal.has(fid)) return;
+  if (t.lokal.get(fid) === lage || (t.lokalSagd && t.lokalSagd.has(fid))) { t.lokal.delete(fid); if (t.lokalSagd) t.lokalSagd.delete(fid); }
+}
 
 /* Raden för ett foto som landat med kort (N3, IP1, N4). Platshållarna är
    "names to pick", de osäkra namnen "names to check"; "some not read" utan
@@ -13959,7 +13967,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     telHtml: '',          // senast ritade Take photos-flik, så att guiden inte börjar om
   };
   const telTom = () => ({ ansluten: false, fas: 'vantar', foto: 1, fid: null, ersatter: null, klar: false, seddN: 0,
-                          foton: new Map(), bilder: new Map(), lokal: new Map(), undo: new Map(), mallar: new Map(), arKort: new Set() });
+                          foton: new Map(), bilder: new Map(), lokal: new Map(), lokalSagd: new Set(), undo: new Map(), mallar: new Map(), arKort: new Set() });
+  /* Datorns eget läge för ett foto (Remove photo, Undo), tills telefonen
+     vet om det: telefonen skickar inte om fotots post när den fått
+     fotobort/fotoater, så när meddelandet väl gått iväg gäller telefonens
+     nästa post för fotot (ett omtag som ersätter det, till exempel). */
+  function lokalt(fid, lage) { y.tel.lokal.set(fid, lage); y.tel.lokalSagd.delete(fid); }
   /* Man fotar: Take photos står framme och Finish the deck är inte tryckt. */
   const fotar = () => y.flik === 'tel' && !y.tel.klar;
   y.tel = telTom();
@@ -14165,7 +14178,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       if (fas === 'klar') d.klar = true;                  // Finish the deck på telefonen (I10)
       telSatt(d);
       if (!m.svar) lekKanalSag({ typ: 'hej', lekId: id, roll: 'dator', svar: true });
-      for (const x of (t.utkorg || []).splice(0)) lekKanalSag(Object.assign({ lekId: id }, x));
+      for (const x of (t.utkorg || []).splice(0)) telSag(x);
       return;
     }
     if (m.typ === 'kamera' || m.typ === 'laser') {
@@ -14219,8 +14232,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!t.format) { t.format = true; for (const [k, v] of [...t.foton]) if (v.fran === 'sparad') t.foton.delete(k); }
     const ny = Object.assign({}, f, { fid, sedd: fore ? fore.sedd : ++t.seddN });
     t.foton.set(fid, ny);
-    /* Datorns egen handling är bekräftad när telefonen säger samma sak. */
-    if (t.lokal.get(fid) === ny.lage) t.lokal.delete(fid);
+    lfLokalIn(t, fid, ny.lage);
     const landat = LF_LANDAT.includes(ny.lage), varLandat = !!fore && LF_LANDAT.includes(fore.lage);
     /* Fotot som lästes har landat: panelen väntar på nästa (N3). */
     if (landat && fid === t.fid && (t.fas === 'laser' || t.fas === 'kamera')) { t.fas = 'lagg'; t.ersatter = null; }
@@ -14277,8 +14289,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      meddelandet, och skickas när den gör det. */
   function telSag(m) {
     if (!y.bas) return;
-    if (y.tel.ansluten) lekKanalSag(Object.assign({ lekId: y.bas.id }, m));
-    else (y.tel.utkorg = y.tel.utkorg || []).push(m);
+    if (!y.tel.ansluten) { (y.tel.utkorg = y.tel.utkorg || []).push(m); return; }
+    lekKanalSag(Object.assign({ lekId: y.bas.id }, m));
+    if (m.fid && (m.typ === 'fotobort' || m.typ === 'fotoater')) y.tel.lokalSagd.add(m.fid);
   }
   /* Take photos i webbläsaren, per lek: fliken, Finish the deck och det som
      går att ångra, så att en omladdning inte tappar Undo (och inte kan göra
@@ -14585,7 +14598,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const t = y.tel, f = t.foton.get(fid) || { fid };
     if (!lfStod() || !y.bas || t.undo.has(fid) || lfLageAv(t, f) === 'bort') return;
     const kort = nu().kort, { ops, undo } = lfTaBort(t, kort, fid, lekOpId);
-    t.lokal.set(fid, 'bort');
+    lokalt(fid, 'bort');
     if (undo) {
       t.undo.set(fid, undo);
       /* Korten som försvinner helt krymper bort (MES-185). */
@@ -14603,8 +14616,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const t = y.tel, u = t.undo.get(fid);
     if (!lfStod() || !u || !lfUndoGiltig(t, u)) return;
     u.brukad = true;                         // en gång: ett andra tryck gör ingenting
-    if (u.typ === 'bort') t.lokal.set(u.fid, 'klar');
-    else { t.lokal.set(u.ny, 'bort'); t.lokal.set(u.gammal, 'klar'); }
+    if (u.typ === 'bort') lokalt(u.fid, 'klar');
+    else { lokalt(u.ny, 'bort'); lokalt(u.gammal, 'klar'); }
     telSpara();
     medAngring(u.ops, () => andra(u.ops, { utanAngra: true }));
     planera(0);

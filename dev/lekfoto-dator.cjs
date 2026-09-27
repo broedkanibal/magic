@@ -265,6 +265,33 @@ fall('utan fotoposter gäller telefonens nummer', () => {
   assert.strictEqual(app.lfNastaNr(nyTel({ foto: 4 })), 4);
 });
 
+fall('datorns eget läge: gäller tills telefonen säger samma, eller skickar en post efter meddelandet', () => {
+  /* Det MES-321:s telefon visade (2026-09-28): Remove photo 1, Undo, sedan
+     tas foto 1 om. Telefonen skickar inte om posten efter fotoater, så datorns
+     "klar" låg kvar och det ersatta fotot syntes bredvid omtaget (J10). */
+  const t = nyTel({ lokalSagd: new Set() });
+  foto(t, '1:a', 'bort');
+  t.lokal.set('1:a', 'klar');                                   // Undo på datorn, fotoater inte skickat än
+  app.lfLokalIn(t, '1:a', 'bort');                              // telefonens gamla post: står kvar
+  assert.strictEqual(app.lfLageAv(t, t.foton.get('1:a')), 'klar');
+  t.lokalSagd.add('1:a');                                       // fotoater har gått iväg
+  foto(t, '1:a', 'ersatt');
+  app.lfLokalIn(t, '1:a', 'ersatt');                            // omtaget ersatte det: telefonens post gäller
+  foto(t, '1:z', 'klar', { hittade: 3, ersatter: '1:a' });
+  assert.strictEqual(app.lfLageAv(t, t.foton.get('1:a')), 'ersatt');
+  assert.deepStrictEqual(app.lfRader(t).map(r => r.fid), ['1:z'], 'bara omtaget har en rad');
+  const u = nyTel({ lokalSagd: new Set() });
+  foto(u, '2:b', 'klar'); u.lokal.set('2:b', 'bort');
+  app.lfLokalIn(u, '2:b', 'bort');                              // telefonen säger samma: bekräftat
+  assert.strictEqual(u.lokal.size, 0);
+});
+fall('kamera har inget fid: ingen fotorad förrän laser', () => {
+  const t = nyTel({ fas: 'kamera', foto: 2, fid: null });
+  foto(t, '1:a', 'klar', { hittade: 2 });
+  assert.deepStrictEqual(app.lfRader(t).map(r => r.nr), [1]);
+  assert.strictEqual(app.lfLage(t).vantar, 'Waiting for photo 2');
+});
+
 /* ── C: när Undo gäller ──────────────────────────────────────────── */
 fall('Undo gäller tills nästa foto landar, inte medan det läses', () => {
   const t = nyTel();

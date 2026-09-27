@@ -122,9 +122,11 @@
       for (const f of tel.foton.values()) skickaFoto(f);
       return;
     }
+    /* Som MES-321:s telefon (telfotoAndrat): läget ändras, men posten skickas
+       inte om. Datorn får veta det först med telefonens nästa post. */
     const f = d.fid && tel.foton.get(d.fid);
-    if (d.typ === 'fotobort' && f) { f.lage = 'bort'; skickaFoto(f); }
-    else if (d.typ === 'fotoater' && f) { f.lage = 'klar'; skickaFoto(f); }
+    if (d.typ === 'fotobort' && f) { f.lage = 'bort'; }
+    else if (d.typ === 'fotoater' && f && (f.lage === 'bort' || f.lage === 'ersatt')) { f.lage = 'klar'; }
     else if (d.typ === 'omtag' && f) { tel.fas = 'kamera'; sag({ typ: 'kamera', foto: f.nr, fid: f.nr + ':' + uid2(), ersatter: f.fid }); }
     else if (d.typ === 'klar') { tel.fas = 'klar'; }
   }
