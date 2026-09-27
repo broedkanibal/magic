@@ -23555,14 +23555,14 @@ const GRAV_TIDIGAST = 350, GRAV_EFTER = 5000;
    på mattan igen inom så här lång tid var aldrig där: högen ändrades av
    något annat medan kortet bara flyttades. Då är det samma objekt, och
    countrarna och sidan ska vara kvar (urGraven i avstamBord) — kamerans
-   flytt går inte att ångra. Varför 20 s, som SPELL_MS: att få tillbaka ett
-   kort som verkligen dött kräver en besvärjelse eller en förmåga efter att
-   det lagts på högen, och det tar i praktiken längre tid; ett felaktigt
-   gravAuto kommer tillbaka så fort spåret läses igen, inom BORTA_NAD plus
-   en läsning — några sekunder. Skulle ett verkligt återkommande hamna inom
-   fönstret blir countrarna kvar, och det syns och går att rätta för hand;
-   det omvända felet (tappade countrar) gör det inte. */
-const GRAV_ATER_MS = 20000;
+   flytt går inte att ångra. Fönstret är så kort det går: BORTA_NAD (5 s)
+   plus en läsning av kortet på den nya platsen (~3 s). Ett felaktigt
+   gravAuto kommer tillbaka så fort spåret läses igen, och kortet låg redan
+   på sin nya plats medan högvakten väntade. Ett kort som verkligen dött kan
+   komma tillbaka snabbt — Supernatural Stamina, Feign Death, Kaya's
+   Ghostform — och ska då vara ett nytt objekt utan countrar; med 20 s
+   (som SPELL_MS, 6757fa8) behöll de sina. */
+const GRAV_ATER_MS = 8000;
 let gravHandelser = [], gravSistaN = null, gravTid = new Map();
 function gravTaEmot(grav, nu) {
   if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet

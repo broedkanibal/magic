@@ -1549,7 +1549,7 @@ prov('GU1b högvakten tog fel: kortet kommer tillbaka på mattan strax efter gra
   const strax = kor(3000);
   assert.deepEqual(strax.cts, [{ t: '+1/+1', n: 2 }], 'countrarna försvann på ett kort som aldrig lämnat bordet');
   assert.equal(strax.flipped, 1, 'sidan vändes på ett kort som aldrig lämnat bordet');
-  const senare = kor(60000);
+  const senare = kor(12000);                      // utanför GRAV_ATER_MS (8 s): ett nytt objekt, som Feign Death
   assert.deepEqual(senare.cts, []); assert.equal(senare.flipped, 0);
 });
 prov('GU2 leken har 4 Forest, tre på bordet och ett i graveyard: det fjärde på mattan är ett NYTT kort ur handen', () => {
