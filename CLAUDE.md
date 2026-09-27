@@ -152,13 +152,13 @@ skriver i Linear själva.
 
 | Status | Betyder | Vem lägger den där | Vem plockar därifrån |
 |---|---|---|---|
-| **Triage** | *Agentens inkorg.* Något Claude Code noterat på eget initiativ, som Jesper inte sett | Claude Code — alltid här, aldrig i Backlog eller Todo | **ingen** — Jesper sorterar |
+| **Triage** | *Agentens inkorg.* Allt Claude Code skapar, som Jesper inte sorterat | Claude Code — alltid här, också när Jesper bett om issuen i chatten; aldrig i Backlog, Todo eller Behöver dig | **ingen** — Jesper sorterar |
 | **Backlog** | *Kanske.* Sett, men inte beslutat | bara Jesper | **ingen** |
-| **Todo** | *Ska göras,* och en agent kan börja utan Jesper | bara Jesper (eller Claude Code när Jesper bett om just den saken i chatten) | agenter, i prioritetsordning |
+| **Todo** | *Ska göras,* och en agent kan börja utan Jesper | bara Jesper | agenter, i prioritetsordning |
 
 **Fyra regler, utan undantag:**
 
-1. **Claude Code skapar på eget initiativ bara i Triage** — och i projektet
+1. **Claude Code skapar bara i Triage**, också när Jesper bett om issuen — och i projektet
    **Private beta**, om Jesper inte sagt något annat. Agent-klientens
    `skapaIssue` gör båda om `status` och `projekt` utelämnas. Är det
    uppenbart Commander-specifikt: `projekt: 'Private beta · Commander'`. Tröskeln ovan gäller
@@ -294,10 +294,8 @@ etikett: fråga hellre än att skapa en ny.
 
 | Situation | Status |
 |---|---|
-| Jesper säger i chatten att något ska göras, och en agent kan göra det | **Todo** |
-| Jesper säger i chatten att något ska göras, men det behöver honom först | **Behöver dig** |
+| Claude Code skapar en issue, på eget initiativ eller för att Jesper bett om den | **Triage** — Jesper sorterar till Todo, Behöver dig, Backlog eller Canceled |
 | Claude Code påbörjar arbetet direkt, på Jespers begäran | **In Progress** (`paborjaIssue`) |
-| Claude Code noterar något på eget initiativ, som ingen bett om | **Triage** — aldrig Backlog |
 
 ### In Progress betyder en sak: en session kör den nu
 
@@ -395,10 +393,9 @@ kartan över appen är etiketterna.
 Hör issuen till Private beta: sätt milstolpen också. Milstolparna är
 delarna av leveransen, inte parent-issues.
 
-Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature', 'spelvyn'],
-status: 'unstarted', projekt: null })` — eller `projekt: 'Private beta'`
-när den hör till betan. Med MCP-kopplingen: sätt `labels` och
-`state: "Todo"`, och `project` bara i det fallet.
+Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature', 'spelvyn'] })`
+— utan `status` och `projekt` blir det Triage i Private beta. Med
+MCP-kopplingen: sätt `labels`, `state: "Triage"` och `project: "Private beta"`.
 
 ### Överblicken: `/läget`
 

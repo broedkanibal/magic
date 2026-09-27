@@ -150,7 +150,9 @@ async function skapaIssue({ teamId, title, description, etiketter, status, proje
   }
   const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
   const labelIds = await hittaEtiketter(teamId, etiketter);
-  const stateId = status ? await hittaState(teamId, status) : undefined;
+  /* 'unstarted' är både Behöver dig och Todo, och Behöver dig ligger först på
+     brädan: utan namnet hamnade en Todo-issue hos Jesper (MES-319). */
+  const stateId = status ? await hittaState(teamId, status, status === 'unstarted' ? 'Todo' : undefined) : undefined;
   const projectId = await hittaProjekt(teamId, projekt);
   const data = await graphql(
     `mutation($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }`,
