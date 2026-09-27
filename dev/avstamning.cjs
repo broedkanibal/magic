@@ -69,14 +69,14 @@ function delaHand() {
 `;
 /* Svaren som binder ett kort till ett spår utanför avstämningen (MES-291):
    granskningens svar (namngePend, med sammaKortVid) och handflytten till
-   graveyard eller exile (flyttaTill). Ur samma index.html, så att proven kör
+   graveyard eller exile (flyttaTill, med aurorFoljer). Ur samma index.html, så att proven kör
    appens egen kod. En funktion slutar vid första "}" i början av en rad. */
 const funk = namn => {
   const i = src.indexOf('function ' + namn + '('), j = src.indexOf('\n}\n', i);
   if (i < 0 || j < 0) throw new Error('hittar inte ' + namn + ' i ' + fil);
   return src.slice(i, j + 3);
 };
-const svarKod = ['sammaKortVid', 'namngePend', 'flyttaTill'].map(funk).join('\n');
+const svarKod = ['sammaKortVid', 'namngePend', 'aurorFoljer', 'flyttaTill'].map(funk).join('\n');
 /* Timrarna (MES-291): avstamBord ställer en timer som låter nåden och
    väntan löpa ut när telefonen är tyst. Här virtuella: tid(t) flyttar
    klockan till t och kör timrarna som hinner gå ut, i ordning, med klockan
@@ -1127,6 +1127,35 @@ prov('GR3 högen ändras inte: frågan som förut', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
   klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
   assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
+});
+prov('GR3b en token vars spår dör när högen ändras upphör att finnas, och en aura-token på en värd som går dit likaså — en vanlig aura följer med (MES-105)', () => {
+  app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura'], ['Bonesplitter', 'Artifact — Equipment']]);
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(0));
+  const ukud = app.kort.find(k => k.name === 'Ukud Cobra'), sold = app.kort.find(k => k.name === 'Soldier');
+  sold.tok = 1;                                   // en token, som addCards gör den
+  app.kort.push({ cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: ukud.cid },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: ukud.cid },
+                { cid: 'q', name: 'Bonesplitter', flipped: 0, attachedTo: ukud.cid });
+  klocka.t += 150; stamG([klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(0));   // Ukud borta
+  klocka.t += 1000; stamG([klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(1));
+  klocka.t += 2100; stamG([klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(1));
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto);
+  assert.ok(!app.kort.some(k => k.name === 'Monster Role'), 'aura-token kvar');
+  assert.equal(app.kort.find(k => k.name === 'Pacifism').zon, 'grav');
+  assert.equal(app.kort.find(k => k.name === 'Bonesplitter').zon, undefined, 'utrustningen blir kvar');
+  klocka.t += 150; stamG([], hog(1));             // tokenens spår dör
+  klocka.t += 1000; stamG([], hog(2));
+  klocka.t += 2100; stamG([], hog(2));
+  assert.ok(!app.kort.includes(sold), 'tokenen ligger i graveyard');
+  assert.ok(!app.kort.some(k => k.tok), 'en token blev kvar');
+});
+prov('GR3c handflytt till graveyard: en aura-token på kortet upphör att finnas, en vanlig aura följer med (flyttaTill)', () => {
+  app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura']]);
+  app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10 },
+                { cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: 'v' },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' });
+  assert.ok(app.flytta(0, 'grav'));
+  assert.deepEqual(app.kort.map(k => k.name + ':' + (k.zon || '')), ['Grizzly Bears:grav', 'Pacifism:grav']);
 });
 prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));

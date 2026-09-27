@@ -6444,7 +6444,13 @@ function slimDelat(cards) {
     x: c.x != null ? c.x : undefined, y: c.y != null ? c.y : undefined,
     z: c.z != null ? c.z : undefined,
     grp: c.grp || undefined, gi: c.gi != null ? c.gi : undefined,
-    cts: c.cts && c.cts.length ? c.cts : undefined
+    cts: c.cts && c.cts.length ? c.cts : undefined,
+    /* I ett spel byggs mitt eget bord om ur den här raden (oppnaSpel →
+       byggSpelare). Utan flaggan var mina tokens vanliga kort efter en
+       omladdning: G lade dem i graveyard för gott, D gjorde kopior som inte
+       var tokens, tokenhögarna slutade fungera och motståndarens library-tal
+       (oppBibKvar) räknade dem som kort ur leken. */
+    tok: c.tok ? 1 : undefined
   }));
 }
 function slimKort(cards) {
@@ -7329,6 +7335,20 @@ function tillLeken(i) {
   removeAt(i, namnAv(e) + ' → hand or library');
   bibBumpa();
 }
+/* En aura följer sin värd till graveyard när värden lämnar mattan —
+   utrustning och fortifikationer blir kvar (losBifogade släpper dem där de
+   låg). En aura som är en token (Role-tokens) upphör att finnas i stället,
+   som varje token som lämnar mattan (MES-105): förut hamnade den i
+   graveyard och låg kvar där. Tar bort ur cards, så den som går över
+   listan i en loop får inte anropa den mitt i. */
+function aurorFoljer(cards, vard) {
+  for (let j = cards.length - 1; j >= 0; j--) {
+    const k = cards[j];
+    if (k.attachedTo !== vard.cid || !/\bAura\b/i.test(typLinje(k))) continue;
+    if (k.tok) cards.splice(j, 1);
+    else { k.zon = ZON_GRAV; delete k.attachedTo; }
+  }
+}
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
@@ -7346,11 +7366,9 @@ function flyttaTill(i, zon) {
     if (e.borta) { delete e.spar; delete e.borta; }
     else e.fysisk = true;
   }
-  /* En aura följer sin värd till graveyard — utrustning och fortifikationer
-     blir kvar på mattan (losBifogade släpper dem där de låg). */
-  if (hog) for (const k of c) {
-    if (k.attachedTo === e.cid && /\bAura\b/i.test(typLinje(k))) { k.zon = ZON_GRAV; delete k.attachedTo; }
-  }
+  /* Auror följer värden (aurorFoljer). En aura-token försvinner ur listan,
+     så kortets plats räknas om. */
+  if (hog) { aurorFoljer(c, e); i = c.indexOf(e); }
   /* En token som lämnar mattan upphör att finnas (MES-105) — den har ingen
      plats i en hög. Utrustning på den släpps där den låg (losBifogade). */
   if (hog && e.tok) {
@@ -24732,6 +24750,12 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   /* Efterskottet (MES-85): högen blev stilla först efter nådatiden, och
      kortet hann tonas ned. Arket stänger sig självt (renderGrid). */
   if (pol.saknas) for (const k of mig.cards) if (k.lyft != null && k.spar == null && gravTid.has(k.cid) && gravAutoOm(k, gravTid.get(k.cid))) slappLyft(k);
+  /* En token som gick till graveyard ovan — själv (gravAutoOm, besvärjelsen)
+     eller som aura på sin värd — upphör att finnas (MES-105), som i
+     flyttaTill. Förut låg den kvar i högen. Här och inte i gravAutoOm:
+     looparna ovan går över mig.cards. */
+  for (let j = mig.cards.length - 1; j >= 0; j--) if (mig.cards[j].tok && mig.cards[j].zon === ZON_GRAV) { mig.cards.splice(j, 1); andrat = true; }
+  if (andrat) state.sel = clamp(state.sel, 0, Math.max(0, mig.cards.length - 1));
   for (const id of hoppade) if (!synliga.has(id)) hoppade.delete(id);
   /* Spärren följer det fysiska kortet: alla dess spår, inte bara det som var
      bundet när kortet togs bort. Annars släpptes den när det spåret dog medan
@@ -24861,11 +24885,22 @@ function renderLyftBanner() {
 function svaraLyftAlla(zon, val) {
   if (!redigerbar()) return;
   const p = minSpelare(); if (!p) return;
+  const tillGraven = [];
   for (const c of p.cards) {
     if (c.lyft == null || !kanLyftas(c) || (zon != null && zonAv(c) !== zon)) continue;   // zonen läses innan kortet flyttas
     slappLyft(c);
-    if (val === 'grav') { c.zon = ZON_GRAV; delete c.attachedTo; }
+    if (val === 'grav') { c.zon = ZON_GRAV; delete c.attachedTo; tillGraven.push(c); }
   }
+  /* Efter loopen, som går över p.cards: en token upphör att finnas
+     (MES-105) och en aura följer sin värd — som i flyttaTill. Förut låg
+     tokens kvar i graveyard, och en aura på ett kort som gick dit blev
+     liggande lös på mattan. */
+  for (const c of tillGraven) {
+    aurorFoljer(p.cards, c);
+    const j = p.cards.indexOf(c);
+    if (c.tok && j >= 0) p.cards.splice(j, 1);
+  }
+  state.sel = clamp(state.sel, 0, Math.max(0, p.cards.length - 1));
   lyftTips = null;
   save(); renderAll(true);
 }
