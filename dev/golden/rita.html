@@ -65,6 +65,12 @@ input[type=text].fel{border-color:var(--fel)}
 #lagen span.klar{color:var(--vald);border-color:#3c6b46}
 #lagen span.avv{color:var(--fel);border-color:var(--fel)}
 #lagen span.nu{outline:2px solid var(--ruta)}
+.lagesforklaring{margin:5px 0 8px;font-size:11px}
+.lagesforklaring span{font:10.5px ui-monospace,Menlo,monospace;border:1px solid #2c3541;border-radius:3px;padding:0 4px}
+.lagesforklaring .ritad{color:var(--fg);border-color:#4b5868}.lagesforklaring .klar{color:var(--vald);border-color:#3c6b46}
+.lagesforklaring .avv{color:var(--fel);border-color:var(--fel)}.lagesforklaring .nu{outline:2px solid var(--ruta)}
+#lagestid{margin-bottom:4px}
+.tidsrad{margin-top:2px}
 #sagor{border:1px solid #3c6b46;background:#111a14;border-radius:5px;padding:8px 10px 8px 8px;margin-bottom:8px}
 #sagor ol{margin:0;padding-left:22px} #sagor li{margin:3px 0} #sagor li b{color:var(--vald)}
 #sagor .dim{margin-top:6px;font-size:11.5px}
@@ -123,14 +129,19 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <h2>Läge <span class="antal" id="lagesrubrik"></span></h2>
     <div class="ruta">
       <div class="rad">
-        <button type="button" id="b-forra" title="Förra läget">◀<kbd>[</kbd></button>
-        <button type="button" id="b-nasta" title="Nästa läge">▶<kbd>]</kbd></button>
-        <button type="button" id="b-bak" title="Tiden bakåt 0,5 s (⇧ 0,1 s, ⌥ 2 s)">−0,5 s<kbd>←</kbd></button>
-        <button type="button" id="b-fram" title="Tiden framåt 0,5 s (⇧ 0,1 s, ⌥ 2 s)">+0,5 s<kbd>→</kbd></button>
+        <button type="button" id="b-forra" title="Förra läget">◀ Förra<kbd>←</kbd></button>
+        <button type="button" id="b-nasta" title="Nästa läge">Nästa ▶<kbd>→</kbd></button>
         <label class="val"><input type="checkbox" id="klar"> klart<span class="kbd">D</span></label>
       </div>
-      <div class="rad dim" id="lagestid"></div>
       <div id="lagen"></div>
+      <div class="dim lagesforklaring"><span class="nu">1</span> här är du · <span class="ritad">1</span> ritat · <span class="klar">1</span> klart · <span class="avv">1</span> stämmer inte med facit</div>
+      <div id="lagestid"></div>
+      <div class="rad tidsrad">
+        <span class="dim">Skymmer handen?</span>
+        <button type="button" id="b-bak" title="Visa bilden 0,5 s tidigare, inom läget (⌥ 0,1 s)">−0,5 s<kbd>⇧←</kbd></button>
+        <button type="button" id="b-fram" title="Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)">+0,5 s<kbd>⇧→</kbd></button>
+        <button type="button" id="b-aterTid" hidden>tillbaka till föreslagen tid</button>
+      </div>
     </div>
     <h2>Händelser sedan förra ritade läget</h2>
     <div id="handelser" class="ruta"></div>
@@ -193,8 +204,8 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>B</td><td><b>leken</b> (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den sparas som facits library-ruta, så att golden inte mäter leken som ett kort. B igen ångrar</td></tr>
     <tr><td>G</td><td>kortet ligger i graveyard (räknas inte som kort i spel)</td></tr>
     <tr class="grupp"><td colspan="2">Bara i video</td></tr>
-    <tr><td>[ ]</td><td>förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort</td></tr>
-    <tr><td>← →</td><td>flytta tiden 0,5 s (⇧ 0,1 s, ⌥ 2 s) — om en hand skymmer</td></tr>
+    <tr><td>← → (eller [ ])</td><td>förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort — ta bort det som lämnat bordet, rita det som är nytt</td></tr>
+    <tr><td>⇧← ⇧→</td><td>visa bilden 0,5 s tidigare/senare (⌥ 0,1 s), om en hand skymmer. Bara inom läget — tiden går inte in i nästa läge</td></tr>
     <tr><td>D</td><td>läget är ritat klart</td></tr>
   </table>
   <p class="dim">Gult = synligt kort. Streckat = den del som ligger under ett annat kort. Det gröna bandet på det valda kortet är namnraden — syns mindre än hälften av den är kortet <b>dolt</b>. Rött = namn saknas.</p>
@@ -724,7 +735,7 @@ window.addEventListener('keydown', e => {
   if (k === 'Escape') { if (!el('hjalp').hidden) el('hjalp').hidden = true; else if (S.vantar) { S.vantar = null; ritaSnart(); } else valj(null); return; }
   if (k === '?' || k === 'h' || k === 'H') { el('hjalp').hidden = !el('hjalp').hidden; return; }
   if (!S.dok) return;
-  const steg = e.shiftKey ? 0.1 : e.altKey ? 2 : 0.5;
+  const steg = e.altKey ? 0.1 : 0.5;   // tiden inom läget: ⇧← ⇧→, ⌥ för finare
   switch (k) {
     case 'n': case 'N': byt('rita'); break;
     case 'v': case 'V': byt('valj'); break;
@@ -733,8 +744,8 @@ window.addEventListener('keydown', e => {
     case 'Delete': case 'Backspace': e.preventDefault(); taBort(); break;
     case 'ArrowUp': e.preventDefault(); flyttaZ(e.shiftKey ? 'topp' : 1); break;
     case 'ArrowDown': e.preventDefault(); flyttaZ(e.shiftKey ? 'botten' : -1); break;
-    case 'ArrowLeft': e.preventDefault(); flyttaTid(-steg); break;
-    case 'ArrowRight': e.preventDefault(); flyttaTid(steg); break;
+    case 'ArrowLeft': e.preventDefault(); if (e.shiftKey) flyttaTid(-steg); else gaTill(S.nr - 1); break;
+    case 'ArrowRight': e.preventDefault(); if (e.shiftKey) flyttaTid(steg); else gaTill(S.nr + 1); break;
     case '[': gaTill(S.nr - 1); break;
     case ']': gaTill(S.nr + 1); break;
     case 'd': case 'D': klar(); break;
@@ -839,7 +850,10 @@ function visaLage() {
   if (S.kalla.sort !== 'video') return;
   const l = lageNu(), f = S.u.forslag[S.nr - 1];
   el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length}${S.dok.lagen[S.nr] ? '' : ' · inte ritat (kopia av förra)'}`;
-  el('lagestid').innerHTML = `${fmtT(l.t)} s${Math.abs(l.t - f.t) > 0.001 ? ` (föreslaget ${fmtT(f.t)})` : ''} · <span class="dim">${esc(f.etikett)}</span>`;
+  const [fran, till] = fonster(S.nr), utanfor = l.t < fran - 0.001 || l.t > till + 0.001, flyttad = Math.abs(l.t - f.t) > 0.001;
+  el('lagestid').innerHTML = `<b>${esc(f.etikett)}</b><div class="dim">bilden vid ${fmtT(l.t)} s${flyttad ? ` (föreslaget ${fmtT(f.t)})` : ''} · läget gäller ${fmtT(fran)}–${till === Infinity ? 'slutet' : fmtT(till) + ' s'}</div>`
+    + (utanfor ? `<div class="varn">Bilden ligger utanför läget, så den visar ett annat läge. Tryck på <i>tillbaka till föreslagen tid</i>.</div>` : '');
+  el('b-aterTid').hidden = !flyttad;
   el('klar').checked = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
   // händelserna sedan förra ritade läget (i tid — som i lagen.json)
   const forra = forraRitade(l);
@@ -883,11 +897,29 @@ function gaTill(nr) {
   nr = Math.max(1, Math.min(S.u.forslag.length, nr));
   if (nr === S.nr) return;
   S.vantar = null;
+  el('melding').textContent = ''; el('status').textContent = '';   // ett meddelande om förra läget gäller inte det nya
   oppnaLage(nr);
+}
+/* Tiden i ett läge får bara röra sig inom lägets fönster (fran–till i
+   rita-handelser.cjs): utanför det ligger bordet som i ett annat läge, och
+   läget blir fel mot facit. */
+function fonster(nr) { const f = S.u.forslag[nr - 1]; return [f.fran != null ? f.fran : f.t, f.till != null ? f.till : f.t]; }
+function tillForslaget() {
+  if (!S.kalla || S.kalla.sort !== 'video') return;
+  const f = S.u.forslag[S.nr - 1];
+  andra(() => { lageNu().t = f.t; fastUrFacit(); });
+  S.cache.clear(); raknaOm(); visa(); laddaLagesbildSnart();
 }
 function flyttaTid(d) {
   if (!S.kalla || S.kalla.sort !== 'video') return;
-  andra(() => { const l = lageNu(); l.t = Math.max(0, Math.round((l.t + d) * 100) / 100); fastUrFacit(); });
+  const [fran, till] = fonster(S.nr), l0 = lageNu();
+  const ny = Math.min(till, Math.max(fran, Math.round((l0.t + d) * 100) / 100));
+  if (ny === l0.t) {
+    melding(d > 0 ? (S.nr < S.u.forslag.length ? `Läge ${S.nr} slutar vid ${fmtT(till)} s. Efter det är det läge ${S.nr + 1} — tryck →` : `Läge ${S.nr} är det sista`)
+      : (S.nr > 1 ? `Läge ${S.nr} börjar vid ${fmtT(fran)} s. Före det är det läge ${S.nr - 1} — tryck ←` : `Läge 1 börjar vid ${fmtT(fran)} s`), true);
+    return;
+  }
+  andra(() => { const l = lageNu(); l.t = ny; fastUrFacit(); });
   S.cache.clear(); raknaOm(); visa();   // tiden kan ha flyttat läget förbi ett annat: hela kedjan räknas om
   laddaLagesbildSnart();
 }
@@ -1090,7 +1122,8 @@ el('b-hjalp').onclick = () => { el('hjalp').hidden = !el('hjalp').hidden; };
 el('b-upp').onclick = () => flyttaZ(1); el('b-ner').onclick = () => flyttaZ(-1); el('b-tap').onclick = () => vridValt(90);
 el('b-grav').onclick = () => zon('grav'); el('b-bib').onclick = () => zon('bib'); el('b-bort').onclick = taBort;
 el('b-forra').onclick = () => gaTill(S.nr - 1); el('b-nasta').onclick = () => gaTill(S.nr + 1);
-el('b-bak').onclick = e => flyttaTid(e.shiftKey ? -0.1 : -0.5); el('b-fram').onclick = e => flyttaTid(e.shiftKey ? 0.1 : 0.5);
+el('b-bak').onclick = e => flyttaTid(e.altKey ? -0.1 : -0.5); el('b-fram').onclick = e => flyttaTid(e.altKey ? 0.1 : 0.5);
+el('b-aterTid').onclick = () => tillForslaget();
 el('klar').onchange = () => { klar(); };
 el('kalla').onchange = () => oppna(el('kalla').value).catch(e => melding(e instanceof TypeError && /fetch/i.test(e.message)
   ? 'servern svarar inte — starta den (node dev/golden/rita-server.cjs, eller posten mesa-rita) och ladda om sidan'

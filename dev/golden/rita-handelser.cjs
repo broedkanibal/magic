@@ -54,10 +54,18 @@ function forslagPass(rader) {
     const nasta = klumpar[i + 1];
     let t = k[k.length - 1].t + EFTER_S;
     if (nasta && t > nasta[0].t - 0.3) t = Math.max(k[k.length - 1].t + 0.3, nasta[0].t - 0.3);
-    return { t: +t.toFixed(2), etikett: k.map(r => `${r.handelse} ${sant(r.kort) ? r.kort : ''}`.trim()).join(' · ') };
+    /* fran–till: tiden då bordet ser ut så här — från sista händelsen i
+       klumpen till strax före nästa klump. Utanför den visar bilden ett
+       annat läge. */
+    const fran = Math.min(t, k[k.length - 1].t), till = nasta ? Math.max(t, nasta[0].t - 0.1) : Infinity;
+    return { t: +t.toFixed(2), fran: +fran.toFixed(2), till: till === Infinity ? till : +till.toFixed(2),
+      etikett: k.map(r => `${r.handelse} ${sant(r.kort) ? r.kort : ''}`.trim()).join(' · ') };
   });
   const slut = rader.find(r => r.handelse === 'slut');
-  if (slut && (!ut.length || ut[ut.length - 1].t < slut.t)) ut.push({ t: slut.t, etikett: 'slut' });
+  if (slut && (!ut.length || ut[ut.length - 1].t < slut.t)) {
+    if (ut.length && ut[ut.length - 1].till > slut.t) ut[ut.length - 1].till = Math.max(ut[ut.length - 1].t, slut.t - 0.1);
+    ut.push({ t: slut.t, fran: slut.t, till: slut.t, etikett: 'slut' });
+  }
   return ut;
 }
 /* Vad som ska ligga på bordet vid tiden t: händelser med tid ≤ t. */
@@ -92,9 +100,17 @@ function vantatPass(rader, t) {
 }
 
 /* ── MES-246: facit-slapp.json + kort.txt ──────────────────────────────── */
+/* fran–till: från att handen släppt (eller kortet landat) till att nästa
+   steg börjar röra sig. Utanför den visar bilden ett annat läge. */
 function forslagSteg(steg) {
-  return steg.map(s => ({ t: +(+s.t_stilla).toFixed(2), steg: s.nr,
-    etikett: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}` }));
+  return steg.map((s, i) => {
+    const t = +(+s.t_stilla).toFixed(2), nasta = steg[i + 1];
+    const tal = v => v != null && v !== '' && Number.isFinite(+v);
+    const fran = Math.min(t, tal(s.t_slapp) ? +s.t_slapp : tal(s.t_land) ? +s.t_land : t);
+    const till = nasta && tal(nasta.t_borjar) ? Math.max(t, +nasta.t_borjar) : Infinity;
+    return { t, fran: +fran.toFixed(2), till: till === Infinity ? till : +till.toFixed(2), steg: s.nr,
+      etikett: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}` };
+  });
 }
 /* Manuset rad för rad, med vad raden gör med korten på bordet:
    plus/minus = namnet kommer till/lämnar bordet, fast = [kort, värd]. */
