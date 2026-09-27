@@ -205,8 +205,13 @@ function underlag(kalla, filer, leknamn) {
       const ts = s => +(+s.t_stilla).toFixed(2);   // samma avrundning som lägenas tider: steg 2 på 3,472 s hör till läget på 3,47 s
       const ut = steg.filter(s => ts(s) > t0 + 1e-6 && ts(s) <= t1 + 1e-6)
         .map(s => ({ t: ts(s), text: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}${ank[s.nr] != null ? ` (= manusrad ${ank[s.nr] + 1})` : ''}` }));
-      const [a0] = fonsterSteg(steg, manus, ank, t0), [, b1] = fonsterSteg(steg, manus, ank, t1);
-      for (let i = Math.max(0, a0 + 1); i <= b1; i++) ut.push({ t: null, text: `manus ${i + 1}: ${manus[i].text}${manus[i].tur ? ' (' + manus[i].tur + ')' : ''}` });
+      /* Bara nedläggningar med namn är fästa i tiden. En rad mellan två
+         sådana (tappa, flytta) kan ha hänt var som helst mellan dem: har
+         den plats redan i förra lägets fönster (i <= b0) står den med
+         `kanske` — den kan lika gärna höra till förra läget. */
+      const [a0, b0] = fonsterSteg(steg, manus, ank, t0), [, b1] = fonsterSteg(steg, manus, ank, t1);
+      for (let i = Math.max(0, a0 + 1); i <= b1; i++)
+        ut.push({ t: null, text: `manus ${i + 1}: ${manus[i].text}${manus[i].tur ? ' (' + manus[i].tur + ')' : ''}`, rad: manus[i].text, tur: manus[i].tur, kanske: t0 >= 0 && i <= b0 });
       return ut;
     },
     vantat: t => {

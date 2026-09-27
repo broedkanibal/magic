@@ -69,6 +69,8 @@ input[type=text].fel{border-color:var(--fel)}
 .lagehuvud h2{margin:0}
 #gor{border-color:#3a4a5c;margin-top:6px}
 #gor .vad{font-size:12px;margin-bottom:8px;line-height:1.45}
+#gor .vad ul{margin:2px 0 0;padding-left:18px} #gor .vad li{margin:1px 0}
+#gor .vad li.kanske{color:var(--dim)} #gor .vad .tur{font-weight:600;margin-top:3px}
 #gor .rubrik{font-weight:700;margin-bottom:4px}
 #gor ol{margin:0 0 6px;padding-left:20px}
 #gor li{margin:5px 0;line-height:1.45}
@@ -895,12 +897,21 @@ function visaCheck() {
    Stämmer allt är det enda kvar att titta på bilden och trycka Klart. */
 const STEGORD = { 'nytt kort': 'ett kort läggs ut', 'nytt (stor låda)': 'något stort ändras, handen eller leken',
   'vridet/flyttat': 'något vrids eller flyttas', 'ändrat på plats': 'något ändras på samma plats', 'borta': 'något tas bort från bordet' };
-function vadHande(h) {
-  if (S.u.sort !== 'steg') return h.map(x => esc(x.text));
-  const manus = h.filter(x => x.t == null).map(x => esc(x.text.replace(/^manus \d+: /, '').replace(/ \((Tur \d+)\)$/, ' · $1')));
-  if (manus.length) return manus;
+function vadHande(h, forra) {
+  const rubrik = forra ? `Sedan läge ${forra.nr}` : 'Från början';
+  if (S.u.sort !== 'steg') return h.length ? `<span class="dim">${rubrik}:</span><ul>${h.map(x => `<li>${esc(x.text)}</li>`).join('')}</ul>` : `<span class="dim">${rubrik}:</span> inget har hänt enligt facit`;
+  const rader = h.filter(x => x.t == null);
+  if (rader.length) {
+    // en rad per händelse i manuset, grupperat per tur så att turen bara står en gång
+    let html = `<span class="dim">${rubrik}, enligt manuset:</span>`, tur;
+    for (const r of rader) {
+      if (r.tur !== tur) { if (tur !== undefined) html += '</ul>'; tur = r.tur; html += `${tur ? `<div class="tur">${esc(tur)}</div>` : ''}<ul>`; }
+      html += `<li${r.kanske ? ' class="kanske"' : ''}>${esc(r.rad)}${r.kanske ? ` <span class="dim">— kanske redan i läge ${forra.nr}</span>` : ''}</li>`;
+    }
+    return html + '</ul>';
+  }
   const sag = [...new Set(h.map(x => { const m = /^steg \d+: (.+?)(?: — (.+?))?(?: \(= manusrad \d+\))?$/.exec(x.text); return m ? (STEGORD[m[1]] || m[1]) : x.text; }))];
-  return h.length ? [`inget nytt kort i manuset <span class="dim">(kameran såg att ${esc(sag.join(' och '))})</span>`] : [];
+  return `<span class="dim">${rubrik}:</span> ${h.length ? `inget nytt kort i manuset <span class="dim">(kameran såg att ${esc(sag.join(' och '))})</span>` : 'inget har hänt enligt facit'}`;
 }
 function uppgifter(l, dom) {
   const ut = [], iSpel = n => l.kort.filter(k => !k.zon && String(k.namn || '').trim() === n).sort((a, b) => b.z - a.z);
@@ -930,8 +941,7 @@ function uppgifter(l, dom) {
 function visaGor(l, dom, h, forra, utanfor, arKlar) {
   const nasta = S.nr < S.u.forslag.length ? S.nr + 1 : null, knappar = [];
   const knapp = (text, gor, klass = '') => { knappar.push(gor); return `<button type="button" class="${klass}" data-g="${knappar.length - 1}">${text}</button>`; };
-  const hande = vadHande(h);
-  let html = `<div class="vad"><span class="dim">${forra ? `Sedan läge ${forra.nr}` : 'Från början'}:</span> ${hande.length ? hande.join(' · ') : 'inget har hänt enligt facit'}</div>`;
+  let html = `<div class="vad">${vadHande(h, forra)}</div>`;
   if (utanfor) {
     html += `<div class="rubrik">Gör nu</div><ol><li>Bilden visar fel tid för det här läget. ${knapp('Flytta tillbaka', () => tillForslaget())}</li></ol>`;
   } else if (arKlar) {
@@ -1003,7 +1013,7 @@ function visaLage() {
   const forra = forraRitade(l);
   const t0 = forra ? forra.t : -1;
   const h = S.u.mellan(t0, l.t);
-  el('handelser').innerHTML = (h.length ? h.map(x => `<div><span class="t">${x.t != null ? fmtT(x.t) : ''}</span>${esc(x.text)}${x.osaker ? ` <span class="varn">(osäker: ${esc(x.osaker)})</span>` : ''}</div>`).join('') : '<span class="dim">inga</span>')
+  el('handelser').innerHTML = (h.length ? h.map(x => `<div><span class="t">${x.t != null ? fmtT(x.t) : ''}</span>${esc(x.text)}${x.kanske ? ' <span class="dim">(kanske före förra läget)</span>' : ''}${x.osaker ? ` <span class="varn">(osäker: ${esc(x.osaker)})</span>` : ''}</div>`).join('') : '<span class="dim">inga</span>')
     + `<div class="dim" style="margin-top:4px">${forra ? `sedan läge ${forra.nr} (${fmtT(t0)} s)` : 'från början'}</div>`;
   // mot händelsefacit
   const v = S.u.vantat(l.t), dom = Hd.jamfor(l.kort, v, { raknat: S.raknat });
