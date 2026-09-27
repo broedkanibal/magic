@@ -7600,7 +7600,12 @@ function losBifogade(cards) {
   for (const e of cards) {
     if (!e.attachedTo) continue;
     const vard = cards.find(x => x.cid === e.attachedTo);
-    if (vard && paMattanKort(vard) && paMattan(e)) continue;
+    /* En värd som kameran tonat ned (lyft) är kvar: ingenting är avgjort
+       förrän spelaren svarat. Med paMattanKort här släpptes auran vid
+       första omritningen, före bannern och arket — och när svaret sedan
+       blev graveyard hittade aurorFoljer ingenting, så auran blev liggande
+       lös och en Role-token blev en token utan värd. */
+    if (vard && paMattan(vard) && paMattan(e)) continue;
     /* Kortet ligger kvar där det syntes senast: platsen har hela tiden
        varit härledd ur värden, så den skrivs ut på kortet innan bandet
        släpps. */

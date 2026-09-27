@@ -61,6 +61,12 @@ const ZON_EXIL = 'exil';
 const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_EXIL; };
 const Moln = { sandKam() {} };
 const hand = () => state.players[0].cards, angraPunkt = () => {}, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+/* Omritningens släpp av bifogade kort (losBifogade) och bannerns svar
+   (svaraLyftAlla): paMattanKort som appens, en bifogad plats en bit
+   nedanför värden, och mitt bord går alltid att ändra. */
+const paMattanKort = c => c && paMattan(c) && c.lyft == null;
+const bifogadPlats = (v, k) => ({ x: (v.x || 0) + 10 * (k + 1), y: (v.y || 0) + 10 * (k + 1), z: 0 });
+const redigerbar = () => true;
 function delaHand() {
   const d = { spell: [], mana: [], grav: [], exil: [] };
   hand().forEach((c, i) => { const z = zonAv(c); d[z === ZON_GRAV ? 'grav' : z === ZON_EXIL ? 'exil' : z === ZON_MANA ? 'mana' : 'spell'].push(i); });
@@ -76,7 +82,7 @@ const funk = namn => {
   if (i < 0 || j < 0) throw new Error('hittar inte ' + namn + ' i ' + fil);
   return src.slice(i, j + 3);
 };
-const svarKod = ['sammaKortVid', 'namngePend', 'aurorFoljer', 'flyttaTill'].map(funk).join('\n');
+const svarKod = ['sammaKortVid', 'namngePend', 'aurorFoljer', 'flyttaTill', 'losBifogade', 'svaraLyftAlla'].map(funk).join('\n');
 /* Timrarna (MES-291): avstamBord ställer en timer som låter nåden och
    väntan löpa ut när telefonen är tyst. Här virtuella: tid(t) flyttar
    klockan till t och kör timrarna som hinner gå ut, i ordning, med klockan
@@ -139,6 +145,8 @@ return {
   /* Svaren utanför avstämningen (MES-291): granskningens svar på en post, och handflytten till en hög. */
   namnge(q, namn) { return namngePend(state.players[0], q, namn, null, null); },
   flytta(i, zon) { return flyttaTill(i, zon); },
+  losBifogade() { return losBifogade(state.players[0].cards); },
+  lyftAlla(val) { return svaraLyftAlla(null, val); },
   tillbaka(namn, utom) { return kortSomKomTillbaka(state.players[0].cards, namn, utom); },
   /* Nollställningen går genom avstamBord: det är där "senaste kortet"
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
@@ -1156,6 +1164,28 @@ prov('GR3c handflytt till graveyard: en aura-token på kortet upphör att finnas
                 { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' });
   assert.ok(app.flytta(0, 'grav'));
   assert.deepEqual(app.kort.map(k => k.name + ':' + (k.zon || '')), ['Grizzly Bears:grav', 'Pacifism:grav']);
+});
+prov('GR3d en värd som kameran tonat ned behåller sina auror till svaret: All to graveyard tar auran med, en aura-token upphör, utrustningen blir kvar', () => {
+  app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura'], ['Bonesplitter', 'Artifact — Equipment']]);
+  const bas = () => [{ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10, lyft: klocka.t },
+                     { cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: 'v' },
+                     { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' },
+                     { cid: 'q', name: 'Bonesplitter', flipped: 0, attachedTo: 'v' }];
+  const bild = () => app.kort.map(k => k.name + ':' + (k.zon || '') + (k.attachedTo ? '@' + k.attachedTo : ''));
+  /* Bannern: renderAll ritar mattan (losBifogade) före bannern. */
+  app.kort.push(...bas());
+  app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v'], 'omritningen släppte den nedtonade värdens kort');
+  app.lyftAlla('grav'); app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:grav', 'Pacifism:grav', 'Bonesplitter:']);
+  /* Arket, ett kort i taget: graveyard går genom flyttaTill. */
+  app.kort.length = 0; app.kort.push(...bas());
+  app.losBifogade(); app.flytta(0, 'grav'); app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:grav', 'Pacifism:grav', 'Bonesplitter:']);
+  /* "They're still there": auran sitter kvar på värden. */
+  app.kort.length = 0; app.kort.push(...bas());
+  app.losBifogade(); app.lyftAlla('kvar'); app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v']);
 });
 prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
