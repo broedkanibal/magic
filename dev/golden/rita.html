@@ -240,6 +240,7 @@ function passaCanvas() {
   dpr = window.devicePixelRatio || 1;
   cv.width = Math.round(b.width * dpr); cv.height = Math.round(b.height * dpr);
   cv.style.width = b.width + 'px'; cv.style.height = b.height + 'px';
+  if (S.W && !(V.s > 0)) helaBilden();   // bilden kom medan ytan saknade storlek (dold flik): passa in den nu
   ritaSnart();
 }
 new ResizeObserver(passaCanvas).observe(duk);
@@ -1091,7 +1092,9 @@ el('b-grav').onclick = () => zon('grav'); el('b-bib').onclick = () => zon('bib')
 el('b-forra').onclick = () => gaTill(S.nr - 1); el('b-nasta').onclick = () => gaTill(S.nr + 1);
 el('b-bak').onclick = e => flyttaTid(e.shiftKey ? -0.1 : -0.5); el('b-fram').onclick = e => flyttaTid(e.shiftKey ? 0.1 : 0.5);
 el('klar').onchange = () => { klar(); };
-el('kalla').onchange = () => oppna(el('kalla').value).catch(e => melding('gick inte att öppna: ' + e.message, true));
+el('kalla').onchange = () => oppna(el('kalla').value).catch(e => melding(e instanceof TypeError && /fetch/i.test(e.message)
+  ? 'servern svarar inte — starta den (node dev/golden/rita-server.cjs, eller posten mesa-rita) och ladda om sidan'
+  : 'gick inte att öppna: ' + e.message, true));
 
 function fyllKallor() {
   const k = S.kallor, val = el('kalla').value;
