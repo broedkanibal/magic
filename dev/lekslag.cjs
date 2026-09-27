@@ -408,9 +408,26 @@ prov('Undo av Remove photo: lekSlagFotoTillbaka ger tillbaka exakt det som togs,
 });
 prov('Undo av Remove photo: det kollade namnet kommer tillbaka, inte platshållaren', () => {
   const fore = lekSlagTillampa(tva(), [{ typ: 'byt', name: P1.name, sb: false, kort: { ...mtn } }]);
-  const r = lekSlagTillampa(lekSlagTillampa(fore, [fb(F1)]), lekSlagFotoTillbaka(fore.kort, F1));
+  const bort = lekSlagTillampa(fore, [fb(F1)]);
+  assert.equal(tal(bort, 'Mountain'), 0, 'Remove photo 1 tar det kollade namnet');
+  const r = lekSlagTillampa(bort, lekSlagFotoTillbaka(fore.kort, F1));
   assert.equal(tal(r, 'Mountain'), 1);
+  assert.deepEqual(fotoAv(r, 'Mountain'), { [F1]: 1 });
   assert.ok(!r.kort.some(k => k.okand));
+});
+prov('Undo av Remove photo är exakt också när ett exemplar tagits bort för hand (n mindre än fotonas summa)', () => {
+  /* Granskningen av MES-321: Swamp n=1, foto {F1:2, F2:1}. Remove F1 tog raden,
+     och Undo gav tillbaka foto {F1:1} — F2:s exemplar försvann ur bokföringen. */
+  const fore = lekSlagTillampa({ kort: [{ ...swamp, n: 1, foto: { [F1]: 2, [F2]: 1 } }] }, []);
+  const bort = lekSlagTillampa(fore, [fb(F1)]);
+  assert.equal(bort.kort.length, 0);
+  const r = lekSlagTillampa(bort, lekSlagFotoTillbaka(fore.kort, F1));
+  assert.equal(tal(r, 'Swamp'), 1);
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F1]: 2, [F2]: 1 });
+  /* Raden står kvar efter Remove (tre exemplar, ett borttaget för hand). */
+  const fore2 = lekSlagTillampa(tva(), [{ typ: 'antal', name: 'Swamp', sb: false, d: -1 }]);
+  const r2 = lekSlagTillampa(lekSlagTillampa(fore2, [fb(F1)]), lekSlagFotoTillbaka(fore2.kort, F1));
+  assert.deepEqual([tal(r2, 'Swamp'), fotoAv(r2, 'Swamp')], [2, { [F1]: 2, [F2]: 1 }]);
 });
 /* Retake av foto 1 (F1 → F1B): nya fotot läser 2 Swamp och Bolt, och den
    oläsliga är nu Mountain. Kön: det nya fotots tillägg, SIST fotobort(F1). */
@@ -424,11 +441,14 @@ prov('Retake: det gamla fotots kort byts mot det nyas, inga dubbletter, foto 2 o
 prov('Retake: ett kort i båda fotona behåller sin rad och det man kollat (koll sätts inte om)', () => {
   const kollad = lekSlagTillampa(tva(), [{ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: null }]);
   const r = lekSlagTillampa(kollad, omtag);
-  assert.equal(r.kort.find(k => k.name === 'Lightning Bolt').koll, undefined);
+  const b = r.kort.find(k => k.name === 'Lightning Bolt');
+  assert.equal(b.koll, undefined);
+  assert.deepEqual([b.n, b.foto], [1, { [F1B]: 1 }], 'en Bolt, ur omtaget: det gamla fotots exemplar är borta');
 });
 prov('Retake: kön uppspelad två gånger på sin egen skrivning (klara) ger samma lek', () => {
   const ko = omtag.map((op, i) => medId(op, 'om' + i));
   const r1 = lekSlagTillampa(tva(), ko);
+  assert.deepEqual(lista(r1), ['1 Lightning Bolt', '1 Lightning Helix', '1 Mountain', '1 Sol Ring', '3 Swamp'], 'omtaget ersatte foto 1');
   const skriven = Object.assign({}, r1, { klara: lekSlagKlaraEfter({}, ko) });
   assert.deepEqual(lista(lekSlagTillampa(skriven, ko)), lista(r1));
 });
