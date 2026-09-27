@@ -1466,12 +1466,13 @@ prov('TV6 spåret läses om till ett annat kort och högen ändras en sekund sen
 });
 prov('GU1 leken har 1 Trusty Retriever och den ligger i graveyard: kortet på mattan är SAMMA kort, tillbaka i spel', () => {
   app.lek = new Map([['Trusty Retriever', 1]]);
-  app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 0, zon: 'grav', gravAuto: 1, tapped: 1, x: 40, y: 80 });
+  app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 1, zon: 'grav', gravAuto: 1, tapped: 1, x: 40, y: 80, cts: [{ t: '+1/+1', n: 2 }] });
   stam([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })]);
   assert.equal(app.kort.length, 1, 'ett nytt kort skapades bredvid det i högen');
   const k = app.kort[0];
   assert.equal(k.cid, 'g'); assert.equal(k.zon, undefined); assert.equal(k.spar, 1);
   assert.equal(k.gravAuto, undefined); assert.equal(k.tapped, 0); assert.equal(k.etb, 1);
+  assert.deepEqual(k.cts, [], 'countrarna blev kvar på bordet'); assert.equal(k.flipped, 0, 'sidan blev kvar på bordet');
   assert.equal(k.x, null, 'platsen ska räknas om'); assert.equal(iGrav('Trusty Retriever'), 0);
 });
 prov('GU2 leken har 4 Forest, tre på bordet och ett i graveyard: det fjärde på mattan är ett NYTT kort ur handen', () => {

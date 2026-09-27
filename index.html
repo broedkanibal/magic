@@ -8508,6 +8508,16 @@ addEventListener('keydown', ev => {
    mattan (slotBeside), med en flygning från sin plats i solfjädern. Högen
    räknas ner, det skrivna suddas och solfjädern ligger kvar. ⌘Z ångrar. */
 const HF_FLYG_MS = 480;
+/* Ett kort som kommer in på bordet ur graveyard eller exile är ett nytt
+   objekt i Magic: countrarna, sidan och fästet blev kvar på bordet när det
+   lämnade det. Förut behöll det cts och flipped — en varelse som dog med
+   +1/+1-countrar kom tillbaka med dem, och ett transformerat kort kom
+   tillbaka på baksidan. flipped betyder ingenting i högarna (hfKort och
+   högens översta kort ritar alltid framsidan), så det finns inget nedvänt
+   kort i graveyard att bevara. Ångra tar tillbaka allt (matAngra). */
+function nyttPaBordet(e) {
+  e.cts = []; e.flipped = 0; delete e.attachedTo;
+}
 function hfEnter() {
   const fok = hf.fok;
   if (hfNamnge && fok && fok.it.post) { hfNamngeMed(fok.it.post); return; }   // arket frågar vilket kort det är
@@ -8528,6 +8538,7 @@ function hfEnter() {
     e = h.find(q => q.cid === it.cid); if (!e) return;
     matAngra(namnAv(e) + ' ← ' + (hf.src === ZON_EXIL ? 'exile' : 'graveyard'), () => {
       delete e.zon; delete e.fysisk; delete e.spellAuto; e.tapped = 0; e.ny = Date.now();
+      nyttPaBordet(e);
       e.x = e.y = null;                       // räknas inte som upptagen plats
       hfLedig(e, h);
       state.sel = h.indexOf(e);
@@ -8580,6 +8591,7 @@ function spawnFromGrave(cid, ev) {
   const pt = cpt(ev), s = matStorlek(e);
   matAngra(namnAv(e) + ' ← ' + fran, () => {
     delete e.zon; e.tapped = 0; e.ny = Date.now();
+    nyttPaBordet(e);
     e.x = pt.x - s.w / 2; e.y = pt.y - s.h / 2;
     matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1; e.z = matTopZ;
     state.sel = h.indexOf(e);
@@ -10927,6 +10939,12 @@ function removeAt(i, msg) {
   if (i < 0 || i >= h.length) return;
   angraPunkt();
   const [gone] = h.splice(i, 1);
+  /* En förflyttning till hand eller library (msg): auran på kortet går till
+     graveyard, som när värden går dit (aurorFoljer). Förut blev den
+     liggande lös på mattan när losBifogade släppte den. Utrustning blir
+     kvar ofäst. Inte vid en riktig borttagning — kortet var aldrig där, och
+     notisens ångra lägger bara tillbaka kortet. */
+  if (msg) aurorFoljer(h, gone);
   /* Kameran ser kortet tills det lyfts. Utan spärren låg det på bordet igen
      tre sekunder senare, som ett nytt kort. */
   if (gone.spar != null) borttagna.add(gone.spar);
@@ -24548,6 +24566,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const ur = pol.flytt && isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
     if (ur) {
       delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
+      ur.cts = []; ur.flipped = 0;              // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
       ur.x = ur.y = null;                       // kortet tar platshållarens plats, som ett nyskapat (matPlacera)
       ur.tapped = tapSynk && pol.tap && t.tappad ? 1 : 0;
       ur.kamTap = tapSynk ? (t.tappad ? 1 : 0) : undefined;
