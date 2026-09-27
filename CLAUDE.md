@@ -144,6 +144,63 @@ tillståndet en issue kan ha.
 
 Tröskeln ovan är det som håller antalet nere i längden.
 
+### Triage, Backlog och Todo: vem flyttar vad
+
+Kolumnerna före arbetet skiljer sig i **vem som har bestämt**, inte i hur
+viktigt något känns. Det är den regel som håller brädan ren när agenter
+skriver i Linear själva.
+
+| Status | Betyder | Vem lägger den där | Vem plockar därifrån |
+|---|---|---|---|
+| **Triage** | *Agentens inkorg.* Något Claude Code noterat på eget initiativ, som Jesper inte sett | Claude Code — alltid här, aldrig i Backlog eller Todo | **ingen** — Jesper sorterar |
+| **Backlog** | *Kanske.* Sett, men inte beslutat | bara Jesper | **ingen** |
+| **Todo** | *Ska göras,* och en agent kan börja utan Jesper | bara Jesper (eller Claude Code när Jesper bett om just den saken i chatten) | agenter, i prioritetsordning |
+
+**Fyra regler, utan undantag:**
+
+1. **Claude Code skapar på eget initiativ bara i Triage.** Agent-klientens
+   `skapaIssue` gör det om `status` utelämnas. Tröskeln ovan gäller
+   fortfarande: det mesta ska inte bli en issue alls.
+2. **Bara Jesper flyttar ut ur Triage och från Backlog till Todo.** En agent
+   får föreslå det i chatten, aldrig göra det.
+3. **Agenter plockar bara ur Todo.** Aldrig ur Triage eller Backlog.
+4. **Ett projekt som pågår innehåller bara det som är beslutat:** Todo och
+   det som redan är igång. En issue i Triage eller Backlog har inget projekt i
+   ett pågående projekt; den får projekt och milstolpe när Jesper lyfter den
+   till Todo. Ett planerat projekt (Private beta · Commander) får ha Backlog.
+
+**Jespers sortering av Triage** — tre besked per issue:
+
+| Besked | Vad som händer |
+|---|---|
+| Ja | Todo, med projekt, milstolpe och prioritet — eller Provas om den behöver honom |
+| Kanske | Backlog, utan projekt |
+| Nej | Canceled |
+
+**Todo innehåller bara det en agent kan göra utan Jesper.** Behöver en issue
+honom innan arbetet kan börja — ett designval, ett prov på telefonen, ett
+konto — hör den till Provas med etiketten Needs Jesper, inte till Todo. En
+design-issue där agenten först gör designytan är Todo; den flyttas till
+Provas när ytan finns.
+
+### Vilken issue en agent plockar, och vem som startar den
+
+**Ingenting startar av sig själv.** "Claude AI agent" i Linear är bara en
+identitet: det finns ingen mottagare som lyssnar när en issue delegeras till
+den. Arbete ur Todo börjar när en session startas — av Jesper ("ta nästa"),
+av en orkestrerande session (`dev/plan/orkestrering.md`), eller av en
+schemalagd körning om en sådan sätts upp.
+
+**Så väljs issuen:**
+
+1. Bara **Todo**.
+2. Högst prioritet först (High, Medium, Low, ingen), och inom samma
+   prioritet den manuella ordningen i kolumnen.
+3. Kör kollen i nästa avsnitt. Blockad → Blocked. Krock → nästa i kön, och
+   säg vilken som hoppades över. Visar det sig att den behöver Jesper →
+   Provas + Needs Jesper, och nästa i kön.
+4. En issue per session, om inte en orkestrerande session delar ut flera.
+
 ### Innan en issue plockas upp ur Todo
 
 Dubbelkolla två saker **innan** `paborjaIssue` körs:
@@ -218,9 +275,10 @@ etikett: fråga hellre än att skapa en ny.
 
 | Situation | Status |
 |---|---|
-| Jesper säger i chatten att något ska göras | **Todo** |
-| Claude Code påbörjar arbetet direkt | **In Progress** (`paborjaIssue`) |
-| Claude Code noterar något på eget initiativ, som ingen bett om | Backlog |
+| Jesper säger i chatten att något ska göras, och en agent kan göra det | **Todo** |
+| Jesper säger i chatten att något ska göras, men det behöver honom först | **Provas** + Needs Jesper |
+| Claude Code påbörjar arbetet direkt, på Jespers begäran | **In Progress** (`paborjaIssue`) |
+| Claude Code noterar något på eget initiativ, som ingen bett om | **Triage** — aldrig Backlog |
 
 ### In Progress betyder en sak: en session kör den nu
 

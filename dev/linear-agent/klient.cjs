@@ -125,24 +125,26 @@ async function hittaProjekt(teamId, projekt) {
   return p.id;
 }
 
-/* Sedan 2026-09-20 finns fyra projekt som var och en tar slut, i stället för
-   ett evigt "Mesa Magic" (arkiverat). Det finns därför inget vettigt förval:
-   den som skapar issuen väljer projekt, eller sätter projekt: null plus
-   etiketten "Plattform" för det som inte hör till någon leverans. Se
-   CLAUDE.md, avsnittet "Projekt — fyra, och de tar slut". */
+/* Sedan 2026-09-27 finns två projekt som tar slut: Private beta och
+   Private beta · Commander. Det finns inget vettigt förval: den som skapar
+   issuen väljer projekt, eller sätter projekt: null plus en områdesetikett
+   för det som inte hör till någon leverans. Se CLAUDE.md, avsnittet
+   "Projekt — de tar slut". */
 const PROJEKT_FORVAL = null;
-const PROJEKTEN = ['Spegelläget i realtid', 'Uppstarten vid bordet',
-  'Lekbyggaren och vägen till spel', 'Spelvyn och bordsvyn'];
+const PROJEKTEN = ['Private beta', 'Private beta · Commander'];
 
-/* status: lagets state-typ — 'backlog', 'unstarted' (Todo), 'started' (In
-   Progress) … Utelämnad får issuen lagets förval (Backlog). projekt: namn
-   eller id, se hittaProjekt; utelämnat blir det Mesa Magic, och null lägger
-   issuen utanför alla projekt. */
+/* status: lagets state-typ — 'triage', 'backlog', 'unstarted' (Todo),
+   'started' (In Progress) … Utelämnad blir den 'triage': det Claude Code
+   skapar på eget initiativ går till Jespers inkorg, aldrig direkt i Backlog
+   eller Todo (CLAUDE.md, "Triage, Backlog och Todo"). Todo sätts bara när
+   Jesper bett om just den saken i chatten. projekt: namn eller id, se
+   hittaProjekt; null lägger issuen utanför alla projekt. */
 async function skapaIssue({ teamId, title, description, etiketter, status, projekt = PROJEKT_FORVAL, assigneeId = JESPER_ID, delegeraTillAgenten = true }) {
   if (projekt === undefined) projekt = PROJEKT_FORVAL;
+  if (!status) status = 'triage';
   if (projekt === null) {
-    console.warn(`[linear-agent] Inget projekt satt på "${title}". Det är rätt bara för\n` +
-      `  Plattform-saker (konton, drift, mätverktyg, arbetssätt) — sätt då etiketten "Plattform".\n` +
+    console.warn(`[linear-agent] Inget projekt satt på "${title}". Det är rätt för allt som\n` +
+      `  inte behövs för ett projekts slutvillkor — sätt då en områdesetikett.\n` +
       `  Annars välj ett av: ${PROJEKTEN.join(', ')}`);
   }
   const delegateId = delegeraTillAgenten ? await agentAnvandarId() : undefined;
