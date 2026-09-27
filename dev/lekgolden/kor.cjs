@@ -398,7 +398,7 @@ async function spela(foton, lage, avl, svarFor) {
   for (const f of foton) {
     const b = avl.get(f + '|' + lage), s = b && svarFor(f, lage);
     if (!s) { steg.push({ foto: f, saknas: true }); continue; }
-    ctx.svar = s; ctx.b64 = b.b64; ctx.telfoto.sista = null; ctx.telfoto.fel = '';
+    ctx.svar = s; ctx.b64 = b.b64; ctx.telfoto.sista = null; ctx.telfoto.fel = ''; ctx.telfoto.omtag = null;
     await tel.telfotoLas({ canvas: {}, box: b.box, hogar: HOGAR });
     steg.push({ foto: f, steg: ctx.telfoto.steg, fel: ctx.telfoto.fel, sista: ctx.telfoto.sista, svar: s });
   }
@@ -438,7 +438,10 @@ function doma(r, facit, kant) {
   const poster = svaren.reduce((a, j) => a + (Array.isArray(j.kort) ? j.kort.length : 0), 0);
   const tomma = svaren.reduce((a, j) => a + (Array.isArray(j.kort) ? j.kort.filter(k => !k.namn).length : 0), 0);
   const otydliga = svaren.reduce((a, j) => a + (+j.otydliga || 0), 0);
-  const felsteg = r.steg.filter(s => s.steg === 'fel').map(s => `${s.foto}: ${s.fel}`);
+  /* Ett foto som inte blev kort i leken: den gamla felskärmen, eller sedan
+     sida M (MES-321) fotots läge (inga, inganamn, ejskickat, ejsparat, av, borta). */
+  const felsteg = r.steg.filter(s => s.steg === 'fel' || (s.sista && s.sista.lage && s.sista.lage !== 'klar'))
+    .map(s => `${s.foto}: ${s.steg === 'fel' ? s.fel : s.sista.lage}`);
   const saknasSvar = r.steg.filter(s => s.saknas).map(s => s.foto);
   return { facit: summa(facit), alla: r.alla, spelbara: r.spelbara, ratt, saknas, extra, kant: kantN, felNamn, felSakra, olasliga, osakra,
     poster, tomma, otydliga, felsteg, saknasSvar, lista: { saknade, extras, fela } };

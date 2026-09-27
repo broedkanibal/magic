@@ -2656,16 +2656,18 @@ body.ispel #addPlayerBtn{display:none}
 .telram .c2{right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:10px}
 .telram .c3{left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:10px}
 .telram .c4{right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:10px}
-.telpiller{position:absolute;left:16px;right:16px;top:16px;display:flex;align-items:center;gap:8px}
-.telpiller .grow{flex:1}
-.telpiller .pil{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:5px 13px;border-radius:17px;background:#0b1017d9;border:1px solid #ffffff22;font:600 13px/1.25 var(--sans);color:var(--txt)}
-.telpiller .pil .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:#20160a;font:700 11px var(--mono);margin-left:-5px;flex:none}
-.telskarpa{max-width:56%}
+/* Sida M (LC1, J7): lampan ensam och centrerad överst, eller omtagets ruta;
+   rutan nedtill vid en varning eller ett omtag. */
+.telpiller{position:absolute;left:16px;right:16px;top:18px;display:flex;align-items:center;justify-content:center;gap:8px}
+.telpiller .pil{display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border-radius:99px;background:#0d1015ee;font:650 14px/1.25 var(--sans);color:var(--txt)}
 .telskarpa .led{width:9px;height:9px;border-radius:50%;flex:none;background:var(--dim2)}
-.telskarpa[data-grad="ok"] .led{background:#3fb97a;box-shadow:0 0 0 3px #3fb97a26}
-.telskarpa[data-grad="varn"] .led{background:var(--acc);box-shadow:0 0 0 3px #f0a52a26}
-.telskarpa[data-grad="fel"] .led{background:var(--red);box-shadow:0 0 0 3px #e2606a26}
-.teltips{position:absolute;left:24px;right:24px;bottom:172px;margin:0;text-align:center;font:600 14px/1.45 var(--sans);color:#fff;text-shadow:0 1px 6px #000}
+.telskarpa[data-grad="ok"] .led{background:var(--green)}
+.telskarpa[data-grad="varn"] .led,.telskarpa[data-grad="fel"] .led{background:var(--acc)}
+.telomtag{position:absolute;left:14px;right:14px;top:16px;display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:#0d1015ee;border:1px solid #2a3a66}
+.telomtag .ic{display:inline-flex;color:#b9c8ff;padding-top:1px}
+.telomtag b{display:block;font:700 15px var(--sans);color:var(--txt)}
+.telomtag b+span{display:block;margin-top:3px;font:400 13.5px/1.4 var(--sans);color:#c7d0dd}
+.teltips{position:absolute;left:16px;right:16px;bottom:132px;margin:0;padding:12px 14px;border-radius:12px;background:#0d1015e6;text-align:center;font:500 14px/1.45 var(--sans);color:var(--txt)}
 .telnere{position:absolute;left:0;right:0;bottom:0;height:150px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 24px 24px;background:linear-gradient(#0b101700,#0b1017ee 40%)}
 .telav,.teldeck{flex:1;min-width:0;font:600 15px var(--sans);color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .teldeck{text-align:right;color:var(--dim)}
@@ -2679,6 +2681,49 @@ body.ispel #addPlayerBtn{display:none}
   .telslutare{width:66px;height:66px}
   .telslutare i{width:52px;height:52px}
 }
+/* ── sida M på telefonen (MES-321): resultatet efter varje foto och I10 ──
+   Lekens namn överst i stället för märket, PHOTO n, rubriken, raderna med
+   ikon, fotot med en prick per kort och knapparna längst ned. */
+.telb.sidam{gap:0;padding:16px 18px 20px}
+.trtopp{display:flex;align-items:center;justify-content:space-between;flex:none}
+.trnamn{display:flex;align-items:center;gap:8px;font:600 13px var(--sans);color:var(--green);min-width:0}
+.trnamn i{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+.trhoger{font:600 13px var(--sans);color:#9aa7ba}
+.trrub{display:flex;flex-direction:column;gap:6px;margin:22px 0 18px}
+.trlab{font:700 11px var(--mono);letter-spacing:1px;color:#9aa7ba}
+.trrub h1,.trh1{margin:0;font:750 26px/1.2 var(--sans);letter-spacing:-.4px;color:var(--txt)}
+.trh1{margin:18px 0 8px;font-size:25px}
+.trsub{font:400 15px/1.45 var(--sans);color:#9aa7ba}
+.trinre{display:flex;flex-direction:column;gap:12px}
+.trlista{display:flex;flex-direction:column;padding:2px 14px;border-radius:12px;background:var(--bg2);border:1px solid var(--line)}
+.trsep{height:1px;background:var(--line)}
+.trrad{display:flex;gap:12px;align-items:flex-start;padding:10px 0}
+.tri{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;flex:none;box-sizing:border-box;font:800 12px var(--sans)}
+.tri.ok{background:var(--green);color:#20160a}
+.tri.info{background:#5b8cff;color:#fff}
+.tri.q{background:#3a2e14;color:var(--acc);border:1.5px solid var(--acc)}
+.tri.varn{background:var(--acc);color:#20160a}
+.tri.fel{background:var(--red);color:#fff}
+.trtx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.trtx b{font:650 15px/1.3 var(--sans);color:var(--txt)}
+.trtx span{font:400 13.5px/1.4 var(--sans);color:#9aa7ba}
+.trbild{position:relative;border-radius:10px;overflow:hidden;flex:none;margin:0 auto;background:#000}
+.trbild img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.trbild.dim img{filter:grayscale(.5) brightness(.6)}
+.trp{position:absolute;display:grid;place-items:center;box-shadow:0 0 0 2px #0d1015aa;transform:translate(-50%,-50%);animation:trbock .45s both}
+.trp.ok{width:16px;height:16px;border-radius:50%;background:#5b8cff;color:#fff}
+.trp.q{width:18px;height:18px;border-radius:5px;box-sizing:border-box;background:#3a2e14;border:1.5px solid var(--acc);color:var(--acc);font:800 11px var(--sans)}
+@keyframes trbock{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}60%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.trknappar{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:12px}
+.trtext{height:40px;border:0;background:transparent;color:var(--txt);font:600 15px var(--sans);display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.trom{display:flex;flex-direction:column;align-items:center}
+.trnot{font:400 12.5px var(--sans);color:#6f7d93;margin-top:-6px}
+.trnot.mitt{text-align:center;margin-top:0}
+.trslut{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.trslut .trh1{margin:18px 0 0}
+.trgrow{flex-grow:1}
+.trdator{display:flex;justify-content:center;color:#b9c8ff}
+@media (prefers-reduced-motion:reduce){.trp{animation:none}}
 .lsyta{position:relative;min-width:0;min-height:0;overflow:hidden auto;padding:18px 32px 60px;display:flex;flex-direction:column;gap:22px}
 .lssekrad{display:flex;flex-wrap:wrap;gap:22px 36px;align-items:flex-start}
 .lssek{display:flex;flex-direction:column;gap:14px;min-width:0;max-width:100%}
@@ -3083,15 +3128,20 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
   <div class="telkam" id="telKam" hidden>
     <video id="telVideo" playsinline muted autoplay></video>
     <div class="telram" id="telRam"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i></div>
+    <!-- Sida M (MES-321): LC1 har bara lampan överst, J7 (ett omtag) i
+         stället rutan som säger vad som ersätts. Rutan nedtill (telTips)
+         visas vid en varning eller ett omtag. -->
     <div class="telpiller">
-      <span class="pil"><span class="n">3</span>Take the photo</span>
-      <span class="grow"></span>
       <span class="pil telskarpa" id="telSkarpa"><span class="led"></span><span>Checking the picture…</span></span>
     </div>
-    <p class="teltips">Hold the phone straight above the cards.<br>Every name inside the frame.</p>
+    <div class="telomtag" id="telOmtag" hidden>
+      <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3M4 20v-4h4"/></svg></span>
+      <span><b id="telOmtagRub"></b><span id="telOmtagTxt"></span></span>
+    </div>
+    <p class="teltips" id="telTips" hidden></p>
     <div class="telnere">
-      <button type="button" class="telav" data-tel="stang">Done</button>
-      <button type="button" class="telslutare" data-tel="knapp" aria-label="Take the photo"><i></i></button>
+      <button type="button" class="telav" data-tel="stang">Back</button>
+      <button type="button" class="telslutare" data-tel="knapp" aria-label="Take photo"><i></i></button>
       <span class="teldeck" id="telKamNamn"></span>
     </div>
   </div>
@@ -13250,7 +13300,8 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
               visar: fid för fotot vars resultat syns ('resultat'). Svaret på
               datorns hej följs av hela listan: ett 'foto' per foto, sedan ett
               'fotobild' per foto (en i taget).
-     kamera   {foto, fid, ersatter?}     kameran öppnad; ersatter = omtag (J7/J9)
+     kamera   {foto, ersatter?}          kameran öppnad; ersatter = omtag (J7/J9).
+                                         fid finns inte än: det föds vid slutaren
      laser    {foto, fid, ersatter?}     fotot läses (N4 "Reading")
      foto     {foto: Foto}               fotots läge, vid varje ändring
      fotobild {fid, foto, bild: Bild}    förhandsbilden, en per meddelande
@@ -13416,35 +13467,46 @@ const LEK_LAGGTXT = 'In columns, overlapping, so only the name line of each card
 
 /* ══ BLOCK: TELEFONENS LEKFOTO ════════════════════════════════════════
    ?lekfoto=<lekens id> öppnar den här vyn på telefonen (portalStart).
-   Stegen är telefonens och datorns gemensamma — Connect / Lay out / Take
-   the photo — och steg 2 och 3 börjar om för varje foto (PN2–PN5).
+   Starten är som förut (sida M rad 2: Opening the deck…, Connected, Lay
+   out the cards och kameran), men 10–15 kort åt gången. Efter varje foto
+   visar telefonen resultatet enligt sida M (rad 3A, 3C, 3D och J7/J8):
+   korten med en bock eller ett ? på fotot, och Take photo n+1, Finish the
+   deck och Retake photo n. Finish the deck ger I10 (rad 5).
 
    Fotot går samma väg som förut: beskärningen skickas till /api/identify
    med mode 'lek', namnen slås upp i Scryfall, och det som kom till läggs
-   in som ÄNDRINGAR (LEKSLAG) på lekens rad. Då slås telefonens och
-   datorns arbete ihop av sig självt i stället för att skriva över —
-   dialogen frågade förut "Overwrite?".
+   in som ÄNDRINGAR (LEKSLAG) på lekens rad, med foto: fid så att Remove
+   photo och Retake tar just fotots kort (MES-321). Datorn får fotots läge
+   och förhandsbilden på lekkanalen (formatet vid BLOCK: LEKKANALEN).
 
    Ett kort Mesa inte var säker på (modellen tvekade, eller Scryfall bytte
    ut namnet) läggs in ändå, med koll {las, kalla:'Photo N', remsa}.
-   Frågan ställs på datorn, under To check, med remsan ur fotot bredvid. */
+   Frågan ställs på datorn, med remsan ur fotot bredvid. */
 /* Kolumnerna läggningsguiden ber om. Talet är hela geometrin: kortbredden
    i den skickade duken är bredden delad på antalet kolumner, och den
-   avgör både om titelraden går att läsa och hur bred remsan klipps.
+   avgör både om titelraden går att läsa och hur bred remsan klipps. Fyra
+   sedan sida M (MES-321): 10–15 kort ligger i tre eller fyra kolumner,
+   inte fem som när guiden bad om 30, och med fem sa kameran "Move closer"
+   om varje foto ur en 1080p-ström (ramen 1728 px / 5,38 < 340).
    OPRÖVAT på riktig telefon — se Linear MES-172. */
-const TELFOTO_HOGAR = 5;
-/* osparat: ett läst foto vars sparning inte gick igenom (telfotoSpara). */
+const TELFOTO_HOGAR = 4;
+/* foton: fotona i den här öppningen (Foto, formatet vid LEKKANALEN).
+   visar: fotot vars resultat syns. omtag: fotot kameran tar om. vantar:
+   ett foto som inte blev läst (LD1, LD4) och läses igen med Try again.
+   osparat: ett läst foto vars sparning inte gick igenom (LD2). fran: var
+   kameran öppnades, dit Back går. slut: talen på I10. */
 const telfoto = { id: null, bas: null, namn: '', steg: 'ansluter', foto: 1,
-                  sista: null, fel: '', strom: null, skarpaT: 0, wake: null, laser: false, osparat: null };
+                  sista: null, fel: '', strom: null, skarpaT: 0, wake: null, laser: false, osparat: null,
+                  foton: [], visar: null, omtag: null, vantar: null, fran: null, slut: null };
 
 async function telfotoOppna(id) {
   spelLage = null;
-  /* Samma lek igen (Try again efter ett fel): räkningen av fotona fortsätter.
-     Började den om på 1 skrev datorns Phone-flik över sitt "Photo 1", och
-     fotonas antal där gick inte längre ihop med lekens (MES-289). */
-  if (telfoto.id !== id) { telfoto.foto = 1; telfoto.osparat = null; }
+  /* Samma lek igen (Try again efter ett fel): fotona och räkningen står
+     kvar. Började den om på 1 skrev datorn över sitt "Photo 1" (MES-289). */
+  if (telfoto.id !== id) { telfoto.foto = 1; telfoto.osparat = null; telfoto.foton = []; telfoto.vantar = null; }
   telfoto.id = id; telfoto.bas = null; telfoto.namn = '';
   telfoto.sista = null; telfoto.fel = ''; telfoto.steg = 'ansluter';
+  telfoto.visar = null; telfoto.omtag = null; telfoto.slut = null;
   visaVy('lekfoto');
   telfotoRita();
   let rad = null;
@@ -13457,24 +13519,81 @@ async function telfotoOppna(id) {
   }
   telfoto.bas = rad;
   telfoto.namn = rad.namn || 'New deck';
+  /* Numret fortsätter där leken slutade (fotona står i leken, foto-fältet).
+     En omladdad sida började förut om på Photo 1, och datorn fick två
+     foton med samma nummer. */
+  telfoto.foto = telfotoNasta();
   telfoto.steg = 'ansluten';
   lekKanalLyssna(telfotoHor);
-  telfotoSag('hej', { roll: 'tel' });
+  telfotoSag('hej', { roll: 'tel', fas: telfotoFas() });
   telfotoRita();
 }
 function telfotoSag(typ, extra) {
   if (!telfoto.id) return;
   lekKanalSag(Object.assign({ typ, lekId: telfoto.id, foto: telfoto.foto }, extra || {}));
 }
-/* Datorn säger hej när den börjar lyssna: svara, så att den vet att vi finns. */
+/* Var telefonen står, för datorns panel (hej.fas, formatet vid LEKKANALEN). */
+function telfotoFas() {
+  const s = telfoto.steg;
+  return s === 'kamera' || s === 'laser' || s === 'resultat' ? s : s === 'klart' ? 'klar' : 'lagg';
+}
+/* Ett hej som säger var telefonen är. Svaret på datorns hej, och varje
+   gång telefonen går tillbaka (Back i kameran, en avbruten egen kamera):
+   'kamera' och 'laser' går bara framåt. svar: true, så att datorn inte
+   svarar på det. */
+function telfotoHej() {
+  const visar = telfoto.steg === 'resultat' && telfoto.visar ? { visar: telfoto.visar } : {};
+  telfotoSag('hej', Object.assign({ roll: 'tel', svar: true, fas: telfotoFas() }, visar));
+}
+/* Datorn: hej (svara, och skicka alla foton igen: den kan ha laddats om),
+   Remove photo och Undo, Retake with the phone och Finish the deck. */
 function telfotoHor(m) {
   if (!m || m.lekId !== telfoto.id) return;
-  if (m.typ === 'hej' && m.roll === 'dator' && !m.svar) telfotoSag('hej', { roll: 'tel', svar: true });
+  if (m.typ === 'hej') {
+    if (m.roll === 'dator' && !m.svar) { telfotoHej(); telfotoSkickaAlla(); }
+    return;
+  }
+  if (m.fran === 'tel') return;                       // telefonens eget
+  const f = m.fid ? telfotoFotoAv(m.fid) : null;
+  if (m.typ === 'fotobort' && f) { f.lage = 'bort'; telfotoAndrat(); }
+  else if (m.typ === 'fotoater' && f && (f.lage === 'bort' || f.lage === 'ersatt')) { f.lage = 'klar'; telfotoAndrat(); }
+  else if (m.typ === 'omtag' && f) telfotoTaOm(f, true);
+  else if (m.typ === 'klar') telfotoAvsluta(false);
+}
+/* Ett foto togs bort eller kom tillbaka på datorn. Numret nästa foto får
+   följer med, och syns ett foto som inte längre räknas visas det som
+   ersatte det (Undo av ett omtag), annars nästa foto. Telefonens egen
+   skärm efter Remove photo (N5) byggs i MES-324. */
+function telfotoAndrat() {
+  telfoto.foto = telfotoNasta();
+  if (telfoto.steg === 'resultat') {
+    const v = telfotoFotoAv(telfoto.visar);
+    if (!v || v.lage === 'bort' || v.lage === 'ersatt') {
+      const ny = v && telfoto.foton.find(x => x.nr === v.nr && x.lage === 'klar');
+      if (ny) telfoto.visar = ny.fid;
+      else { telfoto.steg = 'lagg'; telfotoHej(); }
+    }
+  }
+  if (telfoto.steg === 'klart') telfoto.slut = telfotoSummera(telfoto.bas);
+  telfotoRita();
+}
+/* Alla foton igen, till en dator som just kopplade upp sig: fotonas läge
+   först (små meddelanden), sedan bilderna en i taget. Broadcast tar 256 kB
+   per meddelande, och en bild är upp till 150 k tecken. */
+function telfotoSkickaAlla() {
+  const lista = (telfoto.foton || []).slice();
+  for (const f of lista) telfotoSag('foto', { foto: telfotoPost(f) });
+  let i = 0;
+  const nasta = () => {
+    const f = lista[i++]; if (!f) return;
+    if (f.bild) telfotoSag('fotobild', { fid: f.fid, foto: f.nr, bild: f.bild });
+    setTimeout(nasta, 250);
+  };
+  setTimeout(nasta, 250);
 }
 function telfotoSteg(steg) {
   telfoto.steg = steg;
   telfotoRita();
-  if (steg === 'kamera' || steg === 'laser') telfotoSag(steg);
 }
 
 /* ── ritningen ── */
@@ -13485,12 +13604,130 @@ function telfotoPst(st) {
     + `<span class="s ${st[i] || ''}"><span class="n">${st[i] === 'ok' ? lsIk('check', 12, 3) : i + 1}</span>${t}</span>`).join('') + '</div>';
 }
 const telfotoTill = () => `<div class="telti"><span>Adding cards to</span><b>${esc(telfoto.namn || 'this deck')}</b></div>`;
+/* Sida M:s ikoner (rad 3A–5). Egna, så att datorns LS_IKON står orörd. */
+const TEL_IKON = {
+  omtag: '<path d="M4 12a8 8 0 0 1 14-5.3M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-14 5.3M4 20v-4h4"/>',
+  kamera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  bock: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  pil: '<path d="M9 5l7 7-7 7"/>',
+  dator: '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>',
+};
+const telIk = (n, s = 16, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TEL_IKON[n]}</svg>`;
+const telKort = n => `${n} ${n === 1 ? 'card' : 'cards'}`;
+/* Byggstenarna i sida M:s skärmar: lekens namn överst, PHOTO n med rubrik,
+   raderna med ikon (ok, info = blå bock, q = ?, varn och fel = !) och
+   fotot med en prick per kort. */
+const telTopp = (hoger = '') => `<div class="trtopp"><span class="trnamn"><i></i>${esc(telfoto.namn || 'New deck')}</span>${hoger ? `<span class="trhoger">${hoger}</span>` : ''}</div>`;
+const telRubrik = (lab, h1, sub) => `<div class="trrub"><span class="trlab">${lab}</span><h1>${h1}</h1>${sub ? `<span class="trsub">${sub}</span>` : ''}</div>`;
+const telRad = (ik, b, t) => `<div class="trrad"><span class="tri ${ik}">${ik === 'ok' || ik === 'info' ? telIk('bock', 12, 3.2) : ik === 'q' ? '?' : '!'}</span>`
+  + `<span class="trtx"><b>${b}</b>${t ? `<span>${t}</span>` : ''}</span></div>`;
+const telLista = rader => `<div class="trlista">${rader.join('<i class="trsep"></i>')}</div>`;
+/* Fotot med prickarna: en blå bock på ett känt kort, ett gult ? på ett att
+   kolla (sida M, beslutet om markeringarna). x/y är titelradens mitt i
+   tusendelar av bilden. Hela fotot syns, så att varje prick får plats. */
+function telfotoBildHtml(f, { dim = false, prickar = true } = {}) {
+  if (!f || !f.bild || !f.bild.url) return '';
+  const { url, b, h } = f.bild;
+  const p = prickar ? (f.kort || []).map((k, i) => {
+    const pos = `left:${(Math.max(0, Math.min(1000, +k.x || 0)) / 10).toFixed(1)}%;top:${(Math.max(0, Math.min(1000, +k.y || 0)) / 10).toFixed(1)}%;animation-delay:${(i * 0.08).toFixed(2)}s`;
+    return k.koll ? `<span class="trp q" style="${pos}">?</span>` : `<span class="trp ok" style="${pos}">${telIk('bock', 10, 3.4)}</span>`;
+  }).join('') : '';
+  return `<div class="trbild${dim ? ' dim' : ''}" style="width:min(100%, ${(38 * b / h).toFixed(2)}vh);aspect-ratio:${b}/${h}"><img src="${url}" alt="The photo">${p}</div>`;
+}
+/* Resultatet av ett foto: sida M rad 3A (LA1–LA5), 3C (LC2–LC4, J8) och
+   3D (LD1–LD4), med sida M:s ord. */
+function telfotoResultatHtml(f) {
+  if (!f) return '';
+  const nr = f.nr, L = `PHOTO ${nr}`, fid = esc(f.fid);
+  const omtagText = (text = `Retake photo ${nr}`) => `<button type="button" class="trtext" data-tel="omtag" data-fid="${fid}">${telIk('omtag', 16, 2)}${text}</button>`;
+  const omtagPrim = text => `<button type="button" class="btnp prim" data-tel="omtag" data-fid="${fid}">${telIk('omtag', 19, 2.1)}${text}</button>`;
+  const igen = '<button type="button" class="btnp prim" data-tel="igen">Try again</button>';
+  const undan = `<button type="button" class="trtext" data-tel="undan" data-fid="${fid}">${telIk('pil', 16, 2)}Put these cards aside, type them in later</button>`;
+  let h = '', kn = '';
+  if (f.lage === 'klar' && f.manga && !f.behall) {
+    h = telRubrik(L, `${telKort(f.hittade)} found`, 'Many names were too small to read.')
+      + telLista([telRad('ok', `${f.kanda} recognized`), telRad('varn', `${f.koll} names too small to read`,
+          `Fewer cards per photo reads better. Retake with 10–15 cards at a time, or keep these and pick the ${f.koll} on the computer.`)])
+      + telfotoBildHtml(f, { prickar: false });
+    kn = omtagPrim('Retake with fewer cards')
+      + `<button type="button" class="btnp sek" data-tel="behall" data-fid="${fid}">Keep these ${f.hittade}</button>`
+      + `<span class="trnot mitt">Retaking replaces the ${telKort(f.hittade)} from this photo.</span>`;
+  } else if (f.lage === 'klar') {
+    /* J8: ett omtag som bytte ut ett foto med kort. */
+    const ers = f.ersatter && telfotoFotoAv(f.ersatter), bytte = !!(ers && ers.hittade > 0);
+    const r = [];
+    if (!f.koll) r.push(telRad('ok', `All ${f.kanda} recognized`));
+    else {
+      if (f.kanda) r.push(telRad('ok', `${f.kanda} recognized`));
+      r.push(telRad('q', `${f.koll} to check on the computer`, f.okanda === f.koll
+        ? 'Marked with ? in the photo. Mesa couldn’t read a name there. If it isn’t a card, you remove it on the computer.'
+        : 'Marked with ? in the photo. Mesa isn’t sure which cards they are. You pick them when you’re done.'));
+    }
+    if (f.olasta) r.push(telRad('varn', 'Mesa saw a few more it couldn’t read',
+      'Cards without a mark: put them aside and type them in on the computer when you’re done. Or retake the photo.'));
+    if (bytte) r.push(telRad('info', 'Replaced the first try', `Its ${telKort(ers.hittade)} were swapped for these ${f.hittade} on the computer.`));
+    h = telRubrik(bytte ? `${L} · RETAKEN` : L, `${telKort(f.hittade)} found`, 'Does every card on the table have a mark?')
+      + telLista(r) + telfotoBildHtml(f);
+    kn = `<button type="button" class="btnp prim" data-tel="kamera">${telIk('kamera', 20, 2.1)}Take photo ${telfotoNasta()}</button>`
+      + '<button type="button" class="btnp sek" data-tel="slut">Finish the deck</button>'
+      + (bytte ? omtagText() : `<div class="trom">${omtagText()}<span class="trnot">Replaces the ${telKort(f.hittade)} from it</span></div>`);
+  } else if (f.lage === 'inga') {
+    h = telRubrik(L, 'Mesa didn’t find any cards', 'Nothing was added to the deck.')
+      + telLista([telRad('varn', 'Try again like this', 'Hold the phone straight above the cards, with every name line showing and no reflections.')])
+      + telfotoBildHtml(f, { dim: true, prickar: false });
+    kn = omtagPrim(`Retake photo ${nr}`) + undan;
+  } else if (f.lage === 'inganamn') {
+    h = telRubrik(L, 'Mesa couldn’t read the names', `It found ${telKort(f.poster)}, but nothing was added.`)
+      + telLista([telRad('varn', 'Try again a little closer', 'Fewer cards in the photo, and the phone straight above them.')])
+      + telfotoBildHtml(f, { dim: true, prickar: false });
+    kn = omtagPrim(`Retake photo ${nr}`) + undan;
+  } else if (f.lage === 'ejskickat') {
+    h = telRubrik(L, 'The photo wasn’t sent', 'The connection dropped. Nothing was added yet.')
+      + telLista([telRad('fel', 'Your photo is kept on the phone', 'Try again when you have a connection. No need for a new photo.')])
+      + telfotoBildHtml(f, { dim: true, prickar: false });
+    kn = igen + omtagText();
+  } else if (f.lage === 'ejsparat') {
+    const en = f.hittade === 1;
+    h = telRubrik(L, 'The cards weren’t saved', `${telKort(f.hittade)} ${en ? 'was' : 'were'} found, but couldn’t be saved to the deck.`)
+      + telLista([telRad('fel', `The ${telKort(f.hittade)} ${en ? 'is' : 'are'} waiting on the phone`, 'Check the connection and try again. No need for a new photo.')])
+      + telfotoBildHtml(f, { dim: true, prickar: false });
+    kn = igen;
+  } else if (f.lage === 'borta') {
+    h = telRubrik(L, 'This deck is gone', 'It was deleted on the computer. The photo wasn’t saved.')
+      + telLista([telRad('fel', 'Nothing more can be added', 'Start again from the computer if you meant to keep it.')])
+      + telfotoBildHtml(f, { dim: true, prickar: false });
+    kn = '<button type="button" class="btnp sek" data-tel="stangsida">Close</button>';
+  } else if (f.lage === 'av') {
+    h = telRubrik(L, 'Photo reading is off', 'Mesa needs AI help to read the cards in a photo.')
+      + telLista([telRad('fel', 'Turn it on on the computer', 'Mesa menu, then AI help. Then try again here. Your photo is kept.')])
+      + telfotoBildHtml(f, { dim: true, prickar: false });
+    kn = igen;
+  }
+  return telTopp() + `<div class="trinre">${h}</div><div class="trknappar">${kn}</div>`;
+}
+/* I10: telefonen efter Finish the deck. Ingen siffra för de undanlagda
+   korten (Mesa kan inte veta hur många), bara att de ska skrivas in. */
+function telfotoSlutHtml() {
+  const s = telfoto.slut || telfotoSummera(telfoto.bas);
+  const r = [telRad('info', `${telKort(s.hittade)} found in ${s.foton} ${s.foton === 1 ? 'photo' : 'photos'}`)];
+  if (s.koll) r.push(telRad('q', `${s.koll} ${s.koll === 1 ? 'name' : 'names'} to check`));
+  if (s.undan) r.push(telRad('varn', 'Cards you put aside', 'Type them in on the computer.'));
+  if (s.basland) r.push(telRad('ok', 'Basic lands', s.basland));
+  return `<div class="trslut">${telTopp('Done')}<h1 class="trh1">Continue on the computer</h1>`
+    + '<span class="trsub">The photos are in the deck. Finish it on the computer.</span>'
+    + telLista(r) + `<span class="trgrow"></span><div class="trdator">${telIk('dator', 46, 1.5)}</div><span class="trgrow"></span>`
+    + `<button type="button" class="btnp sek" data-tel="kamera">${telIk('kamera', 20, 2.1)}I forgot some, take another photo</button></div>`;
+}
 function telfotoRita() {
   const b = $('#telBody'); if (!b) return;
   const t = telfoto;
   $('#telKam').hidden = t.steg !== 'kamera';
   $('#telCon').hidden = t.steg === 'fel';
-  $('#telKamNamn').textContent = t.namn || '';
+  /* Sida M:s skärmar har lekens namn överst i stället för märket. */
+  const sidaM = t.steg === 'resultat' || t.steg === 'klart';
+  const hd = $('#vyLekfoto .telhd'); if (hd) hd.hidden = sidaM;
+  b.classList.toggle('sidam', sidaM);
+  if (t.steg === 'kamera') telfotoRitaKamera();
   let h = '';
   if (t.steg === 'ansluter') {
     h = `${telfotoPst(['on', '', ''])}<p class="teltx">Opening the deck…</p>`;
@@ -13504,59 +13741,100 @@ function telfotoRita() {
       + '<p class="teltx">Next: <b>lay out the first cards</b> on the table.</p>'
       + '<div class="telfot"><button type="button" class="btnp prim" data-tel="lagg">Show me how</button></div>';
   } else if (t.steg === 'lagg') {
+    /* Sida M rad 2: som förut, men 10–15 kort åt gången, och basländerna
+       får ligga med. Efter första fotot går leken också att avsluta här
+       (LC3/LC4:s Put these cards aside leder hit). */
+    const harFoton = (t.foton || []).some(f => f.lage === 'klar');
     h = telfotoPst(['ok', 'on', '']) + telfotoTill()
       + `<div class="telcyk">Photo ${t.foto}<i></i></div>`
-      + lekGuide('telg', { cols: 5, rows: 5, w: 56, off: 12, gap: 8, pad: 13 })
-      + `<p class="teltx">${LEK_LAGGTXT}</p>`
+      + lekGuide('telg', { cols: 4, rows: 3, w: 62, off: 14, gap: 9, pad: 13 })
+      + '<p class="teltx"><b>Lay out the cards (10–15 at a time)</b><br>In columns, overlapping, so each name shows. Basic lands can be in the photo or not.</p>'
       + '<div class="telfot"><p class="teltx mitt">When they’re laid out:</p>'
-      + `<button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Open the camera</button></div>`;
+      + `<button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Open the camera</button>`
+      + (harFoton ? '<button type="button" class="btnp sek" data-tel="slut">Finish the deck</button>' : '') + '</div>';
   } else if (t.steg === 'laser') {
+    const nr = t.sista ? t.sista.nr : t.foto;
     h = telfotoPst(['ok', 'ok', 'on']) + telfotoTill()
-      + `<div class="telvantar"><div class="prog obestamd"><i></i></div><b>Reading photo ${t.foto}</b>`
-      + '<span>It takes about half a minute. Keep this page open — the cards land on the computer by themselves.</span></div>';
-  } else if (t.steg === 'klar') {
-    const q = t.sista || { nr: t.foto - 1, nya: 0, koll: 0, kort: [], extra: '' };
-    h = telfotoPst(['ok', 'ok', 'ok'])
-      + `<div class="telklar"><span class="ok">${lsIk('check', 17, 2.6)}Photo ${q.nr} read</span>`
-      + `<span class="stor">${q.nya} ${q.nya === 1 ? 'card' : 'cards'}</span>`
-      + `<span class="teltx">You’ll see them on the computer${q.koll ? ` — ${q.koll} to check` : ''}.</span>`
-      + (q.extra ? `<span class="teltx">${esc(q.extra)}</span>` : '') + '</div>'
-      + `<div class="telfk">${q.kort.slice(0, 8).map(k =>
-          `<span class="c">${k.small ? `<img src="${esc(k.small)}" alt="${esc(k.name)}">` : `<em>${esc(k.name)}</em>`}${k.koll ? '<span class="q">?</span>' : ''}</span>`).join('')}</div>`
-      + `<div class="telcyk">Photo ${t.foto} next<i></i></div>`
-      + '<p class="teltx">Move these cards aside and lay out the next ones the same way — steps 2 and 3 start over.</p>'
-      + `<div class="telfot"><button type="button" class="btnp prim" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take the next photo</button>`
-      + '<button type="button" class="btnp sek" data-tel="klart">Done</button></div>';
+      + `<div class="telvantar"><div class="prog obestamd"><i></i></div><b>Reading photo ${nr}</b>`
+      + '<span>It takes about half a minute. Keep this page open. The cards land on the computer by themselves.</span></div>';
+  } else if (t.steg === 'resultat') {
+    h = telfotoResultatHtml(telfotoFotoAv(t.visar) || t.sista);
   } else if (t.steg === 'klart') {
-    /* Alla fotade kort, också de som inte gick att läsa (MES-289) — samma tal
-       som lekens sida på datorn. decks.antal räknar bara kort att spela med. */
-    const n = t.bas ? lekSlagSummor(t.bas.kort || []).main : 0;
-    h = `<div class="telok"><span class="ck">${lsIk('check', 26, 2.8)}</span><b>That’s the deck</b>`
-      + `<span>${esc(t.namn)} has ${n} ${n === 1 ? 'card' : 'cards'}. Finish it on the computer — basic lands, the cards to check, and the ones the photos missed.</span></div>`
-      + `<div class="telfot"><button type="button" class="btnp sek" data-tel="kamera">${lsIk('camera', 20, 2.2)}Take another photo</button></div>`;
+    h = telfotoSlutHtml();
   }
   b.innerHTML = h;
 }
 $('#vyLekfoto').addEventListener('click', ev => {
   const b = ev.target.closest('[data-tel]'); if (!b) return;
-  const a = b.dataset.tel;
+  const a = b.dataset.tel, f = b.dataset.fid ? telfotoFotoAv(b.dataset.fid) : null;
   if (a === 'lagg') telfotoSteg('lagg');
   else if (a === 'kamera') telfotoKamera();
   else if (a === 'knapp') telfotoKnapp();
-  else if (a === 'stang') telfotoStoppKamera('klart');
-  else if (a === 'klart') { telfoto.steg = 'klart'; telfotoRita(); }
-  /* Ett läst foto som inte gick att spara sparas igen — inget nytt foto. */
+  else if (a === 'stang') telfotoTillbaka();
+  else if (a === 'omtag' && f) telfotoTaOm(f, false);
+  /* LC2: Keep these 30. Korten ligger redan i leken: skärmen blir LA. */
+  else if (a === 'behall' && f) { f.behall = true; telfotoSag('foto', { foto: telfotoPost(f) }); telfotoRita(); }
+  /* LC3/LC4: korten läggs undan och skrivs in på datorn; nästa foto. */
+  else if (a === 'undan' && f) { f.undan = true; telfotoSag('foto', { foto: telfotoPost(f) }); telfoto.foto = telfotoNasta(); telfotoSteg('lagg'); telfotoHej(); }
+  else if (a === 'slut') telfotoAvsluta(true);
+  else if (a === 'igen') telfotoForsokIgen();
+  else if (a === 'stangsida') telfotoStangSida();
+  /* Felskärmen (leken gick inte att öppna, ett foto i fel format): som förut. */
   else if (a === 'om') { if (telfoto.osparat) telfotoIgen(); else telfotoOppna(telfoto.id); }
 });
+/* Try again: LD2 sparar samma lästa kö igen, LD1 och LD4 läser samma foto
+   igen. Inget nytt foto i något av fallen. */
+function telfotoForsokIgen() {
+  if (telfoto.osparat) { telfotoIgen(); return; }
+  const v = telfoto.vantar;
+  if (v && v.kalla) telfotoLas(v.kalla, { fid: v.fid });
+}
+/* Retake photo n (och HD2:s Retake with the phone, fjarr). Kameran vet vilket
+   foto den tar om; omtaget ersätter dess kort först när det är läst. */
+function telfotoTaOm(f, fjarr) {
+  if (telfoto.laser || telfoto.steg === 'kamera') return;
+  if (fjarr) { telfoto.visar = f.fid; telfoto.steg = 'resultat'; telfotoRita(); }
+  telfotoKamera({ omtag: f.fid, fjarr });
+}
+/* Finish the deck, på telefonen (fran) eller datorn: I10. Talen räknas om
+   ur leken som den är nu, för datorn kan redan ha kollat namn. */
+async function telfotoAvsluta(fran) {
+  if (telfoto.laser) return;
+  if (fran) telfotoSag('klar', { fran: 'tel' });
+  if (telfoto.steg === 'kamera') telfotoStoppKamera();
+  telfoto.omtag = null;
+  telfoto.slut = telfotoSummera(telfoto.bas);
+  telfotoSteg('klart');
+  try {
+    const rad = await lekHamtaRad(telfoto.id);
+    if (rad && telfoto.steg === 'klart') { telfoto.bas = rad; telfoto.slut = telfotoSummera(rad); telfotoRita(); }
+  } catch (e) { /* talen ur fotona räcker */ }
+}
+/* LD3: leken är borta. En flik som inte öppnats av ett skript går inte att
+   stänga; då appens start. */
+function telfotoStangSida() {
+  telfotoStoppKamera();
+  lekKanalSluta(telfotoHor);
+  try { window.close(); } catch (e) {}
+  setTimeout(() => { location.href = location.pathname; }, 300);
+}
 
 /* ── kameran ── */
 /* Samma ström som i ett spel (Kamera.start): bakkameran, 4K om den finns,
    och kontinuerlig fokus. Går den inte att öppna — en webbläsare utan
    getUserMedia, eller ett nekat lov — tar telefonens EGEN kamera över
-   (filfältet med capture), och fotot går samma väg. */
-async function telfotoKamera() {
-  telfoto.sista = null;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { telfotoReserv(); return; }
+   (filfältet med capture), och fotot går samma väg. Ett omtag från datorn
+   (fjarr) öppnar inte telefonens egen kamera: den kräver ett tryck, så då
+   visas fotots resultat med Retake. */
+function telfotoKameraNr() {
+  const om = telfoto.omtag && telfotoFotoAv(telfoto.omtag);
+  return om ? om.nr : telfotoNasta();
+}
+async function telfotoKamera(o = {}) {
+  telfoto.omtag = o.omtag || null;
+  if (telfoto.steg !== 'kamera') telfoto.fran = { steg: telfoto.steg, visar: telfoto.visar };
+  const inte = () => { if (o.fjarr) { telfoto.omtag = null; telfotoRita(); telfotoHej(); } else telfotoReserv(); };
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { inte(); return; }
   try {
     telfoto.strom = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 },
@@ -13566,25 +13844,46 @@ async function telfotoKamera() {
   } catch (e) {
     /* Nekat lov, eller en webbläsare som inte ger strömmen. */
     telfoto.strom = null;
-    telfotoReserv();
+    inte();
     return;
   }
   const v = $('#telVideo');
   v.srcObject = telfoto.strom;
   telfotoSteg('kamera');
+  telfotoSag('kamera', Object.assign({ foto: telfotoKameraNr() }, telfoto.omtag ? { ersatter: telfoto.omtag } : {}));
   await v.play().catch(() => {});
   try { telfoto.wake = await navigator.wakeLock.request('screen'); } catch (e) { /* inte alla stödjer det */ }
   clearInterval(telfoto.skarpaT);
   telfoto.skarpaT = setInterval(telfotoSkarpa, 1200);
   telfotoSkarpa();
 }
+/* J7: kameran när ett foto med kort tas om säger vad som händer, i
+   stället för lampan (sida M visar ingen lampa där). */
+function telfotoRitaKamera() {
+  const om = telfoto.omtag && telfotoFotoAv(telfoto.omtag);
+  const medKort = !!(om && om.lage === 'klar' && om.hittade > 0);
+  $('#telOmtag').hidden = !medKort;
+  $('#telSkarpa').hidden = medKort;
+  if (medKort) {
+    $('#telOmtagRub').textContent = `Retaking photo ${om.nr}`;
+    $('#telOmtagTxt').textContent = `The new photo replaces the ${telKort(om.hittade)} from the old one. Press Back to keep them.`;
+  }
+  telfotoTips(false);
+}
+/* Rutan nedtill (LC1, J7): vid en varning att fotot går att ta ändå, vid
+   ett omtag hur telefonen ska hållas. Läsbart: ingen ruta. */
+function telfotoTips(varning) {
+  const el = $('#telTips'); if (!el) return;
+  const om = !$('#telOmtag').hidden;
+  el.textContent = om ? 'Hold the phone straight above the cards.' : 'You can still take the photo. Mesa reads what it can.';
+  el.hidden = !om && !varning;
+}
 /* Telefonens egen kamera i stället för appens: filfältet med capture
    öppnar den i ett eget fönster, och fotot kommer tillbaka i onchange.
-   Appens kameralager får inte stå framme då — bakom systemets kamera hade
-   det bara varit en svart bild med en ram som inte visar något. */
+   Appens kameralager står inte framme då (steget är inte 'kamera'), och
+   skärmen bakom står kvar tills fotot kommer. */
 function telfotoReserv() {
-  if (telfoto.steg !== 'lagg') { telfoto.steg = 'lagg'; telfotoRita(); }
-  telfotoSag('kamera');
+  telfotoSag('kamera', Object.assign({ foto: telfotoKameraNr() }, telfoto.omtag ? { ersatter: telfoto.omtag } : {}));
   $('#telFil').click();
 }
 function telfotoStoppKamera(steg) {
@@ -13594,6 +13893,17 @@ function telfotoStoppKamera(steg) {
   const v = $('#telVideo'); if (v) v.srcObject = null;
   if (telfoto.wake) { try { telfoto.wake.release(); } catch (e) {} telfoto.wake = null; }
   if (steg) { telfoto.steg = steg; telfotoRita(); }
+}
+/* Back i kameran: tillbaka dit kameran öppnades ifrån. Ett omtag som
+   avbryts ersätter ingenting. */
+function telfotoTillbaka() {
+  const fr = telfoto.fran || {};
+  telfoto.omtag = null;
+  telfotoStoppKamera();
+  telfoto.steg = fr.steg && fr.steg !== 'kamera' && fr.steg !== 'laser' && fr.steg !== 'ansluter' && fr.steg !== 'fel' ? fr.steg : 'lagg';
+  if (fr.visar) telfoto.visar = fr.visar;
+  telfotoRita();
+  telfotoHej();
 }
 /* Ramen i bildens koordinater. Videon fyller skärmen (object-fit: cover),
    så en del av bilden ligger utanför — rutan räknas om till 0–1 av
@@ -13610,19 +13920,22 @@ function telfotoRamBox() {
   return { x, y, w: clamp(r.width / dw, 0.05, 1 - x), h: clamp(r.height / dh, 0.05, 1 - y) };
 }
 /* "Names are readable": den lokala skärpeheuristiken, samma dom som
-   provbordets (lekDomAv) på det som ligger i ramen just nu. */
+   provbordets (lekDomAv) på det som ligger i ramen just nu. Sida M (LC1)
+   har fyra lägen: för litet, suddigt, reflex och läsbart. Smalt räknas som
+   för litet, och alla varningar är orange. Vid en varning säger rutan
+   nedtill att fotot går att ta ändå. */
 function telfotoSkarpa() {
   const el = $('#telSkarpa'); if (!el || $('#telKam').hidden) return;
   const cv = lekKallDuk($('#telVideo'), telfotoRamBox());
   if (!cv) return;
   const d = lekDomAv(cv, TELFOTO_HOGAR);
   const txt = d.kod === 'ok' ? 'Names are readable'
-    : d.kod === 'litet' ? 'Move closer — the names are too small'
-    : d.kod === 'smalt' ? 'The names are small — move a little closer'
-    : d.kod === 'suddigt' ? 'Hold still — the picture is blurry'
-    : 'The lamp is reflecting — move the light';
-  el.dataset.grad = d.grad;
+    : d.kod === 'litet' || d.kod === 'smalt' ? 'Move closer: the names are too small'
+    : d.kod === 'suddigt' ? 'Hold still: the picture is blurry'
+    : 'Move the light: it reflects';
+  el.dataset.grad = d.kod === 'ok' ? 'ok' : 'varn';
   el.querySelector('span:last-child').textContent = txt;
+  telfotoTips(d.kod !== 'ok');
 }
 function telfotoKnapp() {
   const v = $('#telVideo');
@@ -13647,8 +13960,9 @@ $('#telFil').onchange = async ev => {
   ev.target.value = '';
   if (!fil) {
     /* Avbruten kamera: datorn står kvar på "Waiting for the photo…" om vi
-       inte säger ifrån. */
-    if (telfoto.steg === 'kamera') telfotoSteg('lagg'); else telfotoSag('hej', { roll: 'tel', svar: true, fas: 'lagg' });
+       inte säger ifrån. Skärmen bakom står kvar, och ett omtag ersätter
+       ingenting. */
+    if (telfoto.steg === 'kamera') telfotoTillbaka(); else { telfoto.omtag = null; telfotoHej(); }
     return;
   }
   if (lekArHeic(fil)) {
@@ -13679,36 +13993,113 @@ $('#telFil').onchange = async ev => {
 };
 
 /* ── avläsningen ── */
-async function telfotoLas(kalla) {
+/* Fotona i den här öppningen, och numret nästa foto får: 1 + högsta
+   numret bland fotona som räknas (inte borttagna eller ersatta), också de
+   som bara finns i leken (foto-fältet, från en tidigare öppning). N6: ett
+   borttaget fotos nummer används igen. Allt härifrån till blockets slut
+   körs också i Node (dev/lekfoto.cjs, dev/lekgolden/kor.cjs). */
+function telfotoLista() { if (!Array.isArray(telfoto.foton)) telfoto.foton = []; return telfoto.foton; }
+const telfotoFotoAv = fid => fid ? telfotoLista().find(f => f.fid === fid) || null : null;
+const telfotoRaknas = f => f.lage !== 'bort' && f.lage !== 'ersatt';
+function telfotoNasta() {
+  let max = 0;
+  for (const f of telfotoLista()) if (telfotoRaknas(f)) max = Math.max(max, f.nr);
+  for (const fid of lekSlagFotoAv(telfoto.bas && telfoto.bas.kort).keys()) if (!telfotoFotoAv(fid)) max = Math.max(max, lekSlagFotoNr(fid));
+  return max + 1;
+}
+/* Fotot på kanalen: allt utom bilden, som går i ett eget meddelande. */
+function telfotoPost(f) { const p = Object.assign({}, f); delete p.bild; return p; }
+function telfotoMeddela(typ, extra) { if (telfoto.id) lekKanalSag(Object.assign({ typ, lekId: telfoto.id }, extra)); }
+/* Förhandsbilden: duken som skickades till läsningen, 640 px långsida och
+   JPEG 0,6, så att x/y i svaret gäller den (formatet vid LEKKANALEN).
+   Uppmätt 45–85 k tecken; över TELFOTO_BILD_MAX görs den mindre, och går
+   det inte blir det ingen bild. null också utan en riktig duk (i Node). */
+const TELFOTO_BILD_MAX = 150_000;
+function telfotoForhands(duk) {
+  try {
+    if (!duk || typeof duk.getContext !== 'function' || typeof document === 'undefined') return null;
+    for (const [sida, q] of [[640, 0.6], [640, 0.5], [512, 0.5]]) {
+      const s = Math.min(1, sida / Math.max(duk.width, duk.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(duk.width * s)); cv.height = Math.max(1, Math.round(duk.height * s));
+      const x = cv.getContext('2d');
+      x.imageSmoothingQuality = 'high';
+      x.drawImage(duk, 0, 0, cv.width, cv.height);
+      const url = cv.toDataURL('image/jpeg', q);
+      if (url.length <= TELFOTO_BILD_MAX) return { url, b: cv.width, h: cv.height };
+    }
+  } catch (e) { /* utan bild: raderna räcker */ }
+  return null;
+}
+/* AI help: servern frågas en gång till innan fotot får vänta (LD4). */
+async function telfotoProvaAI() { try { if (typeof probeAI === 'function') await probeAI(); } catch (e) {} }
+/* Fotots läge ändrades: datorn får posten, och telefonen visar resultatet. */
+function telfotoLage(f, lage) {
+  f.lage = lage;
+  telfoto.sista = f; telfoto.visar = f.fid;
+  telfoto.foto = telfotoNasta();
+  telfotoMeddela('foto', { foto: telfotoPost(f) });
+  telfotoSteg('resultat');
+}
+/* LC2, för många kort i ett foto: fler än sida M:s 15, och minst vart
+   fjärde att kolla (namnen för små). Korten ligger i leken ändå; frågan är
+   om fotot ska tas om. Gränsen är satt, inte uppmätt. */
+const telfotoManga = f => f.hittade > 15 && f.koll * 4 >= f.hittade;
+async function telfotoLas(kalla, o = {}) {
   if (telfoto.laser) return;
-  if (!aiEnabled()) {
-    telfoto.fel = 'Reading a photo needs the AI help. Turn it on under the Mesa menu → AI help.';
-    telfotoSteg('fel'); return;
+  /* Try again på ett foto som inte blev läst (LD1, LD4) läser samma foto
+     med samma fid. Annars ett nytt foto, eller ett omtag med samma nummer
+     som det foto det ska ersätta. */
+  let f = o.fid ? telfotoFotoAv(o.fid) : null;
+  if (!f) {
+    const gammal = telfotoFotoAv(telfoto.omtag);
+    const nr = gammal ? gammal.nr : telfotoNasta();
+    f = { fid: nr + ':' + String(uid()).slice(0, 5), nr, ersatter: gammal ? gammal.fid : null, lage: 'laser',
+          hittade: 0, kanda: 0, koll: 0, okanda: 0, olasta: 0, poster: 0, kort: [] };
+    telfotoLista().push(f);
   }
+  telfoto.omtag = null;
+  telfoto.sista = f; telfoto.visar = f.fid;
+  telfoto.vantar = { kalla, fid: f.fid };
+  if (!aiEnabled()) { await telfotoProvaAI(); if (!aiEnabled()) { telfotoLage(f, 'av'); return; } }
   telfoto.laser = true;
-  const nr = telfoto.foto;
+  f.lage = 'laser';
+  telfoto.foto = telfotoNasta();
   telfotoSteg('laser');
+  telfotoMeddela('laser', Object.assign({ foto: f.nr, fid: f.fid }, f.ersatter ? { ersatter: f.ersatter } : {}));
+  telfotoMeddela('foto', { foto: telfotoPost(f) });
   try {
     const duk = lekKallDuk(kalla.canvas, kalla.box);
     const { b64 } = lekB64(duk);
-    const resp = await fetch(AI_ENDPOINT, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'lek', image: b64 })
-    });
-    if (!resp.ok) {
-      let msg = 'Error ' + resp.status;
-      try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
-      bokforDatorAi(null, null, true);
-      telfoto.fel = msg; telfotoSteg('fel'); return;
+    if (!f.bild) {
+      f.bild = telfotoForhands(duk);
+      if (f.bild) telfotoMeddela('fotobild', { fid: f.fid, foto: f.nr, bild: f.bild });
+    }
+    let resp = null;
+    try {
+      resp = await fetch(AI_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'lek', image: b64 })
+      });
+    } catch (e) { resp = null; }
+    /* Kom inte fram, eller servern svarade med ett fel: fotot ligger kvar på
+       telefonen, och Try again skickar samma foto igen (LD1). */
+    if (!resp || !resp.ok) {
+      if (resp) bokforDatorAi(null, null, true);
+      telfotoLage(f, 'ejskickat'); return;
     }
     const j = await resp.json();
     bokforDatorAi(j.modell, j.usage, !!j.varfor);
+    telfoto.vantar = null;
     const kort = Array.isArray(j.kort) ? j.kort : [];
-    if (!kort.length) {
-      telfoto.fel = j.varfor ? 'The reading gave no answer to interpret. The deck is as it was.'
-        : 'No cards were found in the photo. Are the cards lying with the title line showing?';
-      telfotoSteg('fel'); return;
-    }
+    /* Kort Mesa såg men som inte kom med i svaret alls — modellen fick inte
+       med dem, eller de var fler än servern tar emot i ett foto (kapade,
+       räknade in i otydliga) — går inte att lägga in: det finns ingen remsa
+       och ingen plats. LA4 säger att några inte gick att läsa. */
+    f.olasta = Math.max(Math.max(0, +j.kapade || 0), +j.otydliga || 0);
+    f.poster = kort.length;
+    /* Inga kort alls, också ett svar som inte gick att tolka: LC3. */
+    if (!kort.length) { telfotoLage(f, 'inga'); return; }
     /* Samma namn flera gånger i fotot är flera exemplar. Remsan klipps ur
        KÄLLAN (lekRemsa), inte ur den nedskalade duken: den ska gå att läsa
        för en människa även när den var för liten för modellen.
@@ -13719,62 +14110,63 @@ async function telfotoLas(kalla) {
        de platshållare (lekOkandKort) under To check, med remsan — det är
        den väg prompten i läget 'lek' redan lovar: "appen visar en
        uppförstorad bild av just den remsan". Namnlösa slås aldrig ihop:
-       vart och ett har sin egen remsa. */
+       vart och ett har sin egen remsa. Varje post minns sitt index, så att
+       fotot får en prick per kort (f.kort). */
     const unika = new Map(), okanda = [];
-    for (const k of kort) {
+    let tomma = 0;
+    kort.forEach((k, i) => {
       const namn = String(k.namn || '').trim();
-      if (!namn) { okanda.push({ las: '', n: 1, remsa: lekRemsa(k.x, k.y, kalla) }); continue; }
-      const key = lekSlagNyckel(namn, false), f = unika.get(key);
-      if (f) { f.n++; continue; }
-      unika.set(key, { namn, n: 1, sak: k.sakerhet, remsa: lekRemsa(k.x, k.y, kalla) });
-    }
-    const ops = [], lagda = [];
+      if (!namn) { okanda.push({ las: '', n: 1, remsa: lekRemsa(k.x, k.y, kalla), poster: [i] }); tomma++; return; }
+      const key = lekSlagNyckel(namn, false), g = unika.get(key);
+      if (g) { g.n++; g.poster.push(i); return; }
+      unika.set(key, { namn, n: 1, sak: k.sakerhet, remsa: lekRemsa(k.x, k.y, kalla), poster: [i] });
+    });
+    const ops = [], poster = new Array(kort.length).fill(null);
     let osakra = 0;
     for (const p of unika.values()) {
       let k;
       /* Finns inte, eller nätet föll: namnet ligger kvar i platshållaren, och
          datorns Pick the card… börjar sökningen på det. */
-      try { k = await lookup(p.namn); } catch (e) { okanda.push({ las: p.namn, n: p.n, remsa: p.remsa }); continue; }
+      try { k = await lookup(p.namn); } catch (e) { okanda.push({ las: p.namn, n: p.n, remsa: p.remsa, poster: p.poster }); continue; }
       const kort2 = { name: k.name, sid: k.id, small: imgOf(k, 0, 'small') || null, ci: k.ci || [] };
       /* Osäkert: modellen tvekade, eller Scryfall bytte ut namnet. Den
          luddiga sökningen byter gärna ut det den inte känner igen
          ("Dragon Flail" gav Flailing Drake) — ett sådant byte måste
          bekräftas ÄVEN när modellen var säker. */
-      if (p.sak !== 'hog' || lekNamnSkiljer(p.namn, k.name)) {
-        kort2.koll = { las: p.namn.slice(0, 150), kalla: 'Photo ' + nr };
+      const osaker = p.sak !== 'hog' || lekNamnSkiljer(p.namn, k.name);
+      if (osaker) {
+        kort2.koll = { las: p.namn.slice(0, 150), kalla: 'Photo ' + f.nr };
         if (p.remsa) kort2.koll.remsa = p.remsa;
         osakra += p.n;
       }
-      ops.push({ typ: 'antal', name: k.name, sb: false, d: p.n, kort: kort2 });
-      lagda.push({ name: k.name, small: kort2.small, n: p.n, koll: !!kort2.koll });
+      ops.push({ typ: 'antal', name: k.name, sb: false, d: p.n, kort: kort2, foto: f.fid });
+      for (const i of p.poster) poster[i] = { name: k.name, las: p.namn, koll: osaker };
     }
     /* Gick inget namn i hela fotot att läsa är det fotot som är fel — för
-       suddigt, för mörkt, för många kort — och det ska tas om. Då läggs
-       ingenting in, som förut: platshållare från ett foto som sedan togs om
-       hade blivit kvar i leken, och totalen för hög på ett nytt sätt
-       (granskningen av MES-289). Platshållare bara för de enstaka korten i
-       ett foto där andra namn gick att läsa. */
-    if (!ops.length) {
-      telfoto.fel = 'None of the names in the photo matched a card. Photograph fewer cards at a time, straight from above.';
-      telfotoSteg('fel'); return;
-    }
+       suddigt, för mörkt, för många kort — och det ska tas om (LC4). Då
+       läggs ingenting in: platshållare från ett foto som sedan togs om hade
+       blivit kvar i leken (granskningen av MES-289). Platshållare bara för
+       de enstaka korten i ett foto där andra namn gick att läsa. */
+    if (!ops.length) { telfotoLage(f, 'inganamn'); return; }
     for (const o of okanda) {
-      const kort2 = lekOkandKort(o.las, 'Photo ' + nr, o.remsa, uid().slice(0, 6));
-      ops.push({ typ: 'antal', name: kort2.name, sb: false, d: o.n, kort: kort2 });
-      lagda.push({ name: o.las || 'Unreadable', small: null, n: o.n, koll: true });
+      const kort2 = lekOkandKort(o.las, 'Photo ' + f.nr, o.remsa, uid().slice(0, 6));
+      ops.push({ typ: 'antal', name: kort2.name, sb: false, d: o.n, kort: kort2, foto: f.fid });
+      for (const i of o.poster) poster[i] = { name: kort2.name, las: o.las, koll: true, okand: true };
       osakra += o.n;
     }
-    const nya = ops.reduce((t, o) => t + o.d, 0);
-    /* Kort Mesa såg men som inte kom med i svaret alls — modellen fick inte
-       med dem, eller de var fler än servern tar emot i ett foto (kapade,
-       räknade in i otydliga) — går inte att lägga in: det finns ingen remsa
-       och ingen plats. De måste fotas igen, och klar-skärmen säger hur många. */
-    const kapade = Math.max(0, +j.kapade || 0), ej = Math.max(kapade, +j.otydliga || 0);
-    const extra = ej ? `${ej} ${ej === 1 ? 'card was' : 'cards were'} seen but not read — photograph ${ej === 1 ? 'it' : 'them'} again${kapade ? ', fewer at a time' : ''}.` : '';
-    await telfotoSpara({ nr, ops, sista: { nr, nya, koll: osakra, kort: lagda, extra } });
+    const nya = ops.reduce((t, op) => t + op.d, 0);
+    f.kort = kort.map((k, i) => Object.assign({ x: Math.round(+k.x || 0), y: Math.round(+k.y || 0) }, poster[i]));
+    f.hittade = nya; f.koll = osakra; f.kanda = nya - osakra; f.okanda = tomma;
+    f.manga = telfotoManga(f);
+    /* Ett omtag byter ut det gamla fotots kort, SIST i samma kö: ett kort i
+       båda fotona behåller sin rad och det man redan kollat på den, och kön
+       sparas en gång (formatet vid LEKKANALEN). */
+    if (f.ersatter) ops.push({ typ: 'fotobort', foto: f.ersatter });
+    await telfotoSpara({ nr: f.nr, fid: f.fid, ops });
   } catch (e) {
-    telfoto.fel = 'The reading did not get through. ' + ((e && e.message) || '');
-    telfotoSteg('fel');
+    /* Något oväntat: läst men inte sparat om kön hann byggas (LD2), annars
+       som ett foto som inte kom fram (LD1). Fotot ligger kvar i båda. */
+    telfotoLage(f, telfoto.osparat && telfoto.osparat.fid === f.fid ? 'ejsparat' : 'ejskickat');
   } finally { telfoto.laser = false; }
 }
 /* Sparningen av ett läst foto. Går den inte igenom ligger fotot kvar
@@ -13785,21 +14177,24 @@ async function telfotoLas(kalla) {
    och leken fick fler kort än som fotats (MES-289). */
 async function telfotoSpara(p) {
   telfoto.osparat = p;
+  const f = telfotoFotoAv(p.fid);
   const res = await lekSparaKo(telfoto.id, telfoto.bas, p.ops);
   if (!res.ok || !res.rad) {
     if (res.rad) telfoto.bas = res.rad;
     if (res.borta) telfoto.osparat = null;
-    telfoto.fel = res.borta ? 'This deck no longer exists — it was deleted, perhaps on the computer.'
-      : 'The photo was read, but the deck could not be saved. Check your network and press Try again — you don’t need to take the photo again.';
-    telfotoSteg('fel'); return false;
+    if (f) telfotoLage(f, res.borta ? 'borta' : 'ejsparat');
+    return false;
   }
   telfoto.osparat = null;
   telfoto.bas = res.rad;
   telfoto.namn = res.rad.namn || telfoto.namn;
-  telfoto.sista = p.sista;
-  telfoto.foto = p.nr + 1;
-  lekKanalSag({ typ: 'sparad', lekId: telfoto.id, foto: p.nr, antal: res.rad.antal, nya: p.sista.nya, koll: p.sista.koll, ts: res.rad.ts });
-  telfotoSteg('klar');
+  if (!f) return true;
+  f.ts = res.rad.ts;
+  /* Omtaget är sparat: det gamla fotot räknas inte längre (J8, J10). */
+  const gammal = telfotoFotoAv(f.ersatter);
+  if (gammal && gammal !== f) { gammal.lage = 'ersatt'; telfotoMeddela('foto', { foto: telfotoPost(gammal) }); }
+  telfotoLage(f, 'klar');
+  lekKanalSag({ typ: 'sparad', lekId: telfoto.id, foto: f.nr, antal: res.rad.antal, nya: f.hittade, koll: f.koll, ts: res.rad.ts });
   return true;
 }
 async function telfotoIgen() {
@@ -13808,8 +14203,27 @@ async function telfotoIgen() {
   telfoto.laser = true;
   telfotoSteg('laser');
   try { await telfotoSpara(p); }
-  catch (e) { telfoto.fel = 'The deck could not be saved. ' + ((e && e.message) || ''); telfotoSteg('fel'); }
+  catch (e) { const f = telfotoFotoAv(p.fid); if (f) telfotoLage(f, 'ejsparat'); }
   finally { telfoto.laser = false; }
+}
+/* I10:s tal, som datorns slut räknar dem (formatet vid LEKKANALEN): korten
+   och fotona som ligger i leken, namnen att kolla i leken som den är nu
+   (datorn kan redan ha kollat några), om något kan ha lagts undan, och
+   basländerna i fotona. */
+const TEL_BASLAND = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'];
+function telfotoSummera(rad) {
+  const lista = telfotoLista(), klara = lista.filter(f => f.lage === 'klar');
+  const hittade = klara.reduce((s, f) => s + (f.hittade || 0), 0);
+  let koll = klara.reduce((s, f) => s + (f.koll || 0), 0);
+  if (rad && Array.isArray(rad.kort)) koll = rad.kort.filter(k => k && k.koll && !k.sb).length;
+  const undan = lista.some(f => telfotoRaknas(f) && (f.undan || f.olasta > 0));
+  const bl = new Map();
+  for (const f of klara) for (const k of f.kort || []) if (!k.okand && TEL_BASLAND.includes(k.name)) bl.set(k.name, (bl.get(k.name) || 0) + 1);
+  const delar = TEL_BASLAND.filter(n => bl.get(n)).map(n => { const c = bl.get(n); return `${c} ${c === 1 || /s$/.test(n) ? n : n + 's'}`; });
+  const alla = [...bl.values()].reduce((s, c) => s + c, 0);
+  const basland = delar.length
+    ? `${delar.length > 1 ? delar.slice(0, -1).join(', ') + ' and ' + delar[delar.length - 1] : delar[0]} ${alla === 1 ? 'was' : 'were'} in the photos.` : '';
+  return { hittade, foton: klara.length, koll, undan, basland };
 }
 /* ══ SLUT: TELEFONENS LEKFOTO ══ */
 
