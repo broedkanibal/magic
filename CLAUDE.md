@@ -113,7 +113,7 @@ försvinner den ur kartan när dess projekt tar slut.
 | `spelvyn` | bordet under spelet: mattan, korten, leken i spel, bordsvyn, menyer |
 | `lekar` | lekens sida, lekfoton, Use camera to add cards, Get ready, Home-spellistan |
 | `kortigenkänning` | att kameran hittar kortet och sätter rätt namn — detektorn, läsningen, farten |
-| `kameran-uppställning` | hur telefonen står, vad den ser, hur varm den blir |
+| `telefonen` | telefonen som sak: hur den står, vad den ser, upplösning, värme, inspelning (hette `kameran-uppställning` till 2026-09-21 — lätt att blanda ihop med `uppstarten`) |
 | `golden` | mätverktyget självt |
 | `Plattform` | konton, drift, licenser, arbetssätt |
 
