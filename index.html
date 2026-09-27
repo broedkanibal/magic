@@ -13147,7 +13147,109 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
    'kamera' och 'laser' bara går framåt.
 
    Allt går genom EN mottagare (lekKanalMot), som sätts också utan konto:
-   då kan stubben mata samma väg utan telefon (dev/lekfoto-prov.js). */
+   då kan stubben mata samma väg utan telefon (dev/lekfoto-prov.js).
+
+   ── FORMATET EFTER SIDA M (MES-321; datorn läser det i MES-322–324) ──
+   Varje meddelande har typ och lekId; Moln.sandLek lägger till av.
+
+   Telefonen → datorn
+     hej      {roll:'tel', svar?, fas, foto, visar?}   fas: 'lagg' | 'kamera' |
+              'laser' | 'resultat' | 'klar' (I10). foto: numret telefonen står
+              på, som förut (i 'lagg' och 'resultat' numret NÄSTA foto får).
+              visar: fid för fotot vars resultat syns ('resultat'). Svaret på
+              datorns hej följs av hela listan: ett 'foto' per foto, sedan ett
+              'fotobild' per foto (en i taget).
+     kamera   {foto, fid, ersatter?}     kameran öppnad; ersatter = omtag (J7/J9)
+     laser    {foto, fid, ersatter?}     fotot läses (N4 "Reading")
+     foto     {foto: Foto}               fotots läge, vid varje ändring
+     fotobild {fid, foto, bild: Bild}    förhandsbilden, en per meddelande
+     sparad   {foto, antal, nya, koll, ts}   som förut, efter en lyckad sparning
+     fotobort {fid, fran:'tel'}          Remove photo på telefonen (LB1, MES-324)
+     klar     {fran:'tel'}               Finish the deck på telefonen
+
+   Datorn → telefonen
+     hej      {roll:'dator', svar?}      som förut
+     fotobort {fid}                      Remove photo (N6, HD2)
+     fotoater {fid}                      Undo: fotot räknas igen (N6, J10)
+     omtag    {fid}                      Retake with the phone (HD2)
+     klar     {fran:'dator'}             Finish the deck på datorn: telefonen visar I10
+
+   Foto (en post per TAGET foto; datorn nycklar på fid och ersätter posten)
+     fid       'nr:slump', t.ex. '2:k3x9a'. Nytt för varje taget foto, också
+               ett omtag. Numret står först så att leken ensam räcker för att
+               veta vilket foto ett kort kom ur (se Leken nedan).
+     nr        numret telefonen visar (PHOTO 2). Ett omtag behåller numret.
+     ersatter  fid | null: omtaget byter ut det fotots kort (J8, J10). Det
+               gäller först när lage är 'klar'. Ett omtag som inte blev
+               'klar' har inte ersatt något: det gamla fotot står kvar.
+     lage      'laser'     läses
+               'klar'      korten ligger i leken (LA1–LA5, LC2, J8)
+               'inga'      inga kort hittades, inget lades in (LC3)
+               'inganamn'  kort men inga namn, inget lades in (LC4)
+               'ejskickat' kom aldrig fram till läsningen; fotot väntar på
+                           telefonen (LD1)
+               'ejsparat'  läst men inte sparat; korten väntar på telefonen (LD2)
+               'av'        AI help är av; fotot väntar på telefonen (LD4)
+               'borta'     leken är borttagen (LD3)
+               'bort'      borttaget med Remove photo; går att ångra
+               'ersatt'    ersatt av ett omtag som blev 'klar'
+     hittade   kort fotot lade in, platshållarna med ("12 cards found")
+     kanda     av dem med säkert namn ("10 recognized")
+     koll      av dem att kolla: osäkra namn + platshållare ("2 to check")
+     okanda    av koll: platshållare där inget namn lästes (LA5)
+     olasta    kort Mesa såg men inte kunde läsa (otydliga/kapade). De ligger
+               INTE i leken: "some not read" (LA4, IP1)
+     poster    poster i svaret ("It found 6 cards", LC4)
+     manga     för många kort i fotot (LC2); behall: Keep these 30 trycktes
+     undan     Put these cards aside, type them in later trycktes (LC3/LC4)
+     kort      [{name, las, x, y, koll?, okand?}], en post per kort i fotot i
+               svarets ordning (samma namn två gånger = två exemplar). name =
+               radens namn i leken (lekSlagNyckel(name, false) hittar raden,
+               en platshållares unika namn), las = det fotot läste ('' =
+               inget), x/y = titelradens mitt i tusendelar av bilden (prickarna)
+     ts        lekens ts efter sparningen
+   Bild = {url: 'data:image/jpeg;base64,…', b, h}: duken som skickades till
+     läsningen, nedskalad till 640 px långsida, JPEG 0,6; x/y gäller den.
+     Uppmätt på lekgoldens foton: 45–85 k tecken. Över 150 k: 0,5, sedan
+     512 px; blir den ändå för stor skickas ingen bild. Supabase broadcast
+     tar 256 kB per meddelande på gratisnivån, därför en bild per meddelande.
+
+   Leken (decks.kort, ingen ny kolumn): en rad kan bära foto: {fid: n},
+   hur många av radens exemplar som kom ur vilket foto. En rad utan fältet
+   (en gammal lek, ett kort lagt för hand) har inga exemplar ur något foto.
+   Ändringarna (LEKSLAG, byggs i MES-321):
+     {typ:'antal', …, foto: fid}   d exemplar räknas till (+) eller från (−)
+                                   fotot; mallens foto gäller bara när raden
+                                   skapas
+     {typ:'fotobort', foto: fid}   fotots exemplar ur varje rad:
+                                   n −= min(foto[fid], n), nyckeln bort, raden
+                                   bort vid 0
+   byt behåller radens foto (namnet byts, inte exemplaren), sb flyttar det
+   med raden, och två rader som slås ihop lägger ihop det.
+
+   Vad knapparna sparar (en kö, sparad med lekSparaKo: varje ändring en gång)
+     Remove photo   [{typ:'fotobort', foto: fid}]; fotobort {fid} på kanalen
+     Undo av Remove för varje rad som FÖRE borttagningen hade foto[fid] = c
+                    och n exemplar: {typ:'antal', name, sb, d: min(c, n),
+                    kort: radens mall, foto: fid}; fotoater {fid}. Datorn
+                    tar mallarna ur sin egen vy när den tar bort fotot
+     Retake         det nya fotots antal-ändringar (foto: nytt fid) och SIST
+                    {typ:'fotobort', foto: gammalt fid}. Ett kort i båda fotona
+                    behåller sin rad, och det man redan kollat på den.
+     Undo av Retake det gamla fotots rader tillbaka som ovan (mallarna tar
+                    datorn ur sin vy medan omtaget pågår, J9), SIST
+                    {typ:'fotobort', foto: nytt fid}; fotobort {fid: nytt} och
+                    fotoater {fid: gammalt}
+   fotobort verkar på raden som den ligger när kön spelas upp, så ett kort
+   som bytt namn (Check names) eller fått exemplar från en annan enhet följer
+   med rätt. Nästa fotonummer: 1 + högsta nr bland fotona som inte är 'bort'
+   eller 'ersatt' (N6: numret används igen).
+
+   Samma kort i två foton (MES-324): en rad vars foto har två fid, och
+   fotonas kort-listor säger var i varje bild. I10 och datorns slut (MES-323)
+   räknar samma sak: "N cards found in M photos" = hittade summerat över
+   fotona som är 'klar', M = hur många; "Cards you put aside" när något
+   foto som inte är 'bort'/'ersatt' har undan eller olasta > 0. */
 let lekKanalMottagare = null;
 function lekKanalMot(m) { if (lekKanalMottagare) lekKanalMottagare(m || {}); }
 function lekKanalLyssna(cb) {
