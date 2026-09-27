@@ -61,6 +61,12 @@ const ZON_EXIL = 'exil';
 const paMattan = e => { const z = zonAv(e); return z !== ZON_GRAV && z !== ZON_EXIL; };
 const Moln = { sandKam() {} };
 const hand = () => state.players[0].cards, angraPunkt = () => {}, clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+/* Omritningens släpp av bifogade kort (losBifogade) och bannerns svar
+   (svaraLyftAlla): paMattanKort som appens, en bifogad plats en bit
+   nedanför värden, och mitt bord går alltid att ändra. */
+const paMattanKort = c => c && paMattan(c) && c.lyft == null;
+const bifogadPlats = (v, k) => ({ x: (v.x || 0) + 10 * (k + 1), y: (v.y || 0) + 10 * (k + 1), z: 0 });
+const redigerbar = () => true;
 function delaHand() {
   const d = { spell: [], mana: [], grav: [], exil: [] };
   hand().forEach((c, i) => { const z = zonAv(c); d[z === ZON_GRAV ? 'grav' : z === ZON_EXIL ? 'exil' : z === ZON_MANA ? 'mana' : 'spell'].push(i); });
@@ -69,14 +75,14 @@ function delaHand() {
 `;
 /* Svaren som binder ett kort till ett spår utanför avstämningen (MES-291):
    granskningens svar (namngePend, med sammaKortVid) och handflytten till
-   graveyard eller exile (flyttaTill). Ur samma index.html, så att proven kör
+   graveyard eller exile (flyttaTill, med aurorFoljer). Ur samma index.html, så att proven kör
    appens egen kod. En funktion slutar vid första "}" i början av en rad. */
 const funk = namn => {
   const i = src.indexOf('function ' + namn + '('), j = src.indexOf('\n}\n', i);
   if (i < 0 || j < 0) throw new Error('hittar inte ' + namn + ' i ' + fil);
   return src.slice(i, j + 3);
 };
-const svarKod = ['sammaKortVid', 'namngePend', 'flyttaTill'].map(funk).join('\n');
+const svarKod = ['sammaKortVid', 'namngePend', 'aurorFoljer', 'flyttaTill', 'losBifogade', 'svaraLyftAlla'].map(funk).join('\n');
 /* Timrarna (MES-291): avstamBord ställer en timer som låter nåden och
    väntan löpa ut när telefonen är tyst. Här virtuella: tid(t) flyttar
    klockan till t och kör timrarna som hinner gå ut, i ordning, med klockan
@@ -139,6 +145,8 @@ return {
   /* Svaren utanför avstämningen (MES-291): granskningens svar på en post, och handflytten till en hög. */
   namnge(q, namn) { return namngePend(state.players[0], q, namn, null, null); },
   flytta(i, zon) { return flyttaTill(i, zon); },
+  losBifogade() { return losBifogade(state.players[0].cards); },
+  lyftAlla(val) { return svaraLyftAlla(null, val); },
   tillbaka(namn, utom) { return kortSomKomTillbaka(state.players[0].cards, namn, utom); },
   /* Nollställningen går genom avstamBord: det är där "senaste kortet"
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
@@ -1128,6 +1136,83 @@ prov('GR3 högen ändras inte: frågan som förut', () => {
   klocka.t += 150; stamG([], hog(0)); klocka.t += 3100; stamG([], hog(0));
   assert.equal(app.kort[0].zon, undefined); assert.ok(app.kort[0].lyft != null);
 });
+prov('GR3b en token vars spår dör när högen ändras upphör att finnas, och en aura-token på en värd som går dit likaså — en vanlig aura följer med (MES-105)', () => {
+  app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura'], ['Bonesplitter', 'Artifact — Equipment']]);
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(0));
+  const ukud = app.kort.find(k => k.name === 'Ukud Cobra'), sold = app.kort.find(k => k.name === 'Soldier');
+  sold.tok = 1;                                   // en token, som addCards gör den
+  app.kort.push({ cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: ukud.cid },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: ukud.cid },
+                { cid: 'q', name: 'Bonesplitter', flipped: 0, attachedTo: ukud.cid });
+  klocka.t += 150; stamG([klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(0));   // Ukud borta
+  klocka.t += 1000; stamG([klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(1));
+  klocka.t += 2100; stamG([klar(2, 'Soldier', { sen: 20, ...LANGT })], hog(1));
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto);
+  assert.ok(!app.kort.some(k => k.name === 'Monster Role'), 'aura-token kvar');
+  assert.equal(app.kort.find(k => k.name === 'Pacifism').zon, 'grav');
+  assert.equal(app.kort.find(k => k.name === 'Bonesplitter').zon, undefined, 'utrustningen blir kvar');
+  klocka.t += 150; stamG([], hog(1));             // tokenens spår dör
+  klocka.t += 1000; stamG([], hog(2));
+  klocka.t += 2100; stamG([], hog(2));
+  assert.ok(!app.kort.includes(sold), 'tokenen ligger i graveyard');
+  assert.ok(!app.kort.some(k => k.tok), 'en token blev kvar');
+});
+prov('GR3c handflytt till graveyard: en aura-token på kortet upphör att finnas, en vanlig aura följer med (flyttaTill)', () => {
+  app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura']]);
+  app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10 },
+                { cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: 'v' },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' });
+  assert.ok(app.flytta(0, 'grav'));
+  assert.deepEqual(app.kort.map(k => k.name + ':' + (k.zon || '')), ['Grizzly Bears:grav', 'Pacifism:grav']);
+});
+prov('GR3d en värd som kameran tonat ned behåller sina auror till svaret: All to graveyard tar auran med, en aura-token upphör, utrustningen blir kvar', () => {
+  app.typ = new Map([['Monster Role', 'Token Enchantment — Aura Role'], ['Pacifism', 'Enchantment — Aura'], ['Bonesplitter', 'Artifact — Equipment']]);
+  const bas = () => [{ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10, lyft: klocka.t },
+                     { cid: 'r', name: 'Monster Role', flipped: 0, tok: 1, attachedTo: 'v' },
+                     { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v' },
+                     { cid: 'q', name: 'Bonesplitter', flipped: 0, attachedTo: 'v' }];
+  const bild = () => app.kort.map(k => k.name + ':' + (k.zon || '') + (k.attachedTo ? '@' + k.attachedTo : ''));
+  /* Bannern: renderAll ritar mattan (losBifogade) före bannern. */
+  app.kort.push(...bas());
+  app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v'], 'omritningen släppte den nedtonade värdens kort');
+  app.lyftAlla('grav'); app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:grav', 'Pacifism:grav', 'Bonesplitter:']);
+  /* Arket, ett kort i taget: graveyard går genom flyttaTill. */
+  app.kort.length = 0; app.kort.push(...bas());
+  app.losBifogade(); app.flytta(0, 'grav'); app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:grav', 'Pacifism:grav', 'Bonesplitter:']);
+  /* "They're still there": auran sitter kvar på värden. */
+  app.kort.length = 0; app.kort.push(...bas());
+  app.losBifogade(); app.lyftAlla('kvar'); app.losBifogade();
+  assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v']);
+});
+prov('GR3e en nedtonad aura på en nedtonad värd: värden till graveyard tar auran med utan nedtoning, och bara kort på mattan är nedtonade (arket och högvaktens efterskott)', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const nedtonadeUtanfor = () => app.kort.filter(k => k.lyft != null && (k.zon === 'grav' || k.zon === 'exil')).map(k => k.name);
+  /* Arket: graveyard för värden går genom flyttaTill → aurorFoljer. */
+  app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10, lyft: klocka.t },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v', lyft: klocka.t },
+                { cid: 'w', name: 'Llanowar Elves', flipped: 0, x: 200, y: 10, lyft: klocka.t });
+  app.losBifogade(); app.flytta(0, 'grav'); app.losBifogade();
+  const pac = app.kort.find(k => k.name === 'Pacifism');
+  assert.equal(pac.zon, 'grav'); assert.equal(pac.lyft, undefined, 'auran är nedtonad i graveyard');
+  assert.deepEqual(nedtonadeUtanfor(), []);
+  assert.deepEqual(app.kort.filter(k => k.lyft != null).map(k => k.name), ['Llanowar Elves'], 'lyftN räknar bara kortet på mattan');
+  /* Högvaktens efterskott: värden tonades ned, högen ändras efter nåden (gravAutoOm). */
+  app.nollstall(); klocka.t = 1e6; app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  const ukud = app.kort[0];
+  app.kort.push({ cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: ukud.cid });
+  klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
+  klocka.t += 3100; stamG([], hog(0));            // nedtonad
+  assert.ok(ukud.lyft != null, 'värden tonades inte ned');
+  app.kort[1].lyft = klocka.t;                    // auran tonades ned med den
+  klocka.t += 1000; stamG([], hog(1));            // högen ändras inom fönstret: efterskottet
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto);
+  assert.equal(app.kort[1].zon, 'grav'); assert.equal(app.kort[1].lyft, undefined, 'auran är nedtonad i graveyard');
+  assert.deepEqual(nedtonadeUtanfor(), []);
+});
 prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
   klocka.t += 150; stamG([], hog(0));
@@ -1437,13 +1522,35 @@ prov('TV6 spåret läses om till ett annat kort och högen ändras en sekund sen
 });
 prov('GU1 leken har 1 Trusty Retriever och den ligger i graveyard: kortet på mattan är SAMMA kort, tillbaka i spel', () => {
   app.lek = new Map([['Trusty Retriever', 1]]);
-  app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 0, zon: 'grav', gravAuto: 1, tapped: 1, x: 40, y: 80 });
+  app.kort.push({ cid: 'g', name: 'Trusty Retriever', flipped: 1, zon: 'grav', gravAuto: 1, tapped: 1, x: 40, y: 80, cts: [{ t: '+1/+1', n: 2 }] });
   stam([klar(1, 'Trusty Retriever', { sen: 20, ...PORT })]);
   assert.equal(app.kort.length, 1, 'ett nytt kort skapades bredvid det i högen');
   const k = app.kort[0];
   assert.equal(k.cid, 'g'); assert.equal(k.zon, undefined); assert.equal(k.spar, 1);
   assert.equal(k.gravAuto, undefined); assert.equal(k.tapped, 0); assert.equal(k.etb, 1);
+  assert.deepEqual(k.cts, [], 'countrarna blev kvar på bordet'); assert.equal(k.flipped, 0, 'sidan blev kvar på bordet');
   assert.equal(k.x, null, 'platsen ska räknas om'); assert.equal(iGrav('Trusty Retriever'), 0);
+});
+prov('GU1b högvakten tog fel: kortet kommer tillbaka på mattan strax efter gravAuto och behåller countrar och sida; efter GRAV_ATER_MS är det ett nytt objekt', () => {
+  const kor = (vanta) => {
+    app.nollstall(); klocka.t = 1e6;
+    app.lek = new Map([['Ukud Cobra', 1]]);
+    stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+    const k = app.kort[0];
+    k.cts = [{ t: '+1/+1', n: 2 }]; k.flipped = 1;
+    klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
+    klocka.t += 1000; stamG([], hog(1));            // högen ändrades av något annat
+    klocka.t += 2100; stamG([], hog(1));
+    assert.equal(k.zon, 'grav'); assert.ok(k.gravAuto, 'högvakten tog det');
+    klocka.t += vanta; stamG([klar(2, 'Ukud Cobra', { sen: 20, ...LANGT })], hog(1));   // kortet låg bara på ett nytt ställe
+    assert.equal(app.kort.length, 1, 'ett nytt kort skapades'); assert.equal(k.zon, undefined); assert.equal(k.spar, 2);
+    return k;
+  };
+  const strax = kor(3000);
+  assert.deepEqual(strax.cts, [{ t: '+1/+1', n: 2 }], 'countrarna försvann på ett kort som aldrig lämnat bordet');
+  assert.equal(strax.flipped, 1, 'sidan vändes på ett kort som aldrig lämnat bordet');
+  const senare = kor(12000);                      // utanför GRAV_ATER_MS (8 s): ett nytt objekt, som Feign Death
+  assert.deepEqual(senare.cts, []); assert.equal(senare.flipped, 0);
 });
 prov('GU2 leken har 4 Forest, tre på bordet och ett i graveyard: det fjärde på mattan är ett NYTT kort ur handen', () => {
   app.lek = new Map([['Forest', 4]]);

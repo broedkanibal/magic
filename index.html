@@ -6444,7 +6444,13 @@ function slimDelat(cards) {
     x: c.x != null ? c.x : undefined, y: c.y != null ? c.y : undefined,
     z: c.z != null ? c.z : undefined,
     grp: c.grp || undefined, gi: c.gi != null ? c.gi : undefined,
-    cts: c.cts && c.cts.length ? c.cts : undefined
+    cts: c.cts && c.cts.length ? c.cts : undefined,
+    /* I ett spel byggs mitt eget bord om ur den här raden (oppnaSpel →
+       byggSpelare). Utan flaggan var mina tokens vanliga kort efter en
+       omladdning: G lade dem i graveyard för gott, D gjorde kopior som inte
+       var tokens, tokenhögarna slutade fungera och motståndarens library-tal
+       (oppBibKvar) räknade dem som kort ur leken. */
+    tok: c.tok ? 1 : undefined
   }));
 }
 function slimKort(cards) {
@@ -7329,6 +7335,25 @@ function tillLeken(i) {
   removeAt(i, namnAv(e) + ' → hand or library');
   bibBumpa();
 }
+/* En aura följer sin värd till graveyard när värden lämnar mattan —
+   utrustning och fortifikationer blir kvar (losBifogade släpper dem där de
+   låg). En aura som är en token (Role-tokens) upphör att finnas i stället,
+   som varje token som lämnar mattan (MES-105): förut hamnade den i
+   graveyard och låg kvar där. Tar bort ur cards, så den som går över
+   listan i en loop får inte anropa den mitt i.
+   En aura som kameran tonat ned tillsammans med värden släpper sin
+   nedtoning: den är avgjord nu. Förut följde lyft med till graveyard —
+   arket frågade om auran igen, "Still there" lämnade den i högen, och
+   matLage.lyftN räknade den så att chippet och bannern kunde döljas för de
+   andra nedtonade korten. */
+function aurorFoljer(cards, vard) {
+  for (let j = cards.length - 1; j >= 0; j--) {
+    const k = cards[j];
+    if (k.attachedTo !== vard.cid || !/\bAura\b/i.test(typLinje(k))) continue;
+    if (k.tok) cards.splice(j, 1);
+    else { k.zon = ZON_GRAV; delete k.attachedTo; slappLyft(k); }
+  }
+}
 function flyttaTill(i, zon) {
   const c = hand(), e = c[i];
   if (!e || zonAv(e) === zon) return false;
@@ -7346,11 +7371,9 @@ function flyttaTill(i, zon) {
     if (e.borta) { delete e.spar; delete e.borta; }
     else e.fysisk = true;
   }
-  /* En aura följer sin värd till graveyard — utrustning och fortifikationer
-     blir kvar på mattan (losBifogade släpper dem där de låg). */
-  if (hog) for (const k of c) {
-    if (k.attachedTo === e.cid && /\bAura\b/i.test(typLinje(k))) { k.zon = ZON_GRAV; delete k.attachedTo; }
-  }
+  /* Auror följer värden (aurorFoljer). En aura-token försvinner ur listan,
+     så kortets plats räknas om. */
+  if (hog) { aurorFoljer(c, e); i = c.indexOf(e); }
   /* En token som lämnar mattan upphör att finnas (MES-105) — den har ingen
      plats i en hög. Utrustning på den släpps där den låg (losBifogade). */
   if (hog && e.tok) {
@@ -7582,7 +7605,12 @@ function losBifogade(cards) {
   for (const e of cards) {
     if (!e.attachedTo) continue;
     const vard = cards.find(x => x.cid === e.attachedTo);
-    if (vard && paMattanKort(vard) && paMattan(e)) continue;
+    /* En värd som kameran tonat ned (lyft) är kvar: ingenting är avgjort
+       förrän spelaren svarat. Med paMattanKort här släpptes auran vid
+       första omritningen, före bannern och arket — och när svaret sedan
+       blev graveyard hittade aurorFoljer ingenting, så auran blev liggande
+       lös och en Role-token blev en token utan värd. */
+    if (vard && paMattan(vard) && paMattan(e)) continue;
     /* Kortet ligger kvar där det syntes senast: platsen har hela tiden
        varit härledd ur värden, så den skrivs ut på kortet innan bandet
        släpps. */
@@ -8490,6 +8518,16 @@ addEventListener('keydown', ev => {
    mattan (slotBeside), med en flygning från sin plats i solfjädern. Högen
    räknas ner, det skrivna suddas och solfjädern ligger kvar. ⌘Z ångrar. */
 const HF_FLYG_MS = 480;
+/* Ett kort som kommer in på bordet ur graveyard eller exile är ett nytt
+   objekt i Magic: countrarna, sidan och fästet blev kvar på bordet när det
+   lämnade det. Förut behöll det cts och flipped — en varelse som dog med
+   +1/+1-countrar kom tillbaka med dem, och ett transformerat kort kom
+   tillbaka på baksidan. flipped betyder ingenting i högarna (hfKort och
+   högens översta kort ritar alltid framsidan), så det finns inget nedvänt
+   kort i graveyard att bevara. Ångra tar tillbaka allt (matAngra). */
+function nyttPaBordet(e) {
+  e.cts = []; e.flipped = 0; delete e.attachedTo;
+}
 function hfEnter() {
   const fok = hf.fok;
   if (hfNamnge && fok && fok.it.post) { hfNamngeMed(fok.it.post); return; }   // arket frågar vilket kort det är
@@ -8510,6 +8548,7 @@ function hfEnter() {
     e = h.find(q => q.cid === it.cid); if (!e) return;
     matAngra(namnAv(e) + ' ← ' + (hf.src === ZON_EXIL ? 'exile' : 'graveyard'), () => {
       delete e.zon; delete e.fysisk; delete e.spellAuto; e.tapped = 0; e.ny = Date.now();
+      nyttPaBordet(e);
       e.x = e.y = null;                       // räknas inte som upptagen plats
       hfLedig(e, h);
       state.sel = h.indexOf(e);
@@ -8562,6 +8601,7 @@ function spawnFromGrave(cid, ev) {
   const pt = cpt(ev), s = matStorlek(e);
   matAngra(namnAv(e) + ' ← ' + fran, () => {
     delete e.zon; e.tapped = 0; e.ny = Date.now();
+    nyttPaBordet(e);
     e.x = pt.x - s.w / 2; e.y = pt.y - s.h / 2;
     matTopZ = Math.max(matTopZ, ...h.map(k => k.z || 0)) + 1; e.z = matTopZ;
     state.sel = h.indexOf(e);
@@ -10744,7 +10784,7 @@ function renderTom() {
   /* I ett spel säger pillret hur kameran mår (MES-98); mattan säger bara
      var korten kommer att synas — en rad, ingen knapp. */
   const TYST = {
-    av: 'Drag a card from your deck (/) onto the mat — or turn on the camera with the camera button above.',
+    av: 'Drag a card from your deck (L) onto the mat — or turn on the camera with the camera button above.',
     vantar: 'Your cards show up here once the camera is set up.',
     tappad: 'Your cards show up here once the camera is back.',
     startar: 'Your cards show up here in a moment.',
@@ -10909,6 +10949,12 @@ function removeAt(i, msg) {
   if (i < 0 || i >= h.length) return;
   angraPunkt();
   const [gone] = h.splice(i, 1);
+  /* En förflyttning till hand eller library (msg): auran på kortet går till
+     graveyard, som när värden går dit (aurorFoljer). Förut blev den
+     liggande lös på mattan när losBifogade släppte den. Utrustning blir
+     kvar ofäst. Inte vid en riktig borttagning — kortet var aldrig där, och
+     notisens ångra lägger bara tillbaka kortet. */
+  if (msg) aurorFoljer(h, gone);
   /* Kameran ser kortet tills det lyfts. Utan spärren låg det på bordet igen
      tre sekunder senare, som ett nytt kort. */
   if (gone.spar != null) borttagna.add(gone.spar);
@@ -23505,6 +23551,18 @@ const SLAPP_MS = 600;
    "ändrades" −1,35 och +0,15 s runt spårets död, och kortet flög till
    graveyard. */
 const GRAV_TIDIGAST = 350, GRAV_EFTER = 5000;
+/* Ett kort som högvakten lagt i graveyard (gravAuto) och som kameran ser
+   på mattan igen inom så här lång tid var aldrig där: högen ändrades av
+   något annat medan kortet bara flyttades. Då är det samma objekt, och
+   countrarna och sidan ska vara kvar (urGraven i avstamBord) — kamerans
+   flytt går inte att ångra. Fönstret är så kort det går: BORTA_NAD (5 s)
+   plus en läsning av kortet på den nya platsen (~3 s). Ett felaktigt
+   gravAuto kommer tillbaka så fort spåret läses igen, och kortet låg redan
+   på sin nya plats medan högvakten väntade. Ett kort som verkligen dött kan
+   komma tillbaka snabbt — Supernatural Stamina, Feign Death, Kaya's
+   Ghostform — och ska då vara ett nytt objekt utan countrar; med 20 s
+   (som SPELL_MS, 6757fa8) behöll de sina. */
+const GRAV_ATER_MS = 8000;
 let gravHandelser = [], gravSistaN = null, gravTid = new Map();
 function gravTaEmot(grav, nu) {
   if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet
@@ -24529,7 +24587,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     const tak = lekAntal(g.namn);
     const ur = pol.flytt && isFinite(tak) && paBord + iHog(g.namn) >= tak ? urGraven(g.namn) : null;
     if (ur) {
+      const aldrigDar = ur.gravAuto != null && nu - ur.gravAuto < GRAV_ATER_MS;   // högvakten tog fel (GRAV_ATER_MS)
       delete ur.zon; delete ur.gravAuto; delete ur.spellAuto; delete ur.attachedTo;
+      if (!aldrigDar) { ur.cts = []; ur.flipped = 0; }   // ett nytt objekt: counters och sida blev kvar på bordet (som nyttPaBordet)
       ur.x = ur.y = null;                       // kortet tar platshållarens plats, som ett nyskapat (matPlacera)
       ur.tapped = tapSynk && pol.tap && t.tappad ? 1 : 0;
       ur.kamTap = tapSynk ? (t.tappad ? 1 : 0) : undefined;
@@ -24686,8 +24746,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (!h) return false;
     h.tagen = true;
     k.zon = ZON_GRAV; delete k.attachedTo; k.gravAuto = nu; gravTid.delete(k.cid);
-    /* En aura följer sin värd, som i flyttaTill. */
-    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; }
+    /* En aura följer sin värd, som i flyttaTill — och släpper en nedtoning
+       den fått tillsammans med värden (aurorFoljer). */
+    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; slappLyft(a); }
     andrat = true;
     return true;
   }
@@ -24732,6 +24793,13 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   /* Efterskottet (MES-85): högen blev stilla först efter nådatiden, och
      kortet hann tonas ned. Arket stänger sig självt (renderGrid). */
   if (pol.saknas) for (const k of mig.cards) if (k.lyft != null && k.spar == null && gravTid.has(k.cid) && gravAutoOm(k, gravTid.get(k.cid))) slappLyft(k);
+  /* En token som gick till graveyard ovan — själv (gravAutoOm, besvärjelsen)
+     eller som aura på sin värd — upphör att finnas (MES-105), som i
+     flyttaTill. Förut låg den kvar i högen. Här och inte i gravAutoOm:
+     looparna ovan går över mig.cards. */
+  let tokBort = false;
+  for (let j = mig.cards.length - 1; j >= 0; j--) if (mig.cards[j].tok && mig.cards[j].zon === ZON_GRAV) { mig.cards.splice(j, 1); tokBort = andrat = true; }
+  if (tokBort) state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));   // inte clamp: harnessarnas utdrag (dubbletter.cjs) har den inte
   for (const id of hoppade) if (!synliga.has(id)) hoppade.delete(id);
   /* Spärren följer det fysiska kortet: alla dess spår, inte bara det som var
      bundet när kortet togs bort. Annars släpptes den när det spåret dog medan
@@ -24861,11 +24929,22 @@ function renderLyftBanner() {
 function svaraLyftAlla(zon, val) {
   if (!redigerbar()) return;
   const p = minSpelare(); if (!p) return;
+  const tillGraven = [];
   for (const c of p.cards) {
     if (c.lyft == null || !kanLyftas(c) || (zon != null && zonAv(c) !== zon)) continue;   // zonen läses innan kortet flyttas
     slappLyft(c);
-    if (val === 'grav') { c.zon = ZON_GRAV; delete c.attachedTo; }
+    if (val === 'grav') { c.zon = ZON_GRAV; delete c.attachedTo; tillGraven.push(c); }
   }
+  /* Efter loopen, som går över p.cards: en token upphör att finnas
+     (MES-105) och en aura följer sin värd — som i flyttaTill. Förut låg
+     tokens kvar i graveyard, och en aura på ett kort som gick dit blev
+     liggande lös på mattan. */
+  for (const c of tillGraven) {
+    aurorFoljer(p.cards, c);
+    const j = p.cards.indexOf(c);
+    if (c.tok && j >= 0) p.cards.splice(j, 1);
+  }
+  state.sel = clamp(state.sel, 0, Math.max(0, p.cards.length - 1));
   lyftTips = null;
   save(); renderAll(true);
 }

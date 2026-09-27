@@ -6,7 +6,20 @@
 # avstämning, dubblettmåttet på videofall 07 och kamerabänken.
 set -e
 cd "$(dirname "$0")/.."
-node -e '
+# Varje steg går genom steg(): faller det skrivs vilket steg det var, och
+# skriptet slutar med kod 1. Förut stod dubbletter som
+# `node … > /dev/null && echo …` — i en &&-lista stoppar set -e inte, så en
+# krasch gav ändå slutkod 0 och raden "kördes" uteblev bara (2026-09-27:
+# "clamp is not defined" i varje pass syntes bara i stderr).
+steg() {
+  namn="$1"; shift
+  if "$@"; then :; else
+    kod=$?
+    echo "kolla.sh: FEL i steget $namn (slutkod $kod)" >&2
+    exit 1
+  fi
+}
+steg syntax node -e '
 const fs = require("fs"), os = require("os"), path = require("path"), cp = require("child_process");
 const src = fs.readFileSync("index.html", "utf8");
 const re = /<script(\s[^>]*)?>([\s\S]*?)<\/script>/g; let m, n = 0;
@@ -21,10 +34,11 @@ while ((m = re.exec(src))) {
 }
 fs.rmSync(dir, { recursive: true, force: true });
 console.log("syntax: " + n + " script-block ok");'
-node dev/lista.cjs
-node dev/lekslag.cjs
-node dev/lekfoto.cjs
-node dev/avstamning.cjs
-node dev/dubbletter.cjs --fall 07 > /dev/null && echo "dubbletter --fall 07: kördes"
-node dev/delmarginal.cjs
-node dev/kamerabank.cjs
+steg lista node dev/lista.cjs
+steg lekslag node dev/lekslag.cjs
+steg lekfoto node dev/lekfoto.cjs
+steg avstamning node dev/avstamning.cjs
+steg "dubbletter --fall 07" node dev/dubbletter.cjs --fall 07 > /dev/null
+echo "dubbletter --fall 07: kördes"
+steg delmarginal node dev/delmarginal.cjs
+steg kamerabank node dev/kamerabank.cjs
