@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Skriver facit för inspelningen bredvid videon:
-   dev/golden/inspelningar/mes-246/facit-slapp.json och FACIT.md.
+   dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/facit-slapp.json och FACIT.md.
 
    Kör: node dev/las-fore-slapp/facitfil.cjs <arbetsmapp>
 
@@ -13,7 +13,7 @@ const fs = require('fs'), path = require('path');
 const ARB = process.argv[2];
 if (!ARB) { console.error('node facitfil.cjs <arbetsmapp>'); process.exit(1); }
 const ROT = path.join(__dirname, '..', '..');
-const UT = path.join(ROT, 'dev', 'golden', 'inspelningar', 'mes-246');
+const UT = path.join(ROT, 'dev', 'golden', 'inspelningar', '2026-09-19-mes-246-las-fore-slapp');
 const S = JSON.parse(fs.readFileSync(path.join(ARB, 'steg-sort.json'), 'utf8'));
 const F = JSON.parse(fs.readFileSync(path.join(ARB, 'facit.json'), 'utf8'));
 const FO = JSON.parse(fs.readFileSync(path.join(ARB, 'fonster.json'), 'utf8'));

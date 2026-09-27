@@ -179,5 +179,7 @@ tomt (bara library i bild).
 
 1. AirDropa videon till Macen.
 2. Lägg den i `dev/golden/inspelningar/mes-246/` (filnamnet spelar ingen roll).
+   *Sedan 2026-09-20 ligger videon i `dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov`,
+   och den här mappen heter `dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/`.*
 3. Skriv sist i `kort.txt`: stående eller liggande, och om något blev fel (stegnumret och vad som hände).
 4. Starta sessionen med prompten för MES-246.

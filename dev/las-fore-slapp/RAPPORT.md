@@ -2,8 +2,8 @@
 
 Natten 19–20 september 2026, på Jespers inspelning
 `dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov`
-(flyttad dit 2026-09-20, MES-264; låg till dess i
-`dev/golden/inspelningar/mes-246/`, där en symlänk står kvar). Allt som mättes ligger
+(flyttad dit 2026-09-20, MES-264; låg till dess i `dev/golden/inspelningar/mes-246/`,
+som sedan 2026-09-27 heter `dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/` — där står en symlänk kvar). Allt som mättes ligger
 under `dev/las-fore-slapp/` och går att köra om — se **Köra om** sist.
 **Ingenting i kamerakedjan (`index.html`) eller systemprompten är rört.**
 
@@ -54,7 +54,7 @@ innan kortet ens är framme.
 | 8 | `las.html` / `las.cjs` | kedjans **egna** `Embed.identifiera`, `identifyMedModell` och `serUtSomKort` i huvudlös Chrome, som `dev/golden/vriden.cjs` |
 | 9 | `rapport.cjs` | tabellerna nedan |
 
-**Facit per steg** ligger bredvid videon: `dev/golden/inspelningar/mes-246/FACIT.md`
+**Facit per steg** ligger bredvid videon: `dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/FACIT.md`
 och `facit-slapp.json`. **Stillbilder att granska** (tre rutor per sort:
 −0,25 s, släppet, stilla) i `facit-bilder/`.
 
