@@ -918,15 +918,20 @@ function visaGor(l, dom, h, forra, utanfor, arKlar) {
     html += `<div class="ok">✓ Läget är klart.</div>` + (nasta ? knapp(`Till läge ${nasta} ▶`, () => gaTill(nasta), 'primar stor') : '<div class="dim">Det var sista läget.</div>')
       + knapp('Inte klart ändå', () => klar(), 'liten');
   } else {
-    const upp = uppgifter(l, dom);
+    const upp = uppgifter(l, dom), utanLek = !l.kort.some(k => k.zon === 'bib');
+    const lekUppgift = utanLek ? `<li>Syns leken i bilden (högen med baksidan upp)? Rita den en gång — den följer med till alla lägen och behöver inget namn. ${knapp('Rita leken', () => { S.nastaNamn = 'library'; byt('rita'); visa(); melding('leken: klicka dess övre vänstra hörn, sedan övre högra'); })}</li>` : '';
+    if (upp.length || utanLek) html += `<div class="rubrik">Gör nu</div><ol>${lekUppgift}${upp.map(u => `<li>${u.text} ${knapp(u.knapp, u.gor)}</li>`).join('')}</ol>`;
     if (upp.length) {
-      html += `<div class="rubrik">Gör nu</div><ol>${upp.map(u => `<li>${u.text} ${knapp(u.knapp, u.gor)}</li>`).join('')}</ol>`
-        + knapp('Klart ändå — facit kan ha fel', () => klarOchVidare(), 'liten');
+      html += knapp('Klart ändå — facit kan ha fel', () => klarOchVidare(), 'liten');
     } else {
-      html += `<div class="ok">✓ Rätt kort enligt facit.</div><div class="dim">Titta på bilden: ligger varje kort där det ritade ligger? Har något flyttats eller vridits — välj det med <kbd>V</kbd> och dra det på plats.</div>`
-        + knapp(nasta ? `Klart — till läge ${nasta} ▶ <kbd>D</kbd>` : 'Klart <kbd>D</kbd>', () => klarOchVidare(), 'primar stor');
+      // korten stämmer med facit: säg vilka, eller att inga ska ligga där
+      const namn = l.kort.filter(k => !k.zon && (G.arLekkort(k.namn) || G.arToken(k.namn))).map(k => k.namn);
+      const lista = [...new Set(namn)].map(n => { const c = namn.filter(x => x === n).length; return esc(c > 1 ? `${c} × ${n}` : n); });
+      html += lista.length
+        ? `<div class="ok">✓ Rätt kort på bordet: ${lista.join(', ')}.</div><div class="dim">Titta på bilden: ligger de där de ritade ligger? Har något flyttats eller vridits — välj det med <kbd>V</kbd> och dra det på plats.</div>`
+        : `<div class="ok">✓ Inga kort på bordet än enligt facit — inget att rita${utanLek ? ' utom leken' : ''}.</div>`;
+      html += knapp(nasta ? `Klart — till läge ${nasta} ▶ <kbd>D</kbd>` : 'Klart <kbd>D</kbd>', () => klarOchVidare(), 'primar stor');
     }
-    if (!l.kort.some(k => k.zon === 'bib')) html += `<div class="lek dim">Syns leken i bilden? ${knapp('Rita leken', () => { S.nastaNamn = 'library'; byt('rita'); visa(); melding('leken: klicka dess övre vänstra hörn, sedan övre högra'); })} Den behöver inget namn.</div>`;
   }
   el('gor').innerHTML = html;
   for (const b of el('gor').querySelectorAll('button[data-g]')) b.onclick = () => knappar[+b.dataset.g]();
