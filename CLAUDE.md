@@ -343,13 +343,30 @@ brädan kan bara säga ett läge. MES-248 var det första fallet: del 1 ute i
 produktionen, del 2 blockad av MES-261, och kolumnen sa bara "Blocked" så
 att den som läste trodde att ingenting hänt.
 
-**Priority är köordningen, inte hur viktigt något känns:**
+**Priority är köordningen, inte hur viktigt något känns.** Den svarar på en
+fråga: vad tas härnäst när en agent blir ledig? Allt i ett projekt är
+viktigt, så "viktigt" skiljer ingenting åt — ordningen gör det.
 
-| Priority | Betyder |
-|---|---|
-| **High** | näst på tur — plockas när något blir ledigt |
-| **Medium** | i kön, men senare |
-| Low / ingen | inte bedömd |
+| Priority | Betyder | Tumregel |
+|---|---|---|
+| **Urgent** | något i produktion är trasigt eller läcker | går före allt; nästan aldrig |
+| **High** | näst på tur | **högst fem åt gången** — fler betyder att ingen av dem är nästa |
+| **Medium** | i kön, men senare | det mesta i Todo |
+| **Low** | bedömd, och medvetet sist — låser inte upp något som brådskar | |
+| ingen | inte bedömd | bara i Triage och Backlog — **allt i Todo har prioritet** |
+
+Tre vanor:
+
+1. **Prioriteten sätts när issuen flyttas till Todo**, inte senare.
+2. **Inom samma prioritet bestämmer ordningen i kolumnen** — Jesper drar
+   korten, och `/nästa` följer ordningen.
+3. **När en High blir klar lyfts en Medium till High.** En agent får
+   föreslå vilken, aldrig göra det själv.
+
+Samma skala gäller i **Behöver dig** och **Redo att testas**, där kön är
+Jespers: High = nästa han tar, och de som går att göra i samma sittning
+ligger intill varandra. I **Blocked** säger den vad som ska plockas först när
+blockeringen släpper.
 
 Ordningen kommer ur `dev/plan/orkestrering.md`. Den filen är **regelboken**
 — kodområden, vad som inte får köras parallellt, hur en gren slås ihop —
