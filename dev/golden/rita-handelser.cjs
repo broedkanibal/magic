@@ -181,6 +181,100 @@ function fonsterSteg(steg, manus, ank, t) {
   return [fran, efter ? ank[efter.nr] - 1 : manus.length - 1];
 }
 
+/* Varje manusrad får ett steg i filmen, så att den hör till exakt ett läge.
+   Ankarraderna (nedläggningar med namn) har sitt steg. Raderna mellan två
+   ankare paras i ordning med stegen mellan dem: en tappning helst med ett
+   steg där något vreds, något som lämnar bordet helst med "borta". Det är
+   oftast lika många rader som steg (i MES-246 i 13 av 18 mellanrum); fler
+   rader än steg delar steg, fler steg än rader lämnar steg utan rad
+   (handen, leken). Används för vad som visas — inte av jämförelsen mot
+   facit, som har sitt eget fönster (fonsterSteg). */
+function radTyp(r) {
+  if (/^(untappa|tappa)\s/.test(r)) return 'tapp';
+  if (/^flytta /.test(r)) return 'flytt';
+  if (/^bort /.test(r) || /(till graveyard|till handen|överst i library|från graveyard till (handen|exile))$/.test(r)) return 'bort';
+  return 'ny';
+}
+const PASSAR = { tapp: { 'vridet/flyttat': 2, 'ändrat på plats': 1 }, flytt: { 'vridet/flyttat': 2, 'ändrat på plats': 1.5 },
+  bort: { borta: 2, 'vridet/flyttat': 1, 'ändrat på plats': 1 }, ny: { 'ändrat på plats': 2, 'nytt (stor låda)': 1.5, 'vridet/flyttat': 1 } };
+function radSteg(steg, manus, ank) {
+  const ut = new Array(manus.length).fill(null);
+  const ankare = steg.filter(s => ank[s.nr] != null);
+  for (const a of ankare) ut[ank[a.nr]] = a.nr;
+  let forraS = 0, forraR = -1;
+  for (const a of ankare.concat([null])) {
+    const slutR = a ? ank[a.nr] : manus.length;
+    const S = steg.filter(s => s.nr > forraS && (a ? s.nr < a.nr : true));
+    const R = []; for (let i = forraR + 1; i < slutR; i++) R.push(i);
+    if (R.length) {
+      if (!S.length) { const s = a || steg[steg.length - 1]; for (const i of R) ut[i] = s.nr; }
+      else {
+        // ordningsbevarande parning med bästa passform; två rader i samma steg kostar lite
+        const poang = (i, j) => (PASSAR[radTyp(manus[R[i]].text)][S[j].dom] || 0.5);
+        const dp = R.map(() => S.map(() => -Infinity)), fran = R.map(() => S.map(() => -1));
+        for (let j = 0; j < S.length; j++) dp[0][j] = poang(0, j);
+        for (let i = 1; i < R.length; i++) for (let j = 0; j < S.length; j++) {
+          let bast = -Infinity, bj = -1;
+          for (let q = 0; q < j; q++) if (dp[i - 1][q] > bast) { bast = dp[i - 1][q]; bj = q; }
+          if (dp[i - 1][j] - 0.8 > bast) { bast = dp[i - 1][j] - 0.8; bj = j; }
+          if (bj >= 0) { dp[i][j] = bast + poang(i, j); fran[i][j] = bj; }
+        }
+        let j = 0; for (let q = 1; q < S.length; q++) if (dp[R.length - 1][q] > dp[R.length - 1][j]) j = q;
+        for (let i = R.length - 1; i >= 0; i--) { ut[R[i]] = S[j].nr; j = fran[i][j]; }
+      }
+    }
+    if (a) { forraS = a.nr; forraR = slutR; }
+  }
+  return ut;
+}
+/* Bordet enligt manuset efter raderna 0..sist: vilka kort som ligger där,
+   tappade eller inte, i vilken hög, fästa vid vad, och vad som ligger i
+   graveyard. "tappa hög A" tappar varje kort som lagts i hög A. */
+function manusBord(manus, sist) {
+  const bord = [], grav = [];
+  const hitta = (text) => {   // korten och högarna som en tappa/untappa-rad pekar på (namn kan ha komma: "Danitha Capashen, Paragon")
+    const ut = new Set();
+    for (const m of text.matchAll(/hög ([A-Z])/g)) for (const k of bord) if (k.hog === m[1]) ut.add(k);
+    const namn = [...new Set(bord.map(k => k.namn))].sort((a, b) => b.length - a.length);
+    let rest = text.replace(/hög [A-Z]/g, '');
+    for (const n of namn) if (rest.includes(n)) { rest = rest.split(n).join(''); for (const k of bord) if (k.namn === n) ut.add(k); }
+    return [...ut];
+  };
+  const tabort = n => { const i = bord.findIndex(k => k.namn === n); if (i < 0) return null; const [k] = bord.splice(i, 1); for (const o of bord) if (o.fast === k.namn) o.fast = null; return k; };
+  for (let i = 0; i <= sist && i < manus.length; i++) {
+    const r = manus[i].text; let m;
+    if ((m = /^(untappa|tappa) (.+)$/.exec(r))) { for (const k of hitta(m[2])) k.tappad = m[1] === 'tappa'; }
+    else if (/^mill (\d+)$/.test(r)) { const n = +/^mill (\d+)$/.exec(r)[1]; for (let q = 0; q < n; q++) grav.push('kort från leken'); }
+    else if ((m = /^flytta (.+) till (.+)$/.exec(r))) { const k = bord.find(o => o.namn === m[1].trim()); if (k) k.fast = m[2].trim(); }
+    else if ((m = /^bort (.+)$/.exec(r))) tabort(m[1].trim());
+    else if ((m = /^(.+) från graveyard till spel$/.exec(r))) { const g = grav.indexOf(m[1].trim()); if (g >= 0) grav.splice(g, 1); bord.push({ namn: m[1].trim(), tappad: false, hog: null, fast: null }); }
+    else if ((m = /^(.+) från graveyard till (handen|exile)$/.exec(r))) { const g = grav.indexOf(m[1].trim()); if (g >= 0) grav.splice(g, 1); }
+    else if ((m = /^(.+) till graveyard$/.exec(r))) { if (tabort(m[1].trim())) grav.push(m[1].trim()); }
+    else if ((m = /^(.+) (till handen|överst i library)$/.exec(r))) tabort(m[1].trim());
+    else if (manus[i].plus) {
+      const n = manus[i].plus, hog = (/ hög ([A-Z])$/.exec(r) || [])[1] || null;
+      bord.push({ namn: n, tappad: / tappad$/.test(r), hog, fast: manus[i].fast ? manus[i].fast[1] : null });
+    }
+  }
+  return { bord, grav };
+}
+/* Samma sak för passet 2026-09-22, ur händelserna fram till t. */
+function passBord(rader, t) {
+  const bord = [], grav = [];
+  const tabort = n => { const i = bord.findIndex(k => k.namn === n); return i < 0 ? null : bord.splice(i, 1)[0]; };
+  for (const r of rader) {
+    if (r.t > t + 1e-6) break;
+    const n = sant(r.kort) ? r.kort : null; if (!n) continue;
+    const hog = sant(r.plats) ? ((/hög ([A-Z])/.exec(r.plats) || [])[1] || null) : null;
+    if (TILL_BORDET.has(r.handelse)) { if (r.handelse === 'grav_till_bord') { const g = grav.indexOf(n); if (g >= 0) grav.splice(g, 1); } bord.push({ namn: n, tappad: false, hog, fast: sant(r.till) ? r.till : null }); }
+    else if (r.handelse === 'tar_bort') { if (tabort(n) && r.till === 'grav') grav.push(n); }
+    else if (r.handelse === 'tappar' || r.handelse === 'otappar') { const k = bord.find(o => o.namn === n && o.tappad !== (r.handelse === 'tappar')); if (k) k.tappad = r.handelse === 'tappar'; }
+    else if (r.handelse === 'flyttar') { const k = bord.find(o => o.namn === n); if (k) { k.fast = sant(r.till) ? r.till : null; if (hog) k.hog = hog; } }
+    else if (/^grav_/.test(r.handelse)) { const g = grav.indexOf(n); if (g >= 0) grav.splice(g, 1); }
+  }
+  return { bord, grav };
+}
+
 /* ── Gemensamt ───────────────────────────────────────────────────────────
    underlag(kalla, filer): kalla ur rita-kallor.json, filer = texterna
    { handelser } eller { steg, manus } och leknamn. */
@@ -191,29 +285,28 @@ function underlag(kalla, filer, leknamn) {
       sort: 'handelser', rader,
       forslag: forslagPass(rader),
       mellan: (t0, t1) => rader.filter(r => r.t > t0 + 1e-6 && r.t <= t1 + 1e-6)
-        .map(r => Object.assign({ t: r.t, text: `${r.handelse}${sant(r.kort) ? ' ' + r.kort : ''}${sant(r.till) ? ' → ' + r.till : ''}${sant(r.plats) ? ' · ' + r.plats : ''}` }, sant(r.osaker) ? { osaker: r.osaker } : {})),
+        .map(r => Object.assign({ t: r.t, text: `${r.handelse}${sant(r.kort) ? ' ' + r.kort : ''}${sant(r.till) ? ' → ' + r.till : ''}${sant(r.plats) ? ' · ' + r.plats : ''}`,
+          handelse: r.handelse, kort: sant(r.kort) ? r.kort : null, till: sant(r.till) ? r.till : null, plats: sant(r.plats) ? r.plats : null }, sant(r.osaker) ? { osaker: r.osaker } : {})),
       vantat: t => { const v = vantatPass(rader, t); return { kandidater: [{ antal: v.antal, tappade: v.tappade, fast: v.fast, rad: null }] }; },
+      bord: t => passBord(rader, t),
     };
   }
   const steg = (typeof filer.steg === 'string' ? JSON.parse(filer.steg) : filer.steg).steg;
   const manus = lasManus(filer.manus, leknamn);
-  const till = manusTillstand(manus), ank = ankare(steg, manus);
+  const till = manusTillstand(manus), ank = ankare(steg, manus), rs = radSteg(steg, manus, ank);
+  const ts = s => +(+s.t_stilla).toFixed(2);   // samma avrundning som lägenas tider: steg 2 på 3,472 s hör till läget på 3,47 s
+  const radTid = manus.map((r, i) => rs[i] != null ? ts(steg[rs[i] - 1]) : Infinity);
   return {
     sort: 'steg', steg, manus, ankare: ank,
     forslag: forslagSteg(steg),
+    radSteg: rs,
     mellan: (t0, t1) => {
-      const ts = s => +(+s.t_stilla).toFixed(2);   // samma avrundning som lägenas tider: steg 2 på 3,472 s hör till läget på 3,47 s
       const ut = steg.filter(s => ts(s) > t0 + 1e-6 && ts(s) <= t1 + 1e-6)
         .map(s => ({ t: ts(s), text: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}${ank[s.nr] != null ? ` (= manusrad ${ank[s.nr] + 1})` : ''}` }));
-      /* Bara nedläggningar med namn är fästa i tiden. En rad mellan två
-         sådana (tappa, flytta) kan ha hänt var som helst mellan dem: har
-         den plats redan i förra lägets fönster (i <= b0) står den med
-         `kanske` — den kan lika gärna höra till förra läget. */
-      const [a0, b0] = fonsterSteg(steg, manus, ank, t0), [, b1] = fonsterSteg(steg, manus, ank, t1);
-      for (let i = Math.max(0, a0 + 1); i <= b1; i++)
-        ut.push({ t: null, text: `manus ${i + 1}: ${manus[i].text}${manus[i].tur ? ' (' + manus[i].tur + ')' : ''}`, rad: manus[i].text, tur: manus[i].tur, kanske: t0 >= 0 && i <= b0 });
+      manus.forEach((r, i) => { if (radTid[i] > t0 + 1e-6 && radTid[i] <= t1 + 1e-6) ut.push({ t: null, text: `manus ${i + 1}: ${r.text}${r.tur ? ' (' + r.tur + ')' : ''}`, rad: r.text, tur: r.tur }); });
       return ut;
     },
+    bord: t => { let sist = -1; manus.forEach((r, i) => { if (radTid[i] <= t + 1e-6) sist = i; }); return manusBord(manus, sist); },
     vantat: t => {
       const [fran, tillI] = fonsterSteg(steg, manus, ank, t);
       const kand = [];
@@ -267,6 +360,6 @@ const avvikelseText = a => a.typ === 'antal' ? `${a.namn}: ${a.ritat} ritade, ${
   : a.typ === 'tappade' ? `${a.namn}: ${a.ritat} tappade ritade, ${a.vantat} enligt facit`
   : `fäst ${a.namn}: ${a.ritat ? 'ritat men inte i facit' : 'i facit men inte ritat'}`;
 
-const Hd = { lasTsv, forslagPass, vantatPass, forslagSteg, lasManus, manusTillstand, ankare, fonsterSteg, underlag, jamfor, avvikelseText, EFTER_S };
+const Hd = { lasTsv, forslagPass, vantatPass, forslagSteg, lasManus, manusTillstand, ankare, fonsterSteg, radSteg, manusBord, passBord, underlag, jamfor, avvikelseText, EFTER_S };
 if (typeof module === 'object' && module.exports) module.exports = Hd; else rot.RitaHandelser = Hd;
 })(typeof window !== 'undefined' ? window : this);
