@@ -631,6 +631,9 @@ async function sidaMProv(fil) {
     assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'klar'], [2, 'klar']]);
     assert.equal(x.l.totalt, 5, 'leken: ' + bara(x).join(', '));
     assert.equal(x.ctx.telfoto.osparat, null);
+    /* Kön (med remsornas bilder) och källan (en duk) går aldrig ut på kanalen. */
+    const poster = x.ctx.kanal.filter(m => m.typ === 'foto').map(m => m.foto);
+    assert.ok(poster.length && poster.every(p => !('ops' in p) && !('kalla' in p) && !('bild' in p)), 'en post bar ops, kalla eller bild');
   });
   x = await kor(async (app, ctx) => {
     await foto(app, ctx, { status: 500 });

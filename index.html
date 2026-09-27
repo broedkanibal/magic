@@ -14094,8 +14094,10 @@ function telfotoNasta() {
   for (const fid of lekSlagFotoAv(telfoto.bas && telfoto.bas.kort).keys()) if (!telfotoFotoAv(fid)) max = Math.max(max, lekSlagFotoNr(fid));
   return max + 1;
 }
-/* Fotot på kanalen: allt utom bilden, som går i ett eget meddelande. */
-function telfotoPost(f) { const p = Object.assign({}, f); delete p.bild; return p; }
+/* Fotot på kanalen: allt utom bilden, som går i ett eget meddelande, och det
+   som bara hör till telefonen: källan (en duk) och kön som väntar (med
+   remsornas bilder, som kunde spränga broadcasts 256 kB). */
+function telfotoPost(f) { const p = Object.assign({}, f); delete p.bild; delete p.kalla; delete p.ops; return p; }
 function telfotoMeddela(typ, extra) { if (telfoto.id) lekKanalSag(Object.assign({ typ, lekId: telfoto.id }, extra)); }
 /* Förhandsbilden: duken som skickades till läsningen, 640 px långsida och
    JPEG 0,6, så att x/y i svaret gäller den (formatet vid LEKKANALEN).
