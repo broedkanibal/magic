@@ -378,7 +378,22 @@ function sparaUtkastSnart() {
   }, 400);
 }
 const osparat = () => S.dok && JSON.stringify(S.dok) !== S.filDok;
-function visaSparinfo() { el('sparinfo').textContent = !S.dok ? '' : osparat() ? 'osparade ändringar (utkastet ligger på datorn)' : 'sparat'; el('sparinfo').className = osparat() ? 'varn' : 'dim'; }
+function visaSparinfo() {
+  const video = S.kalla && S.kalla.sort === 'video';
+  el('sparinfo').textContent = !S.dok ? '' : !osparat() ? 'sparat i repot' : video ? 'sparat på den här datorn — inte skickat än' : 'osparade ändringar (utkastet ligger på datorn)';
+  el('sparinfo').className = osparat() && !video ? 'varn' : 'dim';
+}
+function aterstallUtkast(u) {
+  fore(); S.dok = u.dok; S.temp = null;
+  if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; }
+  S.vald = null; S.cache.clear();
+  if (S.kalla.sort === 'video') rattaTider(S.dok);
+  raknaOm(); visa();
+  if (S.kalla.sort === 'video') {   // första läget som inte är klart
+    const i = S.u.forslag.findIndex((f, j) => !(S.dok.lagen[j + 1] && S.dok.lagen[j + 1].klar));
+    oppnaLage(i < 0 ? 1 : i + 1);
+  }
+}
 function erbjudUtkast() {
   let u = null;
   try { u = JSON.parse(localStorage.getItem(utkastNyckel()) || 'null'); } catch (e) {}
@@ -386,10 +401,14 @@ function erbjudUtkast() {
   if (s2 && s2.dok && (!u || String(s2.tid) > String(u.tid))) u = s2;   // det nyaste, var det än ligger
   const ruta = el('utkast');
   if (!u || JSON.stringify(u.dok) === S.filDok) { ruta.hidden = true; return; }
+  /* I video sparas allt medan man ritar och Skicka är det enda sparsteget,
+     så utkastet ÄR arbetet: det öppnas direkt, utan en Kasta-knapp som
+     raderar det. */
+  if (S.kalla.sort === 'video') { ruta.hidden = true; aterstallUtkast(u); melding(`fortsätter där du slutade (${new Date(u.tid).toLocaleString('sv-SE')})`); return; }
   const n = u.dok.kort ? u.dok.kort.length + ' kort' : Object.keys(u.dok.lagen || {}).length + ' lägen';
   ruta.innerHTML = `Det finns ett osparat utkast från ${new Date(u.tid).toLocaleString('sv-SE')} (${n}). <div class="rad" style="margin-top:6px"><button type="button" id="u-ja">Återställ utkastet</button><button type="button" id="u-nej">Kasta det</button></div>`;
   ruta.hidden = false;
-  el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; } S.vald = null; S.cache.clear(); ruta.hidden = true; if (S.kalla.sort === 'video') rattaTider(S.dok); raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
+  el('u-ja').onclick = () => { ruta.hidden = true; aterstallUtkast(u); };
   el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null; ruta.hidden = true; };
 }
 
@@ -874,13 +893,14 @@ function visaCheck() {
    Vad som ska göras i läget, räknat ur facit: varje avvikelse blir en
    uppgift med en knapp, så att den som ritar aldrig behöver tolka siffrorna.
    Stämmer allt är det enda kvar att titta på bilden och trycka Klart. */
-const STEGORD = { 'nytt kort': 'ett kort läggs ut', 'nytt (stor låda)': 'något stort ändras (handen eller leken)',
+const STEGORD = { 'nytt kort': 'ett kort läggs ut', 'nytt (stor låda)': 'något stort ändras, handen eller leken',
   'vridet/flyttat': 'något vrids eller flyttas', 'ändrat på plats': 'något ändras på samma plats', 'borta': 'något tas bort från bordet' };
 function vadHande(h) {
   if (S.u.sort !== 'steg') return h.map(x => esc(x.text));
-  const manus = h.filter(x => x.t == null).map(x => esc(x.text.replace(/^manus \d+: /, '')));
+  const manus = h.filter(x => x.t == null).map(x => esc(x.text.replace(/^manus \d+: /, '').replace(/ \((Tur \d+)\)$/, ' · $1')));
   if (manus.length) return manus;
-  return h.map(x => { const m = /^steg \d+: (.+?)(?: — (.+?))?(?: \(= manusrad \d+\))?$/.exec(x.text); return m ? esc((STEGORD[m[1]] || m[1]) + (m[2] ? ': ' + m[2] : '')) : esc(x.text); });
+  const sag = [...new Set(h.map(x => { const m = /^steg \d+: (.+?)(?: — (.+?))?(?: \(= manusrad \d+\))?$/.exec(x.text); return m ? (STEGORD[m[1]] || m[1]) : x.text; }))];
+  return h.length ? [`inget nytt kort i manuset <span class="dim">(kameran såg att ${esc(sag.join(' och '))})</span>`] : [];
 }
 function uppgifter(l, dom) {
   const ut = [], iSpel = n => l.kort.filter(k => !k.zon && String(k.namn || '').trim() === n).sort((a, b) => b.z - a.z);
@@ -911,7 +931,7 @@ function visaGor(l, dom, h, forra, utanfor, arKlar) {
   const nasta = S.nr < S.u.forslag.length ? S.nr + 1 : null, knappar = [];
   const knapp = (text, gor, klass = '') => { knappar.push(gor); return `<button type="button" class="${klass}" data-g="${knappar.length - 1}">${text}</button>`; };
   const hande = vadHande(h);
-  let html = `<div class="vad"><span class="dim">${forra ? `Sedan läge ${forra.nr}` : 'Från början'} enligt facit:</span> ${hande.length ? hande.join(' · ') : 'inget på bordet'}</div>`;
+  let html = `<div class="vad"><span class="dim">${forra ? `Sedan läge ${forra.nr}` : 'Från början'}:</span> ${hande.length ? hande.join(' · ') : 'inget har hänt enligt facit'}</div>`;
   if (utanfor) {
     html += `<div class="rubrik">Gör nu</div><ol><li>Bilden visar fel tid för det här läget. ${knapp('Flytta tillbaka', () => tillForslaget())}</li></ol>`;
   } else if (arKlar) {
@@ -967,6 +987,8 @@ function visaLage() {
   if (S.kalla.sort !== 'video') return;
   const l = lageNu(), f = S.u.forslag[S.nr - 1];
   const arKlar = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
+  const klara = Object.values(S.dok.lagen).filter(x => x.klar).length, kv = S.kalla;
+  el('kallinfo').innerHTML = `<b>${esc(kv.namn)}</b><div class="dim">${esc(kv.video)}${kv.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · <b>${klara} av ${S.u.forslag.length} lägen klara</b></div>`;
   el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length} · ${arKlar ? 'klart' : S.dok.lagen[S.nr] ? 'påbörjat' : 'inte ritat än'}`;
   const [fran, till] = fonster(S.nr), utanfor = l.t < fran - 0.001 || l.t > till + 0.001, flyttad = Math.abs(l.t - f.t) > 0.001;
   el('lagestid').innerHTML = `<b>${esc(f.etikett)}</b><div class="dim">bilden vid ${fmtT(l.t)} s${flyttad ? ` (föreslaget ${fmtT(f.t)})` : ''} · läget gäller ${fmtT(fran)}–${till === Infinity ? 'slutet' : fmtT(till) + ' s'}</div>`

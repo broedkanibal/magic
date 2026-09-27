@@ -202,8 +202,9 @@ function underlag(kalla, filer, leknamn) {
     sort: 'steg', steg, manus, ankare: ank,
     forslag: forslagSteg(steg),
     mellan: (t0, t1) => {
-      const ut = steg.filter(s => +s.t_stilla > t0 + 1e-6 && +s.t_stilla <= t1 + 1e-6)
-        .map(s => ({ t: +(+s.t_stilla).toFixed(2), text: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}${ank[s.nr] != null ? ` (= manusrad ${ank[s.nr] + 1})` : ''}` }));
+      const ts = s => +(+s.t_stilla).toFixed(2);   // samma avrundning som lägenas tider: steg 2 på 3,472 s hör till läget på 3,47 s
+      const ut = steg.filter(s => ts(s) > t0 + 1e-6 && ts(s) <= t1 + 1e-6)
+        .map(s => ({ t: ts(s), text: `steg ${s.nr}: ${s.dom}${s.namn ? ' — ' + s.namn : ''}${ank[s.nr] != null ? ` (= manusrad ${ank[s.nr] + 1})` : ''}` }));
       const [a0] = fonsterSteg(steg, manus, ank, t0), [, b1] = fonsterSteg(steg, manus, ank, t1);
       for (let i = Math.max(0, a0 + 1); i <= b1; i++) ut.push({ t: null, text: `manus ${i + 1}: ${manus[i].text}${manus[i].tur ? ' (' + manus[i].tur + ')' : ''}` });
       return ut;
