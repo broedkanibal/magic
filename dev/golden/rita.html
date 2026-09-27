@@ -965,6 +965,7 @@ function klarOchVidare() {
    piltangenterna förbi nästa läge). Sådana tider flyttas tillbaka till
    förslaget: bilden visade då ett annat läge än det som ritades. */
 function rattaTider(dok) {
+  for (const [nr, l] of Object.entries(dok.lagen || {})) if (tomtOklart(l)) delete dok.lagen[nr];
   let n = 0;
   for (const l of Object.values(dok.lagen || {})) {
     const f = S.u.forslag[l.nr - 1]; if (!f) continue;
@@ -1023,8 +1024,27 @@ function visaLage() {
   }).join('');
   for (const s of el('lagen').children) s.onclick = () => gaTill(+s.dataset.nr);
 }
+/* Ett läge som inte är klart och saknar kort är inte ritat: det blir en
+   kopia av förra läget, som vilket nytt läge som helst. (Jespers MES-246
+   hade tomma lägen kvar från när tiderna gled, och leken han ritade i
+   läge 1 kom aldrig med till dem.) */
+const tomtOklart = l => l && !l.klar && !l.kort.length;
+/* Leken ligger kvar hela spelet: saknar ett läge som inte är klart leken,
+   och ett tidigare läge har den, följer den med hit. */
+function lekenFoljerMed(nr, l) {
+  if (!l || l.klar || l.kort.some(k => k.zon === 'bib')) return false;
+  for (const n of ritadeNr().filter(x => x < nr).reverse()) {
+    const lek = S.dok.lagen[n].kort.find(k => k.zon === 'bib');
+    if (lek) { if (!l.kort.some(k => k.id === lek.id)) { const k = kopia(lek); delete k.fast; k.z = l.kort.reduce((m, o) => Math.min(m, o.z), 1) - 1; l.kort.push(k); normaliseraZ(l.kort); return true; } return false; }
+  }
+  return false;
+}
 function oppnaLage(nr) {
   S.nr = nr; S.temp = null;
+  let andrat = false;
+  if (tomtOklart(S.dok.lagen[nr])) { delete S.dok.lagen[nr]; andrat = true; }
+  if (S.dok.lagen[nr] && lekenFoljerMed(nr, S.dok.lagen[nr])) andrat = true;
+  if (andrat) sparaUtkastSnart();
   if (!S.dok.lagen[nr]) {
     const forra = ritadeNr().filter(n => n < nr).pop();
     const kort = forra != null ? kopia(S.dok.lagen[forra].kort) : [];
