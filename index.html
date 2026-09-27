@@ -12550,9 +12550,72 @@ async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id)
    samma tal. Ett kort hittas på namnet (och sidan), inte på sid — samma
    kort kan ha olika tryckning på två enheter.
 
+   Lekfotot (MES-321): en rad kan bära foto: {fid: n}, hur många av radens
+   exemplar som kom ur vilket foto (fid = 'nr:slump', se BLOCK: LEKKANALEN).
+   {typ:'antal', …, foto: fid} räknar d exemplar till eller från fotot, och
+   {typ:'fotobort', foto: fid} tar fotots exemplar ur varje rad. Så kan
+   Remove photo, Undo och Retake ta bort just ett fotos kort också när ett
+   av dem bytt namn (Check names) eller fått exemplar från en annan enhet.
+   En rad utan fältet har inga exemplar ur något foto.
+
    Rena funktioner utan appens toppnivå: dev/lekslag.cjs klipper ut blocket
    mellan markörerna och kör fallen utan webbläsare. */
 const lekSlagNyckel = (name, sb) => String(name || '').toLowerCase().replace(/\s+/g, ' ').trim() + (sb ? '|sb' : '');
+/* foto-fältet rent: bara fid med ett positivt heltal, och null när inget
+   finns kvar. En tom {} skrivs aldrig i raden. */
+function lekSlagFotoRen(f) {
+  if (!f || typeof f !== 'object') return null;
+  const ut = {};
+  for (const [fid, c] of Object.entries(f)) { const n = Math.round(Number(c) || 0); if (fid && n > 0) ut[fid] = n; }
+  return Object.keys(ut).length ? ut : null;
+}
+/* Två raders foto läggs ihop (samma kort i två foton, eller två rader som
+   slås ihop). Raden får alltid ett eget objekt: den sparade raden ändras aldrig. */
+function lekSlagFotoLagg(rad, f) {
+  const g = lekSlagFotoRen(f); if (!g) return;
+  const ut = Object.assign({}, rad.foto || {});
+  for (const [fid, c] of Object.entries(g)) ut[fid] = (ut[fid] || 0) + c;
+  rad.foto = ut;
+}
+function lekSlagFotoAndra(rad, fid, d) {
+  const ut = Object.assign({}, rad.foto || {});
+  const n = Math.max(0, (ut[fid] || 0) + d);
+  if (n) ut[fid] = n; else delete ut[fid];
+  if (Object.keys(ut).length) rad.foto = ut; else delete rad.foto;
+}
+/* Fotots nummer ur dess fid ('2:k3x9a' → 2). 0 för ett fid utan nummer. */
+const lekSlagFotoNr = fid => parseInt(String(fid || '').split(':')[0], 10) || 0;
+/* Hur många exemplar i leken som kom ur varje foto: Map fid → antal. Ett
+   foto räknar aldrig fler än raden har (ett exemplar kan ha tagits bort för
+   hand efteråt). Datorn kan rita sina fotorader ur den när telefonen inte
+   finns, och telefonen vet vilket nummer nästa foto får (lekSlagFotoNr). */
+function lekSlagFotoAv(kort) {
+  const ut = new Map();
+  for (const k of kort || []) {
+    const f = lekSlagFotoRen(k && k.foto); if (!f) continue;
+    const n = Number(k.n) || 1;
+    for (const [fid, c] of Object.entries(f)) ut.set(fid, (ut.get(fid) || 0) + Math.min(c, n));
+  }
+  return ut;
+}
+/* Ändringarna som lägger tillbaka ett fotos exemplar: Undo av Remove photo
+   och av ett omtag (N6, J10). Räknas ur leken som den såg ut INNAN fotot
+   togs bort: en antal-ändring per rad som hade fotot, med radens mall (namnet
+   som det är nu, också ett kollat namn) och foto: fid. Finns raden kvar när
+   ändringen spelas upp läggs exemplaren till på den; annars skapas den. */
+function lekSlagFotoTillbaka(kort, fid) {
+  const ut = [];
+  for (const k of kort || []) {
+    const c = k && k.foto ? Math.round(Number(k.foto[fid]) || 0) : 0;
+    if (c <= 0 || !lekSlagKort(k)) continue;
+    const mall = { name: k.name, sid: k.sid || null, small: k.small || null };
+    if (k.ci) mall.ci = k.ci;
+    if (k.koll) mall.koll = k.koll;
+    if (k.okand) mall.okand = 1;
+    ut.push({ typ: 'antal', name: k.name, sb: !!k.sb, d: Math.min(c, Number(k.n) || 1), kort: mall, foto: fid });
+  }
+  return ut;
+}
 /* Ett kort ur ett lekfoto som Mesa inte kunde göra till ett kort (MES-289):
    titelraden gick inte att läsa, eller namnet gick inte att slå upp. Förut
    föll det bort tyst — det enda spåret var en mening på telefonens
@@ -12604,29 +12667,55 @@ function lekSlagTillampa(bas, ops) {
     if (mall.koll) k.koll = mall.koll;
     if (mall.okand) k.okand = 1;
     if (sb) k.sb = 1;
+    const f = lekSlagFotoRen(mall.foto);
+    if (f) k.foto = f;
     return k;
   };
-  /* Två rader blir en: antalen läggs ihop, och en osäkerhet (To check) på
-     någon av dem står kvar. */
-  const slaIhop = (till, fran) => { till.n += fran.n; if (!till.koll && fran.koll) till.koll = fran.koll; };
+  /* Två rader blir en: antalen läggs ihop, en osäkerhet (To check) på
+     någon av dem står kvar, och exemplaren ur fotona följer med (MES-321). */
+  const slaIhop = (till, fran) => { till.n += fran.n; if (!till.koll && fran.koll) till.koll = fran.koll; lekSlagFotoLagg(till, fran.foto); };
   /* Raden som den ligger kan bära dubbletter (en äldre sparning); de slås
      ihop här, så att varje ändring bara har en rad att träffa. */
   for (const k of (bas && Array.isArray(bas.kort)) ? bas.kort : []) {
     if (!k || !k.name) continue;
     const n = Number(k.n) || 1, i = hitta(k.name, k.sb);
-    if (i >= 0) slaIhop(kort[i], { n, koll: k.koll }); else kort.push(rad(k, n, k.sb));
+    if (i >= 0) slaIhop(kort[i], { n, koll: k.koll, foto: k.foto }); else kort.push(rad(k, n, k.sb));
   }
   for (const op of ops || []) {
     if (!op) continue;
     if (op.id && klara.has(op.id)) continue;      // ligger redan i raden (MES-289)
     if (op.typ === 'namn') { if (op.namn) namn = op.namn; continue; }
+    /* Ett fotos exemplar ur varje rad (Remove photo, Retake; MES-321). Det
+       som ligger i raden NU räknas: ett kort som bytt namn följer med, och
+       exemplar ur andra foton eller lagda för hand står kvar. */
+    if (op.typ === 'fotobort') {
+      if (!op.foto) continue;
+      for (let j = kort.length - 1; j >= 0; j--) {
+        const k = kort[j], c = k.foto ? k.foto[op.foto] || 0 : 0;
+        if (c <= 0) continue;
+        lekSlagFotoAndra(k, op.foto, -c);
+        k.n -= Math.min(c, k.n);
+        if (k.n <= 0) kort.splice(j, 1);
+      }
+      continue;
+    }
     const i = hitta(op.name, op.sb);
     if (op.typ === 'antal') {
       const d = Math.round(Number(op.d) || 0);
-      if (i >= 0) { kort[i].n += d; if (kort[i].n <= 0) kort.splice(i, 1); }
+      if (i >= 0) {
+        kort[i].n += d;
+        if (op.foto) lekSlagFotoAndra(kort[i], op.foto, d);
+        if (kort[i].n <= 0) kort.splice(i, 1);
+      }
       /* Kortet finns inte (längre) i raden: ett tillägg lägger in det igen,
-         ett avdrag har ingenting att dra från. */
-      else if (d > 0 && lekSlagKort(op.kort)) kort.push(rad(op.kort, d, op.sb));
+         ett avdrag har ingenting att dra från. Ett tillägg ur ett foto bär
+         bara det fotot; mallens foto gäller när ingen foto anges (ett ångrat
+         Remove på hela raden). */
+      else if (d > 0 && lekSlagKort(op.kort)) {
+        const ny = rad(op.kort, d, op.sb);
+        if (op.foto) ny.foto = { [op.foto]: d };
+        kort.push(ny);
+      }
     } else if (op.typ === 'bort') {
       if (i >= 0) kort.splice(i, 1);
     } else if (op.typ === 'sb') {
@@ -12645,9 +12734,11 @@ function lekSlagTillampa(bas, ops) {
          ångrat byte gör det tillbaka till en platshållare. */
       if (i < 0 || !lekSlagKort(op.kort)) continue;
       const j = hitta(op.kort.name, op.sb);
-      if (j >= 0 && j !== i) { kort[j].n += kort[i].n; kort.splice(i, 1); continue; }
-      const n = kort[i].n;
+      /* Namnet byts, inte exemplaren: fotona de kom ur följer med (MES-321). */
+      if (j >= 0 && j !== i) { kort[j].n += kort[i].n; lekSlagFotoLagg(kort[j], kort[i].foto); kort.splice(i, 1); continue; }
+      const n = kort[i].n, f = kort[i].foto;
       kort[i] = rad(op.kort, n, op.sb);
+      if (f) kort[i].foto = f; else delete kort[i].foto;
     } else if (op.typ === 'koll') {
       if (i < 0) continue;
       if (op.koll) kort[i].koll = op.koll; else delete kort[i].koll;
