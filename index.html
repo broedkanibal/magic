@@ -13632,7 +13632,9 @@ function telfotoBildHtml(f, { dim = false, prickar = true } = {}) {
     const pos = `left:${(Math.max(0, Math.min(1000, +k.x || 0)) / 10).toFixed(1)}%;top:${(Math.max(0, Math.min(1000, +k.y || 0)) / 10).toFixed(1)}%;animation-delay:${(i * 0.08).toFixed(2)}s`;
     return k.koll ? `<span class="trp q" style="${pos}">?</span>` : `<span class="trp ok" style="${pos}">${telIk('bock', 10, 3.4)}</span>`;
   }).join('') : '';
-  return `<div class="trbild${dim ? ' dim' : ''}" style="width:min(100%, ${(38 * b / h).toFixed(2)}vh);aspect-ratio:${b}/${h}"><img src="${url}" alt="The photo">${p}</div>`;
+  /* Högst 27 % av skärmens höjd (sida M: 232 av 844), så att knapparna
+     syns utan att man skrollar. */
+  return `<div class="trbild${dim ? ' dim' : ''}" style="width:min(100%, ${(27 * b / h).toFixed(2)}vh);aspect-ratio:${b}/${h}"><img src="${url}" alt="The photo">${p}</div>`;
 }
 /* Resultatet av ett foto: sida M rad 3A (LA1–LA5), 3C (LC2–LC4, J8) och
    3D (LD1–LD4), med sida M:s ord. */
