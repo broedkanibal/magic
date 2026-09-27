@@ -19,6 +19,18 @@ Loggen steg för steg: `dev/plan/natt-2026-09-25-logg.md`.
 2. **Lärda referenser ger fel namn i produktionen i dag:** 6 i sju ljus, mot 0 utan dem (MES-232).
 3. **Tap-regeln från MES-293 fäller vridna kort på måtten**, inte på vinkeln. Pharika's Chosen ligger 71°, alltså inom 20°, men måttkollen jämför en rak låda med ett vridet kort. Rättelsen är liten.
 
+## Efter passet (2026-09-26–27)
+
+| Vad | Commit | Resultat |
+|---|---|---|
+| MES-232 val A: lärda foton används inte i igenkänningen, men lärs, sparas och synkas | e3386b9 | 0 fel namn i sju ljus med lärda foton (6 före). Issuen i Todo; val C kvar |
+| MES-298: tap-domens måttkoll jämför kortets egen form | cab0b73 | slarvigt tappade kort vrids (Pharika, Fencing Ace); tappad 38 → 39/40 |
+| Jespers vinklar: tappat från 65° (var 70°), otappat under 20° | 81bbc91 | golden lika fall för fall |
+| MES-295 nedlagd, grenen borttagen | — | ingen mätbar effekt |
+| Golden-baslinjen omsparad | se historiken | följer nu koden (tappad 39/40) |
+
+Kvar i tråden är bara prov som Jesper gör när det passar: ett parti med telefonen (MES-293), ett lekfoto där kort försvann (MES-289) och videorna i ritverktyget (MES-286). Nya steg framåt (egen detektor och GPU, MES-288; val C, MES-232; MES-296) tas som egna saker.
+
 ## Klart och i produktionen
 
 | Issue | Vad | Commit | Före → efter |
