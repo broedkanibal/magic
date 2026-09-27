@@ -63,15 +63,14 @@ const agent = require('./dev/linear-agent/klient.cjs');
 // etiketter: namn, slås upp i Linear (okänt namn = fel). status: state-typ —
 // 'unstarted' = Todo, 'backlog' = Backlog, 'started' = In Progress.
 // projekt: namn eller id (okänt namn = fel). Det finns inget förval — välj
-// ett av de fyra, eller null + etiketten 'Plattform' för det som inte hör
+// ett av projekten, eller null + en områdesetikett för det som inte hör
 // till någon leverans. Vilken etikett, status och vilket projekt som gäller
 // står i CLAUDE.md.
 //
-//   Spegelläget i realtid · Uppstarten vid bordet
-//   Lekbyggaren och vägen till spel · Spelvyn och bordsvyn
+//   Private beta · Private beta · Commander
 const issue = await agent.skapaIssue({
   teamId: '...', title: '...', description: '...',
-  etiketter: ['Bug'], status: 'unstarted', projekt: 'Spegelläget i realtid',
+  etiketter: ['Bug'], status: 'unstarted', projekt: 'Private beta',
 });
 
 // Kommentera en befintlig issue

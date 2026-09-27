@@ -92,10 +92,14 @@ bordet" lät avgränsat men uppstarten får buggar för evigt; samma sak med
 spelvyn och lekarna. Kvar blev ett projekt, och det är ärligt — det är det
 enda som drivs mot mätbara siffror.
 
+Den 27 september ersattes det av **Private beta**, som tar slut när
+främlingar spelat ett helt parti. Spegellägets öppna issues ligger där i
+milstolpen *6 · Mirror my table*; det gamla projektet är stängt som historik.
+
 | Nivå | Linear | Exempel | Jobb |
 |---|---|---|---|
-| Leverans som tar slut | **projekt** | Spegelläget i realtid | vad vi driver mot ett mätbart mål |
-| Fas i leveransen | **milstolpe** | Etapp 1–4 | ordningen, och 6/19 i projektvyn |
+| Leverans som tar slut | **projekt** | Private beta | vad vi driver mot ett mätbart mål |
+| Del av leveransen | **milstolpe** | 1 · Leken i appen … 6 · Mirror my table | vad som hör ihop, och 6/19 i projektvyn |
 | Var i produkten | **områdesetikett** | `spelvyn` | kartan över appen |
 | Vad det handlar om | **ämnesetikett** | `kortigenkänning` | skär tvärs igenom områdena |
 | Klump som blir klar ihop | **parent + sub-issues** | MES-281, 0/6 | en rad på brädan i stället för sex |
@@ -273,24 +277,32 @@ Ordningen kommer ur `dev/plan/orkestrering.md`. Den filen är **regelboken**
 — kodområden, vad som inte får köras parallellt, hur en gren slås ihop —
 inte en egen kö. Två köer som inte stämmer överens är värre än ingen.
 
-**Projekt — ett, och det tar slut:**
+**Projekt — de tar slut:**
 
 | Projekt | Klart när |
 |---|---|
-| **Spegelläget i realtid** | de tre löftena hålls (milstolpar: Etapp 1–4) |
+| **Private beta** | två spelgrupper utanför teamet (minst 6 spelare) har spelat varsitt helt parti utan hjälp, minst ett Mirror my table mot Digital table, och ingen dold information läcker |
+| **Private beta · Commander** | startar när Private beta är klar: en grupp om fyra har spelat ett helt Commander-parti med command zone, tax, 40 liv och commander damage |
 
-En ny issue hamnar i Spegelläget bara om den hör till de löftena. Allt annat
-får **inget projekt** — bara etiketter. Det är inte en brist: ett projekt som
+Milstolparna i Private beta: *1 · Leken i appen*, *2 · Motståndare och dold
+info*, *3 · Spelvyn i alla lägen*, *4 · Ytan utåt*, *5 · Redo för
+främlingar*, *6 · Mirror my table* (kamerans träffsäkerhet, fart och
+handlingar — det som var Spegelläget i realtid; etappindelningen finns kvar i
+`dev/plan/etapper.md`). Det som bara gäller Commander hör till
+Commander-projektet; det Commander använder men som gäller alla format hör
+till Private beta.
+
+En ny issue hamnar i ett projekt bara om den behövs för dess slutvillkor. Allt
+annat får **inget projekt** — bara etiketter. Det är inte en brist: ett projekt som
 aldrig blir klart gör framstegsstapeln och måldatumet meningslösa, och
 kartan över appen är etiketterna.
 
-Hör issuen till en etapp i Spegelläget: sätt milstolpen också. Etapperna är
-**milstolpar i projektet**, inte parent-issues (MES-237 och MES-253–256 är
-stängda som ersatta av dem).
+Hör issuen till Private beta: sätt milstolpen också. Milstolparna är
+delarna av leveransen, inte parent-issues.
 
 Med agent-klienten: `skapaIssue({ …, etiketter: ['Feature', 'spelvyn'],
-status: 'unstarted', projekt: null })` — eller `projekt: 'Spegelläget i
-realtid'` när den hör till löftena. Med MCP-kopplingen: sätt `labels` och
+status: 'unstarted', projekt: null })` — eller `projekt: 'Private beta'`
+när den hör till betan. Med MCP-kopplingen: sätt `labels` och
 `state: "Todo"`, och `project` bara i det fallet.
 
 ### Överblicken: `/läget`

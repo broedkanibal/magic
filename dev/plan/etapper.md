@@ -1,5 +1,11 @@
 # Spegelläget i etapper (projektet *Spegelläget i realtid*)
 
+> **2026-09-27:** projektet *Spegelläget i realtid* är stängt och har gått upp
+> i projektet *Private beta*. Alla öppna issues nedan ligger i milstolpen
+> *6 · Mirror my table*; Etapp 1–4 finns inte längre som milstolpar i Linear.
+> Indelningen här gäller fortfarande som ordning inom milstolpen. Betans krav
+> på spegelläget är grinden MES-312: ett helt parti spelbart.
+
 Kartan över vägen till målen i projektet *Spegelläget i realtid*. Linear är källan för status; den
 här filen finns för att en ny Claude Code-session ska kunna läsa planen
 utan att gå till Linear. Uppdatera båda när något ändras.
