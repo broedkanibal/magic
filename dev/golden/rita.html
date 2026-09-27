@@ -65,7 +65,21 @@ input[type=text].fel{border-color:var(--fel)}
 #lagen span.klar{color:var(--vald);border-color:#3c6b46}
 #lagen span.avv{color:var(--fel);border-color:var(--fel)}
 #lagen span.nu{outline:2px solid var(--ruta)}
-.lagesforklaring{margin:5px 0 8px;font-size:11px}
+.lagehuvud{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:14px}
+.lagehuvud h2{margin:0}
+#gor{border-color:#3a4a5c;margin-top:6px}
+#gor .vad{font-size:12px;margin-bottom:8px;line-height:1.45}
+#gor .rubrik{font-weight:700;margin-bottom:4px}
+#gor ol{margin:0 0 6px;padding-left:20px}
+#gor li{margin:5px 0;line-height:1.45}
+#gor li button{margin-left:6px;font-size:11.5px;padding:1px 7px}
+#gor .ok{color:var(--vald);font-weight:600;margin-bottom:4px}
+#gor .stor{display:block;width:100%;margin-top:8px;padding:8px;font-size:13.5px}
+#gor .lek{margin-top:8px;font-size:11.5px}
+button.liten{font-size:11px;padding:1px 7px;margin-top:6px;opacity:.8}
+#lagesdetaljer{margin-top:10px}
+#lagesdetaljer summary{cursor:pointer;color:var(--dim);font-size:12px}
+.lagesforklaring{margin:5px 0 4px;font-size:11px}
 .lagesforklaring span{font:10.5px ui-monospace,Menlo,monospace;border:1px solid #2c3541;border-radius:3px;padding:0 4px}
 .lagesforklaring .ritad{color:var(--fg);border-color:#4b5868}.lagesforklaring .klar{color:var(--vald);border-color:#3c6b46}
 .lagesforklaring .avv{color:var(--fel);border-color:var(--fel)}.lagesforklaring .nu{outline:2px solid var(--ruta)}
@@ -117,39 +131,42 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
       <li><b>När alla namn i <i>Facit</i> är bockade:</b> spara med <kbd>⌘S</kbd>.</li>
     </ol>
     <ol id="sagor-video" hidden>
-      <li><b>Vrid vyn</b> tills korten står rätt: <kbd>R</kbd>.</li>
-      <li>Läget börjar med förra lägets kort. <b>Rör bara det som ändrats:</b> <kbd>V</kbd>, klicka ett kort och dra det, eller dra ett hörn.</li>
-      <li><b>Nya kort</b> ritas som på ett foto: övre vänstra hörnet, sedan övre högra, och namnet.</li>
-      <li>Skymmer en hand? Flytta tiden med <kbd>←</kbd> <kbd>→</kbd>.</li>
-      <li>Stämmer läget: <kbd>D</kbd> (klart) och <kbd>]</kbd> till nästa. Spara med <kbd>⌘S</kbd> när du vill.</li>
+      <li>Varje <b>läge</b> är en bild av bordet. Din ritning ska se ut som bilden.</li>
+      <li>Ett nytt läge börjar med förra lägets kort. <b>Gör bara det som står under <i>Gör nu</i></b> — sedan <b>Klart</b>, så kommer nästa läge.</li>
+      <li>Rita ett kort: klicka kortets <i>övre vänstra</i> hörn, sedan <i>övre högra</i>, längs namnraden.</li>
+      <li>Allt sparas medan du ritar. <b>Skicka till GitHub</b> när du slutar för dagen.</li>
     </ol>
     <div class="dim">Felklick: <kbd>Esc</kbd> · ångra: <kbd>⌘Z</kbd> · allt annat: <kbd>?</kbd></div>
   </div>
   <div id="kallinfo" class="dim"></div>
 
   <section id="lagesdel" hidden>
-    <h2>Läge <span class="antal" id="lagesrubrik"></span></h2>
-    <div class="ruta">
+    <div class="lagehuvud">
+      <h2>Läge <span class="antal" id="lagesrubrik"></span></h2>
       <div class="rad">
         <button type="button" id="b-forra" title="Förra läget">◀ Förra<kbd>←</kbd></button>
         <button type="button" id="b-nasta" title="Nästa läge">Nästa ▶<kbd>→</kbd></button>
-        <label class="val"><input type="checkbox" id="klar"> klart<span class="kbd">D</span></label>
       </div>
-      <div id="lagen"></div>
-      <div class="dim lagesforklaring"><span class="nu">1</span> här är du · <span class="ritad">1</span> ritat · <span class="klar">1</span> klart · <span class="avv">1</span> stämmer inte med facit</div>
-      <div id="lagestid"></div>
-      <div class="rad tidsrad">
-        <span class="dim">Skymmer handen?</span>
-        <button type="button" id="b-bak" title="Visa bilden 0,5 s tidigare, inom läget (⌥ 0,1 s)">−0,5 s<kbd>⇧←</kbd></button>
-        <button type="button" id="b-fram" title="Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)">+0,5 s<kbd>⇧→</kbd></button>
-        <button type="button" id="b-aterTid" hidden>tillbaka till föreslagen tid</button>
-      </div>
-      <div id="tidsbesked" class="dim"></div>
     </div>
-    <h2>Händelser sedan förra ritade läget</h2>
-    <div id="handelser" class="ruta"></div>
-    <h2>Mot händelsefacit <span class="antal" id="kontrollrubrik"></span></h2>
-    <div id="kontroll" class="ruta"></div>
+    <div id="lagen"></div>
+    <div class="dim lagesforklaring"><span class="nu">1</span> här är du · <span class="ritad">1</span> påbörjat · <span class="klar">1</span> klart · <span class="avv">1</span> fel kort mot facit</div>
+    <div id="gor" class="ruta"></div>
+    <div class="rad tidsrad">
+      <span class="dim">Skymmer handen kortet?</span>
+      <button type="button" id="b-bak" title="Visa bilden 0,5 s tidigare, inom läget (⌥ 0,1 s)">−0,5 s<kbd>⇧←</kbd></button>
+      <button type="button" id="b-fram" title="Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)">+0,5 s<kbd>⇧→</kbd></button>
+      <button type="button" id="b-aterTid" hidden>tillbaka till föreslagen tid</button>
+    </div>
+    <div id="tidsbesked" class="dim"></div>
+    <details id="lagesdetaljer">
+      <summary>Detaljer: tid, händelser, facit</summary>
+      <div id="lagestid"></div>
+      <h2>Händelser sedan förra ritade läget</h2>
+      <div id="handelser" class="ruta"></div>
+      <h2>Mot händelsefacit <span class="antal" id="kontrollrubrik"></span></h2>
+      <div id="kontroll" class="ruta"></div>
+      <button type="button" id="b-borjaOm" class="liten">Börja om hela videon</button>
+    </details>
   </section>
 
   <h2>Valt kort <span class="antal" id="valdid"></span></h2>
@@ -179,7 +196,8 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <div id="grundvarning" class="varn" hidden style="margin:4px 0 6px"></div>
     <label class="val" id="ladaval" title="Jespers beslut: lådan runt kortets synliga del skrivs i facit, så att golden mäter plats och tap-läge i fallet. Ändrar baslinjen."><input type="checkbox" id="lada" checked> skriv lådan x/y/w/h i facit (golden mäter plats och tap)</label>
     <div class="rad" style="margin-top:6px"><button type="button" id="b-spara2" class="primar">Spara till repot<kbd>⌘S</kbd></button><button type="button" id="b-dela" title="Committar det här fallets ritning (sparad och osparad) och pushar till main">Skicka till GitHub<kbd>⇧⌘S</kbd></button><span id="sparinfo" class="dim"></span></div>
-    <div class="dim" style="margin-top:5px;font-size:11.5px">Allt du ritar syns i alla webbläsare på den här datorn. <b>Skicka till GitHub</b> så finns det också på en annan dator, efter <code>git pull</code> där.</div>
+    <div class="dim" id="sparaVideo" hidden style="margin-top:5px;font-size:11.5px">Allt sparas medan du ritar. När du slutar för dagen: <b>Skicka till GitHub</b> — då sparas ritningen i repot och skickas upp.</div>
+    <div class="dim" id="sparaFoto" style="margin-top:5px;font-size:11.5px">Allt du ritar syns i alla webbläsare på den här datorn. <b>Skicka till GitHub</b> så finns det också på en annan dator, efter <code>git pull</code> där.</div>
     <div id="melding"></div>
   </div>
 </aside>
@@ -209,7 +227,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr class="grupp"><td colspan="2">Bara i video</td></tr>
     <tr><td>← → (eller [ ])</td><td>förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort — ta bort det som lämnat bordet, rita det som är nytt</td></tr>
     <tr><td>⇧← ⇧→</td><td>visa bilden 0,5 s tidigare/senare (⌥ 0,1 s), om en hand skymmer. Bara inom läget — tiden går inte in i nästa läge</td></tr>
-    <tr><td>D</td><td>läget är ritat klart</td></tr>
+    <tr><td>D</td><td>läget är klart — och vidare till nästa</td></tr>
   </table>
   <p class="dim">Gult = synligt kort. Streckat = den del som ligger under ett annat kort. Det gröna bandet på det valda kortet är namnraden — syns mindre än hälften av den är kortet <b>dolt</b>. Rött = namn saknas.</p>
 </div>
@@ -371,7 +389,7 @@ function erbjudUtkast() {
   const n = u.dok.kort ? u.dok.kort.length + ' kort' : Object.keys(u.dok.lagen || {}).length + ' lägen';
   ruta.innerHTML = `Det finns ett osparat utkast från ${new Date(u.tid).toLocaleString('sv-SE')} (${n}). <div class="rad" style="margin-top:6px"><button type="button" id="u-ja">Återställ utkastet</button><button type="button" id="u-nej">Kasta det</button></div>`;
   ruta.hidden = false;
-  el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; } S.vald = null; S.cache.clear(); ruta.hidden = true; raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
+  el('u-ja').onclick = () => { fore(); S.dok = u.dok; S.temp = null; if (S.kalla.sort === 'foto' && S.dok.grund) { S.grund = S.dok.grund; el('grund').value = S.grund; } S.vald = null; S.cache.clear(); ruta.hidden = true; if (S.kalla.sort === 'video') rattaTider(S.dok); raknaOm(); visa(); if (S.kalla.sort === 'video') oppnaLage(S.nr); };
   el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null; ruta.hidden = true; };
 }
 
@@ -528,7 +546,7 @@ function skapa(p1) {
   let id;
   andra(() => {
     const kort = kortNu(); id = nastaId();
-    kort.push({ id, namn, horn: h, z: kort.reduce((m, k) => Math.max(m, k.z), 0) + 1 });
+    kort.push(Object.assign({ id, namn, horn: h, z: kort.reduce((m, k) => Math.max(m, k.z), 0) + 1 }, G.arLibrary(namn) ? { zon: 'bib' } : {}));
     S.vald = id;
     if (namn) fastUrFacit();
   });
@@ -751,7 +769,7 @@ window.addEventListener('keydown', e => {
     case 'ArrowRight': e.preventDefault(); if (e.shiftKey) flyttaTid(steg); else gaTill(S.nr + 1); break;
     case '[': gaTill(S.nr - 1); break;
     case ']': gaTill(S.nr + 1); break;
-    case 'd': case 'D': klar(); break;
+    case 'd': case 'D': klarOchVidare(); break;
     case 't': case 'T': vridValt(90); break;
     case 'q': case 'Q': vridValt(e.shiftKey ? -0.2 : -1); break;
     case 'e': case 'E': vridValt(e.shiftKey ? 0.2 : 1); break;
@@ -818,6 +836,11 @@ function visaLista() {
    läget (video), bockade mot de ritade lekkorten. Klick på en obockad rad
    ger namnet till det valda kortet om det saknar namn, annars nästa kort. */
 function visaCheck() {
+  const video = S.kalla.sort === 'video';
+  el('check').hidden = el('checkrubrik').hidden = video;   // i video står det under Gör nu
+  el('b-spara').hidden = el('b-spara2').hidden = el('sparaFoto').hidden = el('sagor-foto').hidden = video;
+  el('sparaVideo').hidden = el('sagor-video').hidden = !video;
+  if (video) return;
   let vantat = {}, rubrik = 'Facit', not = '';
   if (S.kalla.sort === 'foto') { for (const n of S.checklista) vantat[n] = (vantat[n] || 0) + 1; not = S.checklista.length ? '' : 'facit har inga namn'; }
   else {
@@ -847,12 +870,99 @@ function visaCheck() {
   };
 }
 
+/* ── Video: Gör nu ────────────────────────────────────────────────────────
+   Vad som ska göras i läget, räknat ur facit: varje avvikelse blir en
+   uppgift med en knapp, så att den som ritar aldrig behöver tolka siffrorna.
+   Stämmer allt är det enda kvar att titta på bilden och trycka Klart. */
+const STEGORD = { 'nytt kort': 'ett kort läggs ut', 'nytt (stor låda)': 'något stort ändras (handen eller leken)',
+  'vridet/flyttat': 'något vrids eller flyttas', 'ändrat på plats': 'något ändras på samma plats', 'borta': 'något tas bort från bordet' };
+function vadHande(h) {
+  if (S.u.sort !== 'steg') return h.map(x => esc(x.text));
+  const manus = h.filter(x => x.t == null).map(x => esc(x.text.replace(/^manus \d+: /, '')));
+  if (manus.length) return manus;
+  return h.map(x => { const m = /^steg \d+: (.+?)(?: — (.+?))?(?: \(= manusrad \d+\))?$/.exec(x.text); return m ? esc((STEGORD[m[1]] || m[1]) + (m[2] ? ': ' + m[2] : '')) : esc(x.text); });
+}
+function uppgifter(l, dom) {
+  const ut = [], iSpel = n => l.kort.filter(k => !k.zon && String(k.namn || '').trim() === n).sort((a, b) => b.z - a.z);
+  const valjOch = k => () => { if (k) { byt('valj'); valj(k.id); } };
+  for (const a of dom.avvikelser) {
+    if (a.typ === 'antal' && a.namn === '(utan namn)') {
+      const k = l.kort.find(o => !o.zon && !String(o.namn || '').trim());
+      ut.push({ text: 'Ett ritat kort saknar namn. Välj det och skriv namnet.', knapp: 'Välj det', gor: () => { if (k) { valj(k.id); el('namn').focus(); } } });
+    } else if (a.typ === 'antal' && a.ritat < a.vantat) {
+      const n = a.vantat - a.ritat;
+      ut.push({ text: `Rita ${n > 1 ? n + ' × ' : ''}<b>${esc(a.namn)}</b>.`, knapp: 'Rita det',
+        gor: () => { S.nastaNamn = a.namn; byt('rita'); visa(); melding(`${a.namn}: klicka kortets övre vänstra hörn, sedan övre högra`); } });
+    } else if (a.typ === 'antal') {
+      const n = a.ritat - a.vantat;
+      ut.push({ text: `<b>${esc(a.namn)}</b> ska inte ligga på bordet${n > 1 ? ` (${n} för många)` : ''}. Välj det — ligger det i graveyard-högen: <kbd>G</kbd>, annars ta bort: <kbd>⌫</kbd>.`, knapp: 'Välj det', gor: valjOch(iSpel(a.namn)[0]) });
+    } else if (a.typ === 'tappade') {
+      const vill = a.vantat > a.ritat, k = iSpel(a.namn).find(o => !!(S.raknat[o.id] && S.raknat[o.id].tappad) !== vill);
+      ut.push({ text: `<b>${esc(a.namn)}</b> ska vara ${vill ? 'tappat (vridet)' : 'otappat (rakt)'}. Välj det och tryck <kbd>T</kbd>.`, knapp: 'Välj det', gor: valjOch(k) });
+    } else if (a.typ === 'fast') {
+      const [x, y] = a.namn.split(' + ');
+      ut.push({ text: a.vantat ? `<b>${esc(x)}</b> och <b>${esc(y)}</b> sitter ihop i spelet. Välj det som ligger under och tryck <kbd>F</kbd>.`
+        : `<b>${esc(x)}</b> och <b>${esc(y)}</b> sitter inte ihop enligt facit. Välj det ena och tryck <kbd>⇧F</kbd>.`, knapp: 'Välj det', gor: valjOch(iSpel(x)[0]) });
+    }
+  }
+  return ut;
+}
+function visaGor(l, dom, h, forra, utanfor, arKlar) {
+  const nasta = S.nr < S.u.forslag.length ? S.nr + 1 : null, knappar = [];
+  const knapp = (text, gor, klass = '') => { knappar.push(gor); return `<button type="button" class="${klass}" data-g="${knappar.length - 1}">${text}</button>`; };
+  const hande = vadHande(h);
+  let html = `<div class="vad"><span class="dim">${forra ? `Sedan läge ${forra.nr}` : 'Från början'} enligt facit:</span> ${hande.length ? hande.join(' · ') : 'inget på bordet'}</div>`;
+  if (utanfor) {
+    html += `<div class="rubrik">Gör nu</div><ol><li>Bilden visar fel tid för det här läget. ${knapp('Flytta tillbaka', () => tillForslaget())}</li></ol>`;
+  } else if (arKlar) {
+    html += `<div class="ok">✓ Läget är klart.</div>` + (nasta ? knapp(`Till läge ${nasta} ▶`, () => gaTill(nasta), 'primar stor') : '<div class="dim">Det var sista läget.</div>')
+      + knapp('Inte klart ändå', () => klar(), 'liten');
+  } else {
+    const upp = uppgifter(l, dom);
+    if (upp.length) {
+      html += `<div class="rubrik">Gör nu</div><ol>${upp.map(u => `<li>${u.text} ${knapp(u.knapp, u.gor)}</li>`).join('')}</ol>`
+        + knapp('Klart ändå — facit kan ha fel', () => klarOchVidare(), 'liten');
+    } else {
+      html += `<div class="ok">✓ Rätt kort enligt facit.</div><div class="dim">Titta på bilden: ligger varje kort där det ritade ligger? Har något flyttats eller vridits — välj det med <kbd>V</kbd> och dra det på plats.</div>`
+        + knapp(nasta ? `Klart — till läge ${nasta} ▶ <kbd>D</kbd>` : 'Klart <kbd>D</kbd>', () => klarOchVidare(), 'primar stor');
+    }
+    if (!l.kort.some(k => k.zon === 'bib')) html += `<div class="lek dim">Syns leken i bilden? ${knapp('Rita leken', () => { S.nastaNamn = 'library'; byt('rita'); visa(); melding('leken: klicka dess övre vänstra hörn, sedan övre högra'); })} Den behöver inget namn.</div>`;
+  }
+  el('gor').innerHTML = html;
+  for (const b of el('gor').querySelectorAll('button[data-g]')) b.onclick = () => knappar[+b.dataset.g]();
+}
+function klarOchVidare() {
+  if (!S.kalla || S.kalla.sort !== 'video') return;
+  if (!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar)) andra(() => { lageNu().klar = true; });
+  if (S.nr < S.u.forslag.length) gaTill(S.nr + 1); else melding('sista läget är klart');
+}
+/* Gamla utkast kan ha en tid utanför lägets fönster (före 2026-09-27 gick
+   piltangenterna förbi nästa läge). Sådana tider flyttas tillbaka till
+   förslaget: bilden visade då ett annat läge än det som ritades. */
+function rattaTider(dok) {
+  let n = 0;
+  for (const l of Object.values(dok.lagen || {})) {
+    const f = S.u.forslag[l.nr - 1]; if (!f) continue;
+    const [fran, till] = fonster(l.nr);
+    if (l.t < fran - 0.001 || l.t > till + 0.001) { l.t = f.t; l.forslag = f.t; n++; }
+  }
+  if (n) melding(`${n} ${n === 1 ? 'läge hade' : 'lägen hade'} en tid som låg i ett annat läge — flyttade tillbaka till föreslagen tid`);
+  return n;
+}
+function borjaOm() {
+  if (!S.kalla || S.kalla.sort !== 'video') return;
+  if (!confirm('Ta bort allt som ritats i den här videon och börja om från läge 1? (Går att ångra med ⌘Z.)')) return;
+  andra(() => { S.dok.lagen = {}; S.temp = null; });
+  S.cache.clear(); S.nr = 0; gaTill(1);
+}
+
 /* ── Video: lägena ────────────────────────────────────────────────────── */
 function visaLage() {
   el('lagesdel').hidden = S.kalla.sort !== 'video';
   if (S.kalla.sort !== 'video') return;
   const l = lageNu(), f = S.u.forslag[S.nr - 1];
-  el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length}${S.dok.lagen[S.nr] ? '' : ' · inte ritat (kopia av förra)'}`;
+  const arKlar = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
+  el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length} · ${arKlar ? 'klart' : S.dok.lagen[S.nr] ? 'påbörjat' : 'inte ritat än'}`;
   const [fran, till] = fonster(S.nr), utanfor = l.t < fran - 0.001 || l.t > till + 0.001, flyttad = Math.abs(l.t - f.t) > 0.001;
   el('lagestid').innerHTML = `<b>${esc(f.etikett)}</b><div class="dim">bilden vid ${fmtT(l.t)} s${flyttad ? ` (föreslaget ${fmtT(f.t)})` : ''} · läget gäller ${fmtT(fran)}–${till === Infinity ? 'slutet' : fmtT(till) + ' s'}</div>`
     + (utanfor ? `<div class="varn">Bilden ligger utanför läget, så den visar ett annat läge. Tryck på <i>tillbaka till föreslagen tid</i>.</div>` : '');
@@ -861,7 +971,6 @@ function visaLage() {
   el('b-bak').disabled = l.t <= fran + 0.001; el('b-fram').disabled = l.t >= till - 0.001;
   el('b-bak').title = el('b-bak').disabled ? `Läget börjar vid ${fmtT(fran)} s — tidigare håller handen fortfarande kortet` : 'Visa bilden 0,5 s tidigare, inom läget (⌥ 0,1 s)';
   el('b-fram').title = el('b-fram').disabled ? `Läget slutar vid ${till === Infinity ? 'slutet' : fmtT(till) + ' s'}` : 'Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)';
-  el('klar').checked = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
   // händelserna sedan förra ritade läget (i tid — som i lagen.json)
   const forra = forraRitade(l);
   const t0 = forra ? forra.t : -1;
@@ -870,6 +979,7 @@ function visaLage() {
     + `<div class="dim" style="margin-top:4px">${forra ? `sedan läge ${forra.nr} (${fmtT(t0)} s)` : 'från början'}</div>`;
   // mot händelsefacit
   const v = S.u.vantat(l.t), dom = Hd.jamfor(l.kort, v, { raknat: S.raknat });
+  visaGor(l, dom, h, forra, utanfor, arKlar);
   el('kontrollrubrik').innerHTML = dom.ok ? '<span class="ok">stämmer</span>' : `<span class="felt">${dom.avvikelser.length} avvikelser</span>`;
   el('kontroll').innerHTML = (dom.ok ? '<span class="ok">Antalet kort per namn stämmer' + (S.u.sort === 'handelser' ? ', liksom tappade och fästa' : '') + '.</span>' : dom.avvikelser.map(a => `<div class="felt">${esc(Hd.avvikelseText(a))}</div>`).join(''))
     + (S.u.sort === 'steg' ? `<div class="dim" style="margin-top:4px">${!v.fonster ? '' : v.fonster[1] < 1 ? 'före första manusraden' : v.fonster[0] === v.fonster[1] ? `efter manusrad ${v.fonster[0]}` : `efter någon av manusraderna ${Math.max(1, v.fonster[0])}–${v.fonster[1]}`}${dom.rad ? ` · stämmer bäst med rad ${dom.rad}: ${esc(dom.text || '')}` : ''}</div>` : '');
@@ -1000,6 +1110,7 @@ async function oppna(varde) {
       S.dok.lagen[nr] = { nr, t: l.t, forslag: l.forslag != null ? l.forslag : S.u.forslag[nr - 1].t, klar: !!l.klar, kort: l.kort.map(redigerbar) };
     }
     S.filDok = JSON.stringify(S.dok);
+    rattaTider(S.dok);
     el('ladaval').hidden = true;
     el('kallinfo').innerHTML = `<b>${esc(v.namn)}</b><div class="dim">${esc(v.video)}${v.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · ${S.u.forslag.length} föreslagna lägen · ${lagen ? Object.keys(S.dok.lagen).length + ' ritade' : 'inget ritat än'}</div>`;
     const forstaOklara = S.u.forslag.findIndex((f, i) => !(S.dok.lagen[i + 1] && S.dok.lagen[i + 1].klar));
@@ -1073,8 +1184,8 @@ function byggLagen() {
     lagen,
   }, kort: allaKort, nrs };
 }
-async function spara() {
-  if (!S.dok || !S.W) return;
+async function spara(o = {}) {
+  if (!S.dok || !S.W) return false;
   let text, sort, fel = [];
   if (S.kalla.sort === 'foto') {
     const { f, kort } = byggFacit();
@@ -1088,24 +1199,26 @@ async function spara() {
   } else {
     const { f, kort, nrs } = byggLagen();
     for (const nr of nrs) { const ff = hinder(S.dok.lagen[nr].kort); if (ff.length) fel.push(`läge ${nr}: ${ff.join(', ')}`); }
-    if (fel.length) { melding('Sparas inte: ' + fel.join(' · '), true); return; }
-    if (!kort.length && !confirm('Inga kort ritade. Spara ändå?')) return;
+    if (fel.length) { melding('Sparas inte: ' + fel.join(' · '), true); return false; }
+    if (!kort.length && (o.tyst || !confirm('Inga kort ritade. Spara ändå?'))) return false;
     text = G.formatera(f) + '\n'; sort = 'lagen';
   }
   const svar = await fetch('/api/spara', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sort, id: S.kalla.id, text }) }).then(r => r.json()).catch(e => ({ fel: e.message }));
-  if (svar.fel) { melding('Sparandet misslyckades: ' + svar.fel, true); return; }
+  if (svar.fel) { melding('Sparandet misslyckades: ' + svar.fel, true); return false; }
   if (sort === 'facit') { S.facit = JSON.parse(text); S.kalla.ritad = true; }
   else S.kalla.lagen = true;
   S.filDok = JSON.stringify(S.dok);
   try { localStorage.removeItem(utkastNyckel()); } catch (e) {}
   clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null;
   visaSparinfo(); fyllKallor();
-  melding(`sparat: ${svar.fil} — kör node dev/golden/rita-kontroll.cjs`);
+  if (!o.tyst) melding(`sparat: ${svar.fil} — kör node dev/golden/rita-kontroll.cjs`);
+  return true;
 }
 /* Skicka till GitHub: servern committar källans filer (det sparade, utkastet
    och vridningen) och pushar till main. På en annan dator: git pull. */
 async function dela() {
   if (!S.kalla) return;
+  if (S.kalla.sort === 'video' && osparat()) await spara({ tyst: true });   // i video är Skicka det enda sparsteget
   if (osparat()) { clearTimeout(serverTimer); await postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: { tid: new Date().toISOString(), dok: S.dok } }); }
   melding('skickar till GitHub…');
   const r = await postJson('/api/dela', { sort: S.kalla.sort, id: S.kalla.id });
@@ -1133,7 +1246,7 @@ el('b-grav').onclick = () => zon('grav'); el('b-bib').onclick = () => zon('bib')
 el('b-forra').onclick = () => gaTill(S.nr - 1); el('b-nasta').onclick = () => gaTill(S.nr + 1);
 el('b-bak').onclick = e => flyttaTid(e.altKey ? -0.1 : -0.5); el('b-fram').onclick = e => flyttaTid(e.altKey ? 0.1 : 0.5);
 el('b-aterTid').onclick = () => tillForslaget();
-el('klar').onchange = () => { klar(); };
+el('b-borjaOm').onclick = () => borjaOm();
 el('kalla').onchange = () => oppna(el('kalla').value).catch(e => melding(e instanceof TypeError && /fetch/i.test(e.message)
   ? 'servern svarar inte — starta den (node dev/golden/rita-server.cjs, eller posten mesa-rita) och ladda om sidan'
   : 'gick inte att öppna: ' + e.message, true));
