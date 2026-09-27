@@ -1,6 +1,6 @@
 ---
 name: nasta
-description: Plockar nästa issue ur Todo i Linear enligt reglerna i CLAUDE.md och sätter igång arbetet — kollar blockeringar, krockar med det som redan pågår (sessioner, orkestrerare, golden), tar issuen, bygger i en egen worktree, låter en fristående granskare läsa diffen och lämnar issuen i rätt kolumn. Använd när Jesper säger "nästa", "ta nästa", "/nästa", "jobba på något", "plocka en issue" eller "vad kan du göra nu". En issue per anrop.
+description: Visar vad som är på tur i Todo i Linear, förklarar kort problemet och lösningen i vardagsspråk, föreslår modell och effort och ställer frågor som gör prompten bra — och startar först när Jesper svarat. Kollar blockeringar och krockar med det som redan pågår (sessioner, orkestrerare, golden), bygger i en egen worktree, låter en fristående granskare läsa diffen och lämnar issuen i rätt kolumn. Använd när Jesper säger "nästa", "ta nästa", "/nästa", "jobba på något", "plocka en issue" eller "vad kan du göra nu". En issue per anrop.
 ---
 
 # /nästa — ta nästa issue ur Todo
@@ -31,28 +31,64 @@ Gå nerifrån `KÖN` i ordning. Den första som klarar alla fyra tas:
 | **Blockerad?** | flaggan i nasta.cjs, plus beskrivning och kommentarer ("kräver att X finns") | `agent.blockeraIssue(id, orsak, { blockeradAv })` → nästa |
 | **Krockar?** | flaggan "samma område" betyder *läs båda*. Krock = samma funktioner i `index.html`, samma del av kedjan, eller något tabellen "Kodområde / Kan gå parallellt med" i `dev/plan/orkestrering.md` säger inte får köras samtidigt. Jämför också med sessionerna i `ListAgents` | lämna den i Todo → nästa, och säg vilken den krockade med |
 | **Behöver Jesper?** | läs beskrivningen: ett beslut, ett konto, en inspelning, ett prov som måste göras *innan* bygget | `agent.markeraBehoverJesper(id, vad)` → nästa |
-| **Fortfarande Todo?** | läs issuens status igen precis före steg 3 — en orkestrerare eller en annan `/nästa` kan ha tagit den under tiden | nästa |
+| **Fortfarande Todo?** | kontrolleras igen i steg 4, precis före start — en orkestrerare eller en annan `/nästa` kan ha tagit den medan Jesper svarade | nästa, och säg det |
 
 Efter fem överhoppade: stanna och säg vad som stoppar kön.
 
-## 3. Ta den
+## 3. Visa Jesper vad som är på tur — och fråga innan något startar
 
-Säg till Jesper i en eller två rader: vilken issue, varför just den
-(prioritet, plats i kön), och vilka som hoppades över och varför. Kör sedan
-`agent.paborjaIssue(id)` — från och med nu är den låst för andra sessioner.
+Ingenting startar förrän Jesper svarat. Läs issuen (beskrivning och
+kommentarer) och skriv, kort:
 
-## 4. Bygg
+**På tur: MES-NN — titel** (länk)
+*Därefter i kön: MES-AA, MES-BB. Hoppade över: MES-CC (krock med MES-DD).*
 
-- **Agent efter sort** (CLAUDE.md, "Agenterna i `.claude/agents/`"):
-  `mesa-matning` för mätning utan kod, `mesa-bygg` för vanligt bygge,
-  `mesa-bygg-tung` för detektorn, läsningen, spärren mot fel namn och
-  samtidighet. Alltid `isolation: "worktree"` — arbetsträdet i main delas med
-  andra sessioner.
-- En ny worktree saknar `.env.local` och `dev/material`: symlänka dem.
+**Problemet:** en eller två meningar i vardagsspråk — vad som är fel eller
+saknas, sett från spelaren. Ingen jargong, inga funktionsnamn.
+
+**Lösningen:** en eller två meningar — vad som ska byggas eller mätas, och
+hur det löser problemet.
+
+Ställ sedan frågorna med `AskUserQuestion`, i ett anrop:
+
+1. **Modell och effort** — förslaget först, märkt (Recommended), med en
+   mening om varför. Utgå från tabellen nedan.
+2. **Två till tre frågor om just den här issuen** — det som saknas för en
+   bra prompt: vad som räknas som klart, vad som är utanför, ett val
+   beskrivningen lämnar öppet, vilken väg av flera som ska prövas först.
+   Fråga inte om det som redan står i issuen eller CLAUDE.md.
+
+| Sorts arbete | Agent | Modell | Effort |
+|---|---|---|---|
+| Mäta, köra golden, analysera en rapport — ingen kod | `mesa-matning` | Sonnet | medium |
+| Vanligt bygge: vyer, menyer, spelvyn, buggar i appen | `mesa-bygg` | Opus | high |
+| Designyta med varianter | `general-purpose` med designskillen | Opus | high |
+| Detektorn, läsningen, spärren mot fel namn, samtidighet | `mesa-bygg-tung` | Fable | xhigh |
+| Datamodell, säkerhet, RLS, inloggning, dold information | `mesa-bygg-tung` | Fable | high |
+| Utredning med många golden-körningar | `mesa-bygg-tung` | Fable | xhigh |
+
+Modellen sätts med agentens `model`. Effort ärvs från sessionen: skiljer sig
+Jespers val från sessionens, byt den med `set_session_effort` (ladda den med
+ToolSearch) innan agenten startas, eller säg åt Jesper att byta.
+
+## 4. Starta
+
+1. Skriv prompten ur issuen, Jespers svar och reglerna nedan. Visa den i
+   chatten i kortform (fem–tio rader), så att Jesper ser vad agenten får.
+2. Läs issuens status en sista gång. Fortfarande Todo: `agent.paborjaIssue(id)`
+   — från och med nu är den låst för andra sessioner.
+3. Starta agenten med vald modell och effort, i bakgrunden.
+
+**Regler för bygget, som ska stå i prompten:**
+
+- Alltid `isolation: "worktree"` — arbetsträdet i main delas med andra
+  sessioner. En ny worktree saknar `.env.local` och `dev/material`: symlänka
+  dem.
 - **Golden körs aldrig två åt gången.** Visar nasta.cjs "golden kör: JA",
   eller kör en annan session golden: bygg klart, och kör golden när den är
   ledig.
 - Systemprompten i `api/identify.js` rörs inte.
+- Agenten slår inte ihop och pushar inte.
 
 ## 5. Granska innan det slås ihop
 
@@ -80,6 +116,7 @@ In Progress får aldrig bli kvar efter att sessionen slutat (CLAUDE.md).
 
 ## Gör inte
 
+- Starta något innan Jesper svarat på frågorna i steg 3.
 - Ta mer än en issue per `/nästa`.
 - Plocka ur något annat än Todo, eller flytta något ur Triage eller Backlog.
 - Flytta en issue som en annan session har i In Progress.
