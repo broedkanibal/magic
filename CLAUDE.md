@@ -158,23 +158,25 @@ skriver i Linear själva.
 
 **Fyra regler, utan undantag:**
 
-1. **Claude Code skapar på eget initiativ bara i Triage.** Agent-klientens
-   `skapaIssue` gör det om `status` utelämnas. Tröskeln ovan gäller
+1. **Claude Code skapar på eget initiativ bara i Triage** — och i projektet
+   **Private beta**, om Jesper inte sagt något annat. Agent-klientens
+   `skapaIssue` gör båda om `status` och `projekt` utelämnas. Är det
+   uppenbart Commander-specifikt: `projekt: 'Private beta · Commander'`. Tröskeln ovan gäller
    fortfarande: det mesta ska inte bli en issue alls.
 2. **Bara Jesper flyttar ut ur Triage och från Backlog till Todo.** En agent
    får föreslå det i chatten, aldrig göra det.
 3. **Agenter plockar bara ur Todo.** Aldrig ur Triage eller Backlog.
-4. **Ett projekt som pågår innehåller bara det som är beslutat:** Todo och
-   det som redan är igång. En issue i Triage eller Backlog har inget projekt i
-   ett pågående projekt; den får projekt och milstolpe när Jesper lyfter den
-   till Todo. Ett planerat projekt (Private beta · Commander) får ha Backlog.
+4. **Ett projekt som pågår innehåller det beslutade, plus sin inkorg:**
+   Triage (osorterat, ligger i projektet så att det syns på dess bräda),
+   Todo och det som redan är igång. Backlog har inget projekt i ett pågående
+   projekt. Ett planerat projekt (Private beta · Commander) får ha Backlog.
 
 **Jespers sortering av Triage** — tre besked per issue:
 
 | Besked | Vad som händer |
 |---|---|
-| Ja | Todo, med projekt, milstolpe och prioritet — eller **Behöver dig** om den behöver honom innan någon kan börja |
-| Kanske | Backlog, utan projekt |
+| Ja | Todo, med milstolpe och prioritet — eller **Behöver dig** om den behöver honom innan någon kan börja. Hör den inte till betan: byt eller ta bort projektet |
+| Kanske | Backlog, och projektet tas bort |
 | Nej | Canceled |
 
 **Todo innehåller bara det en agent kan göra utan Jesper.** Jesper har två

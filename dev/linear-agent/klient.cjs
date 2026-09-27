@@ -126,11 +126,12 @@ async function hittaProjekt(teamId, projekt) {
 }
 
 /* Sedan 2026-09-27 finns två projekt som tar slut: Private beta och
-   Private beta · Commander. Det finns inget vettigt förval: den som skapar
-   issuen väljer projekt, eller sätter projekt: null plus en områdesetikett
-   för det som inte hör till någon leverans. Se CLAUDE.md, avsnittet
-   "Projekt — de tar slut". */
-const PROJEKT_FORVAL = null;
+   Private beta · Commander. Förvalet är Private beta (Jesper 2026-09-27):
+   det Claude Code skapar hamnar i Triage i det projektet, så att det syns på
+   projektets bräda, och Jesper tar bort projektet när han sorterar om det
+   inte hör dit. projekt: null lägger issuen utanför alla projekt. Byt
+   förvalet när Private beta är klar. Se CLAUDE.md, "Projekt — de tar slut". */
+const PROJEKT_FORVAL = 'Private beta';
 const PROJEKTEN = ['Private beta', 'Private beta · Commander'];
 
 /* status: lagets state-typ — 'triage', 'backlog', 'unstarted' (Todo),
