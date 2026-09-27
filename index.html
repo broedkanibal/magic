@@ -7340,13 +7340,18 @@ function tillLeken(i) {
    låg). En aura som är en token (Role-tokens) upphör att finnas i stället,
    som varje token som lämnar mattan (MES-105): förut hamnade den i
    graveyard och låg kvar där. Tar bort ur cards, så den som går över
-   listan i en loop får inte anropa den mitt i. */
+   listan i en loop får inte anropa den mitt i.
+   En aura som kameran tonat ned tillsammans med värden släpper sin
+   nedtoning: den är avgjord nu. Förut följde lyft med till graveyard —
+   arket frågade om auran igen, "Still there" lämnade den i högen, och
+   matLage.lyftN räknade den så att chippet och bannern kunde döljas för de
+   andra nedtonade korten. */
 function aurorFoljer(cards, vard) {
   for (let j = cards.length - 1; j >= 0; j--) {
     const k = cards[j];
     if (k.attachedTo !== vard.cid || !/\bAura\b/i.test(typLinje(k))) continue;
     if (k.tok) cards.splice(j, 1);
-    else { k.zon = ZON_GRAV; delete k.attachedTo; }
+    else { k.zon = ZON_GRAV; delete k.attachedTo; slappLyft(k); }
   }
 }
 function flyttaTill(i, zon) {
@@ -24741,8 +24746,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (!h) return false;
     h.tagen = true;
     k.zon = ZON_GRAV; delete k.attachedTo; k.gravAuto = nu; gravTid.delete(k.cid);
-    /* En aura följer sin värd, som i flyttaTill. */
-    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; }
+    /* En aura följer sin värd, som i flyttaTill — och släpper en nedtoning
+       den fått tillsammans med värden (aurorFoljer). */
+    for (const a of mig.cards) if (a.attachedTo === k.cid && typeof typLinje === 'function' && /\bAura\b/i.test(typLinje(a))) { a.zon = ZON_GRAV; delete a.attachedTo; slappLyft(a); }
     andrat = true;
     return true;
   }

@@ -1187,6 +1187,32 @@ prov('GR3d en värd som kameran tonat ned behåller sina auror till svaret: All 
   app.losBifogade(); app.lyftAlla('kvar'); app.losBifogade();
   assert.deepEqual(bild(), ['Grizzly Bears:', 'Monster Role:@v', 'Pacifism:@v', 'Bonesplitter:@v']);
 });
+prov('GR3e en nedtonad aura på en nedtonad värd: värden till graveyard tar auran med utan nedtoning, och bara kort på mattan är nedtonade (arket och högvaktens efterskott)', () => {
+  app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  const nedtonadeUtanfor = () => app.kort.filter(k => k.lyft != null && (k.zon === 'grav' || k.zon === 'exil')).map(k => k.name);
+  /* Arket: graveyard för värden går genom flyttaTill → aurorFoljer. */
+  app.kort.push({ cid: 'v', name: 'Grizzly Bears', flipped: 0, x: 10, y: 10, lyft: klocka.t },
+                { cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: 'v', lyft: klocka.t },
+                { cid: 'w', name: 'Llanowar Elves', flipped: 0, x: 200, y: 10, lyft: klocka.t });
+  app.losBifogade(); app.flytta(0, 'grav'); app.losBifogade();
+  const pac = app.kort.find(k => k.name === 'Pacifism');
+  assert.equal(pac.zon, 'grav'); assert.equal(pac.lyft, undefined, 'auran är nedtonad i graveyard');
+  assert.deepEqual(nedtonadeUtanfor(), []);
+  assert.deepEqual(app.kort.filter(k => k.lyft != null).map(k => k.name), ['Llanowar Elves'], 'lyftN räknar bara kortet på mattan');
+  /* Högvaktens efterskott: värden tonades ned, högen ändras efter nåden (gravAutoOm). */
+  app.nollstall(); klocka.t = 1e6; app.typ = new Map([['Pacifism', 'Enchantment — Aura']]);
+  stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT })], hog(0));
+  const ukud = app.kort[0];
+  app.kort.push({ cid: 'u', name: 'Pacifism', flipped: 0, attachedTo: ukud.cid });
+  klocka.t += 150; stamG([], hog(0));             // spåret dog: borta
+  klocka.t += 3100; stamG([], hog(0));            // nedtonad
+  assert.ok(ukud.lyft != null, 'värden tonades inte ned');
+  app.kort[1].lyft = klocka.t;                    // auran tonades ned med den
+  klocka.t += 1000; stamG([], hog(1));            // högen ändras inom fönstret: efterskottet
+  assert.equal(ukud.zon, 'grav'); assert.ok(ukud.gravAuto);
+  assert.equal(app.kort[1].zon, 'grav'); assert.equal(app.kort[1].lyft, undefined, 'auran är nedtonad i graveyard');
+  assert.deepEqual(nedtonadeUtanfor(), []);
+});
 prov('GR4 två kort försvinner, högen ändras en gång: båda frågas', () => {
   stamG([klar(1, 'Ukud Cobra', { sen: 20, ...PORT }), klar(2, 'Grizzly Bears', { sen: 20, ...LANGT })], hog(0));
   klocka.t += 150; stamG([], hog(0));
