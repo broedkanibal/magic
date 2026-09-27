@@ -71,6 +71,8 @@ input[type=text].fel{border-color:var(--fel)}
 .lagesforklaring .avv{color:var(--fel);border-color:var(--fel)}.lagesforklaring .nu{outline:2px solid var(--ruta)}
 #lagestid{margin-bottom:4px}
 .tidsrad{margin-top:2px}
+.tidsrad button:disabled{opacity:.35;cursor:default}
+#tidsbesked{font-size:11.5px;margin-top:3px}
 #sagor{border:1px solid #3c6b46;background:#111a14;border-radius:5px;padding:8px 10px 8px 8px;margin-bottom:8px}
 #sagor ol{margin:0;padding-left:22px} #sagor li{margin:3px 0} #sagor li b{color:var(--vald)}
 #sagor .dim{margin-top:6px;font-size:11.5px}
@@ -142,6 +144,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
         <button type="button" id="b-fram" title="Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)">+0,5 s<kbd>⇧→</kbd></button>
         <button type="button" id="b-aterTid" hidden>tillbaka till föreslagen tid</button>
       </div>
+      <div id="tidsbesked" class="dim"></div>
     </div>
     <h2>Händelser sedan förra ritade läget</h2>
     <div id="handelser" class="ruta"></div>
@@ -854,6 +857,10 @@ function visaLage() {
   el('lagestid').innerHTML = `<b>${esc(f.etikett)}</b><div class="dim">bilden vid ${fmtT(l.t)} s${flyttad ? ` (föreslaget ${fmtT(f.t)})` : ''} · läget gäller ${fmtT(fran)}–${till === Infinity ? 'slutet' : fmtT(till) + ' s'}</div>`
     + (utanfor ? `<div class="varn">Bilden ligger utanför läget, så den visar ett annat läge. Tryck på <i>tillbaka till föreslagen tid</i>.</div>` : '');
   el('b-aterTid').hidden = !flyttad;
+  // knapparna går bara att trycka när det finns tid kvar åt det hållet i läget
+  el('b-bak').disabled = l.t <= fran + 0.001; el('b-fram').disabled = l.t >= till - 0.001;
+  el('b-bak').title = el('b-bak').disabled ? `Läget börjar vid ${fmtT(fran)} s — tidigare håller handen fortfarande kortet` : 'Visa bilden 0,5 s tidigare, inom läget (⌥ 0,1 s)';
+  el('b-fram').title = el('b-fram').disabled ? `Läget slutar vid ${till === Infinity ? 'slutet' : fmtT(till) + ' s'}` : 'Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)';
   el('klar').checked = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
   // händelserna sedan förra ritade läget (i tid — som i lagen.json)
   const forra = forraRitade(l);
@@ -897,7 +904,7 @@ function gaTill(nr) {
   nr = Math.max(1, Math.min(S.u.forslag.length, nr));
   if (nr === S.nr) return;
   S.vantar = null;
-  el('melding').textContent = ''; el('status').textContent = '';   // ett meddelande om förra läget gäller inte det nya
+  el('melding').textContent = ''; el('status').textContent = ''; el('tidsbesked').textContent = '';   // ett besked om förra läget gäller inte det nya
   oppnaLage(nr);
 }
 /* Tiden i ett läge får bara röra sig inom lägets fönster (fran–till i
@@ -915,10 +922,12 @@ function flyttaTid(d) {
   const [fran, till] = fonster(S.nr), l0 = lageNu();
   const ny = Math.min(till, Math.max(fran, Math.round((l0.t + d) * 100) / 100));
   if (ny === l0.t) {
-    melding(d > 0 ? (S.nr < S.u.forslag.length ? `Läge ${S.nr} slutar vid ${fmtT(till)} s. Efter det är det läge ${S.nr + 1} — tryck →` : `Läge ${S.nr} är det sista`)
-      : (S.nr > 1 ? `Läge ${S.nr} börjar vid ${fmtT(fran)} s. Före det är det läge ${S.nr - 1} — tryck ←` : `Läge 1 börjar vid ${fmtT(fran)} s`), true);
+    el('tidsbesked').innerHTML = `<span class="varn">${d > 0
+      ? (S.nr < S.u.forslag.length ? `Läget slutar vid ${fmtT(till)} s — sedan är det läge ${S.nr + 1} (→).` : 'Det här är sista läget.')
+      : `Läget börjar vid ${fmtT(fran)} s — tidigare håller handen fortfarande kortet${S.nr > 1 ? `, och före det är det läge ${S.nr - 1} (←)` : ''}.`}</span>`;
     return;
   }
+  el('tidsbesked').textContent = '';
   andra(() => { const l = lageNu(); l.t = ny; fastUrFacit(); });
   S.cache.clear(); raknaOm(); visa();   // tiden kan ha flyttat läget förbi ett annat: hela kedjan räknas om
   laddaLagesbildSnart();
