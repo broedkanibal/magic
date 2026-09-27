@@ -1,0 +1,949 @@
+{
+ "alla": {
+  "q": "game:paper -is:funny",
+  "total": 32381,
+  "fel": null,
+  "topp": [
+   "Sol Ring",
+   "Command Tower",
+   "Arcane Signet",
+   "Exotic Orchard",
+   "Reliquary Tower"
+  ]
+ },
+ "alla_cmd": {
+  "q": "f:commander game:paper -is:funny",
+  "total": 32115,
+  "fel": null,
+  "topp": [
+   "Sol Ring",
+   "Command Tower",
+   "Arcane Signet",
+   "Exotic Orchard",
+   "Reliquary Tower"
+  ]
+ },
+ "korpus": {
+  "q": "(fo:library or keyword:mill or keyword:scry or keyword:surveil or keyword:explore or keyword:cascade or keyword:discover or keyword:manifest or keyword:\"manifest dread\" or keyword:cloak or keyword:fateseal or keyword:clash or keyword:dredge or keyword:hideaway or keyword:ripple or keyword:miracle or keyword:transmute or keyword:typecycling or keyword:landcycling) game:paper -is:funny",
+  "total": 4381,
+  "fel": null,
+  "topp": [
+   "Path of Ancestry",
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek"
+  ]
+ },
+ "o_library": {
+  "q": "o:library game:paper -is:funny",
+  "total": 2802,
+  "fel": null,
+  "topp": [
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek",
+   "Nature's Lore"
+  ]
+ },
+ "fo_library": {
+  "q": "fo:library game:paper -is:funny",
+  "total": 3658,
+  "fel": null,
+  "topp": [
+   "Path of Ancestry",
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek"
+  ]
+ },
+ "draw": {
+  "q": "(o:\"draw a card\" or o:/draws? \\w+ cards/ or o:\"draw cards\") game:paper -is:funny",
+  "total": 3304,
+  "fel": null,
+  "topp": [
+   "Mind Stone",
+   "Solemn Simulacrum",
+   "Skullclamp",
+   "Rhystic Study",
+   "Commander's Sphere"
+  ]
+ },
+ "titta_n": {
+  "q": "(o:/looks? at the top \\w+ cards/ or o:/looks? at [^.]{0,40}cards? from the top of/) game:paper -is:funny",
+  "total": 408,
+  "fel": null,
+  "topp": [
+   "Ponder",
+   "Sensei's Divining Top",
+   "Thassa's Oracle",
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Dig Through Time"
+  ]
+ },
+ "titta_1": {
+  "q": "o:/looks? at the top card of/ -o:\"any time\" game:paper -is:funny",
+  "total": 86,
+  "fel": null,
+  "topp": [
+   "Herald's Horn",
+   "Mishra's Bauble",
+   "Risen Reef",
+   "Explorer's Scope",
+   "Rev, Tithe Extractor"
+  ]
+ },
+ "titta_rest_botten": {
+  "q": "o:/looks? at the top/ o:/(rest|other|others|remaining cards?) [^.]{0,30}bottom/ game:paper -is:funny",
+  "total": 271,
+  "fel": null,
+  "topp": [
+   "Thassa's Oracle",
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Dig Through Time",
+   "Loot, Exuberant Explorer",
+   "Narset, Parter of Veils"
+  ]
+ },
+ "titta_hand": {
+  "q": "o:/looks? at the top/ o:/(put|reveal) [^.]*into your hand/ game:paper -is:funny",
+  "total": 293,
+  "fel": null,
+  "topp": [
+   "Herald's Horn",
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Dig Through Time",
+   "Expressive Iteration",
+   "Narset, Parter of Veils"
+  ]
+ },
+ "ordna": {
+  "q": "o:/in any order/ o:/librar(y|ies)/ game:paper -is:funny",
+  "total": 172,
+  "fel": null,
+  "topp": [
+   "Brainstorm",
+   "Ponder",
+   "Sensei's Divining Top",
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Dig Through Time"
+  ]
+ },
+ "scry": {
+  "q": "keyword:scry game:paper -is:funny",
+  "total": 430,
+  "fel": null,
+  "topp": [
+   "Path of Ancestry",
+   "Preordain",
+   "Opt",
+   "Viscera Seer",
+   "Temple of Epiphany"
+  ]
+ },
+ "surveil": {
+  "q": "keyword:surveil game:paper -is:funny",
+  "total": 256,
+  "fel": null,
+  "topp": [
+   "Consider",
+   "Undercity Sewers",
+   "Underground Mortuary",
+   "Hedge Maze",
+   "Raucous Theater"
+  ]
+ },
+ "fateseal": {
+  "q": "keyword:fateseal game:paper -is:funny",
+  "total": 2,
+  "fel": null,
+  "topp": [
+   "Mesmeric Sliver",
+   "Spin into Myth"
+  ]
+ },
+ "clash": {
+  "q": "keyword:clash game:paper -is:funny",
+  "total": 29,
+  "fel": null,
+  "topp": [
+   "Marvo, Deep Operative",
+   "Hoarder's Greed",
+   "Research the Deep",
+   "Revive the Fallen",
+   "Broken Ambitions"
+  ]
+ },
+ "avsloja_n": {
+  "q": "(o:/reveals? the top \\w+ (\\w+ )?cards/ or o:/reveals? [^.]{0,40}cards? from the top of/) -o:until game:paper -is:funny",
+  "total": 103,
+  "fel": null,
+  "topp": [
+   "Fact or Fiction",
+   "Genesis Wave",
+   "Grisly Salvage",
+   "Shigeki, Jukai Visionary",
+   "Satyr Wayfinder"
+  ]
+ },
+ "avsloja_1": {
+  "q": "o:/reveals? the top card of/ game:paper -is:funny",
+  "total": 108,
+  "fel": null,
+  "topp": [
+   "Chaos Warp",
+   "Twilight Prophet",
+   "Dark Confidant",
+   "Ad Nauseam",
+   "Coiling Oracle"
+  ]
+ },
+ "tills_text": {
+  "q": "o:/(reveal|exile|mill|put)s? cards from the top of [^.]{0,40}until/ game:paper -is:funny",
+  "total": 155,
+  "fel": null,
+  "topp": [
+   "Tibalt's Trickery",
+   "Etali, Primal Conqueror // Etali, Primal Sickness",
+   "Demonic Consultation",
+   "Consuming Aberration",
+   "Open the Way"
+  ]
+ },
+ "tills_alla": {
+  "q": "(o:/(reveal|exile|mill|put)s? cards from the top of [^.]{0,40}until/ or keyword:cascade or keyword:discover or keyword:ripple) game:paper -is:funny",
+  "total": 228,
+  "fel": null,
+  "topp": [
+   "Tibalt's Trickery",
+   "Chimil, the Inner Sun",
+   "Etali, Primal Conqueror // Etali, Primal Sickness",
+   "Demonic Consultation",
+   "Apex Devastator"
+  ]
+ },
+ "cascade": {
+  "q": "keyword:cascade game:paper -is:funny",
+  "total": 37,
+  "fel": null,
+  "topp": [
+   "Apex Devastator",
+   "Maelstrom Wanderer",
+   "Call Forth the Tempest",
+   "Imoti, Celebrant of Bounty",
+   "Annoyed Altisaur"
+  ]
+ },
+ "discover": {
+  "q": "keyword:discover game:paper -is:funny",
+  "total": 31,
+  "fel": null,
+  "topp": [
+   "Chimil, the Inner Sun",
+   "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
+   "Trumpeting Carnosaur",
+   "Hit the Mother Lode",
+   "Monstrous Vortex"
+  ]
+ },
+ "ripple": {
+  "q": "keyword:ripple game:paper -is:funny",
+  "total": 5,
+  "fel": null,
+  "topp": [
+   "Surging Dementia",
+   "Surging Flame",
+   "Surging Aether",
+   "Surging Sentinels",
+   "Surging Might"
+  ]
+ },
+ "mill": {
+  "q": "keyword:mill game:paper -is:funny",
+  "total": 586,
+  "fel": null,
+  "topp": [
+   "Takenuma, Abandoned Mire",
+   "Syr Konrad, the Grim",
+   "Ripples of Undeath",
+   "Six",
+   "Tibalt's Trickery"
+  ]
+ },
+ "mill_annan": {
+  "q": "o:/(target|each|that|defending|chosen) (player|opponent)s? ([^.]{0,30} )?mills?\\b|\\b(opponents?|players?) mills?\\b/ game:paper -is:funny",
+  "total": 256,
+  "fel": null,
+  "topp": [
+   "Syr Konrad, the Grim",
+   "Altar of Dementia",
+   "Brain Freeze",
+   "Breach the Multiverse",
+   "Mindcrank"
+  ]
+ },
+ "mill_halva": {
+  "q": "o:/mills? half|top half of/ game:paper -is:funny",
+  "total": 10,
+  "fel": null,
+  "topp": [
+   "Ulamog, the Defiler",
+   "Maddening Cacophony",
+   "Jidoor, Aristocratic Capital // Overture",
+   "Singularity Rupture",
+   "Traumatize"
+  ]
+ },
+ "exil_topp": {
+  "q": "(o:/exiles? the top (card|\\w+ cards?) of/ or o:/exiles? [^.]*cards? [^.]*from the top of/) game:paper -is:funny",
+  "total": 414,
+  "fel": null,
+  "topp": [
+   "Jeska's Will",
+   "Professional Face-Breaker",
+   "Etali, Primal Storm",
+   "Ragavan, Nimble Pilferer",
+   "Mystic Forge"
+  ]
+ },
+ "impuls": {
+  "q": "(o:/exiles? the top/ or o:/exiles? [^.]*cards? [^.]*from the top of/) (o:\"you may play\" or o:\"you may cast\") game:paper -is:funny",
+  "total": 315,
+  "fel": null,
+  "topp": [
+   "Jeska's Will",
+   "Professional Face-Breaker",
+   "Etali, Primal Storm",
+   "Ragavan, Nimble Pilferer",
+   "Mystic Forge"
+  ]
+ },
+ "exil_nedvand": {
+  "q": "o:/exiles? (the top|[^.]*from the top)[^.]*face down/ game:paper -is:funny",
+  "total": 27,
+  "fel": null,
+  "topp": [
+   "Necropotence",
+   "Ugin, the Ineffable",
+   "Decadent Dragon // Expensive Taste",
+   "Outrageous Robbery",
+   "Rogue Class"
+  ]
+ },
+ "hideaway": {
+  "q": "keyword:hideaway game:paper -is:funny",
+  "total": 15,
+  "fel": null,
+  "topp": [
+   "Mosswort Bridge",
+   "Windbrisk Heights",
+   "Spinerock Knoll",
+   "Cemetery Tampering",
+   "Rabble Rousing"
+  ]
+ },
+ "titta_alltid": {
+  "q": "o:/look at the top card of (your|their) library (at )?any time/ game:paper -is:funny",
+  "total": 51,
+  "fel": null,
+  "topp": [
+   "Bolas's Citadel",
+   "Mystic Forge",
+   "Realmwalker",
+   "The Reality Chip",
+   "Augur of Autumn"
+  ]
+ },
+ "avslojt_topp": {
+  "q": "o:/play with the top cards? of [^.]{0,20}librar(y|ies) revealed/ game:paper -is:funny",
+  "total": 17,
+  "fel": null,
+  "topp": [
+   "Oracle of Mul Daya",
+   "Courser of Kruphix",
+   "Conspicuous Snoop",
+   "Lantern of Insight",
+   "Future Sight"
+  ]
+ },
+ "spela_topp": {
+  "q": "o:/(play|cast) [^.]*from the top of (your|their|each)[^.]*librar/ game:paper -is:funny",
+  "total": 59,
+  "fel": null,
+  "topp": [
+   "Bolas's Citadel",
+   "Mystic Forge",
+   "Oracle of Mul Daya",
+   "Realmwalker",
+   "The Reality Chip"
+  ]
+ },
+ "sok": {
+  "q": "o:/\\bsearch(es)? [^.]*librar(y|ies)/ game:paper -is:funny",
+  "total": 996,
+  "fel": null,
+  "topp": [
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek",
+   "Nature's Lore"
+  ]
+ },
+ "sok_fo": {
+  "q": "fo:/\\bsearch(es)? [^.]*librar(y|ies)/ game:paper -is:funny",
+  "total": 1128,
+  "fel": null,
+  "topp": [
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek",
+   "Nature's Lore"
+  ]
+ },
+ "sok_land": {
+  "q": "o:/search(es)? [^.]*librar(y|ies) for [^.]*(land|plains|island|swamp|mountain|forest)/ game:paper -is:funny",
+  "total": 450,
+  "fel": null,
+  "topp": [
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek",
+   "Nature's Lore"
+  ]
+ },
+ "sok_hand": {
+  "q": "o:/search your library for [^.]*(it|that card|them|those cards) into your hand/ game:paper -is:funny",
+  "total": 305,
+  "fel": null,
+  "topp": [
+   "Demonic Tutor",
+   "Gamble",
+   "Inventors' Fair",
+   "Diabolic Intent",
+   "Land Tax"
+  ]
+ },
+ "sok_bf": {
+  "q": "o:/search your library for [^.]*onto the battlefield/ game:paper -is:funny",
+  "total": 367,
+  "fel": null,
+  "topp": [
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek",
+   "Nature's Lore",
+   "Rampant Growth"
+  ]
+ },
+ "sok_topp": {
+  "q": "o:/search your library for [^.]*on top/ game:paper -is:funny",
+  "total": 45,
+  "fel": null,
+  "topp": [
+   "Vampiric Tutor",
+   "Enlightened Tutor",
+   "Mystical Tutor",
+   "Worldly Tutor",
+   "Imperial Seal"
+  ]
+ },
+ "sok_annan": {
+  "q": "o:/search (target (player|opponent)'s|an opponent's|each opponent's|that player's|its owner's|target player's) [^.]{0,30}librar/ game:paper -is:funny",
+  "total": 49,
+  "fel": null,
+  "topp": [
+   "Praetor's Grasp",
+   "Bribery",
+   "Inevitable Betrayal",
+   "Thada Adel, Acquisitor",
+   "The Rise of Sozin // Fire Lord Sozin"
+  ]
+ },
+ "fetchland": {
+  "q": "t:land o:/search your library for/ game:paper -is:funny",
+  "total": 64,
+  "fel": null,
+  "topp": [
+   "Evolving Wilds",
+   "Terramorphic Expanse",
+   "Myriad Landscape",
+   "Polluted Delta",
+   "Flooded Strand"
+  ]
+ },
+ "blanda": {
+  "q": "o:/\\bshuffles?\\b/ game:paper -is:funny",
+  "total": 1209,
+  "fel": null,
+  "topp": [
+   "Path to Exile",
+   "Evolving Wilds",
+   "Cultivate",
+   "Farseek",
+   "Nature's Lore"
+  ]
+ },
+ "blanda_utan_sok": {
+  "q": "o:/\\bshuffles?\\b/ -o:search game:paper -is:funny",
+  "total": 224,
+  "fel": null,
+  "topp": [
+   "Chaos Warp",
+   "Ponder",
+   "Midnight Clock",
+   "Urza, Lord High Artificer",
+   "Blightsteel Colossus"
+  ]
+ },
+ "blanda_in": {
+  "q": "o:/shuffles? [^.]*into (your|their|its owner's|its owners'|his or her|each player's|a) librar/ game:paper -is:funny",
+  "total": 167,
+  "fel": null,
+  "topp": [
+   "Chaos Warp",
+   "Green Sun's Zenith",
+   "Midnight Clock",
+   "Blightsteel Colossus",
+   "Kozilek, Butcher of Truth"
+  ]
+ },
+ "blanda_gy": {
+  "q": "o:/shuffles? [^.]*graveyards? into/ game:paper -is:funny",
+  "total": 68,
+  "fel": null,
+  "topp": [
+   "Midnight Clock",
+   "Kozilek, Butcher of Truth",
+   "Finale of Revelation",
+   "Ulamog, the Infinite Gyre",
+   "Elixir of Immortality"
+  ]
+ },
+ "blanda_hand": {
+  "q": "o:/shuffles? [^.]*hands?[^.]* into [^.]*librar/ game:paper -is:funny",
+  "total": 31,
+  "fel": null,
+  "topp": [
+   "Midnight Clock",
+   "Winds of Change",
+   "Echo of Eons",
+   "Commit // Memory",
+   "Jace, the Mind Sculptor"
+  ]
+ },
+ "topp_fran_zon": {
+  "q": "o:/on top of (your|their|its owner's|his or her|that player's) (owner's )?librar/ game:paper -is:funny",
+  "total": 188,
+  "fel": null,
+  "topp": [
+   "Brainstorm",
+   "Mystic Sanctuary",
+   "Sensei's Divining Top",
+   "Sylvan Library",
+   "Hall of Heliod's Generosity"
+  ]
+ },
+ "topp_fran_hand": {
+  "q": "o:/from (your|their) hand on top of/ game:paper -is:funny",
+  "total": 25,
+  "fel": null,
+  "topp": [
+   "Brainstorm",
+   "Brainsurge",
+   "Jace, the Mind Sculptor",
+   "Enter the Infinite",
+   "Aminatou, the Fateshifter"
+  ]
+ },
+ "topp_tuck": {
+  "q": "o:/on top of (its|their) owner'?s'? librar/ game:paper -is:funny",
+  "total": 74,
+  "fel": null,
+  "topp": [
+   "Sensei's Divining Top",
+   "Noxious Revival",
+   "Memory Lapse",
+   "Submerge",
+   "Primal Command"
+  ]
+ },
+ "botten": {
+  "q": "o:/bottom of [^.]{0,30}librar(y|ies)/ game:paper -is:funny",
+  "total": 556,
+  "fel": null,
+  "topp": [
+   "Thassa's Oracle",
+   "Valakut Awakening // Valakut Stoneforge",
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Tibalt's Trickery",
+   "Dig Through Time"
+  ]
+ },
+ "botten_tuck": {
+  "q": "o:/on the bottom of (its|their) owner'?s'? librar/ game:paper -is:funny",
+  "total": 55,
+  "fel": null,
+  "topp": [
+   "Murderous Rider // Swift End",
+   "Condemn",
+   "Terminus",
+   "Bant Charm",
+   "Timestream Navigator"
+  ]
+ },
+ "botten_slump": {
+  "q": "o:/random order/ o:/bottom/ game:paper -is:funny",
+  "total": 295,
+  "fel": null,
+  "topp": [
+   "Thassa's Oracle",
+   "Tibalt's Trickery",
+   "Loot, Exuberant Explorer",
+   "Narset, Parter of Veils",
+   "Wandering Archaic // Explore the Vastlands"
+  ]
+ },
+ "botten_kort": {
+  "q": "o:/bottom card of/ game:paper -is:funny",
+  "total": 6,
+  "fel": null,
+  "topp": [
+   "Arvinox, the Mind Flail",
+   "Nicol Bolas, the Ravager // Nicol Bolas, the Arisen",
+   "Grenzo, Dungeon Warden",
+   "Phyrexian Furnace",
+   "Cellar Door"
+  ]
+ },
+ "nte": {
+  "q": "o:/(second|third|fourth|fifth|sixth|seventh) from the top|beneath the top/ game:paper -is:funny",
+  "total": 33,
+  "fel": null,
+  "topp": [
+   "Approach of the Second Sun",
+   "God-Eternal Oketra",
+   "Ilharg, the Raze-Boar",
+   "Commit // Memory",
+   "God-Eternal Bontu"
+  ]
+ },
+ "manifest": {
+  "q": "(keyword:manifest or keyword:\"manifest dread\" or keyword:cloak) game:paper -is:funny",
+  "total": 68,
+  "fel": null,
+  "topp": [
+   "Reality Shift",
+   "Kozilek, the Broken Reality",
+   "Orochi Soul-Reaver",
+   "Scroll of Fate",
+   "Ugin's Mastery"
+  ]
+ },
+ "explore": {
+  "q": "keyword:explore game:paper -is:funny",
+  "total": 54,
+  "fel": null,
+  "topp": [
+   "Get Lost",
+   "Worldwalker Helm",
+   "Path of Discovery",
+   "Hakbal of the Surging Soul",
+   "Amalia Benavides Aguirre"
+  ]
+ },
+ "dredge": {
+  "q": "keyword:dredge game:paper -is:funny",
+  "total": 14,
+  "fel": null,
+  "topp": [
+   "Life from the Loam",
+   "Dakmor Salvage",
+   "Golgari Grave-Troll",
+   "Stinkweed Imp",
+   "Golgari Thug"
+  ]
+ },
+ "miracle": {
+  "q": "keyword:miracle game:paper -is:funny",
+  "total": 17,
+  "fel": null,
+  "topp": [
+   "Reforge the Soul",
+   "Temporal Mastery",
+   "Metamorphosis Fanatic",
+   "Redress Fate",
+   "Devastation Tide"
+  ]
+ },
+ "transmute_cycling": {
+  "q": "(keyword:transmute or keyword:typecycling or keyword:landcycling or keyword:\"basic landcycling\" or keyword:plainscycling or keyword:islandcycling or keyword:swampcycling or keyword:mountaincycling or keyword:forestcycling or keyword:wizardcycling or keyword:slivercycling) game:paper -is:funny",
+  "total": 113,
+  "fel": null,
+  "topp": [
+   "Ash Barrens",
+   "Muddle the Mixture",
+   "Angel of the Ruins",
+   "Lórien Revealed",
+   "Step Through"
+  ]
+ },
+ "titta_annan": {
+  "q": "o:/look at the top [^.]{0,30}of (target|each|an|that) (player|opponent)'s librar/ game:paper -is:funny",
+  "total": 41,
+  "fel": null,
+  "topp": [
+   "Mishra's Bauble",
+   "Gonti, Lord of Luxury",
+   "Rev, Tithe Extractor",
+   "Thief of Sanity",
+   "Jace, the Mind Sculptor"
+  ]
+ },
+ "spela_annans": {
+  "q": "o:/(exile|look at|reveal)s? the top [^.]{0,40}of (target|each|an|that) (player|opponent)'s librar(y|ies)/ (o:\"you may cast\" or o:\"you may play\") game:paper -is:funny",
+  "total": 40,
+  "fel": null,
+  "topp": [
+   "Etali, Primal Storm",
+   "Ragavan, Nimble Pilferer",
+   "Grenzo, Havoc Raiser",
+   "Gix, Yawgmoth Praetor",
+   "Nashi, Moon Sage's Scion"
+  ]
+ },
+ "lekstorlek": {
+  "q": "o:/cards in (your|their|target player's|that player's|each player's) librar|no cards in (your|their) library|library has no cards|number of cards in [^.]{0,20}librar/ game:paper -is:funny",
+  "total": 17,
+  "fel": null,
+  "topp": [
+   "Thassa's Oracle",
+   "Laboratory Maniac",
+   "Jace, Wielder of Mysteries",
+   "Peer into the Abyss",
+   "Out of the Tombs"
+  ]
+ },
+ "vinst_tom": {
+  "q": "o:/no cards in (your|their) library|library has no cards|cards in your library/ o:/(win|lose)s? the game/ game:paper -is:funny",
+  "total": 7,
+  "fel": null,
+  "topp": [
+   "Thassa's Oracle",
+   "Laboratory Maniac",
+   "Jace, Wielder of Mysteries",
+   "Out of the Tombs",
+   "Doctor Doom, Unrivaled"
+  ]
+ },
+ "slump": {
+  "q": "o:/at random from [^.]*librar|random card (from|in) [^.]*librar/ game:paper -is:funny",
+  "total": 0,
+  "fel": "Your query didn’t match any cards. Adjust your search terms or refer to the syntax guide at https://scryfall.com/docs/reference",
+  "topp": []
+ },
+ "partner_with": {
+  "q": "keyword:\"partner with\" game:paper -is:funny",
+  "total": 52,
+  "fel": null,
+  "topp": [
+   "Alisaie Leveilleur",
+   "Alphinaud Leveilleur",
+   "Pippin, Warden of Isengard",
+   "Brallin, Skyshark Rider",
+   "Frodo, Adventurous Hobbit"
+  ]
+ },
+ "exil_topp_annan": {
+  "q": "o:/exiles? the top [^.]*of (target|each|that|an) (player|opponent)'s librar/ game:paper -is:funny",
+  "total": 41,
+  "fel": null,
+  "topp": [
+   "Etali, Primal Storm",
+   "Ragavan, Nimble Pilferer",
+   "Grenzo, Havoc Raiser",
+   "Gix, Yawgmoth Praetor",
+   "Nashi, Moon Sage's Scion"
+  ]
+ },
+ "topp_till_bf": {
+  "q": "o:/put the top (card|\\w+ cards?) of [^.]*librar(y|ies) onto the battlefield/ game:paper -is:funny",
+  "total": 1,
+  "fel": null,
+  "topp": [
+   "Cybership"
+  ]
+ },
+ "topp_fran_gy": {
+  "q": "o:/from (your|a|their) graveyard on top of/ game:paper -is:funny",
+  "total": 46,
+  "fel": null,
+  "topp": [
+   "Mystic Sanctuary",
+   "Hall of Heliod's Generosity",
+   "Academy Ruins",
+   "Noxious Revival",
+   "Mortuary Mire"
+  ]
+ },
+ "fran_lek": {
+  "q": "o:/(graveyard|exile) from (your|a|their) librar|from your library and\\/or/ game:paper -is:funny",
+  "total": 15,
+  "fel": null,
+  "topp": [
+   "Hedge Shredder",
+   "Laelia, the Blade Reforged",
+   "Colossal Grave-Reaver",
+   "Sidisi, Brood Tyrant",
+   "Gaea's Blessing"
+  ]
+ },
+ "dragna": {
+  "q": "o:\"drawn this turn\" game:paper -is:funny",
+  "total": 17,
+  "fel": null,
+  "topp": [
+   "Sylvan Library",
+   "Proft's Eidetic Memory",
+   "Fists of Flame",
+   "Heliod, the Radiant Dawn // Heliod, the Warped Eclipse",
+   "Molten Psyche"
+  ]
+ },
+ "blanda_perm": {
+  "q": "o:/shuffles? (target|it|that|each|all|them|those|this|up to)[^.]*into (its|their|your) (owner'?s'? )?librar/ game:paper -is:funny",
+  "total": 80,
+  "fel": null,
+  "topp": [
+   "Chaos Warp",
+   "Blightsteel Colossus",
+   "Vigor",
+   "Elixir of Immortality",
+   "Nexus of Fate"
+  ]
+ },
+ "titta_reveal": {
+  "q": "o:/looks? at the top/ o:/you may reveal/ game:paper -is:funny",
+  "total": 181,
+  "fel": null,
+  "topp": [
+   "Herald's Horn",
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Loot, Exuberant Explorer",
+   "Narset, Parter of Veils",
+   "Monumental Henge"
+  ]
+ },
+ "sok_reveal": {
+  "q": "o:/search[^.]*librar[^.]*reveal/ game:paper -is:funny",
+  "total": 391,
+  "fel": null,
+  "topp": [
+   "Cultivate",
+   "Kodama's Reach",
+   "Enlightened Tutor",
+   "Mystical Tutor",
+   "Worldly Tutor"
+  ]
+ },
+ "sok_gy": {
+  "q": "o:/search your library for [^.]*into your graveyard/ game:paper -is:funny",
+  "total": 17,
+  "fel": null,
+  "topp": [
+   "Entomb",
+   "Buried Alive",
+   "Goblin Engineer",
+   "Unmarked Grave",
+   "Lively Dirge"
+  ]
+ },
+ "impuls_lang": {
+  "q": "(o:/exiles? the top/ or o:/exiles? [^.]*cards? [^.]*from the top of/) o:/(until the end of your next turn|as long as)/ (o:\"you may play\" or o:\"you may cast\") game:paper -is:funny",
+  "total": 98,
+  "fel": null,
+  "topp": [
+   "Light Up the Stage",
+   "Atsushi, the Blazing Sky",
+   "Valakut Exploration",
+   "Reckless Impulse",
+   "Wrenn's Resolve"
+  ]
+ },
+ "titta_nedvand": {
+  "q": "o:/looks? at the top/ o:\"face down\" game:paper -is:funny",
+  "total": 22,
+  "fel": null,
+  "topp": [
+   "Gonti, Lord of Luxury",
+   "Rev, Tithe Extractor",
+   "Gonti, Night Minister",
+   "Thief of Sanity",
+   "Vivien, Champion of the Wilds"
+  ]
+ },
+ "sok_annan_namn": {
+  "q": "o:/search [^.]*graveyard, hand, and library/ game:paper -is:funny",
+  "total": 34,
+  "fel": null,
+  "topp": [
+   "The Rise of Sozin // Fire Lord Sozin",
+   "Kassandra, Eagle Bearer",
+   "Deadly Cover-Up",
+   "Surgical Extraction",
+   "Shaun & Rebecca, Agents"
+  ]
+ },
+ "mill_egen": {
+  "q": "keyword:mill -o:/(player|opponent)s? mills?/ game:paper -is:funny",
+  "total": 343,
+  "fel": null,
+  "topp": [
+   "Takenuma, Abandoned Mire",
+   "Ripples of Undeath",
+   "Six",
+   "Tibalt's Trickery",
+   "Emry, Lurker of the Loch"
+  ]
+ },
+ "titta_slump": {
+  "q": "o:/looks? at the top/ o:\"random order\" game:paper -is:funny",
+  "total": 188,
+  "fel": null,
+  "topp": [
+   "Thassa's Oracle",
+   "Loot, Exuberant Explorer",
+   "Narset, Parter of Veils",
+   "Wandering Archaic // Explore the Vastlands",
+   "Kinnan, Bonder Prodigy"
+  ]
+ },
+ "botten_valfri": {
+  "q": "o:/bottom of [^.]*librar(y|ies) in any order/ game:paper -is:funny",
+  "total": 112,
+  "fel": null,
+  "topp": [
+   "Growing Rites of Itlimoc // Itlimoc, Cradle of the Sun",
+   "Dig Through Time",
+   "Stock Up",
+   "Experimental Augury",
+   "Abundance"
+  ]
+ },
+ "avsloja_pilar": {
+  "q": "o:/separate[^.]*piles/ o:/top/ game:paper -is:funny",
+  "total": 11,
+  "fel": null,
+  "topp": [
+   "Fact or Fiction",
+   "Jace, Architect of Thought",
+   "Sphinx of Uthuun",
+   "Unesh, Criosphinx Sovereign",
+   "Epiphany at the Drownyard"
+  ]
+ }
+}
