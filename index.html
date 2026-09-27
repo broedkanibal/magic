@@ -14063,8 +14063,13 @@ async function telfotoLas(kalla, o = {}) {
   telfoto.omtag = null;
   telfoto.sista = f; telfoto.visar = f.fid;
   telfoto.vantar = { kalla, fid: f.fid };
-  if (!aiEnabled()) { await telfotoProvaAI(); if (!aiEnabled()) { telfotoLage(f, 'av'); return; } }
+  /* Låst redan under frågan till servern: ett andra tryck på slutaren eller
+     Try again medan den pågår ska inte läsa samma foto två gånger. */
   telfoto.laser = true;
+  if (!aiEnabled()) {
+    await telfotoProvaAI();
+    if (!aiEnabled()) { telfoto.laser = false; telfotoLage(f, 'av'); return; }
+  }
   f.lage = 'laser';
   telfoto.foto = telfotoNasta();
   telfotoSteg('laser');

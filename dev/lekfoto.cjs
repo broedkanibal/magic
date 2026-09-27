@@ -59,7 +59,7 @@ function laddaSrc(src, namn = 'index.html') {
 const MANA_ORD = ['W', 'U', 'B', 'R', 'G', 'C'];
 const lekKortData = () => null;
 const telfoto = ctx.telfoto;
-const aiEnabled = () => ctx.ai !== false;
+const aiEnabled = () => typeof ctx.ai === 'function' ? ctx.ai() : ctx.ai !== false;
 const AI_ENDPOINT = '/api/identify';
 const fetch = (...a) => ctx.fetch(...a);
 const bokforDatorAi = () => {};
@@ -531,6 +531,17 @@ async function sidaMProv(fil) {
     assert.deepEqual([x.ctx.fall.a, x.ctx.fall.anrop], ['av', 0]);
     assert.equal(x.lista.length, 1); assert.equal(x.lista[0].lage, 'klar');
     assert.equal(x.ctx.anrop, 1); assert.equal(x.ctx.server.skrivna, 1); assert.equal(x.l.totalt, 3);
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.svar.push(TRE, TRE);
+    /* AI help svarar först efter en fråga till servern (telfotoProvaAI): det
+       andra trycket kommer medan den frågan pågår. */
+    let n = 0; ctx.ai = () => ++n > 1;
+    await Promise.all([app.telfotoLas(KALLA), app.telfotoLas(KALLA)]);     // två tryck på slutaren
+  });
+  prov('två tryck på slutaren medan AI help frågas: ett foto, ett anrop, korten en gång', () => {
+    inga(x);
+    assert.deepEqual([x.lista.length, x.ctx.anrop, x.ctx.server.skrivna, x.l.totalt], [1, 1, 1, 3]);
   });
   x = await kor(async (app, ctx) => { ctx.server.borta = true; await foto(app, ctx, TRE); });
   prov('LD3 leken borttagen: fotot sparas inte och väntar inte', () => {
