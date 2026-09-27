@@ -218,7 +218,9 @@ async function kontrolleraInnanStart(issueId) {
     { team: issue.team.id }
   );
   const pagaende = pag.issues.nodes
-    .filter(i => i.identifier !== issue.identifier && i.state.name.toLowerCase() !== 'blocked')
+    /* Bara In Progress: Blocked och Redo att testas är "started" i Linear men
+       ingen session bygger i dem. */
+    .filter(i => i.identifier !== issue.identifier && i.state.name === 'In Progress')
     .map(i => ({ identifier: i.identifier, title: i.title, beskrivning: (i.description || '').slice(0, 400) }));
   return { issue: issue.identifier, blockerare, pagaende };
 }

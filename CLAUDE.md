@@ -209,6 +209,12 @@ schemalagd körning om en sådan sätts upp.
    Behöver dig (`markeraBehoverJesper`), och nästa i kön.
 4. En issue per session, om inte en orkestrerande session delar ut flera.
 
+Skillen **`/nästa`** (`.claude/skills/nasta/`) gör hela vägen: underlaget
+(`node dev/nasta.cjs` + `ListAgents`), valet, `paborjaIssue`, bygget i en
+egen worktree, fristående granskning, och rätt kolumn efteråt. Den och en
+orkestrerare kan köra samtidigt: In Progress är låset, och kör en
+orkestrerare slår `/nästa` inte ihop själv utan lämnar grenen till den.
+
 ### Innan en issue plockas upp ur Todo
 
 Dubbelkolla två saker **innan** `paborjaIssue` körs:
