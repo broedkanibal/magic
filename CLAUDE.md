@@ -173,15 +173,21 @@ skriver i Linear själva.
 
 | Besked | Vad som händer |
 |---|---|
-| Ja | Todo, med projekt, milstolpe och prioritet — eller Provas om den behöver honom |
+| Ja | Todo, med projekt, milstolpe och prioritet — eller **Behöver dig** om den behöver honom innan någon kan börja |
 | Kanske | Backlog, utan projekt |
 | Nej | Canceled |
 
-**Todo innehåller bara det en agent kan göra utan Jesper.** Behöver en issue
-honom innan arbetet kan börja — ett designval, ett prov på telefonen, ett
-konto — hör den till Provas med etiketten Needs Jesper, inte till Todo. En
-design-issue där agenten först gör designytan är Todo; den flyttas till
-Provas när ytan finns.
+**Todo innehåller bara det en agent kan göra utan Jesper.** Jesper har två
+kolumner, en före och en efter arbetet:
+
+| Kolumn | Före eller efter | Innehåller |
+|---|---|---|
+| **Behöver dig** | före | issues som inte kan börja utan honom: ett beslut, fler detaljer, ett designval, ett konto, en inspelning han ska göra |
+| **Redo att testas** | efter | bara det som **är byggt** och väntar på hans prov — på riktig telefon, i ett riktigt spel. Inget ska dit utan kod |
+
+En design-issue där agenten först gör designytan är Todo; när ytan finns och
+valet är hans flyttas den till Behöver dig. När han valt: tillbaka till Todo
+för bygget.
 
 ### Vilken issue en agent plockar, och vem som startar den
 
@@ -198,7 +204,7 @@ schemalagd körning om en sådan sätts upp.
    prioritet den manuella ordningen i kolumnen.
 3. Kör kollen i nästa avsnitt. Blockad → Blocked. Krock → nästa i kön, och
    säg vilken som hoppades över. Visar det sig att den behöver Jesper →
-   Provas + Needs Jesper, och nästa i kön.
+   Behöver dig (`markeraBehoverJesper`), och nästa i kön.
 4. En issue per session, om inte en orkestrerande session delar ut flera.
 
 ### Innan en issue plockas upp ur Todo
@@ -229,17 +235,22 @@ Todo.
 Blockeringen släpper när blockeraren är klar: flytta då tillbaka issuen till
 Todo innan den plockas upp, och gör kollen igen.
 
-### Behöver issuen Jesper: etiketten "Needs Jesper"
+### Behöver issuen Jesper: "Behöver dig" eller "Redo att testas"
 
-Kan en issue inte gå vidare utan något bara Jesper kan göra — ett prov på
-telefonen, en inspelning, ett designval, ett konto — kör
-`agent.markeraBehoverJesper(issueId, varfor)`. Den lägger etiketten
-**Needs Jesper** och en kommentar som säger konkret vad som behövs. Sedan
-stannar arbetet på den issuen; gå vidare med något annat. När Jesper gjort
-sitt: `agent.slappBehoverJesper(issueId)` innan arbetet tas upp igen.
+Kan en issue inte gå vidare utan något bara Jesper kan göra **innan** mer
+byggs — ett designval, fler detaljer, ett konto, en inspelning — kör
+`agent.markeraBehoverJesper(issueId, varfor)`. Den flyttar issuen till
+**Behöver dig** och kommenterar konkret vad som behövs. Sedan stannar arbetet
+på den issuen; gå vidare med något annat. När Jesper gjort sitt:
+`agent.slappBehoverJesper(issueId)` flyttar den tillbaka till Todo.
 
-Etiketten är hur Jesper ser i Linear var han är flaskhalsen, utan att läsa
-chatten. Lägg den aldrig på för ett beslut du kan ta själv enligt
+Är det **byggt** och det som återstår är Jespers prov, kör
+`agent.markeraRedoAttTesta(issueId, vad)`. Den flyttar issuen till **Redo att
+testas** och kommenterar exakt vad han ska prova och hur.
+
+Kolumnerna är hur Jesper ser i Linear var han är flaskhalsen, utan att läsa
+chatten. (Etiketten *Needs Jesper* pensionerades 2026-09-27; kolumnerna gör
+dess jobb.) Flytta aldrig dit för ett beslut du kan ta själv enligt
 reglerna här.
 
 ### Agenterna i `.claude/agents/`
@@ -276,7 +287,7 @@ etikett: fråga hellre än att skapa en ny.
 | Situation | Status |
 |---|---|
 | Jesper säger i chatten att något ska göras, och en agent kan göra det | **Todo** |
-| Jesper säger i chatten att något ska göras, men det behöver honom först | **Provas** + Needs Jesper |
+| Jesper säger i chatten att något ska göras, men det behöver honom först | **Behöver dig** |
 | Claude Code påbörjar arbetet direkt, på Jespers begäran | **In Progress** (`paborjaIssue`) |
 | Claude Code noterar något på eget initiativ, som ingen bett om | **Triage** — aldrig Backlog |
 
@@ -307,14 +318,15 @@ De andra kolumnerna finns för att In Progress ska slippa betyda dem:
 
 | Kolumn | Betyder | Vem släpper den vidare |
 |---|---|---|
-| **Provas** | **väntar på Jesper** — ett prov på riktig telefon, ett prov i ett riktigt spel, ett designval eller ett konto. Om det finns kod eller inte spelar ingen roll | Jesper |
+| **Behöver dig** | **väntar på Jesper före arbetet** — ett beslut, fler detaljer, ett designval, ett konto | Jesper, som flyttar den till Todo |
+| **Redo att testas** | **byggt, väntar på Jespers prov** — på riktig telefon eller i ett riktigt spel | Jesper, som stänger den eller skickar tillbaka den till Todo med vad som var fel |
 | **Blocked** | väntar på en annan issue; ingen ska plocka upp den | den som stänger blockeraren |
 | **Todo** | i kön, ingen session | vem som helst |
 
 `blockeraIssue(issueId, orsak, { blockeradAv })` flyttar till **Blocked**.
-Är det Jesper som behövs — inte en annan issue — hör den till **Provas**
-plus etiketten `Needs Jesper`. Det gäller också en issue där ingenting är
-byggt än för att designvalet är hans: den ligger i Provas, inte i In
+Är det Jesper som behövs — inte en annan issue — hör den till **Behöver dig**
+(före arbetet) eller **Redo att testas** (byggt). En issue där ingenting är
+byggt än för att designvalet är hans ligger i Behöver dig, inte i In
 Progress. Annars syns han inte som flaskhalsen i sin egen vy, och det är
 hela poängen med kolumnen.
 

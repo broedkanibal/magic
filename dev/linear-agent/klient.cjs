@@ -258,34 +258,28 @@ async function kommentera(issueId, body) {
   return data.commentCreate.comment;
 }
 
-/* "Needs Jesper" (2026-09-20): issuen väntar på något bara Jesper kan göra —
-   ett prov på telefonen, en inspelning, ett beslut. Etiketten läggs på och
-   en kommentar säger konkret vad som behövs; Claude Code går inte vidare
-   med issuen förrän det är gjort. Etiketten skapas om den saknas. */
-const BEHOVER_JESPER = 'Needs Jesper';
-async function markeraBehoverJesper(issueId, varfor) {
-  const info = await graphql(`query($id: String!) { issue(id: $id) { id team { id } labels { nodes { id name } } } }`, { id: issueId });
-  const teamId = info.issue.team.id;
-  let lab = info.issue.labels.nodes.find(l => l.name === BEHOVER_JESPER);
-  if (!lab) {
-    const fanns = await graphql(`query($teamId: String!, $namn: String!) { team(id: $teamId) { labels(filter: { name: { eq: $namn } }) { nodes { id name } } } }`, { teamId, namn: BEHOVER_JESPER });
-    lab = fanns.team.labels.nodes[0];
-    if (!lab) {
-      const d = await graphql(`mutation($input: IssueLabelCreateInput!) { issueLabelCreate(input: $input) { issueLabel { id name } } }`,
-        { input: { name: BEHOVER_JESPER, color: '#e5484d', teamId, description: 'Väntar på Jespers input: ett prov, en inspelning, ett beslut. Claude Code stannar här.' } });
-      lab = d.issueLabelCreate.issueLabel;
-    }
-    await graphql(`mutation($id: String!, $labelId: String!) { issueAddLabel(id: $id, labelId: $labelId) { success } }`, { id: issueId, labelId: lab.id });
-  }
-  await kommentera(issueId, `**Behöver dig, Jesper:** ${varfor}. Claude Code går inte vidare här förrän det är gjort — etiketten *${BEHOVER_JESPER}* tas bort då.`);
-  return lab;
+/* Jespers två kolumner (2026-09-27, ersatte etiketten "Needs Jesper"):
+   "Behöver dig" = väntar på honom innan mer kan byggas (beslut, detaljer,
+   designval, konto); "Redo att testas" = byggt, väntar på hans prov. Båda
+   kommenterar konkret vad som behövs, så att han ser det i Linear utan att
+   läsa chatten. Se CLAUDE.md, "Behöver issuen Jesper". */
+async function flyttaTillStatus(issueId, namn) {
+  const info = await graphql(`query($id: String!) { issue(id: $id) { id team { id } } }`, { id: issueId });
+  const stateId = await hittaState(info.issue.team.id, null, namn);
+  return uppdateraIssue(info.issue.id, { stateId });
 }
-/* Jesper har gjort sitt: etiketten tas bort. */
+async function markeraBehoverJesper(issueId, varfor) {
+  await flyttaTillStatus(issueId, 'Behöver dig');
+  return kommentera(issueId, `**Behöver dig, Jesper:** ${varfor}. Claude Code går inte vidare här förrän det är gjort — issuen flyttas då tillbaka till Todo.`);
+}
+/* Jesper har gjort sitt: tillbaka i kön. */
 async function slappBehoverJesper(issueId) {
-  const info = await graphql(`query($id: String!) { issue(id: $id) { labels { nodes { id name } } } }`, { id: issueId });
-  const lab = info.issue.labels.nodes.find(l => l.name === BEHOVER_JESPER);
-  if (lab) await graphql(`mutation($id: String!, $labelId: String!) { issueRemoveLabel(id: $id, labelId: $labelId) { success } }`, { id: issueId, labelId: lab.id });
-  return !!lab;
+  return flyttaTillStatus(issueId, 'Todo');
+}
+/* Byggt och klart för Jespers prov. vad = exakt vad han ska prova och hur. */
+async function markeraRedoAttTesta(issueId, vad) {
+  await flyttaTillStatus(issueId, 'Redo att testas');
+  return kommentera(issueId, `**Redo att testas:** ${vad}`);
 }
 
 async function arkiveraIssue(issueId) {
@@ -313,6 +307,7 @@ module.exports = {
   kommentera,
   markeraBehoverJesper,
   slappBehoverJesper,
+  markeraRedoAttTesta,
   arkiveraIssue,
   taBortIssue,
 };

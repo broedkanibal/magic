@@ -19,7 +19,7 @@ Du mäter. Du ändrar inte `index.html`, `api/` eller `dev/embed/` — hittar du
 
 Använd `require('/Users/jesperfunk/Code/magic/dev/linear-agent/klient.cjs')` (absolut sökväg). Kör `paborjaIssue` när du börjar. Skriv resultatet som kommentar på issuen: rubriker, tabeller, vad före hur, för en icke-expert. Flytta inte till Done — det gör orkestreraren efter granskning.
 
-Behöver något Jesper (ett prov, en inspelning, ett beslut): lägg etiketten *Needs Jesper* med `markeraBehoverJesper(issueId, varfor)` och stanna.
+Behöver något Jesper före arbetet (en inspelning, ett beslut): `markeraBehoverJesper(issueId, varfor)` flyttar issuen till *Behöver dig*; är det byggt och bara hans prov återstår: `markeraRedoAttTesta(issueId, vad)`. Stanna sedan.
 
 ## Rapporten tillbaka
 

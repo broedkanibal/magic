@@ -30,7 +30,7 @@ Samma regler som i `mesa-matning`: en golden åt gången på datorn (`pgrep -f k
 - En eller flera commits på din gren med issue-nyckeln i meddelandet. `Co-Authored-By`-raden som sessionen anger.
 - Rad i `dev/golden/historik.md` om golden kördes.
 - Kommentar på issuen via `require('/Users/jesperfunk/Code/magic/dev/linear-agent/klient.cjs')`: vad som byggdes, siffrorna före/efter, vad som är oprovat (riktig telefon räknas alltid som oprovat). Rubriker och tabeller, för en icke-expert.
-- Behöver något Jesper: `markeraBehoverJesper(issueId, varfor)` och stanna.
+- Behöver något Jesper före arbetet: `markeraBehoverJesper(issueId, varfor)` (kolumnen Behöver dig) och stanna. Byggt och bara hans prov återstår: `markeraRedoAttTesta(issueId, vad)` med exakt vad han ska prova.
 
 ## Rapporten tillbaka
 

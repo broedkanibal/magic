@@ -70,10 +70,12 @@ function avsnitt(titel, rader) {
   console.log('  (✓ = issuenyckeln står i en commit-RUBRIK på main. Brödtexten räknas inte —');
   console.log('   ett bra meddelande korsrefererar andra issues, och det är omnämnanden, inte arbete.)');
 
-  const provas = i_ar('Provas');
-  const behover = issues.filter(i => i.labels.nodes.some(l => l.name === 'Needs Jesper') && i.state.name !== 'Provas');
-  avsnitt('VÄNTAR PÅ DIG — Provas + Needs Jesper (' + (provas.length + behover.length) + ')',
-    provas.map(rad).concat(behover.map(i => rad(i) + '  [' + i.state.name + ']')));
+  const triage = i_ar('Triage');
+  avsnitt('ATT SORTERA — Triage, agenternas inkorg (' + triage.length + ')', triage.map(rad));
+  const behover = i_ar('Behöver dig');
+  avsnitt('BEHÖVER DIG — före arbetet (' + behover.length + ')', behover.map(rad));
+  const redo = i_ar('Redo att testas');
+  avsnitt('REDO ATT TESTAS — byggt, väntar på ditt prov (' + redo.length + ')', redo.map(rad));
 
   avsnitt('BLOCKED (' + i_ar('Blocked').length + ')', i_ar('Blocked').map(rad));
 

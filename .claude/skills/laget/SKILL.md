@@ -1,6 +1,6 @@
 ---
 name: laget
-description: Visar läget i Mesa på en skärm — vilka issues som körs just nu och om någon saknar session, vad som väntar på Jesper (Provas och Needs Jesper), vad som är blockat, vilka grenar som inte är ihopslagna i main, vad som är näst på tur och hur långt varje projekt kommit. Använd den när Jesper vill ha överblick, frågar "vad händer nu", "vad kör vi", "vad väntar på mig", "var är vi", "vad är kvar", eller ber om "läget". Läser bara; skriver och ändrar ingenting.
+description: Visar läget i Mesa på en skärm — vilka issues som körs just nu och om någon saknar session, vad Jesper ska sortera (Triage), vad som väntar på honom (Behöver dig, Redo att testas), vad som är blockat, vilka grenar som inte är ihopslagna i main, vad som är näst på tur och hur långt varje projekt kommit. Använd den när Jesper vill ha överblick, frågar "vad händer nu", "vad kör vi", "vad väntar på mig", "var är vi", "vad är kvar", eller ber om "läget". Läser bara; skriver och ändrar ingenting.
 ---
 
 # Läget i Mesa
@@ -49,10 +49,12 @@ gör. Är ingenting angeläget, säg det.
 | Kolumn | Betyder |
 |---|---|
 | **In Progress** | en session kör den **nu** — inget annat |
-| **Provas** | väntar på Jesper — prov, designval eller konto, med eller utan kod |
+| **Triage** | agenternas inkorg — Jesper sorterar: Todo, Backlog eller Canceled |
+| **Behöver dig** | väntar på Jesper före arbetet — beslut, detaljer, designval, konto |
+| **Redo att testas** | byggt, väntar på Jespers prov |
 | **Blocked** | väntar på en annan issue; ingen ska plocka upp den |
-| **Todo** | i kön, ingen session |
-| **Backlog** | inte bedömd |
+| **Todo** | beslutat och i kön — en agent kan börja utan Jesper |
+| **Backlog** | kanske — sett av Jesper men inte beslutat |
 
 Priority är köordningen: **High** = näst på tur, **Medium** = senare.
 Ordningen kommer ur `dev/plan/orkestrering.md`.

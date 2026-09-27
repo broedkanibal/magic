@@ -30,9 +30,11 @@ kriterierna är hårda.
   (`ListAgents` visar dem; skicka ett meddelande innan du rör deras område)
 
 Stannar arbetet på en issue för att Jesper behövs:
-`agent.markeraBehoverJesper(issueId, varfor)` — etiketten **Needs Jesper**
-plus en kommentar. Gå vidare med nästa issue i kön. När Jesper gjort sitt:
-`agent.slappBehoverJesper(issueId)`.
+`agent.markeraBehoverJesper(issueId, varfor)` — kolumnen **Behöver dig**
+plus en kommentar. Är det byggt och bara hans prov återstår:
+`agent.markeraRedoAttTesta(issueId, vad)` — kolumnen **Redo att testas**. Gå
+vidare med nästa issue i kön. När Jesper gjort sitt:
+`agent.slappBehoverJesper(issueId)` (tillbaka till Todo).
 
 ## Kön
 
@@ -156,7 +158,7 @@ verktygsanrop. Därför:
 - en agent per issue; starta om en ny agent hellre än att fortsätta en
   som svällt
 - rapportera till Jesper bara när något är klart, när något stoppats, och
-  när en issue fått **Needs Jesper**
+  när en issue flyttats till **Behöver dig** eller **Redo att testas**
 
 ## Läget när det här skrevs (2026-09-20, ~10:00)
 
