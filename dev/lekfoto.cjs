@@ -78,7 +78,9 @@ const uid = () => Math.random().toString(36).slice(2, 9) + 'abc';
 return { lekSlagTillampa, lekSlagSummor, lekFargerAv, lekSparaKo, telfotoLas,
   telfotoIgen: typeof telfotoIgen === 'function' ? telfotoIgen : null,
   telfotoSummera: typeof telfotoSummera === 'function' ? telfotoSummera : null,
-  telfotoNasta: typeof telfotoNasta === 'function' ? telfotoNasta : null };`);
+  telfotoNasta: typeof telfotoNasta === 'function' ? telfotoNasta : null,
+  telfotoFotoUrLeken: typeof telfotoFotoUrLeken === 'function' ? telfotoFotoUrLeken : null,
+  telfotoOmtagMal: typeof telfotoOmtagMal === 'function' ? telfotoOmtagMal : null };`);
 }
 const ladda = fil => laddaSrc(fs.readFileSync(fil, 'utf8'), fil);
 
@@ -107,6 +109,8 @@ function nyCtx(app0) {
     ctx.anrop++;
     const s = ctx.svar.shift();
     if (!s) throw new Error('inget svar kvar i provet');
+    /* under: något som händer medan fotot läses (datorn tar bort fotot, trycker Finish). */
+    if (typeof s.under === 'function') s.under(ctx);
     if (s.kast) throw new TypeError('Failed to fetch');
     if (s.status) return { ok: false, status: s.status, json: async () => ({ error: 'Error ' + s.status }) };
     return { ok: true, status: 200, json: async () => kopia(s) };
@@ -127,6 +131,7 @@ function nyCtx(app0) {
      mot en äldre index.html, och dagens kod läser det inte. */
   ctx.lekSpara = async (id, data, sedd) => {
     if (ctx.server.borta) return { ok: false, borta: true };      // leken togs bort på datorn (LD3)
+    if (typeof ctx.server.innanSpara === 'function') { const f = ctx.server.innanSpara; ctx.server.innanSpara = null; f(ctx); }
     const f = ctx.server.fel.shift(), rad = ctx.server.rad;
     const ts = ++klocka;
     if (f === 'nere') return { ok: false, fel: 'TypeError: Failed to fetch', forsok: ts };
@@ -513,7 +518,7 @@ async function sidaMProv(fil) {
   });
   prov('LD1 inte skickat: Try again läser samma foto (samma fid och nummer), korten sparas en gång', () => {
     inga(x);
-    assert.deepEqual([x.ctx.fall.a, x.ctx.fall.b, x.lista.length, x.lista[0].lage], ['ejskickat', 'ejskickat', 1, 'klar']);
+    assert.deepEqual([x.ctx.fall.a, x.ctx.fall.b, x.lista.length, x.lista[0].lage], ['ejskickat', 'serverfel', 1, 'klar']);
     assert.equal(x.lista[0].fid, x.ctx.fall.fid);
     assert.equal(x.ctx.anrop, 3, 'tre försök med samma foto');
     assert.equal(x.ctx.server.skrivna, 1); assert.equal(x.l.totalt, 3);
@@ -580,6 +585,102 @@ async function sidaMProv(fil) {
     const s = x.app.telfotoSummera(x.ctx.server.rad);
     assert.deepEqual(s, { hittade: 4, foton: 1, koll: 0, undan: true, basland: '2 Plains were in the photos.' });
     assert.equal(x.app.telfotoSummera(null).koll, 1, 'utan leken: fotonas egna');
+  });
+
+  /* ── Granskningen av MES-321: fallen som bevisade felen ─────────── */
+  const bara = x => x.l.rad.map(k => `${k.n} ${k.name}`).sort();
+  for (const [bokstav, mellan, svar] of [['A', 'inganamn', OLASLIGT], ['B', 'ejskickat', { kast: true }], ['B2', 'inga', { kort: [], otydliga: 0 }]]) {
+    x = await kor(async (app, ctx) => {
+      await foto(app, ctx, TRE); omtag(ctx, 1);
+      await foto(app, ctx, svar);
+      ctx.fall.mellan = ctx.telfoto.sista.lage;
+      ctx.fall.mal = app.telfotoOmtagMal ? app.telfotoOmtagMal(ctx.telfoto.sista) : null;
+      ctx.telfoto.omtag = ctx.telfoto.sista.fid;            // "Retake photo 1" på den skärmen
+      await foto(app, ctx, OM);
+    });
+    prov(`${bokstav}: Retake → ${mellan} → Retake photo 1 igen: bara omtagets kort, originalet och det misslyckade omtaget ersatta`, () => {
+      inga(x);
+      assert.equal(x.ctx.fall.mellan, mellan);
+      assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+      assert.equal(x.ctx.fall.mal && x.ctx.fall.mal.fid, x.lista[0].fid, 'J7 och Back räknar med originalets kort');
+      assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [1, 'ersatt'], [1, 'klar']]);
+      assert.equal(x.lista[2].ersatter, x.lista[0].fid, 'omtaget pekar på originalet');
+    });
+  }
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE); omtag(ctx, 1);
+    await foto(app, ctx, { kast: true });
+    await igenLas(app, ctx, OM);
+  });
+  prov('C: Retake → LD1 → Try again: bara omtagets kort (kontroll)', () => {
+    inga(x);
+    assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.server.fel.push('nere');
+    await foto(app, ctx, TRE);
+    ctx.fall.a = ctx.telfoto.sista.lage;
+    await foto(app, ctx, TVA);                            // nytt foto utan Try again först
+    ctx.fall.lista = ctx.telfoto.foton.map(f => [f.nr, f.lage, !!f.ops]);
+    await app.telfotoIgen();                              // Try again för foto 1
+  });
+  prov('D: LD2 på foto 1, sedan foto 2: foto 1:s kö ligger kvar på fotot och sparas med Try again, en gång', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.a, 'ejsparat');
+    assert.deepEqual(x.ctx.fall.lista, [[1, 'ejsparat', true], [2, 'klar', false]]);
+    assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'klar'], [2, 'klar']]);
+    assert.equal(x.l.totalt, 5, 'leken: ' + bara(x).join(', '));
+    assert.equal(x.ctx.telfoto.osparat, null);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { status: 500 });
+    ctx.fall.fel = ctx.telfoto.sista.fel;
+    await igenLas(app, ctx, TRE);
+  });
+  prov('E: servern svarar 500: inte "The connection dropped", serverns text står kvar, Try again läser samma foto', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.fel, 'Error 500');
+    assert.deepEqual([x.lista.length, x.lista[0].lage, x.l.totalt], [1, 'klar', 3]);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);
+    /* En ny öppning (sidan laddades om): datorn ber om Retake with the phone. */
+    const fid = ctx.telfoto.foton[0].fid;
+    ctx.telfoto.foton = [];
+    const f = await app.telfotoFotoUrLeken(fid);
+    ctx.fall.post = f && [f.fid === fid, f.nr, f.lage, f.hittade];
+    ctx.telfoto.omtag = fid;
+    await foto(app, ctx, OM);
+  });
+  prov('omtag från datorn för ett foto telefonen inte har: posten byggs ur leken, och omtaget byter dess kort', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.post, [true, 1, 'klar', 3]);
+    assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);
+    /* Remove photo 2 på datorn medan foto 2 läses. */
+    await foto(app, ctx, Object.assign({ under: c => { c.telfoto.sista.lage = 'bort'; } }, TVA));
+    ctx.fall.steg = ctx.telfoto.steg;
+    /* … och medan foto 3 sparas: datorns fotobort hinner före telefonens sparning. */
+    ctx.server.innanSpara = c => { c.telfoto.sista.lage = 'bort'; };
+    await foto(app, ctx, OM);
+  });
+  prov('ett foto som datorn tar bort medan det läses eller sparas landar inte (fynd 6)', () => {
+    inga(x);
+    assert.deepEqual(x.lista.map(f => f.lage), ['klar', 'bort', 'bort']);
+    assert.equal(x.ctx.fall.steg, 'lagg');
+    assert.deepEqual(bara(x), ['1 Arcane Signet', '1 Sol Ring', '1 Thalia, Guardian of Thraben']);
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.fall.ordning = [];
+    await foto(app, ctx, Object.assign({ under: c => { c.telfoto.efter = () => c.fall.ordning.push('efter:' + c.telfoto.steg); c.fall.ordning.push('under'); } }, TRE));
+    ctx.fall.ordning.push('klar');
+  });
+  prov('det datorn ber om medan fotot läses (Finish, Retake) görs efter läsningen, inte aldrig (fynd 7)', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.ordning, ['under', 'efter:resultat', 'klar']);
+    assert.equal(x.ctx.telfoto.efter, null);
   });
 }
 
