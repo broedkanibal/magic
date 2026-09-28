@@ -951,6 +951,35 @@ async function sidaMProv(fil) {
     assert.deepEqual([x.ctx.fall.rad.n, !!x.ctx.fall.rad.koll.dubbel], [2, true]);
     assert.deepEqual([x.tal('Plains'), radAv(x.ctx, 'Plains').koll], [2, undefined]);
   });
+  /* K6 (kontrollgranskningen): faller frågan med sitt foto faller märket på
+     telefonens läsning också, i båda fotona, och posten skickas om. */
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, F1); await foto(app, ctx, F2);
+    ctx.fall.fore = [ctx.telfoto.foton[0].kort[0].dubbel, ctx.telfoto.foton[1].kort[0].dubbel, !!ctx.telfoto.foton[1].dubbla];
+    ctx.kanal.length = 0;
+    omtag(ctx, 1); await foto(app, ctx, F1);                            // Retake photo 1: frågan faller
+    ctx.fall.efter = [ctx.telfoto.foton[1].kort[0].dubbel, ctx.telfoto.foton[1].dubbla, radAv(ctx, 'Sol Ring').koll];
+    ctx.fall.omsand = ctx.kanal.filter(m => m.typ === 'foto' && m.foto.fid === ctx.telfoto.foton[1].fid).map(m => m.foto.kort[0].dubbel);
+  });
+  prov('K6 Retake photo 1 fäller foto 2:s fråga: märket i foto 2 försvinner, raden "may also be in photo" med det, och posten skickas om utan märke', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.fore, [x.lista[1].fid, x.lista[0].fid, true], 'före: ? i båda fotona');
+    assert.deepEqual(x.ctx.fall.efter, [undefined, null, undefined]);
+    assert.ok(x.ctx.fall.omsand.length && x.ctx.fall.omsand.every(d => d === undefined), 'foto 2:s post skickades om utan dubbel');
+    assert.equal(x.tal('Sol Ring'), 2, 'omtagets Sol Ring och foto 2:s: frågan föll tyst, inget exemplar togs');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, F1); await foto(app, ctx, F2);
+    await app.telfotoTaBort(ctx.telfoto.foton[1]);                        // Remove photo 2 på telefonen
+    ctx.fall.efter = [ctx.telfoto.foton[0].kort[0].dubbel, ctx.telfoto.foton[1].kort[0].dubbel, radAv(ctx, 'Sol Ring').koll];
+    await app.telfotoAngra(ctx.telfoto.foton[1]);                         // Undo: exemplaret och frågan tillbaka (K5)
+    ctx.fall.angra = [x => x, radAv(ctx, 'Sol Ring').n, !!(radAv(ctx, 'Sol Ring').koll && radAv(ctx, 'Sol Ring').koll.dubbel)];
+  });
+  prov('K6/K5 Remove photo 2 på telefonen fäller märket i foto 1; Undo lägger tillbaka exemplaret och frågan', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.efter, [undefined, undefined, undefined]);
+    assert.deepEqual(x.ctx.fall.angra.slice(1), [2, true]);
+  });
 }
 
 /* ── lekSparaKo direkt: kön växer mellan försöken ─────────────────── */
