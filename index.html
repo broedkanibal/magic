@@ -2616,6 +2616,114 @@ body.ispel #addPlayerBtn{display:none}
 .lfvfot{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .lfvfot.fraga span{flex-basis:100%;font:500 13.5px var(--sans);color:var(--txt)}
 .lffoto .lfv[data-lf="angra"]{color:var(--txt)}
+/* Slutet av lekfotot (MES-323, sida M rad 5 och 6): panelen efter Finish the
+   deck, Check names ett kort i taget, Later och klar-raden. */
+.lsfgrow{flex:1 1 auto}
+.lsfhd{display:flex;flex-direction:column;gap:6px}
+.lsfhd b{font:700 18px/1.3 var(--sans);color:var(--txt)}
+.lsfhd span{font:13.5px/1.5 var(--sans);color:var(--dim)}
+.lsfsteg{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.lsfsteg li{display:flex;gap:12px;padding:12px 14px;border-radius:11px;background:#141922;border:1px solid var(--line)}
+.lsfsteg li.nu{background:#1d1810;border-color:#6a5220}
+.lsfsteg .sn{width:24px;height:24px;box-sizing:border-box;border-radius:50%;display:grid;place-items:center;flex:none;font:700 11.5px var(--mono);border:1px solid #39445a;color:var(--dim)}
+.lsfsteg li.nu .sn{background:var(--acc);border-color:var(--acc);color:#20160a}
+.lsfsteg li.klar .sn{background:#0f2016;border-color:#2f6b47;color:#8fe0b0}
+.lsfsteg .st{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.lsfsteg .st > b{font:650 14px var(--sans);color:var(--txt)}
+.lsfsteg li.klar .st > b{color:var(--dim);text-decoration:line-through}
+.lsfsteg .st > span{font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lsfsteg .st .lssokwrap{margin-top:6px}
+.btn.lsfsm{align-self:flex-start;height:32px;padding:0 13px;margin-top:4px;font-size:13px;font-weight:600;color:var(--txt);background:#1b2230}
+.btn.lsfstor{height:42px;padding:0 16px;border-radius:8px;font-size:14px;font-weight:600;gap:7px;color:var(--txt);background:#1b2230}
+.btn.lsfstor.prim{background:var(--acc);color:#20160a;border-color:var(--acc)}
+.btn.lsfstor.ghost{background:transparent;border-color:transparent;color:var(--dim)}
+.btn.lsfstor.ghost:hover{color:var(--txt);background:var(--bg3)}
+.lsfmer{align-self:flex-start;flex:none}
+.lsfetik{font:700 11px var(--mono);letter-spacing:1px;color:var(--dim)}
+.lsffoton{display:flex;flex-wrap:wrap;gap:10px}
+.lsffoto{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px;border-radius:10px;background:#141922;border:1px solid var(--line);color:var(--txt)}
+button.lsffoto{cursor:pointer}
+button.lsffoto:hover{border-color:#3b485c}
+.lsffoto .th{position:relative;width:44px;height:51px;border-radius:4px;overflow:hidden;flex:none;display:block;background:radial-gradient(50px 44px at 40% 30%,#26313c,#10151b)}
+.lsffoto .th img{width:100%;height:100%;object-fit:cover;display:block}
+.lsffoto .th i{position:absolute;top:6px;width:8px;height:38px;border-radius:1.5px;background:repeating-linear-gradient(#d8d0bd 0 2px,#4a4034 2px 4.5px)}
+.lsffoto.tom .th{filter:grayscale(.6) brightness(.55)}
+.lsffoto .nr{font:600 11.5px var(--sans);color:var(--dim)}
+.lsfhog{height:44px}
+.lsfhog input{font-size:15px}
+.lsfundanlista{display:flex;flex-direction:column;gap:6px}
+.lsfundanlista:empty{display:none}
+.lsfadded{display:flex;align-items:center;gap:10px;padding:5px 6px 5px 10px;border-radius:9px;background:#141922;border:1px solid var(--line);font:500 13.5px var(--sans);color:var(--txt)}
+.lsfadded .th{width:24px;height:33px;border-radius:2px;overflow:hidden;flex:none;background:#0b1016}
+.lsfadded .th img{width:100%;height:100%;object-fit:cover;display:block}
+.lsfadded .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lspanel.lsfid2{gap:14px}
+.lstel.lfpanel.lsfslut{gap:14px}
+.lsftopp{display:flex;flex-direction:column;gap:14px;flex:none}
+.lsftopp:empty{display:none}
+.lsfkn{display:flex;flex-direction:column;gap:16px;padding:18px 20px;border-radius:14px;border:1.5px solid #8a6a24;background:#17140e;scroll-margin-top:12px}
+.lsfknhd{display:flex;align-items:center;gap:12px}
+.lsfknhd > i{width:9px;height:9px;border-radius:50%;background:var(--acc);flex:none}
+.lsfknhd > b{font:700 15px var(--sans);color:var(--txt)}
+.lsfnav{display:flex;align-items:center;gap:8px}
+.lsfnav button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#1b2230;color:var(--txt);display:grid;place-items:center}
+.lsfnav button[disabled]{color:var(--dim);pointer-events:none}
+.lsfnav b{font:600 13px var(--mono);color:var(--dim);white-space:nowrap}
+.lsfsenare{height:32px;padding:0 12px;border:0;background:none;color:var(--dim);font:600 13px var(--sans);cursor:pointer}
+.lsfsenare:hover{color:var(--txt)}
+.lsfkropp{display:flex;gap:22px;align-items:flex-start;min-height:120px}
+.lsfkalla{display:flex;flex-direction:column;gap:6px;flex:none}
+.lsfremsa{width:200px;aspect-ratio:320/83;border-radius:4px;overflow:hidden;border:1px solid #3a2e14;background:#0b1016}
+.lsfkalla.stor .lsfremsa{width:190px;aspect-ratio:auto;height:104px}
+.lsfremsa img{width:100%;height:100%;object-fit:cover;display:block}
+.lsflista{width:200px;box-sizing:border-box;padding:10px 12px;border-radius:6px;background:#0d1015;border:1px solid var(--line);font:500 13px/1.6 var(--mono);color:var(--dim)}
+.lsflista span{color:var(--txt);background:#3a2e14}
+.lsflos{display:flex;flex-direction:column;gap:12px;flex:1;min-width:0}
+.lsffraga{display:flex;flex-direction:column;gap:4px}
+.lsffraga b{font:700 19px/1.3 var(--sans);color:var(--txt)}
+.lsffraga span{font:13.5px/1.45 var(--sans);color:var(--dim)}
+.lsfa{display:flex;gap:16px;align-items:flex-start}
+.lsfa .kb{width:120px;height:167px;border-radius:7px;overflow:hidden;flex:none;background:#0b1016}
+.lsfa .kb img{width:100%;height:100%;object-fit:cover;display:block}
+.lsfknappar{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0}
+.lsfkand{display:flex;gap:12px;flex-wrap:wrap}
+.lsfkk{display:flex;flex-direction:column;align-items:center;gap:6px;width:104px;box-sizing:border-box;padding:8px;border-radius:10px;background:#1b2230;border:1px solid var(--line);color:var(--txt);font:600 13px/1.3 var(--sans);text-align:center;cursor:pointer}
+.lsfkk:hover{border-color:var(--acc)}
+.lsfkk .kb{width:86px;height:120px;border-radius:5px;overflow:hidden;background:#2b3444}
+.lsfkk .kb img{width:100%;height:100%;object-fit:cover;display:block}
+.lsfkk + .btn,.lsfkand + .btn{align-self:flex-start}
+.lsfdym{display:flex;flex-direction:column;gap:8px}
+.lsfdym > span{font:500 13px var(--sans);color:var(--dim)}
+.lsfdymk{display:flex;align-items:center;gap:10px;align-self:flex-start;padding:6px 12px 6px 6px;border-radius:10px;background:#2a200e;border:1.5px solid var(--acc);color:var(--txt);font:650 14px var(--sans);cursor:pointer}
+.lsfdymk img{width:30px;height:42px;border-radius:3px;display:block}
+.lsfsok{max-width:380px}
+.lsfrad{display:flex;gap:8px;flex-wrap:wrap}
+.lsffot{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid #3a2e14}
+.lsffot > span:first-child{font:12.5px/1.5 var(--sans);color:var(--dim)}
+.lsffot > span b{color:var(--txt)}
+.lsfbort{flex:none;height:32px;padding:0 10px;border:0;background:none;color:#ff9aa2;font:600 13px var(--sans);display:flex;align-items:center;gap:6px;cursor:pointer}
+.lsfundanrad{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#141922}
+.lsfundanrad .ut{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;flex:none;background:var(--acc);color:#20160a;font:800 12px var(--sans)}
+.lsfundanrad b{font:650 14.5px var(--sans);color:var(--txt)}
+.lsfundanrad .tx{font:13px var(--sans);color:var(--dim)}
+.lsfundanrad em{margin-left:auto;font:600 14px var(--sans);font-style:normal;color:var(--dim);white-space:nowrap}
+.lsfbar{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:12px 16px;border-radius:12px}
+.lsfbar.gron{background:#0f1d15;border:1px solid #24503a}
+.lsfbar.gul{background:#17140e;border:1px solid #6a5220}
+.lsfbar .ic{display:grid;place-items:center;color:#57c785}
+.lsfbar .pr{width:9px;height:9px;border-radius:50%;flex:none;background:var(--acc)}
+.lsfbar > b{font:700 14.5px var(--sans);color:var(--txt)}
+.lsfbar .tx{font:13px var(--sans);color:var(--dim)}
+.btn.lsfklarknapp{height:36px;padding:0 14px;border-radius:8px;font-size:14px;font-weight:600;color:var(--txt);background:#1b2230}
+.btn.lsfklarknapp.prim{background:var(--acc);color:#20160a;border-color:var(--acc)}
+.lsftum{display:flex;gap:4px}
+.lsftum img,.lsftum i{width:22px;height:31px;border-radius:2px;box-sizing:border-box;display:block;object-fit:cover}
+.lsftum i{border:1.5px dashed #6a5220}
+.lsfblram{display:flex;flex-direction:column;gap:12px;padding:14px 16px;border-radius:12px;border:1.5px solid #8a6a24;background:#17140e}
+.blnot.lang{max-width:380px}
+@media (max-width:900px){
+  .lsfkropp{flex-direction:column}
+}
 /* läggningsguiden (lekGuide) */
 .lsg{position:relative;flex:none;align-self:flex-start;border-radius:12px;background:radial-gradient(700px 360px at 46% 26%,#1a2530,#0b1016 75%);box-shadow:inset 0 0 40px 8px #00000066,0 0 0 1px var(--line);overflow:hidden}
 .lsgarea{position:absolute}
@@ -13202,6 +13310,7 @@ const LS_IKON = {
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   deck: '<rect x="4" y="6" width="11" height="15" rx="1.8"/><path d="M8 3h10.2A1.8 1.8 0 0 1 20 4.8V17"/>',
   chev: '<path d="m9 6 6 6-6 6"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
   copy: '<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2"/><path d="M15.5 8.5V5.8A1.8 1.8 0 0 0 13.7 4H5.8A1.8 1.8 0 0 0 4 5.8v7.9a1.8 1.8 0 0 0 1.8 1.8h2.7"/>',
   trash: '<path d="M4 7h16"/><path d="M6.5 7l1 13h9l1-13"/><path d="M9.5 7V4.5h5V7"/>',
   rot: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
@@ -14539,8 +14648,12 @@ function lsMorf(el, mall) {
       el.replaceChild(n, g); return;
     }
     if (n.nodeType !== 1) { if (g.nodeValue !== n.nodeValue) g.nodeValue = n.nodeValue; return; }
+    const varEgen = g.hasAttribute('data-ls-egen');
     for (const a of [...g.attributes]) if (!n.hasAttribute(a.name) && !(a.name === 'class' && g.classList.contains('verktygvanster'))) g.removeAttribute(a.name);
     for (const a of n.attributes) if (g.getAttribute(a.name) !== a.value) g.setAttribute(a.name, a.value);
+    /* Ett element med data-ls-egen ritar sitt innehåll själv (Check names,
+       MES-323): sökfältet och förslagen får vara i fred medan man skriver. */
+    if (n.hasAttribute('data-ls-egen')) { if (!varEgen) g.innerHTML = ''; return; }
     /* Ett fält man skrivit i följer inte längre sitt value-attribut: sätt
        värdet (ett ⌘Z ska synas), men inte i det fält man skriver i just nu. */
     if (g.nodeName === 'INPUT' && g !== document.activeElement && g.value !== (n.getAttribute('value') || '')) g.value = n.getAttribute('value') || '';
@@ -14587,8 +14700,7 @@ function lsMorf(el, mall) {
                 leken], brukad?, sagt?, delad?}
      mallar    Map fid → ändringarna som lägger tillbaka fotots exemplar,
                räknade ur leken medan fotot fanns i den (J9, LB1)
-     klar      Finish the deck är tryckt. Vad som händer sedan bygger
-               MES-323; tills dess visas To check och basländerna som förut. */
+     klar      Finish the deck är tryckt: slutet (BLOCK: LEKFOTO SLUTET, MES-323). */
 const lfAntal = (n, en, fler) => `${n} ${n === 1 ? en : fler}`;
 /* Ett foto som landat: nästa foto kommer efter det, och ett Undo som väntade
    gäller inte längre (N6: "tills nästa foto landar"). */
@@ -14997,6 +15109,260 @@ function lfAterIn(t, fid) {
 }
 /* ══ SLUT: LEKFOTO PÅ DATORN ══ */
 
+/* ══ BLOCK: LEKFOTO SLUTET ═══════════════════════════════════════════
+   Slutet av lekfotot (MES-323), byggt efter sida M rad 5 och 6 i
+   designytan "Mesa Deck Photo Flow E": panelen efter Finish the deck (ID0,
+   ID1, ID3, N7, N9), Check names ett kort i taget (ID1 A–D, LR2), korten
+   man lagt undan (ID2), basländerna (ID3) och klar-raden (N7, N8).
+
+   Tre steg, i den ordningen:
+     1 Check names     raderna med koll: ett osäkert namn (Mesas gissning,
+                       ligger i leken med Check) eller en platshållare
+                       (okand: ligger INTE i leken, väntar på ett namn)
+     2 Type in the cards you put aside   bara om något kan ha lagts undan:
+                       ett foto med undan eller olasta (formatet vid
+                       LEKKANALEN, samma regel som telefonens I10). Hoppas
+                       över annars (ID0). Mesa vet inte hur många: ingen siffra
+     3 Basic lands     "I’m done" under basländerna
+   Klart (N7, N8): inga namn kvar att kolla, steg 2 gjort eller hoppat, och
+   steg 3 gjort. Ett steg utan innehåll (inga namn att kolla) visas inte.
+
+   Later (N9): steg 1 väntar och nästa steg öppnas. Gissningarna ligger i
+   leken och räknas i decks.antal; platshållarna gör det inte (lekSpelAntal),
+   och spelet väljer dem inte (lekSattAktiv). Leken går alltså att använda i
+   setup medan namn väntar.
+
+   Fallen i Check names:
+     A   osäkert namn ur ett foto: "Is this X?", Yes / No, search for it
+     B   platshållare där fotot läste ett namn som flera kort passar (Scryfall
+         svarar "ambiguous"): kandidaterna ur sökningen, minst två
+     C   platshållare utan kandidater: sökfältet, med det fotot läste
+     LR2 platshållare där inget namn lästes: samma sökfält och Not a card.
+         Mesa kan inte skilja ett oläsligt kort från något som inte är ett
+         kort (LA5); har man sagt "It's a card" i View a photo blir det C
+     D   osäkert namn ur en inklistrad lista: "No card is called …"
+
+   Rent, utan appens toppnivå: dev/lekfoto-slut.cjs klipper ut blocket
+   (med LEKSLAG och LEKFOTO PÅ DATORN) och provar det utan webbläsare. */
+/* Omgångens läge, sparat per lek i webbläsaren (telSpara): Later, om steg 2
+   finns (fotona kan vara borta efter en omladdning), steg 2 och 3 gjorda,
+   och hur många namn Check names började med ("Check 3 names"). */
+const lsfTom = () => ({ senare: false, undan: false, undanKlar: false, blKlar: false, kollN: 0 });
+function lsfRen(s) {
+  if (!s || typeof s !== 'object') return null;
+  return { senare: !!s.senare, undan: !!s.undan, undanKlar: !!s.undanKlar, blKlar: !!s.blKlar, kollN: Math.max(0, Math.round(+s.kollN || 0)) };
+}
+/* Raden kom ur en inklistrad lista (D), inte ur ett foto. */
+const lsfFranLista = k => !!(k && k.koll && !/^photo/i.test(k.koll.kalla || ''));
+/* Fotots nummer för en rad: "Photo 2" i koll, annars fotot raden bär. */
+function lsfFotoNr(k) {
+  const m = /^photo\s+(\d+)/i.exec((k && k.koll && k.koll.kalla) || '');
+  if (m) return +m[1];
+  const fid = k && k.foto ? Object.keys(k.foto)[0] : null;
+  return fid ? parseInt(String(fid).split(':')[0], 10) || 0 : 0;
+}
+/* Korten att kolla, i fotonas ordning och sist de ur en lista. */
+function lsfKo(kort) {
+  const nr = k => lsfFranLista(k) ? 1e6 : lsfFotoNr(k) || 1e5;
+  return (kort || []).map((k, i) => ({ k, i })).filter(x => x.k && x.k.koll)
+    .sort((a, b) => nr(a.k) - nr(b.k) || a.i - b.i).map(x => x.k);
+}
+/* Fallet (ID1 A–D, LR2). kand: kandidaterna ur sökningen på det fotot
+   läste (B); arKort: platshållare man sagt är ett kort (View a photo). */
+function lsfFall(k, kand, arKort) {
+  if (!k || !k.koll) return null;
+  if (!k.okand) return lsfFranLista(k) ? 'D' : 'A';
+  if (String(k.koll.las || '').trim()) return Array.isArray(kand) && kand.length >= 2 ? 'B' : 'C';
+  return arKort && arKort.has(k.name) ? 'C' : 'LR2';
+}
+/* Svaren som ändringar (LEKSLAG). Ett kort man väljer byter raden (namnet,
+   inte exemplaren: fotona följer med), och är det samma kort som gissningen
+   är gissningen bekräftad. Not a card och Remove tar bort raden. Var och en
+   gör ingenting en andra gång: raden som byttes eller togs bort finns inte
+   längre, och en bekräftad rad har ingen koll. */
+const lsfJa = k => ({ typ: 'koll', name: k.name, sb: !!k.sb, koll: null });
+function lsfValj(k, c) {
+  if (!k.okand && c.sid === k.sid && lekSlagNyckel(c.name, k.sb) === lekSlagNyckel(k.name, k.sb)) return lsfJa(k);
+  return { typ: 'byt', name: k.name, sb: !!k.sb, kort: { name: c.name, sid: c.sid, small: c.small || null, ci: c.ci || [] } };
+}
+const lsfBort = k => ({ typ: 'bort', name: k.name, sb: !!k.sb });
+/* Ett tryck gäller kortet som står framme, en gång. Nästa kort öppnas av
+   sig självt när man svarat: ett dubbelklick hade annars svarat på det också. */
+const LSF_TRYCK_MS = 400;
+function lsfTryck(kn, key, t) {
+  if (!kn || !key || key !== kn.nu) return false;
+  if (t - (kn.sist || 0) < LSF_TRYCK_MS) return false;
+  kn.sist = t;
+  return true;
+}
+/* Omgången i Check names: ordning = nycklarna i den ordning de visats,
+   också de besvarade, så att "2 of 3" räknar genom omgången. Står kortet som
+   var framme inte kvar (besvarat) öppnas nästa av sig självt. */
+const lsfKnTom = () => ({ ordning: [], nu: null, sist: 0, sok: null, logg: [] });
+function lsfOmgang(kn, ko) {
+  const kvar = ko.map(k => lekSlagNyckel(k.name, k.sb)), finns = new Set(kvar), sedda = new Set(kn.ordning);
+  for (const x of kvar) if (!sedda.has(x)) kn.ordning.push(x);
+  if (!finns.has(kn.nu)) {
+    const i = kn.ordning.indexOf(kn.nu);
+    kn.nu = kn.ordning.slice(i + 1).find(x => finns.has(x)) || kn.ordning.find(x => finns.has(x)) || null;
+    kn.sok = null;
+  }
+  const i = kn.ordning.indexOf(kn.nu);
+  const forra = kn.ordning.slice(0, Math.max(0, i)).some(x => finns.has(x)), nasta = kn.ordning.slice(i + 1).some(x => finns.has(x));
+  return { nr: kn.nu ? i + 1 : 0, av: kn.ordning.length, kvar: kvar.length, forra, nasta };
+}
+function lsfBladdra(kn, ko, d) {
+  const finns = new Set(ko.map(k => lekSlagNyckel(k.name, k.sb))), i = kn.ordning.indexOf(kn.nu);
+  const x = (d > 0 ? kn.ordning.slice(i + 1) : kn.ordning.slice(0, Math.max(0, i)).reverse()).find(k => finns.has(k));
+  if (x) { kn.nu = x; kn.sok = null; }
+  return !!x;
+}
+/* Stegen (ID0, ID1, ID3, N7, N9). s = omgångens läge (lsfTom). */
+function lsfSteg(kort, s) {
+  s = s || lsfTom();
+  const ko = lsfKo(kort), kvar = ko.length, kollN = Math.max(s.kollN || 0, kvar);
+  const gissning = ko.filter(k => !k.okand).length, vantar = kvar - gissning;
+  const kollKlar = kvar === 0, undan = !!s.undan, undanKlar = !undan || !!s.undanKlar, blKlar = !!s.blKlar;
+  const aktiv = !kollKlar && !s.senare ? 'koll' : !undanKlar ? 'undan' : !blKlar ? 'bl' : null;
+  const steg = [];
+  if (kollN > 0) steg.push({ id: 'koll', klar: kollKlar, nu: aktiv === 'koll', senare: !kollKlar && !!s.senare });
+  if (undan) steg.push({ id: 'undan', klar: undanKlar, nu: aktiv === 'undan' });
+  steg.push({ id: 'bl', klar: blKlar, nu: aktiv === 'bl' });
+  /* Klar (N7, N8) också med namn lämnade till senare (N9): leken går att
+     använda, och Check names-raden står kvar överst. Förut blev en lek
+     efter Later aldrig klar, och klar-raden med Create deck och Back to
+     Home kom aldrig fram (granskningen av MES-323). */
+  return { kvar, kollN, gissning, vantar, aktiv, steg, undan, senare: !kollKlar && !!s.senare,
+           klar: undanKlar && blKlar && (kollKlar || !!s.senare), kvarSteg: steg.filter(x => !x.klar).length };
+}
+/* Kan något ha lagts undan? Ett foto som räknas (inte borttaget, inte
+   ersatt) med undan (Put these cards aside …) eller olasta (some not read). */
+function lsfUndanIFoton(t) {
+  return lfFotoLista(t).some(f => !['bort', 'ersatt'].includes(lfLageAv(t, f)) && (+f.olasta > 0 || !!f.undan));
+}
+/* "4 photos, 38 cards added": fotona som landat med kort, och korten de lade in. */
+function lsfFotoTal(t) {
+  const klara = lfFotoLista(t).filter(f => lfLageAv(t, f) === 'klar');
+  return { foton: klara.filter(f => lfHittade(f) > 0).length, hittade: klara.reduce((s, f) => s + lfHittade(f), 0) };
+}
+const LSF_ORD = ['No', 'One', 'Two', 'Three', 'Four'];
+function lsfRubrik(tal, st) {
+  const n = st.kvarSteg;
+  return { rub: `${lfAntal(tal.foton, 'photo', 'photos')}, ${lfAntal(tal.hittade, 'card', 'cards')} added`,
+           txt: n === 1 ? 'One thing left.' : `${LSF_ORD[n] || n} things left${st.senare ? '' : ', in this order'}.` };
+}
+/* Steg 1 lämnat till senare (N9). */
+function lsfSenareText(st) {
+  const d = [];
+  if (st.gissning) d.push(`${st.gissning} ${st.gissning === 1 ? 'is' : 'are'} in the deck as Mesa’s guess`);
+  if (st.vantar) d.push(`${st.vantar} ${st.vantar === 1 ? 'waits' : 'wait'} for a name`);
+  return 'Left for later.' + (d.length ? ' ' + d.join(', ') + '.' : '');
+}
+/* Basländerna ur fotona (N3, ID1, ID3): "7 Plains and 5 Swamps were in the
+   photos." Per foto det största av två tal: det telefonen läste i fotot
+   (f.kort, formatet vid LEKKANALEN, samma som telefonens I10) och lekens
+   bokföring (radens foto, högst radens antal). Bokföringen ensam följde
+   antalet: två tryck på − gjorde "7 Plains" till "5 Plains were in the
+   photos" (granskningen av MES-323). Telefonens läsning finns bara för
+   foton den beskrivit i den här öppningen; efter en omladdning utan
+   telefonen gäller bokföringen. Ett namn som valts i Check names (en
+   platshållare som blev Plains) står bara i bokföringen, därför det största. */
+const LSF_BASLAND = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'];
+const lsfBlOrd = (n, namn) => `${n} ${n === 1 || /s$/.test(namn) ? namn : namn + 's'}`;
+const lsfOch = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l[0] || '';
+function lsfBlIFoton(kort, t) {
+  const per = new Map();
+  const satt = (namn, fid, c) => { let m = per.get(namn); if (!m) per.set(namn, m = new Map()); m.set(fid, Math.max(m.get(fid) || 0, c)); };
+  for (const k of kort || []) {
+    if (!k || k.sb || !LSF_BASLAND.includes(k.name) || !k.foto) continue;
+    let rest = Number(k.n) || 1;
+    for (const [fid, c] of Object.entries(k.foto)) {
+      const c2 = Math.min(rest, +c || 0);
+      rest -= c2;
+      if (c2 > 0) satt(k.name, fid, c2);
+    }
+  }
+  for (const f of t && t.foton ? lfFotoLista(t) : []) {
+    if (lfLageAv(t, f) !== 'klar' || !Array.isArray(f.kort)) continue;
+    const c = new Map();
+    for (const k of f.kort) if (k && !k.okand && LSF_BASLAND.includes(k.name)) c.set(k.name, (c.get(k.name) || 0) + 1);
+    for (const [namn, n] of c) satt(namn, f.fid, n);
+  }
+  const ut = new Map();
+  for (const namn of LSF_BASLAND) {
+    const s = per.has(namn) ? [...per.get(namn).values()].reduce((a, b) => a + b, 0) : 0;
+    if (s > 0) ut.set(namn, s);
+  }
+  return ut;
+}
+function lsfBlText(kort, t) {
+  const iFoton = lsfBlIFoton(kort, t), nu = new Map();
+  for (const k of kort || []) if (k && !k.sb && LSF_BASLAND.includes(k.name)) nu.set(k.name, (nu.get(k.name) || 0) + (Number(k.n) || 1));
+  const foto = LSF_BASLAND.filter(n => iFoton.get(n)).map(n => lsfBlOrd(iFoton.get(n), n));
+  const alla = [...iFoton.values()].reduce((s, c) => s + c, 0);
+  const lagt = LSF_BASLAND.filter(n => (nu.get(n) || 0) > (iFoton.get(n) || 0)).map(n => lsfBlOrd(nu.get(n) - (iFoton.get(n) || 0), n));
+  return { iFoton, fanns: foto.length > 0,
+           var: foto.length ? `${lsfOch(foto)} ${alla === 1 ? 'was' : 'were'} in the photos.` : 'No basic lands were in the photos.',
+           lagt: lagt.length ? `You added ${lsfOch(lagt)}.` : '' };
+}
+/* Texten under basländerna i slutet: ID1 (före), ID3 (steget, med antalet
+   kort), N7 (klart). n = lekens antal. */
+function lsfBlNot(kort, st, n, tel) {
+  const t = lsfBlText(kort, tel);
+  if (st.klar) return t.var + (t.lagt ? ' ' + t.lagt : '');
+  if (st.aktiv === 'bl' && t.lagt) return `${t.var} ${t.lagt} ${lfAntal(n, 'card', 'cards')}.`;
+  return `${t.var} Add the ones you didn’t photograph.`;
+}
+/* Stegets rad i panelen: "7 Plains and 5 Swamps were in the photos. Add any
+   you didn’t photograph, at the bottom." (ID1, ID3); "At the bottom." (N9). */
+function lsfBlStegText(kort, st, tel) {
+  if (st.senare) return 'At the bottom.';
+  const t = lsfBlText(kort, tel);
+  return t.fanns ? `${t.var} Add any you didn’t photograph, at the bottom.` : 'No basic lands were in the photos. Add them at the bottom.';
+}
+/* Klar-raden (N7, N8). "names checked" bara när inga namn väntar (Later). */
+function lsfKlarText(st, n) {
+  const d = [];
+  if (st.kollN > 0 && st.kvar === 0) d.push('names checked');
+  if (st.undan) d.push('the cards you put aside typed in');
+  d.push('basic lands set');
+  return `${lfAntal(n, 'card', 'cards')}: ${d.join(', ')}.`;
+}
+/* Den gröna raden när namnen är klara (ID2, ID3), och vad man svarat:
+   "Hooded Blightfang added, Gorgon Flail and Venomous Hierophant confirmed." */
+function lsfEfterKoll(st) {
+  if (st.kollN > 0 && st.kvar === 0) return st.undan && st.aktiv !== 'undan' ? 'Names checked, and the cards you put aside are in' : 'All names checked';
+  if (st.undan && st.aktiv !== 'undan' && st.kvar === 0) return 'The cards you put aside are in';
+  return '';
+}
+function lsfLoggText(logg) {
+  const av = typ => [...new Set((logg || []).filter(x => x.typ === typ && x.namn).map(x => x.namn))];
+  const d = [], ny = av('ny'), ja = av('ja'), bort = av('bort');
+  if (ny.length) d.push(`${lsfOch(ny)} added`);
+  if (ja.length) d.push(`${lsfOch(ja)} confirmed`);
+  if (bort.length) d.push(`${lsfOch(bort)} removed`);
+  return d.length ? d.join(', ') + '.' : '';
+}
+/* Radens mall när en ändring skapar den igen (⌘Z, notisens Undo): namnet,
+   tryckningen, osäkerheten, platshållaren och fotona exemplaren kom ur.
+   Utan foto kom en rad som tagits bort (Remove, Not a card) tillbaka utan
+   foton, och Remove photo, Retake och basländerna ur fotona räknade den
+   inte (granskningen av MES-323). lekSlagFotoTak håller taket (foto ≤ n)
+   när raden läggs in igen. */
+const lsfMall = k => ({ name: k.name, sid: k.sid, small: k.small, ci: k.ci, koll: k.koll, okand: k.okand, foto: k.foto });
+/* Ett namn i fältet för korten man lagt undan (ID2, N9): fältet töms innan
+   uppslaget, som i Type. Förut tömdes det först när kortet slagits upp, och
+   ett andra Enter under tiden lade in kortet en gång till (granskningen av
+   MES-323). */
+function lsfUndanValj(inp, namn, lagg) {
+  const t = String(namn || '').trim();
+  if (!t) return false;
+  inp.value = '';
+  lagg(t);
+  return true;
+}
+/* ══ SLUT: LEKFOTO SLUTET ══ */
+
 function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   const y = {
     session: 0,
@@ -15022,6 +15388,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     bekr: new Map(),      // nyss bekräftade kort, visas som Confirmed en stund: nyckel → {koll}
     tel: null,            // telefonen i Take photos-fliken: {ansluten, fas, foto, foton[], klar} (LEKFOTO PÅ DATORN)
     telHtml: '',          // senast ritade Take photos-flik, så att guiden inte börjar om
+    slut: null,           // slutet efter Finish the deck: lsfTom() (LEKFOTO SLUTET)
+    kn: lsfKnTom(),       // Check names: omgången, kortet framme, sökläget och vad man svarat
   };
   const telTom = () => ({ ansluten: false, fas: 'vantar', foto: 1, fid: null, ersatter: null, klar: false, seddN: 0,
                           foton: new Map(), bilder: new Map(), lokal: new Map(), iLeken: new Set(), undo: new Map(), mallar: new Map(), arKort: new Set() });
@@ -15030,6 +15398,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function lokalt(fid, lage) { y.tel.lokal.set(fid, lage); }
   /* Man fotar: Take photos står framme och Finish the deck är inte tryckt. */
   const fotar = () => y.flik === 'tel' && !y.tel.klar;
+  /* Slutet (MES-323): Finish the deck är tryckt. Kortytan visar det i
+     alla flikar; panelen i Take photos (stegen) och i Type (ID2). */
+  const slutar = () => !!y.tel.klar;
+  function slutLage() {
+    const v = nu(), s = y.slut || (y.slut = lsfTom());
+    if (!s.undan && lsfUndanIFoton(y.tel)) s.undan = true;
+    const st = lsfSteg(v.kort, s);
+    if (st.kollN > s.kollN) s.kollN = st.kollN;
+    return { v, s, st };
+  }
   y.tel = telTom();
   const nu = () => lekSlagTillampa(y.bas || { namn: y.nyNamn, kort: [] }, y.ops);
   const nyckel = (name, sb) => lekSlagNyckel(name, sb);
@@ -15186,7 +15564,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     ritaHuvud(); ritaYta();
     if (stadat) { ritaNyss(); ritaKvitto(); }
     telEfterRad();
-    if (y.flik === 'tel' && res.ny) ritaTel();
+    /* I slutet säger panelen "saved" först när det är sant (N7). */
+    if (y.flik === 'tel' && (res.ny || slutar())) ritaTel();
   }
 
   /* ── andra enheter ── */
@@ -15244,8 +15623,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const klar = t.klar, ut = lfHor(t, m, { id: lekOpId });
     for (const x of ut.sag) telSag(x);
     if (ut.klar) { fotoKlar(true, { tyst: true }); return; }
+    /* Telefonen fotar igen (I forgot some, take another photo): slutet
+       börjar om när leken görs klar nästa gång. */
+    if (klar && !t.klar) { y.slut = null; y.kn = lsfKnTom(); }
     telSpara();
-    if (y.flik === 'tel') { ritaTel(); if (!nu().kort.length || klar !== t.klar) ritaYta(); }
+    if (y.flik === 'tel') ritaTel(); else if (klar !== t.klar) ritaPanel();
+    if (!nu().kort.length || klar !== t.klar) ritaYta();
     if (visa) ritaVisa();
   }
   function telSatt(d) {
@@ -15309,8 +15692,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function telSpara() {
     if (!y.bas) return;
     const undo = [...y.tel.undo.values()].filter(u => u.brukad || lfUndoGiltig(y.tel, u));
-    if (y.flik !== 'tel' && !undo.length) { LS.del(telNyckel(y.bas.id)); return; }
-    LS.set(telNyckel(y.bas.id), { flik: y.flik, klar: !!y.tel.klar, undo, ts: Date.now() });
+    /* Slutet står kvar också i Type (ID2): stegen och Later överlever en omladdning. */
+    if (y.flik !== 'tel' && !undo.length && !y.tel.klar) { LS.del(telNyckel(y.bas.id)); return; }
+    LS.set(telNyckel(y.bas.id), { flik: y.flik, klar: !!y.tel.klar, undo, slut: y.tel.klar ? y.slut : null, ts: Date.now() });
   }
   function telLas(rad) {
     const s = LS.get(telNyckel(rad.id), null);
@@ -15366,7 +15750,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const s = ++y.session;
     Object.assign(y, { bas: null, ops: [], felN: 0, spar: 'tom', skapaTomt: false, nyss: [], kvitto: '', laser: false,
                       namnRedigeras: false, ytaHtml: '', tillSb: false, angra: [], telVisad: false, listaKlar: null,
-                      tel: telTom(), telHtml: '' });
+                      tel: telTom(), telHtml: '', slut: null, kn: lsfKnTom() });
     y.valda.clear(); y.nya.clear(); y.bekr.clear();
     if (!id) {
       y.nyNamn = o.namn || 'New deck'; y.flik = null; y.namnRedigeras = true; y.laddar = false;
@@ -15398,6 +15782,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (sparat) {
       if (sparat.flik === 'tel' || sparat.flik === 'lista' || sparat.flik === 'skriv') y.flik = sparat.flik;
       y.tel.klar = !!sparat.klar;
+      y.slut = y.tel.klar ? lsfRen(sparat.slut) : null;
       for (const u of Array.isArray(sparat.undo) ? sparat.undo : []) if (u && u.fid && Array.isArray(u.ops)) y.tel.undo.set(String(u.fid), u);
       telEfterRad(true);
     }
@@ -15485,7 +15870,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const flik = (k, ikon, txt) => `<button type="button" class="${y.flik === k ? 'on' : ''}" data-ls-flik="${k}">${lsIk(ikon, 14)}${txt}</button>`;
     const sbKnapp = sb => `<button type="button" class="${y.tillSb === sb ? 'on' : ''}" data-ls-sb="${sb ? 1 : 0}">${sb ? 'Sideboard' : 'Main deck'}</button>`;
     let h = `<h3>Add cards</h3><div class="lsseg">${flik('tel', 'camera', 'Take photos')}${flik('lista', 'paste', 'Paste a list')}${flik('skriv', 'type', 'Type')}</div>`;
-    if (y.flik === 'skriv') {
+    /* ID2 (MES-323): steg 2 efter Finish the deck. Kortet går till huvudleken. */
+    const id2 = y.flik === 'skriv' && slutar() && slutLage().st.aktiv === 'undan';
+    if (id2) {
+      h += '<div class="lsfhd"><b>Type in the cards you put aside</b><span>Type a name and press Enter. The card goes into the deck.</span></div>'
+        + undanSokHtml() + '<div class="lsfundanlista"></div><span class="lsfgrow"></span>'
+        + '<button type="button" class="btn lsfstor lsfmer" data-lsf="undanklar">I’m done, go to basic lands</button>';
+    } else if (y.flik === 'skriv') {
       h += `<div class="lssokwrap"><label class="lsfld"><span class="ic">${lsIk('search', 16)}</span><input type="text" class="lssok" placeholder="Type a card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>`
         + '<p class="lslead">Suggestions show as you type. Click a number to add that many copies.</p>'
         + `<div class="lsaddto"><span>Add to</span><div class="lsseg">${sbKnapp(false)}${sbKnapp(true)}</div></div>`;
@@ -15505,9 +15896,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
          added hör till Type och Paste a list. */
       h += '<div class="lstel lfpanel"></div>';
     }
-    if (y.flik !== 'tel') h += '<div class="lsnyss"></div>';
+    if (y.flik !== 'tel' && !id2) h += '<div class="lsnyss"></div>';
     panel.innerHTML = h;
-    if (y.flik === 'skriv') y.sok = kopplaSok(panel.querySelector('.lssok'), panel.querySelector('.lssug'));
+    panel.classList.toggle('lsfid2', id2);
+    if (id2) { y.sok = kopplaUndan(panel); const inp = panel.querySelector('.lsfundanin'); if (inp) inp.focus(); }
+    else if (y.flik === 'skriv') y.sok = kopplaSok(panel.querySelector('.lssok'), panel.querySelector('.lssug'));
     if (y.flik === 'tel') ritaTel();
     ritaKvitto(); ritaNyss();
   }
@@ -15540,7 +15933,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!el || !y.bas) return;
     const t = y.tel, url = lekQrUrl(y.bas.id), l = lfLage(t);
     let h;
-    if (l.typ === 'koppla') {
+    /* Efter Finish the deck: slutet, också utan telefonen (MES-323). */
+    if (t.klar) h = slutPanelHtml();
+    else if (l.typ === 'koppla') {
       /* Fotona står kvar också när telefonen inte är kopplad (sidan laddades
          om, telefonen borta): Undo och View behöver den inte. */
       h = lfRader(t).map(fotoRadHtml).join('')
@@ -15552,21 +15947,29 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     } else {
       h = '<div class="lfansl"><i></i>Phone connected</div>'
         + lfRader(t).map(fotoRadHtml).join('')
-        + (t.klar ? fotoKlarHtml()
-          : `<div class="lftit"><b>${l.rub}</b><span>${l.txt}</span></div>`
-            + (l.guide ? lekGuide('lfg' + l.guide, { cols: 3, rows: l.guide, w: 54, off: 15, gap: 50, pad: 49 }) : '')
-            + (l.vantar ? `<span class="lfvantar"><i></i>${l.vantar}</span>` : '')
-            + (l.not ? `<p class="lfnot">${l.not}</p>` : '')
-            + (lfKanAvsluta(t) ? '<div class="lffot"><span>Photographed every card?</span>'
-              + `<button type="button" class="lfklar" data-ls="fotoklar">${lsIk('check', 16, 2.6)}Finish the deck</button></div>` : ''));
+        + `<div class="lftit"><b>${l.rub}</b><span>${l.txt}</span></div>`
+        + (l.guide ? lekGuide('lfg' + l.guide, { cols: 3, rows: l.guide, w: 54, off: 15, gap: 50, pad: 49 }) : '')
+        + (l.vantar ? `<span class="lfvantar"><i></i>${l.vantar}</span>` : '')
+        + (l.not ? `<p class="lfnot">${l.not}</p>` : '')
+        + (lfKanAvsluta(t) ? '<div class="lffot"><span>Photographed every card?</span>'
+          + `<button type="button" class="lfklar" data-ls="fotoklar">${lsIk('check', 16, 2.6)}Finish the deck</button></div>` : '');
     }
     /* Samma html: rita inte om. Annars börjar guidens animering och QR-koden
        om vid varje meddelande från telefonen. */
     if (h === y.telHtml && el.childNodes.length) return;
+    /* Fältet i N9 (steg 2 i listan): det man skrev och fokus följer med. */
+    const forra = el.querySelector('.lsfundanin'), skrev = forra && forra === document.activeElement ? forra.value : null;
     y.telHtml = h;
     el.innerHTML = h;
+    el.classList.toggle('lsfslut', !!t.klar);
     const qr = el.querySelector('.lsqr');
     if (qr) ritaQr(url, qr);
+    if (y.telSok) { y.telSok.stang(); y.telSok = null; }
+    if (t.klar) {
+      y.telSok = kopplaUndan(el);
+      const inp = el.querySelector('.lsfundanin');
+      if (inp && skrev !== null) { inp.value = skrev; inp.focus(); }
+    }
   }
   /* En fotorad (N3, IP1, N4, N6, J9, J10). Tumnageln är fotot när telefonen
      skickat det (fotobild), annars ritad. View öppnar fotot (HD2); Undo
@@ -15581,25 +15984,110 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     return `<div class="lffoto ${r.typ}"><span class="th">${th}</span>`
       + `<div class="ft"><b>${esc(r.rub)}</b><span>${esc(r.txt)}</span></div>${knapp}</div>`;
   }
-  /* Efter Finish the deck: vad som händer då bygger MES-323. Till dess gör
-     knappen det appen gjorde när man var klar med fotona — To check och
-     basländerna står på kortytan som förut — och fotona står kvar, med en
-     väg tillbaka till kameran (Take more photos, ID0). */
-  function fotoKlarHtml() {
-    return `<button type="button" class="btn lfigen" data-ls="fotoigen">${lsIk('camera', 14)}Take more photos</button>`;
+  /* Efter Finish the deck (MES-323, ID0, ID1, ID3, N7, N9): stegen, fotona
+     med View och Take more photos. Texterna står i LEKFOTO SLUTET. */
+  function slutPanelHtml() {
+    const { v, st } = slutLage(), sum = lekSlagSummor(v.kort).main;
+    let hd;
+    /* "saved" bara när inget väntar på att sparas (N7). */
+    const sparad = !!y.bas && !y.ops.length && !y.flyger && (y.spar === 'sparat' || y.spar === 'tom');
+    if (st.klar) hd = `<div class="lsfhd"><b>The deck is ready</b><span>${lfAntal(sum, 'card', 'cards')}${sparad ? ', saved' : ''}. You can change it any time.</span></div>`;
+    else { const r = lsfRubrik(lsfFotoTal(y.tel), st); hd = `<div class="lsfhd"><b>${esc(r.rub)}</b><span>${esc(r.txt)}</span></div>`; }
+    const steg = (x, i) => {
+      let titel, text = '', extra = '';
+      if (x.id === 'koll') {
+        titel = `Check ${lfAntal(st.kollN, 'name', 'names')}`;
+        if (x.nu) text = 'Shown one at a time on the right.';
+        else if (x.senare) { text = lsfSenareText(st); extra = '<button type="button" class="btn lsfsm" data-lsf="kollnu">Check now</button>'; }
+      } else if (x.id === 'undan') {
+        titel = 'Type in the cards you put aside';
+        /* N9: steget står öppet i listan, med fältet. */
+        if (x.nu) {
+          text = 'Type a name and press Enter. The card goes into the deck.';
+          extra = undanSokHtml() + '<div class="lsfundanlista"></div><button type="button" class="btn lsfsm" data-lsf="undanklar">I’m done, go to basic lands</button>';
+        } else if (!x.klar) text = 'The ones the photos didn’t find.';
+      } else {
+        titel = 'Basic lands';
+        if (!x.klar) text = lsfBlStegText(v.kort, st, y.tel);
+      }
+      return `<li class="${x.klar ? 'klar' : x.nu ? 'nu' : ''}"><span class="sn">${x.klar ? lsIk('check', 11, 3) : i + 1}</span>`
+        + `<span class="st"><b>${esc(titel)}</b>${text ? `<span>${esc(text)}</span>` : ''}${extra}</span></li>`;
+    };
+    return hd + `<ol class="lsfsteg">${st.steg.map(steg).join('')}</ol>` + slutFotonHtml()
+      + `<span class="lsfgrow"></span><button type="button" class="btn lsfstor lsfmer" data-ls="fotoigen">${lsIk('camera', 16, 2.1)}Take more photos</button>`;
+  }
+  /* Fotona kvar i panelen (sida M, beslut D3): en tumme var, som öppnar View.
+     Ett foto som går att ångra (borttaget, N6, eller omtaget, J10) står som
+     sin rad med Undo, som medan man fotar: Undo gäller tills nästa foto
+     landar, också efter Finish the deck (granskningen av MES-323). */
+  function slutFotonHtml() {
+    const alla = lfRader(y.tel), angra = alla.filter(r => r.angra && lfStod()).map(fotoRadHtml).join('');
+    const rader = alla.filter(r => r.visa && r.fid && !(r.angra && lfStod()));
+    if (!rader.length) return angra;
+    return angra + '<span class="lsfetik">PHOTOS</span><div class="lsffoton">' + rader.map(r => {
+      const f = y.tel.foton.get(r.fid), bild = y.tel.bilder.get(r.fid), n = r.typ === 'tom' || !f ? 0 : lfHittade(f);
+      const th = bild ? `<img src="${esc(bild.url)}" alt="">` : '<i style="left:6px"></i><i style="left:15px"></i><i style="left:24px"></i><i style="left:33px"></i>';
+      const kan = !String(r.fid).startsWith('sparad:'), tagg = kan ? 'button' : 'span';
+      return `<${tagg}${kan ? ` type="button" data-lf="visa" data-fid="${esc(r.fid)}" aria-label="View photo ${r.nr}"` : ''} class="lsffoto${r.typ === 'tom' ? ' tom' : ''}">`
+        + `<span class="th">${th}</span><span class="nr">Photo ${r.nr}${n ? ` · ${n}` : ''}</span></${tagg}>`;
+    }).join('') + '</div>';
+  }
+  /* Fältet för korten man lagt undan (ID2, N9): Enter lägger in kortet i
+     huvudleken, ett exemplar, och det står under ADDED med Undo. Fältet
+     töms direkt (lsfUndanValj), innan kortet slagits upp. */
+  function undanSokHtml() {
+    return `<div class="lssokwrap"><label class="lsfld lsfhog"><span class="ic">${lsIk('search', 16)}</span>`
+      + '<input type="text" class="lsfundanin" placeholder="Card name" aria-label="Card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>';
+  }
+  function kopplaUndan(root) {
+    const inp = root && root.querySelector('.lsfundanin'); if (!inp) return null;
+    const s = kopplaSok(inp, root.querySelector('.lssug'), { valj: namn => lsfUndanValj(inp, namn, t => laggUndan(t, inp)) });
+    ritaUndan();
+    return s;
+  }
+  async function laggUndan(namn, inp) {
+    const s = y.session;
+    if (!lekKanVaraNamn(namn, true)) { toast("That doesn't look like a card name. Type it as it's printed on the card.", 'err'); return; }
+    let k;
+    try { k = await lookup(namn); }
+    catch (e) { toast(e && e.tillfallig ? 'The lookup did not get through. Try again.' : `No card is called “${lsKort(namn)}”. Check the spelling.`, 'err'); return; }
+    if (s !== y.session) return;
+    const small = imgOf(k, 0, 'small');
+    medTillagg(k.name, false, () => andra({ typ: 'antal', name: k.name, sb: false, d: 1, kort: { name: k.name, sid: k.id, small, ci: k.ci || [] } }), null);
+    y.nyss.unshift({ nr: ++y.nyssNr, name: k.name, sb: false, n: 1, small, undan: true });
+    /* Fältet tömdes redan; det man hunnit skriva sedan står kvar. */
+    if (inp && inp.isConnected && !panel.contains(document.activeElement)) inp.focus();
+    ritaUndan();
+  }
+  function ritaUndan() {
+    const l = y.nyss.filter(e => e.undan).slice(0, 6);
+    const html = !l.length ? '' : '<span class="lsfetik">ADDED</span>' + l.map(e => `<div class="lsfadded"><span class="th">${e.small ? `<img src="${esc(e.small)}" alt="">` : ''}</span>`
+      + `<span class="grow">${esc(e.name)}</span><button type="button" class="btn ghost" data-ls-angra="${e.nr}">${lsIk('undo', 13)}Undo</button></div>`).join('');
+    for (const el of panel.querySelectorAll('.lsfundanlista')) if (el.innerHTML !== html) el.innerHTML = html;
   }
   /* Finish the deck. Trycks den här får telefonen veta det (I10); kom den
-     från telefonen (tyst) ritas bara datorn om. */
+     från telefonen (tyst) öppnas slutet också här. Take more photos
+     (klar = false) går tillbaka till fotona, och slutet börjar om. */
   function fotoKlar(klar, o = {}) {
+    const var_ = y.tel.klar;
     y.tel.klar = !!klar;
+    if (klar && !var_) slutBorja();
+    if (!klar) { y.slut = null; y.kn = lsfKnTom(); }
     telSpara();
     if (klar && !o.tyst && y.bas) lekKanalSag({ typ: 'klar', lekId: y.bas.id, fran: 'dator' });
-    if (y.flik !== 'tel') return;
-    ritaTel(); ritaYta();
-    if (klar) {
-      const tc = yta.querySelector('.lstc:not([hidden])');
-      if (tc) tc.scrollIntoView({ block: 'start', behavior: 'smooth' }); else yta.scrollTop = 0;
-    }
+    /* Telefonens Finish (I10) öppnar slutet i Take photos, om man inte skriver i panelen. */
+    const skriver = panel.contains(document.activeElement) && document.activeElement.matches('input, textarea');
+    if (klar && o.tyst && y.flik !== 'tel' && !skriver) { y.flik = 'tel'; ritaPanel(); }
+    else if (y.flik === 'tel') ritaTel();
+    else if (!skriver) ritaPanel();
+    ritaYta();
+    if (klar) yta.scrollTop = 0;
+  }
+  function slutBorja() {
+    const s = y.slut || (y.slut = lsfTom());
+    s.undan = s.undan || lsfUndanIFoton(y.tel);
+    s.kollN = Math.max(s.kollN, lsfKo(nu().kort).length);
+    y.kn = lsfKnTom();
   }
   /* ── Remove photo, Retake och Undo (HD2, N6, J9, J10) ──
      Ändringarna och Undo-posterna görs i LEKFOTO PÅ DATORN. Leken sparas
@@ -15760,6 +16248,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     return true;
   }
   function ritaNyss() {
+    ritaUndan();
     const el = panel.querySelector('.lsnyss'); if (!el) return;
     const l = y.nyss.slice(0, 6);
     el.innerHTML = !l.length ? '' : '<div class="zr"><span class="zonlbl">Just added</span><i class="zl"></i></div>' + l.map(e =>
@@ -15804,15 +16293,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
          flyttar innehåll mellan sektionerna när de dyker upp. Markeringsraden
          flyter längst ner: överst (som i H4) tryckte den ner korten när det
          första markerades, och nästa klick träffade fel. */
-      h = attKolla(v)
+      /* Efter Finish the deck står slutet överst (MES-323): Check names, Later
+         eller de gröna raderna. Annars To check, som förut. */
+      h = (slutar() ? slutTopp(v) : attKolla(v))
         + (main.length ? `<div class="lssekrad">${main.map(g => sek(g.rub, g.poster)).join('')}</div>` : '')
         + basland(poster)
         + (sbGrupp ? `<div class="lssekrad">${sek('Sideboard', sbGrupp.poster)}</div>` : '')
         + selbar(v);
     }
     /* Samma html: inget byts, så bilderna blinkar inte och verktyget under
-       pekaren står kvar. */
-    if (h === y.ytaHtml) return;
+       pekaren står kvar. Check names ritar sitt eget innehåll (knRita). */
+    if (h === y.ytaHtml) { if (slutar()) knRita(); return; }
     y.ytaHtml = h;
     /* Uppdateras på plats i stället för att bytas ut: −/+ i verktyget ska
        lämna kortet och verktyget under pekaren kvar. Ett nytt element är inte
@@ -15822,6 +16313,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const mall = document.createElement('div');
     mall.innerHTML = h;
     lsMorf(yta, mall);
+    if (slutar()) knRita();
     const under = yta.querySelector('.lspw:hover');
     if (under) placeraVerktyg(under);
     if (forstMal && !forstMal.isConnected) doljForstoring();
@@ -15886,6 +16378,197 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     return `<div class="lstc"><div class="lstchd"><span class="tcd"></span><b>To check</b><span class="tn">${kvar}</span>`
       + `<span class="sub">${sub}</span></div>${l.map(rad).join('')}</div>`;
   }
+
+  /* ── Slutet på kortytan (MES-323) ──
+     Överst: Check names (ID1 A–D, LR2) med raden om korten man lagt undan,
+     Later-raden (N9), de gröna raderna (ID2, ID3) eller klar-raden (N7, N8).
+     Check names ritar sitt innehåll själv (knRita): platsen bär data-ls-egen,
+     så att lsMorf inte rör sökfältet medan man skriver. */
+  function slutTopp(v) {
+    const { st } = slutLage(), ok = lsIk('check', 18, 2.8);
+    /* Later (N9): Check names-raden står kvar överst, också när resten är
+       klart och klar-raden står under den. */
+    const senareRad = () => {
+      const tum = lsfKo(v.kort).slice(0, 6).map(k => !k.okand && k.small ? `<img src="${esc(k.small)}" alt="">` : '<i></i>').join('');
+      return `<div class="lsfbar gul"><i class="pr"></i><b>${lfAntal(st.kvar, 'name', 'names')} to check</b><span class="lsftum">${tum}</span>`
+        + `<span class="tx">${st.gissning ? 'Left for later. Cards marked Check are Mesa’s guess.' : 'Left for later.'}</span><span class="lsfgrow"></span>`
+        + '<button type="button" class="btn prim lsfklarknapp" data-lsf="kollnu">Check now</button></div>';
+    };
+    let h = '';
+    if (st.klar) {
+      const k = nar.klarKnapp ? nar.klarKnapp() : null;
+      h = (st.senare ? senareRad() : '')
+        + `<div class="lsfbar gron"><span class="ic">${ok}</span><b>The deck is ready</b><span class="tx">${esc(lsfKlarText(st, lekSlagSummor(v.kort).main))}</span><span class="lsfgrow"></span>`
+        + (k ? `<button type="button" class="btn lsfklarknapp${k.prim ? ' prim' : ''}" data-lsf="klarknapp">${k.prim ? '' : lsIk('back', 14, 2.2)}${esc(k.txt)}</button>` : '') + '</div>';
+    } else if (st.aktiv === 'koll') {
+      h = '<div class="lsfknplats" data-ls-egen></div>';
+      if (st.undan) h += '<div class="lsfundanrad"><span class="ut">!</span><b>Cards you put aside</b><span class="tx">The ones the photos didn’t find. You type them in after the names.</span><em>Next, after the names</em></div>';
+    } else if (st.senare) {
+      h = senareRad();
+    } else {
+      const rub = lsfEfterKoll(st), logg = st.aktiv === 'undan' || !st.undan ? lsfLoggText(y.kn.logg) : '';
+      if (rub) h = `<div class="lsfbar gron"><span class="ic">${ok}</span><b>${esc(rub)}</b>${logg ? `<span class="tx">${esc(logg)}</span>` : ''}</div>`;
+    }
+    return `<div class="lsftopp">${h}</div>`;
+  }
+  /* Kandidaterna för det fotot läste (B), ur Scryfalls sökning: högst tre,
+     med bilderna hämtade i ett anrop. null medan de hämtas. */
+  const knKandMap = new Map();
+  function knKand(las) {
+    const q = norm(las);
+    if (knKandMap.has(q)) { const x = knKandMap.get(q); return x === 'hamtar' ? null : x; }
+    knKandMap.set(q, 'hamtar');
+    SF.autocomplete(las).then(d => (d && d.data) || []).catch(() => []).then(async lista => {
+      const tre = lista.slice(0, 3), saknas = tre.filter(n => !cardFor(n));
+      if (saknas.length) {
+        try {
+          const svar = await SF.collection(saknas.map(n => n.split(' // ')[0]));
+          for (const raw of (svar && svar.data) || []) { const c = normalizeCard(raw); cardCache.set(norm(c.name), c); }
+          saveCache();
+        } catch (e) { /* utan bild */ }
+      }
+      knKandMap.set(q, tre);
+      if (yta.isConnected && slutar()) knRita();
+    });
+    return null;
+  }
+  let knSok = null, knPlats = null, knHtmlNu = '';
+  function knRita() {
+    const plats = yta.querySelector('.lsfknplats');
+    if (!plats) { if (knSok) { knSok.stang(); knSok = null; } knPlats = null; return; }
+    const ko = lsfKo(nu().kort), o = lsfOmgang(y.kn, ko), key = y.kn.nu, k = ko.find(x => nyckel(x.name, x.sb) === key);
+    /* Kandidaterna hämtas i förväg för varje platshållare med ett läst namn. */
+    for (const x of ko) if (x.okand && String(x.koll.las || '').trim()) knKand(x.koll.las);
+    const las = k ? String(k.koll.las || '').trim() : '';
+    const kand = k && k.okand && las ? knKand(las) : null;
+    const html = k ? knHtml(k, key, lsfFall(k, kand, y.tel.arKort), o, kand) : '';
+    if (knPlats === plats && knHtmlNu === html && (!html || plats.querySelector('.lsfkn'))) return;
+    const byttKort = knPlats !== plats || !knHtmlNu.includes(`data-kn="${esc(key)}"`) || /data-sok="1"/.test(knHtmlNu) !== (y.kn.sok === key);
+    const forra = plats.querySelector('.lsfsokin'), skrev = forra && forra === document.activeElement ? forra.value : null;
+    knPlats = plats; knHtmlNu = html;
+    plats.innerHTML = html;
+    if (knSok) { knSok.stang(); knSok = null; }
+    const inp = plats.querySelector('.lsfsokin');
+    if (!inp) return;
+    knSok = kopplaSok(inp, plats.querySelector('.lssug'), { valj: namn => knValj(key, namn) });
+    if (!byttKort && skrev !== null) { inp.value = skrev; inp.focus({ preventScroll: true }); }
+    else if (byttKort) {
+      inp.focus({ preventScroll: true });
+      if (inp.value) { inp.select(); inp.dispatchEvent(new Event('input')); }
+    }
+  }
+  function knHtml(k, key, fall, o, kand) {
+    const q = k.koll || {}, las = String(q.las || '').trim(), nr = lsfFotoNr(k), dk = `data-key="${esc(key)}"`, sok = y.kn.sok === key;
+    const sokFalt = (varde, ph) => `<div class="lssokwrap lsfsok"><label class="lsfld lsfhog"><span class="ic">${lsIk('search', 16)}</span>`
+      + `<input type="text" class="lsfsokin" value="${esc(varde)}" placeholder="${ph}" aria-label="Card name" spellcheck="false" autocomplete="off"></label><ul class="lssug" hidden></ul></div>`;
+    const knapp = (kl, a, ikon, txt) => `<button type="button" class="btn lsfstor${kl}" data-lsf="${a}" ${dk}>${ikon}${esc(txt)}</button>`;
+    const kalla = fall === 'D'
+      ? `<div class="lsfkalla"><span class="lsfetik">IN YOUR LIST</span><div class="lsflista"><span>${esc(`${k.n} ${lsKort(las)}`)}</span></div></div>`
+      : `<div class="lsfkalla${fall === 'LR2' ? ' stor' : ''}"><span class="lsfetik">${fall === 'LR2' ? 'PHOTO' : 'IN PHOTO'}${nr ? ' ' + nr : ''}</span>`
+        + `<div class="lsfremsa">${q.remsa ? `<img src="${esc(q.remsa)}" alt="The name line in the photo">` : ''}</div></div>`;
+    let fraga = '', under = '', los = '';
+    if (k.okand && las && kand === null) {
+      /* Kandidaterna hämtas: frågan kommer när det är känt om det är B eller C. */
+    } else if (fall === 'A') {
+      fraga = `Is this ${k.name}?`; under = 'Mesa’s best guess. It’s in the deck with a Check mark until you answer.';
+      const c = lekKortData(k), src = (c && imgOf(c, 0, 'normal')) || k.small;
+      los = sok ? sokFalt(las, 'Type the card name')
+        : `<div class="lsfa"><span class="kb">${src ? `<img src="${esc(src)}" alt="${esc(k.name)}">` : ''}</span><div class="lsfknappar">`
+          + knapp(' prim', 'ja', lsIk('check', 13, 2.6), `Yes, ${k.name}`) + knapp('', 'sok', lsIk('search', 14), 'No, search for it') + '</div></div>';
+    } else if (fall === 'B') {
+      fraga = 'Which of these is it?'; under = 'Several cards fit about as well. Not in the deck until you pick.';
+      los = sok ? sokFalt(las, 'Type the card name')
+        : `<div class="lsfkand">${kand.map(n => { const c = cardFor(n), src = c && imgOf(c, 0, 'normal');
+            return `<button type="button" class="lsfkk" data-lsf="valj" data-namn="${esc(n)}" ${dk}><span class="kb">${src ? `<img src="${esc(src)}" alt="">` : ''}</span><span class="nm">${esc(n)}</span></button>`; }).join('')}</div>`
+          + knapp(' ghost', 'sok', lsIk('search', 14), 'None of these, search');
+    } else if (fall === 'C') {
+      fraga = 'Which card is this?'; under = 'The name couldn’t be read. Type what you see on the card.';
+      los = sokFalt(las, 'Type the card name');
+    } else if (fall === 'LR2') {
+      fraga = 'Which card is this?';
+      under = `Mesa found something in ${nr ? 'photo ' + nr : 'a photo'} but couldn’t read a name. If it isn’t a card, remove it.`;
+      los = sokFalt('', 'Type the card name') + `<div class="lsfrad">${knapp(' prim', 'intekort', lsIk('x', 13, 2.6), 'Not a card')}</div>`;
+    } else {
+      /* D: gissningen ligger i leken (Paste a list lägger in den närmaste
+         träffen, som förut), så meningen säger det, som i A. */
+      fraga = `No card is called “${lsKort(las)}”`;
+      under = `From your pasted list${q.rad ? `, line ${q.rad}` : ''}. It’s in the deck with a Check mark until you answer.`;
+      los = `<div class="lsfdym"><span>Did you mean</span><button type="button" class="lsfdymk" data-lsf="ja" ${dk}>${k.small ? `<img src="${esc(k.small)}" alt="">` : ''}${esc(k.name)}</button></div>`
+        + sokFalt('', 'Or search for another card');
+    }
+    const hd = '<div class="lsfknhd"><i></i><b>Check names</b><span class="lsfgrow"></span><div class="lsfnav">'
+      + `<button type="button" data-lsf="forra" aria-label="Previous"${o.forra ? '' : ' disabled'}>${lsIk('back', 14, 2.2)}</button><b>${o.nr} of ${o.av}</b>`
+      + `<button type="button" data-lsf="nasta" aria-label="Next"${o.nasta ? '' : ' disabled'}>${lsIk('chev', 14, 2.2)}</button></div>`
+      + '<button type="button" class="lsfsenare" data-lsf="senare">Later</button></div>';
+    const fot = '<div class="lsffot"><span>Answer and the next one opens by itself. <b>Remove</b> takes the card out of the deck.</span><span class="lsfgrow"></span>'
+      + `<button type="button" class="lsfbort" data-lsf="bort" ${dk}>${lsIk('trash', 12)}Remove</button></div>`;
+    return `<section class="lsfkn" aria-label="Check names" data-kn="${esc(key)}" data-sok="${sok ? 1 : 0}">${hd}<div class="lsfkropp">${kalla}<div class="lsflos">`
+      + (fraga ? `<div class="lsffraga"><b>${esc(fraga)}</b>${under ? `<span>${esc(under)}</span>` : ''}</div>` : '') + los + `</div></div>${fot}</section>`;
+  }
+  /* Knapparna i slutet: i panelen och på kortytan (data-lsf). */
+  function slutAtgard(b) {
+    const a = b.dataset.lsf, key = b.dataset.key || y.kn.nu;
+    if (!slutar()) return;
+    if (a === 'forra' || a === 'nasta') { lsfBladdra(y.kn, lsfKo(nu().kort), a === 'nasta' ? 1 : -1); knRita(); return; }
+    if (a === 'senare') { slutLage().s.senare = true; y.kn.sok = null; slutEfter(); return; }
+    if (a === 'kollnu') { slutLage().s.senare = false; y.kn.sok = null; slutEfter(); yta.scrollTop = 0; return; }
+    if (a === 'undanklar') {
+      slutLage().s.undanKlar = true; if (y.flik === 'skriv') y.flik = 'tel'; slutEfter(true);
+      /* Steg 3 står längst ned på kortytan (ID3): dit. */
+      const ram = yta.querySelector('.lsfblram'); if (ram) ram.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      return;
+    }
+    if (a === 'blklar') { slutLage().s.blKlar = true; slutEfter(); yta.scrollTop = 0; return; }
+    if (a === 'klarknapp') { if (nar.klar) nar.klar(); return; }
+    if (a === 'sok') { if (key === y.kn.nu) { y.kn.sok = key; knRita(); } return; }
+    if (a === 'valj') { knValj(key, b.dataset.namn); return; }
+    const k = nu().kort.find(x => nyckel(x.name, x.sb) === key);
+    if (!k || !k.koll || !lsfTryck(y.kn, key, Date.now())) return;
+    if (a === 'ja') { y.kn.logg.push({ typ: 'ja', namn: k.name }); bekrafta(k); }
+    else if (a === 'bort' || a === 'intekort') { if (!k.okand) y.kn.logg.push({ typ: 'bort', namn: k.name }); taBort(k); }
+    else return;
+    knEfter();
+  }
+  /* Ett kort ur sökningen eller kandidaterna: slås upp, och byter raden. */
+  async function knValj(key, namn) {
+    if (!namn || !lsfTryck(y.kn, key, Date.now())) return;
+    const s = y.session;
+    let c;
+    try { c = await lookup(namn); }
+    catch (e) {
+      y.kn.sist = 0;
+      toast(e && e.tillfallig ? 'The lookup did not get through. Try again.' : `No card is called “${lsKort(namn)}”. Check the spelling.`, 'err');
+      return;
+    }
+    if (s !== y.session) return;
+    const k = nu().kort.find(x => nyckel(x.name, x.sb) === key);
+    if (!k || !k.koll) return;
+    const op = lsfValj(k, { name: c.name, sid: c.id, small: imgOf(c, 0, 'small'), ci: c.ci || [] });
+    if (op.typ === 'koll') { y.kn.logg.push({ typ: 'ja', namn: k.name }); bekrafta(k); }
+    else { y.kn.logg.push({ typ: 'ny', namn: c.name }); y.nya.add(nyckel(c.name, k.sb)); andra(op); }
+    knEfter();
+  }
+  /* Svarat: nästa kort öppnas av sig självt. Var det det sista öppnas nästa
+     steg: de undanlagda korten i Type (ID2), annars basländerna. */
+  function knEfter() {
+    y.kn.sok = null;
+    const { st } = slutLage();
+    if (st.kvar === 0 && st.aktiv === 'undan' && y.flik === 'tel') { y.flik = 'skriv'; slutEfter(true); return; }
+    slutEfter();
+  }
+  function slutEfter(panelOm) {
+    telSpara();
+    if (panelOm) ritaPanel(); else if (y.flik === 'tel') ritaTel();
+    ritaYta();
+  }
+  /* Check-brickan på ett kort i slutet: Check names öppnas på det kortet. */
+  function knVisa(name, sb) {
+    const k = kortI(name, sb); if (!k || !k.koll) return;
+    slutLage().s.senare = false;
+    y.kn.nu = nyckel(k.name, k.sb); y.kn.sok = null;
+    slutEfter();
+    yta.scrollTop = 0;
+  }
   /* En platshållare (MES-289): det fotot läste, om något. */
   function okandSkrev(k) {
     const las = k.koll && k.koll.las;
@@ -15933,10 +16616,9 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
   function basland(poster) {
     const antal = n => poster.filter(p => !p.sb && p.name === n).reduce((t, p) => t + p.n, 0);
     /* Hur många av dem som kom ur fotona (N3, "4 in photos"): radens foto
-       (MES-321), högst radens antal. */
-    const foto = fotar(), v = foto ? nu().kort : [];
-    const iFoton = n => v.filter(k => !k.sb && k.name === n && k.foto)
-      .reduce((t, k) => t + Math.min(k.n, Object.values(k.foto).reduce((s, c) => s + (+c || 0), 0)), 0);
+       (MES-321), högst radens antal. Också i slutet (ID1, ID3, N7). */
+    const slut = slutar(), foto = fotar() || slut, v = foto ? nu().kort : [];
+    const ifm = foto ? lsfBlIFoton(v, y.tel) : new Map(), iFoton = n => ifm.get(n) || 0;
     const blk = n => {
       const c = cardFor(n);
       if (!c && !y.blHamtas.has(n)) { y.blHamtas.add(n); lookup(n).then(() => ritaYta()).catch(() => {}); }
@@ -15950,14 +16632,18 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     };
     const tot = BASLAND_NAMN.reduce((t, n) => t + antal(n), 0);
     /* Basländerna får vara med på fotona (sida M, N2): medan man fotar räknas
-       de därifrån (N3). */
-    const not = fotar() ? 'Counted from the photos so far.' : 'Set how many you play here.';
-    return `<div class="lssek"><div class="zr"><span class="zonlbl">Basic lands</span><span class="zn">${tot}</span><i class="zl"></i></div>`
-      + `<div class="lsbl">${BASLAND_NAMN.map(blk).join('')}<span class="blnot">${not}</span></div></div>`;
+       de därifrån (N3). I slutet säger raden vad fotona hade och vad man lagt
+       till (ID1, ID3, N7), och steg 3 står i en ram med I’m done (ID3). */
+    let not = fotar() ? 'Counted from the photos so far.' : 'Set how many you play here.', ram = false;
+    if (slut) { const { st } = slutLage(); not = lsfBlNot(v, st, lekSlagSummor(v).main, y.tel); ram = st.aktiv === 'bl'; }
+    const sek = `<div class="lssek"><div class="zr"><span class="zonlbl">Basic lands</span><span class="zn">${tot}</span><i class="zl"></i></div>`
+      + `<div class="lsbl">${BASLAND_NAMN.map(blk).join('')}<span class="blnot${slut ? ' lang' : ''}">${esc(not)}</span></div></div>`;
+    return ram ? `<div class="lsfblram">${sek}<div class="lsrad"><button type="button" class="btn lsfstor" data-lsf="blklar">I’m done</button></div></div>` : sek;
   }
 
   /* ── ändringarna ── */
-  const mallAv = k => ({ name: k.name, sid: k.sid, small: k.small, ci: k.ci, koll: k.koll, okand: k.okand });
+  /* Med fotona raden kom ur (lsfMall, granskningen av MES-323). */
+  const mallAv = lsfMall;
   const kortI = (name, sb) => nu().kort.find(k => nyckel(k.name, k.sb) === nyckel(name, sb));
   const kopiorText = n => `${n} ${n === 1 ? 'copy' : 'copies'}`;
   function taBort(k) {
@@ -16430,12 +17116,18 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     }
     const ops = [], batch = [], saknas = [], natfel = [];
     let i = 0;
+    /* Raden i listan där namnet står: Check names säger den (ID1 D, MES-323). */
+    const radNr = new Map();
+    ta.value.split(/\r?\n/).forEach((l, i) => { const r = lekRad(l); if (r && !radNr.has(r.name)) radNr.set(r.name, i + 1); });
     for (const p of unika.values()) {
       if (prog) prog.textContent = `Looking up ${++i} of ${unika.size}…`;
       try {
         const k = await lookup(p.name);
         const kort = { name: k.name, sid: k.id, small: imgOf(k, 0, 'small'), ci: k.ci || [] };
-        if (lekNamnSkiljer(p.name, k.name)) kort.koll = { las: p.name.slice(0, 150), kalla: 'Pasted list' };
+        if (lekNamnSkiljer(p.name, k.name)) {
+          kort.koll = { las: p.name.slice(0, 150), kalla: 'Pasted list' };
+          if (radNr.has(p.name)) kort.koll.rad = radNr.get(p.name);
+        }
         ops.push({ typ: 'antal', name: k.name, sb: p.sb, d: p.n, kort });
         batch.push({ name: k.name, sb: p.sb, n: p.n });
       } catch (e) {
@@ -16648,12 +17340,16 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       return;
     }
     const u = ev.target.closest('[data-ls-angra]'); if (u) { angraNyss(+u.dataset.lsAngra); return; }
+    /* Slutet (MES-323): Check now, I’m done, go to basic lands. */
+    const sf = ev.target.closest('[data-lsf]'); if (sf) { slutAtgard(sf); return; }
     /* Fotoraderna: View (HD2) och Undo (N6, J10). */
     const lf = ev.target.closest('[data-lf]');
     if (lf) { if (lf.dataset.lf === 'visa') oppnaVisa(lf.dataset.fid); else if (lf.dataset.lf === 'angra') angraFoto(lf.dataset.fid); return; }
     const b = ev.target.closest('[data-ls]'); if (!b) return;
     if (b.dataset.ls === 'lista') lasLista();
     else if (b.dataset.ls === 'tillkoll') {
+      /* I slutet (MES-323) kollas namnen i Check names överst. */
+      if (slutar()) { slutLage().s.senare = false; y.kn.sok = null; slutEfter(); yta.scrollTop = 0; return; }
       const tc = yta.querySelector('.lstc:not([hidden])'); if (!tc) return;
       tc.scrollIntoView({ block: 'start', behavior: 'smooth' });
       tc.classList.remove('blink'); void tc.offsetWidth; tc.classList.add('blink');
@@ -16767,6 +17463,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     sattBasland(i);
   });
   yta.addEventListener('click', ev => {
+    const sf = ev.target.closest('[data-lsf]'); if (sf) { slutAtgard(sf); return; }
     const bl = ev.target.closest('[data-ls-bl]'); if (bl) { stegaBasland(bl.dataset.lsBl, +bl.dataset.d); return; }
     const lv = ev.target.closest('[data-lv]'); if (lv) { valdaAtgard(lv.dataset.lv, lv); return; }
     const a = ev.target.closest('[data-lk]'), tc = ev.target.closest('[data-tc]'), pw = ev.target.closest('[data-ls-kort]');
@@ -16784,7 +17481,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       else oppnaByt([nyckel(k.name, sb)], pw);
       return;
     }
-    if (ev.target.closest('[data-ls-chk]')) { oppnaKoll(name, sb, pw.querySelector('.lspile')); return; }
+    if (ev.target.closest('[data-ls-chk]')) { if (slutar()) knVisa(name, sb); else oppnaKoll(name, sb, pw.querySelector('.lspile')); return; }
     if (pw.classList.contains('lspw') && !ev.target.closest('.lstool')) valjKort(pw, { shift: ev.shiftKey, cmd: ev.metaKey || ev.ctrlKey });
   });
   /* Shift-klick ska inte markera text på sidan. */
@@ -16840,14 +17537,23 @@ function sidaJagHtml() {
   const jag = Moln.minId(), farg = ((hem.spel || []).flatMap(g => g.spelare || []).find(p => p.user_id === jag) || {}).farg;
   return `<i class="bdot" style="--pc:${esc(farg || 'var(--acc)')}"></i>${esc(Moln.mittNamn() || 'You')}`;
 }
+/* Ur uppstartens New deck (valj) heter vägen tillbaka Game setup (sida M,
+   rad 1 och N8), och det är den enda vägen tillbaka i toppraden. */
 function leksidaTillbakaText() {
-  $('#lsTillbakaTxt').textContent = leksida.fran === 'app' ? (spelLage ? 'Back to the game' : 'Back') : 'Home';
+  $('#lsTillbakaTxt').textContent = leksida.fran === 'app' ? (leksida.valj && spelLage ? 'Game setup' : spelLage ? 'Back to the game' : 'Back') : 'Home';
+}
+/* Knappen i klar-raden (N7, N8): samma väg tillbaka, och i uppstarten
+   Create deck, som väljer den nya leken för spelet (hette Use this deck). */
+function leksidaKlarKnapp() {
+  if (leksida.fran === 'app' && leksida.valj && spelLage) return { txt: 'Create deck', prim: true };
+  return { txt: leksida.fran === 'app' ? (spelLage ? 'Back to the game' : 'Back') : 'Back to Home' };
 }
 /* id: leken som ska öppnas; utan id en ny. fran: dit ‹ går ('hem' | 'app'),
    annars det som syns under sidan. valj: leken väljs i uppstartens steg 1
    när sidan stängs (New deck därifrån, MES-204). */
 async function oppnaLeksida(id, o = {}) {
-  if (!leksida.yta) leksida.yta = skapaLekYta({ panel: $('#lsPanel'), yta: $('#lsYta'), huvud: $('#lsHuvud'), nar: { borta: () => stangLeksida() } });
+  if (!leksida.yta) leksida.yta = skapaLekYta({ panel: $('#lsPanel'), yta: $('#lsYta'), huvud: $('#lsHuvud'),
+    nar: { borta: () => stangLeksida(), klarKnapp: leksidaKlarKnapp, klar: () => stangLeksida({ anvand: true }) } });
   leksida.fran = o.fran || ($('#app').style.display === 'none' ? 'hem' : 'app');
   leksida.valj = !!o.valj;
   leksidaTillbakaText();
@@ -16859,7 +17565,7 @@ async function oppnaLeksida(id, o = {}) {
   if (!id && !namn) { try { namn = lekNyttNamnAv(await lekHamtaLista()); } catch (e) { namn = 'New deck'; } }
   await leksida.yta.oppna(id || null, { namn });
 }
-async function stangLeksida() {
+async function stangLeksida(o = {}) {
   if (!leksidaOppen()) return;
   $('#vyLeksida').hidden = true;
   lsMenyerStang();
@@ -16871,7 +17577,11 @@ async function stangLeksida() {
     oppLekar = null;
     /* New deck ur steg 1 (MES-204): den nya leken är vald när man kommer
        tillbaka. En lek utan kort är borttagen då (MES-177) och har inget id. */
-    if (leksida.valj && leksida.yta && leksida.yta.id) oppLekVal = leksida.yta.id;
+    const id = leksida.valj && leksida.yta ? leksida.yta.id : null;
+    if (id) oppLekVal = id;
+    /* Create deck (N8, MES-323): leken används i spelet, som Use this deck
+       gjorde, och uppstarten går vidare till nästa steg. */
+    if (o.anvand && id && spelLage) { oppVisat = null; oppSatt({ lekOk: true }); await valjLekTill(id); }
     if (spelLage) renderMode();
   }
 }
