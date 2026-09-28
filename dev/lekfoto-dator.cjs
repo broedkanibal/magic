@@ -756,6 +756,38 @@ fall('Remove photo och Retake erbjuds inte medan ett foto läses eller tas om', 
   assert.strictEqual(app.lfLaserPagar(t), true, 'foto 1 tas om');
 });
 
+/* ── H: sista kollen av MES-322 ───────────────────────────────────── */
+fallD('G15 datorn öppnas medan telefonen läser foto 1: läget släpper när fotot landat', () => {
+  let rad = lek();
+  const t = nyTel({ ansluten: false, fas: 'vantar' }); synk(t, rad);
+  /* Telefonens svar på datorns hej mitt i läsningen: fas laser, foto = nästa (2), inget fid; sedan posterna. */
+  app.lfHor(t, { typ: 'hej', roll: 'tel', svar: true, fas: 'laser', foto: 2 });
+  assert.strictEqual(app.lfLaser(t), null, 'hej utan fid ger ingen rad för "Photo 2"');
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:x', nr: 1, lage: 'laser', hittade: 0 } });
+  assert.strictEqual(app.lfLage(t).rub, 'Photo 1 is being read');
+  assert.strictEqual(app.lfLaserPagar(t), true);
+  rad = spara(rad, fotoOps('1:x', ['A', 'B', 'C']));
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:x', nr: 1, lage: 'klar', hittade: 3 } });
+  synk(t, rad);
+  assert.strictEqual(app.lfLaserPagar(t), false, 'Remove och Retake är inte låsta när fotot landat');
+  assert.deepStrictEqual(rader(t), [['Photo 1', '3 cards added', 'View']]);
+  assert.strictEqual(app.lfLage(t).typ, 'nasta');
+});
+fallD('G16 resultatposten tappades men leken bär fotot: laser-raden och låset släpper', () => {
+  let rad = lek();
+  const t = nyTel(); synk(t, rad);
+  app.lfHor(t, { typ: 'laser', foto: 1, fid: '1:x' });
+  assert.strictEqual(app.lfLaserPagar(t), true);
+  rad = spara(rad, fotoOps('1:x', ['A', 'B']));
+  synk(t, rad);                                            // hamtaNyare efter sparad, utan foto-posten
+  assert.strictEqual(app.lfLaserPagar(t), false, 'leken bär fotot: det har landat');
+  assert.deepStrictEqual(rader(t), [['Photo 1', '2 cards added', 'View']]);
+  assert.strictEqual(app.lfLage(t).vantar, 'Waiting for photo 2');
+  /* Resultatposten kommer ändå, sent: telefonens post tar över samma fid. */
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:x', nr: 1, lage: 'klar', hittade: 2, olasta: 1 } });
+  assert.deepStrictEqual(rader(t), [['Photo 1', '2 cards added · some not read', 'View']]);
+});
+
 const d = STOD ? '' : `, ${over} hoppades över: LEKSLAG i ${path.basename(FIL)} saknar foto/fotobort (MES-321)`;
 console.log(`\nlekfoto-dator: ${ok} OK, ${fel} FEL${d}`);
 process.exit(fel ? 1 : 0);

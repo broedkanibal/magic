@@ -14620,12 +14620,14 @@ function lfOmtas(t) {
   for (const f of lfFotoLista(t)) if (lfLageAv(t, f) === 'laser' && giltig(f.ersatter)) return f.ersatter;
   return null;
 }
-/* Fotot som läses nu (N4), när det inte är ett omtag. */
+/* Fotot som läses nu (N4), när det inte är ett omtag. Reservgrenen kräver
+   ett fid: telefonens hej säger fas 'laser' utan fid (och foto = nästa
+   nummer), och då kommer fotots laser-post strax efter (sista kollen, G15). */
 function lfLaser(t) {
   const f = lfFotoLista(t).find(x => lfLageAv(t, x) === 'laser' && !x.ersatter);
   if (f) return { nr: lfNr(f), fid: f.fid };
   const kand = t.fid && t.foton && t.foton.get(t.fid);
-  if (t.fas === 'laser' && !t.ersatter && !(kand && kand.lage !== 'laser')) return { nr: t.foto, fid: t.fid || null };
+  if (t.fas === 'laser' && t.fid && !t.ersatter && !(kand && kand.lage !== 'laser')) return { nr: t.foto, fid: t.fid };
   return null;
 }
 /* Nästa fotonummer som telefonen räknar det: 1 + högsta nr bland fotona som
@@ -14811,11 +14813,18 @@ function lfFotonUrLeken(t, kort) {
   let andrat = false;
   for (const [fid, n] of av) {
     const f = t.foton.get(fid);
-    if (f && f.fran !== 'leken') continue;
+    /* En laser-post vars fid leken redan bär har landat, fast resultatposten
+       aldrig kom (tappad på kanalen, eller telefonen dog efter sparningen):
+       raden ur leken tar över, och läsningen släpper (sista kollen, G16). */
+    const landad = !!f && f.fran !== 'leken' && lfLageAv(t, f) === 'laser';
+    if (f && f.fran !== 'leken' && !landad) continue;
     const rader = (kort || []).filter(k => k && k.foto && k.foto[fid] > 0), c = k => Math.min(Number(k.foto[fid]) || 0, Number(k.n) || 1);
     const okanda = rader.filter(k => k.okand).reduce((s, k) => s + c(k), 0), koll = rader.filter(k => k.koll).reduce((s, k) => s + c(k), 0);
-    if (f && f.hittade === n && f.koll === koll && f.okanda === okanda) continue;
-    t.foton.set(fid, { fid, nr: lfNr({ fid }), lage: 'klar', hittade: n, koll, okanda, olasta: 0, fran: 'leken', sedd: f ? f.sedd : ++t.seddN });
+    if (f && !landad && f.hittade === n && f.koll === koll && f.okanda === okanda) continue;
+    const post = { fid, nr: lfNr({ fid }), lage: 'klar', hittade: n, koll, okanda, olasta: 0, fran: 'leken', sedd: f ? f.sedd : ++t.seddN };
+    if (landad && f.ersatter) post.ersatter = f.ersatter;
+    t.foton.set(fid, post);
+    if (landad && t.fas === 'laser' && (t.fid === fid || !t.fid)) { t.fas = 'lagg'; t.ersatter = null; }
     andrat = true;
   }
   for (const [fid, f] of [...t.foton]) if (f.fran === 'leken' && !av.has(fid)) { t.foton.delete(fid); andrat = true; }
@@ -14925,8 +14934,10 @@ function lfFotoIn(t, f) {
   t.foton.set(fid, ny);
   lfLokalIn(t, fid, ny.lage);
   const landat = LF_LANDAT.includes(ny.lage), varLandat = !!fore && fore.fran !== 'leken' && LF_LANDAT.includes(fore.lage);
-  /* Fotot som lästes har landat: panelen väntar på nästa (N3). */
-  if (landat && fid === t.fid && t.fas === 'laser') { t.fas = 'lagg'; t.ersatter = null; }
+  /* Fotot som lästes har landat: panelen väntar på nästa (N3). Utan fid
+     (datorn öppnades mitt i läsningen, telefonens hej bar inget) släpper
+     läget också (G15). */
+  if (landat && t.fas === 'laser' && (t.fid === fid || !t.fid)) { t.fas = 'lagg'; t.ersatter = null; }
   /* Ett omtag som landat (J10): det gamla fotots exemplar tillbaka går att
      ångra, med mallarna räknade medan omtaget pågick. Bara när övergången
      laser → klar syns nu (eller telefonens första post efter radens ur
