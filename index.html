@@ -12633,6 +12633,29 @@ function lekSlagFotoAndra(rad, fid, d) {
   if (n) ut[fid] = n; else delete ut[fid];
   if (Object.keys(ut).length) rad.foto = ut; else delete rad.foto;
 }
+/* Invarianten: summan i foto är aldrig större än radens n. Försvinner
+   exemplar utan att fotot anges (ett borttaget för hand, en äldre rad) dras
+   bokföringen ned, senast tillagda foto först och fotot som just lades till
+   (skydda) sist. Förut fick bokföringen vara större än n, och Undo lade
+   tillbaka hela fotots tal på en rad som ett annat foto återskapat: nästa
+   Remove photo tog då också det andra fotots kort (kontrollgranskningen av
+   MES-322). */
+function lekSlagFotoTak(rad, skydda) {
+  const f = lekSlagFotoRen(rad.foto);
+  if (!f) { delete rad.foto; return; }
+  let over = Object.values(f).reduce((s, c) => s + c, 0) - Math.max(0, Number(rad.n) || 0);
+  if (over > 0) {
+    const ordning = Object.keys(f).filter(k => k !== skydda).reverse();
+    if (skydda && f[skydda]) ordning.push(skydda);
+    for (const k of ordning) {
+      if (over <= 0) break;
+      const ta = Math.min(f[k], over);
+      f[k] -= ta; over -= ta;
+      if (!f[k]) delete f[k];
+    }
+  }
+  if (Object.keys(f).length) rad.foto = f; else delete rad.foto;
+}
 /* Fotots nummer ur dess fid ('2:k3x9a' → 2). 0 för ett fid utan nummer. */
 const lekSlagFotoNr = fid => parseInt(String(fid || '').split(':')[0], 10) || 0;
 /* Hur många exemplar i leken som kom ur varje foto: Map fid → antal. Ett
@@ -12654,10 +12677,10 @@ function lekSlagFotoAv(kort) {
    som det är nu, också ett kollat namn) och foto: fid. Finns raden kvar när
    ändringen spelas upp läggs exemplaren till på den; annars skapas den.
 
-   Exakt också när ett exemplar tagits bort för hand (n mindre än summan i
-   foto): fotobort drog bara min(c, n) men tog hela nyckeln, så ändringen
-   bär fotoN = c (fotots tal i bokföringen) och mallen radens hela foto,
-   som gäller om raden skapas på nytt. Granskningen av MES-321. */
+   Exakt också när ett exemplar tagits bort för hand: bokföringen är aldrig
+   större än n (lekSlagFotoTak), så fotobort tar c exemplar och Undo lägger
+   tillbaka c, med c i bokföringen. En rad som ett annat foto återskapat
+   under tiden får bara Undo-fotots exemplar tillagda. */
 function lekSlagFotoTillbaka(kort, fid) {
   const ut = [];
   for (const k of kort || []) {
@@ -12667,9 +12690,7 @@ function lekSlagFotoTillbaka(kort, fid) {
     if (k.ci) mall.ci = k.ci;
     if (k.koll) mall.koll = k.koll;
     if (k.okand) mall.okand = 1;
-    const helt = lekSlagFotoRen(k.foto);
-    if (helt) mall.foto = helt;
-    ut.push({ typ: 'antal', name: k.name, sb: !!k.sb, d: Math.min(c, Number(k.n) || 1), kort: mall, foto: fid, fotoN: c });
+    ut.push({ typ: 'antal', name: k.name, sb: !!k.sb, d: Math.min(c, Number(k.n) || 1), kort: mall, foto: fid });
   }
   return ut;
 }
@@ -12738,6 +12759,8 @@ function lekSlagTillampa(bas, ops) {
     const n = Number(k.n) || 1, i = hitta(k.name, k.sb);
     if (i >= 0) slaIhop(kort[i], { n, koll: k.koll, foto: k.foto }); else kort.push(rad(k, n, k.sb));
   }
+  /* En sparad rad med mer i foto än n (skriven före taket) dras ned. */
+  for (const k of kort) lekSlagFotoTak(k);
   for (const op of ops || []) {
     if (!op) continue;
     if (op.id && klara.has(op.id)) continue;      // ligger redan i raden (MES-289)
@@ -12761,22 +12784,22 @@ function lekSlagTillampa(bas, ops) {
       const d = Math.round(Number(op.d) || 0);
       /* fotoN: fotots tal i bokföringen när det skiljer sig från d (Undo,
          lekSlagFotoTillbaka). Annars räknas d exemplar till fotot. */
-      const fn = op.foto && op.fotoN != null && d > 0 ? Math.max(0, Math.round(Number(op.fotoN) || 0)) : d;
+      /* Bokföringen följer d, det som faktiskt läggs till eller dras av (ett
+         äldre fotoN i en Undo-ändring läses inte), och hålls under n. */
       if (i >= 0) {
         kort[i].n += d;
-        if (op.foto) lekSlagFotoAndra(kort[i], op.foto, fn);
+        if (op.foto) lekSlagFotoAndra(kort[i], op.foto, d);
         if (kort[i].n <= 0) kort.splice(i, 1);
+        else lekSlagFotoTak(kort[i], d > 0 ? op.foto : null);
       }
       /* Kortet finns inte (längre) i raden: ett tillägg lägger in det igen,
          ett avdrag har ingenting att dra från. Ett tillägg ur ett foto bär
          bara det fotot; mallens foto gäller när ingen foto anges (ett ångrat
-         Remove på hela raden), och vid Undo (fotoN) radens foto som det var. */
+         Remove på hela raden), under taket. */
       else if (d > 0 && lekSlagKort(op.kort)) {
         const ny = rad(op.kort, d, op.sb);
-        if (op.foto) {
-          const f = op.fotoN != null ? lekSlagFotoRen(Object.assign({}, ny.foto || {}, { [op.foto]: fn })) : { [op.foto]: d };
-          if (f) ny.foto = f; else delete ny.foto;
-        }
+        if (op.foto) ny.foto = { [op.foto]: d };
+        lekSlagFotoTak(ny, op.foto || null);
         kort.push(ny);
       }
     } else if (op.typ === 'bort') {

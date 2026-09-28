@@ -415,19 +415,65 @@ prov('Undo av Remove photo: det kollade namnet kommer tillbaka, inte platshålla
   assert.deepEqual(fotoAv(r, 'Mountain'), { [F1]: 1 });
   assert.ok(!r.kort.some(k => k.okand));
 });
-prov('Undo av Remove photo är exakt också när ett exemplar tagits bort för hand (n mindre än fotonas summa)', () => {
-  /* Granskningen av MES-321: Swamp n=1, foto {F1:2, F2:1}. Remove F1 tog raden,
-     och Undo gav tillbaka foto {F1:1} — F2:s exemplar försvann ur bokföringen. */
+prov('Undo av Remove photo är exakt också när ett exemplar tagits bort för hand (bokföringen hålls under n)', () => {
+  /* Swamp n=1 med foto {F1:2, F2:1} (en rad skriven före taket) dras ned till
+     ett exemplar, senast tillagda foto först: {F1:1}. Remove F1 + Undo ger
+     tillbaka precis det. */
   const fore = lekSlagTillampa({ kort: [{ ...swamp, n: 1, foto: { [F1]: 2, [F2]: 1 } }] }, []);
+  assert.deepEqual(fotoAv(fore, 'Swamp'), { [F1]: 1 });
   const bort = lekSlagTillampa(fore, [fb(F1)]);
   assert.equal(bort.kort.length, 0);
   const r = lekSlagTillampa(bort, lekSlagFotoTillbaka(fore.kort, F1));
-  assert.equal(tal(r, 'Swamp'), 1);
-  assert.deepEqual(fotoAv(r, 'Swamp'), { [F1]: 2, [F2]: 1 });
-  /* Raden står kvar efter Remove (tre exemplar, ett borttaget för hand). */
+  assert.deepEqual([tal(r, 'Swamp'), fotoAv(r, 'Swamp')], [1, { [F1]: 1 }]);
+  /* Tre Swamp (två ur foto 1, en ur foto 2), en borttagen för hand: foto 2:s
+     dras av först. Remove F1 + Undo ger samma två tillbaka. */
   const fore2 = lekSlagTillampa(tva(), [{ typ: 'antal', name: 'Swamp', sb: false, d: -1 }]);
+  assert.deepEqual([tal(fore2, 'Swamp'), fotoAv(fore2, 'Swamp')], [2, { [F1]: 2 }]);
   const r2 = lekSlagTillampa(lekSlagTillampa(fore2, [fb(F1)]), lekSlagFotoTillbaka(fore2.kort, F1));
-  assert.deepEqual([tal(r2, 'Swamp'), fotoAv(r2, 'Swamp')], [2, { [F1]: 2, [F2]: 1 }]);
+  assert.deepEqual([tal(r2, 'Swamp'), fotoAv(r2, 'Swamp')], [2, { [F1]: 2 }]);
+});
+prov('G12: Undo av Remove photo på en rad som ett annat foto återskapat, sedan Remove igen: det andra fotots kort står kvar', () => {
+  /* Kontrollgranskningen av MES-322: foto 1 ger 2 Swamp, en tas bort för hand,
+     Remove photo 1, foto 3 ger 1 Swamp, Undo, Remove photo 1 igen. Med fotoN
+     blev bokföringen {3:1, 1:2} på två Swamp, och foto 3:s Swamp försvann. */
+  let r = lekSlagTillampa({ kort: [] }, [ff(swamp, 2, F1)]);
+  r = lekSlagTillampa(r, [{ typ: 'antal', name: 'Swamp', sb: false, d: -1 }]);
+  const ater = lekSlagFotoTillbaka(r.kort, F1);
+  r = lekSlagTillampa(r, [fb(F1)]);
+  assert.equal(r.kort.length, 0);
+  r = lekSlagTillampa(r, [ff(swamp, 1, F3)]);
+  r = lekSlagTillampa(r, ater);                                   // Undo av Remove photo 1
+  assert.deepEqual([tal(r, 'Swamp'), fotoAv(r, 'Swamp')], [2, { [F3]: 1, [F1]: 1 }]);
+  r = lekSlagTillampa(r, [fb(F1)]);                               // Remove photo 1 igen
+  assert.deepEqual([tal(r, 'Swamp'), fotoAv(r, 'Swamp')], [1, { [F3]: 1 }], 'foto 3:s Swamp står kvar');
+});
+prov('invarianten över 3000 slumpade ändringar: summan i foto aldrig över n, och Remove + Undo direkt efter ger samma lek', () => {
+  let s = 20260928;
+  const slump = n => { s = (s * 1103515245 + 12345) % 2147483648; return s % n; };
+  const kortL = [swamp, bolt, helix, mtn], fotonL = [F1, F1B, F2, F3];
+  const bild = r => r.kort.map(k => `${k.n} ${k.name}${k.sb ? ' sb' : ''} ${JSON.stringify(Object.entries(k.foto || {}).sort())}`).sort();
+  let r = { kort: [] };
+  const angra = [];
+  for (let i = 0; i < 3000; i++) {
+    const k = kortL[slump(4)], fid = fotonL[slump(4)], v = slump(11);
+    let ops;
+    if (v < 3) ops = [ff(k, 1 + slump(3), fid)];
+    else if (v < 5) ops = [{ typ: 'antal', name: k.name, sb: false, d: -(1 + slump(2)) }];
+    else if (v < 6) ops = [{ typ: 'antal', name: k.name, sb: false, d: 1 + slump(2), kort: { ...k } }];
+    else if (v < 7) ops = [{ typ: 'antal', name: k.name, sb: false, d: -1, foto: fid }];
+    else if (v < 8) {
+      const ater = lekSlagFotoTillbaka(r.kort, fid), efter = lekSlagTillampa(r, [fb(fid)]);
+      assert.deepEqual(bild(lekSlagTillampa(efter, ater)), bild(r), `steg ${i}: Remove + Undo av ${fid}`);
+      angra.push(ater); ops = [fb(fid)];
+    } else if (v < 9 && angra.length) ops = angra.splice(slump(angra.length), 1)[0];
+    else if (v < 10) ops = [{ typ: 'byt', name: k.name, sb: false, kort: { ...kortL[slump(4)] } }];
+    else ops = [{ typ: 'sb', name: k.name, sb: !!slump(2), till: !!slump(2) }];
+    r = lekSlagTillampa(r, ops);
+    for (const x of r.kort) {
+      const f = Object.values(x.foto || {}), sum = f.reduce((a, c) => a + c, 0);
+      assert.ok(x.n >= 1 && sum <= x.n && f.every(c => Number.isInteger(c) && c > 0), `steg ${i}: ${x.n} ${x.name} ${JSON.stringify(x.foto)}`);
+    }
+  }
 });
 /* Retake av foto 1 (F1 → F1B): nya fotot läser 2 Swamp och Bolt, och den
    oläsliga är nu Mountain. Kön: det nya fotots tillägg, SIST fotobort(F1). */
