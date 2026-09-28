@@ -178,6 +178,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <div class="rad" style="position:relative"><input type="text" id="namn" placeholder="kortnamn — Enter tar första förslaget" autocomplete="off" spellcheck="false"><div id="forslag" hidden></div></div>
     <div class="rad" id="valtfalt"></div>
     <div class="rad" id="valtfast"></div>
+    <div class="rad" id="valtnummer"></div>
     <div class="rad">
       <button type="button" id="b-upp" title="Ett steg upp i ordningen (⇧↑ överst)">Upp<kbd>↑</kbd></button>
       <button type="button" id="b-ner" title="Ett steg ner (⇧↓ underst)">Ner<kbd>↓</kbd></button>
@@ -224,6 +225,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>dra ett hörn</td><td>på det valda kortet — det diagonalt motsatta står kvar</td></tr>
     <tr><td>T · Q E</td><td>vrid det valda kortet 90° · −1°/+1° (⇧ 0,2°)</td></tr>
     <tr><td>L</td><td>lås storleken: nya kort får samma storlek som de redan ritade, klicken ger bara riktningen</td></tr>
+    <tr><td>Byt nummer</td><td>under <i>Valt kort</i>: samma fysiska kort ska ha samma nummer i alla lägen. Förslaget "Ge det #9" kommer när ett kort med samma namn fanns i förra läget</td></tr>
     <tr class="grupp"><td colspan="2">Ibland</td></tr>
     <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse) · lossa</td></tr>
     <tr><td>B</td><td><b>leken</b> (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den sparas som facits library-ruta, så att golden inte mäter leken som ett kort. B igen ångrar</td></tr>
@@ -633,6 +635,43 @@ cv.addEventListener('wheel', e => {
   else { V.ox -= e.deltaX; V.oy -= e.deltaY; ritaSnart(); }
 }, { passive: false });
 
+/* ── Kortets nummer ──────────────────────────────────────────────────────
+   Numret följer det fysiska kortet mellan lägena (högens bokstav och fästa
+   par räknas ur det). Ett kort som ritats om kan få tillbaka sitt nummer:
+   förslaget är ett kort med samma namn i förra ritade läget som saknas här. */
+function nummerForslag(k) {
+  if (!k || !S.kalla || S.kalla.sort !== 'video' || !String(k.namn || '').trim()) return null;
+  const l = lageNu(), forra = l && forraRitade(l); if (!forra) return null;
+  const o = forra.kort.find(x => x.namn === k.namn && !l.kort.some(y => y.id === x.id));
+  return o ? { id: o.id, nr: forra.nr } : null;
+}
+function visaNummer(k) {
+  const ruta = el('valtnummer');
+  if (!k) { ruta.innerHTML = ''; return; }
+  const f = nummerForslag(k);
+  ruta.innerHTML = (f ? `<span class="varn">Samma kort som #${f.id} i läge ${f.nr}?</span> <button type="button" id="b-numforslag">Ge det #${f.id}</button> ` : '')
+    + `<button type="button" id="b-nummer" class="liten" title="Samma fysiska kort ska ha samma nummer i alla lägen">Byt nummer…</button>`;
+  if (f) el('b-numforslag').onclick = () => bytNummer(k.id, f.id);
+  el('b-nummer').onclick = () => { const v = prompt(`Nytt nummer för #${k.id} ${k.namn || ''} — samma nummer som kortet har i de andra lägena:`, f ? f.id : ''); if (v != null) bytNummer(k.id, parseInt(v, 10)); };
+}
+/* Byter numret i det här läget och i senare lägen där kortet har det gamla
+   numret. Har ett annat kort redan det nya numret byter de två plats. */
+function bytNummer(gammal, nytt) {
+  if (!(nytt > 0) || nytt === gammal) return;
+  andra(() => {
+    const nu = S.kalla.sort === 'video' ? lageNu() : null;
+    const lagen = nu ? [nu].concat(Object.values(S.dok.lagen).filter(l => l !== nu && l.nr !== nu.nr && foreITid(nu, l))) : [{ kort: S.dok.kort }];
+    const byt = id => id === gammal ? nytt : id === nytt ? gammal : id;
+    for (const l of lagen) {
+      if (!l.kort.some(x => x.id === gammal)) continue;
+      for (const x of l.kort) { x.id = byt(x.id); if (x.fast != null) x.fast = byt(x.fast); }
+    }
+    S.vald = nytt;
+  });
+  S.cache.clear(); raknaOm(); visa();
+  melding(`kortet heter nu #${nytt}${S.kalla.sort === 'video' ? ' — i det här läget och de senare där det hette #' + gammal : ''}`);
+}
+
 /* ── Val och kortets fält ─────────────────────────────────────────────── */
 function valj(id) { S.vald = id; visa(); }
 function visaValt() {
@@ -643,6 +682,7 @@ function visaValt() {
   if (document.activeElement !== namn) namn.value = k ? k.namn : '';
   const n = k ? String(k.namn || '').trim() : '';
   namn.classList.toggle('fel', !!k && (!n || (G.arLekkort(n) && !S.lek.includes(n))));
+  visaNummer(k);
   if (!k || !r) { el('valtfalt').innerHTML = `<span class="dim">${S.nastaNamn ? `nästa kort får namnet <b>${esc(S.nastaNamn)}</b>` : 'inget valt — rita ett kort, eller klicka i listan'}</span>`; el('valtfast').innerHTML = ''; return; }
   const t = [];
   t.push(`<span class="tagg" title="andelen av kortet som syns">synligt ${Math.round(r.synlig * 100)} %</span>`);
