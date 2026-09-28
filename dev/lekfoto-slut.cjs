@@ -328,6 +328,91 @@ const provE7 = a => {
   assert.strictEqual(a.lsfSteg(kort.filter(k => !k.koll), s).klar, true);
 };
 fall('E7 N9 → N7/N8: Later, och steg 2 och 3 klara: leken är klar, med Check names-raden kvar', provE7);
+
+/* ── MES-324: LR1, "One Swamp or two?" ──────────────────────────────── */
+/* En Swamp-rad: 7 ur foto 1, 1 ur foto 2 vid kanten, frågan i koll. */
+const dubbelRad = (o = {}) => K('Swamp', Object.assign({ n: 8, foto: { '1:f': 7, '2:f': 1 },
+  koll: { las: 'Swamp', kalla: 'Photo 2', remsa: 'r2', sakert: 1, dubbel: Object.assign({ fid: '1:f', nr: 1, ny: '2:f', n: 1, remsa: 'r1' }, o.dubbel || {}) } }, o.rad || {}));
+const provA3 = a => {
+  assert.strictEqual(a.lsfFall(dubbelRad()), 'LR1');
+  /* Ett osäkert namn som också bär dubbel: namnet först (A), efter Yes LR1. */
+  const osaker = K('Swamp', { n: 2, foto: { '1:f': 1, '2:f': 1 }, koll: { las: 'Swmp', kalla: 'Photo 1', dubbel: { fid: '1:f', nr: 1, ny: '2:f', n: 1 } } });
+  assert.strictEqual(a.lsfFall(osaker), 'A');
+  let r = spara(a, lek([osaker]), [a.lsfJa(osaker)]);
+  const k = rad(a, r, 'Swamp');
+  assert.ok(k.koll && k.koll.sakert && k.koll.dubbel, 'Yes behåller dubbel-frågan');
+  assert.strictEqual(a.lsfFall(k), 'LR1');
+  assert.strictEqual(k.n, 2);
+  /* Utan dubbel tar Yes bort frågan helt, som förut. */
+  r = spara(a, lek([gissning('Gorgon Flail', 'Gorgon Fail', 1)]), [a.lsfJa(gissning('Gorgon Flail', 'Gorgon Fail', 1))]);
+  assert.strictEqual(rad(a, r, 'Gorgon Flail').koll, undefined);
+  const t = a.lsfDubbelText(dubbelRad());
+  assert.strictEqual(t.fraga, 'One Swamp or two?');
+  assert.strictEqual(t.under, 'A Swamp was at the edge of photo 2, and one was in photo 1. If it is the same card, you photographed it twice.');
+  assert.strictEqual(a.lsfDubbelText(dubbelRad({ dubbel: { kant: 1 } })).under, 'A Swamp was at the edge of photo 1 and of photo 2. If it lay in the same spot in both, you photographed the same card twice.');
+  assert.strictEqual(t.raknas, 'Counted as 2 Swamps until you answer.', 'paret frågan gäller, som sida M, inte radens åtta');
+  assert.deepStrictEqual([t.en, t.tva], ['One, photographed twice', 'Two Swamps']);
+  const tb = a.lsfDubbelText(K('Aphelia, Viper Whisperer', { n: 2, foto: { '1:f': 1, '2:f': 1 }, koll: { las: 'Aphelia, Viper Whisperer', kalla: 'Photo 2', sakert: 1, dubbel: { fid: '1:f', nr: 1, ny: '2:f', n: 1 } } }));
+  assert.deepStrictEqual([tb.fraga, tb.raknas, tb.tva], ['One Aphelia, Viper Whisperer or two?', 'Counted as 2 copies until you answer.', 'Two copies']);
+  assert.ok(tb.under.startsWith('An Aphelia'));
+};
+fall('A3 LR1: fallet, sida M:s ord, ett osäkert namn med dubbel frågas som A först och efter Yes som LR1', provA3);
+const provB8 = a => {
+  let r = lek([dubbelRad()]);
+  const k = rad(a, r, 'Swamp'), en = a.lsfEn(k);
+  assert.deepStrictEqual(en.map(o => [o.typ, o.svar]), [['dubbel', 'en']], 'en vaktad ändring i LEKSLAG, inte ett rått avdrag');
+  r = spara(a, r, en);
+  let s = rad(a, r, 'Swamp');
+  assert.strictEqual(s.n, 7, 'One: ett exemplar ur leken');
+  assert.deepStrictEqual(s.foto, { '1:f': 7 }, 'ur fotot frågan kom ur');
+  assert.strictEqual(s.koll, undefined, 'frågan är borta');
+  const efter = JSON.stringify(las(a, r));
+  r = spara(a, r, en);
+  assert.strictEqual(JSON.stringify(las(a, r)), efter, 'samma ändringar en gång till gör ingenting (klara)');
+  /* G5: två flikar trycker One innan den andras skrivning nått dem (olika id:n): ett exemplar, inte två. */
+  r = lek([dubbelRad()]);
+  const k2 = rad(a, r, 'Swamp');
+  r = spara(a, r, [...a.lsfEn(k2), ...a.lsfEn(k2)]);
+  assert.strictEqual(rad(a, r, 'Swamp').n, 7, 'två flikar: ett exemplar');
+  /* Two: båda står kvar. */
+  r = lek([dubbelRad()]);
+  r = spara(a, r, [a.lsfTva(rad(a, r, 'Swamp'))]);
+  s = rad(a, r, 'Swamp');
+  assert.strictEqual(s.n, 8); assert.strictEqual(s.koll, undefined); assert.deepStrictEqual(s.foto, { '1:f': 7, '2:f': 1 });
+  /* Två exemplar i frågan: ett svar i taget, frågan räknas ned. */
+  r = lek([dubbelRad({ rad: { n: 9, foto: { '1:f': 7, '2:f': 2 } }, dubbel: { n: 2 } })]);
+  r = spara(a, r, a.lsfEn(rad(a, r, 'Swamp')));
+  s = rad(a, r, 'Swamp');
+  assert.strictEqual(s.n, 8); assert.strictEqual(s.koll.dubbel.n, 1); assert.strictEqual(a.lsfFall(s), 'LR1');
+  r = spara(a, r, [a.lsfTva(s)]);
+  s = rad(a, r, 'Swamp');
+  assert.strictEqual(s.n, 8); assert.strictEqual(s.koll, undefined);
+  /* En fråga som står kvar på ett enda exemplar (det andra togs bort för hand) tar aldrig kortet. */
+  for (const foto of [{ '2:f': 1 }, { '1:f': 1 }]) {
+    r = lek([K('Sol Ring', { n: 1, foto, koll: { las: 'Sol Ring', kalla: 'Photo 2', sakert: 1, dubbel: { fid: '1:f', nr: 1, ny: '2:f', n: 1 } } })]);
+    r = spara(a, r, a.lsfEn(rad(a, r, 'Sol Ring')));
+    assert.ok(rad(a, r, 'Sol Ring'), 'kortet står kvar');
+    assert.deepStrictEqual([rad(a, r, 'Sol Ring').n, rad(a, r, 'Sol Ring').koll], [1, undefined]);
+  }
+  /* Ett andra tryck på One efter det första: raden har ingen fråga, och lsfTryck stoppar dubbelklicket. */
+  const kn = a.lsfKnTom(), ko = a.lsfKo([dubbelRad()]);
+  a.lsfOmgang(kn, ko);
+  assert.strictEqual(a.lsfTryck(kn, kn.nu, 1000), true);
+  assert.strictEqual(a.lsfTryck(kn, kn.nu, 1200), false);
+};
+fall('B8 LR1: One tar ett exemplar ur fotot frågan kom ur, en gång också från två flikar; Two behåller båda; två exemplar frågas ett i taget; aldrig det enda', provB8);
+const provD5 = a => {
+  const t = nyTel();
+  foto(t, '1:f', 'klar', { hittade: 8, kort: [{ name: 'Swamp', las: 'Swamp', x: 500, y: 500 }, ...Array.from({ length: 7 }, (_, i) => ({ name: 'Kort ' + i, las: 'Kort ' + i, x: 500, y: 100 + 100 * i }))] });
+  foto(t, '2:f', 'klar', { hittade: 1, kort: [{ name: 'Swamp', las: 'Swamp', x: 1000, y: 200, dubbel: '1:f' }] });
+  t.foton.get('1:f').kort[0].dubbel = '2:f';
+  let r = lek([K('Swamp', { n: 2, foto: { '1:f': 1, '2:f': 1 }, koll: { las: 'Swamp', kalla: 'Photo 2', sakert: 1, dubbel: { fid: '1:f', nr: 1, ny: '2:f', n: 1 } } })]);
+  assert.deepStrictEqual([...a.lsfBlIFoton(las(a, r), t)], [['Swamp', 2]], 'räknas som två tills man svarar');
+  r = spara(a, r, a.lsfEn(rad(a, r, 'Swamp')));
+  assert.deepStrictEqual([...a.lsfBlIFoton(las(a, r), t)], [['Swamp', 1]], 'One: "1 Swamp was in the photos", inte två');
+  assert.strictEqual(a.lsfBlText(las(a, r), t).var, '1 Swamp was in the photos.');
+};
+fall('D5 "N were in the photos" följer svaret på One Swamp or two? (kortet räknas ur bokföringen, inte ur läsningen)', provD5);
 /* D3: basländerna ur fotona följer inte −. */
 const provD3 = a => {
   let r = lek([K('Plains', { n: 7, foto: { '1:f': 7 } })]);
@@ -440,8 +525,16 @@ maste('F9 utan Later i klar blir en lek med namn lämnade till senare aldrig kla
   [['klar: undanKlar && blKlar && (kollKlar || !!s.senare)', 'klar: undanKlar && blKlar && kollKlar']], provE7);
 maste('F10 utan telefonens läsning följer "in the photos" − under landet (D3 faller)',
   [['for (const [namn, n] of c) satt(namn, f.fid, n);', '']], provD3);
+maste('F12 utan sakert i lsfJa försvinner dubbel-frågan när namnet bekräftas (A3 faller)',
+  [["koll: k.koll && k.koll.dubbel ? Object.assign({}, k.koll, { sakert: 1 }) : null });", 'koll: null });']], provA3);
+maste('F13 räknas ett dubbel-kort också ur läsningen blir det "2 Swamps were in the photos" efter One (D5 faller)',
+  [['if (k && !k.okand && !k.koll && !k.dubbel && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && !k.koll && LSF_BASLAND.includes(k.name))']], provD5);
+maste('F14 utan vakten i LEKSLAG tar två flikars One två exemplar, och ett One på det enda exemplaret tar det (B8 faller)',
+  [["        const d = q && q.dubbel;\n        if (!d) continue;", '        const d = (q && q.dubbel) || {};']], provB8);
+maste('F15 utan "k.n >= 2" tar One det enda exemplaret (B8 faller)',
+  [["if (op.svar === 'en' && k.n >= 2 && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {", "if (op.svar === 'en' && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {"]], provB8);
 maste('F11 med gissningarna i telefonens läsning räknas ett rättat kort två gånger (D4 faller)',
-  [['if (k && !k.okand && !k.koll && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && LSF_BASLAND.includes(k.name))']], provD4);
+  [['if (k && !k.okand && !k.koll && !k.dubbel && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && !k.dubbel && LSF_BASLAND.includes(k.name))']], provD4);
 
 console.log(`\nlekfoto-slut: ${ok} OK, ${fel} FEL`);
 process.exit(fel ? 1 : 0);

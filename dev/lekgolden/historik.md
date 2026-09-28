@@ -26,3 +26,48 @@ samma prompt:
 
 Närbilder i gott ljus ger samma svar; helbordet på tvären varierar kraftigt
 mellan två läsningar av samma bild. Alla fel namn stod under To check.
+
+## Samma kort i två foton, 2026-09-28 (MES-324)
+
+`node dev/lekgolden/tvafoton.cjs`, ur samma cache (svaren från 2026-09-26),
+med telefonens regel som den ligger i appen: LB1 = hela fotot igen (minst
+tre säkra icke-basland, två tredjedelar av dem i ett tidigare foto), LB2 =
+ett kort vid det nya fotots vänster- eller högerkant (30 tusendelar) med ett
+säkert namn som ett tidigare foto också hade.
+
+| Beskärning | LB1 i seten (falsklarm) | LB1 på samma foto två gånger | LB2-flaggor | fångade kantkort (av kantkort lästa med namn) | onödiga frågor |
+|---|---|---|---|---|---|
+| hela | 0 | 14/14 fällda | 1 | 1 av 1 (S08: Swamp i foto 07) | 0 |
+| ram | 0 | 3/3 fällda | 1 | 0 av 0 | 1 (S03: ett helt Swamp som modellen la på x = 1000 i foto 15) |
+
+Vad modellen läser vid kanten är oftast ingenting: de kapade korten blev
+namnlösa poster (platshållare) i alla foton utom ett. Med "endera kanten"
+(också det gamla fotots kort vid kanten) blev det 7 onödiga frågor mot 1;
+med över- och underkanten inräknade träffas hela kort som modellen lägger
+på y = 1000 (34 av 338 namngivna kort). Lekgolden självt oförändrat efter
+bygget: LIKA BRA i alla fyra, 0 fel namn rakt in i leken.
+
+### Efter granskningen samma dag: LB1 kräver platsen, mätt på riktiga andrafoton
+
+Granskningen visade att namnen ensamma inte räcker för LB1: "0 falsklarm"
+var mätt på lek.txt, där alla icke-basland är singletons, och på en lek med
+fyra av varje kort delar två foton om tolv ofta två tredjedelar av namnen
+fast korten är nya exemplar. LB1 räknar nu bara par på samma plats efter
+fotonas bästa förskjutning (medianen, tolerans 100 tusendelar), och
+andelen mot det foto som läste färst kort. Den snälla kontrollen (samma
+svar två gånger) kompletterades med riktiga andrafoton ur cachen:
+
+| Beskärning | LB1 i seten | samma svar två gånger | riktiga andrafoton av samma bord | par som inte är samma bord |
+|---|---|---|---|---|
+| hela | 0 falsklarm | 14/14 | 4/7 träffar (16↔17, 18↔19; missarna är borden vridna 90° och 180°: 14↔15, 09↔13) | 0/3 falsklarm |
+| ram | 0 falsklarm | 3/3 | 2/3 (16↔17; 14→15 vridet) | 0 räknade |
+
+Syntetiskt (dev/lekfoto.cjs): fyra av varje kort med samma platser per
+plats i listan (granskarens fall) och 40 slumpade nya uppläggningar ger
+ingen LB1; samma bord förskjutet 60 tusendelar med ett kort läst
+annorlunda ger LB1 med 11 kort. LB2 oförändrad: 1 fångat kantkort, 1
+onödig fråga, och **omätt på riktiga foton** (kantkorten får inga namn).
+
+Osäkra-kolumnen räknar sedan dess bara paret frågan gäller på en rad med
+"One Swamp or two?", inte radens alla exemplar (kor.cjs doma): 101 och 23
+(baslinjen 100 och 22, det ifrågasatta exemplaret räknas), inte 108 och 27.

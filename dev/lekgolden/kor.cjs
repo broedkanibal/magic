@@ -377,6 +377,7 @@ const lookup = n => ctx.lookup(n);
 const imgOf = (...a) => ctx.imgOf(...a);
 const lekKanalSag = () => {};
 const telfotoSteg = s => { telfoto.steg = s; };
+const telfotoRita = () => {};
 const lekSpara = (...a) => ctx.lekSpara(...a);
 const lekHamtaRad = (...a) => ctx.lekHamtaRad(...a);
 const uid = () => ctx.uid();
@@ -403,7 +404,10 @@ async function spela(foton, lage, avl, svarFor) {
     steg.push({ foto: f, steg: ctx.telfoto.steg, fel: ctx.telfoto.fel, sista: ctx.telfoto.sista, svar: s });
   }
   const kort = ctx.server.rad.kort || [];
-  return { kort, alla: tel.lekSlagSummor(kort).main, spelbara: tel.lekSpelAntal(kort), steg };
+  /* foton: telefonens lista (Foto, formatet vid LEKKANALEN), med x/y per kort
+     och det telefonen märkt om samma kort i två foton (MES-324), så att
+     dev/lekgolden/tvafoton.cjs kan mäta det ur cachen. */
+  return { kort, alla: tel.lekSlagSummor(kort).main, spelbara: tel.lekSpelAntal(kort), steg, foton: ctx.telfoto.foton || [] };
 }
 
 /* ══ Domen ══════════════════════════════════════════════════════════════ */
@@ -421,7 +425,10 @@ function doma(r, facit, kant) {
     const n = Number(k.n) || 1;
     if (k.okand) { olasliga += n; continue; }
     mesa.set(k.name, (mesa.get(k.name) || 0) + n);
-    if (k.koll) osakra += n; else sakra.set(k.name, (sakra.get(k.name) || 0) + n);
+    /* En rad med bara frågan "One Swamp or two?" (koll.sakert, MES-324) har
+       ett säkert namn: osäkra är de exemplar frågan gäller, inte hela raden. */
+    if (k.koll && k.koll.sakert && k.koll.dubbel) { const q = Math.min(n, Math.round(+k.koll.dubbel.n) || 1); osakra += q; sakra.set(k.name, (sakra.get(k.name) || 0) + n - q); }
+    else if (k.koll) osakra += n; else sakra.set(k.name, (sakra.get(k.name) || 0) + n);
   }
   let ratt = 0, saknas = 0, extra = 0, kantN = 0, felNamn = 0, felSakra = 0;
   const saknade = [], extras = [], fela = [];
@@ -462,7 +469,12 @@ const fotoId = f => f.replace(/\.\w+$/, '');
 const kortnamn = f => fotoId(f).replace('foto-', '');
 const fotoMatchar = (f, p) => [fotoId(f), kortnamn(f), f].includes(p);
 
-(async () => {
+/* Som modul (dev/lekgolden/tvafoton.cjs, MES-324): utklippen, facit, cachen
+   och uppspelningen av ett set, utan att köra. Chrome behövs bara för
+   beskärningen; ett set kan spelas upp ur cachen utan den. */
+module.exports = { ROT, MAPP, SVARMAPP, FACIT, LEKEN, BASLAND, multi, grupperna, summa, doma, spela, laddaTelefon, UPPSLAG,
+  MODELL, PROMPTV, LEKBLOCK, BESK_KOD_SHA, HOGAR, LAGEN, SET_VAL, FOTO_VAL, valjSvar, fotoId, kortnamn, fotoMatchar, tabell, provaFacit };
+if (require.main === module) (async () => {
   /* --las-om visar de nya svaren, men nästa körning använder de första (--svar).
      En baslinje av de nya hade då inte gått att köra om — vägra hellre. */
   if (SPARA && LAS_OM) { console.error('--spara och --las-om i samma körning: baslinjen hade fått de nya svaren, men nästa körning använder de första. Kör --las-om först och spara sedan med --svar sista om de nya ska gälla.'); process.exit(2); }

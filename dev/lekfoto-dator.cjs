@@ -690,6 +690,35 @@ fallD('F5 Remove photo på telefonen (LB1): datorn får Undo ur sina mallar', ()
   assert.deepStrictEqual(antal(v.server.rad), fore);
 });
 
+fallD('F6 Remove photo på telefonen med ändringarna (LB1 → N5, MES-324): datorns Undo är telefonens ändringar, samma id:n, en gång', () => {
+  const v = tvaFlikar(); fotaTvaFoton(v);
+  const fore = antal(v.server.rad);
+  const kort = app.lekSlagTillampa(v.server.rad, []).kort;
+  const ater = app.lekSlagFotoTillbaka(kort, '2:b').map((o, i) => Object.assign(o, { id: 'tel' + i }));
+  v.spara2([{ typ: 'fotobort', foto: '2:b', id: 'telbort' }]);
+  v.tel({ typ: 'fotobort', fid: '2:b', fran: 'tel', bort: 'telbort', ater, ts: Date.now() });
+  v.tel({ typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'bort', hittade: 3 } });
+  for (const f of [v.A, v.B]) {
+    const u = f.t.undo.get('2:b');
+    assert.ok(u && !u.brukad, 'flik ' + f.namn + ' har ett Undo');
+    assert.deepStrictEqual(u.ops.map(o => o.id), ater.map(o => o.id), 'samma ändringar som telefonen har');
+    assert.deepStrictEqual(rader(f.t)[1], ['Photo 2', 'Removed, with its 3 cards', 'Undo']);
+  }
+  /* Telefonen ångrar på N5 (samma ändringar), och flik A trycker Undo också. */
+  v.spara2(ater);
+  const uA = v.A.t.undo.get('2:b'); uA.brukad = true; v.spara2(uA.ops);
+  assert.deepStrictEqual(antal(v.server.rad), fore, 'korten tillbaka en gång');
+  v.tel({ typ: 'fotoater', fid: '2:b', fran: 'tel' });
+  v.tel({ typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'klar', hittade: 3 } });
+  assert.strictEqual(v.A.t.undo.size + v.B.t.undo.size, 0);
+  assert.deepStrictEqual(rader(v.B.t)[1], ['Photo 2', '3 cards added', 'View']);
+});
+fall('LB2 (MES-324): ett kort som kan vara med i två foton räknas som ett namn att kolla i fotoraden', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar', { hittade: 3, kort: [{ name: 'Alpha', x: 500, y: 500 }, { name: 'Swamp', x: 990, y: 300, dubbel: '0:z' }, { name: 'Beta', x: 300, y: 300 }] });
+  assert.deepStrictEqual(rader(t)[0], ['Photo 1', '3 cards added · 1 name to check', 'View']);
+});
+
 /* ── G: kontrollgranskningen av MES-322 ─────────────────────────────── */
 /* Datorns telMallar: mallarna, fotona i leken och raderna ur leken. */
 const synk = (t, rad) => { const kort = app.lekSlagTillampa(rad, []).kort; for (const [fid, ops] of app.lfMallarUr(kort)) t.mallar.set(fid, ops); t.iLeken = app.lfFidsILeken(kort); app.lfFotonUrLeken(t, kort); };
