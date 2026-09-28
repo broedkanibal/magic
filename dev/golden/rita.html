@@ -1023,14 +1023,20 @@ function visaGor(l, dom, h, forra, utanfor, arKlar) {
   if (utanfor) {
     html += `<div class="rubrik">Gör nu</div><ol><li>Bilden visar fel tid för det här läget. ${knapp('Flytta tillbaka', () => tillForslaget())}</li></ol>`;
   } else if (arKlar) {
-    html += `<div class="ok">✓ Läget är klart.</div>` + (nasta ? knapp(`Till läge ${nasta} ▶`, () => gaTill(nasta), 'primar stor') : '<div class="dim">Det var sista läget.</div>')
+    // ett klart läge kan ändå skilja sig från facit (t.ex. en uppgift som kom till efter att det markerades)
+    const upp = uppgifter(l, dom);
+    html += `<div class="ok">✓ Läget är klart.</div>`
+      + (upp.length ? `<div class="rubrik" style="margin-top:6px">Men enligt facit:</div><ol>${upp.map(u => `<li>${u.text} ${knapp(u.knapp, u.gor)}</li>`).join('')}</ol>` : '')
+      + (nasta ? knapp(`Till läge ${nasta} ▶`, () => gaTill(nasta), 'primar stor') : '<div class="dim">Det var sista läget.</div>')
       + knapp('Inte klart ändå', () => klar(), 'liten');
   } else {
     const upp = uppgifter(l, dom), utanLek = !l.kort.some(k => k.zon === 'bib');
     const lekUppgift = utanLek ? `<li>Syns leken i bilden (högen med baksidan upp)? Rita den en gång — den följer med till alla lägen och behöver inget namn. ${knapp('Rita leken', () => { S.nastaNamn = 'library'; byt('rita'); visa(); melding('leken: klicka dess övre vänstra hörn, sedan övre högra'); })}</li>` : '';
     if (upp.length || utanLek) html += `<div class="rubrik">Gör nu</div><ol>${lekUppgift}${upp.map(u => `<li>${u.text} ${knapp(u.knapp, u.gor)}</li>`).join('')}</ol>`;
     if (upp.length) {
-      html += knapp('Klart ändå — facit kan ha fel', () => klarOchVidare(), 'liten');
+      html += knapp('Klart ändå — facit kan ha fel', () => klarOchVidare(), 'liten')
+        + (nasta ? ' ' + knapp('Hoppa över — handen skymmer', () => gaTill(nasta), 'liten') : '')
+        + (nasta ? '<div class="dim" style="font-size:11px;margin-top:4px">Ett överhoppat läge blir inte facit. Nästa läge börjar med korten från det senast ritade.</div>' : '');
     } else {
       // korten stämmer med facit: säg vilka, eller att inga ska ligga där
       const namn = l.kort.filter(k => !k.zon && (G.arLekkort(k.namn) || G.arToken(k.namn))).map(k => k.namn);
