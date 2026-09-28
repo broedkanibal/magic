@@ -239,7 +239,7 @@ function radSteg(steg, manus, ank, extra) {
 /* Bordet enligt manuset efter raderna 0..sist: vilka kort som ligger där,
    tappade eller inte, i vilken hög, fästa vid vad, och vad som ligger i
    graveyard. "tappa hög A" tappar varje kort som lagts i hög A. */
-function manusBord(manus, sist) {
+function manusBord(manus, sist, effekt) {
   const bord = [], grav = [];
   const hitta = (text) => {   // korten och högarna som en tappa/untappa-rad pekar på (namn kan ha komma: "Danitha Capashen, Paragon")
     const ut = new Set();
@@ -252,7 +252,11 @@ function manusBord(manus, sist) {
   const tabort = n => { const i = bord.findIndex(k => k.namn === n); if (i < 0) return null; const [k] = bord.splice(i, 1); for (const o of bord) if (o.fast === k.namn) o.fast = null; return k; };
   for (let i = 0; i <= sist && i < manus.length; i++) {
     const r = manus[i].text; let m;
-    if ((m = /^(untappa|tappa) (.+)$/.exec(r))) { for (const k of hitta(m[2])) k.tappad = m[1] === 'tappa'; }
+    if ((m = /^(untappa|tappa) (.+)$/.exec(r))) {
+      const mal = hitta(m[2]);
+      if (effekt) { const namn = {}; for (const k of mal) namn[k.namn] = (namn[k.namn] || 0) + 1; effekt[i] = { tappa: m[1] === 'tappa', namn }; }   // vilka kort raden tappar, för medRitning
+      for (const k of mal) k.tappad = m[1] === 'tappa';
+    }
     else if (/^mill (\d+)$/.test(r)) { const n = +/^mill (\d+)$/.exec(r)[1]; for (let q = 0; q < n; q++) grav.push('kort från leken'); }
     else if ((m = /^flytta (.+) till (.+)$/.exec(r))) { const k = bord.find(o => o.namn === m[1].trim()); if (k) k.fast = m[2].trim(); }
     else if ((m = /^bort (.+)$/.exec(r))) tabort(m[1].trim());
@@ -307,7 +311,12 @@ function underlag(kalla, filer, leknamn) {
   const till = manusTillstand(manus), ank = ankare(steg, manus);
   const ts = s => +(+s.t_stilla).toFixed(2);   // samma avrundning som lägenas tider: steg 2 på 3,472 s hör till läget på 3,47 s
   let rs, radTid, ritNyckel = null;
-  const parning = extra => { rs = radSteg(steg, manus, ank, extra); radTid = manus.map((r, i) => rs[i] != null ? ts(steg[rs[i] - 1]) : Infinity); };
+  const tappEffekt = []; manusBord(manus, manus.length - 1, tappEffekt);
+  /* En rad hör till läget från lägets första tid (fran), inte från
+     förslaget: Jespers läge 18 stod på 100,84 s, i början av fönstret, och
+     raderna på stegets 100,86 s föll då ur läget. */
+  const fonsterFran = forslagSteg(steg).map(f => f.fran);
+  const parning = extra => { rs = radSteg(steg, manus, ank, extra); radTid = manus.map((r, i) => rs[i] != null ? fonsterFran[rs[i] - 1] : Infinity); };
   parning([]);
   return {
     sort: 'steg', steg, manus, ankare: ank,
@@ -317,22 +326,43 @@ function underlag(kalla, filer, leknamn) {
        namn som tillkommit sedan förra ritade läget ett ankare för nästa
        oanvända manusrad som lägger ut det namnet, och ett namn som
        försvunnit ett ankare för raden som tar bort det. */
-    medRitning: (lagen, iSpel) => {
+    medRitning: (lagen, iSpel, tappad) => {
       const lista = Object.values(lagen || {}).sort((a, b) => a.nr - b.nr);
-      const nyckel = JSON.stringify(lista.map(l => [l.nr, l.kort.filter(iSpel).map(k => k.namn).sort()]));
+      const nyckel = JSON.stringify(lista.map(l => [l.nr, l.kort.filter(iSpel).map(k => k.namn + (tappad && tappad(k) ? '*' : '')).sort()]));
       if (nyckel === ritNyckel) return;
       ritNyckel = nyckel;
-      const extra = [], anvand = new Set();
+      const extra = [], anvand = new Set(), tappAnvand = new Map();
       const nasta = (falt, namn) => { const i = manus.findIndex((r, k) => !anvand.has(k) && r[falt] === namn); if (i >= 0) anvand.add(i); return i; };
-      let forra = {};
+      let forra = {}, forraT = {};
       for (const l of lista) {
         const f = forslagSteg(steg)[l.nr - 1]; if (!f) continue;
-        const nu = {}; for (const k of l.kort.filter(iSpel)) nu[k.namn] = (nu[k.namn] || 0) + 1;
+        const nu = {}, nuT = {};
+        for (const k of l.kort.filter(iSpel)) { nu[k.namn] = (nu[k.namn] || 0) + 1; if (tappad && tappad(k)) nuT[k.namn] = (nuT[k.namn] || 0) + 1; }
+        const tappadIn = {};   // kort som lagts ut redan tappade ("Thriving Moor tappad") är ingen tappning
         for (const n of new Set(Object.keys(nu).concat(Object.keys(forra)))) {
           const d = (nu[n] || 0) - (forra[n] || 0);
-          for (let q = 0; q < Math.abs(d); q++) { const i = nasta(d > 0 ? 'plus' : 'minus', n); if (i >= 0) extra.push({ s: f.steg, r: i }); }
+          for (let q = 0; q < Math.abs(d); q++) {
+            const i = nasta(d > 0 ? 'plus' : 'minus', n);
+            if (i >= 0) { extra.push({ s: f.steg, r: i }); if (d > 0 && / tappad$/.test(manus[i].text)) tappadIn[n] = (tappadIn[n] || 0) + 1; }
+          }
         }
-        forra = nu;
+        /* Tappningar: fler tappade av ett namn än i förra ritade läget låser
+           nästa tappa-rad som träffar namnet till det här läget (färre: en
+           untappa-rad). "tappa hög A" räknas för båda Swamparna i högen. */
+        if (tappad) for (const n of new Set(Object.keys(nuT).concat(Object.keys(forraT)))) {
+          const bort = Math.max(0, (forra[n] || 0) - (nu[n] || 0));
+          let d = (nuT[n] || 0) - (forraT[n] || 0) - (tappadIn[n] || 0);
+          if (d < 0) d = Math.min(0, d + Math.min(bort, forraT[n] || 0));   // ett tappat kort som lämnat bordet är ingen untappning
+          let kvar = Math.abs(d);
+          for (let i = 0; i < manus.length && kvar > 0; i++) {
+            const e = tappEffekt[i];
+            if (!e || e.tappa !== d > 0 || !e.namn[n]) continue;
+            if (tappAnvand.has(i) && tappAnvand.get(i) !== l.nr) continue;
+            if (!tappAnvand.has(i)) { tappAnvand.set(i, l.nr); extra.push({ s: f.steg, r: i }); }
+            kvar -= e.namn[n];
+          }
+        }
+        forra = nu; forraT = nuT;
       }
       parning(extra);
     },

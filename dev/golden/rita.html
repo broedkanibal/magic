@@ -1081,7 +1081,7 @@ function visaLage() {
   el('lagesdel').hidden = S.kalla.sort !== 'video';
   if (S.kalla.sort !== 'video') return;
   // din ritning rättar vilket läge manusraderna hör till (ett kort som syns tidigare än parningen trodde)
-  if (S.u.medRitning) S.u.medRitning(S.dok.lagen, k => !k.zon && !!String(k.namn || '').trim() && !G.arBaksida(k.namn));
+  if (S.u.medRitning) S.u.medRitning(S.dok.lagen, k => !k.zon && !!String(k.namn || '').trim() && !G.arBaksida(k.namn), S.W ? k => G.arTappad(k.horn, S.W, S.H, S.grund) : null);
   const l = lageNu(), f = S.u.forslag[S.nr - 1];
   const arKlar = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
   const klara = Object.values(S.dok.lagen).filter(x => x.klar).length, kv = S.kalla;
