@@ -12752,7 +12752,9 @@ async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id)
    kort} (MES-169: kortet byts mot ett annat, antalet följer med),
    {typ:'koll', name, sb, koll} (To check sätts eller, med null, tas bort)
    och {typ:'dubbel', name, sb, satt | svar} (MES-324: frågan "One Swamp or
-   two?" ställs på raden som den ligger, eller besvaras vaktat, en gång).
+   two?" ställs på raden som den ligger, eller besvaras vaktat, en gång)
+   och {typ:'hoppa', name, sb, ater?} (MES-324 val C: Yes, skip it tar en
+   platshållare vid kanten, Undo lägger tillbaka den; båda vaktade).
    Det som visas är raden
    med kön uppspelad. Hann en annan enhet (flik, telefon) spara under
    tiden läses dess rad in och samma kö spelas upp på den — båda enheternas
@@ -13038,6 +13040,21 @@ function lekSlagTillampa(bas, ops) {
         else lekSlagDubbelBort(k);
         if (k.n <= 0) kort.splice(i, 1);
       }
+    } else if (op.typ === 'hoppa') {
+      /* "This card was cut off at the edge." (MES-324, val C): Yes, skip it
+         tar platshållaren ur leken; Undo (ater: raden som den var) lägger in
+         den igen. Båda vaktade, så att två tryck och två flikar (två id:n)
+         gör det en gång: skip tar bara en platshållare som finns, och Undo
+         lägger bara in den när den saknas. Ett vanligt Remove och dess Undo
+         hade gett två platshållare efter två flikars Undo. Namnet är unikt
+         (lekOkandKort), så raden är ett kort. */
+      if (op.ater) {
+        if (i < 0 && op.ater.okand && lekSlagKort(op.ater)) {
+          const ny = rad(op.ater, Math.max(1, Math.round(Number(op.ater.n) || 1)), op.sb);
+          lekSlagFotoTak(ny);
+          kort.push(ny);
+        }
+      } else if (i >= 0 && kort[i].okand) kort.splice(i, 1);
     }
   }
   return { namn, kort };
@@ -14540,6 +14557,31 @@ const TELFOTO_IGEN_ANDEL = 2 / 3, TELFOTO_IGEN_MIN = 3;
 const TELFOTO_IGEN_TOL = 100;
 const telfotoSakert = k => !!(k && k.name && !k.okand && !k.koll);
 const telfotoVidKant = k => +k.x <= TELFOTO_KANT || +k.x >= 1000 - TELFOTO_KANT;
+/* Val C (Jesper 2026-09-28, MES-324): ett kort som kapas vid fotots kant
+   får nästan aldrig ett namn av modellen, och blir en platshållare. Samma
+   kort syns oftast helt i nästa foto; skrev spelaren in namnet på det kapade
+   räknades det två gånger. En platshållare utan läst namn vid VÄNSTER- eller
+   HÖGERKANTEN (x inom TELFOTO_KANT_TOM tusendelar) får därför koll.kant, och
+   datorn frågar "This card was cut off at the edge." i stället för "Which
+   card is this?" (BLOCK: LEKFOTO SLUTET, LR3). Frågan tar aldrig bort
+   något själv: bara spelarens Yes, skip it gör det.
+
+   Mätt ur lekgoldens cache med dev/lekgolden/kantkort.cjs (inga nya anrop),
+   filväljarens väg, 15 foton, platshållare dömda mot facit och för ögat:
+     gräns 30  25 av 31 kapade kort får frågan, 0 hela
+     gräns 60  28 av 31, 0 hela
+     gräns 80  31 av 31, 1 helt (Ukud Cobra i foto 11, x = 930)
+   I seten med mer än ett foto ger 30 frågan till 30 platshållare, alla
+   kapade, och 0 hela. Kamerans ram: 4 av 4 platshållare inom 30 är kapade
+   av ramen. Övre och nedre kanten räknas inte: i helbordsfotona (09, 13)
+   ligger 13 hela oläsliga kort på y = 0 eller 1000. 30 är samma gräns som
+   LB2 och håller 70 tusendelar till det hela kortet närmast kanten; kapade
+   kort som modellen lägger längre in (foto 05: x = 40–80) får LR2 som
+   förut. Namngivna hela kort ligger ändå vid kanten ibland (foto 16: tolv
+   kort på x = 985–1000); blir ett sådant oläsligt får det frågan, med
+   remsan, och spelaren svarar No. */
+const TELFOTO_KANT_TOM = 30;
+const telfotoKantTom = k => !!k && (+k.x <= TELFOTO_KANT_TOM || +k.x >= 1000 - TELFOTO_KANT_TOM);
 const telfotoMulti = l => { const m = new Map(); for (const n of l) m.set(n, (m.get(n) || 0) + 1); return m; };
 /* Fotona ett nytt foto jämförs med: de som räknas, med kort i, utom f självt
    och utom fotot f tar om (det blir 'ersatt' först när omtaget sparats, och
@@ -14861,6 +14903,8 @@ async function telfotoLas(kalla, o = {}) {
     if (!ops.length) { telfotoLage(f, 'inganamn'); return; }
     for (const o of okanda) {
       const kort2 = lekOkandKort(o.las, 'Photo ' + f.nr, o.remsa, uid().slice(0, 6));
+      /* Vid sidkanten och inget namn läst: kapat, kanske helt i ett annat foto (val C, LR3). */
+      if (!o.las && o.poster.length && o.poster.every(i => telfotoKantTom(kort[i]))) kort2.koll.kant = 1;
       ops.push({ typ: 'antal', name: kort2.name, sb: false, d: o.n, kort: kort2, foto: f.fid });
       for (const i of o.poster) poster[i] = { name: kort2.name, las: o.las, koll: true, okand: true };
       osakra += o.n;
@@ -15530,6 +15574,10 @@ function lfAterIn(t, fid) {
      LR2 platshållare där inget namn lästes: samma sökfält och Not a card.
          Mesa kan inte skilja ett oläsligt kort från något som inte är ett
          kort (LA5); har man sagt "It's a card" i View a photo blir det C
+     LR3 platshållare utan läst namn vid fotots sidkant (koll.kant, se
+         TELEFONENS LEKFOTO), när leken har kort ur ett annat foto: "This
+         card was cut off at the edge." Yes, skip it tar den (Jespers val C,
+         MES-324); No, search for it ger LR2 (eller C)
      D   osäkert namn ur en inklistrad lista: "No card is called …"
 
    Rent, utan appens toppnivå: dev/lekfoto-slut.cjs klipper ut blocket
@@ -15557,15 +15605,38 @@ function lsfKo(kort) {
   return (kort || []).map((k, i) => ({ k, i })).filter(x => x.k && x.k.koll)
     .sort((a, b) => nr(a.k) - nr(b.k) || a.i - b.i).map(x => x.k);
 }
-/* Fallet (ID1 A–D, LR2). kand: kandidaterna ur sökningen på det fotot
-   läste (B); arKort: platshållare man sagt är ett kort (View a photo). */
-function lsfFall(k, kand, arKort) {
+/* Fallet (ID1 A–D, LR2, LR3). kand: kandidaterna ur sökningen på det fotot
+   läste (B); arKort: platshållare man sagt är ett kort (View a photo);
+   kort: leken, för LR3 (utan den blir det LR2 eller C, dagens väg). */
+function lsfFall(k, kand, arKort, kort) {
   if (!k || !k.koll) return null;
   /* LR1 (MES-324): namnet är säkert, frågan är om kortet fotades två gånger. */
   if (k.koll.dubbel && k.koll.sakert) return 'LR1';
   if (!k.okand) return lsfFranLista(k) ? 'D' : 'A';
   if (String(k.koll.las || '').trim()) return Array.isArray(kand) && kand.length >= 2 ? 'B' : 'C';
+  if (kort && lsfKant(k, kort)) return 'LR3';
   return arKort && arKort.has(k.name) ? 'C' : 'LR2';
+}
+/* LR3 (MES-324, val C): platshållaren låg vid fotots sidkant utan läst namn
+   (koll.kant, satt av telefonen), och leken har kort ur ett ANNAT foto, där
+   kortet kan ligga helt. Med ett enda foto finns inget annat foto att fråga
+   om, och det blir LR2 som förut. */
+function lsfKant(k, kort) {
+  if (!k || !k.okand || !k.koll || !k.koll.kant || String(k.koll.las || '').trim()) return false;
+  const egna = new Set(Object.keys(k.foto || {}));
+  for (const fid of lekSlagFotoAv(kort).keys()) if (!egna.has(fid)) return true;
+  return false;
+}
+/* Yes, skip it (LR3): en vaktad ändring i LEKSLAG (typ 'hoppa'). Undo är
+   samma typ med raden som den var (ater), och lägger bara in den när den
+   saknas. */
+const lsfHoppa = k => ({ typ: 'hoppa', name: k.name, sb: !!k.sb });
+const lsfHoppaAter = k => ({ typ: 'hoppa', name: k.name, sb: !!k.sb, ater: Object.assign(lsfMall(k), { n: Number(k.n) || 1 }) });
+/* LR3:s ord, i sida M:s stil (Jespers val C 2026-09-28). */
+function lsfKantText(k) {
+  return { fraga: 'This card was cut off at the edge.',
+           under: 'Is it whole in another photo? Then skip this one, so it isn’t counted twice.',
+           ja: 'Yes, skip it', nej: 'No, search for it', gjort: 'Cut-off card skipped' };
 }
 /* Svaren som ändringar (LEKSLAG). Ett kort man väljer byter raden (namnet,
    inte exemplaren: fotona följer med), och är det samma kort som gissningen
@@ -15766,6 +15837,9 @@ function lsfLoggText(logg) {
   if (bort.length) d.push(`${lsfOch(bort)} removed`);
   if (en.length) d.push(`${lsfOch(en)} counted once`);
   if (tva.length) d.push(`${lsfOch(tva)} kept as two`);
+  /* LR3: platshållarens namn är bara en nyckel, så de räknas. */
+  const hoppa = av('hoppa').length;
+  if (hoppa) d.push(`${hoppa} cut-off ${hoppa === 1 ? 'card' : 'cards'} skipped`);
   return d.length ? d.join(', ') + '.' : '';
 }
 /* Radens mall när en ändring skapar den igen (⌘Z, notisens Undo): namnet,
@@ -15869,6 +15943,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       v = lekSlagTillampa(fore, [op]);
       if (op.typ === 'namn') { if (y.bas) ut.push({ typ: 'namn', namn: fore.namn }); continue; }
       if (op.typ === 'koll') { if (k) ut.push({ typ: 'koll', name: k.name, sb: !!op.sb, koll: k.koll || null }); continue; }
+      /* Yes, skip it (LR3, MES-324): platshållaren tillbaka, vaktat (lsfHoppaAter). */
+      if (op.typ === 'hoppa') { if (k && !op.ater && k.okand) ut.push(lsfHoppaAter(k)); continue; }
       /* "One Swamp or two?" (MES-324): frågan tillbaka, och exemplaret One
          tog räknas till samma foto igen. */
       if (op.typ === 'dubbel') {
@@ -16804,6 +16880,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
          om. Samma rad som de andra, med remsan, en tom kortplats och bara
          två val — välj kortet (samma sökruta som Pick another…) eller ta
          bort det. */
+      /* Kapad vid fotots kant (LR3, MES-324 val C): samma rad, med frågan
+         om kortet ligger helt i ett annat foto. */
+      if (k.okand && lsfKant(k, v.kort)) {
+        const t = lsfKantText(k);
+        return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
+          + remsaHtml(k.koll)
+          + '<span class="th"></span>'
+          + `<div class="tcs"><b>${esc(t.fraga)}</b><span>Is it whole in another photo?${k.sb ? ' · Sideboard' : ''}</span></div>`
+          + `<div class="tb"><button type="button" class="btn sm prim" data-tc="hoppa">${lsIk('check', 12, 2.6)}${esc(t.ja)}</button>`
+          + `<button type="button" class="btn sm" data-tc="byt">${lsIk('swap', 12)}Pick the card…</button></div></div>`;
+      }
       if (k.okand) {
         return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
           + remsaHtml(k.koll)
@@ -16892,7 +16979,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     for (const x of ko) if (x.okand && String(x.koll.las || '').trim()) knKand(x.koll.las);
     const las = k ? String(k.koll.las || '').trim() : '';
     const kand = k && k.okand && las ? knKand(las) : null;
-    const html = k ? knHtml(k, key, lsfFall(k, kand, y.tel.arKort), o, kand) : '';
+    /* LR3 (MES-324, val C): No, search for it visar dagens väg, LR2 (eller C). */
+    let fall = k ? lsfFall(k, kand, y.tel.arKort, nu().kort) : null;
+    if (fall === 'LR3' && y.kn.sok === key) fall = lsfFall(k, kand, y.tel.arKort);
+    const html = k ? knHtml(k, key, fall, o, kand) : '';
     if (knPlats === plats && knHtmlNu === html && (!html || plats.querySelector('.lsfkn'))) return;
     const byttKort = knPlats !== plats || !knHtmlNu.includes(`data-kn="${esc(key)}"`) || /data-sok="1"/.test(knHtmlNu) !== (y.kn.sok === key);
     const forra = plats.querySelector('.lsfsokin'), skrev = forra && forra === document.activeElement ? forra.value : null;
@@ -16920,7 +17010,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       ? `<div class="lsfkalla"><span class="lsfetik">IN YOUR LIST</span><div class="lsflista"><span>${esc(`${k.n} ${lsKort(las)}`)}</span></div></div>`
       : fall === 'LR1'
       ? `<div class="lsfkallor">${dub.remsa ? remsaKalla(`PHOTO ${dub.nr}`, dub.remsa) : ''}${remsaKalla(`PHOTO${nr ? ' ' + nr : ''}`, q.remsa)}</div>`
-      : `<div class="lsfkalla${fall === 'LR2' ? ' stor' : ''}"><span class="lsfetik">${fall === 'LR2' ? 'PHOTO' : 'IN PHOTO'}${nr ? ' ' + nr : ''}</span>`
+      : `<div class="lsfkalla${fall === 'LR2' || fall === 'LR3' ? ' stor' : ''}"><span class="lsfetik">${fall === 'LR2' || fall === 'LR3' ? 'PHOTO' : 'IN PHOTO'}${nr ? ' ' + nr : ''}</span>`
         + `<div class="lsfremsa">${q.remsa ? `<img src="${esc(q.remsa)}" alt="The name line in the photo">` : ''}</div></div>`;
     let fraga = '', under = '', los = '';
     if (k.okand && las && kand === null) {
@@ -16945,6 +17035,11 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     } else if (fall === 'C') {
       fraga = 'Which card is this?'; under = 'The name couldn’t be read. Type what you see on the card.';
       los = sokFalt(las, 'Type the card name');
+    } else if (fall === 'LR3') {
+      /* MES-324, val C: kortet kapades vid kanten, kanske helt i ett annat foto. */
+      const t = lsfKantText(k);
+      fraga = t.fraga; under = t.under;
+      los = `<div class="lsfrad">${knapp(' prim', 'hoppa', lsIk('check', 13, 2.6), t.ja)}${knapp('', 'sok', lsIk('search', 14), t.nej)}</div>`;
     } else if (fall === 'LR2') {
       fraga = 'Which card is this?';
       under = `Mesa found something in ${nr ? 'photo ' + nr : 'a photo'} but couldn’t read a name. If it isn’t a card, remove it.`;
@@ -16963,7 +17058,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       + '<button type="button" class="lsfsenare" data-lsf="senare">Later</button></div>';
     /* LR1 har inget Remove: raden bär alla exemplar av kortet, och frågan är
        om det är ett för mycket, inte om kortet ska bort. */
-    const fot = fall === 'LR1' ? '<div class="lsffot"><span>Answer and the next one opens by itself.</span></div>'
+    /* LR3 heller: Yes, skip it gör redan det Remove hade gjort. */
+    const fot = fall === 'LR1' || fall === 'LR3' ? '<div class="lsffot"><span>Answer and the next one opens by itself.</span></div>'
       : '<div class="lsffot"><span>Answer and the next one opens by itself. <b>Remove</b> takes the card out of the deck.</span><span class="lsfgrow"></span>'
       + `<button type="button" class="lsfbort" data-lsf="bort" ${dk}>${lsIk('trash', 12)}Remove</button></div>`;
     return `<section class="lsfkn" aria-label="Check names" data-kn="${esc(key)}" data-sok="${sok ? 1 : 0}">${hd}<div class="lsfkropp">${kalla}<div class="lsflos">`
@@ -16992,8 +17088,19 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     else if (a === 'bort' || a === 'intekort') { if (!k.okand) y.kn.logg.push({ typ: 'bort', namn: k.name }); taBort(k); }
     /* LR1 (MES-324): One, photographed twice / Two. */
     else if (a === 'en' || a === 'tva') { if (lsfFall(k) !== 'LR1') return; y.kn.logg.push({ typ: a, namn: k.name }); svaraDubbel(k, a === 'en'); }
+    /* LR3 (MES-324, val C): Yes, skip it. */
+    else if (a === 'hoppa') { if (!lsfKant(k, nu().kort)) return; y.kn.logg.push({ typ: 'hoppa', namn: k.name }); hoppaKant(k); }
     else return;
     knEfter();
+  }
+  /* Yes, skip it (LR3): platshållaren ur leken, med Undo och ⌘Z. Ändringen
+     är vaktad i LEKSLAG (typ 'hoppa'): två tryck och två flikar tar den en
+     gång, och två Undo lägger tillbaka den en gång. */
+  function hoppaKant(k) {
+    if (!k || !k.okand) return;
+    y.valda.delete(nyckel(k.name, k.sb));
+    medAnimering([nyckel(k.name, k.sb)], () => andra(lsfHoppa(k)));
+    snack(lsfKantText(k).gjort);
   }
   /* "One Swamp or two?" (LR1, MES-324): One tar ett exemplar ur leken, ur
      fotot frågan kom ur; Two behåller båda. Ändringarna står i LEKFOTO
@@ -17975,6 +18082,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       if (t === 'ja') bekrafta(k);
       else if (t === 'bort') taBort(k);
       else if (t === 'en' || t === 'tva') svaraDubbel(k, t === 'en');       // LR1 (MES-324)
+      else if (t === 'hoppa') { if (lsfKant(k, nu().kort)) hoppaKant(k); }  // LR3 (MES-324, val C)
       else if (t === 'bild') oppnaKoll(k.name, sb, tc);
       else oppnaByt([nyckel(k.name, sb)], pw);
       return;

@@ -8,6 +8,7 @@
      await provLek('New deck 3'); provM.hej()
 
      await provM.foto(['Lightning Bolt', 'Sol Ring'], { koll: ['Sol Ring'], okanda: 1, olasta: 2 })
+     await provM.foto(['Swamp'], { okanda: 2, kant: 1 })   // en platshållare vid kanten (LR3)
      await provM.tomt('inga')            // LC3: inga kort
      await provM.tomt('inganamn', 6)     // LC4: 6 kort, inga namn
      await provM.omtag(fid, ['Serra Angel'])   // J7/J8: fotot tas om
@@ -60,8 +61,12 @@
     }
     for (let j = 0; j < (o.okanda || 0); j++) {
       const p = lekOkandKort('', 'Photo ' + nr, null, uid2());
+      /* kant: de första o.kant platshållarna ligger vid högerkanten, som
+         telefonen märker dem (koll.kant, LR3, MES-324 val C). */
+      const vidKant = j < (o.kant || 0);
+      if (vidKant) p.koll.kant = 1;
       ops.push({ typ: 'antal', name: p.name, sb: false, d: 1, kort: p, foto: fid });
-      kort.push(Object.assign({ name: p.name, las: '', okand: true, koll: true }, b.pos[i++]));
+      kort.push(Object.assign({ name: p.name, las: '', okand: true, koll: true }, vidKant ? { x: 1000, y: b.pos[i++].y } : b.pos[i++]));
     }
     if (o.ersatter) ops.push({ typ: 'fotobort', foto: o.ersatter });
     const bas = await lekHamtaRad(lekId());

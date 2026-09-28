@@ -71,3 +71,27 @@ onödig fråga, och **omätt på riktiga foton** (kantkorten får inga namn).
 Osäkra-kolumnen räknar sedan dess bara paret frågan gäller på en rad med
 "One Swamp or two?", inte radens alla exemplar (kor.cjs doma): 101 och 23
 (baslinjen 100 och 22, det ifrågasatta exemplaret räknas), inte 108 och 27.
+
+## Kort som kapas vid kanten, 2026-09-28 (MES-324, Jespers val C)
+
+En platshållare utan läst namn vid fotots vänster- eller högerkant (x inom
+30 tusendelar) får koll.kant på telefonen, och datorn frågar "This card was
+cut off at the edge." (LR3) i stället för "Which card is this?", när leken
+har kort ur ett annat foto. Mätt ur cachen med `node dev/lekgolden/kantkort.cjs`
+(inga anrop); platshållarna dömda mot facit, kolumnen och för ögat:
+
+| Gräns (sidkanten) | hela: kapade som får frågan | hela: HELA kort som får den i onödan | ram: kapade | ram: hela |
+|---|---|---|---|---|
+| 30 (vald) | 25 av 31 | 0 | 4 av 23 | 0 |
+| 60 | 28 av 31 | 0 | 5 av 23 | 1 (kolumnregeln, ej granskad) |
+| 80 | 31 av 31 | 1 (Ukud Cobra, foto 11, x = 930) | 5 av 23 | 4 |
+
+I seten med mer än ett foto: 30 LR3-frågor i hela (S06 5, S07 12, S08 13)
+och 2 i ram, alla på kapade kort, 0 på hela. Övre och nedre kanten räknas
+inte: 13 hela oläsliga kort ligger på y = 0 eller 1000 i helbordsfotona.
+Claudes `kapade` är 0 i alla 30 svar och hjälper inte.
+
+`node dev/lekgolden/kor.cjs --bara-cache` före och efter: identisk utskrift,
+LIKA BRA i alla fyra (hela · 10 set 336/372, 4 fel namn, 0 utan koll, 4/10
+exakt; ram · 10 set 128/372, 0 fel namn). Frågan ändrar inga tal i leken
+förrän spelaren svarar.

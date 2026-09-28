@@ -980,6 +980,40 @@ async function sidaMProv(fil) {
     assert.deepEqual(x.ctx.fall.efter, [undefined, undefined, undefined]);
     assert.deepEqual(x.ctx.fall.angra.slice(1), [2, true]);
   });
+
+  /* Jespers val C (MES-324): en platshållare utan namn vid fotots vänster-
+     eller högerkant får koll.kant, så att datorn frågar "This card was cut
+     off at the edge." (LR3). Mitt i bilden, vid överkanten eller med ett
+     läst namn: ingen kant, LR2 eller C som förut. Provas också mot
+     index.html utan raden som sätter kant: då ska provet falla. */
+  const KANT = { kort: [post('Counterspell', 500, 120), post('', 1000, 300, 'lag'), post('', 500, 420, 'lag'), post('', 15, 540, 'lag'),
+    post('', 600, 0, 'lag'), post('Blixtpil', 990, 660)], otydliga: 0 };
+  const kantProv = async src => {
+    const app0 = laddaSrc(src)(nyCtx(null)), ctx = nyCtx(app0), app = laddaSrc(src)(ctx);
+    ctx.fall = {}; oppna(ctx);
+    await foto(app, ctx, TRE); await foto(app, ctx, KANT);
+    const f2 = ctx.telfoto.foton[1], okanda = ctx.server.rad.kort.filter(k => k.okand);
+    return f2.kort.filter(p => p.okand).map(p => {
+      const k = okanda.find(r => r.name === p.name);
+      return `${p.x},${p.y}${k && k.koll.las ? ' las' : ''}${k && k.koll.kant ? ' kant' : ''}`;
+    });
+  };
+  const KANT_FACIT = ['1000,300 kant', '500,420', '15,540 kant', '600,0', '990,660 las'];
+  let kantFick = null;
+  try { kantFick = await kantProv(fs.readFileSync(fil, 'utf8')); } catch (e) { kantFick = 'kraschade: ' + e.message; }
+  prov('LR3 (val C): platshållare utan namn vid sidkanten (x ≤ 30, ≥ 970) får koll.kant; mitt i bilden, överkanten och ett läst namn (Blixtpil, 404) får inte', () => {
+    assert.deepEqual(kantFick, KANT_FACIT);
+  });
+  {
+    const src = fs.readFileSync(fil, 'utf8'), fran = 'if (!o.las && o.poster.length && o.poster.every(i => telfotoKantTom(kort[i]))) kort2.koll.kant = 1;';
+    const n = src.split(fran).length - 1;
+    let mut = null;
+    if (n === 1) { try { mut = await kantProv(src.replace(fran, '')); } catch (e) { mut = 'kraschade'; } }
+    prov('LR3: utan raden som sätter koll.kant i telfotoLas faller provet ovan', () => {
+      assert.equal(n, 1, 'raden står ' + n + ' gånger i index.html: uppdatera mutationen i dev/lekfoto.cjs');
+      assert.notDeepEqual(mut, KANT_FACIT);
+    });
+  }
 }
 
 /* ── lekSparaKo direkt: kön växer mellan försöken ─────────────────── */
