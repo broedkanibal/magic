@@ -4,7 +4,7 @@
    Klipper ut blocken LEKSLAG, LEKFOTO PÅ DATORN och LEKFOTO SLUTET ur
    index.html och provar det sida M rad 5 och 6 säger:
 
-     A  Check names: vilket fall ett kort är (ID1 A–D, LR2), i vilken ordning
+     A  Check names: vilket fall ett kort är (ID1 A–D, LR2, LR3), i vilken ordning
         korten kommer, och "2 of 3" genom omgången
      B  svaren: Yes, ett valt kort, Remove och Not a card ändrar rätt rad EN
         gång, också vid två tryck och när sidan laddas om (klara, lekSparaKo)
@@ -290,7 +290,7 @@ fall('E5 omgångens läge efter en omladdning (webbläsaren): bara kända fält'
    hittas är ett fel: då läser provet inte längre det skärmarna ritar. */
 const SKARMAR = ['slutPanelHtml', 'slutFotonHtml', 'undanSokHtml', 'kopplaUndan', 'laggUndan', 'ritaUndan', 'fotoKlar',
   'slutTopp', 'knRita', 'knHtml', 'slutAtgard', 'knValj', 'knEfter', 'knVisa', 'ritaPanel', 'basland',
-  'leksidaTillbakaText', 'leksidaKlarKnapp'];
+  'leksidaTillbakaText', 'leksidaKlarKnapp', 'hoppaKant'];
 function funktionskropp(src, namn) {
   const m = new RegExp(`(?:async\\s+)?function\\s+${namn}\\s*\\(`).exec(src);
   if (!m) throw new Error('hittar inte funktionen ' + namn);
@@ -470,6 +470,91 @@ fall('G1 ID2/N9: två Enter medan kortet slås upp lägger in det en gång (fäl
   assert.ok(funktionskropp(SRC, 'kopplaUndan').includes('lsfUndanValj('), 'fältet på skärmen går genom lsfUndanValj');
 });
 
+/* ── MES-324, Jespers val C: LR3, "This card was cut off at the edge." ── */
+/* En lek efter två foton: sex kort ur foto 1 och i foto 2 två kort, en
+   platshållare vid kanten (koll.kant, satt av telefonen) och en mitt i. */
+const kantLek = () => [
+  ...Array.from({ length: 6 }, (_, i) => K('Kort ' + i, { foto: { '1:f': 1 } })),
+  K('Swamp', { n: 2, foto: { '2:f': 2 } }),
+  platshallare('', 2, 'k1', { koll: { las: '', kalla: 'Photo 2', remsa: 'r-k1', kant: 1 }, foto: { '2:f': 1 } }),
+  platshallare('', 2, 'm1', { koll: { las: '', kalla: 'Photo 2', remsa: 'r-m1' }, foto: { '2:f': 1 } }),
+];
+const provA4 = a => {
+  const kort = kantLek(), kant = kort.find(k => k.name === 'Unreadable card k1'), mitt = kort.find(k => k.name === 'Unreadable card m1');
+  assert.strictEqual(a.lsfFall(kant, null, null, kort), 'LR3', 'vid kanten, och foto 1 har kort');
+  assert.strictEqual(a.lsfFall(mitt, null, null, kort), 'LR2', 'mitt i fotot: Which card is this? som förut');
+  assert.strictEqual(a.lsfFall(kant, null, null), 'LR2', 'No, search for it: dagens väg (knRita frågar utan leken)');
+  assert.strictEqual(a.lsfFall(kant, null, new Set([kant.name])), 'C', 'har man sagt "It’s a card" blir sökvägen C');
+  /* Bara ett foto i leken: inget annat foto att vara hel i. */
+  const ettFoto = kort.filter(k => !k.foto['1:f']);
+  assert.strictEqual(a.lsfFall(kant, null, null, ettFoto), 'LR2', 'ett enda foto: ingen fråga om ett annat foto');
+  /* En platshållare utan foto-fält (sparad av en äldre flik) i en lek med ett
+     enda foto: dess eget foto är inte "ett annat" (granskningen av val C). */
+  const utanFoto = Object.assign({}, kant); delete utanFoto.foto;
+  const ettFotoUtan = [...ettFoto.filter(k => k !== kant), utanFoto];
+  assert.strictEqual(a.lsfFall(utanFoto, null, null, ettFotoUtan), 'LR2', 'utan foto-fält: vet inte vilket foto, ingen LR3');
+  /* Ett läst namn (B, C) och en gissning (A) ändras inte av kanten. */
+  const lastKant = Object.assign({}, kant, { koll: Object.assign({}, kant.koll, { las: 'Killing' }) });
+  assert.strictEqual(a.lsfFall(lastKant, [], null, kort), 'C');
+  assert.strictEqual(a.lsfFall(gissning('Gorgon Flail', 'Gorgon Fail', 2, { koll: { las: 'Gorgon Fail', kalla: 'Photo 2', kant: 1 } }), null, null, kort), 'A');
+  /* Ordningen och omgången som för de andra fallen. */
+  assert.deepStrictEqual(a.lsfKo(kort).map(k => k.name), ['Unreadable card k1', 'Unreadable card m1']);
+  /* Sida M:s stil, Jespers val C. */
+  assert.deepStrictEqual(a.lsfKantText(kant), { fraga: 'This card was cut off at the edge.',
+    under: 'Is it whole in another photo? Then skip this one, so it isn’t counted twice.', ja: 'Yes, skip it', nej: 'No, search for it', gjort: 'Cut-off card skipped' });
+};
+fall('A4 LR3: platshållaren vid kanten frågar "This card was cut off at the edge.", en mitt i fotot eller i ett enda foto frågar "Which card is this?"', provA4);
+const provB9 = a => {
+  let r = lek(kantLek());
+  const k = rad(a, r, 'Unreadable card k1'), alla = a.lekSlagSummor(las(a, r)).main, spel = a.lekSpelAntal(las(a, r));
+  const ater = a.lsfHoppaAter(k);                                   // som omvandning() bygger Undo
+  /* Yes, skip it: exakt ett kort bort, inget spelbart kort rörs. */
+  r = spara(a, r, [a.lsfHoppa(k)]);
+  assert.strictEqual(rad(a, r, 'Unreadable card k1'), null);
+  assert.strictEqual(a.lekSlagSummor(las(a, r)).main, alla - 1, 'ett kort mindre på lekens sida');
+  assert.strictEqual(a.lekSpelAntal(las(a, r)), spel, 'decks.antal oförändrat: platshållaren räknades aldrig där');
+  assert.ok(rad(a, r, 'Unreadable card m1'), 'platshållaren mitt i fotot står kvar');
+  const efter = JSON.stringify(las(a, r));
+  /* Ett andra tryck, och en andra flik (nya id:n): ingenting mer. */
+  r = spara(a, r, [a.lsfHoppa(k)]);
+  r = spara(a, r, [a.lsfHoppa(k), a.lsfHoppa(k)]);
+  assert.strictEqual(JSON.stringify(las(a, r)), efter, 'två tryck och två flikar tar den en gång');
+  /* Två flikar i samma sparning från början. */
+  let r2 = lek(kantLek());
+  r2 = spara(a, r2, [a.lsfHoppa(k), a.lsfHoppa(k)]);
+  assert.strictEqual(a.lekSlagSummor(las(a, r2)).main, alla - 1);
+  /* Undo (⌘Z): platshållaren tillbaka med fotot, frågan och remsan; två Undo (två flikar) ger den en gång. */
+  r = spara(a, r, [ater]);
+  const tillbaka = rad(a, r, 'Unreadable card k1');
+  assert.ok(tillbaka && tillbaka.okand && tillbaka.n === 1, 'tillbaka som platshållare, ett exemplar');
+  assert.deepStrictEqual(tillbaka.foto, { '2:f': 1 }, 'fotot följer med tillbaka');
+  assert.deepStrictEqual(tillbaka.koll, { las: '', kalla: 'Photo 2', remsa: 'r-k1', kant: 1 }, 'frågan och remsan');
+  assert.strictEqual(a.lsfFall(tillbaka, null, null, las(a, r)), 'LR3');
+  r = spara(a, r, [a.lsfHoppaAter(k)]);
+  r = spara(a, r, [a.lsfHoppaAter(k), a.lsfHoppaAter(k)]);
+  assert.strictEqual(rad(a, r, 'Unreadable card k1').n, 1, 'två Undo: en platshållare, inte två');
+  assert.strictEqual(a.lekSlagSummor(las(a, r)).main, alla);
+  /* Skip gäller bara en platshållare: ett riktigt kort med namnet rörs inte. */
+  r = spara(a, r, [{ typ: 'hoppa', name: 'Swamp', sb: false }]);
+  assert.strictEqual(rad(a, r, 'Swamp').n, 2, 'ett riktigt kort tas aldrig av Yes, skip it');
+  /* Har en annan flik valt kortet (byt) finns ingen platshållare kvar att ta. */
+  r = spara(a, r, [a.lsfValj(rad(a, r, 'Unreadable card k1'), { name: 'Hooded Blightfang', sid: 's-hb' }), a.lsfHoppa(k)]);
+  assert.strictEqual(rad(a, r, 'Hooded Blightfang').n, 1, 'valt i den ena fliken, skip i den andra: kortet står kvar');
+};
+fall('B9 LR3: Yes, skip it tar exakt ett kort, en gång också vid två tryck och två flikar; Undo ger tillbaka det en gång; ett riktigt kort rörs aldrig', provB9);
+fall('B10 LR3: No, search for it ger dagens väg (LR2 med sökfältet), och Check names ritar remsan stor som i LR2', a => {
+  const rita = funktionskropp(SRC, 'knRita'), html = funktionskropp(SRC, 'knHtml'), atg = funktionskropp(SRC, 'slutAtgard');
+  assert.ok(rita.includes("if (fall === 'LR3' && y.kn.sok === key) fall = lsfFall(k, kand, y.tel.arKort);"), 'No, search for it: LR2 eller C');
+  assert.ok(rita.includes('lsfFall(k, kand, y.tel.arKort, nu().kort)'), 'Check names frågar med leken (LR3)');
+  assert.ok(html.includes("fall === 'LR2' || fall === 'LR3' ? ' stor'"), 'remsan ur fotot, stor som i LR2');
+  assert.ok(html.includes("knapp(' prim', 'hoppa'") && html.includes("knapp('', 'sok'"), 'Yes, skip it och No, search for it');
+  assert.ok(atg.includes("a === 'hoppa'") && atg.includes('lsfKant(k, nu().kort)'), 'Yes, skip it gäller bara ett kort vid kanten');
+  const hoppa = funktionskropp(SRC, 'hoppaKant');
+  assert.ok(hoppa.includes('andra(lsfHoppa(k))') && hoppa.includes('snack('), 'ändringen går genom andra (⌘Z) och får notisens Undo');
+  assert.ok(funktionskropp(SRC, 'omvandning').includes('lsfHoppaAter(k)'), '⌘Z bygger den vaktade Undo-ändringen');
+  assert.strictEqual(a.lsfLoggText([{ typ: 'hoppa', namn: 'Unreadable card k1' }, { typ: 'ja', namn: 'Gorgon Flail' }]), 'Gorgon Flail confirmed, 1 cut-off card skipped.');
+});
+
 /* ── F: proven faller utan koden de skyddar ─────────────────────────── */
 function maste(namn, byt, prov) {
   let m;
@@ -533,6 +618,16 @@ maste('F14 utan vakten i LEKSLAG tar två flikars One två exemplar, och ett One
   [["        const d = q && q.dubbel;\n        if (!d) continue;", '        const d = (q && q.dubbel) || {};']], provB8);
 maste('F15 utan "k.n >= 2" tar One det enda exemplaret (B8 faller)',
   [["if (op.svar === 'en' && k.n >= 2 && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {", "if (op.svar === 'en' && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {"]], provB8);
+maste('F16 utan vakten "i < 0" i hoppa-Undo ger två flikars Undo två platshållare (B9 faller)',
+  [['        if (i < 0 && op.ater.okand && lekSlagKort(op.ater)) {', '        if (op.ater.okand && lekSlagKort(op.ater)) {']], provB9);
+maste('F17 utan "okand" i hoppa tar Yes, skip it ett riktigt kort med samma namn (B9 faller)',
+  [['} else if (i >= 0 && kort[i].okand) kort.splice(i, 1);', '} else if (i >= 0) kort.splice(i, 1);']], provB9);
+maste('F18 utan kravet på ett annat foto frågar LR3 också i ett enda foto (A4 faller)',
+  [['for (const fid of lekSlagFotoAv(kort).keys()) if (!egna.has(fid)) return true;', 'if (lekSlagFotoAv(kort).size) return true;']], provA4);
+maste('F19 utan koll.kant blir varje namnlös platshållare LR3 (A4 faller)',
+  [["if (!k || !k.okand || !k.koll || !k.koll.kant || String(k.koll.las || '').trim()) return false;", "if (!k || !k.okand || !k.koll || String(k.koll.las || '').trim()) return false;"]], provA4);
+maste('F20 utan kravet på platshållarens eget foto ställs LR3 i en lek med ett enda foto (A4 faller)',
+  [['  if (!egna.size) return false;\n', '']], provA4);
 maste('F11 med gissningarna i telefonens läsning räknas ett rättat kort två gånger (D4 faller)',
   [['if (k && !k.okand && !k.koll && !k.dubbel && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && !k.dubbel && LSF_BASLAND.includes(k.name))']], provD4);
 
