@@ -13258,10 +13258,7 @@ function lekGuide(id, { cols, rows, w, off, gap, pad = 14 }) {
     + `<span class="lsgch" style="${an('c0')}">${lsIk('check', 13, 2.6)}Photo 1 taken</span>`
     + `<span class="lsgch" style="${an('c1')}">${lsIk('check', 13, 2.6)}Photo 2 taken</span></div>`;
 }
-/* Sida M (N2, rad 2:s lapp): 10–15 kort åt gången, och basländerna får vara
-   med. Datorns panel har sin egen text (LEKFOTO PÅ DATORN); den här är
-   telefonens. */
-const LEK_LAGGTXT = 'In columns, overlapping, so each name shows. 10–15 cards at a time. Basic lands can be in the photo or not.';
+const LEK_LAGGTXT = 'In columns, overlapping, so only the name line of each card shows. About 30 cards at a time. Leave the basic lands out.';
 /* ══ SLUT: LEKKANALEN ══ */
 
 /* ══ BLOCK: TELEFONENS LEKFOTO ════════════════════════════════════════
@@ -13697,28 +13694,36 @@ function lsMorf(el, mall) {
    HD2), N6 (efter Remove photo) och J9, J10 (Retake).
 
    Här står det som går att prova utan webbläsare: vad panelen säger om
-   läget och om varje foto, när ett Undo gäller, och vilka ändringar Remove
-   photo och Undo gör. Ritningen och händelserna står i skapaLekYta
-   (telRita, telHor). dev/lekfoto-dator.cjs klipper ut blocket mellan
-   markörerna (och LEKSLAG, som ändringarna spelas upp med).
+   läget och om varje foto, när ett Undo gäller, vilka ändringar Remove
+   photo och Undo gör, och hur ett meddelande från lekkanalen ändrar bilden
+   av fotona (lfHor). Ritningen står i skapaLekYta (telRita, telHor).
+   dev/lekfoto-dator.cjs klipper ut blocket mellan markörerna (och LEKSLAG,
+   som ändringarna spelas upp med) och provar kedjan med två datorflikar och
+   en telefon.
 
    Formatet på lekkanalen och i leken ägs av MES-321 och står vid BLOCK:
-   LEKKANALEN. y.tel, lekytans bild av telefonen och fotona:
+   LEKKANALEN. Datorns fotobort bär dessutom bort (borttagningens id), ater
+   (Undo-ändringarna, med sina id:n) och ts, så att en annan datorflik med
+   samma lek ångrar med samma ändringar; telefonen läser inte fälten.
+
+   y.tel, lekytans bild av telefonen och fotona:
      ansluten  telefonen har sagt hej
      fas       telefonens steg: 'vantar' | 'lagg' | 'kamera' | 'laser' |
                'resultat' | 'klar' (I10)
      foto      numret telefonen står på; gäller bara när inga foton är kända
-     fid       fotot som tas eller läses just nu (kamera, laser)
+     fid       fotot som läses just nu (laser; kamera har inget fid)
      ersatter  fid för fotot telefonen tar om just nu (J9), annars null
-     foton     Map fid → Foto, som telefonen senast beskrev det
+     foton     Map fid → Foto, som telefonen senast beskrev det, eller som
+               leken bär det (fran: 'leken') innan telefonen gjort det
      bilder    Map fid → förhandsbilden (fotobild), som en blob-URL
      lokal     Map fid → läge: datorns egna Remove photo och Undo, tills
-               telefonen säger samma sak (eller inte finns)
+               telefonen säger samma sak eller att fotot ersatts
+     iLeken    Set av fid som leken bär exemplar ur (foto-fältet)
      undo      Map fid → det som går att ångra (N6, J10). Sparas i
                webbläsaren, så att Undo överlever en omladdning:
                {typ: 'bort' | 'omtag', fid, ny?, gammal?, ops, antal,
-                efter: [fid som landat före], krav: [id som måste ligga i
-                leken], brukad?, sagt?}
+                efter: [fid som fanns före], krav: [id som måste ligga i
+                leken], brukad?, sagt?, delad?}
      mallar    Map fid → ändringarna som lägger tillbaka fotots exemplar,
                räknade ur leken medan fotot fanns i den (J9, LB1)
      klar      Finish the deck är tryckt. Vad som händer sedan bygger
@@ -13736,6 +13741,8 @@ const lfHittade = f => Number.isFinite(+f.hittade) && f.hittade !== null && f.hi
    photo, Retake och Undo inte att göra rätt, och knapparna visas inte. */
 const lfStod = () => typeof lekSlagFotoTillbaka === 'function';
 const lfTillbaka = (kort, fid) => lfStod() ? lekSlagFotoTillbaka(kort, fid) : [];
+/* Fotona leken bär exemplar ur: Set av fid. */
+const lfFidsILeken = kort => lfStod() && typeof lekSlagFotoAv === 'function' ? new Set(lekSlagFotoAv(kort || []).keys()) : new Set();
 /* Alla fotons Undo-ändringar ur en lek: Map fid → ändringar. */
 function lfMallarUr(kort) {
   const ut = new Map(), fids = new Set();
@@ -13767,24 +13774,36 @@ function lfNastaNr(t) {
   return 1 + lfFotoLista(t).filter(f => !['bort', 'ersatt'].includes(lfLageAv(t, f))).reduce((m, f) => Math.max(m, lfNr(f)), 0);
 }
 /* Ett Undo gäller tills nästa foto landar (N6, J10): ett foto som landat och
-   inte fanns när man tog bort eller tog om gör det ogiltigt. */
+   inte fanns när man tog bort eller tog om gör det ogiltigt, och det gör
+   också ett nytt foto i leken som inte fanns då (sidan laddades om medan
+   telefonen tog det). Undo gäller inte heller medan ett foto med samma
+   nummer läses: numret används redan igen (ett avsteg från N6:s "tills
+   nästa foto landar", så att två rader aldrig bär samma nummer). */
 function lfUndoGiltig(t, u) {
   if (!u || u.brukad) return false;
   const egna = new Set([u.fid, u.ny, u.gammal].filter(Boolean)), fore = new Set(u.efter || []);
+  const nr = lfNr({ fid: u.typ === 'omtag' ? u.ny : u.fid });
+  if (t.fas === 'laser' && !t.ersatter && +t.foto === nr && !egna.has(t.fid)) return false;
   for (const f of t.foton ? t.foton.values() : []) {
-    if (egna.has(f.fid) || fore.has(f.fid)) continue;
-    if (LF_LANDAT.includes(lfLageAv(t, f))) return false;
+    if (egna.has(f.fid)) continue;
+    const lage = lfLageAv(t, f);
+    if (lage === 'laser' && lfNr(f) === nr) return false;
+    if (fore.has(f.fid)) continue;
+    if (LF_LANDAT.includes(lage)) return false;
   }
+  for (const fid of t.iLeken || []) if (!egna.has(fid) && !fore.has(fid)) return false;
   return true;
 }
 const lfLandade = t => lfFotoLista(t).filter(f => LF_LANDAT.includes(lfLageAv(t, f))).map(f => f.fid);
+/* Det som fanns när man tog bort eller tog om: landade foton och fotona i leken. */
+const lfEfter = (t, utom) => [...new Set([...lfLandade(t), ...(t.iLeken || [])])].filter(x => x !== utom);
 /* Datorns eget läge för ett foto (lokal) gäller tills telefonen säger samma
-   sak, eller tills telefonen skickar en ny post för fotot efter att datorns
-   meddelande gått iväg (lokalSagd): telefonen skickar inte om posten när den
-   fått fotobort eller fotoater, men nästa post den skickar vet om det. */
+   sak, eller att fotot ersatts av ett omtag (det kan bara ett foto som
+   räknas). En post från telefonen som korsar datorns fotobort (skickad innan
+   telefonen fått det) ändrar alltså ingenting. */
 function lfLokalIn(t, fid, lage) {
   if (!t.lokal || !t.lokal.has(fid)) return;
-  if (t.lokal.get(fid) === lage || (t.lokalSagd && t.lokalSagd.has(fid))) { t.lokal.delete(fid); if (t.lokalSagd) t.lokalSagd.delete(fid); }
+  if (t.lokal.get(fid) === lage || lage === 'ersatt') t.lokal.delete(fid);
 }
 
 /* Raden för ett foto som landat med kort (N3, IP1, N4). Platshållarna är
@@ -13806,15 +13825,30 @@ function lfTomText(f) {
   const n = +f.poster || 0;
   return n === 1 ? '1 card, no name read. Nothing added.' : `${n} cards, no names read. Nothing added.`;
 }
-/* Raderna i panelen, i nummerordning. Ett foto som väntar på telefonen
-   (ejskickat, ejsparat, av, borta) har ingen rad: telefonen säger vad som
-   hänt, och datorn väntar på fotot. Ett ersatt foto har ingen rad: omtaget
-   står på dess plats (J10). */
+/* View a photo (HD2): rubriken, "Photo 1 · 13 found". Ett foto utan namn
+   räknar det Mesa såg (LC4); ett foto utan kort har bara sitt nummer. */
+function lfVisaRubrik(f) {
+  const n = f.lage === 'inganamn' ? +f.poster || 0 : f.lage === 'inga' ? 0 : lfHittade(f);
+  return `Photo ${lfNr(f)}` + (n > 0 ? ` · ${n} found` : '');
+}
+/* Frågan efter Remove photo… (HD2). Ett foto utan kort i leken har inga kort att nämna. */
+const lfBortFraga = (nr, n) => n > 0 ? `Remove photo ${nr} and its ${lfAntal(n, 'card', 'cards')}?` : `Remove photo ${nr}?`;
+/* Vilken rad som vinner när två foton bär samma nummer. */
+const LF_RADVIKT = { omtas: 6, las: 5, omtagen: 4, klar: 3, bort: 2, tom: 1 };
+/* Raderna i panelen, i nummerordning, EN per nummer. Ett foto som väntar
+   på telefonen (ejskickat, ejsparat, av, borta) har ingen rad: telefonen
+   säger vad som hänt, och datorn väntar på fotot. Ett ersatt foto har ingen
+   rad: omtaget står på dess plats (J10).
+
+   Ett omtag som inte blev klart (inga kort, inga namn) har inte ersatt
+   något, och det gamla fotots kort ligger kvar i leken. Då vinner raden som
+   stämmer med leken: det gamla fotot med kort före ett försök utan kort,
+   och bland två försök utan kort det senaste (en nedtonad rad, som N4). */
 function lfRader(t) {
   const omtas = lfOmtas(t), rader = [], sett = new Set();
   const undo = fid => t.undo && t.undo.get(fid);
   for (const f of lfFotoLista(t)) {
-    const lage = lfLageAv(t, f), nr = lfNr(f), rub = `Photo ${nr}`, u = undo(f.fid), bas = { fid: f.fid, nr };
+    const lage = lfLageAv(t, f), nr = lfNr(f), rub = `Photo ${nr}`, u = undo(f.fid), bas = { fid: f.fid, nr, sedd: f.sedd || 0 };
     sett.add(f.fid);
     if (lage === 'laser') { if (!f.ersatter) rader.push(Object.assign(bas, { typ: 'las', rub, txt: 'Reading, about half a minute' })); continue; }
     if (lage === 'bort') {
@@ -13839,12 +13873,17 @@ function lfRader(t) {
      telefonen är borta): Undo-posten räcker för raden. */
   for (const u of t.undo ? t.undo.values() : []) {
     if (u.typ !== 'bort' || sett.has(u.fid) || !lfUndoGiltig(t, u)) continue;
-    rader.push({ fid: u.fid, nr: lfNr({ fid: u.fid }), typ: 'bort', rub: `Photo ${lfNr({ fid: u.fid })}`, txt: `Removed, with its ${lfAntal(u.antal, 'card', 'cards')}`, angra: true });
+    rader.push({ fid: u.fid, nr: lfNr({ fid: u.fid }), sedd: 0, typ: 'bort', rub: `Photo ${lfNr({ fid: u.fid })}`, txt: `Removed, with its ${lfAntal(u.antal, 'card', 'cards')}`, angra: true });
   }
   /* Fotot som läses, när telefonen bara hunnit säga laser. */
   const las = lfLaser(t);
-  if (t.ansluten && las && !rader.some(r => r.typ === 'las')) rader.push({ fid: las.fid, nr: las.nr, typ: 'las', rub: `Photo ${las.nr}`, txt: 'Reading, about half a minute' });
-  return rader.sort((a, b) => a.nr - b.nr);
+  if (t.ansluten && las && !rader.some(r => r.typ === 'las')) rader.push({ fid: las.fid, nr: las.nr, sedd: 0, typ: 'las', rub: `Photo ${las.nr}`, txt: 'Reading, about half a minute' });
+  const per = new Map();
+  for (const r of rader) {
+    const f = per.get(r.nr), v = LF_RADVIKT[r.typ] || 0, fv = f ? LF_RADVIKT[f.typ] || 0 : -1;
+    if (!f || v > fv || (v === fv && r.sedd > f.sedd)) per.set(r.nr, r);
+  }
+  return [...per.values()].sort((a, b) => a.nr - b.nr);
 }
 /* N4: fotona som inte gav något, sagt medan nästa läses. */
 function lfTommaMening(rader) {
@@ -13894,49 +13933,184 @@ const lfKanAvsluta = t => !!t.ansluten && !t.klar && !lfOmtas(t) && lfRader(t).s
 function lfKollText(n) {
   return n ? { rub: `${lfAntal(n, 'name', 'names')} to check`, txt: `You check ${n === 1 ? 'it' : 'them'} when you finish the deck.` } : null;
 }
+/* Fotona leken bär, innan telefonen beskrivit dem (sidan laddades om,
+   telefonen inte kopplad): en rad var ur leken. Telefonens post tar över
+   när den kommer. Sant = något ändrades. */
+function lfFotonUrLeken(t, kort) {
+  if (!lfStod() || typeof lekSlagFotoAv !== 'function') return false;
+  const av = lekSlagFotoAv(kort || []);
+  let andrat = false;
+  for (const [fid, n] of av) {
+    const f = t.foton.get(fid);
+    if (f && f.fran !== 'leken') continue;
+    const rader = (kort || []).filter(k => k && k.foto && k.foto[fid] > 0), c = k => Math.min(Number(k.foto[fid]) || 0, Number(k.n) || 1);
+    const okanda = rader.filter(k => k.okand).reduce((s, k) => s + c(k), 0), koll = rader.filter(k => k.koll).reduce((s, k) => s + c(k), 0);
+    if (f && f.hittade === n && f.koll === koll && f.okanda === okanda) continue;
+    t.foton.set(fid, { fid, nr: lfNr({ fid }), lage: 'klar', hittade: n, koll, okanda, olasta: 0, fran: 'leken', sedd: f ? f.sedd : ++t.seddN });
+    andrat = true;
+  }
+  for (const [fid, f] of [...t.foton]) if (f.fran === 'leken' && !av.has(fid)) { t.foton.delete(fid); andrat = true; }
+  return andrat;
+}
 
 /* ── Remove photo, Retake och Undo ──
    Ändringarna följer formatet vid BLOCK: LEKKANALEN. Varje ändring får sitt
    id här, när den skapas: samma ändring spelas aldrig upp två gånger
    (decks.klara, lekSparaKo), hur många gånger den än skickas — ett
-   dubbeltryck, en omladdning mitt i en sparning. */
+   dubbeltryck, en omladdning mitt i en sparning, två datorflikar. */
 /* Remove photo (HD2, N6): fotots exemplar ur leken, och Undo-posten med
    ändringarna som lägger tillbaka dem, räknade ur leken INNAN (kort). */
 function lfTaBort(t, kort, fid, id) {
   const op = { typ: 'fotobort', foto: fid, id: id() };
   const ater = lfTillbaka(kort, fid).map(o => Object.assign(o, { id: id() }));
   const antal = ater.reduce((s, o) => s + o.d, 0);
-  const u = ater.length ? { typ: 'bort', fid, ops: ater, antal, efter: lfLandade(t), krav: [op.id], ts: Date.now() } : null;
+  const efter = [...new Set([...lfEfter(t, fid), ...lfFidsILeken(kort)])].filter(x => x !== fid);
+  const u = ater.length ? { typ: 'bort', fid, ops: ater, antal, efter, krav: [op.id], ts: Date.now() } : null;
   return { ops: [op], undo: u };
 }
 /* Undo av ett omtag (J10): det gamla fotots exemplar tillbaka (mall, räknad
-   ur leken medan omtaget pågick) och SIST det nya fotots exemplar ur leken. */
-function lfOmtagUndo(t, mall, ny, gammal, id) {
+   ur leken medan omtaget pågick) och SIST det nya fotots exemplar ur leken.
+   Id:na följer det nya fotots fid: varje datorflik som ångrar samma omtag
+   gör samma ändringar, och leken tar dem en gång. */
+function lfOmtagUndo(t, mall, ny, gammal) {
   if (!mall || !mall.length) return null;
-  const ops = mall.map(o => Object.assign({}, o, { id: id() }));
-  ops.push({ typ: 'fotobort', foto: ny, id: id() });
-  return { typ: 'omtag', fid: ny, ny, gammal, ops, antal: mall.reduce((s, o) => s + o.d, 0), efter: lfLandade(t), krav: [], ts: Date.now() };
+  const ops = mall.map(o => Object.assign({}, o, { id: `lf:${ny}:${lekSlagNyckel(o.name, o.sb)}` }));
+  ops.push({ typ: 'fotobort', foto: ny, id: `lf:${ny}:bort` });
+  return { typ: 'omtag', fid: ny, ny, gammal, ops, antal: mall.reduce((s, o) => s + o.d, 0), efter: lfEfter(t, null), krav: [], ts: Date.now() };
 }
 /* Meddelandena till telefonen när en Undo ligger i leken. */
 const lfAterSag = u => u.typ === 'bort' ? [{ typ: 'fotoater', fid: u.fid }] : [{ typ: 'fotobort', fid: u.ny }, { typ: 'fotoater', fid: u.gammal }];
+/* Undo-ändringarna i datorns fotobort, till en annan datorflik. Remsan (en
+   bild) skickas inte: broadcast tar 256 kB, och mottagaren tar mallen ur sin
+   egen lek när den har kortet där. */
+const lfAterUt = ops => ops.map(o => {
+  const k = o.kort ? Object.assign({}, o.kort) : o.kort;
+  if (k && k.koll && k.koll.remsa) { k.koll = Object.assign({}, k.koll); delete k.koll.remsa; }
+  return Object.assign({}, o, { kort: k });
+});
 /* Efter en sparning, eller när sidan öppnats igen: vad leken (klara) säger
-   om varje Undo-post. En borttagning som nått leken sägs till telefonen; ett
-   Undo som nått leken är klart; och vid öppningen (oppnad) faller en
+   om varje Undo-post. En borttagning som nått leken sägs till telefonen (och
+   andra flikar, med ändringarna); ett Undo som nått leken är klart; ett Undo
+   som inte längre gäller faller; och vid öppningen (oppnad) faller en
    borttagning som aldrig nådde leken, och ett Undo som inte gjorde det går
-   att trycka igen. Svar: meddelandena att skicka, och om något ändrades. */
+   att trycka igen. t.iLeken ska vara leken som den är. Svar: meddelandena
+   att skicka, och om något ändrades. */
 function lfStad(t, klara, oppnad) {
   const sag = [], har = id => klara.has(id);
   let andrat = false;
   for (const [fid, u] of [...t.undo]) {
     const kravOk = (u.krav || []).every(har);
     if (oppnad && !kravOk) { t.undo.delete(fid); andrat = true; continue; }
-    if (kravOk && !u.sagt) { u.sagt = true; andrat = true; if (u.typ === 'bort' && (u.krav || []).length) sag.push({ typ: 'fotobort', fid: u.fid }); }
+    if (!u.brukad && !lfUndoGiltig(t, u)) { t.undo.delete(fid); andrat = true; continue; }
+    if (kravOk && !u.sagt) {
+      u.sagt = true; andrat = true;
+      if (u.typ === 'bort' && (u.krav || []).length) sag.push({ typ: 'fotobort', fid: u.fid, bort: u.krav[0], ts: u.ts, ater: lfAterUt(u.ops) });
+    }
     if (u.brukad) {
       if (u.ops.every(o => har(o.id))) { t.undo.delete(fid); andrat = true; sag.push(...lfAterSag(u)); }
       else if (oppnad) { u.brukad = false; andrat = true; }
     }
   }
   return { sag, andrat };
+}
+
+/* ── Lekkanalen in i bilden av fotona ──
+   Ett meddelande (formatet vid BLOCK: LEKKANALEN) ändrar t. Rent, så att
+   kedjan går att prova med två datorflikar och en telefon. o.id() ger ett
+   nytt ändrings-id. Svar: sag (meddelanden att skicka), klar (Finish the
+   deck kom härifrån). Förhandsbilden (fotobild) och sparad tar lekytan. */
+function lfHor(t, m, o = {}) {
+  const ut = { sag: [], klar: false };
+  const nyId = o.id || (() => Math.random().toString(36).slice(2, 11));
+  if (m.typ === 'hej') {
+    if (m.roll !== 'tel') return ut;                  // en annan datorflik
+    const fas = m.fas || (t.fas === 'vantar' ? 'lagg' : t.fas);
+    Object.assign(t, { ansluten: true, fas, foto: +m.foto || t.foto });
+    /* Ett omtag gäller bara medan telefonen står i kameran eller läser. */
+    if (fas !== 'kamera' && fas !== 'laser') t.ersatter = null;
+    if (fas === 'klar' && !t.klar) ut.klar = true;     // Finish the deck på telefonen (I10)
+    if (!m.svar) ut.sag.push({ typ: 'hej', roll: 'dator', svar: true });
+    ut.sag.push(...(t.utkorg || []).splice(0));
+    return ut;
+  }
+  if (m.typ === 'kamera' || m.typ === 'laser') {
+    /* Ett foto som läses men som telefonen inte beskrivit än får en rad (N4);
+       den riktiga posten tar över när den kommer. kamera har inget fid. */
+    const fid = m.typ === 'laser' && m.fid ? String(m.fid) : null, ers = m.ersatter ? String(m.ersatter) : null;
+    if (fid && !t.foton.has(fid)) t.foton.set(fid, { fid, nr: +m.foto || lfNr({ fid }), lage: 'laser', ersatter: ers, sedd: ++t.seddN });
+    Object.assign(t, { ansluten: true, fas: m.typ, foto: +m.foto || t.foto, fid, ersatter: ers, klar: false });
+    return ut;
+  }
+  if (m.typ === 'foto') { if (m.foto && typeof m.foto === 'object' && m.foto.fid) lfFotoIn(t, m.foto); return ut; }
+  if (m.typ === 'fotobort') { if (m.fid) lfBortIn(t, m, nyId); return ut; }
+  if (m.typ === 'fotoater') { if (m.fid) lfAterIn(t, String(m.fid)); return ut; }
+  if (m.typ === 'klar') { if (!t.klar) ut.klar = true; return ut; }
+  return ut;
+}
+/* Ett foto som telefonen beskriver. */
+function lfFotoIn(t, f) {
+  const fid = String(f.fid), fore = t.foton.get(fid);
+  if (!t.format) { t.format = true; for (const [k, v] of [...t.foton]) if (v.fran === 'sparad') t.foton.delete(k); }
+  const ny = Object.assign({}, f, { fid, sedd: fore ? fore.sedd : ++t.seddN });
+  delete ny.fran;
+  t.foton.set(fid, ny);
+  lfLokalIn(t, fid, ny.lage);
+  const landat = LF_LANDAT.includes(ny.lage), varLandat = !!fore && fore.fran !== 'leken' && LF_LANDAT.includes(fore.lage);
+  /* Fotot som lästes har landat: panelen väntar på nästa (N3). */
+  if (landat && fid === t.fid && t.fas === 'laser') { t.fas = 'lagg'; t.ersatter = null; }
+  /* Ett omtag som landat (J10): det gamla fotots exemplar tillbaka går att
+     ångra, med mallarna räknade medan omtaget pågick. Bara när övergången
+     syns nu: efter en omladdning finns posten sparad, eller inte alls. */
+  if (ny.lage === 'klar' && ny.ersatter && !varLandat && !t.undo.has(fid) && lfStod()) {
+    const u = lfOmtagUndo(t, t.mallar.get(String(ny.ersatter)), fid, String(ny.ersatter));
+    if (u) t.undo.set(fid, u);
+  }
+  /* Telefonen ångrade själv: Undo-posten här gäller inte längre. */
+  const u = t.undo.get(fid);
+  if (u && u.typ === 'bort' && !u.brukad && ny.lage !== 'bort' && !t.lokal.has(fid)) t.undo.delete(fid);
+  /* Ett nytt foto som landat gör gamla Undo ogiltiga (N6: tills nästa foto landar). */
+  if (landat) for (const [k, x] of [...t.undo]) if (!x.brukad && !lfUndoGiltig(t, x)) t.undo.delete(k);
+}
+/* Remove photo någon annanstans. Från telefonen (LB1, fran 'tel'): Undo här
+   med mallarna. Från en annan datorflik: samma Undo som där, med samma id:n
+   (ater), så att två tryck var som helst gör det en gång; tog båda flikarna
+   bort fotot samtidigt gäller samma borttagning i båda (den med minst id,
+   eller den nyare om de är långt isär). Utan ater: ett ångrat omtag (J10)
+   eller ett foto utan kort, och ingen Undo. */
+function lfBortIn(t, m, nyId) {
+  const fid = String(m.fid), f = t.foton.get(fid), min = t.undo.get(fid);
+  const varBort = !!f && lfLageAv(t, f) === 'bort';
+  if (m.fran === 'tel') {
+    const mall = t.mallar.get(fid);
+    if (!varBort && lfStod() && mall && mall.length) {
+      const ops = mall.map(op => Object.assign({}, op, { id: nyId() }));
+      t.undo.set(fid, { typ: 'bort', fid, ops, antal: ops.reduce((s, op) => s + op.d, 0), efter: lfEfter(t, fid), krav: [], sagt: true, ts: Date.now() });
+    }
+  } else if (Array.isArray(m.ater) && m.ater.length) {
+    const deras = String(m.bort || ''), dts = +m.ts || 0;
+    const mitt = min && min.typ === 'bort' ? String((min.krav || [])[0] || '') : '';
+    const behall = !!min && min.typ === 'bort' && (min.brukad
+      || (mitt && deras && Math.abs((+min.ts || 0) - dts) < 30000 ? mitt <= deras : (+min.ts || 0) > dts));
+    if (!behall) {
+      const egna = t.mallar.get(fid) || [], nyckel = x => lekSlagNyckel(x.name, x.sb);
+      const ops = m.ater.filter(x => x && x.typ === 'antal' && x.id && typeof x.name === 'string' && x.name && +x.d > 0 && String(x.foto) === fid && x.kort && x.kort.name)
+        .map(x => { const e = egna.find(y => nyckel(y) === nyckel(x)); return Object.assign({}, x, e ? { kort: e.kort } : {}); });
+      if (ops.length) {
+        t.undo.set(fid, { typ: 'bort', fid, ops, antal: ops.reduce((s, x) => s + x.d, 0), efter: lfEfter(t, fid), krav: deras ? [deras] : [],
+                          sagt: true, delad: true, ts: dts || Date.now() });
+        t.lokal.set(fid, 'bort');
+      }
+    }
+  } else if (min && min.typ === 'omtag' && !min.brukad) t.undo.delete(fid);
+  if (f) t.foton.set(fid, Object.assign({}, f, { lage: 'bort' }));
+}
+/* Undo någon annanstans (en annan datorflik eller telefonen): fotot räknas
+   igen, och Undo-posten här är klar, som på telefonen. */
+function lfAterIn(t, fid) {
+  for (const [k, u] of [...t.undo]) if ((u.typ === 'bort' && u.fid === fid) || (u.typ === 'omtag' && u.gammal === fid)) t.undo.delete(k);
+  const f = t.foton.get(fid);
+  if (f && (f.lage === 'bort' || f.lage === 'ersatt')) t.foton.set(fid, Object.assign({}, f, { lage: 'klar' }));
+  t.lokal.delete(fid);
 }
 /* ══ SLUT: LEKFOTO PÅ DATORN ══ */
 
@@ -13967,12 +14141,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     telHtml: '',          // senast ritade Take photos-flik, så att guiden inte börjar om
   };
   const telTom = () => ({ ansluten: false, fas: 'vantar', foto: 1, fid: null, ersatter: null, klar: false, seddN: 0,
-                          foton: new Map(), bilder: new Map(), lokal: new Map(), lokalSagd: new Set(), undo: new Map(), mallar: new Map(), arKort: new Set() });
+                          foton: new Map(), bilder: new Map(), lokal: new Map(), iLeken: new Set(), undo: new Map(), mallar: new Map(), arKort: new Set() });
   /* Datorns eget läge för ett foto (Remove photo, Undo), tills telefonen
-     vet om det: telefonen skickar inte om fotots post när den fått
-     fotobort/fotoater, så när meddelandet väl gått iväg gäller telefonens
-     nästa post för fotot (ett omtag som ersätter det, till exempel). */
-  function lokalt(fid, lage) { y.tel.lokal.set(fid, lage); y.tel.lokalSagd.delete(fid); }
+     säger samma sak (lfLokalIn). */
+  function lokalt(fid, lage) { y.tel.lokal.set(fid, lage); }
   /* Man fotar: Take photos står framme och Finish the deck är inte tryckt. */
   const fotar = () => y.flik === 'tel' && !y.tel.klar;
   y.tel = telTom();
@@ -14164,58 +14336,34 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (lyssnade) lekKanalSluta(y.telCb);
     y.telCb = null;
   }
-  /* Telefonen säger var den är. Meddelandet gäller den lek som ligger
-     framme; ett gammalt meddelande om en annan lek faller. */
+  /* Telefonen (och andra datorflikar med samma lek) säger var de är.
+     Meddelandet gäller den lek som ligger framme; ett gammalt meddelande om
+     en annan lek faller. Vad det betyder för fotona avgör lfHor (LEKFOTO PÅ
+     DATORN); här ritas det, sparas och skickas vidare. */
   function telHor(m, id) {
     if (!m || m.lekId !== id || !y.bas || y.bas.id !== id) return;
     const t = y.tel;
-    if (m.typ === 'hej') {
-      if (m.roll === 'dator') return;                    // vårt eget, eller en annan dator
-      const fas = m.fas || (t.fas === 'vantar' ? 'lagg' : t.fas);
-      /* Ett omtag gäller bara medan telefonen står i kameran eller läser. */
-      const d = { ansluten: true, fas, foto: +m.foto || t.foto };
-      if (fas !== 'kamera' && fas !== 'laser') d.ersatter = null;
-      if (fas === 'klar') d.klar = true;                  // Finish the deck på telefonen (I10)
-      telSatt(d);
-      if (!m.svar) lekKanalSag({ typ: 'hej', lekId: id, roll: 'dator', svar: true });
-      for (const x of (t.utkorg || []).splice(0)) telSag(x);
-      return;
-    }
-    if (m.typ === 'kamera' || m.typ === 'laser') {
-      /* Ett foto som läses men som telefonen inte beskrivit än får en rad
-         (N4); den riktiga posten tar över när den kommer. */
-      if (m.typ === 'laser' && m.fid && !t.foton.has(m.fid)) {
-        t.foton.set(m.fid, { fid: String(m.fid), nr: +m.foto || lfNr({ fid: m.fid }), lage: 'laser', ersatter: m.ersatter || null, sedd: ++t.seddN, syntes: true });
+    if (m.typ === 'fotobild') { if (m.fid && m.bild) bildIn(String(m.fid), m.bild); return; }
+    if (m.typ === 'sparad') {
+      /* En telefon utan fotoposterna (en äldre flik): raden byggs ur sparad,
+         som förut. Så snart telefonen beskriver sina foton gäller de. */
+      if (m.foto && !t.format) {
+        const nr = +m.foto, fid = 'sparad:' + nr;
+        t.foton.set(fid, { fid, nr, lage: 'klar', nya: +m.nya || 0, koll: +m.koll || 0, sedd: ++t.seddN, fran: 'sparad' });
+        telSatt({ ansluten: true, fas: 'lagg', foto: nr + 1, klar: false });
       }
-      if (m.ersatter) telMallar();                       // J9: det gamla fotots exemplar, innan de byts ut
-      telSatt({ ansluten: true, fas: m.typ, foto: +m.foto || t.foto, fid: m.fid || null, ersatter: m.ersatter || null, klar: false });
+      if (!(m.ts && y.bas && m.ts <= y.bas.ts)) hamtaNyare({ foto: !!m.foto });
       return;
     }
-    if (m.typ === 'foto' && m.foto && typeof m.foto === 'object' && m.foto.fid) { fotoIn(m.foto); return; }
-    if (m.typ === 'fotobild' && m.fid && m.bild) { bildIn(String(m.fid), m.bild); return; }
-    if (m.typ === 'fotobort' && m.fid) {
-      /* Remove photo på telefonen (LB1): datorn visar samma rad med Undo
-         (N6), med ändringarna räknade ur leken medan fotot fanns i den. Bara
-         på det här meddelandet: ett foto som blir 'bort' för att datorn själv
-         tog bort det (eller ångrade ett omtag) ska inte få ett Undo till. */
-      const fid = String(m.fid), f = t.foton.get(fid), mall = t.mallar.get(fid);
-      if (f && !t.undo.has(fid) && !t.lokal.has(fid) && lfStod() && mall && mall.length) {
-        const ops = mall.map(op => Object.assign({}, op, { id: lekOpId() }));
-        t.undo.set(fid, { typ: 'bort', fid, ops, antal: ops.reduce((s, op) => s + op.d, 0), efter: lfLandade(t), krav: [], sagt: true, ts: Date.now() });
-      }
-      if (f) fotoIn(Object.assign({}, f, { lage: 'bort' }));
-      return;
-    }
-    if (m.typ === 'klar') { if (!t.klar) fotoKlar(true, { tyst: true }); return; }
-    if (m.typ !== 'sparad') return;
-    /* En telefon utan fotoposterna (en äldre flik): raden byggs ur sparad,
-       som förut. Så snart telefonen beskriver sina foton gäller de. */
-    if (m.foto && !t.format) {
-      const nr = +m.foto, fid = 'sparad:' + nr;
-      t.foton.set(fid, { fid, nr, lage: 'klar', nya: +m.nya || 0, koll: +m.koll || 0, sedd: ++t.seddN, fran: 'sparad' });
-      telSatt({ ansluten: true, fas: 'lagg', foto: nr + 1, klar: false });
-    }
-    if (!(m.ts && y.bas && m.ts <= y.bas.ts)) hamtaNyare({ foto: !!m.foto });
+    if (!['hej', 'kamera', 'laser', 'foto', 'fotobort', 'fotoater', 'klar'].includes(m.typ)) return;
+    /* J9: det gamla fotots exemplar, innan omtaget byter ut dem. */
+    if ((m.typ === 'kamera' || m.typ === 'laser') && m.ersatter) telMallar();
+    const klar = t.klar, ut = lfHor(t, m, { id: lekOpId });
+    for (const x of ut.sag) telSag(x);
+    if (ut.klar) { fotoKlar(true, { tyst: true }); return; }
+    telSpara();
+    if (y.flik === 'tel') { ritaTel(); if (!nu().kort.length || klar !== t.klar) ritaYta(); }
+    if (visa) ritaVisa();
   }
   function telSatt(d) {
     const klar = y.tel.klar;
@@ -14225,32 +14373,6 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     ritaTel();
     /* Tomläget bär samma steg, och To check visas helt först efter Finish. */
     if (!nu().kort.length || klar !== y.tel.klar) ritaYta();
-  }
-  /* Ett foto som telefonen beskriver (formatet vid BLOCK: LEKKANALEN). */
-  function fotoIn(f) {
-    const t = y.tel, fid = String(f.fid), fore = t.foton.get(fid);
-    if (!t.format) { t.format = true; for (const [k, v] of [...t.foton]) if (v.fran === 'sparad') t.foton.delete(k); }
-    const ny = Object.assign({}, f, { fid, sedd: fore ? fore.sedd : ++t.seddN });
-    t.foton.set(fid, ny);
-    lfLokalIn(t, fid, ny.lage);
-    const landat = LF_LANDAT.includes(ny.lage), varLandat = !!fore && LF_LANDAT.includes(fore.lage);
-    /* Fotot som lästes har landat: panelen väntar på nästa (N3). */
-    if (landat && fid === t.fid && (t.fas === 'laser' || t.fas === 'kamera')) { t.fas = 'lagg'; t.ersatter = null; }
-    /* Ett omtag som landat (J10): det gamla fotots exemplar tillbaka går att
-       ångra, med mallarna räknade medan omtaget pågick. Bara när övergången
-       syns nu: efter en omladdning finns posten sparad, eller inte alls. */
-    if (ny.lage === 'klar' && ny.ersatter && !varLandat && !t.undo.has(fid) && lfStod()) {
-      const u = lfOmtagUndo(t, t.mallar.get(String(ny.ersatter)), fid, String(ny.ersatter), lekOpId);
-      if (u) t.undo.set(fid, u);
-    }
-    /* Telefonen ångrade själv: Undo-posten här gäller inte längre. */
-    const u = t.undo.get(fid);
-    if (u && u.typ === 'bort' && !u.brukad && ny.lage !== 'bort' && !t.lokal.has(fid)) t.undo.delete(fid);
-    /* Ett nytt foto som landat gör gamla Undo ogiltiga (N6: tills nästa foto landar). */
-    if (landat) for (const [k, x] of [...t.undo]) if (!x.brukad && !lfUndoGiltig(t, x)) t.undo.delete(k);
-    telSpara();
-    if (y.flik === 'tel') { ritaTel(); if (!nu().kort.length) ritaYta(); }
-    if (visa && visa.fid === fid) ritaVisa();
   }
   /* Förhandsbilden (fotobild): en blob-URL, så att panelens html inte bär
      bilden. Bara en data-URL med en JPEG eller PNG tas emot. */
@@ -14275,7 +14397,12 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      som låg i leken innan. */
   function telMallar() {
     if (!lfStod()) return;
-    for (const [fid, ops] of lfMallarUr(nu().kort)) y.tel.mallar.set(fid, ops);
+    const kort = nu().kort;
+    for (const [fid, ops] of lfMallarUr(kort)) y.tel.mallar.set(fid, ops);
+    /* Fotona i leken: ett Undo gäller inte när ett nyare foto ligger där, och
+       raderna står där innan telefonen svarat (en omladdning). */
+    y.tel.iLeken = lfFidsILeken(kort);
+    lfFotonUrLeken(y.tel, kort);
   }
   /* Efter en sparning: det leken nu bär (klara) avgör vad telefonen ska få
      veta och vilka Undo som är klara. */
@@ -14291,7 +14418,6 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!y.bas) return;
     if (!y.tel.ansluten) { (y.tel.utkorg = y.tel.utkorg || []).push(m); return; }
     lekKanalSag(Object.assign({ lekId: y.bas.id }, m));
-    if (m.fid && (m.typ === 'fotobort' || m.typ === 'fotoater')) y.tel.lokalSagd.add(m.fid);
   }
   /* Take photos i webbläsaren, per lek: fliken, Finish the deck och det som
      går att ångra, så att en omladdning inte tappar Undo (och inte kan göra
@@ -14383,13 +14509,15 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     /* Take photos som man lämnade det (fliken, Finish the deck, Undo), om
        det var nyss. Leken (klara) avgör vilka Undo som fortfarande gäller. */
     const sparat = telLas(rad);
+    /* Mallarna och fotona i leken först: lfStad fäller ett Undo när ett
+       nyare foto ligger i leken (sidan var stängd medan telefonen fotade). */
+    telMallar();
     if (sparat) {
       if (sparat.flik === 'tel' || sparat.flik === 'lista' || sparat.flik === 'skriv') y.flik = sparat.flik;
       y.tel.klar = !!sparat.klar;
       for (const u of Array.isArray(sparat.undo) ? sparat.undo : []) if (u && u.fid && Array.isArray(u.ops)) y.tel.undo.set(String(u.fid), u);
       telEfterRad(true);
     }
-    telMallar();
     rita();
     lyssna();
     return true;
@@ -14624,14 +14752,13 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     ritaTel(); if (!nu().kort.length) ritaYta();
   }
   /* Retake with the phone (HD2): telefonen öppnar kameran för just det
-     fotot (J7), och panelen säger att det tas om (J9). */
+     fotot (J7). Panelen säger att det tas om (J9) först när telefonen gjort
+     det (kamera med ersatter): telefonen tar inte ett omtag medan den läser
+     eller står i kameran. */
   function omtaFoto(fid) {
-    const t = y.tel;
-    if (!y.bas || !t.ansluten) return;
+    if (!y.bas || !y.tel.ansluten) return;
     telMallar();
-    lekKanalSag({ typ: 'omtag', lekId: y.bas.id, fid });
-    Object.assign(t, { ersatter: fid, fas: 'kamera', klar: false });
-    ritaTel();
+    telSag({ typ: 'omtag', fid });
   }
 
   /* ── View a photo (HD2) ──
@@ -14684,7 +14811,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const rad = x => `<div class="lfvrad"><span class="th">${x.k.small ? `<img src="${esc(x.k.small)}" alt="">` : ''}</span>`
       + `<div class="tx"><b>${esc(x.k.okand ? 'No name read' : x.k.name)}</b><span>In the deck</span></div></div>`;
     const knappar = visa.fraga
-      ? `<div class="lfvfot fraga"><span>Remove photo ${nr} and its ${lfAntal(lista.reduce((s, x) => s + x.n, 0), 'card', 'cards')}?</span>`
+      ? `<div class="lfvfot fraga"><span>${lfBortFraga(nr, lista.reduce((s, x) => s + x.n, 0))}</span>`
         + `<button type="button" class="btn fara" data-lfv="bortja">${lsIk('trash', 14)}Remove photo</button><button type="button" class="btn ghost" data-lfv="bortnej">Cancel</button></div>`
       : '<div class="lfvfot">'
         + (lfStod() ? `<button type="button" class="btn" data-lfv="omta"${t.ansluten ? '' : ' disabled'}>${lsIk('rot', 14)}Retake with the phone</button>`
@@ -14692,7 +14819,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         + '</div>';
     visaEl.innerHTML = `<section class="lfvbox" role="dialog" aria-modal="true" aria-label="Photo ${nr}">`
       + `<div class="lfvbild" style="aspect-ratio:${ar}">${bild ? `<img src="${esc(bild.url)}" alt="Photo ${nr}">` : '<span class="lfvtom">' + lsIk('camera', 30, 1.6) + '</span>'}${ram}</div>`
-      + `<div class="lfvsida"><div class="lfvhd"><b>Photo ${nr} · ${lfHittade(f)} found</b>`
+      + `<div class="lfvsida"><div class="lfvhd"><b>${lfVisaRubrik(f)}</b>`
       + `<button type="button" class="lfvx" data-lfv="stang" aria-label="Close">${lsIk('x', 16, 2.2)}</button></div>`
       + (n ? `<div class="lfvinfo">${lsIk('warn', 18, 2)}<span><b>${n === 1 ? '1 thing Mesa counted isn’t a card.' : `${n} things Mesa counted aren’t cards.`}</b> `
         + `${n === 1 ? 'It’s selected below and outlined in the photo. Press Not a card to remove it.' : 'They’re selected below and outlined in the photo. Press Not a card to remove them.'}</span></div>` : '')
@@ -14701,6 +14828,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         + '<div class="tx"><b>No name read</b></div>'
         + `<button type="button" class="btn prim" data-lfv="intekort">${lsIk('x', 13, 2.4)}Not a card</button>`
         + '<button type="button" class="btn" data-lfv="arkort">It’s a card</button></div>').join('')
+      + (!lista.length && LF_LANDAT.includes(f.lage) && f.lage !== 'klar' ? `<span class="lfvmer">${lfTomText(f)}</span>` : '')
       + visas.map(rad).join('')
       + (mer ? `<span class="lfvmer">+ ${lfAntal(mer, 'more card', 'more cards')} from this photo</span>` : '')
       + `<span class="grow"></span>${knappar}</div></section>`;
@@ -14927,7 +15055,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       const c = cardFor(n);
       if (!c && !y.blHamtas.has(n)) { y.blHamtas.add(n); lookup(n).then(() => ritaYta()).catch(() => {}); }
       const src = c && imgOf(c, 0, 'small'), a = antal(n), f = foto ? iFoton(n) : 0;
-      return `<div class="lsblk${a ? '' : ' noll'}">${src ? `<img class="kf" src="${esc(src)}" alt="${n}" title="${n}" draggable="false">` : `<span class="kf lsutan">${n}</span>`}`
+      /* Ett land utan kort tonas ned medan man fotar (N3), inte i Type och Paste a list. */
+      return `<div class="lsblk${a || !foto ? '' : ' noll'}">${src ? `<img class="kf" src="${esc(src)}" alt="${n}" title="${n}" draggable="false">` : `<span class="kf lsutan">${n}</span>`}`
         + `<span class="stp"><button type="button" data-ls-bl="${n}" data-d="-1" title="One fewer ${n}"${a ? '' : ' disabled'}>${lsIk('minus', 12, 2.4)}</button>`
         + `<input class="stpin" type="text" inputmode="numeric" maxlength="2" value="${a}" data-ls-blin="${n}" aria-label="Number of ${n}" title="Type how many ${n} you play">`
         + `<button type="button" data-ls-bl="${n}" data-d="1" title="One more ${n}">${lsIk('plus', 12, 2.4)}</button></span>`

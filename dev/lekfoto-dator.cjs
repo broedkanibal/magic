@@ -265,25 +265,35 @@ fall('utan fotoposter gäller telefonens nummer', () => {
   assert.strictEqual(app.lfNastaNr(nyTel({ foto: 4 })), 4);
 });
 
-fall('datorns eget läge: gäller tills telefonen säger samma, eller skickar en post efter meddelandet', () => {
+fall('datorns eget läge: gäller tills telefonen säger samma sak, eller att fotot ersatts', () => {
   /* Det MES-321:s telefon visade (2026-09-28): Remove photo 1, Undo, sedan
      tas foto 1 om. Telefonen skickar inte om posten efter fotoater, så datorns
-     "klar" låg kvar och det ersatta fotot syntes bredvid omtaget (J10). */
-  const t = nyTel({ lokalSagd: new Set() });
+     "klar" måste släppa när telefonen säger att fotot ersatts (J10). */
+  const t = nyTel();
   foto(t, '1:a', 'bort');
-  t.lokal.set('1:a', 'klar');                                   // Undo på datorn, fotoater inte skickat än
+  t.lokal.set('1:a', 'klar');                                   // Undo på datorn
   app.lfLokalIn(t, '1:a', 'bort');                              // telefonens gamla post: står kvar
   assert.strictEqual(app.lfLageAv(t, t.foton.get('1:a')), 'klar');
-  t.lokalSagd.add('1:a');                                       // fotoater har gått iväg
   foto(t, '1:a', 'ersatt');
   app.lfLokalIn(t, '1:a', 'ersatt');                            // omtaget ersatte det: telefonens post gäller
   foto(t, '1:z', 'klar', { hittade: 3, ersatter: '1:a' });
   assert.strictEqual(app.lfLageAv(t, t.foton.get('1:a')), 'ersatt');
   assert.deepStrictEqual(app.lfRader(t).map(r => r.fid), ['1:z'], 'bara omtaget har en rad');
-  const u = nyTel({ lokalSagd: new Set() });
+  const u = nyTel();
   foto(u, '2:b', 'klar'); u.lokal.set('2:b', 'bort');
   app.lfLokalIn(u, '2:b', 'bort');                              // telefonen säger samma: bekräftat
   assert.strictEqual(u.lokal.size, 0);
+});
+fall('granskningen fynd 8: en telefonpost som korsar datorns fotobort tar inte bort Undo', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar'); foto(t, '2:b', 'klar', { hittade: 12 });
+  t.lokal.set('2:b', 'bort');
+  t.undo.set('2:b', { typ: 'bort', fid: '2:b', ops: [{ id: 'x', d: 12 }], antal: 12, efter: ['1:a'], krav: ['k'], sagt: true });
+  app.lfHor(t, { typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'klar', hittade: 12, behall: true } });   // skickad innan telefonen fick fotobort
+  assert.deepStrictEqual(rader(t)[1], ['Photo 2', 'Removed, with its 12 cards', 'Undo']);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'bort', hittade: 12 } });                 // telefonen har fått det
+  assert.strictEqual(t.lokal.size, 0);
+  assert.deepStrictEqual(rader(t)[1], ['Photo 2', 'Removed, with its 12 cards', 'Undo']);
 });
 fall('kamera har inget fid: ingen fotorad förrän laser', () => {
   const t = nyTel({ fas: 'kamera', foto: 2, fid: null });
@@ -293,17 +303,32 @@ fall('kamera har inget fid: ingen fotorad förrän laser', () => {
 });
 
 /* ── C: när Undo gäller ──────────────────────────────────────────── */
-fall('Undo gäller tills nästa foto landar, inte medan det läses', () => {
+fall('Undo gäller tills nästa foto landar; ett foto med ett annat nummer som läses ändrar inget', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'bort'); foto(t, '2:b', 'klar');
+  const u = { typ: 'bort', fid: '1:a', ops: [], antal: 4, efter: ['1:a', '2:b'], krav: [] };
+  t.undo.set('1:a', u);
+  assert.strictEqual(app.lfUndoGiltig(t, u), true);
+  foto(t, '3:c', 'laser');
+  assert.strictEqual(app.lfUndoGiltig(t, u), true, 'foto 3 läses, numret 1 är ledigt');
+  foto(t, '3:c', 'klar');
+  assert.strictEqual(app.lfUndoGiltig(t, u), false, 'nästa foto landade');
+  assert.ok(!rader(t).some(r => r[2] === 'Undo'));
+});
+fall('granskningen fynd 4 (G3): Undo gäller inte medan ett foto med samma nummer läses', () => {
   const t = nyTel();
   foto(t, '1:a', 'klar'); foto(t, '2:b', 'bort');
   const u = { typ: 'bort', fid: '2:b', ops: [], antal: 4, efter: ['1:a', '2:b'], krav: [] };
   t.undo.set('2:b', u);
-  assert.strictEqual(app.lfUndoGiltig(t, u), true);
-  foto(t, '2:c', 'laser');
-  assert.strictEqual(app.lfUndoGiltig(t, u), true, 'ett foto som läses har inte landat');
-  foto(t, '2:c', 'klar');
-  assert.strictEqual(app.lfUndoGiltig(t, u), false, 'nästa foto landade');
-  assert.ok(!rader(t).some(r => r[2] === 'Undo'));
+  app.lfHor(t, { typ: 'laser', foto: 2, fid: '2:c' });
+  assert.strictEqual(app.lfUndoGiltig(t, u), false, 'numret 2 används redan igen');
+  assert.deepStrictEqual(rader(t).filter(r => r[0].startsWith('Photo 2')), [['Photo 2', 'Reading, about half a minute', '']]);
+  const omt = nyTel();
+  foto(omt, '1:a', 'ersatt'); foto(omt, '1:z', 'klar', { hittade: 2, ersatter: '1:a' });
+  const v = { typ: 'omtag', fid: '1:z', ny: '1:z', gammal: '1:a', ops: [], antal: 2, efter: ['1:z'], krav: [] };
+  omt.undo.set('1:z', v);
+  app.lfHor(omt, { typ: 'laser', foto: 1, fid: '1:y', ersatter: '1:z' });
+  assert.strictEqual(app.lfUndoGiltig(omt, v), false, 'omtaget tas om igen: J10:s Undo gäller inte');
 });
 fall('ett foto utan kort som landar gör också Undo ogiltigt; ett som väntar på telefonen gör det inte', () => {
   const t = nyTel();
@@ -331,7 +356,8 @@ fall('lfStad: en borttagning som nått leken sägs till telefonen en gång; ett 
   const t = nyTel();
   t.undo.set('2:b', { typ: 'bort', fid: '2:b', ops: [{ id: 'a1' }, { id: 'a2' }], antal: 2, efter: [], krav: ['b1'] });
   assert.deepStrictEqual(app.lfStad(t, new Set([]), false).sag, [], 'inte innan leken bär den');
-  assert.deepStrictEqual(app.lfStad(t, new Set(['b1']), false).sag, [{ typ: 'fotobort', fid: '2:b' }]);
+  const sag = app.lfStad(t, new Set(['b1']), false).sag;
+  assert.deepStrictEqual(sag.map(m => [m.typ, m.fid, m.bort, m.ater.map(o => o.id)]), [['fotobort', '2:b', 'b1', ['a1', 'a2']]]);
   assert.deepStrictEqual(app.lfStad(t, new Set(['b1']), false).sag, [], 'en gång');
   t.undo.get('2:b').brukad = true;
   assert.deepStrictEqual(app.lfStad(t, new Set(['b1', 'a1']), false).sag, [], 'halva Undo i leken: vänta');
@@ -370,7 +396,9 @@ fallD('D1 Remove photo 2 och Undo: leken exakt som före, också To check', () =
   assert.strictEqual(undo.antal, 4);
   t.undo.set('2:b', undo);
   assert.deepStrictEqual(app.lfStad(t, klara(fore), false).sag, [], 'telefonen får veta först när leken bär borttagningen');
-  assert.deepStrictEqual(app.lfStad(t, klara(efter), false).sag, [{ typ: 'fotobort', fid: '2:b' }]);
+  const sag = app.lfStad(t, klara(efter), false).sag;
+  assert.deepStrictEqual(sag.map(m => [m.typ, m.fid, m.bort]), [['fotobort', '2:b', ops[0].id]]);
+  assert.deepStrictEqual(sag[0].ater.map(o => o.id), undo.ops.map(o => o.id), 'Undo-ändringarna följer med, med sina id:n');
   const ater = spara(efter, undo.ops);
   assert.deepStrictEqual(antal(ater), antal(fore));
   const g = app.lekSlagTillampa(ater, []).kort.find(k => k.name === 'Gamma');
@@ -394,8 +422,9 @@ fallD('D3 nästa foto landar under tiden: Undo går ut, och det nya fotots kort 
   const { ops, undo } = app.lfTaBort(t, app.lekSlagTillampa(fore, []).kort, '2:b', id);
   let rad = spara(fore, ops);
   t.lokal.set('2:b', 'bort'); t.undo.set('2:b', undo);
+  assert.strictEqual(app.lfUndoGiltig(t, undo), true);
   foto(t, '2:c', 'laser');
-  assert.strictEqual(app.lfUndoGiltig(t, undo), true, 'medan det nya läses går Undo');
+  assert.strictEqual(app.lfUndoGiltig(t, undo), false, 'medan nästa foto 2 läses används numret redan (fynd 4)');
   rad = spara(rad, fotoOps('2:c', ['Epsilon', 'Delta']));
   foto(t, '2:c', 'klar', { hittade: 2 });
   assert.strictEqual(app.lfUndoGiltig(t, undo), false, 'det nya fotot landade');
@@ -476,6 +505,189 @@ fallD('D9 Remove photo på ett foto vars kort redan tagits bort för hand: inget
   rad = spara(rad, [{ typ: 'bort', name: 'Alpha', sb: false, id: id() }, { typ: 'bort', name: 'Beta', sb: false, id: id() }, { typ: 'antal', name: 'Gamma', sb: false, d: -2, id: id() }]);
   const { undo } = app.lfTaBort(t, app.lekSlagTillampa(rad, []).kort, '1:a', id);
   assert.strictEqual(undo, null);
+});
+
+/* ── E: granskningen av MES-322 ──────────────────────────────────── */
+fall('fynd 3 (G1): ett omtag av ett foto utan kort som också blir utan kort: en rad för numret', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar', { hittade: 3 });
+  foto(t, '3:c', 'inga');
+  foto(t, '3:d', 'inga', { ersatter: '3:c' });              // ersatter gäller först vid 'klar'
+  assert.deepStrictEqual(rader(t).filter(r => r[0] === 'Photo 3'), [['Photo 3', 'No cards found. Nothing added.', 'View']]);
+  assert.strictEqual(app.lfRader(t).find(r => r.nr === 3).fid, '3:d', 'det senaste försöket');
+});
+fall('fynd 3 (G2): ett omtag av ett foto med kort som blir utan kort: raden stämmer med leken', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar', { hittade: 9 });
+  foto(t, '1:z', 'inga', { ersatter: '1:a' });
+  assert.deepStrictEqual(rader(t), [['Photo 1', '9 cards added', 'View']], 'det gamla fotots kort ligger kvar i leken');
+  assert.strictEqual(app.lfNastaNr(t), 2);
+});
+fall('fynd 3: aldrig två rader med samma nummer', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar', { hittade: 9 }); foto(t, '1:z', 'inganamn', { ersatter: '1:a', poster: 6 }); foto(t, '1:y', 'inga', { ersatter: '1:a' });
+  foto(t, '2:b', 'inga'); foto(t, '2:c', 'inga', { ersatter: '2:b' });
+  foto(t, '3:c', 'klar', { hittade: 4 });
+  const nr = app.lfRader(t).map(r => r.nr);
+  assert.deepStrictEqual(nr, [...new Set(nr)]);
+  assert.deepStrictEqual(nr, [1, 2, 3]);
+});
+fallD('fynd 2 (G4): omladdning utan telefon fäller Undo när ett nyare foto med samma nummer ligger i leken', () => {
+  let rad = spara(lek(), fotoOps('1:a', ['A']));
+  rad = spara(rad, fotoOps('2:b', ['C', 'D']));
+  const t = nyTel();
+  foto(t, '1:a', 'klar'); foto(t, '2:b', 'klar');
+  t.iLeken = app.lfFidsILeken(app.lekSlagTillampa(rad, []).kort);
+  const { ops, undo } = app.lfTaBort(t, app.lekSlagTillampa(rad, []).kort, '2:b', id);
+  rad = spara(rad, ops);
+  rad = spara(rad, fotoOps('2:c', ['C', 'D']));             // telefonen tog nästa foto 2 medan datorn var stängd
+  const t2 = nyTel({ ansluten: false });
+  t2.undo.set('2:b', JSON.parse(JSON.stringify(undo)));
+  t2.iLeken = app.lfFidsILeken(app.lekSlagTillampa(rad, []).kort);
+  app.lfStad(t2, klara(rad), true);
+  assert.strictEqual(t2.undo.has('2:b'), false, 'foto 2:c ligger i leken och fanns inte vid borttagningen');
+  assert.deepStrictEqual(antal(rad), { A: 1, C: 1, D: 1 });
+  /* Utan ett nyare foto står Undo kvar. */
+  let rad2 = spara(lek(), fotoOps('1:a', ['A']));
+  rad2 = spara(rad2, fotoOps('2:b', ['C']));
+  const t3 = nyTel(); foto(t3, '1:a', 'klar'); foto(t3, '2:b', 'klar');
+  const b = app.lfTaBort(t3, app.lekSlagTillampa(rad2, []).kort, '2:b', id);
+  rad2 = spara(rad2, b.ops);
+  const t4 = nyTel({ ansluten: false });
+  t4.undo.set('2:b', JSON.parse(JSON.stringify(b.undo)));
+  t4.iLeken = app.lfFidsILeken(app.lekSlagTillampa(rad2, []).kort);
+  app.lfStad(t4, klara(rad2), true);
+  assert.strictEqual(t4.undo.has('2:b'), true);
+});
+fall('fynd 5 (G5): Remove photo och View på ett foto utan kort säger inte "0 cards" eller "0 found"', () => {
+  assert.strictEqual(app.lfBortFraga(3, 0), 'Remove photo 3?');
+  assert.strictEqual(app.lfBortFraga(2, 12), 'Remove photo 2 and its 12 cards?');
+  assert.strictEqual(app.lfBortFraga(2, 1), 'Remove photo 2 and its 1 card?');
+  assert.strictEqual(app.lfVisaRubrik({ fid: '3:c', lage: 'inga', hittade: 0 }), 'Photo 3');
+  assert.strictEqual(app.lfVisaRubrik({ fid: '4:d', lage: 'inganamn', hittade: 0, poster: 6 }), 'Photo 4 · 6 found');
+  assert.strictEqual(app.lfVisaRubrik({ fid: '1:a', lage: 'klar', hittade: 13 }), 'Photo 1 · 13 found');
+});
+fallD('fynd 10: fotona i leken ger rader innan telefonen svarat, och telefonens post tar över', () => {
+  let rad = spara(lek(), fotoOps('1:a', ['A', 'B']));
+  rad = spara(rad, fotoOps('2:b', ['C', 'Unreadable card q1'], { 'Unreadable card q1': { sid: null, okand: 1, koll: { las: '', kalla: 'Photo 2' } } }));
+  const t = nyTel({ ansluten: false });
+  app.lfFotonUrLeken(t, app.lekSlagTillampa(rad, []).kort);
+  assert.deepStrictEqual(rader(t), [['Photo 1', '2 cards added', 'View'], ['Photo 2', '1 card added · 1 name to pick when you’re done', 'View']]);
+  assert.strictEqual(app.lfNastaNr(t), 3);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'klar', hittade: 2, okanda: 1, koll: 1, olasta: 1 } });
+  assert.strictEqual(t.foton.get('2:b').fran, undefined, 'telefonens post gäller');
+  assert.deepStrictEqual(rader(t)[1], ['Photo 2', '1 card added · 1 name to pick when you’re done · some not read', 'View']);
+});
+fall('fynd 9: J9 först när telefonen säger att den tar om (kamera med ersatter)', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar', { hittade: 9 });
+  assert.strictEqual(app.lfLage(t).typ, 'nasta', 'omtag skickat, telefonen har inte svarat');
+  app.lfHor(t, { typ: 'kamera', foto: 1, ersatter: '1:a' });
+  assert.strictEqual(app.lfLage(t).typ, 'omtas');
+  app.lfHor(t, { typ: 'hej', roll: 'tel', svar: true, fas: 'resultat', foto: 2 });   // Back i kameran
+  assert.strictEqual(app.lfLage(t).typ, 'nasta');
+});
+
+/* ── F: två datorflikar och en telefon, genom lfHor (fynd 1) ────────
+   Flik A och flik B har samma lek öppen; telefonen fotar. Varje meddelande
+   går till de andra, som på lekkanalen. Leken är servern: en kö sparas på
+   raden, och ändringar vars id redan ligger i klara hoppas över. */
+function tvaFlikar() {
+  const server = { rad: lek() };
+  const fliken = namn => ({ namn, t: nyTel(), ut: [] });
+  const A = fliken('A'), B = fliken('B');
+  const syn = f => {                                       // telMallar: mallarna och fotona i leken
+    const kort = app.lekSlagTillampa(server.rad, []).kort;
+    for (const [fid, ops] of app.lfMallarUr(kort)) f.t.mallar.set(fid, ops);
+    f.t.iLeken = app.lfFidsILeken(kort);
+  };
+  const till = (fran, m) => { for (const f of [A, B]) if (f !== fran) { const r = app.lfHor(f.t, JSON.parse(JSON.stringify(m)), { id }); syn(f); f.ut.push(...r.sag); } };
+  const tel = m => till(null, m);
+  const spara2 = ops => { server.rad = spara(server.rad, ops); syn(A); syn(B); };
+  const stad = f => { const r = app.lfStad(f.t, klara(server.rad), false); for (const m of r.sag) till(f, m); };
+  return { server, A, B, till, tel, spara2, stad, syn };
+}
+function fotaTvaFoton(v) {
+  v.spara2(fotoOps('1:a', ['Alpha', 'Beta']));
+  v.tel({ typ: 'foto', foto: { fid: '1:a', nr: 1, lage: 'klar', hittade: 2, kort: kortLista(['Alpha', 'Beta']) } });
+  v.spara2(fotoOps('2:b', ['Gamma', 'Delta', 'Delta']));
+  v.tel({ typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'klar', hittade: 3, kort: kortLista(['Gamma', 'Delta', 'Delta']) } });
+}
+fallD('F1 flik A tar bort foto 2, båda flikarna trycker Undo: korten kommer tillbaka en gång', () => {
+  const v = tvaFlikar(); fotaTvaFoton(v);
+  const fore = antal(v.server.rad);
+  const kort = app.lekSlagTillampa(v.server.rad, []).kort;
+  const { ops, undo } = app.lfTaBort(v.A.t, kort, '2:b', id);
+  v.A.t.lokal.set('2:b', 'bort'); v.A.t.undo.set('2:b', undo);
+  v.spara2(ops);
+  v.stad(v.A);                                              // fotobort {fid, bort, ater} till B och telefonen
+  const uB = v.B.t.undo.get('2:b');
+  assert.ok(uB, 'flik B har ett Undo');
+  assert.deepStrictEqual(uB.ops.map(o => o.id), undo.ops.map(o => o.id), 'samma ändringar, samma id:n');
+  assert.deepStrictEqual(rader(v.B.t)[1], ['Photo 2', 'Removed, with its 3 cards', 'Undo']);
+  /* Båda trycker Undo innan någon av dem hört den andra. */
+  undo.brukad = true; uB.brukad = true;
+  v.spara2(undo.ops);
+  v.spara2(uB.ops);
+  assert.deepStrictEqual(antal(v.server.rad), fore, 'inget kort dubbelt');
+  v.stad(v.A); v.stad(v.B);                                 // fotoater till de andra
+  assert.strictEqual(v.A.t.undo.size + v.B.t.undo.size, 0);
+  assert.deepStrictEqual(rader(v.B.t)[1], ['Photo 2', '3 cards added', 'View']);
+});
+fallD('F2 flik A ångrar, flik B får fotoater: B:s Undo försvinner och fotot räknas igen', () => {
+  const v = tvaFlikar(); fotaTvaFoton(v);
+  const fore = antal(v.server.rad);
+  const { ops, undo } = app.lfTaBort(v.A.t, app.lekSlagTillampa(v.server.rad, []).kort, '2:b', id);
+  v.A.t.lokal.set('2:b', 'bort'); v.A.t.undo.set('2:b', undo);
+  v.spara2(ops); v.stad(v.A);
+  undo.brukad = true; v.spara2(undo.ops); v.stad(v.A);
+  assert.strictEqual(v.B.t.undo.has('2:b'), false, 'B:s Undo är borta');
+  assert.strictEqual(app.lfLageAv(v.B.t, v.B.t.foton.get('2:b')), 'klar');
+  assert.deepStrictEqual(antal(v.server.rad), fore);
+});
+fallD('F3 båda flikarna tar bort samma foto samtidigt: de enas om en borttagning, Undo en gång', () => {
+  const v = tvaFlikar(); fotaTvaFoton(v);
+  const fore = antal(v.server.rad), kort = app.lekSlagTillampa(v.server.rad, []).kort;
+  const a = app.lfTaBort(v.A.t, kort, '2:b', id), b = app.lfTaBort(v.B.t, kort, '2:b', id);
+  v.A.t.lokal.set('2:b', 'bort'); v.A.t.undo.set('2:b', a.undo);
+  v.B.t.lokal.set('2:b', 'bort'); v.B.t.undo.set('2:b', b.undo);
+  v.spara2(a.ops); v.spara2(b.ops);
+  v.stad(v.A); v.stad(v.B);
+  const uA = v.A.t.undo.get('2:b'), uB = v.B.t.undo.get('2:b');
+  assert.deepStrictEqual(uA.ops.map(o => o.id), uB.ops.map(o => o.id), 'samma Undo i båda');
+  uA.brukad = true; uB.brukad = true;
+  v.spara2(uA.ops); v.spara2(uB.ops);
+  assert.deepStrictEqual(antal(v.server.rad), fore);
+});
+fallD('F4 omtaget ångras i båda flikarna (J10): samma id:n, leken som före omtaget', () => {
+  const v = tvaFlikar(); fotaTvaFoton(v);
+  const fore = antal(v.server.rad);
+  v.tel({ typ: 'kamera', foto: 1, ersatter: '1:a' });
+  v.tel({ typ: 'laser', foto: 1, fid: '1:z', ersatter: '1:a' });
+  v.spara2([...fotoOps('1:z', ['Alpha', 'Omega']), { typ: 'fotobort', foto: '1:a', id: id() }]);
+  v.tel({ typ: 'foto', foto: { fid: '1:a', nr: 1, lage: 'ersatt', hittade: 2 } });
+  v.tel({ typ: 'foto', foto: { fid: '1:z', nr: 1, ersatter: '1:a', lage: 'klar', hittade: 2, kort: kortLista(['Alpha', 'Omega']) } });
+  const uA = v.A.t.undo.get('1:z'), uB = v.B.t.undo.get('1:z');
+  assert.ok(uA && uB, 'J10 i båda flikarna');
+  assert.deepStrictEqual(uA.ops.map(o => o.id), uB.ops.map(o => o.id));
+  assert.deepStrictEqual(rader(v.A.t)[0], ['Photo 1 · retaken', '2 cards, replacing 2', 'Undo']);
+  uA.brukad = true; uB.brukad = true;
+  v.spara2(uA.ops); v.spara2(uB.ops);
+  assert.deepStrictEqual(antal(v.server.rad), fore, 'gamla fotot tillbaka, det nya ut, en gång');
+  v.stad(v.A);
+  assert.strictEqual(v.B.t.undo.has('1:z'), false);
+});
+fallD('F5 Remove photo på telefonen (LB1): datorn får Undo ur sina mallar', () => {
+  const v = tvaFlikar(); fotaTvaFoton(v);
+  const fore = antal(v.server.rad);
+  v.spara2([{ typ: 'fotobort', foto: '2:b', id: id() }]);
+  v.tel({ typ: 'fotobort', fid: '2:b', fran: 'tel' });
+  v.tel({ typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'bort', hittade: 3 } });
+  const u = v.A.t.undo.get('2:b');
+  assert.ok(u && !u.brukad);
+  assert.deepStrictEqual(rader(v.A.t)[1], ['Photo 2', 'Removed, with its 3 cards', 'Undo']);
+  u.brukad = true; v.spara2(u.ops);
+  assert.deepStrictEqual(antal(v.server.rad), fore);
 });
 
 const d = STOD ? '' : `, ${over} hoppades över: LEKSLAG i ${path.basename(FIL)} saknar foto/fotobort (MES-321)`;
