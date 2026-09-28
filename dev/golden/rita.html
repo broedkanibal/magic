@@ -998,7 +998,20 @@ function uppgifter(l, dom) {
       const vill = b.bord.filter(k => k.namn === n && k.tappad).length, mina = iSpel(n), har = mina.filter(k => S.raknat[k.id] && S.raknat[k.id].tappad).length;
       if (vill === har) continue;
       const tappa = vill > har, k = mina.find(o => !!(S.raknat[o.id] && S.raknat[o.id].tappad) !== tappa);
-      ut.push({ text: `<b>${esc(n)}</b> ska vara ${tappa ? 'tappat (vridet)' : 'otappat (rakt)'} enligt manuset${mina.length > 1 ? ` — ${vill} av ${mina.length} tappade` : ''}. Välj det och tryck <kbd>T</kbd>.`, knapp: 'Välj det', gor: valjOch(k) });
+      const vem = mina.length < 2 ? `<b>${esc(n)}</b> ska vara ${tappa ? 'tappat (vridet)' : 'otappat (rakt)'}`
+        : vill === mina.length ? `Alla ${mina.length} <b>${esc(n)}</b> ska vara tappade (vridna)` : !vill ? `Alla ${mina.length} <b>${esc(n)}</b> ska vara otappade (raka)`
+        : `${vill} av ${mina.length} <b>${esc(n)}</b> ska vara tappade`;
+      ut.push({ text: `${vem} enligt manuset. Välj ${mina.length < 2 ? 'det' : 'ett i taget'} och tryck <kbd>T</kbd>.`, knapp: 'Välj det', gor: valjOch(k) });
+    }
+    // fästa par ur manuset: jämförelsen räknar bara antal i MES-246
+    const namnPa = id => { const o = l.kort.find(x => x.id === id); return o ? o.namn : null; };
+    const ritadePar = new Set(l.kort.filter(k => k.fast != null && !k.zon).map(k => [k.namn, namnPa(k.fast)].sort().join(' + ')));
+    const manusPar = b.bord.filter(k => k.fast).map(k => ({ x: k.namn, y: k.fast, nyckel: [k.namn, k.fast].sort().join(' + ') }));
+    for (const p of manusPar) if (!ritadePar.has(p.nyckel) && iSpel(p.x).length && iSpel(p.y).length)
+      ut.push({ text: `<b>${esc(p.x)}</b> sitter fäst vid <b>${esc(p.y)}</b> enligt manuset — ett fäst par är ingen hög. Välj ${esc(p.x)} och tryck <kbd>F</kbd>.`, knapp: 'Välj det', gor: valjOch(iSpel(p.x)[0]) });
+    for (const nyckel of ritadePar) if (!manusPar.some(p => p.nyckel === nyckel)) {
+      const [x, y] = nyckel.split(' + ');
+      ut.push({ text: `<b>${esc(x)}</b> och <b>${esc(y)}</b> sitter inte ihop enligt manuset. Välj det fästa kortet och tryck <kbd>⇧F</kbd>.`, knapp: 'Välj det', gor: valjOch(l.kort.find(k => k.fast != null && [k.namn, namnPa(k.fast)].sort().join(' + ') === nyckel)) });
     }
   }
   return ut;
