@@ -183,6 +183,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
       <button type="button" id="b-upp" title="Ett steg upp i ordningen (⇧↑ överst)">Upp<kbd>↑</kbd></button>
       <button type="button" id="b-ner" title="Ett steg ner (⇧↓ underst)">Ner<kbd>↓</kbd></button>
       <button type="button" id="b-tap" title="Vrid 90°">Vrid 90°<kbd>T</kbd></button>
+      <button type="button" id="b-somforra" hidden title="Samma form och plats som kortet hade i det senaste tidigare läget där det är ritat">Som i förra läget<kbd>P</kbd></button>
       <button type="button" id="b-grav" title="Kortet ligger i graveyard-högen — räknas inte som kort i spel">Graveyard<kbd>G</kbd></button>
       <button type="button" id="b-bib" title="Leken själv (baksidan upp): inget namn behövs, sparas som facits library-ruta. På ett av lekens kort: kortet ligger i library">Library<kbd>B</kbd></button>
       <button type="button" id="b-bort" title="Ta bort kortet">Ta bort<kbd>⌫</kbd></button>
@@ -223,6 +224,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr class="grupp"><td colspan="2">Rätta ett kort</td></tr>
     <tr><td>V · N</td><td><b>Välj</b>-läget: klick väljer, dra flyttar, ⌥-dra vrider runt mitten · tillbaka till <b>Rita</b></td></tr>
     <tr><td>dra ett hörn</td><td>på det valda kortet — det diagonalt motsatta står kvar</td></tr>
+    <tr><td>P</td><td>det valda kortet får samma form och plats som i det senaste tidigare läget där det är ritat — t.ex. när en hand skymmer</td></tr>
     <tr><td>T · Q E</td><td>vrid det valda kortet 90° · −1°/+1° (⇧ 0,2°)</td></tr>
     <tr><td>L</td><td>lås storleken: nya kort får samma storlek som de redan ritade, klicken ger bara riktningen</td></tr>
     <tr><td>Byt nummer</td><td>under <i>Valt kort</i>: samma fysiska kort ska ha samma nummer i alla lägen. Förslaget "Ge det #9" kommer när ett kort med samma namn fanns i förra läget</td></tr>
@@ -646,6 +648,8 @@ function nummerForslag(k) {
   return o ? { id: o.id, nr: forra.nr } : null;
 }
 function visaNummer(k) {
+  const sf = sammaTidigare(k), b = el('b-somforra');
+  b.hidden = !sf; if (sf) b.firstChild.textContent = `Som i läge ${sf.nr}`;
   const ruta = el('valtnummer');
   if (!k) { ruta.innerHTML = ''; return; }
   const f = nummerForslag(k);
@@ -670,6 +674,30 @@ function bytNummer(gammal, nytt) {
   });
   S.cache.clear(); raknaOm(); visa();
   melding(`kortet heter nu #${nytt}${S.kalla.sort === 'video' ? ' — i det här läget och de senare där det hette #' + gammal : ''}`);
+}
+
+/* Samma kort i det senaste tidigare ritade läget: på numret, annars det
+   närmaste kortet med samma namn. För en hand som skymmer: kortet ligger
+   kvar där det låg. */
+function sammaTidigare(k) {
+  if (!k || !S.kalla || S.kalla.sort !== 'video') return null;
+  const l = lageNu(); if (!l) return null;
+  const fore = Object.values(S.dok.lagen).filter(x => x !== l && x.nr !== l.nr && foreITid(x, l)).sort((a, b) => foreITid(a, b) ? 1 : -1);
+  for (const x of fore) { const o = x.kort.find(y => y.id === k.id); if (o) return { kort: o, nr: x.nr }; }
+  const n = String(k.namn || '').trim(); if (!n) return null;
+  const [mx, my] = G.mitt(k.horn);
+  for (const x of fore) {
+    const kand = x.kort.filter(y => y.namn === n);
+    if (kand.length) { const o = kand.sort((a, b) => Math.hypot(G.mitt(a.horn)[0] - mx, G.mitt(a.horn)[1] - my) - Math.hypot(G.mitt(b.horn)[0] - mx, G.mitt(b.horn)[1] - my))[0]; return { kort: o, nr: x.nr }; }
+  }
+  return null;
+}
+function somForra() {
+  const k = kortId(S.vald); if (!k) { melding('välj ett kort först'); return; }
+  const s = sammaTidigare(k); if (!s) { melding(`#${k.id} finns inte i något tidigare ritat läge`, true); return; }
+  andra(() => { const kk = kortId(S.vald); kk.horn = kopia(s.kort.horn); });
+  S.cache.clear(); raknaOm(); visa();
+  melding(`#${k.id} ligger nu som i läge ${s.nr}`);
 }
 
 /* ── Val och kortets fält ─────────────────────────────────────────────── */
@@ -849,6 +877,7 @@ window.addEventListener('keydown', e => {
     case ']': gaTill(S.nr + 1); break;
     case 'd': case 'D': klarOchVidare(); break;
     case 't': case 'T': vridValt(90); break;
+    case 'p': case 'P': somForra(); break;
     case 'q': case 'Q': vridValt(e.shiftKey ? -0.2 : -1); break;
     case 'e': case 'E': vridValt(e.shiftKey ? 0.2 : 1); break;
     case 'f': fast(); break;
@@ -1440,6 +1469,7 @@ function melding(text, fel) {
 el('b-rita').onclick = () => byt('rita'); el('b-valj').onclick = () => byt('valj'); el('b-las').onclick = lasa;
 el('b-vrid').onclick = () => vridVyn();
 el('b-hjalp').onclick = () => { el('hjalp').hidden = !el('hjalp').hidden; };
+el('b-somforra').onclick = () => somForra();
 el('b-upp').onclick = () => flyttaZ(1); el('b-ner').onclick = () => flyttaZ(-1); el('b-tap').onclick = () => vridValt(90);
 el('b-grav').onclick = () => zon('grav'); el('b-bib').onclick = () => zon('bib'); el('b-bort').onclick = taBort;
 el('b-forra').onclick = () => gaTill(S.nr - 1); el('b-nasta').onclick = () => gaTill(S.nr + 1);
