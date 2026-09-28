@@ -568,8 +568,10 @@ function skapa(p1) {
   let id;
   andra(() => {
     const kort = kortNu(); id = nastaId();
-    kort.push(Object.assign({ id, namn, horn: h, z: kort.reduce((m, k) => Math.max(m, k.z), 0) + 1 }, G.arLibrary(namn) ? { zon: 'bib' } : {}));
+    const ny = Object.assign({ id, namn, horn: h, z: kort.reduce((m, k) => Math.max(m, k.z), 0) + 1 }, G.arLibrary(namn) ? { zon: 'bib' } : {});
+    kort.push(ny);
     S.vald = id;
+    if (namn) { sammaKortId(ny); id = ny.id; }
     if (namn) fastUrFacit();
   });
   if (!namn) { el('namn').focus(); el('namn').select(); }
@@ -680,9 +682,23 @@ function visaForslag() {
   box.hidden = !forslagNu.length;
   for (const d of box.children) d.onmousedown = e => { e.preventDefault(); forslagI = +d.dataset.i; tagNamn(); };
 }
+/* Samma fysiska kort ska ha samma nummer i alla lägen: numret följer kortet,
+   och högens bokstav och fästa par räknas ur det. Ritas ett kort med samma
+   namn som ett kort i förra ritade läget som saknas här — Jesper tog bort
+   två otappade Swamps och ritade dem tappade, och de blev #19 och #20 i
+   "hög C" i stället för #9 och #11 i hög A — får det det kortets nummer. */
+function sammaKortId(k) {
+  if (!S.kalla || S.kalla.sort !== 'video' || !String(k.namn || '').trim()) return;
+  const l = lageNu(), forra = l && forraRitade(l); if (!forra) return;
+  const ledig = forra.kort.find(o => o.namn === k.namn && !l.kort.some(x => x.id === o.id));
+  if (!ledig) return;
+  const gammal = k.id; k.id = ledig.id;
+  if (S.vald === gammal) S.vald = k.id;
+}
 function satNamn(n) {
   const k = kortId(S.vald); if (!k) return;
   k.namn = n;
+  sammaKortId(k);
   if (G.arLibrary(n)) k.zon = 'bib';
   tomCache(); raknaOm(); visa(); sparaUtkastSnart();
 }
