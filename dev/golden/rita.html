@@ -229,7 +229,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>L</td><td>lås storleken: nya kort får samma storlek som de redan ritade, klicken ger bara riktningen</td></tr>
     <tr><td>Byt nummer</td><td>under <i>Valt kort</i>: samma fysiska kort ska ha samma nummer i alla lägen. Förslaget "Ge det #9" kommer när ett kort med samma namn fanns i förra läget</td></tr>
     <tr class="grupp"><td colspan="2">Ibland</td></tr>
-    <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse) · lossa</td></tr>
+    <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse) · lossa. Följer med till senare lägen där båda korten finns</td></tr>
     <tr><td>B</td><td><b>leken</b> (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den sparas som facits library-ruta, så att golden inte mäter leken som ett kort. B igen ångrar</td></tr>
     <tr><td>G</td><td>kortet ligger i graveyard (räknas inte som kort i spel)</td></tr>
     <tr class="grupp"><td colspan="2">Bara i video</td></tr>
@@ -806,9 +806,29 @@ function fast() {
     if (v == null) { melding('ligger inte omlott med något kort'); return; }
     k.fast = v;
     for (const o of kortNu()) if (o.id === v && o.fast === k.id) delete o.fast;   // ett par, inte två
+    const n = framat(l => { const a = l.kort.find(x => x.id === k.id); if (!a || !l.kort.some(x => x.id === v) || (a.fast != null && a.fast !== v)) return false; if (a.fast === v) return false;
+      a.fast = v; for (const o of l.kort) if (o.id === v && o.fast === k.id) delete o.fast; return true; });
+    if (n) melding(`fäst — också i ${n} senare ${n === 1 ? 'läge' : 'lägen'} där båda korten finns`);
   });
 }
-function lossa() { medValt(k => { delete k.fast; }); }
+function lossa() {
+  medValt(k => {
+    const forraVard = k.fast; delete k.fast;
+    const n = framat(l => { const a = l.kort.find(x => x.id === k.id); if (!a || a.fast == null || a.fast !== forraVard) return false; delete a.fast; return true; });
+    if (n) melding(`lossat — också i ${n} senare ${n === 1 ? 'läge' : 'lägen'}`);
+  });
+}
+/* F och ⇧F följer med framåt: senare lägen som redan finns kopierades
+   innan ändringen och får den inte annars (Jespers Mirran Bardiche var
+   fäst i läge 23 men inte i de redan påbörjade 24–29). Ett kort som i ett
+   senare läge är fäst vid något annat rörs inte — där har det flyttats. */
+function framat(fn) {
+  if (!S.kalla || S.kalla.sort !== 'video') return 0;
+  const nu = lageNu(); let n = 0;
+  for (const l of Object.values(S.dok.lagen)) if (l !== nu && l.nr !== nu.nr && foreITid(nu, l) && fn(l)) n++;
+  if (n) S.cache.clear();
+  return n;
+}
 /* B på ett kort utan lekens namn (tomt, baksida, library) gör det till själva
    leken: namnet "library" och zonen bib — inget namn att skriva. B igen tar
    tillbaka det. På ett av lekens kort betyder B som förut: kortet ligger i library. */
