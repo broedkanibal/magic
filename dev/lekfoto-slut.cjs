@@ -117,7 +117,7 @@ fall('A2 ordningen: foto 1, 2, 3, listan sist; "1 of 3" och nästa öppnas av si
 });
 
 /* ── B: svaren, en gång ──────────────────────────────────────────────── */
-fall('B1 Yes (A): Check-märket bort, kortet kvar, samma antal; två tryck = ett', a => {
+fall('B1 Yes (A): Check-märket bort, kortet kvar, samma antal; samma ändring en gång till gör ingenting (LEKSLAG)', a => {
   let r = lek(idLek());
   const k = rad(a, r, 'Gorgon Flail'), fore = a.lekSpelAntal(las(a, r));
   r = spara(a, r, [a.lsfJa(k)]);
@@ -127,7 +127,7 @@ fall('B1 Yes (A): Check-märket bort, kortet kvar, samma antal; två tryck = ett
   r = spara(a, r, [a.lsfJa(k)]);
   assert.strictEqual(JSON.stringify(las(a, r)), efter, 'ett andra Yes gör ingenting');
 });
-fall('B2 ett valt kort på en platshållare (B, C, LR2): ett riktigt kort, fotot följer med, antalet +1; två tryck = ett', a => {
+fall('B2 ett valt kort på en platshållare (B, C, LR2): ett riktigt kort, fotot följer med, antalet +1; samma val en gång till gör ingenting (LEKSLAG)', a => {
   let r = lek(idLek());
   const p = rad(a, r, 'Unreadable card u1'), fore = a.lekSpelAntal(las(a, r));
   const op = a.lsfValj(p, { name: 'Hooded Blightfang', sid: 's-hb', small: null, ci: ['B'] });
@@ -151,7 +151,7 @@ fall('B3 samma kort som gissningen bekräftar (D: Did you mean), ett annat byter
   assert.strictEqual(rad(a, r, 'Gorgon Flail'), null);
   assert.strictEqual(rad(a, r, 'Kort 1').n, 2, 'två exemplar av Kort 1');
 });
-fall('B4 Not a card (LR2) och Remove tar bort raden en gång; platshållaren räknades aldrig i decks.antal', a => {
+fall('B4 Not a card (LR2) och Remove tar bort raden, en andra gång gör ingenting (LEKSLAG); platshållaren räknades aldrig i decks.antal', a => {
   let r = lek(idLek());
   const p = rad(a, r, 'Unreadable card u1'), fore = a.lekSpelAntal(las(a, r)), foreAlla = a.lekSlagSummor(las(a, r)).main;
   r = spara(a, r, [a.lsfBort(p)]);
@@ -283,11 +283,93 @@ fall('E5 omgångens läge efter en omladdning (webbläsaren): bara kända fält'
   assert.strictEqual(a.lsfRen(null), null);
   assert.strictEqual(a.lsfRen('trasig'), null);
 });
-fall('E6 ingen copy med tankstreck (—) eller "Step x of y" i blocket', () => {
-  const kod = skar(SRC, '/* ══ BLOCK: LEKFOTO SLUTET', '/* ══ SLUT: LEKFOTO SLUTET ══ */');
-  const strangar = [...kod.matchAll(/(['`])((?:\\.|(?!\1).)*)\1/g)].map(m => m[2]);
-  assert.ok(!strangar.some(s => s.includes('—')), 'tankstreck i en sträng');
-  assert.ok(!strangar.some(s => /step \d of \d/i.test(s)));
+/* E6: skärmarnas copy. Kropparna av funktionerna som ritar slutet, deras
+   knappar och notiser, och blocket, utan kommentarer. Förut läste provet bara
+   blocket, och copyn på skärmarna ligger i skapaLekYta (granskningen av
+   MES-323: "Step 3 of 4 — …" i knHtml gav ändå OK). En funktion som inte
+   hittas är ett fel: då läser provet inte längre det skärmarna ritar. */
+const SKARMAR = ['slutPanelHtml', 'slutFotonHtml', 'undanSokHtml', 'kopplaUndan', 'laggUndan', 'ritaUndan', 'fotoKlar',
+  'slutTopp', 'knRita', 'knHtml', 'slutAtgard', 'knValj', 'knEfter', 'knVisa', 'ritaPanel', 'basland',
+  'leksidaTillbakaText', 'leksidaKlarKnapp'];
+function funktionskropp(src, namn) {
+  const m = new RegExp(`(?:async\\s+)?function\\s+${namn}\\s*\\(`).exec(src);
+  if (!m) throw new Error('hittar inte funktionen ' + namn);
+  let p = m.index + m[0].length - 1, d = 0;
+  for (; p < src.length; p++) { if (src[p] === '(') d++; else if (src[p] === ')' && --d === 0) break; }
+  const start = src.indexOf('{', p);
+  let i = start;
+  for (d = 0; i < src.length; i++) { if (src[i] === '{') d++; else if (src[i] === '}' && --d === 0) break; }
+  return src.slice(start, i + 1);
+}
+function copyFel(src) {
+  const ut = [], utanKommentar = kod => kod.replace(/\/\*[\s\S]*?\*\//g, '');
+  const delar = SKARMAR.map(n => [n, funktionskropp(src, n)]);
+  delar.push(['LEKFOTO SLUTET', skar(src, '/* ══ BLOCK: LEKFOTO SLUTET', '/* ══ SLUT: LEKFOTO SLUTET ══ */')]);
+  for (const [namn, kod] of delar) {
+    const k = utanKommentar(kod);
+    if (k.includes('—')) ut.push(namn + ': tankstreck');
+    if (/step\s*\d+\s*of\s*\d+/i.test(k)) ut.push(namn + ': Step x of y');
+  }
+  return ut;
+}
+fall('E6 skärmarnas copy: inga tankstreck (—), inget "Step x of y"', () => { assert.deepStrictEqual(copyFel(SRC), []); });
+/* E7: Later och sedan klart (N9 → N7, N8). */
+const provE7 = a => {
+  const kort = idLek();                                    // 2 gissningar och en platshållare kvar
+  const s = Object.assign(a.lsfTom(), { senare: true, undan: true, undanKlar: true, blKlar: true, kollN: 3 });
+  const st = a.lsfSteg(kort, s);
+  assert.strictEqual(st.klar, true, 'klar-raden med Create deck eller Back to Home');
+  assert.strictEqual(st.senare, true, 'Check names-raden står kvar överst');
+  assert.strictEqual(st.aktiv, null);
+  assert.strictEqual(a.lsfKlarText(st, 38), '38 cards: the cards you put aside typed in, basic lands set.', 'inte "names checked" medan namn väntar');
+  /* Check now öppnar namnen igen: klar först när de är svarade, eller lämnade igen. */
+  s.senare = false;
+  assert.strictEqual(a.lsfSteg(kort, s).klar, false);
+  assert.strictEqual(a.lsfSteg(kort.filter(k => !k.koll), s).klar, true);
+};
+fall('E7 N9 → N7/N8: Later, och steg 2 och 3 klara: leken är klar, med Check names-raden kvar', provE7);
+/* D3: basländerna ur fotona följer inte −. */
+const provD3 = a => {
+  let r = lek([K('Plains', { n: 7, foto: { '1:f': 7 } })]);
+  r = spara(a, r, [{ typ: 'antal', name: 'Plains', sb: false, d: -1 }, { typ: 'antal', name: 'Plains', sb: false, d: -1 }]);
+  const kort = las(a, r);
+  assert.strictEqual(rad(a, r, 'Plains').n, 5);
+  assert.deepStrictEqual(rad(a, r, 'Plains').foto, { '1:f': 5 }, 'bokföringen följer antalet (taket)');
+  const t = nyTel();
+  foto(t, '1:f', 'klar', { hittade: 7, kort: Array.from({ length: 7 }, () => ({ name: 'Plains', las: 'Plains', x: 1, y: 1 })) });
+  assert.strictEqual(a.lsfBlText(kort, t).var, '7 Plains were in the photos.', 'telefonens läsning av fotot');
+  assert.strictEqual(a.lsfBlText(kort, t).lagt, '');
+  assert.deepStrictEqual([...a.lsfBlIFoton(kort, t)], [['Plains', 7]], '"7 in photos" under landet');
+  /* Utan telefonens beskrivning (omladdning utan telefonen): bokföringen. */
+  assert.strictEqual(a.lsfBlText(kort).var, '5 Plains were in the photos.');
+};
+fall('D3 två tryck på − under Plains: "7 Plains were in the photos" står kvar (telefonens läsning av fotot)', provD3);
+/* B7: Remove och Undo, med fotot. */
+const provB7 = a => {
+  let r = lek(idLek());
+  const g = rad(a, r, 'Gorgon Flail');
+  const undo = { typ: 'antal', name: g.name, sb: false, d: g.n, kort: a.lsfMall(g) };   // som omvandning() bygger den
+  r = spara(a, r, [a.lsfBort(g)]);
+  assert.strictEqual(rad(a, r, 'Gorgon Flail'), null);
+  r = spara(a, r, [undo]);
+  assert.deepStrictEqual(rad(a, r, 'Gorgon Flail').foto, { '1:f': 1 }, 'fotot följer med tillbaka');
+  assert.ok(rad(a, r, 'Gorgon Flail').koll, 'och frågan');
+  r = spara(a, r, [{ typ: 'fotobort', foto: '1:f' }]);
+  assert.strictEqual(rad(a, r, 'Gorgon Flail'), null, 'Remove photo 1 tar den igen');
+};
+fall('B7 Remove (eller Not a card) och Undo: raden kommer tillbaka med fotot den kom ur', provB7);
+/* G1: fältet för de undanlagda korten töms direkt. */
+const provG1 = a => {
+  const inp = { value: 'Vraska’s Contempt' }, lagt = [];
+  /* Som kopplaSok utan förslag: Enter tar det som står i fältet. */
+  const enter = () => { const t = inp.value.trim(); if (t) a.lsfUndanValj(inp, t, n => lagt.push(n)); };
+  enter(); enter();
+  assert.deepStrictEqual(lagt, ['Vraska’s Contempt'], 'ett kort, inte två');
+  assert.strictEqual(inp.value, '');
+};
+fall('G1 ID2/N9: två Enter medan kortet slås upp lägger in det en gång (fältet töms direkt)', a => {
+  provG1(a);
+  assert.ok(funktionskropp(SRC, 'kopplaUndan').includes('lsfUndanValj('), 'fältet på skärmen går genom lsfUndanValj');
 });
 
 /* ── F: proven faller utan koden de skyddar ─────────────────────────── */
@@ -321,11 +403,30 @@ maste('F3 utan filtret i lekSpelbara räknas platshållarna i decks.antal (C1 fa
   [['const lekSpelbara = kort => (kort || []).filter(k => k && !k.okand);', 'const lekSpelbara = kort => (kort || []).filter(k => k);']],
   m => { assert.strictEqual(m.lekSpelAntal(idLek()), 24 + 7 + 5 + 2); });
 maste('F4 utan "högst radens antal" räknas fler basländer ur fotona än leken har (D2 faller)',
-  [['if (f > 0) ut.set(k.name, (ut.get(k.name) || 0) + Math.min(Number(k.n) || 1, f));', 'if (f > 0) ut.set(k.name, (ut.get(k.name) || 0) + f);']],
+  [['const c2 = Math.min(rest, +c || 0);', 'const c2 = +c || 0;']],
   m => { assert.deepStrictEqual([...m.lsfBlIFoton([K('Swamp', { n: 3, foto: { '1:f': 2, '2:f': 4 } })])], [['Swamp', 3]]); });
 maste('F5 utan kravet på två kandidater blir en ensam träff "Which of these is it?" (A1 faller)',
   [["return Array.isArray(kand) && kand.length >= 2 ? 'B' : 'C';", "return Array.isArray(kand) && kand.length >= 1 ? 'B' : 'C';"]],
   m => { assert.strictEqual(m.lsfFall(platshallare('Killing', 1, 'u2'), ['Killing Glare']), 'C'); });
+/* F6: E6 läser skärmarnas copy. Samma mutation som granskningen gjorde. */
+{
+  const namn = 'F6 "Step 3 of 4 — …" i Check names (knHtml) fälls av E6';
+  const mut = SRC.replace('The name couldn’t be read. Type what you see on the card.', 'Step 3 of 4 — The name couldn’t be read.');
+  let n = -1;
+  try { n = mut === SRC ? -1 : copyFel(mut).length; } catch (e) { n = -2; }
+  if (n === -1) { fel++; console.log('FEL  ' + namn + ': mutationen hittar inte copyn'); }
+  else if (n === -2) { fel++; console.log('FEL  ' + namn + ': skärmarnas funktioner går inte att läsa'); }
+  else if (n >= 2) { ok++; console.log('OK   ' + namn); }
+  else { fel++; console.log('FEL  ' + namn + ': provet höll också med copyn'); }
+}
+maste('F7 utan foto i lsfMall kommer raden tillbaka utan foto efter Undo (B7 faller)',
+  [[', okand: k.okand, foto: k.foto });', ', okand: k.okand });']], provB7);
+maste('F8 utan att fältet töms direkt lägger två Enter in kortet två gånger (G1 faller)',
+  [["  inp.value = '';\n  lagg(t);", '  lagg(t);']], provG1);
+maste('F9 utan Later i klar blir en lek med namn lämnade till senare aldrig klar (E7 faller)',
+  [['klar: undanKlar && blKlar && (kollKlar || !!s.senare)', 'klar: undanKlar && blKlar && kollKlar']], provE7);
+maste('F10 utan telefonens läsning följer "in the photos" − under landet (D3 faller)',
+  [['for (const [namn, n] of c) satt(namn, f.fid, n);', '']], provD3);
 
 console.log(`\nlekfoto-slut: ${ok} OK, ${fel} FEL`);
 process.exit(fel ? 1 : 0);
