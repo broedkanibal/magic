@@ -2867,6 +2867,13 @@ button.lsffoto:hover{border-color:#3b485c}
 .trom{display:flex;flex-direction:column;align-items:center}
 .trnot{font:400 12.5px var(--sans);color:#6f7d93;margin-top:-6px}
 .trnot.mitt{text-align:center;margin-top:0}
+/* LB1, LB2 och N5 (MES-324): knappen under en rad, "Removed" över ett borttaget foto. */
+.trradk{padding:0 0 12px 34px}
+.trknapp{height:38px;padding:0 14px;border-radius:8px;font:600 14px var(--sans);background:var(--bg3);border:1px solid var(--line);color:var(--txt);display:inline-flex;align-items:center;gap:7px}
+.trknapp:disabled{opacity:.5}
+.trbort{position:absolute;inset:0;display:grid;place-items:center}
+.trbort span{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;background:#0d1015ee;border:1px solid var(--line);font:650 14px var(--sans);color:var(--txt)}
+.trbild.bort img{filter:grayscale(.8) brightness(.4)}
 .trslut{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
 .trslut .trh1{margin:18px 0 0}
 .trgrow{flex-grow:1}
@@ -13491,14 +13498,18 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
      foto     {foto: Foto}               fotots läge, vid varje ändring
      fotobild {fid, foto, bild: Bild}    förhandsbilden, en per meddelande
      sparad   {foto, antal, nya, koll, ts}   som förut, efter en lyckad sparning
-     fotobort {fid, fran:'tel'}          Remove photo på telefonen (LB1, MES-324)
+     fotobort {fid, fran:'tel', bort, ater, ts}   Remove photo på telefonen (LB1 → N5,
+                                         MES-324): som datorns fotobort, med Undo-
+                                         ändringarna och deras id:n, så att datorns
+                                         Undo och telefonens är samma ändringar
+     fotoater {fid, fran:'tel'}          Undo på telefonen (N5)
      klar     {fran:'tel'}               Finish the deck på telefonen
 
    Datorn → telefonen
      hej      {roll:'dator', svar?}      som förut
      fotobort {fid, ater?}               Remove photo (N6, HD2). ater: Undo-ändringarna
-                                         med sina id:n, så att varje dator (flik) delar
-                                         samma Undo. Telefonen läser inte ater
+                                         med sina id:n, så att varje dator (flik) och
+                                         telefonens N5 delar samma Undo (MES-324)
      fotoater {fid}                      Undo: fotot räknas igen (N6, J10)
      omtag    {fid}                      Retake with the phone (HD2). Telefonen tar om
                                          fotot också om den laddats om (fotot byggs ur
@@ -13542,11 +13553,17 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
      poster    poster i svaret ("It found 6 cards", LC4)
      manga     för många kort i fotot (LC2); behall: Keep these 30 trycktes
      undan     Put these cards aside, type them in later trycktes (LC3/LC4)
-     kort      [{name, las, x, y, koll?, okand?}], en post per kort i fotot i
-               svarets ordning (samma namn två gånger = två exemplar). name =
-               radens namn i leken (lekSlagNyckel(name, false) hittar raden,
-               en platshållares unika namn), las = det fotot läste ('' =
-               inget), x/y = titelradens mitt i tusendelar av bilden (prickarna)
+     kort      [{name, las, x, y, koll?, okand?, dubbel?}], en post per kort i
+               fotot i svarets ordning (samma namn två gånger = två exemplar).
+               name = radens namn i leken (lekSlagNyckel(name, false) hittar
+               raden, en platshållares unika namn), las = det fotot läste
+               ('' = inget), x/y = titelradens mitt i tusendelar av bilden
+               (prickarna), dubbel = fid för ett annat foto som kortet kan
+               vara med i också (LB2, MES-324; ett ? på båda)
+     igen      LB1 (MES-324): {fid, nr, n}, fotot vars kort det här fotot
+               visar igen, och hur många namn som är samma
+     dubbla    LB2: {n, nr, bada}, hur många kort som fick dubbel, vilket foto
+               och om de låg vid kanten i båda
      ts        lekens ts efter sparningen
    Bild = {url: 'data:image/jpeg;base64,…', b, h}: duken som skickades till
      läsningen, nedskalad till 640 px långsida, JPEG 0,6; x/y gäller den.
@@ -13586,10 +13603,18 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
    eller 'ersatt' (N6: numret används igen).
 
    Samma kort i två foton (MES-324): en rad vars foto har två fid, och
-   fotonas kort-listor säger var i varje bild. I10 och datorns slut (MES-323)
-   räknar samma sak: "N cards found in M photos" = hittade summerat över
-   fotona som är 'klar', M = hur många; "Cards you put aside" när något
-   foto som inte är 'bort'/'ersatt' har undan eller olasta > 0. */
+   fotonas kort-listor säger var i varje bild. Regeln står vid
+   telfotoDubbla. Frågan "One Swamp or two?" (LR1) ligger i radens koll:
+     koll {las, kalla, remsa?, sakert: 1, dubbel: {fid, nr, ny, n, kant?, remsa?}}
+   sakert = namnet är säkert, bara dubbel-frågan är kvar (utan sakert är
+   namnet osäkert som förut: den frågan först, sedan LR1). dubbel: fotot
+   kortet också fanns i (fid, nr), fotot som frågan kom ur och som ett "One"
+   drar exemplaret från (ny), hur många exemplar frågan gäller (n), om
+   kortet låg vid kanten i båda fotona (kant) och det andra fotots remsa.
+   I10 och datorns slut (MES-323) räknar samma sak: "N cards found in M
+   photos" = hittade summerat över fotona som är 'klar', M = hur många;
+   "Cards you put aside" när något foto som inte är 'bort'/'ersatt' har
+   undan eller olasta > 0. */
 let lekKanalMottagare = null;
 function lekKanalMot(m) { if (lekKanalMottagare) lekKanalMottagare(m || {}); }
 function lekKanalLyssna(cb) {
@@ -13679,7 +13704,11 @@ const LEK_LAGGTXT = 'In columns, overlapping, so only the name line of each card
 
    Ett kort Mesa inte var säker på (modellen tvekade, eller Scryfall bytte
    ut namnet) läggs in ändå, med koll {las, kalla:'Photo N', remsa}.
-   Frågan ställs på datorn, med remsan ur fotot bredvid. */
+   Frågan ställs på datorn, med remsan ur fotot bredvid.
+
+   Samma kort i två foton (MES-324, sida M rad 3B): LB1 (hela fotot igen,
+   med Remove photo n och N5 efteråt) och LB2 (kort vid kanten, med ett ?
+   och datorns "One Swamp or two?"). Regeln står vid telfotoDubbla. */
 /* Kolumnerna läggningsguiden ber om. Talet är hela geometrin: kortbredden
    i den skickade duken är bredden delad på antalet kolumner, och den
    avgör både om titelraden går att läsa och hur bred remsan klipps. Fyra
@@ -13757,9 +13786,16 @@ function telfotoHor(m) {
   if (m.fran === 'tel') return;                       // telefonens eget
   const f = m.fid ? telfotoFotoAv(m.fid) : null;
   /* Efter datorns fotobort och fotoater skickas fotots post tillbaka, så att
-     datorn ser exakt vad telefonen har i stället för att gissa (MES-322). */
-  if (m.typ === 'fotobort' && f) { telfotoFotoBort(f); telfotoAndrat(f); telfotoSag('foto', { foto: telfotoPost(f) }); }
+     datorn ser exakt vad telefonen har i stället för att gissa (MES-322).
+     Datorns fotobort bär Undo-ändringarna (ater) med sina id:n: telefonens
+     Undo på N5 sparar samma ändringar, så att två tryck, var som helst,
+     lägger tillbaka korten en gång (MES-324). */
+  if (m.typ === 'fotobort' && f) {
+    if (telfotoFotoBort(f) && Array.isArray(m.ater) && m.ater.length) f.ater = m.ater;
+    telfotoAndrat(f); telfotoSag('foto', { foto: telfotoPost(f) });
+  }
   else if (m.typ === 'fotoater' && f) {
+    delete f.ater;
     if (telfotoFotoAter(f)) telfotoAndrat(f);
     telfotoSag('foto', { foto: telfotoPost(f) });
   }
@@ -13772,11 +13808,11 @@ function telfotoHor(m) {
 }
 /* Ett foto togs bort eller kom tillbaka på datorn (f). Numret nästa foto
    får följer med. Syns ett foto som inte längre räknas visas ett annat
-   klart foto med samma nummer, annars nästa foto; kommer ett foto med det
-   numret tillbaka visas det. Så hamnar Undo av ett omtag (fotobort nytt,
-   fotoater gammalt) på det gamla fotots resultat i vilken ordning
-   meddelandena än kommer. Telefonens egen skärm efter Remove photo (N5)
-   byggs i MES-324. */
+   klart foto med samma nummer; ett borttaget foto står kvar som N5 (Photo n
+   removed, med Undo när ändringarna finns; MES-324), ett ersatt ger nästa
+   foto; kommer ett foto med det numret tillbaka visas det. Så hamnar Undo
+   av ett omtag (fotobort nytt, fotoater gammalt) på det gamla fotots
+   resultat i vilken ordning meddelandena än kommer. */
 function telfotoAndrat(f) {
   telfoto.foto = telfotoNasta();
   if (telfoto.steg === 'resultat') {
@@ -13784,6 +13820,7 @@ function telfotoAndrat(f) {
     if (!v || v.lage === 'bort' || v.lage === 'ersatt') {
       const ny = v && telfotoLista().find(x => x.nr === v.nr && x.lage === 'klar');
       if (ny) telfoto.visar = ny.fid;
+      else if (v && v.lage === 'bort') { /* N5 står kvar */ }
       else { telfoto.lamnadNr = v ? v.nr : null; telfoto.steg = 'lagg'; telfotoHej(); }
     }
   } else if (telfoto.steg === 'lagg' && f && f.lage === 'klar' && telfoto.lamnadNr === f.nr) {
@@ -13826,6 +13863,8 @@ const TEL_IKON = {
   bock: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   pil: '<path d="M9 5l7 7-7 7"/>',
   dator: '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>',
+  bort: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  angra: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
 };
 const telIk = (n, s = 16, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TEL_IKON[n]}</svg>`;
 const telKort = n => `${n} ${n === 1 ? 'card' : 'cards'}`;
@@ -13840,16 +13879,19 @@ const telLista = rader => `<div class="trlista">${rader.join('<i class="trsep"><
 /* Fotot med prickarna: en blå bock på ett känt kort, ett gult ? på ett att
    kolla (sida M, beslutet om markeringarna). x/y är titelradens mitt i
    tusendelar av bilden. Hela fotot syns, så att varje prick får plats. */
-function telfotoBildHtml(f, { dim = false, prickar = true } = {}) {
+function telfotoBildHtml(f, { dim = false, prickar = true, bort = false } = {}) {
   if (!f || !f.bild || !f.bild.url) return '';
   const { url, b, h } = f.bild;
+  /* Ett ? också på ett kort som kan vara med i två foton (LB2, MES-324). */
   const p = prickar ? (f.kort || []).map((k, i) => {
     const pos = `left:${(Math.max(0, Math.min(1000, +k.x || 0)) / 10).toFixed(1)}%;top:${(Math.max(0, Math.min(1000, +k.y || 0)) / 10).toFixed(1)}%;animation-delay:${(i * 0.08).toFixed(2)}s`;
-    return k.koll ? `<span class="trp q" style="${pos}">?</span>` : `<span class="trp ok" style="${pos}">${telIk('bock', 10, 3.4)}</span>`;
+    return k.koll || k.dubbel ? `<span class="trp q" style="${pos}">?</span>` : `<span class="trp ok" style="${pos}">${telIk('bock', 10, 3.4)}</span>`;
   }).join('') : '';
+  /* N5: det borttagna fotot nedtonat, med "Removed" över. */
+  const over = bort ? `<span class="trbort"><span>${telIk('bort', 14, 2.2)}Removed</span></span>` : '';
   /* Högst 27 % av skärmens höjd (sida M: 232 av 844), så att knapparna
      syns utan att man skrollar. */
-  return `<div class="trbild${dim ? ' dim' : ''}" style="width:min(100%, ${(27 * b / h).toFixed(2)}vh);aspect-ratio:${b}/${h}"><img src="${url}" alt="The photo">${p}</div>`;
+  return `<div class="trbild${dim ? ' dim' : ''}${bort ? ' bort' : ''}" style="width:min(100%, ${(27 * b / h).toFixed(2)}vh);aspect-ratio:${b}/${h}"><img src="${url}" alt="${bort ? `Photo ${f.nr}, removed` : 'The photo'}">${p}${over}</div>`;
 }
 /* Resultatet av ett foto: sida M rad 3A (LA1–LA5), 3C (LC2–LC4, J8) och
    3D (LD1–LD4), med sida M:s ord. */
@@ -13885,6 +13927,11 @@ function telfotoResultatHtml(f) {
         ? 'Marked with ? in the photo. Mesa couldn’t read a name there. If it isn’t a card, you remove it on the computer.'
         : 'Marked with ? in the photo. Mesa isn’t sure which cards they are. You pick them when you’re done.'));
     }
+    /* LB1 och LB2 (MES-324): samma kort som ett tidigare foto. */
+    if (f.igen) r.push(telRad('varn', `${f.igen.n} of them were also in photo ${f.igen.nr}`,
+      'Did you forget to move the cards aside? Then remove this photo, so they aren’t counted twice.')
+      + `<div class="trradk"><button type="button" class="trknapp" data-tel="tabort" data-fid="${fid}"${f.tarBort ? ' disabled' : ''}>${telIk('bort', 13, 2.2)}Remove photo ${nr}</button></div>`);
+    if (f.dubbla && f.dubbla.n) r.push(telRad('q', `${f.dubbla.n} may also be in photo ${f.dubbla.nr}`, telfotoDubblaText(f.dubbla)));
     if (f.olasta) r.push(telRad('varn', 'Mesa saw a few more it couldn’t read',
       'Cards without a mark: put them aside and type them in on the computer when you’re done. Or retake the photo.'));
     if (bytte) r.push(telRad('info', 'Replaced the first try', `Its ${telKort(ers.hittade)} were swapped for these ${f.hittade} on the computer.`));
@@ -13893,6 +13940,19 @@ function telfotoResultatHtml(f) {
     kn = `<button type="button" class="btnp prim" data-tel="kamera">${telIk('kamera', 20, 2.1)}Take photo ${telfotoNasta()}</button>`
       + '<button type="button" class="btnp sek" data-tel="slut">Finish the deck</button>'
       + (bytte ? omtagText() : `<div class="trom">${omtagText()}<span class="trnot">Replaces the ${telKort(f.hittade)} from it</span></div>`);
+  } else if (f.lage === 'bort') {
+    /* N5 (MES-324): fotot togs bort, här (Remove photo n under LB1) eller på
+       datorn. Numret används igen (Take photo n), och Undo lägger tillbaka
+       fotot och dess kort när ändringarna finns (f.ater). */
+    const n = f.hittade || 0, ig = f.igen && telfotoFotoAv(f.igen.fid), r = [];
+    if (ig && ig.lage === 'klar' && ig.hittade > 0) r.push(telRad('ok', `The ${telKort(ig.hittade)} from photo ${ig.nr} are still in`));
+    h = telRubrik(L, `Photo ${nr} removed`, n ? `Its ${telKort(n)} are out of the deck.` : 'Nothing was in the deck from it.')
+      + (r.length ? telLista(r) : '') + telfotoBildHtml(f, { dim: true, prickar: false, bort: true });
+    const harFoton = telfotoLista().some(g => g.lage === 'klar' && g.hittade > 0);
+    kn = `<button type="button" class="btnp prim" data-tel="kamera">${telIk('kamera', 20, 2.1)}Take photo ${telfotoNasta()}</button>`
+      + (harFoton ? '<button type="button" class="btnp sek" data-tel="slut">Finish the deck</button>' : '')
+      + (Array.isArray(f.ater) && f.ater.length
+        ? `<div class="trom"><button type="button" class="trtext" data-tel="angra" data-fid="${fid}"${f.angrar ? ' disabled' : ''}>${telIk('angra', 16, 2.2)}Undo</button><span class="trnot">Puts photo ${nr} and its ${telKort(n)} back</span></div>` : '');
   } else if (f.lage === 'inga') {
     h = telRubrik(L, 'Mesa didn’t find any cards', 'Nothing was added to the deck.')
       + telLista([telRad('varn', 'Try again like this', 'Hold the phone straight above the cards, with every name line showing and no reflections.')])
@@ -14010,6 +14070,9 @@ $('#vyLekfoto').addEventListener('click', ev => {
   /* LC3/LC4: korten läggs undan och skrivs in på datorn; nästa foto. */
   else if (a === 'undan' && f) { f.undan = true; telfotoSag('foto', { foto: telfotoPost(f) }); telfoto.foto = telfotoNasta(); telfotoSteg('lagg'); telfotoHej(); }
   else if (a === 'slut') telfotoAvsluta(true);
+  /* LB1: Remove photo n här på telefonen, och N5:s Undo (MES-324). */
+  else if (a === 'tabort' && f) telfotoTaBort(f);
+  else if (a === 'angra' && f) telfotoAngra(f);
   else if (a === 'igen') telfotoForsokIgen();
   else if (a === 'stangsida') telfotoStangSida();
   /* Felskärmen (leken gick inte att öppna, ett foto i fel format): som förut. */
@@ -14274,7 +14337,13 @@ function telfotoNasta() {
 /* Fotot på kanalen: allt utom bilden, som går i ett eget meddelande, och det
    som bara hör till telefonen: källan (en duk) och kön som väntar (med
    remsornas bilder, som kunde spränga broadcasts 256 kB). */
-function telfotoPost(f) { const p = Object.assign({}, f); delete p.bild; delete p.kalla; delete p.ops; return p; }
+function telfotoPost(f) {
+  const p = Object.assign({}, f);
+  delete p.bild; delete p.kalla; delete p.ops;
+  /* MES-324: remsorna per kort (bilder), Undo-ändringarna och knapplåsen hör till telefonen. */
+  delete p.remsor; delete p.ater; delete p.tarBort; delete p.angrar;
+  return p;
+}
 function telfotoMeddela(typ, extra) { if (telfoto.id) lekKanalSag(Object.assign({ typ, lekId: telfoto.id }, extra)); }
 /* Förhandsbilden: duken som skickades till läsningen, 640 px långsida och
    JPEG 0,6, så att x/y i svaret gäller den (formatet vid LEKKANALEN).
@@ -14366,6 +14435,184 @@ function telfotoEfter() {
    fjärde att kolla (namnen för små). Korten ligger i leken ändå; frågan är
    om fotot ska tas om. Gränsen är satt, inte uppmätt. */
 const telfotoManga = f => f.hittade > 15 && f.koll * 4 >= f.hittade;
+
+/* ── Samma kort i två foton (MES-324, sida M rad 3B) ──
+   Två fall, båda avgjorda på namnen och platsen i fotot (x/y i f.kort),
+   aldrig på en ny bildjämförelse. Mätt på lekgolden med
+   dev/lekgolden/tvafoton.cjs (ur cachen, inga nya anrop).
+
+   LB1  Korten flyttades inte undan: det nya fotot visar ett tidigare fotos
+        kort. Regeln räknar bara icke-basland med säkert namn: minst
+        TELFOTO_IGEN_MIN sådana, och minst TELFOTO_IGEN_ANDEL av dem ligger
+        också i ett och samma tidigare foto (som multimängd). Basländerna
+        räknas inte in i domen: 7 Plains i foto 1 och 5 i foto 2 är normalt
+        olika exemplar. Talet som visas ("11 of them were also in photo 1")
+        räknar däremot alla namn. Golden: 0 falsklarm i de tio seten, och
+        samma foto två gånger fäller regeln varje gång (filväljarens väg).
+   LB2  Ett kort vid det nya fotots VÄNSTER- eller HÖGERKANT (x inom
+        TELFOTO_KANT tusendelar), med ett säkert namn som ett tidigare foto
+        också hade: kan vara samma kort, kapat i det nya fotot. Kortet får
+        ett ? på telefonen och datorn frågar "One Swamp or two?" (LR1), och
+        det räknas som två tills man svarar. Bara sidkanterna: kolumnerna
+        kapas där, medan ett helt kort längst ned i en kolumn ofta får
+        y = 1000 av modellen. Bara det nya fotots kant: att räkna det gamla
+        fotots kant också gav 7 onödiga frågor mot 1 i golden. Ett osäkert
+        namn (koll) eller en platshållare matchas aldrig: namnet kan vara
+        fel. Slår LB1 till ställs ingen LB2-fråga: fotot tas bort i stället.
+
+   Vad modellen läser vid kanten är oftast ingenting: i lekgoldens 15 foton
+   blev de kapade korten namnlösa poster (platshållare, LR2 på datorn), och
+   bara ett fick ett namn. LB2 fångar därför få kort där. */
+const TELFOTO_KANT = 30;
+const TELFOTO_IGEN_ANDEL = 2 / 3, TELFOTO_IGEN_MIN = 3;
+const telfotoSakert = k => !!(k && k.name && !k.okand && !k.koll);
+const telfotoVidKant = k => +k.x <= TELFOTO_KANT || +k.x >= 1000 - TELFOTO_KANT;
+const telfotoMulti = l => { const m = new Map(); for (const n of l) m.set(n, (m.get(n) || 0) + 1); return m; };
+/* Fotona ett nytt foto jämförs med: de som räknas, med kort i, utom f självt. */
+const telfotoTidigare = f => telfotoLista().filter(g => g !== f && g.lage === 'klar' && Array.isArray(g.kort) && g.kort.length > 0);
+/* LB1: {fid, nr, n} för det tidigare foto som delar flest namn, när regeln
+   slår till; annars null. */
+function telfotoSammaIgen(f, tidigare) {
+  const namn = (f.kort || []).filter(telfotoSakert).map(k => k.name), fm = telfotoMulti(namn);
+  const ick = namn.filter(n => !TEL_BASLAND.includes(n)).length;
+  if (ick < TELFOTO_IGEN_MIN) return null;
+  let best = null;
+  for (const g of tidigare || []) {
+    const gm = telfotoMulti((g.kort || []).filter(telfotoSakert).map(k => k.name));
+    let alla = 0, ickN = 0;
+    for (const [n, c] of fm) { const m = Math.min(c, gm.get(n) || 0); alla += m; if (!TEL_BASLAND.includes(n)) ickN += m; }
+    if (!best || ickN > best.ickN) best = { fid: g.fid, nr: g.nr, n: alla, ickN };
+  }
+  return best && best.ickN >= Math.max(TELFOTO_IGEN_MIN, Math.ceil(TELFOTO_IGEN_ANDEL * ick)) ? { fid: best.fid, nr: best.nr, n: best.n } : null;
+}
+/* LB2: paren [{i, j, fid, nr, kant}]: kort i i f vid kanten, som kort j i
+   det tidigare fotot fid har namnet på. Varje tidigare kort matchas högst
+   en gång. kant: det tidigare kortet låg också vid kanten. */
+function telfotoKantDubbla(f, tidigare) {
+  const ut = [], tagna = new Map();
+  (f.kort || []).forEach((c, i) => {
+    if (!telfotoSakert(c) || !telfotoVidKant(c)) return;
+    for (const g of tidigare || []) {
+      const t = tagna.get(g.fid) || new Set();
+      const j = (g.kort || []).findIndex((d, jj) => !t.has(jj) && telfotoSakert(d) && d.name === c.name);
+      if (j < 0) continue;
+      t.add(j); tagna.set(g.fid, t);
+      ut.push({ i, j, fid: g.fid, nr: g.nr, kant: telfotoVidKant(g.kort[j]) });
+      return;
+    }
+  });
+  return ut;
+}
+function telfotoDubbla(f, tidigare) {
+  const igen = telfotoSammaIgen(f, tidigare);
+  return { igen, dubbla: igen ? [] : telfotoKantDubbla(f, tidigare) };
+}
+/* LB2-radens text. Sida M:s mening när korten låg vid kanten i båda fotona;
+   annars sägs det som är sant. */
+function telfotoDubblaText(d) {
+  const var_ = d.bada ? 'They were at the edge of both photos.' : `They were at the edge of this photo, and in photo ${d.nr} too.`;
+  return `Marked with ? in the photo. ${var_} You say on the computer if you photographed them twice.`;
+}
+/* Frågan på raden i leken (koll) för ett LB2-kort: namnet är säkert
+   (sakert), och dubbel säger vilket foto det också fanns i, vilket foto
+   exemplaret dras från om svaret är "One" (ny), hur många exemplar frågan
+   gäller (n) och det tidigare fotots remsa när telefonen har den. Ligger
+   raden redan med en fråga om namnet (A) läggs dubbel på den: namnet frågas
+   först, sedan LR1. En dubbel-fråga som redan finns läggs ihop. */
+function telfotoDubbelKoll(name, f, e, remsor, rad) {
+  const g = telfotoFotoAv(e.fid), dubbel = { fid: e.fid, nr: e.nr, ny: f.fid, n: e.n };
+  if (e.kant) dubbel.kant = 1;
+  const gRemsa = g && Array.isArray(g.remsor) ? g.remsor[e.j] : null;
+  if (gRemsa) dubbel.remsa = gRemsa;
+  if (rad && rad.koll && rad.koll.dubbel) return Object.assign({}, rad.koll, { dubbel: Object.assign({}, rad.koll.dubbel, { n: (Math.round(+rad.koll.dubbel.n) || 1) + e.n, ny: f.fid }) });
+  if (rad && rad.koll) return Object.assign({}, rad.koll, { dubbel });
+  const koll = { las: name, kalla: 'Photo ' + f.nr, sakert: 1, dubbel };
+  if (remsor && remsor[e.i]) koll.remsa = remsor[e.i];
+  return koll;
+}
+/* Efter läsningen, innan kön sparas: f.igen (LB1), ett ? på korten i båda
+   fotona (dubbel: det andra fotots fid) och en koll-ändring per namn, så att
+   frågan ligger i leken (Check names). koll-ändringen behövs för att en rad
+   som redan finns inte tar mallens koll (LEKSLAG); finns raden inte får
+   antal-ändringens mall frågan. */
+function telfotoMarkeraDubbla(f, ops, remsor) {
+  const d = telfotoDubbla(f, telfotoTidigare(f));
+  f.igen = d.igen || null;
+  f.dubbla = null;
+  if (!d.dubbla.length) return;
+  const perNamn = new Map();
+  let bada = true;
+  for (const p of d.dubbla) {
+    const c = f.kort[p.i], g = telfotoFotoAv(p.fid);
+    c.dubbel = p.fid;
+    if (g && Array.isArray(g.kort) && g.kort[p.j]) g.kort[p.j].dubbel = f.fid;
+    if (!p.kant) bada = false;
+    const e = perNamn.get(c.name) || { n: 0, fid: p.fid, nr: p.nr, i: p.i, j: p.j, kant: p.kant };
+    e.n++; perNamn.set(c.name, e);
+  }
+  f.dubbla = { n: d.dubbla.length, nr: d.dubbla[0].nr, bada };
+  const bas = (telfoto.bas && telfoto.bas.kort) || [];
+  for (const [name, e] of perNamn) {
+    const rad = bas.find(k => k && !k.sb && lekSlagNyckel(k.name, false) === lekSlagNyckel(name, false));
+    const koll = telfotoDubbelKoll(name, f, e, remsor, rad);
+    ops.push({ typ: 'koll', name, sb: false, koll });
+    const op = ops.find(o => o.typ === 'antal' && !o.sb && o.name === name);
+    if (op && op.kort && !op.kort.koll) op.kort.koll = koll;
+  }
+}
+/* Undo-ändringarna på kanalen: utan remsorna (bilder), som datorns lfAterUt.
+   Broadcast tar 256 kB, och mottagaren har remsan i sin egen lek. */
+function telfotoAterUt(ops) {
+  return (ops || []).map(o => {
+    const k = o.kort ? Object.assign({}, o.kort) : o.kort;
+    if (k && k.koll && (k.koll.remsa || (k.koll.dubbel && k.koll.dubbel.remsa))) {
+      k.koll = Object.assign({}, k.koll); delete k.koll.remsa;
+      if (k.koll.dubbel) { k.koll.dubbel = Object.assign({}, k.koll.dubbel); delete k.koll.dubbel.remsa; }
+    }
+    return Object.assign({}, o, { kort: k });
+  });
+}
+/* Remove photo n på telefonen (LB1 → N5). Leken hämtas först, så att
+   Undo-ändringarna räknas ur leken som den är; fotobort sparas, och datorn
+   får fotobort med ändringarna (ater) och deras id:n, så att dess Undo och
+   telefonens är samma ändringar (leken tar dem en gång). */
+async function telfotoTaBort(f) {
+  if (!f || telfoto.laser || f.lage !== 'klar' || f.tarBort) return;
+  f.tarBort = true; telfotoRita();
+  try {
+    let rad = null;
+    try { rad = await lekHamtaRad(telfoto.id); } catch (e) { rad = null; }
+    if (rad) telfoto.bas = rad;
+    const ater = lekSlagFotoTillbaka((telfoto.bas && telfoto.bas.kort) || [], f.fid).map(o => Object.assign(o, { id: lekOpId() }));
+    const bort = { typ: 'fotobort', foto: f.fid, id: lekOpId() };
+    const res = await lekSparaKo(telfoto.id, telfoto.bas, [bort]);
+    if (res && res.rad) telfoto.bas = res.rad;
+    if (!res || !res.ok) return;
+    if (!telfotoFotoBort(f)) return;
+    f.ater = ater; f.bortId = bort.id;
+    telfoto.foto = telfotoNasta();
+    telfoto.visar = f.fid;
+    telfotoMeddela('fotobort', { fid: f.fid, fran: 'tel', bort: bort.id, ater: telfotoAterUt(ater), ts: Date.now() });
+    telfotoMeddela('foto', { foto: telfotoPost(f) });
+    telfotoSteg('resultat');
+  } finally { f.tarBort = false; telfotoRita(); }
+}
+/* Undo på N5: samma ändringar (samma id:n) som datorns Undo för fotot, en
+   gång; ett andra tryck, här eller där, ligger redan i leken. */
+async function telfotoAngra(f) {
+  if (!f || telfoto.laser || f.lage !== 'bort' || !Array.isArray(f.ater) || !f.ater.length || f.angrar) return;
+  f.angrar = true; telfotoRita();
+  try {
+    const res = await lekSparaKo(telfoto.id, telfoto.bas, f.ater);
+    if (res && res.rad) telfoto.bas = res.rad;
+    if (!res || !res.ok) return;
+    delete f.ater;
+    telfotoFotoAter(f);
+    telfoto.foto = telfotoNasta();
+    telfotoMeddela('fotoater', { fid: f.fid, fran: 'tel' });
+    telfotoMeddela('foto', { foto: telfotoPost(f) });
+  } finally { f.angrar = false; telfotoRita(); }
+}
 async function telfotoLas(kalla, o = {}) {
   if (telfoto.laser) return;
   /* Try again på ett foto som inte blev läst (LD1, LD4) läser samma foto
@@ -14461,12 +14708,15 @@ async function telfotoLas(kalla, o = {}) {
        fotot får en prick per kort (f.kort). */
     const unika = new Map(), okanda = [];
     let tomma = 0;
+    /* En remsa per post: frågan om ett kort i två foton (MES-324) visar
+       remsan för just det kortet, också ur ett tidigare foto. */
+    const remsor = kort.map(k => lekRemsa(k.x, k.y, kalla));
     kort.forEach((k, i) => {
       const namn = String(k.namn || '').trim();
-      if (!namn) { okanda.push({ las: '', n: 1, remsa: lekRemsa(k.x, k.y, kalla), poster: [i] }); tomma++; return; }
+      if (!namn) { okanda.push({ las: '', n: 1, remsa: remsor[i], poster: [i] }); tomma++; return; }
       const key = lekSlagNyckel(namn, false), g = unika.get(key);
       if (g) { g.n++; g.poster.push(i); return; }
-      unika.set(key, { namn, n: 1, sak: k.sakerhet, remsa: lekRemsa(k.x, k.y, kalla), poster: [i] });
+      unika.set(key, { namn, n: 1, sak: k.sakerhet, remsa: remsor[i], poster: [i] });
     });
     const ops = [], poster = new Array(kort.length).fill(null);
     let osakra = 0;
@@ -14505,6 +14755,9 @@ async function telfotoLas(kalla, o = {}) {
     f.kort = kort.map((k, i) => Object.assign({ x: Math.round(+k.x || 0), y: Math.round(+k.y || 0) }, poster[i]));
     f.hittade = nya; f.koll = osakra; f.kanda = nya - osakra; f.okanda = tomma;
     f.manga = telfotoManga(f);
+    f.remsor = remsor;
+    /* Samma kort i två foton (MES-324): LB1 och LB2 mot fotona som räknas. */
+    telfotoMarkeraDubbla(f, ops, remsor);
     /* Ett omtag byter ut det gamla fotots kort, SIST i samma kö: ett kort i
        båda fotona behåller sin rad och det man redan kollat på den, och kön
        sparas en gång (formatet vid LEKKANALEN). */
