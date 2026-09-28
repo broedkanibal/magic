@@ -59,6 +59,13 @@ function etiketter(fotoNamn, kort) {
 }
 /* Kantkort som lästes med ett namn: det LB2 alls kan fånga. */
 const kantLasta = et => et.filter(e => e === 'kant').length;
+/* Riktiga andrafoton av samma bord (facit: samma hela grupper, annat ljus
+   eller vinkel): 16/17 samma 30 kort, 18/19 samma 26 utan basland, 14/15
+   samma 10 (telefonen vriden 90° emellan), 09/13 hela bordet (vriden 180°).
+   05/06 och 07/08 är olika bord med kantkort gemensamt: de ska inte fälla. */
+const PAR = [['16', '17', true], ['17', '16', true], ['18', '19', true], ['19', '18', true], ['14', '15', true], ['15', '14', true], ['09', '13', true], ['13', '09', true],
+  ['05', '06', false], ['06', '07', false], ['07', '08', false]];
+const av = n => Object.keys(FACIT.foton).find(f => kortnamn(f) === n);
 
 (async () => {
   const facitFel = K.provaFacit();
@@ -96,8 +103,9 @@ const kantLasta = et => et.filter(e => e === 'kant').length;
       rader.push([lage, s, v.foton.map(kortnamn).join('+'), lb1, flaggor, `${kant} av ${lasta}`, onodiga, anm.length ? anm.join('; ') : '']);
       if (DETALJ && anm.length) detalj.push(`${lage} ${s}: ${anm.join('\n    ')}`);
     }
-    /* Positiv kontroll för LB1: samma foto två gånger i rad. Ett foto med
-       färre än tre säkra icke-basland ska inte fälla den (för lite att gå på). */
+    /* Snäll kontroll för LB1: samma svar två gånger i rad (samma namn, samma
+       platser). Ett foto med färre än tre säkra icke-basland ska inte fälla
+       den (för lite att gå på). */
     for (const f of Object.keys(FACIT.foton).sort()) {
       if (!svarFor(f, lage)) continue;
       const r = await spela([f, f], lage, avl, svarFor);
@@ -107,23 +115,47 @@ const kantLasta = et => et.filter(e => e === 'kant').length;
       if (ick < 3) continue;
       t.kontrollAv++;
       if (foton[1].igen) t.kontroll++;
-      else rader.push([lage, `${kortnamn(f)} två gånger`, `${kortnamn(f)}+${kortnamn(f)}`, 0, '', '', '', `INGEN LB1 trots samma foto (${ick} säkra icke-basland)`]);
+      else rader.push([lage, `${kortnamn(f)} två gånger`, `${kortnamn(f)}+${kortnamn(f)}`, 0, '', '', '', `INGEN LB1 trots samma svar (${ick} säkra icke-basland)`]);
+    }
+    /* Ärlig kontroll för LB1: riktiga andrafoton av samma bord ur cachen
+       (annat ljus eller vinkel), och två par som INTE är samma bord.
+       Kravet gäller det andra fotot: minst tre säkra icke-basland. */
+    t.par = [];
+    for (const [a, b, samma] of PAR) {
+      const fa = av(a), fb = av(b);
+      if (!fa || !fb || !svarFor(fa, lage) || !svarFor(fb, lage)) continue;
+      const r = await spela([fa, fb], lage, avl, svarFor);
+      const foton = r.foton.filter(x => x.lage === 'klar');
+      if (foton.length < 2) continue;
+      const ick = (foton[1].kort || []).filter(k => k && k.name && !k.okand && !k.koll && !BASLAND.has(k.name)).length;
+      const lb1 = !!foton[1].igen;
+      t.par.push({ a, b, samma, ick, lb1, raknas: ick >= 3 });
     }
   }
 
   console.log('Samma kort i två foton (MES-324) på lekgoldens set, ur cachen:\n');
   tabell(['Beskärning', 'Set', 'Foton', 'LB1', 'LB2-flaggor', 'fångade kantkort (av lästa)', 'onödiga', 'Anm.'], rader);
+  console.log('\n══ LB1 på riktiga andrafoton av samma bord (och två par som inte är det) ══');
+  const parRader = [];
+  for (const lage of K.LAGEN) for (const p of tot[lage].par || []) {
+    parRader.push([lage, `${p.a} sedan ${p.b}`, p.samma ? 'samma bord' : 'olika bord', p.ick, p.raknas ? (p.lb1 ? 'LB1' : 'nej') : `nej (${p.ick} < 3, räknas inte)`,
+      p.samma ? (p.raknas ? (p.lb1 ? 'träff' : 'miss') : '') : (p.lb1 ? 'FALSKLARM' : 'rätt')]);
+  }
+  tabell(['Beskärning', 'Par', 'Facit', 'säkra icke-basland i foto B', 'LB1', 'Dom'], parRader);
   console.log('\n══ Summering ══');
   const sum = [];
   for (const lage of K.LAGEN) {
-    const t = tot[lage];
-    sum.push([lage, `${t.set} set, ${t.foton} foton`, `${t.lb1} falsklarm`, `${t.kontroll}/${t.kontrollAv} fällda`, t.flaggor, `${t.kant} av ${t.kantLasta}`, t.onodiga]);
+    const t = tot[lage], par = (t.par || []).filter(p => p.raknas);
+    const traff = par.filter(p => p.samma && p.lb1).length, sammaN = par.filter(p => p.samma).length, falsk = par.filter(p => !p.samma && p.lb1).length, olikaN = par.filter(p => !p.samma).length;
+    sum.push([lage, `${t.set} set, ${t.foton} foton`, `${t.lb1} falsklarm`, `${t.kontroll}/${t.kontrollAv}`, `${traff}/${sammaN} träffar, ${falsk}/${olikaN} falsklarm`, t.flaggor, `${t.kant} av ${t.kantLasta}`, t.onodiga]);
   }
-  tabell(['', 'Set', 'LB1 i seten', 'LB1 samma foto två gånger', 'LB2-flaggor', 'fångade kantkort (av kantkort lästa med namn)', 'onödiga frågor'], sum);
-  console.log('\n  LB1 i seten: fotona i ett set är olika, så varje LB1 där är ett falsklarm. Samma foto två gånger: fotot spelas upp igen direkt efter sig självt;');
-  console.log('  räknas för foton med minst tre säkra icke-basland (regelns golv). LB2-flaggor: kort i det nya fotot med dubbel. Fångade kantkort: flaggor');
-  console.log('  där kortet (eller det matchade) hör till en grupp facit säger bara syns vid kanten; "av" = kantkort som alls lästes med ett namn.');
-  console.log('  Onödiga: flaggor på kort ur hela grupper, riktiga exemplar som får frågan "One Swamp or two?". Kort utan namn (platshållare) syns inte här.');
+  tabell(['', 'Set', 'LB1 i seten', 'LB1 samma svar två gånger (snäll)', 'LB1 riktiga andrafoton', 'LB2-flaggor', 'fångade kantkort (av kantkort lästa med namn)', 'onödiga frågor'], sum);
+  console.log('\n  LB1 i seten: fotona i ett set är olika, så varje LB1 där är ett falsklarm. Samma svar två gånger: snäll kontroll, samma namn på samma platser.');
+  console.log('  Riktiga andrafoton: samma bord fotat igen i annat ljus eller vinkel (facit ovan); räknas för par där foto B har minst tre säkra icke-basland');
+  console.log('  (regelns golv). Ett vridet bord (14/15, 09/13) fäller inte regeln: den räknar platsen efter en förskjutning, inte en vridning.');
+  console.log('  LB2-flaggor: kort i det nya fotot med dubbel. Fångade kantkort: flaggor där kortet (eller det matchade) hör till en grupp facit säger bara');
+  console.log('  syns vid kanten; "av" = kantkort som alls lästes med ett namn. Onödiga: flaggor på kort ur hela grupper, riktiga exemplar som får frågan');
+  console.log('  "One Swamp or two?". Kort utan namn (platshållare) syns inte här: LB2 är därför i praktiken omätt på riktiga foton.');
   console.log(`\n  metod: svaren ur ${path.relative(K.ROT, SVARMAPP)} (${K.MODELL}, systemprompt v${K.PROMPTV}, lekblocket ${K.LEKBLOCK}, beskärningskod ${K.BESK_KOD_SHA}), telfotoLas ur index.html.`);
   if (varningar.length) console.log('  OBS: ' + varningar.join('; '));
   if (DETALJ && detalj.length) console.log('\n' + detalj.map(d => '  ' + d).join('\n'));

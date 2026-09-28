@@ -350,7 +350,7 @@ const provA3 = a => {
   assert.strictEqual(t.fraga, 'One Swamp or two?');
   assert.strictEqual(t.under, 'A Swamp was at the edge of photo 2, and one was in photo 1. If it is the same card, you photographed it twice.');
   assert.strictEqual(a.lsfDubbelText(dubbelRad({ dubbel: { kant: 1 } })).under, 'A Swamp was at the edge of photo 1 and of photo 2. If it lay in the same spot in both, you photographed the same card twice.');
-  assert.strictEqual(t.raknas, 'Counted as 8 Swamps until you answer.');
+  assert.strictEqual(t.raknas, 'Counted as 2 Swamps until you answer.', 'paret frågan gäller, som sida M, inte radens åtta');
   assert.deepStrictEqual([t.en, t.tva], ['One, photographed twice', 'Two Swamps']);
   const tb = a.lsfDubbelText(K('Aphelia, Viper Whisperer', { n: 2, foto: { '1:f': 1, '2:f': 1 }, koll: { las: 'Aphelia, Viper Whisperer', kalla: 'Photo 2', sakert: 1, dubbel: { fid: '1:f', nr: 1, ny: '2:f', n: 1 } } }));
   assert.deepStrictEqual([tb.fraga, tb.raknas, tb.tva], ['One Aphelia, Viper Whisperer or two?', 'Counted as 2 copies until you answer.', 'Two copies']);
@@ -360,7 +360,7 @@ fall('A3 LR1: fallet, sida M:s ord, ett osäkert namn med dubbel frågas som A f
 const provB8 = a => {
   let r = lek([dubbelRad()]);
   const k = rad(a, r, 'Swamp'), en = a.lsfEn(k);
-  assert.deepStrictEqual(en.map(o => [o.typ, o.d, o.foto]), [['antal', -1, '2:f'], ['koll', undefined, undefined]]);
+  assert.deepStrictEqual(en.map(o => [o.typ, o.svar]), [['dubbel', 'en']], 'en vaktad ändring i LEKSLAG, inte ett rått avdrag');
   r = spara(a, r, en);
   let s = rad(a, r, 'Swamp');
   assert.strictEqual(s.n, 7, 'One: ett exemplar ur leken');
@@ -369,6 +369,11 @@ const provB8 = a => {
   const efter = JSON.stringify(las(a, r));
   r = spara(a, r, en);
   assert.strictEqual(JSON.stringify(las(a, r)), efter, 'samma ändringar en gång till gör ingenting (klara)');
+  /* G5: två flikar trycker One innan den andras skrivning nått dem (olika id:n): ett exemplar, inte två. */
+  r = lek([dubbelRad()]);
+  const k2 = rad(a, r, 'Swamp');
+  r = spara(a, r, [...a.lsfEn(k2), ...a.lsfEn(k2)]);
+  assert.strictEqual(rad(a, r, 'Swamp').n, 7, 'två flikar: ett exemplar');
   /* Two: båda står kvar. */
   r = lek([dubbelRad()]);
   r = spara(a, r, [a.lsfTva(rad(a, r, 'Swamp'))]);
@@ -382,13 +387,20 @@ const provB8 = a => {
   r = spara(a, r, [a.lsfTva(s)]);
   s = rad(a, r, 'Swamp');
   assert.strictEqual(s.n, 8); assert.strictEqual(s.koll, undefined);
+  /* En fråga som står kvar på ett enda exemplar (det andra togs bort för hand) tar aldrig kortet. */
+  for (const foto of [{ '2:f': 1 }, { '1:f': 1 }]) {
+    r = lek([K('Sol Ring', { n: 1, foto, koll: { las: 'Sol Ring', kalla: 'Photo 2', sakert: 1, dubbel: { fid: '1:f', nr: 1, ny: '2:f', n: 1 } } })]);
+    r = spara(a, r, a.lsfEn(rad(a, r, 'Sol Ring')));
+    assert.ok(rad(a, r, 'Sol Ring'), 'kortet står kvar');
+    assert.deepStrictEqual([rad(a, r, 'Sol Ring').n, rad(a, r, 'Sol Ring').koll], [1, undefined]);
+  }
   /* Ett andra tryck på One efter det första: raden har ingen fråga, och lsfTryck stoppar dubbelklicket. */
   const kn = a.lsfKnTom(), ko = a.lsfKo([dubbelRad()]);
   a.lsfOmgang(kn, ko);
   assert.strictEqual(a.lsfTryck(kn, kn.nu, 1000), true);
   assert.strictEqual(a.lsfTryck(kn, kn.nu, 1200), false);
 };
-fall('B8 LR1: One tar ett exemplar ur fotot frågan kom ur, en gång; Two behåller båda; två exemplar frågas ett i taget', provB8);
+fall('B8 LR1: One tar ett exemplar ur fotot frågan kom ur, en gång också från två flikar; Two behåller båda; två exemplar frågas ett i taget; aldrig det enda', provB8);
 const provD5 = a => {
   const t = nyTel();
   foto(t, '1:f', 'klar', { hittade: 8, kort: [{ name: 'Swamp', las: 'Swamp', x: 500, y: 500 }, ...Array.from({ length: 7 }, (_, i) => ({ name: 'Kort ' + i, las: 'Kort ' + i, x: 500, y: 100 + 100 * i }))] });
@@ -517,8 +529,10 @@ maste('F12 utan sakert i lsfJa försvinner dubbel-frågan när namnet bekräftas
   [["koll: k.koll && k.koll.dubbel ? Object.assign({}, k.koll, { sakert: 1 }) : null });", 'koll: null });']], provA3);
 maste('F13 räknas ett dubbel-kort också ur läsningen blir det "2 Swamps were in the photos" efter One (D5 faller)',
   [['if (k && !k.okand && !k.koll && !k.dubbel && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && !k.koll && LSF_BASLAND.includes(k.name))']], provD5);
-maste('F14 utan fotot i One:s avdrag står exemplaret kvar i fotots bokföring (B8 faller)',
-  [['  if (ny) op.foto = ny;\n', '\n']], provB8);
+maste('F14 utan vakten i LEKSLAG tar två flikars One två exemplar, och ett One på det enda exemplaret tar det (B8 faller)',
+  [["        const d = q && q.dubbel;\n        if (!d) continue;", '        const d = (q && q.dubbel) || {};']], provB8);
+maste('F15 utan "k.n >= 2" tar One det enda exemplaret (B8 faller)',
+  [["if (op.svar === 'en' && k.n >= 2 && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {", "if (op.svar === 'en' && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {"]], provB8);
 maste('F11 med gissningarna i telefonens läsning räknas ett rättat kort två gånger (D4 faller)',
   [['if (k && !k.okand && !k.koll && !k.dubbel && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && !k.dubbel && LSF_BASLAND.includes(k.name))']], provD4);
 

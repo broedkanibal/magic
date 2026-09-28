@@ -425,7 +425,10 @@ function doma(r, facit, kant) {
     const n = Number(k.n) || 1;
     if (k.okand) { olasliga += n; continue; }
     mesa.set(k.name, (mesa.get(k.name) || 0) + n);
-    if (k.koll) osakra += n; else sakra.set(k.name, (sakra.get(k.name) || 0) + n);
+    /* En rad med bara frågan "One Swamp or two?" (koll.sakert, MES-324) har
+       ett säkert namn: osäkra är de exemplar frågan gäller, inte hela raden. */
+    if (k.koll && k.koll.sakert && k.koll.dubbel) { const q = Math.min(n, Math.round(+k.koll.dubbel.n) || 1); osakra += q; sakra.set(k.name, (sakra.get(k.name) || 0) + n - q); }
+    else if (k.koll) osakra += n; else sakra.set(k.name, (sakra.get(k.name) || 0) + n);
   }
   let ratt = 0, saknas = 0, extra = 0, kantN = 0, felNamn = 0, felSakra = 0;
   const saknade = [], extras = [], fela = [];

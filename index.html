@@ -12749,8 +12749,10 @@ async function lekRadera(id) { return Moln.inloggad() ? await Moln.raderaLek(id)
    senast sparade raden ligger som en kö av ÄNDRINGAR, inte som en färdig
    lista: {typ:'antal', name, sb, d, kort?}, {typ:'bort', name, sb},
    {typ:'sb', name, sb, till}, {typ:'namn', namn}, {typ:'byt', name, sb,
-   kort} (MES-169: kortet byts mot ett annat, antalet följer med) och
-   {typ:'koll', name, sb, koll} (To check sätts eller, med null, tas bort).
+   kort} (MES-169: kortet byts mot ett annat, antalet följer med),
+   {typ:'koll', name, sb, koll} (To check sätts eller, med null, tas bort)
+   och {typ:'dubbel', name, sb, satt | svar} (MES-324: frågan "One Swamp or
+   two?" ställs på raden som den ligger, eller besvaras vaktat, en gång).
    Det som visas är raden
    med kön uppspelad. Hann en annan enhet (flik, telefon) spara under
    tiden läses dess rad in och samma kö spelas upp på den — båda enheternas
@@ -12873,6 +12875,15 @@ function lekOkandKort(las, kalla, remsa, id) {
 }
 /* Ett riktigt kort (med tryckning) eller en platshållare — det som får bli en rad. */
 const lekSlagKort = k => !!(k && (k.sid || k.okand));
+/* Dubbel-frågan bort från en rad (MES-324): hela koll när namnet är säkert
+   (sakert), annars bara dubbel, så att frågan om namnet står kvar. Raden får
+   ett eget koll-objekt: den sparade radens ändras aldrig. */
+function lekSlagDubbelBort(k) {
+  if (!k || !k.koll) return;
+  if (k.koll.sakert) { delete k.koll; return; }
+  k.koll = Object.assign({}, k.koll);
+  delete k.koll.dubbel;
+}
 /* Varje ändring får ett id när den skickas första gången (lekSparaKo), och
    raden bär id:na på de senaste ändringarna som redan ligger i den
    (decks.klara, MES-289). En ändring vars id står där spelas inte upp igen.
@@ -12933,6 +12944,11 @@ function lekSlagTillampa(bas, ops) {
       if (!op.foto) continue;
       for (let j = kort.length - 1; j >= 0; j--) {
         const k = kort[j], c = k.foto ? k.foto[op.foto] || 0 : 0;
+        /* Frågan "One Swamp or two?" (koll.dubbel, MES-324) gäller två foton.
+           Försvinner ett av dem (Remove photo, Retake) faller frågan: annars
+           stod den kvar på ett enda exemplar, och One tog det (granskningen
+           av MES-324). */
+        if (k.koll && k.koll.dubbel && (k.koll.dubbel.ny === op.foto || k.koll.dubbel.fid === op.foto)) lekSlagDubbelBort(k);
         if (c <= 0) continue;
         lekSlagFotoAndra(k, op.foto, -c);
         k.n -= Math.min(c, k.n);
@@ -12989,6 +13005,35 @@ function lekSlagTillampa(bas, ops) {
     } else if (op.typ === 'koll') {
       if (i < 0) continue;
       if (op.koll) kort[i].koll = op.koll; else delete kort[i].koll;
+    } else if (op.typ === 'dubbel') {
+      /* Samma kort i två foton (MES-324). satt: telefonen ställer frågan på
+         raden SOM DEN LIGGER när ändringen spelas upp: en fråga om namnet
+         (koll utan sakert) står kvar och frågas först, en äldre dubbel-fråga
+         byts (aldrig läggs ihop: den kan vara besvarad på en annan enhet, och
+         telefonen ser inte datorns sparningar), och utan koll gäller mallen
+         (op.koll). svar: One ('en') eller Two ('tva'), vaktade: bara medan
+         frågan finns, så att två flikar (två id:n) tar ett exemplar och inte
+         två, och One tar bara ett exemplar som finns två gånger, ur fotot
+         frågan kom ur. Frågan räknas ned (n) och faller vid noll: hela koll
+         när namnet är säkert, annars bara dubbel. */
+      if (i < 0) continue;
+      const k = kort[i], q = k.koll;
+      if (op.satt && typeof op.satt === 'object' && op.satt.fid) {
+        const bas = q ? q : Object.assign({ las: k.name, kalla: '', sakert: 1 }, op.koll && typeof op.koll === 'object' ? op.koll : {});
+        k.koll = Object.assign({}, bas, { dubbel: Object.assign({}, op.satt) });
+      } else if (op.svar === 'en' || op.svar === 'tva') {
+        const d = q && q.dubbel;
+        if (!d) continue;
+        const n = (Math.round(+d.n) || 1) - 1;
+        if (op.svar === 'en' && k.n >= 2 && (!d.ny || (k.foto && k.foto[d.ny] > 0))) {
+          k.n -= 1;
+          if (d.ny) lekSlagFotoAndra(k, d.ny, -1);
+          lekSlagFotoTak(k);
+        }
+        if (n > 0) k.koll = Object.assign({}, q, { dubbel: Object.assign({}, d, { n }) });
+        else lekSlagDubbelBort(k);
+        if (k.n <= 0) kort.splice(i, 1);
+      }
     }
   }
   return { namn, kort };
@@ -13617,6 +13662,10 @@ function lekSparaIBakgrunden(id, bas, ops, forsok = 0) {
    kortet också fanns i (fid, nr), fotot som frågan kom ur och som ett "One"
    drar exemplaret från (ny), hur många exemplar frågan gäller (n), om
    kortet låg vid kanten i båda fotona (kant) och det andra fotots remsa.
+   Frågan ställs och besvaras med LEKSLAG:s ändring {typ:'dubbel', name,
+   sb, satt: dubbel, koll: mall} respektive {typ:'dubbel', name, sb, svar:
+   'en'|'tva'}, som verkar på raden som den ligger när de spelas upp; och
+   fotobort på ett av de två fotona fäller frågan.
    I10 och datorns slut (MES-323) räknar samma sak: "N cards found in M
    photos" = hittade summerat över fotona som är 'klar', M = hur många;
    "Cards you put aside" när något foto som inte är 'bort'/'ersatt' har
@@ -14471,25 +14520,64 @@ const telfotoManga = f => f.hittade > 15 && f.koll * 4 >= f.hittade;
    bara ett fick ett namn. LB2 fångar därför få kort där. */
 const TELFOTO_KANT = 30;
 const TELFOTO_IGEN_ANDEL = 2 / 3, TELFOTO_IGEN_MIN = 3;
+/* LB1 räknar bara kort som ligger på samma plats som i det tidigare fotot,
+   efter fotonas bästa förskjutning mot varandra (medianen av parens
+   avstånd), inom TELFOTO_IGEN_TOL tusendelar. Namnen ensamma räcker inte i
+   en lek med fyra av varje kort: två foton om tolv ur samma playsets delar
+   ofta två tredjedelar av namnen fast korten är nya exemplar (granskningen
+   av MES-324). Samma bord som inte flyttats har samma namn på samma
+   relativa plats; nya exemplar i en ny uppläggning har det inte. Mätt ur
+   lekgoldens cache (dev/lekgolden/tvafoton.cjs): riktiga andrafoton av
+   samma bord (16↔17, 18↔19) får 12 av 17 respektive 7 av 7 par inom 100
+   efter förskjutningen, medan fyra-av-fallet med samma platser per plats i
+   listan får 5 av 12 och slumpade nya uppläggningar 0–2. Titelraderna i en
+   kolumn ligger 120–185 tusendelar isär, så 100 håller sig under ett steg.
+   Vrids telefonen 90° mellan fotona (14↔15) slår regeln inte till. */
+const TELFOTO_IGEN_TOL = 100;
 const telfotoSakert = k => !!(k && k.name && !k.okand && !k.koll);
 const telfotoVidKant = k => +k.x <= TELFOTO_KANT || +k.x >= 1000 - TELFOTO_KANT;
 const telfotoMulti = l => { const m = new Map(); for (const n of l) m.set(n, (m.get(n) || 0) + 1); return m; };
-/* Fotona ett nytt foto jämförs med: de som räknas, med kort i, utom f självt. */
-const telfotoTidigare = f => telfotoLista().filter(g => g !== f && g.lage === 'klar' && Array.isArray(g.kort) && g.kort.length > 0);
-/* LB1: {fid, nr, n} för det tidigare foto som delar flest namn, när regeln
-   slår till; annars null. */
+/* Fotona ett nytt foto jämförs med: de som räknas, med kort i, utom f självt
+   och utom fotot f tar om (det blir 'ersatt' först när omtaget sparats, och
+   är aldrig ett tidigare foto: annars fick omtaget LB1 mot sig självt). */
+const telfotoTidigare = f => telfotoLista().filter(g => g !== f && g.fid !== f.ersatter && g.lage === 'klar' && Array.isArray(g.kort) && g.kort.length > 0);
+/* Paren: varje kort i F får det närmaste oanvända kortet i G med samma namn,
+   efter att G förskjutits med (dx, dy). Svar: [{c, d, avst}]. */
+function telfotoParning(F, G, dx, dy) {
+  const anv = new Set(), ut = [];
+  for (const c of F) {
+    let b = -1, bd = Infinity;
+    G.forEach((d, j) => {
+      if (anv.has(j) || d.name !== c.name) return;
+      const a = Math.hypot((+c.x || 0) - (+d.x || 0) - dx, (+c.y || 0) - (+d.y || 0) - dy);
+      if (a < bd) { bd = a; b = j; }
+    });
+    if (b >= 0) { anv.add(b); ut.push({ c, d: G[b], avst: bd }); }
+  }
+  return ut;
+}
+const telfotoMedian = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+/* LB1: {fid, nr, n} för det tidigare foto som delar flest kort på samma
+   plats, när regeln slår till; annars null. Domen räknar icke-basland; n
+   som visas räknar alla par som stämmer. */
 function telfotoSammaIgen(f, tidigare) {
-  const namn = (f.kort || []).filter(telfotoSakert).map(k => k.name), fm = telfotoMulti(namn);
-  const ick = namn.filter(n => !TEL_BASLAND.includes(n)).length;
+  const F = (f.kort || []).filter(telfotoSakert), ick = F.filter(k => !TEL_BASLAND.includes(k.name)).length;
   if (ick < TELFOTO_IGEN_MIN) return null;
   let best = null;
   for (const g of tidigare || []) {
-    const gm = telfotoMulti((g.kort || []).filter(telfotoSakert).map(k => k.name));
-    let alla = 0, ickN = 0;
-    for (const [n, c] of fm) { const m = Math.min(c, gm.get(n) || 0); alla += m; if (!TEL_BASLAND.includes(n)) ickN += m; }
-    if (!best || ickN > best.ickN) best = { fid: g.fid, nr: g.nr, n: alla, ickN };
+    const G = (g.kort || []).filter(telfotoSakert), ickG = G.filter(k => !TEL_BASLAND.includes(k.name)).length;
+    const p1 = telfotoParning(F, G, 0, 0);
+    if (!p1.length) continue;
+    const dx = telfotoMedian(p1.map(p => (+p.c.x || 0) - (+p.d.x || 0))), dy = telfotoMedian(p1.map(p => (+p.c.y || 0) - (+p.d.y || 0)));
+    const traff = telfotoParning(F, G, dx, dy).filter(p => p.avst <= TELFOTO_IGEN_TOL);
+    const ickN = traff.filter(p => !TEL_BASLAND.includes(p.c.name)).length;
+    /* Andelen räknas mot det foto som läste färst kort: läste det ena fotot
+       av samma bord bara sju namn och det andra tjugotre (19↔18 i golden)
+       kan högst sju stämma, och det är hela det mindre fotot. */
+    const krav = Math.max(TELFOTO_IGEN_MIN, Math.ceil(TELFOTO_IGEN_ANDEL * Math.min(ick, ickG)));
+    if (ickN >= krav && (!best || ickN > best.ickN)) best = { fid: g.fid, nr: g.nr, n: traff.length, ickN };
   }
-  return best && best.ickN >= Math.max(TELFOTO_IGEN_MIN, Math.ceil(TELFOTO_IGEN_ANDEL * ick)) ? { fid: best.fid, nr: best.nr, n: best.n } : null;
+  return best ? { fid: best.fid, nr: best.nr, n: best.n } : null;
 }
 /* LB2: paren [{i, j, fid, nr, kant}]: kort i i f vid kanten, som kort j i
    det tidigare fotot fid har namnet på. Varje tidigare kort matchas högst
@@ -14519,28 +14607,29 @@ function telfotoDubblaText(d) {
   const var_ = d.bada ? 'They were at the edge of both photos.' : `They were at the edge of this photo, and in photo ${d.nr} too.`;
   return `Marked with ? in the photo. ${var_} You say on the computer if you photographed them twice.`;
 }
-/* Frågan på raden i leken (koll) för ett LB2-kort: namnet är säkert
-   (sakert), och dubbel säger vilket foto det också fanns i, vilket foto
-   exemplaret dras från om svaret är "One" (ny), hur många exemplar frågan
-   gäller (n) och det tidigare fotots remsa när telefonen har den. Ligger
-   raden redan med en fråga om namnet (A) läggs dubbel på den: namnet frågas
-   först, sedan LR1. En dubbel-fråga som redan finns läggs ihop. */
-function telfotoDubbelKoll(name, f, e, remsor, rad) {
+/* Frågan på raden i leken för ett LB2-kort: dubbel säger vilket foto det
+   också fanns i (fid, nr), vilket foto exemplaret dras från om svaret är
+   "One" (ny), hur många exemplar frågan gäller (n), om kortet låg vid
+   kanten i båda fotona (kant) och det tidigare fotots remsa när telefonen
+   har den. Mallen (koll) gäller när raden inte har någon fråga: namnet är
+   säkert (sakert). Ligger raden redan med en fråga om namnet (A) läggs
+   dubbel på den när ändringen spelas upp (LEKSLAG, typ 'dubbel'): namnet
+   frågas först, sedan LR1. Ingenting räknas ur telefonens egen bild av
+   leken (bas): den kan vara gammal, och en fråga som datorn redan besvarat
+   fick förut sitt tal tillbaka och lades ihop (granskningen av MES-324). */
+function telfotoDubbelKoll(name, f, e, remsor) {
   const g = telfotoFotoAv(e.fid), dubbel = { fid: e.fid, nr: e.nr, ny: f.fid, n: e.n };
   if (e.kant) dubbel.kant = 1;
   const gRemsa = g && Array.isArray(g.remsor) ? g.remsor[e.j] : null;
   if (gRemsa) dubbel.remsa = gRemsa;
-  if (rad && rad.koll && rad.koll.dubbel) return Object.assign({}, rad.koll, { dubbel: Object.assign({}, rad.koll.dubbel, { n: (Math.round(+rad.koll.dubbel.n) || 1) + e.n, ny: f.fid }) });
-  if (rad && rad.koll) return Object.assign({}, rad.koll, { dubbel });
-  const koll = { las: name, kalla: 'Photo ' + f.nr, sakert: 1, dubbel };
+  const koll = { las: name, kalla: 'Photo ' + f.nr, sakert: 1 };
   if (remsor && remsor[e.i]) koll.remsa = remsor[e.i];
-  return koll;
+  return { dubbel, koll };
 }
 /* Efter läsningen, innan kön sparas: f.igen (LB1), ett ? på korten i båda
-   fotona (dubbel: det andra fotots fid) och en koll-ändring per namn, så att
-   frågan ligger i leken (Check names). koll-ändringen behövs för att en rad
-   som redan finns inte tar mallens koll (LEKSLAG); finns raden inte får
-   antal-ändringens mall frågan. */
+   fotona (dubbel: det andra fotots fid) och en dubbel-ändring per namn, så
+   att frågan ligger i leken (Check names) på raden som den ligger när
+   ändringen spelas upp. Finns raden inte får antal-ändringens mall frågan. */
 function telfotoMarkeraDubbla(f, ops, remsor) {
   const d = telfotoDubbla(f, telfotoTidigare(f));
   f.igen = d.igen || null;
@@ -14557,13 +14646,11 @@ function telfotoMarkeraDubbla(f, ops, remsor) {
     e.n++; perNamn.set(c.name, e);
   }
   f.dubbla = { n: d.dubbla.length, nr: d.dubbla[0].nr, bada };
-  const bas = (telfoto.bas && telfoto.bas.kort) || [];
   for (const [name, e] of perNamn) {
-    const rad = bas.find(k => k && !k.sb && lekSlagNyckel(k.name, false) === lekSlagNyckel(name, false));
-    const koll = telfotoDubbelKoll(name, f, e, remsor, rad);
-    ops.push({ typ: 'koll', name, sb: false, koll });
+    const { dubbel, koll } = telfotoDubbelKoll(name, f, e, remsor);
+    ops.push({ typ: 'dubbel', name, sb: false, satt: dubbel, koll });
     const op = ops.find(o => o.typ === 'antal' && !o.sb && o.name === name);
-    if (op && op.kort && !op.kort.koll) op.kort.koll = koll;
+    if (op && op.kort && !op.kort.koll) op.kort.koll = Object.assign({}, koll, { dubbel });
   }
 }
 /* Undo-ändringarna på kanalen: utan remsorna (bilder), som datorns lfAterUt.
@@ -14878,8 +14965,24 @@ function telfotoSummera(rad) {
   let koll = klara.reduce((s, f) => s + (f.koll || 0), 0);
   if (rad && Array.isArray(rad.kort)) koll = rad.kort.filter(k => k && k.koll && !k.sb).length;
   const undan = lista.some(f => telfotoRaknas(f) && (f.undan || f.olasta > 0));
+  /* Basländerna per foto: det största av läsningen och lekens bokföring, som
+     datorn räknar dem (lsfBlIFoton). Ett kort som kan vara med i två foton
+     (dubbel, MES-324) räknas bara ur bokföringen: den följer svaret på
+     "One Swamp or two?", läsningen inte. */
+  const per = new Map();
+  const satt = (namn, fid, c) => { let m = per.get(namn); if (!m) per.set(namn, m = new Map()); m.set(fid, Math.max(m.get(fid) || 0, c)); };
+  for (const f of klara) {
+    const c = new Map();
+    for (const k of f.kort || []) if (k && !k.okand && !k.koll && !k.dubbel && TEL_BASLAND.includes(k.name)) c.set(k.name, (c.get(k.name) || 0) + 1);
+    for (const [namn, n] of c) satt(namn, f.fid, n);
+  }
+  for (const k of (rad && Array.isArray(rad.kort)) ? rad.kort : []) {
+    if (!k || k.sb || !TEL_BASLAND.includes(k.name) || !k.foto) continue;
+    let rest = Number(k.n) || 1;
+    for (const [fid, c] of Object.entries(k.foto)) { const c2 = Math.min(rest, +c || 0); rest -= c2; if (c2 > 0) satt(k.name, fid, c2); }
+  }
   const bl = new Map();
-  for (const f of klara) for (const k of f.kort || []) if (!k.okand && TEL_BASLAND.includes(k.name)) bl.set(k.name, (bl.get(k.name) || 0) + 1);
+  for (const [namn, m] of per) { const s = [...m.values()].reduce((a, b) => a + b, 0); if (s > 0) bl.set(namn, s); }
   const delar = TEL_BASLAND.filter(n => bl.get(n)).map(n => { const c = bl.get(n); return `${c} ${c === 1 || /s$/.test(n) ? n : n + 's'}`; });
   const alla = [...bl.values()].reduce((s, c) => s + c, 0);
   const basland = delar.length
@@ -15446,30 +15549,25 @@ function lsfFall(k, kand, arKort) {
 /* Yes på ett namn som också bär en dubbel-fråga (MES-324): namnet är säkert
    nu, och LR1 ställs härnäst. */
 const lsfJa = k => ({ typ: 'koll', name: k.name, sb: !!k.sb, koll: k.koll && k.koll.dubbel ? Object.assign({}, k.koll, { sakert: 1 }) : null });
-/* LR1 (MES-324), "One Swamp or two?": One tar ett exemplar ur leken, ur
-   fotot frågan kom ur (dubbel.ny), och frågan räknas ned (n); Two behåller
-   båda. Var och en gör ingenting en andra gång: när frågan är borta har
-   raden ingen koll, och lsfTryck stoppar dubbelklicket innan dess. */
-function lsfDubbelKvar(q) {
-  const d = (q && q.dubbel) || {}, n = (Math.round(+d.n) || 1) - 1;
-  return n > 0 ? Object.assign({}, q, { dubbel: Object.assign({}, d, { n }) }) : null;
-}
-const lsfTva = k => ({ typ: 'koll', name: k.name, sb: !!k.sb, koll: lsfDubbelKvar(k.koll) });
-function lsfEn(k) {
-  const op = { typ: 'antal', name: k.name, sb: !!k.sb, d: -1 };
-  const ny = k.koll && k.koll.dubbel && k.koll.dubbel.ny;
-  if (ny) op.foto = ny;
-  return [op, lsfTva(k)];
-}
+/* LR1 (MES-324), "One Swamp or two?": en vaktad ändring i LEKSLAG (typ
+   'dubbel', svar). One tar ett exemplar ur leken, ur fotot frågan kom ur,
+   bara medan frågan finns och exemplaret finns två gånger; Two behåller
+   båda. Två flikar som trycker One innan den andras skrivning nått dem
+   (olika id:n) tar därför ett exemplar, inte två (granskningen av MES-324),
+   och när frågan är borta gör ändringen ingenting. */
+const lsfEn = k => [{ typ: 'dubbel', name: k.name, sb: !!k.sb, svar: 'en' }];
+const lsfTva = k => ({ typ: 'dubbel', name: k.name, sb: !!k.sb, svar: 'tva' });
 /* LR1:s ord. Sida M:s mening när kortet låg vid kanten i båda fotona,
-   annars det som är sant: vid kanten i det nya fotot, och i det andra. */
+   annars det som är sant: vid kanten i det nya fotot, och i det andra.
+   "Counted as 2 Swamps until you answer." räknar paret frågan gäller, som
+   sida M, inte radens alla exemplar. */
 function lsfDubbelText(k) {
   const q = k.koll || {}, d = q.dubbel || {}, nr = lsfFotoNr(k), bas = LSF_BASLAND.includes(k.name);
-  const art = /^[aeiou]/i.test(k.name) ? 'An' : 'A', n = Number(k.n) || 1;
+  const art = /^[aeiou]/i.test(k.name) ? 'An' : 'A';
   return { fraga: `One ${k.name} or two?`,
            under: d.kant ? `${art} ${k.name} was at the edge of photo ${d.nr} and of photo ${nr}. If it lay in the same spot in both, you photographed the same card twice.`
                          : `${art} ${k.name} was at the edge of photo ${nr}, and one was in photo ${d.nr}. If it is the same card, you photographed it twice.`,
-           raknas: `Counted as ${bas ? lsfBlOrd(n, k.name) : lfAntal(n, 'copy', 'copies')} until you answer.`,
+           raknas: `Counted as ${bas ? lsfBlOrd(2, k.name) : '2 copies'} until you answer.`,
            en: 'One, photographed twice', tva: bas ? `Two ${lsfBlOrd(2, k.name).replace(/^2 /, '')}` : 'Two copies',
            nr1: d.nr, nr2: nr };
 }
@@ -15745,6 +15843,15 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       v = lekSlagTillampa(fore, [op]);
       if (op.typ === 'namn') { if (y.bas) ut.push({ typ: 'namn', namn: fore.namn }); continue; }
       if (op.typ === 'koll') { if (k) ut.push({ typ: 'koll', name: k.name, sb: !!op.sb, koll: k.koll || null }); continue; }
+      /* "One Swamp or two?" (MES-324): frågan tillbaka, och exemplaret One
+         tog räknas till samma foto igen. */
+      if (op.typ === 'dubbel') {
+        if (!k) continue;
+        const e = hitta(v.kort, op.name, op.sb), d = (e ? e.n : 0) - k.n;
+        ut.push({ typ: 'koll', name: k.name, sb: !!op.sb, koll: k.koll || null });
+        if (d) ut.push(Object.assign({ typ: 'antal', name: k.name, sb: !!op.sb, d: -d, kort: mallAv(k) }, k.koll && k.koll.dubbel && k.koll.dubbel.ny ? { foto: k.koll.dubbel.ny } : {}));
+        continue;
+      }
       if (op.typ === 'byt') {
         if (!k || !op.kort) continue;
         const e = hitta(fore.kort, op.kort.name, op.sb);
@@ -16863,7 +16970,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      SLUTET (lsfEn, lsfTva); ett andra tryck träffar en rad utan fråga. */
   function svaraDubbel(k, en) {
     if (!k || !k.koll || !k.koll.dubbel) return;
+    const d = k.koll.dubbel;
     andra(en ? lsfEn(k) : [lsfTva(k)]);
+    /* Svaret rensar märket på telefonens läsning av fotona här (dubbel), så
+       att basländerna följer läsningen igen: efter Two båda korten, efter One
+       det som är kvar (det tidigare fotots), medan det borttagna exemplaret
+       stannar utanför (granskningen av MES-324). */
+    for (const [fid, behall] of [[d.fid, false], [d.ny, en]]) {
+      const f = fid && y.tel.foton.get(String(fid)); if (!f || !Array.isArray(f.kort) || behall) continue;
+      const p = f.kort.find(x => x && x.name === k.name && x.dubbel);
+      if (p) delete p.dubbel;
+    }
   }
   /* Ett kort ur sökningen eller kandidaterna: slås upp, och byter raden. */
   async function knValj(key, namn) {

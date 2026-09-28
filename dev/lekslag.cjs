@@ -532,6 +532,63 @@ prov('lekSlagFotoNr: numret ur fid', () => {
   assert.deepEqual([F1, F2, '12:x', 'x', '', null].map(lekSlagFotoNr), [1, 2, 12, 0, 0, 0]);
 });
 
+/* ── MES-324: "One Swamp or two?" i leken (typ 'dubbel'), och fotobort fäller frågan ── */
+const dubbelKoll = (o = {}) => Object.assign({ las: 'Swamp', kalla: 'Photo 2', sakert: 1, dubbel: Object.assign({ fid: F1, nr: 1, ny: F2, n: 1 }, o) });
+const fraga = (o = {}) => ({ kort: [{ ...swamp, n: 2, foto: { [F1]: 1, [F2]: 1 }, koll: dubbelKoll(o) }] });
+const F2B = '2:eeeee';
+const en = { typ: 'dubbel', name: 'Swamp', sb: false, svar: 'en' }, svTva = { typ: 'dubbel', name: 'Swamp', sb: false, svar: 'tva' };
+prov('dubbel svar en: ett exemplar ur fotot frågan kom ur, frågan borta; en gång till (annat id) gör ingenting', () => {
+  let r = lekSlagTillampa(fraga(), [medId(en, 'a1')]);
+  assert.deepEqual([tal(r, 'Swamp'), fotoAv(r, 'Swamp'), r.kort[0].koll], [1, { [F1]: 1 }, undefined]);
+  r = lekSlagTillampa(r, [medId(en, 'b1')]);                          // en annan flik, innan den såg den förstas skrivning
+  assert.deepEqual([tal(r, 'Swamp'), fotoAv(r, 'Swamp')], [1, { [F1]: 1 }], 'två flikar som trycker One tar ett exemplar, inte två');
+  const bada = lekSlagTillampa(fraga(), [medId(en, 'a1'), medId(en, 'b1')]);
+  assert.equal(tal(bada, 'Swamp'), 1);
+});
+prov('dubbel svar tva: båda står kvar, frågan borta; en fråga om två exemplar räknas ned ett svar i taget', () => {
+  let r = lekSlagTillampa(fraga(), [svTva]);
+  assert.deepEqual([tal(r, 'Swamp'), fotoAv(r, 'Swamp'), r.kort[0].koll], [2, { [F1]: 1, [F2]: 1 }, undefined]);
+  r = lekSlagTillampa({ kort: [{ ...swamp, n: 3, foto: { [F1]: 1, [F2]: 2 }, koll: dubbelKoll({ n: 2 }) }] }, [en]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll.dubbel.n], [2, 1]);
+  r = lekSlagTillampa(r, [svTva]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll], [2, undefined]);
+});
+prov('dubbel svar en tar aldrig det enda exemplaret, och inte ett som fotot frågan kom ur inte har', () => {
+  let r = lekSlagTillampa({ kort: [{ ...swamp, n: 1, foto: { [F1]: 1 }, koll: dubbelKoll() }] }, [en]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll], [1, undefined], 'frågan faller, kortet står kvar');
+  r = lekSlagTillampa({ kort: [{ ...swamp, n: 2, foto: { [F1]: 2 }, koll: dubbelKoll() }] }, [en]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll], [2, undefined], 'foto 2 har inget exemplar på raden: inget dras');
+  /* Utan sakert (frågan om namnet är kvar) faller bara dubbel. */
+  r = lekSlagTillampa({ kort: [{ ...swamp, n: 2, foto: { [F1]: 1, [F2]: 1 }, koll: { las: 'Swmp', kalla: 'Photo 1', dubbel: { fid: F1, nr: 1, ny: F2, n: 1 } } }] }, [svTva]);
+  assert.deepEqual([r.kort[0].koll.las, r.kort[0].koll.dubbel], ['Swmp', undefined]);
+});
+prov('dubbel satt: på raden som den ligger — mallen utan fråga, ovanpå en fråga om namnet, och i stället för en äldre dubbel (aldrig ihop)', () => {
+  const satt = n => ({ typ: 'dubbel', name: 'Swamp', sb: false, satt: { fid: F1, nr: 1, ny: F3, n, remsa: 'r1' }, koll: { las: 'Swamp', kalla: 'Photo 3', sakert: 1, remsa: 'r3' } });
+  let r = lekSlagTillampa({ kort: [{ ...swamp, n: 2, foto: { [F1]: 1, [F3]: 1 } }] }, [satt(1)]);
+  assert.deepEqual(r.kort[0].koll, { las: 'Swamp', kalla: 'Photo 3', sakert: 1, remsa: 'r3', dubbel: { fid: F1, nr: 1, ny: F3, n: 1, remsa: 'r1' } });
+  r = lekSlagTillampa({ kort: [{ ...swamp, n: 2, foto: { [F1]: 1, [F3]: 1 }, koll: { las: 'Swmp', kalla: 'Photo 1' } }] }, [satt(1)]);
+  assert.deepEqual([r.kort[0].koll.las, r.kort[0].koll.sakert, r.kort[0].koll.dubbel.n], ['Swmp', undefined, 1], 'namnet frågas först: sakert sätts inte');
+  r = lekSlagTillampa(fraga({ n: 1, ny: F2 }), [satt(1)]);
+  assert.deepEqual([r.kort[0].koll.dubbel.n, r.kort[0].koll.dubbel.ny], [1, F3], 'en äldre fråga byts, talen läggs inte ihop');
+  assert.equal(lekSlagTillampa({ kort: [] }, [satt(1)]).kort.length, 0, 'ingen rad: ingenting');
+});
+prov('fotobort på ett av frågans foton fäller frågan: One kan inte ta det enda exemplaret efter Retake eller Remove photo', () => {
+  /* Retake photo 2 utan kantkortet: nya fotots kort, sist fotobort(F2). */
+  let r = lekSlagTillampa(fraga(), [ff(mtn, 1, F2B), fb(F2)]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort.find(k => k.name === 'Swamp').koll], [1, undefined]);
+  r = lekSlagTillampa(r, [en]);
+  assert.equal(tal(r, 'Swamp'), 1, 'One efteråt gör ingenting');
+  /* Remove photo 1 (det tidigare fotot) fäller den också. */
+  r = lekSlagTillampa(fraga(), [fb(F1)]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll], [1, undefined]);
+  /* Ett tredje foto tas bort: frågan står kvar. */
+  r = lekSlagTillampa(fraga(), [fb(F3)]);
+  assert.ok(r.kort[0].koll && r.kort[0].koll.dubbel);
+  /* Utan sakert faller bara dubbel. */
+  r = lekSlagTillampa({ kort: [{ ...swamp, n: 2, foto: { [F1]: 1, [F2]: 1 }, koll: { las: 'Swmp', kalla: 'Photo 1', dubbel: { fid: F1, nr: 1, ny: F2, n: 1 } } }] }, [fb(F2)]);
+  assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll.las, r.kort[0].koll.dubbel], [1, 'Swmp', undefined]);
+});
+
 for (const r of [...ok, ...fel]) console.log(r);
 console.log(`\nlekslag: ${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);

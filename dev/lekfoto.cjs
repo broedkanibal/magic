@@ -847,6 +847,110 @@ async function sidaMProv(fil) {
     inga(x);
     assert.deepEqual([x.ctx.fall.fore, x.ctx.fall.efter, x.l.totalt, x.lista[1].lage], [3, 5, 5, 'klar']);
   });
+
+  /* ── Granskningen av MES-324 (G1–G4, G6): frågan får aldrig ta det enda exemplaret ── */
+  const radAv = (ctx, n) => ctx.server.rad.kort.find(k => k.name === n);
+  /* Datorns "One, photographed twice": LEKSLAG:s vaktade ändring (lsfEn). */
+  const svaraEn = ctx => ctx.datorn([{ typ: 'dubbel', name: 'Sol Ring', sb: false, svar: 'en' }]);
+  const F1 = { kort: [SOL, SIG, THA, post('Plains', 500, 500)], otydliga: 0 };
+  const F2 = { kort: [post('Sol Ring', 1000, 240), post('Plains', 500, 360)], otydliga: 0 };   // Sol Ring kapat vid högerkanten (LB2)
+  const F2b = { kort: [post('Plains', 500, 360)], otydliga: 0 };                                // omtaget: Sol Ring utanför bilden
+  x = await kor(async (app, ctx) => { await foto(app, ctx, TRE); omtag(ctx, 1); await foto(app, ctx, TRE); });
+  prov('G1 Retake photo 1 med samma tre kort: omtaget får inte LB1 mot fotot det ersätter', () => {
+    inga(x);
+    assert.equal(x.lista[1].igen, null);
+    assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [1, 'klar']]);
+    assert.equal(x.l.totalt, 3);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, F1); await foto(app, ctx, F2);
+    ctx.fall.fore = kopia(radAv(ctx, 'Sol Ring'));
+    omtag(ctx, 2); await foto(app, ctx, F2b);
+    ctx.fall.efter = kopia(radAv(ctx, 'Sol Ring'));
+    svaraEn(ctx);
+  });
+  prov('G2 LB2 på foto 2, sedan Retake photo 2 utan kantkortet: frågan faller med fotot, och One tar inte det enda Sol Ring', () => {
+    inga(x);
+    assert.ok(x.ctx.fall.fore.koll && x.ctx.fall.fore.koll.dubbel, 'frågan fanns efter foto 2');
+    assert.equal(x.ctx.fall.efter.koll, undefined, 'frågan är borta med fotot');
+    assert.equal(x.ctx.fall.efter.n, 1);
+    assert.equal(x.tal('Sol Ring'), 1, 'One efteråt tar inget');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, F1); await foto(app, ctx, F2);
+    omtag(ctx, 2); await foto(app, ctx, F2);
+    ctx.fall.rad = kopia(radAv(ctx, 'Sol Ring'));
+    svaraEn(ctx); ctx.fall.efterEtt = kopia(radAv(ctx, 'Sol Ring'));
+    svaraEn(ctx);
+  });
+  prov('G3 LB2 på foto 2, sedan Retake photo 2 med kantkortet igen: frågan gäller ETT exemplar; två One tar inte båda', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.rad.n, 2);
+    assert.equal(x.ctx.fall.rad.koll.dubbel.n, 1, 'inget läggs ihop med det ersatta fotots fråga');
+    assert.equal(x.ctx.fall.rad.koll.dubbel.fid, x.lista[0].fid, 'frågan gäller foto 1, inte det ersatta fotot 2');
+    assert.deepEqual([x.ctx.fall.efterEtt.n, x.ctx.fall.efterEtt.koll], [1, undefined]);
+    assert.equal(x.tal('Sol Ring'), 1, 'det andra One gör ingenting');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, F1); await foto(app, ctx, F2);
+    ctx.datorn([{ typ: 'dubbel', name: 'Sol Ring', sb: false, svar: 'tva' }]);        // datorn svarar Two Sol Rings
+    await foto(app, ctx, { kort: [post('Sol Ring', 5, 240), post('Plains', 500, 360)], otydliga: 0 });   // foto 3: ett Sol Ring vid vänsterkanten
+    ctx.fall.rad = kopia(radAv(ctx, 'Sol Ring'));
+    svaraEn(ctx); ctx.fall.efterEtt = kopia(radAv(ctx, 'Sol Ring'));
+    svaraEn(ctx);
+  });
+  prov('G4 datorn svarade Two på foto 2:s fråga, foto 3 får ett nytt kantkort: frågan gäller ett exemplar fast telefonens bas är gammal', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.rad.n, 3);
+    assert.equal(x.ctx.fall.rad.koll.dubbel.n, 1);
+    assert.deepEqual([x.ctx.fall.efterEtt.n, x.ctx.fall.efterEtt.koll], [2, undefined]);
+    assert.equal(x.tal('Sol Ring'), 2, 'det andra One gör ingenting');
+  });
+  /* G6 (design): fyra av varje kort. Foto 2 har tolv riktiga nya exemplar ur samma playsets som foto 1. */
+  {
+    const app = ladda(fil)(nyCtx(null));
+    const k = (n, i) => ({ name: n, las: n, x: 500, y: 100 + 60 * i });
+    const f1 = { fid: '1:a', nr: 1, lage: 'klar', kort: ['Lightning Bolt', 'Lightning Bolt', 'Monastery Swiftspear', 'Monastery Swiftspear', 'Lava Spike', 'Lava Spike', 'Lava Spike', 'Rift Bolt', 'Rift Bolt', 'Rift Bolt', 'Skewer the Critics', 'Skewer the Critics'].map(k) };
+    const f2 = { fid: '2:b', nr: 2, lage: 'klar', kort: ['Lightning Bolt', 'Lightning Bolt', 'Monastery Swiftspear', 'Monastery Swiftspear', 'Lava Spike', 'Rift Bolt', 'Skewer the Critics', 'Skewer the Critics', 'Boros Charm', 'Boros Charm', 'Boros Charm', 'Boros Charm'].map(k) };
+    prov('G6 fyra av varje kort: foto 2 med tolv riktiga nya exemplar ur samma playsets (8 av 12 namn lika) får ingen LB1', () => {
+      assert.equal(app.telfotoDubbla(f2, [f1]).igen, null);
+    });
+    /* Slumpade nya uppläggningar av samma fyra-av-lek: namnen räcker till LB1
+       i vart femte fall, platsen gör det aldrig. */
+    let s = 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const namn = ['Lightning Bolt', 'Monastery Swiftspear', 'Lava Spike', 'Rift Bolt', 'Skewer the Critics', 'Boros Charm', 'Goblin Guide', 'Eidolon of the Great Revel', 'Light Up the Stage', 'Searing Blaze', 'Mountain', 'Mountain'];
+    const lek = namn.flatMap(n => [n, n, n, n]);
+    const slot = i => ({ x: 170 + (i % 3) * 330, y: 120 + Math.floor(i / 3) * 180 });
+    let larm = 0;
+    for (let varv = 0; varv < 40; varv++) {
+      const bl = lek.slice().sort(() => rnd() - 0.5);
+      const A = { fid: '1:a', nr: 1, lage: 'klar', kort: bl.slice(0, 12).map((n, i) => Object.assign({ name: n, las: n }, slot(i))) };
+      const B = { fid: '2:b', nr: 2, lage: 'klar', kort: bl.slice(12, 24).map((n, i) => Object.assign({ name: n, las: n }, slot(i))) };
+      if (app.telfotoDubbla(B, [A]).igen) larm++;
+    }
+    prov('fyra av varje kort, 40 slumpade nya uppläggningar om tolv: ingen LB1', () => { assert.equal(larm, 0); });
+    /* Samma bord igen, fotat en aning förskjutet och med ett kort läst annorlunda: LB1. */
+    const bord = ['Lightning Bolt', 'Monastery Swiftspear', 'Lava Spike', 'Rift Bolt', 'Skewer the Critics', 'Boros Charm', 'Goblin Guide', 'Eidolon of the Great Revel', 'Light Up the Stage', 'Searing Blaze', 'Mountain', 'Mountain'];
+    const A2 = { fid: '1:a', nr: 1, lage: 'klar', kort: bord.map((n, i) => Object.assign({ name: n, las: n }, slot(i))) };
+    const B2 = { fid: '2:b', nr: 2, lage: 'klar', kort: bord.map((n, i) => { const p = slot(i); return { name: i === 4 ? 'Shock' : n, las: n, x: p.x + 60 + Math.round(20 * Math.sin(i)), y: p.y - 40 + (i % 3) * 15 }; }) };
+    prov('samma bord fotat igen, förskjutet 60 tusendelar och ett kort läst annorlunda: LB1 mot foto 1 med 11 kort på samma plats', () => {
+      assert.deepEqual(app.telfotoDubbla(B2, [A2]).igen, { fid: '1:a', nr: 1, n: 11 });
+    });
+  }
+  /* LB2 på två riktiga exemplar vid kanten: frågan ställs (det går inte att
+     veta), och Two behåller båda. Omätt på riktiga foton: lekgoldens kantkort
+     får inga namn. */
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { kort: [SOL, post('Plains', 500, 500)], otydliga: 0 });
+    await foto(app, ctx, { kort: [post('Plains', 1000, 300), post('Counterspell', 500, 300)], otydliga: 0 });   // ett riktigt andra Plains, vid kanten
+    ctx.fall.rad = kopia(radAv(ctx, 'Plains'));
+    ctx.datorn([{ typ: 'dubbel', name: 'Plains', sb: false, svar: 'tva' }]);
+  });
+  prov('LB2 på två riktiga exemplar vid kanten: frågan ställs, räknas som två tills man svarar, och Two behåller båda', () => {
+    inga(x);
+    assert.deepEqual([x.ctx.fall.rad.n, !!x.ctx.fall.rad.koll.dubbel], [2, true]);
+    assert.deepEqual([x.tal('Plains'), radAv(x.ctx, 'Plains').koll], [2, undefined]);
+  });
 }
 
 /* ── lekSparaKo direkt: kön växer mellan försöken ─────────────────── */

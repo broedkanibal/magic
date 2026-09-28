@@ -48,6 +48,7 @@ Körs från repots rot. Kräver Chrome och `ANTHROPIC_API_KEY` i `.env.local`.
 | `node dev/lekgolden/kor.cjs --beskarningar /tmp/dukar` | sparar dukarna som skickades till Claude — titta på dem när ett foto blir fel |
 | `node dev/lekgolden/kor.cjs --skarm 390x844` | telefonskärmen som kamerans ram räknas på (förval 390×844) |
 | `ANTHROPIC_MODEL=claude-sonnet-5 node dev/lekgolden/kor.cjs` | en annan modell — får egna svar i cachen; raden `metod:` visar vilken |
+| `node dev/lekgolden/tvafoton.cjs [--detalj]` | samma kort i två foton (MES-324), ur cachen utan Chrome eller Claude: LB1 (hela fotot igen) som falsklarm i seten, på samma svar två gånger och på riktiga andrafoton av samma bord; LB2 (kort vid kanten) som fångade kantkort och onödiga frågor |
 
 Slutkod 1 om något blev sämre än baslinjen, 2 om körningen inte gick att göra.
 
