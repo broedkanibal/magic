@@ -331,12 +331,13 @@ function underlag(kalla, filer, leknamn) {
       // millade kort: i graveyard, men inget manuset själv lägger där ("X till graveyard") — namngivna (Hooded Blightfang) eller okända
       const gravNamn = new Set(manus.map(r => (/^(.+) till graveyard$/.exec(r.text) || [])[1]).filter(Boolean));
       const okanda = l => l.kort.filter(k => k.zon === 'grav' && !gravNamn.has(String(k.namn || '').trim())).length;
-      const nyckel = JSON.stringify(lista.map(l => [l.nr, okanda(l), l.kort.filter(iSpel).map(k => k.namn + (tappad && tappad(k) ? '*' : '')).sort()]));
+      const nyckel = JSON.stringify(lista.map(l => [l.nr, okanda(l), l.kort.filter(k => k.zon === 'grav').map(k => k.namn).sort(), l.kort.filter(iSpel).map(k => k.namn + (tappad && tappad(k) ? '*' : '')).sort()]));
       if (nyckel === ritNyckel) return;
       ritNyckel = nyckel;
       const extra = [], anvand = new Set(), tappAnvand = new Map();
       const nasta = (falt, namn) => { const i = manus.findIndex((r, k) => !anvand.has(k) && r[falt] === namn); if (i >= 0) anvand.add(i); return i; };
-      let forra = {}, forraT = {}, forraO = 0;
+      let forra = {}, forraT = {}, forraO = 0, forraG = {};
+      const gravAv = l => { const g = {}; for (const k of l.kort) if (k.zon === 'grav' && String(k.namn || '').trim()) g[k.namn] = (g[k.namn] || 0) + 1; return g; };
       for (const l of lista) {
         const f = forslagSteg(steg)[l.nr - 1]; if (!f) continue;
         const nu = {}, nuT = {};
@@ -378,7 +379,15 @@ function underlag(kalla, filer, leknamn) {
           const m = /^mill (\d+)$/.exec(manus[i].text); if (!m || anvand.has(i)) continue;
           anvand.add(i); extra.push({ s: f.steg, r: i }); fler -= +m[1];
         }
-        forra = nu; forraT = nuT; forraO = okanda(l);
+        /* Graveyard: ett namn som lämnat högen sedan förra ritade läget låser
+           nästa oanvända "X från graveyard …"-rad hit (Jesper grävde fram
+           Gorgon Flail mellan läge 59 och 60, och parningen gissade 59). */
+        const nuG = gravAv(l);
+        for (const n of Object.keys(forraG)) for (let q = (forraG[n] || 0) - (nuG[n] || 0); q > 0; q--) {
+          const i = manus.findIndex((r, k) => k < grans && !anvand.has(k) && r.text.startsWith(n + ' från graveyard'));
+          if (i >= 0) { anvand.add(i); extra.push({ s: f.steg, r: i }); }
+        }
+        forra = nu; forraT = nuT; forraO = okanda(l); forraG = nuG;
       }
       parning(extra);
     },
