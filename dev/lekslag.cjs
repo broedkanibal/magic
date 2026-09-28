@@ -7,7 +7,8 @@ const fs = require('fs'), path = require('path'), assert = require('assert');
 const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const a = src.indexOf('/* ══ BLOCK: LEKSLAG'), b = src.indexOf('/* ══ SLUT: LEKSLAG ══ */');
 if (a < 0 || b < 0 || b < a) { console.error('hittar inte LEKSLAG i index.html'); process.exit(2); }
-const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort, lekSlagKlaraEfter, LEK_KLARA_TAK } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort: typeof lekOkandKort === "function" ? lekOkandKort : null, lekSlagKlaraEfter, LEK_KLARA_TAK };')();
+const { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort, lekSlagKlaraEfter, LEK_KLARA_TAK,
+  lekSlagFotoAv, lekSlagFotoTillbaka, lekSlagFotoNr } = new Function(src.slice(a, b) + '\nreturn { lekSlagTillampa, lekSlagSummor, lekSlagSids, lekNyssKvar, lekOkandKort: typeof lekOkandKort === "function" ? lekOkandKort : null, lekSlagKlaraEfter, LEK_KLARA_TAK, lekSlagFotoAv, lekSlagFotoTillbaka, lekSlagFotoNr };')();
 
 const ok = [], fel = [];
 const prov = (namn, f) => { try { f(); ok.push('OK   ' + namn); } catch (e) { fel.push('FEL  ' + namn + ' — ' + e.message); } };
@@ -335,6 +336,154 @@ prov(`lekSlagKlaraEfter: kapas till de senaste ${LEK_KLARA_TAK}, men kön som sp
   const stor = Array.from({ length: LEK_KLARA_TAK + 50 }, (_, i) => ({ id: 'q' + i }));
   const k2 = lekSlagKlaraEfter({ klara: gamla }, stor);
   assert.equal(k2.length, LEK_KLARA_TAK + 50); assert.ok(stor.every(op => k2.includes(op.id)));
+});
+
+/* ── Lekfotot: vilket foto ett exemplar kom ur (MES-321) ──────────────
+   foto: {fid: n} på raden, antal-ändringar med foto, och fotobort. Frågan
+   varje fall svarar på: tar Remove photo, Undo och Retake bort och lägger
+   tillbaka EXAKT fotots exemplar — inget kort två gånger, inget försvinner —
+   också när ett kort bytt namn eller en annan enhet sparat emellan? */
+const F1 = '1:aaaaa', F1B = '1:bbbbb', F2 = '2:ccccc', F3 = '3:ddddd';
+const swamp = K('Swamp', 'sw'), sol = K('Sol Ring', 'sr');
+const ff = (k, n, fid, koll) => ({ typ: 'antal', name: k.name, sb: false, d: n, kort: koll ? { ...k, koll } : { ...k }, foto: fid });
+const fb = fid => ({ typ: 'fotobort', foto: fid });
+const tal = (r, n, sb) => { const k = r.kort.find(x => x.name === n && !!x.sb === !!sb); return k ? k.n : 0; };
+const fotoAv = (r, n) => (r.kort.find(x => x.name === n) || {}).foto;
+/* Foto 1: 2 Swamp, Bolt, platshållare. Foto 2: 1 Swamp, Helix. */
+const P1 = lekOkandKort('', 'Photo 1', 'data:r1', 'p1');
+const tva = () => lekSlagTillampa({ namn: 'Deck', kort: [{ ...sol, n: 1 }] },
+  [ff(swamp, 2, F1), ff(bolt, 1, F1), ff(P1, 1, F1), ff(swamp, 1, F2), ff(helix, 1, F2)]);
+
+prov('foto: ett tillägg ur ett foto bär fotot; samma kort i två foton räknas per foto', () => {
+  const r = tva();
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F1]: 2, [F2]: 1 });
+  assert.deepEqual(fotoAv(r, 'Lightning Bolt'), { [F1]: 1 });
+  assert.equal(fotoAv(r, 'Sol Ring'), undefined, 'kortet lagt för hand har inget foto');
+  assert.deepEqual([...lekSlagFotoAv(r.kort)].sort(), [[F1, 4], [F2, 2]]);
+});
+prov('fotobort: fotots exemplar ur varje rad; andra fotons och handlagda står kvar', () => {
+  const r = lekSlagTillampa(tva(), [fb(F1)]);
+  assert.deepEqual(lista(r), ['1 Lightning Helix', '1 Sol Ring', '1 Swamp']);
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F2]: 1 });
+  assert.ok(!r.kort.some(k => k.okand), 'platshållaren ur foto 1 är borta');
+  assert.deepEqual(lekSlagSummor(r.kort), { main: 3, sb: 0 });
+});
+prov('fotobort: okänt foto, rader utan foto och en gammal lek utan fältet rörs inte', () => {
+  const gammal = { namn: 'Old', kort: [{ ...bolt, n: 4 }, { ...mtn, n: 16 }] };
+  const r = lekSlagTillampa(gammal, [fb(F3), fb(''), { typ: 'fotobort' }]);
+  assert.deepEqual(lista(r), ['16 Mountain', '4 Lightning Bolt']);
+  assert.ok(r.kort.every(k => !('foto' in k)), 'inget tomt foto-fält skrivs');
+});
+prov('fotobort: ett exemplar borttaget för hand först, raden går aldrig under noll', () => {
+  const r = lekSlagTillampa(tva(), [{ typ: 'antal', name: 'Swamp', sb: false, d: -2 }, fb(F1), fb(F2)]);
+  assert.equal(tal(r, 'Swamp'), 0, 'tre Swamp, två bort för hand, sedan båda fotona: ingen kvar');
+  assert.ok(!r.kort.some(k => k.n <= 0), 'ingen rad med noll eller mindre');
+});
+prov('byt: det kollade namnet behåller fotot, och Remove photo tar det nya namnet', () => {
+  const r = lekSlagTillampa(tva(), [{ typ: 'byt', name: P1.name, sb: false, kort: { ...mtn } }]);
+  assert.deepEqual(fotoAv(r, 'Mountain'), { [F1]: 1 });
+  assert.equal(tal(lekSlagTillampa(r, [fb(F1)]), 'Mountain'), 0);
+});
+prov('byt: in i ett kort som redan fanns slås fotona ihop; ett ångrat byte tar inte mallens foto', () => {
+  const r = lekSlagTillampa(tva(), [{ typ: 'byt', name: P1.name, sb: false, kort: { ...swamp } }]);
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F1]: 3, [F2]: 1 });
+  const b = lekSlagTillampa(tva(), [{ typ: 'byt', name: 'Lightning Bolt', sb: false, kort: { ...charm, foto: { [F3]: 9 } } }]);
+  assert.deepEqual(fotoAv(b, 'Boros Charm'), { [F1]: 1 }, 'raden behåller sina egna foton');
+});
+prov('sb: fotot följer med raden till sideboarden och slås ihop där', () => {
+  const r = lekSlagTillampa(tva(), [ff(swamp, 1, F3), { typ: 'sb', name: 'Swamp', sb: false, till: true }]);
+  assert.equal(tal(r, 'Swamp', true), 4);
+  assert.deepEqual(r.kort.find(k => k.name === 'Swamp' && k.sb).foto, { [F1]: 2, [F2]: 1, [F3]: 1 });
+  assert.equal(tal(lekSlagTillampa(r, [fb(F1)]), 'Swamp', true), 2);
+});
+prov('Undo av Remove photo: lekSlagFotoTillbaka ger tillbaka exakt det som togs, med foto', () => {
+  const fore = tva();
+  const angra = lekSlagFotoTillbaka(fore.kort, F1);
+  assert.equal(angra.reduce((s, o) => s + o.d, 0), 4);
+  assert.ok(angra.every(o => o.typ === 'antal' && o.foto === F1));
+  const r = lekSlagTillampa(lekSlagTillampa(fore, [fb(F1)]), angra);
+  assert.deepEqual(lista(r), lista(fore));
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F2]: 1, [F1]: 2 });
+  assert.ok(r.kort.find(k => k.okand && k.koll && k.koll.remsa === 'data:r1'), 'platshållaren med sin remsa');
+});
+prov('Undo av Remove photo: det kollade namnet kommer tillbaka, inte platshållaren', () => {
+  const fore = lekSlagTillampa(tva(), [{ typ: 'byt', name: P1.name, sb: false, kort: { ...mtn } }]);
+  const bort = lekSlagTillampa(fore, [fb(F1)]);
+  assert.equal(tal(bort, 'Mountain'), 0, 'Remove photo 1 tar det kollade namnet');
+  const r = lekSlagTillampa(bort, lekSlagFotoTillbaka(fore.kort, F1));
+  assert.equal(tal(r, 'Mountain'), 1);
+  assert.deepEqual(fotoAv(r, 'Mountain'), { [F1]: 1 });
+  assert.ok(!r.kort.some(k => k.okand));
+});
+prov('Undo av Remove photo är exakt också när ett exemplar tagits bort för hand (n mindre än fotonas summa)', () => {
+  /* Granskningen av MES-321: Swamp n=1, foto {F1:2, F2:1}. Remove F1 tog raden,
+     och Undo gav tillbaka foto {F1:1} — F2:s exemplar försvann ur bokföringen. */
+  const fore = lekSlagTillampa({ kort: [{ ...swamp, n: 1, foto: { [F1]: 2, [F2]: 1 } }] }, []);
+  const bort = lekSlagTillampa(fore, [fb(F1)]);
+  assert.equal(bort.kort.length, 0);
+  const r = lekSlagTillampa(bort, lekSlagFotoTillbaka(fore.kort, F1));
+  assert.equal(tal(r, 'Swamp'), 1);
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F1]: 2, [F2]: 1 });
+  /* Raden står kvar efter Remove (tre exemplar, ett borttaget för hand). */
+  const fore2 = lekSlagTillampa(tva(), [{ typ: 'antal', name: 'Swamp', sb: false, d: -1 }]);
+  const r2 = lekSlagTillampa(lekSlagTillampa(fore2, [fb(F1)]), lekSlagFotoTillbaka(fore2.kort, F1));
+  assert.deepEqual([tal(r2, 'Swamp'), fotoAv(r2, 'Swamp')], [2, { [F1]: 2, [F2]: 1 }]);
+});
+/* Retake av foto 1 (F1 → F1B): nya fotot läser 2 Swamp och Bolt, och den
+   oläsliga är nu Mountain. Kön: det nya fotots tillägg, SIST fotobort(F1). */
+const omtag = [ff(swamp, 2, F1B), ff(bolt, 1, F1B, { las: 'Lightnig Bolt', kalla: 'Photo 1' }), ff(mtn, 1, F1B), fb(F1)];
+prov('Retake: det gamla fotots kort byts mot det nyas, inga dubbletter, foto 2 orört', () => {
+  const r = lekSlagTillampa(tva(), omtag);
+  assert.deepEqual(lista(r), ['1 Lightning Bolt', '1 Lightning Helix', '1 Mountain', '1 Sol Ring', '3 Swamp']);
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F2]: 1, [F1B]: 2 });
+  assert.ok(!r.kort.some(k => k.okand), 'den gamla platshållaren är borta');
+});
+prov('Retake: ett kort i båda fotona behåller sin rad och det man kollat (koll sätts inte om)', () => {
+  const kollad = lekSlagTillampa(tva(), [{ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: null }]);
+  const r = lekSlagTillampa(kollad, omtag);
+  const b = r.kort.find(k => k.name === 'Lightning Bolt');
+  assert.equal(b.koll, undefined);
+  assert.deepEqual([b.n, b.foto], [1, { [F1B]: 1 }], 'en Bolt, ur omtaget: det gamla fotots exemplar är borta');
+});
+prov('Retake: kön uppspelad två gånger på sin egen skrivning (klara) ger samma lek', () => {
+  const ko = omtag.map((op, i) => medId(op, 'om' + i));
+  const r1 = lekSlagTillampa(tva(), ko);
+  assert.deepEqual(lista(r1), ['1 Lightning Bolt', '1 Lightning Helix', '1 Mountain', '1 Sol Ring', '3 Swamp'], 'omtaget ersatte foto 1');
+  const skriven = Object.assign({}, r1, { klara: lekSlagKlaraEfter({}, ko) });
+  assert.deepEqual(lista(lekSlagTillampa(skriven, ko)), lista(r1));
+});
+prov('Retake i konflikt: datorn tog bort foto 1 under tiden — bara det nya fotots kort, inget dubbelt', () => {
+  const r = lekSlagTillampa(lekSlagTillampa(tva(), [fb(F1)]), omtag);
+  assert.deepEqual(lista(r), ['1 Lightning Bolt', '1 Lightning Helix', '1 Mountain', '1 Sol Ring', '3 Swamp']);
+});
+prov('Undo av Retake: gamla fotots rader tillbaka och SIST det nyas bort ger leken före omtaget', () => {
+  const fore = tva();
+  const r = lekSlagTillampa(lekSlagTillampa(fore, omtag), [...lekSlagFotoTillbaka(fore.kort, F1), fb(F1B)]);
+  assert.deepEqual(lista(r), lista(fore));
+  assert.deepEqual(lekSlagFotoAv(r.kort), lekSlagFotoAv(fore.kort));
+});
+prov('konflikt: en annan enhet lade ett exemplar ur foto 3 under tiden — fotobort(1) tar bara foto 1:s', () => {
+  const nyare = lekSlagTillampa(tva(), [ff(bolt, 1, F3)]);
+  const r = lekSlagTillampa(nyare, [fb(F1)]);
+  assert.equal(tal(r, 'Lightning Bolt'), 1);
+  assert.deepEqual(fotoAv(r, 'Lightning Bolt'), { [F3]: 1 });
+});
+prov('en äldre rad med dubbletter: fotona läggs ihop när raderna slås ihop', () => {
+  const r = lekSlagTillampa({ kort: [{ ...swamp, n: 1, foto: { [F1]: 1 } }, { ...swamp, n: 2, foto: { [F1]: 1, [F2]: 1 } }] }, []);
+  assert.deepEqual(lista(r), ['3 Swamp']);
+  assert.deepEqual(fotoAv(r, 'Swamp'), { [F1]: 2, [F2]: 1 });
+});
+prov('foto: raden ändras inte av uppspelningen, och skräp i fältet städas bort', () => {
+  const bas = { kort: [{ ...swamp, n: 2, foto: { [F1]: 2, x: 0, y: -1, z: 'a' } }] };
+  const fore = JSON.stringify(bas);
+  const r = lekSlagTillampa(bas, [ff(swamp, 1, F2), fb(F1), ff(swamp, -1, F2)]);
+  assert.equal(JSON.stringify(bas), fore);
+  assert.equal(tal(r, 'Swamp'), 0);
+  const s = lekSlagTillampa(bas, []);
+  assert.deepEqual(fotoAv(s, 'Swamp'), { [F1]: 2 });
+});
+prov('lekSlagFotoNr: numret ur fid', () => {
+  assert.deepEqual([F1, F2, '12:x', 'x', '', null].map(lekSlagFotoNr), [1, 2, 12, 0, 0, 0]);
 });
 
 for (const r of [...ok, ...fel]) console.log(r);

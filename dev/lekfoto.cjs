@@ -59,7 +59,7 @@ function laddaSrc(src, namn = 'index.html') {
 const MANA_ORD = ['W', 'U', 'B', 'R', 'G', 'C'];
 const lekKortData = () => null;
 const telfoto = ctx.telfoto;
-const aiEnabled = () => true;
+const aiEnabled = () => typeof ctx.ai === 'function' ? ctx.ai() : ctx.ai !== false;
 const AI_ENDPOINT = '/api/identify';
 const fetch = (...a) => ctx.fetch(...a);
 const bokforDatorAi = () => {};
@@ -76,7 +76,13 @@ const uid = () => Math.random().toString(36).slice(2, 9) + 'abc';
 `;
   return new Function('ctx', miljo + kod + `
 return { lekSlagTillampa, lekSlagSummor, lekFargerAv, lekSparaKo, telfotoLas,
-  telfotoIgen: typeof telfotoIgen === 'function' ? telfotoIgen : null };`);
+  telfotoIgen: typeof telfotoIgen === 'function' ? telfotoIgen : null,
+  telfotoSummera: typeof telfotoSummera === 'function' ? telfotoSummera : null,
+  telfotoNasta: typeof telfotoNasta === 'function' ? telfotoNasta : null,
+  telfotoFotoUrLeken: typeof telfotoFotoUrLeken === 'function' ? telfotoFotoUrLeken : null,
+  telfotoOmtagMal: typeof telfotoOmtagMal === 'function' ? telfotoOmtagMal : null,
+  telfotoFotoBort: typeof telfotoFotoBort === 'function' ? telfotoFotoBort : null,
+  telfotoFotoAter: typeof telfotoFotoAter === 'function' ? telfotoFotoAter : null };`);
 }
 const ladda = fil => laddaSrc(fs.readFileSync(fil, 'utf8'), fil);
 
@@ -98,9 +104,17 @@ function nyCtx(app0) {
   const ctx = { telfoto: {}, kanal: [], steg: [], svar: [], las: 0 };
   let klocka = 1000;
   ctx.server = { rad: { id: 'lek1', namn: 'Boros', kort: [], farger: [], antal: 0, ts: klocka }, fel: [], nereLas: 0, skrivna: 0 };
+  /* Läsningen. {kast: true}: nätet föll (fetch kastar); {status: 500}: servern
+     svarade med ett fel. Båda är LD1 på telefonen (MES-321). */
+  ctx.anrop = 0;
   ctx.fetch = async () => {
+    ctx.anrop++;
     const s = ctx.svar.shift();
     if (!s) throw new Error('inget svar kvar i provet');
+    /* under: något som händer medan fotot läses (datorn tar bort fotot, trycker Finish). */
+    if (typeof s.under === 'function') s.under(ctx);
+    if (s.kast) throw new TypeError('Failed to fetch');
+    if (s.status) return { ok: false, status: s.status, json: async () => ({ error: 'Error ' + s.status }) };
     return { ok: true, status: 200, json: async () => kopia(s) };
   };
   ctx.lookup = async namn => {
@@ -118,6 +132,8 @@ function nyCtx(app0) {
      skriva) svarade den riktiga före decks.klara; det står kvar för --mot
      mot en äldre index.html, och dagens kod läser det inte. */
   ctx.lekSpara = async (id, data, sedd) => {
+    if (ctx.server.borta) return { ok: false, borta: true };      // leken togs bort på datorn (LD3)
+    if (typeof ctx.server.innanSpara === 'function') { const f = ctx.server.innanSpara; ctx.server.innanSpara = null; f(ctx); }
     const f = ctx.server.fel.shift(), rad = ctx.server.rad;
     const ts = ++klocka;
     if (f === 'nere') return { ok: false, fel: 'TypeError: Failed to fetch', forsok: ts };
@@ -143,11 +159,15 @@ function nyCtx(app0) {
 /* Telefonens vy för en lek: som telfotoOppna, med raden hämtad. */
 function oppna(ctx) {
   Object.assign(ctx.telfoto, { id: 'lek1', bas: kopia(ctx.server.rad), namn: 'Boros', steg: 'ansluten', foto: 1,
-    sista: null, fel: '', laser: false, osparat: null });
+    sista: null, fel: '', laser: false, osparat: null, foton: [], visar: null, omtag: null, vantar: null });
 }
 const KALLA = { canvas: {}, box: { x: 0, y: 0, w: 1, h: 1 }, hogar: 5 };
 const post = (namn, x, y, sakerhet = 'hog') => ({ namn, x, y, sakerhet });
 
+/* Visar telefonen ett fel: den gamla felskärmen, eller sida M:s LD1–LD4
+   (ett foto som inte kom fram, inte sparades, AI av, leken borta). */
+const FELLAGEN = ['ejskickat', 'ejsparat', 'av', 'borta'];
+const felskarm = ctx => ctx.telfoto.steg === 'fel' || (ctx.telfoto.steg === 'resultat' && !!ctx.telfoto.sista && FELLAGEN.includes(ctx.telfoto.sista.lage));
 /* Ett foto som telefonen tar: svaret ställs i kö och telfotoLas körs. */
 async function foto(app, ctx, svar) { ctx.svar.push(svar); await app.telfotoLas(KALLA); }
 /* Felskärmens Try again. Efter: sparar det lästa fotot igen. Före fanns inget
@@ -191,11 +211,12 @@ const FALL = [
   { id: 'olasligt-uppslag', namn: 'inget av namnen gick att slå upp (404, nätfel)',
     poster: 2, facit: {},
     kor: async (app, ctx) => foto(app, ctx, { kort: [post('Blixtpil', 170, 120, 'lag'), post('Brainstorm', 170, 240)], otydliga: 0 }) },
-  { id: 'olasligt-omtag', namn: 'oläsligt foto, sedan taget om',
+  { id: 'olasligt-omtag', namn: 'oläsligt foto, sedan taget om (LC4 → Retake photo 1)',
     poster: 3, facit: TRE_FACIT,
     kor: async (app, ctx) => {
       await foto(app, ctx, OLASLIGT);
-      ctx.fall.felskarm = ctx.telfoto.steg === 'fel';
+      ctx.fall.forst = ctx.telfoto.sista.lage;
+      ctx.telfoto.omtag = ctx.telfoto.sista.fid;          // Retake photo 1
       await foto(app, ctx, TRE);
     } },
   { id: 'kapade', namn: 'fler kort än servern tar emot (kapade) + två tomma',
@@ -216,7 +237,8 @@ const FALL = [
     kor: async (app, ctx) => {
       ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
       await foto(app, ctx, TRE);
-      ctx.fall.felskarm = ctx.telfoto.steg === 'fel';
+      ctx.fall.felskarm = felskarm(ctx);
+      ctx.fall.lage = ctx.telfoto.sista && ctx.telfoto.sista.lage;
       ctx.fall.igen = await igen(app, ctx, TRE);
     } },
   { id: 'tappat-uppe', namn: 'nätfel efter att raden skrevs, nätet uppe igen',
@@ -224,7 +246,7 @@ const FALL = [
     kor: async (app, ctx) => {
       ctx.server.fel.push('tappat');
       await foto(app, ctx, TRE);
-      ctx.fall.felskarm = ctx.telfoto.steg === 'fel';
+      ctx.fall.felskarm = felskarm(ctx);
       if (ctx.fall.felskarm) ctx.fall.igen = await igen(app, ctx, TRE);
     } },
   { id: 'nere', namn: 'nätfel innan något skrevs → Try again',
@@ -232,7 +254,7 @@ const FALL = [
     kor: async (app, ctx) => {
       ctx.server.fel.push('nere');
       await foto(app, ctx, TRE);
-      ctx.fall.felskarm = ctx.telfoto.steg === 'fel';
+      ctx.fall.felskarm = felskarm(ctx);
       ctx.fall.igen = await igen(app, ctx, TRE);
     } },
   { id: 'tomma-tappat', namn: 'tomma namn + nätfel efter att raden skrevs → Try again',
@@ -297,12 +319,23 @@ function doma(r) {
     assert.equal(l.koll, 1, 'Lightning Bolt (medel) under To check som förut');
     assert.equal(l.antal, 4, 'decks.antal räknar bara kort att spela med');
   });
-  prov('tomma namn: klar-skärmen och datorn får 6 nya, 3 att kolla', () => {
-    const x = R('tomma');
-    assert.equal(x.steg, 'klar');
-    assert.equal(x.sista.nya, 6); assert.equal(x.sista.koll, 3);
+  prov('tomma namn: resultatet (LA2/LA5) och datorn får 6 hittade, 3 att kolla, 2 utan läst namn', () => {
+    const x = R('tomma'), f = x.sista;
+    assert.equal(x.steg, 'resultat'); assert.equal(f.lage, 'klar');
+    assert.deepEqual([f.hittade, f.kanda, f.koll, f.okanda, f.olasta, f.nr], [6, 3, 3, 2, 0, 1]);
     const m = x.ctx.kanal.find(k => k.typ === 'sparad');
     assert.ok(m && m.nya === 6 && m.koll === 3 && m.foto === 1, JSON.stringify(m));
+  });
+  prov('tomma namn: fotots post på kanalen har en prick per kort (x/y) och ingen bild; leken vet vilket foto korten kom ur', () => {
+    const x = R('tomma'), f = x.sista;
+    const post = x.ctx.kanal.filter(k => k.typ === 'foto').map(k => k.foto).pop();
+    assert.ok(post && post.fid === f.fid && post.lage === 'klar' && !('bild' in post), JSON.stringify(post));
+    assert.equal(post.kort.length, 6, 'sex prickar');
+    assert.deepEqual(post.kort.map(k => [k.x, k.y, !!k.koll, !!k.okand]),
+      [[170, 120, false, false], [170, 240, false, false], [170, 480, true, true], [500, 120, true, false], [500, 240, true, true], [170, 360, false, false]]);
+    assert.ok(post.kort.every(k => x.leken.rad.some(r => r.name === k.name)), 'varje prick pekar på en rad i leken');
+    assert.ok(x.leken.rad.every(r => r.foto && r.foto[f.fid] === r.n), 'foto: {fid: n} på varje rad');
+    assert.match(f.fid, /^1:/);
   });
   prov('ej uppslagna: 404 och nätfel blir platshållare med det fotot läste; Scryfalls rättning under To check', () => {
     const l = R('uppslag').leken;
@@ -311,31 +344,34 @@ function doma(r) {
     const lb = l.rad.find(k => k.name === 'Lightning Bolt');
     assert.ok(lb && lb.koll && lb.koll.las === 'Lightnig Bolt', 'rättat namn ska kollas');
   });
-  prov('helt oläsligt foto: felet som förut, inga platshållare, leken orörd, samma fotonummer', () => {
+  prov('LC4 helt oläsligt foto: "It found 3 cards, but nothing was added", leken orörd, fotot behåller sitt nummer', () => {
     const x = R('olasligt');
-    assert.equal(x.steg, 'fel'); assert.equal(x.ctx.telfoto.fel, HUVUDFEL);
+    assert.equal(x.steg, 'resultat'); assert.equal(x.sista.lage, 'inganamn'); assert.equal(x.sista.poster, 3);
     assert.equal(x.leken.totalt, 0, `leken fick ${x.leken.totalt}`); assert.equal(x.ctx.server.skrivna, 0, 'ingen skrivning');
-    assert.equal(x.ctx.telfoto.foto, 1, 'fotot räknas inte');
+    assert.equal(x.ctx.telfoto.foto, 2, 'Photo 1 står kvar (N4), nästa foto är Photo 2');
     assert.ok(!x.ctx.kanal.some(m => m.typ === 'sparad'), 'datorn får inget "sparad"');
+    assert.ok(x.ctx.kanal.some(m => m.typ === 'foto' && m.foto.lage === 'inganamn'), 'datorn får fotots läge');
     assert.equal(x.ctx.telfoto.osparat, null, 'inget att spara igen');
   });
-  prov('inget av namnen gick att slå upp: samma fel, inga platshållare', () => {
+  prov('LC4 inget av namnen gick att slå upp: samma skärm, inga platshållare', () => {
     const x = R('olasligt-uppslag');
-    assert.equal(x.steg, 'fel'); assert.equal(x.ctx.telfoto.fel, HUVUDFEL);
+    assert.equal(x.sista.lage, 'inganamn');
     assert.equal(x.leken.totalt, 0); assert.equal(x.ctx.server.skrivna, 0);
   });
-  prov('oläsligt foto som tas om: bara det nya fotots kort — inga platshållare kvar, totalen stämmer', () => {
-    const x = R('olasligt-omtag');
-    assert.ok(x.fall.felskarm, 'första fotot gav felet');
+  prov('LC4 → Retake photo 1: bara det nya fotots kort, samma nummer, det tomma fotot ersatt', () => {
+    const x = R('olasligt-omtag'), l = x.ctx.telfoto.foton;
+    assert.equal(x.fall.forst, 'inganamn');
     assert.equal(x.leken.totalt, 3, `leken fick ${x.leken.totalt} av 3`);
     assert.equal(x.leken.okand, 0);
+    assert.deepEqual(l.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [1, 'klar']]);
+    assert.equal(l[1].ersatter, l[0].fid);
     assert.equal(x.ctx.telfoto.foto, 2, 'omtaget var Photo 1, nästa är Photo 2');
   });
-  prov('kapade: posterna i svaret blir rader, och klar-skärmen säger hur många som inte lästes och att de ska fotas igen', () => {
+  prov('LA4 kapade: posterna blir rader, och fotot säger att Mesa såg fler (olasta, ingen siffra på skärmen)', () => {
     const x = R('kapade');
     assert.equal(x.leken.totalt, 4, `leken fick ${x.leken.totalt} av 4 poster`);
-    assert.match(x.sista.extra || '', /\b4 cards\b/, `texten: "${x.sista.extra}"`);
-    assert.match(x.sista.extra || '', /again/, `texten: "${x.sista.extra}"`);
+    assert.equal(x.sista.olasta, 4, 'otydliga 4 (varav 3 kapade)');
+    assert.equal(x.sista.hittade, 4);
   });
   prov('dubbletter över två foton: samma namn läggs ihop, tomma slås aldrig ihop, Photo 1 och Photo 2', () => {
     const x = R('dubbletter'), l = x.leken;
@@ -346,25 +382,29 @@ function doma(r) {
     assert.deepEqual(l.okandRader.map(k => k.koll.kalla).sort(), ['Photo 1', 'Photo 2', 'Photo 2']);
     assert.equal(x.ctx.telfoto.foto, 3, 'nästa foto är Photo 3');
   });
-  prov('nätfel där raden skrevs, nätet nere: felskärm, Try again sparar det lästa fotot — korten läggs in EN gång', () => {
+  prov('LD2 nätfel där raden skrevs, nätet nere: Try again sparar det lästa fotot utan nytt foto och utan dubbel sparning', () => {
     const x = R('tappat-nere');
-    assert.ok(x.fall.felskarm, 'felskärmen visades');
+    assert.ok(x.fall.felskarm, 'LD2 visades');
+    assert.equal(x.fall.lage, 'ejsparat');
     assert.equal(x.fall.igen, 'sparat igen', 'Try again ska spara samma foto, inte be om ett nytt');
     assert.equal(x.leken.totalt, 3, `leken fick ${x.leken.totalt} av 3`);
-    assert.equal(x.steg, 'klar');
+    assert.equal(x.ctx.server.skrivna, 1, 'raden skrevs en gång');
+    assert.equal(x.ctx.anrop, 1, 'fotot lästes en gång');
+    assert.equal(x.steg, 'resultat'); assert.equal(x.sista.lage, 'klar');
     assert.equal(x.ctx.telfoto.foto, 2);
   });
   prov('nätfel där raden skrevs, nätet uppe: ingen felskärm, korten EN gång', () => {
     const x = R('tappat-uppe');
     assert.equal(x.fall.felskarm, false, 'felskärmen ska inte visas när raden gick att läsa');
     assert.equal(x.leken.totalt, 3, `leken fick ${x.leken.totalt} av 3`);
-    assert.equal(x.steg, 'klar');
+    assert.equal(x.steg, 'resultat'); assert.equal(x.sista.lage, 'klar');
   });
-  prov('nätfel innan något skrevs: Try again sparar, korten EN gång', () => {
+  prov('LD2 nätfel innan något skrevs: Try again sparar, korten EN gång', () => {
     const x = R('nere');
     assert.ok(x.fall.felskarm);
     assert.equal(x.leken.totalt, 3);
     assert.equal(x.ctx.server.skrivna, 1, 'en skrivning');
+    assert.equal(x.ctx.anrop, 1, 'inget nytt anrop till läsningen');
   });
   prov('tomma namn och tappat svar: platshållarna läggs inte in två gånger', () => {
     const x = R('tomma-tappat');
@@ -382,9 +422,323 @@ function doma(r) {
   prov('A: svaret försvann, datorn sparade emellan → Try again: fotots kort EN gång, datorns 4 Plains kvar', () => {
     const x = R('kant-a');
     assert.equal(x.fall.igen, 'sparat igen');
-    assert.equal(x.steg, 'klar');
+    assert.equal(x.steg, 'resultat'); assert.equal(x.sista.lage, 'klar');
     assert.equal(x.leken.totalt, 7, `leken fick ${x.leken.totalt} av 7: ${x.leken.rad.map(k => k.n + ' ' + k.name).join(', ')}`);
     assert.equal(x.leken.rad.find(k => k.name === 'Plains').n, 4);
+  });
+}
+
+/* ── Sida M på telefonen (MES-321) ──────────────────────────────────
+   Retake ersätter fotots kort i leken en gång och utan dubbletter,
+   resultatet per foto, LC2 (för många), LC3/LC4 lägger inget till, LD1/LD4
+   Try again läser samma foto (inget nytt foto, ingen dubbel sparning), LD3,
+   numret nästa foto får, och I10:s tal. Allt genom telefonens riktiga
+   telfotoLas och lekSparaKo, mot attrappservern. */
+async function sidaMProv(fil) {
+  const kor = async fall => {
+    const app0 = ladda(fil)(nyCtx(null)), ctx = nyCtx(app0), app = ladda(fil)(ctx);
+    ctx.fall = {}; oppna(ctx);
+    try { await fall(app, ctx); } catch (e) { ctx.krasch = e; }
+    return { app, ctx, l: leken(ctx), lista: ctx.telfoto.foton, tal: n => (ctx.server.rad.kort.find(k => k.name === n) || {}).n || 0 };
+  };
+  const igenLas = (app, ctx, svar) => { ctx.svar.push(svar); const v = ctx.telfoto.vantar; return app.telfotoLas(v.kalla, { fid: v.fid }); };
+  const omtag = (ctx, nr) => { ctx.telfoto.omtag = ctx.telfoto.foton.find(f => f.nr === nr && f.lage === 'klar').fid; };
+  const P = (namn, n, x0 = 100) => Array.from({ length: n }, (_, i) => post(namn, x0 + 60 * (i % 5), 100 + 120 * Math.floor(i / 5)));
+  const TVA = { kort: [post('Counterspell', 170, 120), post('Swords to Plowshares', 170, 240)], otydliga: 0 };
+  const OM = { kort: [SOL, post('Lightning Bolt', 170, 240), post('Plains', 170, 360)], otydliga: 0 };
+  const inga = x => { if (x.ctx.krasch) throw x.ctx.krasch; };
+
+  let x = await kor(async (app, ctx) => { await foto(app, ctx, TRE); await foto(app, ctx, TVA); omtag(ctx, 1); await foto(app, ctx, OM); });
+  prov('Retake photo 1: dess tre kort byts mot omtagets tre, foto 2 orört, inget kort två gånger', () => {
+    inga(x);
+    assert.deepEqual(x.l.rad.map(k => `${k.n} ${k.name}`).sort(),
+      ['1 Counterspell', '1 Lightning Bolt', '1 Plains', '1 Sol Ring', '1 Swords to Plowshares']);
+    assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [2, 'klar'], [1, 'klar']]);
+    assert.equal(x.lista[2].ersatter, x.lista[0].fid);
+    assert.equal(x.ctx.telfoto.foto, 3, 'nästa foto är Photo 3');
+    assert.ok(x.ctx.kanal.some(m => m.typ === 'foto' && m.foto.fid === x.lista[0].fid && m.foto.lage === 'ersatt'), 'datorn får veta att det gamla fotot är ersatt');
+    assert.ok(x.ctx.kanal.some(m => m.typ === 'laser' && m.ersatter === x.lista[0].fid), 'laser säger vilket foto som tas om (J9)');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { kort: [SOL, post('Lightnig Bolt', 170, 240, 'medel')], otydliga: 0 });
+    ctx.datorn([{ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: null }]);      // Check names på datorn
+    omtag(ctx, 1);
+    await foto(app, ctx, { kort: [SOL, post('Lightning Bolt', 170, 240, 'medel'), post('Counterspell', 170, 360)], otydliga: 0 });
+  });
+  prov('Retake: ett kort i båda fotona behåller sin rad och det datorn redan kollat', () => {
+    inga(x);
+    assert.deepEqual([x.tal('Sol Ring'), x.tal('Lightning Bolt'), x.tal('Counterspell')], [1, 1, 1]);
+    assert.equal(x.l.rad.find(k => k.name === 'Lightning Bolt').koll, undefined, 'kollningen står kvar');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE); omtag(ctx, 1);
+    ctx.server.fel.push('tappat'); ctx.server.nereLas = 1;
+    await foto(app, ctx, OM);
+    ctx.fall.lage = ctx.telfoto.sista.lage;
+    await app.telfotoIgen();
+  });
+  prov('Retake vars svar försvann → LD2 → Try again: omtaget sparas en gång, det gamla fotots kort borta', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.lage, 'ejsparat');
+    assert.deepEqual(x.l.rad.map(k => `${k.n} ${k.name}`).sort(), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+    assert.equal(x.ctx.server.skrivna, 2, 'foto 1 och omtaget, en skrivning var');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { kort: [...P('Plains', 14), ...P('', 6, 400)], otydliga: 0 });
+    ctx.fall.manga = ctx.telfoto.sista.manga;
+    await foto(app, ctx, { kort: [...P('Plains', 16), ...P('', 4, 400)], otydliga: 0 });
+  });
+  prov('LC2: 20 kort varav 6 att kolla är för många (Keep these 20 / Retake with fewer cards), 16 + 4 är det inte; korten ligger i leken', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.manga, true);
+    assert.equal(x.lista[0].hittade, 20); assert.equal(x.lista[0].koll, 6);
+    assert.equal(x.lista[1].manga, false);
+    assert.equal(x.l.totalt, 40, 'båda fotonas kort i leken');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { kort: [], otydliga: 0 });
+    ctx.fall.a = ctx.telfoto.sista.lage;
+    await foto(app, ctx, { kort: [], varfor: 'max_tokens' });
+    ctx.fall.b = ctx.telfoto.sista.lage;
+    await foto(app, ctx, OLASLIGT);
+  });
+  prov('LC3 och LC4 lägger inget till: ingen skrivning, inget "sparad", varje foto ett eget nummer', () => {
+    inga(x);
+    assert.deepEqual([x.ctx.fall.a, x.ctx.fall.b, x.lista[2].lage], ['inga', 'inga', 'inganamn']);
+    assert.equal(x.l.totalt, 0); assert.equal(x.ctx.server.skrivna, 0);
+    assert.ok(!x.ctx.kanal.some(m => m.typ === 'sparad'));
+    assert.deepEqual(x.lista.map(f => f.nr), [1, 2, 3]);
+    const s = x.app.telfotoSummera(x.ctx.server.rad);
+    assert.deepEqual([s.hittade, s.foton], [0, 0], 'I10 räknar inga kort ur dem');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { kast: true });
+    ctx.fall.a = ctx.telfoto.sista.lage; ctx.fall.fid = ctx.telfoto.sista.fid;
+    await igenLas(app, ctx, { status: 502 });
+    ctx.fall.b = ctx.telfoto.sista.lage;
+    await igenLas(app, ctx, TRE);
+  });
+  prov('LD1 inte skickat: Try again läser samma foto (samma fid och nummer), korten sparas en gång', () => {
+    inga(x);
+    assert.deepEqual([x.ctx.fall.a, x.ctx.fall.b, x.lista.length, x.lista[0].lage], ['ejskickat', 'serverfel', 1, 'klar']);
+    assert.equal(x.lista[0].fid, x.ctx.fall.fid);
+    assert.equal(x.ctx.anrop, 3, 'tre försök med samma foto');
+    assert.equal(x.ctx.server.skrivna, 1); assert.equal(x.l.totalt, 3);
+    assert.equal(x.ctx.telfoto.vantar, null, 'inget foto väntar längre');
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.ai = false;
+    await foto(app, ctx, TRE);
+    ctx.fall.a = ctx.telfoto.sista.lage; ctx.fall.anrop = ctx.anrop; ctx.svar.length = 0;
+    ctx.ai = true;
+    await igenLas(app, ctx, TRE);
+  });
+  prov('LD4 AI help av: fotot väntar utan anrop; Try again när det är på läser det en gång', () => {
+    inga(x);
+    assert.deepEqual([x.ctx.fall.a, x.ctx.fall.anrop], ['av', 0]);
+    assert.equal(x.lista.length, 1); assert.equal(x.lista[0].lage, 'klar');
+    assert.equal(x.ctx.anrop, 1); assert.equal(x.ctx.server.skrivna, 1); assert.equal(x.l.totalt, 3);
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.svar.push(TRE, TRE);
+    /* AI help svarar först efter en fråga till servern (telfotoProvaAI): det
+       andra trycket kommer medan den frågan pågår. */
+    let n = 0; ctx.ai = () => ++n > 1;
+    await Promise.all([app.telfotoLas(KALLA), app.telfotoLas(KALLA)]);     // två tryck på slutaren
+  });
+  prov('två tryck på slutaren medan AI help frågas: ett foto, ett anrop, korten en gång', () => {
+    inga(x);
+    assert.deepEqual([x.lista.length, x.ctx.anrop, x.ctx.server.skrivna, x.l.totalt], [1, 1, 1, 3]);
+  });
+  x = await kor(async (app, ctx) => { ctx.server.borta = true; await foto(app, ctx, TRE); });
+  prov('LD3 leken borttagen: fotot sparas inte och väntar inte', () => {
+    inga(x);
+    assert.equal(x.lista[0].lage, 'borta');
+    assert.equal(x.ctx.telfoto.osparat, null);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE); await foto(app, ctx, TVA);
+    /* Remove photo 2 på datorn: fotobort i leken, och meddelandet till telefonen. */
+    const f2 = ctx.telfoto.foton[1];
+    ctx.datorn([{ typ: 'fotobort', foto: f2.fid }]); f2.lage = 'bort';
+    ctx.fall.nasta = app.telfotoNasta();
+    await foto(app, ctx, OM);
+    ctx.fall.nr3 = ctx.telfoto.foton[2].nr;
+    /* En ny öppning av sidan: fotona finns bara i leken. */
+    ctx.telfoto.foton = []; ctx.telfoto.bas = kopia(ctx.server.rad);
+    ctx.fall.nyOppning = app.telfotoNasta();
+  });
+  prov('numret: Remove photo 2 ger nästa foto nummer 2 igen (N6); en ny öppning fortsätter efter leken', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.nasta, 2);
+    assert.equal(x.ctx.fall.nr3, 2);
+    assert.deepEqual(x.l.rad.map(k => `${k.n} ${k.name}`).sort(),
+      ['1 Arcane Signet', '1 Lightning Bolt', '1 Plains', '1 Thalia, Guardian of Thraben', '2 Sol Ring']);
+    assert.equal(x.ctx.fall.nyOppning, 3);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { kort: [SOL, post('Plains', 170, 240), post('Plains', 170, 360), post('Lightnig Bolt', 500, 120, 'medel')], otydliga: 2 });
+    await foto(app, ctx, { kort: [], otydliga: 0 });
+    ctx.telfoto.sista.undan = true;                                   // Put these cards aside
+    ctx.datorn([{ typ: 'koll', name: 'Lightning Bolt', sb: false, koll: null }]);
+  });
+  prov('I10: "4 cards found in 1 photo", namnen att kolla ur leken som den är nu, undanlagda utan siffra, basländerna', () => {
+    inga(x);
+    const s = x.app.telfotoSummera(x.ctx.server.rad);
+    assert.deepEqual(s, { hittade: 4, foton: 1, koll: 0, undan: true, basland: '2 Plains were in the photos.' });
+    assert.equal(x.app.telfotoSummera(null).koll, 1, 'utan leken: fotonas egna');
+  });
+
+  /* ── Granskningen av MES-321: fallen som bevisade felen ─────────── */
+  const bara = x => x.l.rad.map(k => `${k.n} ${k.name}`).sort();
+  for (const [bokstav, mellan, svar] of [['A', 'inganamn', OLASLIGT], ['B', 'ejskickat', { kast: true }], ['B2', 'inga', { kort: [], otydliga: 0 }]]) {
+    x = await kor(async (app, ctx) => {
+      await foto(app, ctx, TRE); omtag(ctx, 1);
+      await foto(app, ctx, svar);
+      ctx.fall.mellan = ctx.telfoto.sista.lage;
+      ctx.fall.mal = app.telfotoOmtagMal ? app.telfotoOmtagMal(ctx.telfoto.sista) : null;
+      ctx.telfoto.omtag = ctx.telfoto.sista.fid;            // "Retake photo 1" på den skärmen
+      await foto(app, ctx, OM);
+    });
+    prov(`${bokstav}: Retake → ${mellan} → Retake photo 1 igen: bara omtagets kort, originalet och det misslyckade omtaget ersatta`, () => {
+      inga(x);
+      assert.equal(x.ctx.fall.mellan, mellan);
+      assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+      assert.equal(x.ctx.fall.mal && x.ctx.fall.mal.fid, x.lista[0].fid, 'J7 och Back räknar med originalets kort');
+      assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [1, 'ersatt'], [1, 'klar']]);
+      assert.equal(x.lista[2].ersatter, x.lista[0].fid, 'omtaget pekar på originalet');
+    });
+  }
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE); omtag(ctx, 1);
+    await foto(app, ctx, { kast: true });
+    await igenLas(app, ctx, OM);
+  });
+  prov('C: Retake → LD1 → Try again: bara omtagets kort (kontroll)', () => {
+    inga(x);
+    assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.server.fel.push('nere');
+    await foto(app, ctx, TRE);
+    ctx.fall.a = ctx.telfoto.sista.lage;
+    await foto(app, ctx, TVA);                            // nytt foto utan Try again först
+    ctx.fall.lista = ctx.telfoto.foton.map(f => [f.nr, f.lage, !!f.ops]);
+    await app.telfotoIgen();                              // Try again för foto 1
+  });
+  prov('D: LD2 på foto 1, sedan foto 2: foto 1:s kö ligger kvar på fotot och sparas med Try again, en gång', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.a, 'ejsparat');
+    assert.deepEqual(x.ctx.fall.lista, [[1, 'ejsparat', true], [2, 'klar', false]]);
+    assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'klar'], [2, 'klar']]);
+    assert.equal(x.l.totalt, 5, 'leken: ' + bara(x).join(', '));
+    assert.equal(x.ctx.telfoto.osparat, null);
+    /* Kön (med remsornas bilder) och källan (en duk) går aldrig ut på kanalen. */
+    const poster = x.ctx.kanal.filter(m => m.typ === 'foto').map(m => m.foto);
+    assert.ok(poster.length && poster.every(p => !('ops' in p) && !('kalla' in p) && !('bild' in p)), 'en post bar ops, kalla eller bild');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, { status: 500 });
+    ctx.fall.fel = ctx.telfoto.sista.fel;
+    await igenLas(app, ctx, TRE);
+  });
+  prov('E: servern svarar 500: inte "The connection dropped", serverns text står kvar, Try again läser samma foto', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.fel, 'Error 500');
+    assert.deepEqual([x.lista.length, x.lista[0].lage, x.l.totalt], [1, 'klar', 3]);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);
+    /* En ny öppning (sidan laddades om): datorn ber om Retake with the phone. */
+    const fid = ctx.telfoto.foton[0].fid;
+    ctx.telfoto.foton = [];
+    const f = await app.telfotoFotoUrLeken(fid);
+    ctx.fall.post = f && [f.fid === fid, f.nr, f.lage, f.hittade];
+    ctx.telfoto.omtag = fid;
+    await foto(app, ctx, OM);
+  });
+  prov('omtag från datorn för ett foto telefonen inte har: posten byggs ur leken, och omtaget byter dess kort', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.post, [true, 1, 'klar', 3]);
+    assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);
+    /* Remove photo 2 på datorn medan foto 2 läses. */
+    await foto(app, ctx, Object.assign({ under: c => { c.telfoto.sista.lage = 'bort'; } }, TVA));
+    ctx.fall.steg = ctx.telfoto.steg;
+    /* … och medan foto 3 sparas: datorns fotobort hinner före telefonens sparning. */
+    ctx.server.innanSpara = c => { c.telfoto.sista.lage = 'bort'; };
+    await foto(app, ctx, OM);
+  });
+  prov('ett foto som datorn tar bort medan det läses eller sparas landar inte (fynd 6)', () => {
+    inga(x);
+    assert.deepEqual(x.lista.map(f => f.lage), ['klar', 'bort', 'bort']);
+    assert.equal(x.ctx.fall.steg, 'lagg');
+    assert.deepEqual(bara(x), ['1 Arcane Signet', '1 Sol Ring', '1 Thalia, Guardian of Thraben']);
+  });
+  x = await kor(async (app, ctx) => {
+    ctx.fall.ordning = [];
+    await foto(app, ctx, Object.assign({ under: c => { c.telfoto.efter = () => c.fall.ordning.push('efter:' + c.telfoto.steg); c.fall.ordning.push('under'); } }, TRE));
+    ctx.fall.ordning.push('klar');
+  });
+  prov('det datorn ber om medan fotot läses (Finish, Retake) görs efter läsningen, inte aldrig (fynd 7)', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.ordning, ['under', 'efter:resultat', 'klar']);
+    assert.equal(x.ctx.telfoto.efter, null);
+  });
+
+  /* ── Kontrollgranskningen av MES-321 ───────────────────────────── */
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);                            // foto 1 klart
+    ctx.server.fel.push('nere');
+    await foto(app, ctx, TVA);                            // foto 2 inte sparat (LD2)
+    await foto(app, ctx, { kort: [], otydliga: 0 });      // foto 3 inga kort (LC3)
+    const [f1, f2, f3] = ctx.telfoto.foton;
+    ctx.fall.bort = [app.telfotoFotoBort(f1), app.telfotoFotoBort(f2), app.telfotoFotoBort(f3)];
+    ctx.fall.ater = [app.telfotoFotoAter(f1), app.telfotoFotoAter(f2), app.telfotoFotoAter(f3)];
+    ctx.fall.lagen = [f1.lage, f2.lage, f3.lage, !!f2.ops];
+    ctx.fall.summa = app.telfotoSummera(null);
+    await app.telfotoIgen(f2.fid);
+  });
+  prov('Remove + Undo på ett foto som aldrig sparades ger tillbaka dess läge, inte klar; Try again går ändå, en gång', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.bort, [true, true, true]);
+    assert.deepEqual(x.ctx.fall.ater, [true, true, true]);
+    assert.deepEqual(x.ctx.fall.lagen, ['klar', 'ejsparat', 'inga', true]);
+    assert.deepEqual([x.ctx.fall.summa.hittade, x.ctx.fall.summa.foton], [3, 1], 'I10 räknar bara foto 1');
+    assert.deepEqual([x.lista[1].lage, x.l.totalt], ['klar', 5]);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE); omtag(ctx, 1);
+    await foto(app, ctx, { kast: true });                 // omtaget kom inte fram
+    const miss = ctx.telfoto.sista;
+    ctx.fall.fore = !!miss.kalla;
+    ctx.telfoto.omtag = miss.fid;                         // Retake photo 1 igen, utan nät
+    await foto(app, ctx, { kast: true });
+    ctx.fall.efter = [!!miss.kalla, !!ctx.telfoto.sista.kalla];
+  });
+  prov('en kedja omtag utan nät staplar inte dukar: det misslyckade omtagets duk släpps när nästa tas', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.fore, true);
+    assert.deepEqual(x.ctx.fall.efter, [false, true], 'bara det senaste omtaget håller sin duk');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);
+    const fid = ctx.telfoto.foton[0].fid;
+    /* Alla fotots kort borttagna för hand på datorn, och sidan omladdad. */
+    ctx.datorn(['Sol Ring', 'Arcane Signet', 'Thalia, Guardian of Thraben'].map(name => ({ typ: 'bort', name, sb: false })));
+    ctx.telfoto.foton = [];
+    const f = await app.telfotoFotoUrLeken(fid);
+    ctx.fall.post = f && [f.nr, f.lage, f.hittade];
+    ctx.telfoto.omtag = fid;
+    await foto(app, ctx, OM);
+  });
+  prov('omtag från datorn för ett foto vars kort alla tagits bort: omtaget görs ändå och ersätter 0 kort', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.post, [1, 'klar', 0]);
+    assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [1, 'klar']]);
+    assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
   });
 }
 
@@ -737,7 +1091,8 @@ function rad(f, x) {
   }
   const tc = l.koll + l.okand;
   return `${String(l.totalt).padStart(2)} i leken (${tc} To check, ${l.okand} platsh.)`
-    + (borta ? `, ${borta} borta` : '') + (over ? `, ${over} för många` : '') + (x.steg === 'fel' ? ', felskärm' : '');
+    + (borta ? `, ${borta} borta` : '') + (over ? `, ${over} för många` : '')
+    + (x.sista && x.sista.lage && x.sista.lage !== 'klar' ? `, ${x.sista.lage}` : x.steg === 'fel' ? ', felskärm' : '');
 }
 (async () => {
   const efter = await korAlla(FIL);
@@ -748,7 +1103,7 @@ function rad(f, x) {
     const e = efter.get(f.id);
     console.log(`${f.namn.slice(0, B).padEnd(B)} ${String(f.poster).padStart(4)}    ${fore ? rad(f, fore.get(f.id)).padEnd(38) + ' → ' : ''}${rad(f, e)}`);
   }
-  const skarm = r => (r.get('kapade').sista || {}).extra || '(ingen text)';
+  const skarm = r => { const s = r.get('kapade').sista || {}; return s.extra || (s.olasta != null ? `olasta ${s.olasta}: "Mesa saw a few more it couldn’t read" (LA4)` : '(ingen text)'); };
   if (fore) console.log(`\nklar-skärmen, kapade — före: "${skarm(fore)}"`);
   console.log(`klar-skärmen, kapade${fore ? ' — efter' : ''}: "${skarm(efter)}"`);
   console.log('samma foto två gånger: leken får båda — appen kan inte veta att det är samma fysiska kort (mätning, inget fel)');
@@ -762,6 +1117,7 @@ function rad(f, x) {
   await molnProv(FIL);
   await luckProv(FIL);
   await spelProv(FIL);
+  await sidaMProv(FIL);
   for (const r of [...ok, ...fel]) console.log(r);
   console.log(`\nlekfoto: ${ok.length} OK, ${fel.length} FEL`);
   process.exit(fel.length ? 1 : 0);
