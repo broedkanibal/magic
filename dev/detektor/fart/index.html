@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Detektorns fart</title>
+<!-- MES-288 grind 0: hur snabb är en detektor i rätt storlek i webbläsaren?
+     Laddar en otränad (COCO-förtränad) detektor med onnxruntime-web, kör en
+     riktig golden-bild skalad till storleken, värmer upp och tar sedan tiden
+     för N anrop av hela modellsteget: förbehandling (skala bilden, göra tensor)
+     + modellen + efterbehandling (poäng, lådor, NMS). Farten beror inte på
+     träningen, så en tränad modell med samma arkitektur och storlek tar lika
+     lång tid.
+
+     På telefonen: öppna sidan, tryck Kör, vänta, tryck Kopiera och klistra in
+     texten. Från datorn (huvudlös Chrome): dev/detektor/fart/webb.cjs.
+     Konsolen: await MAT('dfine_n', 960, 'webgpu', 'fp16')
+               await KOR({ modeller: ['yolox_s'], storlekar: [640], backends: ['wasm'] })
+     URL-val: ?modeller=dfine_n,yolox_s&storlekar=640,960&backends=webgpu,wasm&prec=fp32,fp16&n=30&auto=1 -->
+<style>
+  :root { --bg:#0d1015; --yta:#171c24; --text:#e7ecf4; --dov:#8b96a8; --ok:#5ec27a; --varn:#f0a52a; --fel:#ef6060; --kant:#2a3240; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:18px/1.45 -apple-system, system-ui, sans-serif; padding:16px; max-width:900px; }
+  h1 { font-size:26px; margin:0 0 6px; }
+  p { margin:6px 0; }
+  .dov { color:var(--dov); font-size:15px; }
+  button { font:600 22px/1 -apple-system, system-ui, sans-serif; border:0; border-radius:12px; padding:18px 26px; margin:10px 10px 10px 0; background:#3a7bf0; color:#fff; min-width:140px; }
+  button.lugn { background:var(--yta); color:var(--text); border:1px solid var(--kant); font-size:18px; padding:14px 18px; min-width:0; }
+  button:disabled { opacity:.45; }
+  #status { font-size:20px; margin:10px 0; min-height:1.5em; }
+  details { background:var(--yta); border:1px solid var(--kant); border-radius:10px; padding:10px 14px; margin:10px 0; }
+  details label { display:inline-block; margin:4px 14px 4px 0; font-size:17px; }
+  input[type=checkbox] { width:20px; height:20px; vertical-align:-3px; }
+  input[type=number] { font-size:17px; width:80px; }
+  .tabwrap { overflow-x:auto; }
+  table { border-collapse:collapse; font-size:15px; margin:10px 0; width:100%; }
+  th, td { border-bottom:1px solid var(--kant); padding:6px 8px; text-align:right; white-space:nowrap; }
+  th:first-child, td:first-child, td.v { text-align:left; }
+  td.bra { color:var(--ok); font-weight:600; } td.mitt { color:var(--varn); font-weight:600; } td.lang { color:var(--fel); font-weight:600; }
+  textarea { width:100%; height:200px; font:13px/1.35 ui-monospace, Menlo, monospace; background:var(--yta); color:var(--text); border:1px solid var(--kant); border-radius:8px; padding:8px; }
+  canvas#lador { width:100%; height:auto; border-radius:8px; margin-top:8px; background:#000; }
+</style>
+</head>
+<body>
+<h1>Detektorns fart</h1>
+<p class="dov">MES-288 grind 0. Tar tiden för en detektor i webbläsaren, med en riktig bild från bordet. Låt telefonen ligga still och skärmen vara på tills det står <b>Klart</b>.</p>
+<p id="enhet" class="dov">…</p>
+<button id="kor">Kör</button><button id="kopiera" class="lugn">Kopiera</button><button id="kontroll" class="lugn">Kontrollera lådorna</button>
+<div id="status">Laddar…</div>
+<details id="val"><summary>Val</summary>
+  <div id="valModeller"></div>
+  <div id="valStorlekar"></div>
+  <div id="valBackends"></div>
+  <div id="valPrec"></div>
+  <label>Anrop per mätning <input id="valN" type="number" min="5" max="200" value="30"></label>
+  <p><label><input id="valEgna" type="checkbox"> Använd valen ovan i stället för telefonens uppsättning</label></p>
+</details>
+<div class="tabwrap"><table id="tabell"></table></div>
+<textarea id="text" readonly placeholder="Resultatet som text hamnar här."></textarea>
+<canvas id="lador"></canvas>
+<p id="ladtext" class="dov"></p>
+
+<script>
+  /* onnxruntime-web 1.30 som förval; ?ort=1.22 ger versionen bildmodellen mättes med (dev/embed). */
+  const ORT_MAPP = new URLSearchParams(location.search).get('ort') === '1.22' ? 'node_modules/ort-web-1.22/dist/' : 'node_modules/onnxruntime-web/dist/';
+  document.write('<script src="' + ORT_MAPP + 'ort.webgpu.min.js"><\/script>');
+</script>
+<script>
+'use strict';
+ort.env.wasm.wasmPaths = new URL(ORT_MAPP, location.href).href;   // absolut: filerna laddas med import()
+
+const q = new URLSearchParams(location.search);
+const BILD = q.get('bild') || '../../golden/fall/13-svartmatta-lampa-40cm-10kort-tokens/bild.jpg';
+const KONTROLLBILD = 'modeller/kontroll-dog.jpg';
+
+/* Kandidaterna. Storleken är långsidan; kortsidan följer kamerans 16:9,
+   uppåt till en multipel av 32. YOLOX har fast indata och en fil per storlek,
+   D-FINE tar vilken storlek som helst (samma fil). */
+const STORLEKAR = { 640: [640, 384], 960: [960, 544], 1280: [1280, 736] };
+const MODELLER = {
+  yolox_nano: { typ: 'yolox', namn: 'YOLOX-nano', param: 0.91, fil: (b, h, p) => `yolox_nano_${b}x${h}${p === 'fp16' ? '_fp16' : ''}.onnx` },
+  yolox_tiny: { typ: 'yolox', namn: 'YOLOX-tiny', param: 5.06, fil: (b, h, p) => `yolox_tiny_${b}x${h}${p === 'fp16' ? '_fp16' : ''}.onnx` },
+  yolox_s:    { typ: 'yolox', namn: 'YOLOX-s',    param: 8.97, fil: (b, h, p) => `yolox_s_${b}x${h}${p === 'fp16' ? '_fp16' : ''}.onnx` },
+  dfine_n:    { typ: 'dfine', namn: 'D-FINE-N',   param: 3.8,  fil: (b, h, p) => `dfine_nano_coco${p === 'fp16' ? '_fp16' : ''}.onnx` },
+  dfine_s:    { typ: 'dfine', namn: 'D-FINE-S',   param: 10.3, fil: (b, h, p) => `dfine_s_coco${p === 'fp16' ? '_fp16' : ''}.onnx` },
+};
+/* Telefonens uppsättning (knappen Kör utan egna val): det som avgör grind 0
+   efter mätningen på Macen (FART.md). fp16 där grafikkortet har shader-f16,
+   annars bara de fp32-filer som följer med förhandsdriftsättningen. */
+const TELEFON = {
+  fp16: [['yolox_nano', 640], ['yolox_nano', 960], ['yolox_nano', 1280], ['yolox_tiny', 640], ['yolox_tiny', 960], ['yolox_tiny', 1280], ['yolox_s', 960], ['dfine_n', 640], ['dfine_n', 960]],
+  fp32: [['yolox_nano', 960]],
+};
+const EGNA = ['modeller', 'storlekar', 'backends', 'prec'].some(k => q.has(k));
+const FORVAL = {
+  modeller: (q.get('modeller') || 'yolox_nano,yolox_tiny,yolox_s,dfine_n').split(','),
+  storlekar: (q.get('storlekar') || '640,960,1280').split(',').map(Number),
+  backends: (q.get('backends') || 'auto').split(','),
+  prec: (q.get('prec') || 'fp16').split(','),
+  n: +(q.get('n') || 30),
+};
+const COCO = ['person','bicycle','car','motorcycle','airplane','bus','train','truck','boat','traffic light','fire hydrant','stop sign','parking meter','bench','bird','cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe','backpack','umbrella','handbag','tie','suitcase','frisbee','skis','snowboard','sports ball','kite','baseball bat','baseball glove','skateboard','surfboard','tennis racket','bottle','wine glass','cup','fork','knife','spoon','bowl','banana','apple','sandwich','orange','broccoli','carrot','hot dog','pizza','donut','cake','chair','couch','potted plant','bed','dining table','toilet','tv','laptop','mouse','remote','keyboard','cell phone','microwave','oven','toaster','sink','refrigerator','book','clock','vase','scissors','teddy bear','hair drier','toothbrush'];
+
+const $ = id => document.getElementById(id);
+const status = m => { $('status').innerHTML = m; };
+const vanta = ms => new Promise(r => setTimeout(r, ms));
+const median = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
+const kvantil = (a, k) => { const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * k))]; };
+const r1 = x => Math.round(x * 10) / 10;
+const bilder = new Map();
+const bild = src => bilder.get(src) || (bilder.set(src, new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('bilden gick inte att ladda: ' + src)); i.src = src; })), bilder.get(src));
+
+/* ---------- enheten ---------- */
+let gpuInfo = null;
+async function enhet() {
+  let adapter = null;
+  if (navigator.gpu) { try { adapter = await navigator.gpu.requestAdapter(); } catch (e) {} }
+  const info = adapter && (adapter.info || (adapter.requestAdapterInfo && await adapter.requestAdapterInfo().catch(() => null)));
+  gpuInfo = adapter ? { finns: true, leverantor: info && info.vendor || '?', arkitektur: info && info.architecture || '?', beskrivning: info && info.description || '', f16: adapter.features.has('shader-f16') } : { finns: false };
+  return {
+    ua: navigator.userAgent, karnor: navigator.hardwareConcurrency || '?', isolerad: !!self.crossOriginIsolated, webgpu: gpuInfo,
+    ort: ort.env.versions && (ort.env.versions.web || ort.env.versions.common) || '?',
+  };
+}
+
+/* ---------- förbehandling ---------- */
+const duk = document.createElement('canvas');
+const ctx = duk.getContext('2d', { willReadFrequently: true });
+let buf = null;
+function forbered(img, b, h, typ) {
+  const w0 = img.naturalWidth, h0 = img.naturalHeight;
+  if (duk.width !== b || duk.height !== h) { duk.width = b; duk.height = h; }
+  let skalaX, skalaY;
+  if (typ === 'yolox') {   // YOLOX: behåll formatet, grått (114) i resten, BGR 0–255
+    const s = Math.min(b / w0, h / h0);
+    ctx.fillStyle = 'rgb(114,114,114)'; ctx.fillRect(0, 0, b, h);
+    ctx.drawImage(img, 0, 0, w0 * s, h0 * s); skalaX = skalaY = s;
+  } else {                 // D-FINE: sträck till storleken (som RTDetrImageProcessor), RGB 0–1
+    ctx.drawImage(img, 0, 0, b, h); skalaX = b / w0; skalaY = h / h0;
+  }
+  const d = ctx.getImageData(0, 0, b, h).data, n = b * h;
+  if (!buf || buf.length !== 3 * n) buf = new Float32Array(3 * n);
+  if (typ === 'yolox') { for (let p = 0, i = 0; p < n; p++, i += 4) { buf[p] = d[i + 2]; buf[n + p] = d[i + 1]; buf[2 * n + p] = d[i]; } }
+  else { const k = 1 / 255; for (let p = 0, i = 0; p < n; p++, i += 4) { buf[p] = d[i] * k; buf[n + p] = d[i + 1] * k; buf[2 * n + p] = d[i + 2] * k; } }
+  return { tensor: new ort.Tensor('float32', buf, [1, 3, h, b]), skalaX, skalaY, b, h, w0, h0 };
+}
+
+/* ---------- efterbehandling ---------- */
+function iou(a, b) {
+  const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y), x2 = Math.min(a.x + a.b, b.x + b.b), y2 = Math.min(a.y + a.h, b.y + b.h);
+  const i = Math.max(0, x2 - x1) * Math.max(0, y2 - y1); return i / (a.b * a.h + b.b * b.h - i + 1e-9);
+}
+function nms(lador, grans) {
+  lador.sort((a, b) => b.p - a.p); const kvar = [];
+  for (const l of lador) if (!kvar.some(k => k.k === l.k && iou(k, l) > grans)) kvar.push(l);
+  return kvar;
+}
+function efter(typ, ut, f, tro) {
+  const lador = [];
+  if (typ === 'yolox') {
+    const t = ut.output, d = t.data, rader = t.dims[1], kol = t.dims[2];
+    for (let r = 0; r < rader; r++) {
+      const o = r * kol, obj = d[o + 4]; if (obj < tro) continue;
+      let bk = 0, bp = 0; for (let k = 0; k < 80; k++) { const v = d[o + 5 + k]; if (v > bp) { bp = v; bk = k; } }
+      const p = obj * bp; if (p < tro) continue;
+      const cx = d[o], cy = d[o + 1], w = d[o + 2], h = d[o + 3];
+      lador.push({ k: bk, p, x: (cx - w / 2) / f.skalaX, y: (cy - h / 2) / f.skalaY, b: w / f.skalaX, h: h / f.skalaY });
+    }
+    return nms(lador, 0.45);
+  }
+  const lg = ut.logits.data, bx = ut.pred_boxes.data, fragor = ut.logits.dims[1], kl = ut.logits.dims[2];
+  const troLogit = Math.log(tro / (1 - tro));
+  for (let i = 0; i < fragor; i++) {
+    let bk = 0, bv = -1e9; for (let k = 0; k < kl; k++) { const v = lg[i * kl + k]; if (v > bv) { bv = v; bk = k; } }
+    if (bv < troLogit) continue;
+    const cx = bx[i * 4], cy = bx[i * 4 + 1], w = bx[i * 4 + 2], h = bx[i * 4 + 3];
+    lador.push({ k: bk, p: 1 / (1 + Math.exp(-bv)), x: (cx - w / 2) * f.w0, y: (cy - h / 2) * f.h0, b: w * f.w0, h: h * f.h0 });
+  }
+  return lador.sort((a, b) => b.p - a.p);
+}
+
+/* ---------- modellfiler: en i minnet åt gången (telefonens minne) ---------- */
+let filCache = { fil: null, data: null, ms: 0 };
+async function hamtaFil(fil) {
+  if (filCache.fil === fil) return filCache;
+  filCache = { fil: null, data: null, ms: 0 };
+  const t = performance.now();
+  const svar = await fetch('modeller/' + fil);
+  if (!svar.ok) throw new Error('modellen finns inte: ' + fil + ' (' + svar.status + ')');
+  const data = new Uint8Array(await svar.arrayBuffer());
+  filCache = { fil, data, ms: performance.now() - t };
+  return filCache;
+}
+
+/* Vilken backend som faktiskt körde: sessionen skapas bara med den begärda.
+   Går det inte (ingen WebGPU) blir mätningen ett fel i tabellen, inte en tyst
+   reserv. Noder som WebGPU-vägen lägger på processorn loggas av ORT som
+   varningar; de fångas medan sessionen skapas. */
+async function skapa(fil, backend) {
+  const f = await hamtaFil(fil);
+  const tradar = Math.min(4, navigator.hardwareConcurrency || 4);
+  ort.env.wasm.numThreads = backend === 'wasm' ? (self.crossOriginIsolated ? tradar : 1) : 1;
+  const fangat = []; const ow = console.warn, oe = console.error, ol = console.log;
+  const fanga = (...a) => { const s = a.join(' '); if (/CPU|not assigned|fallback|placed on/i.test(s)) fangat.push(s.slice(0, 300)); };
+  console.warn = (...a) => { fanga(...a); ow.apply(console, a); }; console.error = (...a) => { fanga(...a); oe.apply(console, a); };
+  const t = performance.now(); let s;
+  try { s = await ort.InferenceSession.create(f.data, { executionProviders: [backend], graphOptimizationLevel: 'all' }); }
+  finally { console.warn = ow; console.error = oe; console.log = ol; }
+  return { s, skapaMs: performance.now() - t, laddaMs: f.ms, mb: f.data.byteLength / 1e6, tradar: ort.env.wasm.numThreads, fangat };
+}
+
+async function valjBackend(b) {
+  if (b !== 'auto') return b;
+  if (gpuInfo && gpuInfo.finns) return 'webgpu';
+  return 'wasm';
+}
+
+/* En mätning: modell × storlek × backend × precision. */
+window.MAT = async function (modell, storlek, backend, prec, o) {
+  o = o || {};
+  const m = MODELLER[modell]; if (!m) throw new Error('okänd modell ' + modell);
+  const [b, h] = STORLEKAR[storlek] || [storlek, Math.ceil(storlek * 9 / 16 / 32) * 32];
+  backend = await valjBackend(backend || 'auto'); prec = prec || 'fp32';
+  const n = o.n || FORVAL.n, varm = o.varm == null ? 3 : o.varm, tro = o.tro || 0.3;
+  const fil = m.fil(b, h, prec);
+  const svar = { modell, namn: m.namn, param: m.param, storlek: b + 'x' + h, backend, prec, fil };
+  let sess;
+  try { sess = await skapa(fil, backend); }
+  catch (e) { return Object.assign(svar, { fel: String(e && e.message || e).slice(0, 200) }); }
+  const img = await bild(o.bild || BILD);
+  const namnIn = sess.s.inputNames[0];
+  const steg = async () => {
+    const t0 = performance.now();
+    const f = forbered(img, b, h, m.typ);
+    const t1 = performance.now();
+    const ut = await sess.s.run({ [namnIn]: f.tensor });
+    for (const k in ut) if (ut[k].getData) await ut[k].getData();
+    const t2 = performance.now();
+    const lador = efter(m.typ, ut, f, tro);
+    const t3 = performance.now();
+    for (const k in ut) try { ut[k].dispose && ut[k].dispose(); } catch (e) {}
+    return { tot: t3 - t0, pre: t1 - t0, mod: t2 - t1, post: t3 - t2, lador };
+  };
+  const tider = { tot: [], pre: [], mod: [], post: [] }; let sista = null, forsta;
+  try {
+    forsta = await steg();
+    for (let i = 0; i < varm; i++) await steg();
+    for (let i = 0; i < n; i++) {
+      const r = await steg(); sista = r;
+      for (const k in tider) tider[k].push(r[k]);
+      if (o.paus) await vanta(o.paus);
+    }
+  } catch (e) {
+    try { await sess.s.release(); } catch (e2) {}
+    return Object.assign(svar, { fel: 'körningen: ' + String(e && e.message || e).slice(0, 200) });
+  }
+  try { await sess.s.release(); } catch (e) {}
+  Object.assign(svar, {
+    median: r1(median(tider.tot)), p90: r1(kvantil(tider.tot, 0.9)), min: r1(Math.min(...tider.tot)),
+    forbehandling: r1(median(tider.pre)), modellsteg: r1(median(tider.mod)), efterbehandling: r1(median(tider.post)),
+    forstaMs: Math.round(forsta.tot), skapaMs: Math.round(sess.skapaMs), laddaMs: Math.round(sess.laddaMs), mb: r1(sess.mb),
+    tradar: backend === 'wasm' ? sess.tradar : null, n, dold: document.hidden,
+    cpuNoder: sess.fangat.slice(0, 6),
+    lador: sista.lador.length, topp: sista.lador.slice(0, 5).map(l => COCO[l.k] + ' ' + l.p.toFixed(2)),
+  });
+  svar._lador = sista.lador; svar._bild = o.bild || BILD;
+  return svar;
+};
+
+/* ---------- lådorna på bilden ---------- */
+async function ritaLador(res, tro) {
+  const img = await bild(res._bild); const c = $('lador'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  g.lineWidth = Math.max(2, img.naturalWidth / 400); g.font = `${Math.max(14, img.naturalWidth / 60)}px sans-serif`;
+  for (const l of res._lador) {
+    if (l.p < (tro || 0.3)) continue;
+    g.strokeStyle = '#f0a52a'; g.strokeRect(l.x, l.y, l.b, l.h);
+    const t = COCO[l.k] + ' ' + l.p.toFixed(2); g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(l.x, l.y - 18, g.measureText(t).width + 8, 18);
+    g.fillStyle = '#fff'; g.fillText(t, l.x + 4, l.y - 4);
+  }
+  $('ladtext').textContent = `${res.namn} ${res.storlek} ${res.backend} ${res.prec}: ${res._lador.length} lådor över 0,3 — ` + res._lador.slice(0, 8).map(l => COCO[l.k] + ' ' + l.p.toFixed(2)).join(', ');
+}
+window.LADBILD = () => $('lador').toDataURL('image/jpeg', 0.85);
+
+/* ---------- tabellen och texten ---------- */
+let rader = [], enhetsInfo = null;
+const klass = ms => ms <= 150 ? 'bra' : ms <= 300 ? 'mitt' : 'lang';
+function visa() {
+  const h = '<tr><th>Modell</th><th>Storlek</th><th>Backend</th><th>Prec.</th><th>Median ms</th><th>p90 ms</th><th>Modell ms</th><th>Förb. ms</th><th>Efter ms</th><th>Första ms</th><th>MB</th><th>Lådor</th></tr>';
+  $('tabell').innerHTML = h + rader.map(r => r.fel
+    ? `<tr><td>${r.namn}</td><td>${r.storlek}</td><td class="v">${r.backend}</td><td class="v">${r.prec}</td><td class="lang" colspan="8" style="text-align:left">fel: ${r.fel}</td></tr>`
+    : `<tr><td>${r.namn}</td><td>${r.storlek}</td><td class="v">${r.backend}${r.tradar ? ' ×' + r.tradar : ''}</td><td class="v">${r.prec}</td><td class="${klass(r.median)}">${r.median}</td><td>${r.p90}</td><td>${r.modellsteg}</td><td>${r.forbehandling}</td><td>${r.efterbehandling}</td><td>${r.forstaMs}</td><td>${r.mb}</td><td>${r.lador}</td></tr>`).join('');
+  $('text').value = text();
+}
+function text() {
+  const e = enhetsInfo || {};
+  const g = e.webgpu || {};
+  const huvud = [
+    `# Detektorns fart (MES-288 grind 0) ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`,
+    `# ${e.ua}`,
+    `# kärnor ${e.karnor} · isolerad ${e.isolerad} · WebGPU ${g.finns ? `ja (${g.leverantor}/${g.arkitektur}${g.beskrivning ? ' ' + g.beskrivning : ''}, f16 ${g.f16})` : 'nej'} · ort ${e.ort} · dold ${document.hidden}`,
+    ['modell', 'storlek', 'backend', 'prec', 'median', 'p90', 'min', 'modell_ms', 'forb_ms', 'efter_ms', 'forsta_ms', 'skapa_ms', 'ladda_ms', 'MB', 'n', 'lador', 'topp', 'cpu_noder'].join('\t'),
+  ];
+  return huvud.concat(rader.map(r => r.fel ? [r.modell, r.storlek, r.backend, r.prec, 'FEL ' + r.fel].join('\t')
+    : [r.modell, r.storlek, r.backend + (r.tradar ? 'x' + r.tradar : ''), r.prec, r.median, r.p90, r.min, r.modellsteg, r.forbehandling, r.efterbehandling, r.forstaMs, r.skapaMs, r.laddaMs, r.mb, r.n, r.lador, r.topp.join(', '), r.cpuNoder.length].join('\t'))).join('\n');
+}
+window.TEXT = text;
+
+/* ---------- hela körningen ---------- */
+function valda(grupp) { return [...document.querySelectorAll(`#${grupp} input:checked`)].map(i => i.value); }
+window.KOR = async function (o) {
+  o = o || {};
+  const modeller = o.modeller || valda('valModeller'), storlekar = (o.storlekar || valda('valStorlekar')).map(Number);
+  const backends = o.backends || valda('valBackends'), precs = o.prec || valda('valPrec'), n = o.n || +$('valN').value || 30;
+  enhetsInfo = enhetsInfo || await enhet();
+  const jobb = [];
+  if (o.telefon) {   // telefonens uppsättning: fp16 om WebGPU har shader-f16, annars fp32-reserven
+    const b = await valjBackend('auto'), p = b === 'webgpu' && enhetsInfo.webgpu.f16 ? 'fp16' : 'fp32';
+    for (const [m, s] of TELEFON[p]) jobb.push({ m, p, b, s });
+  }
+  else for (const m of modeller) for (const p of precs) for (const be of backends) for (const s of storlekar) {
+    const b = await valjBackend(be);
+    if (p === 'fp16' && b === 'wasm') continue;   // fp16 räknas inte snabbare på processorn; bara WebGPU
+    if (!jobb.some(j => j.m === m && j.p === p && j.b === b && j.s === s)) jobb.push({ m, p, b, s });
+  }
+  $('kor').disabled = true; const t0 = performance.now(); const ut = [];
+  for (let i = 0; i < jobb.length; i++) {
+    const j = jobb[i];
+    status(`Mäter ${i + 1} av ${jobb.length}: ${MODELLER[j.m].namn} ${j.s} px, ${j.b} ${j.p} …`);
+    await vanta(50);
+    let r; try { r = await MAT(j.m, j.s, j.b, j.p, { n, varm: o.varm }); } catch (e) { r = { modell: j.m, namn: MODELLER[j.m].namn, storlek: String(j.s), backend: j.b, prec: j.p, fel: String(e && e.message || e).slice(0, 200) }; }
+    rader.push(r); ut.push(r); visa();
+    if (!r.fel && o.rita !== false) await ritaLador(r);
+  }
+  filCache = { fil: null, data: null, ms: 0 };
+  status(`<b>Klart</b> på ${Math.round((performance.now() - t0) / 1000)} s. Tryck <b>Kopiera</b> och klistra in texten i chatten.`);
+  $('kor').disabled = false;
+  return ut.map(r => { const k = Object.assign({}, r); delete k._lador; delete k._bild; return k; });
+};
+
+/* Kontroll av exporten: kör varje vald modell en gång på en vanlig bild
+   (hund, cykel, bil) och visa lådorna. Farten säger inget om exporten är rätt. */
+window.KONTROLL = async function (o) {
+  o = o || {}; enhetsInfo = enhetsInfo || await enhet();
+  const modeller = o.modeller || valda('valModeller'), storlek = o.storlek || 640, backend = o.backend || 'auto', prec = o.prec || 'fp32';
+  const ut = [];
+  for (const m of modeller) {
+    status(`Kontrollerar ${MODELLER[m].namn} …`);
+    const r = await MAT(m, storlek, backend, prec, { n: 1, varm: 0, bild: o.bild || KONTROLLBILD, tro: 0.4 });
+    if (!r.fel) await ritaLador(r, 0.4);
+    ut.push({ modell: m, storlek: r.storlek, backend: r.backend, prec, fel: r.fel, lador: r._lador && r._lador.map(l => ({ k: COCO[l.k], p: +l.p.toFixed(2), x: Math.round(l.x), y: Math.round(l.y), b: Math.round(l.b), h: Math.round(l.h) })) });
+  }
+  status('Kontrollen klar — lådorna för den sista modellen syns under tabellen.');
+  return ut;
+};
+
+/* ---------- sidan ---------- */
+function kryss(id, rubrik, varden, valda, etikett) {
+  $(id).innerHTML = `<p class="dov">${rubrik}</p>` + varden.map(v => `<label><input type="checkbox" value="${v}" ${valda.includes(v) || valda.includes(String(v)) ? 'checked' : ''}> ${etikett ? etikett(v) : v}</label>`).join('');
+}
+(async () => {
+  kryss('valModeller', 'Modeller', Object.keys(MODELLER), FORVAL.modeller, k => MODELLER[k].namn);
+  kryss('valStorlekar', 'Storlek (långsidan, bilden är 16:9)', [640, 960, 1280], FORVAL.storlekar, s => STORLEKAR[s].join('×'));
+  kryss('valBackends', 'Backend (auto = WebGPU om det finns, annars WASM)', ['auto', 'webgpu', 'wasm'], FORVAL.backends);
+  kryss('valPrec', 'Precision (fp16 bara på WebGPU)', ['fp16', 'fp32'], FORVAL.prec);
+  $('valN').value = FORVAL.n; $('valEgna').checked = EGNA;
+  enhetsInfo = await enhet();
+  const g = enhetsInfo.webgpu;
+  $('enhet').innerHTML = `WebGPU: <b>${g.finns ? 'ja' + (g.f16 ? ', fp16' : ', utan fp16') : 'nej — WASM används'}</b> · trådar för WASM: ${enhetsInfo.isolerad ? Math.min(4, navigator.hardwareConcurrency || 4) : '1 (sidan är inte isolerad)'} · kärnor ${enhetsInfo.karnor}`;
+  status('Redo. Tryck <b>Kör</b> (tar några minuter).');
+  $('kor').onclick = () => KOR({ telefon: !$('valEgna').checked });
+  $('kontroll').onclick = () => KONTROLL();
+  $('kopiera').onclick = async () => { const t = $('text').value; try { await navigator.clipboard.writeText(t); status('Kopierat.'); } catch (e) { $('text').select(); document.execCommand('copy'); status('Kopierat (markerat).'); } };
+  if (q.get('auto')) KOR({ telefon: !EGNA });
+})().catch(e => status('Fel: ' + e.message));
+</script>
+</body>
+</html>
