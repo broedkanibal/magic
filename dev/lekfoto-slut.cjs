@@ -488,6 +488,11 @@ const provA4 = a => {
   /* Bara ett foto i leken: inget annat foto att vara hel i. */
   const ettFoto = kort.filter(k => !k.foto['1:f']);
   assert.strictEqual(a.lsfFall(kant, null, null, ettFoto), 'LR2', 'ett enda foto: ingen fråga om ett annat foto');
+  /* En platshållare utan foto-fält (sparad av en äldre flik) i en lek med ett
+     enda foto: dess eget foto är inte "ett annat" (granskningen av val C). */
+  const utanFoto = Object.assign({}, kant); delete utanFoto.foto;
+  const ettFotoUtan = [...ettFoto.filter(k => k !== kant), utanFoto];
+  assert.strictEqual(a.lsfFall(utanFoto, null, null, ettFotoUtan), 'LR2', 'utan foto-fält: vet inte vilket foto, ingen LR3');
   /* Ett läst namn (B, C) och en gissning (A) ändras inte av kanten. */
   const lastKant = Object.assign({}, kant, { koll: Object.assign({}, kant.koll, { las: 'Killing' }) });
   assert.strictEqual(a.lsfFall(lastKant, [], null, kort), 'C');
@@ -621,6 +626,8 @@ maste('F18 utan kravet på ett annat foto frågar LR3 också i ett enda foto (A4
   [['for (const fid of lekSlagFotoAv(kort).keys()) if (!egna.has(fid)) return true;', 'if (lekSlagFotoAv(kort).size) return true;']], provA4);
 maste('F19 utan koll.kant blir varje namnlös platshållare LR3 (A4 faller)',
   [["if (!k || !k.okand || !k.koll || !k.koll.kant || String(k.koll.las || '').trim()) return false;", "if (!k || !k.okand || !k.koll || String(k.koll.las || '').trim()) return false;"]], provA4);
+maste('F20 utan kravet på platshållarens eget foto ställs LR3 i en lek med ett enda foto (A4 faller)',
+  [['  if (!egna.size) return false;\n', '']], provA4);
 maste('F11 med gissningarna i telefonens läsning räknas ett rättat kort två gånger (D4 faller)',
   [['if (k && !k.okand && !k.koll && !k.dubbel && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && !k.dubbel && LSF_BASLAND.includes(k.name))']], provD4);
 

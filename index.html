@@ -14568,9 +14568,9 @@ const telfotoVidKant = k => +k.x <= TELFOTO_KANT || +k.x >= 1000 - TELFOTO_KANT;
 
    Mätt ur lekgoldens cache med dev/lekgolden/kantkort.cjs (inga nya anrop),
    filväljarens väg, 15 foton, platshållare dömda mot facit och för ögat:
-     gräns 30  25 av 31 kapade kort får frågan, 0 hela
-     gräns 60  28 av 31, 0 hela
-     gräns 80  31 av 31, 1 helt (Ukud Cobra i foto 11, x = 930)
+     gräns 30  24–25 av 30 kapade kort får frågan, 0 hela
+     gräns 60  27–28 av 30, 0 hela
+     gräns 80  30 av 30, 1 helt (Ukud Cobra i foto 11, x = 930)
    I seten med mer än ett foto ger 30 frågan till 30 platshållare, alla
    kapade, och 0 hela. Kamerans ram: 4 av 4 platshållare inom 30 är kapade
    av ramen. Övre och nedre kanten räknas inte: i helbordsfotona (09, 13)
@@ -15620,10 +15620,14 @@ function lsfFall(k, kand, arKort, kort) {
 /* LR3 (MES-324, val C): platshållaren låg vid fotots sidkant utan läst namn
    (koll.kant, satt av telefonen), och leken har kort ur ett ANNAT foto, där
    kortet kan ligga helt. Med ett enda foto finns inget annat foto att fråga
-   om, och det blir LR2 som förut. */
+   om, och det blir LR2 som förut. En platshållare utan foto-fält (en rad
+   sparad av en äldre flik, före MES-321) vet inte vilket foto den kom ur:
+   då räknades dess eget foto som "ett annat", och LR3 ställdes i en lek med
+   ett enda foto (granskningen av val C). Den får LR2. */
 function lsfKant(k, kort) {
   if (!k || !k.okand || !k.koll || !k.koll.kant || String(k.koll.las || '').trim()) return false;
-  const egna = new Set(Object.keys(k.foto || {}));
+  const egna = new Set(Object.keys(lekSlagFotoRen(k.foto) || {}));
+  if (!egna.size) return false;
   for (const fid of lekSlagFotoAv(kort).keys()) if (!egna.has(fid)) return true;
   return false;
 }
@@ -16887,7 +16891,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
         return `<div class="lstci" data-ls-kort="${esc(k.name)}" data-sb="${k.sb ? 1 : 0}">`
           + remsaHtml(k.koll)
           + '<span class="th"></span>'
-          + `<div class="tcs"><b>${esc(t.fraga)}</b><span>Is it whole in another photo?${k.sb ? ' · Sideboard' : ''}</span></div>`
+          + `<div class="tcs"><b>${esc(t.fraga)}</b><span>${lsfFotoNr(k) ? `In photo ${lsfFotoNr(k)} · ` : ''}Is it whole in another photo?${k.sb ? ' · Sideboard' : ''}</span></div>`
           + `<div class="tb"><button type="button" class="btn sm prim" data-tc="hoppa">${lsIk('check', 12, 2.6)}${esc(t.ja)}</button>`
           + `<button type="button" class="btn sm" data-tc="byt">${lsIk('swap', 12)}Pick the card…</button></div></div>`;
       }

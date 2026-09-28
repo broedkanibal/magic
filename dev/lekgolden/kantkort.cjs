@@ -119,6 +119,15 @@ const vidY = (k, g) => +k.y <= g || +k.y >= 1000 - g;
       const helaUtanNamn = grupperna(FACIT.foton[f].hela).length - et.filter(e => e === 'hela').length;
       const n = dom => d.filter(x => x && x.dom === dom).length;
       if (n('HEL') > helaUtanNamn) kontroll.push(`${lage} ${kortnamn(f)}: ${n('HEL')} dömda HEL, men ${helaUtanNamn} hela kort utan namn`);
+      /* Och tvärtom: KANT får inte vara fler än fotots kapade kort utan namn
+         (facits kant-grupper). Bara filväljarens väg: i kamerans ram kapar
+         ramen också kort ur hela grupper, och facit vet inte vilka.
+         taket: det tal nämnaren "av N kapade" högst kan vara. */
+      const kantUtanNamn = grupperna(FACIT.foton[f].kant).length - et.filter(e => e === 'kant').length;
+      if (lage === 'hela' && n('KANT') > kantUtanNamn) {
+        kontroll.push(`${lage} ${kortnamn(f)}: ${n('KANT')} dömda KANT, men ${kantUtanNamn} kapade kort utan namn`);
+        tot[lage].over = (tot[lage].over || 0) + n('KANT') - kantUtanNamn;
+      }
       for (const dom of ['KANT', 'HEL', 'EXTRA']) tot[lage][dom] += n(dom);
       const tomma = kort.map((k, i) => ({ k, d: d[i] })).filter(x => x.d);
       rader.push([lage, kortnamn(f), kort.length, et.filter(e => e === 'hela').length, et.filter(e => e === 'kant').length,
@@ -171,6 +180,7 @@ const vidY = (k, g) => +k.y <= g || +k.y >= 1000 - g;
   console.log('  Kamerans ram: domen är granskad för ögat bara för platshållare inom 30 från sidkanten; längre in gäller kolumnregeln, som i ramen');
   console.log('  inte vet om ramen kapat ett kort ur en hel grupp.');
   console.log('  Kontroll mot facit: ' + (kontroll.length ? kontroll.join('; ') + ' (helbordsfotona 09 och 13 ligger i rader, inte kolumner; ingen av deras platshållare ligger vid sidkanten)' : 'stämmer.'));
+  for (const lage of K.LAGEN) if (tot[lage].over) console.log(`  ${lage}: ${tot[lage].over} KANT mer än facits kapade kort; nämnaren "av ${tot[lage].KANT}" är högst ${tot[lage].KANT - tot[lage].over} (en post är en läsning för mycket i en kapad kolumn).`);
   console.log(`  metod: svaren ur ${path.relative(K.ROT, SVARMAPP)} (${K.MODELL}, systemprompt v${K.PROMPTV}, lekblocket ${K.LEKBLOCK}), telfotoLas och lsfFall ur index.html.`);
   if (DETALJ) console.log('\n' + detalj.map(d => '  ' + d).join('\n'));
 })().catch(e => { console.error('\nkantkort: ' + (e && e.stack || e)); process.exit(2); });

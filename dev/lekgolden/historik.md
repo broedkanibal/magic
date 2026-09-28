@@ -82,9 +82,14 @@ har kort ur ett annat foto. Mätt ur cachen med `node dev/lekgolden/kantkort.cjs
 
 | Gräns (sidkanten) | hela: kapade som får frågan | hela: HELA kort som får den i onödan | ram: kapade | ram: hela |
 |---|---|---|---|---|
-| 30 (vald) | 25 av 31 | 0 | 4 av 23 | 0 |
-| 60 | 28 av 31 | 0 | 5 av 23 | 1 (kolumnregeln, ej granskad) |
-| 80 | 31 av 31 | 1 (Ukud Cobra, foto 11, x = 930) | 5 av 23 | 4 |
+| 30 (vald) | 24–25 av 30 | 0 | 4 av 23 | 0 |
+| 60 | 27–28 av 30 | 0 | 5 av 23 | 1 (kolumnregeln, ej granskad) |
+| 80 | 30 av 30 | 1 (Ukud Cobra, foto 11, x = 930) | 5 av 23 | 4 |
+
+Nämnaren är 30, inte 31 som först skrevs: foto 05 har 7 platshållare i den
+kapade kolumnen men bara 6 kapade kort utan namn, så en av dem är en läsning
+för mycket (kantkort.cjs kontrollerar nu KANT mot facit också). Därför
+"24–25": vilken av de sju som är den extra går inte att säga.
 
 I seten med mer än ett foto: 30 LR3-frågor i hela (S06 5, S07 12, S08 13)
 och 2 i ram, alla på kapade kort, 0 på hela. Övre och nedre kanten räknas
