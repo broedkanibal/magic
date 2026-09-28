@@ -179,6 +179,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <div class="rad" id="valtfalt"></div>
     <div class="rad" id="valtfast"></div>
     <div class="rad" id="valtnummer"></div>
+    <div class="rad" id="kopiering"></div>
     <div class="rad">
       <button type="button" id="b-upp" title="Ett steg upp i ordningen (⇧↑ överst)">Upp<kbd>↑</kbd></button>
       <button type="button" id="b-ner" title="Ett steg ner (⇧↓ underst)">Ner<kbd>↓</kbd></button>
@@ -216,6 +217,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>två klick</td><td><b>rita ett kort</b>: kortets övre vänstra hörn, sedan övre högra, längs namnraden (eller dra från det ena till det andra). Resten ritas ut, också det som ligger under ett annat kort</td></tr>
     <tr><td>Enter</td><td>skriv namnet på det valda kortet (lekens namn, <code>token Soldier</code>, <code>baksida</code>); Enter igen tillbaka till bilden</td></tr>
     <tr><td>⌘-klick</td><td>välj ett kort. Samma ställe igen väljer kortet under</td></tr>
+    <tr><td>⇧⌘-klick · ⌘C · ⌘V</td><td>markera fler kort (⇧-klick i listan) · kopiera de markerade · klistra in dem i ett annat läge, med samma nummer och plats. Ett kort i graveyard: "Markera hela graveyard-högen"</td></tr>
     <tr><td>↑ ↓ · ⇧↑ ⇧↓</td><td>det valda kortet ett steg upp/ner i ordningen · överst/underst. Senast ritat hamnar överst</td></tr>
     <tr><td>Esc · ⌫</td><td>avbryt ett påbörjat kort / avmarkera · ta bort det valda kortet</td></tr>
     <tr><td>⌘Z · ⇧⌘Z · ⌘S</td><td>ångra · gör om · spara till repot. Utkastet sparas hela tiden, på datorn och i webbläsaren</td></tr>
@@ -268,6 +270,8 @@ const S = {
   vald: null, lage: 'rita', las: false,
   vantar: null,            // första klicket i Rita: { p, skarm, tid }
   nastaNamn: null,
+  markerade: new Set(),   // flera kort markerade (⇧⌘-klick), för Kopiera/Klistra in
+  urklipp: null,           // { nr, kort } — kopierade kort
   undo: [], redo: [],
   raknat: {}, forslag: {}, cache: new Map(),
 };
@@ -461,7 +465,7 @@ function raknaOm() {
 let ritaPlanerad = false;
 function ritaSnart() { if (!ritaPlanerad) { ritaPlanerad = true; requestAnimationFrame(() => { ritaPlanerad = false; rita(); }); } }
 function farg(k, a) {
-  const vald = k.id === S.vald, n = String(k.namn || '').trim();
+  const vald = k.id === S.vald || S.markerade.has(k.id), n = String(k.namn || '').trim();
   const r = S.raknat[k.id] || {};
   const bas = vald ? [94, 227, 138] : !n || (G.arLekkort(n) && !S.lek.includes(n)) ? [255, 107, 107]
     : k.zon ? [150, 150, 150] : G.arToken(n) ? [197, 140, 255] : G.arBaksida(n) ? [111, 195, 201] : r.dold ? [175, 185, 198] : [240, 210, 60];
@@ -595,8 +599,10 @@ cv.addEventListener('pointerdown', e => {
     drag = { typ: 'nytt', start: p, flyttad: false };
     ritaSnart(); return;
   }
+  const forraM = new Set(S.markerade), forraV = S.vald;   // valjVid väljer (och tömmer markeringen)
   const k = valjVid(p);
   if (!k) return;
+  if (e.shiftKey && (e.metaKey || e.ctrlKey)) { S.markerade = forraM; S.vald = forraV; markera(k.id); return; }
   fore();
   drag = { typ: e.altKey ? 'vrid' : 'flytta', start: p, urspr: kopia(k.horn), flyttad: false, id: k.id };
 });
@@ -647,7 +653,59 @@ function nummerForslag(k) {
   const o = forra.kort.find(x => x.namn === k.namn && !l.kort.some(y => y.id === x.id));
   return o ? { id: o.id, nr: forra.nr } : null;
 }
+/* ── Kopiera och klistra in flera kort ────────────────────────────────────
+   Samma kort mellan lägen: ett läge som redan är påbörjat kopierar inte
+   förra läget (Jespers läge 46 saknade graveyard-högen från läge 45).
+   Korten klistras in med samma nummer, plats och ordning; finns numret
+   redan i läget ersätts kortet. */
+function markera(id) {
+  if (S.vald != null && !S.markerade.size && S.vald !== id) S.markerade.add(S.vald);
+  if (S.markerade.has(id)) S.markerade.delete(id); else S.markerade.add(id);
+  S.vald = id; visa();
+}
+function markeradeKort() { const ids = new Set(S.markerade); if (S.vald != null) ids.add(S.vald); return kortNu().filter(k => ids.has(k.id)); }
+function markeraHogen() {
+  const k = kortId(S.vald); if (!k || !k.zon) return;
+  for (const o of kortNu()) if (o.zon === k.zon) S.markerade.add(o.id);
+  visa(); melding(`${S.markerade.size} kort i ${k.zon === 'grav' ? 'graveyard' : 'library'} markerade — ⌘C kopierar`);
+}
+function kopieraKort() {
+  const kort = markeradeKort(); if (!kort.length) { melding('markera kort först (⌘-klick, ⇧⌘-klick för fler)'); return; }
+  S.urklipp = { nr: S.nr, kort: kopia(kort) };
+  melding(`${kort.length} kort kopierade${S.kalla.sort === 'video' ? ` från läge ${S.nr}` : ''} — gå till ett annat läge och tryck ⌘V`); visa();
+}
+function klistraKort() {
+  const u = S.urklipp; if (!u) { melding('inget kopierat — markera kort och tryck ⌘C'); return; }
+  let nya = 0, ersatta = 0;
+  andra(() => {
+    const kort = kortNu();
+    // de inklistrade korten läggs som ett block i källans ordning: där de gamla låg, annars överst
+    const ids = new Set(u.kort.map(k => k.id)), gamla = kort.filter(k => ids.has(k.id));
+    const bas = gamla.length ? Math.min(...gamla.map(k => k.z)) - 0.5 : kort.reduce((m, o) => Math.max(m, o.z), 0) + 1;
+    ersatta = gamla.length; nya = u.kort.length - ersatta;
+    for (let i = kort.length - 1; i >= 0; i--) if (ids.has(kort[i].id)) kort.splice(i, 1);
+    u.kort.slice().sort((a, b) => a.z - b.z).forEach((c, r) => {
+      const ny = kopia(c);
+      if (ny.fast != null && !kort.some(k => k.id === ny.fast) && !ids.has(ny.fast)) delete ny.fast;
+      ny.z = bas + (r + 1) / (u.kort.length + 1) * 0.5; kort.push(ny);
+    });
+    normaliseraZ(kort);
+  });
+  S.markerade = new Set(u.kort.map(k => k.id)); S.cache.clear(); raknaOm(); visa();
+  melding(`${nya + ersatta} kort inklistrade${nya ? ` (${nya} nya` + (ersatta ? `, ${ersatta} ersatta)` : ')') : ' (alla ersatta)'}`);
+}
+function visaKopiering(k) {
+  const r = el('kopiering'), n = markeradeKort().length;
+  r.innerHTML = (k && k.zon ? `<button type="button" id="b-hogen" class="liten">Markera hela ${k.zon === 'grav' ? 'graveyard-högen' : 'högen'}</button> ` : '')
+    + (n ? `<button type="button" id="b-kopiera" class="liten">Kopiera ${n > 1 ? n + ' kort' : ''}<kbd>⌘C</kbd></button> ` : '')
+    + (S.urklipp ? `<button type="button" id="b-klistra" class="liten">Klistra in ${S.urklipp.kort.length} kort<kbd>⌘V</kbd></button>` : '')
+    + (n > 1 ? ` <span class="dim">${n} markerade</span>` : '');
+  if (el('b-hogen')) el('b-hogen').onclick = markeraHogen;
+  if (el('b-kopiera')) el('b-kopiera').onclick = kopieraKort;
+  if (el('b-klistra')) el('b-klistra').onclick = klistraKort;
+}
 function visaNummer(k) {
+  visaKopiering(k);
   const sf = sammaTidigare(k), b = el('b-somforra');
   b.hidden = !sf; if (sf) b.firstChild.textContent = `Som i läge ${sf.nr}`;
   const ruta = el('valtnummer');
@@ -701,7 +759,7 @@ function somForra() {
 }
 
 /* ── Val och kortets fält ─────────────────────────────────────────────── */
-function valj(id) { S.vald = id; visa(); }
+function valj(id) { S.vald = id; S.markerade.clear(); visa(); }
 function visaValt() {
   const k = kortId(S.vald), r = k ? S.raknat[k.id] : null;
   el('valdid').textContent = k ? '#' + k.id : '–';
@@ -877,6 +935,8 @@ window.addEventListener('keydown', e => {
   if (e.key === ' ' && !iFalt()) { mellanslag = true; e.preventDefault(); return; }
   if (iFalt()) return;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) gorOm(); else angra(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); kopieraKort(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); klistraKort(); return; }
   if (e.metaKey || e.ctrlKey) return;
   const k = e.key;
   if (k === 'Escape') { if (!el('hjalp').hidden) el('hjalp').hidden = true; else if (S.vantar) { S.vantar = null; ritaSnart(); } else valj(null); return; }
@@ -955,9 +1015,9 @@ function visaLista() {
     if (k.fast != null) t.push(`<span class="tagg fast">↳#${k.fast}</span>`);
     if (r.avskuret) t.push('<span class="tagg fel">avskuret</span>');
     if (k.zon) t.push(`<span class="tagg">${k.zon}</span>`);
-    return `<div class="k${k.id === S.vald ? ' vald' : ''}" data-id="${k.id}"><span class="nr">#${k.id}</span><span class="namn${!n || (G.arLekkort(n) && !S.lek.includes(n)) ? ' saknas' : ''}">${esc(n || '(namn saknas)')}</span><span class="dim">${Math.round((r.synlig || 0) * 100)}%</span>${t.join('')}</div>`;
+    return `<div class="k${k.id === S.vald || S.markerade.has(k.id) ? ' vald' : ''}" data-id="${k.id}"><span class="nr">#${k.id}</span><span class="namn${!n || (G.arLekkort(n) && !S.lek.includes(n)) ? ' saknas' : ''}">${esc(n || '(namn saknas)')}</span><span class="dim">${Math.round((r.synlig || 0) * 100)}%</span>${t.join('')}</div>`;
   }).join('') : '<span class="dim">Inga kort än.</span>';
-  for (const d of el('kortlista').children) if (d.dataset.id) d.onclick = () => valj(+d.dataset.id);
+  for (const d of el('kortlista').children) if (d.dataset.id) d.onclick = e => e.shiftKey ? markera(+d.dataset.id) : valj(+d.dataset.id);
 }
 /* Checklistan: facits namn (foto) eller det händelsefacit väntar sig i
    läget (video), bockade mot de ritade lekkorten. Klick på en obockad rad
@@ -1278,6 +1338,7 @@ function gaTill(nr) {
   if (nr === S.nr) return;
   S.vantar = null;
   el('melding').textContent = ''; el('status').textContent = ''; el('tidsbesked').textContent = '';   // ett besked om förra läget gäller inte det nya
+  S.markerade.clear();
   oppnaLage(nr);
 }
 /* Tiden i ett läge får bara röra sig inom lägets fönster (fran–till i
