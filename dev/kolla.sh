@@ -2,8 +2,9 @@
 # Körs före varje push (dev/plan/lagen.md §10). Slutar med kod 1 om något faller.
 # Syntaxen kontrolleras genom att klippa ut <script>-blocken ur index.html och
 # köra `node --check` på dem (headless Chrome hänger på Mesas sida) — sedan
-# harnessarna: lekens ändringar och telefonens lekfoto (MES-289), datorns
-# avstämning, dubblettmåttet på videofall 07 och kamerabänken.
+# harnessarna: lekens ändringar och telefonens lekfoto (MES-289), lekfotot på
+# datorn (MES-322), datorns avstämning, dubblettmåttet på videofall 07 och
+# kamerabänken.
 set -e
 cd "$(dirname "$0")/.."
 # Varje steg går genom steg(): faller det skrivs vilket steg det var, och
@@ -37,6 +38,7 @@ console.log("syntax: " + n + " script-block ok");'
 steg lista node dev/lista.cjs
 steg lekslag node dev/lekslag.cjs
 steg lekfoto node dev/lekfoto.cjs
+steg lekfoto-dator node dev/lekfoto-dator.cjs
 steg avstamning node dev/avstamning.cjs
 steg "dubbletter --fall 07" node dev/dubbletter.cjs --fall 07 > /dev/null
 echo "dubbletter --fall 07: kördes"
