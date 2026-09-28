@@ -13795,8 +13795,16 @@ function lfUndoGiltig(t, u) {
   return true;
 }
 const lfLandade = t => lfFotoLista(t).filter(f => LF_LANDAT.includes(lfLageAv(t, f))).map(f => f.fid);
-/* Det som fanns när man tog bort eller tog om: landade foton och fotona i leken. */
-const lfEfter = (t, utom) => [...new Set([...lfLandade(t), ...(t.iLeken || [])])].filter(x => x !== utom);
+/* Det som fanns när man tog bort eller tog om: landade foton, fotona i leken,
+   och foton som är ersatta eller borttagna. De sista kan komma tillbaka i
+   leken genom ett annat Undo (J10 lägger tillbaka det ersatta fotot), och
+   det är inget nytt foto (kontrollgranskningen, G11). */
+const lfEfter = (t, utom) => [...new Set([...lfLandade(t), ...(t.iLeken || []),
+  ...lfFotoLista(t).filter(f => ['ersatt', 'bort'].includes(lfLageAv(t, f))).map(f => f.fid)])].filter(x => x !== utom);
+/* Ett foto läses eller tas om just nu. Då erbjuds varken Remove photo eller
+   Retake: telefonen skriver fotots läge när läsningen är klar, och en
+   borttagning mitt i den (eller av fotot som tas om) hade skrivits över. */
+const lfLaserPagar = t => !!(lfLaser(t) || lfOmtas(t) || lfFotoLista(t).some(f => lfLageAv(t, f) === 'laser'));
 /* Datorns eget läge för ett foto (lokal) gäller tills telefonen säger samma
    sak, eller att fotot ersatts av ett omtag (det kan bara ett foto som
    räknas). En post från telefonen som korsar datorns fotobort (skickad innan
@@ -14060,8 +14068,11 @@ function lfFotoIn(t, f) {
   if (landat && fid === t.fid && t.fas === 'laser') { t.fas = 'lagg'; t.ersatter = null; }
   /* Ett omtag som landat (J10): det gamla fotots exemplar tillbaka går att
      ångra, med mallarna räknade medan omtaget pågick. Bara när övergången
-     syns nu: efter en omladdning finns posten sparad, eller inte alls. */
-  if (ny.lage === 'klar' && ny.ersatter && !varLandat && !t.undo.has(fid) && lfStod()) {
+     laser → klar syns nu (eller telefonens första post efter radens ur
+     leken): inte när telefonen skickar om posten efter en borttagning och
+     ett Undo av det omtagna fotot (kontrollgranskningen, G10), och inte efter
+     en omladdning (då finns posten sparad, eller inte alls). */
+  if (ny.lage === 'klar' && ny.ersatter && fore && (fore.lage === 'laser' || fore.fran === 'leken') && !varLandat && !t.undo.has(fid) && lfStod()) {
     const u = lfOmtagUndo(t, t.mallar.get(String(ny.ersatter)), fid, String(ny.ersatter));
     if (u) t.undo.set(fid, u);
   }
@@ -14724,7 +14735,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      leken bär den (telEfterRad): då är fotot och korten samma sak på båda. */
   function taBortFoto(fid) {
     const t = y.tel, f = t.foton.get(fid) || { fid };
-    if (!lfStod() || !y.bas || t.undo.has(fid) || lfLageAv(t, f) === 'bort') return;
+    if (!lfStod() || !y.bas || t.undo.has(fid) || lfLageAv(t, f) === 'bort' || lfLaserPagar(t)) return;
     const kort = nu().kort, { ops, undo } = lfTaBort(t, kort, fid, lekOpId);
     lokalt(fid, 'bort');
     if (undo) {
@@ -14756,7 +14767,7 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
      det (kamera med ersatter): telefonen tar inte ett omtag medan den läser
      eller står i kameran. */
   function omtaFoto(fid) {
-    if (!y.bas || !y.tel.ansluten) return;
+    if (!y.bas || !y.tel.ansluten || lfLaserPagar(y.tel)) return;
     telMallar();
     telSag({ typ: 'omtag', fid });
   }
@@ -14808,14 +14819,17 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
       .map(p => `<i class="lfvram" style="left:${clamp(+p.x / 10 - 11, 0, 78)}%;top:${clamp(+p.y / 10 - 4.5, 0, 91)}%"></i>`).join('');
     const ar = bild && bild.b && bild.h ? `${bild.b} / ${bild.h}` : '3 / 4';
     const n = fragor.length;
+    /* Medan ett foto läses eller tas om väntar Remove photo och Retake. */
+    const pagar = lfLaserPagar(t), vanta = pagar ? ' title="Waiting for the photo being read"' : '';
+    if (pagar) visa.fraga = false;
     const rad = x => `<div class="lfvrad"><span class="th">${x.k.small ? `<img src="${esc(x.k.small)}" alt="">` : ''}</span>`
       + `<div class="tx"><b>${esc(x.k.okand ? 'No name read' : x.k.name)}</b><span>In the deck</span></div></div>`;
     const knappar = visa.fraga
       ? `<div class="lfvfot fraga"><span>${lfBortFraga(nr, lista.reduce((s, x) => s + x.n, 0))}</span>`
         + `<button type="button" class="btn fara" data-lfv="bortja">${lsIk('trash', 14)}Remove photo</button><button type="button" class="btn ghost" data-lfv="bortnej">Cancel</button></div>`
       : '<div class="lfvfot">'
-        + (lfStod() ? `<button type="button" class="btn" data-lfv="omta"${t.ansluten ? '' : ' disabled'}>${lsIk('rot', 14)}Retake with the phone</button>`
-          + `<button type="button" class="btn ghost fara" data-lfv="bort">${lsIk('trash', 14)}Remove photo…</button>` : '')
+        + (lfStod() ? `<button type="button" class="btn" data-lfv="omta"${t.ansluten && !pagar ? '' : ' disabled'}${vanta}>${lsIk('rot', 14)}Retake with the phone</button>`
+          + `<button type="button" class="btn ghost fara" data-lfv="bort"${pagar ? ' disabled' : ''}${vanta}>${lsIk('trash', 14)}Remove photo…</button>` : '')
         + '</div>';
     visaEl.innerHTML = `<section class="lfvbox" role="dialog" aria-modal="true" aria-label="Photo ${nr}">`
       + `<div class="lfvbild" style="aspect-ratio:${ar}">${bild ? `<img src="${esc(bild.url)}" alt="Photo ${nr}">` : '<span class="lfvtom">' + lsIk('camera', 30, 1.6) + '</span>'}${ram}</div>`

@@ -690,6 +690,72 @@ fallD('F5 Remove photo på telefonen (LB1): datorn får Undo ur sina mallar', ()
   assert.deepStrictEqual(antal(v.server.rad), fore);
 });
 
+/* ── G: kontrollgranskningen av MES-322 ─────────────────────────────── */
+/* Datorns telMallar: mallarna, fotona i leken och raderna ur leken. */
+const synk = (t, rad) => { const kort = app.lekSlagTillampa(rad, []).kort; for (const [fid, ops] of app.lfMallarUr(kort)) t.mallar.set(fid, ops); t.iLeken = app.lfFidsILeken(kort); app.lfFotonUrLeken(t, kort); };
+fallD('G10 Remove + Undo på ett omtaget foto ger inget nytt J10-Undo', () => {
+  let rad = spara(lek(), fotoOps('1:a', ['A', 'B', 'C']));
+  const t = nyTel(); synk(t, rad);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:a', nr: 1, lage: 'klar', hittade: 3 } });
+  app.lfHor(t, { typ: 'kamera', foto: 1, ersatter: '1:a' }); synk(t, rad);
+  app.lfHor(t, { typ: 'laser', foto: 1, fid: '1:z', ersatter: '1:a' }); synk(t, rad);
+  rad = spara(rad, [...fotoOps('1:z', ['A', 'D']), { typ: 'fotobort', foto: '1:a', id: id() }]);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:a', nr: 1, lage: 'ersatt', hittade: 3 } });
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:z', nr: 1, ersatter: '1:a', lage: 'klar', hittade: 2 } });
+  synk(t, rad);
+  assert.ok(t.undo.get('1:z') && t.undo.get('1:z').typ === 'omtag', 'J10 direkt efter omtaget');
+  app.lfHor(t, { typ: 'laser', foto: 2, fid: '2:b' });
+  rad = spara(rad, fotoOps('2:b', ['E']));
+  app.lfHor(t, { typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'klar', hittade: 1 } }); synk(t, rad);
+  app.lfStad(t, klara(rad), false);
+  assert.strictEqual(t.undo.has('1:z'), false, 'J10 borta när foto 2 landat');
+  /* Remove photo 1 (1:z) och Undo; telefonen skickar om posten efter båda. */
+  const { ops, undo } = app.lfTaBort(t, app.lekSlagTillampa(rad, []).kort, '1:z', id);
+  rad = spara(rad, ops); t.lokal.set('1:z', 'bort'); t.undo.set('1:z', undo); synk(t, rad);
+  app.lfStad(t, klara(rad), false);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:z', nr: 1, ersatter: '1:a', lage: 'bort', hittade: 2 } });
+  undo.brukad = true; t.lokal.set('1:z', 'klar'); rad = spara(rad, undo.ops); synk(t, rad);
+  assert.deepStrictEqual(app.lfStad(t, klara(rad), false).sag, [{ typ: 'fotoater', fid: '1:z' }]);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:z', nr: 1, ersatter: '1:a', lage: 'klar', hittade: 2 } });
+  assert.strictEqual(t.undo.size, 0, 'inget J10-Undo dyker upp igen');
+  assert.deepStrictEqual(rader(t)[0], ['Photo 1', '2 cards added', 'View']);
+});
+fallD('G11 Undo av ett omtag (J10) fäller inte Undo för Remove photo 2', () => {
+  let rad = spara(lek(), fotoOps('1:a', ['A', 'B'])); rad = spara(rad, fotoOps('2:b', ['C']));
+  const t = nyTel(); synk(t, rad);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:a', nr: 1, lage: 'klar', hittade: 2 } });
+  app.lfHor(t, { typ: 'foto', foto: { fid: '2:b', nr: 2, lage: 'klar', hittade: 1 } });
+  app.lfHor(t, { typ: 'kamera', foto: 1, ersatter: '1:a' }); synk(t, rad);
+  app.lfHor(t, { typ: 'laser', foto: 1, fid: '1:z', ersatter: '1:a' }); synk(t, rad);
+  rad = spara(rad, [...fotoOps('1:z', ['A', 'D']), { typ: 'fotobort', foto: '1:a', id: id() }]);
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:a', nr: 1, lage: 'ersatt', hittade: 2 } });
+  app.lfHor(t, { typ: 'foto', foto: { fid: '1:z', nr: 1, ersatter: '1:a', lage: 'klar', hittade: 2 } }); synk(t, rad);
+  const j10 = t.undo.get('1:z'); assert.ok(j10, 'J10');
+  const { ops, undo } = app.lfTaBort(t, app.lekSlagTillampa(rad, []).kort, '2:b', id);
+  rad = spara(rad, ops); t.lokal.set('2:b', 'bort'); t.undo.set('2:b', undo); synk(t, rad);
+  app.lfStad(t, klara(rad), false);
+  assert.ok(t.undo.has('2:b') && t.undo.has('1:z'), 'båda Undo gäller');
+  j10.brukad = true; t.lokal.set('1:z', 'bort'); t.lokal.set('1:a', 'klar'); rad = spara(rad, j10.ops); synk(t, rad);
+  app.lfStad(t, klara(rad), false);
+  assert.strictEqual(t.undo.has('2:b'), true, 'inget nytt foto har landat: Remove photo 2 går att ångra');
+  const efter = spara(rad, t.undo.get('2:b').ops);
+  assert.deepStrictEqual(antal(efter), { A: 1, B: 1, C: 1 }, 'leken som före omtaget och borttagningen');
+});
+fall('Remove photo och Retake erbjuds inte medan ett foto läses eller tas om', () => {
+  const t = nyTel();
+  foto(t, '1:a', 'klar', { hittade: 3 }); foto(t, '2:b', 'klar', { hittade: 2 });
+  assert.strictEqual(app.lfLaserPagar(t), false);
+  app.lfHor(t, { typ: 'laser', foto: 3, fid: '3:c' });
+  assert.strictEqual(app.lfLaserPagar(t), true, 'foto 3 läses');
+  app.lfHor(t, { typ: 'foto', foto: { fid: '3:c', nr: 3, lage: 'klar', hittade: 1 } });
+  assert.strictEqual(app.lfLaserPagar(t), false);
+  app.lfHor(t, { typ: 'laser', foto: 4, fid: '4:d' });
+  app.lfHor(t, { typ: 'foto', foto: { fid: '4:d', nr: 4, lage: 'ejskickat' } });
+  assert.strictEqual(app.lfLaserPagar(t), false, 'läsningen misslyckades: inget läses längre');
+  app.lfHor(t, { typ: 'kamera', foto: 1, ersatter: '1:a' });
+  assert.strictEqual(app.lfLaserPagar(t), true, 'foto 1 tas om');
+});
+
 const d = STOD ? '' : `, ${over} hoppades över: LEKSLAG i ${path.basename(FIL)} saknar foto/fotobort (MES-321)`;
 console.log(`\nlekfoto-dator: ${ok} OK, ${fel} FEL${d}`);
 process.exit(fel ? 1 : 0);
