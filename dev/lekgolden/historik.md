@@ -26,3 +26,23 @@ samma prompt:
 
 Närbilder i gott ljus ger samma svar; helbordet på tvären varierar kraftigt
 mellan två läsningar av samma bild. Alla fel namn stod under To check.
+
+## Samma kort i två foton, 2026-09-28 (MES-324)
+
+`node dev/lekgolden/tvafoton.cjs`, ur samma cache (svaren från 2026-09-26),
+med telefonens regel som den ligger i appen: LB1 = hela fotot igen (minst
+tre säkra icke-basland, två tredjedelar av dem i ett tidigare foto), LB2 =
+ett kort vid det nya fotots vänster- eller högerkant (30 tusendelar) med ett
+säkert namn som ett tidigare foto också hade.
+
+| Beskärning | LB1 i seten (falsklarm) | LB1 på samma foto två gånger | LB2-flaggor | fångade kantkort (av kantkort lästa med namn) | onödiga frågor |
+|---|---|---|---|---|---|
+| hela | 0 | 14/14 fällda | 1 | 1 av 1 (S08: Swamp i foto 07) | 0 |
+| ram | 0 | 3/3 fällda | 1 | 0 av 0 | 1 (S03: ett helt Swamp som modellen la på x = 1000 i foto 15) |
+
+Vad modellen läser vid kanten är oftast ingenting: de kapade korten blev
+namnlösa poster (platshållare) i alla foton utom ett. Med "endera kanten"
+(också det gamla fotots kort vid kanten) blev det 7 onödiga frågor mot 1;
+med över- och underkanten inräknade träffas hela kort som modellen lägger
+på y = 1000 (34 av 338 namngivna kort). Lekgolden självt oförändrat efter
+bygget: LIKA BRA i alla fyra, 0 fel namn rakt in i leken.
