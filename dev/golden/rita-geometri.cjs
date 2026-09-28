@@ -57,7 +57,10 @@ const runda = (v, n = 4) => { const f = 10 ** n; return Math.round(v * f) / f; }
 const arToken = n => /^token\s+\S/i.test(String(n || '').trim());
 const arBaksida = n => /^baksida$/i.test(String(n || '').trim());
 const arLibrary = n => /^library$/i.test(String(n || '').trim());
-const arLekkort = n => !!String(n || '').trim() && !arToken(n) && !arBaksida(n) && !arLibrary(n);
+/* "okänt kort": ett kort i graveyard som inte går att namnge — de tre som
+   Venomous Hierophant millar ur leken i MES-246. Bara i zonen grav. */
+const arOkant = n => /^okänt kort$/i.test(String(n || '').trim());
+const arLekkort = n => !!String(n || '').trim() && !arToken(n) && !arBaksida(n) && !arLibrary(n) && !arOkant(n);
 /* typAv: 'equipment' | 'aura' | 'creature' | 'land' | 'token' | 'baksida' | 'annat' | null
    (null = typen okänd: namnet saknas i typfilen). */
 function typAv(namn, typer) {
@@ -353,7 +356,7 @@ function formatera(v, ind = '') {
 
 const G = {
   KORT_B, KORT_H, KVOT, NAMNRAD, DOLD_UNDER, TAPP_GRANS, AVSKUREN_OVER, OVERLAPP_MIN,
-  runda, rundaHorn, arToken, arBaksida, arLibrary, arLekkort, bibUrRitat, typAv, kanFastas, kanBaraFast,
+  runda, rundaHorn, arToken, arBaksida, arLibrary, arOkant, arLekkort, bibUrRitat, typAv, kanFastas, kanBaraFast,
   tillPx, tillAndel, hornUrTva, hornUrPar, flytta, mitt, vrid, bredd, vinkel, arTappad,
   lada, iPolygon, snittYta, overlapp, synlighet, hogar, bokstav, fastForslag, raknaKort, fastFel,
   formatera,

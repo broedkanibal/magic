@@ -87,6 +87,7 @@ function kollaNamn(k, var_, iKort) {
   const n = String(k.namn || '').trim();
   if (!n) return [`${var_} id ${k.id}: saknar namn`];
   if (G.arLibrary(n)) return iKort ? [`${var_} library: leken hör inte hemma i kort[] (kor.html räknar den som ett kort)`] : k.zon === 'bib' ? [] : [`${var_} library (id ${k.id}): ligger inte i zonen bib`];
+  if (G.arOkant(n)) return k.zon === 'grav' ? [] : [`${var_} okänt kort (id ${k.id}): får bara ligga i graveyard`];
   if (G.arToken(n) || G.arBaksida(n)) return iKort ? [`${var_} ${n}: en token eller baksida hör inte hemma i kort[] (kor.html räknar den som ett kort)`] : [];
   return LEK.includes(n) ? [] : [`${var_} ${n}: finns inte i lek.txt`];
 }
@@ -133,6 +134,13 @@ function kontrolleraVideo(id, cfg, lagen) {
   let tidigare = {}, anvanda = [], forraT = -Infinity;
   const ut = [];
   const lista = (lagen.lagen || []).slice().sort((a, b) => a.t - b.t);
+  /* Samma parning av manusrader som rita.html: ritningen låser raderna
+     (nya kort, tappningar, mill) till lägena där de syns. Annars skiljer
+     sig "händelserna före läget" från det sidan sparade. */
+  if (u.medRitning) {
+    const perNr = {}; for (const l of lista) if (l.nr != null) perNr[l.nr] = l;
+    u.medRitning(perNr, k => !k.zon && !!String(k.namn || '').trim() && !G.arBaksida(k.namn), k => G.arTappad(k.horn, W, H, grund));
+  }
   for (const l of lista) {
     const v = `läge ${l.t} s:`;
     const kort = l.kort || [];

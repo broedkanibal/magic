@@ -328,12 +328,15 @@ function underlag(kalla, filer, leknamn) {
        försvunnit ett ankare för raden som tar bort det. */
     medRitning: (lagen, iSpel, tappad) => {
       const lista = Object.values(lagen || {}).sort((a, b) => a.nr - b.nr);
-      const nyckel = JSON.stringify(lista.map(l => [l.nr, l.kort.filter(iSpel).map(k => k.namn + (tappad && tappad(k) ? '*' : '')).sort()]));
+      // millade kort: i graveyard, men inget manuset själv lägger där ("X till graveyard") — namngivna (Hooded Blightfang) eller okända
+      const gravNamn = new Set(manus.map(r => (/^(.+) till graveyard$/.exec(r.text) || [])[1]).filter(Boolean));
+      const okanda = l => l.kort.filter(k => k.zon === 'grav' && !gravNamn.has(String(k.namn || '').trim())).length;
+      const nyckel = JSON.stringify(lista.map(l => [l.nr, okanda(l), l.kort.filter(iSpel).map(k => k.namn + (tappad && tappad(k) ? '*' : '')).sort()]));
       if (nyckel === ritNyckel) return;
       ritNyckel = nyckel;
       const extra = [], anvand = new Set(), tappAnvand = new Map();
       const nasta = (falt, namn) => { const i = manus.findIndex((r, k) => !anvand.has(k) && r[falt] === namn); if (i >= 0) anvand.add(i); return i; };
-      let forra = {}, forraT = {};
+      let forra = {}, forraT = {}, forraO = 0;
       for (const l of lista) {
         const f = forslagSteg(steg)[l.nr - 1]; if (!f) continue;
         const nu = {}, nuT = {};
@@ -346,6 +349,12 @@ function underlag(kalla, filer, leknamn) {
             if (i >= 0) { extra.push({ s: f.steg, r: i }); if (d > 0 && / tappad$/.test(manus[i].text)) tappadIn[n] = (tappadIn[n] || 0) + 1; }
           }
         }
+        /* En tappning eller mill kan inte ha hänt före ett kort som ännu inte
+           är utlagt i ritningen: sökningen stannar vid första oanvända
+           nedläggningen. Utan gränsen låste en Plains som untappades sent i
+           Jespers ritning "untappa hög B" långt fram (rad 43, efter Danitha)
+           och drog raderna däremellan till läge 38. */
+        const grans = (() => { const i = manus.findIndex((r, k) => r.plus && !anvand.has(k)); return i < 0 ? manus.length : i; })();
         /* Tappningar: fler tappade av ett namn än i förra ritade läget låser
            nästa tappa-rad som träffar namnet till det här läget (färre: en
            untappa-rad). "tappa hög A" räknas för båda Swamparna i högen. */
@@ -354,7 +363,7 @@ function underlag(kalla, filer, leknamn) {
           let d = (nuT[n] || 0) - (forraT[n] || 0) - (tappadIn[n] || 0);
           if (d < 0) d = Math.min(0, d + Math.min(bort, forraT[n] || 0));   // ett tappat kort som lämnat bordet är ingen untappning
           let kvar = Math.abs(d);
-          for (let i = 0; i < manus.length && kvar > 0; i++) {
+          for (let i = 0; i < grans && kvar > 0; i++) {
             const e = tappEffekt[i];
             if (!e || e.tappa !== d > 0 || !e.namn[n]) continue;
             if (tappAnvand.has(i) && tappAnvand.get(i) !== l.nr) continue;
@@ -362,7 +371,14 @@ function underlag(kalla, filer, leknamn) {
             kvar -= e.namn[n];
           }
         }
-        forra = nu; forraT = nuT;
+        /* Mill: fler okända kort i graveyard än i förra ritade läget låser
+           nästa oanvända mill-rad hit ("mill 3" räknas för tre). */
+        let fler = okanda(l) - forraO;
+        for (let i = 0; i < grans && fler > 0; i++) {
+          const m = /^mill (\d+)$/.exec(manus[i].text); if (!m || anvand.has(i)) continue;
+          anvand.add(i); extra.push({ s: f.steg, r: i }); fler -= +m[1];
+        }
+        forra = nu; forraT = nuT; forraO = okanda(l);
       }
       parning(extra);
     },

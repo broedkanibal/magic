@@ -231,7 +231,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr class="grupp"><td colspan="2">Ibland</td></tr>
     <tr><td>F · ⇧F</td><td>fäst vid förslaget (equipment/aura omlott med en varelse) · lossa. Följer med till senare lägen där båda korten finns</td></tr>
     <tr><td>B</td><td><b>leken</b> (baksidan upp): rita den som ett kort och tryck B — inget namn behövs. Den sparas som facits library-ruta, så att golden inte mäter leken som ett kort. B igen ångrar</td></tr>
-    <tr><td>G</td><td>kortet ligger i graveyard (räknas inte som kort i spel)</td></tr>
+    <tr><td>G</td><td>kortet ligger i graveyard (räknas inte som kort i spel). Ett kort där som inte går att namnge — t.ex. millat ur leken — heter <code>okänt kort</code></td></tr>
     <tr class="grupp"><td colspan="2">Bara i video</td></tr>
     <tr><td>← → (eller [ ])</td><td>förra/nästa läge. Ett nytt läge börjar med förra ritade lägets kort — ta bort det som lämnat bordet, rita det som är nytt</td></tr>
     <tr><td>⇧← ⇧→</td><td>visa bilden 0,5 s tidigare/senare (⌥ 0,1 s), om en hand skymmer. Bara inom läget — tiden går inte in i nästa läge</td></tr>
@@ -1108,6 +1108,20 @@ function uppgifter(l, dom) {
         : `${vill} av ${mina.length} <b>${esc(n)}</b> ska vara tappade`;
       ut.push({ text: `${vem} enligt manuset. Välj ${mina.length < 2 ? 'det' : 'ett i taget'} och tryck <kbd>T</kbd>.`, knapp: 'Välj det', gor: valjOch(k) });
     }
+    // graveyard: millade kort går inte att namnge, men antalet syns i appen
+    const millVill = b.grav.filter(n => n === 'kort från leken').length;
+    // ritade kort i graveyard som inte är ett av de namngivna i manuset räknas som millade, med namn eller som okänt kort
+    const namngivna = b.grav.filter(n => n !== 'kort från leken');
+    const millHar = l.kort.filter(k => k.zon === 'grav').filter(k => { const i = namngivna.indexOf(k.namn); if (i >= 0) { namngivna.splice(i, 1); return false; } return true; }).length;
+    if (millVill > millHar) {
+      const x = millVill - millHar, topp = l.kort.filter(k => k.zon === 'grav').sort((a, c) => c.z - a.z)[0];
+      ut.push({ text: `Graveyard ska ha ${millVill} millade kort enligt manuset${millHar ? `, ${millHar} ritade` : ''}. Syns namnet: rita kortet med sitt namn och tryck <kbd>G</kbd>. Kort under som inte syns läggs som <b>okänt kort</b>.`,
+        knapp: topp ? `Lägg ${x} i graveyard-högen` : 'Rita ett', gor: () => {
+          if (!topp) { S.nastaNamn = 'okänt kort'; byt('rita'); visa(); melding('rita kortet överst i graveyard-högen och tryck G'); return; }
+          andra(() => { const kort = kortNu(); let z = kort.reduce((m, o) => Math.max(m, o.z), 0); for (let q = 0; q < x; q++) kort.push({ id: nastaId(), namn: 'okänt kort', zon: 'grav', horn: kopia(topp.horn), z: ++z }); });
+          melding(`${x} okända kort lagda på graveyard-högen — flytta det översta om det ligger annorlunda i bilden`);
+        } });
+    }
     // fästa par ur manuset: jämförelsen räknar bara antal i MES-246
     const namnPa = id => { const o = l.kort.find(x => x.id === id); return o ? o.namn : null; };
     const ritadePar = new Set(l.kort.filter(k => k.fast != null && !k.zon).map(k => [k.namn, namnPa(k.fast)].sort().join(' + ')));
@@ -1385,6 +1399,8 @@ function hinder(kort) {
   const fel = [];
   const utan = kort.filter(k => !String(k.namn || '').trim()).length;
   if (utan) fel.push(`${utan} kort utan namn`);
+  const okandaUtanfor = kort.filter(k => G.arOkant(k.namn) && k.zon !== 'grav').length;
+  if (okandaUtanfor) fel.push(`${okandaUtanfor} okänt kort utanför graveyard (tryck G)`);
   const okanda = kort.map(k => String(k.namn || '').trim()).filter(n => n && G.arLekkort(n) && !S.lek.includes(n));
   if (okanda.length) fel.push('namn som inte finns i lek.txt: ' + [...new Set(okanda)].join(', '));
   const ff = G.fastFel(kort, S.W, S.H);
@@ -1517,7 +1533,7 @@ async function start() {
   ]);
   S.kallor = kallor; S.typer = typer.typer || {};
   S.lek = lek.split(/\r?\n/).map(s => s.trim()).filter(s => s && !s.startsWith('#')).map(s => s.replace(/^\d+\s*[xX]?\s+/, ''));
-  S.allaNamn = S.lek.concat(['token Soldier', 'token Rebel', 'baksida', 'library']);
+  S.allaNamn = S.lek.concat(['token Soldier', 'token Rebel', 'baksida', 'library', 'okänt kort']);
   fyllKallor();
   let forst = new URLSearchParams(location.search).get('kalla');
   try { forst = forst || localStorage.getItem('mesa-rita:senast'); } catch (e) {}
