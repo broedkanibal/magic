@@ -15266,7 +15266,12 @@ function lsfSenareText(st) {
    photos" (granskningen av MES-323). Telefonens läsning finns bara för
    foton den beskrivit i den här öppningen; efter en omladdning utan
    telefonen gäller bokföringen. Ett namn som valts i Check names (en
-   platshållare som blev Plains) står bara i bokföringen, därför det största. */
+   platshållare som blev Plains) står bara i bokföringen, därför det största.
+   Ur telefonens läsning räknas bara säkra namn: en gissning (koll) eller en
+   platshållare (okand) kan ha rättats i Check names, och byt behåller foto,
+   så bokföringen bär det rättade kortet. Förut gav en gissning "Plains" som
+   rättats till Island "1 Plains and 1 Island were in the photos" för ett
+   enda kort (kontrollgranskningen av MES-323). */
 const LSF_BASLAND = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes'];
 const lsfBlOrd = (n, namn) => `${n} ${n === 1 || /s$/.test(namn) ? namn : namn + 's'}`;
 const lsfOch = l => l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l[0] || '';
@@ -15285,7 +15290,7 @@ function lsfBlIFoton(kort, t) {
   for (const f of t && t.foton ? lfFotoLista(t) : []) {
     if (lfLageAv(t, f) !== 'klar' || !Array.isArray(f.kort)) continue;
     const c = new Map();
-    for (const k of f.kort) if (k && !k.okand && LSF_BASLAND.includes(k.name)) c.set(k.name, (c.get(k.name) || 0) + 1);
+    for (const k of f.kort) if (k && !k.okand && !k.koll && LSF_BASLAND.includes(k.name)) c.set(k.name, (c.get(k.name) || 0) + 1);
     for (const [namn, n] of c) satt(namn, f.fid, n);
   }
   const ut = new Map();
