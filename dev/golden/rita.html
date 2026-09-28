@@ -1118,8 +1118,9 @@ function uppgifter(l, dom) {
       ut.push({ text: `Graveyard ska ha ${millVill} millade kort enligt manuset${millHar ? `, ${millHar} ritade` : ''}. Syns namnet: rita kortet med sitt namn och tryck <kbd>G</kbd>. Kort under som inte syns läggs som <b>okänt kort</b>.`,
         knapp: topp ? `Lägg ${x} i graveyard-högen` : 'Rita ett', gor: () => {
           if (!topp) { S.nastaNamn = 'okänt kort'; byt('rita'); visa(); melding('rita kortet överst i graveyard-högen och tryck G'); return; }
-          andra(() => { const kort = kortNu(); let z = kort.reduce((m, o) => Math.max(m, o.z), 0); for (let q = 0; q < x; q++) kort.push({ id: nastaId(), namn: 'okänt kort', zon: 'grav', horn: kopia(topp.horn), z: ++z }); });
-          melding(`${x} okända kort lagda på graveyard-högen — flytta det översta om det ligger annorlunda i bilden`);
+          // under kortet som syns överst: de millades före det (kort 1 underst)
+          andra(() => { const kort = kortNu(); for (let q = 0; q < x; q++) kort.push({ id: nastaId(), namn: 'okänt kort', zon: 'grav', horn: kopia(topp.horn), z: topp.z - 1 + (q + 1) / (x + 1) }); normaliseraZ(kort); });
+          melding(`${x} okända kort lagda under ${topp.namn || 'det översta'} i graveyard — välj dem i listan och ge dem namn om du ser vilka de är`);
         } });
     }
     // fästa par ur manuset: jämförelsen räknar bara antal i MES-246
