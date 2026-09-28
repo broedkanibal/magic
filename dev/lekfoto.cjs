@@ -80,7 +80,9 @@ return { lekSlagTillampa, lekSlagSummor, lekFargerAv, lekSparaKo, telfotoLas,
   telfotoSummera: typeof telfotoSummera === 'function' ? telfotoSummera : null,
   telfotoNasta: typeof telfotoNasta === 'function' ? telfotoNasta : null,
   telfotoFotoUrLeken: typeof telfotoFotoUrLeken === 'function' ? telfotoFotoUrLeken : null,
-  telfotoOmtagMal: typeof telfotoOmtagMal === 'function' ? telfotoOmtagMal : null };`);
+  telfotoOmtagMal: typeof telfotoOmtagMal === 'function' ? telfotoOmtagMal : null,
+  telfotoFotoBort: typeof telfotoFotoBort === 'function' ? telfotoFotoBort : null,
+  telfotoFotoAter: typeof telfotoFotoAter === 'function' ? telfotoFotoAter : null };`);
 }
 const ladda = fil => laddaSrc(fs.readFileSync(fil, 'utf8'), fil);
 
@@ -684,6 +686,59 @@ async function sidaMProv(fil) {
     inga(x);
     assert.deepEqual(x.ctx.fall.ordning, ['under', 'efter:resultat', 'klar']);
     assert.equal(x.ctx.telfoto.efter, null);
+  });
+
+  /* ── Kontrollgranskningen av MES-321 ───────────────────────────── */
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);                            // foto 1 klart
+    ctx.server.fel.push('nere');
+    await foto(app, ctx, TVA);                            // foto 2 inte sparat (LD2)
+    await foto(app, ctx, { kort: [], otydliga: 0 });      // foto 3 inga kort (LC3)
+    const [f1, f2, f3] = ctx.telfoto.foton;
+    ctx.fall.bort = [app.telfotoFotoBort(f1), app.telfotoFotoBort(f2), app.telfotoFotoBort(f3)];
+    ctx.fall.ater = [app.telfotoFotoAter(f1), app.telfotoFotoAter(f2), app.telfotoFotoAter(f3)];
+    ctx.fall.lagen = [f1.lage, f2.lage, f3.lage, !!f2.ops];
+    ctx.fall.summa = app.telfotoSummera(null);
+    await app.telfotoIgen(f2.fid);
+  });
+  prov('Remove + Undo på ett foto som aldrig sparades ger tillbaka dess läge, inte klar; Try again går ändå, en gång', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.bort, [true, true, true]);
+    assert.deepEqual(x.ctx.fall.ater, [true, true, true]);
+    assert.deepEqual(x.ctx.fall.lagen, ['klar', 'ejsparat', 'inga', true]);
+    assert.deepEqual([x.ctx.fall.summa.hittade, x.ctx.fall.summa.foton], [3, 1], 'I10 räknar bara foto 1');
+    assert.deepEqual([x.lista[1].lage, x.l.totalt], ['klar', 5]);
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE); omtag(ctx, 1);
+    await foto(app, ctx, { kast: true });                 // omtaget kom inte fram
+    const miss = ctx.telfoto.sista;
+    ctx.fall.fore = !!miss.kalla;
+    ctx.telfoto.omtag = miss.fid;                         // Retake photo 1 igen, utan nät
+    await foto(app, ctx, { kast: true });
+    ctx.fall.efter = [!!miss.kalla, !!ctx.telfoto.sista.kalla];
+  });
+  prov('en kedja omtag utan nät staplar inte dukar: det misslyckade omtagets duk släpps när nästa tas', () => {
+    inga(x);
+    assert.equal(x.ctx.fall.fore, true);
+    assert.deepEqual(x.ctx.fall.efter, [false, true], 'bara det senaste omtaget håller sin duk');
+  });
+  x = await kor(async (app, ctx) => {
+    await foto(app, ctx, TRE);
+    const fid = ctx.telfoto.foton[0].fid;
+    /* Alla fotots kort borttagna för hand på datorn, och sidan omladdad. */
+    ctx.datorn(['Sol Ring', 'Arcane Signet', 'Thalia, Guardian of Thraben'].map(name => ({ typ: 'bort', name, sb: false })));
+    ctx.telfoto.foton = [];
+    const f = await app.telfotoFotoUrLeken(fid);
+    ctx.fall.post = f && [f.nr, f.lage, f.hittade];
+    ctx.telfoto.omtag = fid;
+    await foto(app, ctx, OM);
+  });
+  prov('omtag från datorn för ett foto vars kort alla tagits bort: omtaget görs ändå och ersätter 0 kort', () => {
+    inga(x);
+    assert.deepEqual(x.ctx.fall.post, [1, 'klar', 0]);
+    assert.deepEqual(x.lista.map(f => [f.nr, f.lage]), [[1, 'ersatt'], [1, 'klar']]);
+    assert.deepEqual(bara(x), ['1 Lightning Bolt', '1 Plains', '1 Sol Ring']);
   });
 }
 

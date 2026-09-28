@@ -13533,6 +13533,9 @@ async function telfotoOppna(id) {
   telfoto.id = id; telfoto.bas = null; telfoto.namn = '';
   telfoto.sista = null; telfoto.fel = ''; telfoto.steg = 'ansluter';
   telfoto.visar = null; telfoto.omtag = null; telfoto.slut = null;
+  /* Inget från en förra öppning får hänga kvar: ett Finish som väntade
+     (slutEfter) gav annars I10 efter nästa läsning. */
+  telfoto.efter = null; telfoto.slutEfter = false; telfoto.slutFranTel = false; telfoto.lamnadNr = null;
   visaVy('lekfoto');
   telfotoRita();
   let rad = null;
@@ -13583,9 +13586,9 @@ function telfotoHor(m) {
   const f = m.fid ? telfotoFotoAv(m.fid) : null;
   /* Efter datorns fotobort och fotoater skickas fotots post tillbaka, så att
      datorn ser exakt vad telefonen har i stället för att gissa (MES-322). */
-  if (m.typ === 'fotobort' && f) { f.lage = 'bort'; delete f.ops; delete f.kalla; telfotoPekare(); telfotoAndrat(f); telfotoSag('foto', { foto: telfotoPost(f) }); }
+  if (m.typ === 'fotobort' && f) { telfotoFotoBort(f); telfotoAndrat(f); telfotoSag('foto', { foto: telfotoPost(f) }); }
   else if (m.typ === 'fotoater' && f) {
-    if (f.lage === 'bort' || f.lage === 'ersatt') { f.lage = 'klar'; telfotoAndrat(f); }
+    if (telfotoFotoAter(f)) telfotoAndrat(f);
     telfotoSag('foto', { foto: telfotoPost(f) });
   }
   /* Medan ett foto läses: görs när läsningen är klar (granskningen av MES-321). */
@@ -13866,13 +13869,14 @@ function telfotoTaOm(f, fjarr) {
    ur leken som den är nu, för datorn kan redan ha kollat namn. */
 async function telfotoAvsluta(fran) {
   if (telfoto.laser) { telfoto.efter = () => telfotoAvsluta(fran); return; }
-  if (fran) telfotoSag('klar', { fran: 'tel' });
   if (telfoto.steg === 'kamera') telfotoStoppKamera();
   telfoto.omtag = null;
   /* Väntar ett foto på telefonen (inte sparat, inte skickat, AI help av,
      serverfel) ligger dess kort inte i leken: I10:s "The photos are in the
      deck" vore fel. Fotots skärm visas i stället, och I10 kommer när det
-     gått igenom (granskningen av MES-321). */
+     gått igenom (granskningen av MES-321). Datorn får klar först när I10
+     visas, inte medan korten ännu inte ligger i leken. */
+  if (fran) telfoto.slutFranTel = true;
   const v = telfotoLista().find(telfotoVantar);
   if (v) {
     telfoto.visar = v.fid; telfoto.sista = v;
@@ -13881,7 +13885,8 @@ async function telfotoAvsluta(fran) {
     telfotoSteg('resultat'); telfotoHej();
     return;
   }
-  telfoto.slutEfter = false;
+  if (telfoto.slutFranTel) telfotoSag('klar', { fran: 'tel' });
+  telfoto.slutEfter = false; telfoto.slutFranTel = false;
   telfoto.slut = telfotoSummera(telfoto.bas);
   telfotoSteg('klart');
   try {
@@ -14151,6 +14156,29 @@ function telfotoLage(f, lage) {
   telfotoMeddela('foto', { foto: telfotoPost(f) });
   telfotoSteg('resultat');
 }
+/* Datorns Remove photo (fotobort) och Undo (fotoater) på telefonens post.
+   Läget före borttagningen sparas (f.fore), så att Undo ger tillbaka det:
+   ett foto vars kort aldrig låg i leken (inga, inte sparat, serverfel) blir
+   inte 'klar' med N kort som I10 räknar (kontrollgranskningen av MES-321).
+   Ett väntande foto behåller sin kö och källa, så att Try again går efter
+   Undo; andra släpper dem. Ett omtags gamla foto ('ersatt') blir klart igen
+   (Undo av omtaget). Ett foto som togs bort medan det lästes kommer inte
+   tillbaka: läsningen är kastad. true = läget ändrades. */
+function telfotoFotoBort(f) {
+  if (f.lage === 'bort') return false;
+  f.fore = f.lage; f.lage = 'bort';
+  if (!TELFOTO_VANTAR.includes(f.fore)) { delete f.ops; delete f.kalla; }
+  telfotoPekare();
+  return true;
+}
+function telfotoFotoAter(f) {
+  if (f.lage === 'ersatt') f.lage = 'klar';
+  else if (f.lage === 'bort' && f.fore !== 'laser') f.lage = f.fore || 'klar';
+  else return false;
+  delete f.fore;
+  telfotoPekare();
+  return true;
+}
 /* Det datorn bad om medan fotot lästes (Finish the deck, Retake with the
    phone) görs när läsningen är klar, i stället för att släppas. */
 function telfotoEfter() {
@@ -14179,6 +14207,10 @@ async function telfotoLas(kalla, o = {}) {
     const gammal = telfotoFotoAv(telfoto.omtag);
     const nr = gammal ? gammal.nr : telfotoNasta();
     const ersatter = !gammal ? null : gammal.lage === 'klar' ? gammal.fid : (gammal.ersatter || gammal.fid);
+    /* Det misslyckade omtaget tas om i stället för Try again: dess fullstora
+       duk (upp till 12 Mpx) släpps, så att en kedja av omtag utan nät inte
+       staplar dukar i telefonens minne. */
+    if (gammal && gammal.lage !== 'klar') { delete gammal.kalla; telfotoPekare(); }
     f = { fid: nr + ':' + String(uid()).slice(0, 5), nr, ersatter, lage: 'laser',
           hittade: 0, kanda: 0, koll: 0, okanda: 0, olasta: 0, poster: 0, kort: [] };
     telfotoLista().push(f);
@@ -14345,7 +14377,9 @@ async function telfotoFotoUrLeken(fid) {
     if (k.koll) koll += c;
     if (k.okand && k.koll && !k.koll.las) okanda += c;
   }
-  if (!hittade || telfotoFotoAv(fid)) return telfotoFotoAv(fid);
+  /* Inga kort kvar ur fotot (alla borttagna för hand): omtaget görs ändå,
+     och ersätter 0 kort, i stället för att datorns omtag faller tyst. */
+  if (telfotoFotoAv(fid) || !lekSlagFotoNr(fid)) return telfotoFotoAv(fid);
   const f = { fid, nr: lekSlagFotoNr(fid), ersatter: null, lage: 'klar', hittade, kanda: hittade - koll, koll, okanda,
               olasta: 0, poster: hittade, kort: [], urLeken: true };
   telfotoLista().push(f);
@@ -14419,7 +14453,8 @@ function telfotoSummera(rad) {
   const alla = [...bl.values()].reduce((s, c) => s + c, 0);
   const basland = delar.length
     ? `${delar.length > 1 ? delar.slice(0, -1).join(', ') + ' and ' + delar[delar.length - 1] : delar[0]} ${alla === 1 ? 'was' : 'were'} in the photos.` : '';
-  return { hittade, foton: klara.length, koll, undan, basland };
+  /* Foton som lade in kort: en post byggd ur leken för ett omtag kan ha 0. */
+  return { hittade, foton: klara.filter(f => f.hittade > 0).length, koll, undan, basland };
 }
 /* ══ SLUT: TELEFONENS LEKFOTO ══ */
 
