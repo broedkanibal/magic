@@ -479,25 +479,26 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 113, 73, 30, 42, 72 * Math.PI / 180, 180)); const t = s.find(x => x.id === idT5); if (t) t5Id = t.id; if (t5Tapp == null && t && t.tappad) t5Tapp = i + 1; }
   check(`TT5 namngivet rakt, borta 0,6 s, tillbaka tappat 72°: klart ${klarT5}, spåret dog ${doT5}, samma id tillbaka ${t5Id === idT5}, tappad i ruta ${t5Tapp} (högst 3)`,
         klarT5 && doT5 && t5Id === idT5 && t5Tapp != null && t5Tapp <= 3);
-  /* TT6: gränsen är T.tapTapp (65° som förval, Jespers val 2026-09-26;
-     var 70°). Med förvalet vrider 68° kortet (66° ligger så nära gränsen
-     att det lilla syntetiska kortets uppmätta vinkel vinglar under den i
-     några rutor); med tapTapp 70 (--tro "tapTapp:70" i golden) är 66°
-     otydligt och vrider inget. 78° vrider med förvalet. (66°, inte 65°: det
-     lilla syntetiska kortet ritas 10 % mindre i vissa vinklar — 65°, 67°,
-     71° — och faller då på måttkollens 0,85, vilket riktiga kort inte gör:
+  /* TT6: gränsen är T.tapTapp (55° som förval, Jespers val 2026-09-28;
+     var 65°, dessförinnan 70°). Med förvalet vrider 60° kortet och även
+     −60° (moturs); med tapTapp 65 (--tro "tapTapp:65" i golden) är 60°
+     otydligt och vrider inget. 78° vrider med förvalet. (60°, inte 58°:
+     momentvinkeln på det lilla syntetiska kortet drar ~4° mot rakt, så 58°
+     mäts under 55°. Det lilla
+     syntetiska kortet ritas 10 % mindre i vissa vinklar — 65°, 67°, 71° —
+     och faller då på måttkollens 0,85, vilket riktiga kort inte gör:
      Pharika's Chosen är 65×47 rakt och 66×48 tappad.) */
   const t6 = async (vinkel, tro) => {
     nystart(); if (tro) Kamera.satTrosklar(tro); await referens();
     for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
     const id = s[0] && s[0].id; let tapp = null;
     for (let i = 0; i < 8; i++) { s = await ruta(g => kortVriden(g, W, 112, 72, 30, 42, vinkel * Math.PI / 180, 180)); const t = s.find(x => x.id === id); if (tapp == null && t && t.tappad) tapp = i + 1; }
-    Kamera.satTrosklar({ tapOtapp: 20, tapTapp: 65 });
+    Kamera.satTrosklar({ tapOtapp: 20, tapTapp: 55 });
     return tapp;
   };
-  const t6a = await t6(68), t6b = await t6(66, { tapTapp: 70 }), t6c = await t6(78);
-  check(`TT6 tappat 68° med förvalet: tappad i ruta ${t6a} (högst 2); 66° med tapTapp 70: i ruta ${t6b} (ska aldrig); 78° med förvalet: i ruta ${t6c} (högst 2); förvalet ${Kamera.trosklar.tapOtapp}/${Kamera.trosklar.tapTapp}`,
-        t6a != null && t6a <= 2 && t6b == null && t6c != null && t6c <= 2 && Kamera.trosklar.tapOtapp === 20 && Kamera.trosklar.tapTapp === 65);
+  const t6a = await t6(60), t6m = await t6(-60), t6b = await t6(60, { tapTapp: 65 }), t6c = await t6(78);
+  check(`TT6 tappat 60° med förvalet: tappad i ruta ${t6a} (högst 2); −60° (moturs): i ruta ${t6m} (högst 2); 60° med tapTapp 65: i ruta ${t6b} (ska aldrig); 78° med förvalet: i ruta ${t6c} (högst 2); förvalet ${Kamera.trosklar.tapOtapp}/${Kamera.trosklar.tapTapp}`,
+        t6a != null && t6a <= 2 && t6m != null && t6m <= 2 && t6b == null && t6c != null && t6c <= 2 && Kamera.trosklar.tapOtapp === 20 && Kamera.trosklar.tapTapp === 55);
 
   // ── LT1: latensmätningens stämplar (MES-215) följer med rapporten bara när den är på ──
   nystart(); await referens();
@@ -1406,19 +1407,20 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`GL3 satKalibrering läser ruta.grund i grader: 150 → ${g150 == null ? g150 : grader(g150) + '°'}; en rad utan grund (golden-facit, bänken) → ${Kamera.grund}`,
           g150 != null && Math.abs(g150 - rad(150)) < 1e-9 && Kamera.grund === null);
     /* GL4: grundFranSpar dömer om spåren som redan finns. Ett stående kort
-       (axel 90°) och ett vridet 60° (axel 150°): med upp 'v' ligger det
-       vridna ~56° från axeln — ingen TYDLIG dom (MES-293: inom 20° av
-       grundläget eller kvartsvarvet), så det står otappat som det föddes.
-       Bekräftas det vridna som otappat blir grundläget 150°: det vridna
-       otappat och det stående (60° från grundläget) tappat — på en gång, i
+       (axel 90°) och ett vridet 52° (axel 142°): med upp 'v' ligger det
+       vridna ~49° från axeln — ingen TYDLIG dom (MES-293: under 20° från
+       grundläget eller över 55°), så det står otappat som det föddes.
+       Bekräftas det vridna som otappat blir grundläget ~141°: det vridna
+       otappat och det stående (~51° från grundläget) tappat — på en gång, i
        rapporten (satGrund dömer om varje spår mot den nya axeln), och det
-       står sig ruta för ruta: 60° är ingen tydlig dom åt något håll. */
+       står sig ruta för ruta: ~51° är ingen tydlig dom åt något håll. (Var
+       60° med gränsen 65°; med 55° är 60° tydligt tappat redan vid födseln.) */
     nystart(); await referens();
-    const TVA_V = g => { KORT(g); kortVriden(g, W, 160, 75, 30, 42, rad(60), 180); };
+    const TVA_V = g => { KORT(g); kortVriden(g, W, 160, 75, 30, 42, rad(52), 180); };
     for (let i = 0; i < 10; i++) s = await ruta(TVA_V);
     const staende = Kamera.spar.find(t => Math.abs(t.cx - 75) < 8) || null, vridet = Kamera.spar.find(t => Math.abs(t.cx - 160) < 8) || null;
-    /* Detektorn mäter det vridna kortets axel till ~146° (−34°), inte 150°:
-       momentvinkeln på ett 30×42-kort i 60° drar några grader, och den
+    /* Detektorn mäter det vridna kortets axel till ~141° (−39°), inte 142°:
+       momentvinkeln på ett 30×42-kort i 52° drar några grader, och den
        spritter ±5° ruta för ruta. Grundläget är axeln i ögonblicket det
        togs — det är den som jämförs, inte sista rutans. */
     const vAx = vridet ? vridet.vinkel : 0;
@@ -1429,7 +1431,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const direkt = `rapporten direkt: stående ${rap(staende)}, vridet ${rap(vridet)}`;
     const okDirekt = fann && rap(staende) === true && rap(vridet) === false;
     for (let i = 0; i < 6; i++) s = await ruta(TVA_V);
-    check(`GL4 grundFranSpar(vridet 60°): ${fore}; ${direkt}; efter 6 rutor stående ${staende && staende.tappad}, vridet ${vridet && vridet.tappad}, grund ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'}`,
+    check(`GL4 grundFranSpar(vridet 52°): ${fore}; ${direkt}; efter 6 rutor stående ${staende && staende.tappad}, vridet ${vridet && vridet.tappad}, grund ${Kamera.grund == null ? null : grader(Kamera.grund) + '°'}`,
           okFore && okDirekt && staende.tappad && !vridet.tappad && axSk(Kamera.grund, vAx) < 1e-9);
     /* GL5: "Det är tappat" — otappat är 90° från kortets axel. Stående
        tappat (90° från grundläget 0°), vridet 30° från det: otappat. */

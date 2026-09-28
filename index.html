@@ -21883,14 +21883,21 @@ const Kamera = (() => {
     /* Tap-domens tydliga vinklar (tapTydlig, MES-293), i grader från
        grundläget: under tapOtapp är kortet tydligt otappat, över tapTapp
        tydligt tappat, och däremellan står läget kvar. Delningen i tappad()
-       är 45° oavsett. Vinkeln är axelns, så 160–180° räknas som 0–20° och
-       115–160° som 20–65°. 20/65 är Jespers val 2026-09-26 (MES-298; var
-       20/70 sedan beslut 1): tappat från 65° ger slarvigt tappade kort
-       marginal, medan händer och högar ligger på 30–60°. Här för att golden
-       och spegelfacit ska kunna prova andra gränser utan kodändring
-       (--tro "tapTapp:60,tapOtapp:25"). */
+       är 45° oavsett. Vinkeln är axelns: medurs och moturs är samma sak,
+       och ett kort upp och ner är samma som rättvänt. Hela varvet räknat
+       från grundläget, medurs:
+         otappat   0–20°, 160–200°, 340–360°   (20° = 340°, 0° = 180°)
+         tappat    55–125°, 235–305°           (90° = 270°, 60° = 300°)
+         står kvar 20–55°, 125–160°, 200–235°, 305–340°
+       20/55 är Jespers val 2026-09-28 (var 20/65 från
+       2026-09-26, 20/70 från beslut 1): kort tappas ofta under 65° i riktiga
+       spel. Simuleringen 2026-09-26 (golden/historik.md) gav samma golden
+       och samma bord i spegelfacit med 55; enda skillnaden var en namnlös
+       fläck på 59,8° som vreds i telefonen men inte syns på bordet. Här för
+       att golden och spegelfacit ska kunna prova andra gränser utan
+       kodändring (--tro "tapTapp:60,tapOtapp:25"). */
     tapOtapp: 20,
-    tapTapp: 65
+    tapTapp: 55
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
@@ -23401,7 +23408,7 @@ const Kamera = (() => {
      ha en axel (1,15), har kortets mått (långsida och kortsida inom 0,85–1,3
      av dem kortet hade när det fick sitt namn — en hand som håller i kortet
      gör regionen större, ett finger över hörnet mindre), och axeln ligger
-     under T.tapOtapp från grundläget eller över T.tapTapp (20° och 65°) —
+     under T.tapOtapp från grundläget eller över T.tapTapp (20° och 55°) —
      inte mitt emellan, där en ruta till kan säga det andra. Ett spår utan
      namn har inga egna mått, och prövas mot de namngivna kortens (kortMatt,
      bara när det finns sådana — MES-293): korten är lika stora, och två kort
