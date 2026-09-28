@@ -17283,6 +17283,8 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     const b = ev.target.closest('[data-ls]'); if (!b) return;
     if (b.dataset.ls === 'lista') lasLista();
     else if (b.dataset.ls === 'tillkoll') {
+      /* I slutet (MES-323) kollas namnen i Check names överst. */
+      if (slutar()) { slutLage().s.senare = false; y.kn.sok = null; slutEfter(); yta.scrollTop = 0; return; }
       const tc = yta.querySelector('.lstc:not([hidden])'); if (!tc) return;
       tc.scrollIntoView({ block: 'start', behavior: 'smooth' });
       tc.classList.remove('blink'); void tc.offsetWidth; tc.classList.add('blink');
