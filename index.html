@@ -12966,6 +12966,10 @@ function lekSlagTillampa(bas, ops) {
       if (i >= 0) {
         kort[i].n += d;
         if (op.foto) lekSlagFotoAndra(kort[i], op.foto, d);
+        /* Undo av Remove photo lägger tillbaka frågan "One Swamp or two?"
+           med exemplaret (MES-324): mallens koll bär dubbel och raden har
+           ingen fråga. En fråga om namnet sätts aldrig om av ett tillägg. */
+        if (d > 0 && !kort[i].koll && op.kort && op.kort.koll && op.kort.koll.dubbel) kort[i].koll = op.kort.koll;
         if (kort[i].n <= 0) kort.splice(i, 1);
         else lekSlagFotoTak(kort[i], d > 0 ? op.foto : null);
       }
@@ -13846,7 +13850,7 @@ function telfotoHor(m) {
      Undo på N5 sparar samma ändringar, så att två tryck, var som helst,
      lägger tillbaka korten en gång (MES-324). */
   if (m.typ === 'fotobort' && f) {
-    if (telfotoFotoBort(f) && Array.isArray(m.ater) && m.ater.length) f.ater = m.ater;
+    if (telfotoFotoBort(f)) { if (Array.isArray(m.ater) && m.ater.length) f.ater = m.ater; telfotoDubbelBort(f.fid); }
     telfotoAndrat(f); telfotoSag('foto', { foto: telfotoPost(f) });
   }
   else if (m.typ === 'fotoater' && f) {
@@ -14653,6 +14657,22 @@ function telfotoMarkeraDubbla(f, ops, remsor) {
     if (op && op.kort && !op.kort.koll) op.kort.koll = Object.assign({}, koll, { dubbel });
   }
 }
+/* Frågan "One Swamp or two?" faller i leken när ett av dess foton tas bort
+   eller ersätts (LEKSLAG fotobort). Märket på telefonens läsning (dubbel,
+   ? i bilden och raden "N may also be in photo") ska falla med den, annars
+   stod det kvar och räknades som ett namn att kolla när posterna skickades
+   om (kontrollgranskningen av MES-324). Posterna som ändras skickas om. */
+function telfotoDubbelBort(fid) {
+  for (const g of telfotoLista()) {
+    if (!Array.isArray(g.kort)) continue;
+    let andrat = false;
+    for (const k of g.kort) if (k && k.dubbel && (k.dubbel === fid || g.fid === fid)) { delete k.dubbel; andrat = true; }
+    if (!andrat) continue;
+    const n = g.kort.filter(k => k && k.dubbel).length;
+    g.dubbla = n && g.dubbla ? Object.assign({}, g.dubbla, { n }) : null;
+    if (g.fid !== fid) telfotoMeddela('foto', { foto: telfotoPost(g) });
+  }
+}
 /* Undo-ändringarna på kanalen: utan remsorna (bilder), som datorns lfAterUt.
    Broadcast tar 256 kB, och mottagaren har remsan i sin egen lek. */
 function telfotoAterUt(ops) {
@@ -14683,6 +14703,7 @@ async function telfotoTaBort(f) {
     if (!res || !res.ok) return;
     if (!telfotoFotoBort(f)) return;
     f.ater = ater; f.bortId = bort.id;
+    telfotoDubbelBort(f.fid);
     telfoto.foto = telfotoNasta();
     telfoto.visar = f.fid;
     telfotoMeddela('fotobort', { fid: f.fid, fran: 'tel', bort: bort.id, ater: telfotoAterUt(ater), ts: Date.now() });
@@ -14936,6 +14957,7 @@ async function telfotoSpara(p) {
   for (const g of telfotoLista()) {
     if (g === f || g.nr !== f.nr || !telfotoRaknas(g) || (g.fid !== f.ersatter && g.lage === 'klar')) continue;
     g.lage = 'ersatt'; delete g.ops; delete g.kalla;
+    telfotoDubbelBort(g.fid);
     telfotoMeddela('foto', { foto: telfotoPost(g) });
   }
   telfotoLage(f, 'klar');
@@ -15154,11 +15176,15 @@ function lfLokalIn(t, fid, lage) {
 /* Raden för ett foto som landat med kort (N3, IP1, N4). Platshållarna är
    "names to pick", de osäkra namnen "names to check"; "some not read" utan
    siffra (MES-320: Mesa kan inte veta hur många som lades undan). */
-function lfKlarText(f) {
+function lfKlarText(f, t) {
   const kort = Array.isArray(f.kort) ? f.kort : null;
   const plock = kort ? kort.filter(k => k && k.okand).length : Math.max(0, +f.okanda || 0);
-  /* Ett kort som kan vara med i två foton (dubbel, MES-324) är också ett namn att kolla. */
-  const koll = kort ? kort.filter(k => k && (k.koll || k.dubbel) && !k.okand).length : Math.max(0, (+f.koll || 0) - plock);
+  /* Frågorna "One Swamp or two?" räknas ur leken (t.dubbla: fid → rader
+     med en fråga som gäller fotot, telMallar), inte ur telefonens post:
+     posten bar märket kvar efter att frågan fallit, och skickades om
+     (kontrollgranskningen av MES-324). Utan t.dubbla gäller posten. */
+  const dubbla = t && t.dubbla instanceof Map ? (t.dubbla.get(f.fid) || 0) : kort ? kort.filter(k => k && k.dubbel && !k.koll && !k.okand).length : 0;
+  const koll = (kort ? kort.filter(k => k && k.koll && !k.okand).length : Math.max(0, (+f.koll || 0) - plock)) + dubbla;
   const delar = [`${lfAntal(Math.max(0, lfHittade(f) - plock), 'card', 'cards')} added`];
   if (koll) delar.push(`${lfAntal(koll, 'name', 'names')} to check`);
   if (plock) delar.push(`${lfAntal(plock, 'name', 'names')} to pick when you’re done`);
@@ -15213,7 +15239,7 @@ function lfRader(t) {
       rader.push(Object.assign(bas, { typ: 'omtagen', rub: `${rub} · retaken`, txt: `${lfAntal(lfHittade(f), 'card', 'cards')}, replacing ${u.antal}`, angra: true, visa: true }));
       continue;
     }
-    rader.push(Object.assign(bas, { typ: 'klar', rub, txt: lfKlarText(f), visa: true }));
+    rader.push(Object.assign(bas, { typ: 'klar', rub, txt: lfKlarText(f, t), visa: true }));
   }
   /* Ett borttaget foto som telefonen inte beskrivit (sidan laddades om och
      telefonen är borta): Undo-posten räcker för raden. */
@@ -16074,6 +16100,10 @@ function skapaLekYta({ panel, yta, huvud, nar = {} }) {
     if (!lfStod()) return;
     const kort = nu().kort;
     for (const [fid, ops] of lfMallarUr(kort)) y.tel.mallar.set(fid, ops);
+    /* Frågorna "One Swamp or two?" per foto, ur leken (fotoraden, MES-324). */
+    const dubbla = new Map();
+    for (const k of kort) { const d = k && k.koll && k.koll.dubbel; if (!d) continue; for (const fid of new Set([d.ny, d.fid].filter(Boolean))) dubbla.set(fid, (dubbla.get(fid) || 0) + 1); }
+    y.tel.dubbla = dubbla;
     /* Fotona i leken: ett Undo gäller inte när ett nyare foto ligger där, och
        raderna står där innan telefonen svarat (en omladdning). */
     y.tel.iLeken = lfFidsILeken(kort);

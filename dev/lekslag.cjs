@@ -588,6 +588,25 @@ prov('fotobort på ett av frågans foton fäller frågan: One kan inte ta det en
   r = lekSlagTillampa({ kort: [{ ...swamp, n: 2, foto: { [F1]: 1, [F2]: 1 }, koll: { las: 'Swmp', kalla: 'Photo 1', dubbel: { fid: F1, nr: 1, ny: F2, n: 1 } } }] }, [fb(F2)]);
   assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll.las, r.kort[0].koll.dubbel], [1, 'Swmp', undefined]);
 });
+prov('Undo av Remove photo lägger tillbaka frågan med exemplaret (K5); ett tillägg sätter aldrig om en fråga om namnet', () => {
+  const fore = lekSlagTillampa(fraga(), []);
+  for (const fid of [F2, F1]) {
+    const ater = lekSlagFotoTillbaka(fore.kort, fid);
+    let r = lekSlagTillampa(fore, [fb(fid)]);
+    assert.deepEqual([tal(r, 'Swamp'), r.kort[0].koll], [1, undefined]);
+    r = lekSlagTillampa(r, ater);
+    assert.equal(tal(r, 'Swamp'), 2);
+    assert.deepEqual(r.kort[0].koll && r.kort[0].koll.dubbel, { fid: F1, nr: 1, ny: F2, n: 1 }, 'frågan är tillbaka efter Undo av ' + fid);
+    assert.deepEqual(lekSlagTillampa(r, [en]).kort[0].n, 1, 'och One tar ett exemplar igen');
+  }
+  /* En rad med en fråga om namnet: mallens koll (också med dubbel) sätts inte ovanpå. */
+  const namn = lekSlagTillampa({ kort: [{ ...swamp, n: 1, foto: { [F1]: 1 }, koll: { las: 'Swmp', kalla: 'Photo 1' } }] },
+    [{ typ: 'antal', name: 'Swamp', sb: false, d: 1, foto: F2, kort: { ...swamp, koll: dubbelKoll() } }]);
+  assert.deepEqual([namn.kort[0].n, namn.kort[0].koll.las, namn.kort[0].koll.dubbel], [2, 'Swmp', undefined]);
+  /* Ett tillägg med en fråga om namnet i mallen sätter den inte heller (Retake, kollat kort). */
+  const kollad = lekSlagTillampa({ kort: [{ ...bolt, n: 1, foto: { [F1]: 1 } }] }, [ff(bolt, 1, F2, { las: 'Lightnig Bolt', kalla: 'Photo 2' })]);
+  assert.equal(kollad.kort[0].koll, undefined);
+});
 
 for (const r of [...ok, ...fel]) console.log(r);
 console.log(`\nlekslag: ${ok.length} OK, ${fel.length} FEL`);

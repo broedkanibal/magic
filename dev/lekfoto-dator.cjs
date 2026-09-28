@@ -713,9 +713,13 @@ fallD('F6 Remove photo på telefonen med ändringarna (LB1 → N5, MES-324): dat
   assert.strictEqual(v.A.t.undo.size + v.B.t.undo.size, 0);
   assert.deepStrictEqual(rader(v.B.t)[1], ['Photo 2', '3 cards added', 'View']);
 });
-fall('LB2 (MES-324): ett kort som kan vara med i två foton räknas som ett namn att kolla i fotoraden', () => {
+fall('LB2 (MES-324): frågan "One Swamp or two?" räknas som ett namn att kolla i fotoraden ur leken (t.dubbla), inte ur telefonens post (K6)', () => {
   const t = nyTel();
   foto(t, '1:a', 'klar', { hittade: 3, kort: [{ name: 'Alpha', x: 500, y: 500 }, { name: 'Swamp', x: 990, y: 300, dubbel: '0:z' }, { name: 'Beta', x: 300, y: 300 }] });
+  assert.deepStrictEqual(rader(t)[0], ['Photo 1', '3 cards added · 1 name to check', 'View'], 'utan leken gäller posten');
+  t.dubbla = new Map();                                                     // leken har ingen fråga kvar: fotot togs bort eller ersattes
+  assert.deepStrictEqual(rader(t)[0], ['Photo 1', '3 cards added', 'View'], 'märket i posten räknas inte när leken saknar frågan');
+  t.dubbla = new Map([['1:a', 1]]);
   assert.deepStrictEqual(rader(t)[0], ['Photo 1', '3 cards added · 1 name to check', 'View']);
 });
 
