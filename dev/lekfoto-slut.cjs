@@ -344,6 +344,19 @@ const provD3 = a => {
   assert.strictEqual(a.lsfBlText(kort).var, '5 Plains were in the photos.');
 };
 fall('D3 två tryck på − under Plains: "7 Plains were in the photos" står kvar (telefonens läsning av fotot)', provD3);
+/* D4: en gissning i telefonens läsning som rättats i Check names räknas
+   som det rättade kortet, ett kort (kontrollgranskningen av MES-323). */
+const provD4 = a => {
+  let r = lek([gissning('Plains', 'Plans', 1, { foto: { '1:f': 1 } })]);
+  r = spara(a, r, [a.lsfValj(rad(a, r, 'Plains'), { name: 'Island', sid: 's-island' })]);
+  const kort = las(a, r);
+  assert.deepStrictEqual(kort.map(k => [k.name, k.n, JSON.stringify(k.foto)]), [['Island', 1, '{"1:f":1}']], 'byt behåller fotot');
+  const t = nyTel();
+  foto(t, '1:f', 'klar', { hittade: 1, kort: [{ name: 'Plains', las: 'Plans', koll: true, x: 1, y: 1 }] });
+  assert.deepStrictEqual([...a.lsfBlIFoton(kort, t)], [['Island', 1]], 'inget "1 in photos" under Plains');
+  assert.strictEqual(a.lsfBlText(kort, t).var, '1 Island was in the photos.');
+};
+fall('D4 en gissning Plains som rättas till Island i Check names: "1 Island was in the photos", ett kort', provD4);
 /* B7: Remove och Undo, med fotot. */
 const provB7 = a => {
   let r = lek(idLek());
@@ -427,6 +440,8 @@ maste('F9 utan Later i klar blir en lek med namn lämnade till senare aldrig kla
   [['klar: undanKlar && blKlar && (kollKlar || !!s.senare)', 'klar: undanKlar && blKlar && kollKlar']], provE7);
 maste('F10 utan telefonens läsning följer "in the photos" − under landet (D3 faller)',
   [['for (const [namn, n] of c) satt(namn, f.fid, n);', '']], provD3);
+maste('F11 med gissningarna i telefonens läsning räknas ett rättat kort två gånger (D4 faller)',
+  [['if (k && !k.okand && !k.koll && LSF_BASLAND.includes(k.name))', 'if (k && !k.okand && LSF_BASLAND.includes(k.name))']], provD4);
 
 console.log(`\nlekfoto-slut: ${ok} OK, ${fel} FEL`);
 process.exit(fel ? 1 : 0);
