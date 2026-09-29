@@ -5,7 +5,9 @@ händer, ljus och fickor, där OWLv2 (läraren) sätter lådorna.
 
 **Kontaktarket:** `open /Users/jesperfunk/Code/magic/dev/detektor/larare/traning.html`
 (bilderna ligger under `dev/material/`, som är gitignorerat — arket fungerar
-bara där materialet finns).
+bara där materialet finns). **Uppdaterat arket med regel F (osäkra lådor, gröna
+ytor), från den här worktreen:**
+`open /Users/jesperfunk/Code/magic/.claude/worktrees/agent-a7ad5463d2a9e77ff/dev/detektor/larare/traning.html`
 
 ## Svaret
 
@@ -23,7 +25,7 @@ ignorerade.
 | Stod telefonen still? | **Ja.** Högst 9 bildpunkter (4K) från första rutan i trä och vitt bord; en engångsförskjutning på 8 px de första sekunderna | mätt |
 | Facit | **7 583 lådor** i 638 rutor; median 10–14 per ruta, högst 24 | mätt |
 | Baksidesflaggan | 701 lådor i 513 rutor (leken nästan varje ruta, plus ensamma baksidor) | mätt; att den träffar rätt är bedömt |
-| Ignorerat | 31–36 % av lärarens lådor på bordet, 8–13 % av bildytan (median) | mätt |
+| Ignorerat | 31–36 % av lärarens lådor på bordet, 8–13 % av bildytan (median); regel F (avsnitt 8) lade till 120 osäkra ytor | mätt |
 | Lådor på händer | **nästan inga** i de rutor jag sett; kort under en suddig hand får ofta rätt låda | bedömt |
 | Lådor utanför bordet | **ja, på vita bordet:** böcker och leksaker runt bordet får lådor (0,16–0,21). Regel E tar bort dem | sett, regeln mätt |
 | Snett liggande kort | **missas som facit:** lådan runt ett kort i 25–40° är större än 1,6 × kortet och fälls av storleksfiltret | bedömt |
@@ -187,15 +189,105 @@ glansiga fickor i lampans ljus.
 | Samma lek | alla tre filmerna har samma kort i nya fickor (gröna eller rosa); variationen i kort är liten |
 | Upplösning | 4K ger ~76 × 106 px per kort i 960 px-bilden — större än i golden (~50–70 px). Eleven bör också se nerskalade rutor |
 
-## Det som behöver ändras i generatorn (`synt/`) inför grind 2
+## 8. Regel F: osäkra lådor blir ignorerade ytor (uppgift A, Jesper sa ja 2026-09-29)
 
-Inte ändrat nu (orkestrerarens besked):
+**Problemet:** läraren (tröskel 0,16) missar ibland kort som syns helt. Ett synligt
+kort utan låda lär eleven att kortet är bakgrund. Exemplet är Valkyrie's Sword i
+svarta mattans ruta `01100` (1:50 in i filmen): kortet ligger helt synligt mellan låda 4 och 1,
+utan låda.
 
-1. **Klassnamnet `lek` blir `baksida`** i `generera.py` och i facit.
-2. **Ensamma kort med baksidan upp** ska läggas ut utanför leken — i fickans
-   färg och som Magic-baksida utan ficka — inte bara leken som en klump.
-3. Bakgrunderna ur filmerna är tre ytor; dra per film, inte per fil.
-4. Kortstorleken i `kamera()` kan sättas efter filmerna: ~300 × 425 px i 4K.
+**Regeln:** OWLv2:s råa lådor sparades med golv 0,02. Regel F använder **0,03** som
+golv. Lådor med poäng 0,03–0,16 (efter NMS, som förut) blir **ignorerade ytor**, alltså
+varken facit eller bakgrund. Lådor ≥ 0,16 är facit som förut. NMS görs över allt från
+0,03 med högst poäng först, så de säkra lådorna blir exakt de som förut (kontrollerat:
+facit-lådorna är **identiska**, 2 709 · 2 967 · 1 907, och regel A–E ger samma ytor).
+
+En osäker låda blir bara en F-yta om **alla** stämmer (`traning.py`, konstanterna `F_*`):
+
+| Villkor | Varför |
+|---|---|
+| storlek 0,5–2,2 × kortet och sidkvot ≤ 2 | en enskild kortstor yta; de flesta osäkra lådor är delar av kort (median 0,4 × kortet) eller hela högar |
+| mitten på bordet (regel E:s mask) | böcker och leksaker runt bordet |
+| **inte samma kort som en säker låda:** ≥ 60 % av den osäkra inne i en säker låda, eller ≥ 50 % av en säker låda inne i den osäkra | den extra regeln: en osäker låda över ett säkert kort ska inte göra det säkra kortet ignorerat, och släpps därför |
+| inte ≥ 80 % inne i en redan ignorerad yta (A–D) | tillför ingenting |
+| **mindre än 55 % hudfärg** (YCrCb) i lådans inre | första versionen gav 148 ytor och ungefär hälften på vita bordet var händer; att ignorera en hand hade tagit bort eleven från att lära sig att en hand inte är ett kort |
+| inte IoU > 0,4 mot en tidigare F i rutan | dubbletter |
+
+### Vad regeln lade till (alla 638 rutor, utan ny OWLv2-körning, 1 min)
+
+| Film | Ignorerade ytor A–E före | + F | Rutor med F | Ignorerad bildyta, median (A–D → med F) |
+|---|---|---|---|---|
+| trä | 1 221 | **53** | 46 av 200 | 7,8 % → 8,1 % |
+| svart matta | 1 620 | **46** | 26 av 242 | 10,2 % → 11,0 % |
+| vitt bord | 1 957 | **21** | 21 av 196 | 12,7 % → 13,0 % |
+| **alla** | 4 798 | **120** | 93 av 638 | |
+
+### Kontrollen med ögat: synliga kort som varken har facit-låda eller ignorerad yta
+
+Räknat med ögat på **42 rutor**: de 24 på kontaktarket (åtta per film, valda i förra
+passet) och **18 slumpade rutor** utan att ha sett facit först — sex per film, jämnt
+spridda över filmen och inte de handvalda (filnamnen är sekund × 10, `00900` = 1:30:
+trä `00900 02020 02980 03800 04740 05560` · svart `00840 01800 02660 03520 04380 05580` ·
+vitt `00440 01200 01900 02580 03300 04320`). Kort som ligger helt begravda i en hög räknas inte, bara kort
+där en yta av kortet syns. Ett kort inne i en ignorerad yta (A–D) räknas som täckt.
+I rutorna syns 10–25 kort var.
+
+| | Före regel F | Efter regel F |
+|---|---|---|
+| Synliga kort utan täckning | **6** kort i 6 rutor | **1** kort i 1 ruta |
+
+De sex: **Valkyrie's Sword** (svart `01100`, poäng 0,05, och trä `02020`, poäng 0,08),
+**Ancestral Blade** (svart `03500`, poäng 0,06, och svart `02660`, poäng 0,04), ett
+Fractal-token halvt bakom ett annat kort (vitt `04660`, 0,07) och ett kort i en hand
+där bara kanten syns (svart `04380`). Regeln täcker de fem första. Det sjätte, kortet
+i handen, har ingen osäker låda alls. Sett över hela materialet finns F i 93 av 638
+rutor (15 %); i mina 42 rutor saknades ett kort i 6 (14 %), så de stämmer ihop.
+
+**Valkyrie's Sword täcks:** OWLv2 gav den en låda med poäng **0,051**, storlek
+139 × 179 px i den 1 600 px breda ritade bilden, alltså 1,1 × kortet. Den låg alltså
+i den råa filen men under 0,16. Med golv 0,03 fångas den. (Den ritade bilden
+`ritade/…svartmatta-dagsljus-01100.jpg` visar den som grön yta märkt `ignorera F 0.05`.)
+
+### Vad F ignorerar i själva verket (bedömt på ett montage av alla 120 ytor)
+
+| Sort | Ungefär hur många | Kommentar |
+|---|---|---|
+| Ett riktigt kort som läraren gav låg poäng | ~65 | Valkyrie's Sword, Ancestral Blade, Fencing Ace (samma kort i 22 rutor på träbordet), Fractal-token, ett kort i en hand. Det är det regeln är till för |
+| **Leken eller baksidor i fickor** (gröna, rosa) | ~45 | lådor med poäng 0,09–0,15, alltså precis under tröskeln; runt 15 av dem har en hand på sig. De borde vara facit (`baksida`); nu blir de ignorerade i stället för bakgrund. Hälften av svarta mattans F-ytor är ett och samma gröna kort i ficka i rutorna `03840`–`03960` (6:24–6:36 in i filmen) |
+| Tom yta eller bara en hand | ~10 | ett par suddiga händer på träbordet, där hudfärgen liknar träet så att hudfiltret inte fångar dem, och två tomma ytor på vita bordet. Litet fel, men eleven lär sig inte att en hand utan kort är bakgrund |
+
+Hudfiltret tog bort 28 ytor, nästan alla på vita bordet (40 → 21). På träbordet
+kan det inte skilja hand från träyta (samma nyanser), så där släpper det igenom fler.
+
+### Vad som fortfarande missas
+
+| Vad | Hur stort | Förslag |
+|---|---|---|
+| **Kort i handen där bara kanten syns** | 1 av 42 rutor | ingen låda alls; bör bli en D-yta. Ingen billig regel |
+| **Baksidor i fickor med poäng 0,09–0,15** blir ignorerade, inte facit | ~45 av de 120 F-ytorna | en F-yta som klarar samma färgtest som `ar_baksida` (en färg, få kanter) kan bli facit med baksidesflaggan i stället. Byggs inte här: det ändrar facit |
+| **Kort i vinkel (25–40°)** får en A-låda (> 1,6 × kortet) | 272 av 447 A-ytor på svarta mattan är högst 2,3 × kortet, alltså troligen ett enda snett kort | rotera storleksfiltret, eller låt en A-låda utan andra lådor i sig och högst 2,3 × kortet vara facit. Byggs inte här |
+| **A-ytor som täcker halva bordet** | 238 av 771 A-ytor är över 3,5 × kortet | ett kort inne i en sådan yta räknas som täckt i måttet ovan, men träffas inte av något facit; två exempel: trä `05560` och svart `06120`, där ett tydligt synligt kort ligger i en jättestor A-yta. Bör delas upp eller ersättas |
+| Kort under 0,03 | okänt | golvet 0,02 i de råa filerna är lägsta; ett lägre golv än 0,03 har inte provats, men de lådorna är i medeltal små delar av kort |
+
+**Bordsfilter ("en kortstor, ljus/mörk, rektangulär yta som ingen låda täcker")** behövs
+inte för Valkyrie's Sword, eftersom en låda fanns. För kort utan låda alls (kortet i
+handen) skulle det kräva en bildanalys som hittar rektanglar på bordet, och det
+har jag inte byggt.
+
+**Oprovat:** inget är mätt mot ett ritat facit, bara räknat med ögat på 42 rutor.
+Att eleven tränar bättre av F är inte prövat (det görs i grind 2).
+
+## Det som ändrades i generatorn (`synt/`) för grind 2 (gjort 2026-09-29)
+
+1. Klassen `lek` heter nu **`baksida`** i generatorn, facit, YOLO/COCO-klasslistan,
+   kontaktarket och `SYNT.md`. Facit har ett nytt fält `slag` (`lek` eller `ensam`).
+2. **Ensamma kort med baksidan upp** ligger utanför leken i en del av borden (11 st i
+   8 av 20), ibland omlott med ett annat kort, som Magic-baksidan utan ficka, i klar
+   ficka eller i bordets ficka.
+3. Bakgrunderna är hela rutor ur de tre filmerna (en film väljs först, sedan en ruta
+   ur den). De äldre skärminspelningsutsnitten stoppas nu av spärren, eftersom grind 1:s
+   mapp står som oanvändbar sedan partiet lades bort.
+4. Kortstorleken i `kamera()` är **inte** justerad (median 66 px, filmerna ≈ 75–79 px).
 
 ## Mätt och bedömt
 

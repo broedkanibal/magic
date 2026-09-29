@@ -62,6 +62,15 @@ TROSKEL = 0.16
 LAG = 0.02
 SAKER = 0.3
 STORLEK = (0.4, 1.6)
+# Regel F (osäkra lådor, MES-288 uppgift A): lådor mellan OSAKER_LAG och TROSKEL
+# blir ignorerade ytor — varken facit eller bakgrund.
+OSAKER_LAG = 0.03
+F_STORLEK = (0.5, 2.2)   # × kortets yta; smalare = del av ett kort, större = hög eller hela bordet
+F_KVOT = 2.0             # längsta/kortaste sidan; ett kort i vinkel är ~1,3–1,5
+F_TACKT = 0.6            # andel av den osäkra lådan inne i en säker låda → samma kort, släpp
+F_TACKER = 0.5           # andel av en säker låda inne i den osäkra → täcker ett säkert kort, släpp
+F_REDUNDANT = 0.8        # andel inne i en redan ignorerad yta (A–D) → tillför inget, släpp
+F_HUD = 0.55             # andel hudfärgade bildpunkter (YCrCb) i lådans inre → en hand, inte ett kort, släpp
 
 
 def video(film):
@@ -398,8 +407,27 @@ def pa_bordet(mask, d):
     return bool(mask[min(269, max(0, int(cy * 270))), min(479, max(0, int(cx * 480)))])
 
 
-def facit_ruta(b, ky, bgr=None, bord=None):
-    alla = nms([d for d in b['det'] if d[4] >= TROSKEL], NMS_IOU)
+def hudandel(bgr, d):
+    """Andel bildpunkter i lådans inre (12 % in från kanterna) som har hudens färg (YCrCb)."""
+    H, W = bgr.shape[:2]
+    x0, y0, x1, y1 = d[0] * W, d[1] * H, d[2] * W, d[3] * H
+    mx, my = (x1 - x0) * 0.12, (y1 - y0) * 0.12
+    bit = bgr[max(0, int(y0 + my)):min(H, int(y1 - my)), max(0, int(x0 + mx)):min(W, int(x1 - mx))]
+    if bit.size == 0:
+        return 0.0
+    if bit.shape[1] > 200:
+        bit = cv2.resize(bit, (200, max(8, round(bit.shape[0] * 200 / bit.shape[1]))), interpolation=cv2.INTER_AREA)
+    ycc = cv2.cvtColor(bit, cv2.COLOR_BGR2YCrCb)
+    cr, cb = ycc[..., 1], ycc[..., 2]
+    return float(((cr >= 135) & (cr <= 175) & (cb >= 85) & (cb <= 127) & (ycc[..., 0] > 60)).mean())
+
+
+def facit_ruta(b, ky, bgr=None, bord=None, osaker=True):
+    # NMS över allt från OSAKER_LAG: högst poäng först, så de säkra lådorna (≥ TROSKEL) blir exakt
+    # de som utan de osäkra; de osäkra är resten och bara kandidater till regel F.
+    alla_lag = nms([d for d in b['det'] if d[4] >= (OSAKER_LAG if osaker else TROSKEL)], NMS_IOU)
+    alla = [d for d in alla_lag if d[4] >= TROSKEL]
+    osaker_l = [d for d in alla_lag if d[4] < TROSKEL]
     over = [d for d in alla if pa_bordet(bord, d)]
     ign_e = [dict(lada=d[:4], poang=round(d[4], 3), regel='E', vad='utanför bordet') for d in alla if not pa_bordet(bord, d)]
     ok = [d for d in over if STORLEK[0] * ky <= yta(d) <= STORLEK[1] * ky]
@@ -452,6 +480,24 @@ def facit_ruta(b, ky, bgr=None, bord=None):
             facit += med
     ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='D', vad='del av ett kort (< 0,4 × kortet)') for d in sma]
     ign += ign_e
+    # F: osäkra lådor (OSAKER_LAG–TROSKEL) — läraren såg något kortliknande men var inte säker; ett synligt
+    # kort utan låda lär eleven att kortet är bakgrund, så ytan ignoreras i stället
+    ign_ytor = [x['lada'] for x in ign]
+    for d in sorted(osaker_l, key=lambda d: -d[4]):
+        if not pa_bordet(bord, d):
+            continue                                      # utanför bordet: inte ett kort på bordet
+        rel = yta(d) / ky
+        if not F_STORLEK[0] <= rel <= F_STORLEK[1] or kvot(d, b['W'], b['H']) > F_KVOT:
+            continue                                      # fel form eller storlek för ett enskilt kort
+        if any(andel_inne(d, s) >= F_TACKT or andel_inne(s, d) >= F_TACKER for s in alla):
+            continue                                      # samma kort som en säker låda
+        if bgr is not None and hudandel(bgr, d) >= F_HUD:
+            continue                                      # en hand, inte ett kort
+        if any(andel_inne(d, i) >= F_REDUNDANT for i in ign_ytor):
+            continue                                      # redan ignorerat
+        if any(x['regel'] == 'F' and iou(d, x['lada']) > 0.4 for x in ign):
+            continue                                      # nästan samma yta som en tidigare osäker
+        ign.append(dict(lada=d[:4], poang=round(d[4], 3), regel='F', vad='osäker låda (0,03–0,16)'))
     lador = []
     for d in sorted(facit, key=lambda d: (d[1], d[0])):
         post = dict(lada=[round(v, 5) for v in d[:4]], poang=round(d[4], 3), fraga=d[5])
@@ -473,11 +519,13 @@ def facit():
         ut = dict(installning=dict(troskel=TROSKEL, nms=NMS_IOU, storlek=STORLEK, inneslutning=0.8, fragor=FRAGOR, in_bredd=IN_BREDD,
                                    ignorera=dict(A='> 1,6 × kortet', B=f'innehåller ≥ 2 lådor av kortstorlek (≥ {INNE_B} inne)',
                                                  C=f'≥ {MIN_C} lådor omlott (skärning ≥ {OMLOTT_C} av den mindre), var och en',
-                                                 D='< 0,4 × kortet', E='lådans mitt utanför bordet (bord.png)'),
+                                                 D='< 0,4 × kortet', E='lådans mitt utanför bordet (bord.png)',
+                                                 F=f'osäker låda: poäng {OSAKER_LAG}–{TROSKEL}, {F_STORLEK[0]}–{F_STORLEK[1]} × kortet, sidkvot ≤ {F_KVOT}, '
+                                                   f'på bordet, inte samma kort som en säker låda, under {F_HUD:.0%} hudfärg'),
                                    baksida=dict(brun_h=BRUN_H, bla_h=BLA_H, brun_min=BAK_BRUN, bla_min=BAK_BLA,
                                                 magic_kanter=(BAK_KANT_MIN, BAK_KANT), en_farg_min=EN_FARG,
                                                 kanter_max=EN_FARG_KANT, mattnad_min=EN_FARG_MATTNAD, ej_nyans='4–30 (hud, trä)')),
-                  kortyta=ky, rutor={})
+                  osaker_lag=OSAKER_LAG, kortyta=ky, rutor={})
         for fil, b in sorted(res.items()):
             bgr = cv2.imread(krav_traning(os.path.join(ARB, film, fil)))
             lador, ign = facit_ruta(b, ky, bgr, bord)
@@ -509,22 +557,28 @@ def siffror():
         nb = sum(1 for r in R.values() for l in r['lador'] if l.get('baksida'))
         rb = sum(1 for r in R.values() if any(l.get('baksida') for l in r['lador']))
         # andel av bilden som ligger i en ignorerad yta (unionen), och andel av lådorna på bordet
-        ytor = []
+        ytor, ytor_f = [], []
         for r in R.values():
             m = np.zeros((90, 160), np.uint8)
+            m_f = np.zeros((90, 160), np.uint8)
             for x in r['ignorera']:
                 if x['regel'] == 'E':
                     continue
                 b = x['lada']
-                m[int(b[1] * 90):int(np.ceil(b[3] * 90)), int(b[0] * 160):int(np.ceil(b[2] * 160))] = 1
+                sn = (slice(int(b[1] * 90), int(np.ceil(b[3] * 90))), slice(int(b[0] * 160), int(np.ceil(b[2] * 160))))
+                m_f[sn] = 1
+                if x['regel'] != 'F':
+                    m[sn] = 1
             ytor.append(m.mean())
-        ign_bord = sum(v for k, v in regler.items() if k != 'E')
+            ytor_f.append(m_f.mean())
+        ign_bord = sum(v for k, v in regler.items() if k not in ('E', 'F'))
+        rf = sum(1 for r in R.values() if any(x['regel'] == 'F' for x in r['ignorera']))
         print(f'{film}: provade {len(ix["rutor"])}, behållna {sum(1 for r in ix["rutor"] if r.get("behallen"))}, '
               f'med lärarlådor {len(R)}; tid median {ms[len(ms) // 2] / 1000:.1f} s, summa {sum(ms) / 3.6e6:.2f} h')
         print(f'    facit-lådor {sum(nl)} (median {sorted(nl)[len(nl) // 2]}, max {max(nl)} per ruta); baksida {nb} lådor i {rb} rutor')
         print(f'    ignorerade ytor per regel {dict(sorted(regler.items()))}; på bordet (A–D) {ign_bord} mot {sum(nl)} facit '
               f'= {ign_bord / max(1, ign_bord + sum(nl)):.0%} av lådorna; ignorerad bildyta (A–D) median {np.median(ytor):.1%}, '
-              f'medel {np.mean(ytor):.1%}; kortets yta {fac["kortyta"]:.4f} av bilden '
+              f'medel {np.mean(ytor):.1%}; med F: median {np.median(ytor_f):.1%}, medel {np.mean(ytor_f):.1%}; F i {rf} rutor; kortets yta {fac["kortyta"]:.4f} av bilden '
               f'(≈ {np.sqrt(fac["kortyta"] * 3840 * 2160 / 1.4):.0f} × {np.sqrt(fac["kortyta"] * 3840 * 2160 * 1.4):.0f} px i 4K)')
 
 
@@ -617,7 +671,7 @@ def valj_ark(film, fac):
     return sorted(set(val), key=lambda f: fac['rutor'][f]['sekund'])
 
 
-def rita_ruta(film, fil, r):
+def rita_ruta(film, fil, r, ut_mapp=None):
     from PIL import Image, ImageDraw, ImageFont
     im = Image.open(krav_traning(os.path.join(ARB, film, fil))).convert('RGB')
     W0 = 1600
@@ -631,20 +685,21 @@ def rita_ruta(film, fil, r):
     dl = ImageDraw.Draw(lager)
     for x in r['ignorera']:
         b = x['lada']
-        dl.rectangle((b[0] * W, b[1] * H, b[2] * W, b[3] * H), fill=(90, 90, 90, 110))
+        dl.rectangle((b[0] * W, b[1] * H, b[2] * W, b[3] * H), fill=(90, 90, 90, 110) if x['regel'] != 'F' else (60, 200, 60, 70))
     im = Image.alpha_composite(im.convert('RGBA'), lager).convert('RGB')
     d = ImageDraw.Draw(im)
     for x in r['ignorera']:
         b = x['lada']
         x0, y0, x1, y1 = b[0] * W, b[1] * H, b[2] * W, b[3] * H
+        fk = (255, 170, 0) if x['regel'] != 'F' else (40, 220, 60)    # F = osäker låda: egen färg
         for k in range(int(x0), int(x1), 16):   # streckad kant
-            d.line((k, y0, min(k + 8, x1), y0), fill=(255, 170, 0), width=3)
-            d.line((k, y1, min(k + 8, x1), y1), fill=(255, 170, 0), width=3)
+            d.line((k, y0, min(k + 8, x1), y0), fill=fk, width=3)
+            d.line((k, y1, min(k + 8, x1), y1), fill=fk, width=3)
         for k in range(int(y0), int(y1), 16):
-            d.line((x0, k, x0, min(k + 8, y1)), fill=(255, 170, 0), width=3)
-            d.line((x1, k, x1, min(k + 8, y1)), fill=(255, 170, 0), width=3)
-        t = f'ignorera {x["regel"]}'
-        d.rectangle((x0, y1 - 26, x0 + d.textlength(t, font=font) + 8, y1), fill=(255, 170, 0))
+            d.line((x0, k, x0, min(k + 8, y1)), fill=fk, width=3)
+            d.line((x1, k, x1, min(k + 8, y1)), fill=fk, width=3)
+        t = f'ignorera {x["regel"]}' + (f' {x["poang"]:.2f}' if x['regel'] == 'F' else '')
+        d.rectangle((x0, y1 - 26, x0 + d.textlength(t, font=font) + 8, y1), fill=fk)
         d.text((x0 + 4, y1 - 25), t, fill=(0, 0, 0), font=font)
     for n, l in enumerate(r['lador'], 1):
         b = l['lada']
@@ -654,8 +709,9 @@ def rita_ruta(film, fil, r):
         t = f'{n}: {l["poang"]:.2f}' + (' baksida' if l.get('baksida') else '')
         d.rectangle((x0, y0, x0 + d.textlength(t, font=font) + 8, y0 + 26), fill=farg)
         d.text((x0 + 4, y0 + 1), t, fill=(255, 255, 255) if not l.get('baksida') else (0, 0, 0), font=font)
-    os.makedirs(krav_traning(os.path.join(ARB, 'ritade')), exist_ok=True)
-    ut = krav_traning(os.path.join(ARB, 'ritade', f'{film}-{os.path.basename(fil)}'))
+    ut_mapp = ut_mapp or os.path.join(ARB, 'ritade')
+    os.makedirs(krav_traning(ut_mapp), exist_ok=True)
+    ut = krav_traning(os.path.join(ut_mapp, f'{film}-{os.path.basename(fil)}'))
     im.save(ut, quality=86)
     return ut
 
@@ -673,11 +729,12 @@ def ark():
         n = len(R)
         nl = sum(len(r['lador']) for r in R.values())
         ni = sum(len(r['ignorera']) for r in R.values())
+        nf = sum(1 for r in R.values() for x in r['ignorera'] if x['regel'] == 'F')
         nb = sum(sum(1 for l in r['lador'] if l.get('baksida')) for r in R.values())
         provade = len(ix['rutor'])
         behallna = sum(1 for r in ix['rutor'] if r.get('behallen'))
         summa.append(f'<tr><td>{html.escape(KORT[film])}</td><td>{provade}</td><td>{behallna}</td><td>{n}</td><td>{nl}</td>'
-                     f'<td>{nb}</td><td>{ni}</td></tr>')
+                     f'<td>{nb}</td><td>{ni - nf}</td><td>{nf}</td></tr>')
         figs = []
         for fil in valj_ark(film, fac):
             r = R[fil]
@@ -686,7 +743,9 @@ def ark():
             ign = ', '.join(f'{x["regel"]}: {html.escape(x["vad"])}' for x in r['ignorera'])
             nb_r = sum(1 for l in r['lador'] if l.get('baksida'))
             n_l, n_i = len(r['lador']), len(r['ignorera'])
-            extra = (f' · {nb_r} baksida' if nb_r else '') + (f' · {n_i} ignorerade ytor' if n_i else '')
+            n_f = sum(1 for x in r['ignorera'] if x['regel'] == 'F')
+            extra = (f' · {nb_r} baksida' if nb_r else '') + (f' · {n_i - n_f} ignorerade ytor' if n_i - n_f else '') + \
+                    (f' · {n_f} osäker(a) F' if n_f else '')
             ign_t = f'<br><span class="oga">{ign}</span>' if ign else ''
             figs.append(f'<figure><img loading="lazy" src="{rel(bild)}" alt="{m}:{s:02d}"><figcaption><b>{m}:{s:02d}</b> · '
                         f'<span class="n">{n_l} lådor</span>{extra}{ign_t}</figcaption></figure>')
@@ -726,11 +785,15 @@ inställningar (tröskel 0,16, NMS 0,6, storleksfilter 0,4–1,6 × kortet, inne
 spridda över filmen, i varje del den med mest att titta på. Siffror och bedömning: <code>dev/detektor/larare/TRANINGSRUTOR.md</code>.</p>
 <p class="lg"><span style="background:#ff00ff;color:#fff">1: 0,45</span> lärarens facit (nummer: poäng)
 <span style="background:#00c8ff;color:#000">2: 0,30 baksida</span> facit med baksidesflaggan (färgtest: brunt + blått)
-<span style="background:#ffaa00;color:#000">ignorera A–D</span> grå, streckad yta: varken facit eller negativ</p>
+<span style="background:#ffaa00;color:#000">ignorera A–E</span> grå, orange streckad yta: varken facit eller negativ
+<span style="background:#28dc3c;color:#000">ignorera F 0,05</span> grön, streckad yta: <b>osäker låda</b> (poäng 0,03–0,16), varken facit eller negativ</p>
 <p><b>Ignorera:</b> A = låda större än 1,6 × kortet (över flera kort) · B = låda runt två eller fler andra kortstora lådor (hög) ·
 C = en av tre eller fler lådor omlott i en grupp (tät kolumn, landhög) · D = låda mindre än 0,4 × kortet (del av ett kort) ·
-E = lådans mitt utanför bordet (böcker och leksaker runt det vita bordet). En facit-låda inne i en ignorerad yta är fortfarande facit.</p>
-<table><tr><th>Film</th><th>Provade rutor</th><th>Behållna</th><th>Med lärarlådor</th><th>Facit-lådor</th><th>Baksida</th><th>Ignorerade ytor</th></tr>
+E = lådans mitt utanför bordet (böcker och leksaker runt det vita bordet) ·
+<b>F = osäker låda</b>: OWLv2 gav den poäng 0,03–0,16, den är kortstor (0,5–2,2 × kortet), ligger på bordet, är inte en hand och är inte samma kort som en säker låda —
+läraren såg något kortliknande men var inte säker, så ytan ignoreras i stället för att bli bakgrund (poängen står i etiketten).
+En facit-låda inne i en ignorerad yta är fortfarande facit.</p>
+<table><tr><th>Film</th><th>Provade rutor</th><th>Behållna</th><th>Med lärarlådor</th><th>Facit-lådor</th><th>Baksida</th><th>Ignorerade ytor A–E</th><th>Osäkra ytor F</th></tr>
 {"".join(summa)}</table>
 {"".join(delar)}
 </main></body></html>
