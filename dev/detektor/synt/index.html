@@ -7,7 +7,7 @@
 <style>
 :root {
   --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1b; --mut: #6b6a66; --kant: #dddbd5;
-  --kort: #1fae4b; --lek: #2f7de1; --ign: #8a8a8a; --horn: #f2c200; --start: #e0333a;
+  --kort: #1fae4b; --bak: #2f7de1; --ign: #8a8a8a; --horn: #f2c200; --start: #e0333a;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) { --bg: #161615; --panel: #20201e; --text: #ecebe7; --mut: #9d9b95; --kant: #34332f; }
@@ -45,7 +45,7 @@ body.utan-facit .facit, body.utan-horn .horn, body.utan-ign .ign { display: none
 <body>
 <header>
   <h1>Syntetiska bord (MES-288 grind 1b)</h1>
-  <p>20 bord som datorn lagt ut själv, så att facit är exakt. Titta efter det som inte ser ut som ett riktigt bord: fickornas blänk, skuggorna, högarna, ytan under. Längst ner ligger tre riktiga rutor ur träningsmaterialet att jämföra med. Rapporten: <code>dev/detektor/synt/SYNT.md</code>.</p>
+  <p>20 bord som datorn lagt ut själv, så att facit är exakt. Titta efter det som inte ser ut som ett riktigt bord: fickornas blänk, skuggorna, högarna, ytan under. Längst ner ligger tre riktiga rutor ur Jespers träningsfilmer att jämföra med. Rapporten: <code>dev/detektor/synt/SYNT.md</code>.</p>
 </header>
 <main>
   <div class="verktyg">
@@ -54,7 +54,7 @@ body.utan-facit .facit, body.utan-horn .horn, body.utan-ign .ign { display: none
     <button id="bIgn" aria-pressed="true">Utan låda <kbd>I</kbd></button>
     <div class="forklaring">
       <span style="--c: var(--kort)">kort, låda runt den synliga delen</span>
-      <span style="--c: var(--lek)">leken (klass <i>lek</i>)</span>
+      <span style="--c: var(--bak)">baksida (klass <i>baksida</i>): leken, eller ett ensamt kort med baksidan upp</span>
       <span style="--c: var(--ign); --s: dashed">för lite syns — ingen låda, ignoreras</span>
       <span style="--c: var(--horn)">kortets fyra hörn (också det dolda)</span>
       <span style="--c: var(--start)">namnradens början</span>
@@ -63,8 +63,8 @@ body.utan-facit .facit, body.utan-horn .horn, body.utan-ign .ign { display: none
   <div id="rutnat" class="rutnat"></div>
 </main>
 <section class="riktiga">
-  <h2>Riktiga rutor ur träningsmaterialet</h2>
-  <p>Ur grind 1:s rutor (<code>dev/material/arbete/2026-09-28-mes-288-larare/rutor/</code>). De streckade ramarna är Mesas egna, inritade i skärminspelningen — de finns inte i de syntetiska borden och ska inte finnas där. Inga golden- eller provbilder visas här.</p>
+  <h2>Riktiga rutor ur träningsfilmerna</h2>
+  <p>Ur Jespers tre träningsfilmer från 2026-09-29 (<code>dev/material/arbete/2026-09-29-mes-288-traningsrutor/</code>), utan lådor. De syntetiska borden har inga händer och inga böcker och leksaker utanför bordet — se <code>dev/detektor/synt/SYNT.md</code>. Inga golden- eller provbilder visas här.</p>
   <div class="rutnat" id="riktiga"></div>
 </section>
 <section><p style="margin: 30px 0">Klicka på en bild för att se den stor; <kbd>←</kbd> <kbd>→</kbd> bläddrar, <kbd>Esc</kbd> stänger.</p></section>
@@ -74,9 +74,9 @@ body.utan-facit .facit, body.utan-horn .horn, body.utan-ign .ign { display: none
 <script>
 const MAPP = '../../material/arbete/2026-09-29-mes-288-synt/bilder/';
 const RIKTIGA = [
-  ['../../material/arbete/2026-09-28-mes-288-larare/rutor/mes139-0010.jpg', 'MES-139 0:10 — telefonens egen inspelning, mörk skiva, kort i ficka'],
-  ['../../material/arbete/2026-09-28-mes-288-larare/rutor/mes138-0024.jpg', 'MES-138 0:24 — leken i plastfickor på library-platsen'],
-  ['../../material/arbete/2026-09-28-mes-288-larare/rutor/parti-0420.jpg', 'Partiet 2026-09-21, 7:00 — används inte i träningen (Jesper 2026-09-29), här bara för att jämföra korten i fickor och landhögarna'],
+  ['../../material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-tra-dagsljus-lampa/rutor/02980.jpg', 'Träbord, 4:58 — Jespers träningsfilm: hand över korten, landhögar, leken i gröna fickor'],
+  ['../../material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-svartmatta-dagsljus/rutor/04380.jpg', 'Svart matta, 7:18 — två ensamma kort med Magic-baksidan upp (utan ficka), leken, hand'],
+  ['../../material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-vittbord-dagsljus/rutor/01900.jpg', 'Vitt bord, 3:10 — kort i rosa fickor, hand, böcker och leksaker runt bordet'],
 ];
 const NS = 'http://www.w3.org/2000/svg';
 const el = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
@@ -91,10 +91,10 @@ function overlay(f) {
     el('circle', { cx: k.horn_px[0][0], cy: k.horn_px[0][1], r: 2.2, fill: css('--start'), class: 'horn' }, g);
     if (!k.lada_px) continue;
     const [x, y, w, h] = k.lada_px;
-    const farg = k.klass === 'lek' ? css('--lek') : k.far_lada ? css('--kort') : css('--ign');
+    const farg = k.klass === 'baksida' ? css('--bak') : k.far_lada ? css('--kort') : css('--ign');
     const kl = k.far_lada ? 'facit' : 'facit ign';
     el('rect', { x, y, width: w, height: h, fill: 'none', stroke: farg, 'stroke-width': k.far_lada ? 1.6 : 1, 'stroke-dasharray': k.far_lada ? '' : '3 2', class: kl }, g);
-    const text = k.klass === 'lek' ? 'lek' : `${Math.round(k.synlig * 100)}%${k.hog ? ' ' + k.hog : ''}${k.zon === 'grav' ? ' gy' : ''}`;
+    const text = k.klass === 'baksida' ? (k.slag === 'lek' ? 'baksida · lek' : 'baksida') : `${Math.round(k.synlig * 100)}%${k.hog ? ' ' + k.hog : ''}${k.zon === 'grav' ? ' gy' : ''}`;
     const t = el('text', { x: x + 2, y: y + 9, 'font-size': 8.5, 'font-family': 'ui-monospace, monospace', fill: farg, stroke: '#000', 'stroke-width': 2.2, 'paint-order': 'stroke', class: kl }, g);
     t.textContent = text;
   }

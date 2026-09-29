@@ -10,7 +10,7 @@
    * rita-geometri ser kortet som ett parallellogram ur tre hörn; generatorn
      projicerar med perspektiv, så ett kort som står snett i bilden skiljer
      någon procent;
-   * leken skymmer i generatorn med hela sin kontur (sidorna också), i rita
+   * leken (slag `lek`, klassen baksida) skymmer i generatorn med hela sin kontur (sidorna också), i rita
      bara med ovansidan;
    * namnraden: generatorns kort i ficka har namnraden 1,5 mm in från fickans
      kant, rita räknar från konturen — namnraden jämförs därför inte.
@@ -38,7 +38,7 @@ for (const fil of fs.readdirSync(mapp).filter(f => /^synt-\d+\.json$/.test(f)).s
   for (const k of f.kort) {
     kort++;
     const d = Math.abs(k.synlig - r[k.id].synlig);
-    const leken = f.kort.some(o => o.klass === 'lek' && o.z > k.z);
+    const leken = f.kort.some(o => o.slag === 'lek' && o.z > k.z);   // bara den tjocka leken skymmer med sidorna; ett ensamt kort med baksidan upp är platt
     if (d > maxd && !leken) maxd = d;
     if (d > TOL_SYNLIG && !leken) { fel++; console.log(`${fil} kort ${k.id} (${k.namn}): synlig ${k.synlig} mot rita ${r[k.id].synlig}`); }
     if (k.klass === 'kort' && k.tappad !== r[k.id].tappad) { fel++; console.log(`${fil} kort ${k.id}: tappad ${k.tappad} mot rita ${r[k.id].tappad}`); }

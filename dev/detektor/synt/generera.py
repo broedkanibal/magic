@@ -38,6 +38,7 @@ sys.path.insert(0, HAR)
 sys.path.insert(0, os.path.dirname(HAR))
 import texturer  # noqa: E402
 from bakgrund import prova_kalla  # noqa: E402
+from delning import ProvLacka  # noqa: E402
 
 ARB = os.path.join(ROT, 'dev', 'material', 'arbete', '2026-09-29-mes-288-synt')
 SCRY = os.path.join(ARB, 'scryfall')
@@ -58,7 +59,7 @@ LADA_SYNLIG = 0.05              # annars: minst 5 % av kortet syns …
 LADA_TJOCK_PX = 6.0             # … och den synliga delen är minst 6 px tjock i 960×544-bilden
 LADA_REMSA_PX = 3                # delar av det synliga som är tunnare än så räknas inte in i lådan
 OPPNA = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (LADA_REMSA_PX * SS, LADA_REMSA_PX * SS))
-KLASSER = ['kort', 'lek']
+KLASSER = ['kort', 'baksida']   # baksida = leken eller ett ensamt kort med baksidan upp (appen avgör vilket ur platsen)
 
 FICKFARGER = {  # BGR, fickans baksida (syns som kant runt kortet genom den klara framsidan)
     'mörkgrön glitter': (45, 75, 30), 'svart': (28, 26, 26), 'blå': (120, 60, 25), 'röd': (35, 30, 140),
@@ -314,20 +315,35 @@ def el_grav(rng, bilder, lek):
 
 
 def el_lek(rng, bilder, lek):
-    return [nytt_kort(None, 0, 0, rng.normal(0, 4), klass='lek', baksida=True, tjock=rng.uniform(10, 24))], 'leken'
+    return [nytt_kort(None, 0, 0, rng.normal(0, 4), klass='baksida', slag='lek', baksida=True, tjock=rng.uniform(10, 24))], 'leken'
+
+
+def el_baksida(rng, bilder, lek):
+    """Ett ensamt kort med baksidan upp utanför leken: en uppochnervänd token, ett kort som inte hör till leken.
+    Oftast i samma ficka som resten av bordet, ibland utan ficka (Magic-baksidan) eller i klar ficka.
+    Var tredje ligger omlott med ett annat kort (baksidan över eller under)."""
+    rot0 = rng.normal(0, 6)
+    egen = rng.random() < 0.3
+    b = nytt_kort(None, 0, 0, rot0, klass='baksida', slag='ensam', baksida=True, tjock=rng.uniform(0.8, 2.0), egen_ficka=egen)
+    if rng.random() < 0.35:
+        a = rng.uniform(0, 2 * math.pi)
+        l = rng.uniform(18, 45)
+        annat = nytt_kort(bilder.valj(rng, lek, 'ovrigt'), l * math.cos(a), l * math.sin(a), rot0 + rng.normal(0, 12))
+        return ([b, annat] if rng.random() < 0.5 else [annat, b]), 'baksida omlott'
+    return [b], 'ensam baksida'
 
 
 ELEMENT = {'landkolumn': el_landkolumn, 'trappa': el_trappa, 'omlott': el_omlott, 'utrustning': el_utrustning,
-           'tappad': el_tappad, 'enstaka': el_enstaka, 'rad': el_rad, 'grav': el_grav, 'lek': el_lek}
+           'tappad': el_tappad, 'enstaka': el_enstaka, 'rad': el_rad, 'grav': el_grav, 'lek': el_lek, 'baksida': el_baksida}
 
 SCENER = {
-    'fullt bord': lambda r: ['lek', 'grav'] + ['landkolumn'] * int(r.integers(2, 4)) + ['rad', 'utrustning'] + ['tappad'] * int(r.integers(0, 3)) + ['enstaka'] * int(r.integers(0, 2)),
-    'täta högar': lambda r: ['landkolumn'] * int(r.integers(3, 6)) + ['trappa'] + ['omlott'] * int(r.integers(1, 3)) + (['lek'] if r.random() < 0.6 else []),
-    'glest': lambda r: ['enstaka'] * int(r.integers(1, 4)) + (['lek'] if r.random() < 0.7 else []) + (['tappad'] if r.random() < 0.4 else []),
-    'omlott': lambda r: ['omlott'] * int(r.integers(2, 4)) + ['trappa', 'utrustning'] + (['utrustning'] if r.random() < 0.5 else []) + (['grav'] if r.random() < 0.5 else []),
-    'motståndare': lambda r: ['lek', 'landkolumn', 'landkolumn', 'rad', 'omlott', 'tappad'] + ['landkolumn', 'rad', 'enstaka'],
+    'fullt bord': lambda r: ['lek', 'grav'] + ['landkolumn'] * int(r.integers(2, 4)) + ['rad', 'utrustning'] + ['tappad'] * int(r.integers(0, 3)) + ['enstaka'] * int(r.integers(0, 2)) + ['baksida'] * (int(r.integers(1, 3)) if r.random() < 0.5 else 0),
+    'täta högar': lambda r: ['landkolumn'] * int(r.integers(3, 6)) + ['trappa'] + ['omlott'] * int(r.integers(1, 3)) + (['lek'] if r.random() < 0.6 else []) + (['baksida'] if r.random() < 0.4 else []),
+    'glest': lambda r: ['enstaka'] * int(r.integers(1, 4)) + (['lek'] if r.random() < 0.7 else []) + (['tappad'] if r.random() < 0.4 else []) + ['baksida'] * (int(r.integers(1, 3)) if r.random() < 0.5 else 0),
+    'omlott': lambda r: ['omlott'] * int(r.integers(2, 4)) + ['trappa', 'utrustning'] + (['utrustning'] if r.random() < 0.5 else []) + (['grav'] if r.random() < 0.5 else []) + (['baksida'] if r.random() < 0.4 else []),
+    'motståndare': lambda r: ['lek', 'landkolumn', 'landkolumn', 'rad', 'omlott', 'tappad'] + ['landkolumn', 'rad', 'enstaka'] + (['baksida'] if r.random() < 0.4 else []),
     'tomt bord': lambda r: [],
-    'bara leken': lambda r: ['lek'] + (['grav'] if r.random() < 0.5 else []),
+    'bara leken': lambda r: ['lek'] + (['grav'] if r.random() < 0.5 else []) + (['baksida'] if r.random() < 0.4 else []),
 }
 SCENORDNING = ['fullt bord', 'täta högar', 'glest', 'omlott', 'fullt bord', 'tomt bord', 'täta högar', 'motståndare', 'fullt bord', 'glest',
                'omlott', 'täta högar', 'fullt bord', 'motståndare', 'bara leken', 'täta högar', 'fullt bord', 'omlott', 'glest', 'fullt bord']
@@ -371,7 +387,7 @@ def lagg_ut(rng, bilder, kam, scen):
                 k['u'] = u0 + c * d['du'] - s * d['dv']
                 k['v'] = v0 + s * d['du'] + c * d['dv']
                 k['rot'] = d['rot'] + grot
-                k['ficka'] = ficka
+                k['ficka'] = BAR_FICKA(rng) if d.get('egen_ficka') else ficka
                 k['kontur'] = (KORT_B, KORT_H) if ficka['typ'] == 'ingen' else (FICKA_B, FICKA_H)
                 k['inset'] = 0.0 if ficka['typ'] == 'ingen' else (FICKA_B - KORT_B) / 2
                 prov.append(k)
@@ -409,6 +425,13 @@ def lagg_ut(rng, bilder, kam, scen):
                 k['z'] = z
                 z += 1
     return kort, grupper
+
+
+def BAR_FICKA(rng):
+    """Ett ensamt kort med baksidan upp i en annan ficka än bordets: oftast ingen (Magic-baksidan), ibland klar."""
+    if rng.random() < 0.7:
+        return {'typ': 'ingen', 'farg': None, 'dis': 0.0, 'kantljus': 0.0, 'glans': rng.uniform(0.05, 0.2)}
+    return {'typ': 'klar', 'farg': 'klar', 'kantalfa': rng.uniform(0.15, 0.35), 'dis': rng.uniform(0.03, 0.1), 'kantljus': rng.uniform(0.4, 0.9), 'glans': rng.uniform(0.35, 1.0)}
 
 
 def valj_ficka(rng):
@@ -456,12 +479,57 @@ def fyll(rng, bit, s):
     return (acc / np.maximum(vikt, 1e-6))[:HS, :WS]
 
 
+REELL_ANDEL = 0.65   # så ofta är bakgrunden en riktig ruta ur en träningsfilm (annars en ritad yta)
+
+
+def tillaten(b):
+    """Bakgrunden får bara användas om spärren släpper igenom källan. De fyra äldre källorna (utsnitt ur
+    grind 1:s rutor, skärminspelningar) stoppas sedan partiet 2026-09-21 blev oanvändbart — då återstår
+    Jespers tre träningsfilmer."""
+    try:
+        prova_kalla(os.path.join(ROT, b['kalla']), *([os.path.join(ROT, b['video'])] if b.get('video') else []))
+        return True
+    except ProvLacka:
+        return False
+
+
+def fyll_film(rng, bit, s):
+    """En hel ruta ur en träningsfilm → 2×-duken: skalas så att den täcker duken (s = extra förstoring),
+    speglas ibland och skärs slumpat. Ingen utplattning och ingen lapptäckning — mattans kant, bordets
+    form, böcker och leksaker runt det får vara kvar, precis som i filmen."""
+    b = bit.astype(np.float32)
+    sc = max(WS / b.shape[1], HS / b.shape[0]) * s
+    b = cv2.resize(b, (int(math.ceil(b.shape[1] * sc)), int(math.ceil(b.shape[0] * sc))), interpolation=cv2.INTER_CUBIC)
+    if rng.random() < 0.5:
+        b = b[:, ::-1]
+    bh, bw = b.shape[:2]
+    ox, oy = rng.integers(0, bw - WS + 1), rng.integers(0, bh - HS + 1)
+    return np.ascontiguousarray(b[oy:oy + HS, ox:ox + WS])
+
+
+def valj_bakgrund(rng, ix):
+    """Först en källa (en film eller en äldre skärminspelning), sedan en ruta ur den — inte en ruta ur högen,
+    eftersom rutorna inom en film är nästan identiska (tre ytor, inte nitton)."""
+    grupper = {}
+    for b in ix:
+        film = b.get('typ') == 'video'
+        g = os.path.basename(os.path.dirname(b['kalla'])) if film else (b.get('video') or b['kalla'])
+        grupper.setdefault(g, []).append(b)
+    namn = sorted(grupper)
+    lista = grupper[namn[rng.integers(len(namn))]]
+    return lista[rng.integers(len(lista))]
+
+
 def bakgrund(rng, bilder):
-    ix = json.load(open(os.path.join(BAKG, 'index.json'), encoding='utf-8'))['bakgrunder']
-    if ix and rng.random() < 0.55:
-        b = ix[rng.integers(len(ix))]
+    ix = [b for b in json.load(open(os.path.join(BAKG, 'index.json'), encoding='utf-8'))['bakgrunder'] if tillaten(b)]
+    if ix and rng.random() < REELL_ANDEL:
+        b = valj_bakgrund(rng, ix)
         prova_kalla(os.path.join(ROT, b['kalla']), *( [os.path.join(ROT, b['video'])] if b.get('video') else []))
         bit = cv2.imread(os.path.join(BAKG, b['fil']))
+        if b.get('typ') == 'video':
+            s = rng.uniform(1.0, 1.35)
+            img = fyll_film(rng, bit, s) * rng.uniform(0.85, 1.25)
+            return img, {'typ': 'riktig', 'fil': b['fil'], 'kalla': b['kalla'], 'vad': b['vad'], 'skala': round(s, 2), 'fyllning': 'hel ruta ur filmen'}
         s = rng.uniform(1.0, 1.8)
         img = fyll(rng, bit, s) * rng.uniform(0.85, 1.25)
         return img, {'typ': 'riktig', 'fil': b['fil'], 'kalla': b['kalla'], 'vad': b['vad'], 'skala': round(s, 2), 'fyllning': 'plattad och lapptäckt'}
@@ -659,8 +727,8 @@ def facit_for(kort, kam):
     H0 = hom_hojd(kam)
     for k in kort:
         A = lokal_till_bord(k)
-        k['_poly'] = k['_kontur_px'] if k['klass'] == 'lek' else proj(H0 @ A, horn_lokal(k))
-        k['_namn'] = None if k['klass'] == 'lek' else proj(H0 @ A, namnrad_lokal(k))
+        k['_poly'] = k['_kontur_px'] if k['klass'] == 'baksida' else proj(H0 @ A, horn_lokal(k))
+        k['_namn'] = None if k['klass'] == 'baksida' else proj(H0 @ A, namnrad_lokal(k))
     tackt = np.zeros((HS, WS), np.uint8)
     for k in sorted(kort, key=lambda k: -k['z']):
         full = rastrerad_yta(k['_poly'])
@@ -688,7 +756,7 @@ def facit_for(kort, kam):
                 dt = cv2.distanceTransform(np.pad(syns, 1), cv2.DIST_L2, 3)
                 k['tjocklek_px'] = float(2 * dt.max() / SS)
             t |= m
-        if k['klass'] == 'lek':
+        if k['klass'] == 'baksida':
             k['far_lada'] = k['synlig'] > 0.2
         else:
             k['far_lada'] = bool(k['_lada'] is not None and ((k['namnrad'] or 0) >= LADA_NAMNRAD or (k['synlig'] >= LADA_SYNLIG and k['tjocklek_px'] >= LADA_TJOCK_PX)))
@@ -728,15 +796,16 @@ def vinkel_namnrad(p):
 def skriv_facit(namn, kort, kam, bg, ljus, steg, scen, grupper, fro, tid_ms):
     ut = []
     for k in sorted(kort, key=lambda k: k['z']):
-        poly = k['_hornpx'] / SS if k['klass'] == 'lek' else k['_poly'] / SS
+        poly = k['_hornpx'] / SS if k['klass'] == 'baksida' else k['_poly'] / SS
         v = vinkel_namnrad(poly)
         vv = v % 180
         tappad = min(vv, 180 - vv) > TAPP_GRANS
         lada = k['_lada']
         post = {
-            'id': k['id'], 'klass': k['klass'], 'namn': 'library' if k['klass'] == 'lek' else k['post']['namn'],
-            'scryfall_id': None if k['klass'] == 'lek' else k['post']['id'],
-            'kalla': 'lek' if k['klass'] == 'lek' else k['post']['kalla'],
+            'id': k['id'], 'klass': k['klass'], 'namn': ('library' if k['slag'] == 'lek' else 'baksida') if k['klass'] == 'baksida' else k['post']['namn'],
+            'slag': k['slag'] if k['klass'] == 'baksida' else None,
+            'scryfall_id': None if k['klass'] == 'baksida' else k['post']['id'],
+            'kalla': 'baksida' if k['klass'] == 'baksida' else k['post']['kalla'],
             'horn': [[round(x / W, 4), round(y / H, 4)] for x, y in poly],
             'horn_px': [[round(x, 1), round(y, 1)] for x, y in poly],
             'z': k['z'], 'tappad': tappad if k['klass'] == 'kort' else None,
@@ -751,13 +820,13 @@ def skriv_facit(namn, kort, kam, bg, ljus, steg, scen, grupper, fro, tid_ms):
             'ficka': k['ficka']['farg'] if k['ficka']['typ'] != 'ingen' else None,
             'grupp': k['grupp'], 'token': bool(k.get('token')), 'rorelse_px': int(k.get('rorelse_px', 0) / SS),
         }
-        if k['klass'] == 'lek':
+        if k['klass'] == 'baksida':
             post['tjock_mm'] = round(k['tjock'], 1)
         ut.append(post)
     facit = {
         'bild': namn + '.jpg', 'bredd': W, 'hojd': H, 'fro': fro, 'scen': scen, 'ruta': {'upp': 'v'},
         'generator': 'dev/detektor/synt/generera.py (MES-288 grind 1b)',
-        'regel_lada': f'namnrad >= {LADA_NAMNRAD}, eller synlig >= {LADA_SYNLIG} och tjocklek >= {LADA_TJOCK_PX} px; leken: synlig > 0,2',
+        'regel_lada': f'namnrad >= {LADA_NAMNRAD}, eller synlig >= {LADA_SYNLIG} och tjocklek >= {LADA_TJOCK_PX} px; baksida: synlig > 0,2',
         'kamera': {k: round(v, 2) for k, v in kam.items() if k != 'P'},
         'bakgrund': bg, 'ljus': {'sort': ljus['sort'], 'gain': round(ljus['gain'], 2), 'blank': round(ljus['blank'], 2), 'kagla': round(ljus['kagla'], 2)},
         'efter': steg, 'grupper': grupper, 'tid_ms': round(tid_ms),
@@ -789,7 +858,7 @@ def en_bild(bilder, fro, scen):
         for i in rng.choice(len(kandidater), size=min(len(kandidater), int(rng.integers(1, 3))), replace=False):
             kandidater[i]['rorelse_px'] = int(rng.integers(8, 30)) * SS
     for k in sorted(kort, key=lambda k: k['z']):
-        (rita_lek if k['klass'] == 'lek' else rita_kort)(rng, canvas, bilder, kam, k, ljus)
+        (rita_lek if k['klass'] == 'baksida' else rita_kort)(rng, canvas, bilder, kam, k, ljus)   # rita_lek: baksidan, tjock som leken eller tunn som ett kort
     kort = [k for k in kort if '_hornpx' in k]
     facit_for(kort, kam)
     jpg, steg = efterbehandla(rng, canvas, ljus)

@@ -16,8 +16,9 @@ golden i grind 2.
 open /Users/jesperfunk/Code/magic/dev/detektor/synt/index.html
 ```
 
-(Sökvägen gäller när grenen är ihopslagen. Från den här worktreen:
-`open /Users/jesperfunk/Code/magic/.claude/worktrees/agent-aa292ee88ff5e098c/dev/detektor/synt/index.html`.)
+(Sökvägen gäller när grenen är ihopslagen. Från den här worktreen, med borden gjorda om 2026-09-29 —
+20 bord där en del har ensamma kort med baksidan upp, på bakgrunder ur Jespers filmer:
+`open /Users/jesperfunk/Code/magic/.claude/worktrees/agent-a7ad5463d2a9e77ff/dev/detektor/synt/index.html`.)
 
 Sidan visar de 20 borden med facit. **F** slår av och på lådorna, **H**
 hörnen, **I** korten som inte får någon låda. Klicka på en bild för att se
@@ -29,7 +30,7 @@ gitignorerat); sidan pekar dit relativt.
 | Färg på sidan | Betyder |
 |---|---|
 | grön låda, `31% B` | ett kort med låda runt den synliga delen; andel synligt; hög B |
-| blå låda | leken, klassen `lek` |
+| blå låda | klassen `baksida`: leken (`baksida · lek`) eller ett ensamt kort med baksidan upp (`baksida`) |
 | grå streckad låda | för lite syns — ingen låda, ignoreras i träningen |
 | gul fyrhörning, röd prick | kortets fyra hörn (också det som ligger under) och namnradens början |
 
@@ -37,11 +38,13 @@ gitignorerat); sidan pekar dit relativt.
 
 | | |
 |---|---|
-| Bilder | 20 st, 960 × 544, 302 kort (288 `kort`, 14 `lek`), 266 lådor, 36 utan låda |
-| Högar | 168 kort ligger i en hög; 110 kort med låda syns till mindre än 30 %, 45 av dem med mindre än halva namnraden |
-| Facit | exakt ur geometrin; **räknat om med ritverktygets egen kod** (`kontroll.cjs` mot `rita-geometri.cjs`): synlighet, tappläge och högar stämmer på alla 302 kort, största skillnad i synlig andel 0,027 |
-| Tid | **1,1 s per bild** i en process (median, 60 bilder); **0,44 s per bild** med fyra processer samtidigt |
-| 10 000 bilder | **~75 minuter** med fyra processer på Macen (`nice -n 19`), ~3 h 10 min i en; ~1 GB på disk |
+| Bilder | 20 st, 960 × 544, 311 objekt (284 `kort`, 27 `baksida`: 16 lekar och **11 ensamma kort med baksidan upp**), 283 lådor, 28 utan låda |
+| Ensamma baksidor | 11 st i 8 av 20 bord; 5 av dem ligger omlott med ett annat kort; 6 i bordets ficka, 3 utan ficka (Magic-baksidan), 2 i klar ficka |
+| Högar | 175 kort ligger i en hög; 113 kort med låda syns till mindre än 30 %, 57 av dem med mindre än halva namnraden |
+| Facit | exakt ur geometrin; **räknat om med ritverktygets egen kod** (`kontroll.cjs` mot `rita-geometri.cjs`): synlighet, tappläge och högar stämmer på alla 311 objekt, största skillnad i synlig andel 0,036 (gränsen 0,04; med de gamla borden 0,027) |
+| Bakgrund | 10 av 20 bord har en hel ruta ur en av Jespers tre träningsfilmer (5 trä, 3 vitt bord, 2 svart matta), resten ritade ytor |
+| Tid | 20 bilder på 17 s, **median 0,71 s per bild** i en process (2026-09-29, efter ändringen). Tidigare mätning: 1,1 s per bild i en process (60 bilder) och 0,44 s med fyra processer samtidigt — inte mätt om |
+| 10 000 bilder | **~75 minuter** med fyra processer på Macen (`nice -n 19`) enligt den tidigare mätningen, ~1 GB på disk; troligen snabbare nu, inte omräknat |
 | Minst verkligt | inga händer; fickornas blänk och dis för rena; leken ser ut som en låda; den ritade trä-ytan (se *Vad som ser konstigt ut*) |
 
 ## Vad generatorn gör
@@ -62,8 +65,8 @@ Per bild:
    hålkameramodell (inte bara en snedvriden bild), lutad 0–28° mot bordet,
    vriden ±5°, 55–68° synfält, 38–90 cm bord i bildens bredd (var femte bild
    90–140 cm). Korten blir 47–155 px breda, median 67 px.
-2. **Bakgrund.** 40 % ett tomt bord ur träningsmaterialet, 60 % en ritad yta
-   (se *Bakgrunder*).
+2. **Bakgrund.** 65 % en hel ruta ur ett tomt bord i en av Jespers tre
+   träningsfilmer (en film i taget, sedan en ruta ur den), 35 % en ritad yta (se *Bakgrunder*).
 3. **Layout i bordets plan, i mm**, med kortets verkliga mått (63 × 88 mm,
    66 × 91 i ficka). Grupperna läggs där de inte krockar; scenen *motståndare* (2 av 20)
    har också motståndarens sida, med korten vända 180°.
@@ -79,24 +82,25 @@ Samma `--fro` ger samma bild.
 
 | Sort | Hur | I de 20 |
 |---|---|---|
-| Landkolumn | 2–6 land förskjutna 7–16 mm nedåt, så att bara överkanten eller namnraden syns på de undre; var fjärde tappad | 31 |
+| Landkolumn | 2–6 land förskjutna 7–16 mm nedåt, så att bara överkanten eller namnraden syns på de undre; var fjärde tappad | 114 kort i 32 kolumner |
 | Trappsteg | 3–5 kort förskjutna 8–18 mm snett | 7 |
-| Två omlott | två kort 18–45 mm isär, vridna mot varandra | 13 |
-| Equipment/aura | under varelsen (namnraden sticker upp) eller bredvid, ibland båda tappade; `fast` satt | 9 par |
-| Tappat kort | 90° ± 4° | 51 tappade kort totalt |
+| Två omlott | två kort 18–45 mm isär, vridna mot varandra | 16 |
+| Equipment/aura | under varelsen (namnraden sticker upp) eller bredvid, ibland båda tappade; `fast` satt | 11 par |
+| Tappat kort | 90° ± 4° | 64 tappade kort totalt |
 | Enstaka kort, token | ±5°; en token ibland | |
 | Rad av varelser | 2–4 kort bredvid varandra | |
-| Graveyard-hög | 3–11 kort slarvigt på varandra, zon `grav` | 50 kort |
-| Leken | baksidan upp, 10–24 mm tjock med synliga sidor, egen klass `lek`; oftast nära en kant som library-platsen | 14 |
+| Graveyard-hög | 3–11 kort slarvigt på varandra, zon `grav` | 37 kort |
+| Leken | baksidan upp, 10–24 mm tjock med synliga sidor, klassen `baksida` (`slag: lek`); oftast nära en kant som library-platsen | 16 |
+| **Ensamt kort med baksidan upp** | ett kort utanför leken, ~1–2 mm tjockt, klassen `baksida` (`slag: ensam`); som en uppochnervänd token. 70 % i bordets ficka, 30 % i en egen (oftast ingen ficka alls: Magic-baksidan, ibland klar ficka). Var tredje ligger **omlott** med ett annat kort, baksidan över eller under. I 8 av 20 bord (i alla scener utom `tomt bord`, med 40–50 % chans per scen; i de 20 föll de ut i `fullt bord`, `täta högar`, `glest`, `motståndare` och `bara leken`) | 11, varav 5 omlott |
 | Tomma ytor, tomt bord | glesa bord, en bild helt utan kort, en med bara leken | |
-| Avskurna | kort ut över bildkanten | 26 |
+| Avskurna | kort ut över bildkanten | 28 |
 
 | Kortet | Hur |
 |---|---|
-| Kortbilder | Scryfall: lekens alla namn (Plains och Swamp med 6 konstverk var), Island/Mountain/Forest (5 var), **58 % lekens kort och 42 % andra** i de 20 (målet 75/25 per grupp, 50/50 i motståndarscenen) (160 slumpade kort ur hela Magic, 12 tokens) |
+| Kortbilder | Scryfall: lekens alla namn (Plains och Swamp med 6 konstverk var), Island/Mountain/Forest (5 var), **66 % lekens kort och 34 % andra** i de 20 (målet 75/25 per grupp, 50/50 i motståndarscenen) (160 slumpade kort ur hela Magic, 12 tokens). Källfältet `kalla: lek` betyder *ur Jespers lek på Scryfall* och har inget med klassen `baksida` att göra |
 | Ficka | 55 % färgad ficka (kanten runt kortet i fickans färg, oftast mörkgrön glitter som Jespers), 30 % klar ficka (genomskinlig kant), 15 % ingen |
 | Fickans yta | dis 3–10 %, ljusare kant, lätt oskärpa, blänk från lampans reflexpunkt och ibland ett blankt band |
-| Leken | färgad ficka: fickans baksida med glitter; annars Magic-baksidan; sidorna i fickans färg med ränder |
+| Baksidan (leken och ensamma kort) | färgad ficka: fickans baksida med glitter; annars Magic-baksidan; sidorna i fickans färg med ränder |
 
 ## Facit
 
@@ -105,9 +109,10 @@ så långt det går:
 
 | Fält | Betyder |
 |---|---|
-| `horn` / `horn_px` | fyra hörn, **medsols från namnradens början** (andelar av bilden / px). I ficka är hörnen **fickans** kontur — det kameran ser som föremålet. För leken: ovansidans hörn |
+| `horn` / `horn_px` | fyra hörn, **medsols från namnradens början** (andelar av bilden / px). I ficka är hörnen **fickans** kontur — det kameran ser som föremålet. För en baksida: ovansidans hörn |
 | `z` | ordningen, högre ligger överst |
-| `klass` | `kort` eller `lek` |
+| `klass` | `kort` eller `baksida` (byt namn från `lek` 2026-09-29, Jespers beslut: appen avgör om en baksida är leken eller ett ensamt kort ur platsen) |
+| `slag` | bara för `baksida`: `lek` (den tjocka leken, `namn: library`) eller `ensam` (ett kort, `namn: baksida`) |
 | `synlig` | andelen av kortet som ligger i bild och inte under ett kort med högre z |
 | `namnrad` | samma sak för namnraden (4–59 × 3,5–9,5 mm i kortet, 1,5 mm in i fickan) |
 | `dold`, `tappad`, `avskuret`, `hog`, `fast`, `zon` | som i ritverktyget: `dold` = mindre än halva namnraden syns; `hog` = kort omlott (≥ 3 % av det minsta kortet) som inte är fästa, leken och graveyard räknas inte |
@@ -117,7 +122,7 @@ så långt det går:
 | övrigt | namn, Scryfall-id, källa (lek/slump/basland/token), ficka, grupp, rörelseoskärpa, och bildens kamera, bakgrund, ljus och efterbehandling |
 
 **YOLO** (`synt-NNNNN.txt`): `klass cx cy w h`, normerat, bara kort med
-`far_lada`; `klasser.txt` = `kort`, `lek`. **COCO** (`coco.json`): samma
+`far_lada`; `klasser.txt` = `kort`, `baksida`. **COCO** (`coco.json`): samma
 lådor med `horn_px` och `synlig` som extra fält; korten utan låda står per
 bild i `images[].ignorera`.
 
@@ -125,7 +130,7 @@ bild i `images[].ignorera`.
 
 Ett kort får en låda om **minst halva namnraden syns**, **eller** om
 **minst 5 % av kortet syns och den synliga delen är minst 6 px tjock** i
-960 × 544-bilden. Leken får en låda om mer än 20 % av den syns.
+960 × 544-bilden. En baksida (leken eller ett ensamt kort) får en låda om mer än 20 % av den syns.
 
 Lådan dras bara runt delar som är minst **3 px** tjocka. Utan det drog en
 hårfin remsa (kortet under sticker ut en halv millimeter längs sidan)
@@ -134,7 +139,7 @@ lådan över hela kortet — det syntes på första provet och är rättat.
 Varför så: detektorn ska räkna varje synlig del, också en kant, men en remsa
 på 2–4 px går varken att se eller att skilja från kortet ovanför. 6 px är
 ungefär en kortkant på 4–5 mm vid medianstorleken. Korten under gränsen
-(36 av 302, alla i graveyard-högar) är **inte negativa**: de står som
+(28 av 311, 27 av dem i graveyard-högar) är **inte negativa**: de står som
 ignorerade områden, och grind 2 ska maska dem ur förlusten eller grå-tona dem
 i bilden — annars lär sig eleven att en kortkant inte är ett kort. YOLOX
 har ingen färdig ignorera-mekanism; det är en ändring i träningskoden.
@@ -147,36 +152,35 @@ Talen är ett förslag. Ändras de: konstanterna `LADA_*` överst i
 **Bara material som `delning.py` godkänner som träning.** `bakgrund.py`
 prövar varje källa med `krav_traning` — rutan *och* videon den togs ur — och
 stoppar med `ProvLacka` annars. Generatorn prövar källan igen varje gång den
-använder en bakgrund. `python dev/detektor/synt/bakgrund.py --test` visar att
-MES-246 (videon och golden-kopian), passet 2026-09-22, golden-fall, ritade
-rutor, lekfotot, partiet och en okänd mapp stoppas, och att träningskällorna
-släpps igenom.
+använder en bakgrund, och **hoppar över** bakgrunder som spärren stoppar.
+`python dev/detektor/synt/bakgrund.py --test` visar att MES-246 (videon och
+golden-kopian), passet 2026-09-22, golden-fall, ritade rutor, lekfotot, partiet
+och en okänd mapp stoppas, och att träningskällorna släpps igenom.
 
 **Partiet 2026-09-21 är uteslutet** (Jespers beslut 2026-09-29:
-skärminspelningens ramar och låga upplösning är fel material). Det är gjort
-i `bakgrund.py` (`UTESLUTNA`), eftersom `delning.json` fortfarande säger
-*traning* om partiet. **Förslag:** ändra partiets rad i `delning.json` till
-`oanvandbart` så att varje skript ser beslutet — det är Jespers ändring att
-göra, inte min.
+skärminspelningens ramar och låga upplösning är fel material), och grind 1:s
+mapp (`2026-09-28-mes-288-larare`) står nu som `oanvandbart` i `delning.json`
+eftersom de flesta av dess rutor är ur partiet. **Följden:** de fyra äldre
+bakgrundskällorna (utsnitt ur MES-138, MES-139, pacifism och pass 1, alla
+skärminspelningar) **stoppas av spärren och används inte längre**. Kvar som
+riktiga bakgrunder är Jespers tre träningsfilmer. `index.json` i
+`bakgrund/` har fortfarande de gamla raderna; generatorn filtrerar bort dem.
 
-| Bakgrund | Källa | Utsnitt |
+| Bakgrund | Källa | Så används den |
 |---|---|---|
-| mörkbrun skiva, två utsnitt | MES-138, `dator.mov` 0:12 | övre halvan och nedre högra, utan Mesas etiketter och ramar |
-| mörk skiva, två utsnitt | MES-139, `telefon.mp4` 0:00 | höger om kortet och vänsterkanten |
-| blågrå matta, två utsnitt | provkort-pacifism, `dator.mov` 0:18 och 0:30 | bredvid och under Mesas ramar |
-| grå duk, två utsnitt | provkort pass 1, `dator.mov` 0:00 (tomt bord) | utan etiketten *Looking for a card…* |
+| **trä, dagsljus + lampa** | Jespers film `2026-09-29-traning-tra-dagsljus-lampa`, 0–12 s (7 rutor) | hel ruta, 1920 × 1080, skalas 1,0–1,35 × och skärs slumpat; speglas ibland |
+| **svart spelmatta på träbord** | `2026-09-29-traning-svartmatta-dagsljus`, 0–12 s (6 rutor) | som ovan; mattans kant, gröna saker och surfplattan vid kanten är kvar |
+| **vitt bord med leksaker och böcker runt** | `2026-09-29-traning-vittbord-dagsljus`, 0–11 s (6 rutor) | som ovan; korten läggs slumpat i bilden, alltså ibland över leksaker — bordets form följs inte |
 | trä, duk, spelmatta, ljus skiva | `texturer.py` | genererade här med numpy/OpenCV — ingen hämtad bild, ingen licens behövs |
 
-Pass 1 står inte i koordinatorns lista (MES-138, MES-139, pacifism) men är
-träning i `delning.json` och har ett helt tomt bord. Ska den bort: ta bort
-dess två rader i `UTSNITT` i `bakgrund.py`.
-
-Utsnitten är valda med ögat. Ett automatiskt prov fäller dessutom ett
-utsnitt med färgmättade bildpunkter (Mesas gröna, gula och blå ramar ger
-0,1 %, gränsen är 0,08 %). Det provet ser **inte** Mesas vita text —
-etiketten i pass 1 hålls ute bara av det handvalda utsnittet. Utsnitten
-plattas ut (lampans ljusfall tas bort, ljuset läggs på igen i
-efterbehandlingen) och lapptäcks med mjuka fogar när de är mindre än bilden.
+Regler för valet (`valj_bakgrund` i `generera.py`): 65 % av borden får en
+riktig bakgrund. **En film väljs först (lika chans), sedan en ruta ur den** —
+rutorna inom en film är nästan identiska, så tre ytor får inte bli 19.
+De hela filmrutorna används **utan utplattning och lapptäckning** (de gamla
+utsnitten plattades ut och lapptäcktes eftersom de var små): en utplattning
+hade jämnat ut ljushetsskillnaden mellan svart matta och trä (bedömt, inte provat),
+och lapptäckning hade blandat matta och träbord. Följden är att lampans ljusfläck i träfilmen är kvar och
+att generatorn lägger sin egen lampa ovanpå.
 
 Spelmattan med tryckt konstverk tar konstverket ur en av Scryfall-bilderna
 (mörkat och mjukat): en svår negativ, konst utan kortram.
@@ -198,10 +202,7 @@ starka kanter inte räknas). Att den första rutan är ett tomt bord ska ses med
 ögat, och `--till` väljs efter när handen kommer in. Rutorna blir hela
 bakgrunder och generatorn tar dem med från nästa körning.
 
-**Gjort 2026-09-29 (MES-288)** — de gamla absoluta gränserna (kanter > 2 %,
-mättnad > 1 %) släppte inte igenom en enda ruta: det orange träbordet är
-färgmättat i sig, och det vita bordets omgivning (leksaker, böcker) är full av
-kanter. 19 bakgrunder, alla sedda med ögat (tomma):
+**Gjort 2026-09-29 (MES-288)** — 19 bakgrunder, alla sedda med ögat (tomma):
 
 | Film | Kommando | Bakgrunder |
 |---|---|---|
@@ -227,8 +228,10 @@ Inom en film är bakgrunderna nästan identiska — det är tre ytor, inte 19.
 | **Ljuset är ett och samma över hela bilden**: ingen skugga från telefonen eller en arm, ingen andra lampa | |
 | Rörelseoskärpan är på ett kort utan hand; ibland blir kortet en suddig kloss | |
 | Spelmattans konstverk är uppskalat ur en kortbild och blir suddigt | |
-| De riktiga bakgrunderna är bara fyra ytor, alla ur komprimerade skärminspelningar | rättas av Jespers nya filmer |
-| Kortens storlek i bild (median 67 px) är gissad ur kamerans synfält och bordets bredd, inte mätt mot hur Jespers stativ står | går att justera i `kamera()` när filmerna finns |
+| De riktiga bakgrunderna är tre ytor ur Jespers filmer, ingen annan bakgrund | fler filmer med andra bord ger fler ytor (en rad per film, ovan) |
+| Bakgrunden är en platt bild: kameran i generatorn (lutning, avstånd) ändrar inte bordets perspektiv, bara korten. På vita bordet hamnar kort ibland på leksaker och böcker utanför bordet | eleven ser lite fler kort utanför bordet än i filmerna |
+| **Ensamma baksidor är en enkel modell.** Ett kort utan ficka är Magic-baksidan med ram och logga, i ficka en enfärgad yta; inga böjda kort, inga fingrar | i filmerna ligger de ofta halvt under en hand |
+| Kortens storlek i bild (median 66 px i 960-bilden, 45–150 px) är gissad ur kamerans synfält och bordets bredd. Jespers filmer har ≈ 75–79 px (300–315 px i 4K) | inte justerat; `kamera()` går att ändra så att medianen hamnar på 75 |
 
 **Villkoren för bilderna i träning är inte prövade.** Hämtningen följer
 Scryfalls API-villkor (User-Agent och Accept i varje anrop, 110 ms mellan
@@ -245,7 +248,7 @@ ska släppas.
 | tiden per bild, i en och fyra processer | att borden ser ut som bord, och listan ovan |
 | att facit stämmer med ritverktygets geometri (`kontroll.cjs`) | att regeln för lådor är rimlig |
 | att spärren stoppar provmappar (`bakgrund.py --test`, `delning.py --test`) | att utsnitten är fria från kort, händer och Mesas ramar |
-| antalen i tabellerna (ur de 20 JSON-filerna) | |
+| antalen i tabellerna (ur de 20 JSON-filerna, räknade om 2026-09-29 efter att `lek` blev `baksida`) | att de ensamma baksidorna ser ut som i filmerna (sett på fyra av borden) |
 
 Tiden: 60 bilder i en process 72 s (median 1,12 s per bild); fyra
 processer samtidigt 160 bilder på 71 s. Macen är en Intel i5-8259U med fyra
@@ -259,7 +262,7 @@ PY=<scratch>/venv/bin/python
 $PY dev/detektor/synt/hamta.py                      # Scryfall, ~2 min första gången, sedan ingenting
 $PY dev/detektor/synt/bakgrund.py --test            # spärren
 $PY dev/detektor/synt/bakgrund.py                   # de handvalda tomma ytorna
-nice -n 19 $PY dev/detektor/synt/generera.py        # 20 bilder → bilder/ (fro 1–20)
+nice -n 19 $PY dev/detektor/synt/generera.py        # 20 bilder → bilder/ (fro 1–20); ändrat 2026-09-29: klassen baksida, ensamma baksidor, filmbakgrunder
 node dev/detektor/synt/kontroll.cjs                 # facit mot rita-geometri
 nice -n 19 $PY dev/detektor/synt/generera.py --n 2500 --fro 100000 --ut trn-a   # en av fyra processer för 10 000
 ```
@@ -274,8 +277,8 @@ Mappen `dev/material/arbete/2026-09-29-mes-288-synt/` står som *traning* i
    Det viktigaste att rätta i generatorn är troligen fickornas blänk.
 2. **Händer.** Klistra in händer (maskade foton) över och bredvid korten,
    med korten under räknade som delvis dolda.
-3. **Nya bakgrunder ur Jespers filmer** (en rad per film, ovan), och
-   kortstorleken justerad efter hur stativet står i dem.
+3. **Fler bakgrunder** (en rad per film, ovan) — de tre filmerna är gjorda; och
+   kortstorleken justerad efter hur stativet står (medianen 66 → ~75 px).
 4. **Ignorera-områdena** i YOLOX:s träning (maska förlusten eller grå-tona),
    innan någon tränar på lådorna.
 5. **Blandningen i grind 2:** syntetiska bord för högarna + Jespers riktiga
