@@ -184,37 +184,44 @@ def larare(filmer):
                 for b, sc, l in zip(res['boxes'].tolist(), res['scores'], res['labels'])]
 
     print(f'torch-trådar {torch.get_num_threads()}', flush=True)
-    varm = False
+    # Ordningen: grovt till fint och filmerna om vartannat — var 8:e ruta i varje
+    # film först, sedan de mellan — så att en avbruten körning ändå täcker alla
+    # filmer och hela deras längd.
+    RANG = {0: 0, 4: 1, 2: 2, 6: 3, 1: 4, 5: 5, 3: 6, 7: 7}
+    jobb, klara = [], {}
     for film in filmer:
         if not os.path.exists(os.path.join(ARB, film, 'rutor.json')):
             print(f'{film}: inga rutor än (kör rutor först) — hoppar över', flush=True)
             continue
-        ix = las_index(film)
         ut = mapp(film, 'owlv2')
-        klara = 0
-        for r in ix['rutor']:
-            if not r.get('behallen') or 'fil' not in r:
-                continue
+        rr = [r for r in las_index(film)['rutor'] if r.get('behallen') and 'fil' in r]
+        klara[film] = 0
+        for i, r in enumerate(rr):
             j = os.path.join(ut, os.path.basename(r['fil'])[:-4] + '.json')
             if os.path.exists(j):
-                klara += 1
-                continue
-            fil = krav_traning(os.path.join(ARB, film, r['fil']))
-            bgr = cv2.imread(fil)
-            if not varm:
-                detekt(bgr)  # uppvärmning, tiden kastas
-                varm = True
-            t = time.perf_counter()
-            det = detekt(bgr)
-            ms = round((time.perf_counter() - t) * 1000)
-            tmp = j + '.tmp'
-            with open(tmp, 'w', encoding='utf-8') as f:
-                json.dump(dict(fil=r['fil'], sekund=r['sekund'], W=bgr.shape[1], H=bgr.shape[0], in_bredd=min(IN_BREDD, bgr.shape[1]),
-                               ms=ms, modell='google/owlv2-base-patch16-ensemble', det=det), f)
-            os.replace(tmp, j)  # en avbruten körning lämnar aldrig en halv fil
-            klara += 1
-            print(f'  {film} {r["fil"]:18} {ms:6} ms {len(det):4} råa  [{klara}]', flush=True)
-        print(f'{film}: klar, {klara} rutor', flush=True)
+                klara[film] += 1
+            else:
+                jobb.append(((RANG[i % 8], i, filmer.index(film)), film, r, j))
+    jobb.sort(key=lambda x: x[0])
+    print(f'{sum(klara.values())} rutor klara sedan tidigare, {len(jobb)} kvar', flush=True)
+    varm = False
+    for n_jobb, (_, film, r, j) in enumerate(jobb, 1):
+        fil = krav_traning(os.path.join(ARB, film, r['fil']))
+        bgr = cv2.imread(fil)
+        if not varm:
+            detekt(bgr)  # uppvärmning, tiden kastas
+            varm = True
+        t = time.perf_counter()
+        det = detekt(bgr)
+        ms = round((time.perf_counter() - t) * 1000)
+        tmp = j + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(dict(fil=r['fil'], sekund=r['sekund'], W=bgr.shape[1], H=bgr.shape[0], in_bredd=min(IN_BREDD, bgr.shape[1]),
+                           ms=ms, modell='google/owlv2-base-patch16-ensemble', det=det), f)
+        os.replace(tmp, j)  # en avbruten körning lämnar aldrig en halv fil
+        klara[film] += 1
+        print(f'  {film} {r["fil"]:18} {ms:6} ms {len(det):4} råa  [{n_jobb}/{len(jobb)}]', flush=True)
+    print('klar: ' + ', '.join(f'{f} {k}' for f, k in klara.items()), flush=True)
 
 
 def lage():
@@ -261,7 +268,8 @@ def kortyta(res):
 # Baksidan: en flagga, inte en klass (Jesper 2026-09-29: klassen heter `baksida`,
 # och appen avgör om det är leken eller ett ensamt uppochnervänt kort ur lekens
 # plats). Två sorters baksida finns i filmerna:
-#   1. Magic-baksidan utan ficka: brun ram och bakgrund med en blå oval i mitten.
+#   1. Magic-baksidan utan ficka: brun ram och brun oval, blå Magic-logga och
+#      Deckmaster-band (svarta mattan, vita bordet).
 #   2. Ett kort i en ogenomskinlig ficka (Jespers lek i gröna fickor): en enda
 #      färg över nästan hela kortet, och nästan inga kanter.
 # En framsida har konst, textruta och ram: många färger och många kanter.
@@ -269,20 +277,24 @@ def kortyta(res):
 # lådor i filmerna, inte mätta mot ett facit — se TRANINGSRUTOR.md.
 BRUN_H = (5, 24)       # OpenCV-nyans 0–180
 BLA_H = (95, 125)
-BAK_BRUN = 0.30
+BAK_BRUN = 0.45        # mätt på baksidorna i filmerna: 0,46–0,61 med blå logga, 0,83 utan
 BAK_BLA = 0.04
-EN_FARG = 0.70         # andel av inre ytan inom ±10 nyanssteg från den vanligaste, mättad
-EN_FARG_KANT = 0.04    # högst så stor andel kantpunkter (Canny) i inre ytan
+BAK_KANT_MIN = 0.03    # en hand har nästan inga kanter
+BAK_KANT = 0.10        # baksidorna 0,06–0,08; framsidor 0,08–0,18
+EN_FARG = 0.90         # andel av inre ytan inom ±10 nyanssteg från den vanligaste, mättad
+EN_FARG_KANT = 0.02    # högst så stor andel kantpunkter (Canny) i inre ytan; gröna fickor 0,00–0,01,
+                       # rosa 0,01–0,03, blå framsidor i lampans blå ton 0,03–0,04 (fällde 0,04)
+EN_FARG_MATTNAD = 100  # median-mättnad (0–255) i den vanligaste färgen; hud ligger lägre, fickorna över
 
 
 def fargandel(bgr, d):
-    """-> (brun, blå, en färg, kanter) i lådans inre."""
+    """-> (brun, blå, en färg, kanter, vanligaste nyansen, dess median-mättnad) i lådans inre."""
     H, W = bgr.shape[:2]
     x0, y0, x1, y1 = d[0] * W, d[1] * H, d[2] * W, d[3] * H
     mx, my = (x1 - x0) * 0.12, (y1 - y0) * 0.12
     bit = bgr[max(0, int(y0 + my)):min(H, int(y1 - my)), max(0, int(x0 + mx)):min(W, int(x1 - mx))]
     if bit.size == 0 or min(bit.shape[:2]) < 8:
-        return 0.0, 0.0, 0.0, 1.0
+        return 0.0, 0.0, 0.0, 1.0, -1, 0
     if bit.shape[1] > 200:
         bit = cv2.resize(bit, (200, max(8, round(bit.shape[0] * 200 / bit.shape[1]))), interpolation=cv2.INTER_AREA)
     hsv = cv2.cvtColor(bit, cv2.COLOR_BGR2HSV)
@@ -293,25 +305,37 @@ def fargandel(bgr, d):
     if fargad.any():
         topp = int(np.bincount(h[fargad], minlength=180).argmax())
         avst = np.minimum(np.abs(h - topp), 180 - np.abs(h - topp))
-        en = float((fargad & (avst <= 10)).mean())
+        i_topp = fargad & (avst <= 10)
+        en = float(i_topp.mean())
+        mattn = int(np.median(s[i_topp]))
     else:
-        en = 0.0
+        en, topp, mattn = 0.0, -1, 0
     kant = float((cv2.Canny(cv2.cvtColor(bit, cv2.COLOR_BGR2GRAY), 60, 160) > 0).mean())
-    return float(brun.mean()), float(bla.mean()), en, kant
+    return float(brun.mean()), float(bla.mean()), en, kant, topp, mattn
 
 
-def ar_baksida(brun, bla, en, kant):
-    return (brun >= BAK_BRUN and bla >= BAK_BLA) or (en >= EN_FARG and kant <= EN_FARG_KANT)
+def ar_baksida(brun, bla, en, kant, topp=None, mattnad=None):
+    # Magic-baksidan: brun, en blå logga, och några kanter (oval och logga) men
+    # färre än en framsida. Utan blått går den inte att skilja från en hand
+    # (hud, nästan inga kanter) eller slättkort med solnedgång (brunt, 0,07–0,08
+    # kanter) — prövat och förkastat; baksidor utan synlig blå logga (vita bordet)
+    # missas därför.
+    magic = brun >= BAK_BRUN and bla >= BAK_BLA and BAK_KANT_MIN <= kant <= BAK_KANT
+    # en färg: inte hud eller trä (nyans 4–30, som en hand över ett kort), och mättad som en ficka
+    ficka = (en >= EN_FARG and kant <= EN_FARG_KANT and (topp is None or not 4 <= topp <= 30)
+             and (mattnad is None or mattnad >= EN_FARG_MATTNAD))
+    return magic or ficka
 
 
 # Ignorera-regeln (lärarens facit, samma idé som `ignorerade` i synt-facit):
 #   A. en låda över tröskeln som är större än 1,6 × kortet (storleksfiltret
 #      tog bort den): den ligger över flera kort — ytan ignoreras.
-#   B. en behållen låda som innehåller två eller fler andra lådor över
-#      tröskeln (≥ 60 % av deras yta inne i den): en låda över en hög — ignoreras.
+#   B. en behållen låda som innehåller två eller fler andra lådor av
+#      kortstorlek (≥ 60 % av deras yta inne i den): en låda över en hög — ignoreras.
 #   C. tre eller fler behållna lådor som hänger ihop genom att ligga omlott
 #      (skärningen ≥ 15 % av den mindre lådan): en tät kolumn/landhög — alla
-#      lådorna blir ignorera, och hela gruppens yta ignoreras.
+#      lådorna i gruppen blir ignorerade ytor, var och en för sig. En låda med
+#      baksidesflaggan (leken) dras aldrig in i en grupp.
 #   D. en låda över tröskeln som är mindre än 0,4 × kortet (storleksfiltret
 #      tog bort den): ett delvis dolt kort (under hand, i kanten, i en hög) —
 #      ytan ignoreras i stället för att bli en negativ.
@@ -327,21 +351,78 @@ def skarning(a, b):
     return max(0.0, ix1 - ix0) * max(0.0, iy1 - iy0)
 
 
-def facit_ruta(b, ky, bgr=None):
-    over = nms([d for d in b['det'] if d[4] >= TROSKEL], NMS_IOU)
+# E. Bordet: telefonen stod still (se stabilitet), så bordets yta kan tas en gång
+# per film ur den tomma början: bildpunkter som liknar bordets mitt (Lab-avstånd
+# < BORD_AVST), den sammanhängande ytan som når mitten, med hål fyllda och
+# BORD_MARGINAL av bildbredden till godo i kanten. En låda vars mitt ligger
+# utanför bordet (böcker och leksaker runt det vita bordet) blir ignorerad.
+# Träbordet får ingen mask: lampans ljusfläck gör bordet för olikt sig självt
+# (masken blev bara mitten), och bordet fyller nästan hela bilden ändå.
+BORD_AVST = {'2026-09-29-traning-tra-dagsljus-lampa': None, '2026-09-29-traning-svartmatta-dagsljus': 45,
+             '2026-09-29-traning-vittbord-dagsljus': 30}
+BORD_MARGINAL = 0.01
+
+
+def bordsmask(film):
+    bak = sorted(glob.glob(os.path.join(BAKGRUND, f'{film}-*.jpg')))
+    if not bak or BORD_AVST.get(film) is None:
+        return None
+    im = cv2.imread(krav_traning(bak[len(bak) // 2]))
+    im = cv2.resize(im, (480, 270), interpolation=cv2.INTER_AREA)
+    lab = cv2.cvtColor(cv2.GaussianBlur(im, (5, 5), 0), cv2.COLOR_BGR2LAB).astype(np.float32)
+    mitt = np.median(lab[108:162, 192:288].reshape(-1, 3), axis=0)
+    lik = (np.linalg.norm(lab - mitt, axis=2) < BORD_AVST[film]).astype(np.uint8)
+    lik = cv2.morphologyEx(lik, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    n, etik = cv2.connectedComponents(lik)
+    mask = (etik == etik[135, 240]).astype(np.uint8)
+    # fyll hål (fläckar, ådring, stativets fot inne i bordet): allt utanför
+    # bordet som inte når bildens kant hör till bordet
+    n, ut = cv2.connectedComponents(1 - mask)
+    kant = set(np.unique(np.concatenate([ut[0], ut[-1], ut[:, 0], ut[:, -1]]))) - {0}
+    for k in range(1, n):
+        if k not in kant:
+            mask[ut == k] = 1
+    m = max(1, round(BORD_MARGINAL * 480))
+    mask = cv2.dilate(mask, np.ones((2 * m + 1, 2 * m + 1), np.uint8))
+    cv2.imwrite(krav_traning(os.path.join(ARB, film, 'bord.png')), mask * 255)
+    return mask
+
+
+def pa_bordet(mask, d):
+    if mask is None:
+        return True
+    cx, cy = (d[0] + d[2]) / 2, (d[1] + d[3]) / 2
+    return bool(mask[min(269, max(0, int(cy * 270))), min(479, max(0, int(cx * 480)))])
+
+
+def facit_ruta(b, ky, bgr=None, bord=None):
+    alla = nms([d for d in b['det'] if d[4] >= TROSKEL], NMS_IOU)
+    over = [d for d in alla if pa_bordet(bord, d)]
+    ign_e = [dict(lada=d[:4], poang=round(d[4], 3), regel='E', vad='utanför bordet') for d in alla if not pa_bordet(bord, d)]
     ok = [d for d in over if STORLEK[0] * ky <= yta(d) <= STORLEK[1] * ky]
     stora = [d for d in over if yta(d) > STORLEK[1] * ky]
     sma = [d for d in over if yta(d) < STORLEK[0] * ky]
     behall = inneslutning(ok)
     ign = [dict(lada=d[:4], poang=round(d[4], 3), regel='A', vad='låda över flera kort (> 1,6 × kortet)') for d in stora]
-    # B
+    # B: bara lådor av kortstorlek räknas som "andra kort" — konstverket och
+    # textrutan på samma kort (små lådor) gör inte ett kort till en hög
     kvar = []
     for d in behall:
-        inne = [e for e in over if e is not d and andel_inne(e, d) >= INNE_B]
+        inne = [e for e in ok if e is not d and andel_inne(e, d) >= INNE_B]
         if len(inne) >= 2:
             ign.append(dict(lada=d[:4], poang=round(d[4], 3), regel='B', vad=f'låda runt {len(inne)} andra lådor (hög)'))
         else:
             kvar.append(d)
+    # baksidan mäts före C: leken (en baksida) ligger ofta intill en hög men är
+    # själv ett kort i facit, och ska inte dras in i högens grupp
+    farg = {}
+    for d in kvar:
+        if bgr is not None:
+            brun, bla, en, kant, topp, mattn = fargandel(bgr, d)
+            farg[id(d)] = dict(brun=round(brun, 3), bla=round(bla, 3), en_farg=round(en, 3), kanter=round(kant, 3),
+                               nyans=topp, mattnad=mattn, baksida=ar_baksida(brun, bla, en, kant, topp, mattn))
+    facit = [d for d in kvar if farg.get(id(d), {}).get('baksida')]
+    kvar = [d for d in kvar if not farg.get(id(d), {}).get('baksida')]
     # C: grupper av omlott-lådor
     n = len(kvar)
     grann = [[j for j in range(n) if j != i and skarning(kvar[i], kvar[j]) >= OMLOTT_C * min(yta(kvar[i]), yta(kvar[j]))] for i in range(n)]
@@ -357,28 +438,24 @@ def facit_ruta(b, ky, bgr=None):
                     grupp[j] = g
                     stack.append(j)
         g += 1
-    facit = []
     for gi in range(g):
         med = [kvar[i] for i in range(n) if grupp[i] == gi]
         if len(med) >= MIN_C:
-            u = [min(d[0] for d in med), min(d[1] for d in med), max(d[2] for d in med), max(d[3] for d in med)]
-            ign.append(dict(lada=u, poang=round(max(d[4] for d in med), 3), regel='C', vad=f'{len(med)} lådor omlott (tät kolumn/hög)',
-                            lador=[d[:4] for d in med]))
+            # varje låda i gruppen blir en ignorerad yta för sig (inte gruppens
+            # omslutande rektangel, som drog in fristående kort bredvid högen)
+            ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='C', grupp=gi, vad=f'en av {len(med)} lådor omlott (tät kolumn/hög)')
+                    for d in med]
         else:
             facit += med
     ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='D', vad='del av ett kort (< 0,4 × kortet)') for d in sma]
+    ign += ign_e
     lador = []
     for d in sorted(facit, key=lambda d: (d[1], d[0])):
         post = dict(lada=[round(v, 5) for v in d[:4]], poang=round(d[4], 3), fraga=d[5])
-        if bgr is not None:
-            brun, bla, en, kant = fargandel(bgr, d)
-            post.update(brun=round(brun, 3), bla=round(bla, 3), en_farg=round(en, 3), kanter=round(kant, 3),
-                        baksida=ar_baksida(brun, bla, en, kant))
+        post.update(farg.get(id(d), {}))
         lador.append(post)
     for x in ign:
         x['lada'] = [round(v, 5) for v in x['lada']]
-        if 'lador' in x:
-            x['lador'] = [[round(v, 5) for v in l] for l in x['lador']]
     return lador, ign
 
 
@@ -389,16 +466,19 @@ def facit():
             print(f'{film}: inga lärarlådor än')
             continue
         ky = kortyta(res)
-        ix = {r.get('fil'): r for r in las_index(film)['rutor'] if r.get('fil')}
+        bord = bordsmask(film)
         ut = dict(installning=dict(troskel=TROSKEL, nms=NMS_IOU, storlek=STORLEK, inneslutning=0.8, fragor=FRAGOR, in_bredd=IN_BREDD,
-                                   ignorera=dict(A='> 1,6 × kortet', B=f'innehåller ≥ 2 lådor (≥ {INNE_B} inne)',
-                                                 C=f'≥ {MIN_C} lådor omlott (skärning ≥ {OMLOTT_C} av den mindre)', D='< 0,4 × kortet'),
-                                   baksida=dict(brun_h=BRUN_H, bla_h=BLA_H, brun_min=BAK_BRUN, bla_min=BAK_BLA, en_farg_min=EN_FARG, kanter_max=EN_FARG_KANT)),
+                                   ignorera=dict(A='> 1,6 × kortet', B=f'innehåller ≥ 2 lådor av kortstorlek (≥ {INNE_B} inne)',
+                                                 C=f'≥ {MIN_C} lådor omlott (skärning ≥ {OMLOTT_C} av den mindre), var och en',
+                                                 D='< 0,4 × kortet', E='lådans mitt utanför bordet (bord.png)'),
+                                   baksida=dict(brun_h=BRUN_H, bla_h=BLA_H, brun_min=BAK_BRUN, bla_min=BAK_BLA,
+                                                magic_kanter=(BAK_KANT_MIN, BAK_KANT), en_farg_min=EN_FARG,
+                                                kanter_max=EN_FARG_KANT, mattnad_min=EN_FARG_MATTNAD, ej_nyans='4–30 (hud, trä)')),
                   kortyta=ky, rutor={})
         for fil, b in sorted(res.items()):
             bgr = cv2.imread(krav_traning(os.path.join(ARB, film, fil)))
-            lador, ign = facit_ruta(b, ky, bgr)
-            ut['rutor'][fil] = dict(sekund=b['sekund'], ms=b['ms'], lador=lador, ignorera=ign, hand=None, vad=ix.get(fil, {}).get('vad'))
+            lador, ign = facit_ruta(b, ky, bgr, bord)
+            ut['rutor'][fil] = dict(sekund=b['sekund'], ms=b['ms'], lador=lador, ignorera=ign)
         with open(krav_traning(os.path.join(ARB, film, 'facit.json')), 'w', encoding='utf-8') as f:
             json.dump(ut, f, ensure_ascii=False, indent=1)
         R = ut['rutor'].values()
@@ -435,6 +515,9 @@ def stabilitet():
             res = cv2.matchTemplate(band(g(f)), mall, cv2.TM_CCOEFF_NORMED)
             _, resp, _, (x, y) = cv2.minMaxLoc(res)
             sk.append((f, (x - 10) * 4, (y - 60) * 4, resp))
+        skymda = [x for x in sk if x[3] < 0.8]   # en hand eller arm i bandet: mallen hittas inte, rutan räknas inte
+        print(f'{film}: {len(skymda)} rutor där högra kanten är skymd (mallträff < 0,8) räknas inte')
+        sk = [x for x in sk if x[3] >= 0.8]
         hopp = [(b[0], np.hypot(b[1] - a[1], b[2] - a[2])) for a, b in zip(sk, sk[1:]) if np.hypot(b[1] - a[1], b[2] - a[2]) > 12]
         print(f'{film}: {len(filer)} rutor · förskjutning mot första rutan (4K-px, steg 4 px): '
               f'median {np.median([np.hypot(x[1], x[2]) for x in sk]):.0f}, största {max(np.hypot(x[1], x[2]) for x in sk):.0f}, '
@@ -596,8 +679,9 @@ spridda över filmen, i varje del den med mest att titta på. Siffror och bedöm
 <p class="lg"><span style="background:#ff00ff;color:#fff">1: 0,45</span> lärarens facit (nummer: poäng)
 <span style="background:#00c8ff;color:#000">2: 0,30 baksida</span> facit med baksidesflaggan (färgtest: brunt + blått)
 <span style="background:#ffaa00;color:#000">ignorera A–D</span> grå, streckad yta: varken facit eller negativ</p>
-<p><b>Ignorera:</b> A = låda större än 1,6 × kortet (över flera kort) · B = låda runt två eller fler andra lådor (hög) ·
-C = tre eller fler lådor omlott i en grupp (tät kolumn, landhög) · D = låda mindre än 0,4 × kortet (del av ett kort).</p>
+<p><b>Ignorera:</b> A = låda större än 1,6 × kortet (över flera kort) · B = låda runt två eller fler andra kortstora lådor (hög) ·
+C = en av tre eller fler lådor omlott i en grupp (tät kolumn, landhög) · D = låda mindre än 0,4 × kortet (del av ett kort) ·
+E = lådans mitt utanför bordet (böcker och leksaker runt det vita bordet). En facit-låda inne i en ignorerad yta är fortfarande facit.</p>
 <table><tr><th>Film</th><th>Provade rutor</th><th>Behållna</th><th>Med lärarlådor</th><th>Facit-lådor</th><th>Baksida</th><th>Ignorerade ytor</th></tr>
 {"".join(summa)}</table>
 {"".join(delar)}
