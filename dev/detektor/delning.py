@@ -138,8 +138,8 @@ def sjalvtest():
     rot = os.path.dirname(os.path.dirname(HAR))
     m = os.path.join(rot, 'dev', 'material')
     # Jespers beslut, rakt ur issuen
-    vanta(f'{m}/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov', 'traning', 'partiet')
-    vanta(f'{m}/inspelningar/2026-09-21-mes-238-parti-4k15-20min/rutor/kam-300.jpg', 'traning', 'partiets rutor')
+    vanta(f'{m}/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov', 'oanvandbart', 'partiet (Jespers beslut 2026-09-29)')
+    vanta(f'{m}/inspelningar/2026-09-21-mes-238-parti-4k15-20min/rutor/kam-300.jpg', 'oanvandbart', 'partiets rutor')
     vanta(f'{m}/inspelningar/2026-09-16-mes-166-provkort-pass-1-mork/telefon.mp4', 'traning', 'pass 1')
     vanta(f'{m}/inspelningar/2026-09-16-mes-139-library-steget-plastficka/telefon.mp4', 'traning', 'MES-139')
     vanta(f'{m}/inspelningar/2026-09-14-mes-138-library-plastficka-kanns-inte-igen/dator.mov', 'traning', 'MES-138')

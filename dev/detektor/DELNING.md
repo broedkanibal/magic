@@ -13,7 +13,7 @@ minns, inte hur väl den ser.
 | Dom | Betyder | Mappar |
 |---|---|---|
 | **prov** | får aldrig tränas på | scanbordet 2026-09-08 (golden 01, 02, 08), originalen till fall 07, 09, 10, 11, provkort pass 2 (fall 12), MES-246 (fall 13 + ritade lägen), passet 2026-09-22 (spegelfacit), foton 2026-09-20 (fall 14–16), lekfotot 2026-09-26, `hogbank/`, `rita/`, alla `dev/golden/fall/*` |
-| **traning** | får tränas på | partiet 2026-09-21 (hela, 20 min), provkort pass 1 (mörkt), MES-138 och MES-139 (library), provkort-pacifism, grind 1:s rutor och grind 1b:s syntetiska bord (`arbete/2026-09-29-mes-288-synt`, byggda bara ur träningsmappar), och varje mapp som heter `<datum>-traning-…` |
+| **traning** | får tränas på | provkort pass 1 (mörkt), MES-138 och MES-139 (library), provkort-pacifism, grind 1b:s syntetiska bord (`arbete/2026-09-29-mes-288-synt`, byggda bara ur träningsmappar), och varje mapp som heter `<datum>-traning-…` |
 | **oanvandbart** | inga kort på ett bord | designytan 2026-09-09, lekbyggaren MES-183 (skärminspelningar av appen) |
 
 **En mapp som inte står i listan räknas som prov.** En ny inspelning är
@@ -77,6 +77,9 @@ Bara standardbiblioteket; ingen venv behövs.
 Bara Jesper flyttar en inspelning mellan prov och träning. Lägg till nya
 mappar med skäl när de kommer — `--lista` säger vilka som saknas. Partiets
 händelsefacit (`dev/golden/inspelningar/2026-09-21-parti`, på grenen
-`natt-2026-09-22`) står som träning: det följer partiet och används inte som
-prov. Byter mappen namn till materialmappens när grenen slås ihop, täcks den
-av partiets rad.
+`natt-2026-09-22`) följer partiet och används inte som prov.
+
+**Partiet 2026-09-21 är `oanvandbart` sedan 2026-09-29** (Jespers beslut):
+skärminspelning med ~700 px kamerabild och Mesas spårramar i varje ruta, så en
+elev skulle lära sig att en streckad ram betyder kort. Grind 1:s rutor
+(`arbete/2026-09-28-mes-288-larare`) är mest partiet och följer med.
