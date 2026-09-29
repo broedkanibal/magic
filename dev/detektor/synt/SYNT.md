@@ -212,13 +212,71 @@ bakgrunder och generatorn tar dem med från nästa körning.
 
 Inom en film är bakgrunderna nästan identiska — det är tre ytor, inte 19.
 
+## Grind 2 (2026-09-30): tolv underlag, händer och ~3 000 bord
+
+**Kontaktarket för grind 2** (ett urval om ~30 bord, två per underlag, några med hand):
+
+```sh
+open /Users/jesperfunk/Code/magic/dev/detektor/synt/grind2.html
+```
+
+(Från worktreen innan grenen är ihopslagen: `.claude/worktrees/agent-a66528b45897c0b89/dev/detektor/synt/grind2.html`.
+Urvalet görs med `ark_grind2.py` och kopieras till `dev/material/arbete/2026-09-29-mes-288-synt/ark-grind2/`.)
+
+### Nio nya underlag
+
+Jespers nio bakgrundsklipp 2026-09-29 (`dev/material/inspelningar/2026-09-29-traning-bakgrunder/*.mov`,
+10–15 s tomt underlag var, 3840 × 2160). **Hela klippet är tomt**, så `bakgrund.py --video … --hela-tomt`
+tar rutor utan att jämföra med den första (handhållet eller glidande ljus hade annars fällt dem):
+`--fran 1 --till 13 --steg 3.5` ger fyra rutor per klipp (1, 4,5, 8 och 11,5 s), 36 st. Alla är
+sedda med ögat: inga kort, inga händer. Stativets fot (en svart knopp) syns i kanten på flera.
+
+| Klipp | Underlag |
+|---|---|
+| `vit-soffa-kvall-05x`, `vit-soffa-kvall-1x` | ljus soffa, 0,5× och 1× zoom, pall i kanten |
+| `rod-soffkudde`, `bla-soffkudde` | mörk röd och grå-blå kudde, lågt kvällsljus |
+| `koksbord-kvall-blank`, `matbord-kvall-blank` | träbord med lampans blänk mitt i |
+| `vita-lakan-kvall-skugga` | skrynkliga lakan med telefonens och stativets skugga |
+| `randig-matta-kvall` | svart-vit mönstrad matta (svår: många kanter) |
+| `tragolv-kvall` | ljust trägolv med skugga i hörnet |
+
+Med de tre träningsfilmerna är det **tolv underlag**. `valj_bakgrund` väljer nu per **video** (inte
+per mapp — de nio klippen ligger i samma mapp) och sedan en ruta ur den, så varje underlag får
+samma chans. Andelen riktiga underlag höjdes från 65 % till **80 %**; resten är ritade ytor.
+
+### Händer
+
+Nästan varje riktig ruta har en hand, de syntetiska hade ingen. `rita_hand` i `generera.py` ritar
+en enkel hand med arm i **45 %** av borden: arm (kapsel) från en bildkant (oftast nedre), handflata
+(ellips), fyra fingrar och tumme (kaplar), öppen eller gripande; hudfärg ur sex nyanser från ljus
+till mörk, skuggning mot kanterna, ärm i hälften av fallen, rörelseoskärpa i 60 %, och en mjuk,
+förskjuten skugga på bordet (handen är ovanför det). Handleden hamnar vid ett kort i 70 % av fallen.
+Handen har en egen slumpström (`fro + 7 000 000`), så resten av bordet blir exakt som förut för
+samma `--fro`; `--utan-hander` stänger av den.
+
+**Facit:** ett kort vars låda till mer än **45 %** täcks av handen får ingen låda och blir en
+ignorerad yta (fältet `hand` i facit är den täckta andelen). Mindre täckning: lådan står kvar,
+som när läraren ritar en låda runt ett kort under en suddig hand.
+
+**Valt snabbt, inte bra:** formen är en tecknad hand — inga knogar, inga böjda fingrar, ingen
+hudstruktur. Syftet är att eleven ska se något hudfärgat och stort över korten som inte är ett
+kort, och kort som delvis ligger under det. Utklippta riktiga händer ur träningsrutorna vore
+bättre men kräver en mask per hand; det gjordes inte.
+
+### Körningen
+
+`SYNT_TRADAR=1 OMP_NUM_THREADS=1 nice -n 19 generera.py --n 750 --fro 200000/201000/202000/203000 --ut g2-a…d --fortsatt`,
+fyra processer. Med OpenCV:s egna trådar i fyra processer samtidigt steg lasten till 37 på fyra
+kärnor och varje bild tog 5–9 s; med en tråd per process ~3 s per bild och process (datorn var
+belastad av annat samtidigt). `--fortsatt` hoppar över bord som redan finns.
+
 ## Vad som ser konstigt ut eller saknas
 
 Ärligt, i ordning efter hur mycket jag tror det spelar roll:
 
 | Vad | Varför det spelar roll |
 |---|---|
-| **Inga händer.** Nästan varje riktig ruta har en hand över bordet | eleven lär sig aldrig att en hand inte är ett kort, och inte kort som ligger delvis under en hand. Handfoton med mask att klistra in, eller de riktiga rutorna med lärarens lådor, behövs i grind 2 |
+| **Händerna är tecknade** (sedan grind 2; innan fanns inga). Nästan varje riktig ruta har en hand över bordet | formen är enkel (se *Grind 2*); riktiga utklippta händer vore bättre |
 | **Fickorna är för rena.** I de riktiga rutorna är hela fickan mjölkigt blank, ofta med ljusreflexen över halva kortet och kortet självt ljusare och kontrastfattigare. Här är blänket en fläck och ett band | den vanligaste skillnaden man ser i jämförelsen |
 | **Korten är helt platta och perfekta fyrhörningar.** Riktiga fickor buktar, kort ligger lite snett i fickan, fickans öppning syns | lådorna blir lite för lätta |
 | **Leken ser ut som en låda** — raka, jämna sidor och skarpa kanter. En riktig lek är lite ojämn och fransig | |

@@ -25,6 +25,7 @@ bildpunkter (Mesas gröna, gula, blå ramar) stoppar det.
           # rutor mellan --fran och --till s, var --steg s, hela bilden
           # som bakgrund. Varje ruta jämförs med den första (--fran), som ska
           # vara ett tomt bord enligt ögat. Stoppar om videon inte är träning.
+          # --hela-tomt: hela klippet är tomt underlag; ingen jämförelse, filnamnet får klippets namn.
     python dev/detektor/synt/bakgrund.py --test                # spärren: provmappar ska stoppas
 
 Utdata (gitignorerat): dev/material/arbete/2026-09-29-mes-288-synt/bakgrund/
@@ -150,8 +151,12 @@ def fran_kandidater():
     spara_index(ix)
 
 
-def fran_video(video, till=8.0, steg=2.0, fran=0.0):
-    """En ny inspelning som börjar med tomt bord: rutor ur de första sekunderna."""
+def fran_video(video, till=8.0, steg=2.0, fran=0.0, jamfor=True):
+    """En ny inspelning som börjar med tomt bord: rutor ur de första sekunderna.
+
+    jamfor=False (--hela-tomt): hela klippet är ett tomt underlag (Jespers bakgrundsklipp
+    2026-09-29), så rutorna jämförs inte med den första — handhållna klipp eller ljus som
+    glider hade annars fällt dem. Varje ruta ska ändå ses med ögat."""
     prova_kalla(video)
     os.makedirs(UT, exist_ok=True)
     ix = las_index()
@@ -191,11 +196,13 @@ def fran_video(video, till=8.0, steg=2.0, fran=0.0):
         d = np.abs((liten - liten.mean()) - (forst[2] - forst[2].mean()))
         flack = cv2.morphologyEx((d > 20).astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
         skillnad = float(flack.mean())
-        namn = f'{tillfalle}-{t:05.1f}.jpg'
+        stam = '' if jamfor else '-' + os.path.splitext(os.path.basename(video))[0]
+        namn = f'{tillfalle}{stam}-{t:05.1f}.jpg'
         post = {'fil': namn, 'typ': 'video', 'kalla': os.path.relpath(os.path.abspath(video), ROT), 'sekund': round(t, 2),
                 'storlek': [bild.shape[1], bild.shape[0]], 'vad': f'tomt bord ur {tillfalle}', 'dom': klassa(video)[0],
                 'kanter': round(kanter, 4), 'mattnad': round(m, 5), 'andel_andrad_mot_forsta': round(skillnad, 4)}
-        if kanter - forst[0] > 0.004 or m - forst[1] > 0.03 or skillnad > 0.002:
+        post['jamford'] = jamfor
+        if jamfor and (kanter - forst[0] > 0.004 or m - forst[1] > 0.03 or skillnad > 0.002):
             print(f'{namn}: hoppar över — mot första rutan: kanter {kanter - forst[0]:+.4f}, mättnad {m - forst[1]:+.4f}, '
                   f'{skillnad:.2%} av bilden ändrad (kort eller hand i bild?)')
             continue
@@ -246,6 +253,6 @@ if __name__ == '__main__':
         till = float(a[a.index('--till') + 1]) if '--till' in a else 8.0
         steg = float(a[a.index('--steg') + 1]) if '--steg' in a else 2.0
         fran = float(a[a.index('--fran') + 1]) if '--fran' in a else 0.0
-        fran_video(v, till, steg, fran)
+        fran_video(v, till, steg, fran, jamfor='--hela-tomt' not in a)
     else:
         fran_kandidater()

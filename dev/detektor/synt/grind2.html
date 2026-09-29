@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syntetiska bord, grind 2</title>
+<style>
+:root {
+  --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1b; --mut: #6b6a66; --kant: #dddbd5;
+  --kort: #1fae4b; --bak: #2f7de1; --ign: #8a8a8a; --horn: #f2c200; --start: #e0333a; --hand: #ff4d6d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #161615; --panel: #20201e; --text: #ecebe7; --mut: #9d9b95; --kant: #34332f; }
+}
+:root[data-theme="dark"] { --bg: #161615; --panel: #20201e; --text: #ecebe7; --mut: #9d9b95; --kant: #34332f; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+header, main, section { max-width: 1500px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 20px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 26px 0 8px; }
+p { margin: 4px 0 10px; color: var(--mut); max-width: 900px; }
+.verktyg { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid var(--kant); }
+button { font: inherit; padding: 5px 11px; border-radius: 7px; border: 1px solid var(--kant); background: var(--panel); color: var(--text); cursor: pointer; }
+button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--kant); border-radius: 4px; padding: 0 4px; }
+.forklaring { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--mut); }
+.forklaring span::before { content: ""; display: inline-block; width: 14px; height: 10px; margin-right: 5px; vertical-align: -1px; border: 2px solid var(--c); border-style: var(--s, solid); }
+.rutnat { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 14px; margin-top: 14px; }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--kant); border-radius: 10px; overflow: hidden; }
+.bild { position: relative; cursor: zoom-in; line-height: 0; }
+.bild img { width: 100%; display: block; aspect-ratio: 960 / 544; background: #000; }
+.bild svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+figcaption { padding: 8px 10px 10px; font-size: 13px; color: var(--mut); line-height: 1.4; }
+figcaption b { color: var(--text); }
+body.utan-facit .facit, body.utan-horn .horn, body.utan-ign .ign { display: none; }
+.riktiga figure .bild { cursor: default; }
+.stor { position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 20; display: none; align-items: center; justify-content: center; flex-direction: column; padding: 16px; }
+.stor.oppen { display: flex; }
+.stor .bild { width: min(100%, 1600px); cursor: zoom-out; }
+.stor .text { color: #ddd; font-size: 13px; margin-top: 8px; max-width: 1600px; text-align: center; }
+.saknas { padding: 30px 12px; text-align: center; color: var(--mut); line-height: 1.5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Syntetiska bord för grind 2 (MES-288)</h1>
+  <p>Ett urval om cirka 30 av de ~3 000 bord som gjorts för grind 2: två per bakgrund (Jespers tre träningsfilmer och de nio nya bakgrundsklippen 2026-09-29 — soffor, kuddar, köks- och matbord med blänk, lakan med kamerans skugga, randig matta, trägolv), tre med ritad yta och några extra med <b>hand</b>. Nytt sedan grind 1b: händer (en enkel form med arm, hud i sex nyanser, ibland ärm, ofta rörelseoskärpa och en skugga på bordet) och de nio underlagen. Ett kort som handen täcker till mer än 45 % av sin låda får ingen låda (röd streckad, märkt <i>hand</i>) och ignoreras i träningen. Rapporten: <code>dev/detektor/synt/SYNT.md</code>.</p>
+</header>
+<main>
+  <div class="verktyg">
+    <button id="bFacit" aria-pressed="true">Facit <kbd>F</kbd></button>
+    <button id="bHorn" aria-pressed="true">Hörn <kbd>H</kbd></button>
+    <button id="bIgn" aria-pressed="true">Utan låda <kbd>I</kbd></button>
+    <div class="forklaring">
+      <span style="--c: var(--kort)">kort, låda runt den synliga delen</span>
+      <span style="--c: var(--bak)">baksida (klass <i>baksida</i>): leken, eller ett ensamt kort med baksidan upp</span>
+      <span style="--c: var(--ign); --s: dashed">för lite syns — ingen låda, ignoreras</span>
+      <span style="--c: var(--hand); --s: dashed">handen täcker kortet — ingen låda, ignoreras</span>
+      <span style="--c: var(--horn)">kortets fyra hörn (också det dolda)</span>
+      <span style="--c: var(--start)">namnradens början</span>
+    </div>
+  </div>
+  <div id="rutnat" class="rutnat"></div>
+</main>
+<section class="riktiga">
+  <h2>Riktiga rutor ur träningsfilmerna</h2>
+  <p>Ur Jespers tre träningsfilmer från 2026-09-29 (<code>dev/material/arbete/2026-09-29-mes-288-traningsrutor/</code>), utan lådor, att jämföra händerna med. Riktiga händer är mjukare och har fingrar som böjer sig; de ritade är en enkel form — se <code>dev/detektor/synt/SYNT.md</code>. Inga golden- eller provbilder visas här.</p>
+  <div class="rutnat" id="riktiga"></div>
+</section>
+<section><p style="margin: 30px 0">Klicka på en bild för att se den stor; <kbd>←</kbd> <kbd>→</kbd> bläddrar, <kbd>Esc</kbd> stänger.</p></section>
+<div class="stor" id="stor"><div class="bild" id="storBild"></div><div class="text" id="storText"></div></div>
+
+<script src="../../material/arbete/2026-09-29-mes-288-synt/ark-grind2/facit.js"></script>
+<script>
+const MAPP = '../../material/arbete/2026-09-29-mes-288-synt/ark-grind2/';
+const RIKTIGA = [
+  ['../../material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-tra-dagsljus-lampa/rutor/02980.jpg', 'Träbord, 4:58 — Jespers träningsfilm: hand över korten, landhögar, leken i gröna fickor'],
+  ['../../material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-svartmatta-dagsljus/rutor/04380.jpg', 'Svart matta, 7:18 — två ensamma kort med Magic-baksidan upp (utan ficka), leken, hand'],
+  ['../../material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-vittbord-dagsljus/rutor/01900.jpg', 'Vitt bord, 3:10 — kort i rosa fickor, hand, böcker och leksaker runt bordet'],
+];
+const NS = 'http://www.w3.org/2000/svg';
+const el = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function overlay(f) {
+  const s = el('svg', { viewBox: `0 0 ${f.bredd} ${f.hojd}` });
+  for (const k of f.kort) {
+    const g = el('g', {}, s);
+    const pts = k.horn_px.map(p => p.join(',')).join(' ');
+    el('polygon', { points: pts, fill: 'none', stroke: css('--horn'), 'stroke-width': 0.8, class: 'horn', opacity: 0.9 }, g);
+    el('circle', { cx: k.horn_px[0][0], cy: k.horn_px[0][1], r: 2.2, fill: css('--start'), class: 'horn' }, g);
+    if (!k.lada_px) continue;
+    const [x, y, w, h] = k.lada_px;
+    const handen = !k.far_lada && (k.hand || 0) > 0.45;
+    const farg = handen ? css('--hand') : k.klass === 'baksida' ? css('--bak') : k.far_lada ? css('--kort') : css('--ign');
+    const kl = k.far_lada ? 'facit' : 'facit ign';
+    el('rect', { x, y, width: w, height: h, fill: 'none', stroke: farg, 'stroke-width': k.far_lada ? 1.6 : 1, 'stroke-dasharray': k.far_lada ? '' : '3 2', class: kl }, g);
+    const text = handen ? 'hand' : k.klass === 'baksida' ? (k.slag === 'lek' ? 'baksida · lek' : 'baksida') : `${Math.round(k.synlig * 100)}%${k.hog ? ' ' + k.hog : ''}${k.zon === 'grav' ? ' gy' : ''}`;
+    const t = el('text', { x: x + 2, y: y + 9, 'font-size': 8.5, 'font-family': 'ui-monospace, monospace', fill: farg, stroke: '#000', 'stroke-width': 2.2, 'paint-order': 'stroke', class: kl }, g);
+    t.textContent = text;
+  }
+  return s;
+}
+
+function text(f) {
+  const n = f.kort.length, l = f.kort.filter(k => k.far_lada).length;
+  const hog = new Set(f.kort.map(k => k.hog).filter(Boolean)).size;
+  const b = f.bakgrund.typ === 'riktig' ? `riktigt underlag: ${f.bakgrund.fil.replace(/\.jpg$/, '')}` : `ritad yta: ${f.bakgrund.vad}`;
+  const e = Object.entries(f.efter).map(([k, v]) => k === 'hand' ? `<b>hand</b> från ${v.kant}${v.griper ? ', griper' : ''}${v.arm ? ', ärm' : ''}${v.rorelse_px ? ', rörelse ' + v.rorelse_px + ' px' : ''}` : v === true ? k : `${k} ${v}`).join(', ');
+  return `<b>${f.bild}</b> · ${f.scen} · ${n} kort, ${l} lådor, ${n - l} utan låda, ${hog} högar<br>` +
+    `${b} · ljus ${f.ljus.sort} · kameran lutad ${f.kamera.lutning.toFixed(0)}°, ${Math.round(f.kamera.bredd_mm / 10)} cm bord i bildens bredd<br>${e}`;
+}
+
+const rutnat = document.getElementById('rutnat');
+const DATA = window.SYNT || [];
+if (!DATA.length) rutnat.innerHTML = '<div class="saknas">Hittar inga bilder. De ligger gitignorerat i <code>dev/material/arbete/2026-09-29-mes-288-synt/ark-grind2/</code> — kör <code>python dev/detektor/synt/generera.py</code> och <code>ark_grind2.py</code>, eller länka <code>dev/material</code> om sidan öppnas i en worktree.</div>';
+DATA.forEach((f, i) => {
+  const fig = document.createElement('figure');
+  const b = document.createElement('div'); b.className = 'bild';
+  const img = new Image(); img.src = MAPP + f.bild; img.alt = f.bild; img.loading = 'lazy';
+  b.append(img, overlay(f));
+  b.onclick = () => visa(i);
+  const cap = document.createElement('figcaption'); cap.innerHTML = text(f);
+  fig.append(b, cap); rutnat.append(fig);
+});
+const riktiga = document.getElementById('riktiga');
+for (const [src, t] of RIKTIGA) {
+  const fig = document.createElement('figure');
+  fig.innerHTML = `<div class="bild"><img src="${src}" alt="" style="aspect-ratio:auto;object-fit:contain"></div><figcaption>${t}</figcaption>`;
+  riktiga.append(fig);
+}
+
+let aktuell = -1;
+const stor = document.getElementById('stor');
+function visa(i) {
+  aktuell = (i + DATA.length) % DATA.length;
+  const f = DATA[aktuell], sb = document.getElementById('storBild');
+  sb.innerHTML = '';
+  const img = new Image(); img.src = MAPP + f.bild; img.style.width = '100%';
+  sb.append(img, overlay(f));
+  document.getElementById('storText').innerHTML = text(f);
+  stor.classList.add('oppen');
+}
+stor.onclick = () => { stor.classList.remove('oppen'); aktuell = -1; };
+
+function vaxla(knapp, klass) {
+  const pa = document.body.classList.toggle(klass);
+  knapp.setAttribute('aria-pressed', String(!pa));
+}
+const bF = document.getElementById('bFacit'), bH = document.getElementById('bHorn'), bI = document.getElementById('bIgn');
+bF.onclick = () => vaxla(bF, 'utan-facit');
+bH.onclick = () => vaxla(bH, 'utan-horn');
+bI.onclick = () => vaxla(bI, 'utan-ign');
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'f') vaxla(bF, 'utan-facit');
+  else if (k === 'h') vaxla(bH, 'utan-horn');
+  else if (k === 'i') vaxla(bI, 'utan-ign');
+  else if (k === 'escape') { stor.classList.remove('oppen'); aktuell = -1; }
+  else if (aktuell >= 0 && k === 'arrowright') visa(aktuell + 1);
+  else if (aktuell >= 0 && k === 'arrowleft') visa(aktuell - 1);
+});
+</script>
+</body>
+</html>
