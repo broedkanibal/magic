@@ -21,14 +21,24 @@ ignorerade.
 | Rutor | **638** behållna av 849 provade (en var 2 s, nästan-dubbletter bort) | mätt |
 | Bakgrunder (tomt bord) | **19** — men bara tre olika ytor | mätt / sett |
 | Stod telefonen still? | **Ja.** Högst 9 bildpunkter (4K) från första rutan i trä och vitt bord; en engångsförskjutning på 8 px de första sekunderna | mätt |
-| Lådor per ruta | median 10–13 facit-lådor, högst 22 | mätt |
-| Ignorerat | 28–36 % av lärarens lådor på bordet, 6–13 % av bildytan (median) | mätt |
+| Facit | **7 583 lådor** i 638 rutor; median 10–14 per ruta, högst 24 | mätt |
+| Baksidesflaggan | 701 lådor i 513 rutor (leken nästan varje ruta, plus ensamma baksidor) | mätt; att den träffar rätt är bedömt |
+| Ignorerat | 31–36 % av lärarens lådor på bordet, 8–13 % av bildytan (median) | mätt |
 | Lådor på händer | **nästan inga** i de rutor jag sett; kort under en suddig hand får ofta rätt låda | bedömt |
 | Lådor utanför bordet | **ja, på vita bordet:** böcker och leksaker runt bordet får lådor (0,16–0,21). Regel E tar bort dem | sett, regeln mätt |
 | Snett liggande kort | **missas som facit:** lådan runt ett kort i 25–40° är större än 1,6 × kortet och fälls av storleksfiltret | bedömt |
-| Tid | ~12 s per ruta (4 trådar, `nice -n 19`), ~2,2 h för alla | mätt |
+| Tid | 12,1–12,8 s per ruta (median, 4 trådar, `nice -n 19`), **2,3 h** för alla 638 | mätt |
 
-*(Siffrorna här uppdateras när läraren har kört klart; se "Läget" längst ner.)*
+### Per film (ur `traning.py siffror`)
+
+| Film | Rutor | Facit-lådor (median/ruta) | Baksida (lådor / rutor) | Ignorerade A · B · C · D · E | Ignorerat av lådorna på bordet | Ignorerad bildyta (median) |
+|---|---|---|---|---|---|---|
+| trä | 200 | 2 709 (14) | 227 / 167 | 116 · 105 · 644 · 356 · – | 31 % | 7,8 % |
+| svart matta | 242 | 2 967 (12) | 320 / 205 | 447 · 173 · 645 · 245 · 110 | 34 % | 10,2 % |
+| vitt bord | 196 | 1 907 (10) | 154 / 141 | 208 · 62 · 624 · 200 · 863 | 36 % | 12,7 % |
+
+A är många på svarta mattan: där sprids korten i vinkel (se avsnitt 6). E är
+många på vita bordet: böckerna och leksakerna runt det.
 
 ## Filmerna
 
@@ -51,8 +61,8 @@ till ett upprätt kort (63 × 88). I den 960 px breda analysbilden är ett kort
 och kolumner omlott, kort i vinkel, tappade (90°), händer som lägger och
 flyttar, kort i handen (utfläkta), graveyard, fullt bord, leken (gröna fickor
 på trä och svart matta, rosa fickor på vita bordet), ensamma kort med
-baksidan upp i ficka, och **två kort utan ficka med Magic-baksidan upp** (svart
-matta 1:08–, trä i slutet, vita bordet i slutet).
+baksidan upp i ficka, och **kort utan ficka med Magic-baksidan upp** (två på
+svarta mattan från ~6:30, två på träbordet i slutet, ett på vita bordet ~6:50).
 
 ## 1. Bakgrunder
 
@@ -117,8 +127,8 @@ med baksidan upp; appen avgör vilket ur lekens plats). Flaggan i facit heter
 | **Magic-baksidan** (utan ficka) | ≥ 45 % brunt, ≥ 4 % blått (loggan), 3–10 % kanter | de två korten på svarta mattan |
 
 **Prövat och förkastat** (sett på arket): brunt utan blått flaggade händer och
-slättkort med solnedgång; 4 % kanter flaggade blå framsidor i lampans blåa
-ljus; 70 % en färg flaggade en hand över leken.
+slättkort med solnedgång; 4 % kanter flaggade mörka, blåa framsidor på
+träbordet; 70 % en färg flaggade en hand över leken.
 
 **Vad den missar (bedömt):** Magic-baksidan på träbordet (lampans ljus gör
 den brunorange ovalen omättad, brunt 0,08) och på vita bordet (loggan blir
@@ -153,7 +163,7 @@ Bedömt med ögat på ~15 ritade rutor (arket och några till), inte mätt mot r
 
 | Vad | Hur ofta | Följd för träningen |
 |---|---|---|
-| **Kort i vinkel (25–40°)** får en låda som är för stor för storleksfiltret → ignorerad (A) | vanligt på svarta mattan efter blandningen (3:30: fem av tolv kort) | de blir inte negativer, men inte heller facit — eleven får få snett liggande kort att lära av. Förslag: rotera storleksfiltret (en låda runt ett kort i vinkel θ är upp till ~1,9 × kortet) eller låt en A-låda utan andra lådor i sig vara facit |
+| **Kort i vinkel (25–40°)** får en låda som är för stor för storleksfiltret → ignorerad (A) | vanligt på svarta mattan när korten sprids (5:50: fyra kort i vinkel ignorerade, ett utan någon låda alls, av ~20) | de blir inte negativer, men inte heller facit — eleven får få snett liggande kort att lära av. Förslag: rotera storleksfiltret (en låda runt ett kort i vinkel θ är upp till ~1,9 × kortet) eller låt en A-låda utan andra lådor i sig vara facit |
 | **Landhögar och kolumner** blir ignorerade (C, D, B) | i nästan varje ruta efter första minuten | som väntat: högarna ska läras på de syntetiska borden |
 | **Böcker och leksaker** runt vita bordet får lådor | varje ruta | tas bort av E |
 | **Surfplattan** vid svarta mattans kant fick en låda (0,16–0,17) | när den syns | tas bort av E |
@@ -171,7 +181,7 @@ glansiga fickor i lampans ljus.
 | | Bedömning |
 |---|---|
 | Stativet | stod still: högst 9 px (4K) förskjutning i trä och vitt bord; en enda ruta på svarta mattan med 60 px, troligen en hand i bandet som mäts (mätt, `stabilitet`) |
-| Skärpa | korten är skarpa när de ligger still. Träbordet är mjukast (Laplace-median 1 271 mot 2 111 på svarta mattan), troligen lampans blänk på fickorna. Händer i rörelse är suddiga, korten under dem oftast inte (mätt / bedömt) |
+| Skärpa | korten är skarpa när de ligger still. Träbordet är mjukast (Laplace-varians i lådorna, median 1 225 mot 2 119 på svarta mattan och 1 630 på vita bordet), troligen lampans blänk på fickorna. Händer i rörelse är suddiga, korten under dem oftast inte (mätt / bedömt) |
 | Blänk | lampan ger vita fläckar på fickorna på träbordet — bra träning, precis det golden-fallen har |
 | Omgivningen | vita bordet har leksaker och böcker i bild: bra svåra negativer, men läraren tror att några är kort (E behövs) |
 | Samma lek | alla tre filmerna har samma kort i nya fickor (gröna eller rosa); variationen i kort är liten |
@@ -219,4 +229,6 @@ och färgmåtten) och `ignorera` (låda, regel A–E).
 
 ## Läget
 
-LÄGET-RAD
+Klart 2026-09-29 22:06: alla 638 rutor har lärarlådor, `facit.json` och
+arket är gjorda på hela körningen. Kontaktarket har åtta handvalda rutor per
+film (`HANDVALDA` i `traning.py`) och två bakgrunder per film.
