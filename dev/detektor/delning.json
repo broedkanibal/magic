@@ -1,0 +1,145 @@
+{
+  "om": "Prov eller träning per inspelningstillfälle (MES-288, Jespers beslut 2026-09-28). Läses av dev/detektor/delning.py, som varje träningsskript ska använda. Förklaring: dev/detektor/DELNING.md.",
+  "standard": "prov",
+  "standard_skal": "står inte i listan — räknas som prov tills Jesper sagt något annat",
+  "traningsmonster": "-traning-",
+  "traningsmonster_skal": "mappnamnet innehåller -traning- (<datum>-traning-<underlag>-<ljus>): Jespers träningsinspelningar, gjorda för att tränas på",
+  "mappar": {
+    "dev/material/inspelningar/2026-09-08-kalibrering-scanbord": {
+      "delning": "prov",
+      "skal": "källan till golden-fall 01, 02 och 08 (rutorna vid 12 och 15 s)"
+    },
+    "dev/material/inspelningar/2026-09-09-designyta-riktning-c-edge-cases": {
+      "delning": "oanvandbart",
+      "skal": "skärminspelning av designytan: kortbilder som dras på en ritad matta, inga fysiska kort på ett bord"
+    },
+    "dev/material/inspelningar/2026-09-10-fall-07-tra-dagsljus-40cm-5kort-rorelse": {
+      "delning": "prov",
+      "skal": "originalet till golden-fall 07"
+    },
+    "dev/material/inspelningar/2026-09-12-fall-09-svartmatta-lampa-40cm-4kort-tap": {
+      "delning": "prov",
+      "skal": "originalet till golden-fall 09"
+    },
+    "dev/material/inspelningar/2026-09-12-fall-10-svartmatta-lampa-40cm-4kort-graveyard": {
+      "delning": "prov",
+      "skal": "originalet till golden-fall 10"
+    },
+    "dev/material/inspelningar/2026-09-13-fall-11-svartmatta-lampa-40cm-4kort-gravfallor": {
+      "delning": "prov",
+      "skal": "originalet till golden-fall 11"
+    },
+    "dev/material/inspelningar/2026-09-14-mes-138-library-plastficka-kanns-inte-igen": {
+      "delning": "traning",
+      "skal": "uppstartens steg 4 med leken i plastfickor; inget golden-fall eller facit kommer ur den"
+    },
+    "dev/material/inspelningar/2026-09-16-mes-139-library-steget-plastficka": {
+      "delning": "traning",
+      "skal": "samma steg efter bygget; inget golden-fall eller facit kommer ur den"
+    },
+    "dev/material/inspelningar/2026-09-16-mes-166-provkort-pass-1-mork": {
+      "delning": "traning",
+      "skal": "provkortet i steg 4, för mörk telefonbild; gick inte att använda som fall — mörkt ljus är just det träningen behöver"
+    },
+    "dev/material/inspelningar/2026-09-16-mes-166-provkort-pass-2-fall-12": {
+      "delning": "prov",
+      "skal": "telefon.mp4 är källan till golden-fall 12"
+    },
+    "dev/material/inspelningar/2026-09-16-mes-183-lekbyggaren-to-check": {
+      "delning": "oanvandbart",
+      "skal": "skärminspelningar av lekbyggaren (To check), inga kort på ett bord"
+    },
+    "dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp": {
+      "delning": "prov",
+      "skal": "golden-fall 13 är klippt ur den, och Jespers ritade lägen (MES-286) är facit för kort omlott och högar"
+    },
+    "dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min": {
+      "delning": "oanvandbart",
+      "skal": "Jespers beslut 2026-09-29: används inte i träningen — skärminspelning med ~700 px kamerabild och Mesas ritade spårramar i varje ruta (grind 1); dess händelsefacit (grenen natt-2026-09-22) används inte heller som prov"
+    },
+    "dev/material/inspelningar/2026-09-21-provkort-pacifism": {
+      "delning": "traning",
+      "skal": "provkortet med Pacifism i uppstarten; inget golden-fall eller facit kommer ur den"
+    },
+    "dev/material/inspelningar/2026-09-22-1x-34cm-normaltempo": {
+      "delning": "prov",
+      "skal": "passet med händelsefacit (handelser.tsv) som dev/spegelfacit mäter mot, och ritade lägen i dev/material/rita"
+    },
+    "dev/material/foton/2026-09-20-ljust-tra-varmt-ljus-plastfickor": {
+      "delning": "prov",
+      "skal": "originalen till golden-fall 14, 15 och 16"
+    },
+    "dev/material/foton/2026-09-26-lekfoto": {
+      "delning": "prov",
+      "skal": "lekfotots golden (dev/lekgolden), 15 foton med facit"
+    },
+    "dev/material/hogbank": {
+      "delning": "prov",
+      "skal": "högbänkens bilder (dev/hogbank.cjs, 68 fall)"
+    },
+    "dev/material/rita": {
+      "delning": "prov",
+      "skal": "ritverktygets rutor (MES-286) — det ritade facit"
+    },
+    "dev/material/rita/2026-09-22-1x-34cm-normaltempo": {
+      "delning": "prov",
+      "skal": "ritade lägen ur passet 2026-09-22"
+    },
+    "dev/material/rita/mes-246": {
+      "delning": "prov",
+      "skal": "ritade lägen ur MES-246 (källan 2026-09-19-mes-246-las-fore-slapp)"
+    },
+    "dev/material/arbete/2026-09-19-mes-246-las-fore-slapp": {
+      "delning": "prov",
+      "skal": "arbetsfiler ur MES-246:s mätkedja, gjorda av en provinspelning"
+    },
+    "dev/material/arbete/2026-09-28-mes-288-larare": {
+      "delning": "oanvandbart",
+      "skal": "grind 1: 24 rutor för att bedöma läraren, de flesta ur partiet 2026-09-21 som Jesper tagit bort ur träningen 2026-09-29"
+    },
+    "dev/material/arbete/2026-09-29-mes-288-synt": {
+      "delning": "traning",
+      "skal": "grind 1b: syntetiska bord — Scryfall-bilder, ritade texturer och tomma bord ur bara träningsmappar (bakgrund.py prövar varje källa med krav_traning; källan per bakgrund i bakgrund/index.json)"
+    },
+    "dev/material/arbete/2026-09-29-mes-288-traningsrutor": {
+      "delning": "traning",
+      "skal": "rutor och lärarens lådor (OWLv2) ur bara Jespers tre träningsfilmer 2026-09-29-traning-* (dev/detektor/larare/traning.py prövar varje video och fil med krav_traning)"
+    },
+    "dev/detektor/larare/matning/2026-09-29-traning-tra-dagsljus-lampa": {
+      "delning": "traning",
+      "skal": "lärarmätningen (MES-288): Jespers ritade kort på fyra av lärarens rutor ur träningsfilmen — mäter hur ofta läraren missar kort, är inte prov och inte golden"
+    },
+    "dev/detektor/larare/matning/2026-09-29-traning-svartmatta-dagsljus": {
+      "delning": "traning",
+      "skal": "lärarmätningen (MES-288): Jespers ritade kort på fyra av lärarens rutor ur träningsfilmen — mäter hur ofta läraren missar kort, är inte prov och inte golden"
+    },
+    "dev/detektor/larare/matning/2026-09-29-traning-vittbord-dagsljus": {
+      "delning": "traning",
+      "skal": "lärarmätningen (MES-288): Jespers ritade kort på fyra av lärarens rutor ur träningsfilmen — mäter hur ofta läraren missar kort, är inte prov och inte golden"
+    },
+    "dev/golden/inspelningar/2026-09-21-parti": {
+      "delning": "traning",
+      "skal": "händelsefacit till partiet 2026-09-21 (grenen natt-2026-09-22) — följer partiet, används inte som prov"
+    },
+    "dev/golden/fall": {
+      "delning": "prov",
+      "skal": "golden setet"
+    },
+    "dev/golden/fall/01-tra-lampa-60cm-3kort": { "delning": "prov", "skal": "golden-fall" },
+    "dev/golden/fall/02-tra-lampa-150cm-4kort": { "delning": "prov", "skal": "golden-fall" },
+    "dev/golden/fall/03-tra-lampa-40cm-11kort-overlapp": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/04-tra-dagsljus-40cm-8kort-overlapp": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/05-ribbor-dagsljus-40cm-6kort-overlapp": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/06-ljusgra-dagsljus-40cm-12kort-overlapp": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/07-tra-dagsljus-40cm-5kort-rorelse": { "delning": "prov", "skal": "golden-fall (video)" },
+    "dev/golden/fall/08-tra-lampa-60cm-3kort-baksida": { "delning": "prov", "skal": "golden-fall" },
+    "dev/golden/fall/09-svartmatta-lampa-40cm-4kort-tap": { "delning": "prov", "skal": "golden-fall (video)" },
+    "dev/golden/fall/10-svartmatta-lampa-40cm-4kort-graveyard": { "delning": "prov", "skal": "golden-fall (video)" },
+    "dev/golden/fall/11-svartmatta-lampa-40cm-4kort-gravfallor": { "delning": "prov", "skal": "golden-fall (video)" },
+    "dev/golden/fall/12-svartmatta-dagsljus-provkort": { "delning": "prov", "skal": "golden-fall (video)" },
+    "dev/golden/fall/13-svartmatta-lampa-40cm-10kort-tokens": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/14-tra-lampa-50cm-11kort-omlott": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/15-tra-dagsljus-50cm-11kort-omlott": { "delning": "prov", "skal": "golden-fall, ritat facit" },
+    "dev/golden/fall/16-tra-lampa-50cm-8kort": { "delning": "prov", "skal": "golden-fall" }
+  }
+}

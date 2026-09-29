@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Läraren på träningsrutor</title>
+<style>
+:root { --bg:#f6f5f2; --fg:#1d1d1f; --mut:#5f5f66; --kort:#fff; --kant:#dddbd5; }
+@media (prefers-color-scheme: dark) { :root { --bg:#16161a; --fg:#ecebe8; --mut:#a3a2a8; --kort:#222228; --kant:#34343c; } }
+body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.45 -apple-system, system-ui, sans-serif; }
+main { max-width:1500px; margin:0 auto; padding:16px; }
+h1 { font-size:22px; margin:8px 0 4px; }
+p { color:var(--mut); max-width:900px; margin:6px 0; }
+.lg span { display:inline-block; padding:1px 8px; border-radius:4px; margin-right:8px; color:#fff; font-weight:600; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 640px), 1fr)); gap:16px; margin-top:16px; }
+figure { margin:0; background:var(--kort); border:1px solid var(--kant); border-radius:8px; overflow:hidden; }
+figure img { width:100%; display:block; }
+figcaption { padding:8px 10px; font-size:14px; }
+figcaption code { color:var(--mut); font-size:12px; word-break:break-all; }
+.n { font-weight:600; }
+.oga { color:var(--mut); }
+</style></head><body><main>
+<h1>OWLv2 som lärare — 24 träningsrutor (MES-288, grind 1)</h1>
+<p>Varje bild är en ruta ur en <b>träningsinspelning</b> (aldrig prov, se <code>dev/detektor/DELNING.md</code>).
+Lådorna är OWLv2 base med exakt nollprovets inställningar: textfrågorna playing card / trading card / card /
+magic the gathering card, tröskel 0,16, NMS 0,6, storleksfilter 0,4–1,6 × kortets yta och inneslutningsregeln.</p>
+<p class="lg"><span style="background:#ff00ff">1: 0,45</span> en låda läraren skulle ge som facit (nummer: poäng)
+&nbsp; <span style="background:#ff9600">0,20 storlek</span> en låda över tröskeln som storleksfiltret tog bort</p>
+<p><b>Titta efter:</b> kort utan låda, lådor på händer, telefon eller appens egna rutor, och lådor över flera kort.
+De streckade gröna, gula och röda rutorna i partiets bilder är <b>Mesas egna spår</b>, inritade i skärminspelningen — inte lärarens.
+Bedömningen per ruta står i <code>dev/detektor/larare/LARARE.md</code>.</p>
+<p><b>Min räkning med ögat, alla 24 rutor:</b> 171 kort i bild, 105 med egen låda, 66 utan; 18 lådor över flera kort, 13 på leken, 10 på annat än kort, 1 dubblett. Ögonmått, inte mätt mot ritat facit.</p>
+<div class="grid">
+<figure id="r1"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0060.jpg" alt="ruta 1">
+<figcaption><b>1.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 1:00 · få kort, början av partiet<br>
+<span class="n">4 lådor</span> · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 2 egna, 0 saknas, 0 över flera, 1 på leken, 1 på annat — graveyard-ramen (Mesas ritade ruta, tom) fick en låda</span></figcaption></figure>
+<figure id="r2"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0180.jpg" alt="ruta 2">
+<figcaption><b>2.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 3:00 · hand som lägger ett kort<br>
+<span class="n">7 lådor</span> · 3 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 3 egna, 4 saknas, 1 över flera, 1 på leken, 2 på annat — Mesas gröna spårruta på handleden och graveyard-ramen fick lådor; två kort delvis under handen föll på storleksfiltret; landhögen blev en låda</span></figcaption></figure>
+<figure id="r3"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0240.jpg" alt="ruta 3">
+<figcaption><b>3.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 4:00 · hand i kanten, landhögar<br>
+<span class="n">10 lådor</span> · 1 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 8 egna, 2 saknas, 0 över flera, 1 på leken, 1 på annat — en tom grön spårruta (kortet redan borta) fick en låda</span></figcaption></figure>
+<figure id="r4"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0300.jpg" alt="ruta 4">
+<figcaption><b>4.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 5:00 · underarm över bordet<br>
+<span class="n">8 lådor</span> · 8 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 5 egna, 4 saknas, 1 över flera, 1 på leken, 1 på annat — spårrutan på underarmen fick en låda; korten under armen föll på storleksfiltret</span></figcaption></figure>
+<figure id="r5"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0360.jpg" alt="ruta 5">
+<figcaption><b>5.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 6:00 · rörelseoskärpa, hand i farten<br>
+<span class="n">7 lådor</span> · 1 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 7 egna, 2 saknas, 0 över flera, 0 på leken, 0 på annat — rörelseoskärpa: lådor på korten under den suddiga handen, ingen på handen</span></figcaption></figure>
+<figure id="r6"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0420.jpg" alt="ruta 6">
+<figcaption><b>6.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 7:00 · stilla, landhögar och kort omlott<br>
+<span class="n">10 lådor</span> · 2 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 7 egna, 3 saknas, 1 över flera, 1 på leken, 1 på annat — graveyard-ramen fick en låda; kort som sticker fram under andra saknas</span></figcaption></figure>
+<figure id="r7"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0480.jpg" alt="ruta 7">
+<figcaption><b>7.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 8:00 · många kort, flera omlott och tappade<br>
+<span class="n">9 lådor</span> · 3 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 6 egna, 6 saknas, 2 över flera, 1 på leken, 0 på annat — tappade länder omlott: två lådor över flera kort</span></figcaption></figure>
+<figure id="r8"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0570.jpg" alt="ruta 8">
+<figcaption><b>8.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 9:30 · hand över högarna<br>
+<span class="n">10 lådor</span> · 3 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 8 egna, 2 saknas, 1 över flera, 0 på leken, 1 på annat — en låda på den suddiga handen över leken</span></figcaption></figure>
+<figure id="r9"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0660.jpg" alt="ruta 9">
+<figcaption><b>9.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 11:00 · stilla, fullt bord<br>
+<span class="n">10 lådor</span> · 5 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 7 egna, 6 saknas, 2 över flera, 1 på leken, 0 på annat — landkolumnerna: en låda över hela kolumnen, de enskilda korten föll på storleksfiltret</span></figcaption></figure>
+<figure id="r10"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0780.jpg" alt="ruta 10">
+<figcaption><b>10.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 13:00 · kort omlott uppe till vänster, högar<br>
+<span class="n">14 lådor</span> · 2 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 12 egna, 2 saknas, 1 över flera, 1 på leken, 0 på annat — bäst av partiets rutor: också kort omlott får egna lådor</span></figcaption></figure>
+<figure id="r11"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0810.jpg" alt="ruta 11">
+<figcaption><b>11.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 13:30 · hand mitt i bild<br>
+<span class="n">10 lådor</span> · 6 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 8 egna, 4 saknas, 0 över flera, 1 på leken, 1 på annat — Mesas röda spårruta över handen fick en låda; kort under handen saknas</span></figcaption></figure>
+<figure id="r12"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0900.jpg" alt="ruta 12">
+<figcaption><b>12.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 15:00 · hand och oskärpa<br>
+<span class="n">9 lådor</span> · 3 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 6 egna, 4 saknas, 2 över flera, 0 på leken, 1 på annat — spårrutan runt handen som bär ett kort fick en låda (kortet i handen fick en egen)</span></figcaption></figure>
+<figure id="r13"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-0990.jpg" alt="ruta 13">
+<figcaption><b>13.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 16:30 · sent i partiet, täta högar<br>
+<span class="n">11 lådor</span> · 4 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 8 egna, 6 saknas, 2 över flera, 1 på leken, 0 på annat — ett tappat land längst ner utan låda; swamp-kolumnen en låda</span></figcaption></figure>
+<figure id="r14"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-1110.jpg" alt="ruta 14">
+<figcaption><b>14.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 18:30 · stilla, fullt bord<br>
+<span class="n">12 lådor</span> · 5 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 8 egna, 6 saknas, 2 över flera, 1 på leken, 0 på annat, 1 dubblett — två nästan lika lådor på samma land</span></figcaption></figure>
+<figure id="r15"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/parti-1170.jpg" alt="ruta 15">
+<figcaption><b>15.</b> Partiet 2026-09-21 (skärminspelning av datorn) · 19:30 · kort i rörelse uppe till höger<br>
+<span class="n">8 lådor</span> · 2 bort på storlek · <code>dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/dator.mov</code><br><span class="oga">Ögat: 4 egna, 13 saknas, 3 över flera, 1 på leken, 0 på annat — tre landkolumner blev tre lådor — sämst av rutorna</span></figcaption></figure>
+<figure id="r16"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/pass1-0000.jpg" alt="ruta 16">
+<figcaption><b>16.</b> Provkort pass 1, 2026-09-16 (datorn) · 0:00 · tomt bord (grå duk)<br>
+<span class="n">0 lådor</span> · <code>dev/material/inspelningar/2026-09-16-mes-166-provkort-pass-1-mork/dator.mov</code><br><span class="oga">Ögat: 0 egna, 0 saknas, 0 över flera, 0 på leken, 0 på annat — tomt bord: inga lådor (rätt)</span></figcaption></figure>
+<figure id="r17"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/pass1-0018.jpg" alt="ruta 17">
+<figcaption><b>17.</b> Provkort pass 1, 2026-09-16 (datorn) · 0:18 · ett kort på duken<br>
+<span class="n">1 lådor</span> · <code>dev/material/inspelningar/2026-09-16-mes-166-provkort-pass-1-mork/dator.mov</code><br><span class="oga">Ögat: 1 egna, 0 saknas, 0 över flera, 0 på leken, 0 på annat</span></figcaption></figure>
+<figure id="r18"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/pass1-0036.jpg" alt="ruta 18">
+<figcaption><b>18.</b> Provkort pass 1, 2026-09-16 (datorn) · 0:36 · hand som lägger provkortet<br>
+<span class="n">1 lådor</span> · <code>dev/material/inspelningar/2026-09-16-mes-166-provkort-pass-1-mork/dator.mov</code><br><span class="oga">Ögat: 1 egna, 0 saknas, 0 över flera, 0 på leken, 0 på annat — kortet under handen hittas; handen och Mesas stora gröna ram utan låda (rätt)</span></figcaption></figure>
+<figure id="r19"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/mes139-0010.jpg" alt="ruta 19">
+<figcaption><b>19.</b> MES-139 library, 2026-09-16 (telefonens skärm) · 0:10 · hand, kortask och ett kort<br>
+<span class="n">1 lådor</span> · <code>dev/material/inspelningar/2026-09-16-mes-139-library-steget-plastficka/telefon.mp4</code><br><span class="oga">Ögat: 1 egna, 0 saknas, 0 över flera, 0 på leken, 0 på annat — kortasken och handen utan låda (rätt)</span></figcaption></figure>
+<figure id="r20"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/mes139-0055.jpg" alt="ruta 20">
+<figcaption><b>20.</b> MES-139 library, 2026-09-16 (telefonens skärm) · 0:55 · kraftig oskärpa, hand med kort<br>
+<span class="n">0 lådor</span> · 1 bort på storlek · <code>dev/material/inspelningar/2026-09-16-mes-139-library-steget-plastficka/telefon.mp4</code><br><span class="oga">Ögat: 0 egna, 1 saknas, 0 över flera, 0 på leken, 0 på annat — kraftig oskärpa: lådan på kortet föll på storleksfiltret</span></figcaption></figure>
+<figure id="r21"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/mes138-0000.jpg" alt="ruta 21">
+<figcaption><b>21.</b> MES-138 library, 2026-09-14 (datorn) · 0:00 · hand över graveyard och library<br>
+<span class="n">1 lådor</span> · <code>dev/material/inspelningar/2026-09-14-mes-138-library-plastficka-kanns-inte-igen/dator.mov</code><br><span class="oga">Ögat: 1 egna, 0 saknas, 0 över flera, 0 på leken, 0 på annat — graveyard-kortet under handen, poäng 0,18</span></figcaption></figure>
+<figure id="r22"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/mes138-0024.jpg" alt="ruta 22">
+<figcaption><b>22.</b> MES-138 library, 2026-09-14 (datorn) · 0:24 · leken i plastfickor på library-platsen<br>
+<span class="n">3 lådor</span> · <code>dev/material/inspelningar/2026-09-14-mes-138-library-plastficka-kanns-inte-igen/dator.mov</code><br><span class="oga">Ögat: 1 egna, 0 saknas, 0 över flera, 1 på leken, 1 på annat — leken i plastficka fick två lådor: en på leken, en på Mesas library-ram</span></figcaption></figure>
+<figure id="r23"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/pacifism-0012.jpg" alt="ruta 23">
+<figcaption><b>23.</b> Provkort Pacifism, 2026-09-21 (datorn) · 0:12 · hand med provkortet, mönstrad duk<br>
+<span class="n">1 lådor</span> · <code>dev/material/inspelningar/2026-09-21-provkort-pacifism/dator.mov</code><br><span class="oga">Ögat: 1 egna, 0 saknas, 0 över flera, 0 på leken, 0 på annat — handen utan låda (rätt)</span></figcaption></figure>
+<figure id="r24"><img loading="lazy" src="../../material/arbete/2026-09-28-mes-288-larare/ritade/pacifism-0024.jpg" alt="ruta 24">
+<figcaption><b>24.</b> Provkort Pacifism, 2026-09-21 (datorn) · 0:24 · hand som lägger ett kort<br>
+<span class="n">0 lådor</span> · <code>dev/material/inspelningar/2026-09-21-provkort-pacifism/dator.mov</code><br><span class="oga">Ögat: 0 egna, 1 saknas, 0 över flera, 0 på leken, 0 på annat — kortet under handen missas</span></figcaption></figure>
+</div></main></body></html>

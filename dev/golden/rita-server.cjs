@@ -12,7 +12,9 @@
                            läser aldrig videon själv
      POST /api/spara       skriver ETT av två slags filer: facit.json i ett
                            befintligt dev/golden/fall/<id>/, eller lagen.json i en
-                           källas mapp under dev/golden/inspelningar/. Inget annat.
+                           källas mapp under dev/golden/inspelningar/ — eller, för
+                           lärarmätningen (rita-kallor.json → larare, MES-288), under
+                           dev/detektor/larare/matning/. Inget annat.
 
      /api/utkast           utkastet och vyns vridning per källa, som filer i
                            dev/golden/rita-utkast/ — så att det som ritats men
@@ -21,8 +23,15 @@
                            utkastet, vridningen) och pushar till main — så att de
                            syns på en annan dator efter git pull
 
-   Lyssnar bara på 127.0.0.1 och serverar bara dev/golden/ och dev/material/
-   (aldrig en punktfil), så att .env.local och resten av repot inte syns. */
+   Lärarmätningen (MES-288) är träningsmaterial, inte prov: den ritas som en
+   video med fasta lägen, men allt den äger (lagen.json, utkastet, vridningen)
+   ligger i källans mapp under dev/detektor/larare/matning/, aldrig i
+   dev/golden/. Rutan är lärarens egen bild (rutor/<sekund × 10>.jpg) när den
+   finns, så att ritningen och lärarens facit gäller exakt samma bild.
+
+   Lyssnar bara på 127.0.0.1 och serverar bara dev/golden/, dev/material/ och
+   dev/detektor/larare/matning/ (aldrig en punktfil), så att .env.local och
+   resten av repot inte syns. */
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path'), { spawn, spawnSync } = require('child_process');
 const ROT = path.join(__dirname, '..', '..');
@@ -31,8 +40,13 @@ const TYPER = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
   '.css': 'text/css', '.json': 'application/json; charset=utf-8', '.tsv': 'text/tab-separated-values; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.mp4': 'video/mp4', '.mov': 'video/quicktime',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml' };
-const TILLATET = ['dev/golden/', 'dev/material/'];
+const TILLATET = ['dev/golden/', 'dev/material/', 'dev/detektor/larare/matning/'];
 const kallor = () => JSON.parse(fs.readFileSync(path.join(ROT, 'dev', 'golden', 'rita-kallor.json'), 'utf8'));
+/* Lärarmätningens källor (MES-288): en video med fasta lägen, sparas under
+   dev/detektor/larare/matning/. null om id inte är en av dem. */
+const LARARE_MAPP = /^dev\/detektor\/larare\/matning\/[^/.][^/]*$/;
+const larareKalla = id => { const v = (kallor().larare || {})[id]; return v && LARARE_MAPP.test(v.mapp) ? v : null; };
+const videoKalla = id => (kallor().videor || {})[id] || larareKalla(id);
 const finns = f => { try { return fs.statSync(path.join(ROT, f)).isFile(); } catch (e) { return false; } };
 
 /* ── Rutor ur video ──────────────────────────────────────────────────────
@@ -78,7 +92,7 @@ function taRuta(video, t, ut) {
 }
 function videoFor(kid) {
   const k = kallor();
-  const v = (k.videor || {})[kid];
+  const v = (k.videor || {})[kid] || larareKalla(kid);
   if (v) return v.video;
   for (const f of Object.values(k.foton || {})) if (f.kalla === kid && f.video) return f.video;
   return null;
@@ -103,8 +117,18 @@ function listaKallor() {
   }).sort((a, b) => a.pri - b.pri || (a.id < b.id ? -1 : 1));
   const videor = Object.entries(k.videor || {}).map(([id, v]) => ({ id, namn: v.namn || id, video: v.video, finns: finns(v.video),
     lagen: finns(`${v.mapp}/lagen.json`), mapp: v.mapp, grund: v.grund || 'v', handelser: v.handelser || null, steg: v.steg || null, manus: v.manus || null }));
+  const ids = new Set(videor.map(v => v.id));
+  for (const [id, v] of Object.entries(k.larare || {})) {
+    if (ids.has(id) || !LARARE_MAPP.test(v.mapp || '') || !Array.isArray(v.tider)) continue;   // samma id som en video, eller en mapp utanför matning/: visas inte
+    const rutorFinns = v.rutor && v.tider.every(t => finns(larareRuta(v, t)));
+    videor.push({ id, namn: v.namn || id, video: v.video, finns: finns(v.video) || !!rutorFinns, lagen: finns(`${v.mapp}/lagen.json`), mapp: v.mapp,
+      grund: v.grund || 'v', larare: true, tider: v.tider, varfor: v.varfor || [], facit: v.facit || null, rutor: v.rutor || null });
+  }
   return { foton, videor };
 }
+
+/* Lärarens egen ruta vid t sekunder: rutor/<t × 10, fem siffror>.jpg. */
+const larareRuta = (v, t) => `${v.rutor}/${String(Math.round(t * 10)).padStart(5, '0')}.jpg`;
 
 /* ── /api/spara ───────────────────────────────────────────────────────── */
 function spara(kropp) {
@@ -118,11 +142,16 @@ function spara(kropp) {
     if (!fs.existsSync(path.join(mapp, 'facit.json'))) throw new Error(`dev/golden/fall/${id}/facit.json finns inte`);
     fil = path.join(mapp, 'facit.json');
   } else if (sort === 'lagen') {
-    const v = (kallor().videor || {})[id];
-    if (!v || !/^dev\/golden\/inspelningar\/[^/.][^/]*$/.test(v.mapp)) throw new Error('okänd videokälla ' + id);
-    const mapp = path.join(ROT, v.mapp);
-    if (!fs.existsSync(mapp)) throw new Error(v.mapp + ' finns inte');
-    fil = path.join(mapp, 'lagen.json');
+    const v = (kallor().videor || {})[id], lv = v ? null : larareKalla(id);
+    if (lv) {   // lärarmätningen: mappen skapas vid första sparandet
+      fs.mkdirSync(path.join(ROT, lv.mapp), { recursive: true });
+      fil = path.join(ROT, lv.mapp, 'lagen.json');
+    } else {
+      if (!v || !/^dev\/golden\/inspelningar\/[^/.][^/]*$/.test(v.mapp)) throw new Error('okänd videokälla ' + id);
+      const mapp = path.join(ROT, v.mapp);
+      if (!fs.existsSync(mapp)) throw new Error(v.mapp + ' finns inte');
+      fil = path.join(mapp, 'lagen.json');
+    }
   } else throw new Error('okänd sort ' + sort);
   const tmp = fil + '.tmp';
   fs.writeFileSync(tmp, text.endsWith('\n') ? text : text + '\n');
@@ -136,15 +165,17 @@ const VYFIL = path.join(UTKAST, 'vy.json');
 function kallaOk(sort, id) {
   if (typeof id !== 'string' || !/^[0-9A-Za-z][0-9A-Za-z._-]*$/.test(id) || id.includes('..')) throw new Error('ogiltigt id');
   if (sort === 'foto') { if (!finns(`dev/golden/fall/${id}/facit.json`)) throw new Error('okänt fall ' + id); }
-  else if (sort === 'video') { if (!(kallor().videor || {})[id]) throw new Error('okänd videokälla ' + id); }
+  else if (sort === 'video') { if (!videoKalla(id)) throw new Error('okänd videokälla ' + id); }
   else throw new Error('okänd sort ' + sort);
 }
-const utkastFil = (sort, id) => path.join(UTKAST, `${sort}--${id}.json`);
+/* Lärarmätningens utkast och vridning ligger i källans egen mapp, inte i dev/golden/. */
+const utkastFil = (sort, id) => { const lv = sort === 'video' && !(kallor().videor || {})[id] && larareKalla(id); return lv ? path.join(ROT, lv.mapp, 'utkast.json') : path.join(UTKAST, `${sort}--${id}.json`); };
+const vyFil = (sort, id) => { const lv = sort === 'video' && !(kallor().videor || {})[id] && larareKalla(id); return lv ? path.join(ROT, lv.mapp, 'vy.json') : VYFIL; };
 const lasJson = (f, annars) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return annars; } };
 function skrivAtomiskt(fil, text) { fs.mkdirSync(path.dirname(fil), { recursive: true }); fs.writeFileSync(fil + '.tmp', text); fs.renameSync(fil + '.tmp', fil); }
 function hamtaUtkast(sort, id) {
   kallaOk(sort, id);
-  return { utkast: lasJson(utkastFil(sort, id), null), vy: (lasJson(VYFIL, {})[`${sort}:${id}`] || 0) };
+  return { utkast: lasJson(utkastFil(sort, id), null), vy: (lasJson(vyFil(sort, id), {})[`${sort}:${id}`] || 0) };
 }
 function sparaUtkast({ sort, id, utkast, vy }) {
   kallaOk(sort, id);
@@ -154,9 +185,9 @@ function sparaUtkast({ sort, id, utkast, vy }) {
     skrivAtomiskt(utkastFil(sort, id), JSON.stringify(utkast) + '\n');
   }
   if (vy !== undefined) {
-    const alla = lasJson(VYFIL, {}), n = ((Number(vy) % 4) + 4) % 4;
+    const f = vyFil(sort, id), alla = lasJson(f, {}), n = ((Number(vy) % 4) + 4) % 4;
     if (n) alla[`${sort}:${id}`] = n; else delete alla[`${sort}:${id}`];
-    skrivAtomiskt(VYFIL, JSON.stringify(alla, null, 2) + '\n');
+    if (n || f === VYFIL || fs.existsSync(f)) skrivAtomiskt(f, JSON.stringify(alla, null, 2) + '\n');
   }
   return true;
 }
@@ -176,9 +207,9 @@ function dela({ sort, id }) {
   if (git(['rev-parse', '--abbrev-ref', 'HEAD']) !== 'main') throw new Error('arbetsträdet står inte på main');
   const filer = [];
   if (sort === 'foto') filer.push(`dev/golden/fall/${id}/facit.json`);
-  else { const v = kallor().videor[id]; if (finns(`${v.mapp}/lagen.json`)) filer.push(`${v.mapp}/lagen.json`); }
+  else { const v = videoKalla(id); if (finns(`${v.mapp}/lagen.json`)) filer.push(`${v.mapp}/lagen.json`); }
   if (fs.existsSync(utkastFil(sort, id))) filer.push(path.relative(ROT, utkastFil(sort, id)));
-  if (`${sort}:${id}` in lasJson(VYFIL, {})) filer.push(path.relative(ROT, VYFIL));   // vridningen bara när källan har en
+  if (`${sort}:${id}` in lasJson(vyFil(sort, id), {})) filer.push(path.relative(ROT, vyFil(sort, id)));   // vridningen bara när källan har en
   const andrade = filer.filter(f => git(['status', '--porcelain', '--', f]) !== '');
   const utkastBort = git(['ls-files', '--deleted', '--', path.relative(ROT, utkastFil(sort, id))]);
   if (utkastBort) andrade.push(utkastBort);
@@ -231,6 +262,12 @@ http.createServer((req, res) => {
       const video = videoFor(kid);
       if (!video || !Number.isFinite(t) || !/^[0-9A-Za-z._-]+$/.test(kid)) return json(res, 400, { fel: 'okänd källa eller tid' });
       if (!finns(video)) return json(res, 404, { fel: `videon ${video} finns inte på den här datorn (dev/material är gitignorerad — symlänka den)` });
+      const lv = !(kallor().videor || {})[kid] && larareKalla(kid);
+      if (lv && lv.rutor && finns(larareRuta(lv, t))) {   // lärarens egen ruta: exakt den bild facit gäller
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=86400' });
+        fs.createReadStream(path.join(ROT, larareRuta(lv, t))).pipe(res);
+        return;
+      }
       const ut = path.join(CACHE, kid, t.toFixed(2) + '.jpg');
       taRuta(path.join(ROT, video), t, ut).then(f => {
         res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'max-age=86400' });
