@@ -147,6 +147,9 @@ def rakna_om(lagen_fil):
     return json.loads(r.stdout)
 
 
+FACIT_NAMN = 'facit.json'   # --facit facit-fore-G.json jämför med lärarens facit före regel G
+
+
 def las_kallor(matning=None):
     """Lärargruppen ur rita-kallor.json. matning: en annan mapp än källans
     (självtestet) — då läses <matning>/<film>/lagen.json."""
@@ -155,7 +158,7 @@ def las_kallor(matning=None):
     for film, v in (k.get('larare') or {}).items():
         mapp = os.path.join(matning, film) if matning else os.path.join(ROT, v['mapp'])
         ut.append({'film': film, 'tider': [float(t) for t in v['tider']], 'lagen': os.path.join(mapp, 'lagen.json'),
-                   'facit': os.path.join(ROT, v['facit']), 'varfor': v.get('varfor', [])})
+                   'facit': os.path.join(os.path.dirname(os.path.join(ROT, v['facit'])), FACIT_NAMN), 'varfor': v.get('varfor', [])})
     return ut
 
 
@@ -366,7 +369,9 @@ if __name__ == '__main__':
     ap.add_argument('--json', help='skriv domarna per kort och låda hit')
     ap.add_argument('--matning', help=argparse.SUPPRESS)   # en annan mapp än källans (självtestet)
     ap.add_argument('--sjalvtest', action='store_true')
+    ap.add_argument('--facit', default='facit.json', help='lärarens facitfil i filmens mapp, t.ex. facit-fore-G.json (före regel G)')
     a = ap.parse_args()
+    FACIT_NAMN = a.facit
     if a.sjalvtest: sys.exit(sjalvtest())
     rutor, saknas = mat(a.matning, a.bara_ritade)
     if not rutor: sys.exit('inget ritat och klart än')

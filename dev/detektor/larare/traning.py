@@ -353,6 +353,12 @@ def ar_baksida(brun, bla, en, kant, topp=None, mattnad=None):
 INNE_B = 0.6
 OMLOTT_C = 0.15
 MIN_C = 3
+# G: två säkra lådor som överlappar mycket (skärningen ≥ OMLOTT_G av den mindre
+# lådan) är en liten hög där läraren ritat två lådor över tre kort, eller en
+# låda mellan korten — båda blir ignorerade ytor (Jespers fynd 2026-09-29:
+# tre Plains i en hög blev lådorna 14 och 17, det mittersta kortet utan låda).
+# Lätt omlott (under OMLOTT_G) är kvar som facit.
+OMLOTT_G = 0.33
 
 
 def skarning(a, b):
@@ -476,6 +482,9 @@ def facit_ruta(b, ky, bgr=None, bord=None, osaker=True):
             # omslutande rektangel, som drog in fristående kort bredvid högen)
             ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='C', grupp=gi, vad=f'en av {len(med)} lådor omlott (tät kolumn/hög)')
                     for d in med]
+        elif len(med) == 2 and skarning(*med) >= OMLOTT_G * min(yta(med[0]), yta(med[1])):
+            ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='G', grupp=gi, vad='en av två lådor med stor överlapp (liten hög)')
+                    for d in med]
         else:
             facit += med
     ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='D', vad='del av ett kort (< 0,4 × kortet)') for d in sma]
@@ -519,7 +528,8 @@ def facit():
         ut = dict(installning=dict(troskel=TROSKEL, nms=NMS_IOU, storlek=STORLEK, inneslutning=0.8, fragor=FRAGOR, in_bredd=IN_BREDD,
                                    ignorera=dict(A='> 1,6 × kortet', B=f'innehåller ≥ 2 lådor av kortstorlek (≥ {INNE_B} inne)',
                                                  C=f'≥ {MIN_C} lådor omlott (skärning ≥ {OMLOTT_C} av den mindre), var och en',
-                                                 D='< 0,4 × kortet', E='lådans mitt utanför bordet (bord.png)',
+                                                 D='< 0,4 × kortet',
+                                                 G=f'två lådor omlott med skärning ≥ {OMLOTT_G} av den mindre, båda', E='lådans mitt utanför bordet (bord.png)',
                                                  F=f'osäker låda: poäng {OSAKER_LAG}–{TROSKEL}, {F_STORLEK[0]}–{F_STORLEK[1]} × kortet, sidkvot ≤ {F_KVOT}, '
                                                    f'på bordet, inte samma kort som en säker låda, under {F_HUD:.0%} hudfärg'),
                                    baksida=dict(brun_h=BRUN_H, bla_h=BLA_H, brun_min=BAK_BRUN, bla_min=BAK_BLA,

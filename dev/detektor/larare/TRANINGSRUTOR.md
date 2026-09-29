@@ -324,3 +324,33 @@ och färgmåtten) och `ignorera` (låda, regel A–E).
 Klart 2026-09-29 22:06: alla 638 rutor har lärarlådor, `facit.json` och
 arket är gjorda på hela körningen. Kontaktarket har åtta handvalda rutor per
 film (`HANDVALDA` i `traning.py`) och två bakgrunder per film.
+
+## 9. Regel G: två lådor med stor överlapp (2026-09-29)
+
+**Fyndet (Jesper):** tre Plains i en liten hög blev två säkra lådor (14: 0,36 och
+17: 0,34). Ingen av dem passade ett enskilt kort, och det mittersta kortet fick
+ingen låda. Regel C tar bara grupper om tre eller fler lådor, så paret blev facit.
+Det lär eleven att en hög på tre kort är två kort med fel kanter.
+
+**Regeln:** två säkra lådor som överlappar med minst `OMLOTT_G` = 0,33 av den
+mindre lådan blir båda ignorerade ytor (`regel: 'G'`). Lätt omlott, under en
+tredjedel, är kvar som facit. Baksidor mäts före, som för C.
+
+**Siffrorna (facit ombyggt ur de sparade lådorna, ingen ny OWLv2-körning):**
+
+| Film | Facit-lådor före | efter G | G-par | Överlapp i paren, median |
+|---|---|---|---|---|
+| trä, dagsljus + lampa | 2 709 | 1 843 | 433 | 0,58 |
+| svart matta | 2 967 | 2 145 | 411 | 0,66 |
+| vitt bord | 1 907 | 1 389 | 259 | 0,56 |
+
+G tar bort ungefär 30 % av facit-lådorna. På sex slumpade rutor med G-par var
+paren små högar (2–3 kort, landhögar, en hög under en hand, equipment under en
+varelse); i ett par fall var den ena lådan rätt för sitt kort men följer med
+ändå. Bedömt med ögat på sex rutor, inte mätt.
+
+**Före/efter mäts med Jespers ritning:** lärarens facit före G ligger kvar som
+`facit-fore-G.json` i varje films mapp, och
+`matt_larare.py --facit facit-fore-G.json` mäter mot den. Huvudsiffrorna att
+jämföra: synliga kort som läraren missar (varken eget eller okänt) och falska
+eller sammanslagna facit-lådor.
