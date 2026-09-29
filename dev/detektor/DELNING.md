@@ -13,7 +13,7 @@ minns, inte hur väl den ser.
 | Dom | Betyder | Mappar |
 |---|---|---|
 | **prov** | får aldrig tränas på | scanbordet 2026-09-08 (golden 01, 02, 08), originalen till fall 07, 09, 10, 11, provkort pass 2 (fall 12), MES-246 (fall 13 + ritade lägen), passet 2026-09-22 (spegelfacit), foton 2026-09-20 (fall 14–16), lekfotot 2026-09-26, `hogbank/`, `rita/`, alla `dev/golden/fall/*` |
-| **traning** | får tränas på | partiet 2026-09-21 (hela, 20 min), provkort pass 1 (mörkt), MES-138 och MES-139 (library), provkort-pacifism, och varje mapp som heter `<datum>-traning-…` |
+| **traning** | får tränas på | partiet 2026-09-21 (hela, 20 min), provkort pass 1 (mörkt), MES-138 och MES-139 (library), provkort-pacifism, grind 1:s rutor och grind 1b:s syntetiska bord (`arbete/2026-09-29-mes-288-synt`, byggda bara ur träningsmappar), och varje mapp som heter `<datum>-traning-…` |
 | **oanvandbart** | inga kort på ett bord | designytan 2026-09-09, lekbyggaren MES-183 (skärminspelningar av appen) |
 
 **En mapp som inte står i listan räknas som prov.** En ny inspelning är
