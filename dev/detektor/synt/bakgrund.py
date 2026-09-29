@@ -20,10 +20,11 @@ eller etiketter. Varje utsnitt prövas dessutom automatiskt: färgmättade
 bildpunkter (Mesas gröna, gula, blå ramar) stoppar det.
 
     python dev/detektor/synt/bakgrund.py                       # utsnitten nedan → bakgrund/
-    python dev/detektor/synt/bakgrund.py --video <sökväg> [--till 8] [--steg 2]
+    python dev/detektor/synt/bakgrund.py --video <sökväg> [--till 8] [--steg 2] [--fran 0]
           # en NY inspelning som börjar med tomt bord (kameraappen rakt av):
-          # rutor ur de första --till sekunderna, var --steg s, hela bilden
-          # som bakgrund. Stoppar om videon inte är träning.
+          # rutor mellan --fran och --till s, var --steg s, hela bilden
+          # som bakgrund. Varje ruta jämförs med den första (--fran), som ska
+          # vara ett tomt bord enligt ögat. Stoppar om videon inte är träning.
     python dev/detektor/synt/bakgrund.py --test                # spärren: provmappar ska stoppas
 
 Utdata (gitignorerat): dev/material/arbete/2026-09-29-mes-288-synt/bakgrund/
@@ -149,7 +150,7 @@ def fran_kandidater():
     spara_index(ix)
 
 
-def fran_video(video, till=8.0, steg=2.0):
+def fran_video(video, till=8.0, steg=2.0, fran=0.0):
     """En ny inspelning som börjar med tomt bord: rutor ur de första sekunderna."""
     prova_kalla(video)
     os.makedirs(UT, exist_ok=True)
@@ -157,7 +158,7 @@ def fran_video(video, till=8.0, steg=2.0):
     tillfalle = os.path.basename(os.path.dirname(os.path.abspath(video)))
     kap = cv2.VideoCapture(video)
     fps = kap.get(cv2.CAP_PROP_FPS) or 30
-    n, nasta, tagna = 0, 0.0, 0
+    n, nasta, tagna, forst = 0, fran, 0, None
     while True:
         ok, bild = kap.read()   # läser i ordning; ingen sökning (fungerar inte i alla inspelningar)
         if not ok:
@@ -172,20 +173,36 @@ def fran_video(video, till=8.0, steg=2.0):
         H, W = bild.shape[:2]
         if W > 1920:
             bild = cv2.resize(bild, (1920, round(H * 1920 / W)), interpolation=cv2.INTER_AREA)
-        # ett tomt bord har få starka kanter; kort, händer och ramar ger många
-        kanter = float(np.mean(cv2.Canny(cv2.cvtColor(bild, cv2.COLOR_BGR2GRAY), 60, 160) > 0))
+        # Kort, händer och ramar ger kanter och färgmättade punkter. Kameraappens
+        # filmer har ingen ritning, men själva bordet kan vara färgmättat (orange
+        # trä) och omgivningen full av kanter (leksaker runt det vita bordet), så
+        # varje ruta jämförs med filmens första: den ska se likadan ut. Att den
+        # första rutan är ett tomt bord ska ses med ögat (--till väljs efter det).
+        gra = cv2.cvtColor(bild, cv2.COLOR_BGR2GRAY)
+        kanter = float(np.mean(cv2.Canny(gra, 60, 160) > 0))
         m = mattnad(bild)
+        liten = cv2.resize(gra, (96, 54), interpolation=cv2.INTER_AREA).astype(np.float32)
+        if forst is None:
+            forst = (kanter, m, liten)
+        # Ljusnivån glider (exponeringen) och stativet darrar en bildpunkt, så att
+        # starka kanter (mattans kant, bordskanten) syns som tunna linjer i
+        # skillnaden. Dra bort medelnivån och öppna skillnadsmasken (3 × 3): tunna
+        # linjer försvinner, en hand eller ett kort blir kvar som en fläck.
+        d = np.abs((liten - liten.mean()) - (forst[2] - forst[2].mean()))
+        flack = cv2.morphologyEx((d > 20).astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        skillnad = float(flack.mean())
         namn = f'{tillfalle}-{t:05.1f}.jpg'
         post = {'fil': namn, 'typ': 'video', 'kalla': os.path.relpath(os.path.abspath(video), ROT), 'sekund': round(t, 2),
                 'storlek': [bild.shape[1], bild.shape[0]], 'vad': f'tomt bord ur {tillfalle}', 'dom': klassa(video)[0],
-                'kanter': round(kanter, 4), 'mattnad': round(m, 5)}
-        if kanter > 0.02 or m > 0.01:
-            print(f'{namn}: hoppar över — kanter {kanter:.3f}, mättnad {m:.4f} (kort, hand eller ritning i bild?)')
+                'kanter': round(kanter, 4), 'mattnad': round(m, 5), 'andel_andrad_mot_forsta': round(skillnad, 4)}
+        if kanter - forst[0] > 0.004 or m - forst[1] > 0.03 or skillnad > 0.002:
+            print(f'{namn}: hoppar över — mot första rutan: kanter {kanter - forst[0]:+.4f}, mättnad {m - forst[1]:+.4f}, '
+                  f'{skillnad:.2%} av bilden ändrad (kort eller hand i bild?)')
             continue
         cv2.imwrite(os.path.join(UT, namn), bild, [cv2.IMWRITE_JPEG_QUALITY, 95])
         ix['bakgrunder'] = [b for b in ix['bakgrunder'] if b['fil'] != namn] + [post]
         tagna += 1
-        print(f'{namn}: {bild.shape[1]}×{bild.shape[0]}, kanter {kanter:.3f}')
+        print(f'{namn}: {bild.shape[1]}×{bild.shape[0]}, kanter {kanter:.3f}, {skillnad:.2%} ändrad mot första')
     spara_index(ix)
     print(f'{tagna} bakgrunder ur {video}')
 
@@ -228,6 +245,7 @@ if __name__ == '__main__':
         v = a[a.index('--video') + 1]
         till = float(a[a.index('--till') + 1]) if '--till' in a else 8.0
         steg = float(a[a.index('--steg') + 1]) if '--steg' in a else 2.0
-        fran_video(v, till, steg)
+        fran = float(a[a.index('--fran') + 1]) if '--fran' in a else 0.0
+        fran_video(v, till, steg, fran)
     else:
         fran_kandidater()

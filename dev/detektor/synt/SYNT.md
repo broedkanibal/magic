@@ -191,10 +191,25 @@ python dev/detektor/synt/bakgrund.py --video dev/material/inspelningar/<datum>-t
 
 Den stoppar om filmen inte är träning, läser de första 8 sekunderna i
 ordning (ingen sökning), tar en ruta var 2 s i full upplösning (högst 1920 px)
-och hoppar över rutor med många kanter eller färgmättade punkter (kort, hand
-eller ritning i bild). Rutorna blir hela bakgrunder och generatorn tar dem
-med från nästa körning. **Realismen ska bedömas om då** — i dag bygger de
-riktiga bakgrunderna på fyra ytor ur skärminspelningar.
+och hoppar över rutor som skiljer sig från den första (`--fran`, standard 0 s):
+fler kanter, mer färgmättnad, eller en fläck som ändrats (medelnivån
+bortdragen, skillnadsmasken öppnad 3 × 3 så att stativets darrning längs
+starka kanter inte räknas). Att den första rutan är ett tomt bord ska ses med
+ögat, och `--till` väljs efter när handen kommer in. Rutorna blir hela
+bakgrunder och generatorn tar dem med från nästa körning.
+
+**Gjort 2026-09-29 (MES-288)** — de gamla absoluta gränserna (kanter > 2 %,
+mättnad > 1 %) släppte inte igenom en enda ruta: det orange träbordet är
+färgmättat i sig, och det vita bordets omgivning (leksaker, böcker) är full av
+kanter. 19 bakgrunder, alla sedda med ögat (tomma):
+
+| Film | Kommando | Bakgrunder |
+|---|---|---|
+| trä, dagsljus + lampa | `--till 12 --steg 2` (handen kommer vid 13 s) | 7 (0–12 s) |
+| svart matta, dagsljus | `--till 12 --steg 2` (handen vid 13 s; 2 s föll på en ljusglidning) | 6 |
+| vitt bord, dagsljus | `--fran 2 --till 11 --steg 2`, plus 0 s ur första körningen (något i omgivningen flyttade sig mellan 0 och 2 s) | 6 |
+
+Inom en film är bakgrunderna nästan identiska — det är tre ytor, inte 19.
 
 ## Vad som ser konstigt ut eller saknas
 
