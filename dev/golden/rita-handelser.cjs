@@ -292,6 +292,23 @@ function passBord(rader, t) {
    underlag(kalla, filer): kalla ur rita-kallor.json, filer = texterna
    { handelser } eller { steg, manus } och leknamn. */
 function underlag(kalla, filer, leknamn) {
+  /* Lärarmätningen (MES-288): fasta tider, inget händelsefacit. Varje läge
+     är en egen bild med exakt en tid (fran = till = t), och det finns
+     inget väntat bord att jämföra med — kandidater är tom, så jamfor säger
+     alltid ok. */
+  if (filer.tider != null) {
+    const tider = filer.tider.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+    const varfor = (kalla && kalla.varfor) || [];
+    const i0 = t => (kalla && kalla.tider ? kalla.tider.map(Number).indexOf(t) : -1);
+    return {
+      sort: 'larare', tider,
+      forslag: tider.map((t, i) => ({ t, fran: t, till: t, etikett: `ruta ${i + 1} av ${tider.length}: ${t} s in i filmen${varfor[i0(t)] ? ' — ' + varfor[i0(t)] : ''}` })),
+      mellan: () => [],
+      bord: () => null,
+      harnast: () => [],
+      vantat: () => ({ kandidater: [] }),
+    };
+  }
   if (filer.handelser != null) {
     const rader = lasTsv(filer.handelser);
     return {

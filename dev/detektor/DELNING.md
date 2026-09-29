@@ -26,6 +26,17 @@ Namnet på tillfället är nyckeln, inte platsen: samma namn används i
 `dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/` är prov av samma
 skäl som videon.
 
+**Lärarmätningen är träning, inte prov och inte golden.** Jespers ritade kort
+på tolv av lärarens rutor ur träningsfilmerna (`dev/detektor/larare/MATNING.md`)
+ligger i `dev/detektor/larare/matning/<film>/lagen.json`. De mäter hur ofta
+*läraren* (OWLv2) missar kort i träningsmaterialet — inte hur bra eleven är.
+Ett prov för eleven får aldrig göras på de här rutorna, eftersom eleven tränas
+på samma filmer. Mapparna står i listan som `traning` med det skälet, och
+ritverktyget visar gruppen som *Lärarmätning — träningsfilm, inte prov*.
+(Skulle ritverktyget någon gång ta en ruta ur själva filmen i stället för
+lärarens egen bild hamnar den i `dev/material/rita/<film>/`, som är prov —
+åt det säkra hållet.)
+
 ## Spärren: `delning.py`
 
 Varje skript som väljer rutor, etiketterar eller tränar ska gå genom den:

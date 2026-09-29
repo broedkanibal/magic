@@ -924,6 +924,7 @@ Korttyperna ligger i `rita-typer.json`, hämtade en gång från Scryfall
 |---|---|---|
 | golden-foto | `fall/<id>/facit.json` | samma fil som i dag. Varje kort får `id`, `horn` (fyra punkter i andelar av bilden, medsols från namnradens början), `z` och fälten ovan. Tokens, baksidor och avskurna står i `rita.ovriga` — kor.html räknar bara `kort` |
 | video | `inspelningar/<källa>/lagen.json` | ett läge per händelse: tiden, händelserna sedan förra ritade läget, och korten med samma `id` genom hela filmen |
+| lärarmätning (MES-288) | `dev/detektor/larare/matning/<film>/lagen.json` | **träningsmaterial, inte golden**: fyra fasta rutor per träningsfilm (`larare` i `rita-kallor.json`), varje ruta för sig, namn behövs inte. Utkast och vridning ligger i samma mapp. `rita-kontroll.cjs` läser dem inte; `dev/detektor/larare/matt_larare.py` mäter dem. Se `dev/detektor/larare/MATNING.md` |
 
 Fotona ritas på **originalen** där de finns: 14–16 i 5712 × 4284 ur
 `dev/material/foton/`, 13 på 4K-rutan vid 171,8 s ur MES-246. Andelarna

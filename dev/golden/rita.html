@@ -140,6 +140,13 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
       <li>Rita ett kort: klicka kortets <i>övre vänstra</i> hörn, sedan <i>övre högra</i>, längs namnraden.</li>
       <li>Allt sparas medan du ritar. <b>Skicka till GitHub</b> när du slutar för dagen.</li>
     </ol>
+    <ol id="sagor-larare" hidden>
+      <li><b>Lärarmätning — träningsfilm, inte prov.</b> Varje läge är en egen ruta ur filmen; det finns inget facit att följa, din ritning <i>är</i> facit.</li>
+      <li>Rita <b>alla kort</b> du ser, också de som ligger under andra kort — understa först. Två klick längs namnraden, som vanligt. <kbd>L</kbd> låser storleken när du ritat ett par kort.</li>
+      <li><b>Namn behövs inte.</b> Rutan för namnet öppnas inte; rita bara nästa kort.</li>
+      <li><b>Baksidan upp</b> (leken, ett kort i ficka, Magic-baksidan): rita kortet och tryck <kbd>B</kbd>.</li>
+      <li>Ett nytt läge börjar tomt. <kbd>D</kbd> när rutan är klar, <kbd>[</kbd> <kbd>]</kbd> byter ruta. <b>Skicka till GitHub</b> när du är klar.</li>
+    </ol>
     <div class="dim">Felklick: <kbd>Esc</kbd> · ångra: <kbd>⌘Z</kbd> · allt annat: <kbd>?</kbd></div>
   </div>
   <div id="kallinfo" class="dim"></div>
@@ -155,7 +162,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <div id="lagen"></div>
     <div class="dim lagesforklaring"><span class="nu">1</span> här är du · <span class="ritad">1</span> påbörjat · <span class="klar">1</span> klart · <span class="avv">1</span> fel kort mot facit</div>
     <div id="gor" class="ruta"></div>
-    <div class="rad tidsrad">
+    <div class="rad tidsrad" id="tidsrad">
       <span class="dim">Skymmer handen kortet?</span>
       <button type="button" id="b-bak" title="Visa bilden 0,5 s tidigare, inom läget (⌥ 0,1 s)">−0,5 s<kbd>⇧←</kbd></button>
       <button type="button" id="b-fram" title="Visa bilden 0,5 s senare, inom läget (⌥ 0,1 s)">+0,5 s<kbd>⇧→</kbd></button>
@@ -319,6 +326,10 @@ const andel = ([sx, sy]) => { const [px, py] = franVy((sx - V.ox) / V.s, (sy - V
 function pek(e) { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; }
 
 /* ── Kort i den aktuella bilden ───────────────────────────────────────── */
+/* Lärarmätningen (MES-288): en video med fasta, fristående lägen och utan
+   händelsefacit. Lägena ärver inte varandras kort, och namn behövs inte. */
+const arLarare = () => !!(S.kalla && S.kalla.larare);
+const larareInfo = () => arLarare() ? '<div class="varn" style="margin-top:4px"><b>Lärarmätning — träningsfilm, inte prov.</b> Sparas i ' + esc(S.kalla.mapp) + '/lagen.json, aldrig i golden.</div>' : '';
 function lageNu() { return S.kalla && S.kalla.sort === 'video' ? (S.dok.lagen[S.nr] || S.temp) : null; }
 function kortNu() {
   if (!S.dok) return [];
@@ -431,6 +442,7 @@ function ritadeNr() { return Object.keys(S.dok.lagen).map(Number).sort((a, b) =>
    rita-kontroll.cjs och lagen.json. foreITid(a, b): a ligger före b. */
 const foreITid = (a, b) => a.t < b.t || (a.t === b.t && a.nr < b.nr);
 function forraRitade(l) {
+  if (arLarare()) return null;   // rutorna är olika bilder, inte en följd
   let bast = null;
   for (const x of Object.values(S.dok.lagen)) if (x !== l && x.nr !== l.nr && foreITid(x, l) && (!bast || foreITid(bast, x))) bast = x;
   return bast;
@@ -582,7 +594,7 @@ function skapa(p1) {
     if (namn) { sammaKortId(ny); id = ny.id; }
     if (namn) fastUrFacit();
   });
-  if (!namn) { el('namn').focus(); el('namn').select(); }
+  if (!namn && !arLarare()) { el('namn').focus(); el('namn').select(); }
 }
 cv.addEventListener('pointerdown', e => {
   if (!S.bild) return;
@@ -1026,7 +1038,9 @@ function visaCheck() {
   const video = S.kalla.sort === 'video';
   el('check').hidden = el('checkrubrik').hidden = video;   // i video står det under Gör nu
   el('b-spara').hidden = el('b-spara2').hidden = el('sparaFoto').hidden = el('sagor-foto').hidden = video;
-  el('sparaVideo').hidden = el('sagor-video').hidden = !video;
+  el('sparaVideo').hidden = !video;
+  el('sagor-video').hidden = !video || arLarare();
+  el('sagor-larare').hidden = !arLarare();
   if (video) return;
   let vantat = {}, rubrik = 'Facit', not = '';
   if (S.kalla.sort === 'foto') { for (const n of S.checklista) vantat[n] = (vantat[n] || 0) + 1; not = S.checklista.length ? '' : 'facit har inga namn'; }
@@ -1199,6 +1213,20 @@ function uppgifter(l, dom) {
 function visaGor(l, dom, h, forra, utanfor, arKlar) {
   const nasta = S.nr < S.u.forslag.length ? S.nr + 1 : null, knappar = [];
   const knapp = (text, gor, klass = '') => { knappar.push(gor); return `<button type="button" class="${klass}" data-g="${knappar.length - 1}">${text}</button>`; };
+  if (arLarare()) {   // lärarmätningen: inget facit att följa — bara vad som är ritat och Klart
+    const r = S.raknat, bak = k => k.zon === 'bib' || G.arBaksida(k.namn) || G.arLibrary(k.namn);
+    const syn = k => (r[k.id] ? r[k.id].synlig : 1);
+    const n = l.kort.length, nb = l.kort.filter(bak).length, helt = l.kort.filter(k => syn(k) >= 0.9).length, under = l.kort.filter(k => syn(k) < 0.9).length;
+    let html = `<div class="vad"><div class="del">${esc(S.u.forslag[S.nr - 1].etikett)}</div>`
+      + `<div class="dim">Rita alla kort i bilden, också de som ligger under andra. Namn behövs inte; baksidan upp: <kbd>B</kbd>.</div>`
+      + `<div style="margin-top:4px">${n ? `<b>${n}</b> kort ritade: ${helt} syns helt, ${under} delvis under ett annat eller i kanten${nb ? `, ${nb} med baksidan upp` : ''}.` : '<span class="dim">inga kort ritade än</span>'}</div></div>`;
+    html += arKlar
+      ? `<div class="ok">✓ Rutan är klar.</div>` + (nasta ? knapp(`Till ruta ${nasta} ▶`, () => gaTill(nasta), 'primar stor') : '<div class="dim">Det var sista rutan i den här filmen. Skicka till GitHub, och välj nästa film i listan.</div>') + knapp('Inte klar ändå', () => klar(), 'liten')
+      : knapp(nasta ? `Klar — till ruta ${nasta} ▶ <kbd>D</kbd>` : 'Klar <kbd>D</kbd>', () => klarOchVidare(), 'primar stor');
+    el('gor').innerHTML = html;
+    for (const b of el('gor').querySelectorAll('button[data-g]')) b.onclick = () => knappar[+b.dataset.g]();
+    return;
+  }
   let html = `<div class="vad">${vadHande(h, forra, l)}</div>`;
   if (utanfor) {
     html += `<div class="rubrik">Gör nu</div><ol><li>Bilden visar fel tid för det här läget. ${knapp('Flytta tillbaka', () => tillForslaget())}</li></ol>`;
@@ -1265,7 +1293,7 @@ function visaLage() {
   const l = lageNu(), f = S.u.forslag[S.nr - 1];
   const arKlar = !!(S.dok.lagen[S.nr] && S.dok.lagen[S.nr].klar);
   const klara = Object.values(S.dok.lagen).filter(x => x.klar).length, kv = S.kalla;
-  el('kallinfo').innerHTML = `<b>${esc(kv.namn)}</b><div class="dim">${esc(kv.video)}${kv.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · <b>${klara} av ${S.u.forslag.length} lägen klara</b></div>`;
+  el('kallinfo').innerHTML = `<b>${esc(kv.namn)}</b><div class="dim">${esc(kv.video)}${kv.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · <b>${klara} av ${S.u.forslag.length} lägen klara</b></div>` + larareInfo();
   el('lagesrubrik').textContent = `${S.nr} av ${S.u.forslag.length} · ${arKlar ? 'klart' : S.dok.lagen[S.nr] ? 'påbörjat' : 'inte ritat än'}`;
   const [fran, till] = fonster(S.nr), utanfor = l.t < fran - 0.001 || l.t > till + 0.001, flyttad = Math.abs(l.t - f.t) > 0.001;
   el('lagestid').innerHTML = `<b>${esc(f.etikett)}</b><div class="dim">bilden vid ${fmtT(l.t)} s${flyttad ? ` (föreslaget ${fmtT(f.t)})` : ''} · läget gäller ${fmtT(fran)}–${till === Infinity ? 'slutet' : fmtT(till) + ' s'}</div>`
@@ -1284,9 +1312,14 @@ function visaLage() {
   // mot händelsefacit
   const v = S.u.vantat(l.t), dom = Hd.jamfor(l.kort, v, { raknat: S.raknat });
   visaGor(l, dom, h, forra, utanfor, arKlar);
+  el('tidsrad').hidden = arLarare();   // lärarens ruta har exakt en tid
   el('kontrollrubrik').innerHTML = dom.ok ? '<span class="ok">stämmer</span>' : `<span class="felt">${dom.avvikelser.length} avvikelser</span>`;
   el('kontroll').innerHTML = (dom.ok ? '<span class="ok">Antalet kort per namn stämmer' + (S.u.sort === 'handelser' ? ', liksom tappade och fästa' : '') + '.</span>' : dom.avvikelser.map(a => `<div class="felt">${esc(Hd.avvikelseText(a))}</div>`).join(''))
     + (S.u.sort === 'steg' ? `<div class="dim" style="margin-top:4px">${!v.fonster ? '' : v.fonster[1] < 1 ? 'före första manusraden' : v.fonster[0] === v.fonster[1] ? `efter manusrad ${v.fonster[0]}` : `efter någon av manusraderna ${Math.max(1, v.fonster[0])}–${v.fonster[1]}`}${dom.rad ? ` · stämmer bäst med rad ${dom.rad}: ${esc(dom.text || '')}` : ''}</div>` : '');
+  if (arLarare()) {
+    el('kontrollrubrik').innerHTML = '<span class="dim">inget händelsefacit</span>';
+    el('kontroll').innerHTML = '<span class="dim">Lärarmätning: ritningen jämförs med lärarens lådor efteråt, med dev/detektor/larare/matt_larare.py.</span>';
+  }
   // lägesremsan
   el('lagen').innerHTML = S.u.forslag.map((x, i) => {
     const nr = i + 1, r = S.dok.lagen[nr];
@@ -1308,6 +1341,7 @@ const tomtOklart = l => l && !l.klar && !l.kort.length;
 /* Leken ligger kvar hela spelet: saknar ett läge som inte är klart leken,
    och ett tidigare läge har den, följer den med hit. */
 function lekenFoljerMed(nr, l) {
+  if (arLarare()) return false;
   if (!l || l.klar || l.kort.some(k => k.zon === 'bib')) return false;
   for (const n of ritadeNr().filter(x => x < nr).reverse()) {
     const lek = S.dok.lagen[n].kort.find(k => k.zon === 'bib');
@@ -1322,7 +1356,7 @@ function oppnaLage(nr) {
   if (S.dok.lagen[nr] && lekenFoljerMed(nr, S.dok.lagen[nr])) andrat = true;
   if (andrat) sparaUtkastSnart();
   if (!S.dok.lagen[nr]) {
-    const forra = ritadeNr().filter(n => n < nr).pop();
+    const forra = arLarare() ? null : ritadeNr().filter(n => n < nr).pop();
     const kort = forra != null ? kopia(S.dok.lagen[forra].kort) : [];
     for (const k of kort) if (k.fast != null && !kort.some(o => o.id === k.fast)) delete k.fast;
     const f = S.u.forslag[nr - 1];
@@ -1422,7 +1456,7 @@ async function oppna(varde) {
     el('grundval').hidden = true;
     await hamtaServer('video', id);
     const txt = f => fetch('/' + f, { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(f); return r.text(); });
-    const filer = v.handelser ? { handelser: await txt(v.handelser) } : { steg: await txt(v.steg), manus: await txt(v.manus) };
+    const filer = v.larare ? { tider: v.tider } : v.handelser ? { handelser: await txt(v.handelser) } : { steg: await txt(v.steg), manus: await txt(v.manus) };
     S.u = Hd.underlag(v, filer, S.lek);
     let lagen = null;
     if (v.lagen) lagen = JSON.parse(await txt(v.mapp + '/lagen.json'));
@@ -1436,7 +1470,7 @@ async function oppna(varde) {
     S.filDok = JSON.stringify(S.dok);
     rattaTider(S.dok);
     el('ladaval').hidden = true;
-    el('kallinfo').innerHTML = `<b>${esc(v.namn)}</b><div class="dim">${esc(v.video)}${v.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · ${S.u.forslag.length} föreslagna lägen · ${lagen ? Object.keys(S.dok.lagen).length + ' ritade' : 'inget ritat än'}</div>`;
+    el('kallinfo').innerHTML = `<b>${esc(v.namn)}</b><div class="dim">${esc(v.video)}${v.finns ? '' : ' — <span class="felt">finns inte på den här datorn</span>'} · ${S.u.forslag.length} föreslagna lägen · ${lagen ? Object.keys(S.dok.lagen).length + ' ritade' : 'inget ritat än'}</div>` + larareInfo();
     const forstaOklara = S.u.forslag.findIndex((f, i) => !(S.dok.lagen[i + 1] && S.dok.lagen[i + 1].klar));
     oppnaLage(forstaOklara < 0 ? 1 : forstaOklara + 1);
     erbjudUtkast();
@@ -1459,6 +1493,7 @@ function post(k, r, iKort, medLada) {
 function rundade(kort) { const ut = kort.map(k => Object.assign(redigerbar(k), { horn: G.rundaHorn(k.horn) })); normaliseraZ(ut); return ut.sort((a, b) => a.z - b.z); }
 function hinder(kort) {
   const fel = [];
+  if (arLarare()) return fel;   // lärarmätningen: namn behövs inte, och inga fästa par räknas
   const utan = kort.filter(k => !String(k.namn || '').trim()).length;
   if (utan) fel.push(`${utan} kort utan namn`);
   const okandaUtanfor = kort.filter(k => G.arOkant(k.namn) && k.zon !== 'grav').length;
@@ -1500,9 +1535,14 @@ function byggLagen() {
     allaKort.push(...kort.map(k => Object.assign({ lage: nr }, k)));
     tidigare = {}; for (const k of kort) if (r[k.id].hog) tidigare[k.id] = r[k.id].hog;
     anvanda = [...new Set(anvanda.concat(Object.values(tidigare)))];
+    if (arLarare()) { tidigare = {}; anvanda = []; }   // lärarmätningen: varje ruta räknas för sig, som i raknaLage
     forraT = l.t;
   }
   const v = S.kalla;
+  if (arLarare()) return { f: {
+    _: 'Lärarmätning (MES-288): Jespers ritning av rutor ur en träningsfilm, ritad i dev/golden/rita.html. TRÄNINGSMATERIAL, INTE PROV och inte golden. Ett läge per ruta, med tiden i filmens sekunder (lärarens ruta rutor/<t × 10>.jpg), och korten: hörnen (andelar av bilden, medsols från namnradens början), z (högre = överst) och det framräknade (rita-geometri.cjs; varje ruta för sig). Namn behövs inte; library/baksida = baksidan upp. Mäts med: python3 dev/detektor/larare/matt_larare.py.',
+    kalla: v.id, video: v.video, bredd: S.W, hojd: S.H, grund: S.grund, larare: v.facit, lagen,
+  }, kort: allaKort, nrs };
   return { f: {
     _: 'Facit i stillastående lägen ur en video, ritat i dev/golden/rita.html (MES-286). Ett läge per händelse (eller klump av händelser), med tiden i videons sekunder, händelserna sedan förra ritade läget, och korten: hörnen (andelar av bilden, medsols från namnradens början), z (ordningen, högre = överst) och det framräknade (rita-geometri.cjs). Samma id = samma fysiska kort genom hela filmen. Kontroll: node dev/golden/rita-kontroll.cjs.',
     kalla: v.id, video: v.video, bredd: S.W, hojd: S.H, grund: S.grund,
@@ -1537,7 +1577,7 @@ async function spara(o = {}) {
   try { localStorage.removeItem(utkastNyckel()); } catch (e) {}
   clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null;
   visaSparinfo(); fyllKallor();
-  if (!o.tyst) melding(`sparat: ${svar.fil} — kör node dev/golden/rita-kontroll.cjs`);
+  if (!o.tyst) melding(`sparat: ${svar.fil} — kör ${arLarare() ? 'python3 dev/detektor/larare/matt_larare.py' : 'node dev/golden/rita-kontroll.cjs'}`);
   return true;
 }
 /* Skicka till GitHub: servern committar källans filer (det sparade, utkastet
@@ -1583,7 +1623,8 @@ function fyllKallor() {
   const isort = (a, b) => a.id.localeCompare(b.id, 'sv', { numeric: true });
   k.foton = [...k.foton].sort(isort); k.videor = [...k.videor].sort(isort);
   el('kalla').innerHTML = '<optgroup label="Golden-fall (foton)">' + k.foton.map(f => `<option value="foto:${esc(f.id)}">${f.ritad ? '✓ ' : ''}${esc(f.id)}${f.original ? ' · original' : ''}</option>`).join('') + '</optgroup>'
-    + '<optgroup label="Videor (lägen)">' + k.videor.map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id)}${v.finns ? '' : ' (videon saknas)'}</option>`).join('') + '</optgroup>';
+    + '<optgroup label="Videor (lägen)">' + k.videor.filter(v => !v.larare).map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id)}${v.finns ? '' : ' (videon saknas)'}</option>`).join('') + '</optgroup>'
+    + (k.videor.some(v => v.larare) ? '<optgroup label="Lärarmätning — träningsfilm, inte prov (MES-288)">' + k.videor.filter(v => v.larare).map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id.replace(/^\d{4}-\d\d-\d\d-traning-/, 'lärarmätning · '))}${v.finns ? '' : ' (filmen saknas)'}</option>`).join('') + '</optgroup>' : '');
   if (val) el('kalla').value = val;
 }
 async function start() {

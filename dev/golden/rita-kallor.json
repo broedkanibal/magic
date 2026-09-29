@@ -28,5 +28,38 @@
       "grund": "v",
       "handelser": "dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo/handelser.tsv"
     }
+  },
+  "larare_om": "Lärarmätning (MES-288): rutor ur Jespers tre träningsfilmer där OWLv2 (läraren) har facit. Jesper ritar korten, dev/detektor/larare/matt_larare.py räknar hur ofta läraren missar synliga kort. TRÄNINGSMATERIAL, INTE PROV och inte golden: lägena sparas i dev/detektor/larare/matning/<film>/lagen.json, och rita-kontroll.cjs läser inte gruppen. tider = sekunder i filmen, exakt lärarens rutor: ritverktyget visar rutor/<sekund × 10>.jpg i stället för att ta en ny ruta ur videon. Ett läge ärver inte förra lägets kort — rutorna är olika bilder, inte en följd. Instruktion: dev/detektor/larare/MATNING.md.",
+  "larare": {
+    "2026-09-29-traning-tra-dagsljus-lampa": {
+      "namn": "Lärarmätning — träbord, dagsljus + lampa (träningsfilm, inte prov)",
+      "video": "dev/material/inspelningar/2026-09-29-traning-tra-dagsljus-lampa/telefon.mov",
+      "mapp": "dev/detektor/larare/matning/2026-09-29-traning-tra-dagsljus-lampa",
+      "grund": "v",
+      "rutor": "dev/material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-tra-dagsljus-lampa/rutor",
+      "facit": "dev/material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-tra-dagsljus-lampa/facit.json",
+      "tider": [284, 332, 398, 526],
+      "varfor": ["kort i vinkel och landhögar, ingen hand", "hand i bild (ett finger på ett kort), kort omlott", "ensamma baksidor i gröna fickor, landhögar", "fullt bord (21 lärarlådor) och leken"]
+    },
+    "2026-09-29-traning-svartmatta-dagsljus": {
+      "namn": "Lärarmätning — svart matta, dagsljus (träningsfilm, inte prov)",
+      "video": "dev/material/inspelningar/2026-09-29-traning-svartmatta-dagsljus/telefon.mov",
+      "mapp": "dev/detektor/larare/matning/2026-09-29-traning-svartmatta-dagsljus",
+      "grund": "v",
+      "rutor": "dev/material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-svartmatta-dagsljus/rutor",
+      "facit": "dev/material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-svartmatta-dagsljus/facit.json",
+      "tider": [258, 298, 490, 614],
+      "varfor": ["spridda kort och landhögar", "kort i vinkel och högar", "Magic-baksida utan ficka, spridda kort", "fullt bord, kort i vinkel (fyra A-ytor)"]
+    },
+    "2026-09-29-traning-vittbord-dagsljus": {
+      "namn": "Lärarmätning — vitt bord, dagsljus (träningsfilm, inte prov)",
+      "video": "dev/material/inspelningar/2026-09-29-traning-vittbord-dagsljus/telefon.mov",
+      "mapp": "dev/detektor/larare/matning/2026-09-29-traning-vittbord-dagsljus",
+      "grund": "v",
+      "rutor": "dev/material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-vittbord-dagsljus/rutor",
+      "facit": "dev/material/arbete/2026-09-29-mes-288-traningsrutor/2026-09-29-traning-vittbord-dagsljus/facit.json",
+      "tider": [128, 212, 344, 454],
+      "varfor": ["spridda kort, leksaker och böcker runt bordet", "landhögar och kort omlott", "ensamma baksidor i rosa fickor, högar", "hand i bild över korten"]
+    }
   }
 }
