@@ -8,6 +8,7 @@
     python dev/detektor/larare/traning.py ark                # kontaktarket dev/detektor/larare/traning.html
     python dev/detektor/larare/traning.py lage               # hur långt läraren kommit, per film
     python dev/detektor/larare/traning.py stabilitet         # rörde sig telefonen, och skärpan i lådorna
+    python dev/detektor/larare/traning.py siffror            # de mätta talen i TRANINGSRUTOR.md
 
 Filmerna (kameraappen rakt av, 3840 × 2160, 30 bps, liggande, stativ) ligger i
 dev/material/inspelningar/2026-09-29-traning-*/telefon.mov. Varje video och
@@ -373,6 +374,8 @@ def bordsmask(film):
     mitt = np.median(lab[108:162, 192:288].reshape(-1, 3), axis=0)
     lik = (np.linalg.norm(lab - mitt, axis=2) < BORD_AVST[film]).astype(np.uint8)
     lik = cv2.morphologyEx(lik, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    # öppna: bryter smala broar till mörka saker utanför (surfplattan vid svarta mattan)
+    lik = cv2.morphologyEx(lik, cv2.MORPH_OPEN, np.ones((15, 15), np.uint8))
     n, etik = cv2.connectedComponents(lik)
     mask = (etik == etik[135, 240]).astype(np.uint8)
     # fyll hål (fläckar, ådring, stativets fot inne i bordet): allt utanför
@@ -489,6 +492,42 @@ def facit():
               f'{nl} facit-lådor, {nb} baksida, {ni} ignorera')
 
 
+# ---------- siffrorna till TRANINGSRUTOR.md ----------
+
+def siffror():
+    """Allt som är mätt i rapporten, per film, ur rutor.json, owlv2/ och facit.json."""
+    for film in FILMER:
+        ix = las_index(film)
+        fac = json.load(open(os.path.join(ARB, film, 'facit.json'), encoding='utf-8'))
+        R = fac['rutor']
+        ms = sorted(r['ms'] for r in R.values())
+        nl = [len(r['lador']) for r in R.values()]
+        regler = {}
+        for r in R.values():
+            for x in r['ignorera']:
+                regler[x['regel']] = regler.get(x['regel'], 0) + 1
+        nb = sum(1 for r in R.values() for l in r['lador'] if l.get('baksida'))
+        rb = sum(1 for r in R.values() if any(l.get('baksida') for l in r['lador']))
+        # andel av bilden som ligger i en ignorerad yta (unionen), och andel av lådorna på bordet
+        ytor = []
+        for r in R.values():
+            m = np.zeros((90, 160), np.uint8)
+            for x in r['ignorera']:
+                if x['regel'] == 'E':
+                    continue
+                b = x['lada']
+                m[int(b[1] * 90):int(np.ceil(b[3] * 90)), int(b[0] * 160):int(np.ceil(b[2] * 160))] = 1
+            ytor.append(m.mean())
+        ign_bord = sum(v for k, v in regler.items() if k != 'E')
+        print(f'{film}: provade {len(ix["rutor"])}, behållna {sum(1 for r in ix["rutor"] if r.get("behallen"))}, '
+              f'med lärarlådor {len(R)}; tid median {ms[len(ms) // 2] / 1000:.1f} s, summa {sum(ms) / 3.6e6:.2f} h')
+        print(f'    facit-lådor {sum(nl)} (median {sorted(nl)[len(nl) // 2]}, max {max(nl)} per ruta); baksida {nb} lådor i {rb} rutor')
+        print(f'    ignorerade ytor per regel {dict(sorted(regler.items()))}; på bordet (A–D) {ign_bord} mot {sum(nl)} facit '
+              f'= {ign_bord / max(1, ign_bord + sum(nl)):.0%} av lådorna; ignorerad bildyta (A–D) median {np.median(ytor):.1%}, '
+              f'medel {np.mean(ytor):.1%}; kortets yta {fac["kortyta"]:.4f} av bilden '
+              f'(≈ {np.sqrt(fac["kortyta"] * 3840 * 2160 / 1.4):.0f} × {np.sqrt(fac["kortyta"] * 3840 * 2160 * 1.4):.0f} px i 4K)')
+
+
 # ---------- stativet och skärpan ----------
 
 def stabilitet():
@@ -546,8 +585,17 @@ def stabilitet():
 
 ARK_PER_FILM = 8
 BAKGRUND = os.path.join(MAT, 'arbete', '2026-09-29-mes-288-synt', 'bakgrund')
-# Rutor som valts för hand till arket (film -> fil), utöver de automatiskt valda; fylls i efter att rutorna setts.
-HANDVALDA = {}
+# Rutor valda för hand till arket (film -> filer), efter att översikten setts:
+# spridda över filmen, med händer, högar, omlott, baksidor och fullt bord.
+# Står det färre än ARK_PER_FILM fylls resten på automatiskt.
+HANDVALDA = {
+    '2026-09-29-traning-tra-dagsljus-lampa': [f'rutor/{s}.jpg' for s in
+        ['00600', '01820', '02520', '03100', '03740', '04100', '04500', '05900']],
+    '2026-09-29-traning-svartmatta-dagsljus': [f'rutor/{s}.jpg' for s in
+        ['00720', '01100', '01420', '02040', '03500', '04100', '04800', '06120']],
+    '2026-09-29-traning-vittbord-dagsljus': [f'rutor/{s}.jpg' for s in
+        ['00500', '01240', '01800', '02400', '02760', '03560', '04080', '04660']],
+}
 
 
 def valj_ark(film, fac):
@@ -709,5 +757,7 @@ if __name__ == '__main__':
         ark()
     elif steg == 'stabilitet':
         stabilitet()
+    elif steg == 'siffror':
+        siffror()
     else:
         print(__doc__)
