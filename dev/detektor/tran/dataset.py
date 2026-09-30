@@ -4,9 +4,17 @@
 Två källor, båda träning enligt dev/detektor/delning.json:
 
   riktiga    de 638 rutorna ur Jespers tre träningsfilmer 2026-09-29 med lärarens facit
-             (dev/material/arbete/2026-09-29-mes-288-traningsrutor/<film>/facit.json, regel A–G).
+             (dev/material/arbete/2026-09-29-mes-288-traningsrutor/<film>/facit.json, regel A–H).
              Lådor med baksidesflaggan → klass `baksida`, övriga → `kort`. Varje ignorerad yta
-             (A–G) följer med som ignorerad.
+             (A–H) följer med som ignorerad.
+  ritade     de tolv av rutorna som Jesper ritat i ritverktyget (lärarmätningen,
+             dev/detektor/larare/matning/<film>/lagen.json) får hans ritning som facit i stället
+             för lärarens: lådan runt kortets synliga del, med samma regel som de syntetiska borden
+             (minst halva namnraden syns, eller ≥ 5 % av kortet och ≥ 6 px tjockt; baksida > 20 %).
+             Kort som syns men inte når dit blir ignorerade ytor, liksom kort under en hand
+             (ritverktyget vet inte var händer är: handens område står i matning/hander.json,
+             och ett kort vars låda till mer än 45 % täcks av hud där inne ignoreras). Lärarens
+             ignorerade ytor används inte i de rutorna — det som inte är ritat är bakgrund.
   syntetiska generatorns bord (dev/detektor/synt/generera.py) i de mappar som ges med --synt.
              Lådor = kort med far_lada; ignorerade = kort som har en låda runt det synliga men
              inte far_lada (för lite syns, eller handen täcker mer än 45 %).
@@ -27,8 +35,9 @@ skrivs. Filistan (bara sökvägar) sparas i dev/detektor/tran/filista-<namn>.txt
 Utdata (gitignorerat): dev/material/arbete/2026-09-30-mes-288-traning-detektor-<namn>/
   bilder/<id>.jpg, anteckningar.json (lådor och ignorerade ytor i bildpunkter), dataset-metadata.json
 """
-import json, os, sys, time
+import json, os, subprocess, sys, time
 import cv2
+import numpy as np
 
 HAR = os.path.dirname(os.path.abspath(__file__))
 DET = os.path.dirname(HAR)
@@ -44,10 +53,78 @@ KORT_FILM = {'2026-09-29-traning-tra-dagsljus-lampa': 'tra', '2026-09-29-traning
 KLASSER = ['kort', 'baksida']
 BREDD = 960
 VAL_FILM_ANDEL = 0.10
+MATNING = os.path.join(DET, 'larare', 'matning')
+RAKNA = os.path.join(DET, 'larare', 'rakna_ritning.cjs')
+# samma regel som de syntetiska bordens far_lada (synt/generera.py)
+LADA_NAMNRAD, LADA_SYNLIG, LADA_TJOCK_PX, BAK_SYNLIG, HAND_TACKER = 0.5, 0.05, 6.0, 0.2, 0.45
+
+
+def handmask(bgr, omraden):
+    """Hudfärgade bildpunkter (YCrCb, som larare/traning.py) inne i handens grovt angivna område."""
+    if not omraden:
+        return None
+    bara_omradet = isinstance(omraden, dict) and omraden.get('hud') is False
+    if isinstance(omraden, dict):
+        omraden = omraden['omraden']
+    H, W = bgr.shape[:2]
+    inne = np.zeros((H, W), np.uint8)
+    for o in omraden:
+        cv2.fillPoly(inne, [np.array([[p[0] * W, p[1] * H] for p in o], np.int32)], 1)
+    if bara_omradet:
+        return inne
+    ycc = cv2.cvtColor(bgr, cv2.COLOR_BGR2YCrCb)
+    hud = ((ycc[..., 1] >= 135) & (ycc[..., 1] <= 175) & (ycc[..., 2] >= 85) & (ycc[..., 2] <= 127) & (ycc[..., 0] > 60)).astype(np.uint8)
+    hud = cv2.morphologyEx(hud & inne, cv2.MORPH_CLOSE, np.ones((15, 15), np.uint8))
+    return hud
+
+
+def tackt(mask, b):
+    if mask is None:
+        return 0.0
+    H, W = mask.shape
+    bit = mask[int(b[1] * H):max(int(b[1] * H) + 1, int(b[3] * H)), int(b[0] * W):max(int(b[0] * W) + 1, int(b[2] * W))]
+    return float(bit.mean()) if bit.size else 0.0
+
+
+def ritade():
+    """Jespers ritade rutor: {(film, 'rutor/NNNNN.jpg'): (lådor, ignorerade)} i andelar av bilden."""
+    hander = json.load(open(os.path.join(MATNING, 'hander.json'), encoding='utf-8'))
+    ut = {}
+    for film in FILMER:
+        fil = os.path.join(MATNING, film, 'lagen.json')
+        if not os.path.exists(fil):
+            continue
+        r = json.loads(subprocess.run(['node', RAKNA, fil], capture_output=True, text=True, check=True).stdout)
+        for l in r['lagen']:
+            if not l['klar'] or not l['kort']:
+                continue
+            nyckel = f"rutor/{int(round(float(l['t']) * 10)):05d}.jpg"
+            bgr = cv2.imread(krav_traning(os.path.join(TRN, film, nyckel)), cv2.IMREAD_REDUCED_COLOR_2)
+            hand = handmask(bgr, hander.get(film, {}).get(nyckel))
+            lador, ign = [], []
+            for k in l['kort']:
+                b = k['synlig_lada']
+                if not b or k['synlig'] <= 0:
+                    continue
+                b = [min(1.0, max(0.0, v)) for v in b]
+                tjock = min((b[2] - b[0]) * BREDD, (b[3] - b[1]) * BREDD * r['hojd'] / r['bredd'])
+                if k['baksida']:
+                    far = k['synlig'] > BAK_SYNLIG
+                else:
+                    far = (k['namnrad'] or 0) >= LADA_NAMNRAD or (k['synlig'] >= LADA_SYNLIG and tjock >= LADA_TJOCK_PX)
+                if tackt(hand, b) > HAND_TACKER:
+                    ign.append((b, 'hand'))
+                elif far:
+                    lador.append((b, 'baksida' if k['baksida'] else 'kort'))
+                else:
+                    ign.append((b, 'ritad'))
+            ut[(film, nyckel)] = (lador, ign)
+    return ut
 
 
 def riktiga():
     ut = []
+    rit = ritade()
     for film in FILMER:
         mapp = os.path.join(TRN, film)
         facit = json.load(open(os.path.join(mapp, 'facit.json'), encoding='utf-8'))['rutor']
@@ -60,6 +137,13 @@ def riktiga():
                        'del': 'val' if r['sekund'] > tmax * (1 - VAL_FILM_ANDEL) else 'trn',
                        'lador_n': [(l['lada'], 'baksida' if l.get('baksida') else 'kort') for l in r['lador']],
                        'ign_n': [(x['lada'], x['regel']) for x in r['ignorera']]})
+            if (film, k) in rit:
+                ut[-1]['lador_n'], ut[-1]['ign_n'] = rit[(film, k)]
+                ut[-1]['facit'] = 'ritad'
+    saknas = set(rit) - {(p['film'], os.path.relpath(p['kalla'], os.path.join(TRN, p['film']))) for p in ut}
+    if saknas:
+        raise SystemExit(f'ritade rutor utan träningsruta: {sorted(saknas)}')
+    print(f'{len(rit)} rutor med Jespers ritning som facit')
     return ut
 
 
@@ -132,7 +216,7 @@ def main():
             lador = [[round(b[0], 1), round(b[1], 1), round(b[2], 1), round(b[3], 1), KLASSER.index(c)] for b, c in p['lador_px']]
             ign = [[round(b[0], 1), round(b[1], 1), round(b[2], 1), round(b[3], 1), r] for b, r in p['ign_px']]
         post = {'fil': 'bilder/' + p['id'] + '.jpg', 'bredd': w, 'hojd': h, 'del': p['del'], 'typ': p['typ'], 'lador': lador, 'ignorera': ign}
-        for k in ('film', 'sekund', 'fro', 'scen', 'hand', 'bakgrund'):
+        for k in ('film', 'sekund', 'fro', 'scen', 'hand', 'bakgrund', 'facit'):
             if k in p:
                 post[k] = p[k]
         ant.append(post)

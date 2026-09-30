@@ -1,0 +1,86 @@
+{
+ "_": "Händer i Jespers ritade rutor (MES-288 grind 2). Ritverktyget vet inte var händer är, så ett kort under en hand räknas som synligt. Här står ett grovt område runt handen per ruta (hörn i andelar av bilden, satt med ögat); dataset.py räknar hudfärgade bildpunkter inne i området, och ett kort vars synliga låda till mer än 45 % täcks av dem blir en ignorerad yta i stället för facit. Rutor som inte står här har ingen hand över korten. En post kan vara en lista med områden, eller {\"omraden\": [...], \"hud\": false} när hudfärgen inte går att skilja från bordet (träbordet under lampan): då räknas hela området som hand.",
+ "2026-09-29-traning-tra-dagsljus-lampa": {
+  "rutor/03320.jpg": {
+   "omraden": [
+    [
+     [
+      0.394,
+      0.622
+     ],
+     [
+      0.437,
+      0.6
+     ],
+     [
+      0.44,
+      0.505
+     ],
+     [
+      0.475,
+      0.505
+     ],
+     [
+      0.481,
+      0.622
+     ],
+     [
+      0.538,
+      0.722
+     ],
+     [
+      0.538,
+      1.0
+     ],
+     [
+      0.394,
+      1.0
+     ]
+    ]
+   ],
+   "hud": false
+  }
+ },
+ "2026-09-29-traning-vittbord-dagsljus": {
+  "rutor/04540.jpg": [
+   [
+    [
+     0.494,
+     0.478
+    ],
+    [
+     0.612,
+     0.467
+    ],
+    [
+     0.706,
+     0.578
+    ],
+    [
+     1.0,
+     0.878
+    ],
+    [
+     1.0,
+     1.0
+    ],
+    [
+     0.862,
+     1.0
+    ],
+    [
+     0.65,
+     0.722
+    ],
+    [
+     0.537,
+     0.678
+    ],
+    [
+     0.494,
+     0.578
+    ]
+   ]
+  ]
+ }
+}

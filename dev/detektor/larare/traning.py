@@ -434,7 +434,7 @@ MIN_C = 3
 # låda mellan korten — båda blir ignorerade ytor (Jespers fynd 2026-09-29:
 # tre Plains i en hög blev lådorna 14 och 17, det mittersta kortet utan låda).
 # Lätt omlott (under OMLOTT_G) är kvar som facit.
-OMLOTT_G = 0.33
+OMLOTT_G = 0.5
 
 
 def skarning(a, b):
