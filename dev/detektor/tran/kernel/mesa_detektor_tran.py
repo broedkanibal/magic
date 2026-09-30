@@ -16,7 +16,7 @@ positiva för en riktig låda får vikten 0 i objektförlusten — varken positi
 Ett ankare som tilldelats en riktig låda inne i en ignorerad yta är positivt som vanligt
 (en facit-låda inne i en ignorerad yta är fortfarande facit).
 
-    python mesa_detektor_tran.py                         # på Kaggle: båda modellerna, en per GPU
+    python mesa_detektor_tran.py                         # på Kaggle: körningarna i JOBB, en per GPU
     python mesa_detektor_tran.py --modell yolox_tiny --gpu 0 --timmar 3.0
     python mesa_detektor_tran.py --lokal --data <mapp> --yolox <YOLOX-main> --vikter <mapp> --modell yolox_nano --iter 3
 """
@@ -28,6 +28,13 @@ ARGS = None
 KLASSER = ['kort', 'baksida']
 IGN = 2          # klassnummer för en ignorerad yta i etiketterna
 IN_H, IN_W = 544, 960
+# Körningarna på Kaggle, en per GPU (kerneln tar inga argument). Grind 3, natt 1 (2026-09-30):
+# samma modell och lika många epoker, allt mot halva datat — inlärningskurvan (hjälper mer data?).
+# upprepa_ritade: Jespers ritade rutor (exakt facit, också högarna) visas så många gånger per epok.
+JOBB = [
+    dict(modell='yolox_nano', namn='A-allt', andel=1.0, upprepa_ritade=5, epoker=150, timmar=9.5),
+    dict(modell='yolox_nano', namn='B-halva', andel=0.5, upprepa_ritade=5, epoker=150, timmar=9.5),
+]
 VIKT_URL = 'https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/{}.pth'
 KOD_URL = 'https://github.com/Megvii-BaseDetection/YOLOX.git'
 
@@ -41,7 +48,8 @@ def forbered_kaggle(arb):
     kod = os.path.join(arb, 'YOLOX')
     if not os.path.isdir(kod):
         subprocess.run(['git', 'clone', '--depth', '1', KOD_URL, kod], check=True)
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'loguru', 'tabulate', 'thop', 'onnx', 'onnxruntime', 'onnxscript']   # onnxscript: torch.onnx.export på Kaggle kräver den (version 1 föll på exporten), check=False)
+    # onnxscript: torch.onnx.export på Kaggle kräver den (version 1 föll på exporten)
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'loguru', 'tabulate', 'thop', 'onnx', 'onnxruntime', 'onnxscript'], check=False)
     vik = os.path.join(arb, 'vikter')
     os.makedirs(vik, exist_ok=True)
     for m in ('yolox_tiny', 'yolox_nano'):
@@ -199,12 +207,21 @@ def ladda_coco(model, fil):
 
 
 # ── data ───────────────────────────────────────────────────────────────────
-def gor_dataset(data, del_, cache=True):
+def gor_dataset(data, del_, cache=True, andel=1.0, upprepa_ritade=1, fro=288):
     import cv2
     from yolox.data.datasets import Dataset
 
     ant = json.load(open(os.path.join(data, 'anteckningar.json'), encoding='utf-8'))['bilder']
     ant = [a for a in ant if a['del'] == del_]
+    if andel < 1.0:   # samma slumpade andel av varje sort (riktiga, syntetiska), samma urval varje gång
+        rng = random.Random(fro)
+        ut = []
+        for typ in sorted(set(a['typ'] for a in ant)):
+            del_typ = [a for a in ant if a['typ'] == typ]
+            ut += rng.sample(del_typ, round(len(del_typ) * andel))
+        ant = ut
+    if upprepa_ritade > 1:
+        ant = ant + [a for a in ant if a.get('facit') == 'ritad'] * (upprepa_ritade - 1)
 
     class Bord(Dataset):
         def __init__(self):
@@ -339,14 +356,15 @@ def trana(a):
     if enhet.type == 'cuda':
         torch.cuda.set_device(enhet)
     random.seed(a.fro); np.random.seed(a.fro); torch.manual_seed(a.fro)
-    ut = os.path.join(a.ut, a.modell)
+    ut = os.path.join(a.ut, a.namn or a.modell)
     os.makedirs(ut, exist_ok=True)
     model = bygg_modell(a.modell)
     ladda_coco(model, os.path.join(a.vikter, a.modell + '.pth'))
     model.to(enhet).train()
-    trn = gor_dataset(a.data, 'trn', cache=not a.lokal)
+    trn = gor_dataset(a.data, 'trn', cache=not a.lokal, andel=a.andel, upprepa_ritade=a.upprepa_ritade, fro=a.fro)
     val = gor_dataset(a.data, 'val', cache=False)
-    logg(f'{a.modell}: {len(trn)} träningsbilder, {len(val)} valideringsbilder, enhet {enhet}, batch {a.batch}')
+    nrit = sum(1 for x in trn.ant if x.get('facit') == 'ritad')
+    logg(f'{a.namn or a.modell}: {len(trn)} träningsbilder (andel {a.andel}, varav {nrit} ritade efter ×{a.upprepa_ritade}), {len(val)} valideringsbilder, enhet {enhet}, batch {a.batch}')
     per_epok = math.ceil(len(trn) / a.batch)
     # optimerare som i YOLOX (SGD, nesterov, ingen viktminskning på BN och bias)
     pg0, pg1, pg2 = [], [], []
@@ -432,13 +450,19 @@ def trana(a):
         with open(os.path.join(ut, 'historik.json'), 'w') as f:
             json.dump({'modell': a.modell, 'max_epok': max_epok, 'batch': a.batch, 'sek_totalt': round(time.time() - t0), 'epoker': historik}, f, indent=1)
     torch.save({'model': ema.ema.state_dict(), 'epok': epok, 'modell': a.modell}, os.path.join(ut, 'slut.pth'))
-    exportera(ema.ema, os.path.join(ut, f'{a.modell}_mesa_{IN_W}x{IN_H}.onnx'))
+    try:   # vikterna är sparade; en export som faller görs lokalt (tran/exportera.py)
+        exportera(ema.ema, os.path.join(ut, f'{a.modell}_mesa_{IN_W}x{IN_H}.onnx'))
+    except Exception as e:
+        logg('ONNX-exporten föll (görs lokalt med tran/exportera.py):', repr(e))
     logg(f'{a.modell} klar på {(time.time() - t0) / 3600:.2f} h')
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--modell', default=None)
+    p.add_argument('--namn', default=None, help='utmappens namn (förval: modellens)')
+    p.add_argument('--andel', type=float, default=1.0, help='andel av träningsbilderna (inlärningskurvan)')
+    p.add_argument('--upprepa-ritade', dest='upprepa_ritade', type=int, default=1)
     p.add_argument('--gpu', type=int, default=0)
     p.add_argument('--lokal', action='store_true')
     p.add_argument('--data', default=None)
@@ -466,17 +490,18 @@ def main():
         importera_yolox(kod)
         trana(a)
         return
-    # båda modellerna samtidigt, en per GPU
+    # körningarna i JOBB samtidigt, en per GPU
     import torch
     n = torch.cuda.device_count()
     logg(f'{n} GPU: {[torch.cuda.get_device_name(i) for i in range(n)]}')
-    jobb = [('yolox_tiny', 0), ('yolox_nano', 1 if n > 1 else 0)]
     proc = []
-    for m, g in jobb:
-        cmd = [sys.executable, os.path.abspath(__file__), '--modell', m, '--gpu', str(g), '--data', data, '--ut', a.ut,
-               '--batch', str(a.batch), '--arbetare', str(a.arbetare), '--epoker', str(a.epoker), '--timmar', str(a.timmar)]
-        logf = open(os.path.join(arb, f'logg-{m}.txt'), 'w')
-        proc.append((m, subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT), logf))
+    for i, j in enumerate(JOBB):
+        cmd = [sys.executable, os.path.abspath(__file__), '--modell', j['modell'], '--namn', j['namn'], '--gpu', str(i % max(n, 1)),
+               '--data', data, '--ut', a.ut, '--batch', str(a.batch), '--arbetare', str(a.arbetare),
+               '--epoker', str(j.get('epoker', a.epoker)), '--timmar', str(j.get('timmar', a.timmar)),
+               '--andel', str(j.get('andel', 1.0)), '--upprepa-ritade', str(j.get('upprepa_ritade', 1))]
+        logf = open(os.path.join(arb, f"logg-{j['namn']}.txt"), 'w')
+        proc.append((j['namn'], subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT), logf))
         if n < 2:   # en GPU: en i taget
             proc[-1][1].wait()
     for m, pr, lf in proc:

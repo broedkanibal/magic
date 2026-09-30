@@ -17,8 +17,10 @@ from PIL import Image, ImageDraw
 
 ROT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FALL_MAPP = os.path.join(ROT, 'dev', 'golden', 'fall')
-FALLEN = ['03', '04', '05', '06', '13', '14', '15']
-TROSKELFALL = '03'   # tröskeln väljs här, de sex andra redovisas orört
+# Golden-fallen med ritade hörn och en ren bild. 01, 02 och 07–12 är skärminspelningar med Mesas
+# ramar i bilden och används inte för detektorn (beslut 2026-09-30); 16 räknas när hörnen är ritade.
+FALLEN = ['03', '04', '05', '06', '13', '14', '15', '16']
+TROSKELFALL = '03'   # bara för resultat utan troskel_val (valideringen): där väljs tröskeln på fall 03
 
 def fall_id(prefix):
     for d in sorted(os.listdir(FALL_MAPP)):
@@ -68,8 +70,12 @@ def kortyta(fall):
         d.polygon([(p[0] * W, p[1] * H) for p in k['horn']], fill=255)
     return np.array(im) > 0
 
+def ritat(prefix):
+    f = json.load(open(os.path.join(FALL_MAPP, fall_id(prefix), 'facit.json')))
+    return bool(f.get('kort')) and all(k.get('horn') for k in f['kort'])
+
 def alla_fall():
-    return [las_fall(p) for p in FALLEN]
+    return [las_fall(p) for p in FALLEN if ritat(p)]
 
 # ── högbänken ────────────────────────────────────────────────────────────
 HOGBANK_FACIT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hogbank-facit.json')

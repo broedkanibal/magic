@@ -2,7 +2,7 @@
 """MES-288 grind 2: provet — den tränade detektorn (ONNX) på nollprovets bilder, sparat i samma
 format som dev/detektor/kor.py så att dev/detektor/rapport.py räknar med exakt samma mått.
 
-Bilderna: de sju ritade golden-fallen (bild.jpg) och högbänkens 68 fall, precis som kor.py.
+Bilderna: de ritade golden-fallen (bild.jpg, facit.alla_fall); högbänkens bilder bara med --hogbank.
 Inget av det här har tränats på (dev/detektor/delning.json: allt under dev/golden/fall och
 hogbank är prov) — det kontrolleras nedan: skriptet stoppar om en provbild står i filistan.
 
@@ -42,7 +42,7 @@ def main():
     p.add_argument('--lag', type=float, default=0.02)
     p.add_argument('--tradar', type=int, default=4)
     p.add_argument('--filista', default=None, help='datasetets filista: stoppar om en provbild finns i den')
-    p.add_argument('--bara-fall', action='store_true', help='bara de sju fallen, inte högbänken')
+    p.add_argument('--hogbank', action='store_true', help='också högbänkens bilder (namnläsningens mått, inte detektorns)')
     a = p.parse_args()
     import onnxruntime as ort
     so = ort.SessionOptions()
@@ -53,7 +53,7 @@ def main():
     bilder = {}
     for f in alla_fall():
         bilder[f['bild']] = f['id']
-    if not a.bara_fall:
+    if a.hogbank:
         for h in las_hogbank():
             bilder.setdefault(h['bild'], os.path.basename(os.path.dirname(h['bild'])) if h['bild'].endswith('bild.jpg') else os.path.basename(h['bild']))
     if a.filista:
