@@ -32,8 +32,8 @@ IN_H, IN_W = 544, 960
 # samma modell och lika många epoker, allt mot halva datat — inlärningskurvan (hjälper mer data?).
 # upprepa_ritade: Jespers ritade rutor (exakt facit, också högarna) visas så många gånger per epok.
 JOBB = [
-    dict(modell='yolox_nano', namn='A-allt', andel=1.0, upprepa_ritade=5, epoker=150, timmar=9.5),
-    dict(modell='yolox_nano', namn='B-halva', andel=0.5, upprepa_ritade=5, epoker=150, timmar=9.5),
+    dict(modell='yolox_nano', namn='A-allt', andel=1.0, upprepa_ritade=5, epoker=150, timmar=6.0),
+    dict(modell='yolox_nano', namn='B-halva', andel=0.5, upprepa_ritade=5, epoker=150, timmar=6.0),
 ]
 VIKT_URL = 'https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/{}.pth'
 KOD_URL = 'https://github.com/Megvii-BaseDetection/YOLOX.git'
@@ -389,6 +389,7 @@ def trana(a):
     storlekar = [(480, 864), (512, 896), (544, 960), (576, 1024), (608, 1088)]
     t0 = time.time()
     historik = []
+    tider_epok = []
     iter_tot = 0
     epok = 0
     mosaik = True
@@ -433,9 +434,12 @@ def trana(a):
         tid_epok = time.time() - te
         epok += 1
         post = {'epok': epok, 'sek': round(tid_epok, 1), **{k: round(v / max(summa['n'], 1), 4) for k, v in summa.items() if k != 'n'}}
-        # efter första epoken: anpassa antalet epoker efter tidsbudgeten
-        if epok == 1 and a.timmar and not a.iter:
-            ryms = int(a.timmar * 3600 / max(tid_epok * 1.05, 1))
+        # efter tredje epoken: anpassa antalet epoker efter tidsbudgeten. Epok 1 är ~1,7× långsammare
+        # (uppvärmning), så uppskattningen görs på snittet av epok 2–3 och räknar in tiden som gått.
+        tider_epok.append(tid_epok)
+        if epok == min(3, max_epok) and a.timmar and not a.iter:
+            snitt = sum(tider_epok[1:] or tider_epok) / len(tider_epok[1:] or tider_epok)
+            ryms = epok + int((a.timmar * 3600 - (time.time() - t0)) / max(snitt * 1.05, 1))
             ny = max(5, min(a.epoker, ryms))
             if ny != max_epok:
                 max_epok = ny
