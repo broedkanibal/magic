@@ -490,7 +490,7 @@ ett dokumenterat API och fungerande CORS.
 ## 3D-effekten (PoC)
 
 Ett prov: när **Ukud Cobra** läggs på mattan kliver en animerad 3D-modell upp
-ur kortets illustration och ställer sig bredvid kortet. Avstängd om man inte
+ur kortets illustration och ställer sig på kortet, i en glödande ring. Avstängd om man inte
 ber om den.
 
 - **Slå på:** öppna appen med `?fx3d`. Valet sparas; `?fx3d=0` stänger av.
@@ -511,6 +511,7 @@ canvas ovanpå; spelet vet inte om den.
    `IDLE`. Samma sak för `HOPP`, clippet som går under hoppet.
 4. Justera `HOJD` (storlek i kortbredder) och `VRID` (åt vilket håll modellen
    tittar) tills den står rätt.
+5. `GLOD` är färgen på ringen, gnistorna och ljuset underifrån.
 
 Byta kort: ändra `KORT`. Nuvarande modell är Khronos provmodell Fox (CC0 /
 CC-BY 4.0, se glTF-Sample-Assets).

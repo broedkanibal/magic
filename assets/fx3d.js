@@ -1,6 +1,6 @@
 /* ═══ 3D-EFFEKTEN (PoC) ══════════════════════════════════════════════
    När testkortet spelas ut kliver en animerad 3D-modell upp ur kortets
-   illustration och ställer sig bredvid det. Ett kort, en modell — ingen
+   illustration och ställer sig på kortet. Ett kort, en modell — ingen
    pipeline. Laddas bara med ?fx3d (se kroken i index.html).
 
    Filen rör inte spelet. Den läser mattans DOM (#grid) med en
@@ -28,6 +28,7 @@ const VINKEL = 50 * Math.PI / 180;         // vyns lutning från lodlinjen
 /* Illustrationsrutan på ett vanligt Magic-kort, som andelar av kortet. */
 const ART = { x: 0.075, y: 0.115, w: 0.85, h: 0.445 };
 const DJUP = 0.4;                          // schaktets djup, i kortbredder
+const GLOD = 0x8dff7a;                     // ringens, gnistornas och motljusets färg
 const BAGE = 0.6;                          // hoppets höjd över bordet, i kortbredder
 const T_OPPNA = 0.25, T_HOPP = 1.0, T_LAND = 0.3, T_STANG = 0.35;
 
@@ -41,7 +42,7 @@ const utBak = p => 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 
 
 let THREE, klonSkelett, gltf = null;
 let grid, vp, canvas, renderer, scen, kamera, bord, ljus, skuggplan, klipp;
-let maskMat, vaggMat;
+let maskMat, vaggMat, glodTex;
 const inst = new Map();                    // cid → instans
 const sedda = new Set();                   // cid som redan fått sin chans
 let raf = 0, manuell = false, forra = 0, fpsN = 0, fpsT = 0, fpsSagt = false;
@@ -114,7 +115,8 @@ function byggScen() {
   bord.rotation.x = Math.PI / 2 - VINKEL;
   scen.add(bord);
 
-  scen.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2622, 1.5));
+  /* Ljuset underifrån har glödens färg, så att figuren ser belyst ut av ringen. */
+  scen.add(new THREE.HemisphereLight(0xdfe8ff, new THREE.Color(GLOD).multiplyScalar(.55), 1.6));
   ljus = new THREE.DirectionalLight(0xfff2dd, 2.6);
   ljus.castShadow = true;
   ljus.shadow.mapSize.set(1024, 1024);
@@ -130,6 +132,13 @@ function byggScen() {
 
   /* Ett klipplan genom bordsytan. Normalen vänds mellan de två passen. */
   klipp = new THREE.Plane(new THREE.Vector3(0, S, C), 0);
+
+  /* En mjuk ljusfläck, till skivan under figuren och till gnistorna. */
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const c2 = cv.getContext('2d'), gr = c2.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  c2.fillStyle = gr; c2.fillRect(0, 0, 128, 128);
+  glodTex = new THREE.CanvasTexture(cv);
 
   maskMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false,
     stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp });
@@ -169,7 +178,26 @@ function spela(cid, el) {
   const mats = vaggMat.slice(); mats[3] = golvMat;
   const schakt = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mats);
   schakt.renderOrder = -5;
-  grupp.add(mask, schakt, figur);
+  /* Glöden: en ring på kortet runt figuren, en ljusfläck under den och
+     gnistor som stiger. Ritas bara i pass 2, ovanpå bordet. */
+  const fx = new THREE.Group();
+  const glod = (geo, extra) => {
+    const m = new THREE.Mesh(geo.rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial(Object.assign({ color: GLOD, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }, extra)));
+    fx.add(m); return m;
+  };
+  const ring = glod(new THREE.RingGeometry(.44, .465, 72));
+  const bage = glod(new THREE.RingGeometry(.37, .38, 72, 1, 0, Math.PI * 1.4));
+  const skiva = glod(new THREE.PlaneGeometry(1.5, 1.5), { map: glodTex });
+  const N = 44, fro = [];
+  for (let k = 0; k < N; k++) fro.push({ a: Math.random() * 6.283, r: .2 + Math.random() * .26, v: .22 + Math.random() * .4, f: Math.random() });
+  const pgeo = new THREE.BufferGeometry();
+  pgeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+  const gnistor = new THREE.Points(pgeo, new THREE.PointsMaterial({ color: GLOD, map: glodTex, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false }));
+  gnistor.frustumCulled = false;
+  fx.add(gnistor);
+  grupp.add(mask, schakt, figur, fx);
   bord.add(grupp);
 
   /* Golvet är kortets egen illustration, så att den ser ut att sjunka ner. */
@@ -191,7 +219,7 @@ function spela(cid, el) {
   if (aHopp) aHopp.play();
 
   inst.set(cid, { cid, el, grupp, mask, schakt, golvMat, figur, rot, mixer, aIdle, aHopp,
-    t: 0, landat: false, sida: 0, oppet: true });
+    fx, ring, bage, skiva, gnistor, fro, t: 0, landat: false, oppet: true });
   if (!raf) { forra = performance.now(); raf = requestAnimationFrame(bildruta); }
 }
 
@@ -201,6 +229,7 @@ function bort(i) {
   i.golvMat.map && i.golvMat.map.dispose();
   i.golvMat.dispose();
   i.rot.traverse(o => { if (o.userData.fx3dMat) o.userData.fx3dMat.dispose(); });
+  i.fx.traverse(o => { if (o.geometry) { o.geometry.dispose(); o.material.dispose(); } });
   inst.delete(i.cid);
 }
 
@@ -231,8 +260,9 @@ function uppdatera(i, dt, cr) {
   g.position.set(L.ax, 0, L.ay / C);
   g.scale.setScalar(b);
 
-  /* Schaktet: öppnar sig, och stänger sig när modellen landat. */
-  const tStang = T_OPPNA * .6 + T_HOPP + .1;
+  /* Schaktet: öppnar sig, och stänger sig under figuren medan den är i
+     luften, så att den landar på kortet. */
+  const tStang = T_OPPNA * .6 + T_HOPP * .55;
   const d = DJUP * (i.t < tStang ? utKubik(klamp(i.t / T_OPPNA, 0, 1)) : 1 - inUtKubik(klamp((i.t - tStang) / T_STANG, 0, 1)));
   i.oppet = i.t < tStang + T_STANG;
   i.mask.visible = i.schakt.visible = i.oppet;
@@ -244,14 +274,8 @@ function uppdatera(i, dt, cr) {
     i.golvMat.color.setScalar(i.golvMat.map ? 1 - .45 * d / DJUP : .15);
   }
 
-  /* Landningsplatsen: bredvid kortet, på den sida där det finns plats. */
-  if (!i.sida) i.sida = L.r.right - cr.left + b * 1.1 < cr.width ? 1 : -1;
-  const lx = ((i.sida > 0 ? L.r.right + b * .55 : L.r.left - b * .55) - cr.left - L.ax) / b;
-  const lz = (L.r.bottom - cr.top - L.ay) * .7 / b / C;
-
-  /* Hoppet: rakt upp ur schaktet i en båge, sedan i sidled till platsen. */
+  /* Hoppet: rakt upp ur schaktet i en båge, och ner på kortet igen. */
   const p = klamp((i.t - T_OPPNA * .6) / T_HOPP, 0, 1);
-  const sid = inUtKubik(klamp((p - .3) / .7, 0, 1));
   let y = -DJUP * (1 - p) + 4 * BAGE * p * (1 - p);
   let sy = 1, sxz = 1;
   const vaxt = .5 + .5 * utBak(klamp(p / .55, 0, 1));
@@ -265,10 +289,28 @@ function uppdatera(i, dt, cr) {
     const tryck = Math.sin(q * Math.PI * 2) * (1 - q) * .16;
     sy = 1 - tryck; sxz = 1 + tryck * .6; y = 0;
   }
-  i.figur.position.set(lx * sid, y, lz * sid);
+  i.figur.position.set(0, y, 0);
   i.figur.scale.set(vaxt * sxz, vaxt * sy, vaxt * sxz);
   i.figur.visible = i.t > T_OPPNA * .4;
   i.mixer.update(dt);
+
+  /* Glöden tänds när schaktet öppnas, blossar vid landningen och pulserar sedan. */
+  const tand = klamp(i.t / .3, 0, 1);
+  const bloss = Math.exp(-Math.pow((i.t - T_OPPNA * .6 - T_HOPP) / .22, 2));
+  const puls = .78 + .22 * Math.sin(i.t * 2.4);
+  i.ring.material.opacity = tand * (.85 * puls + bloss);
+  i.ring.scale.setScalar(1 + bloss * .18);
+  i.bage.material.opacity = tand * .55;
+  i.bage.rotation.y = i.t * .7;
+  i.skiva.material.opacity = tand * (.38 * puls + bloss * .5);
+  i.gnistor.material.opacity = tand * .9;
+  i.gnistor.material.size = Math.max(3, b * .045);
+  const pa = i.gnistor.geometry.attributes.position;
+  i.fro.forEach((f, k) => {
+    const h = (f.f + i.t * f.v) % 1, r = f.r * (1 - .45 * h), a = f.a + i.t * .5;
+    pa.setXYZ(k, Math.cos(a) * r, h * h * 1.25, Math.sin(a) * r);
+  });
+  pa.needsUpdate = true;
 }
 
 function passa(cr) {
@@ -316,6 +358,7 @@ function rita() {
     /* Pass 1 — under bordsytan, bara genom illustrationsrutan. */
     klipp.normal.set(0, -S, -C);
     skuggplan.visible = false;
+    for (const i of alla) i.fx.visible = false;
     figurMat(true);
     renderer.render(scen, kamera);
   }
@@ -323,7 +366,7 @@ function rita() {
   klipp.normal.set(0, S, C);
   skuggplan.visible = true;
   figurMat(false);
-  for (const i of alla) i.mask.visible = i.schakt.visible = false;
+  for (const i of alla) { i.mask.visible = i.schakt.visible = false; i.fx.visible = true; }
   renderer.render(scen, kamera);
 }
 
