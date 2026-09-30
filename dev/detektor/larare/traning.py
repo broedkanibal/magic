@@ -337,6 +337,82 @@ def ar_baksida(brun, bla, en, kant, topp=None, mattnad=None):
     return magic or ficka
 
 
+# H: en facit-låda med klassen kort som KAN vara en baksida blir okänd (ignorerad yta) — hellre några
+# riktiga kort som ignoreras än en baksida som heter `kort` och lär eleven fel klass (Jesper 2026-09-30).
+# Mätt i lådans mitt: en skiva med radien 0,2 × lådans kortaste sida, nerskalad till 48 × 48. Magic-baksidans
+# oval och en fickas baksida är jämna där; en framsida har konstverk, typrad och textruta.
+#   H1  Magic-baksidan utan ficka: jämn mitt (gråskalans spridning ≤ 14, kanter ≤ 0,06), rödbrun nyans
+#       (≤ 20 eller ≥ 165), varken utfrätt eller svart (grå 60–190) och kanter i hela lådan ≥ 0,04 (loggan
+#       och ramen; en hand har nästan inga). Ovalen är omättad på träbordet (lampan) — därför missade ar_baksida den.
+#   H2  en fickas baksida som färgtestet fällde (en hand över, ett hörn): mycket jämn mitt (≤ 8), mättad
+#       (median ≥ 110) och inte hudens eller träets nyans (0–30).
+#   H3  nära gränsen i ar_baksida: brunt ≥ 0,25, blått ≥ 0,03, kanter ≤ 0,10 — lådan över två baksidor omlott
+#       (brunt 0,30–0,45), och baksidor halvt under en hand.
+#   H1b som H1 med lösare mitt (ett finger över ovalen, prickarna i mitten), men då ska den blå loggan synas.
+#   H5  en ficka (leken) halvt under en hand: en mättad färg över en dryg tredjedel av lådan, nästan inga kanter.
+#   H4  en hand över något: minst halva lådan hudfärgad och slät mitt.
+# H körs sist, på det som annars hade blivit facit, så regel A–G ger samma ytor som förut.
+# Gränserna är satta på lådorna i de tre filmerna och sedda på montage av alla 240 träffar — TRANINGSRUTOR.md avsnitt 10.
+H_STD, H_KANT, H_GRA, H_LADKANT = 14.0, 0.06, (60, 190), 0.04
+H1B_STD, H1B_KANT, H1B_BLA = 24.0, 0.10, 0.10   # H1b: lösare mitt (ett finger över ovalen, prickarna i mitten) men då ska den blå loggan synas
+H_ROD = (20, 165)
+H2_STD, H2_MATTNAD, H2_EJ_NYANS = 8.0, 110, (0, 30)
+H3_BRUN, H3_BLA, H3_KANT = 0.25, 0.03, 0.10
+H5_EN, H5_KANT = 0.35, 0.03   # H5: en mättad färg över en dryg tredjedel av lådan och nästan inga kanter — en ficka halvt under en hand
+H4_HUD, H4_STD, H4_KANT = 0.5, 22.0, 0.08   # H4: minst halva lådans inre är hudfärgat och mitten är slät — en hand över något;
+                                           # vad som ligger under (ett kort eller leken) går inte att veta
+
+
+def _skiva(bgr, cx, cy, r):
+    H, W = bgr.shape[:2]
+    bit = bgr[int(max(0, cy - r)):int(min(H, cy + r)), int(max(0, cx - r)):int(min(W, cx + r))]
+    if bit.size == 0 or min(bit.shape[:2]) < 6:
+        return None
+    bit = cv2.resize(bit, (48, 48), interpolation=cv2.INTER_AREA)
+    yy, xx = np.mgrid[0:48, 0:48]
+    m = (xx - 23.5) ** 2 + (yy - 23.5) ** 2 <= 23.5 ** 2
+    g = cv2.cvtColor(bit, cv2.COLOR_BGR2GRAY)
+    hsv = cv2.cvtColor(bit, cv2.COLOR_BGR2HSV)
+    kant = cv2.Canny(g, 60, 160) > 0
+    return (round(float(g[m].std()), 1), round(float(kant[m].mean()), 3), round(float(g[m].mean())),
+            int(np.median(hsv[..., 1][m])), int(np.median(hsv[..., 0][m])))
+
+
+def mitt(bgr, d, r_andel=0.2):
+    """Mått i en skiva mitt i lådan: spridning och medel i gråskala, kantandel, median-mättnad och -nyans."""
+    H, W = bgr.shape[:2]
+    x0, y0, x1, y1 = d[0] * W, d[1] * H, d[2] * W, d[3] * H
+    cx, cy, w, h = (x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0
+    c = _skiva(bgr, cx, cy, r_andel * min(w, h))
+    if c is None:
+        return None
+    return dict(mitt_std=c[0], mitt_kant=c[1], mitt_gra=c[2], mitt_mattnad=c[3], mitt_nyans=c[4])
+
+
+def _h1(std, kant, gra, nyans, max_std=None, max_kant=None):
+    return (std <= (max_std or H_STD) and kant <= (max_kant or H_KANT) and (nyans <= H_ROD[0] or nyans >= H_ROD[1])
+            and H_GRA[0] <= gra <= H_GRA[1])
+
+
+def kan_vara_baksida(f):
+    """f: lådans färgmått (fargandel), mittmått (mitt) och hudandel. -> 'H1' | 'H2' | 'H3' | 'H1b' | 'H5' | 'H4' | None."""
+    if 'mitt_std' in f:
+        if f['kanter'] >= H_LADKANT and _h1(f['mitt_std'], f['mitt_kant'], f['mitt_gra'], f['mitt_nyans']):
+            return 'H1'
+        if f['mitt_std'] <= H2_STD and f['mitt_mattnad'] >= H2_MATTNAD and not H2_EJ_NYANS[0] <= f['mitt_nyans'] <= H2_EJ_NYANS[1]:
+            return 'H2'
+    if f['brun'] >= H3_BRUN and f['bla'] >= H3_BLA and f['kanter'] <= H3_KANT:
+        return 'H3'
+    if ('mitt_std' in f and f['kanter'] >= H_LADKANT and f['bla'] >= H1B_BLA
+            and _h1(f['mitt_std'], f['mitt_kant'], f['mitt_gra'], f['mitt_nyans'], H1B_STD, H1B_KANT)):
+        return 'H1b'
+    if f['en_farg'] >= H5_EN and f['kanter'] <= H5_KANT and f['mattnad'] >= EN_FARG_MATTNAD and not 4 <= f['nyans'] <= 30:
+        return 'H5'
+    if f.get('hud', 0) >= H4_HUD and f.get('mitt_std', 99) <= H4_STD and f.get('mitt_kant', 1) <= H4_KANT:
+        return 'H4'
+    return None
+
+
 # Ignorera-regeln (lärarens facit, samma idé som `ignorerade` i synt-facit):
 #   A. en låda över tröskeln som är större än 1,6 × kortet (storleksfiltret
 #      tog bort den): den ligger över flera kort — ytan ignoreras.
@@ -428,7 +504,7 @@ def hudandel(bgr, d):
     return float(((cr >= 135) & (cr <= 175) & (cb >= 85) & (cb <= 127) & (ycc[..., 0] > 60)).mean())
 
 
-def facit_ruta(b, ky, bgr=None, bord=None, osaker=True):
+def facit_ruta(b, ky, bgr=None, bord=None, osaker=True, regel_h=True):
     # NMS över allt från OSAKER_LAG: högst poäng först, så de säkra lådorna (≥ TROSKEL) blir exakt
     # de som utan de osäkra; de osäkra är resten och bara kandidater till regel F.
     alla_lag = nms([d for d in b['det'] if d[4] >= (OSAKER_LAG if osaker else TROSKEL)], NMS_IOU)
@@ -458,6 +534,8 @@ def facit_ruta(b, ky, bgr=None, bord=None, osaker=True):
             brun, bla, en, kant, topp, mattn = fargandel(bgr, d)
             farg[id(d)] = dict(brun=round(brun, 3), bla=round(bla, 3), en_farg=round(en, 3), kanter=round(kant, 3),
                                nyans=topp, mattnad=mattn, baksida=ar_baksida(brun, bla, en, kant, topp, mattn))
+            farg[id(d)].update(mitt(bgr, d) or {})
+            farg[id(d)]['hud'] = round(hudandel(bgr, d), 3)
     facit = [d for d in kvar if farg.get(id(d), {}).get('baksida')]
     kvar = [d for d in kvar if not farg.get(id(d), {}).get('baksida')]
     # C: grupper av omlott-lådor
@@ -489,6 +567,17 @@ def facit_ruta(b, ky, bgr=None, bord=None, osaker=True):
             facit += med
     ign += [dict(lada=d[:4], poang=round(d[4], 3), regel='D', vad='del av ett kort (< 0,4 × kortet)') for d in sma]
     ign += ign_e
+    # H: sist, på det som annars hade blivit facit med klassen kort — A–G ger alltså samma ytor som förut
+    if regel_h:
+        kvar_f = []
+        for d in facit:
+            f = farg.get(id(d), {})
+            h = None if (not f or f.get('baksida')) else kan_vara_baksida(f)
+            if h:
+                ign.append(dict(lada=d[:4], poang=round(d[4], 3), regel='H', sort=h, vad='kan vara en baksida — klassen okänd'))
+            else:
+                kvar_f.append(d)
+        facit = kvar_f
     # F: osäkra lådor (OSAKER_LAG–TROSKEL) — läraren såg något kortliknande men var inte säker; ett synligt
     # kort utan låda lär eleven att kortet är bakgrund, så ytan ignoreras i stället
     ign_ytor = [x['lada'] for x in ign]
@@ -530,6 +619,8 @@ def facit():
                                                  C=f'≥ {MIN_C} lådor omlott (skärning ≥ {OMLOTT_C} av den mindre), var och en',
                                                  D='< 0,4 × kortet',
                                                  G=f'två lådor omlott med skärning ≥ {OMLOTT_G} av den mindre, båda', E='lådans mitt utanför bordet (bord.png)',
+                                                 H=f'facit-låda med klassen kort som kan vara en baksida: H1 jämn rödbrun mitt (spridning ≤ {H_STD}, kanter ≤ {H_KANT}), '
+                                                   f'H2 jämn mättad mitt (≤ {H2_STD}, mättnad ≥ {H2_MATTNAD}), H3 brunt ≥ {H3_BRUN} och blått ≥ {H3_BLA} med kanter ≤ {H3_KANT}',
                                                  F=f'osäker låda: poäng {OSAKER_LAG}–{TROSKEL}, {F_STORLEK[0]}–{F_STORLEK[1]} × kortet, sidkvot ≤ {F_KVOT}, '
                                                    f'på bordet, inte samma kort som en säker låda, under {F_HUD:.0%} hudfärg'),
                                    baksida=dict(brun_h=BRUN_H, bla_h=BLA_H, brun_min=BAK_BRUN, bla_min=BAK_BLA,

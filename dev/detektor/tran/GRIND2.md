@@ -28,15 +28,21 @@ när det är gjort.
 
 | Del | Bilder | Lådor `kort` | Lådor `baksida` | Ignorerade ytor |
 |---|---|---|---|---|
-| riktiga, träning | 567 | 3 977 | 593 | 6 180 |
-| riktiga, validering | 71 | 699 | 108 | 944 |
+| riktiga, träning | 567 | 3 809 | 593 | 6 348 |
+| riktiga, validering | 71 | 627 | 108 | 1 016 |
 | syntetiska, träning | 2 700 | 32 764 | 3 026 | 6 150 |
 | syntetiska, validering | 300 | 4 034 | 296 | 1 117 |
 
-- **Riktiga:** de 638 rutorna ur Jespers tre träningsfilmer med lärarens facit (regel A–G), nedskalade
+- **Riktiga:** de 638 rutorna ur Jespers tre träningsfilmer med lärarens facit (regel A–H), nedskalade
   direkt till **960 × 540** — modellen ser aldrig mer än 960 px, och 1920 px hade fyrdubblat datasetet
   utan att tillföra något till 960-träningen (mosaiken skalar 0,5–1,5, så förstoring blir lite mjukare;
   korten i filmerna är redan större än i golden). Baksidesflaggan → `baksida`, övriga → `kort`.
+- **Regel H (2026-09-30, före träningen):** 240 facit-lådor med klassen `kort` som kan vara en baksida
+  (Magic-baksidan utan ficka på trä och vitt bord, två baksidor omlott, fickor och leken under en hand)
+  är nu ignorerade ytor i stället — ungefär 151 av dem var baksidor med fel klass, ungefär 44 var
+  framsidor som ignoreras i onödan (räknat med ögat på alla 240). `kort`-lådorna i de riktiga rutorna
+  gick från 4 676 till 4 436; `baksida` är orörd (701). Se `larare/TRANINGSRUTOR.md` avsnitt 10.
+  Datasetet v1 är ombyggt efter H (tabellen ovan) och filistan prövad igen.
 - **Syntetiska:** 3 000 bord (`--fro` 200000–203749), 960 × 544. Lådor = kort med `far_lada`; ignorerade =
   kort med en synlig låda men utan `far_lada` (för lite syns, eller handen täcker > 45 %).
   Händer i 1 327 av 3 000. Tolv riktiga underlag (178–222 bord var) och ritad yta i 589.

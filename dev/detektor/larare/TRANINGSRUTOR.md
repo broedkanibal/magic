@@ -354,3 +354,90 @@ varelse); i ett par fall var den ena lådan rätt för sitt kort men följer med
 `matt_larare.py --facit facit-fore-G.json` mäter mot den. Huvudsiffrorna att
 jämföra: synliga kort som läraren missar (varken eget eller okänt) och falska
 eller sammanslagna facit-lådor.
+
+## 10. Regel H: en låda som kan vara en baksida får klassen okänd (2026-09-30, Jesper sa ja)
+
+**Problemet:** färgtestet `ar_baksida` missar Magic-baksidan utan ficka på träbordet (lampan gör
+ovalen omättad, brunt 0,07–0,17) och på vita bordet, lådan över två baksidor omlott på svarta mattan
+(brunt 0,30–0,45, strax under gränsen 0,45), och fickor med en hand över. De lådorna var facit med
+klassen `kort` — en felaktig etikett som lär eleven fel klass.
+
+**Regeln:** en facit-låda med klassen `kort` som **kan vara** en baksida blir en ignorerad yta
+(`regel: 'H'`, fältet `sort` säger vilken delregel). Hellre några riktiga kort som ignoreras än en
+baksida som heter `kort`. H körs **sist**, på det som annars hade blivit facit — regel A–G ger
+exakt samma ytor som förut (kontrollerat ruta för ruta mot `facit-fore-H.json`), och lådorna med
+baksidesflaggan är orörda (227 · 320 · 154).
+
+Nytt mått, **lådans mitt**: en skiva med radien 0,2 × lådans kortaste sida, nerskalad till 48 × 48.
+Magic-baksidans oval och en fickas baksida är jämna där; en framsida har konstverk, typrad och
+textruta. På de femton lådor jag mätte först: baksidor spridning 7–10 gråsteg och 3–4 % kanter,
+framsidor 30–58 och 17–27 %.
+
+| Sort | Villkor (`kan_vara_baksida` i `traning.py`) | Fångar |
+|---|---|---|
+| **H1** | mitten jämn (spridning ≤ 14, kanter ≤ 0,06), rödbrun nyans (≤ 20 eller ≥ 165), grå 60–190, kanter i hela lådan ≥ 0,04 | Magic-baksidan utan ficka |
+| **H1b** | som H1 men lösare mitt (≤ 24, ≤ 0,10) och blått i lådan ≥ 0,10 | Magic-baksidan med ett finger över, eller där prickarna i ovalen ger kanter |
+| **H2** | mitten mycket jämn (≤ 8), mättad (≥ 110), inte hudens/träets nyans (0–30) | en ficka som färgtestet fällde |
+| **H3** | brunt ≥ 0,25, blått ≥ 0,03, kanter ≤ 0,10 | lådan över två baksidor omlott; baksidor halvt under en hand |
+| **H5** | en mättad färg över ≥ 35 % av lådan, kanter ≤ 0,03, inte nyans 4–30 | en ficka (leken) halvt under en hand |
+| **H4** | ≥ 50 % hudfärg i lådan och slät mitt (≤ 22, ≤ 0,08) | en hand över något — vad som ligger under går inte att veta |
+
+**Prövat och förkastat:** H1 med den lösare mitten utan kravet på blått gav 25 framsidor på vita
+bordet (röda kort) för noll nya baksidor; H4 utan kravet på slät mitt tog 575 lådor på vita bordet
+(rosa fickor och varma konstverk räknas som hudfärg); fyra förskjutna skivor i stället för en gav
+inga baksidor alls.
+
+### Siffrorna (facit ombyggt ur de sparade lådorna, ingen ny OWLv2-körning)
+
+| Film | Facit `kort` före | efter H | H-ytor | H1 · H1b · H2 · H3 · H5 · H4 | Rutor med H |
+|---|---|---|---|---|---|
+| trä, dagsljus + lampa | 1 616 | 1 515 | 101 | 35 · 5 · 13 · 9 · 30 · 9 | 68 av 200 |
+| svart matta | 1 825 | 1 758 | 67 | 9 · 0 · 6 · 25 · 6 · 21 | 59 av 242 |
+| vitt bord | 1 235 | 1 163 | 72 | 3 · 0 · 26 · 6 · 6 · 31 | 61 av 196 |
+| **alla** | 4 676 | 4 436 | **240** | 47 · 5 · 45 · 40 · 42 · 61 | 188 av 638 |
+
+### Vad H-ytorna är (räknat med ögat på montage av alla 240 utklipp)
+
+| Sort | Antal | Baksidor | Annat |
+|---|---|---|---|
+| H1 | 47 | 45 (Magic-baksidan: trä 35, svart 8, vitt 2) | 2 (en kant, en hand över ett kort) |
+| H1b | 5 | 5 (träbordet, finger över eller vriden) | 0 |
+| H2 | 45 | 44 (gröna och rosa fickor) | 1 framsida (mörkt land) |
+| H3 | 40 | 19 (svarta mattan: två baksidor omlott) | 21 framsidor, nästan alla halvt under en hand; en papperslapp |
+| H5 | 42 | 33 (leken eller ett kort i ficka under en hand) | 9 framsidor under en hand |
+| H4 | 61 | minst 5 (två Magic-baksidor och en rosa ficka på vita bordet, leken under händer på svarta mattan) | ~11 framsidor som syns tydligt, ~45 där handen täcker det mesta |
+| **alla** | **240** | **~151** | **~89**, varav ~44 framsidor som syns (de flesta halvt under en hand) och ~45 mest hand |
+
+Alltså: **ungefär 151 baksidor hade klassen `kort`** i lärarens facit (3 % av `kort`-lådorna), och
+regeln kostar ungefär 44 framsidor som hade kunnat vara facit (1 %).
+
+### Kontrollen med ögat på hela rutor
+
+32 rutor ritade med facit efter H (`k` = kort, `B` = baksida, H-ytor markerade):
+
+- **14 rutor där det ligger baksidor utan ficka:** trä `05340 05400 05520 05700 05900`, svart
+  `04200 04780 04900 05400 06060`, vitt `04040 04060 04080 04100`.
+- **18 slumpade** (frö 288, sex per film): trä `00760 02700 03880 03980 04060 05680`, svart
+  `00460 02820 02980 03300 03940 04400`, vitt `01100 01160 02660 02760 03600 04620`.
+
+| | Baksidor med klassen `kort` före H | efter H | Framsidor som H ignorerade i onödan |
+|---|---|---|---|
+| 14 rutor med baksidor utan ficka | 17 (trä 9, svart 5, vitt 3) | **0** | 0 |
+| 18 slumpade rutor | 8 (trä 3, svart 3, vitt 2) | **0** säkra, 2 oklara | 0 |
+
+De två oklara: ett kort som hålls i en hand i trä `04060` och i vitt `01100`, där det inte går att
+se vilken sida som är upp. I svart `04900` (490 s) var båda Magic-baksidorna redan `baksida`; felet
+där ligger i grannrutorna (`04200`, `04400`, `04780`, `05400`: lådan över de två omlott hette `kort`,
+nu H3). Alla 32 rutor sågs ritade, men de sista reglerna (H1b, H5) lades till efter att några av dem
+setts; för dem är "efter" avläst ur `facit.json` (en H-yta på baksidans plats), inte sett en gång till.
+
+**Inte gjort:** de ~45 av regel F:s osäkra ytor som är leken eller baksidor i fickor (avsnitt 8) är
+redan ignorerade och alltså inte fel klass — de är orörda. Och de ~151 baksidorna i H blir *okända*,
+inte facit `baksida`: H1, H1b och H2 träffar så rent (94 av 97) att de kunde bli `baksida` i stället,
+men det ändrar facit åt andra hållet och är inte beställt.
+
+**Före/efter för lärarmätningen:** facit före H ligger som `facit-fore-H.json` i varje films mapp
+(bredvid `facit-fore-G.json`); `matt_larare.py --facit facit-fore-H.json` mäter mot den.
+
+**Mätt och bedömt:** antalen per film och sort är mätta (ur `facit.json`). Vad ytorna föreställer
+är räknat med ögat på montage av alla 240 utklipp och på de 32 rutorna — inte mot ett ritat facit.
