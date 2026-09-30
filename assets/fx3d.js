@@ -22,6 +22,11 @@ const KORT = 'Ukud Cobra';                 // aria-label på .card börjar med k
 const MODELL = 'assets/models/Fox.glb';
 const IDLE = /idle|survey/i;               // clip som går när modellen står still
 const HOPP = /run|jump|walk/i;             // clip under hoppet; saknas det går idle
+/* Rörelsen när modellen står still. 'auto': clip ur GLB:n om den har några,
+   annars vajar modellen i kod (en stilla modell ur en bild-till-3D-tjänst har
+   inga clips). 'kod' tvingar fram vajandet. */
+const RORELSE = 'auto';
+const VAJ = 0.07;                          // vajandets utslag i toppen, som andel av modellens höjd
 const HOJD = 1.1;                          // modellens största mått, i kortbredder
 const VRID = -0.6;                         // modellens vridning kring lodlinjen, radianer
 const VINKEL = 50 * Math.PI / 180;         // vyns lutning från lodlinjen
@@ -149,6 +154,8 @@ function byggScen() {
 
 function spela(cid, el) {
   const rot = klonSkelett(gltf.scene);
+  const kod = (window.Fx3d.rorelse || RORELSE) === 'kod' || !gltf.animations.length;
+  const tid = { value: 0 };
   /* Normera: största måttet blir HOJD kortbredder, fötterna på y = 0. */
   const box = new THREE.Box3().setFromObject(rot);
   const mat = box.getSize(new THREE.Vector3());
@@ -164,6 +171,7 @@ function spela(cid, el) {
     o.material.stencilFunc = THREE.EqualStencilFunc;
     o.material.stencilRef = 1;
     o.userData.fx3dMat = o.material;
+    if (kod) vaja(o, tid);
   });
   const figur = new THREE.Group();          // flyttas och skalas av hoppet
   const vridd = new THREE.Group();
@@ -214,13 +222,35 @@ function spela(cid, el) {
   const clip = re => gltf.animations.find(a => re.test(a.name));
   const idle = clip(IDLE) || gltf.animations[0];
   const hopp = clip(HOPP) || idle;
-  const aIdle = idle ? mixer.clipAction(idle) : null;
-  const aHopp = hopp ? mixer.clipAction(hopp) : null;
+  const aIdle = idle && !kod ? mixer.clipAction(idle) : null;
+  const aHopp = hopp && !kod ? mixer.clipAction(hopp) : null;
   if (aHopp) aHopp.play();
 
   inst.set(cid, { cid, el, grupp, mask, schakt, golvMat, figur, rot, mixer, aIdle, aHopp,
-    fx, ring, bage, skiva, gnistor, fro, t: 0, landat: false, oppet: true });
+    fx, ring, bage, skiva, gnistor, fro, vridd, tid, kod, t: 0, landat: false, oppet: true });
   if (!raf) { forra = performance.now(); raf = requestAnimationFrame(bildruta); }
+}
+
+/* Vajandet: hörnen flyttas i sidled, mer ju högre upp de sitter, så att
+   foten står still och toppen svänger — som en orm som rest sig. Görs i
+   modellens egna koordinater, där y antas vara uppåt (glTF:s standard). */
+function vaja(mesh, tid) {
+  const g = mesh.geometry;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const y0 = g.boundingBox.min.y, h = Math.max(1e-6, g.boundingBox.max.y - y0);
+  const m = mesh.material;
+  m.customProgramCacheKey = () => 'fx3d-vaj';
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uTid = tid;
+    sh.uniforms.uFot = { value: y0 };
+    sh.uniforms.uHojd = { value: h };
+    sh.vertexShader = 'uniform float uTid, uFot, uHojd;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      `#include <begin_vertex>
+       float fxH = clamp((transformed.y - uFot) / uHojd, 0., 1.);
+       float fxW = fxH * fxH * uHojd * ${VAJ.toFixed(3)};
+       transformed.x += sin(uTid * 1.5 + fxH * 2.6) * fxW;
+       transformed.z += cos(uTid * 1.1 + fxH * 1.9) * fxW * .6;`);
+  };
 }
 
 function bort(i) {
@@ -293,6 +323,11 @@ function uppdatera(i, dt, cr) {
   i.figur.scale.set(vaxt * sxz, vaxt * sy, vaxt * sxz);
   i.figur.visible = i.t > T_OPPNA * .4;
   i.mixer.update(dt);
+  if (i.kod) {
+    /* Utan clips: kroppen vajar (i vertexskuggaren) och figuren ser sig om. */
+    i.tid.value = i.t;
+    i.vridd.rotation.y = VRID + Math.sin(i.t * .55) * .3 * klamp((i.t - 1) / 1.5, 0, 1);
+  }
 
   /* Glöden tänds när schaktet öppnas, blossar vid landningen och pulserar sedan. */
   const tand = klamp(i.t / .3, 0, 1);

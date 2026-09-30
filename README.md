@@ -513,6 +513,10 @@ canvas ovanpå; spelet vet inte om den.
    tittar) tills den står rätt.
 5. `GLOD` är färgen på ringen, gnistorna och ljuset underifrån.
 
+Har GLB:n inga animationsclips (en stilla modell ur en bild-till-3D-tjänst)
+vajar modellen i kod i stället. `VAJ` styr hur mycket, och `RORELSE = 'kod'`
+tvingar fram det också för en modell med clips.
+
 Byta kort: ändra `KORT`. Nuvarande modell är Khronos provmodell Fox (CC0 /
 CC-BY 4.0, se glTF-Sample-Assets).
 
