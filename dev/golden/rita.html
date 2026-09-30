@@ -329,6 +329,9 @@ function pek(e) { const b = cv.getBoundingClientRect(); return [e.clientX - b.le
 /* Lärarmätningen (MES-288): en video med fasta, fristående lägen och utan
    händelsefacit. Lägena ärver inte varandras kort, och namn behövs inte. */
 const arLarare = () => !!(S.kalla && S.kalla.larare);
+/* Ett namn som saknas eller inte finns i leken är ett fel (rött) — utom i
+   lärarmätningen, där namn inte läses och alla kort annars blev röda. */
+const namnFel = n => !arLarare() && (!n || (G.arLekkort(n) && !S.lek.includes(n)));
 const larareInfo = () => arLarare() ? '<div class="varn" style="margin-top:4px"><b>Lärarmätning — träningsfilm, inte prov.</b> Sparas i ' + esc(S.kalla.mapp) + '/lagen.json, aldrig i golden.</div>' : '';
 function lageNu() { return S.kalla && S.kalla.sort === 'video' ? (S.dok.lagen[S.nr] || S.temp) : null; }
 function kortNu() {
@@ -479,7 +482,7 @@ function ritaSnart() { if (!ritaPlanerad) { ritaPlanerad = true; requestAnimatio
 function farg(k, a) {
   const vald = k.id === S.vald || S.markerade.has(k.id), n = String(k.namn || '').trim();
   const r = S.raknat[k.id] || {};
-  const bas = vald ? [94, 227, 138] : !n || (G.arLekkort(n) && !S.lek.includes(n)) ? [255, 107, 107]
+  const bas = vald ? [94, 227, 138] : namnFel(n) ? [255, 107, 107]
     : k.zon ? [150, 150, 150] : G.arToken(n) ? [197, 140, 255] : G.arBaksida(n) ? [111, 195, 201] : r.dold ? [175, 185, 198] : [240, 210, 60];
   return `rgba(${bas.join(',')},${a})`;
 }
@@ -527,7 +530,7 @@ function rita() {
     const r = S.raknat[k.id] || {};
     let mx, my;
     [mx, my] = skarm(r.etikett || G.mitt(k.horn));
-    const delar = [`#${k.id} ${k.namn || '?'}`];
+    const delar = [`#${k.id}${k.namn ? ' ' + k.namn : arLarare() ? '' : ' ?'}`];
     if (r.dold) delar.push('dold'); if (r.tappad) delar.push('⟳'); if (r.hog) delar.push('hög ' + r.hog);
     if (k.fast != null) { const f = kortId(k.fast); delar.push('↳ ' + (f ? f.namn : '?')); }
     if (k.zon && !G.arLibrary(k.namn)) delar.push(k.zon === 'grav' ? 'graveyard' : 'library');
@@ -789,7 +792,7 @@ function visaValt() {
   namn.disabled = !k;
   if (document.activeElement !== namn) namn.value = k ? k.namn : '';
   const n = k ? String(k.namn || '').trim() : '';
-  namn.classList.toggle('fel', !!k && (!n || (G.arLekkort(n) && !S.lek.includes(n))));
+  namn.classList.toggle('fel', !!k && namnFel(n));
   visaNummer(k);
   if (!k || !r) { el('valtfalt').innerHTML = `<span class="dim">${S.nastaNamn ? `nästa kort får namnet <b>${esc(S.nastaNamn)}</b>` : 'inget valt — rita ett kort, eller klicka i listan'}</span>`; el('valtfast').innerHTML = ''; return; }
   const t = [];
@@ -1037,7 +1040,7 @@ function visaLista() {
     if (k.fast != null) t.push(`<span class="tagg fast">↳#${k.fast}</span>`);
     if (r.avskuret) t.push('<span class="tagg fel">avskuret</span>');
     if (k.zon) t.push(`<span class="tagg">${k.zon}</span>`);
-    return `<div class="k${k.id === S.vald || S.markerade.has(k.id) ? ' vald' : ''}" data-id="${k.id}"><span class="nr">#${k.id}</span><span class="namn${!n || (G.arLekkort(n) && !S.lek.includes(n)) ? ' saknas' : ''}">${esc(n || '(namn saknas)')}</span><span class="dim">${Math.round((r.synlig || 0) * 100)}%</span>${t.join('')}</div>`;
+    return `<div class="k${k.id === S.vald || S.markerade.has(k.id) ? ' vald' : ''}" data-id="${k.id}"><span class="nr">#${k.id}</span><span class="namn${namnFel(n) ? ' saknas' : ''}">${esc(n || (arLarare() ? 'kort' : '(namn saknas)'))}</span><span class="dim">${Math.round((r.synlig || 0) * 100)}%</span>${t.join('')}</div>`;
   }).join('') : '<span class="dim">Inga kort än.</span>';
   for (const d of el('kortlista').children) if (d.dataset.id) d.onclick = e => e.shiftKey ? markera(+d.dataset.id) : valj(+d.dataset.id);
 }
