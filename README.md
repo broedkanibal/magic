@@ -487,6 +487,34 @@ den saknar CORS-headers och publikt API, så en webbläsare får varken hämta d
 eller läsa av bilderna i canvas. Scryfall har samma officiella WotC-kortbilder,
 ett dokumenterat API och fungerande CORS.
 
+## 3D-effekten (PoC)
+
+Ett prov: när **Ukud Cobra** läggs på mattan kliver en animerad 3D-modell upp
+ur kortets illustration och ställer sig bredvid kortet. Avstängd om man inte
+ber om den.
+
+- **Slå på:** öppna appen med `?fx3d`. Valet sparas; `?fx3d=0` stänger av.
+- **Prova:** lägg till Ukud Cobra på mattan. Från konsolen spelar
+  `Fx3d.spela()` om effekten på ett kort som redan ligger där.
+- **Konsolen** skriver GLB:ns laddtid och, efter tre sekunder, bilder per
+  sekund.
+- Är modellen inte laddad när kortet spelas visas kortet som vanligt.
+
+All kod ligger i `assets/fx3d.js`. Den läser mattans DOM och ritar på en egen
+canvas ovanpå; spelet vet inte om den.
+
+**Byta modell**
+
+1. Lägg GLB-filen i `assets/models/`.
+2. Ändra `MODELL` överst i `assets/fx3d.js`.
+3. Heter stillastående-clippet något annat än *idle* eller *survey*: ändra
+   `IDLE`. Samma sak för `HOPP`, clippet som går under hoppet.
+4. Justera `HOJD` (storlek i kortbredder) och `VRID` (åt vilket håll modellen
+   tittar) tills den står rätt.
+
+Byta kort: ändra `KORT`. Nuvarande modell är Khronos provmodell Fox (CC0 /
+CC-BY 4.0, se glTF-Sample-Assets).
+
 ## Filer
 
 ```

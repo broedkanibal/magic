@@ -5356,6 +5356,15 @@ const DEBUG = (() => {
   return LS.get(K.debug, false) === true;
 })();
 document.body.classList.toggle('debug', DEBUG);
+/* 3D-effekten (PoC): testkortets figur kliver upp ur kortet. ?fx3d slår på
+   och ?fx3d=0 stänger av, sparat som ?debug. Hela effekten ligger i
+   assets/fx3d.js, som läser mattans DOM och ritar på en egen canvas — den
+   laddas efter att sidan ritats och rör inte spelet. */
+try {
+  const q = new URLSearchParams(location.search);
+  if (q.has('fx3d')) { if (q.get('fx3d') === '0') LS.del('sthv.fx3d.v1'); else LS.set('sthv.fx3d.v1', true); }
+  if (LS.get('sthv.fx3d.v1', false) === true) addEventListener('load', () => import('./assets/fx3d.js').catch(e => console.warn('[fx3d]', e)));
+} catch (e) {}
 
 /* ─────────── IndexedDB för screenshots ─────────── */
 const IDB = (() => {
