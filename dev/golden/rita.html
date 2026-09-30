@@ -594,8 +594,18 @@ function skapa(p1) {
     if (namn) { sammaKortId(ny); id = ny.id; }
     if (namn) fastUrFacit();
   });
-  if (!namn && !arLarare()) { el('namn').focus(); el('namn').select(); }
+  if (!namn && !arLarare()) fokuseraNamn(id);
 }
+/* Namnfältet får fokus direkt när ett kort ritats, så att man kan skriva
+   utan att klicka. Klicket som ritade kortet kan annars flytta fokus till
+   ritytan strax efteråt (webbläsarens förval vid musknappen), så fokuset
+   sätts en gång till när klicket är färdigbehandlat. */
+function fokuseraNamn(id) {
+  // bara så länge kortet är valt och ännu saknar namn — efter Enter ska fokuset stanna i bilden
+  const satt = () => { const k = kortId(id); if (S.vald !== id || !k || String(k.namn || '').trim()) return; const n = el('namn'); if (document.activeElement !== n) { n.focus(); n.select(); } };
+  satt(); setTimeout(satt, 0); setTimeout(satt, 60);
+}
+cv.addEventListener('mousedown', e => e.preventDefault());   // klick i bilden flyttar inte fokus av sig självt; pointerdown sköter det
 cv.addEventListener('pointerdown', e => {
   if (!S.bild) return;
   e.preventDefault(); duk.focus();
