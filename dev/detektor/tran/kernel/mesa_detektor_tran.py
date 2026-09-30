@@ -41,7 +41,7 @@ def forbered_kaggle(arb):
     kod = os.path.join(arb, 'YOLOX')
     if not os.path.isdir(kod):
         subprocess.run(['git', 'clone', '--depth', '1', KOD_URL, kod], check=True)
-    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'loguru', 'tabulate', 'thop', 'onnx', 'onnxruntime'], check=False)
+    subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', 'loguru', 'tabulate', 'thop', 'onnx', 'onnxruntime', 'onnxscript']   # onnxscript: torch.onnx.export på Kaggle kräver den (version 1 föll på exporten), check=False)
     vik = os.path.join(arb, 'vikter')
     os.makedirs(vik, exist_ok=True)
     for m in ('yolox_tiny', 'yolox_nano'):

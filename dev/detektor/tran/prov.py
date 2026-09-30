@@ -87,7 +87,7 @@ def main():
         det = []
         for (cx, cy, w, h), sc, lb in zip(o[:, :4], s, lab):
             x0, y0, x1, y1 = (cx - w / 2) / r, (cy - h / 2) / r, (cx + w / 2) / r, (cy + h / 2) / r
-            det.append([max(0.0, x0 / W), max(0.0, y0 / H), min(1.0, x1 / W), min(1.0, y1 / H), float(sc), KLASSER[int(lb)]])
+            det.append([float(max(0.0, x0 / W)), float(max(0.0, y0 / H)), float(min(1.0, x1 / W)), float(min(1.0, y1 / H)), float(sc), KLASSER[int(lb)]])
         ms = round((time.perf_counter() - t) * 1000)
         ut['bilder'][vag] = {'id': fid, 'W': W, 'H': H, 'ms': ms, 'det': det}
         print(f'  {fid[:44]:44} {W}×{H} {ms:6} ms  {len(det):4} detektioner', flush=True)

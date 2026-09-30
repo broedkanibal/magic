@@ -68,7 +68,7 @@ def main():
         cls = o[:, 5:5 + len(KLASSER)]
         s = o[:, 4] * cls.max(1)
         k = s >= a.lag
-        det = [[max(0.0, (cx - w / 2) / r / W), max(0.0, (cy - h / 2) / r / H), min(1.0, (cx + w / 2) / r / W), min(1.0, (cy + h / 2) / r / H), float(sc), KLASSER[int(lb)]]
+        det = [[float(max(0.0, (cx - w / 2) / r / W)), float(max(0.0, (cy - h / 2) / r / H)), float(min(1.0, (cx + w / 2) / r / W)), float(min(1.0, (cy + h / 2) / r / H)), float(sc), KLASSER[int(lb)]]
                for (cx, cy, w, h), sc, lb in zip(o[k][:, :4], s[k], cls[k].argmax(1))]
         f = fall_ur_lage(l, W, H, bild)
         rad[bild] = {'id': f['id'], 'W': W, 'H': H, 'det': det}

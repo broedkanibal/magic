@@ -1,10 +1,7 @@
 # Grind 2: ett litet träningsförsök och provet mot det ritade facit (MES-288)
 
-**Läget 2026-09-30 13:05:** Jesper såg borden (`synt/grind2.html`) och sa ja till regel G vid 0,5,
-de tolv ritade rutorna som facit och lägstanivån (55 av 66 egna, högst 2 falska). Facit och dataset v1
-är ombyggda, datasetet ligger som **privat** Kaggle-dataset `jesperfunkrosling/mesa-mes288-detektor-v1`
-(isPrivate: true, 404 utan inloggning), och kerneln `mesa-mes288-detektor-tran` version 1 startades
-13:05. Provet och svaret nedan fylls i när träningen är klar.
+**Svar 2026-09-30: GO.** Båda modellerna klarar lägstanivån (minst 55 av 66 egna, högst 2 falska).
+Tabellen står under *Resultatet* längst ned.
 
 ## Vad som tränas
 
@@ -69,3 +66,40 @@ Samma mått och skript som nollprovet: `prov.py` kör ONNX-filen på de sju rita
 bedömer de sex andra orört. Klassen `baksida` räknas som vilken låda som helst: ligger den på leken
 blir den `ovrig` genom facits `rita.ovriga` (som i nollprovet), annars eget/kluster/falsk som en
 kortlåda. `prov246.py` räknar MES-246:s 57 ritade lägen med samma mått och tröskeln från fall 03.
+
+## Resultatet (2026-09-30)
+
+Kerneln `mesa-mes288-detektor-tran` version 1 körde 13:05–15:56 på Kaggle (T4 × 2). Tiny hann 87 epoker
+(2,7 h), nano 49 (1,8 h). Exporten till ONNX föll på Kaggle (`onnxscript` saknades); vikterna sparades och
+exporterades lokalt med `tran/exportera.py`. Kerneln installerar nu `onnxscript`.
+
+**De sju ritade golden-fallen** (`prov.py` + `rapport.py`, tröskeln vald på fall 03, NMS 0,6):
+
+| Modell | Tröskel | Egna kort | Sammanslagna | Missade | Falska | Sex orörda fall | Högkort egna | Hela högar | ms/bild (Macens processor) |
+|---|---|---|---|---|---|---|---|---|---|
+| dagens detektor | – | 29/66 | 13 | 24 | 2 | 26/55 | 9/29 | 4/15 | 28 |
+| OWLv2 (läraren) | 0,16 | 62/66 | 4 | 0 | 0 | 51/55 | 25/29 | 11/15 | 11 484 |
+| **YOLOX-tiny, tränad** | 0,78 | **58/66** | 6 | 2 | 1 | 49/55 | 23/29 | 9/15 | 93 |
+| **YOLOX-nano, tränad** | 0,76 | **60/66** | 4 | 2 | 0 | 49/55 | 23/29 | 9/15 | 40 |
+
+Fall 03 är det fall tröskeln väljs på, så "sex orörda fall" är den ärliga siffran: 49/55 för båda.
+Nollprovets otränade YOLOX-nano gav 55/66 med 7 falska.
+
+**MES-246:s ritade lägen** (`prov246.py`, 54 lägen med synliga kort, tröskeln från fall 03):
+
+| Modell | Egna kort | Sammanslagna | Missade | Falska | Högkort egna | Hela högar |
+|---|---|---|---|---|---|---|
+| YOLOX-tiny | 551/605 (91 %) | 21 | 33 | 0 | 181/218 (83 %) | 62/92 |
+| YOLOX-nano | 539/605 (89 %) | 40 | 26 | 0 | 173/218 (79 %) | 58/92 |
+
+Dagens detektor och OWLv2 är inte mätta på MES-246 med det här måttet, så där finns ingen jämförelse.
+
+**Högbänken** (antal lådor mot väntat antal kort i lådan): ensamma kort 39/39 för båda; högar 5/13 (tiny)
+och 6/13 (nano); par 3/13; hand 0/3 och 1/3. Högarna är det svaga.
+
+**Valideringen i träningen** (inte provet): AP50 `kort` 0,93 för båda, `baksida` 1,00 (tiny) och 0,99 (nano).
+
+**Förbehåll.** Tiny hann fler epoker men är inte bättre än nano på golden; skillnaderna (58 mot 60 av 66)
+är ett par kort och ligger inom bruset för sju bilder. Golden-fallen och MES-246 är filmade på samma
+bord och mattor som delar av träningsmaterialet (andra tillfällen, spärren håller isär dem) — ett bord
+modellen aldrig sett är inte provat. Telefonen är inte mätt; tiderna är Macens processor.
