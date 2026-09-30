@@ -7,8 +7,8 @@ prov (delning.json) och ingår aldrig i träningen.
 
 Facit byggs som ett golden-fall (dev/detektor/facit.py): kort = lägets kort utom library och tokens,
 som blir `ovriga` (som i golden-fall 13); dold = mindre än halva namnraden syns, eller den synliga
-delen ligger till minst hälften under Jespers handrutor (H i ritverktyget) — ett dolt kort krävs
-inte, och en låda på det är inte falsk. Graveyard-korten är
+delen ligger till minst hälften under Jespers handrutor (H i ritverktyget), eller kortet ligger under
+det översta i graveyard-högen — ett dolt kort krävs inte, och en låda på det är inte falsk. Graveyard-korten är
 kort (zon grav) och redovisas också för sig. Måttet är matt.bedom, tröskeln ges (den som valdes på
 golden-fall 03 i rapport.py) — den väljs aldrig här.
 
@@ -58,7 +58,15 @@ def fall_ur_lage(l, W, H, bild):
         dold = dold or handtackt([k['x'], k['y'], k['x'] + k['w'], k['y'] + k['h']], l.get('hander')) >= HAND_DOLD
         kort.append({'namn': k['namn'], 'id': k['id'], 'synlig_lada': [k['x'], k['y'], k['x'] + k['w'], k['y'] + k['h']],
                      'hel_lada': hel, 'horn': k['horn'], 'synlig': k.get('synlig', 1), 'hog': k.get('hog'),
-                     'dold': dold, 'tappad': bool(k.get('tappad')), 'zon': k.get('zon')})
+                     'dold': dold, 'tappad': bool(k.get('tappad')), 'zon': k.get('zon'), 'z': k.get('z', 0)})
+    # graveyard-högen: bara det översta kortet krävs (som i träningen, där Jesper ritar graveyard som
+    # ett kort); korten under räknas som dolda — varken krav eller falska
+    grav = [q for q in kort if q.get('zon') == 'grav']
+    if len(grav) > 1:
+        topp = max(grav, key=lambda q: q['z'])
+        for q in grav:
+            if q is not topp:
+                q['dold'] = True
     return {'id': f"mes246-{l['t']:.2f}", 'kort_id': f"{l['t']:.2f}", 'bild': bild, 'W': W, 'H': H, 'kort': kort, 'ovriga': ovr}
 
 
