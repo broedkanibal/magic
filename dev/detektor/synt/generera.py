@@ -32,6 +32,9 @@ import json, math, os, sys, time
 import cv2
 import numpy as np
 
+if os.environ.get('SYNT_TRADAR'):   # fyra processer samtidigt: en tråd var, annars trängs OpenCV:s trådar (last 37 på fyra kärnor)
+    cv2.setNumThreads(int(os.environ['SYNT_TRADAR']))
+
 HAR = os.path.dirname(os.path.abspath(__file__))
 ROT = os.path.dirname(os.path.dirname(os.path.dirname(HAR)))
 sys.path.insert(0, HAR)
@@ -45,6 +48,7 @@ SCRY = os.path.join(ARB, 'scryfall')
 BAKG = os.path.join(ARB, 'bakgrund')
 
 W, H = 960, 544
+HANDER = '--utan-hander' not in sys.argv   # grind 2: händer över bordet (se rita_hand)
 SS = 2                          # ritas i 2× och skalas ner (mjuka kanter)
 WS, HS = W * SS, H * SS
 KORT_B, KORT_H = 63.0, 88.0
@@ -479,7 +483,8 @@ def fyll(rng, bit, s):
     return (acc / np.maximum(vikt, 1e-6))[:HS, :WS]
 
 
-REELL_ANDEL = 0.65   # så ofta är bakgrunden en riktig ruta ur en träningsfilm (annars en ritad yta)
+REELL_ANDEL = 0.8    # så ofta är bakgrunden en riktig ruta ur en träningsfilm eller ett bakgrundsklipp (annars en ritad yta);
+                     # 0,65 med tre filmer, 0,8 sedan grind 2 (tolv underlag)
 
 
 def tillaten(b):
@@ -513,7 +518,9 @@ def valj_bakgrund(rng, ix):
     grupper = {}
     for b in ix:
         film = b.get('typ') == 'video'
-        g = os.path.basename(os.path.dirname(b['kalla'])) if film else (b.get('video') or b['kalla'])
+        # en grupp per video: de tre träningsfilmerna och de nio bakgrundsklippen 2026-09-29
+        # (klippen ligger i samma mapp, så mappnamnet räcker inte längre)
+        g = b['kalla'] if film else (b.get('video') or b['kalla'])
         grupper.setdefault(g, []).append(b)
     namn = sorted(grupper)
     lista = grupper[namn[rng.integers(len(namn))]]
@@ -671,6 +678,122 @@ def rita_lek(rng, canvas, bilder, kam, k, ljus):
     k['_kontur_px'] = cv2.convexHull(alla.astype(np.float32)).reshape(-1, 2)
 
 
+# ── händer (grind 2) ────────────────────────────────────────────────────────
+HAND_ANDEL = 0.45     # så ofta en hand (med arm) ligger över bordet
+HAND_TACKER = 0.45    # ett kort vars låda till mer än så täcks av handen blir en ignorerad yta, inte facit
+HUD = [(172, 192, 232), (150, 175, 220), (118, 150, 200), (95, 125, 175), (70, 98, 145), (48, 68, 105)]   # BGR, ljus till mörk
+TYG = [(40, 40, 42), (160, 160, 165), (120, 70, 40), (50, 60, 120), (60, 110, 60), (200, 200, 205), (30, 30, 90)]
+
+
+def kapsel(m, a, b, r, v=255):
+    a, b = tuple(int(x) for x in a), tuple(int(x) for x in b)
+    cv2.line(m, a, b, v, int(max(1, 2 * r)), cv2.LINE_AA)
+    cv2.circle(m, a, int(r), v, -1, cv2.LINE_AA)
+    cv2.circle(m, b, int(r), v, -1, cv2.LINE_AA)
+
+
+def rita_hand(rng, canvas, kam, kort, ljus):
+    """En hand med arm som når in över bordet från en bildkant, ritad i 2×-duken ovanpå korten.
+
+    Enkel form: arm (kapsel), handflata (ellips), fyra fingrar och en tumme (kaplar), öppen eller
+    gripande. Hudfärg ur en skala från ljus till mörk, skuggning mot kanterna, ibland ärm, ofta
+    rörelseoskärpa (händer rör sig), och en mjuk skugga på bordet eftersom handen är ovanför det.
+    Returnerar täckningen (0–1) i 2×-duken och en beskrivning till facit."""
+    c0 = proj(hom_hojd(kam), [[0, 0], [KORT_B, 0]])
+    kb = float(np.linalg.norm(c0[1] - c0[0]))            # kortets bredd i 2×-bildpunkter mitt i bilden
+    skala = rng.uniform(1.1, 1.5)                          # handen är närmare kameran än bordet
+    palm = kb * 1.35 * skala                               # handflatans bredd
+    # handleden: ofta vid ett kort, annars var som helst
+    synliga = [k for k in kort if '_hornpx' in k]
+    if synliga and rng.random() < 0.7:
+        k = synliga[rng.integers(len(synliga))]
+        mitt = k['_hornpx'].mean(0) + rng.normal(0, kb * 0.6, 2)
+    else:
+        mitt = np.array([rng.uniform(0.1, 0.9) * WS, rng.uniform(0.1, 0.9) * HS])
+    kant = rng.choice(['ner', 'vanster', 'hoger', 'upp'], p=[0.5, 0.2, 0.2, 0.1])
+    ut_ = {'ner': (mitt[0] + rng.normal(0, WS * 0.1), HS + palm), 'upp': (mitt[0] + rng.normal(0, WS * 0.1), -palm),
+           'vanster': (-palm, mitt[1] + rng.normal(0, HS * 0.1)), 'hoger': (WS + palm, mitt[1] + rng.normal(0, HS * 0.1))}[kant]
+    arm_start = np.array(ut_, float)
+    riktn = mitt - arm_start
+    riktn /= np.linalg.norm(riktn) + 1e-6
+    vink = rng.normal(0, 0.35)
+    c, s_ = math.cos(vink), math.sin(vink)
+    riktn = np.array([c * riktn[0] - s_ * riktn[1], s_ * riktn[0] + c * riktn[1]])
+    led = mitt - riktn * palm * 0.9                         # handleden bakom handflatans mitt
+    vinkel = math.degrees(math.atan2(riktn[1], riktn[0]))
+    m = np.zeros((HS, WS), np.uint8)
+    armbredd = palm * rng.uniform(0.55, 0.7)
+    kapsel(m, arm_start - riktn * palm * 2, led, armbredd / 2)
+    arm_m = m.copy()
+    cv2.ellipse(m, tuple(int(x) for x in mitt), (int(palm * 0.62), int(palm * 0.5)), vinkel, 0, 360, 255, -1, cv2.LINE_AA)
+    griper = rng.random() < 0.5
+    norm = np.array([-riktn[1], riktn[0]])
+    fl = palm * (rng.uniform(0.35, 0.55) if griper else rng.uniform(0.7, 0.95))
+    spridn = rng.uniform(0.05, 0.35)
+    for i, (off, lang) in enumerate([(-0.33, 0.85), (-0.11, 1.0), (0.11, 0.95), (0.32, 0.75)]):
+        bas = mitt + riktn * palm * 0.3 + norm * off * palm
+        d = riktn + norm * off * spridn * 2
+        d /= np.linalg.norm(d)
+        kapsel(m, bas, bas + d * (fl + palm * 0.15) * lang, palm * 0.11)
+    sida = 1 if rng.random() < 0.5 else -1
+    tb = mitt + norm * sida * palm * 0.4 - riktn * palm * 0.1
+    td = riktn * 0.6 + norm * sida * 0.8
+    td /= np.linalg.norm(td)
+    kapsel(m, tb, tb + td * palm * rng.uniform(0.45, 0.7), palm * 0.11)
+    if not m.any():
+        return None, None
+    # färg: hud, skuggad mot kanterna (avståndet till kanten), ibland ärm på armen
+    hud = np.array(HUD[rng.integers(len(HUD))], np.float32) * rng.uniform(0.85, 1.1)
+    dt = cv2.distanceTransform((m > 127).astype(np.uint8), cv2.DIST_L2, 3)
+    dtn = np.clip(dt / (palm * 0.3), 0, 1)
+    ljushet = 0.72 + 0.38 * np.sqrt(dtn)
+    farg = np.empty((HS, WS, 3), np.float32)
+    farg[:] = hud
+    arm = False
+    if rng.random() < 0.5:
+        # ärmen börjar en bit upp på armen
+        tyg = np.array(TYG[rng.integers(len(TYG))], np.float32)
+        yy, xx = np.mgrid[0:HS, 0:WS].astype(np.float32)
+        proj_led = (xx - led[0]) * -riktn[0] + (yy - led[1]) * -riktn[1]
+        arm_zon = (proj_led > palm * rng.uniform(0.2, 0.9)) & (arm_m > 0)
+        farg[arm_zon] = tyg
+        arm = True
+    brus = cv2.resize(rng.normal(0, 1, (HS // 16, WS // 16)).astype(np.float32), (WS, HS))
+    farg *= (ljushet * (1 + 0.04 * brus))[..., None]
+    alfa = cv2.GaussianBlur(m.astype(np.float32) / 255, (0, 0), 1.2 * SS)
+    rorelse = 0
+    if rng.random() < 0.6:
+        rorelse = int(rng.integers(6, 30)) * SS
+        karna = rorelse_karna(rorelse | 1, rng.uniform(0, 180))
+        pm = cv2.filter2D(farg * alfa[..., None], -1, karna)
+        alfa = cv2.filter2D(alfa, -1, karna)
+        farg = pm / np.maximum(alfa, 1e-3)[..., None]
+    # skugga på bordet: handen är 5–15 cm ovanför, så skuggan är förskjuten och mjuk
+    sk = cv2.GaussianBlur(alfa, (0, 0), rng.uniform(6, 14) * SS)
+    dx, dy = ljus['skugga'][0] * palm * rng.uniform(0.2, 0.6), ljus['skugga'][1] * palm * rng.uniform(0.2, 0.6)
+    sk = cv2.warpAffine(sk, np.float32([[1, 0, dx], [0, 1, dy]]), (WS, HS))
+    canvas *= (1 - ljus['skugga_styrka'] * 0.9 * sk)[..., None]
+    canvas[:] = canvas * (1 - alfa[..., None]) + farg * alfa[..., None]
+    return alfa, {'kant': str(kant), 'griper': bool(griper), 'arm': arm, 'rorelse_px': rorelse // SS, 'palm_px': round(palm / SS, 1),
+                  'hud': [int(x) for x in hud]}
+
+
+def hand_i_facit(kort, alfa):
+    """Kort vars låda till mer än HAND_TACKER täcks av handen blir ignorerade ytor (far_lada = False)."""
+    liten = cv2.resize(alfa, (W, H), interpolation=cv2.INTER_AREA) > 0.5
+    for k in kort:
+        k['hand'] = 0.0
+        if k.get('_lada') is None:
+            continue
+        x0, y0, x1, y1 = [int(round(v)) for v in k['_lada']]
+        x0, y0 = max(0, x0), max(0, y0)
+        x1, y1 = min(W, max(x1, x0 + 1)), min(H, max(y1, y0 + 1))
+        f = float(liten[y0:y1, x0:x1].mean()) if x1 > x0 and y1 > y0 else 0.0
+        k['hand'] = f
+        if f > HAND_TACKER:
+            k['far_lada'] = False
+
+
 def ljusforhallanden(rng):
     sort = rng.choice(['neutralt', 'varmt', 'kallt', 'mörkt'], p=[0.3, 0.3, 0.2, 0.2])
     farg = {'neutralt': (1, 1, 1), 'varmt': (0.78, 0.95, 1.12), 'kallt': (1.12, 1.0, 0.86), 'mörkt': (0.9, 0.97, 1.05)}[sort]
@@ -819,6 +942,7 @@ def skriv_facit(namn, kort, kam, bg, ljus, steg, scen, grupper, fro, tid_ms):
             'hog': k.get('hog'), 'fast': k.get('fast'), 'zon': k.get('zon'),
             'ficka': k['ficka']['farg'] if k['ficka']['typ'] != 'ingen' else None,
             'grupp': k['grupp'], 'token': bool(k.get('token')), 'rorelse_px': int(k.get('rorelse_px', 0) / SS),
+            'hand': round(k.get('hand', 0.0), 3),
         }
         if k['klass'] == 'baksida':
             post['tjock_mm'] = round(k['tjock'], 1)
@@ -826,7 +950,7 @@ def skriv_facit(namn, kort, kam, bg, ljus, steg, scen, grupper, fro, tid_ms):
     facit = {
         'bild': namn + '.jpg', 'bredd': W, 'hojd': H, 'fro': fro, 'scen': scen, 'ruta': {'upp': 'v'},
         'generator': 'dev/detektor/synt/generera.py (MES-288 grind 1b)',
-        'regel_lada': f'namnrad >= {LADA_NAMNRAD}, eller synlig >= {LADA_SYNLIG} och tjocklek >= {LADA_TJOCK_PX} px; baksida: synlig > 0,2',
+        'regel_lada': f'namnrad >= {LADA_NAMNRAD}, eller synlig >= {LADA_SYNLIG} och tjocklek >= {LADA_TJOCK_PX} px; baksida: synlig > 0,2; ingen låda om handen täcker mer än {HAND_TACKER} av lådan',
         'kamera': {k: round(v, 2) for k, v in kam.items() if k != 'P'},
         'bakgrund': bg, 'ljus': {'sort': ljus['sort'], 'gain': round(ljus['gain'], 2), 'blank': round(ljus['blank'], 2), 'kagla': round(ljus['kagla'], 2)},
         'efter': steg, 'grupper': grupper, 'tid_ms': round(tid_ms),
@@ -860,8 +984,17 @@ def en_bild(bilder, fro, scen):
     for k in sorted(kort, key=lambda k: k['z']):
         (rita_lek if k['klass'] == 'baksida' else rita_kort)(rng, canvas, bilder, kam, k, ljus)   # rita_lek: baksidan, tjock som leken eller tunn som ett kort
     kort = [k for k in kort if '_hornpx' in k]
+    # handen: egen slumpström, så att allt annat i bilden blir som före grind 2 för samma --fro
+    rh = np.random.default_rng(fro + 7_000_000)
+    hand = None
+    if HANDER and rh.random() < HAND_ANDEL:
+        alfa, hand = rita_hand(rh, canvas, kam, kort, ljus)
     facit_for(kort, kam)
+    if hand is not None:
+        hand_i_facit(kort, alfa)
     jpg, steg = efterbehandla(rng, canvas, ljus)
+    if hand is not None:
+        steg['hand'] = hand
     return jpg, kort, kam, bg, ljus, steg, grupper, (time.perf_counter() - t0) * 1000
 
 
@@ -877,8 +1010,11 @@ def main():
     for i in range(n):
         fro = fro0 + i
         scen = SCENORDNING[i % len(SCENORDNING)]
-        jpg, kort, kam, bg, ljus, steg, grupper, ms = en_bild(bilder, fro, scen)
         namn = f'synt-{fro:05d}'
+        if '--fortsatt' in a and os.path.exists(os.path.join(ut, namn + '.json')) and os.path.exists(os.path.join(ut, namn + '.txt')):
+            alla.append(json.load(open(os.path.join(ut, namn + '.json'), encoding='utf-8')))   # redan gjord (samma --fro ger samma bild)
+            continue
+        jpg, kort, kam, bg, ljus, steg, grupper, ms = en_bild(bilder, fro, scen)
         with open(os.path.join(ut, namn + '.jpg'), 'wb') as f:
             f.write(jpg.tobytes())
         facit = skriv_facit(namn, kort, kam, bg, ljus, steg, scen, grupper, fro, ms)
@@ -895,7 +1031,7 @@ def main():
     skriv_coco(ut, alla)
     with open(os.path.join(ut, 'facit.js'), 'w', encoding='utf-8') as f:
         f.write('/* genererad av dev/detektor/synt/generera.py — facit för kontaktarket */\nwindow.SYNT = ' + json.dumps(alla, ensure_ascii=False) + ';\n')
-    t = np.array(tider)
+    t = np.array(tider or [0])
     print(f'{n} bilder: median {np.median(t):.0f} ms, medel {t.mean():.0f} ms, max {t.max():.0f} ms per bild (en tråd)')
 
 

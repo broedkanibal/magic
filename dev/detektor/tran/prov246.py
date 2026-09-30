@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""MES-288 grind 2: andra provsiffran — detektorn på MES-246:s ritade lägen, med nollprovets mått.
+
+Lägena: dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/lagen.json (Jesper ritade dem i
+rita.html, MES-286), rutorna dev/material/rita/mes-246/<t>.jpg (3840 × 2160). Hela inspelningen är
+prov (delning.json) och ingår aldrig i träningen.
+
+Facit byggs som ett golden-fall (dev/detektor/facit.py): kort = lägets kort utom library och tokens,
+som blir `ovriga` (som i golden-fall 13); dold = mindre än halva namnraden syns. Graveyard-korten är
+kort (zon grav) och redovisas också för sig. Måttet är matt.bedom, tröskeln ges (den som valdes på
+golden-fall 03 i rapport.py) — den väljs aldrig här.
+
+    python dev/detektor/tran/prov246.py --onnx <fil.onnx> --namn tranad-tiny --troskel 0.3 [--resultat]
+"""
+import argparse, json, os, sys, time
+import numpy as np
+import cv2
+
+HAR = os.path.dirname(os.path.abspath(__file__))
+DET = os.path.dirname(HAR)
+ROT = os.path.dirname(os.path.dirname(DET))
+sys.path.insert(0, DET)
+sys.path.insert(0, HAR)
+from facit import kortyta  # noqa: E402
+from matt import bedom, filtrera, summera  # noqa: E402
+from prov import forbehandla, KLASSER  # noqa: E402
+
+LAGEN = os.path.join(ROT, 'dev', 'golden', 'inspelningar', '2026-09-19-mes-246-las-fore-slapp', 'lagen.json')
+RUTOR = os.path.join(ROT, 'dev', 'material', 'rita', 'mes-246')
+
+
+def fall_ur_lage(l, W, H, bild):
+    kort, ovr = [], []
+    for k in l['kort']:
+        xs = [p[0] for p in k['horn']]; ys = [p[1] for p in k['horn']]
+        hel = [min(xs), min(ys), max(xs), max(ys)]
+        if k.get('zon') == 'bib' or k['namn'] == 'library' or k['namn'].lower().startswith('token'):
+            ovr.append({'namn': k['namn'], 'horn': k['horn'], 'hel_lada': hel})
+            continue
+        dold = bool(k.get('dold')) if 'dold' in k else (k.get('namnrad', 1) < 0.5)
+        kort.append({'namn': k['namn'], 'id': k['id'], 'synlig_lada': [k['x'], k['y'], k['x'] + k['w'], k['y'] + k['h']],
+                     'hel_lada': hel, 'horn': k['horn'], 'synlig': k.get('synlig', 1), 'hog': k.get('hog'),
+                     'dold': dold, 'tappad': bool(k.get('tappad')), 'zon': k.get('zon')})
+    return {'id': f"mes246-{l['t']:.2f}", 'kort_id': f"{l['t']:.2f}", 'bild': bild, 'W': W, 'H': H, 'kort': kort, 'ovriga': ovr}
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--onnx', required=True)
+    p.add_argument('--namn', required=True)
+    p.add_argument('--troskel', type=float, required=True)
+    p.add_argument('--tradar', type=int, default=4)
+    p.add_argument('--lag', type=float, default=0.02)
+    a = p.parse_args()
+    import onnxruntime as ort
+    so = ort.SessionOptions(); so.intra_op_num_threads = a.tradar
+    sess = ort.InferenceSession(a.onnx, so, providers=['CPUExecutionProvider'])
+    inp = sess.get_inputs()[0]
+    _, _, h_in, w_in = inp.shape
+    lagen = [l for l in json.load(open(LAGEN, encoding='utf-8'))['lagen'] if l.get('klar')]
+    per, per_utan_grav, rad = [], [], {}
+    for l in lagen:
+        bild = os.path.join(RUTOR, f"{l['t']:.2f}.jpg")
+        img = cv2.imread(bild)
+        H, W = img.shape[:2]
+        x, r = forbehandla(img, h_in, w_in)
+        o = sess.run(None, {inp.name: x})[0][0]
+        cls = o[:, 5:5 + len(KLASSER)]
+        s = o[:, 4] * cls.max(1)
+        k = s >= a.lag
+        det = [[max(0.0, (cx - w / 2) / r / W), max(0.0, (cy - h / 2) / r / H), min(1.0, (cx + w / 2) / r / W), min(1.0, (cy + h / 2) / r / H), float(sc), KLASSER[int(lb)]]
+               for (cx, cy, w, h), sc, lb in zip(o[k][:, :4], s[k], cls[k].argmax(1))]
+        f = fall_ur_lage(l, W, H, bild)
+        rad[bild] = {'id': f['id'], 'W': W, 'H': H, 'det': det}
+        if not [q for q in f['kort'] if not q['dold']]:
+            continue
+        mask = kortyta(f)
+        r_ = bedom(f, filtrera(det, 'alla', a.troskel, f), mask=mask)
+        r_['fall'] = f['kort_id']
+        per.append(r_)
+        f2 = dict(f, kort=[q for q in f['kort'] if q.get('zon') != 'grav'], ovriga=f['ovriga'] + [{'namn': q['namn'], 'horn': q['horn'], 'hel_lada': q['hel_lada']} for q in f['kort'] if q.get('zon') == 'grav'])
+        if [q for q in f2['kort'] if not q['dold']]:
+            r2 = bedom(f2, filtrera(det, 'alla', a.troskel, f2), mask=kortyta(f2))
+            per_utan_grav.append(r2)
+    s = summera(per)
+    s2 = summera(per_utan_grav)
+    ut = {'modell': a.namn, 'troskel': a.troskel, 'lagen': len(per), 'alla': s, 'utan_graveyard': s2,
+          'per_lage': [{k: v for k, v in r_.items() if k not in ('kortdom', 'detdom')} for r_ in per]}
+    json.dump({'modell': f'tränad {a.namn}', 'bilder': rad}, open(os.path.join(DET, 'resultat', f'{a.namn}-mes246.json'), 'w'))
+    json.dump(ut, open(os.path.join(DET, 'resultat', f'{a.namn}-mes246-summa.json'), 'w'), indent=1)
+    print(f"MES-246, {len(per)} ritade lägen, tröskel {a.troskel}:")
+    print('| | Synliga kort | Eget | Sammanslaget | Missat | Falska | Dubbl | Kluster | Övriga | Högkort eget | Högar hela |')
+    print('|---|---|---|---|---|---|---|---|---|---|---|')
+    for namn, x in (('alla kort', s), ('utan graveyard', s2)):
+        print(f"| {namn} | {x['kort']} | {x['eget']} | {x['sammanslaget']} | {x['missat']} | {x['falsk']} | {x['dubblett']} | {x['kluster']} | {x['ovrig']} | {x['hog_eget']}/{x['hog_kort']} | {x['hogar_hela']}/{x['hogar']} |")
+
+
+if __name__ == '__main__':
+    main()
