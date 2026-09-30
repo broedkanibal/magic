@@ -14,7 +14,8 @@ Två källor, båda träning enligt dev/detektor/delning.json:
              Kort som syns men inte når dit blir ignorerade ytor, liksom kort under en hand
              (Jespers handrutor i lagen.json, H i ritverktyget; saknas de för en ruta används det
              grova området i matning/hander.json plus hudfärg. Ett kort vars synliga låda till mer
-             än 45 % täcks ignoreras, och handrutorna blir själva ignorerade ytor). Lärarens
+             än 45 % täcks ignoreras; handen själv förblir bakgrund, så att modellen lär sig att en hand
+             inte är ett kort). Lärarens
              ignorerade ytor används inte i de rutorna — det som inte är ritat är bakgrund.
   syntetiska generatorns bord (dev/detektor/synt/generera.py) i de mappar som ges med --synt.
              Lådor = kort med far_lada; ignorerade = kort som har en låda runt det synliga men
@@ -105,7 +106,7 @@ def ritade():
                 hand = handmask(bgr, {'omraden': [[[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]] for r in l['hander']], 'hud': False})
             else:
                 hand = handmask(bgr, hander.get(film, {}).get(nyckel))
-            lador, ign = [], [(list(r), 'hand') for r in l.get('hander', [])]
+            lador, ign = [], []   # handen själv är bakgrund: modellen ska lära sig att en hand inte är ett kort
             for k in l['kort']:
                 b = k['synlig_lada']
                 if not b or k['synlig'] <= 0:
