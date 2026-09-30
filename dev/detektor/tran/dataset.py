@@ -12,8 +12,9 @@ Två källor, båda träning enligt dev/detektor/delning.json:
              för lärarens: lådan runt kortets synliga del, med samma regel som de syntetiska borden
              (minst halva namnraden syns, eller ≥ 5 % av kortet och ≥ 6 px tjockt; baksida > 20 %).
              Kort som syns men inte når dit blir ignorerade ytor, liksom kort under en hand
-             (ritverktyget vet inte var händer är: handens område står i matning/hander.json,
-             och ett kort vars låda till mer än 45 % täcks av hud där inne ignoreras). Lärarens
+             (Jespers handrutor i lagen.json, H i ritverktyget; saknas de för en ruta används det
+             grova området i matning/hander.json plus hudfärg. Ett kort vars synliga låda till mer
+             än 45 % täcks ignoreras, och handrutorna blir själva ignorerade ytor). Lärarens
              ignorerade ytor används inte i de rutorna — det som inte är ritat är bakgrund.
   syntetiska generatorns bord (dev/detektor/synt/generera.py) i de mappar som ges med --synt.
              Lådor = kort med far_lada; ignorerade = kort som har en låda runt det synliga men
@@ -100,8 +101,11 @@ def ritade():
                 continue
             nyckel = f"rutor/{int(round(float(l['t']) * 10)):05d}.jpg"
             bgr = cv2.imread(krav_traning(os.path.join(TRN, film, nyckel)), cv2.IMREAD_REDUCED_COLOR_2)
-            hand = handmask(bgr, hander.get(film, {}).get(nyckel))
-            lador, ign = [], []
+            if l.get('hander'):   # Jespers egna rutor: hela rutan är hand
+                hand = handmask(bgr, {'omraden': [[[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]] for r in l['hander']], 'hud': False})
+            else:
+                hand = handmask(bgr, hander.get(film, {}).get(nyckel))
+            lador, ign = [], [(list(r), 'hand') for r in l.get('hander', [])]
             for k in l['kort']:
                 b = k['synlig_lada']
                 if not b or k['synlig'] <= 0:

@@ -6,7 +6,8 @@
 
    node dev/detektor/larare/rakna_ritning.cjs <lagen.json>
 
-   Skriver JSON: { bredd, hojd, grund, lagen: [{ nr, t, klar, kort: [...] }] }
+   Skriver JSON: { bredd, hojd, grund, lagen: [{ nr, t, klar, hander, kort: [...] }] }
+   (hander: Jespers rutor över händer, [x0, y0, x1, y1] i andelar)
    där varje kort har id, namn, zon, baksida, horn, z och det framräknade:
    synlig, namnrad, dold, tappad, avskuret, hog, synlig_lada och hel_lada
    ([x0, y0, x1, y1] i andelar av bilden). Varje ruta räknas för sig
@@ -26,7 +27,7 @@ const ut = { bredd: W, hojd: H, grund, lagen: [] };
 for (const l of doc.lagen || []) {
   const kort = (l.kort || []).map(k => ({ id: k.id, namn: k.namn || '', horn: k.horn, z: k.z, fast: k.fast, zon: k.zon }));
   const r = G.raknaKort(kort, { W, H, grund });
-  ut.lagen.push({ nr: l.nr, t: l.t, klar: !!l.klar, kort: kort.map(k => {
+  ut.lagen.push({ nr: l.nr, t: l.t, klar: !!l.klar, hander: l.hander || [], kort: kort.map(k => {
     const d = r[k.id];
     return { id: k.id, namn: k.namn, zon: k.zon || null,
       baksida: k.zon === 'bib' || G.arBaksida(k.namn) || G.arLibrary(k.namn),

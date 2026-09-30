@@ -112,6 +112,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <select id="kalla" title="Vad som ritas: ett golden-foto eller en video"></select>
     <button id="b-rita" type="button" class="aktiv" title="Två klick: kortets övre hörn längs namnraden, i läsriktningen">Rita<kbd>N</kbd></button>
     <button id="b-valj" type="button" title="Klick väljer (igen = kortet under), dra flyttar, ⌥-dra vrider">Välj<kbd>V</kbd></button>
+    <button id="b-hand" type="button" title="Dra en ruta över en hand eller arm (flera små rutor följer handen bättre). Klick i en ruta tar bort den. Kort under handen räknas varken som kort eller som bakgrund">Hand<kbd>H</kbd></button>
     <button id="b-las" type="button" title="Nya kort får samma storlek som de som redan ritats — bara riktningen tas ur klicken">Lås storlek<kbd>L</kbd></button>
     <button id="b-spara" type="button" class="primar">Spara<kbd>⌘S</kbd></button>
     <button id="b-vrid" type="button" title="Vrid visningen 90° moturs (⇧R medurs) så att korten går att läsa — facit påverkas inte">Vrid vyn ⟲<kbd>R</kbd></button>
@@ -139,12 +140,14 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
       <li>Ett nytt läge börjar med förra lägets kort. <b>Gör bara det som står under <i>Gör nu</i></b> — sedan <b>Klart</b>, så kommer nästa läge.</li>
       <li>Rita ett kort: klicka kortets <i>övre vänstra</i> hörn, sedan <i>övre högra</i>, längs namnraden.</li>
       <li>Allt sparas medan du ritar. <b>Skicka till GitHub</b> när du slutar för dagen.</li>
+      <li><b>En hand över korten?</b> <kbd>H</kbd>, dra rutor över handen och armen — flera små som följer handen — och <kbd>H</kbd> igen. Handen följer inte med till nästa läge.</li>
     </ol>
     <ol id="sagor-larare" hidden>
       <li><b>Lärarmätning — träningsfilm, inte prov.</b> Varje läge är en egen ruta ur filmen; det finns inget facit att följa, din ritning <i>är</i> facit.</li>
       <li>Rita <b>alla kort</b> du ser, också de som ligger under andra kort — understa först. Två klick längs namnraden, som vanligt. <kbd>L</kbd> låser storleken när du ritat ett par kort.</li>
       <li><b>Namn behövs inte.</b> Rutan för namnet öppnas inte; rita bara nästa kort.</li>
       <li><b>Baksidan upp</b> (leken, ett kort i ficka, Magic-baksidan): rita kortet och tryck <kbd>B</kbd>.</li>
+      <li><b>En hand i bild?</b> <kbd>H</kbd>, dra rutor över handen och armen — flera små som följer handen (fingrar, handflata, arm) — och <kbd>H</kbd> igen för att rita kort. Kort under handen behöver inte ritas.</li>
       <li>Ett nytt läge börjar tomt. <kbd>D</kbd> när rutan är klar, <kbd>[</kbd> <kbd>]</kbd> byter ruta. <b>Skicka till GitHub</b> när du är klar.</li>
     </ol>
     <div class="dim">Felklick: <kbd>Esc</kbd> · ångra: <kbd>⌘Z</kbd> · allt annat: <kbd>?</kbd></div>
@@ -223,6 +226,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
     <tr><td>R · ⇧R</td><td>vrid vyn 90° moturs · medurs, så att korten står rätt. Bara visningen — hörnen sparas i bildens egen riktning</td></tr>
     <tr><td>två klick</td><td><b>rita ett kort</b>: kortets övre vänstra hörn, sedan övre högra, längs namnraden (eller dra från det ena till det andra). Resten ritas ut, också det som ligger under ett annat kort</td></tr>
     <tr><td>Enter</td><td>skriv namnet på det valda kortet (lekens namn, <code>token Soldier</code>, <code>baksida</code>); Enter igen tillbaka till bilden</td></tr>
+    <tr><td>H · dra</td><td><b>hand</b>: dra en ruta över en hand eller arm i det här läget (flera små rutor följer handen bättre); klick i en ruta tar bort den; H igen tillbaka till Rita. Kort under handen räknas varken som kort eller bakgrund</td></tr>
     <tr><td>⌘-klick</td><td>välj ett kort. Samma ställe igen väljer kortet under</td></tr>
     <tr><td>⇧⌘-klick · ⌘C · ⌘V</td><td>markera fler kort (⇧-klick i listan) · kopiera de markerade · klistra in dem i ett annat läge, med samma nummer och plats. Ett kort i graveyard: "Markera hela graveyard-högen"</td></tr>
     <tr><td>↑ ↓ · ⇧↑ ⇧↓</td><td>det valda kortet ett steg upp/ner i ordningen · överst/underst. Senast ritat hamnar överst</td></tr>
@@ -540,6 +544,12 @@ function rita() {
   }
   // 5. handtag
   if (v) for (const [x, y] of poly.get(v.id)) { cx.fillStyle = '#0d1015'; cx.fillRect(x - 5, y - 5, 10, 10); cx.strokeStyle = '#5ee38a'; cx.lineWidth = 2; cx.strokeRect(x - 5, y - 5, 10, 10); }
+  // 5b. händer: rutor över handen i det här läget
+  const l_ = lageNu();
+  const handPoly = r => [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].map(skarm);
+  const ritaHand = (r, tunn) => { cx.beginPath(); bana(handPoly(r)); cx.fillStyle = 'rgba(255,140,60,.22)'; cx.fill(); cx.setLineDash(tunn ? [5, 4] : []); cx.lineWidth = 2; cx.strokeStyle = 'rgba(255,140,60,.95)'; cx.stroke(); cx.setLineDash([]); };
+  for (const r of (l_ && l_.hander) || []) { ritaHand(r); const [mx, my] = skarm([(r[0] + r[2]) / 2, (r[1] + r[3]) / 2]); cx.fillStyle = 'rgba(13,16,21,.78)'; cx.fillRect(mx - 20, my - 9, 40, 18); cx.fillStyle = 'rgb(255,160,90)'; cx.textAlign = 'center'; cx.fillText('hand', mx, my + 0.5); cx.textAlign = 'left'; }
+  if (drag && drag.typ === 'hand' && drag.flyttad && S.pekare) ritaHand(handRekt(drag.a0, andel(S.pekare)), true);
   // 6. påbörjat kort
   if (S.vantar && S.pekare) {
     const h = nyttHorn(S.vantar.p, andel(S.pekare));
@@ -582,6 +592,25 @@ function valjVid(p) {
   valj(k.id);
   return k;
 }
+/* Händer (MES-288): rutor i bildens andelar, [x0, y0, x1, y1], per läge i
+   lagen.json som "hander". Ett kort under handen räknas varken som kort eller
+   bakgrund, i provet och i träningen. Följer inte med till nästa läge. */
+function handRekt(a, b) {
+  const k = v => Math.round(Math.min(1, Math.max(0, v)) * 1e4) / 1e4;
+  return [k(Math.min(a[0], b[0])), k(Math.min(a[1], b[1])), k(Math.max(a[0], b[0])), k(Math.max(a[1], b[1]))];
+}
+function handRuta(d, a1) {
+  const l = lageNu(); if (!l) return;
+  if (d.flyttad) {
+    const r = handRekt(d.a0, a1);
+    if ((r[2] - r[0]) * S.W * V.s < 6 || (r[3] - r[1]) * S.H * V.s < 6) { ritaSnart(); return; }
+    andra(() => { const x = lageNu(); (x.hander = x.hander || []).push(r); });
+    return;
+  }
+  const hs = l.hander || [], i = hs.map((r, j) => [r, j]).filter(([r]) => d.a0[0] >= r[0] && d.a0[0] <= r[2] && d.a0[1] >= r[1] && d.a0[1] <= r[3]).map(([, j]) => j).pop();
+  if (i == null) { melding('dra för att rita en ruta över handen'); return; }
+  andra(() => { const x = lageNu(); x.hander.splice(i, 1); if (!x.hander.length) delete x.hander; });
+}
 function skapa(p1) {
   const h = nyttHorn(S.vantar.p, p1);
   S.vantar = null;
@@ -616,6 +645,7 @@ cv.addEventListener('pointerdown', e => {
   const p = pek(e);
   cv.setPointerCapture(e.pointerId);
   if (e.button === 1 || e.button === 2 || mellanslag) { drag = { typ: 'pan', start: p, ox: V.ox, oy: V.oy }; return; }
+  if (S.lage === 'hand') { if (lageNu()) drag = { typ: 'hand', start: p, a0: andel(p), flyttad: false }; return; }
   const hi = handtag(p);
   if (hi >= 0 && !S.vantar) { fore(); drag = { typ: 'horn', i: hi, start: p, urspr: kopia(kortId(S.vald).horn), flyttad: false }; return; }
   if (S.lage === 'rita' && !(e.metaKey || e.ctrlKey)) {
@@ -637,7 +667,7 @@ cv.addEventListener('pointermove', e => {
   if (drag.typ === 'pan') { V.ox = drag.ox + p[0] - drag.start[0]; V.oy = drag.oy + p[1] - drag.start[1]; ritaSnart(); return; }
   if (!drag.flyttad && Math.hypot(p[0] - drag.start[0], p[1] - drag.start[1]) < 4) return;
   drag.flyttad = true;
-  if (drag.typ === 'nytt') { ritaSnart(); return; }
+  if (drag.typ === 'nytt' || drag.typ === 'hand') { ritaSnart(); return; }
   const k = kortId(drag.id != null ? drag.id : S.vald);
   if (!k) return;
   if (drag.typ === 'horn') {
@@ -658,6 +688,7 @@ cv.addEventListener('pointerup', e => {
   if (!d) return;
   if (d.typ === 'pan') return;
   if (d.typ === 'nytt') { if (d.flyttad) skapa(andel(pek(e))); return; }
+  if (d.typ === 'hand') { handRuta(d, andel(pek(e))); return; }
   if (d.flyttad) efter(); else { S.undo.pop(); visa(); }
 });
 cv.addEventListener('pointercancel', () => { drag = null; ritaSnart(); });
@@ -965,12 +996,13 @@ window.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey) return;
   const k = e.key;
   if (k === 'Escape') { if (!el('hjalp').hidden) el('hjalp').hidden = true; else if (S.vantar) { S.vantar = null; ritaSnart(); } else valj(null); return; }
-  if (k === '?' || k === 'h' || k === 'H') { el('hjalp').hidden = !el('hjalp').hidden; return; }
+  if (k === '?') { el('hjalp').hidden = !el('hjalp').hidden; return; }   // H är Hand sedan 2026-09-30
   if (!S.dok) return;
   const steg = e.altKey ? 0.1 : 0.5;   // tiden inom läget: ⇧← ⇧→, ⌥ för finare
   switch (k) {
     case 'n': case 'N': byt('rita'); break;
     case 'v': case 'V': byt('valj'); break;
+    case 'h': case 'H': byt(S.lage === 'hand' ? 'rita' : 'hand'); break;
     case 'l': case 'L': lasa(); break;
     case 'Enter': if (kortId(S.vald)) { e.preventDefault(); el('namn').focus(); el('namn').select(); } break;
     case 'Delete': case 'Backspace': e.preventDefault(); taBort(); break;
@@ -999,14 +1031,19 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => { if (e.key === ' ') mellanslag = false; });
 window.addEventListener('beforeunload', e => { if (osparat()) { e.preventDefault(); e.returnValue = ''; } });
-function byt(l) { S.lage = l; S.vantar = null; el('b-rita').classList.toggle('aktiv', l === 'rita'); el('b-valj').classList.toggle('aktiv', l === 'valj'); visaTips(); ritaSnart(); }
+function byt(l) {
+  if (l === 'hand' && !(S.kalla && S.kalla.sort === 'video')) { melding('händer ritas i videornas lägen, inte i golden-fotona'); return; }
+  S.lage = l; S.vantar = null; el('b-rita').classList.toggle('aktiv', l === 'rita'); el('b-valj').classList.toggle('aktiv', l === 'valj'); el('b-hand').classList.toggle('aktiv', l === 'hand'); visaTips(); visaInfo(); ritaSnart();
+}
 function lasa() {
   if (!S.las && !lasLangd()) { melding('rita ett kort först — låset tar storleken från de ritade'); return; }
   S.las = !S.las; el('b-las').classList.toggle('aktiv', S.las);
   melding(S.las ? `storleken låst: ${Math.round(lasLangd())} px namnrad` : 'storleken fri');
 }
 function visaTips() {
-  el('tipstext').innerHTML = S.lage === 'rita'
+  el('tipstext').innerHTML = S.lage === 'hand'
+    ? '<b>Hand:</b> dra en ruta över handen eller armen — flera små rutor följer handen bättre · klick i en ruta tar bort den · H tillbaka till Rita'
+    : S.lage === 'rita'
     ? '<b>Rita:</b> klicka kortets övre vänstra hörn, sedan övre högra (längs namnraden) · R vrider vyn · ⌘-klick väljer · Esc avbryter · ? tangenter'
     : '<b>Välj:</b> klick väljer, samma ställe igen = kortet under · dra flyttar · ⌥-dra vrider · dra ett hörn · ? tangenter';
 }
@@ -1026,7 +1063,7 @@ function visaGrundvarning() {
   if (v) el('grundvarning').textContent = `${t} av ${r.length} kort räknas som tappade. Ligger otappade kort ${S.grund === 'v' ? 'vågrätt' : 'lodrätt'} i bilden? Byt grundläget ovanför.`;
 }
 function visaInfo() {
-  el('info').textContent = S.W ? `${S.W}×${S.H} · ${Math.round(V.s * 100)} %${V.rot ? ` · vyn ${V.rot * 90}°` : ''} · ${S.lage === 'rita' ? 'Rita' : 'Välj'}${S.las ? ' · låst' : ''}` : '–';
+  el('info').textContent = S.W ? `${S.W}×${S.H} · ${Math.round(V.s * 100)} %${V.rot ? ` · vyn ${V.rot * 90}°` : ''} · ${S.lage === 'rita' ? 'Rita' : S.lage === 'hand' ? 'Hand' : 'Välj'}${S.las ? ' · låst' : ''}` : '–';
 }
 function visaLista() {
   const kort = kortNu().slice().sort((a, b) => b.z - a.z);
@@ -1350,7 +1387,7 @@ function visaLage() {
    kopia av förra läget, som vilket nytt läge som helst. (Jespers MES-246
    hade tomma lägen kvar från när tiderna gled, och leken han ritade i
    läge 1 kom aldrig med till dem.) */
-const tomtOklart = l => l && !l.klar && !l.kort.length;
+const tomtOklart = l => l && !l.klar && !l.kort.length && !(l.hander && l.hander.length);
 /* Leken ligger kvar hela spelet: saknar ett läge som inte är klart leken,
    och ett tidigare läge har den, följer den med hit. */
 function lekenFoljerMed(nr, l) {
@@ -1478,7 +1515,7 @@ async function oppna(varde) {
     if (lagen) for (const l of lagen.lagen || []) {
       let nr = l.nr;
       if (!(nr >= 1 && nr <= S.u.forslag.length)) nr = S.u.forslag.reduce((b, f, i) => Math.abs(f.t - (l.forslag || l.t)) < Math.abs(S.u.forslag[b - 1].t - (l.forslag || l.t)) ? i + 1 : b, 1);
-      S.dok.lagen[nr] = { nr, t: l.t, forslag: l.forslag != null ? l.forslag : S.u.forslag[nr - 1].t, klar: !!l.klar, kort: l.kort.map(redigerbar) };
+      S.dok.lagen[nr] = { nr, t: l.t, forslag: l.forslag != null ? l.forslag : S.u.forslag[nr - 1].t, klar: !!l.klar, kort: l.kort.map(redigerbar), ...(l.hander && l.hander.length ? { hander: l.hander.map(r => r.slice()) } : {}) };
     }
     S.filDok = JSON.stringify(S.dok);
     rattaTider(S.dok);
@@ -1544,7 +1581,7 @@ function byggLagen() {
   for (const nr of nrs) {
     const l = S.dok.lagen[nr], kort = rundade(l.kort);
     const r = G.raknaKort(kort, { W: S.W, H: S.H, grund: S.grund, tidigare, anvanda });
-    lagen.push({ nr, t: l.t, forslag: l.forslag, klar: !!l.klar, handelser: S.u.mellan(forraT, l.t), kort: kort.map(k => post(k, r[k.id], false, true)) });
+    lagen.push({ nr, t: l.t, forslag: l.forslag, klar: !!l.klar, handelser: S.u.mellan(forraT, l.t), kort: kort.map(k => post(k, r[k.id], false, true)), ...(l.hander && l.hander.length ? { hander: l.hander } : {}) });
     allaKort.push(...kort.map(k => Object.assign({ lage: nr }, k)));
     tidigare = {}; for (const k of kort) if (r[k.id].hog) tidigare[k.id] = r[k.id].hog;
     anvanda = [...new Set(anvanda.concat(Object.values(tidigare)))];
@@ -1617,7 +1654,7 @@ function melding(text, fel) {
 }
 
 /* ── Knapparna ────────────────────────────────────────────────────────── */
-el('b-rita').onclick = () => byt('rita'); el('b-valj').onclick = () => byt('valj'); el('b-las').onclick = lasa;
+el('b-rita').onclick = () => byt('rita'); el('b-valj').onclick = () => byt('valj'); el('b-hand').onclick = () => byt(S.lage === 'hand' ? 'rita' : 'hand'); el('b-las').onclick = lasa;
 el('b-vrid').onclick = () => vridVyn();
 el('b-hjalp').onclick = () => { el('hjalp').hidden = !el('hjalp').hidden; };
 el('b-somforra').onclick = () => somForra();
