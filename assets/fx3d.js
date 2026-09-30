@@ -1,7 +1,8 @@
 /* ═══ 3D-EFFEKTEN (PoC) ══════════════════════════════════════════════
-   När testkortet spelas ut kliver en animerad 3D-modell upp ur kortets
-   illustration och ställer sig på kortet. Ett kort, en modell — ingen
-   pipeline. Laddas bara med ?fx3d (se kroken i index.html).
+   När testkortet lagts på bordet väcks figuren i illustrationen till liv:
+   den målade figuren lyfter ur bilden, reser sig och står kvar på kortet
+   som en levande 3D-modell. Ett kort, en modell — ingen pipeline. Laddas
+   bara med ?fx3d (se kroken i index.html).
 
    Filen rör inte spelet. Den läser mattans DOM (#grid) med en
    MutationObserver och ritar på en egen canvas ovanpå, som inte tar emot
@@ -12,46 +13,50 @@
      hjässa. 3D-lagret har därför en egen, lutad vy (VINKEL från lodlinjen).
      Bordet är ett lutat plan i scenen, och en skärmpunkt (x, y) ligger på
      det i (x, 0, y / cos VINKEL).
-   • Portalen: illustrationsrutan skrivs i stencilbufferten. Schaktet under
-     kortet och den del av modellen som är under bordsytan ritas bara där;
-     delen ovanför bordsytan ritas överallt. Två pass per bildruta med var
-     sitt klipplan.
-   • Hoppet görs i kod. Animationsclipen kommer ur GLB:n. */
+   • Förvandlingen: modellen börjar liggande på rygg i illustrationen, platt
+     som ett lager färg och olyst, så att den täcker den målade figuren och
+     ser ut som den. Sedan får den tjocklek, reser sig kring sin fot och
+     blir belyst av scenens ljus. Det som är under bordsytan klipps bort,
+     så figuren ser ut att komma upp ur kortet.
+   • Allt görs i kod. Har GLB:n animationsclips går idle-clippet när
+     figuren står; annars rör den sig i kod (se VAJ). */
 
 const KORT = 'Ukud Cobra';                 // aria-label på .card börjar med kortnamnet
 const MODELL = 'assets/models/ukud-cobra.glb';
 const IDLE = /idle|survey/i;               // clip som går när modellen står still
-const HOPP = /run|jump|walk/i;             // clip under hoppet; saknas det går idle
-/* Rörelsen när modellen står still. 'auto': clip ur GLB:n om den har några,
-   annars vajar modellen i kod (en stilla modell ur en bild-till-3D-tjänst har
-   inga clips). 'kod' tvingar fram vajandet. */
+/* Rörelsen när modellen står. 'auto': clip ur GLB:n om den har några, annars
+   rör sig modellen i kod (en stilla modell ur en bild-till-3D-tjänst har inga
+   clips). 'kod' tvingar fram det. */
 const RORELSE = 'auto';
-const VAJ = 0.07;                          // vajandets utslag i toppen, som andel av modellens höjd
-const HOJD = 0.95;                         // modellens höjd, i kortbredder
+const VAJ = 0.13;                          // kroppens utslag i toppen, som andel av modellens höjd
+const HOJD = 0.95;                         // modellens höjd när den står, i kortbredder
 /* En modell ur en bild-till-3D-tjänst står ofta på en platta av mark. SJUNK
-   sänker modellen så att plattan hamnar under bordsytan, där den klipps bort. */
-const SJUNK = 0.08;                        // andel av modellens höjd
-const EGET_LJUS = 1.3;                     // hur mycket av texturen som lyser själv; illustrationen är mörk
-const VRID = 0;                            // modellens vridning kring lodlinjen, radianer
+   klipper bort den: allt under den här andelen av modellens höjd tas bort. */
+const SJUNK = 0.08;
+const EGET_LJUS = 1.3;                     // hur mycket av texturen som lyser själv när figuren står; illustrationen är mörk
+const VRID = 0;                            // åt vilket håll den stående modellen tittar, radianer
 const VINKEL = 50 * Math.PI / 180;         // vyns lutning från lodlinjen
 /* Illustrationsrutan på ett vanligt Magic-kort, som andelar av kortet. */
 const ART = { x: 0.075, y: 0.115, w: 0.85, h: 0.445 };
-const DJUP = 0.4;                          // schaktets djup, i kortbredder
+/* Var den målade figuren står i illustrationen, som andelar av rutan: fotens
+   mitt (x, y) och figurens höjd. Där ligger modellen när förvandlingen börjar. */
+const MALAD = { x: 0.56, y: 0.97, h: 0.95 };
 const GLOD = 0x8dff7a;                     // ringens, gnistornas och motljusets färg
-const BAGE = 0.6;                          // hoppets höjd över bordet, i kortbredder
-const T_OPPNA = 0.25, T_HOPP = 1.0, T_LAND = 0.3, T_STANG = 0.35;
+/* Tiderna, i sekunder: kortet får först ligga (VANTA), sedan tänds
+   illustrationen och den målade figuren framträder (TAND), och så reser
+   den sig (RESA). */
+const T_VANTA = 0.7, T_TAND = 0.6, T_RESA = 1.2;
 
 const CDN = 'https://esm.sh/three@0.170.0';
 const S = Math.sin(VINKEL), C = Math.cos(VINKEL);
 
 const klamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const utKubik = p => 1 - Math.pow(1 - p, 3);
+const bland = (a, b, p) => a + (b - a) * p;
 const inUtKubik = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-const utBak = p => 1 + 2.70158 * Math.pow(p - 1, 3) + 1.70158 * Math.pow(p - 1, 2);
+const utBak = p => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);
 
 let THREE, klonSkelett, gltf = null;
-let grid, vp, canvas, renderer, scen, kamera, bord, ljus, skuggplan, klipp;
-let maskMat, vaggMat, glodTex;
+let grid, vp, canvas, renderer, scen, kamera, bord, ljus, skuggplan, klipp, glodTex;
 const inst = new Map();                    // cid → instans
 const sedda = new Set();                   // cid som redan fått sin chans
 let raf = 0, manuell = false, forra = 0, fpsN = 0, fpsT = 0, fpsSagt = false;
@@ -107,13 +112,11 @@ function byggScen() {
   canvas.id = 'fx3d';
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;z-index:40;pointer-events:none';
   vp.appendChild(canvas);
-  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, stencil: true });
+  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
-  renderer.autoClear = false;
   renderer.localClippingEnabled = true;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.shadowMap.autoUpdate = false;
 
   scen = new THREE.Scene();
   /* En världsenhet är en CSS-pixel; y pekar uppåt, så skärmens y är -y. */
@@ -133,13 +136,12 @@ function byggScen() {
   bord.add(ljus); bord.add(ljus.target);
 
   skuggplan = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-    new THREE.ShadowMaterial({ opacity: .6, depthWrite: false,
-      /* Ingen skugga över schaktets öppning. */
-      stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1 }));
+    new THREE.ShadowMaterial({ opacity: .6, depthWrite: false }));
   skuggplan.receiveShadow = true;
+  skuggplan.renderOrder = -4;
   bord.add(skuggplan);
 
-  /* Ett klipplan genom bordsytan. Normalen vänds mellan de två passen. */
+  /* Klipplanet i bordsytan: inget ritas under bordet. */
   klipp = new THREE.Plane(new THREE.Vector3(0, S, C), 0);
 
   /* En mjuk ljusfläck, till skivan under figuren och till gnistorna. */
@@ -148,104 +150,84 @@ function byggScen() {
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
   c2.fillStyle = gr; c2.fillRect(0, 0, 128, 128);
   glodTex = new THREE.CanvasTexture(cv);
-
-  maskMat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false,
-    stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp });
-  const vagg = f => new THREE.MeshBasicMaterial({ color: f, side: THREE.BackSide,
-    stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1 });
-  vaggMat = [vagg(0x0c0f15), vagg(0x0c0f15), vagg(0x000000), null, vagg(0x05070a), vagg(0x232a38)];
 }
 
 function spela(cid, el) {
   const rot = klonSkelett(gltf.scene);
   const kod = (window.Fx3d.rorelse || RORELSE) === 'kod' || !gltf.animations.length;
-  const tid = { value: 0 };
-  /* Klipper bort allt under modellens fot (plattan, se SJUNK) — också i luften. */
+  const tid = { value: 0 }, amp = { value: 0 };
+  /* Klipper bort allt under modellens fot (plattan, se SJUNK). Följer modellen
+     när den ligger och när den reser sig. */
   const fot = new THREE.Plane(new THREE.Vector3(0, S, C), 0);
-  /* Normera: höjden över bordet blir HOJD kortbredder. */
+  /* Normera: höjden ovanför foten blir HOJD kortbredder, foten i origo. */
   const box = new THREE.Box3().setFromObject(rot);
   const mat = box.getSize(new THREE.Vector3());
   const k = HOJD / (mat.y * (1 - SJUNK));
   const mitt = box.getCenter(new THREE.Vector3());
   rot.position.set(-mitt.x * k, -(box.min.y + mat.y * SJUNK) * k, -mitt.z * k);
   rot.scale.setScalar(k);
+  const mats = [];
   rot.traverse(o => {
     if (!o.isMesh) return;
     o.castShadow = true; o.frustumCulled = false;
-    o.material = o.material.clone();
-    o.material.clippingPlanes = [klipp, fot];
-    if (o.material.isMeshStandardMaterial) {
+    const m = o.material = o.material.clone();
+    m.clippingPlanes = [klipp, fot];
+    m.clipShadows = true;                   // plattan ska inte kasta skugga heller
+    m.transparent = true; m.opacity = 0;
+    if (m.isMeshStandardMaterial) {
       /* Utan omgivningsbild blir en metallisk yta svart. */
-      o.material.metalness = 0; o.material.roughness = .85;
-      if (o.material.map) { o.material.emissive.set(0xffffff); o.material.emissiveMap = o.material.map; o.material.emissiveIntensity = EGET_LJUS; }
+      m.metalness = 0; m.roughness = .85;
+      if (m.map) { m.emissive.set(0xffffff); m.emissiveMap = m.map; }
     }
-    o.material.stencilFunc = THREE.EqualStencilFunc;
-    o.material.stencilRef = 1;
-    o.userData.fx3dMat = o.material;
-    if (kod) vaja(o, tid);
+    if (kod) vaja(o, tid, amp);
+    mats.push(m);
   });
-  const figur = new THREE.Group();          // flyttas och skalas av hoppet
-  const vridd = new THREE.Group();
-  vridd.rotation.y = VRID;
-  vridd.add(rot); figur.add(vridd);
+  /* figur (plats, storlek) → resa (ligger → står) → platt (tjocklek) → vridd
+     (vridning kring lodlinjen) → modellen. */
+  const figur = new THREE.Group(), resa = new THREE.Group(), platt = new THREE.Group(), vridd = new THREE.Group();
+  vridd.add(rot); platt.add(vridd); resa.add(platt); figur.add(resa);
 
   const grupp = new THREE.Group();          // origo i illustrationens mitt, enhet = kortbredd
-  const mask = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), maskMat);
-  mask.renderOrder = -10;
-  const golvMat = new THREE.MeshBasicMaterial({ color: 0x222831, side: THREE.BackSide,
-    stencilWrite: true, stencilFunc: THREE.EqualStencilFunc, stencilRef: 1 });
-  const mats = vaggMat.slice(); mats[3] = golvMat;
-  const schakt = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mats);
-  schakt.renderOrder = -5;
   /* Glöden: en ring på kortet runt figuren, en ljusfläck under den och
-     gnistor som stiger. Ritas bara i pass 2, ovanpå bordet. */
+     gnistor som stiger. Illustrationen bakom dämpas, så att den målade
+     figuren ser ut att ha lämnat bilden. */
   const fx = new THREE.Group();
-  const glod = (geo, extra) => {
-    const m = new THREE.Mesh(geo.rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial(Object.assign({ color: GLOD, transparent: true,
+  const plan = (geo, extra) => {
+    const m = new THREE.Mesh(geo.rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial(Object.assign({ color: GLOD, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }, extra)));
+    m.renderOrder = -2;
     fx.add(m); return m;
   };
-  const ring = glod(new THREE.RingGeometry(.44, .465, 72));
-  const bage = glod(new THREE.RingGeometry(.37, .38, 72, 1, 0, Math.PI * 1.4));
-  const skiva = glod(new THREE.PlaneGeometry(1.5, 1.5), { map: glodTex });
+  const damp = plan(new THREE.PlaneGeometry(1, 1), { color: 0x04070a, blending: THREE.NormalBlending });
+  damp.renderOrder = -3;
+  const ring = plan(new THREE.RingGeometry(.44, .465, 72));
+  const bage = plan(new THREE.RingGeometry(.37, .38, 72, 1, 0, Math.PI * 1.4));
+  const skiva = plan(new THREE.PlaneGeometry(1.5, 1.5), { map: glodTex });
   const N = 44, fro = [];
-  for (let k = 0; k < N; k++) fro.push({ a: Math.random() * 6.283, r: .2 + Math.random() * .26, v: .22 + Math.random() * .4, f: Math.random() });
+  for (let n = 0; n < N; n++) fro.push({ a: Math.random() * 6.283, r: .2 + Math.random() * .26, v: .22 + Math.random() * .4, f: Math.random() });
   const pgeo = new THREE.BufferGeometry();
   pgeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
-  const gnistor = new THREE.Points(pgeo, new THREE.PointsMaterial({ color: GLOD, map: glodTex, transparent: true,
+  const gnistor = new THREE.Points(pgeo, new THREE.PointsMaterial({ color: GLOD, map: glodTex, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: false }));
-  gnistor.frustumCulled = false;
+  gnistor.frustumCulled = false; gnistor.renderOrder = 2;
   fx.add(gnistor);
-  grupp.add(mask, schakt, figur, fx);
+  grupp.add(fx, figur);
   bord.add(grupp);
 
-  /* Golvet är kortets egen illustration, så att den ser ut att sjunka ner. */
-  const img = el.querySelector('img');
-  if (img && img.src) new THREE.TextureLoader().setCrossOrigin('anonymous').load(img.src, tex => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.repeat.set(-ART.w, ART.h);
-    tex.offset.set(ART.x + ART.w, 1 - ART.y - ART.h);
-    tex.wrapS = THREE.RepeatWrapping;
-    golvMat.map = tex; golvMat.color.set(0xffffff); golvMat.needsUpdate = true;
-  }, undefined, () => {});
-
   const mixer = new THREE.AnimationMixer(rot);
-  const clip = re => gltf.animations.find(a => re.test(a.name));
-  const idle = clip(IDLE) || gltf.animations[0];
-  const hopp = clip(HOPP) || idle;
+  const idle = gltf.animations.find(a => IDLE.test(a.name)) || gltf.animations[0];
   const aIdle = idle && !kod ? mixer.clipAction(idle) : null;
-  const aHopp = hopp && !kod ? mixer.clipAction(hopp) : null;
-  if (aHopp) aHopp.play();
 
-  inst.set(cid, { cid, el, grupp, mask, schakt, golvMat, figur, rot, mixer, aIdle, aHopp,
-    fx, ring, bage, skiva, gnistor, fro, vridd, tid, kod, fot, t: 0, landat: false, oppet: true });
+  inst.set(cid, { cid, el, grupp, figur, resa, platt, vridd, rot, mats, mixer, aIdle,
+    fx, damp, ring, bage, skiva, gnistor, fro, tid, amp, kod, fot, t: 0, star: false });
   if (!raf) { forra = performance.now(); raf = requestAnimationFrame(bildruta); }
 }
 
-/* Vajandet: hörnen flyttas i sidled, mer ju högre upp de sitter, så att
-   foten står still och toppen svänger — som en orm som rest sig. Görs i
+/* Kroppens rörelse utan clips: en våg som vandrar uppåt genom kroppen flyttar
+   hörnen i sidled, mer ju högre upp de sitter — foten står still, halsen och
+   huvudet väger fram och tillbaka, som en kobra som rest sig. Görs i
    modellens egna koordinater, där y antas vara uppåt (glTF:s standard). */
-function vaja(mesh, tid) {
+function vaja(mesh, tid, amp) {
   const g = mesh.geometry;
   if (!g.boundingBox) g.computeBoundingBox();
   const y0 = g.boundingBox.min.y, h = Math.max(1e-6, g.boundingBox.max.y - y0);
@@ -253,109 +235,116 @@ function vaja(mesh, tid) {
   m.customProgramCacheKey = () => 'fx3d-vaj';
   m.onBeforeCompile = sh => {
     sh.uniforms.uTid = tid;
+    sh.uniforms.uAmp = amp;
     sh.uniforms.uFot = { value: y0 };
     sh.uniforms.uHojd = { value: h };
-    sh.vertexShader = 'uniform float uTid, uFot, uHojd;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+    sh.vertexShader = 'uniform float uTid, uAmp, uFot, uHojd;\n' + sh.vertexShader.replace('#include <begin_vertex>',
       `#include <begin_vertex>
        float fxH = clamp((transformed.y - uFot) / uHojd, 0., 1.);
-       float fxW = fxH * fxH * uHojd * ${VAJ.toFixed(3)};
-       transformed.x += sin(uTid * 1.5 + fxH * 2.6) * fxW;
-       transformed.z += cos(uTid * 1.1 + fxH * 1.9) * fxW * .6;`);
+       float fxW = fxH * fxH * uHojd * uAmp;
+       transformed.x += (sin(uTid * 1.25 - fxH * 3.2) + .35 * sin(uTid * 2.9 - fxH * 5.)) * fxW;
+       transformed.z += sin(uTid * .8 - fxH * 2.2 + 1.3) * fxW * .7;`);
   };
 }
 
 function bort(i) {
   bord.remove(i.grupp);
   i.mixer.stopAllAction();
-  i.golvMat.map && i.golvMat.map.dispose();
-  i.golvMat.dispose();
-  i.rot.traverse(o => { if (o.userData.fx3dMat) o.userData.fx3dMat.dispose(); });
+  for (const m of i.mats) m.dispose();
   i.fx.traverse(o => { if (o.geometry) { o.geometry.dispose(); o.material.dispose(); } });
   inst.delete(i.cid);
 }
 
-/* Kortets ruta på canvasen, och var illustrationen sitter i den. Ett tappat
-   kort är vridet 90° medurs, och då ligger illustrationen till höger. */
+/* Kortets ruta på canvasen, och var illustrationen sitter i den. */
 function lagen(i, cr) {
   if (!i.el.isConnected) i.el = grid.querySelector('.card[data-cid="' + CSS.escape(i.cid) + '"]');
   if (!i.el) return null;
   const r = i.el.getBoundingClientRect();
   if (!r.width) return null;
-  const tappad = i.el.classList.contains('tappad');
-  const a = tappad
+  /* Ett tappat kort är vridet 90° medurs, och då ligger illustrationen till höger. */
+  const a = i.el.classList.contains('tappad')
     ? { x: 1 - ART.y - ART.h, y: ART.x, w: ART.h, h: ART.w }
     : ART;
   return {
-    r, b: Math.min(r.width, r.height),
+    b: Math.min(r.width, r.height),
     ax: r.left - cr.left + (a.x + a.w / 2) * r.width,
     ay: r.top - cr.top + (a.y + a.h / 2) * r.height,
     aw: a.w * r.width, ah: a.h * r.height
   };
 }
 
+const _n = () => new THREE.Vector3(), _p = () => new THREE.Vector3();
+
 function uppdatera(i, dt, cr) {
   const L = lagen(i, cr);
   if (!L) { bort(i); return; }
   i.t += dt;
-  const g = i.grupp, b = L.b;
-  g.position.set(L.ax, 0, L.ay / C);
-  g.scale.setScalar(b);
+  const b = L.b, aw = L.aw / b, ah = L.ah / b;   // illustrationen i kortbredder
+  i.grupp.position.set(L.ax, 0, L.ay / C);
+  i.grupp.scale.setScalar(b);
 
-  /* Schaktet: öppnar sig, och stänger sig under figuren medan den är i
-     luften, så att den landar på kortet. */
-  const tStang = T_OPPNA * .6 + T_HOPP * .55;
-  const d = DJUP * (i.t < tStang ? utKubik(klamp(i.t / T_OPPNA, 0, 1)) : 1 - inUtKubik(klamp((i.t - tStang) / T_STANG, 0, 1)));
-  i.oppet = i.t < tStang + T_STANG;
-  i.mask.visible = i.schakt.visible = i.oppet;
-  if (i.oppet) {
-    const w = L.aw / b, h = L.ah / b / C;
-    i.mask.scale.set(w, 1, h);
-    i.schakt.scale.set(w, Math.max(d, .001), h);
-    i.schakt.position.y = -Math.max(d, .001) / 2;
-    i.golvMat.color.setScalar(i.golvMat.map ? 1 - .45 * d / DJUP : .15);
+  /* Förloppet: tand 0→1 medan den målade figuren framträder, res 0→1 medan
+     den reser sig. Före T_VANTA ligger kortet bara på bordet. */
+  const tand = klamp((i.t - T_VANTA) / T_TAND, 0, 1);
+  const res = klamp((i.t - T_VANTA - T_TAND) / T_RESA, 0, 1);
+  const upp = inUtKubik(res);
+  const liv = klamp((i.t - T_VANTA - T_TAND - T_RESA * .7) / 1.4, 0, 1);   // den egna rörelsen tonar in
+
+  /* Liggande täcker modellen den målade figuren: foten där den målade foten
+     står, och så lång att den på skärmen blir lika hög som den målade. */
+  const lx = (MALAD.x - .5) * aw, lz = (MALAD.y - .5) * ah / C;
+  const lskala = MALAD.h * ah / C / HOJD;
+  i.figur.position.set(bland(lx, 0, upp), Math.sin(res * Math.PI) * .12, bland(lz, .12 * ah / C, upp));
+  const skala = bland(lskala, 1, upp) * (1 + .1 * Math.sin(klamp(res * 1.25, 0, 1) * Math.PI));
+  i.figur.scale.setScalar(skala);
+  /* Reser sig kring foten, med en liten överskjutning. */
+  i.resa.rotation.x = -Math.PI / 2 * (1 - utBak(res));
+  /* Från ett lager färg till full kropp. */
+  i.platt.scale.z = bland(.04, 1, inUtKubik(klamp(res / .6, 0, 1)));
+
+  /* Från målad (olyst, exakt texturens färg) till belyst av scenen. */
+  for (const m of i.mats) {
+    m.opacity = tand;
+    m.color.setScalar(upp);
+    if (m.emissiveMap) m.emissiveIntensity = bland(1, EGET_LJUS, upp);
   }
 
-  /* Hoppet: rakt upp ur schaktet i en båge, och ner på kortet igen. */
-  const p = klamp((i.t - T_OPPNA * .6) / T_HOPP, 0, 1);
-  let y = -DJUP * (1 - p) + 4 * BAGE * p * (1 - p);
-  let sy = 1, sxz = 1;
-  const vaxt = .5 + .5 * utBak(klamp(p / .55, 0, 1));
-  if (p >= 1) {
-    if (!i.landat) {
-      i.landat = true;
-      if (i.aIdle && i.aIdle !== i.aHopp) { i.aIdle.reset().play(); i.aHopp.crossFadeTo(i.aIdle, .25, false); }
-    }
-    /* Landningen: trycks ihop och fjädrar tillbaka med en liten överskjutning. */
-    const q = klamp((i.t - T_OPPNA * .6 - T_HOPP) / T_LAND, 0, 1);
-    const tryck = Math.sin(q * Math.PI * 2) * (1 - q) * .16;
-    sy = 1 - tryck; sxz = 1 + tryck * .6; y = 0;
-  }
-  i.figur.position.set(0, y, 0);
-  i.fot.constant = -y * b;
-  i.figur.scale.set(vaxt * sxz, vaxt * sy, vaxt * sxz);
-  i.figur.visible = i.t > T_OPPNA * .4;
+  if (res >= 1 && !i.star) { i.star = true; if (i.aIdle) i.aIdle.reset().fadeIn(.4).play(); }
   i.mixer.update(dt);
   if (i.kod) {
-    /* Utan clips: kroppen vajar (i vertexskuggaren) och figuren ser sig om. */
-    i.tid.value = i.t;
-    i.vridd.rotation.y = VRID + Math.sin(i.t * .55) * .3 * klamp((i.t - 1) / 1.5, 0, 1);
+    /* Kobrans rörelse på stället: den vrider sig långsamt fram och tillbaka
+       med två takter i otakt, lutar sig dit den vrider, och kroppen vajar. */
+    const tl = i.t;
+    i.tid.value = tl;
+    i.amp.value = VAJ * liv;
+    i.vridd.rotation.y = (VRID + .7 * Math.sin(tl * .42) + .22 * Math.sin(tl * 1.07 + 1.1)) * bland(0, 1, liv);
+    i.vridd.rotation.z = .07 * Math.sin(tl * .42 + .6) * liv;
+    i.vridd.rotation.x = .05 * Math.sin(tl * .9) * liv;
+  } else {
+    i.vridd.rotation.y = VRID * upp;
   }
 
-  /* Glöden tänds när schaktet öppnas, blossar vid landningen och pulserar sedan. */
-  const tand = klamp(i.t / .3, 0, 1);
-  const bloss = Math.exp(-Math.pow((i.t - T_OPPNA * .6 - T_HOPP) / .22, 2));
+  /* Fotens klipplan följer modellen. */
+  i.platt.updateWorldMatrix(true, false);
+  const n = _n().set(0, 1, 0).transformDirection(i.platt.matrixWorld);
+  i.fot.setFromNormalAndCoplanarPoint(n, _p().setFromMatrixPosition(i.platt.matrixWorld));
+
+  /* Glöden tänds med illustrationen, blossar när figuren står och pulserar sedan. */
+  const bloss = Math.exp(-Math.pow((i.t - T_VANTA - T_TAND - T_RESA * .85) / .25, 2));
   const puls = .78 + .22 * Math.sin(i.t * 2.4);
+  i.damp.scale.set(aw, 1, ah / C);
+  i.damp.material.opacity = .55 * tand;
   i.ring.material.opacity = tand * (.85 * puls + bloss);
   i.ring.scale.setScalar(1 + bloss * .18);
   i.bage.material.opacity = tand * .55;
   i.bage.rotation.y = i.t * .7;
-  i.skiva.material.opacity = tand * (.38 * puls + bloss * .5);
+  i.skiva.material.opacity = tand * (.3 * puls + bloss * .5);
   i.gnistor.material.opacity = tand * .9;
   i.gnistor.material.size = Math.max(3, b * .045);
   const pa = i.gnistor.geometry.attributes.position;
-  i.fro.forEach((f, k) => {
+  i.fro.forEach((f, n2) => {
     const h = (f.f + i.t * f.v) % 1, r = f.r * (1 - .45 * h), a = f.a + i.t * .5;
-    pa.setXYZ(k, Math.cos(a) * r, h * h * 1.25, Math.sin(a) * r);
+    pa.setXYZ(n2, Math.cos(a) * r, h * h * 1.25, Math.sin(a) * r);
   });
   pa.needsUpdate = true;
 }
@@ -386,35 +375,13 @@ function bildruta(nu, steg) {
   if (cr.width && cr.height) {
     passa(cr);
     for (const i of [...inst.values()]) uppdatera(i, dt, cr);
-    rita();
+    renderer.render(scen, kamera);
     /* En flik i bakgrunden får glesa bildrutor; de räknas inte. */
     if (gick > 0 && gick < .25) { fpsN++; fpsT += gick; }
     if (!fpsSagt && fpsT > 3) { fpsSagt = true; console.info('[fx3d] ' + Math.round(fpsN / fpsT) + ' bilder/s i snitt de första ' + fpsT.toFixed(1) + ' s'); }
   }
   if (inst.size) { if (!manuell) raf = requestAnimationFrame(bildruta); }
   else { renderer.clear(); fpsN = fpsT = 0; fpsSagt = false; }
-}
-
-function rita() {
-  const alla = [...inst.values()];
-  const oppna = alla.some(i => i.oppet);
-  const figurMat = på => { for (const i of alla) i.rot.traverse(o => { if (o.userData.fx3dMat) o.userData.fx3dMat.stencilWrite = på; }); };
-  renderer.clear();
-  renderer.shadowMap.needsUpdate = true;
-  if (oppna) {
-    /* Pass 1 — under bordsytan, bara genom illustrationsrutan. */
-    klipp.normal.set(0, -S, -C);
-    skuggplan.visible = false;
-    for (const i of alla) i.fx.visible = false;
-    figurMat(true);
-    renderer.render(scen, kamera);
-  }
-  /* Pass 2 — ovanför bordsytan, överallt, med skuggan på bordet. */
-  klipp.normal.set(0, S, C);
-  skuggplan.visible = true;
-  figurMat(false);
-  for (const i of alla) { i.mask.visible = i.schakt.visible = false; i.fx.visible = true; }
-  renderer.render(scen, kamera);
 }
 
 /* För prov från konsolen: Fx3d.spela() spelar effekten på första testkortet

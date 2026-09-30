@@ -490,7 +490,9 @@ ett dokumenterat API och fungerande CORS.
 ## 3D-effekten (PoC)
 
 Ett prov: när **Ukud Cobra** läggs på mattan kliver en animerad 3D-modell upp
-ur kortets illustration och ställer sig på kortet, i en glödande ring. Avstängd om man inte
+ur kortets illustration och ställer sig på kortet, i en glödande ring. Kortet får först
+ligga en stund; sedan framträder den målade figuren, reser sig och står kvar
+och rör sig på stället. Avstängd om man inte
 ber om den.
 
 - **Slå på:** öppna appen med `?fx3d`. Valet sparas; `?fx3d=0` stänger av.
@@ -508,10 +510,14 @@ canvas ovanpå; spelet vet inte om den.
 1. Lägg GLB-filen i `assets/models/`.
 2. Ändra `MODELL` överst i `assets/fx3d.js`.
 3. Heter stillastående-clippet något annat än *idle* eller *survey*: ändra
-   `IDLE`. Samma sak för `HOPP`, clippet som går under hoppet.
+   `IDLE`.
 4. Justera `HOJD` (storlek i kortbredder) och `VRID` (åt vilket håll modellen
    tittar) tills den står rätt.
 5. `GLOD` är färgen på ringen, gnistorna och ljuset underifrån.
+6. `MALAD` säger var den målade figuren står i illustrationen. Där ligger
+   modellen när förvandlingen börjar, så att den täcker målningen.
+7. `T_VANTA`, `T_TAND` och `T_RESA` är tiderna: hur länge kortet ligger
+   innan något händer, hur länge figuren framträder, och hur länge den reser sig.
 
 Har GLB:n inga animationsclips (en stilla modell ur en bild-till-3D-tjänst)
 vajar modellen i kod i stället. `VAJ` styr hur mycket, och `RORELSE = 'kod'`
@@ -521,8 +527,8 @@ Byta kort: ändra `KORT`.
 
 Modellen `ukud-cobra.glb` är gjord ur kortets illustration (Scryfalls
 `art_crop`) med bild-till-3D-modellen TRELLIS, i dess öppna demo på Hugging
-Face. Den är stilla, så rörelsen görs i kod. `SJUNK` sänker markplattan som
-följde med under bordsytan, och `EGET_LJUS` lyfter den mörka texturen.
+Face. Den är stilla, så rörelsen görs i kod. `SJUNK` klipper bort markplattan som
+följde med, och `EGET_LJUS` lyfter den mörka texturen.
 Illustrationen tillhör Wizards of the Coast — modellen är ett prov, inget som
 ska släppas utan att rättigheterna är utredda. `Fox.glb` (Khronos provmodell,
 CC0 / CC-BY 4.0) ligger kvar för att prova en modell med clips.
