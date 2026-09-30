@@ -19,7 +19,7 @@
    • Hoppet görs i kod. Animationsclipen kommer ur GLB:n. */
 
 const KORT = 'Ukud Cobra';                 // aria-label på .card börjar med kortnamnet
-const MODELL = 'assets/models/Fox.glb';
+const MODELL = 'assets/models/ukud-cobra.glb';
 const IDLE = /idle|survey/i;               // clip som går när modellen står still
 const HOPP = /run|jump|walk/i;             // clip under hoppet; saknas det går idle
 /* Rörelsen när modellen står still. 'auto': clip ur GLB:n om den har några,
@@ -27,8 +27,12 @@ const HOPP = /run|jump|walk/i;             // clip under hoppet; saknas det går
    inga clips). 'kod' tvingar fram vajandet. */
 const RORELSE = 'auto';
 const VAJ = 0.07;                          // vajandets utslag i toppen, som andel av modellens höjd
-const HOJD = 1.1;                          // modellens största mått, i kortbredder
-const VRID = -0.6;                         // modellens vridning kring lodlinjen, radianer
+const HOJD = 0.95;                         // modellens höjd, i kortbredder
+/* En modell ur en bild-till-3D-tjänst står ofta på en platta av mark. SJUNK
+   sänker modellen så att plattan hamnar under bordsytan, där den klipps bort. */
+const SJUNK = 0.08;                        // andel av modellens höjd
+const EGET_LJUS = 1.3;                     // hur mycket av texturen som lyser själv; illustrationen är mörk
+const VRID = 0;                            // modellens vridning kring lodlinjen, radianer
 const VINKEL = 50 * Math.PI / 180;         // vyns lutning från lodlinjen
 /* Illustrationsrutan på ett vanligt Magic-kort, som andelar av kortet. */
 const ART = { x: 0.075, y: 0.115, w: 0.85, h: 0.445 };
@@ -156,18 +160,25 @@ function spela(cid, el) {
   const rot = klonSkelett(gltf.scene);
   const kod = (window.Fx3d.rorelse || RORELSE) === 'kod' || !gltf.animations.length;
   const tid = { value: 0 };
-  /* Normera: största måttet blir HOJD kortbredder, fötterna på y = 0. */
+  /* Klipper bort allt under modellens fot (plattan, se SJUNK) — också i luften. */
+  const fot = new THREE.Plane(new THREE.Vector3(0, S, C), 0);
+  /* Normera: höjden över bordet blir HOJD kortbredder. */
   const box = new THREE.Box3().setFromObject(rot);
   const mat = box.getSize(new THREE.Vector3());
-  const k = HOJD / Math.max(mat.x, mat.y, mat.z);
+  const k = HOJD / (mat.y * (1 - SJUNK));
   const mitt = box.getCenter(new THREE.Vector3());
-  rot.position.set(-mitt.x * k, -box.min.y * k, -mitt.z * k);
+  rot.position.set(-mitt.x * k, -(box.min.y + mat.y * SJUNK) * k, -mitt.z * k);
   rot.scale.setScalar(k);
   rot.traverse(o => {
     if (!o.isMesh) return;
     o.castShadow = true; o.frustumCulled = false;
     o.material = o.material.clone();
-    o.material.clippingPlanes = [klipp];
+    o.material.clippingPlanes = [klipp, fot];
+    if (o.material.isMeshStandardMaterial) {
+      /* Utan omgivningsbild blir en metallisk yta svart. */
+      o.material.metalness = 0; o.material.roughness = .85;
+      if (o.material.map) { o.material.emissive.set(0xffffff); o.material.emissiveMap = o.material.map; o.material.emissiveIntensity = EGET_LJUS; }
+    }
     o.material.stencilFunc = THREE.EqualStencilFunc;
     o.material.stencilRef = 1;
     o.userData.fx3dMat = o.material;
@@ -227,7 +238,7 @@ function spela(cid, el) {
   if (aHopp) aHopp.play();
 
   inst.set(cid, { cid, el, grupp, mask, schakt, golvMat, figur, rot, mixer, aIdle, aHopp,
-    fx, ring, bage, skiva, gnistor, fro, vridd, tid, kod, t: 0, landat: false, oppet: true });
+    fx, ring, bage, skiva, gnistor, fro, vridd, tid, kod, fot, t: 0, landat: false, oppet: true });
   if (!raf) { forra = performance.now(); raf = requestAnimationFrame(bildruta); }
 }
 
@@ -320,6 +331,7 @@ function uppdatera(i, dt, cr) {
     sy = 1 - tryck; sxz = 1 + tryck * .6; y = 0;
   }
   i.figur.position.set(0, y, 0);
+  i.fot.constant = -y * b;
   i.figur.scale.set(vaxt * sxz, vaxt * sy, vaxt * sxz);
   i.figur.visible = i.t > T_OPPNA * .4;
   i.mixer.update(dt);

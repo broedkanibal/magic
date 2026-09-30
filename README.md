@@ -517,8 +517,15 @@ Har GLB:n inga animationsclips (en stilla modell ur en bild-till-3D-tjänst)
 vajar modellen i kod i stället. `VAJ` styr hur mycket, och `RORELSE = 'kod'`
 tvingar fram det också för en modell med clips.
 
-Byta kort: ändra `KORT`. Nuvarande modell är Khronos provmodell Fox (CC0 /
-CC-BY 4.0, se glTF-Sample-Assets).
+Byta kort: ändra `KORT`.
+
+Modellen `ukud-cobra.glb` är gjord ur kortets illustration (Scryfalls
+`art_crop`) med bild-till-3D-modellen TRELLIS, i dess öppna demo på Hugging
+Face. Den är stilla, så rörelsen görs i kod. `SJUNK` sänker markplattan som
+följde med under bordsytan, och `EGET_LJUS` lyfter den mörka texturen.
+Illustrationen tillhör Wizards of the Coast — modellen är ett prov, inget som
+ska släppas utan att rättigheterna är utredda. `Fox.glb` (Khronos provmodell,
+CC0 / CC-BY 4.0) ligger kvar för att prova en modell med clips.
 
 ## Filer
 
