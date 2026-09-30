@@ -1,12 +1,12 @@
 # Grind 2: ett litet träningsförsök och provet mot det ritade facit (MES-288)
 
-**Läget 2026-09-30 natt:** steg 1–3 är gjorda lokalt (underlagen, ~3 000 syntetiska bord med
-händer, datasetet med filistan genom `krav_traning_alla`). **Inget är uppladdat till Kaggle och
-ingen kernel är pushad** — Jesper vill se de syntetiska borden först (kontaktarket
-`dev/detektor/synt/grind2.html`). Träningen (steg 4), provet (steg 5) och svaret nedan fylls i
-när det är gjort.
+**Läget 2026-09-30 13:05:** Jesper såg borden (`synt/grind2.html`) och sa ja till regel G vid 0,5,
+de tolv ritade rutorna som facit och lägstanivån (55 av 66 egna, högst 2 falska). Facit och dataset v1
+är ombyggda, datasetet ligger som **privat** Kaggle-dataset `jesperfunkrosling/mesa-mes288-detektor-v1`
+(isPrivate: true, 404 utan inloggning), och kerneln `mesa-mes288-detektor-tran` version 1 startades
+13:05. Provet och svaret nedan fylls i när träningen är klar.
 
-## Vad som tränas (plan, inte körd)
+## Vad som tränas
 
 | | |
 |---|---|
@@ -28,11 +28,16 @@ när det är gjort.
 
 | Del | Bilder | Lådor `kort` | Lådor `baksida` | Ignorerade ytor |
 |---|---|---|---|---|
-| riktiga, träning | 567 | 3 809 | 593 | 6 348 |
-| riktiga, validering | 71 | 627 | 108 | 1 016 |
+| riktiga, träning | 567 | 4 550 | 597 | 5 599 |
+| riktiga, validering | 71 | 734 | 109 | 903 |
 | syntetiska, träning | 2 700 | 32 764 | 3 026 | 6 150 |
 | syntetiska, validering | 300 | 4 034 | 296 | 1 117 |
 
+- **Regel G vid 0,5 och de ritade rutorna (2026-09-30, före uppladdningen):** `OMLOTT_G` 0,33 → 0,5 gav
+  lärarens facit 121 egna lådor mot Jespers ritning i stället för 95 (1 av 129 helt synliga missat, 0 falska,
+  som förut). De tolv rutor Jesper ritat (`larare/matning/`) har hans ritning som facit: 250 lådor, 7 kort
+  under en hand ignorerade (`larare/matning/hander.json`). `kort`-lådorna i riktiga träningsrutor gick
+  från 3 809 till 4 550.
 - **Riktiga:** de 638 rutorna ur Jespers tre träningsfilmer med lärarens facit (regel A–H), nedskalade
   direkt till **960 × 540** — modellen ser aldrig mer än 960 px, och 1920 px hade fyrdubblat datasetet
   utan att tillföra något till 960-träningen (mosaiken skalar 0,5–1,5, så förstoring blir lite mjukare;
