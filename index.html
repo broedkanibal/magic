@@ -3752,6 +3752,17 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
                 <option value="480">480 px (test)</option>
                 <option value="720">720 px (test)</option>
               </select></label>
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px">Detector
+              <select id="pbDetVal">
+                <option value="1">Trained, fp32 (default)</option>
+                <option value="2">Trained, fp16 (test)</option>
+                <option value="0">Old detector (test)</option>
+              </select></label>
+            <label class="pbinspval" style="display:flex;align-items:center;gap:8px">Name strips
+              <select id="pbDetRemsaVal">
+                <option value="0">Boxes only (default)</option>
+                <option value="1">Make cards from strips (test)</option>
+              </select></label>
           </div>
           <p class="pbstatus" id="pbSnabbStatus">Default: 4K · 15 fps, one frame every 150 ms. The phone retakes its reference picture when the mode changes.</p>
         </div>
@@ -18910,6 +18921,53 @@ const Ref = {
   }
 };
 
+/* ═══ DEN TRÄNADE DETEKTORN I KEDJAN (MES-329) ═══
+   dev/detektor/modell/detektor.js (MES-288): YOLOX-nano, finjusterad på
+   Mesas bord, som hittar korten — också i täta högar och omlott, där
+   dagens detektor (mattmodell + regioner) tappar dem. Modellen ser bordets
+   ruta i 960 × 544 (inte analysbredden 360) och ger kortlådor och
+   namnremsor; modulens para() parar dem. Här bor bara kopplingen: modulen
+   hämtas och modellen laddas när kameran först behöver den (loop), och
+   lådorna tar regionernas plats som fynd i detektera(). Allt efter —
+   spåren, läsningen, bildmodellen, avstämningen — är som förut. Går modellen
+   inte att ladda, eller faller tre rutor i rad, går kedjan på dagens
+   detektor (reserven) tills nästa laddning.
+   window.MESA_DETEKTOR: false stänger av modellen; ett objekt är
+   inställningar — { modul, ladda } — där ladda går till Detektor.ladda
+   (golden kan servera onnxruntime och vikterna lokalt, som för bildmodellen). */
+const KamDet = {
+  laddat: null, fel: null, felVariant: null, laddar: null, laddarVariant: null, variant: null, felRutor: 0,
+  pa: () => window.MESA_DETEKTOR !== false,
+  konf: () => (window.MESA_DETEKTOR && typeof window.MESA_DETEKTOR === 'object') ? window.MESA_DETEKTOR : {},
+  redo: v => !!(KamDet.laddat && window.Detektor && window.Detektor.redo && KamDet.variant === v),
+  async modul() {
+    if (window.Detektor) return window.Detektor;
+    await new Promise((res, rej) => {
+      const el = document.createElement('script'); el.src = KamDet.konf().modul || 'dev/detektor/modell/detektor.js';
+      el.onload = res; el.onerror = () => rej(new Error('could not load the detector module')); document.head.appendChild(el);
+    });
+    return window.Detektor;
+  },
+  /* Ladda varianten ('fp32' | 'fp16'). Löftet ger { backend, modell, ms } eller null (avstängd, fel). */
+  ladda(v) {
+    v = v === 'fp16' ? 'fp16' : 'fp32';
+    if (!KamDet.pa()) return Promise.resolve(null);
+    if (KamDet.laddar && KamDet.laddarVariant === v) return KamDet.laddar;
+    KamDet.laddarVariant = v; KamDet.fel = null; KamDet.felVariant = null;
+    const p = (async () => {
+      const D = await KamDet.modul();
+      const r = await D.ladda(Object.assign({ variant: v }, KamDet.konf().ladda || {}));
+      KamDet.laddat = r; KamDet.variant = v; KamDet.felRutor = 0;
+      return r;
+    })().catch(e => { KamDet.fel = (e && e.message) || String(e); KamDet.felVariant = v; KamDet.laddat = null; KamDet.variant = null; return null; })
+        .finally(() => { if (KamDet.laddarVariant === v) KamDet.laddar = null; });
+    KamDet.laddar = p;
+    return p;
+  },
+  /* En rad för hälsan och latensrapporten: 'av', 'laddar', 'fel', 'vantar' eller 'yolox-fp32-webgpu'. */
+  status: () => !KamDet.pa() ? 'av' : KamDet.laddat ? 'yolox-' + KamDet.variant + '-' + KamDet.laddat.backend : KamDet.laddar ? 'laddar' : KamDet.fel ? 'fel' : 'vantar'
+};
+
 /* ═══ BILDMODELLEN I KEDJAN (MES-225) ═══
    dev/embed/embed.js (MES-213): en färdig bildkodare (MobileCLIP-S0) som
    rangordnar lekens NAMN för en beskärning på ~0,1 s. Den tar Matchers
@@ -21897,17 +21955,32 @@ const Kamera = (() => {
        att golden och spegelfacit ska kunna prova andra gränser utan
        kodändring (--tro "tapTapp:60,tapOtapp:25"). */
     tapOtapp: 20,
-    tapTapp: 55
+    tapTapp: 55,
+    /* Den tränade detektorn (MES-329): 1 = YOLOX fp32 (förval), 2 = YOLOX
+       fp16 (prov på telefonen), 0 = dagens detektor (mattmodell + regioner).
+       Laddas modellen inte — nät, minne, en webbläsare utan WebGPU och
+       WASM — går kedjan på dagens detektor ändå (KamDet). Golden kör båda:
+       --tro "detektor:0". detRemsa: parningen remsa + kortlåda skapar kort
+       ur remsor utan låda (1) eller inte (0); dubbletter som delar remsa
+       slås ihop oavsett. Mätt i dev/detektor/tran/parprov.py: skapade kort
+       ger +2 av 738 i MES-246 och ~40 dubblettlådor; förvalet är av tills
+       golden visar en vinst (dev/golden/historik.md 2026-10-01). */
+    detektor: 1,
+    detRemsa: 0
   };
   function satTrosklar(nya) {
-    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd;
+    const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd, varDet = T.detektor;
     Object.assign(T, nya || {});
     if (T.snabb !== varSnabb) bytBildlage();
     /* Analysbredden (MES-244) byter storlek på allt kameran räknar i
        analyspixlar: mattmodellen, referensen och spåren. Den tas därför om
        som vid ett byte av videons storlek — AH = 0 får loop() räkna om AW,
        och referensen och spåren börjar om. */
-    if (T.anaBredd !== varAna) { AH = 0; glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+    if (T.anaBredd !== varAna) { AH = 0; stegGen++; glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+    /* Byts detektorn (MES-329) får en modell som stängts efter tre fel försöka
+       igen — bara vid ett BYTE: datorn skickar alla reglage vid varje drag,
+       och en modell som inte går att ladda ska inte laddas om för det. */
+    if (T.detektor !== varDet) { KamDet.fel = null; KamDet.felVariant = null; KamDet.felRutor = 0; }
     /* Samma sak för avvikelsen: med autoUts på är den rutans egen, och det
        som skickas med är bara vad datorn råkade visa senast. */
     if (T.autoUts) { T.utseende = gammalUts; T.spridning = gammalSprid; }
@@ -21973,6 +22046,8 @@ const Kamera = (() => {
      klunga / dubblett / helbild / hand; okand = ingen väg stämplade, ett
      hål i mätningen). skugga: första rapporten där spåret är kortlikt. */
   let latens = false, bildTid = 0;
+  let stegPagar = null;        // den tränade detektorn räknar på en ruta (MES-329): nästa ruta tas när den är klar
+  let stegGen = 0;             // räknas upp när tillståndet nollställs (stopp, kalibrering, ny videostorlek, ny analysbredd): ett steg som väntat på detektorn och tillhör en äldre generation kastas
   const stampla = (t, vad, vag) => {
     if (!latens) return;
     const ts = t.ts || (t.ts = {});
@@ -22006,6 +22081,7 @@ const Kamera = (() => {
      räknat sedan latens slogs på: datorn tar skillnaden mellan passets
      början och slut och får median och p95 för just passet. */
   const STEG_FACK = 4, stegHist = new Array(101).fill(0);
+  const detHist = new Array(101).fill(0);   // detektorns tid per bild (MES-329), 4 ms per fack, sedan latens slogs på
   const bortaTs = [];          // spår som släppts sedan förra rapporten: { id, borta, bild, ror }
   let anaC = null, anaX = null, AH = 0;
   let ref = null;              // gråskala av tom matta, analysstorlek — medel av REF_RUTOR rutor
@@ -22304,7 +22380,7 @@ const Kamera = (() => {
      ett EGET mönster — en tryckt spelmatta — räknas bara det som ändrats.
      Ren funktion, prövbar. Masken följer med ut: spårningen behöver veta
      vad som ligger under ett spår som inte fick någon träff. */
-  function detektera(nu, ref, W, H, under, hopp) {
+  function detektera(nu, ref, W, H, under, hopp, det) {
     dia.regioner = dia.forSma = dia.smaKort = dia.felKvot = dia.otat = dia.blanka = dia.flata = dia.delade = dia.skurna = dia.omlott = 0;
     const n = W * H;
     /* Tiden per del följer med i diagnosfilen: det är telefonen som ska
@@ -23265,7 +23341,14 @@ const Kamera = (() => {
       const ox = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)), oy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
       return ox * oy >= 0.8 * a.w * a.h;
     };
-    const fynd = ut.filter(a => !ut.some(b => b !== a && b.area > a.area && inne(a.box, b.box)));
+    /* Den tränade detektorn (MES-329): finns modellens lådor för rutan tar de
+       regionernas plats som fynd. Masken, de texturerade ytorna och
+       library-delarna räknas som förut — spårningen behöver masken för det
+       som ligger under ett spår utan träff, och referensen får inte driva
+       in över ett kort: modellens lådor skyddas som texturerade. */
+    let fynd;
+    if (det && det.lador) { fynd = fyndUrLador(det, W, H, nu); for (const f of fynd) texturerade.push(f.box); dia.detektor = 'yolox'; }
+    else { fynd = ut.filter(a => !ut.some(b => b !== a && b.area > a.area && inne(a.box, b.box))); dia.detektor = 'dagens'; }
     /* Spritt brus: det öppningen tog bort plus regionerna som var för små.
        Det är det bruset tröskeln ska styras av. */
     dia.spritt = (fore - efter + smaPx) / n;
@@ -23284,6 +23367,81 @@ const Kamera = (() => {
     if (skarLogg.length > 40) skarLogg.shift();
     dia.skarLogg = skarLogg;
     return { fynd, mask, texturerade, bibDelar };
+  }
+
+  /* ── den tränade detektorns lådor som regioner (MES-329) ──────────
+     det.lador: Detektor.kor():s svar — kortlådor och remsor i bordsrutans
+     bildpunkter; det.ruta: rutan (videopixlar). Lådorna paras med remsorna
+     (Detektor.para: dubbletter som delar remsa slås ihop, remsor utan låda
+     blir kort med kortstorleken när T.detRemsa är på) och görs om till det
+     spårningen väntar sig av en region: mitt, lång- och kortsida, vinkel,
+     yta, låda — i analyspixlar, ur lådan. Spridningen (std) räknas ur
+     rutan. Samma golv som regionerna: en kortsida under 60 % av
+     KORT_MIN_PX i videopixlar är för liten att läsa (smaKort). */
+  let detLoggN = 0;   // tillfällig logg (MESA_DET_LOGG)
+  function fyndUrLador(det, W, H, g) {
+    const D = window.Detektor, L = det.lador, r = det.ruta;
+    const k = W / Math.max(1, r.w);   // bordsrutans bildpunkter → analyspixlar
+    const km = kortMatt(), matt = km.kalla === 'spår' ? { lang: km.lang / k, kort: km.kort / k } : null;
+    let par;
+    try { par = D.para(L.kort, L.remsor, matt, { skapa: T.detRemsa ? 'alla' : 'inga', dubIou: 0.3 }); }
+    catch (e) { par = L.kort.map(b => Object.assign({}, b, { remsa: null, ur: 'lada' })); }
+    dia.detLador = L.kort.length; dia.detRemsor = L.remsor.length; dia.detSkapade = par.skapade || 0; dia.detIhopslagna = par.dubbletter || 0;
+    const ut = [];
+    for (const b of par) {
+      const x0 = Math.max(0, Math.round(b.x0 * k)), y0 = Math.max(0, Math.round(b.y0 * k)), x1 = Math.min(W - 1, Math.round(b.x1 * k) - 1), y1 = Math.min(H - 1, Math.round(b.y1 * k) - 1);
+      const w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (w < 3 || h < 3) continue;
+      const box = { x: x0, y: y0, w, h };
+      /* Måtten ur lådan, rakt av och lika i varje ruta: läsningen väntar på
+         två FORMSTILLA rutor (formN: samma lång- och kortsida inom
+         SPEK_FORM), och ett mått som hoppar mellan maskens moment och
+         lådans — som ett första försök gjorde — blev aldrig stilla: 0 av 3
+         namn i golden 01 fast alla tre spåren låg rätt. Axeln ligger längs
+         lådans långsida; ett snett kort får en nästan kvadratisk låda, och
+         där står tap-läget kvar tills kortet ligger rakt (tapTydlig kräver
+         1,15 i kvot). */
+      const lang = Math.max(w, h), kort = Math.min(w, h), cx = x0 + (w - 1) / 2, cy = y0 + (h - 1) / 2, area = w * h;
+      /* Vinkeln ur lådan bara när lådan har ett korts kvot (T.kvotMin–
+         T.kvotMax, som regionerna): en låda som är kortet plus handen, eller
+         bara den synliga remsan av ett täckt kort, säger inget om hur
+         kortet ligger — golden 07 fick tre falska tap-flippar av sådana
+         lådor. Annars grundläget, tills lådan är ett kort igen. */
+      const kv = kort / lang, vinkel = kv >= T.kvotMin && kv <= T.kvotMax ? (w >= h ? 0 : Math.PI / 2) : grundVinkel();
+      if (vidSkala > 1 && kort * vidSkala < KORT_MIN_PX * 0.6) { dia.smaKort++; continue; }
+      let n = 0, su = 0, sq = 0;
+      for (let y = y0; y <= y1; y += 2) for (let x = x0; x <= x1; x += 2) { const v = g[y * W + x]; n++; su += v; sq += v * v; }
+      const std = n ? Math.sqrt(Math.max(0, sq / n - (su / n) ** 2)) : 0;
+      const rm = b.remsa ? { x: (b.remsa.x0 + b.remsa.x1) / 2 * k, y: (b.remsa.y0 + b.remsa.y1) / 2 * k } : null;
+      ut.push({ cx, cy, lang, kort, vinkel, area, std, box, poang: b.poang, klass: b.klass, ur: b.ur, remsa: !!b.remsa, remsaMitt: rm, tackt: null });
+    }
+    /* Vem ligger ovanpå (MES-250 för modellens lådor): modellen ritar lådan
+       runt kortets synliga del, och för ett kort som sticker fram under ett
+       annat är det nästan hela kortet (en L-form i en hög som förskjuts
+       snett), så beskärningen av det undre visade det övre — Swamp under Plains i golden 05 fick
+       namnet Plains, säkert, med 16 ORB-inliers. Remsan avgör: ett kort vars
+       namnremsa ligger inne i en annan låda ligger OVANPÅ den, och den undre
+       får det övre kortets låda som täckt (tackt) — maskaTackt målar över
+       den i beskärningen, precis som för delarna ur passaKort. Ligger
+       BÅDA remsorna i den andres låda — två liggande kort omlott i golden
+       05, Scourge under Pacifism, där remsorna står på högkant i
+       överlappet — går det inte att säga vem som ligger ovanpå, och då
+       maskas båda: det övre kortet blir osäkert i stället för att det undre
+       får det övres namn (säkert, med 28 inliers). */
+    const inneI = (p, b) => p && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+    for (const a of ut) for (const b of ut) {
+      if (a === b || !b.remsaMitt || !inneI(b.remsaMitt, a.box)) continue;
+      (a.tackt || (a.tackt = [])).push(b.box);
+    }
+    /* Kort omlott matchas på TÄCKNING, inte på närmaste mitt (matcha, flaggan
+       omlott från MES-250): två hela kortlådor i en hög har mittpunkter inom
+       0,6 kortlängder från varandra, och när det övre kortet lyfts tog det
+       undre kortets låda det övres spår — golden 07: Plains "låg kvar" på
+       Swamp efter att det plockats bort, och Swamp-spåret dog. En låda som
+       täcker en annan till minst 30 % (av den mindre) är omlott. */
+    for (const a of ut) for (const b of ut) { if (a !== b && ladTackning(a.box, b.box) >= 0.3) { a.omlott = true; break; } }
+    if (window.MESA_DET_LOGG && (++detLoggN % 20 === 1)) console.log('[det]', AW, AH, JSON.stringify(ut.map(f => ({ b: [f.box.x, f.box.y, f.box.w, f.box.h], r: f.remsaMitt && [Math.round(f.remsaMitt.x), Math.round(f.remsaMitt.y)], t: f.tackt ? f.tackt.length : 0, o: !!f.omlott }))), 'remsor', JSON.stringify(L.remsor.map(s => [Math.round(s.x0 * k), Math.round(s.y0 * k), Math.round(s.x1 * k), Math.round(s.y1 * k)])));
+    return ut;
   }
 
   /* ── kortets ram ──────────────────────────────────────────────────
@@ -23790,6 +23948,11 @@ const Kamera = (() => {
          bort (täckning 0,58 — samma som ett riktigt kort under, så
          täckningen kan inte skilja dem; det gör bara regionen). Ett kort
          som verkligen ligger under får sin region varje ruta. */
+      /* Gäller också spår ur den tränade detektorns lådor (MES-329): det
+         prövades att undanta dem — ett helt kort som modellen missar fem
+         rutor under en hand föds annars om med nytt id — men golden 07 fick
+         då 4 falska spår och en dubblett (patch 4, 2026-10-01), mot 0 med
+         regeln. Flimret är inte mätt; de falska spåren är det. */
       if (t.omlott && !arHelbild(t) && [...anv].some(b => ladTackning(t.box, b.box) >= 0.3)) {
         if ((t.omlottBorta = (t.omlottBorta || 0) + 1) >= R(5)) { spar.splice(spar.indexOf(t), 1); continue; }
       } else t.omlottBorta = 0;
@@ -23869,7 +24032,7 @@ const Kamera = (() => {
   function installera(o) { Object.assign(cb, o || {}); }
 
   function stopp() {
-    pa = false;
+    pa = false; stegGen++;
     if (snurra) cancelAnimationFrame(snurra);
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (wake) { try { wake.release(); } catch (e) {} wake = null; }
@@ -23895,6 +24058,7 @@ const Kamera = (() => {
      i camera_setups bär det) läses. Telefonen anropar den när den startat,
      bänken och golden-provet mellan fallen — för nollställningens skull. */
   function satKalibrering(k) {
+    stegGen++;   // ett steg som väntar på detektorn får inte landa i det gamla läget (MES-329)
     /* Utan rad behålls läget: telefonen nollställer sig med null när den
        startat, och ett läge som redan kommit med realtid ska stå kvar. */
     const upp = k && k.ruta ? (k.ruta.upp === 'h' ? 'h' : 'v') : kal.ruta.upp;
@@ -24174,7 +24338,7 @@ const Kamera = (() => {
   }
   function bildlage() {
     let fps = null; try { const t = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null, s = t && t.getSettings ? t.getSettings() : null; fps = s && s.frameRate ? Math.round(s.frameRate) : null; } catch (e) {}
-    return { lage: T.snabb === SNABB_30 ? '1080p30' : T.snabb === SNABB_15 ? '1080p15' : '4k15', fps, takt: taktMs(), ana: AW };
+    return { lage: T.snabb === SNABB_30 ? '1080p30' : T.snabb === SNABB_15 ? '1080p15' : '4k15', fps, takt: taktMs(), ana: AW, det: detVariant() ? KamDet.status() : 'av' };
   }
   function lasUpplosning(vb, vh) {
     let s = null, c = null;
@@ -24209,11 +24373,12 @@ const Kamera = (() => {
        fragmentgolvet mättes mot fel skala tills någon drog om rutan. */
     if (vb !== senVb || vh !== senVh) {
       if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
-      senVb = vb; senVh = vh; AH = 0;
+      senVb = vb; senVh = vh; AH = 0; stegGen++;
       lasUpplosning(vb, vh);
     }
     const nu = performance.now();
     if (nu - senast < taktMs()) return;
+    if (stegPagar) return;   // detektorn räknar fortfarande på förra rutan (MES-329)
     senast = nu;
     /* Mörka skärmen (MES-164) krymper videon till en prick. Pausar
        webbläsaren den ändå slutar rutorna komma — starta den igen. */
@@ -24239,21 +24404,64 @@ const Kamera = (() => {
        före steg(), som kan skriva i gråbilden. Utan prov händer ingenting. */
     let ljus = 0;
     if (matare) { let sum = 0, n = 0; for (let i = 0; i < g.length; i += 16, n++) sum += g[i]; ljus = n ? sum / n : 0; }
-    steg(g, nu, AH);
     /* Spårrutorna ritas efter varje analyssteg, inte i varje animationsruta
        (MES-164): de ändras bara när steget körts, och 60 omritningar i
        sekunden av samma rutor värmde telefonen. Ett svar från
        identifieringen syns vid nästa steg, inom 150 ms. */
-    rita(vb, vh);
-    /* Hela stegets tid — krympningen, steg() och ritningen — till provet. */
-    if (matare) { try { matare(performance.now() - nu, ljus, dia.ms); } catch (e) { /* provet får aldrig stoppa analysen */ } }
+    const efter = () => {
+      rita(vb, vh);
+      /* Hela stegets tid — krympningen, steg() och ritningen — till provet. */
+      if (matare) { try { matare(performance.now() - nu, ljus, dia.ms); } catch (e) { /* provet får aldrig stoppa analysen */ } }
+    };
+    /* Den tränade detektorn (MES-329): modellen ser bordets ruta ur videon i
+       960 × 544 och svarar asynkront; steget tas när lådorna finns, och
+       loopen hoppar över rutorna däremellan (stegPagar). Faller en körning
+       går just den rutan på dagens detektor; tre fel i rad stänger modellen
+       tills den laddas om. Laddas den inte än (eller gick den inte att
+       ladda) går kedjan som förut. */
+    const dv = detVariant();
+    if (dv && KamDet.redo(dv)) {
+      const gen = stegGen;
+      stegPagar = window.Detektor.kor(video, r).then(d => ({ d }), e => ({ e })).then(({ d, e }) => {
+        /* Kameran stängdes, kalibreringen byttes, videon bytte storlek eller
+           analysbredden ändrades medan modellen räknade: rutan hör till ett
+           tillstånd som inte finns längre och kastas — annars hade steget
+           satt tillbaka AH, fött spår i en tömd lista och skickat ett bord
+           efter stopp (granskningen 2026-10-01). */
+        if (!pa || gen !== stegGen) return;
+        if (e) {
+          if (++KamDet.felRutor >= 3) { KamDet.fel = (e && e.message) || String(e); KamDet.felVariant = dv; KamDet.laddat = null; KamDet.variant = null; try { window.Detektor.slapp(); } catch (e2) {} }   // sessionen släpps: ett byte av detektor laddar en färsk
+          dia.detMs = null; dia.detFor = null;
+          steg(g, nu, AH);
+        } else {
+          KamDet.felRutor = 0;
+          dia.detMs = d.ms; dia.detFor = d.forMs;
+          if (latens) detHist[Math.min(100, Math.floor(d.ms / STEG_FACK))]++;
+          steg(g, nu, AH, undefined, undefined, { lador: d, ruta: r });
+          /* Rutans tid (dia.ms, golden:s ms-kolumn och inspelningsprovet) är
+             steget PLUS detektorn när den körde — annars mätte stillbildsfallen
+             bara steget och videofallen hela väntan. stegHist (telefonens
+             stegtid i latensrapporten) är fortfarande stegets egen tid, och
+             detHist detektorns. */
+          dia.ms += d.ms + d.forMs;
+        }
+        efter();
+      }).then(null, e => { console.error('steget med den tränade detektorn kastade', e); throw e; })   // syns i appens konsol (golden: --konsol); löftet avvisas vidare till den som väntar (vantaSteg)
+        .finally(() => { stegPagar = null; });
+      return;
+    }
+    if (dv && KamDet.pa() && !KamDet.laddar && !(KamDet.fel && KamDet.felVariant === dv)) KamDet.ladda(dv);
+    steg(g, nu, AH);
+    efter();
   }
+  /* Vilken variant trösklarna ber om: 'fp32', 'fp16' eller null (dagens detektor). */
+  const detVariant = () => T.detektor === 2 ? 'fp16' : T.detektor ? 'fp32' : null;
 
   /* Ett analyssteg, från gråskalebild till spår. Fristående från videon så
      att det går att köra på syntetiska bilder i node — det är så siffrorna
      i MES-22 är framtagna: en arm över ett känt kort, en handformad fläck,
      ett kort som lyfts, ett som flimrar förbi. */
-  function steg(g0, nu, ah, aw, skala) {
+  function steg(g0, nu, ah, aw, skala, det) {
     if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
     if (skala) vidSkala = skala;
@@ -24287,7 +24495,7 @@ const Kamera = (() => {
       if (refFore) { let s = 0; for (let i = 0; i < n; i++) s += Math.abs(g[i] - refFore[i]); refDiff += s / n; }
       refFore = g; refN++;
       senasteGain = 1;
-      const d0 = detektera(g, null, AW, AH);
+      const d0 = detektera(g, null, AW, AH, undefined, undefined, det);
       matcha(spar, d0.fynd, d0.mask, nu, dt, upp, true);
       senasteG0 = g0; senasteG = g; senasteMask = d0.mask;
       säg('ljus', 'Learning the light — hold the phone still', 'Takes a couple of seconds. The cards can stay.');
@@ -24331,7 +24539,7 @@ const Kamera = (() => {
     dia.gain = gain; senasteGain = gain;
     if (Math.abs(gain - 1) > 0.01) for (let i = 0; i < n; i++) g[i] *= gain;
 
-    const { fynd, mask, texturerade, bibDelar } = detektera(g, ref, AW, AH);
+    const { fynd, mask, texturerade, bibDelar } = detektera(g, ref, AW, AH, undefined, undefined, det);
     Object.assign(klocka, dia.tid); tFore = nuRiktig();
     smaMinne.push(dia.smaKort); if (smaMinne.length > R(REF_RUTOR)) smaMinne.shift();
     bibSag(bibDelar, nu, klamd || felRader > 0);
@@ -24357,6 +24565,7 @@ const Kamera = (() => {
         omtag++; felRader = 0; glomReferens(); omtagRensa = true;
         senasteG0 = g0; senasteG = g; senasteMask = mask; senasteGNar = performance.now();
         säg('ljus', 'Learning the light — hold the phone still', 'The picture has moved. Retaking the reference; the cards can stay.');
+        dia.ms = Math.round(nuRiktig() - tSteg);   // rutans tid också här: loopen lägger detektorns tid ovanpå (MES-329)
         return;
       }
     } else felRader = 0;
@@ -24888,6 +25097,13 @@ const Kamera = (() => {
   function maskaTackt(b, t) {
     if (!b || !b.geo || !t.tackt || !t.tackt.length) return false;
     const g = b.geo, x = b.bild.getContext('2d');
+    /* beskar() lämnar kontexten vriden för ett liggande kort (translate +
+       rotate −90°), och rektanglarna nedan räknas i den RAKA beskärningen:
+       utan nollställning målades täckningen utanför bilden, och Swamp under
+       Plains i golden 05 (upp 'h') fick namnet Plains — säkert, 16 inliers —
+       fast täckningen var satt (MES-329; buggen fanns sedan MES-250 men
+       golden 14/15 är stående och såg den aldrig). */
+    x.setTransform(1, 0, 0, 1, 0, 0);
     const v = Math.max(0, Math.min(255, Math.round(modell ? modell.M / senasteGain : 128)));
     x.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
     const sx = g.r.w / AW, sy = g.r.h / AH;
@@ -24937,6 +25153,7 @@ const Kamera = (() => {
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;   // läget datorn speglar är ramens, som förut
       const b = video ? beskar(t) : null; c = b && b.bild;
       const tackt = maskaTackt(b, t);
+      if (window.MESA_DET_LOGG) console.log('[det läs]', t.id, JSON.stringify(t.box), 'tackt', JSON.stringify(t.tackt), 'maskad', tackt, 'geo', b && JSON.stringify(b.geo));
       if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, tackt ? { tackt: true } : undefined);
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
@@ -25473,7 +25690,7 @@ const Kamera = (() => {
   };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+  function nyReferens() { stegGen++; /* ett steg som väntar på detektorn får inte landa i den gamla referensen (MES-329) */ glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
   function glomKort(id) {
     const t = spar.find(x => x.id === id); if (!t) return;
     /* Ett spår ur helbilden har ingen region att läsa om: det står kvar
@@ -25529,8 +25746,11 @@ const Kamera = (() => {
               får varje stegs tid. Strömmen lämnas ut som den är — provet ändrar
               varken upplösning eller takt. */
            satMatare: f => { matare = typeof f === 'function' ? f : null; },
-           satLatens: v => { latens = !!v; stegHist.fill(0); },
+           satLatens: v => { latens = !!v; stegHist.fill(0); detHist.fill(0); },
            get stegHist() { return latens ? stegHist.slice() : null; },   // MES-242: stegtiden sedan latens slogs på, 4 ms per fack
+           get detHist() { return latens ? detHist.slice() : null; },     // MES-329: detektorns tid per bild sedan latens slogs på, 4 ms per fack
+           /* Steget som pågår (den tränade detektorn räknar asynkront, MES-329) — golden väntar in det innan rutan döms. */
+           vantaSteg: () => stegPagar || Promise.resolve(),
            get strom() { return stream; },
            get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna,
            get sigma() { return sigma; } };
@@ -25694,6 +25914,9 @@ function kamHalsa() {
     modell: !KamEmbed.pa() ? 'av' : KamEmbed.redo() ? ((window.Embed && window.Embed.backend) || 'klar')
           : KamEmbed.bygger ? 'laddar' : KamEmbed.fel ? 'fel' : 'vantar',
     modellFel: KamEmbed.fel || null,
+    det: Kamera.detHist,       // MES-329: detektorns tid per bild som histogram; datorn tar skillnaden över passet
+    detektor: KamDet.status(), // 'yolox-fp32-webgpu', 'laddar', 'fel', 'av' …
+    detektorFel: KamDet.fel || null,
   };
 }
 /* Grundläget som datorn och raden i camera_setups bär det: hela grader,
@@ -28356,7 +28579,7 @@ function bildlageText() {
   const b = kamBildlage, u = kamUpplosning;
   if (!b) return 'picture mode unknown';
   const namn = { '1080p30': '1080p · 30 fps', '1080p15': '1080p · 15 fps' }[b.lage] || '4K · 15 fps';
-  return `${namn}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}${b.ana && b.ana !== 360 ? `, analysis ${b.ana} px wide` : ''}`;
+  return `${namn}${u ? ` (the phone gives ${u.w}×${u.h}${b.fps ? ' @ ' + b.fps : ''}, a frame every ${b.takt} ms)` : ''}${b.ana && b.ana !== 360 ? `, analysis ${b.ana} px wide` : ''}${b.det ? `, detector ${b.det}` : ''}`;
 }
 const LatensDator = (() => {
   let L = null, pingT = null, visT = null;
@@ -28376,6 +28599,9 @@ const LatensDator = (() => {
     if (h.ua) t.ua = h.ua;
     if (h.modell && !t.modell.includes(h.modell)) t.modell.push(h.modell);
     if (h.steg) { if (!t.steg0) t.steg0 = h.steg; t.steg1 = h.steg; }
+    /* Den tränade detektorn (MES-329): vilken väg den gick (fler = den bytte under passet) och tiden per bild. */
+    if (h.detektor && !t.detektor.includes(h.detektor)) t.detektor.push(h.detektor);
+    if (h.det) { if (!t.det0) t.det0 = h.det; t.det1 = h.det; }
     if (h.bat) { if (!t.bat0) t.bat0 = Object.assign({ t: Date.now() }, h.bat); t.bat1 = Object.assign({ t: Date.now() }, h.bat); }
   }
   /* Platserna datorn ritat (autoPlatser, renderGrid): första gången per spår,
@@ -28503,6 +28729,8 @@ const LatensDator = (() => {
     if (nat.length) d.push(`network ${med(nat)} ms`); if (dat.length) d.push(`computer ${med(dat)} ms`);
     if (L.tel.modell.length) d.push(`model ${L.tel.modell.join(' → ')}`);
     const st = stegUr(L.tel.steg0, L.tel.steg1); if (st) d.push(`phone step ${st.median} ms (p95 ${st.p95})`);
+    if (L.tel.detektor.length) d.push(`detector ${L.tel.detektor.join(' → ')}`);
+    const dt = stegUr(L.tel.det0, L.tel.det1); if (dt) d.push(`detector per frame ${dt.median} ms (p95 ${dt.p95}, ${dt.n} frames)`);
     if (L.tel.bat0 && L.tel.bat1) d.push(`battery ${L.tel.bat0.niva} → ${L.tel.bat1.niva} %`);
     d.push(b ? `clock ${b.off >= 0 ? '+' : ''}${Math.round(b.off)} ms ±${Math.round(b.rtt / 2)}` : 'clock: waiting for the phone');
     status(d.join(' · '));
@@ -28530,6 +28758,13 @@ const LatensDator = (() => {
                     fel: ['fel', `Image model unavailable (${h.modellFel || 'unknown error'}). The phone recognises the slower way — the test does not measure the model.`],
                     av: ['varn', 'Image model switched off on the phone.'] }[h.modell];
       if (mod) rad(mod[0], mod[1]);
+      /* Den tränade detektorn (MES-329). */
+      if (h.detektor === undefined) rad('varn', 'The phone runs an older Mesa without the trained detector. Reload Mesa on the phone.');
+      else if (/^yolox-/.test(h.detektor)) rad(/webgpu$/.test(h.detektor) ? 'ok' : 'varn', `Trained detector ready: ${h.detektor.replace('yolox-', 'YOLOX ').replace('-', ' on ')}${/wasm$/.test(h.detektor) ? ' (slower path; note it)' : ''}.`);
+      else if (h.detektor === 'laddar') rad('vant', 'Trained detector loading on the phone. Wait until this turns green before you play.');
+      else if (h.detektor === 'fel') rad('fel', `Trained detector unavailable (${h.detektorFel || 'unknown error'}). The phone finds cards the old way — the test does not measure the detector.`);
+      else if (h.detektor === 'av') rad('varn', 'Trained detector switched off on the phone (Picture mode → Detector).');
+      else rad('vant', 'Trained detector not started yet on the phone.');
       if (h.mork) rad('varn', 'Dark screen is on: a screen recording will be black. Tap “Keep the picture on” on the phone before you record. Timing is fine either way.');
       else rad('ok', 'The camera picture shows on the phone: a screen recording will work.');
     }
@@ -28569,7 +28804,7 @@ const LatensDator = (() => {
   function start() {
     if (L && !L.stoppad) { toast('Already measuring.', 'err'); return; }
     L = { v: 2, start: new Date().toISOString(), spel: spelLage && spelLage.kod, ua: navigator.userAgent, ping: [], rapporter: [], sedda: new Map(), stoppad: null, bildlagen: [], halsa: [],
-          sista: new Map(), vilor: new Map(), platser: new Map(), tel: { ua: null, modell: [], steg0: null, steg1: null, bat0: null, bat1: null } };
+          sista: new Map(), vilor: new Map(), platser: new Map(), tel: { ua: null, modell: [], steg0: null, steg1: null, bat0: null, bat1: null, detektor: [], det0: null, det1: null } };
     if (!Moln.sandKam('insp', { gor: 'ping', id: 'latens', t0: Date.now() })) { toast('No connection to the phone', 'err'); L = null; return; }
     for (let i = 1; i <= 4; i++) setTimeout(ping, i * 1000);
     clearInterval(pingT); clearInterval(visT);
@@ -28584,7 +28819,9 @@ const LatensDator = (() => {
     /* bildlage (MES-229): vilket läge passet kördes i — '4k15' eller '1080p30', med upplösningen och rutorna per sekund telefonen faktiskt gav. Fler än ett = läget byttes under passet, och då går passet inte att jämföra. */
     const ut = { v: 2, start: L.start, stoppad: L.stoppad, spel: L.spel, ua: L.ua, bildlage: L.bildlagen, klocka: b ? { off: Math.round(b.off), rtt: b.rtt, pingar: L.ping.length } : null,
                  /* Telefonen (MES-242): ua, bildmodellens väg (webgpu/wasm; fler = den bytte under passet), stegtiden under passet och batteriet (null i Safari). */
-                 telefon: { ua: t.ua, modell: t.modell, steg: stegUr(t.steg0, t.steg1), batteri: t.bat0 ? { start: t.bat0, stopp: t.bat1 } : null },
+                 telefon: { ua: t.ua, modell: t.modell, steg: stegUr(t.steg0, t.steg1), batteri: t.bat0 ? { start: t.bat0, stopp: t.bat1 } : null,
+                            /* MES-329: den tränade detektorn — vägen (yolox-fp32-webgpu …; fler = den bytte under passet) och tiden per bild (ms, median och p95 över passet). */
+                            detektor: t.detektor, detektorTid: stegUr(t.det0, t.det1) },
                  summa, mal: latensMal(summa), nat_median: med(rs.map(x => x.nat).filter(x => x != null)), dator_median: med(rs.map(x => x.dator).filter(x => x != null)),
                  halsa: L.halsa,   // hälsokollens fel och varningar under passet (MES-240)
                  rader: rs, ping: L.ping };
@@ -28763,7 +29000,8 @@ $('#pbInspHamta') && ($('#pbInspHamta').onclick = () => InspDator.hamta().catch(
 const PB_STD = { auto: 1, autoUts: 1, troskel: 26, utseende: 25, spridning: 15, blank: 235, minArea: 60, kvotMin: 0.55, kvotMax: 0.95, fyllnad: 0.72, stillaPx: 1.6, stillaMs: 800, bortaMs: 450,
                  tomMin: 0.3, skymdMin: 0.6, areaVaxt: 1.6, spokMs: 20000,
                  snabb: 0,       // bildläget (MES-229, MES-244): 0 = 4K · 15 i förvalet, och Reset the thresholds ställer tillbaka det
-                 anaBredd: 360 };   // analysbildens bredd (MES-244): förvalet 360 px
+                 anaBredd: 360,     // analysbildens bredd (MES-244): förvalet 360 px
+                 detektor: 1, detRemsa: 0 };   // den tränade detektorn (MES-329): 1 fp32, 2 fp16, 0 dagens; detRemsa 1: remsor utan låda blir kort (prov)
 const PB_REG = [
   ['utseende', 'Deviation',    8,   60,  1,   'How much a pixel must differ from the table model — what the table looks like in the same frame. This is what finds the cards'],
   ['spridning','Structure',    0,   40,  1,   'Minimum spread in grey levels within a region for it to count as a card. A card is at 28–47, a wood chip under 10'],
@@ -28783,7 +29021,7 @@ const PB_REG = [
 ];
 let pbTro = Object.assign({}, PB_STD, LS.get('sthv.tro.v1', {}));
 /* 1080p-provet (MES-229) gäller bara bakom ?debug: reglagen skickas till telefonen också i ett vanligt spel, och ett prov som glömts påslaget får inte följa med dit. */
-if (!DEBUG) pbTro.snabb = 0;
+if (!DEBUG) { pbTro.snabb = 0; pbTro.detektor = 1; pbTro.detRemsa = 0; }
 let pbPa = false, pbDia = null, pbRa = [], pbW = 0, pbH = 0, pbMatt = { aw: 0, ah: 0 };
 
 /* Provbordet var en flik bredvid kalibreringen i modalen. Nu är det
@@ -28833,6 +29071,9 @@ function ritaPbSnabb() {
   const v = $('#pbSnabbVal'), a = $('#pbAnaVal'), s = $('#pbSnabbStatus'); if (!v || !s) return;
   if (document.activeElement !== v) v.value = String(+pbTro.snabb || 0);
   if (a && document.activeElement !== a) a.value = String(pbTro.anaBredd || 360);
+  const dv = $('#pbDetVal'), dr = $('#pbDetRemsaVal');
+  if (dv && document.activeElement !== dv) dv.value = String(pbTro.detektor == null ? 1 : +pbTro.detektor);
+  if (dr && document.activeElement !== dr) dr.value = String(pbTro.detRemsa == null ? 0 : +pbTro.detRemsa);
   s.textContent = kamBildlage ? `The phone runs ${bildlageText()}.` : 'Default: 4K · 15 fps, one frame every 150 ms, analysis 360 px wide. The phone retakes its reference picture when the mode changes.';
 }
 $('#pbSnabbVal') && ($('#pbSnabbVal').onchange = ev => {
@@ -28843,6 +29084,19 @@ $('#pbSnabbVal') && ($('#pbSnabbVal').onchange = ev => {
 });
 $('#pbAnaVal') && ($('#pbAnaVal').onchange = ev => {
   pbTro.anaBredd = +ev.target.value || 360;
+  LS.set('sthv.tro.v1', pbTro);
+  if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
+  ritaPbSnabb();
+});
+/* Den tränade detektorn (MES-329): valet går till telefonen som T.detektor och T.detRemsa. */
+$('#pbDetVal') && ($('#pbDetVal').onchange = ev => {
+  pbTro.detektor = +ev.target.value || 0;
+  LS.set('sthv.tro.v1', pbTro);
+  if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
+  ritaPbSnabb();
+});
+$('#pbDetRemsaVal') && ($('#pbDetRemsaVal').onchange = ev => {
+  pbTro.detRemsa = +ev.target.value || 0;
   LS.set('sthv.tro.v1', pbTro);
   if (!Moln.sandKam('trosklar', { v: pbTro })) toast('No connection to the phone', 'err');
   ritaPbSnabb();
@@ -28872,6 +29126,7 @@ function provbordData(m) {
     tal('tracks', pbRa.length),
     tal('covered', pbRa.filter(t => t.skymd).length),
     tal('regions', d.regioner || 0),
+    tal('detector', d.detektor === 'yolox' ? `YOLOX ${d.detMs == null ? '–' : d.detMs + ' ms'} · ${d.detLador || 0} boxes, ${d.detRemsor || 0} strips` : (d.detektor || '–'), d.detektor !== 'yolox'),   // MES-329
     tal('coverage', ((d.tackning || 0) * 100).toFixed(1) + '%', (d.tackning || 0) > 0.35),
     tal('scattered', ((d.spritt || 0) * 100).toFixed(2) + '%', (d.spritt || 0) > 0.005),
     tal('noise σ', (d.sigma || 0).toFixed(1)),

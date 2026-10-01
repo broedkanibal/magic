@@ -6,9 +6,10 @@
    natt 2: dev/detektor/tran/GRIND3.md). Tre klasser: kort, baksida och
    namnrad — remsan högst upp på kortet där namnet står. Remsan är det som
    gör högarna läsbara: i en tät landhög syns bara namnremsorna, och
-   dubblettsteget (NMS) slog ihop kortlådorna. Uppmätt mot MES-246-facit:
-   kortlådor ensamma 728/738 kort och 95/105 hela högar, kortlåda ELLER
-   remsa 738/738 och 105/105; golden 74/74. 0–1 falska.
+   dubblettsteget (NMS) slog ihop kortlådorna. Uppmätt mot MES-246-facit
+   (GRIND3.md): kortlådor ensamma 728/738 kort och 97/107 hela högar, 0
+   falska; kortlåda ELLER remsa 738/738 och 105/105. Golden (8 fall med
+   hörn): kortlådor 73/74, 2 falska (en flisa vid kanten i 06).
 
    Modellen tar en bild på 960 × 544: bilden skalas (bevarat format) in
    uppe till vänster, resten fylls med 114, BGR 0–255 som i OpenCV (samma
@@ -73,7 +74,7 @@
      alla ankare (som remsprov.py), så ett ankare kan vara både kortlåda
      och remsa. Svar: { kort, remsor } efter tröskel och NMS. */
   function avkoda(ut, r, W, H, tro) {
-    tro = tro || T;
+    tro = Object.assign({}, T, tro || {});   // ett ofullständigt tro (bara tak) ska inte ge noll lådor
     const kort = [], remsor = [], n = Math.floor(ut.length / FALT);
     const lada = (o, poang, klass) => {
       const cx = ut[o], cy = ut[o + 1], w = ut[o + 2], h = ut[o + 3];
@@ -124,7 +125,7 @@
        Mätt i tran/parprov.py: 0,6 remstjocklekar slog ihop två Plains i
        samma hög i sex lägen; 5 % av korthöjden gör det inte. */
     const TOL = o.tol != null ? o.tol : 0.05, TOL2 = o.tol2 != null ? o.tol2 : 0.08;
-    const DUB_IOU = o.dubIou != null ? o.dubIou : 0.5;     // dubbletter: delad remsa och minst så här mycket täckning
+    const DUB_IOU = o.dubIou != null ? o.dubIou : 0.3;     // dubbletter: delad remsa och minst så här mycket täckning (appens värde; 0,5 slog aldrig ihop något)
     const SKAPA = o.skapa || 'alla';                        // 'alla' | 'fria' (bara remsor utanför varje låda) | 'inga'
     const INNE = o.inne != null ? o.inne : 0;              // > 0: en låda som till så stor del ligger inne i en starkare kastas (nollprovets inneslutning)
     const FORM = o.form || 'hel';                           // skapade kort: 'hel' (kortets höjd) | 'synlig' (fram till nästa kort i högen)
@@ -147,14 +148,19 @@
     };
     let ut = kort.map(k => Object.assign({}, k, { remsa: null, ur: 'lada' }));
     /* 0. En remsa är låg och lång: 14 % av kortets höjd och nästan hela
-       bredden (tjocklek/längd ≈ 0,2). Tjockare än 0,35 är den något annat —
-       två remsor som NMS lagt ihop, eller en bit av ett tappat kort (MES-246
-       222,65 s: 143 × 299 på ett kort på 488 × 329). Den räknas inte. */
-    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= 0.35);
+       bredden (tjocklek/längd ≈ 0,2 i facit; den detekterade är tjockare,
+       0,25–0,37 — i golden 05, 1440 px bred, 77 av 210). Tjockare än 0,45
+       är den något annat: två remsor som NMS lagt ihop, eller en bit av ett
+       tappat kort (MES-246 222,65 s: 143 × 299 = 0,48 på ett kort på
+       488 × 329). Den räknas inte. 0,35 kastade golden 05:s riktiga remsor,
+       och det täckta kortet fick aldrig sin täckning. */
+    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= 0.45);
     /* 1. Dubbletter: två lådor som båda har remsan i sin kant OCH täcker
-       varandra till minst hälften (IoU ≥ 0,5, nollprovets eget mått på en
-       dubblett) är samma kort. Den med högst poäng behålls (som NMS hade
-       gjort). Utan IoU-kravet slogs två tappade Plains i samma hög ihop. */
+       varandra (IoU ≥ DUB_IOU, 0,3 — en dubblett är ofta lådan runt den
+       synliga delen bredvid lådan runt hela kortet, så de överlappar inte
+       till hälften) är samma kort. Den med högst poäng behålls (som NMS
+       hade gjort). Utan IoU-kravet slogs två tappade Plains i samma hög
+       ihop (IoU 0,45 — de delade en bred remsa). */
     const bort = new Set();
     let dubbletter = 0;
     for (const s of remsor) {
@@ -197,11 +203,12 @@
         const g = granne.remsa, gc = mitt(g), kc = { x: (granne.x0 + granne.x1) / 2, y: (granne.y0 + granne.y1) / 2 };
         if (vg) lod = kc.y >= gc.y ? 1 : -1; else vag = kc.x >= gc.x ? 1 : -1;
       }
-      /* Lådan är kortets SYNLIGA del, som modellens egna lådor (och facits):
-         från remsan och kortets höjd åt kroppens håll, men bara fram till
-         nästa kort i högen — den närmaste lådan eller remsan vars kant
-         ligger bortom remsan och som överlappar den i sidled till minst
-         hälften. Minst 1,5 remstjocklekar. */
+      /* Lådan: från remsan och kortets höjd åt kroppens håll (form 'hel' —
+         facits och modellens lådor runt det synliga är i en snett förskjuten
+         hög nästan hela kortet; mätt i parprov.py gav 'hel' +2 kort, 'synlig'
+         0). Med form 'synlig' bara fram till nästa kort i högen — den
+         närmaste lådan eller remsan vars kant ligger bortom remsan och som
+         överlappar den i sidled till minst hälften. Minst 1,5 remstjocklekar. */
       const t = tjock(s), hinder = [];
       if (FORM === 'synlig') { for (const k of ut) hinder.push(k); remsor.forEach((q, qi) => { if (qi !== si) hinder.push(q); }); }
       const sidled = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) >= 0.5 * (a1 - a0);
@@ -230,7 +237,7 @@
   const harDOM = typeof document !== 'undefined';
   /* Riktig tid också i golden, där performance.now är videons klocka (performance.riktigNu, som Kameras nuRiktig). */
   const nu = () => { const pf = global.performance; return (pf.riktigNu || pf.now).call(pf); };
-  let session = null, backend = null, inNamn = null, utNamn = null, laddar = null, laddatVariant = null, cv = null, ctx = null, tensor = null;
+  let session = null, backend = null, inNamn = null, utNamn = null, laddar = null, laddatVariant = null, cv = null, ctx = null;
 
   const skript = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('kunde inte ladda ' + src)); document.head.appendChild(s); });
 
@@ -257,7 +264,10 @@
     laddatVariant = variant;
     laddar = (async () => {
       const t0 = nu();
-      if (!global.ort) await skript(o.ort);
+      /* onnxruntime hämtas en gång för båda modulerna (bildmodellen laddar
+         samtidigt på telefonen): ett delat löfte, annars två <script> och
+         två initieringar. */
+      if (!global.ort) { try { await (global.__mesaOrtLaddar || (global.__mesaOrtLaddar = skript(o.ort))); } catch (e) { global.__mesaOrtLaddar = null; throw e; } }
       const ort = global.ort;
       if (o.wasmPaths) ort.env.wasm.wasmPaths = new URL(o.wasmPaths, global.location.href).href;
       const tradar = global.crossOriginIsolated ? Math.min(4, global.navigator.hardwareConcurrency || 2) : 1;
@@ -268,21 +278,25 @@
       if (o.backend !== 'webgpu') forsok.push(['wasm', url]);
       if (forsok.length && forsok[0][0] === 'wasm') ort.env.wasm.proxy = true;
       let fel = null;
-      if (!tensor) tensor = new Float32Array(3 * BREDD * HOJD);
       for (const [b, u] of forsok) {
+        let s = null;
         try {
           const bytes = await hamtaModell(u);
-          const s = await ort.InferenceSession.create(bytes, { executionProviders: [b], graphOptimizationLevel: 'all' });
+          s = await ort.InferenceSession.create(bytes, { executionProviders: [b], graphOptimizationLevel: 'all' });
           const inn = s.inputNames[0];
           /* Värm upp innan sessionen tas i bruk: första körningen kompilerar, och faller den ska den gamla sessionen stå kvar. */
-          await korMed(s, inn, tensor);
+          const sFast = s, innFast = inn;
+          await korMed(() => ({ s: sFast, inn: innFast }), new Float32Array(3 * BREDD * HOJD), TAK_UPPVARMNING_MS);
+          /* Bad någon om en annan variant medan den här laddades installeras den inte: annars kunde session vara fp32 medan variant sa fp16. */
+          if (laddatVariant !== variant) { try { await s.release(); } catch (e) {} throw new Error('varianten byttes under laddningen'); }
           const gammal = session;
           session = s; backend = b; inNamn = inn; utNamn = s.outputNames[0];
           if (gammal && gammal !== s) { try { await gammal.release(); } catch (e) {} }
           return { backend, modell: u.split('/').pop(), variant, tradar: b === 'wasm' ? tradar : null, ms: Math.round(nu() - t0) };
-        } catch (e) { fel = e; }
+        } catch (e) { fel = e; if (s && s !== session) { try { await s.release(); } catch (e2) {} } if (laddatVariant !== variant) break; }
       }
-      laddar = null; laddatVariant = null; throw fel || new Error('ingen backend');
+      if (laddatVariant === variant) { laddar = null; laddatVariant = null; }
+      throw fel || new Error('ingen backend');
     })();
     return laddar;
   }
@@ -291,46 +305,79 @@
      (dev/embed/embed.js): två sessioner som kör samtidigt på WebGPU gjorde
      att bildmodellens svar aldrig kom (golden 01: 0 av 3 namn). */
   const koDelad = global.__mesaOrtKo || (global.__mesaOrtKo = { p: Promise.resolve() });
-  function korMed(s, inn, data) {
-    const p = koDelad.p.then(async () => {
+  /* Tidstak på varje körning: en körning mot grafikkortet som aldrig svarar
+     (golden F, 2026-10-01: från fall 14 stod loopen stilla) får inte hänga
+     kön — efter taket går kön vidare och anropet avvisas, så att appen tar
+     rutan med dagens detektor (tre i rad stänger modellen, KamDet). */
+  const TAK_MS = 3000, TAK_UPPVARMNING_MS = 30000;
+  const medTak = (p, ms) => { let t = null; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error('detektorn svarade inte på ' + ms + ' ms')), ms); })]).finally(() => clearTimeout(t)); };
+  /* valj(): sessionen och indatanamnet läses först när kön når körningen —
+     byts varianten medan en körning står i kö ska den gå på den nya
+     sessionen, inte på en som släppts. */
+  function korMed(valj, data, tak) {
+    const p = koDelad.p.then(() => medTak((async () => {
+      const { s, inn } = valj();
+      if (!s) throw new Error('detektorn är inte laddad');
       const svar = await s.run({ [inn]: new global.ort.Tensor('float32', data, [1, 3, HOJD, BREDD]) });
       const t = svar[s.outputNames[0]];
       return t.getData ? await t.getData() : t.data;
-    });
+    })(), tak || TAK_MS));
     koDelad.p = p.catch(() => {});
     return p;
   }
-  const korTensor = data => korMed(session, inNamn, data);
+  const korTensor = (data, tak) => korMed(() => ({ s: session, inn: inNamn }), data, tak);
 
   /* Rutan r = { x, y, w, h } i källans bildpunkter (bordets ruta; null =
      hela källan) skalas in i 960 × 544 uppe till vänster, resten 114.
-     Skalningen är webbläsarens egen bilinjära ('low'), som cv2:s
-     INTER_LINEAR vid nedskalning tar ett par källpunkter per bildpunkt —
-     det är så modellen tränats och mätts. Svar: { kort, remsor, ms (bara
-     modellen), forMs (ritning + tensor), skala, W, H }, lådorna i rutans
-     bildpunkter. */
+     En STÅENDE ruta (telefonen på högkant, golden 01–08) vrids 90° moturs
+     innan modellen ser den, och lådorna vrids tillbaka — som prov246.py
+     och parprov.py gör: modellen tar 960 × 544 liggande, och en stående
+     bild krymps annars till ~390 px bred, korten 1,4 gånger mindre än det
+     mätningen gjordes på. Skalningen är webbläsarens egen bilinjära
+     ('low'), som cv2:s INTER_LINEAR vid nedskalning tar ett par
+     källpunkter per bildpunkt — det är så modellen tränats och mätts.
+     Tensorn är ny för varje körning: i onnxruntime-webs proxy-läge (WASM)
+     överförs bufferten till workern och är tom efteråt. Svar: { kort,
+     remsor, ms (bara modellen), forMs (ritning + tensor), skala, roterad,
+     W, H }, lådorna i rutans bildpunkter. */
   async function kor(kalla, r, tro) {
     if (!session) throw new Error('detektorn är inte laddad');
     if (!cv) { cv = document.createElement('canvas'); cv.width = BREDD; cv.height = HOJD; ctx = cv.getContext('2d', { willReadFrequently: true }); }
     const sw = kalla.videoWidth || kalla.naturalWidth || kalla.width, sh = kalla.videoHeight || kalla.naturalHeight || kalla.height;
     const rx = r ? r.x : 0, ry = r ? r.y : 0, rw = r ? r.w : sw, rh = r ? r.h : sh;
-    const s = Math.min(BREDD / rw, HOJD / rh), dw = Math.max(1, Math.floor(rw * s)), dh = Math.max(1, Math.floor(rh * s));
+    const roterad = rh > rw, W = roterad ? rh : rw, H = roterad ? rw : rh;   // bilden modellen ser: liggande
+    const s = Math.min(BREDD / W, HOJD / H);
     const t0 = nu();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = 'rgb(' + FYLL + ',' + FYLL + ',' + FYLL + ')'; ctx.fillRect(0, 0, BREDD, HOJD);
-    ctx.drawImage(kalla, rx, ry, rw, rh, 0, 0, dw, dh);
-    const d = ctx.getImageData(0, 0, BREDD, HOJD).data, n = BREDD * HOJD;
+    /* Moturs: källans (x, y) → (s·y, s·(rw − x)); överkanten hamnar till vänster. */
+    if (roterad) ctx.setTransform(0, -s, s, 0, 0, s * rw); else ctx.setTransform(s, 0, 0, s, 0, 0);
+    ctx.drawImage(kalla, rx, ry, rw, rh, 0, 0, rw, rh);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const d = ctx.getImageData(0, 0, BREDD, HOJD).data, n = BREDD * HOJD, tensor = new Float32Array(3 * n);
     for (let p = 0, i = 0; p < n; p++, i += 4) { tensor[p] = d[i + 2]; tensor[n + p] = d[i + 1]; tensor[2 * n + p] = d[i]; }
     const t1 = nu();
-    const ut = await korTensor(tensor);
+    const ut = await korTensor(tensor, tro && tro.tak);
     const t2 = nu();
-    const a = avkoda(ut, s, rw, rh, tro);
-    return Object.assign(a, { ms: Math.round(t2 - t1), forMs: Math.round(t1 - t0), skala: s, W: rw, H: rh });
+    const a = avkoda(ut, s, W, H, tro);
+    if (roterad) {
+      /* Tillbaka till den stående rutan: (x', y') → (rw − y', x'). */
+      const vrid = b => Object.assign(b, { x0: rw - b.y1, y0: b.x0, x1: rw - b.y0, y1: b.x1 });
+      for (const b of a.kort) vrid(b);
+      for (const b of a.remsor) vrid(b);
+    }
+    return Object.assign(a, { ms: Math.round(t2 - t1), forMs: Math.round(t1 - t0), skala: s, roterad, W: rw, H: rh });
   }
 
+  /* Släpp sessionen (efter tre fel i rad, KamDet): nästa ladda() hämtar ur cachen och värmer upp på nytt. */
+  async function slapp() {
+    const s = session; session = null; backend = null; laddar = null; laddatVariant = null;
+    if (s) { try { await s.release(); } catch (e) {} }
+  }
   const api = {
     V, BREDD, HOJD, KLASSER, T, REMSA, KVOT, FORVAL,
     iou, nms, avkoda, mattUr, para,
-    ladda, kor,
+    ladda, kor, slapp,
     get redo() { return !!session; },
     get backend() { return backend; },
     get variant() { return session ? laddatVariant : null; }

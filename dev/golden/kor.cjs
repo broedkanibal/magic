@@ -63,6 +63,7 @@ const UTAN_LEKEN = arg('--utan-leken', '');
 const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela rutan (MES-227) av eller på, oavsett appens förval
 const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
+const DETLOGG = process.argv.includes('--detlogg');   // detektorns lådor, remsor och täckningar i appens konsol (MES-329) — med --konsol
 const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
@@ -197,7 +198,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [AIFLAG && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
@@ -230,6 +231,8 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}, ${r.refSparade || 0} sparade`).join(' · ')); }
   { const f0 = JSON.parse(json)[0]; if (f0) console.log('\n  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', systemprompt v' + f0.promptv : '') + ')' : '')
       + (f0.modell ? ` — bildmodellen räknade på ${f0.modell === 'webgpu' ? 'WebGPU' : f0.modell === 'wasm' ? 'WASM' : f0.modell}` : ' — utan bildmodell (reserven Matcher + ORB)')
+      + (f0.detektor ? ` — detektorn: ${f0.detektor}` : '')   // MES-329: tränad YOLOX (variant, backend) eller dagens
+      + (f0.detektor && !/^yolox-/.test(f0.detektor) && !/detektor:0/.test(TRO) ? '\n  VARNING: den tränade detektorn kördes inte (' + f0.detektor + ') — körningen mäter dagens detektor fast --tro "detektor:0" inte gavs' : '')
       + '\n  (lokal: konstverket jämförs med lekens kort; ocr: kortnamnet läses ur titelraden; modell: bildmodellen rangordnar och ORB kontrollerar; ai: Claude frågas om det som är osäkert)');
     /* MES-225: vilket vittne som bar de säkra rätta namnen, och hur många Claude behövdes för. */
     const rsV = JSON.parse(json), vf = {}; for (const r of rsV) for (const k in (r.varforRatt || {})) vf[k] = (vf[k] || 0) + r.varforRatt[k];

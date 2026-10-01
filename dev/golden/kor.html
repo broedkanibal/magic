@@ -183,6 +183,7 @@ const LJUS = PARAMS.get('ljus') || '';
 const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlokalt') === '1', EMBED_BACKEND = PARAMS.get('embedbackend') || 'auto';
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
+let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
 /* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
 const RUTLOGG = PARAMS.get('rutlogg') === '1';
 /* ?luft=0|1 (kor.cjs --luft): läsningen på första hela rutan (MES-227, Kamera T.luft) av eller på, oavsett appens förval. */
@@ -300,7 +301,10 @@ async function laddaApp() {
   try { AUTO_FLYTT = w.eval('AUTO_FLYTT'); } catch (e) {}
   w.MESA_REF = REF_PA; w.MESA_REF_ANVAND = REF_ANVAND; w.MESA_LAR = LAR_PA;
   if (LASWORKER === '0') w.MESA_LASWORKER = false; else if (LASWORKER === 'kontroll') w.MESA_LASWORKER = 'kontroll';
+  if (PARAMS.get('detlogg') === '1') w.MESA_DET_LOGG = true;   // kor.cjs --detlogg: detektorns lådor, remsor och täckningar i konsolen (MES-329, med --konsol)
   /* Sökvägarna räknas från appens dokument (repots rot). */
+  /* Den tränade detektorn (MES-329) laddar onnxruntime lokalt när bildmodellens filer ligger lokalt (samma delade laddning); modellen själv ligger alltid i repot. */
+  w.MESA_DETEKTOR = EMBED_LOKALT ? { ladda: { ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/' } } : {};
   w.MESA_EMBED = !EMBED_PA ? false : { ladda: Object.assign({ backend: EMBED_BACKEND }, EMBED_LOKALT ? {
     ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/',
     modell: { webgpu16: 'dev/embed/modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'dev/embed/modeller/mobileclip-s0-vision.onnx', wasm: 'dev/embed/modeller/mobileclip-s0-vision.onnx' } } : {}) };
@@ -374,6 +378,20 @@ async function byggPool() {
     if (idx && KE.redo()) embedInfo = { backend: KE.laddat && KE.laddat.backend, modell: KE.laddat && KE.laddat.modell, tradar: KE.laddat && KE.laddat.tradar, vektorer: idx.names.length, ms: Math.round(performance.now() - t0) };
     else embedFel = KE.fel || 'okänt fel';
   }
+  /* Den tränade detektorn (MES-329): laddas här, så att alla fall mäts med
+     den — annars hade första fallet gått på dagens detektor medan modellen
+     hämtades. --tro "detektor:0" mäter dagens detektor, "detRemsa:0" bara
+     modellens lådor utan kort ur remsor. Går den inte att ladda mäter
+     körningen dagens detektor, och det sägs. */
+  detInfo = null; detFel = null;
+  { const troP = Object.fromEntries((PARAMS.get('tro') || '').split(',').map(x => x.split(':')).filter(x => x.length === 2 && isFinite(+x[1])).map(([k, v]) => [k.trim(), +v]));
+    const detVal = troP.detektor != null ? troP.detektor : 1, KD = w.eval('KamDet');
+    if (detVal && KD && KD.pa()) {
+      const t0 = performance.now(); status('Hämtar detektorn…');
+      const r = await KD.ladda(detVal === 2 ? 'fp16' : 'fp32');
+      if (r) detInfo = { backend: r.backend, modell: r.modell, variant: r.variant, ms: Math.round(performance.now() - t0), remsa: troP.detRemsa != null ? troP.detRemsa : ((K && K.trosklar && K.trosklar.detRemsa) || 0) };   // förvalet är appens (T.detRemsa)
+      else detFel = KD.fel || 'okänt fel';
+    } }
   /* Antalspriorn (K6): appens byggKamPool fyller kartan ur leken; här byggs
      poolen direkt, så kartan sätts här. */
   try { w.eval('sattKamLekAntal')(kort); } catch (e) {}
@@ -407,6 +425,7 @@ async function byggPool() {
   $('#pool').innerHTML = (poolFel.length ? `<span class="fel">${esc(poolFel.join(' '))}</span><br>` : '')
     + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`
     + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.')
+    + (detInfo ? `<br>Detektorn: tränad YOLOX ${esc(detInfo.variant)} på ${esc(detInfo.backend)} (${esc(detInfo.modell || '')}), klar på ${(detInfo.ms / 1000).toFixed(1)} s${detInfo.remsa ? '' : ' — bara modellens lådor, inga kort ur remsor'}.` : detFel ? `<br><span class="fel">Detektorn gick inte att ladda: ${esc(detFel)} — körningen mäter dagens detektor.</span>` : '<br>Detektorn: dagens (mattmodell + regioner).')
     + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s.`
        : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
     + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ett säkert namn på de korten är ett fel namn.` : '');
@@ -815,11 +834,13 @@ async function korVideoFall(f, vf, vid, cv) {
       const tR = performance.now();
       if (k === 0) await K.start({ video: cv, overlay: doc.getElementById('kamOverlay') }, aterkoppling(f, prov));
       else korRaf(virt);
-      const msRuta = k === 0 ? null : Math.round(performance.now() - tR);
+      const msStart = k === 0 ? null : Math.round(performance.now() - tR);
       const tV = performance.now();
-      await vantaIn(prov);
+      const stegMs = await vantaIn(prov);
+      /* Steget: det synkrona varvet plus väntan på detektorn och det uppskjutna steget (MES-329). Utan detektorn är stegMs ~0. */
+      const msRuta = msStart == null ? null : msStart + Math.round(stegMs);
       /* Verklig tid per ruta (MES-215 del 2): steget (msRuta, med den synkrona delen av en läsning som startades i det) och väntan på läsningarna (workern, Claude). Klockan står still under båda; på telefonen går tiden. */
-      prov.verklig.push({ vt, ms: msRuta || 0, vanta: Math.round(performance.now() - tV) });
+      prov.verklig.push({ vt, ms: msRuta || 0, vanta: Math.round(performance.now() - tV - stegMs) });
       const { spar, lage, klart } = las(prov, vt, msRuta);
       if (vt >= sista) {
         if (klart) break;
@@ -853,6 +874,9 @@ async function korVideoFall(f, vf, vid, cv) {
    krasch i stället för att hänga körningen. */
 async function vantaIn(prov) {
   const t0 = performance.now();
+  /* Den tränade detektorn räknar asynkront (MES-329): steget för rutan väntas in innan något läses. Tiden är stegets (returneras: videofallens msRuta mätte annars bara starten). */
+  let stegMs = 0;
+  if (K && K.vantaSteg) { const tS = performance.now(); try { await K.vantaSteg(); } catch (e) { krascher++; console.error(e); } stegMs = performance.now() - tS; }
   for (let varv = 0; prov.pendande.size || aiVantar(); varv++) {
     if (prov.pendande.size) await Promise.race([Promise.allSettled([...prov.pendande]), sleep(30000)]);
     else await sleep(50);
@@ -860,6 +884,7 @@ async function vantaIn(prov) {
     if (performance.now() - t0 > 60000) { krascher++; console.error('videoläget: väntade förgäves på ett svar'); break; }
   }
   await makrotakt();
+  return stegMs;
 }
 
 /* ── bedömningen ─────────────────────────────────────────────────── */
@@ -960,6 +985,8 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
     /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */
     modell: embedInfo ? embedInfo.backend : null,
+    /* MES-329: detektorn som faktiskt kördes i fallet (KamDet.status läses nu — föll modellen under körningen står 'fel'), inte bara den som laddades. */
+    detektor: (() => { let st = null; try { st = w.eval('KamDet').status(); } catch (e) {} const tr = K.trosklar || {}; return !tr.detektor ? 'dagens' : /^yolox-/.test(st || '') ? st + (tr.detRemsa ? '' : ' (bara lådor)') : (st || 'okänd') + (detFel ? ': ' + detFel : ''); })(),
     varforRatt: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).reduce((m, p) => { const k = p.t.varfor || '–'; m[k] = (m[k] || 0) + 1; return m; }, {}),
     ljus: LJUS || null,   // ljusvarianten (MES-216), null = fotot som det är
     /* Säkra rätta namn som servern (Claude) avgjorde. */

@@ -90,7 +90,8 @@
     o = Object.assign({}, FORVAL, o || {}); o.modell = Object.assign({}, FORVAL.modell, (o && o.modell) || {});
     laddar = (async () => {
       const t0 = performance.now();
-      if (!global.ort) await skript(o.ort);
+      /* onnxruntime hämtas en gång för båda modulerna (den tränade detektorn laddar samtidigt, MES-329): ett delat löfte. */
+      if (!global.ort) { try { await (global.__mesaOrtLaddar || (global.__mesaOrtLaddar = skript(o.ort))); } catch (e) { global.__mesaOrtLaddar = null; throw e; } }
       const ort = global.ort;
       if (o.wasmPaths) ort.env.wasm.wasmPaths = new URL(o.wasmPaths, global.location.href).href;
       const tradar = global.crossOriginIsolated ? Math.min(4, global.navigator.hardwareConcurrency || 2) : 1;
@@ -109,7 +110,7 @@
           const bytes = await hamtaModell(url);
           session = await ort.InferenceSession.create(bytes, { executionProviders: [b], graphOptimizationLevel: 'all' });
           backend = b; inNamn = session.inputNames[0]; utNamn = session.outputNames[0];
-          await kor(new Float32Array(3 * SIDA * SIDA));          // värm upp: första körningen kompilerar
+          await kor(new Float32Array(3 * SIDA * SIDA), UPPVARMNING_TAK_MS);          // värm upp: första körningen kompilerar
           return { backend, modell: url.split('/').pop(), tradar: b === 'wasm' ? tradar : null, ms: Math.round(performance.now() - t0) };
         } catch (e) { fel = e; session = null; }
       }
@@ -118,17 +119,26 @@
     return laddar;
   }
 
-  /* En körning i taget: WebGPU-sessionen tål inte två samtidiga run(). */
-  let ko = Promise.resolve();
-  function kor(data) {
-    const p = ko.then(async () => {
+  /* En körning i taget: WebGPU-sessionen tål inte två samtidiga run(). Kön
+     delas med den tränade detektorn (dev/detektor/modell/detektor.js,
+     MES-329): med två sessioner på samma grafikkort blev en läsning aldrig
+     klar när detektorn räknade samtidigt (golden 01: 0 av 3 namn, läsningen
+     hängde). */
+  const koDelad = global.__mesaOrtKo || (global.__mesaOrtKo = { p: Promise.resolve() });
+  /* …och ett tidstak per körning (MES-329): en körning som aldrig svarar får
+     inte hänga kön — efter taket avvisas anropet (identifiera svarar null,
+     kedjan går på Matcher + ORB) och nästa körning får gå. */
+  const KOR_TAK_MS = 5000, UPPVARMNING_TAK_MS = 60000;   // uppvärmningen kompilerar: lång på en telefon
+  const korMedTak = (p, ms) => { let t = null; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error('bildmodellen svarade inte på ' + ms + ' ms')), ms); })]).finally(() => clearTimeout(t)); };
+  function kor(data, tak) {
+    const p = koDelad.p.then(() => korMedTak((async () => {
       const svar = await session.run({ [inNamn]: new global.ort.Tensor('float32', data, [1, 3, SIDA, SIDA]) });
       const t = svar[utNamn], d = t.getData ? await t.getData() : t.data, v = new Float32Array(DIM);
       let n = 0; for (let k = 0; k < DIM; k++) { v[k] = d[k]; n += v[k] * v[k]; }
       n = Math.sqrt(n) || 1; for (let k = 0; k < DIM; k++) v[k] /= n;
       return v;
-    });
-    ko = p.catch(() => {});
+    })(), tak || KOR_TAK_MS));
+    koDelad.p = p.catch(() => {});
     return p;
   }
 
