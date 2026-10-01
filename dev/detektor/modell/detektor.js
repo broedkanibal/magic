@@ -1,0 +1,340 @@
+/* ══════════════════════════════════════════════════════════════════
+   Den tränade detektorn (MES-288 → MES-329): hittar korten i
+   kamerabilden, lokalt i webbläsaren.
+
+   YOLOX-nano (Megvii, Apache-2.0), finjusterad på Mesas bord (grind 3,
+   natt 2: dev/detektor/tran/GRIND3.md). Tre klasser: kort, baksida och
+   namnrad — remsan högst upp på kortet där namnet står. Remsan är det som
+   gör högarna läsbara: i en tät landhög syns bara namnremsorna, och
+   dubblettsteget (NMS) slog ihop kortlådorna. Uppmätt mot MES-246-facit:
+   kortlådor ensamma 728/738 kort och 95/105 hela högar, kortlåda ELLER
+   remsa 738/738 och 105/105; golden 74/74. 0–1 falska.
+
+   Modellen tar en bild på 960 × 544: bilden skalas (bevarat format) in
+   uppe till vänster, resten fylls med 114, BGR 0–255 som i OpenCV (samma
+   som forbehandla i tran/prov.py). Utdata: en rad per ankare, 10 710 rader
+   × 8 tal — cx, cy, w, h i indatans bildpunkter, objektpoäng, tre
+   klasspoäng. Poäng = objekt × klass. Trösklarna är valda på valideringen
+   och ändras inte utan mätning: kortlådor (kort + baksida) ≥ 0,56 med
+   NMS 0,7 klassoberoende; remsor ≥ 0,68 med NMS 0,6 bland remsorna.
+
+   Parningen (para): en remsa hör till den kortlåda i vars kant den ligger
+   — överkanten för ett otappat kort, en sidkant för ett tappat (remsan står
+   på högkant). Två kortlådor som delar remsa är dubbletter och slås ihop.
+   En remsa utan kortlåda är ett kort som dubblettsteget slagit ihop med
+   grannen: kortet skapas ur remsan med kortstorleken, åt det håll grannens
+   kropp ligger från grannens remsa. Mätt i tran/parprov.py innan den
+   kopplades in i appen.
+
+   Körs med onnxruntime-web, samma laddning och samma backend-val som
+   bildmodellen (dev/embed/embed.js): WebGPU när det finns, annars WASM.
+   Samma form som embed.js: en fristående fil, window.Detektor — och i
+   node (module.exports) de rena delarna, så att parprov.py mäter exakt
+   den kod appen kör. Appens koppling bor i index.html (KamDet).
+   ══════════════════════════════════════════════════════════════════ */
+(function (global) {
+  'use strict';
+
+  const V = 1;                               // modellens version i lagringen: ändras den hämtas filen om
+  const BREDD = 960, HOJD = 544, FYLL = 114, FALT = 8;
+  const KLASSER = ['kort', 'baksida', 'namnrad'];
+  /* Valda på valideringen (dataset v3): troskel_val.py, nms_val.py, remsprov.py. */
+  const T = { kort: 0.56, nmsKort: 0.7, remsa: 0.68, nmsRemsa: 0.6, golv: 0.02 };
+  const REMSA = 0.14;                        // remsans höjd i andel av kortets höjd (dev/detektor/remsa.py)
+  const KVOT = 0.716;                        // ett Magic-kort är 63 × 88 mm
+  const ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
+  const FORVAL = {
+    ort: ORT_CDN + 'ort.webgpu.min.js', wasmPaths: ORT_CDN,
+    /* fp32 på båda vägarna tills fp16 är mätt på telefonen (MES-329 steg 6). */
+    modell: { fp32: 'dev/detektor/modell/yolox_nano_mesa_960x544.onnx', fp16: 'dev/detektor/modell/yolox_nano_mesa_960x544_fp16.onnx' },
+    backend: 'auto',                         // 'auto' | 'webgpu' | 'wasm'
+    variant: 'fp32'                          // 'fp32' | 'fp16'
+  };
+
+  /* ── rena delar: geometri, avkodning, parning ── */
+  const iou = (a, b) => {
+    const x0 = Math.max(a.x0, b.x0), y0 = Math.max(a.y0, b.y0), x1 = Math.min(a.x1, b.x1), y1 = Math.min(a.y1, b.y1);
+    const s = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+    const u = (a.x1 - a.x0) * (a.y1 - a.y0) + (b.x1 - b.x0) * (b.y1 - b.y0) - s;
+    return u > 0 ? s / u : 0;
+  };
+  /* Högsta poäng först; allt som överlappar en behållen låda mer än tak kastas. */
+  function nms(dets, tak) {
+    const s = dets.slice().sort((a, b) => b.poang - a.poang), kvar = [];
+    for (const d of s) if (kvar.every(k => iou(d, k) <= tak)) kvar.push(d);
+    return kvar;
+  }
+  const klipp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+
+  /* Modellens utdata → lådor i källbildens bildpunkter. ut: tal [n × 8]
+     (cx cy w h obj k0 k1 k2); r: skalan källa → indata (lådorna delas med
+     den); W, H: källans mått, lådorna klipps mot dem. Etiketten är den
+     bästa klassen (som prov.py); remsorna räknas ur sin egen kolumn över
+     alla ankare (som remsprov.py), så ett ankare kan vara både kortlåda
+     och remsa. Svar: { kort, remsor } efter tröskel och NMS. */
+  function avkoda(ut, r, W, H, tro) {
+    tro = tro || T;
+    const kort = [], remsor = [], n = Math.floor(ut.length / FALT);
+    const lada = (o, poang, klass) => {
+      const cx = ut[o], cy = ut[o + 1], w = ut[o + 2], h = ut[o + 3];
+      return { x0: klipp((cx - w / 2) / r, 0, W), y0: klipp((cy - h / 2) / r, 0, H), x1: klipp((cx + w / 2) / r, 0, W), y1: klipp((cy + h / 2) / r, 0, H), poang, klass };
+    };
+    for (let i = 0; i < n; i++) {
+      const o = i * FALT, obj = ut[o + 4];
+      if (!(obj >= tro.golv)) continue;
+      const k0 = ut[o + 5], k1 = ut[o + 6], k2 = ut[o + 7];
+      const sr = obj * k2;
+      if (sr >= tro.remsa) remsor.push(lada(o, sr, 'namnrad'));
+      /* argmax som numpy: första bästa vid lika. */
+      const kl = k0 >= k1 && k0 >= k2 ? 0 : k1 >= k2 ? 1 : 2;
+      if (kl === 2) continue;
+      const sk = obj * (kl === 0 ? k0 : k1);
+      if (sk >= tro.kort) kort.push(lada(o, sk, KLASSER[kl]));
+    }
+    return { kort: nms(kort, tro.nmsKort), remsor: nms(remsor, tro.nmsRemsa), raKort: kort.length, raRemsor: remsor.length };
+  }
+
+  /* Kortstorleken ur bildens egna kortlådor: medianen av lång- och kortsida
+     över lådorna med kortets kvot (0,6–0,85 — hela, otäckta kort). null
+     under två sådana. */
+  function mattUr(kort) {
+    const l = [], k = [];
+    for (const b of kort) {
+      const w = b.x1 - b.x0, h = b.y1 - b.y0, kv = Math.min(w, h) / Math.max(w, h);
+      if (kv >= 0.6 && kv <= 0.85) { l.push(Math.max(w, h)); k.push(Math.min(w, h)); }
+    }
+    if (l.length < 2) return null;
+    const med = a => { a.sort((p, q) => p - q); return a[a.length >> 1]; };
+    return { lang: med(l), kort: med(k), av: l.length };
+  }
+
+  /* Remsa ↔ kortlåda. kort och remsor efter avkoda (samma bildpunkter);
+     matt: kortstorleken { lang, kort } i samma bildpunkter, eller null (då
+     ur bildens egna lådor, annars ur remsans längd). o.lod / o.vag: åt
+     vilket håll kroppen ligger från en remsa utan granne (+1 = nedåt / åt
+     höger, −1 = uppåt / åt vänster); förval nedåt och åt vänster (ett kort
+     som tappats medurs har sin överkant åt höger).
+     Svar: kortlådorna, var och en med remsa (eller null) och ur: 'lada'
+     (modellens egen) eller 'remsa' (skapad ur en remsa utan låda). */
+  function para(kort, remsor, matt, o) {
+    o = o || {};
+    /* Toleranserna räknas i KORTETS höjd (lådans sida tvärs remsan), inte i
+       remsans tjocklek: i en tät hög ligger korten 11–20 % av korthöjden
+       isär (MES-246), och den detekterade remsan är tjockare än facits 14 %.
+       Mätt i tran/parprov.py: 0,6 remstjocklekar slog ihop två Plains i
+       samma hög i sex lägen; 5 % av korthöjden gör det inte. */
+    const TOL = o.tol != null ? o.tol : 0.05, TOL2 = o.tol2 != null ? o.tol2 : 0.08;
+    const DUB_IOU = o.dubIou != null ? o.dubIou : 0.5;     // dubbletter: delad remsa och minst så här mycket täckning
+    const SKAPA = o.skapa || 'alla';                        // 'alla' | 'fria' (bara remsor utanför varje låda) | 'inga'
+    const INNE = o.inne != null ? o.inne : 0;              // > 0: en låda som till så stor del ligger inne i en starkare kastas (nollprovets inneslutning)
+    const FORM = o.form || 'hel';                           // skapade kort: 'hel' (kortets höjd) | 'synlig' (fram till nästa kort i högen)
+    const tjock = s => Math.max(1, Math.min(s.x1 - s.x0, s.y1 - s.y0));
+    const vagrat = s => (s.x1 - s.x0) >= (s.y1 - s.y0);
+    /* Hur långt från sin kant remsan sitter i lådan, i andel av lådans sida
+       tvärs remsan: över- eller underkanten för en vågrät remsa, vänster-
+       eller högerkanten för en stående. Infinity när remsans mitt ligger
+       utanför lådan eller remsan sticker ut mer än sin tjocklek i sin egen
+       längdriktning. */
+    const passning = (s, k) => {
+      const t = tjock(s), cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2;
+      if (cx < k.x0 || cx > k.x1 || cy < k.y0 || cy > k.y1) return Infinity;
+      if (vagrat(s)) {
+        if (s.x0 < k.x0 - t || s.x1 > k.x1 + t) return Infinity;
+        return Math.min(Math.abs(s.y0 - k.y0), Math.abs(s.y1 - k.y1)) / Math.max(1, k.y1 - k.y0);
+      }
+      if (s.y0 < k.y0 - t || s.y1 > k.y1 + t) return Infinity;
+      return Math.min(Math.abs(s.x0 - k.x0), Math.abs(s.x1 - k.x1)) / Math.max(1, k.x1 - k.x0);
+    };
+    let ut = kort.map(k => Object.assign({}, k, { remsa: null, ur: 'lada' }));
+    /* 0. En remsa är låg och lång: 14 % av kortets höjd och nästan hela
+       bredden (tjocklek/längd ≈ 0,2). Tjockare än 0,35 är den något annat —
+       två remsor som NMS lagt ihop, eller en bit av ett tappat kort (MES-246
+       222,65 s: 143 × 299 på ett kort på 488 × 329). Den räknas inte. */
+    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= 0.35);
+    /* 1. Dubbletter: två lådor som båda har remsan i sin kant OCH täcker
+       varandra till minst hälften (IoU ≥ 0,5, nollprovets eget mått på en
+       dubblett) är samma kort. Den med högst poäng behålls (som NMS hade
+       gjort). Utan IoU-kravet slogs två tappade Plains i samma hög ihop. */
+    const bort = new Set();
+    let dubbletter = 0;
+    for (const s of remsor) {
+      const pass = [];
+      ut.forEach((k, ki) => { if (!bort.has(ki) && passning(s, k) <= TOL) pass.push(ki); });
+      if (pass.length < 2) continue;
+      const bast = pass.reduce((a, b) => ut[b].poang > ut[a].poang ? b : a);
+      for (const ki of pass) if (ki !== bast && iou(ut[ki], ut[bast]) >= DUB_IOU) { bort.add(ki); dubbletter++; }
+    }
+    ut = ut.filter((k, ki) => !bort.has(ki));
+    if (INNE > 0) {
+      const andelInne = (a, b) => { const x0 = Math.max(a.x0, b.x0), y0 = Math.max(a.y0, b.y0), x1 = Math.min(a.x1, b.x1), y1 = Math.min(a.y1, b.y1); const s = Math.max(0, x1 - x0) * Math.max(0, y1 - y0), aa = (a.x1 - a.x0) * (a.y1 - a.y0); return aa > 0 ? s / aa : 0; };
+      const kvar = [];
+      for (const k of ut.slice().sort((a, b) => b.poang - a.poang)) { if (kvar.some(q => andelInne(k, q) >= INNE)) { dubbletter++; continue; } kvar.push(k); }
+      ut = kvar;
+    }
+    /* 2. Tilldelning: bästa passning först, en remsa per låda och en låda
+       per remsa; först inom TOL, sedan inom TOL2 för det som blev över (en
+       remsa som sitter några bildpunkter fel ska inte bli ett eget kort). */
+    const tagna = new Set();
+    for (const tol of [TOL, TOL2]) {
+      const par = [];
+      remsor.forEach((s, si) => { if (tagna.has(si)) return; ut.forEach((k, ki) => { if (k.remsa) return; const p = passning(s, k); if (p <= tol) par.push({ p, si, ki, poang: k.poang }); }); });
+      par.sort((a, b) => a.p - b.p || b.poang - a.poang);
+      for (const q of par) { if (tagna.has(q.si) || ut[q.ki].remsa) continue; ut[q.ki].remsa = remsor[q.si]; tagna.add(q.si); }
+    }
+    /* 3. Remsor utan låda → ett kort var, med kortstorleken, åt det håll
+       grannens kropp ligger från grannens remsa (samma hög, samma riktning). */
+    const m = matt || mattUr(ut);
+    const mitt = s => ({ x: (s.x0 + s.x1) / 2, y: (s.y0 + s.y1) / 2 });
+    const inne = (p, k) => p.x >= k.x0 && p.x <= k.x1 && p.y >= k.y0 && p.y <= k.y1;
+    let skapade = 0;
+    remsor.forEach((s, si) => {
+      if (tagna.has(si) || SKAPA === 'inga') return;
+      const vg = vagrat(s), c = mitt(s);
+      if (SKAPA === 'fria' && ut.some(k => inne(c, k))) return;
+      let lod = o.lod || 1, vag = o.vag || -1;
+      const granne = ut.find(k => k.remsa && vagrat(k.remsa) === vg && inne(c, k)) || ut.find(k => k.remsa && vagrat(k.remsa) === vg && iou(k, { x0: c.x - 1, y0: c.y - 1, x1: c.x + 1, y1: c.y + 1 }) > 0);
+      if (granne) {
+        const g = granne.remsa, gc = mitt(g), kc = { x: (granne.x0 + granne.x1) / 2, y: (granne.y0 + granne.y1) / 2 };
+        if (vg) lod = kc.y >= gc.y ? 1 : -1; else vag = kc.x >= gc.x ? 1 : -1;
+      }
+      /* Lådan är kortets SYNLIGA del, som modellens egna lådor (och facits):
+         från remsan och kortets höjd åt kroppens håll, men bara fram till
+         nästa kort i högen — den närmaste lådan eller remsan vars kant
+         ligger bortom remsan och som överlappar den i sidled till minst
+         hälften. Minst 1,5 remstjocklekar. */
+      const t = tjock(s), hinder = [];
+      if (FORM === 'synlig') { for (const k of ut) hinder.push(k); remsor.forEach((q, qi) => { if (qi !== si) hinder.push(q); }); }
+      const sidled = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0)) >= 0.5 * (a1 - a0);
+      let b;
+      if (vg) {
+        const w = m ? m.kort : (s.x1 - s.x0) / 0.92, h = m ? m.lang : w / KVOT;
+        let y0, y1;
+        if (lod > 0) { y0 = s.y0 - 0.02 * h; y1 = y0 + h; for (const q of hinder) if (q.y0 > s.y1 - 0.25 * t && sidled(s.x0, s.x1, q.x0, q.x1) && q.y0 < y1) y1 = q.y0; y1 = Math.max(y1, s.y1 + 0.5 * t); }
+        else { y1 = s.y1 + 0.02 * h; y0 = y1 - h; for (const q of hinder) if (q.y1 < s.y0 + 0.25 * t && sidled(s.x0, s.x1, q.x0, q.x1) && q.y1 > y0) y0 = q.y1; y0 = Math.min(y0, s.y0 - 0.5 * t); }
+        b = { x0: c.x - w / 2, x1: c.x + w / 2, y0, y1 };
+      } else {
+        const h = m ? m.kort : (s.y1 - s.y0) / 0.92, w = m ? m.lang : h / KVOT;
+        let x0, x1;
+        if (vag > 0) { x0 = s.x0 - 0.02 * w; x1 = x0 + w; for (const q of hinder) if (q.x0 > s.x1 - 0.25 * t && sidled(s.y0, s.y1, q.y0, q.y1) && q.x0 < x1) x1 = q.x0; x1 = Math.max(x1, s.x1 + 0.5 * t); }
+        else { x1 = s.x1 + 0.02 * w; x0 = x1 - w; for (const q of hinder) if (q.x1 < s.x0 + 0.25 * t && sidled(s.y0, s.y1, q.y0, q.y1) && q.x1 > x0) x0 = q.x1; x0 = Math.min(x0, s.x0 - 0.5 * t); }
+        b = { x0, x1, y0: c.y - h / 2, y1: c.y + h / 2 };
+      }
+      ut.push({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, poang: s.poang, klass: 'kort', remsa: s, ur: 'remsa' });
+      skapade++;
+    });
+    ut.dubbletter = dubbletter; ut.skapade = skapade; ut.matt = m;
+    return ut;
+  }
+
+  /* ── webbläsaren: laddning och körning ── */
+  const harDOM = typeof document !== 'undefined';
+  /* Riktig tid också i golden, där performance.now är videons klocka (performance.riktigNu, som Kameras nuRiktig). */
+  const nu = () => { const pf = global.performance; return (pf.riktigNu || pf.now).call(pf); };
+  let session = null, backend = null, inNamn = null, utNamn = null, laddar = null, laddatVariant = null, cv = null, ctx = null, tensor = null;
+
+  const skript = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('kunde inte ladda ' + src)); document.head.appendChild(s); });
+
+  /* Modellfilen hämtas en gång och läggs i Cache Storage, som bildmodellen:
+     ett spel ska gå att starta utan nät. */
+  async function hamtaModell(url) {
+    let c = null; try { c = await caches.open('mesa-detektor-modell-v' + V); } catch (e) {}
+    let svar = c ? await c.match(url) : null;
+    if (!svar) { svar = await fetch(url); if (!svar.ok) throw new Error('modellen svarade ' + svar.status); if (c) { try { await c.put(url, svar.clone()); } catch (e) {} } }
+    return new Uint8Array(await svar.arrayBuffer());
+  }
+  async function webGPU() {
+    try { const a = global.navigator.gpu && await global.navigator.gpu.requestAdapter(); return a ? { f16: a.features.has('shader-f16') } : null; } catch (e) { return null; }
+  }
+
+  /* Ladda modellen. o som FORVAL (ort, wasmPaths, modell.{fp32,fp16},
+     backend, variant). Svar: { backend, modell, variant, tradar, ms }. En
+     laddning i taget; samma variant igen ger samma löfte. En annan variant
+     byter session (fp16 provas på telefonen). */
+  function ladda(o) {
+    o = Object.assign({}, FORVAL, o || {}); o.modell = Object.assign({}, FORVAL.modell, (o && o.modell) || {});
+    const variant = o.variant === 'fp16' ? 'fp16' : 'fp32';
+    if (laddar && laddatVariant === variant) return laddar;
+    laddatVariant = variant;
+    laddar = (async () => {
+      const t0 = nu();
+      if (!global.ort) await skript(o.ort);
+      const ort = global.ort;
+      if (o.wasmPaths) ort.env.wasm.wasmPaths = new URL(o.wasmPaths, global.location.href).href;
+      const tradar = global.crossOriginIsolated ? Math.min(4, global.navigator.hardwareConcurrency || 2) : 1;
+      ort.env.wasm.numThreads = tradar;
+      const gpu = o.backend === 'wasm' ? null : await webGPU(), forsok = [];
+      const url = o.modell[variant] || o.modell.fp32;
+      if (gpu) forsok.push(['webgpu', url]);
+      if (o.backend !== 'webgpu') forsok.push(['wasm', url]);
+      if (forsok.length && forsok[0][0] === 'wasm') ort.env.wasm.proxy = true;
+      let fel = null;
+      if (!tensor) tensor = new Float32Array(3 * BREDD * HOJD);
+      for (const [b, u] of forsok) {
+        try {
+          const bytes = await hamtaModell(u);
+          const s = await ort.InferenceSession.create(bytes, { executionProviders: [b], graphOptimizationLevel: 'all' });
+          const inn = s.inputNames[0];
+          /* Värm upp innan sessionen tas i bruk: första körningen kompilerar, och faller den ska den gamla sessionen stå kvar. */
+          await korMed(s, inn, tensor);
+          const gammal = session;
+          session = s; backend = b; inNamn = inn; utNamn = s.outputNames[0];
+          if (gammal && gammal !== s) { try { await gammal.release(); } catch (e) {} }
+          return { backend, modell: u.split('/').pop(), variant, tradar: b === 'wasm' ? tradar : null, ms: Math.round(nu() - t0) };
+        } catch (e) { fel = e; }
+      }
+      laddar = null; laddatVariant = null; throw fel || new Error('ingen backend');
+    })();
+    return laddar;
+  }
+
+  /* En körning i taget mot grafikkortet — i en kö som delas med bildmodellen
+     (dev/embed/embed.js): två sessioner som kör samtidigt på WebGPU gjorde
+     att bildmodellens svar aldrig kom (golden 01: 0 av 3 namn). */
+  const koDelad = global.__mesaOrtKo || (global.__mesaOrtKo = { p: Promise.resolve() });
+  function korMed(s, inn, data) {
+    const p = koDelad.p.then(async () => {
+      const svar = await s.run({ [inn]: new global.ort.Tensor('float32', data, [1, 3, HOJD, BREDD]) });
+      const t = svar[s.outputNames[0]];
+      return t.getData ? await t.getData() : t.data;
+    });
+    koDelad.p = p.catch(() => {});
+    return p;
+  }
+  const korTensor = data => korMed(session, inNamn, data);
+
+  /* Rutan r = { x, y, w, h } i källans bildpunkter (bordets ruta; null =
+     hela källan) skalas in i 960 × 544 uppe till vänster, resten 114.
+     Skalningen är webbläsarens egen bilinjära ('low'), som cv2:s
+     INTER_LINEAR vid nedskalning tar ett par källpunkter per bildpunkt —
+     det är så modellen tränats och mätts. Svar: { kort, remsor, ms (bara
+     modellen), forMs (ritning + tensor), skala, W, H }, lådorna i rutans
+     bildpunkter. */
+  async function kor(kalla, r, tro) {
+    if (!session) throw new Error('detektorn är inte laddad');
+    if (!cv) { cv = document.createElement('canvas'); cv.width = BREDD; cv.height = HOJD; ctx = cv.getContext('2d', { willReadFrequently: true }); }
+    const sw = kalla.videoWidth || kalla.naturalWidth || kalla.width, sh = kalla.videoHeight || kalla.naturalHeight || kalla.height;
+    const rx = r ? r.x : 0, ry = r ? r.y : 0, rw = r ? r.w : sw, rh = r ? r.h : sh;
+    const s = Math.min(BREDD / rw, HOJD / rh), dw = Math.max(1, Math.floor(rw * s)), dh = Math.max(1, Math.floor(rh * s));
+    const t0 = nu();
+    ctx.fillStyle = 'rgb(' + FYLL + ',' + FYLL + ',' + FYLL + ')'; ctx.fillRect(0, 0, BREDD, HOJD);
+    ctx.drawImage(kalla, rx, ry, rw, rh, 0, 0, dw, dh);
+    const d = ctx.getImageData(0, 0, BREDD, HOJD).data, n = BREDD * HOJD;
+    for (let p = 0, i = 0; p < n; p++, i += 4) { tensor[p] = d[i + 2]; tensor[n + p] = d[i + 1]; tensor[2 * n + p] = d[i]; }
+    const t1 = nu();
+    const ut = await korTensor(tensor);
+    const t2 = nu();
+    const a = avkoda(ut, s, rw, rh, tro);
+    return Object.assign(a, { ms: Math.round(t2 - t1), forMs: Math.round(t1 - t0), skala: s, W: rw, H: rh });
+  }
+
+  const api = {
+    V, BREDD, HOJD, KLASSER, T, REMSA, KVOT, FORVAL,
+    iou, nms, avkoda, mattUr, para,
+    ladda, kor,
+    get redo() { return !!session; },
+    get backend() { return backend; },
+    get variant() { return session ? laddatVariant : null; }
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (harDOM) global.Detektor = api;
+})(typeof window !== 'undefined' ? window : globalThis);
