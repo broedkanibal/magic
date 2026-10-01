@@ -203,3 +203,23 @@ inte sämre av den tredje klassen. **Förbehåll:** golden och MES-246 är filma
 (andra tillfällen) — ett bord modellen aldrig sett är inte provat. "Kortlåda eller remsa" förutsätter att
 appen parar ihop en remsa med sin kortlåda (remsan ligger i lådans övre kant); det steget finns inte än.
 Dubbletterna bland kortlådorna (37) är inte hanterade — en remsa per kort kan vara det som löser dem.
+
+## I appen (MES-329, 2026-10-01)
+
+Modellen från natt 2 ligger i `dev/detektor/modell/` (fp32 och fp16) och körs av
+`dev/detektor/modell/detektor.js` i appen (index.html: `KamDet`, `fyndUrLador`). Parningen
+remsa + kortlåda mättes med appens egen JS-kod innan den kopplades in: `tran/parprov.py`
+(node via `modell/para_cli.cjs`, nollprovets mått, samma facit som `prov246.py`).
+
+| MES-246, 66 lägen | Eget | Sammanslaget | Falska | Dubbl | Hela högar | Unika lägen |
+|---|---|---|---|---|---|---|
+| modellens kortlådor (NMS 0,7, avkodade i JS — exakt natt 2) | 728/738 | 10 | 0 | 37 | 97/107 | 85/90 |
+| + kort ur remsor utan låda (kortets höjd) | 730/738 | 8 | 0 | 76 | 99/107 | 86/90 |
+| + kort ur remsor, kortets synliga del i stället | 728/738 | 10 | 0 | 51 (+30 kluster) | 97/107 | 85/90 |
+| nollprovets inneslutningsregel (0,8) | 720/738 | 18 | 0 | 22 | 89/107 | 84/90 |
+
+Golden (8 fall med hörn): 73/74 och 14/15 högar i alla varianter (2 falska: en flisa vid kanten i 06).
+Dubbletter som delar remsa: 0,6 remstjocklekar som tolerans slog ihop två tappade Plains i samma hög
+(222,65–241,66 s); 5 % av korthöjden och IoU ≥ 0,3 slår bara ihop riktiga dubbletter. Remsor tjockare
+än 0,45 av sin längd räknas inte (0,35 kastade golden 05:s riktiga remsor, 0,37 i en 1440 px bred bild). Skapade kort ger alltså +2 kort och +2 hela högar för ~40
+dubblettlådor på 66 lägen — golden (`--tro "detRemsa:0"`) avgör förvalet, se `dev/golden/historik.md`.

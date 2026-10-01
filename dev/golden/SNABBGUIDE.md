@@ -49,7 +49,7 @@ Båda skriver en tabell med ett fall per rad:
 före → efter och de fall som skilde sig. Raden `metod:` säger vad som
 kördes: *lokal* = konstverket jämförs med lekens kort, *ocr* = kortnamnet läses
 ur titelraden (båda i telefonen, utan AI), *ai* = Claude frågas om det som är
-osäkert.
+osäkert. Sist på raden står detektorn: `yolox-fp32-webgpu` (den tränade, MES-329) eller `dagens`.
 
 ## Kommandona
 
@@ -75,6 +75,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --ljus alla` | samma fall i sju ljus (mörkare, ljusare, varmare, kallare, låg kontrast, brus, sned gradient) med en sammanställning sist — var kedjan går sönder först (se *Samma fall i sju ljus*) |
 | `node dev/golden/kor.cjs --utan-modell` | utan bildmodellen (MES-225): reserven Matcher + ORB mäts — ska ge samma tal som före modellen (31/57, 0, 5). `--wasm` tvingar modellen till WASM i stället för WebGPU |
 | `node dev/golden/kor.cjs --utan-leken "Ukud Cobra,Pacifism"` | namnen tas bort ur leken innan poolen byggs: korten ligger kvar på borden men är nu kort UTANFÖR leken — varje säkert namn på dem är ett fel namn. Ska ge 0 fel namn (se *Bildmodellen*) |
+| `node dev/golden/kor.cjs --tro "detektor:0"` | med **dagens detektor** (mattmodell + regioner) i stället för den tränade (MES-329, förvalet sedan 2026-10-01): raden `Detektorn:` överst och `metod:` sist säger vilken som kördes. `--tro "detRemsa:0"` kör den tränade med bara modellens lådor, utan kort ur namnremsor; `--tro "detektor:2"` kör fp16-filen (prov för telefonen) |
 | `node dev/golden/kor.cjs --luft 0` | utan läsningen på första hela rutan (MES-227, `T.luft`): den tidiga läsningen väntar två formstilla rutor som förut. `--luft 1` tvingar den på |
 | `node dev/golden/kor.cjs --cdp-tak 300000` | tidsgränsen för ett anrop till Chrome i ms (förval 120 000). Svarar Chrome inte stoppar körningen med orsaken och slutkod 2 i stället för att hänga; attrappen och Chrome stängs alltid (MES-270) |
 | `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
