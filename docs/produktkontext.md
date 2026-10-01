@@ -386,7 +386,8 @@ telefon (kameran) plus en dator (skärmen).
 | Hela bordet till Claude | ~3 cent och ~9 s (Opus) |
 | Per fråga (uppmätt) | ~0,9 cent med Opus 5: snitt 1 400 tokens in och 65 ut över 523 frågor i golden (`senaste-ai.json`, 2026-09-28) |
 | Per parti | **Inte mätt direkt.** Provpasset 2026-09-21 (20 min, en telefon, 154 namn): 29 % lokalt, resten via Claude — 45 beskärningar, 7 klungor och 9–19 helbilder, alltså ~60–70 frågor som gav ett namn. Räknat med snittet per fråga (~3 cent för en helbild): **~0,7–1 dollar per telefon och 20 minuter**, ~2–3 dollar i timmen. Frågor som inte gav något namn syns inte i rapporten. Målet är färre frågor till Claude |
-| Takt | Telefonen: högst 20 Claude-frågor i minuten. Servern: 40 i minuten och 600 per dag, per IP-adress |
+| Takt | Telefonen: högst 20 Claude-frågor i minuten. Servern: 40 i minuten och 600 per dag, per konto (förut per IP-adress) |
+| Tak per konto | 300 frågor till Claude per konto och kalendermånad (MES-316, beslut 2026-09-28), bara för inloggade. Räknas i Supabase-tabellen `claude_fragor`, en rad per fråga; frågor som Anthropic aldrig svarade på räknas inte. Kräver migrationen `supabase/migrations/20261002100000_claude_fragor.sql` |
 | Supabase | Gratisnivån. Den utgående trafiken gick över kvoten (6,2 av 5 GB) med bara fyra konton, på grund av telefonens förhandsbilder. Nu strypt. Direktöverföring (WebRTC) skulle ta bort trafiken |
 | Linear | Gratisnivån; slog i taket på 250 aktiva issues |
 

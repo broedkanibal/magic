@@ -4,8 +4,8 @@
      node dev/identify-vakt.cjs              allt, mot en låtsad Anthropic (gratis)
      node dev/identify-vakt.cjs --claude     de lyckade frågorna går till den
                                              RIKTIGA Claude med nyckeln ur
-                                             .env.local (kostar ~1 cent per fråga,
-                                             fyra frågor)
+                                             .env.local (nio frågor i kameraläget,
+                                             runt 1 cent styck)
      node dev/identify-vakt.cjs --vanta      låter servrarna stå kvar efteråt,
                                              för egna curl-anrop
 
