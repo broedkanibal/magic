@@ -1,0 +1,255 @@
+{
+ "vad": "detektor_remsor.py som i commit 62e2b72 (före vagrat() fick hörnens riktning: en remsa på högkant vreds alltid medurs), körd 2026-10-02 på golden med --kallor golden. Förklarar RESULTAT.md:s \"första körningen gav 48/69\". Nuvarande kod (e038fda och senare) ger 63/69 (orig) och 50/69 (960) — se detektorremsor-embed.json.",
+ "commit": "62e2b72",
+ "stat": {
+  "remsor_det": 71,
+  "parade": 69,
+  "oparade": 2,
+  "facit_utan_remsa": 5,
+  "facit": 74
+ },
+ "andel": 0.14,
+ "embed": [
+  {
+   "remsor": 69,
+   "ratt": 37,
+   "sakra_ratt": 16,
+   "sakra_fel": 1,
+   "marginal_ratt_median": 0.103,
+   "marginal_fel_max": 0.111,
+   "nollfel_troskel": 0.111,
+   "nollfel_sakra": 16,
+   "hogkort": 27,
+   "hogkort_ratt": 17,
+   "hogkort_sakra_ratt": 10,
+   "hogkort_sakra_fel": 0,
+   "res": "960",
+   "kalla": "detektorremsor",
+   "andel": 0.14,
+   "ms_modell": 27.4,
+   "golden": {
+    "remsor": 69,
+    "ratt": 37,
+    "sakra_ratt": 16,
+    "sakra_fel": 1,
+    "marginal_ratt_median": 0.103,
+    "marginal_fel_max": 0.111,
+    "nollfel_troskel": 0.111,
+    "nollfel_sakra": 16,
+    "hogkort": 27,
+    "hogkort_ratt": 17,
+    "hogkort_sakra_ratt": 10,
+    "hogkort_sakra_fel": 0
+   },
+   "mes246": {
+    "remsor": 0,
+    "ratt": 0,
+    "sakra_ratt": 0,
+    "sakra_fel": 0,
+    "marginal_ratt_median": null,
+    "marginal_fel_max": 0.0,
+    "nollfel_troskel": 0.0,
+    "nollfel_sakra": 0,
+    "hogkort": 0,
+    "hogkort_ratt": 0,
+    "hogkort_sakra_ratt": 0,
+    "hogkort_sakra_fel": 0
+   }
+  },
+  {
+   "remsor": 69,
+   "ratt": 48,
+   "sakra_ratt": 40,
+   "sakra_fel": 0,
+   "marginal_ratt_median": 0.254,
+   "marginal_fel_max": 0.097,
+   "nollfel_troskel": 0.097,
+   "nollfel_sakra": 40,
+   "hogkort": 27,
+   "hogkort_ratt": 20,
+   "hogkort_sakra_ratt": 19,
+   "hogkort_sakra_fel": 0,
+   "res": "orig",
+   "kalla": "detektorremsor",
+   "andel": 0.14,
+   "ms_modell": 27.4,
+   "golden": {
+    "remsor": 69,
+    "ratt": 48,
+    "sakra_ratt": 40,
+    "sakra_fel": 0,
+    "marginal_ratt_median": 0.254,
+    "marginal_fel_max": 0.097,
+    "nollfel_troskel": 0.097,
+    "nollfel_sakra": 40,
+    "hogkort": 27,
+    "hogkort_ratt": 20,
+    "hogkort_sakra_ratt": 19,
+    "hogkort_sakra_fel": 0
+   },
+   "mes246": {
+    "remsor": 0,
+    "ratt": 0,
+    "sakra_ratt": 0,
+    "sakra_fel": 0,
+    "marginal_ratt_median": null,
+    "marginal_fel_max": 0.0,
+    "nollfel_troskel": 0.0,
+    "nollfel_sakra": 0,
+    "hogkort": 0,
+    "hogkort_ratt": 0,
+    "hogkort_sakra_ratt": 0,
+    "hogkort_sakra_fel": 0
+   }
+  }
+ ],
+ "fel_orig": [
+  {
+   "bild": "03-tra-lampa-40cm-11kort-overlapp",
+   "nr": null,
+   "facit": "Militant Inquisitor",
+   "svar": "Flutterfox",
+   "tappad": false
+  },
+  {
+   "bild": "03-tra-lampa-40cm-11kort-overlapp",
+   "nr": null,
+   "facit": "Pharika's Chosen",
+   "svar": "Thriving Moor",
+   "tappad": false
+  },
+  {
+   "bild": "05-ribbor-dagsljus-40cm-6kort-overlapp",
+   "nr": null,
+   "facit": "Maul of the Skyclaves",
+   "svar": "Killing Glare",
+   "tappad": false
+  },
+  {
+   "bild": "05-ribbor-dagsljus-40cm-6kort-overlapp",
+   "nr": null,
+   "facit": "Vraska's Finisher",
+   "svar": "Faithful Pikemaster",
+   "tappad": false
+  },
+  {
+   "bild": "05-ribbor-dagsljus-40cm-6kort-overlapp",
+   "nr": null,
+   "facit": "Pacifism",
+   "svar": "Mirran Bardiche",
+   "tappad": false
+  },
+  {
+   "bild": "05-ribbor-dagsljus-40cm-6kort-overlapp",
+   "nr": null,
+   "facit": "Scourge of the Undercity",
+   "svar": "Ukud Cobra",
+   "tappad": false
+  },
+  {
+   "bild": "06-ljusgra-dagsljus-40cm-12kort-overlapp",
+   "nr": null,
+   "facit": "Trusty Retriever",
+   "svar": "Faithful Pikemaster",
+   "tappad": false
+  },
+  {
+   "bild": "06-ljusgra-dagsljus-40cm-12kort-overlapp",
+   "nr": null,
+   "facit": "Vraska's Finisher",
+   "svar": "Faithful Pikemaster",
+   "tappad": false
+  },
+  {
+   "bild": "06-ljusgra-dagsljus-40cm-12kort-overlapp",
+   "nr": null,
+   "facit": "Resistance Reunited",
+   "svar": "Faithful Pikemaster",
+   "tappad": false
+  },
+  {
+   "bild": "06-ljusgra-dagsljus-40cm-12kort-overlapp",
+   "nr": null,
+   "facit": "Maul of the Skyclaves",
+   "svar": "Killing Glare",
+   "tappad": false
+  },
+  {
+   "bild": "06-ljusgra-dagsljus-40cm-12kort-overlapp",
+   "nr": null,
+   "facit": "Swamp",
+   "svar": "Plains",
+   "tappad": false
+  },
+  {
+   "bild": "06-ljusgra-dagsljus-40cm-12kort-overlapp",
+   "nr": null,
+   "facit": "Hooded Blightfang",
+   "svar": "Killing Glare",
+   "tappad": false
+  },
+  {
+   "bild": "13-svartmatta-lampa-40cm-10kort-tokens",
+   "nr": null,
+   "facit": "Ukud Cobra",
+   "svar": "Swamp",
+   "tappad": false
+  },
+  {
+   "bild": "13-svartmatta-lampa-40cm-10kort-tokens",
+   "nr": null,
+   "facit": "Plains",
+   "svar": "Pacifism",
+   "tappad": true
+  },
+  {
+   "bild": "13-svartmatta-lampa-40cm-10kort-tokens",
+   "nr": null,
+   "facit": "Swamp",
+   "svar": "Pacifism",
+   "tappad": false
+  },
+  {
+   "bild": "13-svartmatta-lampa-40cm-10kort-tokens",
+   "nr": null,
+   "facit": "Thriving Moor",
+   "svar": "Gorgon Flail",
+   "tappad": false
+  },
+  {
+   "bild": "13-svartmatta-lampa-40cm-10kort-tokens",
+   "nr": null,
+   "facit": "Swamp",
+   "svar": "Ukud Cobra",
+   "tappad": false
+  },
+  {
+   "bild": "13-svartmatta-lampa-40cm-10kort-tokens",
+   "nr": null,
+   "facit": "Plains",
+   "svar": "Pacifism",
+   "tappad": true
+  },
+  {
+   "bild": "14-tra-lampa-50cm-11kort-omlott",
+   "nr": null,
+   "facit": "Fencing Ace",
+   "svar": "Killing Glare",
+   "tappad": true
+  },
+  {
+   "bild": "15-tra-dagsljus-50cm-11kort-omlott",
+   "nr": null,
+   "facit": "Fencing Ace",
+   "svar": "Faithful Pikemaster",
+   "tappad": true
+  },
+  {
+   "bild": "16-tra-lampa-50cm-8kort",
+   "nr": null,
+   "facit": "Fencing Ace",
+   "svar": "Faithful Pikemaster",
+   "tappad": true
+  }
+ ]
+}

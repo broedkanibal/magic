@@ -222,8 +222,13 @@ parningsfel i provet, inte i metoden). Lådan sträckt nedåt till 20 % med 20 %
 (mer ficka och konst i blänket). För bildmodellen i appen: **lådan som detektorn ger, vriden rätt,
 ur kamerans fulla bild.**
 
-Ett förbehåll: första körningen av samma skript gav 48/69 på golden ur källan; två omkörningar
-(samma kod och nyare) gav 63/69 och går att upprepa. Skillnaden är inte förklarad.
+Den första körningen av skriptet gav 48/69 på golden ur källan — det är mätt och förklarat
+(granskningen 2026-10-02): koden i commit 62e2b72 vred en remsa som står på högkant alltid medurs,
+men i golden står 37 av 74 namnrader lodrätt i bilden (liggande inspelningar, alla åt samma håll)
+och ska vridas moturs — de lästes upp och ner. Den gamla koden omkörd ger 48/69 igen (säkra rätt 40,
+0 säkra fel; ur 960: 37/69), och 17 av dess 21 fel är sådana lodräta remsor
+(`resultat/gammal-vridning-detektorremsor.json`). Med hörnens riktning (`vagrat`, e038fda) blir det
+63/69, som byggaren och granskaren fått var för sig.
 
 ### Högbänken — jämförelsen MES-250 (`hogbank_remsor.py`)
 
