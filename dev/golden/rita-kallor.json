@@ -61,5 +61,16 @@
       "tider": [128, 212, 344, 454, 176, 244, 282, 320, 380],
       "varfor": ["spridda kort, leksaker och böcker runt bordet", "landhögar och kort omlott", "ensamma baksidor i rosa fickor, högar", "hand i bild över korten", "högar (grind 3): landhögar och kort omlott, ingen hand över korten", "högar (grind 3): landhögar och kort omlott, ingen hand över korten", "högar (grind 3): landhögar och kort omlott, ingen hand över korten", "högar (grind 3): landhögar och kort omlott, ingen hand över korten", "högar (grind 3): landhögar och kort omlott, ingen hand över korten"]
     }
+  },
+  "detektorprov_om": "Detektorprov (MES-288): rutor ur en provfilm som Jesper ritar som i lärarmätningen — fasta, fristående rutor, inga namn, baksidor med B och händer med H. PROV, aldrig träning: lägena sparas i en mapp under dev/golden/inspelningar/ (träningen läser bara dev/detektor/larare/matning/), och filmen står som prov i dev/detektor/delning.json. Rutorna tas ur videon med ruta.swift (dev/material/rita/<källa>/<t>.jpg, som filmen visas — stående om den är inspelad stående). Mäts med: python dev/detektor/tran/prov246.py --kalla <källa>.",
+  "detektorprov": {
+    "2026-10-01-person1-vittbord-morker-lampa": {
+      "namn": "Detektorprov — person1, vitt bord i mörker med lampa (första filmen från någon annan än Jesper)",
+      "video": "dev/material/inspelningar/2026-10-01-person1-vittbord-morker-lampa/telefon.mov",
+      "mapp": "dev/golden/inspelningar/2026-10-01-person1-vittbord-morker-lampa",
+      "grund": "h",
+      "tider": [72, 108, 132, 150, 166, 208, 238, 268],
+      "varfor": ["få kort, leken med baksidan upp, foil-land", "kort i vinkel, en landhög, foil", "en hand över korten", "fullt bord: landhögar i solfjäder, tre kort nere till höger", "promo- och art-kort i rad, landhögar", "landhög i solfjäder till vänster, kort omlott", "fullt bord, högar och kort omlott, ingen hand", "fullt bord, högar omlott upptill, kort vid kanten"]
+    }
   }
 }

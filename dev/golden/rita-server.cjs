@@ -45,7 +45,15 @@ const kallor = () => JSON.parse(fs.readFileSync(path.join(ROT, 'dev', 'golden', 
 /* Lärarmätningens källor (MES-288): en video med fasta lägen, sparas under
    dev/detektor/larare/matning/. null om id inte är en av dem. */
 const LARARE_MAPP = /^dev\/detektor\/larare\/matning\/[^/.][^/]*$/;
-const larareKalla = id => { const v = (kallor().larare || {})[id]; return v && LARARE_MAPP.test(v.mapp) ? v : null; };
+/* Detektorprovet (MES-288): ritas precis som lärarmätningen (fasta rutor, inga
+   namn), men är PROV — mappen ligger under dev/golden/inspelningar/, som
+   träningen aldrig läser. */
+const PROV_MAPP = /^dev\/golden\/inspelningar\/[^/.][^/]*$/;
+const larareKalla = id => {
+  const k = kallor(), v = (k.larare || {})[id], p = (k.detektorprov || {})[id];
+  if (v && LARARE_MAPP.test(v.mapp)) return v;
+  return p && PROV_MAPP.test(p.mapp) ? Object.assign({ prov: true }, p) : null;
+};
 const videoKalla = id => (kallor().videor || {})[id] || larareKalla(id);
 const finns = f => { try { return fs.statSync(path.join(ROT, f)).isFile(); } catch (e) { return false; } };
 
@@ -118,11 +126,13 @@ function listaKallor() {
   const videor = Object.entries(k.videor || {}).map(([id, v]) => ({ id, namn: v.namn || id, video: v.video, finns: finns(v.video),
     lagen: finns(`${v.mapp}/lagen.json`), mapp: v.mapp, grund: v.grund || 'v', handelser: v.handelser || null, steg: v.steg || null, manus: v.manus || null }));
   const ids = new Set(videor.map(v => v.id));
-  for (const [id, v] of Object.entries(k.larare || {})) {
-    if (ids.has(id) || !LARARE_MAPP.test(v.mapp || '') || !Array.isArray(v.tider)) continue;   // samma id som en video, eller en mapp utanför matning/: visas inte
+  const fasta = Object.entries(k.larare || {}).map(([id, v]) => [id, v, false]).concat(Object.entries(k.detektorprov || {}).map(([id, v]) => [id, v, true]));
+  for (const [id, v, prov] of fasta) {
+    if (ids.has(id) || !(prov ? PROV_MAPP : LARARE_MAPP).test(v.mapp || '') || !Array.isArray(v.tider)) continue;   // samma id som en video, eller en mapp utanför sin plats: visas inte
+    ids.add(id);
     const rutorFinns = v.rutor && v.tider.every(t => finns(larareRuta(v, t)));
     videor.push({ id, namn: v.namn || id, video: v.video, finns: finns(v.video) || !!rutorFinns, lagen: finns(`${v.mapp}/lagen.json`), mapp: v.mapp,
-      grund: v.grund || 'v', larare: true, tider: v.tider, varfor: v.varfor || [], facit: v.facit || null, rutor: v.rutor || null });
+      grund: v.grund || 'v', larare: true, prov, tider: v.tider, varfor: v.varfor || [], facit: v.facit || null, rutor: v.rutor || null });
   }
   return { foton, videor };
 }
@@ -143,7 +153,7 @@ function spara(kropp) {
     fil = path.join(mapp, 'facit.json');
   } else if (sort === 'lagen') {
     const v = (kallor().videor || {})[id], lv = v ? null : larareKalla(id);
-    if (lv) {   // lärarmätningen: mappen skapas vid första sparandet
+    if (lv) {   // lärarmätningen och detektorprovet: mappen skapas vid första sparandet
       fs.mkdirSync(path.join(ROT, lv.mapp), { recursive: true });
       fil = path.join(ROT, lv.mapp, 'lagen.json');
     } else {

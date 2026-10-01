@@ -143,7 +143,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
       <li><b>En hand över korten?</b> <kbd>H</kbd>, dra rutor över handen och armen — flera små som följer handen — och <kbd>H</kbd> igen. Handen följer inte med till nästa läge.</li>
     </ol>
     <ol id="sagor-larare" hidden>
-      <li><b>Lärarmätning — träningsfilm, inte prov.</b> Varje läge är en egen ruta ur filmen; det finns inget facit att följa, din ritning <i>är</i> facit.</li>
+      <li><b id="sagor-larare-rubrik">Lärarmätning — träningsfilm, inte prov.</b> Varje läge är en egen ruta ur filmen; det finns inget facit att följa, din ritning <i>är</i> facit.</li>
       <li>Rita <b>alla kort</b> du ser, också de som ligger under andra kort — understa först. Två klick längs namnraden, som vanligt. <kbd>L</kbd> låser storleken när du ritat ett par kort.</li>
       <li><b>Namn behövs inte.</b> Rutan för namnet öppnas inte; rita bara nästa kort.</li>
       <li><b>Baksidan upp</b> (leken, ett kort i ficka, Magic-baksidan): rita kortet och tryck <kbd>B</kbd>.</li>
@@ -336,7 +336,9 @@ const arLarare = () => !!(S.kalla && S.kalla.larare);
 /* Ett namn som saknas eller inte finns i leken är ett fel (rött) — utom i
    lärarmätningen, där namn inte läses och alla kort annars blev röda. */
 const namnFel = n => !arLarare() && (!n || (G.arLekkort(n) && !S.lek.includes(n)));
-const larareInfo = () => arLarare() ? '<div class="varn" style="margin-top:4px"><b>Lärarmätning — träningsfilm, inte prov.</b> Sparas i ' + esc(S.kalla.mapp) + '/lagen.json, aldrig i golden.</div>' : '';
+const arProv = () => !!(S.kalla && S.kalla.prov);   // detektorprovet: ritas som lärarmätningen, men är prov
+const larareRubrik = () => arProv() ? 'Detektorprov — prov, aldrig träning.' : 'Lärarmätning — träningsfilm, inte prov.';
+const larareInfo = () => arLarare() ? '<div class="varn" style="margin-top:4px"><b>' + larareRubrik() + '</b> Sparas i ' + esc(S.kalla.mapp) + '/lagen.json' + (arProv() ? ', som träningen aldrig läser.' : ', aldrig i golden.') + '</div>' : '';
 function lageNu() { return S.kalla && S.kalla.sort === 'video' ? (S.dok.lagen[S.nr] || S.temp) : null; }
 function kortNu() {
   if (!S.dok) return [];
@@ -1091,6 +1093,7 @@ function visaCheck() {
   el('sparaVideo').hidden = !video;
   el('sagor-video').hidden = !video || arLarare();
   el('sagor-larare').hidden = !arLarare();
+  el('sagor-larare-rubrik').textContent = larareRubrik();
   if (video) return;
   let vantat = {}, rubrik = 'Facit', not = '';
   if (S.kalla.sort === 'foto') { for (const n of S.checklista) vantat[n] = (vantat[n] || 0) + 1; not = S.checklista.length ? '' : 'facit har inga namn'; }
@@ -1368,7 +1371,8 @@ function visaLage() {
     + (S.u.sort === 'steg' ? `<div class="dim" style="margin-top:4px">${!v.fonster ? '' : v.fonster[1] < 1 ? 'före första manusraden' : v.fonster[0] === v.fonster[1] ? `efter manusrad ${v.fonster[0]}` : `efter någon av manusraderna ${Math.max(1, v.fonster[0])}–${v.fonster[1]}`}${dom.rad ? ` · stämmer bäst med rad ${dom.rad}: ${esc(dom.text || '')}` : ''}</div>` : '');
   if (arLarare()) {
     el('kontrollrubrik').innerHTML = '<span class="dim">inget händelsefacit</span>';
-    el('kontroll').innerHTML = '<span class="dim">Lärarmätning: ritningen jämförs med lärarens lådor efteråt, med dev/detektor/larare/matt_larare.py.</span>';
+    el('kontroll').innerHTML = arProv() ? '<span class="dim">Detektorprov: detektorn mäts mot ritningen efteråt, med dev/detektor/tran/prov246.py --kalla ' + esc(S.kalla.id) + '.</span>'
+      : '<span class="dim">Lärarmätning: ritningen jämförs med lärarens lådor efteråt, med dev/detektor/larare/matt_larare.py.</span>';
   }
   // lägesremsan
   el('lagen').innerHTML = S.u.forslag.map((x, i) => {
@@ -1589,6 +1593,10 @@ function byggLagen() {
     forraT = l.t;
   }
   const v = S.kalla;
+  if (arProv()) return { f: {
+    _: 'Detektorprov (MES-288): Jespers ritning av rutor ur en provfilm, ritad i dev/golden/rita.html. PROV — träningen läser aldrig dev/golden/inspelningar/, och filmen är prov i dev/detektor/delning.json. Ett läge per ruta, med tiden i filmens sekunder (rutan dev/material/rita/<källa>/<t>.jpg), och korten: hörnen (andelar av bilden, medsols från namnradens början), z (högre = överst) och det framräknade (rita-geometri.cjs; varje ruta för sig). Namn behövs inte; library/baksida = baksidan upp. Mäts med: python dev/detektor/tran/prov246.py --kalla <källa>.',
+    kalla: v.id, video: v.video, bredd: S.W, hojd: S.H, grund: S.grund, prov: true, lagen,
+  }, kort: allaKort, nrs };
   if (arLarare()) return { f: {
     _: 'Lärarmätning (MES-288): Jespers ritning av rutor ur en träningsfilm, ritad i dev/golden/rita.html. TRÄNINGSMATERIAL, INTE PROV och inte golden. Ett läge per ruta, med tiden i filmens sekunder (lärarens ruta rutor/<t × 10>.jpg), och korten: hörnen (andelar av bilden, medsols från namnradens början), z (högre = överst) och det framräknade (rita-geometri.cjs; varje ruta för sig). Namn behövs inte; library/baksida = baksidan upp. Mäts med: python3 dev/detektor/larare/matt_larare.py.',
     kalla: v.id, video: v.video, bredd: S.W, hojd: S.H, grund: S.grund, larare: v.facit, lagen,
@@ -1627,7 +1635,7 @@ async function spara(o = {}) {
   try { localStorage.removeItem(utkastNyckel()); } catch (e) {}
   clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null;
   visaSparinfo(); fyllKallor();
-  if (!o.tyst) melding(`sparat: ${svar.fil} — kör ${arLarare() ? 'python3 dev/detektor/larare/matt_larare.py' : 'node dev/golden/rita-kontroll.cjs'}`);
+  if (!o.tyst) melding(`sparat: ${svar.fil} — kör ${arProv() ? 'python dev/detektor/tran/prov246.py --kalla ' + S.kalla.id : arLarare() ? 'python3 dev/detektor/larare/matt_larare.py' : 'node dev/golden/rita-kontroll.cjs'}`);
   return true;
 }
 /* Skicka till GitHub: servern committar källans filer (det sparade, utkastet
@@ -1674,7 +1682,8 @@ function fyllKallor() {
   k.foton = [...k.foton].sort(isort); k.videor = [...k.videor].sort(isort);
   el('kalla').innerHTML = '<optgroup label="Golden-fall (foton)">' + k.foton.map(f => `<option value="foto:${esc(f.id)}">${f.ritad ? '✓ ' : ''}${esc(f.id)}${f.original ? ' · original' : ''}</option>`).join('') + '</optgroup>'
     + '<optgroup label="Videor (lägen)">' + k.videor.filter(v => !v.larare).map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id)}${v.finns ? '' : ' (videon saknas)'}</option>`).join('') + '</optgroup>'
-    + (k.videor.some(v => v.larare) ? '<optgroup label="Lärarmätning — träningsfilm, inte prov (MES-288)">' + k.videor.filter(v => v.larare).map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id.replace(/^\d{4}-\d\d-\d\d-traning-/, 'lärarmätning · '))}${v.finns ? '' : ' (filmen saknas)'}</option>`).join('') + '</optgroup>' : '');
+    + (k.videor.some(v => v.prov) ? '<optgroup label="Detektorprov — prov, aldrig träning (MES-288)">' + k.videor.filter(v => v.prov).map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id)}${v.finns ? '' : ' (filmen saknas)'}</option>`).join('') + '</optgroup>' : '')
+    + (k.videor.some(v => v.larare && !v.prov) ? '<optgroup label="Lärarmätning — träningsfilm, inte prov (MES-288)">' + k.videor.filter(v => v.larare && !v.prov).map(v => `<option value="video:${esc(v.id)}"${v.finns ? '' : ' disabled'}>${v.lagen ? '✓ ' : ''}${esc(v.id.replace(/^\d{4}-\d\d-\d\d-traning-/, 'lärarmätning · '))}${v.finns ? '' : ' (filmen saknas)'}</option>`).join('') + '</optgroup>' : '');
   if (val) el('kalla').value = val;
 }
 async function start() {

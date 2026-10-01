@@ -13,6 +13,12 @@ kort (zon grav) och redovisas också för sig. Måttet är matt.bedom, tröskeln
 golden-fall 03 i rapport.py) — den väljs aldrig här.
 
     python dev/detektor/tran/prov246.py --onnx <fil.onnx> --namn tranad-tiny --troskel 0.3 [--resultat]
+
+Med --kalla <id> mäts i stället ett detektorprov ur dev/golden/rita-kallor.json (gruppen
+detektorprov, t.ex. 2026-10-01-person1-vittbord-morker-lampa): lägena i källans mapp, rutorna
+dev/material/rita/<id>/<t>.jpg. En stående ruta (filmad stående) vrids till liggande innan
+detektorn ser den — den tar 960 × 544 liggande, och en stående bild krymps annars till ~306 px
+bred — och lådorna vrids tillbaka till ritningens bild. Resultatet heter <namn>-<id>.json.
 """
 import argparse, json, os, sys, time
 import numpy as np
@@ -46,12 +52,13 @@ def handtackt(lada, hander):
 HAND_DOLD = 0.5   # ett kort vars synliga låda till minst hälften ligger under en hand räknas som dolt (varken krav eller falsk)
 
 
-def fall_ur_lage(l, W, H, bild):
+def fall_ur_lage(l, W, H, bild, prefix='mes246'):
     kort, ovr = [], []
     for k in l['kort']:
         xs = [p[0] for p in k['horn']]; ys = [p[1] for p in k['horn']]
         hel = [min(xs), min(ys), max(xs), max(ys)]
-        if k.get('zon') == 'bib' or k['namn'] == 'library' or k['namn'].lower().startswith('token'):
+        namn = k.get('namn') or ''
+        if k.get('zon') == 'bib' or namn == 'library' or namn.lower().startswith('token'):
             ovr.append({'namn': k['namn'], 'horn': k['horn'], 'hel_lada': hel})
             continue
         dold = bool(k.get('dold')) if 'dold' in k else (k.get('namnrad', 1) < 0.5)
@@ -67,7 +74,12 @@ def fall_ur_lage(l, W, H, bild):
         for q in grav:
             if q is not topp:
                 q['dold'] = True
-    return {'id': f"mes246-{l['t']:.2f}", 'kort_id': f"{l['t']:.2f}", 'bild': bild, 'W': W, 'H': H, 'kort': kort, 'ovriga': ovr}
+    return {'id': f"{prefix}-{l['t']:.2f}", 'kort_id': f"{l['t']:.2f}", 'bild': bild, 'W': W, 'H': H, 'kort': kort, 'ovriga': ovr}
+
+
+def vrid_tillbaka(det):
+    """Lådor i den liggande bilden (stående vriden 90° moturs) -> andelar i den stående bilden."""
+    return [[1 - y1, x0, 1 - y0, x1, sc, kl] for x0, y0, x1, y1, sc, kl in det]
 
 
 def main():
@@ -77,27 +89,41 @@ def main():
     p.add_argument('--troskel', type=float, required=True)
     p.add_argument('--tradar', type=int, default=4)
     p.add_argument('--lag', type=float, default=0.02)
+    p.add_argument('--kalla', help='ett detektorprov i rita-kallor.json i stället för MES-246')
     a = p.parse_args()
+    lagen_fil, rutor, prefix = LAGEN, RUTOR, 'mes246'
+    if a.kalla:
+        k = json.load(open(os.path.join(ROT, 'dev', 'golden', 'rita-kallor.json'), encoding='utf-8'))
+        v = (k.get('detektorprov') or {}).get(a.kalla)
+        if not v:
+            sys.exit(f'{a.kalla} finns inte bland detektorproven i dev/golden/rita-kallor.json')
+        lagen_fil, rutor, prefix = os.path.join(ROT, v['mapp'], 'lagen.json'), os.path.join(ROT, 'dev', 'material', 'rita', a.kalla), a.kalla
     import onnxruntime as ort
     so = ort.SessionOptions(); so.intra_op_num_threads = a.tradar
     sess = ort.InferenceSession(a.onnx, so, providers=['CPUExecutionProvider'])
     inp = sess.get_inputs()[0]
     _, _, h_in, w_in = inp.shape
-    lagen = [l for l in json.load(open(LAGEN, encoding='utf-8'))['lagen'] if l.get('klar')]
+    lagen = [l for l in json.load(open(lagen_fil, encoding='utf-8'))['lagen'] if l.get('klar')]
     per, per_utan_grav, rad = [], [], {}
     unika = {}   # samma kort på samma plats med samma synliga del räknas en gång (partiet är en följd av lägen)
     for l in lagen:
-        bild = os.path.join(RUTOR, f"{l['t']:.2f}.jpg")
+        bild = os.path.join(rutor, f"{l['t']:.2f}.jpg")
         img = cv2.imread(bild)
         H, W = img.shape[:2]
+        staende = H > W
+        if staende:
+            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        Hd, Wd = img.shape[:2]
         x, r = forbehandla(img, h_in, w_in)
         o = sess.run(None, {inp.name: x})[0][0]
         cls = o[:, 5:5 + len(KLASSER)]
         s = o[:, 4] * cls.max(1)
         k = s >= a.lag
-        det = [[float(max(0.0, (cx - w / 2) / r / W)), float(max(0.0, (cy - h / 2) / r / H)), float(min(1.0, (cx + w / 2) / r / W)), float(min(1.0, (cy + h / 2) / r / H)), float(sc), KLASSER[int(lb)]]
+        det = [[float(max(0.0, (cx - w / 2) / r / Wd)), float(max(0.0, (cy - h / 2) / r / Hd)), float(min(1.0, (cx + w / 2) / r / Wd)), float(min(1.0, (cy + h / 2) / r / Hd)), float(sc), KLASSER[int(lb)]]
                for (cx, cy, w, h), sc, lb in zip(o[k][:, :4], s[k], cls[k].argmax(1))]
-        f = fall_ur_lage(l, W, H, bild)
+        if staende:
+            det = vrid_tillbaka(det)
+        f = fall_ur_lage(l, W, H, bild, prefix)
         rad[bild] = {'id': f['id'], 'W': W, 'H': H, 'det': det}
         if not [q for q in f['kort'] if not q['dold']]:
             continue
@@ -118,9 +144,9 @@ def main():
     ut = {'modell': a.namn, 'troskel': a.troskel, 'lagen': len(per), 'alla': s, 'utan_graveyard': s2,
           'unika': {'kortlagen': len(unika), 'ratt_i_alla': u_ratt, 'kort_id': len({k[0] for k in unika})},
           'per_lage': [{k: v for k, v in r_.items() if k not in ('kortdom', 'detdom')} for r_ in per]}
-    json.dump({'modell': f'tränad {a.namn}', 'bilder': rad}, open(os.path.join(DET, 'resultat', f'{a.namn}-mes246.json'), 'w'))
-    json.dump(ut, open(os.path.join(DET, 'resultat', f'{a.namn}-mes246-summa.json'), 'w'), indent=1)
-    print(f"MES-246, {len(per)} ritade lägen, tröskel {a.troskel}:")
+    json.dump({'modell': f'tränad {a.namn}', 'bilder': rad}, open(os.path.join(DET, 'resultat', f'{a.namn}-{prefix}.json'), 'w'))
+    json.dump(ut, open(os.path.join(DET, 'resultat', f'{a.namn}-{prefix}-summa.json'), 'w'), indent=1)
+    print(f"{a.kalla or 'MES-246'}, {len(per)} ritade lägen, tröskel {a.troskel}:")
     print('| | Synliga kort | Eget | Sammanslaget | Missat | Falska | Dubbl | Kluster | Övriga | Högkort eget | Högar hela |')
     print('|---|---|---|---|---|---|---|---|---|---|---|')
     for namn, x in (('alla kort', s), ('utan graveyard', s2)):
