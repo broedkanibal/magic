@@ -40,8 +40,9 @@ def detektioner(onnx, data, cache):
         H, W = img.shape[:2]
         t, r = forbehandla(img, h_in, w_in)
         o = sess.run(None, {inp.name: t})[0][0]
-        s = o[:, 4] * o[:, 5:5 + len(KLASSER)].max(1)
-        k = s >= 0.05
+        cls = o[:, 5:5 + len(KLASSER)]
+        s = o[:, 4] * cls.max(1)
+        k = (s >= 0.05) & (cls.argmax(1) < 2)   # kort och baksida; remsorna (namnrad) mäts i remsprov.py
         dets = [[float((cx - w / 2) / r / W), float((cy - h / 2) / r / H), float((cx + w / 2) / r / W), float((cy + h / 2) / r / H), float(sc)]
                 for (cx, cy, w, h), sc in zip(o[k][:, :4], s[k])]
         ut.append({'typ': x['typ'], 'dets': dets,

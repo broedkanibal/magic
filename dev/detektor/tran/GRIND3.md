@@ -159,3 +159,47 @@ står sig på provet (tabellen ovan): golden 62/66 och 13/15 hela högar, MES-24
 
 **Beslutet att föreslå:** natt 1 A med NMS 0,7. Kvar i högarna är 3–4 täta land-högar där överlappet är över 0,7, och
 handfallen (91,00 s och 260,61 s), som Jespers handrutor tar hand om.
+
+## Natt 2: namnremsan som tredje klass (2026-10-01)
+
+**Körningen:** kerneln version 3, 11:51–15:43, ~3,6 h GPU, nano, 150 epoker, dataset v3 (v2 plus 29 347 remsor ur
+hörnen i syntetiska bord och Jespers ritade rutor; lärarens rutor: 20 % kant runt varje kort ignorerad).
+Provet är mot MES-246-facit med Jespers handrutor i sju lägen (5cf32f7). ONNX exporterad lokalt (som natt 1).
+Valideringen: `namnrad` AP50 0,985; `kort` AP50 0,832 (natt 1 A: 0,933), men kortprovet blev inte sämre (nedan).
+
+**Kortlådorna (C mot natt 1 A, NMS 0,7, tröskeln vald på valideringen: C 0,56, A 0,58):**
+
+| | Golden egna | Golden hela högar | MES-246 egna | MES-246 hela högar | Dubbletter MES-246 | Unika lägen | Falska |
+|---|---|---|---|---|---|---|---|
+| natt 1 A | 70/74 | 13/15 | 727/738 | 97/107 | 29 | 84/90 | 1 / 0 |
+| natt 2 C | 73/74 | 14/15 | 728/738 | 97/107 | 37 | 85/90 | 1 / 0 |
+
+NMS-gränsen vald på valideringen för C: 0,65 (4 477) mot 0,7 (4 474) — lika; 0,7 behålls för jämförelsen.
+
+**Remsorna (`remsprov.py`, tröskel 0,68 vald på valideringen, IoU ≥ 0,5):**
+
+| | Krävda | Egna | Högkort egna | Hela högar | Falska | Dubbletter |
+|---|---|---|---|---|---|---|
+| golden | 74 | 69 | 25/25 | 11/11 | 0 | 1 |
+| MES-246 | 735 | 557 (76 %) | 256/271 | 93/105 | 2 | 8 |
+
+Remsorna som missas i MES-246 ligger mest utanför högarna: vita kort i blanka fickor där namnraden
+bländas bort (poäng 0,6–0,66, strax under tröskeln), och remsor som hittas men sitter några bildpunkter
+lägre än facit (facit räknas från kortets kant, detektorn lägger den på den tryckta namnraden; en
+18 px hög låda tål lite). Med IoU ≥ 0,3: 620/735 (84 %); med tröskel 0,5 och IoU 0,3: 651/735 (89 %).
+
+**Kortlåda eller remsa (det appen kan använda):** ett kort räknas om det har en egen kortlåda (NMS 0,7)
+eller en egen remsa.
+
+| | Kort | Hela högar (minst 2 kort, utom graveyard) |
+|---|---|---|
+| golden, bara kortlådor | 73/74 | 10/11 |
+| golden, kortlåda eller remsa | **74/74** | **11/11** |
+| MES-246, bara kortlådor | 728/738 | 95/105 |
+| MES-246, kortlåda eller remsa | **738/738** | **105/105** |
+
+**Slutsats (mätt):** med remsan hittas alla kort i båda proven, också i de täta landhögarna. Kortlådorna blev
+inte sämre av den tredje klassen. **Förbehåll:** golden och MES-246 är filmade i samma miljö som träningen
+(andra tillfällen) — ett bord modellen aldrig sett är inte provat. "Kortlåda eller remsa" förutsätter att
+appen parar ihop en remsa med sin kortlåda (remsan ligger i lådans övre kant); det steget finns inte än.
+Dubbletterna bland kortlådorna (37) är inte hanterade — en remsa per kort kan vara det som löser dem.
