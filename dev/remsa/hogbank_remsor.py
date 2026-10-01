@@ -126,6 +126,8 @@ def rapport(rader, ocr):
     satt = {'bildmodellen (säker)': lambda r, s: s['bild']['namn'] if s['bild']['saker'] else None}
     if ocr:
         satt['OCR (≥ 0,6)'] = lambda r, s: o.get((r['id'], s['nr']), {}).get('namn')
+        # appens dom (index.html, sakertNamn): poäng ≥ 0,6 OCH marginal ≥ 0,2 till näst bästa namn — bänkens 0,6 ensamt är mildare
+        satt['OCR med appens dom (≥ 0,6 och marginal ≥ 0,2)'] = lambda r, s: (lambda x: x.get('namn') if x.get('marginal', 0) >= 0.2 else None)(o.get((r['id'], s['nr']), {}))
         satt['OCR eller bildmodellen'] = lambda r, s: o.get((r['id'], s['nr']), {}).get('namn') or (s['bild']['namn'] if s['bild']['saker'] else None)
     print('\n| Sätt | Högar hela | Par hela | Ensamma | Fel namn (säkra, fel hög) | Remsor i lådorna | Fall utan remsa |')
     print('|---|---|---|---|---|---|---|')

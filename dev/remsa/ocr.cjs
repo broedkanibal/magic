@@ -7,6 +7,15 @@
    gör (ocr_export.py: 64 px höga, högst 4× upp). En arbetare i taget, så att tiden per remsa
    är den appen får.
 
+   Två saker skiljer bänkens dom från appens, med avsikt (granskningen 2026-10-02):
+   1. Appen kallar ett namn säkert först vid poäng ≥ 0,6 OCH marginal ≥ 0,2 till näst bästa
+      (index.html, sakertNamn). Bänken godkänner vid 0,6 ensamt och sparar marginalen per rad,
+      så att appens dom kan räknas ut efteråt (hogbank_remsor.py gör det: raden "appens dom").
+   2. Appen läser inte alls när bandet i källan är under 20 px (MIN_KALLHOJD) utan svarar
+      "liten". Bänken läser allt och sparar kall_h_px per rad; vid 960 px analysbild är banden
+      under 20 px för 61 av 74 golden-remsor och 735 av 735 MES-246-remsor — där hade appen
+      hoppat över i stället för att läsa 0.
+
      node dev/remsa/ocr.cjs <mapp med manifest.json> [--ut <fil.json>] [--bara <delsträng i fil>]
 
    Skriver per remsa: text, namn, poäng, marginal, ms. Rapporten: ocr_rapport.py. */

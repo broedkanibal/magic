@@ -134,7 +134,8 @@ tar bord med sig. Remsan måste komma ur något som vet var kortet är: detektor
 ## 2. Steg 2 — OCR på samma remsor, och sätt 2 mot sätt 3
 
 **Läsaren är appens:** tesseract.js 5.1.1, språket eng, PSM 7, Dice-likhet mot lekens 28 namn,
-godkänt vid poäng ≥ 0,6 — koden i `ocr.cjs` är tagen rakt ur `Namn` i index.html. Remsan skalas
+godkänt vid poäng ≥ 0,6 — koden i `ocr.cjs` är tagen rakt ur `Namn` i index.html (appens *dom* är
+strängare: säkert namn kräver också marginal ≥ 0,2, och band under 20 px läses inte — se högbänken). Remsan skalas
 som appen gör (64 px hög, högst 4× upp). Titelraden skärs ur hörnen i tre lägen (2, 5 och 8 %
 ner, 10 % höga) som prövas i ordning tills något når 0,6 — appens läsare prövar sex lägen av
 samma skäl. **Rätt** = godkänt och facit. **Fel** = godkänt men ett annat namn: det som blir ett
@@ -218,6 +219,7 @@ topp och under båda finns; **fel namn** = ett säkert/godkänt namn som inte h�
 | MES-250, dagens kedja (namnläsaren på hela beskärningen) | 0/13 | 2/13 | 13/39 | – | – | – |
 | bildmodellen (säker, marginal > 0,11) | **3/13** | **5/13** | 14/39 | **0** | 97 | 3 |
 | OCR (≥ 0,6, band ur detektorremsan, båda vridningarna) | 0/13 | 4/13 | 12/39 | 0 | 97 | 3 |
+| OCR med appens dom (≥ 0,6 **och** marginal ≥ 0,2) | 0/13 | 4/13 | 11/39 | 0 | 97 | 3 |
 | OCR eller bildmodellen | 3/13 | 5/13 | 16/39 | 0 | 97 | 3 |
 
 Det som blir helt är golden-fallen (g03, g04, g14, g15: 35–180 px remsor ur foton). Passets
@@ -225,6 +227,14 @@ högar (31–40 px remsor ur en suddig skärminspelning) får Swamp med marginal
 namn överst oftast, men inte säkert, och OCR når 0,6 en gång (pass-213). Det är MES-250:s
 slutsats igen: på det materialet kan ingen läsa titelraden. Det är ändå bättre än dagens 0/13 och
 2/13, utan ett enda fel namn.
+
+**Bänkens OCR-dom är mildare än appens på två sätt** (`ocr.cjs`, huvudkommentaren): appen kallar ett
+namn säkert först vid poäng ≥ 0,6 *och* marginal ≥ 0,2 till näst bästa namn (index.html, `sakertNamn`)
+— med den regeln faller g01-thriving-heath (poäng 0,73, marginal 0,13) och OCR:ns ensamma blir 11/39,
+raden ovan. Och appen läser inte alls när bandet i källan är under 20 px (`MIN_KALLHOJD`) utan svarar
+"liten": vid 960 px analysbild gäller det 61 av 74 golden-remsor och alla 735 i MES-246, så där hade
+appen hoppat över i stället för att läsa 0. Golden-siffrorna i OCR-tabellerna står: alla 77 rätt ur
+hörnen och 31 ur detektorlådorna har marginal ≥ 0,2.
 
 ### Tiden per remsa på Macen (`tid.py`, mätt ensam)
 
