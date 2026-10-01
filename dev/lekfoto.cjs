@@ -62,6 +62,9 @@ const telfoto = ctx.telfoto;
 const aiEnabled = () => typeof ctx.ai === 'function' ? ctx.ai() : ctx.ai !== false;
 const AI_ENDPOINT = '/api/identify';
 const fetch = (...a) => ctx.fetch(...a);
+/* aiFraga (MES-316) lägger inloggningen på frågan; här finns ingen
+   inloggning, bara samma fetch som förut. */
+const aiFraga = (body, extra) => fetch(AI_ENDPOINT, Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, extra));
 const bokforDatorAi = () => {};
 const lekKallDuk = () => ({ width: 1, height: 1 });
 const lekB64 = () => ({ b64: 'xx' });
