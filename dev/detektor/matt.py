@@ -161,6 +161,7 @@ def filtrera(dets, fraga, troskel, f=None, storlek=False, sam=False, inneslut=Fa
     for d in dets:
         if d[4] < troskel: continue
         if fraga != 'alla' and d[5] != fraga: continue
+        if fraga != 'namnrad' and d[5] == 'namnrad': continue   # remsorna mäts för sig (tran/remsprov.py)
         if sam:
             m = re.search(r'fyll=([\d.]+) kvot=([\d.]+)', d[5])
             fyll, kvot = float(m.group(1)), float(m.group(2))

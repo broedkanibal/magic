@@ -29,6 +29,13 @@ Valideringsdelen (bara för att se att träningen går framåt — provet är de
 som aldrig ingår här): var tionde syntetiska bord (fro % 10 == 0) och de sista 10 % av varje
 film i tid (så att nästan likadana grannrutor inte hamnar på båda sidor).
 
+**Remsan (`--remsa`, grind 3 natt 2):** en tredje klass `namnrad`, lådan runt kortets namnremsa
+(dev/detektor/remsa.py: översta 14 % av kortet, ur hörnen). Facit där hörnen finns — syntetiska bord
+och Jespers ritade rutor: remsan är facit när minst halva namnraden syns och handen inte täcker den,
+annars ignorerad om något av namnraden syns. Lärarens rutor har bara lådor, inte hörn, så ingen vet
+var på kortet remsan sitter: där ignoreras en kant (20 % av lådan) runt varje kortlåda, på alla fyra
+sidor — remsan hamnar i någon av dem, mitten av kortet är fortfarande bakgrund för remsan.
+
 **Spärren:** varje källbild och varje utfil går genom delning.krav_traning_alla innan något
 skrivs. Filistan (bara sökvägar) sparas i dev/detektor/tran/filista-<namn>.txt.
 
@@ -46,13 +53,16 @@ DET = os.path.dirname(HAR)
 ROT = os.path.dirname(os.path.dirname(DET))
 sys.path.insert(0, DET)
 from delning import krav_traning, krav_traning_alla  # noqa: E402
+from remsa import remsa_lada  # noqa: E402
 
 MAT = os.path.join(ROT, 'dev', 'material')
 TRN = os.path.join(MAT, 'arbete', '2026-09-29-mes-288-traningsrutor')
 SYNT = os.path.join(MAT, 'arbete', '2026-09-29-mes-288-synt')
 FILMER = ['2026-09-29-traning-tra-dagsljus-lampa', '2026-09-29-traning-svartmatta-dagsljus', '2026-09-29-traning-vittbord-dagsljus']
 KORT_FILM = {'2026-09-29-traning-tra-dagsljus-lampa': 'tra', '2026-09-29-traning-svartmatta-dagsljus': 'svart', '2026-09-29-traning-vittbord-dagsljus': 'vitt'}
-KLASSER = ['kort', 'baksida']
+REMSOR = '--remsa' in sys.argv
+KLASSER = ['kort', 'baksida'] + (['namnrad'] if REMSOR else [])
+KANT = 0.20   # lärarens lådor, med --remsa: ignorerad kant runt kortet där remsan kan sitta
 BREDD = 960
 VAL_FILM_ANDEL = 0.10
 MATNING = os.path.join(DET, 'larare', 'matning')
@@ -123,8 +133,28 @@ def ritade():
                     lador.append((b, 'baksida' if k['baksida'] else 'kort'))
                 else:
                     ign.append((b, 'ritad'))
+                if REMSOR and not k['baksida']:
+                    remsa(lador, ign, k['horn'], k['namnrad'] or 0, lambda rb: tackt(hand, rb) > HAND_TACKER, 1.0, 1.0)
             ut[(film, nyckel)] = (lador, ign)
     return ut
+
+
+def remsa(lador, ign, horn, namnrad, under_hand, W, H):
+    """Lägger kortets namnremsa som facit (minst halva namnraden syns, ingen hand, minst halva remsan i
+    bild) eller som ignorerad yta (något av namnraden syns, men inte nog)."""
+    hel = remsa_lada(horn)
+    b = remsa_lada(horn, W, H)
+    i_bild = (b[2] - b[0]) * (b[3] - b[1]) / max((hel[2] - hel[0]) * (hel[3] - hel[1]), 1e-9)
+    if namnrad >= LADA_NAMNRAD and i_bild >= 0.5 and not under_hand(b):
+        lador.append((b, 'namnrad'))
+    elif namnrad > 0 and i_bild > 0:
+        ign.append((b, 'remsa'))
+
+
+def kanter(b):
+    """Fyra kantband runt en kortlåda (andelar eller bildpunkter), KANT av lådans bredd/höjd."""
+    kw, kh = (b[2] - b[0]) * KANT, (b[3] - b[1]) * KANT
+    return [[b[0], b[1], b[2], b[1] + kh], [b[0], b[3] - kh, b[2], b[3]], [b[0], b[1], b[0] + kw, b[3]], [b[2] - kw, b[1], b[2], b[3]]]
 
 
 def riktiga():
@@ -145,6 +175,8 @@ def riktiga():
             if (film, k) in rit:
                 ut[-1]['lador_n'], ut[-1]['ign_n'] = rit[(film, k)]
                 ut[-1]['facit'] = 'ritad'
+            elif REMSOR:   # lärarens lådor: remsan okänd i kanten runt varje kort
+                ut[-1]['ign_n'] += [(kb, 'remsa?') for b, c in ut[-1]['lador_n'] if c == 'kort' for kb in kanter(b)]
     saknas = set(rit) - {(p['film'], os.path.relpath(p['kalla'], os.path.join(TRN, p['film']))) for p in ut}
     if saknas:
         raise SystemExit(f'ritade rutor utan träningsruta: {sorted(saknas)}')
@@ -162,6 +194,8 @@ def syntetiska(mappar):
             d = json.load(open(os.path.join(mapp, f), encoding='utf-8'))
             lador, ign = [], []
             for k in d['kort']:
+                if REMSOR and k['klass'] == 'kort' and k.get('horn_px'):
+                    remsa(lador, ign, k['horn_px'], k['namnrad'] or 0, lambda rb, k=k: k.get('hand', 0) > HAND_TACKER, d['bredd'], d['hojd'])
                 if not k['lada_px']:
                     continue
                 x, y, w, h = k['lada_px']
@@ -228,7 +262,7 @@ def main():
         if i % 500 == 0:
             print(f'{i}/{len(poster)}', flush=True)
     meta = {'om': 'MES-288 grind 2: träningsdata för kortdetektorn. Riktiga rutor ur Jespers träningsfilmer (lärarens facit, OWLv2) och syntetiska bord. '
-                  'lador: [x0, y0, x1, y1, klass] i bildpunkter, klass 0 = kort, 1 = baksida. ignorera: [x0, y0, x1, y1, regel] — varken facit eller bakgrund.',
+                  'lador: [x0, y0, x1, y1, klass] i bildpunkter, klass 0 = kort, 1 = baksida' + (', 2 = namnrad (remsan)' if REMSOR else '') + '. ignorera: [x0, y0, x1, y1, regel] — varken facit eller bakgrund.',
             'klasser': KLASSER, 'bilder': ant}
     with open(os.path.join(utmapp, 'anteckningar.json'), 'w', encoding='utf-8') as f:
         json.dump(meta, f, ensure_ascii=False)
@@ -238,8 +272,9 @@ def main():
             b = [x for x in ant if x['typ'] == typ and x['del'] == dl]
             nk = sum(1 for x in b for l in x['lador'] if l[4] == 0)
             nb = sum(1 for x in b for l in x['lador'] if l[4] == 1)
+            nr = sum(1 for x in b for l in x['lador'] if l[4] == 2)
             ni = sum(len(x['ignorera']) for x in b)
-            print(f'{typ:6} {dl}: {len(b):5d} bilder, {nk:6d} kort, {nb:5d} baksida, {ni:5d} ignorerade ytor')
+            print(f'{typ:6} {dl}: {len(b):5d} bilder, {nk:6d} kort, {nb:5d} baksida, {nr:6d} namnremsor, {ni:5d} ignorerade ytor')
     print(f'utmapp: {utmapp}')
 
 

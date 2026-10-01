@@ -24,7 +24,7 @@ ROT = os.path.dirname(os.path.dirname(DET))
 sys.path.insert(0, DET)
 from facit import alla_fall, las_hogbank  # noqa: E402
 
-KLASSER = ['kort', 'baksida']
+KLASSER = ['kort', 'baksida', 'namnrad']   # en modell med två klasser ger bara de två första
 
 
 def forbehandla(img, h_in, w_in):

@@ -25,15 +25,15 @@ import argparse, glob, json, math, os, random, subprocess, sys, time, types
 import numpy as np
 
 ARGS = None
-KLASSER = ['kort', 'baksida']
-IGN = 2          # klassnummer för en ignorerad yta i etiketterna
+KLASSER = ['kort', 'baksida', 'namnrad']   # namnrad = namnremsan (dataset v3, --remsa), grind 3 natt 2
+IGN = 3          # klassnummer för en ignorerad yta i etiketterna
 IN_H, IN_W = 544, 960
-# Körningarna på Kaggle, en per GPU (kerneln tar inga argument). Grind 3, natt 1 (2026-09-30):
-# samma modell och lika många epoker, allt mot halva datat — inlärningskurvan (hjälper mer data?).
+# Körningarna på Kaggle, en per GPU (kerneln tar inga argument). Grind 3, natt 2 (2026-10-01):
+# en tredje klass, namnremsan, så att varje kort i en tät hög får en egen låda som inte överlappar
+# grannens (natt 1: dubblettsteget slog ihop högkortens lådor). Samma upplägg som natt 1 A.
 # upprepa_ritade: Jespers ritade rutor (exakt facit, också högarna) visas så många gånger per epok.
 JOBB = [
-    dict(modell='yolox_nano', namn='A-allt', andel=1.0, upprepa_ritade=5, epoker=150, timmar=6.0),
-    dict(modell='yolox_nano', namn='B-halva', andel=0.5, upprepa_ritade=5, epoker=150, timmar=6.0),
+    dict(modell='yolox_nano', namn='C-remsa', andel=1.0, upprepa_ritade=5, epoker=150, timmar=6.0),
 ]
 VIKT_URL = 'https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/{}.pth'
 KOD_URL = 'https://github.com/Megvii-BaseDetection/YOLOX.git'
@@ -274,8 +274,8 @@ def validera(model, ds, enhet, maxn=None):
     import torch
     from yolox.utils import postprocess
     model.eval()
-    dets = {0: [], 1: []}
-    ngt = {0: 0, 1: 0}
+    dets = {c: [] for c in range(len(KLASSER))}
+    ngt = {c: 0 for c in range(len(KLASSER))}
     n = len(ds) if maxn is None else min(maxn, len(ds))
     with torch.no_grad():
         for i in range(n):
@@ -291,7 +291,7 @@ def validera(model, ds, enhet, maxn=None):
             p = np.zeros((0, 7)) if ut is None else ut.float().cpu().numpy()
             if len(p):
                 p[:, :4] /= r
-            for c in (0, 1):
+            for c in range(len(KLASSER)):
                 g = gt[gt[:, 4] == c][:, :4]
                 ngt[c] += len(g)
                 pc = p[p[:, 6] == c]
@@ -316,7 +316,7 @@ def validera(model, ds, enhet, maxn=None):
                     dets[c].append((s, 0))
     model.train()
     res = {}
-    for c in (0, 1):
+    for c in range(len(KLASSER)):
         d = sorted(dets[c], key=lambda x: -x[0])
         tp = np.cumsum([x[1] for x in d]) if d else np.zeros(0)
         fp = np.cumsum([1 - x[1] for x in d]) if d else np.zeros(0)
