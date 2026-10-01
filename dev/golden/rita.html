@@ -95,7 +95,7 @@ button.liten{font-size:11px;padding:1px 7px;margin-top:6px;opacity:.8}
 #sagor ol{margin:0;padding-left:22px} #sagor li{margin:3px 0} #sagor li b{color:var(--vald)}
 #sagor .dim{margin-top:6px;font-size:11.5px}
 #hjalp tr.grupp td{border:0;padding:12px 8px 4px;font:600 11.5px system-ui,sans-serif;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
-#utkast{background:#2a2112;border:1px solid var(--varning);border-radius:5px;padding:8px;margin-bottom:8px}
+#utkast,#annan{background:#2a2112;border:1px solid var(--varning);border-radius:5px;padding:8px;margin-bottom:8px}
 #melding{min-height:1.4em;margin-top:6px;font-size:12px}
 #hjalp{position:fixed;inset:40px;margin:auto;max-width:720px;max-height:80vh;overflow:auto;background:#141920;border:1px solid #2c3541;border-radius:8px;padding:16px 20px;z-index:9;box-shadow:0 10px 40px rgba(0,0,0,.6)}
 #hjalp table{border-collapse:collapse;width:100%}
@@ -126,6 +126,7 @@ label.val{display:flex;gap:5px;align-items:center;cursor:pointer;color:var(--dim
 <aside id="panel">
   <h1>Rita facit</h1>
   <div id="utkast" hidden></div>
+  <div id="annan" hidden></div>
   <div id="sagor">
     <ol id="sagor-foto">
       <li><b>Vrid vyn</b> tills korten står rätt: <kbd>R</kbd> (moturs) eller knappen ⟲. Räknas otappade kort som tappade: byt <i>otappade kort ligger</i> under Spara.</li>
@@ -285,6 +286,10 @@ const S = {
   urklipp: null,           // { nr, kort } — kopierade kort
   undo: [], redo: [],
   raknat: {}, forslag: {}, cache: new Map(),
+  version: undefined,      // den sparade filens version (mtime + storlek) som servern gav när källan öppnades; undefined = servern säger inget
+  utkastTid: null,         // tiden på utkastet servern ska ha just nu, enligt den här fliken (null = inget)
+  srv: { lage: 'ok', fel: null },   // utkastet på servern: 'ok' | 'vantar' (skickas) | 'fel' (togs inte emot)
+  filVersionSedd: null,    // version av filen som den här fliken redan varnat för
 };
 
 /* ── Vyn ──────────────────────────────────────────────────────────────── */
@@ -383,19 +388,42 @@ function angra() { if (!S.undo.length) return; S.redo.push(bild()); aterstall(S.
 function gorOm() { if (!S.redo.length) return; S.undo.push(bild()); aterstall(S.redo.pop()); melding('gjort om'); }
 const utkastNyckel = () => `mesa-rita:${S.kalla.sort}:${S.kalla.id}`;
 /* Utkastet ligger på två ställen: i webbläsaren (som förut) och som fil på
-   datorn (dev/golden/rita-utkast/, via servern) — så att det syns i alla
-   webbläsare, och följer med till GitHub när det skickas upp. */
+   datorn (via servern) — så att det syns i alla webbläsare, och följer med
+   till GitHub när det skickas upp. Serverns svar läses: tog den inte emot
+   utkastet syns det i sparinfo och det försöks igen, och säger svaret att
+   ett annat fönster skrivit utkastet eller filen varnas det (2026-10-01 —
+   dessförinnan sveptes felen under mattan och "sparat" kunde ljuga). */
 const api = (url, o) => fetch(url, Object.assign({ cache: 'no-store' }, o)).then(r => r.json()).catch(e => ({ fel: e.message }));
 const postJson = (url, body) => api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-let utkastTimer, serverTimer;
+let utkastTimer, serverTimer, serverPagar = null;
 function sparaServerSnart(utkast) {
   clearTimeout(serverTimer);
   const k = { sort: S.kalla.sort, id: S.kalla.id, utkast };
-  serverTimer = setTimeout(() => postJson('/api/utkast', k), 800);
+  S.srv = { lage: 'vantar', fel: null };
+  serverTimer = setTimeout(() => skickaUtkast(k, 0), 800);
+}
+async function skickaUtkast(k, forsok) {
+  const p = postJson('/api/utkast', k); serverPagar = p;
+  const r = await p; if (serverPagar === p) serverPagar = null;
+  if (!S.kalla || S.kalla.sort !== k.sort || S.kalla.id !== k.id) return;   // bytte källa under tiden
+  if (r.fel) {   // servern nere eller sa nej: utkastet finns bara i webbläsaren — säg det, och försök igen
+    S.srv = { lage: 'fel', fel: r.fel };
+    clearTimeout(serverTimer); serverTimer = setTimeout(() => skickaUtkast(k, forsok + 1), Math.min(30000, 5000 * (forsok + 1)));
+    visaSparinfo(); return;
+  }
+  const baslinje = S.utkastTid;
+  S.utkastTid = k.utkast ? k.utkast.tid : null;
+  S.srv = { lage: 'ok', fel: null };
+  if (r.fore && r.fore !== baslinje) annanFlik({ vad: 'utkast', tid: r.fore });   // utkastet som låg där var inte vårt: ett annat fönster ritar
+  if (r.version !== undefined && S.version !== undefined && r.version !== S.version && r.version !== S.filVersionSedd) { S.filVersionSedd = r.version; annanFlik({ vad: 'fil', version: r.version }); }
+  visaSparinfo();
 }
 async function hamtaServer(sort, id) {
   const srv = await api(`/api/utkast?sort=${sort}&id=${encodeURIComponent(id)}`);
   S.srvUtkast = (srv && srv.utkast) || null;
+  S.utkastTid = S.srvUtkast ? S.srvUtkast.tid : null;
+  S.version = srv && !srv.fel ? srv.version : undefined;   // en äldre server ger ingen version
+  S.srv = srv && srv.fel ? { lage: 'fel', fel: srv.fel } : { lage: 'ok', fel: null };
   let r = srv && srv.vy;
   if (!r) { try { r = +(localStorage.getItem(`mesa-rita:vy:${sort}:${id}`) || 0); } catch (e) { r = 0; } }
   V.rot = ((r || 0) % 4 + 4) % 4;
@@ -411,9 +439,15 @@ function sparaUtkastSnart() {
 }
 const osparat = () => S.dok && JSON.stringify(S.dok) !== S.filDok;
 function visaSparinfo() {
-  const video = S.kalla && S.kalla.sort === 'video';
-  el('sparinfo').textContent = !S.dok ? '' : !osparat() ? 'sparat i repot' : video ? 'sparat på den här datorn — inte skickat än' : 'osparade ändringar (utkastet ligger på datorn)';
-  el('sparinfo').className = osparat() && !video ? 'varn' : 'dim';
+  const e = el('sparinfo'), video = S.kalla && S.kalla.sort === 'video';
+  let text = !S.dok ? '' : 'sparat i repot', klass = 'dim';
+  if (S.dok && osparat()) {
+    klass = video ? 'dim' : 'varn';
+    if (S.srv.lage === 'fel') { text = `utkastet finns bara i den här webbläsaren — servern tog inte emot det (${S.srv.fel}), försöker igen`; klass = 'varn'; }
+    else if (S.srv.lage === 'vantar') text = 'utkast — sparar på datorn…';
+    else text = video ? 'utkast sparat på datorn (webbläsaren och servern) — inte skickat än' : 'osparade ändringar — utkastet sparat på datorn (webbläsaren och servern)';
+  }
+  e.textContent = text; e.className = klass;
 }
 function aterstallUtkast(u) {
   fore(); S.dok = u.dok; S.temp = null;
@@ -426,6 +460,7 @@ function aterstallUtkast(u) {
   oppnaLage(i < 0 ? 1 : i + 1);
 }
 function erbjudUtkast() {
+  fragaAndraFlikar();
   let u = null;
   try { u = JSON.parse(localStorage.getItem(utkastNyckel()) || 'null'); } catch (e) {}
   const s2 = S.srvUtkast;
@@ -441,6 +476,53 @@ function erbjudUtkast() {
   ruta.hidden = false;
   el('u-ja').onclick = () => { ruta.hidden = true; aterstallUtkast(u); };
   el('u-nej').onclick = () => { try { localStorage.removeItem(utkastNyckel()); } catch (e) {} clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null; ruta.hidden = true; };
+}
+
+/* ── Flera fönster på samma källa (2026-10-01) ─────────────────────────
+   Alla flikar och webbläsare delar utkastet på servern, och Spara/Skicka i
+   ett fönster tar bort det. Ritas samma film på två ställen skriver de över
+   varandra utan att något syns (så försvann en kvälls ritning). Därför:
+   fråga de andra flikarna när en källa öppnas (BroadcastChannel), lyssna på
+   utkastet i webbläsaren (storage) och på serverns svar (fore, version), och
+   varna i #annan. Spara frågar dessutom innan den skriver över (se spara). */
+const nar = t => { const d = new Date(t); return isNaN(d) ? '?' : d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' }); };
+const versionTid = v => +String(v || '').split('-')[0];
+const vadKallan = () => S.kalla && S.kalla.sort === 'video' ? 'den här filmen' : 'den här bilden';
+const kallaNyckel = () => S.kalla ? `${S.kalla.sort}:${S.kalla.id}` : null;
+const kanal = typeof BroadcastChannel === 'function' ? new BroadcastChannel('mesa-rita') : null;
+const flikId = Math.random().toString(36).slice(2, 10);
+function fragaAndraFlikar() { if (kanal && S.kalla) kanal.postMessage({ fraga: true, kalla: kallaNyckel(), flik: flikId }); }
+if (kanal) kanal.onmessage = e => {
+  const m = e.data || {};
+  if (!S.kalla || m.kalla !== kallaNyckel() || m.flik === flikId) return;
+  if (m.fraga) kanal.postMessage({ svar: true, kalla: m.kalla, flik: flikId });   // ja, den är öppen här
+  annanFlik({ vad: 'oppen' });
+};
+window.addEventListener('storage', e => {   // en annan flik i samma webbläsare skrev eller tog bort utkastet
+  if (!S.kalla || e.key !== utkastNyckel()) return;
+  if (e.newValue === null) { if (osparat()) annanFlik({ vad: 'raderat' }); return; }
+  try { const u = JSON.parse(e.newValue); if (u && u.tid !== S.utkastTid) annanFlik({ vad: 'utkast', tid: u.tid }); } catch (x) {}
+});
+function annanFlik(info) {
+  const ruta = el('annan'), vad = vadKallan();
+  let text = info.vad === 'oppen' ? `${vad} är öppen i en annan flik också.`
+    : info.vad === 'utkast' ? `Ett annat fönster ritar också i ${vad} (senast kl ${nar(info.tid)}).`
+    : info.vad === 'fil' ? `Filen sparades från ett annat fönster kl ${nar(versionTid(info.version))}, efter att den här fliken läste den. Sparar du härifrån skrivs den versionen över.`
+    : `Ett annat fönster sparade eller kastade utkastet för ${vad}. Det du ritat här finns bara i den här fliken tills du sparar.`;
+  text = text.charAt(0).toUpperCase() + text.slice(1);
+  ruta.innerHTML = `<b>⚠ ${esc(text)}</b> Rita på ett ställe i taget: ändringar här och där skriver över varandra, och Spara i det ena fönstret tar bort det andras utkast.
+    <div class="rad" style="margin-top:6px"><button type="button" id="a-hamta">Hämta det senaste hit</button><button type="button" id="a-ok">Jag ritar bara här</button></div>`;
+  ruta.hidden = false;
+  el('a-ok').onclick = () => { ruta.hidden = true; };
+  el('a-hamta').onclick = async () => {
+    if (osparat() && !confirm('Det du ritat i den här fliken sedan senaste sparningen byts ut (går att ångra med ⌘Z). Fortsätt?')) return;
+    const srv = await api(`/api/utkast?sort=${S.kalla.sort}&id=${encodeURIComponent(S.kalla.id)}`);
+    if (srv.fel) { melding('Kunde inte hämta: ' + srv.fel, true); return; }
+    ruta.hidden = true;
+    if (srv.version !== undefined && S.version !== undefined && srv.version !== S.version) { S.filDok = JSON.stringify(S.dok); oppna(kallaNyckel()); return; }   // filen är nyare: läs om källan
+    if (srv.utkast && srv.utkast.dok) { S.utkastTid = srv.utkast.tid; aterstallUtkast(srv.utkast); melding(`hämtade utkastet från kl ${nar(srv.utkast.tid)}`); }
+    else melding('inget nyare utkast på servern');
+  };
 }
 
 /* ── Framräknat ────────────────────────────────────────────────────────
@@ -1484,8 +1566,9 @@ async function oppna(varde) {
   if (osparat() && !confirm('Det finns osparade ändringar (utkastet ligger kvar i webbläsaren). Byta ändå?')) { el('kalla').value = `${S.kalla.sort}:${S.kalla.id}`; return; }
   const [sort, id] = [varde.slice(0, varde.indexOf(':')), varde.slice(varde.indexOf(':') + 1)];
   try { localStorage.setItem('mesa-rita:senast', varde); } catch (e) {}
-  Object.assign(S, { bild: null, W: 0, H: 0, dok: null, filDok: '', vald: null, vantar: null, undo: [], redo: [], temp: null, u: null, facit: null, raknat: {}, forslag: {}, nastaNamn: null });
-  S.cache.clear(); el('utkast').hidden = true; ritaSnart();
+  Object.assign(S, { bild: null, W: 0, H: 0, dok: null, filDok: '', vald: null, vantar: null, undo: [], redo: [], temp: null, u: null, facit: null, raknat: {}, forslag: {}, nastaNamn: null,
+    version: undefined, utkastTid: null, srv: { lage: 'ok', fel: null }, filVersionSedd: null });
+  S.cache.clear(); el('utkast').hidden = true; el('annan').hidden = true; clearTimeout(serverTimer); ritaSnart();
   if (sort === 'foto') {
     const k = S.kallor.foton.find(f => f.id === id);
     S.kalla = Object.assign({ sort }, k);
@@ -1627,13 +1710,38 @@ async function spara(o = {}) {
     if (!kort.length && (o.tyst || !confirm('Inga kort ritade. Spara ändå?'))) return false;
     text = G.formatera(f) + '\n'; sort = 'lagen';
   }
-  const svar = await fetch('/api/spara', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sort, id: S.kalla.id, text }) }).then(r => r.json()).catch(e => ({ fel: e.message }));
+  /* Innan filen skrivs: har ett annat fönster ritat eller sparat sedan den här
+     fliken läste? Då frågas det — annars skrivs det fönstrets arbete över och
+     dess utkast tas bort utan att någon ser det. Servern gör samma koll mot
+     filens version (409) ifall något hinner emellan. */
+  clearTimeout(serverTimer); if (serverPagar) await serverPagar;   // ett utkast på väg ska inte landa efter raderingen nedan
+  let tvinga = false;
+  const srv = await api(`/api/utkast?sort=${S.kalla.sort}&id=${encodeURIComponent(S.kalla.id)}`);
+  if (!srv.fel) {
+    if (srv.utkast && srv.utkast.tid !== S.utkastTid) {
+      if (!confirm(`Ett annat fönster har ritat i ${vadKallan()} senare än den här fliken (kl ${nar(srv.utkast.tid)}). Det arbetet försvinner om du sparar härifrån.\n\nSpara ändå och skriv över det?`)) return false;
+      tvinga = true;
+    }
+    if (S.version !== undefined && srv.version !== undefined && srv.version !== S.version) {
+      if (!confirm(`Filen har sparats från ett annat fönster (kl ${nar(versionTid(srv.version))}) efter att den här fliken läste den. Sparar du nu skrivs den versionen över.\n\nSpara ändå?`)) return false;
+      tvinga = true;
+    }
+  }
+  const kropp = { sort, id: S.kalla.id, text, tvinga };
+  if (S.version !== undefined) kropp.version = S.version;
+  let svar = await postJson('/api/spara', kropp);
+  if (svar.konflikt) {   // filen ändrades mellan kollen och skrivningen — ett annat fönster, eller git
+    if (!confirm(`Filen ändrades just (kl ${nar(versionTid(svar.version))}), från ett annat fönster eller av git. Sparar du nu skrivs den över.\n\nSpara ändå?`)) return false;
+    svar = await postJson('/api/spara', Object.assign(kropp, { tvinga: true }));
+  }
   if (svar.fel) { melding('Sparandet misslyckades: ' + svar.fel, true); return false; }
   if (sort === 'facit') { S.facit = JSON.parse(text); S.kalla.ritad = true; }
   else S.kalla.lagen = true;
+  if (svar.version !== undefined) S.version = svar.version;
   S.filDok = JSON.stringify(S.dok);
   try { localStorage.removeItem(utkastNyckel()); } catch (e) {}
-  clearTimeout(serverTimer); postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null }); S.srvUtkast = null;
+  S.utkastTid = null; S.srvUtkast = null; S.srv = { lage: 'ok', fel: null }; el('annan').hidden = true;
+  postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: null });
   visaSparinfo(); fyllKallor();
   if (!o.tyst) melding(`sparat: ${svar.fil} — kör ${arProv() ? 'python dev/detektor/tran/prov246.py --kalla ' + S.kalla.id : arLarare() ? 'python3 dev/detektor/larare/matt_larare.py' : 'node dev/golden/rita-kontroll.cjs'}`);
   return true;
@@ -1642,7 +1750,10 @@ async function spara(o = {}) {
    och vridningen) och pushar till main. På en annan dator: git pull. */
 async function dela() {
   if (!S.kalla) return;
-  if (S.kalla.sort === 'video' && osparat()) await spara({ tyst: true });   // i video är Skicka det enda sparsteget
+  if (S.kalla.sort === 'video' && osparat() && !(await spara({ tyst: true }))) {   // i video är Skicka det enda sparsteget
+    if (!/^Sparas inte/.test(el('melding').textContent)) melding('Skickades inte — sparandet avbröts', true);
+    return;
+  }
   if (osparat()) { clearTimeout(serverTimer); await postJson('/api/utkast', { sort: S.kalla.sort, id: S.kalla.id, utkast: { tid: new Date().toISOString(), dok: S.dok } }); }
   melding('skickar till GitHub…');
   const r = await postJson('/api/dela', { sort: S.kalla.sort, id: S.kalla.id });

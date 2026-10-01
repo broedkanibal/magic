@@ -10,7 +10,9 @@
                            med dev/golden/video/ruta.swift (klarar HEVC och 4K)
                            och sparas i dev/material/rita/<källa>/ — webbläsaren
                            läser aldrig videon själv
-     POST /api/spara       skriver ETT av två slags filer: facit.json i ett
+     POST /api/spara       skriver ETT av två slags filer (med version: filens
+                           version som klienten läste; stämmer den inte svaras
+                           409 konflikt, om inte tvinga är satt): facit.json i ett
                            befintligt dev/golden/fall/<id>/, eller lagen.json i en
                            källas mapp under dev/golden/inspelningar/ — eller, för
                            lärarmätningen (rita-kallor.json → larare, MES-288), under
@@ -18,7 +20,10 @@
 
      /api/utkast           utkastet och vyns vridning per källa, som filer i
                            dev/golden/rita-utkast/ — så att det som ritats men
-                           inte sparats syns i alla webbläsare på datorn
+                           inte sparats syns i alla webbläsare på datorn. Svaret
+                           har version (den sparade filens) och, vid POST, fore:
+                           tiden på utkastet som låg där — så att en flik ser om
+                           ett annat fönster ritar i samma källa (2026-10-01)
      POST /api/dela        committar källans filer (facit.json eller lagen.json,
                            utkastet, vridningen) och pushar till main — så att de
                            syns på en annan dator efter git pull
@@ -142,7 +147,7 @@ const larareRuta = (v, t) => `${v.rutor}/${String(Math.round(t * 10)).padStart(5
 
 /* ── /api/spara ───────────────────────────────────────────────────────── */
 function spara(kropp) {
-  const { sort, id, text } = kropp;
+  const { sort, id, text, version, tvinga } = kropp;
   if (typeof text !== 'string' || !text.trim()) throw new Error('tom fil');
   JSON.parse(text);   // går den inte att läsa sparas den inte
   if (typeof id !== 'string' || !/^[0-9A-Za-z][0-9A-Za-z._-]*$/.test(id) || id.includes('..')) throw new Error('ogiltigt id');
@@ -163,11 +168,18 @@ function spara(kropp) {
       fil = path.join(mapp, 'lagen.json');
     }
   } else throw new Error('okänd sort ' + sort);
+  if (version !== undefined && !tvinga && versionAv(fil) !== version) {   // filen har ändrats sedan klienten läste den
+    const e = new Error('filen har ändrats sedan den lästes — ett annat fönster, eller git'); e.konflikt = true; e.version = versionAv(fil); throw e;
+  }
   const tmp = fil + '.tmp';
   fs.writeFileSync(tmp, text.endsWith('\n') ? text : text + '\n');
   fs.renameSync(tmp, fil);
-  return path.relative(ROT, fil);
+  return { fil: path.relative(ROT, fil), version: versionAv(fil) };
 }
+/* Den sparade filens version (mtime + storlek), så att en flik som läste filen
+   kan se om ett annat fönster sparat sedan dess. null = filen finns inte. */
+const versionAv = fil => { try { const st = fs.statSync(fil); return `${Math.round(st.mtimeMs)}-${st.size}`; } catch (e) { return null; } };
+const sparadFil = (sort, id) => sort === 'foto' ? path.join(ROT, 'dev', 'golden', 'fall', id, 'facit.json') : path.join(ROT, videoKalla(id).mapp, 'lagen.json');
 
 /* ── /api/utkast och /api/dela ────────────────────────────────────────── */
 const UTKAST = path.join(ROT, 'dev', 'golden', 'rita-utkast');
@@ -185,10 +197,11 @@ const lasJson = (f, annars) => { try { return JSON.parse(fs.readFileSync(f, 'utf
 function skrivAtomiskt(fil, text) { fs.mkdirSync(path.dirname(fil), { recursive: true }); fs.writeFileSync(fil + '.tmp', text); fs.renameSync(fil + '.tmp', fil); }
 function hamtaUtkast(sort, id) {
   kallaOk(sort, id);
-  return { utkast: lasJson(utkastFil(sort, id), null), vy: (lasJson(vyFil(sort, id), {})[`${sort}:${id}`] || 0) };
+  return { utkast: lasJson(utkastFil(sort, id), null), vy: (lasJson(vyFil(sort, id), {})[`${sort}:${id}`] || 0), version: versionAv(sparadFil(sort, id)) };
 }
 function sparaUtkast({ sort, id, utkast, vy }) {
   kallaOk(sort, id);
+  const fore = utkast === undefined ? null : lasJson(utkastFil(sort, id), null);   // utkastet som låg där: var det ett annat fönsters?
   if (utkast === null) { try { fs.unlinkSync(utkastFil(sort, id)); } catch (e) {} }
   else if (utkast !== undefined) {
     if (!utkast || typeof utkast.tid !== 'string' || !utkast.dok) throw new Error('utkastet saknar tid eller dok');
@@ -199,7 +212,7 @@ function sparaUtkast({ sort, id, utkast, vy }) {
     if (n) alla[`${sort}:${id}`] = n; else delete alla[`${sort}:${id}`];
     if (n || f === VYFIL || fs.existsSync(f)) skrivAtomiskt(f, JSON.stringify(alla, null, 2) + '\n');
   }
-  return true;
+  return { ok: true, fore: fore && fore.tid ? fore.tid : null, version: versionAv(sparadFil(sort, id)) };
 }
 /* git i repots rot. Ett annat git-kommando samtidigt (index.lock) väntas ut
    ett par gånger i stället för att fälla. */
@@ -287,12 +300,12 @@ http.createServer((req, res) => {
       return;
     }
     if (p === '/api/utkast' && req.method === 'GET') return json(res, 200, hamtaUtkast(u.searchParams.get('sort'), u.searchParams.get('id')));
-    if (p === '/api/utkast' && req.method === 'POST') { lasKropp(req, k => { try { json(res, 200, { ok: sparaUtkast(JSON.parse(k)) }); } catch (e) { json(res, 400, { fel: e.message }); } }); return; }
+    if (p === '/api/utkast' && req.method === 'POST') { lasKropp(req, k => { try { json(res, 200, sparaUtkast(JSON.parse(k))); } catch (e) { json(res, 400, { fel: e.message }); } }); return; }
     if (p === '/api/dela' && req.method === 'POST') { lasKropp(req, k => { try { json(res, 200, Object.assign({ ok: true }, dela(JSON.parse(k)))); } catch (e) { json(res, 400, { fel: e.message }); } }); return; }
     if (p === '/api/spara' && req.method === 'POST') {
       let kropp = '';
       req.on('data', d => { kropp += d; if (kropp.length > 20e6) req.destroy(); });
-      req.on('end', () => { try { json(res, 200, { ok: true, fil: spara(JSON.parse(kropp)) }); } catch (e) { json(res, 400, { fel: e.message }); } });
+      req.on('end', () => { try { json(res, 200, Object.assign({ ok: true }, spara(JSON.parse(kropp)))); } catch (e) { json(res, e.konflikt ? 409 : 400, e.konflikt ? { fel: e.message, konflikt: true, version: e.version } : { fel: e.message }); } });
       return;
     }
     skickaFil(req, res, p.replace(/^\/+/, ''));
