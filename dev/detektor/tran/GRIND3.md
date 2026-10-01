@@ -121,3 +121,29 @@ lägen rätt (77 = 77), och golden står still. Nästan alla fel är högkort: a
 i MES-246 är 34 högkort (B: 28 av 30). Nästa steg enligt tabellen ovan: titta på högarna specifikt
 (vilka högkort som missas och varför), inte fler bord av samma sort. Provet är litet (66 kort, 90 unika
 lägen), så skillnader på 1–3 är brus.
+
+## Efter natt 1: varför missas högkorten? (2026-10-01, utan GPU)
+
+**Dubblettgränsen (NMS) prövad.** `MESA_NMS=0.7` (matt.py; förval 0,6). Samma modeller och trösklar, inget omtränat.
+
+| Modell | NMS | Golden 7 fall | Hela högar golden | MES-246 egna | Hela högar MES-246 | Dubbletter MES-246 | Falska | Unika lägen |
+|---|---|---|---|---|---|---|---|---|
+| grind 2 nano | 0,6 | 61/66 | 10/15 | 700/749 | 67/110 | 14 | 0 | 77/90 |
+| grind 2 nano | 0,7 | 63/66 | 12/15 | 725/749 | 92/110 | 26 | 0 | 78/90 |
+| natt 1 A | 0,6 | 59/66 | 10/15 | 711/749 | 81/110 | 17 | 0 | 77/90 |
+| natt 1 A | 0,7 | 62/66 | 13/15 | 727/749 | 97/110 | 29 | 0 | 78/90 |
+| natt 1 B | 0,6 | 60/66 | 11/15 | 719/749 | 86/110 | 20 | 0 | 80/90 |
+| natt 1 B | 0,7 | 62/66 | 13/15 | 730/749 | 97/110 | 56 | 0 | 81/90 |
+
+Vid 0,8 rusar dubbletterna (84–148 i MES-246) utan att fler kort blir rätt. Falska i golden: 1 för alla, oförändrat.
+En dubblett är en andra låda på ett kort som redan har en; i appen kan den bli ett spökkort om inget steg efter slår ihop dem (inte mätt).
+
+**Bildarket** (`hogfel.py`, sparat i `dev/material/arbete/2026-10-01-mes-288-hogar/`). Vid 0,6 missar B 8 unika högkortlägen (28 rutor):
+4 där detektorn hade rätt låda och NMS tog bort den (19 rutor; täta land-högar där bara namnremsan syns), och 4 där en hand
+ligger över högen (91,00 s och 260,61 s; facit saknar handrutor där). Vid 0,7 är det kvar 3–4 NMS-fall per modell
+(lådan överlappar grannens till mer än 0,7) och samma handfall.
+
+**Slutsats (bedömd).** Högarna begränsas inte av träningen: modellen ritar lådorna, och dubblettsteget efteråt tar bort dem.
+Nästa: (1) gränsen 0,7, med nano eller A (B:s låga tröskel ger dubbelt så många dubbletter); (2) ett dubblettsteg som vet
+hur en hög ser ut (två lådor förskjutna längs kortet med minst en namnremsa behålls båda), mätt mot dubbletterna;
+(3) handrutor i 91,00 och 260,61 (Jesper).

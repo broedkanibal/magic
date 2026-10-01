@@ -34,12 +34,13 @@ alla högens synliga kort är egna.
 IoU räknas på andelar, vilket för axelparallella lådor är exakt samma som
 i pixlar. Täckning mot kortytan räknas på en rastrerad mask i bildens
 pixlar (facit.kortyta)."""
+import os
 import numpy as np
 from facit import kortyta
 
 IOU_MIN = 0.5
 TACK_MIN = 0.7
-NMS_IOU = 0.6
+NMS_IOU = float(os.environ.get('MESA_NMS', 0.6))   # MESA_NMS=0.7 för att pröva en annan gräns
 
 def iou(a, b):
     ix0, iy0 = max(a[0], b[0]), max(a[1], b[1])
