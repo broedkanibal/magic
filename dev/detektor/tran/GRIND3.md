@@ -147,3 +147,15 @@ ligger över högen (91,00 s och 260,61 s; facit saknar handrutor där). Vid 0,7
 Nästa: (1) gränsen 0,7, med nano eller A (B:s låga tröskel ger dubbelt så många dubbletter); (2) ett dubblettsteg som vet
 hur en hög ser ut (två lådor förskjutna längs kortet med minst en namnremsa behålls båda), mätt mot dubbletterna;
 (3) handrutor i 91,00 och 260,61 (Jesper).
+
+**Gränsen vald på valideringen** (`nms_val.py`, 300 syntetiska bord + 71 riktiga rutor; mått = matchade − falska − dubbletter).
+Natt 1 A: 0,7 bäst (4 363; 0,6 ger 4 325, 0,8 ger 4 169). Grind 2:s nano: 0,65 bäst (4 318), 0,7 ger 4 277:
+den kortare tränade modellen ritar fler dubbletter. A vid 0,7 är bäst av allt på valideringen, och samma val
+står sig på provet (tabellen ovan): golden 62/66 och 13/15 hela högar, MES-246 97/110 hela högar, 0 falska.
+
+**Prövat och förkastat:** en högregel som behåller en låda som är förskjuten mot grannen med minst en namnremsa
+(4 361, ingen vinst mot 0,7), och en som bara tar bort lådor som ligger nästan helt inne i en annan (4 375 mot
+4 363, för liten vinst för en egen regel).
+
+**Beslutet att föreslå:** natt 1 A med NMS 0,7. Kvar i högarna är 3–4 täta land-högar där överlappet är över 0,7, och
+handfallen (91,00 s och 260,61 s), som Jespers handrutor tar hand om.
