@@ -1,0 +1,21 @@
+-- ═══════════════════════════════════════════════════════════════════
+--  Mesa — dold information läcker inte (MES-305)
+--
+--  Körs EFTER schema.sql och lekar.sql. Additiv och går att köra om.
+--  SKRIVEN men inte körd: Jesper kör den (SQL Editor, eller
+--  `supabase db push`) FÖRE koden från grenen mes-305-dold-information
+--  driftsätts — klienten räknar med tabellen och policyerna nedan.
+--
+--  Tre läckor, tre delar. Alla tre gäller samma sak: en motståndare ska
+--  bara få det hen får se vid ett riktigt bord.
+--
+--   1. game_players.lek — den gamla lekkolumnen töms. Raden i game_players
+--      läses av alla i spelet (gp_las, realtime), och där låg hela
+--      leklistor från före decks. Appen hämtar inte kolumnen längre
+--      (hamtaSpel väljer kolumner); det här tar bort det som redan ligger
+--      där. Kolumnen släpps i en senare migration, när ingen äldre klient
+--      som frågar efter den är kvar.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ── 1. Gamla leklistor ─────────────────────────────────────────────
+update public.game_players set lek = null where lek is not null;

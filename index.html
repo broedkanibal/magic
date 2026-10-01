@@ -5869,11 +5869,23 @@ const Moln = (() => {
   /* Hämtar spelet i sin helhet: deltagare och deras bord. Returneras i
      den form appen redan har i minnet, så att renderingen inte behöver
      veta att korten kom någon annanstans ifrån. */
+  /* Deltagarraderna hämtas med en kolumnlista, aldrig select('*') (MES-305):
+     den gamla kolumnen lek — hela leklistor från före decks — följde annars
+     med till alla i spelet. Migrationen 20261002000000_mes305 tömmer den.
+     status finns först efter status.sql: saknas kolumnen hämtas raderna utan. */
+  const GP_FALT = 'user_id, namn, farg, plats, lage, lek_id, lek_info';
+  const kolumnSaknas = e => !!e && (e.code === '42703' || e.code === 'PGRST204' || /column|schema cache/i.test(e.message || ''));
+  async function hamtaSpelare(s, gameId) {
+    const fraga = falt => s.from('game_players').select(falt).eq('game_id', gameId).order('plats');
+    let r = await fraga(GP_FALT + ', status');
+    if (r.error && kolumnSaknas(r.error)) r = await fraga(GP_FALT);
+    return r;
+  }
   async function hamtaSpel(gameId) {
     const s = await klient(); if (!s) throw new Error('Not connected');
     const [g, sp, bd] = await Promise.all([
       s.from('games').select('*').eq('id', gameId).single(),
-      s.from('game_players').select('*').eq('game_id', gameId).order('plats'),
+      hamtaSpelare(s, gameId),
       s.from('boards').select('*').eq('game_id', gameId)
     ]);
     if (g.error) throw g.error;
@@ -6070,17 +6082,9 @@ const Moln = (() => {
     if (error) throw new Error(error.message || 'The deck could not be fetched');
     return (data && data.lek) || null;
   }
-  /* Den GAMLA vägen: leken som en kolumn på game_players. Läses bara en sista
-     gång, för att flytta över en lek sparad före kontotabellen. Skrivs aldrig
-     mer. Kastar vid databasfel i stället för att svara null — ett nätfel som
-     ser ut som en tom lek skulle annars se ut som "ingen lek att flytta". */
-  async function hamtaLek(gameId) {
-    const s = await klient(); if (!s || !inloggad()) return null;
-    const { data, error } = await s.from('game_players').select('lek')
-      .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
-    if (error) throw new Error(error.message || 'The deck could not be fetched');
-    return (data && data.lek) || null;
-  }
+  /* Den ÄLDSTA vägen — leken som kolumnen lek på game_players — lästes här
+     en sista gång för att flytta gamla lekar. Borttagen (MES-305): kolumnen
+     töms av migrationen och läses aldrig mer. */
 
   async function dopOm(gameId, namn) {
     const s = await klient(); if (!s || !inloggad()) return false;
@@ -6164,10 +6168,14 @@ const Moln = (() => {
      värdet i händelsen går inte att använda — med radsäkerhet påslagen bär
      det bara primärnyckeln. Rader som inte setts förut släpps alltid fram. */
   const gpSist = new Map();
-  const gpNyckel = n => JSON.stringify(Object.keys(n).filter(k => k !== 'sedd').sort().map(k => [k, n[k]]));
+  /* En fast lista, inte radens nycklar: raden ur realtime bär alla kolumner,
+     den ur hämtningen bara de appen använder (GP_FALT), och de ska ge samma
+     nyckel. Saknad kolumn och null räknas lika. */
+  const GP_NYCKLAR = ['user_id', 'namn', 'farg', 'plats', 'lage', 'lek_id', 'lek_info', 'status'];
+  const gpNyckel = n => JSON.stringify(GP_NYCKLAR.map(k => [k, n[k] === undefined ? null : n[k]]));
   async function froGp(gameId) {
     const s = await klient(); if (!s) return;
-    const { data } = await s.from('game_players').select('*').eq('game_id', gameId);
+    const { data } = await hamtaSpelare(s, gameId);
     if (slagSpel !== gameId) return;
     for (const r of (data || [])) if (!gpSist.has(r.user_id)) gpSist.set(r.user_id, gpNyckel(r));
   }
@@ -6463,7 +6471,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek, hamtaLek,
+           avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -12625,7 +12633,7 @@ function parseList(txt) {
    (game_id, user_id), så leken dog med spelet och fick läggas in på nytt
    varje spelkväll. Och telefonen som fotograferar och datorn som spelar
    är två enheter; det enda som binder dem är inloggningen. Den gamla
-   kolumnen läses en sista gång, för att flytta över gamla lekar.
+   kolumnen töms av migrationen för MES-305 och läses inte längre.
 
    BASLÄNDERNA FOTOGRAFERAS INTE. byggLekPool läser aldrig k.n, och den
    hämtar dessutom tjugofyra tryckningar av varje landskap ur Scryfall
@@ -25980,10 +25988,10 @@ async function kamValdLek() {
     const rad = await Moln.hamtaLekRad(l.id).catch(() => null);
     if (rad && rad.kort && rad.kort.length) return rad;
   }
-  /* Legacy: en lek per konto, och före det leken som kolumn på spelet. */
+  /* Legacy: en lek per konto (lekar). Leken som kolumn på spelet läses inte
+     längre — kolumnen töms (MES-305). */
   let lek = null;
   try { lek = await Moln.hamtaMinLek(); } catch (e) { lek = null; }
-  if (!lek || !lek.kort || !lek.kort.length) { try { lek = await Moln.hamtaLek(kamLage.id); } catch (e) { lek = null; } }
   return lek && lek.kort && lek.kort.length ? Object.assign({ namn: 'My deck' }, lek) : null;
 }
 async function byggKamPool() {
