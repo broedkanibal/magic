@@ -5345,7 +5345,7 @@ function toast(msg, kind, undo) {
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
             lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1',
             lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1', oppstart: 'sthv.oppstart.v1',
-            kamBild: 'sthv.kambild.v1' };
+            kamBild: 'sthv.kambild.v1', dolt: 'sthv.dolt.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -5883,13 +5883,22 @@ const Moln = (() => {
   }
   async function hamtaSpel(gameId) {
     const s = await klient(); if (!s) throw new Error('Not connected');
-    const [g, sp, bd] = await Promise.all([
+    const [g, sp, bd, dolt] = await Promise.all([
       s.from('games').select('*').eq('id', gameId).single(),
       hamtaSpelare(s, gameId),
-      s.from('boards').select('*').eq('game_id', gameId)
+      s.from('boards').select('*').eq('game_id', gameId),
+      hamtaDolt(s, gameId)
     ]);
     if (g.error) throw g.error;
     const bord = new Map((bd.data || []).map(b => [b.user_id, b]));
+    /* Mina nedvända kort får sina namn tillbaka ur hidden_cards (MES-305);
+       de andras står kvar som baksidor — det är allt deras rad bär. Bara
+       kort som kom utan namn: raden är sanningen för allt som ligger uppåt. */
+    const medDolt = (uid, kort) => {
+      if (uid !== minId() || !dolt) return kort;
+      for (const c of kort) { const d = dolt[c.cid]; if (d && d.name && !c.name) { c.name = d.name; if (d.sid) c.sid = d.sid; } }
+      return kort;
+    };
     return {
       spel: g.data,
       /* Jag först, alltid. Ordningen i game_players är den man råkade gå
@@ -5905,7 +5914,7 @@ const Moln = (() => {
         lage: p.lage === 'bord' ? 'bord' : 'skarm',
         lekId: p.lek_id || null, lek: p.lek_info || null,
         status: p.status || null,          // MES-170: null före status.sql
-        cards: (bord.get(p.user_id) || {}).kort || [],
+        cards: medDolt(p.user_id, (bord.get(p.user_id) || {}).kort || []),
         version: (bord.get(p.user_id) || {}).version || 0
       })).sort((a, b) =>
         (a.user_id === minId() ? -1 : b.user_id === minId() ? 1 : a.plats - b.plats))
@@ -5921,14 +5930,52 @@ const Moln = (() => {
      bar visserligen med sig hela listan, men bara om det kom en nästa. Nu
      hålls det senaste misslyckade bordet kvar och skickas om. */
   let ovantat = null, omforsokT = null, omforsokMs = 800;
-  async function sparaBord(gameId, kort) {
+  /* De nedvända kortens namn (MES-305): { cid: { name, sid } } i hidden_cards,
+     som bara ägaren får läsa — så byggs hens eget bord upp helt efter en
+     omladdning utan att namnen någonsin ligger i den delade raden. Skrivs
+     bara när de ändrats (doltSist fröas av hamtaDolt med serverns rad), och
+     FÖRE bordet: ett bord utan namn som ägaren inte får tillbaka vore värre än
+     ett bord som kommer en skrivning senare. En lokal kopia (K.dolt) är
+     reserven när tabellen saknas (migrationen inte körd) eller nätet sviker. */
+  let doltSist = null;
+  async function sparaDolt(s, gameId, dolt) {
+    const json = JSON.stringify(dolt);
+    LS.set(K.dolt, { spel: gameId, uid: minId(), dolt });
+    if (doltSist && doltSist.spel === gameId && doltSist.json === json) return;
+    if (saknas.dolt) return;
+    const { error } = await s.from('hidden_cards')
+      .upsert({ game_id: gameId, user_id: minId(), kort: dolt, andrad: new Date().toISOString() }, { onConflict: 'game_id,user_id' });
+    if (error) {
+      if (saknasFel(error)) { saknas.dolt = true; console.warn('hidden_cards saknas — migrationen för MES-305 är inte körd. Nedvända korts namn sparas bara i den här webbläsaren.'); }
+      else console.warn('De nedvända korten kunde inte sparas', error.message);
+      return;
+    }
+    doltSist = { spel: gameId, json };
+  }
+  /* Ägarens namn på sina nedvända kort, ur hidden_cards. Den lokala kopian
+     läggs på (den är nyare om serverskrivningen föll). null = inget dolt. */
+  async function hamtaDolt(s, gameId) {
+    const lokal = LS.get(K.dolt, null);
+    const ur = lokal && lokal.spel === gameId && lokal.uid === minId() && lokal.dolt ? lokal.dolt : {};
+    let server = {};
+    if (inloggad() && !saknas.dolt) {
+      const { data, error } = await s.from('hidden_cards').select('kort').eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+      if (error) { if (saknasFel(error)) saknas.dolt = true; else console.warn('De nedvända korten kunde inte hämtas', error.message); }
+      else server = (data && data.kort) || {};
+    }
+    doltSist = { spel: gameId, json: JSON.stringify(server) };
+    const alla = Object.assign({}, server, ur);
+    return Object.keys(alla).length ? alla : null;
+  }
+  async function sparaBord(gameId, kort, dolt) {
     const s = await klient();
-    if (!s || !inloggad()) { koaOm(gameId, kort); return false; }
+    if (!s || !inloggad()) { koaOm(gameId, kort, dolt); return false; }
+    if (dolt) await sparaDolt(s, gameId, dolt);
     const { error } = await s.from('boards')
       .upsert({ game_id: gameId, user_id: minId(), kort }, { onConflict: 'game_id,user_id' });
     if (error) {
       console.warn('Bordet kunde inte sparas', error.message);
-      koaOm(gameId, kort);
+      koaOm(gameId, kort, dolt);
       return false;
     }
     ovantat = null; clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
@@ -5937,22 +5984,22 @@ const Moln = (() => {
   }
   /* Kön är EN post, inte en lista: varje skrivning bär hela kortlistan, så
      det enda som betyder något är den senaste. */
-  function koaOm(gameId, kort) {
-    ovantat = { gameId, kort };
+  function koaOm(gameId, kort, dolt) {
+    ovantat = { gameId, kort, dolt };
     if (lyssnare.sparat) lyssnare.sparat(false);
     if (omforsokT) return;
     omforsokT = setTimeout(() => {
       omforsokT = null;
       omforsokMs = Math.min(omforsokMs * 2, 15000);
       const v = ovantat;
-      if (v) sparaBord(v.gameId, v.kort);
+      if (v) sparaBord(v.gameId, v.kort, v.dolt);
     }, omforsokMs);
   }
   function skickaOmVantande() {
     if (!ovantat) return false;
     clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
     const v = ovantat;
-    sparaBord(v.gameId, v.kort);
+    sparaBord(v.gameId, v.kort, v.dolt);
     return true;
   }
 
@@ -6659,9 +6706,25 @@ function slimSpelare(p) {
    tillbaka nästa kväll på kort som den nya sessionen aldrig sett — och
    första bordsbilden dömde dem allihop som lyfta från mattan. slimKort,
    den lokala sparningen, har aldrig tagit med det. */
+/* Ett nedvänt kort delas UTAN namn och tryckning (MES-305). Den delade raden
+   läses av alla i spelet (boards_las), och vad ett nedvänt kort är hör bara
+   ägaren till — att dölja namnet i gränssnittet räcker inte när det ligger i
+   raden. Nedvänt = flipped utan en andra sida att visa: ett dubbelsidigt kort
+   visar sin baksida för alla och delas som förut. Ett kort appen inte känner
+   (ingen kortdata än) räknas som dolt — hellre en baksida för mycket än ett
+   namn för mycket. I graveyard och exile ligger kortet synligt, som vid
+   bordet. Ägarens namn på korten går i stället till hidden_cards (doldaKort →
+   Moln.sparaBord), som bara ägaren får läsa, så att hens eget bord byggs upp
+   helt efter en omladdning. */
+function doltKort(c) { return !!c.flipped && paMattan(c) && !arDfc(cardOf(c)); }
+function doldaKort(cards) {
+  const ut = {};
+  for (const c of cards || []) if (doltKort(c) && c.name) ut[c.cid] = c.sid ? { name: c.name, sid: c.sid } : { name: c.name };
+  return ut;
+}
 function slimDelat(cards) {
   return (cards || []).map(c => ({
-    cid: c.cid, name: c.name, sid: c.sid || undefined,
+    cid: c.cid, name: doltKort(c) ? undefined : c.name, sid: !doltKort(c) && c.sid ? c.sid : undefined,
     flipped: c.flipped ? 1 : 0, tapped: c.tapped ? 1 : 0,
     attachedTo: c.attachedTo || undefined, zon: c.zon || undefined,
     /* Nedtoningen följer med: utan den kom ett lyft kort tillbaka som ett
@@ -6730,7 +6793,7 @@ function sparaNu() {
      de andras skärmar. */
   LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel, bord: bord.valt });
   const mig = minSpelare();
-  if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards));
+  if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards), doldaKort(mig.cards));
 }
 /* Sista chansen att få ut det som ligger i debouncen. Utan den försvann de
    sista 250 millisekundrarnas arbete när fliken stängdes. */
@@ -6960,7 +7023,7 @@ function bordTummar(cards, max) {
   return cards.filter(c => paMattan(c) && !c.attachedTo).slice(0, max).map(c => {
     const card = cardOf(c), dfc = arDfc(card);
     const src = c.flipped && !dfc ? BAKSIDA : card ? (imgOf(card, c.flipped && dfc ? 1 : 0, 'small') || '') : '';
-    return `<i class="othumb${c.tapped ? ' tappad' : ''}"${src ? ` style="background-image:url('${esc(src)}')"` : ''} title="${esc(card ? card.name : c.name)}"></i>`;
+    return `<i class="othumb${c.tapped ? ' tappad' : ''}"${src ? ` style="background-image:url('${esc(src)}')"` : ''} title="${esc(card ? card.name : arDolt(c) ? DOLD_NAMN : c.name)}"></i>`;
   }).join('');
 }
 function bordListHtml(namn, pips, cards, tangent, hint) {
@@ -7644,13 +7707,17 @@ function flyttaTill(i, zon) {
    en knapp. bif: korten som sitter på värden — det de ger ritas på den. */
 function kortHtml(e, i, extra, pos, bif, las) {
   const card = cardOf(e);
-  const st = cardStatus(e);
+  const dold = arDolt(e);                           // någon annans nedvända kort: inget att slå upp (MES-305)
+  const st = dold ? 'ok' : cardStatus(e);
   const dfc = arDfc(card);
   const fi = e.flipped && dfc ? 1 : 0;
   const land = matSlag(e) === 'land';
-  const src = e.flipped && !dfc ? BAKSIDA
+  /* Baksidan uppåt: ingen framsida, och inget av det framsidan säger — varken
+     nyckelord eller P/T ritas ovanpå en baksida (MES-305). */
+  const baksida = !!e.flipped && !dfc;
+  const src = baksida ? BAKSIDA
     : (card ? (land ? (imgOf(card, fi, 'small') || imgOf(card, fi, 'normal')) : imgOf(card, fi, 'normal')) : '');
-  const label = card ? card.name : e.name;
+  const label = card ? card.name : dold ? DOLD_NAMN : e.name;
   /* Ett kort som kameran just lade ut pulserar till en gång — det är hela
      återkopplingen på att bordet och spegeln nu är i fas. */
   const nytt = e.ny && Date.now() - e.ny < 2500;
@@ -7662,11 +7729,11 @@ function kortHtml(e, i, extra, pos, bif, las) {
      counters eller bifogade kort ändrar den. */
   const f = card && card.faces[fi] || null;
   const eff = bifEffekt(bif);
-  const visaOrd = !land && e.lyft == null && !!card;
+  const visaOrd = !land && !baksida && e.lyft == null && !!card;
   const tryckt = visaOrd ? (card.kw || []) : [];
   const givna = visaOrd ? eff.kw.filter(w => !tryckt.some(k => k.toLowerCase() === w.toLowerCase())) : [];
   const ord = ordTak(tryckt, givna);
-  const pv = e.lyft != null || land ? null : ptVarden(e, f, eff);
+  const pv = e.lyft != null || land || baksida ? null : ptVarden(e, f, eff);
   const kwHtml = !ord.length ? '' : `<span class="kwkort">${ord.map(o => o.g ? `<b class="giv">${KEDJA}${esc(o.t)}</b>` : `<b>${esc(o.t)}</b>`).join('')}</span>`;
   const kl = ['card', land ? 'land' : '', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', e.lyft != null ? 'lyft' : '', dom ? 'dom-' + dom : '',
@@ -8072,6 +8139,11 @@ const IKON_HAND = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" s
    miniatyr (Jespers skärmdump 2026-09-11, MES-42). Namnet skickas aldrig
    till Claude (kamAiNamnen) och står aldrig bland förslagen (kamIdentifiera). */
 const BAKSIDA_NAMN = '(baksida)';
+/* Någon annans nedvända kort (MES-305): raden kom utan namn och tryckning,
+   och så ska det vara. Ritas som en baksida och heter så här överallt där
+   ett namn annars står — kortet, miniatyren, inspektorn och förstoringen. */
+const DOLD_NAMN = 'Face-down card';
+function arDolt(e) { return !!(e && e.flipped && !e.name && !e.sid); }
 /* Poolens namn utan baksidan: det namnläsaren och Claude får se. */
 function namnUtanBaksida() { return ((Pool.idx && Pool.idx.names) || []).filter(n => n !== BAKSIDA_NAMN); }
 
@@ -9273,7 +9345,7 @@ function renderInspektor() {
   const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
   /* Ett fel är ett eget läge i nyckeln — annars byts "Fetching…" aldrig ut. */
   const fel = e && !c ? felText(keyOf(e)) : '';
-  if (e && !c && !fel) insHamta(e);
+  if (e && !c && !fel && !arDolt(e)) insHamta(e);
   const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, fel, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
   if (body.dataset.k === nyckel) return;
   body.dataset.k = nyckel;
@@ -9281,7 +9353,7 @@ function renderInspektor() {
   if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">Point at a card to see it here</div></div>'; return; }
   const src = e.flipped && !dfc ? BAKSIDA : (c ? (imgOf(c, fi, 'png') || imgOf(c, fi, 'large')) : '');
   const f = c && c.faces[fi] || null;
-  const namn = c ? c.name : e.name;
+  const namn = c ? c.name : arDolt(e) ? DOLD_NAMN : e.name;
   const typ = f ? f.type : (matSlag(e) === 'land' ? 'Land' : 'Permanent');
   const kw = (c && c.kw) || [];
   const grupper = {};
@@ -10062,13 +10134,13 @@ function renderFocus() {
   if (stor) { img.src = stor; img.hidden = false; }
   else { img.removeAttribute('src'); img.hidden = true; }
   $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
-    : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Your hand is empty'}</div>`;
+    : `<div style="color:var(--dim2)">${e ? esc(arDolt(e) ? DOLD_NAMN : e.name) : 'Your hand is empty'}</div>`;
   $('#fxStrip').innerHTML = lista.map((x, i) => {
     const c = cardOf(x);
     const dfc2 = arDfc(c);
     const f2 = x.flipped && dfc2 ? 1 : 0;
     const s2 = x.flipped && !dfc2 ? BAKSIDA : (c ? imgOf(c, f2, 'small') : '');
-    return `<button class="${i === sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : x.name)}">
+    return `<button class="${i === sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : arDolt(x) ? DOLD_NAMN : x.name)}">
       ${s2 ? `<img src="${esc(s2)}" alt="">` : ''}</button>`;
   }).join('');
   const on = $('#fxStrip .on');
@@ -30393,6 +30465,7 @@ async function loggaUtHelt() {
   await lamnaSpelet();
   LS.del(K.lage);
   LS.del(K.ui);
+  LS.del(K.dolt);
   await Moln.loggaUt();
   visaVy('start');
   location.reload();

@@ -15,7 +15,41 @@
 --      (hamtaSpel väljer kolumner); det här tar bort det som redan ligger
 --      där. Kolumnen släpps i en senare migration, när ingen äldre klient
 --      som frågar efter den är kvar.
+--   2. hidden_cards — ägarens namn på sina nedvända kort. boards.kort delas
+--      med alla i spelet (boards_las) och bär inte längre namnet på ett
+--      nedvänt kort (slimDelat); ägaren behöver det när hen laddar om.
+--      Bara ägaren läser och skriver sin rad. Inte i realtime-publikationen:
+--      ingen behöver höra när den ändras.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── 1. Gamla leklistor ─────────────────────────────────────────────
 update public.game_players set lek = null where lek is not null;
+
+-- ── 2. Nedvända kort ───────────────────────────────────────────────
+-- kort: { "<cid>": { "name": "…", "sid": "…" } } för korten som ligger
+-- nedvända just nu. Raden skrivs om varje gång mängden ändras.
+create table if not exists public.hidden_cards (
+  game_id     uuid not null references public.games(id) on delete cascade,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  kort        jsonb not null default '{}'::jsonb,
+  andrad      timestamptz not null default now(),
+  primary key (game_id, user_id)
+);
+alter table public.hidden_cards enable row level security;
+
+-- Här sitter hela skyddet: bara ägaren, i alla fyra verb. Ingen "alla i
+-- spelet får titta" som för boards — det är just det som skiljer tabellen.
+drop policy if exists hidden_las on public.hidden_cards;
+create policy hidden_las on public.hidden_cards for select
+  using (user_id = auth.uid());
+drop policy if exists hidden_skriv on public.hidden_cards;
+create policy hidden_skriv on public.hidden_cards for insert
+  with check (user_id = auth.uid() and public.i_spelet(game_id));
+drop policy if exists hidden_andra on public.hidden_cards;
+create policy hidden_andra on public.hidden_cards for update
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists hidden_radera on public.hidden_cards;
+create policy hidden_radera on public.hidden_cards for delete
+  using (user_id = auth.uid());
+
+grant select, insert, update, delete on public.hidden_cards to authenticated;
