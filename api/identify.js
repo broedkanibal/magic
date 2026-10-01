@@ -295,13 +295,15 @@ export default async function handler(req, res) {
     if (r.ok) vakt.betald = true;
     return r;
   };
-  let svar = null;
+  let svar = null, fangad = false;
   const json0 = res.json;
-  res.json = function (o) { svar = o; return json0.call(this, o); };
+  /* Vercels res.json är en vanlig egenskap; skulle den inte gå att byta
+     svarar frågan ändå, bara utan tokens i loggen. */
+  try { res.json = function (o) { svar = o; return json0.call(this, o); }; fangad = true; } catch (e) {}
   try {
     await pagaendeFraga.run(vakt, () => fraga(req, res));
   } finally {
-    res.json = json0;
+    if (fangad) res.json = json0;
     const u = (svar && svar.usage) || {};
     const tal = v => (v == null || !Number.isFinite(+v)) ? null : Math.round(+v);
     /* Efter svaret: klienten har redan fått det och väntar inte på loggen. */
