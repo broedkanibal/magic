@@ -5649,7 +5649,8 @@ const Moln = (() => {
   let sb = null;            // klienten, null tills den laddats
   let konf = null;          // svaret från /api/config
   let session = null;
-  let kanal = null;         // realtidsprenumerationen
+  let kanal = null;         // realtidsprenumerationen: spelets kanal
+  let kamKan = null;        // kamerakanalen: kontots egen, privat (MES-305)
   const lyssnare = { spelare: null, bord: null, sparat: null };
 
   async function konfig() {
@@ -6238,9 +6239,11 @@ const Moln = (() => {
     return forut === nyckel;
   }
 
-  /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
-     anropas, så en andra prenumeration för avläsningarna kan inte vara en
-     egen kanal — den hade tystat borden. Allt hänger på samma. */
+  /* EN kanal för spelet: borden, deltagarna, avläsningarna, kalibreringen
+     och närvaron — det alla i spelet får se. lyssna() river den befintliga
+     varje gång den anropas, så en andra prenumeration för avläsningarna kan
+     inte vara en egen kanal med samma namn — den hade tystat borden. Kamerans
+     meddelanden går på kontots egen kanal nedan (MES-305). */
   async function lyssna(gameId, cb) {
     const s = await klient(); if (!s) return;
     await lamnaKanal();
@@ -6248,6 +6251,7 @@ const Moln = (() => {
     lyssnare.scan = cb.scan; lyssnare.kal = cb.kal; lyssnare.uppkopplad = cb.uppkopplad;
     lyssnare.sparat = cb.sparat;
     lyssnare.kam = cb.kam; lyssnare.narvaro = cb.narvaro;
+    lyssnare.kamfel = cb.kamfel || null;
     lyssnare.roll = cb.roll || null;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
@@ -6258,12 +6262,6 @@ const Moln = (() => {
           p => lyssnare.scan && lyssnare.scan(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_setups', filter: 'game_id=eq.' + gameId },
           p => lyssnare.kal && lyssnare.kal(p.new || p.old))
-      /* Bilden från telefonen går INTE genom databasen. En kalibrering vill ha
-         några bildrutor i sekunden och de ska aldrig sparas — de är bara till
-         för att man ska kunna sikta. Broadcast passerar servern utan att röra
-         en tabell, och kanalen finns redan. Samma väg bär kommandon åt andra
-         hållet: börja skicka, sluta skicka, koppla från. */
-      .on('broadcast', { event: 'kam' }, p => lyssnare.kam && lyssnare.kam(p.payload || {}))
       /* Närvaro svarar på den enda fråga gränssnittet egentligen ställer:
          sitter det en kamera i det här spelet just nu? Utan den fick datorn
          gissa utifrån om det råkat komma en bild. */
@@ -6282,6 +6280,30 @@ const Moln = (() => {
         if (lyssnare.roll) { try { await kanal.track({ roll: lyssnare.roll, id: minId() }); } catch (e) {} }
         if (lyssnare.uppkopplad) lyssnare.uppkopplad();
       });
+    /* Bilden från telefonen går INTE genom databasen. En kalibrering vill ha
+       några bildrutor i sekunden och de ska aldrig sparas — de är bara till
+       för att man ska kunna sikta. Broadcast passerar servern utan att röra
+       en tabell. Samma väg bär kommandon åt andra hållet: börja skicka,
+       sluta skicka, koppla från.
+
+       Kanalen är KONTOTS, inte spelets (MES-305): 'kam:<user_id>', privat.
+       Förut gick bilder, beskärningar och spårlistor på spelets kanal till
+       alla i spelet och sållades först hos mottagaren — fotografier av ens
+       eget bord i varje motståndares webbläsare. Realtime släpper nu bara in
+       den som är inloggad som kontot (policyerna på realtime.messages i
+       migrationen 20261002000000_mes305). Telefon och dator är samma konto,
+       så båda hör varandra; ingen annan hör något. Nekas kanalen — policyn
+       saknas, eller enheten är utloggad — sägs det högt via kamfel: en
+       kamera som tyst aldrig når datorn vore värre än ett fel. */
+    if (minId()) {
+      kamKan = s.channel('kam:' + minId(), { config: { private: true } })
+        .on('broadcast', { event: 'kam' }, p => lyssnare.kam && lyssnare.kam(p.payload || {}))
+        .subscribe((st, fel) => {
+          if (st !== 'CHANNEL_ERROR') return;
+          console.warn('Kamerakanalen nekades', fel && fel.message);
+          if (lyssnare.kamfel) lyssnare.kamfel(fel);
+        });
+    }
     startaHjartslag(gameId);
     froGp(gameId).catch(() => {});
   }
@@ -6389,21 +6411,17 @@ const Moln = (() => {
 
   /* Ett meddelande på kanalen. Returnerar utan att kasta om kanalen inte är
      uppe — en tappad bildruta är ingenting att stanna för. */
-  /* Avsändaren följer med i varje meddelande. Kanalen är spelets — alla
-     telefoner och alla datorer i det hör allt — och telefon och dator hör
-     ihop genom att vara samma konto. Utan fältet skrev Jespers telefon sitt
-     bord på Johns dator, som sparade det som Johns (MES-22). Rollen följer
-     också med: två telefoner på samma konto svarade annars varandra på
-     "trösklar" i all evighet, för svaret hade samma form som frågan.
-
-     Fältet är ett påstående, inte ett bevis: broadcast intygar ingen
-     avsändare, och den som vill kan skriva vilket id som helst i det. Det
-     räcker mot misstag mellan spelare som litar på varandra — vilket är vad
-     ett spelbord är — men inte mot en som vill. En egen kanal per konto vore
-     nästa steg. En utloggad enhet skickar ingenting alls. */
+  /* Avsändaren följer med i varje meddelande. Kanalen är kontots egen sedan
+     MES-305 (kam:<user_id>, privat), så bara mina enheter hör den — men
+     fältet är kvar: mottagarna (kamTogsEmot, kamKommando) kräver av === mitt
+     id och rätt roll, och det skyddet kostar ingenting. Rollen följer också
+     med: två telefoner på samma konto svarade annars varandra på "trösklar"
+     i all evighet, för svaret hade samma form som frågan. Historien: på
+     spelets kanal skrev Jespers telefon sitt bord på Johns dator, som sparade
+     det som Johns (MES-22). En utloggad enhet skickar ingenting alls. */
   function sandKam(typ, data) {
-    if (!kanal || !minId()) return false;
-    try { kanal.send({ type: 'broadcast', event: 'kam', payload: Object.assign({ typ, av: minId(), fran: lyssnare.roll || 'dator' }, data || {}) }); return true; }
+    if (!kamKan || !minId()) return false;
+    try { kamKan.send({ type: 'broadcast', event: 'kam', payload: Object.assign({ typ, av: minId(), fran: lyssnare.roll || 'dator' }, data || {}) }); return true; }
     catch (e) { return false; }
   }
 
@@ -6445,6 +6463,7 @@ const Moln = (() => {
     if (lyssnare.sparat) lyssnare.sparat(true);
     lyssnare.sparat = null;
     stoppaHjartslag(); gpSist.clear();
+    if (kamKan) { try { await kamKan.unsubscribe(); } catch (e) {} kamKan = null; }
     if (!kanal) return;
     try { await kanal.unsubscribe(); } catch (e) {}
     kanal = null;
@@ -25909,7 +25928,10 @@ async function oppnaKamera(gameId) {
     spelare: () => byggKamPool(),
     kal: rad => { if (rad && rad.user_id === Moln.minId()) tillampaKalibrering(rad); },
     scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); },
-    kam: m => kamKommando(m)
+    kam: m => kamKommando(m),
+    /* Den privata kamerakanalen nekades (MES-305): bilderna når ingen dator.
+       Sägs i statusraden i stället för att kameran tyst filmar i ett svart hål. */
+    kamfel: () => kamSag('fel', 'The camera channel was refused — this phone cannot reach the computer')
   });
 
   try {
@@ -29474,6 +29496,16 @@ function dockaKamOv() {
   ov.style.setProperty('--pop-top', Math.round(r && r.bottom ? r.bottom + 8 : 52) + 'px');
   ov.style.setProperty('--pop-right', Math.max(8, Math.round(r && r.right ? innerWidth - r.right : 12)) + 'px');
 }
+/* Den privata kamerakanalen nekades (MES-305): utan den når telefonen aldrig
+   den här datorn, och det ska sägas, inte tystas. Oftast betyder det att
+   migrationen med policyerna på realtime.messages inte är körd. En gång per
+   spel; detaljen står i konsolen (Moln.lyssna). */
+let kamKanalVarnat = null;
+function kamKanalFel() {
+  if (!spelLage || kamKanalVarnat === spelLage.id) return;
+  kamKanalVarnat = spelLage.id;
+  toast('The camera channel could not be opened — the phone cannot reach this computer', 'err');
+}
 /* Närvarolistan från kanalen. Kommer och går telefonen byter dialogen läge av
    sig själv — ingen knapp att trycka på någonstans. */
 function kamNarvaro(kameror) {
@@ -30216,6 +30248,7 @@ async function oppnaSpel(gameId, farsk) {
     spelare: () => hamtaOm(),
     scan: rad => taEmotScan(rad),
     kam: m => kamTogsEmot(m),
+    kamfel: () => kamKanalFel(),
     narvaro: k => kamNarvaro(k),
     /* Sockeln kan ha varit nere. De händelser som missades under tiden spelas
        aldrig upp, och den enda som fanns här var en koll av kameraköen — allt

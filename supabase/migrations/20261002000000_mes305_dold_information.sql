@@ -20,6 +20,12 @@
 --      nedvänt kort (slimDelat); ägaren behöver det när hen laddar om.
 --      Bara ägaren läser och skriver sin rad. Inte i realtime-publikationen:
 --      ingen behöver höra när den ändras.
+--   3. realtime.messages — policyer för den privata kamerakanalen
+--      'kam:<user_id>' (och lekkanalen 'lek:<user_id>', som får gå samma
+--      väg när klienten byter): bara kontot självt får sända och lyssna.
+--      Spelets kanal 'spel:<game_id>' är publik som förut och bär inte
+--      längre några kamerameddelanden. Utan policyerna nekar Realtime varje
+--      privat kanal, och appen säger det i stället för att tystna.
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ── 1. Gamla leklistor ─────────────────────────────────────────────
@@ -53,3 +59,22 @@ create policy hidden_radera on public.hidden_cards for delete
   using (user_id = auth.uid());
 
 grant select, insert, update, delete on public.hidden_cards to authenticated;
+
+-- ── 3. Den privata kamerakanalen ───────────────────────────────────
+-- Supabase Realtime, privata kanaler: en klient får gå med i kanalen bara
+-- om en select-policy på realtime.messages släpper igenom ämnet, och sända
+-- bara om en insert-policy gör det. realtime.topic() är kanalens namn.
+-- Bara den som är inloggad som kontot i namnet kommer in; anon får null ur
+-- auth.uid() och faller på jämförelsen.
+drop policy if exists kam_lyssna on realtime.messages;
+create policy kam_lyssna on realtime.messages for select to authenticated
+  using (
+    realtime.messages.extension in ('broadcast', 'presence')
+    and realtime.topic() in ('kam:' || (select auth.uid())::text, 'lek:' || (select auth.uid())::text)
+  );
+drop policy if exists kam_sanda on realtime.messages;
+create policy kam_sanda on realtime.messages for insert to authenticated
+  with check (
+    realtime.messages.extension in ('broadcast', 'presence')
+    and realtime.topic() in ('kam:' || (select auth.uid())::text, 'lek:' || (select auth.uid())::text)
+  );
