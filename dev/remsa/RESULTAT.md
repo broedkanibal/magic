@@ -236,16 +236,19 @@ raden ovan. Och appen läser inte alls när bandet i källan är under 20 px (`M
 appen hoppat över i stället för att läsa 0. Golden-siffrorna i OCR-tabellerna står: alla 77 rätt ur
 hörnen och 31 ur detektorlådorna har marginal ≥ 0,2.
 
-### Tiden per remsa på Macen (`tid.py`, mätt ensam)
+### Tiden per remsa på Macen (`tid.py` och `ocr.cjs --bara`, sparat i `resultat/tid*.json`)
 
-| Steg | Tid |
-|---|---|
-| varpning ur hörn + tryck till 256 × 256, ur en 4K-bild | 1 ms |
-| bildmodellen, onnxruntime på processorn, 4 trådar, en remsa i taget | **25 ms** (åtta i taget: 26 ms per remsa) |
-| bildmodellen, 1 tråd | 85 ms |
-| OCR (tesseract.js, en arbetare): per läsning av ett band | 56 ms |
-| OCR per kort (1–3 band tills 0,6, som appen) | **117 ms** (p90 231 ms) |
+| Steg | Tid | Mätt |
+|---|---|---|
+| varpning ur hörn + tryck till 256 × 256, ur en 3840 px bred bild | 1,0 ms | `tid.py`, last 3,3 |
+| bildmodellen, onnxruntime på processorn, 4 trådar, en remsa i taget | **25 ms** (åtta i taget: 29 ms per remsa) | `tid.py`, last 3,3 |
+| bildmodellen, 4 trådar, under last (nollprovets 21 körningar, median per körning) | 35–61 ms | `nollprov.json`, `ms_modell` |
+| bildmodellen, 1 tråd | 85 ms | `tid.py` |
+| OCR (tesseract.js, en arbetare) per kort, 1–3 band tills 0,6 som appen: golden orig titelraden (74 kort) | **117 ms** (p90 232 ms; 2,2 band per kort) | `tid-ocr-golden-orig-titelraden.json` |
 
+Bildmodellens 25 ms gäller en körning utan annan egen last (lastmedel 3,3 vid start); under nollprovets
+21 körningar, med annat igång, låg medianen 35–61 ms. OCR-tiden är en sparad ensam körning av samma
+74 golden-remsor som OCR-tabellen (`--bara orig/namnrad/golden`): 38 rätt, 0 fel, som där.
 Telefonen är inte mätt. MES-213 mätte 98 ms per 256 × 256-tensor med WebGPU i webbläsaren på
 Jespers Intel-Mac; remsan är samma tensor. Detektorn på 960 × 544: 52–96 ms per bild här.
 
