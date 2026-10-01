@@ -34,6 +34,17 @@ def ocr_tabell(rader):
     return ut
 
 
+def per_bild(rader):
+    """Rätt/remsor per källa × upplösning × utsnitt × bild (golden-fallen var för sig) — så att RESULTAT.md:s
+    rader per fall kommer ur filen, inte ur en avskrift (tabell.py)."""
+    ut = {}
+    for r in rader:
+        k = '|'.join([r['kalla'], r['res'], r['utsnitt'], str(r['bild'])])
+        d = ut.setdefault(k, {'remsor': 0, 'ratt': 0, 'fel': 0})
+        d['remsor'] += 1; d['ratt'] += bool(r['ratt']); d['fel'] += bool(r['fel'])
+    return {k: ut[k] for k in sorted(ut) if not k.startswith('mes246')}
+
+
 def skriv_ocr(tab):
     print('| Källa | Upplösning | Utsnitt | Remsor | Rätt (≥ 0,6) | **Fel (≥ 0,6)** | Inget namn | Topp-1 rätt oavsett poäng | Högkort rätt | Högkort fel | Titelrad px i källan | ms/remsa |')
     print('|---|---|---|---|---|---|---|---|---|---|---|---|')
@@ -132,7 +143,7 @@ def main():
     print(f"Namnläsaren: {j['lasare']}, godkänt vid poäng ≥ {j['godkant']}\n")
     tab = ocr_tabell(rader)
     skriv_ocr(tab)
-    ut = {'ocr': tab, 'sida_vid_sida': []}
+    ut = {'ocr': tab, 'sida_vid_sida': [], 'per_bild': per_bild(rader)}
     sidor = []
     if a.embed:
         emb = embed_rader(a.embed, a.andel, {'orig': 'orig', '1920': '1920', '960': '960'})

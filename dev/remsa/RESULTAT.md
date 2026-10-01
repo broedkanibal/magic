@@ -8,13 +8,16 @@ dagens bildmodell (MobileCLIP-S0, som jämför *hela* kort mot Scryfall), av dag
 
 | | |
 |---|---|
-| Behövs träning för remsan som sådan? | **Nej.** På skarpa foton (golden 03–06, 14–16: 64 remsor ur exakta hörn) sätter dagens otränade bildmodell rätt namn på **64 av 64**, 0 säkra fel, 25 av 25 högkort. Det är bättre än hela kort ger (53/61). |
+| Behövs träning för remsan som sådan? | **Nej.** På skarpa foton (golden 03–06, 14–16: 64 remsor ur exakta hörn) sätter dagens otränade bildmodell rätt namn på **64 av 64**, 0 säkra fel, 23 av 23 högkort. Det är bättre än hela kort ger (53/61). |
 | Vad fäller den då? | **Bilden, inte modellen.** (1) Blänk och oskärpa: i 4K-filmen MES-246 (vita kort i blanka fickor under lampa) är namnraden urblekt; modellen svarar *Swamp* på 598 av 735 remsor, 24 % rätt, 27 säkra fel. (2) Geometrin: appens axelparallella lådor i stället för kortets hörn kostar 67 → 41 av 61. (3) Upplösningen: 960 px analysbild kostar 12 av 74. |
-| OCR på samma remsor? | Sämre än bildmodellen överallt och lägger aldrig till ett kort den missar: golden 38/74 (0 fel) vid full upplösning, 23/74 vid 960; **MES-246 0/735** — texten finns inte i bilden. |
+| OCR på samma remsor? | Sämre än bildmodellen överallt och lägger så gott som aldrig till ett kort den missar (1 remsa av 2 950): golden 38/74 (0 fel) vid full upplösning, 23/74 vid 960; **MES-246 0/735** — texten finns inte i bilden. |
 | Högbänken (MES-250: högar 0/13, par 2/13) | Med detektorns remsor och bildmodellen: **högar 3/13, par 5/13, ensamma 14/39, 0 fel namn**. Högbänkens bilder är 1080p-skärminspelningar med ~10 px titelrad — där kan inget läsa. |
 | Rekommendation | **Inte träning nu.** Skär remsan ur kortets geometri (20 % av kortet, ur kamerans fulla bild), kalibrera om tröskeln på remsor, och mät blänket på riktig telefon. Steg 3 (träningsdata, Kaggle) är inte gjort — se *Rekommendation*. |
 
 Allt är mätt med skripten i `dev/remsa/` (*LÄS-MIG* längst ner). Inget i appen är ändrat.
+Tabellerna är genererade ur resultatfilerna av `tabell.py` (`--kontrollera` säger om dokumentet avviker
+från filerna); granskningen 2026-10-02 hittade två avskrivna mått som inte stämde (högkort "25/25" och
+"20/160"), och sedan dess skrivs ingen tabell för hand.
 Alla bilder är prov-material enligt `dev/detektor/delning.py` (`remsor.krav_prov` stoppar annat).
 
 ## 0. Kontrollen först: återger Python-koden embed.js?
@@ -24,10 +27,12 @@ redan är mätt. `kalibrering.py` kör exakt receptet (256 px, skarp + sudd, fyr
 centrering, poäng per namn, säker vid marginal > 0,11, webbläsarens omskalning) på de 61
 riktiga beskärningarna i `dev/embed/riktiga/`:
 
+<!-- tabell: kalibrering -->
 | | Rätt | Säkra rätt | Säkra fel |
 |---|---|---|---|
 | `dev/embed/RAPPORT.md`, modulen (2026-09-18) | 52/61 | 46 | 1–2 |
 | `kalibrering.py` (den här koden) | **53/61** | **46** | **2** |
+<!-- /tabell -->
 
 Samma kort faller (fall 11:s Swamp som Plains är det kända säkra felet). Receptet är rätt
 återgivet; det som mäts nedan är modellen, inte en bugg i omskrivningen.
@@ -54,41 +59,46 @@ först (960 är appens analysbild).
 Säker = marginal > 0,11 (dagens tröskel, kalibrerad på hela kort). *Nollfel* = den lägsta
 tröskel som ger 0 säkra fel på just det materialet, och hur många rätt som då blir säkra.
 
+<!-- tabell: nollprov -->
 | Källa | Andel | Upplösning | Remsor | Rätt | Säkra rätt | **Säkra fel** | Högkort rätt | Högkort säkra fel | Marginal (median, rätt) | Nollfel: tröskel → säkra | Remsans höjd i källan (px) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | golden | 0,12 | orig | 74 | 56 (76 %) | 42 | **0** | 21/29 | 0 | 0,249 | 0,079 → 46 | 47 |
 | golden | 0,16 | orig | 74 | 65 (88 %) | 61 | **1** | 25/29 | 0 | 0,351 | 0,124 → 60 | 62 |
-| golden | **0,20** | orig | 74 | **67 (91 %)** | 63 | **0** | 25/29 | 0 | 0,388 | 0,060 → 65 | 78 |
+| golden | 0,20 | orig | 74 | 67 (91 %) | 63 | **0** | 25/29 | 0 | 0,388 | 0,060 → 65 | 78 |
 | golden | 0,20 | 1920 | 74 | 66 (89 %) | 61 | **1** | 25/29 | 0 | 0,354 | 0,110 → 61 | 43 |
 | golden | 0,20 | 960 | 74 | 55 (74 %) | 36 | **1** | 23/29 | 0 | 0,224 | 0,121 → 36 | 38 |
 | golden | 0,16 | 960 | 74 | 40 (54 %) | 29 | **2** | 16/29 | 0 | 0,210 | 0,176 → 26 | 30 |
-| golden | 0,12 | 960 | 74 | 26 (35 %) | 9 | **3** | 9/29 | 3 | 0,081 | 0,123 → 7 | 23 |
+| golden | 0,12 | 960 | 74 | 26 (35 %) | 9 | **3** | 9/29 | 3 | 0,081 | 0,123 → 7 | 22 |
 | mes246 | 0,12 | orig | 735 | 123 (17 %) | 0 | **8** | 107/271 | 0 | 0,025 | 0,145 → 0 | 49 |
 | mes246 | 0,16 | orig | 735 | 168 (23 %) | 44 | **5** | 154/271 | 0 | 0,083 | 0,130 → 21 | 66 |
 | mes246 | 0,20 | orig | 735 | 178 (24 %) | 66 | **27** | 157/271 | 3 | 0,093 | 0,180 → 11 | 82 |
 | mes246 | 0,20 | 1920 | 735 | 179 (24 %) | 70 | **33** | 159/271 | 3 | 0,098 | 0,177 → 13 | 41 |
 | mes246 | 0,16 | 960 | 735 | 188 (26 %) | 9 | **47** | 165/271 | 0 | 0,041 | 0,230 → 0 | 16 |
-| mes246 | 0,20 | 960 | 735 | 180 (24 %) | 42 | **11** | 155/271 | 1 | 0,052 | 0,149 → 15 | 21 |
+| mes246 | 0,20 | 960 | 735 | 180 (24 %) | 42 | **11** | 155/271 | 1 | 0,052 | 0,149 → 15 | 20 |
 | riktiga | 0,12 | orig | 61 | 17 (28 %) | 9 | **1** | – | – | 0,117 | 0,115 → 9 | 29 |
 | riktiga | 0,16 | orig | 61 | 29 (48 %) | 23 | **1** | – | – | 0,224 | 0,125 → 23 | 38 |
 | riktiga | 0,20 | orig | 61 | 41 (67 %) | 31 | **0** | – | – | 0,258 | 0,104 → 32 | 48 |
+<!-- /tabell -->
 
 (Alla 21 kombinationer ligger i `resultat/nollprov.json`; de utelämnade raderna ändrar inte bilden.)
 
 ### Golden per fall (andel 0,20, orig)
 
-| Fall | Rätt | Säkra fel |
-|---|---|---|
-| 03 trä, lampa, 40 cm, 11 kort omlott | 11/11 | 0 |
-| 04 trä, dagsljus, 8 kort omlott | 8/8 | 0 |
-| 05 ribbor, dagsljus, 6 kort omlott | 6/6 | 0 |
-| 06 ljusgrå, dagsljus, 12 kort omlott | 11/11 | 0 |
-| 14 trä, lampa, 50 cm, 11 kort omlott (foto) | 10/10 | 0 |
-| 15 trä, dagsljus, 50 cm, samma kort (foto) | 10/10 | 0 |
-| 16 trä, lampa, 8 kort (foto) | 8/8 | 0 |
-| **13 svart matta, lampa, 4K-ruta ur MES-246** | **3/10** | 0 |
+<!-- tabell: golden-per-fall -->
+| Fall | Rätt | Säkra fel | Högkort rätt | OCR rätt (titelraden) |
+|---|---|---|---|---|
+| 03 trä, lampa, 40 cm, 11 kort omlott | 11/11 | 0 | 2/2 | 9/11 |
+| 04 trä, dagsljus, 8 kort omlott | 8/8 | 0 | 3/3 | 5/8 |
+| 05 ribbor, dagsljus, 6 kort omlott | 6/6 | 0 | 4/4 | 3/6 |
+| 06 ljusgrå, dagsljus, 12 kort omlott | 11/11 | 0 | 2/2 | 7/11 |
+| 14 trä, lampa, 50 cm, 11 kort omlott (foto) | 10/10 | 0 | 6/6 | 5/10 |
+| 15 trä, dagsljus, 50 cm, samma kort (foto) | 10/10 | 0 | 6/6 | 4/10 |
+| 16 trä, lampa, 8 kort (foto) | 8/8 | 0 | 0/0 | 5/8 |
+| 13 svart matta, lampa, 4K-ruta ur MES-246 | 3/10 | 0 | 2/6 | 0/10 |
+<!-- /tabell -->
 
-**Sju foton: 64 av 64, alla säkra utom två, inget säkert fel.** Marginalerna är stora (median
+**Sju foton: 64 av 64, alla säkra utom två, inget säkert fel, 23 av 23 högkort.** Fall 13 har 6 högkort,
+2 rätt. Marginalerna är stora (median
 0,39, mot 0,11 som gräns). Det är bättre än hela kort ger på samma sorts bilder (riktiga: 53/61)
 — remsan är det mest särskiljande på kortet, och ur exakta hörn är den fri från bord och grannar.
 
@@ -143,14 +153,16 @@ fel namn på bordet.
 
 ### OCR ur hörnen (`ocr_export.py` + `ocr.cjs` + `ocr_rapport.py`)
 
-| Källa | Upplösning | Utsnitt | Remsor | Rätt (≥ 0,6) | **Fel (≥ 0,6)** | Inget namn | Topp-1 rätt oavsett poäng | Högkort rätt | Titelrad px i källan | ms/kort |
+<!-- tabell: ocr-horn -->
+| Källa | Upplösning | Utsnitt | Remsor | Rätt (≥ 0,6) | **Fel (≥ 0,6)** | Inget namn | Topp-1 rätt oavsett poäng | Högkort rätt | Titelrad px i källan | ms/kort (under last) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| golden | orig | titelraden, 3 lägen | 74 | **38 (51 %)** | **0** | 36 | 46 | 12/29 | 39 | 144 |
+| golden | orig | titelraden, 3 lägen | 74 | 38 (51 %) | **0** | 36 | 46 | 12/29 | 39 | 144 |
 | golden | 960 | titelraden, 3 lägen | 74 | 23 (31 %) | **0** | 51 | 32 | 8/29 | 19 | 173 |
-| golden | orig | hela 14 %-remsan | 74 | 10 (14 %) | **0** | 64 | 18 | 2/29 | 55 | 66 |
-| mes246 | orig | titelraden, 3 lägen | 735 | **0** | **0** | 735 | 18 | 0/271 | 41 | 163 |
-| mes246 | 960 | titelraden, 3 lägen | 735 | 0 | 0 | 735 | 26 | 0/271 | 10 | 184 |
-| mes246 | orig | hela 14 %-remsan | 735 | 0 | 0 | 735 | 15 | 0/271 | 57 | 60 |
+| golden | orig | hela 14 %-remsan | 74 | 10 (14 %) | **0** | 64 | 18 | 2/29 | 54 | 66 |
+| mes246 | orig | titelraden, 3 lägen | 735 | 0 (0 %) | **0** | 735 | 18 | 0/271 | 41 | 163 |
+| mes246 | 960 | titelraden, 3 lägen | 735 | 0 (0 %) | **0** | 735 | 26 | 0/271 | 10 | 184 |
+| mes246 | orig | hela 14 %-remsan | 735 | 0 (0 %) | **0** | 735 | 15 | 0/271 | 57 | 60 |
+<!-- /tabell -->
 
 Golden per fall (orig, titelraden): 03 9/11, 04 5/8, 05 3/6, 06 7/11, 13 **0/10**, 14 5/10,
 15 4/10, 16 5/8. Det som läses rätt är nästan alltid säkert (poäng median 0,9); det som inte når
@@ -167,12 +179,14 @@ hörnen. PSM 7 vill ha en rad. Därför tunna band, som appens `Namn.las` redan 
 Bildmodellen vid 20 %, OCR på titelraden. "OCR rätt eller bildmodellen säker" är vad en
 kombination skulle ge med dagens trösklar; "…fel" är vad den skulle sätta fel namn på.
 
+<!-- tabell: sida-vid-sida -->
 | Remsor | Både rätt | Bara OCR | Bara bildmodellen | Ingen | OCR rätt / fel | Bildmodellen rätt / säkra rätt / säkra fel | OCR rätt ELLER bildmodellen säker | …fel | Högkort: OCR / bild / ingen |
 |---|---|---|---|---|---|---|---|---|---|
 | **golden orig** 74 | 38 | **0** | 29 | 7 | 38 / 0 | 67 / 63 / 0 | 64 | 0 | 12 / 25 / 4 av 29 |
-| **golden 960** 74 | 23 | 0 | 32 | 19 | 23 / 0 | 55 / 36 / 1 | 38 | 1 | 8 / 23 / 6 av 29 |
-| **mes246 orig** 735 | 0 | 0 | 178 | 557 | 0 / 0 | 178 / 66 / 27 | 66 | 27 | 0 / 157 / 114 av 271 |
-| **mes246 960** 735 | 0 | 0 | 180 | 555 | 0 / 0 | 180 / 42 / 11 | 42 | 11 | 0 / 155 / 116 av 271 |
+| **golden 960** 74 | 23 | **0** | 32 | 19 | 23 / 0 | 55 / 36 / 1 | 38 | 1 | 8 / 23 / 6 av 29 |
+| **mes246 orig** 735 | 0 | **0** | 178 | 557 | 0 / 0 | 178 / 66 / 27 | 66 | 27 | 0 / 157 / 114 av 271 |
+| **mes246 960** 735 | 0 | **0** | 180 | 555 | 0 / 0 | 180 / 42 / 11 | 42 | 11 | 0 / 155 / 116 av 271 |
+<!-- /tabell -->
 
 **OCR lägger aldrig till ett kort som bildmodellen missar.** De sju golden-remsor där båda faller
 är alla ur fall 13 (lampfilmen): fyra urblekta vita namnrader (Plains ×2, Fencing Ace, Ancestral
@@ -189,15 +203,19 @@ med facit (IoU ≥ 0,3): 666 av 692 lådor fick ett namn; 143 av 809 facitremsor
 vågrät åt det håll hörnen säger — det vet appens parning ur kortlådan. Referens: 14 %-remsa
 (det klassen tränades på).
 
-| | Remsor | Bildmodellen rätt | säkra rätt / **säkra fel** | OCR rätt (band) / fel | Högkort bild |
-|---|---|---|---|---|---|
-| golden, ur källan (orig) | 69 | **63 (91 %)** | 56 / **0** | 25 / 0 | 23/27 |
-| golden, ur analysbilden (960) | 69 | 50 | 39 / **1** | 6 / 0 | 18/27 |
-| mes246, ur källan (4K) | 597 | 119 (20 %) | 2 / **1** | 0 / 0 | 78/256 |
-| mes246, ur analysbilden (960) | 597 | 175 | 20 / **5** | 0 / 0 | 160/256 |
+<!-- tabell: detektor -->
+| | Remsor | Bildmodellen rätt | säkra rätt / **säkra fel** | OCR rätt (band) / fel | Bara OCR | Högkort bild |
+|---|---|---|---|---|---|---|
+| golden, ur källan (orig) | 69 | **63 (91 %)** | 56 / **0** | 25 / 0 | 0 | 23/27 |
+| golden, ur analysbilden (960) | 69 | **50 (72 %)** | 39 / **1** | 6 / 0 | 1 | 18/27 |
+| mes246, ur källan (4K) | 597 | **119 (20 %)** | 2 / **1** | 0 / 0 | 0 | 78/256 |
+| mes246, ur analysbilden (960) | 597 | **175 (29 %)** | 19 / **5** | 0 / 0 | 0 | 152/256 |
+<!-- /tabell -->
 
 Golden ur källan: 63/69 mot 67/74 ur hörnen — detektorns låda duger nästan lika bra som hörnen
-när källan är skarp och lådan vrids rätt. De sex som faller: fem ur fall 13 (blänk, oskärpa) och
+när källan är skarp och lådan vrids rätt. Kolumnen *Bara OCR* är det OCR:n lägger till som bildmodellen
+missar: en remsa av 1 332 — Militant Inquisitor i fall 03 vid 960, där bildmodellen sa Venomous
+Hierophant med marginal 0,03 och OCR läste rätt med 0,62. De sex som faller: fem ur fall 13 (blänk, oskärpa) och
 en där lådan sitter på grannkortet (Scourge under Pacifism: båda metoderna läser Scourge — ett
 parningsfel i provet, inte i metoden). Lådan sträckt nedåt till 20 % med 20 %-referenser:
 57/69 på golden (ingen vinst — 14 % + rätt vridning räcker för lådor) men 57 säkra fel i MES-246
@@ -214,13 +232,15 @@ titelrad ~10 px) och golden 01–06/14–16. Detektorn körs på hela bilden; re
 i fallets låda är högens. En hög är hel när minst n remsor säger högens namn säkert; ett par när
 topp och under båda finns; **fel namn** = ett säkert/godkänt namn som inte hör till fallet.
 
+<!-- tabell: hogbank -->
 | Sätt | Högar hela | Par hela | Ensamma | **Fel namn** | Remsor i lådorna | Fall utan remsa |
 |---|---|---|---|---|---|---|
 | MES-250, dagens kedja (namnläsaren på hela beskärningen) | 0/13 | 2/13 | 13/39 | – | – | – |
-| bildmodellen (säker, marginal > 0,11) | **3/13** | **5/13** | 14/39 | **0** | 97 | 3 |
-| OCR (≥ 0,6, band ur detektorremsan, båda vridningarna) | 0/13 | 4/13 | 12/39 | 0 | 97 | 3 |
-| OCR med appens dom (≥ 0,6 **och** marginal ≥ 0,2) | 0/13 | 4/13 | 11/39 | 0 | 97 | 3 |
-| OCR eller bildmodellen | 3/13 | 5/13 | 16/39 | 0 | 97 | 3 |
+| bildmodellen (säker, marginal > 0,11) | 3/13 | 5/13 | 14/39 | **0** | 97 | 3 |
+| OCR (≥ 0,6, band ur detektorremsan, båda vridningarna) | 0/13 | 4/13 | 12/39 | **0** | 97 | 3 |
+| OCR med appens dom (≥ 0,6 **och** marginal ≥ 0,2) | 0/13 | 4/13 | 11/39 | **0** | 97 | 3 |
+| OCR (≥ 0,6) eller bildmodellen | 3/13 | 5/13 | 16/39 | **0** | 97 | 3 |
+<!-- /tabell -->
 
 Det som blir helt är golden-fallen (g03, g04, g14, g15: 35–180 px remsor ur foton). Passets
 högar (31–40 px remsor ur en suddig skärminspelning) får Swamp med marginal 0,02–0,13 — rätt
@@ -238,6 +258,7 @@ hörnen och 31 ur detektorlådorna har marginal ≥ 0,2.
 
 ### Tiden per remsa på Macen (`tid.py` och `ocr.cjs --bara`, sparat i `resultat/tid*.json`)
 
+<!-- tabell: tid -->
 | Steg | Tid | Mätt |
 |---|---|---|
 | varpning ur hörn + tryck till 256 × 256, ur en 3840 px bred bild | 1,0 ms | `tid.py`, last 3,3 |
@@ -245,6 +266,7 @@ hörnen och 31 ur detektorlådorna har marginal ≥ 0,2.
 | bildmodellen, 4 trådar, under last (nollprovets 21 körningar, median per körning) | 35–61 ms | `nollprov.json`, `ms_modell` |
 | bildmodellen, 1 tråd | 85 ms | `tid.py` |
 | OCR (tesseract.js, en arbetare) per kort, 1–3 band tills 0,6 som appen: golden orig titelraden (74 kort) | **117 ms** (p90 232 ms; 2,2 band per kort) | `tid-ocr-golden-orig-titelraden.json` |
+<!-- /tabell -->
 
 Bildmodellens 25 ms gäller en körning utan annan egen last (lastmedel 3,3 vid start); under nollprovets
 21 körningar, med annat igång, låg medianen 35–61 ms. OCR-tiden är en sparad ensam körning av samma
@@ -304,7 +326,8 @@ blänkmätning före träning), och om han vill: spela in blänkprovet i punkt 3
 | `ocr_rapport.py` | OCR-tabellen och sida vid sida med bildmodellen; kontaktsidor där båda faller |
 | `detektor_remsor.py` | remsorna den tränade detektorn (MES-329) faktiskt ger: bildmodellen på dem, band för OCR |
 | `hogbank_remsor.py` | högbänkens 68 fall med detektorremsor: högar/par hela, fel namn; `--rapport` med OCR |
-| `tid.py` | tiden per remsa, mätt ensam |
+| `tid.py` | tiden per remsa (`--ut resultat/tid.json`); OCR-tiden med `ocr.cjs --bara … --ut` |
+| `tabell.py` | RESULTAT.md:s tabeller ur resultatfilerna: `--skriv` byter ut dem, `--kontrollera` larmar när dokumentet avviker |
 
 Modellen: `dev/embed/modeller/mobileclip-s0-vision.onnx` (gitignorerad) = `vision_model.onnx`
 från huggingface.co/Xenova/mobileclip_s0 (45 MB). Referenserna: `node dev/embed/hamta-referenser.cjs`.
