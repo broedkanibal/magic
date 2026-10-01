@@ -43,8 +43,9 @@ def main():
     sr = sum(r['ratt'] and r['saker'] for r in rader); sf = sum((not r['ratt']) and r['saker'] for r in rader)
     van = [r for r in rader if not r['skymd'] and not r['helbild']]
     print(f'\nHela kort, riktiga beskärningar: {ratt}/{n} rätt, säkra rätt {sr}, säkra fel {sf} (marginal > {TROSKEL})')
-    print(f'vanliga kort (varken skymda eller helbild): {sum(r["ratt"] for r in van)}/{len(van)}')
-    print('RAPPORT.md, modulens recept: 52/61 rätt, 46 säkra rätt, 1–2 säkra fel; vanliga 39–42/43')
+    # manifestets 13 skymda + 13 helbild lämnar 35 — inte RAPPORT.md:s "43 vanliga", som är en annan delning; de två jämförs inte
+    print(f'varken skymda eller helbild (35 enligt manifestet; ej jämförbart med RAPPORT.md:s 43 "vanliga"): {sum(r["ratt"] for r in van)}/{len(van)}')
+    print('RAPPORT.md, modulens recept, hela 61: 52/61 rätt, 46 säkra rätt, 1–2 säkra fel')
     for r in rader:
         if not r['ratt']:
             print(f"  fel: {r['fil']:14} facit {r['facit']:28} → {r['namn']:28} marginal {r['marginal']:.3f}{' SÄKER' if r['saker'] else ''}")

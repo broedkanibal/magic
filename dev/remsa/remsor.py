@@ -94,7 +94,8 @@ def mes246():
 def riktiga():
     """Appens egna beskärningar med facit (manifest.json): fil, namn, skymd, helbild."""
     man = json.load(open(os.path.join(RIKTIGA, 'manifest.json'), encoding='utf-8'))
-    return [dict(p, bild=os.path.join(RIKTIGA, p['fil'])) for p in man if p['namn'] in lek()]
+    # samma spärr som golden() och mes246(): beskärningarna är ur golden 01–12 och klassas prov, men spärren ska sitta här, inte antas
+    return [dict(p, bild=krav_prov(os.path.join(RIKTIGA, p['fil']))) for p in man if p['namn'] in lek()]
 
 
 def las(bild, res):

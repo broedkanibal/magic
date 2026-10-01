@@ -18,7 +18,8 @@ Allt är mätt med skripten i `dev/remsa/` (*LÄS-MIG* längst ner). Inget i app
 Tabellerna är genererade ur resultatfilerna av `tabell.py` (`--kontrollera` säger om dokumentet avviker
 från filerna); granskningen 2026-10-02 hittade två avskrivna mått som inte stämde (högkort "25/25" och
 "20/160"), och sedan dess skrivs ingen tabell för hand.
-Alla bilder är prov-material enligt `dev/detektor/delning.py` (`remsor.krav_prov` stoppar annat).
+Alla bilder är prov-material enligt `dev/detektor/delning.py` — `remsor.krav_prov` sitter på varje källa,
+också `riktiga()` (sedan granskningen 2026-10-02), och stoppar annat.
 
 ## 0. Kontrollen först: återger Python-koden embed.js?
 
