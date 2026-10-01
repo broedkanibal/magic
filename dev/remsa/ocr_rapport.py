@@ -150,7 +150,7 @@ def main():
     if a.embed_det:
         jd = json.load(open(a.embed_det, encoding='utf-8'))
         for res, er in jd['embed_rader'].items():
-            emb = {(r['kalla'], str(r['bild']), int(r['fil'].split('-')[-1].split('.')[0])): r for r in er}
+            emb = {(r['kalla'], str(r['bild']), int(r['nr'])): r for r in er}
             for kalla in ('golden', 'mes246'):
                 o = [r for r in rader if r['res'] == res and r['utsnitt'] == 'detektor' and r['kalla'] == kalla]
                 svs = sida_vid_sida(o, emb, f'{kalla} {res} (detektorn)')

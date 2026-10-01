@@ -3,8 +3,11 @@
 
 Två utsnitt per kort, ur de ritade hörnen (remsor.py), så att OCR:n och bildmodellen mäts på SAMMA
 remsor:
-  namnrad   bara titelraden: kortets y 0,02–0,12 (namnet står 3,5–9,5 mm ner på 88 mm = 0,04–0,108),
-            x 0,03–0,97 — det tightaste utsnitt en detektor som vet var kortet är kan ge
+  namnrad   bara titelraden, 10 % av kortets höjd, x 0,03–0,97, i tre lägen: 2, 5 och 8 % ner. Namnet
+            står 3,5–9,5 mm ner på ett 88 mm kort (0,04–0,108), men hörnen är ritade runt FICKAN, och
+            i Jespers fickor sitter kortet 2–4 mm ner — då börjar namnet först vid 0,07–0,08. Appens
+            läsare prövar av samma skäl sex lägen (Namn.las); ocr.cjs prövar de tre i ordning
+            0,05 → 0,02 → 0,08 tills något når 0,6, precis som appen
   remsa14   kortets översta 14 %, hela bredden — det remsklassen i den tränade detektorn ritar
 
 Storleken följer appens läsare (Namn.remsa i index.html): remsan skalas så att den blir 64 px hög,
@@ -27,7 +30,9 @@ import remsor  # noqa: E402
 
 UT = os.path.join(ROT, 'dev', 'material', 'arbete', '2026-10-02-mes-328-ocr')
 MAL_PX, MAX_SKALA = 64, 4           # Namn.REMSA_MAL_PX, skalan max 4 (index.html)
-UTSNITT = {'namnrad': (0.03, 0.02, 0.97, 0.12), 'remsa14': (0.0, 0.0, 1.0, 0.14)}
+NAMNRAD_H = 0.10
+NAMNRAD_START = [0.05, 0.02, 0.08]       # i den ordning ocr.cjs prövar dem
+UTSNITT = {'namnrad': [(0.03, s, 0.97, s + NAMNRAD_H) for s in NAMNRAD_START], 'remsa14': [(0.0, 0.0, 1.0, 0.14)]}
 
 
 def delkort(horn, u):
@@ -68,17 +73,18 @@ def main():
                 for i, k in enumerate(post['kort']):
                     horn = remsor.horn_i_px(k, W, H)
                     for u in a.utsnitt:
-                        q = delkort(horn, UTSNITT[u])
-                        tw, th, sw, sh, s = storlek(q)
-                        strip = varpa(img, q, max(8, tw), max(4, th))
-                        mapp = os.path.join(a.ut, res, u); os.makedirs(mapp, exist_ok=True)
-                        fn = f"{kalla}-{post['id']}-{i:02d}.png".replace('/', '_')
-                        cv2.imwrite(os.path.join(mapp, fn), strip)
-                        man.append({'fil': os.path.relpath(os.path.join(mapp, fn), a.ut), 'kalla': kalla, 'bild': post['id'], 'nr': i, 'facit': k['facit'],
-                                    'hog': k['hog'], 'tappad': k['tappad'], 'zon': k['zon'], 'namnrad': k['namnrad'], 'synlig': k['synlig'],
-                                    'res': res, 'utsnitt': u, 'kall_h_px': round(sh, 1), 'kall_w_px': round(sw, 1), 'skala': round(s, 2),
-                                    'kortbredd_px': round(kortbredd_px(horn)),
-                                    'lage': f"{post['id']}|{k['kort_id']}" if kalla == 'golden' else str(remsor.lage_nyckel(k))})
+                        for steg, utsn in enumerate(UTSNITT[u]):
+                            q = delkort(horn, utsn)
+                            tw, th, sw, sh, s = storlek(q)
+                            strip = varpa(img, q, max(8, tw), max(4, th))
+                            mapp = os.path.join(a.ut, res, u); os.makedirs(mapp, exist_ok=True)
+                            fn = f"{kalla}-{post['id']}-{i:02d}-{steg}.png".replace('/', '_')
+                            cv2.imwrite(os.path.join(mapp, fn), strip)
+                            man.append({'fil': os.path.relpath(os.path.join(mapp, fn), a.ut), 'kalla': kalla, 'bild': post['id'], 'nr': i, 'steg': steg, 'start': utsn[1],
+                                        'facit': k['facit'], 'hog': k['hog'], 'tappad': k['tappad'], 'zon': k['zon'], 'namnrad': k['namnrad'], 'synlig': k['synlig'],
+                                        'res': res, 'utsnitt': u, 'kall_h_px': round(sh, 1), 'kall_w_px': round(sw, 1), 'skala': round(s, 2),
+                                        'kortbredd_px': round(kortbredd_px(horn)),
+                                        'lage': f"{post['id']}|{k['kort_id']}" if kalla == 'golden' else str(remsor.lage_nyckel(k))})
             print(f'{kalla} {res}: {sum(1 for x in man if x["kalla"] == kalla and x["res"] == res)} remsor')
     json.dump({'lek': sorted(remsor.lek()), 'remsor': man}, open(os.path.join(a.ut, 'manifest.json'), 'w'), ensure_ascii=False, indent=0)
     print(f'{len(man)} remsor → {os.path.relpath(a.ut, ROT)}/manifest.json')

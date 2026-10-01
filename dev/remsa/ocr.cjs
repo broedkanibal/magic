@@ -46,25 +46,39 @@ function basta(rad, namn) {
   let remsor = man.remsor; if (BARA) remsor = remsor.filter(r => r.fil.includes(BARA));
   const w = await createWorker('eng', 1, { cachePath: path.join(__dirname, 'node_modules', '.tessdata') });
   await w.setParameters({ tessedit_pageseg_mode: '7' });
+  /* Ett kort kan ha flera lägen av samma utsnitt (steg 0, 1, 2 — namnraden 5, 2 och 8 % ner):
+     de prövas i ordning tills något når 0,6, som appens sex lägen. Tiden är summan. */
+  const grupper = new Map();
+  for (const r of remsor) {
+    const k = [r.kalla, r.bild, r.nr, r.res, r.utsnitt].join('|');
+    if (!grupper.has(k)) grupper.set(k, []);
+    grupper.get(k).push(r);
+  }
   const ut = []; let n = 0;
   const t00 = Date.now();
-  for (const r of remsor) {
-    const fil = path.join(MAPP, r.fil);
-    const t0 = performance.now();
-    let text = '';
-    try { text = (await w.recognize(fil)).data.text || ''; } catch (e) { text = ''; }
-    const ms = Math.round(performance.now() - t0);
-    /* Som appen: varje rad för sig, bästa raden vinner. */
-    let bast = null;
-    for (const rad of text.split('\n').map(x => x.trim()).filter(Boolean)) {
-      const b = basta(rad, lek);
-      if (!bast || b.poang > bast.poang) bast = Object.assign(b, { text: rad });
+  for (const steg of grupper.values()) {
+    steg.sort((a, b) => (a.steg || 0) - (b.steg || 0));
+    let bast = null, ms = 0, forsok = 0;
+    for (const r of steg) {
+      const fil = path.join(MAPP, r.fil);
+      const t0 = performance.now();
+      let text = '';
+      try { text = (await w.recognize(fil)).data.text || ''; } catch (e) { text = ''; }
+      ms += performance.now() - t0; forsok++;
+      /* Som appen: varje rad för sig, bästa raden vinner. */
+      for (const rad of text.split('\n').map(x => x.trim()).filter(Boolean)) {
+        const b = basta(rad, lek);
+        if (!bast || b.poang > bast.poang) bast = Object.assign(b, { text: rad, steg: r.steg || 0, start: r.start });
+      }
+      if (bast && bast.poang >= GODKANT) break;
     }
-    if (!bast) bast = { namn: null, poang: 0, marginal: 0, nast: null, text: '' };
+    const r = steg[0];
+    if (!bast) bast = { namn: null, poang: 0, marginal: 0, nast: null, text: '', steg: null, start: null };
     const godkand = bast.poang >= GODKANT;
-    ut.push(Object.assign({}, r, { text: bast.text, namn: godkand ? bast.namn : null, namn_rå: bast.namn, poang: bast.poang, marginal: bast.marginal, nast: bast.nast, ms,
+    ut.push(Object.assign({}, r, { fil: steg[Math.min(bast.steg || 0, steg.length - 1)].fil, text: bast.text, namn: godkand ? bast.namn : null, namn_rå: bast.namn, poang: bast.poang,
+                                   marginal: bast.marginal, nast: bast.nast, ms: Math.round(ms), forsok, steg_vald: bast.steg, start_vald: bast.start,
                                    ratt: godkand && bast.namn === r.facit, fel: godkand && bast.namn !== r.facit }));
-    if (++n % 100 === 0) process.stdout.write(`  ${n}/${remsor.length} (${((Date.now() - t00) / 1000).toFixed(0)} s)\r`);
+    if (++n % 100 === 0) process.stdout.write(`  ${n}/${grupper.size} (${((Date.now() - t00) / 1000).toFixed(0)} s)\r`);
   }
   await w.terminate();
   fs.writeFileSync(UT, JSON.stringify({ godkant: GODKANT, lasare: 'tesseract.js ' + require('tesseract.js/package.json').version + ' eng PSM 7', remsor: ut }, null, 0));

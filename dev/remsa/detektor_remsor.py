@@ -77,10 +77,36 @@ def for_ocr(strip):
     return cv2.resize(strip, (max(8, int(round(w * s))), int(round(h * s))), interpolation=cv2.INTER_LINEAR)
 
 
+# Namnläsaren får aldrig hela remsan: appen (Namn.las) läser ett tunt band på 8,5 % av beskärningen i sex
+# lägen tills något når 0,6. Tesseract med PSM 7 (en rad) läser ingenting i en 14 %-remsa där namnet
+# ligger i nedre halvan under fickkant och svart ram — uppmätt: 0 av 1 332 detektorremsor. Så banden
+# här: halva remsans höjd, i tre lägen (namnet sitter 0,3–0,8 av remsan ner; i en ficka 0,5–1,0).
+BAND = [(0.30, 0.80), (0.50, 1.00), (0.10, 0.60)]
+
+
+def vagrat(strip, horn_px=None):
+    """En remsa som står på högkant (tappat kort) vrids vågrät åt rätt håll: hörn 0 → 1 är namnradens
+    riktning; pekar den nedåt i bilden läses texten uppifrån och ner, och remsan vrids moturs."""
+    if strip.shape[1] >= strip.shape[0]:
+        return strip
+    if horn_px is None:
+        return cv2.rotate(strip, cv2.ROTATE_90_CLOCKWISE)
+    h = np.asarray(horn_px, np.float32); rikt = h[1] - h[0]
+    return cv2.rotate(strip, cv2.ROTATE_90_COUNTERCLOCKWISE if rikt[1] > 0 else cv2.ROTATE_90_CLOCKWISE)
+
+
+def band(strip):
+    """[(steg, bild)] — de tre banden ur en vågrät remsa, skalade som appen."""
+    h = strip.shape[0]
+    return [(i, for_ocr(strip[int(h * a):max(int(h * a) + 2, int(h * b))])) for i, (a, b) in enumerate(BAND)]
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--kallor', nargs='+', default=['golden', 'mes246'])
     p.add_argument('--andel', type=float, default=0.14, help='referensremsans höjd (detektorns klass tränades på 14 %%)')
+    p.add_argument('--strack', type=float, default=1.0, help='detektorlådan sträcks nedåt (mot kortets kropp) så här många gånger: 1,43 gör en 14 %%-remsa till 20 %%')
+    p.add_argument('--namn', default='detektorremsor', help='resultatfilens namn i dev/remsa/resultat/')
     p.add_argument('--ut', default=UT)
     a = p.parse_args()
     det = Detektor()
@@ -110,23 +136,36 @@ def main():
                     continue
                 fi = par[0][1]; tagna.add(fi); k = facit[fi][1]
                 stat['parade'] += 1
+                if a.strack != 1.0:
+                    # sträck lådan mot kortets kropp: nedåt för ett otappat kort, åt sidan för ett tappat (remsan står på högkant).
+                    # Riktningen tas ur facitens hörn (hörn 3 − hörn 0 = kortets vänsterkant nedåt); i appen vet parningen den ur kortlådan.
+                    h = np.asarray(k['horn_px'], np.float32); ner = h[3] - h[0]
+                    w_, h_ = b[2] - b[0], b[3] - b[1]
+                    if abs(ner[1]) >= abs(ner[0]):
+                        b = [b[0], b[1], b[2], b[1] + h_ * a.strack] if ner[1] > 0 else [b[0], b[3] - h_ * a.strack, b[2], b[3]]
+                    else:
+                        b = [b[0], b[1], b[0] + w_ * a.strack, b[3]] if ner[0] > 0 else [b[2] - w_ * a.strack, b[1], b[2], b[3]]
+                    b = [min(max(v, 0.0), 1.0) for v in b]
                 for res, img in (('960', ana), ('orig', orig)):
                     strip = klipp_lada(img, b)
                     if strip is None:
                         continue
                     mapp = os.path.join(a.ut, res, 'detektor'); os.makedirs(mapp, exist_ok=True)
-                    fn = f"{kalla}-{post['id']}-{di:02d}.png".replace('/', '_')
-                    cv2.imwrite(os.path.join(mapp, fn), for_ocr(strip))
-                    rad = {'fil': os.path.relpath(os.path.join(mapp, fn), a.ut), 'kalla': kalla, 'bild': post['id'], 'nr': di, 'facit': k['facit'], 'hog': k['hog'],
+                    # tappade kort: remsan står på högkant — vrid den vågrät åt rätt håll (det vet parningen i appen ur kortlådan)
+                    s = vagrat(strip, k['horn_px'])
+                    rad = {'kalla': kalla, 'bild': post['id'], 'nr': di, 'facit': k['facit'], 'hog': k['hog'],
                            'tappad': k['tappad'], 'zon': k['zon'], 'namnrad': k['namnrad'], 'synlig': k['synlig'], 'res': res, 'utsnitt': 'detektor',
-                           'kall_h_px': strip.shape[0], 'kall_w_px': strip.shape[1], 'poang_det': round(d[4], 3), 'iou_facit': round(par[0][0], 2),
+                           'kall_h_px': s.shape[0], 'kall_w_px': s.shape[1], 'poang_det': round(d[4], 3), 'iou_facit': round(par[0][0], 2),
                            'lage': f"{post['id']}|{k['kort_id']}" if kalla == 'golden' else str(remsor.lage_nyckel(k))}
-                    man.append(rad)
-                    # bildmodellen på samma utsnitt (tappade kort: remsan står på högkant — vrid den vågrät, som parningen i appen vet)
-                    s = strip if strip.shape[1] >= strip.shape[0] else cv2.rotate(strip, cv2.ROTATE_90_CLOCKWISE)
+                    for steg, bild in band(s):
+                        fn = f"{kalla}-{post['id']}-{di:02d}-{steg}.png".replace('/', '_')
+                        cv2.imwrite(os.path.join(mapp, fn), bild)
+                        man.append(dict(rad, fil=os.path.relpath(os.path.join(mapp, fn), a.ut), steg=steg, start=BAND[steg][0]))
+                    rad['fil'] = os.path.relpath(os.path.join(mapp, f"{kalla}-{post['id']}-{di:02d}-0.png".replace('/', '_')), a.ut)
+                    # bildmodellen på hela remsan (vågrät)
                     q = m.kor([kvadrat(cv2.cvtColor(s, cv2.COLOR_BGR2RGB))])[0]
                     e = dom(refs.rangordna(q), k['facit'])
-                    e.update({kk: rad[kk] for kk in ('fil', 'kalla', 'bild', 'facit', 'hog', 'tappad', 'res', 'lage', 'kall_h_px')})
+                    e.update({kk: rad[kk] for kk in ('fil', 'kalla', 'bild', 'nr', 'facit', 'hog', 'tappad', 'res', 'lage', 'kall_h_px')})
                     embed_rader[res].append(e)
             stat['facit_utan_remsa'] += len(facit) - len(tagna)
     json.dump({'lek': sorted(remsor.lek()), 'remsor': man}, open(os.path.join(a.ut, 'manifest.json'), 'w'), ensure_ascii=False, indent=0)
@@ -137,8 +176,8 @@ def main():
         for kalla in ('golden', 'mes246'):
             s[kalla] = summera([r for r in rader if r['kalla'] == kalla])
         tab.append(s)
-    json.dump({'stat': stat, 'ms_detektor': round(median(det.ms), 1), 'embed': tab, 'embed_rader': embed_rader},
-              open(os.path.join(HAR, 'resultat', 'detektorremsor-embed.json'), 'w'), ensure_ascii=False, indent=1)
+    json.dump({'stat': stat, 'andel': a.andel, 'strack': a.strack, 'ms_detektor': round(median(det.ms), 1), 'embed': tab, 'embed_rader': embed_rader},
+              open(os.path.join(HAR, 'resultat', f'{a.namn}-embed.json'), 'w'), ensure_ascii=False, indent=1)
     print(f"detektorn: {stat['remsor_det']} remsor i {len(man) // 2 if man else 0} par-bilder; parade med facit {stat['parade']}, oparade {stat['oparade']} "
           f"(library/token/dolda eller falska), facitremsor utan detektorremsa {stat['facit_utan_remsa']} av {stat['facit']}; {median(det.ms):.0f} ms/bild")
     for s in tab:
