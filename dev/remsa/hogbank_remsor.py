@@ -104,7 +104,8 @@ def dom_fall(r, namn_av):
     """namn_av(remsa) → säkert namn eller None. Svar: (hel, fel_namn, funna)."""
     funna = [namn_av(s) for s in r['remsor']]
     funna = [n for n in funna if n]
-    fel = [n for n in funna if n not in r['tillatna']]
+    # ett fall utan väntat namn (t.ex. g03-klump-heath-plains: namn null, inget vantat) kan inte döma ett namn som fel
+    fel = [n for n in funna if n not in r['tillatna']] if r['tillatna'] else []
     ok = [n for n in funna if n in r['tillatna']]
     v = r['vantat']
     if r['typ'] == 'hog':
