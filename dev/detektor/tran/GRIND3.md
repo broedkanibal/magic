@@ -1,6 +1,6 @@
 # Grind 3, natt 1: hjälper mer data? (MES-288)
 
-**Läget 2026-09-30 kväll:** förberett, inte startat. Dataset v2 är byggt lokalt och kontrollerat
+**Läget 2026-10-01:** natt 1 körd och mätt, se *Resultatet*. (2026-09-30 kväll: förberett, inte startat.) Dataset v2 är byggt lokalt och kontrollerat
 (`ladda_upp.py --namn v2` utan `--kor`: OK). Kerneln pekar på v2 och har två körningar i `JOBB`.
 Jesper godkände ~5 GPU-timmar för natten när han skickade startprompten.
 
@@ -80,4 +80,44 @@ kortlägen rätt), tid per bild. Säg vad som är mätt och vad som är bedömt.
 
 ## Resultatet
 
-(fylls i)
+**Körningen (2026-09-30 23:04 – 2026-10-01 03:46, kerneln version 2, T4 × 2, ~4,6 h GPU-session).**
+Jespers tak blev 6 h. Budgeten räknas nu på epok 2–3 i stället för epok 1, som är ~1,7× långsammare
+(0777b66). Med epok 1 hade A fått ~100 epoker och B 150, och då hade de inte gått att jämföra. Följden:
+A 148 epoker (4,57 h), B 150 (2,91 h). B fick 1 666 träningsbilder mot A:s 3 351 (8 respektive 21 av
+Jespers ritade rutor, ×5). Kaggles ONNX-export gick via den nya exportvägen (omvandlingen till opset 17
+föll, fil med extern data). Den exporterades om lokalt med `exportera.py`, precis som grind 2:s nano.
+Kaggles filer ligger i `ut/<namn>/kaggle-export/`. Modellerna: `dev/material/arbete/2026-10-01-mes-288-grind3-natt1/ut/`.
+
+**Golden.** Fall 16 är nytt (8 kort, alla modeller 8/8), men dagens och OWLv2 är bara mätta på de
+sju gamla, så jämförelsen görs på sju fall (66 kort). Tröskeln är vald på valideringen.
+
+| Modell | Tröskel | Egna, 7 fall | Alla 8 fall | Falska | Högkort egna | Hela högar | ms/bild (Macens processor) |
+|---|---|---|---|---|---|---|---|
+| dagens detektor | – | 29/66 | – | 2 | 9/29 | 4/15 | 28 |
+| OWLv2 (läraren) | 0,16 | 62/66 | – | 0 | 25/29 | 11/15 | 11 484 |
+| grind 2 nano (49 epoker) | 0,56 | 61/66 | 69/74 | 1 | 24/29 | 10/15 | 40 |
+| natt 1 A, allt (148 epoker) | 0,58 | 59/66 | 67/74 | 1 | 24/29 | 10/15 | 45 |
+| natt 1 B, halva (150 epoker) | 0,40 | 60/66 | 68/74 | 1 | 25/29 | 11/15 | 42 |
+
+**MES-246** (facit `lagen.json` i 5bfbc8b, med Jespers handrutor; bara ett läge har handrutor än så länge, 10 rutor;
+graveyard: bara det översta kortet krävs). Alla tre är mätta mot samma facit.
+
+| Modell | Egna | Sammanslagna | Missade | Falska | Högkort egna | Hela högar | Unika kortlägen rätt |
+|---|---|---|---|---|---|---|---|
+| grind 2 nano | 700/749 | 37 | 12 | 0 | 234/281 | 67/110 | 77/90 |
+| natt 1 A | 711/749 | 25 | 13 | 0 | 247/281 | 81/110 | 77/90 |
+| natt 1 B | 719/749 | 19 | 11 | 0 | 253/281 | 86/110 | 80/90 |
+
+**Kontrollen, eftersom B ≥ A** (enligt *Hur svaret läses* ska den göras innan någon slutsats dras): byter man A:s och B:s trösklar
+(A vid 0,40, B vid 0,58) blir det 77 mot 80 unika lägen igen, så tröskeln förklarar inte skillnaden.
+Urvalet stämmer (1 666 mot 3 351 bilder). Loggarna har inga fel utom exporten. På valideringen
+(träningsfilmernas sista tiondel) ligger A något före: AP50 `kort` 0,933 mot 0,923. Inget fel hittat.
+
+**Vad svaret betyder (bedömt).** A ≈ B: på golden skiljer de sig med ett kort, på MES-246 med 3 av 90 unika
+lägen, och det är B som ligger före. Dubbelt så mycket data av samma sort hjälpte inte på provet; den
+hjälpte lite på valideringen, som liknar träningen. **Mängden är inte flaskhalsen.** Längre träning (A mot
+grind 2:s nano) gav fler hela högar i MES-246 (67 → 81, sammanslagna 37 → 25) men inte fler unika
+lägen rätt (77 = 77), och golden står still. Nästan alla fel är högkort: av A:s 38 kort utan egen låda
+i MES-246 är 34 högkort (B: 28 av 30). Nästa steg enligt tabellen ovan: titta på högarna specifikt
+(vilka högkort som missas och varför), inte fler bord av samma sort. Provet är litet (66 kort, 90 unika
+lägen), så skillnader på 1–3 är brus.
