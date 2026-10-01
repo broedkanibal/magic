@@ -6,15 +6,44 @@
    radnummer. Det är så en produkt normalt hanterar en API-nyckel: ingen
    användare har en egen, och ingen kan läsa din ur webbläsaren.
 
+   Sedan MES-316 frågar bara inloggade, och varje konto har ett tak per
+   kalendermånad (api/_vakt.js). Utan det kunde vem som helst anropa
+   Claude på Mesas bekostnad — origin-kollen hoppades över utan Origin
+   (curl), och takten räknades per IP i minnet och nollades vid kallstart.
+
    Miljövariabler (Vercel → Settings → Environment Variables):
      ANTHROPIC_API_KEY   krävs
+     SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+                         krävs: inloggningen och räknaren (api/_vakt.js)
+     CLAUDE_TAK_PER_MANAD valfritt, standard 300 frågor per konto och månad
+     SUPABASE_JWT_SECRET valfritt, bara om Supabase signerar med HS256
      ALLOWED_ORIGINS     kommaseparerad lista, t.ex. https://mesa.vercel.app
-                         Utelämnad = alla ursprung tillåts (bara för test).
+                         Utelämnad = alla ursprung tillåts. Ett extra lager,
+                         inte skyddet: skyddet är inloggningen.
      ANTHROPIC_MODEL     valfritt, standard claude-opus-5
-     RATE_PER_MIN        valfritt, standard 40 anrop per IP och minut
-     RATE_PER_DAY        valfritt, standard 600 anrop per IP och dygn
+     RATE_PER_MIN        valfritt, standard 40 anrop per konto och minut
+     RATE_PER_DAY        valfritt, standard 600 anrop per konto och dygn
    ══════════════════════════════════════════════════════════════════ */
-import Anthropic from '@anthropic-ai/sdk';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import AnthropicSDK from '@anthropic-ai/sdk';
+import * as Vakt from './_vakt.js';
+
+/* Varje fråga till Anthropic går genom den här klassen. Den är SDK:ns egen
+   klient — lägena nedan skapar sina klienter precis som förut, med
+   `new Anthropic(...)`, och ingenting i dem är ändrat — men när anropet
+   kommer genom vakten (handler längst ner) får klienten en fetch som noterar
+   om Anthropic svarade 200. Det är det som kostar, och det avgör om frågan
+   räknas mot kontots tak (raknas i claude_fragor). Vilket anrop det gäller
+   håller AsyncLocalStorage reda på: en varm instans kan ha flera igång
+   samtidigt. Utanför vakten (dev-verktygen via identifiera) är klienten
+   orörd. */
+const pagaendeFraga = new AsyncLocalStorage();
+class Anthropic extends AnthropicSDK {
+  constructor(opts) {
+    const vakt = pagaendeFraga.getStore();
+    super(vakt ? Object.assign({}, opts, { fetch: vakt.fetch }) : opts);
+  }
+}
 
 const MAX_IMAGE_B64 = 900_000;          // ~650 kB bild
 const MAX_NAMES = 25;
@@ -87,11 +116,12 @@ async function landBilder() {
   }));
 }
 
-/* Enkel takräkning i minnet. Den delas av anrop som råkar landa på samma
-   instans och nollställs när en instans startas om — alltså ett hinder mot
-   slarv och skenande loopar, inte mot en beslutsam angripare. Behöver du
-   ett vattentätt tak: lägg Upstash Redis bakom och byt ut allow(). Det som
-   verkligen begränsar kostnaden är utgiftsgränsen på nyckeln hos Anthropic. */
+/* Takten i minnet: ett hinder mot skenande loopar, per konto (per IP i
+   dev-verktygen). Den delas av anrop som råkar landa på samma instans och
+   nollställs när en instans startas om, så den är inget tak — det riktiga
+   taket per konto och månad står i databasen (api/_vakt.js, MES-316). Per
+   konto och inte per IP sedan dess: fyra telefoner vid samma bord delar
+   ofta samma wifi och därmed samma IP. */
 const buckets = new Map();
 function allow(ip) {
   const perMin = +(process.env.RATE_PER_MIN || 40);
@@ -159,7 +189,10 @@ function jpegMatt(b64) {
 const anvandning = msg => ({ input_tokens: (msg && msg.usage && msg.usage.input_tokens) || 0,
                              output_tokens: (msg && msg.usage && msg.usage.output_tokens) || 0 });
 
-export default async function handler(req, res) {
+/* Allt som gäller varje anrop innan frågan prövas: CORS, förhandsfrågan,
+   hälsokollen, metoden, ursprunget och nyckeln. true = svaret är redan
+   skickat. Delas av vakten (handler) och dev-verktygens väg (identifiera). */
+function grind(req, res, { inloggning }) {
   const origin = req.headers.origin || '';
   const ok = originAllowed(origin, req.headers.host);
   if (origin && ok) {
@@ -167,34 +200,145 @@ export default async function handler(req, res) {
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  /* Authorization: inloggningen (MES-316). Samma ursprung frågar aldrig
+     förhand, men en sida på listan i ALLOWED_ORIGINS gör det. */
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Cache-Control', 'no-store');
 
-  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method === 'OPTIONS') { res.status(204).end(); return true; }
 
   /* Hälsokoll — klienten frågar vid start om servern finns, och slipper
-     då kräva att någon redigerar en rad i koden för att slå på AI-hjälpen. */
+     då kräva att någon redigerar en rad i koden för att slå på AI-hjälpen.
+     Den kräver ingen inloggning: den kostar ingenting. inloggning och
+     takPerManad säger att vakten är ute (driftkollen kan läsa det). */
   if (req.method === 'GET') {
-    return res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
-      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL, lek: MODEL, kamera: MODEL_KAMERA }, promptv: PANE_PROMPT_V });
+    res.status(200).json({ ok: true, ready: !!process.env.ANTHROPIC_API_KEY, model: MODEL,
+      modeller: { pane: MODEL, land: MODEL, card: MODEL_KORT, namn: MODEL, lek: MODEL, kamera: MODEL_KAMERA }, promptv: PANE_PROMPT_V,
+      inloggning, ...(inloggning ? { takPerManad: Vakt.takPerManad() } : {}) });
+    return true;
   }
-  if (req.method !== 'POST') return res.status(405).json({ error: 'POST required' });
-  if (origin && !ok) return res.status(403).json({ error: 'Origin not allowed' });
+  if (req.method !== 'POST') { res.status(405).json({ error: 'POST required' }); return true; }
+  if (origin && !ok) { res.status(403).json({ error: 'Origin not allowed' }); return true; }
 
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return res.status(503).json({ error: 'The server is missing ANTHROPIC_API_KEY' });
+  if (!process.env.ANTHROPIC_API_KEY) { res.status(503).json({ error: 'The server is missing ANTHROPIC_API_KEY' }); return true; }
+  return false;
+}
 
+/* Lägen som klarar sig utan namnlista. Alla andra — kameran och
+   kandidatläget, också ett okänt läge, som hamnar i kandidatläget — kräver
+   en. */
+const LAGEN_UTAN_NAMN = ['land', 'namn', 'card', 'pane', 'lek'];
+const KANDA_LAGEN = LAGEN_UTAN_NAMN.concat(['kamera']);
+/* Det som går att avvisa innan en fråga ställs. Vakten kollar det INNAN
+   räknaren, så att en trasig fråga inte tar en plats i månadens tak; fraga()
+   kollar samma sak för dev-verktygen. Texterna är lägenas egna. [status,
+   text] eller null. */
+function grundfel(body) {
+  const { image, names, mode } = body || {};
+  if (typeof image !== 'string' || !image) return [400, 'Send { image: base64 }'];
+  if (image.length > MAX_IMAGE_B64) return [413, 'The image is too large'];
+  if (mode === 'kamera' && (!Array.isArray(names) || !names.length))
+    return [400, 'Skicka { mode: "kamera", image: base64, names: [...] }'];
+  if (!LAGEN_UTAN_NAMN.includes(mode) && (!Array.isArray(names) || !names.length))
+    return [400, 'Skicka { image: base64, names: [...] }'];
+  return null;
+}
+
+/* ══ Rutten: /api/identify ════════════════════════════════════════════
+   Inloggning → takten i minnet → grundkollen → taket i databasen →
+   frågan → loggen. Frågan själv (fraga, nedan) är densamma som förut. */
+export default async function handler(req, res) {
+  if (grind(req, res, { inloggning: true })) return;
+  const t0 = Date.now();
+
+  const vem = await Vakt.verifiera(Vakt.bearer(req.headers.authorization));
+  if (!vem.ok) {
+    if (vem.tillfalligt) {
+      console.error('identify: inloggningen gick inte att pröva:', vem.varfor);
+      return res.status(503).json({ error: 'AI help is unavailable right now — the sign-in could not be checked.', kod: 'inloggning-nere' });
+    }
+    if (req.headers.authorization) console.warn('identify: token avvisad:', vem.varfor);
+    return res.status(401).json({ error: 'Sign in to use AI help.', kod: 'inloggning' });
+  }
+
+  const gate = allow(vem.anvandare);
+  if (!gate.ok) {
+    res.setHeader('Retry-After', String(gate.retry));
+    return res.status(429).json({ error: 'Too many requests — try again in a moment', kod: 'takt' });
+  }
+
+  const fel = grundfel(req.body);
+  if (fel) return res.status(fel[0]).json({ error: fel[1] });
+
+  const { mode, spel } = req.body;
+  const lage = KANDA_LAGEN.includes(mode) ? mode : 'kandidat';
+  const spelkod = typeof spel === 'string' && /^[A-Z0-9]{4,12}$/.test(spel) ? spel : null;
+  let plats;
+  try { plats = await Vakt.reservera({ anvandare: vem.anvandare, mode: lage, spel: spelkod }); }
+  catch (e) {
+    console.error('identify: räknaren:', e && e.message);
+    return res.status(503).json({ error: 'AI help is unavailable right now — the question could not be counted.', kod: 'raknare' });
+  }
+  if (!plats.ok) {
+    const sek = Math.max(60, Math.round((Date.parse(plats.nollstalls) - Date.now()) / 1000) || 3600);
+    res.setHeader('Retry-After', String(sek));
+    return res.status(429).json({ error: Vakt.takText(plats.tak, plats.nollstalls), kod: 'tak',
+      tak: plats.tak, antal: plats.antal, nollstalls: plats.nollstalls });
+  }
+
+  /* Frågan. res.json fångas för loggen, och klientens fetch mot Anthropic
+     noterar om svaret var 200 (se klassen Anthropic överst). */
+  const vakt = { betald: false, anrop: 0 };
+  vakt.fetch = async (url, init) => {
+    vakt.anrop++;
+    const r = await fetch(url, init);
+    if (r.ok) vakt.betald = true;
+    return r;
+  };
+  let svar = null;
+  const json0 = res.json;
+  res.json = function (o) { svar = o; return json0.call(this, o); };
+  try {
+    await pagaendeFraga.run(vakt, () => fraga(req, res));
+  } finally {
+    res.json = json0;
+    const u = (svar && svar.usage) || {};
+    const tal = v => (v == null || !Number.isFinite(+v)) ? null : Math.round(+v);
+    /* Efter svaret: klienten har redan fått det och väntar inte på loggen. */
+    await Vakt.logga(plats.id, {
+      modell: (svar && typeof svar.modell === 'string') ? svar.modell.slice(0, 80) : null,
+      input_tokens: tal(u.input_tokens), output_tokens: tal(u.output_tokens),
+      cache_read: tal(u.cache_read_input_tokens), cache_write: tal(u.cache_creation_input_tokens),
+      ms: Date.now() - t0,
+      status: res.statusCode || null,
+      ok: res.statusCode === 200 && !!svar && !svar.varfor && !svar.error,
+      raknas: vakt.betald
+    });
+  }
+}
+
+/* Dev-verktygens väg: dev/stub-server.cjs --ai och dev/lekgolden/kor.cjs
+   kör frågan lokalt med nyckeln ur .env.local, utan inloggning och utan
+   att skriva i produktionens räknare. Ingen rutt hos Vercel — den läser
+   bara default-exporten (och GET/POST-exporter, som inte finns här). */
+export async function identifiera(req, res) {
+  if (grind(req, res, { inloggning: false })) return;
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'okänd';
   const gate = allow(ip);
   if (!gate.ok) {
     res.setHeader('Retry-After', String(gate.retry));
     return res.status(429).json({ error: 'Too many requests — try again in a moment' });
   }
+  return fraga(req, res);
+}
 
+/* Frågan till Claude, i alla lägen. Allt härifrån och ned är som före
+   MES-316. */
+async function fraga(req, res) {
+  const key = process.env.ANTHROPIC_API_KEY;
   const { image, names, mode, antal } = req.body || {};
-  if (typeof image !== 'string' || !image)
-    return res.status(400).json({ error: 'Send { image: base64 }' });
-  if (image.length > MAX_IMAGE_B64) return res.status(413).json({ error: 'The image is too large' });
+  const fel = grundfel(req.body);
+  if (fel) return res.status(fel[0]).json({ error: fel[1] });
 
   /* ── Läsa av en hel videoruta ──────────────────────────────────────
      Den lokala igenkänningen bygger på att detektorn först hittar en

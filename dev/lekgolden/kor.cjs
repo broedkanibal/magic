@@ -279,7 +279,9 @@ function laddaHandler() {
       if (m && m[2]) process.env.ANTHROPIC_API_KEY = m[2];
     }
     if (!process.env.ANTHROPIC_API_KEY) throw new Error('ingen ANTHROPIC_API_KEY i miljön eller .env.local (symlänka .env.local i en worktree)');
-    return (await import(pathToFileURL(path.join(ROT, 'api', 'identify.js')).href)).default;
+    /* identifiera: utan inloggning och utan produktionens räknare (MES-316). */
+    const m = await import(pathToFileURL(path.join(ROT, 'api', 'identify.js')).href);
+    return m.identifiera || m.default;
   })();
   return handlerP;
 }
