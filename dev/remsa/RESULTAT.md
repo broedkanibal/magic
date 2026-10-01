@@ -117,9 +117,9 @@ landet. Swamp-högarna klarar sig för att svart ram med vit text tål blänket.
 ur samma film och faller på samma sätt (3/10). GRIND3.md såg samma sak för detektorn: remsklassen
 missar just "bländade vita kort i fickor".
 
-Det är alltså inte remsan som är för liten (66–82 px hög i 4K) utan bilden som saknar
-informationen. Det avgör vad träning kan göra: en modell kan läras tåla *delvis* blänk, inte
-läsa text som inte finns. Steg 2 nedan bekräftar: OCR läser 0 av 735 där.
+Det är alltså inte remsan som är för liten (66–82 px hög i 4K) utan bilden som är urblekt och
+suddig. Steg 2 nedan visar att OCR läser 0 av 735 där. Vad träning kan göra åt det är *inte* mätt —
+se steg 3 nedan: att informationen "saknas i bilden" är ett antagande, med ett prov som fäller det.
 
 ### Tre saker till ur tabellen
 
@@ -283,10 +283,18 @@ Jespers Intel-Mac; remsan är samma tensor. Detektorn på 960 × 544: 52–96 ms
 
 Promptens regel: *gör steg 3 bara om steg 1 säger att träning behövs.* Steg 1 säger att dagens
 modell klarar remsan när remsan är skarp och rätt skuren (64/64, 0 säkra fel), och att det som
-fäller den — blänk, oskärpa, 10 px titelrader, fel geometri — fäller OCR:n lika hårt och går
-inte att träna bort där informationen saknas i bilden. En finjustering hade mätts mot samma
-MES-246 och sett ut att "hjälpa" på Swamp-högarna av samma tur som i dag. Tiden lades i stället
-på steg 2: tre upplösningar, tre lägen för titelraden, detektorns egna lådor och högbänken.
+fäller den — blänk, oskärpa, 10 px titelrader, fel geometri — fäller OCR:n lika hårt. Tiden lades i
+stället på steg 2: tre upplösningar, tre lägen för titelraden, detektorns egna lådor och högbänken.
+
+**Att blänket "inte går att träna bort" är ett antagande, inte ett mått.** Att OCR läser 0 bevisar
+inte att en bildvektor inte kan skilja urblekta remsor på ram och konst, och felet i MES-246 är
+*systematiskt* (Swamp på 598 av 735, 27 säkra fel) — precis det en finjustering med störningarna i
+`dev/detektor/synt/` (blänk, oskärpa) är tänkt att rätta. Provet som fäller antagandet: en liten
+finjustering på Scryfall-remsor med synt-blänk och -oskärpa plus riktiga remsor ur träningsfilmerna,
+mätt på MES-246-remsorna som hålls helt utanför träningen (`delning.py`). Ger den fler än 66 säkra
+rätt av 735 vid 0 säkra fel (dagens 66 och 27) är antagandet fel och träning rätt väg. Provet måste
+räkna per namn — mätt bara på Swamp-högarna hade en finjustering kunnat "hjälpa" av samma tur som
+i dag. Den mätningen är steg 3–4 och är inte gjord.
 
 Det som *skulle* gå att träna bort, om det behövs senare: tolerans mot fickkanten och lite bord i
 en axelparallell låda (detektorn ger 63/69 mot hörnens 67/74 — litet), och delvis blänk. Datat
@@ -314,6 +322,14 @@ Inte träning (sätt 3), inte OCR (sätt 2) som huvudspår.** I ordning:
 4. OCR som andra vittne på det bildmodellen är osäker på — den lägger inte till kort, men den
    gav 0 fel på 148 golden-remsor och kan bekräfta. Alltid på tunna band, aldrig hela remsan.
 5. Steg 3–4 (finjustering på Kaggle) först om 1–3 lämnar kvar fel på skarpa bilder.
+
+**Issuens "Klart när" är inte uppfyllt — det är besvarat med resonemang, inte mätt fullt ut.** Kravet
+var GO/NO-GO med siffror på högbänken (gjort: 3/13, 5/13, 0 fel namn), 0 säkra fel (gjort på golden;
+inte i MES-246 med dagens tröskel), tid per remsa *på telefonen* (omätt — bara Macen) och sätt 3 mot
+sätt 2 på samma remsor (sätt 3 = finjusteringen är inte mätt; det som ställts mot OCR är dagens
+otränade modell). NO-GO:t gäller alltså *nu*: skarpa remsor behöver ingen träning, och innan träning
+prövas ska geometri, tröskel och blänk mätas på telefonen. Antagandet och provet som fäller det står i
+steg 3.
 
 **Vad Jesper behöver göra:** läsa det här, säga om riktningen håller (geometri + tröskel +
 blänkmätning före träning), och om han vill: spela in blänkprovet i punkt 3.
