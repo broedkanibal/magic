@@ -325,7 +325,9 @@ foto* och *Lägga till en video*. Här är detaljerna bakom.
 3. **Skriv facit.** En **namnlista** räcker: `kort` med bara `namn` per post,
    ett kort per rad, också dubbletter — så lades fall 03–06 till. Då provas
    namnen men inte platsen (kolumnen Plats visar `–`). Ett kort som ligger
-   under ett annat så att bara en kant syns får `"dold": true`.
+   under ett annat så att bara en kant syns får `"dold": true`. Går
+   namnet att läsa är kortet INTE dolt, hur lite av det som än syns — det
+   ska hittas (Jespers beslut 2026-10-02; 06:s mittersta Swamp var felmärkt).
 
    Vill du också prova var korten ligger kan du rita
    rutor — frivilligt, och det går att göra senare. Kör `npm run dev`, öppna
