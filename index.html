@@ -25290,6 +25290,24 @@ const Kamera = (() => {
        upplösning strömmen ger. sandBord lägger dem i meddelandet. */
     const extra = { sma: smaNu(), upplosning: upplosning ? { w: upplosning.w, h: upplosning.h } : null, grav: gravLage(), bib: bibLage(), bildlage: bildlage() };
     if (latens) { extra.bortaTs = bortaTs.splice(0); extra.bildTid = bildTid; }
+    /* Vem ligger över vem (MES-331, golden-måttet Högar): spårets tackt är
+       lådorna för de kort som ligger ÖVER det (fyndUrLador, passaKort). Här
+       blir de en relation mellan spår — under: id:n på de spår vars låda är
+       en av dem (IoU ≥ 0,5, bästa). Ett täckande kort utan eget spår står inte
+       med: relationen finns bara där det finns två spår, och ett par utan den
+       är "okänd", aldrig gissad. Bara rapporten — tackt, maskningen och
+       domen rörs inte. */
+    const iouL = (a, b) => { const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (iw <= 0 || ih <= 0) return 0; const s = iw * ih; return s / (a.w * a.h + b.w * b.h - s); };
+    const underAv = t => {
+      if (!t.tackt || !t.tackt.length) return null;
+      const ids = [];
+      for (const q of t.tackt) {
+        let bast = null, bv = 0.5;
+        for (const u of spar) { if (u === t || u.tillstand === 'skrap' || !u.box) continue; const v = iouL(u.box, q); if (v >= bv) { bv = v; bast = u; } }
+        if (bast && !ids.includes(bast.id)) ids.push(bast.id);
+      }
+      return ids.length ? ids : null;
+    };
     cb.bord(spar.map(t => ({
       id: t.id, tappad: !!t.tappad, namn: t.namn || null, sid: t.sid || null,
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
@@ -25300,6 +25318,7 @@ const Kamera = (() => {
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
       remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, titel: t.remsa.titel || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330), titeldelen (MES-331)
       maskad: !!t.maskad,   // beskärningen var övermålad (MES-330)
+      under: underAv(t),   // id:n på spåren som ligger ÖVER det här (MES-331); null = inget känt
       det: t.detPoang || 0,   // detektorns poäng för kortlådan (MES-330), 0 utan
       /* Namnremsans låda (MES-330): datorns sammaPlats håller isär två kort
          i en hög vars lådor täcker varandra men vars remsor ligger var för

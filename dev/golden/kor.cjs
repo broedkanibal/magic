@@ -64,7 +64,11 @@ const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela ruta
 const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
 const DETLOGG = process.argv.includes('--detlogg');   // detektorns lådor, remsor och täckningar i appens konsol (MES-329) — med --konsol
-const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
+const LASWORKER = arg('--lasworker', '');
+/* --facit "06=dev/material/x.json,13=…": fallen vars id börjar så döms mot en
+   annan facitfil (sökväg från repots rot) — till kontroller som visar att ett
+   mått fallerar när facit säger något annat (MES-331). Sparas aldrig. */
+const FACIT_ERS = arg('--facit', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -97,7 +101,7 @@ function skrivTabell(rs, gamla) {
     ['Hittade', 13, (r, g) => r.hittade + skiljer(r, g, 'hittade')],
     ['Rätt namn', 17, (r, g) => `${r.namn}/${r.kort}` + skiljer(r, g, 'namn')],
     ['Fel namn', 13, (r, g) => r.felNamn + skiljer(r, g, 'felNamn')],
-    ['Falska', 13, (r, g) => r.falska + skiljer(r, g, 'falska')],
+    ['Falska', 22, (r, g) => r.falska + skiljer(r, g, 'falska') + (r.tokens ? ` (+${r.tokens} token)` : '')],   // MES-331: spår på en ritad token räknas för sig
     ['Plats', 12, r => r.platsAv ? `${r.plats}/${r.platsAv}` + (r.lageFel != null ? ` ±${r.lageFel}` : '') : '–'],
     ['Tappad', 8, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–'],
     /* K5/MODE-5: lägesuppdateringar — rapporter där ett stilla kort flyttat mer än AUTO_FLYTT av sin bredd; per minut av fallets tid. */
@@ -107,7 +111,7 @@ function skrivTabell(rs, gamla) {
   const rad = celler => '  ' + celler.map((c, i) => String(c).padEnd(kolumner[i][1])).join('').trimEnd();
   /* Summan är null när ingen rad bär fältet — en baslinje från före ett nytt mått ska inte stå som "(var 0)". */
   const summa = (lista, k) => lista.some(r => r[k] != null) ? lista.reduce((a, r) => a + (r[k] || 0), 0) : null;
-  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv',
+  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'tokens', 'plats', 'platsAv', 'tappad', 'tappadAv',
     'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'videoTappFalska', 'videoFlytt', 'videoFlyttAv', 'videoGrav', 'videoGravAv', 'videoGravFalska', 'lagesUpp'].map(k => [k, summa(lista, k)]));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
@@ -116,6 +120,7 @@ function skrivTabell(rs, gamla) {
   console.log('\n  Kort: synliga kort i facit (ett kort som ligger under ett annat är dolt och räknas inte).');
   console.log('  Hittade: kort kameran lade ut — också dolda kort den ändå såg, och falska spår. Därför kan talet bli större än Kort.');
   console.log('  Rätt namn: synliga kort som fick rätt namn med säkert svar. Fel namn: säkert svar men fel kort (ska vara 0).');
+  console.log('  (+N token): spår på en token som facit ritat (rita.ovriga, MES-331) — räknas inte i Falska.');
   console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor; ± är medianfelet mellan spårets och rutans mitt i kortbredder. (var N): baslinjens tal.');
   console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
   console.log('  Förlopp: bara videofall — utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
@@ -199,7 +204,8 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [AIFLAG && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
-                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER].filter(Boolean).join('&');
+                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
+                 FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|'))].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -241,6 +247,14 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     /* MES-228: land per typ — facits basland mot kamerans, typ för typ (en hög räknas med sitt antal). */
     { const av = rsV.reduce((a, r) => a + (r.landAv || 0), 0), ratt = rsV.reduce((a, r) => a + (r.landRatt || 0), 0), over = rsV.reduce((a, r) => a + (r.landOver || 0), 0);
       if (av) console.log(`  land per typ: ${ratt}/${av} rätt, ${over} för många — ` + rsV.filter(r => r.landAv || r.landOver).map(r => `${r.id.slice(0, 2)}: ${r.landRatt}/${r.landAv}${r.landOver ? ' (+' + r.landOver + ')' : ''}`).join(' · ')); }
+    /* MES-331: högarna — ordningen nedifrån och namnen, per facithög med minst två synliga kort. */
+    { const s = k => rsV.reduce((a, r) => a + (r[k] || 0), 0), av = s('hogAv');
+      if (av) console.log(`  högar: ${s('hogRatt')}/${av} rätt, ${s('hogOrdning')} ordning rätt men namn saknas, ${s('hogOkand')} ordning okänd, ${s('hogFel')} fel — `
+        + rsV.filter(r => r.hogAv).map(r => `${r.id.slice(0, 2)}: ` + r.hogar.filter(h => h.dom !== 'mäts inte').map(h => `${h.hog} ${h.dom}`).join(', ')).join(' · ')); }
+    /* MES-331: tokens — spår på en ritad token (facit rita.ovriga), räknade för sig och inte som falska. */
+    { const tAv = rsV.reduce((a, r) => a + (r.tokensAv || 0), 0);
+      if (tAv) console.log(`  tokens: ${rsV.reduce((a, r) => a + (r.tokens || 0), 0)} spår på ${tAv} ritade tokens (räknas inte som falska) — ` + rsV.filter(r => r.tokensAv).map(r => `${r.id.slice(0, 2)}: ${r.tokens}/${r.tokensAv}`).join(' · ')); }
+    { const ers = rsV.filter(r => r.facitFil); if (ers.length) console.log('  ANNAT FACIT (--facit): ' + ers.map(r => `${r.id.slice(0, 2)} mot ${r.facitFil}`).join(' · ')); }
     const sk = rsV.filter(r => r.videoSkuggaSynlig != null).map(r => `${r.id.slice(0, 2)}: rapport +${r.videoSkuggaRapport} s, synlig +${r.videoSkuggaSynlig} s (före +${r.videoSkuggaSynligFore}), blinkar ${r.videoSkuggaBlink}`);
     if (sk.length) console.log('  skuggan (median efter utspelet, MES-226): ' + sk.join(' · '));
     { const alla = k => rsV.flatMap(r => r[k] || []).sort((a, b) => a - b), e = alla('videoSkuggaEfter'), e0 = alla('videoSkuggaEfterFore'), med = l => l.length ? l[l.length >> 1] : null;
@@ -255,6 +269,9 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     /* MES-221: räknetrådens frågor sedan sidan laddades (hela körningen hittills, inte bara fallet). */
     if (r.lasworker) { const l = r.lasworker; console.log(`  räknetråd (${l.lage}): ${l.fragor} frågor — ${l.trad} i tråden, ${l.huvud} på huvudtråden, ${l.fel} fel, ${l.gammal} mot gammal pool, ${l.olika} olika i kontrollen; trådens räknetid median ${l.ms == null ? '–' : l.ms + ' ms'}, max ${l.msMax == null ? '–' : l.msMax + ' ms'}`); }
     console.log(`  delning: delade ${r.delade}, skurna ${r.skurna}, omlott ${r.omlott || 0}, kortRef ${r.kortRef ? r.kortRef.lang + '×' + r.kortRef.kort + ' (av ' + r.kortRef.av + ')' : '–'}`);
+    /* MES-331: varje facithög — facits kort nedifrån, spåren de fick, kamerans säkra namn och domen. */
+    for (const h of r.hogar || []) console.log(`  hög ${h.hog}: ${h.dom}${h.varfor ? ' — ' + h.varfor : ''}; facit nedifrån ${h.facit.join(', ')}${h.dolda ? ` (+${h.dolda} dolt)` : ''}; spår ${h.spar.map(x => x == null ? '–' : '#' + x).join(', ')}; säkra namn ${h.namn.map(x => x || '–').join(', ')}`);
+    if (r.tokensAv) console.log(`  tokens: ${r.tokens}/${r.tokensAv} ritade fick ett spår` + ((r.tokenLista || []).length ? ' — ' + r.tokenLista.map(x => `${x.namn}: ${x.spar == null ? 'inget spår' : '#' + x.spar + ' (iou ' + x.iou + ')' + (x.namn2 ? ' ' + x.namn2 : '')}`).join(', ') : ''));
     for (const p of r.omlottProv || []) console.log(`    omlott ${p.lang}×${p.kort} (${p.area} kortareor)${p.minne ? ' (minne)' : ''}: ${p.dom}${(p.grader || []).map(g => ' · ' + g.grader + '° ' + g.dom + ' rest ' + g.rest + (g.kant && g.kant.length ? ' kant ' + g.kant.join('; ') : '')).join('')}`);
     /* K5/MODE-5: lägesuppdateringarna och lägesfelet mot facits rutor. */
     if (r.lagesUpp != null) console.log(`  läge: ${r.lagesUpp} uppdateringar (${r.lagesPerMin}/min)${r.lagesSnitt ? `, ${r.lagesSnitt} storleksbyten på plats (räknas inte)` : ''}${r.lageFel != null ? `, medianfel ${r.lageFel} kortbredder mot facits rutor` : ''}`
@@ -310,7 +327,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
       + (l.ocr ? (l.ocr.hoppad ? ` [ocr hoppad: ${l.ocr.hoppad}]` : ` [ocr "${l.ocr.text || ''}" → ${l.ocr.namn || '–'} ${l.ocr.poang}/${l.ocr.marginal}${l.ocr.vand ? ' vänd' : ''}]`) : '')
       + (l.remsa ? ` [remsa → ${l.remsa.namn || '–'} ${l.remsa.marginal}${l.remsa.saker ? ' SÄKER' : ''} ${l.remsa.varfor || ''}${l.remsa.rot ? ' rot ' + l.remsa.rot : ''}${l.remsa.ocr ? (l.remsa.ocr.hoppad ? ', ocr hoppad: ' + l.remsa.ocr.hoppad : ', ocr → ' + (l.remsa.ocr.namn || '–') + ' ' + l.remsa.ocr.poang + '/' + l.remsa.ocr.marginal) : ''}]` : ''));
     for (const p of r.skarProv || []) console.log(`    snitt ${p.lang}×${p.kort} ${p.grader}° led ${p.led}${p.minne ? ' (minne)' : ''}${p.niv ? ' [' + p.niv + ']' : ''}: ${p.snitt.map(c => c.vid + ' (djup ' + c.djup + ', mörk ' + c.mork + ')').join(', ')} → ${p.delar.join(' | ')} → ${p.dom}`);
-    for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.varfor ? ' [' + t.varfor + ']' : ''}${t.maskad ? ' maskad' : ''}${t.det ? ' det ' + t.det : ''}${t.rl ? ' rl @' + t.rl.x + ',' + t.rl.y + ' ' + t.rl.w + '×' + t.rl.h : ''}${t.ai && t.ai.svar ? ' [ai: ' + (t.ai.svar.length ? t.ai.svar.map(k => k.namn + ' ' + k.sakerhet).join(', ') : 'inget kort') + ']' : ''}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + (t.ocr.start != null ? ' @' + Math.round(t.ocr.start * 100) + '%' + (t.ocr.vand ? ' vänd' : '') : '') + ', ' + t.ocr.ms + ' ms]') : ''}${t.remsa ? ' [remsa → ' + (t.remsa.namn || '–') + ' ' + t.remsa.marginal + (t.remsa.saker ? ' SÄKER' : '') + ' ' + (t.remsa.varfor || '') + (t.remsa.rot ? ' rot ' + t.remsa.rot : '') + (t.remsa.px ? ' ' + t.remsa.px.w + '×' + t.remsa.px.h + ' px' : '') + (t.remsa.titel ? ', titel → ' + t.remsa.titel.namn + ' ' + t.remsa.titel.marginal : '') + (t.remsa.ocr ? (t.remsa.ocr.hoppad ? ', ocr hoppad: ' + t.remsa.ocr.hoppad : ', ocr → ' + (t.remsa.ocr.namn || '–') + ' ' + t.remsa.ocr.poang + '/' + t.remsa.ocr.marginal) : '') + ', ' + t.remsa.ms + ' ms]' : ''}`);
+    for (const t of r.spar) console.log(`  #${t.id} @${t.x},${t.y} ${t.w}×${t.h} ${t.tillstand}${t.varfor ? ' [' + t.varfor + ']' : ''}${t.under ? ' under ' + t.under.map(x => '#' + x).join(',') : ''}${t.maskad ? ' maskad' : ''}${t.det ? ' det ' + t.det : ''}${t.rl ? ' rl @' + t.rl.x + ',' + t.rl.y + ' ' + t.rl.w + '×' + t.rl.h : ''}${t.ai && t.ai.svar ? ' [ai: ' + (t.ai.svar.length ? t.ai.svar.map(k => k.namn + ' ' + k.sakerhet).join(', ') : 'inget kort') + ']' : ''}${t.namn ? ' ' + t.namn + (t.saker ? '' : ' (osäker: ' + t.cands.join(', ') + ')') : ''}${t.ocr ? (t.ocr.hoppad ? ' [ocr hoppad: ' + t.ocr.hoppad + ']' : ' [ocr "' + (t.ocr.text || '') + '" → ' + (t.ocr.namn || '–') + ' ' + t.ocr.poang + '/' + t.ocr.marginal + (t.ocr.start != null ? ' @' + Math.round(t.ocr.start * 100) + '%' + (t.ocr.vand ? ' vänd' : '') : '') + ', ' + t.ocr.ms + ' ms]') : ''}${t.remsa ? ' [remsa → ' + (t.remsa.namn || '–') + ' ' + t.remsa.marginal + (t.remsa.saker ? ' SÄKER' : '') + ' ' + (t.remsa.varfor || '') + (t.remsa.rot ? ' rot ' + t.remsa.rot : '') + (t.remsa.px ? ' ' + t.remsa.px.w + '×' + t.remsa.px.h + ' px' : '') + (t.remsa.titel ? ', titel → ' + t.remsa.titel.namn + ' ' + t.remsa.titel.marginal : '') + (t.remsa.ocr ? (t.remsa.ocr.hoppad ? ', ocr hoppad: ' + t.remsa.ocr.hoppad : ', ocr → ' + (t.remsa.ocr.namn || '–') + ' ' + t.remsa.ocr.poang + '/' + t.remsa.ocr.marginal) : '') + ', ' + t.remsa.ms + ' ms]' : ''}`);
   }
   /* --beskarningar <mapp>: det kameran faktiskt skickade till igenkänningen,
      en jpg per spår, döpt efter spårets nummer i --detalj (#nr). Ett spår
@@ -348,7 +365,8 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
                                                ['videoTappFalska', 'falska tap-flippar', false, 'kort'],
                                                ['lagesUpp', 'lägesuppdateringar', false, 'kort'], ['videoFlytt', 'flyttar som sågs', true, 'videoFlyttAv'],
                                                ['videoGrav', 'kort till högen som högvakten såg', true, 'videoGravAv'], ['videoGravFalska', 'falska högändringar', false, 'kort'],
-                                               ['landRatt', 'land rätt per typ', true, 'landAv'], ['landOver', 'land för många per typ', false, 'landAv']]) {
+                                               ['landRatt', 'land rätt per typ', true, 'landAv'], ['landOver', 'land för många per typ', false, 'landAv'],
+                                               ['hogRatt', 'högar rätt (ordning och namn)', true, 'hogAv'], ['hogFel', 'högar fel', false, 'hogAv']]) {
       if (r[k] == null || g[k] == null || r[k] === g[k]) continue;
       ((r[k] > g[k]) === merArBattre ? battre : samre).push(`${r.id}: ${namn} ${g[k]} → ${r[k]} (av ${r[avK]} kort)`);
     } }
@@ -371,6 +389,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   if (ljus) { sammanstallning.push({ ljus, rs, samre: samre.slice(), battre: battre.slice() }); if (varianter.length > 1 || SPARA) { if (SPARA) console.log('\n(--spara gäller inte med --ljus: baslinjen mäter fotona som de är)'); continue; } }
   if (aiFel.n) console.log(`\nVARNING: ${aiFel.n} anrop till Claude misslyckades — resultatet ovan är i praktiken den lokala kedjan. Första felet: ${aiFel.forsta}`);
   if (SPARA && aiFel.n) { console.log(`\n--spara vägrat: ${BASFIL} skrivs inte när anrop till Claude misslyckats.`); process.exitCode = 1; }
+  else if (SPARA && FACIT_ERS) console.log(`\n--spara vägrat: --facit dömer mot ett annat facit, och ${BASFIL} mäter fallens egna.`);
   else if (SPARA && !REFFLAG) {
     let rader = JSON.parse(json); for (const r of rader) delete r.rutLogg;
     if (FALL) {
