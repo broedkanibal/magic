@@ -22195,6 +22195,20 @@ const Kamera = (() => {
        (NMS 0,6 släpper igenom par med IoU under 0,6) ligger högst ~0,45
        isär (samma överkant, 43 mot 80 px hög). Golden --tro "remsaIsar:…". */
     remsaIsar: 0.6,
+    /* Titeldelen av remsan som andra vittne (MES-331, kamLasRemsa): när
+       hela remsan är osäker körs bildmodellen också på remsans vänstra
+       remsaTitel (0,55) — titeln, utan fickkanten, manakostnaden och kortet
+       ovanpå i högra delen. Säkert ('remsa+titel') bara när titeldelen har
+       SAMMA namn överst som hela remsan och marginal > remsaTitelTroskel.
+       Uppmätt i dev/remsa/detektor_remsor.py --vanster 0.55 (resultat/
+       detektorremsor-v55-embed.json): golden ur källan 54 → 61 säkra rätta
+       av 69 med 0 fel, MES-246 0 → 9 av 597 med 0 fel; nollfel för
+       titeldelen i MES-246 är 0,181 (två blänkta Danitha Capashen som blir
+       Night's Whisper), så 0,20; 0,22 kostar 1 i golden och vinner inget.
+       Golden 14:s två täckta Plains i gröna fickor: hela remsan 0,021/0,08,
+       titeldelen 0,23/0,31 i bänken. 0 stänger av (--tro "remsaTitel:0"). */
+    remsaTitel: 0.55,
+    remsaTitelTroskel: 0.2,
     /* Baksida i ficka (MES-258) döms inte när detektorn gett en kortlåda med
        minst den här poängen (kamIdentifiera, MES-330). */
     bakDet: 0.8
@@ -25281,7 +25295,7 @@ const Kamera = (() => {
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
-      remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330)
+      remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, titel: t.remsa.titel || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330), titeldelen (MES-331)
       maskad: !!t.maskad,   // beskärningen var övermålad (MES-330)
       det: t.detPoang || 0,   // detektorns poäng för kortlådan (MES-330), 0 utan
       /* Namnremsans låda (MES-330): datorns sammaPlats håller isär två kort
@@ -26652,6 +26666,27 @@ async function kamLasRemsa(canvas, id, o) {
   const cands = rang.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: +(+c.score).toFixed(3) }));
   const marginal = +(rang[0].score - (rang[1] ? rang[1].score : 0)).toFixed(3);
   let saker = marginal > T.remsaTroskel, varfor = saker ? 'remsa' : 'remsa osäker';
+  /* Titeldelen (MES-331): hela remsan osäker — samma modell på remsans
+     vänstra T.remsaTitel, mot samma remslek. Säkert bara med samma namn
+     överst som hela remsan och marginal > T.remsaTitelTroskel; annars
+     sparas den som vittne. Före textläsaren: ~100 ms mot 0,4–1 s. */
+  let titel = null;
+  if (!saker && T.remsaTitel > 0 && canvas.width >= 8) {
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(4, Math.round(canvas.width * T.remsaTitel)); cv.height = canvas.height;
+      cv.getContext('2d').drawImage(canvas, 0, 0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+      const et = await Embed.identifiera(cv, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTitelTroskel });
+      if (et && et.namn) {
+        const rt = [];
+        for (const c of et.cands || []) { const name = typNamn(c.name); if (!rt.find(x => x.name === name)) rt.push({ name, score: c.score }); }
+        if (rt.length && rt[0].name !== BAKSIDA_NAMN) {
+          titel = { namn: rt[0].name, marginal: +(rt[0].score - (rt[1] ? rt[1].score : 0)).toFixed(3), poang: +(+rt[0].score).toFixed(3) };
+          if (titel.namn === cands[0].name && titel.marginal > T.remsaTitelTroskel) { saker = true; varfor = 'remsa+titel'; }
+        }
+      }
+    } catch (x) { titel = null; }
+  }
   /* Textläsaren bara när bildmodellen inte nådde sin tröskel: den är det
      dyra steget (tre band, 0,4–1 s på Macen) och behövs bara som vittne. */
   let ocr = null;
@@ -26662,7 +26697,7 @@ async function kamLasRemsa(canvas, id, o) {
     const tak = kamLekAntal.get(norm(cands[0].name));
     if (!lekPrior(true, tak == null ? Infinity : tak, Kamera.upptagna(cands[0].name, id))) { saker = false; varfor = 'fler än leken'; }
   }
-  return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands,
+  return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel,
            ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
            rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
 }

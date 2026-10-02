@@ -106,6 +106,7 @@ def main():
     p.add_argument('--kallor', nargs='+', default=['golden', 'mes246'])
     p.add_argument('--andel', type=float, default=0.14, help='referensremsans höjd (detektorns klass tränades på 14 %%)')
     p.add_argument('--strack', type=float, default=1.0, help='detektorlådan sträcks nedåt (mot kortets kropp) så här många gånger: 1,43 gör en 14 %%-remsa till 20 %%')
+    p.add_argument('--vanster', type=float, default=0.0, help='MES-331 steg 5: bildmodellen också på remsans VÄNSTRA andel (titeln, utan fickkant och mana) — v_namn/v_marginal/v_saker per rad, som andra vittne')
     p.add_argument('--namn', default='detektorremsor', help='resultatfilens namn i dev/remsa/resultat/')
     p.add_argument('--ut', default=UT)
     a = p.parse_args()
@@ -166,6 +167,13 @@ def main():
                     q = m.kor([kvadrat(cv2.cvtColor(s, cv2.COLOR_BGR2RGB))])[0]
                     e = dom(refs.rangordna(q), k['facit'])
                     e.update({kk: rad[kk] for kk in ('fil', 'kalla', 'bild', 'nr', 'facit', 'hog', 'tappad', 'res', 'lage', 'kall_h_px')})
+                    if a.vanster > 0:
+                        # MES-331 steg 5: samma modell på remsans vänstra andel (titeln) — golden 14:s Plains i gröna fickor
+                        # tappade på fickkanten och kortet ovanpå i remsans högra del; mäts här som andra vittne mot samma referenser
+                        sv = s[:, :max(4, int(round(s.shape[1] * a.vanster)))]
+                        qv = m.kor([kvadrat(cv2.cvtColor(sv, cv2.COLOR_BGR2RGB))])[0]
+                        ev = dom(refs.rangordna(qv), k['facit'])
+                        e.update({'v_namn': ev['namn'], 'v_marginal': ev['marginal'], 'v_ratt': ev['ratt'], 'v_saker': ev['saker']})
                     embed_rader[res].append(e)
             stat['facit_utan_remsa'] += len(facit) - len(tagna)
     json.dump({'lek': sorted(remsor.lek()), 'remsor': man}, open(os.path.join(a.ut, 'manifest.json'), 'w'), ensure_ascii=False, indent=0)
