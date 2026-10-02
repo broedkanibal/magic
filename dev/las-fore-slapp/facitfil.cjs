@@ -3,6 +3,13 @@
    dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/facit-slapp.json och FACIT.md.
 
    Kör: node dev/las-fore-slapp/facitfil.cjs <arbetsmapp>
+          [--ut <mapp i repot>] [--video <sökväg i repot>] [--rubrik <text>] [--manus-steg <antal>]
+
+   Utan flaggor skrivs MES-246 (som förut). Golden 13b (MES-331):
+     node dev/las-fore-slapp/facitfil.cjs dev/material/arbete/2026-10-02-mes-331-fall-13b/arb \
+       --ut dev/golden/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus \
+       --video "dev/material/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/telefon.mov" \
+       --rubrik "golden 13b, MES-331" --manus-steg 22
 
    Facit är tiden för varje steg i inspelningen — när rörelsen börjar, när
    kortet är nere, när handen släpper och när bordet står stilla — plus vad
@@ -13,7 +20,11 @@ const fs = require('fs'), path = require('path');
 const ARB = process.argv[2];
 if (!ARB) { console.error('node facitfil.cjs <arbetsmapp>'); process.exit(1); }
 const ROT = path.join(__dirname, '..', '..');
-const UT = path.join(ROT, 'dev', 'golden', 'inspelningar', '2026-09-19-mes-246-las-fore-slapp');
+const flagga = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
+const UT = path.resolve(ROT, flagga('--ut', 'dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp'));
+const VIDEO = flagga('--video', 'dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov');
+const RUBRIK = flagga('--rubrik', 'MES-246');
+const MANUS_STEG = +flagga('--manus-steg', 53);
 const S = JSON.parse(fs.readFileSync(path.join(ARB, 'steg-sort.json'), 'utf8'));
 const F = JSON.parse(fs.readFileSync(path.join(ARB, 'facit.json'), 'utf8'));
 const FO = JSON.parse(fs.readFileSync(path.join(ARB, 'fonster.json'), 'utf8'));
@@ -28,12 +39,12 @@ const steg = S.steg.map(s => ({
   namn: namn[String(s.nr)] || null
 }));
 fs.writeFileSync(path.join(UT, 'facit-slapp.json'), JSON.stringify({
-  video: 'dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov', bredd: F.bredd, hojd: F.hojd, fps: F.fps, rutor: F.rutor,
+  video: VIDEO, bredd: F.bredd, hojd: F.hojd, fps: F.fps, rutor: F.rutor,
   kortRef: S.kortRef, steg
 }, null, 1) + '\n');
 
 const r = n => n == null ? '–' : n.toFixed(2);
-let md = `# Facit för inspelningen (MES-246)
+let md = `# Facit för inspelningen (${RUBRIK})
 
 Tiderna är videons sekunder. Framtaget halvautomatiskt av skripten i
 \`dev/las-fore-slapp/\` (se \`kor-allt.sh\`) och kontrollerat mot \`MANUS.md\`
@@ -67,13 +78,14 @@ md += `
    tagen i lampljus och sensorbruset ger annars utslag över hela bilden
    (medelskillnaden mellan två stilla rutor är 3,2 gråsteg orörd, 0,7 suddad).
 3. Ett steg är sammanhängande rörelse med högst en halv sekunds paus i
-   (\`stega.cjs\`). ${steg.length} steg hittades i de 53 stegen i MANUS.md —
-   fler, eftersom ett steg som "untappa hög A, hög B och Thriving Moor" är
-   tre rörelser.
+   (\`stega.cjs\`). ${steg.length} steg hittades mot de ${MANUS_STEG} stegen i MANUS.md
+   (ett steg som "untappa hög A, hög B och Thriving Moor" kan bli flera
+   rörelser, och en skugga eller handen kan bli ett eget steg).
 4. \`släpp\` och \`land\` mäts inne i lådan som ändrades: andelen bildpunkter
    som står som de gör när bordet vilar. Släppet är sista rutan under 97 %.
 5. Nedläggningarna (\`fonster.cjs\`) är de steg där lådan har ett korts mått
-   och något ljust ligger kvar efteråt.
+   och något ligger kvar efteråt: ljust mot svart matta, eller (med
+   \`sortera.cjs --tomt\`, ljust bord) inte som det tomma bordet.
 `;
 fs.writeFileSync(path.join(UT, 'FACIT.md'), md);
 console.log(`skrivet: ${path.join(UT, 'facit-slapp.json')} och FACIT.md — ${steg.length} steg, ${nedlagg.size} nedläggningar`);

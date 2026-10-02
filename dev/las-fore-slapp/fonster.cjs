@@ -59,7 +59,7 @@ const valda = [], rader = [];
 for (const s of S.steg) {
   if (!s.box || !s.t_slapp) continue;
   if (!KORTLIK(s.box)) continue;                 // bara steg där lådan ÄR ett kort
-  if (s.efter < 45) continue;                    // efteråt ligger inget ljust där: borttag
+  if (s.kvar != null ? !s.kvar : s.efter < 45) continue;   // efteråt ligger inget där: borttag (kvar ur sortera.cjs; äldre steg-sort.json: ljuset mot svart matta)
   const fran = Math.max(0, s.t_slapp - FORE), till = Math.min(F.steg[F.steg.length - 1].t_stilla, s.t_stilla + EFTER);
   const iF = Math.max(3, Math.round(fran * fps)), iT = Math.min(N - 1, Math.round(till * fps));
   /* Utsnittet: allt som rör sig i fönstret, plus kortets slutläge. */

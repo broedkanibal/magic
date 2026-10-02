@@ -1,7 +1,13 @@
 #!/bin/bash
 # Hela mätkedjan för MES-246 del 1, i ordning. Kör från repots rot:
 #
-#   bash dev/las-fore-slapp/kor-allt.sh <arbetsmapp> <video>
+#   bash dev/las-fore-slapp/kor-allt.sh <arbetsmapp> <video> [facit-mapp]
+#
+# facit-mapp: dit de små JSON-filerna kopieras (förval dev/las-fore-slapp/facit/,
+# som är MES-246:s — ge en egen mapp för en ny inspelning så att den inte skrivs över).
+# Flaggor till stegen via miljön: STEGA="--till 181" SORTERA="--tomt 4.5"
+# (ljust bord: döm mot det tomma bordet i stället för mot ljuset). KLIPP=0 hoppar
+# över steg 8 (4K-utsnitten, behövs inte för facit-slapp.json).
 #
 # Arbetsmappen ska ligga i dev/material/arbete/<datum>-<issue>/ (gitignorerad):
 # gra.bin blir ~2,3 GB och de klippta rutorna ~0,5 GB. Lägg den INTE i /tmp —
@@ -11,13 +17,20 @@
 #   bash dev/las-fore-slapp/kor-allt.sh \
 #        dev/material/arbete/2026-09-19-mes-246-las-fore-slapp/arb \
 #        dev/material/inspelningar/2026-09-19-mes-246-las-fore-slapp/telefon.mov
+#
+#   Golden 13b (MES-331, träbord):
+#   STEGA="--till 181" SORTERA="--tomt 4.5" KLIPP=0 bash dev/las-fore-slapp/kor-allt.sh \
+#        dev/material/arbete/2026-10-02-mes-331-fall-13b/arb \
+#        "dev/material/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/telefon.mov" \
+#        "dev/golden/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/matning"
 set -e
 ARB="${1:?arbetsmapp}"
 VIDEO="${2:?video}"
 HAR="$(cd "$(dirname "$0")" && pwd)"
 ROT="$(cd "$HAR/../.." && pwd)"
+FACIT="${3:-$HAR/facit}"
 BIN="$ARB/bin"
-mkdir -p "$ARB" "$BIN" "$ARB/bilder" "$HAR/facit"
+mkdir -p "$ARB" "$BIN" "$ARB/bilder" "$FACIT"
 
 echo "== 1. bygger verktygen"
 swiftc -O -o "$BIN/rorelse" "$HAR/rorelse.swift" 2>/dev/null
@@ -31,10 +44,10 @@ echo "== 3. rörelsemåttet, suddat"
 node "$HAR/matt.cjs" "$ARB"
 
 echo "== 4. stegen"
-node "$HAR/stega.cjs" "$ARB" --glapp 0.5 --golv 40 | head -3
+node "$HAR/stega.cjs" "$ARB" --glapp 0.5 --golv 40 $STEGA | head -3
 
 echo "== 5. vad hände i varje steg"
-node "$HAR/sortera.cjs" "$ARB" | head -2
+node "$HAR/sortera.cjs" "$ARB" $SORTERA | head -2
 
 echo "== 6. fönstren (nedläggningarna)"
 node "$HAR/fonster.cjs" "$ARB" | head -2
@@ -42,11 +55,13 @@ node "$HAR/fonster.cjs" "$ARB" | head -2
 echo "== 7. regionen ruta för ruta"
 node "$HAR/regioner.cjs" "$ARB" | tail -3
 
-echo "== 8. klipper ut rutorna i 4K"
-node "$HAR/jobb.cjs" "$ARB" "$ARB/jobb-4k.json"
-"$BIN/klipp" "$VIDEO" "$ARB/bilder" "$ARB/jobb-4k.json" 0.95
+if [ "${KLIPP:-1}" != "0" ]; then
+  echo "== 8. klipper ut rutorna i 4K"
+  node "$HAR/jobb.cjs" "$ARB" "$ARB/jobb-4k.json"
+  "$BIN/klipp" "$VIDEO" "$ARB/bilder" "$ARB/jobb-4k.json" 0.95
+fi
 
 echo "== 9. sparar facit i repot"
-cp "$ARB/facit.json" "$ARB/steg-sort.json" "$ARB/fonster.json" "$ARB/regioner.json" "$HAR/facit/"
-ls -la "$HAR/facit/"
+cp "$ARB/facit.json" "$ARB/steg-sort.json" "$ARB/fonster.json" "$ARB/regioner.json" "$FACIT/"
+ls -la "$FACIT/"
 echo "== klart"
