@@ -22184,6 +22184,17 @@ const Kamera = (() => {
     remsa: 1,
     remsaTroskel: 0.15,
     remsaVittne: 0.05,
+    /* Dubblettregeln med remsor (MES-331): två klara spår med samma namn
+       vars lådor täcker varandra är två kort när remsornas MITTPUNKTER
+       ligger minst så här många remstjocklekar isär (den tunnare av de
+       två), eller när remsorna täcker varandra under SAMMA_SPAR. Uppmätt i
+       golden 04: Plains under Plains, ~19 px förskjutet i 1080-bilden —
+       det övre kortets remsa (67 px hög) rymmer det undres (45 px), så
+       täckningen var ~100 % och kortet dömdes "samma kort som", fast
+       mittpunkterna ligger 0,8 tjocklekar isär. Två remsor på SAMMA titel
+       (NMS 0,6 släpper igenom par med IoU under 0,6) ligger högst ~0,45
+       isär (samma överkant, 43 mot 80 px hög). Golden --tro "remsaIsar:…". */
+    remsaIsar: 0.6,
     /* Baksida i ficka (MES-258) döms inte när detektorn gett en kortlåda med
        minst den här poängen (kamIdentifiera, MES-330). */
     bakDet: 0.8
@@ -25258,10 +25269,14 @@ const Kamera = (() => {
       remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330)
       maskad: !!t.maskad,   // beskärningen var övermålad (MES-330)
       det: t.detPoang || 0,   // detektorns poäng för kortlådan (MES-330), 0 utan
-      /* Namnremsans låda i andelar av rutan (MES-330): datorns sammaPlats
-         håller isär två kort i en hög vars lådor täcker varandra men vars
-         remsor ligger var för sig. null utan remsa (dagens detektor, helbild). */
-      rl: t.remsaLada ? { x: t.remsaLada.x / AW, y: t.remsaLada.y / AH, w: t.remsaLada.w / AW, h: t.remsaLada.h / AH } : null,
+      /* Namnremsans låda (MES-330): datorns sammaPlats håller isär två kort
+         i en hög vars lådor täcker varandra men vars remsor ligger var för
+         sig. Alla fyra talen i andelar av rutans BREDD (MES-331) — inte
+         x/w av bredden och y/h av höjden som lådan — så att avståndet
+         mellan två remsor går att räkna i remsans tjocklek på datorn utan
+         att veta rutans form; täckningen är densamma i båda enheterna.
+         null utan remsa (dagens detektor, helbild). */
+      rl: t.remsaLada ? { x: t.remsaLada.x / AW, y: t.remsaLada.y / AW, w: t.remsaLada.w / AW, h: t.remsaLada.h / AW } : null,
       lokalMs: t.lokalMs != null ? t.lokalMs : null,   // den lokala kedjans tid (identifiera); null = aldrig läst lokalt (helbild)
       x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH,
       /* Viloläget (K5, MES-214): mitten av rutan kortet senast VILADE i. x–h ovan är lådan just nu — den rör sig med en hand intill, och datorns kamLage speglar därför vx/vy. null tills kortet vilat en gång. */
@@ -25602,7 +25617,12 @@ const Kamera = (() => {
      in över ett kort har ingen egen remsa och faller fortfarande för regeln.
      Golden 15: det täckta Plains som remsan namngett säkert blev annars
      "samma kort som" det översta Plains och skräp. */
-  const skildaRemsor = (a, b) => !!(a.remsaLada && b.remsaLada && ladTackning(a.remsaLada, b.remsaLada) < SAMMA_SPAR);
+  /* …eller vars remsor ligger isär (MES-331, T.remsaIsar): mittpunkternas
+     avstånd i den tunnare remsans tjocklek. Golden 04: det undre kortets
+     remsa låg helt inne i det övres (täckning ~1), men 0,8 tjocklekar bort.
+     Samma mått i datorns sammaPlats (skildaRemsor där, på rapportens rl). */
+  const remsAvstand = (a, b) => Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h));
+  const skildaRemsor = (a, b) => !!(a.remsaLada && b.remsaLada && (ladTackning(a.remsaLada, b.remsaLada) < SAMMA_SPAR || remsAvstand(a.remsaLada, b.remsaLada) >= T.remsaIsar));
   const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
   function dubblettAv(t, q) {
     t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
@@ -27171,8 +27191,20 @@ function lekPrior(saker, tak, upptagna) {
    två kort, hur mycket lådorna än täcker varandra: i en landhög ligger det
    undre kortets låda till mer än hälften under det övres, men remsorna var
    för sig. Telefonens parning ger en remsa per låda, så en region som vuxit
-   in över ett kort har ingen egen remsa och döms som förut. */
-function skildaRemsor(a, b) { return !!(a.rl && b.rl && tackning(a.rl, b.rl) < SAMMA_KORT_TACKNING); }
+   in över ett kort har ingen egen remsa och döms som förut.
+   …eller vars remsor ligger isär (MES-331): mittpunkterna minst REMSA_ISAR
+   tjocklekar (den tunnare remsans) från varandra — golden 04: det undre
+   kortets remsa låg helt inne i det övres men 0,8 tjocklekar bort. rl är i
+   andelar av rutans bredd på alla fyra ledder (rapportera), så måttet
+   gäller oavsett rutans form. Samma regel och gräns som telefonens
+   skildaRemsor (Kamera.T.remsaIsar); här utan Kamera (avstamning.cjs). */
+const REMSA_ISAR = 0.6;
+function remsAvstand(a, b) { return Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h)); }
+function skildaRemsor(a, b) {
+  if (!a.rl || !b.rl) return false;
+  const isar = (typeof Kamera !== 'undefined' && Kamera.trosklar && Kamera.trosklar.remsaIsar != null) ? Kamera.trosklar.remsaIsar : REMSA_ISAR;
+  return tackning(a.rl, b.rl) < SAMMA_KORT_TACKNING || remsAvstand(a.rl, b.rl) >= isar;
+}
 function sammaPlats(a, b) {
   if (a.w == null || b.w == null || syskon(a, b) || (farsktSpar(a) && farsktSpar(b))) return false;
   if (franHelbild(a) || franHelbild(b)) return mittNara(a, b) || mittNara(b, a);
