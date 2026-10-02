@@ -60,7 +60,7 @@ ska vara grön efteråt.
 **0c. Golden 13b.** Jespers nya inspelning är ritad: `dev/golden/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/lagen.json`
 (23 lägen, rita-kontroll grön, källan `fall-13b` i `rita-kallor.json`, videon
 `dev/material/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/telefon.mov`, 4K, 0,5×, träbord). Bygg
-golden-fallet `17-…` (eller nästa lediga nummer) som videofall på samma sätt som 13: `koda.swift`
+golden-fallet `18-…` (17 är upptaget: kompisens inspelning ligger som utkast på grenen `worktree-golden-17-person1`, inte ihopslagen — rör den inte) som videofall på samma sätt som 13: `koda.swift`
 (välj upplösning och bithastighet så att fallet ryms — mät 1080p mot 1920p med `--video` om storleken
 tvingar ner det), `bild.jpg` = sista läget, `facit.json` med slutlägets kort ur ritningen och
 `video.handelser` ur lägena/manuset. Kör det lokalt och med `--ai`, och lägg det i baslinjen.
