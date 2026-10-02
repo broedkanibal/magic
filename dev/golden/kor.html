@@ -189,7 +189,7 @@ const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlo
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
-/* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
+/* ?rutlogg=1 (kor.cjs --rutlogg <fil>): varje videoruta med spåren som de står — tillstånd, mått, formN, skymd, r = fick en region i den här rutan (regionNar mot modulens klocka; till 2026-10-02 jämfördes mot ett fält som inte fanns och r var alltid 1), tm = tomMs, om = omlott — för utredningar ruta för ruta (MES-227: hur länge syns kortet oskymt innan det ligger still?). Stort, därför aldrig i baslinjen. */
 const RUTLOGG = PARAMS.get('rutlogg') === '1';
 /* ?luft=0|1 (kor.cjs --luft): läsningen på första hela rutan (MES-227, Kamera T.luft) av eller på, oavsett appens förval. */
 const LUFT = PARAMS.get('luft');
@@ -694,7 +694,7 @@ function las(prov, ms, msRuta) {
   const sT = rad + '@' + lage;
   if (sT !== prov.sigT && prov.tidslinje.length < 400) { prov.sigT = sT; prov.tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
   if (prov.logg) loggaSpar(prov, spar);
-  if (RUTLOGG && prov.logg) { const kr = K.diagnos.kortRef; (prov.rutLogg || (prov.rutLogg = [])).push({ s: prov.s, kr: kr ? [kr.lang, kr.kort] : null, spar: spar.map(t => ({ id: t.id, st: t.tillstand, n: t.namn && t.saker ? t.namn : null, l: Math.round(t.lang), k: Math.round(t.kort), x: Math.round(t.cx), y: Math.round(t.cy), f: t.formN || 0, sk: t.skymd ? 1 : 0, r: t.regionNar != null && t.sedd === t.regionNar && t.regionNar >= (K.diagnos.nu || 0) ? 1 : 0, sp: t.spek ? (t.spek.svar ? 's' : t.spek.miss ? 'm' : 'v') : '', la: t.laser ? 1 : 0 })) }); }
+  if (RUTLOGG && prov.logg) { const kr = K.diagnos.kortRef; (prov.rutLogg || (prov.rutLogg = [])).push({ s: prov.s, kr: kr ? [kr.lang, kr.kort] : null, spar: spar.map(t => ({ id: t.id, st: t.tillstand, n: t.namn && t.saker ? t.namn : null, l: Math.round(t.lang), k: Math.round(t.kort), x: Math.round(t.cx), y: Math.round(t.cy), f: t.formN || 0, sk: t.skymd ? 1 : 0, r: t.regionNar != null && t.regionNar >= w.performance.now() - 1 ? 1 : 0, tm: Math.round(t.tomMs || 0), om: t.omlott ? 1 : 0, sp: t.spek ? (t.spek.svar ? 's' : t.spek.miss ? 'm' : 'v') : '', la: t.laser ? 1 : 0 })) }); }
   const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
   /* …och en helbild som är planerad eller på väg väntas in: den kommer
      3 s efter att bordet stått stilla, och fall 05 var annars "klart"
