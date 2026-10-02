@@ -22212,6 +22212,20 @@ const Kamera = (() => {
        titeldelen 0,23/0,31 i bänken. 0 stänger av (--tro "remsaTitel:0"). */
     remsaTitel: 0.55,
     remsaTitelTroskel: 0.2,
+    /* Vem ligger ovanpå i en hög (MES-331 pass 2, fyndUrLador): två lådor
+       som täcker varandra till minst hogTackning (av den mindre) ordnas
+       efter FÖRSKJUTNINGEN mellan deras mittpunkter, i remsans två
+       riktningar — tvärs remsan in i kortet, och längs remsan från titeln.
+       Det kort som ligger över är förskjutet minst hogMarg kortlängder i
+       någon av dem (en hög solfjädras så att namnen syns: det undre kortet
+       sticker fram vid sin namnremsa). Uppmätt på golden-högarna
+       (dev/material/hogar-2026-10-02/ordning.md): minsta sanna förskjutning
+       0,11 (06: liggande kort förskjutna längs remsan), lådornas mittfel
+       ≤ 0,03. Under marginalen, eller när de två riktningarna säger emot
+       varandra, gäller remsmittsregeln som förut (båda över varandra →
+       båda maskas). Golden --tro "hogMarg:…". */
+    hogMarg: 0.08,
+    hogTackning: 0.05,
     /* Baksida i ficka (MES-258) döms inte när detektorn gett en kortlåda med
        minst den här poängen (kamIdentifiera, MES-330). */
     bakDet: 0.8
@@ -23685,10 +23699,54 @@ const Kamera = (() => {
        maskas båda: det övre kortet blir osäkert i stället för att det undre
        får det övres namn (säkert, med 28 inliers). */
     const inneI = (p, b) => p && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+    const over = new Map();   // låda → mängden lådor som ligger ÖVER den
+    const satt = (a, b) => (over.get(a) || over.set(a, new Set()).get(a)).add(b);
+    const harOver = (a, b) => !!(over.get(a) && over.get(a).has(b));
     for (const a of ut) for (const b of ut) {
       if (a === b || !b.remsaMitt || !inneI(b.remsaMitt, a.box)) continue;
-      (a.tackt || (a.tackt = [])).push(b.box);
+      satt(a, b);
     }
+    /* …och förskjutningen avgör där remsmitten inte räcker (MES-331 pass 2).
+       Remsmittsregeln ovan ser inte vem som ligger över när båda remsorna
+       hamnar i den andres låda — en hög förskjuten mindre än en halv remsa
+       (golden 04: Plains 19 px under Plains), eller liggande kort förskjutna
+       LÄNGS remsan (golden 06: tre kort på tvären med remsorna i rad längs
+       högerkanten — där ritar detektorn det undre kortets remsa genom det
+       övre, och regeln lade det bakersta Swamp ÖVER det mittersta). Men
+       en hög solfjädras så att namnen syns, och det undre kortet sticker
+       då fram vid sin namnremsa: det kort som ligger ÖVER är förskjutet
+       bort från remsan — tvärs remsan in i kortet, eller längs remsan från
+       titeländen (överst till vänster på ett kort; var den hamnar följer
+       remsans sida, som lasRemsa vrider efter). Minst T.hogMarg kortlängder
+       i någon av riktningarna, utan att den andra säger emot; annars står
+       remsmittsregeln. Mätt på golden-högarna: 20 av 20 par rätt, minsta
+       sanna förskjutning 0,11 (dev/material/hogar-2026-10-02/ordning.md).
+       Ett par som bara nuddar varandra (under T.hogTackning) ordnas inte:
+       maskningen skulle inte ändra något, men spåret blev "maskat" och
+       Claudes svar krävde ett vittne. Säger förskjutningen emot en
+       ENSIDIG remsmittsrelation blir paret ömsesidigt — okänt, och båda
+       maskas — hellre än att ett täckt kort läses omaskat. */
+    const sidaAv = f => {
+      const s = f.remsaLada; if (!s) return null;
+      const lodrat = s.h > s.w, mx = s.x + s.w / 2, my = s.y + s.h / 2, b = f.box;
+      if (lodrat) return (mx - b.x) < (b.x + b.w - mx) ? 'vanster' : 'hoger';
+      return (my - b.y) > (b.y + b.h - my) ? 'botten' : 'topp';
+    };
+    for (let i = 0; i < ut.length; i++) for (let j = i + 1; j < ut.length; j++) {
+      const a = ut[i], b = ut[j];
+      if (ladTackning(a.box, b.box) < T.hogTackning) continue;
+      const sa = sidaAv(a), sb = sidaAv(b), sida = sa && sb ? (sa === sb ? sa : null) : (sa || sb);
+      if (!sida) continue;
+      const M = T.hogMarg * (a.lang + b.lang) / 2, dx = b.cx - a.cx, dy = b.cy - a.cy;
+      const tvars = sida === 'topp' ? dy : sida === 'botten' ? -dy : sida === 'hoger' ? -dx : dx;   // in i kortet från remsans sida
+      const langs = sida === 'topp' ? dx : sida === 'botten' ? -dx : sida === 'hoger' ? dy : -dy;   // från titeländen längs remsan
+      const bOver = tvars >= M || langs >= M, aOver = tvars <= -M || langs <= -M;
+      if (bOver === aOver) continue;
+      const vinn = bOver ? b : a, forl = bOver ? a : b;
+      if (harOver(vinn, forl) && harOver(forl, vinn)) over.get(vinn).delete(forl);   // ömsesidigt: förskjutningen avgör
+      else satt(forl, vinn);   // ny relation — eller, mot en ensidig remsmittsrelation, ömsesidig (okänd)
+    }
+    for (const [a, s] of over) a.tackt = s.size ? [...s].map(b => b.box) : null;
     /* Kort omlott matchas på TÄCKNING, inte på närmaste mitt (matcha, flaggan
        omlott från MES-250): två hela kortlådor i en hög har mittpunkter inom
        0,6 kortlängder från varandra, och när det övre kortet lyfts tog det
