@@ -23683,7 +23683,7 @@ const Kamera = (() => {
          en remsa, klassen baksida, och dagens detektor. */
       const rl = b.remsa ? { x: b.remsa.x0 * k, y: b.remsa.y0 * k, w: (b.remsa.x1 - b.remsa.x0) * k, h: (b.remsa.y1 - b.remsa.y0) * k } : null;
       ut.push({ cx, cy, lang, kort, vinkel, area, std, box, poang: b.poang, klass: b.klass, ur: b.ur, remsa: !!b.remsa, remsaMitt: rm, remsaLada: rl,
-                detPoang: b.ur === 'lada' && b.klass === 'kort' ? (b.poang || 0) : 0, tackt: null });
+                detPoang: b.ur === 'lada' && b.klass === 'kort' ? (b.poang || 0) : 0, tackt: null, remsaSynt: false });
     }
     /* Vem ligger ovanpå (MES-250 för modellens lådor): modellen ritar lådan
        runt kortets synliga del, och för ett kort som sticker fram under ett
@@ -23699,6 +23699,50 @@ const Kamera = (() => {
        maskas båda: det övre kortet blir osäkert i stället för att det undre
        får det övres namn (säkert, med 28 inliers). */
     const inneI = (p, b) => p && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h;
+    /* Remsans sida i sin låda, som lasRemsa vrider efter: en lodrät remsa
+       sitter i vänster- eller högerkanten, en vågrät i över- eller underkanten. */
+    const sidaAv = f => {
+      const s = f.remsaLada; if (!s) return null;
+      const lodrat = s.h > s.w, mx = s.x + s.w / 2, my = s.y + s.h / 2, b = f.box;
+      if (lodrat) return (mx - b.x) < (b.x + b.w - mx) ? 'vanster' : 'hoger';
+      return (my - b.y) > (b.y + b.h - my) ? 'botten' : 'topp';
+    };
+    /* En kortlåda UTAN remsa i en hög får en syntetisk (MES-331 pass 2):
+       lådans kant på samma sida som grannarnas remsor, lika tjock som den
+       tunnaste av dem. Golden 06: det mittersta Swamp (låda 0,86) har sin
+       titel läsbar, men remsorna i en hög förskjuten längs remsan ligger
+       i rad och nästan på varandra — detektorns dubblettsteg bland remsor
+       (NMS 0,6) tog dess remsa, och 0,7 gav ingen heller (i python finns
+       den inte ens råa över 0,68). Utan remsa fanns inget att läsa namnet
+       ur, och ingen remsmitt att ordna högen med. Den syntetiska remsan
+       är kantens hela längd: det som ligger ovanpå (tackt) målas över när
+       den läses (lasRemsa), så att den inte visar grannens titel. Bara i
+       en hög (täckning ≥ 0,3 med en granne som har remsa, alla grannars
+       remsor på samma sida), bara för en låda med ett korts kvot — en
+       hand eller en flik får ingen — och bara när kanten ligger I LINJE
+       med en grannes remsa (samma riktning, i sidled minst en halv
+       tjocklek gemensam): det är raden där dubblettsteget tappar remsor.
+       Ett kort vars titel ligger gömd under grannen — golden 14/15 hög C:
+       Maul instucket under Mirran Bardiche, sticker fram nedtill — har
+       ingen remsa för att titeln inte syns, och en syntetisk remsa där
+       vore grannens innehåll: den fick (i ett prov) Pacifism 0,016 ur
+       Mirrans textruta. Ett sådant kort förblir utan remsa. */
+    for (const a of ut) {
+      if (a.remsaLada) continue;
+      const kv = a.kort / Math.max(1, a.lang); if (kv < T.kvotMin || kv > T.kvotMax) continue;
+      const grannar = ut.filter(b => b !== a && b.remsaLada && ladTackning(a.box, b.box) >= 0.3);
+      if (!grannar.length) continue;
+      const sida = sidaAv(grannar[0]); if (!sida || grannar.some(b => sidaAv(b) !== sida)) continue;
+      const tj = Math.min(...grannar.map(b => Math.min(b.remsaLada.w, b.remsaLada.h))), k = a.box;
+      const rl = sida === 'topp' ? { x: k.x, y: k.y, w: k.w, h: tj } : sida === 'botten' ? { x: k.x, y: k.y + k.h - tj, w: k.w, h: tj }
+               : sida === 'hoger' ? { x: k.x + k.w - tj, y: k.y, w: tj, h: k.h } : { x: k.x, y: k.y, w: tj, h: k.h };
+      const lodrat = rl.h > rl.w;
+      const iLinje = grannar.some(b => { const s = b.remsaLada; if ((s.h > s.w) !== lodrat) return false;
+        const gem = lodrat ? Math.min(s.x + s.w, rl.x + rl.w) - Math.max(s.x, rl.x) : Math.min(s.y + s.h, rl.y + rl.h) - Math.max(s.y, rl.y);
+        return gem >= 0.5 * tj; });
+      if (!iLinje) continue;
+      a.remsaLada = rl; a.remsaMitt = { x: rl.x + rl.w / 2, y: rl.y + rl.h / 2 }; a.remsa = true; a.remsaSynt = true;
+    }
     const over = new Map();   // låda → mängden lådor som ligger ÖVER den
     const satt = (a, b) => (over.get(a) || over.set(a, new Set()).get(a)).add(b);
     const harOver = (a, b) => !!(over.get(a) && over.get(a).has(b));
@@ -23725,22 +23769,27 @@ const Kamera = (() => {
        maskningen skulle inte ändra något, men spåret blev "maskat" och
        Claudes svar krävde ett vittne. Säger förskjutningen emot en
        ENSIDIG remsmittsrelation blir paret ömsesidigt — okänt, och båda
-       maskas — hellre än att ett täckt kort läses omaskat. */
-    const sidaAv = f => {
-      const s = f.remsaLada; if (!s) return null;
-      const lodrat = s.h > s.w, mx = s.x + s.w / 2, my = s.y + s.h / 2, b = f.box;
-      if (lodrat) return (mx - b.x) < (b.x + b.w - mx) ? 'vanster' : 'hoger';
-      return (my - b.y) > (b.y + b.h - my) ? 'botten' : 'topp';
-    };
+       maskas — hellre än att ett täckt kort läses omaskat.
+       Antagandet gäller bara kort som VISAR sin titel: ett kort instucket
+       under ett annat med titeln gömd (golden 14/15 hög C: Maul under
+       Mirran Bardiche, sticker fram nedtill — så läggs utrustning under
+       en varelse) är förskjutet åt andra hållet, och hade lagts över.
+       Därför kräver regeln remsa på BÅDA lådorna (ett gömt namn ger ingen
+       remsa, och ingen syntetisk utanför en rad), och längs remsan räknas
+       bara när det främre kortets titelände ligger vid dess egen kant —
+       ett kort instucket åt sidan har sin remsa avskuren vid grannens
+       kant, medan 04:s Swamp börjar sin remsa 1 px in i lådan. */
     for (let i = 0; i < ut.length; i++) for (let j = i + 1; j < ut.length; j++) {
       const a = ut[i], b = ut[j];
       if (ladTackning(a.box, b.box) < T.hogTackning) continue;
-      const sa = sidaAv(a), sb = sidaAv(b), sida = sa && sb ? (sa === sb ? sa : null) : (sa || sb);
+      const sa = sidaAv(a), sb = sidaAv(b), sida = sa && sb && sa === sb ? sa : null;
       if (!sida) continue;
-      const M = T.hogMarg * (a.lang + b.lang) / 2, dx = b.cx - a.cx, dy = b.cy - a.cy;
+      const lang = (a.lang + b.lang) / 2, M = T.hogMarg * lang, dx = b.cx - a.cx, dy = b.cy - a.cy;
       const tvars = sida === 'topp' ? dy : sida === 'botten' ? -dy : sida === 'hoger' ? -dx : dx;   // in i kortet från remsans sida
       const langs = sida === 'topp' ? dx : sida === 'botten' ? -dx : sida === 'hoger' ? dy : -dy;   // från titeländen längs remsan
-      const bOver = tvars >= M || langs >= M, aOver = tvars <= -M || langs <= -M;
+      /* Remsans titelände mot lådans kant: avskuren (titeln under grannen) om längre in än en tiondels kortlängd. */
+      const titelKant = f => { const s = f.remsaLada, k = f.box; return sida === 'topp' ? s.x - k.x : sida === 'botten' ? (k.x + k.w) - (s.x + s.w) : sida === 'hoger' ? s.y - k.y : (k.y + k.h) - (s.y + s.h); };
+      const bOver = tvars >= M || (langs >= M && titelKant(b) <= 0.1 * lang), aOver = tvars <= -M || (langs <= -M && titelKant(a) <= 0.1 * lang);
       if (bOver === aOver) continue;
       const vinn = bOver ? b : a, forl = bOver ? a : b;
       if (harOver(vinn, forl) && harOver(forl, vinn)) over.get(vinn).delete(forl);   // ömsesidigt: förskjutningen avgör
@@ -23755,7 +23804,7 @@ const Kamera = (() => {
        täcker en annan till minst 30 % (av den mindre) är omlott. */
     for (const a of ut) for (const b of ut) { if (a !== b && ladTackning(a.box, b.box) >= 0.3) { a.omlott = true; break; } }
     /* …och modellens RÅA kortlådor före parningen (MES-331: var det detektorn eller parningen som tappade ett kort i högen?). */
-    if (window.MESA_DET_LOGG && (++detLoggN % 20 === 1)) console.log('[det]', AW, AH, JSON.stringify(ut.map(f => ({ b: [f.box.x, f.box.y, f.box.w, f.box.h], r: f.remsaMitt && [Math.round(f.remsaMitt.x), Math.round(f.remsaMitt.y)], t: f.tackt ? f.tackt.length : 0, o: !!f.omlott, ur: f.ur, p: +(f.poang || 0).toFixed(2) }))), 'remsor', JSON.stringify(L.remsor.map(s => [Math.round(s.x0 * k), Math.round(s.y0 * k), Math.round(s.x1 * k), Math.round(s.y1 * k)])), 'ra', JSON.stringify(L.kort.map(b => [Math.round(b.x0 * k), Math.round(b.y0 * k), Math.round(b.x1 * k), Math.round(b.y1 * k), +(b.poang || 0).toFixed(2), b.klass])));
+    if (window.MESA_DET_LOGG && (++detLoggN % 20 === 1)) console.log('[det]', AW, AH, JSON.stringify(ut.map(f => ({ b: [f.box.x, f.box.y, f.box.w, f.box.h], r: f.remsaMitt && [Math.round(f.remsaMitt.x), Math.round(f.remsaMitt.y)], t: f.tackt ? f.tackt.length : 0, o: !!f.omlott, ur: f.ur, p: +(f.poang || 0).toFixed(2), s: f.remsaSynt ? 1 : 0 }))), 'remsor', JSON.stringify(L.remsor.map(s => [Math.round(s.x0 * k), Math.round(s.y0 * k), Math.round(s.x1 * k), Math.round(s.y1 * k)])), 'ra', JSON.stringify(L.kort.map(b => [Math.round(b.x0 * k), Math.round(b.y0 * k), Math.round(b.x1 * k), Math.round(b.y1 * k), +(b.poang || 0).toFixed(2), b.klass])));
     return ut;
   }
 
@@ -23943,7 +23992,7 @@ const Kamera = (() => {
        är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null, remsaLada: f.remsaLada || null, detPoang: f.detPoang || 0 };
+                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null, remsaLada: f.remsaLada || null, remsaSynt: !!f.remsaSynt, detPoang: f.detPoang || 0 };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (latens) ny.ts = { bild: bildTid, hittat: Date.now(), rorelse: rutTid() };
@@ -24161,7 +24210,7 @@ const Kamera = (() => {
         }
         if (f.omlott) bast.omlott = true;
         bast.tackt = f.tackt || null;   // det övre kortets låda när det här är det undre (MES-250), annars inget
-        bast.remsaLada = f.remsaLada || null; bast.detPoang = f.detPoang || 0;   // detektorns remslåda och kortpoäng (MES-330)
+        bast.remsaLada = f.remsaLada || null; bast.remsaSynt = !!f.remsaSynt; bast.detPoang = f.detPoang || 0;   // detektorns remslåda (eller den syntetiska, MES-331) och kortpoäng (MES-330)
         /* Formen (K4): samma långsida och kortsida som förra rutan, inom
            SPEK_FORM. En hand som håller i kortet, eller en skugga som hänger
            med, ändrar regionens mått fast mitten står nästan still. */
@@ -25386,6 +25435,7 @@ const Kamera = (() => {
          att veta rutans form; täckningen är densamma i båda enheterna.
          null utan remsa (dagens detektor, helbild). */
       rl: t.remsaLada ? { x: t.remsaLada.x / AW, y: t.remsaLada.y / AW, w: t.remsaLada.w / AW, h: t.remsaLada.h / AW } : null,
+      rsynt: !!t.remsaSynt,   // remsan är lådans kant, inte detektorns (MES-331 pass 2)
       lokalMs: t.lokalMs != null ? t.lokalMs : null,   // den lokala kedjans tid (identifiera); null = aldrig läst lokalt (helbild)
       x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH,
       /* Viloläget (K5, MES-214): mitten av rutan kortet senast VILADE i. x–h ovan är lådan just nu — den rör sig med en hand intill, och datorns kamLage speglar därför vx/vy. null tills kortet vilat en gång. */
@@ -25523,7 +25573,18 @@ const Kamera = (() => {
     c.width = ow; c.height = oh;
     const x2 = c.getContext('2d'); x2.imageSmoothingQuality = 'high';
     x2.translate(ow / 2, oh / 2); x2.rotate(rot * Math.PI / 180); x2.drawImage(video, x, y, w, h, -w / 2, -h / 2, w, h);
-    return cb.lasRemsa(c, t.id, { rot, px: { w: Math.round(w), h: Math.round(h) } });
+    /* En syntetisk remsa (fyndUrLador, MES-331 pass 2) är lådans hela kant,
+       och i en hög förskjuten längs remsan fortsätter grannens titel i den:
+       det som ligger ovanpå (t.tackt, analyspixlar) målas över med mattans
+       nivå, som maskaTackt gör i beskärningen — i samma vridna led, så
+       rektanglarna räknas i videons bildpunkter relativt remsans ruta. */
+    let tackt = 0;
+    if (t.remsaSynt && t.tackt && t.tackt.length) {
+      const v = Math.max(0, Math.min(255, Math.round(modell ? modell.M / senasteGain : 128)));
+      x2.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+      for (const q of t.tackt) { x2.fillRect(r.x + (q.x - 1) * sx - x - w / 2, r.y + (q.y - 1) * sy - y - h / 2, (q.w + 2) * sx, (q.h + 2) * sy); tackt++; }
+    }
+    return cb.lasRemsa(c, t.id, { rot, px: { w: Math.round(w), h: Math.round(h) }, synt: !!t.remsaSynt, tackt });
   }
   /* Ett maskat spår — ett annat kort ligger över, och beskärningen är mest
      matta (maskaTackt) — får sitt namn ur remsan när den lokala kedjan inte
@@ -25740,7 +25801,13 @@ const Kamera = (() => {
      Samma mått i datorns sammaPlats (skildaRemsor där, på rapportens rl). */
   const remsAvstand = (a, b) => Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h));
   const skildaRemsor = (a, b) => !!(a.remsaLada && b.remsaLada && (ladTackning(a.remsaLada, b.remsaLada) < SAMMA_SPAR || remsAvstand(a.remsaLada, b.remsaLada) >= T.remsaIsar));
-  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
+  /* …eller som ligger ÖVER varandra (MES-331 pass 2): det ena spårets tackt
+     bär det andras låda. Två kort i en hög är två kort, hur nära remsorna
+     än ligger — golden 06: det mittersta Swamps syntetiska remsa ligger
+     0,63 tjocklekar från det bakersta Swamps, på gränsen (T.remsaIsar 0,6). */
+  const iouLada = (a, b) => { const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (iw <= 0 || ih <= 0) return 0; const s = iw * ih; return s / (a.w * a.h + b.w * b.h - s); };
+  const overVarandra = (t, q) => !!((t.tackt && t.tackt.some(b => iouLada(b, q.box) >= 0.5)) || (q.tackt && q.tackt.some(b => iouLada(b, t.box) >= 0.5)));
+  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && !overVarandra(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
   function dubblettAv(t, q) {
     t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
     t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.gissning = null; t.del = false; t.varfor = 'samma kort som #' + q.id;
@@ -26784,7 +26851,8 @@ async function kamLasRemsa(canvas, id, o) {
   }
   return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel,
            ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
-           rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
+           rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, synt: !!(o && o.synt), tackt: (o && o.tackt) || 0,   // syntetisk remsa ur lådans kant, och hur många lådor ovanpå som målats över (MES-331 pass 2)
+           ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
 }
 /* Lekens antal av ett namn (K6), för Kamera: null utan lek eller utanför den. */
 function kamLekTak(namn) { const n = kamLekAntal ? kamLekAntal.get(norm(namn)) : null; return n == null ? null : n; }
@@ -27342,6 +27410,8 @@ function lekPrior(saker, tak, upptagna) {
    skildaRemsor (Kamera.T.remsaIsar); här utan Kamera (avstamning.cjs). */
 const REMSA_ISAR = 0.6;
 function remsAvstand(a, b) { return Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h)); }
+/* …eller som enligt telefonen ligger över varandra (rapportens under, MES-331 pass 2): två kort i en hög är två kort. */
+function overVarandra(a, b) { return !!((Array.isArray(a.under) && a.under.includes(b.id)) || (Array.isArray(b.under) && b.under.includes(a.id))); }
 function skildaRemsor(a, b) {
   if (!a.rl || !b.rl) return false;
   const isar = (typeof Kamera !== 'undefined' && Kamera.remsaIsar != null) ? Kamera.remsaIsar : REMSA_ISAR;
@@ -27350,7 +27420,7 @@ function skildaRemsor(a, b) {
 function sammaPlats(a, b) {
   if (a.w == null || b.w == null || syskon(a, b) || (farsktSpar(a) && farsktSpar(b))) return false;
   if (franHelbild(a) || franHelbild(b)) return mittNara(a, b) || mittNara(b, a);
-  if (skildaRemsor(a, b)) return false;
+  if (skildaRemsor(a, b) || overVarandra(a, b)) return false;
   return tackning(a, b) >= SAMMA_KORT_TACKNING;
 }
 /* Vilket av ett fysiskt korts spår som säger hur det ligger: det med region
