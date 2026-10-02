@@ -25434,10 +25434,17 @@ const Kamera = (() => {
      matta (maskaTackt) — får sitt namn ur remsan när den lokala kedjan inte
      var säker: säkert bara med remsans egen dom (kamLasRemsa, T.remsaTroskel
      eller remsa+namn). Annars sparas svaret på spåret som vittne åt Claudes
-     svar (svarAI). Aldrig för skräp, en baksida eller ett redan säkert svar. */
+     svar (svarAI). Aldrig för skräp, en baksida eller ett redan säkert svar.
+     …och ett OSÄKERT spår som ligger omlott med ett annat (MES-331), också
+     utan mask: i golden 06 ligger korten på tvären och Plains remsmitt
+     hamnar utanför det bakersta Swamps låda, så ingen täckning sätts, ingen
+     mask läggs och remsan lästes aldrig — modellen såg tre kort och gissade
+     Swamp osäkert. Remsan har sin egen gräns (T.remsaTroskel, 0 säkra fel
+     i bänken), så den kan inte göra ett fel namn säkert lättare än för ett
+     maskat spår. */
   async function medRemsa(t, svar, maskad) {
     t.remsa = null;
-    if (!T.remsa || !maskad || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
+    if (!T.remsa || !(maskad || t.omlott) || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
     let rs = null;
     try { rs = await lasRemsa(t); } catch (e) { rs = null; }
     if (!rs) return svar;
