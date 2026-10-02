@@ -145,6 +145,13 @@ på en felsida efter Google-rutan.
    `learned_refs` (lärda bilder per konto och lek). Utan dem räknar och lär
    telefonen lokalt som förut. Vad de gör och hur förräkningen körs:
    `dev/embed/INLARNING.md`.
+7. Dold information (MES-305): `migrations/20261002000000_mes305_dold_information.sql`
+   tömmer den gamla lekkolumnen på `game_players`, skapar `hidden_cards`
+   (ägarens namn på sina nedvända kort — bara ägaren läser) och ger den
+   privata kamerakanalen `kam:<user_id>` sina policyer på
+   `realtime.messages`. Utan den nekas kamerakanalen, och appen säger det
+   i stället för att kameran tyst aldrig når datorn. Körs FÖRE koden från
+   grenen driftsätts.
 
 Filerna går att köra om utan att något går sönder, så om du behöver ändra
 något senare kör du bara hela filen igen.

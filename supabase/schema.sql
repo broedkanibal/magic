@@ -267,10 +267,11 @@ create policy lekar_radera on public.lekar for delete
 
 grant select, insert, update, delete on public.lekar to authenticated;
 
--- Den gamla kolumnen ligger kvar och LÄSES en sista gång: har man en lek
--- sparad i ett spel från före den här ändringen flyttas den över till
--- kontot när dialogen öppnas. Den skrivs aldrig mer. Att släppa den nu
--- vore att kasta bort de lekarna för den som inte hunnit öppna appen.
+-- Den gamla kolumnen lästes en sista gång för att flytta gamla lekar till
+-- kontot. Sedan MES-305 läses den inte alls: raden i game_players går till
+-- alla i spelet (gp_las och realtime), och en leklista är inte deras sak.
+-- migrations/20261002000000_mes305_dold_information.sql tömmer den; en
+-- senare migration får släppa den när ingen äldre klient är kvar.
 alter table public.game_players add column if not exists lek jsonb;
 
 -- Home-spellistan etapp 1 (MES-236, MES-210/MES-224): två nya tidpunkter.

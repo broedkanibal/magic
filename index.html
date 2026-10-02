@@ -5345,7 +5345,7 @@ function toast(msg, kind, undo) {
 const K = { state: 'sthv.state.v1', cards: 'sthv.cards.v2', alias: 'sthv.alias.v1', prefs: 'sthv.prefs.v1',
             lage: 'sthv.lage.v1', ui: 'sthv.ui.v1', lek: 'sthv.lek.v1',
             lekar: 'sthv.lekar.v1', lekaktiv: 'sthv.lekaktiv.v1', debug: 'sthv.debug.v1', oppstart: 'sthv.oppstart.v1',
-            kamBild: 'sthv.kambild.v1' };
+            kamBild: 'sthv.kambild.v1', dolt: 'sthv.dolt.v1' };
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
@@ -5649,7 +5649,8 @@ const Moln = (() => {
   let sb = null;            // klienten, null tills den laddats
   let konf = null;          // svaret från /api/config
   let session = null;
-  let kanal = null;         // realtidsprenumerationen
+  let kanal = null;         // realtidsprenumerationen: spelets kanal
+  let kamKan = null;        // kamerakanalen: kontots egen, privat (MES-305)
   const lyssnare = { spelare: null, bord: null, sparat: null };
 
   async function konfig() {
@@ -5869,15 +5870,36 @@ const Moln = (() => {
   /* Hämtar spelet i sin helhet: deltagare och deras bord. Returneras i
      den form appen redan har i minnet, så att renderingen inte behöver
      veta att korten kom någon annanstans ifrån. */
+  /* Deltagarraderna hämtas med en kolumnlista, aldrig select('*') (MES-305):
+     den gamla kolumnen lek — hela leklistor från före decks — följde annars
+     med till alla i spelet. Migrationen 20261002000000_mes305 tömmer den.
+     status finns först efter status.sql: saknas kolumnen hämtas raderna utan. */
+  const GP_FALT = 'user_id, namn, farg, plats, lage, lek_id, lek_info';
+  const kolumnSaknas = e => !!e && (e.code === '42703' || e.code === 'PGRST204' || /column|schema cache/i.test(e.message || ''));
+  async function hamtaSpelare(s, gameId) {
+    const fraga = falt => s.from('game_players').select(falt).eq('game_id', gameId).order('plats');
+    let r = await fraga(GP_FALT + ', status');
+    if (r.error && kolumnSaknas(r.error)) r = await fraga(GP_FALT);
+    return r;
+  }
   async function hamtaSpel(gameId) {
     const s = await klient(); if (!s) throw new Error('Not connected');
-    const [g, sp, bd] = await Promise.all([
+    const [g, sp, bd, dolt] = await Promise.all([
       s.from('games').select('*').eq('id', gameId).single(),
-      s.from('game_players').select('*').eq('game_id', gameId).order('plats'),
-      s.from('boards').select('*').eq('game_id', gameId)
+      hamtaSpelare(s, gameId),
+      s.from('boards').select('*').eq('game_id', gameId),
+      hamtaDolt(s, gameId)
     ]);
     if (g.error) throw g.error;
     const bord = new Map((bd.data || []).map(b => [b.user_id, b]));
+    /* Mina nedvända kort får sina namn tillbaka ur hidden_cards (MES-305);
+       de andras står kvar som baksidor — det är allt deras rad bär. Bara
+       kort som kom utan namn: raden är sanningen för allt som ligger uppåt. */
+    const medDolt = (uid, kort) => {
+      if (uid !== minId() || !dolt) return kort;
+      for (const c of kort) { const d = dolt[c.cid]; if (d && d.name && !c.name) { c.name = d.name; if (d.sid) c.sid = d.sid; } }
+      return kort;
+    };
     return {
       spel: g.data,
       /* Jag först, alltid. Ordningen i game_players är den man råkade gå
@@ -5893,7 +5915,7 @@ const Moln = (() => {
         lage: p.lage === 'bord' ? 'bord' : 'skarm',
         lekId: p.lek_id || null, lek: p.lek_info || null,
         status: p.status || null,          // MES-170: null före status.sql
-        cards: (bord.get(p.user_id) || {}).kort || [],
+        cards: medDolt(p.user_id, (bord.get(p.user_id) || {}).kort || []),
         version: (bord.get(p.user_id) || {}).version || 0
       })).sort((a, b) =>
         (a.user_id === minId() ? -1 : b.user_id === minId() ? 1 : a.plats - b.plats))
@@ -5909,14 +5931,52 @@ const Moln = (() => {
      bar visserligen med sig hela listan, men bara om det kom en nästa. Nu
      hålls det senaste misslyckade bordet kvar och skickas om. */
   let ovantat = null, omforsokT = null, omforsokMs = 800;
-  async function sparaBord(gameId, kort) {
+  /* De nedvända kortens namn (MES-305): { cid: { name, sid } } i hidden_cards,
+     som bara ägaren får läsa — så byggs hens eget bord upp helt efter en
+     omladdning utan att namnen någonsin ligger i den delade raden. Skrivs
+     bara när de ändrats (doltSist fröas av hamtaDolt med serverns rad), och
+     FÖRE bordet: ett bord utan namn som ägaren inte får tillbaka vore värre än
+     ett bord som kommer en skrivning senare. En lokal kopia (K.dolt) är
+     reserven när tabellen saknas (migrationen inte körd) eller nätet sviker. */
+  let doltSist = null;
+  async function sparaDolt(s, gameId, dolt) {
+    const json = JSON.stringify(dolt);
+    LS.set(K.dolt, { spel: gameId, uid: minId(), dolt });
+    if (doltSist && doltSist.spel === gameId && doltSist.json === json) return;
+    if (saknas.dolt) return;
+    const { error } = await s.from('hidden_cards')
+      .upsert({ game_id: gameId, user_id: minId(), kort: dolt, andrad: new Date().toISOString() }, { onConflict: 'game_id,user_id' });
+    if (error) {
+      if (saknasFel(error)) { saknas.dolt = true; console.warn('hidden_cards saknas — migrationen för MES-305 är inte körd. Nedvända korts namn sparas bara i den här webbläsaren.'); }
+      else console.warn('De nedvända korten kunde inte sparas', error.message);
+      return;
+    }
+    doltSist = { spel: gameId, json };
+  }
+  /* Ägarens namn på sina nedvända kort, ur hidden_cards. Den lokala kopian
+     läggs på (den är nyare om serverskrivningen föll). null = inget dolt. */
+  async function hamtaDolt(s, gameId) {
+    const lokal = LS.get(K.dolt, null);
+    const ur = lokal && lokal.spel === gameId && lokal.uid === minId() && lokal.dolt ? lokal.dolt : {};
+    let server = {};
+    if (inloggad() && !saknas.dolt) {
+      const { data, error } = await s.from('hidden_cards').select('kort').eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
+      if (error) { if (saknasFel(error)) saknas.dolt = true; else console.warn('De nedvända korten kunde inte hämtas', error.message); }
+      else server = (data && data.kort) || {};
+    }
+    doltSist = { spel: gameId, json: JSON.stringify(server) };
+    const alla = Object.assign({}, server, ur);
+    return Object.keys(alla).length ? alla : null;
+  }
+  async function sparaBord(gameId, kort, dolt) {
     const s = await klient();
-    if (!s || !inloggad()) { koaOm(gameId, kort); return false; }
+    if (!s || !inloggad()) { koaOm(gameId, kort, dolt); return false; }
+    if (dolt) await sparaDolt(s, gameId, dolt);
     const { error } = await s.from('boards')
       .upsert({ game_id: gameId, user_id: minId(), kort }, { onConflict: 'game_id,user_id' });
     if (error) {
       console.warn('Bordet kunde inte sparas', error.message);
-      koaOm(gameId, kort);
+      koaOm(gameId, kort, dolt);
       return false;
     }
     ovantat = null; clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
@@ -5925,22 +5985,22 @@ const Moln = (() => {
   }
   /* Kön är EN post, inte en lista: varje skrivning bär hela kortlistan, så
      det enda som betyder något är den senaste. */
-  function koaOm(gameId, kort) {
-    ovantat = { gameId, kort };
+  function koaOm(gameId, kort, dolt) {
+    ovantat = { gameId, kort, dolt };
     if (lyssnare.sparat) lyssnare.sparat(false);
     if (omforsokT) return;
     omforsokT = setTimeout(() => {
       omforsokT = null;
       omforsokMs = Math.min(omforsokMs * 2, 15000);
       const v = ovantat;
-      if (v) sparaBord(v.gameId, v.kort);
+      if (v) sparaBord(v.gameId, v.kort, v.dolt);
     }, omforsokMs);
   }
   function skickaOmVantande() {
     if (!ovantat) return false;
     clearTimeout(omforsokT); omforsokT = null; omforsokMs = 800;
     const v = ovantat;
-    sparaBord(v.gameId, v.kort);
+    sparaBord(v.gameId, v.kort, v.dolt);
     return true;
   }
 
@@ -6070,17 +6130,9 @@ const Moln = (() => {
     if (error) throw new Error(error.message || 'The deck could not be fetched');
     return (data && data.lek) || null;
   }
-  /* Den GAMLA vägen: leken som en kolumn på game_players. Läses bara en sista
-     gång, för att flytta över en lek sparad före kontotabellen. Skrivs aldrig
-     mer. Kastar vid databasfel i stället för att svara null — ett nätfel som
-     ser ut som en tom lek skulle annars se ut som "ingen lek att flytta". */
-  async function hamtaLek(gameId) {
-    const s = await klient(); if (!s || !inloggad()) return null;
-    const { data, error } = await s.from('game_players').select('lek')
-      .eq('game_id', gameId).eq('user_id', minId()).maybeSingle();
-    if (error) throw new Error(error.message || 'The deck could not be fetched');
-    return (data && data.lek) || null;
-  }
+  /* Den ÄLDSTA vägen — leken som kolumnen lek på game_players — lästes här
+     en sista gång för att flytta gamla lekar. Borttagen (MES-305): kolumnen
+     töms av migrationen och läses aldrig mer. */
 
   async function dopOm(gameId, namn) {
     const s = await klient(); if (!s || !inloggad()) return false;
@@ -6164,10 +6216,14 @@ const Moln = (() => {
      värdet i händelsen går inte att använda — med radsäkerhet påslagen bär
      det bara primärnyckeln. Rader som inte setts förut släpps alltid fram. */
   const gpSist = new Map();
-  const gpNyckel = n => JSON.stringify(Object.keys(n).filter(k => k !== 'sedd').sort().map(k => [k, n[k]]));
+  /* En fast lista, inte radens nycklar: raden ur realtime bär alla kolumner,
+     den ur hämtningen bara de appen använder (GP_FALT), och de ska ge samma
+     nyckel. Saknad kolumn och null räknas lika. */
+  const GP_NYCKLAR = ['user_id', 'namn', 'farg', 'plats', 'lage', 'lek_id', 'lek_info', 'status'];
+  const gpNyckel = n => JSON.stringify(GP_NYCKLAR.map(k => [k, n[k] === undefined ? null : n[k]]));
   async function froGp(gameId) {
     const s = await klient(); if (!s) return;
-    const { data } = await s.from('game_players').select('*').eq('game_id', gameId);
+    const { data } = await hamtaSpelare(s, gameId);
     if (slagSpel !== gameId) return;
     for (const r of (data || [])) if (!gpSist.has(r.user_id)) gpSist.set(r.user_id, gpNyckel(r));
   }
@@ -6183,9 +6239,11 @@ const Moln = (() => {
     return forut === nyckel;
   }
 
-  /* EN kanal för hela spelet. lyssna() river den befintliga varje gång den
-     anropas, så en andra prenumeration för avläsningarna kan inte vara en
-     egen kanal — den hade tystat borden. Allt hänger på samma. */
+  /* EN kanal för spelet: borden, deltagarna, avläsningarna, kalibreringen
+     och närvaron — det alla i spelet får se. lyssna() river den befintliga
+     varje gång den anropas, så en andra prenumeration för avläsningarna kan
+     inte vara en egen kanal med samma namn — den hade tystat borden. Kamerans
+     meddelanden går på kontots egen kanal nedan (MES-305). */
   async function lyssna(gameId, cb) {
     const s = await klient(); if (!s) return;
     await lamnaKanal();
@@ -6193,6 +6251,7 @@ const Moln = (() => {
     lyssnare.scan = cb.scan; lyssnare.kal = cb.kal; lyssnare.uppkopplad = cb.uppkopplad;
     lyssnare.sparat = cb.sparat;
     lyssnare.kam = cb.kam; lyssnare.narvaro = cb.narvaro;
+    lyssnare.kamfel = cb.kamfel || null;
     lyssnare.roll = cb.roll || null;
     kanal = s.channel('spel:' + gameId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'boards', filter: 'game_id=eq.' + gameId },
@@ -6203,12 +6262,6 @@ const Moln = (() => {
           p => lyssnare.scan && lyssnare.scan(p.new || p.old, p.eventType))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'camera_setups', filter: 'game_id=eq.' + gameId },
           p => lyssnare.kal && lyssnare.kal(p.new || p.old))
-      /* Bilden från telefonen går INTE genom databasen. En kalibrering vill ha
-         några bildrutor i sekunden och de ska aldrig sparas — de är bara till
-         för att man ska kunna sikta. Broadcast passerar servern utan att röra
-         en tabell, och kanalen finns redan. Samma väg bär kommandon åt andra
-         hållet: börja skicka, sluta skicka, koppla från. */
-      .on('broadcast', { event: 'kam' }, p => lyssnare.kam && lyssnare.kam(p.payload || {}))
       /* Närvaro svarar på den enda fråga gränssnittet egentligen ställer:
          sitter det en kamera i det här spelet just nu? Utan den fick datorn
          gissa utifrån om det råkat komma en bild. */
@@ -6227,6 +6280,30 @@ const Moln = (() => {
         if (lyssnare.roll) { try { await kanal.track({ roll: lyssnare.roll, id: minId() }); } catch (e) {} }
         if (lyssnare.uppkopplad) lyssnare.uppkopplad();
       });
+    /* Bilden från telefonen går INTE genom databasen. En kalibrering vill ha
+       några bildrutor i sekunden och de ska aldrig sparas — de är bara till
+       för att man ska kunna sikta. Broadcast passerar servern utan att röra
+       en tabell. Samma väg bär kommandon åt andra hållet: börja skicka,
+       sluta skicka, koppla från.
+
+       Kanalen är KONTOTS, inte spelets (MES-305): 'kam:<user_id>', privat.
+       Förut gick bilder, beskärningar och spårlistor på spelets kanal till
+       alla i spelet och sållades först hos mottagaren — fotografier av ens
+       eget bord i varje motståndares webbläsare. Realtime släpper nu bara in
+       den som är inloggad som kontot (policyerna på realtime.messages i
+       migrationen 20261002000000_mes305). Telefon och dator är samma konto,
+       så båda hör varandra; ingen annan hör något. Nekas kanalen — policyn
+       saknas, eller enheten är utloggad — sägs det högt via kamfel: en
+       kamera som tyst aldrig når datorn vore värre än ett fel. */
+    if (minId()) {
+      kamKan = s.channel('kam:' + minId(), { config: { private: true } })
+        .on('broadcast', { event: 'kam' }, p => lyssnare.kam && lyssnare.kam(p.payload || {}))
+        .subscribe((st, fel) => {
+          if (st !== 'CHANNEL_ERROR') return;
+          console.warn('Kamerakanalen nekades', fel && fel.message);
+          if (lyssnare.kamfel) lyssnare.kamfel(fel);
+        });
+    }
     startaHjartslag(gameId);
     froGp(gameId).catch(() => {});
   }
@@ -6334,21 +6411,17 @@ const Moln = (() => {
 
   /* Ett meddelande på kanalen. Returnerar utan att kasta om kanalen inte är
      uppe — en tappad bildruta är ingenting att stanna för. */
-  /* Avsändaren följer med i varje meddelande. Kanalen är spelets — alla
-     telefoner och alla datorer i det hör allt — och telefon och dator hör
-     ihop genom att vara samma konto. Utan fältet skrev Jespers telefon sitt
-     bord på Johns dator, som sparade det som Johns (MES-22). Rollen följer
-     också med: två telefoner på samma konto svarade annars varandra på
-     "trösklar" i all evighet, för svaret hade samma form som frågan.
-
-     Fältet är ett påstående, inte ett bevis: broadcast intygar ingen
-     avsändare, och den som vill kan skriva vilket id som helst i det. Det
-     räcker mot misstag mellan spelare som litar på varandra — vilket är vad
-     ett spelbord är — men inte mot en som vill. En egen kanal per konto vore
-     nästa steg. En utloggad enhet skickar ingenting alls. */
+  /* Avsändaren följer med i varje meddelande. Kanalen är kontots egen sedan
+     MES-305 (kam:<user_id>, privat), så bara mina enheter hör den — men
+     fältet är kvar: mottagarna (kamTogsEmot, kamKommando) kräver av === mitt
+     id och rätt roll, och det skyddet kostar ingenting. Rollen följer också
+     med: två telefoner på samma konto svarade annars varandra på "trösklar"
+     i all evighet, för svaret hade samma form som frågan. Historien: på
+     spelets kanal skrev Jespers telefon sitt bord på Johns dator, som sparade
+     det som Johns (MES-22). En utloggad enhet skickar ingenting alls. */
   function sandKam(typ, data) {
-    if (!kanal || !minId()) return false;
-    try { kanal.send({ type: 'broadcast', event: 'kam', payload: Object.assign({ typ, av: minId(), fran: lyssnare.roll || 'dator' }, data || {}) }); return true; }
+    if (!kamKan || !minId()) return false;
+    try { kamKan.send({ type: 'broadcast', event: 'kam', payload: Object.assign({ typ, av: minId(), fran: lyssnare.roll || 'dator' }, data || {}) }); return true; }
     catch (e) { return false; }
   }
 
@@ -6390,6 +6463,7 @@ const Moln = (() => {
     if (lyssnare.sparat) lyssnare.sparat(true);
     lyssnare.sparat = null;
     stoppaHjartslag(); gpSist.clear();
+    if (kamKan) { try { await kamKan.unsubscribe(); } catch (e) {} kamKan = null; }
     if (!kanal) return;
     try { await kanal.unsubscribe(); } catch (e) {}
     kanal = null;
@@ -6463,7 +6537,7 @@ const Moln = (() => {
 
   return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
-           avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek, hamtaLek,
+           avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
            lekKanal, sandLek, lamnaLekKanal,
            sparaKalibrering, hamtaKalibrering, laddaUppScan, taScan, scanBild,
@@ -6651,9 +6725,25 @@ function slimSpelare(p) {
    tillbaka nästa kväll på kort som den nya sessionen aldrig sett — och
    första bordsbilden dömde dem allihop som lyfta från mattan. slimKort,
    den lokala sparningen, har aldrig tagit med det. */
+/* Ett nedvänt kort delas UTAN namn och tryckning (MES-305). Den delade raden
+   läses av alla i spelet (boards_las), och vad ett nedvänt kort är hör bara
+   ägaren till — att dölja namnet i gränssnittet räcker inte när det ligger i
+   raden. Nedvänt = flipped utan en andra sida att visa: ett dubbelsidigt kort
+   visar sin baksida för alla och delas som förut. Ett kort appen inte känner
+   (ingen kortdata än) räknas som dolt — hellre en baksida för mycket än ett
+   namn för mycket. I graveyard och exile ligger kortet synligt, som vid
+   bordet. Ägarens namn på korten går i stället till hidden_cards (doldaKort →
+   Moln.sparaBord), som bara ägaren får läsa, så att hens eget bord byggs upp
+   helt efter en omladdning. */
+function doltKort(c) { return !!c.flipped && paMattan(c) && !arDfc(cardOf(c)); }
+function doldaKort(cards) {
+  const ut = {};
+  for (const c of cards || []) if (doltKort(c) && c.name) ut[c.cid] = c.sid ? { name: c.name, sid: c.sid } : { name: c.name };
+  return ut;
+}
 function slimDelat(cards) {
   return (cards || []).map(c => ({
-    cid: c.cid, name: c.name, sid: c.sid || undefined,
+    cid: c.cid, name: doltKort(c) ? undefined : c.name, sid: !doltKort(c) && c.sid ? c.sid : undefined,
     flipped: c.flipped ? 1 : 0, tapped: c.tapped ? 1 : 0,
     attachedTo: c.attachedTo || undefined, zon: c.zon || undefined,
     /* Nedtoningen följer med: utan den kom ett lyft kort tillbaka som ett
@@ -6722,7 +6812,7 @@ function sparaNu() {
      de andras skärmar. */
   LS.set(K.ui, { spel: spelLage.id, active: state.active, sel: state.sel, bord: bord.valt });
   const mig = minSpelare();
-  if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards));
+  if (mig) Moln.sparaBord(spelLage.id, slimDelat(mig.cards), doldaKort(mig.cards));
 }
 /* Sista chansen att få ut det som ligger i debouncen. Utan den försvann de
    sista 250 millisekundrarnas arbete när fliken stängdes. */
@@ -6952,7 +7042,7 @@ function bordTummar(cards, max) {
   return cards.filter(c => paMattan(c) && !c.attachedTo).slice(0, max).map(c => {
     const card = cardOf(c), dfc = arDfc(card);
     const src = c.flipped && !dfc ? BAKSIDA : card ? (imgOf(card, c.flipped && dfc ? 1 : 0, 'small') || '') : '';
-    return `<i class="othumb${c.tapped ? ' tappad' : ''}"${src ? ` style="background-image:url('${esc(src)}')"` : ''} title="${esc(card ? card.name : c.name)}"></i>`;
+    return `<i class="othumb${c.tapped ? ' tappad' : ''}"${src ? ` style="background-image:url('${esc(src)}')"` : ''} title="${esc(card ? card.name : arDolt(c) ? DOLD_NAMN : c.name)}"></i>`;
   }).join('');
 }
 function bordListHtml(namn, pips, cards, tangent, hint) {
@@ -7636,13 +7726,17 @@ function flyttaTill(i, zon) {
    en knapp. bif: korten som sitter på värden — det de ger ritas på den. */
 function kortHtml(e, i, extra, pos, bif, las) {
   const card = cardOf(e);
-  const st = cardStatus(e);
+  const dold = arDolt(e);                           // någon annans nedvända kort: inget att slå upp (MES-305)
+  const st = dold ? 'ok' : cardStatus(e);
   const dfc = arDfc(card);
   const fi = e.flipped && dfc ? 1 : 0;
   const land = matSlag(e) === 'land';
-  const src = e.flipped && !dfc ? BAKSIDA
+  /* Baksidan uppåt: ingen framsida, och inget av det framsidan säger — varken
+     nyckelord eller P/T ritas ovanpå en baksida (MES-305). */
+  const baksida = !!e.flipped && !dfc;
+  const src = baksida ? BAKSIDA
     : (card ? (land ? (imgOf(card, fi, 'small') || imgOf(card, fi, 'normal')) : imgOf(card, fi, 'normal')) : '');
-  const label = card ? card.name : e.name;
+  const label = card ? card.name : dold ? DOLD_NAMN : e.name;
   /* Ett kort som kameran just lade ut pulserar till en gång — det är hela
      återkopplingen på att bordet och spegeln nu är i fas. */
   const nytt = e.ny && Date.now() - e.ny < 2500;
@@ -7654,11 +7748,11 @@ function kortHtml(e, i, extra, pos, bif, las) {
      counters eller bifogade kort ändrar den. */
   const f = card && card.faces[fi] || null;
   const eff = bifEffekt(bif);
-  const visaOrd = !land && e.lyft == null && !!card;
+  const visaOrd = !land && !baksida && e.lyft == null && !!card;
   const tryckt = visaOrd ? (card.kw || []) : [];
   const givna = visaOrd ? eff.kw.filter(w => !tryckt.some(k => k.toLowerCase() === w.toLowerCase())) : [];
   const ord = ordTak(tryckt, givna);
-  const pv = e.lyft != null || land ? null : ptVarden(e, f, eff);
+  const pv = e.lyft != null || land || baksida ? null : ptVarden(e, f, eff);
   const kwHtml = !ord.length ? '' : `<span class="kwkort">${ord.map(o => o.g ? `<b class="giv">${KEDJA}${esc(o.t)}</b>` : `<b>${esc(o.t)}</b>`).join('')}</span>`;
   const kl = ['card', land ? 'land' : '', st === 'ok' ? '' : st === 'err' ? 'err' : 'pending',
               e.tapped ? 'tappad' : '', nytt ? 'nykort' : '', e.lyft != null ? 'lyft' : '', dom ? 'dom-' + dom : '',
@@ -8064,6 +8158,11 @@ const IKON_HAND = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" s
    miniatyr (Jespers skärmdump 2026-09-11, MES-42). Namnet skickas aldrig
    till Claude (kamAiNamnen) och står aldrig bland förslagen (kamIdentifiera). */
 const BAKSIDA_NAMN = '(baksida)';
+/* Någon annans nedvända kort (MES-305): raden kom utan namn och tryckning,
+   och så ska det vara. Ritas som en baksida och heter så här överallt där
+   ett namn annars står — kortet, miniatyren, inspektorn och förstoringen. */
+const DOLD_NAMN = 'Face-down card';
+function arDolt(e) { return !!(e && e.flipped && !e.name && !e.sid); }
 /* Poolens namn utan baksidan: det namnläsaren och Claude får se. */
 function namnUtanBaksida() { return ((Pool.idx && Pool.idx.names) || []).filter(n => n !== BAKSIDA_NAMN); }
 
@@ -9265,7 +9364,7 @@ function renderInspektor() {
   const sum = e ? ctSum(e.cts) : { p: 0, t: 0 };
   /* Ett fel är ett eget läge i nyckeln — annars byts "Fetching…" aldrig ut. */
   const fel = e && !c ? felText(keyOf(e)) : '';
-  if (e && !c && !fel) insHamta(e);
+  if (e && !c && !fel && !arDolt(e)) insHamta(e);
   const nyckel = e ? [label, keyOf(e), e.flipped ? 1 : 0, c ? 1 : 0, fel, (e.cts || []).map(ctLabel).join(',')].join('·') : label;
   if (body.dataset.k === nyckel) return;
   body.dataset.k = nyckel;
@@ -9273,7 +9372,7 @@ function renderInspektor() {
   if (!e) { body.innerHTML = '<div class="insimg"><div class="instom">Point at a card to see it here</div></div>'; return; }
   const src = e.flipped && !dfc ? BAKSIDA : (c ? (imgOf(c, fi, 'png') || imgOf(c, fi, 'large')) : '');
   const f = c && c.faces[fi] || null;
-  const namn = c ? c.name : e.name;
+  const namn = c ? c.name : arDolt(e) ? DOLD_NAMN : e.name;
   const typ = f ? f.type : (matSlag(e) === 'land' ? 'Land' : 'Permanent');
   const kw = (c && c.kw) || [];
   const grupper = {};
@@ -10054,13 +10153,13 @@ function renderFocus() {
   if (stor) { img.src = stor; img.hidden = false; }
   else { img.removeAttribute('src'); img.hidden = true; }
   $('#fxSide').innerHTML = card ? faceInfoHtml(card, card.faces[fi], fi)
-    : `<div style="color:var(--dim2)">${e ? esc(e.name) : 'Your hand is empty'}</div>`;
+    : `<div style="color:var(--dim2)">${e ? esc(arDolt(e) ? DOLD_NAMN : e.name) : 'Your hand is empty'}</div>`;
   $('#fxStrip').innerHTML = lista.map((x, i) => {
     const c = cardOf(x);
     const dfc2 = arDfc(c);
     const f2 = x.flipped && dfc2 ? 1 : 0;
     const s2 = x.flipped && !dfc2 ? BAKSIDA : (c ? imgOf(c, f2, 'small') : '');
-    return `<button class="${i === sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : x.name)}">
+    return `<button class="${i === sel ? 'on' : ''}" data-i="${i}" title="${esc(c ? c.name : arDolt(x) ? DOLD_NAMN : x.name)}">
       ${s2 ? `<img src="${esc(s2)}" alt="">` : ''}</button>`;
   }).join('');
   const on = $('#fxStrip .on');
@@ -12625,7 +12724,7 @@ function parseList(txt) {
    (game_id, user_id), så leken dog med spelet och fick läggas in på nytt
    varje spelkväll. Och telefonen som fotograferar och datorn som spelar
    är två enheter; det enda som binder dem är inloggningen. Den gamla
-   kolumnen läses en sista gång, för att flytta över gamla lekar.
+   kolumnen töms av migrationen för MES-305 och läses inte längre.
 
    BASLÄNDERNA FOTOGRAFERAS INTE. byggLekPool läser aldrig k.n, och den
    hämtar dessutom tjugofyra tryckningar av varje landskap ur Scryfall
@@ -25829,7 +25928,10 @@ async function oppnaKamera(gameId) {
     spelare: () => byggKamPool(),
     kal: rad => { if (rad && rad.user_id === Moln.minId()) tillampaKalibrering(rad); },
     scan: rad => { if (rad && rad.user_id === Moln.minId() && rad.status !== 'ny') kamDatorSvarade(); },
-    kam: m => kamKommando(m)
+    kam: m => kamKommando(m),
+    /* Den privata kamerakanalen nekades (MES-305): bilderna når ingen dator.
+       Sägs i statusraden i stället för att kameran tyst filmar i ett svart hål. */
+    kamfel: () => kamSag('fel', 'The camera channel was refused — this phone cannot reach the computer')
   });
 
   try {
@@ -25980,10 +26082,10 @@ async function kamValdLek() {
     const rad = await Moln.hamtaLekRad(l.id).catch(() => null);
     if (rad && rad.kort && rad.kort.length) return rad;
   }
-  /* Legacy: en lek per konto, och före det leken som kolumn på spelet. */
+  /* Legacy: en lek per konto (lekar). Leken som kolumn på spelet läses inte
+     längre — kolumnen töms (MES-305). */
   let lek = null;
   try { lek = await Moln.hamtaMinLek(); } catch (e) { lek = null; }
-  if (!lek || !lek.kort || !lek.kort.length) { try { lek = await Moln.hamtaLek(kamLage.id); } catch (e) { lek = null; } }
   return lek && lek.kort && lek.kort.length ? Object.assign({ namn: 'My deck' }, lek) : null;
 }
 async function byggKamPool() {
@@ -29394,6 +29496,16 @@ function dockaKamOv() {
   ov.style.setProperty('--pop-top', Math.round(r && r.bottom ? r.bottom + 8 : 52) + 'px');
   ov.style.setProperty('--pop-right', Math.max(8, Math.round(r && r.right ? innerWidth - r.right : 12)) + 'px');
 }
+/* Den privata kamerakanalen nekades (MES-305): utan den når telefonen aldrig
+   den här datorn, och det ska sägas, inte tystas. Oftast betyder det att
+   migrationen med policyerna på realtime.messages inte är körd. En gång per
+   spel; detaljen står i konsolen (Moln.lyssna). */
+let kamKanalVarnat = null;
+function kamKanalFel() {
+  if (!spelLage || kamKanalVarnat === spelLage.id) return;
+  kamKanalVarnat = spelLage.id;
+  toast('The camera channel could not be opened — the phone cannot reach this computer', 'err');
+}
 /* Närvarolistan från kanalen. Kommer och går telefonen byter dialogen läge av
    sig själv — ingen knapp att trycka på någonstans. */
 function kamNarvaro(kameror) {
@@ -30136,6 +30248,7 @@ async function oppnaSpel(gameId, farsk) {
     spelare: () => hamtaOm(),
     scan: rad => taEmotScan(rad),
     kam: m => kamTogsEmot(m),
+    kamfel: () => kamKanalFel(),
     narvaro: k => kamNarvaro(k),
     /* Sockeln kan ha varit nere. De händelser som missades under tiden spelas
        aldrig upp, och den enda som fanns här var en koll av kameraköen — allt
@@ -30385,6 +30498,7 @@ async function loggaUtHelt() {
   await lamnaSpelet();
   LS.del(K.lage);
   LS.del(K.ui);
+  LS.del(K.dolt);
   await Moln.loggaUt();
   visaVy('start');
   location.reload();
