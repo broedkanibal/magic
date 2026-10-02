@@ -18,7 +18,12 @@
      synlig   andelen av kortet som syns: inne i bilden och inte under ett
               kort med högre z
      namnrad  andelen av namnraden som syns, på samma sätt
-     dold     namnrad < 0,5 — mindre än halva namnraden syns (Jespers beslut)
+     dold     namnet går inte att läsa (Jespers beslut 2026-10-02: syns
+              namnet är kortet ett kort): mindre än hälften av namnradens
+              BÖRJAN syns — de första NAMN_DEL av raden i läsriktningen,
+              där namnet står. Till 2026-10-02 var regeln namnrad < 0,5,
+              som gjorde golden 06:s mittersta Swamp dolt fast "Swamp"
+              står läsbart först på raden (42 % av raden syns)
      tappad   namnraden står mer än 45° från grundläget
      avskuret mer än 2 % av kortet ligger utanför bilden
      x y w h  lådan runt kortets synliga del, i andelar (det golden mäter
@@ -40,7 +45,14 @@ const KORT_B = 63, KORT_H = 88, KVOT = KORT_H / KORT_B;
 const NAMNRAD = { x0: 4, x1: 59, y0: 3.5, y1: 9.5 };
 const PROV_MM = 1;           // provpunkternas täthet över hela kortet (63 × 88 punkter)
 const PROV_NAMN_MM = 0.25;   // tätare i namnraden (220 × 24 punkter)
-const DOLD_UNDER = 0.5;      // Jespers beslut: dold när mindre än halva namnraden syns
+const DOLD_UNDER = 0.5;      // dold när mindre än hälften av namnets början (NAMN_DEL av namnraden) syns
+/* Var namnet står: de första 25 % av namnraden (4–17,75 mm). Mätt 2026-10-02 på
+   Scryfalls bilder av facitkorten (dev/golden/lek.txt): det kortaste namnet
+   slutar vid 14,3 mm (Plains, 0,19 av raden), Swamp 15,7 (0,21), Pacifism
+   17,9 (0,25); medianen 30 mm (0,46), det längsta 46 mm (Danitha Capashen,
+   Paragon, 0,77). Den första fjärdedelen är alltså hela namnet på ett basland
+   och de första bokstäverna på de andra. */
+const NAMN_DEL = 0.25;
 const TAPP_GRANS = 45;       // grader från grundläget
 const AVSKUREN_OVER = 0.02;  // andel av kortet utanför bilden innan det räknas som avskuret
 const OVERLAPP_MIN = 0.03;   // andel av det minsta kortets yta: under det är två kort bara kant i kant
@@ -216,11 +228,13 @@ function synlighet(kort, i, W, H) {
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
   const nx = Math.round((NAMNRAD.x1 - NAMNRAD.x0) / PROV_NAMN_MM), ny = Math.round((NAMNRAD.y1 - NAMNRAD.y0) / PROV_NAMN_MM);
-  let namn = 0, nsx = 0, nsy = 0;
+  /* Namnets början: de första NAMN_DEL av raden (kolumnerna a < nStart). */
+  const nStart = Math.round(nx * NAMN_DEL);
+  let namn = 0, nsx = 0, nsy = 0, start = 0;
   for (let a = 0; a < nx; a++) for (let b = 0; b < ny; b++) {
     const s = (NAMNRAD.x0 + (a + 0.5) * PROV_NAMN_MM) / KORT_B, t = (NAMNRAD.y0 + (b + 0.5) * PROV_NAMN_MM) / KORT_H;
     const x = p0x + s * ux + t * dx, y = p0y + s * uy + t * dy;
-    if (!ute(x, y) && !tackt(x, y)) { namn++; nsx += x; nsy += y; }
+    if (!ute(x, y) && !tackt(x, y)) { namn++; nsx += x; nsy += y; if (a < nStart) start++; }
   }
   const alla = ns * nt;
   /* Lådan: helt synligt kort = polygonens egen låda; annars provpunkternas
@@ -237,7 +251,7 @@ function synlighet(kort, i, W, H) {
   /* Var en etikett ska stå: mitt i det synliga av namnraden om hälften syns,
      annars i tyngdpunkten av det synliga (px). Står inte i filerna. */
   const etikett = namn >= 0.5 * nx * ny ? [nsx / namn, nsy / namn] : syns ? [sx / syns, sy / syns] : null;
-  return { synlig: syns / alla, namnrad: namn / (nx * ny), utanfor: utanfor / alla, lada: bx, etikett };
+  return { synlig: syns / alla, namnrad: namn / (nx * ny), namnStart: start / (nStart * ny), utanfor: utanfor / alla, lada: bx, etikett };
 }
 
 /* ── Högar ───────────────────────────────────────────────────────────────
@@ -308,7 +322,8 @@ function raknaKort(kort, { W, H, grund = 'v', tidigare = {}, anvanda = [] }) {
     ut[k.id] = {
       synlig: runda(s.synlig, 2),
       namnrad: runda(s.namnrad, 2),
-      dold: s.namnrad < DOLD_UNDER,
+      namnStart: runda(s.namnStart, 2),   // bara för ritverktyget: andelen av namnets början som syns
+      dold: s.namnStart < DOLD_UNDER,
       tappad: arTappad(k.horn, W, H, grund),
       avskuret: s.utanfor > AVSKUREN_OVER,
       x: s.lada ? runda(s.lada.x0 / W) : null,
@@ -355,7 +370,7 @@ function formatera(v, ind = '') {
 }
 
 const G = {
-  KORT_B, KORT_H, KVOT, NAMNRAD, DOLD_UNDER, TAPP_GRANS, AVSKUREN_OVER, OVERLAPP_MIN,
+  KORT_B, KORT_H, KVOT, NAMNRAD, NAMN_DEL, DOLD_UNDER, TAPP_GRANS, AVSKUREN_OVER, OVERLAPP_MIN,
   runda, rundaHorn, arToken, arBaksida, arLibrary, arOkant, arLekkort, bibUrRitat, typAv, kanFastas, kanBaraFast,
   tillPx, tillAndel, hornUrTva, hornUrPar, flytta, mitt, vrid, bredd, vinkel, arTappad,
   lada, iPolygon, snittYta, overlapp, synlighet, hogar, bokstav, fastForslag, raknaKort, fastFel,
