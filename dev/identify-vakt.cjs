@@ -80,13 +80,13 @@ const A = '11111111-1111-4111-8111-111111111111', B = '22222222-2222-4222-8222-2
 const C = '33333333-3333-4333-8333-333333333333';
 
 /* ── låtsad Supabase runt PGlite ────────────────────────────────────── */
-let db, rpcFel = false, authAnrop = 0;
+let db, rpcFel = false, authAnrop = 0, jwksNere = false;
 const KOLUMNER = ['modell', 'input_tokens', 'output_tokens', 'cache_read', 'cache_write', 'dollar', 'ms', 'status', 'ok', 'spel', 'raknas'];
 function lasKropp(req) { return new Promise(r => { let b = ''; req.on('data', c => b += c); req.on('end', () => r(b)); }); }
 const supabase = http.createServer(async (req, res) => {
   const u = new URL(req.url, SB_URL);
   const svara = (s, o) => { res.writeHead(s, { 'Content-Type': 'application/json' }); res.end(o === undefined ? '' : JSON.stringify(o)); };
-  if (u.pathname === '/auth/v1/.well-known/jwks.json') return svara(200, { keys: [jwk] });
+  if (u.pathname === '/auth/v1/.well-known/jwks.json') return jwksNere ? svara(503, { message: 'låtsad hicka' }) : svara(200, { keys: [jwk] });
   if (u.pathname === '/auth/v1/user') {
     authAnrop++;
     const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
@@ -209,9 +209,31 @@ const rader = async u => (await db.query('select id, mode, modell, input_tokens,
   console.log('\n══ de tre kommandona i MES-316 ══');
   let r = await curl('utan token', POST);
   prov('utan token → 401', r.status === 401 && r.j && r.j.kod === 'inloggning', JSON.stringify(r.j));
+  /* Kallstart + Supabase-hicka: nyckelcachen är tom och JWKS svarar inte.
+     Då ska svaret vara 503 (tillfälligt), inte 401 "inte inloggad" — och
+     nästa fråga ska försöka igen direkt, inte vänta ut 30-sekundersspärren
+     (granskningen av MES-316, 2026-10-02: klienten tog 401 som utloggad och
+     skickade hela bilden om i 30 s per instans). Den första frågan med giltig
+     token är alltså den enda som ser en tom cache. */
+  jwksNere = true;
+  const foreNere = anthropicAnrop;
+  r = await curl('giltig token, JWKS nere, tom cache', POST.concat(MED), { TOKEN: TA });
+  jwksNere = false;
+  prov('JWKS nere med tom cache → 503 kod inloggning-nere (inte 401), ingen fråga till Anthropic',
+    r.status === 503 && r.j && r.j.kod === 'inloggning-nere' && anthropicAnrop === foreNere, `${r.status} ${JSON.stringify(r.j)}`);
   const fore = anthropicAnrop;
   r = await curl('giltig token', POST.concat(MED), { TOKEN: TA });
-  prov('giltig token → 200 med svar', r.status === 200 && Array.isArray(r.j && r.j.kort) && r.j.kort.length > 0, JSON.stringify(r.j));
+  prov('giltig token → 200 med svar, direkt efter hickan (ingen 30-sekundersspärr på tom cache)', r.status === 200 && Array.isArray(r.j && r.j.kort) && r.j.kort.length > 0, JSON.stringify(r.j));
+  /* Samma sak i vakten ensam, mot en port där ingenting lyssnar — det
+     granskaren mätte. En egen modulinstans (?tom-cache), så att cachen är tom. */
+  {
+    const V = await import(pathToFileURL(path.join(ROT, 'api', '_vakt.js')).href + '?tom-cache');
+    const url0 = process.env.SUPABASE_URL;
+    process.env.SUPABASE_URL = 'http://127.0.0.1:1';
+    const v = await V.verifiera(token({ sub: A, iss: 'http://127.0.0.1:1/auth/v1' }));
+    process.env.SUPABASE_URL = url0;
+    prov('vakten ensam, tom cache, Supabase onåbar → tillfalligt (503), inte "okänd nyckel"', v.ok === false && v.tillfalligt === true, JSON.stringify(v));
+  }
   for (let i = 2; i <= TAK; i++) {
     r = await curl(`fråga ${i}`, POST.concat(MED), { TOKEN: TA });
     prov(`fråga ${i} av ${TAK} → 200`, r.status === 200, JSON.stringify(r.j));

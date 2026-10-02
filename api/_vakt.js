@@ -89,27 +89,51 @@ function dela(token) {
 
 /* Projektets publika nycklar. Hämtas om var tionde minut, och direkt när en
    token bär ett okänt kid (nyckeln har roterats) — men högst var 30:e
-   sekund, så att skräptokens inte blir en ström av hämtningar. */
-const jwks = { nycklar: new Map(), hamtad: 0, forsokt: 0 };
-async function nyckel(kid) {
-  const nu = Date.now();
-  const gammal = nu - jwks.hamtad > 10 * 60_000;
-  const okand = kid && !jwks.nycklar.has(kid);
-  if ((gammal || okand) && nu - jwks.forsokt > 30_000) {
-    jwks.forsokt = nu;
+   sekund, så att skräptokens inte blir en ström av hämtningar.
+
+   Spärren gäller bara när cachen har nycklar. En tom cache — kallstart och
+   Supabase svarar inte just då — ska försöka igen vid nästa fråga: annars
+   svarade instansen "okänd nyckel" (401) i en halv minut, och klienten
+   tolkade det som utloggad, förnyade sessionen och skickade hela bilden om
+   för varje fråga (granskningen av MES-316, 2026-10-02). Nu blir det 503
+   "tillfälligt" i stället (tillfalligt nedan), och samtidiga frågor delar
+   en hämtning. */
+const jwks = { nycklar: new Map(), hamtad: 0, forsokt: 0, pagar: null };
+function hamtaJwks() {
+  if (jwks.pagar) return jwks.pagar;
+  jwks.pagar = (async () => {
     try {
       const r = await fetch(basUrl() + '/auth/v1/.well-known/jwks.json', { signal: AbortSignal.timeout(3000) });
-      if (r.ok) {
-        const j = await r.json();
-        const ny = new Map();
-        for (const k of (j && Array.isArray(j.keys) ? j.keys : [])) {
-          try { ny.set(k.kid || '', { jwk: k, nyckel: crypto.createPublicKey({ key: k, format: 'jwk' }) }); } catch (e) {}
-        }
-        jwks.nycklar = ny; jwks.hamtad = nu;
+      if (!r.ok) throw new Error('svarade ' + r.status);
+      const j = await r.json();
+      const ny = new Map();
+      for (const k of (j && Array.isArray(j.keys) ? j.keys : [])) {
+        try { ny.set(k.kid || '', { jwk: k, nyckel: crypto.createPublicKey({ key: k, format: 'jwk' }) }); } catch (e) {}
       }
-    } catch (e) { console.error('vakt: JWKS gick inte att hämta:', e && e.message); }
+      jwks.nycklar = ny; jwks.hamtad = Date.now();
+      return true;
+    } catch (e) { console.error('vakt: JWKS gick inte att hämta:', e && e.message); return false; }
+    finally { jwks.pagar = null; }
+  })();
+  return jwks.pagar;
+}
+/* Nyckeln för kid, null när den inte finns bland projektets nycklar — eller
+   { tillfalligt: true } när cachen är tom och hämtningen föll, så att svaret
+   blir "försök strax igen" och inte "inte inloggad". */
+async function nyckel(kid) {
+  const nu = Date.now();
+  const tom = jwks.nycklar.size === 0;
+  const gammal = nu - jwks.hamtad > 10 * 60_000;
+  const okand = kid && !jwks.nycklar.has(kid);
+  let hamtat = null;
+  if (tom || ((gammal || okand) && nu - jwks.forsokt > 30_000)) {
+    jwks.forsokt = nu;
+    hamtat = await hamtaJwks();
   }
-  return jwks.nycklar.get(kid || '') || null;
+  const n = jwks.nycklar.get(kid || '') || null;
+  if (n) return n;
+  if (jwks.nycklar.size === 0 && hamtat === false) return { tillfalligt: true };
+  return null;
 }
 
 function signaturHaller(alg, n, data, sig) {
@@ -185,6 +209,7 @@ export async function verifiera(token) {
   const alg = t.huvud && t.huvud.alg;
   if (alg === 'ES256' || alg === 'RS256') {
     const n = await nyckel(t.huvud.kid);
+    if (n && n.tillfalligt) return { ok: false, varfor: 'projektets nycklar (JWKS) gick inte att hämta', tillfalligt: true };
     if (!n) return { ok: false, varfor: 'okänd nyckel (kid)' };
     if (n.jwk.alg && n.jwk.alg !== alg) return { ok: false, varfor: 'nyckeln är inte för ' + alg };
     return signaturHaller(alg, n, t.data, t.sig)
