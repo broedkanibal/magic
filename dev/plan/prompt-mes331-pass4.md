@@ -1,4 +1,4 @@
-# Prompt: MES-331 pass 4 — namnen som fattas, och inga spökkort alls
+# Prompt: MES-331 pass 4 — facit och golden 13b, namnen som fattas, och inga spökkort alls
 
 Egen session. Modell och effort: **Fable 5.1, xhigh**. Kör i huvudarbetsträdet
 `/Users/jesperfunk/Code/magic` eller i en egen worktree med `.env.local`, `dev/material`,
@@ -17,7 +17,7 @@ användare: slå ihop till main och pusha utan att fråga när grinden är klara
 säg rakt ut vad som är mätt och vad som är bedömt. Håll detekteringsmått (spår, Högar-ordning) och
 namnmått isär i varje tabell.
 
-## Läget (main 19d19b9, 2026-10-02 kväll)
+## Läget (main df50e63, 2026-10-02 kväll)
 
 Golden lokalt utan Claude: **87/98 rätt namn, 0 fel namn, 0 falska (+1 token), Högar 7/11**; med Claude
 64/65, 0, 0, Högar 8/9. Målet: varje kort vars namn går att läsa blir ett kort med rätt namn, i rätt
@@ -34,6 +34,38 @@ Vad de 11 saknade namnen och de 4 högarna som inte är rätt består av (ur `de
 
 Utanför 13 är det alltså **tre namn** och **två högar**, och båda högarna fälls av ett namn, inte av
 ordningen. Spökkorten: pass 3 fick dem att dö efter 0,6 s; de ska inte födas.
+
+## Del 0 — facit och mätverktyget först (Jespers beslut 2026-10-02)
+
+`node dev/golden/rita-kontroll.cjs` säger i dag 10 avvikelser i 06, 13 och 14. De kommer ur två
+faciträttelser i går kväll som strider mot två tidigare beslut av Jesper:
+
+**0a. Facits ruta är den synliga delen** (SNABBGUIDE *Rita facit*: `x y w h` = lådan runt kortets
+synliga del). Commit `3712de8` satte i stället hela kortet för 06 mittersta Swamp, 13 undre Plains i
+hög B och 14 Resistance Reunited, för att golden skulle räkna Resistance Reunited rätt (appen ger hela
+kortets låda, facits låda är bara remsan → för lite överlapp → missat + falskt + fel namn). **Backa
+`3712de8`s tre lådor** och rätta i stället **golden**: `kor.html` ska para spår med facitkort mot
+**hela kortet ur `horn`** när facit har hörn (plats och tap mäts som förut mot den synliga lådan).
+Kontroll (minnet `kontroller-som-ljuger`): visa att 14 Resistance Reunited räknas rätt med parningen
+mot hörnen och fel utan den, och att inget annat fall byter dom.
+
+**0b. Dold = namnet går inte att läsa** (Jesper 2026-10-02: syns namnet är kortet ett kort). I dag
+räknar `rita-geometri.cjs` dold som `namnrad < 0,5` (`DOLD_UNDER`, ett äldre beslut), vilket gör 06:s
+mittersta Swamp dold fast "Swamp" står läsbart först på raden (42 % av raden syns). Ändra regeln till
+**namnets början**: dold när den del av namnraden där namnet står (vänstra delen i läsriktningen, mät
+en rimlig andel ur facitkorten) inte syns. Lista först vilka kort i alla facit som byter dold-läge och
+visa bilder av dem för Jesper i rapporten — ändra inget annat facit på egen hand. `rita-kontroll.cjs`
+ska vara grön efteråt.
+
+**0c. Golden 13b.** Jespers nya inspelning är ritad: `dev/golden/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/lagen.json`
+(23 lägen, rita-kontroll grön, källan `fall-13b` i `rita-kallor.json`, videon
+`dev/material/inspelningar/2026-10-02-fall-13b-0,5x-sidoljus/telefon.mov`, 4K, 0,5×, träbord). Bygg
+golden-fallet `17-…` (eller nästa lediga nummer) som videofall på samma sätt som 13: `koda.swift`
+(välj upplösning och bithastighet så att fallet ryms — mät 1080p mot 1920p med `--video` om storleken
+tvingar ner det), `bild.jpg` = sista läget, `facit.json` med slutlägets kort ur ritningen och
+`video.handelser` ur lägena/manuset. Kör det lokalt och med `--ai`, och lägg det i baslinjen.
+
+Efter del 0: ny baslinje (`--spara`) på alla fall, så att del A mäts mot rätt facit.
 
 ## Del A — namnen (tre steg, golden emellan)
 
@@ -81,7 +113,7 @@ prov som mäter födelsevakten).
 
 ## Ordning
 
-A1 → A2 → A3 → B. Ett commit per steg (vad var fel, vad mättes, vad ändrades), golden efter varje,
+0a → 0b → 0c → A1 → A2 → A3 → B. Ett commit per steg (vad var fel, vad mättes, vad ändrades), golden efter varje,
 baslinje `--spara` + rad i `dev/golden/historik.md` sist. Fristående granskning (Agent) av diffen före
 merge, och en gång till efter rättelserna (pass 0–3: granskningen hittade något varje gång).
 
