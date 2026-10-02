@@ -1030,12 +1030,28 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   const ratt = (t, k) => t.namn && norm(t.namn) === norm(k.namn);
   /* 1. Rutorna: girig matchning på IoU, bästa paret först. 0,3 är lågt med
      flit: ett spår som täcker halva kortet står på rätt plats — det är
-     namnet och ramen som sedan avgör om det duger. */
-  const par = [];
-  kortAlla.forEach((k, ki) => { if (!harRuta(k)) return; spar.forEach((t, ti) => { const v = iou(k, t); if (v >= 0.3) par.push({ ki, ti, v }); }); });
-  par.sort((a, b) => b.v - a.v);
+     namnet och ramen som sedan avgör om det duger.
+     Facits ruta (x y w h) är kortets SYNLIGA del (Jespers beslut, SNABBGUIDE
+     Rita facit). Appen ritar hela kortet också när bara en remsa syns, så det
+     som blev över efter rutorna paras i en andra omgång mot HELA kortet ur de
+     ritade hörnen (helaLadan) — golden 14: Resistance Reunited under Trusty
+     Retriever räknades annars som missat + falskt + fel namn (MES-331 pass 4).
+     Andra omgången, inte max(ruta, hela kortet) i en: i en tät hög tog en
+     låda annars grannens hela kort före sitt eget synliga (parprov MES-246:
+     728 → 727 egna, 2 dubbletter till). Plats (IoU ≥ 0,3 mot rutan) och
+     tap-läge mäts som förut mot den synliga rutan. */
+  const helaLadan = k => { if (!Array.isArray(k.horn) || k.horn.length < 3) return null; const xs = k.horn.map(p => p[0]), ys = k.horn.map(p => p[1]), x = Math.min(...xs), y = Math.min(...ys); return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }; };
   const tagnaK = new Set(), tagnaT = new Set(), traffar = [];
-  for (const p of par) { if (tagnaK.has(p.ki) || tagnaT.has(p.ti)) continue; tagnaK.add(p.ki); tagnaT.add(p.ti); traffar.push({ k: kortAlla[p.ki], t: spar[p.ti], iou: +p.v.toFixed(2), plats: true }); }
+  for (const omgang of ['ruta', 'hel']) {
+    const par = [];
+    kortAlla.forEach((k, ki) => {
+      if (!harRuta(k) || tagnaK.has(ki)) return;
+      const lada = omgang === 'ruta' ? k : helaLadan(k); if (!lada) return;
+      spar.forEach((t, ti) => { if (tagnaT.has(ti)) return; const v = iou(lada, t); if (v >= 0.3) par.push({ ki, ti, v, vr: omgang === 'ruta' ? v : iou(k, t) }); });
+    });
+    par.sort((a, b) => b.v - a.v);
+    for (const p of par) { if (tagnaK.has(p.ki) || tagnaT.has(p.ti)) continue; tagnaK.add(p.ki); tagnaT.add(p.ti); traffar.push({ k: kortAlla[p.ki], t: spar[p.ti], iou: +p.vr.toFixed(2), plats: p.vr >= 0.3 }); }
+  }
   /* 2. Namnen: facitkort utan ruta paras med kvarvarande spår på namnet —
      säkra svar först, sedan osäkra — så att ett kort som lästs rätt men
      osäkert räknas som osäkert och inte som miss. */

@@ -79,17 +79,24 @@ def bedom(fall, dets, iou_min=IOU_MIN, tack_min=TACK_MIN, mask=None):
     synliga = [k for k in fall['kort'] if not k['dold']]
     dolda = [k for k in fall['kort'] if k['dold']]
     if mask is None: mask = kortyta(fall)
-    # 1. girig en-till-en-matchning
-    par = []
-    for ki, k in enumerate(synliga):
-        for di, d in enumerate(dets):
-            v = iou(k['synlig_lada'], d)
-            if v >= iou_min: par.append((v, ki, di))
-    par.sort(reverse=True)
+    # 1. girig en-till-en-matchning mot den synliga lådan; det som blev över paras i en ANDRA omgång mot
+    #    hela kortet ur hörnen, som golden (kor.html, MES-331 pass 4): facits ruta är den synliga delen,
+    #    och detektorn ritar hela kortet också när bara en remsa syns (06 mittersta Swamp, 14 Resistance
+    #    Reunited: annars 'sammanslaget'). Inte max(synlig, hel) i en omgång: i en tät hög tog en låda då
+    #    grannens hela kort före sitt eget synliga (MES-246 728 → 727 egna, 2 dubbletter till).
     kort_det = {}; det_kort = {}
-    for v, ki, di in par:
-        if ki in kort_det or di in det_kort: continue
-        kort_det[ki] = (di, v); det_kort[di] = ki
+    for falt in ('synlig_lada', 'hel_lada'):
+        par = []
+        for ki, k in enumerate(synliga):
+            if ki in kort_det or not k.get(falt): continue
+            for di, d in enumerate(dets):
+                if di in det_kort: continue
+                v = iou(k[falt], d)
+                if v >= iou_min: par.append((v, ki, di))
+        par.sort(reverse=True)
+        for v, ki, di in par:
+            if ki in kort_det or di in det_kort: continue
+            kort_det[ki] = (di, v); det_kort[di] = ki
     # 2. korten
     kortdom = []
     for ki, k in enumerate(synliga):
