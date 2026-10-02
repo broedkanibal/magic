@@ -35,8 +35,12 @@ function laddaHandler() {
       if (m && m[2]) process.env.ANTHROPIC_API_KEY = m[2];
     }
     /* Dynamisk import: package.json säger "type": "module", så handlern är en
-       ES-modul och stubben en .cjs — require() går inte. */
-    return (await import(require('url').pathToFileURL(path.join(ROOT, 'api', 'identify.js')).href)).default;
+       ES-modul och stubben en .cjs — require() går inte. identifiera är
+       frågan utan inloggning och utan produktionens räknare (MES-316):
+       default-exporten, rutten hos Vercel, kräver en Supabase-inloggning
+       som golden-körningen inte har. */
+    const m = await import(require('url').pathToFileURL(path.join(ROOT, 'api', 'identify.js')).href);
+    return m.identifiera || m.default;
   })();
   return handlerP;
 }

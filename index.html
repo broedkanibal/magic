@@ -5725,6 +5725,18 @@ const Moln = (() => {
     if (error) throw error;
   }
 
+  /* Sessionens åtkomsttoken, för /api/identify (MES-316). getSession
+     förnyar en utgången token själv; fornya tvingar fram en ny (efter en
+     401). null utan inloggning eller innan klienten laddats — frågan går
+     ändå, och servern svarar 401. */
+  async function token(fornya) {
+    if (!sb) return null;
+    try {
+      const { data } = fornya ? await sb.auth.refreshSession() : await sb.auth.getSession();
+      return (data && data.session && data.session.access_token) || null;
+    } catch (e) { return null; }
+  }
+
   async function loggaUt() {
     const s = await klient(); if (!s) return;
     await lamnaKanal();
@@ -6535,7 +6547,7 @@ const Moln = (() => {
     return true;
   }
 
-  return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt,
+  return { start, konfig, inloggad, minId, mittNamn, loggaIn, loggaUt, token,
            skapaSpel, gaMed, minaSpel, hemSpel, iSpelet, HJARTSLAG_MS, hamtaSpel, sparaBord, skickaOmVantande, dopOm, sattLage, sattStatus,
            avslutaSpel, lyssna, lamnaKanal, sandKam, laddaUppInsp, listaInsp, hamtaInsp, sparaMinLek, hamtaMinLek,
            hamtaLekar, hamtaLekRad, skapaLek, sparaLek, dopOmLek, raderaLek, valjLek, minLekIGame,
@@ -14925,10 +14937,7 @@ async function telfotoLas(kalla, o = {}) {
     }
     let resp = null;
     try {
-      resp = await fetch(AI_ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'lek', image: b64 })
-      });
+      resp = await aiFraga({ mode: 'lek', image: b64 });
     } catch (e) { resp = null; }
     /* Datorn tog bort fotot medan det lästes (Remove photo): korten landar
        inte, och fotot väntar inte heller. */
@@ -20572,11 +20581,7 @@ const BASLAND_NAMN = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
 const arBasland = n => !!n && BASLAND_NAMN.includes(n.trim());
 
 async function readCardAt(img, box, marg, lage) {
-  const resp = await fetch(AI_ENDPOINT, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    signal: avbrytSignal(),
-    body: JSON.stringify({ mode: lage || 'card', image: cardPayload(img, box, marg) })
-  });
+  const resp = await aiFraga({ mode: lage || 'card', image: cardPayload(img, box, marg) }, { signal: avbrytSignal() });
   if (!resp.ok) { bokforDatorAi(null, null, true); return null; }
   const j = await resp.json();
   bokforDatorAi(j.modell, j.usage, !!j.varfor);
@@ -20672,12 +20677,7 @@ function snappaTillKort(img, cx, cy, cw, tmpl) {
 }
 
 async function readPane(img, pane) {
-  const resp = await fetch(AI_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal: avbrytSignal(),
-    body: JSON.stringify({ mode: 'pane', image: panePayload(img, pane) })
-  });
+  const resp = await aiFraga({ mode: 'pane', image: panePayload(img, pane) }, { signal: avbrytSignal() });
   if (!resp.ok) {
     let msg = resp.status + '';
     try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
@@ -20748,11 +20748,7 @@ function malaPaneNamn(namn) {
    en senare skärmdump av samma spel kan hitta tillbaka till rätt hand även om
    rutorna bytt plats. Bara hög säkerhet duger — se rentNamn. */
 async function readPaneName(img, pane) {
-  const resp = await fetch(AI_ENDPOINT, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    signal: avbrytSignal(),
-    body: JSON.stringify({ mode: 'namn', image: panePayload(img, pane) })
-  });
+  const resp = await aiFraga({ mode: 'namn', image: panePayload(img, pane) }, { signal: avbrytSignal() });
   if (!resp.ok) { bokforDatorAi(null, null, true); return null; }
   const j = await resp.json();
   bokforDatorAi(j && j.modell, j && j.usage, !!(j && j.varfor));
@@ -21580,6 +21576,44 @@ function shotKey(ev) {
 const AI_ENDPOINT = '/api/identify';
 const AI = { mode: 'off', model: '', checked: false };   // 'server' | 'key' | 'off'
 
+/* ── Frågan till servern, med inloggningen (MES-316) ──
+   /api/identify svarar bara den som är inloggad, och varje konto har ett
+   tak per kalendermånad. Sessionens token följer med i varje fråga, och
+   spelkoden när frågan kommer ur ett spel (servern loggar kostnaden per
+   parti, MES-325). 401 med en token → sessionen förnyas och frågan går en
+   gång till. 429 med kod 'tak' → månadens frågor är slut: AI-hjälpen pausas
+   här till månadsskiftet (aiPausad). Kameran frågar då inte längre, och det
+   den är osäker på går till Which card is this? som förut. Alla anrop till
+   servern går hit; hälsokollen (GET) behöver ingen inloggning. */
+const AI_PAUS = { till: 0, text: '' };
+const aiPausad = () => AI_PAUS.till > Date.now();
+async function aiFraga(body, extra) {
+  const b = JSON.stringify(spelLage && spelLage.kod && body && body.spel == null ? Object.assign({ spel: spelLage.kod }, body) : body);
+  const skicka = async fornya => {
+    const h = { 'Content-Type': 'application/json' };
+    const t = await Moln.token(fornya);
+    if (t) h.Authorization = 'Bearer ' + t;
+    return { t, resp: await fetch(AI_ENDPOINT, Object.assign({ method: 'POST', headers: h, body: b }, extra)) };
+  };
+  let { t, resp } = await skicka(false);
+  if (resp.status === 401 && t) resp = (await skicka(true)).resp;
+  if (resp.status === 429 && resp.clone) aiLasTak(resp.clone());
+  return resp;
+}
+async function aiLasTak(resp) {
+  let j = null;
+  try { j = await resp.json(); } catch (e) { return; }
+  if (!j || j.kod !== 'tak') return;
+  const forst = !aiPausad();
+  AI_PAUS.till = Date.parse(j.nollstalls) || Date.now() + 3600e3;
+  let datum = '';
+  try { datum = new Date(AI_PAUS.till).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'Europe/Stockholm' }); } catch (e) {}
+  AI_PAUS.text = `AI help is paused${datum ? ' until ' + datum : ''}: this month's ${j.tak || ''} questions to Claude are used. Mesa keeps recognizing cards on its own.`.replace('  ', ' ');
+  if (!forst) return;
+  toast(AI_PAUS.text, 'err');
+  if (kamLage) satKamFin('ai', AI_PAUS.text);
+}
+
 const K_AI = 'sthv.aikey.v1';
 const aiKey = () => LS.get(K_AI, '');
 const aiEnabled = () => AI.mode === 'server' || !!aiKey();
@@ -21610,7 +21644,9 @@ function openAI() {
   $('#aiKeyBlock').hidden = server;
   $('#aiForget').hidden = server || !aiKey();
   $('#aiSave').textContent = server ? 'Done' : 'Save';
-  $('#aiStatus').innerHTML = server
+  $('#aiStatus').innerHTML = server && aiPausad()
+    ? `<div class="nm"><b>Paused</b> <span>${esc(AI_PAUS.text)}</span></div>`
+    : server
     ? `<div class="nm"><b style="color:var(--green)">On</b><span>Handled by the app's server${AI.model ? ' · ' + esc(AI.model) : ''}${AI.promptv != null ? ' · instructions v' + esc(String(AI.promptv)) : ''} — you need no key of your own.</span></div>`
     : aiKey()
     ? `<div class="nm"><b>Own key saved</b><span>The app runs without a server, so the key lives in this browser.</span></div>`
@@ -21666,11 +21702,7 @@ async function askClaudeFor(img, box, rot, cands) {
   const list0 = cands.slice(0, 25);
 
   if (AI.mode === 'server') {            // servern håller nyckeln
-    const resp = await fetch(AI_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: url.slice(url.indexOf(',') + 1), names: list0.map(c => c.name) })
-    });
+    const resp = await aiFraga({ image: url.slice(url.indexOf(',') + 1), names: list0.map(c => c.name) });
     if (!resp.ok) {
       let msg = resp.status + '';
       try { const j = await resp.json(); if (j && j.error) msg = j.error; } catch (e) {}
@@ -26430,7 +26462,7 @@ const kamAiNamnKapade = () => Math.max(0, [...new Set(namnUtanBaksida().filter(n
    false = frågan ställs inte (AI av, ingen pool, taket nått): den lokala
    domen är allt som finns, och ett osäkert kort går till granskningen. */
 function kamFragaAI(canvas, id) {
-  if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas) return false;
+  if (AI.mode !== 'server' || !prefs.aiAuto || !Pool.idx || !canvas || aiPausad()) return false;
   const nu = Date.now();
   while (kamAiTider.length && nu - kamAiTider[0] > 60000) kamAiTider.shift();
   if (kamAiTider.length >= KAM_AI_TAK_PER_MIN) return false;
@@ -26440,8 +26472,7 @@ function kamFragaAI(canvas, id) {
     const t0 = performance.now();
     try {
       const url = canvas.toDataURL('image/jpeg', 0.85);
-      const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen(id) }) });
+      const resp = await aiFraga({ mode: 'kamera', image: url.slice(url.indexOf(',') + 1), names: kamAiNamnen(id) });
       if (!resp.ok) { info = { fel: resp.status }; kamAiBokfor(null, null, true); }
       else {
         const j = await resp.json();
@@ -26502,6 +26533,7 @@ function kamAiPoster(kort, sparId, prior) {
 const HELBILD_B64_TAK = 880_000;
 async function kamHelbild(canvas, o) {
   if (AI.mode !== 'server' || !prefs.aiAuto) { satKamFin('ai', 'AI help is off — turn it on in the menu on the computer.'); return null; }
+  if (aiPausad()) { satKamFin('ai', AI_PAUS.text); return null; }
   if (!Pool.idx) { satKamFin('ai', 'The deck is not ready yet.'); return null; }
   if (!canvas) return null;
   const nu = Date.now();
@@ -26514,8 +26546,7 @@ async function kamHelbild(canvas, o) {
   try {
     let q = 0.8, b64 = '';
     for (;;) { const url = canvas.toDataURL('image/jpeg', q); b64 = url.slice(url.indexOf(',') + 1); if (b64.length <= HELBILD_B64_TAK || q <= 0.45) break; q = +(q - 0.15).toFixed(2); }
-    const resp = await fetch(AI_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'kamera', image: b64, names: kamAiNamnen() }) });
+    const resp = await aiFraga({ mode: 'kamera', image: b64, names: kamAiNamnen() });
     if (!resp.ok) { kamAiBokfor(null, null, true); satKamFin('ai', `Claude did not answer (${resp.status}).`); return null; }
     const j = await resp.json();
     kamAiBokfor(j.modell || null, j.usage || null, !!j.varfor || !Array.isArray(j.kort));

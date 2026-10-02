@@ -441,23 +441,34 @@ package.json      dess enda beroende
    | Variabel | Krävs | Betydelse |
    |---|---|---|
    | `ANTHROPIC_API_KEY` | ja | Nyckeln. Bara här — aldrig i någon fil du delar. |
+   | `SUPABASE_URL` | ja | Projektets adress. Inloggningen verifieras mot dess nycklar. |
+   | `SUPABASE_SERVICE_ROLE_KEY` | ja | Serverns nyckel till Supabase: räknaren för taket per konto (`claude_fragor`). Typ Secret. |
+   | `CLAUDE_TAK_PER_MANAD` | nej | Standard 300 frågor till Claude per konto och kalendermånad. |
+   | `SUPABASE_JWT_SECRET` | nej | Bara om Supabase signerar inloggningar med HS256 (äldre projekt). Utan den frågar servern Supabase Auth i stället. |
    | `ALLOWED_ORIGINS` | bör | Kommaseparerade adresser, t.ex. `https://magic-mauve-xi.vercel.app`. Utelämnad = alla ursprung tillåts. |
    | `ANTHROPIC_MODEL` | nej | Standard `claude-opus-5`. |
-   | `RATE_PER_MIN` | nej | Standard 40 anrop per IP och minut. |
-   | `RATE_PER_DAY` | nej | Standard 600 anrop per IP och dygn. |
+   | `RATE_PER_MIN` | nej | Standard 40 anrop per konto och minut. |
+   | `RATE_PER_DAY` | nej | Standard 600 anrop per konto och dygn. |
 
-3. Sätt en **månadsgräns** på nyckeln i Anthropics konsol.
+3. Kör migrationen `supabase/migrations/20261002100000_claude_fragor.sql`
+   (tabellen och räknaren) innan servern driftsätts — annars svarar varje
+   fråga 503.
+4. Sätt en **månadsgräns** på nyckeln i Anthropics konsol.
 
 ### Om skyddet, ärligt
 
-Servern kontrollerar avsändarens adress, begränsar antal anrop per IP, och
-avvisar för stora bilder. Men takräkningen sitter i minnet och nollställs när en
-instans startas om — den stoppar slarv och skenande loopar, inte en beslutsam
-angripare. Behöver du ett vattentätt tak: lägg Upstash Redis bakom och byt ut
-`allow()` i `api/identify.js`.
+Sedan MES-316 svarar `/api/identify` bara den som är inloggad: klienten skickar
+sin Supabase-session, och servern verifierar den själv (`api/_vakt.js`). Varje
+konto har ett tak per kalendermånad, räknat i Supabase-tabellen `claude_fragor`
+— en rad per fråga, så att taket överlever omstarter och gäller över alla
+instanser. Över taket svarar servern 429, och appen pausar AI-hjälpen till
+månadsskiftet; kameran känner igen lokalt och det osäkra går till granskningen.
+Ursprungskollen och takten i minnet (per konto) finns kvar som extra lager.
 
-**Det som verkligen begränsar kostnaden är utgiftsgränsen på nyckeln.** Sätt
-den, så är det värsta som kan hända att AI-hjälpen slutar svara för månaden.
+Det som inte stoppas: en utloggad session gäller tills tokenen går ut (högst en
+timme), och den som skaffar många konton får ett tak per konto.
+**Utgiftsgränsen på nyckeln är därför fortfarande sista skyddet.** Sätt den, så
+är det värsta som kan hända att AI-hjälpen slutar svara för månaden.
 
 ### Vad det kostar
 
