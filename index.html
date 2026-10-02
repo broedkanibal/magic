@@ -25808,13 +25808,17 @@ const Kamera = (() => {
      Samma mått i datorns sammaPlats (skildaRemsor där, på rapportens rl). */
   const remsAvstand = (a, b) => Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h));
   const skildaRemsor = (a, b) => !!(a.remsaLada && b.remsaLada && (ladTackning(a.remsaLada, b.remsaLada) < SAMMA_SPAR || remsAvstand(a.remsaLada, b.remsaLada) >= T.remsaIsar));
-  /* …eller som ligger ÖVER varandra (MES-331 pass 2): det ena spårets tackt
-     bär det andras låda. Två kort i en hög är två kort, hur nära remsorna
-     än ligger — golden 06: det mittersta Swamps syntetiska remsa ligger
-     0,63 tjocklekar från det bakersta Swamps, på gränsen (T.remsaIsar 0,6). */
-  const iouLada = (a, b) => { const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); if (iw <= 0 || ih <= 0) return 0; const s = iw * ih; return s / (a.w * a.h + b.w * b.h - s); };
-  const overVarandra = (t, q) => !!((t.tackt && t.tackt.some(b => iouLada(b, q.box) >= 0.5)) || (q.tackt && q.tackt.some(b => iouLada(b, t.box) >= 0.5)));
-  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && !overVarandra(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
+  /* Prövat och backat (MES-331 pass 2): ett undantag för två spår som
+     ligger över varandra (tackt) — golden 06:s mittersta Swamp har sin
+     syntetiska remsa 0,63 tjocklekar från det bakersta Swamps, på gränsen.
+     Men två lådor på SAMMA kort ser likadana ut: i golden 11 födde handen
+     över Swamp två spår på samma plats (38–42 s), den ena inne i den
+     andra, och undantaget gjorde dem till två kort på datorn (dubbletter
+     1 → 2) — också när bara förskjutningsregelns relationer undantogs
+     (5 px sidledes mellan två 60 px lådor räcker för marginalen 0,08).
+     Remsornas avstånd (T.remsaIsar) är det som skiljer två kort i en hög
+     från två lådor på ett kort; 06 står på 0,63. */
+  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
   function dubblettAv(t, q) {
     t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
     t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.gissning = null; t.del = false; t.varfor = 'samma kort som #' + q.id;
@@ -27417,8 +27421,6 @@ function lekPrior(saker, tak, upptagna) {
    skildaRemsor (Kamera.T.remsaIsar); här utan Kamera (avstamning.cjs). */
 const REMSA_ISAR = 0.6;
 function remsAvstand(a, b) { return Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h)); }
-/* …eller som enligt telefonen ligger över varandra (rapportens under, MES-331 pass 2): två kort i en hög är två kort. */
-function overVarandra(a, b) { return !!((Array.isArray(a.under) && a.under.includes(b.id)) || (Array.isArray(b.under) && b.under.includes(a.id))); }
 function skildaRemsor(a, b) {
   if (!a.rl || !b.rl) return false;
   const isar = (typeof Kamera !== 'undefined' && Kamera.remsaIsar != null) ? Kamera.remsaIsar : REMSA_ISAR;
@@ -27427,7 +27429,7 @@ function skildaRemsor(a, b) {
 function sammaPlats(a, b) {
   if (a.w == null || b.w == null || syskon(a, b) || (farsktSpar(a) && farsktSpar(b))) return false;
   if (franHelbild(a) || franHelbild(b)) return mittNara(a, b) || mittNara(b, a);
-  if (skildaRemsor(a, b) || overVarandra(a, b)) return false;
+  if (skildaRemsor(a, b)) return false;
   return tackning(a, b) >= SAMMA_KORT_TACKNING;
 }
 /* Vilket av ett fysiskt korts spår som säger hur det ligger: det med region
