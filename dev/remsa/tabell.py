@@ -67,7 +67,7 @@ def summera(rader, troskel=0.11):
 def t_kalibrering():
     j = las('kalibrering-helkort.json')
     return ['| | Rätt | Säkra rätt | Säkra fel |', '|---|---|---|---|',
-            '| `dev/embed/RAPPORT.md`, modulen (2026-09-18) | 52/61 | 46 | 1–2 |',
+            '| `dev/embed/RAPPORT.md`, modulen (2026-09-18) — avskrivet ur rapporten, inte ur en resultatfil | 52/61 | 46 | 1–2 |',
             f"| `kalibrering.py` (den här koden) | **{j['ratt']}/{j['n']}** | **{j['sakra_ratt']}** | **{j['sakra_fel']}** |"]
 
 
@@ -185,7 +185,7 @@ def t_hogbank():
     namn = {'bildmodellen (säker)': 'bildmodellen (säker, marginal > 0,11)', 'OCR (≥ 0,6)': 'OCR (≥ 0,6, band ur detektorremsan, båda vridningarna)',
             'OCR med appens dom (≥ 0,6 och marginal ≥ 0,2)': 'OCR med appens dom (≥ 0,6 **och** marginal ≥ 0,2)', 'OCR eller bildmodellen': 'OCR (≥ 0,6) eller bildmodellen'}
     ut = ['| Sätt | Högar hela | Par hela | Ensamma | **Fel namn** | Remsor i lådorna | Fall utan remsa |', '|---|---|---|---|---|---|---|',
-          '| MES-250, dagens kedja (namnläsaren på hela beskärningen) | 0/13 | 2/13 | 13/39 | – | – | – |']
+          '| MES-250, dagens kedja (namnläsaren på hela beskärningen) — avskrivet ur MES-250:s mätning, inte ur en resultatfil | 0/13 | 2/13 | 13/39 | – | – | – |']
     for key, label in namn.items():
         if key not in r:
             continue
@@ -205,7 +205,7 @@ def t_tid():
     ut = ['| Steg | Tid | Mätt |', '|---|---|---|',
           f"| varpning ur hörn + tryck till 256 × 256, ur en {t['bild_bredd_px']} px bred bild | {k(t['varp_ms'], 1)} ms | `tid.py`, last {k(t['last_1min'], 1)} |",
           f"| bildmodellen, onnxruntime på processorn, 4 trådar, en remsa i taget | **{t['tradar']['4']['en']:.0f} ms** (åtta i taget: {t['tradar']['4']['atta']:.0f} ms per remsa) | `tid.py`, last {k(t['last_1min'], 1)} |",
-          f"| bildmodellen, 4 trådar, under last (nollprovets 21 körningar, median per körning) | {min(last):.0f}–{max(last):.0f} ms | `nollprov.json`, `ms_modell` |",
+          f"| bildmodellen, 4 trådar, under last (nollprovets {len(last)} körningar, median per körning) | {min(last):.0f}–{max(last):.0f} ms | `nollprov.json`, `ms_modell` |",
           f"| bildmodellen, 1 tråd | {t['tradar']['1']['en']:.0f} ms | `tid.py` |"]
     for fil in sorted(os.listdir(RES)):
         if fil.startswith('tid-ocr-') and fil.endswith('.json'):

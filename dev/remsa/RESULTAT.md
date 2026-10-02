@@ -8,8 +8,8 @@ dagens bildmodell (MobileCLIP-S0, som jämför *hela* kort mot Scryfall), av dag
 
 | | |
 |---|---|
-| Behövs träning för remsan som sådan? | **Nej.** På skarpa foton (golden 03–06, 14–16: 64 remsor ur exakta hörn) sätter dagens otränade bildmodell rätt namn på **64 av 64**, 0 säkra fel, 23 av 23 högkort. Det är bättre än hela kort ger (53/61). |
-| Vad fäller den då? | **Bilden, inte modellen.** (1) Blänk och oskärpa: i 4K-filmen MES-246 (vita kort i blanka fickor under lampa) är namnraden urblekt; modellen svarar *Swamp* på 598 av 735 remsor, 24 % rätt, 27 säkra fel. (2) Geometrin: appens axelparallella lådor i stället för kortets hörn kostar 67 → 41 av 61. (3) Upplösningen: 960 px analysbild kostar 12 av 74. |
+| Behövs träning för remsan som sådan? | **Nej.** På skarpa foton (golden 03–06, 14–16: 64 remsor ur exakta hörn) sätter dagens otränade bildmodell rätt namn på **64 av 64**, 0 säkra fel, 23 av 23 högkort. Det är bättre än hela kort ger på samma sorts bilder (53/61 på appens 61 beskärningar). |
+| Vad fäller den då? | **Bilden, inte modellen.** (1) Blänk och oskärpa: i 4K-filmen MES-246 (vita kort i blanka fickor under lampa) är namnraden urblekt; modellen svarar *Swamp* på 598 av 735 remsor, 24 % rätt, 27 säkra fel. (2) Geometrin: den översta femtedelen av appens kortlåda ger 41/61 där hela kortet ger 53/61 på samma beskärningar; detektorns remslåda vriden rätt kostar nästan inget (63/69 mot hörnens 67/74). (3) Upplösningen: 960 px analysbild kostar 12 av 74. |
 | OCR på samma remsor? | Sämre än bildmodellen överallt och lägger så gott som aldrig till ett kort den missar (1 remsa av 2 950): golden 38/74 (0 fel) vid full upplösning, 23/74 vid 960; **MES-246 0/735** — texten finns inte i bilden. |
 | Högbänken (MES-250: högar 0/13, par 2/13) | Med detektorns remsor och bildmodellen: **högar 3/13, par 5/13, ensamma 14/39, 0 fel namn**. Högbänkens bilder är 1080p-skärminspelningar med ~10 px titelrad — där kan inget läsa. |
 | Rekommendation | **Inte träning nu.** Skär remsan ur kortets geometri (20 % av kortet, ur kamerans fulla bild), kalibrera om tröskeln på remsor, och mät blänket på riktig telefon. Steg 3 (träningsdata, Kaggle) är inte gjort — se *Rekommendation*. |
@@ -31,7 +31,7 @@ riktiga beskärningarna i `dev/embed/riktiga/`:
 <!-- tabell: kalibrering -->
 | | Rätt | Säkra rätt | Säkra fel |
 |---|---|---|---|
-| `dev/embed/RAPPORT.md`, modulen (2026-09-18) | 52/61 | 46 | 1–2 |
+| `dev/embed/RAPPORT.md`, modulen (2026-09-18) — avskrivet ur rapporten, inte ur en resultatfil | 52/61 | 46 | 1–2 |
 | `kalibrering.py` (den här koden) | **53/61** | **46** | **2** |
 <!-- /tabell -->
 
@@ -189,7 +189,7 @@ kombination skulle ge med dagens trösklar; "…fel" är vad den skulle sätta f
 | **mes246 960** 735 | 0 | **0** | 180 | 555 | 0 / 0 | 180 / 42 / 11 | 42 | 11 | 0 / 155 / 116 av 271 |
 <!-- /tabell -->
 
-**OCR lägger aldrig till ett kort som bildmodellen missar.** De sju golden-remsor där båda faller
+**OCR lägger aldrig till ett kort som bildmodellen missar ur hörnen** (ur detektorlådorna: en remsa av 1 332, se *Remsorna detektorn faktiskt ger*). De sju golden-remsor där båda faller
 är alla ur fall 13 (lampfilmen): fyra urblekta vita namnrader (Plains ×2, Fencing Ace, Ancestral
 Blade), tre suddiga (Ukud Cobra, Thriving Moor, Mirran Bardiche). I MES-246 är de 557 "ingen"
 samma två fel: **blänk** på de vita korten och **oskärpa** på allt — se kontaktsidorna
@@ -227,8 +227,9 @@ Den första körningen av skriptet gav 48/69 på golden ur källan — det är m
 (granskningen 2026-10-02): koden i commit 62e2b72 vred en remsa som står på högkant alltid medurs,
 men i golden står 37 av 74 namnrader lodrätt i bilden (liggande inspelningar, alla åt samma håll)
 och ska vridas moturs — de lästes upp och ner. Den gamla koden omkörd ger 48/69 igen (säkra rätt 40,
-0 säkra fel; ur 960: 37/69), och 17 av dess 21 fel är sådana lodräta remsor
-(`resultat/gammal-vridning-detektorremsor.json`). Med hörnens riktning (`vagrat`, e038fda) blir det
+0 säkra fel; ur 960: 37/69). Av dess 21 fel försvinner 15 med rätt vridning — bara lodräta remsor
+berörs av ändringen — och de 6 som kvarstår är dagens 6 (fälten `fixade` och `kvar` i
+`resultat/gammal-vridning-detektorremsor.json`, räknade per bild och facitnamn). Med hörnens riktning (`vagrat`, e038fda) blir det
 63/69, som byggaren och granskaren fått var för sig.
 
 ### Högbänken — jämförelsen MES-250 (`hogbank_remsor.py`)
@@ -241,7 +242,7 @@ topp och under båda finns; **fel namn** = ett säkert/godkänt namn som inte h�
 <!-- tabell: hogbank -->
 | Sätt | Högar hela | Par hela | Ensamma | **Fel namn** | Remsor i lådorna | Fall utan remsa |
 |---|---|---|---|---|---|---|
-| MES-250, dagens kedja (namnläsaren på hela beskärningen) | 0/13 | 2/13 | 13/39 | – | – | – |
+| MES-250, dagens kedja (namnläsaren på hela beskärningen) — avskrivet ur MES-250:s mätning, inte ur en resultatfil | 0/13 | 2/13 | 13/39 | – | – | – |
 | bildmodellen (säker, marginal > 0,11) | 3/13 | 5/13 | 14/39 | **0** | 97 | 3 |
 | OCR (≥ 0,6, band ur detektorremsan, båda vridningarna) | 0/13 | 4/13 | 12/39 | **0** | 97 | 3 |
 | OCR med appens dom (≥ 0,6 **och** marginal ≥ 0,2) | 0/13 | 4/13 | 11/39 | **0** | 97 | 3 |
@@ -278,7 +279,8 @@ Bildmodellens 25 ms gäller en körning utan annan egen last (lastmedel 3,3 vid 
 21 körningar, med annat igång, låg medianen 35–61 ms. OCR-tiden är en sparad ensam körning av samma
 74 golden-remsor som OCR-tabellen (`--bara orig/namnrad/golden`): 38 rätt, 0 fel, som där.
 Telefonen är inte mätt. MES-213 mätte 98 ms per 256 × 256-tensor med WebGPU i webbläsaren på
-Jespers Intel-Mac; remsan är samma tensor. Detektorn på 960 × 544: 52–96 ms per bild här.
+Jespers Intel-Mac; remsan är samma tensor. Detektorn på 960 × 544: 41–96 ms per bild här (`ms_detektor`: 41 i `detektorremsor-embed.json`, 60 i
+`detektorremsor-20-embed.json`, 96 i `hogbank-remsor.json`).
 
 ## 3. Steg 3 — träningsdatat: inte gjort, med avsikt
 
@@ -292,8 +294,9 @@ inte att en bildvektor inte kan skilja urblekta remsor på ram och konst, och fe
 *systematiskt* (Swamp på 598 av 735, 27 säkra fel) — precis det en finjustering med störningarna i
 `dev/detektor/synt/` (blänk, oskärpa) är tänkt att rätta. Provet som fäller antagandet: en liten
 finjustering på Scryfall-remsor med synt-blänk och -oskärpa plus riktiga remsor ur träningsfilmerna,
-mätt på MES-246-remsorna som hålls helt utanför träningen (`delning.py`). Ger den fler än 66 säkra
-rätt av 735 vid 0 säkra fel (dagens 66 och 27) är antagandet fel och träning rätt väg. Provet måste
+mätt på MES-246-remsorna som hålls helt utanför träningen (`delning.py`). Ger den fler än 11 säkra
+rätt av 735 vid 0 säkra fel (dagens nollfel-tröskel 0,18 ger 11), eller vid tröskel 0,11 fler än 66 säkra
+rätt med färre än 27 säkra fel (dagens 66 och 27), är antagandet fel och träning rätt väg. Provet måste
 räkna per namn — mätt bara på Swamp-högarna hade en finjustering kunnat "hjälpa" av samma tur som
 i dag. Den mätningen är steg 3–4 och är inte gjord.
 
@@ -320,8 +323,8 @@ Inte träning (sätt 3), inte OCR (sätt 2) som huvudspår.** I ordning:
    lampa; både OCR och bildmodellen läser 0 där. Spela in samma bord med telefonens egen
    exponering (och utan fickor) och kör `nollprov.py` — se om det är fickorna, lampan eller
    kameraappens film (4K 60 fps är mjuk) som tar texten.
-4. OCR som andra vittne på det bildmodellen är osäker på — den lägger inte till kort, men den
-   gav 0 fel på 148 golden-remsor och kan bekräfta. Alltid på tunna band, aldrig hela remsan.
+4. OCR som andra vittne på det bildmodellen är osäker på — den lägger inte till kort ur hörnen (ur
+   detektorlådorna en av 1 332), men den gav 0 fel på 148 golden-remsor och kan bekräfta. Alltid på tunna band, aldrig hela remsan.
 5. Steg 3–4 (finjustering på Kaggle) först om 1–3 lämnar kvar fel på skarpa bilder.
 
 **Issuens "Klart när" är inte uppfyllt — det är besvarat med resonemang, inte mätt fullt ut.** Kravet
