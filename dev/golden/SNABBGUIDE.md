@@ -82,6 +82,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
 | `node dev/golden/kor.cjs --fall 09 --tro "snabb:1"` | valfria trösklar till kameran före varje fall (`Kamera.satTrosklar`) — för prov som inte ska bli förval. Sparas aldrig som baslinje |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
+| `node dev/golden/kor.cjs --fall 13 --video dev/material/golden-13-upplosning/video-3840x2160-25000k.mp4` | samma videofall, samma facit och tider, men en annan videofil — samma klipp i en annan upplösning eller bithastighet (MES-331). Filen ska ligga under repots rot (dev/material/ är gitignorerat); bara med ett fall, aldrig `--spara`. Raden `videon …` under tabellen säger vilken fil och storlek som kördes |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
 | `node dev/golden/avstand.cjs` | eget mått: samma bord på längre håll — vilket golv i kedjan går först (se *Avstånd*) |

@@ -65,6 +65,23 @@ const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar 
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
 const DETLOGG = process.argv.includes('--detlogg');   // detektorns lådor, remsor och täckningar i appens konsol (MES-329) — med --konsol
 const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
+/* --video <fil>: videofallet körs mot en ANNAN videofil med samma facit och
+   samma tider — samma klipp i en annan upplösning eller bithastighet (MES-331:
+   fall 13 i 1080p och 4K i stället för den komprimerade 1080×608-kopian).
+   Filen ska ligga under repots rot (t.ex. dev/material/…, gitignorerat) så
+   att attrappen serverar den. Bara med --fall för ETT videofall, och aldrig
+   --spara: baslinjen mäter fallets egen video. */
+const VIDEO = arg('--video', '');
+let VIDEO_URL = '';
+if (VIDEO) {
+  const abs = path.resolve(VIDEO), rel = path.relative(ROT, abs);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) { console.error(`--video: ${VIDEO} ligger utanför repots rot (${ROT}) — attrappen kan inte servera den. Lägg den under dev/material/.`); process.exit(2); }
+  if (!fs.existsSync(abs)) { console.error(`--video: ${VIDEO} finns inte.`); process.exit(2); }
+  if (!FALL || FALL.includes(',')) { console.error('--video kräver --fall med ETT videofall: filen ersätter just det fallets video.'); process.exit(2); }
+  if (SPARA) { console.error('--video med --spara vägras: baslinjen mäter fallets egen video, inte en ersättare.'); process.exit(2); }
+  VIDEO_URL = '/' + rel.split(path.sep).map(encodeURIComponent).join('/');
+  console.log(`Videon ersatt: ${rel} (${Math.round(fs.statSync(abs).size / 1048576)} MB) i stället för fallets egen — samma facit och tider.`);
+}
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -199,7 +216,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [AIFLAG && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
-                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER].filter(Boolean).join('&');
+                 (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER, VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL)].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -229,6 +246,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   skrivTabell(JSON.parse(json), gamla);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
   if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}, ${r.refSparade || 0} sparade`).join(' · ')); }
+  for (const r of JSON.parse(json)) if (r.videoErsatt) console.log(`\n  ${r.id}: videon ${r.videoErsatt} (${r.kallStorlek})`);
   { const f0 = JSON.parse(json)[0]; if (f0) console.log('\n  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', systemprompt v' + f0.promptv : '') + ')' : '')
       + (f0.modell ? ` — bildmodellen räknade på ${f0.modell === 'webgpu' ? 'WebGPU' : f0.modell === 'wasm' ? 'WASM' : f0.modell}` : ' — utan bildmodell (reserven Matcher + ORB)')
       + (f0.detektor ? ` — detektorn: ${f0.detektor}` : '')   // MES-329: tränad YOLOX (variant, backend) eller dagens

@@ -169,6 +169,10 @@ const REF_PA = PARAMS.get('ref') === '1' || PARAMS.get('refanvand') === '1', REF
    samma sanning i sju ljus. Variantens namn står i resultatet (r.ljus) och
    kor.cjs jämför mot den vanliga baslinjen, utan att spara. */
 const LJUS = PARAMS.get('ljus') || '';
+/* ?video=/dev/material/… (kor.cjs --video): videofallet matas ur en annan fil
+   med samma facit — samma klipp i en annan upplösning (MES-331). Fallets
+   egen video.mp4 rörs inte; resultatet bär filens namn i r.videoErsatt. */
+const VIDEO_ERSATT = PARAMS.get('video') || '';
 /* Bildmodellen (MES-225) är med som i appen; ?embed=0 (kor.cjs --utan-modell)
    stänger av den, och då mäts reserven — Matcher + ORB, kedjan från före
    modellen. ?embedlokalt=1: onnxruntime-web och vikterna serveras av
@@ -506,11 +510,12 @@ async function korFall(f) {
      Library-rutan (MES-122) på samma sätt: { "bib": { x, y, w, h } } där leken ligger. */
   try { if (K.satGrav) K.satGrav(f.facit.grav || null); if (K.satBib) K.satBib(f.facit.bib || null); } catch (e) {}
   const vf = f.facit.video || null;
-  const kalla = vf ? await laddaVideo(`fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
+  const kalla = vf ? await laddaVideo(VIDEO_ERSATT || `fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
                    : await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
   try {
     const kb = vf ? kalla.videoWidth : kalla.naturalWidth, kh = vf ? kalla.videoHeight : kalla.naturalHeight;
     if (!kb || !kh) throw new Error('källan har ingen storlek');
+    f.kallStorlek = kb + '×' + kh;
     const cv = stallUpp(f, kalla, kb, kh);
     return vf ? await korVideoFall(f, vf, kalla, cv) : await korStillFall(f, cv);
   } finally { if (vf) stangVideo(kalla); }
@@ -1011,6 +1016,8 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    videoErsatt: (f.facit.video && VIDEO_ERSATT) || undefined,
+    kallStorlek: f.kallStorlek,
     /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */
     modell: embedInfo ? embedInfo.backend : null,
     /* MES-329: detektorn som faktiskt kördes i fallet (KamDet.status läses nu — föll modellen under körningen står 'fel'), inte bara den som laddades. */
