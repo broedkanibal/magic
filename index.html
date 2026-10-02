@@ -22199,12 +22199,15 @@ const Kamera = (() => {
        hela remsan är osäker körs bildmodellen också på remsans vänstra
        remsaTitel (0,55) — titeln, utan fickkanten, manakostnaden och kortet
        ovanpå i högra delen. Säkert ('remsa+titel') bara när titeldelen har
-       SAMMA namn överst som hela remsan och marginal > remsaTitelTroskel.
+       SAMMA namn överst som hela remsan, marginal > remsaTitelTroskel, och
+       hela remsan själv har marginal ≥ remsaVittne (0,05).
        Uppmätt i dev/remsa/detektor_remsor.py --vanster 0.55 (resultat/
-       detektorremsor-v55-embed.json): golden ur källan 54 → 61 säkra rätta
-       av 69 med 0 fel, MES-246 0 → 9 av 597 med 0 fel; nollfel för
-       titeldelen i MES-246 är 0,181 (två blänkta Danitha Capashen som blir
-       Night's Whisper), så 0,20; 0,22 kostar 1 i golden och vinner inget.
+       detektorremsor-v55-embed.json): utan vakten på hela remsan är
+       nollfel för titeldelen i MES-246 0,181 (två blänkta Danitha Capashen
+       som blir Night's Whisper, hela remsan 0,02–0,03) — med vakten 0,122.
+       Vid 0,20 med vakten: golden ur källan 54 → 57 säkra rätta av 69 med
+       0 fel, MES-246 0 av 597 (utan vakten 61 och 9, men med 0,019 till
+       nollfel). 0,22 kostar 1 i golden och vinner inget.
        Golden 14:s två täckta Plains i gröna fickor: hela remsan 0,021/0,08,
        titeldelen 0,23/0,31 i bänken. 0 stänger av (--tro "remsaTitel:0"). */
     remsaTitel: 0.55,
@@ -25426,7 +25429,8 @@ const Kamera = (() => {
      med överkanten åt vänster och vrids medurs; i högra kanten moturs; en
      vågrät remsa i underkanten är ett vänt kort (180°). Fel håll kostade
      15 av 69 i bänken (dev/remsa/RESULTAT.md). Svaret kommer ur
-     kamLasRemsa (bildmodellen mot remsleken, textläsaren som vittne). */
+     kamLasRemsa (bildmodellen mot remsleken, titeldelen och textläsaren
+     som vittnen, MES-331). */
   async function lasRemsa(t) {
     const s = t.remsaLada; if (!s || !video || !cb.lasRemsa) return null;
     const vb = video.videoWidth, vh = video.videoHeight, r = rutaPx(vb, vh), sx = r.w / AW, sy = r.h / AH;
@@ -26109,6 +26113,7 @@ const Kamera = (() => {
            get ruta() { return Object.assign({}, kal.ruta); },
            get grund() { return kal.grund; },   // radianer modulo π; null = inte sparat (upp gäller)
            get trosklar() { return Object.assign({}, T); },
+           get remsaIsar() { return T.remsaIsar; },   // datorns skildaRemsor läser den per par (MES-331) — utan kopian av hela T
            get diagnos() { return Object.assign({}, dia); },
            /* Inspelningsprovet (MES-190): strömmen att spela in, och kroken som
               får varje stegs tid. Strömmen lämnas ut som den är — provet ändrar
@@ -26682,7 +26687,10 @@ async function kamLasRemsa(canvas, id, o) {
         for (const c of et.cands || []) { const name = typNamn(c.name); if (!rt.find(x => x.name === name)) rt.push({ name, score: c.score }); }
         if (rt.length && rt[0].name !== BAKSIDA_NAMN) {
           titel = { namn: rt[0].name, marginal: +(rt[0].score - (rt[1] ? rt[1].score : 0)).toFixed(3), poang: +(+rt[0].score).toFixed(3) };
-          if (titel.namn === cands[0].name && titel.marginal > T.remsaTitelTroskel) { saker = true; varfor = 'remsa+titel'; }
+          /* …och hela remsan ska själv luta åt namnet (marginal ≥ T.remsaVittne): utan den vakten
+             är bänkens nollfel 0,181 (två blänkta remsor i MES-246 där hela remsan hade 0,02–0,03),
+             med den 0,122. Golden 06/14 har 0,093 och 0,08 på hela remsan — de klarar vakten. */
+          if (titel.namn === cands[0].name && titel.marginal > T.remsaTitelTroskel && marginal >= T.remsaVittne) { saker = true; varfor = 'remsa+titel'; }
         }
       }
     } catch (x) { titel = null; }
@@ -27259,7 +27267,7 @@ const REMSA_ISAR = 0.6;
 function remsAvstand(a, b) { return Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2)) / Math.max(1e-9, Math.min(a.w, a.h, b.w, b.h)); }
 function skildaRemsor(a, b) {
   if (!a.rl || !b.rl) return false;
-  const isar = (typeof Kamera !== 'undefined' && Kamera.trosklar && Kamera.trosklar.remsaIsar != null) ? Kamera.trosklar.remsaIsar : REMSA_ISAR;
+  const isar = (typeof Kamera !== 'undefined' && Kamera.remsaIsar != null) ? Kamera.remsaIsar : REMSA_ISAR;
   return tackning(a.rl, b.rl) < SAMMA_KORT_TACKNING || remsAvstand(a.rl, b.rl) >= isar;
 }
 function sammaPlats(a, b) {
