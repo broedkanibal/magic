@@ -24097,6 +24097,26 @@ const Kamera = (() => {
       if (bast && bd < grans && bast.omlott && !f.omlott) {
         let bo = ladTackning(bast.box, f.box);
         for (const t of spar) { if (anv.has(t) || t === bast || Math.hypot(t.cx - f.cx, t.cy - f.cy) >= grans) continue; const o = ladTackning(t.box, f.box); if (o > bo + 0.1) { bo = o; bast = t; bd = Math.hypot(t.cx - f.cx, t.cy - f.cy); } }
+        /* …och ett SÄKERT NAMNGIVET spår som regionen täcker till minst
+           hälften går före en namnlös del (MES-331 pass 3, steg 3). Golden
+           07, 11,85 s: handen över Thriving Moor fick detektorn att ge två
+           lådor på kortet (89×48 upptill, 77×56 nedtill); det klara spåret
+           tog den ena och den andra födde ett nytt spår. Nästa ruta kom
+           hela kortet som EN låda: dess mitt låg 21 px från det nya spåret
+           och 22 från det klara, täckningen 1,0 mot 0,96 — inte 0,1 bättre
+           — så det nya spåret tog kortet, Thriving Moor (säkert sedan
+           6,15 s) stod utan region och togs bort av omlott-delsregeln
+           0,75 s senare, och det nya spåret läste om namnet (datorn: kortet
+           borta och tillbaka, läge 4 → 5). Kortet som lästs är kortet; en
+           del som är några rutor gammal är en del av det. Bara här — en
+           hel låda vars närmaste spår är en del — inte i omlott-matchningen
+           ovan: där tog regeln ett nytt kort ovanpå ett känt kort ifrån
+           det nya (07: Plains på Swamp, 7/7 → 6/7 spelade). */
+        if (bast.tillstand !== 'klar') {
+          let bk = null, ok = 0.5;
+          for (const t of spar) { if (anv.has(t) || t.tillstand !== 'klar' || Math.hypot(t.cx - f.cx, t.cy - f.cy) >= grans) continue; const o = ladTackning(t.box, f.box); if (o > ok) { ok = o; bk = t; } }
+          if (bk) { bast = bk; bd = Math.hypot(bk.cx - f.cx, bk.cy - f.cy); }
+        }
       }
       /* En träff som är mycket större än spåret är inte kortet: det är kortet
          plus en hand, eller två kort som skjutits ihop. Uppmätt på bänken:
