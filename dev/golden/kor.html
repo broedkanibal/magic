@@ -56,6 +56,7 @@ pre{white-space:pre-wrap;background:#0a0d12;padding:8px;border:1px solid var(--l
         <th title="säkert svar med FEL namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända">Fel namn</th>
         <th title="spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats">Falska</th>
         <th title="spår på rätt plats med rätt tap-läge / facitkort med ruta">Tappad</th>
+        <th title="högar i facit (samma hog-bokstav, minst två synliga kort) där kameran har alla korten, vet vem som ligger över vem (rapportens under) så att ordningen nedifrån stämmer med facits z, och har de säkra namnen rätt / mätta högar. Inom parentes: ordningen rätt men namn saknas · ordningen okänd · fel (ordning som motsäger facit, eller säkert fel namn)">Högar</th>
         <th title="bara videofall: utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som inte ligger kvar i slutet, och hur många som kom i rätt ordning">Förlopp</th>
         <th title="analyssteget i millisekunder: medianen över körningen (sista rutan förut — en ruta med identifiering i kostar 300 ms). Inom parentes: den dyraste rutan">ms</th>
         <th title="mattans brus σ, tröskel, avvikelse (utseende), ytans dom">mätt</th>
@@ -190,6 +191,12 @@ const RUTLOGG = PARAMS.get('rutlogg') === '1';
 const LUFT = PARAMS.get('luft');
 /* ?lasworker=0|1|kontroll (kor.cjs --lasworker): läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda och varje skillnad loggas (--konsol). Statistiken står i --detalj. */
 const LASWORKER = PARAMS.get('lasworker');
+/* ?facit=06:sökväg|13:sökväg (kor.cjs --facit): fallen vars id börjar så döms
+   mot ett ANNAT facit — en fil i repot (sökväg från roten), t.ex. en kopia
+   under dev/material med två kort som bytt z. Till kontrollerna: visa att ett
+   mått fallerar när facit säger något annat (MES-331). Resultatet bär
+   facitFil, och kor.cjs sparar aldrig en baslinje med den. */
+const FACIT_ERSATT = (PARAMS.get('facit') || '').split('|').map(x => x.trim()).filter(Boolean).map(x => { const i = x.indexOf(':'); return { prefix: x.slice(0, i), fil: x.slice(i + 1) }; }).filter(e => e.prefix && e.fil);
 const LJUS_VARIANTER = {
   morkare:  { txt: 'mörkare (×0,55)' },
   ljusare:  { txt: 'ljusare (×1,45, klipper)' },
@@ -265,15 +272,17 @@ async function listaFall() {
   const ut = [];
   for (const id of namn) {
     let facit = null, fel = null;
+    const ers = FACIT_ERSATT.find(e => id.startsWith(e.prefix));
     try {
-      const fr = await fetch(`fall/${encodeURIComponent(id)}/facit.json`, { cache: 'no-store' });
+      const fr = await fetch(ers ? '../../' + ers.fil.split('/').map(encodeURIComponent).join('/') : `fall/${encodeURIComponent(id)}/facit.json`, { cache: 'no-store' });
       if (fr.ok) facit = await fr.json(); else fel = 'facit.json saknas';
     } catch (e) { fel = 'facit.json går inte att läsa'; }
     /* Rutan är hela bilden om inget annat står; ett facit som bara anger
        upp (videofallen) fyller resten härifrån. */
     if (facit) facit.ruta = Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: 'v' }, facit.ruta || {});
     if (facit && !Array.isArray(facit.kort)) fel = 'facit.json saknar kort[]';
-    ut.push({ id, facit, fel });
+    if (ers && !facit) fel = 'ersättningsfacit gick inte att läsa: ' + ers.fil;
+    ut.push({ id, facit, fel, facitFil: ers ? ers.fil : null });
   }
   return ut;
 }
@@ -916,6 +925,70 @@ function iou(a, b) {
   const s = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
   return s / (a.w * a.h + b.w * b.h - s);
 }
+/* ── högarna: vem ligger över vem (MES-331) ──────────────────────────
+   Rapporten bär för varje spår under: id:n på de spår som ligger ÖVER det
+   (telefonens tackt, översatt till spår i rapportera). Här blir det en
+   karta spårnummer → mängden spårnummer över det, i bedoms numrering
+   (K.spar-ordning från 1). */
+function underRelationer(bord) {
+  const nrAv = new Map(K.spar.map((t, i) => [t.id, i + 1])), ut = new Map();
+  for (const u of bord || []) {
+    const a = nrAv.get(u.id); if (a == null || !Array.isArray(u.under)) continue;
+    for (const id of u.under) { const b = nrAv.get(id); if (b != null && b !== a) (ut.get(a) || ut.set(a, new Set()).get(a)).add(b); }
+  }
+  return ut;
+}
+/* En hög i facit är korten med samma bokstav i "hog", i ordning efter "z"
+   (1 = underst). Bara synliga kort räknas — ett dolt syns inte för någon
+   kamera — och en hög med färre än två synliga kort har ingen ordning att
+   mäta (står som "mäts inte"). Varje synligt kort ska ha sitt spår ur
+   rutmatchningen (traffar); sedan döms varje par i högen på rapportens
+   relation:
+     det övre facitkortets spår ligger över det undre  → stämmer
+     tvärtom                                           → MOTSÄGER facit
+     båda åt båda hållen, eller ingen relation          → okänt
+   Paren sluts transitivt (A under B, B under C ⇒ A under C): ett kort som
+   bara ligger omlott med sin granne behöver ingen egen relation till
+   högens tredje kort. Domen per hög:
+     fel     — något par motsäger facit, eller ett säkert namn är fel
+     okänd   — ett kort saknar spår, eller ordningen är inte helt känd
+     ordning — ordningen är helt känd och rätt, men något namn är inte säkert
+     rätt    — ordningen och de säkra namnen nedifrån stämmer med facit
+   Ingen relation gissas: ett par utan relation är okänt, inte rätt. */
+function bedomHogar(kortAlla, traffar, overAv, ratt) {
+  const sparAv = new Map(traffar.map(p => [p.k, p.t]));
+  const ovanpa = (a, b) => !!(overAv.get(b) && overAv.get(b).has(a));   // spår a ligger över spår b
+  const bokstaver = [...new Set(kortAlla.filter(k => k.hog).map(k => k.hog))].sort();
+  const lista = []; let av = 0, rattN = 0, ordning = 0, okand = 0, fel = 0;
+  for (const h of bokstaver) {
+    const alla = kortAlla.filter(k => k.hog === h).sort((a, b) => (a.z || 0) - (b.z || 0));
+    if (alla.length < 2) continue;
+    const syn = alla.filter(k => !k.dold), ts = syn.map(k => sparAv.get(k) || null);
+    const post = { hog: h, facit: syn.map(k => k.namn), dolda: alla.length - syn.length, spar: ts.map(t => t ? t.id : null), namn: ts.map(t => t && t.saker && t.namn ? t.namn : null) };
+    lista.push(post);
+    if (syn.length < 2) { post.dom = 'mäts inte'; post.varfor = 'färre än två synliga kort'; continue; }
+    av++;
+    const saknas = syn.filter((k, i) => !ts[i]);
+    if (saknas.length) { post.dom = 'okänd'; post.varfor = 'utan spår: ' + saknas.map(k => k.namn + ' (z ' + k.z + ')').join(', '); okand++; continue; }
+    const n = syn.length, M = Array.from({ length: n }, () => new Array(n).fill(false)), motsagd = [], omsesidig = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const stammer = ovanpa(ts[j].id, ts[i].id), tvartom = ovanpa(ts[i].id, ts[j].id);
+      if (stammer && tvartom) omsesidig.push(`#${ts[i].id}/#${ts[j].id}`);
+      else if (stammer) M[i][j] = true;
+      else if (tvartom) { M[j][i] = true; motsagd.push(`#${ts[i].id} ${syn[i].namn} över #${ts[j].id} ${syn[j].namn}`); }
+    }
+    for (let m = 0; m < n; m++) for (let i = 0; i < n; i++) if (M[i][m]) for (let j = 0; j < n; j++) if (M[m][j]) M[i][j] = true;
+    const oppna = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (!M[i][j]) oppna.push(`#${ts[i].id}–#${ts[j].id}`);
+    const felNamn = syn.filter((k, i) => ts[i].saker && ts[i].namn && !ratt(ts[i], k));
+    if (motsagd.length) { post.dom = 'fel'; post.varfor = 'kameran har ' + motsagd.join(', '); fel++; }
+    else if (oppna.length) { post.dom = 'okänd'; post.varfor = 'ingen relation ' + oppna.join(', ') + (omsesidig.length ? ' (båda över varandra: ' + omsesidig.join(', ') + ')' : ''); okand++; }
+    else if (felNamn.length) { post.dom = 'fel'; post.varfor = 'ordningen rätt men fel namn: ' + felNamn.map(k => k.namn).join(', '); fel++; }
+    else if (syn.every((k, i) => ts[i].saker && ratt(ts[i], k))) { post.dom = 'rätt'; rattN++; }
+    else { post.dom = 'ordning'; post.varfor = 'ordningen rätt, namn saknas: ' + syn.filter((k, i) => !(ts[i].saker && ratt(ts[i], k))).map(k => k.namn + ' (z ' + k.z + ')').join(', '); ordning++; }
+  }
+  return { av, ratt: rattN, ordning, okand, fel, lista };
+}
 function bedom(f, bord, tid, tak, msMedian, msMax) {
   const { aw, ah } = K.analysMatt, r = K.ruta || f.facit.ruta;
   const f4 = v => +v.toFixed(4);
@@ -936,6 +1009,11 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     /* Detektorns remslåda (MES-331), samma andelar som lådan — för dubblettregelns mått mellan remsor. */
     rl: t.remsaLada ? { x: f4(r.x + t.remsaLada.x / aw * r.w), y: f4(r.y + t.remsaLada.y / ah * r.h), w: f4(t.remsaLada.w / aw * r.w), h: f4(t.remsaLada.h / ah * r.h) } : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
+  /* Vem ligger över vem, som datorn fick det (MES-331): sista bordsrapportens
+     under, översatt till spårens nummer här. Ett spår som inte finns kvar
+     faller bort. */
+  const overAv = underRelationer(bord);
+  for (const t of alla) { const o = overAv.get(t.id); t.under = o ? [...o].sort((a, b) => a - b) : null; }
   const spar = alla.filter(t => t.tillstand !== 'skrap');
   /* Facit i två sorter: kort med ruta (positionen provas) och kort med bara
      namn (bara namnet provas). Dolda kort — under ett annat, bara en kant
@@ -978,6 +1056,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      delat med spårets bredd; medianen över rutträffarna. */
   const lageFel = traffar.filter(p => p.plats).map(p => Math.hypot((p.t.x + p.t.w / 2 - p.k.x - p.k.w / 2) * aw, (p.t.y + p.t.h / 2 - p.k.y - p.k.h / 2) * ah) / (p.t.w * aw)).sort((a, b) => a - b);
   const dia = K.diagnos, tro = K.trosklar;
+  const hogar = bedomHogar(kortAlla, traffar, overAv, ratt);
   /* Land per TYP (MES-228): ett basland är sin typ — tryck, konstverk och
      snö spelar ingen roll — och en hög redovisas som antal + typ. Facit
      räknas per typ över de synliga korten (dolda för sig); kameran per typ
@@ -995,7 +1074,11 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     landRatt: landTyper.reduce((a, ty) => a + Math.min(landF[ty] || 0, landK[ty] || 0), 0),
     landOver: landTyper.reduce((a, ty) => a + Math.max(0, (landK[ty] || 0) - (landF[ty] || 0) - (landD[ty] || 0)), 0),
     landPerTyp: Object.fromEntries(landTyper.map(ty => [ty, { facit: landF[ty] || 0, dolda: landD[ty] || 0, kamera: landK[ty] || 0 }])),
+    /* Högar (MES-331): null = fallet har ingen hög med två synliga kort i facit. */
+    hogAv: hogar.av, hogRatt: hogar.av ? hogar.ratt : null, hogOrdning: hogar.av ? hogar.ordning : null, hogOkand: hogar.av ? hogar.okand : null, hogFel: hogar.av ? hogar.fel : null,
+    hogar: hogar.lista.length ? hogar.lista : null,
     id: f.id, kort: synliga.length, dolda: dolda.length,
+    facitFil: f.facitFil || undefined,   // --facit: fallet dömdes mot en annan fil än fall/<id>/facit.json
     hittade: spar.length,
     plats: synligaTraffar.filter(p => p.plats).length, platsAv: medRuta.length,
     namn: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).length,
@@ -1313,6 +1396,13 @@ function cell(v, n, bra, forra, nyckel, mal) {
   }
   return `<td class="${bra == null ? '' : bra ? 'bra' : 'dalig'}">${s}${d}</td>`;
 }
+/* Högarna (MES-331): rätt / mätta, och del-lägena inom parentes. – när facit inte har en hög med två synliga kort. */
+function hogCell(r, forra) {
+  if (!r.hogAv) return '<td class="dim" title="facit har ingen hög med minst två synliga kort">–</td>';
+  const del = [r.hogOrdning ? `${r.hogOrdning} ordning rätt, namn saknas` : '', r.hogOkand ? `${r.hogOkand} ordning okänd` : '', r.hogFel ? `${r.hogFel} fel` : ''].filter(Boolean).join(' · ');
+  const tips = (r.hogar || []).map(h => `${h.hog}: ${h.dom}${h.varfor ? ' — ' + h.varfor : ''}`).join('\n');
+  return cell(r.hogRatt, r.hogAv, r.hogFel ? false : r.hogRatt === r.hogAv ? true : null, forra, 'hogRatt').replace('<td ', `<td title="${esc(tips)}" `).replace('</td>', (del ? ` <span class="dim">(${del})</span>` : '') + '</td>');
+}
 /* Förloppskolumnen: bara videofall har den, en stillbild visar –. */
 function forloppCell(r, forra) {
   if (r.videoLagdaAv == null) return '<td class="dim" title="bara videofall: kort som läggs ut och plockas bort medan kameran går">–</td>';
@@ -1329,9 +1419,9 @@ function ritaTabell() {
     const r = resultat.get(f.id), forra = senaste && senaste.get(f.id);
     const knapp = `<td><button data-kor="${esc(f.id)}" ${kor || !poolKlar ? 'disabled' : ''}>Kör</button></td>`;
     const varn = f.varning ? ` <span class="fel" title="${esc(f.varning)}">⚠</span>` : '';
-    if (f.fel) tr.innerHTML = `<td></td><td>${esc(f.id)}</td><td class="fel" colspan="8">${esc(f.fel)}</td>`;
-    else if (!r) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="dim" colspan="8">${forra ? `förra: ${forra.plats}/${forra.kort} plats, ${forra.namn} namn, ${forra.falska} falska` : 'inte körd'}${f.varning ? ' · ' + esc(f.varning) : ''}</td>`;
-    else if (r.fel) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="fel" colspan="8">${esc(r.fel)}</td>`;
+    if (f.fel) tr.innerHTML = `<td></td><td>${esc(f.id)}</td><td class="fel" colspan="9">${esc(f.fel)}</td>`;
+    else if (!r) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="dim" colspan="9">${forra ? `förra: ${forra.plats}/${forra.kort} plats, ${forra.namn} namn, ${forra.falska} falska` : 'inte körd'}${f.varning ? ' · ' + esc(f.varning) : ''}</td>`;
+    else if (r.fel) tr.innerHTML = `${knapp}<td>${esc(f.id)}${varn}</td><td class="fel" colspan="9">${esc(r.fel)}</td>`;
     else {
       const flaggor = [r.tidsgrans ? `<span class="fel" title="fallet slog i taket på ${r.takS || TAK_MS / 1000} s — ${r.obesvarade} spår utan svar">⏱ tak</span>` : '',
                        r.krascher ? `<span class="fel" title="undantag i appens loop under fallet">✗ ${r.krascher} krasch${r.krascher === 1 ? '' : 'er'}</span>` : '',
@@ -1343,6 +1433,7 @@ function ritaTabell() {
         + cell(r.felNamn, null, r.felNamn === 0, forra, 'felNamn')
         + cell(r.falska, null, r.falska === 0, forra, 'falska').replace('</td>', (r.kant ? ` <span class="dim">(+${r.kant} vid kanten)</span>` : '') + (r.doldaHittade ? ` <span class="dim">(+${r.doldaHittade} dolda)</span>` : '') + (r.skrap ? ` <span class="dim">· ${r.skrap} skräp</span>` : '') + '</td>')
         + (r.tappadAv ? cell(r.tappad, r.tappadAv, r.tappad === r.tappadAv, forra, 'tappad') : '<td class="dim">–</td>')
+        + hogCell(r, forra)
         + forloppCell(r, forra)
         + `<td>${r.ms}${r.msMax ? ` <span class="dim">(${r.msMax})</span>` : ''}${r.ocrMs ? ` <span class="dim" title="namnläsaren, median per kort">· ocr ${r.ocrMs}</span>` : ''}</td><td class="dim">σ ${r.sigma} · t ${r.troskel} · a ${r.utseende}${r.otsu != null ? ' (otsu ' + r.otsu + ')' : ''} · ${r.yta || '–'}</td>`;
     }
@@ -1352,6 +1443,7 @@ function ritaTabell() {
   const sum = k => rs.reduce((s, r) => s + (r[k] || 0), 0);   // videofältens summa: de saknas i stillbildsraderna
   $('#totRad').innerHTML = rs.length
     ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td>`
+      + (sum('hogAv') ? `<td>${sum('hogRatt')}/${sum('hogAv')} <span class="dim">(${sum('hogOrdning')} ordning rätt, namn saknas · ${sum('hogOkand')} okänd · ${sum('hogFel')} fel)</span></td>` : '<td class="dim">–</td>')
       + (sum('videoLagdaAv') ? `<td>${sum('videoLagda')}/${sum('videoLagdaAv')} spelade · ${sum('videoBorta')}/${sum('videoBortaAv')} borttagna · ordning ${sum('videoOrdning')}/${sum('videoOrdningAv')}</td>` : '<td class="dim">–</td>')
       + '<td></td><td></td>'
     : '';

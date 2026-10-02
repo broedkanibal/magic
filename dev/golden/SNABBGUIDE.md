@@ -42,6 +42,7 @@ Båda skriver en tabell med ett fall per rad:
 | Fel namn | säkert svar men fel kort — det värsta, ska vara 0 |
 | Falska | spår där inget kort ligger |
 | Plats, Tappad | provas bara i fallen där facit har rutor (01–02): rätt plats, och rätt tap-läge |
+| Högar | bara i `kor.html`s tabell och på raden `högar:` sist i `kor.cjs` (MES-331): facithögar (samma `hog`, minst två synliga kort) där kameran har varje kort, vet vem som ligger över vem (rapportens `under`) så att ordningen nedifrån stämmer med facits `z`, och har säkra rätta namn. Del-lägen: *ordning rätt men namn saknas*, *ordning okänd* (ett kort utan spår, eller ett par utan relation — aldrig gissat), *fel* (ordning som motsäger facit, eller säkert fel namn). `--detalj` skriver varje hög och `under #n` per spår |
 | Förlopp | bara videofall: `7/7 spelade · 2/2 borttagna · ordning 7/7` — hur många utspelade kort kameran hann namnge, hur många bortplockade som försvann ur bordet, och hur många av utspelen den såg i rätt ordning. `–` för foton |
 
 `(var 10)` efter ett tal är baslinjens tal, när det skiljer sig. Sist står en
@@ -81,6 +82,7 @@ riktiga funktionerna och riktiga Claude, kostar som i produktion).
 | `node dev/golden/kor.cjs --cdp-tak 300000` | tidsgränsen för ett anrop till Chrome i ms (förval 120 000). Svarar Chrome inte stoppar körningen med orsaken och slutkod 2 i stället för att hänga; attrappen och Chrome stängs alltid (MES-270) |
 | `node dev/golden/kor.cjs --fall 07 --rutlogg /tmp/rutor.json` | skriver varje videoruta med spårens tillstånd, mått, formN och skymning till en fil — för utredningar ruta för ruta (sparas aldrig i baslinjen) |
 | `node dev/golden/kor.cjs --fall 09 --tro "snabb:1"` | valfria trösklar till kameran före varje fall (`Kamera.satTrosklar`) — för prov som inte ska bli förval. Sparas aldrig som baslinje |
+| `node dev/golden/kor.cjs --fall 06 --facit "06=dev/material/kontroll/06-bytt.json"` | fallet döms mot en annan facitfil (sökväg från roten) — till kontroller som visar att ett mått fallerar när facit säger något annat. Sparas aldrig (`--spara` vägras) |
 | `node dev/golden/kor.cjs --fall 09 --konsol` | skriver också appens `console.log` (ur iframen) — för tillfälliga mätrader medan ett fall felsöks |
 | `node dev/golden/kor.cjs --beskarningar /tmp/beskarningar` | sparar bilderna kameran skickade vidare, en per spår — titta på dem när ett kort blir fel |
 | `node dev/golden/vriden.cjs` | eget prov: kort som ligger snett |
