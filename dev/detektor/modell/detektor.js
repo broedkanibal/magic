@@ -129,8 +129,20 @@
     const SKAPA = o.skapa || 'alla';                        // 'alla' | 'fria' (bara remsor utanför varje låda) | 'inga'
     const INNE = o.inne != null ? o.inne : 0;              // > 0: en låda som till så stor del ligger inne i en starkare kastas (nollprovets inneslutning)
     const FORM = o.form || 'hel';                           // skapade kort: 'hel' (kortets höjd) | 'synlig' (fram till nästa kort i högen)
+    /* Längs remsan (MES-331): en remsa som hör till en låda spänner över
+       lådans sida — den börjar och slutar inom LANGS av sidans längd från
+       lådans kanter. Bara i dubblettsteget: i en hög som förskjuts längs
+       remsans riktning (golden 06: liggande kort, remsorna lodräta i högra
+       kanten) ligger det främre kortets remsa inne i det bakre kortets hela
+       låda vid samma kant — passning 0, men 0,4 sidor in. Utan måttet
+       dömdes mittkortet (0,86) som en dubblett av Plains (IoU 0,44) och
+       försvann. Mätt i tran/parprov.py (MES-246 + golden) före och efter. */
+    const LANGS = o.langs != null ? o.langs : 0.25;
     const tjock = s => Math.max(1, Math.min(s.x1 - s.x0, s.y1 - s.y0));
     const vagrat = s => (s.x1 - s.x0) >= (s.y1 - s.y0);
+    const langs = (s, k) => vagrat(s)
+      ? Math.max(Math.abs(s.x0 - k.x0), Math.abs(s.x1 - k.x1)) / Math.max(1, k.x1 - k.x0)
+      : Math.max(Math.abs(s.y0 - k.y0), Math.abs(s.y1 - k.y1)) / Math.max(1, k.y1 - k.y0);
     /* Hur långt från sin kant remsan sitter i lådan, i andel av lådans sida
        tvärs remsan: över- eller underkanten för en vågrät remsa, vänster-
        eller högerkanten för en stående. Infinity när remsans mitt ligger
@@ -165,7 +177,7 @@
     let dubbletter = 0;
     for (const s of remsor) {
       const pass = [];
-      ut.forEach((k, ki) => { if (!bort.has(ki) && passning(s, k) <= TOL) pass.push(ki); });
+      ut.forEach((k, ki) => { if (!bort.has(ki) && passning(s, k) <= TOL && langs(s, k) <= LANGS) pass.push(ki); });
       if (pass.length < 2) continue;
       const bast = pass.reduce((a, b) => ut[b].poang > ut[a].poang ? b : a);
       for (const ki of pass) if (ki !== bast && iou(ut[ki], ut[bast]) >= DUB_IOU) { bort.add(ki); dubbletter++; }
