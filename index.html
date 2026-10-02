@@ -24053,6 +24053,9 @@ const Kamera = (() => {
     if (kal.bib) fynd = fynd.filter(f => !iBib(f));     // leken är inte bordet (MES-122)
     const kvar = new Set(spar);
     const anv = new Set();
+    /* Remsan är kortets identitet (MES-331): en region med remsa hör inte till ett spår vars remsa ligger minst
+       T.remsaIsar tjocklekar bort åt samma håll. Samma vakt i omlott-matchningen, i steg 2 (egetMatt) och steg 3. */
+    const remsorIsar = (f, t) => !!(f.remsaLada && t.remsaLada && ((f.remsaLada.w >= f.remsaLada.h) === (t.remsaLada.w >= t.remsaLada.h)) && remsAvstand(f.remsaLada, t.remsaLada) >= T.remsaIsar);
     for (const f of fynd) {
       let bast = null, bd = Infinity;
       if (f.omlott) {
@@ -24074,10 +24077,9 @@ const Kamera = (() => {
            kort som tappas flyttar sin remsa till sidkanten och ska behålla
            sitt spår. */
         let bo = 0.5;
-        const sammaHall = (a, b) => (a.w >= a.h) === (b.w >= b.h);
         for (const t of spar) {
           if (anv.has(t)) continue;
-          if (f.remsaLada && t.remsaLada && sammaHall(f.remsaLada, t.remsaLada) && remsAvstand(f.remsaLada, t.remsaLada) >= T.remsaIsar) continue;
+          if (remsorIsar(f, t)) continue;
           const o = ladTackning(t.box, f.box); if (o > bo) { bo = o; bast = t; }
         }
         if (bast) bd = 0;
@@ -24111,10 +24113,13 @@ const Kamera = (() => {
            del som är några rutor gammal är en del av det. Bara här — en
            hel låda vars närmaste spår är en del — inte i omlott-matchningen
            ovan: där tog regeln ett nytt kort ovanpå ett känt kort ifrån
-           det nya (07: Plains på Swamp, 7/7 → 6/7 spelade). */
+           det nya (07: Plains på Swamp, 7/7 → 6/7 spelade). Och remsan
+           skiljer "kortet tillbaka helt" från "ett nytt kort lagt på det"
+           (granskningen): en region vars remsa ligger isär från spårets
+           går inte dit. */
         if (bast.tillstand !== 'klar') {
           let bk = null, ok = 0.5;
-          for (const t of spar) { if (anv.has(t) || t.tillstand !== 'klar' || Math.hypot(t.cx - f.cx, t.cy - f.cy) >= grans) continue; const o = ladTackning(t.box, f.box); if (o > ok) { ok = o; bk = t; } }
+          for (const t of spar) { if (anv.has(t) || t.tillstand !== 'klar' || remsorIsar(f, t) || Math.hypot(t.cx - f.cx, t.cy - f.cy) >= grans) continue; const o = ladTackning(t.box, f.box); if (o > ok) { ok = o; bk = t; } }
           if (bk) { bast = bk; bd = Math.hypot(bk.cx - f.cx, bk.cy - f.cy); }
         }
       }
@@ -24162,8 +24167,11 @@ const Kamera = (() => {
          inget känt kort som kunde döda spökena över det (steg 1), och
          datorn fick en låda som stod still. Måttet är kortets, mätt på en
          kortformad låda när namnet sattes — en klump (två kort kant i
-         kant) har inte kortets kvot och får inget. */
-      const egetMatt = bast && bast.tillstand === 'klar' && bast.namnMatt && !f.omlott
+         kant) har inte kortets kvot och får inget. Ett ANNAT kort av samma
+         storlek lagt ovanpå har samma mått: remsan skiljer dem
+         (remsorIsar, granskningen) — ligger regionens remsa isär från
+         spårets är det inte kortet självt. */
+      const egetMatt = bast && bast.tillstand === 'klar' && bast.namnMatt && !f.omlott && !remsorIsar(f, bast)
         && f.lang <= 1.25 * bast.namnMatt.l && f.kort <= 1.25 * bast.namnMatt.k && f.lang >= 0.8 * bast.namnMatt.l && f.kort >= 0.8 * bast.namnMatt.k;
       if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt && !helt && egetMatt) bast.areaRef = f.area;   // kortet självt: måttet tas om, regionen tas nedan
       if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt && !helt) {
@@ -24235,7 +24243,7 @@ const Kamera = (() => {
         const sammaMatt = nm && f.lang <= 1.12 * nm.l && f.kort <= 1.12 * nm.k;
         const kvartsvarv = nm && bast.box && f.box.w <= 1.3 * bast.box.h && f.box.h <= 1.3 * bast.box.w && f.box.w >= bast.box.h / 1.3 && f.box.h >= bast.box.w / 1.3 && Math.abs(bast.box.w - bast.box.h) > 0.15 * Math.max(bast.box.w, bast.box.h);
         if (vuxen && !sammaMatt && !kvartsvarv) {
-          bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false; bast.regionBox = f.box;
+          bast.sedd = nu; bast.regionNar = nu; bast.tomMs = 0; bast.skymd = false; bast.regionBox = bast.box;   // kortets egen låda, inte kortet + handen (granskningen: ett nytt kort under handen intill hade annars sett tom matta under sig)
           rorde(bast);   // en hand intill kortet: inte släppt än (MES-242)
           continue;
         }
@@ -24375,13 +24383,13 @@ const Kamera = (() => {
        när det missar en ruta. Andelen räknas mot kortets egen area, inte
        lådans, av samma skäl. */
     /* Säkert namngivna kort med region i rutan (MES-331 pass 3): regionens
-       låda i DEN HÄR rutan (regionBox), inte spårets — spårets låda står
-       still när regionen vuxit (vuxen), och i golden 07 var Thriving Moors
-       spårlåda 108×66 på (98,193) medan detektorn gav kortet som 120×94 på
-       (104,169): namnmåttet togs ur en låda som handen skurit (77×56), och
-       varje hel låda sedan dess räknades som vuxen. Med spårets låda stod
-       spöket kvar som skymt (masken i resten av dess låda var kortets
-       högra kant och underkant). */
+       låda i DEN HÄR rutan (regionBox), inte spårets. I golden 07 (36,5 s)
+       var Thriving Moors spårlåda 108×66 på (98,193) — nedre delen av
+       kortet och en bit under — medan detektorns kortlåda i samma ruta var
+       120×94 på (104,169), hela kortet; med spårets låda blev resten av
+       spökets låda kortets högra kant och underkant, och spöket stod kvar
+       som skymt. Växer regionen till kortet plus en hand (vuxen) är
+       regionBox spårets egen låda, inte handen. */
     const kandaLador = [...anv].filter(b => b.tillstand === 'klar' && !arHelbild(b)).map(b => b.regionBox || b.box);
     for (const t of kvar) {
       /* En omlott-del utan region, som till minst 30 % ligger under ett
@@ -24421,7 +24429,9 @@ const Kamera = (() => {
          namngiven, så ett kort under en hand hålls som skymt. Bara spår
          UTAN säkert namn: ett säkert kort som hamnat helt under ett annat
          (landhögen) står kvar som skymt, som förut, och ett kort som
-         verkligen sticker fram under ett annat får sin egen region. */
+         verkligen sticker fram under ett annat får sin egen region. Ett
+         OSÄKERT kort som hamnar helt under ett säkert försvinner alltså i
+         bortaMs — samma dom som omlott-delsregeln ovan ger en namnlös del. */
       const kanda = t.tillstand !== 'klar' && !arHelbild(t) ? kandaLador.filter(b => ladTackning(t.box, b) > 0) : null;
       const fyll = mask ? (kanda && kanda.length ? maskIUtom(mask, t.box, AW, AH, kanda) : maskI(mask, t.box, AW, AH)) / Math.max(1, t.areaRef) : 0;
       t.fyllSist = fyll; t.kandaSist = kanda ? kanda.length : 0;   // rutloggen (golden) läser dem
