@@ -23720,13 +23720,20 @@ const Kamera = (() => {
        en hög (täckning ≥ 0,3 med en granne som har remsa, alla grannars
        remsor på samma sida), bara för en låda med ett korts kvot — en
        hand eller en flik får ingen — och bara när kanten ligger I LINJE
-       med en grannes remsa (samma riktning, i sidled minst en halv
-       tjocklek gemensam): det är raden där dubblettsteget tappar remsor.
-       Ett kort vars titel ligger gömd under grannen — golden 14/15 hög C:
-       Maul instucket under Mirran Bardiche, sticker fram nedtill — har
-       ingen remsa för att titeln inte syns, och en syntetisk remsa där
-       vore grannens innehåll: den fick (i ett prov) Pacifism 0,016 ur
-       Mirrans textruta. Ett sådant kort förblir utan remsa. */
+       med minst TVÅ grannars riktiga remsor (samma riktning, i sidled
+       minst en halv tjocklek gemensam): en rad om tre kort eller fler,
+       som 06, är där dubblettsteget tappar en remsa i mitten. Ett kort
+       vars titel ligger gömd under grannen har ingen remsa för att titeln
+       inte syns, och en syntetisk remsa där vore grannens innehåll —
+       golden 14/15 hög C: Maul instucket under Mirran Bardiche, sticker
+       fram nedtill, fick (i ett prov) Pacifism 0,016 ur Mirrans textruta.
+       Ett kort instucket ÅT SIDAN under ett annat, med kanterna i linje,
+       ser likadant ut som 06:s mittkort för geometrin (granskningens
+       fynd): därför ett PAR aldrig — bara en rad, där två grannar visar
+       sina titlar i samma linje. Ett sådant kort förblir utan remsa, och
+       paret ordnas som förut av remsmittsregeln (grannens remsmitt i dess
+       låda → grannen över, kortet maskat). Samma krav håller en dubbel
+       detektorlåda på ett ensamt kort utan syntetisk remsa. */
     for (const a of ut) {
       if (a.remsaLada) continue;
       const kv = a.kort / Math.max(1, a.lang); if (kv < T.kvotMin || kv > T.kvotMax) continue;
@@ -23737,10 +23744,10 @@ const Kamera = (() => {
       const rl = sida === 'topp' ? { x: k.x, y: k.y, w: k.w, h: tj } : sida === 'botten' ? { x: k.x, y: k.y + k.h - tj, w: k.w, h: tj }
                : sida === 'hoger' ? { x: k.x + k.w - tj, y: k.y, w: tj, h: k.h } : { x: k.x, y: k.y, w: tj, h: k.h };
       const lodrat = rl.h > rl.w;
-      const iLinje = grannar.some(b => { const s = b.remsaLada; if ((s.h > s.w) !== lodrat) return false;
+      const iLinje = grannar.filter(b => { const s = b.remsaLada; if (b.remsaSynt || (s.h > s.w) !== lodrat) return false;
         const gem = lodrat ? Math.min(s.x + s.w, rl.x + rl.w) - Math.max(s.x, rl.x) : Math.min(s.y + s.h, rl.y + rl.h) - Math.max(s.y, rl.y);
-        return gem >= 0.5 * tj; });
-      if (!iLinje) continue;
+        return gem >= 0.5 * tj; }).length;
+      if (iLinje < 2) continue;
       a.remsaLada = rl; a.remsaMitt = { x: rl.x + rl.w / 2, y: rl.y + rl.h / 2 }; a.remsa = true; a.remsaSynt = true;
     }
     const over = new Map();   // låda → mängden lådor som ligger ÖVER den
