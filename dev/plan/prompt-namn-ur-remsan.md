@@ -66,7 +66,13 @@ NATTENS ARBETE (2026-10-01 → 02), och vad det betyder här
   i chatten, och räkna med en rebase på index.html för Jesper. Slå inte ihop grenarna själv
   (migrationerna ska köras i rätt ordning, och det gör Jesper).
 
-LÄGET
+LÄGET — två mått, blanda inte ihop dem
+GRIND3.md:s "738/738, 74/74" var ett DETEKTIONSMÅTT: en kortlåda eller en remsa finns för
+varje kort. Det är uppnått i appen (73 av 74 lådor). MES-328:s "63/69 mot 67/74, 64/64" är ett
+NAMNMÅTT: hur många remsor bildmodellen namnger rätt (detektorns remslådor, Jespers hörn,
+skarpa foton). Remsan ger alltså namn på ungefär nio av tio kort lokalt, aldrig alla; resten
+ska Claude ta. Ingen mätning har lovat 100 % namn lokalt — målet nedan är 74/74 MED Claude.
+
 Detektorn (MES-329) hittar 73 av 74 kort i golden-fallen med hörn (03, 04, 05, 06, 13, 14,
 15, 16). Men golden räknar namn, och de nyfunna korten är de täckta korten i högarna, som
 bara visar namnremsan. Kedjan efter detektorn kan inte namnge en remsa: bildmodellen får
