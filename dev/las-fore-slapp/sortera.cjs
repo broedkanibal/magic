@@ -6,11 +6,18 @@
      hur ljus ytan var FÖRE och EFTER (mattan är nästan svart, ett kort ljust)
      en dom: nytt kort · borta · vridet · flyttat · oklart
 
-   Kör: node dev/las-fore-slapp/sortera.cjs <arbetsmapp>
+   Kör: node dev/las-fore-slapp/sortera.cjs <arbetsmapp> [--tomt <sekund>]
+
+   Utan --tomt dömer ljuset: en svart matta (~20 gråsteg) mot ett ljust kort
+   (MES-246). På ett ljust bord (trä, golden 13b) säger ljuset ingenting —
+   ge då --tomt med en tid då bordet är tomt (bara library). Domen blir i
+   stället: såg lådan ut som det tomma bordet före och/eller efter?
    Skriver `steg-sort.json` bredvid facit.json. Rör inte kamerakedjan. */
 'use strict';
 const fs = require('fs'), path = require('path');
 const ARB = process.argv[2];
+const argv = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? +process.argv[i + 1] : d; };
+const TOMT_S = argv('--tomt', null);
 if (!ARB) { console.error('node sortera.cjs <arbetsmapp>'); process.exit(1); }
 const F = JSON.parse(fs.readFileSync(path.join(ARB, 'facit.json'), 'utf8'));
 const W = F.bredd, H = F.hojd, PX = W * H, N = F.rutor;
@@ -40,6 +47,21 @@ const med = a => { const b = a.slice().sort((p, q) => p - q); return b[b.length 
 const kortRef = { lang: med(kvoter.map(x => x.l)), kort: med(kvoter.map(x => x.k)) };
 console.log(`kortreferens ur lådorna: ${kortRef.kort}×${kortRef.lang} i ${W} px bredd  →  ${Math.round(kortRef.kort * 3840 / W)}×${Math.round(kortRef.lang * 3840 / W)} px i 4K, ${Math.round(kortRef.kort * 1920 / W)}×${Math.round(kortRef.lang * 1920 / W)} px i 1080p  (${kvoter.length} lådor)`);
 
+/* --tomt: andelen bildpunkter i lådan som står som på det tomma bordet
+   (inom 16 gråsteg, samma gräns som stega.cjs). */
+const fps = F.fps;
+const tomt = TOMT_S == null ? null : medel(Math.round(TOMT_S * fps), 6);
+const somTomt = (bild, b) => {
+  let lika = 0, n = 0;
+  for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) { const p = y * W + x; n++; if (Math.abs(bild[p] - tomt[p]) <= 16) lika++; }
+  return n ? lika / n : 1;
+};
+/* Tomt = minst 85 % av lådan står som på det tomma bordet; något ligger där
+   = under 70 %. Däremellan (en flytt lämnar ~0,6 → 0,75 i 13b) är varken
+   eller, och domen blir vridet/flyttat eller ändrat på plats. */
+const TOMT = 0.85, NAGOT = 0.7;
+if (tomt) console.log(`dömer mot det tomma bordet vid ${TOMT_S} s (inte mot ljuset)`);
+
 const MED = 6, ut = [];
 for (const s of F.steg) {
   const fore = medel(s.borjar - 2 - MED, MED), efter = medel(s.stilla + 2, MED);
@@ -55,13 +77,23 @@ for (const s of F.steg) {
   else if (f.medel >= MATTA && e.medel < MATTA) dom = 'borta';
   else if (f.medel >= MATTA && e.medel >= MATTA) dom = stor > 1.35 ? 'vridet/flyttat' : 'ändrat på plats';
   else dom = 'oklart (mörkt före och efter)';
+  let kvar = e.medel >= MATTA, tomtFore = null, tomtEfter = null;
+  if (tomt) {
+    tomtFore = somTomt(fore, b); tomtEfter = somTomt(efter, b);
+    kvar = tomtEfter < TOMT;
+    if (tomtFore >= TOMT && tomtEfter < NAGOT) dom = kortlik ? 'nytt kort' : 'nytt (stor låda)';
+    else if (tomtEfter >= TOMT && tomtFore < NAGOT) dom = 'borta';
+    else if (tomtFore >= TOMT && tomtEfter >= TOMT) dom = 'oklart (tomt bord före och efter)';
+    else dom = stor > 1.35 ? 'vridet/flyttat' : 'ändrat på plats';
+  }
   ut.push({ nr: s.nr, t_borjar: s.t_borjar, t_land: s.t_land, t_slapp: s.t_slapp, t_stilla: s.t_stilla,
             box: b, lang, kort, kvot: +kvot.toFixed(2), kortlik, stor: +stor.toFixed(2),
             liggande: b.w > b.h, fore: +f.medel.toFixed(1), efter: +e.medel.toFixed(1),
-            sigmaFore: +f.sigma.toFixed(1), sigmaEfter: +e.sigma.toFixed(1), dom });
+            sigmaFore: +f.sigma.toFixed(1), sigmaEfter: +e.sigma.toFixed(1), kvar,
+            ...(tomt ? { tomtFore: +tomtFore.toFixed(2), tomtEfter: +tomtEfter.toFixed(2) } : {}), dom });
 }
 fs.closeSync(fd);
 fs.writeFileSync(path.join(ARB, 'steg-sort.json'), JSON.stringify({ kortRef, steg: ut }, null, 1) + '\n');
 console.log('nr    börjar   släpp  stilla   låda      kvot  yta   ljus före→efter   dom');
 for (const s of ut)
-  console.log(`${String(s.nr).padStart(3)} ${s.t_borjar.toFixed(2).padStart(8)} ${(s.t_slapp || 0).toFixed(2).padStart(7)} ${s.t_stilla.toFixed(2).padStart(7)}  ${String(s.box.w + 'x' + s.box.h).padEnd(8)} ${s.kvot.toFixed(2)}  ${String(s.stor).padStart(5)}  ${String(s.fore).padStart(5)}→${String(s.efter).padStart(5)}   ${s.dom}`);
+  console.log(`${String(s.nr).padStart(3)} ${s.t_borjar.toFixed(2).padStart(8)} ${(s.t_slapp || 0).toFixed(2).padStart(7)} ${s.t_stilla.toFixed(2).padStart(7)}  ${String(s.box.w + 'x' + s.box.h).padEnd(8)} ${s.kvot.toFixed(2)}  ${String(s.stor).padStart(5)}  ${String(s.fore).padStart(5)}→${String(s.efter).padStart(5)}${s.tomtFore != null ? `  tomt ${s.tomtFore.toFixed(2)}→${s.tomtEfter.toFixed(2)}` : ''}   ${s.dom}`);

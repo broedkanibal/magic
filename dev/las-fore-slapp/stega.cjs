@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /* Delar inspelningen i steg och tar fram facit per steg.
-   Kör: node dev/las-fore-slapp/stega.cjs <arbetsmapp> [--glapp 1.2] [--golv 60]
+   Kör: node dev/las-fore-slapp/stega.cjs <arbetsmapp> [--glapp 1.2] [--golv 60] [--till s]
+
+   --till: rörelse efter den tiden räknas inte — när telefonen tas ur
+   hållaren för att stoppa inspelningen flyttar sig hela bilden (golden 13b,
+   181 s), och det är inget steg.
 
    Läser `matt.csv` (suddat rörelsemått ur matt.cjs) och `gra.bin`
    (rorelse.swift) och skriver `facit.json` med en post per steg:
@@ -21,6 +25,7 @@ const ARB = process.argv[2];
 if (!ARB) { console.error('node stega.cjs <arbetsmapp> [--glapp s] [--golv n]'); process.exit(1); }
 const GLAPP_S = arg('--glapp', 1.2);       // så lång stillhet krävs för att ett steg ska vara slut
 const GOLV = arg('--golv', 60);            // ändrade bildpunkter som räknas som rörelse
+const TILL = arg('--till', Infinity);      // sekunder: ingen rörelse räknas efter den
 
 const rader = fs.readFileSync(path.join(ARB, 'matt.csv'), 'utf8').trim().split('\n').slice(1);
 const N = rader.length;
@@ -35,7 +40,7 @@ console.log(`${N} rutor, ${tid[N - 1].toFixed(1)} s, ${fps.toFixed(2)} rutor/s �
 
 /* ── stegen: sammanhängande rörelse, med korta pauser inräknade ───── */
 const ror = new Uint8Array(N);
-for (let i = 1; i < N; i++) ror[i] = andrade[i] > GOLV ? 1 : 0;
+for (let i = 1; i < N; i++) ror[i] = andrade[i] > GOLV && tid[i] <= TILL ? 1 : 0;
 const steg = [];
 for (let i = 1; i < N;) {
   if (!ror[i]) { i++; continue; }
@@ -119,6 +124,6 @@ for (let k = 0; k < steg.length; k++) {
   ut.push(post);
 }
 fs.closeSync(fd);
-fs.writeFileSync(path.join(ARB, 'facit.json'), JSON.stringify({ bredd: W, hojd: H, fps, rutor: N, golv: GOLV, glapp_s: GLAPP_S, steg: ut }, null, 1) + '\n');
+fs.writeFileSync(path.join(ARB, 'facit.json'), JSON.stringify({ bredd: W, hojd: H, fps, rutor: N, golv: GOLV, glapp_s: GLAPP_S, ...(TILL < Infinity ? { till_s: TILL } : {}), steg: ut }, null, 1) + '\n');
 console.log(`skrivet: ${path.join(ARB, 'facit.json')}`);
 for (const s of ut) console.log(`${String(s.nr).padStart(3)}  ${s.t_borjar.toFixed(2).padStart(7)} → ${s.t_stilla.toFixed(2).padStart(7)}  (${s.langd_s.toFixed(2)} s)  land ${(s.t_land || 0).toFixed(2).padStart(7)}  släpp ${(s.t_slapp || 0).toFixed(2).padStart(7)}  låda ${s.box ? `${s.box.w}x${s.box.h} @${s.box.x},${s.box.y}` : '–'}`);
