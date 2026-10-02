@@ -40,7 +40,7 @@ Båda skriver en tabell med ett fall per rad:
 | Hittade | kort kameran lade ut — också dolda den ändå såg och falska spår, så talet kan bli större än Kort (44 av 41 = 41 kort + 3 dolda) |
 | Rätt namn | synliga kort som fick rätt namn med säkert svar, t.ex. `10/10` |
 | Fel namn | säkert svar men fel kort — det värsta, ska vara 0 |
-| Falska | spår där inget kort ligger |
+| Falska | spår där inget kort ligger. `(+N token)` bredvid: spår på en token som facit ritat (`rita.ovriga`, namn som börjar med `token`) — räknas inte som falska (MES-331); ett säkert kortnamn på en token är fortfarande ett fel namn |
 | Plats, Tappad | provas bara i fallen där facit har rutor (01–02): rätt plats, och rätt tap-läge |
 | Högar | bara i `kor.html`s tabell och på raden `högar:` sist i `kor.cjs` (MES-331): facithögar (samma `hog`, minst två synliga kort) där kameran har varje kort, vet vem som ligger över vem (rapportens `under`) så att ordningen nedifrån stämmer med facits `z`, och har säkra rätta namn. Del-lägen: *ordning rätt men namn saknas*, *ordning okänd* (ett kort utan spår, eller ett par utan relation — aldrig gissat), *fel* (ordning som motsäger facit, eller säkert fel namn). `--detalj` skriver varje hög och `under #n` per spår |
 | Förlopp | bara videofall: `7/7 spelade · 2/2 borttagna · ordning 7/7` — hur många utspelade kort kameran hann namnge, hur många bortplockade som försvann ur bordet, och hur många av utspelen den såg i rätt ordning. `–` för foton |

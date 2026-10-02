@@ -101,7 +101,7 @@ function skrivTabell(rs, gamla) {
     ['Hittade', 13, (r, g) => r.hittade + skiljer(r, g, 'hittade')],
     ['Rätt namn', 17, (r, g) => `${r.namn}/${r.kort}` + skiljer(r, g, 'namn')],
     ['Fel namn', 13, (r, g) => r.felNamn + skiljer(r, g, 'felNamn')],
-    ['Falska', 13, (r, g) => r.falska + skiljer(r, g, 'falska')],
+    ['Falska', 22, (r, g) => r.falska + skiljer(r, g, 'falska') + (r.tokens ? ` (+${r.tokens} token)` : '')],   // MES-331: spår på en ritad token räknas för sig
     ['Plats', 12, r => r.platsAv ? `${r.plats}/${r.platsAv}` + (r.lageFel != null ? ` ±${r.lageFel}` : '') : '–'],
     ['Tappad', 8, r => r.tappadAv ? `${r.tappad}/${r.tappadAv}` : '–'],
     /* K5/MODE-5: lägesuppdateringar — rapporter där ett stilla kort flyttat mer än AUTO_FLYTT av sin bredd; per minut av fallets tid. */
@@ -111,7 +111,7 @@ function skrivTabell(rs, gamla) {
   const rad = celler => '  ' + celler.map((c, i) => String(c).padEnd(kolumner[i][1])).join('').trimEnd();
   /* Summan är null när ingen rad bär fältet — en baslinje från före ett nytt mått ska inte stå som "(var 0)". */
   const summa = (lista, k) => lista.some(r => r[k] != null) ? lista.reduce((a, r) => a + (r[k] || 0), 0) : null;
-  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'plats', 'platsAv', 'tappad', 'tappadAv',
+  const totalt = lista => Object.fromEntries(['kort', 'dolda', 'hittade', 'namn', 'felNamn', 'falska', 'tokens', 'plats', 'platsAv', 'tappad', 'tappadAv',
     'videoLagda', 'videoLagdaAv', 'videoBorta', 'videoBortaAv', 'videoOrdning', 'videoOrdningAv', 'videoFelUnder', 'videoDubbletter', 'videoTapp', 'videoTappAv', 'videoTappFalska', 'videoFlytt', 'videoFlyttAv', 'videoGrav', 'videoGravAv', 'videoGravFalska', 'lagesUpp'].map(k => [k, summa(lista, k)]));
   console.log(rad(kolumner.map(k => k[0])));
   for (const r of rs) console.log(rad(kolumner.map(k => k[2](r, gamla.get(r.id)))));
@@ -120,6 +120,7 @@ function skrivTabell(rs, gamla) {
   console.log('\n  Kort: synliga kort i facit (ett kort som ligger under ett annat är dolt och räknas inte).');
   console.log('  Hittade: kort kameran lade ut — också dolda kort den ändå såg, och falska spår. Därför kan talet bli större än Kort.');
   console.log('  Rätt namn: synliga kort som fick rätt namn med säkert svar. Fel namn: säkert svar men fel kort (ska vara 0).');
+  console.log('  (+N token): spår på en token som facit ritat (rita.ovriga, MES-331) — räknas inte i Falska.');
   console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor; ± är medianfelet mellan spårets och rutans mitt i kortbredder. (var N): baslinjens tal.');
   console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
   console.log('  Förlopp: bara videofall — utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
