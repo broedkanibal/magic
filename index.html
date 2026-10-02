@@ -24131,6 +24131,21 @@ const Kamera = (() => {
                                       && f.area > 0.6 * t.helBox.areaRef && f.area < T.areaVaxt * t.helBox.areaRef);
         if (h) { bast = h; bd = 0; helt = true; }
       }
+      /* …och ett säkert namngivet kort tar en region som har KORTETS EGNA
+         MÅTT (namnMatt, inom 1,25 på båda sidor) hur stor den än är mot
+         areaRef (MES-331 pass 3, steg 2). areaRef glider mot varje region
+         spåret får, också de handen skurit: i golden 07 fick Thriving Moor
+         sitt namn under handen (6,15 s), tog 79×70 och 77×56 som regioner
+         medan handen lade Ukud Cobra, och stod sedan 12,3–26,25 s utan
+         region — hela kortet (115×86, 9 890 px²) var mer än areaVaxt ×
+         areaRef (~5 700), fast kortets mått var 114×76. Utan region fanns
+         inget känt kort som kunde döda spökena över det (steg 1), och
+         datorn fick en låda som stod still. Måttet är kortets, mätt på en
+         kortformad låda när namnet sattes — en klump (två kort kant i
+         kant) har inte kortets kvot och får inget. */
+      const egetMatt = bast && bast.tillstand === 'klar' && bast.namnMatt && !f.omlott
+        && f.lang <= 1.25 * bast.namnMatt.l && f.kort <= 1.25 * bast.namnMatt.k && f.lang >= 0.8 * bast.namnMatt.l && f.kort >= 0.8 * bast.namnMatt.k;
+      if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt && !helt && egetMatt) bast.areaRef = f.area;   // kortet självt: måttet tas om, regionen tas nedan
       if (bast && bd < grans && f.area > vaxt * bast.areaRef && !ungt && !helt) {
         if (bast.tillstand !== 'skrap') continue;
         /* Skräp under något mycket större: ett kort har lagts ovanpå. Skräpet
