@@ -253,7 +253,14 @@
         try {
           const img = await bildAv(c.normal || c.small || c.bild), vek = new Float32Array(per * DIM);
           let j = 0;
-          for (const v of VARIANTER) { const kalla = v === 'sudd' ? suddig(img) : img; for (const r of ROTAR) vek.set(await kor(refTensor(kalla, r)), (j++) * DIM); }
+          /* Alla åtta tensorer ritas och läses ur arbetsytorna INNAN modellen
+             körs (MES-330): suddig() ritar i den delade vcv, och med ett await
+             mellan två refTensor(vcv) kunde remslekens bygge (byggRemsLek, som
+             kan gå samtidigt när leken byts) rita om den emellan — fel vektor,
+             sparad i IndexedDB. */
+          const tensorer = [];
+          for (const v of VARIANTER) { const kalla = v === 'sudd' ? suddig(img) : img; for (const r of ROTAR) tensorer.push(refTensor(kalla, r)); }
+          for (const tn of tensorer) vek.set(await kor(tn), (j++) * DIM);
           post = { nyckel, vek }; await satt('kort', post); nya++;
         } catch (e) { fel++; post = null; }
       }
@@ -267,7 +274,59 @@
     return centrera(idx);
   }
   async function laddaLek(kod) { const idx = await hamta('lek', kod); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
-  async function glom(kod) { await stryk('lek', kod); }
+  const remsNyckel = (andel, kod) => 'remsa|' + andel + '|' + kod;   // remslekens post (MES-330, nedan)
+  async function glom(kod) { await stryk('lek', kod); await stryk('lek', remsNyckel(0.14, kod)); }
+
+  /* ── remsleken (MES-330) ──────────────────────────────────────────
+     Ett kort i en hög visar bara sin namnremsa. Referenserna här är den
+     översta ANDELEN av varje Scryfall-bild (detektorns remsklass är tränad
+     på 14 %, dev/detektor/remsa.py), i samma två varianter som kortet
+     (skarp + sudd) men bara två vridningar, 0 och 180: en remsa ur
+     detektorns låda ligger vågrät efter vridningen i Kamera.lasRemsa, men
+     kan vara vänd. Mätt i dev/remsa (MES-328, detektor_remsor.py): 63 av 69
+     rätt på golden-fotona ur detektorns egna lådor, 0 säkra fel. Egen post
+     i IndexedDB (nyckeln remsa…); inga förräknade vektorer — fyra körningar
+     per bild räknas lokalt, en gång per lek. Alla tensorer räknas ur
+     canvasarna INNAN modellen körs — som byggLek gör sedan samma ändring:
+     arbetsytorna (vcv i suddig, qcv i refTensor) delas mellan byggena, och
+     ett await emellan hade kunnat byta bild under fötterna. */
+  const REMS_ROTAR = [0, 180];
+  const rcv = document.createElement('canvas'), rctx = rcv.getContext('2d', { willReadFrequently: true });
+  function remsUtsnitt(img, andel) {
+    const w = img.naturalWidth || img.width, h = Math.max(1, Math.round((img.naturalHeight || img.height) * andel));
+    rcv.width = w; rcv.height = h; rctx.drawImage(img, 0, 0, w, h, 0, 0, w, h);
+    return rcv;
+  }
+  async function byggRemsLek(kod, kort, o) {
+    o = o || {};
+    const andel = o.andel || 0.14, per = REMS_ROTAR.length * VARIANTER.length;
+    const laddning = ladda(o.ladda); laddning.catch(() => {});
+    const nyckelAv = id => `remsa${V}|${andel}|${id}`, names = [], ids = [], rot = [], delar = [];
+    let done = 0, fel = 0, nya = 0;
+    const sparade = new Map();
+    for (const c of kort) { const p = await hamta('kort', nyckelAv(c.id)); if (p && p.vek && p.vek.length === per * DIM) sparade.set(String(c.id), p); }
+    if (kort.some(c => !sparade.has(String(c.id)))) await laddning;
+    for (const c of kort) {
+      let post = sparade.get(String(c.id));
+      if (!post) {
+        try {
+          const img = await bildAv(c.normal || c.small || c.bild), vek = new Float32Array(per * DIM), tensorer = [];
+          const skarp = remsUtsnitt(img, andel), sudd = suddig(skarp);
+          for (const v of VARIANTER) for (const r of REMS_ROTAR) tensorer.push(refTensor(v === 'sudd' ? sudd : skarp, r));
+          let j = 0; for (const tn of tensorer) vek.set(await kor(tn), (j++) * DIM);
+          post = { nyckel: nyckelAv(c.id), vek }; await satt('kort', post); nya++;
+        } catch (e) { fel++; post = null; }
+      }
+      if (post) { for (const v of VARIANTER) for (const r of REMS_ROTAR) { names.push(c.name); ids.push(c.id); rot.push(r); } delar.push(post.vek); }
+      if (o.onProg) o.onProg({ done: ++done, total: kort.length, fel, nya });
+    }
+    const N = names.length, ra = new Float32Array(N * DIM); let at = 0; for (const d of delar) { ra.set(d, at); at += d.length; }
+    const medel = new Float32Array(DIM); for (let i = 0; i < N; i++) for (let k = 0; k < DIM; k++) medel[k] += ra[i * DIM + k] / N;
+    const idx = { kod: remsNyckel(andel, kod), v: V, ts: Date.now(), names, ids, rot, ra, medel, fel, larda: 0, nya, hamtade: 0, andel };
+    await satt('lek', idx);
+    return centrera(idx);
+  }
+  async function laddaRemsLek(kod, andel) { const idx = await hamta('lek', remsNyckel(andel || 0.14, kod)); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
 
   /* En lärd referens (K7/K8): kamerans egen beskärning av ett kort med känt namn,
      rak och vänd. Medelvektorn rörs inte — den hör till Scryfall-bilderna. */
@@ -322,5 +381,6 @@
   }
 
   global.Embed = { V, MODELL, franF16, SIDA, DIM, TROSKEL, ROTAR, VARIANTER, ladda, byggLek, laddaLek, glom, laggTill, taBort, identifiera, rangordna, sakerhetAv,
+                   byggRemsLek, laddaRemsLek, REMS_ROTAR,
                    get backend() { return backend; }, get redo() { return !!session; } };
 })(window);

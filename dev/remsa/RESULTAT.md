@@ -353,6 +353,7 @@ blänkmätning före träning), och om han vill: spela in blänkprovet i punkt 3
 | `hogbank_remsor.py` | högbänkens 68 fall med detektorremsor: högar/par hela, fel namn; `--rapport` med OCR |
 | `tid.py` | tiden per remsa (`--ut resultat/tid.json`); OCR-tiden med `ocr.cjs --bara … --ut` |
 | `tabell.py` | RESULTAT.md:s tabeller ur resultatfilerna: `--skriv` byter ut dem, `--kontrollera` larmar när dokumentet avviker |
+| `remstroskel.py` | remsans egen tröskel i appen (MES-330, `Kamera.T.remsaTroskel`): säkra rätt / säkra fel per tröskel ur `detektorremsor-embed.json` — valet 0,15 (nollfel 0,112 ur källan; 0,15 ger 0 säkra fel också ur 960-bilden) |
 
 Modellen: `dev/embed/modeller/mobileclip-s0-vision.onnx` (gitignorerad) = `vision_model.onnx`
 från huggingface.co/Xenova/mobileclip_s0 (45 MB). Referenserna: `node dev/embed/hamta-referenser.cjs`.

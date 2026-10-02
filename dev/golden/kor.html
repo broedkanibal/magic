@@ -228,7 +228,7 @@ let poolKlar = false, poolRec = null, poolFel = [], namnFel = null;
    efter fallet spårets nummer i resultatet (nr). Läses ut av
    kor.cjs --beskarningar <mapp>; sidan själv visar dem inte. */
 let beskarningar = {};
-const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (w.eval('KamEmbed').redo() ? '+modell' : '') + (AI_PA ? '+ai' : '') + (REF_ANVAND ? '+ref' : REF_PA ? '+ref(oanvända)' : ''); } catch (e) { return 'lokal'; } };
+const metod = () => { try { return (w && w.eval('Namn').klar ? 'lokal+ocr' : 'lokal') + (w.eval('KamEmbed').redo() ? '+modell' : '') + (w.eval('KamEmbed').remsRedo && w.eval('KamEmbed').remsRedo() && K && K.trosklar && K.trosklar.remsa !== 0 && K.trosklar.detektor && /^yolox-/.test((() => { try { return w.eval('KamDet').status() || ''; } catch (e) { return ''; } })()) ? '+remsa' : '') + (AI_PA ? '+ai' : '') + (REF_ANVAND ? '+ref' : REF_PA ? '+ref(oanvända)' : ''); } catch (e) { return 'lokal'; } };
 /* Antalet lärda referenser i poolen i minnet (K7), för statusraden. */
 const refAntal = () => { try { return w.eval('Ref').antal(w.eval('Pool').idx); } catch (e) { return 0; } };
 /* …och hur många som är sparade för poolen (Ref.lista, ur IndexedDB), oavsett
@@ -377,6 +377,15 @@ async function byggPool() {
     const idx = await KE.bygg(rec, p => status(`Bäddar in leken… ${p.done} av ${p.total}${p.nya ? ' (' + p.nya + ' nya)' : ''}`));
     if (idx && KE.redo()) embedInfo = { backend: KE.laddat && KE.laddat.backend, modell: KE.laddat && KE.laddat.modell, tradar: KE.laddat && KE.laddat.tradar, vektorer: idx.names.length, ms: Math.round(performance.now() - t0) };
     else embedFel = KE.fel || 'okänt fel';
+    /* Remsleken (MES-330): byggs efter kortleken i appen; här väntas den in,
+       så att alla fall mäts med den (första gången i en profil ~4 körningar
+       per bild). --tro "remsa:0" stänger av läsningen ur remsan. */
+    if (idx && KE.byggRemsor) {
+      const t1 = performance.now();
+      const ri = await KE.byggRemsor(rec, p => status(`Bäddar in remsorna… ${p.done} av ${p.total}${p.nya ? ' (' + p.nya + ' nya)' : ''}`));
+      if (ri && KE.remsRedo()) { embedInfo.remsor = ri.names.length; embedInfo.remsMs = Math.round(performance.now() - t1); }
+      else embedInfo.remsFel = KE.remsFel || 'okänt fel';
+    }
   }
   /* Den tränade detektorn (MES-329): laddas här, så att alla fall mäts med
      den — annars hade första fallet gått på dagens detektor medan modellen
@@ -426,7 +435,7 @@ async function byggPool() {
     + `Poolen: ${rec.names.length} kort ur lek.txt (${kort.length} namn${rec.names.length > kort.length ? ' + baslandens konstverk' : ''}).`
     + (namnFel ? `<br><span class="fel">Namnläsaren gick inte att hämta: ${esc(namnFel)} — körningen mäter bara illustrationen.</span>` : '<br>Namnläsaren är laddad: metoden är lokal+ocr.')
     + (detInfo ? `<br>Detektorn: tränad YOLOX ${esc(detInfo.variant)} på ${esc(detInfo.backend)} (${esc(detInfo.modell || '')}), klar på ${(detInfo.ms / 1000).toFixed(1)} s${detInfo.remsa ? '' : ' — bara modellens lådor, inga kort ur remsor'}.` : detFel ? `<br><span class="fel">Detektorn gick inte att ladda: ${esc(detFel)} — körningen mäter dagens detektor.</span>` : '<br>Detektorn: dagens (mattmodell + regioner).')
-    + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s.`
+    + (embedInfo ? `<br>Bildmodellen: ${esc(embedInfo.backend)} (${esc(embedInfo.modell || '')}${embedInfo.tradar ? ', ' + embedInfo.tradar + ' trådar' : ''}), ${embedInfo.vektorer} vektorer, klar på ${(embedInfo.ms / 1000).toFixed(1)} s${embedInfo.remsor ? `; remsleken ${embedInfo.remsor} vektorer på ${(embedInfo.remsMs / 1000).toFixed(1)} s` : embedInfo.remsFel ? `; <span class="fel">remsleken gick inte att bygga: ${esc(embedInfo.remsFel)}</span>` : ''}.`
        : EMBED_PA ? `<br><span class="fel">Bildmodellen gick inte att ladda: ${esc(embedFel || '')} — körningen mäter reserven (Matcher + ORB).</span>` : '<br>Bildmodellen avstängd (--utan-modell): reserven Matcher + ORB mäts.')
     + (UTAN_LEKEN.size ? `<br>Utanför leken: ${esc([...UTAN_LEKEN].join(', '))} — ett säkert namn på de korten är ett fel namn.` : '');
   $('#metod').textContent = 'Metod: datorseende i webbläsaren — mattmodell, ram, beskärning, '
@@ -624,6 +633,19 @@ function aterkoppling(f, prov) {
           namnLast: t.namnLast ? { namn: t.namnLast.namn != null ? t.namnLast.namn : null, poang: t.namnLast.poang != null ? t.namnLast.poang : null } : null
         })) });
     },
+    /* Namnet ur remsan (MES-330), som i appen. Remsan sparas med --beskarningar
+       (…-sparMremsaN-borta.jpg), och svaret hängs på spårets senaste läst-rad
+       (loggaLasning får bara den lokala kedjans svar; remsan läggs på efteråt i Kamera.medRemsa). */
+    lasRemsa: (c, id, o) => {
+      sparaBeskarning(f.id, c, 'remsa' + id);
+      const p = w.kamLasRemsa(c, id, o);
+      if (p && typeof p.then === 'function') p.then(rs => {
+        if (!rs) return;
+        const l = prov.lasningar.slice().reverse().find(x => x.spar === id);
+        if (l) l.remsa = { namn: rs.namn, saker: !!rs.saker, marginal: rs.marginal, varfor: rs.varfor, rot: rs.rot, ocr: rs.ocr ? { namn: rs.ocr.namn, poang: rs.ocr.poang, marginal: rs.ocr.marginal, hoppad: rs.ocr.hoppad || null } : null };
+      }, () => {});
+      return folj(p);   // klockan väntar in läsningen, som för identifiera (granskningen 2026-10-02: utan folj rullade videorutorna vidare under remsläsningen)
+    },
     identifiera: (c, id, gissning, kort, o) => {
       sparaBeskarning(f.id, c, id);
       const s = prov.s, w0 = c ? c.width : 0, h0 = c ? c.height : 0, spek = !!(o && o.spek);
@@ -680,6 +702,7 @@ function loggaLasning(prov, s, id, w0, h0, svar, spek) {
     l.cands = (svar.cands || []).slice(0, 3).map(c => ({ name: c.name, score: c.score != null ? +(+c.score).toFixed(2) : null }));
     const n = svar.namnLast;
     l.ocr = n ? (n.hoppad ? { hoppad: n.hoppad } : { text: n.text, namn: n.namn, poang: n.poang, marginal: n.marginal, vand: !!n.vand }) : null;
+    l.remsa = null;   // namnet ur remsan (MES-330) hängs på av lasRemsa-återkopplingen när det kommer
   }
   prov.lasningar.push(l);
 }
@@ -904,9 +927,12 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
      diffa rent mellan två körningar. */
   const alla = K.spar.map((t, i) => { const b = t.ram || t.box; return {
     id: i + 1, namn: t.namn || null, saker: !!t.saker, tillstand: t.tillstand, tappad: !!t.tappad, skymd: !!t.skymd, fragad: !!t.fragad, varfor: t.varfor || null,
-    ai: t.ai ? { modell: t.ai.modell || null, kort: t.ai.kort, antal: t.ai.antal, usage: t.ai.usage || null, helbild: !!t.ai.helbild } : null,
+    ai: t.ai ? { modell: t.ai.modell || null, kort: t.ai.kort, antal: t.ai.antal, usage: t.ai.usage || null, helbild: !!t.ai.helbild, svar: t.ai.svar || null } : null,
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
     ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
+    /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
+    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, ms: t.remsa.ms, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
+    maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
   const spar = alla.filter(t => t.tillstand !== 'skrap');
   /* Facit i två sorter: kort med ruta (positionen provas) och kort med bara

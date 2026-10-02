@@ -23,6 +23,12 @@ const kod = src.slice(start, slut + 1).join('\n');
 const ctx = {
   document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(0) }) }), width: 0, height: 0 }) },
   navigator: {}, performance: { now: () => 0 }, requestAnimationFrame: () => 0, cancelAnimationFrame() {},
+  /* Den tränade detektorn (MES-329) finns utanför Kamera-modulen; bänken kör
+     dagens detektor (steg() direkt, aldrig loop()), men rapportera() frågar
+     KamDet.status() via bildlage — utan stubben föll varje ruta med
+     ReferenceError sedan 1d947bb (upptäckt av kolla.sh 2026-10-02). */
+  KamDet: { redo: () => false, status: () => 'av', fel: null, felVariant: null, felRutor: 0, laddat: null, variant: null, pa: () => false },
+  window: {},
   Math, Float32Array, Uint8Array, Int32Array, Uint8ClampedArray, Object, Array, Set, Promise, console, Infinity, Number, JSON
 };
 vm.createContext(ctx);

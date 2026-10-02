@@ -19091,11 +19091,14 @@ const KamDet = {
    window.MESA_EMBED: false stänger av modellen (golden: --utan-modell); ett
    objekt är inställningar — { modul, ladda } — där ladda går till
    Embed.ladda (golden serverar onnxruntime och vikterna lokalt). */
+const REMSA_ANDEL = 0.14;   // remsans höjd i andel av kortet (dev/detektor/modell/detektor.js REMSA), när modulen inte är laddad än
 const KamEmbed = {
   idx: null, kod: null, bygger: null, byggNyckel: null, fel: null, laddat: null, ko: Promise.resolve(),
+  remsIdx: null, remsKod: null, remsBygger: null, remsNyckel: null, remsKlar: null, remsFel: null,   // remsleken (MES-330)
   pa: () => window.MESA_EMBED !== false,
   konf: () => (window.MESA_EMBED && typeof window.MESA_EMBED === 'object') ? window.MESA_EMBED : {},
   redo: () => !!(KamEmbed.idx && window.Embed && window.Embed.redo && Pool.idx && KamEmbed.kod === Pool.idx.code),
+  remsRedo: () => !!(KamEmbed.remsIdx && window.Embed && window.Embed.redo && Pool.idx && KamEmbed.remsKod === Pool.idx.code),
   async modul() {
     if (window.Embed) return window.Embed;
     await new Promise((res, rej) => {
@@ -19131,6 +19134,35 @@ const KamEmbed = {
     })().catch(e => { KamEmbed.fel = (e && e.message) || String(e); return null; })
         .finally(() => { if (KamEmbed.byggNyckel === nyckel) KamEmbed.bygger = null; });
     KamEmbed.bygger = p;
+    return p;
+  },
+  /* Remsleken (MES-330): samma bilder, de översta 14 % (detektorns remsklass,
+     Detektor.REMSA). Byggs efter kortleken, i bakgrunden, och sparas per
+     kort i IndexedDB som kortleken; tills den finns läses inga remsor
+     (kamLasRemsa svarar null och kedjan går som förut). Lärda referenser
+     vävs inte in här — de används inte i igenkänningen (MES-232). */
+  byggRemsor(rec, onProg) {
+    if (!KamEmbed.pa() || !rec || !rec.ids || !rec.ids.length) return Promise.resolve(null);
+    const nyckel = rec.code + ':' + (rec.ts || 0);
+    if (KamEmbed.remsBygger && KamEmbed.remsNyckel === nyckel) return KamEmbed.remsBygger;
+    if (KamEmbed.remsIdx && KamEmbed.remsKod === rec.code && KamEmbed.remsKlar === nyckel) return Promise.resolve(KamEmbed.remsIdx);
+    KamEmbed.remsNyckel = nyckel;
+    const p = (async () => {
+      const E = await KamEmbed.modul();
+      if (!E.byggRemsLek) return null;
+      await E.ladda(KamEmbed.konf().ladda || null);
+      const andel = (window.Detektor && window.Detektor.REMSA) || REMSA_ANDEL;
+      const kort = [];
+      rec.ids.forEach((id, i) => { if (!/#ref/.test(String(id))) kort.push({ id, name: rec.names[i], normal: KamEmbed.storBild(rec.smalls[i]) }); });
+      let idx = await E.laddaRemsLek(rec.code, andel);
+      const vill = new Set(kort.map(c => c.id)), har = idx ? new Set(idx.ids) : null;
+      if (!har || har.size !== vill.size || [...vill].some(x => !har.has(x))) idx = await E.byggRemsLek(rec.code, kort, { andel, onProg });
+      if (KamEmbed.remsNyckel !== nyckel) return null;
+      KamEmbed.remsIdx = idx; KamEmbed.remsKod = rec.code; KamEmbed.remsKlar = nyckel; KamEmbed.remsFel = idx && idx.fel ? idx.fel + ' images missing' : null;
+      return idx;
+    })().catch(e => { KamEmbed.remsFel = (e && e.message) || String(e); return null; })
+        .finally(() => { if (KamEmbed.remsNyckel === nyckel) KamEmbed.remsBygger = null; });
+    KamEmbed.remsBygger = p;
     return p;
   },
   /* De lärda referenserna som poolen bär ska inbäddningen också bära — och
@@ -20028,6 +20060,13 @@ function serUtSomKort(im, matt, skala, kort) {
    är så ljus — hellre ingen dom än ett kort som försvinner från bordet.
    Svaret är null också när för lite av rutan syns. */
 const BAK_FORM = 12, BAK_UTBRAND = 0.05;
+/* Baksida i ficka (MES-258) döms bara när inget vittne sett ett kort — och
+   den tränade detektorn (MES-329) är ett vittne: en KORTLÅDA med poäng
+   över Kamera.T.bakDet (klassen kort, inte baksida) är ett kort, hur
+   blankt det än är. Gränsen ligger i T så att golden kan prova den
+   (--tro "bakDet:0.7"). Golden 04:s kantvisande Plains hade 0,70 och
+   räddas av maskregeln i kamIdentifiera (o.tackt), inte av den här. */
+const bakDetGrans = () => { const t = Kamera.trosklar; return t && t.bakDet != null ? t.bakDet : 0.8; };
 function framsideForm(im, kort) {
   const cv = document.createElement('canvas');
   cv.width = 96; cv.height = Math.round(96 / Matcher.ASPECT);
@@ -20187,7 +20226,39 @@ const Namn = (() => {
     const ms = Math.round(performance.now() - t0);
     return bast ? Object.assign(bast, { ms }) : { namn: null, poang: 0, marginal: 0, text: '', ms };
   }
-  return { ladda, las, likhet, get klar() { return klar; } };
+  /* Ett band ur en REMSA (MES-330): canvasen är detektorns remslåda, vågrät,
+     och namnraden ligger 0,3–0,8 av remsan ner (i en ficka 0,5–1,0). Tre band
+     på halva höjden i den ordningen, som bänkens (dev/remsa/detektor_remsor.py
+     BAND): PSM 7 vill ha en rad och läser ingenting i hela remsan (0 av
+     1 332 där). Hoppas över (hoppad 'liten') när bandet i källan är lägre än
+     MIN_KALLHOJD, som las(). */
+  const BAND_REMSA = [[0.30, 0.80], [0.50, 1.00], [0.10, 0.60]];
+  async function lasBand(canvas, namnLista) {
+    if (!workerP) return null;
+    let w; try { w = await workerP; } catch (e) { return null; }
+    const t0 = performance.now();
+    if (canvas.height * 0.5 < MIN_KALLHOJD) return { namn: null, poang: 0, marginal: 0, text: '', ms: 0, hoppad: 'liten' };
+    const namn = [...new Set(namnLista || [])];
+    let bast = null;
+    for (const [a, b] of BAND_REMSA) {
+      const y0 = Math.round(canvas.height * a), h = Math.max(2, Math.round(canvas.height * (b - a)));
+      const skala = Math.max(1, Math.min(4, REMSA_MAL_PX / h));
+      const t = document.createElement('canvas');
+      t.width = Math.round(canvas.width * skala); t.height = Math.round(h * skala);
+      const x = t.getContext('2d'); x.imageSmoothingQuality = 'high';
+      x.drawImage(canvas, 0, y0, canvas.width, h, 0, 0, t.width, t.height);
+      let text = '';
+      try { text = (await w.recognize(t)).data.text || ''; } catch (e) { break; }
+      for (const rad of text.split('\n').map(r => r.trim()).filter(Boolean)) {
+        const bb = basta(rad, namn);
+        if (!bast || bb.poang > bast.poang) bast = Object.assign(bb, { text: rad, start: a });
+      }
+      if (bast && bast.poang >= 0.6) break;
+    }
+    const ms = Math.round(performance.now() - t0);
+    return bast ? Object.assign(bast, { ms }) : { namn: null, poang: 0, marginal: 0, text: '', ms };
+  }
+  return { ladda, las, lasBand, likhet, get klar() { return klar; } };
 })();
 
 let analyzing = false, cancelAnalyze = false;
@@ -22097,7 +22168,25 @@ const Kamera = (() => {
        ger +2 av 738 i MES-246 och ~40 dubblettlådor; förvalet är av tills
        golden visar en vinst (dev/golden/historik.md 2026-10-01). */
     detektor: 1,
-    detRemsa: 0
+    detRemsa: 0,
+    /* Namnet ur remsan (MES-330): ett spår vars beskärning maskats (ett
+       annat kort ligger över, maskaTackt) och som den lokala kedjan inte
+       var säker på läses om på detektorns remslåda, skuren ur videons fulla
+       bild (lasRemsa) och rangordnad mot remsleken (kamLasRemsa). remsa 0
+       stänger av (golden --tro "remsa:0"). remsaTroskel: marginalen för ett
+       SÄKERT namn ur remsan — kalibrerad i dev/remsa/remstroskel.py på
+       detektorns egna remsor: nollfel över golden + MES-246 ur källan är
+       0,112 (kortets 0,11 utan marginal); 0,15 ger 0 säkra fel på alla
+       rader, också ur 960-analysbilden, och kostar 2 av golden-fotonas 56
+       säkra rätta. remsaVittne: marginalen som räcker för att remsan ska
+       räknas som ett andra vittne åt Claudes svar (svarAI) eller åt ett
+       svagt läst namn (kamLasRemsa, remsa+namn). */
+    remsa: 1,
+    remsaTroskel: 0.15,
+    remsaVittne: 0.05,
+    /* Baksida i ficka (MES-258) döms inte när detektorn gett en kortlåda med
+       minst den här poängen (kamIdentifiera, MES-330). */
+    bakDet: 0.8
   };
   function satTrosklar(nya) {
     const varAuto = T.auto, gammal = T.troskel, gammalUts = T.utseende, gammalSprid = T.spridning, varSnabb = T.snabb, varAna = T.anaBredd, varDet = T.detektor;
@@ -22205,7 +22294,8 @@ const Kamera = (() => {
              dom: B ? { accept: !!B.accept, poang: B.poang, inliers: B.inliers, marginal: B.marginal != null ? B.marginal : null,
                         skala: B.skala != null ? B.skala : null, ensamt: B.ensamt != null ? !!B.ensamt : null, stod: B.stod != null ? B.stod : null,
                         orbNamn: B.orbNamn || null, del: !!B.del, efterModell: !!B.efterModell, w: B.w || null, h: B.h || null } : null,
-             titel: N ? { namn: N.namn || null, poang: N.poang, marginal: N.marginal, hoppad: N.hoppad || null, vand: !!N.vand } : null });
+             titel: N ? { namn: N.namn || null, poang: N.poang, marginal: N.marginal, hoppad: N.hoppad || null, vand: !!N.vand } : null,
+             remsa: svar && svar.remsa ? { namn: svar.remsa.namn, saker: !!svar.remsa.saker, marginal: svar.remsa.marginal, varfor: svar.remsa.varfor } : null });
     if (l.length > 6) l.shift();
   };
   /* Stegtiden som histogram (4 ms per fack, sista facket 400 ms och över),
@@ -23544,7 +23634,14 @@ const Kamera = (() => {
       for (let y = y0; y <= y1; y += 2) for (let x = x0; x <= x1; x += 2) { const v = g[y * W + x]; n++; su += v; sq += v * v; }
       const std = n ? Math.sqrt(Math.max(0, sq / n - (su / n) ** 2)) : 0;
       const rm = b.remsa ? { x: (b.remsa.x0 + b.remsa.x1) / 2 * k, y: (b.remsa.y0 + b.remsa.y1) / 2 * k } : null;
-      ut.push({ cx, cy, lang, kort, vinkel, area, std, box, poang: b.poang, klass: b.klass, ur: b.ur, remsa: !!b.remsa, remsaMitt: rm, tackt: null });
+      /* Remslådan i analyspixlar (MES-330): det lasRemsa skär ur videon när
+         beskärningen maskats. detPoang: modellens poäng för en KORTLÅDA
+         (klassen kort, modellens egen) — ett vittne om att det ligger ett
+         kort där (kamIdentifiera, baksida i ficka); 0 för en låda skapad ur
+         en remsa, klassen baksida, och dagens detektor. */
+      const rl = b.remsa ? { x: b.remsa.x0 * k, y: b.remsa.y0 * k, w: (b.remsa.x1 - b.remsa.x0) * k, h: (b.remsa.y1 - b.remsa.y0) * k } : null;
+      ut.push({ cx, cy, lang, kort, vinkel, area, std, box, poang: b.poang, klass: b.klass, ur: b.ur, remsa: !!b.remsa, remsaMitt: rm, remsaLada: rl,
+                detPoang: b.ur === 'lada' && b.klass === 'kort' ? (b.poang || 0) : 0, tackt: null });
     }
     /* Vem ligger ovanpå (MES-250 för modellens lådor): modellen ritar lådan
        runt kortets synliga del, och för ett kort som sticker fram under ett
@@ -23759,7 +23856,7 @@ const Kamera = (() => {
        är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null };
+                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null, remsaLada: f.remsaLada || null, detPoang: f.detPoang || 0 };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (latens) ny.ts = { bild: bildTid, hittat: Date.now(), rorelse: rutTid() };
@@ -23782,6 +23879,11 @@ const Kamera = (() => {
       /* Frågan till Claude följer med ett flimmer: annars kastade svarAI
          svaret (aiFragad saknas) och tidsgränsen släppte provet på en gång. */
       provas: flimmer ? !!g.provas : false, aiFragad: flimmer ? !!g.aiFragad : false, aiFragadNar: flimmer ? (g.aiFragadNar || 0) : 0,
+      /* …och det spärren i svarAI dömer svaret på (MES-330): om beskärningen
+         som frågades var maskad, och vittnena (remsan, titelraden). Utan dem
+         kom Claudes svar till ett omfött spår med maskad undefined, och ett
+         säkert fel namn på en maskad beskärning gick förbi spärren. */
+      maskad: flimmer ? !!g.maskad : false, remsa: flimmer ? (g.remsa || null) : null, namnLast: flimmer ? (g.namnLast || null) : null,
       aiInget: flimmer ? (g.aiInget || 0) : 0, ai: flimmer ? (g.ai || null) : null,
       /* Lästiden hör till läsningen: ett flimmer behåller den, en omläsning
          (med ledtråd) mäter om. */
@@ -23957,6 +24059,7 @@ const Kamera = (() => {
         }
         if (f.omlott) bast.omlott = true;
         bast.tackt = f.tackt || null;   // det övre kortets låda när det här är det undre (MES-250), annars inget
+        bast.remsaLada = f.remsaLada || null; bast.detPoang = f.detPoang || 0;   // detektorns remslåda och kortpoäng (MES-330)
         /* Formen (K4): samma långsida och kortsida som förra rutan, inom
            SPEK_FORM. En hand som håller i kortet, eller en skugga som hänger
            med, ändrar regionens mått fast mitten står nästan still. */
@@ -25151,6 +25254,13 @@ const Kamera = (() => {
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
+      remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330)
+      maskad: !!t.maskad,   // beskärningen var övermålad (MES-330)
+      det: t.detPoang || 0,   // detektorns poäng för kortlådan (MES-330), 0 utan
+      /* Namnremsans låda i andelar av rutan (MES-330): datorns sammaPlats
+         håller isär två kort i en hög vars lådor täcker varandra men vars
+         remsor ligger var för sig. null utan remsa (dagens detektor, helbild). */
+      rl: t.remsaLada ? { x: t.remsaLada.x / AW, y: t.remsaLada.y / AH, w: t.remsaLada.w / AW, h: t.remsaLada.h / AH } : null,
       lokalMs: t.lokalMs != null ? t.lokalMs : null,   // den lokala kedjans tid (identifiera); null = aldrig läst lokalt (helbild)
       x: (t.ram || t.box).x / AW, y: (t.ram || t.box).y / AH, w: (t.ram || t.box).w / AW, h: (t.ram || t.box).h / AH,
       /* Viloläget (K5, MES-214): mitten av rutan kortet senast VILADE i. x–h ovan är lådan just nu — den rör sig med en hand intill, och datorns kamLage speglar därför vx/vy. null tills kortet vilat en gång. */
@@ -25263,6 +25373,55 @@ const Kamera = (() => {
     bedomYta(); lage = 'tom';
   }
 
+  /* ── namnet ur remsan (MES-330) ────────────────────────────────────
+     Remsan ur videons FULLA bild — som beskar(), inte ur 960-analysbilden
+     (den kostade 12 av 74 i bänken): detektorns remslåda (analyspixlar)
+     genom samma led, med en liten marginal, vriden vågrät efter var i
+     kortlådan den sitter. En lodrät remsa i lådans vänstra kant är ett kort
+     med överkanten åt vänster och vrids medurs; i högra kanten moturs; en
+     vågrät remsa i underkanten är ett vänt kort (180°). Fel håll kostade
+     15 av 69 i bänken (dev/remsa/RESULTAT.md). Svaret kommer ur
+     kamLasRemsa (bildmodellen mot remsleken, textläsaren som vittne). */
+  async function lasRemsa(t) {
+    const s = t.remsaLada; if (!s || !video || !cb.lasRemsa) return null;
+    const vb = video.videoWidth, vh = video.videoHeight, r = rutaPx(vb, vh), sx = r.w / AW, sy = r.h / AH;
+    const m = 0.04;
+    const x = r.x + (s.x - s.w * m) * sx, y = r.y + (s.y - s.h * m) * sy, w = s.w * (1 + 2 * m) * sx, h = s.h * (1 + 2 * m) * sy;
+    if (!(w >= 4 && h >= 4)) return null;
+    const b = t.box, lodrat = s.h > s.w, mx = s.x + s.w / 2, my = s.y + s.h / 2;
+    let rot = 0;
+    if (lodrat) rot = (mx - b.x) < (b.x + b.w - mx) ? 90 : -90;
+    else if ((my - b.y) > (b.y + b.h - my)) rot = 180;
+    const c = document.createElement('canvas');
+    const ow = Math.round(lodrat ? h : w), oh = Math.round(lodrat ? w : h);
+    c.width = ow; c.height = oh;
+    const x2 = c.getContext('2d'); x2.imageSmoothingQuality = 'high';
+    x2.translate(ow / 2, oh / 2); x2.rotate(rot * Math.PI / 180); x2.drawImage(video, x, y, w, h, -w / 2, -h / 2, w, h);
+    return cb.lasRemsa(c, t.id, { rot, px: { w: Math.round(w), h: Math.round(h) } });
+  }
+  /* Ett maskat spår — ett annat kort ligger över, och beskärningen är mest
+     matta (maskaTackt) — får sitt namn ur remsan när den lokala kedjan inte
+     var säker: säkert bara med remsans egen dom (kamLasRemsa, T.remsaTroskel
+     eller remsa+namn). Annars sparas svaret på spåret som vittne åt Claudes
+     svar (svarAI). Aldrig för skräp, en baksida eller ett redan säkert svar. */
+  async function medRemsa(t, svar, maskad) {
+    t.remsa = null;
+    if (!T.remsa || !maskad || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
+    let rs = null;
+    try { rs = await lasRemsa(t); } catch (e) { rs = null; }
+    if (!rs) return svar;
+    t.remsa = rs;
+    if (!rs.saker || !rs.namn) return Object.assign({}, svar, { remsa: rs });
+    return Object.assign({}, svar, { namn: rs.namn, sid: rs.sid, saker: true, cands: rs.cands, varfor: rs.varfor || 'remsa', remsa: rs });
+  }
+  /* Ett andra vittne med samma namn som Claudes svar, för en maskad
+     beskärning: remsan (bildmodellen med marginal ≥ T.remsaVittne, eller
+     textläsaren på remsan) eller textläsaren på beskärningen. */
+  const maskVittne = (t, namn) => !!namn && (
+    !!(t.remsa && t.remsa.namn === namn && t.remsa.marginal >= T.remsaVittne) ||
+    !!(t.remsa && t.remsa.ocr && t.remsa.ocr.namn === namn && t.remsa.ocr.poang >= 0.5) ||
+    !!(t.namnLast && t.namnLast.namn === namn && t.namnLast.poang >= 0.5));
+
   /* Låt igenkänningen avgöra vilket kort det är. Görs en gång per spår.
      Bara ett SÄKERT svar gör spåret klart; ett osäkert går till granskning
      på datorn med förslagen — det är det README lovar för skärmdumpar, och
@@ -25284,8 +25443,10 @@ const Kamera = (() => {
       if (t.vilaX != null) t.vilaRuta = t.ram || t.box;   // läget datorn speglar är ramens, som förut
       const b = video ? beskar(t) : null; c = b && b.bild;
       const tackt = maskaTackt(b, t);
+      t.maskad = !!tackt;   // beskärningen som går till Claude är övermålad (MES-330: spärren i svarAI)
       if (window.MESA_DET_LOGG) console.log('[det läs]', t.id, JSON.stringify(t.box), 'tackt', JSON.stringify(t.tackt), 'maskad', tackt, 'geo', b && JSON.stringify(b.geo));
-      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, tackt ? { tackt: true } : undefined);
+      if (cb.identifiera) svar = await cb.identifiera(c, t.id, t.gissning || null, b && b.kort, { tackt: !!tackt, detPoang: t.detPoang || 0 });
+      svar = await medRemsa(t, svar, tackt);
     } catch (e) { fel = true; }
     finally { lasande--; t.laser = false; t.lokalMs = (t.lokalMs || 0) + Math.max(0, Math.round(nuRiktig() - t0)); }
     lasLogg(t, lasStart, svar, 'las');
@@ -25369,7 +25530,9 @@ const Kamera = (() => {
       const geo = { cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort };
       const b = video ? beskar(t) : null;
       const tackt = maskaTackt(b, t);
-      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt });
+      t.maskad = !!tackt;
+      if (cb.identifiera) svar = await cb.identifiera(b && b.bild, t.id, t.gissning || null, b && b.kort, { spek: true, tackt, detPoang: t.detPoang || 0 });
+      svar = await medRemsa(t, svar, tackt);
       lasLogg(t, lasStart, svar, 'spek');
       if (t.spek !== vantar) return;
       t.spek = svar && !svar.skrap && !svar.baksida && svar.saker && svar.namn
@@ -25431,7 +25594,15 @@ const Kamera = (() => {
      äldre spåret behåller kortet; det nya blir skräp utan namn, så att en
      rörelse nollställer det (matcha) och det läses om när lådan ändrats. */
   const SAMMA_SPAR = 0.3;
-  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
+  /* …utom två spår med var sin remsa som inte täcker varandra (MES-330): i
+     en landhög täcker det undre kortets låda det övres till mer än hälften,
+     men namnremsorna ligger var för sig — det är två kort. Detektorns
+     parning ger en remsa per låda (Detektor.para), så en region som vuxit
+     in över ett kort har ingen egen remsa och faller fortfarande för regeln.
+     Golden 15: det täckta Plains som remsan namngett säkert blev annars
+     "samma kort som" det översta Plains och skräp. */
+  const skildaRemsor = (a, b) => !!(a.remsaLada && b.remsaLada && ladTackning(a.remsaLada, b.remsaLada) < SAMMA_SPAR);
+  const sammaKortSom = t => spar.find(q => q !== t && q.tillstand === 'klar' && q.saker && q.namn === t.namn && !arHelbild(q) && !skildaRemsor(t, q) && ladTackning(t.ram || t.box, q.ram || q.box) >= SAMMA_SPAR) || null;
   function dubblettAv(t, q) {
     t.tillstand = 'skrap'; t.skrapN = 3; t.fragad = true; t.provas = false;
     t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.gissning = null; t.del = false; t.varfor = 'samma kort som #' + q.id;
@@ -25510,6 +25681,15 @@ const Kamera = (() => {
     t.provas = false;                                  // svaret har kommit, vilket det än är
     /* Inget svar (nätet, servern, oläsbart): den lokala domen står. */
     if (!svar) { rapportera(); return; }
+    /* Spärren mot säkra fel ur en maskad beskärning (MES-330): när det
+       täckta kortets beskärning målats över (maskaTackt) ser Claude mest
+       matta och en remsa, och satte Swamp på ett täckt Plains i golden 04 —
+       säkert, på bordet. Ett säkert svar på en maskad beskärning kräver ett
+       andra vittne med samma namn (maskVittne: remsan eller textläsaren).
+       Utan vittne blir svaret osäkert, och kortet går till granskningen med
+       Claudes namn överst i stället för ut på bordet. */
+    if (t.maskad && svar.length) svar = svar.map(k => k.saker && !maskVittne(t, k.namn) ? Object.assign({}, k, { saker: false, sakerhet: 'maskad utan vittne' }) : k);
+    t.ai.svar = svar.map(k => ({ namn: k.namn, sakerhet: k.sakerhet, saker: !!k.saker }));   // vad Claude svarade, för golden (--detalj) och datorn
     /* Claude såg INGET kort, inte ens ett den inte kunde namnge. antal räknar
        också de tomma posterna (kamFragaAI). Då är det bordet, en skugga, en
        baksida: skräp, som datorn inte visar, och en redan köad granskning tas
@@ -25976,6 +26156,7 @@ async function oppnaKamera(gameId) {
       fas: () => { if (kamLage) Moln.sandKam('bord', Object.assign({ fas: Kamera.lage, barafas: true, yta: Kamera.yta || null, rad: Kamera.rad || null }, bordExtra())); },
       upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
       identifiera: (canvas, id, gissning, kort, o) => kamIdentifiera(canvas, id, gissning, kort, o),
+      lasRemsa: (canvas, id, o) => kamLasRemsa(canvas, id, o),   // namnet ur remsan (MES-330)
       lekTak: kamLekTak,
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
@@ -26161,7 +26342,11 @@ async function byggKamPool() {
       KamEmbed.bygg(poolen, p => {
         const nu = Date.now(); if (nu - sistM < 400) return; sistM = nu;
         satKamFin('modell', `Learning the artwork… ${Math.round(100 * p.done / Math.max(1, p.total))} %`);
-      }).then(idx => { if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable — recognising the slower way.' : '')); });
+      }).then(idx => {
+        if (Pool.idx === poolen) satKamFin('modell', idx ? '' : (KamEmbed.fel ? 'Image model unavailable — recognising the slower way.' : ''));
+        /* Remsleken (MES-330) efter kortleken, tyst i bakgrunden: ~4 körningar per bild första gången, sedan ur IndexedDB. */
+        if (idx && Pool.idx === poolen) KamEmbed.byggRemsor(poolen).catch(() => {});
+      });
     }
   } catch (e) {
     satKamFin('pool', 'Could not build the recognition: ' + (e.message || ''));
@@ -26313,7 +26498,11 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
      accepterat något namn, modellen är inte säker på sitt, och titelraden är
      oläst. Ett kort som fått ett säkert namn kan alltså aldrig falla här —
      och ett kort utan säkert namn hade ändå blivit en granskningspost. */
-  if (!v.accept && !(M && (M.bar || M.saker)) && !(namn && namn.namn && namn.poang >= 0.5)) {
+  /* …och aldrig på en maskad beskärning (o.tackt, MES-330): den är övermålad
+     med mattans nivå med flit, och en slät grå yta är precis den form regeln
+     tar för en ficka — golden 04: det kantvisande Plains i högen dömdes
+     'baksida ficka' och blev skräp fast detektorn gett en kortlåda (0,70). */
+  if (!v.accept && !(M && (M.bar || M.saker)) && !(namn && namn.namn && namn.poang >= 0.5) && !(o && (o.tackt || o.detPoang >= bakDetGrans()))) {
     const form = framsideForm(canvas, kort);
     if (form != null && form < BAK_FORM * (Kamera.utseendeSkala || 1))
       return { baksida: true, varfor: 'baksida ficka', form: +form.toFixed(1), poang: b0 ? b0.score : 0, accept: false, tider };
@@ -26393,6 +26582,46 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
   if (M) Object.assign(bild, { modell: M.backend || true, marginal: +(+M.marginal).toFixed(3), ensamt: M.ensamt, stod: M.stod, orbNamn: M.orbNamn, skala: M.skala != null ? +(+M.skala).toFixed(2) : null, ms: Math.round(M.ms) });
   if (v.efterModell) bild.efterModell = true;   // Matcher + ORB som andra åsikt efter en osäker modell
   return { namn: c0 ? c0.name : null, sid: c0 ? c0.sid : null, saker, cands, namnLast, varfor, bild, del: !!(v.del && saker), tider };
+}
+/* ── namnet ur remsan (MES-330) ──
+   Bildmodellen rangordnar leken på remsan ENSAM, mot remsleken
+   (KamEmbed.remsIdx: samma Scryfall-bilder, de översta 14 %), med remsans
+   egen tröskel (T.remsaTroskel i Kamera, dev/remsa/remstroskel.py) — aldrig
+   kortets 0,11. Textläsaren läser ett band ur remsan som ANDRA vittne,
+   aldrig som huvudspår (dev/remsa: 0 av 735 i MES-246, 38 av 74 på golden),
+   och bara när bildmodellen inte nådde sin tröskel: remsa+namn när ett svagt
+   läst namn pekar på samma kort som modellens etta. Ett säkert modellsvar
+   läses alltså inte om — säkerheten där vilar på T.remsaTroskel ensam
+   (0 säkra fel i bänken). Baslanden slås ihop per typ som i identifyMedModell, och
+   antalspriorn (K6) gäller som för de andra vägarna. Svar: { namn, sid,
+   saker, varfor, marginal, poang, cands, ocr, rot, px, ms } eller null när
+   remsleken inte finns. */
+async function kamLasRemsa(canvas, id, o) {
+  if (!KamEmbed.remsRedo() || !canvas) return null;
+  const T = Kamera.trosklar, t0 = performance.now();   // en kopia av Kameras T (get trosklar)
+  let e = null;
+  try { e = await Embed.identifiera(canvas, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTroskel }); } catch (x) { e = null; }
+  if (!e || !e.namn) return null;
+  const typNamn = n => { const t = landTyp(n); return t ? landVisning(t).name : n; };
+  const rang = [];
+  for (const c of e.cands || []) { const name = typNamn(c.name), f = rang.find(x => x.name === name); if (!f) rang.push({ name, sid: (landTyp(c.name) && landVisning(landTyp(c.name)).sid) || c.sid, score: c.score }); }
+  if (!rang.length || rang[0].name === BAKSIDA_NAMN) return null;
+  const cands = rang.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: +(+c.score).toFixed(3) }));
+  const marginal = +(rang[0].score - (rang[1] ? rang[1].score : 0)).toFixed(3);
+  let saker = marginal > T.remsaTroskel, varfor = saker ? 'remsa' : 'remsa osäker';
+  /* Textläsaren bara när bildmodellen inte nådde sin tröskel: den är det
+     dyra steget (tre band, 0,4–1 s på Macen) och behövs bara som vittne. */
+  let ocr = null;
+  if (!saker) { try { ocr = await Namn.lasBand(canvas, namnUtanBaksida()); } catch (x) { ocr = null; } }
+  const ocrNamn = ocr && ocr.namn ? typNamn(ocr.namn) : null;
+  if (!saker && ocrNamn && ocrNamn === cands[0].name && ocr.poang >= 0.5 && ocr.marginal >= 0.15 && marginal >= T.remsaVittne) { saker = true; varfor = 'remsa+namn'; }
+  if (saker && kamLekAntal) {
+    const tak = kamLekAntal.get(norm(cands[0].name));
+    if (!lekPrior(true, tak == null ? Infinity : tak, Kamera.upptagna(cands[0].name, id))) { saker = false; varfor = 'fler än leken'; }
+  }
+  return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands,
+           ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
+           rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
 }
 /* Lekens antal av ett namn (K6), för Kamera: null utan lek eller utanför den. */
 function kamLekTak(namn) { const n = kamLekAntal ? kamLekAntal.get(norm(namn)) : null; return n == null ? null : n; }
@@ -26937,9 +27166,16 @@ function syskon(a, b) {
 function lekPrior(saker, tak, upptagna) {
   return !!saker && !(tak != null && isFinite(tak) && upptagna >= tak);
 }
+/* Två spår med var sin namnremsa (rl, MES-330) som inte täcker varandra är
+   två kort, hur mycket lådorna än täcker varandra: i en landhög ligger det
+   undre kortets låda till mer än hälften under det övres, men remsorna var
+   för sig. Telefonens parning ger en remsa per låda, så en region som vuxit
+   in över ett kort har ingen egen remsa och döms som förut. */
+function skildaRemsor(a, b) { return !!(a.rl && b.rl && tackning(a.rl, b.rl) < SAMMA_KORT_TACKNING); }
 function sammaPlats(a, b) {
   if (a.w == null || b.w == null || syskon(a, b) || (farsktSpar(a) && farsktSpar(b))) return false;
   if (franHelbild(a) || franHelbild(b)) return mittNara(a, b) || mittNara(b, a);
+  if (skildaRemsor(a, b)) return false;
   return tackning(a, b) >= SAMMA_KORT_TACKNING;
 }
 /* Vilket av ett fysiskt korts spår som säger hur det ligger: det med region
