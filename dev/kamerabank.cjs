@@ -601,16 +601,18 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     Kamera.namnge(t.id, 'Plains', 's1');
     check(`LT1h för hand: ${t.tillstand} vag ${t.ts && t.ts.namnVag}`, t.tillstand === 'klar' && !!t.ts && t.ts.namnVag === 'hand');
 
-    /* LT1i: dubbletten — ett andra spår över ett klart kort läses till samma namn: 'dubblett', namnSom = kortets. */
+    /* LT1i: spöket — ett andra spår utan region över ett klart kort dör inom bortaMs (MES-331 pass 3: mattan under
+       ett känt kort bevisar inget om det). Till 2026-10-02 stod det som skymt för alltid, lästes till samma namn och
+       blev 'dubblett'; den vägen finns kvar (ett spår som är 'stilla' läses i första rutan, här innan det dör). */
     namnSvar = saker; nystart(); await referens();
     for (let i = 0; i < 8; i++) s = await ruta(KORT);
     const q = Kamera.spar[0] || {};
     Kamera.spar.push({ id: 999, cx: q.cx, cy: q.cy, lang: q.lang, kort: q.kort, vinkel: q.vinkel, box: Object.assign({}, q.box), areaRef: q.areaRef,
                        sedd: nu, fodd: nu, stillaFran: 0, tomMs: 0, skymd: false, regionNar: nu, tappad: false, tappRun: 0, tillstand: 'stilla', fragad: false });
-    for (let i = 0; i < 4; i++) s = await ruta(KORT);
-    const du = Kamera.spar.find(x => x.id === 999) || {};
-    check(`LT1i dubblett: #999 ${du.tillstand} (${du.varfor}), vag ${du.ts && du.ts.namnVag}, namnSom ${du.ts && du.ts.namnSom}`,
-          du.tillstand === 'skrap' && !!du.ts && du.ts.namnVag === 'dubblett' && du.ts.namnSom === 'Plains' && du.ts.namn != null);
+    let duBorta = null, duLast = false;
+    for (let i = 1; i <= 6; i++) { s = await ruta(KORT); const du = Kamera.spar.find(x => x.id === 999); if (du && du.ts && du.ts.namn != null) duLast = true; if (!du && duBorta == null) duBorta = i * TAKT; }
+    check(`LT1i spöke över ett klart kort: #999 borta efter ${duBorta} ms (≤ ${450 + TAKT}, bortaMs 450), läst ${duLast}, kortet kvar ${(Kamera.spar.find(x => x.id === q.id) || {}).tillstand}`,
+          duBorta != null && duBorta <= 450 + TAKT && (Kamera.spar.find(x => x.id === q.id) || {}).tillstand === 'klar');
 
     /* LT1j: uppsamlaren — ett säkert spår som ingen väg stämplat får raden ändå, med vägen 'okand'. */
     namnSvar = osaker; nystart(); await referens();
