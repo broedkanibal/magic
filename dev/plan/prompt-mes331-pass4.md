@@ -1,4 +1,4 @@
-# Prompt: MES-331 pass 4 — titeln i en ficka blir säker med två vittnen
+# Prompt: MES-331 pass 4 — namnen som fattas, och inga spökkort alls
 
 Egen session. Modell och effort: **Fable 5.1, xhigh**. Kör i huvudarbetsträdet
 `/Users/jesperfunk/Code/magic` eller i en egen worktree med `.env.local`, `dev/material`,
@@ -14,61 +14,82 @@ Du tar över MES-331 (Linear-id `e8771d01-e572-4fe2-9a20-17ed3e3503b5`, "Landhö
 läsbart namn blir ett kort i appen, som i bänken"). Issuen står i In Progress sedan sessionen som körde
 pass 0–3; den sessionen är avslutad och du håller issuen nu. Kör inte `paborjaIssue` igen. Jag har inga
 användare: slå ihop till main och pusha utan att fråga när grinden är klarad, men mät före och efter, och
-säg rakt ut vad som är mätt och vad som är bedömt.
+säg rakt ut vad som är mätt och vad som är bedömt. Håll detekteringsmått (spår, Högar-ordning) och
+namnmått isär i varje tabell.
 
-## Läget (main 4f03fcc, 2026-10-02 kväll)
+## Läget (main 19d19b9, 2026-10-02 kväll)
 
-Pass 0–3 ligger på main. Golden lokalt utan Claude: **87/98 rätt namn, 0 fel namn, 0 falska (+1
-token), Högar 7/11**; med Claude 64/65, 0, 0, Högar 8/9. Målet i issuen: varje kort vars namn går att
-läsa blir ett kort med rätt namn, och inget fel namn blir säkert. Det enda kort i landhögarna utanför
-fall 13 som inte är säkert är **golden 14:s bakersta Plains** — det här passet gäller det. (13 är undantaget:
-inspelningen är mjuk och bländad, mätt i 4K, se historik-raden "golden 13 i 4K".)
+Golden lokalt utan Claude: **87/98 rätt namn, 0 fel namn, 0 falska (+1 token), Högar 7/11**; med Claude
+64/65, 0, 0, Högar 8/9. Målet: varje kort vars namn går att läsa blir ett kort med rätt namn, i rätt
+ordning i högen, utan att något fel namn blir säkert — och **inga spökkort**.
 
-## Problemet (mätt)
+Vad de 11 saknade namnen och de 4 högarna som inte är rätt består av (ur `dev/golden/senaste.json`):
 
-Golden 14, högen med tre Plains i gröna plastfickor uppe till höger: det bakersta Plains (facit id 5,
-25 % synligt, namnraden hel och skarp, inte blänkt — `dev/material/hogar-2026-10-02/14-15-bakersta-plains.jpg`)
-får Plains överst men osäkert. Samma kort på samma plats i fall 15 (annat ljus) blir säkert.
+| Var | Saknas | Orsak (mätt) | Det här passet? |
+|---|---|---|---|
+| **13** | 8 namn, Högar 13 A och 13 B | inspelningen: 0,5×-vidvinkel, lampan rakt över, mjuk källa — 3/10 också i 4K (historik "golden 13 i 4K") | **nej** — Jesper spelar in ett nytt fall genom Mesas kameravy; rör inte 13 |
+| **05 B** Pacifism (ovanpå Scourge of the Undercity, liggande) | 1 namn, Högar 05 B "ordning rätt, namn saknas" | bildmodellen säger Pacifism, men **remsan och textläsaren läser Scourge** — remsan som parats med Pacifism-spåret är det undre kortets (spåret: `varfor konflikt`, remsa Scourge 0,111, titel Scourge 0,07). Spärren gjorde rätt (osäkert, inte fel), men parningen gav fel remsa | **ja** |
+| **14 A** bakersta Plains (grön ficka, 25 % synligt, titeln skarp) | 1 namn, Högar 14 A "ordning rätt, namn saknas" | titeldelen av remsan 0,169 mot gränsen 0,20; titeln är ~1/5 av remsan, resten fickans kant; textläsaren läser hela bredden och ger skräp. Samma kort i 15 är säkert | **ja** |
+| **15** Plains uppe till vänster (ensamt, blänkt konstverk, titeln läsbar) | 1 namn | modell Plains osäkert, ORB 0, ocr skräp; **remsan läses inte alls** — den läses bara för maskade eller omlott-spår (`medRemsa`) | **ja** |
 
-- Titeldelen av remsan (vänstra 55 %, `T.remsaTitel`, commit `eb308f4`) ger **0,169** mot gränsen
-  `T.remsaTitelTroskel` 0,20.
-- Titeln "Plains" är ~1/5 av remsans bredd. Resten är fickans gröna kant och en bit av kortet ovanför.
-  Remsleken (`Embed.byggRemsLek` i `dev/embed/embed.js`) är byggd ur Scryfall-bilder utan ficka.
-- Textläsaren (`Namn.lasBand`, `BAND_REMSA`, `REMSA_MAL_PX` i `index.html`) läser hela remsans bredd
-  och ger skräp ("Pe", "LL phen") fast texten är läsbar för ögat.
+Utanför 13 är det alltså **tre namn** och **två högar**, och båda högarna fälls av ett namn, inte av
+ordningen. Spökkorten: pass 3 fick dem att dö efter 0,6 s; de ska inte födas.
 
-Varför gränsen inte bara sänks: under 0,20 ger blänkta remsor i MES-246 **fel namn säkert** (två
-Danitha Capashen → Night's Whisper; nollfel 0,122 med vakten på hela remsan, commit `9881e5e`).
-Att lyfta svaga remsor till säkra är förkastat (rätt i 26–59 %).
+## Del A — namnen (tre steg, golden emellan)
 
-## Lösningen att mäta, i den här ordningen
+**A1. Remsan för varje osäkert spår** (15:s Plains). `medRemsa`/`identifiera`: läs remsan också för ett
+osäkert spår som varken är maskat eller omlott. Kostar ~100 ms bildmodell per osäkert spår (textläsaren
+bara om bildmodellen är osäker, som i dag). Grind: 15 10/10, 0 nya säkra fel på alla 16 + bänken
+`dev/remsa/nollprov.py` (remsans gräns 0,15 gav 0 säkra fel över golden + MES-246 — den rörs inte).
 
-1. **Textläsaren på titelns del**: bara titelraden ur remsan (vänstra delen, rätt höjd), förstorad
-   och tröskad, mot lekens namn. Mät först i bänken `dev/remsa/` (`ocr.cjs`, `ocr_export.py`,
-   `detektor_remsor.py`, `RESULTAT.md`) över golden-remsorna + MES-246:s 666 detektorremsor
-   (`dev/remsa/resultat/detektorremsor-v55-embed.json` har titeldelens tal): hur ofta läser den rätt,
-   och ger den någonsin ett FEL namn med hög poäng?
-2. **Två vittnen**: säkert ur remsan när titeldelens bildmodell har namnet överst (marginal över en
-   lägre gräns, att mäta) **och** textläsaren på titeldelen läser samma namn. Inget vittne ensamt under
-   sin egen gräns får göra ett namn säkert. Spärren i `svarAI` och `T.remsaTroskel` rörs inte.
-   Textläsaren är det dyra steget (0,4–1 s): kör den bara när bildmodellen är osäker, som i dag.
-3. Räcker inte det: **referenser med fickkant** i remsleken (syntetisk grön/svart ram runt
-   referensremsan), mätt på samma sätt.
+**A2. Remsan hör till rätt kort** (05 B). I `Detektor.para` (`dev/detektor/modell/detektor.js`) och
+`fyndUrLador`: när två kortlådor överlappar och en remsa ligger inne i båda, ska den paras med den låda
+vars **kant** den sitter vid (remsan sitter vid kortets topp/sida — `sidaAv`, pass 2), inte med den
+större lådan. Mät först med `dev/detektor/tran/parprov.py --para` (appens inställningar) och visa i
+05-bilden vilken remsa som gick vart (`panel.py` i `dev/material/hogar-2026-10-02/`). Grind: 05 6/6,
+Högar 05 B rätt, parprov MES-246 inte sämre (728/738, 97/107), 0 nya fel.
 
-## Grind
+**A3. Titeln i en ficka med två vittnen** (14 A). (1) Textläsaren på **bara titelns del** av remsan
+(vänstra delen, rätt höjd, förstorad, tröskad) — mät först i bänken `dev/remsa/` (`ocr.cjs`,
+`detektor_remsor.py`, `resultat/detektorremsor-v55-embed.json`) över golden-remsorna + MES-246:s 666:
+läser den rätt, och ger den någonsin FEL namn med hög poäng? (2) Säkert när titeldelens bildmodell har
+namnet överst (lägre gräns, att mäta) **och** textläsaren på titeldelen läser samma namn. Inget vittne
+ensamt under sin gräns gör ett namn säkert; `svarAI`, `T.remsaTroskel` och vakten (`9881e5e`) rörs inte.
+(3) Räcker inte det: referenser med fickkant i remsleken (`Embed.byggRemsLek`). Varför gränsen inte
+bara sänks: under 0,20 ger blänkta remsor i MES-246 fel namn säkert (nollfel 0,122). Grind: 14 10/10,
+Högar 14 A rätt, 0 säkra fel över golden + MES-246 i bänken, 0 nya fel i golden.
 
-- Bänken: **0 säkra fel** över golden-remsorna + MES-246 (666), med regeln exakt som i appen.
-- Golden alla 16 i två satser (01–08, 09–16) + `--ai` på 03–06, 14–16 (högst två gånger; 13 + `--ai`
-  dör — kör inte): 14 A rätt i Högar, **0 nya säkra fel namn**, inga nya falska, inga Högar sämre,
-  stegtid och tid per remsläsning rapporterade (på ledig dator — andra program gav 270–390 ms en gång).
-- `dev/kolla.sh` OK (kamerabank 157, avstämning 186).
+Mål för del A: **lokalt 90/98** (allt utom 13), **Högar 9/11** (allt utom 13), 0 fel namn, 0 falska.
+
+## Del B — inga spökkort
+
+Spökena i 07 och 11 (`dev/material/hogar-2026-10-02/spoken.md`) föds ur en **detektorlåda på ett kort i
+rörelse**: handen lägger ett kort, detektorn ger två lådor på samma kort (eller en låda över kanten på ett
+känt kort), och den extra lådan blir ett nytt spår i samma ruta. Pass 3 fick dem att dö i bortaMs; nu
+ska de inte födas. Att ett kort ploppar upp och försvinner är fel på bordet.
+
+Mät först (rutloggen, `--rutlogg --detlogg --konsol`, 07 och 11): i vilka rutor föds spökena, hur många
+rutor i rad fanns lådan, rörde den sig, och överlappade den ett känt korts låda eller en hand. Sedan en
+**födelsevakt** i `fodSpar`/`matcha`: ett nytt spår föds bara när lådan (a) setts i minst två rutor i rad
+inom några px, (b) har en egen remsa **eller** står på tom matta (maskIUtom, pass 3), och (c) inte
+delar mer än `SAMMA_SPAR`-täckning med ett spår som fick region i samma ruta utan att ha skilda remsor.
+Gränserna i `T` (prov med `--tro`). Kostnad: en ruta (~150 ms) på tiden till namn för riktiga kort —
+rapportera `fördröjning` i videofallen före → efter. Grind: 07 och 11 utan spöken i någon ruta
+(rutloggen, inte bara slutbilden), spelade/borttagna/ordning i 07, 09–13 inte sämre, fördröjning
+högst +0,2 s, dubbletter inte fler, `dev/kolla.sh` OK (kamerabankens LT1i mäter spökregeln — lägg till ett
+prov som mäter födelsevakten).
+
+## Ordning
+
+A1 → A2 → A3 → B. Ett commit per steg (vad var fel, vad mättes, vad ändrades), golden efter varje,
+baslinje `--spara` + rad i `dev/golden/historik.md` sist. Fristående granskning (Agent) av diffen före
+merge, och en gång till efter rättelserna (pass 0–3: granskningen hittade något varje gång).
 
 ## Läs först
 
 - `dev/plan/prompt-landhogar-2026-10-02.md` (planen och de hårda kraven).
 - MES-331-raderna i `dev/golden/historik.md` och kommentarerna på MES-331 (pass 0–3, 13 i 4K).
-- Commit-meddelandena `eb308f4`, `9881e5e` (titeldelen och vakten), `b6ca682`, `40519c4`, `c09b8b6`
-  (remsan som identitet), och pass 2:s `86f5bd9`, `638abaa`, `2863b92` (ordningen, syntetisk remsa).
+- Commit-meddelandena på main från `1bdc06c` till `4f03fcc` (pass 0–3: vad som gjordes och backades).
 - `dev/remsa/RESULTAT.md`, minnena `mes-328-remsans-namn`, `mes-329-tranad-detektor-i-appen`,
   `golden-egen-port`, `kontroller-som-ljuger`, `worktree-saknar-env-local`, `flera-sessioner-samma-arbetstrad`.
 - CLAUDE.md: systemprompten i `api/identify.js` rörs inte. Linear via `dev/linear-agent/klient.cjs`,
@@ -76,31 +97,28 @@ Att lyfta svaga remsor till säkra är förkastat (rätt i 26–59 %).
 
 ## Samordning
 
-Sessionen "Fotokortlek – detektering och UX" har en lekfotoplan (`dev/plan/prompt-lekfoto-prov-2026-10-02.md`)
-som väntar på att få röra `Namn.lasBand`, `Embed.byggRemsLek`, `Detektor.para` och `Kamera.lasRemsa`
-tills MES-331 är på main. Säg till den via `ListAgents` + `SendMessage` när du börjar (att pass 4 rör
-`Namn.lasBand` och remsleken) och när du slagit ihop.
+Sessionen "Fotokortlek – detektering och UX" väntar på att få röra `Namn.lasBand`, `Embed.byggRemsLek`,
+`Detektor.para` och `Kamera.lasRemsa` tills MES-331 är på main. Säg till den via `ListAgents` +
+`SendMessage` när du börjar och när du slagit ihop.
 
 ## Golden
 
 Egen port över 8260 (`lsof -iTCP:<port> -sTCP:LISTEN` först), en golden åt gången på datorn
 (`pgrep -f kor.cjs` och `pgrep -f mesa-golden-profil` tomma, annars vänta), egen `TMPDIR`, kasta första
-körningen i ny profil, poolen ska vara 114 (Scryfall 429 gav 23 en gång och `--spara` skrev skräp —
-skripten stannar nu, men kontrollera). Ett commit per steg (vad var fel, vad mättes, vad ändrades);
-baslinje `--spara` + rad i `historik.md` sist. Fristående granskning (Agent) av diffen före merge, och
-en gång till efter rättelserna. Merge till main, push, och en kommentar på MES-331 med siffrorna.
+körningen i ny profil, poolen ska vara 114. `--ai` på 03–06, 14–16 högst två gånger (13 + `--ai` dör —
+kör inte). Stegtid på ledig dator (andra program gav 270–390 ms en gång — rapportera lastsnittet).
 
 ## Avslut
 
-När pass 4 är inne: flytta MES-331 till **Redo att testas** med `agent.markeraRedoAttTesta(issueId, vad)`
-och skriv exakt vad Jesper ska prova på telefonen: (1) en tät landhög där bara namnraderna syns, i
+När del A och B är inne: flytta MES-331 till **Redo att testas** med `agent.markeraRedoAttTesta(issueId,
+vad)` och skriv exakt vad Jesper ska prova på telefonen: (1) en tät landhög där bara namnraderna syns, i
 plastfickor och utan; (2) en equipment instucken under en varelse med namnraden synlig; (3) ett kort
-instucket åt sidan med namnraden helt dold (ska INTE få grannens namn); (4) ett kort som lyfts och
-läggs tillbaka (inget spöke kvar). Säg till om något täckt kort får fel namn säkert. Klarar passet inte
-grinden: lämna grenen, skriv varför i kommentaren, och flytta issuen till Redo att testas ändå för
-pass 0–3 — med 14:s bakersta Plains som känd rest.
+instucket åt sidan med namnraden helt dold (ska INTE få grannens namn); (4) kort som läggs, lyfts och
+läggs tillbaka — inget kort ska ploppa upp och försvinna. Säg till om något täckt kort får fel namn
+säkert. Klarar ett steg inte grinden: backa det, skriv varför i kommentaren, och gå vidare.
 
 ## Rapport till Jesper (i chatten, högst 20 rader)
 
-Bänken (rätt/fel per regel och gräns), golden före → efter (Högar, rätt/fel namn, falska, lokalt och
-med Claude), tid per remsläsning, vad som backades, vad som är kvar, och vad han ska prova på telefonen.
+Per steg: golden före → efter (Högar, rätt/fel namn, falska, fördröjning — lokalt och med Claude),
+bänken (rätt/fel per regel och gräns), vad som backades, vad som är kvar, och vad han ska prova på
+telefonen.
