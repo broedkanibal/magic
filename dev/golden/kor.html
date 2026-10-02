@@ -933,6 +933,8 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
     remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, ms: t.remsa.ms, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
     maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
+    /* Detektorns remslåda (MES-331), samma andelar som lådan — för dubblettregelns mått mellan remsor. */
+    rl: t.remsaLada ? { x: f4(r.x + t.remsaLada.x / aw * r.w), y: f4(r.y + t.remsaLada.y / ah * r.h), w: f4(t.remsaLada.w / aw * r.w), h: f4(t.remsaLada.h / ah * r.h) } : null,
     x: f4(r.x + b.x / aw * r.w), y: f4(r.y + b.y / ah * r.h), w: f4(b.w / aw * r.w), h: f4(b.h / ah * r.h) }; });
   const spar = alla.filter(t => t.tillstand !== 'skrap');
   /* Facit i två sorter: kort med ruta (positionen provas) och kort med bara

@@ -23668,7 +23668,8 @@ const Kamera = (() => {
        Swamp efter att det plockats bort, och Swamp-spåret dog. En låda som
        täcker en annan till minst 30 % (av den mindre) är omlott. */
     for (const a of ut) for (const b of ut) { if (a !== b && ladTackning(a.box, b.box) >= 0.3) { a.omlott = true; break; } }
-    if (window.MESA_DET_LOGG && (++detLoggN % 20 === 1)) console.log('[det]', AW, AH, JSON.stringify(ut.map(f => ({ b: [f.box.x, f.box.y, f.box.w, f.box.h], r: f.remsaMitt && [Math.round(f.remsaMitt.x), Math.round(f.remsaMitt.y)], t: f.tackt ? f.tackt.length : 0, o: !!f.omlott }))), 'remsor', JSON.stringify(L.remsor.map(s => [Math.round(s.x0 * k), Math.round(s.y0 * k), Math.round(s.x1 * k), Math.round(s.y1 * k)])));
+    /* …och modellens RÅA kortlådor före parningen (MES-331: var det detektorn eller parningen som tappade ett kort i högen?). */
+    if (window.MESA_DET_LOGG && (++detLoggN % 20 === 1)) console.log('[det]', AW, AH, JSON.stringify(ut.map(f => ({ b: [f.box.x, f.box.y, f.box.w, f.box.h], r: f.remsaMitt && [Math.round(f.remsaMitt.x), Math.round(f.remsaMitt.y)], t: f.tackt ? f.tackt.length : 0, o: !!f.omlott, ur: f.ur, p: +(f.poang || 0).toFixed(2) }))), 'remsor', JSON.stringify(L.remsor.map(s => [Math.round(s.x0 * k), Math.round(s.y0 * k), Math.round(s.x1 * k), Math.round(s.y1 * k)])), 'ra', JSON.stringify(L.kort.map(b => [Math.round(b.x0 * k), Math.round(b.y0 * k), Math.round(b.x1 * k), Math.round(b.y1 * k), +(b.poang || 0).toFixed(2), b.klass])));
     return ut;
   }
 
