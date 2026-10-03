@@ -22178,11 +22178,19 @@ const Kamera = (() => {
        detektorns egna remsor: nollfel över golden + MES-246 ur källan är
        0,112 (kortets 0,11 utan marginal); 0,15 ger 0 säkra fel på alla
        rader, också ur 960-analysbilden, och kostar 2 av golden-fotonas 56
-       säkra rätta. remsaVittne: marginalen som räcker för att remsan ska
+       säkra rätta. 0,20 sedan MES-331 (2026-10-03, Jespers val): 0,15 låg
+       bara 0,001 över bänkens största fel (0,149), och tre fel har setts
+       strax över — golden 18 i 1920×1080/1500 kbit/s gav Pharika's Chosen
+       (helt synligt) säkert Plains på hela remsan 0,154, och flera utsnitt
+       i MES-246 Thriving Heath → Pacifism på 0,154. Rätta svar som faller:
+       15:s ensamma Plains (0,173, titeldelen 0,194) och 17:s Island (0,187);
+       i bänken 43 → 42 säkra rätt i golden vid 960, 5 → 1 i MES-246, 0 i
+       källan. Ett saknat namn är en rest, ett säkert fel är ett fel.
+       remsaVittne: marginalen som räcker för att remsan ska
        räknas som ett andra vittne åt Claudes svar (svarAI) eller åt ett
        svagt läst namn (kamLasRemsa, remsa+namn). */
     remsa: 1,
-    remsaTroskel: 0.15,
+    remsaTroskel: 0.2,
     remsaVittne: 0.05,
     /* Remsan läses för VARJE osäkert spår (MES-331 pass 4, A1, medRemsa), inte
        bara maskade och omlott: golden 15:s ensamma Plains med blänk över
