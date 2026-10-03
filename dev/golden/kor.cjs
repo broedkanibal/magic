@@ -86,6 +86,19 @@ if (VIDEO) {
   VIDEO_URL = '/' + rel.split(path.sep).map(encodeURIComponent).join('/');
   console.log(`Videon ersatt: ${rel} (${Math.round(fs.statSync(abs).size / 1048576)} MB) i stället för fallets egen — samma facit och tider.`);
 }
+/* --stub-kamera <fil>: attrappen svarar som Claude i kameraläget enligt
+   reglerna i filen (dev/stub-server.cjs, STUB_KAMERA), och sidan låter
+   kamerans osäkra spår fråga — utan --ai, utan kostnad. Så återskapas en
+   fälla i Kamera.svarAI deterministiskt (MES-331: klungan på golden 05).
+   Jämförs mot den lokala baslinjen; sparas aldrig. */
+const STUB_KAMERA = arg('--stub-kamera', '');
+if (STUB_KAMERA) {
+  if (AIFLAG) { console.error('--stub-kamera med --ai vägras: antingen svarar attrappen eller Claude.'); process.exit(2); }
+  if (!fs.existsSync(path.resolve(STUB_KAMERA))) { console.error(`--stub-kamera: ${STUB_KAMERA} finns inte.`); process.exit(2); }
+  if (SPARA) { console.error('--stub-kamera med --spara vägras: baslinjen mäter kameran utan attrappens svar.'); process.exit(2); }
+  process.env.STUB_KAMERA = path.resolve(STUB_KAMERA);
+  console.log(`Attrappen svarar i kameraläget enligt ${STUB_KAMERA} (--stub-kamera) — frågorna till "Claude" är på, men ingen betalas.`);
+}
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -219,7 +232,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   const sammanstallning = [];
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
-  const param = [AIFLAG && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
+  const param = [(AIFLAG || STUB_KAMERA) && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
