@@ -8,7 +8,7 @@ Bygg ingenting i `index.html` förrän Jesper har valt.
 
 ## Sidorna och valen
 
-Gröna lappar på ytan är mitt förslag. Sida 3 ersätter ramarna på sida 2:
+Gröna lappar på ytan är mitt förslag. Sida 4 ersätter sida 1, och sida 3 ersätter ramarna på sida 2:
 G1–G3 och U1–U3 gäller bara om D1 inte byggs.
 
 | Sida | Rad | Varianter | Förslag |
@@ -22,6 +22,7 @@ G1–G3 och U1–U3 gäller bara om D1 inte byggs.
 | 3 · No drawn lines (ny riktning) | Tre riktningar | **D1** bara korten, bricka på underkanten · **D2** färgad flik · **D3** graveyard som kaskad | **Jesper valde D1** (2026-10-03), och högarna följer mattan |
 | | D1 i rörelse | graveyard skapas · leken upptagen (skuggan står kvar) · zoomsteg där högarna följer med | — |
 | | Sleeves | **S1** sleeves ur kameran när leken hittas · **S2** valet på lekens sida | S1 + S2 |
+| 4 · Stage 1 in the new look | Samma val som sida 1, i D1:s utseende | K1/K2 · N1/N2 · graveyard skapas där kortet ligger · M1/M2 | K1, N1, M2 |
 
 ## Källan
 

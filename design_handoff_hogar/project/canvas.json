@@ -7,7 +7,7 @@
   "title": "Mesa Piles From Play",
   "launch": {
     "view": "canvas",
-    "page": "p3"
+    "page": "p4"
   },
   "pages": [
     {
@@ -21,6 +21,10 @@
     {
       "id": "p3",
       "name": "3 · No drawn lines (new look)"
+    },
+    {
+      "id": "p4",
+      "name": "4 · Stage 1 in the new look"
     }
   ],
   "boards": {
@@ -216,6 +220,63 @@
       "h": 420,
       "title": "S2 · Sleeves on the deck page",
       "page": "p3"
+    },
+    "Ny1K1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1061,
+      "h": 722,
+      "title": "K1 · Library found, said in the pile's tag",
+      "page": "p4",
+      "is_interactive": true
+    },
+    "Ny1K2.dc.html": {
+      "x": 1141,
+      "y": 0,
+      "w": 1061,
+      "h": 560,
+      "title": "K2 · Library found, said in the camera pill",
+      "page": "p4"
+    },
+    "Ny1N1.dc.html": {
+      "x": 0,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "N1 · Untapped switches, with a line and Undo",
+      "page": "p4"
+    },
+    "Ny1N2.dc.html": {
+      "x": 1141,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "N2 · Untapped switches, only the motion",
+      "page": "p4"
+    },
+    "Ny1Grav.dc.html": {
+      "x": 0,
+      "y": 2284,
+      "w": 1061,
+      "h": 722,
+      "title": "First card to the graveyard: the pile is made where it lies",
+      "page": "p4"
+    },
+    "Ny1M1.dc.html": {
+      "x": 1141,
+      "y": 2284,
+      "w": 1061,
+      "h": 722,
+      "title": "M1 · Not my graveyard: a menu",
+      "page": "p4"
+    },
+    "Ny1M2.dc.html": {
+      "x": 2282,
+      "y": 2284,
+      "w": 1061,
+      "h": 722,
+      "title": "M2 · Not my graveyard: choices in the tag",
+      "page": "p4"
     }
   },
   "order": [
@@ -242,7 +303,14 @@
     "NyD1Upptagen.dc.html",
     "NyD1Zoom.dc.html",
     "NySleeves.dc.html",
-    "NySleevesVal.dc.html"
+    "NySleevesVal.dc.html",
+    "Ny1K1.dc.html",
+    "Ny1K2.dc.html",
+    "Ny1N1.dc.html",
+    "Ny1N2.dc.html",
+    "Ny1Grav.dc.html",
+    "Ny1M1.dc.html",
+    "Ny1M2.dc.html"
   ],
   "notes": {
     "t11": {
@@ -380,6 +448,62 @@
       "w": 300,
       "fill": "green",
       "page": "p3"
+    },
+    "t41": {
+      "x": 0,
+      "y": -300,
+      "text": "Leken hittas när den läggs ner",
+      "kind": "title1",
+      "maxW": 2202,
+      "page": "p4"
+    },
+    "f41": {
+      "x": 2282,
+      "y": 0,
+      "text": "Förslag: K1. Kvittensen står i högens bricka i ungefär 6 s, sedan krymper brickan till Library 33. Inget måste tryckas. Prova Not my library.",
+      "w": 300,
+      "fill": "green",
+      "page": "p4"
+    },
+    "t42": {
+      "x": 0,
+      "y": 842,
+      "text": "Otappat byts efter tre kort",
+      "kind": "title1",
+      "maxW": 2202,
+      "page": "p4"
+    },
+    "f42": {
+      "x": 2282,
+      "y": 1142,
+      "text": "Förslag: N1. Rörelsen syns, men inte varför korten vreds. Raden säger det och ger Undo.",
+      "w": 300,
+      "fill": "green",
+      "page": "p4"
+    },
+    "t43": {
+      "x": 0,
+      "y": 1984,
+      "text": "Första kortet till graveyard, och Nej",
+      "kind": "title1",
+      "maxW": 3343,
+      "page": "p4"
+    },
+    "f43": {
+      "x": 3423,
+      "y": 2284,
+      "text": "Förslag: M2. Valen står i brickan, och ingen meny skymmer korten. Högen skapas där kortet ligger, utan flygtur.",
+      "w": 300,
+      "fill": "green",
+      "page": "p4"
+    },
+    "g11": {
+      "x": -420,
+      "y": 0,
+      "text": "Den här sidan har de gamla högarna. Samma val i D1:s utseende finns på sida 4.",
+      "w": 300,
+      "fill": "gray",
+      "page": "p1"
     }
   },
   "designSystems": []
