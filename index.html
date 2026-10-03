@@ -22272,8 +22272,11 @@ const Kamera = (() => {
        på Jespers bord (kort i fickor under lampa ser ut som Pacifism eller
        Thriving Heath för modellen). Uppmätt i dev/remsa/remsexp_larda.py
        (c55f8c1) på täckta kort: 13b 0 → 49/52 säkra rätt, MES-246 4 → 222/357,
-       0 säkra fel, med villkoren här: minnet tas bara av ett klart, säkert,
-       omaskat spår med detektorns egen remsa (lar); bara minnen vars spår INTE
+       0 säkra fel, med villkoren här: minnet tas bara av ett klart, säkert
+       spår utan kort ovanpå sin remsa (inte maskat, inget kort över det,
+       ingen grannremsa i remsan — det översta kortet i en hög räknas, det
+       ligger omlott men har inget ovanpå) med detektorns egen remsa
+       (kanLarasSkal); bara minnen vars spår INTE
        lever på bordet (ett levande spår kan inte vara det nya kortet —
        Gorgon Flail → Ukud Cobra), som setts inom remsaMinneS sekunder
        (Ancestral Blade → Killing Glare på samma plats efter graveyard; 40 s
@@ -25934,9 +25937,24 @@ const Kamera = (() => {
   /* Kan spåret läras: klart och säkert, inte under läsning eller fångst,
      med region nyss (inom två rutor), inte skymt, inte omlott, inget kort
      ovanpå, detektorns egen remsa (inte den syntetiska), inte ur helbilden. */
-  const kanLarasSkal = (t, nu) => !(t.tillstand === 'klar' && t.saker && t.namn) ? 'inte säkert' : t.laser ? 'läses' : t.minneLaser ? 'fångst pågår' : arHelbild(t) ? 'helbild'
-    : !(t.regionNar != null && nu - t.regionNar <= 2 * TAKT_MS) ? 'ingen region nyss' : t.skymd ? 'skymt' : t.omlott ? 'omlott' : (t.tackt && t.tackt.length) ? 'kort ovanpå'
-    : !t.remsaLada ? 'ingen remsa' : t.remsaSynt ? 'syntetisk remsa' : null;
+  /* Grannens remsa i den här remsan (golden 05 hög B, MES-331 pass 4 A2):
+     det övre kortets lösa remslåda rymde det undre kortets titel. En sådan
+     remsa är inte bara kortets egen och lärs inte. Täckningen räknas av den
+     mindre remsan (ladTackning); 0,1 så att en kant som nuddar inte räknas. */
+  const grannRemsaI = t => { const r = t.remsaLada; return !!r && ((t.remsaUtom && t.remsaUtom.length > 0) || spar.some(q => q !== t && q.tillstand !== 'skrap' && q.remsaLada && !q.remsaSynt && ladTackning(r, q.remsaLada) > 0.1)); };
+  /* Det ÖVERSTA kortet i en hög ligger omlott med kortet under men har
+     inget ovanpå sig — dess remsa är hel och synlig, och det är just det
+     kort nästa land täcker. Därför är villkoret "inget kort ovanpå just det
+     här kortets remsa" (tackt, maskad, grannens remsa i remsan), inte
+     "inte omlott" (steg 1 efter pass 6: bänken räknade synlig ≥ 0,999 som
+     lärbart, och det översta kortet i en hög har synlig 1). */
+  /* t.laser spärrar inte: det tidiga namnet (spekulera → bekraftaSpek) sätts
+     medan läsningen ännu räknas som pågående, och fångsten föll då alltid på
+     'läses' (golden 18: det undre Swamp i hög A). Fångsten skriver ändå bara
+     om spåret står kvar med samma namn när vektorerna kommit (fangaMinne). */
+  const kanLarasSkal = (t, nu) => !(t.tillstand === 'klar' && t.saker && t.namn) ? 'inte säkert' : t.minneLaser ? 'fångst pågår' : arHelbild(t) ? 'helbild'
+    : !(t.regionNar != null && nu - t.regionNar <= 2 * TAKT_MS) ? 'ingen region nyss' : t.skymd ? 'skymt' : (t.tackt && t.tackt.length) ? 'kort ovanpå' : t.maskad ? 'maskad'
+    : !t.remsaLada ? 'ingen remsa' : t.remsaSynt ? 'syntetisk remsa' : grannRemsaI(t) ? 'grannens remsa i remsan' : null;
   const kanLaras = (t, nu) => kanLarasSkal(t, nu) === null;
   function larMinne(nu) {
     if (nu < minneSenast) minneSenast = 0;   // klockan gick bakåt (bänken börjar om från 0 per scen): pausen släpper

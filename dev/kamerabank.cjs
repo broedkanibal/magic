@@ -1640,6 +1640,24 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const c5 = s.find(t => t.tackt) || {}, q5 = remsFragor.find(f => f.id === c5.id);
     check(`RM5 annan plats: efter läggningen spår ${s5a} minne ${m5a} fångster ${f5a}, efter lyftet minne ${m5b}, sist minne ${Kamera.remsMinne.length}, täckt spår ${c5.st} ${c5.namn || '–'} [${c5.varfor || ''}], remsfråga ${JSON.stringify(q5)}`,
           Kamera.remsMinne.length === 1 && c5.st === 'okand' && !!q5 && q5.minnen.length === 0);
+    // RM7: det ÖVERSTA kortet i en hög lärs (omlott men inget ovanpå), det undre inte ('kort ovanpå') — steg 1 efter pass 6
+    namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT); fangster = 0;
+    for (let i = 0; i < 30; i++) s = await rutaDet(bygg3, det3);
+    const m7 = Kamera.remsMinne, c7 = s.find(t => t.tackt) || {}, o7 = s.find(t => !t.tackt) || {};
+    const skal7 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null, omlott: !!t.omlott }));
+    check(`RM7 högens översta kort lärs: spår ${JSON.stringify(s)}, minne ${JSON.stringify(m7.map(e => ({ id: e.sparId, namn: e.namn, prov: e.prov })))}, skäl ${JSON.stringify(skal7)}, fångster ${fangster}`,
+          s.length === 2 && o7.st === 'klar' && m7.length === 1 && m7[0].sparId === o7.id && m7[0].prov >= 1 && !m7.some(e => e.sparId === c7.id)
+          && skal7.some(x => x.id === c7.id && x.skal === 'kort ovanpå') && skal7.some(x => x.id === o7.id && x.omlott && !x.skal));
+    // RM8: det översta kortets remslåda rymmer det undres remsa (golden 05 hög B) — lärs inte ('grannens remsa i remsan')
+    nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT); fangster = 0;
+    const B8 = { x: 60, y: 55, w: 30, h: 42 };   // fem px ned: B:s remsa (y 55–61, lös) skär A:s (y 50–56); A:s remsmitt (53) ligger utanför B — A under B, B fri
+    const bygg8 = g => { kortA(g); kort(g, W, B8.x, B8.y, B8.w, B8.h, 140); };
+    const det8 = det([lada(A.x, A.y, A.w, A.h), lada(B8.x, B8.y, B8.w, B8.h)], [remsa(A.x, A.y, A.w, 6), remsa(B8.x, B8.y, B8.w, 6)]);
+    for (let i = 0; i < 30; i++) s = await rutaDet(bygg8, det8);
+    const m8 = Kamera.remsMinne, o8 = s.find(t => !t.tackt) || {};
+    const skal8 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null }));
+    check(`RM8 grannens remsa i remsan: spår ${JSON.stringify(s)}, minne ${m8.length}, skäl ${JSON.stringify(skal8)}, fångster ${fangster}`,
+          s.length === 2 && o8.st === 'klar' && m8.length === 0 && fangster === 0 && skal8.some(x => x.id === o8.id && x.skal === 'grannens remsa i remsan'));
     // RM6: avstängt (T.remsaMinne 0): ingen fångst, ingen kandidat
     fangster = 0;
     s = await lagg({ spokMs: 2000, remsaMinne: 0 }); s = await lyft(LYFT);
