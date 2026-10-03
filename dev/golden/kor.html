@@ -657,10 +657,15 @@ function aterkoppling(f, prov) {
         if (!rs) return;
         const l = prov.lasningar.slice().reverse().find(x => x.spar === id);
         if (l) l.remsa = { namn: rs.namn, saker: !!rs.saker, marginal: rs.marginal, varfor: rs.varfor, rot: rs.rot, ocr: rs.ocr ? { namn: rs.ocr.namn, poang: rs.ocr.poang, marginal: rs.ocr.marginal, hoppad: rs.ocr.hoppad || null } : null,
-                           cands: (rs.cands || []).slice(0, 3).map(c => c.name + ' ' + c.score), titel: rs.titel || null };   // vem remsan tävlar mot (MES-331: bänken och appen gav olika marginal på samma remsa)
+                           cands: (rs.cands || []).slice(0, 3).map(c => c.name + ' ' + c.score), titel: rs.titel || null, minne: rs.minne || null };   // vem remsan tävlar mot (MES-331: bänken och appen gav olika marginal på samma remsa); minnet (pass 6)
       }, () => {});
       return folj(p);   // klockan väntar in läsningen, som för identifiera (granskningen 2026-10-02: utan folj rullade videorutorna vidare under remsläsningen)
     },
+    /* Minnet av remsor (MES-331 pass 6): fångsten går som i appen, och
+       klockan väntar in den som för läsningarna — en fångst är två
+       modellkörningar i samma kö som detektorn, och utan folj hade
+       videorutorna rullat vidare under den. */
+    remsVektor: c => folj(w.kamRemsVektor(c)),
     identifiera: (c, id, gissning, kort, o) => {
       sparaBeskarning(f.id, c, id);
       const s = prov.s, w0 = c ? c.width : 0, h0 = c ? c.height : 0, spek = !!(o && o.spek);
@@ -749,6 +754,13 @@ function avsluta(f, prov, tid, tak, takS) {
   const res = bedom(f, prov.sistaBord, tid, tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
   res.skurnaAlla = prov.skurnaAlla;
   res.lasningar = prov.lasningar;
+  /* Minnet av remsor (MES-331 pass 6): posterna när fallet är slut, och räknarna för FALLET — Kameras räknare löper över hela körningen, så förra fallets dras av. */
+  try {
+    const st = K.minneStat, f0 = avsluta.minneFore || {};
+    res.minne = { poster: st.poster, fangster: st.fangster - (f0.fangster || 0), fangstMs: st.fangstMs - (f0.fangstMs || 0), fragor: st.fragor - (f0.fragor || 0), medMinne: st.medMinne - (f0.medMinne || 0), sakra: st.sakra - (f0.sakra || 0),
+                  lista: (K.remsMinne || []).map(e => ({ sparId: e.sparId, namn: e.namn, prov: e.prov, lever: e.lever })) };
+    avsluta.minneFore = Object.assign({}, st);
+  } catch (e) { res.minne = null; }
   res.tidDelar = Object.fromEntries(Object.entries(prov.tidDelar).map(([k, l]) => { const q = l.slice().sort((a, b) => a - b); return [k, { median: q[q.length >> 1], max: q[q.length - 1], n: q.length }]; }));
   /* Räknetråden (MES-221): frågorna sedan sidan laddades — i tråden, på huvudtråden, fel, mot en gammal pool, olika i kontrollen — och trådens egen räknetid (median och max, ms). Räknas över hela körningen, inte per fall. */
   try { const s = w.eval('LasWorker.stat'), q = s.ms.slice().sort((a, b) => a - b); res.lasworker = { fragor: s.fragor, trad: s.trad, huvud: s.huvud, fel: s.fel, gammal: s.gammal, olika: s.olika, ms: q.length ? q[q.length >> 1] : null, msMax: q.length ? q[q.length - 1] : null, lage: LASWORKER || 'på' }; } catch (e) {}
@@ -1010,8 +1022,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
     ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
     /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
-    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, utom: t.remsa.utom || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
+    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, utom: t.remsa.utom || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, minne: t.remsa.minne || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
     maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
+    minneSkal: t.minneSkal || null,   // varför kortet inte lärdes in i minnet av remsor när det blev säkert (MES-331 pass 6)
     /* Detektorns remslåda (MES-331), samma andelar som lådan — för dubblettregelns mått mellan remsor. */
     rl: t.remsaLada ? { x: f4(r.x + t.remsaLada.x / aw * r.w), y: f4(r.y + t.remsaLada.y / ah * r.h), w: f4(t.remsaLada.w / aw * r.w), h: f4(t.remsaLada.h / ah * r.h) } : null,
     rsynt: !!t.remsaSynt,   // remsan är lådans kant, inte detektorns (MES-331 pass 2)

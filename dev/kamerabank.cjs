@@ -21,7 +21,8 @@ for (let i = start; i < src.length; i++) if (src[i].startsWith('})();')) { slut 
 if (start < 0 || slut < 0) throw new Error('hittar inte Kamera-modulen');
 const kod = src.slice(start, slut + 1).join('\n');
 const ctx = {
-  document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(0) }) }), width: 0, height: 0 }) },
+  /* Canvasen är en attrapp: beskärningen (beskar), maskningen (maskaTackt) och remsans skärning (skarRemsa, MES-331 pass 6) ritar i den utan att något läses tillbaka. */
+  document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(0) }), translate() {}, rotate() {}, setTransform() {}, scale() {}, fillRect() {}, clearRect() {}, fillStyle: '' }), width: 0, height: 0 }) },
   navigator: {}, performance: { now: () => 0 }, requestAnimationFrame: () => 0, cancelAnimationFrame() {},
   /* Den tränade detektorn (MES-329) finns utanför Kamera-modulen; bänken kör
      dagens detektor (steg() direkt, aldrig loop()), men rapportera() frågar
@@ -1530,6 +1531,142 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     for (let i = 0; i < 10; i++) { s = await ruta(g => (i % 2 ? kort(g, W, 58, 50, 34, 42, 180) : KORT(g))); formMax = Math.max(formMax, (Kamera.spar[0] && Kamera.spar[0].formN) || 0); }
     check(`K4d formen svänger: läsningar ${JSON.stringify(lasLogg)}, formN högst ${formMax}, sist ${s[0] && s[0].st}`,
           lasLogg.length === 1 && lasLogg[0] === 'stilla' && formMax < 2 && s.length === 1 && s[0].st === 'klar');
+    namnSvar = saker;
+  }
+
+  // ── RM: minnet av remsor (MES-331 pass 6) ────────────────────────
+  /* Ett kort läggs helt synligt och blir säkert Plains; minnet tar dess
+     remsa (cb.remsVektor). Kortet lyfts (spåret dör), och ett nytt kort
+     läggs på samma plats med ett annat kort ovanpå — täckt: detektorns
+     remsa för det övre ligger i det undres låda (fyndUrLador). Det täckta
+     spåret läses osäkert på hela kortet, och remsläsningen (cb.lasRemsa)
+     får minnet som kandidat — bara när det gamla spåret inte lever, inom
+     T.remsaMinneS sekunder, och på samma plats. Kortet ovanpå är inte
+     täckt och får inget minne. Detektorns lådor matas in som i appen
+     (steg(…, det)); Detektor.para är en stubb som parar varje remsa med
+     den låda den ligger i. Videon är en attrapp med måtten — start()
+     sätter den och återkopplingarna innan getUserMedia faller i node.
+     Sist i banken: videon står kvar i modulen. */
+  {
+    ctx.window.Detektor = { para: (kort, remsor) => kort.map(b => { const r = remsor.find(s => { const cx = (s.x0 + s.x1) / 2, cy = (s.y0 + s.y1) / 2; return cx >= b.x0 && cx <= b.x1 && cy >= b.y0 && cy <= b.y1; }); return Object.assign({}, b, { remsa: r || null, ur: 'lada', klass: b.klass || 'kort' }); }) };
+    const V = 8;   // videopixlar per analyspixel, som ovan
+    const lada = (x, y, w, h) => ({ x0: x * V, y0: y * V, x1: (x + w) * V, y1: (y + h) * V, poang: 0.9, klass: 'kort' });
+    const remsa = (x, y, w, h) => ({ x0: x * V, y0: y * V, x1: (x + w) * V, y1: (y + h) * V, poang: 0.9 });
+    const det = (kort, remsor) => ({ lador: { kort, remsor }, ruta: { x: 0, y: 0, w: W * V, h: H * V } });
+    const rutaDet = async (bygg, d) => {
+      nu += TAKT; const sl = lcg(1000 + nu); const g = matta(W, H, 100, 3, sl); if (bygg) bygg(g, sl);
+      Kamera.steg(g, nu, H, undefined, V, d);
+      await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+      return Kamera.spar.map(t => ({ id: t.id, st: t.tillstand, namn: t.namn, varfor: t.varfor, tackt: !!(t.tackt && t.tackt.length) }));
+    };
+    const vek = seed => { const v = new Float32Array(512); for (let k = 0; k < 512; k++) v[k] = Math.sin(seed * 7 + k * 0.37); return v; };
+    let fangster = 0, remsFragor = [];
+    const fakeVideo = { videoWidth: W * V, videoHeight: H * V, paused: false, play: () => Promise.resolve(), srcObject: null };
+    await Kamera.start({ video: fakeVideo, overlay: { getContext: () => ({}) } }, {
+      status: () => {}, bord: (spar) => { bord = spar; }, identifiera: (c, id, gissning) => { identifieringar++; return Promise.resolve(namnSvar(id, gissning)); },
+      remsVektor: () => { fangster++; return Promise.resolve({ hel: vek(1), titel: vek(2), ms: 1 }); },
+      lasRemsa: (c, id, o) => {
+        const m = (o && o.minnen) || [];
+        remsFragor.push({ id, minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
+        return Promise.resolve(m.length
+          ? { namn: m[0].namn, sid: m[0].sid, saker: true, varfor: 'remsa minne', marginal: 0.05, cands: [{ name: m[0].namn, sid: m[0].sid, score: 0.5 }], minne: { provad: true, namn: m[0].namn, saker: true, hel: 0.3, titel: 0.3, n: m.length } }
+          : { namn: 'Pacifism', sid: 's2', saker: false, varfor: 'remsa osäker', marginal: 0.02, cands: [] });
+      }
+    }).catch(() => {});
+    const A = { x: 60, y: 50, w: 30, h: 42 };
+    const kortA = g => kort(g, W, A.x, A.y, A.w, A.h, 180);
+    const detA = det([lada(A.x, A.y, A.w, A.h)], [remsa(A.x, A.y, A.w, 6)]);
+    const saker = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
+    const osaker = () => ({ namn: 'Pacifism', sid: 's2', saker: false, cands: [{ name: 'Pacifism', sid: 's2', score: 0.3 }] });
+    const B = { x: 60, y: 60, w: 30, h: 42 };   // ovanpå, förskjutet nedåt: dess remsa (y 60–66) ligger i den undres låda, den undres remsa (y 50–56) utanför
+    const bygg3 = g => { kortA(g); kort(g, W, B.x, B.y, B.w, B.h, 140); };
+    const det3 = det([lada(A.x, A.y, A.w, A.h), lada(B.x, B.y, B.w, B.h)], [remsa(A.x, A.y, A.w, 6), remsa(B.x, B.y, B.w, 6)]);
+    /* Spöket (fodSpar): ett spår som dog och föds om på samma plats inom 1,5 s
+       är ett flimmer och får namnet tillbaka; inom spokMs därefter får det nya
+       spåret samma id men läses om ('ny'). Lyftet här är 3 s, så att det nya
+       kortet läses — med spokMs 2000 (RM3) som ett nytt id, med förvalet
+       (RM3b) som samma id. Båda ska få minnet. */
+    const lyft = async n => { let s = []; for (let i = 0; i < n; i++) s = await rutaDet(null, det([], [])); return s; };
+    const LYFT = 20;   // 3 s: spåret dör efter bortaMs (450 ms), och det nya kortet kommer 2,4 s senare — inget flimmer
+    /* Varje scen börjar med 3 s tom matta: förra scenens spår dör och deras spöken åldras förbi flimret (annars föds kortet som förra scenens okända, redan frågade spår och läses aldrig). */
+    const lagg = async (tro) => { namnSvar = saker; nystart(); Kamera.satTrosklar(tro || {}); await lyft(LYFT); let s = []; for (let i = 0; i < 25; i++) s = await rutaDet(kortA, detA); return s; };
+    // RM1: kortet läggs, blir säkert, och minnet tar dess remsa (en fångst, förnyad högst var 3 s)
+    fangster = 0;
+    let s = await lagg({ spokMs: 2000 });
+    const m1 = Kamera.remsMinne, idA = s[0] && s[0].id;
+    check(`RM1 helt synligt säkert kort: spår ${JSON.stringify(s)}, minne ${JSON.stringify(m1.map(e => ({ id: e.sparId, namn: e.namn, prov: e.prov, lever: e.lever })))}, fångster ${fangster}`,
+          s.length === 1 && s[0].st === 'klar' && s[0].namn === 'Plains' && m1.length === 1 && m1[0].namn === 'Plains' && m1[0].sparId === idA && m1[0].prov >= 1 && m1[0].lever && fangster >= 1 && fangster <= 2);
+    // RM2: kortet lyfts — spåret dör, minnet står kvar
+    s = await lyft(LYFT);
+    const m2 = Kamera.remsMinne;
+    check(`RM2 kortet lyft: spår ${s.length}, minne ${JSON.stringify(m2.map(e => ({ id: e.sparId, lever: e.lever })))}, spöken ${Kamera.spoken.length}`, s.length === 0 && m2.length === 1 && m2[0].sparId === idA && !m2[0].lever && Kamera.spoken.length === 0);
+    // RM3: nytt kort (nytt id) på samma plats med ett kort ovanpå — det täckta spåret läses osäkert, remsan får minnet som kandidat, namnet blir säkert ur minnet.
+    //      Kortet ovanpå ligger omlott (i en hög) och får också kandidaten — i appen avgör remsMinnesDom på vektorerna; här säger stubben ja åt båda.
+    namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+    const c3 = s.find(t => t.tackt) || {}, o3 = s.find(t => !t.tackt) || {}, q3 = remsFragor.find(f => f.id === c3.id), qo = remsFragor.find(f => f.id === o3.id);
+    check(`RM3 nytt täckt kort på platsen (nytt id): spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}, säkra ur minnet ${Kamera.minneStat.sakra}`,
+          s.length === 2 && c3.id !== idA && c3.st === 'klar' && c3.namn === 'Plains' && c3.varfor === 'remsa minne' && !!q3 && q3.minnen.length === 1 && q3.minnen[0] === 'Plains#' + idA + '×' + m1[0].prov
+          && !!o3.id && !!qo && qo.minnen.length === 1 && Kamera.minneStat.sakra >= 1);
+    // RM3b: samma med spokMs förvalet — det nya spåret får spökets id och läses om som 'ny'; minnet står kvar (ett spår utan säkert namn rör det inte) och får gälla
+    s = await lagg(); const idB = s[0] && s[0].id; s = await lyft(LYFT);
+    namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+    const c3b = s.find(t => t.tackt) || {}, q3b = remsFragor.find(f => f.id === c3b.id);
+    check(`RM3b spökets id: spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}`,
+          s.length === 2 && c3b.id === idB && c3b.st === 'klar' && c3b.namn === 'Plains' && c3b.varfor === 'remsa minne' && !!q3b && q3b.minnen.length === 1);
+    // RM3c: glomKort (människan sa att namnet var fel) stryker minnet för spåret — det läses om utan minne
+    s = await lagg(); const idC = s[0] && s[0].id;
+    Kamera.glomKort(idC); namnSvar = osaker; remsFragor = [];
+    const m3c = Kamera.remsMinne.length;
+    for (let i = 0; i < 20; i++) s = await rutaDet(kortA, detA);
+    check(`RM3c glömt kort: minne efter glomKort ${m3c}, spår ${JSON.stringify(s)}, fångster efter ${fangster}`, m3c === 0 && s.length === 1 && s[0].st === 'okand');
+    // RM4: samma som RM3, men kortet har varit borta längre än T.remsaMinneS (20 s): minnet är rensat, det täckta kortet förblir okänt
+    s = await lagg({ spokMs: 2000 }); const idA4 = s[0] && s[0].id;
+    s = await lyft(Math.ceil(21000 / TAKT));
+    const m4 = Kamera.remsMinne;
+    namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+    const c4 = s.find(t => t.tackt) || {}, q4 = remsFragor.find(f => f.id === c4.id);
+    check(`RM4 borta 21 s: minne efter lyftet ${m4.length}, täckt spår ${c4.st} ${c4.namn || '–'} [${c4.varfor || ''}], remsfråga ${JSON.stringify(q4)}`,
+          idA4 != null && m4.length === 0 && c4.st === 'okand' && !!q4 && q4.minnen.length === 0);
+    // RM5: samma plats i tiden men inte i rummet — det nya täckta kortet ligger två kortbredder bort: inget minne
+    s = await lagg({ spokMs: 2000 }); const s5a = JSON.stringify(s), m5a = Kamera.remsMinne.length, f5a = fangster;
+    s = await lyft(LYFT); const m5b = Kamera.remsMinne.length;
+    namnSvar = osaker; remsFragor = [];
+    const dx = 70, bygg5 = g => { kort(g, W, A.x + dx, A.y, A.w, A.h, 180); kort(g, W, B.x + dx, B.y, B.w, B.h, 140); };
+    const det5 = det([lada(A.x + dx, A.y, A.w, A.h), lada(B.x + dx, B.y, B.w, B.h)], [remsa(A.x + dx, A.y, A.w, 6), remsa(B.x + dx, B.y, B.w, 6)]);
+    for (let i = 0; i < 20; i++) s = await rutaDet(bygg5, det5);
+    const c5 = s.find(t => t.tackt) || {}, q5 = remsFragor.find(f => f.id === c5.id);
+    check(`RM5 annan plats: efter läggningen spår ${s5a} minne ${m5a} fångster ${f5a}, efter lyftet minne ${m5b}, sist minne ${Kamera.remsMinne.length}, täckt spår ${c5.st} ${c5.namn || '–'} [${c5.varfor || ''}], remsfråga ${JSON.stringify(q5)}`,
+          Kamera.remsMinne.length === 1 && c5.st === 'okand' && !!q5 && q5.minnen.length === 0);
+    // RM7: det ÖVERSTA kortet i en hög lärs (omlott men inget ovanpå), det undre inte ('kort ovanpå') — steg 1 efter pass 6
+    namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT); fangster = 0;
+    for (let i = 0; i < 30; i++) s = await rutaDet(bygg3, det3);
+    const m7 = Kamera.remsMinne, c7 = s.find(t => t.tackt) || {}, o7 = s.find(t => !t.tackt) || {};
+    const skal7 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null, omlott: !!t.omlott }));
+    check(`RM7 högens översta kort lärs: spår ${JSON.stringify(s)}, minne ${JSON.stringify(m7.map(e => ({ id: e.sparId, namn: e.namn, prov: e.prov })))}, skäl ${JSON.stringify(skal7)}, fångster ${fangster}`,
+          s.length === 2 && o7.st === 'klar' && m7.length === 1 && m7[0].sparId === o7.id && m7[0].prov >= 1 && !m7.some(e => e.sparId === c7.id)
+          && skal7.some(x => x.id === c7.id && x.skal === 'kort ovanpå') && skal7.some(x => x.id === o7.id && x.omlott && !x.skal));
+    // RM8: det översta kortets remslåda rymmer det undres remsa (golden 05 hög B) — lärs inte ('grannens remsa i remsan')
+    nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT); fangster = 0;
+    const B8 = { x: 60, y: 55, w: 30, h: 42 };   // fem px ned: B:s remsa (y 55–61, lös) skär A:s (y 50–56); A:s remsmitt (53) ligger utanför B — A under B, B fri
+    const bygg8 = g => { kortA(g); kort(g, W, B8.x, B8.y, B8.w, B8.h, 140); };
+    const det8 = det([lada(A.x, A.y, A.w, A.h), lada(B8.x, B8.y, B8.w, B8.h)], [remsa(A.x, A.y, A.w, 6), remsa(B8.x, B8.y, B8.w, 6)]);
+    for (let i = 0; i < 30; i++) s = await rutaDet(bygg8, det8);
+    const m8 = Kamera.remsMinne, o8 = s.find(t => !t.tackt) || {};
+    const skal8 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null }));
+    check(`RM8 grannens remsa i remsan: spår ${JSON.stringify(s)}, minne ${m8.length}, skäl ${JSON.stringify(skal8)}, fångster ${fangster}`,
+          s.length === 2 && o8.st === 'klar' && m8.length === 0 && fangster === 0 && skal8.some(x => x.id === o8.id && x.skal === 'grannens remsa i remsan'));
+    // RM6: avstängt (T.remsaMinne 0): ingen fångst, ingen kandidat
+    fangster = 0;
+    s = await lagg({ spokMs: 2000, remsaMinne: 0 }); s = await lyft(LYFT);
+    namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+    const c6 = s.find(t => t.tackt) || {}, q6 = remsFragor.find(f => f.id === c6.id);
+    check(`RM6 remsaMinne 0: fångster ${fangster}, minne ${Kamera.remsMinne.length}, täckt spår ${c6.st}, remsfråga ${JSON.stringify(q6)}`,
+          fangster === 0 && Kamera.remsMinne.length === 0 && c6.st === 'okand' && !!q6 && q6.minnen.length === 0);
+    Kamera.satTrosklar({ remsaMinne: 1 });
     namnSvar = saker;
   }
 
