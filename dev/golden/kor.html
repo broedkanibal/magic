@@ -656,7 +656,8 @@ function aterkoppling(f, prov) {
       if (p && typeof p.then === 'function') p.then(rs => {
         if (!rs) return;
         const l = prov.lasningar.slice().reverse().find(x => x.spar === id);
-        if (l) l.remsa = { namn: rs.namn, saker: !!rs.saker, marginal: rs.marginal, varfor: rs.varfor, rot: rs.rot, ocr: rs.ocr ? { namn: rs.ocr.namn, poang: rs.ocr.poang, marginal: rs.ocr.marginal, hoppad: rs.ocr.hoppad || null } : null };
+        if (l) l.remsa = { namn: rs.namn, saker: !!rs.saker, marginal: rs.marginal, varfor: rs.varfor, rot: rs.rot, ocr: rs.ocr ? { namn: rs.ocr.namn, poang: rs.ocr.poang, marginal: rs.ocr.marginal, hoppad: rs.ocr.hoppad || null } : null,
+                           cands: (rs.cands || []).slice(0, 3).map(c => c.name + ' ' + c.score), titel: rs.titel || null };   // vem remsan tävlar mot (MES-331: bänken och appen gav olika marginal på samma remsa)
       }, () => {});
       return folj(p);   // klockan väntar in läsningen, som för identifiera (granskningen 2026-10-02: utan folj rullade videorutorna vidare under remsläsningen)
     },
