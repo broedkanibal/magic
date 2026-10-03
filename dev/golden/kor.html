@@ -1009,7 +1009,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
     ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
     /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
-    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
+    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, utom: t.remsa.utom || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
     maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
     /* Detektorns remslåda (MES-331), samma andelar som lådan — för dubblettregelns mått mellan remsor. */
     rl: t.remsaLada ? { x: f4(r.x + t.remsaLada.x / aw * r.w), y: f4(r.y + t.remsaLada.y / ah * r.h), w: f4(t.remsaLada.w / aw * r.w), h: f4(t.remsaLada.h / ah * r.h) } : null,
