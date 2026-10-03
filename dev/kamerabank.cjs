@@ -576,16 +576,21 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LT1e Claude: ${t.tillstand} vag ${e.namnVag}, fraga ≤ namn ${e.fraga} ${e.namn}, namnRor ${e.namnRor}`,
           t.tillstand === 'klar' && e.namnVag === 'ai' && e.fraga <= e.namn && e.namnRor != null && e.namnRor <= e.namn);
 
-    /* LT1f: klungan — två kort i en beskärning: båda 'klunga', den nya delen ärver hittat och läsningarna. */
+    /* LT1f: klungan — två kort 'hog' i beskärningen av EN låda (MES-331):
+       inget blir säkert. Posten närmast mitten (Plains, 0,45) läggs överst
+       bland förslagen, spåret är okänt med 'ai klunga', ingen namnstämpel,
+       och lådan är ett kort (inga säkra spår att mäta mot) så grannen
+       (Island, 0,85) blir inget nytt spår. Före rättelsen delades spåret i
+       två säkra — golden 05 fick då grannens namn säkert på Pacifism. */
     namnSvar = osaker; nystart(); await referens();
     for (let i = 0; i < 8; i++) s = await ruta(KORT);
     t = Kamera.spar.find(x => x.tillstand === 'okand') || { id: -1 };
     fraga(t);
-    Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.3, y: 0.5 }, { namn: 'Island', sid: 's3', saker: true, x: 0.7, y: 0.5 }], { antal: 2, ms: 1234 });
+    Kamera.svarAI(t.id, [{ namn: 'Island', sid: 's3', saker: true, x: 0.85, y: 0.5 }, { namn: 'Plains', sid: 's1', saker: true, x: 0.45, y: 0.5 }], { antal: 2, ms: 1234 });
     const kl = Kamera.spar.filter(x => x.ai && x.ai.klunga === t.id);
-    const ny = kl.find(x => x !== t) || {};
-    check(`LT1f klunga: ${kl.map(x => `#${x.id} ${x.namn} ${x.ts && x.ts.namnVag}`).join(', ')}, den nya ärver hittat ${ny.ts && ny.ts.hittat === (t.ts && t.ts.hittat)} och klunga ${ny.ts && ny.ts.klunga}`,
-          kl.length === 2 && kl.every(x => x.ts && x.ts.namnVag === 'klunga' && x.ts.namn != null) && !!ny.ts && ny.ts.hittat === t.ts.hittat && ny.ts.klunga === t.id);
+    check(`LT1f klunga: ${kl.map(x => `#${x.id} ${x.tillstand} ${x.namn} [${x.varfor}] stämpel ${x.ts && x.ts.namn}`).join(', ')}, svar ${JSON.stringify((t.ai || {}).svar)}`,
+          kl.length === 1 && kl[0] === t && t.tillstand === 'okand' && !t.saker && t.namn === 'Plains' && t.varfor === 'ai klunga' && t.cands && t.cands[0].name === 'Plains'
+          && !!t.ts && t.ts.namn == null && !!t.ai.svar && t.ai.svar.length === 2 && t.ai.svar.every(x => !x.saker && x.sakerhet === 'klunga'));
 
     /* LT1g: helbilden — ett nytt spår ur Claudes helbild får hittat och vägen 'helbild'. */
     nystart(); await referens();
@@ -1384,13 +1389,15 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     t = Kamera.spar[0] || { id: -1 };
     check(`W22b tre försök (två "inte redo"): lokalMs ${t.lokalMs} ms, försök ${varv}, ${fmt(t)}`, varv === 3 && t.lokalMs >= 3 * 5 && t.tillstand === 'klar');
     /* W23: Claudes svarstid (ms i info från kamFragaAI) landar i t.ai.ms och
-       i bordet; delarna ur en klunga bär klungans lokala tid och samma ai. */
+       i bordet, med spårets lokala tid bredvid. Svaret är en klunga (två
+       Plains): spåret blir okänt med Plains överst (MES-331, inget säkert ur
+       en klunga, inget nytt spår på en enkortslåda) men bär ändå tiden. */
     namnSvar = osaker; t = await ettOkant();
     const lokal23 = t.lokalMs;
     Kamera.svarAI(t.id, [{ namn: 'Plains', sid: 's1', saker: true, x: 0.3, y: 0.5 }, { namn: 'Plains', sid: 's1', saker: true, x: 0.7, y: 0.5 }], { antal: 2, ms: 1234, modell: 'claude-opus-5' });
     const delar = bord.filter(x => x.ai && x.ai.klunga === t.id);
-    check(`W23 ai.ms i bordet: ${delar.map(x => `#${x.id} ${x.tillstand} lokalMs ${x.lokalMs} ai.ms ${x.ai.ms} ${x.ai.modell}`).join(' | ')} (klungans lokala tid ${lokal23})`,
-          delar.length === 2 && delar.every(x => x.ai.ms === 1234 && x.ai.modell === 'claude-opus-5' && x.lokalMs === lokal23 && lokal23 > 0));
+    check(`W23 ai.ms i bordet: ${delar.map(x => `#${x.id} ${x.tillstand} ${x.namn} lokalMs ${x.lokalMs} ai.ms ${x.ai.ms} ${x.ai.modell}`).join(' | ')} (klungans lokala tid ${lokal23})`,
+          delar.length === 1 && delar[0].tillstand === 'okand' && delar[0].namn === 'Plains' && !delar[0].saker && delar.every(x => x.ai.ms === 1234 && x.ai.modell === 'claude-opus-5' && x.lokalMs === lokal23 && lokal23 > 0));
     /* W24: ett flimmer behåller tiden med namnet; en omläsning efter 3 s mäter om. */
     namnSvar = () => ({ namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] });
     nystart(); await refTra();
