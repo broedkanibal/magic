@@ -22184,6 +22184,10 @@ const Kamera = (() => {
     remsa: 1,
     remsaTroskel: 0.15,
     remsaVittne: 0.05,
+    /* Remsan läses för VARJE osäkert spår (MES-331 pass 4, A1, medRemsa), inte
+       bara maskade och omlott: golden 15:s ensamma Plains med blänk över
+       konstverket. 0 = som till pass 3 (golden --tro "remsaAlla:0"). */
+    remsaAlla: 1,
     /* Dubblettregeln med remsor (MES-331): två klara spår med samma namn
        vars lådor täcker varandra är två kort när remsornas MITTPUNKTER
        ligger minst så här många remstjocklekar isär (den tunnare av de
@@ -25690,10 +25694,20 @@ const Kamera = (() => {
      mask läggs och remsan lästes aldrig — modellen såg tre kort och gissade
      Swamp osäkert. Remsan har sin egen gräns (T.remsaTroskel, 0 säkra fel
      i bänken), så den kan inte göra ett fel namn säkert lättare än för ett
-     maskat spår. */
+     maskat spår.
+     …och VARJE osäkert spår (MES-331 pass 4, A1, T.remsaAlla), också ett
+     ensamt: golden 15:s Plains uppe till vänster (blänk över konstverket,
+     modellen osäker, ORB 0, titelraden skräp) lästes aldrig på remsan, för
+     den lästes bara maskad eller omlott. Första försöket gav inget (15 9/10
+     med och utan): spåret hade ingen remslåda alls — detektorns remsa
+     (23 × 50 analyspixlar, 0,46) kastades av tjockleksfiltret 0,45 i
+     Detektor.para, som nu är 0,5 (parprov oförändrat). Kostar bildmodellen
+     en gång (~100 ms) per osäkert spår; textläsaren bara när modellen är
+     osäker på remsan, som förut. Samma gräns, samma spärr: remsan gör inget
+     fel namn säkert lättare än förut. */
   async function medRemsa(t, svar, maskad) {
     t.remsa = null;
-    if (!T.remsa || !(maskad || t.omlott) || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
+    if (!T.remsa || !(T.remsaAlla || maskad || t.omlott) || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
     let rs = null;
     try { rs = await lasRemsa(t); } catch (e) { rs = null; }
     if (!rs) return svar;

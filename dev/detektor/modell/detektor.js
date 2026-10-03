@@ -166,7 +166,12 @@
        tappat kort (MES-246 222,65 s: 143 × 299 = 0,48 på ett kort på
        488 × 329). Den räknas inte. 0,35 kastade golden 05:s riktiga remsor,
        och det täckta kortet fick aldrig sin täckning. */
-    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= 0.45);
+    /* …0,50 sedan MES-331 pass 4: golden 15:s ensamma Plains (liggande, titeln
+       på högkant i högerkanten) har en remsa på 23 × 50 analyspixlar = 0,46,
+       som 0,45 kastade — kortet stod osäkert utan remsa att läsa. Mätt i
+       tran/parprov.py med appens inställningar: MES-246 och golden
+       oförändrade (728/738, 37 dubbletter, 97/107 högar; golden 75/75). */
+    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= (o.tjockMax != null ? o.tjockMax : 0.5));
     /* 1. Dubbletter: två lådor som båda har remsan i sin kant OCH täcker
        varandra (IoU ≥ DUB_IOU, 0,3 — en dubblett är ofta lådan runt den
        synliga delen bredvid lådan runt hela kortet, så de överlappar inte
