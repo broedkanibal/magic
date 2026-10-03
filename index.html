@@ -24116,11 +24116,16 @@ const Kamera = (() => {
   /* ── spårning ─────────────────────────────────────────────────────
      Närmaste-granne på mittpunkten. Kort flyttar sig inte mellan två rutor
      om ingen håller i dem, och håller någon i dem är de ändå inte stilla. */
+  /* Födelsevaktens kandidater (MES-331 pass 4, B): regioner som skulle ha
+     fötts som spår i förra rutan men hölls tillbaka — ett nytt spår föds
+     först när lådan setts två rutor i rad (fodVakt nedan). */
+  let fodKand = [];
   function matcha(spar, fynd, mask, nu, dt, upp, fodNya = true) {
     if (kal.grav) fynd = fynd.filter(f => !iGrav(f));   // högen är inte bordet (K9-lite)
     if (kal.bib) fynd = fynd.filter(f => !iBib(f));     // leken är inte bordet (MES-122)
     const kvar = new Set(spar);
     const anv = new Set();
+    const kandForra = fodKand.filter(c => nu - c.nu <= 1.5 * (dt || 0) + 50); fodKand = [];
     /* Remsan är kortets identitet (MES-331): en region med remsa hör inte till ett spår vars remsa ligger minst
        T.remsaIsar tjocklekar bort åt samma håll. Samma vakt i omlott-matchningen, i steg 2 (egetMatt) och steg 3. */
     const remsorIsar = (f, t) => !!(f.remsaLada && t.remsaLada && ((f.remsaLada.w >= f.remsaLada.h) === (t.remsaLada.w >= t.remsaLada.h)) && remsAvstand(f.remsaLada, t.remsaLada) >= T.remsaIsar);
@@ -24423,9 +24428,49 @@ const Kamera = (() => {
            region i rutan. Bara de senaste 40; golden-provet skriver dem. */
         let narm = null, upptaget = null;
         for (const t of spar) { const d = Math.hypot(t.cx - f.cx, t.cy - f.cy); if (anv.has(t)) { if (!upptaget || d < upptaget.d) upptaget = { id: t.id, d: Math.round(d) }; } else if (!narm || d < narm.d) narm = { id: t.id, d: Math.round(d), area: +(f.area / Math.max(1, t.areaRef)).toFixed(2), sen: Math.round(nu - (t.regionNar || 0)), st: t.tillstand, namn: t.namn || null, tackning: +ladTackning(t.box, f.box).toFixed(2) }; }
-        (dia.fodslar || (dia.fodslar = [])).push({ s: +(nu / 1000).toFixed(2), cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), grans: Math.round(grans), narm, upptaget });
-        if (dia.fodslar.length > 40) dia.fodslar.shift();
-        spar.push(fodSpar(f, nu, upp));
+        /* Födelsevakten (MES-331 pass 4, B). Spökena i golden 07 och 11
+           föddes ur en kortlåda i rörelse — handen lägger ett kort, och
+           detektorn ger två lådor på samma kort eller en låda över kanten
+           på ett känt kort — och den extra lådan blev ett nytt spår i samma
+           ruta (pass 3 fick dem att dö efter 0,6 s; ett kort som ploppar
+           upp och försvinner är fel på bordet). Ett nytt spår föds bara när
+           (a) lådan setts i två rutor i rad inom T.fodPx kortlängder med
+           ungefär samma yta — annars blir regionen en kandidat (fodKand)
+           och föds i nästa ruta om den står kvar; (b) den har en egen
+           riktig remsa, eller mattan under den — utan de kända kortens
+           lådor (maskIUtom, pass 3) — är fylld till minst T.fodFyll: en
+           låda ovanpå ett känt kort ser tom matta under sig; (c) den inte
+           täcker ett spår som fick region i den här rutan till mer än
+           SAMMA_SPAR (0,3, datorns dubblettgräns) utan att remsorna ligger
+           isär (remsorIsar): då är det en andra låda på samma kort. Priset
+           är en ruta (~150 ms) på tiden till namn för varje nytt kort.
+           T.fodVakt 0 loggar bara (golden --tro "fodVakt:0"); måtten står
+           i fodslar (vakt). */
+        const vakt = (() => {
+          const tol = Math.max(3, T.fodPx * f.lang);
+          const kand = kandForra.find(c => Math.hypot(c.cx - f.cx, c.cy - f.cy) <= tol && f.area < T.areaVaxt * c.area && f.area * T.areaVaxt > c.area) || null;
+          const egenRemsa = !!(f.remsaLada && !f.remsaSynt);
+          const kanda = spar.filter(t => t.tillstand === 'klar' && !arHelbild(t)).map(t => t.regionBox || t.box).filter(b => ladTackning(b, f.box) > 0);
+          const fy = mask ? (kanda.length ? maskIUtom(mask, f.box, AW, AH, kanda) : maskI(mask, f.box, AW, AH)) / Math.max(1, f.area) : null;
+          let tack = 0, tackId = null, tackIsar = false;
+          for (const t of spar) { if (t.regionNar !== nu || arHelbild(t)) continue; const o = ladTackning(t.box, f.box); if (o > tack) { tack = o; tackId = t.id; tackIsar = remsorIsar(f, t); } }
+          const a = !!kand, b = egenRemsa || fy == null || fy >= T.fodFyll, c = tack < 0.3 || tackIsar;
+          /* fodVakt 2: bara (a), två rutor i rad (prov) */
+          return { ok: T.fodVakt === 2 ? a : (a && b && c), a, b, c, kand, d: kand ? Math.round(Math.hypot(kand.cx - f.cx, kand.cy - f.cy)) : null, remsa: egenRemsa, fy: fy == null ? null : +fy.toFixed(2), kn: kanda.length, tack: +tack.toFixed(2), tackId, tackIsar };
+        })();
+        (dia.fodslar || (dia.fodslar = [])).push({ s: +(nu / 1000).toFixed(2), cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), grans: Math.round(grans), narm, upptaget,
+          vakt: { ok: vakt.ok, a: vakt.a, b: vakt.b, c: vakt.c, d: vakt.d, remsa: vakt.remsa, fy: vakt.fy, kn: vakt.kn, tack: vakt.tack, tackId: vakt.tackId, isar: vakt.tackIsar, fodd: !T.fodVakt || vakt.ok } });
+        if (dia.fodslar.length > 200) dia.fodslar.shift();
+        /* Den stilla räkningen (stillaFran) börjar i kandidatrutan — lådan
+           stod bevisligen still redan där — så att den vanliga läsningen
+           (stillaMs) kommer i samma ruta som förut. Mätt 2026-10-03: varken
+           det, backdaterad formN eller ingen backdatering alls räddade
+           golden 07:s Plains (6/7 spelade i alla) — se T.fodVakt. */
+        if (!T.fodVakt || vakt.ok) {
+          const ny = fodSpar(f, nu, upp);
+          if (T.fodVakt && vakt.kand && ny.tillstand === 'ny') ny.stillaFran = Math.min(ny.stillaFran || nu, vakt.kand.nu);
+          spar.push(ny);
+        } else fodKand.push({ cx: f.cx, cy: f.cy, area: f.area, lang: f.lang, nu });
       }
     }
     /* Ett spår utan region vars låda RYMMER ett klart mindre spår som fick

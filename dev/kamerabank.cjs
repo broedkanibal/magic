@@ -614,6 +614,25 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LT1i spöke över ett klart kort: #999 borta efter ${duBorta} ms (≤ ${450 + TAKT}, bortaMs 450), läst ${duLast}, kortet kvar ${(Kamera.spar.find(x => x.id === q.id) || {}).tillstand}`,
           duBorta != null && duBorta <= 450 + TAKT && (Kamera.spar.find(x => x.id === q.id) || {}).tillstand === 'klar');
 
+    /* LT1l: födelsevakten (MES-331 pass 4, B) — en region som syns i EN ruta föds inte (den var en hand eller en
+       extra detektorlåda på ett kort i rörelse: spökena i golden 07 och 11); samma region två rutor i rad föds i den
+       andra rutan, som ett vanligt nytt spår (stillaFran = den rutan; att ta den från första rutan läste golden 07:s
+       Plains under handen). Vakten är avstängd i förvalet (T.fodVakt 0, se index.html: den kostade golden 07 och 13 ett
+       namn var) — provet slår på den och stänger av den igen. Kontrollen: med fodVakt 0 föds den i första rutan, som förut. */
+    namnSvar = saker; Kamera.satTrosklar({ fodVakt: 1 }); nystart(); await referens();
+    s = await ruta(KORT);
+    const fodd1 = s.length;
+    for (let i = 0; i < 3; i++) s = await ruta(null);
+    const kvar1 = s.length;
+    s = await ruta(KORT); const nu1 = nu; s = await ruta(KORT);
+    const t2 = Kamera.spar[0] || {};
+    check(`LT1l födelsevakten: en ruta → ${fodd1} spår (0), borta efteråt ${kvar1} (0); två rutor → ${s.length} spår fött i andra rutan (fodd ${t2.fodd} = ${nu}, första rutan ${nu1})`,
+          fodd1 === 0 && kvar1 === 0 && s.length === 1 && t2.fodd === nu);
+    Kamera.satTrosklar({ fodVakt: 0 }); nystart(); await referens();
+    s = await ruta(KORT);
+    check(`LT1l kontroll utan vakten (fodVakt 0): en ruta → ${s.length} spår (1, som förut)`, s.length === 1);
+    Kamera.satTrosklar({ fodVakt: 0 });   // förvalet
+
     /* LT1j: uppsamlaren — ett säkert spår som ingen väg stämplat får raden ändå, med vägen 'okand'. */
     namnSvar = osaker; nystart(); await referens();
     for (let i = 0; i < 8; i++) s = await ruta(KORT);

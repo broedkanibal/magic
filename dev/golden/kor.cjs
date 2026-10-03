@@ -366,7 +366,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     fs.writeFileSync(path.join(BESKARNINGAR, 'index.json'), JSON.stringify(index, null, 1) + '\n');
     console.log(`\n${index.length} beskärningar skrivna till ${BESKARNINGAR} (index.json listar dem)`);
   }
-  if (RUTLOGG) { const rl = JSON.parse(json).filter(r => r.rutLogg).map(r => ({ id: r.id, handelser: r.videoHandelser, spar: r.videoSpar, rutLogg: r.rutLogg })); fs.writeFileSync(RUTLOGG, JSON.stringify(rl) + '\n'); console.log(`\nrutloggen skriven till ${RUTLOGG} (${rl.length} videofall)`); }
+  if (RUTLOGG) { const rl = JSON.parse(json).filter(r => r.rutLogg).map(r => ({ id: r.id, handelser: r.videoHandelser, spar: r.videoSpar, rutLogg: r.rutLogg, fodslar: r.fodslar || [] })); fs.writeFileSync(RUTLOGG, JSON.stringify(rl) + '\n'); console.log(`\nrutloggen skriven till ${RUTLOGG} (${rl.length} videofall)`); }   // fodslar: varför varje spår föddes, med födelsevaktens mått (MES-331 pass 4)
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   /* Domen mot baslinjen skrivs alltid: BÄTTRE, LIKA BRA, SÄMRE eller BLANDAT,
      totalt och fall för fall. Förut syntes bara det som blev sämre, så en
