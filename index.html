@@ -22208,7 +22208,11 @@ const Kamera = (() => {
        Scourge 0,111) men 0,003 under titelgränsen 0,20 — 05 5/6 som förut,
        6/6 med Claude som förut, inget annat fall bytte dom. Grinden (05 6/6
        lokalt) klarades inte; mekanismen står kvar för nästa pass. 0,25 slår
-       på (golden --tro "remsaUtom:0.25"). */
+       på (golden --tro "remsaUtom:0.25"). Hål att rätta innan dess
+       (granskningen): inget begränsar hur långt det undre kortets remslåda
+       når in i den egna — når den förbi den egna remsans mittlinje målas
+       det övre kortets egen titel bort; måla bara det som ligger utanför
+       mittlinjen. */
     remsaUtom: 0,
     /* Födelsevakten (MES-331 pass 4, B, matcha): ett nytt spår föds först när
        regionen setts två rutor i rad inom fodPx kortlängder, har en egen
@@ -22223,7 +22227,17 @@ const Kamera = (() => {
        (hela vakten, utan backdatering, med stillaFran från kandidatrutan,
        bara två rutor i rad). Priset på en ruta flyttar läsningen i de
        fallen, inte spökena. Mätt 2026-10-03; rutloggarna i passets
-       scratchpad. Golden --tro "fodVakt:1" slår på. */
+       scratchpad. Golden --tro "fodVakt:1" slår på.
+       Hål som granskningen hittade, att rätta innan den slås på: (c) döms
+       mot spår som matchats TIDIGARE i samma slinga (regionNar === nu), så
+       en dubblettlåda som kommer före kortets egen låda ser inget spår med
+       region och föds ändå — vakten borde dömas efter matchningen, som
+       kandaLador; (c) kräver remsor på båda för att skilja (remsorIsar), så
+       ett kort lagt tvärs över ett känt kort utan egen remsa föds aldrig så
+       länge det kända sticker fram; (b) räknar alla klara spår, inte bara
+       de med region i rutan; en klämd ruta (fodNya false) nollar
+       kandidaterna, och fönstret 1,5·dt + 50 ms släpper kandidaten efter en
+       paus. */
     fodVakt: 0,
     fodPx: 0.1,
     fodFyll: 0.3,
@@ -25813,9 +25827,12 @@ const Kamera = (() => {
      med och utan): spåret hade ingen remslåda alls — detektorns remsa
      (23 × 50 analyspixlar, 0,46) kastades av tjockleksfiltret 0,45 i
      Detektor.para, som nu är 0,5 (parprov oförändrat). Kostar bildmodellen
-     en gång (~100 ms) per osäkert spår; textläsaren bara när modellen är
-     osäker på remsan, som förut. Samma gräns, samma spärr: remsan gör inget
-     fel namn säkert lättare än förut. */
+     en gång (~100 ms) per osäker LÄSNING — också den tidiga (spekulera) och
+     varje omläsning, inom lasande; textläsaren bara när modellen är osäker
+     på remsan, som förut. Samma gräns, samma spärr: remsan gör inget fel
+     namn säkert lättare än förut, och svarAI:s vittneskrav gäller som förut
+     bara maskade beskärningar (remsan blir inte vittne åt Claude för ett
+     omaskat spår). */
   async function medRemsa(t, svar, maskad) {
     t.remsa = null;
     if (!T.remsa || !(T.remsaAlla || maskad || t.omlott) || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;

@@ -84,6 +84,8 @@ def bedom(fall, dets, iou_min=IOU_MIN, tack_min=TACK_MIN, mask=None):
     #    och detektorn ritar hela kortet också när bara en remsa syns (06 mittersta Swamp, 14 Resistance
     #    Reunited: annars 'sammanslaget'). Inte max(synlig, hel) i en omgång: i en tät hög tog en låda då
     #    grannens hela kort före sitt eget synliga (MES-246 728 → 727 egna, 2 dubbletter till).
+    #    I andra omgången måste lådan dessutom täcka den synliga delen till minst hälften (andel_inne): en
+    #    dubblettlåda på högens översta kort når inte det undre kortets remsa som sticker fram.
     kort_det = {}; det_kort = {}
     for falt in ('synlig_lada', 'hel_lada'):
         par = []
@@ -92,6 +94,7 @@ def bedom(fall, dets, iou_min=IOU_MIN, tack_min=TACK_MIN, mask=None):
             for di, d in enumerate(dets):
                 if di in det_kort: continue
                 v = iou(k[falt], d)
+                if falt == 'hel_lada' and andel_inne(k['synlig_lada'], d) < 0.5: continue
                 if v >= iou_min: par.append((v, ki, di))
         par.sort(reverse=True)
         for v, ki, di in par:

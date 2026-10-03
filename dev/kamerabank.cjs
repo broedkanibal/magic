@@ -616,9 +616,9 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
 
     /* LT1l: födelsevakten (MES-331 pass 4, B) — en region som syns i EN ruta föds inte (den var en hand eller en
        extra detektorlåda på ett kort i rörelse: spökena i golden 07 och 11); samma region två rutor i rad föds i den
-       andra rutan, som ett vanligt nytt spår (stillaFran = den rutan; att ta den från första rutan läste golden 07:s
-       Plains under handen). Vakten är avstängd i förvalet (T.fodVakt 0, se index.html: den kostade golden 07 och 13 ett
-       namn var) — provet slår på den och stänger av den igen. Kontrollen: med fodVakt 0 föds den i första rutan, som förut. */
+       andra rutan (fodd = den rutan; stillaFran tas från den första, där lådan bevisligen stod still). Vakten är
+       avstängd i förvalet (T.fodVakt 0, se index.html: den kostade golden 07 och 13 ett namn var, i alla fyra
+       varianter) — provet slår på den och stänger av den igen. Kontrollen: med fodVakt 0 föds den i första rutan, som förut. */
     namnSvar = saker; Kamera.satTrosklar({ fodVakt: 1 }); nystart(); await referens();
     s = await ruta(KORT);
     const fodd1 = s.length;
