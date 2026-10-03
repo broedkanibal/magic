@@ -174,7 +174,16 @@
        har remsans egen gräns (T.remsaTroskel). Mätt i tran/parprov.py med
        appens inställningar: MES-246 och golden oförändrade (728/738, 37
        dubbletter, 97/107 högar; golden 75/75), golden 0 nya fel namn. */
-    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= (o.tjockMax != null ? o.tjockMax : 0.5));
+    /* …0,70 sedan 2026-10-03 (MES-331): ett tappat kort ligger sällan rakt
+       90° — Jesper tappar 60–70° — och den raka lådan runt en snett liggande
+       remsa blir då 0,50–0,69 tjock. Filtret kastade remsan på 25 av 38
+       tappade kort i golden 18:s inspelning (13b) och 42 av 114 i MES-246,
+       med modellens poäng median 0,88: modellen såg dem, filtret tog dem.
+       Mätt i tran/remsfall.py (varje kort genom stegen) och tran/parprov.py:
+       13b land i hög med remsa 32 → 42/42, MES-246 219 → 248/257, hela högar
+       99 → 105/107, dubbletter och falska oförändrade, golden-fotona 72/75
+       oförändrade; 0,8 ger exakt samma som 0,7. */
+    remsor = remsor.filter(s => tjock(s) / Math.max(1, Math.max(s.x1 - s.x0, s.y1 - s.y0)) <= (o.tjockMax != null ? o.tjockMax : 0.7));
     /* 1. Dubbletter: två lådor som båda har remsan i sin kant OCH täcker
        varandra (IoU ≥ DUB_IOU, 0,3 — en dubblett är ofta lådan runt den
        synliga delen bredvid lådan runt hela kortet, så de överlappar inte
