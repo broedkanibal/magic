@@ -20,6 +20,26 @@ verklig regression.
 **Låt därför Chrome avsluta självt.** MES-260 ska täppa till hålet; tills dess
 är raden `Poolen:` det enda som skiljer en giltig körning från skräp.
 
+## Måtten i tre nivåer
+
+Golden skriver många tal. De läses i den här ordningen (Jespers beslut
+2026-10-03), och ett tal längre ner förklarar bara varför ett tal högre upp
+rörde sig:
+
+| Nivå | Mått | Regel |
+|---|---|---|
+| **Krav** | **Fel namn** — säkert svar men fel kort | alltid 0; allt annat får ge vika |
+| **1 · Hittade** | synliga kort som har ett spår på bordet när fallet är slut | får aldrig gå ner; målet är alla |
+| **2 · Rätt namn** | synliga kort med säkert och rätt namn | det vi höjer |
+| **3 · Utlagda med namn** | videofall: kort som läggs ut under videon och får säkert rätt namn | det som ligger närmast ett riktigt parti; fördröjningen bredvid |
+| Felsökning | falska, plats, tappad, land per typ, högar, borttagna, ordning, tap, dubbletter, bänkarna i `dev/remsa` och `dev/detektor` | läses när en nivå rört sig, för att se *var* det föll |
+
+Så här läses ett tapp: går rätt namn ner och hittade också, ligger felet i
+detektorn eller spårningen; är hittade oförändrat ligger det i läsningen av
+namnet, och då svarar remsbänken (`dev/remsa/RESULTAT.md`) på varför.
+Alla nivåer redovisas för **hela setet 01–18**; en delmängd (01–16, 17, 18)
+nämns bara när den förklarar något.
+
 ## Samma prov, två lägen
 
 | | Utan Claude | Med Claude |
@@ -43,7 +63,7 @@ Båda skriver en tabell med ett fall per rad:
 | Falska | spår där inget kort ligger. `(+N token)` bredvid: spår på en token som facit ritat (`rita.ovriga`, namn som börjar med `token`) — räknas inte som falska (MES-331); ett säkert kortnamn på en token är fortfarande ett fel namn |
 | Plats, Tappad | provas bara i fallen där facit har rutor (01–02): rätt plats, och rätt tap-läge |
 | Högar | bara i `kor.html`s tabell och på raden `högar:` sist i `kor.cjs` (MES-331): facithögar (samma `hog`, minst två synliga kort) där kameran har varje kort, vet vem som ligger över vem (rapportens `under`) så att ordningen nedifrån stämmer med facits `z`, och har säkra rätta namn. Del-lägen: *ordning rätt men namn saknas*, *ordning okänd* (ett kort utan spår, eller ett par utan relation — aldrig gissat), *fel* (ordning som motsäger facit, eller säkert fel namn). `--detalj` skriver varje hög och `under #n` per spår |
-| Förlopp | bara videofall: `7/7 spelade · 2/2 borttagna · ordning 7/7` — hur många utspelade kort kameran hann namnge, hur många bortplockade som försvann ur bordet, och hur många av utspelen den såg i rätt ordning. `–` för foton |
+| Förlopp | bara videofall: `7/7 utlagda med namn · 2/2 borttagna · ordning 7/7` — hur många utspelade kort kameran hann namnge (hette *spelade* till 2026-10-03), hur många bortplockade som försvann ur bordet, och hur många av utspelen den såg i rätt ordning. `–` för foton. Fördröjningen (medianen i sekunder från att kortet läggs till att det får namn, i `--detalj` och i sidans rubrik) visas bara när minst hälften av de utlagda korten fick namn — annars `–`, för då bygger medianen på för få kort (13: 93 s ur två kort av tio) |
 
 `(var 10)` efter ett tal är baslinjens tal, när det skiljer sig. Sist står en
 **dom mot baslinjen**: BÄTTRE, LIKA BRA, SÄMRE eller BLANDAT, med totalerna
@@ -845,7 +865,7 @@ alltid ger samma svar. Räkna med sämre siffror än på ett foto; det är poän
    ligger med långsidan vågrätt i bilden. Varje namn måste finnas i `lek.txt`
    — också de som bara syns en stund.
 7. **Kör fallet**: `node dev/golden/kor.cjs --fall 08 --detalj`. Kolumnen
-   **Förlopp** är videofallets: `2/7 spelade` = kameran hann ge två av sju
+   **Förlopp** är videofallets: `2/7 utlagda med namn` = kameran hann ge två av sju
    utspelade kort ett säkert rätt namn, `1/2 borttagna` = ett av två
    bortplockade kort ligger kvar på bordet, `ordning 2/7` = så många av
    utspelen kom i rätt ordning. `--detalj` skriver varje kort med sin tid och

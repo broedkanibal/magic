@@ -117,7 +117,7 @@ function skrivTabell(rs, gamla) {
      hann namnge säkert, hur många bortplockade som försvann ur bordet, och
      hur många som kom i rätt ordning. En stillbild har inget förlopp. */
   const forlopp = (r, g) => (r.videoLagdaAv == null && r.videoBortaAv == null) ? '–'   // fältet saknas = foto; noll utspel är fortfarande ett videofall
-    : `${r.videoLagda}/${r.videoLagdaAv} spelade${skiljer(r, g, 'videoLagda')}`
+    : `${r.videoLagda}/${r.videoLagdaAv} utlagda med namn${skiljer(r, g, 'videoLagda')}`
     + ` · ${r.videoBorta}/${r.videoBortaAv} borttagna${skiljer(r, g, 'videoBorta')}`
     + ` · ordning ${r.videoOrdning}/${r.videoOrdningAv}${skiljer(r, g, 'videoOrdning')}`
     + (r.videoDubbletter != null ? ` · dubbletter ${r.videoDubbletter}${skiljer(r, g, 'videoDubbletter')}` : '')
@@ -153,7 +153,7 @@ function skrivTabell(rs, gamla) {
   console.log('  (+N token): spår på en token som facit ritat (rita.ovriga, MES-331) — räknas inte i Falska.');
   console.log('  Falska: spår där inget kort ligger. Plats och Tappad provas bara där facit har rutor; ± är medianfelet mellan spårets och rutans mitt i kortbredder. (var N): baslinjens tal.');
   console.log('  Läge: rapporter där ett stilla kort flyttat mer än 15 % av sin bredd sedan förra rapporten (det datorn speglar i Table leads) — ska vara 0 på ett stilla bord; per minut av fallets tid.');
-  console.log('  Förlopp: bara videofall — utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
+  console.log('  Förlopp: bara videofall — utlagda med namn = utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som');
   console.log('  inte ligger kvar med säkert namn, och hur många av utspelen kameran såg i rätt ordning. Slutläget står i kolumnerna före.');
   console.log('  hög: kort som lades på graveyard-högen i bild och som högvakten såg inom 6 s (MES-85); falska = högändringar utan ett kort dit.');
 }
@@ -314,7 +314,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
        här man ser ett kort som kom fram sent, ett som aldrig blev säkert,
        och ett som låg kvar efter att det plockats bort. */
     if (r.videoSpar) {
-      console.log(`  video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms; ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median)`
+      console.log(`  video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms; ${r.videoLagda}/${r.videoLagdaAv} utlagda med namn, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null || r.videoLagda * 2 < r.videoLagdaAv ? '–' : r.videoFordrojning + ' s'} (median; – när färre än hälften av de utlagda fick namn)`
         + (r.videoVerkligMs != null ? `; med beräkningstid: namn ${r.videoFordrojningB == null ? '–' : r.videoFordrojningB + ' s'}, tap ${r.videoTappFordrojningB == null ? '–' : r.videoTappFordrojningB + ' s'}, flytt ${r.videoFlyttFordrojningB == null ? '–' : r.videoFlyttFordrojningB + ' s'}, borta ${r.videoBortaFordrojningB == null ? '–' : r.videoBortaFordrojningB + ' s'} (${(r.videoVerkligMs / 1000).toFixed(1)} s verklig tid som klockan stod still, ${r.videoVerkligRutor} rutor)` : ''));
       /* K1: borta-fördröjning (telefonsidan: första rapporten utan säkert spår), tap-vridningar och dubbletter ur bordsloggen. */
       console.log(`  K1: borta-fördröjning ${r.videoBortaFordrojning == null ? '–' : r.videoBortaFordrojning + ' s'} (median${(r.videoBortaDt || []).length ? ': ' + r.videoBortaDt.join(', ') + ' s' : ''})`
@@ -391,7 +391,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
        aldrig fick sitt namn syns inte i slutläget. Nämnaren är förloppets
        egen — utspelade respektive bortplockade kort, inte korten i facit. */
     for (const [k, namn, merArBattre, avK] of [['namn', 'rätt namn', true, 'kort'], ['felNamn', 'fel namn', false, 'kort'], ['falska', 'falska', false, 'kort'],
-                                               ['videoLagda', 'spelade kort som fick namn', true, 'videoLagdaAv'], ['videoBorta', 'borttagna kort som försvann', true, 'videoBortaAv'],
+                                               ['videoLagda', 'utlagda med namn', true, 'videoLagdaAv'], ['videoBorta', 'borttagna kort som försvann', true, 'videoBortaAv'],
                                                ['videoOrdning', 'utspel i rätt ordning', true, 'videoOrdningAv'], ['videoFelUnder', 'säkra namn på kort som aldrig var i partiet', false, 'videoLagdaAv'],
                                                ['videoDubbletter', 'dubbletter', false, 'kort'], ['videoTapp', 'tap-vridningar som sågs', true, 'videoTappAv'],
                                                ['videoTappFalska', 'falska tap-flippar', false, 'kort'],
@@ -411,7 +411,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     const dom = samre.length && battre.length ? 'BLANDAT — bättre i något fall, sämre i ett annat' : samre.length ? 'SÄMRE' : battre.length ? 'BÄTTRE' : 'LIKA BRA';
     console.log(`\nJämfört med baslinjen (${BASFIL}): ${dom}`);
     console.log(`  totalt: rätt namn ${s(gs, 'namn')} → ${s(jamforda, 'namn')} av ${s(jamforda, 'kort')} kort, fel namn ${s(gs, 'felNamn')} → ${s(jamforda, 'felNamn')}, falska ${s(gs, 'falska')} → ${s(jamforda, 'falska')}`
-      + (jamforda.some(r => r.videoLagdaAv != null || r.videoBortaAv != null) ? `\n  förloppet: spelade ${s(gs, 'videoLagda')} → ${s(jamforda, 'videoLagda')} av ${s(jamforda, 'videoLagdaAv')} kort, borttagna ${s(gs, 'videoBorta')} → ${s(jamforda, 'videoBorta')} av ${s(jamforda, 'videoBortaAv')} kort, ordning ${s(gs, 'videoOrdning')} → ${s(jamforda, 'videoOrdning')}, fel namn under förloppet ${s(gs, 'videoFelUnder')} → ${s(jamforda, 'videoFelUnder')}` : ''));
+      + (jamforda.some(r => r.videoLagdaAv != null || r.videoBortaAv != null) ? `\n  förloppet: utlagda med namn ${s(gs, 'videoLagda')} → ${s(jamforda, 'videoLagda')} av ${s(jamforda, 'videoLagdaAv')} kort, borttagna ${s(gs, 'videoBorta')} → ${s(jamforda, 'videoBorta')} av ${s(jamforda, 'videoBortaAv')} kort, ordning ${s(gs, 'videoOrdning')} → ${s(jamforda, 'videoOrdning')}, fel namn under förloppet ${s(gs, 'videoFelUnder')} → ${s(jamforda, 'videoFelUnder')}` : ''));
     if (battre.length) console.log('  bättre:\n    ' + battre.join('\n    '));
     if (samre.length) console.log('  sämre:\n    ' + samre.join('\n    '));
   } else console.log(`\nIngen baslinje att jämföra med för de här fallen (${BASFIL}).`);
@@ -446,7 +446,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
       const cell = r => `${r.namn}/${r.kort} ${r.felNamn}f ${r.falska}x` + (r.videoLagdaAv != null ? ` ${r.videoLagda}/${r.videoLagdaAv}s` : '');
       console.log('  ' + kol(r0.id.slice(0, 2), 8) + sammanstallning.map(x => { const r = x.rs.find(q => q.id === r0.id); return kol(r ? cell(r) : '–', 16); }).join('') + (g ? cell(g) : '–'));
     }
-    console.log('  (rätt namn/kort · f = fel namn · x = falska · s = spelade kort som fick namn)');
+    console.log('  (rätt namn/kort · f = fel namn · x = falska · s = utlagda med namn)');
     for (const x of sammanstallning) console.log(`  ${x.ljus}: ${x.samre.length ? 'SÄMRE — ' + x.samre.join('; ') : 'inte sämre'}${x.battre.length ? ' | bättre: ' + x.battre.join('; ') : ''}`);
   }
   try { ws.close(); } catch (e) {}

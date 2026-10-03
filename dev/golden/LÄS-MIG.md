@@ -253,7 +253,7 @@ säkert på bilden ensam när läsaren tydligt läst ett annat namn.
 | **Rätt namn** | facitkort som fått rätt namn **med säkert svar**, mot synliga kort i facit. Inom parentes: rätt namn men osäkert — det går till granskningen och räknas inte som igenkänt — och hur många av de rätta som namnläsaren också läste rätt (*via namn*) |
 | **Fel namn** | säkert svar med fel namn — på rätt plats, eller på ett falskt spår. Det värsta som kan hända: kortet hamnar på bordet utan att någon frågas |
 | **Falska** | spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats |
-| **Förlopp** | bara videofall: utspelade kort som fick ett säkert rätt namn någon gång under videon, bortplockade kort som inte ligger kvar på bordet i slutet, och hur många av utspelen kameran såg i rätt ordning. `–` för ett foto |
+| **Förlopp** | bara videofall: *utlagda med namn* = utspelade kort som fick ett säkert rätt namn någon gång under videon, bortplockade kort som inte ligger kvar på bordet i slutet, och hur många av utspelen kameran såg i rätt ordning. `–` för ett foto |
 | **ms** | analyssteget i millisekunder, medianen över körningen, med den dyraste rutan inom parentes, och namnläsarens median per kort (*ocr*). Mätt i den här datorns webbläsare — säger inget om telefonen |
 | **mätt** | mattans brus σ, tröskeln, avvikelsen (`utseende`) och ytans dom |
 

@@ -57,7 +57,7 @@ pre{white-space:pre-wrap;background:#0a0d12;padding:8px;border:1px solid var(--l
         <th title="spår som inte motsvarar något facitkort. Inom parentes: spår vid rutans kant som facit ursäktar som avskurna, och dolda kort som ändå hittats">Falska</th>
         <th title="spår på rätt plats med rätt tap-läge / facitkort med ruta">Tappad</th>
         <th title="högar i facit (samma hog-bokstav, minst två synliga kort) där kameran har alla korten, vet vem som ligger över vem (rapportens under) så att ordningen nedifrån stämmer med facits z, och har de säkra namnen rätt / mätta högar. Inom parentes: ordningen rätt men namn saknas · ordningen okänd · fel (ordning som motsäger facit, eller säkert fel namn)">Högar</th>
-        <th title="bara videofall: utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som inte ligger kvar i slutet, och hur många som kom i rätt ordning">Förlopp</th>
+        <th title="bara videofall: utlagda med namn = utspelade kort som fick ett säkert rätt namn någon gång, bortplockade kort som inte ligger kvar i slutet, och hur många som kom i rätt ordning">Förlopp</th>
         <th title="analyssteget i millisekunder: medianen över körningen (sista rutan förut — en ruta med identifiering i kostar 300 ms). Inom parentes: den dyraste rutan">ms</th>
         <th title="mattans brus σ, tröskel, avvikelse (utseende), ytans dom">mätt</th>
       </tr></thead>
@@ -1178,7 +1178,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
    ingenting om vägen dit, och det är vägen ett videofall provar. Fyra tal
    till, alla platta fält i resultatraden så att de går att diffa:
 
-     spelade   — utspelade kort som något spår bar som SÄKERT rätt namn
+     utlagda med namn (spelade) — utspelade kort som något spår bar som SÄKERT rätt namn
                  någon gång under videon (ett spår per kort)
      borttagna — bortplockade kort som inte ligger kvar på bordet i slutet
      ordning   — längsta växande delföljd av tidpunkterna då korten fick
@@ -1460,8 +1460,8 @@ function forloppCell(r, forra) {
   const del = (v, n, nyckel) => `${v}/${n}` + (forra && forra[nyckel] != null && forra[nyckel] !== v
     ? `<span class="d ${v > forra[nyckel] ? 'upp' : 'ner'}" title="förra: ${forra[nyckel]}">${v > forra[nyckel] ? '▲' : '▼'}${Math.abs(v - forra[nyckel])}</span>` : '');
   const bra = r.videoLagda === r.videoLagdaAv && r.videoBorta === r.videoBortaAv && r.videoOrdning === r.videoOrdningAv;
-  return `<td class="${bra ? 'bra' : ''}" title="fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'} (median), ${r.videoFelUnder} säkra namn på kort som aldrig var i partiet">`
-    + `${del(r.videoLagda, r.videoLagdaAv, 'videoLagda')} spelade · ${del(r.videoBorta, r.videoBortaAv, 'videoBorta')} borttagna · ordning ${del(r.videoOrdning, r.videoOrdningAv, 'videoOrdning')}</td>`;
+  return `<td class="${bra ? 'bra' : ''}" title="fördröjning ${r.videoFordrojning == null || r.videoLagda * 2 < r.videoLagdaAv ? '–' : r.videoFordrojning + ' s'} (median; – när färre än hälften av de utlagda fick namn), ${r.videoFelUnder} säkra namn på kort som aldrig var i partiet">`
+    + `${del(r.videoLagda, r.videoLagdaAv, 'videoLagda')} utlagda med namn · ${del(r.videoBorta, r.videoBortaAv, 'videoBorta')} borttagna · ordning ${del(r.videoOrdning, r.videoOrdningAv, 'videoOrdning')}</td>`;
 }
 function ritaTabell() {
   const tb = $('#rader'); tb.innerHTML = '';
@@ -1495,7 +1495,7 @@ function ritaTabell() {
   $('#totRad').innerHTML = rs.length
     ? `<td></td><td>${rs.length} fall</td><td>${sum('hittade')}/${sum('kort')}</td><td>${sum('platsAv') ? sum('plats') + '/' + sum('platsAv') : '–'}</td><td>${sum('namn')}/${sum('kort')}</td><td>${sum('felNamn')}</td><td>${sum('falska')}${sum('tokens') ? ` <span class="dim">(+${sum('tokens')} token)</span>` : ''}${sum('kant') ? ` <span class="dim">(+${sum('kant')} vid kanten)</span>` : ''}</td><td>${sum('tappadAv') ? sum('tappad') + '/' + sum('tappadAv') : '–'}</td>`
       + (sum('hogAv') ? `<td>${sum('hogRatt')}/${sum('hogAv')} <span class="dim">(${sum('hogOrdning')} ordning rätt, namn saknas · ${sum('hogOkand')} okänd · ${sum('hogFel')} fel)</span></td>` : '<td class="dim">–</td>')
-      + (sum('videoLagdaAv') ? `<td>${sum('videoLagda')}/${sum('videoLagdaAv')} spelade · ${sum('videoBorta')}/${sum('videoBortaAv')} borttagna · ordning ${sum('videoOrdning')}/${sum('videoOrdningAv')}</td>` : '<td class="dim">–</td>')
+      + (sum('videoLagdaAv') ? `<td>${sum('videoLagda')}/${sum('videoLagdaAv')} utlagda med namn · ${sum('videoBorta')}/${sum('videoBortaAv')} borttagna · ordning ${sum('videoOrdning')}/${sum('videoOrdningAv')}</td>` : '<td class="dim">–</td>')
       + '<td></td><td></td>'
     : '';
   $('#kopiera').disabled = !rs.length;
@@ -1543,7 +1543,7 @@ async function visaDetalj(id) {
     utanRuta.length ? `Facit (bara namn): ${utanRuta.join(', ')}` : '',
     /* Videofallet: bilden ovan är sista rutan, och facit ovanpå den är
        slutläget. Förloppet står här. */
-    r && r.videoHandelser ? `Video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms · ${r.videoLagda}/${r.videoLagdaAv} spelade, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null ? '–' : r.videoFordrojning + ' s'}` : '',
+    r && r.videoHandelser ? `Video: ${r.videoSekunder} s av ${r.videoLangd} s i takt ${r.videoTakt} ms · ${r.videoLagda}/${r.videoLagdaAv} utlagda med namn, ${r.videoBorta}/${r.videoBortaAv} borttagna, ordning ${r.videoOrdning}/${r.videoOrdningAv}, fördröjning ${r.videoFordrojning == null || r.videoLagda * 2 < r.videoLagdaAv ? '–' : r.videoFordrojning + ' s'}` : '',
     r && r.videoHandelser ? r.videoHandelser.map(h => h.spelar
       ? `  ${h.t} s ut ${h.spelar}: ${h.s == null ? 'aldrig säkert namngivet' : `säkert ${h.s} s (spår ${h.spar}, +${h.dt} s)`}`
       : `  ${h.t} s bort ${h.tar_bort}: ${h.borta ? 'borta ur bordet' : 'ligger kvar'}`).join('\n') : '',
