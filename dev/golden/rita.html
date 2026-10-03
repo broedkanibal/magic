@@ -912,7 +912,7 @@ function visaValt() {
   if (!k || !r) { el('valtfalt').innerHTML = `<span class="dim">${S.nastaNamn ? `nästa kort får namnet <b>${esc(S.nastaNamn)}</b>` : 'inget valt — rita ett kort, eller klicka i listan'}</span>`; el('valtfast').innerHTML = ''; return; }
   const t = [];
   t.push(`<span class="tagg" title="andelen av kortet som syns">synligt ${Math.round(r.synlig * 100)} %</span>`);
-  t.push(`<span class="tagg${r.dold ? ' dold' : ''}" title="andelen av namnraden som syns — under hälften = dold">namnrad ${Math.round(r.namnrad * 100)} %${r.dold ? ' · DOLD' : ''}</span>`);
+  t.push(`<span class="tagg${r.dold ? ' dold' : ''}" title="andelen av namnraden som syns · namnets början (första fjärdedelen av raden) — syns under hälften av början är kortet dolt">namnrad ${Math.round(r.namnrad * 100)} %${r.namnStart != null ? ' · början ' + Math.round(r.namnStart * 100) + ' %' : ''}${r.dold ? ' · DOLD' : ''}</span>`);
   t.push(`<span class="tagg${r.tappad ? ' tapp' : ''}">${r.tappad ? 'tappad' : 'otappad'} · ${Math.round(G.vinkel(k.horn, S.W, S.H))}°</span>`);
   if (r.hog) t.push(`<span class="tagg hog">hög ${r.hog}</span>`);
   if (r.avskuret) t.push('<span class="tagg fel" title="mer än 2 % av kortet ligger utanför bilden — hamnar i avskurna">avskuret</span>');

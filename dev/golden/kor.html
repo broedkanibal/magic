@@ -1009,7 +1009,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     cands: (t.cands || []).slice(0, 3).map(c => c.name),
     ocr: t.namnLast ? { text: t.namnLast.text, namn: t.namnLast.namn, poang: t.namnLast.poang, marginal: t.namnLast.marginal, ms: t.namnLast.ms, hoppad: t.namnLast.hoppad || null, start: t.namnLast.start, vand: !!t.namnLast.vand } : null,
     /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
-    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
+    remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, utom: t.remsa.utom || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
     maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
     /* Detektorns remslåda (MES-331), samma andelar som lådan — för dubblettregelns mått mellan remsor. */
     rl: t.remsaLada ? { x: f4(r.x + t.remsaLada.x / aw * r.w), y: f4(r.y + t.remsaLada.y / ah * r.h), w: f4(t.remsaLada.w / aw * r.w), h: f4(t.remsaLada.h / ah * r.h) } : null,
@@ -1030,12 +1030,34 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
   const ratt = (t, k) => t.namn && norm(t.namn) === norm(k.namn);
   /* 1. Rutorna: girig matchning på IoU, bästa paret först. 0,3 är lågt med
      flit: ett spår som täcker halva kortet står på rätt plats — det är
-     namnet och ramen som sedan avgör om det duger. */
-  const par = [];
-  kortAlla.forEach((k, ki) => { if (!harRuta(k)) return; spar.forEach((t, ti) => { const v = iou(k, t); if (v >= 0.3) par.push({ ki, ti, v }); }); });
-  par.sort((a, b) => b.v - a.v);
+     namnet och ramen som sedan avgör om det duger.
+     Facits ruta (x y w h) är kortets SYNLIGA del (Jespers beslut, SNABBGUIDE
+     Rita facit). Appen ritar hela kortet också när bara en remsa syns, så det
+     som blev över efter rutorna paras i en andra omgång mot HELA kortet ur de
+     ritade hörnen (helaLadan) — golden 14: Resistance Reunited under Trusty
+     Retriever räknades annars som missat + falskt + fel namn (MES-331 pass 4).
+     Andra omgången, inte max(ruta, hela kortet) i en: i en tät hög tog en
+     låda annars grannens hela kort före sitt eget synliga (parprov MES-246:
+     728 → 727 egna, 2 dubbletter till). I andra omgången måste spåret
+     dessutom TÄCKA den synliga rutan till minst hälften (andelInne): en
+     dubblettlåda på högens översta kort har IoU ≥ 0,3 mot det undre
+     kortets hela låda men når inte den undre remsan som sticker fram, och
+     hade annars räknats som det undre kortet hittat (granskningen pass 4
+     — golden ska se dubbletter på högar). Plats (IoU ≥ 0,3 mot rutan) och
+     tap-läge mäts som förut mot den synliga rutan; traffar bär omgang. */
+  const helaLadan = k => { if (!Array.isArray(k.horn) || k.horn.length < 3) return null; const xs = k.horn.map(p => p[0]), ys = k.horn.map(p => p[1]), x = Math.min(...xs), y = Math.min(...ys); return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }; };
+  const andelInne = (a, b) => { const x0 = Math.max(a.x, b.x), y0 = Math.max(a.y, b.y), x1 = Math.min(a.x + a.w, b.x + b.w), y1 = Math.min(a.y + a.h, b.y + b.h); const s = Math.max(0, x1 - x0) * Math.max(0, y1 - y0); return a.w * a.h > 0 ? s / (a.w * a.h) : 0; };   // hur stor del av a som ligger i b
   const tagnaK = new Set(), tagnaT = new Set(), traffar = [];
-  for (const p of par) { if (tagnaK.has(p.ki) || tagnaT.has(p.ti)) continue; tagnaK.add(p.ki); tagnaT.add(p.ti); traffar.push({ k: kortAlla[p.ki], t: spar[p.ti], iou: +p.v.toFixed(2), plats: true }); }
+  for (const omgang of ['ruta', 'hel']) {
+    const par = [];
+    kortAlla.forEach((k, ki) => {
+      if (!harRuta(k) || tagnaK.has(ki)) return;
+      const lada = omgang === 'ruta' ? k : helaLadan(k); if (!lada) return;
+      spar.forEach((t, ti) => { if (tagnaT.has(ti)) return; const v = iou(lada, t); if (v >= 0.3 && (omgang === 'ruta' || andelInne(k, t) >= 0.5)) par.push({ ki, ti, v, vr: omgang === 'ruta' ? v : iou(k, t) }); });
+    });
+    par.sort((a, b) => b.v - a.v);
+    for (const p of par) { if (tagnaK.has(p.ki) || tagnaT.has(p.ti)) continue; tagnaK.add(p.ki); tagnaT.add(p.ti); traffar.push({ k: kortAlla[p.ki], t: spar[p.ti], iou: +p.vr.toFixed(2), plats: p.vr >= 0.3, omgang }); }
+  }
   /* 2. Namnen: facitkort utan ruta paras med kvarvarande spår på namnet —
      säkra svar först, sedan osäkra — så att ett kort som lästs rätt men
      osäkert räknas som osäkert och inte som miss. */
@@ -1145,7 +1167,7 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     skarLogg: dia.skarLogg || [],
     fodslar: dia.fodslar || [],   // varför varje spår föddes (MES-83)
     gravProv: dia.gravProv || [],   // högvaktens domar (MES-85)
-    traffar: traffar.map(p => ({ facit: p.k.namn, dold: !!p.k.dold, spar: p.t.id, namn: p.t.namn, saker: p.t.saker, iou: p.iou })),
+    traffar: traffar.map(p => ({ facit: p.k.namn, dold: !!p.k.dold, spar: p.t.id, namn: p.t.namn, saker: p.t.saker, iou: p.iou, omgang: p.omgang || null })),   // omgang 'hel' = parad mot hela kortet ur hörnen (MES-331 pass 4)
     spar: alla
   };
 }

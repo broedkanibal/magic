@@ -101,6 +101,17 @@ def band(strip):
     return [(i, for_ocr(strip[int(h * a):max(int(h * a) + 2, int(h * b))])) for i, (a, b) in enumerate(BAND)]
 
 
+def med_fickkant(strip, farg, andel=0.15):
+    """MES-331 pass 4 (A3, prov): en referensremsa som om kortet satt i en plastficka — remsan skjuts ner ANDEL av
+    sin höjd och överkanten fylls med fickans kant (BGR). Golden 14/15: Plains i gröna fickor, titeldelen 0,169 i appen."""
+    h = strip.shape[0]
+    k = max(1, int(round(h * andel)))
+    ut = np.empty_like(strip)
+    ut[:k] = np.array(farg, dtype=strip.dtype)
+    ut[k:] = strip[:h - k]
+    return ut
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--kallor', nargs='+', default=['golden', 'mes246'])
@@ -108,12 +119,19 @@ def main():
     p.add_argument('--strack', type=float, default=1.0, help='detektorlådan sträcks nedåt (mot kortets kropp) så här många gånger: 1,43 gör en 14 %%-remsa till 20 %%')
     p.add_argument('--vanster', type=float, default=0.0, help='MES-331 steg 5: bildmodellen också på remsans VÄNSTRA andel (titeln, utan fickkant och mana) — v_namn/v_marginal/v_saker per rad, som andra vittne')
     p.add_argument('--namn', default='detektorremsor', help='resultatfilens namn i dev/remsa/resultat/')
+    p.add_argument('--ficka', action='store_true', help='MES-331 pass 4 (A3, prov): referenser också med fickkant (med_fickkant: grön och ljus kant, remsan nedskjuten 15 %%) — hjälper det titeldelen på golden 14/15:s Plains i gröna fickor utan säkra fel?')
     p.add_argument('--ut', default=UT)
     a = p.parse_args()
     det = Detektor()
     m = Bildmodell()
     bilder = las_referensbilder()
-    refs = Referenser(m, [(n, i, ref_strip(img, a.andel)) for n, i, img in bilder], rotar=(0, 180))
+    refs_bilder = [(n, i, ref_strip(img, a.andel)) for n, i, img in bilder]
+    if a.ficka:
+        for n, i, img in bilder:
+            s = ref_strip(img, a.andel)
+            for farg in ((60, 120, 60), (205, 205, 205)):   # BGR: grön ficka (golden 14/15), ljus/klar ficka (MES-246)
+                refs_bilder.append((n, i, med_fickkant(s, farg)))
+    refs = Referenser(m, refs_bilder, rotar=(0, 180))
     kallor = {}
     if 'golden' in a.kallor: kallor['golden'] = remsor.golden()
     if 'mes246' in a.kallor: kallor['mes246'] = remsor.mes246()

@@ -913,10 +913,10 @@ namn ger det till nästa kort du ritar.
 |---|---|
 | `synlig` | andelen av kortet som ligger i bild och inte under ett kort med högre `z` |
 | `namnrad` | samma sak för namnraden |
-| `dold` | **mindre än halva namnraden syns** (Jespers beslut). Ett kort under ett annat med namnraden fri är alltså inte dolt |
+| `dold` | **namnet går inte att läsa** (Jespers beslut 2026-10-02: syns namnet är kortet ett kort): mindre än hälften av namnradens *början* syns — den första fjärdedelen av raden (4–17,75 mm), där ett baslands hela namn står (Plains slutar vid 14,3 mm, Swamp 15,7, mätt på Scryfalls bilder) och de första bokstäverna av ett längre. Ett kort under ett annat med namnradens början fri är alltså inte dolt, hur mycket av resten av raden som än är täckt. Till 2026-10-02 var regeln *mindre än halva namnraden syns*, som dolde golden 06:s mittersta Swamp fast namnet står läsbart |
 | `tappad` | namnraden står mer än 45° från grundläget (`ruta.upp`) |
 | avskuret | mer än 2 % av kortet utanför bilden — står då i `avskurna` |
-| `x y w h` | lådan runt kortets **synliga** del — golden mäter plats och tap-läge mot den (Jespers beslut; rutan "skriv lådan" i panelen) |
+| `x y w h` | lådan runt kortets **synliga** del — golden mäter plats och tap-läge mot den (Jespers beslut; rutan "skriv lådan" i panelen). Appen ritar hela kortet också när bara en remsa syns, så kor.html **parar** spår mot rutan först och sedan, i en andra omgång, det som blev över mot hela kortet ur `horn` (MES-331 pass 4: annars räknades golden 14:s Resistance Reunited under Trusty Retriever som missat + falskt + fel namn); plats (IoU ≥ 0,3) och tap-läge mäts fortfarande mot rutan |
 | `hog` | A, B … för kort som ligger omlott utan att vara fästa. En hög behåller sin bokstav hela filmen |
 | `fast` | **föreslås, räknas inte**: ett equipment eller en aura omlott med en varelse eller token. F bekräftar. I passet 2026-09-22 sätts det ur händelsefacits kolumn `till` |
 
