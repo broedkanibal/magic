@@ -668,7 +668,7 @@ function aterkoppling(f, prov) {
       if (p && typeof p.then === 'function') p.then(svar => { try { loggaLasning(prov, s, id, w0, h0, svar, spek); } catch (e) {} }, () => {});
       return folj(p);
     },
-    fragaAI: (c, id) => w.kamFragaAI(c, id),
+    fragaAI: (c, id) => { sparaBeskarning(f.id, c, 'ai' + id); return w.kamFragaAI(c, id); },   // det Claude fick se (--beskarningar: …-sparMaiN-borta.jpg)
     lekTak: n => w.kamLekTak(n),   // antalspriorn på gissningarna (MES-225), som i appen
     lart: (id, namn, sid, kalla) => w.kamLart(id, namn, sid, kalla),
     aiPa: () => AI_PA,   // rådet om avståndet väntar på Claude bara när Claude faktiskt frågas

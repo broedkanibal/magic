@@ -27227,7 +27227,7 @@ function kamFragaAI(canvas, id) {
            utan lista. Inget av dem är ett besked om bordet. Betalt är det
            ändå: tokens följer med när servern hade dem. */
         if (j.varfor || !Array.isArray(j.kort)) { info = { fel: j.varfor || 'ingen kortlista', modell: j.modell || null }; kamAiBokfor(j.modell || null, j.usage || null, true); }
-        else { svar = kamAiPoster(j.kort, id, true); info = { modell: j.modell || null, antal: j.kort.length, usage: j.usage || null }; kamAiBokfor(j.modell || null, j.usage || null, false); }
+        else { svar = kamAiPoster(j.kort, id, true); info = { modell: j.modell || null, antal: j.kort.length, usage: j.usage || null, okanda: Array.isArray(j.okanda) && j.okanda.length ? j.okanda.slice(0, 5) : undefined }; kamAiBokfor(j.modell || null, j.usage || null, false); }   // okanda: namn Claude gav som inte finns i leken — servern tömmer dem, och utan dem ser svaret ut som "inget kort"
       }
     } catch (e) { info = { fel: 'nätet' }; kamAiBokfor(null, null, true); }
     /* Svarstiden är ett värde per anrop, inte per spår: den får ligga i
