@@ -94,8 +94,28 @@ http.createServer((req, res) => {
     ? 'lekfotot svarar med elva kort, dubbletter och en trasig rad'
     : process.env.STUB_LEK === 'trasigt' ? 'lekfotot svarar utan JSON'
     : 'lekfotot svarar "inga kort" — sätt STUB_LEK=kort för att prova listan'));
+  if (process.env.STUB_KAMERA) console.log(`     STUB_KAMERA=${process.env.STUB_KAMERA} — ${stubKameraRegler().length} regler svarar som Claude i kameraläget för utpekade spår (MES-331)`);
   console.log('     Riktig igenkänning testas mot produktionsdeployen, inte här.');
 });
+/* Reglerna i STUB_KAMERA (se kameraläget i hantera). Filen läses en gång;
+   en trasig fil är ett fel som ska synas, inte en tyst tom lista. */
+let stubKameraCache = null;
+function stubKameraRegler() {
+  if (stubKameraCache) return stubKameraCache;
+  const fil = process.env.STUB_KAMERA;
+  const j = JSON.parse(fs.readFileSync(path.isAbsolute(fil) ? fil : path.join(ROOT, fil), 'utf8'));
+  stubKameraCache = (Array.isArray(j) ? j : [j]).map(r => ({ bland: r.bland || [], topp: r.topp || 3, ganger: r.ganger == null ? 1 : r.ganger, svarat: 0,
+    kort: (r.kort || []).map(k => ({ namn: k.namn || '', x: +k.x || 0, y: +k.y || 0, sakerhet: k.sakerhet || 'lag' })) }));
+  return stubKameraCache;
+}
+function stubKameraRegel(names) {
+  for (const r of stubKameraRegler()) {
+    if (r.svarat >= r.ganger) continue;
+    const topp = names.slice(0, r.topp);
+    if (r.bland.length && r.bland.every(n => topp.includes(n))) { r.svarat++; return r; }
+  }
+  return null;
+}
 /* Ett kastat undantag i lyssnaren dödar annars processen — en enda konstig
    GET från nätet räckte (granskningen: ett huvud med tecken utanför Latin-1). */
 function hantera(req, res) {
@@ -192,6 +212,27 @@ function hantera(req, res) {
                         { namn: '',      x: 500, y: 500, sakerhet: 'lag' },
                         { namn: 'Plains', x: 750, y: 700, sakerhet: 'hog' } ] };
         console.log(`stub/pane: bild ${Math.round((body2.image||'').length/1024)} kB, svarar ${svar.kort.length} kort (STUB_PANE=${process.env.STUB_PANE || 'none'})`);
+        res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
+        return res.end(JSON.stringify(svar));
+      }
+      /* Kameraläget (beskärningen av ett osäkert spår, Kamera.svarAI).
+         Standard är det gamla svaret utan kortlista ({n: 0}): appen läser det
+         som "inget besked" och den lokala domen står — så golden utan --ai
+         mäter kameran ensam. STUB_KAMERA pekar på en JSON-fil med regler som
+         svarar som Claude för utpekade spår, så att en fälla i svarAI går att
+         återskapa deterministiskt utan att betala (MES-331: klungan
+         "Scourge of the Undercity, Pacifism" på golden 05:s Pacifism). En
+         regel: { "bland": ["Namn A", "Namn B"], "topp": 3, "kort": [{ "namn",
+         "x", "y", "sakerhet" }] } — den gäller när alla namnen i bland står
+         bland de topp (förval 3) första namnen i frågan (kamAiNamnen lägger
+         spårets egna förslag först, så det pekar ut spåret). x, y är 0–1000 i
+         den skickade bilden, som servern svarar. Varje regel svarar högst
+         "ganger" gånger (förval 1). kor.cjs --stub-kamera <fil> sätter
+         variabeln och slår på frågorna i sidan. */
+      if (body2 && body2.mode === 'kamera' && process.env.STUB_KAMERA) {
+        const regel = stubKameraRegel(names);
+        const svar = regel ? { kort: regel.kort, okanda: [], promptv: 20, usage: { input_tokens: 0, output_tokens: 0 }, modell: 'stub-kamera' } : { n: 0, sakerhet: 'lag' };
+        console.log(`stub/kamera: topp ${JSON.stringify(names.slice(0, 3))} → ${regel ? regel.kort.map(k => `${k.namn}/${k.sakerhet}@${k.x},${k.y}`).join('; ') : 'inget besked (lokala domen står)'}`);
         res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, cors()));
         return res.end(JSON.stringify(svar));
       }

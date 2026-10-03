@@ -26112,7 +26112,30 @@ const Kamera = (() => {
      svaret var på väg behåller sitt namn; svaret får bara lägga till
      klungans övriga kort. Uppmätt på golden-setets 24 beskärningar med
      lekens 28 namn: 35 av 35 kort rätt, alla tio lokalt osäkra med 'hog',
-     0 fel namn med 'hog' (Opus 5 och Sonnet 5), 1,7–2,2 s per beskärning. */
+     0 fel namn med 'hog' (Opus 5 och Sonnet 5), 1,7–2,2 s per beskärning.
+     Klungan gör inget namn SÄKERT (MES-331): när Claude listar fler kort
+     än ett i beskärningen av EN låda är frågan vilket av dem som är lådans
+     kort, och det kan varken listans ordning, Claudes lägen eller spårets
+     egna vittnen avgöra. Golden 05, Pacifism med Scourge of the Undercitys
+     titelrad framstickande överst i beskärningen: Claude svarade "Scourge,
+     Pacifism" (båda 'hog'), Pacifism-posten låg vid sin titelrad i
+     beskärningens kant och föll för kantfiltret, och spåret tog Scourge
+     säkert — 4/6 med ett säkert fel namn och hög B fel (återskapat med
+     dev/golden/stub-kamera-05-klunga.json). Spårets egna vittnen pekade
+     ALLA på grannen, för grannens titel ligger i beskärningen: titelraden
+     "Scourge" 0,63, remsans textläsare 0,53, remsan 0,105–0,111 och det
+     lokala förslaget överst (konflikt: bilden Pacifism 0,67 mot titeln
+     Scourge 0,63) — så ett vittneskrav av maskVittnes slag hade släppt
+     igenom samma fel. Med Pacifism mitt i beskärningen i stället delades
+     spåret, flyttades till Scourges läge och dog utan egen låda, och det
+     riktiga Scourge-spåret dog som dess dubblett (5/6, Scourge saknas).
+     Därför: ur en klunga läggs posten närmast beskärningens mitt överst
+     bland spårets förslag (osäkert, granskningen avgör), spåret behåller
+     sin låda, och klungans övriga poster blir nya spår bara när lådan är
+     större än ett kort — osäkra, med Claudes namn överst. Ett svar med ETT
+     kort gäller som förut: 'hog' blir säkert (maskad beskärning kräver
+     vittne). Kostnad i golden: ingen — 05:s Pacifism var lokalt osäker
+     redan, och ingen annan klunga i AI-baslinjen hade 'hog'. */
   /* Claude såg inget kort i beskärningen. Namnet — den lokala bästa
      gissningen — tas bort också. Ett skräpspår MED namn nollställs aldrig
      av rörelse (matcha kräver !namn), och ett spöke av det gav nästa spår på
@@ -26159,7 +26182,11 @@ const Kamera = (() => {
     const inuti = (p, q) => p.cx >= q.box.x && p.cx <= q.box.x + q.box.w && p.cy >= q.box.y && p.cy <= q.box.y + q.box.h;
     const klara = spar.filter(q => q !== t && q.tillstand === 'klar' && !arHelbild(q)).map(q => q.lang * q.kort).sort((p, q) => p - q);
     const ref = klara.length ? klara[klara.length >> 1] : 0;
-    const ettKort = ref ? lang0 * kort0 < 1.6 * ref : svar.length <= 1;
+    /* Utan säkra spår att mäta mot är lådan ETT kort (MES-331): detektorn
+       ger en låda per kort, och Claudes första svar kommer just när inget
+       spår hunnit bli klart — förut gällde då Claudes antal, och en klunga
+       delade lådan i spår på Claudes lägen. */
+    const ettKort = ref ? lang0 * kort0 < 1.6 * ref : true;
     /* Delarna i graveyard- och library-rutan är högarna, inte bordet (MES-180):
        detektorns regioner filtreras på rutorna (iGrav/iBib), men en klunga
        av högen och leken bredvid som sträckte sig utanför rutan frågades
@@ -26167,42 +26194,53 @@ const Kamera = (() => {
        ur högen — blev ett eget säkert spår på sin plats (golden 11). */
     let delar = svar.filter(k => { const p = lage(k); return !iGrav(p) && !iBib(p); });
     if (!delar.length && svar.length) { rapportera(); return; }
-    if (delar.length > 1) {
+    /* Klungan (MES-331, se ovan): fler kort än ett utanför högarna. Inget
+       ur den blir säkert — varken på spåret eller på nya spår. Posten
+       närmast mitten är den som rimligast är lådans kort och läggs överst
+       bland förslagen; ordningen i Claudes lista betyder inget (05: grannen
+       stod först). Kantfiltret och "redan ett spår med namnet" gäller som
+       förut för vad som får bli NYA spår. */
+    const klunga = delar.length > 1;
+    if (klunga) {
       const inre = delar.filter(k => k.x > 0.08 && k.x < 0.92 && k.y > 0.08 && k.y < 0.92);
       if (inre.length) delar = inre;
-      delar = delar.filter(k => !spar.some(q => q !== t && q.namn === k.namn && inuti(lage(k), q)));
-      if (ettKort && delar.length > 1) { delar.sort((p, q) => Math.hypot(p.x - 0.5, p.y - 0.5) - Math.hypot(q.x - 0.5, q.y - 0.5)); delar = [delar[0]]; }
+      delar.sort((p, q) => Math.hypot(p.x - 0.5, p.y - 0.5) - Math.hypot(q.x - 0.5, q.y - 0.5));
+      delar = delar.filter((k, i) => i === 0 || !spar.some(q => q !== t && q.namn === k.namn && inuti(lage(k), q)));
+      if (ettKort) delar = [delar[0]];
+      delar = delar.map(k => k.saker ? Object.assign({}, k, { saker: false, sakerhet: 'klunga' }) : k);
+      t.ai.svar.forEach(s => { if (s.saker) { s.saker = false; s.sakerhet = 'klunga'; } });   // vad golden och datorn ser: klungans 'hog' gäller inte
     }
     const redanKlar = t.tillstand === 'klar' && t.saker;
     if (redanKlar) delar = delar.filter(k => k.namn !== t.namn);
     if (!delar.length || (redanKlar && ettKort)) { rapportera(); return; }
-    if (!redanKlar && delar.length === 1) {
+    if (!redanKlar) {
+      /* Spårets eget svar: ett kort, eller klungans post närmast mitten.
+         Spåret behåller sin låda — det är detektorns, inte Claudes. */
       const k = delar[0];
       t.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((t.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
-      t.namn = k.namn; t.sid = k.sid; t.saker = !!k.saker; t.varfor = k.saker ? 'ai' : 'ai osäker';
+      t.namn = k.namn; t.sid = k.sid; t.saker = !!k.saker; t.varfor = k.saker ? 'ai' : klunga ? 'ai klunga' : 'ai osäker';
       t.tillstand = k.saker ? 'klar' : 'okand';
       if (k.saker) stampla(t, 'namn', 'ai');
       /* Ett kort, säkert: beskärningen lärs som referens för namnet (K7). */
       if (k.saker && k.sakerhet === 'hog' && cb.lart) { try { cb.lart(t.id, k.namn, k.sid, 'ai'); } catch (e) {} }
-      rapportera(); return;
+      delar = delar.slice(1);
     }
-    const skal = 1 / Math.sqrt(delar.length + (redanKlar ? 1 : 0));
-    delar.forEach((k, i) => {
+    /* Klungans övriga poster: nya, osäkra spår på Claudes lägen (lådan är
+       större än ett kort), skymda tills korten flyttas isär. */
+    const skal = 1 / Math.sqrt(delar.length + 1);
+    delar.forEach(k => {
       const p = lage(k), w = b.w * skal, h = b.h * skal;
-      const q = (!redanKlar && i === 0) ? t : { id: nastaId++, fodd: t.fodd, sedd: t.sedd, stillaFran: t.stillaFran, tomMs: 0, skymd: true,
-                                                tappad: t.tappad, tappRun: 0, vinkel: t.vinkel, gissning: null, ram: null, aiFragad: true };
+      const q = { id: nastaId++, fodd: t.fodd, sedd: t.sedd, stillaFran: t.stillaFran, tomMs: 0, skymd: true,
+                  tappad: t.tappad, tappRun: 0, vinkel: t.vinkel, gissning: null, ram: null, aiFragad: true };
       q.cx = p.cx; q.cy = p.cy;
       q.box = { x: Math.round(p.cx - w / 2), y: Math.round(p.cy - h / 2), w: Math.max(4, Math.round(w)), h: Math.max(4, Math.round(h)) };
       q.lang = lang0 * skal; q.kort = kort0 * skal; q.areaRef = q.box.w * q.box.h * 0.9;
-      q.namn = k.namn; q.sid = k.sid; q.saker = !!k.saker; q.cands = [{ name: k.namn, sid: k.sid, score: 0 }];
-      q.fragad = true; q.namnLast = q === t ? t.namnLast : null; q.ai = t.ai; q.varfor = k.saker ? 'ai' : 'ai osäker';
-      q.tillstand = k.saker ? 'klar' : 'okand';
-      if (q !== t) { q.lokalMs = t.lokalMs; spar.push(q); }   // klungans lokala tid gäller varje del; ai.ms ligger i det delade ai-objektet
+      q.namn = k.namn; q.sid = k.sid; q.saker = false; q.cands = [{ name: k.namn, sid: k.sid, score: 0 }];
+      q.fragad = true; q.namnLast = null; q.ai = t.ai; q.varfor = 'ai klunga'; q.tillstand = 'okand';
+      q.lokalMs = t.lokalMs; spar.push(q);   // klungans lokala tid gäller varje del; ai.ms ligger i det delade ai-objektet
       /* En ny del ärver klungans stämplar — kortet lades när klungan gjorde det. */
-      if (latens && q !== t && t.ts) q.ts = { bild: t.ts.bild, hittat: t.ts.hittat, stilla: t.ts.stilla, stillaRor: t.ts.stillaRor, rorelse: t.ts.rorelse, fraga: t.ts.fraga, las: t.ts.las, klunga: t.id };
-      if (k.saker) stampla(q, 'namn', 'klunga');
+      if (latens && t.ts) q.ts = { bild: t.ts.bild, hittat: t.ts.hittat, stilla: t.ts.stilla, stillaRor: t.ts.stillaRor, rorelse: t.ts.rorelse, fraga: t.ts.fraga, las: t.ts.las, klunga: t.id };
     });
-    if (!redanKlar) t.ram = null;
     rapportera();
   }
 

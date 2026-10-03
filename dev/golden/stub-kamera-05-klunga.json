@@ -1,0 +1,12 @@
+[
+  {
+    "_": "MES-331: Claudes klunga-svar på golden 05:s Pacifism (hög B). Beskärningen av Pacifisms låda rymmer Scourge of the Undercitys titelrad överst, och i en av två --ai-körningar 2026-10-03 svarade Claude 'Scourge of the Undercity, Pacifism' — båda 'hog' — och 05 blev 4/6 med ett säkert fel namn och hög B fel. Spåret pekas ut av sina egna förslag (Scourge och Pacifism bland de tre första namnen i frågan). Lägena är 0–1000 i den skickade bilden, som är vriden −90° (kortet ligger liggande): x är kortets längdled i källan. Rekonstruktionen som ger exakt den riktiga körningens utfall: Scourge vid x 120 (titelraden överst, innanför kantfiltrets 8 %) och Pacifism vid x 950 — SIN titelrad, i beskärningens yttersta kant, där svarAI:s kantfilter tar bort den som en grannkant. Kvar blir Scourge ensam, och spåret får det säkert utan att flyttas; det riktiga Scourge-spåret dör sedan som dubblett. (Med Pacifism mitt i, x 500, flyttas spåret i stället till Scourges läge och dör, och Scourge saknas: 5/6, 0 fel — mätt 2026-10-03, se commit-meddelandet.) Körs med: node dev/golden/kor.cjs --fall 05 --stub-kamera dev/golden/stub-kamera-05-klunga.json",
+    "bland": ["Scourge of the Undercity", "Pacifism"],
+    "topp": 3,
+    "ganger": 1,
+    "kort": [
+      { "namn": "Scourge of the Undercity", "x": 120, "y": 500, "sakerhet": "hog" },
+      { "namn": "Pacifism", "x": 950, "y": 500, "sakerhet": "hog" }
+    ]
+  }
+]
