@@ -1,0 +1,206 @@
+/* Mesa Piles From Play — högarna utan uppstart (dev/plan/hogarna-principer.md).
+   Bygger på mesa.css (appens utseende). Nytt här: kvittensen vid högen,
+   Nej-menyn, notisen när grundläget byts, högarna på sin fysiska plats
+   (etapp 2) och rörelserna. Tiderna och easingen är D:s
+   (design_handoff_animeringar/TIDSLINJER.md): UT .2,.8,.3,1 · FLY .4,0,.2,1 ·
+   SOFT .3,.7,.3,1. */
+
+.crop2{width:1061px;height:722px}
+.crop2 > .matta{position:absolute;left:10px;top:10px;width:1041px;height:702px}
+.mtom{position:absolute;left:0;right:0;top:300px;text-align:center;font:500 15px/1.4 var(--sans);color:var(--dim2)}
+.mtom b{display:block;font:600 17px/1.4 var(--sans);color:var(--dim)}
+
+/* ── Kvittensen vid högen ─────────────────────────────────────────── */
+.kv{position:absolute;z-index:30;display:flex;align-items:center;gap:8px;height:30px;padding:0 4px 0 9px;border-radius:8px;background:#04070cf2;border:1px solid #3a4658;box-shadow:0 8px 22px -8px #000e;font:600 12px/1 var(--sans);color:var(--txt);white-space:nowrap}
+.kv .ok{display:inline-flex;align-items:center;gap:6px}
+.kv .ok svg{flex:none}
+.kv.bla .ok svg{color:#8fa8ff}
+.kv.gul .ok svg{color:#f0c35a}
+.kv .kvsep{width:1px;height:14px;background:var(--line);flex:none}
+.kv button{height:22px;padding:0 8px;border-radius:5px;font:500 11.5px/1 var(--sans);color:var(--dim);text-decoration:underline;text-decoration-color:#93a1b655;text-underline-offset:3px}
+.kv button:hover{color:var(--txt);background:var(--bg3)}
+.kv .lbl{font:500 11.5px/1 var(--sans);color:var(--dim)}
+.kv .val{height:24px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 11.5px/1 var(--sans);text-decoration:none}
+.kv .val:hover{background:var(--bg4)}
+.kv .stang{width:24px;padding:0;text-decoration:none;font-size:15px;color:var(--dim2)}
+
+/* ── Nej-menyn ────────────────────────────────────────────────────── */
+.vmeny{position:absolute;z-index:40;width:250px;padding:6px;border-radius:11px;background:#0b1017;border:1px solid #3a4658;box-shadow:0 18px 40px -12px #000f}
+.vmeny .rub{display:block;padding:7px 9px 8px;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--dim2)}
+.vmeny button{display:flex;align-items:flex-start;gap:10px;width:100%;padding:8px 9px;border-radius:7px;text-align:left}
+.vmeny button:hover{background:var(--bg3)}
+.vmeny button i{flex:none;width:10px;height:10px;margin-top:3px;border-radius:3px}
+.vmeny button span{display:flex;flex-direction:column;gap:3px}
+.vmeny button b{font:600 13px/1.2 var(--sans);color:var(--txt)}
+.vmeny button em{font:12px/1.3 var(--sans);font-style:normal;color:var(--dim)}
+.vmeny .perm i{background:#e7ecf4}
+.vmeny .exil i{background:#9d85d6}
+.vmeny .ign i{background:transparent;border:1.5px dashed #66748a}
+
+/* ── Notisen när grundläget byts ──────────────────────────────────── */
+.gnot{position:absolute;z-index:30;display:flex;align-items:center;gap:10px;height:36px;padding:0 6px 0 13px;border-radius:9px;background:#04070cf2;border:1px solid #3a4658;box-shadow:0 10px 26px -10px #000e;font:500 13px/1 var(--sans);color:var(--txt);white-space:nowrap}
+.gnot button{height:26px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 12px/1 var(--sans)}
+
+/* ── Högarna på sin fysiska plats (etapp 2): kortets storlek + 8 px ─ */
+.hp{position:absolute;width:146px;height:198px;border-radius:10px}
+.hp img{position:absolute;left:8px;top:8px;width:130px;height:182px;object-fit:cover;border-radius:8px;box-shadow:0 4px 12px -3px #000c}
+.hp.lek{border:1.5px solid #6b8cff;background:#0b0f1540}
+.hp.lek img:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
+.hp.lek img:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
+.hp.gy{border:1.5px dashed #e8b33a99;background:#0b0f1573}
+.hp.gy img{filter:grayscale(.6) brightness(.55) contrast(1.05)}
+.hprad{position:absolute;z-index:22}
+
+/* ═══ Etapp 1 · graveyard: kortet flyger till dagens hög ═══════════ */
+.e1fly{position:absolute;left:480px;top:60px;z-index:28;transform-origin:0 0;animation:e1fly 7s infinite}
+@keyframes e1fly{
+  0%,14%{transform:translate(0,0) scale(1);box-shadow:0 4px 12px -3px #000c;filter:none;opacity:1;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  15.3%{transform:translate(-3.25px,-4.55px) scale(1.05);box-shadow:0 26px 40px -12px #000f;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  20.7%{transform:translate(-451.5px,412.5px) scale(.7077);box-shadow:0 4px 14px -3px #000d;filter:none;animation-timing-function:ease-in-out}
+  27.6%{filter:grayscale(.6) brightness(.55) contrast(1.05)}
+  90%{opacity:1;transform:translate(-451.5px,412.5px) scale(.7077);filter:grayscale(.6) brightness(.55) contrast(1.05)}
+  95%{opacity:0;transform:translate(-451.5px,412.5px) scale(.7077)}
+  96%{opacity:0;transform:translate(0,0) scale(1);filter:none}
+  100%{opacity:1;transform:translate(0,0) scale(1);filter:none}
+}
+.e1grav{animation:e1ring 7s infinite}
+@keyframes e1ring{
+  0%,20.7%{box-shadow:0 0 0 0 #e8b33a00,0 0 0 0 #e8b33a00}
+  23%{box-shadow:0 0 0 6px #e8b33a30,0 0 28px 6px #e8b33a40}
+  32%,100%{box-shadow:0 0 0 0 #e8b33a00,0 0 0 0 #e8b33a00}
+}
+.e1n0{animation:e1n0 7s infinite}
+.e1n1{animation:e1n1 7s infinite}
+@keyframes e1n0{0%,20.6%{opacity:1}20.7%,95%{opacity:0}96%,100%{opacity:1}}
+@keyframes e1n1{0%,20.6%{opacity:0}20.7%,90%{opacity:1}95%,100%{opacity:0}}
+.e1kv{animation:e1kv 7s infinite}
+@keyframes e1kv{0%,23%{opacity:0;transform:translateY(4px)}27%,86%{opacity:1;transform:translateY(0)}91%,100%{opacity:0;transform:translateY(0)}}
+
+/* ═══ Etapp 1 · grundläget byts efter tre kort ═════════════════════ */
+.grk{animation:grk 6.5s infinite}
+@keyframes grk{
+  0%,15.4%{transform:rotate(90deg);animation-timing-function:cubic-bezier(.3,.7,.3,1)}
+  19.1%,92%{transform:rotate(0deg)}
+  96%,100%{transform:rotate(90deg)}
+}
+.grk.d2{animation-delay:.15s}.grk.d3{animation-delay:.3s}
+.grk img{animation:grkimg 6.5s infinite}
+.grk.d2 img{animation-delay:.15s}.grk.d3 img{animation-delay:.3s}
+@keyframes grkimg{0%,15.4%{filter:brightness(.86) saturate(.94)}19.1%,92%{filter:none}96%,100%{filter:brightness(.86) saturate(.94)}}
+.grw{animation:grw 6.5s infinite}
+@keyframes grw{0%,90%{opacity:1}94%,97%{opacity:0}100%{opacity:1}}
+.gnot.anim{animation:gnot 6.5s infinite}
+@keyframes gnot{0%,26%{opacity:0;transform:translateY(6px)}30%,86%{opacity:1;transform:translateY(0)}90%,100%{opacity:0;transform:translateY(0)}}
+
+/* ═══ Etapp 2 · en graveyard skapas där kortet ligger ══════════════ */
+/* Gemensamt: utspelet (D: 90 px från spelarens håll, UT 330 ms, skala
+   1,08 → 0,985 → 1) och att kortet tonas som högens toppkort. */
+.gk{position:absolute;z-index:24;width:130px;height:182px;border-radius:8px}
+.gk img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+
+.g1k{animation:g1k 7s infinite}
+@keyframes g1k{
+  0%{opacity:0;transform:translateY(90px) scale(1.08);filter:none;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  1.3%{opacity:1}
+  4.7%{transform:translateY(0) scale(.985)}
+  5.7%{transform:translateY(0) scale(1)}
+  28%{filter:none;animation-timing-function:ease-in-out}
+  34.9%{filter:grayscale(.6) brightness(.55) contrast(1.05)}
+  88%{opacity:1;transform:translateY(0) scale(1);filter:grayscale(.6) brightness(.55) contrast(1.05)}
+  94%{opacity:0}
+  100%{opacity:0;transform:translateY(90px) scale(1.08);filter:none}
+}
+.g1ram{position:absolute;z-index:23;border-radius:10px;border:1.5px dashed #e8b33a;background:#0b0f1573;animation:g1ram 7s infinite}
+@keyframes g1ram{
+  0%,28%{opacity:0;transform:scale(.94);border-color:#e8b33a;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  32.6%{opacity:1;transform:scale(1);border-color:#e8b33a}
+  40%{border-color:#e8b33a99}
+  88%{opacity:1;transform:scale(1);border-color:#e8b33a99}
+  94%,100%{opacity:0;transform:scale(.94)}
+}
+.g2k{animation:g2k 7s infinite}
+@keyframes g2k{
+  0%{opacity:0;transform:translateY(90px) scale(1.08);filter:none;box-shadow:0 4px 12px -3px #000c;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  1.3%{opacity:1}
+  4.7%{transform:translateY(0) scale(.985)}
+  5.7%,28%{transform:translateY(0) scale(1);box-shadow:0 4px 12px -3px #000c;filter:none;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  35%{transform:translateY(0) scale(.955);box-shadow:0 1px 3px 0 #000c;filter:grayscale(.6) brightness(.55) contrast(1.05)}
+  88%{opacity:1;transform:translateY(0) scale(.955);filter:grayscale(.6) brightness(.55) contrast(1.05)}
+  94%{opacity:0}
+  100%{opacity:0;transform:translateY(90px) scale(1.08);filter:none}
+}
+.g2slot{position:absolute;z-index:23;border-radius:11px;background:#06090ecc;box-shadow:inset 0 3px 14px #000,inset 0 0 0 1.5px #e8b33a66;animation:g2slot 7s infinite}
+@keyframes g2slot{
+  0%,28%{opacity:0;transform:scale(.8);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  34%,88%{opacity:1;transform:scale(1)}
+  94%,100%{opacity:0;transform:scale(1)}
+}
+.g3k{animation:g1k 7s infinite}
+.g3zon{position:absolute;z-index:23;border-radius:16px;background:radial-gradient(closest-side,#e8b33a1f,#e8b33a0d 70%,#e8b33a05);box-shadow:inset 0 0 0 1.5px #e8b33a33;animation:g3zon 7s infinite}
+.g3zon span{position:absolute;left:0;right:0;bottom:12px;text-align:center;font:800 11px/1 var(--sans);letter-spacing:3px;color:#e8b33a6e}
+@keyframes g3zon{
+  0%,28%{clip-path:circle(0% at 50% 40%);opacity:1;animation-timing-function:cubic-bezier(.3,.7,.3,1)}
+  36%,88%{clip-path:circle(85% at 50% 40%);opacity:1}
+  94%,100%{clip-path:circle(85% at 50% 40%);opacity:0}
+}
+.gfram{animation:gfram 7s infinite}
+@keyframes gfram{0%,32%{opacity:0;transform:translateY(4px)}36%,88%{opacity:1;transform:translateY(0)}94%,100%{opacity:0}}
+.gkv{animation:gkv 7s infinite}
+@keyframes gkv{0%,35%{opacity:0;transform:translateY(4px)}39%,86%{opacity:1;transform:translateY(0)}92%,100%{opacity:0}}
+
+/* ═══ Etapp 2 · leken är upptagen, för alla ═════════════════════════ */
+/* U1: leken lyfts bort, ramen står kvar streckad och andas. */
+.u1lek{animation:u1lek 8s infinite}
+@keyframes u1lek{
+  0%,15%{opacity:1;transform:translateY(0) scale(1);animation-timing-function:ease-in}
+  18.5%{opacity:0;transform:translateY(-22px) scale(1.04)}
+  74%{opacity:0;transform:translateY(-22px) scale(1.04);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  74.1%{opacity:1}
+  78.1%,100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.u1ram{position:absolute;border-radius:10px;border:1.5px dashed #8fa8ff;background:#6b8cff0d;display:grid;place-items:center;font:600 10px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:#c9d4ffaa;animation:u1vis 8s infinite,u1andas 1.6s ease-in-out infinite}
+@keyframes u1vis{0%,15%{opacity:0}19%,73%{opacity:1}76%,100%{opacity:0}}
+@keyframes u1andas{0%,100%{box-shadow:0 0 0 0 #6b8cff00,0 0 0 0 #6b8cff00}50%{box-shadow:0 0 0 6px #6b8cff26,0 0 26px 4px #6b8cff33}}
+/* U2: leken blandas på sin plats. */
+.u2 img{animation-duration:8s;animation-iteration-count:infinite}
+.u2 img:nth-child(1){animation-name:u2a}
+.u2 img:nth-child(3){animation-name:u2c}
+@keyframes u2a{
+  0%,15%,22%,29%,36%,43%,50%,57%,64%,71%,100%{transform:translate(4px,-4px) rotate(0)}
+  18.5%,32.5%,46.5%,60.5%{transform:translate(-40px,-2px) rotate(-6deg)}
+}
+@keyframes u2c{
+  0%,15%,22%,29%,36%,43%,50%,57%,64%,71%,100%{transform:translate(0,0) rotate(0)}
+  18.5%,32.5%,46.5%,60.5%{transform:translate(40px,2px) rotate(6deg)}
+}
+.u2ram{animation:u2ram 8s infinite}
+@keyframes u2ram{0%,15%,73%,100%{box-shadow:0 0 0 0 #6b8cff00}22%,64%{box-shadow:0 0 0 5px #6b8cff1f,0 0 22px 3px #6b8cff26}}
+/* U3: leken lyfts och svävar över sin plats. */
+.u3lek{animation:u3lek 8s infinite}
+@keyframes u3lek{
+  0%,15%{transform:translateY(0) scale(1);filter:drop-shadow(0 0 0 #0000);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  19%{transform:translateY(-16px) scale(1.06);filter:drop-shadow(0 28px 22px #000c);animation-timing-function:ease-in-out}
+  28%{transform:translateY(-20px) scale(1.06)}
+  37%{transform:translateY(-16px) scale(1.06)}
+  46%{transform:translateY(-20px) scale(1.06)}
+  55%{transform:translateY(-16px) scale(1.06)}
+  64%{transform:translateY(-20px) scale(1.06)}
+  73%{transform:translateY(-16px) scale(1.06);filter:drop-shadow(0 28px 22px #000c);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  78%,100%{transform:translateY(0) scale(1);filter:drop-shadow(0 0 0 #0000)}
+}
+.u3spar{position:absolute;border-radius:10px;border:1.5px dashed #6b8cff;animation:u3spar 8s infinite}
+@keyframes u3spar{0%,15%{opacity:0}19%,73%{opacity:.7}77%,100%{opacity:0}}
+
+/* ═══ Etapp 2 · leken flyttas, ramen följer med ═════════════════════ */
+.flk{position:absolute;left:552px;top:432px;width:146px;height:230px;animation:flk 8s infinite}
+@keyframes flk{
+  0%,25%{transform:translate(0,0) scale(1);filter:drop-shadow(0 0 0 #0000);animation-timing-function:ease-out}
+  26.1%{transform:translate(0,0) scale(1.05);filter:drop-shadow(0 26px 20px #000c);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  30.4%{transform:translate(48px,-242px) scale(1.05);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  31.3%{transform:translate(48px,-242px) scale(.985);filter:drop-shadow(0 0 0 #0000)}
+  31.9%,70%{transform:translate(48px,-242px) scale(1);filter:drop-shadow(0 0 0 #0000);animation-timing-function:ease-out}
+  71.1%{transform:translate(48px,-242px) scale(1.05);filter:drop-shadow(0 26px 20px #000c);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  75.4%{transform:translate(0,0) scale(1.05);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  76.3%{transform:translate(0,0) scale(.985);filter:drop-shadow(0 0 0 #0000)}
+  76.9%,100%{transform:translate(0,0) scale(1)}
+}

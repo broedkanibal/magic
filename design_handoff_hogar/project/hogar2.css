@@ -1,0 +1,125 @@
+/* Sida 3 · Inga ritade linjer (Jesper 2026-10-02): högarna ser ut som högar
+   av kort, ligger bland korten och följer mattans zoom. Ingen ram, ingen
+   streckad kant. Tjockleken är kortens egna kanter (box-shadow i lager), och
+   namnet och antalet står i en bricka på högens underkant. Färgkoden är
+   appens: blått library, gult graveyard, lila exile. */
+
+.st{position:absolute;z-index:1;width:130px;height:182px;border-radius:8px}
+.st img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:8px;display:block}
+/* Leken: kortbaksidornas bruna kanter, tjockare ju fler kort. */
+.st.lib img{box-shadow:1px 1.5px 0 #4a3a2a,2px 3px 0 #1c1610,3px 4.5px 0 #4a3a2a,4px 6px 0 #1c1610,5px 7.5px 0 #4a3a2a,6px 9px 0 #1c1610,10px 18px 22px -6px #000d}
+/* Graveyard: uppvända kort som ligger lite huller om buller. */
+.st.gy img{box-shadow:0 6px 16px -4px #000d}
+.st.gy img.u1{transform:rotate(-3.5deg) translate(-4px,3px)}
+.st.gy img.u2{transform:rotate(2.5deg) translate(4px,4px)}
+.st.ex img.u1{transform:rotate(3deg) translate(3px,3px)}
+
+/* Brickan: namn och antal på högens underkant, behåller sin storlek. */
+.hc{position:absolute;z-index:3;left:50%;top:171px;transform:translateX(-50%);transform-origin:50% 0;display:flex;align-items:center;gap:6px;height:22px;padding:0 9px 0 8px;border-radius:11px;background:#141a24f5;box-shadow:0 6px 14px -4px #000e;font:650 9.5px/1 var(--sans);letter-spacing:.8px;text-transform:uppercase;color:#aab6c8;white-space:nowrap}
+.hc i{width:6px;height:6px;border-radius:2px;flex:none}
+.hc b{font:600 11px/1 var(--mono);letter-spacing:0;text-transform:none;color:var(--txt)}
+.hc.bla i{background:#6b8cff}.hc.gul i{background:#e8b33a}.hc.lila i{background:#9d85d6}
+.hc button{height:18px;padding:0 6px;margin-right:-5px;border-radius:9px;font:500 10.5px/1 var(--sans);letter-spacing:0;text-transform:none;color:#93a1b6;text-decoration:underline;text-underline-offset:2px}
+.hc .kvsep{width:1px;height:11px;background:#2c3646;flex:none}
+
+/* D2: en färgad flik som sticker upp bakom högen, med antalet. */
+.flik{position:absolute;z-index:-1;top:-15px;left:12px;height:24px;min-width:30px;padding:3px 8px 0;border-radius:6px 6px 0 0;font:700 11px/1 var(--mono);color:#0b1017;text-align:center}
+.flik.bla{background:#6b8cff}.flik.gul{background:#e8b33a}.flik.lila{background:#9d85d6}
+
+/* D3: graveyard som en kaskad, så att de senaste namnen syns. */
+.kask{position:absolute;z-index:1;width:130px}
+.kask img{position:absolute;left:0;width:130px;height:182px;object-fit:cover;border-radius:8px;box-shadow:0 -2px 8px -2px #000c}
+
+/* ═══ D1 · en graveyard skapas: kortet blir en hög, brickan glider fram ═ */
+.d1k{animation:d1k 7s infinite}
+@keyframes d1k{
+  0%{opacity:0;transform:translateY(90px) scale(1.08);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  1.3%{opacity:1}
+  4.7%{transform:translateY(0) scale(.985)}
+  5.7%,88%{opacity:1;transform:translateY(0) scale(1)}
+  94%{opacity:0}
+  100%{opacity:0;transform:translateY(90px) scale(1.08)}
+}
+.d1k img{animation:d1kimg 7s infinite}
+@keyframes d1kimg{
+  0%,28%{filter:none;box-shadow:0 4px 12px -3px #000c;animation-timing-function:ease-in-out}
+  35%,100%{filter:grayscale(.45) brightness(.72);box-shadow:0 10px 24px -6px #000e}
+}
+.d1glod{position:absolute;z-index:0;border-radius:14px;background:radial-gradient(closest-side,#e8b33a55,#e8b33a00);filter:blur(4px);animation:d1glod 7s infinite}
+@keyframes d1glod{0%,28%{opacity:0;transform:scale(.9)}34%{opacity:1;transform:scale(1.08)}48%,100%{opacity:0;transform:scale(1.12)}}
+.d1lang{animation:d1lang 7s infinite}
+.d1kort{animation:d1kort 7s infinite}
+@keyframes d1lang{0%,31%{opacity:0;transform:translateX(-50%) translateY(-14px)}37%,72%{opacity:1;transform:translateX(-50%) translateY(0)}76%,100%{opacity:0;transform:translateX(-50%) translateY(0)}}
+@keyframes d1kort{0%,73%{opacity:0}77%,88%{opacity:1}94%,100%{opacity:0}}
+
+/* ═══ D1 · leken är upptagen: högen lyfts bort, skuggan står kvar ═══ */
+.avtryck{position:absolute;z-index:0;width:130px;height:182px;border-radius:10px;background:#00000080;filter:blur(7px);animation:avtryck 8s infinite}
+@keyframes avtryck{
+  0%,15%{opacity:0}
+  19%{opacity:.85}
+  31%{opacity:.5}43%{opacity:.85}55%{opacity:.5}67%{opacity:.85}
+  74%{opacity:.85}78%,100%{opacity:0}
+}
+.d1lek{animation:d1lek 8s infinite}
+@keyframes d1lek{
+  0%,15%{opacity:1;transform:translateY(0) scale(1);animation-timing-function:ease-in}
+  18.5%{opacity:0;transform:translateY(-22px) scale(1.04)}
+  74%{opacity:0;transform:translateY(-22px) scale(1.04);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  74.1%{opacity:1}
+  78.1%,100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.d1ledig{animation:d1ledig 8s infinite}
+.d1upp{animation:d1upp 8s infinite}
+@keyframes d1ledig{0%,16%{opacity:1}19%,74%{opacity:0}77%,100%{opacity:1}}
+@keyframes d1upp{0%,16%{opacity:0}19%,74%{opacity:1}77%,100%{opacity:0}}
+
+/* ═══ D1 · ett zoomsteg: högarna följer med korten, brickorna behåller sin storlek ═ */
+.zg{position:absolute;inset:0;transform-origin:520px 280px;animation:zg 7s infinite}
+@keyframes zg{
+  0%,30%{transform:scale(1);opacity:1;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  37.1%,90%{transform:scale(.8);opacity:1}
+  94%{transform:scale(.8);opacity:0}
+  96%{transform:scale(1);opacity:0}
+  100%{transform:scale(1);opacity:1}
+}
+.zg .hc{animation:zhc 7s infinite}
+@keyframes zhc{
+  0%,30%{transform:translateX(-50%) scale(1);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  37.1%,94%{transform:translateX(-50%) scale(1.25)}
+  96%,100%{transform:translateX(-50%) scale(1)}
+}
+.zny{animation:zny 7s infinite}
+@keyframes zny{
+  0%,21%{opacity:0;transform:translateY(90px) scale(1.08);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  22.3%{opacity:1}
+  25.7%{transform:translateY(0) scale(.985)}
+  26.7%,100%{opacity:1;transform:translateY(0) scale(1)}
+}
+.z1{animation:z1 7s infinite}
+.z2{animation:z2 7s infinite}
+@keyframes z1{0%,33%{opacity:1}35%,94%{opacity:0}96%,100%{opacity:1}}
+@keyframes z2{0%,33%{opacity:0}35%,94%{opacity:1}96%,100%{opacity:0}}
+
+/* ═══ Sleeves: leken och nedvända kort i spelarens egna sleeves ═══════
+   Förslag: färgen tas ur kamerans bild av leken när den hittas, och går
+   att ändra på lekens sida. Förvalet här är Jespers gröna fickor. Sleeven
+   ritas, ingen bild: färgen i --s1/--s2, kanten i --s3 och lekens
+   kortkanter i --ek/--em. */
+.slv{--s1:#2f8a52;--s2:#14462a;--s3:#5cc48555;--ek:#1f5a36;--em:#0b2616;position:absolute;inset:0;display:block;border-radius:8px;background:linear-gradient(128deg,#ffffff26 0%,#ffffff08 30%,#ffffff00 46%,#ffffff00 70%,#ffffff12 100%),repeating-linear-gradient(45deg,#ffffff05 0 2px,#0000 2px 5px),radial-gradient(130% 100% at 28% 18%,var(--s1),var(--s2) 75%);box-shadow:inset 0 0 0 2px var(--s3),inset 0 0 18px #0006,0 4px 12px -3px #000c}
+.st.lib .slv{box-shadow:inset 0 0 0 2px var(--s3),inset 0 0 18px #0006,1px 1.5px 0 var(--ek),2px 3px 0 var(--em),3px 4.5px 0 var(--ek),4px 6px 0 var(--em),5px 7.5px 0 var(--ek),6px 9px 0 var(--em),10px 18px 22px -6px #000d}
+.hc .sw{width:10px;height:14px;border-radius:2px;flex:none;background:radial-gradient(130% 100% at 28% 18%,#2f8a52,#14462a 75%);box-shadow:inset 0 0 0 1px #5cc48577}
+.hc .ok{display:inline-flex;align-items:center;gap:5px;color:#c9d4ff}
+
+/* Lekens sida: valet av sleeves. */
+.svpanel{position:absolute;inset:10px;padding:22px 24px;border-radius:12px;background:var(--bg2);box-shadow:0 0 0 1px var(--line)}
+.svpanel h3{margin:0 0 6px;font:650 15px/1.3 var(--sans);color:var(--txt)}
+.svpanel p{margin:0 0 18px;font:13px/1.45 var(--sans);color:var(--dim);max-width:560px}
+.svrad{display:flex;gap:14px;flex-wrap:wrap}
+.svval{display:flex;flex-direction:column;align-items:center;gap:7px;width:66px;font:500 11.5px/1.2 var(--sans);color:var(--dim);text-align:center}
+.svval .mini{position:relative;width:56px;height:78px;border-radius:6px;overflow:hidden}
+.svval .mini .slv{border-radius:6px;box-shadow:inset 0 0 0 2px var(--s3),inset 0 0 10px #0006}
+.svval .mini img{width:100%;height:100%;object-fit:cover}
+.svval.vald{color:var(--txt)}
+.svval.vald .mini{box-shadow:0 0 0 2px #0d1015,0 0 0 4px var(--acc)}
+.svval .kam{position:absolute;right:4px;bottom:4px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#0b1017e6;color:var(--txt)}
+.svnot{margin-top:18px;font:12px/1.4 var(--sans);color:var(--dim2)}

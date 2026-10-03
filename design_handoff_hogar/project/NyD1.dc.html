@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>D1 · Just the cards</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./mesa.css">
+<link rel="stylesheet" href="./hogar2.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+</style>
+</helmet>
+<div class="ab crop2" style="width: 1061px; height: 722px">
+  <section class="matta" style="position: absolute; left: 10px; top: 10px; width: 1041px; height: 702px">
+    <div class="card" style="left: 120px; top: 110px"><img src="img/llanowar.jpg" alt="Llanowar Elves"></div>
+    <div class="card" style="left: 300px; top: 110px"><img src="img/woodelves.jpg" alt="Wood Elves"></div>
+    <div class="card" style="left: 40px; top: 440px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 190px; top: 440px"><img src="img/forest.jpg" alt="Forest"></div>
+    <div class="card" style="left: 340px; top: 440px"><img src="img/plains.jpg" alt="Plains"></div>
+
+    <div class="card" style="left: 480px; top: 110px">
+      <sc-if value="{{harSleeves}}" hint-placeholder-val="{{ true }}"><span class="slv" role="img" aria-label="A face-down card" style="{{slv}}"></span></sc-if>
+      <sc-if value="{{utan}}" hint-placeholder-val="{{ false }}"><img src="img/baksida.jpg" alt="A face-down card"></sc-if>
+    </div>
+    <div class="st lib" style="left: 560px; top: 440px">
+      <sc-if value="{{harSleeves}}" hint-placeholder-val="{{ true }}"><span class="slv" role="img" aria-label="Library, 31 cards" style="{{slv}}"></span></sc-if>
+      <sc-if value="{{utan}}" hint-placeholder-val="{{ false }}"><img src="img/baksida.jpg" alt="Library, 31 cards"></sc-if>
+      <span class="hc bla"><i></i><sc-if value="{{namn}}" hint-placeholder-val="{{ true }}">Library</sc-if><b>31</b></span>
+    </div>
+    <div class="st gy" style="left: 740px; top: 440px">
+      <img class="u1" src="img/blade.jpg" alt="" style="filter: {{gyFilter}}">
+      <img class="u2" src="img/llanowar.jpg" alt="" style="filter: {{gyFilter}}">
+      <img src="img/bolt.jpg" alt="Graveyard, top card Lightning Bolt" style="filter: {{gyFilter}}">
+      <span class="hc gul"><i></i><sc-if value="{{namn}}" hint-placeholder-val="{{ true }}">Graveyard</sc-if><b>3</b></span>
+    </div>
+    <div class="st gy ex" style="left: 900px; top: 440px">
+      <img class="u1" src="img/woodelves.jpg" alt="" style="filter: {{gyFilter}}">
+      <img src="img/serra.jpg" alt="Exile, top card Serra Angel" style="filter: {{gyFilter}}">
+      <span class="hc lila"><i></i><sc-if value="{{namn}}" hint-placeholder-val="{{ true }}">Exile</sc-if><b>2</b></span>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dim":{"editor":"range","min":0,"max":1,"step":0.05,"default":0.5,"section":"Piles"},"namn":{"editor":"boolean","default":true,"section":"Piles"},"sleeves":{"editor":"enum","options":["Green","Black","Blue","Purple","Red","No sleeves"],"default":"Green","section":"Piles"},"$preview":{"width":1061,"height":722}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const d = this.props.dim ?? 0.5;
+    const farger = {
+      Green: ['#2f8a52', '#14462a', '#5cc48555', '#1f5a36', '#0b2616'],
+      Black: ['#2b2f36', '#0e1014', '#6a748455', '#23272e', '#0a0b0e'],
+      Blue: ['#2f5fb8', '#142a5c', '#6f9bff55', '#1e3c78', '#0b1733'],
+      Purple: ['#6a3fa8', '#2e1752', '#b58cff55', '#432470', '#1a0c30'],
+      Red: ['#a8343a', '#4d1216', '#ff8a8a55', '#6e1f23', '#2b0a0c']
+    };
+    const s = this.props.sleeves ?? 'Green';
+    const f = farger[s];
+    return {
+      namn: this.props.namn ?? true,
+      gyFilter: 'grayscale(' + (0.9 * d).toFixed(2) + ') brightness(' + (1 - 0.5 * d).toFixed(2) + ')',
+      harSleeves: !!f,
+      utan: !f,
+      slv: f ? '--s1: ' + f[0] + '; --s2: ' + f[1] + '; --s3: ' + f[2] + '; --ek: ' + f[3] + '; --em: ' + f[4] : ''
+    };
+  }
+}
+</script>
+</body>
+</html>
