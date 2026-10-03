@@ -22266,6 +22266,37 @@ const Kamera = (() => {
        titeldelen 0,23/0,31 i bänken. 0 stänger av (--tro "remsaTitel:0"). */
     remsaTitel: 0.55,
     remsaTitelTroskel: 0.2,
+    /* Minnet av remsor (MES-331 pass 6, remsMinne): kortets EGEN remsa från
+       när det låg helt synligt och var säkert namngivet känner igen kortet
+       när det senare ligger täckt — Scryfall-remsleken gör det nästan aldrig
+       på Jespers bord (kort i fickor under lampa ser ut som Pacifism eller
+       Thriving Heath för modellen). Uppmätt i dev/remsa/remsexp_larda.py
+       (c55f8c1) på täckta kort: 13b 0 → 49/52 säkra rätt, MES-246 4 → 222/357,
+       0 säkra fel, med villkoren här: minnet tas bara av ett klart, säkert,
+       omaskat spår med detektorns egen remsa (lar); bara minnen vars spår INTE
+       lever på bordet (ett levande spår kan inte vara det nya kortet —
+       Gorgon Flail → Ukud Cobra), som setts inom remsaMinneS sekunder
+       (Ancestral Blade → Killing Glare på samma plats efter graveyard; 40 s
+       gav 2 fel i MES-246), och vars remsmitt ligger inom remsaMinneRadie
+       remslängder från den nya remsans mitt (radie 1,0: 3 fel); bara för
+       TÄCKTA spår (maskad, omlott eller under ett annat kort) — ett helt
+       synligt kort läses på hela kortet som i dag. Säkert ('remsa minne')
+       bara när hela remsan OCH titeldelen pekar på samma minnesnamn med
+       marginal > remsaMinneTroskel mot Scryfall-remsleken och de andra
+       minnena (Thriving Moor ↔ Swamp utan titelkravet). Första fångsten
+       tas på en gång när namnet blir säkert (larMinneNu — golden 13: ett
+       Plains låg helt synligt 0,3 s innan det hamnade under nästa kort);
+       sedan förnyas minnet högst var remsaMinneMs per kort (tre prov, sedan
+       var 20 s) och högst en fångst per remsaMinnePaus på hela bordet, bara
+       när ingen läsning pågår — två modellkörningar (~100 ms var) per
+       fångst i samma GPU-kö som detektorn. 0 stänger av (golden --tro
+       "remsaMinne:0"). Golden: dev/golden/historik.md. */
+    remsaMinne: 1,
+    remsaMinneTroskel: 0.10,
+    remsaMinneS: 20,
+    remsaMinneRadie: 0.5,
+    remsaMinneMs: 3000,
+    remsaMinnePaus: 1000,
     /* Vem ligger ovanpå i en hög (MES-331 pass 2, fyndUrLador): två lådor
        som täcker varandra till minst hogTackning (av den mindre) ordnas
        efter FÖRSKJUTNINGEN mellan deras mittpunkter, i remsans två
@@ -22292,7 +22323,7 @@ const Kamera = (() => {
        analyspixlar: mattmodellen, referensen och spåren. Den tas därför om
        som vid ett byte av videons storlek — AH = 0 får loop() räkna om AW,
        och referensen och spåren börjar om. */
-    if (T.anaBredd !== varAna) { AH = 0; stegGen++; glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+    if (T.anaBredd !== varAna) { AH = 0; stegGen++; glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
     /* Byts detektorn (MES-329) får en modell som stängts efter tre fel försöka
        igen — bara vid ett BYTE: datorn skickar alla reglage vid varje drag,
        och en modell som inte går att ladda ska inte laddas om för det. */
@@ -22391,7 +22422,7 @@ const Kamera = (() => {
                         skala: B.skala != null ? B.skala : null, ensamt: B.ensamt != null ? !!B.ensamt : null, stod: B.stod != null ? B.stod : null,
                         orbNamn: B.orbNamn || null, del: !!B.del, efterModell: !!B.efterModell, w: B.w || null, h: B.h || null } : null,
              titel: N ? { namn: N.namn || null, poang: N.poang, marginal: N.marginal, hoppad: N.hoppad || null, vand: !!N.vand } : null,
-             remsa: svar && svar.remsa ? { namn: svar.remsa.namn, saker: !!svar.remsa.saker, marginal: svar.remsa.marginal, varfor: svar.remsa.varfor } : null });
+             remsa: svar && svar.remsa ? { namn: svar.remsa.namn, saker: !!svar.remsa.saker, marginal: svar.remsa.marginal, varfor: svar.remsa.varfor, minne: svar.remsa.minne || null } : null });
     if (l.length > 6) l.shift();
   };
   /* Stegtiden som histogram (4 ms per fack, sista facket 400 ms och över),
@@ -22458,6 +22489,18 @@ const Kamera = (() => {
   let pa = false;
   let spar = [];               // de kort som ligger på mattan just nu
   let spoken = [];             // nyss borttagna spår som minns var de låg
+  /* Minnet av remsor (MES-331 pass 6, T.remsaMinne): en post per spår som
+     någon gång var klart, säkert och helt synligt med detektorns egen remsa
+     — { sparId, namn, sid, prov: [{ hel, titel, tagen }] (bildmodellens
+     vektorer för hela remsan och titeldelen, högst tre), mx, my, L (remsans
+     mitt och längd i analyspixlar, följer spåret), sedd (senaste rutan spåret
+     hade region), lever }. Posten överlever spårets död — det är poängen:
+     det nyfödda spåret på samma plats jämförs med kortet som låg där. Rensas
+     när spåret inte setts på T.remsaMinneS sekunder, när spåret tappar sitt
+     namn, och med spåren vid varje nollställning. minneStat räknar för
+     golden (--detalj, raden minne). */
+  let remsMinne = [], minneSenast = 0;
+  const minneStat = { fangster: 0, fangstMs: 0, fragor: 0, medMinne: 0, sakra: 0 };
   let nastaId = 1;
   /* Läsningar som pågår (MES-214). Förut ett lås: EN läsning i taget, och
      nästa kort väntade tills förra kortets titelrad var läst — 70–290 ms per
@@ -24649,7 +24692,7 @@ const Kamera = (() => {
     if (snurra) cancelAnimationFrame(snurra);
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (wake) { try { wake.release(); } catch (e) {} wake = null; }
-    stream = null; lage = 'start'; spar = []; spoken = []; snittMinne = []; senVb = senVh = 0;
+    stream = null; lage = 'start'; spar = []; spoken = []; snittMinne = []; remsMinne = []; senVb = senVh = 0;
     glomReferens();
   }
 
@@ -24680,7 +24723,7 @@ const Kamera = (() => {
     const bib = k && k.ruta ? gravRuta(k.ruta.bib) : (kal.bib || null);
     kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav, bib };
     glomBib();
-    spar = []; spoken = []; snittMinne = []; lage = 'lar';
+    spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar';
     glomReferens();
     dia.gravProv = [];
     AH = 0;
@@ -24985,7 +25028,7 @@ const Kamera = (() => {
        räknades de bara om vid ny kalibrering, och avståndsrådet och
        fragmentgolvet mättes mot fel skala tills någon drog om rutan. */
     if (vb !== senVb || vh !== senVh) {
-      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
       senVb = vb; senVh = vh; AH = 0; stegGen++;
       lasUpplosning(vb, vh);
     }
@@ -25157,6 +25200,7 @@ const Kamera = (() => {
     smaMinne.push(dia.smaKort); if (smaMinne.length > R(REF_RUTOR)) smaMinne.shift();
     bibSag(bibDelar, nu, klamd || felRader > 0);
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
+    minnesvard(nu);   // minnet av remsor följer sina spår (MES-331 pass 6)
     ta('matcha');
 
     /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
@@ -25237,6 +25281,8 @@ const Kamera = (() => {
       if (t) { if (latens && !(t.ts && t.ts.stilla)) stampla(t, 'stilla'); spekulera(t, nu, !stilla3(t)); }
     }
     ta('lasning');   // den synkrona delen av en läsning som startades i steget: ram, beskärning, Matcher + ORB
+    larMinne(nu);   // minnet av remsor (MES-331 pass 6): en fångst när ingen läsning pågår
+    ta('minne');
     planeraHelbild(nu, g);
     if (tillstandsSignatur() !== sandSignatur) rapportera();
     ta('rapport');
@@ -25651,7 +25697,7 @@ const Kamera = (() => {
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
-      remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, titel: t.remsa.titel || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330), titeldelen (MES-331)
+      remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, ocr: t.remsa.ocr || null, titel: t.remsa.titel || null, minne: t.remsa.minne || null, ms: t.remsa.ms } : null,   // namnet ur remsan (MES-330), titeldelen (MES-331), minnet (pass 6)
       maskad: !!t.maskad,   // beskärningen var övermålad (MES-330)
       under: underAv(t),   // id:n på spåren som ligger ÖVER det här (MES-331); null = inget känt
       det: t.detPoang || 0,   // detektorns poäng för kortlådan (MES-330), 0 utan
@@ -25767,7 +25813,7 @@ const Kamera = (() => {
   function laddaReferens(r, sig, ah, aw) {
     if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
-    glomReferens(); spar = []; spoken = []; snittMinne = [];
+    glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = [];
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
     if (T.auto) T.troskel = autoTroskel();
     dia.troskel = T.troskel; senastRef = 0;
@@ -25786,8 +25832,11 @@ const Kamera = (() => {
      15 av 69 i bänken (dev/remsa/RESULTAT.md). Svaret kommer ur
      kamLasRemsa (bildmodellen mot remsleken, titeldelen och textläsaren
      som vittnen, MES-331). */
-  async function lasRemsa(t) {
-    const s = t.remsaLada; if (!s || !video || !cb.lasRemsa) return null;
+  /* Skärningen för sig (MES-331 pass 6): samma låda, samma vridning och samma
+     övermålning för läsningen (lasRemsa) och för minnet (larMinne) — det
+     viktiga är att kortet jämförs med sig självt. */
+  function skarRemsa(t) {
+    const s = t.remsaLada; if (!s || !video) return null;
     const vb = video.videoWidth, vh = video.videoHeight, r = rutaPx(vb, vh), sx = r.w / AW, sy = r.h / AH;
     const m = 0.04;
     const x = r.x + (s.x - s.w * m) * sx, y = r.y + (s.y - s.h * m) * sy, w = s.w * (1 + 2 * m) * sx, h = s.h * (1 + 2 * m) * sy;
@@ -25814,7 +25863,132 @@ const Kamera = (() => {
     /* …och grannens titel (MES-331 pass 4, A2): det undre kortets remslåda,
        där den ligger inne i den här remsan (fyndUrLador, remsaUtom). */
     if (t.remsaUtom && t.remsaUtom.length) for (const q of t.remsaUtom) { mala(q); utom++; }
-    return cb.lasRemsa(c, t.id, { rot, px: { w: Math.round(w), h: Math.round(h) }, synt: !!t.remsaSynt, tackt, utom });
+    return { c, rot, px: { w: Math.round(w), h: Math.round(h) }, tackt, utom, mx, my, L: Math.max(s.w, s.h) };
+  }
+  /* Ett spår som ligger täckt (MES-331 pass 6): beskärningen maskad (ett
+     annat kort över), omlott, eller med ett kort ovanpå enligt detektorn.
+     Bara sådana spår jämförs mot minnet — ett helt synligt kort läses på
+     hela kortet som i dag. */
+  const arTackt = (t, maskad) => !!(maskad || t.omlott || (t.tackt && t.tackt.length));
+  /* Minnena det här täckta spåret får jämföras mot (T.remsaMinne): kort som
+     inte ligger kvar (minnets spår lever inte — det egna spåret undantaget,
+     det är samma spår), som setts inom T.remsaMinneS sekunder, och vars
+     remsa låg inom T.remsaMinneRadie remslängder från den nya remsans mitt.
+     forra är rutans klocka: golden och bänken styr den själva. */
+  function minnenFor(t, mx, my, L) {
+    const alla = remsMinne.filter(e => e.prov.length && e.namn);
+    if (!alla.length) return { minnen: [], skal: 'inga minnen' };
+    const lever = alla.filter(e => e.sparId !== t.id && spar.some(q => q.id === e.sparId));
+    const nyss = alla.filter(e => !lever.includes(e) && forra - e.sedd <= T.remsaMinneS * 1000);
+    const nara = nyss.filter(e => Math.hypot(e.mx - mx, e.my - my) <= T.remsaMinneRadie * L);
+    /* skal: varför inget minne fick tävla (golden --detalj) — hur många som föll på varje villkor. */
+    return { minnen: nara, skal: nara.length ? null : `${alla.length} minnen: ${lever.length} lever, ${alla.length - lever.length - nyss.length} för gamla, ${nyss.length - nara.length} för långt bort` };
+  }
+  async function lasRemsa(t, maskad) {
+    if (!cb.lasRemsa) return null;
+    const s = skarRemsa(t); if (!s) return null;
+    const m = !T.remsaMinne ? { minnen: [], skal: null } : arTackt(t, maskad) ? minnenFor(t, s.mx, s.my, s.L) : { minnen: [], skal: 'inte täckt' }, minnen = m.minnen;
+    if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
+    const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, tackt: s.tackt, utom: s.utom,
+                                              minnen: minnen.length ? minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov })) : null, minneSkal: m.skal });
+    if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
+    return rs;
+  }
+  /* Minnets vård, varje ruta (MES-331 pass 6): posten följer sitt spår så
+     länge det lever med samma säkra namn — platsen (remsans mitt) och när
+     det sågs senast — och stryks när spåret fått ett ANNAT säkert namn (då
+     var minnet inte det kortet), eller när kortet inte setts på
+     T.remsaMinneS sekunder. Ett spår utan säkert namn rör inte posten: ett
+     spöke föds om med samma id men som 'ny' (fodSpar, efter flimrets 1,5 s)
+     och läses om — det är just det spåret minnet är till för, och sedd står
+     då kvar på den sista rutan kortet bevisligen låg där. Så länge spåret
+     lever med samma säkra namn förnyas sedd varje ruta med region, och
+     posten rensas aldrig. */
+  function minnesvard(nu) {
+    if (!remsMinne.length) return;
+    const kvar = [];
+    for (const e of remsMinne) {
+      const t = spar.find(q => q.id === e.sparId);
+      e.lever = !!t;
+      if (t && t.saker && t.namn && t.namn !== e.namn) continue;   // ett annat kort, säkert: minnet gällde inte
+      if (t && t.tillstand === 'klar' && t.saker && t.namn === e.namn) {
+        if (t.regionNar === nu) e.sedd = nu;
+        if (t.remsaLada && !t.remsaSynt) { const s = t.remsaLada; e.mx = s.x + s.w / 2; e.my = s.y + s.h / 2; e.L = Math.max(s.w, s.h); }
+      }
+      if (nu - e.sedd > T.remsaMinneS * 1000) continue;
+      kvar.push(e);
+    }
+    remsMinne = kvar;
+  }
+  /* Minnet tas (MES-331 pass 6): det klara, säkra spår som bäst behöver det
+     — först de utan prov, sedan det vars prov är äldst — om det ligger helt
+     synligt just nu (region i rutan, inte skymt, inget kort ovanpå, inte
+     omlott, detektorns egen remsa, stilla), högst en fångst per
+     T.remsaMinnePaus på bordet och per T.remsaMinneMs per kort (tre prov,
+     sedan var 20 s), och aldrig medan en läsning pågår: fångsten är två
+     modellkörningar i samma GPU-kö som detektorn och läsningarna. Skärningen
+     är lasRemsas (skarRemsa). Vektorerna kommer ur cb.remsVektor
+     (kamRemsVektor: Embed.identifiera med o.vektor på hela remsan och på
+     titeldelen). Posten skrivs först när svaret kommit, och bara om spåret
+     fortfarande bär samma namn. */
+  /* Kan spåret läras: klart och säkert, inte under läsning eller fångst,
+     med region nyss (inom två rutor), inte skymt, inte omlott, inget kort
+     ovanpå, detektorns egen remsa (inte den syntetiska), inte ur helbilden. */
+  const kanLarasSkal = (t, nu) => !(t.tillstand === 'klar' && t.saker && t.namn) ? 'inte säkert' : t.laser ? 'läses' : t.minneLaser ? 'fångst pågår' : arHelbild(t) ? 'helbild'
+    : !(t.regionNar != null && nu - t.regionNar <= 2 * TAKT_MS) ? 'ingen region nyss' : t.skymd ? 'skymt' : t.omlott ? 'omlott' : (t.tackt && t.tackt.length) ? 'kort ovanpå'
+    : !t.remsaLada ? 'ingen remsa' : t.remsaSynt ? 'syntetisk remsa' : null;
+  const kanLaras = (t, nu) => kanLarasSkal(t, nu) === null;
+  function larMinne(nu) {
+    if (nu < minneSenast) minneSenast = 0;   // klockan gick bakåt (bänken börjar om från 0 per scen): pausen släpper
+    if (!T.remsaMinne || !cb.remsVektor || !video || lasande > 0 || nu - minneSenast < T.remsaMinnePaus) return;
+    let val = null, valAlder = -1;
+    for (const t of spar) {
+      if (!kanLaras(t, nu) || t.regionNar !== nu || !arStilla(t)) continue;
+      const e = remsMinne.find(q => q.sparId === t.id), n = e ? e.prov.length : 0;
+      const gap = n >= 3 ? 20000 : T.remsaMinneMs;
+      if (e && nu - e.tagen < gap) continue;
+      const alder = e ? nu - e.tagen : Infinity;   // de utan prov först, sedan det äldsta
+      if (alder > valAlder) { val = t; valAlder = alder; }
+    }
+    if (val) fangaMinne(val, nu);
+  }
+  /* Första fångsten på en gång när spåret blir säkert (identifiera,
+     bekraftaSpek, svarAI, namnge) — utan rundans paus, stillakrav och
+     krav på att ingen läsning pågår: ett kort som läggs i en hög ligger
+     helt synligt bara en kort stund (golden 13: Plains säkert 0,3 s innan
+     nästa kort lades ovanpå, och rundan hann aldrig). Läsningen som gav
+     namnet krävde själv att kortet låg stilla. Bara spår utan prov. */
+  function larMinneNu(t) {
+    if (!T.remsaMinne || !cb.remsVektor || !video) return;
+    /* minneSkal: varför kortet inte lärdes när det blev säkert (golden
+       --detalj, spårraden) — det är så det syns vilka säkra kort minnet
+       aldrig får, t.ex. det översta kortet i en hög (omlott). */
+    const skal = kanLarasSkal(t, forra); if (skal) { t.minneSkal = skal; return; }
+    if (remsMinne.some(e => e.sparId === t.id && e.prov.length)) return;
+    /* En fångst i taget: på ett bord där många kort blir säkra på en gång
+       (golden 03: elva kort i första sekunderna) hade varje kort annars lagt
+       två modellkörningar i GPU-kön före detektorn — stegtidens median i 03
+       steg 152 → 187 ms. De som inte hinner tar rundan (larMinne), en per
+       T.remsaMinnePaus. */
+    if (spar.some(q => q.minneLaser)) { t.minneSkal = 'en annan fångst pågår'; return; }
+    t.minneSkal = null;
+    fangaMinne(t, forra);
+  }
+  function fangaMinne(t, nu) {
+    const s = skarRemsa(t); if (!s) { t.minneSkal = 'remsan gick inte att skära'; return; }
+    const namn = t.namn, sid = t.sid, id = t.id;
+    t.minneLaser = true; t.minneSkal = null; minneSenast = nu;
+    const t0 = nuRiktig();
+    Promise.resolve().then(() => cb.remsVektor(s.c, id)).then(v => {
+      if (!v || !v.hel || !v.titel) return;
+      const q = spar.find(x => x.id === id);
+      if (!q || q.tillstand !== 'klar' || !q.saker || q.namn !== namn) return;   // spåret bytte dom under fångsten
+      let e = remsMinne.find(x => x.sparId === id);
+      if (!e) { e = { sparId: id, namn, sid, prov: [], mx: s.mx, my: s.my, L: s.L, sedd: forra, tagen: 0, lever: true }; remsMinne.push(e); }
+      e.namn = namn; e.sid = sid; e.tagen = forra;
+      e.prov.push({ hel: v.hel, titel: v.titel, tagen: forra }); if (e.prov.length > 3) e.prov.shift();
+      minneStat.fangster++; minneStat.fangstMs += Math.round(nuRiktig() - t0);
+    }, () => {}).then(() => { t.minneLaser = false; });
   }
   /* Ett maskat spår — ett annat kort ligger över, och beskärningen är mest
      matta (maskaTackt) — får sitt namn ur remsan när den lokala kedjan inte
@@ -25845,7 +26019,7 @@ const Kamera = (() => {
     t.remsa = null;
     if (!T.remsa || !(T.remsaAlla || maskad || t.omlott) || !svar || svar.saker || svar.skrap || svar.baksida || !t.remsaLada || !cb.lasRemsa) return svar;
     let rs = null;
-    try { rs = await lasRemsa(t); } catch (e) { rs = null; }
+    try { rs = await lasRemsa(t, maskad); } catch (e) { rs = null; }
     if (!rs) return svar;
     t.remsa = rs;
     if (!rs.saker || !rs.namn) return Object.assign({}, svar, { remsa: rs });
@@ -25925,7 +26099,7 @@ const Kamera = (() => {
     t.tillstand = t.namn && t.saker ? 'klar' : 'okand';
     { const q = t.tillstand === 'klar' ? sammaKortSom(t) : null; if (q) { dubblettAv(t, q); rapportera(); return; } }
     if (t.tillstand === 'klar' && t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
-    if (t.tillstand === 'klar') { slappFlyttat(t, nu); stampla(t, 'namn', 'lokal'); }
+    if (t.tillstand === 'klar') { slappFlyttat(t, nu); stampla(t, 'namn', 'lokal'); larMinneNu(t); }
     /* Claude har redan sagt "inget kort" två gånger (aiInget), och spåret har
        bara skakat. matcha nollställer skräp som rör sig, och en ny betald
        fråga per skakning vore fel. Bara en säker lokal läsning ändrar domen. */
@@ -26088,6 +26262,7 @@ const Kamera = (() => {
     if (t.vilaX != null) sattVila(t, t.areaNu || t.vilaArea);
     slappFlyttat(t, forra);
     stampla(t, 'namn', 'lokal'); if (latens) t.ts.namnTidig = true;
+    larMinneNu(t);   // minnet av remsor (MES-331 pass 6): första fångsten när namnet är säkert
     return true;
   }
 
@@ -26220,7 +26395,7 @@ const Kamera = (() => {
       t.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((t.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
       t.namn = k.namn; t.sid = k.sid; t.saker = !!k.saker; t.varfor = k.saker ? 'ai' : klunga ? 'ai klunga' : 'ai osäker';
       t.tillstand = k.saker ? 'klar' : 'okand';
-      if (k.saker) stampla(t, 'namn', 'ai');
+      if (k.saker) { stampla(t, 'namn', 'ai'); larMinneNu(t); }   // minnet av remsor (MES-331 pass 6): också Claudes säkra namn på en omaskad beskärning
       /* Ett kort, säkert: beskärningen lärs som referens för namnet (K7). */
       if (k.saker && k.sakerhet === 'hog' && cb.lart) { try { cb.lart(t.id, k.namn, k.sid, 'ai'); } catch (e) {} }
       delar = delar.slice(1);
@@ -26491,7 +26666,7 @@ const Kamera = (() => {
   };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { stegGen++; /* ett steg som väntar på detektorn får inte landa i den gamla referensen (MES-329) */ glomReferens(); spar = []; spoken = []; snittMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+  function nyReferens() { stegGen++; /* ett steg som väntar på detektorn får inte landa i den gamla referensen (MES-329) */ glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
   function glomKort(id) {
     const t = spar.find(x => x.id === id); if (!t) return;
     /* Ett spår ur helbilden har ingen region att läsa om: det står kvar
@@ -26500,6 +26675,7 @@ const Kamera = (() => {
     if (arHelbild(t)) { t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.varfor = 'helbild glömd'; t.tillstand = 'okand'; t.provas = false; t.aiInget = 0; return; }
     t.namn = null; t.sid = null; t.saker = false; t.fragad = false; t.aiFragad = false; t.ai = null; t.tillstand = 'ny'; t.stillaFran = performance.now(); t.provas = false; t.aiInget = 0;
     t.spek = null; t.formN = 0; t.spekN = 0; t.del = false;
+    remsMinne = remsMinne.filter(e => e.sparId !== id);   // människan sa att namnet var fel: minnet av remsan får inte sätta det igen (MES-331 pass 6)
   }
   /* Datorn namngav kortet i granskningen. Spåret får namnet så att ett spöke
      av det bär något, och så att det inte hamnar i granskningen igen. */
@@ -26512,7 +26688,7 @@ const Kamera = (() => {
        sammanfattningen när auto stängs av räknar båda som "fyllt i för hand
        eller ur ett foto", inte som läst av kameran eller Claude i kameran.
        Fotots egna Claude-anrop står i datorns bok. */
-    if (namn) { t.varfor = 'hand'; stampla(t, 'namn', 'hand'); }
+    if (namn) { t.varfor = 'hand'; stampla(t, 'namn', 'hand'); larMinneNu(t); }   // …och människans namn (MES-331 pass 6)
     /* Spelaren bekräftade: beskärningen lärs som referens för namnet (K8). */
     if (namn && cb.lart) { try { cb.lart(id, namn, sid, 'hand'); } catch (e) {} }
     rapportera();
@@ -26555,6 +26731,10 @@ const Kamera = (() => {
            vantaSteg: () => stegPagar || Promise.resolve(),
            get strom() { return stream; },
            get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna,
+           /* Minnet av remsor (MES-331 pass 6): posterna utan vektorerna, och räknarna — golden (--detalj, raden minne) och bänken. */
+           get remsMinne() { return remsMinne.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov.length, mx: e.mx, my: e.my, L: e.L, sedd: e.sedd, tagen: e.tagen, lever: !!e.lever })); },
+           get minneStat() { return Object.assign({ poster: remsMinne.length }, minneStat); },
+           get lasande() { return lasande; },   // läsningar som pågår (bänken)
            get sigma() { return sigma; } };
 })();
 
@@ -26648,6 +26828,7 @@ async function oppnaKamera(gameId) {
       upplosning: u => satKamFin('bild', kamUpplosningRad(u)),
       identifiera: (canvas, id, gissning, kort, o) => kamIdentifiera(canvas, id, gissning, kort, o),
       lasRemsa: (canvas, id, o) => kamLasRemsa(canvas, id, o),   // namnet ur remsan (MES-330)
+      remsVektor: canvas => kamRemsVektor(canvas),   // minnet av remsor (MES-331 pass 6)
       lekTak: kamLekTak,
       fragaAI: (canvas, id) => kamFragaAI(canvas, id),
       lart: (id, namn, sid, kalla) => kamLart(id, namn, sid, kalla),
@@ -27087,30 +27268,90 @@ async function kamIdentifiera(canvas, id, gissning, kort, o) {
    antalspriorn (K6) gäller som för de andra vägarna. Svar: { namn, sid,
    saker, varfor, marginal, poang, cands, ocr, rot, px, ms } eller null när
    remsleken inte finns. */
+const remsTypNamn = n => { const t = landTyp(n); return t ? landVisning(t).name : n; };
+const remsTypSid = (n, sid) => (landTyp(n) && landVisning(landTyp(n)).sid) || sid;
+/* Titeldelen av remsan (MES-331): de vänstra `andel` av bredden, i samma
+   bildpunkter — samma utsnitt för frågan (kamLasRemsa) och minnet (kamRemsVektor). */
+function remsTitelDel(canvas, andel) {
+  const cv = document.createElement('canvas');
+  cv.width = Math.max(4, Math.round(canvas.width * andel)); cv.height = canvas.height;
+  cv.getContext('2d').drawImage(canvas, 0, 0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+  return cv;
+}
+/* Minnets dom (MES-331 pass 6, Kamera.lasRemsa → o.minnen): poängen per namn
+   är den bästa av Scryfall-remslekens referenser (Embed.rangordna, centrerat
+   med remslekens medelvektor) och minnenas vektorer (centrerade med samma
+   medel, som bänken dev/remsa/remsexp_larda.py nara_nyss), för hela remsan
+   (qh mot prov.hel) och titeldelen (qt mot prov.titel) var för sig.
+   Marginal = bästa namn minus näst bästa. Säkert bara när båda pekar på
+   samma namn, namnet är ett MINNES namn, och den minsta marginalen är över
+   T.remsaMinneTroskel (0,10: 0 säkra fel i bänken på 13b och MES-246).
+   Baslanden slås ihop per typ som i kamLasRemsa. */
+function remsMinnesDom(qh, qt, minnen, T) {
+  const idx = KamEmbed.remsIdx, D = Embed.DIM, medel = idx.medel;
+  const centrera = v => { const c = new Float32Array(D); let n = 0; for (let k = 0; k < D; k++) { c[k] = v[k] - medel[k]; n += c[k] * c[k]; } n = Math.sqrt(n) || 1; for (let k = 0; k < D; k++) c[k] /= n; return c; };
+  const dom = (q, del) => {
+    const best = new Map();
+    for (const c of Embed.rangordna(q, idx)) { const name = remsTypNamn(c.namn); if (name === BAKSIDA_NAMN) continue; const f = best.get(name); if (!f || c.poang > f.score) best.set(name, { score: c.poang, kalla: 'scryfall', sid: remsTypSid(c.namn, c.id) }); }
+    const cq = centrera(q);
+    for (const m of minnen) for (const p of m.prov || []) {
+      if (!p[del] || p[del].length !== D) continue;
+      const v = centrera(p[del]); let s = 0; for (let k = 0; k < D; k++) s += cq[k] * v[k];
+      const name = remsTypNamn(m.namn), f = best.get(name);
+      if (!f || s > f.score) best.set(name, { score: s, kalla: 'minne', sid: remsTypSid(m.namn, m.sid), sparId: m.sparId });
+    }
+    const lista = [...best.entries()].map(([name, v]) => Object.assign({ name }, v)).sort((a, b) => b.score - a.score);
+    return { lista, namn: lista[0] ? lista[0].name : null, marginal: lista[0] ? lista[0].score - (lista[1] ? lista[1].score : 0) : 0, kalla: lista[0] ? lista[0].kalla : null, sparId: lista[0] ? lista[0].sparId : null };
+  };
+  const h = dom(qh, 'hel'), t = dom(qt, 'titel');
+  const overens = !!h.namn && h.namn === t.namn && minnen.some(m => remsTypNamn(m.namn) === h.namn);
+  const marg = overens ? Math.min(h.marginal, t.marginal) : 0;
+  return { provad: true, namn: h.namn, saker: overens && marg > T.remsaMinneTroskel, marginal: +marg.toFixed(3),
+           hel: +h.marginal.toFixed(3), helKalla: h.kalla, titel: +t.marginal.toFixed(3), titelNamn: t.namn, titelKalla: t.kalla,
+           sparId: h.sparId != null ? h.sparId : null, n: minnen.length, prov: minnen.reduce((a, m) => a + ((m.prov && m.prov.length) || 0), 0),
+           cands: h.lista.slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: +(+c.score).toFixed(3) })) };
+}
+/* Minnets vektorer (MES-331 pass 6, Kamera.larMinne → cb.remsVektor): hela
+   remsan och titeldelen genom bildmodellen, råa normerade vektorer som
+   remsleken lagrar sina (centreras först när de jämförs, mot remslekens
+   medel). null när remsleken inte finns — då finns inget att jämföra mot. */
+async function kamRemsVektor(canvas) {
+  if (!KamEmbed.remsRedo() || !canvas || canvas.width < 8 || canvas.height < 4) return null;
+  const T = Kamera.trosklar, t0 = performance.now();
+  if (!(T.remsaTitel > 0)) return null;
+  let e = null, et = null;
+  try {
+    e = await Embed.identifiera(canvas, KamEmbed.remsIdx, { marginal: false, vektor: true });
+    if (!e || !e.vektor) return null;
+    et = await Embed.identifiera(remsTitelDel(canvas, T.remsaTitel), KamEmbed.remsIdx, { marginal: false, vektor: true });
+  } catch (x) { return null; }
+  if (!et || !et.vektor) return null;
+  return { hel: e.vektor, titel: et.vektor, ms: Math.round(performance.now() - t0) };
+}
 async function kamLasRemsa(canvas, id, o) {
   if (!KamEmbed.remsRedo() || !canvas) return null;
   const T = Kamera.trosklar, t0 = performance.now();   // en kopia av Kameras T (get trosklar)
+  const minnen = T.remsaMinne && o && Array.isArray(o.minnen) && o.minnen.length ? o.minnen : null;   // minnet av remsor (pass 6), bara för täckta spår (Kamera.lasRemsa)
   let e = null;
-  try { e = await Embed.identifiera(canvas, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTroskel }); } catch (x) { e = null; }
+  try { e = await Embed.identifiera(canvas, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTroskel, vektor: !!minnen }); } catch (x) { e = null; }
   if (!e || !e.namn) return null;
-  const typNamn = n => { const t = landTyp(n); return t ? landVisning(t).name : n; };
+  const typNamn = remsTypNamn;
   const rang = [];
-  for (const c of e.cands || []) { const name = typNamn(c.name), f = rang.find(x => x.name === name); if (!f) rang.push({ name, sid: (landTyp(c.name) && landVisning(landTyp(c.name)).sid) || c.sid, score: c.score }); }
+  for (const c of e.cands || []) { const name = typNamn(c.name), f = rang.find(x => x.name === name); if (!f) rang.push({ name, sid: remsTypSid(c.name, c.sid), score: c.score }); }
   if (!rang.length || rang[0].name === BAKSIDA_NAMN) return null;
-  const cands = rang.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: +(+c.score).toFixed(3) }));
-  const marginal = +(rang[0].score - (rang[1] ? rang[1].score : 0)).toFixed(3);
+  let cands = rang.filter(c => c.name !== BAKSIDA_NAMN).slice(0, 5).map(c => ({ name: c.name, sid: c.sid, score: +(+c.score).toFixed(3) }));
+  let marginal = +(rang[0].score - (rang[1] ? rang[1].score : 0)).toFixed(3);   // hela remsan mot remsleken; vinner minnet (nedan) blir det minnets minsta marginal, så att marginal och namn hör ihop (maskVittne)
   let saker = marginal > T.remsaTroskel, varfor = saker ? 'remsa' : 'remsa osäker';
   /* Titeldelen (MES-331): hela remsan osäker — samma modell på remsans
      vänstra T.remsaTitel, mot samma remslek. Säkert bara med samma namn
      överst som hela remsan och marginal > T.remsaTitelTroskel; annars
      sparas den som vittne. Före textläsaren: ~100 ms mot 0,4–1 s. */
-  let titel = null;
+  let titel = null, titelVek = null;
   if (!saker && T.remsaTitel > 0 && canvas.width >= 8) {
     try {
-      const cv = document.createElement('canvas');
-      cv.width = Math.max(4, Math.round(canvas.width * T.remsaTitel)); cv.height = canvas.height;
-      cv.getContext('2d').drawImage(canvas, 0, 0, cv.width, cv.height, 0, 0, cv.width, cv.height);
-      const et = await Embed.identifiera(cv, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTitelTroskel });
+      const cv = remsTitelDel(canvas, T.remsaTitel);
+      const et = await Embed.identifiera(cv, KamEmbed.remsIdx, { marginal: false, troskel: T.remsaTitelTroskel, vektor: !!minnen });
+      if (et && et.vektor) titelVek = et.vektor;
       if (et && et.namn) {
         const rt = [];
         for (const c of et.cands || []) { const name = typNamn(c.name); if (!rt.find(x => x.name === name)) rt.push({ name, score: c.score }); }
@@ -27126,6 +27367,17 @@ async function kamLasRemsa(canvas, id, o) {
   }
   /* Textläsaren bara när bildmodellen inte nådde sin tröskel: den är det
      dyra steget (tre band, 0,4–1 s på Macen) och behövs bara som vittne. */
+  /* Minnet av remsor (MES-331 pass 6): hela remsan och titeldelen mot
+     kortets egna tidigare remsor och Scryfall-remsleken (remsMinnesDom).
+     Före textläsaren: räknas på vektorerna som redan finns (ingen ny
+     modellkörning), och gör den namnet säkert behövs textläsaren inte.
+     Säkert bara när remsleken inte redan var det; ett säkert svar läses
+     inte om. Vinner minnet blir dess rangordning förslagen (cands). */
+  let minne = minnen ? { provad: false, n: minnen.length } : (T.remsaMinne && o && o.minneSkal ? { provad: false, n: 0, skal: o.minneSkal } : null);   // skal: varför inget minne fick tävla (Kamera.minnenFor)
+  if (!saker && minnen && e.vektor && titelVek) {
+    try { minne = remsMinnesDom(e.vektor, titelVek, minnen, T); } catch (x) { minne = { provad: false, n: minnen.length, fel: String(x && x.message || x) }; }
+    if (minne && minne.saker && minne.namn && minne.namn !== BAKSIDA_NAMN) { saker = true; varfor = 'remsa minne'; cands = minne.cands; marginal = minne.marginal; }
+  }
   let ocr = null;
   if (!saker) { try { ocr = await Namn.lasBand(canvas, namnUtanBaksida()); } catch (x) { ocr = null; } }
   const ocrNamn = ocr && ocr.namn ? typNamn(ocr.namn) : null;
@@ -27134,7 +27386,7 @@ async function kamLasRemsa(canvas, id, o) {
     const tak = kamLekAntal.get(norm(cands[0].name));
     if (!lekPrior(true, tak == null ? Infinity : tak, Kamera.upptagna(cands[0].name, id))) { saker = false; varfor = 'fler än leken'; }
   }
-  return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel,
+  return { namn: cands[0].name, sid: cands[0].sid, saker, varfor, marginal, poang: cands[0].score, cands, titel, minne,
            ocr: ocr ? { text: ocr.text || '', namn: ocrNamn, poang: ocr.poang, marginal: ocr.marginal, hoppad: ocr.hoppad || null } : null,
            rot: o && o.rot != null ? o.rot : null, px: o && o.px ? o.px : null, synt: !!(o && o.synt), tackt: (o && o.tackt) || 0, utom: (o && o.utom) || 0,   // syntetisk remsa ur lådans kant, hur många lådor ovanpå som målats över (MES-331 pass 2) och hur många grannremsor (pass 4)
            ms: Math.round(performance.now() - t0), modellMs: Math.round(e.ms || 0) };
