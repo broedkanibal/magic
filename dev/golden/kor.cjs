@@ -259,8 +259,22 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
      enda svar, och med 16 fall kom det aldrig: körningen hängde efter Klar. i
      timmar, 2 av 2 gånger, medan 12 fall åt gången gick igenom 20 av 20. */
   const ids = await kor(`fall.map(f => f.id).filter(id => { const r = resultat.get(id); return r && !r.fel; })`);
+  /* …och ett stort fall i BITAR (2026-10-03): golden 18 med --ai dog vid
+     hämtningen 4 av 4 gånger ("förbindelsen till Chrome stängdes" direkt
+     efter Klar.) — ett enda svar blev för stort för förbindelsen. Strängen
+     byggs en gång i sidan och hämtas i bitar om BIT tecken; ett fall över
+     STORT skriver sin storlek och sina största fält, så att det syns vad
+     som växer. */
+  const BIT = 2e6, STORT = 8e6;
   const delar = [];
-  for (const id of ids) delar.push(await kor(`JSON.stringify(resultat.get(${JSON.stringify(id)}))`));
+  for (const id of ids) {
+    const n = await kor(`(window.__kor_ut = JSON.stringify(resultat.get(${JSON.stringify(id)}))).length`);
+    if (n > STORT) console.log(`\n  ${id}: resultatet är ${(n / 1e6).toFixed(1)} M tecken — störst: ` + await kor(`Object.entries(resultat.get(${JSON.stringify(id)})).map(([k, v]) => [k, (JSON.stringify(v) || '').length]).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, l]) => k + ' ' + (l / 1e6).toFixed(1) + ' M').join(', ')`));
+    let s = '';
+    for (let a = 0; a < n; a += BIT) s += await kor(`window.__kor_ut.slice(${a}, ${a + BIT})`);
+    delar.push(s);
+  }
+  await kor(`delete window.__kor_ut; 'ok'`);
   const json = '[\n' + delar.join(',\n') + '\n]\n';
   console.log('');
   skrivTabell(JSON.parse(json), gamla);

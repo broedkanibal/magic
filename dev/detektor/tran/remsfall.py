@@ -156,7 +156,11 @@ def main():
                 'ratt': any(rm is not None and iou(rm, fr) >= TRAFF and max(iou(ld, k['hel_lada']), iou(ld, k['synlig_lada'])) >= TRAFF for ld, rm in par),
             }
             fall = next((s for s in STEG if not ok[s]), None)
+            # den parade lådan och dess remsa (andelar av källbilden) — det appens lasRemsa skär ur (remsnamn.py)
+            parat = next(([ld[:4], rm[:4]] for ld, rm in par if rm is not None and iou(rm, fr) >= TRAFF
+                          and max(iou(ld, k['hel_lada']), iou(ld, k['synlig_lada'])) >= TRAFF), None)
             rader.append({
+                'fil': fallen[b['id']]['bild'], 'lada': parat[0] if parat else None, 'remsa': parat[1] if parat else None,
                 'kalla': b['kalla'], 'bild': b['id'], 'namn': k['namn'], 'id': k.get('id'), 'hog': k.get('hog'), 'tappad': k['tappad'],
                 'synlig': k.get('synlig', 1), 'land': k['namn'] in LAND,
                 'grupp': ('hög, tappad' if k.get('hog') and k['tappad'] else 'hög' if k.get('hog') else 'tappad' if k['tappad'] else 'ensam'),
