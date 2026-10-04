@@ -19,7 +19,7 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
 <div class="ab crop2" style="width: 1061px; height: 722px">
   <section class="matta" style="position: absolute; left: 10px; top: 10px; width: 1041px; height: 702px">
     <sc-if value="{{ar}}" hint-placeholder-val="{{ true }}">
-    <div class="start sek" style="top: 200px"><h2>Play your first card when you're ready</h2></div>
+    <div class="mtom" style="top: 300px"><b>Play your first card when you're ready</b></div>
       <button class="st lib" style="left: 560px; top: 440px; padding: 0; border: 0; background: none; cursor: pointer" onClick="{{oppna}}" aria-label="Library, 33 cards. Open the menu">
         <span class="slv"></span>
         <span class="hc bla"><i></i>Library<b>33</b></span>
@@ -32,11 +32,7 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
       </sc-if>
     </sc-if>
     <sc-if value="{{inte}}" hint-placeholder-val="{{ false }}">
-    <div class="start">
-      <span class="lekill"><span class="ring"></span><span class="slv"></span></span>
-      <h2>Put your library on the table</h2>
-      <p>Mesa uses it to learn how your cards lie</p>
-    </div>
+    <div class="mtom" style="top: 300px"><b>Put your library on the table</b></div>
       <div class="card" style="left: 560px; top: 440px"><span class="slv" role="img" aria-label="A face-down card"></span></div>
       <span class="hc mening" style="left: 625px; top: 612px"><span>Face-down card</span><i class="kvsep"></i><button onClick="{{ja}}">It's my library</button></span>
     </sc-if>
