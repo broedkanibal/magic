@@ -2208,6 +2208,58 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const pa16d = Kamera.spar.filter(t => t.klass === 'kort' && t.tillstand !== 'skrap').length;
     check(`LK16b utan lek: kortet vid L blir ett spår (${pa16d})`, pa16d === 1);
 
+    // LK17 (granskarens RP1, runda 2 fynd 2): leken flyttas till bildkanten — den står som upplockad vid L,
+    //   men lekens ruta står inte kvar på den tomma platsen: ett riktigt kort som läggs där får ett spår
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const k17E = { x: 0, y: 60, w: 30, h: 42 };
+    await kor(30, [hog(k17E)], [lada(k17E, 'baksida')]);
+    const l17 = Kamera.lek;
+    const k17P = { x: L.x + 2, y: L.y + 3, w: 26, h: 36 };
+    await kor(20, [hog(k17E), kortR(k17P)], [lada(k17E, 'baksida'), lada(k17P, 'kort')]);
+    const n17 = Kamera.spar.filter(t => t.klass === 'kort' && Math.abs(t.cx - (k17P.x + k17P.w / 2)) < 4 && t.tillstand !== 'skrap').length;
+    check(`LK17 leken flyttad till kanten: ${l17 && l17.lage} x ${l17 && l17.ruta && l17.ruta.x}; kort på lekens gamla plats efter 3 s: ${n17} spår`, n17 === 1);
+
+    // LK18 (granskarens RP2, runda 2 fynd 3): leken lyfts (söka), handen läggs nedvänd medan leken är uppe
+    //   (och tas för leken), leken läggs tillbaka vid L, handen plockas upp — leken ligger vid L igen
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    await kor(26, [], []);
+    const l18a = Kamera.lek && Kamera.lek.lage;
+    const k18H = { x: 100, y: 95, w: 30, h: 42 };
+    const l18b = await kor(14, [hog(k18H)], [lada(k18H, 'baksida')]);
+    const l18c = await kor(14, [hog(k18H), hog(L)], [lada(k18H, 'baksida'), lada(L, 'baksida')]);
+    const l18d = await kor(40, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK18 handen nedvänd under sökningen: lyft ${l18a}; handen lagd ${l18b && l18b.lage} x ${l18b && l18b.ruta && l18b.ruta.x}; leken tillbaka vid L ${l18c && l18c.lage}; handen upplockad 6 s: ${l18d && l18d.lage} x ${l18d && l18d.ruta && l18d.ruta.x} (L ${(L.x / W).toFixed(3)})`,
+          !!l18d && l18d.lage === 'nere' && Math.abs(l18d.ruta.x - L.x / W) < 0.01);
+
+    // LK19 (granskarens RP5, runda 2 fynd 1): leken blandas i handen ovanför bordet — detektorn ser den ibland,
+    //   också över lekens gamla plats — och läggs ner vid L3: leken glider dit
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const id19 = Kamera.lek && Kamera.lek.id;
+    const k19L3 = { x: 100, y: 95, w: 30, h: 42 };
+    for (const s of [0.4, 0.5, 0.6, 0.5, 0.4, 0.3, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
+      const b = { x: Math.round(L.x + (k19L3.x - L.x) * s), y: Math.round(L.y + (k19L3.y - L.y) * s), w: 30, h: 42 };
+      await steg1([hog(b)], [lada(b, 'baksida')]);
+    }
+    let upp19 = false, l19 = null;
+    for (let i = 0; i < 60; i++) { l19 = await steg1([hog(k19L3)], [lada(k19L3, 'baksida')]); if (l19 && l19.lage === 'upp') upp19 = true; }
+    check(`LK19 leken blandad ovanför bordet och lagd vid L3: upp någon gång ${upp19}, efter 9 s ${l19 && l19.lage} x ${l19 && l19.ruta && l19.ruta.x} (L3 ${(k19L3.x / W).toFixed(3)}), id ${l19 && l19.id} (var ${id19})`,
+          !!l19 && l19.lage === 'nere' && Math.abs(l19.ruta.x - k19L3.x / W) < 0.01 && l19.id === id19);
+
+    // LK20 (granskarens RP6, runda 2 fynd 1): leken upp, lagd vid L3, och EN ruta med en baksida över lekens
+    //   gamla plats (handen med något nedvänt, ett blänk) — leken glider ändå till L3
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    await kor(26, [], []);
+    const l20a = Kamera.lek && Kamera.lek.lage;
+    await kor(3, [hog(k19L3)], [lada(k19L3, 'baksida')]);
+    await steg1([hog(k19L3), hog(L)], [lada(k19L3, 'baksida'), lada(L, 'baksida')]);
+    const l20 = await kor(60, [hog(k19L3)], [lada(k19L3, 'baksida')]);
+    check(`LK20 leken upp (${l20a}), lagd vid L3, en ruta med en baksida över den gamla platsen: efter 9 s ${l20 && l20.lage} x ${l20 && l20.ruta && l20.ruta.x} (L3 ${(k19L3.x / W).toFixed(3)})`,
+          !!l20 && l20.lage === 'nere' && Math.abs(l20.ruta.x - k19L3.x / W) < 0.01);
+
     // LK11: med uppstartens library-ruta gäller dagens lekvakt (bibSag) — ingen ny lek i rapporten
     nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: { x: L.x / W - 0.02, y: L.y / H - 0.02, w: L.w / W + 0.04, h: L.h / H + 0.04 } } }); namnSvar = svar;
     await kor(26, [hog(L)], [lada(L, 'baksida')]);

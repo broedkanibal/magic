@@ -9103,6 +9103,13 @@ function lekInteKlick() {
   if (h.id != null) Moln.sandKam('lekinte', { id: h.id });
   lekLokalt = { typ: 'inte', id: h.id, kam: h.kam || null, nar: Date.now() };
   mig.bibHog = null;
+  /* Telefonen släpper lekens grundläge när inget kort lagts (lekInte). Raden i camera_setups kan
+     bära det (kamRutaRad skriver telefonens grundläge), och en omladdning eller nästa skrivning gav
+     det då tillbaka (granskningen runda 2, fynd 4): skriv raden utan grundläge, med samma villkor. */
+  if (kamLek && kamLek.grund === 'lek' && !kamHaftKort) {
+    kamGrundRad = null;
+    if (spelLage) Moln.sparaKalibrering(spelLage.id, kamRutaRad({ grund: null }), null, kamBildW || 0, kamBildH || 0);
+  }
   renderBibHog(); renderGrid(true); renderTom(); save();
 }
 /* It's my library på det nedvända kortet: det blir leken igen. */
@@ -25980,13 +25987,15 @@ const Kamera = (() => {
          golden 13/18 ligger leken redan i bild när kameran startar, och då är
          den ensam. LEK_START_MS skiljer bara 'ny' från 'ensam' i loggen.
      När leken valts sätter vakten lekens egen ruta (lekZon) och flyttar den
-     med leken: inga nya spår föds där, som med uppstartens ruta.
+     med leken: inga nya spår föds där, som med uppstartens ruta. Medan
+     leken är upplockad finns ingen ruta.
      Upplockad kräver två vittnen (mått 6): detektorn har inte sett leken på
      LEK_BORTA_MS, OCH platsen har sett tom ut — under LEK_TOM av den i
      masken, alltså som mattan — i LEK_TOM_MS i följd. En hand över leken tar
      bort lådan men fyller masken, så leken fryser i stället för att bli
      upplockad. Läggs leken ner någon annanstans medan den är upplockad
-     flyttar den dit (en hög som uppfyller kraven ovan).
+     flyttar den dit (en hög som uppfyller kraven ovan och dykt upp efter
+     att leken senast låg still).
      Grundläget (Byggunderlaget, Vinkeln): blir högen library före första
      kortet blir dess vinkel otappat, och referensen följer leken när den
      vrids. Utan lek blir första kortets vinkel otappat när det först ligger
@@ -25998,7 +26007,12 @@ const Kamera = (() => {
      färg och står sedan kvar. magic = leken är Magic-baksidan (bildmodellen
      sa 'baksida' om lekens eget spår) — då ritar datorn baksidan, inte färgen. */
   const LEK_STILLA_MS = 1500, LEK_BORTA_MS = 1500, LEK_TOM_MS = 2000, LEK_TOM = 0.2, LEK_START_MS = 3000, LEK_FARG_N = 8, LEK_FARG_MS = 350;
-  let lek = null;        // { id, box, ref {cx,cy,w,h}, stillaFran, sist, tomFran, upp, farg, prov [[r,g,b]…], provNar, magic }
+  /* En sökning (lyft, sök, blanda, lägg ner) antas vara klar inom LEK_SOK_MS — antaget, inte uppmätt.
+     Så länge efter att leken flyttats till en ny plats räknas den inte som "legat still" där (lek.lag),
+     så att en nedvänd hand som tagits för leken under sökningen inte stänger ute leken som läggs
+     tillbaka (granskningen runda 2, fynd 3). */
+  const LEK_SOK_MS = 10000;
+  let lek = null;        // { id, box, ref {cx,cy,w,h}, stillaFran, sist, lag (låg senast still), flyttNar (steg 3 flyttade den), tomFran, upp, farg, prov [[r,g,b]…], provNar, magic }
   /* Lekens egen ruta (granskningen runda 1, fynd 1): Mesa sätter den själv
      när leken hittats och flyttar den med leken. Inga nya spår föds där
      (matcha), Claudes klunga och helbilden lägger inga kort där (iBib), och
@@ -26013,13 +26027,10 @@ const Kamera = (() => {
      av lekvakten: kal.bib betyder fortfarande "uppstartens steg 4 satte en
      ruta". Lådan plus en tiondel åt varje håll (facits rutor är från lådan
      själv i 18 till +30 % i 13).
-     Golden 18 utan ruta (granskningen runda 1, rättelse 1): 7 hittade, 1
-     rätt namn — som utan rutan. Facits ruta från första rutan ger 9 och 2,
-     men det går inte att nå med en ruta som kommer när leken hittats (2,4
-     s): uppstartens egen kal.bib satt då ur lådan gav 8 och 1, facits exakta
-     ruta satt då 9 och 1, att ta bort alla regioner i lekens ruta 8 och 1
-     (men lekens spår fryser, se ovan), och att låta regioner på leken bara
-     gå till spår på leken 7 och 1. */
+     Golden 18 utan ruta: 7 hittade, 1 rätt namn, som utan rutan; facits ruta
+     från första rutan ger 9 och 2. Varianterna (steg3-rapport.md) gav 7–9
+     hittade, en körning var, men korten som skiljer ligger 3–4 kortbredder
+     från leken — orsaken är okänd (granskningen runda 2, fynd 5). */
   let lekZon = null;
   let lekKand = [];      // högar som kan bli library: { id, box, ref, fodd, sist, stillaFran, tomFran }
   let lekUte = [];       // högar som inte är leken (Not my library): { id, box, sist }
@@ -26098,7 +26109,7 @@ const Kamera = (() => {
     && t.kort / Math.max(1, t.lang) >= T.kvotMin && t.kort / Math.max(1, t.lang) <= T.kvotMax
     && !(lek && ladTackning(t.box, lek.box) >= 0.6) && !lekUte.some(u => ladTackning(t.box, u.box) >= 0.6);
   function lekValj(k, nu, varfor) {
-    lek = { id: k.id, box: Object.assign({}, k.box), ref: k.ref, stillaFran: k.stillaFran, sist: nu, tomFran: 0, upp: false, farg: null, prov: [], provNar: 0, magic: null, varfor };
+    lek = { id: k.id, box: Object.assign({}, k.box), ref: k.ref, stillaFran: k.stillaFran, sist: nu, lag: nu, flyttNar: null, tomFran: 0, upp: false, farg: null, prov: [], provNar: 0, magic: null, varfor };
     lekKand = lekKand.filter(q => q !== k);
     /* Grundläget: lekens vinkel före första kortet — eller när inget
        grundläge alls finns (kameran startade med kort på bordet). Kom
@@ -26135,6 +26146,10 @@ const Kamera = (() => {
           lek.box = Object.assign({}, h);
           if (lek.upp) lek.upp = false;   // tillbaka på (nästan) samma plats
         }
+        /* När leken senast LÅG STILL på sin plats (granskningen runda 2, fynd 1) — inte lek.sist, som
+           flyttas av varje låda över platsen: en enda ruta med handen eller ett blänk där låste annars
+           leken som upplockad. En ruta som hoppar dit nollar stillaFran (lekSag) och flyttar inte lag. */
+        if (!lek.upp && nu - lek.stillaFran >= LEK_STILLA_MS && (lek.flyttNar == null || nu - lek.flyttNar >= LEK_SOK_MS)) lek.lag = nu;
       } else {
         if (osaker || !tom(lek.box)) lek.tomFran = 0; else if (!lek.tomFran) lek.tomFran = nu;
         if (!lek.upp && nu - lek.sist >= LEK_BORTA_MS && lek.tomFran && nu - lek.tomFran >= LEK_TOM_MS) lek.upp = true;
@@ -26157,14 +26172,14 @@ const Kamera = (() => {
       fodd: Math.round(k.fodd - lekStart), sedd: Math.round(nu - k.sist), stilla: Math.round(nu - k.stillaFran), kant: kant(k.box), form: form(k.box),
       ytor: kortYta ? +(k.box.w * k.box.h / kortYta).toFixed(2) : null }));
     /* 3. Leken är upplockad och läggs ner någon annanstans: dit. Bara en hög
-       som dykt upp EFTER att leken plockades upp, och den nyaste först — ett
-       nedvänt kort (eller en ask) som låg där före lyftet har inte lagts ner
-       igen (granskningen runda 1, fynd 3: leken hoppade dit och Picked up
-       syntes aldrig). */
+       som dykt upp EFTER att leken senast låg still på sin plats (lek.lag),
+       och den nyaste först — ett nedvänt kort (eller en ask) som låg där
+       före lyftet har inte lagts ner igen (granskningen runda 1, fynd 3:
+       leken hoppade dit och Picked up syntes aldrig). */
     if (lek && lek.upp) {
-      const k = lekKand.filter(q => stilla(q) && q.fodd > lek.sist).sort((a, b) => b.fodd - a.fodd)[0];   // lek.sist = när leken senast sågs, före lyftet
+      const k = lekKand.filter(q => stilla(q) && q.fodd > lek.lag).sort((a, b) => b.fodd - a.fodd)[0];
       if (k) {
-        lek.box = Object.assign({}, k.box); lek.ref = k.ref; lek.stillaFran = k.stillaFran; lek.sist = nu; lek.tomFran = 0; lek.upp = false;
+        lek.box = Object.assign({}, k.box); lek.ref = k.ref; lek.stillaFran = k.stillaFran; lek.sist = nu; lek.tomFran = 0; lek.upp = false; lek.flyttNar = nu;
         lekKand = lekKand.filter(q => q !== k);
       }
     }
@@ -26197,7 +26212,10 @@ const Kamera = (() => {
       if (v != null) { lekGrund.sat(v); grundKalla = 'kort'; }
     }
     if (stillaRiktiga.length > 1) lekKortVid = Math.max(lekKortVid, 1);   // två kort lade sig innan det första gav vinkeln: inget "första kort"
-    lekZon = lek ? lekZonAv(lek.box) : null;   // rutan följer leken (också medan den är upplockad: platsen väntar på den)
+    /* Rutan följer leken, men bara medan den ligger (granskningen runda 2, fynd 2): står den kvar på
+       den tomma platsen får ett kort som läggs där inget spår. Kommer leken tillbaka dit gör steg 6
+       dess spår till skräp igen. */
+    lekZon = lek && !lek.upp ? lekZonAv(lek.box) : null;
     if (!lek || lek.upp) return;
     /* 6. Lekens egna spår (klassen baksida inne i högen) är leken, inget kort
        att läsa eller granska. Bara baksidelådor: ett uppvänt kort som läggs
