@@ -1893,6 +1893,26 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
             rot0 === 0 && sistaBesk && !!sistaBesk.kort);
       Kamera.satTrosklar({ beskarVrid: 1 });
     }
+    // VK6: grundläget som exakt vinkel (API:t för steg 3) — leken 20° snett: otappat 20° snett, tappat 110°; en knuff ändrar inget
+    {
+      namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
+      const a = vridet(75, 75, 25); kvSvar = svarFor(25);
+      let s = []; for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
+      const t = spar0(), sv = t ? Kamera.sparVinkel(t.id) : null;
+      const T = g => Kamera.tappad(g * D);   // g: kamerans grader (långsidan från x-axeln)
+      const satt = Kamera.satGrundGrader(110);   // leken ligger med upp-axeln 20° medurs: långsidan 110° från x-axeln
+      const g1 = Kamera.grundGrader, dom1 = { otappat20: T(110), kant60: T(170), tappat110: T(20), kort: !!(t && t.tappad) };
+      const knuff = Kamera.foljGrundGrader(114), g2 = Kamera.grundGrader;
+      const vriden = Kamera.foljGrundGrader(125), g3 = Kamera.grundGrader;
+      const nollad = Kamera.satGrundGrader(null), g4 = Kamera.grundGrader;
+      check(`VK6 grundläget i grader: spårets vinkel ${JSON.stringify(sv)}; satGrundGrader(110) ${satt} → ${g1}, domar ${JSON.stringify(dom1)}; knuff 4° ${knuff} → ${g2}; vriden 15° ${vriden} → ${g3}; null ${nollad} → ${g4}`,
+            sv && sv.matt && sv.kalla === 'remsa' && Math.abs(sv.grader - 115) < 0.6 && satt === true && g1 === 110 && !dom1.otappat20 && dom1.kant60 && dom1.tappat110 && !dom1.kort
+            && knuff === false && g2 === 110 && vriden === true && g3 === 125 && nollad === true && g4 === null);
+      /* VK7: mattan ritar alltid 0° eller 90° (byggunderlaget) — rapporten till datorn bär bara tappad (sant/falskt), ingen vinkel. */
+      const falt = bord.length ? Object.keys(bord[0]) : [];
+      check(`VK7 rapporten bär ingen vinkel: fält ${falt.filter(k => /vinkel|grad|axel|rot/i.test(k)).join(',') || '–'}, tappad ${bord.length ? typeof bord[0].tappad : '–'}`,
+            bord.length > 0 && !falt.some(k => /vinkel|grad|axel|^rot/i.test(k)) && typeof bord[0].tappad === 'boolean');
+    }
     KV.kortVinkel = kvRiktig; kvSvar = null;
     namnSvar = saker;
   }

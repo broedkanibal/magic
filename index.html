@@ -22346,6 +22346,11 @@ const Kamera = (() => {
     beskarVridMin: 10,
     beskarVridMax: 40,
     beskarRikt: 0,
+    /* Referensen följer leken (foljGrundGrader, MES-334 steg 1 — API för
+       steg 3): lekens vinkel måste ha ändrats minst så här många grader
+       innan grundläget flyttas, så att en knuff inte dömer om bordet. Lekens
+       uppmätta vinkel brusar median 1,1°, högst 3,6° mellan lägena (A2). */
+    grundKnuff: 8,
     /* Den tränade detektorn (MES-329): 1 = YOLOX fp32 (förval), 2 = YOLOX
        fp16 (prov på telefonen), 0 = dagens detektor (mattmodell + regioner).
        Laddas modellen inte — nät, minne, en webbläsare utan WebGPU och
@@ -25297,6 +25302,44 @@ const Kamera = (() => {
     satGrund(t.vinkel + (tappat ? Math.PI / 2 : 0));
     return true;
   }
+  /* ── Grundläget som en exakt vinkel (MES-334 steg 1, API:t som steg 3 —
+     leken som library — bygger på). Byggunderlaget: tappat = kortets vinkel
+     mer än 45° från lekens vinkel just nu; leken som ligger 20° snett gör
+     otappat 20° snett och tappat 110°. Tills leken byggs i steg 3 är
+     referensen dagens grundläge (kal.grund, annars upp).
+       Grader i kamerans led: långsidans vinkel från bildens x-axel, medurs
+     (y nedåt), mod 180 — ett stående otappat kort är 90, ett liggande 0.
+     Samma tal som raden i camera_setups bär (ruta.grund) och rapporten
+     skickar (grundGrader, avrundat), här med decimaler.
+       satGrundGrader(g)   grundläget sätts exakt till g (null = inget sparat,
+                           upp gäller). Alla spår döms om (domOm). true om det
+                           ändrades.
+       foljGrundGrader(g)  leken har vridits: referensen följer bara när g
+                           ligger minst T.grundKnuff grader från den nuvarande
+                           (en liten knuff ändrar inget), eller när ingen
+                           referens finns. Anroparen ser till att leken ligger
+                           still och att vinkeln är mätt (sparVinkel().matt).
+       sparVinkel(id)      ett spårs vinkel: { grader (som ovan, med en
+                           decimal), matt (uppmätt i lådan med säker
+                           långsida — annars lådans regel), kalla ('remsa' |
+                           'form'), upp (namnets riktning, KortVinkels grader:
+                           0 = upp, 90 = höger; null utan remsa) } eller null.
+       grundGrader         (getter) grundläget i grader med decimaler, null
+                           utan sparat. */
+  const tillGrader = v => v == null ? null : +(normGrund(v) * 180 / Math.PI).toFixed(2);
+  function satGrundGrader(g) { return satGrund(typeof g === 'number' && isFinite(g) ? g * Math.PI / 180 : null); }
+  function foljGrundGrader(g) {
+    if (!(typeof g === 'number' && isFinite(g))) return false;
+    const v = normGrund(g * Math.PI / 180);
+    if (kal.grund != null && axSkillnad(v, kal.grund) * 180 / Math.PI < T.grundKnuff) return false;
+    return satGrund(v);
+  }
+  function sparVinkel(id) {
+    const t = spar.find(x => x.id === id);
+    if (!t || t.vinkel == null) return null;
+    const vm = t.vm;
+    return { grader: +tillGrader(t.vinkel).toFixed(1), matt: !!vm, kalla: vm ? vm.kalla : null, upp: vm && vm.upp != null ? +vm.upp.toFixed(1) : null };
+  }
 
   function rutaPx(bredd, hojd) {
     const r = kal.ruta;
@@ -27122,7 +27165,7 @@ const Kamera = (() => {
     rapportera();
   }
 
-  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera,
+  return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrundGrader, foljGrundGrader, sparVinkel, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
            beskarVridning,   // hur beskärningen vrids med kortets vinkel (MES-334 steg 1) — bänken
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
@@ -27146,6 +27189,7 @@ const Kamera = (() => {
            get upplosning() { return upplosning ? Object.assign({}, upplosning) : null; },  // { w, h, max, begard }; null innan första rutan
            get ruta() { return Object.assign({}, kal.ruta); },
            get grund() { return kal.grund; },   // radianer modulo π; null = inte sparat (upp gäller)
+           get grundGrader() { return tillGrader(kal.grund); },   // samma i grader med decimaler (MES-334 steg 1)
            get trosklar() { return Object.assign({}, T); },
            get remsaIsar() { return T.remsaIsar; },   // datorns skildaRemsor läser den per par (MES-331) — utan kopian av hela T
            get diagnos() { return Object.assign({}, dia); },
