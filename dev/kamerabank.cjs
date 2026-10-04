@@ -1569,7 +1569,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
         const m = (o && o.minnen) || [];
         remsFragor.push({ id, minnen: m.map(e => e.namn + '#' + e.sparId + '×' + e.prov.length) });
         return Promise.resolve(m.length
-          ? { namn: m[0].namn, sid: m[0].sid, saker: true, varfor: 'remsa minne', marginal: 0.05, cands: [{ name: m[0].namn, sid: m[0].sid, score: 0.5 }], minne: { provad: true, namn: m[0].namn, saker: true, hel: 0.3, titel: 0.3, n: m.length } }
+          ? { namn: m[0].namn, sid: m[0].sid, saker: true, varfor: 'remsa minne', marginal: 0.05, cands: [{ name: m[0].namn, sid: m[0].sid, score: 0.5 }], minne: { provad: true, namn: m[0].namn, saker: true, hel: 0.3, titel: 0.3, helKalla: 'minne', titelKalla: 'minne', n: m.length, sparId: m[0].sparId } }   // sparId: minnet som vann, som remsMinnesDom ger det — det kortet följer minnet (steg 3)
           : { namn: 'Pacifism', sid: 's2', saker: false, varfor: 'remsa osäker', marginal: 0.02, cands: [] });
       }
     }).catch(() => {});
@@ -1601,13 +1601,15 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const m2 = Kamera.remsMinne;
     check(`RM2 kortet lyft: spår ${s.length}, minne ${JSON.stringify(m2.map(e => ({ id: e.sparId, lever: e.lever })))}, spöken ${Kamera.spoken.length}`, s.length === 0 && m2.length === 1 && m2[0].sparId === idA && !m2[0].lever && Kamera.spoken.length === 0);
     // RM3: nytt kort (nytt id) på samma plats med ett kort ovanpå — det täckta spåret läses osäkert, remsan får minnet som kandidat, namnet blir säkert ur minnet.
-    //      Kortet ovanpå ligger omlott (i en hög) och får också kandidaten — i appen avgör remsMinnesDom på vektorerna; här säger stubben ja åt båda.
+    //      Kortet ovanpå ligger omlott (i en hög) och frågar också — men minnet följer nu det täckta kortet (steg 3: e.sparId = det nya spåret, som lever),
+    //      så det bjuds inte det översta kortet: det förblir okänt. Före steg 3 fick båda kandidaten.
     namnSvar = osaker; remsFragor = [];
     for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
     const c3 = s.find(t => t.tackt) || {}, o3 = s.find(t => !t.tackt) || {}, q3 = remsFragor.find(f => f.id === c3.id), qo = remsFragor.find(f => f.id === o3.id);
-    check(`RM3 nytt täckt kort på platsen (nytt id): spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}, säkra ur minnet ${Kamera.minneStat.sakra}`,
+    const m3 = Kamera.remsMinne.find(e => e.namn === 'Plains') || {};
+    check(`RM3 nytt täckt kort på platsen (nytt id): spår ${JSON.stringify(s)}, remsfrågor ${JSON.stringify(remsFragor)}, säkra ur minnet ${Kamera.minneStat.sakra}, minnets spår ${m3.sparId} (lever ${m3.lever})`,
           s.length === 2 && c3.id !== idA && c3.st === 'klar' && c3.namn === 'Plains' && c3.varfor === 'remsa minne' && !!q3 && q3.minnen.length === 1 && q3.minnen[0] === 'Plains#' + idA + '×' + m1[0].prov
-          && !!o3.id && !!qo && qo.minnen.length === 1 && Kamera.minneStat.sakra >= 1);
+          && !!o3.id && o3.st === 'okand' && !!qo && qo.minnen.length === 0 && m3.sparId === c3.id && m3.lever === true && Kamera.minneStat.sakra >= 1);
     // RM3b: samma med spokMs förvalet — det nya spåret får spökets id och läses om som 'ny'; minnet står kvar (ett spår utan säkert namn rör det inte) och får gälla
     s = await lagg(); const idB = s[0] && s[0].id; s = await lyft(LYFT);
     namnSvar = osaker; remsFragor = [];
@@ -1658,6 +1660,20 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const skal8 = Kamera.spar.map(t => ({ id: t.id, skal: t.minneSkal || null }));
     check(`RM8 grannens remsa i remsan: spår ${JSON.stringify(s)}, minne ${m8.length}, skäl ${JSON.stringify(skal8)}, fångster ${fangster}`,
           s.length === 2 && o8.st === 'klar' && m8.length === 0 && fangster === 0 && skal8.some(x => x.id === o8.id && x.skal === 'grannens remsa i remsan'));
+    // RM9: minnet följer kortet (steg 3) — det täckta spåret som fick namnet ur minnet blir minnets spår, sedd förnyas medan det ligger kvar,
+    //      vektorerna rörs inte (inga nya prov på det täckta kortet), och efter lyftet står minnet kvar med det nya spårets id
+    namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
+    for (let i = 0; i < 25; i++) s = await rutaDet(kortA, detA);
+    const idA9 = s[0] && s[0].id, tagen9 = (Kamera.remsMinne[0] || {}).tagen, foljde9 = Kamera.minneStat.foljde;
+    s = await lyft(LYFT); namnSvar = osaker; remsFragor = [];
+    for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+    const c9 = s.find(t => t.tackt) || {}, m9a = Kamera.remsMinne.find(e => e.namn === 'Plains') || {};
+    for (let i = 0; i < Math.ceil(25000 / TAKT); i++) s = await rutaDet(bygg3, det3);   // 25 s med kortet kvar täckt: utan följningen hade minnet gått ut
+    const m9b = Kamera.remsMinne.find(e => e.namn === 'Plains') || {}, st9 = Kamera.minneStat;
+    s = await lyft(LYFT);
+    const m9c = Kamera.remsMinne.find(e => e.namn === 'Plains') || {};
+    check(`RM9 minnet följer kortet: gamla spåret ${idA9}, täckt spår ${c9.id} ${c9.st} ${c9.namn || '–'} [${c9.varfor || ''}]; minnets spår efter namnet ${m9a.sparId} (lever ${m9a.lever}), efter 25 s täckt ${m9b.sparId} tagen ${m9b.tagen === tagen9 ? 'orörd' : 'ÄNDRAD'} (lever ${m9b.lever}, följt ${m9b.foljt}), efter lyftet ${m9c.sparId} (lever ${m9c.lever}); följde ${st9.foljde - foljde9} i RM9`,
+          idA9 != null && c9.st === 'klar' && c9.varfor === 'remsa minne' && m9a.sparId === c9.id && m9a.lever === true && m9b.sparId === c9.id && m9b.tagen === tagen9 && m9b.foljt === true && m9c.sparId === c9.id && m9c.lever === false && st9.foljde - foljde9 === 1);
     // RM6: avstängt (T.remsaMinne 0): ingen fångst, ingen kandidat
     fangster = 0;
     s = await lagg({ spokMs: 2000, remsaMinne: 0 }); s = await lyft(LYFT);

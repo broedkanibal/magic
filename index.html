@@ -22503,7 +22503,7 @@ const Kamera = (() => {
      namn, och med spåren vid varje nollställning. minneStat räknar för
      golden (--detalj, raden minne). */
   let remsMinne = [], minneSenast = 0;
-  const minneStat = { fangster: 0, fangstMs: 0, fragor: 0, medMinne: 0, sakra: 0 };
+  const minneStat = { fangster: 0, fangstMs: 0, fragor: 0, medMinne: 0, sakra: 0, foljde: 0 };   // foljde: minnen som bytte spår till det kort som fick sitt namn ur dem (steg 3)
   let nastaId = 1;
   /* Läsningar som pågår (MES-214). Förut ett lås: EN läsning i taget, och
      nästa kort väntade tills förra kortets titelrad var läst — 70–290 ms per
@@ -25894,7 +25894,15 @@ const Kamera = (() => {
     if (T.remsaMinne) { minneStat.fragor++; if (minnen.length) minneStat.medMinne++; }
     const rs = await cb.lasRemsa(s.c, t.id, { rot: s.rot, px: s.px, synt: !!t.remsaSynt, tackt: s.tackt, utom: s.utom,
                                               minnen: minnen.length ? minnen.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov })) : null, minneSkal: m.skal });
-    if (rs && rs.saker && rs.varfor === 'remsa minne') minneStat.sakra++;
+    if (rs && rs.saker && rs.varfor === 'remsa minne') {
+      minneStat.sakra++;
+      /* Minnet följer kortet (minnesvard) när spåret blivit klart med namnet —
+         bara när det var minnets egna vektorer som låg närmast (hela remsan
+         eller titeldelen), inte när Scryfall vann poängen och minnet bara
+         höll med: då är spåret inte bevisat minnets kort (granskningen). */
+      const m = rs.minne;
+      t.minneFran = m && m.sparId != null && (m.helKalla === 'minne' || m.titelKalla === 'minne') ? m.sparId : null;
+    }
     return rs;
   }
   /* Minnets vård, varje ruta (MES-331 pass 6): posten följer sitt spår så
@@ -25909,6 +25917,26 @@ const Kamera = (() => {
      posten rensas aldrig. */
   function minnesvard(nu) {
     if (!remsMinne.length) return;
+    /* Minnet följer kortet (steg 3 efter pass 6): ett spår som fick sitt
+       säkra namn ur ett minne (lasRemsa: minneFran = minnets spår-id) ÄR det
+       kortet, och minnet byter spår till det — så förnyas sedd så länge
+       kortet ligger kvar täckt (golden 18: det undre Swamp i hög A fick
+       namnet ur minnet 64 s, men ursprungsminnet gick ut 83 s och kortets
+       tredje omfödelse 86–97 s stod utan). Bara när spåret står kvar klart
+       med samma namn och det gamla spåret inte lever; vektorerna rörs inte
+       (det täckta kortets remsa lärs aldrig — kanLarasSkal 'kort ovanpå'). */
+    for (const t of spar) {
+      if (t.minneFran == null) continue;
+      if (t.tillstand !== 'klar' || !t.saker || !t.namn) { if (t.tillstand !== 'ny' && t.tillstand !== 'stilla') t.minneFran = null; continue; }
+      const e = remsMinne.find(x => x.sparId === t.minneFran);
+      t.minneFran = null;
+      /* Högst ett byte per minne (granskningen): spåret som följs är ett täckt
+         kort vars remsa aldrig lärs, så ett andra byte hade låtit gamla
+         vektorer leva vidare i en hög utan ny bekräftelse. Ett följt minne
+         lever så länge det följda spåret, plus T.remsaMinneS. */
+      if (!e || e.foljt || e.namn !== t.namn || e.sparId === t.id || spar.some(q => q.id === e.sparId)) continue;
+      e.sparId = t.id; e.sedd = nu; e.foljt = true; minneStat.foljde++;
+    }
     const kvar = [];
     for (const e of remsMinne) {
       const t = spar.find(q => q.id === e.sparId);
@@ -26004,6 +26032,7 @@ const Kamera = (() => {
       let e = remsMinne.find(x => x.sparId === id);
       if (!e) { e = { sparId: id, namn, sid, prov: [], mx: s.mx, my: s.my, L: s.L, sedd: forra, tagen: 0, lever: true }; remsMinne.push(e); }
       e.namn = namn; e.sid = sid; e.tagen = forra;
+      e.foljt = false;   // ny bekräftelse av ett helt synligt kort: minnet får följa ett spår igen (högst ett byte per bekräftelse)
       e.prov.push({ hel: v.hel, titel: v.titel, tagen: forra }); if (e.prov.length > 3) e.prov.shift();
       minneStat.fangster++; minneStat.fangstMs += Math.round(nuRiktig() - t0);
     }, () => {}).then(() => { t.minneLaser = false; });
@@ -26750,7 +26779,7 @@ const Kamera = (() => {
            get strom() { return stream; },
            get lage() { return lage; }, get spar() { return spar; }, get spoken() { return spoken; }, upptagna,
            /* Minnet av remsor (MES-331 pass 6): posterna utan vektorerna, och räknarna — golden (--detalj, raden minne) och bänken. */
-           get remsMinne() { return remsMinne.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov.length, mx: e.mx, my: e.my, L: e.L, sedd: e.sedd, tagen: e.tagen, lever: !!e.lever })); },
+           get remsMinne() { return remsMinne.map(e => ({ sparId: e.sparId, namn: e.namn, sid: e.sid, prov: e.prov.length, mx: e.mx, my: e.my, L: e.L, sedd: e.sedd, tagen: e.tagen, lever: !!e.lever, foljt: !!e.foljt })); },
            get minneStat() { return Object.assign({ poster: remsMinne.length }, minneStat); },
            get lasande() { return lasande; },   // läsningar som pågår (bänken)
            get sigma() { return sigma; } };
@@ -27309,17 +27338,19 @@ function remsMinnesDom(qh, qt, minnen, T) {
   const idx = KamEmbed.remsIdx, D = Embed.DIM, medel = idx.medel;
   const centrera = v => { const c = new Float32Array(D); let n = 0; for (let k = 0; k < D; k++) { c[k] = v[k] - medel[k]; n += c[k] * c[k]; } n = Math.sqrt(n) || 1; for (let k = 0; k < D; k++) c[k] /= n; return c; };
   const dom = (q, del) => {
-    const best = new Map();
+    const best = new Map(), bastMinne = new Map();   // bastMinne: per namn det minne (spår-id) som låg närmast — det kortet minnet ska följa (steg 3), också när Scryfalls referens vann poängen
     for (const c of Embed.rangordna(q, idx)) { const name = remsTypNamn(c.namn); if (name === BAKSIDA_NAMN) continue; const f = best.get(name); if (!f || c.poang > f.score) best.set(name, { score: c.poang, kalla: 'scryfall', sid: remsTypSid(c.namn, c.id) }); }
     const cq = centrera(q);
     for (const m of minnen) for (const p of m.prov || []) {
       if (!p[del] || p[del].length !== D) continue;
       const v = centrera(p[del]); let s = 0; for (let k = 0; k < D; k++) s += cq[k] * v[k];
-      const name = remsTypNamn(m.namn), f = best.get(name);
+      const name = remsTypNamn(m.namn), f = best.get(name), bm = bastMinne.get(name);
       if (!f || s > f.score) best.set(name, { score: s, kalla: 'minne', sid: remsTypSid(m.namn, m.sid), sparId: m.sparId });
+      if (!bm || s > bm.score) bastMinne.set(name, { score: s, sparId: m.sparId });
     }
     const lista = [...best.entries()].map(([name, v]) => Object.assign({ name }, v)).sort((a, b) => b.score - a.score);
-    return { lista, namn: lista[0] ? lista[0].name : null, marginal: lista[0] ? lista[0].score - (lista[1] ? lista[1].score : 0) : 0, kalla: lista[0] ? lista[0].kalla : null, sparId: lista[0] ? lista[0].sparId : null };
+    const bm = lista[0] ? bastMinne.get(lista[0].name) : null;
+    return { lista, namn: lista[0] ? lista[0].name : null, marginal: lista[0] ? lista[0].score - (lista[1] ? lista[1].score : 0) : 0, kalla: lista[0] ? lista[0].kalla : null, sparId: bm ? bm.sparId : null };
   };
   const h = dom(qh, 'hel'), t = dom(qt, 'titel');
   const overens = !!h.namn && h.namn === t.namn && minnen.some(m => remsTypNamn(m.namn) === h.namn);
