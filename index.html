@@ -25496,7 +25496,15 @@ const Kamera = (() => {
       const kv = Math.min(b.w, b.h) / Math.max(1, Math.max(b.w, b.h));
       return kv >= T.kvotMin && kv <= T.kvotMax ? (b.w >= b.h ? 0 : 90) : null;
     },
-    sat(g) { if (typeof satGrundGrader === 'function') return satGrundGrader(g); return satGrund(g == null ? null : g * Math.PI / 180); },
+    sat(g) {
+      /* Samma axel som spåren redan döms mot (upp gav den): grundläget sparas,
+         men inget döms om — domOm dömer varje spår direkt, utan stillheten
+         och hysteresen, och vände förut ett formlöst spår i golden 12 fast
+         ingenting ändrats. */
+      if (g != null && kal.grund == null && axSkillnad(normGrund(g * Math.PI / 180), grundVinkel()) < Math.PI / 180) { kal.grund = normGrund(g * Math.PI / 180); return true; }
+      if (typeof satGrundGrader === 'function') return satGrundGrader(g);
+      return satGrund(g == null ? null : g * Math.PI / 180);
+    },
     /* Följningen bara med en uppmätt vinkel — steg 1:s krav (leken still, vinkeln mätt). */
     folj(t) { const g = lekGrund.matt(t); if (g == null || typeof foljGrundGrader !== 'function') return false; return foljGrundGrader(g); }
   };
