@@ -7442,9 +7442,9 @@ function ritaOppKropp(p, m, r) {
       }
       poster.push({ nyckel: 'c:' + c.cid, html: kortHtml(c, i, '', pos, alla, true), glid: true }); ta(c, pos);
     });
-    /* Hens lek bland korten (MES-334 steg 3): samma hög och bricka, utan meny — sleeves eller baksidan, aldrig ett namn. */
+    /* Hens lek bland korten (MES-334 steg 3): samma hög och bricka, utan meny — sleeves eller baksidan, aldrig ett namn. Först, som på min matta. */
     for (const x of lekPoster(p, true)) {
-      poster.push(x);
+      poster.unshift(x);
       const h = p.bibHog, q = oppVand !== 'bord' ? { x: -h.x - MATTA.CW, y: -h.y - MATTA.CH } : { x: h.x, y: h.y };
       ram = ram ? { x0: Math.min(ram.x0, q.x), y0: Math.min(ram.y0, q.y), x1: Math.max(ram.x1, q.x + MATTA.CW), y1: Math.max(ram.y1, q.y + MATTA.CH) }
         : { x0: q.x, y0: q.y, x1: q.x + MATTA.CW, y1: q.y + MATTA.CH };
@@ -8512,8 +8512,9 @@ function renderGrid(force) {
   /* Platshållarna behåller också sitt element, men glider inte (de hoppar
      som förut, och försvinner när kortet tar över platsen). */
   for (const pl of platser) poster.push({ nyckel: 'p:' + pl.spar, html: platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`) });
-  /* Leken bland korten och högarna som inte är leken (MES-334 steg 3): poster med egna nycklar, som glider. */
-  for (const x of lekPoster(p, false)) poster.push(x);
+  /* Leken bland korten och högarna som inte är leken (MES-334 steg 3): poster med egna nycklar, som glider —
+     först i ordningen, så att ett kort med samma z-index som ligger på leken ritas ovanpå den. */
+  poster.unshift(...lekPoster(p, false));
   lekSlvSatt(gridEl, p.bibHog && p.bibHog.farg || (arMitt(p) ? lekFargSist : null));   // nedvända kort i bordets sleeves
   matSynk(gridEl, poster, { animera });
 
@@ -8862,6 +8863,7 @@ function tagEmotLek(l) {
     }
   }
   if (mig.bibHog && mig.bibHog.farg) lekFargSist = mig.bibHog.farg;
+  if (!mig.bibHog) stangLekMeny();   // menyn hör till en lek som inte finns längre
   if (lekSig(mig) !== fore) { renderBibHog(); renderGrid(true); save(); }
   renderTom();
 }
@@ -8989,6 +8991,7 @@ function oppnaLekMeny(el) {
 }
 addEventListener('pointerdown', ev => { if (lekMenyEl && !ev.target.closest('.lekmeny,[data-lekhog="1"]')) stangLekMeny(); }, true);
 addEventListener('keydown', ev => { if (lekMenyEl && ev.key === 'Escape') { stangLekMeny(); ev.stopPropagation(); } }, true);
+gridWrap.addEventListener('wheel', () => stangLekMeny(), { passive: true });   // menyn står still på skärmen: följer inte mattan när den zoomas
 /* Not my library: högen blir ett nedvänt kort och texten går tillbaka till steg 1. Telefonen glömmer högen som lek (lekinte). */
 function lekInteKlick() {
   stangLekMeny();
@@ -25975,7 +25978,8 @@ const Kamera = (() => {
      att det går att köra på syntetiska bilder i node — det är så siffrorna
      i MES-22 är framtagna: en arm över ett känt kort, en handformad fläck,
      ett kort som lyfts, ett som flimrar förbi. */
-  function steg(g0, nu, ah, aw, skala, det) {
+  function steg(g0, nu, ah, aw, skala, det, rgba) {
+    if (rgba) lekRgba = rgba;   // färgerna till lekvakten (sleeves) när steget körs utan video (bänken); loop() sätter dem själv
     if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
     if (skala) vidSkala = skala;
