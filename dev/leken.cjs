@@ -117,11 +117,11 @@ const PROV = async steg => {
     tagEmotLek(lek('ingen', null, null, { farg: null, grund: null }));
     ok('1 · ingen lek: texten mitt på mattan', text() === 'Put your library on the table', text());
     ok('1 · ingen hög på mattan, och "Play your first card" nämns inte', !lekEl() && !/first card/i.test(text() || ''));
+    ok('1 · ingen fast hög heller (sida 5, tavla 1: bara texten)', $('#bibHog').hidden);
     W.__textEl = $('#emptyHand').querySelector('.tomlek');
   }
   if (steg === 1) {
     const fastHog = () => !$('#bibHog').hidden;
-    ok('före: dagens fasta hög står (flödet utan lek har ingen annan)', fastHog());
     tagEmotLek(lek('nere', 1, R1));
     const el = lekEl(), m = mig();
     ok('2 · leken ligger: texten byter', text() === "Play your first card when you're ready", text());
