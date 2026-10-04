@@ -45,7 +45,7 @@ som ett svar (minnet `kontroller-som-ljuger`).
 ### Måtten
 
 1. Hur ofta leken syns och ligger still innan första kortet, och efter hur lång tid. Gäller båda partierna.
-2. Om lekens riktning stämmer med otappat, och hur ofta första kortet ligger åt ett annat håll.
+2. Lekens vinkel mot de otappade kortens vinkel i grader, och om vinkeln går att mäta per kort inne i detektorns raka låda (kontur eller remsa).
 3. Sidoregeln: hur många kort som hamnar på andra sidan om leken från landen och *inte* är graveyard.
 4. Reserven: hur många gånger ett kort läggs ovanpå ett annat utan att det är graveyard (utöver land på land och fästa kort).
 5. Hur länge ett kort ligger synligt överst på graveyard-högen innan nästa läggs dit. Det avgör hur mycket 0,5 s-gränsen fångar.
@@ -109,19 +109,20 @@ animering. Ett nytt nedvänt kort när leken redan är känd är ett nedvänt ko
 inte en ny lek. Bänkfall: leken läggs ner före första kortet, starthanden
 ligger nedvänd, en hand vilar på leken, och leken flyttas.
 
-**2. Grundläget.** Lekens riktning är otappat. Om och var det bekräftas
-avgör Jespers val på designytans sida 4 (N1 utan fråga, N2 vid leken, N3 vid
-första kortet). Utan lek bekräftas det vid första kortet. Ingen omröstning och
-ingen rättning i efterhand. Statusfältets fråga (`grundSteg`) ersätts.
-Bänkfall: leken stående, leken på tvären, Thriving Heath först, och ett land
-som tappas direkt.
+**2. Grundläget.** När leken är bekräftad blir dess exakta vinkel otappat,
+automatiskt och utan fråga (`satGrund`). Ligger leken 20° snett är tappat 110°.
+Mät vinkeln per kort inne i detektorns raka låda (kontur eller remsa), eftersom
+lådan ensam inte skiljer tappat från otappat vid snedvinkel, och vrid
+beskärningen med grundläget. Utan lek: första kortets vinkel. Statusfältets
+fråga (`grundSteg`) tas bort. Bänkfall: leken rak, leken 20° snett, leken på
+tvären, Thriving Heath först, och ett land som tappas direkt.
 
 **3. Graveyard.** Första kortet som läggs på andra sidan om leken från landen
 blir graveyard. Reserven är ett kort som läggs rakt ovanpå ett annat (inte
 land på land, inte fäst), och då blir kortet under det första i högen.
 `ruta.grav` sätts i kortets storlek ur detektorns låda. Kortet går till
 dagens hög med `flygTillGrav`, och raden "Graveyard · Not my graveyard"
-visas. Nej öppnar menyn **Permanent / Ignore this spot** (Exile kommer i
+visas. Nej öppnar menyn M1 **Permanent / Ignore this spot** (Exile kommer i
 etapp 2). Efter ett Nej frågar sidoregeln inte igen under partiet. En instant
 eller sorcery på bordet räknas som vilket kort som helst. `SPELL_MS` står
 kvar.

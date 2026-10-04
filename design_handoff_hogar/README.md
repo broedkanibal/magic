@@ -26,8 +26,9 @@ G1–G3 och U1–U3 gäller bara om D1 inte byggs.
 
 **Sida 5 · The whole flow (chosen)** är byggunderlaget. Den har hela flödet i ett:
 steg 1–3 från tomt bord till första kortet, D1 i spel, graveyard som skapas där
-kortet ligger, Nej, leken upptagen, zoomsteget och sleeves. Jesper valde D1 och
-graveyard där kortet ligger (2026-10-04). N2 och M2 står som förslag tills han valt.
+kortet ligger, Nej, leken upptagen, zoomsteget och sleeves. Jesper valde D1, graveyard där kortet ligger och M1 för Nej
+(2026-10-04). Otappat tas automatiskt ur lekens exakta vinkel, utan fråga. Text mitt
+på mattan används bara när inga kort ligger ute.
 Tavlorna `P5*.dc.html` är kopior. Ändra i dem, inte i originalen.
 
 ## Källan

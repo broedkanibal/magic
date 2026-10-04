@@ -19,18 +19,15 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
 <div class="ab crop2" style="width: 1061px; height: 722px">
   <section class="matta" style="position: absolute; left: 10px; top: 10px; width: 1041px; height: 702px">
     <sc-if value="{{ar}}" hint-placeholder-val="{{ true }}">
-      <div class="st lib" style="left: 560px; top: 440px">
-        <span class="slv" role="img" aria-label="Library, 33 cards"></span>
-        <span class="hc bla mening"><span class="ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8fa8ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Found your library</span><i class="kvsep"></i><button onClick="{{nej}}">Not my library</button></span>
-      </div>
+    <div class="mtom" style="top: 220px"><b>Play your first card when you're ready</b></div>
+    <div class="st lib" style="left: 560px; top: 410px; transform: rotate(-20deg)"><span class="slv" role="img" aria-label="Library, 33 cards"></span></div>
+    <span class="hc bla mening" style="left: 625px; top: 612px"><span class="ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8fa8ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Found your library</span><i class="kvsep"></i><button onClick="{{nej}}">Not my library</button></span>
     </sc-if>
     <sc-if value="{{inte}}" hint-placeholder-val="{{ false }}">
-      <div class="card" style="left: 560px; top: 440px">
-        <span class="slv" role="img" aria-label="A face-down card"></span>
-        <span class="hc mening"><span>Face-down card</span><i class="kvsep"></i><button onClick="{{ja}}">It's my library</button></span>
-      </div>
+    <div class="mtom" style="top: 220px"><b>Put your library on the table</b></div>
+      <div class="card" style="left: 560px; top: 410px; transform: rotate(-20deg)"><span class="slv" role="img" aria-label="A face-down card"></span></div>
+      <span class="hc mening" style="left: 625px; top: 612px"><span>Face-down card</span><i class="kvsep"></i><button onClick="{{ja}}">It's my library</button></span>
     </sc-if>
-    <div class="coach"><i></i><b>Play your first card</b></div>
   </section>
 </div>
 </x-dc>
@@ -38,12 +35,7 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
 class Component extends DCLogic {
   constructor(props) { super(props); this.state = { inte: false }; }
   renderVals() {
-    return {
-      ar: !this.state.inte,
-      inte: this.state.inte,
-      nej: () => this.setState({ inte: true }),
-      ja: () => this.setState({ inte: false })
-    };
+    return { ar: !this.state.inte, inte: this.state.inte, nej: () => this.setState({ inte: true }), ja: () => this.setState({ inte: false }) };
   }
 }
 </script>
