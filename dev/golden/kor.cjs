@@ -60,6 +60,9 @@ const LJUS = arg('--ljus', '');
    profilens cache. */
 const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.includes('--wasm');
 const UTAN_LEKEN = arg('--utan-leken', '');
+/* --utan-bib: facits library-ruta ges inte till telefonen — som när uppstartens steg 4 inte satt någon (MES-334 steg 3, leken utan uppstart). Raden "Leken" per fall säger vad lekvakten valde och om det låg i facits ruta. Jämförs men sparas aldrig. */
+const UTAN_BIB = process.argv.includes('--utan-bib');
+if (UTAN_BIB && SPARA) { console.error('--utan-bib med --spara vägras: baslinjen mäter fallen med facits library-ruta.'); process.exit(2); }
 const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela rutan (MES-227) av eller på, oavsett appens förval
 const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
 const UTFIL = arg('--ut', '');   // fil att skriva körningens resultat till (samma form som senaste.json, utan rutloggen) — för felbok.cjs efter ett prov som inte får bli baslinje
@@ -278,7 +281,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   for (const ljus of varianter) {
   if (ljus) console.log(`\n══ ljus: ${ljus} ══`);
   const param = [(AIFLAG || STUB_KAMERA) && 'ai=1', REFFLAG && (REFANVAND ? 'refanvand=1' : 'ref=1'), LARFLAG && 'lar=1', GLOMFLAG && 'glomref=1', ljus && 'ljus=' + ljus,
-                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
+                 UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')), UTAN_BIB && 'utanbib=1',
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
                  VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), EMBED_LOKALT && !UTAN_MODELL && 'embedv=' + Math.round(fs.statSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')).mtimeMs), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
@@ -326,6 +329,18 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   /* K7: referenserna — hur många poolen bar per fall (--ref) och hur många varje fall lärde (--lar-ref). */
   if (REFFLAG || LARFLAG) { const rs = JSON.parse(json); console.log('\n  lärda referenser: ' + rs.map(r => `${r.id.slice(0, 2)}: ${REFFLAG ? r.ref + ' i poolen' : ''}${REFFLAG && LARFLAG ? ', ' : ''}${LARFLAG ? '+' + (r.larda || 0) + ' lärda' : ''}, ${r.refSparade || 0} sparade`).join(' · ')); }
   for (const r of JSON.parse(json)) if (r.videoErsatt) console.log(`\n  ${r.id}: videon ${r.videoErsatt} (${r.kallStorlek})`);
+  /* Leken utan uppstart (MES-334 steg 3): fallen där telefonen letade själv (ingen library-ruta) — när och var leken valdes, om det var inne i facits ruta, och slutläget. */
+  { const rs = JSON.parse(json).filter(r => r.lek && (r.lek.logg || []).some(x => x.lek));
+    if (rs.length) {
+      console.log(`\n  Leken${UTAN_BIB ? ' (--utan-bib: facits library-ruta gavs inte till telefonen)' : ''}: fall utan library-ruta, där telefonen letar efter leken själv`);
+      for (const r of rs) {
+        const L = r.lek, v = L.vald, sl = L.slut;
+        console.log(`    ${r.id.slice(0, 2)}: ${v ? `vald ${v.s} s${v.inne === true ? ' INNE i facits ruta' : v.inne === false && L.fel != null ? ' UTANFÖR facits ruta' : ' (facit har ingen ruta)'}, grundläget ${v.grund == null ? '–' : v.grund + '°'}` : 'ingen lek vald'}`
+          + `; slut ${sl ? sl.lage + (sl.grund ? ` (grundläget ur ${sl.grund})` : '') + (sl.farg ? `, färg ${sl.farg.magic ? 'Magic-baksidan' : 'rgb(' + sl.farg.r + ',' + sl.farg.g + ',' + sl.farg.b + ')'}` : '') + (sl.ute.length ? `, ${sl.ute.length} ute` : '') : '–'}`
+          + (L.fel ? `; ${L.fel} lägen med leken utanför facits ruta` : '') + `; logg: ${L.logg.filter(x => x.lek).map(x => `${x.s} s ${x.lek.lage}${x.lek.id ? '#' + x.lek.id : ''}${x.grund != null ? ' ' + x.grund + '°' : ''}`).join(' → ')}`);
+      }
+    }
+  }
   { const f0 = JSON.parse(json)[0]; if (f0) console.log('\n  metod: ' + f0.metod + (f0.ai ? ' (' + f0.ai + (f0.promptv != null ? ', systemprompt v' + f0.promptv : '') + ')' : '')
       + (f0.modell ? ` — bildmodellen räknade på ${f0.modell === 'webgpu' ? 'WebGPU' : f0.modell === 'wasm' ? 'WASM' : f0.modell}` : ' — utan bildmodell (reserven Matcher + ORB)')
       + (f0.detektor ? ` — detektorn: ${f0.detektor}` : '')   // MES-329: tränad YOLOX (variant, backend) eller dagens
