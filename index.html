@@ -8613,7 +8613,7 @@ function renderGrid(force) {
   /* Leken bland korten och högarna som inte är leken (MES-334 steg 3): poster med egna nycklar, som glider —
      först i ordningen, så att ett kort med samma z-index som ligger på leken ritas ovanpå den. */
   poster.unshift(...lekPoster(p, false));
-  lekSlvSatt(gridEl, p.bibHog && p.bibHog.farg || (arMitt(p) ? lekFargSist : null));   // nedvända kort i bordets sleeves
+  lekSlvSatt(gridEl, p.bibHog && p.bibHog.farg);   // nedvända kort i bordets sleeves — samma färg som raden bär, så att alla ser samma
   matSynk(gridEl, poster, { animera });
 
   renderGravHog(cards, d);
