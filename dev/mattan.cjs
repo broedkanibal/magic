@@ -121,8 +121,11 @@ const PROV = async () => {
   const a1 = e1 ? anim(e1) : '';
   ok('det glider och vrids dit (translate, rotate)', /translate/.test(a1) && /rotate/.test(a1), a1 || 'inga animeringar');
   ok('kortet står redan i sitt nya läge (.tappad, left/top)', !!e1 && e1.classList.contains('tappad') && parseFloat(e1.style.left) === Math.round(k1.x), e1 ? e1.style.left + ' ' + e1.className : '');
+  /* Skarp åt båda håll: det flyttade kortet rör sig, de andra inte. Mot den
+     gamla koden rör sig inget alls, och då faller kontrollen. */
+  const rorlig = el => el.getAnimations().some(a => a.playState === 'running' && a.effect && a.effect.getKeyframes().some(k => k.translate || k.rotate));
   const stilla = [...f2.values()].filter(el => el !== e1);
-  ok('korten som låg still rörs inte', stilla.every(el => !el.getAnimations().some(a => a.playState === 'running' && a.effect && a.effect.getKeyframes().some(k => k.translate || k.rotate))), stilla.map(anim).join(' | '));
+  ok('bara det flyttade kortet rör sig', !!e1 && rorlig(e1) && stilla.length === 2 && stilla.every(el => !rorlig(el)), `flyttat ${e1 ? anim(e1) : '–'} · stilla ${stilla.map(anim).join(' | ')}`);
 
   /* Avbrott: en ny rapport mitt i flytten börjar där kortet syns. */
   await vanta(120);
@@ -130,7 +133,10 @@ const PROV = async () => {
   rapport[0] = spar(1, 'Llanowar Elves', 0.2, 0.6, true);
   avstamBord(rapport, false);
   const efter = e1.getBoundingClientRect();
-  ok('ett avbrott hoppar inte', Math.abs(mitt.left - efter.left) < 3 && Math.abs(mitt.top - efter.top) < 3, `${Math.round(mitt.left)},${Math.round(mitt.top)} → ${Math.round(efter.left)},${Math.round(efter.top)}`);
+  /* Elementet måste sitta i sidan och ha en ruta — ett utbytt, frikopplat
+     element ger 0,0 före och efter och säger ingenting. */
+  ok('ett avbrott hoppar inte', e1.isConnected && mitt.width > 0 && efter.width > 0 && Math.abs(mitt.left - efter.left) < 3 && Math.abs(mitt.top - efter.top) < 3,
+    `${e1.isConnected ? 'i sidan' : 'frikopplat'}, ${Math.round(mitt.left)},${Math.round(mitt.top)} → ${Math.round(efter.left)},${Math.round(efter.top)}`);
   ok('samma element efter avbrottet', els().get(k1.cid) === e1);
 
   /* Ett nytt kort: de gamla står kvar, ett element till. */
@@ -159,7 +165,18 @@ const PROV = async () => {
   klick('pointerdown'); klick('pointerup');
   ok('ett klick till = untap', hk.tapped === 0, 'tapped ' + hk.tapped);
 
-  /* Mattans zoom: fit som krymper när ett kort läggs långt ut glider. */
+  /* Nya vyer ritas på plats (granskningen av steg 2, fynd 1): ingen zoom
+     glider in efter en ritning medan mattan var dold (här), eller i ett nytt
+     parti (sist). Brädets transform ska ha ändrats — annars mäts ingenting. */
+  await vanta(450);
+  const gar = el => el.getAnimations().some(a => a.playState === 'running');
+  visaVy('hem'); renderAll(true);
+  const tDold = gridEl.style.transform;
+  visaVy('app'); renderAll(true);
+  ok('efter en ritning medan mattan var dold ritas zoomen på plats', gridEl.style.transform !== tDold && !gar(gridEl), `${tDold} → ${gridEl.style.transform}`);
+
+  /* Mattans zoom: fit som krymper när ett kort läggs långt ut glider (i en
+     synlig vy under spelet). */
   await vanta(450);
   const ny = normaliseraKort({ cid: 'mattprov-ute', name: 'Island', x: 3400, y: 2600, z: 10, tapped: 0, cts: [] }, mig.cards.length);
   const zFore = matVy(mig).z;
@@ -170,23 +187,33 @@ const PROV = async () => {
   /* En hög som post i matSynk (grunden för leken och graveyard i steg 3–5):
      egen nyckel, samma element, och den glider när läget ändras. */
   const hogHtml = (x, y) => `<div class="provhog" style="left:${x}px;top:${y}px;width:178px;height:248px;position:absolute"><span class="bricka">Library 33</span></div>`;
-  const kort = [...gridEl.children].filter(el => el._mat && el._mat.nyckel.startsWith('c:')).map(el => ({ nyckel: el._mat.nyckel, html: el._mat.html, glid: true }));
-  matSynk(gridEl, kort.concat([{ nyckel: 'h:prov', html: hogHtml(60, 500), glid: true }]));
-  const hog = gridEl.querySelector('.provhog');
-  const s1 = matSynk(gridEl, kort.concat([{ nyckel: 'h:prov', html: hogHtml(400, 520), glid: true }]));
-  ok('en hög behåller sitt element och glider', gridEl.querySelector('.provhog') === hog && /translate/.test(anim(hog)) && s1.nya === 0, `nya ${s1.nya}, flyttade ${s1.flyttade}`);
-  matSynk(gridEl, kort);
-  ok('och tas bort när posten går', !gridEl.querySelector('.provhog'));
+  /* Utan matSynk (en index.html från före steg 2, --fil) faller kontrollerna
+     i stället för att provet dör, så att resten syns. */
+  if (typeof matSynk !== 'function') { ok('en hög behåller sitt element och glider', false, 'matSynk finns inte'); ok('och tas bort när posten går', false, 'matSynk finns inte'); }
+  else {
+    const kort = [...gridEl.children].filter(el => el._mat && el._mat.nyckel.startsWith('c:')).map(el => ({ nyckel: el._mat.nyckel, html: el._mat.html, glid: true }));
+    matSynk(gridEl, kort.concat([{ nyckel: 'h:prov', html: hogHtml(60, 500), glid: true }]));
+    const hog = gridEl.querySelector('.provhog');
+    const s1 = matSynk(gridEl, kort.concat([{ nyckel: 'h:prov', html: hogHtml(400, 520), glid: true }]));
+    ok('en hög behåller sitt element och glider', gridEl.querySelector('.provhog') === hog && /translate/.test(anim(hog)) && s1.nya === 0, `nya ${s1.nya}, flyttade ${s1.flyttade}`);
+    matSynk(gridEl, kort);
+    ok('och tas bort när posten går', !gridEl.querySelector('.provhog'));
+  }
   renderAll(true);
 
   /* Minskad rörelse: bara en toning (opacitet), inget lyft. */
   window.__mattLugn = true;
-  for (let i = 0; i < 100 && !matLugn(); i++) await vanta(20);
+  const lugn = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (let i = 0; i < 100 && !lugn(); i++) await vanta(20);
   const k2 = mig.cards.find(c => c.spar === 2), e2 = els().get(k2.cid);
   rapport[1] = spar(2, 'Forest', 0.8, 0.5);
   avstamBord(rapport, false);
   const a2 = e2.getAnimations().map(a => a.effect.getKeyframes().map(k => Object.keys(k).join('/')).join(' ')).join(' | ');
-  ok('minskad rörelse: toning, ingen skala', matLugn() && /opacity/.test(a2) && !/scale/.test(a2) && els().get(k2.cid) === e2, a2 || 'inga');
+  ok('minskad rörelse: toning, ingen skala', lugn() && /opacity/.test(a2) && !/scale/.test(a2) && els().get(k2.cid) === e2, a2 || 'inga');
+  /* Och av igen: resten av provet mäter de vanliga rörelserna. */
+  window.__mattLugn = false;
+  for (let i = 0; i < 100 && lugn(); i++) await vanta(20);
+  ok('minskad rörelse är av igen', !lugn());
 
   /* En motståndares matta: hens kort behåller sina element när hen spelar. */
   const opp = normalisera({ id: 'mattprov-opp', name: 'Sara', color: '#b782ff', plats: 2, lage: 'bord', cards: [
@@ -213,6 +240,19 @@ const PROV = async () => {
   const o3 = oEls(), ve = o3.get('o1'), img = ve && ve.querySelector('img');
   ok('vänt kort: samma element, inget namn kvar', ve === oe && !ve.outerHTML.includes('Delver') && String(ve.getAttribute('aria-label')).startsWith(DOLD_NAMN) && !!img && img.src === BAKSIDA,
     ve ? `${ve.getAttribute('aria-label')} · baksidan ${!!img && img.src === BAKSIDA} · namnet i elementet ${ve.outerHTML.includes('Delver')}` : 'inget element');
+
+  await vanta(500);
+  const tParti = gridEl.style.transform, oBrade = document.querySelector('#oppMattor .obrade'), oParti = oBrade && oBrade.style.transform;
+  spelLage = Object.assign({}, spelLage, { id: 'mattprov-2' });
+  oppSatt({ klar: true });
+  mig.cards = [normaliseraKort({ cid: 'mattprov-n1', name: 'Plains', x: 60, y: 70, z: 1, tapped: 0, cts: [] }, 0)];
+  matVyer.delete(mig.id);   // brädet räknas om för det nya partiets kort, så att zoomen säkert ändras
+  opp.cards = [normaliseraKort({ cid: 'o9', name: 'Island', x: 900, y: 700, z: 1, tapped: 0, cts: [] }, 0)];
+  renderAll(true);
+  const oNy = document.querySelector('#oppMattor .obrade');
+  ok('ett nytt parti ritas på plats (ingen zoom glider in, inte heller hos motståndaren)',
+    gridEl.style.transform !== tParti && !gar(gridEl) && !!oNy && oNy.style.transform !== oParti && !gar(oNy),
+    `min ${tParti} → ${gridEl.style.transform}; hens ${oParti} → ${oNy && oNy.style.transform}`);
   return rad;
 };
 
@@ -313,9 +353,18 @@ const TIDPROV = async () => {
       console.log(`  alla 40 flyttade, utan rörelser  ${f(t.allaUtan)}`);
     } else {
       /* Minskad rörelse slås på mitt i provet (window.__mattLugn): Chrome
-         emulerar mediefrågan, så att matLugn() läser den på riktigt. */
-      const r0 = c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true });
-      const vakt = (async () => { for (let i = 0; i < 200; i++) { const v = await c.cdp('Runtime.evaluate', { expression: '!!window.__mattLugn', returnByValue: true }).catch(() => null); if (v && v.result.value) { await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }); return; } await vanta(5); } })();
+         emulerar mediefrågan, så att appens matLugn() läser den på riktigt. */
+      let provKlart = false;
+      const r0 = c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')()', awaitPromise: true, returnByValue: true }).finally(() => { provKlart = true; });
+      const vakt = (async () => {
+        let pa = false;
+        for (let i = 0; i < 4000 && !provKlart; i++) {
+          const v = await c.cdp('Runtime.evaluate', { expression: 'window.__mattLugn', returnByValue: true }).catch(() => null), x = v && v.result.value;
+          if (x === true && !pa) { pa = true; await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }); }
+          if (x === false && pa) { await c.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] }); return; }
+          await vanta(5);
+        }
+      })();
       const r = await r0; await vakt;
       if (r.exceptionDetails) throw new Error('provet: ' + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));
       let n = 0, fel = 0;

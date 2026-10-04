@@ -7376,13 +7376,16 @@ function ritaOppKropp(p, m, r) {
     });
     /* Hens kort behåller sina element, och det hen gör glider (matSynk,
        MES-334 steg 2). Ett nytt håll (U) är en ny vy: korten byggs om på
-       plats, som förut, i stället för att flyga tvärs över mattan. */
-    const nyVy = m.vand !== oppVand;
-    if (nyVy) { m.brade.textContent = ''; m.vand = oppVand; }
-    matSynk(m.brade, poster, { animera: !nyVy && bordForm(r) === 'full' });
-    glid = !nyVy;
+       plats, som förut, i stället för att flyga tvärs över mattan. Ett nytt
+       parti, en ritning i en flik i bakgrunden och att mattan lämnats
+       (visaVy) är också nya vyer: ritas på plats, utan glid. */
+    const nyttHall = m.vand !== oppVand, vy = spelLage ? spelLage.id : '';
+    if (nyttHall) { m.brade.textContent = ''; m.vand = oppVand; }
+    glid = !nyttHall && m.vy === vy && !document.hidden;
+    matSynk(m.brade, poster, { animera: glid && bordForm(r) === 'full' });
     m.ram = ram || { x0: -MATTA.VP.w, y0: -MATTA.VP.h, x1: 0, y1: 0 };
   }
+  m.vy = document.hidden ? null : (spelLage ? spelLage.id : '');
   const speg = oppVand !== 'bord', ps = hogSkala(r);
   m.hogar.className = 'ohogar' + (speg ? ' speg' : '');
   m.hogar.style.transform = `scale(${Math.round(ps * 1000) / 1000})`;
@@ -8023,19 +8026,25 @@ function platsHtml(pl) {
    direkt, och en animering på de fristående egenskaperna translate, rotate
    och scale bär det dit från där det syntes. De ligger utanför transform,
    som hover, held och settle redan använder. En ändring mitt i en rörelse
-   börjar där kortet syns just då. Tider och kurvor ur TIDSLINJER.md
-   (design_handoff_animeringar): knuff 220 ms UT, flytt 420 ms FLY med lyft,
-   avbruten flytt 320 ms, tap 240 ms SOFT, mattans zoom 330 ms UT. Minskad
-   rörelse ger bara en toning. En flik i bakgrunden animerar inget: dess
-   tidslinje står still, och kortet hade stått kvar på den gamla platsen för
-   getBoundingClientRect (flygTillGrav, tokFlyg).
+   börjar där kortet syns just då, och farten följer med (TIDSLINJER,
+   Avbrott). Tider och kurvor ur TIDSLINJER.md (design_handoff_animeringar):
+   knuff 220 ms UT, flytt 420 ms FLY med lyft 450 ms, avbruten flytt 320 ms,
+   tap 240 ms SOFT, mattans zoom 330 ms UT — den sista bara i en synlig vy
+   under spelet: en ritning medan mattan var dold, ett nytt parti eller ett
+   annat bord är en ny vy, som ritas på plats. Minskad rörelse ger bara en
+   toning. En flik i bakgrunden animerar inget: dess tidslinje står still,
+   och kortet hade stått kvar på den gamla platsen för getBoundingClientRect
+   (flygTillGrav, tokFlyg).
    En hög (leken, graveyard) blir en post som ett kort — en egen nyckel
    ('h:bib'), absolut läge i brädkoordinater och glid: true — och behåller
    då sitt element och glider som korten. */
-const MAT_KURVA = { UT: 'cubic-bezier(.2,.8,.3,1)', FLY: 'cubic-bezier(.4,0,.2,1)', SOFT: 'cubic-bezier(.3,.7,.3,1)' };
-const MAT_MS = { knuff: 220, flytt: 420, avbruten: 320, tap: 240, zoom: 330 };
+const MAT_BEZ = { UT: [0.2, 0.8, 0.3, 1], FLY: [0.4, 0, 0.2, 1], SOFT: [0.3, 0.7, 0.3, 1] };
+const matKurva = b => 'cubic-bezier(' + b.join(',') + ')';
+const MAT_KURVA = { UT: matKurva(MAT_BEZ.UT), FLY: matKurva(MAT_BEZ.FLY), SOFT: matKurva(MAT_BEZ.SOFT) };
+const MAT_MS = { knuff: 220, flytt: 420, lyft: 450, avbruten: 320, avbrutenSkugga: 300, tap: 240, zoom: 330 };
 const MAT_KNUFF = 0.5;                          // kortare än en halv kortbredd är en knuff; längre en flytt, med lyft
 const MAT_LYFT_SKUGGA = '0 26px 40px -12px #000f';   // som .card.held: kortet bärs
+const MAT_TAP_SKUGGA = '0 26px 40px -12px #00000080';   // halva lyftets skugga (TIDSLINJER: skugga 0,5)
 const matLugnMq = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 const matLugn = () => !!(matLugnMq && matLugnMq.matches);
 const matKor = a => !!a && a.playState === 'running';
@@ -8049,15 +8058,48 @@ function matNu(el) {
 }
 function matStoppa(el) {
   const A = el._matA; if (!A) return;
-  for (const k of ['pos', 'rot', 'lyft']) if (A[k]) { A[k].cancel(); A[k] = null; }
+  for (const k of ['pos', 'rot', 'lyft', 'skugga']) if (A[k]) { A[k].cancel(); A[k] = null; }
+}
+/* y för x på cubic-bezier(b): x löses med halvering (30 steg räcker långt). */
+function matBez(b, x) {
+  const f = (t, p1, p2) => 3 * p1 * t * (1 - t) * (1 - t) + 3 * p2 * t * t * (1 - t) + t * t * t;
+  let lo = 0, hi = 1, t = x;
+  for (let i = 0; i < 30; i++) { t = (lo + hi) / 2; if (f(t, b[0], b[2]) < x) lo = t; else hi = t; }
+  return f(t, b[1], b[3]);
+}
+/* Farten just nu i en rörelse som går (TIDSLINJER, Avbrott): förskjutningen
+   är fran·(1 − E(t/T)), så farten är −fran·E′/T, per ms och komponent.
+   info = { fran: [..], T, bez }. null när ingen rörelse går. */
+function matFart(a, info) {
+  if (!matKor(a) || !info) return null;
+  const T = info.T, t = Math.max(0, Math.min(T, +a.currentTime || 0)), e = 4;
+  const u0 = Math.max(0, t - e) / T, u1 = Math.min(T, t + e) / T;
+  if (u1 <= u0) return null;
+  const dE = (matBez(info.bez, u1) - matBez(info.bez, u0)) / ((u1 - u0) * T);
+  return info.fran.map(v => -v * dE);
+}
+/* Kurvan för en rörelse som tar över en som går: första segmentet blir
+   cubic-bezier(x1, k·x1, x2, y2) med k = v·T/Δ — farten mot målet följer
+   med — x1 ≥ 0,15 och k·x1 inom −1,2…3. Utan fart: kurvan som den är. */
+function matKurvaFart(bas, fart, fran, T) {
+  if (!fart) return matKurva(bas);
+  const d2 = fran.reduce((a, v) => a + v * v, 0);
+  if (!d2) return matKurva(bas);
+  const k = -fran.reduce((a, v, i) => a + v * fart[i], 0) / d2 * T;   // v·T/Δ, v = farten mot målet
+  let x1 = Math.max(0.15, bas[0]);
+  if (k * x1 > 3) x1 = Math.max(0.15, 3 / k);
+  if (k * x1 < -1.2) x1 = Math.max(0.15, -1.2 / k);
+  const y1 = Math.max(-1.2, Math.min(3, k * x1));
+  return 'cubic-bezier(' + x1.toFixed(3) + ',' + y1.toFixed(3) + ',' + bas[2] + ',' + bas[3] + ')';
 }
 /* Flytten: kortet står redan på sin nya plats och förskjuts (dx, dy) tillbaka
    till där det syntes, och förskjutningen glider till noll. n: läget mitt i en
-   pågående rörelse (matNu), som då räknas som avbruten. */
+   pågående rörelse (matNu), som då räknas som avbruten: farten följer med. */
 function matGlid(el, dx, dy, n) {
   const A = el._matA || (el._matA = {});
-  const avbruten = matKor(A.pos);
+  const avbruten = matKor(A.pos), fart = avbruten ? matFart(A.pos, A.posInfo) : null;
   if (A.pos) { A.pos.cancel(); A.pos = null; }
+  A.posInfo = null;
   if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
   const fran = dx.toFixed(1) + 'px ' + dy.toFixed(1) + 'px', till = '0px 0px';
   const knuff = Math.hypot(dx, dy) < MATTA.CW * MAT_KNUFF;
@@ -8071,31 +8113,46 @@ function matGlid(el, dx, dy, n) {
   /* En knuff (kameran ser kortet hela tiden, och det rör sig lite) glider
      220 ms utan lyft — också när den kommer mitt i en annan: kamerans
      rapporter kommer tätare än så när ett kort skjuts. */
-  if (knuff) { A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: MAT_MS.knuff, easing: MAT_KURVA.UT }); return; }
-  const ms = avbruten ? MAT_MS.avbruten : MAT_MS.flytt;
-  A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: ms, easing: MAT_KURVA.FLY });
+  const bez = knuff ? MAT_BEZ.UT : MAT_BEZ.FLY, ms = knuff ? MAT_MS.knuff : avbruten ? MAT_MS.avbruten : MAT_MS.flytt;
+  A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: ms, easing: matKurvaFart(bez, fart, [dx, dy], ms) });
+  A.posInfo = { fran: [dx, dy], T: ms, bez };
+  if (knuff) return;
   /* Lyftet: kortet bärs (skalan och skuggan som .held) och sätts ned med en
-     liten studs. Avbrutet börjar det från skalan kortet har just nu. */
+     liten studs — 450 ms, skuggan för sig (egen kurva). Avbrutet: 320 ms
+     från skalan kortet har just nu, skuggan 300 ms. */
   if (A.lyft) A.lyft.cancel();
-  A.lyft = el.animate(avbruten ? [
-    { offset: 0, scale: String(n ? n.sc : 1), easing: 'linear' },
-    { offset: 180 / 320, scale: '1.05', boxShadow: MAT_LYFT_SKUGGA, easing: MAT_KURVA.UT },
-    { offset: 260 / 320, scale: '0.985', easing: MAT_KURVA.UT },
-    { offset: 1, scale: '1' }
-  ] : [
-    { offset: 0, scale: '1', easing: 'ease-out' },
-    { offset: 90 / 420, scale: '1.05', boxShadow: MAT_LYFT_SKUGGA, easing: 'linear' },
-    { offset: 320 / 420, scale: '1.05', boxShadow: MAT_LYFT_SKUGGA, easing: MAT_KURVA.UT },
-    { offset: 390 / 420, scale: '0.985', easing: MAT_KURVA.UT },
-    { offset: 1, scale: '1' }
-  ], { duration: ms });
+  if (A.skugga) A.skugga.cancel();
+  const sc0 = String(n ? n.sc : 1);
+  if (avbruten) {
+    A.lyft = el.animate([
+      { offset: 0, scale: sc0, easing: 'linear' },
+      { offset: 180 / 320, scale: '1.05', easing: MAT_KURVA.UT },
+      { offset: 260 / 320, scale: '0.985', easing: MAT_KURVA.UT },
+      { offset: 1, scale: '1' }
+    ], { duration: MAT_MS.avbruten });
+    A.skugga = el.animate([{ offset: 180 / 300, boxShadow: MAT_LYFT_SKUGGA, easing: 'ease-in' }], { duration: MAT_MS.avbrutenSkugga });
+  } else {
+    const L = MAT_MS.lyft;
+    A.lyft = el.animate([
+      { offset: 0, scale: sc0, easing: 'ease-out' },
+      { offset: 90 / L, scale: '1.05', easing: 'linear' },
+      { offset: 320 / L, scale: '1.05', easing: MAT_KURVA.UT },
+      { offset: 390 / L, scale: '0.985', easing: MAT_KURVA.UT },
+      { offset: 1, scale: '1' }
+    ], { duration: L });
+    A.skugga = el.animate([{ offset: 90 / L, boxShadow: MAT_LYFT_SKUGGA, easing: 'linear' },
+                           { offset: 320 / L, boxShadow: MAT_LYFT_SKUGGA, easing: 'ease-in' }], { duration: L });
+  }
 }
 /* Tap och untap: kortet står redan i sitt nya läge (.tappad) och vrids
-   tillbaka fran grader, och vridningen går till noll. Det lilla lyftet är
-   svagt: det hoppas över medan kortet bärs. */
+   tillbaka fran grader, och vridningen går till noll — med farten om en
+   vridning redan går. Det lilla lyftet är svagt: det hoppas över medan
+   kortet bärs. */
 function matVrid(el, fran) {
   const A = el._matA || (el._matA = {});
+  const fart = matKor(A.rot) ? matFart(A.rot, A.rotInfo) : null;
   if (A.rot) { A.rot.cancel(); A.rot = null; }
+  A.rotInfo = null;
   if (Math.abs(fran) < 0.5) return;
   if (matLugn()) {
     const m = 100 / MAT_MS.tap;
@@ -8103,8 +8160,13 @@ function matVrid(el, fran) {
                         { offset: m, rotate: '0deg', opacity: 0.3 }, { offset: 1, rotate: '0deg' }], { duration: MAT_MS.tap, easing: 'linear' });
     return;
   }
-  A.rot = el.animate([{ rotate: fran + 'deg' }, { rotate: '0deg' }], { duration: MAT_MS.tap, easing: MAT_KURVA.SOFT });
-  if (!matKor(A.lyft)) A.lyft = el.animate([{ offset: 0.5, scale: '1.03', boxShadow: '0 26px 40px -12px #00000080' }], { duration: MAT_MS.tap, easing: 'ease-in-out' });
+  A.rot = el.animate([{ rotate: fran + 'deg' }, { rotate: '0deg' }], { duration: MAT_MS.tap, easing: matKurvaFart(MAT_BEZ.SOFT, fart, [fran], MAT_MS.tap) });
+  A.rotInfo = { fran: [fran], T: MAT_MS.tap, bez: MAT_BEZ.SOFT };
+  if (!matKor(A.lyft)) {
+    A.lyft = el.animate([{ offset: 0.5, scale: '1.03' }], { duration: MAT_MS.tap, easing: 'ease-in-out' });
+    if (A.skugga) A.skugga.cancel();
+    A.skugga = el.animate([{ offset: 0.5, boxShadow: MAT_TAP_SKUGGA }], { duration: MAT_MS.tap, easing: 'ease-in-out' });
+  }
 }
 /* Det yttre elementets style-attribut i HTML:en, och resten av HTML:en utan
    det. Skiljer sig bara style (ett kort som flyttats) skrivs lägena direkt,
@@ -8216,7 +8278,7 @@ function matSynk(beh, poster, opt) {
   const nu = new Map();
   if (animera) for (const el of fore.values()) {
     const A = el._matA;
-    if (A && (matKor(A.pos) || matKor(A.rot) || matKor(A.lyft))) nu.set(el, matNu(el));
+    if (A && (matKor(A.pos) || matKor(A.rot) || matKor(A.lyft) || matKor(A.skugga))) nu.set(el, matNu(el));
   }
   /* 3. Det som inte finns kvar. */
   const behalls = new Set(poster.map(p => p.nyckel));
@@ -8356,11 +8418,16 @@ function renderGrid(force) {
     : state.players.every(q => !q.cards.length && !(q.pending || []).length);
   /* Ett bord med bara platshållare är inte tomt: kameran ser något. */
   document.body.classList.toggle('tomhand', cards.length === 0 && !platser.length);
-  /* Samma bord som förra ritningen, på en matta med mått: då glider det som
-     ändrats (matSynk). Ett annat bord (flikarna utan spel, någon annans bord
-     att titta på) är en ny vy och ritas på plats. */
-  const vyNyckel = p.id + (redigerbar() ? '' : 'L'), animera = gridEl._matVy === vyNyckel && v.vp.riktig;
-  gridEl._matVy = vyNyckel;
+  /* Samma bord i samma parti som förra ritningen, och båda gjordes på en
+     synlig matta: då glider det som ändrats (matSynk, brädets zoom). Allt
+     annat är en ny vy och ritas på plats, som förut — ett annat bord
+     (flikarna utan spel, någon annans bord att titta på), ett nytt parti, en
+     ritning medan mattan var dold (#app dold: inga mått; fliken i
+     bakgrunden) och att mattan lämnats (visaVy nollar nyckeln). */
+  const synlig = v.vp.riktig && !document.hidden;
+  const vyNyckel = p.id + (redigerbar() ? '' : 'L') + '|' + (spelLage ? spelLage.id : '');
+  const animera = synlig && gridEl._matVy === vyNyckel;
+  gridEl._matVy = synlig ? vyNyckel : null;
   matSkriv(p, v, animera);
   const d = delaHand();
   const nuT = Date.now();
@@ -27079,6 +27146,8 @@ function visaVy(namn) {
   $('#vyKamera').hidden = namn !== 'kamera';
   $('#vyLekfoto').hidden = namn !== 'lekfoto';
   $('#app').style.display = namn === 'app' ? '' : 'none';
+  /* Lämnas mattan är nästa ritning en ny vy: inget glider in (MES-334 steg 2). */
+  if (namn !== 'app') { gridEl._matVy = null; for (const m of oppMattor.values()) m.vy = null; }
   /* Lekens sida ligger ovanpå. Försvinner bordet under den (spelet
      avslutades) går ‹ till Home i stället; landningssidan och kameran har
      ingen lek att visa alls. */
