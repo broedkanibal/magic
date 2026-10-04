@@ -924,12 +924,15 @@ body.tomhand .kolmark{display:none}
 /* Kortet på mattan: absolut, med bredd/höjd inline (CW×CH för permanents,
    LW×LH för land) och z-index inline. Ett tappat kort är SAMMA element
    roterat 90° kring sin mitt. Hover och markering ändrar aldrig z-ordningen
-   — annars försvinner kortet man siktade på under sina grannar. */
+   — annars försvinner kortet man siktade på under sina grannar.
+   Ingen övergång på left/top: flytten och tap-vridningen spelas av matSynk
+   (MES-334 steg 2) på de fristående egenskaperna translate och rotate, som
+   kan avbrytas. transform-övergången är hoverns och lyftets. */
 .card{
   position:absolute;display:block;border-radius:10px;
   background:#1a212c;overflow:visible;outline:none;cursor:grab;
   box-shadow:0 4px 12px -3px #000c;
-  transition:transform .34s cubic-bezier(.34,1.4,.5,1),left .22s cubic-bezier(.2,.8,.3,1),top .22s cubic-bezier(.2,.8,.3,1),opacity .3s,box-shadow .13s;
+  transition:transform .34s cubic-bezier(.34,1.4,.5,1),opacity .3s,box-shadow .13s;
 }
 .card img{
   width:100%;height:100%;display:block;object-fit:cover;
@@ -7351,9 +7354,10 @@ function ritaOppKropp(p, m, r) {
   const sig = oppVand + '/' + cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + '·' + (paMattan(c) ? matSlag(c) : zonAv(c))
     + '·' + (c.cts || []).map(ctLabel).join(',') + '·' + c.x + ',' + c.y + ',' + c.z).join('|');
+  let glid = false;
   if (sig !== m.sig) {
     m.sig = sig;
-    const html = [];
+    const poster = [];
     let ram = null;
     const ta = (c, pos) => {
       const q = matRect(Object.assign({}, c, pos));
@@ -7366,11 +7370,17 @@ function ritaOppKropp(p, m, r) {
       const alla = cards.filter(x => x.attachedTo === c.cid && paMattan(x)), pos = oppPos(c);
       for (let k = alla.length - 1; k >= 0; k--) {
         const bp = oppBifPos(pos, k);
-        html.push(kortHtml(alla[k], cards.indexOf(alla[k]), 'bifogad', bp, null, true)); ta(alla[k], bp);
+        poster.push({ nyckel: 'c:' + alla[k].cid, html: kortHtml(alla[k], cards.indexOf(alla[k]), 'bifogad', bp, null, true), glid: true }); ta(alla[k], bp);
       }
-      html.push(kortHtml(c, i, '', pos, alla, true)); ta(c, pos);
+      poster.push({ nyckel: 'c:' + c.cid, html: kortHtml(c, i, '', pos, alla, true), glid: true }); ta(c, pos);
     });
-    m.brade.innerHTML = html.join('');
+    /* Hens kort behåller sina element, och det hen gör glider (matSynk,
+       MES-334 steg 2). Ett nytt håll (U) är en ny vy: korten byggs om på
+       plats, som förut, i stället för att flyga tvärs över mattan. */
+    const nyVy = m.vand !== oppVand;
+    if (nyVy) { m.brade.textContent = ''; m.vand = oppVand; }
+    matSynk(m.brade, poster, { animera: !nyVy && bordForm(r) === 'full' });
+    glid = !nyVy;
     m.ram = ram || { x0: -MATTA.VP.w, y0: -MATTA.VP.h, x1: 0, y1: 0 };
   }
   const speg = oppVand !== 'bord', ps = hogSkala(r);
@@ -7386,7 +7396,7 @@ function ritaOppKropp(p, m, r) {
   m.geo = { r, cx: ins.l + aw / 2, cy: ins.t + ah / 2, bcx: (m.ram.x0 + m.ram.x1) / 2, bcy: (m.ram.y0 + m.ram.y1) / 2,
             ew, eh, sFit: Math.max(0.05, Math.min(aw / ew, ah / eh, 1)) };
   oppVyer.set(p.id, oppKlamp(m.geo, oppVy(p.id)));
-  oppSkriv(p.id, m);
+  oppSkriv(p.id, m, glid);
 }
 /* Högarna: graveyard (toppkortet, lagren och antalet), library (antalet
    som inte är spelat) och exile när där finns något. */
@@ -7407,9 +7417,13 @@ function oppKlamp(g, v) {
   const mx = Math.max(0, (cw - g.r.w) / 2) + 30, my = Math.max(0, (ch - g.r.h) / 2) + 30;
   return { px: Math.max(-mx, Math.min(mx, v.px)), py: Math.max(-my, Math.min(my, v.py)), z: v.z };
 }
-function oppSkriv(pid, m) {
+/* glid: hens kort ändrades och fit med dem — brädet glider dit (matBradeSkriv),
+   utom när nivåbytets egen övergång går (.bord.glid). Hjul, drag och
+   zoomknappar skriver direkt. */
+function oppSkriv(pid, m, glid) {
   const g = m.geo, v = oppVy(pid), s = g.sFit * v.z, fit = v.z === 1 && !v.px && !v.py, r1 = n => Math.round(n * 10) / 10;
-  m.brade.style.transform = `translate(${r1(g.cx + v.px)}px,${r1(g.cy + v.py)}px) scale(${Math.round(s * 1000) / 1000}) translate(${r1(-g.bcx)}px,${r1(-g.bcy)}px)`;
+  matBradeSkriv(m.brade, `translate(${r1(g.cx + v.px)}px,${r1(g.cy + v.py)}px) scale(${Math.round(s * 1000) / 1000}) translate(${r1(-g.bcx)}px,${r1(-g.bcy)}px)`,
+    !!glid && m.el.classList.contains('f-full') && !bordEl.classList.contains('glid'));
   satHtml(m.chrome, g.r.w >= 420 && g.r.h >= 200 ? `<div class="zoomchip"><button type="button" class="zsteg" data-oz="ut" title="Zoom out (−)">−</button>`
     + `<button type="button" class="ztxt${fit ? '' : ' manuell'}" data-oz="fit" title="Back to fit (0)">${Math.round(s * 100)}%${fit ? ' fit' : ''}</button>`
     + `<button type="button" class="zsteg" data-oz="in" title="Zoom in (+)">+</button></div>` : '');
@@ -7991,6 +8005,306 @@ function platsHtml(pl) {
       : rad ? `<span class="kortchip fraga">Hard to read${kort ? ' — ' + esc(kort) : ''}</span>` : ''}
     <span class="platstxt">${txt}${pl.namn ? `<i>${esc(pl.namn)}?</i>` : ''}</span></${tag}>`;
 }
+/* ═══ MATTANS ELEMENT — mattan ritas inte om från noll (MES-334 steg 2) ══
+   Varje kort på mattan behåller sitt element hela livet. Förut byggde varje
+   tvingad omritning (renderGrid(true), som avstamBord kör vid varje ändring
+   på bordet) om hela brädet med innerHTML: ett kort som flyttades eller
+   tappades var ett nytt element på den nya platsen och kunde aldrig glida
+   eller vridas dit (spegelmattans grund 2, dev/plan/spegelmattan-principer.md).
+   matSynk ritar mot det som redan står. En post per element: en nyckel
+   (kortets cid) och dess HTML. Samma nyckel är samma element — det ändras på
+   plats: klasserna HTML:en sätter, attributen, lägena i style och barnen
+   bara där de skiljer sig (bilden laddas inte om). Nya nycklar skapar
+   element, borttagna tas bort, och ordningen rättas med så få flyttar som
+   möjligt. Element utan nyckel (pillen, dragets chip) rörs inte, och inte
+   heller klasser som andra satt (hov, multisel, held, settle, hfvantar).
+   Lyssnarna sitter på brädet (delegerade), så inget kopplas om.
+   Rörelserna är FLIP: elementet står på sin nya plats (left/top, .tappad)
+   direkt, och en animering på de fristående egenskaperna translate, rotate
+   och scale bär det dit från där det syntes. De ligger utanför transform,
+   som hover, held och settle redan använder. En ändring mitt i en rörelse
+   börjar där kortet syns just då. Tider och kurvor ur TIDSLINJER.md
+   (design_handoff_animeringar): knuff 220 ms UT, flytt 420 ms FLY med lyft,
+   avbruten flytt 320 ms, tap 240 ms SOFT, mattans zoom 330 ms UT. Minskad
+   rörelse ger bara en toning. En flik i bakgrunden animerar inget: dess
+   tidslinje står still, och kortet hade stått kvar på den gamla platsen för
+   getBoundingClientRect (flygTillGrav, tokFlyg).
+   En hög (leken, graveyard) blir en post som ett kort — en egen nyckel
+   ('h:bib'), absolut läge i brädkoordinater och glid: true — och behåller
+   då sitt element och glider som korten. */
+const MAT_KURVA = { UT: 'cubic-bezier(.2,.8,.3,1)', FLY: 'cubic-bezier(.4,0,.2,1)', SOFT: 'cubic-bezier(.3,.7,.3,1)' };
+const MAT_MS = { knuff: 220, flytt: 420, avbruten: 320, tap: 240, zoom: 330 };
+const MAT_KNUFF = 0.5;                          // kortare än en halv kortbredd är en knuff; längre en flytt, med lyft
+const MAT_LYFT_SKUGGA = '0 26px 40px -12px #000f';   // som .card.held: kortet bärs
+const matLugnMq = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+const matLugn = () => !!(matLugnMq && matLugnMq.matches);
+const matKor = a => !!a && a.playState === 'running';
+/* Det fristående läget just nu medan en rörelse pågår — där kortet syns,
+   inte dit det ska: förskjutning (px i brädet), vridning (grader), skala. */
+function matNu(el) {
+  const s = getComputedStyle(el), t = String(s.translate || 'none').split(/\s+/);
+  const r = String(s.rotate || 'none'), sc = String(s.scale || 'none');
+  return { dx: t[0] === 'none' ? 0 : parseFloat(t[0]) || 0, dy: t[0] === 'none' ? 0 : parseFloat(t[1] || '0') || 0,
+           rot: r === 'none' ? 0 : parseFloat(r.split(/\s+/).pop()) || 0, sc: sc === 'none' ? 1 : parseFloat(sc) || 1 };
+}
+function matStoppa(el) {
+  const A = el._matA; if (!A) return;
+  for (const k of ['pos', 'rot', 'lyft']) if (A[k]) { A[k].cancel(); A[k] = null; }
+}
+/* Flytten: kortet står redan på sin nya plats och förskjuts (dx, dy) tillbaka
+   till där det syntes, och förskjutningen glider till noll. n: läget mitt i en
+   pågående rörelse (matNu), som då räknas som avbruten. */
+function matGlid(el, dx, dy, n) {
+  const A = el._matA || (el._matA = {});
+  const avbruten = matKor(A.pos);
+  if (A.pos) { A.pos.cancel(); A.pos = null; }
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+  const fran = dx.toFixed(1) + 'px ' + dy.toFixed(1) + 'px', till = '0px 0px';
+  const knuff = Math.hypot(dx, dy) < MATTA.CW * MAT_KNUFF;
+  if (matLugn()) {
+    /* Minskad rörelse: tonas ut, byter plats osynligt, tonas in. */
+    const ms = knuff ? 200 : 350, m = (knuff ? 80 : 150) / ms, o = knuff ? 0.4 : 0;
+    A.pos = el.animate([{ offset: 0, translate: fran }, { offset: m, translate: fran, opacity: o },
+                        { offset: m, translate: till, opacity: o }, { offset: 1, translate: till }], { duration: ms, easing: 'linear' });
+    return;
+  }
+  /* En knuff (kameran ser kortet hela tiden, och det rör sig lite) glider
+     220 ms utan lyft — också när den kommer mitt i en annan: kamerans
+     rapporter kommer tätare än så när ett kort skjuts. */
+  if (knuff) { A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: MAT_MS.knuff, easing: MAT_KURVA.UT }); return; }
+  const ms = avbruten ? MAT_MS.avbruten : MAT_MS.flytt;
+  A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: ms, easing: MAT_KURVA.FLY });
+  /* Lyftet: kortet bärs (skalan och skuggan som .held) och sätts ned med en
+     liten studs. Avbrutet börjar det från skalan kortet har just nu. */
+  if (A.lyft) A.lyft.cancel();
+  A.lyft = el.animate(avbruten ? [
+    { offset: 0, scale: String(n ? n.sc : 1), easing: 'linear' },
+    { offset: 180 / 320, scale: '1.05', boxShadow: MAT_LYFT_SKUGGA, easing: MAT_KURVA.UT },
+    { offset: 260 / 320, scale: '0.985', easing: MAT_KURVA.UT },
+    { offset: 1, scale: '1' }
+  ] : [
+    { offset: 0, scale: '1', easing: 'ease-out' },
+    { offset: 90 / 420, scale: '1.05', boxShadow: MAT_LYFT_SKUGGA, easing: 'linear' },
+    { offset: 320 / 420, scale: '1.05', boxShadow: MAT_LYFT_SKUGGA, easing: MAT_KURVA.UT },
+    { offset: 390 / 420, scale: '0.985', easing: MAT_KURVA.UT },
+    { offset: 1, scale: '1' }
+  ], { duration: ms });
+}
+/* Tap och untap: kortet står redan i sitt nya läge (.tappad) och vrids
+   tillbaka fran grader, och vridningen går till noll. Det lilla lyftet är
+   svagt: det hoppas över medan kortet bärs. */
+function matVrid(el, fran) {
+  const A = el._matA || (el._matA = {});
+  if (A.rot) { A.rot.cancel(); A.rot = null; }
+  if (Math.abs(fran) < 0.5) return;
+  if (matLugn()) {
+    const m = 100 / MAT_MS.tap;
+    A.rot = el.animate([{ offset: 0, rotate: fran + 'deg' }, { offset: m, rotate: fran + 'deg', opacity: 0.3 },
+                        { offset: m, rotate: '0deg', opacity: 0.3 }, { offset: 1, rotate: '0deg' }], { duration: MAT_MS.tap, easing: 'linear' });
+    return;
+  }
+  A.rot = el.animate([{ rotate: fran + 'deg' }, { rotate: '0deg' }], { duration: MAT_MS.tap, easing: MAT_KURVA.SOFT });
+  if (!matKor(A.lyft)) A.lyft = el.animate([{ offset: 0.5, scale: '1.03', boxShadow: '0 26px 40px -12px #00000080' }], { duration: MAT_MS.tap, easing: 'ease-in-out' });
+}
+/* Det yttre elementets style-attribut i HTML:en, och resten av HTML:en utan
+   det. Skiljer sig bara style (ett kort som flyttats) skrivs lägena direkt,
+   utan att något parsas — så går de flesta av kamerans uppdateringar. Bara
+   den första taggen läses: attributvärden är esc():ade och bär inga ">". */
+const MAT_STIL = /^(<[a-z][a-z0-9]*\b[^>]*?)\sstyle="([^"]*)"/i;
+const MAT_LAGEN = /^(\s*(left|top|width|height|z-index)\s*:[^;:]*;?)*\s*$/i;   // bara lägen och mått: inga förkortningar att reda ut
+function matDelar(html) {
+  const m = MAT_STIL.exec(html);
+  return m ? { stil: m[2], rest: m[1] + html.slice(m[0].length) } : { stil: null, rest: html };
+}
+/* Minnet på ett element: det HTML:en senast sa, och vilka klasser,
+   style-egenskaper och attribut som är HTML:ens (resten är andras). */
+function matMinne(nyckel, html, ny) {
+  const stil = {}, attr = [];
+  for (let i = 0; i < ny.style.length; i++) { const n = ny.style[i]; stil[n] = ny.style.getPropertyValue(n); }
+  for (const a of ny.attributes) if (a.name !== 'class' && a.name !== 'style') attr.push(a.name);
+  return { nyckel, html, rest: matDelar(html).rest, kl: [...ny.classList], stil, attr };
+}
+/* Lägena ur en style-sträng ("left:12px;top:40px;…") direkt på elementet;
+   minnet tar värdena som webbläsaren läser tillbaka dem. */
+function matStil(el, m, stil) {
+  const nya = {};
+  for (const del of stil.split(';')) {
+    const i = del.indexOf(':'); if (i < 0) continue;
+    const n = del.slice(0, i).trim().toLowerCase(), v = del.slice(i + 1).trim();
+    if (!n) continue;
+    if (el.style.getPropertyValue(n) !== v) el.style.setProperty(n, v);
+    nya[n] = el.style.getPropertyValue(n);
+  }
+  for (const n in m.stil) if (!(n in nya)) el.style.removeProperty(n);
+  m.stil = nya;
+}
+/* Det yttre elementet efter HTML:en: dess klasser läggs till och de den inte
+   längre sätter tas bort; style-egenskaperna och attributen likaså. */
+function matYttre(el, ny, m) {
+  const kl = new Set(ny.classList);
+  for (const k of m.kl) if (!kl.has(k)) el.classList.remove(k);
+  for (const k of kl) el.classList.add(k);
+  for (let i = 0; i < ny.style.length; i++) {
+    const n = ny.style[i], v = ny.style.getPropertyValue(n);
+    if (el.style.getPropertyValue(n) !== v) el.style.setProperty(n, v);
+  }
+  for (const n in m.stil) if (!ny.style.getPropertyValue(n)) el.style.removeProperty(n);
+  for (const a of ny.attributes) if (a.name !== 'class' && a.name !== 'style' && el.getAttribute(a.name) !== a.value) el.setAttribute(a.name, a.value);
+  for (const n of m.attr) if (!ny.hasAttribute(n)) el.removeAttribute(n);
+}
+/* Barnen: samma slag på samma plats ändras på plats (attribut, text), annars
+   byts noden. Kortets bild är samma <img> så länge den finns. */
+function matBarn(gl, ny) {
+  const a = [...gl.childNodes], b = [...ny.childNodes];
+  for (let i = 0; i < b.length; i++) {
+    const x = a[i], y = b[i];
+    if (!x) gl.appendChild(y);
+    else if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) gl.replaceChild(y, x);
+    else if (x.nodeType !== 1) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; }
+    else {
+      for (const at of y.attributes) if (x.getAttribute(at.name) !== at.value) x.setAttribute(at.name, at.value);
+      for (const at of [...x.attributes]) if (!y.hasAttribute(at.name)) x.removeAttribute(at.name);
+      matBarn(x, y);
+    }
+  }
+  for (let i = b.length; i < a.length; i++) a[i].remove();
+}
+/* Längsta växande delföljden av de nuvarande platserna: de elementen står
+   kvar, resten flyttas. -1 = nytt element. Ger positionerna i listan. */
+function matLis(seq) {
+  const fore = new Array(seq.length), m = [];
+  for (let j = 0; j < seq.length; j++) {
+    const v = seq[j]; if (v < 0) continue;
+    let lo = 0, hi = m.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (seq[m[mid]] < v) lo = mid + 1; else hi = mid; }
+    fore[j] = lo > 0 ? m[lo - 1] : -1;
+    m[lo] = j;
+  }
+  const ut = new Set();
+  for (let k = m.length ? m[m.length - 1] : -1; k >= 0; k = fore[k]) ut.add(k);
+  return ut;
+}
+const matMall = typeof document !== 'undefined' ? document.createElement('template') : null;
+/* poster: [{ nyckel, html, glid }] i den ordning elementen ska stå; html är
+   ETT element. opt.animera false: inget glider (första ritningen, en annan
+   spelares bord, en matta utan mått). Returnerar vad som hände (bänken). */
+function matSynk(beh, poster, opt) {
+  const animera = !(opt && opt.animera === false) && !document.hidden;
+  const ut = { nya: 0, kvar: 0, bort: 0, andrade: 0, flyttade: 0, vridna: 0 };
+  const fore = new Map();
+  for (const el of beh.children) if (el._mat) fore.set(el._mat.nyckel, el);
+  /* En nyckel två gånger (ska inte hända) blir två element, inte ett. */
+  const sedda = new Map();
+  poster = poster.map(p => { const n = sedda.get(p.nyckel) || 0; sedda.set(p.nyckel, n + 1); return n ? Object.assign({}, p, { nyckel: p.nyckel + '~' + n }) : p; });
+  /* 1. HTML som skiljer sig parsas, i ett svep — utom när bara lägena i
+     style skiljer (latt): de skrivs direkt i steg 4. */
+  const parsa = [], latt = new Map();
+  for (const p of poster) {
+    const el = fore.get(p.nyckel);
+    if (el && el._mat.html === p.html) continue;
+    if (el) { const d = matDelar(p.html); if (d.stil != null && d.rest === el._mat.rest && MAT_LAGEN.test(d.stil)) { latt.set(p, d.stil); continue; } }
+    parsa.push(p);
+  }
+  const nyEl = new Map();
+  if (parsa.length) {
+    matMall.innerHTML = parsa.map(p => p.html).join('');
+    const els = [...matMall.content.children];
+    if (els.length === parsa.length) parsa.forEach((p, i) => nyEl.set(p, els[i]));
+    else parsa.forEach(p => { matMall.innerHTML = p.html; nyEl.set(p, matMall.content.firstElementChild); });
+  }
+  /* 2. Där rörliga element syns just nu — läses innan något skrivs. */
+  const nu = new Map();
+  if (animera) for (const el of fore.values()) {
+    const A = el._matA;
+    if (A && (matKor(A.pos) || matKor(A.rot) || matKor(A.lyft))) nu.set(el, matNu(el));
+  }
+  /* 3. Det som inte finns kvar. */
+  const behalls = new Set(poster.map(p => p.nyckel));
+  for (const [nyckel, el] of fore) if (!behalls.has(nyckel)) { matStoppa(el); el.remove(); fore.delete(nyckel); ut.bort++; }
+  /* 4. Skapa och ändra. */
+  const rorelser = [], dampa = [];
+  const lista = poster.map(p => {
+    let el = fore.get(p.nyckel);
+    const ny = nyEl.get(p);
+    if (el && ny && el.tagName !== ny.tagName) { matStoppa(el); el.remove(); fore.delete(p.nyckel); el = null; ut.bort++; }
+    if (!el) { ny._mat = matMinne(p.nyckel, p.html, ny); ut.nya++; return ny; }
+    ut.kvar++;
+    const m = el._mat;
+    const x0 = parseFloat(el.style.left) || 0, y0 = parseFloat(el.style.top) || 0, t0 = el.classList.contains('tappad');
+    if (ny) { matYttre(el, ny, m); matBarn(el, ny); el._mat = matMinne(p.nyckel, p.html, ny); ut.andrade++; }
+    else {
+      /* Samma HTML, eller bara nya lägen — men ett drag eller en
+         lägesändring kan ha skrivit elementet direkt (flyttaElement), och
+         andra kan ha tagit bort en av HTML:ens klasser. Det HTML:en säger
+         gäller. */
+      if (latt.has(p)) { matStil(el, m, latt.get(p)); m.html = p.html; ut.andrade++; }
+      else for (const n in m.stil) if (el.style.getPropertyValue(n) !== m.stil[n]) el.style.setProperty(n, m.stil[n]);
+      for (const k of m.kl) if (!el.classList.contains(k)) el.classList.add(k);
+    }
+    if (!p.glid) return el;
+    const x1 = parseFloat(el.style.left) || 0, y1 = parseFloat(el.style.top) || 0, t1 = el.classList.contains('tappad'), n = nu.get(el);
+    /* Vridningen är matVrids, aldrig .card-övergångens — också utan
+       animering, då kortet bara står i sitt nya läge. */
+    if (t0 !== t1) { el.style.transition = 'none'; dampa.push(el); }
+    if (!animera) { matStoppa(el); return el; }
+    /* Bara ett nytt mål ger en ny rörelse; en som redan går dit får löpa klart. */
+    if (x0 !== x1 || y0 !== y1) {
+      const dx = x0 + (n ? n.dx : 0) - x1, dy = y0 + (n ? n.dy : 0) - y1;
+      rorelser.push(() => matGlid(el, dx, dy, n)); ut.flyttade++;
+    }
+    if (t0 !== t1) {
+      const fran = (t0 ? 90 : 0) - (t1 ? 90 : 0) + (n ? n.rot : 0);
+      rorelser.push(() => matVrid(el, fran)); ut.vridna++;
+    }
+    return el;
+  });
+  /* 5. Ordningen: de som står i rätt inbördes ordning blir kvar, resten och
+     de nya sätts in framför sin efterföljare. */
+  const plats = new Map(); let i = 0, sista = null;
+  for (const el of beh.children) if (el._mat && fore.has(el._mat.nyckel)) { plats.set(el, i++); sista = el; }
+  const sta = matLis(lista.map(el => plats.has(el) ? plats.get(el) : -1));
+  let ref = sista ? sista.nextSibling : beh.firstChild;
+  for (let j = lista.length - 1; j >= 0; j--) {
+    if (!sta.has(j)) beh.insertBefore(lista[j], ref);
+    ref = lista[j];
+  }
+  /* 6. Tap: .card-övergången på transform (hoverns) får inte vrida kortet en
+     gång till. Den är avstängd medan klassen byts, och slås på igen när
+     stilen räknats. */
+  if (dampa.length) { for (const el of dampa) void getComputedStyle(el).transform; for (const el of dampa) el.style.transition = ''; }
+  /* 7. Rörelserna. */
+  for (const f of rorelser) f();
+  return ut;
+}
+/* Lägen utan ny HTML (renderGrid när bara lägena ändrats): läses först och
+   skrivs sedan, så att stilen räknas en gång. lista: [{ el, x, y, z }]. */
+function matFlyttaEl(lista, animera) {
+  animera = animera && !document.hidden;
+  const fore = lista.map(({ el }) => ({ x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0,
+    n: animera && el._matA && matKor(el._matA.pos) ? matNu(el) : null }));
+  lista.forEach(({ el, x, y, z }, k) => {
+    const nx = Math.round(x || 0), ny = Math.round(y || 0), f = fore[k];
+    el.style.left = nx + 'px'; el.style.top = ny + 'px';
+    el.style.zIndex = Math.max(1, Math.round(z || 1));
+    if (!animera) { matStoppa(el); return; }
+    if (nx !== f.x || ny !== f.y) matGlid(el, f.x + (f.n ? f.n.dx : 0) - nx, f.y + (f.n ? f.n.dy : 0) - ny, f.n);
+  });
+}
+/* Brädets transform (mattans zoom och pan). glid: en ändring som kommer ur
+   omritningen — fit som ändrats för att korten tog mer plats — glider 330 ms
+   från där brädet står. Annars (hjul, drag, knappar med sin egen övergång)
+   skrivs den direkt, och en pågående glidning släpps. */
+function matBradeSkriv(el, t, glid) {
+  /* Jämförs mot strängen som skrevs senast: style.transform läses tillbaka
+     i webbläsarens egen form ("translate(1px, 2px)"). */
+  const fore = el._matT, A = el._matZoom;
+  if (fore === t) return;
+  const fran = matKor(A) ? getComputedStyle(el).transform : fore;
+  if (A) { A.cancel(); el._matZoom = null; }
+  el._matT = t; el.style.transform = t;
+  if (!glid || !fore || document.hidden || matLugn()) return;
+  el._matZoom = el.animate([{ transform: fran }, { transform: t }], { duration: MAT_MS.zoom, easing: MAT_KURVA.UT });
+}
 let gridStrukt = null, nyChipT = null;
 const gravSagda = new Set();           // kort högvakten lagt i graveyard, redan flugna dit (MES-85)
 function renderGrid(force) {
@@ -8042,16 +8356,22 @@ function renderGrid(force) {
     : state.players.every(q => !q.cards.length && !(q.pending || []).length);
   /* Ett bord med bara platshållare är inte tomt: kameran ser något. */
   document.body.classList.toggle('tomhand', cards.length === 0 && !platser.length);
-  matSkriv(p, v);
+  /* Samma bord som förra ritningen, på en matta med mått: då glider det som
+     ändrats (matSynk). Ett annat bord (flikarna utan spel, någon annans bord
+     att titta på) är en ny vy och ritas på plats. */
+  const vyNyckel = p.id + (redigerbar() ? '' : 'L'), animera = gridEl._matVy === vyNyckel && v.vp.riktig;
+  gridEl._matVy = vyNyckel;
+  matSkriv(p, v, animera);
   const d = delaHand();
   const nuT = Date.now();
   matLage = { lyftN: cards.filter(c => c.lyft != null).length, nyN: cards.filter(c => c.ny && nuT - c.ny < 2500).length };
   const senasteLas = kamAnsluten && kamRad ? platser.filter(pl => pl.slag === 'laser').sort((a, b) => b.sedan - a.sedan)[0] : null;
   platsRadSpar = senasteLas ? senasteLas.spar : null;
   /* Två signaturer: strukturen (vilka kort, vilket tillstånd) och lägena.
-     Ändras bara lägena patchas elementen på plats — en omritning av
-     innerHTML river hover, solfjädern och counterpanelen, och kamerans
-     hjärtslag kommer var tredje sekund. */
+     Ändras bara lägena flyttas elementen utan att någon HTML byggs; annars
+     ritar matSynk mot elementen som står (MES-334 steg 2). Ingen av vägarna
+     byter ut ett element — förut rev innerHTML hover, solfjädern och
+     counterpanelen, och kamerans hjärtslag kommer var tredje sekund. */
   const strukt = cards.map(c =>
     c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + kamDom(c) + (c.ny && nuT - c.ny < 2500 ? 'N' : '')
@@ -8067,6 +8387,7 @@ function renderGrid(force) {
   gridSig = sig; gridStrukt = strukt;
 
   if (baraLagen) {
+    const flytt = [];
     for (const el of gridEl.querySelectorAll('.card[data-cid]')) {
       const i = cards.findIndex(c => c.cid === el.dataset.cid);
       if (i < 0) continue;
@@ -8078,10 +8399,9 @@ function renderGrid(force) {
         if (vard) pos = bifogadPlats(vard, k);
       }
       el.dataset.i = i;
-      el.style.left = Math.round(pos.x || 0) + 'px';
-      el.style.top = Math.round(pos.y || 0) + 'px';
-      el.style.zIndex = Math.max(1, Math.round(pos.z || 1));
+      flytt.push({ el, x: pos.x, y: pos.y, z: pos.z });
     }
+    matFlyttaEl(flytt, animera);
     for (const el of gridEl.querySelectorAll('.plats')) {
       const q = platsPos.get(el.dataset.spar);
       if (q) { el.style.left = Math.round(q.x) + 'px'; el.style.top = Math.round(q.y) + 'px'; }
@@ -8095,10 +8415,10 @@ function renderGrid(force) {
      piltangenterna når dem som vanligt. Värden ska ligga överst (MES-140):
      z-index räcker inte, för bifogadPlats kläms vid 1 och en värd med z 0
      eller 1 får då samma värde som sina bifogade kort — och vid lika vinner
-     det element som kommer sist. Därför skrivs de bifogade direkt FÖRE sin
-     värd, det längst bort först. Draget flyttar bara elementen, så ordningen
-     håller tills nästa omritning. */
-  const html = [];
+     det element som kommer sist. Därför står de bifogade direkt FÖRE sin
+     värd, det längst bort först (matSynk håller ordningen). Draget flyttar
+     bara elementen, så ordningen håller tills nästa omritning. */
+  const poster = [];
   cards.forEach((c, i) => {
     if (!paMattan(c)) return;
     if (c.attachedTo) {
@@ -8107,11 +8427,14 @@ function renderGrid(force) {
     }
     const alla = cards.filter(x => x.attachedTo === c.cid);
     for (let k = alla.length - 1; k >= 0; k--) {
-      if (paMattan(alla[k])) html.push(kortHtml(alla[k], cards.indexOf(alla[k]), 'bifogad', bifogadPlats(c, k)));
+      if (paMattan(alla[k])) poster.push({ nyckel: 'c:' + alla[k].cid, html: kortHtml(alla[k], cards.indexOf(alla[k]), 'bifogad', bifogadPlats(c, k)), glid: true });
     }
-    html.push(kortHtml(c, i, '', null, alla.filter(paMattan)));
+    poster.push({ nyckel: 'c:' + c.cid, html: kortHtml(c, i, '', null, alla.filter(paMattan)), glid: true });
   });
-  gridEl.innerHTML = html.join('') + platser.map(pl => platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`)).join('');
+  /* Platshållarna behåller också sitt element, men glider inte (de hoppar
+     som förut, och försvinner när kortet tar över platsen). */
+  for (const pl of platser) poster.push({ nyckel: 'p:' + pl.spar, html: platsHtml(pl).replace('class="plats', `data-spar="${esc(pl.spar)}" class="plats`) });
+  matSynk(gridEl, poster, { animera });
 
   renderGravHog(cards, d);
   /* Ett nytt kort (e.ny) ritas om efter 2,5 s, när det slutat vara nytt. */
@@ -8216,11 +8539,15 @@ function matVy(p) {
   v.ramHall = ram;
   return { board: v.board, fit, z, pan: v.pan, vp, ref: bordRef || vp, ram, manuell: v.zoomManual != null };
 }
-function matSkriv(p, vy) {
+/* glid (bara renderGrid): en zoom eller pan som omritningen ändrat glider
+   (matBradeSkriv) — men inte när brädets egen CSS-övergång redan går
+   (glider: zoomknapparna, fit, Tidy up; bordglid: bordsvyns nivåbyte). */
+function matSkriv(p, vy, glid) {
   const v = vy || matVy(p);
   gridEl.style.width = v.board.w + 'px';
   gridEl.style.height = v.board.h + 'px';
-  gridEl.style.transform = `translate(${Math.round(v.pan.x)}px,${Math.round(v.pan.y)}px) scale(${v.z})`;
+  matBradeSkriv(gridEl, `translate(${Math.round(v.pan.x)}px,${Math.round(v.pan.y)}px) scale(${v.z})`,
+    !!glid && v.vp.riktig && !gridEl.classList.contains('glider') && !gridEl.classList.contains('bordglid'));
   gridWrap.classList.toggle('inzoomad', v.z > v.fit + 0.005);
   renderChrome(v);
   return v;
@@ -9265,8 +9592,7 @@ function untapAlla() {
   if (!tappade.length) { toast('Nothing is tapped'); return; }
   angraPunkt(p);
   tappade.forEach(c => { c.tapped = 0; });
-  save(); renderAll(true);
-  vridIn(tappade);
+  save(); renderAll(true);              // omritningen vrider korten upp (matSynk)
 }
 /* Tidy up: allt i rader igen, basländerna i en hög per färg, och en vy med
    luft runt korten (luftigVy). Rör inte tap-läget. */
@@ -11689,26 +12015,10 @@ function tappa(i) {
   if (!e || !paMattan(e) || e.lyft != null) return;
   angraPunkt();
   e.tapped = e.tapped ? 0 : 1;
+  /* Kortet behåller sitt element, och omritningen vrider det (matSynk,
+     MES-334 steg 2). Förut byttes elementet ut, och vridIn fick starta det
+     nya i det förra läget. */
   save(); renderGrid(true); renderInspektor();
-  vridIn([e]);
-}
-/* Omritningen byter ut kortets element, så tap-vridningen spelades aldrig:
-   det nya elementet stod redan på sin plats. Här startar det i det förra
-   läget och släpps nästa ritning, så att .card-övergången (.34s, med
-   översving) vrider det dit — som i designen (Direction C v3). */
-function vridIn(kort) {
-  const els = [];
-  for (const e of kort) {
-    const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(e.cid)}"]`);
-    if (!el) continue;
-    const lyft = el.classList.contains('hov') || el.matches(':hover') ? ' scale(1.02)' : '';
-    el.style.transition = 'none';
-    el.style.transform = `rotate(${e.tapped ? 0 : 90}deg)${lyft}`;
-    els.push(el);
-  }
-  if (!els.length) return;
-  void els[0].offsetWidth;
-  for (const el of els) { el.style.transition = ''; el.style.transform = ''; }
 }
 function kortAktion(akt, i) {
   if (akt === 'tap') return tappa(i);
@@ -11898,7 +12208,11 @@ function gruppDrag(ev) {
     dnd.drar = true;
     closeCounters(); if (ark && !ark.lista) closeArk();
     renderPill();
-    for (const g of dnd.grupp) { const el = kortEl(g.cid); if (el) el.classList.add('held'); }
+    /* En glidning som pågår släpps: korten följer pekaren härifrån (matSynk). */
+    for (const g of dnd.grupp) {
+      const el = kortEl(g.cid); if (el) { el.classList.add('held'); matStoppa(el); }
+      bifogadeTill(g.cid).forEach(b => { const be = kortEl(b.cid); if (be) matStoppa(be); });
+    }
     try { gridEl.setPointerCapture(dnd.pointerId); } catch (e) {}
   }
   const pt = cpt(ev), dx = pt.x - dnd.p0.x, dy = pt.y - dnd.p0.y, h = hand();
@@ -11936,11 +12250,9 @@ function gruppSlapp(d, avbryt) {
 function tappaValda() {
   const valda = valdaKort().filter(e => paMattan(e) && e.lyft == null);
   const ny = valda.some(e => !e.tapped) ? 1 : 0;
-  const byter = valda.filter(e => !!e.tapped !== !!ny);
   angraPunkt();
   valda.forEach(e => { e.tapped = ny; });
-  save(); renderGrid(true); renderInspektor();
-  vridIn(byter);
+  save(); renderGrid(true); renderInspektor();   // de som bytte läge vrids av omritningen (matSynk)
 }
 gridEl.addEventListener('pointerdown', ev => {
   /* Nollställs här, inte i klickhanteraren: efter ett drag utfärdar
@@ -12025,7 +12337,9 @@ addEventListener('pointermove', ev => {
     closeCounters(); if (ark && !ark.lista) closeArk();
     renderPill();                            // borta under draget
     const el = gridEl.querySelector(`.card[data-cid="${CSS.escape(c.cid)}"]`);
-    if (el) el.classList.add('held');
+    /* En glidning som pågår släpps: kortet följer pekaren härifrån (matSynk). */
+    if (el) { el.classList.add('held'); matStoppa(el); }
+    bifogadeTill(c.cid).forEach(b => { const be = kortEl(b.cid); if (be) matStoppa(be); });
     try { gridEl.setPointerCapture(dnd.pointerId); } catch (e) {}
   }
   const pt = cpt(ev);
@@ -12174,8 +12488,8 @@ function matDndSlut(ev, avbryt) {
      hög lossnar, och högen räknas om från sitt basläge. */
   if (hogbar(c) && !c.attachedTo) restack(h, c.cid, () => 'g' + uid());
   save(); renderGrid(true); fjarrIkapp();
-  /* Efter omritningen: den byter ut elementet, och sätt-sig-studsen på det
-     gamla spelades aldrig. */
+  /* Sätt-sig-studsen på kortet, som står kvar i samma element genom
+     omritningen (matSynk). */
   const satt = gridEl.querySelector(`.card[data-cid="${CSS.escape(c.cid)}"]`);
   if (satt) { satt.classList.add('settle'); setTimeout(() => satt.classList.remove('settle'), 340); }
 }
