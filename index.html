@@ -25552,7 +25552,9 @@ const Kamera = (() => {
       const h = basta(lek.box);
       if (h) {
         lekSag(lek, h, nu);
-        if (nu - lek.stillaFran >= T.stillaMs) {
+        /* Läget följer leken när den ligger still igen — men inte detektorns
+           darr på några bildpunkter: då hade rapporten gått i varje ruta. */
+        if (nu - lek.stillaFran >= T.stillaMs && (lek.upp || ladIou(lek.box, h) < 0.8)) {
           lek.box = Object.assign({}, h);
           if (lek.upp) lek.upp = false;   // tillbaka på (nästan) samma plats
         }
@@ -25599,11 +25601,15 @@ const Kamera = (() => {
     const riktiga = spar.filter(lekRiktigt);
     if (lekKortVid == null) lekKortVid = riktiga.length;
     if (!lekForsta && riktiga.length) lekForsta = nu;
-    if (!lek && grundKalla == null && kal.grund == null && lekKortVid === 0 && riktiga.length === 1 && arStilla(riktiga[0])) {
-      const v = lekGrund.vinkel(riktiga[0]);
+    /* Bara spår som ligger still räknas: handen som lägger kortet blir ofta
+       ett par kortformade spår som dör inom en sekund (golden 07: två sådana
+       medan Thriving Moor lades). */
+    const stillaRiktiga = riktiga.filter(arStilla);
+    if (!lek && grundKalla == null && kal.grund == null && lekKortVid === 0 && stillaRiktiga.length === 1) {
+      const v = lekGrund.vinkel(stillaRiktiga[0]);
       if (v != null) { lekGrund.sat(v); grundKalla = 'kort'; }
     }
-    if (riktiga.length > 1) lekKortVid = Math.max(lekKortVid, 1);   // två kort innan det första låg still: inget "första kort"
+    if (stillaRiktiga.length > 1) lekKortVid = Math.max(lekKortVid, 1);   // två kort lade sig innan det första gav vinkeln: inget "första kort"
     if (!lek || lek.upp) return;
     /* 6. Lekens egna spår (klassen baksida inne i högen) är leken, inget kort
        att läsa eller granska. Bara baksidelådor: ett uppvänt kort som läggs

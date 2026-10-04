@@ -1764,8 +1764,22 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK8 första kortet utan lek: grundläget ${g8a}° (${l8a && l8a.grund}); leken efteråt ${l8b && l8b.lage}, grundläget ${grader()}° (${l8b && l8b.grund})`,
           g8a === 0 && l8a.grund === 'kort' && l8b.lage === 'nere' && grader() === 0 && l8b.grund === 'kort');
 
+    // LK8b: handen som lägger första kortet blir ett kortformat spår som dör (golden 07) — första kortets vinkel tas ändå
+    await nyttBord('v');
+    const Hf = { x: 110, y: 40, w: 28, h: 38 };
+    await kor(3, [kortR(F), kortR(Hf)], [lada(F, 'kort'), lada(Hf, 'kort')]);
+    await kor(10, [kortR(F)], [lada(F, 'kort')]);
+    check(`LK8b första kortet med handens spår intill: grundläget ${grader()}° (${Kamera.lek && Kamera.lek.grund})`, grader() === 0 && Kamera.lek && Kamera.lek.grund === 'kort');
+    // LK8c: två kort som båda ligger still innan något gav vinkeln (kameran såg dem samtidigt) — inget första kort, grundläget orört
+    await nyttBord('v');
+    const F4 = { x: 120, y: 50, w: 42, h: 30 };
+    await kor(12, [kortR(F), kortR(F4)], [lada(F, 'kort'), lada(F4, 'kort')]);
+    check(`LK8c två kort samtidigt: grundläget ${grader()} (${Kamera.lek && Kamera.lek.grund})`, grader() === null && Kamera.lek && Kamera.lek.grund === null);
+
     // LK9: ett uppvänt kort läggs PÅ leken (klassen kort) — läses som vanligt, blir inte lekens skräp
     const P = { x: 158, y: 64, w: 30, h: 42 };   // tre fjärdedelar över leken, men ett eget kort (egen låda)
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);   // leken först, som i spel
     await kor(14, [hog(L), kortR(P)], [lada(L, 'baksida'), lada(P, 'kort')]);
     const p9 = Kamera.spar.find(t => t.klass === 'kort' && Math.abs(t.cx - (P.x + P.w / 2)) < 4);
     check(`LK9 kort på leken: ${p9 && p9.tillstand} ${p9 && p9.namn} [${p9 && p9.varfor}]`, !!p9 && p9.tillstand === 'klar' && p9.namn === 'Plains');
