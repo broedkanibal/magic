@@ -41,9 +41,6 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
         <button class="ign" onClick="{{ign}}"><i></i><span><b>Ignore this spot</b><em>Mesa stops following this pile</em></span></button>
       </div>
     </sc-if>
-    <sc-if value="{{klar}}" hint-placeholder-val="{{ false }}">
-      <button class="kv" style="left: 760px; top: 20px; position: absolute" onClick="{{igen}}">Show the question again</button>
-    </sc-if>
   </section>
 </div>
 </x-dc>
@@ -53,13 +50,12 @@ class Component extends DCLogic {
   renderVals() {
     const st = this.state.steg;
     return {
-      fragar: st === 'fragar', meny: st === 'meny', ja: st === 'ja', klar: st !== 'fragar' && st !== 'meny',
+      fragar: st === 'fragar', meny: st === 'meny', ja: st === 'ja',
       kortStil: st === 'ja' ? 'filter: grayscale(.45) brightness(.75); transition: filter .48s ease-in-out' : 'transition: filter .48s ease-in-out',
       svaraJa: () => this.setState({ steg: 'ja' }),
       svaraNej: () => this.setState({ steg: 'meny' }),
       perm: () => this.setState({ steg: 'perm' }),
-      ign: () => this.setState({ steg: 'ign' }),
-      igen: () => this.setState({ steg: 'fragar' })
+      ign: () => this.setState({ steg: 'ign' })
     };
   }
 }
