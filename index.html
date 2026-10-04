@@ -26005,14 +26005,24 @@ const Kamera = (() => {
      utan en uppmätt vinkel per kort går det inte att se att leken vridits,
      bara ett lådbyte på 90°, och det vore att vända hela bordet. */
   const lekGrund = {
-    vinkel(t, box) {   // grader, eller null när det inte går att säga
-      if (t && typeof sparVinkel === 'function') { const v = sparVinkel(t.id); if (v != null && isFinite(v)) return v; }
+    /* Grader i kamerans led (långsidan från bildens x-axel, medurs, mod 180:
+       stående 90, liggande 0), eller null när det inte går att säga. matt =
+       uppmätt i lådan (steg 1: sparVinkel(id) ger { grader, matt, … });
+       annars lådans stående/liggande. */
+    matt(t) {
+      if (!t || typeof sparVinkel !== 'function') return null;
+      const v = sparVinkel(t.id), g = v && typeof v === 'object' ? (v.matt ? v.grader : null) : v;
+      return typeof g === 'number' && isFinite(g) ? g : null;
+    },
+    vinkel(t, box) {
+      const m = lekGrund.matt(t); if (m != null) return m;
       const b = box || (t && t.box); if (!b) return null;
       const kv = Math.min(b.w, b.h) / Math.max(1, Math.max(b.w, b.h));
       return kv >= T.kvotMin && kv <= T.kvotMax ? (b.w >= b.h ? 0 : 90) : null;
     },
     sat(g) { if (typeof satGrundGrader === 'function') return satGrundGrader(g); return satGrund(g == null ? null : g * Math.PI / 180); },
-    folj(g) { if (typeof foljGrundGrader === 'function') return foljGrundGrader(g); return false; }
+    /* Följningen bara med en uppmätt vinkel — steg 1:s krav (leken still, vinkeln mätt). */
+    folj(t) { const g = lekGrund.matt(t); if (g == null || typeof foljGrundGrader !== 'function') return false; return foljGrundGrader(g); }
   };
   /* Baksidelådorna som högar: lådor som täcker minst 30 % av den mindre slås ihop. */
   function lekHogar(fynd) {
@@ -26142,10 +26152,7 @@ const Kamera = (() => {
       t.tillstand = 'skrap'; t.varfor = 'lek'; t.fragad = true; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.skrapN = 3; t.provas = false;
     }
     /* 7. Grundläget följer leken när den vrids (steg 1 avgör vad en vridning är). */
-    if (grundKalla === 'lek' && lek.sist === nu && nu - lek.stillaFran >= LEK_STILLA_MS) {
-      const v = lekGrund.vinkel(lekSpar(lek.box), lek.box);
-      if (v != null) lekGrund.folj(v);
-    }
+    if (grundKalla === 'lek' && lek.sist === nu && nu - lek.stillaFran >= LEK_STILLA_MS) lekGrund.folj(lekSpar(lek.box));
     /* 8. Sleeves: färgen ur lekens inre medan den ligger still och syns hel. */
     if (lek.magic == null) { const t = lekSpar(lek.box); if (t && (t.varfor === 'baksida' || t.varfor === 'baksida ficka')) lek.magic = t.varfor === 'baksida'; }
     if (!lek.farg && lekRgba && lek.sist === nu && nu - lek.stillaFran >= T.stillaMs && nu - lek.provNar >= LEK_FARG_MS
