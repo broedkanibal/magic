@@ -990,7 +990,6 @@ body.tomhand .kolmark{display:none}
 .lekbr{position:absolute;z-index:3;left:50%;top:calc(100% - 15px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 11px;border-radius:15px;
   background:#141a24f5;box-shadow:0 8px 19px -5px #000e;font:650 13px/1 var(--sans);letter-spacing:1.1px;text-transform:uppercase;color:#aab6c8;white-space:nowrap;pointer-events:none}
 .lekbr i{width:8px;height:8px;border-radius:3px;flex:none;background:#6b8cff}
-.lekbr b{font:600 15px/1 var(--mono);letter-spacing:0;text-transform:none;color:var(--txt)}
 .lekhog .lekbr.upptxt{opacity:0;transition:opacity .25s}
 .lekhog .lekbr.ledig{transition:opacity .25s}
 .lekhog.upp .lekbr.upptxt{opacity:1}
@@ -7431,7 +7430,7 @@ function ritaOppKropp(p, m, r) {
   const sig = oppVand + '/' + cards.map(c => c.cid + '·' + keyOf(c) + '·' + (c.flipped ? 1 : 0) + '·' + (c.tapped ? 1 : 0)
     + '·' + (c.attachedTo || '') + '·' + cardStatus(c) + '·' + (c.lyft != null ? 1 : 0) + '·' + (paMattan(c) ? matSlag(c) : zonAv(c))
     + '·' + (c.cts || []).map(ctLabel).join(',') + '·' + c.x + ',' + c.y + ',' + c.z).join('|')
-    + '/' + lekSig(p) + (p.bibHog ? ':' + oppBibKvar(p) : '');   // hens lek bland korten (MES-334 steg 3)
+    + '/' + lekSig(p);   // hens lek bland korten (MES-334 steg 3)
   let glid = false;
   if (sig !== m.sig) {
     m.sig = sig;
@@ -8555,7 +8554,7 @@ function renderGrid(force) {
     + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
     + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (platsTappad(pl) ? 'T' : '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.lyftN + ',' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
-    + '/' + lekSig(p) + (p.bibHog ? ':' + minBibKvar() : '') + '/' + lekFargSig(slvAv(p));   // leken bland korten och bordets sleeves (MES-334 steg 3)
+    + '/' + lekSig(p) + '/' + lekFargSig(slvAv(p));   // leken bland korten och bordets sleeves (MES-334 steg 3)
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
   const sig = strukt + '#' + lagen;
@@ -8995,13 +8994,6 @@ function lekText() {
   if (!mig || !lekBordAktivt() || kamHaftKort) return null;
   return mig.bibHog ? 'Play your first card when you\'re ready' : 'Put your library on the table';
 }
-/* Talet på min lek: som dagens hög (hand och library ihop, lekKvar). */
-function minBibKvar() {
-  const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
-  if (!lek) return null;
-  const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null;
-  return k ? k.kvar : (lek.antal || 0);
-}
 /* Sleevens färger ur bordets färg — tonerna som designytans .slv (hogar2.css). Tomt = baksidans bild (ingen färg än, eller Magic-baksidan). */
 function lekSlvStil(f) {
   if (!f || f.magic) return '';
@@ -9015,13 +9007,15 @@ function lekSlvSatt(el, f) {
   if (s) for (const d of s.split(';')) { const i = d.indexOf(':'); el.style.setProperty(d.slice(0, i), d.slice(i + 1)); }
 }
 const lekKropp = slv => slv ? '<span class="lekslv"></span>' : `<img src="${BAKSIDA}" alt="" draggable="false">`;
-/* Leken på mattan (D1): högen, skuggan som står kvar när den plockas upp, och brickan. egen = min (klick öppnar menyn). */
-function lekHogHtml(h, pos, egen, n, fargBord) {
+/* Leken på mattan (D1): högen, skuggan som står kvar när den plockas upp, och brickan. egen = min (klick öppnar menyn).
+   Brickan har inget tal (Jespers beslut 2026-10-04): bara "Library" tills Mesa kan räkna dragna kort —
+   designens 33 är leken utan handen, och dagens lekKvar är hand och library ihop. */
+function lekHogHtml(h, pos, egen, fargBord) {
   const upp = !!h.upp, slv = lekSlvStil(h.farg || fargBord);
-  const etikett = upp ? 'Library, picked up' : `Library${n != null ? `, ${n} ${n === 1 ? 'card' : 'cards'} not played yet (hand and library together)` : ''}`;
+  const etikett = upp ? 'Library, picked up' : 'Library';
   return `<div class="lekhog${upp ? ' upp' : ''}" data-lekhog="${egen ? 1 : 0}"${egen ? ' role="button" tabindex="0"' : ''} aria-label="${etikett}${egen ? '. Open the menu' : ''}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1${slv ? ';' + slv : ''}">`
     + `<span class="avtryck"></span><span class="lekkropp">${lekKropp(slv)}</span>`
-    + `<span class="lekbr ledig"><i></i>Library${n != null ? `<b>${n}</b>` : ''}</span><span class="lekbr upptxt"><i></i>Library · Picked up</span></div>`;
+    + `<span class="lekbr ledig"><i></i>Library</span><span class="lekbr upptxt"><i></i>Library · Picked up</span></div>`;
 }
 /* Rutan runt leken i brädkoordinater (min matta), eller null — mattans ram och bräde ska rymma den som ett kort. */
 function lekRam(p) {
@@ -9033,7 +9027,7 @@ function lekPoster(p, opp) {
   const ut = [], h = p && p.bibHog;
   if (h && h.x != null && h.y != null) {
     const pos = opp && oppVand !== 'bord' ? { x: -h.x - MATTA.CW, y: -h.y - MATTA.CH } : { x: h.x, y: h.y };
-    ut.push({ nyckel: 'h:bib', html: lekHogHtml(h, pos, !opp && arMitt(p), opp ? oppBibKvar(p) : minBibKvar(), p.slvFarg), glid: true });
+    ut.push({ nyckel: 'h:bib', html: lekHogHtml(h, pos, !opp && arMitt(p), p.slvFarg), glid: true });
   }
   if (!opp) {
     const skala = kamSkala(p), slv = lekSlvStil(slvAv(p));

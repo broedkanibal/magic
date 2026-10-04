@@ -127,7 +127,7 @@ const PROV = async steg => {
     ok('2 · leken ligger: texten byter', text() === "Play your first card when you're ready", text());
     ok('2 · samma stil och plats (klassen tomlek)', !!$('#emptyHand .tomlek') && $('#emptyHand .tomlek b').textContent === "Play your first card when you're ready");
     ok('2 · leken bland korten på mattan (en post i brädet)', !!el && el.parentElement === gridEl && el._mat && el._mat.nyckel === 'h:bib', el ? el.className : 'ingen');
-    ok('2 · brickan Library 40 (hand och library ihop, som dagens hög)', !!el && /Library\s*40/.test(el.querySelector('.lekbr.ledig').textContent), el ? el.querySelector('.lekbr.ledig').textContent : '');
+    ok('2 · brickan bara "Library", inget tal (Jespers beslut 2026-10-04), och aria-label likaså', !!el && el.querySelector('.lekbr.ledig').textContent.trim() === 'Library' && !el.querySelector('.lekbr b') && /^Library\. Open the menu$/.test(el.getAttribute('aria-label') || ''), el ? el.querySelector('.lekbr.ledig').textContent + ' | ' + el.getAttribute('aria-label') : '');
     ok('2 · D1: ingen ram, ingen streckad kant (högen ritad i sleevens färg)', !!el && getComputedStyle(el).borderStyle === 'none' && !!el.querySelector('.lekslv') && /--s1:#/.test(el.getAttribute('style')), el ? el.getAttribute('style') : '');
     ok('2 · dagens fasta hög är borta', !fastHog());
     ok('2 · mattan visar leken rak (ingen rotation)', !!el && !/rotate/.test(el.getAttribute('style') || '') && getComputedStyle(el).transform === 'none');
