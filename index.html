@@ -25965,10 +25965,12 @@ const Kamera = (() => {
        - den är 0,6–1,6 kortytor när en kortstorlek finns (dia.kortRef).
          Före bordets första kort finns ingen, och då räcker att den inte
          är avlång (sladdar);
-       - den dyker upp under passet: högar som låg där redan i passets
-         första sekund (LEK_START_MS) — sladdar, askar, telefonens skugga på
-         kompisens bord — blir library bara när ingen annan hög finns. I
-         Jespers partier och i golden 13/18 ligger leken redan i bild när
+       - den dyker upp under passet: högar som syntes redan under passets
+         första sekunder (LEK_START_MS) — sladdar, askar, telefonens skugga på
+         kompisens bord — blir library bara när ingen annan hög finns. Tre
+         sekunder, inte en: detektorn blinkar, och skuggan på kompisens bord
+         syntes första gången efter 2 s (a3/jobb2, 1 ruta/s), leken efter 18.
+         I Jespers partier och i golden 13/18 ligger leken redan i bild när
          kameran startar, och då är den ensam.
      Upplockad kräver två vittnen (mått 6): detektorn har inte sett leken på
      LEK_BORTA_MS, OCH platsen har sett tom ut — under LEK_TOM av den i
@@ -25986,7 +25988,7 @@ const Kamera = (() => {
      still och syns hel; medianen av LEK_FARG_N sådana prov blir bordets
      färg och står sedan kvar. magic = leken är Magic-baksidan (bildmodellen
      sa 'baksida' om lekens eget spår) — då ritar datorn baksidan, inte färgen. */
-  const LEK_STILLA_MS = 1500, LEK_BORTA_MS = 1500, LEK_TOM_MS = 2000, LEK_TOM = 0.2, LEK_START_MS = 1000, LEK_FARG_N = 8, LEK_FARG_MS = 350;
+  const LEK_STILLA_MS = 1500, LEK_BORTA_MS = 1500, LEK_TOM_MS = 2000, LEK_TOM = 0.2, LEK_START_MS = 3000, LEK_FARG_N = 8, LEK_FARG_MS = 350;
   let lek = null;        // { id, box, ref {cx,cy,w,h}, stillaFran, sist, tomFran, upp, farg, prov [[r,g,b]…], provNar, magic }
   let lekKand = [];      // högar som kan bli library: { id, box, ref, fodd, sist, stillaFran, tomFran }
   let lekUte = [];       // högar som inte är leken (Not my library): { id, box, sist }
@@ -26080,7 +26082,8 @@ const Kamera = (() => {
     const W = AW, H = AH;
     const hogar = lekHogar(fynd);
     const kr = dia.kortRef, kortYta = kr ? kr.lang * kr.kort : 0;
-    const kant = b => b.x <= 1 || b.y <= 1 || b.x + b.w >= W - 1 || b.y + b.h >= H - 1;
+    const mx = Math.max(2, 0.01 * W), my = Math.max(2, 0.01 * H);   // inom en hundradel av bilden är vid kanten (kompisens ask, x0 0,005)
+    const kant = b => b.x <= mx || b.y <= my || b.x + b.w >= W - mx || b.y + b.h >= H - my;
     const form = b => {
       if (Math.min(b.w, b.h) < 0.45 * Math.max(b.w, b.h)) return false;
       if (!kortYta) return true;
@@ -26117,6 +26120,10 @@ const Kamera = (() => {
     hogar.forEach((h, i) => { if (!tag.has(i)) { const k = { id: lekNastaId++, box: Object.assign({}, h), ref: null, fodd: nu, sist: nu, stillaFran: nu, tomFran: 0 }; lekSag(k, h, nu); lekKand.push(k); } });
     const giltig = k => k.sist === nu && !kant(k.box) && form(k.box);
     const stilla = k => giltig(k) && nu - k.stillaFran >= LEK_STILLA_MS;
+    /* Diagnosen (golden --detalj, lekrepris --logg): kandidaterna och varför de inte är giltiga. */
+    dia.lekKand = lekKand.map(k => ({ id: k.id, x: +(k.box.x / W).toFixed(3), y: +(k.box.y / H).toFixed(3), w: +(k.box.w / W).toFixed(3), h: +(k.box.h / H).toFixed(3),
+      fodd: Math.round(k.fodd - lekStart), sedd: Math.round(nu - k.sist), stilla: Math.round(nu - k.stillaFran), kant: kant(k.box), form: form(k.box),
+      ytor: kortYta ? +(k.box.w * k.box.h / kortYta).toFixed(2) : null }));
     /* 3. Leken är upplockad och en hög ligger still någon annanstans: dit. */
     if (lek && lek.upp) {
       const k = lekKand.filter(stilla).sort((a, b) => a.stillaFran - b.stillaFran)[0];
@@ -26129,9 +26136,10 @@ const Kamera = (() => {
        ensam hög som låg där från början. Ligger flera väntar vakten tills
        bara en är kvar. */
     if (!lek) {
-      /* Närvarande = sedd senaste sekunden: en låda som blinkar bort en ruta
-         får inte göra den andra högen ensam. */
-      const finns = k => nu - k.sist < 1000 && !kant(k.box) && form(k.box);
+      /* Närvarande = inte borträknad: en hög är borta först när båda vittnena
+         sagt det (ingen låda, platsen tom — se ovan). En hand över den ena
+         högen, eller en låda som blinkar, får inte göra den andra ensam. */
+      const finns = k => !kant(k.box) && form(k.box);
       const mojliga = lekKand.filter(finns), nya = mojliga.filter(k => k.fodd - lekStart >= LEK_START_MS);
       const grupp = nya.length ? nya : mojliga;
       if (grupp.length === 1 && stilla(grupp[0])) lekValj(grupp[0], nu, nya.length ? 'ny' : 'ensam');

@@ -25,6 +25,7 @@ const ROT = path.join(__dirname, '..');
 const A3 = path.join(ROT, 'dev', 'material', 'arbete', '2026-10-04-hogarna-matning', 'a3');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const LOGG = process.argv.includes('--logg');
+const KAND = +arg('--kand', 0);   // --kand <s>: kandidaterna (dia.lekKand) var <s>:e sekund — varför en hög inte väljs
 const src = fs.readFileSync(path.join(ROT, 'index.html'), 'utf8').split('\n');
 const start = src.findIndex(l => l.startsWith('const Kamera = (() => {'));
 let slut = -1; for (let i = start; i < src.length; i++) if (src[i].startsWith('})();')) { slut = i; break; }
@@ -86,6 +87,7 @@ function korKalla(namn, rader) {
       await steg(r, 1200 + (r.t - t0) * 1000);
       const l = K.lek, k = l ? l.lage + (l.id || '') + (l.ruta ? `@${(l.ruta.x + l.ruta.w / 2).toFixed(2)},${(l.ruta.y + l.ruta.h / 2).toFixed(2)}` : '') + (l.grund ? ' ' + l.grund : '') : 'null';
       if (k !== forra) { forra = k; logg.push({ t: +r.t.toFixed(1), k, l }); }
+      if (KAND && (logg._kand == null || r.t - logg._kand >= KAND)) { logg._kand = r.t; console.log(`  [${namn} ${r.t.toFixed(1)} s] kortRef ${JSON.stringify(K.diagnos.kortRef)} kandidater ${JSON.stringify(K.diagnos.lekKand || [])}`); }
     }
     const valda = logg.filter(x => x.l && x.l.lage === 'nere');
     const forsta = valda[0];
