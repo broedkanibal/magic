@@ -5992,7 +5992,7 @@ const Moln = (() => {
         lekId: p.lek_id || null, lek: p.lek_info || null,
         status: p.status || null,          // MES-170: null före status.sql
         /* Leken bland korten (MES-334 steg 3) ligger som en post i raden: den lyfts ut här, så att inget som räknar kort ser den. */
-        ...(h => ({ cards: medDolt(p.user_id, h.kort), bibHog: h.bibHog }))(delaUtHogar((bord.get(p.user_id) || {}).kort || [])),
+        ...(h => ({ cards: medDolt(p.user_id, h.kort), bibHog: h.bibHog, slvFarg: h.slvFarg }))(delaUtHogar((bord.get(p.user_id) || {}).kort || [])),
         version: (bord.get(p.user_id) || {}).version || 0
       })).sort((a, b) =>
         (a.user_id === minId() ? -1 : b.user_id === minId() ? 1 : a.plats - b.plats))
@@ -6738,14 +6738,16 @@ let kamBibRad = null;
    skäl som flaggorna ovan: renderAll läser den i appens första rendering. */
 let kamLek;
 let lekLokalt = null;         // { typ 'inte'|'ja', id, kam, nar }: ett klick på leken som telefonen inte hunnit svara på — rapporter från före klicket gäller inte i LEK_LOKALT_MS
-let lekFargSist = null;       // bordets sleeve-färg senast den var känd (ett nedvänt kort efter Not my library har samma sleeves)
 const LEK_LOKALT_MS = 4000;
 const kamOriNyckel = () => kamVand + (kamSpegel ? 'm' : '');
 function lasKamOri(r) { kamVand = r && [0, 90, 180, 270].includes(r.vand) ? r.vand : 0; kamSpegel = !!(r && r.spegel); kamGravRad = r && r.grav && r.grav.w > 0 ? r.grav : null; kamBibRad = r && r.bib && r.bib.w > 0 ? r.bib : null; }
 /* Raden i camera_setups byggs på ett ställe. Varje skrivning skickar hela
    ruta, och en nyckel som inte stod med i alla fyra skrivarna försvann nästa
    gång någon sparade orienteringen eller grundläget. over ersätter fält. */
-function kamRutaRad(over) { return Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad, bib: kamBibRad }, over || {}); }
+/* grund: telefonens rapporterade grundläge när det finns (MES-334 steg 3, granskningen runda 1, fynd 2) —
+   leken eller första kortet gav det på telefonen, och raden ska inte skriva över det med det gamla värdet
+   (null) när man vrider bilden eller ritar graveyard-rutan. Telefonen tar inte ekot som ett byte (inom 1°). */
+function kamRutaRad(over) { return Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: kamUpp, grund: typeof kamGrund === 'number' ? kamGrund : kamGrundRad, vand: kamVand, spegel: kamSpegel, grav: kamGravRad, bib: kamBibRad }, over || {}); }
 /* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
    hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
    utan fältet), null = inte sparat, tal = sparat. Vid null spelas korten
@@ -7457,7 +7459,7 @@ function ritaOppKropp(p, m, r) {
       ram = ram ? { x0: Math.min(ram.x0, q.x), y0: Math.min(ram.y0, q.y), x1: Math.max(ram.x1, q.x + MATTA.CW), y1: Math.max(ram.y1, q.y + MATTA.CH) }
         : { x0: q.x, y0: q.y, x1: q.x + MATTA.CW, y1: q.y + MATTA.CH };
     }
-    lekSlvSatt(m.brade, p.bibHog && p.bibHog.farg);   // hens nedvända kort i hens sleeves
+    lekSlvSatt(m.brade, slvAv(p));   // hens nedvända kort i hens sleeves
     /* Hens kort behåller sina element, och det hen gör glider (matSynk,
        MES-334 steg 2). Ett nytt håll (U) är en ny vy: korten byggs om på
        plats, som förut, i stället för att flyga tvärs över mattan. Ett nytt
@@ -8553,7 +8555,7 @@ function renderGrid(force) {
     + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
     + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (platsTappad(pl) ? 'T' : '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.lyftN + ',' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
-    + '/' + lekSig(p) + (p.bibHog ? ':' + minBibKvar() : '') + '/' + (lekFargSist ? [lekFargSist.r, lekFargSist.g, lekFargSist.b, lekFargSist.magic ? 1 : 0].join(',') : '');   // leken bland korten (MES-334 steg 3)
+    + '/' + lekSig(p) + (p.bibHog ? ':' + minBibKvar() : '') + '/' + lekFargSig(slvAv(p));   // leken bland korten och bordets sleeves (MES-334 steg 3)
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
   const sig = strukt + '#' + lagen;
@@ -8613,7 +8615,7 @@ function renderGrid(force) {
   /* Leken bland korten och högarna som inte är leken (MES-334 steg 3): poster med egna nycklar, som glider —
      först i ordningen, så att ett kort med samma z-index som ligger på leken ritas ovanpå den. */
   poster.unshift(...lekPoster(p, false));
-  lekSlvSatt(gridEl, p.bibHog && p.bibHog.farg);   // nedvända kort i bordets sleeves — samma färg som raden bär, så att alla ser samma
+  lekSlvSatt(gridEl, slvAv(p));   // nedvända kort i bordets sleeves — färgen som raden bär, så att alla ser samma
   matSynk(gridEl, poster, { animera });
 
   renderGravHog(cards, d);
@@ -8962,7 +8964,7 @@ function tagEmotLek(l) {
                                           kam: flytt ? Object.assign(kam, { nar: Date.now() }) : g.kam });
     }
   }
-  if (mig.bibHog && mig.bibHog.farg) lekFargSist = mig.bibHog.farg;
+  { const f = lekFarg(l && l.farg) || (mig.bibHog && mig.bibHog.farg); if (f && lekFargSig(f) !== lekFargSig(mig.slvFarg)) mig.slvFarg = f; }   // bordets sleeves står kvar också utan lek (granskningen runda 1, fynd 6)
   if (!mig.bibHog) stangLekMeny();   // menyn hör till en lek som inte finns längre
   renderBibHog();   // strängdiffad; den fasta högen går och kommer med flödet (lekBordAktivt), inte bara med leken
   if (lekSig(mig) !== fore) { renderGrid(true); save(); }
@@ -8979,9 +8981,14 @@ function lekUteLista(p) {
 /* Allt som ändrar hur leken ritas, i en sträng (renderGrid, tagEmotLek, motståndarens matta). */
 function lekSig(p) {
   const h = p && p.bibHog;
-  return (h ? [h.id, h.upp ? 1 : 0, h.x != null ? Math.round(h.x) : '', h.y != null ? Math.round(h.y) : '', h.kam ? h.kam.nar : '', h.farg ? [h.farg.r, h.farg.g, h.farg.b, h.farg.magic ? 1 : 0].join(',') : ''].join('|') : '-')
-    + '/' + lekUteLista(p).map(u => u.id + ':' + Math.round(u.kam.x * 200) + ',' + Math.round(u.kam.y * 200)).join(',');
+  return (h ? [h.id, h.upp ? 1 : 0, h.x != null ? Math.round(h.x) : '', h.y != null ? Math.round(h.y) : '', h.kam ? h.kam.nar : '', lekFargSig(h.farg)].join('|') : '-')
+    + '/' + lekUteLista(p).map(u => u.id + ':' + Math.round(u.kam.x * 200) + ',' + Math.round(u.kam.y * 200)).join(',') + '/' + lekFargSig(p && p.slvFarg);
 }
+function lekFargSig(f) { return f ? [f.r, f.g, f.b, f.magic ? 1 : 0].join(',') : ''; }   // funktioner, inte const: renderGrid kan gå innan blocket körts
+/* Bordets sleeves (MES-334 steg 3): färgen kameran tog ur leken. Den står kvar på spelaren (slvFarg, i raden)
+   också när leken inte ligger — efter Not my library, eller innan en ny lek hittats — så att nedvända kort
+   har samma sleeves hela partiet och alla ser samma. */
+function slvAv(p) { return (p && (p.slvFarg || (p.bibHog && p.bibHog.farg))) || null; }
 /* Texten mitt på mattan före första kortet (renderTom): null = som förut. */
 function lekText() {
   const mig = minSpelare();
@@ -9009,9 +9016,9 @@ function lekSlvSatt(el, f) {
 }
 const lekKropp = slv => slv ? '<span class="lekslv"></span>' : `<img src="${BAKSIDA}" alt="" draggable="false">`;
 /* Leken på mattan (D1): högen, skuggan som står kvar när den plockas upp, och brickan. egen = min (klick öppnar menyn). */
-function lekHogHtml(h, pos, egen, n) {
-  const upp = !!h.upp, slv = lekSlvStil(h.farg);
-  const etikett = upp ? 'Library, picked up' : `Library${n != null ? `, ${n} ${n === 1 ? 'card' : 'cards'}` : ''}`;
+function lekHogHtml(h, pos, egen, n, fargBord) {
+  const upp = !!h.upp, slv = lekSlvStil(h.farg || fargBord);
+  const etikett = upp ? 'Library, picked up' : `Library${n != null ? `, ${n} ${n === 1 ? 'card' : 'cards'} not played yet (hand and library together)` : ''}`;
   return `<div class="lekhog${upp ? ' upp' : ''}" data-lekhog="${egen ? 1 : 0}"${egen ? ' role="button" tabindex="0"' : ''} aria-label="${etikett}${egen ? '. Open the menu' : ''}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1${slv ? ';' + slv : ''}">`
     + `<span class="avtryck"></span><span class="lekkropp">${lekKropp(slv)}</span>`
     + `<span class="lekbr ledig"><i></i>Library${n != null ? `<b>${n}</b>` : ''}</span><span class="lekbr upptxt"><i></i>Library · Picked up</span></div>`;
@@ -9026,10 +9033,10 @@ function lekPoster(p, opp) {
   const ut = [], h = p && p.bibHog;
   if (h && h.x != null && h.y != null) {
     const pos = opp && oppVand !== 'bord' ? { x: -h.x - MATTA.CW, y: -h.y - MATTA.CH } : { x: h.x, y: h.y };
-    ut.push({ nyckel: 'h:bib', html: lekHogHtml(h, pos, !opp && arMitt(p), opp ? oppBibKvar(p) : minBibKvar()), glid: true });
+    ut.push({ nyckel: 'h:bib', html: lekHogHtml(h, pos, !opp && arMitt(p), opp ? oppBibKvar(p) : minBibKvar(), p.slvFarg), glid: true });
   }
   if (!opp) {
-    const skala = kamSkala(p), slv = lekSlvStil(lekFargSist);
+    const skala = kamSkala(p), slv = lekSlvStil(slvAv(p));
     for (const u of lekUteLista(p)) {
       const m = kamTillMatta(u.kam, skala);
       ut.push({ nyckel: 'h:ute:' + u.id, glid: true,
@@ -9053,20 +9060,22 @@ function lekPlacera(p, skala, g, ori) {
   return true;
 }
 /* Bordsraden: leken som en post bland korten, utan namn — { cid 'hog:bib', hog 'bib', x, y, upp, f } där f är sleevens färg "r,g,b" eller "m" (Magic-baksidan). */
+function fargRad(f) { return f ? (f.magic ? 'm' : [f.r, f.g, f.b].join(',')) : undefined; }
 function hogDelat(p) {
-  const h = p && p.bibHog;
-  if (!h || h.x == null || h.y == null) return [];
-  return [{ cid: 'hog:bib', hog: 'bib', x: Math.round(h.x), y: Math.round(h.y), upp: h.upp ? 1 : undefined, f: h.farg ? (h.farg.magic ? 'm' : [h.farg.r, h.farg.g, h.farg.b].join(',')) : undefined }];
+  const h = p && p.bibHog, ut = [];
+  if (h && h.x != null && h.y != null) ut.push({ cid: 'hog:bib', hog: 'bib', x: Math.round(h.x), y: Math.round(h.y), upp: h.upp ? 1 : undefined, f: fargRad(h.farg) });
+  /* Bordets sleeves, också utan lek: { cid 'hog:slv', hog 'slv', f } (granskningen runda 1, fynd 6). */
+  if (p && p.slvFarg) ut.push({ cid: 'hog:slv', hog: 'slv', f: fargRad(p.slvFarg) });
+  return ut;
 }
 /* …och på vägen in lyfts den ur kortlistan, så att inget som räknar kort ser den. */
 function delaUtHogar(kort) {
-  const ut = { kort: [], bibHog: null };
+  const ut = { kort: [], bibHog: null, slvFarg: null };
+  const farg = f => { if (f === 'm') return { r: 0, g: 0, b: 0, magic: true }; if (typeof f !== 'string') return null; const [r, g, b] = f.split(',').map(Number); return lekFarg({ r, g, b }); };
   for (const k of Array.isArray(kort) ? kort : []) {
-    if (!k || k.hog !== 'bib') { ut.kort.push(k); continue; }
-    let farg = null;
-    if (k.f === 'm') farg = { r: 0, g: 0, b: 0, magic: true };
-    else if (typeof k.f === 'string') { const [r, g, b] = k.f.split(',').map(Number); farg = lekFarg({ r, g, b }); }
-    ut.bibHog = { x: +k.x || 0, y: +k.y || 0, upp: k.upp ? 1 : 0, farg };
+    if (!k || (k.hog !== 'bib' && k.hog !== 'slv')) { ut.kort.push(k); continue; }
+    if (k.hog === 'slv') { ut.slvFarg = farg(k.f); continue; }
+    ut.bibHog = { x: +k.x || 0, y: +k.y || 0, upp: k.upp ? 1 : 0, farg: farg(k.f) };
   }
   return ut;
 }
@@ -9108,7 +9117,7 @@ function lekJaKlick(id) {
   const u = lekUteLista(mig).find(q => q.id === id); if (!u) return;
   Moln.sandKam('lekja', { id });
   lekLokalt = { typ: 'ja', id, kam: u.kam, nar: Date.now() };
-  mig.bibHog = { id, upp: 0, farg: lekFargSist, kam: Object.assign({}, u.kam, { nar: Date.now() }) };
+  mig.bibHog = { id, upp: 0, farg: slvAv(mig), kam: Object.assign({}, u.kam, { nar: Date.now() }) };
   renderBibHog(); renderGrid(true); renderTom(); save();
 }
 gridEl.addEventListener('click', ev => {
@@ -25634,7 +25643,7 @@ const Kamera = (() => {
           bast.helN = avv <= LAGE_HEL ? 0 : (ror > stillaPxNu() ? 1 : (bast.helN || 0) + 1);
           if (d > 3 * stillaPxNu() && (avv <= LAGE_HEL || (bast.helN >= R(LAGE_TALAMOD) && d > 0.75 * avv * bast.lang))) sattVila(bast, f.area);
         }
-      } else if (fodNya) {
+      } else if (fodNya && !(lekZon && !kal.bib && iZon(lekZon, f))) {   // lekens egen ruta (MES-334 steg 3): inga nya spår på leken — men spår som redan fanns där matchas som vanligt, annars blev de stående (golden 07: ett Plains som plockats bort "låg kvar" med fel namn)
         /* Diagnos (MES-83): varför föddes spåret — närmaste lediga spår och
            dess avstånd mot gränsen, och närmaste spår som redan tagit en
            region i rutan. Bara de senaste 40; golden-provet skriver dem. */
@@ -25894,7 +25903,8 @@ const Kamera = (() => {
      satBib nollställer bara när rutan faktiskt flyttats: varje skrivning av
      raden i camera_setups kommer hit med realtid. */
   const iZon = (g, f) => { if (!g || !AW || !AH) return false; const x = f.cx / AW, y = f.cy / AH; return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h; };
-  const iBib = f => iZon(kal.bib, f);
+  /* Uppstartens ruta, annars lekens egen (lekZon, MES-334 steg 3): där föds inga spår och där är inte mattan. */
+  const iBib = f => iZon(kal.bib || lekZon, f);
   let bibFran = 0, bibSist = 0, bibSkymd = 0, bibLigger = false, bibNu = null;
   const glomBib = () => { bibFran = bibSist = bibSkymd = 0; bibLigger = false; bibNu = null; };
   const sammaZon = (a, b) => (!a && !b) || (!!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
@@ -25974,13 +25984,15 @@ const Kamera = (() => {
        - den är 0,6–1,6 kortytor när en kortstorlek finns (dia.kortRef).
          Före bordets första kort finns ingen, och då räcker att den inte
          är avlång (sladdar);
-       - den dyker upp under passet: högar som syntes redan under passets
-         första sekunder (LEK_START_MS) — sladdar, askar, telefonens skugga på
-         kompisens bord — blir library bara när ingen annan hög finns. Tre
-         sekunder, inte en: detektorn blinkar, och skuggan på kompisens bord
-         syntes första gången efter 2 s (a3/jobb2, 1 ruta/s), leken efter 18.
-         I Jespers partier och i golden 13/18 ligger leken redan i bild när
-         kameran startar, och då är den ensam.
+       - den är den enda giltiga högen: "library är den som ligger kvar när de
+         andra plockats upp" (Byggunderlaget) går före del A:s "dyker upp
+         under passet" (granskningen runda 1). Sladdar, askar och telefonens
+         skugga på kompisens bord gör därför att ingen hög väljs (osäkert =
+         orört; reserven är första kortets vinkel). I Jespers partier och i
+         golden 13/18 ligger leken redan i bild när kameran startar, och då är
+         den ensam. LEK_START_MS skiljer bara 'ny' från 'ensam' i loggen.
+     När leken valts sätter vakten lekens egen ruta (lekZon) och flyttar den
+     med leken: inga nya spår föds där, som med uppstartens ruta.
      Upplockad kräver två vittnen (mått 6): detektorn har inte sett leken på
      LEK_BORTA_MS, OCH platsen har sett tom ut — under LEK_TOM av den i
      masken, alltså som mattan — i LEK_TOM_MS i följd. En hand över leken tar
@@ -25999,13 +26011,36 @@ const Kamera = (() => {
      sa 'baksida' om lekens eget spår) — då ritar datorn baksidan, inte färgen. */
   const LEK_STILLA_MS = 1500, LEK_BORTA_MS = 1500, LEK_TOM_MS = 2000, LEK_TOM = 0.2, LEK_START_MS = 3000, LEK_FARG_N = 8, LEK_FARG_MS = 350;
   let lek = null;        // { id, box, ref {cx,cy,w,h}, stillaFran, sist, tomFran, upp, farg, prov [[r,g,b]…], provNar, magic }
+  /* Lekens egen ruta (granskningen runda 1, fynd 1): Mesa sätter den själv
+     när leken hittats och flyttar den med leken. Inga nya spår föds där
+     (matcha), Claudes klunga och helbilden lägger inga kort där (iBib), och
+     platsen räknas inte som mattan (friYta) — men till skillnad från
+     uppstartens ruta (kal.bib, som tar bort regionerna helt) matchas spår
+     som redan fanns där som vanligt. Två skäl: rutan kommer mitt i passet,
+     och ett kort som låg där innan ska kunna plockas bort (golden 07, där
+     en ruta som tog bort regionerna lät ett Plains "ligga kvar" med fel
+     namn); och lekens eget spår måste få sina regioner, annars mäts aldrig
+     lekens vinkel igen och grundläget kan inte följa leken när den vrids
+     (steg 1:s sparVinkel läser spårets uppmätta vinkel). Den stänger inte
+     av lekvakten: kal.bib betyder fortfarande "uppstartens steg 4 satte en
+     ruta". Lådan plus en tiondel åt varje håll (facits rutor är från lådan
+     själv i 18 till +30 % i 13).
+     Golden 18 utan ruta (granskningen runda 1, rättelse 1): 7 hittade, 1
+     rätt namn — som utan rutan. Facits ruta från första rutan ger 9 och 2,
+     men det går inte att nå med en ruta som kommer när leken hittats (2,4
+     s): uppstartens egen kal.bib satt då ur lådan gav 8 och 1, facits exakta
+     ruta satt då 9 och 1, att ta bort alla regioner i lekens ruta 8 och 1
+     (men lekens spår fryser, se ovan), och att låta regioner på leken bara
+     gå till spår på leken 7 och 1. */
+  let lekZon = null;
   let lekKand = [];      // högar som kan bli library: { id, box, ref, fodd, sist, stillaFran, tomFran }
   let lekUte = [];       // högar som inte är leken (Not my library): { id, box, sist }
   let lekStart = 0, lekNastaId = 1, lekRgba = null;
   let grundKalla = null; // vem som satte grundläget: 'lek' | 'kort' | 'rad' (datorn, raden) | null
   let lekKortVid = null; // riktiga kort när vakten startade (null = har inte startat); fler än 0 = inget "första kort"
   let lekForsta = 0;     // när bordets första riktiga kort sågs (0 = inte än)
-  const glomLek = () => { lek = null; lekKand = []; lekUte = []; lekStart = 0; lekKortVid = null; lekForsta = 0; grundKalla = kal.grund != null ? 'rad' : null; };
+  const glomLek = () => { lek = null; lekZon = null; lekKand = []; lekUte = []; lekStart = 0; lekKortVid = null; lekForsta = 0; grundKalla = kal.grund != null ? 'rad' : null; };
+  const lekZonAv = b => gravRuta({ x: (b.x - 0.1 * b.w) / AW, y: (b.y - 0.1 * b.h) / AH, w: 1.2 * b.w / AW, h: 1.2 * b.h / AH });
   const ladIou = (a, b) => {
     const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
     if (iw <= 0 || ih <= 0) return 0; const s = iw * ih; return s / (a.w * a.h + b.w * b.h - s);
@@ -26133,25 +26168,30 @@ const Kamera = (() => {
     dia.lekKand = lekKand.map(k => ({ id: k.id, x: +(k.box.x / W).toFixed(3), y: +(k.box.y / H).toFixed(3), w: +(k.box.w / W).toFixed(3), h: +(k.box.h / H).toFixed(3),
       fodd: Math.round(k.fodd - lekStart), sedd: Math.round(nu - k.sist), stilla: Math.round(nu - k.stillaFran), kant: kant(k.box), form: form(k.box),
       ytor: kortYta ? +(k.box.w * k.box.h / kortYta).toFixed(2) : null }));
-    /* 3. Leken är upplockad och en hög ligger still någon annanstans: dit. */
+    /* 3. Leken är upplockad och läggs ner någon annanstans: dit. Bara en hög
+       som dykt upp EFTER att leken plockades upp, och den nyaste först — ett
+       nedvänt kort (eller en ask) som låg där före lyftet har inte lagts ner
+       igen (granskningen runda 1, fynd 3: leken hoppade dit och Picked up
+       syntes aldrig). */
     if (lek && lek.upp) {
-      const k = lekKand.filter(stilla).sort((a, b) => a.stillaFran - b.stillaFran)[0];
+      const k = lekKand.filter(q => stilla(q) && q.fodd > lek.sist).sort((a, b) => b.fodd - a.fodd)[0];   // lek.sist = när leken senast sågs, före lyftet
       if (k) {
         lek.box = Object.assign({}, k.box); lek.ref = k.ref; lek.stillaFran = k.stillaFran; lek.sist = nu; lek.tomFran = 0; lek.upp = false;
         lekKand = lekKand.filter(q => q !== k);
       }
     }
-    /* 4. Ingen lek än: en ensam hög som dykt upp under passet, annars en
-       ensam hög som låg där från början. Ligger flera väntar vakten tills
-       bara en är kvar. */
+    /* 4. Ingen lek än: library är den som ligger kvar — en hög väljs först när
+       den är den enda giltiga högen (Byggunderlaget: "Library är den som
+       ligger kvar när de andra plockats upp"). Det går före del A:s "dyker
+       upp under passet" (granskningen runda 1, fynd 5: starthanden nedvänd
+       bredvid två gamla högar valdes direkt). */
     if (!lek) {
       /* Närvarande = inte borträknad: en hög är borta först när båda vittnena
          sagt det (ingen låda, platsen tom — se ovan). En hand över den ena
          högen, eller en låda som blinkar, får inte göra den andra ensam. */
       const finns = k => !kant(k.box) && form(k.box);
-      const mojliga = lekKand.filter(finns), nya = mojliga.filter(k => k.fodd - lekStart >= LEK_START_MS);
-      const grupp = nya.length ? nya : mojliga;
-      if (grupp.length === 1 && stilla(grupp[0])) lekValj(grupp[0], nu, nya.length ? 'ny' : 'ensam');
+      const mojliga = lekKand.filter(finns);
+      if (mojliga.length === 1 && stilla(mojliga[0])) lekValj(mojliga[0], nu, mojliga[0].fodd - lekStart >= LEK_START_MS ? 'ny' : 'ensam');
     }
     /* 5. Bordets första riktiga kort, och dess vinkel när leken saknas: bara
        när bordet var tomt när vakten startade och kortet ligger ensamt — en
@@ -26169,6 +26209,7 @@ const Kamera = (() => {
       if (v != null) { lekGrund.sat(v); grundKalla = 'kort'; }
     }
     if (stillaRiktiga.length > 1) lekKortVid = Math.max(lekKortVid, 1);   // två kort lade sig innan det första gav vinkeln: inget "första kort"
+    lekZon = lek ? lekZonAv(lek.box) : null;   // rutan följer leken (också medan den är upplockad: platsen väntar på den)
     if (!lek || lek.upp) return;
     /* 6. Lekens egna spår (klassen baksida inne i högen) är leken, inget kort
        att läsa eller granska. Bara baksidelådor: ett uppvänt kort som läggs
@@ -26176,8 +26217,15 @@ const Kamera = (() => {
     for (const t of spar) if (t.klass === 'baksida' && t.box && t.tillstand !== 'skrap' && t.tillstand !== 'klar' && ladTackning(t.box, lek.box) >= 0.6) {
       t.tillstand = 'skrap'; t.varfor = 'lek'; t.fragad = true; t.namn = null; t.sid = null; t.saker = false; t.cands = null; t.skrapN = 3; t.provas = false;
     }
-    /* 7. Grundläget följer leken när den vrids (steg 1 avgör vad en vridning är). */
-    if (grundKalla === 'lek' && lek.sist === nu && nu - lek.stillaFran >= LEK_STILLA_MS) lekGrund.folj(lekSpar(lek.box));
+    /* 7. Grundläget följer leken när den vrids (steg 1 avgör vad en vridning är).
+       Har grundläget försvunnit (raden kom utan grundläge — granskningen runda 1,
+       fynd 2) tas lekens vinkel igen: utan grundläge alls är leken referensen. */
+    if (lek.sist === nu && nu - lek.stillaFran >= LEK_STILLA_MS) {
+      if (grundKalla == null && kal.grund == null) {
+        const v = lekGrund.vinkel(lekSpar(lek.box), lek.box);
+        if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; }
+      } else if (grundKalla === 'lek') lekGrund.folj(lekSpar(lek.box));
+    }
     /* 8. Sleeves: färgen ur lekens inre medan den ligger still och syns hel. */
     if (lek.magic == null) { const t = lekSpar(lek.box); if (t && (t.varfor === 'baksida' || t.varfor === 'baksida ficka')) lek.magic = t.varfor === 'baksida'; }
     if (!lek.farg && lekRgba && lek.sist === nu && nu - lek.stillaFran >= T.stillaMs && nu - lek.provNar >= LEK_FARG_MS
@@ -26208,7 +26256,7 @@ const Kamera = (() => {
     if (!lek || lek.id !== id) return false;
     lekUte.push({ id: lek.id, box: Object.assign({}, lek.box), sist: forra || 0 });
     if (grundKalla === 'lek' && !lekForsta) { lekGrund.sat(null); grundKalla = null; }
-    lek = null;
+    lek = null; lekZon = null;
     rapportera();
     return true;
   }
@@ -27026,7 +27074,7 @@ const Kamera = (() => {
     const n = AW * AH;
     const fri = new Uint8Array(n).fill(1);
     if (blankM) for (let i = 0; i < n; i++) if (blankM[i]) fri[i] = 0;
-    for (const g of [kal.grav, kal.bib]) if (g) {
+    for (const g of [kal.grav, kal.bib || lekZon]) if (g) {
       const x0 = Math.max(0, Math.floor(g.x * AW)), x1 = Math.min(AW, Math.ceil((g.x + g.w) * AW));
       const y0 = Math.max(0, Math.floor(g.y * AH)), y1 = Math.min(AH, Math.ceil((g.y + g.h) * AH));
       for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) fri[y * AW + x] = 0;
@@ -32958,7 +33006,7 @@ function byggSpelare(lista) {
     shots: [], shotIdx: 0, pending: [], pane: null,
     namnkalla: 'anvandare', bildnamn: null, version: p.version,
     lage: p.lage, lekId: p.lekId, lek: p.lek, plats: p.plats, status: p.status,
-    bibHog: p.bibHog || null   // leken bland korten (MES-334 steg 3), ur raden
+    bibHog: p.bibHog || null, slvFarg: p.slvFarg || null   // leken bland korten och bordets sleeves (MES-334 steg 3), ur raden
   }, i));
 }
 /* En ändrad bordsrad. Mitt eget bord hoppas över: jag har det redan, och min
@@ -32970,7 +33018,7 @@ function fjarrBord(rad) {
   if (!p) return;
   if (rad.version != null && p.version != null && rad.version <= p.version) return;  // äldre än det vi har
   p.version = rad.version;
-  { const h = delaUtHogar(rad.kort); p.cards = h.kort; p.bibHog = h.bibHog; }   // leken bland korten är ingen kortpost (MES-334 steg 3)
+  { const h = delaUtHogar(rad.kort); p.cards = h.kort; p.bibHog = h.bibHog; p.slvFarg = h.slvFarg; }   // leken bland korten och sleevesen är inga kortposter (MES-334 steg 3)
   p.cards.forEach(normaliseraKort);
   /* Bordsvyn (MES-133): bara motståndarnas mattor ritas om. Mitt bord och
      resten av sidan har inte ändrats — och hans matta är andra element, så
@@ -33010,6 +33058,7 @@ function fjarrSpelare(lista) {
       id: p.user_id, name: (mitt && g && namnByte) ? g.name : p.name, color: p.color,
       cards: kort,
       bibHog: nyare ? (p.bibHog || null) : (g ? g.bibHog || null : null),   // leken bland korten (MES-334 steg 3): som korten — min egen är min
+      slvFarg: nyare ? (p.slvFarg || null) : (g ? g.slvFarg || null : null),
       version: nyare ? p.version : g.version,
       shots: g ? g.shots : [], shotIdx: g ? g.shotIdx : 0,
       pending: g ? g.pending : [], pane: g ? g.pane : null,
@@ -33107,7 +33156,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; lekLokalt = null; lekFargSist = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man

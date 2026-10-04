@@ -141,6 +141,10 @@ const PROV = async steg => {
     ok('raden bär leken som en post bland korten, utan namn', !!post && post.cid === 'hog:bib' && post.name === undefined && post.f === '47,138,82' && post.x === Math.round(mig().bibHog.x), JSON.stringify(post));
     const ut = delaUtHogar(sist.kort);
     ok('och den lyfts ut på vägen in (inget som räknar kort ser den)', ut.kort.every(k => k.hog == null) && !!ut.bibHog && ut.bibHog.farg && ut.bibHog.farg.g === 138);
+    /* Granskningen runda 1, fynd 2: raden i camera_setups bär telefonens grundläge, inte det gamla null. */
+    const gr0 = kamGrund, rad0 = kamGrundRad; kamGrund = 90; kamGrundRad = null;
+    const g1 = kamRutaRad().grund; kamGrund = null; const g2 = kamRutaRad().grund; kamGrund = gr0; kamGrundRad = rad0;
+    ok('raden (kamRutaRad) bär telefonens grundläge när det finns', g1 === 90 && g2 === null, `med 90 → ${g1}, utan → ${g2}`);
     /* Klick på leken: menyn med Not my library. */
     const el = lekEl();
     el.click();
@@ -160,6 +164,10 @@ const PROV = async steg => {
     ok('en rapport från före klicket tar inte tillbaka leken', !lekEl() && !mig().bibHog);
     tagEmotLek(lek('ingen', null, null, { ute: [{ id: 1, ruta: R1 }], grund: null }));
     ok('telefonens svar: ingen lek, högen ute', !lekEl() && !!gridEl.querySelector('.lekute[data-lekute="1"]') && text() === 'Put your library on the table');
+    /* Granskningen runda 1, fynd 6: bordets sleeves står kvar utan lek — på brädet och i raden (alla ser samma). */
+    sparaNu();
+    const rad6 = W.__sparat[W.__sparat.length - 1].kort, slv6 = rad6.find(k => k.hog === 'slv');
+    ok('utan lek: bordets sleeves står kvar på brädet och i raden', gridEl.classList.contains('harslv') && !!slv6 && slv6.f === '47,138,82' && !rad6.some(k => k.hog === 'bib'), JSON.stringify(slv6));
   }
   if (steg === 4) {
     gridEl.querySelector('[data-lekja="1"]').click();
