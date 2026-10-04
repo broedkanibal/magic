@@ -18,17 +18,16 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
 </helmet>
 <div class="ab crop2" style="width: 1061px; height: 722px">
   <section class="matta" style="position: absolute; left: 10px; top: 10px; width: 1041px; height: 702px">
-    <div class="mtom" style="top: 200px"><b>Play your first card</b>Mesa learns your table as you play</div>
     <sc-if value="{{ar}}" hint-placeholder-val="{{ true }}">
       <div class="st lib" style="left: 560px; top: 440px">
         <span class="slv" role="img" aria-label="Library, 33 cards"></span>
-        <span class="hc bla"><span class="ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8fa8ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Library</span><b>33</b><i class="kvsep"></i><button onClick="{{nej}}">Not my library</button></span>
+        <span class="hc bla mening"><span class="ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8fa8ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Found your library</span><i class="kvsep"></i><button onClick="{{nej}}">Not my library</button></span>
       </div>
     </sc-if>
     <sc-if value="{{inte}}" hint-placeholder-val="{{ false }}">
       <div class="card" style="left: 560px; top: 440px">
         <span class="slv" role="img" aria-label="A face-down card"></span>
-        <span class="hc"><span>Face-down card</span><i class="kvsep"></i><button onClick="{{ja}}">It's my library</button></span>
+        <span class="hc mening"><span>Face-down card</span><i class="kvsep"></i><button onClick="{{ja}}">It's my library</button></span>
       </div>
     </sc-if>
   </section>
