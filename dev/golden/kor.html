@@ -700,7 +700,9 @@ function las(prov, ms, msRuta) {
   const sT = rad + '@' + lage;
   if (sT !== prov.sigT && prov.tidslinje.length < 400) { prov.sigT = sT; prov.tidslinje.push({ s: +(ms / 1000).toFixed(1), ruta: K.diagnos.skarLogg && K.diagnos.skarLogg.length ? K.diagnos.skarLogg[K.diagnos.skarLogg.length - 1].ruta : null, lage, spar: rad }); }
   if (prov.logg) loggaSpar(prov, spar);
-  if (RUTLOGG && prov.logg) { const kr = K.diagnos.kortRef; (prov.rutLogg || (prov.rutLogg = [])).push({ s: prov.s, kr: kr ? [kr.lang, kr.kort] : null, spar: spar.map(t => ({ id: t.id, st: t.tillstand, n: t.namn && t.saker ? t.namn : null, l: Math.round(t.lang), k: Math.round(t.kort), x: Math.round(t.cx), y: Math.round(t.cy), f: t.formN || 0, sk: t.skymd ? 1 : 0, r: t.regionNar != null && t.regionNar >= w.performance.now() - 1 ? 1 : 0, tm: Math.round(t.tomMs || 0), om: t.omlott ? 1 : 0, fy: t.fyllSist != null ? +t.fyllSist.toFixed(2) : null, kn: t.kandaSist || 0, sp: t.spek ? (t.spek.svar ? 's' : t.spek.miss ? 'm' : 'v') : '', la: t.laser ? 1 : 0 })) }); }
+  if (RUTLOGG && prov.logg) { const kr = K.diagnos.kortRef; (prov.rutLogg || (prov.rutLogg = [])).push({ s: prov.s, kr: kr ? [kr.lang, kr.kort] : null, spar: spar.map(t => ({ id: t.id, st: t.tillstand, n: t.namn && t.saker ? t.namn : null, l: Math.round(t.lang), k: Math.round(t.kort), x: Math.round(t.cx), y: Math.round(t.cy), f: t.formN || 0, sk: t.skymd ? 1 : 0, r: t.regionNar != null && t.regionNar >= w.performance.now() - 1 ? 1 : 0, tm: Math.round(t.tomMs || 0), om: t.omlott ? 1 : 0, fy: t.fyllSist != null ? +t.fyllSist.toFixed(2) : null, kn: t.kandaSist || 0, sp: t.spek ? (t.spek.svar ? 's' : t.spek.miss ? 'm' : 'v') : '', la: t.laser ? 1 : 0,
+      /* MES-334 steg 1: vinkeln från x-axeln (grader), källan (? = mätt men inte litad), tap-läget och lådan */
+      v: t.vinkel != null ? Math.round(((t.vinkel * 180 / Math.PI) % 180 + 180) % 180) : null, vk: t.vm ? t.vm.kalla : t.vmRa ? t.vmRa.kalla + '?' : '', tp: t.tappad ? 1 : 0, b: t.box ? t.box.w + 'x' + t.box.h : null })) }); }
   const lart = lage !== 'ljus' && lage !== 'lar' && lage !== 'start' && lage !== 'ingen';
   /* …och en helbild som är planerad eller på väg väntas in: den kommer
      3 s efter att bordet stått stilla, och fall 05 var annars "klart"
@@ -1024,6 +1026,9 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     /* Namnet ur remsan (MES-330) och om beskärningen var övermålad. */
     remsa: t.remsa ? { namn: t.remsa.namn, saker: !!t.remsa.saker, marginal: t.remsa.marginal, varfor: t.remsa.varfor, rot: t.remsa.rot, px: t.remsa.px || null, synt: !!t.remsa.synt, tackt: t.remsa.tackt || 0, utom: t.remsa.utom || 0, ms: t.remsa.ms, titel: t.remsa.titel || null, minne: t.remsa.minne || null, ocr: t.remsa.ocr ? { namn: t.remsa.ocr.namn, poang: t.remsa.ocr.poang, marginal: t.remsa.ocr.marginal, hoppad: t.remsa.ocr.hoppad || null } : null } : null,
     maskad: !!t.maskad, det: t.detPoang != null ? +(+t.detPoang).toFixed(2) : null,
+    /* Kortets vinkel i lådan (MES-334 steg 1): axeln i KortVinkels grader (upp-axelns vridning medurs), full riktning ur remsan, källan; osäker = långsidan inte säker (lådans regel gällde), hållen = hysteresen behöll spårets långsida. */
+    vk: t.vm ? { g: Math.round(t.vm.grader), upp: t.vm.upp != null ? Math.round(t.vm.upp) : null, k: t.vm.kalla, h: !!t.vm.hallen } : t.vmRa ? { g: Math.round(t.vmRa.grader), upp: null, k: t.vmRa.kalla + ' osäker', h: false } : null,
+    bv: t.beskarRot != null ? t.beskarRot : null,   // beskärningen vreds så här många grader (MES-334 steg 1); null = rak låda
     minneSkal: t.minneSkal || null,   // varför kortet inte lärdes in i minnet av remsor när det blev säkert (MES-331 pass 6)
     /* Detektorns remslåda (MES-331), samma andelar som lådan — för dubblettregelns mått mellan remsor. */
     rl: t.remsaLada ? { x: f4(r.x + t.remsaLada.x / aw * r.w), y: f4(r.y + t.remsaLada.y / ah * r.h), w: f4(t.remsaLada.w / aw * r.w), h: f4(t.remsaLada.h / ah * r.h) } : null,

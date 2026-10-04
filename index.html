@@ -21898,6 +21898,172 @@ addEventListener('paste', async ev => {
 const idbTimeout = (pr, ms) => Promise.race([
   pr, new Promise((_, rej) => setTimeout(() => rej(new Error('IndexedDB is not responding')), ms))
 ]);
+/* ══════════════════════════════════════════════════════════════════
+   KORTETS VINKEL inne i detektorns raka låda (MES-334 steg 1).
+
+   Den tränade detektorns lådor är raka (fyndUrLador), så ett kort som
+   ligger 20° snett får en nästan kvadratisk låda både otappat och tappat.
+   Vinkeln mäts därför per kort inne i lådan — metoden "pkomb" från
+   mätningen bakom grind G1 (dev/material/arbete/2026-10-04-hogarna-matning/
+   A2-vinkeln.md, prototypen a2/kortvinkel.js som den här koden är tagen ur
+   rakt av):
+     1. Lådan (+4 %) ur videons FULLA bild, nedskalad så att långsidan blir
+        160 px, grå.
+     2. Gradienten (Sobel efter ett 3×3-sudd). Kortets kanter, ramen,
+        textrutan och namnraden ligger längs kortets två axlar, så
+        Σ m·e^{i4α} (α = gradientens riktning, m = styrkan) pekar ut axeln
+        mod 90° (phi). Första varvet inom ellipsen i lådan, andra inom
+        kortets vridna rektangel.
+     3. Vilken axel som är långsidan: remsans läge (remsa), annars lådans
+        form när den skiljer kandidaterna åt (form), annars kanternas
+        utsträckning längs axlarna (profil).
+     4. Riktningen 0/180 (namnet åt vilket håll): remslådans mitt mot
+        kortlådans mitt. Utan remsa: okänd (null).
+   Mätt (A2): golden 03–06 + 13–18, 71 helt synliga kort, 71/71 inom ±10°
+   (median 0,7°, största 3,8°) mot dagens låda 57/71; 545/546 i de ritade
+   lägena (MES-246, 13b, person1). Det som faller är valet av långsida nära
+   45° utan remsa — därför litar Kamera bara på remsa och form (sakerLang).
+
+   Konvention: v = kortets vridning medurs i bilden (y nedåt). Ett upprätt
+   kort med namnet överst har 0°, namnet åt höger 90°. Kamerans t.vinkel
+   (långsidans vinkel från x-axeln, radianer mod π) = (v − 90°) mod π.
+   Ren JS utan bibliotek; ~1,2 ms per kort i node och ~3,4 ms med
+   beskärningen i Chrome på Macen (A2). Kamera räknar bara om när ett korts
+   låda ändrats (vinkelMinne).
+   ══════════════════════════════════════════════════════════════════ */
+const KortVinkel = (() => {
+  const KVOT = 88 / 63, LANG = 160, MARG = 0.04;
+  const D = Math.PI / 180;
+  const nv = a => { a = ((a + 180) % 360 + 360) % 360 - 180; return a === -180 ? 180 : a; };
+  const fel180 = (a, b) => { const d = ((a - b) % 180 + 180) % 180; return Math.min(d, 180 - d); };
+  const fel360 = (a, b) => Math.abs(nv(a - b));
+  const mod180 = a => { a = nv(a); if (a > 90) a -= 180; if (a <= -90) a += 180; return a; };
+  const kandidater = phi => [mod180(phi), mod180(phi + 90)];
+  /* Lådan (bredd, höjd) som ett kort med upp-axeln th och långsidan L ger. */
+  const ladaFor = (th, L, S) => { const s = Math.abs(Math.sin(th * D)), c = Math.abs(Math.cos(th * D)); return [L * s + S * c, L * c + S * s]; };
+  /* Kortets långsida ur en rak låda (w × h) och upp-axeln th (minsta kvadrat med kortets kvot). */
+  const storlekUrLada = (w, h, th) => { const [pw, ph] = ladaFor(th, 1, 1 / KVOT); return (w * pw + h * ph) / (pw * pw + ph * ph); };
+  /* Formens fel per kandidat: |log(förutsagd kvot / lådans kvot)|. */
+  const formFel = (phi, w, h) => kandidater(phi).map(th => { const [pw, ph] = ladaFor(th, 1, 1 / KVOT); return Math.abs(Math.log((pw / ph) / (w / h))); });
+
+  /* 3×3-sudd (σ 0,8, som cv2.GaussianBlur((3,3), 0.8)) och Sobel, kanterna speglade (reflect101). */
+  function gradient(g, w, h) {
+    const e = Math.exp(-1 / (2 * 0.64)), kc = 1 / (1 + 2 * e), kk = e * kc;
+    const ix = x => x < 0 ? -x : x >= w ? 2 * w - 2 - x : x, iy = y => y < 0 ? -y : y >= h ? 2 * h - 2 - y : y;
+    const t = new Float32Array(w * h), s = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) t[y * w + x] = kk * g[y * w + ix(x - 1)] + kc * g[y * w + x] + kk * g[y * w + ix(x + 1)];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) s[y * w + x] = kk * t[iy(y - 1) * w + x] + kc * t[y * w + x] + kk * t[iy(y + 1) * w + x];
+    const gx = new Float32Array(w * h), gy = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const y0 = iy(y - 1) * w, y1 = y * w, y2 = iy(y + 1) * w;
+      for (let x = 0; x < w; x++) {
+        const x0 = ix(x - 1), x2 = ix(x + 1);
+        gx[y1 + x] = (s[y0 + x2] - s[y0 + x0]) + 2 * (s[y1 + x2] - s[y1 + x0]) + (s[y2 + x2] - s[y2 + x0]);
+        gy[y1 + x] = (s[y2 + x0] - s[y0 + x0]) + 2 * (s[y2 + x] - s[y0 + x]) + (s[y2 + x2] - s[y0 + x2]);
+      }
+    }
+    return { gx, gy };
+  }
+
+  /* phi (mod 90) ur Σ m·e^{i4α} inom masken (vikt per bildpunkt). m·e^{i4α} = (gx + i·gy)^4 / m³. */
+  function axel4(gx, gy, vikt) {
+    let re = 0, im = 0, tot = 0;
+    for (let i = 0; i < gx.length; i++) {
+      const v = vikt[i]; if (!v) continue;
+      const a = gx[i], b = gy[i], m2 = a * a + b * b; if (!(m2 >= 1e-6)) continue;
+      const m = Math.sqrt(m2), c2 = a * a - b * b, s2 = 2 * a * b;   // (a+ib)^2
+      re += v * (c2 * c2 - s2 * s2) / (m2 * m); im += v * (2 * c2 * s2) / (m2 * m); tot += v * m;
+    }
+    if (!(tot > 0)) return null;
+    return { phi: ((Math.atan2(im, re) / D / 4) % 90 + 90) % 90, styrka: Math.hypot(re, im) / tot };
+  }
+
+  /* Kanternas utsträckning längs en axel: histogram (1 px), sudd σ 1,5, yttersta facken ≥ 35 % av toppen. */
+  function utstrackning(pos, wt, n, R) {
+    const nb = Math.floor(2 * R) + 1, P = new Float32Array(nb);
+    let har = false;
+    for (let i = 0; i < n; i++) { if (!wt[i]) continue; const k = Math.floor((pos[i] + R) / (2 * R) * nb); if (k >= 0 && k < nb) { P[k] += wt[i]; har = true; } }
+    if (!har) return 0;
+    const r = 5, ker = []; let ks = 0; for (let d = -r; d <= r; d++) { const v = Math.exp(-d * d / (2 * 1.5 * 1.5)); ker.push(v); ks += v; }
+    const Q = new Float32Array(nb); let mx = 0;
+    for (let k = 0; k < nb; k++) { let s = 0; for (let d = -r; d <= r; d++) { let j = k + d; j = j < 0 ? -j - 1 : j >= nb ? 2 * nb - 1 - j : j; s += P[j] * ker[d + r]; } Q[k] = s / ks; if (Q[k] > mx) mx = Q[k]; }
+    let lo = -1, hi = -1; for (let k = 0; k < nb; k++) if (Q[k] >= 0.35 * mx) { if (lo < 0) lo = k; hi = k; }
+    return lo < 0 ? 0 : hi - lo;
+  }
+  function profilAxel(gx, gy, w, h, cx, cy, phi, lada) {
+    const c = kandidater(phi), t = c[0] * D, ux = Math.sin(t), uy = -Math.cos(t), vx = Math.cos(t), vy = Math.sin(t);
+    const n = w * h, pu = new Float32Array(n), pv = new Float32Array(n), wu = new Float32Array(n), wv = new Float32Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (x < lada.x0 || x > lada.x1 || y < lada.y0 || y > lada.y1) continue;
+      const au = Math.abs(gx[i] * ux + gy[i] * uy), av = Math.abs(gx[i] * vx + gy[i] * vy);
+      pu[i] = (x - cx) * ux + (y - cy) * uy; pv[i] = (x - cx) * vx + (y - cy) * vy;
+      if (au > 2 * av) wu[i] = au; else if (av > 2 * au) wv[i] = av;
+    }
+    const R = Math.max(w - 1, h - 1), eu = utstrackning(pu, wu, n, R), ev = utstrackning(pv, wv, n, R);
+    if (!(eu > 0 && ev > 0)) return null;
+    return eu / ev >= 1 ? c[0] : c[1];
+  }
+
+  /* Kärnan: g = grå bild (Float32Array w×h, beskärningen), lada och remsa i beskärningens bildpunkter
+     ({x0,y0,x1,y1}; remsa får vara null). Svar { axel, vinkel, phi, styrka, kalla } i grader
+     (axel mod 180 i (−90, 90], vinkel = full riktning eller null), eller null. */
+  function vinkelUrGra(g, w, h, lada, remsa, o) {
+    o = o || {};
+    const MARGF = o.formMarg != null ? o.formMarg : 0.15;
+    const { gx, gy } = gradient(g, w, h);
+    const bw = lada.x1 - lada.x0, bh = lada.y1 - lada.y0, cx = lada.x0 + bw / 2, cy = lada.y0 + bh / 2;
+    if (!(bw > 2 && bh > 2)) return null;
+    const vikt = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const a = (x - cx) / (bw / 2), b = (y - cy) / (bh / 2); vikt[y * w + x] = a * a + b * b <= 1 ? 1 : 0; }
+    let r = axel4(gx, gy, vikt); if (!r) return null;
+    /* Varv 2: inom kortets vridna rektangel (långsidan ur formen, 4 % större). */
+    const ff = formFel(r.phi, bw, bh), th = kandidater(r.phi)[ff[0] <= ff[1] ? 0 : 1];
+    const L = storlekUrLada(bw, bh, th) * 1.04, S = L / KVOT, t = th * D, ux = Math.sin(t), uy = -Math.cos(t), vx = Math.cos(t), vy = Math.sin(t);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const dx = x - cx, dy = y - cy; vikt[y * w + x] = Math.abs(dx * ux + dy * uy) <= L / 2 && Math.abs(dx * vx + dy * vy) <= S / 2 ? 1 : 0; }
+    const r2 = axel4(gx, gy, vikt); if (r2) r = r2;
+    const phi = r.phi, c = kandidater(phi);
+    /* Riktningen ur remsan: remsmitt − lådmitt. */
+    let rv = null;
+    if (remsa) { const mx = (remsa.x0 + remsa.x1) / 2 - cx, my = (remsa.y0 + remsa.y1) / 2 - cy; if (Math.abs(mx) + Math.abs(my) > 1e-6) rv = Math.atan2(mx, -my) / D; }
+    let axel, kalla;
+    if (rv != null) { axel = fel180(c[0], rv) <= fel180(c[1], rv) ? c[0] : c[1]; kalla = 'remsa'; }
+    else {
+      const f = formFel(phi, bw, bh);
+      if (Math.abs(f[0] - f[1]) >= MARGF) { axel = f[0] <= f[1] ? c[0] : c[1]; kalla = 'form'; }
+      else { const p = profilAxel(gx, gy, w, h, cx, cy, phi, lada); axel = p != null ? p : (f[0] <= f[1] ? c[0] : c[1]); kalla = p != null ? 'profil' : 'form?'; }
+    }
+    const vinkel = rv == null ? null : (fel360(nv(axel), rv) <= fel360(nv(axel + 180), rv) ? nv(axel) : nv(axel + 180));
+    if (!isFinite(axel) || !isFinite(phi)) return null;
+    return { axel, vinkel, phi, styrka: r.styrka, kalla };
+  }
+
+  /* Webbläsaren: lådan och remsan i källans bildpunkter (videons fulla bild). En duk i fast storlek
+     (LANG × LANG): att byta storlek kostade ~1,7 ms per kort i Chrome, och imageSmoothingQuality
+     'high' ~6 ms (A2) — 'low' (bilinjär) räcker för vinkeln. null när källan inte gav några
+     bildpunkter (bänkens attrapp, en video som inte startat). */
+  let cv = null, ctx = null;
+  function kortVinkel(kalla, b, remsa, o) {
+    const sw = kalla.videoWidth || kalla.naturalWidth || kalla.width, sh = kalla.videoHeight || kalla.naturalHeight || kalla.height;
+    if (!(sw > 0 && sh > 0)) return null;
+    const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+    const x0 = Math.max(0, Math.floor(b.x0 - MARG * bw)), y0 = Math.max(0, Math.floor(b.y0 - MARG * bh));
+    const x1 = Math.min(sw, Math.ceil(b.x1 + MARG * bw)), y1 = Math.min(sh, Math.ceil(b.y1 + MARG * bh));
+    if (!(x1 - x0 >= 4 && y1 - y0 >= 4)) return null;
+    const s = Math.min(1, LANG / Math.max(x1 - x0, y1 - y0)), w = Math.max(2, Math.round((x1 - x0) * s)), h = Math.max(2, Math.round((y1 - y0) * s));
+    if (!cv) { cv = document.createElement('canvas'); cv.width = LANG; cv.height = LANG; ctx = cv.getContext('2d', { willReadFrequently: true }); }
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
+    ctx.drawImage(kalla, x0, y0, x1 - x0, y1 - y0, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    if (!d || d.length < w * h * 4) return null;
+    const g = new Float32Array(w * h);
+    for (let p = 0, i = 0; p < w * h; p++, i += 4) g[p] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    const tr = q => q && { x0: (q.x0 - x0) * s, y0: (q.y0 - y0) * s, x1: (q.x1 - x0) * s, y1: (q.y1 - y0) * s };
+    return vinkelUrGra(g, w, h, tr(b), tr(remsa), o);
+  }
+
+  return { vinkelUrGra, kortVinkel, storlekUrLada, formFel, fel180, fel360, KVOT };
+})();
 /* ═══════════════════════════════════════════════════════════════════
    KAMERAN — telefonens sida
 
@@ -22158,6 +22324,13 @@ const Kamera = (() => {
        kodändring (--tro "tapTapp:60,tapOtapp:25"). */
     tapOtapp: 20,
     tapTapp: 55,
+    /* Kortets vinkel mätt inne i detektorns raka låda (MES-334 steg 1,
+       KortVinkel): 1 = på, 0 = lådans långsida (0° eller 90°) som förut.
+       Bara när långsidan är säker — ur remsans läge, eller ur lådans form
+       när lådan har ett korts kvot — och lådan är ett helt kort i den
+       vinkeln gäller den uppmätta vinkeln; annars står dagens regel
+       (fyndUrLador). Golden: --tro "vinkelMat:0". */
+    vinkelMat: 1,
     /* Den tränade detektorn (MES-329): 1 = YOLOX fp32 (förval), 2 = YOLOX
        fp16 (prov på telefonen), 0 = dagens detektor (mattmodell + regioner).
        Laddas modellen inte — nät, minne, en webbläsare utan WebGPU och
@@ -22326,7 +22499,7 @@ const Kamera = (() => {
        analyspixlar: mattmodellen, referensen och spåren. Den tas därför om
        som vid ett byte av videons storlek — AH = 0 får loop() räkna om AW,
        och referensen och spåren börjar om. */
-    if (T.anaBredd !== varAna) { AH = 0; stegGen++; glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+    if (T.anaBredd !== varAna) { AH = 0; stegGen++; glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
     /* Byts detektorn (MES-329) får en modell som stängts efter tre fel försöka
        igen — bara vid ett BYTE: datorn skickar alla reglage vid varje drag,
        och en modell som inte går att ladda ska inte laddas om för det. */
@@ -23721,6 +23894,7 @@ const Kamera = (() => {
     dia.sprittModell = sprittM / n; dia.sprittMonster = sprittP / n;
     const tSlut = nuRiktig();
     dia.tid = { modell: +(tModell - t0).toFixed(1), mask: +(tMask - tModell).toFixed(1), morf: +(tMorf - tMask).toFixed(1), regioner: +(tSlut - tMorf).toFixed(1) };
+    if (det && det.lador && T.vinkelMat) { dia.tid.vinkel = +vinkelMs.toFixed(1); dia.vinkelN = vinkelN; }   // kortets vinkel i lådan (MES-334 steg 1): en del av regioner, och hur många lådor som mättes i rutan
     /* De accepterade regionerna, för diagnosfilen: det är dem spåren matchas mot. */
     dia.fynd = fynd.map(f => ({ cx: Math.round(f.cx), cy: Math.round(f.cy), lang: Math.round(f.lang), kort: Math.round(f.kort), area: f.area }));
     dia.skarProv = skarProv;
@@ -23742,6 +23916,55 @@ const Kamera = (() => {
      rutan. Samma golv som regionerna: en kortsida under 60 % av
      KORT_MIN_PX i videopixlar är för liten att läsa (smaKort). */
   let detLoggN = 0;   // tillfällig logg (MESA_DET_LOGG)
+  /* ── kortets vinkel i lådan (MES-334 steg 1) ──────────────────────
+     KortVinkel mäter kortets axel inne i detektorns raka låda. Mätningen
+     kostar ~3 ms per kort i Chrome (beskärningen ur videon står för det
+     mesta), så den räknas bara när lådan ändrats: vinkelMinne minns
+     lådorna (videopixlar) från de senaste rutorna, och en låda vars fyra
+     kanter ligger inom 3 % av långsidan (minst 2 px) från en minnespost —
+     med remsan på samma plats — får postens mätning. Ett kort som ligger
+     stilla mäts alltså en gång. Svaret (vm) i kamerans konvention:
+       axel      långsidans vinkel från x-axeln, radianer mod π (som t.vinkel)
+       grader    samma axel i KortVinkels konvention (upp-axelns vridning medurs, (−90, 90])
+       upp       full riktning i grader (namnet åt det hållet; 0 = upp, 90 = höger) — null utan remsa
+       kalla     'remsa' | 'form' | 'profil' | 'form?' (KortVinkel, steg 3)
+       sakerLang långsidan är säker: ur remsan, eller ur formen när lådan har ett korts kvot
+                 (T.kvotMin–kvotMax). Profilen valde fel långsida i 21 % av korten nära 45°
+                 (A2:s vridprov), och en låda som är kortet plus en hand ljuger med formen.
+       helt      lådan är ett helt, ensamt kort i den vinkeln (kvoten inom 12 %)
+       L, K      kortets egna sidor ur lådan och axeln (videopixlar)
+       cx, cy    lådans mitt (videopixlar), w, h lådans mått
+     Kamera litar på mätningen (f.vm, f.vinkel) bara när sakerLang och helt. */
+  let vinkelMinne = [], vinkelRuta = 0, vinkelMs = 0, vinkelN = 0;
+  const VINKEL_MINNE_RUTOR = 20;   // en post som inte använts på så många rutor glöms
+  function vinkelFor(vb, rs, klass) {
+    const L = Math.max(vb.x1 - vb.x0, vb.y1 - vb.y0), tol = Math.max(2, 0.03 * L);
+    const nara = (a, b) => Math.abs(a.x0 - b.x0) <= tol && Math.abs(a.y0 - b.y0) <= tol && Math.abs(a.x1 - b.x1) <= tol && Math.abs(a.y1 - b.y1) <= tol;
+    const mitt = q => ({ x: (q.x0 + q.x1) / 2, y: (q.y0 + q.y1) / 2 });
+    const remsaLika = (a, b) => { if (!a || !b) return !a && !b; const p = mitt(a), q = mitt(b); return Math.abs(p.x - q.x) <= tol && Math.abs(p.y - q.y) <= tol; };
+    for (const e of vinkelMinne) if (e.klass === klass && nara(e.vb, vb) && remsaLika(e.rs, rs)) { e.ruta = vinkelRuta; return e.vm; }
+    const t0 = nuRiktig();
+    let r = null;
+    try { r = video ? KortVinkel.kortVinkel(video, vb, rs) : null; } catch (e) { r = null; }
+    vinkelMs += nuRiktig() - t0; vinkelN++;
+    let vm = null;
+    if (r) {
+      const w = vb.x1 - vb.x0, h = vb.y1 - vb.y0, kv = Math.min(w, h) / Math.max(1, Math.max(w, h));
+      const sakerLang = r.kalla === 'remsa' || (r.kalla === 'form' && kv >= T.kvotMin && kv <= T.kvotMax);
+      const Lk = KortVinkel.storlekUrLada(w, h, r.axel);
+      /* Lådan är ETT helt kort i den uppmätta vinkeln: dess kvot inom 12 % av den ett ensamt kort med den
+         axeln ger. Mätt ur A2:s data (facits vinkel mot detektorns låda): helt synliga ensamma kort p98
+         0,07–0,09 i golden, 13b, MES-246 och person1. En låda som är kortet plus en hand, eller bara den
+         synliga delen av ett kort i en hög, har en annan form — där säger vinkeln inte nog för tap-domen,
+         och lådans regel står (golden 07: handen över Thriving Moor gav två falska tap-flippar). */
+      const s = Math.abs(Math.sin(r.axel * Math.PI / 180)), c = Math.abs(Math.cos(r.axel * Math.PI / 180));
+      const helt = Math.abs(Math.log(((s + c / KortVinkel.KVOT) / (c + s / KortVinkel.KVOT)) / (w / Math.max(1e-6, h)))) <= 0.12;
+      vm = { axel: normGrund((r.axel - 90) * Math.PI / 180), grader: r.axel, upp: r.vinkel, kalla: r.kalla, styrka: r.styrka, sakerLang, helt,
+             L: Lk, K: Lk / KortVinkel.KVOT, cx: (vb.x0 + vb.x1) / 2, cy: (vb.y0 + vb.y1) / 2, w, h };
+    }
+    vinkelMinne.push({ vb, rs, klass, vm, ruta: vinkelRuta });
+    return vm;
+  }
   function fyndUrLador(det, W, H, g) {
     const D = window.Detektor, L = det.lador, r = det.ruta;
     const k = W / Math.max(1, r.w);   // bordsrutans bildpunkter → analyspixlar
@@ -23750,6 +23973,8 @@ const Kamera = (() => {
     try { par = D.para(L.kort, L.remsor, matt, { skapa: T.detRemsa ? 'alla' : 'inga', dubIou: 0.3 }); }
     catch (e) { par = L.kort.map(b => Object.assign({}, b, { remsa: null, ur: 'lada' })); }
     dia.detLador = L.kort.length; dia.detRemsor = L.remsor.length; dia.detSkapade = par.skapade || 0; dia.detIhopslagna = par.dubbletter || 0;
+    vinkelRuta++; vinkelMs = 0; vinkelN = 0;
+    if (vinkelMinne.length) vinkelMinne = vinkelMinne.filter(e => vinkelRuta - e.ruta <= VINKEL_MINNE_RUTOR);
     const ut = [];
     for (const b of par) {
       const x0 = Math.max(0, Math.round(b.x0 * k)), y0 = Math.max(0, Math.round(b.y0 * k)), x1 = Math.min(W - 1, Math.round(b.x1 * k) - 1), y1 = Math.min(H - 1, Math.round(b.y1 * k) - 1);
@@ -23770,8 +23995,23 @@ const Kamera = (() => {
          bara den synliga remsan av ett täckt kort, säger inget om hur
          kortet ligger — golden 07 fick tre falska tap-flippar av sådana
          lådor. Annars grundläget, tills lådan är ett kort igen. */
-      const kv = kort / lang, vinkel = kv >= T.kvotMin && kv <= T.kvotMax ? (w >= h ? 0 : Math.PI / 2) : grundVinkel();
+      const kv = kort / lang, vinkelLada = kv >= T.kvotMin && kv <= T.kvotMax ? (w >= h ? 0 : Math.PI / 2) : grundVinkel();
       if (vidSkala > 1 && kort * vidSkala < KORT_MIN_PX * 0.6) { dia.smaKort++; continue; }
+      /* Kortets egen vinkel (MES-334 steg 1): mätt i lådan ur videons fulla
+         bild (vinkelFor). Den gäller bara när långsidan är säker och lådan
+         är ett helt kort i den vinkeln; annars står lådans regel ovan —
+         osäkert betyder orört. lang/kort är
+         fortfarande lådans (spårningens formN, matchningens mått och
+         rapportens kort räknar i dem); kortets egna sidor ur lådan och
+         axeln bärs i sidL/sidK, som tap-domen (tapTydlig) jämför med. */
+      let vm = null;
+      if (T.vinkelMat && r && (b.klass === 'kort' || b.klass === 'baksida' || !b.klass)) {
+        const vb = { x0: r.x + b.x0, y0: r.y + b.y0, x1: r.x + b.x1, y1: r.y + b.y1 };
+        const vr = b.remsa ? { x0: r.x + b.remsa.x0, y0: r.y + b.remsa.y0, x1: r.x + b.remsa.x1, y1: r.y + b.remsa.y1 } : null;
+        vm = vinkelFor(vb, vr, b.klass || 'kort');
+      }
+      const saker = vm && vm.sakerLang && vm.helt;
+      const vinkel = saker ? vm.axel : vinkelLada;
       let n = 0, su = 0, sq = 0;
       for (let y = y0; y <= y1; y += 2) for (let x = x0; x <= x1; x += 2) { const v = g[y * W + x]; n++; su += v; sq += v * v; }
       const std = n ? Math.sqrt(Math.max(0, sq / n - (su / n) ** 2)) : 0;
@@ -23783,7 +24023,8 @@ const Kamera = (() => {
          en remsa, klassen baksida, och dagens detektor. */
       const rl = b.remsa ? { x: b.remsa.x0 * k, y: b.remsa.y0 * k, w: (b.remsa.x1 - b.remsa.x0) * k, h: (b.remsa.y1 - b.remsa.y0) * k } : null;
       ut.push({ cx, cy, lang, kort, vinkel, area, std, box, poang: b.poang, klass: b.klass, ur: b.ur, remsa: !!b.remsa, remsaMitt: rm, remsaLada: rl,
-                detPoang: b.ur === 'lada' && b.klass === 'kort' ? (b.poang || 0) : 0, tackt: null, remsaSynt: false, remsaUtom: null });
+                detPoang: b.ur === 'lada' && b.klass === 'kort' ? (b.poang || 0) : 0, tackt: null, remsaSynt: false, remsaUtom: null,
+                vm: saker ? vm : null, vmRa: vm, sidL: saker ? vm.L * k : null, sidK: saker ? vm.K * k : null, vinkelLada });
     }
     /* Vem ligger ovanpå (MES-250 för modellens lådor): modellen ritar lådan
        runt kortets synliga del, och för ett kort som sticker fram under ett
@@ -24088,14 +24329,82 @@ const Kamera = (() => {
      efter ett flimmer medan kortet låg tappat och snett: 78×66 mot
      regionens 66×48, och domen fälldes i varje ruta. Samma sak fällde
      Fencing Ace i golden 14 (kortsidan 48 mot gränsen 48,45). */
+  /* Med kortets vinkel mätt i lådan (MES-334 steg 1, f.vm) jämförs kortets
+     EGNA sidor ur lådan och axeln (f.sidL/f.sidK) med namnForm — samma
+     slags mått på båda sidor, och kortet har en axel fast lådan är nästan
+     kvadratisk: ett kort tappat 65° har en rak låda med kvoten 1,13, och
+     1,15-kravet på lådan fällde varje sådan dom. Mot kortMatt (de
+     namngivna spårens RAKA lådor) jämförs lådan som förut.
+     Lådans egen dom (dagens: lådans axel och mått) gäller också, men med
+     uppmätt vinkel bara när den säger samma sak om tappat som vinkeln. Golden
+     13: Swamp i en hög tappades 67°, och lådan efter tappningen var mindre än
+     ett helt kort i den vinkeln (sidL 32 mot namnForm 39 — en del av kortet
+     skymd av högen) — lådans regel tog domen 39,3 s som förut, kortets egna
+     sidor först 44,85 s. Lådans väg fäller aldrig en dom som vinkeln säger
+     emot, och bara när vinkeln själv är tydlig (under tapOtapp eller över
+     tapTapp): golden 18, Plains i hög B gav en skymd låda (23 × 30) som
+     lådans regel läste som ett otappat kort medan vinkeln stod på 21° — mitt
+     emellan — och kortet vreds fram och tillbaka 61,95–64,05 s. */
   function tapTydlig(f, t, upp) {
     let nm = t.namnForm;
+    const egen = !!nm;
     if (!nm && t.tillstand !== 'klar') { const km = kortMatt(); if (km.kalla === 'spår') nm = { l: km.lang, k: km.kort }; }
-    if (!nm || !(f.lang >= 1.15 * f.kort)) return false;
-    if (f.lang < 0.85 * nm.l || f.lang > 1.3 * nm.l || f.kort < 0.85 * nm.k || f.kort > 1.3 * nm.k) return false;
+    if (!nm) return false;
     const bas = kal.grund != null ? kal.grund : ((upp || kal.ruta.upp) === 'h' ? 0 : Math.PI / 2);
-    const d = axSkillnad(f.vinkel, bas) * 180 / Math.PI;
-    return d < T.tapOtapp || d > T.tapTapp;
+    const tydlig = (fl, fk, vinkel) => {
+      if (!(fl >= 1.15 * fk)) return false;
+      if (fl < 0.85 * nm.l || fl > 1.3 * nm.l || fk < 0.85 * nm.k || fk > 1.3 * nm.k) return false;
+      const d = axSkillnad(vinkel, bas) * 180 / Math.PI;
+      return d < T.tapOtapp || d > T.tapTapp;
+    };
+    const fl = egen && f.sidL != null ? f.sidL : f.lang, fk = egen && f.sidK != null ? f.sidK : f.kort;
+    if (tydlig(fl, fk, f.vinkel)) return true;
+    if (!f.vm || f.sidL == null) return false;
+    const dv = axSkillnad(f.vinkel, bas) * 180 / Math.PI, vinkelTydlig = dv < T.tapOtapp || dv > T.tapTapp;
+    if (!vinkelTydlig) return false;
+    /* Ett spår utan egna mått (inget namn): kortets långsida ur lådan och vinkeln mot de namngivna
+       spårens långsida (kortMatt). Kortsidan räknas ur långsidan och kvoten och säger inget mer, och
+       lådans kvot är inget krav när axeln är mätt — golden 18: Plains tappat 63° i högen gav en låda på
+       38 × 37, och spåret föddes efter tappningen och låg otappat till slutet. */
+    if (!egen && f.sidL >= 0.85 * nm.l && f.sidL <= 1.3 * nm.l) return true;
+    /* …och lådans dom, när den säger samma sak om tappat som en tydlig uppmätt vinkel. */
+    return f.vinkelLada != null && tappad(f.vinkelLada, upp) === tappad(f.vinkel, upp) && tydlig(f.lang, f.kort, f.vinkelLada);
+  }
+
+  /* Långsidan byter inte 90° utan att lådan rört sig (MES-334 steg 1, A2:s
+     fälla 3). En låda runt två kort — ett fäst par, en hög som tappas ihop —
+     kan para remsan med fel kort och lådans form ljuga, så att långsidan
+     hoppar ett kvartsvarv mellan rutorna: partiet 2026-09-22, Trusty
+     Retriever + Valkyrie's Sword tappade ~59°, gav 6 av 14 mätningar −31°
+     (= otappat). En verklig tappning flyttar eller vrider lådan — mitten
+     mer än 0,15 av långsidan, kvoten eller ytan ändrad — och då gäller den
+     nya mätningen. Står lådan kvar behålls spårets långsida med den nya
+     fina vinkeln (samma phi mod 90°), och riktningen glöms: den kom ur en
+     remsa som just sa emot. t.vmLang = { axel, box }: den senast godtagna
+     långsidan och lådan då. Ett fynd utan säker mätning (f.vm null) — en
+     mätning som lådans form säger emot, eller ingen alls — behåller spårets
+     senast godtagna vinkel (osäkert betyder orört): golden 18, Plains i hög B
+     gav en skymd låda (20 × 31) som lådans regel läste som ett otappat kort,
+     och kortet vreds fram och tillbaka 63–64 s. Lådans regel gäller bara för
+     ett spår som aldrig fått en säker mätning — som förut. */
+  const ladanFlyttad = (a, b) => {
+    if (!a || !b) return true;
+    const la = Math.max(a.w, a.h), dc = Math.hypot((a.x + a.w / 2) - (b.x + b.w / 2), (a.y + a.h / 2) - (b.y + b.h / 2));
+    return dc > 0.15 * la || Math.abs(Math.log((b.w / b.h) / (a.w / a.h))) > 0.15 || Math.abs(Math.log((b.w * b.h) / (a.w * a.h))) > 0.3;
+  };
+  function vinkelHysteres(t, f) {
+    const h = t.vmLang;
+    if (!f.vm) { if (h) f.vinkel = h.axel; return; }
+    if (h && axSkillnad(f.vinkel, h.axel) > Math.PI / 4 && !ladanFlyttad(h.box, f.box)) {
+      f.vinkel = normGrund(f.vinkel + Math.PI / 2);
+      const th = (f.vinkel * 180 / Math.PI) + 90, gr = ((th + 90) % 180 + 180) % 180 - 90;   // KortVinkels upp-axel i grader, (−90, 90]
+      f.sidL = KortVinkel.storlekUrLada(f.box.w, f.box.h, gr); f.sidK = f.sidL / KortVinkel.KVOT;
+      const Lv = KortVinkel.storlekUrLada(f.vm.w, f.vm.h, gr);
+      f.vm = Object.assign({}, f.vm, { axel: f.vinkel, grader: gr, upp: null, hallen: true, L: Lv, K: Lv / KortVinkel.KVOT });
+      h.axel = f.vinkel;
+      return;
+    }
+    t.vmLang = { axel: f.vinkel, box: f.box };
   }
 
   /* Hur stor del av den mindre lådan som ligger inom den andra (0–1). Samma
@@ -24146,7 +24455,8 @@ const Kamera = (() => {
        är kortet otappat. */
     const ny = { cx: f.cx, cy: f.cy, lang: f.lang, kort: f.kort, vinkel: f.vinkel, box: f.box, areaRef: f.area,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, regionNar: nu,
-                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null, remsaLada: f.remsaLada || null, remsaSynt: !!f.remsaSynt, remsaUtom: f.remsaUtom || null, detPoang: f.detPoang || 0 };
+                 tappad: false, tappRun: 0, omlott: !!f.omlott, tackt: f.tackt || null, remsaLada: f.remsaLada || null, remsaSynt: !!f.remsaSynt, remsaUtom: f.remsaUtom || null, detPoang: f.detPoang || 0,
+                 vm: f.vm || null, vmRa: f.vmRa || null, vmLang: f.vm ? { axel: f.vinkel, box: f.box } : null };
     const i = spoken.findIndex(g => Math.hypot(g.cx - f.cx, g.cy - f.cy) < grans
                                     && f.area < T.areaVaxt * g.areaRef && f.area * T.areaVaxt > g.areaRef);
     if (latens) ny.ts = { bild: bildTid, hittat: Date.now(), rorelse: rutTid() };
@@ -24341,6 +24651,7 @@ const Kamera = (() => {
            låda som förut. 1,25: Blightfang tappat vid bildens kant fick en
            låda med kortsidan 1,23 × kortets, och 1,12 tog tap-läget ifrån
            det; ihopväxningarna i 11 var 1,3 × och mer. */
+        vinkelHysteres(bast, f);   // långsidan byter inte 90° utan att lådan rört sig (MES-334 steg 1)
         if (bast.tillstand === 'klar' && !bast.namnMatt) {
           const r = bast.ram || bast.box, l = Math.max(r.w, r.h), k = Math.min(r.w, r.h);
           if (k >= 0.6 * l && k <= 0.85 * l) bast.namnMatt = { l, k };   // bara en kortformad låda: en halva som fått namnet är inte kortets mått
@@ -24418,6 +24729,7 @@ const Kamera = (() => {
            med, ändrar regionens mått fast mitten står nästan still. */
         const formLik = Math.abs(f.lang - bast.lang) <= SPEK_FORM * bast.lang && Math.abs(f.kort - bast.kort) <= SPEK_FORM * bast.kort;
         bast.cx = f.cx; bast.cy = f.cy; bast.lang = f.lang; bast.kort = f.kort; bast.vinkel = f.vinkel; bast.box = f.box;
+        bast.vm = f.vm || null; bast.vmRa = f.vmRa || null;   // kortets vinkel i lådan (MES-334 steg 1): beskärningen vrids efter den
         bast.areaRef = bast.areaRef * 0.95 + f.area * 0.05;
         /* sedd sätter helbilden också; regionNar bara här och i fodSpar, där
            detektorn faktiskt gav spåret en region. Det är vad datorns
@@ -24695,7 +25007,7 @@ const Kamera = (() => {
     if (snurra) cancelAnimationFrame(snurra);
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (wake) { try { wake.release(); } catch (e) {} wake = null; }
-    stream = null; lage = 'start'; spar = []; spoken = []; snittMinne = []; remsMinne = []; senVb = senVh = 0;
+    stream = null; lage = 'start'; spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = []; senVb = senVh = 0;
     glomReferens();
   }
 
@@ -24726,7 +25038,7 @@ const Kamera = (() => {
     const bib = k && k.ruta ? gravRuta(k.ruta.bib) : (kal.bib || null);
     kal = { ruta: Object.assign({}, HELA_BILDEN, { upp }), grund, grav, bib };
     glomBib();
-    spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar';
+    spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = []; lage = 'lar';
     glomReferens();
     dia.gravProv = [];
     AH = 0;
@@ -25031,7 +25343,7 @@ const Kamera = (() => {
        räknades de bara om vid ny kalibrering, och avståndsrådet och
        fragmentgolvet mättes mot fel skala tills någon drog om rutan. */
     if (vb !== senVb || vh !== senVh) {
-      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+      if (senVb) { glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
       senVb = vb; senVh = vh; AH = 0; stegGen++;
       lasUpplosning(vb, vh);
     }
@@ -25816,7 +26128,7 @@ const Kamera = (() => {
   function laddaReferens(r, sig, ah, aw) {
     if (aw && aw !== AW) { AW = aw; AH = 0; anaStd = 0; }   // satt utifrån (bänken): ingen videoruta att räkna förvalet ur — skalan är 1
     if (!AH) AH = ah;
-    glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = [];
+    glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = [];
     ref = Float32Array.from(r); sigma = sig || 0; dia.sigma = sigma;
     if (T.auto) T.troskel = autoTroskel();
     dia.troskel = T.troskel; senastRef = 0;
@@ -26684,7 +26996,7 @@ const Kamera = (() => {
   };
 
   /* Referensen kan behöva tas om — någon flyttade lampan. Datorn ber om det. */
-  function nyReferens() { stegGen++; /* ett steg som väntar på detektorn får inte landa i den gamla referensen (MES-329) */ glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
+  function nyReferens() { stegGen++; /* ett steg som väntar på detektorn får inte landa i den gamla referensen (MES-329) */ glomReferens(); spar = []; spoken = []; snittMinne = []; remsMinne = []; vinkelMinne = []; lage = 'lar'; if (cb.bord) { cb.bord([], true); sandSignatur = tillstandsSignatur(); } }
   function glomKort(id) {
     const t = spar.find(x => x.id === id); if (!t) return;
     /* Ett spår ur helbilden har ingen region att läsa om: det står kvar
