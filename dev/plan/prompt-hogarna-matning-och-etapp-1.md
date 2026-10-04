@@ -19,7 +19,20 @@ Två sessioner, med Jespers inspelningar emellan:
 Golden körs aldrig två gånger samtidigt. Orkestreraren köar körningarna (minnet `golden-egen-port`).
 Regelboken för orkestreringen är `dev/plan/orkestrering.md`.
 
-Del B börjar först när Jesper spelat in enligt listan från del A och sagt ja.
+Del B väntade från början på Jespers inspelningar. **Jesper 2026-10-04: A och B
+körs i ett svep av en orkestrerare medan han är borta.** B bygger då på det
+befintliga materialet (partierna 09-21 och 09-22, MES-246 och golden 01–18).
+Inspelningslistan från A sparas, och inspelningarna blir Jespers prov efteråt.
+Grindarna nedan avgör om B får börja.
+
+### Grindarna mellan A och B
+
+| Grind | Krav | Faller den |
+|---|---|---|
+| G1 · Vinkeln per kort | Ur detektorns låda (kontur eller remsa) mäts kortets vinkel inom ±10° av facits hörn för minst 95 % av helt synliga kort i golden 01–18. Facits hörn ger den sanna vinkeln | Bygg allt utom vinkeln. Tap-domen går som i dag, men mot lekens axel (0/90). Skriv i rapporten vad som fattas |
+| G2 · Leken hittas | Leken syns och ligger still före första kortet i båda partierna, och klassen `baksida` ger den en låda | Bygg ändå, men skriv det i rapporten. Not my library och första kortets vinkel är reserven |
+| G3 · Inget blir sämre | Golden före bygget är baslinjen. Efter varje steg: inte sämre, 0 nya fel namn | Steget slås inte ihop. Lämna grenen och skriv varför |
+
 
 Kör båda i en **egen worktree** där `.env.local` och `dev/material` är
 symlänkade (minnet `worktree-saknar-env-local`). Golden körs på **egen port**
