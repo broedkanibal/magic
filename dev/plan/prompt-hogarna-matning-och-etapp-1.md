@@ -170,3 +170,24 @@ vad Jesper ska prova på riktig telefon.
 - **Ingår inte:** graveyard minns kort utan namn (MES-336), den fysiska exile-högen
   (MES-337) och zoomstegen (MES-338).
 - **Krock:** kör inte samtidigt som spegelmattans bygge (MES-333 och framåt), eftersom båda rör mattans ritning.
+
+---
+
+## Klistra in: A och B i ett svep (Jesper 2026-10-04)
+
+Starta en ny session på **Opus 5.5 xhigh**, på Jespers dator (allt ligger lokalt
+på main), och klistra in:
+
+```
+Du är orkestrerare för MES-334. Kör del A och sedan del B i dev/plan/prompt-hogarna-matning-och-etapp-1.md i ett svep, utan att vänta på mig. Jag är borta.
+
+Läs först avsnittet "Byggunderlaget" i dev/plan/hogarna-principer.md, sedan hela prompten: tabellen över sessioner och agenter, grindarna G1–G3 och del A och del B. Kör paborjaIssue på MES-334 (den står i Todo). Gör del A, skriv dev/plan/hogarna-matning.md och committa. Pröva sedan grindarna och följ dem: de avgör om och hur del B byggs. Bygg del B med agenter i egna worktrees enligt tabellen, alla på Opus 5.5 (mesa-bygg-tung startas med model "opus"). Steg 1 och 2 får köras parallellt, resten i ordning. Golden körs aldrig två gånger samtidigt.
+
+Granskning, rättning, commit och push sker utan att fråga mig:
+- Efter varje steg läser en oberoende agent, som inte byggt steget, diffen och letar fel.
+- Fynden rättas av en agent, och en ny oberoende agent granskar rättelsen. Det upprepas tills granskningen inte hittar något mer.
+- När bänk (dev/kolla.sh), golden och granskning är gröna slår du ihop på main, committar och pushar. Push driftsätter, och det är godkänt.
+- Committa och pusha allt som hör till MES-334: kod, rapporter, facit och planfiler. Fråga mig aldrig om lov.
+
+När du är klar, eller fastnar: skriv dev/plan/hogarna-resultat.md med vad som byggdes, vad grindarna visade, vad som mättes, vad granskningarna hittade och vad som fattas. Lägg inspelningslistan från del A sist. Committa och pusha den. Flytta MES-334 till Redo att testas med exakt vad jag ska prova på telefonen, eller tillbaka till Todo med en kommentar om var det stannade. Bygg aldrig något som inte står på designytans sida 5. Ändra inga beslut. Är något oklart: välj det som står i byggunderlaget, och skriv valet i resultatfilen.
+```
