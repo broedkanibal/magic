@@ -186,6 +186,9 @@ const VIDEO_ERSATT = PARAMS.get('video') || '';
    Varje säkert namn på ett sådant kort är ett FEL NAMN: provet på att ett
    kort utanför leken stoppas (RAPPORT.md i dev/embed, "Utanför leken"). */
 const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlokalt') === '1', EMBED_BACKEND = PARAMS.get('embedbackend') || 'auto';
+/* ?utanbib=1 (kor.cjs --utan-bib): facits library-ruta (bib) ges INTE till modulen — som när uppstartens steg 4 inte satt någon (MES-334 steg 3). Telefonen letar då själv efter leken bland detektorns baksidelådor, och resultatet bär vad den kom fram till (res.lek), dömt mot facits ruta. */
+const UTAN_BIB = PARAMS.get('utanbib') === '1';
+const facitBib = f => UTAN_BIB ? null : (f.facit.bib || null);
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
@@ -517,7 +520,7 @@ async function korFall(f) {
   beskarningar[f.id] = [];
   /* Graveyard-rutan (K9-lite) ur facit: { "grav": { x, y, w, h } } i bildandelar; utan = ingen ruta.
      Library-rutan (MES-122) på samma sätt: { "bib": { x, y, w, h } } där leken ligger. */
-  try { if (K.satGrav) K.satGrav(f.facit.grav || null); if (K.satBib) K.satBib(f.facit.bib || null); } catch (e) {}
+  try { if (K.satGrav) K.satGrav(f.facit.grav || null); if (K.satBib) K.satBib(facitBib(f)); } catch (e) {}
   const vf = f.facit.video || null;
   const kalla = vf ? await laddaVideo(VIDEO_ERSATT || `fall/${encodeURIComponent(f.id)}/${vf.fil || 'video.mp4'}`)
                    : await laddaBild(`fall/${encodeURIComponent(f.id)}/bild.jpg`);
@@ -562,7 +565,7 @@ function stallUpp(f, kalla, kb, kh) {
      i appen — satKalibrering läser dem därifrån och nollar annars en ruta satt
      före. I appen finns library-rutan alltid sedan uppstartens steg 4 (MES-122);
      ett fall där leken ligger i bild utan "bib" i facit mäter leken som ett kort. */
-  K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: f.facit.bib || null }) });
+  K.satKalibrering({ ruta: Object.assign({}, f.facit.ruta, { grav: f.facit.grav || null, bib: facitBib(f) }) });
   if (LUFT === '0' || LUFT === '1') K.satTrosklar({ luft: +LUFT });
   /* ?tro=snabb:1,stillaMs:600 (kor.cjs --tro): valfria trösklar till Kamera.satTrosklar före varje fall — för prov som inte ska bli förval. */
   if (PARAMS.get('tro')) K.satTrosklar(Object.fromEntries(PARAMS.get('tro').split(',').map(x => x.split(':')).filter(x => x.length === 2 && isFinite(+x[1])).map(([k, v]) => [k.trim(), +v])));
@@ -694,6 +697,9 @@ function las(prov, ms, msRuta) {
   /* Snitten som togs, över alla rutor: sista rutan visar bara sitt eget, och ett spår som föddes ur ett snitt i ruta 3 lever kvar. */
   if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && prov.skurnaAlla.length < 20) prov.skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
   for (const l of K.diagnos.skarLogg || []) if (!prov.skarAlla.has(l.ruta)) prov.skarAlla.set(l.ruta, l);
+  /* Leken utan uppstart (MES-334 steg 3): varje gång lekvaktens läge byts — ingen/nere/upp, vilken hög, var, färgen, grundläget. */
+  { const l = K.lek, k = l ? l.lage + (l.id || '') + (l.ruta ? ':' + Math.round(l.ruta.x * 50) + ',' + Math.round(l.ruta.y * 50) : '') + (l.farg ? 'f' : '') + (l.grund || '') + l.ute.map(u => 'u' + u.id).join('') : 'null';
+    if (k !== prov.lekSig) { prov.lekSig = k; (prov.lekLogg || (prov.lekLogg = [])).push({ s: prov.s, lek: l ? JSON.parse(JSON.stringify(l)) : null, grund: K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null }); } }
   const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
   if (s2 !== prov.sig) { prov.sig = s2; prov.stabilSedan = ms; }
   const rad = spar.map(t => `#${t.id} ${t.tillstand}${t.skymd ? ' skymd' : ''} ${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)}${t.namn ? ' ' + t.namn + (t.saker ? '' : '?') : ''}`).join(' | ');
@@ -754,6 +760,15 @@ function avsluta(f, prov, tid, tak, takS) {
   const res = bedom(f, prov.sistaBord, tid, tak, sort.length ? sort[sort.length >> 1] : 0, sort.length ? sort[sort.length - 1] : 0);
   res.skurnaAlla = prov.skurnaAlla;
   res.lasningar = prov.lasningar;
+  /* Leken (MES-334 steg 3): loggen, slutläget och domen mot facits library-ruta — leken ska ha valts INNE i rutan (mitten), och ingen annan hög. */
+  if (prov.lekLogg) {
+    const b = f.facit.bib || null, inne = r => !!(b && r && r.x + r.w / 2 >= b.x && r.x + r.w / 2 <= b.x + b.w && r.y + r.h / 2 >= b.y && r.y + r.h / 2 <= b.y + b.h);
+    const valda = prov.lekLogg.filter(x => x.lek && x.lek.ruta && x.lek.lage === 'nere');
+    const forsta = valda[0] || null, slut = K.lek;
+    res.lek = { utanBib: UTAN_BIB, logg: prov.lekLogg, slut: slut ? JSON.parse(JSON.stringify(slut)) : null,
+                vald: forsta ? { s: forsta.s, inne: inne(forsta.lek.ruta), ruta: forsta.lek.ruta, grund: forsta.grund } : null,
+                fel: b ? valda.filter(x => !inne(x.lek.ruta)).length : null };
+  }
   /* Minnet av remsor (MES-331 pass 6): posterna när fallet är slut, och räknarna för FALLET — Kameras räknare löper över hela körningen, så förra fallets dras av. */
   try {
     const st = K.minneStat, f0 = avsluta.minneFore || {};
