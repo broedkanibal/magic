@@ -938,6 +938,10 @@ body.tomhand .kolmark{display:none}
   width:100%;height:100%;display:block;object-fit:cover;
   border-radius:inherit;background:#11161e;
 }
+/* Lyftets skugga (MES-334 steg 2, TIDSLINJER: opaciteten på ett eget lager):
+   osynlig i vila; matGlid och matVrid tonar den. Bakom kortets innehåll, och
+   kortets egen box-shadow (hover, .aktuell, .spawnglod) rörs aldrig. */
+.card > .lyftskugga{position:absolute;inset:0;border-radius:inherit;box-shadow:0 26px 40px -12px #000f;opacity:0;pointer-events:none;z-index:-1}
 .card.tappad{transform:rotate(90deg)}
 .card.tappad img{filter:brightness(.86) saturate(.94)}
 /* Namnetiketten hör till den upprätta läsriktningen; på ett tappat kort
@@ -7339,6 +7343,9 @@ function oppBifPos(vp, k) {
   const d = oppVand === 'upp' ? -1 : 1;
   return { x: vp.x + d * MATTA.XSTEP * (k + 1), y: vp.y - d * 44 * (k + 1), z: Math.max(1, (vp.z || 1) - (k + 1)) };
 }
+/* Vyns nyckel för en motståndares matta: partiet och rutans storlek — en ny
+   ruta (någon kom eller gick, nivån byttes) är en ny vy, som ritas på plats. */
+function oppVyNyckel(r) { return (spelLage ? spelLage.id : '') + '|' + Math.round(r.w) + 'x' + Math.round(r.h); }
 /* Korten, högarna och vyn i en motståndares matta. Korten byggs bara om
    när hens bord ändrats (signaturen); vyn skrivs varje gång, eftersom rutan
    kan ha bytt storlek. */
@@ -7379,13 +7386,13 @@ function ritaOppKropp(p, m, r) {
        plats, som förut, i stället för att flyga tvärs över mattan. Ett nytt
        parti, en ritning i en flik i bakgrunden och att mattan lämnats
        (visaVy) är också nya vyer: ritas på plats, utan glid. */
-    const nyttHall = m.vand !== oppVand, vy = spelLage ? spelLage.id : '';
+    const nyttHall = m.vand !== oppVand, vy = oppVyNyckel(r);
     if (nyttHall) { m.brade.textContent = ''; m.vand = oppVand; }
     glid = !nyttHall && m.vy === vy && !document.hidden;
     matSynk(m.brade, poster, { animera: glid && bordForm(r) === 'full' });
     m.ram = ram || { x0: -MATTA.VP.w, y0: -MATTA.VP.h, x1: 0, y1: 0 };
   }
-  m.vy = document.hidden ? null : (spelLage ? spelLage.id : '');
+  m.vy = document.hidden ? null : oppVyNyckel(r);
   const speg = oppVand !== 'bord', ps = hogSkala(r);
   m.hogar.className = 'ohogar' + (speg ? ' speg' : '');
   m.hogar.style.transform = `scale(${Math.round(ps * 1000) / 1000})`;
@@ -7788,7 +7795,7 @@ function kortHtml(e, i, extra, pos, bif, las) {
               ark && ark.cid === e.cid ? 'aktuell' : '', ordKrockar(ord, pv, e.tapped ? sz.h : sz.w) ? 'kwlyft' : '',
               tokDold.has(e.cid) ? 'spawndold' : '', (tokGlod.get(e.cid) || 0) > Date.now() ? 'spawnglod' : '',
               extra || ''].filter(Boolean).join(' ');
-  return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}">
+  return `<div class="${kl}" data-i="${i}" data-cid="${esc(e.cid)}" aria-label="${esc(label)}${e.tapped ? ' (tapped)' : ''}" style="left:${Math.round(x || 0)}px;top:${Math.round(y || 0)}px;width:${sz.w}px;height:${sz.h}px;z-index:${Math.max(1, Math.round(z || 1))}"><i class="lyftskugga" aria-hidden="true"></i>
     ${src ? `<img src="${esc(src)}" alt="${esc(label)}" draggable="false" loading="lazy">` : '<img alt="">'}
     <span class="bar"></span>
     <span class="skel">${st === 'err' ? '⚠ ' : ''}${esc(label)}${st === 'err' ? '<br><span style="opacity:.7">' + esc(felText(keyOf(e))) + '</span>' : ''}</span>
@@ -8043,8 +8050,6 @@ const matKurva = b => 'cubic-bezier(' + b.join(',') + ')';
 const MAT_KURVA = { UT: matKurva(MAT_BEZ.UT), FLY: matKurva(MAT_BEZ.FLY), SOFT: matKurva(MAT_BEZ.SOFT) };
 const MAT_MS = { knuff: 220, flytt: 420, lyft: 450, avbruten: 320, avbrutenSkugga: 300, tap: 240, zoom: 330 };
 const MAT_KNUFF = 0.5;                          // kortare än en halv kortbredd är en knuff; längre en flytt, med lyft
-const MAT_LYFT_SKUGGA = '0 26px 40px -12px #000f';   // som .card.held: kortet bärs
-const MAT_TAP_SKUGGA = '0 26px 40px -12px #00000080';   // halva lyftets skugga (TIDSLINJER: skugga 0,5)
 const matLugnMq = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 const matLugn = () => !!(matLugnMq && matLugnMq.matches);
 const matKor = a => !!a && a.playState === 'running';
@@ -8080,17 +8085,33 @@ function matFart(a, info) {
 }
 /* Kurvan för en rörelse som tar över en som går: första segmentet blir
    cubic-bezier(x1, k·x1, x2, y2) med k = v·T/Δ — farten mot målet följer
-   med — x1 ≥ 0,15 och k·x1 inom −1,2…3. Utan fart: kurvan som den är. */
+   med — x1 ≥ 0,15 och k·x1 inom −1,2…3. Utan fart: kurvan som den är.
+   Ger kurvan som tal: det är den rörelsen går på, och den nästa avbrott
+   läser farten ur (matFart). */
 function matKurvaFart(bas, fart, fran, T) {
-  if (!fart) return matKurva(bas);
+  if (!fart) return bas;
   const d2 = fran.reduce((a, v) => a + v * v, 0);
-  if (!d2) return matKurva(bas);
+  if (!d2) return bas;
   const k = -fran.reduce((a, v, i) => a + v * fart[i], 0) / d2 * T;   // v·T/Δ, v = farten mot målet
   let x1 = Math.max(0.15, bas[0]);
   if (k * x1 > 3) x1 = Math.max(0.15, 3 / k);
   if (k * x1 < -1.2) x1 = Math.max(0.15, -1.2 / k);
   const y1 = Math.max(-1.2, Math.min(3, k * x1));
-  return 'cubic-bezier(' + x1.toFixed(3) + ',' + y1.toFixed(3) + ',' + bas[2] + ',' + bas[3] + ')';
+  return [+x1.toFixed(3), +y1.toFixed(3), bas[2], bas[3]];
+}
+/* Lyftets skugga är ett eget lager i kortet (.lyftskugga, TIDSLINJER:
+   "opaciteten på ett eget lager"), så att kortets egen box-shadow aldrig
+   skrivs — strålkastaren under arket (.aktuell) och tokenringen
+   (.spawnglod) står kvar. nycklar: opacitet, startvärdet läses ur lagret.
+   Ett element utan lager (en hög, senare) får ingen skugga. */
+function matSkugga(el, A, nycklar, ms) {
+  const l = el.querySelector(':scope > .lyftskugga');
+  if (A.skugga) { A.skugga.cancel(); A.skugga = null; }
+  if (l) A.skugga = l.animate(nycklar, { duration: ms });
+}
+function matSkuggaNu(el, A) {
+  const l = matKor(A.skugga) && el.querySelector(':scope > .lyftskugga');
+  return l ? +getComputedStyle(l).opacity || 0 : 0;
 }
 /* Flytten: kortet står redan på sin nya plats och förskjuts (dx, dy) tillbaka
    till där det syntes, och förskjutningen glider till noll. n: läget mitt i en
@@ -8113,16 +8134,16 @@ function matGlid(el, dx, dy, n) {
   /* En knuff (kameran ser kortet hela tiden, och det rör sig lite) glider
      220 ms utan lyft — också när den kommer mitt i en annan: kamerans
      rapporter kommer tätare än så när ett kort skjuts. */
-  const bez = knuff ? MAT_BEZ.UT : MAT_BEZ.FLY, ms = knuff ? MAT_MS.knuff : avbruten ? MAT_MS.avbruten : MAT_MS.flytt;
-  A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: ms, easing: matKurvaFart(bez, fart, [dx, dy], ms) });
-  A.posInfo = { fran: [dx, dy], T: ms, bez };
+  const ms = knuff ? MAT_MS.knuff : avbruten ? MAT_MS.avbruten : MAT_MS.flytt;
+  const kurva = matKurvaFart(knuff ? MAT_BEZ.UT : MAT_BEZ.FLY, fart, [dx, dy], ms);
+  A.pos = el.animate([{ translate: fran }, { translate: till }], { duration: ms, easing: matKurva(kurva) });
+  A.posInfo = { fran: [dx, dy], T: ms, bez: kurva };
   if (knuff) return;
-  /* Lyftet: kortet bärs (skalan och skuggan som .held) och sätts ned med en
-     liten studs — 450 ms, skuggan för sig (egen kurva). Avbrutet: 320 ms
-     från skalan kortet har just nu, skuggan 300 ms. */
+  /* Lyftet: kortet bärs (skalan, och skuggan som .held i sitt eget lager) och
+     sätts ned med en liten studs — 450 ms. Avbrutet: skalan 320 ms och
+     skuggan 300 ms, båda från där de står just nu. */
+  const sk0 = matSkuggaNu(el, A), sc0 = String(n ? n.sc : 1);
   if (A.lyft) A.lyft.cancel();
-  if (A.skugga) A.skugga.cancel();
-  const sc0 = String(n ? n.sc : 1);
   if (avbruten) {
     A.lyft = el.animate([
       { offset: 0, scale: sc0, easing: 'linear' },
@@ -8130,7 +8151,7 @@ function matGlid(el, dx, dy, n) {
       { offset: 260 / 320, scale: '0.985', easing: MAT_KURVA.UT },
       { offset: 1, scale: '1' }
     ], { duration: MAT_MS.avbruten });
-    A.skugga = el.animate([{ offset: 180 / 300, boxShadow: MAT_LYFT_SKUGGA, easing: 'ease-in' }], { duration: MAT_MS.avbrutenSkugga });
+    matSkugga(el, A, [{ offset: 0, opacity: sk0, easing: 'linear' }, { offset: 180 / 300, opacity: 1, easing: 'ease-in' }, { offset: 1, opacity: 0 }], MAT_MS.avbrutenSkugga);
   } else {
     const L = MAT_MS.lyft;
     A.lyft = el.animate([
@@ -8140,14 +8161,14 @@ function matGlid(el, dx, dy, n) {
       { offset: 390 / L, scale: '0.985', easing: MAT_KURVA.UT },
       { offset: 1, scale: '1' }
     ], { duration: L });
-    A.skugga = el.animate([{ offset: 90 / L, boxShadow: MAT_LYFT_SKUGGA, easing: 'linear' },
-                           { offset: 320 / L, boxShadow: MAT_LYFT_SKUGGA, easing: 'ease-in' }], { duration: L });
+    matSkugga(el, A, [{ offset: 0, opacity: sk0, easing: 'ease-out' }, { offset: 90 / L, opacity: 1, easing: 'linear' },
+                      { offset: 320 / L, opacity: 1, easing: 'ease-in' }, { offset: 1, opacity: 0 }], L);
   }
 }
 /* Tap och untap: kortet står redan i sitt nya läge (.tappad) och vrids
    tillbaka fran grader, och vridningen går till noll — med farten om en
-   vridning redan går. Det lilla lyftet är svagt: det hoppas över medan
-   kortet bärs. */
+   vridning redan går. Det lilla lyftet (skala 1,03 och halva skuggan, INOUT
+   upp och ned) är svagt: det hoppas över medan kortet bärs. */
 function matVrid(el, fran) {
   const A = el._matA || (el._matA = {});
   const fart = matKor(A.rot) ? matFart(A.rot, A.rotInfo) : null;
@@ -8160,12 +8181,13 @@ function matVrid(el, fran) {
                         { offset: m, rotate: '0deg', opacity: 0.3 }, { offset: 1, rotate: '0deg' }], { duration: MAT_MS.tap, easing: 'linear' });
     return;
   }
-  A.rot = el.animate([{ rotate: fran + 'deg' }, { rotate: '0deg' }], { duration: MAT_MS.tap, easing: matKurvaFart(MAT_BEZ.SOFT, fart, [fran], MAT_MS.tap) });
-  A.rotInfo = { fran: [fran], T: MAT_MS.tap, bez: MAT_BEZ.SOFT };
+  const kurva = matKurvaFart(MAT_BEZ.SOFT, fart, [fran], MAT_MS.tap);
+  A.rot = el.animate([{ rotate: fran + 'deg' }, { rotate: '0deg' }], { duration: MAT_MS.tap, easing: matKurva(kurva) });
+  A.rotInfo = { fran: [fran], T: MAT_MS.tap, bez: kurva };
   if (!matKor(A.lyft)) {
-    A.lyft = el.animate([{ offset: 0.5, scale: '1.03' }], { duration: MAT_MS.tap, easing: 'ease-in-out' });
-    if (A.skugga) A.skugga.cancel();
-    A.skugga = el.animate([{ offset: 0.5, boxShadow: MAT_TAP_SKUGGA }], { duration: MAT_MS.tap, easing: 'ease-in-out' });
+    const sk0 = matSkuggaNu(el, A);
+    A.lyft = el.animate([{ offset: 0, scale: '1', easing: 'ease-in-out' }, { offset: 0.5, scale: '1.03', easing: 'ease-in-out' }, { offset: 1, scale: '1' }], { duration: MAT_MS.tap });
+    matSkugga(el, A, [{ offset: 0, opacity: sk0, easing: 'ease-in-out' }, { offset: 0.5, opacity: 0.5, easing: 'ease-in-out' }, { offset: 1, opacity: 0 }], MAT_MS.tap);
   }
 }
 /* Det yttre elementets style-attribut i HTML:en, och resten av HTML:en utan
@@ -8423,9 +8445,11 @@ function renderGrid(force) {
      annat är en ny vy och ritas på plats, som förut — ett annat bord
      (flikarna utan spel, någon annans bord att titta på), ett nytt parti, en
      ritning medan mattan var dold (#app dold: inga mått; fliken i
-     bakgrunden) och att mattan lämnats (visaVy nollar nyckeln). */
+     bakgrunden), att mattan lämnats (visaVy nollar nyckeln) och en ny
+     layout i bordsvyn (bordMal: en motståndare kom eller gick, nivån
+     byttes — rutan runt mattan hoppar eller har sin egen övergång). */
   const synlig = v.vp.riktig && !document.hidden;
-  const vyNyckel = p.id + (redigerbar() ? '' : 'L') + '|' + (spelLage ? spelLage.id : '');
+  const vyNyckel = p.id + (redigerbar() ? '' : 'L') + '|' + (spelLage ? spelLage.id : '') + '|' + (bordMal ? Math.round(bordMal.w) + 'x' + Math.round(bordMal.h) : '');
   const animera = synlig && gridEl._matVy === vyNyckel;
   gridEl._matVy = synlig ? vyNyckel : null;
   matSkriv(p, v, animera);

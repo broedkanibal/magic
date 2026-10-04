@@ -92,6 +92,7 @@ const PROV = async () => {
   const rad = [], ok = (namn, villkor, detalj) => rad.push([namn, !!villkor, detalj || '']);
   const vanta = ms => new Promise(r => setTimeout(r, ms));
   const els = () => new Map([...gridEl.querySelectorAll('.card[data-cid]')].map(e => [e.dataset.cid, e]));
+  const gar = el => el.getAnimations().some(a => a.playState === 'running');
   const anim = el => el.getAnimations().map(a => Object.keys((a.effect.getKeyframes() || [])[0] || {}).filter(k => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).join('+')).join(',');
   ok('sidan är synlig (annars animerar matSynk inget)', !document.hidden, document.visibilityState);
 
@@ -162,14 +163,82 @@ const PROV = async () => {
   klick('pointerdown'); klick('pointerup');
   ok('ett klick = en tap', hk.tapped === 1, 'tapped ' + hk.tapped);
   ok('och kortet vrids, i samma element', els().get(hk.cid) === hEl && /rotate/.test(anim(hEl)), anim(hEl));
+  const tappadFore = hk.tapped;
   klick('pointerdown'); klick('pointerup');
-  ok('ett klick till = untap', hk.tapped === 0, 'tapped ' + hk.tapped);
+  ok('ett klick till = untap (kortet var tappat)', tappadFore === 1 && hk.tapped === 0, `tapped ${tappadFore} → ${hk.tapped}`);
+
+  /* Lyftets skugga i ett eget lager (granskning runda 2, fynd 1): kortet
+     under arket (.aktuell, strålkastaren 0 0 0 9999px) tappas och flyttas
+     av kameran. Mitt i rörelsen ska strålkastaren stå kvar på kortet, och
+     skuggan synas i lagret. */
+  await vanta(500);
+  delete k1.ny;   // det nya kortets gröna puls (nypuls, box-shadow) är inte det som provas
+  ark = { cid: k1.cid, mode: 'mattprov' }; renderGrid(true);
+  await vanta(300);   // .card-övergången på box-shadow (0,13 s) in i strålkastaren
+  const sv = el => getComputedStyle(el).boxShadow, lagret = el => el.querySelector(':scope > .lyftskugga');
+  /* Bara mattans egna rörelser (Web Animations) ställs på tiden t — inte CSS:ens övergångar och animeringar. */
+  const vid = (el, t) => { for (const a of el.getAnimations({ subtree: true })) if (!(a instanceof CSSTransition) && !(a instanceof CSSAnimation)) a.currentTime = t; return { bs: sv(el), sk: lagret(el) ? +getComputedStyle(lagret(el)).opacity : -1 }; };
+  const vila = sv(e1);
+  rapport[0] = spar(1, 'Llanowar Elves', 0.2, 0.6, false);   // otappas
+  avstamBord(rapport, false);
+  const iTap = vid(e1, 120);
+  await vanta(500);
+  rapport[0] = spar(1, 'Llanowar Elves', 0.55, 0.3, false);  // flyttas långt
+  avstamBord(rapport, false);
+  const iFlytt = vid(e1, 200);
+  ok('strålkastaren (.aktuell) står kvar mitt i tap och flytt, skuggan i sitt lager', /9999px/.test(vila) && /9999px/.test(iTap.bs) && /9999px/.test(iFlytt.bs) && iTap.sk > 0.3 && iFlytt.sk > 0.9,
+    `vila ${/9999px/.test(vila)} · tap 120 ms ${/9999px/.test(iTap.bs) ? '9999px' : iTap.bs}, lagret ${iTap.sk} · flytt 200 ms ${/9999px/.test(iFlytt.bs) ? '9999px' : iFlytt.bs}, lagret ${iFlytt.sk}`);
+  ark = null; renderGrid(true);
+  await vanta(500);
+
+  /* Farten i en kedja av avbrott (fynd 2): kameran skjuter kortet var 70:e
+     ms. Före varje avbrott ska appens skattning (matFart) stämma med farten
+     i den rörelse som faktiskt går — dess egen kurva, inte baskurvan. */
+  const bezY = (b, x) => { const f = (t, p1, p2) => 3 * p1 * t * (1 - t) * (1 - t) + 3 * p2 * t * t * (1 - t) + t * t * t; let lo = 0, hi = 1, t = x; for (let i = 0; i < 40; i++) { t = (lo + hi) / 2; if (f(t, b[0], b[2]) < x) lo = t; else hi = t; } return f(t, b[1], b[3]); };
+  const sannFart = a => {
+    const tm = a.effect.getTiming(), m = /cubic-bezier\(([^)]*)\)/.exec(tm.easing || ''), kf = a.effect.getKeyframes();
+    if (!m || !kf.length || !kf[0].translate) return null;
+    const b = m[1].split(',').map(Number), fr = String(kf[0].translate).split(/\s+/).map(parseFloat), T = tm.duration, t = +a.currentTime || 0, e = 1;
+    const u0 = Math.max(0, t - e) / T, u1 = Math.min(T, t + e) / T, dE = (bezY(b, u1) - bezY(b, u0)) / ((u1 - u0) * T);
+    return [-(fr[0] || 0) * dE, -(fr[1] || 0) * dE];
+  };
+  const fel = [];
+  for (let s = 1; s <= 6; s++) {
+    await vanta(70);
+    const A = e1._matA || {};
+    if (s > 1 && A.pos && A.pos.playState === 'running') {
+      const sann = sannFart(A.pos), skattad = typeof matFart === 'function' ? matFart(A.pos, A.posInfo) : null;
+      if (sann && skattad) { const n = Math.hypot(sann[0], sann[1]); fel.push(n > 0.02 ? Math.hypot(sann[0] - skattad[0], sann[1] - skattad[1]) / n : 0); }
+      else fel.push(Infinity);
+    }
+    rapport[0] = spar(1, 'Llanowar Elves', 0.55 + 0.025 * s, 0.3, false);
+    avstamBord(rapport, false);
+  }
+  ok('farten i en kedja av avbrott skattas ur den kurva rörelsen går på (inom 5 %)', fel.length >= 3 && fel.every(f => f <= 0.05),
+    fel.map(f => isFinite(f) ? Math.round(f * 100) + ' %' : 'saknas').join(', ') || 'inga avbrott');
+  await vanta(500);
+
+  /* Fliken i bakgrunden (fynd 4a): inget glider medan sidan är dold, inte
+     heller första rapporten efteråt (en ny vy) — den andra glider igen. */
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+  rapport[0] = spar(1, 'Llanowar Elves', 0.35, 0.3, false);
+  avstamBord(rapport, false);
+  const dold = gar(e1) || gar(gridEl);
+  delete document.hidden;
+  rapport[0] = spar(1, 'Llanowar Elves', 0.2, 0.3, false);
+  avstamBord(rapport, false);
+  const forsta = gar(e1);
+  await vanta(450);
+  rapport[0] = spar(1, 'Llanowar Elves', 0.42, 0.45, false);
+  avstamBord(rapport, false);
+  const andra = gar(e1);
+  ok('fliken i bakgrunden: inget glider dold eller i första rapporten efter, den andra glider', !document.hidden && !dold && !forsta && andra, `dold ${dold}, första ${forsta}, andra ${andra}`);
+  await vanta(450);
 
   /* Nya vyer ritas på plats (granskningen av steg 2, fynd 1): ingen zoom
      glider in efter en ritning medan mattan var dold (här), eller i ett nytt
      parti (sist). Brädets transform ska ha ändrats — annars mäts ingenting. */
   await vanta(450);
-  const gar = el => el.getAnimations().some(a => a.playState === 'running');
   visaVy('hem'); renderAll(true);
   const tDold = gridEl.style.transform;
   visaVy('app'); renderAll(true);
@@ -219,8 +288,16 @@ const PROV = async () => {
   const opp = normalisera({ id: 'mattprov-opp', name: 'Sara', color: '#b782ff', plats: 2, lage: 'bord', cards: [
     { cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0, cts: [] },
     { cid: 'o2', name: 'Island', x: 260, y: 330, z: 2, tapped: 0, cts: [] }], shots: [], shotIdx: 0, pending: [], pane: null, namnkalla: 'anvandare', version: 1 }, 1);
+  /* En motståndare kommer med mitt i partiet (granskning runda 2, fynd 3):
+     rutan runt min matta hoppar till sin nya storlek, och brädet ska inte
+     glida i den — en ny layout är en ny vy. */
+  mig.cards = mig.cards.filter(c => c.cid !== 'mattprov-ute'); matVyer.delete(mig.id);   // zoomen ur golvet (0,3), så att den kan ändras
+  renderAll(true);
+  await vanta(450);
+  const tEnsam = gridEl.style.transform;
   state.players = [mig, opp]; state.active = mig.id; bord.valt = 'all';
   renderAll(true);
+  ok('en motståndare kommer med: min matta ritas på plats (ingen zoom glider)', gridEl.style.transform !== tEnsam && !gar(gridEl), `${tEnsam} → ${gridEl.style.transform}`);
   const oEls = () => new Map([...document.querySelectorAll('#oppMattor .obrade .card[data-cid]')].map(e => [e.dataset.cid, e]));
   const o1 = oEls();
   const kopia = opp.cards.map(c => Object.assign({}, c));
