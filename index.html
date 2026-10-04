@@ -9833,6 +9833,8 @@ const PILL_RESPIT = 180;
    hovern släpper. Låset är en variabel och inte :hover, eftersom en
    omritning byter ut pillens element. Släpps när pekaren är på kortet igen. */
 let pillLas = null;
+/* Rörelsen pillen väntar ut (renderPill): det hovrade kortets glidning. */
+let pillVantar = null;
 gridEl.addEventListener('pointerover', ev => {
   if (dnd && dnd.drar) return;
   const p = ev.target.closest('.pill');
@@ -9873,6 +9875,20 @@ function renderPill() {
   for (const k of gridEl.querySelectorAll('.card.hov')) if (k !== hovEl) k.classList.remove('hov');
   if (hovEl) hovEl.classList.add('hov');
   if (!c || (dnd && dnd.drar) || !redigerbar() || c.lyft != null || !paMattan(c)) { if (el) el.remove(); return; }
+  /* Medan det hovrade kortet glider (matSynk, MES-334 steg 2) står pillen inte
+     över målet — den räknas ur kortets data, och kortet är inte där än. Den
+     tas bort och ritas igen när rörelsen landat eller avbrutits (då väntar
+     den på nästa). */
+  const glid = hovEl && hovEl._matA && matKor(hovEl._matA.pos) ? hovEl._matA.pos : null;
+  if (glid) {
+    if (el) el.remove();
+    if (pillVantar !== glid) {
+      pillVantar = glid;
+      const igen = () => { if (pillVantar === glid) { pillVantar = null; renderPill(); } };
+      glid.finished.then(igen, igen);
+    }
+    return;
+  }
   const v = matVy(), r = matRect(c);
   const nStack = c.grp ? hand().filter(k => k.grp === c.grp).length : 0;
   /* En manahög flyttas hel (MES-206); ur en tokenhög drar man fortfarande ut

@@ -167,6 +167,21 @@ const PROV = async () => {
   klick('pointerdown'); klick('pointerup');
   ok('ett klick till = untap (kortet var tappat)', tappadFore === 1 && hk.tapped === 0, `tapped ${tappadFore} → ${hk.tapped}`);
 
+  /* Pillen över ett hovrat kort (granskning runda 4): den räknas ur kortets
+     data, alltså målet. Medan kortet glider dit ska den inte stå över tom
+     matta — den ritas igen när kortet landat, över kortet. */
+  await vanta(500);
+  matHover = hk.cid; renderPill();
+  const pillFore = !!gridEl.querySelector('.pill');
+  hk.x = (hk.x || 0) + 400; renderGrid(true);
+  const pillUnder = gridEl.querySelector('.pill'), kortGlider = !!els().get(hk.cid) && els().get(hk.cid).getAnimations().some(a => a.playState === 'running');
+  await vanta(600);
+  const pillEfter = gridEl.querySelector('.pill'), kortR = els().get(hk.cid).getBoundingClientRect(), pR = pillEfter && pillEfter.getBoundingClientRect();
+  const ihop = !!pR && Math.abs((pR.left + pR.right) / 2 - (kortR.left + kortR.right) / 2) < 4;
+  ok('pillen hoppar inte före ett kort som glider, och står över det när det landat', pillFore && kortGlider && !pillUnder && ihop,
+    `före ${pillFore}, kortet glider ${kortGlider}, pillen under glidningen ${!!pillUnder}, efter: över kortet ${ihop}`);
+  matHover = null; renderPill();
+
   /* Lyftets skugga i ett eget lager (granskning runda 2, fynd 1): kortet
      under arket (.aktuell, strålkastaren 0 0 0 9999px) tappas och flyttas
      av kameran. Mitt i rörelsen ska strålkastaren stå kvar på kortet, och
