@@ -11,7 +11,7 @@ Två sessioner, med Jespers inspelningar emellan:
 
 | Steg | Agent | Varför |
 |---|---|---|
-| 1 · Vinkeln per kort | `mesa-bygg-tung` (Fable) | Rör detektorn, beskärningen och tap-domen. 0 fel namn står på spel |
+| 1 · Vinkeln per kort | `mesa-bygg-tung` med `model: "opus"` (Opus 5.5) | Rör detektorn, beskärningen och tap-domen. 0 fel namn står på spel. Agentens förval är Fable, men Jesper valde Opus 5.5 (2026-10-04) |
 | 2 · Mattan ritas inte om från noll | `mesa-bygg` (Opus) | Mattans ritning. **Får köras parallellt med steg 1**, eftersom de rör olika kod (kameran respektive mattan) |
 | 3 · Leken, 4 · Graveyard, 5 · Högarna bland korten | `mesa-bygg` (Opus) | I tur och ordning efter steg 2, eftersom de bygger på mattan som inte ritas om |
 | 6 · Uppstartens steg 4 bort | `mesa-bygg` (Opus) | Sist, när 3–5 fungerar |
