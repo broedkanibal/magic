@@ -2,10 +2,22 @@
 
 Två sessioner, med Jespers inspelningar emellan:
 
-| Del | Vad | Modell och effort |
+| Del | Vad | Session |
 |---|---|---|
-| **A · Mätningen** | Mät de sex måtten i befintliga inspelningar och skärp inspelningslistan. Ingen kod i `index.html` | `mesa-matning` (Sonnet), high |
-| **B · Bygg sida 5** | Allt på designytans sida 5 i en leverans | `mesa-bygg-tung` (Fable), xhigh, eftersom vinkeln per kort rör detektorn och läsningen |
+| **A · Mätningen** | Mät i befintliga inspelningar och skärp inspelningslistan. Ingen kod i `index.html` | En vanlig session, Opus 5.5 high (eller `mesa-matning`, Sonnet). Ingen orkestrerare |
+| **B · Bygg sida 5** | Allt på designytans sida 5 i en leverans | **En orkestrerande session, Opus 5.5 xhigh**, som delar ut stegen till agenter i egna worktrees och själv slår ihop efter bänk, golden och fristående granskning |
+
+**Fördelningen i del B:**
+
+| Steg | Agent | Varför |
+|---|---|---|
+| 1 · Vinkeln per kort | `mesa-bygg-tung` (Fable) | Rör detektorn, beskärningen och tap-domen. 0 fel namn står på spel |
+| 2 · Mattan ritas inte om från noll | `mesa-bygg` (Opus) | Mattans ritning. **Får köras parallellt med steg 1**, eftersom de rör olika kod (kameran respektive mattan) |
+| 3 · Leken, 4 · Graveyard, 5 · Högarna bland korten | `mesa-bygg` (Opus) | I tur och ordning efter steg 2, eftersom de bygger på mattan som inte ritas om |
+| 6 · Uppstartens steg 4 bort | `mesa-bygg` (Opus) | Sist, när 3–5 fungerar |
+
+Golden körs aldrig två gånger samtidigt. Orkestreraren köar körningarna (minnet `golden-egen-port`).
+Regelboken för orkestreringen är `dev/plan/orkestrering.md`.
 
 Del B börjar först när Jesper spelat in enligt listan från del A och sagt ja.
 
