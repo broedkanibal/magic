@@ -29,7 +29,10 @@ if (kvStart >= 0) for (let i = kvStart; i < src.length; i++) if (src[i].startsWi
 const kvKod = kvStart >= 0 && kvSlut > kvStart ? src.slice(kvStart, kvSlut + 1).join('\n') : '';
 const ctx = {
   /* Canvasen är en attrapp: beskärningen (beskar), maskningen (maskaTackt) och remsans skärning (skarRemsa, MES-331 pass 6) ritar i den utan att något läses tillbaka. */
-  document: { createElement: () => ({ getContext: () => ({ drawImage() {}, getImageData: () => ({ data: new Uint8ClampedArray(0) }), translate() {}, rotate() {}, setTransform() {}, scale() {}, fillRect() {}, clearRect() {}, fillStyle: '' }), width: 0, height: 0 }) },
+  /* …och med ctx.__rit satt (en lista) skrivs vridningen och ritningen dit — VK5 läser hur beskärningen vreds (MES-334 steg 1). */
+  document: { createElement: () => ({ getContext: () => { const r = (namn) => (...a) => { if (ctx.__rit) ctx.__rit.push([namn, ...a.filter(x => typeof x === 'number')]); };
+    return { drawImage: r('drawImage'), getImageData: () => ({ data: new Uint8ClampedArray(0) }), translate: r('translate'), rotate: r('rotate'), setTransform() {}, scale: r('scale'), fillRect() {}, clearRect() {},
+             beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {}, fillStyle: '' }; }, width: 0, height: 0 }) },
   navigator: {}, performance: { now: () => 0 }, requestAnimationFrame: () => 0, cancelAnimationFrame() {},
   /* Den tränade detektorn (MES-329) finns utanför Kamera-modulen; bänken kör
      dagens detektor (steg() direkt, aldrig loop()), men rapportera() frågar
@@ -1569,10 +1572,10 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       return Kamera.spar.map(t => ({ id: t.id, st: t.tillstand, namn: t.namn, varfor: t.varfor, tackt: !!(t.tackt && t.tackt.length) }));
     };
     const vek = seed => { const v = new Float32Array(512); for (let k = 0; k < 512; k++) v[k] = Math.sin(seed * 7 + k * 0.37); return v; };
-    let fangster = 0, remsFragor = [];
+    let fangster = 0, remsFragor = [], sistaBesk = null;
     const fakeVideo = { videoWidth: W * V, videoHeight: H * V, paused: false, play: () => Promise.resolve(), srcObject: null };
     await Kamera.start({ video: fakeVideo, overlay: { getContext: () => ({}) } }, {
-      status: () => {}, bord: (spar) => { bord = spar; }, identifiera: (c, id, gissning) => { identifieringar++; return Promise.resolve(namnSvar(id, gissning)); },
+      status: () => {}, bord: (spar) => { bord = spar; }, identifiera: (c, id, gissning, kortArg) => { identifieringar++; sistaBesk = { c, id, kort: kortArg || null, w: c && c.width, h: c && c.height }; return Promise.resolve(namnSvar(id, gissning)); },
       remsVektor: () => { fangster++; return Promise.resolve({ hel: vek(1), titel: vek(2), ms: 1 }); },
       lasRemsa: (c, id, o) => {
         const m = (o && o.minnen) || [];
@@ -1845,6 +1848,50 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       const tl = Kamera.spar.find(t => t.cx > 120), tk = Kamera.spar.find(t => t.cx < 120);
       check(`VK3 en mätning per låda, leken mäts: anrop ${kvAnrop - anrop0} på 20 rutor, kortet ${vinkelGrader(tk)}°, leken ${vinkelGrader(tl)}° (${tl && tl.vm ? tl.vm.kalla : '–'})`,
             kvAnrop - anrop0 === 2 && vinkelGrader(tk) === 102 && vinkelGrader(tl) === 98 && tl && tl.vm && tl.vm.kalla === 'form');
+    }
+    // VK4: när beskärningen vrids (beskarVridning) — osäkert betyder orört
+    {
+      const vmFor = (g, upp, o) => { const c = Math.abs(Math.cos(g * D)), s = Math.abs(Math.sin(g * D)), L = 400, K = L * 63 / 88;
+        return Object.assign({ grader: g, upp, sakerLang: true, helt: true, kalla: upp != null ? 'remsa' : 'form', L, K, cx: 800, cy: 600, w: L * s + K * c, h: L * c + K * s }, o || {}); };
+      const sp = (vm, o) => Object.assign({ vm, tackt: null, omlott: false, remsaLada: { x: 0, y: 0, w: 10, h: 2 }, remsaSynt: false }, o || {});
+      const V0 = (t, ligg) => { const r = Kamera.beskarVridning(t, !!ligg); return r ? Math.round(r.rot) : null; };
+      Kamera.satTrosklar({ beskarVrid: 1, beskarVridMin: 10, beskarVridMax: 40, beskarRikt: 0 });
+      const a = {
+        rak: V0(sp(vmFor(4, 4))), snett25: V0(sp(vmFor(25, 25))), snett25ner: V0(sp(vmFor(25, -155))), tappat70: V0(sp(vmFor(70, 70)), true), tappat110: V0(sp(vmFor(-70, 110)), true),
+        nara45: V0(sp(vmFor(43, 43))), tackt: V0(sp(vmFor(25, 25), { tackt: [{ x: 1, y: 1, w: 2, h: 2 }] })), omlott: V0(sp(vmFor(25, 25), { omlott: true })),
+        hand: V0(sp(vmFor(25, 25, { w: 400, h: 300 }))), utanVm: V0(sp(null)), av: null
+      };
+      Kamera.satTrosklar({ beskarVrid: 0 }); a.av = V0(sp(vmFor(25, 25))); Kamera.satTrosklar({ beskarVrid: 1 });
+      check(`VK4a utan riktning (beskarRikt 0): ${JSON.stringify(a)}`,
+            a.rak === null && a.snett25 === -25 && a.snett25ner === -25 && a.tappat70 === -70 && a.tappat110 === -110 && a.nara45 === null && a.tackt === null && a.omlott === null && a.hand === null && a.utanVm === null && a.av === null);
+      Kamera.satTrosklar({ beskarRikt: 1 });
+      const b = {
+        snett25: V0(sp(vmFor(25, 25))), snett25ner: V0(sp(vmFor(25, -155))), rakNer: V0(sp(vmFor(3, -177))), rak: V0(sp(vmFor(3, 3))), tappat110: V0(sp(vmFor(-70, 110)), true),
+        syntetisk: V0(sp(vmFor(3, -177), { remsaSynt: true })), hallen: V0(sp(vmFor(25, -155, { hallen: true })))
+      };
+      Kamera.satTrosklar({ beskarRikt: 0 });
+      check(`VK4b med riktning (beskarRikt 1): ${JSON.stringify(b)} — upp och ned nära en axel vänds, syntetisk remsa och hållen långsida gör det inte`,
+            b.snett25 === -25 && b.snett25ner === 155 && b.rakNer === 177 && b.rak === null && b.tappat110 === -110 && b.syntetisk === null && b.hallen === -25);
+    }
+    // VK5: beskärningen i läsningen — ett kort 25° snett (remsa, säker långsida) beskärs vridet −25°, kortets egna mått, och kort-argumentet är null
+    {
+      namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarRikt: 0 }); await lyft(LYFT);
+      const a = vridet(75, 75, 25); kvSvar = svarFor(25); sistaBesk = null; ctx.__rit = [];
+      let s = []; for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
+      /* skarRemsa (remsans läsning) vrider också, i hela kvartsvarv efter remsans sida — de räknas inte här. */
+      const remsRot = x => [0, 90, -90, 180, -180].includes(x);
+      const rot = ctx.__rit.filter(x => x[0] === 'rotate').map(x => Math.round(x[1] * 180 / Math.PI)).filter(x => !remsRot(x));
+      ctx.__rit = null;
+      const kb = Math.round(30 * V * 1.16), lb = Math.round(42 * V * 1.16);
+      check(`VK5 vriden beskärning i läsningen: vridningar ${JSON.stringify([...new Set(rot)])}, duk ${sistaBesk && sistaBesk.w}×${sistaBesk && sistaBesk.h} (väntat ≈ ${kb}×${lb}), kort ${JSON.stringify(sistaBesk && sistaBesk.kort)}`,
+            rot.length > 0 && rot.every(x => x === -25) && sistaBesk && Math.abs(sistaBesk.w - kb) <= 3 && Math.abs(sistaBesk.h - lb) <= 4 && sistaBesk.kort === null);
+      // …och utan vridning (beskarVrid 0): den raka lådan, kort-argumentet satt (serUtSomKort mäter i rektangeln)
+      nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarVrid: 0 }); await lyft(LYFT); sistaBesk = null; ctx.__rit = [];
+      for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
+      const rot0 = ctx.__rit.filter(x => x[0] === 'rotate').map(x => Math.round(x[1] * 180 / Math.PI)).filter(x => !remsRot(x)).length; ctx.__rit = null;
+      check(`VK5b beskarVrid 0: vridningar ${rot0}, duk ${sistaBesk && sistaBesk.w}×${sistaBesk && sistaBesk.h}, kort ${sistaBesk && sistaBesk.kort ? 'satt' : 'null'}`,
+            rot0 === 0 && sistaBesk && !!sistaBesk.kort);
+      Kamera.satTrosklar({ beskarVrid: 1 });
     }
     KV.kortVinkel = kvRiktig; kvSvar = null;
     namnSvar = saker;

@@ -22331,6 +22331,21 @@ const Kamera = (() => {
        vinkeln gäller den uppmätta vinkeln; annars står dagens regel
        (fyndUrLador). Golden: --tro "vinkelMat:0". */
     vinkelMat: 1,
+    /* Beskärningen vrids med kortets uppmätta vinkel (MES-334 steg 1,
+       beskarVridning): läsningen ser kortet rakt i stället för snett i en
+       rak låda med bord i hörnen. beskarVrid 0 = rak låda som förut.
+       beskarVridMin: grader från närmaste bildaxel under vilka kortet inte
+       vrids — där klarar den raka lådan läsningen (BESKAR_SNETT, golden 02
+       med vriden.cjs: 4/4 upp till 10°). beskarVridMax: närmare 45° än så
+       är långsidan osäker (A2: valet faller där) och lådan rörs inte.
+       beskarRikt: remsans riktning (0/180) vänder kortet rättvänt; 0 =
+       dagens grova riktning (−90° för en liggande låda), bara den fina
+       vinkeln rätas. Golden: --tro "beskarVrid:0", "beskarRikt:0",
+       "beskarVridMin:0". */
+    beskarVrid: 1,
+    beskarVridMin: 10,
+    beskarVridMax: 40,
+    beskarRikt: 0,
     /* Den tränade detektorn (MES-329): 1 = YOLOX fp32 (förval), 2 = YOLOX
        fp16 (prov på telefonen), 0 = dagens detektor (mattmodell + regioner).
        Laddas modellen inte — nät, minne, en webbläsare utan WebGPU och
@@ -26053,11 +26068,87 @@ const Kamera = (() => {
              spar: spar.map(t => ({ id: t.id, cx: t.cx, cy: t.cy, lang: t.lang, kort: t.kort, vinkel: t.vinkel, tillstand: t.tillstand, namn: t.namn, saker: !!t.saker, skymd: !!t.skymd, tomMs: t.tomMs, namnLast: t.namnLast || null })) };
   }
 
+  /* Hur beskärningen vrids (MES-334 steg 1), eller null = som förut (rak
+     låda, −90° när lådan ligger). Kortets vinkel ur lådan (t.vm, fyndUrLador
+     → vinkelFor) gäller bara när allt är säkert — osäkert betyder orört:
+       - långsidan säker (t.vm finns bara då), och lådan är hela kortet: inte
+         täckt eller omlott (lådan är då den synliga delen, och kortets egen
+         rektangel går inte att räkna ur den), och lådans kvot stämmer med
+         ett ensamt kort i den uppmätta vinkeln (inom 12 %: en hand eller en
+         granne i lådan ger en annan form);
+       - kortet ligger minst T.beskarVridMin från närmaste bildaxel (där
+         klarar den raka lådan läsningen) och högst T.beskarVridMax (nära 45°
+         är långsidan osäker, A2);
+       - riktningen (namnet uppåt) bara ur detektorns egen remsa, när
+         T.beskarRikt är på och hysteresen inte just behållit långsidan mot
+         remsan. Annars behålls dagens grova riktning — stående låda 0°,
+         liggande −90° — och bara den fina vinkeln rätas: ett kort som i dag
+         läses upp och ned läses upp och ned också här, och kedjan har sina
+         vägar för det (bildmodellens fyra vridningar, ORB 0/180, titelraden
+         vänd). Fullart-land och tokens, där detektorns "remsa" är typraden
+         längst ned (A2:s fälla 1), vänds därför aldrig fel av förvalet.
+     Svar: { rot } i grader — hur mycket bilden vrids (medurs positivt i
+     dukens led) för att kortet ska stå rakt med långsidan lodrät. */
+  function beskarVridning(t, liggande) {
+    const vm = t.vm;
+    if (!T.beskarVrid || !vm || !vm.sakerLang || !vm.helt || !(vm.L > 0) || (t.tackt && t.tackt.length) || t.omlott || arHelbild(t)) return null;
+    const g = vm.grader, D = Math.PI / 180;
+    const s = Math.abs(Math.sin(g * D)), c = Math.abs(Math.cos(g * D));
+    const pw = s + c / KortVinkel.KVOT, ph = c + s / KortVinkel.KVOT;   // lådan ett ensamt kort med upp-axeln g ger (långsidan 1)
+    if (Math.abs(Math.log((pw / ph) / (vm.w / vm.h))) > 0.12) return null;
+    const avAxel = Math.min(Math.abs(g) % 90, 90 - Math.abs(g) % 90);   // 0–45°: hur snett kortet ligger mot närmaste bildaxel
+    const rot0 = liggande ? -90 : 0;   // dagens grova vridning
+    const nv = a => { a = ((a + 180) % 360 + 360) % 360 - 180; return a === -180 ? 180 : a; };
+    const avst = (a, b) => Math.abs(nv(a - b));
+    /* Utan riktning: den av de två uppräta vridningarna (−g eller 180 − g) som ligger närmast dagens. */
+    const rotGrov = avst(-g, rot0) <= avst(180 - g, rot0) ? nv(-g) : nv(180 - g);
+    const rikt = T.beskarRikt && vm.upp != null && !vm.hallen && !t.remsaSynt && t.remsaLada;
+    if (avAxel > T.beskarVridMax) return null;
+    if (rikt) {
+      const rotFull = nv(-vm.upp);
+      /* Nära en axel vrids kortet bara när dagens beskärning vore upp och ned eller på tvären mot riktningen. */
+      if (avAxel >= T.beskarVridMin || avst(rotFull, rotGrov) > 45) return { rot: rotFull, rikt: true };
+      return null;
+    }
+    return avAxel >= T.beskarVridMin ? { rot: rotGrov, rikt: false } : null;
+  }
+
   /* Beskär kortet ur den fulla videon, räta upp det om det ligger ner. */
   function beskar(t) {
     const vb = video.videoWidth, vh = video.videoHeight;
     const r = rutaPx(vb, vh);
     const sx = r.w / AW, sy = r.h / AH;
+    /* Kortets egen vinkel (MES-334 steg 1): beskärningen är kortets vridna
+       rektangel — lådans mitt och kortets sidor ur lådan och axeln (t.vm,
+       videopixlar), 8 % marginal som den raka — så att läsningen ser kortet
+       rakt och utan bord i hörnen. Samma skala som den raka: bara
+       nedskalning, kortsidan med marginal högst BESKAR_BREDD. Bildpunkter
+       utanför videon blir genomskinliga, som vid den raka lådans kant.
+       Beskärningen är kortet, så kort (serUtSomKort, framsideForm) är null. */
+    const vr = beskarVridning(t, (t.ram || t.box).w > (t.ram || t.box).h);
+    t.beskarRot = vr ? Math.round(vr.rot) : null;   // för golden --detalj: hur den senaste beskärningen vreds
+    if (vr) {
+      const vm = t.vm, mv = 0.08, Kb = vm.K * (1 + 2 * mv), Lb = vm.L * (1 + 2 * mv);
+      const skala = Math.min(1, BESKAR_BREDD / Kb);
+      const ow = Math.max(2, Math.round(Kb * skala)), oh = Math.max(2, Math.round(Lb * skala));
+      const rad = vr.rot * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad);
+      /* Källans rektangel: den vridna beskärningens omskrivna låda i videon. */
+      const hx = (Kb * Math.abs(cs) + Lb * Math.abs(sn)) / 2, hy = (Kb * Math.abs(sn) + Lb * Math.abs(cs)) / 2;
+      const sx0 = Math.max(0, Math.floor(vm.cx - hx)), sy0 = Math.max(0, Math.floor(vm.cy - hy));
+      const sx1 = Math.min(vb, Math.ceil(vm.cx + hx)), sy1 = Math.min(vh, Math.ceil(vm.cy + hy));
+      if (sx1 - sx0 >= 4 && sy1 - sy0 >= 4) {
+        const c = document.createElement('canvas');
+        c.width = ow; c.height = oh;
+        const x = c.getContext('2d');
+        x.imageSmoothingQuality = 'high';
+        x.translate(ow / 2, oh / 2); x.rotate(rad); x.scale(skala, skala);
+        x.drawImage(video, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 - vm.cx, sy0 - vm.cy, sx1 - sx0, sy1 - sy0);
+        x.setTransform(1, 0, 0, 1, 0, 0);
+        /* Från videons bildpunkter till dukens: samma led som bilden (maskaTackt). */
+        const till = (px, py) => ({ x: ow / 2 + skala * (cs * (px - vm.cx) - sn * (py - vm.cy)), y: oh / 2 + skala * (sn * (px - vm.cx) + cs * (py - vm.cy)) });
+        return { bild: c, kort: null, geo: { r, ow, oh, vriden: true, rot: vr.rot, rikt: vr.rikt, till } };
+      }
+    }
     const m = 0.08, b = t.ram || t.box;
     const bx = r.x + (b.x - b.w * m) * sx, by = r.y + (b.y - b.h * m) * sy;
     const bw = b.w * (1 + 2 * m) * sx, bh = b.h * (1 + 2 * m) * sy;
@@ -26114,6 +26205,13 @@ const Kamera = (() => {
     const sx = g.r.w / AW, sy = g.r.h / AH;
     for (const q of t.tackt) {
       const px = g.r.x + (q.x - 1) * sx, py = g.r.y + (q.y - 1) * sy, pw = (q.w + 2) * sx, ph = (q.h + 2) * sy;
+      /* En vriden beskärning (MES-334 steg 1): rektangeln blir en vriden fyrhörning i duken. beskarVridning vrider inte täckta
+         spår i dag, men måleriet följer ändå med, så att en ändring där aldrig målar utanför kortet. */
+      if (g.vriden) {
+        const p = [g.till(px, py), g.till(px + pw, py), g.till(px + pw, py + ph), g.till(px, py + ph)];
+        x.beginPath(); x.moveTo(p[0].x, p[0].y); for (let i = 1; i < 4; i++) x.lineTo(p[i].x, p[i].y); x.closePath(); x.fill();
+        continue;
+      }
       const u0 = (px - g.bx) / g.bw, u1 = (px + pw - g.bx) / g.bw, v0 = (py - g.by) / g.bh, v1 = (py + ph - g.by) / g.bh;
       if (g.liggande) x.fillRect(v0 * g.ow, (1 - u1) * g.oh, (v1 - v0) * g.ow, (u1 - u0) * g.oh);
       else x.fillRect(u0 * g.ow, v0 * g.oh, (u1 - u0) * g.ow, (v1 - v0) * g.oh);
@@ -27026,6 +27124,7 @@ const Kamera = (() => {
 
   return { start, installera, stopp, satKalibrering, satUpp, satGrund, satGrav, satBib, grundFranSpar, stillbild, forhandsbild, bildAndrad, bildSkickad, nyReferens, glomKort, namnge, svarAI, rapportera,
            detektera, matcha, tappad, satTrosklar, steg, diagnosfil: diagnos, laddaReferens, finLada, mattmodell,
+           beskarVridning,   // hur beskärningen vrids med kortets vinkel (MES-334 steg 1) — bänken
            /* Helbilden på begäran (knappen, datorn); och om en automatisk är
               på väg — golden-provet väntar in den innan fallet döms. */
            helbild: () => helbild('knapp'), tillampaHelbild,
