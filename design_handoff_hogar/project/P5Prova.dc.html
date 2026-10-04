@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>2 · Try Not my library</title>
+<title>2 · Click the library: Not my library</title>
 <script src="./support.js"></script>
 <link rel="stylesheet" href="./mesa.css">
 <link rel="stylesheet" href="./hogar.css">
@@ -19,13 +19,25 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
 <div class="ab crop2" style="width: 1061px; height: 722px">
   <section class="matta" style="position: absolute; left: 10px; top: 10px; width: 1041px; height: 702px">
     <sc-if value="{{ar}}" hint-placeholder-val="{{ true }}">
-    <div class="mtom" style="top: 220px"><b>Play your first card when you're ready</b></div>
-    <div class="st lib" style="left: 560px; top: 410px; transform: rotate(-20deg)"><span class="slv" role="img" aria-label="Library, 33 cards"></span></div>
-    <span class="hc bla mening" style="left: 625px; top: 612px"><span class="ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8fa8ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>Found your library</span><i class="kvsep"></i><button onClick="{{nej}}">Not my library</button></span>
+    <div class="start sek" style="top: 200px"><h2>Play your first card when you're ready</h2></div>
+      <button class="st lib" style="left: 560px; top: 440px; padding: 0; border: 0; background: none; cursor: pointer" onClick="{{oppna}}" aria-label="Library, 33 cards. Open the menu">
+        <span class="slv"></span>
+        <span class="hc bla"><i></i>Library<b>33</b></span>
+      </button>
+      <sc-if value="{{meny}}" hint-placeholder-val="{{ false }}">
+        <div class="vmeny" style="left: 500px; top: 300px">
+          <span class="rub">Library</span>
+          <button class="ign" onClick="{{nej}}"><i></i><span><b>Not my library</b><em>It's a face-down card</em></span></button>
+        </div>
+      </sc-if>
     </sc-if>
     <sc-if value="{{inte}}" hint-placeholder-val="{{ false }}">
-    <div class="mtom" style="top: 220px"><b>Put your library on the table</b></div>
-      <div class="card" style="left: 560px; top: 410px; transform: rotate(-20deg)"><span class="slv" role="img" aria-label="A face-down card"></span></div>
+    <div class="start">
+      <span class="lekill"><span class="ring"></span><span class="slv"></span></span>
+      <h2>Put your library on the table</h2>
+      <p>Mesa uses it to learn how your cards lie</p>
+    </div>
+      <div class="card" style="left: 560px; top: 440px"><span class="slv" role="img" aria-label="A face-down card"></span></div>
       <span class="hc mening" style="left: 625px; top: 612px"><span>Face-down card</span><i class="kvsep"></i><button onClick="{{ja}}">It's my library</button></span>
     </sc-if>
   </section>
@@ -33,9 +45,12 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1061,"height":722}}'>
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { inte: false }; }
+  constructor(props) { super(props); this.state = { inte: false, meny: false }; }
   renderVals() {
-    return { ar: !this.state.inte, inte: this.state.inte, nej: () => this.setState({ inte: true }), ja: () => this.setState({ inte: false }) };
+    return { ar: !this.state.inte, inte: this.state.inte, meny: this.state.meny,
+      oppna: () => this.setState({ meny: !this.state.meny }),
+      nej: () => this.setState({ inte: true, meny: false }),
+      ja: () => this.setState({ inte: false }) };
   }
 }
 </script>

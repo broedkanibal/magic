@@ -57,14 +57,14 @@ nästa exempel.
 
 | Läge | Beslut |
 |---|---|
-| Leken läggs ner | Den första nedvända högen (klassen `baksida`) som ligger still innan första kortet spelas blir library. Ingen knapp behövs. En lugn kvittens, "Library ✓ · Not my library", visas en stund |
+| Leken läggs ner | Den första nedvända högen eller det första nedvända kortet (klassen `baksida`) som ligger still innan första kortet spelas antas vara library. Ingen egen kvittens behövs: att texten mitt på mattan byter från "Put your library on the table" till "Play your first card when you're ready" är kvittensen (Jesper 2026-10-04). "Not my library" finns i menyn när man klickar på leken |
 | Leken flyttas | Leken glider till sin nya plats, och rutan följer med |
 | Leken lämnar bilden (söka, blanda, mulligan) | Leken visas som **upptagen för alla**. Den står kvar på sin plats med en lugn animering, eftersom motståndarna ändå ser det vid bordet. När leken syns igen, också på en ny plats, glider den dit |
 | Handen täcker leken (drar ett kort) | Leken är inte upptagen, eftersom handen fryser (spegelmattans princip 3). Upptagen kräver att platsen syns och är tom |
 | Ett nytt nedvänt kort när leken redan är känd | Ett nedvänt kort på mattan (spegelmattans fall 6), inte en ny lek |
 | Leken syns aldrig | Grundläget tas ur första kortet, och graveyard kommer ur kort ovanpå kort |
 | Dra kort | Kommer senare. Leken byggs som ett spårat objekt, så att "handen går till leken och tillbaka medan leken ligger kvar" kan läggas till |
-| "Not my library" | *Förslag, inte beslutat:* högen blir ett nedvänt kort, och Mesa väntar på nästa kandidat |
+| "Not my library" | Högen blir ett nedvänt kort, och texten går tillbaka till "Put your library on the table" |
 
 ### Otappat (grundläget)
 
@@ -80,6 +80,10 @@ bekräftelsefrågor (N2 och N3 är avfärdade).
 | Leken flyttas eller vrids | *Förslag:* grundläget följer med, så att leken förblir referensen |
 | Ingen lek | *Förslag:* första kortets vinkel när det först ligger still |
 
+**Mattan visar alltid rakt (Jesper 2026-10-04).** Vinkeln är kamerans sak. På
+mattan ligger leken och korten alltid raka: otappat 0°, tappat 90°, mätt mot
+lekens vinkel. En lek som ligger 20° snett ritas rak.
+
 **Genomförbarhet, viktigt:** den tränade detektorns lådor är raka (`fyndUrLador`,
 `index.html` ~rad 23659). Ett kort som ligger 20° snett får en nästan kvadratisk
 låda både otappat och tappat, så lådan kan inte skilja dem åt. Vinkeln behöver
@@ -92,7 +96,7 @@ Det här mäts i del A innan det byggs.
 
 | Läge | Beslut |
 |---|---|
-| Första kortet som läggs på andra sidan om leken från landen | Det antas vara graveyard. Kortet ligger kvar där det ligger, och en animering visar att en graveyard skapas där (etapp 2; i etapp 1 flyger kortet till dagens graveyard-hög). Raden "Graveyard · Not my graveyard" visas en stund |
+| Första kortet som läggs på andra sidan om leken från landen | Det antas vara graveyard. Kortet ligger kvar där det ligger, och en animering visar att en graveyard skapas där. En ruta ovanför frågar **"Is this your graveyard?  Yes · No"**. Inget svar räknas som ja efter några sekunder, och då står bara brickan "Graveyard 1" kvar. No öppnar menyn M1 i samma slags ruta (Jesper 2026-10-04) |
 | Leken syns inte, inga land ligger ute än, eller land ligger på båda sidor | **Reserven:** ett kort som läggs rakt ovanpå ett annat ger samma sak. Land på land och fästa kort räknas inte. Kortet under blir graveyards första kort |
 | Instant eller sorcery som läggs på bordet | Behandlas som vilket kort som helst. Den räknas till graveyard först när den faktiskt flyttas dit. Dagens regel (`SPELL_MS`: försvinner den inom 20 s går den till graveyard med Undo) står kvar |
 | Nej, "vad är det då?" (menyn M1, vald 2026-10-04) | **Permanent** (kortet ligger kvar som ett vanligt kort) · **Exile** (högen blir exile-högen, `ZON_EXIL`; kommer i etapp 2) · **Ignore this spot** (sideboard eller tärningar; Mesa följer inte platsen) |
