@@ -314,8 +314,9 @@
       "y": 1142,
       "w": 1061,
       "h": 722,
-      "title": "5 · A graveyard is made where the card lies",
-      "page": "p5"
+      "title": "5 · Is this your graveyard? (click Yes or No)",
+      "page": "p5",
+      "is_interactive": true
     },
     "P5Nej.dc.html": {
       "x": 2282,
@@ -575,7 +576,7 @@
     "g51": {
       "x": 5705,
       "y": 1142,
-      "text": "Hela flödet med dina val: D1, graveyard där kortet ligger, M1. Mattan visar alltid leken och korten raka: otappat 0°, tappat 90°. Vinkeln används bara när kameran läser. Den första nedvända högen är library, och att texten byter till \"Play your first card\" är kvittensen. Not my library finns när man klickar på leken. Graveyard frågar \"Is this your graveyard?\" med Yes/No, och utan svar räknas det som ja efter några sekunder. Sleeves: leken och nedvända kort får automatiskt samma färg som sleevesen på bordet, eller Magic-baksidan om du inte har sleeves. Färgen går inte att ändra i den här versionen.",
+      "text": "Hela flödet, klart att bygga (Jesper 2026-10-04). Mattan visar alltid leken och korten raka: otappat 0°, tappat 90°. Kameran läser varje kort i dess verkliga vinkel och jämför med lekens vinkel. Library är den nedvända hög som ligger kvar före första kortet, och textbytet är kvittensen. Syns ingen lek ger första kortet vinkeln. Graveyard: frågan står kvar tills man svarar, och inget räknas som graveyard förrän man svarat Yes. Kort som läggs på högen under tiden hör till samma fråga. Sleeves: bordets färg, eller Magic-baksidan. Utan kamera: fast plats som i dag, men D1:s utseende.",
       "w": 300,
       "fill": "gray",
       "page": "p5"

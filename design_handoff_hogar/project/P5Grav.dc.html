@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>5 · A graveyard is made where the card lies</title>
+<title>5 · Is this your graveyard? (click Yes or No)</title>
 <script src="./support.js"></script>
 <link rel="stylesheet" href="./mesa.css">
 <link rel="stylesheet" href="./hogar.css">
@@ -27,18 +27,41 @@ a{color:#6b8cff}a:hover{color:#8ea6ff}
       <span class="slv" role="img" aria-label="Library, 31 cards"></span>
       <span class="hc bla"><i></i>Library<b>31</b></span>
     </div>
-    <div class="d1glod" style="left: 725px; top: 425px; width: 160px; height: 212px"></div>
-    <div class="st gy d1k" style="left: 740px; top: 440px">
-      <img src="img/bolt.jpg" alt="Lightning Bolt">
-      <span class="hc gul mitt gyhc"><i></i>Graveyard<b>1</b></span>
+    <div class="st gy" style="left: 740px; top: 440px">
+      <img src="img/bolt.jpg" alt="Lightning Bolt" style="{{kortStil}}">
+      <sc-if value="{{ja}}" hint-placeholder-val="{{ false }}"><span class="hc gul"><i></i>Graveyard<b>1</b></span></sc-if>
     </div>
-    <div class="fraga anim" style="left: 646px; top: 376px">Is this your graveyard?<span class="knappar"><button class="ja">Yes</button><button>No</button></span></div>
+    <sc-if value="{{fragar}}" hint-placeholder-val="{{ true }}">
+      <div class="fraga" style="left: 646px; top: 376px">Is this your graveyard?<span class="knappar"><button class="ja" onClick="{{svaraJa}}">Yes</button><button onClick="{{svaraNej}}">No</button></span></div>
+    </sc-if>
+    <sc-if value="{{meny}}" hint-placeholder-val="{{ false }}">
+      <div class="vmeny" style="left: 680px; top: 262px">
+        <span class="rub">Not your graveyard. What is it?</span>
+        <button class="perm" onClick="{{perm}}"><i></i><span><b>Permanent</b><em>Back on the table where it lies</em></span></button>
+        <button class="ign" onClick="{{ign}}"><i></i><span><b>Ignore this spot</b><em>Mesa stops following this pile</em></span></button>
+      </div>
+    </sc-if>
+    <sc-if value="{{klar}}" hint-placeholder-val="{{ false }}">
+      <button class="kv" style="left: 760px; top: 20px; position: absolute" onClick="{{igen}}">Show the question again</button>
+    </sc-if>
   </section>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1061,"height":722}}'>
 class Component extends DCLogic {
-  renderVals() { return {}; }
+  constructor(props) { super(props); this.state = { steg: 'fragar' }; }
+  renderVals() {
+    const st = this.state.steg;
+    return {
+      fragar: st === 'fragar', meny: st === 'meny', ja: st === 'ja', klar: st !== 'fragar' && st !== 'meny',
+      kortStil: st === 'ja' ? 'filter: grayscale(.45) brightness(.75); transition: filter .48s ease-in-out' : 'transition: filter .48s ease-in-out',
+      svaraJa: () => this.setState({ steg: 'ja' }),
+      svaraNej: () => this.setState({ steg: 'meny' }),
+      perm: () => this.setState({ steg: 'perm' }),
+      ign: () => this.setState({ steg: 'ign' }),
+      igen: () => this.setState({ steg: 'fragar' })
+    };
+  }
 }
 </script>
 </body>

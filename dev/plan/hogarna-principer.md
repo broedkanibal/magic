@@ -17,6 +17,63 @@
 > Nästa steg: mätningen i befintliga inspelningar, sedan Jespers
 > inspelningar. Prompten: [`prompt-hogarna-matning-och-etapp-1.md`](prompt-hogarna-matning-och-etapp-1.md).
 
+## Byggunderlaget (Jesper 2026-10-04): det här byggs
+
+**Det här avsnittet gäller före allt annat i filen.** Säger något längre ned
+emot det, gäller avsnittet. Resten av filen visar hur besluten växte fram.
+
+Det som byggs är **designytans sida 5**, "The whole flow (chosen)" i "Mesa Piles
+From Play". Allt på sidan byggs i en leverans, utan något mellanbygge med dagens
+fasta högar. Bygget kräver att mattan inte ritas om från noll (spegelmattans grund
+2), så att högar och kort kan glida. Det ingår i arbetet.
+
+### Partiet börjar
+
+| Läge | Beslut |
+|---|---|
+| Ingen lek på bordet | Mitt på mattan: "Put your library on the table" (sida 5, tavla 1). Första kortet nämns inte |
+| En nedvänd hög ligger still före första kortet | Den antas vara library. Texten byter till "Play your first card when you're ready", i samma stil och på samma plats, och det bytet är kvittensen. Leken visas med brickan "Library 33" |
+| Flera nedvända högar före första kortet (starthanden nedvänd under mulligan) | Library är **den som ligger kvar** när de andra plockats upp |
+| Fel hög | Man klickar på leken och väljer **Not my library**. Högen blir ett nedvänt kort, och texten går tillbaka till steg 1 |
+| Leken plockas upp före första kortet (blanda efter mulligan) | "Library · Picked up". Skuggan står kvar och texten likaså |
+| Första kortet läggs ner | Texten försvinner |
+| Första kortet spelas utan att leken har synts | Första kortets vinkel blir otappat, utan fråga. Läggs leken ner senare blir den library, men vinkeln står kvar |
+
+### Vinkeln
+
+- **Mattan visar alltid rakt:** otappat 0°, tappat 90°. Leken och korten ritas aldrig snett.
+- **Kameran läser varje kort i dess verkliga vinkel.** Beskärningen vrids så att läsningen ser kortet rakt.
+- **Tappat eller otappat:** kortets vinkel jämförs med lekens vinkel just nu. Inom 45° är kortet otappat, annars tappat. Vrids leken följer referensen med, och en liten knuff ändrar inget.
+- **Det här är det tekniskt svåraste.** Detektorns lådor är raka, så vinkeln måste mätas per kort inne i lådan (kontur eller namnremsa). Mät det först.
+
+### Graveyard
+
+| Läge | Beslut |
+|---|---|
+| Första kortet på andra sidan om leken från landen, eller ett kort som läggs ovanpå ett annat (inte land på land, inte fäst) | En ruta ovanför högen: "Is this your graveyard?  Yes · No". **Den står kvar tills man svarar och blockerar inget** |
+| Innan man svarat | **Inget räknas som graveyard.** Kortet ligger i spel som vanligt, och ingen bricka visas |
+| Fler kort läggs på högen innan man svarat | De hör till **samma fråga**. Yes gör alla till graveyard, och Permanent lägger tillbaka alla i spel |
+| Yes | Korten blir graveyard (tonas), och brickan "Graveyard 1" visas |
+| No | Samma slags ruta med menyn M1: **Permanent** (tillbaka i spel där kortet ligger) eller **Ignore this spot** (Mesa följer inte platsen) |
+| Efter Permanent läggs ett kort ovanpå | Mesa frågar en gång till |
+| Efter Ignore this spot | Mesa frågar aldrig mer om den platsen |
+| Vem ser frågan | Bara spelaren vars bord det är. Motståndarna ser korten i spel tills svaret är Yes |
+
+### I spel
+
+| Läge | Beslut |
+|---|---|
+| Utseendet | D1: högarna ser ut som högar, utan ramar och linjer, med en bricka för namn och antal |
+| Platsen | Högarna ligger bland korten där de ligger på bordet och följer mattans zoomsteg. Brickan behåller sin storlek |
+| Leken plockas upp | "Library · Picked up". Skuggan står kvar för alla. Leken glider dit där den läggs ner igen |
+| Sleeves | Leken och nedvända kort får automatiskt bordets sleeve-färg, eller Magic-baksidan om man inte har sleeves. Färgen går inte att ändra |
+| Spelare utan kamera | Högarna står på **fast plats som i dag**, men i D1:s utseende |
+
+### Inte i det här bygget
+
+- **Graveyard minns kort utan namn** (foto efter 0,5 s, namnet fylls i efter hand, namnges för hand). Det har en egen issue.
+- Exile i Nej-menyn, command zone, att dra kort, och minnet av bordsupplägget mellan partier.
+
 ## Varför
 
 I dag gör spelaren tre saker innan partiet börjar: visar ett provkort, pekar

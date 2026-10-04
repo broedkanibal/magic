@@ -1,11 +1,11 @@
-# Prompt: högarna utan uppstart — mätningen och etapp 1
+# Prompt: högarna utan uppstart — mätningen och bygget av sida 5
 
 Två sessioner, med Jespers inspelningar emellan:
 
 | Del | Vad | Modell och effort |
 |---|---|---|
 | **A · Mätningen** | Mät de sex måtten i befintliga inspelningar och skärp inspelningslistan. Ingen kod i `index.html` | `mesa-matning` (Sonnet), high |
-| **B · Etapp 1** | Uppstartens steg 4 bort. Leken, grundläget och graveyard härleds ur spelet | `mesa-bygg` (Opus), xhigh |
+| **B · Bygg sida 5** | Allt på designytans sida 5 i en leverans | `mesa-bygg-tung` (Fable), xhigh, eftersom vinkeln per kort rör detektorn och läsningen |
 
 Del B börjar först när Jesper spelat in enligt listan från del A och sagt ja.
 
@@ -76,82 +76,69 @@ graveyard`. Markera osäkra rader som `osäker`.
 
 ---
 
-## Del B · Etapp 1: uppstarten försvinner
+## Del B · Bygg sida 5
 
-Bygg etapp 1 i `dev/plan/hogarna-principer.md`. Uppstartens steg 4
-(provkort, graveyard, library) tas bort. Mesa hittar leken själv, tar
-grundläget ur lekens riktning, och skapar graveyard ur
-sidoregeln eller ur kort ovanpå kort. Det sker på dagens matta, med dagens
-rutor, som Mesa nu sätter själv. Mät före och efter varje steg.
+Bygg allt på designytans sida 5, "The whole flow (chosen)", i "Mesa Piles From
+Play" (https://claude.ai/artifact/RkqPz5qYrBHV5jckSC3fQh, källan i
+`design_handoff_hogar/`, tavlorna `P5*.dc.html`). Besluten står i avsnittet
+**Byggunderlaget** i `dev/plan/hogarna-principer.md`, och det gäller före allt
+annat i filen. Mät före och efter varje steg.
 
 ### Läs först
 
-- `dev/plan/hogarna-principer.md` och `dev/plan/hogarna-matning.md` (del A:s mått och vad Jespers inspelningar ska visa).
-- Avsnittet *Vad etapp 1 rör i koden* i principfilen. Pekarna är inte kontrollerade i detalj, så läs koden.
-- Minnena `mesa-bordssteget-beslut`, `mesa-kameran-tappar-aldrig`,
-  `mes-85-graveyard-auto-beslut`, `mes-138-139-library-plastfickor`,
-  `mes-166-provkortets-las`, `kamerans-datorsida-provas-utan-telefon`,
-  `flera-sessioner-samma-arbetstrad` och `orkestrering-lardomar-2026-09-25`.
+- Avsnittet Byggunderlaget i `dev/plan/hogarna-principer.md`, och `dev/plan/hogarna-matning.md` (del A).
+- `dev/plan/spegelmattan-principer.md`. Mattan som inte ritas om från noll är en förutsättning.
+- Minnena `hogarna-utan-uppstart`, `spegelmattan-principer`, `mes-85-graveyard-auto-beslut`,
+  `mes-138-139-library-plastfickor`, `mes-329-tranad-detektor-i-appen`,
+  `kamerans-datorsida-provas-utan-telefon`, `flera-sessioner-samma-arbetstrad` och
+  `orkestrering-lardomar-2026-09-25`.
 - CLAUDE.md. Systemprompten i `api/identify.js` rörs inte. Linear sköts via
   `dev/linear-agent/klient.cjs`, och `paborjaIssue` körs innan arbetet börjar.
 
 ### Steg: ett i taget, med bänk och golden före och efter
 
-**0. Baslinje.** Kör `dev/kolla.sh` och `dev/avstamning.cjs`. Kör golden på
-alla 16 i två satser (01–08 och 09–16) samt spegelfacit. Kör sedan del A:s
-mått på Jespers nya inspelningar med dagens kod, så att det finns ett före.
+**0. Baslinje.** Kör `dev/kolla.sh`, `dev/avstamning.cjs`, golden på alla 16 i två
+satser och spegelfacit. Kör sedan del A:s mått på Jespers inspelningar.
 
-**1. Leken.** Den första nedvända högen (klassen `baksida`) som ligger still
-innan första kortet blir library. Datorn sätter `ruta.bib` själv, med
-`kamRutaRad` och samma väg som uppstarten använder i dag. En kvittens visas:
-"Library ✓ · Not my library". Flyttas leken flyttas rutan med, utan
-animering. Ett nytt nedvänt kort när leken redan är känd är ett nedvänt kort,
-inte en ny lek. Bänkfall: leken läggs ner före första kortet, starthanden
-ligger nedvänd, en hand vilar på leken, och leken flyttas.
+**1. Vinkeln per kort.** Mät kortets och lekens vinkel inne i detektorns raka låda
+(kontur eller namnremsa). Vrid beskärningen med vinkeln. Tappat = mer än 45° från
+lekens vinkel just nu. Mattan ritar alltid 0° eller 90°. Det här är det svåraste,
+så gör det först. Grind: golden får inte fler tap-fel, och de sneda fallen i
+Jespers inspelningar blir rätt.
 
-**2. Grundläget.** När leken är bekräftad blir dess exakta vinkel otappat,
-automatiskt och utan fråga (`satGrund`). Ligger leken 20° snett är tappat 110°.
-Mät vinkeln per kort inne i detektorns raka låda (kontur eller remsa), eftersom
-lådan ensam inte skiljer tappat från otappat vid snedvinkel, och vrid
-beskärningen med grundläget. Utan lek: första kortets vinkel. Statusfältets
-fråga (`grundSteg`) tas bort. Bänkfall: leken rak, leken 20° snett, leken på
-tvären, Thriving Heath först, och ett land som tappas direkt.
+**2. Mattan ritas inte om från noll.** Varje kort och hög behåller sitt element,
+och rörelser är transform-animeringar. Det är en förutsättning för steg 3–5.
 
-**3. Graveyard.** Första kortet som läggs på andra sidan om leken från landen
-blir graveyard. Reserven är ett kort som läggs rakt ovanpå ett annat (inte
-land på land, inte fäst), och då blir kortet under det första i högen.
-`ruta.grav` sätts i kortets storlek ur detektorns låda. Kortet går till
-dagens hög med `flygTillGrav`, och raden "Graveyard · Not my graveyard"
-visas. Nej öppnar menyn M1 **Permanent / Ignore this spot** (Exile kommer i
-etapp 2). Efter ett Nej frågar sidoregeln inte igen under partiet. En instant
-eller sorcery på bordet räknas som vilket kort som helst. `SPELL_MS` står
-kvar.
+**3. Leken.** Den nedvända hög som ligger kvar före första kortet blir library.
+Texten mitt på mattan byter, och leken ligger bland korten med D1:s utseende och
+bricka. Not my library finns i lekens meny. Picked up visas med skuggan kvar, och
+leken glider när den läggs ner på nytt. Utan lek ger första kortet vinkeln.
+Sleeves: bordets färg, eller Magic-baksidan.
 
-**4. Uppstartens steg 4 bort.** Ta bort `oppSteg4`, delarna av
+**4. Graveyard.** Sidoregeln och kort ovanpå kort ger frågan "Is this your
+graveyard? Yes · No", som står kvar tills man svarar. Inget är graveyard före Yes,
+och kort som läggs på högen under tiden hör till samma fråga. No ger M1
+(Permanent eller Ignore this spot). Efter Permanent frågar Mesa en gång till, och
+efter Ignore aldrig. Bara ägaren ser frågan. Regeln från MES-85 gäller efter Yes,
+mot högen där den ligger.
+
+**5. Högarna bland korten.** Högarna följer zoomstegen, och brickan behåller sin
+storlek. Spelare utan kamera har fast plats som i dag, men D1:s utseende.
+
+**6. Uppstartens steg 4 bort.** Ta bort `oppSteg4` och delarna av
 `oppSteg4Klar`/`oppOppnasIgen` som gäller steget, spärren i `avstamBord`
-(`oppstartSparr`, UP1–UP8) där den bara gällde steg 4, samt texterna.
-**Kontrollera först vad mer som läser provkortet** (`kortstor`, Card size i
-Use camera to add cards) och ersätt det.
+(`oppstartSparr`, UP1–UP8) och `grundSteg`. Kontrollera först vad mer som läser
+provkortet (`kortstor`, Card size).
 
-**5. Mät.** Kör del A:s mått på Jespers inspelningar och de två partierna,
-före och efter: hur ofta leken hittas, hur ofta grundläget blir rätt, falska
-graveyards och missade graveyards. Golden ska inte bli sämre. Inget här rör
-namnen, så **0 nya fel namn** är ett krav, inte ett mål.
-
-**6. Avslut.** Låt en fristående granskare (Agent) läsa diffen före
-sammanslagningen och efter varje rättelse. Gör ett commit per steg, med vad
-som var fel, vad som mättes och vad som ändrades. Flytta issuen till Redo
-att testas med exakt vad Jesper ska prova på riktig telefon. Slå ihop och
-pusha enligt `dev/plan/orkestrering.md`.
+**7. Avslut.** Kör del A:s mått före och efter. 0 nya fel namn är ett krav.
+Låt en fristående granskare läsa diffen före sammanslagningen och efter varje
+rättelse. Gör ett commit per steg. Flytta MES-334 till Redo att testas med exakt
+vad Jesper ska prova på riktig telefon.
 
 ### Hårda krav
 
-- Besluten i `hogarna-principer.md` och `spegelmattan-principer.md` ändras
-  inte utan att Jesper tillfrågas. Ser en ändring ut att behövas: föreslå den
-  och fråga.
-- **Osäkert betyder orört.** En regel som inte är säker gör ingenting.
-- Ett nytt namn som skivan läser utifrån stubbas i både `dev/avstamning.cjs`
-  och `dev/dubbletter.cjs`.
-- Appens text är på engelska, och koden och kommentarerna på svenska.
-- Kameran prövas på datorn utan telefon enligt minnet
-  `kamerans-datorsida-provas-utan-telefon`. Riktig telefon är Jespers prov.
+- Byggunderlaget ändras inte utan att Jesper tillfrågas.
+- Osäkert betyder orört.
+- Ett nytt namn som skivan läser utifrån stubbas i `dev/avstamning.cjs` och `dev/dubbletter.cjs`.
+- Appens text är på engelska, och koden på svenska.
+- Graveyard minns kort utan namn ingår **inte**. Det har en egen issue.
