@@ -1871,8 +1871,8 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
         syntetisk: V0(sp(vmFor(3, -177), { remsaSynt: true })), hallen: V0(sp(vmFor(25, -155, { hallen: true })))
       };
       Kamera.satTrosklar({ beskarRikt: 0 });
-      check(`VK4b med riktning (beskarRikt 1): ${JSON.stringify(b)} — upp och ned nära en axel vänds, syntetisk remsa och hållen långsida gör det inte`,
-            b.snett25 === -25 && b.snett25ner === 155 && b.rakNer === 177 && b.rak === null && b.tappat110 === -110 && b.syntetisk === null && b.hallen === -25);
+      check(`VK4b med riktning (beskarRikt 1): ${JSON.stringify(b)} — upp och ned nära en axel vänds; syntetisk remsa och hållen långsida vrids inte alls (granskningen R2-2)`,
+            b.snett25 === -25 && b.snett25ner === 155 && b.rakNer === 177 && b.rak === null && b.tappat110 === -110 && b.syntetisk === null && b.hallen === null);
     }
     // VK5: beskärningen i läsningen — ett kort 25° snett (remsa, säker långsida) beskärs vridet −25°, kortets egna mått, och kort-argumentet är null
     {
@@ -1900,7 +1900,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     {
       namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 25); kvSvar = svarFor(25);
-      let s = []; for (let k = 0; k < 25; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
+      let s = []; for (let k = 0; k < 35; k++) s = await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));   // 5,1 s: tre nya remsmätningar (minnet gäller 2 s)
       const t = spar0(), sv = t ? Kamera.sparVinkel(t.id) : null;
       const T = g => Kamera.tappad(g * D);   // g: kamerans grader (långsidan från x-axeln)
       const satt = Kamera.satGrundGrader(110);   // leken ligger med upp-axeln 20° medurs: långsidan 110° från x-axeln
@@ -1930,16 +1930,63 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
       check(`VK8 skymd låda med ett helt korts form i fel vinkel: före ${fore}°, efter ${vinkelGrader(t)}°, vm ${t && t.vm ? 'satt' : 'null'}, storleken ${t && t.vmRa ? t.vmRa.storlekOk : '–'}, matt ${t ? Kamera.sparVinkel(t.id).matt : '–'}`,
             fore === 90 && t && vinkelGrader(t) === 90 && t.vm === null && t.vmRa && t.vmRa.storlekOk === false && Kamera.sparVinkel(t.id).matt === false);
     }
-    // VK8b (granskningen F1): sparVinkel().matt kräver säker mätning med samma axel i tre rutor i följd
+    // VK8b (granskningen F1, R2-1): sparVinkel().matt kräver tre NYA remsmätningar med samma axel — ett stilla kort mäts om när minnet gått ut (2 s)
     {
       namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
       const a = vridet(75, 75, 20); kvSvar = svarFor(20);
-      const matt = [];
-      for (let k = 0; k < 6; k++) { await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)])); const t = spar0(); matt.push(t ? Kamera.sparVinkel(t.id).matt : null); }
-      const k0 = matt.findIndex(x => x !== null);   // rutan där spåret finns första gången
-      check(`VK8b matt ruta för ruta: ${JSON.stringify(matt)} (null = inget spår än) — falskt i spårets två första rutor, sant från den tredje`,
-            k0 >= 0 && matt[k0] === false && matt[k0 + 1] === false && matt.slice(k0 + 2).every(x => x === true) && matt.length - k0 >= 3);
+      const matt = [], a0 = kvAnrop;
+      for (let k = 0; k < 35; k++) { await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)])); const t = spar0(); matt.push(t ? Kamera.sparVinkel(t.id).matt : null); }
+      const forsta = matt.indexOf(true), anrop = kvAnrop - a0;
+      check(`VK8b matt sant först efter tre nya mätningar: första sanna rutan ${forsta} av 35 (väntat ≥ 28, alltså > 4 s), mätningar ${anrop}`,
+            anrop === 3 && forsta >= 28 && matt.slice(forsta).every(x => x === true));
       namnSvar = saker;
+    }
+    // VK11 (granskningen R2-1, P1/P1b): utan namngivet kort — en skymd låda med ett helt korts form i fel vinkel, och leken (ingen remsa) — formen ger aldrig matt
+    {
+      namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
+      const a = vridet(75, 75, 0); kvSvar = svarFor(0);
+      for (let k = 0; k < 25; k++) await rutaDet(a.rita, det([ladaF(a.lada)], [remsaF(a.remsa)]));
+      const del = { x: 75 - 14, y: 75 - 21, w: 28, h: 20 };
+      kvSvar = svarFor(90, 'form');
+      const m1 = [];
+      for (let k = 0; k < 8; k++) { await rutaDet(g => kort(g, W, del.x, del.y, del.w, del.h, 180), det([ladaF(del)], [])); const t = spar0(); m1.push(t ? Kamera.sparVinkel(t.id).matt : null); }
+      nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
+      const lek = vridet(75, 75, 35); kvSvar = svarFor(-55, 'form');
+      const m2 = [];
+      for (let k = 0; k < 40; k++) { await rutaDet(lek.rita, det([Object.assign(ladaF(lek.lada), { klass: 'baksida' })], [])); const t = Kamera.spar[0]; m2.push(t ? Kamera.sparVinkel(t.id).matt : null); }
+      check(`VK11 formen ger aldrig matt: skymd låda utan namngivet kort ${JSON.stringify([...new Set(m1)])}, leken i 40 rutor (6 s) ${JSON.stringify([...new Set(m2)])}`,
+            !m1.includes(true) && !m2.includes(true) && m2.includes(false));
+      namnSvar = saker;
+    }
+    // VK12 (granskningen R2-2, P2b): formen säger fel långsida först, sedan remsan i en nästan kvadratisk låda som "inte rört sig" — remsan vinner, beskärningen vrids −29°
+    {
+      namnSvar = osaker; nystart(); Kamera.satTrosklar({ spokMs: 2000, beskarRikt: 0 }); await lyft(LYFT);
+      const a = vridet(75, 75, 29);
+      const l1 = { x: 75 - 27, y: 75 - 24.3, w: 54, h: 48.6 }, l2 = { x: 50, y: 50, w: 50, h: 50 };
+      kvSvar = svarFor(-61, 'form');
+      for (let k = 0; k < 3; k++) await rutaDet(a.rita, det([ladaF(l1)], []));
+      kvSvar = svarFor(29, 'remsa');
+      for (let k = 0; k < 20; k++) await rutaDet(a.rita, det([ladaF(l2)], [remsaF(a.remsa)]));
+      const t = spar0(), bv = t ? Kamera.beskarVridning(t, false) : null;
+      check(`VK12 remsan bryter en formvinkel: vinkel ${vinkelGrader(t)}° (sann 119), källa ${t && t.vm && t.vm.kalla}, beskarVridning ${bv ? Math.round(bv.rot) : null} (rätt −29)`,
+            vinkelGrader(t) === 119 && t.vm && t.vm.kalla === 'remsa' && bv && Math.round(bv.rot) === -29);
+    }
+    // VK13 (granskningen R2-3, P3): fyra lådor som glider varje ruta före i detektorns ordning svälter inte ett femte kort som tappas
+    {
+      namnSvar = saker; nystart(); Kamera.satTrosklar({ spokMs: 2000 }); await lyft(LYFT);
+      const pos = [[30, 40], [80, 40], [130, 40], [180, 40]];
+      const fem = vridet(120, 110, 0), femT = vridet(120, 110, 90);
+      let femNu = 'otappad', dx = 0;
+      kvSvar = q => (q.y0 > 85 * V ? (femNu === 'tappad' ? svarFor(90) : svarFor(0)) : svarFor(0));
+      const fyra = () => pos.map(([x, y]) => vridet(x + dx, y, 0));
+      for (let k = 0; k < 25; k++) { const f4 = fyra(); await rutaDet(g => { f4.forEach(q => q.rita(g)); fem.rita(g); }, det([...f4.map(q => ladaF(q.lada)), ladaF(fem.lada)], [...f4.map(q => remsaF(q.remsa)), remsaF(fem.remsa)])); }
+      const t5 = () => Kamera.spar.find(q => q.cy > 85);
+      const fore = !!(t5() && !t5().tappad && t5().tillstand === 'klar');
+      femNu = 'tappad';
+      const forlopp = [];
+      for (let k = 0; k < 20; k++) { dx += 1.5; const f4 = fyra(); await rutaDet(g => { f4.forEach(q => q.rita(g)); femT.rita(g); }, det([...f4.map(q => ladaF(q.lada)), ladaF(femT.lada)], [...f4.map(q => remsaF(q.remsa)), remsaF(femT.remsa)])); forlopp.push(t5() && t5().tappad ? 'T' : '-'); }
+      check(`VK13 femte kortet sist i ordningen, tappat medan fyra glider: före otappat klart ${fore}, efter ruta för ruta ${forlopp.join('')}`,
+            fore && forlopp.includes('T') && forlopp[forlopp.length - 1] === 'T');
     }
     // VK9 (granskningen F2): spår utan namn tappat 65° bredvid ett namngivet kort som ligger 20° snett — mot kortets egna sidor, inte dess raka låda
     {
