@@ -8797,8 +8797,10 @@ function bibLyft() {
 function renderBibHog() {
   if (!bibHogEl) return false;
   let html = '';
-  /* Ligger leken bland korten på mattan (MES-334 steg 3) står den inte här också. */
-  if (spelLage && arMitt(player()) && !(minSpelare() && minSpelare().bibHog)) {
+  /* Leken utan uppstart (MES-334 steg 3, sida 5): leken ligger bland korten på mattan, eller ska läggas
+     där ("Put your library on the table") — då står ingen fast hög här. Med uppstartens ruta, i Screen
+     leads och utan kamera: som förut. */
+  if (spelLage && arMitt(player()) && !(minSpelare() && (minSpelare().bibHog || lekBordAktivt()))) {
     const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
     if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
     else {
@@ -8864,7 +8866,8 @@ function tagEmotLek(l) {
   }
   if (mig.bibHog && mig.bibHog.farg) lekFargSist = mig.bibHog.farg;
   if (!mig.bibHog) stangLekMeny();   // menyn hör till en lek som inte finns längre
-  if (lekSig(mig) !== fore) { renderBibHog(); renderGrid(true); save(); }
+  renderBibHog();   // strängdiffad; den fasta högen går och kommer med flödet (lekBordAktivt), inte bara med leken
+  if (lekSig(mig) !== fore) { renderGrid(true); save(); }
   renderTom();
 }
 /* De högar som inte är leken (Not my library) på mitt bord, med kamerans läge: telefonens lista, och klicket tills den svarat. */
