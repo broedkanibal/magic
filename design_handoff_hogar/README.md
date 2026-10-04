@@ -24,6 +24,12 @@ G1–G3 och U1–U3 gäller bara om D1 inte byggs.
 | | Sleeves | **S1** sleeves ur kameran när leken hittas · **S2** valet på lekens sida | S1 + S2 |
 | 4 · Stage 1 in the new look | Steg 1–3 från tomt bord till första kortet, guidningen vid spelarens kant · K1/K2 · otappat **N1** ur leken utan fråga, **N2** bekräftat vid leken, **N3** bekräftat vid första kortet · M1/M2 (hur graveyard skapas: sida 3) | K1, N2, M2 |
 
+**Sida 5 · The whole flow (chosen)** är byggunderlaget. Den har hela flödet i ett:
+steg 1–3 från tomt bord till första kortet, D1 i spel, graveyard som skapas där
+kortet ligger, Nej, leken upptagen, zoomsteget och sleeves. Jesper valde D1 och
+graveyard där kortet ligger (2026-10-04). N2 och M2 står som förslag tills han valt.
+Tavlorna `P5*.dc.html` är kopior. Ändra i dem, inte i originalen.
+
 ## Källan
 
 - `project/`: en `.dc.html` per tavla, `canvas.json`, `mesa.css` (kopia ur

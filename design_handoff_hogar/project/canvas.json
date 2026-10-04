@@ -267,6 +267,95 @@
       "h": 722,
       "title": "N3 · Confirmed at the first card",
       "page": "p4"
+    },
+    "P5Steg1.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1061,
+      "h": 722,
+      "title": "1 · Before the library is down",
+      "page": "p5"
+    },
+    "P5Steg2.dc.html": {
+      "x": 1141,
+      "y": 0,
+      "w": 1061,
+      "h": 722,
+      "title": "2 · Library found, and which way is untapped",
+      "page": "p5"
+    },
+    "P5Prova.dc.html": {
+      "x": 2282,
+      "y": 0,
+      "w": 1061,
+      "h": 722,
+      "title": "2 · Try Not my library",
+      "page": "p5",
+      "is_interactive": true
+    },
+    "P5Steg3.dc.html": {
+      "x": 3423,
+      "y": 0,
+      "w": 1061,
+      "h": 722,
+      "title": "3 · The first card is down",
+      "page": "p5"
+    },
+    "P5Bord.dc.html": {
+      "x": 0,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "4 · In play: just the cards",
+      "page": "p5"
+    },
+    "P5Grav.dc.html": {
+      "x": 1141,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "5 · A graveyard is made where the card lies",
+      "page": "p5"
+    },
+    "P5Nej.dc.html": {
+      "x": 2282,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "6 · Not my graveyard",
+      "page": "p5"
+    },
+    "P5Upptagen.dc.html": {
+      "x": 3423,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "7 · The library is in use, its shadow stays",
+      "page": "p5"
+    },
+    "P5Zoom.dc.html": {
+      "x": 4564,
+      "y": 1142,
+      "w": 1061,
+      "h": 722,
+      "title": "8 · A zoom step, the piles come along",
+      "page": "p5"
+    },
+    "P5Sleeves.dc.html": {
+      "x": 0,
+      "y": 2284,
+      "w": 1061,
+      "h": 722,
+      "title": "Your sleeves, from the camera",
+      "page": "p5"
+    },
+    "P5SleevesVal.dc.html": {
+      "x": 1141,
+      "y": 2284,
+      "w": 720,
+      "h": 420,
+      "title": "Your sleeves, on the deck page",
+      "page": "p5"
     }
   },
   "createdOnFiles": {
@@ -275,8 +364,8 @@
   },
   "designSystems": [],
   "launch": {
-    "page": "p4",
-    "view": "canvas"
+    "view": "canvas",
+    "page": "p5"
   },
   "notes": {
     "f11": {
@@ -482,6 +571,38 @@
       "w": 240,
       "x": 0,
       "y": 1984
+    },
+    "t51": {
+      "x": 0,
+      "y": -300,
+      "text": "Partiet börjar: från tomt bord till första kortet",
+      "kind": "title1",
+      "maxW": 4484,
+      "page": "p5"
+    },
+    "t52": {
+      "x": 0,
+      "y": 842,
+      "text": "I spel: högarna bland korten (D1)",
+      "kind": "title1",
+      "maxW": 5625,
+      "page": "p5"
+    },
+    "t53": {
+      "x": 0,
+      "y": 1984,
+      "text": "Dina egna sleeves",
+      "kind": "title1",
+      "maxW": 1861,
+      "page": "p5"
+    },
+    "g51": {
+      "x": 5705,
+      "y": 1142,
+      "text": "Hela flödet med dina val: D1 och graveyard som skapas där kortet ligger. Där du inte valt än står mitt förslag: N2 (frågan om otappat när leken hittas) och M2 (Nej-valen i brickan). Alternativen finns kvar på sida 3 och 4.",
+      "w": 300,
+      "fill": "gray",
+      "page": "p5"
     }
   },
   "order": [
@@ -517,7 +638,18 @@
     "Ny1N2.dc.html",
     "Ny1N3.dc.html",
     "Ny1M1.dc.html",
-    "Ny1M2.dc.html"
+    "Ny1M2.dc.html",
+    "P5Steg1.dc.html",
+    "P5Steg2.dc.html",
+    "P5Prova.dc.html",
+    "P5Steg3.dc.html",
+    "P5Bord.dc.html",
+    "P5Grav.dc.html",
+    "P5Nej.dc.html",
+    "P5Upptagen.dc.html",
+    "P5Zoom.dc.html",
+    "P5Sleeves.dc.html",
+    "P5SleevesVal.dc.html"
   ],
   "pages": [
     {
@@ -535,6 +667,10 @@
     {
       "id": "p4",
       "name": "4 · Stage 1 in the new look"
+    },
+    {
+      "id": "p5",
+      "name": "5 · The whole flow (chosen)"
     }
   ],
   "title": "Mesa Piles From Play"
