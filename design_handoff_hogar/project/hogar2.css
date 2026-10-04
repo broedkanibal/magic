@@ -130,3 +130,7 @@
 .hc button.on{color:var(--txt);background:#232c3c;text-decoration:none}
 .hc .stang{width:18px;padding:0;margin-right:-5px;text-decoration:none;font-size:13px;color:#66748a}
 .hc.mening{font:600 11.5px/1 var(--sans);letter-spacing:0;text-transform:none;color:var(--txt)}
+/* Guidningen vid spelarens kant: alltid samma plats, aldrig mitt på mattan. */
+.coach{position:absolute;z-index:30;left:50%;bottom:16px;transform:translateX(-50%);display:flex;align-items:center;gap:9px;height:34px;padding:0 16px 0 12px;border-radius:17px;background:#141a24f2;box-shadow:0 8px 20px -8px #000e;font:500 13px/1 var(--sans);color:var(--dim);white-space:nowrap}
+.coach b{font-weight:650;color:var(--txt)}
+.coach i{width:7px;height:7px;border-radius:50%;background:#57c785;flex:none}

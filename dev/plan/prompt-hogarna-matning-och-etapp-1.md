@@ -45,7 +45,7 @@ som ett svar (minnet `kontroller-som-ljuger`).
 ### Måtten
 
 1. Hur ofta leken syns och ligger still innan första kortet, och efter hur lång tid. Gäller båda partierna.
-2. Om lekens riktning stämmer med otappat, och hur ofta de tre första korten säger emot.
+2. Om lekens riktning stämmer med otappat, och hur ofta första kortet ligger åt ett annat håll.
 3. Sidoregeln: hur många kort som hamnar på andra sidan om leken från landen och *inte* är graveyard.
 4. Reserven: hur många gånger ett kort läggs ovanpå ett annat utan att det är graveyard (utöver land på land och fästa kort).
 5. Hur länge ett kort ligger synligt överst på graveyard-högen innan nästa läggs dit. Det avgör hur mycket 0,5 s-gränsen fångar.
@@ -80,7 +80,7 @@ graveyard`. Markera osäkra rader som `osäker`.
 
 Bygg etapp 1 i `dev/plan/hogarna-principer.md`. Uppstartens steg 4
 (provkort, graveyard, library) tas bort. Mesa hittar leken själv, tar
-grundläget ur leken och de tre första korten, och skapar graveyard ur
+grundläget ur lekens riktning, och skapar graveyard ur
 sidoregeln eller ur kort ovanpå kort. Det sker på dagens matta, med dagens
 rutor, som Mesa nu sätter själv. Mät före och efter varje steg.
 
@@ -109,11 +109,12 @@ animering. Ett nytt nedvänt kort när leken redan är känd är ett nedvänt ko
 inte en ny lek. Bänkfall: leken läggs ner före första kortet, starthanden
 ligger nedvänd, en hand vilar på leken, och leken flyttas.
 
-**2. Grundläget.** Lekens axel är den första gissningen, och de tre första
-korten röstar när de först ligger still. Säger alla tre emot byts grundläget,
-med en notis. Utan lek gäller de tre första korten. Statusfältets fråga
-(`grundSteg`) tas bort. Bänkfall: leken stående, leken på tvären, Thriving
-Heath först, och ett land som tappas direkt.
+**2. Grundläget.** Lekens riktning är otappat. Om och var det bekräftas
+avgör Jespers val på designytans sida 4 (N1 utan fråga, N2 vid leken, N3 vid
+första kortet). Utan lek bekräftas det vid första kortet. Ingen omröstning och
+ingen rättning i efterhand. Statusfältets fråga (`grundSteg`) ersätts.
+Bänkfall: leken stående, leken på tvären, Thriving Heath först, och ett land
+som tappas direkt.
 
 **3. Graveyard.** Första kortet som läggs på andra sidan om leken från landen
 blir graveyard. Reserven är ett kort som läggs rakt ovanpå ett annat (inte

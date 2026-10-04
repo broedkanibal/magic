@@ -43,7 +43,7 @@ nästa exempel.
 | 1 | **Lär av det spelaren ändå gör** | Inga steg före partiet. Leken, grundläget och högarna kommer ur partiets första minuter |
 | 2 | **Anta det troliga, visa det, gör det lätt att ändra** | Mesa väntar inte på svar. Den gör det troliga, visar det med en rörelse och erbjuder en ändring ("Not my graveyard") |
 | 3 | **Fråga först när svaret behövs** | Finns ingen reserv frågar Mesa i stunden, till exempel vid första kortet till en hög, aldrig i förväg |
-| 4 | **Varje del har en reserv** | Syns inte leken kommer grundläget ur korten och graveyard ur kort ovanpå kort. Inget är obligatoriskt |
+| 4 | **Varje del har en reserv** | Syns inte leken bekräftas grundläget vid första kortet, och graveyard kommer ur kort ovanpå kort. Inget är obligatoriskt |
 | 5 | **Högarna är saker, inte rutor** | Library och graveyard har plats, riktning och tillstånd (ledig eller upptagen) och flyttar med när spelaren flyttar dem. Rutorna som telefonen tittar på följer högarna |
 | 6 | **Ett kort tar med sig sin identitet** | Ett kort som går från mattan till graveyard är samma kort, och läsningen av högen är bara ett andra vittne. Den är ensam källa bara för kort från handen eller leken (discard, mill) |
 | 7 | **Minns att något hände, också utan namn** | Ett kort som lagts på högen räknas och får ett foto, också när namnet inte kommer. Namnet fylls i senare eller för hand |
@@ -62,18 +62,22 @@ nästa exempel.
 | Leken lämnar bilden (söka, blanda, mulligan) | Leken visas som **upptagen för alla**. Den står kvar på sin plats med en lugn animering, eftersom motståndarna ändå ser det vid bordet. När leken syns igen, också på en ny plats, glider den dit |
 | Handen täcker leken (drar ett kort) | Leken är inte upptagen, eftersom handen fryser (spegelmattans princip 3). Upptagen kräver att platsen syns och är tom |
 | Ett nytt nedvänt kort när leken redan är känd | Ett nedvänt kort på mattan (spegelmattans fall 6), inte en ny lek |
-| Leken syns aldrig | Ingen fråga ställs. Grundläget kommer ur korten och graveyard ur kort ovanpå kort |
+| Leken syns aldrig | Grundläget bekräftas vid första kortet, och graveyard kommer ur kort ovanpå kort |
 | Dra kort | Kommer senare. Leken byggs som ett spårat objekt, så att "handen går till leken och tillbaka medan leken ligger kvar" kan läggas till |
 | "Not my library" | *Förslag, inte beslutat:* högen blir ett nedvänt kort, och Mesa väntar på nästa kandidat |
 
 ### Otappat (grundläget)
 
+**Ändrat av Jesper 2026-10-04.** Grundläget läses ur lekens riktning. Det finns
+ingen omröstning med tre kort, och Mesa rättar sig inte i efterhand. Ett kort
+som visats fel och sedan vrids av sig självt är förvirrande.
+
 | Läge | Beslut |
 |---|---|
-| Leken är hittad | Lekens riktning, stående eller liggande i bilden, är den första gissningen |
-| De första korten | Varje nytt kort röstar med sin riktning när det först ligger still. Säger de tre första korten emot leken byts grundläget, med en notis |
-| Ingen lek | Det första kortet ger en preliminär gissning, och de tre första korten avgör |
-| Varför inte bara första landet | Thriving Heath och andra land kommer in tappade, och ett land tappas ofta direkt för en 1-drop |
+| Leken är hittad | Lekens riktning, stående eller liggande i bilden, är otappat. Kort som läggs ut i samma riktning är otappade |
+| Bekräftelse | **Ej valt, tre varianter på sida 4:** N1 läser direkt ur leken utan fråga. N2 frågar en gång när leken hittas ("Untapped cards lie like your library · They lie the other way"). N3 frågar vid första kortet ("Is this card untapped? Yes · No, it's tapped"). Förslag: N2 |
+| Ingen lek | Grundläget bekräftas vid första kortet, som i N3 |
+| Varför inte första landet utan fråga | Thriving Heath och andra land kommer in tappade, och ett land tappas ofta direkt för en 1-drop |
 
 Riktningen räcker: detektorns lådor är raka, så vinkeln blir i praktiken bara
 stående eller liggande (`fyndUrLador`, `index.html` ~rad 23659).
@@ -137,7 +141,7 @@ Med reservdetektorn (`T.detektor: 0`) tas lekens axel ur regionen, som
 
 | Etapp | Vad | Kräver |
 |---|---|---|
-| **1 · Uppstarten försvinner** | Leken hittas själv och visar en kvittens. Grundläget kommer ur leken och de tre första korten. Graveyard skapas via sidoregeln eller via kort ovanpå kort. Nej-menyn har Permanent och Ignore. Mesa sätter dagens rutor själv (`satBib`/`satGrav` via `kamRutaRad`), och rutan flyttas när leken flyttas. Uppstartens steg 4 tas bort | Inget nytt, dagens matta räcker. Kortet flyger till dagens graveyard-hög (`flygTillGrav`) |
+| **1 · Uppstarten försvinner** | Leken hittas själv och visar en kvittens. Grundläget kommer ur leken (N1–N3 avgör om det bekräftas). Graveyard skapas via sidoregeln eller via kort ovanpå kort. Nej-menyn har Permanent och Ignore. Mesa sätter dagens rutor själv (`satBib`/`satGrav` via `kamRutaRad`), och rutan flyttas när leken flyttas. Uppstartens steg 4 tas bort | Inget nytt, dagens matta räcker. Kortet flyger till dagens graveyard-hög (`flygTillGrav`) |
 | **2 · Högarna lever** | Rutorna följer högarna med en rörelse, och leken visas som upptagen. Graveyard skapas på kortets plats med en animering. Exile kommer in i Nej-menyn | Spegelmattans steg 3 (mattan utan omritning) och steg 4 (bordets minne). Högarna ritas bland korten i utseendet D1 (sida 3 i "Mesa Piles From Play") |
 | **3 · Graveyard minns** | Foto efter 0,5 s, kort som räknas utan namn, läsning i bakgrunden, namn som fylls i efter hand och manuell namngivning | Spegelmattans steg 5 (framkallningen, med samma foto och samma sökruta) |
 
@@ -169,7 +173,7 @@ Etapp 1 är fristående från spegelmattan och kan börja efter mätningen.
 
 **Måtten:**
 1. Hur ofta leken syns och ligger still innan första kortet, och efter hur lång tid.
-2. Om lekens riktning stämmer med otappat, och hur ofta de tre första korten säger emot.
+2. Om lekens riktning stämmer med otappat, och hur ofta första kortet ligger åt ett annat håll.
 3. Sidoregeln: hur många kort som hamnar på andra sidan om leken från landen och *inte* är graveyard.
 4. Reserven: hur många gånger ett kort läggs ovanpå ett annat utan att det är graveyard (utöver land på land och fästa kort).
 5. Hur länge ett kort ligger synligt överst på högen innan nästa läggs dit. Det avgör hur mycket 0,5 s-gränsen fångar.
@@ -198,7 +202,7 @@ picture on" och klappa två gånger för synk (minnet `mes-166-provkortets-las`)
 |---|---|
 | Uppstartens steg 4 (MES-122, MES-139, MES-166) | Tas bort i etapp 1. Provkortet, platsförslaget för graveyard och animeringen "Put your library here" behövs inte. `bibSag` och `gravVakt` återanvänds |
 | MES-85 (auto-graveyard) | Regeln står kvar, men Mesa sätter rutan |
-| Grundläget (2026-09-10) | Ersätts av leken och de tre första korten. Statusfältets fråga tas bort |
+| Grundläget (2026-09-10) | Ersätts av lekens riktning, med eller utan bekräftelse (N1–N3). Statusfältets fråga ersätts |
 | `spegelmattan-principer.md` | Fall 4 (till graveyard) och fall 10 (till library) gäller högen där den ligger. "Ingen exile-plats i uppstarten" står kvar, och exile kommer via Nej-menyn i etapp 2 |
 | Designytan "Mesa Table Piles" (A1, byggd i MES-125) | Ersätts i etapp 2 av D1: högarna bland korten, utan ramar, med en bricka. Den fasta högkolumnen (`HOG_LUFT`, `hogSkarm`) försvinner |
 
