@@ -589,7 +589,7 @@ function nyttProv(video) {
            /* Läsningarna: varje gång ett spår läses lokalt — tid, beskärningens
               storlek, bildens dom (poäng, inliers, accept) och namnläsarens
               svar. Det är här en säker bilddom går att spåra (MES-94). */
-           lasningar: [],
+           lasningar: [], minnesrader: [],
            tidDelar: {},
            verklig: [],   // per videoruta: { vt, ms, vanta } — verklig tid som klockan inte gick (MES-215)
            pendande: new Set() };
@@ -658,6 +658,10 @@ function aterkoppling(f, prov) {
         const l = prov.lasningar.slice().reverse().find(x => x.spar === id);
         if (l) l.remsa = { namn: rs.namn, saker: !!rs.saker, marginal: rs.marginal, varfor: rs.varfor, rot: rs.rot, ocr: rs.ocr ? { namn: rs.ocr.namn, poang: rs.ocr.poang, marginal: rs.ocr.marginal, hoppad: rs.ocr.hoppad || null } : null,
                            cands: (rs.cands || []).slice(0, 3).map(c => c.name + ' ' + c.score), titel: rs.titel || null, minne: rs.minne || null };   // vem remsan tävlar mot (MES-331: bänken och appen gav olika marginal på samma remsa); minnet (pass 6)
+        /* Minnesraderna för sig (steg 3): läsraderna kapas vid 60 per fall, och i 13 föll just de omfödda spårens
+           remsläsningar bort — varje remsläsning med minnesinfo (kandidater eller skälet till att inga fick tävla)
+           får en egen rad, högst 200 per fall, oavsett läsradernas tak. */
+        if (rs.minne && prov.minnesrader.length < 200) prov.minnesrader.push({ s: prov.s, spar: id, nr: null, namn: rs.namn, saker: !!rs.saker, varfor: rs.varfor, marginal: rs.marginal, minne: rs.minne });
       }, () => {});
       return folj(p);   // klockan väntar in läsningen, som för identifiera (granskningen 2026-10-02: utan folj rullade videorutorna vidare under remsläsningen)
     },
@@ -747,6 +751,7 @@ function numreraOm(f, prov) {
   for (const p of beskarningar[f.id]) { const i = K.spar.findIndex(t => t.id === p.spar); p.nr = i >= 0 ? i + 1 : null; }
   for (const l of (prov.logg || [])) { const i = K.spar.findIndex(t => t.id === l.mid); l.nr = i >= 0 ? i + 1 : null; }
   for (const l of prov.lasningar) { const i = K.spar.findIndex(t => t.id === l.spar); l.nr = i >= 0 ? i + 1 : null; }
+  for (const l of prov.minnesrader || []) { const i = K.spar.findIndex(t => t.id === l.spar); l.nr = i >= 0 ? i + 1 : null; }
 }
 function avsluta(f, prov, tid, tak, takS) {
   numreraOm(f, prov);
@@ -757,8 +762,8 @@ function avsluta(f, prov, tid, tak, takS) {
   /* Minnet av remsor (MES-331 pass 6): posterna när fallet är slut, och räknarna för FALLET — Kameras räknare löper över hela körningen, så förra fallets dras av. */
   try {
     const st = K.minneStat, f0 = avsluta.minneFore || {};
-    res.minne = { poster: st.poster, fangster: st.fangster - (f0.fangster || 0), fangstMs: st.fangstMs - (f0.fangstMs || 0), fragor: st.fragor - (f0.fragor || 0), medMinne: st.medMinne - (f0.medMinne || 0), sakra: st.sakra - (f0.sakra || 0),
-                  lista: (K.remsMinne || []).map(e => ({ sparId: e.sparId, namn: e.namn, prov: e.prov, lever: e.lever })) };
+    res.minne = { poster: st.poster, fangster: st.fangster - (f0.fangster || 0), fangstMs: st.fangstMs - (f0.fangstMs || 0), fragor: st.fragor - (f0.fragor || 0), medMinne: st.medMinne - (f0.medMinne || 0), sakra: st.sakra - (f0.sakra || 0), foljde: (st.foljde || 0) - (f0.foljde || 0),
+                  lista: (K.remsMinne || []).map(e => ({ sparId: e.sparId, namn: e.namn, prov: e.prov, lever: e.lever })), rader: prov.minnesrader || [] };
     avsluta.minneFore = Object.assign({}, st);
   } catch (e) { res.minne = null; }
   res.tidDelar = Object.fromEntries(Object.entries(prov.tidDelar).map(([k, l]) => { const q = l.slice().sort((a, b) => a - b); return [k, { median: q[q.length >> 1], max: q[q.length - 1], n: q.length }]; }));
