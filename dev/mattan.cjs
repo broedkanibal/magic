@@ -298,6 +298,22 @@ const PROV = async () => {
   state.players = [mig, opp]; state.active = mig.id; bord.valt = 'all';
   renderAll(true);
   ok('en motståndare kommer med: min matta ritas på plats (ingen zoom glider)', gridEl.style.transform !== tEnsam && !gar(gridEl), `${tEnsam} → ${gridEl.style.transform}`);
+
+  /* Ett nivåbyte i bordsvyn (granskning runda 3, fynd 1): mitt kort glider
+     (en flytt på 420 ms), nivån byts (tangenten 1) och kamerans nästa
+     hjärtslag ritar om — kortet ska fortsätta glida, inte hoppa till slutet. */
+  await vanta(600);
+  hk.x = (hk.x || 0) + 400; renderGrid(true);
+  const hFlytt = els().get(hk.cid), glider = el => !!el && el.getAnimations().some(a => a.playState === 'running' && a.effect && a.effect.getKeyframes().some(k => k.translate));
+  const foreByte = glider(hFlytt);
+  await vanta(100);
+  bordValj('me');
+  await vanta(50);
+  renderGrid(true);
+  const efterByte = glider(els().get(hk.cid)) && els().get(hk.cid) === hFlytt;
+  ok('ett nivåbyte i bordsvyn avbryter inte ett kort som glider', foreByte && efterByte, `glider före bytet ${foreByte}, efter hjärtslaget ${efterByte}`);
+  bordValj('all');
+  await vanta(650);
   const oEls = () => new Map([...document.querySelectorAll('#oppMattor .obrade .card[data-cid]')].map(e => [e.dataset.cid, e]));
   const o1 = oEls();
   const kopia = opp.cards.map(c => Object.assign({}, c));
@@ -384,6 +400,18 @@ const TIDPROV = async () => {
   /* Samma flytt utan rörelser (en ny vy ritas på plats): bara ritningen,
      utan att animeringarna sätts upp. Den gamla koden läser inte _matVy. */
   ut.allaUtan = matt(20, i => { mig.cards.forEach((c, j) => { c.x = 40 + (j % 8) * 200 + (i % 2) * 400; }); gridEl._matVy = 'ny vy'; renderGrid(true); });
+  /* Alla 40 avbrutna mitt i lyftet (Ångra direkt efter Tidy up): flyttas
+     långt, och 120 ms senare igen — bara den andra ritningen mäts. */
+  const avbr = [];
+  for (let i = 0; i < 15; i++) {
+    vila();
+    mig.cards.forEach((c, j) => { c.x = 40 + (j % 8) * 200 + 400; }); renderGrid(true);
+    await vanta(120);
+    const a = performance.now();
+    mig.cards.forEach((c, j) => { c.x = 40 + (j % 8) * 200; }); renderGrid(true); void gridEl.offsetWidth;
+    avbr.push(performance.now() - a);
+  }
+  avbr.sort((x, y) => x - y); ut.avbrutna = avbr[Math.floor(avbr.length / 2)];
   return ut;
 };
 
@@ -428,6 +456,7 @@ const TIDPROV = async () => {
       console.log(`  alla 40 knuffade (30 px)         ${f(t.alla)}`);
       console.log(`  alla 40 flyttade (400 px, lyft)  ${f(t.allaLangt)}`);
       console.log(`  alla 40 flyttade, utan rörelser  ${f(t.allaUtan)}`);
+      console.log(`  alla 40 avbrutna mitt i lyftet   ${f(t.avbrutna)}`);
     } else {
       /* Minskad rörelse slås på mitt i provet (window.__mattLugn): Chrome
          emulerar mediefrågan, så att appens matLugn() läser den på riktigt. */

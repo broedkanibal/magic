@@ -7343,8 +7343,9 @@ function oppBifPos(vp, k) {
   const d = oppVand === 'upp' ? -1 : 1;
   return { x: vp.x + d * MATTA.XSTEP * (k + 1), y: vp.y - d * 44 * (k + 1), z: Math.max(1, (vp.z || 1) - (k + 1)) };
 }
-/* Vyns nyckel för en motståndares matta: partiet och rutans storlek — en ny
-   ruta (någon kom eller gick, nivån byttes) är en ny vy, som ritas på plats. */
+/* Brädets nyckel för en motståndares matta: partiet och rutans storlek — en
+   ny ruta (någon kom eller gick, nivån byttes) skriver brädet direkt. Hens
+   kort har bara partiet (m.vyKort): deras rörelser avbryts inte av rutan. */
 function oppVyNyckel(r) { return (spelLage ? spelLage.id : '') + '|' + Math.round(r.w) + 'x' + Math.round(r.h); }
 /* Korten, högarna och vyn i en motståndares matta. Korten byggs bara om
    när hens bord ändrats (signaturen); vyn skrivs varje gång, eftersom rutan
@@ -7386,13 +7387,14 @@ function ritaOppKropp(p, m, r) {
        plats, som förut, i stället för att flyga tvärs över mattan. Ett nytt
        parti, en ritning i en flik i bakgrunden och att mattan lämnats
        (visaVy) är också nya vyer: ritas på plats, utan glid. */
-    const nyttHall = m.vand !== oppVand, vy = oppVyNyckel(r);
+    const nyttHall = m.vand !== oppVand, kortGlid = !nyttHall && m.vyKort === (spelLage ? spelLage.id : '') && !document.hidden;
     if (nyttHall) { m.brade.textContent = ''; m.vand = oppVand; }
-    glid = !nyttHall && m.vy === vy && !document.hidden;
-    matSynk(m.brade, poster, { animera: glid && bordForm(r) === 'full' });
+    glid = kortGlid && m.vy === oppVyNyckel(r);
+    matSynk(m.brade, poster, { animera: kortGlid && bordForm(r) === 'full' });
     m.ram = ram || { x0: -MATTA.VP.w, y0: -MATTA.VP.h, x1: 0, y1: 0 };
   }
   m.vy = document.hidden ? null : oppVyNyckel(r);
+  m.vyKort = document.hidden ? null : (spelLage ? spelLage.id : '');
   const speg = oppVand !== 'bord', ps = hogSkala(r);
   m.hogar.className = 'ohogar' + (speg ? ' speg' : '');
   m.hogar.style.transform = `scale(${Math.round(ps * 1000) / 1000})`;
@@ -8058,9 +8060,15 @@ const matKor = a => !!a && a.playState === 'running';
 function matNu(el) {
   const s = getComputedStyle(el), t = String(s.translate || 'none').split(/\s+/);
   const r = String(s.rotate || 'none'), sc = String(s.scale || 'none');
+  /* Skugglagrets opacitet (startvärdet för nästa lyft) läses här, med resten:
+     läst mitt bland skrivningarna hade varje kort tvingat fram en ny
+     stilberäkning av alla rörelser som går. */
+  const A = el._matA, l = A && matKor(A.skugga) ? el.querySelector(':scope > .lyftskugga') : null;
   return { dx: t[0] === 'none' ? 0 : parseFloat(t[0]) || 0, dy: t[0] === 'none' ? 0 : parseFloat(t[1] || '0') || 0,
-           rot: r === 'none' ? 0 : parseFloat(r.split(/\s+/).pop()) || 0, sc: sc === 'none' ? 1 : parseFloat(sc) || 1 };
+           rot: r === 'none' ? 0 : parseFloat(r.split(/\s+/).pop()) || 0, sc: sc === 'none' ? 1 : parseFloat(sc) || 1,
+           sk: l ? +getComputedStyle(l).opacity || 0 : 0 };
 }
+const matRor = A => !!A && (matKor(A.pos) || matKor(A.rot) || matKor(A.lyft) || matKor(A.skugga));
 function matStoppa(el) {
   const A = el._matA; if (!A) return;
   for (const k of ['pos', 'rot', 'lyft', 'skugga']) if (A[k]) { A[k].cancel(); A[k] = null; }
@@ -8109,10 +8117,6 @@ function matSkugga(el, A, nycklar, ms) {
   if (A.skugga) { A.skugga.cancel(); A.skugga = null; }
   if (l) A.skugga = l.animate(nycklar, { duration: ms });
 }
-function matSkuggaNu(el, A) {
-  const l = matKor(A.skugga) && el.querySelector(':scope > .lyftskugga');
-  return l ? +getComputedStyle(l).opacity || 0 : 0;
-}
 /* Flytten: kortet står redan på sin nya plats och förskjuts (dx, dy) tillbaka
    till där det syntes, och förskjutningen glider till noll. n: läget mitt i en
    pågående rörelse (matNu), som då räknas som avbruten: farten följer med. */
@@ -8142,7 +8146,7 @@ function matGlid(el, dx, dy, n) {
   /* Lyftet: kortet bärs (skalan, och skuggan som .held i sitt eget lager) och
      sätts ned med en liten studs — 450 ms. Avbrutet: skalan 320 ms och
      skuggan 300 ms, båda från där de står just nu. */
-  const sk0 = matSkuggaNu(el, A), sc0 = String(n ? n.sc : 1);
+  const sk0 = n ? n.sk : 0, sc0 = String(n ? n.sc : 1);
   if (A.lyft) A.lyft.cancel();
   if (avbruten) {
     A.lyft = el.animate([
@@ -8169,7 +8173,7 @@ function matGlid(el, dx, dy, n) {
    tillbaka fran grader, och vridningen går till noll — med farten om en
    vridning redan går. Det lilla lyftet (skala 1,03 och halva skuggan, INOUT
    upp och ned) är svagt: det hoppas över medan kortet bärs. */
-function matVrid(el, fran) {
+function matVrid(el, fran, n) {
   const A = el._matA || (el._matA = {});
   const fart = matKor(A.rot) ? matFart(A.rot, A.rotInfo) : null;
   if (A.rot) { A.rot.cancel(); A.rot = null; }
@@ -8185,7 +8189,7 @@ function matVrid(el, fran) {
   A.rot = el.animate([{ rotate: fran + 'deg' }, { rotate: '0deg' }], { duration: MAT_MS.tap, easing: matKurva(kurva) });
   A.rotInfo = { fran: [fran], T: MAT_MS.tap, bez: kurva };
   if (!matKor(A.lyft)) {
-    const sk0 = matSkuggaNu(el, A);
+    const sk0 = n ? n.sk : 0;
     A.lyft = el.animate([{ offset: 0, scale: '1', easing: 'ease-in-out' }, { offset: 0.5, scale: '1.03', easing: 'ease-in-out' }, { offset: 1, scale: '1' }], { duration: MAT_MS.tap });
     matSkugga(el, A, [{ offset: 0, opacity: sk0, easing: 'ease-in-out' }, { offset: 0.5, opacity: 0.5, easing: 'ease-in-out' }, { offset: 1, opacity: 0 }], MAT_MS.tap);
   }
@@ -8300,7 +8304,7 @@ function matSynk(beh, poster, opt) {
   const nu = new Map();
   if (animera) for (const el of fore.values()) {
     const A = el._matA;
-    if (A && (matKor(A.pos) || matKor(A.rot) || matKor(A.lyft) || matKor(A.skugga))) nu.set(el, matNu(el));
+    if (matRor(A)) nu.set(el, matNu(el));
   }
   /* 3. Det som inte finns kvar. */
   const behalls = new Set(poster.map(p => p.nyckel));
@@ -8338,7 +8342,7 @@ function matSynk(beh, poster, opt) {
     }
     if (t0 !== t1) {
       const fran = (t0 ? 90 : 0) - (t1 ? 90 : 0) + (n ? n.rot : 0);
-      rorelser.push(() => matVrid(el, fran)); ut.vridna++;
+      rorelser.push(() => matVrid(el, fran, n)); ut.vridna++;
     }
     return el;
   });
@@ -8365,7 +8369,7 @@ function matSynk(beh, poster, opt) {
 function matFlyttaEl(lista, animera) {
   animera = animera && !document.hidden;
   const fore = lista.map(({ el }) => ({ x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0,
-    n: animera && el._matA && matKor(el._matA.pos) ? matNu(el) : null }));
+    n: animera && matRor(el._matA) ? matNu(el) : null }));
   lista.forEach(({ el, x, y, z }, k) => {
     const nx = Math.round(x || 0), ny = Math.round(y || 0), f = fore[k];
     el.style.left = nx + 'px'; el.style.top = ny + 'px';
@@ -8441,18 +8445,21 @@ function renderGrid(force) {
   /* Ett bord med bara platshållare är inte tomt: kameran ser något. */
   document.body.classList.toggle('tomhand', cards.length === 0 && !platser.length);
   /* Samma bord i samma parti som förra ritningen, och båda gjordes på en
-     synlig matta: då glider det som ändrats (matSynk, brädets zoom). Allt
-     annat är en ny vy och ritas på plats, som förut — ett annat bord
-     (flikarna utan spel, någon annans bord att titta på), ett nytt parti, en
-     ritning medan mattan var dold (#app dold: inga mått; fliken i
-     bakgrunden), att mattan lämnats (visaVy nollar nyckeln) och en ny
-     layout i bordsvyn (bordMal: en motståndare kom eller gick, nivån
-     byttes — rutan runt mattan hoppar eller har sin egen övergång). */
+     synlig matta: då glider det som ändrats (matSynk). Allt annat är en ny
+     vy och ritas på plats, som förut — ett annat bord (flikarna utan spel,
+     någon annans bord att titta på), ett nytt parti, en ritning medan mattan
+     var dold (#app dold: inga mått; fliken i bakgrunden) och att mattan
+     lämnats (visaVy nollar nycklarna). Brädets zoom har en egen nyckel med
+     bordsvyns layout (bordMal: en motståndare kom eller gick, nivån byttes,
+     kanten drogs): rutan runt mattan hoppar då eller har sin egen övergång,
+     och zoomen skrivs direkt — men kortens rörelser avbryts inte av det. */
   const synlig = v.vp.riktig && !document.hidden;
-  const vyNyckel = p.id + (redigerbar() ? '' : 'L') + '|' + (spelLage ? spelLage.id : '') + '|' + (bordMal ? Math.round(bordMal.w) + 'x' + Math.round(bordMal.h) : '');
-  const animera = synlig && gridEl._matVy === vyNyckel;
+  const vyNyckel = p.id + (redigerbar() ? '' : 'L') + '|' + (spelLage ? spelLage.id : '');
+  const zoomNyckel = vyNyckel + '|' + (bordMal ? Math.round(bordMal.w) + 'x' + Math.round(bordMal.h) : '');
+  const animera = synlig && gridEl._matVy === vyNyckel, zoomGlid = synlig && gridEl._matZoomVy === zoomNyckel;
   gridEl._matVy = synlig ? vyNyckel : null;
-  matSkriv(p, v, animera);
+  gridEl._matZoomVy = synlig ? zoomNyckel : null;
+  matSkriv(p, v, zoomGlid);
   const d = delaHand();
   const nuT = Date.now();
   matLage = { lyftN: cards.filter(c => c.lyft != null).length, nyN: cards.filter(c => c.ny && nuT - c.ny < 2500).length };
@@ -27171,7 +27178,7 @@ function visaVy(namn) {
   $('#vyLekfoto').hidden = namn !== 'lekfoto';
   $('#app').style.display = namn === 'app' ? '' : 'none';
   /* Lämnas mattan är nästa ritning en ny vy: inget glider in (MES-334 steg 2). */
-  if (namn !== 'app') { gridEl._matVy = null; for (const m of oppMattor.values()) m.vy = null; }
+  if (namn !== 'app') { gridEl._matVy = gridEl._matZoomVy = null; for (const m of oppMattor.values()) m.vy = m.vyKort = null; }
   /* Lekens sida ligger ovanpå. Försvinner bordet under den (spelet
      avslutades) går ‹ till Home i stället; landningssidan och kameran har
      ingen lek att visa alls. */
