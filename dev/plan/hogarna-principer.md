@@ -68,6 +68,7 @@ fasta högar. Bygget kräver att mattan inte ritas om från noll (spegelmattans 
 | Leken plockas upp | "Library · Picked up". Skuggan står kvar för alla. Leken glider dit där den läggs ner igen |
 | Sleeves | Leken och nedvända kort får automatiskt bordets sleeve-färg, eller Magic-baksidan om man inte har sleeves. Färgen går inte att ändra |
 | Spelare utan kamera | Högarna står på **fast plats som i dag**, men i D1:s utseende |
+| Exile | **Som i dag (Jesper 2026-10-04):** kameran letar inte efter en exile-hög. Man exilar i appen, och exile står på sin fasta plats bredvid leken, i D1:s utseende. Att känna igen en fysisk exile-hög har en egen issue |
 
 ### Inte i det här bygget
 
