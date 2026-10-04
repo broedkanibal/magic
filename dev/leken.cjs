@@ -219,9 +219,16 @@ const PROV = async steg => {
     ok('motståndarens lek har ingen meny', !$('#zonPerm .lekmeny'));
     fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 3, kort: [{ cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 }] });
     ok('motståndaren utan lek i raden: dagens fasta hög igen', !document.querySelector('#oppMattor .obrade .lekhog') && !!document.querySelector('#oppMattor .ohogar .bib'));
-    state.players = [jag]; bord.valt = null; renderAll(true);
+    /* Min lek står kvar på min matta i bordsvyn, och brädet rymmer den (i en låg ruta kan den ligga
+       under kanten vid minsta zoomen, som ett kort längst ner i bilden — mattan går att dra dit). */
+    { const e = lekEl(), v = matVy(jag), lr = lekRam(jag);
+      ok('bordsvyn: min lek står kvar på min matta, och brädet rymmer den', !!e && !!lr && lr.x1 <= v.board.w && lr.y1 <= v.board.h, `bräde ${v.board.w}×${v.board.h}, leken ${JSON.stringify(lr)}`); }
+    fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 4, kort: [
+      { cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 },
+      { cid: 'hog:bib', hog: 'bib', x: 420, y: 300, f: '30,60,160' }] });   // tillbaka på bordet, för skärmbilden
   }
   if (steg === 9) {
+    state.players = [mig()]; bord.valt = null; renderAll(true);
     /* Uppstartens steg 4 satte en library-ruta: dagens flöde, orört. */
     kamBibRad = { x: 0.1, y: 0.6, w: 0.15, h: 0.3 };
     tagEmotLek(null);
@@ -259,7 +266,8 @@ const PROV = async steg => {
       for (const [namn, ok, detalj] of r.result.value) { n++; if (!ok) fel++; console.log(`${ok ? 'OK ' : 'FEL'}  ${namn}${detalj ? '  (' + detalj + ')' : ''}`); }
       if (BILD) {
         await vanta(500);
-        const z = await c.cdp('Runtime.evaluate', { expression: "(() => { const r = $('#zonPerm').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()", returnByValue: true });
+        const sel = NAMN[s] === 'motstandaren' ? '#bord' : '#zonPerm';   // motståndarens matta står bredvid min i bordsvyn
+        const z = await c.cdp('Runtime.evaluate', { expression: "(() => { const r = document.querySelector('" + sel + "').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()", returnByValue: true });
         const q = z.result.value;
         const bild = await c.cdp('Page.captureScreenshot', { format: 'jpeg', quality: 72, clip: { x: q.x, y: q.y, width: q.w, height: q.h, scale: 0.7 } });
         fs.writeFileSync(path.join(BILD, `${String(s).padStart(2, '0')}-${NAMN[s]}.jpg`), Buffer.from(bild.data, 'base64'));
