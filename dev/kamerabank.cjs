@@ -2092,6 +2092,15 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK6 två högar: medan båda ligger ${l6a && l6a.lage}, när den ena plockats upp ${l6b && l6b.lage} x ${l6b && l6b.ruta && l6b.ruta.x} (väntat ${(L.x / W).toFixed(3)})`,
           l6a.lage === 'ingen' && l6b.lage === 'nere' && Math.abs(l6b.ruta.x - L.x / W) < 0.01);
 
+    // LK6b: två högar, och en hand vilar på den ena (ingen låda, platsen täckt) — den andra blir inte ensam; när handen gått och högen är borta: library
+    await nyttBord('v');
+    const handL2 = g => hand(g, W, L2.x + 15, L2.y + 21, 26, 30, 170);
+    await kor(16, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
+    const l6c = await kor(27, [hog(L), hog(L2), handL2], [lada(L, 'baksida')]);
+    const l6d = await kor(24, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK6b hand på den ena högen i 4 s: ${l6c && l6c.lage}; handen och högen borta: ${l6d && l6d.lage} x ${l6d && l6d.ruta && l6d.ruta.x}`,
+          l6c.lage === 'ingen' && l6d.lage === 'nere' && Math.abs(l6d.ruta.x - L.x / W) < 0.01);
+
     // LK7: en hög vid bildkanten blir aldrig library
     await nyttBord('v');
     const K = { x: 0, y: 40, w: 30, h: 42 };
