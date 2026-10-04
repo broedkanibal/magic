@@ -40,7 +40,7 @@ som ett svar (minnet `kontroller-som-ljuger`).
 | Partiet 2026-09-21, 20 min, 4K 15 fps | `dev/material/inspelningar/2026-09-21-mes-238-parti-4k15-20min/`. Facit för sek 240–540 ligger på grenen `natt-2026-09-22` i `2026-09-21-parti/` (`handelser.tsv`, `platser.tsv`). Partistarten, sek 0–240, saknar facit |
 | Partiet 2026-09-22, normaltempo | `dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo/` (`handelser.tsv`, `tal.tsv` med det Jesper sa högt). Videon har spårrutorna inbrända |
 | MES-246, 4K 60, utan spårrutor | `dev/golden/inspelningar/2026-09-19-mes-246-las-fore-slapp/` (`MANUS.md`, `FACIT.md`) |
-| Golden 01–16 | `dev/golden/` |
+| Golden 01–18 | `dev/golden/`. **17** är kompisens parti: leken (id 78, 79, zon bib) plus sju andra baksidor vid kanten och i ett hörn. **18** (13b) har leken som zon bib i alla lägen |
 
 ### Måtten
 
@@ -122,8 +122,9 @@ och kort som läggs på högen under tiden hör till samma fråga. No ger M1
 efter Ignore aldrig. Bara ägaren ser frågan. Regeln från MES-85 gäller efter Yes,
 mot högen där den ligger.
 
-**5. Högarna bland korten.** Högarna följer zoomstegen, och brickan behåller sin
-storlek. Spelare utan kamera har fast plats som i dag, men D1:s utseende.
+**5. Högarna bland korten.** Högarna följer mattans zoom (dagens zoom; zoomstegen är
+MES-338), och brickan behåller sin storlek. Ett ensamt nedvänt kort visas, och
+högar som inte är leken ignoreras (golden 17). Spelare utan kamera har fast plats som i dag, men D1:s utseende.
 
 **6. Uppstartens steg 4 bort.** Ta bort `oppSteg4` och delarna av
 `oppSteg4Klar`/`oppOppnasIgen` som gäller steget, spärren i `avstamBord`
@@ -141,4 +142,6 @@ vad Jesper ska prova på riktig telefon.
 - Osäkert betyder orört.
 - Ett nytt namn som skivan läser utifrån stubbas i `dev/avstamning.cjs` och `dev/dubbletter.cjs`.
 - Appens text är på engelska, och koden på svenska.
-- Graveyard minns kort utan namn ingår **inte**. Det har en egen issue.
+- **Ingår inte:** graveyard minns kort utan namn (MES-336), den fysiska exile-högen
+  (MES-337) och zoomstegen (MES-338).
+- **Krock:** kör inte samtidigt som spegelmattans bygge (MES-333 och framåt), eftersom båda rör mattans ritning.

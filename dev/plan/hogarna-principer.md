@@ -38,12 +38,14 @@ fasta högar. Bygget kräver att mattan inte ritas om från noll (spegelmattans 
 | Leken plockas upp före första kortet (blanda efter mulligan) | "Library · Picked up". Skuggan står kvar och texten likaså |
 | Första kortet läggs ner | Texten försvinner |
 | Första kortet spelas utan att leken har synts | Första kortets vinkel blir otappat, utan fråga. Läggs leken ner senare blir den library, men vinkeln står kvar |
+| Andra nedvända kort, när leken är känd | Ett **ensamt** nedvänt kort i spelytan visas som ett nedvänt kort på mattan (morph, manifest). En **hög** med flera nedvända kort som inte är leken, eller en som skärs av bildkanten, **ignoreras** (Jesper 2026-10-04, efter golden 17: kompisens parti har sju sådana baksidor vid kanten och i ett hörn) |
 
 ### Vinkeln
 
 - **Mattan visar alltid rakt:** otappat 0°, tappat 90°. Leken och korten ritas aldrig snett.
 - **Kameran läser varje kort i dess verkliga vinkel.** Beskärningen vrids så att läsningen ser kortet rakt.
 - **Tappat eller otappat:** kortets vinkel jämförs med lekens vinkel just nu. Inom 45° är kortet otappat, annars tappat. Vrids leken följer referensen med, och en liten knuff ändrar inget.
+- **Namnremsan som riktmärke:** sedan MES-331 (7065966) hittar detektorn remsorna också på tappade kort. Remsans läge i lådan visar åt vilket håll kortet ligger.
 - **Det här är det tekniskt svåraste.** Detektorns lådor är raka, så vinkeln måste mätas per kort inne i lådan (kontur eller namnremsa). Mät det först.
 
 ### Graveyard
@@ -70,9 +72,18 @@ fasta högar. Bygget kräver att mattan inte ritas om från noll (spegelmattans 
 | Spelare utan kamera | Högarna står på **fast plats som i dag**, men i D1:s utseende |
 | Exile | **Som i dag (Jesper 2026-10-04):** kameran letar inte efter en exile-hög. Man exilar i appen, och exile står på sin fasta plats bredvid leken, i D1:s utseende. Att känna igen en fysisk exile-hög har en egen issue |
 
+### Kontroll mot andra sessioner (2026-10-04)
+
+- Koden bygget bygger på är orörd sedan 2026-10-02: `oppSteg4`, `grundSteg`, `bibSag`, `gravVakt`, `satGrund`, `renderAll`, `HOG_LUFT` och `kamTillMatta`. MES-331 har ändrat läsningen (remsor, minnet av remsor, födelsevakten) men inget av det här.
+- **MES-305** (dold information) gör nedvända kort till baksidor för andra. Sleevesen byter bara bilden på baksidan, och regeln står kvar.
+- **Krock:** spegelmattans bygge (MES-333 uppspelaren, sedan mattan utan omritning) rör samma kod som steg 2 här. De ska inte köras parallellt.
+- **Nytt mätmaterial:** golden 17 (kompisens parti, leken plus sju andra baksidor) och golden 18 / 13b (leken har zonen bib i alla lägen).
+
 ### Inte i det här bygget
 
-- **Graveyard minns kort utan namn** (foto efter 0,5 s, namnet fylls i efter hand, namnges för hand). Det har en egen issue.
+- **Graveyard minns kort utan namn** (foto efter 0,5 s, namnet fylls i efter hand, namnges för hand) har en egen issue, MES-336.
+- **Zoomstegen** (fasta nivåer, nytt steg när ett kort inte får plats) har en egen issue, MES-338. Här följer högarna bara den zoom som finns.
+- **Den fysiska exile-högen** har en egen issue, MES-337.
 - Exile i Nej-menyn, command zone, att dra kort, och minnet av bordsupplägget mellan partier.
 
 ## Varför
