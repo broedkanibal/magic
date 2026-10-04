@@ -2260,6 +2260,45 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK20 leken upp (${l20a}), lagd vid L3, en ruta med en baksida över den gamla platsen: efter 9 s ${l20 && l20.lage} x ${l20 && l20.ruta && l20.ruta.x} (L3 ${(k19L3.x / W).toFixed(3)})`,
           !!l20 && l20.lage === 'nere' && Math.abs(l20.ruta.x - k19L3.x / W) < 0.01);
 
+    // LK21 (granskarens RP7, runda 3 fynd 1): sökningen med två lyft. Leken lyfts från L och läggs vid L3 (steg 3
+    //   flyttar den), handen läggs nedvänd vid H, och leken lyfts igen för att blandas: leken står som upplockad
+    //   (Picked up), den hoppar inte till handen. Blandningen tar 12 s, leken läggs vid L4, handen plockas upp:
+    //   leken ligger vid L4.
+    const k21L3 = { x: 100, y: 95, w: 30, h: 42 }, k21H = { x: 40, y: 70, w: 30, h: 42 }, k21L4 = { x: 190, y: 95, w: 30, h: 42 };
+    const xs21 = l => l && l.ruta ? l.ruta.x : null;
+    const tvaLyft = async blanda => {
+      await nyttBord('v');
+      await kor(24, [hog(L)], [lada(L, 'baksida')]);
+      await kor(26, [], []);
+      const a = await kor(14, [hog(k21L3)], [lada(k21L3, 'baksida')]);
+      await kor(14, [hog(k21L3), hog(k21H)], [lada(k21L3, 'baksida'), lada(k21H, 'baksida')]);
+      const b = await kor(26, [hog(k21H)], [lada(k21H, 'baksida')]);
+      await kor(blanda, [hog(k21H)], [lada(k21H, 'baksida')]);
+      await kor(14, [hog(k21H), hog(k21L4)], [lada(k21H, 'baksida'), lada(k21L4, 'baksida')]);
+      const c = await kor(40, [hog(k21L4)], [lada(k21L4, 'baksida')]);
+      return { a, b, c };
+    };
+    const r21 = await tvaLyft(80);
+    check(`LK21 två lyft (blandning 12 s): leken vid L3 ${r21.a && r21.a.lage} x ${xs21(r21.a)} (L3 ${(k21L3.x / W).toFixed(3)}); handen lagd, leken lyft igen: ${r21.b && r21.b.lage} x ${xs21(r21.b)} (H ${(k21H.x / W).toFixed(3)}); lagd vid L4, handen upp: ${r21.c && r21.c.lage} x ${xs21(r21.c)} (L4 ${(k21L4.x / W).toFixed(3)})`,
+          !!r21.a && r21.a.lage === 'nere' && Math.abs(r21.a.ruta.x - k21L3.x / W) < 0.01 && !!r21.b && r21.b.lage === 'upp' && !!r21.c && r21.c.lage === 'nere' && Math.abs(r21.c.ruta.x - k21L4.x / W) < 0.01);
+    // LK21b (granskarens RP7k): samma, men blandningen tar 3 s
+    const r21b = await tvaLyft(20);
+    check(`LK21b två lyft (blandning 3 s): leken lyft igen: ${r21b.b && r21b.b.lage} x ${xs21(r21b.b)}; lagd vid L4, handen upp: ${r21b.c && r21b.c.lage} x ${xs21(r21b.c)} (L4 ${(k21L4.x / W).toFixed(3)})`,
+          !!r21b.b && r21b.b.lage === 'upp' && !!r21b.c && r21b.c.lage === 'nere' && Math.abs(r21b.c.ruta.x - k21L4.x / W) < 0.01);
+
+    // LK22 (granskarens RP8, runda 3 fynd 1 och 2): LK18 med en sökning på 15 s — handen nedvänd medan leken är uppe
+    //   (och tas för leken), leken tillbaka vid L, handen plockas upp: leken ligger vid L igen, hur lång sökningen än är
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    await kor(26, [], []);
+    const k22H = { x: 100, y: 95, w: 30, h: 42 };
+    const l22a = await kor(14, [hog(k22H)], [lada(k22H, 'baksida')]);
+    await kor(100, [hog(k22H)], [lada(k22H, 'baksida')]);
+    await kor(14, [hog(k22H), hog(L)], [lada(k22H, 'baksida'), lada(L, 'baksida')]);
+    const l22 = await kor(40, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK22 handen nedvänd under en sökning på 15 s: handen lagd ${l22a && l22a.lage} x ${xs21(l22a)}; handen upplockad 6 s: ${l22 && l22.lage} x ${xs21(l22)} (L ${(L.x / W).toFixed(3)})`,
+          !!l22 && l22.lage === 'nere' && Math.abs(l22.ruta.x - L.x / W) < 0.01);
+
     // LK11: med uppstartens library-ruta gäller dagens lekvakt (bibSag) — ingen ny lek i rapporten
     nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: { x: L.x / W - 0.02, y: L.y / H - 0.02, w: L.w / W + 0.04, h: L.h / H + 0.04 } } }); namnSvar = svar;
     await kor(26, [hog(L)], [lada(L, 'baksida')]);

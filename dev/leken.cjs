@@ -99,7 +99,7 @@ const PROV = async steg => {
   const lekEl = () => gridEl.querySelector('.lekhog');
   const text = () => { const e = $('#emptyHand'); return e && !e.classList.contains('hide') ? e.textContent.trim() : null; };
   const anim = el => el ? el.getAnimations().map(a => Object.keys((a.effect.getKeyframes() || [])[0] || {}).filter(k => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).join('+')).join(',') : '';
-  const lek = (lage, id, ruta, extra) => Object.assign({ lage, id, ruta, farg: { r: 47, g: 138, b: 82, magic: false }, ute: [], grund: 'lek' }, extra || {});
+  const lek = (lage, id, ruta, extra) => Object.assign({ lage, id, ruta, farg: { r: 47, g: 138, b: 82, magic: false }, ute: [], grund: 'lek', forsta: false }, extra || {});
   const R1 = { x: 0.58, y: 0.5, w: 0.1, h: 0.22 }, R2 = { x: 0.22, y: 0.55, w: 0.1, h: 0.22 };
   if (steg === 0) {
     /* Ett spel i Mirror my table, kameran ansluten, uppstarten klar utan library-ruta. */
@@ -153,7 +153,15 @@ const PROV = async steg => {
     ok('2 · klick på leken: menyn med Not my library', !!meny && /Library/.test(meny.querySelector('.rub').textContent) && /Not my library/.test(meny.textContent) && /It's a face-down card/.test(meny.textContent), meny ? meny.textContent.replace(/\s+/g, ' ') : 'ingen meny');
   }
   if (steg === 3) {
-    W.__kal = []; const rad3 = kamGrundRad; kamGrundRad = 90;   // raden bar lekens grundläge (kamRutaRad skrev telefonens 90)
+    /* Granskningen runda 3, fynd 3: telefonen har sett bordets första kort (forsta) men datorn har inte lagt ut det —
+       telefonen behåller då grundläget, och datorn skriver inte raden utan det. */
+    const h3 = Object.assign({}, mig().bibHog), kl3 = kamLek, rad3 = kamGrundRad;
+    W.__kal = []; kamLek = Object.assign({}, kamLek, { forsta: true }); kamGrundRad = 90;
+    lekInteKlick();
+    ok('Not my library när telefonen redan sett första kortet: raden skrivs inte (telefonen behåller grundläget)', W.__kal.length === 0 && kamGrundRad === 90, JSON.stringify(W.__kal));
+    kamLek = kl3; mig().bibHog = h3; lekLokalt = null; W.__sant = []; renderGrid(true); renderTom();
+    lekEl().click();
+    W.__kal = []; kamGrundRad = 90;   // raden bar lekens grundläge (kamRutaRad skrev telefonens 90)
     $('#zonPerm .lekmeny [data-lekmeny="inte"]').click();
     const s = W.__sant.find(x => x.typ === 'lekinte');
     ok('Not my library: telefonen får lekinte med högens id', !!s && s.id === 1, JSON.stringify(W.__sant));
