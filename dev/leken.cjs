@@ -113,6 +113,7 @@ const PROV = async steg => {
     W.__sant = []; W.__sparat = [];
     Moln.sandKam = (typ, data) => { W.__sant.push(Object.assign({ typ }, data)); return true; };
     Moln.sparaBord = (id, kort, dolt) => { W.__sparat.push({ kort, dolt }); return Promise.resolve(true); };
+    W.__kal = []; Moln.sparaKalibrering = (id, ruta) => { W.__kal.push(ruta); return Promise.resolve(true); };
     renderAll(true);
     tagEmotLek(lek('ingen', null, null, { farg: null, grund: null }));
     ok('1 · ingen lek: texten mitt på mattan', text() === 'Put your library on the table', text());
@@ -152,9 +153,13 @@ const PROV = async steg => {
     ok('2 · klick på leken: menyn med Not my library', !!meny && /Library/.test(meny.querySelector('.rub').textContent) && /Not my library/.test(meny.textContent) && /It's a face-down card/.test(meny.textContent), meny ? meny.textContent.replace(/\s+/g, ' ') : 'ingen meny');
   }
   if (steg === 3) {
+    W.__kal = []; const rad3 = kamGrundRad; kamGrundRad = 90;   // raden bar lekens grundläge (kamRutaRad skrev telefonens 90)
     $('#zonPerm .lekmeny [data-lekmeny="inte"]').click();
     const s = W.__sant.find(x => x.typ === 'lekinte');
     ok('Not my library: telefonen får lekinte med högens id', !!s && s.id === 1, JSON.stringify(W.__sant));
+    /* Granskningen runda 2, fynd 4: före första kortet släpper telefonen lekens grundläge — raden skrivs utan det, så att en omladdning inte ger tillbaka det. */
+    ok('Not my library före första kortet: raden skrivs utan grundläge, och kamGrundRad nollas', W.__kal.length === 1 && W.__kal[0].grund === null && kamGrundRad === null, JSON.stringify(W.__kal));
+    kamGrundRad = rad3;
     ok('Not my library: menyn stängs, leken är borta från mattan', !$('#zonPerm .lekmeny') && !lekEl() && !mig().bibHog);
     ok('Not my library: texten går tillbaka till steg 1', text() === 'Put your library on the table', text());
     const ute = gridEl.querySelector('.lekute');
