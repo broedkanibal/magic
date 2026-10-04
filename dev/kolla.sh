@@ -4,7 +4,8 @@
 # köra `node --check` på dem (headless Chrome hänger på Mesas sida) — sedan
 # harnessarna: lekens ändringar och telefonens lekfoto (MES-289), lekfotot på
 # datorn (MES-322), slutet av lekfotot (MES-323), datorns avstämning,
-# dubblettmåttet på videofall 07 och kamerabänken.
+# dubblettmåttet på videofall 07, mattans element genom en uppdatering
+# (MES-334 steg 2, huvudlös Chrome, några sekunder) och kamerabänken.
 set -e
 cd "$(dirname "$0")/.."
 # Varje steg går genom steg(): faller det skrivs vilket steg det var, och
@@ -44,4 +45,5 @@ steg avstamning node dev/avstamning.cjs
 steg "dubbletter --fall 07" node dev/dubbletter.cjs --fall 07 > /dev/null
 echo "dubbletter --fall 07: kördes"
 steg delmarginal node dev/delmarginal.cjs
+steg mattan node dev/mattan.cjs
 steg kamerabank node dev/kamerabank.cjs
