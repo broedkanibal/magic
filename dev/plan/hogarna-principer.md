@@ -59,7 +59,7 @@ nästa exempel.
 |---|---|
 | Leken läggs ner | Den första nedvända högen eller det första nedvända kortet (klassen `baksida`) som ligger still innan första kortet spelas antas vara library. Ingen egen kvittens behövs: att texten mitt på mattan byter från "Put your library on the table" till "Play your first card when you're ready" är kvittensen (Jesper 2026-10-04). "Not my library" finns i menyn när man klickar på leken |
 | Leken flyttas | Leken glider till sin nya plats, och rutan följer med |
-| Leken lämnar bilden (söka, blanda, mulligan) | Leken visas som **upptagen för alla**. Den står kvar på sin plats med en lugn animering, eftersom motståndarna ändå ser det vid bordet. När leken syns igen, också på en ny plats, glider den dit |
+| Leken lämnar bilden (söka, blanda, mulligan) | Leken visas som **upplockad för alla**: skuggan står kvar och brickan säger "Library · Picked up". Den står kvar på sin plats med en lugn animering, eftersom motståndarna ändå ser det vid bordet. När leken syns igen, också på en ny plats, glider den dit |
 | Handen täcker leken (drar ett kort) | Leken är inte upptagen, eftersom handen fryser (spegelmattans princip 3). Upptagen kräver att platsen syns och är tom |
 | Ett nytt nedvänt kort när leken redan är känd | Ett nedvänt kort på mattan (spegelmattans fall 6), inte en ny lek |
 | Leken syns aldrig | Grundläget tas ur första kortet, och graveyard kommer ur kort ovanpå kort |
@@ -140,7 +140,7 @@ Det här mäts i del A innan det byggs.
 
 | Fråga | Läge |
 |---|---|
-| **Sleeves** | **Beslutat (Jesper 2026-10-02):** leken och nedvända kort visas i spelarens egna sleeves. *Förslag:* färgen tas ur kamerans bild av leken första gången den ligger still och syns hel (lekvaktens läge `lek`), som median över flera rutor så att blänket (MES-246) inte styr. Den går att ändra på lekens sida. En digital spelare väljer själv. Alla ser samma sleeves |
+| **Sleeves** | **Beslutat (Jesper 2026-10-02, förenklat 2026-10-04):** leken och nedvända kort visas automatiskt i en färg som efterliknar sleevesen på bordet, eller som Magic-baksidan om spelaren inte har sleeves. Färgen tas ur kamerans bild av leken när den ligger still och syns hel, som median över flera rutor så att blänket (MES-246) inte styr. **Färgen går inte att ändra i den här versionen.** Alla ser samma sleeves |
 | **Fasta platser** | **Beslutat (Jesper 2026-10-03):** högarna har ingen fast plats på mattan. De ligger bland korten och följer zoomstegen som vilket kort som helst. Brickan med namn och antal behåller sin storlek. För en digital spelare får högarna en förvald plats som går att flytta |
 | **Utseendet** | **Beslutat (Jesper 2026-10-03): riktning D1.** Inga ramar och inga streckade kanter. Högarna ser ut som högar: leken har kortkanter i sleevens färg, och graveyard ligger lite huller om buller. Namn och antal står i en bricka på underkanten. Ersätter A1 i "Mesa Table Piles". D1:s rörelser (graveyard skapas, leken upptagen med skuggan kvar, zoomsteget) är förslag tills de provats i designytan |
 
