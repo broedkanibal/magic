@@ -2120,6 +2120,21 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const l10 = await kor(26, [kortR(F2), kortR(F3), hog(L)], [lada(F2, 'kort'), lada(F3, 'kort'), lada(L, 'baksida')]);
     check(`LK10 kort och en hög från början: ${l10 && l10.lage} (${l10 && l10.grund}), grundläget ${grader()}°`, l10.lage === 'nere' && l10.grund === 'lek' && grader() === 90);
 
+    // LK12: sleevesens färg — medianen i lekens inre över flera rutor, också när ett blänk ligger på leken i varannan ruta; magic = false (spåret sa 'baksida ficka')
+    await nyttBord('v');
+    const rgbaRuta = blank => { const d = new Uint8ClampedArray(W * H * 4); for (let i = 0; i < W * H; i++) { d[4 * i] = 90; d[4 * i + 1] = 80; d[4 * i + 2] = 70; d[4 * i + 3] = 255; }
+      for (let y = L.y; y < L.y + L.h; y++) for (let x = L.x; x < L.x + L.w; x++) { const i = 4 * (y * W + x); d[i] = 40; d[i + 1] = 140; d[i + 2] = 80; }
+      if (blank) for (let y = L.y + 10; y < L.y + 18; y++) for (let x = L.x + 8; x < L.x + 22; x++) { const i = 4 * (y * W + x); d[i] = d[i + 1] = d[i + 2] = 250; }
+      return d; };
+    let l12 = null;
+    for (let i = 0; i < 60; i++) {
+      nu += TAKT; const g = matta(W, H, 100, 3, lcg(2000 + nu)); hog(L)(g);
+      Kamera.steg(g, nu, H, undefined, V, det([lada(L, 'baksida')]), rgbaRuta(i % 2 === 1));
+      await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+      l12 = Kamera.lek;
+    }
+    check(`LK12 sleevesens färg: ${JSON.stringify(l12 && l12.farg)}`, !!l12 && l12.lage === 'nere' && !!l12.farg && Math.abs(l12.farg.r - 40) <= 2 && Math.abs(l12.farg.g - 140) <= 2 && Math.abs(l12.farg.b - 80) <= 2 && l12.farg.magic === false);
+
     // LK11: med uppstartens library-ruta gäller dagens lekvakt (bibSag) — ingen ny lek i rapporten
     nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: { x: L.x / W - 0.02, y: L.y / H - 0.02, w: L.w / W + 0.04, h: L.h / H + 0.04 } } }); namnSvar = svar;
     await kor(26, [hog(L)], [lada(L, 'baksida')]);
