@@ -96,7 +96,10 @@ const modellUrl = (flagga, fil) => {
   if (rel.startsWith('..') || path.isAbsolute(rel)) { console.error(`${flagga}: ${fil} ligger utanför repots rot (${ROT}) — attrappen kan inte servera den.`); process.exit(2); }
   if (!fs.existsSync(abs)) { console.error(`${flagga}: ${fil} finns inte.`); process.exit(2); }
   if (SPARA) { console.error(`${flagga} med --spara vägras: baslinjen mäter appens egen modell.`); process.exit(2); }
-  return rel.split(path.sep).map(encodeURIComponent).join('/');
+  if (UTAN_MODELL) { console.error(`${flagga} med --utan-modell vägras: utan bildmodell finns ingen modell att byta.`); process.exit(2); }
+  /* ?v= ändringstiden: en omexporterad fil med samma namn är en annan modell — ny nyckel i webbläsarens
+     modellcache och i lagringen av vektorerna (embed.js helTagg/remsTagg). */
+  return rel.split(path.sep).map(encodeURIComponent).join('/') + '?v=' + Math.round(fs.statSync(abs).mtimeMs);
 };
 const MODELL_URL = MODELL_FIL ? modellUrl('--modell', MODELL_FIL) : '';
 if (MODELL_FIL) console.log(`Hela kortet läses med ${MODELL_FIL} (--modell).`);
@@ -134,7 +137,7 @@ const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'm
    HuggingFace (appens förval) och filerna i dev/embed/modeller används INTE.
    2026-10-05 mätte en "pilotmodell i golden" därför den gamla modellen utan
    att det syntes — nu sägs det. */
-if (!EMBED_LOKALT && !UTAN_MODELL) console.log('Bildmodellen hämtas från HuggingFace (appens förval)'
+if (!EMBED_LOKALT && !UTAN_MODELL && !MODELL_FIL) console.log('Bildmodellen hämtas från HuggingFace (appens förval)'
   + (fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) ? ' — VARNING: dev/embed/modeller/mobileclip-s0-vision.onnx används inte, för dev/embed/node_modules/onnxruntime-web saknas (npm ci i dev/embed)' : '') + '.');
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
@@ -278,7 +281,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
-                 VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
+                 VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), EMBED_LOKALT && !UTAN_MODELL && 'embedv=' + Math.round(fs.statSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')).mtimeMs), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -446,7 +449,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     fs.writeFileSync(path.join(BESKARNINGAR, 'index.json'), JSON.stringify(index, null, 1) + '\n');
     console.log(`\n${index.length} beskärningar skrivna till ${BESKARNINGAR} (index.json listar dem)`);
   }
-  if (UTFIL) { const ut = JSON.parse(json); for (const r of ut) delete r.rutLogg; fs.writeFileSync(path.resolve(UTFIL), '[\n' + ut.map(r => JSON.stringify(r)).join(',\n') + '\n]\n'); console.log(`\nresultatet skrivet till ${UTFIL}`); }
+  if (UTFIL) { const ut = JSON.parse(json), fil = path.resolve(varianter.length > 1 ? UTFIL.replace(/(\.json)?$/, '-' + ljus + '$1') : UTFIL); for (const r of ut) delete r.rutLogg; fs.writeFileSync(fil, '[\n' + ut.map(r => JSON.stringify(r)).join(',\n') + '\n]\n'); console.log(`\nresultatet skrivet till ${fil}`); }
   if (RUTLOGG) { const rl = JSON.parse(json).filter(r => r.rutLogg).map(r => ({ id: r.id, handelser: r.videoHandelser, spar: r.videoSpar, rutLogg: r.rutLogg, fodslar: r.fodslar || [] })); fs.writeFileSync(RUTLOGG, JSON.stringify(rl) + '\n'); console.log(`\nrutloggen skriven till ${RUTLOGG} (${rl.length} videofall)`); }   // fodslar: varför varje spår föddes, med födelsevaktens mått (MES-331 pass 4)
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   /* Domen mot baslinjen skrivs alltid: BÄTTRE, LIKA BRA, SÄMRE eller BLANDAT,

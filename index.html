@@ -19722,6 +19722,10 @@ async function byggLekPoolRa(lek, userId, onProg) {
      leken; Matcher rankar alla på samma varv. Tjugo namn per fråga: en
      fråga med alla namn i leken blir annars lång. */
   const KONST_TAK = 12;
+  /* Frågor efter fler konstverk som inte svarade (429, nät): poolen fungerar
+     ändå, men saknar konstverk utan att det syns — golden kontrollerar
+     rec.konstFel och sparar inte en sådan pool (dev/golden/kor.html). */
+  let konstFel = 0;
   /* Platshållarna ur ett lekfoto (MES-289) har inget namn att söka på. */
   const namnen = [...new Set((lek.kort || []).filter(k => !k.okand).map(k => k.name).filter(n => n && !BASICS.has(n) && !n.includes(' // ')))];
   for (let i = 0; i < namnen.length; i += 20) {
@@ -19731,7 +19735,7 @@ async function byggLekPoolRa(lek, userId, onProg) {
                        onProg || (() => {}), seen, extra, 'konstverk', 'released');
       const per = new Map();
       for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= KONST_TAK) continue; per.set(c.name, k + 1); cards.push(c); }
-    } catch (e) { /* utan fler konstverk fungerar lekens egna */ }
+    } catch (e) { konstFel++; /* utan fler konstverk fungerar lekens egna */ }
   }
   const basland = [...new Set((lek.kort || []).map(k => k.name).filter(n => BASICS.has(n)))];
   if (basland.length) {
@@ -19745,7 +19749,7 @@ async function byggLekPoolRa(lek, userId, onProg) {
          inte, och de tog en plats bland de sex bästa utan att räknas
          (uppmätt i golden 06: "Swamp // Swamp" överst för en klunga land). */
       for (const c of extra) { if (c.name.includes(' // ')) continue; const k = per.get(c.name) || 0; if (k >= 24) continue; per.set(c.name, k + 1); cards.push(c); }
-    } catch (e) { /* utan extra landskap fungerar lekens egna */ }
+    } catch (e) { konstFel++; /* utan extra landskap fungerar lekens egna */ }
   }
   if (!cards.length) throw new Error('The deck has no cards with images.');
   /* Kortbaksidan som ett eget uppslag (MES-42): ett nedvänt kort på bordet
@@ -19754,7 +19758,9 @@ async function byggLekPoolRa(lek, userId, onProg) {
      med baksidan som miniatyr. Namnet BAKSIDA_NAMN filtreras bort ur
      namnläsarens lista och ur namnen till Claude. Poolversion 7. */
   cards.push({ id: 'baksida', name: BAKSIDA_NAMN, small: BAKSIDA });
-  return byggPoolAv(cards, code, 'My deck', onProg || (() => {}), true);
+  const rec = await byggPoolAv(cards, code, 'My deck', onProg || (() => {}), true);
+  rec.konstFel = konstFel;
+  return rec;
 }
 /* Datorns avläsningar — kortikonen, en inklistrad bild, telefonens
    skanning — känner igen mot samma pool som kameran: spelarens lek. */

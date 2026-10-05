@@ -1,8 +1,10 @@
-"""Appens EXAKTA remsregel (kamLasRemsa) på remsbänkens vektorer (remsexp.py bygg), för en eller flera modeller.
+"""Appens remsregel (kamLasRemsa: 'remsa' och 'remsa+titel') på remsbänkens vektorer (remsexp.py bygg), för en eller
+flera modeller. Inte med: appens avrundning till tre decimaler, baksidan i remsleken (kan ligga tvåa), lekPrior,
+minnet och textläsaren ('remsa+namn').
 
     saker = hel > T.remsaTroskel  ELLER  (titelns etta == helas etta  och  titel > T.remsaTitelTroskel  och  hel >= T.remsaVittne)
 
-remsexp.py prova räknar titelregeln utan vakten (hel >= vittne); den här räknar som appen, med golden-leken och
+remsexp.py prova räknar titelregeln utan vakten (hel >= vittne); den här räknar med vakten, med golden-leken och
 med Jespers lek, utan bänkens dubbelparningar (remsexp.ratta_parningar). Skriver: säkra rätt/fel vid appens
 trösklar, de största felen, och de nollfel-trösklar som ger flest säkra rätt i BÅDA lekarna.
 
@@ -51,7 +53,7 @@ def rakna(rr, th, tt, v):
 
 
 def fmt(u):
-    return ' · '.join(f"{k} {a[1]}/{a[0]} säkra (fel {a[2]})" for k, a in u.items())
+    return ' · '.join(f"{k} säkra rätt {a[1]} av {a[0]} rätt överst, säkra fel {a[2]}" for k, a in u.items())
 
 
 if __name__ == '__main__':

@@ -159,7 +159,8 @@ def ratta_parningar(meta):
     """Index i meta som räknas: utan det undre kortets rad och utan dubbletter av samma remsa och namn."""
     rader = [r for r in json.load(open(os.path.join(ROT, 'dev/detektor/tran/resultat/remsfall-tjock0.7.json')))
              if r['remsa'] and r['namn'] and r['kalla'] in ('mes246', '13b', 'golden')]
-    assert len(rader) == len(meta)
+    assert len(rader) == len(meta) and all((m['bild'], m['id'], m['facit']) == (r['bild'], r['id'], r['namn']) for m, r in zip(meta, rader)), \
+        'remsfall-tjock0.7.json och npz:ens meta står inte i samma ordning — bygg om (remsexp.py bygg)'
     behall, sedda = set(), set()
     for i, (m, r) in enumerate(zip(meta, rader)):
         nyck = (m['bild'], m['facit'], tuple(round(v, 6) for v in r['remsa']))

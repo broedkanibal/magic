@@ -68,7 +68,13 @@
   };
 
   let session = null, backend = null, inNamn = null, utNamn = null, laddar = null;
-  let remsSession = null, remsTagg = '', remsFel = null;   // remsornas egen modell (remsModell), när den laddats
+  /* Lagringens nycklar säger vilken modell vektorerna räknats med — vektorerna
+     lagras per kort-id, och en annan modells vektorer får aldrig blandas in
+     (granskningen 2026-10-05: en golden-körning efter --modell på samma port
+     hade annars läst pilotens vektorer). helTagg: '' för förvalets modell (appens
+     nycklar v1|id som förut), annars '|' + filnamnet (med ?v= när golden ger en
+     version). remsTagg: remsornas — remsModellens om den laddats, annars helTagg. */
+  let helTagg = '', remsSession = null, remsTagg = '', remsNamn = null, remsFel = null;
 
   /* ── arbetsytor ── */
   const qcv = document.createElement('canvas'); qcv.width = SIDA; qcv.height = SIDA;
@@ -96,6 +102,8 @@
   function ladda(o) {
     if (laddar) return laddar;
     o = Object.assign({}, FORVAL, o || {}); o.modell = Object.assign({}, FORVAL.modell, (o && o.modell) || {});
+    helTagg = o.modell.webgpu === FORVAL.modell.webgpu ? '' : '|' + String(o.modell.webgpu).split('/').pop();
+    remsTagg = helTagg;
     laddar = (async () => {
       const t0 = performance.now();
       /* onnxruntime hämtas en gång för båda modulerna (den tränade detektorn laddar samtidigt, MES-329): ett delat löfte. */
@@ -125,12 +133,12 @@
           const rurl = o.remsModell && (o.remsModell[url === o.modell.webgpu16 ? 'webgpu16' : b] || o.remsModell[b]);
           if (rurl) {
             try {
-              remsSession = await ort.InferenceSession.create(await hamtaModell(rurl), { executionProviders: [b], graphOptimizationLevel: 'all' });
+              remsSession = await korMedTak((async () => ort.InferenceSession.create(await hamtaModell(rurl), { executionProviders: [b], graphOptimizationLevel: 'all' }))(), UPPVARMNING_TAK_MS);
               await kor(new Float32Array(3 * SIDA * SIDA), UPPVARMNING_TAK_MS, true);
-              remsTagg = '|' + rurl.split('/').pop();
-            } catch (e) { remsSession = null; remsTagg = ''; remsFel = (e && e.message) || String(e); }
+              remsTagg = '|' + rurl.split('/').pop(); remsNamn = rurl.split('/').pop().split('?')[0];
+            } catch (e) { remsSession = null; remsTagg = helTagg; remsNamn = null; remsFel = (e && e.message) || String(e); }
           }
-          return { backend, modell: url.split('/').pop(), remsModell: remsTagg ? remsTagg.slice(1) : null, remsFel, tradar: b === 'wasm' ? tradar : null, ms: Math.round(performance.now() - t0) };
+          return { backend, modell: url.split('/').pop().split('?')[0], remsModell: remsNamn, remsFel, tradar: b === 'wasm' ? tradar : null, ms: Math.round(performance.now() - t0) };
         } catch (e) { fel = e; session = null; }
       }
       laddar = null; throw fel || new Error('ingen backend');
@@ -251,9 +259,10 @@
     const laddning = ladda(o.ladda); laddning.catch(() => {});
     const per = PER, names = [], ids = [], rot = [], delar = [];
     let done = 0, fel = 0, nya = 0, hamtade = 0;
-    const nyckelAv = id => `v${V}|${id}`, sparade = new Map();
+    const nyckelAv = id => `v${V}${helTagg}|${id}`, sparade = new Map();
     for (const c of kort) { const p = await hamta('kort', nyckelAv(c.id)); if (p && p.vek && p.vek.length === per * DIM) sparade.set(String(c.id), p); }
-    const hamtare = o.forrakade !== undefined ? o.forrakade : global.EmbedForrakade;
+    /* Förräknade vektorer finns bara för förvalets modell (MODELL-nyckeln säger inte vilken fil). */
+    const hamtare = helTagg ? null : o.forrakade !== undefined ? o.forrakade : global.EmbedForrakade;
     const saknas = [...new Set(kort.filter(c => !sparade.has(String(c.id))).map(c => String(c.id)))];
     if (saknas.length && typeof hamtare === 'function') {
       try {
@@ -289,13 +298,13 @@
     }
     const N = names.length, ra = new Float32Array(N * DIM); let at = 0; for (const d of delar) { ra.set(d, at); at += d.length; }
     const medel = new Float32Array(DIM); for (let i = 0; i < N; i++) for (let k = 0; k < DIM; k++) medel[k] += ra[i * DIM + k] / N;
-    const idx = { kod, v: V, ts: Date.now(), names, ids, rot, ra, medel, fel, larda: 0, nya, hamtade };
+    const idx = { kod: kod + helTagg, v: V, ts: Date.now(), names, ids, rot, ra, medel, fel, larda: 0, nya, hamtade };
     await satt('lek', idx);
     return centrera(idx);
   }
-  async function laddaLek(kod) { const idx = await hamta('lek', kod); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
+  async function laddaLek(kod) { const idx = await hamta('lek', kod + helTagg); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
   const remsNyckel = (andel, kod) => 'remsa' + remsTagg + '|' + andel + '|' + kod;   // remslekens post (MES-330, nedan); remsTagg = remsornas egna modell
-  async function glom(kod) { await stryk('lek', kod); await stryk('lek', remsNyckel(0.14, kod)); }
+  async function glom(kod) { await stryk('lek', kod + helTagg); await stryk('lek', remsNyckel(0.14, kod)); }
 
   /* ── remsleken (MES-330) ──────────────────────────────────────────
      Ett kort i en hög visar bara sin namnremsa. Referenserna här är den
@@ -406,5 +415,5 @@
 
   global.Embed = { V, MODELL, franF16, SIDA, DIM, TROSKEL, ROTAR, VARIANTER, ladda, byggLek, laddaLek, glom, laggTill, taBort, identifiera, rangordna, sakerhetAv,
                    byggRemsLek, laddaRemsLek, REMS_ROTAR,
-                   get backend() { return backend; }, get redo() { return !!session; }, get remsModell() { return remsTagg ? remsTagg.slice(1) : null; }, get remsFel() { return remsFel; } };
+                   get backend() { return backend; }, get redo() { return !!session; }, get remsModell() { return remsNamn; }, get remsFel() { return remsFel; } };
 })(window);
