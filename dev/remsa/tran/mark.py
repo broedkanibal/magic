@@ -1276,6 +1276,32 @@ def orb_inliers(f1, f2):
     return int(mask.sum()) if mask is not None else 0
 
 
+def orb_vittne(fq, namn, konst, alla_id, fro, egna=None):
+    """Vittne (b), samma regel i C och i E:s kontroll: bästa inliers mot namnets konstverk (egna) mot bästa av 20
+    slumpvalda ur alla_id (frö = spårets nummer) — och för basland också mot LIKA MÅNGA konstverk av de andra
+    basländerna, så att båda sidor är "bäst av N" (bäst av ~390 brusmatchningar blir annars högre än bäst av 20).
+    Överens: ≥ 12 inliers och ≥ 2 × max(bästa andra, 6). None när namnet saknar referensbild."""
+    t0 = time.time()
+    finns = lambda c: os.path.exists(os.path.join(REF, c + '.jpg'))
+    egna = [c for c in (egna or [p['id'] for p in konst.get(namn, [])]) if finns(c)]
+    if not egna:
+        return None
+    rng = random.Random(fro)
+    ovr = sorted(set(alla_id) - set(egna))
+    andra = rng.sample(ovr, min(20, len(ovr)))
+    if namn in BAS:
+        ovr_bas = sorted({p['id'] for n in BAS if n != namn for p in konst.get(n, []) if finns(p['id'])} - set(andra))
+        andra += rng.sample(ovr_bas, min(len(egna), len(ovr_bas)))
+    per_egen = {c: orb_inliers(fq, ref_orb(c)) for c in egna}
+    per_annan = {c: orb_inliers(fq, ref_orb(c)) for c in andra}
+    e, a = max(per_egen.values(), default=0), max(per_annan.values(), default=0)
+    topp = lambda d: dict(sorted(d.items(), key=lambda kv: -kv[1])[:5])
+    return {'inliers': e, 'bild': max(per_egen, key=per_egen.get), 'per_bild': topp(per_egen), 'andra_bast': a, 'andra': topp(per_annan),
+            'n_egna': len(egna), 'n_andra': len(andra), 'ms': round((time.time() - t0) * 1000),
+            # golvet 6: bästa andra är ofta 0–7 (RANSAC ger minst 4), så 2× ensamt säger inget
+            'overens': bool(e >= 12 and e >= 2 * max(a, 6))}
+
+
 def orb_fraga(hel4k):
     """4K-utsnittet utan marginalen, gråskala, skalat så att kortet är lika brett som Scryfalls normal (488)."""
     g = cv2.cvtColor(utan_marginal(hel4k), cv2.COLOR_BGR2GRAY)
@@ -1574,32 +1600,14 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     # Vittne 2b: ORB mellan 4K-utsnittet och namnets Scryfall-bilder, mot 20 slumpvalda andra referensbilder
     to = time.time()
     orb = {}
-    alla_id = [p['id'] for p in poster if p['id'] in vek]
-    ref_drag = ref_orb
-
+    alla_id = [p['id'] for p in poster if p['id'] in vek]   # de 20 slumpvalda: ur (a):s lek, basland som poolen
     for s in med:
         namn, u = claude[s['id']]['namn'], utsn.get(s['id'])
         if not namn or u is None or not konst.get(namn):
             continue
-        t_orb = time.time()
-        fq = orb_fraga(u['hel4k'])
-        egna = [p['id'] for p in konst[namn] if p['id'] in vek]
-        per_egen = {cid: orb_inliers(fq, ref_drag(cid)) for cid in egna}
-        rng = random.Random(int(s['id'][1:]))
-        andra_id = rng.sample(sorted(set(alla_id) - set(egna)), min(20, len(set(alla_id) - set(egna))))
-        if namn in BAS:
-            # Basland har hundratals konstverk: bästa av många brusmatchningar blir högre än bästa av 20. Jämför därför
-            # också med LIKA MÅNGA konstverk av de andra basländerna, så att båda sidor är "bäst av N".
-            ovr_bas = sorted({p['id'] for n in BAS if n != namn for p in konst.get(n, []) if p['id'] in vek})
-            andra_id += rng.sample(ovr_bas, min(len(egna), len(ovr_bas)))
-        per_annan = {cid: orb_inliers(fq, ref_drag(cid)) for cid in andra_id}
-        bast_egen, bast_annan = max(per_egen.values(), default=0), max(per_annan.values(), default=0)
-        topp = lambda d: dict(sorted(d.items(), key=lambda kv: -kv[1])[:5])
-        orb[s['id']] = {'inliers': bast_egen, 'bild': max(per_egen, key=per_egen.get) if per_egen else None, 'per_bild': topp(per_egen),
-                        'andra_bast': bast_annan, 'andra': topp(per_annan), 'n_egna': len(egna), 'n_andra': len(andra_id),
-                        'ms': round((time.time() - t_orb) * 1000),
-                        # golvet 6: bästa andra är ofta 0–7 (RANSAC ger minst 4), så 2× ensamt säger inget
-                        'overens': bool(bast_egen >= 12 and bast_egen >= 2 * max(bast_annan, 6))}
+        r = orb_vittne(orb_fraga(u['hel4k']), namn, konst, alla_id, int(s['id'][1:]))
+        if r is not None:
+            orb[s['id']] = r
     tid['orb'] = time.time() - to
 
     # Domen; namnet följer spåret (D). Montage för alla spår med lägg-ögonblick; 4K-utsnittet för osäkra/slängda.
@@ -1674,46 +1682,48 @@ def steg_e(klipp, mapp, uppskatta=False):
     t00 = time.time()
     M = las_json(os.path.join(mapp, 'markning.json'))
     W, H = M['W'], M['H']
-    for d in ('tran', 'val'):
+    # Först markning.json utan filer (beskar: null = E inaktuell), sedan bort med de gamla — ett avbrott lämnar
+    # aldrig en lista som pekar på borttagna filer (granskningen av fe2d291).
+    M['beskar'], M['filer'] = None, []
+    skriv_json(os.path.join(mapp, 'markning.json'), M)
+    tmp_e = os.path.join(mapp, 'e-tmp')
+    for d in ('tran', 'val', 'e-tmp'):
         shutil.rmtree(os.path.join(mapp, d), ignore_errors=True)
-    # Säkra spår och baksidor skrivs. Med --uppskatta skärs också de andra spåren med lägg-ögonblick, bara i
-    # minnet, och JPEG-kodas för att mäta storleken (hur mycket disk de skulle ta som säkra) — inget av det hamnar
-    # på disk, men rutorna avkodas, så det är avstängt som förval.
+    # Säkra spår (också manuellt säkra) och baksidor skrivs. Med --uppskatta skärs också de andra spåren med
+    # lägg-ögonblick, bara i minnet, för att mäta storleken — avstängt som förval (rutorna avkodas).
     jobb = {}
     for s in M['spar']:
+        s.pop('kontroll_foll', None)
         if not s['lagg'] or s['utanfor_traning']:
             continue
         skriv = s['dom'] in ('saker', 'saker_manuell', 'baksida')
         if not skriv and not uppskatta:
             continue
         for li, lg in enumerate(s['lagen']):
+            for k in ('orb_kontroll', 'ej_skriven'):
+                lg.pop(k, None)
             jobb.setdefault(lg['ruta'], []).append((s, li, lg, skriv))
-    filer, tid = [], {'avkodning': 0.0, 'utsnitt': 0.0, 'skriva': 0.0, 'kontroll': 0.0}
+    tid = {'avkodning': 0.0, 'utsnitt': 0.0, 'skriva': 0.0, 'kontroll': 0.0}
     upp = {'filer': 0, 'byte': 0}
-    # Kontrollen att kortet är detsamma: ett läge där hela kortet syns (synlig andel ≥ 0,9, kortets form) ska
-    # fortfarande ge ORB-överens mot spårets namn (samma regel som vittne 2b). Faller den har ett annat kort
-    # hamnat exakt på samma plats (t.ex. en graveyard-hög) — lägen från och med det skrivs inte.
-    kontroll = {}
+    vantande = {}     # spår → [(läge, fil i e-tmp, post)]: flyttas till tran/ eller val/ när kontrollen är klar
+    kontroll = {}     # spår → {läge: överens True/False}
+    stopp = {}        # spår → första läget där kontrollen föll
     if jobb:
         konst = las_json(KONSTFIL) if os.path.exists(KONSTFIL) else {}
         konst['baksida'] = [dict(BAKSIDA)]
+        pool = konst.get('_pool', {})
         vf = os.path.join(mapp, 'vittnen.json')
         lek = las_json(vf)['lek'] if os.path.exists(vf) else []
-        alla_id = sorted({p['id'] for n in lek for p in konst.get(n, []) if os.path.exists(os.path.join(REF, p['id'] + '.jpg'))})
-        ref_drag = ref_orb
+        # de 20 slumpvalda ur samma lek som C:s vittne (a) — basland med poolens konstverk
+        alla_id = sorted({p['id'] for n in lek for p in (pool.get(n, []) if n in BAS else konst.get(n, []))
+                          if os.path.exists(os.path.join(REF, p['id'] + '.jpg'))})
 
         def samma_kort(s, hel4k):
-            # mot konstverket ORB valde vid lägg-ögonblicket (samma tryckning) — annars alla namnets konstverk
-            bild = (s.get('orb') or {}).get('bild') if (s.get('orb') or {}).get('overens') else None
-            egna = [bild] if bild else [p['id'] for p in konst.get(s['namn'], []) if os.path.exists(os.path.join(REF, p['id'] + '.jpg'))]
-            if not egna:
-                return None
-            ovr = sorted(set(alla_id) - set(egna))
-            andra = random.Random(int(s['id'][1:])).sample(ovr, min(20, len(ovr)))
-            fq = orb_fraga(hel4k)
-            e = max(orb_inliers(fq, ref_drag(c)) for c in egna)
-            a = max((orb_inliers(fq, ref_drag(c)) for c in andra), default=0)
-            return {'inliers': e, 'andra_bast': a, 'overens': bool(e >= 12 and e >= 2 * max(a, 6))}
+            # Kontrollen att kortet är detsamma, med vittne (b):s regel (orb_vittne, också basländernas rättvisa
+            # jämförelse) mot konstverket ORB valde vid lägg-ögonblicket — annars alla namnets konstverk.
+            ob = s.get('orb') or {}
+            egna = [ob['bild']] if ob.get('overens') and ob.get('bild') else None
+            return orb_vittne(orb_fraga(hel4k), s['namn'], konst, alla_id, int(s['id'][1:]), egna=egna)
 
         vanta_pa_golden()
         V = Video(klipp)
@@ -1727,18 +1737,20 @@ def steg_e(klipp, mapp, uppskatta=False):
             bilder = {'4k': img, '1080': ruta_1080(img)}
             for s, li, lg, skriv in jobb[ruta]:
                 lada_f = andelar(lg['lada'], W, H)
-                if skriv and kontroll.get(s['id']) is not None:
-                    lg['ej_skriven'] = f"kortet bytt? ORB föll vid {kontroll[s['id']]:.2f} s"
-                    continue
+                if skriv and s['id'] in stopp:
+                    continue   # efter en fallen kontroll skärs inget mer för spåret
                 if skriv and li > 0 and lg['synlig_andel'] >= 0.9 and lg['kortform']:
                     tk = time.time()
                     k = samma_kort(s, hel_app(img, lada_f))
                     tid['kontroll'] += time.time() - tk
                     lg['orb_kontroll'] = k
-                    if k is not None and not k['overens']:
-                        kontroll[s['id']] = lg['t']
-                        lg['ej_skriven'] = 'ORB-kontrollen föll: kortet kan vara bytt'
-                        continue
+                    if k is None:
+                        s['varning'] = s.get('varning') or f"inga konstverk för {s['namn']} — ORB-kontrollen kunde inte köras"
+                    else:
+                        kontroll.setdefault(s['id'], {})[li] = k['overens']
+                        if not k['overens']:
+                            stopp[s['id']] = li
+                            continue
                 remsa_f = andelar(lg['remsa'], W, H) if lg['remsa'] and s['klass'] != 'baksida' else None
                 kant, vinkel, metod = tecken(img, lada_f, remsa_f, M['kortkvot'])
                 lg['vinkel'], lg['vinkel_metod'] = vinkel, metod
@@ -1760,31 +1772,53 @@ def steg_e(klipp, mapp, uppskatta=False):
                             upp['byte'] += len(cv2.imencode('.jpg', c, [cv2.IMWRITE_JPEG_QUALITY, R['jpeg']])[1])
                             continue
                         rel_fil = os.path.join(del_, res, f"{s['id']}-{lg['t']:.2f}-{typ}-{utsnitt}.jpg")
-                        fil = os.path.join(mapp, rel_fil)
+                        fil = os.path.join(tmp_e, rel_fil)
                         os.makedirs(os.path.dirname(fil), exist_ok=True)
                         tw = time.time()
                         cv2.imwrite(fil, c, [cv2.IMWRITE_JPEG_QUALITY, R['jpeg']])
                         tid['skriva'] += time.time() - tw
-                        filer.append({'fil': rel_fil, 'spar': s['id'], 'lage': li, 't': lg['t'], 'namn': s['namn'], 'typ': typ,
-                                      'utsnitt': utsnitt, 'upplosning': res, 'val': s['val'], 'lada': lg['lada'], 'remsa': lg['remsa'],
-                                      'vinkel': vinkel, 'px': [int(c.shape[1]), int(c.shape[0])]})
+                        vantande.setdefault(s['id'], []).append((li, rel_fil, {
+                            'fil': rel_fil, 'spar': s['id'], 'lage': li, 't': lg['t'], 'namn': s['namn'], 'typ': typ, 'utsnitt': utsnitt,
+                            'upplosning': res, 'val': s['val'], 'lada': lg['lada'], 'remsa': lg['remsa'], 'vinkel': vinkel,
+                            'px': [int(c.shape[1]), int(c.shape[0])]}))
             tid['utsnitt'] += time.time() - tb
         V.c.release()
+    # Föll kontrollen: alla lägen efter det senast GODKÄNDA läget tas bort — också täckta lägen mellan den sista
+    # godkända helbilden och felet (kortet kan ha bytts när som helst efter den). Lägg-ögonblicket är godkänt i C.
+    filer = []
+    per_spar = {s['id']: s for s in M['spar']}
+    for sid, lista in vantande.items():
+        s = per_spar[sid]
+        sista_ok = len(s['lagen'])
+        if sid in stopp:
+            sista_ok = max([li for li, ok in kontroll.get(sid, {}).items() if ok and li < stopp[sid]], default=0)
+            s['kontroll_foll'] = s['lagen'][stopp[sid]]['t']
+            for li, lg in enumerate(s['lagen']):
+                if li > sista_ok:
+                    lg['ej_skriven'] = f"efter senast godkända läget ({s['lagen'][sista_ok]['t']:.2f} s); ORB-kontrollen föll vid {s['kontroll_foll']:.2f} s"
+        for li, rel_fil, post in lista:
+            if li > sista_ok:
+                continue
+            dst = os.path.join(mapp, rel_fil)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            os.replace(os.path.join(tmp_e, rel_fil), dst)
+            filer.append(post)
+    shutil.rmtree(tmp_e, ignore_errors=True)
     for s in M['spar']:
         s['filer'] = sum(1 for f in filer if f['spar'] == s['id'])
-        if s['id'] in kontroll:
-            s['kontroll_foll'] = kontroll[s['id']]
     byte = sum(os.path.getsize(os.path.join(mapp, f['fil'])) for f in filer)
     tid = {k: round(v, 1) for k, v in tid.items()}
     tid['totalt'] = round(time.time() - t00, 1)
     M['filer'] = filer
     M['beskar'] = {'filer': len(filer), 'mb': round(byte / 1e6, 2), 'rutor': len(jobb),
+                   'kontroller': sum(len(v) for v in kontroll.values()), 'kontroller_foll': len(stopp),
                    'om_alla_lagg_sakra': {'filer': len(filer) + upp['filer'], 'mb': round((byte + upp['byte']) / 1e6, 2)} if uppskatta else None}
     M['tid_s']['E'] = tid
     skriv_json(os.path.join(mapp, 'markning.json'), M)
     extra = (f' ({len(filer) + upp["filer"]} filer, {(byte + upp["byte"]) / 1e6:.1f} MB om alla spår med lägg-ögonblick vore säkra)'
              if uppskatta else '')
-    logg(f'E klar: {len(filer)} filer, {byte / 1e6:.1f} MB{extra} ur {len(jobb)} rutor på {tid["totalt"]} s')
+    logg(f'E klar: {len(filer)} filer, {byte / 1e6:.1f} MB{extra} ur {len(jobb)} rutor på {tid["totalt"]} s; '
+         f'ORB-kontroller {M["beskar"]["kontroller"]}, föll för {len(stopp)} spår')
     return M
 
 
