@@ -33,7 +33,7 @@ import lib  # noqa: E402
 from lib import Bildmodell, ref_strip, kvadrat, suddig, vrid  # noqa: E402
 import remsnamn  # noqa: E402
 
-NPZ = os.path.join(HAR, 'resultat', 'remsexp.npz')
+NPZ = os.environ.get('MESA_REMSEXP_NPZ', os.path.join(HAR, 'resultat', 'remsexp.npz'))   # egen fil för en annan modell (MESA_MOBILECLIP)
 GAMMAL_LEK = os.path.join(ROT, '.claude', 'worktrees', 'wf_bccb9343-ae9-3', 'dev', 'embed', 'cache', 'lek-golden.json')
 SKARNINGAR = ('app', 'b960', 'rata')
 FORBEH = ('ra', 'clahe', 'gv')

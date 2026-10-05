@@ -183,7 +183,13 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
   let serverRest = '';
   const lasServer = d => {
     serverRest += d; const rader = serverRest.split('\n'); serverRest = rader.pop();
-    for (const r of rader) { const m = r.match(/^identify\/\w+: ([45]\d\d)\b(.*)$/); if (m) { aiFel.n++; if (!aiFel.forsta) aiFel.forsta = (m[1] + m[2]).slice(0, 240); } }
+    for (const r of rader) {
+      const m = r.match(/^identify\/\w+: ([45]\d\d)\b(.*)$/); if (m) { aiFel.n++; if (!aiFel.forsta) aiFel.forsta = (m[1] + m[2]).slice(0, 240); }
+      /* Handlern gick inte att ladda alls (2026-10-05: en worktree utan node_modules — "Cannot find package
+         '@anthropic-ai/sdk'"): varje fråga kastar, sidan går tyst på den lokala kedjan, och fyra --ai-körningar
+         mätte Claude utan ett enda svar. Räknas som AI-fel, så att körningen säger ifrån och --spara vägras. */
+      const k = r.match(/^\s*(?:stub\/ai: handlern kastade|kunde inte ladda api\/identify\.js:)\s*(.*)$/); if (k) { aiFel.n++; if (!aiFel.forsta) aiFel.forsta = ('handlern: ' + k[1]).slice(0, 240); }
+    }
   };
   server.stdout.on('data', lasServer); server.stderr.on('data', lasServer);
   await tills(() => fetch(`http://localhost:${PORT}/dev/golden/kor.html`).then(r => r.ok), 10000, 'attrappen');
