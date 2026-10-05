@@ -84,6 +84,16 @@ Bildmodellen svarar på **vad** ett kort är, inte **var** det ligger. Den trän
 | Baksidor | **inte här** — detektorns baksidesklass + poolens baksida; modellen ser baksidan som ett "namn" i leken, det räcker | |
 | Dold information, handen | inte här (MES-246: handen täcker kortet, inget att läsa) | |
 
+## Detektorn: samma material, eget spår — inte i den här sessionen
+Jesper trodde att träningen gällde detektorn också (2026-10-05). Det gör den inte: detektorn (YOLOX, MES-288/329,
+`dev/detektor/tran/`) är ett annat nät med andra etiketter (lådor från OWLv2-läraren, `dev/detektor/larare/`),
+och dess lucka är en annan: av felbokens 24 namnlösa kort är **6 "ej hittad"** (5 i fall 17, ljust bord i mörker,
+1 i 18 under en token) — de 18 andra är namnmodellens. Detektorns material är därför **pass 4**, som inte är
+inspelat. Pass 2, 3 och 5 kan användas av detektorspåret senare (riktiga rutor i svårt ljus, högar), men **en
+modell i taget**: byts båda samtidigt går det inte att se vilken som gav vad i golden. Det enda märkningen gör
+för detektorn nu: spara **tidpunkterna** (inte rutorna — disk) för lägg-ögonblicken och högarna per klipp i
+JSON, så att läraren kan köras på samma rutor senare.
+
 ## Kedjan i appen (så att märkningen och mätningen stämmer med den)
 1. **Detektorn** (YOLOX 960×544 på telefonen) ger lådor: kort, remsa, baksida. Det är "var".
 2. **Hela kortet:** `Kamera.beskar` skär kortet ur den fulla videobilden (förval 4K i spel; golden 13/18 är
