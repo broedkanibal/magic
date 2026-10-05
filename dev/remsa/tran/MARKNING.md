@@ -12,8 +12,16 @@ $PY dev/remsa/tran/namn.py               # en gång: Scryfalls namnlista (oracle
 $PY dev/remsa/tran/mark.py forbered      # en gång, bara nätet: 200 slumpnamn + basland + bilder
 $PY dev/remsa/tran/mark.py pass dev/material/2026-10-04-traning-svartmatta-taklampa   # klipp 1, 2, 3 + rapport
 $PY dev/remsa/tran/mark.py klipp <fil.MOV> --fran 0 --till 30   # ett klipp; ett utsnitt får egen mapp (_0-30s)
+$PY dev/remsa/tran/mark.py tel <klippmapp>   # telefonens kvalitet efter E (pass/klipp: --tel)
 $PY dev/remsa/tran/mark.py rapport <passmapp>
 ```
+
+**Telefonens kvalitet (steg T):** klippet kodas om EN gång till `tel.mp4` — 1920 × 1080, H.264 1500 kbit/s
+(`-b:v 1500k -maxrate 1500k -bufsize 3000k -preset medium -g 60 -pix_fmt yuv420p`, som golden 13/18), ingen
+ljudström, varje källruta en utruta — med ffmpeg ur imageio-ffmpeg. Cachad i `tel.json` (storlek + källa).
+Sedan skärs exakt de utsnitt E skrev i 1080 (samma lägen, samma lådor i andelar, samma vridning) ur
+`tel.mp4` till `tran/tel/` och `val/tel/` — 1080 och tel är pixelparallella. En synkkontroll mot 4K-rutan vid
+klippets mest rörliga prov bekräftar att tel-ruta j = källruta i0 + j. E gör tel inaktuell (`tel_beskar: null`).
 
 Ett steg körs inte om när dess utdata finns: `--om B,C,E` (eller `--om` = alla) tvingar, och ett steg som
 körts gör de följande inaktuella. 4K avkodas helt bara i A. C tar lägg-ögonblickets hel/app-utsnitt ur
@@ -35,6 +43,7 @@ install` i `dev/remsa` behövs bara för `--ocr`.
 | `utsnitt/4k/`, `claude/svar.json` | C | cachen: hel/app-utsnitten i 4K (nyckel: ruta + låda) och Claudes riktiga svar (fel cachas inte) |
 | `vittnen.json`, `markning.json` | C, E | Claude, (a) modellen, (b) ORB per spår; dom, namn, `utanfor_traning`, `val`, lägen, filer. `beskar: null` = E inaktuell |
 | `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata>.jpg`, kvalitet 95. C tömmer dem; E skriver om |
+| `tel.mp4`, `tel.json`, `tran/tel/`, `val/tel/` | T | telefonkodat klipp och samma utsnitt som 1080 ur det; filerna i `markning.json` med `variant: 'tel'` |
 | `osaker/4k/`, `slangd/4k/` | C | 4K-utsnittet för osäkra och slängda-med-lägg — huvudsessionens ögon, inte träning |
 | `facit-manuell.json` | (hand) | `{"<spår>": "<namn>" | null}` efter en titt på `osaker/4k` — namn ger `saker_manuell`, null slänger (också ett säkert); måste vara nyare än `spar.json` |
 | `montage.jpg` | F | per spår: lägg-ögonblicket och det sista sparade läget i 1080, med Claudes namn och domen |

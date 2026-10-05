@@ -1762,7 +1762,7 @@ def steg_e(klipp, mapp, uppskatta=False):
                          f"{len(set(saknas))} spår — kör om från B: mark.py klipp <fil.MOV> --om B")
     # Först markning.json utan filer (beskar: null = E inaktuell), sedan bort med de gamla — ett avbrott lämnar
     # aldrig en lista som pekar på borttagna filer (granskningen av fe2d291).
-    M['beskar'], M['filer'] = None, []
+    M['beskar'], M['filer'], M['tel_beskar'] = None, [], None   # E:s filer och därmed tel:s är inaktuella
     skriv_json(os.path.join(mapp, 'markning.json'), M)
     tmp_e = os.path.join(mapp, 'e-tmp')
     for d in ('tran', 'val', 'e-tmp'):
@@ -1831,7 +1831,7 @@ def steg_e(klipp, mapp, uppskatta=False):
                             continue
                 remsa_f = andelar(lg['remsa'], W, H) if lg['remsa'] and s['klass'] != 'baksida' else None
                 kant, vinkel, metod = tecken(img, lada_f, remsa_f, M['kortkvot'])
-                lg['vinkel'], lg['vinkel_metod'] = vinkel, metod
+                lg['vinkel'], lg['vinkel_metod'], lg['kant'] = vinkel, metod, kant
                 sned = rata_galler(lg['snedhet']) and kant is not None
                 del_ = 'val' if s['val'] else 'tran'
                 skriv_hel = lg['skriv_hel']
@@ -1900,6 +1900,152 @@ def steg_e(klipp, mapp, uppskatta=False):
              if uppskatta else '')
     logg(f'E klar: {len(filer)} filer, {byte / 1e6:.1f} MB{extra} ur {len(jobb)} rutor på {tid["totalt"]} s; '
          f'ORB-kontroller {M["beskar"]["kontroller"]}, föll för {len(stopp)} spår')
+    return M
+
+
+# ── steg T: telefonens kvalitet ──────────────────────────────────────────────
+# Modellen tränar på det telefonen skickar i spel: 1080p, H.264, 1500 kbit/s (golden 13/18:s kodning). Klippet
+# kodas om EN gång (tel.mp4, cachad via tel.json), och samma lägen och lådor som E skrev i 1080 skärs ur den —
+# lådorna i andelar, så att 1080 (ren nedskalning av 4K-rutan) och tel (telefonkodad) är pixelparallella.
+TEL_ARGS = ['-c:v', 'libx264', '-b:v', '1500k', '-maxrate', '1500k', '-bufsize', '3000k', '-preset', 'medium',
+            '-g', '60', '-pix_fmt', 'yuv420p']
+TEL_KBIT = 1500
+
+
+def ffmpeg_exe():
+    import imageio_ffmpeg
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def koda_tel(klipp, mapp, fran, till):
+    """tel.mp4: klippet (eller utsnittet fran–till) i 1920 × 1080, H.264 1500 kbit/s, ingen ljudström, varje
+    källruta en utruta (-fps_mode passthrough: rutnumren följer källans, 30 b/s som den). Cachad: tel.json med
+    storleken; stämmer den och källan, kodas inget om."""
+    krav_traning(klipp)
+    fil, jf = os.path.join(mapp, 'tel.mp4'), os.path.join(mapp, 'tel.json')
+    nyckel = {'kalla': rel(klipp), 'fran': fran or 0, 'till': till, 'args': TEL_ARGS, 'skala': '1920x1080'}
+    if os.path.exists(fil) and os.path.exists(jf):
+        info = las_json(jf)
+        if info.get('byte') == os.path.getsize(fil) and all(info.get(k) == v for k, v in nyckel.items()):
+            logg(f'T: {rel(fil)} finns ({info["byte"] / 1e6:.1f} MB, kodad på {info["kodad_s"]} s) — kodas inte om')
+            return info
+    vanta_pa_golden()
+    exe = ffmpeg_exe()
+    tmp = fil + '.tmp.mp4'
+    cmd = [exe, '-hide_banner', '-loglevel', 'error', '-y']
+    if fran:
+        cmd += ['-ss', f'{fran:.3f}']
+    cmd += ['-i', klipp]
+    if till is not None:
+        cmd += ['-t', f'{till - (fran or 0):.3f}']
+    cmd += ['-an', '-vf', 'scale=1920:1080', '-fps_mode', 'passthrough'] + TEL_ARGS + [tmp]
+    t0 = time.time()
+    subprocess.run(cmd, check=True)
+    kodad_s = round(time.time() - t0, 1)
+    os.replace(tmp, fil)
+    c = cv2.VideoCapture(fil)
+    n, fps = int(c.get(cv2.CAP_PROP_FRAME_COUNT)), float(c.get(cv2.CAP_PROP_FPS))
+    c.release()
+    version = subprocess.run([exe, '-version'], capture_output=True, text=True).stdout.splitlines()[0]
+    info = dict(nyckel, fil=rel(fil), kbit=TEL_KBIT, kodad_s=kodad_s, byte=os.path.getsize(fil), n_rutor=n, fps=fps, ffmpeg=version,
+                sek_video=round(n / fps, 2) if fps else None)
+    skriv_json(jf, info)
+    logg(f'T: kodade {n} rutor ({info["sek_video"]} s video) på {kodad_s} s → {rel(fil)}, {info["byte"] / 1e6:.1f} MB')
+    return info
+
+
+def steg_tel(mapp):
+    t00 = time.time()
+    mf = os.path.join(mapp, 'markning.json')
+    M = las_json(mf)
+    if not M.get('beskar'):
+        raise SystemExit(f'{rel(mf)}: E har inte körts (beskar saknas) — kör E först')
+    saknas = [s['id'] for s in M['spar'] if s.get('lagg') for lg in s['lagen'] if 'skriv_remsa' not in lg or 'skriv_hel' not in lg]
+    if saknas:
+        raise SystemExit(f'{rel(mf)} saknar spärrfälten för {len(set(saknas))} spår — kör om från B')
+    klipp = os.path.join(ROT, M['klipp'])
+    D = las_json(os.path.join(mapp, 'detektioner.json'))
+    i0 = D['i0']
+    info = koda_tel(klipp, mapp, M.get('fran'), M.get('till'))
+    W, H = M['W'], M['H']
+    # Ta bort en tidigare T-körning (filer och poster), behåll E:s
+    for d in ('tran', 'val'):
+        shutil.rmtree(os.path.join(mapp, d, 'tel'), ignore_errors=True)
+    M['filer'] = [f for f in M['filer'] if f.get('upplosning') != 'tel']
+    per_spar = {s['id']: s for s in M['spar']}
+    jobb = {}
+    for f in M['filer']:
+        if f['upplosning'] != '1080':
+            continue
+        lg = per_spar[f['spar']]['lagen'][f['lage']]
+        jobb.setdefault(lg['ruta'], []).append((f, per_spar[f['spar']], lg))
+    T = Video(os.path.join(mapp, 'tel.mp4'))
+    # Synkkontroll: tel-rutan j ska vara källrutan i0 + j (-fps_mode passthrough). Prövas en gång mot 4K-rutan
+    # (nedskalad som 1080) för förskjutningarna −2…+2, vid det prov i klippet där något rör sig mest (en hand) —
+    # i en stilla ruta är grannrutorna lika och MSE säger ingenting (provet: 5,33/5,31/5,33). En förskjutning
+    # ≠ 0 används bara när den är klart bättre (MSE < 0,7 × MSE vid 0).
+    forskj, mse, r0 = 0, None, None
+    if jobb:
+        rorligt = [(max((p.get('ror') or 0) for p in s_['par']), s_['ruta']) for s_ in D['rutor']
+                   if s_.get('par') and 2 <= s_['ruta'] - i0 < T.n - 2]
+        rorligt = [x for x in rorligt if x[0] >= 10]
+        r0 = max(rorligt)[1] if rorligt else min(jobb)
+        vanta_pa_golden()
+        V = Video(klipp)
+        ref = cv2.cvtColor(ruta_1080(V.ruta(r0)), cv2.COLOR_BGR2GRAY).astype(np.float32)
+        V.c.release()
+        mse = {}
+        for d in range(-2, 3):
+            j = r0 - i0 + d
+            if 0 <= j < T.n:
+                g = cv2.cvtColor(T.ruta(j), cv2.COLOR_BGR2GRAY).astype(np.float32)
+                mse[d] = round(float(((g - ref) ** 2).mean()), 2)
+        bast = min(mse, key=mse.get)
+        forskj = bast if (bast != 0 and 0 in mse and mse[bast] < 0.7 * mse[0]) else 0
+        logg(f'T: synk vid ruta {r0}{" (rörelse)" if rorligt else " (stilla — säger lite)"}: förskjutning {forskj} (MSE {mse})')
+    nya, fel_matt = [], 0
+    for ruta in sorted(jobb):
+        j = ruta - i0 + forskj
+        if not (0 <= j < T.n):
+            continue
+        img = T.ruta(j)
+        if img.shape[:2] != (H // 2, W // 2):
+            img = cv2.resize(img, (W // 2, H // 2), interpolation=cv2.INTER_AREA)
+        for f, s, lg in jobb[ruta]:
+            lada_f = andelar(lg['lada'], W, H)
+            remsa_f = andelar(lg['remsa'], W, H) if lg['remsa'] else None
+            vk = lg.get('vinkel')
+            kant = lg.get('kant', (vk if vk >= 0 else vk + 180) if vk is not None else None)
+            typ, ut = f['typ'], f['utsnitt']
+            if typ == 'hel' and ut == 'app':
+                c = hel_app(img, lada_f)
+            elif typ == 'hel' and ut == 'rata':
+                c = hel_rata(img, lada_f, remsa_f, kant, M['kortkvot'])
+            elif typ == 'remsa' and ut == 'app':
+                c = remsa_app(img, lada_f, remsa_f)
+            else:
+                c = rata(img, lada_f, remsa_f, med_vinkel=True, kant=kant)[0]
+            if c is None:
+                continue
+            if [int(c.shape[1]), int(c.shape[0])] != f['px']:
+                fel_matt += 1
+            rel_fil = f['fil'].replace(os.sep + '1080' + os.sep, os.sep + 'tel' + os.sep)
+            dst = os.path.join(mapp, rel_fil)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            cv2.imwrite(dst, c, [cv2.IMWRITE_JPEG_QUALITY, R['jpeg']])
+            nya.append(dict(f, fil=rel_fil, upplosning='tel', variant='tel', px=[int(c.shape[1]), int(c.shape[0])],
+                            tel_ruta=j, kbit=TEL_KBIT))
+    T.c.release()
+    M['filer'] += nya
+    for s in M['spar']:
+        s['filer_tel'] = sum(1 for f in nya if f['spar'] == s['id'])
+    byte = sum(os.path.getsize(os.path.join(mapp, f['fil'])) for f in nya)
+    M['tel'] = {k: info[k] for k in ('fil', 'kbit', 'kodad_s', 'byte', 'n_rutor', 'fps', 'sek_video', 'ffmpeg')}
+    M['tel_beskar'] = {'filer': len(nya), 'mb': round(byte / 1e6, 2), 'forskjutning': forskj, 'synk_ruta': r0, 'synk_mse': mse,
+                       'fel_matt_mot_1080': fel_matt, 'tid_s': round(time.time() - t00, 1)}
+    skriv_json(mf, M)
+    logg(f'T klar: {len(nya)} filer, {byte / 1e6:.2f} MB ur {len(jobb)} rutor (förskjutning {forskj}, '
+         f'{fel_matt} med andra mått än 1080) på {M["tel_beskar"]["tid_s"]} s')
     return M
 
 
@@ -2022,8 +2168,11 @@ def rapport(passmapp, bara=None):
                 f"{sum(1 for s in lang if not s['lagg'])} utan lägg-ögonblick, {sum(1 for s in M['spar'] if s['lagg'] and s['dom'] == 'slangd')} utan vittne) · "
                 f"baksidor {c['baksida']} · ofrågade {c['ofragad']} · utanför träning {utanfor} · val {val}", '',
                 f"Tid: {tider}. Disk: beskärningar {bmb:.1f} MB ({len(M['filer'])} filer" + (f"; {bmb_alla:.1f} MB om alla spår med lägg-ögonblick blev säkra" if mätt else '') + f"), hela mappen {mb:.1f} MB. "
-                f"Montage: `{rel(mont) if mont else '–'}`", '',
-                '| spår | lägg (s) | Claude (namn · säker · frågor) | (a) modellen hel · remsa (topp-1, marginal) | (b) ORB inliers namn / bästa andra | dom | varför | lägen | filer |',
+                f"Montage: `{rel(mont) if mont else '–'}`. "
+                + (f"Telefonens kvalitet: {M['tel_beskar']['filer']} filer, {M['tel_beskar']['mb']:.1f} MB; tel.mp4 {M['tel']['byte'] / 1e6:.1f} MB, "
+                   f"kodad på {M['tel']['kodad_s']} s ({M['tel']['kodad_s'] / max(1e-6, M['tel']['sek_video']) * 60:.0f} s per minut video)."
+                   if M.get('tel_beskar') and M.get('tel') else 'Telefonens kvalitet: inte körd.'), '',
+                '| spår | lägg (s) | Claude (namn · säker · frågor) | (a) modellen hel · remsa (topp-1, marginal) | (b) ORB inliers namn / bästa andra | dom | varför | lägen | filer / tel |',
                 '|---|---|---|---|---|---|---|---|---|']
         for s in sorted(lang, key=lambda s: s['start']):
             cl = s.get('claude') or {}
@@ -2038,7 +2187,7 @@ def rapport(passmapp, bara=None):
             bt = (f"{ob['inliers']} / {ob['andra_bast']}" + (' ✓' if ob['overens'] else '')) if ob else '–'
             rad.append(f"| {s['id']} | {s['lagg']['t']:.1f} | {ct} | {at} | {bt} | "
                        f"**{s['dom']}**{' (utanför)' if s.get('utanfor_traning') else ''}{' (val)' if s.get('val') else ''} | {s['varfor']} | "
-                       f"{len(s['lagen'])} | {s.get('filer', 0)} |" if s['lagg'] else
+                       f"{len(s['lagen'])} | {s.get('filer', 0)} / {s.get('filer_tel', 0)} |" if s['lagg'] else
                        f"| {s['id']} | – ({s['start']:.1f}–{s['slut']:.1f}) | – | – | – | **{s['dom']}** | {s['varfor']} | 0 | 0 |")
         rad.append('')
         varn = [(s['id'], s['varning']) for s in M['spar'] if s.get('varning')]
@@ -2089,7 +2238,7 @@ STEG = ['A', 'B', 'C', 'E']
 UTFIL = {'A': 'detektioner.json', 'B': 'spar.json', 'C': 'markning.json', 'E': None}
 
 
-def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=False):
+def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=False, tel=False):
     klipp = os.path.abspath(klipp)
     krav_traning(klipp)
     mapp = klippmapp(klipp, fran, till)
@@ -2116,12 +2265,18 @@ def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=
         elif k == 'E':
             steg_e(klipp, mapp, uppskatta=uppskatta)
         tvinga = True   # ett steg som kördes gör de följande inaktuella
+    if tel:
+        M = las_json(os.path.join(mapp, 'markning.json')) if os.path.exists(os.path.join(mapp, 'markning.json')) else {}
+        if tvinga or 'T' in om or not M.get('tel_beskar'):
+            steg_tel(mapp)
+        else:
+            logg('T: finns redan — hoppar över (--om T tvingar)')
     return mapp
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('kommando', choices=['klipp', 'detektera', 'spar', 'namn', 'beskar', 'pass', 'rapport', 'forbered'])
+    p.add_argument('kommando', choices=['klipp', 'detektera', 'spar', 'namn', 'beskar', 'tel', 'pass', 'rapport', 'forbered'])
     p.add_argument('mal', nargs='?', default='', help='klippet (.MOV) eller passmappen')
     p.add_argument('--fran', type=float, default=0.0)
     p.add_argument('--till', type=float, default=None)
@@ -2129,10 +2284,14 @@ def main():
     p.add_argument('--ocr', action='store_true', help='C: textläsaren också (bara upplysning, påverkar inte domen)')
     p.add_argument('--utan-avkodning', action='store_true', help='C: bara utsnitt som redan finns; en andra fråga som kräver avkodning hoppas över')
     p.add_argument('--bara', default=None, help='rapport: bara klippmappar vars namn innehåller detta (t.ex. _0-30s); skriver rapport_<bara>.md')
+    p.add_argument('--tel', action='store_true', help='klipp/pass: efter E också telefonens kvalitet (tel.mp4, 1080p H.264 1500 kbit/s, tran/tel/)')
     p.add_argument('--uppskatta', action='store_true', help='E: mät också hur många MB de osäkra spåren skulle ge (avkodar deras rutor)')
     a = p.parse_args()
-    flaggor = {'ocr_pa': a.ocr, 'avkoda': not a.utan_avkodning, 'uppskatta': a.uppskatta}
-    om = set(STEG) if a.om == 'alla' else {x.strip().upper() for x in a.om.split(',') if x.strip()}
+    flaggor = {'ocr_pa': a.ocr, 'avkoda': not a.utan_avkodning, 'uppskatta': a.uppskatta, 'tel': a.tel}
+    om = set(STEG) | {'T'} if a.om == 'alla' else {x.strip().upper() for x in a.om.split(',') if x.strip()}
+    if a.kommando == 'tel':
+        # mal = klippmappen (dev/material/arbete/markning/<pass>/<klipp>); kodningen cachas i tel.json
+        steg_tel(os.path.abspath(a.mal)); return
     if a.kommando == 'rapport':
         rapport(a.mal, a.bara); return
     if a.kommando == 'forbered':
