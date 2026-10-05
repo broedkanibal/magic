@@ -32,35 +32,48 @@ install` i `dev/remsa` behövs bara för `--ocr`.
 |---|---|---|
 | `detektioner.json` | A | per prov (var 6:e ruta): kortlådor, remsor, par, rörelsemått mot föregående och nästa prov — 4K-bildpunkter |
 | `spar.json`, `tidpunkter.json` | B | spåren, lägg-ögonblicken, lägena att spara; lägg och högar åt detektorspåret |
-| `utsnitt/4k/`, `claude/svar.json` | C | cachen: hel/app-utsnitten i 4K och Claudes hela svar (token in/ut per fråga) |
-| `vittnen.json`, `markning.json` | C, E | Claude, (a) modellen, (b) ORB per spår; dom, namn, `utanfor_traning`, `val`, lägen, filer |
-| `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata>.jpg`, kvalitet 95 |
+| `utsnitt/4k/`, `claude/svar.json` | C | cachen: hel/app-utsnitten i 4K (nyckel: ruta + låda) och Claudes riktiga svar (fel cachas inte) |
+| `vittnen.json`, `markning.json` | C, E | Claude, (a) modellen, (b) ORB per spår; dom, namn, `utanfor_traning`, `val`, lägen, filer. `beskar: null` = E inaktuell |
+| `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata>.jpg`, kvalitet 95. C tömmer dem; E skriver om |
 | `osaker/4k/`, `slangd/4k/` | C | 4K-utsnittet för osäkra och slängda-med-lägg — huvudsessionens ögon, inte träning |
-| `montage.jpg` | F | lägg-ögonblicket i 1080 per spår med Claudes namn och domen — stickprovet |
+| `facit-manuell.json` | (hand) | `{"<spår>": "<namn>" | null}` efter en titt på `osaker/4k` — ger `saker_manuell`; måste vara nyare än `spar.json` |
+| `montage.jpg` | F | per spår: lägg-ögonblicket och det sista sparade läget i 1080, med Claudes namn och domen |
 
 ## Domen
 
 | Dom | När |
 |---|---|
-| `saker` | Claude säker på ett namn som finns i listan **och** (a) bildmodellens topp-1 (hel eller remsa) är namnet **eller** (b) ORB: ≥ 12 inliers mot namnets Scryfall-bild och ≥ 2× bästa av 20 slumpvalda |
+| `saker` | Claude ger ett namn i listan och **antingen** säker + (a) eller (b), **eller** osäker + (b). (a) = bildmodellens topp-1 är namnet (hela kortet; remsan räknas bara för icke-basland). (b) = ORB ≥ 12 inliers mot namnets konstverk och ≥ 2 × max(bästa av 20 slumpvalda, 6); för basland också mot lika många konstverk av de andra basländerna |
+| `saker_manuell` | namnet ur `facit-manuell.json` (finns i listan); E skriver som för `saker` |
 | `baksida` | Claude säger baksida **och** detektorns klass baksida (eller modellen har baksidan överst) |
-| `osaker` | Claude gav ett namn men inget andra vittne, eller namnet är osäkert / inte i listan (tokens) |
-| `slangd` | Claude utan namn (högst två frågor; den andra på nästa stilla läge med synlig andel ≥ 0,95), eller inget lägg-ögonblick |
+| `osaker` | Claude gav ett namn men inget andra vittne som räcker, eller namnet är inte i listan / ett tokennamn |
+| `slangd` | Claude utan namn (högst två frågor), eller inget lägg-ögonblick |
+| `ofragad` | Claude-frågan gav fel efter tre försök, eller utsnittet saknas — frågas igen nästa körning |
 
 Namnet normaliseras: exakt (gemener, apostrofer; en sida → kortets hela namn), annars Dice ≥ 0,9 mot ett
-entydigt namn. Claude får en egen kort fråga utan systemprompt — appens systemprompt rörs inte.
+entydigt namn; ett tokennamn ("Blood", "Treasure") blir aldrig ett kortnamn, inte heller via en sida.
+Claude får en egen kort fråga utan systemprompt — appens systemprompt rörs inte. E kontrollerar varje
+läge där hela kortet syns med ORB mot lägg-ögonblickets konstverk; faller den skrivs inga fler lägen
+(ett annat kort kan ha lagts exakt på samma plats).
 
 ## Där koden preciserar specen
 
+- **Spårningen:** ett spår fortsätter bara på samma låda (IoU ≥ 0,9) eller en innesluten (≥ 0,9, kortet blir
+  täckt). En låda som växer eller flyttar sig är ett nytt spår — annars tog det undre kortet i en hög över
+  det övres låda och namn (granskningen, sim_hog.py).
+- **Basland i kandidatleken:** alla unika konstverk (alla år, alla ramar, ~390 per typ, 1 952 bilder) —
+  Jespers land är andra tryckningar än poolens year ≥ 2021.
 - **ORB efter kontrastutjämning (CLAHE)** på fråga och referens: utan den 0 inliers på provets mörka och
-  blänkande kort (33 och 29 nyckelpunkter); med den 14–52 mot rätt namn, högst 8 mot fel namn.
+  blänkande kort; med den 14–52 mot rätt namn, högst 8 mot fel namn.
 - **Kortets form mäts i klippet** (`kortkvot`, ± 7 %): 1,342 i provet; med fasta 1,40 föll en tredjedel av
   de stilla korten. Snett liggande kort jämförs med lådan ett snett kort ger.
 - **Remslådan lånas inom stillheten** (inom 1 s, samma låda IoU ≥ 0,9) när provet saknar den.
 - **Lutningens tecken** ur kortets kanter när lådan är hela kortet; annars `remsnamn.rata`.
 - **Lägena** sparas bara i lugna prov; **i hög** även kant i kant när kortet är delvis täckt; **högar**
   < 1 s räknas inte; **validering** med hash (samma namn på samma sida i alla pass).
-- **Namnlistan** utan Jumpstarts framsideskort (`front_card`: "Treasure", "Spirit" — heter som tokens).
+- **Namnlistan:** utan tokens, emblem, framsideskort (`front_card`) och Alchemy ("A-"), men MED kort vars
+  representativa tryckning är digital (Black Lotus, Dwarven Ruins); 34 612 namn, 1 101 tokennamn.
+- **Rapporten:** utsnitt (`_0-30s`) visas men räknas inte i passets summor; `--bara` skriver en egen rapport.
 - **Scryfall:** User-Agent utan mejladress; högst 10 frågor/s.
 
 ## Kända gränser (provet: pass 2 klipp 1, 0–30 s)
