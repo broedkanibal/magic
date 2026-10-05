@@ -1,7 +1,7 @@
 # Telefonprovet för sida 5 (MES-334)
 
-> Skrivet 2026-10-05 för när sida 5 är ute. **Sida 5 är inte ute än**: den stoppades av fall 05 med Claude
-> (`hogarna-resultat.md`, *Där det stannade*). Listan gäller när grenen `mes-334-sida5` är ihopslagen.
+> Skrivet 2026-10-05. **Sida 5 är ute** sedan kvällen den 5 oktober (grenen `mes-334-sida5` ihopslagen med
+> main efter rättelse 4 av fall 05 med Claude, se `hogarna-resultat.md`). Listan gäller produktionen.
 
 Prova i **Mirror my table** med telefonen i hållaren som vanligt. Börja med ett tomt bord. Allt nedan är provat i bänken och golden, men inget är provat på riktig telefon.
 

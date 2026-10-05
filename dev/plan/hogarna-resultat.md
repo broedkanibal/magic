@@ -4,9 +4,9 @@
 > [`prompt-hogarna-matning-och-etapp-1.md`](prompt-hogarna-matning-och-etapp-1.md) från 05:20 den 4 oktober
 > till natten mot den 5 oktober. Alla agenter körde på Opus 5.5. Steg 4–6 byggdes den 5 oktober i en ny,
 > snålare session ([`prompt-hogarna-steg-4-6.md`](prompt-hogarna-steg-4-6.md)).
-> **Läget 2026-10-05 kl. 20:** steg 1 och 2 ligger på main och är ute. Steg 3–6 är byggda, granskade i tre varv
-> och gröna i bänken och i lokal golden, men **inte ihopslagna**: golden med Claude ger ett säkert fel namn i
-> fall 05 som main inte ger (avsnittet *Där det stannade*). Allt ligger på grenen `mes-334-sida5` (6002cd0, pushad).
+> **Läget 2026-10-05 kl. 23: sida 5 är ute.** Fall 05 med Claude var ett hål i helbildens antalsregel som fanns på
+> main också (rättelse 4 och 4b, avsnittet *Fall 05 med Claude: orsaken och rättelsen*). Grenen `mes-334-sida5`
+> är ihopslagen med main och pushad; telefonprovet står i [`hogarna-telefonprov.md`](hogarna-telefonprov.md).
 
 ## Sammanfattning
 
@@ -16,8 +16,9 @@
 | **0 · Baslinjen** | ✅ Klar | `dev/material/arbete/2026-10-04-hogarna-matning/baslinje.md` (lokalt) |
 | **1 · Vinkeln per kort** | ✅ På main, ute | e138dae (ovanpå en annan sessions "minnet av remsor steg 3", 261803e) |
 | **2 · Mattan ritas inte om från noll** | ✅ På main, ute | 5da8fc0 |
-| **3 · Leken** | Byggt och granskat, **inte på main** | grenen `mes-334-sida5` (omlagd på main, 6002cd0) |
-| **4 · Graveyard, 5 · Högarna bland korten, 6 · Steg 4 bort** | Byggda och granskade i tre varv, **inte på main** | samma gren; stoppade av fall 05 med Claude |
+| **3 · Leken** | ✅ På main, ute | grenen `mes-334-sida5`, ihopslagen 2026-10-05 |
+| **4 · Graveyard, 5 · Högarna bland korten, 6 · Steg 4 bort** | ✅ På main, ute | samma gren, fyra rättelser efter granskning |
+| **Rättelse 4 · Helbildens namn lyder lekens antal** | ✅ På main, ute | c1ac468 + 8639a8a — hålet som fall 05 med Claude hittade, fanns på main också |
 
 ## Grindarna
 
@@ -124,7 +125,49 @@ rättelserna. Detaljerna, med funktionsnamn: `dev/material/arbete/2026-10-04-hog
 | **Med Claude, 01–17** | 93/109 rätt (var 92), **1 fel namn i 05** (var 0) |
 | Med Claude, 18 | 4/10 (var 3), 0 fel namn |
 
-## Där det stannade: fall 05 med Claude (2026-10-05 kl. 20)
+## Fall 05 med Claude: orsaken och rättelsen (2026-10-05 kl. 20–23)
+
+**Orsaken** var två hål i `tillampaHelbild` (Kamera-modulen), identiska på main och grenen:
+
+1. **Lekens antal prövades bara för nya spår ur helbilden.** Ett eget, osäkert spår som helbilden namngav fick
+   namnet säkert utan att antalet räknades. I 05 är #1 (Pacifism) osäkert efter klungan "Scourge, Pacifism", och
+   Claudes Scourge-punkt gav det Scourge säkert — fast #6 redan var säkert Scourge ur remsan och leken har ett.
+2. **Punkten i flera lådor tog det första spåret i listan.** #1 och #6 ligger omlott; Scourge-punkten låg i båda,
+   och #1 kom först.
+
+Ingen av misstankarna i avsnittet nedan höll: helbildens funktioner, lådorna och bilden till Claude var identiska
+på main och grenen i alla 24 körningar. Det som skilde var Claudes punkt från gång till gång. 0 av 6 på main mot
+8 av 19 efter steg 3 går inte att skilja från slumpen (~4 %), så steg 3 är varken fällt eller friat — hålet fanns
+på main och är nu stängt där med.
+
+**Rättelsen** (c1ac468, granskad; granskningens fynd rättade i 8639a8a): `farSakert()` räknar de säkra spår
+som bär namnet (egna, förra helbildens — också innan de känts igen — och omgångens nya, utom spåret som prövas,
+inte spår på väg bort) mot `cb.lekTak`, på alla tre vägarna: eget spår, förra helbildens spår och nytt spår. Ett
+namn utöver antalet blir osäkert ("fler än leken") och går till granskningen. Punkten i flera lådor tar spåret
+som redan bär namnet (säkert före gissat), sedan ett spår utan säkert namn, sedan det första; ett spår tar en
+punkt per omgång. Vägen går genom `cb.lekTak` i stället för appens globaler, så att bänken kan pröva regeln:
+HB0–HB5 i `dev/kamerabank.cjs` (248 OK). Granskaren (en fristående agent, ~30 min) fann inget blockerande;
+de tre viktiga fynden (förra helbildens spår räknades sent, ett klart säkert spår kunde ta punkten, bänken
+skilde inte namnregeln från antalsregeln) är rättade och har egna bänkfall.
+
+**Mätt på det sammanslagna läget** (8639a8a = main 62202b2 + grenen, profilen golden-tmp, port 8271, pool 168,
+bildmodellen från HuggingFace = appens förval):
+
+| Prov | Resultat |
+|---|---|
+| **Fall 05 med Claude** | **6 av 6 körningar 0 fel namn, 6/6 rätt** (3 på rättelse 4, 3 på 4b) — helbilden ger Pacifism rätt varje gång; före: säkert fel i 8 av 19 |
+| `dev/kolla.sh` | grön (kamerabänken 248) |
+| Golden lokalt 01–18 | 95/119, 0 fel namn, falska 1 → 1 — som main |
+| Med Claude 01–17 | **96/109** (var 92 i baslinjen, 93 i byggarens mätning), 0 fel namn, 0 falska; 13: 4 → 5, 14: 8 → 10, 15: 9 → 10 |
+| Med Claude 18 | 4/10 (var 3), 0 fel namn |
+| Sämre mot baslinjen | bara lägesuppdateringar (13, 18) och en falsk tap-flipp i 13 — videofall som varierar |
+
+**Fälla på vägen:** mätträdet i scratchpaden saknade `node_modules`, så de tre första "0 fel"-körningarna var
+den lokala kedjan utan Claude (5/6, `helbild: null`). kor.cjs säger det bara i en VARNING-rad sist i utskriften.
+Läs den raden och `namnViaAi` i JSON före varje slutsats ur en `--ai`-körning; i en ny worktree: symlänka
+`.env.local`, `dev/material`, `node_modules`, `dev/embed/modeller` och `dev/embed/cache`.
+
+### Så såg det ut när det stannade (2026-10-05 kl. 20)
 
 **Felet:** Pacifism (spår 1, hög B ovanpå/under Scourge of the Undercity) blir säkert **Scourge of the Undercity**
 via helbilden (`varfor: helbild`) — fast spår 6 redan är säkert Scourge ur remsan. Kortets egen fråga ger klungan
