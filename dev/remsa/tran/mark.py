@@ -1337,9 +1337,6 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     tid = {'avkodning': 0.0, 'utsnitt': 0.0, 'claude': 0.0, 'textlasaren': 0.0, 'referenser': 0.0, 'modellen': 0.0, 'orb': 0.0}
     udir = os.path.join(mapp, 'utsnitt', '4k')
     os.makedirs(udir, exist_ok=True)
-    # domarna kan ändras: beskärningarna från en tidigare E hör inte längre till markning.json
-    for d in ('tran', 'val'):
-        shutil.rmtree(os.path.join(mapp, d), ignore_errors=True)
     V = [None]
 
     def utsnitt(s, lg):
@@ -1632,6 +1629,10 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     A = las_json(os.path.join(mapp, 'detektioner.json'))
     M['tid_s']['A'] = A['tid_s']
     M['fran'], M['till'] = A['fran'], A['till']
+    # Domarna kan ha ändrats: beskärningarna från en tidigare E hör inte längre till markning.json. De tas bort
+    # i samma ögonblick som den nya markning.json skrivs (beskar: null) — avbryts C tidigare står det gamla kvar helt.
+    for d in ('tran', 'val'):
+        shutil.rmtree(os.path.join(mapp, d), ignore_errors=True)
     skriv_json(os.path.join(mapp, 'markning.json'), M)
     c = {}
     for s in M['spar']:
