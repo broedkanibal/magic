@@ -18,8 +18,14 @@ En session, utan orkestrerare. Kör `paborjaIssue('MES-334')` först. Utredninge
    påverka helbilden i 05 (misstanke 1: tidpunkten).
 2. **Rättelsen** på `mes-334-sida5`, med ett bänkfall i `dev/kamerabank.cjs` (helbilden ger inte ett andra
    säkert namn som leken bara har ett av, om det är orsaken).
-3. **Fall 05 med Claude, sex körningar på rättelsen och tre på main, om växlande** (Jespers ja till de extra
-   `--ai`-körningarna gäller fall 05). Krav: 0 fel. Dessutom 18 med Claude en gång. Ändras helbildens väg på
+3. **Fall 05 med Claude.** Claude svarar olika från gång till gång, så en enda ren körning bevisar ingenting:
+   den felande koden gav fel i ~4 av 10 körningar.
+   - **Rättelsen är en fast regel som bänken bevisar**, till exempel att helbildens svar aldrig kan ge ett andra
+     säkert namn som leken bara har ett av: tre körningar räcker.
+   - **Rättelsen ändrar bara sannolikheten**, till exempel tidpunkten: sex körningar på rättelsen och tre på main,
+     om växlande. Är felet kvar är chansen bara ~5 % att sex körningar i rad blir rena. Main är kontrollen.
+   
+   Jespers ja till de extra `--ai`-körningarna gäller fall 05. Krav: 0 fel. Dessutom 18 med Claude en gång. Ändras helbildens väg på
    main också: bänken + golden lokalt en gång.
 4. **En granskare** läser bara rättelsen (~30 min).
 5. **Ihopslagningen:** `git merge-tree --write-tree origin/main mes-334-sida5` + `commit-tree`, en tillfällig
