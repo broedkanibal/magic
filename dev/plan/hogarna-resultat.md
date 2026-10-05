@@ -55,8 +55,10 @@
 186, mattan 32, lekfotot och lekslag 0 FEL); golden lokalt 01–08 LIKA BRA (51/52), 09–18 44/67 mot 41, 0 fel namn,
 falska 1 → 1; golden med Claude (MES-334:s andra `--ai`) 01–08 52/52 och 09–17 41/57 mot 40, 0 fel namn.
 **Fall 18 med Claude gav 1 fel namn — också på main utan steg 1** (261803e, en annan sessions "minnet av remsor
-steg 3", omkört med `--detalj`); baslinjen 828ad87 hade 0. Felet följer alltså inte steg 1. Detaljen pekar på en
-säker "Swamp" ur remsminnet (`remsa minne … SÄKER`). Sessionen som äger remsminnet (MES-331) är meddelad.
+steg 3", omkört med `--detalj`); baslinjen 828ad87 hade 0. Felet följer alltså inte steg 1. Enligt MES-331-sessionen
+är det ett **tokenspår** (Soldier ovanpå Ancestral Blade i hög C) som Claude ger det säkra namnet "Ancestral Blade";
+kor.html räknar ett säkert namn på ett tokenspår som fel namn. 261803e innehåller både remsminnet steg 3 och
+MES-334 steg 2 (5da8fc0), så orsaken är inte avgjord: MES-331-sessionen kör `--ai --fall 18` på 5da8fc0 och på main.
 
 **Följd för steg 3–6:** leken har ingen namnremsa och får därför aldrig `matt`. Lekens vinkel blir alltså inte
 grundläge av sig själv efter omläggningen. Nästa session måste ge leken en egen, strängare väg (formens vinkel
@@ -145,8 +147,9 @@ separat; de ingår i nästa sessions helgranskning av steg 3–6.
 - Riktig telefon är oprovad för allt: vinkelns kostnad på telefonen, upplockad lek med en riktig hand,
   sleeves-färgen under lampan, mattans tempo.
 - `dev/spegelfacit/kor.cjs` väntar på en pool om 114 kort; poolen är 168. Kör med `--tunn-pool` tills det rättats.
-- **Golden 18 med Claude har 1 fel namn på main** sedan 261803e (remsminnet, inte MES-334). Nästa sessions
-  `--ai`-körning måste jämföras mot det, inte mot 0, tills MES-331-sessionen rättat det.
+- **Golden 18 med Claude har 1 fel namn på main** sedan 261803e eller tidigare (ett tokenspår som Claude namnger;
+  inte steg 1; om det är remsminnet eller steg 2 prövar MES-331-sessionen). Nästa sessions `--ai`-körning
+  jämförs mot det, inte mot 0, tills orsaken är hittad.
 
 ## Hur körningen gick (lärdomar)
 
