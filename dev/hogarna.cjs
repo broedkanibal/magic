@@ -100,6 +100,8 @@ const PROV = async steg => {
   const nollGrav = () => { gravLage = null; gravSedda = new Set(); gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
   /* Ett bord från telefonen, en stund efter det förra (kortets ny-stämpel avgör vem som ligger under). */
   const stam = async lista => { await vanta(15); avstamBord(lista, false); };
+  /* Brädets zoom glider efter en omritning (matSynk, MES-334 steg 2): mät när lekens ruta stått still. */
+  const stilla = async () => { const r = () => { const e = gridEl.querySelector('.lekhog'); return e ? e.getBoundingClientRect().width : 0; }; let a = r(); for (let i = 0; i < 40; i++) { await vanta(100); const b = r(); if (Math.abs(a - b) < 0.05) return; a = b; } };
   if (steg === 0) {
     visaVy('app');
     const p = player();
@@ -195,9 +197,9 @@ const PROV = async steg => {
     const rad5 = W.__sparat[W.__sparat.length - 1].kort;
     ok('…och delas utan namn i bordsraden', rad5.some(k => k.hog === 'ned' && k.name === undefined));
     const lb = () => gridEl.querySelector('.lekhog .lekbr.ledig').getBoundingClientRect(), gk = () => gridEl.querySelector('.lekhog').getBoundingClientRect();
-    await vanta(600);                                       // brädets zoom glider in efter en omritning: mät när den stått still
+    await stilla();
     const br0 = lb(), k0 = gk();
-    vy.zoomManual = Math.max(MATTA.ZOOM_MIN, zs * 0.6); renderGrid(true); await vanta(600);
+    vy.zoomManual = Math.max(MATTA.ZOOM_MIN, zs * 0.6); renderGrid(true); await stilla();
     const br1 = lb(), k1 = gk();
     ok('8 · högarna följer mattans zoom, brickan behåller sin storlek', k1.width < k0.width * 0.75 && Math.abs(br1.height - br0.height) < 1.5, `leken ${Math.round(k0.width)} → ${Math.round(k1.width)} px, brickan ${br0.height.toFixed(1)} → ${br1.height.toFixed(1)} px`);
     vy.zoomManual = null; renderGrid(true);
@@ -206,10 +208,10 @@ const PROV = async steg => {
     mig().cards = []; nollGrav(); renderAll(true);
     await stam([spar(41, 'Ukud Cobra', 0.75, 0.3)]);
     await stam([spar(42, 'Pacifism', 0.751, 0.301)]);
-    await vanta(600);
+    await stilla();
     const v = matVyFor(player()), b0 = fragaEl().getBoundingClientRect(), z0 = matVy().z;
     v.zoomManual = Math.max(MATTA.ZOOM_MIN, z0 * 0.6); renderGrid(true);
-    await vanta(600);
+    await stilla();
     const b1 = fragaEl().getBoundingClientRect();
     v.zoomManual = null; renderGrid(true);
     ok('frågan behåller sin storlek när mattan zoomas ut', Math.abs(b1.width - b0.width) < 2 && Math.abs(b1.height - b0.height) < 2, `${Math.round(b0.width)}×${Math.round(b0.height)} → ${Math.round(b1.width)}×${Math.round(b1.height)} (zoom ${z0.toFixed(2)} → ${(z0 * 0.6).toFixed(2)})`);
@@ -230,6 +232,20 @@ const PROV = async steg => {
     ok('motståndarens graveyard: klick tittar i korten (solfjädern, hens hög)', hf.src === ZON_GRAV && hf.pid === opp.id, `${hf.src} ${hf.pid}`);
     hfStang(); await vanta(400);
     state.players = [jag]; bord.valt = null; renderAll(true);
+  }
+  if (steg === 8) {
+    /* Uppstartens steg 4 är borta i Mirror my table (MES-334 steg 6): med leken vald, läget valt och telefonen
+       ansluten är uppstarten klar — inget provkort, ingen graveyard-plats, ingen library-ruta, och
+       statusfältet ber inte om grundläget. I Use camera to add cards står steg 4 kvar (kortets storlek). */
+    kamAnsluten = true; prefs.autoLage = true; kamGrund = null;
+    const p = mig(); p.lage = 'bord'; oppSatt({ klar: false, avbojd: false, lekOk: true, lage: true, b4: false, startat: false, grundOm: true });
+    renderMode();
+    ok('Mirror my table: uppstarten klar utan steg 4', oppFor().klar === true && !oppOppen && $('#opp4').hidden, JSON.stringify({ klar: oppFor().klar, oppen: oppOppen, opp4: $('#opp4').hidden }));
+    ok('Mirror my table: statusfältet ber inte om grundläget (inget "Save as untapped angle")', !/untapped/i.test($('#autoBar').textContent || ''), ($('#autoBar').textContent || '').trim().slice(0, 80));
+    p.lage = 'skarm'; oppSatt({ klar: false, avbojd: false, lekOk: true, lage: true, b4: false, startat: false, grundOm: true });
+    renderMode();
+    ok('Use camera to add cards: steg 4 står kvar (Card size)', oppFor().klar !== true && oppOppen && !$('#opp4').hidden && /Card size/.test($('#oppDelar').textContent), $('#oppDelar').textContent.slice(0, 60));
+    oppSatt({ klar: true }); p.lage = 'bord'; renderMode();
   }
   if (steg === 7) {
     /* Utan kamera: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
@@ -260,7 +276,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera'];
+    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));

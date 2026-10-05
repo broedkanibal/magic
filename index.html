@@ -419,7 +419,6 @@ body.oppstart .hints{display:none}
 .oppstart .oppopt{padding:10px 12px}
 .oppstart .oppopt .oppbody span{font-size:12px}
 .oppstart .oppgrupp.skild{margin-top:0;padding-top:12px}
-.tapopt.on{border-color:var(--acc);background:#1a1710}
 /* Steg 2: kamerans två lägen under Hybrid modes, Digital table för sig nedanför. */
 .oppgrupp{font:600 10px/1 var(--sans);letter-spacing:.7px;text-transform:uppercase;color:var(--dim2);margin-bottom:-4px}
 .oppgrupp.skild{margin-top:4px;padding-top:12px;border-top:1px solid #1c2330}
@@ -472,13 +471,6 @@ body.oppstart .hints{display:none}
 .dellank:hover{color:var(--txt)}
 .delbody{display:flex;flex-direction:column;gap:10px;padding-left:27px}
 .opptxt.liten{font-size:11.5px;color:var(--dim2)}
-.tapval{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.tapopt{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 8px;border-radius:9px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);cursor:pointer;font:inherit}
-.tapopt:hover{border-color:var(--acc);background:#1a1710}
-.tapopt svg{color:#b9c6d8;margin-bottom:3px}
-.tapopt b{font-size:13px;font-weight:600}
-.tapopt span{font-size:11px;color:var(--dim)}
-.tapopt[disabled]{opacity:.4;pointer-events:none}
 .hogval{display:grid;gap:6px}
 .hogval .btn{justify-content:center}
 .gor{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
@@ -6805,9 +6797,10 @@ function kamRutaRad(over) { return Object.assign({ x: 0, y: 0, w: 1, h: 1, upp: 
 /* Grundläget (kamerans kal.grund) som telefonen rapporterar i varje bord,
    hela grader: undefined = ingen telefon har sagt något än (eller äldre kod
    utan fältet), null = inte sparat, tal = sparat. Vid null spelas korten
-   otappade tills spelaren sparat ett läge (avstamBord), och statusfältet
-   ber om det (grundSteg); en telefon med äldre kod kan inte svara, så vid
-   undefined gäller spårens egen dom som förut. */
+   otappade tills ett läge finns (avstamBord) — i Mirror my table tar
+   telefonen det ur leken eller första kortet (MES-334 sida 5); en telefon
+   med äldre kod kan inte svara, så vid undefined gäller spårens egen dom
+   som förut. */
 let kamGrund;
 let kamGrundRad = null;       // grundläget i spelets rad (camera_setups), för popovern innan telefonen rapporterat
 let kamHarVarit = false;      // har en telefon någonsin svarat i det här spelet?
@@ -11379,9 +11372,6 @@ function renderKamPop() {
    uppstarten går vidare som vanligt. */
 let oppOppen = false, oppstartBild = false, oppLekar = null, oppLekarHamtar = false, oppLekVal = null, oppLageVal = null, oppQrVisas = false;
 let oppVisat = null, oppVisatKlar = false, oppNasta = null;
-/* Untapped (0) eller Tapped (1) i steg 4:s första del: valt i panelen,
-   sparat med Continue i foten (G5). */
-let oppTappVal = 0;
 /* Min status (MES-170) som den senast skickades: { spel, status, fel }. */
 let oppStatusSkickad = null;
 /* Steg 1 (MES-170): lekytan i panel och matta (oppLs, skapas första gången
@@ -11396,7 +11386,7 @@ let oppLs = null, oppLsOppen = false, oppLsId = null, oppLsKlar = false, oppSena
 /* oppProvLas: provkortets plats, låst när ett mätt spår hittats —
    { id, box (bildandelar), n }. n räknas upp vid varje ny låsning, och
    bekräftelseramen spelar sin animering en gång per n. */
-let oppProvId = null, oppProvLas = null, oppLasN = 0, oppTappSvar = null, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
+let oppProvId = null, oppProvLas = null, oppLasN = 0, oppFlytt = false, oppGravFlyttad = null, oppFlyttStart = null, oppBibNar = 0, oppBibT = 0;
 let kamBib, kamBibStod = null;   // Kamera.bib ur varje bord: { ligger, tackt, lek } | null (tackt/lek saknas hos en äldre telefon); kamBibStod false = telefon utan fältet
 /* Pling och klart-kortet (MES-139): oppBibSag = leken var klar vid förra
    ritningen (null = inte sett än), oppPlingNar = när den blev klar här,
@@ -11424,7 +11414,7 @@ const oppLank = () => location.origin + location.pathname + '?join=' + spelLage.
 function oppnaOppstart(om) {
   if (!spelLage) return;
   oppSatt(oppOppnasIgen(oppFor(), om, mittLage()));
-  oppLageVal = null; oppVisat = null; oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
+  oppLageVal = null; oppVisat = null; oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;
   oppBibSag = null; oppKlarDold = false;
   if (kamOppen) closeOv('kamOv');
   renderMode();
@@ -11442,8 +11432,6 @@ const OPP_KLAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" st
 function oppDiff(el, html) { if (el && el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; } }
 /* ── steg 4: provkortet, graveyard-platsen och leken (MES-122) ──────── */
 const OPP_KLAR_S = OPP_KLAR.replace('width="12" height="12"', 'width="10" height="10"');
-const OPP_UPP = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="4" width="14" height="26" rx="2.2"/><path d="M13 8.5h8" stroke-linecap="round"/></svg>';
-const OPP_SIDA = '<svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="26" height="14" rx="2.2"/><path d="M8.5 21V13" stroke-linecap="round"/></svg>';
 /* Bildytans ram på mattan medan uppstarten står framme utan bild (MES-123):
    en rad om vad steget handlar om, samma ram i alla steg. */
 const oppIkon = inre => `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inre}</svg>`;
@@ -11496,9 +11484,10 @@ function oppDel(nr, titel, st, sum, lank, body) {
     + (st === 'done' ? `<span class="delsum">${sum}</span>${lank ? `<button type="button" class="dellank" data-opp="${lank[0]}">${lank[1]}</button>` : ''}` : '') + '</div>';
   return `<div class="del ${st}">${hd}${st === 'active' ? `<div class="delbody">${body}</div>` : ''}</div>`;
 }
+/* Steg 4 finns bara i Use camera to add cards sedan MES-334 steg 6: kortets storlek (provkortet),
+   graveyard- och library-rutan. Mirror my table hittar leken, grundläget och graveyard i partiet. */
 function oppSteg4(o) {
   if (!o.b4) { oppSatt({ b4: true }); o = oppFor(); }
-  const bord = mittLage() === 'bord';
   const zoner = [kamGravRad, kamBibRad].filter(Boolean);
   const p = kamAnsluten ? provkortSpar(senasteSpar, zoner, sparSedd, oppProvId, !o.provKlar && oppProvLas ? oppProvLas.box : null) : null;
   if (o.provKlar) { oppProvLas = null; if (!oppProvId && p) oppProvId = p.t.id; }
@@ -11507,7 +11496,7 @@ function oppSteg4(o) {
        kortet sedan; flyttas det låses den nya platsen, och försvinner det
        släpps låset — utom medan handen täcker det eller telefonen räknar
        svaret (provLasSteg, MES-166). */
-    const fore = oppProvLas, steg = provLasSteg(oppProvLas, p, oppTappSvar != null);
+    const fore = oppProvLas, steg = provLasSteg(oppProvLas, p, false);
     oppProvLas = steg.las;
     if (steg.ny) oppProvLas.n = ++oppLasN;
     if (oppProvLas && (!fore || fore.n !== oppProvLas.n || fore.box !== oppProvLas.box)) requestAnimationFrame(ritaPbLager);
@@ -11528,22 +11517,14 @@ function oppSteg4(o) {
     clearTimeout(oppPlingT); oppPlingT = setTimeout(() => { oppPlingT = 0; renderMode(); }, OPP_PLING_MS + 20);
   }
   oppBibSag = d.bib;
-  const tapp = (v, av, ikon, rub, txt) => `<button type="button" class="tapopt${oppTappVal === v ? ' on' : ''}" data-opptap="${v}" aria-pressed="${oppTappVal === v}"${av ? ' disabled' : ''}>${ikon}<b>${rub}</b><span>${txt}</span></button>`;
-  const knappar = av => `<div class="tapval">${tapp(0, av, OPP_UPP, 'Untapped', 'Standing up')}${tapp(1, av, OPP_SIDA, 'Tapped', 'Turned sideways')}</div>`;
-  let prov;
   const letar = '<div class="opprad"><span class="oppwait"><i></i><span>Looking for a card…</span></span></div>'
     + (p && p.kant ? `<p class="opptxt liten">Move the card in from the edge of the picture.</p>`
       : p ? `<p class="opptxt liten">Takes a second. If nothing happens, nudge the card.</p>` : '');
   /* Use camera to add cards (MES-171, G5Size): provkortet ger bara
      storleken — ingen tap-fråga, och telefonen räknar ingen vinkel. Låst =
      hittat; Continue mäter storleken ur låset (provKortStorlek). */
-  if (!bord) prov = '<p class="opptxt">Put one card from your deck on the table. Mesa only needs its size, so the spots come out as big as your cards. It won’t be played.</p>'
+  const prov = '<p class="opptxt">Put one card from your deck on the table. Mesa only needs its size, so the spots come out as big as your cards. It won’t be played.</p>'
     + (oppProvLas ? '<div class="opprad"><span class="oppwait ok"><i></i><span>Found it — card size saved</span></span></div>' : letar);
-  /* "Found it" först när platsen är låst och knapparna går att trycka på.
-     Ett kort som syns men inte är mätt än räknas inte som hittat. */
-  else if (oppTappSvar != null) prov = `<p class="opptxt">Found it.</p>${knappar(true)}<div class="opprad"><span class="oppwait"><i></i><span>Saving the angle…</span></span></div>`;
-  else if (oppProvLas) prov = `<p class="opptxt">Found it. How is it lying right now?</p>${knappar(false)}<p class="opptxt liten">Wrong card outlined? Move it a little.</p>`;
-  else prov = `<p class="opptxt">Put a test card on the table: any card from your deck, turned the way your untapped cards face. It won't be played.</p>` + letar;
   const f = d.aktiv === 'grav' ? oppForslag(o) : null;
   const grav = oppFlytt
     ? `<p class="opptxt"><b>Drag the spot in the picture.</b> It stays the size of a card.</p><div class="opprad"><button type="button" class="btn ghost sm" data-opp="gravhorn">Back to the corner</button></div>`
@@ -11563,14 +11544,13 @@ function oppSteg4(o) {
   }
   const st = k => d[k] ? 'done' : d.aktiv === k ? 'active' : 'todo';
   oppDiff($('#oppDelar'),
-    (bord ? oppDel(1, 'Card direction', st('prov'), o.tapp ? 'Tapped' : 'Untapped', ['provom', 'Change'], prov)
-      : oppDel(1, 'Card size', st('prov'), 'Saved', ['provom', 'Change'], prov))
+    oppDel(1, 'Card size', st('prov'), 'Saved', ['provom', 'Change'], prov)
     + oppDel(2, 'Graveyard', st('grav'), 'Bottom-left corner', ['gravom', 'Move'], grav)
     + oppDel(3, 'Library', st('bib'), 'In place', null, bib).replace('class="del done"', Date.now() - oppPlingNar < OPP_PLING_MS ? 'class="del done nyklar"' : 'class="del done"'));
   oppDiff($('#oppEfter'), d.aktiv === 'start'
     ? `<div class="klar4"><span class="ck">${OPP_KLAR.replace('width="12" height="12"', 'width="15" height="15"')}</span><div><b>Your table is set up</b><span>The camera knows where your graveyard and library are.</span></div></div>` : '');
   /* Handlingen i panelens fot (G5, G5Size, G6, L1–L6). */
-  return d.aktiv === 'prov' ? (bord ? { txt: 'Continue', a: 'tapp', av: oppTappSvar != null || !oppProvLas } : { txt: 'Continue', a: 'storlek', av: !oppProvLas })
+  return d.aktiv === 'prov' ? { txt: 'Continue', a: 'storlek', av: !oppProvLas }
     : d.aktiv === 'grav' ? (oppFlytt ? { txt: 'Done', a: 'gravklar', av: !oppGravFlyttad } : { txt: 'Looks good', a: 'gravok' })
     : d.aktiv === 'bib' ? { txt: 'Start playing', av: true }
     : { txt: 'Start playing<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>', a: 'starta' };
@@ -11589,7 +11569,7 @@ async function oppSparaZoner(grav, bib) {
 function oppStarta() {
   for (const id of provkortUt(senasteSpar, oppProvId)) borttagna.add(id);
   gravHandelser = [];
-  oppSatt({ startat: true }); oppProvId = null; oppProvLas = null; oppTappSvar = null;
+  oppSatt({ startat: true }); oppProvId = null; oppProvLas = null;
   renderMode();
   if (!oppstartPagar()) avstamBord(senasteSpar);
 }
@@ -11768,7 +11748,7 @@ function renderOppstart() {
     if (aktiv === 'lage' && !oppLageVal) oppLageVal = o.lage ? mittLage() : 'bord';
     const lageVal = aktiv === 'lage' ? oppLageVal : o.lage ? (bord ? 'bord' : 'skarm') : null;
     const kamera = lageVal === 'bord' || lageVal === 'skarm';
-    const synlig = { lek: true, lage: true, tel: kamera, vinkel: kamera };
+    const synlig = { lek: true, lage: true, tel: kamera, vinkel: lageVal === 'skarm' };   // steg 4 bara i Use camera to add cards (MES-334 steg 6)
     const sist = ordning.filter(k => synlig[k]).pop();
     ordning.forEach((k, i) => {
       /* Klickbar är varje rad utom nästa steg när det står framme av sig
@@ -11909,9 +11889,6 @@ $('#oppstart').addEventListener('click', ev => {
   const pen = ev.target.closest('[data-opplekandra]'); if (pen) { oppRedigeraLek(pen.dataset.opplekandra); return; }
   const lk = ev.target.closest('[data-opplek]'); if (lk) { oppLekVal = lk.dataset.opplek; renderOppstart(); return; }
   const lg = ev.target.closest('[data-opplage]'); if (lg) { oppLageVal = lg.dataset.opplage; renderOppstart(); return; }
-  /* Untapped / Tapped väljs här och sparas med Continue i foten (G5). */
-  const tp = ev.target.closest('[data-opptap]');
-  if (tp) { if (oppTappSvar != null) return; oppTappVal = +tp.dataset.opptap; renderOppstart(); return; }
   const b = ev.target.closest('[data-opp]');
   if (!b) { const tit = ev.target.closest('.vtit[role=button]'); if (tit) oppVaxla(tit.closest('.oppsteg')); return; }
   const a = b.dataset.opp;
@@ -11931,10 +11908,6 @@ $('#oppstart').addEventListener('click', ev => {
     if (v === 'utan') oppUtan();
     else { oppSatt({ lage: true }); bytLage(v).then(() => renderMode()); }
   }
-  else if (a === 'tapp') {
-    if (oppProvId == null || oppTappSvar != null) return;
-    oppTappSvar = oppTappVal === 1; begarGrund(oppProvId, oppTappSvar); renderOppstart();
-  }
   /* Use camera to add cards (G5Size): storleken ur låset, ingen vinkel. */
   else if (a === 'storlek') {
     if (!oppProvLas) return;
@@ -11942,7 +11915,7 @@ $('#oppstart').addEventListener('click', ev => {
     renderMode();
   }
   else if (a === 'grund') sparaGrundFranSenaste();
-  else if (a === 'provom') { oppSatt({ provKlar: false }); oppTappSvar = null; oppProvLas = null; renderMode(); }
+  else if (a === 'provom') { oppSatt({ provKlar: false }); oppProvLas = null; renderMode(); }
   else if (a === 'gravok') { const f = oppForslag(oppFor()); oppSparaZoner(f.grav, f.bib); }
   else if (a === 'gravflytt') { oppFlytt = true; oppGravFlyttad = oppGravFlyttad || oppForslag(oppFor()).grav; renderOppstart(); ritaPbLager(); }
   else if (a === 'gravklar') { if (oppGravFlyttad) oppSparaZoner(oppGravFlyttad, null); }
@@ -12048,11 +12021,7 @@ function modeKlick(ev) {
   if (a === 'auto') modeKlickAuto();
   if (a === 'koppla') { renderMode(); visaKamOv(); }
   if (a === 'skruv') { renderMode(); visaKamSkruv(); }
-  /* Det otappade läget ur kortet som ligger på bordet: samma kort som
-     statusfältet nämner (senasteMattaKort). "Inte nu" håller undan
-     instruktionen resten av passet; kamerapanelen har knappen. */
-  if (a === 'grund-spara') { sparaGrundFranSenaste(); renderMode(); }
-  if (a === 'grund-stang') { grundAvbojd = true; renderMode(); }
+
 }
 function modeKlickAuto() { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
 $('#modeSlot').addEventListener('click', modeKlick);
@@ -13026,6 +12995,7 @@ addEventListener('pointermove', ev => {
   if (over !== dnd.over) {
     dnd.over = over;
     manaRow.classList.toggle('over', over);
+    { const d1 = gravD1El(); if (d1) d1.classList.toggle('over', over); }   // graveyard bland korten (MES-334 steg 5) lyser också
     gravSlappRuta(over ? c : null);
     if (!over) matChip(null);
   }
@@ -13081,6 +13051,7 @@ function matDndSlut(ev, avbryt) {
   if (el) el.classList.remove('held');
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
   manaRow.classList.remove('over'); gravSlappRuta(null);
+  { const d1 = gravD1El(); if (d1) d1.classList.remove('over'); }
   const bib = bibHogEl && bibHogEl.querySelector('.bib'); if (bib) bib.classList.remove('over');
   matChip(null);
   for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
@@ -30104,17 +30075,13 @@ function tvivelSteg(spar, cards, nu) {
    flyttats dit för hand behöver inget besked. Zonrubrikernas rader räknar
    var sin zon (renderLyftBanner). */
 function kanLyftas(c) { return zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil'; }
-/* Grundläget (tappat mäts mot det, se Kamera.tappad) sparas ur ett kort
-   som ligger på bordet. Tills det är sparat spelas kamerans kort OTAPPADE:
-   det första kortet i Jespers parti lades ut tappat, och först därefter
-   kom frågan om det låg otappat — tvärtom mot hur man tänker. Att spara
-   läget är ett eget steg: lägg kortet som du vill ha det otappat, tryck
-   spara, och från då följer bordet spårens dom. Spåret bakom det senast
-   skapade kamerakortet är det steget tar (senasteMattaKort); är det borta,
-   det senast bundna. grundAvbojd: "Inte nu" i statusfältet håller undan
-   instruktionen tills man lämnar spelet — en ny referensbild ska inte tjata. */
+/* Grundläget (tappat mäts mot det, se Kamera.tappad). I Mirror my table tar
+   telefonen det själv ur leken, eller ur första kortet utan lek (MES-334
+   sida 5) — statusfältets fråga om det är borttagen (steg 6). Knappen Save i
+   kameravyn finns kvar: den sparar läget ur ett kort som ligger på bordet,
+   det senast skapade kamerakortets spår (senasteMattaKort); är det borta,
+   det senast bundna. Tills ett läge finns spelas kamerans kort OTAPPADE. */
 let senasteKamSpar = null;
-let grundAvbojd = false;
 /* Senast skapade kamerakortet; är det borta, det senast bundna — kortet som
    lades ut innan kameran kopplades, eller togs tillbaka ur nedtoningen. Bara
    kort vars spår detektorn mätt själv (sen != null, inte helbild): ett
@@ -30288,16 +30255,19 @@ function provkortUt(spar, provId) {
   const prov = (spar || []).find(t => t.id === provId);
   return (spar || []).filter(t => t.id === provId || (prov && t.w != null && prov.w != null && tackning(t, prov) >= 0.3)).map(t => t.id);
 }
-/* Steg 4 klart (renderOppstart), ur uppstartens sparade fält o: med Start
-   playing — eller, på en dator som inte börjat steget, när spelets rad
-   redan bär båda rutorna, och i Mirror my table (bord) också vinkeln
-   (grund). Use camera to add cards har steget sedan MES-171 och behöver
-   ingen vinkel. grundOm = Redo setup: raden räknas inte, steget görs om.
-   utan4 = uppstarten var klar i Use camera to add cards innan steget fanns
-   där (oppOppnasIgen). zoner = raden har graveyard- och library-rutan. */
+/* Steg 4 klart (renderOppstart), ur uppstartens sparade fält o. Mirror my
+   table (bord) har inget steg 4 sedan MES-334 sida 5: leken, grundläget och
+   graveyard kommer ur partiet (lekvakten, lekens vinkel, graveyard-frågan),
+   så steget är alltid klart där. Use camera to add cards har steget kvar
+   (MES-171: kortets storlek, graveyard- och library-rutan) — klart med
+   Start playing, eller, på en dator som inte börjat steget, när spelets rad
+   redan bär båda rutorna. grundOm = Redo setup: raden räknas inte, steget
+   görs om. utan4 = uppstarten var klar i Use camera to add cards innan
+   steget fanns där (oppOppnasIgen). zoner = raden har graveyard- och
+   library-rutan. grund läses inte längre (vinkeln var Mirror my tables). */
 function oppSteg4Klar(o, bord, grund, zoner) {
-  if (o.startat || (!bord && o.utan4)) return true;
-  return !o.b4 && !o.grundOm && !!zoner && (!bord || grund != null);
+  if (bord || o.startat || o.utan4) return true;
+  return !o.b4 && !o.grundOm && !!zoner;
 }
 /* Fälten när uppstarten öppnas igen. om = Redo setup: läget väljs igen och
    steg 4 görs om, i båda kameralägena. Annars (pillret) står det som var
@@ -30310,24 +30280,20 @@ function oppOppnasIgen(o, om, lage) {
   if (o && o.klar && !o.startat && lage === 'skarm') f.utan4 = true;
   return f;
 }
-const oppstartSparr = () => typeof oppstartPagar === 'function' && oppstartPagar();
-/* Steget statusfältet ber om: { namn, spar } så snart ett mätt kamerakort
-   ligger på bordet och telefonen sagt att inget läge är sparat (null —
-   undefined är en telefon som inte kan svara), tills man sparat eller
-   sagt "Inte nu". Ren funktion av bordet, provas i dev/avstamning.cjs. */
+/* Spärren under uppstarten (MES-122) gäller bara Use camera to add cards, där steg 4 finns kvar och
+   provkortet inte ska spelas ut. Mirror my table har inget steg 4 (MES-334 sida 5): kameran speglar bordet
+   så fort den är ansluten — leken och första kortet ÄR uppstarten där. */
+const oppstartSparr = () => typeof oppstartPagar === 'function' && oppstartPagar() && !spelPolicy(minSpelare()).tap;
 /* Lägespolicyn (dev/plan/lagen.md §2): vad kameran får skriva på MITT bord.
    Table leads ('bord', eller inget läge alls — harnessarnas stubbspelare)
    speglar tap, flytt och saknade kort; Screen leads ('skarm') lägger bara
-   till. Att lägga till kort gäller alltid. Grinden i grundSteg och
-   avstamBord läser den (MODE-3); högvakten (MES-85) följer pol.saknas. */
+   till. Att lägga till kort gäller alltid. avstamBord läser den (MODE-3);
+   högvakten (MES-85) och graveyard-frågan (MES-334 steg 4) följer pol.saknas.
+   grund: kameran dömer tap mot ett grundläge — i Mirror my table ur leken
+   (MES-334 sida 5); statusfältets fråga om grundläget är borttagen (steg 6). */
 function spelPolicy(mig) {
   const bord = !mig || mig.lage !== 'skarm';
   return { skapa: true, tap: bord, flytt: bord, saknas: bord, grund: bord };
-}
-function grundSteg(mig, spar) {
-  if (kamGrund !== null || grundAvbojd || !spelPolicy(mig).grund) return null;   // Screen leads läser aldrig tap: inget grundläge att be om
-  const k = senasteMattaKort(mig, spar);
-  return k ? { namn: k.name, spar: k.spar } : null;
 }
 
 /* ── Statusfältet: modellen ────────────────────────────────────────
@@ -31099,8 +31065,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
       g.overTak = true;
       continue;
     }
-    /* Utan sparat läge föds kortet otappat (se lagg). Statusfältet ber om
-       läget ur det här kortet så snart det ligger på bordet (grundSteg). */
+    /* Utan sparat läge föds kortet otappat (se lagg). Telefonen tar läget ur
+       leken eller ur första kortet (MES-334 sida 5). */
     g.kort = { cid: uid(), name: t.namn, sid: t.sid || undefined, flipped: 0, tapped: tapSynk && pol.tap && t.tappad ? 1 : 0, kamTap: tapSynk ? (t.tappad ? 1 : 0) : undefined, spar: t.id, ny: nu, etb: 1 };
     kamLage(g.kort, t);
     mig.cards.push(g.kort); andrat = true;
@@ -31357,35 +31323,24 @@ function tagEmotBeskarning(m) {
    varje bord, varje lägesbyte — och en gång i sekunden, för att "något rör
    sig" räknas i tid. Samma HTML ritas inte om: en knapp man tabbat till
    tappade annars fokus var tredje sekund (jfr renderTom).
-   Steget att spara ett otappat läge står i anmärkningens plats så länge
-   grundSteg säger något: ett mätt kamerakort på bordet, inget läge sparat
-   (telefonens eget besked, null), inte avböjt. Ett läge från annat håll
-   släcker det av sig självt. En instruktion med ETT huvudval, inte en
-   fråga: förut frågade fältet "ligger otappat?" om ett kort som redan
-   lagts ut tappat. Fältet syns när auto går och telefonen är ansluten,
-   och när något väntar i granskningen — också med auto av. Bärnsten bara
-   när fältet ber om ett klick (granskningen, steget): en anmärkning ensam
-   byter inte färg på hela raden. */
+   Steget att spara ett otappat läge som stod i anmärkningens plats är
+   borttaget (MES-334 steg 6): telefonen tar grundläget ur leken. Fältet syns
+   när något väntar i granskningen — också med auto av. Bärnsten bara när
+   fältet ber om ett klick (granskningen). */
 let autoBarStatusHtml = '', autoBarNotHtml = '';
 function autoBarAutoSynlig() { return !!spelLage && prefs.autoLage === true && kamAnsluten; }
 function renderAutoBar() {
   const el = $('#autoBar'); if (!el) return;
   const status = $('#autoStatus'), not = $('#autoNot'), granska = $('#pendBar');
   /* Kamerans status bor i pillret och panelen sedan MES-98 (statusraden där
-     är samma mening, autoRemsaModell). Fältet bär steget om grundläget —
-     tills uppstarten tar det (MES-102) — och granskningen. */
-  const steg = autoBarAutoSynlig() && !oppOppen ? grundSteg(minSpelare(), senasteSpar) : null;
+     är samma mening, autoRemsaModell). Fältet bär granskningen; steget om
+     grundläget är borttaget (MES-334 steg 6). */
   if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
-  const notHtml = steg
-    ? `<span class="nottxt" title="${esc(`Put the cards as you want them untapped — is ${steg.namn} lying like that now?`)}">Put the cards as you want them untapped — is <b>${esc(steg.namn)}</b> lying like that now?</span>` +
-      '<button class="btn prim" data-mode="grund-spara" title="The angle of the card in the picture becomes the untapped angle for this game">Save as untapped angle</button>' +
-      '<button class="btn ghost" data-mode="grund-stang" title="Can be saved later in the camera panel">Not now</button>'
-    : '';
-  if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
-  not.classList.toggle('grund', !!steg);   // steget får mer plats än en vanlig anmärkning (CSS .not.grund)
-  not.hidden = !notHtml;
-  el.classList.toggle('varm', !granska.hidden || !!steg);
-  const synlig = !!steg || !granska.hidden;
+  if (autoBarNotHtml) { not.innerHTML = ''; autoBarNotHtml = ''; }
+  not.classList.remove('grund');
+  not.hidden = true;
+  el.classList.toggle('varm', !granska.hidden);
+  const synlig = !granska.hidden;
   if (el.hidden !== !synlig) { el.hidden = !synlig; dockaKamOv(); }   // fältet kommer och går: panelens överkant följer
 }
 /* Statusraden i panelen räknar tiden ("på väg"), så den ritas varje sekund
@@ -32885,28 +32840,18 @@ function begarGrund(spar, tappat) {
   if (spar == null || !kamAnsluten) { toast('The camera sees no card to take the angle from — put a card on the table', 'err'); return; }
   Moln.sandKam('grund', tappat ? { spar, tappat: true } : { spar });
 }
-/* Steget i statusfältet och knappen i kameravyn gör samma sak: läget ur
-   kortet som ligger på bordet just nu. */
+/* Knappen Save i kameravyn: läget ur kortet som ligger på bordet just nu. */
 function sparaGrundFranSenaste() {
   const k = senasteMattaKort(minSpelare(), senasteSpar);
   begarGrund(k ? k.spar : null);
 }
 async function tagEmotGrundSvar(m) {
-  /* Uppstartens provkort väntade på svaret (MES-122): då räknas också
-     kortets storlek i bilden — graveyard- och library-rutan föreslås ur den. */
-  const iSteg = oppTappSvar != null, tappat = !!oppTappSvar;
-  if (!m.ok || m.grund == null) { oppTappSvar = null; renderMode(); toast('The untapped angle could not be saved — the camera has no measurement of the card angle right now. Try again with a card it found by itself.', 'err'); return; }
+  /* Uppstartens fråga om provkortets riktning (Card direction i Mirror my table) är borttagen med steg 4
+     (MES-334 steg 6): svaret kommer bara från knappen Save i kameravyn. */
+  if (!m.ok || m.grund == null) { renderMode(); toast('The untapped angle could not be saved — the camera has no measurement of the card angle right now. Try again with a card it found by itself.', 'err'); return; }
   kamGrund = m.grund; visaKamGrund();
   if (!spelLage) return;
-  if (iSteg) {
-    /* Storleken ur den låsta ramen — kortet som spelaren såg hittas — och
-       först om den inte går ihop med vinkeln ur spårets egna mått. Ett
-       dubblettspår på halva kortet gav förut en för liten graveyard-plats. */
-    const prov = oppProvLas ? Object.assign({ id: oppProvLas.id }, oppProvLas.box) : senasteSpar.find(t => t.id === oppProvId) || null;
-    const A = kamBildAsp();
-    oppSatt({ grundOm: false, provKlar: true, tapp: tappat, provKort: provKortMatt(prov, null, null, A, m.grund, tappat) || provKortMatt(prov, pbRa, pbMatt, A, m.grund, tappat) });
-    oppTappSvar = null;
-  } else oppSatt({ grundOm: false });
+  oppSatt({ grundOm: false });
   renderMode();
   const id = spelLage.id;
   const ok = await Moln.sparaKalibrering(id, kamRutaRad({ grund: m.grund }), null, kamBildW || 0, kamBildH || 0);
@@ -33657,7 +33602,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; grundAvbojd = false; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppTappSvar = null; oppFlytt = false; oppGravFlyttad = null;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
