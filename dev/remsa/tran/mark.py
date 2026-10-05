@@ -1559,7 +1559,8 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     tr_ = time.time()
     m = Bildmodell()
     bank = Bank(m)
-    detta = {c['namn'] for c in claude.values() if c['namn']}
+    manuell = las_manuellt_facit(mapp, index)
+    detta = {c['namn'] for c in claude.values() if c['namn']} | {v[0] for v in manuell.values() if v[0]}
     tidigare = tidigare_namn(mapp)
     leknamn = sorted(set(BAS) | {'baksida'} | set(slumpnamn(nl)) | tidigare | detta)
     konst = bank.konstverk(leknamn)
@@ -1629,7 +1630,6 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
         shutil.rmtree(os.path.join(mapp, d), ignore_errors=True)
     for d in ('montage', os.path.join('osaker', '4k'), os.path.join('slangd', '4k')):
         os.makedirs(os.path.join(mapp, d))
-    manuell = las_manuellt_facit(mapp, index)
     vittnen = {}
     for s in S['spar']:
         if not s['lagg']:
@@ -1638,10 +1638,13 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
             continue
         cl, mm, ob = claude[s['id']], modell_svar.get(s['id']) or {}, orb.get(s['id'])
         dom, namn, varfor = doma(s, cl, mm.get('overens', False), bool(ob and ob['overens']), mm.get('hel'))
-        if s['id'] in manuell and dom not in ('saker', 'baksida'):
+        if s['id'] in manuell:
+            # en människas titt går före vittnena: ett namn ger saker_manuell, null slänger — också ett säkert spår
             m_namn, m_varfor = manuell[s['id']]
             if m_namn:
                 dom, namn, varfor = 'saker_manuell', m_namn, m_varfor
+                if not konst.get(m_namn):
+                    s['varning'] = f'inga konstverk för {m_namn} — E:s ORB-kontroll kan inte köras'
             elif m_varfor:
                 dom, namn, varfor = 'slangd', None, m_varfor
         hit = (namn if dom == 'saker_manuell' else cl['namn']) or ''
@@ -1975,6 +1978,12 @@ def rapport(passmapp, bara=None):
                        f"{len(s['lagen'])} | {s.get('filer', 0)} |" if s['lagg'] else
                        f"| {s['id']} | – ({s['start']:.1f}–{s['slut']:.1f}) | – | – | – | **{s['dom']}** | {s['varfor']} | 0 | 0 |")
         rad.append('')
+        varn = [(s['id'], s['varning']) for s in M['spar'] if s.get('varning')]
+        foll = [(s['id'], s['kontroll_foll']) for s in M['spar'] if s.get('kontroll_foll') is not None]
+        if varn:
+            rad += ['**Varningar:** ' + '; '.join(f'{i}: {v}' for i, v in varn), '']
+        if foll:
+            rad += ['ORB-kontrollen i E föll (lägen efter det senast godkända skrevs inte): ' + ', '.join(f'{i} vid {t:.1f} s' for i, t in foll), '']
         if utsnitt:
             continue
         summa['klipp'] += 1
