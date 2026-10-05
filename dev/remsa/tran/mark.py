@@ -1978,6 +1978,11 @@ def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=
     for k in steg:
         finns = (os.path.exists(os.path.join(mapp, UTFIL[k])) if UTFIL[k]
                  else os.path.exists(os.path.join(mapp, 'markning.json')) and bool(las_json(os.path.join(mapp, 'markning.json')).get('beskar')))
+        if finns and k == 'C' and not tvinga and k not in om:
+            ofr = [s['id'] for s in las_json(os.path.join(mapp, 'markning.json'))['spar'] if s.get('dom') == 'ofragad']
+            if ofr:
+                logg(f'C: {len(ofr)} ofrågade spår ({", ".join(ofr[:8])}) — C körs om; de andra svaren tas ur cachen')
+                finns = False
         if finns and not tvinga and k not in om:
             logg(f'{k}: finns redan — hoppar över (--om {k} tvingar)')
             continue
