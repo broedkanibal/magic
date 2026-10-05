@@ -97,7 +97,7 @@ const PROV = async steg => {
   const spar = (id, namn, cx, cy) => ({ id, tillstand: 'klar', namn, saker: true, x: cx - 0.05, y: cy - 0.11, w: 0.1, h: 0.22, tappad: false, vilar: true, sen: 10 });
   const R1 = { x: 0.40, y: 0.5, w: 0.1, h: 0.22 };            // leken, mitten (0,45; 0,61)
   const LAND = [spar(11, 'Forest', 0.6, 0.61), spar(12, 'Forest', 0.72, 0.61)];
-  const nollGrav = () => { gravLage = null; gravSedda = new Set(); gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
+  const nollGrav = () => { gravLage = null; gravSedda = new Map(); gravOmstart = 0; gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
   /* Ett bord från telefonen, en stund efter det förra (kortets ny-stämpel avgör vem som ligger under). */
   const stam = async lista => { await vanta(15); avstamBord(lista, false); };
   /* Brädets zoom glider efter en omritning (matSynk, MES-334 steg 2): mät när lekens ruta stått still. */
@@ -141,6 +141,9 @@ const PROV = async steg => {
     const q = gravLageNu().fraga;
     ok('5 · ett kort som läggs på högen hör till samma fråga (ett kort långt bort gör det inte)', !!q && q.id === id && q.cids.length === 2, q ? namnPa(q.cids) : 'ingen fråga');
     ok('5 · frågan står kvar och blockerar inget (ingen modal)', !!fragaEl() && !document.querySelector('.ov.open'));
+    kamAnsluten = false; renderAll(true);
+    ok('5 · kameran tappas: frågan står kvar tills man svarar (bordet står fruset)', !!fragaEl());
+    kamAnsluten = true; renderAll(true);
   }
   if (steg === 2) {
     W.__kal = [];
@@ -173,6 +176,31 @@ const PROV = async steg => {
       ok('4 · leken och graveyard följer panoreringen precis som ett kort (samma matta)', !!kortEl && Math.abs(d[2][0]) > 20 && d.every(q => Math.abs(q[0] - d[2][0]) < 1.5 && Math.abs(q[1] - d[2][1]) < 1.5),
          JSON.stringify(d.map(q => q.map(Math.round))));
       vyP.pan = p0; renderGrid(true); await stilla(); }
+    /* Skalan byts (telefonen närmare: korten 30 % bredare i bilden, utan att flytta sig): kort, lek och
+       graveyard räknas om med samma skala. Förut stod korten kvar räknade med den gamla och högarna gled. */
+    { const rel = () => { const sk = kamSkala(mig()), h = mig().bibHog, gh = mig().gravHog, ut = [];
+        const mh = kamTillMatta(h.kam, sk), gr = kamGravRad, mg = gr && kamTillMatta({ x: gr.x + gr.w / 2, y: gr.y + gr.h / 2, w: gr.w, h: gr.h }, sk);
+        for (const c of mig().cards.filter(c => c.kam && c.spar != null && paMattan(c) && !c.attachedTo)) {
+          const mc = kamTillMatta(c.kam, sk), sz = matStorlek(c), cx = c.x + sz.w / 2, cy = c.y + sz.h / 2;
+          ut.push(Math.round((h.x + MATTA.CW / 2 - cx) - (mh.x - mc.x)), Math.round((h.y + MATTA.CH / 2 - cy) - (mh.y - mc.y)));
+          if (gh && mg) ut.push(Math.round((gh.x + MATTA.CW / 2 - cx) - (mg.x - mc.x)), Math.round((gh.y + MATTA.CH / 2 - cy) - (mg.y - mc.y)));
+        }
+        return ut; };
+      const r0 = rel(), s0 = kamSkala(mig()), gamla = new Map(mig().cards.filter(c => c.kam).map(c => [c.cid, c.kam]));
+      for (const c of mig().cards) if (c.kam) c.kam = Object.assign({}, c.kam, { w: c.kam.w * 1.3, h: c.kam.h * 1.3 });
+      renderGrid(true); await stilla();
+      const r1 = rel(), s1 = kamSkala(mig());
+      ok('skalan byts: kort, lek och graveyard räknas med samma skala (inget glider isär)', s1 < s0 * 0.9 && r1.length > 0 && r0.concat(r1).every(d => Math.abs(d) <= 2),
+         `skala ${s0.toFixed(0)} → ${s1.toFixed(0)}, avvikelser före ${JSON.stringify(r0)} efter ${JSON.stringify(r1)}`);
+      for (const c of mig().cards) if (gamla.has(c.cid)) c.kam = gamla.get(c.cid);
+      renderGrid(true); await stilla();
+      /* Tre kort tappas (kortsidan på höjden i bilden): skalan står kvar — förut krympte hela bordet. */
+      const s2 = kamSkala(mig()), asp = 4 / 3, tre = mig().cards.filter(c => c.kam && c.kam.w).slice(0, 3);
+      for (const c of tre) c.kam = Object.assign({}, c.kam, { w: c.kam.h * asp, h: c.kam.w / asp });
+      const s3 = kamSkala(mig());
+      ok('tre kort tappas: skalan står kvar (kortsidan räknas, inte bredden i bilden)', tre.length === 3 && s3 === s2, `${s2.toFixed(0)} → ${s3.toFixed(0)}`);
+      for (const c of mig().cards) if (gamla.has(c.cid)) c.kam = gamla.get(c.cid);
+      renderGrid(true); await stilla(); }
     g.click();
     await vanta(50);
     ok('4 · klick på högen tar upp korten i handen (solfjädern, som den fasta högen)', hf.src === ZON_GRAV && hf.fas !== 'stangd', `${hf.src} ${hf.fas}`);
@@ -335,7 +363,41 @@ const PROV = async steg => {
     ok('…också när telefonen sagt "ingen lek" innan den tappades', !manaRow.querySelector('.grav') && $('#bibHog').hidden);
     /* Reserven: ett kort i graveyard utan hög bland korten (flyttat dit i appen före Yes) syns på den fasta platsen. */
     mig().cards = [{ cid: 'gx', name: 'Opt', zon: ZON_GRAV, x: null, y: null, z: 1, tapped: 0 }]; renderAll(true);
-    ok('reserven: ett kort i graveyard utan hög bland korten visas på den fasta platsen', !!manaRow.querySelector('.grav:not(.tom)'));
+    ok('reserven utan lek på mattan: ett kort i graveyard visas på den fasta platsen', !!manaRow.querySelector('.grav:not(.tom)'));
+    /* Med leken på mattan: reserven och exile bredvid leken, på sidan bort från landen — aldrig i hörnet. */
+    kamAnsluten = true; tagEmotLek(lek('nere', 1, R1)); renderAll(true);
+    const lx = mig().bibHog.x;
+    mig().cards = [{ cid: 'gl', name: 'Forest', zon: ZON_MANA, x: lx + 600, y: mig().bibHog.y, z: 1, tapped: 0 },
+                   { cid: 'gx', name: 'Lightning Bolt', zon: ZON_GRAV, x: null, y: null, z: 2, tapped: 0 },
+                   { cid: 'ex', name: 'Opt', zon: ZON_EXIL, x: null, y: null, z: 3, tapped: 0 }];
+    renderAll(true); await stilla();
+    { const lekR = gridEl.querySelector('.lekhog').getBoundingClientRect(), gd = gridEl.querySelector('.gravd1[data-gravhog="1"]'), ed = gridEl.querySelector('.exild1[data-exilhog="1"]');
+      const gr = gd && gd.getBoundingClientRect(), er = ed && ed.getBoundingClientRect();
+      ok('reserven med leken på mattan: graveyard bredvid leken, bort från landen, ingen fast hög', !!gr && gr.right <= lekR.left + 2 && Math.abs(gr.top - lekR.top) < 3 && !manaRow.querySelector('.grav') && /Graveyard1/.test(gd.textContent.replace(/\s+/g, '')),
+         gr ? `graveyard ${Math.round(gr.left)}–${Math.round(gr.right)}, leken ${Math.round(lekR.left)}` : 'ingen');
+      ok('exile bredvid graveyard på mattan, i D1 (bricka "Exile 1"), ingen exile-bricka i hörnet', !!er && er.right <= gr.left + 2 && Math.abs(er.top - lekR.top) < 3 && !manaRow.querySelector('.exilhog') && /Exile1/.test(ed.textContent.replace(/\s+/g, '')),
+         er ? `exile ${Math.round(er.left)}–${Math.round(er.right)}` : 'ingen');
+      ed.click(); await vanta(50);
+      ok('klick på exile tar upp korten i handen (solfjädern)', hf.src === ZON_EXIL, `${hf.src}`);
+      hfStang(); await vanta(400); }
+    /* Leken nära mattans vänsterkant, landen till höger: högarna hamnar inte utanför mattan och inte på ett kort. */
+    { tagEmotLek(lek('nere', 1, { x: 0.005, y: 0.5, w: 0.1, h: 0.22 })); renderAll(true);
+      const lh = mig().bibHog;
+      mig().cards = [{ cid: 'gl', name: 'Forest', zon: ZON_MANA, x: lh.x + 220, y: lh.y, z: 1, tapped: 0 },
+                     { cid: 'gx', name: 'Lightning Bolt', zon: ZON_GRAV, x: null, y: null, z: 2, tapped: 0 },
+                     { cid: 'ex', name: 'Opt', zon: ZON_EXIL, x: null, y: null, z: 3, tapped: 0 }];
+      renderAll(true);
+      const b = hogarBredvid(mig()), krock = q => [lh, mig().cards[0]].some(k => Math.abs(k.x - q.x) < MATTA.CW && Math.abs(k.y - q.y) < MATTA.CH);
+      ok('leken vid kanten: graveyard och exile inom mattan, inte på leken eller ett land, inte på varandra', !!b.grav && !!b.exil && b.grav.x >= MATTA.KANT && b.exil.x >= MATTA.KANT && !krock(b.grav) && !krock(b.exil) && Math.abs(b.grav.x - b.exil.x) >= MATTA.CW,
+         JSON.stringify({ lek: Math.round(lh.x), land: Math.round(lh.x + 220), grav: b.grav && Math.round(b.grav.x), exil: b.exil && Math.round(b.exil.x) })); }
+    /* Efter Yes men tom (korten tillbaka i spel): ingen tom graveyard på mattan. */
+    kamGravRad = { x: 0.2, y: 0.55, w: 0.1, h: 0.22 }; mig().cards = []; renderAll(true);
+    { const tg = gridEl.querySelector('.gravd1[data-gravhog="1"]');
+      ok('graveyard efter Yes men tom: ingen synlig tom hög, men ett släppmål där högen ligger', !!tg && tg.classList.contains('tom') && getComputedStyle(tg).visibility === 'hidden' && !manaRow.querySelector('.grav'), tg ? getComputedStyle(tg).visibility : 'ingen');
+      tg.classList.add('over');
+      ok('…som syns när ett kort dras över den', getComputedStyle(tg).visibility === 'visible');
+      tg.classList.remove('over'); }
+    kamGravRad = null; mig().gravHog = null; mig().bibHog = null; kamAnsluten = false;
     mig().cards = [];
     /* Use camera to add cards: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
     mig().lage = 'skarm'; kamLek = null; renderAll(true); renderBibHog();

@@ -163,7 +163,7 @@ return {
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
   nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
-    gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Set(); delete state.players[0].bibHog; }
+    gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Map(); gravOmstart = 0; delete state.players[0].bibHog; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -2033,6 +2033,57 @@ prov('GY3 medan frågan står: kort som läggs på högen hör till samma fråga
   klocka.t += 3000;
   stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) }), klar(3, 'Killing Glare', { sen: 10, ...kortVid(0.305, 0.31) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.6, 0.3) })]);
   assert.equal(fraga().id, id); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra', 'Pacifism', 'Killing Glare']);
+});
+prov('GY8 ett kort som FLYTTAS till andra sidan om leken (en varelse som dör) ger frågan — samma kort, inget nytt spår', () => {
+  gyStart();
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.7, 0.7) })];
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.45, 0.45) })]));   // i spel, ovanför lekens rad: ingen fråga
+  assert.equal(fraga(), null, 'frågade när varelsen spelades');
+  klocka.t += 20000;                                      // långt efter att den lades ut
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.452, 0.452) })]));  // darr: inget
+  assert.equal(fraga(), null, 'darr gav en fråga');
+  klocka.t += 2000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]));    // varelsen dör: flyttas till graveyard-platsen
+  assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1, 'ett andra Ukud Cobra');
+  assert.ok(fraga(), 'flyttat kort gav ingen fråga'); assert.equal(fraga().orsak, 'sida'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra']);
+});
+prov('GY9 medan frågan står: ett kort som flyttas till högen hör till den; ett kort som flyttas ovanpå ett annat ger frågan', () => {
+  gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.6, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.6, 0.3) }), klar(2, 'Pacifism', { sen: 10, ...kortVid(0.302, 0.303) })]);
+  const id = fraga().id;
+  klocka.t += 20000;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(2, 'Pacifism', { sen: 10, ...kortVid(0.302, 0.303) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.305, 0.305) })]);
+  assert.equal(fraga().id, id); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra', 'Pacifism', 'Serpent Assassin']);
+  /* Utan stående fråga: ett gammalt kort som flyttas rakt ovanpå ett annat — reserven gäller också flyttade kort. */
+  app.nollstall(); gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.6, 0.3) })]);
+  klocka.t += 20000;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.302, 0.302) })]);
+  assert.ok(fraga(), 'flyttat ovanpå gav ingen fråga'); assert.equal(fraga().orsak, 'ovanpa'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra', 'Serpent Assassin']);
+});
+prov('GY10 (granskningen av rättelsen, fynd 1) ett kort som rättas till inom frågans hög står bara en gång i frågan', () => {
+  gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(2, 'Pacifism', { sen: 10, ...kortVid(0.302, 0.303) })]);
+  klocka.t += 2000;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(2, 'Pacifism', { sen: 10, ...kortVid(0.302 + 0.04, 0.303) })]);   // rättas till ~0,6 kortbredd, mitten kvar i högen
+  assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra', 'Pacifism'], 'kortet står två gånger');
+});
+prov('GY11 (granskningen av rättelsen, fynd 2) kameran som flyttar sig flyttar alla kort på en gång — ingen fråga; en ny referensbild glömmer lägena', () => {
+  gyStart();
+  const bord = d => [klar(1, 'Forest', { sen: 10, ...kortVid(0.62 + d, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.7 + d, 0.7) }),
+                     klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.3 + d, 0.3) }), klar(4, 'Pacifism', { sen: 10, ...kortVid(0.302 + d, 0.302) })];
+  stam(bord(0));
+  klocka.t += 20000;
+  app.grav.fraga = null; app.grav.sida = false;
+  stam(bord(0.06));                                       // knuffad: allt 0,06 åt sidan i samma meddelande
+  assert.equal(fraga(), null, 'kameran som flyttade sig gav en fråga');
+  klocka.t += 2000;
+  stam(bord(0.06), 'ljus'); stam(bord(0.1), 'kort');       // ny referensbild: lägena glöms, och nästa läge är inget flytt
+  assert.equal(fraga(), null, 'en ny referensbild gav en fråga');
 });
 prov('GY4 Permanent: Mesa frågar en gång till när ett kort läggs ovanpå på samma plats, sedan aldrig', () => {
   gyStart(); app.bib = null;

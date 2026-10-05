@@ -7,6 +7,8 @@
 > **Läget 2026-10-05 kl. 23: sida 5 är ute.** Fall 05 med Claude var ett hål i helbildens antalsregel som fanns på
 > main också (rättelse 4 och 4b, avsnittet *Fall 05 med Claude: orsaken och rättelsen*). Grenen `mes-334-sida5`
 > är ihopslagen med main och pushad; telefonprovet står i [`hogarna-telefonprov.md`](hogarna-telefonprov.md).
+> **Samma natt, efter Jespers första blick i produktionen:** sida 5 var inte komplett. Avsnittet *Det som saknades
+> (2026-10-05, natten)* säger vad som rättats och vad som väntar på Jespers beslut.
 
 ## Sammanfattning
 
@@ -124,6 +126,42 @@ rättelserna. Detaljerna, med funktionsnamn: `dev/material/arbete/2026-10-04-hog
 | `--utan-bib` 18 | 8 hittade / 3 rätt mot 9 / 4 med facits ruta (glappet var 7/1 mot 9/2 i steg 3) |
 | **Med Claude, 01–17** | 93/109 rätt (var 92), **1 fel namn i 05** (var 0) |
 | Med Claude, 18 | 4/10 (var 3), 0 fel namn |
+
+## Det som saknades (2026-10-05, natten)
+
+Jesper såg i produktionen (spel ACDHC6): en tom graveyard-plats och en fast library med "Pick up 40" i hörnet,
+med kameran ansluten och efter att den tappats. Bordsraden visade att leken aldrig kom upp på mattan.
+
+**Varför det gick igenom:** bänken provade att library-högen var borta i steg 1, aldrig graveyard; och provet
+"utan kamera" ställde upp Mirror my table med kameran borta och krävde de fasta högarna — principernas "spelare
+utan kamera" betyder Use camera to add cards ('skarm'). En fristående granskare gick sedan igenom hela
+byggunderlaget, promptarna och sida 5 krav för krav mot koden och proven.
+
+| Hål | Rättelse | Prov |
+|---|---|---|
+| Fast graveyard i hörnet från att kameran anslöt, också hos motståndaren | `speglatBord(p)`: inga fasta högar på ett speglat bord | hogarna "1 · kameran ansluten…", "5 · före Yes…", motståndaren |
+| Fast library när telefonen inte rapporterat någon lek (detektorn laddar, eller inte går att ladda) och när kameran tappats; mattan sa "Play your first card" | `lekUtanFastPlats`, `lekText` utan krav på telefonens rapport | leken "1 · telefonen har inte börjat leta" |
+| Ett kort som **flyttas** till graveyard-platsen (en varelse som dör) gav ingen fråga | `gravSedda` minns läget; flyttat och lagt sig = prövas igen | avstamning GY8, GY9 |
+| Högarna gled upp till 340 px mot korten när kortens median-bredd ändrades | skalan låst (byts vid > 8 %) och i nyckeln, så att allt räknas om ihop | hogarna "skalan byts" |
+| Frågan och Not my library-kortet försvann när kameran tappades | `gravFragaNu`, `lekUteLista` utan krav på anslutning | hogarna "5 · kameran tappas" |
+| Tom graveyard bland korten efter Yes | ingen post när högen är tom | hogarna "graveyard efter Yes men tom" |
+| Exile som en bricka i hörnet, inte bredvid leken | `hogarBredvid`: exile i D1 bredvid leken på mattan | hogarna "exile bredvid graveyard…" |
+| Ett instant före Yes (besvärjelseregeln) tog fram den fasta graveyard-högen | samma: graveyard bredvid leken, bort från landen — **antagande, väntar på Jesper** | hogarna "reserven med leken på mattan" |
+
+Bekräftat i samma prov: graveyard skapas där första kortet låg (4–6 px), och leken och graveyard följer
+panoreringen exakt som ett kort. De delarna var byggda; flödet slogs bara aldrig på.
+
+**Väntar på Jespers beslut:**
+1. Instant före Yes: graveyard bredvid leken (byggt nu), eller ingen graveyard alls förrän Yes, eller vänta med
+   besvärjelseregeln tills graveyard finns.
+2. Statusfältets "Untapped angle not saved — lay a card untapped and press Save" kom tillbaka i Mirror my table
+   i rättelse 1 (byggarens val). Byggunderlaget säger grundläget automatiskt, utan fråga.
+3. Graveyard följer inte när spelaren flyttar högen (del A mätte det i 09-21). Hör det till det här bygget?
+
+**Kvar, utan beslut (mindre synligt):** leken visas med Magic-baksidan ~3 s innan sleevesfärgen är mätt; Yes byter
+kort mot hög utan designens toning; en telefon utan tränad detektor tar inte grundläget ur första kortet
+(telefonens kod, kräver golden); motståndarna ser inte Not my library-högen; brickan på motståndarens matta
+skalar med brädet.
 
 ## Fall 05 med Claude: orsaken och rättelsen (2026-10-05 kl. 20–23)
 

@@ -984,6 +984,7 @@ body.tomhand .kolmark{display:none}
 .lekbr i{width:8px;height:8px;border-radius:3px;flex:none;background:#6b8cff}
 .lekbr b{font:600 15px/1 var(--mono);letter-spacing:0;text-transform:none;color:var(--txt)}
 .lekbr.gul i{background:#e8b33a}
+.lekbr.lila i{background:#9d85d6}
 /* Graveyard bland korten (MES-334 steg 5, D1 i hogar2.css skalat 130→178): inga ramar, högen huller om
    buller, översta kortet tonat (grayscale .45, brightness .75 som designytan). Brickan behåller sin storlek
    när mattan zoomas (.lekbr, --matz). */
@@ -994,6 +995,7 @@ body.tomhand .kolmark{display:none}
 .gravd1 img.u2{transform:rotate(2.5deg) translate(5px,5px)}
 .gravd1:not(.tom):hover img.topp{filter:grayscale(.3) brightness(.86)}
 .gravd1.tom{background:#0b0f1540}
+.gravd1.tom:not(.over){visibility:hidden}   /* tom graveyard visas inte (Jesper 2026-10-05) — bara som släppmål under ett drag */
 .gravd1.hflyft img{translate:-3px -18px;scale:1.07}
 .gravd1.hfute img{opacity:0}
 .gravd1.bump img.topp{animation:cLand .5s cubic-bezier(.2,.8,.3,1)}
@@ -7543,14 +7545,15 @@ function oppHogarHtml(p) {
   const top = n ? cardOf(grav[0]) : null, src = top ? imgOf(top, 0, 'normal') || imgOf(top, 0, 'small') : '', bib = oppBibKvar(p);
   const lager = []; for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
   /* Ligger hens graveyard bland korten (MES-334 steg 5) står den inte här också. */
-  return (p.gravHog || gravUtanFastPlats(p, n) ? '' : `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
+  const bredvid = hogarBredvid(p);
+  return (p.gravHog || bredvid.grav || gravUtanFastPlats(p, n) ? '' : `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '') + `<span class="gravsten">${GRAVSTEN}</span></div>`
     + `<span class="hograd"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`)
     /* Ligger hens lek bland korten (MES-334 steg 3) står den inte här också, och i Mirror my table har
        leken ingen fast plats (speglatBord): hen ser den när kameran ser den. */
     + (p.bibHog || speglatBord(p) ? '' : `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : ` — ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
     + `<span class="hograd bibrad"><i></i>Library${bib == null ? '' : `<b>${bib}</b>`}</span></div>`)
-    + (exil ? `<div class="oexil" title="Cards in exile — click to look through them"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
+    + (exil && !bredvid.exil ? `<div class="oexil" title="Cards in exile — click to look through them"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
 }
 /* Så långt mattan får flyttas: hela brädet ska gå att nå, plus lite luft. */
 function oppKlamp(g, v) {
@@ -7595,7 +7598,7 @@ oppMattorEl.addEventListener('click', ev => {
   const sek = ev.target.closest('.omatta'); if (!sek) return;
   /* Hens graveyard eller exile: korten i solfjädern, att titta i. */
   const hog = ev.target.closest('.ohogar .grav:not(.tom),.oexil,.gravd1:not(.tom)');
-  if (hog) { ev.stopPropagation(); hfOppna(hog.classList.contains('oexil') ? ZON_EXIL : ZON_GRAV, sek.dataset.pid); return; }
+  if (hog) { ev.stopPropagation(); hfOppna(hog.classList.contains('oexil') || hog.classList.contains('exild1') ? ZON_EXIL : ZON_GRAV, sek.dataset.pid); return; }
   const oz = ev.target.closest('[data-oz]');
   if (oz) {
     ev.stopPropagation();
@@ -8898,12 +8901,25 @@ function kamSkalaFryst() {
   const o = oppFor(), k = o.provKort;
   return o.klar && k && k.S > 0 ? MATTA.CW / Math.max(0.03, k.S) : null;
 }
+/* Skalan utan uppstartens provkort (Mirror my table sedan MES-334 steg 6) är medianen av kortens bredd i
+   bilden — men låst: den byts först när medianen gått mer än 8 % ifrån, och den ingår i nyckeln
+   (speglaKamPos), så att alla kort, leken, graveyard och de nedvända korten då räknas om med samma värde.
+   Förut räknades ett kort med medianen när det lades och flyttades aldrig om, medan leken och graveyard
+   räknades om vid varje ändring: högarna gled mot korten (granskningen av sida 5, 2026-10-05). */
 function kamSkala(p) {
   const fryst = kamSkalaFryst(); if (fryst) return fryst;
-  const w = p.cards.filter(c => c.kam && c.kam.w).map(c => c.kam.w).sort((a, b) => a - b);
+  /* Kortsidan i bildbreddens enhet (som provkortets S): ett tappat kort har sin kortsida på höjden. Förut räknades
+     kam.w, och tre land som tappades för mana bytte skala och krympte hela bordet (granskningen av rättelsen, fynd 3). */
+  const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
+  const kortsida = k => Math.min(k.w, k.h ? k.h * asp : k.w);
+  const w = p.cards.filter(c => c.kam && c.kam.w).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
-  const med = w.length ? w[Math.floor(w.length / 2)] : (p.bibHog && p.bibHog.kam && p.bibHog.kam.w) || 0.12;
-  return MATTA.CW / Math.max(0.03, med);
+  const med = w.length ? w[Math.floor(w.length / 2)] : (p.bibHog && p.bibHog.kam && p.bibHog.kam.w ? kortsida(p.bibHog.kam) : 0.12);
+  /* Den låsta skalan per spelare ligger på funktionen: den anropas i appens första rendering, före raden där en const här hade stått. */
+  const minne = kamSkala.las || (kamSkala.las = new Map()), ny = MATTA.CW / Math.max(0.03, med), las = minne.get(p.id);
+  if (las && Math.abs(ny / las - 1) <= 0.08) return las;   // 8 %: mindre är detektorns darr i kortens bredd
+  minne.set(p.id, ny);
+  return ny;
 }
 function kamTillMatta(kam, skala) {
   const asp = kamUpplosning && kamUpplosning.w && kamUpplosning.h ? kamUpplosning.h / kamUpplosning.w : 4 / 3;
@@ -8916,12 +8932,18 @@ function kamTillMatta(kam, skala) {
 }
 function kamSpeglar(p) { return !!spelLage && arMitt(p) && mittLage() === 'bord' && kamAnsluten; }
 function speglaKamPos(p, v) {
-  if (!kamSpeglar(p)) return false;
-  /* Den frysta skalan hör till nyckeln: byts den (uppstarten blev klar, eller
-     gjordes om med telefonen på ett annat avstånd) ritas alla kort om med den
-     nya, så att inget kort står kvar räknat med den gamla. */
+  if (!kamSpeglar(p)) {
+    /* Kameran tappad på mitt speglade bord: korten står frysta, men en hög som fått en ny ruta (Yes medan
+       kameran var borta) läggs ut där korten låg i stället för att hoppa till reserven. */
+    if (!arMitt(p) || !speglatBord(p) || !kamGravRad) return false;
+    const fr = kamSkalaFryst(), sk = fr || kamSkala(p);
+    return gravPlacera(p, sk, gravRuta(v), kamOriNyckel() + '|' + sk.toFixed(3));
+  }
+  /* Skalan hör till nyckeln, fryst eller låst: byts den (uppstarten blev klar,
+     telefonen på ett annat avstånd, kortens median gick mer än 8 %) ritas
+     alla kort om med den nya, så att inget kort står kvar räknat med den gamla. */
   const fryst = kamSkalaFryst();
-  const skala = fryst || kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + (fryst ? '|' + fryst.toFixed(3) : ''), stort = { w: 1e6, h: 1e6 };
+  const skala = fryst || kamSkala(p), g = gravRuta(v), ori = kamOriNyckel() + '|' + skala.toFixed(3), stort = { w: 1e6, h: 1e6 };   // den låsta skalan också (kamSkala)
   let andrat = false;
   for (const c of p.cards) {
     if (c.spar == null || !c.kam || c.lyft != null || !paMattan(c) || c.attachedTo) continue;
@@ -9067,7 +9089,8 @@ function tagEmotLek(l) {
 }
 /* De högar som inte är leken (Not my library) på mitt bord, med kamerans läge: telefonens lista, och klicket tills den svarat. */
 function lekUteLista(p) {
-  if (!p || !arMitt(p) || !lekBordAktivt()) return [];
+  /* Också med kameran tappad: högen står fryst där den låg, som leken (speglatBord i stället för lekBordAktivt). */
+  if (!p || !arMitt(p) || !speglatBord(p) || kamBibRad || oppOppen || !kamLek) return [];
   const ute = ((kamLek && kamLek.ute) || []).filter(u => u && u.ruta).map(u => ({ id: u.id, kam: { x: u.ruta.x + u.ruta.w / 2, y: u.ruta.y + u.ruta.h / 2, w: u.ruta.w, h: u.ruta.h } }));
   if (lekLokalt && lekLokalt.typ === 'inte' && lekLokalt.kam && !ute.some(u => u.id === lekLokalt.id)) ute.push({ id: lekLokalt.id, kam: lekLokalt.kam });
   if (lekLokalt && lekLokalt.typ === 'ja') return ute.filter(u => u.id !== lekLokalt.id);
@@ -9079,7 +9102,8 @@ function lekSig(p) {
   return (h ? [h.id, h.upp ? 1 : 0, h.x != null ? Math.round(h.x) : '', h.y != null ? Math.round(h.y) : '', h.kam ? h.kam.nar : '', lekFargSig(h.farg)].join('|') : '-')
     + '/' + lekUteLista(p).map(u => u.id + ':' + Math.round(u.kam.x * 200) + ',' + Math.round(u.kam.y * 200)).join(',') + '/' + lekFargSig(p && p.slvFarg)
     + '/' + ((p && p.nedHog) || []).map(u => u.kam ? u.id + ':' + Math.round(u.kam.x * 200) + ',' + Math.round(u.kam.y * 200) : Math.round(u.x) + ',' + Math.round(u.y)).join(',')
-    + '/' + (p && p.gravHog ? Math.round(p.gravHog.x) + ',' + Math.round(p.gravHog.y) : '-');
+    + '/' + (p && p.gravHog ? Math.round(p.gravHog.x) + ',' + Math.round(p.gravHog.y) : '-')
+    + '/' + (() => { const b = hogarBredvid(p); return [b.grav, b.exil].map(q => q ? Math.round(q.x) + ',' + Math.round(q.y) : '-').join(';'); })();
 }
 function lekFargSig(f) { return f ? [f.r, f.g, f.b, f.magic ? 1 : 0].join(',') : ''; }   // funktioner, inte const: renderGrid kan gå innan blocket körts
 /* Bordets sleeves (MES-334 steg 3): färgen kameran tog ur leken. Den står kvar på spelaren (slvFarg, i raden)
@@ -9129,6 +9153,16 @@ function gravD1Html(p, pos, egen) {
   return `<div class="gravd1${n ? '' : ' tom'}" data-gravhog="${egen ? 1 : 0}" role="button" tabindex="0" aria-label="${esc(etikett)}. ${egen ? 'Pick them up' : 'Look through them'}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1">`
     + `${kropp}<span class="lekbr gul"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`;
 }
+/* Exile bland korten på ett speglat bord (hogarBredvid): samma D1 som graveyard — översta kortet och två under,
+   brickan "Exile N" med lila märke. Öppen information. egen = min (klick tar upp korten); hos en motståndare
+   tittar man i dem. */
+function exilD1Html(p, pos, egen) {
+  const ex = p.cards.filter(c => zonAv(c) === ZON_EXIL), n = ex.length;
+  const img = (c, kl) => { const k = c && cardOf(c), src = k ? imgOf(k, 0, 'normal') || imgOf(k, 0, 'small') : ''; return `<img class="${kl}"${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">`; };
+  const kropp = (n > 2 ? img(ex[2], 'u2') : '') + (n > 1 ? img(ex[1], 'u1') : '') + img(ex[0], 'topp');
+  return `<div class="gravd1 exild1" data-exilhog="${egen ? 1 : 0}" role="button" tabindex="0" aria-label="Exile, ${n} ${n === 1 ? 'card' : 'cards'}. ${egen ? 'Pick them up' : 'Look through them'}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1">`
+    + `${kropp}<span class="lekbr lila"><i></i>Exile<b>${n}</b></span></div>`;
+}
 /* Rutan runt leken i brädkoordinater (min matta), eller null — mattans ram och bräde ska rymma den som ett kort. */
 function lekRam(p) {
   let r = null;
@@ -9140,6 +9174,7 @@ function hogLagen(p) {
   const ut = [];
   if (p && p.bibHog && p.bibHog.x != null && p.bibHog.y != null) ut.push({ x: p.bibHog.x, y: p.bibHog.y });
   if (p && p.gravHog && p.gravHog.x != null && p.gravHog.y != null) ut.push({ x: p.gravHog.x, y: p.gravHog.y });
+  { const b = hogarBredvid(p); if (b.grav) ut.push(b.grav); if (b.exil) ut.push(b.exil); }   // bredvid leken på ett speglat bord
   for (const u of nedLista(p)) ut.push(u);
   return ut;
 }
@@ -9154,6 +9189,35 @@ function nedLista(p) {
   }).filter(u => u.x != null && u.y != null && isFinite(u.x) && isFinite(u.y));
 }
 /* Posterna i matSynk: leken (h:bib) och, på mitt eget bord, högarna som inte är leken (h:ute:<id>). opp = i en motståndares matta. */
+/* Högar utan egen plats i bilden, på ett speglat bord (sida 5: inga fasta platser): de ritas på mattan bredvid
+   leken, på sidan bort från landen — leken, sedan graveyard, sedan exile utåt. Exile har aldrig en plats i
+   bilden (kameran letar inte efter den, principerna: "på sin fasta plats bredvid leken, i D1:s utseende").
+   Graveyard får en plats här bara som reserv: kort ligger i graveyard före Yes (besvärjelseregeln lade ett
+   instant där, eller det flyttades dit i appen) — förut stod de i den fasta högen i hörnet. Utan lek på
+   mattan bredvid graveyard; utan båda: ingen plats (den fasta högen tar dem). Brädkoordinater. */
+function hogarBredvid(p) {
+  const ut = { grav: null, exil: null };
+  if (!p || !speglatBord(p)) return ut;
+  const h = p.bibHog && p.bibHog.x != null ? p.bibHog : null, g = p.gravHog && p.gravHog.x != null ? p.gravHog : null;
+  const nGrav = p.cards.filter(c => zonAv(c) === ZON_GRAV).length, nExil = p.cards.filter(c => zonAv(c) === ZON_EXIL).length;
+  const bas = h || g; if (!bas) return ut;
+  /* Sidan bort från landen, som sidoregeln: bara när alla land ligger på samma sida om leken. Annars till vänster. */
+  const sidor = new Set(p.cards.filter(c => zonAv(c) === ZON_MANA && c.x != null && paMattan(c)).map(c => Math.sign(c.x - bas.x)));
+  const ut1 = sidor.size === 1 && sidor.has(-1) ? 1 : -1;
+  const steg = MATTA.CW + 30;
+  /* Upptaget: kort på mattan, leken, graveyard där den ligger och det som redan lagts här. */
+  const upptagna = p.cards.filter(c => paMattan(c) && c.x != null && c.y != null).map(c => ({ x: c.x, y: c.y }));
+  if (h) upptagna.push(h); if (g) upptagna.push(g);
+  const fri = x => x >= MATTA.KANT && !upptagna.some(q => Math.abs(q.x - x) < MATTA.CW && Math.abs(q.y - bas.y) < MATTA.CH);
+  /* Utåt från basen på den sidan, sedan på den andra; inget fritt: första platsen på sidan, inom mattan. */
+  const plats = () => {
+    for (const r of [ut1, -ut1]) for (let k = 1; k <= 6; k++) { const x = bas.x + r * k * steg; if (fri(x)) return x; }
+    return Math.max(MATTA.KANT, bas.x + ut1 * steg);
+  };
+  if (h && !g && nGrav) { ut.grav = { x: plats(), y: bas.y }; upptagna.push(ut.grav); }
+  if (nExil) ut.exil = { x: plats(), y: bas.y };
+  return ut;
+}
 function lekPoster(p, opp) {
   const ut = [], h = p && p.bibHog;
   /* I en motståndares matta vänd (oppVand): samma speglade lägen som korten. ram = högens ruta, för mattans ram. */
@@ -9163,11 +9227,19 @@ function lekPoster(p, opp) {
     const pos = plats(h);
     ut.push({ nyckel: 'h:bib', html: lekHogHtml(h, pos, !opp && arMitt(p), p.slvFarg), glid: true, ram: ram(pos) });
   }
-  /* Graveyard bland korten (MES-334 steg 5, D1): där högen ligger på bordet. */
-  const g = p && p.gravHog;
-  if (g && g.x != null && g.y != null) {
-    const pos = plats(g);
+  /* Graveyard bland korten (MES-334 steg 5, D1): där högen ligger på bordet — men inte tom (D1 är bara
+     korten; en tom graveyard-plats ska inte visas, Jesper 2026-10-05). Reserven och exile bredvid leken. */
+  const g = p && p.gravHog, bredvid = hogarBredvid(p), nGrav = p ? p.cards.filter(c => zonAv(c) === ZON_GRAV).length : 0;
+  /* Tom efter Yes: ritad men osynlig (.gravd1.tom), så att ett kort som dras dit har ett mål — den syns först när
+     draget är över den (.over). */
+  const gPos = g && g.x != null && g.y != null ? g : bredvid.grav;
+  if (gPos && (nGrav || g)) {
+    const pos = plats(gPos);
     ut.push({ nyckel: 'h:grav', html: gravD1Html(p, pos, !opp && arMitt(p)), glid: true, ram: ram(pos) });
+  }
+  if (bredvid.exil) {
+    const pos = plats(bredvid.exil);
+    ut.push({ nyckel: 'h:exil', html: exilD1Html(p, pos, !opp && arMitt(p)), glid: true, ram: ram(pos) });
   }
   /* Ensamma nedvända kort (steg 5): i bordets sleeves, utan namn — för alla. */
   { const slv = lekSlvStil(slvAv(p));
@@ -9182,7 +9254,7 @@ function lekPoster(p, opp) {
       const m = kamTillMatta(u.kam, skala);
       ut.push({ nyckel: 'h:ute:' + u.id, glid: true,
         html: `<div class="lekute" data-lekute="${u.id}" aria-label="Face-down card" style="left:${Math.round(m.x - MATTA.CW / 2)}px;top:${Math.round(m.y - MATTA.CH / 2)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1${slv ? ';' + slv : ''}">${lekKropp(slv)}`
-          + `<span class="lekbr"><span>Face-down card</span><i class="kvsep"></i><button type="button" data-lekja="${u.id}">It's my library</button></span></div>` });
+          + `<span class="lekbr"><span>Face-down card</span>${kamAnsluten ? `<i class="kvsep"></i><button type="button" data-lekja="${u.id}">It's my library</button>` : ''}</span></div>` });   // med kameran tappad når klicket inte telefonen
     }
   }
   return ut;
@@ -9312,7 +9384,10 @@ function gravIgnoreAktivt() {
 let gravMenyOppen = false;   // No är tryckt: menyn M1 står i frågans ställe
 /* Frågan som ska ritas på mitt bord, med högens kort (de som ligger kvar på mattan), eller null. */
 function gravFragaNu(p) {
-  if (!p || !arMitt(p) || !gravFlodeAktivt()) return null;
+  /* Frågan står kvar tills man svarar, också medan kameran är tappad (bordet står fruset) — förut försvann
+     den med anslutningen (granskningen av sida 5, 2026-10-05). Nya frågor ställs bara med kameran (gravFlodeAktivt). */
+  const mig = minSpelare();
+  if (!p || !arMitt(p) || !mig || !speglatBord(mig) || kamGravRad || oppOppen || !spelPolicy(mig).saknas) return null;
   const q = gravLageNu().fraga; if (!q) return null;
   const kort = q.cids.map(cid => p.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c) && c.x != null && c.y != null);
   return kort.length ? { q, kort } : null;
@@ -9383,7 +9458,7 @@ function gravSvar(svar) {
   } else if (svar === 'ign') {
     L.nej = L.nej.filter(s => !(s.typ === 'perm' && gravMittI(kamRekt(q.kam), kamRekt(s.kam))));
     L.nej.push({ kam: Object.assign({}, q.kam, { w: q.kam.w * 1.1, h: q.kam.h * 1.1 }), typ: 'ign' });
-    for (const c of kort) { if (c.spar != null) borttagna.add(c.spar); mig.cards.splice(mig.cards.indexOf(c), 1); }
+    for (const c of new Set(kort)) { const i = mig.cards.indexOf(c); if (i < 0) continue; if (c.spar != null) borttagna.add(c.spar); mig.cards.splice(i, 1); }   // ett kort en gång: splice(-1) tog förut sista kortet på bordet
     state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));
   } else return;
   L.fraga = null; gravMenyOppen = false; gravSpara();
@@ -9394,11 +9469,14 @@ gridEl.addEventListener('click', ev => {
   if (b) { ev.stopPropagation(); gravSvar(b.dataset.gravsvar); return; }
   /* Graveyard bland korten (steg 5): ett klick tar upp korten i handen, som den fasta högen. */
   const g = ev.target.closest('.gravd1[data-gravhog="1"]');
-  if (g && !g.classList.contains('tom')) { ev.stopPropagation(); hfOppna(ZON_GRAV); }
+  if (g && !g.classList.contains('tom')) { ev.stopPropagation(); hfOppna(ZON_GRAV); return; }
+  if (ev.target.closest('.exild1[data-exilhog="1"]')) { ev.stopPropagation(); hfOppna(ZON_EXIL); }
 });
 gridEl.addEventListener('keydown', ev => {
   const g = ev.target.closest && ev.target.closest('.gravd1[data-gravhog="1"]');
-  if (g && !g.classList.contains('tom') && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); hfOppna(ZON_GRAV); }
+  if (g && !g.classList.contains('tom') && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); hfOppna(ZON_GRAV); return; }
+  const e = ev.target.closest && ev.target.closest('.exild1[data-exilhog="1"]');
+  if (e && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); hfOppna(ZON_EXIL); }
 }, true);
 /* Vilken hög pekaren är över under ett drag (GRAVEYARD_ANIMATION.md §2).
    Träffytorna är större än platserna och asymmetriska: man kommer in från
@@ -9427,7 +9505,7 @@ function exilPlats(pa) {
 const HOG_LUFT = { grav: { l: 54, r: 10, t: 66, b: 40 }, bib: { l: 10, r: 44, t: 66, b: 40 }, exil: { l: 10, r: 40, t: 66, b: 40 } };
 function hogUnder(ev) {
   if (!ev) return null;
-  const hogar = { grav: gravD1El() || manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)'), exil: manaRow.querySelector('.exilplats') };
+  const hogar = { grav: gravD1El() || manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)'), exil: exilD1El() || manaRow.querySelector('.exilplats') };
   let bast = null, bastD = Infinity;
   for (const k in hogar) {
     const el = hogar[k]; if (!el) continue;
@@ -9449,8 +9527,9 @@ function renderGravHog(cards, d, bland) {
   const ex = d.exil.length;
   /* Graveyard bland korten (MES-334 steg 5): den fasta högen står inte här också — bara exile. På ett
      speglat bord står den inte heller här före Yes (sida 5, tavla 1–3: ingen graveyard förrän man svarat). */
-  const html = (bland || gravUtanFastPlats(player(), d.grav.length) ? '' : gravHtml(cards, d.grav))
-    + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to pick them up"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '');
+  const bredvid = hogarBredvid(player());
+  const html = (bland || bredvid.grav || gravUtanFastPlats(player(), d.grav.length) ? '' : gravHtml(cards, d.grav))
+    + (ex && !bredvid.exil ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to pick them up"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '');
   const pid = player().id, n = d.grav.length;
   const vaxte = !!gravForra && gravForra.pid === pid && n > gravForra.n;
   gravForra = { pid, n };
@@ -9468,6 +9547,7 @@ function renderGravHog(cards, d, bland) {
 let gravBumpT = null;
 /* Graveyard bland korten (MES-334 steg 5): högen på min matta, eller null. */
 const gravD1El = () => gridEl.querySelector('.gravd1[data-gravhog="1"]');
+const exilD1El = () => gridEl.querySelector('.exild1[data-exilhog="1"]');   // exile bredvid leken (hogarBredvid)
 function gravBumpa() {
   clearTimeout(gravBumpT);
   const d1 = gravD1El();
@@ -9513,9 +9593,9 @@ function hfTimrarBort() { hf.t.forEach(clearTimeout); hf.t = []; }
 function hfSpelare() { return (hf.pid && state.players.find(p => p.id === hf.pid)) || player(); }
 /* Högen korten kommer ur: 'lib', ZON_GRAV eller ZON_EXIL. */
 function hfHogEl(src) {
-  if (hf.pid) { const m = oppMattor.get(hf.pid); return m && src !== 'lib' ? (src === ZON_GRAV && m.brade.querySelector('.gravd1')) || m.hogar.querySelector(src === ZON_EXIL ? '.oexil' : '.grav') : null; }
+  if (hf.pid) { const m = oppMattor.get(hf.pid); return m && src !== 'lib' ? (src === ZON_GRAV && m.brade.querySelector('.gravd1:not(.exild1)')) || (src === ZON_EXIL && m.brade.querySelector('.exild1')) || m.hogar.querySelector(src === ZON_EXIL ? '.oexil' : '.grav') : null; }
   if (src === 'lib') return bibHogEl && !bibHogEl.hidden ? bibHogEl.querySelector('.bib') : null;
-  return (src === ZON_GRAV && gravD1El()) || manaRow.querySelector(src === ZON_EXIL ? '.exilhog' : '.grav');   // graveyard bland korten (steg 5) först
+  return (src === ZON_GRAV && gravD1El()) || (src === ZON_EXIL && exilD1El()) || manaRow.querySelector(src === ZON_EXIL ? '.exilhog' : '.grav');   // högarna bland korten (steg 5) först
 }
 /* Korten i handen, per typ och med kopior i en stapel. Library: det som
    inte är spelat ur leken (lekKvar), utan sideboarden. Graveyard och exile:
@@ -9726,7 +9806,7 @@ addEventListener('pointermove', ev => {
 addEventListener('pointerdown', ev => {
   if (!hf.src || hf.fas === 'gather' || dnd) return;
   const t = ev.target;
-  if (t && t.closest && t.closest('.hkort,[data-grav-open],[data-exil-open],.bib,.kortark,#hintBar,.ohogar')) return;
+  if (t && t.closest && t.closest('.hkort,[data-grav-open],[data-exil-open],.bib,.kortark,#hintBar,.ohogar,.gravd1')) return;
   hfStang();
 }, true);
 addEventListener('resize', () => { if (hf.src) hfLage(true); });
@@ -13028,7 +13108,7 @@ addEventListener('pointermove', ev => {
   const hog = hogUnder(ev), overB = hog === 'bib', over = hog === 'grav', overE = hog === 'exil';
   if (overE !== !!dnd.overExil) {
     dnd.overExil = overE;
-    const ep = manaRow.querySelector('.exilplats'); if (ep) ep.classList.toggle('over', overE);
+    const ep = exilD1El() || manaRow.querySelector('.exilplats'); if (ep) ep.classList.toggle('over', overE);
     if (!overE) matChip(null);
   }
   if (overB !== dnd.overBib) {
@@ -30885,13 +30965,23 @@ function autoSumAvsluta(spar, mig, nu) {
 const GRAV_OVANPA = 0.9;      // kortet ovanpå täcker minst så mycket av kortet under
 const GRAV_NY_MS = 15000;     // ett kort prövas bara som nytt: så länge efter att kameran lade ut det
 let gravLage = null;          // { spel, fraga: { id, cids (understa först), kam, orsak 'sida'|'ovanpa', igen, nar } | null, nej: [{ kam, typ 'perm'|'ign', igen }], sida }
-let gravSedda = new Set();    // kort som prövats mot reglerna, en gång per kort
+/* Kort som prövats mot reglerna: cid → { x, y, lagd } — kamerans läge när kortet prövades, och när det lades
+   där (kameran lade ut det, eller det flyttades dit). Ett kort prövas igen när det flyttats mer än GRAV_FLYTT
+   och lagt sig: en varelse som dör och läggs på graveyard-platsen, eller ett instant som först låg framför
+   spelaren, är samma kort och fick förut aldrig frågan (granskningen av sida 5, 2026-10-05). */
+let gravSedda = new Map();
+const GRAV_FLYTT = 0.5;       // flyttat: mitten minst en halv kortsida från där kortet senast prövades
+/* En ny referensbild (telefonen knuffad, startad om): bilden har flyttat sig, så korten får nya lägen utan att ha
+   flyttats. Ett nytt läge inom GRAV_OMSTART_MS därefter skrivs om tyst — också för ett kort vars läge kommer
+   först i ett senare meddelande (granskningen av rättelsen, fynd 2, X3). */
+let gravOmstart = 0;
+const GRAV_OMSTART_MS = 5000;
 function gravLageNu() {
   const id = typeof spelLage !== 'undefined' && spelLage ? spelLage.id : '';
   if (!gravLage || gravLage.spel !== id) {
     let s = null; try { s = LS.get('sthv.grav.v1.' + id, null); } catch (e) {}
     gravLage = Object.assign({ fraga: null, nej: [], sida: false }, s || {}, { spel: id });
-    gravSedda = new Set();
+    gravSedda = new Map(); gravOmstart = 0;
   }
   return gravLage;
 }
@@ -30932,6 +31022,7 @@ function gravGlomPlatser() {
   if (!spelLage) return;
   const L = gravLageNu();
   if (L.nej.length) { L.nej = []; gravSpara(); }
+  gravOmstart = Date.now();   // bilden har flyttat sig: nästa läge per kort är kamerans flytt, inte kortets (gravFragaSteg)
 }
 /* …och när telefonen knuffats (kontrollgranskningen N6): "The picture has moved" tar en ny referensbild
    utan att nollställa, och fasen går tillbaka till ljus efter att kameran sett bordet. Bilden har
@@ -30956,6 +31047,7 @@ function gravFragaSteg(mig, nu, synliga) {
     const kvar = L.fraga.cids.filter(id => { const c = kort(id); return c && pa(c); });
     if (kvar.length !== L.fraga.cids.length) { andrat = true; L.fraga = kvar.length ? Object.assign(L.fraga, { cids: kvar, kam: gravKamOm(kvar.map(id => kort(id).kam)) }) : null; }
   }
+  const lagdAv = c => { const g = gravSedda.get(c.cid); return g ? g.lagd : (c.ny || 0); };
   /* Kortet under ett nytt kort: det täcks till minst GRAV_OVANPA, låg där före, inte land på land, inget bifogat. */
   const under = c => {
     if (c.attachedTo || mig.cards.some(x => x.attachedTo === c.cid)) return null;
@@ -30963,7 +31055,7 @@ function gravFragaSteg(mig, nu, synliga) {
     let bast = null, bv = GRAV_OVANPA;
     for (const a of mig.cards) {
       if (a === c || !pa(a) || a.attachedTo || mig.cards.some(x => x.attachedTo === a.cid) || (gravArLand(a) && gravArLand(c))) continue;
-      if ((a.ny || 0) >= (c.ny || 0)) continue;
+      if (lagdAv(a) >= lagdAv(c)) continue;                // kortet under låg där först (lagt eller flyttat dit)
       const v = gravTackt(kamRekt(a.kam), r);
       if (v >= bv) { bv = v; bast = a; }
     }
@@ -30981,13 +31073,32 @@ function gravFragaSteg(mig, nu, synliga) {
     const landSida = [...sidor][0];
     return Math.sign(cv.x - lv.x) === -landSida && Math.abs(cv.x - lv.x) > lv.w / 2 && Math.abs(cv.y - lv.y) <= lv.h / 2;
   };
+  /* Två pass: först alla lägen (gravSedda), sedan reglerna — kort som flyttats i samma meddelande har då samma
+     tid, och under() ser inte det ena som "låg där först" (granskningen av rättelsen, fynd 2). */
+  const nya = [], flyttade = [];
+  let synligaPa = 0;
   for (const c of mig.cards) {
-    if (gravSedda.has(c.cid) || !pa(c) || !c.name || c.spar == null || !synliga.has(c.spar)) continue;
-    gravSedda.add(c.cid);
-    if (!(c.ny && nu - c.ny < GRAV_NY_MS)) continue;   // inte lagt nu (låg där när kameran kom, en omladdning): ingen fråga
+    if (!pa(c) || !c.name || c.spar == null || !synliga.has(c.spar)) continue;
+    synligaPa++;
+    const fore = gravSedda.get(c.cid);
+    if (!fore) {
+      gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd: c.ny || 0, t: nu });
+      if (c.ny && nu - c.ny < GRAV_NY_MS) nya.push(c);   // annars: låg där när kameran kom, en omladdning — ingen fråga
+      continue;
+    }
+    /* Flyttat och lagt sig (inte preliminärt): prövas som om det lades där nu. */
+    if (c.kam.prel || Math.hypot(c.kam.x - fore.x, c.kam.y - fore.y) <= GRAV_FLYTT * Math.min(c.kam.w, c.kam.h)) continue;
+    if ((fore.t || 0) < gravOmstart && (c.kam.nar || nu) - gravOmstart < GRAV_OMSTART_MS) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu })); continue; }
+    const lagd = c.kam.nar || nu;
+    gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd, t: nu });
+    if (nu - lagd < GRAV_NY_MS) flyttade.push(c);
+  }
+  /* Flyttar de flesta korten på en gång har kameran flyttat sig (knuffad, ställd tillbaka lite annorlunda), inte korten. */
+  const prova = flyttade.length >= 2 && flyttade.length >= 0.6 * synligaPa ? nya : nya.concat(flyttade);
+  for (const c of prova) {
     if (L.fraga) {
       /* Medan frågan står: ett kort på högen hör till den — mitten inom högens ruta. */
-      if (gravMittI(kamRekt(c.kam), kamRekt(L.fraga.kam))) { L.fraga.cids.push(c.cid); L.fraga.kam = gravKamOm(L.fraga.cids.map(id => kort(id).kam)); andrat = true; }
+      if (!L.fraga.cids.includes(c.cid) && gravMittI(kamRekt(c.kam), kamRekt(L.fraga.kam))) { L.fraga.cids.push(c.cid); L.fraga.kam = gravKamOm(L.fraga.cids.map(id => kort(id).kam)); andrat = true; }
       continue;
     }
     const plats = L.nej.find(s => gravMittI(kamRekt(c.kam), kamRekt(s.kam)));
@@ -33617,6 +33728,7 @@ async function oppnaSpel(gameId, farsk) {
      Utan nollställningen hindrade det gamla värdet hämtningen av det nya
      spelets lek, och knappen visade fel antal. */
   minLek = null;
+  if (kamSkala.las) kamSkala.las.clear();   // den låsta skalan hör till förra spelets bord
   byggSpelare(spelare);
   /* Jag är alltid den aktiva spelaren: motståndarnas bord ritas bredvid
      mitt i bordsvyn (MES-133), inte i stället för det. Det som sparas per
@@ -33844,7 +33956,7 @@ async function lamnaSpelet() {
   await Moln.lamnaKanal();
   spelLage = null;
   kameraEnhet = false;
-  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;
+  kamUpp = 'v'; kamGrund = undefined; kamGrundRad = null; senasteKamSpar = null; kamVand = 0; kamSpegel = false; kamGravRad = null; kamBibRad = null; kamBib = undefined; kamBibStod = null; kamLek = undefined; if (kamSkala.las) kamSkala.las.clear(); lekLokalt = null; stangLekMeny(); oppProvId = null; oppProvLas = null; oppFlytt = false; oppGravFlyttad = null;
   autoSum = null;                           // passet hör till spelet man lämnar; det sparade ligger kvar under spelets nyckel
   kamAnsluten = false; kamOppen = false;
   /* Utan de här visade nästa spel man gick in i "Kameran tappad" innan man
