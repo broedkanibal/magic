@@ -36,6 +36,12 @@ En session, utan orkestrerare. Kör `paborjaIssue('MES-334')` först. Utredninge
 
 ## Samordning
 
+- **Före rättelsen och före ihopslagningen:** `git fetch` och
+  `git diff --stat 36ebf2a origin/main -- index.html dev/embed dev/golden`. Har main fått kod där sedan
+  36ebf2a (t.ex. bildmodellen från MES-340): lägg om grenen och kör fall 05 och bänken igen innan något annat.
+  MES-340 är ombedd att inte röra index.html, `dev/embed/embed.js` eller `dev/golden/kor.*` och att inte lägga
+  in den tränade modellen i appen förrän sida 5 är ute, eller att fråga först.
+
 - En annan session (MES-340, bildmodellen) kör tunga 4K-jobb. Skicka **"golden startar"** före varje golden och
   **"klart"** efter, via `ListAgents` + `SendMessage`.
 - En pausad process syns fortfarande i `pgrep`: vänta på att lasten är under 6, inte på att processen försvinner.
