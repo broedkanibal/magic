@@ -2299,6 +2299,19 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK22 handen nedvänd under en sökning på 15 s: handen lagd ${l22a && l22a.lage} x ${xs21(l22a)}; handen upplockad 6 s: ${l22 && l22.lage} x ${xs21(l22)} (L ${(L.x / W).toFixed(3)})`,
           !!l22 && l22.lage === 'nere' && Math.abs(l22.ruta.x - L.x / W) < 0.01);
 
+    // LN (steg 5): ensamma nedvända kort medan leken ligger — en låda, still i 3 s, inte vid kanten; inte en hög av två lådor
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const N1 = { x: 60, y: 40, w: 30, h: 42 }, N2a = { x: 100, y: 90, w: 30, h: 42 }, N2b = { x: 108, y: 96, w: 30, h: 42 }, NK = { x: 210, y: 50, w: 30, h: 42 };
+    const ritN = [hog(L), hog(N1), hog(N2a), hog(N2b), hog(NK)], ladN = [lada(L, 'baksida'), lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')];
+    const ln1 = await kor(12, ritN, ladN);
+    const ln2 = await kor(14, ritN, ladN);
+    const nedX = l => (l && l.ned || []).map(u => Math.round(u.ruta.x * W));
+    check(`LN1 ensamma nedvända kort: efter 1,8 s ${JSON.stringify(nedX(ln1))}, efter 3,9 s ${JSON.stringify(nedX(ln2))} (väntat [${N1.x}]: inte högen av två lådor vid ${N2a.x}, inte kortet vid kanten ${NK.x}), leken ${ln2 && ln2.lage} x ${ln2 && ln2.ruta && Math.round(ln2.ruta.x * W)}`,
+          !!ln1 && ln1.ned.length === 0 && !!ln2 && ln2.lage === 'nere' && Math.abs(ln2.ruta.x * W - L.x) < 2 && JSON.stringify(nedX(ln2)) === JSON.stringify([N1.x]));
+    const ln3 = await kor(22, [hog(N1), hog(N2a), hog(N2b), hog(NK)], [lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')]);
+    check(`LN2 leken upplockad: inga nedvända kort i rapporten (det kan vara leken som läggs ner): ${ln3 && ln3.lage}, ned ${JSON.stringify(nedX(ln3))}`, !!ln3 && ln3.lage === 'upp' && ln3.ned.length === 0);
+
     // ── LV: lekens egen väg till grundläget (MES-334 sida 5, steg 0) ──
     /* Leken har ingen namnremsa, så steg 1:s sparVinkel().matt blir aldrig sann för den. Lekens vinkel tas
        i stället ur formens mätning (kalla 'form') när leken ligger still, högen är en låda, ingen annan låda

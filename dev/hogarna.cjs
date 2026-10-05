@@ -144,6 +144,21 @@ const PROV = async steg => {
     ok('5 · Yes: telefonen får högens ruta (MES-85 mot högen där den ligger)', !!r && !!r.grav && r.grav.x < 0.26 && r.grav.x + r.grav.w > 0.35 && !!kamGravRad, JSON.stringify(r && r.grav));
     await stam(LAND.concat([spar(23, 'Serra Angel', 0.8, 0.3), spar(24, 'Ukud Cobra', 0.18, 0.62)]));
     ok('efter Yes frågar Mesa inte igen', !fragaEl() && !gravLageNu().fraga);
+    /* 4 · I spel (steg 5, D1): graveyard bland korten där högen ligger, med brickan Graveyard N. */
+    renderAll(true);
+    const g = gridEl.querySelector('.gravd1');
+    ok('4 · graveyard ligger bland korten (en post i brädet), ingen fast hög bredvid', !!g && g.parentElement === gridEl && g._mat && g._mat.nyckel === 'h:grav' && !manaRow.querySelector('.grav'), g ? g.className : 'ingen');
+    ok('4 · brickan "Graveyard 2" på underkanten, översta kortet tonat och två kort i högen', !!g && /^Graveyard2$/.test(g.querySelector('.lekbr').textContent.replace(/\s+/g, '')) && !!g.querySelector('img.topp') && !!g.querySelector('img.u1') && /grayscale/.test(getComputedStyle(g.querySelector('img.topp')).filter), g ? g.querySelector('.lekbr').textContent : '');
+    const lek = gridEl.querySelector('.lekhog'), gr = g && g.getBoundingClientRect(), lr = lek && lek.getBoundingClientRect();
+    ok('4 · högen ligger där den ligger på bordet: till vänster om leken, i samma rad', !!gr && !!lr && gr.right <= lr.left + 2 && Math.abs((gr.top + gr.bottom) / 2 - (lr.top + lr.bottom) / 2) < lr.height * 0.4, gr && lr ? `högen ${Math.round(gr.left)}–${Math.round(gr.right)}, leken ${Math.round(lr.left)}–${Math.round(lr.right)}` : '');
+    ok('4 · D1: ingen ram runt högen', !!g && getComputedStyle(g).borderStyle === 'none');
+    g.click();
+    await vanta(50);
+    ok('4 · klick på högen tar upp korten i handen (solfjädern, som den fasta högen)', hf.src === ZON_GRAV && hf.fas !== 'stangd', `${hf.src} ${hf.fas}`);
+    hfStang(); await vanta(400);
+    sparaNu();
+    const rad4 = W.__sparat[W.__sparat.length - 1].kort, post = rad4.find(k => k.hog === 'grav');
+    ok('4 · bordsraden bär högens läge (inga namn — korten ligger i listan med zon grav)', !!post && post.cid === 'hog:grav' && post.name === undefined && post.x === Math.round(mig().gravHog.x), JSON.stringify(post));
   }
   if (steg === 3) {
     /* Reserven, och No → menyn M1 → Permanent. */
@@ -171,16 +186,57 @@ const PROV = async steg => {
     ok('…men ett kort någon annanstans är ett kort', kortNamn('spel').join(',') === 'Wood Elves', kortNamn('spel').join(','));
   }
   if (steg === 5) {
+    /* 8 · Högarna följer mattans zoom, brickan behåller sin storlek; ett ensamt nedvänt kort visas (steg 5). */
+    const vy = matVyFor(player()), zs = matVy().z;
+    tagEmotLek(Object.assign(lek('nere', 1, R1), { ned: [{ id: 9, ruta: { x: 0.85, y: 0.6, w: 0.1, h: 0.22 } }] }));
+    const nk = gridEl.querySelector('.nedkort');
+    ok('ett ensamt nedvänt kort visas på mattan, i bordets sleeves och utan namn', !!nk && !!nk.querySelector('.lekslv') && nk.getAttribute('aria-label') === 'Face-down card');
+    sparaNu();
+    const rad5 = W.__sparat[W.__sparat.length - 1].kort;
+    ok('…och delas utan namn i bordsraden', rad5.some(k => k.hog === 'ned' && k.name === undefined));
+    const lb = () => gridEl.querySelector('.lekhog .lekbr.ledig').getBoundingClientRect(), gk = () => gridEl.querySelector('.lekhog').getBoundingClientRect();
+    await vanta(600);                                       // brädets zoom glider in efter en omritning: mät när den stått still
+    const br0 = lb(), k0 = gk();
+    vy.zoomManual = Math.max(MATTA.ZOOM_MIN, zs * 0.6); renderGrid(true); await vanta(600);
+    const br1 = lb(), k1 = gk();
+    ok('8 · högarna följer mattans zoom, brickan behåller sin storlek', k1.width < k0.width * 0.75 && Math.abs(br1.height - br0.height) < 1.5, `leken ${Math.round(k0.width)} → ${Math.round(k1.width)} px, brickan ${br0.height.toFixed(1)} → ${br1.height.toFixed(1)} px`);
+    vy.zoomManual = null; renderGrid(true);
+    tagEmotLek(lek('nere', 1, R1));
     /* Frågan behåller sin storlek på skärmen när mattan zoomas (--matz). */
     mig().cards = []; nollGrav(); renderAll(true);
     await stam([spar(41, 'Ukud Cobra', 0.75, 0.3)]);
     await stam([spar(42, 'Pacifism', 0.751, 0.301)]);
+    await vanta(600);
     const v = matVyFor(player()), b0 = fragaEl().getBoundingClientRect(), z0 = matVy().z;
     v.zoomManual = Math.max(MATTA.ZOOM_MIN, z0 * 0.6); renderGrid(true);
     await vanta(600);
     const b1 = fragaEl().getBoundingClientRect();
     v.zoomManual = null; renderGrid(true);
     ok('frågan behåller sin storlek när mattan zoomas ut', Math.abs(b1.width - b0.width) < 2 && Math.abs(b1.height - b0.height) < 2, `${Math.round(b0.width)}×${Math.round(b0.height)} → ${Math.round(b1.width)}×${Math.round(b1.height)} (zoom ${z0.toFixed(2)} → ${(z0 * 0.6).toFixed(2)})`);
+  }
+  if (steg === 6) {
+    /* En motståndare: hens graveyard bland hens kort (D1) och inget fast graveyard bredvid. */
+    const jag = mig();
+    const opp = normalisera({ id: 'hogprov-opp', name: 'Sara', color: '#b782ff', plats: 2, lage: 'bord', lekId: 'l2', lek: { id: 'l2', namn: 'Blue', antal: 60 }, cards: [], shots: [], shotIdx: 0, pending: [], pane: null, namnkalla: 'anvandare', version: 1 }, 1);
+    state.players = [jag, opp]; state.active = jag.id; bord.valt = 'all';
+    renderAll(true);
+    fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 2, kort: [
+      { cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 },
+      { cid: 'o2', name: 'Opt', zon: 'grav' },
+      { cid: 'hog:grav', hog: 'grav', x: 420, y: 300 }] });
+    const g = document.querySelector('#oppMattor .obrade .gravd1');
+    ok('motståndaren: hens graveyard bland hens kort, och inget fast graveyard bredvid', opp.cards.length === 2 && !!opp.gravHog && !!g && g.dataset.gravhog === '0' && !document.querySelector('#oppMattor .ohogar .grav'), g ? g.className : 'ingen');
+    g.click(); await vanta(50);
+    ok('motståndarens graveyard: klick tittar i korten (solfjädern, hens hög)', hf.src === ZON_GRAV && hf.pid === opp.id, `${hf.src} ${hf.pid}`);
+    hfStang(); await vanta(400);
+    state.players = [jag]; bord.valt = null; renderAll(true);
+  }
+  if (steg === 7) {
+    /* Utan kamera: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
+    kamAnsluten = false; kamGravRad = null; mig().gravHog = null; mig().bibHog = null; kamLek = null; renderAll(true); renderBibHog();
+    const gh = manaRow.querySelector('.grav'), rad = manaRow.querySelector('.gravtxt');
+    ok('utan kamera: graveyard på sin fasta plats', !!gh && !gridEl.querySelector('.gravd1'));
+    ok('utan kamera: D1 — ingen ram, och brickan på underkanten', !!gh && getComputedStyle(gh).borderTopColor === 'rgba(0, 0, 0, 0)' && !!rad && getComputedStyle(rad).backgroundColor !== 'rgba(0, 0, 0, 0)' && rad.getBoundingClientRect().top < gh.getBoundingClientRect().bottom, gh ? getComputedStyle(gh).borderTopColor : '');
   }
   return rad;
 };
@@ -204,7 +260,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes', '6-nej-permanent', '6-ignore', 'zoom'];
+    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));
