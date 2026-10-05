@@ -91,9 +91,9 @@ standardläget.
 - Rättelse 4 av steg 3 (7bc8564) tog bort `LEK_SOK_MS`; leken går nu tillbaka till sin gamla plats om en hög lagts
   där efter en flytt. Känd gräns: ett nedvänt kort på lekens gamla plats tas för leken vid första lyftet efter en
   flytt (Not my library rättar). Rättelse 4 är inte granskad separat — den ingår i helgranskningen.
-- **Golden 18 med Claude har redan 1 fel namn på main** (sedan 261803e eller tidigare): ett tokenspår, Soldier
-  ovanpå Ancestral Blade, får det säkra namnet "Ancestral Blade" av Claude. Inte steg 1; om det är remsminnet
-  eller steg 2 prövar MES-331-sessionen (5da8fc0 mot main). Fråga den sessionen om svaret innan du jämför `--ai`.
+- Golden 18 med Claude fick ett tokenspår med säkert fel namn av remsminnet steg 3 (261803e); det är borttaget i
+  2db6621, så `--ai` jämförs mot 0 fel namn. Main innehåller nu också 6c38206: `--ai` säger ifrån när
+  Claude-handlern inte går att ladda (en worktree utan `node_modules` gav förut "--ai" utan ett enda Claude-svar).
 
 ## Ihopslagningen och avslutet (orkestreraren)
 

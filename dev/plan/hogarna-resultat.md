@@ -57,8 +57,9 @@ falska 1 → 1; golden med Claude (MES-334:s andra `--ai`) 01–08 52/52 och 09�
 **Fall 18 med Claude gav 1 fel namn — också på main utan steg 1** (261803e, en annan sessions "minnet av remsor
 steg 3", omkört med `--detalj`); baslinjen 828ad87 hade 0. Felet följer alltså inte steg 1. Enligt MES-331-sessionen
 är det ett **tokenspår** (Soldier ovanpå Ancestral Blade i hög C) som Claude ger det säkra namnet "Ancestral Blade";
-kor.html räknar ett säkert namn på ett tokenspår som fel namn. 261803e innehåller både remsminnet steg 3 och
-MES-334 steg 2 (5da8fc0), så orsaken är inte avgjord: MES-331-sessionen kör `--ai --fall 18` på 5da8fc0 och på main.
+kor.html räknar ett säkert namn på ett tokenspår som fel namn. **Avgjort samma natt:** MES-331-sessionen körde
+18 med Claude omväxlande — 0 av 3 fel på 5da8fc0 (MES-334 steg 2), 3 av 4 efter remsminnet steg 3 (261803e), och
+tokenspåret uppstår bara efter. Remsminnet steg 3 är borttaget från main (2db6621). MES-334 steg 1 och 2 är friade.
 
 **Följd för steg 3–6:** leken har ingen namnremsa och får därför aldrig `matt`. Lekens vinkel blir alltså inte
 grundläge av sig själv efter omläggningen. Nästa session måste ge leken en egen, strängare väg (formens vinkel
@@ -147,9 +148,8 @@ separat; de ingår i nästa sessions helgranskning av steg 3–6.
 - Riktig telefon är oprovad för allt: vinkelns kostnad på telefonen, upplockad lek med en riktig hand,
   sleeves-färgen under lampan, mattans tempo.
 - `dev/spegelfacit/kor.cjs` väntar på en pool om 114 kort; poolen är 168. Kör med `--tunn-pool` tills det rättats.
-- **Golden 18 med Claude har 1 fel namn på main** sedan 261803e eller tidigare (ett tokenspår som Claude namnger;
-  inte steg 1; om det är remsminnet eller steg 2 prövar MES-331-sessionen). Nästa sessions `--ai`-körning
-  jämförs mot det, inte mot 0, tills orsaken är hittad.
+- Golden 18 med Claude hade 1 fel namn på main efter remsminnet steg 3 (261803e); koden är borttagen i 2db6621,
+  så nästa sessions `--ai`-körning jämförs åter mot 0. Från 6c38206 säger `--ai` ifrån om Claude-handlern inte laddas.
 
 ## Hur körningen gick (lärdomar)
 
