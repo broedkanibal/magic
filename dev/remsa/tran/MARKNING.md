@@ -66,10 +66,11 @@ entydigt namn; ett tokennamn ("Blood", "Treasure") blir aldrig ett kortnamn, int
 inte är ett spelkort. Ett emblem bär planeswalkerns namn ("Basri Ket", Scryfall: "Basri Ket Emblem"), och ORB
 och modellen godkänner det, eftersom konstverket är planeswalkerns (pass 3: klipp 1 s554, s964, s1584, s2105,
 klipp 2 s700 blev säkra). `namn.py` skriver emblemens titlar (`emblem`; en äldre namnlista får dem ur
-tokennamnen). Svar ur cachen på frågan v1 frågas inte om: där är `token` okänt (None), och bara namn i
-emblemtitel- eller tokenlistan kräver `token: false` — alla andra namn påverkas inte. Priset: ett riktigt
-kort med en emblemtitel blir osäkert tills det frågas på nytt (pass 3 klipp 2: sex Garruk, Unleashed, som är
-riktiga planeswalkers). `dom_vittnen` i markning.json är vittnenas dom innan `facit-manuell.json`.
+tokennamnen). Svar ur cachen på frågan v1 används: där är `token` okänt (None), och bara namn i
+emblemtitel- eller tokenlistan kräver `token: false` — alla andra namn påverkas inte. C frågar om med v2
+**bara** de cachade svar vars namn kräver `token: false` och som saknar fältet (pass 3: ~11 av ~400; sex av dem
+är riktiga Garruk, Unleashed). Ger den nya frågan fel används det gamla svaret; ett v2-svar frågas aldrig om.
+`dom_vittnen` i markning.json är vittnenas dom innan `facit-manuell.json`.
 Claude får en egen kort fråga utan systemprompt — appens systemprompt rörs inte. E kontrollerar varje
 läge där hela kortet syns med vittne (b):s regel mot lägg-ögonblickets konstverk; faller den skrivs inget
 efter det senast godkända läget — inte heller täckta lägen däremellan (ett annat kort kan ha lagts exakt på

@@ -1661,20 +1661,32 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     def stall(fragor):
         """fragor: [(spar_id, u)] → {spar_id: svar}, högst 4 samtidigt."""
         from concurrent.futures import ThreadPoolExecutor
-        ut, jobb = {}, []
+        ut, jobb, reserv = {}, [], {}
         for sid, u in fragor:
             sha = hashlib.sha1(u['jpg']).hexdigest()
             k = f"{sha}|{modell}|v{FRAGA_V}"
-            # ett svar på en äldre fråga (utan "token") frågas inte om: fältet blir okänt (None), och bara namn i
-            # emblemtitel- eller tokenlistan kräver token: false (doma)
+            # Ett svar på en äldre fråga (utan "token") används: fältet blir okänt (None). Det frågas om med v2 BARA
+            # när namnet kräver token: false (emblemtitel eller tokennamn, doma) — pass 3: ~11 frågor av ~400, i
+            # stället för att alla de namnen blir osäkra (sex riktiga Garruk, Unleashed i klipp 2). Ett v2-svar
+            # frågas aldrig om, inte heller när Claude lämnat token tomt.
             gammal = next((f"{sha}|{modell}|v{v}" for v in range(FRAGA_V, 0, -1) if f"{sha}|{modell}|v{v}" in cache), None)
             if gammal:
                 r = dict(cache[gammal], cachad=True, fraga_v=int(gammal.rsplit('|v', 1)[1]))
-                if r.get('svar') is not None and 'token' not in r['svar']:
-                    r['svar'] = dict(r['svar'], token=None)
+                sv_ = r.get('svar')
+                if sv_ is not None and 'token' not in sv_:
+                    r['svar'] = sv_ = dict(sv_, token=None)
+                # bara när svaret kan bli ett kortnamn: ett rent tokennamn ("Spirit") blir osäkert ändå
+                kort_ = index.sla_upp(sv_['name'])[0] if sv_ and sv_.get('name') else None
+                if gammal != k and kort_ and sv_.get('token') is None and index.kraver_token_falskt(sv_['name'], kort_):
+                    reserv[sid] = r      # faller tillbaka på det gamla svaret om den nya frågan ger fel
+                    jobb.append((sid, u, k))
+                    continue
                 ut[sid] = r
             else:
                 jobb.append((sid, u, k))
+        if reserv:
+            logg(f"C: {len(reserv)} svar ur cachen frågas om med fråga v{FRAGA_V} — namnet är en emblemtitel eller ett "
+                 f"tokennamn och svaret saknar token: {', '.join(sorted(reserv))}")
         if jobb:
             tc = time.time()
             with ThreadPoolExecutor(max_workers=4) as ex:
@@ -1683,7 +1695,7 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
                     r['fraga_v'] = FRAGA_V
                     if not r.get('fel'):
                         cache[k] = r   # ett fel (429/529/nät) cachas inte: nästa körning frågar igen
-                    ut[sid] = dict(r, cachad=False)
+                    ut[sid] = reserv[sid] if (r.get('fel') and sid in reserv) else dict(r, cachad=False)
             tid['claude'] += time.time() - tc
             skriv_json(cfil, cache)
         return ut
@@ -1720,7 +1732,7 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
         namn, hur = index.sla_upp(val.get('name')) if val.get('name') else (None, 'inget namn')
         claude[s['id']] = {'ratt': val.get('name'), 'namn': namn, 'normalisering': hur, 'sure': val.get('sure') is True,
                            'back': val.get('back') is True, 'token': token_ur_svar(sv),
-                           'kraver_token_falskt': bool(val.get('name') and index.kraver_token_falskt(val.get('name'), namn)),
+                           'kraver_token_falskt': bool(namn and index.kraver_token_falskt(val.get('name'), namn)),
                            'fragor': len(fr), 'andra_saknas': andra_saknas.get(s['id']),
                            'status': 'ofragad' if (not fr and (fel or s['id'] not in utsn)) else 'fragad', 'fel': fel or None,
                            'svar': fr, 'in': sum(x.get('in', 0) for x in fr if not x.get('cachad')),
