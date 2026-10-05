@@ -28611,18 +28611,23 @@ const Kamera = (() => {
     const behallna = new Set(), bort = new Set(), nya = [];
     /* Lekens antal av ett namn (cb.lekTak, null utan lek) mot de säkra spår
        som redan bär det — egna, helbildens behållna och de nya i den här
-       omgången, utom spåret som prövas. Ett säkert namn utöver antalet blir
-       osäkert ('fler än leken') och går till granskningen. Regeln gällde
+       omgången, utom spåret som prövas. Förra helbildens spår räknas också
+       innan de känts igen: ett spår med samma namn längre fram i svaret
+       hade annars gett två säkra exemplar (granskningen av rättelse 4).
+       Spår på väg bort (bevisatBorta) räknas inte, som i upptagna. Ett
+       säkert namn utöver antalet blir osäkert ('fler än leken') och går
+       till granskningen. Regeln gällde
        förut bara NYA spår (K6); ett eget spår som helbilden namngav slapp
        den. Golden 05 med Claude (MES-334): Pacifism (#1) ligger omlott med
        Scourge of the Undercity (#6, säkert ur remsan), och Claudes Scourge-
        punkt föll i #1:s låda — #1 blev ett andra säkert Scourge fast leken
        har ett. Säkert fel namn i 8 av 19 körningar. */
     const tak = namn => cb.lekTak ? cb.lekTak(namn) : null;
-    const upptagnaAv = (namn, utom) => spar.filter(t => t !== utom && t.tillstand !== 'skrap' && t.saker && t.namn === namn && !bort.has(t) && (!arHelbild(t) || behallna.has(t))).length
+    const upptagnaAv = (namn, utom) => spar.filter(t => t !== utom && t.tillstand !== 'skrap' && t.saker && t.namn === namn && !bort.has(t) && !bevisatBorta(t)).length
                                      + nya.filter(q => q.saker && q.namn === namn).length;
     const farSakert = (k, utom) => { if (!k.saker) return false; const n = tak(k.namn); return n == null || !isFinite(n) || upptagnaAv(k.namn, utom) < n; };
     const varforFor = (k, saker) => saker ? 'helbild' : (k.saker ? 'fler än leken' : 'helbild osäker');
+    const tagna = new Set();   // egna spår som redan tagit en punkt i omgången: två punkter med samma namn är två kort
     let namngivna = 0;
     for (const k of svar) {
       const p = { cx: k.x * AW, cy: k.y * AH };
@@ -28639,15 +28644,22 @@ const Kamera = (() => {
          otappat spår bredvid det riktiga — två Ukud Cobra för en (Jespers
          parti 2026-09-10). Skräp tas aldrig på närhet, bara om punkten är inne. */
       /* Punkten kan ligga i flera egna lådor (kort omlott). Spåret som
-         redan bär namnet tas först — säkert före gissat — och sedan det
-         första i listan, som förut. Golden 05: Scourge-punkten låg i både
-         #1 (Pacifism, osäkert) och #6 (Scourge, säkert); #1 kom först. */
+         redan bär namnet tas först — säkert före gissat (en gissning som
+         stämmer med Claude väger tyngre än ordningen i listan) — sedan ett
+         spår utan säkert namn (ett klart säkert spår tar ändå inget nytt
+         namn), sedan det första i listan, som förut. Ett spår som redan
+         tagit en punkt i omgången (tagna) står tillbaka för de andra.
+         Golden 05: Scourge-punkten låg i både #1 (Pacifism, osäkert) och
+         #6 (Scourge, säkert); #1 kom först. */
       const inne = spar.filter(t => !arHelbild(t) && !bort.has(t) && inuti(p, t.box));
-      const eget = inne.find(t => t.tillstand !== 'skrap' && t.saker && t.namn === k.namn)
-        || inne.find(t => t.tillstand !== 'skrap' && t.namn === k.namn)
+      const lediga = inne.filter(t => t.tillstand !== 'skrap' && !tagna.has(t));
+      const eget = lediga.find(t => t.saker && t.namn === k.namn)
+        || lediga.find(t => t.namn === k.namn)
+        || lediga.find(t => !(t.tillstand === 'klar' && t.saker))
         || inne[0]
         || spar.find(t => !arHelbild(t) && !bort.has(t) && t.tillstand !== 'skrap' && t.namn === k.namn && nara(p, t.box));
       if (eget && eget.tillstand !== 'skrap') {
+        tagna.add(eget);
         if (!(eget.tillstand === 'klar' && eget.saker)) {
           const saker = farSakert(k, eget);
           eget.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((eget.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
@@ -28666,6 +28678,7 @@ const Kamera = (() => {
         g.cx = p.cx; g.cy = p.cy; g.box = lada(p); g.lang = m.lang; g.kort = m.kort; g.areaRef = g.box.w * g.box.h * 0.9;
         g.sedd = nu; g.tomMs = 0; g.ai = Object.assign({}, info);
         if (!g.saker && farSakert(k, g)) { g.saker = true; g.tillstand = 'klar'; g.varfor = 'helbild'; stampla(g, 'namn', 'helbild'); }
+        else if (!g.saker && k.saker) g.varfor = 'fler än leken';   // granskningen ser varför det inte blev säkert
         continue;
       }
       const b = lada(p);
