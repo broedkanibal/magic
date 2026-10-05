@@ -55,12 +55,21 @@ install` i `dev/remsa` behövs bara för `--ocr`.
 | `saker` | Claude ger ett namn i listan och **antingen** säker + (a) eller (b), **eller** osäker + (b). (a) = bildmodellens topp-1 är namnet (hela kortet; remsan räknas bara för icke-basland). (b) = ORB ≥ 12 inliers mot namnets konstverk och ≥ 2 × max(bästa av 20 slumpvalda, 6); för basland också mot lika många konstverk av de andra basländerna |
 | `saker_manuell` | namnet ur `facit-manuell.json` (finns i listan); E skriver som för `saker` |
 | `baksida` | Claude säger baksida **och** detektorns klass baksida (eller modellen har baksidan överst) |
-| `osaker` | Claude gav ett namn men inget andra vittne som räcker, eller namnet är inte i listan / ett tokennamn |
+| `osaker` | Claude gav ett namn men inget andra vittne som räcker, eller namnet är inte i listan / ett tokennamn; Claude sa `token: true`; eller namnet är en emblemtitel eller ett tokennamn (Basri Ket, Mordenkainen, Garruk, Unleashed) och Claude svarade inte uttryckligen `token: false` |
 | `slangd` | Claude utan namn (högst två frågor), eller inget lägg-ögonblick |
 | `ofragad` | Claude-frågan gav fel efter tre försök, eller utsnittet saknas — frågas igen nästa körning |
 
 Namnet normaliseras: exakt (gemener, apostrofer; en sida → kortets hela namn), annars Dice ≥ 0,9 mot ett
 entydigt namn; ett tokennamn ("Blood", "Treasure") blir aldrig ett kortnamn, inte heller via en sida.
+
+**Tokens och emblem (frågan v2).** Claude svarar också `"token"`: true för en token, ett emblem eller annat som
+inte är ett spelkort. Ett emblem bär planeswalkerns namn ("Basri Ket", Scryfall: "Basri Ket Emblem"), och ORB
+och modellen godkänner det, eftersom konstverket är planeswalkerns (pass 3: klipp 1 s554, s964, s1584, s2105,
+klipp 2 s700 blev säkra). `namn.py` skriver emblemens titlar (`emblem`; en äldre namnlista får dem ur
+tokennamnen). Svar ur cachen på frågan v1 frågas inte om: där är `token` okänt (None), och bara namn i
+emblemtitel- eller tokenlistan kräver `token: false` — alla andra namn påverkas inte. Priset: ett riktigt
+kort med en emblemtitel blir osäkert tills det frågas på nytt (pass 3 klipp 2: sex Garruk, Unleashed, som är
+riktiga planeswalkers). `dom_vittnen` i markning.json är vittnenas dom innan `facit-manuell.json`.
 Claude får en egen kort fråga utan systemprompt — appens systemprompt rörs inte. E kontrollerar varje
 läge där hela kortet syns med vittne (b):s regel mot lägg-ögonblickets konstverk; faller den skrivs inget
 efter det senast godkända läget — inte heller täckta lägen däremellan (ett annat kort kan ha lagts exakt på

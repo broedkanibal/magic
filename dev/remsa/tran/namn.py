@@ -9,7 +9,11 @@ dev/material/arbete/markning/scryfall-namn.json:
      "namn":  ["Fire // Ice", "Lightning Bolt", ...],          # Scryfalls hela namn, sorterade
      "sidor": {"Fire": ["Fire // Ice", "Start // Fire"], "Ice": ["Fire // Ice"], ...},   # sidans namn → korten (hela namn)
      "layout": {"Fire // Ice": "split", ...},
-     "tokens": ["Blood", "Soldier", "Treasure", ...]}                # tokens, emblem, framsideskort och deras sidor
+     "tokens": ["Blood", "Soldier", "Treasure", ...],                # tokens, emblem, framsideskort och deras sidor
+     "emblem": ["Basri Ket", "Mordenkainen", ...]}                   # emblemens titlar (Scryfall: "Basri Ket Emblem")
+
+Emblemens titlar är planeswalkerns namn: kortet visar "Basri Ket", och utan listan blev ett emblem säkert som
+planeswalkern (pass 3 klipp 1 s1584, klipp 2 s700). mark.py kräver Claudes token: false för de namnen.
 
 Bort: tokens, emblem, art series, vanguard, scheme, planar, phenomenon och Jumpstarts framsideskort
 (layout front_card: "Treasure", "Spirit", "Angels" … — inga spelkort, och de heter som tokens), och Alchemy-
@@ -61,7 +65,7 @@ def main():
     kort = [json.loads(r) for r in text.splitlines() if r.strip()] if 'jsonl' in uri else json.loads(text)
     namn, layout, sidor = set(), {}, {}
     bort = {'layout': 0, 'alchemy': 0}
-    tokens = set()
+    tokens, emblem = set(), set()
     for c in kort:
         if c.get('layout') in BORT:
             bort['layout'] += 1
@@ -70,6 +74,8 @@ def main():
                 # via ett korts sida (Flesh // Blood) — granskningen av e374112
                 tokens.add(c['name'])
                 tokens.update(f['name'] for f in (c.get('card_faces') or []) if f.get('name'))
+            if c.get('layout') == 'emblem':
+                emblem.add(c['name'][:-len(' Emblem')] if c['name'].endswith(' Emblem') else c['name'])
             continue
         if c['name'].startswith('A-'):   # Alchemy-varianten; flaggan digital filtreras inte (se ovan)
             bort['alchemy'] += 1
@@ -84,9 +90,11 @@ def main():
     sidor = {s: sorted(n | ({s} if s in namn else set())) for s, n in sidor.items()}
     os.makedirs(UT_MAPP, exist_ok=True)
     ut = {'hamtad': time.strftime('%Y-%m-%d %H:%M'), 'kalla': uri, 'antal': len(namn), 'bort': bort,
-          'namn': sorted(namn), 'sidor': dict(sorted(sidor.items())), 'layout': layout, 'tokens': sorted(tokens)}
+          'namn': sorted(namn), 'sidor': dict(sorted(sidor.items())), 'layout': layout, 'tokens': sorted(tokens),
+          'emblem': sorted(emblem)}
     json.dump(ut, open(UT, 'w', encoding='utf-8'), ensure_ascii=False)
-    print(f'{len(namn)} namn, {len(sidor)} sidnamn, {len(tokens)} tokennamn (bort: {bort}) → {os.path.relpath(UT, ROT)}')
+    print(f'{len(namn)} namn, {len(sidor)} sidnamn, {len(tokens)} tokennamn, {len(emblem)} emblemtitlar (bort: {bort}) '
+          f'→ {os.path.relpath(UT, ROT)}')
 
 
 if __name__ == '__main__':

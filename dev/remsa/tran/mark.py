@@ -1134,11 +1134,15 @@ def rata_galler(snedh):
 # Ändringen 2026-10-05 kväll (specens sista avsnitt): vittne 1 är Claude, inte textläsaren — i provet läste
 # tesseract 0 av 6 titlar (~14 px i 4K vid 0,5×). Vittne 2 är bildmodellen (topp-1, ingen marginalgräns) ELLER
 # ORB. Textläsaren finns kvar bakom --ocr, bara som upplysning (den påverkar inte domen).
-FRAGA_V = 1
+# v2 (2026-10-05): fältet "token" — pass 3 klipp 1 s1584 var ett emblem med titeln "Basri Ket" och blev säkert som
+# planeswalkern. Svar ur cachen med en äldre version används (inga nya frågor); där saknas fältet = okänt (None).
+FRAGA_V = 2
 FRAGA = ('This photo shows one Magic: The Gathering card lying on a table, seen from above. It may be blurry, '
          'glared, rotated or upside down. Read the card name exactly as it is printed on the card. '
          'Reply with JSON only, nothing else: {"name": <the exact printed card name, or null if you cannot read it>, '
-         '"back": <true if this is the back of a card, else false>, "sure": <true only if you are certain of the name>}')
+         '"back": <true if this is the back of a card, else false>, "sure": <true only if you are certain of the name>, '
+         '"token": <true if this is a token, an emblem or anything else that is not a regular playing card '
+         '(type line "Token" or "Emblem"), else false>}')
 PRIS = {'claude-opus-5': (5.0, 25.0)}   # $ per miljon token in/ut, för rapportens uppskattning
 
 
@@ -1176,7 +1180,8 @@ def tolka_json(text):
                 # bara riktiga true räknas: bool("false") är True (granskningen av e374112)
                 namn = d.get('name')
                 return {'name': namn.strip() if isinstance(namn, str) and namn.strip() else None,
-                        'back': d.get('back') is True, 'sure': d.get('sure') is True}
+                        'back': d.get('back') is True, 'sure': d.get('sure') is True,
+                        'token': d['token'] if isinstance(d.get('token'), bool) else None}
         except Exception:  # noqa: BLE001
             pass
     return None
@@ -1252,6 +1257,16 @@ class Namnindex:
         self.tokens = {norm_namn(t) for t in nl.get('tokens', [])}
         if not self.tokens:
             raise SystemExit('namnlistan saknar tokennamn — kör namn.py --om')
+        # Emblemens titlar: Scryfall heter "Basri Ket Emblem", kortet visar "Basri Ket". namn.py skriver listan;
+        # en äldre namnlista utan den får titlarna ur tokennamnen (samma sak, ingen ny hämtning).
+        emblem = nl.get('emblem') or [t[:-len(' Emblem')] for t in nl.get('tokens', []) if t.endswith(' Emblem')]
+        self.emblem = {tvatta(e) for e in emblem}
+        self.token_eller_emblem = {tvatta(t) for t in nl.get('tokens', [])} | self.emblem
+
+    def kraver_token_falskt(self, ratt, namn):
+        """Står Claudes läsning eller det normaliserade namnet i emblemtitel- eller tokenlistan? Då räcker namnet
+        inte: Claude måste ha svarat token: false (Basri Ket, Mordenkainen — planeswalker och emblem med samma titel)."""
+        return any(x and tvatta(x) in self.token_eller_emblem for x in (ratt, namn))
 
     def sla_upp(self, namn):
         if not namn:
@@ -1512,14 +1527,30 @@ def ar_val(namn):
     return int(hashlib.sha1(f"{R['val_fro']}|{namn}".encode('utf-8')).hexdigest(), 16) % R['val_var'] == 0
 
 
+def token_ur_svar(svar):
+    """Claudes token-fält över spårets svar: True om något svar sa token, False bara om ALLA svar uttryckligen sa
+    false, annars None (okänt — svar ur cachen på en fråga före v2)."""
+    t = [x.get('token') for x in svar]
+    if any(v is True for v in t):
+        return True
+    return False if t and all(v is False for v in t) else None
+
+
 def doma(spar, cl, a_ok, b_ok, hel):
     """Domen ur vittnena (specens ändring 2026-10-05 kväll)."""
     if cl.get('status') == 'ofragad':
         return 'ofragad', None, 'Claude-frågan misslyckades eller utsnittet saknas — frågas igen nästa körning'
+    if cl.get('token') is True:
+        return 'osaker', None, 'Claude: token eller emblem — inget spelkort'
     if cl['back']:
         if spar['klass'] == 'baksida' or (hel and hel['namn'] == 'baksida'):
             return 'baksida', 'baksida', 'Claude: baksida; ' + ('detektorn baksida' if spar['klass'] == 'baksida' else 'modellen baksida överst')
         return 'osaker', None, 'Claude: baksida, men varken detektorn eller modellen'
+    if cl.get('kraver_token_falskt') and cl.get('token') is not False:
+        # emblem och tokens med ett korts namn (Basri Ket, Mordenkainen): ORB och modellen godkänner planeswalkerns
+        # namn, så bara Claudes uttryckliga token: false får släppa igenom det
+        return 'osaker', None, (f"«{cl.get('ratt')}» finns också som emblem/token, och Claude svarade inte token: false "
+                                f"(token: {cl.get('token')})")
     if cl['namn'] and cl['sure']:
         if a_ok or b_ok:
             return 'saker', cl['namn'], 'Claude säker + ' + ' och '.join(x for x, y in (('modellen', a_ok), ('ORB', b_ok)) if y)
@@ -1632,9 +1663,16 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
         from concurrent.futures import ThreadPoolExecutor
         ut, jobb = {}, []
         for sid, u in fragor:
-            k = f"{hashlib.sha1(u['jpg']).hexdigest()}|{modell}|v{FRAGA_V}"
-            if k in cache:
-                ut[sid] = dict(cache[k], cachad=True)
+            sha = hashlib.sha1(u['jpg']).hexdigest()
+            k = f"{sha}|{modell}|v{FRAGA_V}"
+            # ett svar på en äldre fråga (utan "token") frågas inte om: fältet blir okänt (None), och bara namn i
+            # emblemtitel- eller tokenlistan kräver token: false (doma)
+            gammal = next((f"{sha}|{modell}|v{v}" for v in range(FRAGA_V, 0, -1) if f"{sha}|{modell}|v{v}" in cache), None)
+            if gammal:
+                r = dict(cache[gammal], cachad=True, fraga_v=int(gammal.rsplit('|v', 1)[1]))
+                if r.get('svar') is not None and 'token' not in r['svar']:
+                    r['svar'] = dict(r['svar'], token=None)
+                ut[sid] = r
             else:
                 jobb.append((sid, u, k))
         if jobb:
@@ -1642,6 +1680,7 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
             with ThreadPoolExecutor(max_workers=4) as ex:
                 for (sid, u, k), r in zip(jobb, ex.map(lambda j: fraga_claude(j[1]['jpg'], nyckel, modell), jobb)):
                     r['utsnitt'] = rel(u['fil'])
+                    r['fraga_v'] = FRAGA_V
                     if not r.get('fel'):
                         cache[k] = r   # ett fel (429/529/nät) cachas inte: nästa körning frågar igen
                     ut[sid] = dict(r, cachad=False)
@@ -1680,7 +1719,9 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
             or next((x for x in reversed(sv) if x.get('name')), None) or {}
         namn, hur = index.sla_upp(val.get('name')) if val.get('name') else (None, 'inget namn')
         claude[s['id']] = {'ratt': val.get('name'), 'namn': namn, 'normalisering': hur, 'sure': val.get('sure') is True,
-                           'back': val.get('back') is True, 'fragor': len(fr), 'andra_saknas': andra_saknas.get(s['id']),
+                           'back': val.get('back') is True, 'token': token_ur_svar(sv),
+                           'kraver_token_falskt': bool(val.get('name') and index.kraver_token_falskt(val.get('name'), namn)),
+                           'fragor': len(fr), 'andra_saknas': andra_saknas.get(s['id']),
                            'status': 'ofragad' if (not fr and (fel or s['id'] not in utsn)) else 'fragad', 'fel': fel or None,
                            'svar': fr, 'in': sum(x.get('in', 0) for x in fr if not x.get('cachad')),
                            'ut': sum(x.get('ut', 0) for x in fr if not x.get('cachad')),
@@ -1803,6 +1844,7 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
             continue
         cl, mm, ob = claude[s['id']], modell_svar.get(s['id']) or {}, orb.get(s['id'])
         dom, namn, varfor = doma(s, cl, mm.get('overens', False), bool(ob and ob['overens']), mm.get('hel'))
+        s['dom_vittnen'] = [dom, varfor]   # vittnenas dom, innan facit-manuell.json
         if s['id'] in manuell:
             # en människas titt går före vittnena: ett namn ger saker_manuell, null slänger — också ett säkert spår
             m_namn, m_varfor = manuell[s['id']]
@@ -2363,6 +2405,10 @@ def rapport(passmapp, bara=None):
             if cl:
                 ct = 'baksida' if cl.get('back') else (cl.get('namn') or (f"«{cl['ratt']}» ({cl.get('normalisering')})" if cl.get('ratt') else '–'))
                 ct += f" · {'säker' if cl.get('sure') else 'osäker'} · {cl.get('fragor', 0)}"
+                if cl.get('token') is True:
+                    ct += ' · token/emblem'
+                elif cl.get('kraver_token_falskt'):
+                    ct += f" · emblem/token-namn, token {cl.get('token')}"
             else:
                 ct = '–'
             mm = s.get('modell') or {}
