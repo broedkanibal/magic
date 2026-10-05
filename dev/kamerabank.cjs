@@ -1681,6 +1681,73 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     Kamera.satTrosklar({ remsaMinne: 1 });
     namnSvar = saker;
 
+    // ── HB: helbilden och lekens antal (MES-334, golden 05 med Claude) ──
+    /* Två kort omlott (bygg3/det3). Det första spåret i listan är osäkert
+       med Scourge överst bland gissningarna (klungan), det andra är säkert
+       Scourge ur remsan, och leken har ETT Scourge. Claudes helbild ger
+       Scourge och Pacifism med punkter i båda lådorna (HB1), Scourge med en
+       punkt bara i det osäkra spårets låda (HB2, HB3) och Scourge långt
+       från båda (HB4). Före rättelsen tog det första spåret i listan
+       Scourge säkert — ett andra exemplar av ett kort leken har ett av —
+       i 8 av 19 golden-körningar. */
+    {
+      const SC = 'Scourge of the Undercity', PA = 'Pacifism';
+      namnSvar = osaker; nystart(); Kamera.satTrosklar({ remsaMinne: 0, spokMs: 2000 }); await lyft(LYFT);
+      for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+      const [osakert, sakert] = Kamera.spar;
+      const stall = () => {
+        Object.assign(osakert, { tillstand: 'okand', saker: false, namn: SC, sid: null, varfor: 'ai klunga', fragad: true, cands: [{ name: SC, sid: 's9', score: 0 }, { name: PA, sid: 's2', score: 0 }] });
+        Object.assign(sakert, { tillstand: 'klar', saker: true, namn: SC, sid: 's9', varfor: 'remsa', fragad: true, cands: [{ name: SC, sid: 's9', score: 0.9 }] });
+      };
+      const inne = (x, y, b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+      /* En punkt i båda lådorna (snittets mitt) och en bara i det osäkra spårets låda. */
+      let bada = null, bara = null;
+      if (Kamera.spar.length === 2) {
+        const a = osakert.box, b = sakert.box;
+        const x0 = Math.max(a.x, b.x), x1 = Math.min(a.x + a.w, b.x + b.w), y0 = Math.max(a.y, b.y), y1 = Math.min(a.y + a.h, b.y + b.h);
+        if (x1 > x0 && y1 > y0) bada = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+        for (let y = a.y + 1; y < a.y + a.h && !bara; y += 2) for (let x = a.x + 1; x < a.x + a.w && !bara; x += 2) if (!inne(x, y, b)) bara = { x, y };
+      }
+      const fmtHB = () => Kamera.spar.map(t => `#${t.id} ${t.tillstand} ${t.namn || ''}${t.saker ? ' SÄKER' : ''} [${t.varfor}]${t.ai && t.ai.helbild ? ' helbild' : ''}`).join(', ');
+      const sakraSC = () => Kamera.spar.filter(t => t.saker && t.namn === SC).length;
+      const upplagg = `spår ${Kamera.spar.length}, lådor ${JSON.stringify(Kamera.spar.map(t => t.box))}, båda ${JSON.stringify(bada)}, bara ${JSON.stringify(bara)}`;
+      check(`HB0 uppställningen: ${upplagg}`, Kamera.spar.length === 2 && !!bada && !!bara);
+      if (bada && bara) {
+        Kamera.installera({ lekTak: n => (n === SC ? 1 : 4) });
+        // HB1: Scourge och Pacifism, båda punkterna i båda lådorna — Scourge tas av spåret som redan bär det säkert, Pacifism av det osäkra
+        stall();
+        Kamera.tillampaHelbild([{ x: bada.x / W, y: bada.y / H, namn: SC, sid: 's9', saker: true }, { x: bada.x / W, y: bada.y / H, namn: PA, sid: 's2', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB1 två namn i båda lådorna: ${fmtHB()}`,
+              Kamera.spar.length === 2 && sakraSC() === 1 && sakert.saker && sakert.namn === SC && osakert.saker && osakert.namn === PA && osakert.varfor === 'helbild' && osakert.tillstand === 'klar');
+        // HB2: Scourge med punkten bara i det osäkra spårets låda — leken har ett, och det bärs redan: osäkert, 'fler än leken'
+        stall();
+        Kamera.tillampaHelbild([{ x: bara.x / W, y: bara.y / H, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB2 ett andra Scourge på ett eget spår, leken har ett: ${fmtHB()}`,
+              Kamera.spar.length === 2 && sakraSC() === 1 && !osakert.saker && osakert.tillstand === 'okand' && osakert.namn === SC && osakert.varfor === 'fler än leken' && osakert.cands[0].name === SC);
+        // HB3: samma, leken har två Scourge — säkert ur helbilden
+        Kamera.installera({ lekTak: n => (n === SC ? 2 : 4) });
+        stall();
+        Kamera.tillampaHelbild([{ x: bara.x / W, y: bara.y / H, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB3 leken har två Scourge: ${fmtHB()}`,
+              Kamera.spar.length === 2 && sakraSC() === 2 && osakert.saker && osakert.tillstand === 'klar' && osakert.varfor === 'helbild');
+        // HB4: ett NYTT spår ur helbilden (punkten långt från båda), leken har ett Scourge som redan bärs — föds osäkert; med två: säkert
+        Kamera.installera({ lekTak: n => (n === SC ? 1 : 4) });
+        stall();
+        const langt = { x: 0.85, y: 0.3 };
+        Kamera.tillampaHelbild([{ x: langt.x, y: langt.y, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        /* Ögonblicksbilden: nästa anrop känner igen samma helbildsspår (fall 2) och får göra det säkert när leken har två. */
+        const ny1 = Object.assign({}, Kamera.spar.find(t => t.ai && t.ai.helbild) || null);
+        Kamera.installera({ lekTak: n => (n === SC ? 2 : 4) });
+        Kamera.tillampaHelbild([{ x: langt.x, y: langt.y, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        const ny2 = Kamera.spar.find(t => t.ai && t.ai.helbild) || null;
+        check(`HB4 nytt spår ur helbilden: leken har ett → ${ny1 && ny1.tillstand} [${ny1 && ny1.varfor}], två → ${ny2 && ny2.tillstand} [${ny2 && ny2.varfor}]; ${fmtHB()}`,
+              !!ny1 && ny1.tillstand === 'okand' && !ny1.saker && ny1.varfor === 'fler än leken' && !!ny2 && ny2.tillstand === 'klar' && ny2.saker && ny2.varfor === 'helbild');
+        Kamera.installera({ lekTak: null });
+      }
+      Kamera.satTrosklar({ remsaMinne: 1 });
+      namnSvar = saker;
+    }
+
     // ── VK: kortets vinkel i detektorns raka låda (MES-334 steg 1) ───
     /* Videon här är en attrapp utan bildpunkter, så KortVinkel.kortVinkel
        byts mot en stubb som svarar med en given vinkel per anrop — det är

@@ -28609,6 +28609,20 @@ const Kamera = (() => {
     const lada = p => { const w = staende ? m.kort : m.lang, h = staende ? m.lang : m.kort;
       return { x: Math.round(p.cx - w / 2), y: Math.round(p.cy - h / 2), w: Math.max(4, Math.round(w)), h: Math.max(4, Math.round(h)) }; };
     const behallna = new Set(), bort = new Set(), nya = [];
+    /* Lekens antal av ett namn (cb.lekTak, null utan lek) mot de säkra spår
+       som redan bär det — egna, helbildens behållna och de nya i den här
+       omgången, utom spåret som prövas. Ett säkert namn utöver antalet blir
+       osäkert ('fler än leken') och går till granskningen. Regeln gällde
+       förut bara NYA spår (K6); ett eget spår som helbilden namngav slapp
+       den. Golden 05 med Claude (MES-334): Pacifism (#1) ligger omlott med
+       Scourge of the Undercity (#6, säkert ur remsan), och Claudes Scourge-
+       punkt föll i #1:s låda — #1 blev ett andra säkert Scourge fast leken
+       har ett. Säkert fel namn i 8 av 19 körningar. */
+    const tak = namn => cb.lekTak ? cb.lekTak(namn) : null;
+    const upptagnaAv = (namn, utom) => spar.filter(t => t !== utom && t.tillstand !== 'skrap' && t.saker && t.namn === namn && !bort.has(t) && (!arHelbild(t) || behallna.has(t))).length
+                                     + nya.filter(q => q.saker && q.namn === namn).length;
+    const farSakert = (k, utom) => { if (!k.saker) return false; const n = tak(k.namn); return n == null || !isFinite(n) || upptagnaAv(k.namn, utom) < n; };
+    const varforFor = (k, saker) => saker ? 'helbild' : (k.saker ? 'fler än leken' : 'helbild osäker');
     let namngivna = 0;
     for (const k of svar) {
       const p = { cx: k.x * AW, cy: k.y * AH };
@@ -28624,14 +28638,22 @@ const Kamera = (() => {
          lågt, och en punkt en tiondels kort utanför lådan blev ett nytt,
          otappat spår bredvid det riktiga — två Ukud Cobra för en (Jespers
          parti 2026-09-10). Skräp tas aldrig på närhet, bara om punkten är inne. */
-      const eget = spar.find(t => !arHelbild(t) && !bort.has(t) && inuti(p, t.box))
+      /* Punkten kan ligga i flera egna lådor (kort omlott). Spåret som
+         redan bär namnet tas först — säkert före gissat — och sedan det
+         första i listan, som förut. Golden 05: Scourge-punkten låg i både
+         #1 (Pacifism, osäkert) och #6 (Scourge, säkert); #1 kom först. */
+      const inne = spar.filter(t => !arHelbild(t) && !bort.has(t) && inuti(p, t.box));
+      const eget = inne.find(t => t.tillstand !== 'skrap' && t.saker && t.namn === k.namn)
+        || inne.find(t => t.tillstand !== 'skrap' && t.namn === k.namn)
+        || inne[0]
         || spar.find(t => !arHelbild(t) && !bort.has(t) && t.tillstand !== 'skrap' && t.namn === k.namn && nara(p, t.box));
       if (eget && eget.tillstand !== 'skrap') {
         if (!(eget.tillstand === 'klar' && eget.saker)) {
+          const saker = farSakert(k, eget);
           eget.cands = [{ name: k.namn, sid: k.sid, score: 0 }].concat((eget.cands || []).filter(c => c.name !== k.namn)).slice(0, 5);
-          eget.namn = k.namn; eget.sid = k.sid; eget.saker = !!k.saker; eget.varfor = k.saker ? 'helbild' : 'helbild osäker';
-          eget.tillstand = k.saker ? 'klar' : 'okand'; eget.fragad = true; eget.aiFragad = true; eget.provas = false; eget.aiInget = 0;
-          if (k.saker) stampla(eget, 'namn', 'helbild');
+          eget.namn = k.namn; eget.sid = k.sid; eget.saker = saker; eget.varfor = varforFor(k, saker);
+          eget.tillstand = saker ? 'klar' : 'okand'; eget.fragad = true; eget.aiFragad = true; eget.provas = false; eget.aiInget = 0;
+          if (saker) stampla(eget, 'namn', 'helbild');
           eget.ai = Object.assign({}, eget.ai || {}, info, { helbild: false });
           namngivna++;
         }
@@ -28643,26 +28665,20 @@ const Kamera = (() => {
         behallna.add(g);
         g.cx = p.cx; g.cy = p.cy; g.box = lada(p); g.lang = m.lang; g.kort = m.kort; g.areaRef = g.box.w * g.box.h * 0.9;
         g.sedd = nu; g.tomMs = 0; g.ai = Object.assign({}, info);
-        if (k.saker && !g.saker) { g.saker = true; g.tillstand = 'klar'; g.varfor = 'helbild'; stampla(g, 'namn', 'helbild'); }
+        if (!g.saker && farSakert(k, g)) { g.saker = true; g.tillstand = 'klar'; g.varfor = 'helbild'; stampla(g, 'namn', 'helbild'); }
         continue;
       }
       const b = lada(p);
       /* Antalspriorn (K6) för ett NYTT spår ur helbilden: lekens exemplar av
-         namnet är redan säkra spår (egna behållna eller helbildens) — då
-         föds det osäkert och går till granskningen. Appens karta och
-         lekPrior finns utanför modulen; bänken kör utan dem (typeof). */
-      let saker = !!k.saker;
-      if (saker && typeof kamLekAntal !== 'undefined' && kamLekAntal && typeof lekPrior === 'function') {
-        const tak = kamLekAntal.get(norm(k.namn));
-        const upptagna = spar.filter(t => t.tillstand !== 'skrap' && t.saker && t.namn === k.namn && !bort.has(t) && (!arHelbild(t) || behallna.has(t))).length
-                       + nya.filter(q => q.saker && q.namn === k.namn).length;
-        if (!lekPrior(true, tak == null ? Infinity : tak, upptagna)) saker = false;
-      }
+         namnet är redan säkra spår — då föds det osäkert och går till
+         granskningen. Samma regel som för de egna spåren ovan (farSakert),
+         genom cb.lekTak så att bänken kan pröva den. */
+      const saker = farSakert(k, null);
       nya.push({ id: nastaId++, cx: p.cx, cy: p.cy, lang: m.lang, kort: m.kort, vinkel: gv, box: b, areaRef: b.w * b.h * 0.9,
                  sedd: nu, fodd: nu, stillaFran: nu, tomMs: 0, skymd: false, tappad: false, tappRun: 0,
                  namn: k.namn, sid: k.sid, saker, cands: [{ name: k.namn, sid: k.sid, score: 0 }],
                  fragad: true, aiFragad: true, namnLast: null, ram: null, gissning: null,
-                 varfor: saker ? 'helbild' : (k.saker ? 'fler än leken' : 'helbild osäker'), tillstand: saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
+                 varfor: varforFor(k, saker), tillstand: saker ? 'klar' : 'okand', ai: Object.assign({}, info) });
     }
     spar = spar.filter(t => !bort.has(t) && (!arHelbild(t) || behallna.has(t)));
     for (const t of nya) {
