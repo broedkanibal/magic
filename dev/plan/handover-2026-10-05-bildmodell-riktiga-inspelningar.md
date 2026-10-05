@@ -71,6 +71,24 @@ högarna, uppstartens steg 4 bort) — inget som rör märkningen eller `dev/rem
 - **Håll undan några kortnamn ur de riktiga inspelningarna** som egen validering (riktiga bilder, osedda kort).
 
 ## Ambitionen: vad träningen ska ge, och vad den inte rör
+Produktmålet (Private beta, milstolpe 6 · Mirror my table) är nära 100 % på allt: hittade kort, rätt namn, plats,
+tap/untap, flytt, baksidor, tokens — i golden, videoproven och riktiga partier. **Den här träningen flyttar ett av
+måtten.** Läget 2026-10-05 (golden 01–18, C) och vilket spår som flyttar varje mått:
+
+| Mått | I dag | Spår |
+|---|---|---|
+| Hittade kort | 118/119 | detektorn (pass 4) |
+| **Rätt namn** | **95/119** | **bildmodellen — den här planen** (18 av de 24 saknade), + textläsaren, Claude |
+| Fel namn | 0 | hårt krav, alla spår |
+| Falska kort | 1 | detektorn + spårningen |
+| Plats | 99/106 | spårningen, avstämningen |
+| Tap-dom | 99/99 | vinkeln (MES-334 steg 1) |
+| Tokens | 2/5 | detektorn + namn (token ≠ kort) |
+| Högar (ordning + namn) | 8/15 | remsan i hög (bildmodellen) + högordningen (MES-331) |
+| Land per typ | 31/44 | bildmodellen (remsan) |
+| Video: utlagda med namn | 30/42 | bildmodellen + läsögonblicket (MES-246) |
+| Video: borttagna | 9/9 | spårningen |
+
 Bildmodellen svarar på **vad** ett kort är, inte **var** det ligger. Den tränas här; inget annat i kedjan ändras.
 
 | Mått | Mål | Varför det är modellens sak |
