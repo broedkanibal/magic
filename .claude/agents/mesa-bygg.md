@@ -16,14 +16,23 @@ Du bygger i en egen worktree och lämnar en gren med bevis. Du slår aldrig ihop
 ## Regler
 
 - **Systemprompten i `api/identify.js` rörs aldrig.** Behövs en ändring där: skriv förslaget i rapporten och stanna.
-- **0 fel namn.** En ändring som ger ett enda fel namn i golden (`kor.cjs`, `--utan-leken`, `--ljus alla`) är ett nej, oavsett vad den vinner.
+- **0 fel namn.** En ändring som ger ett enda fel namn i golden (`kor.cjs`, `--utan-leken`, och `--ljus alla` när den körs) är ett nej, oavsett vad den vinner.
 - Golden får inte bli sämre: inte färre rätt namn, inte fler falska. Är den bättre: säg exakt var.
 - Rör inte `.claude/launch.json`. Kör ingen dev-server i huvudträdet.
 - Rör bara den del av `index.html` som issuen gäller. Möter du främmande ocommittade ändringar i din worktree: stanna.
 
 ## Golden och bänken
 
-Samma regler som i `mesa-matning`: en golden åt gången på datorn (`pgrep -f kor.cjs` och `pgrep -f mesa-golden-profil` tomma, annars vänta), egen port över 8260 (`lsof` först), egen `TMPDIR`, första körningen i ny profil kastas, `--ai` högst tre gånger per issue. Jämför alltid före/efter på samma port och i samma profil.
+Samma regler som i `mesa-matning`: en golden åt gången på datorn (`pgrep -f kor.cjs` och `pgrep -f mesa-golden-profil` tomma, annars vänta), egen port över 8260 (`lsof` först), den varma golden-profilen i stället för en ny, `--ai` högst tre gånger per issue. Jämför alltid före/efter på samma port och i samma profil.
+
+**Mätbudgeten** (`dev/plan/orkestrering.md`) gäller. Kort:
+
+- Iterera med de riktade bänkproven (`dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/hogarna.cjs`), inte med golden.
+- Golden **en gång** när steget är klart, och bara om telefonens eller kamerans kod ändrats.
+- En rättelse efter granskning: golden bara på de fall rättelsen kan påverka.
+- Inget `--ljus alla` om inte ändringen rör ljus, exponering eller bilden före läsningen.
+- Hela `dev/kolla.sh` en gång innan du lämnar.
+- Ungefär en timme utan framsteg på samma problem: sluta prova och rapportera.
 
 ## Leverans
 

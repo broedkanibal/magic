@@ -135,7 +135,7 @@ en regression:
 | Vad | Vilka fall | Vad som händer |
 |---|---|---|
 | **Poolen i profilen** | alla | Poolen byggs ur `lek.txt` + extra konstverk från Scryfall (högst 24 per basland) och sparas i profilens IndexedDB. Svarar Scryfall 429 mitt i, sväljs det tyst för konstverken: körningen fortsätter mot en tunnare pool, och lands­korten får färre ORB-träffar. Uppmätt 2026-09-20: en profil som gick i 429 gav fall 09 **2/4 namn och 1 falskt** i stället för 4/4 |
-| **Maskinens fart** | bara stillbildsfallen (01–06, 08, och provkortsfallet) | De går på väggklockan med ett tak (20 s). En seg webbläsare hinner inte: uppmätt samma dag gav en körning där stegtiden var 343 ms i median (normalt 35) fall 01 **0/3 namn** med `⏱ tak`, och totalen 32/57 i stället för 35/57 |
+| **Maskinens fart** | bara stillbildsfallen (01–06, 08, och provkortsfallet) | De går på väggklockan med ett tak (60 s sedan 2026-10-05). En seg webbläsare hinner inte: uppmätt samma dag gav en körning där stegtiden var 343 ms i median (normalt 35) fall 01 **0/3 namn** med `⏱ tak`, och totalen 32/57 i stället för 35/57 |
 
 **Videofallen (07, 09–12) är blinda för belastning.** De går med låtsasklocka:
 varje ruta väntas in och `performance.now()` är videons tid, så samma 307
@@ -149,7 +149,7 @@ Tre kontroller före varje slutsats:
 1. Raden **`Poolen: N kort`** ska vara samma i båda körningarna — 114 med
    dagens `lek.txt`. Står det en röd rad om Scryfall, eller `⚠ pool` i
    tabellen, är siffrorna skräp.
-2. **`⏱ tak`** på ett fall = det hann inte klart; talet gäller inte.
+2. **`⏱ tak`** på ett fall = det hann inte klart; talet gäller inte. Kör om bara det fallet, utan last på datorn. Stillbildsfallens tak är 60 s i väggtid (`TAK_MS` i `kor.html`; 30 s till 2026-10-05, då fall 17 — klart efter 28–30 s — slog i taket vid minsta last).
 3. Samma dator **och samma profil** (`TMPDIR`) i före- och efterkörningen.
    Jämför aldrig bara mot `senaste.json` från en annan maskin eller profil.
 
