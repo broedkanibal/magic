@@ -9505,10 +9505,13 @@ function exilPlats(pa) {
 const HOG_LUFT = { grav: { l: 54, r: 10, t: 66, b: 40 }, bib: { l: 10, r: 44, t: 66, b: 40 }, exil: { l: 10, r: 40, t: 66, b: 40 } };
 function hogUnder(ev) {
   if (!ev) return null;
-  const hogar = { grav: gravD1El() || manaRow.querySelector('.grav'), bib: bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)'), exil: exilD1El() || manaRow.querySelector('.exilplats') };
+  /* Exile kan ha två mål: högen bredvid leken (hogarBredvid) och platsen i hörnet medan ett kort ur graveyard dras
+     (exilPlats) — båda är exile (granskningen varv 2: med bara det första hamnade kortet i spel). */
+  const hogar = [['grav', gravD1El() || manaRow.querySelector('.grav')], ['bib', bibHogEl && !bibHogEl.hidden && bibHogEl.querySelector('.bib:not(.tom)')],
+                 ['exil', exilD1El()], ['exil', manaRow.querySelector('.exilplats')]];
   let bast = null, bastD = Infinity;
-  for (const k in hogar) {
-    const el = hogar[k]; if (!el) continue;
+  for (const [k, el] of hogar) {
+    if (!el) continue;
     const r = el.getBoundingClientRect(), p = HOG_LUFT[k];
     if (!r.width || ev.clientX < r.left - p.l || ev.clientX > r.right + p.r || ev.clientY < r.top - p.t || ev.clientY > r.bottom + p.b) continue;
     const d = Math.abs(ev.clientX - (r.left + r.right) / 2) + Math.abs(ev.clientY - (r.top + r.bottom) / 2);
@@ -13108,7 +13111,7 @@ addEventListener('pointermove', ev => {
   const hog = hogUnder(ev), overB = hog === 'bib', over = hog === 'grav', overE = hog === 'exil';
   if (overE !== !!dnd.overExil) {
     dnd.overExil = overE;
-    const ep = exilD1El() || manaRow.querySelector('.exilplats'); if (ep) ep.classList.toggle('over', overE);
+    for (const ep of [exilD1El(), manaRow.querySelector('.exilplats')]) if (ep) ep.classList.toggle('over', overE);
     if (!overE) matChip(null);
   }
   if (overB !== dnd.overBib) {
@@ -13176,6 +13179,7 @@ function matDndSlut(ev, avbryt) {
   try { gridEl.releasePointerCapture(d.pointerId); } catch (e) {}
   manaRow.classList.remove('over'); gravSlappRuta(null);
   { const d1 = gravD1El(); if (d1) d1.classList.remove('over'); }
+  { const e1 = exilD1El(); if (e1) e1.classList.remove('over'); }   // exile bredvid leken lyste kvar efter släppet
   const bib = bibHogEl && bibHogEl.querySelector('.bib'); if (bib) bib.classList.remove('over');
   matChip(null);
   for (const q of gridEl.querySelectorAll('.card.joinmal')) q.classList.remove('joinmal');
@@ -30975,7 +30979,7 @@ const GRAV_FLYTT = 0.5;       // flyttat: mitten minst en halv kortsida från d�
    flyttats. Ett nytt läge inom GRAV_OMSTART_MS därefter skrivs om tyst — också för ett kort vars läge kommer
    först i ett senare meddelande (granskningen av rättelsen, fynd 2, X3). */
 let gravOmstart = 0;
-const GRAV_OMSTART_MS = 5000;
+const GRAV_OMSTART_MS = 15000;   // spåren föds om och läses om efter "learning the light"; 5 s räckte inte (granskningen varv 2)
 function gravLageNu() {
   const id = typeof spelLage !== 'undefined' && spelLage ? spelLage.id : '';
   if (!gravLage || gravLage.spel !== id) {
@@ -31091,10 +31095,14 @@ function gravFragaSteg(mig, nu, synliga) {
     if ((fore.t || 0) < gravOmstart && (c.kam.nar || nu) - gravOmstart < GRAV_OMSTART_MS) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu })); continue; }
     const lagd = c.kam.nar || nu;
     gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd, t: nu });
-    if (nu - lagd < GRAV_NY_MS) flyttade.push(c);
+    if (nu - lagd < GRAV_NY_MS) flyttade.push({ c, dx: c.kam.x - fore.x, dy: c.kam.y - fore.y, s: Math.min(c.kam.w, c.kam.h) });
   }
-  /* Flyttar de flesta korten på en gång har kameran flyttat sig (knuffad, ställd tillbaka lite annorlunda), inte korten. */
-  const prova = flyttade.length >= 2 && flyttade.length >= 0.6 * synligaPa ? nya : nya.concat(flyttade);
+  /* Flyttar de flesta korten på en gång, och lika mycket åt samma håll, har kameran flyttat sig (knuffad, ställd
+     tillbaka lite annorlunda), inte korten. Två varelser som dör till samma hög flyttas olika (granskningen varv 2). */
+  const med = a => { const b = a.slice().sort((p, q) => p - q); return b[b.length >> 1]; };
+  const mx = flyttade.length ? med(flyttade.map(f => f.dx)) : 0, my = flyttade.length ? med(flyttade.map(f => f.dy)) : 0;
+  const kameran = flyttade.length >= 2 && flyttade.length >= 0.6 * synligaPa && flyttade.every(f => Math.hypot(f.dx - mx, f.dy - my) <= 0.5 * f.s);
+  const prova = kameran ? nya : nya.concat(flyttade.map(f => f.c));
   for (const c of prova) {
     if (L.fraga) {
       /* Medan frågan står: ett kort på högen hör till den — mitten inom högens ruta. */

@@ -377,6 +377,9 @@ const PROV = async steg => {
          gr ? `graveyard ${Math.round(gr.left)}–${Math.round(gr.right)}, leken ${Math.round(lekR.left)}` : 'ingen');
       ok('exile bredvid graveyard på mattan, i D1 (bricka "Exile 1"), ingen exile-bricka i hörnet', !!er && er.right <= gr.left + 2 && Math.abs(er.top - lekR.top) < 3 && !manaRow.querySelector('.exilhog') && /Exile1/.test(ed.textContent.replace(/\s+/g, '')),
          er ? `exile ${Math.round(er.left)}–${Math.round(er.right)}` : 'ingen');
+      { exilPlats(true); const pl = manaRow.querySelector('.exilplats'), mitt = el => { const r = el.getBoundingClientRect(); return { clientX: (r.left + r.right) / 2, clientY: (r.top + r.bottom) / 2 }; };
+        ok('exile tar emot ett kort både på högen bredvid leken och på platsen i hörnet (under ett drag ur graveyard)', hogUnder(mitt(ed)) === 'exil' && !!pl && hogUnder(mitt(pl)) === 'exil', `högen ${hogUnder(mitt(ed))}, platsen ${pl && hogUnder(mitt(pl))}`);
+        exilPlats(false); }
       ed.click(); await vanta(50);
       ok('klick på exile tar upp korten i handen (solfjädern)', hf.src === ZON_EXIL, `${hf.src}`);
       hfStang(); await vanta(400); }
