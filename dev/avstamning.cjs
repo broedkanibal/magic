@@ -59,6 +59,10 @@ function oppstartPagar() { return oppPagar; }
    graveyard-ruta) bara i GY-proven; kamerans vridning som i appen (kamVand/kamSpegel). */
 let gravFlode = false, kamVand = 0, kamSpegel = false;
 function gravFlodeAktivt() { return gravFlode; }
+/* Ignore this spot gäller så länge kameran speglar mitt bord i Mirror my table (gravIgnoreAktivt, kontrollgranskningen
+   N1) — också efter Yes, när flödet är av. På i GY-proven; av i Screen leads och utan telefon. */
+let gravSpeglar = false;
+function gravIgnoreAktivt() { return gravSpeglar; }
 /* Det svaren utanför utdraget läser (se svarKod nedan): mattan, molnet,
    handen och högarna. delaHand ger index per zon, som appens. */
 const ZON_EXIL = 'exil';
@@ -109,6 +113,7 @@ return {
   kamBildTillVy, kamVyTillBild, provKortMatt, provKortStorlek, zonForslag, bibBredvid, provkortSpar, provkortUt, provLasSteg,
   oppSteg4Klar, oppOppnasIgen,
   set gravFlode(v) { gravFlode = !!v; },
+  set gravSpeglar(v) { gravSpeglar = !!v; },
   get grav() { return gravLageNu(); },
   set bib(h) { state.players[0].bibHog = h; },
   set vand(v) { kamVand = v; },
@@ -158,7 +163,7 @@ return {
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
   nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
-    gravFlode = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Set(); delete state.players[0].bibHog; }
+    gravFlode = false; gravSpeglar = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Set(); delete state.players[0].bibHog; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -1961,7 +1966,7 @@ prov('B4e med väntan (MES-291): det klara spåret dör medan det osäkra ligger
    0,063 × 0,088 av bilden; kam är mitten. kort(x, y) är ett spår vars mitt ligger där. */
 const kortVid = (x, y, w = 0.063, h = 0.088) => box(x - w / 2, y - h / 2, w, h);
 const LEK = { id: 1, upp: 0, kam: { x: 0.5, y: 0.7, w: 0.063, h: 0.088, nar: 1 } };
-const gyStart = () => { app.gravFlode = true; app.bib = LEK; };
+const gyStart = () => { app.gravFlode = true; app.gravSpeglar = true; app.bib = LEK; };
 const fraga = () => app.grav.fraga;
 const namnPa = cids => (cids || []).map(cid => (app.kort.find(c => c.cid === cid) || {}).name);
 prov('GY1 sidoregeln: första kortet på andra sidan om leken från landen, i lekens rad, ger frågan', () => {
@@ -2049,18 +2054,50 @@ prov('GY5 Ignore this spot: spår där blir inga kort, och Mesa frågar aldrig o
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(2, 'Pacifism', { sen: 10, ...kortVid(0.6, 0.3) })]);
   assert.deepEqual(app.kort.map(c => c.name), ['Pacifism']); assert.equal(fraga(), null);
 });
-prov('GY5b Ignore this spot glöms när kameran nollställer sig (ny referensbild, telefonen startade om), och filtrerar bara i flödet (granskningen av sida 5, V1)', () => {
+prov('GY5b Ignore this spot glöms när kameran nollställer sig (ny referensbild, telefonen startade om), och filtrerar bara när kameran speglar mitt bord (granskningen av sida 5, V1; kontrollgranskningen N1)', () => {
   gyStart(); app.bib = null;
   app.grav.nej.push({ kam: { x: 0.3, y: 0.3, w: 0.08, h: 0.1 }, typ: 'ign' });
-  app.gravFlode = false;
+  app.gravFlode = false;                                  // Yes på en annan hög: flödet av, kameran speglar fortfarande
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
-  assert.deepEqual(app.kort.map(c => c.name), ['Ukud Cobra'], 'flödet av: platsen filtrerar inte');
+  assert.deepEqual(app.kort.map(c => c.name), [], 'efter Yes: platsen filtrerar fortfarande');
+  app.gravSpeglar = false;                                // Screen leads, ingen telefon
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  assert.deepEqual(app.kort.map(c => c.name), ['Ukud Cobra'], 'kameran speglar inte: platsen filtrerar inte');
   app.nollstall(); gyStart(); app.bib = null;
   app.grav.nej.push({ kam: { x: 0.3, y: 0.3, w: 0.08, h: 0.1 }, typ: 'ign' }, { kam: { x: 0.6, y: 0.3, w: 0.08, h: 0.1 }, typ: 'perm', igen: 0 });
   app.avstamBord([], true);                               // telefonen nollställde sig
   assert.equal(app.grav.nej.length, 0, 'platserna står kvar efter nollställningen');
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
   assert.deepEqual(app.kort.map(c => c.name), ['Ukud Cobra'], 'ett kort på den gamla platsen syns inte');
+});
+prov('GY7 (kontrollgranskningen N1, granskarens K1) Ignore this spot, sedan Yes på en annan hög: den ignorerade högen kommer inte tillbaka som kort i spel', () => {
+  gyStart(); app.bib = null;
+  const A1 = klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), A2 = klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) });
+  stam([A1]); klocka.t += 3000; stam([A1, A2]);
+  const q = fraga(); assert.ok(q, 'ingen fråga');
+  // som gravSvar('ign')
+  const L = app.grav;
+  L.nej.push({ kam: Object.assign({}, q.kam, { w: q.kam.w * 1.1, h: q.kam.h * 1.1 }), typ: 'ign' });
+  for (const cid of q.cids) { const c = app.kort.find(x => x.cid === cid); if (c.spar != null) app.borttagna.add(c.spar); app.kort.splice(app.kort.indexOf(c), 1); }
+  L.fraga = null;
+  for (let i = 0; i < 5; i++) { klocka.t += 150; stam([A1, A2]); }
+  assert.equal(app.kort.length, 0, 'kort kvar efter Ignore: ' + app.kort.map(c => c.name));
+  // Yes på en annan hög: kamGravRad sätts, flödet av — kameran speglar fortfarande mitt bord
+  app.gravFlode = false;
+  klocka.t += 150; stam([A1, A2]);
+  klocka.t += 150; stam([A1, A2]);
+  assert.equal(app.kort.length, 0, 'den ignorerade högen kom tillbaka som kort i spel: ' + app.kort.map(c => c.name).join(', '));
+});
+prov('GY5c (kontrollgranskningen N6) Ignore this spot glöms när telefonen knuffats och tar en ny referensbild (fasen tillbaka till ljus efter kort), inte vid starten', () => {
+  app.nollstall(); gyStart(); app.bib = null;
+  app.grav.nej.push({ kam: { x: 0.3, y: 0.3, w: 0.08, h: 0.1 }, typ: 'ign' });
+  app.avstamBord([], false, 'ljus');                      // kameran lär sig ljuset för första gången
+  assert.equal(app.grav.nej.length, 1, 'platsen glömdes vid starten');
+  stam([klar(1, 'Pacifism', { sen: 10, ...kortVid(0.6, 0.3) })]);
+  klocka.t += 150; app.avstamBord([], false, 'ljus');     // "The picture has moved": ny referensbild
+  assert.equal(app.grav.nej.length, 0, 'platsen står kvar efter omtagningen');
+  klocka.t += 150; stam([klar(1, 'Pacifism', { sen: 10, ...kortVid(0.6, 0.3) }), klar(2, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  assert.ok(app.kort.some(c => c.name === 'Ukud Cobra'), 'ett kort på den gamla platsen syns inte efter omtagningen');
 });
 prov('GY6 flödet av (uppstartens ruta, Screen leads, ingen telefon): ingen fråga', () => {
   app.bib = LEK;

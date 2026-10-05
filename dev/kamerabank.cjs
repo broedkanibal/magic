@@ -2375,6 +2375,58 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const ln3 = await kor(22, [hog(N1), hog(N2a), hog(N2b), hog(NK)], [lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')]);
     check(`LN2 leken upplockad: inga nedvända kort i rapporten (det kan vara leken som läggs ner): ${ln3 && ln3.lage}, ned ${JSON.stringify(nedX(ln3))}`, !!ln3 && ln3.lage === 'upp' && ln3.ned.length === 0);
 
+    // ── Kontrollgranskningen av rättelse 2 (granskarens S1, S2, S5; S3–S4 är N5, en känd rest) ──
+    const lekTxt = l => l ? l.lage + (l.ruta ? '@' + Math.round(l.ruta.x * W) + ',' + Math.round(l.ruta.y * H) : '') : 'null';
+    const FUk = { x: 20, y: 100, w: 30, h: 42 };            // ett vanligt kort (uppvänt) som ger bordet en kortstorlek
+    for (const med of [false, true]) {
+      const bas = med ? [kortR(FUk)] : [], basL = med ? [lada(FUk, 'kort')] : [];
+      // LK23 (S1, N2): leken lyfts och läggs på en ny plats mellan två rutor — den står där när den gamla platsen sett tom ut
+      //   i mer än bortaMs (fjärde tomma rutan, som ett vanligt kort), och ritas ALDRIG som ett nedvänt kort på den nya.
+      //   Förut: Library på den tomma platsen i ~2 s och ett nedvänt kort där leken låg.
+      await nyttBord('v');
+      await kor(20, bas.concat(hog(L)), basL.concat(lada(L, 'baksida')));
+      const L2s = { x: 60, y: 30, w: 30, h: 42 };
+      const r23 = [];
+      for (let i = 1; i <= 10; i++) { const l = await steg1(bas.concat(hog(L2s)), basL.concat(lada(L2s, 'baksida'))); r23.push(lekTxt(l) + (l.ned.length ? ' ned' + JSON.stringify(nedX(l)) : '')); }
+      const dit23 = r23.findIndex(x => x.startsWith('nere@' + L2s.x + ',' + L2s.y)) + 1;
+      check(`LK23 leken flyttad snabbt (${med ? 'med' : 'utan'} kortstorlek): på nya platsen i ruta ${dit23} (${ms(dit23)} ms), aldrig nedvänt kort: ${r23.slice(0, 5).join(' · ')}`,
+            dit23 === 4 && r23.every(x => !x.includes('ned')) && r23.slice(dit23 - 1).every(x => x.startsWith('nere@' + L2s.x)));
+    }
+    {
+      const bas = [kortR(FUk)], basL = [lada(FUk, 'kort')];
+      // LN5 (S2, N4): ett kort dras från leken mot spelarens kant (baksidan upp), 10 px per ruta, med kortstorlek — inget nedvänt kort
+      //   blinkar förbi: en hög som föds på leken visas först när den legat formstilla
+      await nyttBord('v');
+      await kor(20, bas.concat(hog(L)), basL.concat(lada(L, 'baksida')));
+      const s2 = [];
+      for (let i = 1; i <= 6; i++) { const D = { x: L.x, y: L.y + 10 * i, w: 30, h: 42 }; s2.push(nedX(await steg1(bas.concat(hog(L), hog(D)), basL.concat(lada(L, 'baksida'), lada(D, 'baksida'))))); }
+      for (let i = 7; i <= 10; i++) s2.push(nedX(await steg1(bas.concat(hog(L)), basL.concat(lada(L, 'baksida')))));
+      // …men ett kort som läggs från leken och ligger kvar visas: två formstilla rutor
+      const Dk = { x: L.x - 31, y: L.y + 6, w: 30, h: 42 };   // intill leken (lådan plus en tiondel nuddar)
+      const [iDk] = await forstaRuta(4, bas.concat(hog(L), hog(Dk)), basL.concat(lada(L, 'baksida'), lada(Dk, 'baksida')), [l => nedX(l).includes(Dk.x)]);
+      check(`LN5 kort dras ur leken i handen: nedvända kort ruta för ruta ${JSON.stringify(s2)}; ett kort som läggs intill leken och ligger kvar: efter ${ms(iDk)} ms`,
+            s2.every(x => x.length === 0) && iDk === 2);
+      // LN6 (S5, N3): ett nedvänt kort vänds upp på samma plats, och kameran kan inte läsa det — det nedvända kortet går, och det
+      //   uppvända kortets spår går till datorn som ett vanligt kort (inte märkt ned): platshållare eller granskning
+      await nyttBord('v');
+      const T5 = { x: 100, y: 60, w: 30, h: 42 };
+      await kor(20, bas.concat(hog(L)), basL.concat(lada(L, 'baksida')));
+      const s5a = await kor(6, bas.concat(hog(L), hog(T5)), basL.concat(lada(L, 'baksida'), lada(T5, 'baksida')));
+      const svarForra5 = namnSvar;
+      namnSvar = (id) => { const t = Kamera.spar.find(q => q.id === id); return t && t.klass === 'baksida' ? { baksida: true, varfor: 'baksida ficka', poang: 0.9 } : { namn: null, saker: false, cands: [] }; };
+      const upp5 = { x: 101, y: 61, w: 30, h: 42 };
+      let ned5 = 0, markt5 = 0, sedd5 = 0, sista5 = null;
+      for (let i = 1; i <= 40; i++) {
+        const l = await steg1(bas.concat(hog(L), kortR(upp5)), basL.concat(lada(L, 'baksida'), lada(upp5, 'kort')));
+        const t = bord.find(q => Math.abs((q.x + q.w / 2) * W - (upp5.x + 15)) < 4 && Math.abs((q.y + q.h / 2) * H - (upp5.y + 21)) < 4);
+        if (nedX(l).length) ned5++;
+        if (t) { sedd5++; if (t.ned) markt5++; sista5 = t; }
+      }
+      namnSvar = svarForra5;
+      check(`LN6 nedvänt kort vänds upp och går inte att läsa: först ned ${JSON.stringify(nedX(s5a))}; sedan nedvänt kort i ${ned5} av 40 rutor, det uppvända spåret i rapporten ${sedd5} av 40, märkt ned ${markt5}, till sist ${sista5 ? sista5.tillstand + ' kortlik=' + sista5.kortlik : 'inget'}`,
+            JSON.stringify(nedX(s5a)) === JSON.stringify([T5.x]) && ned5 === 0 && sedd5 === 40 && markt5 === 0 && !!sista5 && sista5.kortlik);
+    }
+
     // ── LV: lekens egen väg till grundläget (MES-334 sida 5, steg 0) ──
     /* Leken har ingen namnremsa, så steg 1:s sparVinkel().matt blir aldrig sann för den. Lekens vinkel tas
        i stället ur formens mätning (kalla 'form') när leken ligger still, högen är en låda, ingen annan låda

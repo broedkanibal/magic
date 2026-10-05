@@ -9278,6 +9278,13 @@ function gravFlodeAktivt() {
   const mig = minSpelare();
   return !!spelLage && !!mig && kamSpeglar(mig) && !kamGravRad && !oppOppen && spelPolicy(mig).saknas;
 }
+/* Ignore this spot gäller så länge kameran speglar mitt bord i Mirror my table — också efter Yes på en
+   annan hög (graveyard-rutan satt) och medan uppstarten står öppen (kontrollgranskningen N1). Med
+   gravFlodeAktivt slocknade filtret vid Yes, och den ignorerade högens kort kom tillbaka som kort i spel. */
+function gravIgnoreAktivt() {
+  const mig = minSpelare();
+  return !!spelLage && !!mig && kamSpeglar(mig) && spelPolicy(mig).saknas;
+}
 let gravMenyOppen = false;   // No är tryckt: menyn M1 står i frågans ställe
 /* Frågan som ska ritas på mitt bord, med högens kort (de som ligger kvar på mattan), eller null. */
 function gravFragaNu(p) {
@@ -26496,10 +26503,10 @@ const Kamera = (() => {
         lekVinkel(fynd, h, mask, nu, W, H);   // lekens egen väg till grundläget (sida 5, steg 0)
       } else {
         if (osaker || !tom(lek.box)) lek.tomFran = 0; else if (!lek.tomFran) lek.tomFran = nu;
+        lekTom(lek, mask, dt, osaker);   // borta som ett vanligt kort: steg 3 flyttar leken då (kontrollgranskningen N2)
         if (lek.nyss) {
           /* Nyss lagd och borta igen innan den legat still: upplockad på sin gamla plats när mattan
              under den sett tom ut i mer än bortaMs — som ett vanligt kort. En hand över den håller den kvar. */
-          lekTom(lek, mask, dt, osaker);
           if (lek.tomMs > T.bortaMs) Object.assign(lek, lek.nyss, { upp: true, nyss: null, tomMs: 0, tomFran: 0 });
         } else if (!lek.upp && nu - lek.sist >= LEK_BORTA_MS && lek.tomFran && nu - lek.tomFran >= LEK_TOM_MS) lek.upp = true;
       }
@@ -26516,7 +26523,10 @@ const Kamera = (() => {
     /* Ett nedvänt kort som visas (k.ned, steg 5) står kvar tills det är borta som ett vanligt kort —
        också under en hand längre än kandidaternas 8 s, som ett skymt spår. */
     lekKand = lekKand.filter(k => k.sist === nu || k.ned || nu - k.sist < 8000 && !(nu - k.sist >= LEK_BORTA_MS && k.tomFran && nu - k.tomFran >= LEK_TOM_MS));
-    hogar.forEach((h, i) => { if (!tag.has(i)) { const k = { id: lekNastaId++, box: Object.assign({}, h), ref: null, fodd: nu, sist: nu, stillaFran: nu, tomFran: 0 }; lekSag(k, h, nu); lekKand.push(k); } });
+    /* urLek: högen föddes intill eller på leken (lådan plus en tiondel) — ett kort som dras ur leken
+       (kontrollgranskningen N4). Den får visas som nedvänt kort först när den legat formstilla. */
+    const vidLek = b => !!lek && !lek.upp && ladIou(b, { x: lek.box.x - 0.1 * lek.box.w, y: lek.box.y - 0.1 * lek.box.h, w: 1.2 * lek.box.w, h: 1.2 * lek.box.h }) > 0;
+    hogar.forEach((h, i) => { if (!tag.has(i)) { const k = { id: lekNastaId++, box: Object.assign({}, h), ref: null, fodd: nu, sist: nu, stillaFran: nu, tomFran: 0, urLek: vidLek(h) }; lekSag(k, h, nu); lekKand.push(k); } });
     const giltig = k => k.sist === nu && !kant(k.box) && form(k.box);
     const stilla = k => giltig(k) && nu - k.stillaFran >= LEK_STILLA_MS;
     /* Diagnosen (golden --detalj, lekrepris --logg): kandidaterna och varför de inte är giltiga. */
@@ -26541,15 +26551,20 @@ const Kamera = (() => {
        plockats upp (RP2). Det som skiljer dem är att leken läggs tillbaka där
        den låg. */
     /* Lika fort som ett vanligt kort (Rättelse 2): högen syns i rutan och har ett korts mått
-       (hogSkuggklar) — förut skulle den ha legat still i 1,5 s (stilla). */
-    if (lek && lek.upp) {
+       (hogSkuggklar) — förut skulle den ha legat still i 1,5 s (stilla).
+       …och utan att vänta på upplockningen (kontrollgranskningen N2): leken syns inte på sin plats,
+       och platsen har sett tom ut i mer än bortaMs — som när ett vanligt kort är borta. Då tar den
+       nyaste högen som lagts EFTER att leken sågs senast över, i stället för att leken står kvar på
+       den tomma platsen i 2 s (LEK_BORTA_MS + LEK_TOM_MS) medan den nya platsen visar ett nedvänt kort. */
+    const lekBorta = !!lek && !lek.upp && lek.sist !== nu && (lek.tomMs || 0) > T.bortaMs;
+    if (lek && (lek.upp || lekBorta)) {
       const lagd = q => q.sist === nu && hogSkuggklar(q.box, q);
-      let k = lekKand.filter(q => lagd(q) && q.fodd > lek.lag).sort((a, b) => b.fodd - a.fodd)[0], tillbaka = false;
-      if (!k && lek.forra) { k = lekKand.find(q => lagd(q) && q.fodd > lek.forraNar && ladIou(q.box, lek.forra) >= 0.3); tillbaka = !!k; }
+      let k = lekKand.filter(q => lagd(q) && q.fodd > (lek.upp ? lek.lag : lek.sist)).sort((a, b) => b.fodd - a.fodd)[0], tillbaka = false;
+      if (!k && lek.upp && lek.forra) { k = lekKand.find(q => lagd(q) && q.fodd > lek.forraNar && ladIou(q.box, lek.forra) >= 0.3); tillbaka = !!k; }
       if (k) {
         lekNyss();
         const fore = lek.box;
-        lek.box = Object.assign({}, k.box); lek.ref = k.ref; lek.stillaFran = k.stillaFran; lek.sist = nu; lek.lag = nu; lek.tomFran = 0; lek.upp = false;
+        lek.box = Object.assign({}, k.box); lek.ref = k.ref; lek.stillaFran = k.stillaFran; lek.sist = nu; lek.lag = nu; lek.tomFran = 0; lek.tomMs = 0; lek.fBox = k.fBox; lek.formN = k.formN; lek.upp = false;
         lek.forra = tillbaka ? null : Object.assign({}, fore); lek.forraNar = nu;
         lekKand = lekKand.filter(q => q !== k);
       }
@@ -26599,12 +26614,24 @@ const Kamera = (() => {
        när mattan under det sett tom ut i mer än bortaMs, som ett spår (lekTom) — förut gick det i
        första rutan detektorn missade lådan och kom tillbaka i nästa. En hand som håller ett nedvänt
        kort rakt över bordet blir alltså ett nedvänt kort tidigare än förut (känd rest V2, Jespers val).
-       Ett säkert namngivet spår på samma plats är ett kort, inte en baksida: då inget nedvänt kort. */
+       Ett säkert namngivet spår på samma plats är ett kort, inte en baksida: då inget nedvänt kort.
+       Kontrollgranskningen av rättelse 2:
+       - N3: ett uppvänt kort på samma plats (ett spår som inte är en baksida — kortet vändes upp, eller
+         en aura lades rakt över) gör att det nedvända kortet går, också innan det fått namn: det
+         uppvända kortet går till datorn som vanligt (platshållare, namn eller granskning).
+       - N2: en hög som lagts medan leken inte syns och dess plats inte setts tom länge nog är kanske
+         leken på väg någonstans; den visas inte som nedvänt kort förrän leken är avgjord (syns igen,
+         eller har flyttat dit i steg 3).
+       - N4: en hög som föddes på eller intill leken (urLek) — ett kort som dras ur leken — visas först
+         när den legat formstilla i två rutor (R(1)), också med kortstorlek; ett kort som dras förbi i
+         handen blinkar då inte förbi som nedvänt. */
     if (lek && !lek.upp) {
+      const lekSaknas = lek.sist !== nu;
       const nedOk = k => (k.box.n || 1) === 1 && ladIou(k.box, lek.box) < 0.3 && !lekUte.some(u => ladIou(k.box, u.box) >= 0.3)
-        && !spar.some(t => t.tillstand === 'klar' && t.namn && t.box && ladIou(t.box, k.box) >= 0.5);
+        && !(lekSaknas && k.fodd > lek.sist)
+        && !spar.some(t => t.box && t.tillstand !== 'skrap' && ((t.tillstand === 'klar' && t.namn) || t.klass !== 'baksida') && ladIou(t.box, k.box) >= 0.5);
       for (const k of lekKand) {
-        if (k.sist === nu) k.ned = nedOk(k) && !kant(k.box) && form(k.box) && (!!k.ned || hogSkuggklar(k.box, k));
+        if (k.sist === nu) k.ned = nedOk(k) && !kant(k.box) && form(k.box) && (!!k.ned || (hogSkuggklar(k.box, k) && (!k.urLek || (k.formN || 0) >= R(1))));
         else k.ned = !!k.ned && nedOk(k) && (k.tomMs || 0) <= T.bortaMs;
       }
       lekNed = lekKand.filter(k => k.ned);
@@ -26691,7 +26718,8 @@ const Kamera = (() => {
   /* Spåret ÄR ett av de ensamma nedvända korten (steg 5): datorn ritar det nedvända kortet, inte en
      platshållare för samma kort (rapportera, fältet ned). Förut kom det nedvända kortet efter 3 s,
      när spåret redan dömts som baksida och var skräp; nu kommer det i samma ruta som skuggan. */
-  const arNedKort = t => !!t.box && t.tillstand !== 'klar' && lekNed.length > 0 && lekNed.some(k => ladIou(t.box, k.box) >= 0.5);
+  /* Bara baksidespår (kontrollgranskningen N3): ett uppvänt kort på samma plats ska till datorn som vanligt. */
+  const arNedKort = t => !!t.box && t.klass === 'baksida' && t.tillstand !== 'klar' && lekNed.length > 0 && lekNed.some(k => ladIou(t.box, k.box) >= 0.5);
   const lekSig = () => { const l = lekLage(); if (!l) return ''; const r = l.ruta; return `|L${l.lage[0]}${l.id || ''}${r ? [r.x, r.y, r.w, r.h].map(v => Math.round(v * 50)).join(',') : ''}${l.farg ? 'f' + (l.farg.magic ? 'm' : '') : ''}${l.ute.map(u => 'u' + u.id + ':' + Math.round(u.ruta.x * 50) + ',' + Math.round(u.ruta.y * 50)).join('')}${l.ned.map(u => 'n' + u.id + ':' + Math.round(u.ruta.x * 50) + ',' + Math.round(u.ruta.y * 50)).join('')}${l.grund || ''}${l.forsta ? 'F' : ''}`; };
   /* Högvakten (K10/K11, MES-85). Rutan föder inga spår, men datorn behöver
      veta när ett kort LADES på högen: då kan ett kort som just försvann från
@@ -30834,12 +30862,13 @@ function gravKamOm(kams) {
   return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
 }
 const gravArLand = c => zonAv(c) === ZON_MANA;
-/* Ett spår mitt i en plats där spelaren sa Ignore this spot: Mesa följer det inte. Bara medan
-   graveyard-flödet är aktivt (granskningen, V1): efter Yes, i Screen leads eller utan telefon filtreras
-   inget. Platserna är bildens koordinater och glöms när kameran nollställer sig eller tar en ny
-   referensbild (gravGlomPlatser) — då kan samma ställe i bilden vara en annan plats på bordet. */
+/* Ett spår mitt i en plats där spelaren sa Ignore this spot: Mesa följer det inte. Så länge kameran
+   speglar mitt bord i Mirror my table (gravIgnoreAktivt) — också efter Yes på en annan hög
+   (kontrollgranskningen N1); i Screen leads och utan telefon filtreras inget (granskningen, V1).
+   Platserna är bildens koordinater och glöms när kameran nollställer sig eller tar en ny
+   referensbild (gravGlomPlatser, gravFasByte) — då kan samma ställe i bilden vara en annan plats på bordet. */
 function gravIgnorerad(t) {
-  if (t.w == null || t.h == null || !spelLage || !(typeof gravFlodeAktivt === 'function' && gravFlodeAktivt())) return false;
+  if (t.w == null || t.h == null || !spelLage || !(typeof gravIgnoreAktivt === 'function' && gravIgnoreAktivt())) return false;
   const L = gravLageNu();
   return L.nej.some(s => s.typ === 'ign' && gravMittI(t, kamRekt(s.kam)));
 }
@@ -30849,6 +30878,13 @@ function gravGlomPlatser() {
   if (!spelLage) return;
   const L = gravLageNu();
   if (L.nej.length) { L.nej = []; gravSpara(); }
+}
+/* …och när telefonen knuffats (kontrollgranskningen N6): "The picture has moved" tar en ny referensbild
+   utan att nollställa, och fasen går tillbaka till ljus efter att kameran sett bordet. Bilden har
+   flyttat sig, så platserna är andra ställen nu. Vid starten (ingen fas, eller ljus/lar/ingen före)
+   finns inget att glömma. Anropas där datorn tar emot fasen (avstamBord, kamTogsEmot) före bytet. */
+function gravFasByte(ny) {
+  if (ny === 'ljus' && kamFas && kamFas !== 'ljus' && kamFas !== 'lar' && kamFas !== 'ingen') gravGlomPlatser();
 }
 /* Ett steg per bord, efter att korten bundits och skapats. true = läget ändrades. */
 function gravFragaSteg(mig, nu, synliga) {
@@ -30918,7 +30954,7 @@ function gravFragaSteg(mig, nu, synliga) {
 function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
   senasteRa = spar;   // telefonens bord som det kom — det nåd-timern spelar upp
-  if (fas) kamFas = fas;
+  if (fas) { gravFasByte(fas); kamFas = fas; }   // en omtagning glömmer Ignore-platserna (kontrollgranskningen N6)
   if (yta) kamYta = yta;
   kamRad = rad || '';
   /* Skräp — trä, skuggor, blänk som kom igenom detektorn — är inte kort.
@@ -32843,7 +32879,7 @@ function kamTogsEmot(m) {
     if (m.bok && prefs.autoLage !== false) autoSumBok(m.bok);
     /* Ett fasbyte bär ingen kortlista. Gjorde det det, med en tom lista,
        tonade det ned hela bordet hos en dator som missat nollställningen. */
-    if (m.barafas) { kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }
+    if (m.barafas) { gravFasByte(m.fas || ''); kamFas = m.fas || ''; if (m.yta) kamYta = m.yta; kamRad = m.rad || ''; renderMode(); uppdateraPbStatus(); return; }
     /* Auto av betyder av. Förut lydde datorn ändå, så länge telefonen sände. */
     if (prefs.autoLage === false) return;
     /* Leken utan uppstart (MES-334 steg 3): före avstämningen, så att bordet ritas med leken där den ligger. */
