@@ -38,7 +38,7 @@ fasta högar. Bygget kräver att mattan inte ritas om från noll (spegelmattans 
 | Leken plockas upp före första kortet (blanda efter mulligan) | "Library · Picked up". Skuggan står kvar och texten likaså |
 | Första kortet läggs ner | Texten försvinner |
 | Första kortet spelas utan att leken har synts | Första kortets vinkel blir otappat, utan fråga. Läggs leken ner senare blir den library, men vinkeln står kvar |
-| Andra nedvända kort, när leken är känd | Ett **ensamt** nedvänt kort i spelytan visas som ett nedvänt kort på mattan (morph, manifest). En **hög** med flera nedvända kort som inte är leken, eller en som skärs av bildkanten, **ignoreras** (Jesper 2026-10-04, efter golden 17: kompisens parti har sju sådana baksidor vid kanten och i ett hörn) |
+| Andra nedvända kort, när leken är känd | Ett **ensamt** nedvänt kort i spelytan visas som ett nedvänt kort på mattan (morph, manifest). En **hög** med flera nedvända kort som inte är leken, eller en som skärs av bildkanten, **ignoreras** (Jesper 2026-10-04, efter golden 17: kompisens parti har sju sådana baksidor vid kanten och i ett hörn). **Visas lika fort som ett vanligt kort**, och leken som läggs ner igen efter att ha tagits upp står på sin nya plats direkt (Jesper 2026-10-05). Kameran skiljer inte ett nedvänt kort från en rak nedvänd hög, så handkort som läggs ner nedvända syns som ett nedvänt kort tills de tas upp — accepterat: 3 s väntan hjälper ändå inte när handen ligger nere medan man bläddrar i leken |
 
 ### Vinkeln
 
@@ -203,7 +203,7 @@ Det här mäts i del A innan det byggs.
 | Läge | Vad gäller |
 |---|---|
 | Follow the table (Table leads) | Allt ovan |
-| Screen leads | Högarna hittas ändå, eftersom de håller kort i högarna borta från mattan. Grundläget och auto-graveyard följer `spelPolicy`, som i dag |
+| Screen leads | Högarna hittas ändå, eftersom de håller kort i högarna borta från mattan. Grundläget och auto-graveyard följer `spelPolicy`, som i dag. **Uppstartens steg 4 står kvar i Use camera to add cards tills vidare** (Jesper 2026-10-05; graveyard-frågan kräver Follow the table) — MES-339 |
 
 ### Utseendet (designytans sida 3)
 
