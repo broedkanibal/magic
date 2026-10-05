@@ -65,12 +65,18 @@ R = {
     'steg': 6,                 # var 6:e ruta = 5 rutor/s i 30 b/s
     'golv': 0.02,              # detektor.js T.golv: råa rader under detta läses aldrig — sparas inte
     'ror_marg': 0.10,          # rörelsemåttet: lådan + 10 % marginal per sida
-    # B: ett spår fortsätter bara på en låda som är nästan densamma (IoU ≥ 0,9) eller ligger inom dess förra
-    # (innesluten ≥ 0,9: kortet blir täckt). En låda som växer eller flyttar sig är ett NYTT spår med eget
-    # lägg-ögonblick. Med IoU 0,5 tog det undre kortets spår över lådan för kortet som lades ovanpå (förskjutet
-    # 45 px, IoU 0,78) och gav det fel namn (granskningen av e374112, sim_hog.py).
+    # B: ett spår fortsätter bara på
+    #   samma låda: IoU ≥ 0,9;
+    #   en krympt låda (kortet blir täckt): inom den förra, ingen kant mer än 2 % av kortsidan utanför, OCH ytan
+    #     ≤ 0,85 av den förra — en lika stor låda som flyttats en titelremsa (30–45 px) är aldrig krympt;
+    #   en låda som växer tillbaka (kortet avtäcks): bara om den har IoU ≥ 0,9 med spårets egen helbild (den
+    #     första stilla lådan med kortets form — där lägg-ögonblicket hamnar).
+    # Allt annat är ett NYTT spår med eget lägg-ögonblick. Med IoU 0,5 (och sedan "innesluten ≥ 0,9") tog det
+    # undre kortets spår över lådan för kortet som lades ovanpå en titelremsa längre ned, och gav det fel namn
+    # (granskningarna av e374112 och fe2d291: sim_hog.py, gr2/sim2–5.py).
     'spar_iou': 0.9,
-    'spar_inne': 0.9,
+    'spar_kant': 0.02,
+    'spar_krympt_yta': 0.85,
     'glapp_s': 1.0,            # ett spår slutar när ingen låda matchar på 1 s
     'stilla_centrum': 0.01,    # stilla: centrum flyttat < 1 % av kortsidan …
     'stilla_ror': 4.0,         # … och rörelsemåttet < 4 gråsteg (sensorbruset ~3, MES-246)
@@ -173,6 +179,10 @@ def inne(a, b):
     """Andelen av a som ligger inne i b."""
     y = (a[2] - a[0]) * (a[3] - a[1])
     return skarning(a, b) / y if y > 0 else 0.0
+
+
+def lada_yta(b):
+    return max(0.0, b[2] - b[0]) * max(0.0, b[3] - b[1])
 
 
 def mitt(b):
@@ -457,28 +467,43 @@ def steg_b(mapp):
         obs = [{'si': si, 't': t, 'ruta': s['ruta'], 'lada': p['lada'], 'remsa': p['remsa'], 'klass': p['klass'],
                 'poang': p['poang'], 'ur': p['ur'], 'ror': p.get('ror'), 'ror_n': p.get('ror_n')} for p in s['par']]
         kand = []
+        e = R['spar_kant'] * kortsida
         for ti, tr in enumerate(levande):
             g = tr['obs'][-1]['lada']
             for oi, o in enumerate(obs):
                 b = o['lada']
                 u = iou(g, b)
                 if u >= R['spar_iou']:
-                    kand.append((1 + u, ti, oi))      # samma låda går alltid före en krympt
-                    continue
-                a = inne(b, g)
-                if a >= R['spar_inne']:
-                    kand.append((a, ti, oi))
+                    kand.append((3 + u, ti, oi, 'samma'))      # samma låda går alltid först
+                elif (b[0] >= g[0] - e and b[1] >= g[1] - e and b[2] <= g[2] + e and b[3] <= g[3] + e
+                      and lada_yta(b) <= R['spar_krympt_yta'] * lada_yta(g)):
+                    kand.append((2 + inne(b, g), ti, oi, 'krympt'))
+                elif lada_yta(b) > lada_yta(g) and tr.get('hel') and iou(b, tr['hel']) >= R['spar_iou']:
+                    kand.append((1 + iou(b, tr['hel']), ti, oi, 'tillbaka'))
         kand.sort(key=lambda x: -x[0])
         tagna_t, tagna_o = set(), set()
-        for _, ti, oi in kand:
+        for _, ti, oi, hur in kand:
             if ti in tagna_t or oi in tagna_o:
                 continue
+            obs[oi]['koppling'] = hur
             levande[ti]['obs'].append(obs[oi]); tagna_t.add(ti); tagna_o.add(oi)
         for oi, o in enumerate(obs):
             if oi not in tagna_o:
                 nr += 1
                 tr = {'id': f's{nr:03d}', 'obs': [o]}
                 spar.append(tr); levande.append(tr)
+        # Spårets helbild, löpande: den första lådan med kortets form efter tre stilla prov i rad (som
+        # lägg-ögonblicket, utan blicken framåt) — det är den en låda som växer tillbaka ska stämma med.
+        for tr in levande:
+            ob = tr['obs']
+            if ob[-1]['si'] != si or tr.get('hel'):
+                continue
+            o, f = ob[-1], ob[-2] if len(ob) > 1 else None
+            stilla_nu = bool(f is not None and f['si'] == si - 1 and o['ror'] is not None and o['ror'] < R['stilla_ror']
+                             and math.hypot(*(np.subtract(mitt(o['lada']), mitt(f['lada'])))) < R['stilla_centrum'] * kortsida)
+            tr['vila'] = tr.get('vila', 0) + 1 if stilla_nu else 0
+            if tr['vila'] >= R['lagg_prov'] and kortform(o['lada'], remsvinkel(o['remsa']) if o['remsa'] else None, kvot):
+                tr['hel'] = o['lada']
         # En remsa, ett kort: två levande spår med (nästan) samma remslåda — den vars kant ligger närmast behåller den.
         nu = [tr['obs'][-1] for tr in levande if tr['obs'][-1]['si'] == si and tr['obs'][-1]['remsa']]
         for a in range(len(nu)):
@@ -614,7 +639,8 @@ def steg_b(mapp):
             'id': tr['id'], 'start': ob[0]['t'], 'slut': ob[-1]['t'], 'n_prov': len(ob),
             'klass': ob[lagg]['klass'] if lagg is not None else max(set(klasser), key=klasser.count),
             'lagg': lagen[0] if lagen else None, 'orsak': orsak, 'lagen': lagen,
-            'prov': [[o['t'], o['lada'], o['remsa'], o['klass'], o['ror'], o['ror_n'], o['flytt'], o['stilla'], o['i_hog']] for o in ob],
+            'helbild': tr.get('hel'),
+            'prov': [[o['t'], o['lada'], o['remsa'], o['klass'], o['ror'], o['ror_n'], o['flytt'], o['stilla'], o['i_hog'], o.get('koppling')] for o in ob],
         })
 
     # Högarna åt detektorspåret: sammanhängande grupper av spår i hög, ihopslagna över tiden.
