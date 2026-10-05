@@ -55,6 +55,10 @@ function typLinje(k) { return typRad.get(k.name) || ''; }
 /* Uppstarten (MES-122): pågår den spelas inget ut. Av i alla prov utom UP. */
 let oppPagar = false;
 function oppstartPagar() { return oppPagar; }
+/* Graveyard ur spelet (MES-334 steg 4): flödet är på (Follow the table, mitt bord, telefonen, ingen
+   graveyard-ruta) bara i GY-proven; kamerans vridning som i appen (kamVand/kamSpegel). */
+let gravFlode = false, kamVand = 0, kamSpegel = false;
+function gravFlodeAktivt() { return gravFlode; }
 /* Det svaren utanför utdraget läser (se svarKod nedan): mattan, molnet,
    handen och högarna. delaHand ger index per zon, som appens. */
 const ZON_EXIL = 'exil';
@@ -104,6 +108,10 @@ return {
   avstamBord, tackning, sammaPlats, lekPrior,
   kamBildTillVy, kamVyTillBild, provKortMatt, provKortStorlek, zonForslag, bibBredvid, provkortSpar, provkortUt, provLasSteg,
   oppSteg4Klar, oppOppnasIgen,
+  set gravFlode(v) { gravFlode = !!v; },
+  get grav() { return gravLageNu(); },
+  set bib(h) { state.players[0].bibHog = h; },
+  set vand(v) { kamVand = v; },
   set oppstart(v) { oppPagar = !!v; },
   get spar() { return senasteSpar; },
   get kort() { return state.players[0].cards; },
@@ -152,7 +160,8 @@ return {
      börjar om, som när telefonen nollställt sig. Grundläget och "Inte nu"
      hör till spelet, inte nollställningen — de sätts om här, som när man
      lämnar spelet. */
-  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false; }
+  nollstall() { avstamBord([], true); state.players[0].cards = []; state.players[0].pending = []; hoppade = new Set(); borttagna = new Set(); n = 0; lyftTips = null; kamFas = ''; kamGrund = 20; grundAvbojd = false; lekTal = new Map(); typRad = new Map(); delete state.players[0].lage; autoSum = null; lsMinne.clear(); oppPagar = false;
+    gravFlode = false; kamVand = 0; kamSpegel = false; gravLage = null; gravSedda = new Set(); delete state.players[0].bibHog; }
 };`)({ now: () => klocka.t }, setTimeoutV, clearTimeoutV);
 
 const stam = (spar, fas = 'kort') => app.avstamBord(spar, false, fas);
@@ -1962,6 +1971,107 @@ prov('B4e med väntan (MES-291): det klara spåret dör medan det osäkra ligger
   assert.equal(app.kort.length, 1, 'ett andra Ukud Cobra'); assert.equal(k.spar, 2); assert.equal(k.borta, undefined);
   klocka.t += 3000; stam([Object.assign({}, o, { tillstand: 'klar', namn: 'Ukud Cobra', saker: true, varfor: 'hand' })]);
   assert.equal(app.kort.length, 1); assert.equal(k.lyft, undefined, 'tonades ned');
+});
+
+// ── GY: graveyard ur spelet (MES-334 sida 5, steg 4) ─────────────────
+/* Leken ligger mitt i bilden (steg 3:s bibHog med kamerans läge), landen till höger om den. Ett kort är
+   0,063 × 0,088 av bilden; kam är mitten. kort(x, y) är ett spår vars mitt ligger där. */
+const kortVid = (x, y, w = 0.063, h = 0.088) => box(x - w / 2, y - h / 2, w, h);
+const LEK = { id: 1, upp: 0, kam: { x: 0.5, y: 0.7, w: 0.063, h: 0.088, nar: 1 } };
+const gyStart = () => { app.gravFlode = true; app.bib = LEK; };
+const fraga = () => app.grav.fraga;
+const namnPa = cids => (cids || []).map(cid => (app.kort.find(c => c.cid === cid) || {}).name);
+prov('GY1 sidoregeln: första kortet på andra sidan om leken från landen, i lekens rad, ger frågan', () => {
+  gyStart();
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.7, 0.7) })]);
+  assert.equal(fraga(), null, 'land ger ingen fråga');
+  klocka.t += 2000;
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.7, 0.7) }), klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]);
+  assert.ok(fraga(), 'ingen fråga'); assert.equal(fraga().orsak, 'sida'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra']);
+  assert.equal(app.kort.find(c => c.name === 'Ukud Cobra').zon, undefined, 'graveyard före Yes');
+});
+prov('GY1b sidoregeln: ett kort i raden ovanför leken (del A: 3 och 2 fel frågor) och på landsidan ger ingen fråga', () => {
+  gyStart();
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.55) }), klar(4, 'Pacifism', { sen: 10, ...kortVid(0.8, 0.7) })]);
+  assert.equal(fraga(), null);
+});
+prov('GY1c sidoregeln: land på båda sidor, inget land, eller ingen lek — ingen fråga', () => {
+  gyStart();
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.3, 0.7) }), klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]);
+  assert.equal(fraga(), null, 'land på båda sidor');
+  app.nollstall(); gyStart();
+  stam([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]);
+  assert.equal(fraga(), null, 'inget land');
+  app.nollstall(); app.gravFlode = true;
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]);
+  assert.equal(fraga(), null, 'ingen lek');
+});
+prov('GY1d sidoregeln i spelarens led: bilden vriden ett kvarts varv — landen "till höger" ligger nedåt i bilden', () => {
+  gyStart(); app.vand = 90;
+  app.bib = { id: 1, upp: 0, kam: { x: 0.5, y: 0.5, w: 0.088, h: 0.063, nar: 1 } };
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.5, 0.65, 0.088, 0.063) }), klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.51, 0.35, 0.088, 0.063) })]);
+  assert.ok(fraga(), 'ingen fråga i den vridna bilden'); assert.equal(fraga().orsak, 'sida');
+});
+prov('GY2 reserven: ett kort rakt ovanpå ett annat ger frågan, kortet under är graveyards första', () => {
+  gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.302, 0.303) })]);
+  assert.ok(fraga(), 'ingen fråga'); assert.equal(fraga().orsak, 'ovanpa'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra', 'Pacifism']);
+});
+prov('GY2b reserven: fäst (sticker ut 15 %) och land på land ger ingen fråga; kortet under får ha legat länge', () => {
+  gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(1, 'Ukud Cobra', { skymd: true, sen: 900, ...kortVid(0.3, 0.3) }), klar(2, 'Valkyrie\'s Sword', { sen: 10, ...kortVid(0.3, 0.3 + 0.15 * 0.088) })]);
+  assert.equal(fraga(), null, 'fäst');
+  app.nollstall(); gyStart(); app.bib = null;
+  stam([klar(1, 'Forest', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(2, 'Plains', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  assert.equal(fraga(), null, 'land på land');
+  app.nollstall(); gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 20000;                                     // kortet under har legat i 20 s: det som räknas är att kortet OVANPÅ är nytt
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  assert.ok(fraga(), 'kortet ovanpå är nytt, kortet under får vara gammalt');
+});
+prov('GY3 medan frågan står: kort som läggs på högen hör till samma fråga, ett kort bredvid gör det inte', () => {
+  gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  const id = fraga().id;
+  klocka.t += 3000;
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) }), klar(3, 'Killing Glare', { sen: 10, ...kortVid(0.305, 0.31) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.6, 0.3) })]);
+  assert.equal(fraga().id, id); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra', 'Pacifism', 'Killing Glare']);
+});
+prov('GY4 Permanent: Mesa frågar en gång till när ett kort läggs ovanpå på samma plats, sedan aldrig', () => {
+  gyStart(); app.bib = null;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  const q = fraga(); app.grav.nej.push({ kam: q.kam, typ: 'perm', igen: 0 }); app.grav.fraga = null;   // som gravSvar('perm')
+  klocka.t += 3000;
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) }), klar(3, 'Killing Glare', { sen: 10, ...kortVid(0.302, 0.301) })]);
+  assert.ok(fraga(), 'frågade inte igen'); assert.equal(fraga().igen, true); assert.ok(namnPa(fraga().cids).includes('Killing Glare'));
+  app.grav.fraga = null;                                  // Permanent igen
+  klocka.t += 3000;
+  stam([klar(3, 'Killing Glare', { sen: 10, ...kortVid(0.302, 0.301) }), klar(4, 'Serpent Assassin', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  assert.equal(fraga(), null, 'frågade en tredje gång');
+});
+prov('GY5 Ignore this spot: spår där blir inga kort, och Mesa frågar aldrig om platsen', () => {
+  gyStart(); app.bib = null;
+  app.grav.nej.push({ kam: { x: 0.3, y: 0.3, w: 0.08, h: 0.1 }, typ: 'ign' });
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) }), klar(2, 'Pacifism', { sen: 10, ...kortVid(0.6, 0.3) })]);
+  assert.deepEqual(app.kort.map(c => c.name), ['Pacifism']); assert.equal(fraga(), null);
+});
+prov('GY6 flödet av (uppstartens ruta, Screen leads, ingen telefon): ingen fråga', () => {
+  app.bib = LEK;
+  stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  klocka.t += 3000;
+  stam([klar(2, 'Pacifism', { sen: 10, ...kortVid(0.3, 0.3) })]);
+  assert.equal(fraga(), null);
 });
 
 console.log([...ok, ...fel].join('\n'));
