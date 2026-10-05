@@ -42,11 +42,11 @@ install` i `dev/remsa` behövs bara för `--ocr`.
 | `spar.json`, `tidpunkter.json` | B | spåren, lägg-ögonblicken, lägena att spara; lägg och högar åt detektorspåret |
 | `utsnitt/4k/`, `claude/svar.json` | C | cachen: hel/app-utsnitten i 4K (nyckel: ruta + låda) och Claudes riktiga svar (fel cachas inte) |
 | `vittnen.json`, `markning.json` | C, E | Claude, (a) modellen, (b) ORB per spår; dom, namn, `utanfor_traning`, `val`, lägen, filer. `beskar: null` = E inaktuell |
-| `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata>.jpg`, kvalitet 95. C tömmer dem; E skriver om |
+| `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata|horn>.jpg`, kvalitet 95; `ur` i filposten säger `lada` eller `horn`. C tömmer dem; E skriver om |
 | `tel.mp4`, `tel.json`, `tran/tel/`, `val/tel/` | T | telefonkodat klipp och samma utsnitt som 1080 ur det; filerna i `markning.json` med `variant: 'tel'` |
 | `osaker/4k/`, `slangd/4k/` | C | 4K-utsnittet för osäkra och slängda-med-lägg — huvudsessionens ögon, inte träning |
 | `facit-manuell.json` | (hand) | `{"<spår>": "<namn>" | null}` efter en titt på `osaker/4k` — namn ger `saker_manuell`, null slänger (också ett säkert); måste vara nyare än `spar.json` |
-| `montage.jpg` | F | per spår: lägg-ögonblicket och det sista sparade läget i 1080, med Claudes namn och domen |
+| `montage.jpg` | F | per spår: lägg-ögonblicket, det sista sparade läget och lägg-ögonblickets remsa ur hörnen, i 1080, med Claudes namn och domen |
 
 ## Domen
 
@@ -66,6 +66,37 @@ läge där hela kortet syns med vittne (b):s regel mot lägg-ögonblickets konst
 efter det senast godkända läget — inte heller täckta lägen däremellan (ett annat kort kan ha lagts exakt på
 samma plats). E skriver först till `e-tmp/` och flyttar när kontrollerna är klara. Ofrågade spår gör att
 `klipp`/`pass` kör C igen av sig själv.
+
+## Remsorna ur kortets hörn (`remsor_ur: 'horn'`)
+
+Detektorns remslåda i en hög låg på det bakersta kortets remsa: stickprovet i pass 2 (klipp 2 s198, s330,
+klipp 1 s323) visade "Plains" på kort som var Mountain. Därför:
+
+| Del | Regel |
+|---|---|
+| Fyrhörningen (C) | ORB mot det **namngivna** kortets konstverk (domens namn, annars Claudes), för alla spår med namn. ≥ 12 inliers och sund: konvex, yta 0,6–1,4 × klippets ensamma kortyta, sidförhållande inom 15 % av 88/63, överkantens hörn inom lådan + 10 % och minst halva fyrhörningens låda inom lådan. Sparas som `horn4k` (ordning som `dev/detektor/remsa.py`: 0 → 1 = överkanten); `horn_varfor` säger varför den saknas |
+| Remsan (E) | bara ur fyrhörningen: översta 14 %, 4 % marginal, rätad och liggande (`-remsa-horn.jpg`). Alla lägen (också lägg-ögonblicket): samma fyrhörning, och bara när remsbandet ligger inom lägets låda ± 2 % av kortsidan. Ingen fyrhörning → inga remsor. Detektorns remslåda finns kvar i JSON som information |
+| Remsvakten (E) | låg detektorns remsa på hörnremsan i lägg-ögonblicket ska den ligga kvar där i varje senare läge — minst halva remsan inom bandet ± 2 % av kortsidan (`remsvakt_horn`); annars skrivs inget från det läget (`horn_stopp`) |
+| Hela kortet (E) | ur detektorns låda bara när den är kortformad (± 7 %) och IoU ≥ 0,8 mot fyrhörningens låda; annars ur fyrhörningen (lådan + 8 %, `ur: 'horn'`). Utan fyrhörning bara om lådan är kortformad och synlig andel ≤ 1,15. Täckta lägen följer B:s hörnstyckesregel som förut |
+| Gammal markning | E vägrar en `markning.json` utan `remsor_ur: 'horn'` — kör om från C |
+
+Avvikelser från granskningens ordalydelse, och varför:
+
+- **Likformighet i stället för homografi** (`cv2.estimateAffinePartial2D` på samma ORB-matchningar, ≥ 12
+  inliers): mot ett annat konstverk av samma namn (basland) gav den fulla homografin sneda fyrhörningar —
+  s323 fick överkanten 16° fel. Kameran ser korten uppifrån, så vridning + skala + förflyttning räcker.
+- **"Hörnen inom lådan + 10 %" gäller överkantens två hörn**, plus att minst halva fyrhörningen ligger i
+  lådan. I Jespers högar ligger detektorns låda över högens remsor och det översta kortets nederkant sticker
+  ut 100–120 px under den (s198, s330); den bokstavliga regeln underkände just de kort den skulle rädda.
+- **Remsvakten mäter andelen inom bandet, inte "inom ± 2 %".** Detektorns remsa och hörnbandet är två mått
+  på samma titelrad: i pass 2:s lägg-ögonblick, på de 42 spår där detektorns låda är kortet, skiljer kanterna
+  upp till 6,6 % av kortsidan (detektorns remsa sitter ~3 % högre). Bokstavligt ± 2 % stoppade 36 av 50 spår.
+  Andelen inom bandet är 0,63–1,00 på kortets egen remsa och 0,00–0,20 när remsan satt på ett annat kort i
+  högen. Vakten gäller bara spår vars detektorremsa låg på bandet vid lägget; i högar (s198, s330) satt den
+  redan då på ett annat kort och säger inget om vårt — där vaktar B:s regel mot lägg-remsan, ORB-kontrollen på
+  hela kortet ur hörnen och kravet att bandet ligger i lägets låda.
+- **Bandet inom lådan ± 2 % också i lägg-ögonblicket**, så att ett läge med samma låda som lägget får samma
+  svar (med 0 bildpunkter: 41 i stället för 47 av 50 lägg-remsor i pass 2).
 
 ## Där koden preciserar specen
 

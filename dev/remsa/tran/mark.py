@@ -2229,14 +2229,16 @@ def du(p):
 
 def montage(mapp, M):
     """Stickprovet: en kolumn per spår med lägg-ögonblick. Överst lägg-ögonblicket i 1080, under det SISTA sparade
-    läget (täckt, i hög, tappat) i 1080 ur tran/ eller val/ — så syns att namnet följer rätt kort in i högen."""
+    läget (täckt, i hög, tappat) i 1080 ur tran/ eller val/ — så syns att namnet följer rätt kort in i högen —
+    och sist lägg-ögonblickets remsa ur hörnen (eller varför den saknas)."""
     from PIL import Image, ImageDraw, ImageFont
     rader = [s for s in M['spar'] if s['lagg']]
     if not rader:
         return None
     CW, CH, TX = 220, 252, 46
     kol = 8
-    BLOCK = 2 * (CH + TX)
+    RH = 70                      # tredje raden: lägg-ögonblickets remsa (ur hörnen)
+    BLOCK = 2 * (CH + TX) + RH + 24
     ny = Image.new('RGB', (kol * CW, ((len(rader) + kol - 1) // kol) * BLOCK), (24, 24, 24))
     d = ImageDraw.Draw(ny)
     try:
@@ -2245,6 +2247,8 @@ def montage(mapp, M):
         f1 = ImageFont.load_default()
     farg = {'saker': (120, 220, 120), 'saker_manuell': (90, 200, 200), 'osaker': (240, 200, 90), 'slangd': (230, 110, 110), 'baksida': (140, 170, 240),
             'ofragad': (200, 140, 230)}
+    lagg_remsa = {f['spar']: f for f in (M.get('filer') or [])
+                  if f['upplosning'] == '1080' and f['typ'] == 'remsa' and f['lage'] == 0}
     sista = {}
     for f in M.get('filer') or []:
         if f['upplosning'] == '1080' and f['typ'] == 'hel' and f['utsnitt'] == 'app':
@@ -2285,6 +2289,17 @@ def montage(mapp, M):
             d.text((x + 4, y2 + CH + 20), (s['namn'] or '–')[:34], fill=(235, 235, 235), font=f1)
         else:
             d.text((x + 4, y2 + CH // 2), 'inga sparade lägen' if s['dom'] in ('saker', 'saker_manuell', 'baksida') else '(inte säkert — inga lägen skrivs)',
+                   fill=(110, 110, 110), font=f1)
+        y3 = y2 + CH + TX
+        fr = lagg_remsa.get(s['id'])
+        if fr and os.path.exists(os.path.join(mapp, fr['fil'])):
+            im = Image.open(os.path.join(mapp, fr['fil'])).convert('RGB')
+            sk = min((CW - 6) / im.width, RH / im.height)       # också uppåt: en 1080-remsa är ~100 × 17 px
+            im = im.resize((max(1, round(im.width * sk)), max(1, round(im.height * sk))), Image.LANCZOS)
+            ny.paste(im, (x + (CW - im.width) // 2, y3 + (RH - im.height) // 2))
+            d.text((x + 4, y3 + RH + 4), 'remsan ur hörnen (lägg)', fill=(180, 180, 180), font=f1)
+        else:
+            d.text((x + 4, y3 + RH // 2), ('ingen remsa' + (f" ({s.get('horn_varfor')})" if s.get('horn_varfor') and not s.get('horn4k') else ''))[:40],
                    fill=(110, 110, 110), font=f1)
     ut = os.path.join(mapp, 'montage.jpg')
     ny.save(ut, quality=88)
@@ -2359,6 +2374,16 @@ def rapport(passmapp, bara=None):
                        f"{len(s['lagen'])} | {s.get('filer', 0)} / {s.get('filer_tel', 0)} |" if s['lagg'] else
                        f"| {s['id']} | – ({s['start']:.1f}–{s['slut']:.1f}) | – | – | – | **{s['dom']}** | {s['varfor']} | 0 | 0 |")
         rad.append('')
+        med_namn = [s_ for s_ in M['spar'] if s_.get('lagg') and (s_.get('namn') not in (None, 'baksida') or (s_.get('claude') or {}).get('namn'))]
+        horn_n = sum(1 for s_ in med_namn if s_.get('horn4k'))
+        skrivs = [s_ for s_ in M['spar'] if s_.get('lagg') and s_['dom'] in ('saker', 'saker_manuell') and not s_.get('utanfor_traning')]
+        rad += [f"Fyrhörning: {horn_n} av {len(med_namn)} spår med namn · remsor ur hörnen (1080): "
+                f"{(M.get('beskar') or {}).get('remsor_ur_horn', 0)} · hel ur hörnen: {(M.get('beskar') or {}).get('hel_ur_horn', 0)} · "
+                f"spår utan remsa: {sum(1 for s_ in skrivs if not s_.get('remsor'))} av {len(skrivs)} som skrivs"
+                + (f" · remsvakten mot hörnremsan stoppade {(M.get('beskar') or {}).get('horn_stopp')} spår" if (M.get('beskar') or {}).get('horn_stopp') else ''), '']
+        utan = [f"{s_['id']}: {s_.get('horn_varfor')}" for s_ in med_namn if not s_.get('horn4k')]
+        if utan:
+            rad += ['Utan fyrhörning: ' + '; '.join(utan), '']
         varn = [(s['id'], s['varning']) for s in M['spar'] if s.get('varning')]
         foll = [(s['id'], s['kontroll_foll']) for s in M['spar'] if s.get('kontroll_foll') is not None]
         if varn:
