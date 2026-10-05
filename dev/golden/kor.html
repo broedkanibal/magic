@@ -148,8 +148,12 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
    stilla efter 800 ms, och varje identifiering är en beskärning plus
    matchning — tre kort brukar vara klara på fem sekunder. Taket är för
    ett spår som aldrig får svar (poolen saknar kortet, eller ett skräpspår
-   som frågas tre gånger med 1,5 s emellan). */
-const TAK_MS = 30000;
+   som frågas tre gånger med 1,5 s emellan). 60 s sedan 2026-10-05: fall 17
+   blir klart först efter 28–30 s (tre stora skräpspår — askar, tangentbord
+   — får sin tredje skräpläsning vid ~26,5 s), så minsta last på datorn gav
+   ⏱ tak och en ogiltig körning. Taket prövas bara medan fallet inte är
+   klart, så inga tal ändras för körningar som blev klara under 30 s. */
+const TAK_MS = 60000;
 /* ?ai=1 (kor.cjs --ai): kamerans osäkra spår får fråga servern — attrappen
    måste då köra riktiga anrop (MESA_AI=1). Annars stängs AI-hjälpen av, så att
    provet mäter det lokala och attrappens {n:0} aldrig räknas. */
