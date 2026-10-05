@@ -261,8 +261,9 @@
     let done = 0, fel = 0, nya = 0, hamtade = 0;
     const nyckelAv = id => `v${V}${helTagg}|${id}`, sparade = new Map();
     for (const c of kort) { const p = await hamta('kort', nyckelAv(c.id)); if (p && p.vek && p.vek.length === per * DIM) sparade.set(String(c.id), p); }
-    /* Förräknade vektorer finns bara för förvalets modell (MODELL-nyckeln säger inte vilken fil). */
-    const hamtare = helTagg ? null : o.forrakade !== undefined ? o.forrakade : global.EmbedForrakade;
+    /* Förräknade vektorer finns bara för förvalets modell (MODELL-nyckeln säger inte vilken fil): med en annan
+       modell hämtas de inte från lagringen — en hämtare som anroparen ger uttryckligen (bank.html, MES-230) gäller. */
+    const hamtare = o.forrakade !== undefined ? o.forrakade : helTagg ? null : global.EmbedForrakade;
     const saknas = [...new Set(kort.filter(c => !sparade.has(String(c.id))).map(c => String(c.id)))];
     if (saknas.length && typeof hamtare === 'function') {
       try {
@@ -302,7 +303,8 @@
     await satt('lek', idx);
     return centrera(idx);
   }
-  async function laddaLek(kod) { const idx = await hamta('lek', kod + helTagg); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
+  /* kod är lekens kod; postens egen idx.kod bär redan taggen (bank.html:s självtest läser tillbaka med den) — taggas inte två gånger. */
+  async function laddaLek(kod) { const idx = await hamta('lek', helTagg && String(kod).endsWith(helTagg) ? kod : kod + helTagg); return idx && idx.v === V && idx.ra ? centrera(idx) : null; }
   const remsNyckel = (andel, kod) => 'remsa' + remsTagg + '|' + andel + '|' + kod;   // remslekens post (MES-330, nedan); remsTagg = remsornas egna modell
   async function glom(kod) { await stryk('lek', kod + helTagg); await stryk('lek', remsNyckel(0.14, kod)); }
 

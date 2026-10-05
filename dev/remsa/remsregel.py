@@ -4,7 +4,7 @@ minnet och textläsaren ('remsa+namn').
 
     saker = hel > T.remsaTroskel  ELLER  (titelns etta == helas etta  och  titel > T.remsaTitelTroskel  och  hel >= T.remsaVittne)
 
-remsexp.py prova räknar titelregeln utan vakten (hel >= vittne); den här räknar med vakten, med golden-leken och
+remsexp.py prova räknar sin nollfel-titel utan vakten (hel >= vittne); den här räknar trösklarna med vakten, med golden-leken och
 med Jespers lek, utan bänkens dubbelparningar (remsexp.ratta_parningar). Skriver: säkra rätt/fel vid appens
 trösklar, de största felen, och de nollfel-trösklar som ger flest säkra rätt i BÅDA lekarna.
 
