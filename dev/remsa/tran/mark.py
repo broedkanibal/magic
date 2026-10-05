@@ -91,6 +91,7 @@ R = {
     'hog_synlig': 0.85,        # … eller delvis täckt (synlig < 0,85) och kant i kant med ett (inom 3 % av kortsidan)
     'hog_kant': 0.03,
     'hog_min_s': 1.0,          # en hög i tidpunkter.json ska ligga minst 1 s (en hand som för ett kort över ett annat är ingen hög)
+    'tackt_synlig': 0.9,       # ett läge med synlig andel < 0,9 är täckt: den geometriska spärren (lagen_sparr) gäller
     'rata_min': 10, 'rata_max': 40,   # rata-utsnittet bara när kortet ligger 10–40° från närmaste bildaxel
     'ocr_poang': 0.6, 'ocr_marg': 0.2, 'ocr_ser': 0.4,   # appens sakertNamn; 0,4 = textläsaren "ser något"
     'hel_marg': 0.11, 'remsa_marg': 0.20,                # bildmodellen: hela kortet / remsan
@@ -216,6 +217,48 @@ def kortform(lada, vinkel_abs, kvot=KVOT):
     c, s = abs(math.cos(t)), abs(math.sin(t))
     we, he = c + kvot * s, s + kvot * c
     return abs((w / h) / (we / he) - 1) <= R['lagg_form']
+
+
+def inom(a, b, e):
+    """Ligger låda a inom låda b utvidgad e bildpunkter åt alla håll?"""
+    return a[0] >= b[0] - e and a[1] >= b[1] - e and a[2] <= b[2] + e and a[3] <= b[3] + e
+
+
+def tva_kanter(a, b, e):
+    """Delar a minst två INTILLIGGANDE kanter med b inom e? (det synliga av ett täckt kort är ett hörnstycke
+    av dess egen helbild)"""
+    lika = [abs(a[i] - b[i]) <= e for i in range(4)]   # vänster, över, höger, under
+    return any(lika[i] and lika[(i + 1) % 4] for i in range(4))
+
+
+def lagen_sparr(lagen, helbild, e):
+    """Den geometriska spärren för lägena efter lägg-ögonblicket (granskningen av 18b7fda: ett täckt läge
+    kontrolleras aldrig med ORB, och L1:s spår fick L2:s eller L3:s remsa). Ingen bild behövs:
+      (1) ett lägets remsa måste ligga inom spårets LÄGG-remsa utvidgad e (2 % av kortsidan) — kortets egen
+          titelrad flyttar sig inte medan kortet ligger kvar. Ligger den utanför: lägena slutar där (ett annat
+          kort har lagts över så att allt efteråt är osäkert);
+      (2) i ett täckt läge (synlig < 0,9) skrivs hela kortet bara om lådan delar två intilliggande kanter med
+          spårets helbild inom e;
+      (3) ett spår utan lägg-remsa får inga täckta lägen.
+    Svar: (lägena som får skrivas, med skriv_remsa/skriv_hel, och stopp eller None)."""
+    if not lagen:
+        return lagen, None
+    lagg_rem = lagen[0].get('remsa')
+    lagen[0]['skriv_remsa'], lagen[0]['skriv_hel'] = bool(lagg_rem), True
+    ut, stopp = [lagen[0]], None
+    for lg in lagen[1:]:
+        tackt = lg['synlig_andel'] < R['tackt_synlig']
+        if lg.get('remsa'):
+            if not lagg_rem or not inom(lg['remsa'], lagg_rem, e):
+                stopp = {'t': lg['t'], 'varfor': 'remsan utanför lägg-remsan' if lagg_rem else 'remsa utan lägg-remsa',
+                         'struket': len(lagen) - len(ut)}
+                break
+        if tackt and not lagg_rem:
+            continue                                     # (3)
+        lg['skriv_remsa'] = bool(lg.get('remsa'))
+        lg['skriv_hel'] = (not tackt) or tva_kanter(lg['lada'], helbild, e)
+        ut.append(lg)
+    return ut, stopp
 
 
 def kortkvot(rutor):
@@ -477,7 +520,11 @@ def steg_b(mapp):
                     kand.append((3 + u, ti, oi, 'samma'))      # samma låda går alltid först
                 elif (b[0] >= g[0] - e and b[1] >= g[1] - e and b[2] <= g[2] + e and b[3] <= g[3] + e
                       and lada_yta(b) <= R['spar_krympt_yta'] * lada_yta(g)):
-                    kand.append((2 + inne(b, g), ti, oi, 'krympt'))
+                    # två krympta kandidater (det täckta kortets remsa och det övre kortets synliga del): den vars
+                    # remsa ligger där spårets egen remsa låg vinner (sim b2: annars avgjorde ordningen)
+                    sr = tr.get('sista_remsa')
+                    bonus = 0.5 if (o['remsa'] and sr and inom(o['remsa'], sr, e)) else 0.0
+                    kand.append((2 + inne(b, g) + bonus, ti, oi, 'krympt'))
                 elif lada_yta(b) > lada_yta(g) and tr.get('hel') and iou(b, tr['hel']) >= R['spar_iou']:
                     kand.append((1 + iou(b, tr['hel']), ti, oi, 'tillbaka'))
         kand.sort(key=lambda x: -x[0])
@@ -487,10 +534,12 @@ def steg_b(mapp):
                 continue
             obs[oi]['koppling'] = hur
             levande[ti]['obs'].append(obs[oi]); tagna_t.add(ti); tagna_o.add(oi)
+            if obs[oi]['remsa']:
+                levande[ti]['sista_remsa'] = obs[oi]['remsa']
         for oi, o in enumerate(obs):
             if oi not in tagna_o:
                 nr += 1
-                tr = {'id': f's{nr:03d}', 'obs': [o]}
+                tr = {'id': f's{nr:03d}', 'obs': [o], 'sista_remsa': o['remsa']}
                 spar.append(tr); levande.append(tr)
         # Spårets helbild, löpande: den första lådan med kortets form efter tre stilla prov i rad (som
         # lägg-ögonblicket, utan blicken framåt) — det är den en låda som växer tillbaka ska stämma med.
@@ -633,13 +682,16 @@ def steg_b(mapp):
                 sist = o
                 if len(lagen) >= R['lage_max']:
                     break
+            lagen, stopp = lagen_sparr(lagen, tr.get('hel') or lagen[0]['lada'], R['spar_kant'] * kortsida)
+            if stopp:
+                tr['stopp'] = stopp
             lagg_lista.append({'spar': tr['id'], 't': ob[lagg]['t']})
         klasser = [o['klass'] for o in ob]
         ut_spar.append({
             'id': tr['id'], 'start': ob[0]['t'], 'slut': ob[-1]['t'], 'n_prov': len(ob),
             'klass': ob[lagg]['klass'] if lagg is not None else max(set(klasser), key=klasser.count),
             'lagg': lagen[0] if lagen else None, 'orsak': orsak, 'lagen': lagen,
-            'helbild': tr.get('hel'),
+            'helbild': tr.get('hel'), 'stopp': tr.get('stopp'),
             'prov': [[o['t'], o['lada'], o['remsa'], o['klass'], o['ror'], o['ror_n'], o['flytt'], o['stilla'], o['i_hog'], o.get('koppling')] for o in ob],
         })
 
@@ -1775,9 +1827,12 @@ def steg_e(klipp, mapp, uppskatta=False):
                 lg['vinkel'], lg['vinkel_metod'] = vinkel, metod
                 sned = rata_galler(lg['snedhet']) and kant is not None
                 del_ = 'val' if s['val'] else 'tran'
+                skriv_hel = lg.get('skriv_hel', True)
+                if not lg.get('skriv_remsa', True):
+                    remsa_f = None                # den geometriska spärren i B (lagen_sparr)
                 for res, b in bilder.items():
-                    ut = [('hel', 'app', hel_app(b, lada_f))]
-                    if sned and lg['kortform']:
+                    ut = [('hel', 'app', hel_app(b, lada_f))] if skriv_hel else []
+                    if skriv_hel and sned and lg['kortform']:
                         ut.append(('hel', 'rata', hel_rata(b, lada_f, remsa_f, kant, M['kortkvot'])))
                     if remsa_f:
                         ut.append(('remsa', 'app', remsa_app(b, lada_f, remsa_f)))
