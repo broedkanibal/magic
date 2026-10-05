@@ -1753,6 +1753,13 @@ def steg_e(klipp, mapp, uppskatta=False):
     t00 = time.time()
     M = las_json(os.path.join(mapp, 'markning.json'))
     W, H = M['W'], M['H']
+    # Spärrfälten (lagen_sparr i B) måste finnas — en markning.json från äldre kod har dem inte, och ett förval
+    # skulle släppa igenom allt. E vägrar då, innan något på disk ändras.
+    saknas = [s['id'] for s in M['spar'] if s.get('lagg')
+              for lg in s['lagen'] if 'skriv_remsa' not in lg or 'skriv_hel' not in lg]
+    if saknas:
+        raise SystemExit(f"{rel(os.path.join(mapp, 'markning.json'))} saknar spärrfälten (skriv_remsa/skriv_hel) för "
+                         f"{len(set(saknas))} spår — kör om från B: mark.py klipp <fil.MOV> --om B")
     # Först markning.json utan filer (beskar: null = E inaktuell), sedan bort med de gamla — ett avbrott lämnar
     # aldrig en lista som pekar på borttagna filer (granskningen av fe2d291).
     M['beskar'], M['filer'] = None, []
@@ -1827,8 +1834,8 @@ def steg_e(klipp, mapp, uppskatta=False):
                 lg['vinkel'], lg['vinkel_metod'] = vinkel, metod
                 sned = rata_galler(lg['snedhet']) and kant is not None
                 del_ = 'val' if s['val'] else 'tran'
-                skriv_hel = lg.get('skriv_hel', True)
-                if not lg.get('skriv_remsa', True):
+                skriv_hel = lg['skriv_hel']
+                if not lg['skriv_remsa']:
                     remsa_f = None                # den geometriska spärren i B (lagen_sparr)
                 for res, b in bilder.items():
                     ut = [('hel', 'app', hel_app(b, lada_f))] if skriv_hel else []
