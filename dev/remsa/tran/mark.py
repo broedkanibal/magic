@@ -1321,21 +1321,28 @@ def ref_orb(cid):
     return f
 
 
-def orb_inliers(f1, f2):
-    """BFMatcher (Hamming), ratio 0,75, findHomography RANSAC — antalet inliers. f = (punkter (n, 2), deskriptorer)."""
+def orb_inliers(f1, f2, med_h=False):
+    """BFMatcher (Hamming), ratio 0,75, findHomography RANSAC — antalet inliers. f = (punkter (n, 2), deskriptorer).
+    med_h: (inliers, H) där H för punkter i f1:s bild till f2:s bild."""
     k1, d1 = f1; k2, d2 = f2
     if d1 is None or d2 is None or len(d1) < 8 or len(d2) < 8:
-        return 0
+        return (0, None, (None, 0)) if med_h else 0
     bra = []
     for p in cv2.BFMatcher(cv2.NORM_HAMMING).knnMatch(d1, d2, k=2):
         if len(p) == 2 and p[0].distance < 0.75 * p[1].distance:
             bra.append(p[0])
     if len(bra) < 4:
-        return 0
+        return (0, None, (None, 0)) if med_h else 0
     src = np.float32([k1[m.queryIdx] for m in bra]).reshape(-1, 1, 2)
     dst = np.float32([k2[m.trainIdx] for m in bra]).reshape(-1, 1, 2)
-    _, mask = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
-    return int(mask.sum()) if mask is not None else 0
+    Hm, mask = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
+    n = int(mask.sum()) if mask is not None else 0
+    if not med_h:
+        return n
+    # Likformighet (vridning, skala, förflyttning) ur samma matchningar, åt kortets hörn: kameran ser kortet rakt
+    # uppifrån, och mot ett annat konstverk av samma namn (basland) gav den fulla homografin sneda fyrhörningar.
+    S, smask = cv2.estimateAffinePartial2D(src, dst, method=cv2.RANSAC, ransacReprojThreshold=5.0)
+    return n, Hm, (S, int(smask.sum()) if smask is not None else 0)
 
 
 def orb_vittne(fq, namn, konst, alla_id, fro, egna=None):
@@ -1354,14 +1361,120 @@ def orb_vittne(fq, namn, konst, alla_id, fro, egna=None):
     if namn in BAS:
         ovr_bas = sorted({p['id'] for n in BAS if n != namn for p in konst.get(n, []) if finns(p['id'])} - set(andra))
         andra += rng.sample(ovr_bas, min(len(egna), len(ovr_bas)))
-    per_egen = {c: orb_inliers(fq, ref_orb(c)) for c in egna}
+    egen_h = {c: orb_inliers(fq, ref_orb(c), med_h=True) for c in egna}
+    per_egen = {c: v[0] for c, v in egen_h.items()}
     per_annan = {c: orb_inliers(fq, ref_orb(c)) for c in andra}
     e, a = max(per_egen.values(), default=0), max(per_annan.values(), default=0)
     topp = lambda d: dict(sorted(d.items(), key=lambda kv: -kv[1])[:5])
-    return {'inliers': e, 'bild': max(per_egen, key=per_egen.get), 'per_bild': topp(per_egen), 'andra_bast': a, 'andra': topp(per_annan),
+    bild = max(per_egen, key=per_egen.get)
+    Hm, (Sm, s_in) = egen_h[bild][1], egen_h[bild][2]       # H, S: frågans bildpunkter → referensens
+    ref = cv2.imread(os.path.join(REF, bild + '.jpg'), cv2.IMREAD_GRAYSCALE)
+    return {'inliers': e, 'bild': bild, 'per_bild': topp(per_egen), 'andra_bast': a, 'andra': topp(per_annan),
+            'H': Hm.tolist() if Hm is not None else None, 'S': Sm.tolist() if Sm is not None else None, 'S_inliers': s_in,
+            'ref_wh': [int(ref.shape[1]), int(ref.shape[0])] if ref is not None else None,
             'n_egna': len(egna), 'n_andra': len(andra), 'ms': round((time.time() - t0) * 1000),
             # golvet 6: bästa andra är ofta 0–7 (RANSAC ger minst 4), så 2× ensamt säger inget
             'overens': bool(e >= 12 and e >= 2 * max(a, 6))}
+
+
+def fraga_till_ram(lada_f, W, H, hel_shape):
+    """3 × 3: punkter i orb_fraga-bilden → 4K-rutans bildpunkter. Ångrar i tur och ordning orb_fraga:s skalning
+    (bredd 488), utan_marginal, hel_app:s nedskalning (kortsida ≤ 720), vridningen −90° (liggande låda) och utsnittet."""
+    ix0, iy0, ix1, iy1 = hel_geo(lada_f, W, H)
+    wc, hc = ix1 - ix0, iy1 - iy0
+    M1 = np.array([[1, 0, ix0], [0, 1, iy0], [0, 0, 1]], float)
+    vriden = wc > hc
+    M2 = np.array([[0, -1, wc], [1, 0, 0], [0, 0, 1]], float) if vriden else np.eye(3)   # ROTATE_90_COUNTERCLOCKWISE ångrad
+    rw = hc if vriden else wc
+    Hf, Wf = hel_shape[:2]
+    s2 = Wf / rw
+    M3 = np.diag([1 / s2, 1 / s2, 1.0])
+    fm = 0.08 / (1 + 2 * 0.08)                                       # kalibrering.utan_marginal
+    x0m, y0m = int(round(Wf * fm)), int(round(Hf * fm))
+    M4 = np.array([[1, 0, x0m], [0, 1, y0m], [0, 0, 1]], float)
+    gw, gh = Wf - 2 * x0m, Hf - 2 * y0m
+    s = 488 / max(1, gw)
+    nw, nh = max(8, round(gw * s)), max(8, round(gh * s))
+    M5 = np.diag([gw / nw, gh / nh, 1.0])
+    return M1 @ M2 @ M3 @ M4 @ M5
+
+
+def horn_ur_orb(ob, lada, W, H, hel_shape, ensam_yta, kvot_kort=88 / 63):
+    """Kortets fyra hörn i 4K-rutan ur ORB mot namnets konstverk: Scryfall-bildens rektangel genom likformigheten
+    (fråga → referens)⁻¹ och fraga_till_ram. Ordning som dev/detektor/remsa.py: 0 → 1 är överkanten, sedan medsols.
+    Likformigheten (estimateAffinePartial2D på samma matchningar) i stället för homografin: mot ett annat konstverk
+    av samma namn gav homografin sneda fyrhörningar (s323 i pass 2 klipp 1: överkanten 16° fel).
+    Kräver ≥ 12 inliers (homografin och likformigheten) och en sund fyrhörning: konvex, yta 0,6–1,4 × klippets
+    ensamma kortyta, sidförhållande inom 15 % av 88/63, ÖVERKANTENS hörn inom lådan + 10 % och minst halva
+    fyrhörningens låda inom lådan — i Jespers högar ligger detektorns låda över högens remsor, och det översta
+    kortets nederkant sticker ut under den (s198/s330 i klipp 2: 100–120 px). Svar: (hörn eller None, varför)."""
+    if not ob or ob.get('inliers', 0) < 12 or not ob.get('S') or ob.get('S_inliers', 0) < 12 or not ob.get('ref_wh'):
+        return None, 'ORB under 12 inliers' if ob else 'ingen ORB'
+    try:
+        Q2F = fraga_till_ram(andelar(lada, W, H), W, H, hel_shape)
+        T = Q2F @ np.linalg.inv(np.vstack([np.array(ob['S'], float), [0, 0, 1]]))   # referens → ram
+    except np.linalg.LinAlgError:
+        return None, 'likformigheten går inte att invertera'
+    rw, rh = ob['ref_wh']
+    q = cv2.perspectiveTransform(np.float32([[[0, 0], [rw, 0], [rw, rh], [0, rh]]]), T)[0]
+    if not cv2.isContourConvex(q.reshape(-1, 1, 2).astype(np.float32)):
+        return None, 'fyrhörningen är inte konvex'
+    yta_q = float(cv2.contourArea(q))
+    if not (0.6 * ensam_yta <= yta_q <= 1.4 * ensam_yta):
+        return None, f'ytan {yta_q / ensam_yta:.2f} × ett ensamt kort'
+    bredd = (np.linalg.norm(q[1] - q[0]) + np.linalg.norm(q[2] - q[3])) / 2
+    hojd = (np.linalg.norm(q[3] - q[0]) + np.linalg.norm(q[2] - q[1])) / 2
+    if abs(hojd / max(bredd, 1e-6) / kvot_kort - 1) > 0.15:
+        return None, f'sidförhållandet {hojd / max(bredd, 1e-6):.2f}'
+    w, h = wh(lada)
+    if not all(lada[0] - 0.1 * w <= x <= lada[2] + 0.1 * w and lada[1] - 0.1 * h <= y <= lada[3] + 0.1 * h for x, y in q[:2]):
+        return None, 'överkantens hörn utanför lådan + 10 %'
+    qb = [float(q[:, 0].min()), float(q[:, 1].min()), float(q[:, 0].max()), float(q[:, 1].max())]
+    if inne(qb, lada) < 0.5:
+        return None, f'bara {inne(qb, lada):.2f} av fyrhörningen inom lådan'
+    return [[round(float(x), 1), round(float(y), 1)] for x, y in q], 'ok'
+
+
+def remsvakt_horn(remsa, band, e):
+    """Ligger detektorns remsa på hörnremsan? Minst halva remsan inom bandet utvidgat e (2 % av kortsidan).
+    Inte "inom ± 2 %": detektorns remsa och hörnbandet (översta 14 %) är olika mått på samma titelrad. Pass 2,
+    lägg-ögonblicket, 42 spår där detektorns låda är kortet (IoU ≥ 0,8 mot fyrhörningen): kanterna skiljer
+    −6,6 … +6,6 % av kortsidan (detektorns remsa sitter ~3 % högre), så ± 2 % underkände 36 av 50 spår.
+    Andelen inom bandet: 0,63–1,00 på kortets egen remsa, 0,00–0,20 när remsan satt på ett annat kort i högen."""
+    if not remsa or not band:
+        return False
+    return inne(remsa, [band[0] - e, band[1] - e, band[2] + e, band[3] + e]) >= 0.5
+
+
+def horn_lada(horn):
+    a = np.asarray(horn, float)
+    return [float(a[:, 0].min()), float(a[:, 1].min()), float(a[:, 0].max()), float(a[:, 1].max())]
+
+
+def remsband(horn, andel=0.14):
+    """Remsbandet: fyrhörningens översta 14 % (lib.remsa_horn, som dev/detektor/remsa.py)."""
+    from lib import remsa_horn
+    return remsa_horn(np.asarray(horn, np.float32), andel).tolist()
+
+
+def remsa_ur_horn(img, horn_f, andel=0.14, marg=MARG_REMSA):
+    """Remsan ur kortets hörn: bandet (översta 14 %) med 4 % marginal runt (som appens remsa), upprätt och vågrät,
+    i bildens egen upplösning (horn_f i andelar: samma geometri i 4K, 1080 och tel)."""
+    Hh, Ww = img.shape[:2]
+    q = np.float32([[x * Ww, y * Hh] for x, y in horn_f])
+    P = cv2.getPerspectiveTransform(np.float32([[0, 0], [1, 0], [1, 1], [0, 1]]), q)   # kortets (u, v) → bild
+    u0, u1, v0, v1 = -marg, 1 + marg, -marg * andel, andel * (1 + marg)
+    src = cv2.perspectiveTransform(np.float32([[[u0, v0], [u1, v0], [u1, v1], [u0, v1]]]), P)[0]
+    bw = (np.linalg.norm(src[1] - src[0]) + np.linalg.norm(src[2] - src[3])) / 2
+    bh = (np.linalg.norm(src[3] - src[0]) + np.linalg.norm(src[2] - src[1])) / 2
+    w, h = max(8, int(round(bw))), max(4, int(round(bh)))
+    M = cv2.getPerspectiveTransform(src, np.float32([[0, 0], [w, 0], [w, h], [0, h]]))
+    return cv2.warpPerspective(img, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+
+
+def hel_ur_horn(img, horn_f):
+    """Hela kortet ur hörnen: lådan runt fyrhörningen, + 8 % och rak som Kamera.beskar (hel_app på den lådan)."""
+    return hel_app(img, horn_lada(horn_f))
 
 
 def orb_fraga(hel4k):
@@ -1703,7 +1816,22 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
         utanfor = bool(hit and (hit in gold or any(x in gold for x in hit.split(' // '))))
         s.update({'dom': dom, 'namn': namn, 'varfor': varfor, 'claude': cl, 'ocr': ocr.get(s['id']), 'modell': mm, 'orb': ob,
                   'utanfor_traning': utanfor, 'val': bool(dom in ('saker', 'saker_manuell') and not utanfor and ar_val(namn))})
-        vittnen[s['id']] = {'ruta': s['lagg']['ruta'], 'lada': s['lagg']['lada'], 'claude': cl, 'ocr': ocr.get(s['id']), 'modell': mm, 'orb': ob}
+        # Kortets fyrhörning (horn_ur_orb) ur ORB mot det NAMNGIVNA kortets konstverk — det namn domen gav, annars
+        # Claudes. Remsorna till träningen skärs ur den i E, aldrig ur detektorns remslåda.
+        hnamn = namn if namn and namn != 'baksida' else cl.get('namn')
+        u = utsn.get(s['id'])
+        hob = ob if (ob and hnamn == cl.get('namn')) else None
+        if hnamn and u is not None and hob is None and konst.get(hnamn):
+            hob = orb_vittne(orb_fraga(u['hel4k']), hnamn, konst, alla_id, int(s['id'][1:]))
+        if hnamn and u is not None:
+            horn, hv = horn_ur_orb(hob, s['lagg']['lada'], W, H, u['hel4k'].shape, S['ensam_yta'])
+        else:
+            horn, hv = None, 'inget namn' if not hnamn else 'inget utsnitt'
+        s['horn4k'], s['horn_varfor'] = horn, hv
+        if horn:
+            s['horn_remsband'] = horn_lada(remsband(horn))
+        vittnen[s['id']] = {'ruta': s['lagg']['ruta'], 'lada': s['lagg']['lada'], 'claude': cl, 'ocr': ocr.get(s['id']), 'modell': mm, 'orb': ob,
+                            'horn4k': horn, 'horn_varfor': hv}
         u = utsn.get(s['id'])
         if u is None:
             continue
@@ -1730,7 +1858,7 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
                                                     'fraga': FRAGA, 'fraga_v': FRAGA_V, 'spar': vittnen})
     M = {'klipp': S['klipp'], 'pass': os.path.basename(os.path.dirname(mapp)), 'mapp': rel(mapp), 'fps': S['fps'], 'W': W, 'H': H,
          'kortsida': S['kortsida'], 'ensam_yta': S['ensam_yta'], 'kortkvot': S['kortkvot'], 'regler': R, 'lekens_storlek': len(ref_hel.namnlista),
-         'claude': kost, 'lek_a': lek_info, 'tid_s': {'B': S['tid_s'], 'C': tid}, 'spar': [{k: v for k, v in s.items() if k != 'prov'} for s in S['spar']], 'filer': [],
+         'remsor_ur': 'horn', 'claude': kost, 'lek_a': lek_info, 'tid_s': {'B': S['tid_s'], 'C': tid}, 'spar': [{k: v for k, v in s.items() if k != 'prov'} for s in S['spar']], 'filer': [],
          'beskar': None}   # None = E inaktuell (C har körts sedan); E skriver tran/ och val/ på nytt
     A = las_json(os.path.join(mapp, 'detektioner.json'))
     M['tid_s']['A'] = A['tid_s']
