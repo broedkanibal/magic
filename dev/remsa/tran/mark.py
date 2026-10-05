@@ -1888,6 +1888,11 @@ def steg_e(klipp, mapp, uppskatta=False):
     if saknas:
         raise SystemExit(f"{rel(os.path.join(mapp, 'markning.json'))} saknar spärrfälten (skriv_remsa/skriv_hel) för "
                          f"{len(set(saknas))} spår — kör om från B: mark.py klipp <fil.MOV> --om B")
+    if M.get('remsor_ur') != 'horn':
+        # Remsorna till träningen tas ur kortets hörn (C, horn_ur_orb), aldrig ur detektorns remslåda: i högarna låg
+        # remslådan på det bakersta kortets remsa (stickprovet på pass 2: s198, s330, s323 visade "Plains").
+        raise SystemExit(f"{rel(os.path.join(mapp, 'markning.json'))} saknar remsor_ur: 'horn' — kör om från C: "
+                         f"mark.py klipp <fil.MOV> --om C")
     # Först markning.json utan filer (beskar: null = E inaktuell), sedan bort med de gamla — ett avbrott lämnar
     # aldrig en lista som pekar på borttagna filer (granskningen av fe2d291).
     M['beskar'], M['filer'], M['tel_beskar'] = None, [], None   # E:s filer och därmed tel:s är inaktuella
@@ -1913,7 +1918,9 @@ def steg_e(klipp, mapp, uppskatta=False):
     upp = {'filer': 0, 'byte': 0}
     vantande = {}     # spår → [(läge, fil i e-tmp, post)]: flyttas till tran/ eller val/ när kontrollen är klar
     kontroll = {}     # spår → {läge: överens True/False}
-    stopp = {}        # spår → första läget där kontrollen föll
+    stopp = {}        # spår → första läget där ORB-kontrollen föll
+    gstopp = {}       # spår → första läget där detektorns remsa lämnade hörnremsan (remsvakt_horn)
+    e_kant = R['spar_kant'] * M['kortsida']
     if jobb:
         konst = las_json(KONSTFIL) if os.path.exists(KONSTFIL) else {}
         konst['baksida'] = [dict(BAKSIDA)]
@@ -1943,11 +1950,20 @@ def steg_e(klipp, mapp, uppskatta=False):
             bilder = {'4k': img, '1080': ruta_1080(img)}
             for s, li, lg, skriv in jobb[ruta]:
                 lada_f = andelar(lg['lada'], W, H)
-                if skriv and s['id'] in stopp:
+                if skriv and (s['id'] in stopp or s['id'] in gstopp):
                     continue   # efter en fallen kontroll skärs inget mer för spåret
+                horn = s.get('horn4k')
+                horn_f = [[x / W, y / H] for x, y in horn] if horn else None
+                band = horn_lada(remsband(horn)) if horn else None
+                # remsvakten mot hörnremsan: låg detektorns remsa på kortets egen titelrad i lägg-ögonblicket, ska den
+                # ligga kvar där i varje senare läge (annars har ett annat kort lagts över)
+                if skriv and horn and li > 0 and lg.get('remsa') and s['lagen'] and \
+                        remsvakt_horn(s['lagen'][0].get('remsa'), band, e_kant) and not remsvakt_horn(lg['remsa'], band, e_kant):
+                    gstopp[s['id']] = li
+                    continue
                 if skriv and li > 0 and lg['synlig_andel'] >= 0.9 and lg['kortform']:
                     tk = time.time()
-                    k = samma_kort(s, hel_app(img, lada_f))
+                    k = samma_kort(s, hel_ur_horn(img, horn_f) if horn_f else hel_app(img, lada_f))
                     tid['kontroll'] += time.time() - tk
                     lg['orb_kontroll'] = k
                     if k is None:
@@ -1962,18 +1978,29 @@ def steg_e(klipp, mapp, uppskatta=False):
                 lg['vinkel'], lg['vinkel_metod'], lg['kant'] = vinkel, metod, kant
                 sned = rata_galler(lg['snedhet']) and kant is not None
                 del_ = 'val' if s['val'] else 'tran'
-                skriv_hel = lg['skriv_hel']
-                if not lg['skriv_remsa']:
-                    remsa_f = None                # den geometriska spärren i B (lagen_sparr)
+                # Hela kortet: i ett täckt läge som förut (B:s hörnstyckesregel, detektorns låda = det synliga). Annars ur
+                # detektorns låda bara när den är kortformad och IoU ≥ 0,8 mot fyrhörningens låda; med fyrhörning i
+                # övrigt ur den (ur 'horn'); utan fyrhörning bara om lådan är kortformad och synlig ≤ 1,15.
+                if lg['synlig_andel'] < R['tackt_synlig']:
+                    hel_ur = 'lada' if lg['skriv_hel'] else None
+                elif horn:
+                    hel_ur = 'lada' if (lg['kortform'] and iou(lg['lada'], horn_lada(horn)) >= 0.8) else 'horn'
+                else:
+                    hel_ur = 'lada' if (lg['kortform'] and lg['synlig_andel'] <= 1.15) else None
+                # Remsan: bara ur hörnen, och bara när remsbandet ligger helt inom lägets låda (annars är det täckt)
+                remsa_horn = bool(horn and inom(band, lg['lada'], e_kant))
+                lg['hel_ur'], lg['remsa_ur_horn'] = hel_ur, remsa_horn
                 for res, b in bilder.items():
-                    ut = [('hel', 'app', hel_app(b, lada_f))] if skriv_hel else []
-                    if skriv_hel and sned and lg['kortform']:
-                        ut.append(('hel', 'rata', hel_rata(b, lada_f, remsa_f, kant, M['kortkvot'])))
-                    if remsa_f:
-                        ut.append(('remsa', 'app', remsa_app(b, lada_f, remsa_f)))
-                        if sned:
-                            ut.append(('remsa', 'rata', rata(b, lada_f, remsa_f, med_vinkel=True, kant=kant)[0]))
-                    for typ, utsnitt, c in ut:
+                    ut = []
+                    if hel_ur == 'lada':
+                        ut.append(('hel', 'app', hel_app(b, lada_f), 'lada'))
+                        if sned and lg['kortform']:
+                            ut.append(('hel', 'rata', hel_rata(b, lada_f, remsa_f, kant, M['kortkvot']), 'lada'))
+                    elif hel_ur == 'horn':
+                        ut.append(('hel', 'app', hel_ur_horn(b, horn_f), 'horn'))
+                    if remsa_horn:
+                        ut.append(('remsa', 'horn', remsa_ur_horn(b, horn_f), 'horn'))
+                    for typ, utsnitt, c, ur in ut:
                         if c is None or min(c.shape[:2]) < 4:
                             continue
                         if not skriv:
@@ -1989,7 +2016,7 @@ def steg_e(klipp, mapp, uppskatta=False):
                         vantande.setdefault(s['id'], []).append((li, rel_fil, {
                             'fil': rel_fil, 'spar': s['id'], 'lage': li, 't': lg['t'], 'namn': s['namn'], 'typ': typ, 'utsnitt': utsnitt,
                             'upplosning': res, 'val': s['val'], 'lada': lg['lada'], 'remsa': lg['remsa'], 'vinkel': vinkel,
-                            'px': [int(c.shape[1]), int(c.shape[0])]}))
+                            'ur': ur, 'horn4k': horn, 'px': [int(c.shape[1]), int(c.shape[0])]}))
             tid['utsnitt'] += time.time() - tb
         V.c.release()
     # Föll kontrollen: alla lägen efter det senast GODKÄNDA läget tas bort — också täckta lägen mellan den sista
@@ -1999,6 +2026,12 @@ def steg_e(klipp, mapp, uppskatta=False):
     for sid, lista in vantande.items():
         s = per_spar[sid]
         sista_ok = len(s['lagen'])
+        if sid in gstopp:
+            sista_ok = gstopp[sid] - 1
+            s['horn_stopp'] = s['lagen'][gstopp[sid]]['t']
+            for li, lg in enumerate(s['lagen']):
+                if li >= gstopp[sid]:
+                    lg['ej_skriven'] = f"detektorns remsa utanför hörnremsan vid {s['horn_stopp']:.2f} s — kortet kan ha täckts eller flyttats"
         if sid in stopp:
             sista_ok = max([li for li, ok in kontroll.get(sid, {}).items() if ok and li < stopp[sid]], default=0)
             s['kontroll_foll'] = s['lagen'][stopp[sid]]['t']
@@ -2015,12 +2048,15 @@ def steg_e(klipp, mapp, uppskatta=False):
     shutil.rmtree(tmp_e, ignore_errors=True)
     for s in M['spar']:
         s['filer'] = sum(1 for f in filer if f['spar'] == s['id'])
+        s['remsor'] = sum(1 for f in filer if f['spar'] == s['id'] and f['typ'] == 'remsa' and f['upplosning'] == '1080')
     byte = sum(os.path.getsize(os.path.join(mapp, f['fil'])) for f in filer)
     tid = {k: round(v, 1) for k, v in tid.items()}
     tid['totalt'] = round(time.time() - t00, 1)
     M['filer'] = filer
     M['beskar'] = {'filer': len(filer), 'mb': round(byte / 1e6, 2), 'rutor': len(jobb),
-                   'kontroller': sum(len(v) for v in kontroll.values()), 'kontroller_foll': len(stopp),
+                   'kontroller': sum(len(v) for v in kontroll.values()), 'kontroller_foll': len(stopp), 'horn_stopp': len(gstopp),
+                   'remsor_ur_horn': sum(1 for f in filer if f['typ'] == 'remsa' and f['upplosning'] == '1080'),
+                   'hel_ur_horn': sum(1 for f in filer if f['typ'] == 'hel' and f.get('ur') == 'horn' and f['upplosning'] == '1080'),
                    'om_alla_lagg_sakra': {'filer': len(filer) + upp['filer'], 'mb': round((byte + upp['byte']) / 1e6, 2)} if uppskatta else None}
     M['tid_s']['E'] = tid
     skriv_json(os.path.join(mapp, 'markning.json'), M)
@@ -2145,7 +2181,12 @@ def steg_tel(mapp):
             vk = lg.get('vinkel')
             kant = lg.get('kant', (vk if vk >= 0 else vk + 180) if vk is not None else None)
             typ, ut = f['typ'], f['utsnitt']
-            if typ == 'hel' and ut == 'app':
+            horn_f = [[x / W, y / H] for x, y in f['horn4k']] if f.get('horn4k') else None
+            if f.get('ur') == 'horn' and typ == 'remsa':
+                c = remsa_ur_horn(img, horn_f)
+            elif f.get('ur') == 'horn' and typ == 'hel':
+                c = hel_ur_horn(img, horn_f)
+            elif typ == 'hel' and ut == 'app':
                 c = hel_app(img, lada_f)
             elif typ == 'hel' and ut == 'rata':
                 c = hel_rata(img, lada_f, remsa_f, kant, M['kortkvot'])
