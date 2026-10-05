@@ -26042,17 +26042,18 @@ const Kamera = (() => {
   let grundKalla = null; // vem som satte grundläget: 'lek' | 'kort' | 'rad' (datorn, raden) | null
   let lekKortVid = null; // riktiga kort när vakten startade (null = har inte startat); fler än 0 = inget "första kort"
   let lekForsta = 0;     // när bordets första riktiga kort sågs (0 = inte än)
-  const glomLek = () => { lek = null; lekZon = null; lekKand = []; lekUte = []; lekStart = 0; lekKortVid = null; lekForsta = 0; grundKalla = kal.grund != null ? 'rad' : null; };
+  let lekGrundExakt = false, lekVinkelSatt = 0;   // grundläget som leken gav är lekens uppmätta vinkel (inte lådans stående/liggande), och när den senast sattes (lekVinkel)
+  const glomLek = () => { lek = null; lekZon = null; lekKand = []; lekUte = []; lekStart = 0; lekKortVid = null; lekForsta = 0; lekGrundExakt = false; lekVinkelSatt = 0; grundKalla = kal.grund != null ? 'rad' : null; };
   const lekZonAv = b => gravRuta({ x: (b.x - 0.1 * b.w) / AW, y: (b.y - 0.1 * b.h) / AH, w: 1.2 * b.w / AW, h: 1.2 * b.h / AH });
   const ladIou = (a, b) => {
     const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
     if (iw <= 0 || ih <= 0) return 0; const s = iw * ih; return s / (a.w * a.h + b.w * b.h - s);
   };
   /* Vinkeln via steg 1 (vinkeln per kort, MES-334): satGrundGrader,
-     foljGrundGrader och sparVinkel finns när steg 1 är ihopslaget. Utan dem
-     dagens satGrund — lådans stående eller liggande — och ingen följning:
-     utan en uppmätt vinkel per kort går det inte att se att leken vridits,
-     bara ett lådbyte på 90°, och det vore att vända hela bordet. */
+     foljGrundGrader och sparVinkel. Ett kort (första kortet utan lek) får
+     sin vinkel ur sparVinkel().matt, alltså ur namnremsan. Leken har ingen
+     remsa och får aldrig matt — den har en egen, strängare väg (lekVinkel
+     nedan). Osäkert = dagens grundläge: lådans stående eller liggande. */
   const lekGrund = {
     /* Grader i kamerans led (långsidan från bildens x-axel, medurs, mod 180:
        stående 90, liggande 0), eller null när det inte går att säga. matt =
@@ -26069,6 +26070,8 @@ const Kamera = (() => {
       const kv = Math.min(b.w, b.h) / Math.max(1, Math.max(b.w, b.h));
       return kv >= T.kvotMin && kv <= T.kvotMax ? (b.w >= b.h ? 0 : 90) : null;
     },
+    /* Lekens vinkel: den uppmätta (lekVinkel) om den finns, annars lådans stående/liggande. */
+    lek(box) { return lek && lek.vinkel != null ? lek.vinkel : lekGrund.vinkel(null, box); },
     sat(g) {
       /* Samma axel som spåren redan döms mot (upp gav den): grundläget sparas,
          men inget döms om — domOm dömer varje spår direkt, utan stillheten
@@ -26078,9 +26081,82 @@ const Kamera = (() => {
       if (typeof satGrundGrader === 'function') return satGrundGrader(g);
       return satGrund(g == null ? null : g * Math.PI / 180);
     },
-    /* Följningen bara med en uppmätt vinkel — steg 1:s krav (leken still, vinkeln mätt). */
-    folj(t) { const g = lekGrund.matt(t); if (g == null || typeof foljGrundGrader !== 'function') return false; return foljGrundGrader(g); }
+    /* Lekens nya uppmätta vinkel (lekVinkel) och grundläget som leken gav.
+       Den FÖRSTA uppmätta vinkeln efter att leken gav grundläget ur sin låda
+       (stående/liggande) gör grundläget exakt: inom T.grundKnuff sparas den
+       utan omdömning — samma skäl som i sat(): domOm dömer utan stillheten,
+       och en rättning på några grader ska inte vända kort nära 45°. Ligger
+       den längre bort (leken ligger snett: lådan sa 90°, leken ligger 110°)
+       gäller steg 1:s följning, som dömer om. Därefter följer grundläget
+       leken bara när den vridits minst T.grundKnuff (foljGrundGrader): en
+       liten knuff ändrar inget. */
+    exakt(g, forsta) {
+      if (typeof g !== 'number' || !isFinite(g)) return false;
+      const v = normGrund(g * Math.PI / 180);
+      if (forsta && kal.grund != null && axSkillnad(v, kal.grund) * 180 / Math.PI < T.grundKnuff) { kal.grund = v; return true; }
+      return typeof foljGrundGrader === 'function' ? foljGrundGrader(g) : false;
+    }
   };
+  /* ── Lekens egen väg till grundläget (MES-334 sida 5, steg 0) ──────────
+     Steg 1 litar bara på namnremsan (sparVinkel().matt): formens långsida
+     gav fel långsida när en hand låg i lådan. Leken har ingen remsa, så
+     utan en egen väg blev lekens vinkel aldrig grundläge — och
+     Byggunderlagets "lekens exakta vinkel = otappat" föll. Vägen är
+     strängare än kortens, eftersom det är lekens vinkel som hela bordet
+     döms mot. En mätning räknas bara när
+       - leken ligger nere och har legat still i LEK_STILLA_MS,
+       - högen är EN detektorlåda (två ihopslagna lådor är inte ett korts
+         form) och lådan är lekens stilla låda (IoU ≥ 0,8 mot lek.box: en
+         hand som ligger på leken ändrar lådan),
+       - ingen annan låda (ett kort, en hand som detektorn tar för ett kort)
+         ligger över leken, och masken runt leken — utanför alla lådor — är
+         mest matta: en arm som når in till leken fyller den,
+       - mätningen är formens (kalla 'form' — inte 'profil' eller 'form?'),
+         med säker långsida, och lådan är ETT helt kort i den vinkeln
+         (helt; steg 1:s storlekskontroll mot de namngivna korten när de
+         finns) — lekens storlek som en kortyta, och 0,6–1,6 kortytor i
+         lekVakt när en kortstorlek finns,
+       - och den är en NY mätning (vinkelMinne ger samma objekt för en
+         oförändrad låda i upp till 2 s).
+     LEK_VINKEL_N nya mätningar i följd med samma axel ±LEK_VINKEL_TOL°,
+     utspridda över minst LEK_VINKEL_MS, ger lekens vinkel (medianen). En
+     mätning som inte räknas, eller en annan axel, börjar om. A2 mätte
+     lekens vinkel med samma metod: 101 av 104 inom ±10° (de tre fick ingen
+     låda). Lådans stående/liggande gäller tills vinkeln är mätt. */
+  const LEK_VINKEL_N = 3, LEK_VINKEL_TOL = 5, LEK_VINKEL_MS = 2000, LEK_RING_MAX = 0.3;
+  function lekVinkel(fynd, h, mask, nu, W, H) {
+    const borja = () => { lek.vSerie = []; };
+    if (!lek || lek.upp || nu - lek.stillaFran < LEK_STILLA_MS) return;
+    const egna = (fynd || []).filter(f => f.klass === 'baksida' && f.box && ladTackning(f.box, h) >= 0.6);
+    /* En mätning som setts i en ruta som inte räknas räknas aldrig senare heller: vinkelminnet ger
+       samma mätning i upp till 2 s, och den kan vara gjord medan handen låg där. */
+    const ny = egna.length === 1 ? egna[0].vmObj : undefined, nytt = ny !== undefined && ny !== lek.vSist;
+    if (ny !== undefined) lek.vSist = ny;
+    if (egna.length !== 1) return borja();
+    const f = egna[0];
+    if (ladIou(f.box, lek.box) < 0.8) return borja();
+    if ((fynd || []).some(q => q !== f && q.klass !== 'baksida' && q.box && ladTackning(q.box, f.box) >= 0.3)) return borja();
+    /* Ringen runt leken (en fjärdedels kortsida åt varje håll), utom alla lådor: andelen mask. */
+    const p = Math.max(2, Math.round(0.25 * Math.min(f.box.w, f.box.h)));
+    const yttre = { x: f.box.x - p, y: f.box.y - p, w: f.box.w + 2 * p, h: f.box.h + 2 * p };
+    const ringYta = Math.max(1, Math.min(W, yttre.x + yttre.w) - Math.max(0, yttre.x)) * Math.max(1, Math.min(H, yttre.y + yttre.h) - Math.max(0, yttre.y)) - f.box.w * f.box.h;
+    const ring = mask ? maskIUtom(mask, yttre, W, H, (fynd || []).filter(q => q.box).map(q => q.box)) / Math.max(1, ringYta) : 0;
+    lek.vRing = +ring.toFixed(2); dia.lekRing = lek.vRing;   // diagnosen (golden --detalj, bänken LV6)
+    if (ring > LEK_RING_MAX) return borja();
+    if (!nytt) return;   // inte mätt den här rutan, eller samma mätning som förut
+    const vm = f.vm;
+    if (!ny || !vm || vm !== ny || vm.kalla !== 'form' || !vm.sakerLang || !vm.helt) return borja();
+    const g = tillGrader(vm.axel);
+    const s = lek.vSerie || (lek.vSerie = []);
+    if (s.length && axSkillnad(vm.axel, s[s.length - 1].axel) > LEK_VINKEL_TOL * Math.PI / 180) s.length = 0;
+    s.push({ axel: vm.axel, g, nu });
+    if (s.length > LEK_VINKEL_N) s.shift();
+    if (s.length < LEK_VINKEL_N || s[s.length - 1].nu - s[0].nu < LEK_VINKEL_MS) return;
+    /* Medianen längs axeln (mod 180): vinklarna räknas mot den första, så att 179° och 1° hamnar intill varandra. */
+    const bas = s[0].axel, d = s.map(q => { let x = q.axel - bas; while (x > Math.PI / 2) x -= Math.PI; while (x <= -Math.PI / 2) x += Math.PI; return x; }).sort((a, b) => a - b);
+    lek.vinkel = tillGrader(bas + d[d.length >> 1]);
+    lek.vinkelNar = nu;
+  }
   /* Baksidelådorna som högar: lådor som täcker minst 30 % av den mindre slås ihop. */
   function lekHogar(fynd) {
     const h = (fynd || []).filter(f => f.klass === 'baksida' && f.box).map(f => Object.assign({}, f.box));
@@ -26113,14 +26189,15 @@ const Kamera = (() => {
     && t.kort / Math.max(1, t.lang) >= T.kvotMin && t.kort / Math.max(1, t.lang) <= T.kvotMax
     && !(lek && ladTackning(t.box, lek.box) >= 0.6) && !lekUte.some(u => ladTackning(t.box, u.box) >= 0.6);
   function lekValj(k, nu, varfor) {
-    lek = { id: k.id, box: Object.assign({}, k.box), ref: k.ref, stillaFran: k.stillaFran, sist: nu, lag: nu, forra: null, forraNar: 0, tomFran: 0, upp: false, farg: null, prov: [], provNar: 0, magic: null, varfor };
+    lek = { id: k.id, box: Object.assign({}, k.box), ref: k.ref, stillaFran: k.stillaFran, sist: nu, lag: nu, forra: null, forraNar: 0, tomFran: 0, upp: false, farg: null, prov: [], provNar: 0, magic: null, varfor,
+            vinkel: null, vinkelNar: 0, vSerie: [], vSist: null, vRing: null };   // lekens uppmätta vinkel (lekVinkel)
     lekKand = lekKand.filter(q => q !== k);
     /* Grundläget: lekens vinkel före första kortet — eller när inget
        grundläge alls finns (kameran startade med kort på bordet). Kom
        grundläget ur första kortet står det kvar. */
     if (grundKalla !== 'kort' && (!lekForsta || (grundKalla == null && kal.grund == null))) {
-      const v = lekGrund.vinkel(lekSpar(lek.box), lek.box);
-      if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; }
+      const v = lekGrund.lek(lek.box);
+      if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; lekGrundExakt = false; }
     }
   }
   function lekVakt(fynd, mask, nu, osaker, harDet) {
@@ -26154,6 +26231,7 @@ const Kamera = (() => {
            flyttas av varje låda över platsen: en enda ruta med handen eller ett blänk där låste annars
            leken som upplockad. En ruta som hoppar dit nollar stillaFran (lekSag) och flyttar inte lag. */
         if (!lek.upp && nu - lek.stillaFran >= LEK_STILLA_MS) lek.lag = nu;
+        lekVinkel(fynd, h, mask, nu, W, H);   // lekens egen väg till grundläget (sida 5, steg 0)
       } else {
         if (osaker || !tom(lek.box)) lek.tomFran = 0; else if (!lek.tomFran) lek.tomFran = nu;
         if (!lek.upp && nu - lek.sist >= LEK_BORTA_MS && lek.tomFran && nu - lek.tomFran >= LEK_TOM_MS) lek.upp = true;
@@ -26247,9 +26325,12 @@ const Kamera = (() => {
        fynd 2) tas lekens vinkel igen: utan grundläge alls är leken referensen. */
     if (lek.sist === nu && nu - lek.stillaFran >= LEK_STILLA_MS) {
       if (grundKalla == null && kal.grund == null) {
-        const v = lekGrund.vinkel(lekSpar(lek.box), lek.box);
-        if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; }
-      } else if (grundKalla === 'lek') lekGrund.folj(lekSpar(lek.box));
+        const v = lekGrund.lek(lek.box);
+        if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; lekGrundExakt = lek.vinkel != null; lekVinkelSatt = lek.vinkelNar; }
+      } else if (grundKalla === 'lek' && lek.vinkel != null && lek.vinkelNar > lekVinkelSatt) {
+        /* Lekens nya uppmätta vinkel: den första gör grundläget exakt, sedan följer det leken när den vrids. */
+        lekGrund.exakt(lek.vinkel, !lekGrundExakt); lekGrundExakt = true; lekVinkelSatt = lek.vinkelNar;
+      }
     }
     /* 8. Sleeves: färgen ur lekens inre medan den ligger still och syns hel. */
     if (lek.magic == null) { const t = lekSpar(lek.box); if (t && (t.varfor === 'baksida' || t.varfor === 'baksida ficka')) lek.magic = t.varfor === 'baksida'; }
@@ -26280,7 +26361,7 @@ const Kamera = (() => {
   function lekInte(id) {
     if (!lek || lek.id !== id) return false;
     lekUte.push({ id: lek.id, box: Object.assign({}, lek.box), sist: forra || 0 });
-    if (grundKalla === 'lek' && !lekForsta) { lekGrund.sat(null); grundKalla = null; }
+    if (grundKalla === 'lek' && !lekForsta) { lekGrund.sat(null); grundKalla = null; lekGrundExakt = false; lekVinkelSatt = 0; }
     lek = null; lekZon = null;
     rapportera();
     return true;
@@ -26304,6 +26385,7 @@ const Kamera = (() => {
     farg: lek && lek.farg ? Object.assign({ magic: lek.magic === true }, lek.farg) : null,
     ute: lekUte.filter(u => (forra || 0) - u.sist < 3000).map(u => ({ id: u.id, ruta: lekAndel(u.box) })),
     grund: grundKalla,
+    vinkel: lek && lek.vinkel != null ? lek.vinkel : null,   // lekens uppmätta vinkel i grader (lekVinkel), null tills den är mätt — diagnos, datorn läser den inte
     /* Har bordets första riktiga kort setts? Not my library släpper lekens grundläge bara före det
        (lekInte), och datorn skriver raden med samma dom (granskningen runda 3, fynd 3). */
     forsta: !!lekForsta
