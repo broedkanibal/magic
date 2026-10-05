@@ -97,7 +97,7 @@ R = {
     'slump_n': 200, 'slump_fro': 1, 'konst_tak': 12,
     # basland: ALLA unika konstverk (alla år, alla ramar). Med poolens year≥2021, högst 24 per typ, fick Jespers
     # land nästan aldrig ett andra vittne i pass 2 (andra tryckningar) — och pass 5 är bara land.
-    'bas_v': 2,
+    'bas_v': 3,
     'val_var': 5, 'val_fro': 1,
     'remsa_lan_s': 1.0,        # remslådan får lånas ur samma stillhet (inom 1 s, samma låda) när provet saknar den …
     'remsa_lan_iou': 0.9,      # … och lådan är densamma (IoU ≥ 0,9)
@@ -785,9 +785,17 @@ class Bank:
         bas = [n for n in saknas if n in BAS]
         if bas:
             for n in BAS:
-                # alla unika konstverk av namnet: alla år, alla ramar (Scryfall unique=art), en fråga per typ
+                # alla unika konstverk av namnet: alla år, alla ramar (Scryfall unique=art), en fråga per typ — åt ORB
                 self.konst[n] = [{'id': c['id'], 'normal': c['normal']} for c in sok(f'!"{n}"', 'unique=art&order=released&dir=desc')
                                  if c['name'] == n]
+            # åt bildmodellen (vittne a): appens pool — högst 24 per typ, year≥2021. Med alla 1 952 lutade topp-1 mot
+            # basland (≤ 12 bilder per annat namn); granskningen av fe2d291.
+            pool = {}
+            q = '(' + ' or '.join(f'!"{n}"' for n in BAS) + ') -is:digital -is:funny year>=2021'
+            for c in sok(q, 'unique=art&order=name'):
+                if c['name'] in BAS and len(pool.setdefault(c['name'], [])) < 24:
+                    pool[c['name']].append({'id': c['id'], 'normal': c['normal']})
+            self.konst['_pool'] = pool
             self.konst['_bas_v'] = R['bas_v']
             skriv_json(KONSTFIL, self.konst)
         ovr = [n for n in saknas if n not in BAS]
@@ -805,7 +813,9 @@ class Bank:
                 self.konst[n] = per.get(n, [])
         if saknas:
             skriv_json(KONSTFIL, self.konst)
-        return {n: self.konst.get(n, []) for n in namn}
+        ut = {n: self.konst.get(n, []) for n in namn}
+        ut['_pool'] = self.konst.get('_pool', {})   # basländernas poolurval åt bildmodellen
+        return ut
 
     def hamta(self, poster):
         """Bilderna (Scryfall normal) som saknas — bara nätet, ingen beräkning."""
@@ -1553,17 +1563,20 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     tidigare = tidigare_namn(mapp)
     leknamn = sorted(set(BAS) | {'baksida'} | set(slumpnamn(nl)) | tidigare | detta)
     konst = bank.konstverk(leknamn)
-    poster = [p for n in leknamn for p in konst[n]]
+    # Vittne (a) jämför mot en lek som appens: basland med poolens konstverk (≤ 24 per typ, year≥2021). ORB (b)
+    # jämför mot ALLA konstverk (konst[...]).
+    lek_a = {n: (konst['_pool'].get(n, []) if n in BAS else konst[n]) for n in leknamn}
+    poster = [p for n in leknamn for p in lek_a[n]]
     vek = bank.vektorer(poster)
     hel_ra, rem_ra, hel_n, rem_n = [], [], [], []
     for n in leknamn:
-        for p in konst[n]:
+        for p in lek_a[n]:
             v = vek.get(p['id'])
             if v is None:
                 continue
             hel_ra.append(v[:8]); hel_n += [n] * 8
             rem_ra.append(v[8:]); rem_n += [n] * 4
-    utan_ref = [n for n in leknamn if not any(p['id'] in vek for p in konst[n])]
+    utan_ref = [n for n in leknamn if not any(p['id'] in vek for p in lek_a[n])]
     ref_hel = referenser_ur(np.concatenate(hel_ra), hel_n)
     ref_rem = referenser_ur(np.concatenate(rem_ra), rem_n)
     tid['referenser'] = time.time() - tr_
@@ -1656,11 +1669,13 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
             'in_nya': sum(c['in'] for c in claude.values()), 'ut_nya': sum(c['ut'] for c in claude.values())}
     if pris:
         kost['usd'] = round((kost['in'] * pris[0] + kost['ut'] * pris[1]) / 1e6, 4)
-    skriv_json(os.path.join(mapp, 'vittnen.json'), {'lek': ref_hel.namnlista, 'utan_bild': utan_ref, 'tid_s': tid, 'claude': kost,
+    lek_info = {'namn': len(ref_hel.namnlista), 'bilder': len(hel_n) // 8, 'basland': 'poolen: year>=2021, högst 24 per typ',
+                'basland_bilder': {n: len(lek_a[n]) for n in BAS}, 'orb_basland_bilder': {n: len(konst.get(n, [])) for n in BAS}}
+    skriv_json(os.path.join(mapp, 'vittnen.json'), {'lek': ref_hel.namnlista, 'lek_a': lek_info, 'utan_bild': utan_ref, 'tid_s': tid, 'claude': kost,
                                                     'fraga': FRAGA, 'fraga_v': FRAGA_V, 'spar': vittnen})
     M = {'klipp': S['klipp'], 'pass': os.path.basename(os.path.dirname(mapp)), 'mapp': rel(mapp), 'fps': S['fps'], 'W': W, 'H': H,
          'kortsida': S['kortsida'], 'ensam_yta': S['ensam_yta'], 'kortkvot': S['kortkvot'], 'regler': R, 'lekens_storlek': len(ref_hel.namnlista),
-         'claude': kost, 'tid_s': {'B': S['tid_s'], 'C': tid}, 'spar': [{k: v for k, v in s.items() if k != 'prov'} for s in S['spar']], 'filer': [],
+         'claude': kost, 'lek_a': lek_info, 'tid_s': {'B': S['tid_s'], 'C': tid}, 'spar': [{k: v for k, v in s.items() if k != 'prov'} for s in S['spar']], 'filer': [],
          'beskar': None}   # None = E inaktuell (C har körts sedan); E skriver tran/ och val/ på nytt
     A = las_json(os.path.join(mapp, 'detektioner.json'))
     M['tid_s']['A'] = A['tid_s']
@@ -2054,7 +2069,7 @@ def main():
         bank = Bank(None)
         namn = sorted(set(BAS) | set(slumpnamn(nl)))
         konst = bank.konstverk(namn)
-        poster = [p for n in namn for p in konst[n]]
+        poster = [p for n in namn for p in konst[n]] + [p for n in BAS for p in konst['_pool'].get(n, [])]
         bank.hamta(poster)
         logg(f'förberett: {len(namn)} namn, {len(poster)} bilder ({bank.hamtade} hämtade nu), utan bild: {[n for n in namn if not konst[n]]}')
         return
