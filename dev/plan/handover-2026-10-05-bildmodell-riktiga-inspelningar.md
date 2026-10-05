@@ -251,5 +251,22 @@ Svenska. Korta tabeller, mätt skilt från bedömt, förklara för en icke-exper
 före/efter. Fristående granskning före merge och efter varje rättelse; push till main när grinden håller.
 Fråga innan GPU-tid, uppladdning av Jespers material, disk-rensning och ändringar i systemprompten.
 
+## Läget 2026-10-05 ~21:30 (skrivet av kvällens session, MES-340)
+- **Märkningen är byggd och körd på alla tre passen.** Kod: `dev/remsa/tran/mark.py`, `namn.py`, `dataset.py`,
+  `MARKNING.md`; spec `dev/plan/spec-markning-2026-10-05.md` (+ ändringen "kväll": Claude är vittne 1, textläsaren ser
+  inte 14 px titlar). Allt på grenen `worktree-agent-ae1b06e26cf083a32`, sammanslagen med origin/main lokalt, **inte
+  pushad** (sessionens behörighet nekade push — Jesper pushar: `git -C <worktree> push origin HEAD:main`).
+- **Utfall:** pass 2 114 lägg → 57 säkra + 18 manuella; pass 3 338 → 292 + 10; pass 5 119 → 96 + 20. Claude ≈ 3,2 $.
+  Dataset (`dataset.py rakna`): ~4 700 utsnitt (tel + 1080), 57 MB, **bara 31 namn** (5 basland) → riktig validering
+  svag, golden är provet; `--val-klipp` håller hela klipp utanför. Manuellt facit i `<klipp>/facit-manuell.json`.
+- **Granskningen tog fyra varv** (spårregeln i högar, täckta lägen, remsan ur hörnen, emblem). Lärdomar i minnet
+  `mes-340-bildmodell-riktiga-inspelningar`. Stickprov med egna ögon: namn och hörnremsor rätt i alla pass.
+- **Pågår:** omkörningar `pass … --om C --tel` för pass 3 och 5 (emblem-regel + manuellt facit), pausade med SIGSTOP
+  när MES-334:s sessioner kör golden (protokoll "golden startar"/"klart"; vänteskript får inte matcha sig själva:
+  `ps -axo command= | grep -E '^node .*golden/kor\.cjs'`).
+- **Kvar:** `dataset.py bygg --ut <mapp>` → Kaggle privat dataset (Jesper har sagt ja) → kernel-metadata.json
+  `dataset_sources` → rök (patcha `ARGS` i kernel-kopian med `['--rok', '--val-klipp', …]`) → riktig körning (~3 h,
+  ja från Jesper) → `--modell` i bänkarna och golden ×2 (C på main som den är, ny modell), 0 fel namn, inget fall sämre.
+
 ## Öppningsreplik
 > Pass 2, 3 och 5 ligger i repot. Jag börjar med märkningen av pass 2: hitta varje kort när det ligger helt synligt i 4K, läsa namnet där och följa kortet in i högarna — sedan visar jag hur många som blev säkra innan något tränas.
