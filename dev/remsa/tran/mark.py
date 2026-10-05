@@ -65,9 +65,12 @@ R = {
     'steg': 6,                 # var 6:e ruta = 5 rutor/s i 30 b/s
     'golv': 0.02,              # detektor.js T.golv: råa rader under detta läses aldrig — sparas inte
     'ror_marg': 0.10,          # rörelsemåttet: lådan + 10 % marginal per sida
-    'spar_iou': 0.5,           # B: samma kort ruta för ruta
-    'spar_centrum': 0.15,      # …eller centrum inom 15 % av kortsidan
-    'spar_inne': 0.70,         # …och lådan innesluten i den gamla till minst 70 %
+    # B: ett spår fortsätter bara på en låda som är nästan densamma (IoU ≥ 0,9) eller ligger inom dess förra
+    # (innesluten ≥ 0,9: kortet blir täckt). En låda som växer eller flyttar sig är ett NYTT spår med eget
+    # lägg-ögonblick. Med IoU 0,5 tog det undre kortets spår över lådan för kortet som lades ovanpå (förskjutet
+    # 45 px, IoU 0,78) och gav det fel namn (granskningen av e374112, sim_hog.py).
+    'spar_iou': 0.9,
+    'spar_inne': 0.9,
     'glapp_s': 1.0,            # ett spår slutar när ingen låda matchar på 1 s
     'stilla_centrum': 0.01,    # stilla: centrum flyttat < 1 % av kortsidan …
     'stilla_ror': 4.0,         # … och rörelsemåttet < 4 gråsteg (sensorbruset ~3, MES-246)
@@ -453,18 +456,15 @@ def steg_b(mapp):
         kand = []
         for ti, tr in enumerate(levande):
             g = tr['obs'][-1]['lada']
-            gc = mitt(g)
             for oi, o in enumerate(obs):
                 b = o['lada']
                 u = iou(g, b)
                 if u >= R['spar_iou']:
-                    kand.append((1 + u, ti, oi))
+                    kand.append((1 + u, ti, oi))      # samma låda går alltid före en krympt
                     continue
-                c = mitt(b)
-                if math.hypot(c[0] - gc[0], c[1] - gc[1]) <= R['spar_centrum'] * kortsida:
-                    a = inne(b, g)
-                    if a >= R['spar_inne']:
-                        kand.append((a, ti, oi))
+                a = inne(b, g)
+                if a >= R['spar_inne']:
+                    kand.append((a, ti, oi))
         kand.sort(key=lambda x: -x[0])
         tagna_t, tagna_o = set(), set()
         for _, ti, oi in kand:
@@ -584,12 +584,13 @@ def steg_b(mapp):
                     if not lugn(o):
                         continue
                     skal = None
-                    if o['liggande'] != sist['liggande']:
-                        skal = 'ligger'
-                    elif abs(o['synlig_andel'] - sist['synlig_andel']) > R['synlig_byte']:
+                    # täckning först: en krympt låda (kortet täckt) kan också bli bredare än hög
+                    if abs(o['synlig_andel'] - sist['synlig_andel']) > R['synlig_byte']:
                         skal = 'synlig'
                     elif o['i_hog'] and not sist['i_hog']:
                         skal = 'hog'
+                    elif o['liggande'] != sist['liggande']:
+                        skal = 'ligger'
                     elif o['t'] - sist['t'] >= R['lage_var_s'] - 1e-6:
                         skal = 'tid'
                     if not skal:
