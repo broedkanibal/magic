@@ -2299,6 +2299,89 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK22 handen nedvänd under en sökning på 15 s: handen lagd ${l22a && l22a.lage} x ${xs21(l22a)}; handen upplockad 6 s: ${l22 && l22.lage} x ${xs21(l22)} (L ${(L.x / W).toFixed(3)})`,
           !!l22 && l22.lage === 'nere' && Math.abs(l22.ruta.x - L.x / W) < 0.01);
 
+    // ── LV: lekens egen väg till grundläget (MES-334 sida 5, steg 0) ──
+    /* Leken har ingen namnremsa, så steg 1:s sparVinkel().matt blir aldrig sann för den. Lekens vinkel tas
+       i stället ur formens mätning (kalla 'form') när leken ligger still, högen är en låda, ingen annan låda
+       ligger över den och masken runt den är matta — tre NYA mätningar i följd (vinkelminnet mäter en stilla
+       låda om var 2 s) med samma axel ±5°. Videon är en attrapp, så KortVinkel.kortVinkel byts mot en stubb
+       som svarar med lekens vinkel (som VK). Leken ritas vriden så att masken ser den där lådan ligger. */
+    {
+      const KVl = vm.runInContext('KortVinkel', ctx), kvForra = KVl.kortVinkel;
+      let lvSvar = null;
+      KVl.kortVinkel = () => typeof lvSvar === 'function' ? lvSvar() : lvSvar;
+      const Dg = Math.PI / 180;
+      const formSvar = (a, kalla = 'form') => ({ axel: ((a % 180) + 270) % 180 - 90, vinkel: null, phi: ((a % 90) + 90) % 90, styrka: 0.6, kalla });
+      /* Leken (30 × 42) vriden a grader medurs runt (cx, cy): lådan runt den, och ritningen. */
+      const lekV = (cx, cy, a) => {
+        const s = Math.abs(Math.sin(a * Dg)), c = Math.abs(Math.cos(a * Dg)), w = Math.round(42 * s + 30 * c), h = Math.round(42 * c + 30 * s);
+        return { b: { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h }, rita: g => kortVriden(g, W, cx, cy, 30, 42, a * Dg, 55) };
+      };
+      const vMatt = () => Kamera.lek && Kamera.lek.vinkel != null ? Math.round(Kamera.lek.vinkel) : null;
+      Kamera.satTrosklar({ vinkelMat: 1 });
+
+      // LV1: leken ligger 20° snett — grundläget först ur lådan (stående, 90°), sedan lekens uppmätta vinkel (110°)
+      await nyttBord('v');
+      const v20 = lekV(160, 80, 20);
+      lvSvar = () => formSvar(20);
+      await kor(14, [v20.rita], [lada(v20.b, 'baksida')]);
+      const lv1a = grader(), lv1aV = vMatt();
+      await kor(40, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV1 leken 20° snett: vald med grundläget ${lv1a}° ur lådan (mätt ${lv1aV}), efter 6 s lekens vinkel ${vMatt()}°, grundläget ${grader()}° (${Kamera.lek && Kamera.lek.grund})`,
+            lv1a === 90 && lv1aV === null && vMatt() === 110 && grader() === 110 && Kamera.lek.grund === 'lek');
+
+      // LV2: leken vrids 15° till (35°) — grundläget följer (125°); en knuff på 4° (tillbaka till 31°) ändrar inget
+      const v35 = lekV(160, 80, 35);
+      lvSvar = () => formSvar(35);
+      await kor(50, [v35.rita], [lada(v35.b, 'baksida')]);
+      const lv2a = grader(), lv2aV = vMatt();
+      const v31 = lekV(160, 80, 31);
+      lvSvar = () => formSvar(31);
+      await kor(50, [v31.rita], [lada(v31.b, 'baksida')]);
+      check(`LV2 leken vriden till 35°: lekens vinkel ${lv2aV}°, grundläget ${lv2a}°; knuffad till 31°: lekens vinkel ${vMatt()}°, grundläget ${grader()}°`,
+            lv2aV === 125 && lv2a === 125 && vMatt() === 121 && grader() === 125);
+
+      // LV3: leken nästan rak (3°) — den första uppmätta vinkeln gör grundläget exakt (93°) utan omdömning, fast den ligger inom knuffen
+      await nyttBord('v');
+      const v3 = lekV(160, 80, 3);
+      lvSvar = () => formSvar(3);
+      await kor(54, [v3.rita], [lada(v3.b, 'baksida')]);
+      check(`LV3 leken 3° snett: lekens vinkel ${vMatt()}°, grundläget ${Kamera.grundGrader}°`, vMatt() === 93 && Math.abs(Kamera.grundGrader - 93) < 0.01);
+
+      // LV4: en annan låda (ett kort, en hand som detektorn tar för ett kort) ligger över leken hela tiden — ingen mätning räknas
+      /* Leken 3° snett: kortet ger bordet en kortstorlek, och en lek 20° snett har en RAK låda på 1,7 kortytor —
+         lekvaktens 0,6–1,6 kortytor (steg 3) räknar på den raka lådan, så den väljs inte alls (en känd gräns). */
+      await nyttBord('v');
+      const Hk = { x: v3.b.x + 8, y: v3.b.y + 16, w: 30, h: 42 };
+      lvSvar = () => formSvar(3);
+      await kor(54, [v3.rita, kortR(Hk)], [lada(v3.b, 'baksida'), lada(Hk, 'kort')]);
+      check(`LV4 något över leken: lekens vinkel ${vMatt()}, grundläget ${grader()}° (${Kamera.lek && Kamera.lek.lage})`, vMatt() === null && grader() === 90);
+
+      // LV5: mätningen är profilens (inte formens) — osäkert, grundläget står kvar ur lådan
+      await nyttBord('v');
+      lvSvar = () => formSvar(20, 'profil');
+      await kor(54, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV5 profilens vinkel: lekens vinkel ${vMatt()}, grundläget ${grader()}°`, vMatt() === null && grader() === 90);
+
+      // LV6: en arm når in till leken (ingen låda för den, men masken runt leken fylls) — ingen mätning räknas medan den ligger där
+      await nyttBord('v');
+      lvSvar = () => formSvar(20);
+      /* Armen kommer in nerifrån höger och slutar vid lekens kant: den fyller ringens nedre och högra del, inte leken. */
+      const armV = g => { for (let y = v20.b.y + (v20.b.h >> 1); y < H; y++) for (let x = v20.b.x; x < Math.min(W, v20.b.x + v20.b.w + 40); x++) if (x >= v20.b.x + v20.b.w || y >= v20.b.y + v20.b.h) g[y * W + x] = 60; };
+      await kor(54, [v20.rita, armV], [lada(v20.b, 'baksida')]);
+      const lv6a = vMatt(), lv6lage = Kamera.lek && Kamera.lek.lage, lv6ring = Kamera.diagnos.lekRing;
+      await kor(40, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV6 armen vid leken i 8 s: lekens vinkel ${lv6a} (${lv6lage}, masken i ringen ${lv6ring}); armen borta 6 s: ${vMatt()}° (ringen ${Kamera.diagnos.lekRing}), grundläget ${grader()}°`,
+            lv6a === null && lv6ring > 0.3 && vMatt() === 110 && grader() === 110 && Kamera.diagnos.lekRing < 0.1);
+
+      // LV7: två mätningar som skiljer 8° — serien börjar om; först tre i följd inom ±5° ger vinkeln
+      await nyttBord('v');
+      let lv7n = 0; lvSvar = () => formSvar(lv7n++ % 2 ? 28 : 20);
+      await kor(54, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV7 mätningarna hoppar 20°/28°: lekens vinkel ${vMatt()}, grundläget ${grader()}°`, vMatt() === null && grader() === 90);
+
+      KVl.kortVinkel = kvForra; lvSvar = null;
+    }
+
     // LK11: med uppstartens library-ruta gäller dagens lekvakt (bibSag) — ingen ny lek i rapporten
     nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: { x: L.x / W - 0.02, y: L.y / H - 0.02, w: L.w / W + 0.04, h: L.h / H + 0.04 } } }); namnSvar = svar;
     await kor(26, [hog(L)], [lada(L, 'baksida')]);

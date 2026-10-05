@@ -297,8 +297,8 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
       for (const r of rs) {
         const L = r.lek, v = L.vald, sl = L.slut;
         console.log(`    ${r.id.slice(0, 2)}: ${v ? `vald ${v.s} s${v.inne === true ? ' INNE i facits ruta' : v.inne === false && L.fel != null ? ' UTANFÖR facits ruta' : ' (facit har ingen ruta)'}, grundläget ${v.grund == null ? '–' : v.grund + '°'}` : 'ingen lek vald'}`
-          + `; slut ${sl ? sl.lage + (sl.grund ? ` (grundläget ur ${sl.grund})` : '') + (sl.farg ? `, färg ${sl.farg.magic ? 'Magic-baksidan' : 'rgb(' + sl.farg.r + ',' + sl.farg.g + ',' + sl.farg.b + ')'}` : '') + (sl.ute.length ? `, ${sl.ute.length} ute` : '') : '–'}`
-          + (L.fel ? `; ${L.fel} lägen med leken utanför facits ruta` : '') + `; logg: ${L.logg.filter(x => x.lek).map(x => `${x.s} s ${x.lek.lage}${x.lek.id ? '#' + x.lek.id : ''}${x.grund != null ? ' ' + x.grund + '°' : ''}`).join(' → ')}`);
+          + `; slut ${sl ? sl.lage + (sl.grund ? ` (grundläget ur ${sl.grund})` : '') + (sl.vinkel != null ? `, lekens vinkel mätt ${sl.vinkel.toFixed(1)}°` : '') + (sl.farg ? `, färg ${sl.farg.magic ? 'Magic-baksidan' : 'rgb(' + sl.farg.r + ',' + sl.farg.g + ',' + sl.farg.b + ')'}` : '') + (sl.ute.length ? `, ${sl.ute.length} ute` : '') : '–'}`
+          + (L.fel ? `; ${L.fel} lägen med leken utanför facits ruta` : '') + `; logg: ${L.logg.filter(x => x.lek).map(x => `${x.s} s ${x.lek.lage}${x.lek.id ? '#' + x.lek.id : ''}${x.grund != null ? ' ' + x.grund + '°' : ''}${x.lek.vinkel != null ? ' (leken mätt ' + x.lek.vinkel.toFixed(1) + '°)' : ''}`).join(' → ')}`);
       }
     }
   }

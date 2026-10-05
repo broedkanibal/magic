@@ -702,7 +702,7 @@ function las(prov, ms, msRuta) {
   if (K.diagnos.skurna && K.diagnos.skarProv) for (const p of K.diagnos.skarProv) if (p.dom === 'skuren' && prov.skurnaAlla.length < 20) prov.skurnaAlla.push(Object.assign({ s: +(ms / 1000).toFixed(1) }, p));
   for (const l of K.diagnos.skarLogg || []) if (!prov.skarAlla.has(l.ruta)) prov.skarAlla.set(l.ruta, l);
   /* Leken utan uppstart (MES-334 steg 3): varje gång lekvaktens läge byts — ingen/nere/upp, vilken hög, var, färgen, grundläget. */
-  { const l = K.lek, k = l ? l.lage + (l.id || '') + (l.ruta ? ':' + Math.round(l.ruta.x * 50) + ',' + Math.round(l.ruta.y * 50) : '') + (l.farg ? 'f' : '') + (l.grund || '') + l.ute.map(u => 'u' + u.id).join('') : 'null';
+  { const l = K.lek, k = l ? l.lage + (l.id || '') + (l.ruta ? ':' + Math.round(l.ruta.x * 50) + ',' + Math.round(l.ruta.y * 50) : '') + (l.farg ? 'f' : '') + (l.grund || '') + (l.vinkel != null ? 'v' + Math.round(l.vinkel) : '') + l.ute.map(u => 'u' + u.id).join('') : 'null';
     if (k !== prov.lekSig) { prov.lekSig = k; (prov.lekLogg || (prov.lekLogg = [])).push({ s: prov.s, lek: l ? JSON.parse(JSON.stringify(l)) : null, grund: K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null }); } }
   const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
   if (s2 !== prov.sig) { prov.sig = s2; prov.stabilSedan = ms; }
