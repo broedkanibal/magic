@@ -23,6 +23,19 @@ Korten är slumpkort hemifrån — **leken finns inte i Mesa**. Pass 4 (ljust bo
 är inte inspelat och blockerar inte namnmodellen.
 
 ## Pågår i repot samtidigt: MES-334 sida 5 (sessionen "MES-334 designyta sida 5 steg 4–6")
+
+**Uppdatering 2026-10-05 20:20 (från MES-334-sessionen):** sida 5 är **inte** ihopslagen. Golden med Claude gav ett
+säkert fel namn i fall 05 (Pacifism blev Scourge via helbilden), och det kommer in med steg 3. MES-334 står i **Todo**,
+och en ny session (Fable) fortsätter enligt `dev/plan/prompt-hogarna-fall05.md` (2,5–5 h, i kväll eller i morgon).
+Grenen `mes-334-sida5` (6002cd0) ändrar `index.html`, `dev/golden/kor.cjs` och `kor.html`.
+
+**Regel tills MES-334 ligger på main:** ändra inget i `index.html`, `dev/embed/embed.js` (`MODELL_HF`, `V`),
+`dev/golden/kor.cjs` eller `kor.html`, och lägg inte in den tränade modellen i appen. Behövs något av det: skicka ett
+meddelande till MES-334-sessionen först. Annars måste sida 5 läggas om och mätas om. Golden-samordningen gäller som
+förut: "golden startar" och "klart" mellan sessionerna (vi pausar med SIGSTOP/SIGCONT).
+
+*Texten nedan är läget 14:40 och står kvar som historik.*
+
 Grenen `mes-334-sida5` (steg 0, 4, 5, 6 + rättelse 1, omlagd på main 5491749, går ihop utan konflikt) väntar på
 granskningens kontroll, sedan golden på det ihopslagna läget (lokalt + `--utan-leken` + `--utan-bib` + `--ai`) på
 port 8271 och **push till main, som driftsätter**. Den ändrar kamerans kod i index.html (leken, graveyard,
@@ -35,7 +48,7 @@ högarna, uppstartens steg 4 bort) — inget som rör märkningen eller `dev/rem
    på nytt på den nya main, i samma profil som den nya modellen, innan något jämförs. `--utan-bib` kan behövas.
 3. **Disk:** 18 GB fritt, `dev/material` 17 GB; MES-334 stannar under 1,5 GB. Inga 4K-rutor på disk i onödan —
    spara beskärningar, inte rutor; 1080p-kopiorna är små (~1 MB/s × 20 min).
-4. **Linear:** MES-334 står i In Progress (deras). Det här arbetet har ingen issue — föreslå en i Triage.
+4. **Linear:** MES-334 står i Todo sedan 20:20 (se uppdateringen ovan). Det här arbetet är **MES-340** (In Progress, High).
 
 ## Osäkert läge
 - **`dev/embed/node_modules` finns inte i huvudträdet.** Utan onnxruntime-web där tar golden appens modell från
@@ -216,6 +229,8 @@ Lärdomen från MES-334 (minnet `snal-matning-vid-orkestrering`): tiden gick i g
    Kort `--rok` på Kaggle först.
 5. Efter Jespers ja: riktig körning på Kaggle.
 6. Mät: `dev/remsa/remsregel.py`, `dev/remsa/helkort_jamfor.py`, remsbänken (MESA_MOBILECLIP + MESA_REMSEXP_NPZ),
+   **Golden C mäts på main som den är när mätningen görs — skriv i historik.md om sida 5 (MES-334) var med eller inte.**
+   Ursprunglig text:
    och golden **C på nytt (main med sida 5)** mot ny modell i samma profil (`--ny-embed`, `--modell`/
    `--rems-modell`, `--ut` → `felbok.cjs`). Grind: 0 fel namn, inget fall sämre. Redovisa de fyra raderna modellen
    rår på — rätt namn, land per typ, högar, utlagda med namn i video — före/efter, per fall. Rad i historik.md.
