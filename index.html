@@ -7536,17 +7536,19 @@ function ritaOppKropp(p, m, r) {
   oppSkriv(p.id, m, glid);
 }
 /* Högarna: graveyard (toppkortet, lagren och antalet), library (antalet
-   som inte är spelat) och exile när där finns något. */
+   som inte är spelat) och exile när där finns något. I Mirror my table bara
+   det som ligger bland korten (speglatBord), som på ägarens egen matta. */
 function oppHogarHtml(p) {
   const grav = p.cards.filter(c => zonAv(c) === ZON_GRAV), n = grav.length, exil = p.cards.filter(c => zonAv(c) === ZON_EXIL).length;
   const top = n ? cardOf(grav[0]) : null, src = top ? imgOf(top, 0, 'normal') || imgOf(top, 0, 'small') : '', bib = oppBibKvar(p);
   const lager = []; for (let k = Math.min(n - 1, 4); k >= 1; k--) lager.push(`<i class="glager" style="--k:${k}"></i>`);
   /* Ligger hens graveyard bland korten (MES-334 steg 5) står den inte här också. */
-  return (p.gravHog ? '' : `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
+  return (p.gravHog || gravUtanFastPlats(p, n) ? '' : `<div class="ohog"><div class="grav${n ? '' : ' tom'}" title="${n ? `${n} ${n === 1 ? 'card' : 'cards'} in ${esc(p.name)}'s graveyard — click to look through them` : `${esc(p.name)}'s graveyard`}">${lager.join('')}`
     + (n ? `<img${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">` : '') + `<span class="gravsten">${GRAVSTEN}</span></div>`
     + `<span class="hograd"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`)
-    /* Ligger hens lek bland korten (MES-334 steg 3) står den inte här också. */
-    + (p.bibHog ? '' : `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : ` — ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
+    /* Ligger hens lek bland korten (MES-334 steg 3) står den inte här också, och i Mirror my table har
+       leken ingen fast plats (speglatBord): hen ser den när kameran ser den. */
+    + (p.bibHog || speglatBord(p) ? '' : `<div class="ohog"><div class="bib" title="${esc(p.name)}'s library${bib == null ? '' : ` — ${bib} ${bib === 1 ? 'card' : 'cards'} not played yet (hand and library together)`}"><span class="biblek">${`<img src="${BAKSIDA}" alt="" draggable="false">`.repeat(3)}</span></div>`
     + `<span class="hograd bibrad"><i></i>Library${bib == null ? '' : `<b>${bib}</b>`}</span></div>`)
     + (exil ? `<div class="oexil" title="Cards in exile — click to look through them"><span class="zonlbl">Exile</span><b>${exil}</b></div>` : '');
 }
@@ -8968,11 +8970,12 @@ function renderBibHog() {
   if (!bibHogEl) return false;
   let html = '';
   /* Leken utan uppstart (MES-334 steg 3, sida 5): leken ligger bland korten på mattan, eller ska läggas
-     där ("Put your library on the table") — då står ingen fast hög här. Med uppstartens ruta, i Screen
-     leads och utan kamera: som förut. */
+     där ("Put your library on the table") — då står ingen fast hög här, inte heller medan kameran är
+     tappad (lekUtanFastPlats). Med uppstartens ruta och i Use camera to add cards: som förut. */
   if (spelLage && arMitt(player()) && !(minSpelare() && (minSpelare().bibHog || lekBordAktivt()))) {
     const mig = minSpelare(), lek = mig && mig.lekId && mig.lek ? mig.lek : null;
-    if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
+    if (lek && lekUtanFastPlats()) { /* speglat bord: ingen fast hög, också med kameran tappad (speglatBord) */ }
+    else if (!lek) html = `<button type="button" class="bib tom" data-lekvalj="lek" title="Choose the deck you play with — the camera only looks for its cards"><span class="bibord">Pick a deck</span></button><span class="hograd"><i></i>Library</span>`;
     else {
       const k = lekAktiv && lekAktiv.id === lek.id ? lekKvar() : null, kvar = k ? k.kvar : (lek.antal || 0);
       const lyft = bibLyft(), antal = `${kvar} ${kvar === 1 ? 'card' : 'cards'} not played yet (hand and library together)`;
@@ -9006,6 +9009,25 @@ function lekBordAktivt() {
   const mig = minSpelare();
   return !!spelLage && !!mig && kamSpeglar(mig) && !kamBibRad && !oppOppen && !!kamLek;
 }
+/* Ett bord som kameran speglar (Mirror my table) har inga fasta högar (sida 5): graveyard finns först efter
+   Yes, bland korten, och leken bara där den ligger. Det gäller också medan kameran är tappad eller inte har
+   anslutit än — bordet står fruset, och den fasta platsen hör inte till det bordet. Förut kom den fasta
+   graveyard-högen och leken med "Pick up 40" tillbaka i hörnet så fort kameran tappades, och graveyard stod
+   där hela tiden före Yes (Jesper i produktionen 2026-10-05). Use camera to add cards ('skarm') behåller de
+   fasta platserna. Motståndarens läge står i hens rad (alltid 'bord' eller 'skarm'). */
+function speglatBord(p) {
+  if (!spelLage || !p) return false;
+  return arMitt(p) ? mittLage() === 'bord' : p.lage === 'bord';
+}
+/* Graveyard utan fast plats på ett speglat bord. Ligger det ändå kort i graveyard utan någon hög bland korten
+   (flyttade dit i appen före Yes) står den fasta högen kvar som reserv — annars syntes de inte alls. */
+const gravUtanFastPlats = (p, n) => speglatBord(p) && !n;
+/* Min lek utan fast plats: speglat bord utan uppstartens library-ruta — oavsett vad telefonen rapporterar.
+   Telefonen skickar lek: null tills den tränade detektorn laddat och sett en bildruta, och för alltid om
+   detektorn inte går att ladda; förut gav det dagens fasta hög med "Pick up 40" och ingen text. Nu säger
+   mattan "Put your library on the table" (lekText), och syns leken aldrig ger första kortet grundläget
+   (reserven, princip 4). Bara uppstartens ruta (kamBibRad, ett spel där steg 4 kördes) ger dagens hög. */
+function lekUtanFastPlats() { return speglatBord(minSpelare()) && !kamBibRad; }
 const lekFarg = f => f && isFinite(f.r) && isFinite(f.g) && isFinite(f.b) ? { r: Math.round(f.r), g: Math.round(f.g), b: Math.round(f.b), magic: !!f.magic } : null;
 /* Telefonens lek in i mitt bord (kamTogsEmot, varje bord och hjärtslag). */
 function tagEmotLek(l) {
@@ -9067,7 +9089,9 @@ function slvAv(p) { return (p && (p.slvFarg || (p.bibHog && p.bibHog.farg))) || 
 /* Texten mitt på mattan före första kortet (renderTom): null = som förut. */
 function lekText() {
   const mig = minSpelare();
-  if (!mig || !lekBordAktivt() || kamHaftKort) return null;
+  /* Samma villkor som lekBordAktivt utom telefonens rapport (kamLek): texten står också innan lekvakten
+     startat, och när telefonen inte kan leta efter leken (lekUtanFastPlats). */
+  if (!mig || !kamSpeglar(mig) || kamBibRad || oppOppen || kamHaftKort) return null;
   return mig.bibHog ? 'Play your first card when you\'re ready' : 'Put your library on the table';
 }
 /* Sleevens färger ur bordets färg — tonerna som designytans .slv (hogar2.css). Tomt = baksidans bild (ingen färg än, eller Magic-baksidan). */
@@ -9423,8 +9447,9 @@ function renderGravHog(cards, d, bland) {
   manaRow.hidden = false;
   manaRow.classList.toggle('medbib', renderBibHog());
   const ex = d.exil.length;
-  /* Graveyard bland korten (MES-334 steg 5): den fasta högen står inte här också — bara exile. */
-  const html = (bland ? '' : gravHtml(cards, d.grav))
+  /* Graveyard bland korten (MES-334 steg 5): den fasta högen står inte här också — bara exile. På ett
+     speglat bord står den inte heller här före Yes (sida 5, tavla 1–3: ingen graveyard förrän man svarat). */
+  const html = (bland || gravUtanFastPlats(player(), d.grav.length) ? '' : gravHtml(cards, d.grav))
     + (ex ? `<button type="button" class="exilhog" data-exil-open title="${ex} ${ex === 1 ? 'card' : 'cards'} in exile — click to pick them up"><span class="zonlbl">Exile</span><b>${ex}</b></button>` : '');
   const pid = player().id, n = d.grav.length;
   const vaxte = !!gravForra && gravForra.pid === pid && n > gravForra.n;

@@ -116,8 +116,12 @@ const PROV = async steg => {
     Moln.sparaKalibrering = (id, ruta) => { W.__kal.push(ruta); return Promise.resolve(true); };
     nollGrav();
     renderAll(true);
+    /* Jesper i produktionen 2026-10-05: graveyard-platsen syntes direkt när kameran anslöt, utan ett enda kort. */
+    ok('1 · kameran ansluten, inga kort: ingen graveyard alls, varken fast hög eller bland korten (sida 5, tavla 1)', !manaRow.querySelector('.grav') && !gridEl.querySelector('.gravd1'), manaRow.innerHTML.slice(0, 80));
     tagEmotLek(lek('nere', 1, R1));
+    ok('2 · leken ligger: fortfarande ingen graveyard (tavla 2)', !manaRow.querySelector('.grav') && !gridEl.querySelector('.gravd1'));
     await stam(LAND);
+    ok('3 · land i spel: fortfarande ingen graveyard (tavla 3)', !manaRow.querySelector('.grav') && !gridEl.querySelector('.gravd1'));
     ok('landen till höger om leken: ingen fråga', !fragaEl() && !gravLageNu().fraga);
     await stam(LAND.concat([spar(21, 'Llanowar Elves', 0.3, 0.62)]));
     const f = fragaEl(), c = mig().cards.find(k => k.name === 'Llanowar Elves'), ce = c && gridEl.querySelector(`.card[data-cid="${c.cid}"]`);
@@ -126,6 +130,7 @@ const PROV = async steg => {
     ok('5 · rutan står ovanför kortet, mitt över det', !!fr && !!kr && fr.bottom <= kr.top + 1 && Math.abs((fr.left + fr.right) / 2 - (kr.left + kr.right) / 2) < 3,
       fr && kr ? `fråga ${Math.round(fr.left)}–${Math.round(fr.right)} / ${Math.round(fr.bottom)}, kort ${Math.round(kr.left)}–${Math.round(kr.right)} / ${Math.round(kr.top)}` : '');
     ok('5 · inget är graveyard före Yes: kortet ligger i spel', !!c && zonAv(c) !== ZON_GRAV && !!ce);
+    ok('5 · före Yes visas ingen graveyard-hög eller bricka någonstans', !manaRow.querySelector('.grav') && !gridEl.querySelector('.gravd1'));
     sparaNu();
     const raden = JSON.stringify(W.__sparat[W.__sparat.length - 1]);
     ok('bara ägaren ser frågan: bordsraden bär ingen fråga', !/gravsvar|graveyard\?|fraga/i.test(raden));
@@ -139,6 +144,8 @@ const PROV = async steg => {
   }
   if (steg === 2) {
     W.__kal = [];
+    /* Första kortet i högen före Yes: graveyard ska skapas precis där det ligger (Jesper 2026-10-05). */
+    const forsta = mig().cards.find(k => k.name === 'Llanowar Elves'), fx = forsta && forsta.x, fy = forsta && forsta.y;
     fragaEl().querySelector('[data-gravsvar="ja"]').click();
     ok('5 · Yes: korten blir graveyard (det sist lagda överst)', kortNamn('grav').join(',') === 'Wood Elves,Llanowar Elves', kortNamn('grav').join(','));
     ok('5 · Yes: frågan är borta', !fragaEl() && !gravLageNu().fraga);
@@ -154,6 +161,18 @@ const PROV = async steg => {
     const lek = gridEl.querySelector('.lekhog'), gr = g && g.getBoundingClientRect(), lr = lek && lek.getBoundingClientRect();
     ok('4 · högen ligger där den ligger på bordet: till vänster om leken, i samma rad', !!gr && !!lr && gr.right <= lr.left + 2 && Math.abs((gr.top + gr.bottom) / 2 - (lr.top + lr.bottom) / 2) < lr.height * 0.4, gr && lr ? `högen ${Math.round(gr.left)}–${Math.round(gr.right)}, leken ${Math.round(lr.left)}–${Math.round(lr.right)}` : '');
     ok('4 · D1: ingen ram runt högen', !!g && getComputedStyle(g).borderStyle === 'none');
+    const gh = mig().gravHog;
+    ok('4 · graveyard skapas där första kortet låg (inom en femtedels kort)', fx != null && !!gh && Math.abs(gh.x - fx) < MATTA.CW * 0.2 && Math.abs(gh.y - fy) < MATTA.CH * 0.2,
+       gh ? `kortet ${Math.round(fx)},${Math.round(fy)} → högen ${Math.round(gh.x)},${Math.round(gh.y)} (kortbredd ${MATTA.CW})` : 'ingen hög');
+    /* Högarna ligger på samma matta som korten: de följer panoreringen lika mycket som ett kort. */
+    { await stilla();
+      const kortEl = gridEl.querySelector('.card[data-cid]'), rekt = () => [g, lek, kortEl].map(e => e.getBoundingClientRect());
+      const fore = rekt(), vyP = matVyFor(player()), p0 = Object.assign({}, vyP.pan);
+      vyP.pan = { x: p0.x + 90, y: p0.y + 40 }; renderGrid(true); await stilla();
+      const efter = rekt(), d = efter.map((r, i) => [r.left - fore[i].left, r.top - fore[i].top]);
+      ok('4 · leken och graveyard följer panoreringen precis som ett kort (samma matta)', !!kortEl && Math.abs(d[2][0]) > 20 && d.every(q => Math.abs(q[0] - d[2][0]) < 1.5 && Math.abs(q[1] - d[2][1]) < 1.5),
+         JSON.stringify(d.map(q => q.map(Math.round))));
+      vyP.pan = p0; renderGrid(true); await stilla(); }
     g.click();
     await vanta(50);
     ok('4 · klick på högen tar upp korten i handen (solfjädern, som den fasta högen)', hf.src === ZON_GRAV && hf.fas !== 'stangd', `${hf.src} ${hf.fas}`);
@@ -222,6 +241,12 @@ const PROV = async steg => {
     const opp = normalisera({ id: 'hogprov-opp', name: 'Sara', color: '#b782ff', plats: 2, lage: 'bord', lekId: 'l2', lek: { id: 'l2', namn: 'Blue', antal: 60 }, cards: [], shots: [], shotIdx: 0, pending: [], pane: null, namnkalla: 'anvandare', version: 1 }, 1);
     state.players = [jag, opp]; state.active = jag.id; bord.valt = 'all';
     renderAll(true);
+    ok('motståndaren i Mirror my table före Yes och utan lek: ingen fast graveyard och ingen fast library (som på hens egen matta)',
+       !document.querySelector('#oppMattor .ohogar .grav') && !document.querySelector('#oppMattor .ohogar .bib'), (document.querySelector('#oppMattor .ohogar') || {}).innerHTML || 'inga högar');
+    opp.lage = 'skarm'; renderAll(true);
+    ok('motståndaren i Use camera to add cards: graveyard och library på fast plats som förut',
+       !!document.querySelector('#oppMattor .ohogar .grav') && !!document.querySelector('#oppMattor .ohogar .bib'));
+    opp.lage = 'bord'; renderAll(true);
     fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 2, kort: [
       { cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 },
       { cid: 'o2', name: 'Opt', zon: 'grav' },
@@ -302,11 +327,21 @@ const PROV = async steg => {
     ok('telefonen släpper båda i samma meddelande: båda borta på en gång', p2 === 0 && n2 === 0, `platshållare ${p2}, nedvända kort ${n2}`);
   }
   if (steg === 7) {
-    /* Utan kamera: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
-    kamAnsluten = false; kamGravRad = null; mig().gravHog = null; mig().bibHog = null; kamLek = null; renderAll(true); renderBibHog();
+    /* Kameran tappad i Mirror my table (Jesper i produktionen 2026-10-05: graveyard och "Pick up 40" i hörnet):
+       bordet står fruset, och inga fasta högar kommer fram — inte före första rapporten heller (kamLek undefined). */
+    kamAnsluten = false; nollGrav(); mig().gravHog = null; mig().bibHog = null; mig().cards = []; kamLek = undefined; renderAll(true); renderBibHog();
+    ok('kameran tappad i Mirror my table: ingen fast graveyard och ingen fast library', !manaRow.querySelector('.grav') && $('#bibHog').hidden, manaRow.innerHTML.slice(0, 80));
+    kamLek = lek('ingen', null, null); renderAll(true); renderBibHog();
+    ok('…också när telefonen sagt "ingen lek" innan den tappades', !manaRow.querySelector('.grav') && $('#bibHog').hidden);
+    /* Reserven: ett kort i graveyard utan hög bland korten (flyttat dit i appen före Yes) syns på den fasta platsen. */
+    mig().cards = [{ cid: 'gx', name: 'Opt', zon: ZON_GRAV, x: null, y: null, z: 1, tapped: 0 }]; renderAll(true);
+    ok('reserven: ett kort i graveyard utan hög bland korten visas på den fasta platsen', !!manaRow.querySelector('.grav:not(.tom)'));
+    mig().cards = [];
+    /* Use camera to add cards: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
+    mig().lage = 'skarm'; kamLek = null; renderAll(true); renderBibHog();
     const gh = manaRow.querySelector('.grav'), rad = manaRow.querySelector('.gravtxt');
-    ok('utan kamera: graveyard på sin fasta plats', !!gh && !gridEl.querySelector('.gravd1'));
-    ok('utan kamera: D1 — ingen ram, och brickan på underkanten', !!gh && getComputedStyle(gh).borderTopColor === 'rgba(0, 0, 0, 0)' && !!rad && getComputedStyle(rad).backgroundColor !== 'rgba(0, 0, 0, 0)' && rad.getBoundingClientRect().top < gh.getBoundingClientRect().bottom, gh ? getComputedStyle(gh).borderTopColor : '');
+    ok('Use camera to add cards: graveyard och library på sin fasta plats', !!gh && !gridEl.querySelector('.gravd1') && !$('#bibHog').hidden);
+    ok('Use camera to add cards: D1 — ingen ram, och brickan på underkanten', !!gh && getComputedStyle(gh).borderTopColor === 'rgba(0, 0, 0, 0)' && !!rad && getComputedStyle(rad).backgroundColor !== 'rgba(0, 0, 0, 0)' && rad.getBoundingClientRect().top < gh.getBoundingClientRect().bottom, gh ? getComputedStyle(gh).borderTopColor : '');
   }
   return rad;
 };

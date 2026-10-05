@@ -115,10 +115,14 @@ const PROV = async steg => {
     Moln.sparaBord = (id, kort, dolt) => { W.__sparat.push({ kort, dolt }); return Promise.resolve(true); };
     W.__kal = []; Moln.sparaKalibrering = (id, ruta) => { W.__kal.push(ruta); return Promise.resolve(true); };
     renderAll(true);
+    /* Innan telefonens lekvakt startat (detektorn laddar) skickar telefonen lek: null — och för alltid om
+       detektorn inte går att ladda. Mattan ska ändå säga lägg ner leken, utan någon fast hög i hörnet. */
+    tagEmotLek(null);
+    ok('1 · telefonen har inte börjat leta (lek: null): texten står, ingen fast library och ingen graveyard', text() === 'Put your library on the table' && $('#bibHog').hidden && !manaRow.querySelector('.grav'), text());
     tagEmotLek(lek('ingen', null, null, { farg: null, grund: null }));
     ok('1 · ingen lek: texten mitt på mattan', text() === 'Put your library on the table', text());
     ok('1 · ingen hög på mattan, och "Play your first card" nämns inte', !lekEl() && !/first card/i.test(text() || ''));
-    ok('1 · ingen fast hög heller (sida 5, tavla 1: bara texten)', $('#bibHog').hidden);
+    ok('1 · ingen fast hög heller, varken library eller graveyard (sida 5, tavla 1: bara texten)', $('#bibHog').hidden && !manaRow.querySelector('.grav'));
     W.__textEl = $('#emptyHand').querySelector('.tomlek');
   }
   if (steg === 1) {
@@ -130,7 +134,7 @@ const PROV = async steg => {
     ok('2 · leken bland korten på mattan (en post i brädet)', !!el && el.parentElement === gridEl && el._mat && el._mat.nyckel === 'h:bib', el ? el.className : 'ingen');
     ok('2 · brickan bara "Library", inget tal (Jespers beslut 2026-10-04), och aria-label likaså', !!el && el.querySelector('.lekbr.ledig').textContent.trim() === 'Library' && !el.querySelector('.lekbr b') && /^Library\. Open the menu$/.test(el.getAttribute('aria-label') || ''), el ? el.querySelector('.lekbr.ledig').textContent + ' | ' + el.getAttribute('aria-label') : '');
     ok('2 · D1: ingen ram, ingen streckad kant (högen ritad i sleevens färg)', !!el && getComputedStyle(el).borderStyle === 'none' && !!el.querySelector('.lekslv') && /--s1:#/.test(el.getAttribute('style')), el ? el.getAttribute('style') : '');
-    ok('2 · dagens fasta hög är borta', !fastHog());
+    ok('2 · dagens fasta hög är borta, och ingen graveyard (tavla 2: bara texten och leken)', !fastHog() && !manaRow.querySelector('.grav'));
     ok('2 · mattan visar leken rak (ingen rotation)', !!el && !/rotate/.test(el.getAttribute('style') || '') && getComputedStyle(el).transform === 'none');
     ok('2 · läget ur kameran (kamTillMatta) och delat', m.bibHog && m.bibHog.x != null && m.bibHog.y != null && m.bibHog.upp === 0, JSON.stringify(m.bibHog && { x: Math.round(m.bibHog.x), y: Math.round(m.bibHog.y), upp: m.bibHog.upp }));
     W.__lekEl = el;
@@ -252,7 +256,10 @@ const PROV = async steg => {
     s.click();
     ok('motståndarens lek har ingen meny', !$('#zonPerm .lekmeny'));
     fjarrBord({ game_id: spelLage.id, user_id: opp.id, version: 3, kort: [{ cid: 'o1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0 }] });
-    ok('motståndaren utan lek i raden: dagens fasta hög igen', !document.querySelector('#oppMattor .obrade .lekhog') && !!document.querySelector('#oppMattor .ohogar .bib'));
+    ok('motståndaren i Mirror my table utan lek i raden: ingen hög alls (hen ser leken när kameran ser den)', !document.querySelector('#oppMattor .obrade .lekhog') && !document.querySelector('#oppMattor .ohogar .bib'));
+    opp.lage = 'skarm'; renderAll(true);
+    ok('motståndaren i Use camera to add cards utan lek: dagens fasta hög', !document.querySelector('#oppMattor .obrade .lekhog') && !!document.querySelector('#oppMattor .ohogar .bib'));
+    opp.lage = 'bord'; renderAll(true);
     /* Min lek står kvar på min matta i bordsvyn, och brädet rymmer den (i en låg ruta kan den ligga
        under kanten vid minsta zoomen, som ett kort längst ner i bilden — mattan går att dra dit). */
     { const e = lekEl(), v = matVy(jag), lr = lekRam(jag);
