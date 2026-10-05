@@ -45,6 +45,9 @@ En session, utan orkestrerare. Kör `paborjaIssue('MES-334')` först. Utredninge
 - En annan session (MES-340, bildmodellen) kör tunga 4K-jobb. Skicka **"golden startar"** före varje golden och
   **"klart"** efter, via `ListAgents` + `SendMessage`.
 - En pausad process syns fortfarande i `pgrep`: vänta på att lasten är under 6, inte på att processen försvinner.
+  MES-340 pausar sina jobb med SIGSTOP när den får "golden startar" och fortsätter när den får "klart".
+- En riktig golden-process hittar du med `ps -axo command= | grep -E '^node .*golden/kor\.cjs'`.
+  `pgrep -f kor.cjs` hittar också vänteskript som har strängen i sin egen kommandorad.
 - Den varma golden-profilen är `TMPDIR=/private/tmp/claude-501/-Users-jesperfunk-Code-magic/c4fe2060-3005-4715-b861-9d4cea5b2c6f/scratchpad/golden-tmp`,
   med `--port 8271` (pool 168).
 
