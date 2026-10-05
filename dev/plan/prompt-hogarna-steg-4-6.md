@@ -25,7 +25,7 @@ golden-körningar.
 
 - **Granskningen:** blockerande/viktiga fynd → byggaren rättar → en ny granskare kontrollerar *rättelsen*
   (inte hela steget igen). Små fynd → byggaren rättar, du gör en snabb koll av diffen. **Högst två varv.**
-- **Golden:** byggaren kör golden **en gång** efter omläggningen (mot `$ARB/baslinje.md`) och **en gång** när
+- **Golden:** byggaren kör golden **en gång** efter omläggningen (mot main med steg 1: lokalt 95/119, 0 fel namn — inte B0) och **en gång** när
   steg 6 är klart; du kör den en gång på det ihopslagna läget. Lokalt + `--utan-leken`; `--ai` **en** gång på
   det ihopslagna läget (den sista av MES-334:s tre). Inget `--ljus alla`.
 - **Bänken (`sh dev/kolla.sh`):** byggaren innan han lämnar, du vid ihopslagningen. Granskaren kör bara riktade
@@ -35,6 +35,22 @@ golden-körningar.
 - **Disken:** kontrollera `df -h /` före golden; under 1,5 GB: stanna. Inga 4K-rutor på disk i onödan.
 - **En golden-körning med "⏱ tak" på ett fall är ogiltig:** fallet slog i tidstaket under last och ger andra tal
   (granskning runda 3 av steg 3: 17 och 06 i `--utan-leken` flyttade sig bara under last). Kör om utan last.
+
+## Så går det fortare (lärdomar från förra körningen)
+
+- **En varm golden-profil för hela körningen:** `TMPDIR=/private/tmp/claude-501/-Users-jesperfunk-Code-magic/c4fe2060-3005-4715-b861-9d4cea5b2c6f/scratchpad/golden-tmp`
+  och `--port 8271`. Poolen (168) och bildmodellen är redan byggda där, så ingen uppvärmningskörning behöver kastas,
+  och före/efter jämförs i samma profil. Läs raden `Poolen:` ändå.
+- **Byggaren itererar inte med golden.** Under bygget används de riktade bänkproven (`dev/kamerabank.cjs`,
+  `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, sekunder i stället för 10–20 min); golden bara på de två
+  ställena ovan, och enstaka fall (`--fall 18`) när en misstanke ska prövas. Förra gången körde en byggare ~6 hela
+  golden-varv.
+- **Granskaren läser diffen och funktionerna den rör, inte hela index.html**, och har ett tak på ungefär en timme.
+  Varje granskare som läste in filen från noll kostade 300–450k tokens.
+- **Orkestreraren väcker sig sällan:** notiserna väcker den när en agent är klar, så reservväckningen ska vara lång
+  (≥ 40 min) och "inget nytt" ska inte rapporteras. Läs aldrig agenternas loggar själv.
+- **Byggaren rapporterar när den kört fast** (en timme utan framsteg på samma problem) i stället för att prova vidare —
+  då avgör orkestreraren om det blir en känd rest i resultatet.
 
 ## Läs först (byggaren och granskaren)
 
