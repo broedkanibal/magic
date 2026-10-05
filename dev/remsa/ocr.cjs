@@ -33,25 +33,39 @@ const GODKANT = 0.6;
 /* Rakt ur index.html (Namn): tvatta, par, likhet, basta. */
 const tvatta = t => String(t || '').toLowerCase().replace(/[’ʼ`]/g, "'").replace(/[^a-z' ]/g, ' ').replace(/\s+/g, ' ').trim();
 const par = t => { const m = new Set(); for (let i = 0; i < t.length - 1; i++) if (t[i] !== ' ' || t[i + 1] !== ' ') m.add(t.slice(i, i + 2)); return m; };
-function likhet(a, b) {
-  const A = par(tvatta(a)), B = par(tvatta(b));
+/* Namnens bokstavspar räknas en gång per namn (märkningen matchar mot Scryfalls ~33 000 namn,
+   dev/remsa/tran/mark.py) — samma tal som förut, bara inte omräknade för varje textrad. */
+const PAR_CACHE = new Map();
+const parFor = t => { let s = PAR_CACHE.get(t); if (!s) { s = par(tvatta(t)); PAR_CACHE.set(t, s); } return s; };
+function likhetPar(A, B) {
   if (!A.size || !B.size) return 0;
   let k = 0; for (const x of A) if (B.has(x)) k++;
   return 2 * k / (A.size + B.size);
 }
-function basta(rad, namn) {
+function likhet(a, b) { return likhetPar(par(tvatta(a)), parFor(b)); }
+/* alias (frivilligt, manifestets "alias"): sträng i leken → namnet eller namnen som svaras, t.ex. en
+   sidas namn "Vantress Visions" → "Virtue of Knowledge // Vantress Visions". Marginalen räknas mot näst
+   bästa ANDRA namn, så att ett kort och dess egen sida inte tar ut varandra; en sida som hör till flera
+   kort ("Fire" → Fire // Ice, Start // Fire) ger alla samma poäng och alltså ingen marginal. Utan alias
+   som förut. */
+function basta(rad, namn, alias) {
+  const A = par(tvatta(rad));
   let b1 = { namn: null, poang: 0 }, b2 = { namn: null, poang: 0 };
+  const ta = (f, p) => {
+    if (p > b1.poang) { if (f !== b1.namn) b2 = b1; b1 = { namn: f, poang: p }; }
+    else if (p > b2.poang && f !== b1.namn) b2 = { namn: f, poang: p };
+  };
   for (const n of namn) {
-    const p = likhet(rad, n);
-    if (p > b1.poang) { b2 = b1; b1 = { namn: n, poang: p }; }
-    else if (p > b2.poang && n !== b1.namn) b2 = { namn: n, poang: p };
+    const p = likhetPar(A, parFor(n)), a = alias && alias[n];
+    if (Array.isArray(a)) for (const f of a) ta(f, p);
+    else ta(a || n, p);
   }
   return { namn: b1.namn, poang: +b1.poang.toFixed(2), marginal: +(b1.poang - b2.poang).toFixed(2), nast: b2.namn };
 }
 
 (async () => {
   const man = JSON.parse(fs.readFileSync(path.join(MAPP, 'manifest.json'), 'utf8'));
-  const lek = man.lek;
+  const lek = man.lek, alias = man.alias || null;
   let remsor = man.remsor; if (BARA) remsor = remsor.filter(r => r.fil.includes(BARA));
   const w = await createWorker('eng', 1, { cachePath: path.join(__dirname, 'node_modules', '.tessdata') });
   await w.setParameters({ tessedit_pageseg_mode: '7' });
@@ -76,7 +90,7 @@ function basta(rad, namn) {
       ms += performance.now() - t0; forsok++;
       /* Som appen: varje rad för sig, bästa raden vinner. */
       for (const rad of text.split('\n').map(x => x.trim()).filter(Boolean)) {
-        const b = basta(rad, lek);
+        const b = basta(rad, lek, alias);
         if (!bast || b.poang > bast.poang) bast = Object.assign(b, { text: rad, steg: r.steg || 0, start: r.start });
       }
       if (bast && bast.poang >= GODKANT) break;

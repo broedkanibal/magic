@@ -70,8 +70,13 @@ def vinkel_ur_lada(w, h, r=KVOT_DET):
     return (lo + hi) / 2
 
 
-def rata(img, lada, remsa):
-    """Remsan UPPRÄTAD: ett snett tappat kort (60–70°) ger en rak låda runt en sned remsa, och lasRemsa
+def rata(img, lada, remsa, med_vinkel=False, kant=None):
+    """med_vinkel=True (märkningen, dev/remsa/tran/mark.py): svaret är (remsan, vridningen i grader som
+    valdes — th eller 180 − th, cv2.getRotationMatrix2D:s led) i stället för bara remsan; None blir (None, None).
+    kant: vridningen given i stället för vald ur bilden — märkningen skär 1080-versionen med samma vridning
+    som 4K-rutan valde, så att båda upplösningarna får exakt samma geometri.
+
+    Remsan UPPRÄTAD: ett snett tappat kort (60–70°) ger en rak låda runt en sned remsa, och lasRemsa
     skär lådan som den är. Vinkelns STORLEK tas ur lådans form (vinkel_ur_lada) — den beror inte på bilden;
     bilden avgör bara LUTNINGEN (stigande eller fallande): strukturtensorn över utsnittet ger de dominerande
     kanternas riktning (kortets ram, titelrutans linjer), och den av de två kandidaterna som ligger närmast
@@ -85,7 +90,7 @@ def rata(img, lada, remsa):
     a0, b0 = max(0, int(cx - d)), max(0, int(cy - d))
     s = img[b0:min(H, int(cy + d)), a0:min(W, int(cx + d))]
     if s.size == 0 or min(s.shape[:2]) < 8:
-        return None
+        return (None, None) if med_vinkel else None
     th = vinkel_ur_lada(w, h)
     t = np.radians(th)
     c, sn = np.cos(t), np.sin(t)
@@ -107,10 +112,11 @@ def rata(img, lada, remsa):
 
     # lutningen (stigande/fallande) ur bilden: båda kandidaterna rätas upp, och den där remsans linjer blir
     # mest vågräta väljs — ett val ur kanterna, inte ur namnmodellen, så det kan inte göra ett fel namn säkrare
-    kand = [th, 180 - th] if 0 < th < 90 else [th]
-    v = max((vrid(k) for k in kand), key=vagrathet)
+    kand = [kant] if kant is not None else [th, 180 - th] if 0 < th < 90 else [th]
+    kant, v = max(((k, vrid(k)) for k in kand), key=lambda kv: vagrathet(kv[1]))
     ut = v[max(0, int(py - lt / 2)):int(py + lt / 2), max(0, int(px - lw / 2)):int(px + lw / 2)]
-    return ut if min(ut.shape[:2]) >= 4 else None
+    ut = ut if min(ut.shape[:2]) >= 4 else None
+    return (ut, (float(kant) if ut is not None else None)) if med_vinkel else ut
 
 
 def main():
