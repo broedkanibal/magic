@@ -8,12 +8,15 @@ dev/material/arbete/markning/scryfall-namn.json:
     {"hamtad": "...", "kalla": "<uri>", "antal": N,
      "namn":  ["Fire // Ice", "Lightning Bolt", ...],          # Scryfalls hela namn, sorterade
      "sidor": {"Fire": ["Fire // Ice", "Start // Fire"], "Ice": ["Fire // Ice"], ...},   # sidans namn → korten (hela namn)
-     "layout": {"Fire // Ice": "split", ...}}
+     "layout": {"Fire // Ice": "split", ...},
+     "tokens": ["Blood", "Soldier", "Treasure", ...]}                # tokens, emblem, framsideskort och deras sidor
 
 Bort: tokens, emblem, art series, vanguard, scheme, planar, phenomenon och Jumpstarts framsideskort
-(layout front_card: "Treasure", "Spirit", "Angels" … — inga spelkort, och de heter som tokens), och digitala kort
-(Alchemy, "A-…": de har samma namn som pappersversionen med ett A- framför, och textläsaren skulle
-aldrig få marginal mot dem). En sida som hör till flera kort, eller heter som ett eget kort, pekar på
+(layout front_card: "Treasure", "Spirit", "Angels" … — inga spelkort, och de heter som tokens), och Alchemy-
+varianterna ("A-…": samma namn som pappersversionen med ett A- framför). Flaggan `digital` filtreras INTE:
+oracle_cards har en representativ tryckning per kort, och för många papperskort är den digital (Black Lotus
+ur vma, Dwarven Ruins ur me2) — 1 843 namn föll bort så. Ett digitalt namn i listan är ofarligt: det blir
+facit bara om Claude läser det och vittne 2 håller med mot Scryfall-bilden. En sida som hör till flera kort, eller heter som ett eget kort, pekar på
 alla — textläsaren (ocr.cjs med alias) får då ingen marginal på den sidan ensam. Körs inte om när
 filen finns (--om tvingar).
 
@@ -28,6 +31,7 @@ UT = os.path.join(UT_MAPP, 'scryfall-namn.json')
 # Som mesa_remsa_tran.py, utan mejladressen (den skickas inte till en extern tjänst utan Jespers ja).
 UA = {'User-Agent': 'mesa-markning/0.1 (dev tools)', 'Accept': 'application/json'}
 BORT = {'token', 'double_faced_token', 'emblem', 'art_series', 'vanguard', 'scheme', 'planar', 'phenomenon', 'front_card'}
+TOKENLAYOUT = {'token', 'double_faced_token', 'emblem', 'front_card'}
 
 
 def hamta(url, tries=4):
@@ -56,13 +60,19 @@ def main():
     text = d.decode('utf-8')
     kort = [json.loads(r) for r in text.splitlines() if r.strip()] if 'jsonl' in uri else json.loads(text)
     namn, layout, sidor = set(), {}, {}
-    bort = {'layout': 0, 'digital': 0}
+    bort = {'layout': 0, 'alchemy': 0}
+    tokens = set()
     for c in kort:
         if c.get('layout') in BORT:
             bort['layout'] += 1
+            if c.get('layout') in TOKENLAYOUT:
+                # tokennamnen ("Blood", "Treasure", "Soldier"): mark.py ger dem aldrig ett kortnamn, inte heller
+                # via ett korts sida (Flesh // Blood) — granskningen av e374112
+                tokens.add(c['name'])
+                tokens.update(f['name'] for f in (c.get('card_faces') or []) if f.get('name'))
             continue
-        if c.get('digital') or c['name'].startswith('A-'):
-            bort['digital'] += 1
+        if c['name'].startswith('A-'):   # Alchemy-varianten; flaggan digital filtreras inte (se ovan)
+            bort['alchemy'] += 1
             continue
         namn.add(c['name'])
         layout[c['name']] = c.get('layout')
@@ -74,9 +84,9 @@ def main():
     sidor = {s: sorted(n | ({s} if s in namn else set())) for s, n in sidor.items()}
     os.makedirs(UT_MAPP, exist_ok=True)
     ut = {'hamtad': time.strftime('%Y-%m-%d %H:%M'), 'kalla': uri, 'antal': len(namn), 'bort': bort,
-          'namn': sorted(namn), 'sidor': dict(sorted(sidor.items())), 'layout': layout}
+          'namn': sorted(namn), 'sidor': dict(sorted(sidor.items())), 'layout': layout, 'tokens': sorted(tokens)}
     json.dump(ut, open(UT, 'w', encoding='utf-8'), ensure_ascii=False)
-    print(f'{len(namn)} namn, {len(sidor)} sidnamn (bort: {bort}) → {os.path.relpath(UT, ROT)}')
+    print(f'{len(namn)} namn, {len(sidor)} sidnamn, {len(tokens)} tokennamn (bort: {bort}) → {os.path.relpath(UT, ROT)}')
 
 
 if __name__ == '__main__':
