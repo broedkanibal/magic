@@ -1010,6 +1010,25 @@ body.tomhand .kolmark{display:none}
 .lekmeny button span{display:flex;flex-direction:column;gap:3px}
 .lekmeny button b{font:600 13px/1.2 var(--sans);color:var(--txt)}
 .lekmeny button em{font:12px/1.3 var(--sans);font-style:normal;color:var(--dim)}
+/* Graveyard-frågan på mattan (MES-334 steg 4, designytans sida 5, tavla 5–6): ovanför högen, i skärmens
+   storlek oavsett mattans zoom (--matz, matSkriv). */
+.gravfraga,.gravmeny{position:absolute;z-index:50;transform:translate(-50%,-100%) scale(calc(1 / var(--matz,1)));transform-origin:50% 100%;
+  background:#0b1017;border:1px solid #3a4658;box-shadow:0 18px 40px -12px #000f}
+.gravfraga{display:flex;align-items:center;gap:14px;padding:9px 9px 9px 16px;border-radius:12px;font:600 14px/1 var(--sans);color:var(--txt);white-space:nowrap}
+.gravfraga .knappar{display:flex;gap:6px}
+.gravfraga button{height:30px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg3);color:var(--txt);font:600 12.5px/1 var(--sans);cursor:pointer}
+.gravfraga button.ja{background:#e8b33a;border-color:#e8b33a;color:#20160a}
+.gravfraga button:focus-visible,.gravmeny button:focus-visible{outline:2px solid #8fa8ff;outline-offset:2px}
+.gravmeny{width:250px;padding:6px;border-radius:11px}
+.gravmeny .rub{display:block;padding:7px 9px 8px;font:600 9.5px/1 var(--sans);letter-spacing:.9px;text-transform:uppercase;color:var(--dim2)}
+.gravmeny button{display:flex;align-items:flex-start;gap:10px;width:100%;padding:8px 9px;border-radius:7px;text-align:left;cursor:pointer}
+.gravmeny button:hover{background:var(--bg3)}
+.gravmeny button i{flex:none;width:10px;height:10px;margin-top:3px;border-radius:3px}
+.gravmeny button span{display:flex;flex-direction:column;gap:3px}
+.gravmeny button b{font:600 13px/1.2 var(--sans);color:var(--txt)}
+.gravmeny button em{font:12px/1.3 var(--sans);font-style:normal;color:var(--dim)}
+.gravmeny .perm i{background:#e7ecf4}
+.gravmeny .ign i{background:transparent;border:1.5px dashed #66748a}
 /* Nedvända kort i bordets sleeves (bordets färg på brädet, --s1…): bilden byts mot sleeven. */
 .card.bak > .lekslv{display:none}
 .harslv .card.bak > .lekslv{display:block}
@@ -8554,7 +8573,8 @@ function renderGrid(force) {
     + '·' + (paMattan(c) ? matSlag(c) : zonAv(c)) + '·' + (c.cts || []).map(ctLabel).join(',')).join('|')
     + '/' + platser.map(pl => pl.spar + pl.slag + (pl.namn || '') + (platsTappad(pl) ? 'T' : '') + (pl.spar === platsRadSpar ? 'R' + radKort() : '')).join(',') + '/' + p.id + (redigerbar() ? '' : 'L')
     + '/' + matLage.lyftN + ',' + matLage.nyN + '/' + (ark ? (ark.cid || ark.pend) : '')
-    + '/' + lekSig(p) + '/' + lekFargSig(slvAv(p));   // leken bland korten och bordets sleeves (MES-334 steg 3)
+    + '/' + lekSig(p) + '/' + lekFargSig(slvAv(p))   // leken bland korten och bordets sleeves (MES-334 steg 3)
+    + '/' + gravFragaSig(p);   // graveyard-frågan på mitt bord (MES-334 steg 4)
   const lagen = cards.map(c => c.x + ',' + c.y + ',' + c.z).join('|')
     + '/' + [...platsPos].map(([k, q]) => k + ':' + q.x + ',' + q.y).join(',');
   const sig = strukt + '#' + lagen;
@@ -8614,6 +8634,7 @@ function renderGrid(force) {
   /* Leken bland korten och högarna som inte är leken (MES-334 steg 3): poster med egna nycklar, som glider —
      först i ordningen, så att ett kort med samma z-index som ligger på leken ritas ovanpå den. */
   poster.unshift(...lekPoster(p, false));
+  poster.push(...gravPoster(p));   // "Is this your graveyard?" ovanför högen, sist så att den ligger överst (MES-334 steg 4)
   lekSlvSatt(gridEl, slvAv(p));   // nedvända kort i bordets sleeves — färgen som raden bär, så att alla ser samma
   matSynk(gridEl, poster, { animera });
 
@@ -8728,6 +8749,7 @@ function matSkriv(p, vy, glid) {
   const v = vy || matVy(p);
   gridEl.style.width = v.board.w + 'px';
   gridEl.style.height = v.board.h + 'px';
+  gridEl.style.setProperty('--matz', String(+v.z.toFixed(4)));   // det som behåller sin storlek på skärmen (graveyard-frågan, högarnas brickor) skalar med 1/--matz
   matBradeSkriv(gridEl, `translate(${Math.round(v.pan.x)}px,${Math.round(v.pan.y)}px) scale(${v.z})`,
     !!glid && v.vp.riktig && !gridEl.classList.contains('glider') && !gridEl.classList.contains('bordglid'));
   gridWrap.classList.toggle('inzoomad', v.z > v.fit + 0.005);
@@ -9133,6 +9155,96 @@ gridEl.addEventListener('keydown', ev => {
   const h = ev.target.closest && ev.target.closest('[data-lekhog="1"]');
   if (h && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); oppnaLekMeny(h); }
 }, true);
+
+/* ══ Graveyard ur spelet: frågan på mattan (MES-334 steg 4) ═════════════
+   Designytans sida 5, tavla 5 och 6. Avstämningen (gravFragaSteg) avgör NÄR
+   Mesa frågar och vilka kort frågan gäller; här ritas frågan och svaren tas
+   emot. "Is this your graveyard?  Yes · No" står ovanför högen tills man
+   svarar och blockerar inget. Yes: korten blir graveyard, och telefonen får
+   högens ruta (sparaGravZon), så att högvakten (MES-85) gäller mot högen där
+   den ligger. No: menyn M1 i samma slags ruta — Permanent (korten ligger
+   kvar i spel) eller Ignore this spot (korten tas bort från mattan och Mesa
+   följer inte platsen). Bara spelaren vars bord det är ser frågan: den ritas
+   bara på mitt eget bord, och läget delas inte. */
+function gravFlodeAktivt() {
+  const mig = minSpelare();
+  return !!spelLage && !!mig && kamSpeglar(mig) && !kamGravRad && !oppOppen && spelPolicy(mig).saknas;
+}
+let gravMenyOppen = false;   // No är tryckt: menyn M1 står i frågans ställe
+/* Frågan som ska ritas på mitt bord, med högens kort (de som ligger kvar på mattan), eller null. */
+function gravFragaNu(p) {
+  if (!p || !arMitt(p) || !gravFlodeAktivt()) return null;
+  const q = gravLageNu().fraga; if (!q) return null;
+  const kort = q.cids.map(cid => p.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c) && c.x != null && c.y != null);
+  return kort.length ? { q, kort } : null;
+}
+/* Högens ruta på mattan (brädkoordinater): korten, ett tappat på tvären. */
+function gravHogRam(kort) {
+  const r = kort.map(c => { const s = matStorlek(c), w = c.tapped ? s.h : s.w, h = c.tapped ? s.w : s.h; return { x0: c.x + s.w / 2 - w / 2, y0: c.y + s.h / 2 - h / 2, x1: c.x + s.w / 2 + w / 2, y1: c.y + s.h / 2 + h / 2 }; });
+  return { x0: Math.min(...r.map(q => q.x0)), y0: Math.min(...r.map(q => q.y0)), x1: Math.max(...r.map(q => q.x1)), y1: Math.max(...r.map(q => q.y1)) };
+}
+function gravFragaSig(p) {
+  const f = gravFragaNu(p);
+  return f ? f.q.id + ':' + f.kort.map(c => c.cid).join(',') + (gravMenyOppen ? 'M' : '') : '';
+}
+/* Frågan (eller menyn) som en post i matSynk, ovanför högens mitt. */
+function gravPoster(p) {
+  const f = gravFragaNu(p);
+  if (!f) { gravMenyOppen = false; return []; }
+  const r = gravHogRam(f.kort), x = Math.round((r.x0 + r.x1) / 2), y = Math.round(r.y0 - 14);
+  const html = gravMenyOppen
+    ? `<div class="gravmeny" role="menu" aria-label="Not your graveyard. What is it?" style="left:${x}px;top:${y}px"><span class="rub">Not your graveyard. What is it?</span>`
+      + '<button type="button" role="menuitem" class="perm" data-gravsvar="perm"><i></i><span><b>Permanent</b><em>Back on the table where it lies</em></span></button>'
+      + '<button type="button" role="menuitem" class="ign" data-gravsvar="ign"><i></i><span><b>Ignore this spot</b><em>Mesa stops following this pile</em></span></button></div>'
+    : `<div class="gravfraga" role="group" aria-label="Is this your graveyard?" style="left:${x}px;top:${y}px">Is this your graveyard?`
+      + '<span class="knappar"><button type="button" class="ja" data-gravsvar="ja">Yes</button><button type="button" data-gravsvar="nej">No</button></span></div>';
+  return [{ nyckel: 'h:gravfraga', html }];
+}
+/* Ett kort till graveyard utan flygning (Yes): som flyttaTill — överst i högen, auror följer, en token upphör,
+   och ett kort som ligger kvar fysiskt (spåret lever) binder om tyst i sin zon (fysisk). */
+function gravLaggPa(cards, e) {
+  const i = cards.indexOf(e); if (i < 0) return;
+  e.zon = ZON_GRAV; delete e.attachedTo;
+  if (e.spar != null) { if (e.borta) { delete e.spar; delete e.borta; } else e.fysisk = true; }
+  slappLyft(e);
+  aurorFoljer(cards, e);
+  cards.splice(cards.indexOf(e), 1);
+  if (e.tok) return;
+  const g0 = cards.findIndex(c => zonAv(c) === ZON_GRAV);
+  cards.splice(g0 >= 0 ? g0 : cards.length, 0, e);
+}
+/* Högens ruta i bilden för telefonen (rad i camera_setups, satGrav): korten med lite luft, inom bilden. */
+function gravRutaUrKam(k) {
+  const w = k.w * 1.1, h = k.h * 1.1, x = Math.max(0, k.x - w / 2), y = Math.max(0, k.y - h / 2);
+  const r = v => +v.toFixed(3);
+  return { x: r(x), y: r(y), w: r(Math.min(1, k.x + w / 2) - x), h: r(Math.min(1, k.y + h / 2) - y) };
+}
+function gravSvar(svar) {
+  const mig = minSpelare(), L = gravLageNu(), q = L.fraga;
+  if (!mig || !q || !redigerbar()) return;
+  if (svar === 'nej') { gravMenyOppen = true; renderGrid(true); return; }
+  const kort = q.cids.map(cid => mig.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c));
+  if (svar === 'ja') {
+    for (const c of kort) gravLaggPa(mig.cards, c);   // understa först: det sista överst
+    state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));
+    sparaGravZon(gravRutaUrKam(q.kam));
+  } else if (svar === 'perm') {
+    if (!q.igen) L.nej.push({ kam: q.kam, typ: 'perm', igen: 0 });   // en andra fråga på samma plats har redan sin plats (igen = 1)
+  } else if (svar === 'ign') {
+    L.nej = L.nej.filter(s => !(s.typ === 'perm' && gravMittI(kamRekt(q.kam), kamRekt(s.kam))));
+    L.nej.push({ kam: Object.assign({}, q.kam, { w: q.kam.w * 1.1, h: q.kam.h * 1.1 }), typ: 'ign' });
+    for (const c of kort) { if (c.spar != null) borttagna.add(c.spar); mig.cards.splice(mig.cards.indexOf(c), 1); }
+    state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));
+  } else return;
+  L.fraga = null; gravMenyOppen = false; gravSpara();
+  save(); renderAll(true);
+}
+gridEl.addEventListener('click', ev => {
+  const b = ev.target.closest('[data-gravsvar]');
+  if (!b) return;
+  ev.stopPropagation();
+  gravSvar(b.dataset.gravsvar);
+});
 /* Vilken hög pekaren är över under ett drag (GRAVEYARD_ANIMATION.md §2).
    Träffytorna är större än platserna och asymmetriska: man kommer in från
    bordet, ovanifrån — och till library, som står längst till höger, också
@@ -9881,7 +9993,7 @@ function satMatVerktyg(l) {
   gridWrap.classList.toggle('panlage', l === 'pan');
   const p = player(); if (p) matSkriv(p);
 }
-const MATT_UI = '.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark';
+const MATT_UI = '.mattachrome,.lyftbanner,.pill,.matmeny,.ctrpanel,.kortark,.gravfraga,.gravmeny';
 let matPan = null, matPanSvalg = false;
 /* ⌃ (eller ⌥) + tryck på ett kort i en manahög är uttagningen ur högen
    (MES-206). En del webbläsare på Mac skickar ⌃-klicket som högerknappen —
@@ -30465,6 +30577,138 @@ function autoSumAvsluta(spar, mig, nu) {
   return autoSumSammanfatta(autoSum, spar, mig, nu);
 }
 
+/* ── Graveyard ur spelet (MES-334 sida 5, steg 4) ─────────────────────
+   Uppstartens graveyard-plats försvinner (steg 6). I stället frågar Mesa
+   "Is this your graveyard?" ovanför en hög på mattan
+   (dev/plan/hogarna-principer.md, Byggunderlaget, och designytans sida 5,
+   tavla 5–6), när
+     - sidoregeln: det FÖRSTA kortet som läggs på andra sidan om leken från
+       landen, i lekens rad. Del A (mått 3): med bara x-led gav regeln 3 och 2
+       fel frågor i partierna, med lekens rad 0 och 0. Kräver att leken ligger
+       (steg 3) och minst ett land, alla på samma sida. Gäller en gång per
+       parti — efter ett No frågar den inte igen, reserven tar över.
+     - reserven: ett kort läggs RAKT ovanpå ett annat — det täcker minst
+       GRAV_OVANPA av kortet under. Ett fäst kort sticker ut 10–25 % så att
+       titelraden syns (mått 4), ett kort omlott vid kanten mer. Inte land på
+       land, inte ett bifogat kort. Kortet under är graveyards första kort.
+   Inget är graveyard före Yes: korten ligger i spel som vanligt. Kort som
+   läggs på högen medan frågan står hör till samma fråga. Svaren — Yes, och
+   No med menyn M1: Permanent eller Ignore this spot — ligger utanför skivan
+   (gravSvar). Efter Permanent frågar Mesa en gång till om ett kort läggs
+   ovanpå på samma plats; efter Ignore this spot aldrig, och spåren där följs
+   inte (gravIgnorerad, överst i avstamBord).
+   Bara på mitt eget bord i Follow the table med telefonen ansluten och utan
+   graveyard-ruta (gravFlodeAktivt, utanför skivan; utan den — i
+   dev/dubbletter.cjs — körs inget här). Läget är spelarens eget (frågan syns
+   bara för ägaren) och ligger i localStorage per spel (sthv.grav.v1.<spel>).
+   Kamerans lägen (k.kam) är bildandelar med mitten i x, y; sidan och raden
+   räknas i spelarens led (kamVridet: kamVand och kamSpegel, som
+   kamTillMatta). */
+const GRAV_OVANPA = 0.9;      // kortet ovanpå täcker minst så mycket av kortet under
+const GRAV_NY_MS = 15000;     // ett kort prövas bara som nytt: så länge efter att kameran lade ut det
+let gravLage = null;          // { spel, fraga: { id, cids (understa först), kam, orsak 'sida'|'ovanpa', igen, nar } | null, nej: [{ kam, typ 'perm'|'ign', igen }], sida }
+let gravSedda = new Set();    // kort som prövats mot reglerna, en gång per kort
+function gravLageNu() {
+  const id = typeof spelLage !== 'undefined' && spelLage ? spelLage.id : '';
+  if (!gravLage || gravLage.spel !== id) {
+    let s = null; try { s = LS.get('sthv.grav.v1.' + id, null); } catch (e) {}
+    gravLage = Object.assign({ fraga: null, nej: [], sida: false }, s || {}, { spel: id });
+    gravSedda = new Set();
+  }
+  return gravLage;
+}
+function gravSpara() { if (gravLage) try { LS.set('sthv.grav.v1.' + gravLage.spel, gravLage); } catch (e) {} }
+const kamRekt = k => ({ x: k.x - k.w / 2, y: k.y - k.h / 2, w: k.w, h: k.h });
+function kamVridet(k) {
+  let rx = (kamSpegel ? 1 - k.x : k.x) - 0.5, ry = k.y - 0.5, w = k.w, h = k.h;
+  const r = ((kamVand % 360) + 360) % 360;
+  if (r === 90) [rx, ry] = [-ry, rx]; else if (r === 180) [rx, ry] = [-rx, -ry]; else if (r === 270) [rx, ry] = [ry, -rx];
+  if (r === 90 || r === 270) [w, h] = [h, w];
+  return { x: rx, y: ry, w, h };
+}
+/* Hur mycket av a som ligger under b (0–1, andel av a:s yta). */
+function gravTackt(a, b) {
+  const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return iw <= 0 || ih <= 0 ? 0 : iw * ih / Math.max(1e-9, a.w * a.h);
+}
+const gravMittI = (a, r) => { const x = a.x + a.w / 2, y = a.y + a.h / 2; return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; };
+/* Lådan runt flera kamera-lägen, som ett läge (mitten, w, h). */
+function gravKamOm(kams) {
+  const r = kams.map(kamRekt), x0 = Math.min(...r.map(q => q.x)), y0 = Math.min(...r.map(q => q.y)), x1 = Math.max(...r.map(q => q.x + q.w)), y1 = Math.max(...r.map(q => q.y + q.h));
+  return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 };
+}
+const gravArLand = c => zonAv(c) === ZON_MANA;
+/* Ett spår mitt i en plats där spelaren sa Ignore this spot: Mesa följer det inte. */
+function gravIgnorerad(t) {
+  if (t.w == null || t.h == null || !spelLage) return false;
+  const L = gravLageNu();
+  return L.nej.some(s => s.typ === 'ign' && gravMittI(t, kamRekt(s.kam)));
+}
+/* Ett steg per bord, efter att korten bundits och skapats. true = läget ändrades. */
+function gravFragaSteg(mig, nu, synliga) {
+  if (!(typeof gravFlodeAktivt === 'function' && gravFlodeAktivt())) return false;
+  const L = gravLageNu();
+  let andrat = false;
+  const pa = c => zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil' && !!c.kam;
+  const kort = cid => mig.cards.find(c => c.cid === cid);
+  const fraga = (cids, orsak, igen) => {
+    L.fraga = { id: nu, cids, kam: gravKamOm(cids.map(id => kort(id).kam)), orsak, igen: !!igen, nar: nu };
+    andrat = true;
+  };
+  /* Frågan gäller kort som ligger kvar på mattan; plockas alla upp finns ingen hög att fråga om. */
+  if (L.fraga) {
+    const kvar = L.fraga.cids.filter(id => { const c = kort(id); return c && pa(c); });
+    if (kvar.length !== L.fraga.cids.length) { andrat = true; L.fraga = kvar.length ? Object.assign(L.fraga, { cids: kvar, kam: gravKamOm(kvar.map(id => kort(id).kam)) }) : null; }
+  }
+  /* Kortet under ett nytt kort: det täcks till minst GRAV_OVANPA, låg där före, inte land på land, inget bifogat. */
+  const under = c => {
+    if (c.attachedTo || mig.cards.some(x => x.attachedTo === c.cid)) return null;
+    const r = kamRekt(c.kam);
+    let bast = null, bv = GRAV_OVANPA;
+    for (const a of mig.cards) {
+      if (a === c || !pa(a) || a.attachedTo || mig.cards.some(x => x.attachedTo === a.cid) || (gravArLand(a) && gravArLand(c))) continue;
+      if ((a.ny || 0) >= (c.ny || 0)) continue;
+      const v = gravTackt(kamRekt(a.kam), r);
+      if (v >= bv) { bv = v; bast = a; }
+    }
+    return bast;
+  };
+  /* Sidoregeln: andra sidan om leken från landen, i lekens rad. */
+  const sidan = c => {
+    const h = mig.bibHog;
+    if (gravArLand(c) || !h || !h.kam || h.upp) return false;
+    const land = mig.cards.filter(a => a !== c && pa(a) && gravArLand(a));
+    if (!land.length) return false;
+    const lv = kamVridet(h.kam), cv = kamVridet(c.kam);
+    const sidor = new Set(land.map(a => Math.sign(kamVridet(a.kam).x - lv.x)));
+    if (sidor.size !== 1 || sidor.has(0)) return false;
+    const landSida = [...sidor][0];
+    return Math.sign(cv.x - lv.x) === -landSida && Math.abs(cv.x - lv.x) > lv.w / 2 && Math.abs(cv.y - lv.y) <= lv.h / 2;
+  };
+  for (const c of mig.cards) {
+    if (gravSedda.has(c.cid) || !pa(c) || !c.name || c.spar == null || !synliga.has(c.spar)) continue;
+    gravSedda.add(c.cid);
+    if (!(c.ny && nu - c.ny < GRAV_NY_MS)) continue;   // inte lagt nu (låg där när kameran kom, en omladdning): ingen fråga
+    if (L.fraga) {
+      /* Medan frågan står: ett kort på högen hör till den — mitten inom högens ruta. */
+      if (gravMittI(kamRekt(c.kam), kamRekt(L.fraga.kam))) { L.fraga.cids.push(c.cid); L.fraga.kam = gravKamOm(L.fraga.cids.map(id => kort(id).kam)); andrat = true; }
+      continue;
+    }
+    const plats = L.nej.find(s => gravMittI(kamRekt(c.kam), kamRekt(s.kam)));
+    if (plats) {
+      /* Permanent: en gång till, när ett kort läggs ovanpå. Ignore this spot: aldrig. */
+      const a = plats.typ === 'perm' && !plats.igen ? under(c) : null;
+      if (a) { plats.igen = 1; fraga(mig.cards.filter(x => x !== c && pa(x) && gravMittI(kamRekt(x.kam), kamRekt(plats.kam))).map(x => x.cid).concat(c.cid), 'ovanpa', true); }
+      continue;
+    }
+    if (!L.sida && sidan(c)) { L.sida = true; fraga([c.cid], 'sida'); continue; }
+    const a = under(c);
+    if (a) fraga([a.cid, c.cid], 'ovanpa');
+  }
+  if (andrat) gravSpara();
+  return andrat;
+}
+
 function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   const mig = minSpelare(); if (!mig || !spelLage) return;
   senasteRa = spar;   // telefonens bord som det kom — det nåd-timern spelar upp
@@ -30475,6 +30719,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      Det räknas inte, skapar inget, och står bara kvar i spårlistan så att
      telefonen slipper föda om det varje ruta. */
   spar = spar.filter(t => t.tillstand !== 'skrap');
+  /* Ignore this spot (MES-334 steg 4): Mesa följer inte det som ligger där. */
+  spar = spar.filter(t => !gravIgnorerad(t));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
   if (nollstall) { glomSpar(); gravHandelser = []; gravSistaN = null; gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
@@ -30907,6 +31153,8 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      bort överst — så dess post tas bort här också. */
   const pendKvar = mig.pending.filter(q => q.spar == null || (synliga.has(q.spar) && !bunden(q.spar) && (q.overTak || (!iFysiskt.has(q.spar) && !sammaSomKlart.has(q.spar)))));
   if (pendKvar.length !== mig.pending.length) { mig.pending = pendKvar; andrat = true; }
+  /* Graveyard ur spelet (MES-334 steg 4): sidoregeln och kort ovanpå kort ger frågan "Is this your graveyard?". */
+  if (gravFragaSteg(mig, nu, synliga)) andrat = true;
   if (andrat) { save(); renderAll(true); resolveAll(); }
   /* Nåden och väntan ska löpa ut även om telefonen är tyst — och när de gör
      det, inte vid nästa bord: timern ställs på det kort vars tid tar slut

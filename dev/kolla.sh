@@ -6,7 +6,8 @@
 # datorn (MES-322), slutet av lekfotot (MES-323), datorns avstämning,
 # dubblettmåttet på videofall 07, mattans element genom en uppdatering
 # (MES-334 steg 2, huvudlös Chrome, några sekunder), leken bland korten
-# (MES-334 steg 3, samma sätt) och kamerabänken.
+# (MES-334 steg 3, samma sätt), graveyard-frågan och högarna (MES-334 steg 4–5,
+# samma sätt) och kamerabänken.
 set -e
 cd "$(dirname "$0")/.."
 # Varje steg går genom steg(): faller det skrivs vilket steg det var, och
@@ -48,4 +49,5 @@ echo "dubbletter --fall 07: kördes"
 steg delmarginal node dev/delmarginal.cjs
 steg mattan node dev/mattan.cjs
 steg leken node dev/leken.cjs
+steg hogarna node dev/hogarna.cjs
 steg kamerabank node dev/kamerabank.cjs
