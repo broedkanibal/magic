@@ -126,16 +126,44 @@ började stänga ner. En lista som avgör en släppgräns ska ligga i repot.
 Och: **ett tal som ingen någonsin kontrollräknat för hand är inte mätt** —
 det är bara utskrivet.
 
+## Mätbudgeten (Jesper 2026-10-04 och 2026-10-05)
+
+Golden och bänken körs inte "för säkerhets skull". Förra gången tog sida 5
+steg 0–3 ~20 timmar och ~10 M agent-tokens, mest i granskningsloopar och
+golden-körningar i kö.
+
+| När | Vad som körs |
+|---|---|
+| Byggaren itererar | de riktade bänkproven: `dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/hogarna.cjs` (sekunder) — inte golden |
+| Ett steg är klart | golden **en gång**, lokalt + `--utan-leken`, och bara om telefonens/kamerans kod ändrats. Steg som bara rör datorsidan kör ingen golden |
+| En rättelse efter granskning | golden bara på de fall rättelsen kan påverka (`--fall NN`) |
+| Granskaren | läser diffen och funktionerna den rör, inte hela `index.html`; riktade prov, ingen golden utom ett fall när en misstanke ska prövas; tak ~1 h |
+| Ihopslagningen | `dev/kolla.sh` + `--ai` en gång. **Ingen lokal golden-omkörning** när grenen bygger på dagens main och koden inte ändrats efter byggarens mätning — det sammanslagna läget är då exakt det som mättes |
+| `--ljus alla` (~2,5 h) | bara när ändringen rör ljus, exponering eller bilden före läsningen |
+
+- **Granskningen:** blockerande/viktiga fynd → rättelse → en ny granskare
+  läser bara rättelsen. Små fynd → rättelse och en snabb koll. Högst två varv.
+- **En varm profil:** en `TMPDIR` där poolen (168) och bildmodellen redan
+  finns, så att ingen uppvärmningskörning behöver kastas, och före/efter
+  jämförs i samma profil. Ny profil bara när en annan bildmodell mäts.
+  Läs raden `Poolen:` ändå.
+- **"⏱ tak" på ett fall** gör körningen ogiltig: kör om bara det fallet,
+  utan last på datorn.
+- **Byggaren rapporterar** efter ungefär en timme utan framsteg på samma
+  problem, i stället för att prova vidare.
+
 ## Så slås en gren ihop (orkestreraren, sekventiellt)
 
 1. `git fetch`; utgå från en ren worktree på `origin/main`.
 2. `git merge --no-ff <gren>`. Konflikt i `dev/golden/historik.md` är
    normal (båda lägger en rad överst): behåll båda, nyast överst.
 3. `sh dev/kolla.sh` — allt grönt, bänken `150 OK` eller fler.
-4. Golden på egen port (`lsof` först, `pgrep` tomma), egen `TMPDIR`; första
-   körningen i ny profil kastas. Jämför mot en körning av `origin/main`
-   **på samma dator, port och profil** — inte bara mot `senaste.json`
-   (se MES-249: baslinjen kan vara fel).
+4. Golden enligt *Mätbudgeten*: ingen lokal omkörning när grenen bygger
+   på dagens main och koden inte ändrats efter byggarens mätning — annars
+   de berörda fallen på egen port (`lsof` först, `pgrep` tomma) i den varma
+   profilen. Jämför mot en körning av `origin/main` **på samma dator, port
+   och profil** — inte bara mot `senaste.json` (se MES-249: baslinjen kan
+   vara fel). `--ai` en gång.
 5. Håller kriterierna: `git push origin HEAD:main`, verifiera med
    `/driftkoll`-kommandona (sidan ute ska vara identisk med filen).
 6. Rad i `historik.md` om den saknas, kommentar på issuen (för en
