@@ -101,7 +101,7 @@ const PROV = async steg => {
   /* Ett bord från telefonen, en stund efter det förra (kortets ny-stämpel avgör vem som ligger under). */
   const stam = async lista => { await vanta(15); avstamBord(lista, false); };
   /* Brädets zoom glider efter en omritning (matSynk, MES-334 steg 2): mät när lekens ruta stått still. */
-  const stilla = async () => { const r = () => { const e = gridEl.querySelector('.lekhog'); return e ? e.getBoundingClientRect().width : 0; }; let a = r(); for (let i = 0; i < 40; i++) { await vanta(100); const b = r(); if (Math.abs(a - b) < 0.05) return; a = b; } };
+  const stilla = async () => { const r = () => { const e = gridEl.querySelector('.lekhog'); return e ? e.getBoundingClientRect().width : 0; }; await vanta(450); let a = r(); for (let i = 0; i < 40; i++) { await vanta(150); const b = r(); if (Math.abs(a - b) < 0.05) return; a = b; } };   // glidningen hinner börja (en ruta i en dold flik) innan stillheten mäts
   if (steg === 0) {
     visaVy('app');
     const p = player();
@@ -247,6 +247,41 @@ const PROV = async steg => {
     ok('Use camera to add cards: steg 4 står kvar (Card size)', oppFor().klar !== true && oppOppen && !$('#opp4').hidden && /Card size/.test($('#oppDelar').textContent), $('#oppDelar').textContent.slice(0, 60));
     oppSatt({ klar: true }); p.lage = 'bord'; renderMode();
   }
+  if (steg === 9) {
+    /* Granskningen av sida 5, V4: telefonens graveyard-ruta efter Yes ur korten som de ligger nu, oberoende av
+       riktningen — en kvadrat i bildpunkter, längsta sidan × 1,15. Ett TAPPAT första kort: nästa kort, stående
+       och förskjutet 0,45 kortlängder, har sin mitt i rutan; grannkort intill (stående till höger, stående
+       under, ett mellanrum på 0,01) har det inte. Bildens proportioner: kamBildAsp() (0,75 här). */
+    kamAnsluten = true; prefs.autoLage = true; kamGrund = 90; oppSatt({ klar: true }); mig().lage = 'bord';
+    mig().cards = []; nollGrav(); tagEmotLek(lek('nere', 1, R1)); renderAll(true);
+    const A = kamBildAsp(), L = 0.22, K = 0.1;                 // ett kort: K bildbredder brett, L bildhöjder högt
+    const tappat = (id, namn, cx, cy) => Object.assign(spar(id, namn, cx, cy), { x: cx - L * A / 2, y: cy - K / A / 2, w: L * A, h: K / A, tappad: true });
+    await stam([tappat(51, 'Ukud Cobra', 0.75, 0.3)]);
+    await stam([tappat(52, 'Pacifism', 0.751, 0.301)]);
+    W.__kal = [];
+    fragaEl().querySelector('[data-gravsvar="ja"]').click();
+    const r = (W.__kal[W.__kal.length - 1] || {}).grav, inne = (x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+    const nasta = inne(0.75, 0.3 + 0.45 * L), hoger = inne(0.75 + L * A / 2 + 0.01 + K / 2, 0.3), under = inne(0.75, 0.3 + K / A / 2 + 0.01 + L / 2);
+    ok('V4 · Yes på ett tappat första kort: rutan är kvadratisk i bildpunkter (längsta sidan × 1,15)', !!r && Math.abs(r.w - r.h * A) < 0.004 && Math.abs(r.w - L * A * 1.15) < 0.01, JSON.stringify(r));
+    ok('V4 · nästa kort, stående och 0,45 kortlängder ner, hamnar i rutan; grannkorten intill gör det inte', nasta && !hoger && !under, `nästa ${nasta}, stående till höger ${hoger}, stående under ${under}`);
+    /* V3: telefonens grundläge skrivs till raden när det skiljer mer än en grad och stått kvar i 2 s — bara
+       tal (en omstartad telefon säger null innan den läst raden). Saknas grundläget med kort på bordet säger
+       statusfältet till med kameravyns text och knapp. */
+    W.__kal = []; kamGrundRad = null; kamGrund = 90; grundTillRad();
+    const fore = W.__kal.length; await vanta(2300);
+    const forsta = W.__kal.map(k => k.grund);
+    kamGrund = 91; grundTillRad(); await vanta(2300);
+    const knuff = W.__kal.length;
+    kamGrund = null; grundTillRad(); await vanta(2300);
+    const efterNull = W.__kal.length;
+    ok('V3 · telefonens grundläge till raden efter 2 s; en grad är inget byte; null skrivs inte', fore === 0 && forsta.join() === '90' && kamGrundRad === 90 && knuff === 1 && efterNull === 1, `före ${fore}, sedan ${forsta}, knuff ${knuff}, efter null ${efterNull}, raden ${kamGrundRad}`);
+    await stam([spar(53, 'Serra Angel', 0.3, 0.3)]);
+    grundSaknasFran = Date.now() - 11000; renderAutoBar();
+    const not = $('#autoNot');
+    ok('V3 · statusfältet när grundläget saknas: kameravyns rad och Save', !not.hidden && /Untapped angle not saved — lay a card untapped and press Save/.test(not.textContent) && !!not.querySelector('[data-mode="grund-spara"]'), not.textContent);
+    kamGrund = 90; renderAutoBar();
+    ok('V3 · med ett grundläge: ingen rad', not.hidden || !/Untapped angle/.test(not.textContent));
+  }
   if (steg === 7) {
     /* Utan kamera: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
     kamAnsluten = false; kamGravRad = null; mig().gravHog = null; mig().bibHog = null; kamLek = null; renderAll(true); renderBibHog();
@@ -276,7 +311,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten'];
+    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));

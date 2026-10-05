@@ -165,9 +165,12 @@ const PROV = async steg => {
     $('#zonPerm .lekmeny [data-lekmeny="inte"]').click();
     const s = W.__sant.find(x => x.typ === 'lekinte');
     ok('Not my library: telefonen får lekinte med högens id', !!s && s.id === 1, JSON.stringify(W.__sant));
-    /* Granskningen runda 2, fynd 4: före första kortet släpper telefonen lekens grundläge — raden skrivs utan det, så att en omladdning inte ger tillbaka det. */
-    ok('Not my library före första kortet: raden skrivs utan grundläge, och kamGrundRad nollas', W.__kal.length === 1 && W.__kal[0].grund === null && kamGrundRad === null, JSON.stringify(W.__kal));
-    kamGrundRad = rad3;
+    /* Granskningen runda 2, fynd 4: före första kortet släpper telefonen lekens grundläge — raden skrivs utan det, så att en omladdning inte ger tillbaka det.
+       Granskningen av sida 5, L2: först när telefonens nästa bord säger att grundläget släpptes (grundTillRad), inte på klicket. */
+    const kalKlick = W.__kal.length, gr3 = kamGrund;
+    kamGrund = null; grundTillRad(); await vanta(30);   // skrivningen är asynkron (sparaKalibrering)
+    ok('Not my library före första kortet: raden skrivs utan grundläge när telefonen sagt att det släpptes, och kamGrundRad nollas', kalKlick === 0 && W.__kal.length === 1 && W.__kal[0].grund === null && kamGrundRad === null, `vid klicket ${kalKlick}, sedan ${JSON.stringify(W.__kal)}`);
+    kamGrund = gr3; kamGrundRad = rad3;
     ok('Not my library: menyn stängs, leken är borta från mattan', !$('#zonPerm .lekmeny') && !lekEl() && !mig().bibHog);
     ok('Not my library: texten går tillbaka till steg 1', text() === 'Put your library on the table', text());
     const ute = gridEl.querySelector('.lekute');
