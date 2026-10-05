@@ -844,7 +844,9 @@ class Bank:
             rem = Referenser(self.m, [(cid, cid, ref_strip(img, 0.14)) for cid, img in del_], rotar=(0, 180)).ra
             for j, (cid, _) in enumerate(del_):
                 v = np.concatenate([hel[j * 8:(j + 1) * 8], rem[j * 4:(j + 1) * 4]]).astype(np.float32)
-                np.save(os.path.join(VEK, cid + '.npy'), v)
+                tmp = os.path.join(VEK, cid + '.tmp.npy')
+                np.save(tmp, v)
+                os.replace(tmp, os.path.join(VEK, cid + '.npy'))   # ett avbrott lämnar aldrig en halv fil
                 ut[cid] = v
                 self.raknade += 1
             if (i // 16) % 10 == 0:
