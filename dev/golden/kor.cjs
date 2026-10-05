@@ -62,6 +62,7 @@ const UTAN_MODELL = process.argv.includes('--utan-modell'), WASM = process.argv.
 const UTAN_LEKEN = arg('--utan-leken', '');
 const LUFT = arg('--luft', '');   // 0 eller 1: läsningen på första hela rutan (MES-227) av eller på, oavsett appens förval
 const TRO = arg('--tro', '');   // "snabb:1,stillaMs:600" — valfria trösklar till Kamera.satTrosklar före varje fall (prov, aldrig baslinje)
+const UTFIL = arg('--ut', '');   // fil att skriva körningens resultat till (samma form som senaste.json, utan rutloggen) — för felbok.cjs efter ett prov som inte får bli baslinje
 const RUTLOGG = arg('--rutlogg', '');   // fil att skriva videofallens ruta-för-ruta-logg till (utredningar; sparas aldrig i baslinjen)
 const DETLOGG = process.argv.includes('--detlogg');   // detektorns lådor, remsor och täckningar i appens konsol (MES-329) — med --konsol
 const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens räknetråd (MES-221) av, på (appens förval) eller i kontroll — tråden och huvudtråden räknar båda, skillnader loggas (--konsol)
@@ -75,6 +76,35 @@ const LASWORKER = arg('--lasworker', '');   // 0 | 1 | kontroll: läsningens rä
    annan facitfil (sökväg från repots rot) — till kontroller som visar att ett
    mått fallerar när facit säger något annat (MES-331). Sparas aldrig. */
 const FACIT_ERS = arg('--facit', '');
+/* --rems-modell <fil>: remsorna läses med en annan bildmodell än hela kortet
+   (embed.js remsModell, 2026-10-05: den finjusterade piloten i
+   dev/embed/modeller/, gitignorerad). Filen ska ligga under repots rot så att
+   attrappen serverar den. Remsleken lagras under modellens egen nyckel. Ett
+   prov: sparas aldrig som baslinje. */
+const REMS_MODELL = arg('--rems-modell', '');
+/* --modell <fil>: hela kortets bildmodell i stället för appens (samma villkor
+   som --rems-modell). --ny-embed: profilens lagrade vektorer (IndexedDB
+   mesa-embed) rensas före körningen och räknas om med körningens modeller —
+   vektorerna lagras per kort-id, inte per modell, så en profil som räknat med
+   en annan modell hade annars blandat in dess vektorer. Alltid på med --modell
+   eller --rems-modell; ge den till kontrollkörningen också, så att alla
+   jämförda körningar bygger lika. */
+const MODELL_FIL = arg('--modell', '');
+const NY_EMBED = process.argv.includes('--ny-embed') || !!MODELL_FIL || !!REMS_MODELL;
+const modellUrl = (flagga, fil) => {
+  const abs = path.resolve(fil), rel = path.relative(ROT, abs);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) { console.error(`${flagga}: ${fil} ligger utanför repots rot (${ROT}) — attrappen kan inte servera den.`); process.exit(2); }
+  if (!fs.existsSync(abs)) { console.error(`${flagga}: ${fil} finns inte.`); process.exit(2); }
+  if (SPARA) { console.error(`${flagga} med --spara vägras: baslinjen mäter appens egen modell.`); process.exit(2); }
+  return rel.split(path.sep).map(encodeURIComponent).join('/');
+};
+const MODELL_URL = MODELL_FIL ? modellUrl('--modell', MODELL_FIL) : '';
+if (MODELL_FIL) console.log(`Hela kortet läses med ${MODELL_FIL} (--modell).`);
+let REMS_URL = '';
+if (REMS_MODELL) {
+  REMS_URL = modellUrl('--rems-modell', REMS_MODELL);
+  console.log(`Remsorna läses med ${REMS_MODELL} (--rems-modell).`);
+}
 const VIDEO = arg('--video', '');
 let VIDEO_URL = '';
 if (VIDEO) {
@@ -100,6 +130,12 @@ if (STUB_KAMERA) {
   console.log(`Attrappen svarar i kameraläget enligt ${STUB_KAMERA} (--stub-kamera) — frågorna till "Claude" är på, men ingen betalas.`);
 }
 const EMBED_LOKALT = fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) && fs.existsSync(path.join(ROT, 'dev', 'embed', 'node_modules', 'onnxruntime-web', 'dist', 'ort.webgpu.min.js'));
+/* Utan onnxruntime-web i dev/embed/node_modules hämtas bildmodellen från
+   HuggingFace (appens förval) och filerna i dev/embed/modeller används INTE.
+   2026-10-05 mätte en "pilotmodell i golden" därför den gamla modellen utan
+   att det syntes — nu sägs det. */
+if (!EMBED_LOKALT && !UTAN_MODELL) console.log('Bildmodellen hämtas från HuggingFace (appens förval)'
+  + (fs.existsSync(path.join(ROT, 'dev', 'embed', 'modeller', 'mobileclip-s0-vision.onnx')) ? ' — VARNING: dev/embed/modeller/mobileclip-s0-vision.onnx används inte, för dev/embed/node_modules/onnxruntime-web saknas (npm ci i dev/embed)' : '') + '.');
 
 const vanta = ms => new Promise(r => setTimeout(r, ms));
 /* Ett hårt fel (e.hart: Chrome dog, eller ett anrop svarade inte inom
@@ -242,7 +278,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
                  UTAN_MODELL ? 'embed=0' : (EMBED_LOKALT && 'embedlokalt=1'), WASM && 'embedbackend=wasm', RUTLOGG && 'rutlogg=1', DETLOGG && 'detlogg=1', TRO && 'tro=' + encodeURIComponent(TRO), (LUFT === '0' || LUFT === '1') && 'luft=' + LUFT, UTAN_LEKEN && 'utanleken=' + encodeURIComponent(UTAN_LEKEN.split(',').map(x => x.trim()).join('|')),
                  (LASWORKER === '0' || LASWORKER === '1' || LASWORKER === 'kontroll') && 'lasworker=' + LASWORKER,
                  FACIT_ERS && 'facit=' + encodeURIComponent(FACIT_ERS.split(',').map(x => x.trim().replace('=', ':')).join('|')),
-                 VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL)].filter(Boolean).join('&');
+                 VIDEO_URL && 'video=' + encodeURIComponent(VIDEO_URL), REMS_URL && 'remsmodell=' + encodeURIComponent(REMS_URL), MODELL_URL && 'modellfil=' + encodeURIComponent(MODELL_URL), NY_EMBED && 'nyembed=1'].filter(Boolean).join('&');
   await cdp('Page.navigate', { url: `http://localhost:${PORT}/dev/golden/kor.html${param ? '?' + param : ''}` });
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   /* 3. vänta in poolen och namnläsaren, tryck Kör alla, vänta in Klar */
@@ -291,6 +327,8 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
       + (f0.modell ? ` — bildmodellen räknade på ${f0.modell === 'webgpu' ? 'WebGPU' : f0.modell === 'wasm' ? 'WASM' : f0.modell}` : ' — utan bildmodell (reserven Matcher + ORB)')
       + (f0.detektor ? ` — detektorn: ${f0.detektor}` : '')   // MES-329: tränad YOLOX (variant, backend) eller dagens
       + (f0.detektor && !/^yolox-/.test(f0.detektor) && !/detektor:0/.test(TRO) ? '\n  VARNING: den tränade detektorn kördes inte (' + f0.detektor + ') — körningen mäter dagens detektor fast --tro "detektor:0" inte gavs' : '')
+      + (f0.modellFil ? `\n  bildmodellens fil: ${f0.modellFil}${NY_EMBED ? ' (vektorerna räknade om i körningen, --ny-embed)' : ''}` : '')
+      + (REMS_URL ? (f0.remsModell ? `\n  remsorna: ${f0.remsModell} (--rems-modell)` : `\n  VARNING: remsornas modell laddades inte (${f0.remsModellFel || 'okänt'}) — remsorna lästes med appens modell`) : '')
       + '\n  (lokal: konstverket jämförs med lekens kort; ocr: kortnamnet läses ur titelraden; modell: bildmodellen rangordnar och ORB kontrollerar; ai: Claude frågas om det som är osäkert)');
     /* MES-225: vilket vittne som bar de säkra rätta namnen, och hur många Claude behövdes för. */
     const rsV = JSON.parse(json), vf = {}; for (const r of rsV) for (const k in (r.varforRatt || {})) vf[k] = (vf[k] || 0) + r.varforRatt[k];
@@ -408,6 +446,7 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
     fs.writeFileSync(path.join(BESKARNINGAR, 'index.json'), JSON.stringify(index, null, 1) + '\n');
     console.log(`\n${index.length} beskärningar skrivna till ${BESKARNINGAR} (index.json listar dem)`);
   }
+  if (UTFIL) { const ut = JSON.parse(json); for (const r of ut) delete r.rutLogg; fs.writeFileSync(path.resolve(UTFIL), '[\n' + ut.map(r => JSON.stringify(r)).join(',\n') + '\n]\n'); console.log(`\nresultatet skrivet till ${UTFIL}`); }
   if (RUTLOGG) { const rl = JSON.parse(json).filter(r => r.rutLogg).map(r => ({ id: r.id, handelser: r.videoHandelser, spar: r.videoSpar, rutLogg: r.rutLogg, fodslar: r.fodslar || [] })); fs.writeFileSync(RUTLOGG, JSON.stringify(rl) + '\n'); console.log(`\nrutloggen skriven till ${RUTLOGG} (${rl.length} videofall)`); }   // fodslar: varför varje spår föddes, med födelsevaktens mått (MES-331 pass 4)
   /* 5. sämre än senaste.json? rätt namn ner, falska eller fel namn upp */
   /* Domen mot baslinjen skrivs alltid: BÄTTRE, LIKA BRA, SÄMRE eller BLANDAT,

@@ -186,6 +186,8 @@ const VIDEO_ERSATT = PARAMS.get('video') || '';
    Varje säkert namn på ett sådant kort är ett FEL NAMN: provet på att ett
    kort utanför leken stoppas (RAPPORT.md i dev/embed, "Utanför leken"). */
 const EMBED_PA = PARAMS.get('embed') !== '0', EMBED_LOKALT = PARAMS.get('embedlokalt') === '1', EMBED_BACKEND = PARAMS.get('embedbackend') || 'auto';
+const REMS_MODELL = PARAMS.get('remsmodell') || '';   // kor.cjs --rems-modell: remsornas egen bildmodell (embed.js remsModell)
+const MODELL_FIL = PARAMS.get('modellfil') || '', NY_EMBED = PARAMS.get('nyembed') === '1';   // kor.cjs --modell, --ny-embed
 const UTAN_LEKEN = new Set((PARAMS.get('utanleken') || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean));
 let embedInfo = null;   // { backend, modell, vektorer, ms } när leken är inbäddad
 let detInfo = null, detFel = null;   // den tränade detektorn (MES-329): { backend, modell, variant, ms, remsa } när den är laddad; felet annars
@@ -320,7 +322,9 @@ async function laddaApp() {
   w.MESA_DETEKTOR = EMBED_LOKALT ? { ladda: { ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/' } } : {};
   w.MESA_EMBED = !EMBED_PA ? false : { ladda: Object.assign({ backend: EMBED_BACKEND }, EMBED_LOKALT ? {
     ort: 'dev/embed/node_modules/onnxruntime-web/dist/ort.webgpu.min.js', wasmPaths: 'dev/embed/node_modules/onnxruntime-web/dist/',
-    modell: { webgpu16: 'dev/embed/modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'dev/embed/modeller/mobileclip-s0-vision.onnx', wasm: 'dev/embed/modeller/mobileclip-s0-vision.onnx' } } : {}) };
+    modell: { webgpu16: 'dev/embed/modeller/mobileclip-s0-vision-fp16.onnx', webgpu: 'dev/embed/modeller/mobileclip-s0-vision.onnx', wasm: 'dev/embed/modeller/mobileclip-s0-vision.onnx' } } : {},
+    REMS_MODELL ? { remsModell: { webgpu: REMS_MODELL, wasm: REMS_MODELL } } : {},
+    MODELL_FIL ? { modell: { webgpu16: null, webgpu: MODELL_FIL, wasm: MODELL_FIL } } : {}) };
   try { w.eval('prefs').aiAuto = AI_PA; if (AI_PA) w.eval('AI').mode = 'server'; } catch (e) {}
   if (!K || typeof K.start !== 'function') throw new Error('hittar inte Kamera-modulen i appen');
   for (const fn of ['lookup', 'imgOf', 'byggLekPool', 'kamIdentifiera', 'visaVy']) if (typeof w[fn] !== 'function') throw new Error('appen saknar ' + fn);
@@ -386,6 +390,8 @@ async function byggPool() {
   embedInfo = null; let embedFel = null;
   if (EMBED_PA) {
     const t0 = performance.now(), KE = w.eval('KamEmbed');
+    /* --ny-embed: vektorerna räknas om med körningens modeller (lagringen är per kort-id, inte per modell). */
+    if (NY_EMBED) { status('Rensar de lagrade vektorerna…'); await new Promise(res => { try { const r = w.indexedDB.deleteDatabase('mesa-embed'); r.onsuccess = r.onerror = r.onblocked = () => res(); setTimeout(res, 5000); } catch (e) { res(); } }); }
     status('Hämtar bildmodellen…');
     const idx = await KE.bygg(rec, p => status(`Bäddar in leken… ${p.done} av ${p.total}${p.nya ? ' (' + p.nya + ' nya)' : ''}`));
     if (idx && KE.redo()) embedInfo = { backend: KE.laddat && KE.laddat.backend, modell: KE.laddat && KE.laddat.modell, tradar: KE.laddat && KE.laddat.tradar, vektorer: idx.names.length, ms: Math.round(performance.now() - t0) };
@@ -421,13 +427,20 @@ async function byggPool() {
      inga fler kort än namn fast leken har basland — sparas inte poolen,
      så att nästa omladdning bygger om den i stället för att ärva luckan. */
   const BAS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
-  const harBasland = kort.some(k => BAS.has(k.name));
-  const utanLand = harBasland && rec.names.length <= kort.length;
+  /* …och en DELVIS hämtad baslandsfråga (429 på en senare sida) syns per
+     typ: byggLekPoolRa tar högst 24 konstverk per basland, och Scryfall har
+     fler sedan 2021 för alla fem (Wastes undantaget). Förut räknades bara
+     kort mot namn — med baksidan i poolen (version 7) passerade en pool
+     helt utan landkonstverk (35 kort för 34 namn), och en med 72 av 168. */
+  const BAS_TAK = 24, perTyp = new Map();
+  for (const n of rec.names) if (BAS.has(n)) perTyp.set(n, (perTyp.get(n) || 0) + 1);
+  const kortaLand = [...new Set(kort.map(k => k.name).filter(n => BAS.has(n) && n !== 'Wastes'))].filter(t => (perTyp.get(t) || 0) < BAS_TAK);
+  const utanLand = kortaLand.length > 0;
   const tillfalliga = saknas.filter(x => x.tillfallig), varaktiga = saknas.filter(x => !x.tillfallig);
   poolFel = [];
   if (varaktiga.length) poolFel.push(`Finns inte på Scryfall — rätta lek.txt: ${varaktiga.map(x => x.namn).join(', ')}.`);
   if (tillfalliga.length) poolFel.push(`Nådde inte Scryfall för: ${tillfalliga.map(x => x.namn).join(', ')}.`);
-  if (utanLand) poolFel.push('Baslandens extra konstverk kom inte med.');
+  if (utanLand) poolFel.push(`Baslandens extra konstverk kom inte med (${kortaLand.map(t => t + ' ' + (perTyp.get(t) || 0) + '/' + BAS_TAK).join(', ')}).`);
   if (tillfalliga.length || utanLand) {
     try { await w.eval('IDB').poolDel(rec.code); } catch (e) {}
     poolFel.push('Scryfall svarade troligen 429 (för många anrop). Poolen sparas inte — ladda om sidan om en minut, så byggs den om.');
@@ -1166,10 +1179,11 @@ function bedom(f, bord, tid, tak, msMedian, msMax) {
     obesvarade: spar.filter(t => !t.fragad && t.tillstand !== 'klar' && t.tillstand !== 'okand').length,
     tidsgrans: !!tak, krascher, poolOfullstandig: poolFel.length > 0,
     metod: metod(), ai: aiModell(), promptv: AI_PA ? promptVersion : null,
+    remsModell: (REMS_MODELL && w.Embed && w.Embed.remsModell) || undefined, remsModellFel: (REMS_MODELL && w.Embed && !w.Embed.remsModell && (w.Embed.remsFel || 'ingen remsmodell')) || undefined,
     videoErsatt: (f.facit.video && VIDEO_ERSATT) || undefined,
     kallStorlek: f.kallStorlek,
     /* Bildmodellen (MES-225): vilken väg den räknade (webgpu/wasm), null = reserven; och domskälen för de säkra rätta namnen — vilket vittne som bar. */
-    modell: embedInfo ? embedInfo.backend : null,
+    modell: embedInfo ? embedInfo.backend : null, modellFil: (embedInfo && embedInfo.modell) || null,
     /* MES-329: detektorn som faktiskt kördes i fallet (KamDet.status läses nu — föll modellen under körningen står 'fel'), inte bara den som laddades. */
     detektor: (() => { let st = null; try { st = w.eval('KamDet').status(); } catch (e) {} const tr = K.trosklar || {}; return !tr.detektor ? 'dagens' : /^yolox-/.test(st || '') ? st + (tr.detRemsa ? '' : ' (bara lådor)') : (st || 'okänd') + (detFel ? ': ' + detFel : ''); })(),
     varforRatt: synligaTraffar.filter(p => p.t.saker && ratt(p.t, p.k)).reduce((m, p) => { const k = p.t.varfor || '–'; m[k] = (m[k] || 0) + 1; return m; }, {}),
