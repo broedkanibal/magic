@@ -136,3 +136,12 @@ Avvikelser från granskningens ordalydelse, och varför:
 - Bildmodellen hade rätt namn överst på 2 av 5; ORB (med CLAHE) bekräftade alla 5.
 - Den andra frågan kräver ett senare stilla läge med synlig andel ≥ 0,95; i provet fanns inget för de två
   korten utan namn (de lades i slutet).
+
+## Vidare till träningen (`dataset.py`, `mesa_remsa_tran.py`)
+
+`dataset.py rakna` räknar de säkra utsnitten per pass/typ/variant (läser bara JSON); `dataset.py bygg --ut <mapp>`
+packar dem platt (`bilder/`, `ref/`, `manifest.json`) för Kaggle. Bara `tel` och `1080` — 4K tränas aldrig.
+Spärrarna: källklippet ska vara träning (delning), inget golden-namn, inget klipp med `beskar: null` eller utan
+`remsor_ur: 'horn'`. `mesa_remsa_tran.py` (v2) blandar dem med de syntetiska; se dess docstring.
+Läget 2026-10-05 kväll: 31 namn (5 basland), 4 704 utsnitt, 57 MB — och bara ett valideringsnamn (Plate Armor),
+eftersom passen bara har Jespers två lekar.

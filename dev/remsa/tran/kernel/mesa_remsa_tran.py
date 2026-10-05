@@ -1,34 +1,66 @@
 #!/usr/bin/env python3
-"""Piloten (2026-10-05): bildmodellen (MobileCLIP-S0) finjusteras på syntetiska bord — körs på Kaggle.
+"""Bildmodellen (MobileCLIP-S0) finjusteras på syntetiska bord OCH riktiga utsnitt ur Jespers inspelningar — Kaggle.
 
-Frågan: lär sig modellen skilja kort åt när bilden är förstörd som i golden 13/18 (blänk i blanka
-sleeves, ljusa delar ihoptryckta, oskärpa, komprimering, 0,5×, bara remsan synlig)? Felboken
-(dev/golden/felbok.cjs) säger att 15 av 27 kort utan namn ligger helt synliga men utbrända eller
-suddiga, och att dagens modell faller tillbaka på samma två "nav"-namn.
+Piloten (2026-10-05, v1) tränade bara på syntetiska bord ur Scryfall: nästan felfri på syntetisk validering men
+inte bättre i golden (minnet bildmodell-pilot-traning). v2 (steg 4 i handovern 2026-10-05) blandar in riktiga
+utsnitt ur pass 2, 3 och 5 — märkningen (mark.py) gav namn ur 4K, och dataset.py packar utsnitten i telefonens
+kvalitet (tel) och 1080 till ett platt dataset med manifest.json. 4K tränas aldrig.
 
-Allt här är syntetiskt ur Scryfall: ingen provbild (golden, MES-246, 13b, pass 1) finns på Kaggle.
-Golden-lekens namn (utom basländerna) är UTANFÖR träningen, så att remsbänken och golden mäter kort
-modellen aldrig sett. Basländerna är med (alla konstverk) — de är högarnas kort, och appen jämför
-ändå mot Scryfalls bilder av dem.
+Golden-lekens namn (utom basländerna) är UTANFÖR träningen, så att remsbänken och golden mäter kort modellen
+aldrig sett: GOLDEN nedan för de syntetiska, utanfor_traning i märkningen för de riktiga (dataset.py stoppar
+om ett slinker igenom, och huvud() kontrollerar mot GOLDEN igen). Basländerna är med (alla konstverk).
 
 Receptet följer appen (dev/remsa/lib.py, embed.js): 256 × 256 RGB 0–1, bilden tryckt till kvadrat,
 remsan = kortets översta 14 % (Detektor.REMSA), titeldelen = remsans vänstra 55 % (T.remsaTitel).
-Utdata (/kaggle/working): mobileclip-s0-mesa.onnx (in pixel_values, ut image_embeds — samma som
-Xenova-filen appen laddar), matt.json (syntetisk validering före/efter), prov-*.jpg (frågebilder att
-titta på), logg.txt.
 
-    python mesa_remsa_tran.py            # hela piloten (Kaggle, GPU)
-    python mesa_remsa_tran.py --rok      # några minuter: 60 namn, 40 steg — fångar fel
-    python mesa_remsa_tran.py --bara-data --ut <mapp>   # lokalt: bara frågebilder (ingen modell)
+Riktiga par (fråga, referens, namn, typ): frågan är det riktiga utsnittet, vridet upprätt (manifestets rot) och
+lätt augmenterat (± 5 % beskärning, liten ljus/kontrast, ingen komprimering — bilden är redan telefonens);
+referensen är Scryfall-bilden för konstverket ORB matchade (manifestets konstverk), annars ett slumpvalt
+konstverk för namnet (basland: poolens och de syntetiska konstverken). hel → hela bilden; remsa → översta 14 %;
+titel → remsutsnittets vänstra 55 % mot referensens titeldel. Varannan bild i varje batch är riktig (de riktiga
+översamplas). Vikterna hel/remsa/titel 0,4/0,4/0,2; samma namn är aldrig negativ (två Mountain är inte fel).
+
+Valideringen: den syntetiska som förut (fore/efter), och på riktiga bilder: manifestets val-namn (vart femte namn,
+aldrig tränade — inte heller syntetiskt) mot en lek av alla namn i passen + poolens basland, topp-1 per variant
+(tel, 1080) och typ (hel, remsa) — riktiga_fore / riktiga_efter / riktiga_vald i matt.json. --val-klipp
+pass/klipp,… håller också hela klipp utanför träningen (samma namn, osedd inspelning): riktiga_klipp_*.
+
+Utdata (UT, /kaggle/working): mobileclip-s0-mesa-v2.onnx (in pixel_values, ut image_embeds, fp32, dynamisk batch
+— samma som Xenova-filen appen laddar), matt.json, prov-fragor.jpg, prov-riktiga.jpg (riktiga frågor bredvid
+sina referenser — titta på dem), logg.txt.
+
+    python mesa_remsa_tran.py            # Kaggle (GPU): hittar datasetet själv under /kaggle/input (manifest.json);
+                                         # utan dataset stannar den (lägg det i kernel-metadata.json:s dataset_sources)
+    python mesa_remsa_tran.py --utan-riktiga                       # bara syntetiska (som piloten)
+    python mesa_remsa_tran.py --rok --riktiga <mapp> --ut <ut>     # lokalt på CPU: ≤ 200 riktiga, 40 steg
+    python mesa_remsa_tran.py --bara-data --ut <mapp>              # lokalt: bara frågebilder (ingen modell)
+
+Lokalt (--rok utan Kaggle) installeras inget: torch, onnx och onnxruntime ur venv:en, och ml-mobileclip + timm
++ open_clip via PYTHONPATH (t.ex. pip install --target <mapp> --no-deps …). Scryfall-bilder, checkpointen och
+Xenova-filen cachas i --cache (förval <ut>/cache).
+
+Fällor (minnet bildmodell-pilot-traning): ml-mobileclip:s create_model omparametriserar redan (ingen
+reparameterize vid export); SEBlock:s avg_pool2d måste bytas mot adaptive för ONNX med dynamisk batch;
+Scryfalls bulk är JSONL.gz sedan 2026 (jsonl_download_uri). Lokalt aldrig DataLoader-arbetare (macOS spawn
+kör om modulens toppnivå).
 """
-import io, json, math, os, random, subprocess, sys, time, urllib.request
+import glob, json, math, os, random, subprocess, sys, time, urllib.request
 
 ARGS = sys.argv[1:]
+
+
+def arg(namn, standard=None):
+    return ARGS[ARGS.index(namn) + 1] if namn in ARGS and ARGS.index(namn) + 1 < len(ARGS) else standard
+
+
 ROK = '--rok' in ARGS
 BARA_DATA = '--bara-data' in ARGS
-UT = ARGS[ARGS.index('--ut') + 1] if '--ut' in ARGS else '/kaggle/working'
-CACHE = os.path.join(UT, 'scryfall') if BARA_DATA else '/kaggle/temp/scryfall'
-os.makedirs(UT, exist_ok=True); os.makedirs(CACHE, exist_ok=True)
+PA_KAGGLE = os.path.isdir('/kaggle/working')
+UT = arg('--ut', '/kaggle/working')
+TEMP = '/kaggle/temp' if PA_KAGGLE else arg('--cache', os.path.join(UT, 'cache'))
+CACHE = os.path.join(UT, 'scryfall') if BARA_DATA else os.path.join(TEMP, 'scryfall')
+VAL_KLIPP = [x for x in (arg('--val-klipp', '') or '').split(',') if x]
+os.makedirs(UT, exist_ok=True); os.makedirs(CACHE, exist_ok=True); os.makedirs(TEMP, exist_ok=True)
 LOGG = open(os.path.join(UT, 'logg.txt'), 'a')
 
 
@@ -46,6 +78,7 @@ N_VAL = 20 if ROK else 300            # namn bara i valideringen
 BAS_KONST = 8 if ROK else 60          # konstverk per basland
 TRAN_MIN = 2 if ROK else 170          # minuter träning
 BATCH = 32 if ROK else 96
+N_RIKTIGA_ROK = 200                   # --rok: högst så många riktiga utsnitt (träning + validering)
 GOLDEN = {'Ancestral Blade', 'Aphelia, Viper Whisperer', 'Coat with Venom', 'Danitha Capashen, Paragon', 'Faithful Pikemaster',
           'Fencing Ace', 'Flutterfox', 'Gorgon Flail', 'Hooded Blightfang', 'Killing Glare', 'Maul of the Skyclaves',
           'Militant Inquisitor', 'Mirran Bardiche', "Night's Whisper", 'Pacifism', "Pharika's Chosen", 'Resistance Reunited',
@@ -64,22 +97,41 @@ def hamta(url, fil=None, tries=4):
             if fil:
                 open(fil, 'wb').write(d)
             return d
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             if i == tries - 1:
                 raise
             time.sleep(1 + 2 * i)
 
 
-def valj_kort(rng):
-    bulk = json.loads(hamta('https://api.scryfall.com/bulk-data'))
-    x = next(x for x in bulk['data'] if x['type'] == 'unique_artwork')
-    uri = x.get('jsonl_download_uri') or x.get('download_uri')   # Scryfall levererar JSONL.gz sedan 2026
-    logg('hämtar unique_artwork …', uri)
-    d = hamta(uri)
-    if uri.endswith('.gz'):
-        import gzip
-        d = gzip.decompress(d)
-    alla = [json.loads(r) for r in d.decode('utf-8').splitlines() if r.strip()] if 'jsonl' in uri else json.loads(d)
+def las_bulk():
+    """Scryfalls unique_artwork (ett kort per konstverk), engelska papperskort med bild."""
+    fil = os.path.join(TEMP, 'unique_artwork.jsonl')
+    if os.path.exists(fil):
+        text = open(fil, encoding='utf-8').read()
+    else:
+        bulk = json.loads(hamta('https://api.scryfall.com/bulk-data'))
+        x = next(x for x in bulk['data'] if x['type'] == 'unique_artwork')
+        uri = x.get('jsonl_download_uri') or x.get('download_uri')   # Scryfall levererar JSONL.gz sedan 2026
+        logg('hämtar unique_artwork …', uri)
+        d = hamta(uri)
+        if uri.endswith('.gz'):
+            import gzip
+            d = gzip.decompress(d)
+        text = d.decode('utf-8')
+        if 'jsonl' not in uri:
+            text = '\n'.join(json.dumps(c) for c in json.loads(text))
+        open(fil, 'w', encoding='utf-8').write(text)
+    return [json.loads(r) for r in text.splitlines() if r.strip()]
+
+
+def bild_url(c):
+    iu = c.get('image_uris') or ((c.get('card_faces') or [{}])[0].get('image_uris')) or {}
+    return iu.get('normal')
+
+
+def valj_kort(rng, alla, uteslut_val=(), uteslut_tran=()):
+    """De syntetiska korten. uteslut_val: de riktiga namnen (syntetisk validering ska vara osedd);
+    uteslut_tran: de riktiga valideringsnamnen (tränas aldrig, inte heller syntetiskt)."""
     bra = [c for c in alla if c.get('lang') == 'en' and 'paper' in c.get('games', []) and c.get('image_uris', {}).get('normal')
            and c.get('layout') in ('normal', 'leveler', 'class', 'saga', 'adventure', 'prototype', 'mutate', 'case')
            and not c.get('digital') and c.get('image_status') in ('highres_scan', 'lowres')]
@@ -89,11 +141,13 @@ def valj_kort(rng):
     namn = sorted(n for n in per_namn if n not in GOLDEN and n.split(' // ')[0] not in GOLDEN and n not in BAS
                   and not per_namn[n][0].get('type_line', '').startswith('Basic'))
     rng.shuffle(namn)
-    val, tran = namn[:N_VAL], namn[N_VAL:N_VAL + N_NAMN]
+    val = [n for n in namn if n not in uteslut_val][:N_VAL]
+    vs = set(val)
+    tran = [n for n in namn if n not in vs and n not in uteslut_tran][:N_NAMN]
     kort = []
     for n in tran + val:
         c = rng.choice(per_namn[n])
-        kort.append({'namn': n, 'id': c['id'], 'url': c['image_uris']['normal'], 'del': 'val' if n in val else 'tran'})
+        kort.append({'namn': n, 'id': c['id'], 'url': c['image_uris']['normal'], 'del': 'val' if n in vs else 'tran'})
     for b in BAS:   # alla basländernas konstverk är träning; en per typ hålls också i valideringen via andra konstverk
         konst = per_namn.get(b, [])
         rng.shuffle(konst)
@@ -254,6 +308,133 @@ def las(fil):
     return cv2.cvtColor(cv2.imread(fil), cv2.COLOR_BGR2RGB)
 
 
+# ── de riktiga utsnitten (dataset.py) ───────────────────────────────────────
+def latt_aug(img, rng):
+    """Lätt: varje kant ± 5 % (utåt med kantens bildpunkter), kontrast ± 10 %, ljus ± 5 %. Ingen komprimering."""
+    h, w = img.shape[:2]
+    d = [int(round(rng.uniform(-0.05, 0.05) * s)) for s in (h, w, h, w)]   # över, vänster, under, höger
+    pad = [max(0, -x) for x in d]
+    if any(pad):
+        img = cv2.copyMakeBorder(img, pad[0], pad[2], pad[1], pad[3], cv2.BORDER_REPLICATE)
+    y0, x0 = max(0, d[0]), max(0, d[1])
+    y1, x1 = img.shape[0] - max(0, d[2]), img.shape[1] - max(0, d[3])
+    if y1 - y0 >= 4 and x1 - x0 >= 4:
+        img = img[y0:y1, x0:x1]
+    f = img.astype(np.float32) * rng.uniform(0.9, 1.1) + rng.uniform(-0.05, 0.05) * 255
+    return np.clip(f, 0, 255).astype(np.uint8)
+
+
+def riktig_fraga(img, typ, rot, rng=None):
+    """Det riktiga utsnittet som fråga: upprätt (np.rot90 rot gånger), titel = remsans vänstra 55 %, lätt
+    augmenterat när rng ges, tryckt till kvadrat."""
+    if rot:
+        img = np.ascontiguousarray(np.rot90(img, rot))
+    if typ == 'titel':
+        img = img[:, :max(4, int(round(img.shape[1] * TITEL)))]
+    if rng is not None:
+        img = latt_aug(img, rng)
+    return kvadrat(img)
+
+
+def hitta_riktiga():
+    """Datasetmappen (manifest.json): --riktiga, annars på Kaggle den första under /kaggle/input. --utan-riktiga: ingen."""
+    if '--utan-riktiga' in ARGS:
+        return None
+    d = arg('--riktiga')
+    if d is None:
+        if not PA_KAGGLE:
+            return None
+        d = '/kaggle/input'
+    if os.path.exists(os.path.join(d, 'manifest.json')):
+        return d
+    kand = sorted(glob.glob(os.path.join(d, '**', 'manifest.json'), recursive=True))
+    if kand:
+        return os.path.dirname(kand[0])
+    # v2 ska träna på riktiga: utan dataset stannar körningen hellre än att tyst träna bara syntetiskt i tre timmar
+    raise SystemExit(f'ingen manifest.json under {d} — lägg datasetet (dataset.py bygg) i kernel-metadata.json:s '
+                     'dataset_sources, eller kör med --utan-riktiga')
+
+
+def ref_bild(rdir, kid, normal=None):
+    """Scryfall-bilden för ett konstverk: datasetets ref/, cachen, annars hämtad (normal, cachad)."""
+    for f in (os.path.join(rdir, 'ref', kid + '.jpg'), os.path.join(CACHE, kid + '.jpg')):
+        if os.path.exists(f):
+            return f
+    f = os.path.join(CACHE, kid + '.jpg')
+    hamta(normal or f'https://api.scryfall.com/cards/{kid}?format=image&version=normal', f)
+    time.sleep(0.1)
+    return f
+
+
+def las_riktiga(rdir, alla, syntetiska):
+    """Manifestets rader → träning, validering (val-namn) och --val-klipp, med referensbilder per namn."""
+    M = json.load(open(os.path.join(rdir, 'manifest.json'), encoding='utf-8'))
+    rader = M['rader']
+    for r in rader:
+        r['bild'] = os.path.join(rdir, r['fil'])
+    namn = sorted({r['namn'] for r in rader})
+    gold = [n for n in namn if n not in BAS and (n in GOLDEN or any(x in GOLDEN for x in n.split(' // ')))]
+    if gold:
+        raise SystemExit(f'STOPP: golden-lekens namn i de riktiga: {gold}')
+    if any(r['variant'] not in ('tel', '1080') for r in rader):
+        raise SystemExit('STOPP: manifestet har en annan variant än tel/1080 (4K tränas aldrig)')
+    vk = set(VAL_KLIPP)
+    val = [r for r in rader if r['val']]
+    val_klipp = [r for r in rader if not r['val'] and f"{r['pass']}/{r['klipp']}" in vk]
+    tran = [r for r in rader if not r['val'] and f"{r['pass']}/{r['klipp']}" not in vk]
+    if vk and not val_klipp:
+        raise SystemExit(f'--val-klipp {VAL_KLIPP}: inga rader (skriv pass/klipp som i manifestet)')
+    if ROK:   # ett litet urval: ≤ 200 utsnitt, valideringen först
+        rng = random.Random(5)
+        rng.shuffle(val); rng.shuffle(val_klipp); rng.shuffle(tran)
+        nv = min(len(val), 30); nk = min(len(val_klipp), 20)
+        val, val_klipp = val[:nv], val_klipp[:nk]
+        tran = tran[:N_RIKTIGA_ROK - nv - nk]
+    # referenser per namn: ORB:s konstverk; annars kandidater (basland: poolen + de syntetiska konstverken)
+    per_namn_bulk = {}
+    for c in alla:
+        if c.get('lang') == 'en' and bild_url(c):
+            per_namn_bulk.setdefault(c['name'], []).append(c)
+    kpn = M.get('konstverk_per_namn', {})
+    kand = {}
+    for n in sorted({r['namn'] for r in tran + val + val_klipp} | set(BAS)):
+        if n in BAS:
+            ids = M.get('pool_basland', {}).get(n, [])[: 4 if ROK else 24]
+            fil = [ref_bild(rdir, i) for i in ids] + [k['fil'] for k in syntetiska if k['namn'] == n and k['del'] == 'tran']
+        else:
+            lista = [(p['id'], p.get('normal')) for p in kpn.get(n, [])][:3]
+            if not lista:
+                lista = [(c['id'], bild_url(c)) for c in per_namn_bulk.get(n, [])][:3]
+            fil = [ref_bild(rdir, i, u) for i, u in lista]
+        if not fil:
+            raise SystemExit(f'STOPP: inget konstverk för {n!r} (manifestet eller unique_artwork)')
+        kand[n] = fil
+    orb = {}
+    for r in tran + val + val_klipp:
+        if r.get('konstverk'):
+            if r['konstverk'] not in orb:
+                orb[r['konstverk']] = ref_bild(rdir, r['konstverk'])
+            r['ref'] = orb[r['konstverk']]
+        else:
+            r['ref'] = None
+    # valideringens lek: alla namn i passen (manifestet) + poolens basland; per namn ORB:s konstverk, annars kandidaterna
+    lek = []
+    for n in sorted(set(M['namn']) | set(BAS)):
+        if n in BAS:
+            ids = M.get('pool_basland', {}).get(n, [])[: 4 if ROK else 24]
+            ids += sorted({r['konstverk'] for r in rader if r['namn'] == n and r.get('konstverk')})[: 4 if ROK else 1000]
+            lek += [(n, ref_bild(rdir, i)) for i in dict.fromkeys(ids)]
+        else:
+            ids = sorted({r['konstverk'] for r in rader if r['namn'] == n and r.get('konstverk')})
+            fil = [ref_bild(rdir, i) for i in ids] or kand.get(n) or [ref_bild(rdir, p['id'], p.get('normal')) for p in kpn.get(n, [])[:1]]
+            lek += [(n, f) for f in fil]
+    logg(f'riktiga: {len(tran)} i träningen ({len({r["namn"] for r in tran})} namn), {len(val)} i valideringen '
+         f'({sorted({r["namn"] for r in val})}), {len(val_klipp)} i --val-klipp; leken {len({n for n, _ in lek})} namn, '
+         f'{len(lek)} referenser' + (' (--rok: litet urval)' if ROK else ''))
+    return {'tran': tran, 'val': val, 'val_klipp': val_klipp, 'kand': kand, 'lek': lek, 'manifest': {
+        'skapad': M.get('skapad'), 'rader': len(rader), 'namn': len(M['namn']), 'val_namn': M.get('val_namn')}}
+
+
 # ── bara frågebilder (lokalt) ───────────────────────────────────────────────
 if BARA_DATA:
     rng = np.random.default_rng(1)
@@ -274,12 +455,16 @@ def pip(*a):
     subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *a], check=True)
 
 
-pip('--no-deps', 'git+https://github.com/apple/ml-mobileclip.git')
-pip('onnx', 'onnxruntime', 'onnxscript', 'open_clip_torch')
-import torch  # noqa: E402
-import torch.nn.functional as F  # noqa: E402
-import mobileclip  # noqa: E402
-import onnxruntime as ort  # noqa: E402
+if PA_KAGGLE:
+    pip('--no-deps', 'git+https://github.com/apple/ml-mobileclip.git')
+    pip('onnx', 'onnxruntime', 'onnxscript', 'open_clip_torch')
+try:
+    import torch  # noqa: E402
+    import torch.nn.functional as F  # noqa: E402
+    import mobileclip  # noqa: E402
+    import onnxruntime as ort  # noqa: E402
+except ImportError as e:
+    raise SystemExit(f'{e} — lokalt installeras inget: lägg ml-mobileclip, timm och open_clip i PYTHONPATH (se docstringen)')
 import inspect, textwrap  # noqa: E402
 import mobileclip.modules.common.mobileone as _mo  # noqa: E402
 
@@ -294,10 +479,10 @@ else:
     print('SEBlock.forward ser annorlunda ut:\n' + _kalla, flush=True)
 
 DEV = 'cuda' if torch.cuda.is_available() else 'cpu'
-CKPT = '/kaggle/temp/mobileclip_s0.pt'
+CKPT = os.path.join(TEMP, 'mobileclip_s0.pt')
 if not os.path.exists(CKPT):
     hamta('https://docs-assets.developer.apple.com/ml-research/datasets/mobileclip/mobileclip_s0.pt', CKPT)
-XEN = '/kaggle/temp/xenova_vision.onnx'
+XEN = os.path.join(TEMP, 'xenova_vision.onnx')
 if not os.path.exists(XEN):
     hamta('https://huggingface.co/Xenova/mobileclip_s0/resolve/main/onnx/vision_model.onnx', XEN)
 
@@ -375,31 +560,66 @@ def validera(modell, valkort, rng_seed=7):
     return res
 
 
+def validera_riktiga(modell, rader, lek):
+    """Riktiga frågor (upprätta, utan augmentering) mot leken (alla namn i passen + poolens basland), topp-1 per
+    variant och typ. Tomt när raderna saknas."""
+    if not rader:
+        return {}
+    bild = {}
+    for f in {f for _, f in lek} | {r['bild'] for r in rader}:
+        bild[f] = las(f)
+    res = {}
+    for typ in ('hel', 'remsa'):
+        rv = inbadda(modell, [referens(bild[f], typ) for _, f in lek]); rn = [n for n, _ in lek]
+        for variant in ('tel', '1080'):
+            rr = [r for r in rader if r['variant'] == variant and r['typ'] == typ]
+            if not rr:
+                continue
+            qv = inbadda(modell, [riktig_fraga(bild[r['bild']], typ, r['rot']) for r in rr])
+            ratt, sakra, t = doma(rv, rn, qv, [r['namn'] for r in rr], 10 ** 6, np.random.default_rng(3))
+            res.setdefault(variant, {})[typ] = {'topp1': round(ratt, 3), 'sakra': round(sakra, 3), 'troskel': round(t, 3),
+                                                'n': len(rr), 'namn': len({r['namn'] for r in rr})}
+    return res
+
+
 # ── träningen ───────────────────────────────────────────────────────────────
 class Par(torch.utils.data.IterableDataset):
-    def __init__(self, kort, seed):
-        self.kort, self.seed = kort, seed
+    """Paren (fråga, referens, namn, typ). Med riktiga: varannan riktig — de riktiga översamplas."""
+
+    def __init__(self, kort, seed, riktiga=None):
+        self.kort, self.seed, self.r = kort, seed, riktiga
 
     def __iter__(self):
         w = torch.utils.data.get_worker_info()
         rng = np.random.default_rng(self.seed + (w.id if w else 0) + int(time.time()))
         cache = {}
 
-        def bild(k):
-            if k['fil'] not in cache:
-                if len(cache) > 400:
+        def bild(fil):
+            if fil not in cache:
+                if len(cache) > 600:
                     cache.pop(next(iter(cache)))
-                cache[k['fil']] = las(k['fil'])
-            return cache[k['fil']]
+                cache[fil] = las(fil)
+            return cache[fil]
+        hel = [r for r in (self.r or {}).get('tran', []) if r['typ'] == 'hel']
+        rem = [r for r in (self.r or {}).get('tran', []) if r['typ'] == 'remsa']
+        i = 0
         while True:
-            k = self.kort[int(rng.integers(len(self.kort)))]
-            typ = rng.choice(['hel', 'remsa', 'titel'], p=[0.4, 0.4, 0.2])
-            b = bild(k)
-            andra = [bild(self.kort[int(rng.integers(len(self.kort)))]) for _ in range(2)]
-            q, r = fraga(b, typ, rng, andra), referens(b, typ)
+            i += 1
+            typ = str(rng.choice(['hel', 'remsa', 'titel'], p=[0.4, 0.4, 0.2]))
+            pool = hel if typ == 'hel' else rem
+            if self.r and pool and i % 2 == 0:
+                rad = pool[int(rng.integers(len(pool)))]
+                q = riktig_fraga(bild(rad['bild']), typ, rad['rot'], rng)
+                ref = rad['ref'] or self.r['kand'][rad['namn']][int(rng.integers(len(self.r['kand'][rad['namn']])))]
+                r, namn = referens(bild(ref), typ), rad['namn']
+            else:
+                k = self.kort[int(rng.integers(len(self.kort)))]
+                b = bild(k['fil'])
+                andra = [bild(self.kort[int(rng.integers(len(self.kort)))]['fil']) for _ in range(2)]
+                q, r, namn = fraga(b, typ, rng, andra), referens(b, typ), k['namn']
             if typ == 'hel' and rng.random() < 0.5:   # appen vrider referenserna (90-steg) — fråga och referens vrids lika
                 v = int(rng.integers(1, 4)); q, r = np.ascontiguousarray(np.rot90(q, v)), np.ascontiguousarray(np.rot90(r, v))
-            yield till_tensor([q])[0], till_tensor([r])[0], k['namn'], typ
+            yield till_tensor([q])[0], till_tensor([r])[0], namn, typ
 
 
 def samla(b):
@@ -407,13 +627,38 @@ def samla(b):
     return torch.stack(q), torch.stack(r), list(n), list(t)
 
 
+def prov_riktiga(R, fil):
+    """Riktiga frågor (upprätta) bredvid sina referenser: hel, remsa, titel — så att vridningen och paren syns."""
+    rng = random.Random(2)
+    hel = [r for r in R['tran'] + R['val'] if r['typ'] == 'hel']
+    rem = [r for r in R['tran'] + R['val'] if r['typ'] == 'remsa']
+    rader = []
+    for _ in range(min(8, len(hel), len(rem))):
+        h, m = rng.choice(hel), rng.choice(rem)
+        rh = h['ref'] or R['kand'][h['namn']][0]
+        rm = m['ref'] or R['kand'][m['namn']][0]
+        rader.append(np.concatenate([riktig_fraga(las(h['bild']), 'hel', h['rot']), referens(las(rh), 'hel'),
+                                     riktig_fraga(las(m['bild']), 'remsa', m['rot']), referens(las(rm), 'remsa'),
+                                     riktig_fraga(las(m['bild']), 'titel', m['rot']), referens(las(rm), 'titel')], 1))
+    if rader:
+        cv2.imwrite(fil, cv2.cvtColor(np.concatenate(rader, 0), cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 80])
+
+
 def huvud():
     t0 = time.time()
     rng = random.Random(11)
-    kort = ladda_bilder(valj_kort(rng))
+    rdir = hitta_riktiga()
+    riktiga_namn, riktiga_val = set(), set()
+    if rdir:
+        M = json.load(open(os.path.join(rdir, 'manifest.json'), encoding='utf-8'))
+        riktiga_namn = set(M['namn']); riktiga_val = {r['namn'] for r in M['rader'] if r['val']}
+    alla = las_bulk()
+    kort = ladda_bilder(valj_kort(rng, alla, uteslut_val=riktiga_namn, uteslut_tran=riktiga_val))
     tran = [k for k in kort if k['del'] == 'tran']
     val = [k for k in kort if k['del'] == 'val']
     json.dump(kort, open(os.path.join(UT, 'kort.json'), 'w'))
+    R = las_riktiga(rdir, alla, kort) if rdir else None
+    del alla
 
     modell = Bild().to(DEV)
     # likheten med appens modell (Xenova-filen): samma vektorer på samma bilder?
@@ -431,8 +676,19 @@ def huvud():
 
     matt = {'likhet_appens_modell': likhet, 'fore': validera(modell, val)}
     logg('före:', json.dumps(matt['fore']))
+    if R:
+        prov_riktiga(R, os.path.join(UT, 'prov-riktiga.jpg'))
+        matt['riktiga'] = dict(R['manifest'], tran=len(R['tran']), val=len(R['val']), val_klipp=len(R['val_klipp']),
+                               val_klipp_namn=VAL_KLIPP, lek_namn=len({n for n, _ in R['lek']}), lek_referenser=len(R['lek']), rok=ROK)
+        matt['riktiga_fore'] = validera_riktiga(modell, R['val'], R['lek'])
+        logg('riktiga före:', json.dumps(matt['riktiga_fore']))
+        if R['val_klipp']:
+            matt['riktiga_klipp_fore'] = validera_riktiga(modell, R['val_klipp'], R['lek'])
+            logg('riktiga --val-klipp före:', json.dumps(matt['riktiga_klipp_fore']))
 
-    dl = torch.utils.data.DataLoader(Par(tran, 1), batch_size=BATCH, num_workers=4, collate_fn=samla, prefetch_factor=4)
+    arbetare = 4 if DEV == 'cuda' else 0      # lokalt aldrig arbetare (macOS spawn kör om modulens toppnivå)
+    dl = torch.utils.data.DataLoader(Par(tran, 1, R), batch_size=BATCH, num_workers=arbetare, collate_fn=samla,
+                                     **({'prefetch_factor': 4} if arbetare else {}))
     opt = torch.optim.AdamW(modell.parameters(), lr=2e-5, weight_decay=0.05)
     skal = torch.cuda.amp.GradScaler(enabled=DEV == 'cuda')
     tau = 0.05
@@ -459,6 +715,7 @@ def huvud():
         if steg % 100 == 0 or (ROK and steg % 10 == 0):
             logg(f'steg {steg} förlust {loss.item():.3f} ({(time.time() - t0) / 60:.0f} min)')
         if steg % VAL_VAR == 0:
+            # valet av tillstånd görs på den syntetiska valideringen; de riktiga hålls rena (bara mätning)
             m = validera(modell, val); modell.train()
             p = sum(m[t]['lek30_sakra'] + m[t]['lek30_ratt'] for t in m) / 6
             logg(f'validering steg {steg}: {json.dumps(m)} poäng {p:.3f}')
@@ -470,16 +727,26 @@ def huvud():
     matt['steg'] = steg
     matt['efter'] = validera(modell, val)
     logg('efter:', json.dumps(matt['efter']))
+    if R:
+        matt['riktiga_efter'] = validera_riktiga(modell, R['val'], R['lek'])
+        logg('riktiga efter:', json.dumps(matt['riktiga_efter']))
+        if R['val_klipp']:
+            matt['riktiga_klipp_efter'] = validera_riktiga(modell, R['val_klipp'], R['lek'])
+            logg('riktiga --val-klipp efter:', json.dumps(matt['riktiga_klipp_efter']))
 
     # exporten: omparametrisera, samma in/ut som Xenova-filen, kontrollera mot torch
     if bast['tillstand'] is not None:   # den bästa valideringen under körningen, inte nödvändigtvis den sista
         modell.load_state_dict(bast['tillstand']); matt['vald'] = {'steg': bast['steg'], 'poang': bast['poang'], 'matt': bast['matt']}
+        if R and bast['steg'] != steg:
+            matt['riktiga_vald'] = validera_riktiga(modell, R['val'], R['lek'])
+            logg('riktiga, valt tillstånd:', json.dumps(matt['riktiga_vald']))
     # create_model_and_transforms omparametriserar redan (MobileOne/RepMixer i slutlig form) — exporten tar modellen som den är
     modell = modell.float().cpu().eval()
     x = till_tensor(prov)
-    fil = os.path.join(UT, 'mobileclip-s0-mesa.onnx')
+    fil = os.path.join(UT, 'mobileclip-s0-mesa-v2.onnx')
+    extra = {'dynamo': False} if 'dynamo' in inspect.signature(torch.onnx.export).parameters else {}   # torch < 2.5 saknar den
     torch.onnx.export(modell, x[:1], fil, input_names=['pixel_values'], output_names=['image_embeds'],
-                      dynamic_axes={'pixel_values': {0: 'batch_size'}, 'image_embeds': {0: 'batch_size'}}, opset_version=17, dynamo=False)
+                      dynamic_axes={'pixel_values': {0: 'batch_size'}, 'image_embeds': {0: 'batch_size'}}, opset_version=17, **extra)
     o = ort.InferenceSession(fil, providers=['CPUExecutionProvider']).run(None, {'pixel_values': x.numpy()})[0]
     with torch.no_grad():
         tv = modell(x).numpy()
