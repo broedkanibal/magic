@@ -109,7 +109,11 @@ def bygg():
                     kv.append(vrid(bas, rot)); nm.append(n)
         refs[fb] = (m.kor(kv), nm)
         print(f'  referenser {fb}: {len(nm)}', flush=True)
-    gammal = sorted({c['name'] for c in json.load(open(GAMMAL_LEK))['kort']})
+    if os.path.exists(GAMMAL_LEK):
+        gammal = sorted({c['name'] for c in json.load(open(GAMMAL_LEK))['kort']})
+    else:   # worktreen är borta (2026-10-05): leken före golden 17 = dagens referenslek utom de sex namn 17 lade till
+        tillagda = {'Additive Evolution', 'Forest', 'Island', 'Matterbending Mage', "Proctor's Gaze", 'Virtue of Knowledge // Vantress Visions'}
+        gammal = sorted({n for n, _, _ in bilder} - tillagda)
     vek = {}
     for (i, sk, fb, del_), x in alla:
         vek.setdefault((sk, fb, del_), {})[i] = x
