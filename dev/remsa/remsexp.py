@@ -147,9 +147,32 @@ def poang(Q, R, rnamn, medel, namnlista, hub=None):
     return ut
 
 
+# Bänkens dubbelparningar (2026-10-05): remsfall parar ibland SAMMA remsa med två facit-kort i en hög. Remsan visar
+# bara det översta kortets titel, så raden med det undre kortets namn räknades som ett modellfel — de två största
+# "felen" i golden (hel 0,240 och 0,212 för piloten, 0,200 för den gamla modellen) var sådana. Bild kollad:
+# golden-06 remsan är Plains (Swamp under), golden-05 Pacifism (Scourge under). De två raderna stryks, och av rader
+# med samma remsa och samma namn räknas en (annars vägde de dubbelt).
+UNDRE = {('golden-06', 2), ('golden-05', 5)}
+
+
+def ratta_parningar(meta):
+    """Index i meta som räknas: utan det undre kortets rad och utan dubbletter av samma remsa och namn."""
+    rader = [r for r in json.load(open(os.path.join(ROT, 'dev/detektor/tran/resultat/remsfall-tjock0.7.json')))
+             if r['remsa'] and r['namn'] and r['kalla'] in ('mes246', '13b', 'golden')]
+    assert len(rader) == len(meta)
+    behall, sedda = set(), set()
+    for i, (m, r) in enumerate(zip(meta, rader)):
+        nyck = (m['bild'], m['facit'], tuple(round(v, 6) for v in r['remsa']))
+        if (m['bild'], m['id']) in UNDRE or nyck in sedda:
+            continue
+        sedda.add(nyck); behall.add(i)
+    return behall
+
+
 def prova():
     d = np.load(NPZ, allow_pickle=False)
     meta = json.loads(str(d['meta']))
+    behall = ratta_parningar(meta)
     jlek = set(json.loads(str(d['jesper_lek'])))
     kallor = ('golden', '13b', 'mes246')
 
@@ -162,7 +185,7 @@ def prova():
         for del_ in ('hel', 'titel'):
             idx = d[f'q|{sk}|{fb}|{del_}|idx']; Q = d[f'q|{sk}|{fb}|{del_}']
             res[del_] = dict(zip(idx.tolist(), Q))
-        ids = sorted(set(res['hel']) & set(res['titel']))
+        ids = sorted(set(res['hel']) & set(res['titel']) & behall)
         namnlista = sorted(set(rn) | {meta[i]['facit'] for i in ids})
         ut = {}
         for kalla in kallor:
