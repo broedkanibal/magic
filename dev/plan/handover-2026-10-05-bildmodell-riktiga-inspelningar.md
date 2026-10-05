@@ -217,7 +217,11 @@ Lärdomen från MES-334 (minnet `snal-matning-vid-orkestrering`): tiden gick i g
 5. Efter Jespers ja: riktig körning på Kaggle.
 6. Mät: `dev/remsa/remsregel.py`, `dev/remsa/helkort_jamfor.py`, remsbänken (MESA_MOBILECLIP + MESA_REMSEXP_NPZ),
    och golden **C på nytt (main med sida 5)** mot ny modell i samma profil (`--ny-embed`, `--modell`/
-   `--rems-modell`, `--ut` → `felbok.cjs`). Grind: 0 fel namn, inget fall sämre. Rad i historik.md.
+   `--rems-modell`, `--ut` → `felbok.cjs`). Grind: 0 fel namn, inget fall sämre. Redovisa de fyra raderna modellen
+   rår på — rätt namn, land per typ, högar, utlagda med namn i video — före/efter, per fall. Rad i historik.md.
+   Landen är tunga i felboken (9 av 24: Plains ×5, Island ×2, Swamp, Forest — remsor i högar, Island 0,187 strax
+   under 0,20), så pass 5 är det viktigaste materialet; träningens hel/remsa/titel-vikter (0,4/0,4/0,2) står kvar
+   tills bänken säger något annat.
 
 ## Kodpekare
 - `dev/remsa/tran/mesa_remsa_tran.py` — piloten (Kaggle-kernel `jesperfunkrosling/mesa-remsa-tran`,
