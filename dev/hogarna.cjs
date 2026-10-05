@@ -282,6 +282,25 @@ const PROV = async steg => {
     kamGrund = 90; renderAutoBar();
     ok('V3 · med ett grundläge: ingen rad', not.hidden || !/Untapped angle/.test(not.textContent));
   }
+  if (steg === 10) {
+    /* Rättelse 2 (Jespers beslut 2026-10-05): ett ensamt nedvänt kort — en token, ett kort med baksidan upp — syns lika
+       fort som ett vanligt kort och går lika fort. Telefonens tider provas i dev/kamerabank.cjs (LN1–LN4: 0 ms med
+       kortstorlek, 150 ms utan, borta i fjärde tomma rutan som ett spår); här datorns del. Ett meddelande som kamTogsEmot
+       tar emot det (leken först, sedan bordet): ett nytt vanligt kort (kortlik) och ett nytt nedvänt kort vars spår
+       telefonen märkt ned. Det vanliga kortet får sin platshållare och det nedvända kortet ritas — i samma meddelande —
+       och det nedvända kortets spår får ingen platshållare bredvid. Nästa meddelande, där telefonen släppt båda: båda borta. */
+    kamAnsluten = true; prefs.autoLage = true; kamGrund = 90; kamFas = ''; oppSatt({ klar: true }); mig().lage = 'bord';
+    mig().cards = []; mig().pending = []; nollGrav(); tagEmotLek(lek('nere', 1, R1)); renderAll(true);
+    const ny = (id, cx, cy, extra) => Object.assign(spar(id, null, cx, cy), { tillstand: 'ny', namn: null, saker: false, kortlik: true, vilar: false, sen: 0 }, extra || {});
+    const meddelande = async (l, lista) => { await vanta(15); tagEmotLek(l); avstamBord(lista, false); };
+    const NED = { id: 7, ruta: { x: 0.80, y: 0.5, w: 0.1, h: 0.22 } };
+    await meddelande(Object.assign(lek('nere', 1, R1), { ned: [NED] }), [ny(61, 0.2, 0.3), ny(62, 0.85, 0.61, { ned: true })]);
+    const p1 = gridEl.querySelectorAll('.plats').length, n1 = gridEl.querySelectorAll('.nedkort').length;
+    ok('nedvänt kort och vanligt kort i samma meddelande: båda syns på en gång, det nedvända utan platshållare bredvid', p1 === 1 && n1 === 1, `platshållare ${p1} (väntat 1: det vanliga kortets), nedvända kort ${n1}`);
+    await meddelande(lek('nere', 1, R1), []);
+    const p2 = gridEl.querySelectorAll('.plats').length, n2 = gridEl.querySelectorAll('.nedkort').length;
+    ok('telefonen släpper båda i samma meddelande: båda borta på en gång', p2 === 0 && n2 === 0, `platshållare ${p2}, nedvända kort ${n2}`);
+  }
   if (steg === 7) {
     /* Utan kamera: graveyard och library på fast plats som i dag, i D1:s utseende (inga ramar, bricka på underkanten). */
     kamAnsluten = false; kamGravRad = null; mig().gravHog = null; mig().bibHog = null; kamLek = null; renderAll(true); renderBibHog();
@@ -311,7 +330,7 @@ const PROV = async steg => {
     }
     await vanta(300);
     if (BILD) fs.mkdirSync(BILD, { recursive: true });
-    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4'];
+    const NAMN = ['5-fragan', '5-samma-fraga', '5-yes-4-i-spel', '6-nej-permanent', '6-ignore', '8-zoom-nedvant', 'motstandaren', 'utan-kamera', 'uppstarten', 'v3-v4', 'nedvant-lika-fort'];
     for (let s = 0; s < NAMN.length; s++) {
       const r = await c.cdp('Runtime.evaluate', { expression: '(' + PROV.toString() + ')(' + s + ')', awaitPromise: true, returnByValue: true });
       if (r.exceptionDetails) throw new Error(`steg ${s}: ` + ((r.exceptionDetails.exception || {}).description || r.exceptionDetails.text));

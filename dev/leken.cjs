@@ -213,6 +213,16 @@ const PROV = async steg => {
     const el2 = lekEl();
     ok('leken lagd på ny plats: samma element, inte längre upplockad', el2 === el && !el2.classList.contains('upp'));
     ok('och den glider dit (translate)', mig().bibHog.x !== x0 && /translate/.test(anim(el2)), `x ${Math.round(x0)} → ${Math.round(mig().bibHog.x)}, ${anim(el2)}`);
+    /* Rättelse 2 (Jespers beslut 2026-10-05): leken som läggs ner igen efter en upplockning väntar inte. Telefonens tid
+       provas i dev/kamerabank.cjs (LK5–LK5d: 0 ms med kortstorlek, 150 ms utan — förut 0,9 s på samma plats och 1,5 s
+       på en ny); här datorns del: upplockad och tillbaka på samma plats — nere i samma meddelande som säger det, utan
+       väntan och utan att glida någonstans, och delad som nere. */
+    tagEmotLek(lek('upp', 1, R2));
+    const el3 = lekEl(), upp3 = !!el3 && el3.classList.contains('upp'), x3 = mig().bibHog.x;
+    tagEmotLek(lek('nere', 1, R2));
+    const el4 = lekEl();
+    ok('upplockad och tillbaka på samma plats: nere i samma meddelande, samma element och läge, delad som nere', upp3 && el4 === el3 && !el4.classList.contains('upp') && mig().bibHog.x === x3 && mig().bibHog.upp === 0 && !hogDelat(mig())[0].upp,
+       `upp ${upp3}, sedan ${el4 ? el4.className : 'inget'}, x ${Math.round(x3)} → ${Math.round(mig().bibHog.x)}`);
   }
   if (steg === 7) {
     /* 3 · första kortet läggs ner: texten försvinner, leken ligger kvar. */

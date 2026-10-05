@@ -26400,11 +26400,29 @@ const Kamera = (() => {
   /* En hög som setts i rutan: stilla så länge mitten och ytan står kvar. */
   function lekSag(k, b, nu) {
     const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = k.ref;
+    /* Formstilla rutor i följd, med ett spårs mått (formN i matcha): mitten inom stillaPx och
+       båda sidorna inom SPEK_FORM sedan förra rutan högen sågs. Skuggregeln nedan (hogSkuggklar)
+       läser den när ingen kortstorlek finns. Efter ett avbrott (som stillheten nedan) börjar räkningen om:
+       en lek som läggs tillbaka på samma plats är en ny läggning, inte samma rutor. */
+    const f = nu - k.sist > 600 ? null : k.fBox;
+    k.formN = f && Math.hypot(cx - (f.x + f.w / 2), cy - (f.y + f.h / 2)) <= stillaPxNu()
+      && Math.abs(b.w - f.w) <= SPEK_FORM * f.w && Math.abs(b.h - f.h) <= SPEK_FORM * f.h ? (k.formN || 0) + 1 : 0;
+    k.fBox = { x: b.x, y: b.y, w: b.w, h: b.h };
     /* Syns den igen efter ett avbrott (en hand, en upplockning) börjar stillheten om. */
     if (!r || nu - k.sist > 600 || Math.hypot(cx - r.cx, cy - r.cy) > Math.max(2, 0.15 * Math.min(r.w, r.h)) || Math.abs(b.w * b.h - r.w * r.h) > 0.3 * r.w * r.h) {
       k.ref = { cx, cy, w: b.w, h: b.h }; k.stillaFran = nu;
     }
-    k.sist = nu; k.tomFran = 0;
+    k.sist = nu; k.tomFran = 0; k.tomMs = 0;
+  }
+  /* Borta som ett vanligt kort (Rättelse 2, Jespers beslut 2026-10-05): ett spår är borta när mattan
+     under det sett tom ut i mer än bortaMs (matcha: tomMs räknar upp i tomma rutor och tillbaka i
+     täckta — en hand över kortet håller det kvar). Samma räkning för en hög som inte syns i rutan:
+     maskens andel av lådan under tomMin är tom, över skymdMin är täckt, däremellan står räkningen. */
+  function lekTom(k, mask, dt, osaker) {
+    if (osaker || !mask) return;
+    const fyll = maskI(mask, k.box, AW, AH) / Math.max(1, k.box.w * k.box.h);
+    if (fyll < T.tomMin) k.tomMs = (k.tomMs || 0) + dt;
+    else if (fyll >= T.skymdMin) k.tomMs = Math.max(0, (k.tomMs || 0) - dt);
   }
   /* Det lekens grundläge ska ta: spåret som är högen (klassen baksida, mest
      täckt av lådan) när steg 1 mäter vinkeln per spår, annars lådan. */
@@ -26425,7 +26443,7 @@ const Kamera = (() => {
       if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; lekGrundExakt = false; }
     }
   }
-  function lekVakt(fynd, mask, nu, osaker, harDet) {
+  function lekVakt(fynd, mask, nu, osaker, harDet, dt) {
     if (kal.bib || !harDet || !AW || !AH) return;
     if (!lekStart) lekStart = nu;
     const W = AW, H = AH;
@@ -26439,6 +26457,19 @@ const Kamera = (() => {
       const y = b.w * b.h / kortYta; return y >= 0.6 && y <= 1.6;
     };
     const tom = b => maskI(mask, b, W, H) < LEK_TOM * Math.max(1, b.w * b.h);
+    if (dt == null) dt = taktMs();
+    /* Lika fort som ett vanligt kort (Rättelse 2, Jespers beslut 2026-10-05): ett ensamt nedvänt kort
+       — en token, ett kort med baksidan upp — och leken som läggs ner igen efter en upplockning syns
+       med samma regel som ett vanligt korts skugga (skuggklar, MES-226). Har lådan ett korts mått syns
+       den i första rutan; här är det formen leken redan prövas mot (form: 0,6–1,6 kortytor när en
+       kortstorlek finns). Innan bordets första säkra kort gett en kortstorlek: två formstilla rutor
+       (R(1), samma som skuggklar). Aldrig vid bildkanten. Lekens första upptäckt i partiets början
+       (steg 4) är orörd: still i 1,5 s, ensam. */
+    const hogSkuggklar = (b, k) => !kant(b) && form(b) && (kortYta > 0 || (k.formN || 0) >= R(1));
+    /* Leken lagd igen — det som gällde före sparas, så att det kan tas tillbaka: en lek som hålls
+       över bordet (blandas, flyttas) och syntes en stund är inte nerlagd. Försvinner den innan den
+       legat still är den upplockad på sin gamla plats igen, lika fort som ett vanligt kort försvinner. */
+    const lekNyss = () => { lek.nyss = { box: Object.assign({}, lek.box), ref: lek.ref, stillaFran: lek.stillaFran, lag: lek.lag, forra: lek.forra, forraNar: lek.forraNar }; };
     const tag = new Set();
     const basta = (b, ok) => { let bi = -1, bv = 0.3; hogar.forEach((h, i) => { if (tag.has(i) || (ok && !ok(h))) return; const v = ladIou(b, h); if (v >= bv) { bv = v; bi = i; } }); if (bi >= 0) tag.add(bi); return bi >= 0 ? hogar[bi] : null; };
     /* 1. Leken tar sin låda först, sedan högarna som inte är leken. */
@@ -26446,12 +26477,18 @@ const Kamera = (() => {
       const h = basta(lek.box);
       if (h) {
         lekSag(lek, h, nu);
+        if (lek.upp) {
+          /* Tillbaka på (nästan) samma plats efter en upplockning: lika fort som ett vanligt kort
+             (hogSkuggklar) — förut efter stillaMs (0,8 s still). Platsen före flytten gäller bara
+             första lyftet efter den. */
+          if (hogSkuggklar(h, lek)) { lekNyss(); lek.box = Object.assign({}, h); lek.upp = false; lek.forra = null; }
+        }
+        /* Nyss lagd: läget följer lådan ruta för ruta, som ett spår, tills leken legat still. */
+        else if (lek.nyss) lek.box = Object.assign({}, h);
         /* Läget följer leken när den ligger still igen — men inte detektorns
            darr på några bildpunkter: då hade rapporten gått i varje ruta. */
-        if (nu - lek.stillaFran >= T.stillaMs && (lek.upp || ladIou(lek.box, h) < 0.8)) {
-          lek.box = Object.assign({}, h);
-          if (lek.upp) { lek.upp = false; lek.forra = null; }   // tillbaka på (nästan) samma plats: platsen före flytten gäller bara första lyftet efter den
-        }
+        else if (nu - lek.stillaFran >= T.stillaMs && ladIou(lek.box, h) < 0.8) lek.box = Object.assign({}, h);
+        if (lek.nyss && !lek.upp && nu - lek.stillaFran >= LEK_STILLA_MS) lek.nyss = null;
         /* När leken senast LÅG STILL på sin plats (granskningen runda 2, fynd 1) — inte lek.sist, som
            flyttas av varje låda över platsen: en enda ruta med handen eller ett blänk där låste annars
            leken som upplockad. En ruta som hoppar dit nollar stillaFran (lekSag) och flyttar inte lag. */
@@ -26459,7 +26496,12 @@ const Kamera = (() => {
         lekVinkel(fynd, h, mask, nu, W, H);   // lekens egen väg till grundläget (sida 5, steg 0)
       } else {
         if (osaker || !tom(lek.box)) lek.tomFran = 0; else if (!lek.tomFran) lek.tomFran = nu;
-        if (!lek.upp && nu - lek.sist >= LEK_BORTA_MS && lek.tomFran && nu - lek.tomFran >= LEK_TOM_MS) lek.upp = true;
+        if (lek.nyss) {
+          /* Nyss lagd och borta igen innan den legat still: upplockad på sin gamla plats när mattan
+             under den sett tom ut i mer än bortaMs — som ett vanligt kort. En hand över den håller den kvar. */
+          lekTom(lek, mask, dt, osaker);
+          if (lek.tomMs > T.bortaMs) Object.assign(lek, lek.nyss, { upp: true, nyss: null, tomMs: 0, tomFran: 0 });
+        } else if (!lek.upp && nu - lek.sist >= LEK_BORTA_MS && lek.tomFran && nu - lek.tomFran >= LEK_TOM_MS) lek.upp = true;
       }
     }
     for (const u of lekUte) { const h = basta(u.box); if (h) { u.box = Object.assign({}, h); u.sist = nu; } }
@@ -26469,8 +26511,11 @@ const Kamera = (() => {
       const h = basta(k.box);
       if (h) { lekSag(k, h, nu); k.box = Object.assign({}, h); continue; }
       if (osaker || !tom(k.box)) k.tomFran = 0; else if (!k.tomFran) k.tomFran = nu;
+      lekTom(k, mask, dt, osaker);   // borta som ett vanligt kort (ensamma nedvända kort, steg 5)
     }
-    lekKand = lekKand.filter(k => k.sist === nu || nu - k.sist < 8000 && !(nu - k.sist >= LEK_BORTA_MS && k.tomFran && nu - k.tomFran >= LEK_TOM_MS));
+    /* Ett nedvänt kort som visas (k.ned, steg 5) står kvar tills det är borta som ett vanligt kort —
+       också under en hand längre än kandidaternas 8 s, som ett skymt spår. */
+    lekKand = lekKand.filter(k => k.sist === nu || k.ned || nu - k.sist < 8000 && !(nu - k.sist >= LEK_BORTA_MS && k.tomFran && nu - k.tomFran >= LEK_TOM_MS));
     hogar.forEach((h, i) => { if (!tag.has(i)) { const k = { id: lekNastaId++, box: Object.assign({}, h), ref: null, fodd: nu, sist: nu, stillaFran: nu, tomFran: 0 }; lekSag(k, h, nu); lekKand.push(k); } });
     const giltig = k => k.sist === nu && !kant(k.box) && form(k.box);
     const stilla = k => giltig(k) && nu - k.stillaFran >= LEK_STILLA_MS;
@@ -26495,10 +26540,14 @@ const Kamera = (() => {
        leken blandas i luften (RP7), precis som leken ligger ensam när handen
        plockats upp (RP2). Det som skiljer dem är att leken läggs tillbaka där
        den låg. */
+    /* Lika fort som ett vanligt kort (Rättelse 2): högen syns i rutan och har ett korts mått
+       (hogSkuggklar) — förut skulle den ha legat still i 1,5 s (stilla). */
     if (lek && lek.upp) {
-      let k = lekKand.filter(q => stilla(q) && q.fodd > lek.lag).sort((a, b) => b.fodd - a.fodd)[0], tillbaka = false;
-      if (!k && lek.forra) { k = lekKand.find(q => stilla(q) && q.fodd > lek.forraNar && ladIou(q.box, lek.forra) >= 0.3); tillbaka = !!k; }
+      const lagd = q => q.sist === nu && hogSkuggklar(q.box, q);
+      let k = lekKand.filter(q => lagd(q) && q.fodd > lek.lag).sort((a, b) => b.fodd - a.fodd)[0], tillbaka = false;
+      if (!k && lek.forra) { k = lekKand.find(q => lagd(q) && q.fodd > lek.forraNar && ladIou(q.box, lek.forra) >= 0.3); tillbaka = !!k; }
       if (k) {
+        lekNyss();
         const fore = lek.box;
         lek.box = Object.assign({}, k.box); lek.ref = k.ref; lek.stillaFran = k.stillaFran; lek.sist = nu; lek.lag = nu; lek.tomFran = 0; lek.upp = false;
         lek.forra = tillbaka ? null : Object.assign({}, fore); lek.forraNar = nu;
@@ -26538,14 +26587,28 @@ const Kamera = (() => {
        den tomma platsen får ett kort som läggs där inget spår. Kommer leken tillbaka dit gör steg 6
        dess spår till skräp igen. */
     /* Ensamma nedvända kort (MES-334 steg 5, Byggunderlaget "Andra nedvända kort, när leken är känd"):
-       en hög av EN detektorlåda, giltig som leken (inte vid kanten, ett korts form och 0,6–1,6 kortytor
-       när en kortstorlek finns), som legat still i 3 s och inte är leken eller en hög som spelaren sagt
-       Not my library om. Bara medan leken ligger — innan den hittats kan högen vara leken, och medan
-       den är upplockad kan det vara leken som läggs ner. Högar av flera lådor och högar vid bildkanten
-       visas inte (golden 17: kompisens sju baksidor vid kanten och i ett hörn). Datorn ritar dem som
-       nedvända kort i bordets sleeves. */
-    lekNed = lek && !lek.upp ? lekKand.filter(k => stilla(k) && (k.box.n || 1) === 1 && nu - k.stillaFran >= 2 * LEK_STILLA_MS
-      && ladIou(k.box, lek.box) < 0.3 && !lekUte.some(u => ladIou(k.box, u.box) >= 0.3)) : [];
+       en hög av EN detektorlåda, inte vid kanten och med ett korts form (0,6–1,6 kortytor när en
+       kortstorlek finns), som inte är leken eller en hög som spelaren sagt Not my library om. Bara medan
+       leken ligger — innan den hittats kan högen vara leken, och medan den är upplockad kan det vara
+       leken som läggs ner. Högar av flera lådor och högar vid bildkanten visas inte (golden 17:
+       kompisens sju baksidor vid kanten och i ett hörn). Datorn ritar dem som nedvända kort i bordets
+       sleeves.
+       Lika fort som ett vanligt kort (Rättelse 2, Jespers beslut 2026-10-05 — det kan vara en token):
+       det syns med skuggans regel (hogSkuggklar: första rutan med ett korts mått, annars två
+       formstilla rutor) — förut efter 3 s still. Det står kvar medan det syns eller är täckt, och går
+       när mattan under det sett tom ut i mer än bortaMs, som ett spår (lekTom) — förut gick det i
+       första rutan detektorn missade lådan och kom tillbaka i nästa. En hand som håller ett nedvänt
+       kort rakt över bordet blir alltså ett nedvänt kort tidigare än förut (känd rest V2, Jespers val).
+       Ett säkert namngivet spår på samma plats är ett kort, inte en baksida: då inget nedvänt kort. */
+    if (lek && !lek.upp) {
+      const nedOk = k => (k.box.n || 1) === 1 && ladIou(k.box, lek.box) < 0.3 && !lekUte.some(u => ladIou(k.box, u.box) >= 0.3)
+        && !spar.some(t => t.tillstand === 'klar' && t.namn && t.box && ladIou(t.box, k.box) >= 0.5);
+      for (const k of lekKand) {
+        if (k.sist === nu) k.ned = nedOk(k) && !kant(k.box) && form(k.box) && (!!k.ned || hogSkuggklar(k.box, k));
+        else k.ned = !!k.ned && nedOk(k) && (k.tomMs || 0) <= T.bortaMs;
+      }
+      lekNed = lekKand.filter(k => k.ned);
+    } else { for (const k of lekKand) k.ned = false; lekNed = []; }
     lekZon = lek && !lek.upp ? lekZonAv(lek.box) : null;
     if (!lek || lek.upp) return;
     /* 6. Lekens egna spår (klassen baksida inne i högen) är leken, inget kort
@@ -26625,6 +26688,10 @@ const Kamera = (() => {
        (lekInte), och datorn skriver raden med samma dom (granskningen runda 3, fynd 3). */
     forsta: !!lekForsta
   };
+  /* Spåret ÄR ett av de ensamma nedvända korten (steg 5): datorn ritar det nedvända kortet, inte en
+     platshållare för samma kort (rapportera, fältet ned). Förut kom det nedvända kortet efter 3 s,
+     när spåret redan dömts som baksida och var skräp; nu kommer det i samma ruta som skuggan. */
+  const arNedKort = t => !!t.box && t.tillstand !== 'klar' && lekNed.length > 0 && lekNed.some(k => ladIou(t.box, k.box) >= 0.5);
   const lekSig = () => { const l = lekLage(); if (!l) return ''; const r = l.ruta; return `|L${l.lage[0]}${l.id || ''}${r ? [r.x, r.y, r.w, r.h].map(v => Math.round(v * 50)).join(',') : ''}${l.farg ? 'f' + (l.farg.magic ? 'm' : '') : ''}${l.ute.map(u => 'u' + u.id + ':' + Math.round(u.ruta.x * 50) + ',' + Math.round(u.ruta.y * 50)).join('')}${l.ned.map(u => 'n' + u.id + ':' + Math.round(u.ruta.x * 50) + ',' + Math.round(u.ruta.y * 50)).join('')}${l.grund || ''}${l.forsta ? 'F' : ''}`; };
   /* Högvakten (K10/K11, MES-85). Rutan föder inga spår, men datorn behöver
      veta när ett kort LADES på högen: då kan ett kort som just försvann från
@@ -27071,7 +27138,7 @@ const Kamera = (() => {
     bibSag(bibDelar, nu, klamd || felRader > 0);
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
     minnesvard(nu);   // minnet av remsor följer sina spår (MES-331 pass 6)
-    lekVakt(fynd, mask, nu, klamd || felRader > 0, !!(det && det.lador));   // leken utan uppstart (MES-334 steg 3)
+    lekVakt(fynd, mask, nu, klamd || felRader > 0, !!(det && det.lador), dt);   // leken utan uppstart (MES-334 steg 3)
     ta('matcha');
 
     /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
@@ -27411,7 +27478,7 @@ const Kamera = (() => {
      500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
      (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
   let sandSignatur = null;
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '') + lekSig();
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${arNedKort(t) ? ':n' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '') + lekSig();
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -27565,6 +27632,7 @@ const Kamera = (() => {
       sen: t.regionNar != null ? Math.max(0, Math.round(forra - t.regionNar)) : null,   // ms sedan detektorn gav spåret en region; null = aldrig (helbild, svarAI-del). forra, inte performance.now(): bänken och golden styr klockan själva
       stilla: arStilla(t),   // legat stilla i stillaMs (MES-166): datorns provkortslås låser bara ett stilla kort; och kamLage ankrar om ett läge som skrevs innan kortet vilat (MES-214)
       kortlik: skuggklar(t),   // regionen har ETT KORTS MÅTT, eller har stått formstilla i två rutor: datorn ritar skuggan direkt, utan den halva sekund som skyddar mot en hand (MES-226)
+      ned: arNedKort(t),   // spåret är ett ensamt nedvänt kort (lek.ned, Rättelse 2): datorn ritar det kortet, ingen platshållare
       saker: !!t.saker, cands: t.cands || null, tillstand: t.tillstand, namnLast: t.namnLast || null,
       provas: !!t.provas,   // okänt men väntar på Claude: datorn lägger ingen granskning än (avstamBord)
       skymd: !!t.skymd, gissning: t.gissning || null, kort: Math.round(t.kort), ai: t.ai || null, varfor: t.varfor || null,
@@ -30857,6 +30925,11 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      Det räknas inte, skapar inget, och står bara kvar i spårlistan så att
      telefonen slipper föda om det varje ruta. */
   spar = spar.filter(t => t.tillstand !== 'skrap');
+  /* Ett ensamt nedvänt kort (MES-334 steg 5, Rättelse 2) ritas som det nedvända kortet (tagEmotLek,
+     mig.nedHog, i samma meddelande) — dess spår får ingen platshållare bredvid och binds inte till
+     något kort. Förut kom det nedvända kortet först efter 3 s, när spåret redan var skräp. Bara när
+     datorn ritar de nedvända korten (lekBordAktivt; utdragen som bänkarna kör avstamBord i saknar den). */
+  if (typeof lekBordAktivt === 'function' && lekBordAktivt()) spar = spar.filter(t => !(t.ned && t.tillstand !== 'klar'));
   /* Ignore this spot (MES-334 steg 4): Mesa följer inte det som ligger där. */
   spar = spar.filter(t => !gravIgnorerad(t));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.

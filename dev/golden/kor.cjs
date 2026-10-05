@@ -338,6 +338,9 @@ const CDP_TAK_MS = +arg('--cdp-tak', 120000);
         console.log(`    ${r.id.slice(0, 2)}: ${v ? `vald ${v.s} s${v.inne === true ? ' INNE i facits ruta' : v.inne === false && L.fel != null ? ' UTANFÖR facits ruta' : ' (facit har ingen ruta)'}, grundläget ${v.grund == null ? '–' : v.grund + '°'}` : 'ingen lek vald'}`
           + `; slut ${sl ? sl.lage + (sl.grund ? ` (grundläget ur ${sl.grund})` : '') + (sl.vinkel != null ? `, lekens vinkel mätt ${sl.vinkel.toFixed(1)}°` : '') + (sl.farg ? `, färg ${sl.farg.magic ? 'Magic-baksidan' : 'rgb(' + sl.farg.r + ',' + sl.farg.g + ',' + sl.farg.b + ')'}` : '') + (sl.ute.length ? `, ${sl.ute.length} ute` : '') : '–'}`
           + (L.fel ? `; ${L.fel} lägen med leken utanför facits ruta` : '') + `; logg: ${L.logg.filter(x => x.lek).map(x => `${x.s} s ${x.lek.lage}${x.lek.id ? '#' + x.lek.id : ''}${x.grund != null ? ' ' + x.grund + '°' : ''}${x.lek.vinkel != null ? ' (leken mätt ' + x.lek.vinkel.toFixed(1) + '°)' : ''}`).join(' → ')}`);
+        /* Ensamma nedvända kort (steg 5, Rättelse 2): golden räknar dem inte — facit har inga — så de skrivs ut för att dömas för hand (en token, en baksida, eller en hand). */
+        const mitt = q => q ? `${(q.x + q.w / 2).toFixed(2)},${(q.y + q.h / 2).toFixed(2)}` : '–';
+        if (L.ned && L.ned.length) console.log(`        nedvända kort (${L.ned.length}): ` + L.ned.map(e => `#${e.id} ${e.fran}–${e.till} s vid ${mitt(e.ruta)}${mitt(e.sist) !== mitt(e.ruta) ? ' → ' + mitt(e.sist) : ''} (${e.rutor} rutor)`).join(' · '));
       }
     }
   }

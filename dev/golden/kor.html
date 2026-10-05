@@ -720,7 +720,9 @@ function las(prov, ms, msRuta) {
   for (const l of K.diagnos.skarLogg || []) if (!prov.skarAlla.has(l.ruta)) prov.skarAlla.set(l.ruta, l);
   /* Leken utan uppstart (MES-334 steg 3): varje gång lekvaktens läge byts — ingen/nere/upp, vilken hög, var, färgen, grundläget. */
   { const l = K.lek, k = l ? l.lage + (l.id || '') + (l.ruta ? ':' + Math.round(l.ruta.x * 50) + ',' + Math.round(l.ruta.y * 50) : '') + (l.farg ? 'f' : '') + (l.grund || '') + (l.vinkel != null ? 'v' + Math.round(l.vinkel) : '') + l.ute.map(u => 'u' + u.id).join('') : 'null';
-    if (k !== prov.lekSig) { prov.lekSig = k; (prov.lekLogg || (prov.lekLogg = [])).push({ s: prov.s, lek: l ? JSON.parse(JSON.stringify(l)) : null, grund: K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null }); } }
+    if (k !== prov.lekSig) { prov.lekSig = k; (prov.lekLogg || (prov.lekLogg = [])).push({ s: prov.s, lek: l ? JSON.parse(JSON.stringify(l)) : null, grund: K.grund != null ? Math.round(K.grund * 180 / Math.PI) % 180 : null }); }
+    /* De ensamma nedvända korten (MES-334 steg 5, Rättelse 2): varje kort telefonen visade som nedvänt — när det kom och gick, och var (första och sista rutan). */
+    if (l && l.ned) for (const u of l.ned) { const g = prov.nedLogg || (prov.nedLogg = {}), e = g[u.id] || (g[u.id] = { id: u.id, fran: prov.s, ruta: u.ruta, rutor: 0 }); e.till = prov.s; e.sist = u.ruta; e.rutor++; } }
   const s2 = spar.map(t => `${t.id}:${t.tillstand}:${t.namn || ''}:${t.fragad ? 1 : 0}:${t.skymd ? 1 : 0}`).join('|') + '@' + lage;
   if (s2 !== prov.sig) { prov.sig = s2; prov.stabilSedan = ms; }
   const rad = spar.map(t => `#${t.id} ${t.tillstand}${t.skymd ? ' skymd' : ''} ${Math.round(t.lang)}×${Math.round(t.kort)}@${Math.round(t.cx)},${Math.round(t.cy)}${t.namn ? ' ' + t.namn + (t.saker ? '' : '?') : ''}`).join(' | ');
@@ -789,7 +791,7 @@ function avsluta(f, prov, tid, tak, takS) {
     const b = f.facit.bib || null, inne = r => !!(b && r && r.x + r.w / 2 >= b.x && r.x + r.w / 2 <= b.x + b.w && r.y + r.h / 2 >= b.y && r.y + r.h / 2 <= b.y + b.h);
     const valda = prov.lekLogg.filter(x => x.lek && x.lek.ruta && x.lek.lage === 'nere');
     const forsta = valda[0] || null, slut = K.lek;
-    res.lek = { utanBib: UTAN_BIB, logg: prov.lekLogg, slut: slut ? JSON.parse(JSON.stringify(slut)) : null,
+    res.lek = { utanBib: UTAN_BIB, logg: prov.lekLogg, slut: slut ? JSON.parse(JSON.stringify(slut)) : null, ned: Object.values(prov.nedLogg || {}),
                 vald: forsta ? { s: forsta.s, inne: inne(forsta.lek.ruta), ruta: forsta.lek.ruta, grund: forsta.grund } : null,
                 fel: b ? valda.filter(x => !inne(x.lek.ruta)).length : null };
   }

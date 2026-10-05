@@ -2044,6 +2044,13 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const hog = b => g => kort(g, W, b.x, b.y, b.w, b.h, 55);       // en nedvänd hög: mörk, med kortets struktur
     const kortR = b => g => kort(g, W, b.x, b.y, b.w, b.h, 180);
     const kor = async (n, ritar, lador) => { let l = null; for (let i = 0; i < n; i++) l = await steg1(ritar, lador); return l; };
+    /* Kör n rutor och ge första rutan (1 = första) där varje villkor blev sant; ms(i) är tiden från första rutan (Rättelse 2). */
+    const forstaRuta = async (n, ritar, lador, villkor) => {
+      const ut = villkor.map(() => null);
+      for (let i = 1; i <= n; i++) { const l = await steg1(ritar, lador); villkor.forEach((v, j) => { if (ut[j] == null && v(l)) ut[j] = i; }); }
+      return ut;
+    };
+    const ms = i => i == null ? '–' : (i - 1) * TAKT;
     const grader = () => Kamera.grund == null ? null : Math.round(Kamera.grund * 180 / Math.PI) % 180;
     const L = { x: 150, y: 60, w: 30, h: 42 }, L2 = { x: 40, y: 70, w: 30, h: 42 };
     const nyttBord = async upp => { nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: upp || 'v' } }); namnSvar = svar; await kor(14, [], []); };
@@ -2079,11 +2086,30 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     const l4b = await kor(10, [], []);
     check(`LK4 leken upplockad: efter 1,2 s ${l4a && l4a.lage}, efter 2,7 s ${l4b && l4b.lage}, ruta kvar ${!!(l4b && l4b.ruta)}`,
           !!l4a && l4a.lage === 'nere' && !!l4b && l4b.lage === 'upp' && !!l4b.ruta);
-    // LK5: leken läggs ner någon annanstans — den flyttar dit, samma id
-    const l5a = await kor(4, [hog(L2)], [lada(L2, 'baksida')]);
-    const l5b = await kor(10, [hog(L2)], [lada(L2, 'baksida')]);
-    check(`LK5 leken lagd på ny plats: efter 0,6 s ${l5a && l5a.lage}, efter 2,1 s ${l5b && l5b.lage} x ${l5b && l5b.ruta && l5b.ruta.x} (väntat ${(L2.x / W).toFixed(3)}), id ${l5b && l5b.id} (var ${id1})`,
-          l5a.lage === 'upp' && l5b.lage === 'nere' && Math.abs(l5b.ruta.x - L2.x / W) < 0.01 && l5b.id === id1);
+    // LK5: leken läggs ner någon annanstans — den flyttar dit, samma id. Lika fort som ett vanligt kort (Rättelse 2,
+    //   Jespers beslut 2026-10-05): utan kortstorlek (inget säkert kort än) två formstilla rutor, som skuggklar — förut 1,5 s still.
+    const nereVid = b => l => l.lage === 'nere' && Math.abs(l.ruta.x - b.x / W) < 0.01;
+    const [i5] = await forstaRuta(14, [hog(L2)], [lada(L2, 'baksida')], [nereVid(L2)]);
+    const l5b = Kamera.lek;
+    check(`LK5 leken lagd på ny plats: nere där efter ${ms(i5)} ms (två formstilla rutor), efter 2,1 s ${l5b && l5b.lage} x ${l5b && l5b.ruta && l5b.ruta.x} (väntat ${(L2.x / W).toFixed(3)}), id ${l5b && l5b.id} (var ${id1})`,
+          i5 === 2 && l5b.lage === 'nere' && Math.abs(l5b.ruta.x - L2.x / W) < 0.01 && l5b.id === id1);
+    // LK5b: leken plockas upp igen och läggs tillbaka på SAMMA plats — nere i andra rutan, förut efter stillaMs (0,8 s still)
+    await kor(26, [], []);
+    const l5c = Kamera.lek && Kamera.lek.lage;
+    const [i5b] = await forstaRuta(10, [hog(L2)], [lada(L2, 'baksida')], [nereVid(L2)]);
+    check(`LK5b leken tillbaka på samma plats: lyft ${l5c}, nere igen efter ${ms(i5b)} ms, id ${Kamera.lek && Kamera.lek.id}`,
+          l5c === 'upp' && i5b === 2 && Kamera.lek.id === id1);
+    // LK5c: leken hålls över bordet en stund (syns två rutor vid L3) och försvinner igen — inte nerlagd: upplockad på sin
+    //   gamla plats igen lika fort som ett vanligt kort försvinner (mer än bortaMs tom matta), och läggs sedan vid L3 på riktigt
+    const L3c = { x: 100, y: 95, w: 30, h: 42 };
+    await kor(14, [hog(L2)], [lada(L2, 'baksida')]);
+    await kor(26, [], []);
+    const l5f = await kor(2, [hog(L3c)], [lada(L3c, 'baksida')]);
+    const l5g = [];
+    for (let i = 0; i < 5; i++) { const l = await steg1([], []); l5g.push(l.lage + (l.ruta ? '@' + Math.round(l.ruta.x * W) : '')); }
+    const l5h = await kor(3, [hog(L3c)], [lada(L3c, 'baksida')]);
+    check(`LK5c leken i handen över L3 två rutor: ${l5f && l5f.lage} x ${l5f && l5f.ruta && Math.round(l5f.ruta.x * W)}; sedan ruta för ruta ${l5g.join(' ')}; lagd vid L3: ${l5h && l5h.lage} x ${l5h && l5h.ruta && Math.round(l5h.ruta.x * W)}, id ${l5h && l5h.id}`,
+          l5f.lage === 'nere' && Math.abs(l5f.ruta.x * W - L3c.x) < 2 && l5g[2].startsWith('nere') && l5g[3] === 'upp@' + L2.x && l5h.lage === 'nere' && Math.abs(l5h.ruta.x * W - L3c.x) < 2 && l5h.id === id1);
 
     // LK6: två nedvända högar (starthanden nedvänd) — ingen lek förrän en plockats upp; den som ligger kvar blir library
     await nyttBord('v');
@@ -2299,16 +2325,53 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     check(`LK22 handen nedvänd under en sökning på 15 s: handen lagd ${l22a && l22a.lage} x ${xs21(l22a)}; handen upplockad 6 s: ${l22 && l22.lage} x ${xs21(l22)} (L ${(L.x / W).toFixed(3)})`,
           !!l22 && l22.lage === 'nere' && Math.abs(l22.ruta.x - L.x / W) < 0.01);
 
-    // LN (steg 5): ensamma nedvända kort medan leken ligger — en låda, still i 3 s, inte vid kanten; inte en hög av två lådor
+    // LN (steg 5): ensamma nedvända kort medan leken ligger — en låda, inte vid kanten; inte en hög av två lådor.
+    //   Lika fort som ett vanligt kort (Rättelse 2, Jespers beslut 2026-10-05): det nedvända kortet kommer i samma ruta
+    //   som ett vanligt korts skugga (rapportens kortlik) och går i samma ruta som det vanliga kortets spår. Förut: efter
+    //   3 s still, och borta i första rutan detektorn missade lådan. Tiderna skrivs ut i ms från första rutan (rutor à 150 ms).
     await nyttBord('v');
     await kor(14, [hog(L)], [lada(L, 'baksida')]);
     const N1 = { x: 60, y: 40, w: 30, h: 42 }, N2a = { x: 100, y: 90, w: 30, h: 42 }, N2b = { x: 108, y: 96, w: 30, h: 42 }, NK = { x: 210, y: 50, w: 30, h: 42 };
+    const FU = { x: 20, y: 100, w: 30, h: 42 };   // ett vanligt kort (uppvänt) som läggs i samma ruta
     const ritN = [hog(L), hog(N1), hog(N2a), hog(N2b), hog(NK)], ladN = [lada(L, 'baksida'), lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')];
-    const ln1 = await kor(12, ritN, ladN);
-    const ln2 = await kor(14, ritN, ladN);
     const nedX = l => (l && l.ned || []).map(u => Math.round(u.ruta.x * W));
-    check(`LN1 ensamma nedvända kort: efter 1,8 s ${JSON.stringify(nedX(ln1))}, efter 3,9 s ${JSON.stringify(nedX(ln2))} (väntat [${N1.x}]: inte högen av två lådor vid ${N2a.x}, inte kortet vid kanten ${NK.x}), leken ${ln2 && ln2.lage} x ${ln2 && ln2.ruta && Math.round(ln2.ruta.x * W)}`,
-          !!ln1 && ln1.ned.length === 0 && !!ln2 && ln2.lage === 'nere' && Math.abs(ln2.ruta.x * W - L.x) < 2 && JSON.stringify(nedX(ln2)) === JSON.stringify([N1.x]));
+    const nedVid = (l, b) => nedX(l).some(x => Math.abs(x - b.x) < 2);
+    const sparVid = b => bord.find(t => Math.abs((t.x + t.w / 2) * W - (b.x + b.w / 2)) < 3 && Math.abs((t.y + t.h / 2) * H - (b.y + b.h / 2)) < 3);
+    let fel1 = [], flagg1 = null;
+    const [iN1, iK1] = await forstaRuta(26, ritN.concat(kortR(FU)), ladN.concat(lada(FU, 'kort')), [
+      l => { if (nedVid(l, N2a) || nedVid(l, NK)) fel1.push(nedX(l)); const ja = nedVid(l, N1); if (ja && flagg1 == null) { const t = sparVid(N1); flagg1 = t ? [!!t.ned, !!t.kortlik] : null; } return ja; },
+      () => { const t = sparVid(FU); return !!t && t.kortlik; }]);
+    const ln2 = Kamera.lek;
+    check(`LN1 ensamt nedvänt kort utan kortstorlek: syns efter ${ms(iN1)} ms, det vanliga kortets skugga efter ${ms(iK1)} ms (två formstilla rutor, som skuggklar); efter 3,9 s ${JSON.stringify(nedX(ln2))} (väntat [${N1.x}]: aldrig högen av två lådor vid ${N2a.x} eller kortet vid kanten ${NK.x}${fel1.length ? ', men ' + JSON.stringify(fel1[0]) : ''}); spåret under det har ned/kortlik ${JSON.stringify(flagg1)} (datorn ritar ingen platshållare); leken ${ln2 && ln2.lage}`,
+          iN1 === 2 && iK1 === 2 && fel1.length === 0 && !!ln2 && ln2.lage === 'nere' && Math.abs(ln2.ruta.x * W - L.x) < 2 && JSON.stringify(nedX(ln2)) === JSON.stringify([N1.x]) && !!flagg1 && flagg1[0] === true && !(sparVid(FU) || {}).ned);
+    // LN1b: med kortstorlek (det vanliga kortet har fått sitt namn) — ett nytt nedvänt kort och ett nytt vanligt kort i samma ruta: båda i första rutan
+    const N3 = { x: 20, y: 40, w: 30, h: 42 }, FU2 = { x: 60, y: 100, w: 30, h: 42 };
+    const kr1b = Kamera.diagnos && Kamera.diagnos.kortRef;
+    const ritN3 = ritN.concat(kortR(FU), hog(N3), kortR(FU2)), ladN3 = ladN.concat(lada(FU, 'kort'), lada(N3, 'baksida'), lada(FU2, 'kort'));
+    const [iN3, iK3] = await forstaRuta(14, ritN3, ladN3, [l => nedVid(l, N3), () => { const t = sparVid(FU2); return !!t && t.kortlik; }]);
+    check(`LN1b med kortstorlek ${kr1b ? kr1b.lang + '×' + kr1b.kort : '–'}: nedvänt kort efter ${ms(iN3)} ms, vanligt korts skugga efter ${ms(iK3)} ms`, !!kr1b && iN3 === 1 && iK3 === 1);
+    // LN3: båda lyfts i samma ruta (ingen låda, tom matta) — det nedvända kortet går i samma ruta som det vanliga kortets spår:
+    //   när mattan under det sett tom ut i mer än bortaMs (450 ms), fjärde tomma rutan
+    const ritUtan = ritN.concat(kortR(FU)), ladUtan = ladN.concat(lada(FU, 'kort'));
+    const [jN3, jK3] = await forstaRuta(8, ritUtan, ladUtan, [l => !nedVid(l, N3), () => !sparVid(FU2)]);
+    check(`LN3 nedvänt och vanligt kort lyfta i samma ruta: det nedvända borta i ruta ${jN3} (${ms(jN3)} ms efter första tomma), det vanliga kortets spår i ruta ${jK3} (${ms(jK3)} ms)`, jN3 === 4 && jK3 === 4);
+    // LN4: en ruta där detektorn missar lådan men kortet syns, och sedan en hand över kortet i 9 s (längre än kandidaternas 8 s):
+    //   kortet står kvar hela tiden, som ett skymt spår — förut försvann det i varje ruta utan låda
+    const utanN1 = ladN.filter((_, i) => i !== 1).concat(lada(FU, 'kort'));
+    const ln4a = await steg1(ritUtan, utanN1);
+    const handN1 = g => hand(g, W, N1.x + 15, N1.y + 21, 20, 26, 170);
+    let borta4 = 0;
+    for (let i = 0; i < 60; i++) { const l = await steg1(ritUtan.concat(handN1), utanN1); if (!nedVid(l, N1)) borta4++; }
+    const ln4c = await kor(3, ritUtan, ladUtan);
+    check(`LN4 en ruta utan låda: ${nedVid(ln4a, N1) ? 'kvar' : 'borta'}; hand över kortet i 9 s: borta i ${borta4} av 60 rutor; handen bort: ${nedVid(ln4c, N1) ? 'kvar' : 'borta'}`,
+          nedVid(ln4a, N1) && borta4 === 0 && nedVid(ln4c, N1));
+    // LK5d (här för kortstorleken: det vanliga kortet har namn): leken lyfts och läggs på en ny plats — nere i FÖRSTA rutan, som ett vanligt korts skugga
+    const L5d = { x: 185, y: 100, w: 30, h: 42 };
+    const utanLek = ritUtan.filter(r => r !== ritUtan[0]), ladUtanLek = ladUtan.filter(r => r !== ladUtan[0]);
+    await kor(26, utanLek, ladUtanLek);
+    const l5d0 = Kamera.lek && Kamera.lek.lage, kr5d = Kamera.diagnos && Kamera.diagnos.kortRef;
+    const [i5d] = await forstaRuta(3, utanLek.concat(hog(L5d)), ladUtanLek.concat(lada(L5d, 'baksida')), [l => l.lage === 'nere' && Math.abs(l.ruta.x * W - L5d.x) < 2]);
+    check(`LK5d leken lagd på ny plats med kortstorlek ${kr5d ? kr5d.lang + '×' + kr5d.kort : '–'}: lyft ${l5d0}, nere vid den nya platsen efter ${ms(i5d)} ms`, l5d0 === 'upp' && !!kr5d && i5d === 1);
     const ln3 = await kor(22, [hog(N1), hog(N2a), hog(N2b), hog(NK)], [lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')]);
     check(`LN2 leken upplockad: inga nedvända kort i rapporten (det kan vara leken som läggs ner): ${ln3 && ln3.lage}, ned ${JSON.stringify(nedX(ln3))}`, !!ln3 && ln3.lage === 'upp' && ln3.ned.length === 0);
 
