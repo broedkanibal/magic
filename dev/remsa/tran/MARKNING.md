@@ -36,7 +36,7 @@ install` i `dev/remsa` behövs bara för `--ocr`.
 | `vittnen.json`, `markning.json` | C, E | Claude, (a) modellen, (b) ORB per spår; dom, namn, `utanfor_traning`, `val`, lägen, filer. `beskar: null` = E inaktuell |
 | `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata>.jpg`, kvalitet 95. C tömmer dem; E skriver om |
 | `osaker/4k/`, `slangd/4k/` | C | 4K-utsnittet för osäkra och slängda-med-lägg — huvudsessionens ögon, inte träning |
-| `facit-manuell.json` | (hand) | `{"<spår>": "<namn>" | null}` efter en titt på `osaker/4k` — ger `saker_manuell`; måste vara nyare än `spar.json` |
+| `facit-manuell.json` | (hand) | `{"<spår>": "<namn>" | null}` efter en titt på `osaker/4k` — namn ger `saker_manuell`, null slänger (också ett säkert); måste vara nyare än `spar.json` |
 | `montage.jpg` | F | per spår: lägg-ögonblicket och det sista sparade läget i 1080, med Claudes namn och domen |
 
 ## Domen
@@ -53,16 +53,20 @@ install` i `dev/remsa` behövs bara för `--ocr`.
 Namnet normaliseras: exakt (gemener, apostrofer; en sida → kortets hela namn), annars Dice ≥ 0,9 mot ett
 entydigt namn; ett tokennamn ("Blood", "Treasure") blir aldrig ett kortnamn, inte heller via en sida.
 Claude får en egen kort fråga utan systemprompt — appens systemprompt rörs inte. E kontrollerar varje
-läge där hela kortet syns med ORB mot lägg-ögonblickets konstverk; faller den skrivs inga fler lägen
-(ett annat kort kan ha lagts exakt på samma plats).
+läge där hela kortet syns med vittne (b):s regel mot lägg-ögonblickets konstverk; faller den skrivs inget
+efter det senast godkända läget — inte heller täckta lägen däremellan (ett annat kort kan ha lagts exakt på
+samma plats). E skriver först till `e-tmp/` och flyttar när kontrollerna är klara. Ofrågade spår gör att
+`klipp`/`pass` kör C igen av sig själv.
 
 ## Där koden preciserar specen
 
-- **Spårningen:** ett spår fortsätter bara på samma låda (IoU ≥ 0,9) eller en innesluten (≥ 0,9, kortet blir
-  täckt). En låda som växer eller flyttar sig är ett nytt spår — annars tog det undre kortet i en hög över
-  det övres låda och namn (granskningen, sim_hog.py).
-- **Basland i kandidatleken:** alla unika konstverk (alla år, alla ramar, ~390 per typ, 1 952 bilder) —
-  Jespers land är andra tryckningar än poolens year ≥ 2021.
+- **Spårningen:** ett spår fortsätter bara på samma låda (IoU ≥ 0,9), en krympt (inom den förra med högst
+  2 % av kortsidan utanför OCH ytan ≤ 0,85 — kortet blir täckt) eller en som växer tillbaka till spårets
+  egen helbild (IoU ≥ 0,9). Allt annat är ett nytt spår — annars tog det undre kortet i en hög över det
+  övres låda och namn (granskningarna, sim_hog.py och gr2/sim2–5.py).
+- **Basland:** ORB jämför mot alla unika konstverk (alla år, alla ramar, ~390 per typ, 1 952 bilder) —
+  Jespers land är andra tryckningar än poolens; bildmodellen (a) jämför mot appens pool (≤ 24 per typ,
+  year ≥ 2021), annars lutar topp-1 mot basland. `lek_a` i JSON säger vilken lek (a) använde.
 - **ORB efter kontrastutjämning (CLAHE)** på fråga och referens: utan den 0 inliers på provets mörka och
   blänkande kort; med den 14–52 mot rätt namn, högst 8 mot fel namn.
 - **Kortets form mäts i klippet** (`kortkvot`, ± 7 %): 1,342 i provet; med fasta 1,40 föll en tredjedel av
