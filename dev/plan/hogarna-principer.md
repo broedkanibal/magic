@@ -32,7 +32,7 @@ fasta högar. Bygget kräver att mattan inte ritas om från noll (spegelmattans 
 | Läge | Beslut |
 |---|---|
 | Ingen lek på bordet | Mitt på mattan: "Put your library on the table" (sida 5, tavla 1). Första kortet nämns inte |
-| En nedvänd hög ligger still före första kortet | Den antas vara library. Texten byter till "Play your first card when you're ready", i samma stil och på samma plats, och det bytet är kvittensen. Leken visas med brickan "Library 33" |
+| En nedvänd hög ligger still före första kortet | Den antas vara library. Texten byter till "Play your first card when you're ready", i samma stil och på samma plats, och det bytet är kvittensen. Leken visas med brickan "Library", **utan tal** (Jesper 2026-10-04: Mesa vet inte när kort dras, så talet på sida 5 går inte att hålla sant; talet kommer med "dra kort") |
 | Flera nedvända högar före första kortet (starthanden nedvänd under mulligan) | Library är **den som ligger kvar** när de andra plockats upp |
 | Fel hög | Man klickar på leken och väljer **Not my library**. Högen blir ett nedvänt kort, och texten går tillbaka till steg 1 |
 | Leken plockas upp före första kortet (blanda efter mulligan) | "Library · Picked up". Skuggan står kvar och texten likaså |
