@@ -10,7 +10,8 @@ dev/material/arbete/markning/scryfall-namn.json:
      "sidor": {"Fire": ["Fire // Ice", "Start // Fire"], "Ice": ["Fire // Ice"], ...},   # sidans namn → korten (hela namn)
      "layout": {"Fire // Ice": "split", ...}}
 
-Bort: tokens, emblem, art series, vanguard, scheme, planar, phenomenon (layout), och digitala kort
+Bort: tokens, emblem, art series, vanguard, scheme, planar, phenomenon och Jumpstarts framsideskort
+(layout front_card: "Treasure", "Spirit", "Angels" … — inga spelkort, och de heter som tokens), och digitala kort
 (Alchemy, "A-…": de har samma namn som pappersversionen med ett A- framför, och textläsaren skulle
 aldrig få marginal mot dem). En sida som hör till flera kort, eller heter som ett eget kort, pekar på
 alla — textläsaren (ocr.cjs med alias) får då ingen marginal på den sidan ensam. Körs inte om när
@@ -26,7 +27,7 @@ UT_MAPP = os.path.join(ROT, 'dev', 'material', 'arbete', 'markning')
 UT = os.path.join(UT_MAPP, 'scryfall-namn.json')
 # Som mesa_remsa_tran.py, utan mejladressen (den skickas inte till en extern tjänst utan Jespers ja).
 UA = {'User-Agent': 'mesa-markning/0.1 (dev tools)', 'Accept': 'application/json'}
-BORT = {'token', 'double_faced_token', 'emblem', 'art_series', 'vanguard', 'scheme', 'planar', 'phenomenon'}
+BORT = {'token', 'double_faced_token', 'emblem', 'art_series', 'vanguard', 'scheme', 'planar', 'phenomenon', 'front_card'}
 
 
 def hamta(url, tries=4):

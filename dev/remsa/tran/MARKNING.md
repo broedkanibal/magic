@@ -1,7 +1,8 @@
 # Märkningen: namnen ur 4K, beskärningar i telefonens kvalitet
 
-Uppdraget: `dev/plan/spec-markning-2026-10-05.md`. Koden: `mark.py` (stegen A–F) och `namn.py`
-(Scryfalls namnlista). Allt som skrivs hamnar under `dev/material/arbete/markning/` (gitignorerat).
+Uppdraget: `dev/plan/spec-markning-2026-10-05.md` (med ändringen "2026-10-05 kväll": vittne 1 är Claude).
+Koden: `mark.py` (stegen A–F) och `namn.py` (Scryfalls namnlista). Allt som skrivs hamnar under
+`dev/material/arbete/markning/` (gitignorerat).
 
 ## Köra
 
@@ -15,71 +16,56 @@ $PY dev/remsa/tran/mark.py rapport <passmapp>
 ```
 
 Ett steg körs inte om när dess utdata finns: `--om B,C,E` (eller `--om` = alla) tvingar, och ett steg som
-körts gör de följande inaktuella. 4K avkodas helt bara i A; C avkodar lägg-ögonblicken (en seek per spår),
-E rutorna för de sparade lägena. Före varje 4K-steg (och var 10:e sekund video i A) väntar skriptet så
-länge en node-process kör `dev/golden/kor.cjs` (bara node räknas — ett skal med mönstret i kommandoraden
-fick annars skriptet att vänta på sig självt). E mäter också hur många MB de osäkra spåren skulle ge om de
-blev säkra (kodas i minnet, skrivs inte).
+körts gör de följande inaktuella. 4K avkodas helt bara i A. C tar lägg-ögonblickets hel/app-utsnitt ur
+`utsnitt/4k/` och avkodar bara det som saknas (`--utan-avkodning`: aldrig); Claudes svar cachas på utsnittets
+innehåll, så en omkörning kostar inga nya frågor. E söker upp rutorna för de sparade lägena i säkra spår
+(`--uppskatta`: mät också vad de osäkra skulle ta). `--ocr`: textläsaren som upplysning. Före varje 4K-steg
+väntar skriptet så länge en node-process kör `dev/golden/kor.cjs`. Claude-nyckeln: `ANTHROPIC_API_KEY` ur
+miljön eller `.env.local` (worktreet, sedan huvudträdet); modellen som `MODEL` i `api/identify.js`.
 
-I en worktree: symlänka `dev/material`, `dev/embed/modeller`, `dev/embed/cache` från huvudträdet och kör
-`npm install` i `dev/remsa` (tesseract.js).
+I en worktree: symlänka `dev/material`, `dev/embed/modeller`, `dev/embed/cache` från huvudträdet; `npm
+install` i `dev/remsa` behövs bara för `--ocr`.
 
 ## Filerna, per klipp (`<pass>/<klipp>/`)
 
 | Fil | Steg | Innehåll |
 |---|---|---|
-| `detektioner.json` | A | per prov (var 6:e ruta): kortlådor, remsor, par (låda + remsa + klass), rörelsemått mot föregående och nästa prov — 4K-bildpunkter |
-| `spar.json` | B | spåren: alla prov, lägg-ögonblicket (eller orsaken), lägena att spara |
-| `tidpunkter.json` | B | lägg-ögonblicken och högarnas intervall, åt detektorspåret |
-| `ocr/` | C | titelbanden (png) och textläsarens svar |
-| `vittnen.json` | C | kandidatleken och båda vittnenas hela svar per spår |
-| `markning.json` | C, E | allt: spår, lägg, vittnen, dom, namn, `utanfor_traning`, `val`, lägen, filer |
+| `detektioner.json` | A | per prov (var 6:e ruta): kortlådor, remsor, par, rörelsemått mot föregående och nästa prov — 4K-bildpunkter |
+| `spar.json`, `tidpunkter.json` | B | spåren, lägg-ögonblicken, lägena att spara; lägg och högar åt detektorspåret |
+| `utsnitt/4k/`, `claude/svar.json` | C | cachen: hel/app-utsnitten i 4K och Claudes hela svar (token in/ut per fråga) |
+| `vittnen.json`, `markning.json` | C, E | Claude, (a) modellen, (b) ORB per spår; dom, namn, `utanfor_traning`, `val`, lägen, filer |
 | `tran/{4k,1080}/`, `val/{4k,1080}/` | E | `<spår>-<t>-<hel|remsa>-<app|rata>.jpg`, kvalitet 95 |
-| `osaker/4k/`, `slangd/4k/` | C | hela kortet i 4K för osäkra spår och för slängda med lägg-ögonblick (Claude-frågan senare) — inte träning |
-| `montage/`, `montage.jpg` | C, F | lägg-ögonblicket i 1080 per spår, med namn och dom — stickprovet |
-
-Passets `rapport.md` ligger i `<pass>/`. Gemensamt: `scryfall-namn.json`, `slumpnamn.json`,
-`konstverk.json`, `ref/` (Scryfall-bilder), `vek/` (modellens vektorer per bild, låsta till modellfilen).
+| `osaker/4k/`, `slangd/4k/` | C | 4K-utsnittet för osäkra och slängda-med-lägg — huvudsessionens ögon, inte träning |
+| `montage.jpg` | F | lägg-ögonblicket i 1080 per spår med Claudes namn och domen — stickprovet |
 
 ## Domen
 
 | Dom | När |
 |---|---|
-| `saker` | textläsaren säker (≥ 0,6 och marginal ≥ 0,2 mot hela namnlistan) **och** bildmodellen har samma namn överst (hela kortet > 0,11 eller remsan > 0,20) |
-| `osaker` | ett vittne ser något men inte båda; ingen beskärning till träningen, bara `osaker/4k/` |
-| `slangd` | inget vittne ser något, eller inget lägg-ögonblick |
-| `baksida` | detektorns klass baksida vid lägg-ögonblicket **och** bildmodellen har baksidan överst på hela kortet (> 0,11) |
+| `saker` | Claude säker på ett namn som finns i listan **och** (a) bildmodellens topp-1 (hel eller remsa) är namnet **eller** (b) ORB: ≥ 12 inliers mot namnets Scryfall-bild och ≥ 2× bästa av 20 slumpvalda |
+| `baksida` | Claude säger baksida **och** detektorns klass baksida (eller modellen har baksidan överst) |
+| `osaker` | Claude gav ett namn men inget andra vittne, eller namnet är osäkert / inte i listan (tokens) |
+| `slangd` | Claude utan namn (högst två frågor; den andra på nästa stilla läge med synlig andel ≥ 0,95), eller inget lägg-ögonblick |
+
+Namnet normaliseras: exakt (gemener, apostrofer; en sida → kortets hela namn), annars Dice ≥ 0,9 mot ett
+entydigt namn. Claude får en egen kort fråga utan systemprompt — appens systemprompt rörs inte.
 
 ## Där koden preciserar specen
 
-- **Kortets form mäts i klippet:** medianen av lådornas långsida/kortsida för ensamma, stilla, raka kort
-  med remsa (`kortkvot`), ± 7 %. Pass 2 klipp 1: 1,342 (5–95 %: 1,28–1,37) — med specens fasta 1,40 föll en
-  tredjedel av de stilla korten bort. Snett liggande kort jämförs med lådan ett snett kort ger (annars får
-  pass 3 klipp 3, bilden ~30° vriden, inga lägg-ögonblick).
-- **Remslådan lånas inom stillheten:** saknar provet remsa tas den ur närmaste prov i samma stillhet (inom
-  1 s, samma låda IoU ≥ 0,9). Detektorn såg remsan i vart femte prov på ett kort under lampan.
-- **Baksidor** kräver att bildmodellen håller med: i provet var en "baksida" ett kort i blänket.
-- **Lutningens tecken** ur kortets kanter (vilken av de två vridningarna lägger kortets rektangel på
-  kanterna, sedan ±4° finjustering) när lådan är hela kortet; annars `remsnamn.rata`. Ratas val (strukturen
-  i remsan) valde fel lutning på syntetiska sneda kort med text i titelraden (−12°, ±25°).
-- **Baksidor** behöver ingen remsa för lägg-ögonblicket (de har ingen titelrad).
-- **Högar** i `tidpunkter.json` ska ligga minst 1 s (en hand som för ett kort över ett annat är ingen hög).
-- **I hög:** IoU > 0,2 som specen, eller delvis täckt (synlig < 0,85) och kant i kant med ett annat spår
-  — i en förskjuten hög överlappar det synliga av det undre kortet nästan inte alls.
-- **Lägena** sparas bara i lugna prov (stilla, rörelse < 4 mot föregående och nästa): ett läge som blir
-  aktuellt väntar på nästa lugna prov, så att ingen hand hamnar i en träningsbild.
-- **Rata-utsnittet:** 10–40° från närmaste bildaxel (som appens `beskarVridMin/Max`); hela kortets rata
-  bara när lådan har kortets form (lådan är hela kortet). 1080 skärs med 4K-rutans vinkel.
-- **Validering:** vart femte namn genom en hash med frö 1 — samma namn hamnar på samma sida i alla klipp
-  och pass, så inget namn kan finnas i både träning och validering.
+- **ORB efter kontrastutjämning (CLAHE)** på fråga och referens: utan den 0 inliers på provets mörka och
+  blänkande kort (33 och 29 nyckelpunkter); med den 14–52 mot rätt namn, högst 8 mot fel namn.
+- **Kortets form mäts i klippet** (`kortkvot`, ± 7 %): 1,342 i provet; med fasta 1,40 föll en tredjedel av
+  de stilla korten. Snett liggande kort jämförs med lådan ett snett kort ger.
+- **Remslådan lånas inom stillheten** (inom 1 s, samma låda IoU ≥ 0,9) när provet saknar den.
+- **Lutningens tecken** ur kortets kanter när lådan är hela kortet; annars `remsnamn.rata`.
+- **Lägena** sparas bara i lugna prov; **i hög** även kant i kant när kortet är delvis täckt; **högar**
+  < 1 s räknas inte; **validering** med hash (samma namn på samma sida i alla pass).
+- **Namnlistan** utan Jumpstarts framsideskort (`front_card`: "Treasure", "Spirit" — heter som tokens).
 - **Scryfall:** User-Agent utan mejladress; högst 10 frågor/s.
 
 ## Kända gränser (provet: pass 2 klipp 1, 0–30 s)
 
-- **Textläsaren läser inte titlarna i pass 2:** 0 säkra av 6 (4K, 0,5×, lampa — titeln ~14 px hög och mjuk;
-  förbehandling hjälper inte). Bildmodellen kan bara bekräfta ett namn som finns i kandidatleken, så utan
-  textläsaren blir inget säkert: namnet måste då komma från Claude-frågan (`osaker/4k`, `slangd/4k`).
-- **Skräptext kan ge en "säker" läsning** mot 33 000 namn (en förbehandlad variant: «TE = To e——» →
-  Eye to Eye 0,77/0,20; «. T a SE 3» → V.A.T.S.). Det andra vittnet är det som stoppar dem.
-- **Exakta läsningar utan marginal:** playtest-kort (Lightning Colt) och sidor med samma namn (Emeritus of
-  Conflict // Lightning Bolt) gör att "Lightning Bolt" läst helt rätt aldrig blir säker — specens namnlista.
+- Textläsaren läste 0 av 6 titlar (~14 px i 4K vid 0,5×) — därför Claude.
+- Bildmodellen hade rätt namn överst på 2 av 5; ORB (med CLAHE) bekräftade alla 5.
+- Den andra frågan kräver ett senare stilla läge med synlig andel ≥ 0,95; i provet fanns inget för de två
+  korten utan namn (de lades i slutet).
