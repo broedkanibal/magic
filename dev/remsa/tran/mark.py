@@ -1683,11 +1683,12 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     A = las_json(os.path.join(mapp, 'detektioner.json'))
     M['tid_s']['A'] = A['tid_s']
     M['fran'], M['till'] = A['fran'], A['till']
-    # Domarna kan ha ändrats: beskärningarna från en tidigare E hör inte längre till markning.json. De tas bort
-    # i samma ögonblick som den nya markning.json skrivs (beskar: null) — avbryts C tidigare står det gamla kvar helt.
+    # Domarna kan ha ändrats: beskärningarna från en tidigare E hör inte längre till markning.json. Först skrivs den
+    # nya markning.json (beskar: null, inga filer), sedan tas tran/ och val/ bort — ett avbrott lämnar aldrig en
+    # lista som pekar på borttagna filer, och avbryts C tidigare står det gamla kvar helt.
+    skriv_json(os.path.join(mapp, 'markning.json'), M)
     for d in ('tran', 'val'):
         shutil.rmtree(os.path.join(mapp, d), ignore_errors=True)
-    skriv_json(os.path.join(mapp, 'markning.json'), M)
     c = {}
     for s in M['spar']:
         c[s['dom']] = c.get(s['dom'], 0) + 1
