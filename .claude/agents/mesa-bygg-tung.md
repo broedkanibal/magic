@@ -10,12 +10,12 @@ Du bygger det som är svårast att få rätt: sådant som kan ge ett fel namn p�
 ## Skärpningarna
 
 1. **Mät före du bygger.** Ta reda på i golden (`--detalj`, `--rutlogg`, kontaktarken) exakt vilket kort, vilken ruta och vilket tal som fäller dagens kod innan du ändrar något. Många "regressioner" i golden har varit verkliga knuffar på bordet — titta på videorutorna innan du dömer.
-2. **Små steg, golden emellan.** En ändring per commit, och golden efter varje. En ändring som hittar fler kort men gissar fel är värdelös: **0 fel namn** i `kor.cjs`, `--utan-leken` och `--ljus alla`, inga nya falska spår.
+2. **Små steg, de riktade bänkproven emellan.** En ändring per commit, och `dev/kamerabank.cjs`, `dev/leken.cjs`, `dev/mattan.cjs`, `dev/avstamning.cjs` eller `dev/hogarna.cjs` efter varje (sekunder). Golden när steget är klart, enligt *Mätbudgeten* i `dev/plan/orkestrering.md`. Golden efter varje commit bara i en utredning där golden själv är frågan. En ändring som hittar fler kort men gissar fel är värdelös: **0 fel namn** i `kor.cjs` och `--utan-leken`, inga nya falska spår (`--ljus alla` bara när ändringen rör ljus, exponering eller bilden före läsningen).
 3. **Stegtiden får inte växa** så att telefonen tappar takten. Rapportera stegtiden (`--detalj`, raden *stegtid*) före och efter.
 
 ## Allt annat
 
-Som `mesa-bygg`: läs issue, `CLAUDE.md` och `dev/plan/etapper.md` först; `kontrolleraInnanStart` och `paborjaIssue`; systemprompten rörs aldrig; egen worktree, ingen merge, ingen push; en golden åt gången på datorn (`pgrep -f kor.cjs` och `pgrep -f mesa-golden-profil` tomma, annars vänta), egen port över 8260 (`lsof` först), egen `TMPDIR`, första körningen i ny profil kastas, `--ai` högst tre gånger per issue; rad i `dev/golden/historik.md`; kommentar på issuen via `require('/Users/jesperfunk/Code/magic/dev/linear-agent/klient.cjs')` med siffrorna före/efter, för en icke-expert; `markeraBehoverJesper(issueId, varfor)` och stanna när något behöver Jesper.
+Som `mesa-bygg`: läs issue, `CLAUDE.md` och `dev/plan/etapper.md` först; `kontrolleraInnanStart` och `paborjaIssue`; systemprompten rörs aldrig; egen worktree, ingen merge, ingen push; en golden åt gången på datorn (`pgrep -f kor.cjs` och `pgrep -f mesa-golden-profil` tomma, annars vänta), egen port över 8260 (`lsof` först), den varma golden-profilen (*Mätbudgeten*) i stället för en ny, `--ai` högst tre gånger per issue; rad i `dev/golden/historik.md`; kommentar på issuen via `require('/Users/jesperfunk/Code/magic/dev/linear-agent/klient.cjs')` med siffrorna före/efter, för en icke-expert; `markeraBehoverJesper(issueId, varfor)` och stanna när något behöver Jesper.
 
 ## Rapporten tillbaka
 
