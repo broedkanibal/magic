@@ -974,6 +974,17 @@ body.tomhand .kolmark{display:none}
   background:linear-gradient(128deg,#ffffff26 0%,#ffffff08 30%,#ffffff00 46%,#ffffff00 70%,#ffffff12 100%),repeating-linear-gradient(45deg,#ffffff05 0 2px,#0000 2px 5px),radial-gradient(130% 100% at 28% 18%,var(--s1,#3a4250),var(--s2,#1a1f27) 75%);
   box-shadow:inset 0 0 0 2.7px var(--s3,#ffffff22),inset 0 0 24px #0006,0 5px 16px -4px #000c}
 .lekhog .lekslv{box-shadow:inset 0 0 0 2.7px var(--s3,#ffffff22),inset 0 0 24px #0006,1.4px 2px 0 var(--ek,#2a3040),2.7px 4px 0 var(--em,#0d1015),4.1px 6.2px 0 var(--ek,#2a3040),5.5px 8.2px 0 var(--em,#0d1015),6.8px 10.3px 0 var(--ek,#2a3040),8.2px 12.3px 0 var(--em,#0d1015),14px 25px 30px -8px #000d}
+/* Sleeven läggs på (Jesper 2026-10-06): när bordets sleevesfärg är mätt glider sleeven ner över översta kortet,
+   som när man drar på en sleeve uppifrån, och en glans sveper över plasten. Under ligger Magic-baksidan kvar.
+   clip-path klipper sleevens kant-skuggor (högens sidor) medan den glider; sist släpps klippet och högens sidor
+   får sleevens färg. */
+.lekhog .lekslv.pa{animation:slvPa .56s cubic-bezier(.3,.7,.25,1) both}
+.lekhog .lekslv.pa::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(112deg,#fff0 34%,#ffffff48 46%,#ffffff10 52%,#fff0 62%);background-size:260% 100%;animation:slvGlans .5s ease-out .42s both}
+@keyframes slvPa{0%{clip-path:inset(0 0 100% 0 round 11px);transform:translateY(-6px)}88%{clip-path:inset(0 0 0 0 round 11px);transform:none}99%{clip-path:inset(0 0 0 0 round 11px)}100%{clip-path:none;transform:none}}
+@keyframes slvGlans{from{background-position:130% 0;opacity:1}to{background-position:-30% 0;opacity:0}}
+@media (prefers-reduced-motion:reduce){.lekhog .lekslv.pa{animation:slvTona .3s ease-out both}.lekhog .lekslv.pa::after{animation:none;opacity:0}}
+@keyframes slvTona{from{opacity:0}to{opacity:1}}
 .lekhog .avtryck{position:absolute;left:5px;top:8px;width:100%;height:100%;border-radius:14px;background:#00000080;filter:blur(10px);opacity:0;transition:opacity .3s;pointer-events:none}
 .lekhog.upp .lekkropp{opacity:0;transform:translateY(-30px) scale(1.04)}
 .lekhog.upp .avtryck{opacity:.85;animation:lekAndas 4.8s ease-in-out .4s infinite}
@@ -9080,7 +9091,11 @@ function tagEmotLek(l) {
       const kam = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h };
       /* Samma regel som korten (kamLage): läget flyttas när mitten gått mer än AUTO_FLYTT av bredden — mindre är detektorns darr. */
       const flytt = !g || !g.kam || g.id !== l.id || Math.hypot(kam.x - g.kam.x, kam.y - g.kam.y) > AUTO_FLYTT * Math.max(kam.w, 0.01);
-      mig.bibHog = Object.assign({}, g, { id: l.id, upp: l.lage === 'upp' ? 1 : 0, farg: lekFarg(l.farg) || (g && g.farg) || null,
+      const farg = lekFarg(l.farg) || (g && g.farg) || null;
+      /* Sleeven läggs på (Jesper 2026-10-06): leken har visats med Magic-baksidan medan färgen mättes (~3 s), och
+         nu är den mätt — lekHogHtml spelar animeringen en gång. Inte när leken kommer med färgen direkt. */
+      const fargNar = farg && !farg.magic && g && g.id === l.id && !g.farg && !mig.slvFarg ? Date.now() : (g && g.fargNar) || 0;
+      mig.bibHog = Object.assign({}, g, { id: l.id, upp: l.lage === 'upp' ? 1 : 0, farg, fargNar,
                                           kam: flytt ? Object.assign(kam, { nar: Date.now() }) : g.kam });
     }
   }
@@ -9139,9 +9154,13 @@ const lekKropp = slv => slv ? '<span class="lekslv"></span>' : `<img src="${BAKS
    designens 33 är leken utan handen, och dagens lekKvar är hand och library ihop. */
 function lekHogHtml(h, pos, egen, fargBord) {
   const upp = !!h.upp, slv = lekSlvStil(h.farg || fargBord);
+  /* Sleeven läggs på: Magic-baksidan ligger kvar under, och sleeven glider ner över översta kortet med en glans
+     (.lekslv.pa). Efteråt bara sleeven, som förut. */
+  const pa = !!slv && !!h.fargNar && Date.now() - h.fargNar < 1200;
+  const kropp = pa ? `<img src="${BAKSIDA}" alt="" draggable="false"><span class="lekslv pa"></span>` : lekKropp(slv);
   const etikett = upp ? 'Library, picked up' : 'Library';
   return `<div class="lekhog${upp ? ' upp' : ''}" data-lekhog="${egen ? 1 : 0}"${egen ? ' role="button" tabindex="0"' : ''} aria-label="${etikett}${egen ? '. Open the menu' : ''}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1${slv ? ';' + slv : ''}">`
-    + `<span class="avtryck"></span><span class="lekkropp">${lekKropp(slv)}</span>`
+    + `<span class="avtryck"></span><span class="lekkropp">${kropp}</span>`
     + `<span class="lekbr ledig"><i></i>Library</span><span class="lekbr upptxt"><i></i>Library · Picked up</span></div>`;
 }
 /* Graveyard bland korten (MES-334 steg 5, D1, designytans sida 5 tavla 4): högen där den ligger på bordet —
