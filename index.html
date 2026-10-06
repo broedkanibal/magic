@@ -974,6 +974,17 @@ body.tomhand .kolmark{display:none}
   background:linear-gradient(128deg,#ffffff26 0%,#ffffff08 30%,#ffffff00 46%,#ffffff00 70%,#ffffff12 100%),repeating-linear-gradient(45deg,#ffffff05 0 2px,#0000 2px 5px),radial-gradient(130% 100% at 28% 18%,var(--s1,#3a4250),var(--s2,#1a1f27) 75%);
   box-shadow:inset 0 0 0 2.7px var(--s3,#ffffff22),inset 0 0 24px #0006,0 5px 16px -4px #000c}
 .lekhog .lekslv{box-shadow:inset 0 0 0 2.7px var(--s3,#ffffff22),inset 0 0 24px #0006,1.4px 2px 0 var(--ek,#2a3040),2.7px 4px 0 var(--em,#0d1015),4.1px 6.2px 0 var(--ek,#2a3040),5.5px 8.2px 0 var(--em,#0d1015),6.8px 10.3px 0 var(--ek,#2a3040),8.2px 12.3px 0 var(--em,#0d1015),14px 25px 30px -8px #000d}
+/* Sleeven läggs på (Jesper 2026-10-06): när bordets sleevesfärg är mätt glider sleeven ner över översta kortet,
+   som när man drar på en sleeve uppifrån, och en glans sveper över plasten. Under ligger Magic-baksidan kvar.
+   clip-path klipper sleevens kant-skuggor (högens sidor) medan den glider; sist släpps klippet och högens sidor
+   får sleevens färg. */
+.lekhog .lekslv.pa{animation:slvPa .56s cubic-bezier(.3,.7,.25,1) both}
+.lekhog .lekslv.pa::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(112deg,#fff0 34%,#ffffff48 46%,#ffffff10 52%,#fff0 62%);background-size:260% 100%;animation:slvGlans .5s ease-out .42s both}
+@keyframes slvPa{0%{clip-path:inset(0 0 100% 0 round 11px);transform:translateY(-6px)}88%{clip-path:inset(0 0 0 0 round 11px);transform:none}99%{clip-path:inset(0 0 0 0 round 11px)}100%{clip-path:none;transform:none}}
+@keyframes slvGlans{from{background-position:130% 0;opacity:1}to{background-position:-30% 0;opacity:0}}
+@media (prefers-reduced-motion:reduce){.lekhog .lekslv.pa{animation:slvTona .3s ease-out both}.lekhog .lekslv.pa::after{animation:none;opacity:0}}
+@keyframes slvTona{from{opacity:0}to{opacity:1}}
 .lekhog .avtryck{position:absolute;left:5px;top:8px;width:100%;height:100%;border-radius:14px;background:#00000080;filter:blur(10px);opacity:0;transition:opacity .3s;pointer-events:none}
 .lekhog.upp .lekkropp{opacity:0;transform:translateY(-30px) scale(1.04)}
 .lekhog.upp .avtryck{opacity:.85;animation:lekAndas 4.8s ease-in-out .4s infinite}
@@ -999,6 +1010,14 @@ body.tomhand .kolmark{display:none}
 .gravd1.hflyft img{translate:-3px -18px;scale:1.07}
 .gravd1.hfute img{opacity:0}
 .gravd1.bump img.topp{animation:cLand .5s cubic-bezier(.2,.8,.3,1)}
+/* Yes (designytans tavla 4): kortet tonas till högens grå, ett gult sken pulserar och brickan glider fram. */
+.gravd1.skapas img{animation:gravTonas .48s ease-in-out both}
+.gravd1.skapas::before{content:'';position:absolute;inset:-10%;border-radius:14px;background:radial-gradient(closest-side,#e8b33a55,#e8b33a00);filter:blur(4px);animation:gravSken .7s ease-out both;pointer-events:none}
+.gravd1.skapas .lekbr{animation:gravBricka .42s .12s cubic-bezier(.2,.8,.3,1) both}
+@keyframes gravTonas{from{filter:none}to{filter:grayscale(.45) brightness(.75)}}
+@keyframes gravSken{0%{opacity:0;transform:scale(.9)}35%{opacity:1;transform:scale(1.08)}100%{opacity:0;transform:scale(1.12)}}
+@keyframes gravBricka{from{opacity:0;translate:0 -14px}to{opacity:1;translate:0 0}}
+@media (prefers-reduced-motion:reduce){.gravd1.skapas img,.gravd1.skapas::before,.gravd1.skapas .lekbr{animation:none}}
 .gravd1.bump .lekbr b{display:inline-block;animation:cBump .42s cubic-bezier(.2,.8,.3,1)}
 .gravd1.over img.topp{filter:grayscale(.2) brightness(.9)}
 .gravd1.over{box-shadow:0 0 0 8px #e8b33a24,0 0 36px 8px #e8b33a33}
@@ -2327,7 +2346,6 @@ body:not(.ispel) .spelknapp{display:none}
    som en tom fjäder som skjuter granskningen längst ut till höger. */
 .autobar .lage:not(:has(> :not([hidden]))){display:none}
 .autobar .status{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;min-width:0;white-space:nowrap;color:var(--txt);font-weight:550}
-.autobar .lage:has(.not.grund) .status{flex-shrink:1}
 .autobar .status .txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .autobar .status .led{width:7px;height:7px;border-radius:50%;background:var(--green);animation:kampuls 1.8s ease-in-out infinite;flex:none}
 .autobar.varm .status{color:#f0dcb0}
@@ -2349,8 +2367,6 @@ body:not(.ispel) .spelknapp{display:none}
    knapparna ut över granskningen vid 620–750 px (uppmätt: "Inte nu" ovanpå
    "5 kort att fylla i" vid 640 px). Ryms inte steget och granskningen
    ihop ändå, viker steget: se @media nedan. */
-.autobar .not.grund{flex:none;gap:8px}
-.autobar .not.grund::before{content:none}
 .autobar .not b{color:#f0dcb0}
 .autobar .not .btn{height:26px;padding:0 9px;font-size:11.5px;flex:none}
 /* Granskningen: en tät klunga sist i raden — texten, upp till fyra
@@ -2371,13 +2387,11 @@ body:not(.ispel) .spelknapp{display:none}
    ~1300 px (läget 230 px, steget med knappar 610, granskningen 370):
    miniatyrerna är en förhandsvisning och får vika, texten och knapparna
    står kvar. Steget står en gång per spel. */
-@media (max-width:1300px){ .autobar:has(.not.grund:not([hidden])) .pendthumbs{display:none} }
 /* Under 1000 px ryms inte steget (610 px) och granskningen (300 utan
    miniatyrer) ens med läget klippt till sin lampa: steget viker, det går
    att spara i kameravyn i stället, och det står en gång per spel.
    Under 760 px viker också notisen — den blev "· • Kor…" mellan 620 och
    740 px (granskningen efter 1b) — granskningen är det som väntar på svar. */
-@media (max-width:1000px){ .autobar:has(.granska:not([hidden])) .not.grund{display:none} }
 @media (max-width:760px){ .autobar:has(.granska:not([hidden])) .not{display:none} }
 
 /* ── Kamerans bild och verktyg, i kamerapanelen ─────────────────────
@@ -3838,7 +3852,7 @@ img.lsinflyg{display:block;object-fit:cover;box-shadow:0 18px 40px -12px #000}
           <div class="kamtool"><span class="t">Graveyard in the picture?</span>
             <button class="btn sm" id="pbGrav" title="Drag a box over your graveyard pile in the picture — the camera then ignores the cards lying there">Mark it</button></div>
           <div class="kamtool" id="kamGrund" title="The angle of the card in the picture decides whether it is tapped: more than 45° from the untapped angle counts as tapped. Until an angle is saved the cards are played untapped. The angle applies to this game">
-            <span class="t" id="kamGrundTxt">Untapped angle not saved</span>
+            <span class="t" id="kamGrundTxt">Untapped angle: from your library or first card</span>
             <button class="btn sm" id="kamGrundSpara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button></div>
         </div>
         <div class="pbknappar dbg">
@@ -8539,7 +8553,7 @@ function renderGrid(force) {
      nedtonade kortet finns kvar från förra ritningen), överst i högen som i
      flyttaTill. En förflyttning, ingen radering — ingen notis. En gång per
      kort, bara på mitt eget bord. */
-  if (arMitt(p)) for (const c of cards.filter(c => c.gravAuto && !gravSagda.has(c.cid))) {
+  if (arMitt(p)) for (const c of cards.filter(c => (c.gravAuto || c.spellAuto) && !gravSagda.has(c.cid))) {   // besvärjelsen också: den ligger fysiskt överst (granskningen varv 2)
     gravSagda.add(c.cid);
     flygTillGrav([...gridEl.querySelectorAll('.card[data-cid]')].find(el => el.dataset.cid === c.cid));
     const valt = cards[state.sel];
@@ -9077,7 +9091,11 @@ function tagEmotLek(l) {
       const kam = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h };
       /* Samma regel som korten (kamLage): läget flyttas när mitten gått mer än AUTO_FLYTT av bredden — mindre är detektorns darr. */
       const flytt = !g || !g.kam || g.id !== l.id || Math.hypot(kam.x - g.kam.x, kam.y - g.kam.y) > AUTO_FLYTT * Math.max(kam.w, 0.01);
-      mig.bibHog = Object.assign({}, g, { id: l.id, upp: l.lage === 'upp' ? 1 : 0, farg: lekFarg(l.farg) || (g && g.farg) || null,
+      const farg = lekFarg(l.farg) || (g && g.farg) || null;
+      /* Sleeven läggs på (Jesper 2026-10-06): leken har visats med Magic-baksidan medan färgen mättes (~3 s), och
+         nu är den mätt — lekHogHtml spelar animeringen en gång. Inte när leken kommer med färgen direkt. */
+      const fargNar = farg && !farg.magic && g && g.id === l.id && !g.farg && !mig.slvFarg ? Date.now() : (g && g.fargNar) || 0;
+      mig.bibHog = Object.assign({}, g, { id: l.id, upp: l.lage === 'upp' ? 1 : 0, farg, fargNar,
                                           kam: flytt ? Object.assign(kam, { nar: Date.now() }) : g.kam });
     }
   }
@@ -9136,9 +9154,13 @@ const lekKropp = slv => slv ? '<span class="lekslv"></span>' : `<img src="${BAKS
    designens 33 är leken utan handen, och dagens lekKvar är hand och library ihop. */
 function lekHogHtml(h, pos, egen, fargBord) {
   const upp = !!h.upp, slv = lekSlvStil(h.farg || fargBord);
+  /* Sleeven läggs på: Magic-baksidan ligger kvar under, och sleeven glider ner över översta kortet med en glans
+     (.lekslv.pa). Efteråt bara sleeven, som förut. */
+  const pa = !!slv && !!h.fargNar && Date.now() - h.fargNar < 1200;
+  const kropp = pa ? `<img src="${BAKSIDA}" alt="" draggable="false"><span class="lekslv pa"></span>` : lekKropp(slv);
   const etikett = upp ? 'Library, picked up' : 'Library';
   return `<div class="lekhog${upp ? ' upp' : ''}" data-lekhog="${egen ? 1 : 0}"${egen ? ' role="button" tabindex="0"' : ''} aria-label="${etikett}${egen ? '. Open the menu' : ''}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1${slv ? ';' + slv : ''}">`
-    + `<span class="avtryck"></span><span class="lekkropp">${lekKropp(slv)}</span>`
+    + `<span class="avtryck"></span><span class="lekkropp">${kropp}</span>`
     + `<span class="lekbr ledig"><i></i>Library</span><span class="lekbr upptxt"><i></i>Library · Picked up</span></div>`;
 }
 /* Graveyard bland korten (MES-334 steg 5, D1, designytans sida 5 tavla 4): högen där den ligger på bordet —
@@ -9150,7 +9172,8 @@ function gravD1Html(p, pos, egen) {
   const img = (c, kl) => { const k = c && cardOf(c), src = k ? imgOf(k, 0, 'normal') || imgOf(k, 0, 'small') : ''; return `<img class="${kl}"${src ? ` src="${esc(src)}"` : ''} alt="" draggable="false">`; };
   const kropp = n ? (n > 2 ? img(grav[2], 'u2') : '') + (n > 1 ? img(grav[1], 'u1') : '') + img(grav[0], 'topp') : `<span class="gravsten">${GRAVSTEN}</span>`;
   const etikett = n ? `Graveyard, ${n} ${n === 1 ? 'card' : 'cards'}${grav[0].name ? ', top card ' + grav[0].name : ''}` : 'Graveyard, empty';
-  return `<div class="gravd1${n ? '' : ' tom'}" data-gravhog="${egen ? 1 : 0}" role="button" tabindex="0" aria-label="${esc(etikett)}. ${egen ? 'Pick them up' : 'Look through them'}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1">`
+  const skapas = egen && n && typeof gravSkapasNar !== 'undefined' && Date.now() - gravSkapasNar < 900;
+  return `<div class="gravd1${n ? '' : ' tom'}${skapas ? ' skapas' : ''}" data-gravhog="${egen ? 1 : 0}" role="button" tabindex="0" aria-label="${esc(etikett)}. ${egen ? 'Pick them up' : 'Look through them'}" style="left:${Math.round(pos.x)}px;top:${Math.round(pos.y)}px;width:${MATTA.CW}px;height:${MATTA.CH}px;z-index:1">`
     + `${kropp}<span class="lekbr gul"><i></i>Graveyard${n ? `<b>${n}</b>` : ''}</span></div>`;
 }
 /* Exile bland korten på ett speglat bord (hogarBredvid): samma D1 som graveyard — översta kortet och två under,
@@ -9382,6 +9405,7 @@ function gravIgnoreAktivt() {
   return !!spelLage && !!mig && kamSpeglar(mig) && spelPolicy(mig).saknas;
 }
 let gravMenyOppen = false;   // No är tryckt: menyn M1 står i frågans ställe
+let gravSkapasNar = 0;       // Yes: när graveyard skapades — högen tonas fram (gravD1Html, .gravd1.skapas)
 /* Frågan som ska ritas på mitt bord, med högens kort (de som ligger kvar på mattan), eller null. */
 function gravFragaNu(p) {
   /* Frågan står kvar tills man svarar, också medan kameran är tappad (bordet står fruset) — förut försvann
@@ -9448,6 +9472,7 @@ function gravSvar(svar) {
   if (svar === 'nej') { gravMenyOppen = true; renderGrid(true); return; }
   const kort = q.cids.map(cid => mig.cards.find(c => c.cid === cid)).filter(c => c && paMattan(c));
   if (svar === 'ja') {
+    gravSkapasNar = Date.now();   // högen som nu skapas tonas fram (gravD1Html)
     for (const c of kort) gravLaggPa(mig.cards, c);   // understa först: det sista överst
     state.sel = Math.max(0, Math.min(state.sel, mig.cards.length - 1));
     /* Rutan ur korten som de ligger NU (granskningen, V4): frågans läge kan vara preliminärt eller gammalt. */
@@ -9472,6 +9497,7 @@ gridEl.addEventListener('click', ev => {
   if (g && !g.classList.contains('tom')) { ev.stopPropagation(); hfOppna(ZON_GRAV); return; }
   if (ev.target.closest('.exild1[data-exilhog="1"]')) { ev.stopPropagation(); hfOppna(ZON_EXIL); }
 });
+gridEl.addEventListener('animationend', ev => { if (ev.animationName === 'gravSken') { const g = ev.target.closest('.gravd1'); if (g) g.classList.remove('skapas'); } });   // Yes-toningen klar: hover och .over gäller igen
 gridEl.addEventListener('keydown', ev => {
   const g = ev.target.closest && ev.target.closest('.gravd1[data-gravhog="1"]');
   if (g && !g.classList.contains('tom') && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); hfOppna(ZON_GRAV); return; }
@@ -12147,7 +12173,6 @@ function modeKlick(ev) {
   if (a === 'auto') modeKlickAuto();
   if (a === 'koppla') { renderMode(); visaKamOv(); }
   if (a === 'skruv') { renderMode(); visaKamSkruv(); }
-  if (a === 'grund-spara') { sparaGrundFranSenaste(); renderMode(); }   // statusfältets Save när grundläget saknas (V3), som kameravyns
 
 }
 function modeKlickAuto() { prefs.autoLage = true; savePrefs(); autoSumStarta(); renderMode(); visaKamOv(); }
@@ -23763,6 +23788,8 @@ const Kamera = (() => {
   let snurra = null, wake = null, senast = 0, senastRef = 0, forra = 0;
   let omtagRensa = false;   // referensen lärs om efter ett omtag: rensaRef fyller också händer och annat med struktur (MES-166)
   let gravRef = null, gravForra = null, gravStillaFran = 0, gravN = 0, gravNar = null, gravDomd = false, gravRorFran = 0;   // högvakten (MES-85), se gravVakt
+  let gravTomFran = 0, gravTom = false;   // graveyard-rutan är matta: högen är lyft (gravVakt, Jesper 2026-10-06)
+  const GRAV_TOM_MS = 1000;
   let senVb = 0, senVh = 0;    // videons mått senast — byter de räknas analysen om
   /* Upplösningen strömmen faktiskt gav — videons egna mått, med spårets
      getSettings som stöd — och den högsta telefonen säger sig klara
@@ -26381,10 +26408,11 @@ const Kamera = (() => {
   let lekUte = [];       // högar som inte är leken (Not my library): { id, box, sist }
   let lekStart = 0, lekNastaId = 1, lekRgba = null;
   let grundKalla = null; // vem som satte grundläget: 'lek' | 'kort' | 'rad' (datorn, raden) | null
-  let lekKortVid = null; // riktiga kort när vakten startade (null = har inte startat); fler än 0 = inget "första kort"
+  let lekKortVid = null; // riktiga kort när vakten startade (null = har inte startat)
+  let kortVidStart = null, kortVaktStart = 0;   // spåren som låg där när vakten startade, och när (forstaKortGrund)
   let lekForsta = 0;     // när bordets första riktiga kort sågs (0 = inte än)
   let lekGrundExakt = false, lekVinkelSatt = 0;   // grundläget som leken gav är lekens uppmätta vinkel (inte lådans stående/liggande), och när den senast sattes (lekVinkel)
-  const glomLek = () => { lek = null; lekZon = null; lekNed = []; lekKand = []; lekUte = []; lekStart = 0; lekKortVid = null; lekForsta = 0; lekGrundExakt = false; lekVinkelSatt = 0; grundKalla = kal.grund != null ? 'rad' : null; };
+  const glomLek = () => { lek = null; lekZon = null; lekNed = []; lekKand = []; lekUte = []; lekStart = 0; lekKortVid = null; kortVidStart = null; kortVaktStart = 0; lekForsta = 0; lekGrundExakt = false; lekVinkelSatt = 0; grundKalla = kal.grund != null ? 'rad' : null; };
   const lekZonAv = b => gravRuta({ x: (b.x - 0.1 * b.w) / AW, y: (b.y - 0.1 * b.h) / AH, w: 1.2 * b.w / AW, h: 1.2 * b.h / AH });
   const ladIou = (a, b) => {
     const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
@@ -26559,6 +26587,38 @@ const Kamera = (() => {
       if (v != null) { lekGrund.sat(v); grundKalla = 'lek'; lekGrundExakt = false; }
     }
   }
+  /* 5. Grundläget ur det första kort som läggs ut, när leken inte gett det — alltid i bakgrunden, aldrig en
+     fråga (Jesper 2026-10-06). Förut stod det inne i lekvaktens spärr för den tränade detektorn, så en telefon
+     utan den tog aldrig grundläget ur första kortet; och en kamera som startade med kort på bordet, eller två
+     kort som lade sig samtidigt, gav inget grundläge alls — då bad statusfältet om ett. Nu:
+       - det första kort som lagts sedan vakten startade (inte de som låg där), det som legat still längst;
+         utan detektorn ser leken ut som ett kort, så oftast är det leken som ger grundläget;
+       - inget nytt kort på GRUND_ANTA_MS med kort på bordet: de stilla kortens vanligaste axel (de flesta
+         kort i spel är otappade), med medianen av den axelns vinklar.
+     Bara spår som ligger still räknas: handen som lägger kortet blir ofta ett par kortformade spår som dör
+     inom en sekund (golden 07: två sådana medan Thriving Moor lades). */
+  const GRUND_ANTA_MS = 10000, KORT_START_MS = 3000;
+  function forstaKortGrund(nu) {
+    const riktiga = spar.filter(lekRiktigt);
+    if (lekKortVid == null) { lekKortVid = riktiga.length; kortVidStart = new Set(riktiga.map(t => t.id)); kortVaktStart = nu; }
+    /* Spår som föds de första KORT_START_MS efter starten låg där: ett skymt eller delat kort föds sent, och
+       ett sent spår på ett tappat kort fick annars ge grundläget (granskningen av besluten, fynd 5). */
+    if (lekKortVid > 0 && nu - kortVaktStart < KORT_START_MS) for (const t of riktiga) kortVidStart.add(t.id);   // bara när bordet hade kort vid starten: på ett tomt bord är varje kort nytt
+    if (!lekForsta && riktiga.length) lekForsta = nu;
+    if (kal.bib || lek || grundKalla != null || kal.grund != null) return;   // uppstartens library-ruta: provkortet gav grundläget, som förut
+    const stillaRiktiga = riktiga.filter(arStilla);   // T.stillaMs som förut: 1,5 s gjorde fönstret för ett tappat land större (granskningen varv 2)
+    if (!stillaRiktiga.length) return;
+    const nya = stillaRiktiga.filter(t => !kortVidStart.has(t.id)).sort((a, b) => a.stillaFran - b.stillaFran);
+    let v = null;
+    for (const t of nya) { v = lekGrund.vinkel(t); if (v != null) break; }
+    if (v == null && !nya.length && nu - kortVaktStart >= GRUND_ANTA_MS) {
+      const ax = stillaRiktiga.map(t => lekGrund.vinkel(t)).filter(g => g != null).map(g => ((g % 180) + 180) % 180);
+      const staende = ax.filter(g => g >= 45 && g < 135), liggande = ax.filter(g => g < 45 || g >= 135).map(g => g >= 135 ? g - 180 : g);
+      const grupp = staende.length >= liggande.length ? staende : liggande;
+      if (grupp.length) { grupp.sort((a, b) => a - b); v = (grupp[grupp.length >> 1] + 180) % 180; }
+    }
+    if (v != null) { lekGrund.sat(v); grundKalla = 'kort'; }
+  }
   function lekVakt(fynd, mask, nu, osaker, harDet, dt) {
     if (kal.bib || !harDet || !AW || !AH) return;
     if (!lekStart) lekStart = nu;
@@ -26691,22 +26751,7 @@ const Kamera = (() => {
       const mojliga = lekKand.filter(finns);
       if (mojliga.length === 1 && stilla(mojliga[0])) lekValj(mojliga[0], nu, mojliga[0].fodd - lekStart >= LEK_START_MS ? 'ny' : 'ensam');
     }
-    /* 5. Bordets första riktiga kort, och dess vinkel när leken saknas: bara
-       när bordet var tomt när vakten startade och kortet ligger ensamt — en
-       kamera som startar med kort på bordet (eller ett foto) har inget
-       första kort, och då står grundläget som det står. */
-    const riktiga = spar.filter(lekRiktigt);
-    if (lekKortVid == null) lekKortVid = riktiga.length;
-    if (!lekForsta && riktiga.length) lekForsta = nu;
-    /* Bara spår som ligger still räknas: handen som lägger kortet blir ofta
-       ett par kortformade spår som dör inom en sekund (golden 07: två sådana
-       medan Thriving Moor lades). */
-    const stillaRiktiga = riktiga.filter(arStilla);
-    if (!lek && grundKalla == null && kal.grund == null && lekKortVid === 0 && stillaRiktiga.length === 1) {
-      const v = lekGrund.vinkel(stillaRiktiga[0]);
-      if (v != null) { lekGrund.sat(v); grundKalla = 'kort'; }
-    }
-    if (stillaRiktiga.length > 1) lekKortVid = Math.max(lekKortVid, 1);   // två kort lade sig innan det första gav vinkeln: inget "första kort"
+    /* 5. Det första kortet och grundläget ur det: forstaKortGrund, utanför den här spärren (anropas varje ruta). */
     /* Rutan följer leken, men bara medan den ligger (granskningen runda 2, fynd 2): står den kvar på
        den tomma platsen får ett kort som läggs där inget spår. Kommer leken tillbaka dit gör steg 6
        dess spår till skräp igen. */
@@ -26851,12 +26896,12 @@ const Kamera = (() => {
      celler (kortMatt) — annars ändrade ett nytt kort för lite av rutan
      (bänken GY3: kortet 18 % av rutan). */
   const GRAV_ANDEL = 0.2, GRAV_KORT = 0.6, GRAV_ROR = 0.1, GRAV_DARR = 6, GRAV_SKILLNAD = 15;   // gråsteg per cell, efter ljuset (gravSkillnad)
-  function glomGravVakt() { gravRef = gravForra = null; gravStillaFran = 0; gravDomd = false; gravRorFran = 0; }
+  function glomGravVakt() { gravRef = gravForra = null; gravStillaFran = 0; gravDomd = false; gravRorFran = 0; gravTomFran = 0; gravTom = false; }
   /* Vaktens domar, en per stilla stund, och var 2:a sekund medan rutan rör
      sig: det är så en missad eller falsk ändring går att spåra (kor.cjs
      --detalj, raden högvakt). */
   const gravLogg = (nu, p) => { (dia.gravProv || (dia.gravProv = [])).push(Object.assign({ s: +(nu / 1000).toFixed(2) }, p)); if (dia.gravProv.length > 60) dia.gravProv.shift(); };
-  const gravLage = () => kal.grav ? { n: gravN, sen: gravNar != null ? Math.max(0, Math.round(forra - gravNar)) : null } : null;
+  const gravLage = () => kal.grav ? { n: gravN, sen: gravNar != null ? Math.max(0, Math.round(forra - gravNar)) : null, tom: gravTom } : null;
   /* Rutans celler: medianen per cell, inte medlet — en tunn linje (en
      skugga, en kant, i golden spårrutorna appen ritar i skärminspelningen)
      flyttar inte medianen, ett nytt konstverk som täcker cellen gör det. Och
@@ -26904,9 +26949,24 @@ const Kamera = (() => {
     for (let k = 0; k < n; k++) d[k] = Math.abs(a.m[k] - (kk * b.m[k] + mm));
     return d;
   }
-  function gravVakt(g, nu) {
+  function gravVakt(g, nu, mask) {
     const c = gravCeller(g);
     if (!c) { glomGravVakt(); return; }
+    /* Högen lyft (Jesper 2026-10-06: graveyard följer med när spelaren flyttar den): rutan är matta i masken.
+       Datorn får det i rapporten (tom) och letar efter högen där den läggs ner (gravFoljer). En tom ruta är
+       ingen ändring av högen — MES-85 skulle annars skicka ett kort som nyss lämnat mattan dit. */
+    if (mask && kal.grav) {
+      const r = kal.grav, b = { x: Math.floor(r.x * AW), y: Math.floor(r.y * AH), w: Math.ceil(r.w * AW), h: Math.ceil(r.h * AH) };
+      /* Mot ett korts yta, inte rutans: rutan har luft runt högen (gravRutaUrKam), och i en stor ruta var ett helt kort under gränsen. */
+      const km = kortMatt(), kortYta = km && km.lang > 0 && km.kort > 0 ? km.lang * km.kort : 0.5 * b.w * b.h;
+      if (maskI(mask, b, AW, AH) < 0.3 * Math.min(kortYta, b.w * b.h)) {
+        if (!gravTomFran) gravTomFran = nu;
+        gravTom = nu - gravTomFran >= GRAV_TOM_MS;
+        gravStillaFran = nu; gravDomd = false; gravForra = c;
+        return;
+      }
+      gravTomFran = 0; gravTom = false;
+    }
     let rort = 0;
     if (gravForra && gravForra.m.length === c.m.length) { const d = gravSkillnad(c, gravForra); for (let k = 0; k < d.length; k++) if (d[k] > GRAV_DARR) rort++; }
     else rort = c.m.length;
@@ -27276,6 +27336,7 @@ const Kamera = (() => {
     matcha(spar, fynd, mask, nu, dt, upp, !klamd);
     minnesvard(nu);   // minnet av remsor följer sina spår (MES-331 pass 6)
     lekVakt(fynd, mask, nu, klamd || felRader > 0, !!(det && det.lador), dt);   // leken utan uppstart (MES-334 steg 3)
+    if (AW && AH) forstaKortGrund(nu);   // grundläget ur första kortet, också utan den tränade detektorn (Jesper 2026-10-06)
     ta('matcha');
 
     /* Stämmer referensen med rutan? Mäts över den fria ytan. En telefon som
@@ -27304,7 +27365,7 @@ const Kamera = (() => {
     /* Högvakten (MES-85) — inte medan bilden kan ha flyttats (felRader) eller
        ljuset slog i taket: då ser högen ny ut utan att något lagts dit. */
     ta('avvikelse');
-    if (felRader || klamd) gravStillaFran = nu; else gravVakt(g, nu);
+    if (felRader || klamd) gravStillaFran = nu; else gravVakt(g, nu, mask);
     ta('grav');
 
     /* Ljuset driver under en kväll. Mattan där inget ligger dras sakta mot
@@ -27615,7 +27676,7 @@ const Kamera = (() => {
      500 ms, :g, :s) var densamma före och efter och blev aldrig en rapport
      (MES-166). Nollställningen skickar ett tomt bord och sätter den själv. */
   let sandSignatur = null;
-  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${arNedKort(t) ? ':n' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '') + lekSig();
+  const tillstandsSignatur = () => spar.map(t => `${t.id}:${t.tappad ? 1 : 0}:${t.namn || ''}:${t.tillstand}${t.provas ? ':p' : ''}${t.regionNar != null && forra - t.regionNar < 500 ? ':f' : ''}${t.regionNar != null && forra - t.regionNar >= 2000 ? ':g' : ''}${arStilla(t) ? ':s' : ''}${!t.namn && skuggklar(t) ? ':k' : ''}${arNedKort(t) ? ':n' : ''}${t.tillstand === 'klar' && arVila(t) ? ':v' : ''}${t.vilaX != null ? ':' + Math.round(t.vilaX) + ',' + Math.round(t.vilaY) : ''}`).join('|') + `|sma${smaNu()}|g${gravN}${gravTom ? 't' : ''}` + (kal.bib ? `|b${bibLigger ? 1 : 0}${bibNu ? bibNu[0] : ''}` : '') + lekSig();
 
   /* 1 där inget spår ligger, med marginal. Samma yta för driften och för
      ljusmätningen. */
@@ -30111,9 +30172,50 @@ const GRAV_TIDIGAST = 350, GRAV_EFTER = 5000;
    (som SPELL_MS, 6757fa8) behöll de sina. */
 const GRAV_ATER_MS = 8000;
 let gravHandelser = [], gravSistaN = null, gravTid = new Map();
+/* Graveyard följer med (Jesper 2026-10-06, principen "högarna är saker"): spelaren lyfter graveyard-högen och
+   lägger den någon annanstans. Telefonen säger att rutan blivit tom (grav.tom); ett nytt spår som lägger sig
+   inom GRAV_FOLJ_MS med namnet på något av högens två översta kort är högen. Rutan flyttas dit (sparaGravZon:
+   telefonens kal.grav, och gravPlacera på mattan, där högen glider), och spåret blir inget kort i spel — inte
+   heller i de meddelanden som kommer innan telefonen fått den nya rutan (gravFoljdaSpar). Läggs högen tillbaka
+   på samma plats är rutan inte tom längre, och inget händer. Utanför appen (dev/avstamning.cjs): av. */
+const GRAV_FOLJ_MS = 60000;   // så länge efter lyftet en hög som läggs ner kan vara den — spelaren kan leta i graveyard en stund
+const GRAV_LYFT_MARG = 1500;  // telefonen säger "tom" först efter en sekunds tomhet (GRAV_TOM_MS): lyftet var så mycket tidigare
+let gravTomNar = 0, gravTomSparr = false, gravFoljdaSpar = new Map();   // gravTomSparr: högen har flyttats; "tom" räknas först när telefonen sagt "inte tom" igen (den nya rutan)   // spår-id → senast sett: högens spår, tills telefonen slutat rapportera det (10 s osett)
+function gravFoljer(spar, nu, mig) {
+  if (gravFoljdaSpar.size) {
+    for (const t of spar) if (gravFoljdaSpar.has(t.id)) gravFoljdaSpar.set(t.id, nu);
+    for (const [id, sett] of gravFoljdaSpar) if (nu - sett > 10000) gravFoljdaSpar.delete(id);
+    spar = spar.filter(t => !gravFoljdaSpar.has(t.id));
+  }
+  if (typeof kamGravRad === 'undefined' || !kamGravRad || typeof sparaGravZon !== 'function' || !gravTomNar || nu - gravTomNar > GRAV_FOLJ_MS) return spar;
+  if (!(kamSpeglar(mig) && spelPolicy(mig).saknas)) return spar;   // bara Mirror my table: Use camera to add cards tar aldrig bort ett kort
+  /* Spåret är högen bara om (granskningen av besluten, fynd 1):
+     - graveyard har minst två kort — att ta kortet ur en graveyard med ett kort (unearth, återupplivning,
+       MES-248) går inte att skilja från att flytta högen;
+     - det bär det översta kortets namn, är inget helbildsspår och föddes efter lyftet;
+     - inget kort i spel med samma namn ligger där (ett andra spår på ett kort i spel, när armen som lyfter
+       högen sveper över det). */
+  const grav = mig.cards.filter(c => zonAv(c) === ZON_GRAV);
+  if (grav.length < 2 || !grav[0].name) return spar;
+  const namn = grav[0].name;
+  const syskon = q => mig.cards.some(c => c.spar !== q.id && c.name === namn && paMattan(c) && c.kam
+    && Math.hypot(c.kam.x - (q.x + q.w / 2), c.kam.y - (q.y + q.h / 2)) <= 0.5 * Math.min(c.kam.w, c.kam.h));
+  const t = spar.find(q => q.tillstand === 'klar' && q.namn === namn && q.w != null && q.vilar !== false && !franHelbild(q)
+    && (!sparSedd.has(q.id) || sparSedd.get(q.id) >= gravTomNar - GRAV_LYFT_MARG)
+    && !mig.cards.some(c => c.spar === q.id && !(c.ny && c.ny >= gravTomNar - GRAV_LYFT_MARG))   // inte ett kort som låg i spel före lyftet
+    && !syskon(q));
+  if (!t) return spar;
+  /* Hann spåret bli ett kort (namnet kom före rapporten om den tomma rutan) tas kortet bort igen. */
+  const i = mig.cards.findIndex(c => c.spar === t.id);
+  if (i >= 0) mig.cards.splice(i, 1);
+  sparaGravZon(gravRutaUrKam({ x: t.x + t.w / 2, y: t.y + t.h / 2, w: t.w, h: t.h }, kamBildAsp()));
+  gravFoljdaSpar.set(t.id, nu); gravTomNar = 0; gravTomSparr = true;
+  return spar.filter(q => q !== t);
+}
 function gravTaEmot(grav, nu) {
   if (grav === undefined) return;                       // telefon utan vakten, nådtimern, lägesbytet
-  if (!grav || typeof grav.n !== 'number') { gravHandelser = []; gravSistaN = null; return; }   // ingen ruta
+  if (!grav || typeof grav.n !== 'number') { gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; return; }   // ingen ruta
+  if (grav.tom) { if (!gravTomNar && !gravTomSparr) gravTomNar = nu; } else { gravTomNar = 0; gravTomSparr = false; }   // högen lyft (gravFoljer)
   /* Ett lägre tal är en telefon som startat om: nytt utgångsläge, ingen
      händelse. Det första talet efter en omladdning likaså. */
   if (gravSistaN != null && grav.n > gravSistaN) for (let i = gravSistaN; i < grav.n; i++) gravHandelser.push({ nar: nu - (grav.sen || 0), tagen: false });
@@ -30975,6 +31077,7 @@ let gravLage = null;          // { spel, fraga: { id, cids (understa först), ka
    spelaren, är samma kort och fick förut aldrig frågan (granskningen av sida 5, 2026-10-05). */
 let gravSedda = new Map();
 const GRAV_FLYTT = 0.5;       // flyttat: mitten minst en halv kortsida från där kortet senast prövades
+const GRAV_NARA_LEK = 1.6;    // "bredvid library": kortets mitt högst så många kortbredder utanför lekens kant
 /* En ny referensbild (telefonen knuffad, startad om): bilden har flyttat sig, så korten får nya lägen utan att ha
    flyttats. Ett nytt läge inom GRAV_OMSTART_MS därefter skrivs om tyst — också för ett kort vars läge kommer
    först i ett senare meddelande (granskningen av rättelsen, fynd 2, X3). */
@@ -31086,15 +31189,24 @@ function gravFragaSteg(mig, nu, synliga) {
     synligaPa++;
     const fore = gravSedda.get(c.cid);
     if (!fore) {
-      gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd: c.ny || 0, t: nu });
+      gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd: c.ny || 0, t: nu, tap: c.kamTap });
       if (c.ny && nu - c.ny < GRAV_NY_MS) nya.push(c);   // annars: låg där när kameran kom, en omladdning — ingen fråga
       continue;
     }
-    /* Flyttat och lagt sig (inte preliminärt): prövas som om det lades där nu. */
-    if (c.kam.prel || Math.hypot(c.kam.x - fore.x, c.kam.y - fore.y) <= GRAV_FLYTT * Math.min(c.kam.w, c.kam.h)) continue;
+    /* Flyttat och lagt sig (inte preliminärt): prövas som om det lades där nu. Annars följer bara tap-läget med
+       (en tappning på plats), så att nästa flytt jämförs mot kortets senast sedda läge. */
+    const flytt = Math.hypot(c.kam.x - fore.x, c.kam.y - fore.y);
+    if (c.kam.prel || flytt <= GRAV_FLYTT * Math.min(c.kam.w, c.kam.h)) {
+      if (!c.kam.prel && c.kamTap != null && fore.tap !== c.kamTap) gravSedda.set(c.cid, Object.assign({}, fore, { tap: c.kamTap }));
+      continue;
+    }
     if ((fore.t || 0) < gravOmstart && (c.kam.nar || nu) - gravOmstart < GRAV_OMSTART_MS) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu })); continue; }
+    /* En tappning vrider kortet runt ett hörn, och mitten flyttar upp till ~0,9 av långsidan: ingen flytt (granskningen
+       av besluten, fynd 7). Bara så långt — en tappad varelse som dör och läggs bredvid library har flyttats längre,
+       och ska ge frågan (granskningen varv 2). */
+    if (c.kamTap != null && fore.tap != null && c.kamTap !== fore.tap && flytt <= Math.max(c.kam.w, c.kam.h)) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu, tap: c.kamTap })); continue; }
     const lagd = c.kam.nar || nu;
-    gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd, t: nu });
+    gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd, t: nu, tap: c.kamTap });
     if (nu - lagd < GRAV_NY_MS) flyttade.push({ c, dx: c.kam.x - fore.x, dy: c.kam.y - fore.y, s: Math.min(c.kam.w, c.kam.h) });
   }
   /* Flyttar de flesta korten på en gång, och lika mycket åt samma håll, har kameran flyttat sig (knuffad, ställd
@@ -31103,6 +31215,16 @@ function gravFragaSteg(mig, nu, synliga) {
   const mx = flyttade.length ? med(flyttade.map(f => f.dx)) : 0, my = flyttade.length ? med(flyttade.map(f => f.dy)) : 0;
   const kameran = flyttade.length >= 2 && flyttade.length >= 0.6 * synligaPa && flyttade.every(f => Math.hypot(f.dx - mx, f.dy - my) <= 0.5 * f.s);
   const prova = kameran ? nya : nya.concat(flyttade.map(f => f.c));
+  const flyttadeIds = new Set(kameran ? [] : flyttade.map(f => f.c.cid));
+  /* Jespers regel (2026-10-06): ett kort som FLYTTAS till en plats bredvid library — vänster eller höger, i
+     lekens rad, högst GRAV_NARA_LEK kortbredder från leken — antas vara graveyard. Kortets läge blir högens
+     plats vid Yes (gravSvar). Landen spelar ingen roll här: en varelse som dör läggs där graveyard ligger. */
+  const naraLek = c => {
+    const h = mig.bibHog;
+    if (gravArLand(c) || !h || !h.kam || h.upp) return false;
+    const lv = kamVridet(h.kam), cv = kamVridet(c.kam), dx = Math.abs(cv.x - lv.x);
+    return dx > lv.w / 2 && dx <= lv.w / 2 + GRAV_NARA_LEK * lv.w && Math.abs(cv.y - lv.y) <= lv.h / 2;
+  };
   for (const c of prova) {
     if (L.fraga) {
       /* Medan frågan står: ett kort på högen hör till den — mitten inom högens ruta. */
@@ -31116,6 +31238,7 @@ function gravFragaSteg(mig, nu, synliga) {
       if (a) { plats.igen = 1; fraga(mig.cards.filter(x => x !== c && pa(x) && gravMittI(kamRekt(x.kam), kamRekt(plats.kam))).map(x => x.cid).concat(c.cid), 'ovanpa', true); }
       continue;
     }
+    if (flyttadeIds.has(c.cid) && naraLek(c)) { fraga([c.cid], 'flytt'); continue; }
     if (!L.sida && sidan(c)) { L.sida = true; fraga([c.cid], 'sida'); continue; }
     const a = under(c);
     if (a) fraga([a.cid, c.cid], 'ovanpa');
@@ -31143,13 +31266,14 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
   spar = spar.filter(t => !gravIgnorerad(t));
   /* Kameran har nollställt sig — kalibrerats om eller tagit ny referensbild.
      Den säger inte att bordet är tomt, den säger att den inte vet än. */
-  if (nollstall) { gravGlomPlatser(); glomSpar(); gravHandelser = []; gravSistaN = null; gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
+  if (nollstall) { gravGlomPlatser(); glomSpar(); gravHandelser = []; gravSistaN = null; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravTid = new Map(); sparSen = new Map(); sparAter = new Map(); tvivel = new Map(); losaSpar = new Set(); sparSedd = new Map(); sparLage = new Map(); senasteKamSpar = null; kamLast = kamTot = kamSer = 0; renderMode(); uppdateraPbStatus(); return; }
   /* Medan telefonen lär sig ljuset spårar den redan, men bordet tas emot
      först när fasen bytt: det som kommer under sekunden är preliminärt, och
      telefonen skickar hela bordet igen så fort referensen är klar. */
   if (kamFas === 'ljus' || kamFas === 'lar' || kamFas === 'ingen') { renderMode(); uppdateraPbStatus(); return; }
   const nu = Date.now();
   gravTaEmot(grav, nu);
+  { const n0 = mig.cards.length; spar = gravFoljer(spar, nu, mig); if (mig.cards.length !== n0) { save(); renderGrid(true); } }   // graveyard följer med när högen flyttas
   /* Ett bord utan pass startar ett (eller tar upp det sparade efter en
      omladdning): sammanfattningen ska finnas när auto stängs av, även om
      inget kort hann bindas. */
@@ -31524,7 +31648,10 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      (SLAPP_MS) som förut: besvärjelsen går till graveyard, ett täckt kort
      och Screen leads släpps tyst. Besvärjelsen mäts från när den plockades
      upp (borta0), inte från när nåden tog slut. */
-  const besvarjelse = (k, borta0) => !!k.ny && borta0 - k.ny < SPELL_MS && arBesvarjelse(k);
+  /* …men inte före Yes på ett speglat bord (Jesper 2026-10-06): då finns ingen graveyard, och ett instant som
+     flyttas till platsen bredvid library ska ge frågan som vilket kort som helst — det väntar på att binda om. */
+  const ingenGrav = typeof gravFlodeAktivt === 'function' && gravFlodeAktivt();
+  const besvarjelse = (k, borta0) => !ingenGrav && !!k.ny && borta0 - k.ny < SPELL_MS && arBesvarjelse(k);
   const tonasNed = (k, borta0) => kanLyftas(k) && !k.fysisk && !besvarjelse(k, borta0) && pol.saknas && !tackt(k);
   for (const k of mig.cards) {
     if (k.spar == null || synliga.has(k.spar) || !k.borta) continue;
@@ -31632,31 +31759,25 @@ function tagEmotBeskarning(m) {
    sig" räknas i tid. Samma HTML ritas inte om: en knapp man tabbat till
    tappade annars fokus var tredje sekund (jfr renderTom).
    Frågan om ett otappat läge som stod i anmärkningens plats är borttagen
-   (MES-334 steg 6): telefonen tar grundläget ur leken eller första kortet.
-   Saknas det ändå en stund med kort på bordet säger fältet till med
-   kameravyns rad och knapp (grundSaknasNu, granskningen av sida 5: V3).
-   Fältet syns då och när något väntar i granskningen — också med auto av.
-   Bärnsten bara när fältet ber om ett klick. */
+   (MES-334 steg 6): telefonen tar grundläget ur leken eller första kortet,
+   och fältet säger aldrig något om det (Jesper 2026-10-06). Fältet syns när
+   något väntar i granskningen — också med auto av. */
 let autoBarStatusHtml = '', autoBarNotHtml = '';
 function autoBarAutoSynlig() { return !!spelLage && prefs.autoLage === true && kamAnsluten; }
 function renderAutoBar() {
   const el = $('#autoBar'); if (!el) return;
   const status = $('#autoStatus'), not = $('#autoNot'), granska = $('#pendBar');
   /* Kamerans status bor i pillret och panelen sedan MES-98 (statusraden där
-     är samma mening, autoRemsaModell). Fältet bär granskningen, och raden
-     när grundläget saknas (V3). */
+     är samma mening, autoRemsaModell). Fältet bär bara granskningen: grundläget
+     antas alltid i bakgrunden, ur leken eller det första kort som läggs ut, och
+     inget statusfält säger något om det (Jesper 2026-10-06 — raden "Untapped
+     angle not saved … press Save" från granskningen av sida 5, V3, är borta). */
   if (!status.hidden) { status.hidden = true; status.innerHTML = ''; autoBarStatusHtml = ''; }
-  /* Grundläget saknas (granskningen av sida 5, V3): kameravyns egen rad och knapp, ingen fråga. */
-  const saknas = grundSaknasNu();
-  const notHtml = saknas
-    ? '<span class="nottxt">Untapped angle not saved — lay a card untapped and press Save</span>'
-      + '<button class="btn prim" data-mode="grund-spara" title="Takes the angle from the latest card the camera put on the table and saves it as untapped">Save</button>'
-    : '';
-  if (notHtml !== autoBarNotHtml) { not.innerHTML = notHtml; autoBarNotHtml = notHtml; }
-  not.classList.toggle('grund', saknas);
-  not.hidden = !notHtml;
-  el.classList.toggle('varm', !granska.hidden || saknas);
-  const synlig = saknas || !granska.hidden;
+  if (autoBarNotHtml) { not.innerHTML = ''; autoBarNotHtml = ''; }
+  not.classList.remove('grund');
+  not.hidden = true;
+  el.classList.toggle('varm', !granska.hidden);
+  const synlig = !granska.hidden;
   if (el.hidden !== !synlig) { el.hidden = !synlig; dockaKamOv(); }   // fältet kommer och går: panelens överkant följer
 }
 /* Statusraden i panelen räknar tiden ("på väg"), så den ritas varje sekund
@@ -33148,7 +33269,7 @@ addEventListener('resize', () => { if (kamSkruvOppen) ritaPbLager(); if (kamOppe
 function visaKamGrund() {
   const el = $('#kamGrundTxt'), kn = $('#kamGrundSpara'); if (!el) return;
   const g = kamGrund !== undefined ? kamGrund : kamGrundRad;
-  el.textContent = g == null ? 'Untapped angle not saved — lay a card untapped and press Save' : `Untapped angle saved (${g}°)`;
+  el.textContent = g == null ? 'Untapped angle: from your library or first card' : `Untapped angle: ${g}°`;   // ingen "not saved" (Jesper 2026-10-06): grundläget antas i bakgrunden
   if (kn) kn.textContent = g == null ? 'Save' : 'Save again';
 }
 /* Datorn ber telefonen ta grundläget ur ett spår. Svaret (tagEmotGrundSvar)
@@ -33188,18 +33309,6 @@ function grundTillRad() {
     grundRadT = null;
     if (typeof kamGrund === 'number' && mittLage() === 'bord' && (kamGrundRad == null || grundSkiljer(kamGrund, kamGrundRad))) skrivGrundRad(kamGrund);
   }, GRUND_RAD_MS);
-}
-/* Statusfältet när grundläget saknas (V3): i Mirror my table, med kamerans kort på bordet och telefonens
-   besked "inget sparat" (null) i GRUND_SAKNAS_MS. Texten och knappen är kameravyns (visaKamGrund,
-   #kamGrundSpara) — ingen ny text. */
-const GRUND_SAKNAS_MS = 10000;
-let grundSaknasFran = 0;
-function grundSaknasNu() {
-  const mig = minSpelare();
-  const saknas = autoBarAutoSynlig() && !oppOppen && mittLage() === 'bord' && kamGrund === null && !!mig && !!senasteMattaKort(mig, senasteSpar);
-  if (!saknas) { grundSaknasFran = 0; return false; }
-  if (!grundSaknasFran) grundSaknasFran = Date.now();
-  return Date.now() - grundSaknasFran >= GRUND_SAKNAS_MS;
 }
 /* Knappen Save i kameravyn: läget ur kortet som ligger på bordet just nu. */
 function sparaGrundFranSenaste() {

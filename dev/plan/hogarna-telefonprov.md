@@ -19,11 +19,12 @@ Prova i **Mirror my table** med telefonen i hållaren som vanligt. Börja med et
 
 **3. Graveyard-frågan**
 1. Lägg ett kort på andra sidan om leken från dina land, i lekens rad. Eller lägg ett kort rakt ovanpå ett annat. Rutan "Is this your graveyard? Yes · No" ska komma ovanför högen, och bara du ska se den. Före ditt svar finns ingen graveyard någonstans.
-2. Gör om med en varelse som redan ligger i spel: **flytta** den dit (som när den dör). Frågan ska komma lika väl.
-3. **Yes:** högen blir graveyard precis där kortet ligger, med brickan "Graveyard N". Lägg fler kort på den. Talet ska räknas upp, och korten ska inte hamna på mattan som spelade.
+2. Gör om med en varelse som redan ligger i spel: **flytta** den till platsen bredvid library, vänster eller höger (som när den dör). Frågan ska komma lika väl. Tappa ett kort som ligger bredvid library: ingen fråga.
+3. **Yes:** kortet tonas till en grå hög precis där det ligger, och brickan "Graveyard N" glider fram. Lägg fler kort på den. Talet ska räknas upp, och korten ska inte hamna på mattan som spelade.
 4. Zooma och dra mattan. Leken och graveyard ska följa med som kort, och stå kvar på samma plats bland korten.
-5. Gör om med **No → Permanent** i ett nytt spel. Mesa ska fråga en gång till när du lägger ett kort ovanpå där.
-6. Gör om med **No → Ignore this spot**. Kort där ska aldrig komma på mattan, och Mesa ska aldrig fråga igen.
+5. **Flytta graveyard-högen** till en ny plats (med minst två kort i den). Graveyard på mattan ska glida dit, och det översta kortet ska inte dyka upp som ett kort i spel.
+6. Gör om med **No → Permanent** i ett nytt spel. Mesa ska fråga en gång till när du lägger ett kort ovanpå där.
+7. Gör om med **No → Ignore this spot**. Kort där ska aldrig komma på mattan, och Mesa ska aldrig fråga igen.
 
 **4. Nedvända kort** (ditt beslut i dag)
 1. Lägg ett kort nedvänt i spelytan. Det ska synas direkt, som ett vanligt kort.
@@ -31,12 +32,12 @@ Prova i **Mirror my table** med telefonen i hållaren som vanligt. Börja med et
 3. Lägg ner handkorten nedvända en stund. De syns som ett nedvänt kort tills du tar upp dem. Det är väntat.
 
 **5. Ladda om telefonen mitt i partiet, och tappa kameran**
-- Tappläget ska fungera som förut efter omladdningen. Saknas grundläget säger statusfältet till.
+- Tappläget ska fungera som förut efter omladdningen. Inget statusfält ska säga något om "untapped angle".
 - Stäng telefonens sida en stund ("Camera lost"). Bordet ska stå fryst som det var: ingen graveyard eller library dyker upp i hörnet, och en graveyard-fråga som stod kvar står kvar.
 
-**5b. Exile och ett instant före Yes** (mitt antagande, säg om du vill ha det annorlunda)
+**5b. Exile och ett instant före Yes**
 - Exila ett kort i appen. Exile ska ligga bredvid leken på mattan med brickan "Exile 1", inte i hörnet.
-- Spela ett instant innan du har en graveyard och plocka upp det. Det läggs i graveyard digitalt, och graveyard visas då bredvid leken på mattan, på sidan bort från landen. Svarar du Yes på en hög senare flyttar graveyard dit.
+- Spela ett instant innan du har en graveyard och lägg det sedan bredvid library. Frågan "Is this your graveyard?" ska komma, och Yes gör graveyard där.
 
 **6. En motståndares vy**
 - Från en annan dator eller i bordsvyn: din lek och dina nedvända kort ska synas som baksidor, aldrig med namn. Din graveyard ska ligga där den ligger bland dina kort, och graveyard-frågan ska inte synas där.
