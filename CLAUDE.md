@@ -403,3 +403,20 @@ Kör `node dev/laget.cjs` plus `ListAgents` — skillen `laget` gör båda och
 slår ihop dem. Den svarar på vad som körs, vad som väntar på Jesper, vad som
 är blockat, vilka grenar som inte är ihopslagna och vad som är näst på tur.
 Använd den när Jesper frågar hur det går, i stället för att läsa Linear.
+
+## Grinden för en ny bildmodell (Jespers beslut 2026-10-06)
+
+Gäller varje finjusterad bildmodell (MobileCLIP v2, v3, v4 …) innan den byts in i
+appen, och varje session som mäter en.
+
+| Krav | Vad som gäller |
+|---|---|
+| **0 säkra fel namn i golden** | hårt, oförändrat. Varje fel namn spåras till sin väg i koden (domskälet: `modell land`, `remsa`, `modell+orb` …). Faller appens nuvarande modell på samma väg är det vägen som ska dömas, inte modellen — men modellen går ändå inte in förrän vägen eller modellen är rättad |
+| **Totalen bättre än baslinjen** | rätt namn/119 ska vara fler än baslinjens. "Inget fall sämre" gäller inte längre som stopp: varje fall som blir sämre ska ha en förklaring som inte är slump, och förklaringen skrivs i historik-raden |
+| **Golden: baslinjen en gång, den nya modellen två gånger**, på samma kod | skiljer sig den nya modellens två körningar åt i ett fall är skillnaden brus, och räknas inte som försämring. Kolla `git diff --stat <baslinjens commit> HEAD -- index.html` före, inte efter: har index.html ändrats körs baslinjen om på nuvarande kod |
+| **Bänkarna är diagnos, inte grind** | helkortsbänken (`helkort_jamfor.py`) och remsregeln (`remsregel.py`) rapporteras alltid — de visar var modellen är svag — men stoppar inte en modell som golden godkänner. Appens egen modell har själv 2 säkra fel på helkortsbänken vid 0,11 |
+
+**Varför:** golden-måtten skakar mellan identiska körningar (fall 05: 0·0·0 mot
+1·1·0 på samma kod), så ett enda sämre fall säger inget; och bänkarna är
+strängare än appen, som har remsan och ORB som fångar det bänken kallar fel.
+Det som aldrig får skaka är löftet till spelarna: inget säkert fel namn.

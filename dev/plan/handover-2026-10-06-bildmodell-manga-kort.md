@@ -51,10 +51,11 @@ dragning), rök + riktig på Kaggle, mätt som v3. Kaggle och golden är godkän
    helkortets modell säger ett basland med marginal > 0,11 på ett delvis täckt kort utan remsa/ORB. Ett villkor på synlig
    andel eller ett vittne skulle stoppa det. Meddela MES-334-sessionen före varje ändring i index.html.
 
-## Regler (oförändrade)
-0 säkra fel namn; trösklarna rörs inte; rör inte index.html, embed.js (MODELL_HF, V), kor.cjs, kor.html; lägg inte in
-modellen i appen före Jespers beslut; golden exakt två gånger per jämförelse (C + den nya); Claude-märkning ≤ 5 $ och
-Kaggle-körningar godkända, fråga före andra kostnader. Golden-protokollet med MES-334-sessionerna: "golden startar"/"klart"
+## Regler (grinden ändrad 2026-10-06 kväll — se CLAUDE.md, "Grinden för en ny bildmodell")
+0 säkra fel namn hårt (varje fel spåras till sin väg i koden); totalen rätt namn bättre än baslinjen, sämre fall förklaras;
+golden = baslinjen EN gång + den nya modellen TVÅ gånger på samma kod (skillnad mellan de två = brus); bänkarna är diagnos,
+inte grind. Trösklarna rörs inte; rör inte index.html, embed.js (MODELL_HF, V), kor.cjs, kor.html; lägg inte in modellen i
+appen före Jespers beslut; Claude-märkning ≤ 5 $ och Kaggle-körningar godkända, fråga före andra kostnader. Golden-protokollet med MES-334-sessionerna: "golden startar"/"klart"
 via SendMessage (ListAgents → "MES-334 fall 05 utredning"), pausa mark.py med SIGSTOP/SIGCONT när de mäter.
 Kontroll före tung 4K: `ps -axo command= | grep -E '^node .*golden/kor\.cjs'` (pgrep -f matchar sig självt).
 

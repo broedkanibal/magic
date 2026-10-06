@@ -14,11 +14,12 @@ Två spår, parallellt. Inget av dem kräver mig.
 
 **Spår 1 — de finjusterade modellerna bara på remsorna, i golden.** Hypotesen: båda säkra felen (v2 och v3) går via vägen
 `modell land` på hela kortet; med `--rems-modell` läser appens originalmodell hela kortet och den finjusterade bara
-titelremsorna, där v2 vann mest (13b 0 → 21, MES-246 0 → 201 säkra). Kör i den här ordningen, en körning var, port 8291,
+titelremsorna, där v2 vann mest (13b 0 → 21, MES-246 0 → 201 säkra). Kör i den här ordningen — baslinjen EN gång, varje ny modell TVÅ gånger (grinden i CLAUDE.md, "Grinden för en ny bildmodell") — port 8291,
 `--ny-embed --tak 3600000`, `--ut` till `dev/material/arbete/markning/golden-2026-10-06/`:
 1. C igen på nuvarande main (index.html har ändrats sedan morgonens C: fyra MES-334 sida 5-commits) — kvällens baslinje.
-2. `--rems-modell dev/embed/modeller/mobileclip-s0-mesa-v2.onnx`
-3. `--rems-modell dev/embed/modeller/mobileclip-s0-mesa-v3.onnx`
+2. `--rems-modell dev/embed/modeller/mobileclip-s0-mesa-v2.onnx`, två körningar
+3. `--rems-modell dev/embed/modeller/mobileclip-s0-mesa-v3.onnx`, två körningar
+(fem körningar, ~2 h; skiljer sig en modells två körningar åt i ett fall är det brus och räknas inte som försämring)
 Samma profil för alla tre: `TMPDIR=/private/tmp/claude-501/-Users-jesperfunk-Code-magic/e4a618fc-60bc-45b1-87b5-f16275e99c14/
 scratchpad/tmp` om mappen finns (627 MB varm profil), annars en ny profil och ett uppvärmningsvarv som kastas. Före varje
 körning: `ps -axo command= | grep -E '^node .*golden/kor\.cjs'` tomt, kontrollera `git diff --stat HEAD@{...}` så att
@@ -35,14 +36,14 @@ Rök först (3 min; kontrollera i loggen `riktiga: … 8694 … 117 namn` och `"
 `dev/embed/modeller/mobileclip-s0-mesa-v4.onnx` (utfilen heter fortfarande …-v2.onnx). Mät som v3:
 `dev/remsa/helkort_jamfor.py` (vision, v2, v3, v4), `MESA_MOBILECLIP=<v4> MESA_REMSEXP_NPZ=…/remsexp-v4.npz python
 dev/remsa/remsexp.py bygg` i `dev/remsa` i huvudträdet, `remsregel.py resultat/remsexp-bas.npz …-v2 …-v3 …-v4`, och golden
-EN körning med `--modell` (plus en med `--rems-modell` om spår 1 visade att remsvägen är rätt). Förväntan: dina land
+TVÅ körningar med `--modell` (plus två med `--rems-modell` om spår 1 visade att remsvägen är rätt), mot kvällens C. Förväntan: dina land
 tillbaka (06, 14, 13b, MES-246) med A:s vinster kvar (13, 17, 18); felet i 05 troligen kvar.
 
-**Regler:** 0 säkra fel namn; trösklarna rörs inte; rör inte index.html, embed.js, kor.cjs, kor.html; ingen modell in i appen
+**Regler (grinden i CLAUDE.md, ändrad 2026-10-06 kväll):** 0 säkra fel namn hårt, varje fel spåras till sin väg i koden; totalen rätt namn ska vara bättre än baslinjen och varje sämre fall förklaras ("inget fall sämre" är inte längre ett stopp); bänkarna är diagnos, inte grind; trösklarna rörs inte; rör inte index.html, embed.js, kor.cjs, kor.html; ingen modell in i appen
 (spärren på `modell land` väntar på mitt ja); Kaggle-körningar är godkända, inga Claude-frågor behövs; fråga före andra
 kostnader. Golden-protokollet med MES-334-sessionerna som förut.
 
 **Skriv när du är klar:** `dev/material/arbete/markning/v4-2026-10-06-resultat.md` med samma tabeller som v3-rapporten plus
 rems-modell-körningarna, historik-rader, Linear-kommentar på MES-340 som agenten, överlämningen uppdaterad, minnet
-`mes-340-bildmodell-riktiga-inspelningar` uppdaterat. Säg i chatten rakt ut om något av spåren når 0 fel namn och fler rätt
-än baslinjen, för det är vad som avgör om något går in i appen.
+`mes-340-bildmodell-riktiga-inspelningar` uppdaterat. Säg i chatten rakt ut om något av spåren når 0 fel namn i båda körningarna och fler rätt än baslinjen, för det är
+grinden för att något går in i appen.
