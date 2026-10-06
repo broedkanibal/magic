@@ -11,14 +11,33 @@
 Läs det här först. Resten av filen är besluten som de togs 2026-10-02, och
 där läget har ändrats sedan dess gäller avsnittet.
 
-**Designytan är klar men inte godkänd.** Sida 3, "Lugn matta", i
+**Designytan är godkänd (Jesper 2026-10-06).** Sida 3, "Lugn matta", i
 [Mesa Mirror Animations](https://claude.ai/artifact/EbDpd4ggjnb7cp7j3KuEhY)
-har en prototyp med det fysiska bordet och mattan sida vid sida (källan:
-`design_handoff_animeringar/src3/` och `gen3.mjs`, tiderna i
-`TIDSLINJER-E.md`). MES-292 står i Behöver dig tills Jesper sagt ja. Inget av
-det som återstår byggs i `index.html` förrän dess.
+är byggunderlaget: det fysiska bordet och mattan sida vid sida, elva scener,
+högarna bland korten (källan: `design_handoff_animeringar/src3/` och
+`gen3.mjs`, tiderna i `TIDSLINJER-E.md`). MES-292 är Done.
 
-**Fyra saker bestämdes i designytan, och Jesper svarade 2026-10-06:**
+**Bygget är issues, och ordningen och prompterna står i
+[`prompt-spegelmattan-2026-10-06.md`](prompt-spegelmattan-2026-10-06.md):**
+
+| Steg | Issue | Del av filen | Läge |
+|---|---|---|---|
+| 1 | MES-333 uppspelaren | grund 1 | Todo, High |
+| 2 | MES-341 bordets minne, handzonen, flytt utan att vänta på namnet, tap per kort | grund 3–4, principerna 3, 4, 6, 10, 11 | Todo, High |
+| 3 | MES-338 zoomstegen | *Mattan: zoomsteg* | Todo, Medium |
+| 4 | MES-342 positionerna | *Positionerna*, grund 5 | Todo, Medium |
+| 5 | MES-343 till handen med ändra, nedtoningen bort | *Kort som lämnar bordet*, *Nedtoningen tas bort helt* | Blocked av 341 |
+| 6 | MES-344 framkallningen, utspelets rörelse, kort utan namn | *Utspel* | Blocked av 341 |
+| 7 | MES-336 graveyard minns kort utan namn | framkallningen för graveyard | Blocked av 344 |
+
+MES-337 (fysisk exile-hög) hör till högarna, inte hit. MES-248 har lämnat
+över "bordet → ut ur bild" till MES-343 och behåller graveyard → ut ur bild.
+MES-312 (beta-grinden) blockeras nu också av 341, 343 och 344.
+
+**Jesper 2026-10-06:** sessionerna får committa och pusha till main utan att
+fråga inom de här issuerna, på villkoren i prompten.
+
+**De fyra valen i designytan, Jespers svar 2026-10-06:**
 
 1. **Bekräftat.** En flytt väntar inte på namnet. Vilar ett kort på en ny plats i samma stund
    som ett känt kort försvann, är det samma kort och bärs dit direkt. Namnet
@@ -38,20 +57,6 @@ det som återstår byggs i `index.html` förrän dess.
 | Mattan ritas inte om från noll (grund 2 nedan). Varje kort behåller sitt element, och knuff, flytt, tap och zoom glider (FLIP) med D:s tider | MES-334 steg 2, `b757b86`; `matSynk` i `index.html`, provet `dev/mattan.cjs` | på main, MES-334 Redo att testas |
 | Högarna har ingen fast plats. De ligger bland korten där de ligger på bordet, i utseendet D1, och följer mattans zoom | MES-334 sida 5 | på main |
 | Uppstartens steg 4 (provkort, graveyard-plats, library-ruta) är borta i Mirror my table | MES-334 sida 5, `870ae6e` | på main |
-
-**Issues som täcker delar av filen:**
-
-| Issue | Del | Läge |
-|---|---|---|
-| MES-333 uppspelaren | grund 1 | Triage. Baslinjen blir main som den är nu, alltså redan med mattan utan omritning |
-| MES-338 zoomstegen | "Mattan: zoomsteg" | Triage |
-| MES-336 graveyard minns kort utan namn | framkallningen och sökrutan, för graveyard | Triage |
-| MES-337 den fysiska exile-högen | ersätter inte "ingen exile-plats i uppstarten" | Triage |
-
-**Utan issue än**, skapas när designytan är godkänd: bordets minne och
-handzonen, kort som lämnar bordet (fall 1–11) och att nedtoningen tas bort,
-framkallningen för nya kort på mattan, utspelets rörelse (lägg ned), tap i
-spelarens ordning, och positionerna (perspektiv, dödzon, inga falska omlott).
 
 **Ändrat av högarna (MES-334):**
 - Fall 4 (till graveyard) och fall 10 (till library) gäller högen där den

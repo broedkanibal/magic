@@ -20,6 +20,17 @@ i etapper.md). Uppdatera den här filen när kön ändras.
 Main driftsätts automatiskt till produktion vid push. Det är därför
 kriterierna är hårda.
 
+## Spegelmattan (Jesper 2026-10-06)
+
+Samma godkännanden gäller spegelmattans issues — MES-333, 338, 341, 342,
+343, 344 och 336 — med måtten anpassade: uppspelaren (MES-333) och
+spegelfacit är måtten, golden bara när telefonens kod ändras. Kön,
+kodområdena och vad som får köras parallellt står i
+[`prompt-spegelmattan-2026-10-06.md`](prompt-spegelmattan-2026-10-06.md).
+Kort: MES-333 först och ensam; MES-341 (Fable) ∥ MES-338 ∥ MES-342 (Opus);
+sedan MES-343 → MES-344 → MES-336 i rad. MES-341/343/344 rör `avstamBord`
+och får inte köras samtidigt med rättelser i MES-334 eller med varandra.
+
 ## Där sessionen alltid stannar
 
 - systemprompten i `api/identify.js` — rörs aldrig, föreslå och fråga
