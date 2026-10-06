@@ -2107,6 +2107,14 @@ prov('GY13 (Jesper 2026-10-06) före Yes: ett instant som spelas och sedan flytt
   assert.equal(bolt.length, 1, 'två Lightning Bolt'); assert.notEqual(bolt[0].zon, 'grav', 'gick till graveyard före Yes');
   assert.ok(fraga(), 'ingen fråga'); assert.deepEqual(namnPa(fraga().cids), ['Lightning Bolt']);
 });
+prov('GY14 (granskningen av besluten, fynd 7) ett kort bredvid library som TAPPAS (vrids runt ett hörn, mitten flyttar ~1 kortbredd) ger ingen fråga', () => {
+  gyStart();
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.7, 0.7) })];
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.585, 0.702) })]));
+  klocka.t += 20000; app.grav.fraga = null;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, tappad: true, ...kortVid(0.585 + 0.04, 0.702 + 0.01, 0.088, 0.063) })]));   // tappat och lite förskjutet, kvar i lekens rad bredvid library
+  assert.equal(fraga(), null, 'tappningen gav en fråga');
+});
 prov('GY4 Permanent: Mesa frågar en gång till när ett kort läggs ovanpå på samma plats, sedan aldrig', () => {
   gyStart(); app.bib = null;
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);

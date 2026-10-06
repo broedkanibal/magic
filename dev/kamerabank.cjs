@@ -2243,7 +2243,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     // LK8: ingen lek — första kortets vinkel blir otappat (liggande kort med upp 'v' → 0°); en lek som kommer sedan ändrar den inte
     await nyttBord('v');
     const F = { x: 60, y: 50, w: 42, h: 30 };
-    await kor(10, [kortR(F)], [lada(F, 'kort')]);
+    await kor(16, [kortR(F)], [lada(F, 'kort')]);   // första kortet ska ha legat still 1,5 s (KORT_STILLA_MS)
     const g8a = grader(), l8a = Kamera.lek;
     await kor(14, [kortR(F), hog(L)], [lada(F, 'kort'), lada(L, 'baksida')]);
     const l8b = Kamera.lek;

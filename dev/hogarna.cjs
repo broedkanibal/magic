@@ -97,7 +97,7 @@ const PROV = async steg => {
   const spar = (id, namn, cx, cy) => ({ id, tillstand: 'klar', namn, saker: true, x: cx - 0.05, y: cy - 0.11, w: 0.1, h: 0.22, tappad: false, vilar: true, sen: 10 });
   const R1 = { x: 0.40, y: 0.5, w: 0.1, h: 0.22 };            // leken, mitten (0,45; 0,61)
   const LAND = [spar(11, 'Forest', 0.6, 0.61), spar(12, 'Forest', 0.72, 0.61)];
-  const nollGrav = () => { gravLage = null; gravSedda = new Map(); gravOmstart = 0; gravTomNar = 0; gravFoljdaSpar = new Map(); gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
+  const nollGrav = () => { gravLage = null; gravSedda = new Map(); gravOmstart = 0; gravTomNar = 0; gravTomSparr = false; gravFoljdaSpar = new Map(); gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
   /* Ett bord från telefonen, en stund efter det förra (kortets ny-stämpel avgör vem som ligger under). */
   const stam = async lista => { await vanta(15); avstamBord(lista, false); };
   /* Brädets zoom glider efter en omritning (matSynk, MES-334 steg 2): mät när lekens ruta stått still. */
@@ -225,8 +225,31 @@ const PROV = async steg => {
          !!mitt && Math.abs(mitt.x - 0.45) < 0.02 && Math.abs(mitt.y - 0.25) < 0.02 && !mig().cards.some(c => c.name === 'Wood Elves' && zonAv(c) !== ZON_GRAV)
            && kortNamn('grav').join(',') === 'Wood Elves,Llanowar Elves' && !!gh && Math.hypot(gh.x - g0.x, gh.y - g0.y) > 100,
          JSON.stringify({ fore: gr0 && { x: +(gr0.x + gr0.w / 2).toFixed(2), y: +(gr0.y + gr0.h / 2).toFixed(2) }, efter: mitt && { x: +mitt.x.toFixed(2), y: +mitt.y.toFixed(2) }, iSpel: mig().cards.filter(c => zonAv(c) !== ZON_GRAV).map(c => c.name) }));
-      /* Tillbaka: högen ligger där den nu ligger (telefonen: inte tom), och nästa kort med samma namn är ett nytt kort. */
-      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false }); }
+      /* Telefonen säger fortfarande tom (har inte fått den nya rutan): ett nytt Wood Elves på en tredje plats flyttar inte rutan igen. */
+      const r1 = Object.assign({}, kamGravRad);
+      await vanta(15); avstamBord(bas.concat([spar(92, 'Wood Elves', 0.8, 0.62)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      await vanta(15); avstamBord(bas.concat([spar(92, 'Wood Elves', 0.8, 0.62)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      ok('graveyard följer med: inte en gång till innan telefonen sett den nya rutan', kamGravRad.x === r1.x && kamGravRad.y === r1.y, JSON.stringify(kamGravRad));
+      /* Tillbaka: högen ligger där den nu ligger (telefonen: inte tom). */
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false });
+      /* Ett andra spår på ett Wood Elves i spel (armen som lyfter högen sveper över det) är inte högen. */
+      const r2 = Object.assign({}, kamGravRad), we = mig().cards.find(c => c.name === 'Wood Elves' && zonAv(c) !== ZON_GRAV);
+      if (we) { we.ny -= 5000; if (sparSedd.has(we.spar)) sparSedd.set(we.spar, sparSedd.get(we.spar) - 5000); }   // kortet låg i spel en stund före lyftet, som på riktigt
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      if (we && we.kam) { const sx = we.kam.x + 0.004, sy = we.kam.y + 0.004;
+        await vanta(15); avstamBord(bas.concat([spar(we.spar, 'Wood Elves', we.kam.x, we.kam.y), spar(93, 'Wood Elves', sx, sy)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true }); }
+      ok('graveyard följer med: ett andra spår på ett Wood Elves i spel är inte högen', !!we && kamGravRad.x === r2.x && kamGravRad.y === r2.y, we ? JSON.stringify(kamGravRad) : 'inget Wood Elves i spel');
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false });
+      /* Graveyard med ett kort: att ta kortet ur den (unearth) går inte att skilja från att flytta högen — rutan står kvar. */
+      const g2 = mig().cards.filter(c => zonAv(c) === ZON_GRAV), spara = g2.slice(1);
+      for (const c of spara) mig().cards.splice(mig().cards.indexOf(c), 1);
+      const r3 = Object.assign({}, kamGravRad);
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      await vanta(15); avstamBord(bas.concat([spar(94, g2[0].name, 0.55, 0.3)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      ok('graveyard följer med: inte när graveyard bara har ett kort (det kortet togs upp)', kamGravRad.x === r3.x && kamGravRad.y === r3.y, JSON.stringify(kamGravRad));
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false });
+      for (const c of spara) mig().cards.push(c);
+      mig().cards = mig().cards.filter(c => !(c.spar === 94 && zonAv(c) !== ZON_GRAV)); }
   }
   if (steg === 3) {
     /* Reserven, och No → menyn M1 → Permanent. */
