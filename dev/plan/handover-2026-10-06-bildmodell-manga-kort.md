@@ -35,7 +35,12 @@ Linear-kommentaren med resultatet och de två valen ligger på issuen (som "Clau
 - **B och C är inte inspelade** (`…-manga-kort-lampa/`, `…-manga-kort-solskugga/` tomma). När de finns:
   `mark.py pass <B> --par <A> --tel --lagg-fonster 20` (namn ur A via ordning + ORB), `mark.py par A B --torr` först.
 
-## Nästa steg — väntar på Jesper (två val, se Linear-kommentaren)
+## Nästa steg utan Jesper (prompt: `dev/plan/prompt-2026-10-06-kvall-remsmodell-v4.md`)
+Spår 1: golden med `--rems-modell` v2 och v3 (appens modell på hela kortet, den finjusterade bara på remsorna — kringgår
+vägen `modell land`), efter en ny C på nuvarande main. Spår 2: v4 = v3:s dataset med `--utan-basvikt` (v2:s likformiga
+dragning), rök + riktig på Kaggle, mätt som v3. Kaggle och golden är godkända; spärren i appen väntar på Jespers ja.
+
+## Två val som väntar på Jesper (se Linear-kommentaren)
 1. **v4** = v3:s data med svagare nedviktning av basland: exponent 0,25 i stället för 0,5 (`mesa_remsa_tran.py`,
    dragningsvikten i funktionen kring rad 590), eller basland som fast andel ~35 %; plus B/C när de finns. Samma kedja:
    `dataset.py rakna/bygg --om` → `kaggle datasets version` → rök (vänta på datasetets `skapad`) → riktig → `helkort_jamfor.py`
