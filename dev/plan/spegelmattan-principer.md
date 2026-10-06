@@ -56,7 +56,7 @@ spelarens ordning, och positionerna (perspektiv, dödzon, inga falska omlott).
 - Graveyard finns först när spelaren svarat Yes på "Is this your graveyard?".
 - Exile görs i appen och står på en fast plats bredvid leken.
 
-Designytans sida 3 visar fortfarande högarna som fasta, nere till vänster.
+Designytans sida 3 visar högarna så sedan 2026-10-06: graveyard och library ligger bland korten i D1, med brickan, och följer zoomen.
 
 ## Problemen, och varför de fanns 2026-10-02
 
