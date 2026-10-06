@@ -1,0 +1,131 @@
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+.ab{position:relative;box-sizing:border-box;width:1440px;padding:28px 32px;background:#0d1015;color:#e7ecf4;
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.ab *{box-sizing:border-box}
+
+/* Rubriken */
+.hu{display:flex;flex-direction:column;gap:6px;height:84px;max-width:1100px}
+.hu .et{font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1.2px;text-transform:uppercase;color:#f0a52a}
+.hu h1{margin:0;font:650 24px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;color:#e7ecf4}
+.hu p{margin:0;font-size:14px;line-height:1.5;color:#93a1b6;text-wrap:pretty}
+
+.rad3{display:flex;gap:24px;align-items:flex-start;margin-top:22px}
+.kf{width:560px;flex:none;display:flex;flex-direction:column;gap:12px}
+.km{width:792px;flex:none;display:flex;flex-direction:column;gap:12px}
+.cap{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;display:flex;align-items:center;gap:8px;height:14px}
+.cap::after{content:'';flex:1;height:1px;background:#1c2330}
+.cap b{color:#93a1b6;font-weight:600}
+
+/* ── Det fysiska bordet: det kameran ser, ritat ovanifrån ── */
+.fbord{position:relative;width:560px;height:353px;overflow:hidden;overflow:clip;border-radius:12px;
+  background:radial-gradient(700px 420px at 45% 35%,#2c3b33,#18211c 78%);box-shadow:inset 0 0 70px 14px #00000059,0 0 0 1px #2c3a31}
+.fsurf{position:absolute;left:0;top:0;width:1900px;height:1198px;transform:scale(.2947368);transform-origin:0 0;pointer-events:none}
+.fk{position:absolute;left:0;top:0;width:178px;height:248px;border-radius:10px;opacity:0;visibility:hidden;transform-origin:50% 50%;will-change:transform,opacity}
+.fk img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;border-radius:10px;box-shadow:0 6px 14px -4px #000c}
+.fk-sh{position:absolute;inset:0;border-radius:10px;box-shadow:0 40px 46px -10px #000e;opacity:0}
+.fhog{position:absolute;left:30px;top:512px;width:178px;height:248px;border-radius:10px;object-fit:cover;box-shadow:0 6px 14px -4px #000c}
+.fhog.lager{left:24px;top:518px;transform:rotate(-4deg);filter:brightness(.85)}
+.fbib{position:absolute;width:178px;height:248px;border-radius:10px;object-fit:cover;box-shadow:0 6px 14px -4px #000c}
+.vy{position:absolute;left:0;top:0;border:5px dashed #f0a52acc;border-radius:16px;z-index:900}
+.vy span{position:absolute;left:14px;top:10px;font:700 30px/1 -apple-system,sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f0a52a}
+.hand{position:absolute;left:0;top:0;width:210px;height:260px;opacity:0;visibility:hidden;z-index:1000;filter:drop-shadow(0 26px 22px #000a)}
+.hand svg{display:block;width:210px;height:260px}
+.kant{display:flex;justify-content:center;font-size:11.5px;color:#66748a;margin-top:-6px}
+
+/* ── Mattan: appens .matta ── */
+.mat{position:relative;width:792px;height:499px;overflow:hidden;overflow:clip;border-radius:12px;
+  background:radial-gradient(1100px 540px at 46% 26%,#18232f,#0a0f14 72%);box-shadow:inset 0 0 90px 20px #00000066,0 0 0 1px #28313f}
+.surf{position:absolute;z-index:23;left:0;top:0;width:1900px;height:1198px;transform:scale(.5561798);transform-origin:0 0;pointer-events:none}
+.mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid #28313f;background:#1b2230;
+  font:11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#57c785}
+.mattachrome span{display:grid;place-items:center;height:26px;padding:0 9px}
+.mattachrome span+span{border-left:1px solid #28313f}
+.mattachrome .zs{color:#93a1b6;font:700 15px/1 -apple-system,sans-serif;width:26px;padding:0}
+
+/* Kortet: appens .card, varje lager ett eget element. k-foto är kamerans
+   foto i kortets unika ytor (namn, bild, typrad, text, P/T), suddigt;
+   ramen runt dem är skarp. */
+.k{position:absolute;left:0;top:0;width:178px;height:248px;border-radius:10px;box-shadow:0 4px 12px -3px #000c;
+  opacity:0;visibility:hidden;transform-origin:50% 50%;will-change:transform,opacity}
+.k-ring{position:absolute;inset:0;border-radius:10px;background:#5fbf7f;opacity:0}
+.k-sh{position:absolute;inset:0;border-radius:10px;box-shadow:0 26px 40px -12px #000f;opacity:0}
+.k-face{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;border-radius:10px;background:#11161e}
+.k-foto,.k-glans{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;
+  clip-path:path('M9 9H169V26H9Z M12 28H166V139H12Z M9 141H169V155H9Z M13 157H165V226H13Z M140 228H169V239H140Z')}
+.k-foto{object-fit:cover}
+.k-glans{background:linear-gradient(118deg,#0000 30%,#ffffff40 44%,#ffffff12 52%,#0000 62%),linear-gradient(#c8d6e622,#c8d6e622);mix-blend-mode:screen}
+.k-glow{position:absolute;inset:0;border-radius:10px;box-shadow:0 0 0 3px #5fbf7f;opacity:0}
+
+/* Högarna bland korten (MES-334, D1): i brädets px på ytan, så de följer
+   mattans zoom. Inga ramar och inga streckade kanter. Graveyard ligger huller
+   om buller med D1:s ton, leken har kortkanter, och brickan på underkanten
+   behåller sin storlek (--inv sätts av motorn). */
+.hd1{position:absolute;width:178px;height:248px;border-radius:11px;z-index:1}
+.hd1 img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;background:#11161e}
+.hd1.gr img{filter:grayscale(.45) brightness(.75);box-shadow:0 8px 22px -6px #000d}
+.hd1.gr img.u1{transform:rotate(-3.5deg) translate(-5px,4px)}
+.hd1.gr img.topp{transform:rotate(2.5deg) translate(5px,5px)}
+.hd1.gr img.g-ny{z-index:2;opacity:0;will-change:transform,opacity}
+.hd1.lk img{box-shadow:1.4px 2px 0 #4a3a2a,2.7px 4px 0 #1c1610,4.1px 6.2px 0 #4a3a2a,5.5px 8.2px 0 #1c1610,6.8px 10.3px 0 #4a3a2a,8.2px 12.3px 0 #1c1610,14px 25px 30px -8px #000d}
+.g-ring{position:absolute;z-index:4;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;border:4px solid #e8c98a;opacity:0;pointer-events:none}
+.bricka{position:absolute;z-index:5;left:50%;top:calc(100% - 10px);transform:translateX(-50%) scale(var(--inv,1.8));transform-origin:50% 0;display:flex;align-items:center;gap:6px;height:22px;padding:0 9px 0 8px;
+  border-radius:11px;background:#141a24f5;box-shadow:0 6px 14px -4px #000e;font:650 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#aab6c8;white-space:nowrap}
+.bricka i{width:6px;height:6px;border-radius:2px;flex:none;background:#6b8cff}
+.bricka.gul i{background:#e8b33a}
+.bricka b{display:inline-block;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#e7ecf4;letter-spacing:0}
+
+/* Raden "→ hand" vid nederkanten. */
+.hrad{position:absolute;z-index:30;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;
+  border-radius:10px;background:#1b2230f2;border:1px solid #3b485c;box-shadow:0 10px 28px -8px #000e;white-space:nowrap;overflow:hidden}
+.hrad-t{font-size:13px;color:#c8d2e0}
+.hrad-t b{color:#e7ecf4;font-weight:650}
+.hrad-v{display:flex;gap:4px}
+.hrad-v button{height:28px;padding:0 10px;border-radius:7px;border:1px solid #3b485c;background:#232c3c;color:#e7ecf4;font:500 12px -apple-system,sans-serif;cursor:pointer}
+.hrad-v button:hover{background:#2c3749;border-color:#56657c}
+.hrad-bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:#f0a52a;transform-origin:0 50%;transform:scaleX(0)}
+
+/* Kort utan namn: markeringen och sökrutan. */
+.mark{position:absolute;z-index:31;transform:translateX(-50%);height:28px;padding:0 11px;border-radius:14px;border:1px solid #f0a52a;background:#1b2230f2;
+  color:#ffd98a;font:600 12px -apple-system,sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 6px 16px -6px #000e}
+.mark:hover{background:#2a2416}
+.sok{position:absolute;z-index:32;width:280px;padding:12px;border-radius:12px;background:#151b26;border:1px solid #3b485c;box-shadow:0 18px 40px -10px #000e;display:flex;flex-direction:column;gap:8px}
+.sok-hu{display:flex;align-items:center;justify-content:space-between}
+.sok-l{font:600 12.5px -apple-system,sans-serif;color:#e7ecf4}
+.sok-x{height:24px;width:24px;border-radius:6px;border:1px solid #28313f;background:#1b2230;color:#93a1b6;cursor:pointer;display:grid;place-items:center;padding:0}
+.sok-x svg{display:block}
+.sok-in{height:34px;border-radius:8px;border:1px solid #3b485c;background:#0b0f15;color:#e7ecf4;font:14px -apple-system,sans-serif;padding:0 10px;outline:none}
+.sok-in:focus{border-color:#f0a52a;box-shadow:0 0 0 3px #f0a52a22}
+.sok-grp{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82}
+.sok-lista{display:flex;flex-direction:column;gap:2px}
+.sok-t{display:flex;align-items:center;height:30px;padding:0 8px;border-radius:7px;border:0;background:none;color:#c8d2e0;font:13px -apple-system,sans-serif;text-align:left;cursor:pointer}
+.sok-t:hover{background:#232c3c;color:#e7ecf4}
+.sok-t span,.sok-t b{white-space:pre}
+.sok-t b{color:#ffd98a;font-weight:650}
+.sok-tom{font-size:12px;color:#66748a;padding:4px 8px}
+
+/* Kontrollerna */
+.grupp{display:flex;flex-direction:column;gap:8px}
+.rub{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;display:flex;align-items:center;gap:8px;height:14px}
+.rub::after{content:'';flex:1;height:1px;background:#1c2330}
+.hk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.hk{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;height:48px;padding:0 12px;border-radius:8px;
+  background:#1b2230;border:1px solid #28313f;color:#e7ecf4;font:inherit;text-align:left;cursor:pointer}
+.hk b{font:600 13px/1.2 -apple-system,sans-serif}
+.hk span{font-size:11px;line-height:1.2;color:#93a1b6}
+.hk:hover{background:#232c3c;border-color:#3b485c}
+.hk.vald{background:#f0a52a14;border-color:#f0a52a;box-shadow:0 0 0 3px #f0a52a1f}
+.hk.vald b{color:#ffd98a}
+.btnrad{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #28313f;
+  color:#c8d2e0;font:500 12.5px -apple-system,sans-serif;white-space:nowrap;cursor:pointer}
+.btn:hover{background:#232c3c;color:#e7ecf4;border-color:#3b485c}
+
+/* Loggen: tre spår — du, kameran, mattan. */
+.logg3{display:grid;grid-template-columns:54px repeat(3,minmax(0,1fr));column-gap:12px;row-gap:3px;min-height:262px;align-content:start;padding:10px 12px;border-radius:8px;background:#0b0f15;border:1px solid #28313f}
+.lh{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #1c2330;margin-bottom:3px}
+.lh.c-du{color:#c8d2e0}.lh.c-kam{color:#b98ff0}.lh.c-mat{color:#57c785}.lh.c-t{color:#5c6b82}
+.lc{font-size:12px;line-height:1.35;color:#c8d2e0;min-height:16px}
+.lc.c-t{font:11.5px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;color:#66748a}
+.lc.c-kam{color:#d4c2f2}.lc.c-mat{color:#a9e2bf}
+.ltom{grid-column:1 / -1;font-size:12px;color:#66748a;padding-top:4px}

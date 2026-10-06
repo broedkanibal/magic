@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>E · Prototyp — lugn matta</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+.ab{position:relative;box-sizing:border-box;width:1440px;padding:28px 32px;background:#0d1015;color:#e7ecf4;
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.ab *{box-sizing:border-box}
+
+/* Rubriken */
+.hu{display:flex;flex-direction:column;gap:6px;height:84px;max-width:1100px}
+.hu .et{font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1.2px;text-transform:uppercase;color:#f0a52a}
+.hu h1{margin:0;font:650 24px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;color:#e7ecf4}
+.hu p{margin:0;font-size:14px;line-height:1.5;color:#93a1b6;text-wrap:pretty}
+
+.rad3{display:flex;gap:24px;align-items:flex-start;margin-top:22px}
+.kf{width:560px;flex:none;display:flex;flex-direction:column;gap:12px}
+.km{width:792px;flex:none;display:flex;flex-direction:column;gap:12px}
+.cap{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;display:flex;align-items:center;gap:8px;height:14px}
+.cap::after{content:'';flex:1;height:1px;background:#1c2330}
+.cap b{color:#93a1b6;font-weight:600}
+
+/* ── Det fysiska bordet: det kameran ser, ritat ovanifrån ── */
+.fbord{position:relative;width:560px;height:353px;overflow:hidden;overflow:clip;border-radius:12px;
+  background:radial-gradient(700px 420px at 45% 35%,#2c3b33,#18211c 78%);box-shadow:inset 0 0 70px 14px #00000059,0 0 0 1px #2c3a31}
+.fsurf{position:absolute;left:0;top:0;width:1900px;height:1198px;transform:scale(.2947368);transform-origin:0 0;pointer-events:none}
+.fk{position:absolute;left:0;top:0;width:178px;height:248px;border-radius:10px;opacity:0;visibility:hidden;transform-origin:50% 50%;will-change:transform,opacity}
+.fk img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;border-radius:10px;box-shadow:0 6px 14px -4px #000c}
+.fk-sh{position:absolute;inset:0;border-radius:10px;box-shadow:0 40px 46px -10px #000e;opacity:0}
+.fhog{position:absolute;left:30px;top:512px;width:178px;height:248px;border-radius:10px;object-fit:cover;box-shadow:0 6px 14px -4px #000c}
+.fhog.lager{left:24px;top:518px;transform:rotate(-4deg);filter:brightness(.85)}
+.fbib{position:absolute;width:178px;height:248px;border-radius:10px;object-fit:cover;box-shadow:0 6px 14px -4px #000c}
+.vy{position:absolute;left:0;top:0;border:5px dashed #f0a52acc;border-radius:16px;z-index:900}
+.vy span{position:absolute;left:14px;top:10px;font:700 30px/1 -apple-system,sans-serif;letter-spacing:2px;text-transform:uppercase;color:#f0a52a}
+.hand{position:absolute;left:0;top:0;width:210px;height:260px;opacity:0;visibility:hidden;z-index:1000;filter:drop-shadow(0 26px 22px #000a)}
+.hand svg{display:block;width:210px;height:260px}
+.kant{display:flex;justify-content:center;font-size:11.5px;color:#66748a;margin-top:-6px}
+
+/* ── Mattan: appens .matta ── */
+.mat{position:relative;width:792px;height:499px;overflow:hidden;overflow:clip;border-radius:12px;
+  background:radial-gradient(1100px 540px at 46% 26%,#18232f,#0a0f14 72%);box-shadow:inset 0 0 90px 20px #00000066,0 0 0 1px #28313f}
+.surf{position:absolute;z-index:23;left:0;top:0;width:1900px;height:1198px;transform:scale(.5561798);transform-origin:0 0;pointer-events:none}
+.mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid #28313f;background:#1b2230;
+  font:11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#57c785}
+.mattachrome span{display:grid;place-items:center;height:26px;padding:0 9px}
+.mattachrome span+span{border-left:1px solid #28313f}
+.mattachrome .zs{color:#93a1b6;font:700 15px/1 -apple-system,sans-serif;width:26px;padding:0}
+
+/* Kortet: appens .card, varje lager ett eget element. k-foto är kamerans
+   foto i kortets unika ytor (namn, bild, typrad, text, P/T), suddigt;
+   ramen runt dem är skarp. */
+.k{position:absolute;left:0;top:0;width:178px;height:248px;border-radius:10px;box-shadow:0 4px 12px -3px #000c;
+  opacity:0;visibility:hidden;transform-origin:50% 50%;will-change:transform,opacity}
+.k-ring{position:absolute;inset:0;border-radius:10px;background:#5fbf7f;opacity:0}
+.k-sh{position:absolute;inset:0;border-radius:10px;box-shadow:0 26px 40px -12px #000f;opacity:0}
+.k-face{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;border-radius:10px;background:#11161e}
+.k-foto,.k-glans{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;
+  clip-path:path('M9 9H169V26H9Z M12 28H166V139H12Z M9 141H169V155H9Z M13 157H165V226H13Z M140 228H169V239H140Z')}
+.k-foto{object-fit:cover}
+.k-glans{background:linear-gradient(118deg,#0000 30%,#ffffff40 44%,#ffffff12 52%,#0000 62%),linear-gradient(#c8d6e622,#c8d6e622);mix-blend-mode:screen}
+.k-glow{position:absolute;inset:0;border-radius:10px;box-shadow:0 0 0 3px #5fbf7f;opacity:0}
+
+/* Högarna bland korten (MES-334, D1): i brädets px på ytan, så de följer
+   mattans zoom. Inga ramar och inga streckade kanter. Graveyard ligger huller
+   om buller med D1:s ton, leken har kortkanter, och brickan på underkanten
+   behåller sin storlek (--inv sätts av motorn). */
+.hd1{position:absolute;width:178px;height:248px;border-radius:11px;z-index:1}
+.hd1 img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;background:#11161e}
+.hd1.gr img{filter:grayscale(.45) brightness(.75);box-shadow:0 8px 22px -6px #000d}
+.hd1.gr img.u1{transform:rotate(-3.5deg) translate(-5px,4px)}
+.hd1.gr img.topp{transform:rotate(2.5deg) translate(5px,5px)}
+.hd1.gr img.g-ny{z-index:2;opacity:0;will-change:transform,opacity}
+.hd1.lk img{box-shadow:1.4px 2px 0 #4a3a2a,2.7px 4px 0 #1c1610,4.1px 6.2px 0 #4a3a2a,5.5px 8.2px 0 #1c1610,6.8px 10.3px 0 #4a3a2a,8.2px 12.3px 0 #1c1610,14px 25px 30px -8px #000d}
+.g-ring{position:absolute;z-index:4;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;border:4px solid #e8c98a;opacity:0;pointer-events:none}
+.bricka{position:absolute;z-index:5;left:50%;top:calc(100% - 10px);transform:translateX(-50%) scale(var(--inv,1.8));transform-origin:50% 0;display:flex;align-items:center;gap:6px;height:22px;padding:0 9px 0 8px;
+  border-radius:11px;background:#141a24f5;box-shadow:0 6px 14px -4px #000e;font:650 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#aab6c8;white-space:nowrap}
+.bricka i{width:6px;height:6px;border-radius:2px;flex:none;background:#6b8cff}
+.bricka.gul i{background:#e8b33a}
+.bricka b{display:inline-block;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#e7ecf4;letter-spacing:0}
+
+/* Raden "→ hand" vid nederkanten. */
+.hrad{position:absolute;z-index:30;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;height:40px;padding:0 6px 0 14px;
+  border-radius:10px;background:#1b2230f2;border:1px solid #3b485c;box-shadow:0 10px 28px -8px #000e;white-space:nowrap;overflow:hidden}
+.hrad-t{font-size:13px;color:#c8d2e0}
+.hrad-t b{color:#e7ecf4;font-weight:650}
+.hrad-v{display:flex;gap:4px}
+.hrad-v button{height:28px;padding:0 10px;border-radius:7px;border:1px solid #3b485c;background:#232c3c;color:#e7ecf4;font:500 12px -apple-system,sans-serif;cursor:pointer}
+.hrad-v button:hover{background:#2c3749;border-color:#56657c}
+.hrad-bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:#f0a52a;transform-origin:0 50%;transform:scaleX(0)}
+
+/* Kort utan namn: markeringen och sökrutan. */
+.mark{position:absolute;z-index:31;transform:translateX(-50%);height:28px;padding:0 11px;border-radius:14px;border:1px solid #f0a52a;background:#1b2230f2;
+  color:#ffd98a;font:600 12px -apple-system,sans-serif;white-space:nowrap;cursor:pointer;box-shadow:0 6px 16px -6px #000e}
+.mark:hover{background:#2a2416}
+.sok{position:absolute;z-index:32;width:280px;padding:12px;border-radius:12px;background:#151b26;border:1px solid #3b485c;box-shadow:0 18px 40px -10px #000e;display:flex;flex-direction:column;gap:8px}
+.sok-hu{display:flex;align-items:center;justify-content:space-between}
+.sok-l{font:600 12.5px -apple-system,sans-serif;color:#e7ecf4}
+.sok-x{height:24px;width:24px;border-radius:6px;border:1px solid #28313f;background:#1b2230;color:#93a1b6;cursor:pointer;display:grid;place-items:center;padding:0}
+.sok-x svg{display:block}
+.sok-in{height:34px;border-radius:8px;border:1px solid #3b485c;background:#0b0f15;color:#e7ecf4;font:14px -apple-system,sans-serif;padding:0 10px;outline:none}
+.sok-in:focus{border-color:#f0a52a;box-shadow:0 0 0 3px #f0a52a22}
+.sok-grp{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82}
+.sok-lista{display:flex;flex-direction:column;gap:2px}
+.sok-t{display:flex;align-items:center;height:30px;padding:0 8px;border-radius:7px;border:0;background:none;color:#c8d2e0;font:13px -apple-system,sans-serif;text-align:left;cursor:pointer}
+.sok-t:hover{background:#232c3c;color:#e7ecf4}
+.sok-t span,.sok-t b{white-space:pre}
+.sok-t b{color:#ffd98a;font-weight:650}
+.sok-tom{font-size:12px;color:#66748a;padding:4px 8px}
+
+/* Kontrollerna */
+.grupp{display:flex;flex-direction:column;gap:8px}
+.rub{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;display:flex;align-items:center;gap:8px;height:14px}
+.rub::after{content:'';flex:1;height:1px;background:#1c2330}
+.hk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.hk{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;height:48px;padding:0 12px;border-radius:8px;
+  background:#1b2230;border:1px solid #28313f;color:#e7ecf4;font:inherit;text-align:left;cursor:pointer}
+.hk b{font:600 13px/1.2 -apple-system,sans-serif}
+.hk span{font-size:11px;line-height:1.2;color:#93a1b6}
+.hk:hover{background:#232c3c;border-color:#3b485c}
+.hk.vald{background:#f0a52a14;border-color:#f0a52a;box-shadow:0 0 0 3px #f0a52a1f}
+.hk.vald b{color:#ffd98a}
+.btnrad{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #28313f;
+  color:#c8d2e0;font:500 12.5px -apple-system,sans-serif;white-space:nowrap;cursor:pointer}
+.btn:hover{background:#232c3c;color:#e7ecf4;border-color:#3b485c}
+
+/* Loggen: tre spår — du, kameran, mattan. */
+.logg3{display:grid;grid-template-columns:54px repeat(3,minmax(0,1fr));column-gap:12px;row-gap:3px;min-height:262px;align-content:start;padding:10px 12px;border-radius:8px;background:#0b0f15;border:1px solid #28313f}
+.lh{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid #1c2330;margin-bottom:3px}
+.lh.c-du{color:#c8d2e0}.lh.c-kam{color:#b98ff0}.lh.c-mat{color:#57c785}.lh.c-t{color:#5c6b82}
+.lc{font-size:12px;line-height:1.35;color:#c8d2e0;min-height:16px}
+.lc.c-t{font:11.5px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;color:#66748a}
+.lc.c-kam{color:#d4c2f2}.lc.c-mat{color:#a9e2bf}
+.ltom{grid-column:1 / -1;font-size:12px;color:#66748a;padding-top:4px}
+
+</style>
+</helmet>
+<div class="ab" ref="{{rotRef}}" style="width: 1440px; height: 1030px">
+  <div class="hu">
+    <span class="et">E · Lugn matta</span>
+    <h1>Prototyp: bordet och mattan</h1>
+    <p>Välj vad du gör vid bordet. Till vänster det fysiska bordet som kameran ser det, till höger mattan som spelarna ser. Den streckade ramen på bordet är det mattan visar just nu.</p>
+  </div>
+  <div class="rad3">
+    <div class="kf">
+      <div class="cap"><b>Fysiskt bord</b> det kameran ser</div>
+      <div class="fbord">
+        <div class="fsurf">
+          <img class="fhog lager" src="pikemaster.jpg" alt="" draggable="false">
+          <img class="fhog" src="pikemaster.jpg" alt="" draggable="false">
+          <img class="fbib" src="baksida.jpg" style="left: 242px; top: 504px; filter: brightness(.55)" alt="" draggable="false">
+          <img class="fbib" src="baksida.jpg" style="left: 238px; top: 508px; filter: brightness(.75)" alt="" draggable="false">
+          <img class="fbib" src="baksida.jpg" style="left: 234px; top: 512px" alt="" draggable="false">
+          <div class="fk" data-f="forest1"><i class="fk-sh"></i><img src="forest.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="forest2"><i class="fk-sh"></i><img src="forest.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="plains1"><i class="fk-sh"></i><img src="plains.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="plains2"><i class="fk-sh"></i><img src="plains.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="llanowar"><i class="fk-sh"></i><img src="llanowar.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="serra"><i class="fk-sh"></i><img src="serra.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="woodelves"><i class="fk-sh"></i><img src="woodelves.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="anthem"><i class="fk-sh"></i><img src="anthem.jpg" alt="" draggable="false"></div>
+          <div class="fk" data-f="okand"><i class="fk-sh"></i><img src="pikemaster.jpg" alt="" draggable="false"></div>
+          <i class="vy" data-vy="1"><span>Mattans utsnitt</span></i>
+          <div class="hand" data-hand="h1"><svg viewBox="0 0 210 260" aria-hidden="true"><g fill="#d6b298" stroke="#9a7560" stroke-width="3"><rect x="46" y="20" width="30" height="120" rx="15"></rect><rect x="82" y="4" width="30" height="134" rx="15"></rect><rect x="118" y="10" width="30" height="128" rx="15"></rect><rect x="152" y="36" width="27" height="106" rx="13.5"></rect><rect x="8" y="118" width="32" height="96" rx="16" transform="rotate(-38 24 166)"></rect><rect x="38" y="96" width="146" height="152" rx="58"></rect></g></svg></div>
+          <div class="hand" data-hand="h2"><svg viewBox="0 0 210 260" aria-hidden="true"><g fill="#d6b298" stroke="#9a7560" stroke-width="3"><rect x="46" y="20" width="30" height="120" rx="15"></rect><rect x="82" y="4" width="30" height="134" rx="15"></rect><rect x="118" y="10" width="30" height="128" rx="15"></rect><rect x="152" y="36" width="27" height="106" rx="13.5"></rect><rect x="8" y="118" width="32" height="96" rx="16" transform="rotate(-38 24 166)"></rect><rect x="38" y="96" width="146" height="152" rx="58"></rect></g></svg></div>
+        </div>
+      </div>
+      <div class="kant">din sida av bordet</div>
+      <div class="grupp">
+        <div class="rub">Vad du gör</div>
+        <div class="hk-grid">
+          <sc-for list="{{knappar}}" as="k" hint-placeholder-count="11">
+            <button type="button" class="hk {{k.cls}}" onClick="{{k.kor}}"><b>{{k.namn}}</b><span>{{k.under}}</span></button>
+          </sc-for>
+        </div>
+        <div class="btnrad">
+          <button type="button" class="btn" onClick="{{spelaIgen}}">Spela igen</button>
+          <button type="button" class="btn" onClick="{{aterstall}}">Återställ bordet</button>
+        </div>
+      </div>
+    </div>
+    <div class="km">
+      <div class="cap"><b>Mattan</b> det spelarna ser</div>
+      <div class="mat">
+        <div class="surf" data-yta="1">
+          <div class="hd1 gr" style="left: 30px; top: 512px">
+            <img class="u1" src="plains.jpg" alt="" draggable="false">
+            <img class="topp" src="pikemaster.jpg" alt="" draggable="false">
+            <img class="g-ny" data-hog="1" data-src="woodelves.jpg" alt="" draggable="false">
+            <i class="g-ring" data-hogring="1"></i>
+            <span class="bricka gul"><i></i>Graveyard<b data-hogtal="1">{{gravN}}</b></span>
+          </div>
+          <div class="hd1 lk" data-bib="1" style="left: 234px; top: 512px">
+            <img src="baksida.jpg" alt="" draggable="false">
+            <span class="bricka"><i></i>Library</span>
+          </div>
+          <div class="k" data-k="forest1"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="forest.jpg" alt="" draggable="false"><img class="k-foto" src="forest.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="forest2"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="forest.jpg" alt="" draggable="false"><img class="k-foto" src="forest.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="plains1"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="plains.jpg" alt="" draggable="false"><img class="k-foto" src="plains.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="plains2"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="plains.jpg" alt="" draggable="false"><img class="k-foto" src="plains.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="llanowar"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="llanowar.jpg" alt="" draggable="false"><img class="k-foto" src="llanowar.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="serra"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="serra.jpg" alt="" draggable="false"><img class="k-foto" src="serra.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="woodelves"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="woodelves.jpg" alt="" draggable="false"><img class="k-foto" src="woodelves.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="anthem"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="anthem.jpg" alt="" draggable="false"><img class="k-foto" src="anthem.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+          <div class="k" data-k="okand"><i class="k-ring"></i><i class="k-sh"></i><img class="k-face" src="pikemaster.jpg" alt="" draggable="false"><img class="k-foto" src="pikemaster.jpg" alt="" draggable="false"><i class="k-glans"></i><i class="k-glow"></i></div>
+        </div>
+        <div class="mattachrome"><span class="zs">−</span><span>{{zoomTxt}}</span><span class="zs">+</span></div>
+        <sc-if value="{{rad.visa}}" hint-placeholder-val="{{false}}">
+          <div class="hrad">
+            <span class="hrad-t"><b>{{rad.namn}}</b> {{rad.txt}}</span>
+            <sc-if value="{{rad.val}}" hint-placeholder-val="{{true}}">
+              <div class="hrad-v">
+                <button type="button" onClick="{{rad.exile}}">Exile</button>
+                <button type="button" onClick="{{rad.kvar}}">Still on the table</button>
+                <button type="button" onClick="{{rad.bib}}">Library</button>
+              </div>
+            </sc-if>
+            <i class="hrad-bar" data-radbar="1"></i>
+          </div>
+        </sc-if>
+        <sc-if value="{{mark.visa}}" hint-placeholder-val="{{false}}">
+          <button type="button" class="mark" style="{{mark.stil}}" onClick="{{mark.klick}}">Name this card</button>
+        </sc-if>
+        <sc-if value="{{sok.visa}}" hint-placeholder-val="{{false}}">
+          <div class="sok" style="{{sok.stil}}">
+            <div class="sok-hu">
+              <label class="sok-l" for="sok-namn">Which card is this?</label>
+              <button type="button" class="sok-x" aria-label="Close" onClick="{{sok.stang}}"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path></svg></button>
+            </div>
+            <input id="sok-namn" class="sok-in" type="text" autocomplete="off" placeholder="Type a card name" value="{{sok.q}}" onChange="{{sok.skriv}}">
+            <span class="sok-grp">From your deck</span>
+            <div class="sok-lista">
+              <sc-for list="{{sok.traffar}}" as="t" hint-placeholder-count="5">
+                <button type="button" class="sok-t" onClick="{{t.valj}}"><span>{{t.a}}</span><b>{{t.b}}</b><span>{{t.c}}</span></button>
+              </sc-for>
+              <sc-if value="{{sok.ingen}}" hint-placeholder-val="{{false}}"><span class="sok-tom">Nothing in your deck — searching all cards</span></sc-if>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div class="grupp">
+        <div class="rub">Vad som händer</div>
+        <div class="logg3">
+          <span class="lh c-t">Tid</span><span class="lh c-du">Du gör</span><span class="lh c-kam">Kameran ser</span><span class="lh c-mat">Mattan gör</span>
+          <sc-if value="{{loggTom}}" hint-placeholder-val="{{true}}"><span class="ltom">Välj något att göra vid bordet. Tiderna räknas från att du börjar.</span></sc-if>
+          <sc-for list="{{logg}}" as="l" hint-placeholder-count="0">
+            <span class="lc c-t">{{l.t}}</span><span class="lc c-du">{{l.du}}</span><span class="lc c-kam">{{l.kam}}</span><span class="lc c-mat">{{l.mat}}</span>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tempo":{"editor":"enum","options":["1×","½×","¼×"],"default":"1×"},"namn":{"editor":"enum","options":["0,3 s","1,2 s","4 s"],"default":"1,2 s"},"troskel":{"editor":"enum","options":["0,3 s","0,5 s","0,8 s"],"default":"0,5 s"},"sudd":{"editor":"enum","options":["Låg","Mellan","Hög"],"default":"Mellan"},"ring":{"editor":"enum","options":["På","Av"],"default":"På"},"rorelse":{"editor":"enum","options":["Full","Minskad"],"default":"Full"},"$preview":{"width":1440,"height":1030}}'>
+const BILD = {"llanowar":"llanowar.jpg","serra":"serra.jpg","woodelves":"woodelves.jpg","forest1":"forest.jpg","forest2":"forest.jpg","plains1":"plains.jpg","plains2":"plains.jpg","anthem":"anthem.jpg","okand":"pikemaster.jpg"};
+/* ── E · Lugn matta — tidslinjerna som data ───────────────────────────
+   Jesper 2026-10-02 (dev/plan/spegelmattan-principer.md). Bygger på D:
+   bordet visar bara det kameran vet, och varje ändring är en enda rörelse.
+   Nytt i E:
+     - framkallningen: dröjer namnet mer än tröskeln (~0,5 s) läggs ett
+       oframkallat kort ned — Magic-ramen skarp, de unika ytorna kamerans
+       foto, suddigt — och skärps när namnet kommer
+     - till handen: en tom plats efter att händerna nära den gått betyder
+       att kortet lämnat bordet; det glider ut genom nederkanten
+     - handen fryser lokalt; en flytt binds av spårningen när kortet vilar
+     - tap i spelarens ordning och tempo
+     - mattan zoomar i fasta steg, i samma rörelse som kortet läggs ned
+     - ingen nedtoning: osäkert = orört
+
+   Ett spår: [mål, egenskap, nycklar, flagga?]  — som i D.
+     värde  'cur' = där egenskapen står, 'mal' = nya platsen, 'in' = nya
+            platsen 90 px närmare spelaren, 'hem' = kortets plats på bordet,
+            'ut' = under mattans nederkant (handen), 'hog' = graveyard-högen,
+            'hogS' = högens storlek, 'bib' = library-högen, 'bibS',
+            'zf'/'vx'/'vy' = mattans nya zoomsteg och utsnitt.
+     flagga 'svag' = hoppas över om egenskapen redan rör sig; 'ring' =
+            bara när den gröna ringen är på. */
+
+const EASE = {
+  UT:    { b: [.2, .8, .3, 1],   css: 'cubic-bezier(.2,.8,.3,1)',   om: 'appens landning och settle (cLand, cSettle)' },
+  FLY:   { b: [.4, 0, .2, 1],    css: 'cubic-bezier(.4,0,.2,1)',    om: 'flygturen till graveyard (flygTillGrav)' },
+  SOFT:  { b: [.3, .7, .3, 1],   css: 'cubic-bezier(.3,.7,.3,1)',   om: 'mjuk vridning utan överslag' },
+  OUT:   { b: [0, 0, .58, 1],    css: 'ease-out' },
+  IN:    { b: [.42, 0, 1, 1],    css: 'ease-in' },
+  INOUT: { b: [.42, 0, .58, 1],  css: 'ease-in-out' },
+  LIN:   { b: null,              css: 'linear' },
+  STEP:  { b: 'step',            css: 'hopp' },
+};
+const EGENSKAP = {
+  pos: 'position', s: 'skala', r: 'vridning', o: 'opacitet', lift: 'skugga',
+  blur: 'framkallning', ring: 'grön ring', glow: 'grön kant', grav: 'graveyard-ton',
+  zf: 'zoom', vx: 'utsnitt x', vy: 'utsnitt y',
+};
+const MAL = { kort: 'kortet', hog: 'högens toppkort', hogring: 'högens ring', hogtal: 'högens tal', bib: 'library-högen', yta: 'mattan' };
+
+/* Lägg ned (D:s utspel). Samma för ett kort med namn och ett oframkallat. */
+const LAGG = [
+  ['kort', 'o', [[0, 0, 'LIN'], [90, 1]]],
+  ['kort', 'pos', [[0, 'in', 'UT'], [330, 'mal']]],
+  ['kort', 's', [[0, 1.08, 'OUT'], [260, 1.02, 'UT'], [330, .985, 'UT'], [400, 1]]],
+  ['kort', 'lift', [[0, 1, 'LIN'], [200, 1, 'IN'], [330, 0]]],
+];
+/* Lyft, bär, sätt ned (D:s flytt). */
+const BARA = [
+  ['kort', 'lift', [[0, 'cur', 'OUT'], [90, 1, 'LIN'], [320, 1, 'IN'], [450, 0]]],
+  ['kort', 's', [[0, 'cur', 'OUT'], [90, 1.05, 'LIN'], [320, 1.05, 'UT'], [390, .985, 'UT'], [450, 1]]],
+  ['kort', 'pos', [[0, 'cur', 'FLY'], [420, 'mal']]],
+];
+const VRID = mal => [
+  ['kort', 'r', [[0, 'cur', 'SOFT'], [240, mal]]],
+  ['kort', 's', [[0, 'cur', 'INOUT'], [120, 1.03, 'INOUT'], [240, 1]], 'svag'],
+  ['kort', 'lift', [[0, 'cur', 'INOUT'], [120, .5, 'INOUT'], [240, 0]], 'svag'],
+];
+
+const SPEC = {
+  E: {
+    namn: [...LAGG, ['kort', 'ring', [[330, 0, 'OUT'], [1030, 1]], 'ring']],
+    oframkallad: LAGG,
+    framkalla: [
+      ['kort', 'blur', [[0, 'cur', 'OUT'], [300, 0]]],
+      ['kort', 's', [[0, 'cur', 'INOUT'], [150, 1.015, 'INOUT'], [300, 1]], 'svag'],
+      ['kort', 'ring', [[300, 0, 'OUT'], [1000, 1]], 'ring'],
+    ],
+    knuff: [['kort', 'pos', [[0, 'cur', 'UT'], [220, 'mal']]]],
+    flytt: BARA,
+    tillHanden: [
+      ['kort', 'lift', [[0, 'cur', 'OUT'], [90, 1, 'LIN'], [450, 1]]],
+      ['kort', 's', [[0, 'cur', 'OUT'], [90, 1.05, 'FLY'], [450, .96]]],
+      ['kort', 'pos', [[0, 'cur', 'FLY'], [450, 'ut']]],
+      ['kort', 'o', [[0, 1, 'LIN'], [280, 1, 'LIN'], [450, 0]]],
+    ],
+    tillbaka: [
+      ['kort', 'o', [[0, 0, 'LIN'], [120, 1]]],
+      ['kort', 'lift', [[0, 1, 'LIN'], [320, 1, 'IN'], [450, 0]]],
+      ['kort', 's', [[0, 1.05, 'LIN'], [320, 1.05, 'UT'], [390, .985, 'UT'], [450, 1]]],
+      ['kort', 'pos', [[0, 'ut', 'FLY'], [420, 'hem']]],
+    ],
+    tillBib: [
+      ['kort', 'o', [[0, 0, 'LIN'], [100, 1, 'LIN'], [380, 1, 'LIN'], [450, 0]]],
+      ['kort', 'pos', [[0, 'ut', 'FLY'], [450, 'bib']]],
+      ['kort', 's', [[0, 1, 'FLY'], [450, 'bibS']]],
+      ['bib', 's', [[450, 1.04, 'UT'], [570, .99, 'UT'], [670, 1]]],
+    ],
+    grav: [
+      ['kort', 'lift', [[0, 'cur', 'OUT'], [90, 1, 'LIN'], [300, 1, 'IN'], [400, 0]]],
+      ['kort', 's', [[0, 'cur', 'OUT'], [90, 1.05, 'FLY'], [400, 'hogS']]],
+      ['kort', 'pos', [[0, 'cur', 'FLY'], [400, 'hog']]],
+      ['kort', 'r', [[0, 'cur', 'FLY'], [200, -4, 'UT'], [400, 0]]],
+      ['kort', 'grav', [[240, 0, 'LIN'], [400, 1]]],
+      ['kort', 'o', [[400, 0]]],
+      ['hog', 'o', [[400, 1]]],
+      ['hog', 's', [[400, 1.04, 'UT'], [520, .99, 'UT'], [620, 1]]],
+      ['hogring', 's', [[400, .5, 'OUT'], [950, 1.5]]],
+      ['hogring', 'o', [[400, .7, 'OUT'], [950, 0]]],
+      ['hogtal', 's', [[400, 1, 'UT'], [568, 1.18, 'UT'], [820, 1]]],
+    ],
+    tap: VRID(90),
+    untap: VRID(0),
+    zoom: [
+      ['yta', 'zf', [[0, 'cur', 'UT'], [500, 'zf']]],
+      ['yta', 'vx', [[0, 'cur', 'UT'], [500, 'vx']]],
+      ['yta', 'vy', [[0, 'cur', 'UT'], [500, 'vy']]],
+    ],
+  },
+
+  /* Minskad rörelse (prefers-reduced-motion): bara toning. Platsen,
+     vridningen och zoomen byts medan kortet eller mattan är nästan osynlig. */
+  R: {
+    namn: [['kort', 'pos', [[0, 'mal']]], ['kort', 'o', [[0, 0, 'LIN'], [200, 1]]], ['kort', 'glow', [[200, .8, 'LIN'], [900, 0]], 'ring']],
+    oframkallad: [['kort', 'pos', [[0, 'mal']]], ['kort', 'o', [[0, 0, 'LIN'], [200, 1]]]],
+    framkalla: [['kort', 'blur', [[0, 'cur', 'LIN'], [300, 0]]], ['kort', 'glow', [[300, .8, 'LIN'], [1000, 0]], 'ring']],
+    knuff: [['kort', 'o', [[0, 1, 'LIN'], [80, .4, 'LIN'], [200, 1]]], ['kort', 'pos', [[80, 'mal']]]],
+    flytt: [['kort', 'o', [[0, 1, 'LIN'], [150, 0, 'LIN'], [350, 1]]], ['kort', 'pos', [[150, 'mal']]]],
+    tillHanden: [['kort', 'o', [[0, 1, 'LIN'], [200, 0]]], ['kort', 'pos', [[200, 'ut']]]],
+    tillbaka: [['kort', 'pos', [[0, 'hem']]], ['kort', 'o', [[0, 0, 'LIN'], [200, 1]]]],
+    tillBib: [['bib', 's', [[0, 1]]]],
+    grav: [['kort', 'o', [[0, 1, 'LIN'], [200, 0]]], ['hog', 'o', [[0, 0, 'LIN'], [200, 1]]]],
+    tap: [['kort', 'o', [[0, 1, 'LIN'], [100, .3, 'LIN'], [240, 1]]], ['kort', 'r', [[100, 90]]]],
+    untap: [['kort', 'o', [[0, 1, 'LIN'], [100, .3, 'LIN'], [240, 1]]], ['kort', 'r', [[100, 0]]]],
+    zoom: [
+      ['yta', 'o', [[0, 1, 'LIN'], [150, .35, 'LIN'], [400, 1]]],
+      ['yta', 'zf', [[150, 'zf']]], ['yta', 'vx', [[150, 'vx']]], ['yta', 'vy', [[150, 'vy']]],
+    ],
+  },
+};
+
+const FAS = {
+  namn: 'Namnet kommer i tid → kortet läggs ned',
+  oframkallad: 'Namnet dröjer → det oframkallade kortet läggs ned',
+  framkalla: 'Namnet kommer → kortet framkallas',
+  knuff: 'Kortet knuffas förbi dödzonen',
+  flytt: 'Kortet vilar på en ny plats → bärs dit',
+  tillHanden: 'Platsen är tom och händerna borta → till handen',
+  tillbaka: '"Still on the table" → tillbaka',
+  tillBib: '"Library" → till library-högen',
+  grav: 'Graveyard-högen växer',
+  tap: 'Kameran är säker: tappat',
+  untap: 'Kameran är säker: otappat',
+  zoom: 'Kortet får inte plats → ett zoomsteg ut',
+};
+
+/* ── Motorn: klockan, spåren och lagren ────────────────────────────────
+   Som i D: en klocka, en kö med det som händer och spår som räknas fram
+   varje bildruta. Motorn skriver transform, opacitet och filter direkt på
+   lagren. Nytt i E: objekt av flera slag — mattans kort, det fysiska
+   bordets kort, händerna, mattans yta (zoom och utsnitt), högarna och
+   raden "→ hand". Allt räknas i bordets px: mattan i 100 % visar 1424 × 898,
+   kameran ser 1900 × 1198 (det fysiska bordet). Det fysiska bordet och
+   mattan använder samma koordinater: trogen plats. */
+
+const BW = 1424, BH = 898;                  // mattan i 100 %: MATTA.VP
+const CW = 1900, CH = 1198;                 // hela kamerabilden
+const KW = 178, KH = 248;                   // MATTA.CW × MATTA.CH
+const ZM = 792 / BW;                        // mattans skala på artboarden
+const ZP = 560 / CW;                        // det fysiska bordets skala
+const ZSTEG = [1, .86, BW / CW];            // zoomstegen; det sista är golvet: hela kamerabilden
+const HW = 210, HH = 260;                   // handen
+const IN_DY = 90;                           // ett utspelat kort kommer 90 px från spelarens håll
+const MARG = 2 * KW + 60;                   // plats för ungefär två kort till
+/* Högarna ligger där de ligger på bordet (MES-334, D1): samma px på det
+   fysiska bordet och på mattan, och de följer mattans zoom. Ingen fast
+   högkolumn. */
+const FHOG = [30, 512], FBIB = [234, 512];
+
+const BAS = {
+  llanowar:  { namn: 'Llanowar Elves', hem: [430, 70], z: 10 },
+  serra:     { namn: 'Serra Angel', hem: [640, 70], z: 11 },
+  woodelves: { namn: 'Wood Elves', hem: [850, 70], z: 12 },
+  forest1:   { namn: 'Forest', hem: [450, 470], z: 1 },
+  forest2:   { namn: 'Forest', hem: [650, 470], z: 2 },
+  plains1:   { namn: 'Plains', hem: [850, 470], z: 3 },
+  plains2:   { namn: 'Plains', hem: [1050, 470], z: 4 },
+  anthem:    { namn: 'Glorious Anthem', hem: [1080, 70], z: 13, ute: true },
+  okand:     { namn: 'Faithful Pikemaster', hem: [1080, 70], z: 14, ute: true },
+};
+const LEKEN = ['Faithful Pikemaster', 'Glorious Anthem', 'Llanowar Elves', 'Serra Angel', 'Wood Elves', 'Forest', 'Plains'];
+const BILD_AV = { 'Faithful Pikemaster': 'okand', 'Glorious Anthem': 'anthem', 'Llanowar Elves': 'llanowar', 'Serra Angel': 'serra', 'Wood Elves': 'woodelves', Forest: 'forest1', Plains: 'plains1' };
+
+const sek = ms => (ms / 1000).toFixed(ms % 100 ? 2 : 1).replace('.', ',') + ' s';
+const tal = v => String(Math.round(v * 1000) / 1000).replace('.', ',');
+const mitt = p => [p[0] + KW / 2, p[1] + KH / 2];
+
+/* cubic-bezier: y(x). */
+function bezier(p) {
+  if (!p) return { y: x => x };
+  const [x1, y1, x2, y2] = p;
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const X = t => ((ax * t + bx) * t + cx) * t, Y = t => ((ay * t + by) * t + cy) * t;
+  const dX = t => (3 * ax * t + 2 * bx) * t + cx;
+  const tAv = x => {
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const e = X(t) - x, d = dX(t);
+      if (Math.abs(e) < 1e-6) return t;
+      if (Math.abs(d) < 1e-6) break;
+      t -= e / d;
+    }
+    let lo = 0, hi = 1; t = x;
+    for (let i = 0; i < 40; i++) { if (X(t) < x) lo = t; else hi = t; t = (lo + hi) / 2; }
+    return t;
+  };
+  return { y: x => x <= 0 ? 0 : x >= 1 ? 1 : Y(tAv(x)) };
+}
+const BEZ = {};
+for (const k in EASE) if (Array.isArray(EASE[k].b)) BEZ[k] = bezier(EASE[k].b);
+
+const kortGrund = id => { const b = BAS[id]; return { x: b.hem[0], y: b.hem[1], r: 0, s: 1, o: b.ute ? 0 : 1, lift: 0, blur: 0, ring: 1, glow: 0, grav: 0, z: b.z, tappad: false }; };
+const GRUND = {
+  kort: kortGrund,
+  fys: id => { const b = BAS[id]; return { x: b.hem[0], y: b.hem[1], r: 0, s: 1, o: b.ute ? 0 : 1, lift: 0, z: b.z }; },
+  hand: () => ({ x: 900, y: CH + 80, r: 0, o: 0 }),
+  yta: () => ({ zf: 1, vx: 0, vy: 0, o: 1 }),
+  hog: () => ({ o: 0, s: 1 }),
+  hogring: () => ({ s: .5, o: 0 }),
+  hogtal: () => ({ s: 1 }),
+  bib: () => ({ s: 1 }),
+  rad: () => ({ p: 0 }),
+};
+
+/* Mattans kort: lagren som stilar. sudd = hur suddigt kamerans foto är (px). */
+function kortStil(v, sudd) {
+  const tapp = Math.min(1, Math.abs(v.r) / 90);
+  /* Graveyard-tonen är D1:s (grayscale .45, brightness .75), samma som högens kort, så bytet syns inte. */
+  const ljus = (1 - .14 * tapp) * (1 - .25 * v.grav);
+  const filter = v.grav > .001 || tapp > .001
+    ? `grayscale(${(.45 * v.grav).toFixed(3)}) brightness(${ljus.toFixed(3)}) saturate(${(1 - .06 * tapp).toFixed(3)})` : 'none';
+  const rp = Math.max(0, Math.min(1, v.ring)), spread = 12 * rp, b = Math.max(0, Math.min(1, v.blur));
+  return {
+    el: { transform: `translate(${v.x.toFixed(2)}px,${v.y.toFixed(2)}px) rotate(${v.r.toFixed(2)}deg) scale(${v.s.toFixed(4)})`, opacity: v.o, visibility: v.o > .001 ? 'visible' : 'hidden', zIndex: v.z },
+    sh: { opacity: v.lift },
+    face: { filter },
+    foto: { opacity: Math.min(1, b * 1.6).toFixed(3), filter: `blur(${(sudd * (.35 + .65 * b)).toFixed(2)}px) saturate(.72) brightness(.9) contrast(.92)` },
+    glans: { opacity: (.55 * b).toFixed(3) },
+    ring: { opacity: rp < 1 ? +(.53 * (1 - rp)).toFixed(3) : 0, transform: `scale(${1 + 2 * spread / KW},${1 + 2 * spread / KH})` },
+    glow: { opacity: v.glow },
+  };
+}
+const stilText = o => Object.entries(o).map(([k, v]) => k.replace(/[A-Z]/g, c => '-' + c.toLowerCase()) + ': ' + v).join('; ');
+
+class Motor {
+  /* ab: fart(), sudd(), efterBild() */
+  constructor(rot, ab) {
+    this.ab = ab; this.klocka = 0; this.q = []; this.vantar = []; this.aktiva = []; this.raf = 0; this.sist = 0; this.topZ = 100; this.fasTid = null;
+    this.o = {};
+    const ny = (nyckel, typ, id) => { this.o[nyckel] = { nyckel, typ, id, v: GRUND[typ](id), els: [] }; };
+    for (const id in BAS) { ny('m:' + id, 'kort', id); ny('f:' + id, 'fys', id); }
+    for (const h of ['h1', 'h2']) ny(h, 'hand', h);
+    for (const t of ['yta', 'hog', 'hogring', 'hogtal', 'bib', 'rad']) ny(t, t, t);
+    this.fastna(rot);
+  }
+  fastna(rot) {
+    this.rot = rot;
+    for (const k in this.o) this.o[k].els = [];
+    if (!rot) return;
+    const q = (el, s) => el.querySelector(s);
+    for (const el of rot.querySelectorAll('[data-k]')) {
+      this.o['m:' + el.dataset.k].els.push({ el, sh: q(el, '.k-sh'), face: q(el, '.k-face'), foto: q(el, '.k-foto'), glans: q(el, '.k-glans'), ring: q(el, '.k-ring'), glow: q(el, '.k-glow') });
+    }
+    for (const el of rot.querySelectorAll('[data-f]')) this.o['f:' + el.dataset.f].els.push({ el, sh: q(el, '.fk-sh') });
+    for (const el of rot.querySelectorAll('[data-hand]')) this.o[el.dataset.hand].els.push({ el });
+    const yta = rot.querySelector('[data-yta]'), vy = rot.querySelector('[data-vy]');
+    if (yta) this.o.yta.els.push({ el: yta, vy });
+    for (const n of ['hog', 'hogring', 'hogtal', 'bib']) { const el = rot.querySelector(`[data-${n}]`); if (el) this.o[n].els.push({ el }); }
+    for (const k in this.o) this.mala(this.o[k]);
+  }
+  mala(ob) {
+    const v = ob.v;
+    if (ob.typ === 'kort') {
+      const sudd = this.ab.sudd();
+      for (const e of ob.els) {
+        const s = kortStil(v, sudd);
+        Object.assign(e.el.style, s.el);
+        for (const l of ['sh', 'face', 'foto', 'glans', 'ring', 'glow']) Object.assign(e[l].style, s[l]);
+      }
+      return;
+    }
+    if (ob.typ === 'fys') {
+      for (const e of ob.els) {
+        Object.assign(e.el.style, { transform: `translate(${v.x.toFixed(1)}px,${v.y.toFixed(1)}px) rotate(${v.r.toFixed(2)}deg) scale(${v.s.toFixed(4)})`, opacity: v.o, visibility: v.o > .001 ? 'visible' : 'hidden', zIndex: v.z });
+        e.sh.style.opacity = v.lift;
+      }
+      return;
+    }
+    if (ob.typ === 'hand') {
+      for (const e of ob.els) Object.assign(e.el.style, { transform: `translate(${v.x.toFixed(1)}px,${v.y.toFixed(1)}px) rotate(${v.r.toFixed(2)}deg)`, opacity: v.o, visibility: v.o > .001 ? 'visible' : 'hidden' });
+      return;
+    }
+    if (ob.typ === 'yta') {
+      for (const e of ob.els) {
+        e.el.style.transform = `scale(${(ZM * v.zf).toFixed(5)}) translate(${(-v.vx).toFixed(1)}px,${(-v.vy).toFixed(1)}px)`;
+        e.el.style.opacity = v.o;
+        e.el.style.setProperty('--inv', (1 / (ZM * v.zf)).toFixed(4));   // brickorna behåller sin storlek
+        if (e.vy) Object.assign(e.vy.style, { transform: `translate(${v.vx.toFixed(1)}px,${v.vy.toFixed(1)}px)`, width: (BW / v.zf).toFixed(1) + 'px', height: (BH / v.zf).toFixed(1) + 'px' });
+      }
+      return;
+    }
+    if (ob.typ === 'hog') { for (const e of ob.els) { e.el.style.transform = `scale(${v.s})`; e.el.style.opacity = v.o; } return; }
+    if (ob.typ === 'hogring') { for (const e of ob.els) { e.el.style.transform = `scale(${v.s})`; e.el.style.opacity = v.o; } return; }
+    if (ob.typ === 'hogtal' || ob.typ === 'bib') { for (const e of ob.els) e.el.style.transform = `scale(${v.s})`; return; }
+    if (ob.typ === 'rad') {
+      const bar = this.rot && this.rot.querySelector('[data-radbar]');
+      if (bar) bar.style.transform = `scaleX(${Math.max(0, v.p).toFixed(4)})`;
+    }
+  }
+
+  /* ── spåren ── */
+  varde(sym, ob, p, ctx) {
+    if (typeof sym === 'number') return sym;
+    if (ob.typ === 'yta') return ctx.yta[sym];
+    if (sym === 'hogS' || sym === 'bibS') return ctx[sym];
+    const pos = ctx[sym === 'in' ? 'mal' : sym];
+    if (!pos) return ob.v[p];
+    return p === 'x' ? pos[0] : pos[1] + (sym === 'in' ? IN_DY : 0);
+  }
+  lagg(spec, ob, t0, ctx) {
+    const [, prop, nycklar, flagga] = spec;
+    for (const p of prop === 'pos' ? ['x', 'y'] : [prop]) {
+      this.vantar.push({ ob, p, ctx, svag: flagga === 'svag', k: nycklar.map(([t, v, e]) => ({ t: t0 + t, sym: v, e: e || 'LIN' })) });
+    }
+    this.vantar.sort((a, b) => a.k[0].t - b.k[0].t);
+  }
+  /* Ett eget spår: från där egenskapen står till ett värde. */
+  till(ob, p, varde, t0, dur, e) {
+    this.vantar.push({ ob, p, ctx: {}, k: dur > 0 ? [{ t: t0, sym: 'cur', e: e || 'INOUT' }, { t: t0 + dur, sym: varde }] : [{ t: t0, sym: varde }] });
+    this.vantar.sort((a, b) => a.k[0].t - b.k[0].t);
+  }
+  vardeI(s, T) {
+    const k = s.k, n = k.length;
+    if (n === 1 || T >= k[n - 1].t) return k[n - 1].v;
+    let i = 0; while (i < n - 2 && T >= k[i + 1].t) i++;
+    const a = k[i], b = k[i + 1], D = b.t - a.t;
+    const x = D <= 0 ? 1 : Math.max(0, Math.min(1, (T - a.t) / D));
+    if (a.e === 'STEP') return x >= 1 ? b.v : a.v;
+    const f = a.bez || BEZ[a.e];
+    return a.v + (b.v - a.v) * (f ? f.y(x) : x);
+  }
+  starta(s) {
+    const ob = s.ob, p = s.p;
+    const gammal = this.aktiva.find(a => a.ob === ob && a.p === p);
+    if (gammal && s.svag) return;
+    const t0 = s.k[0].t, nu0 = gammal ? this.vardeI(gammal, t0) : ob.v[p];
+    for (const k of s.k) k.v = k.sym === 'cur' ? nu0 : this.varde(k.sym, ob, p, s.ctx);
+    if (gammal) {
+      if (['x', 'y', 'r', 's', 'zf', 'vx', 'vy'].includes(p) && s.k.length > 1) {
+        const v0 = (this.vardeI(gammal, t0) - this.vardeI(gammal, t0 - 4)) / 4;
+        const a = s.k[0], b = s.k[1], delta = b.v - a.v, D = b.t - a.t;
+        const bas = EASE[a.e] && EASE[a.e].b;
+        if (Array.isArray(bas) && Math.abs(delta) > .01 && D > 0 && Math.abs(v0) > 1e-4) {
+          const x1 = Math.max(bas[0], .15), k = v0 * D / delta;
+          a.bez = bezier([x1, Math.max(-1.2, Math.min(k * x1, 3)), bas[2], bas[3]]);
+        }
+      }
+      this.aktiva = this.aktiva.filter(a => a !== gammal);
+    }
+    this.aktiva.push(s);
+  }
+  steg(T) {
+    while (this.vantar.length && this.vantar[0].k[0].t <= T) this.starta(this.vantar.shift());
+    const smutsiga = new Set();
+    this.aktiva = this.aktiva.filter(s => {
+      s.ob.v[s.p] = this.vardeI(s, T);
+      smutsiga.add(s.ob);
+      return T < s.k[s.k.length - 1].t;
+    });
+    for (const ob of smutsiga) this.mala(ob);
+  }
+
+  /* ── klockan ── */
+  senare(t, fn) { this.q.push({ t, fn }); this.q.sort((a, b) => a.t - b.t); this.igang(); }
+  igang() { if (!this.raf && this.rot) { this.sist = performance.now(); this.raf = requestAnimationFrame(n => this.tick(n)); } }
+  tick(nu) {
+    this.raf = 0;
+    const dt = Math.min(64, nu - this.sist) * this.ab.fart(); this.sist = nu;
+    this.klocka += dt;
+    /* En händelse räknas från sin egen tid, inte från bildrutan den råkade
+       hamna i — annars står kortet still en bildruta. */
+    while (this.q.length && this.q[0].t <= this.klocka) { const x = this.q.shift(); this.fasTid = x.t; x.fn(); this.fasTid = null; }
+    this.steg(this.klocka);
+    if (this.ab.efterBild) this.ab.efterBild(this.klocka);
+    if (this.q.length || this.aktiva.length || this.vantar.length) this.igang();
+  }
+  /* Utan skärm: kör klockan i steg om 16 ms fram till T. */
+  spola(T) { while (this.klocka < T) { const n = this.sist + 16; this.tick(n); } }
+  nu() { return this.fasTid != null ? this.fasTid : this.klocka; }
+  glom(ob) { this.aktiva = this.aktiva.filter(s => s.ob !== ob); this.vantar = this.vantar.filter(s => s.ob !== ob); }
+  tom() { this.q = []; this.aktiva = []; this.vantar = []; }
+  stopp() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; }
+}
+
+/* ── Bordet: scenerna ──────────────────────────────────────────────────
+   En scen är vad spelaren gör vid det fysiska bordet (händer, kort), vad
+   kameran ser och när, och vad mattan då gör. Kamerans tider är grova
+   riktvärden ur mätningarna, inte löften:
+     VILA      från att kortet släpps tills kameran ser att det ligger still
+     HANDBORT  från att handen lämnat ett område tills det syns fritt
+     TAPSAKER  från att kortet syns tappat tills domen är säker */
+const VILA = 300, HANDBORT = 300, TAPSAKER = 250;
+const PUNKT = { flytt: [1100, 200], tackt: [470, 140], zoom: [1420, 150] };
+const LAND = ['forest1', 'forest2', 'plains1', 'plains2'];
+
+const SCEN = {
+  utspel:     { knapp: 'Lägg ut ett kort', under: 'namnet efter: se Tweaks' },
+  utanNamn:   { knapp: 'Ett kort utan namn', under: 'du fyller i det på kortet' },
+  flytt:      { knapp: 'Flytta, andra handen kvar', under: 'bärs dit när kortet vilar' },
+  hand:       { knapp: 'Handen över korten', under: 'ingenting ändras' },
+  tillHanden: { knapp: 'Ta upp i handen', under: 'glider ut genom nederkanten' },
+  tackt:      { knapp: 'Lägg ett kort över ett annat', under: 'täckt är inte borta' },
+  grav:       { knapp: 'Till graveyard', under: 'flyger dit när högen växer' },
+  tappa:      { knapp: 'Tappa land i din takt', under: 'samma ordning och tempo' },
+  untap:      { knapp: 'Untappa med ett svep', under: 'i ordningen handen rörde dem' },
+  zoom:       { knapp: 'Lägg ut långt till höger', under: 'ett zoomsteg, samma rörelse' },
+  knuff:      { knapp: 'Rätta till ett kort', under: 'en liten knuff syns inte' },
+};
+
+class Bord {
+  /* opt: minskad(), namnMs(), troskel(), ring(), logga(rad), rensaLogg(),
+     gravN(n), zoomTxt(t), rad(r), markera(m) */
+  constructor(m, opt) { this.m = m; this.opt = opt; this.t0 = 0; this.radTok = 0; this.sel = null; }
+  spec() { return this.opt.minskad() ? SPEC.R : SPEC.E; }
+  fys(id) { return this.m.o['f:' + id]; }
+  mat(id) { return this.m.o['m:' + id]; }
+
+  /* ── förbered ── */
+  aterstall() {
+    const m = this.m;
+    m.tom();
+    for (const k in m.o) { const ob = m.o[k]; ob.v = GRUND[ob.typ](ob.id); }
+    if (m.rot) {
+      for (const el of m.rot.querySelectorAll('[data-hog]')) el.removeAttribute('src');
+      const okand = this.mat('okand');
+      for (const e of okand.els) e.face.src = BILD.okand;
+    }
+    for (const k in m.o) m.mala(m.o[k]);
+    this.radTok++;
+    this.opt.gravN(2); this.opt.zoomTxt('100 %'); this.opt.rad({ visa: false }); this.opt.markera({ visa: false });
+  }
+  kor(id) {
+    this.aterstall();
+    this.opt.rensaLogg();
+    this.sel = id;
+    this.t0 = this.m.klocka;
+    this[id]();
+    this.m.igang();
+  }
+
+  /* ── tid och logg ── */
+  at(rel, fn) { this.m.senare(this.t0 + rel, fn); }
+  rel() { return this.m.nu() - this.t0; }
+  logg(rel, kol, txt) { this.at(rel, () => this.opt.logga({ t: rel, kol, txt })); }
+  loggNu(kol, txt) { this.opt.logga({ t: this.rel(), kol, txt }); }
+
+  /* ── det fysiska bordet ── */
+  till(ob, p, v, rel, dur, e) { this.m.till(ob, p, v, this.t0 + rel, dur, e); }
+  fysTill(id, pos, rel, dur, e) { const f = this.fys(id); this.till(f, 'x', pos[0], rel, dur, e); this.till(f, 'y', pos[1], rel, dur, e); }
+  fysVrid(id, r, rel) { this.till(this.fys(id), 'r', r, rel, 220, 'INOUT'); }
+  lyft(id, rel, upp) { const f = this.fys(id); this.till(f, 's', upp ? 1.06 : 1, rel, 120, 'OUT'); this.till(f, 'lift', upp ? 1 : 0, rel, 120, 'OUT'); if (upp) f.v.z = ++this.m.topZ; }
+  /* Handen över ett kort vars övre vänstra hörn är p. */
+  over(p) { return [p[0] - 16, p[1] + 54]; }
+  handTill(h, p, rel, dur, e) { const o = this.m.o[h]; this.till(o, 'x', p[0], rel, dur, e); this.till(o, 'y', p[1], rel, dur, e); }
+  handIn(h, p, rel, dur) {
+    const o = this.m.o[h];
+    this.till(o, 'x', p[0], rel, 0); this.till(o, 'y', CH + 60, rel, 0); this.till(o, 'o', 1, rel, 0);
+    this.till(o, 'y', p[1], rel, dur || 450, 'OUT');
+  }
+  handUt(h, rel, dur) { const o = this.m.o[h]; dur = dur || 450; this.till(o, 'y', CH + 80, rel, dur, 'IN'); this.till(o, 'o', 0, rel + dur, 0); }
+  /* Handen bär in ett kort från spelarens kant och släpper det på p. */
+  barIn(id, p, slapp) {
+    const f = this.fys(id), start = [p[0], CH + 110];
+    this.till(f, 'x', start[0], 0, 0); this.till(f, 'y', start[1], 0, 0); this.till(f, 'o', 1, 0, 0);
+    this.till(f, 's', 1.06, 0, 0); this.till(f, 'lift', 1, 0, 0); f.v.z = ++this.m.topZ;
+    const h = this.m.o.h1, hs = this.over(start);
+    this.till(h, 'x', hs[0], 0, 0); this.till(h, 'y', hs[1], 0, 0); this.till(h, 'o', 1, 0, 0);
+    this.handTill('h1', this.over(p), 0, slapp, 'INOUT'); this.fysTill(id, p, 0, slapp, 'INOUT');
+    this.lyft(id, slapp, false);
+    this.handUt('h1', slapp + 100);
+  }
+
+  /* ── mattan ── */
+  ctx(id, extra) {
+    const y = this.m.o.yta.v, k = this.mat(id).v;
+    return Object.assign({ hem: BAS[id].hem, ut: [k.x, y.vy + BH / y.zf + 40], hog: FHOG, hogS: 1, bib: FBIB, bibS: 1 }, extra || {});
+  }
+  fas(kind, id, extra) {
+    const m = this.m, nu = m.nu(), kort = this.mat(id), ctx = this.ctx(id, extra), ring = this.opt.ring();
+    if (kind === 'namn' || kind === 'oframkallad') {
+      Object.assign(kort.v, { x: ctx.mal[0], y: ctx.mal[1] + IN_DY, o: 0, blur: kind === 'oframkallad' ? 1 : 0, ring: 1, glow: 0 });
+      kort.v.z = ++m.topZ; m.mala(kort);
+    }
+    if (kind === 'flytt' || kind === 'grav' || kind === 'tillHanden') { kort.v.z = ++m.topZ; m.mala(kort); }
+    if (kind === 'tap') kort.v.tappad = true;
+    if (kind === 'untap') kort.v.tappad = false;
+    const spar = this.spec()[kind] || [];
+    if (kind === 'grav') {
+      const hogT = spar.filter(t => /^hog/.test(t[0])).map(t => t[2][0][0]);
+      m.senare(nu + (hogT.length ? Math.min(...hogT) : 0), () => {
+        if (m.rot) for (const el of m.rot.querySelectorAll('[data-hog]')) el.src = el.dataset.src;
+        Object.assign(m.o.hog.v, GRUND.hog()); m.mala(m.o.hog);
+        this.opt.gravN(3);
+      });
+    }
+    const mal = { kort, hog: m.o.hog, hogring: m.o.hogring, hogtal: m.o.hogtal, bib: m.o.bib, yta: m.o.yta };
+    for (const t of spar) { if (t[3] === 'ring' && !ring) continue; m.lagg(t, mal[t[0]], nu, ctx); }
+    m.igang();
+  }
+  /* Behöver kortet på p ett zoomsteg? Utsnittet ska rymma alla kort på
+     bordet och ungefär två kort till åt det håll bordet växer, och aldrig
+     mer än hela kamerabilden. */
+  zoomFor(p, id) {
+    const y = this.m.o.yta.v, vw = BW / y.zf, vh = BH / y.zf;
+    const inne = p[0] >= y.vx + 10 && p[1] >= y.vy + 10 && p[0] + KW <= y.vx + vw - 10 && p[1] + KH <= y.vy + vh - 10;
+    if (inne) return null;
+    /* Högarna räknas som kort: de ligger på bordet och ska synas. */
+    let x0 = Math.min(p[0], FHOG[0]), y0 = Math.min(p[1], FHOG[1]), x1 = Math.max(p[0] + KW, FBIB[0] + KW), y1 = Math.max(p[1] + KH, FHOG[1] + KH + 30);
+    for (const kid in BAS) {
+      const k = this.mat(kid).v; if (kid === id || k.o < .5) continue;
+      x0 = Math.min(x0, k.x); y0 = Math.min(y0, k.y); x1 = Math.max(x1, k.x + KW); y1 = Math.max(y1, k.y + KH);
+    }
+    if (p[0] + KW > y.vx + vw) x1 += MARG; if (p[0] < y.vx) x0 -= MARG; if (p[1] < y.vy) y0 -= MARG;
+    /* Utsnittet centreras kring korten och högarna. */
+    const utsnitt = zf => {
+      const nw = BW / zf, nh = BH / zf;
+      const vx = Math.max(0, Math.min(CW - nw, (x0 + x1) / 2 - nw / 2));
+      const vy = Math.max(0, Math.min(CH - nh, Math.min(y0 - 20, (y0 + y1) / 2 - nh / 2)));
+      return { zf, vx, vy, ryms: x0 >= vx && x1 <= vx + nw && y1 + 20 <= vy + nh };
+    };
+    for (const z of ZSTEG) { if (z >= y.zf) continue; const u = utsnitt(z); if (u.ryms) return u; }
+    return utsnitt(ZSTEG[ZSTEG.length - 1]);
+  }
+  laggNed(id, p, kind) {
+    const z = this.zoomFor(p, id);
+    if (z) {
+      const fore = Math.round(this.m.o.yta.v.zf * 100), efter = Math.round(z.zf * 100);
+      this.fas('zoom', id, { yta: z });
+      this.opt.zoomTxt(efter + ' %');
+      this.loggNu('mat', `Kortet får inte plats → ett zoomsteg, ${fore} % → ${efter} %, i samma rörelse som kortet läggs ned`);
+    }
+    this.fas(kind, id, { mal: p });
+    this.loggNu('mat', kind === 'namn' ? `${BAS[id].namn} läggs ned färdigt, 400 ms` : 'Det oframkallade kortet läggs ned, 400 ms: ramen skarp, kamerans foto suddigt');
+  }
+
+  /* ── utspel: gemensamt för fyra scener ── */
+  spelaUt(id, p, utanNamn) {
+    const slapp = 650, n = this.opt.namnMs(), tr = this.opt.troskel(), namn = BAS[id].namn;
+    this.barIn(id, p, slapp);
+    this.logg(0, 'du', utanNamn ? 'Du lägger ut ett kort' : `Du lägger ut ${namn}`);
+    this.logg(slapp, 'du', 'Du släpper kortet');
+    this.logg(slapp + VILA, 'kam', 'Ett nytt kort ligger still → namnet läses');
+    if (!utanNamn && n <= tr) {
+      this.at(slapp + Math.max(VILA, n), () => { this.loggNu('kam', `Namnet: ${namn}, ${sek(n)} efter släppet`); this.laggNed(id, p, 'namn'); });
+      return;
+    }
+    this.at(slapp + Math.max(VILA, tr), () => { this.loggNu('kam', `Inget namn efter ${sek(tr)}`); this.laggNed(id, p, 'oframkallad'); });
+    if (utanNamn) {
+      this.logg(slapp + 1500, 'kam', 'Kameran frågar Claude');
+      this.at(slapp + 3200, () => {
+        this.loggNu('kam', 'Claude hittar inget säkert namn');
+        this.loggNu('mat', 'Kortet ligger kvar oframkallat, med "Name this card" — klicka på det');
+        this.visaMarkering(id);
+      });
+      return;
+    }
+    if (n >= 2500) this.logg(slapp + 1500, 'kam', 'Kameran frågar Claude');
+    this.at(slapp + n, () => { this.loggNu('kam', `Namnet: ${namn}, ${sek(n)} efter släppet`); this.fas('framkalla', id); this.loggNu('mat', 'Kortet framkallas, 300 ms'); });
+  }
+  visaMarkering(id) {
+    const y = this.m.o.yta.v, k = this.mat(id).v, z = ZM * y.zf;
+    this.opt.markera({ visa: true, id, x: (k.x + KW / 2 - y.vx) * z, y: (k.y + KH - y.vy) * z, topp: (k.y - y.vy) * z, vanster: (k.x - y.vx) * z, hoger: (k.x + KW - y.vx) * z });
+  }
+  namnGivet(id, namn) {
+    const bild = BILD[BILD_AV[namn]] || BILD[id];
+    for (const e of this.mat(id).els) e.face.src = bild;
+    this.opt.markera({ visa: false });
+    this.loggNu('du', `Du väljer ${namn}`);
+    this.fas('framkalla', id);
+    this.loggNu('mat', 'Kortet framkallas, 300 ms');
+  }
+
+  /* ── scenerna ── */
+  utspel() { this.spelaUt('anthem', BAS.anthem.hem, false); }
+  utanNamn() { this.spelaUt('okand', BAS.okand.hem, true); }
+  zoom() { this.spelaUt('anthem', PUNKT.zoom, false); }
+  tackt() {
+    this.spelaUt('anthem', PUNKT.tackt, false);
+    this.logg(650, 'kam', 'Llanowar Elves syns inte längre, men ett kort ligger över platsen');
+    this.logg(650, 'mat', 'Llanowar Elves ligger kvar orört: täckt är inte borta');
+  }
+  flytt() {
+    const L = BAS.llanowar.hem, S = BAS.serra.hem, M = PUNKT.flytt;
+    this.handIn('h2', this.over(S), 0, 500);
+    this.handIn('h1', this.over(L), 300, 600);
+    this.lyft('llanowar', 900, true);
+    this.handTill('h1', this.over(M), 1000, 800, 'INOUT'); this.fysTill('llanowar', M, 1000, 800, 'INOUT');
+    this.lyft('llanowar', 1800, false);
+    this.handUt('h1', 1900); this.handUt('h2', 3000, 500);
+    this.logg(0, 'du', 'Ena handen vilar över Serra Angel');
+    this.logg(900, 'du', 'Du lyfter Llanowar Elves med den andra');
+    this.logg(1800, 'du', 'Du lägger ned den på en ny plats');
+    this.logg(500, 'kam', 'Serra Angel skymd → fryst');
+    this.logg(900, 'kam', 'Llanowar Elves skymd → fryst');
+    this.logg(1100, 'kam', 'Något bärs över bordet → inga slutsatser');
+    this.logg(1800 + VILA, 'kam', 'Ett kort vilar på ny plats, och Llanowar Elves plats är tom → samma kort');
+    this.at(1800 + VILA, () => { this.fas('flytt', 'llanowar', { mal: M }); this.loggNu('mat', 'Llanowar Elves bärs dit, 450 ms. Handen över Serra Angel spelar ingen roll'); });
+    this.logg(1800 + VILA + Math.max(300, this.opt.namnMs()), 'kam', 'Namnet bekräftar Llanowar Elves');
+    this.logg(3500 + HANDBORT, 'kam', 'Handen borta från Serra Angel: den ligger kvar');
+    this.logg(3500 + HANDBORT, 'mat', 'Ingenting ändras');
+  }
+  hand() {
+    const p = [519, 124];
+    this.handIn('h1', p, 0, 500);
+    this.handTill('h1', [559, 134], 900, 400); this.handTill('h1', p, 1300, 400);
+    this.handUt('h1', 2200);
+    this.logg(0, 'du', 'Handen vilar över Llanowar Elves och Serra Angel');
+    this.logg(500, 'kam', 'Båda skymda → fryst');
+    this.logg(500, 'mat', 'Ingenting ändras: inga "Moving…", inga grå kort');
+    this.logg(2650 + HANDBORT, 'kam', 'Handen borta: båda ligger kvar');
+    this.logg(2650 + HANDBORT, 'mat', 'Ingenting ändras');
+  }
+  tillHanden() {
+    const W = BAS.woodelves.hem, ner = [W[0], CH + 150];
+    this.handIn('h1', this.over(W), 0, 500);
+    this.lyft('woodelves', 550, true);
+    this.handTill('h1', this.over(ner), 650, 700, 'IN'); this.fysTill('woodelves', ner, 650, 700, 'IN');
+    this.till(this.m.o.h1, 'o', 0, 1350, 0);
+    this.logg(0, 'du', 'Du tar upp Wood Elves');
+    this.logg(650, 'du', 'Du bär den till handen');
+    this.logg(500, 'kam', 'Wood Elves skymd → fryst');
+    this.logg(700, 'kam', 'Något bärs → inga slutsatser');
+    const nar = 1350 + HANDBORT;
+    this.logg(nar, 'kam', 'Händerna borta. Platsen syns och är tom, och graveyard växte inte');
+    this.at(nar, () => { this.fas('tillHanden', 'woodelves'); this.loggNu('mat', 'Wood Elves glider ut genom nederkanten, 450 ms'); });
+    this.at(nar + 450, () => this.visaRad('woodelves'));
+  }
+  visaRad(id) {
+    const tok = ++this.radTok;
+    this.opt.rad({ visa: true, id, namn: BAS[id].namn, txt: 'went to your hand', val: true });
+    const r = this.m.o.rad; r.v.p = 1; this.m.mala(r);
+    this.m.till(r, 'p', 0, this.m.nu(), 6000, 'LIN');
+    this.loggNu('mat', 'Raden vid nederkanten i 6 s: Exile · Still on the table · Library');
+    this.m.senare(this.m.nu() + 6000, () => {
+      if (tok !== this.radTok) return;
+      this.opt.rad({ visa: false });
+      this.loggNu('mat', 'Inget val på 6 s → handen står fast');
+    });
+  }
+  radVal(val) {
+    const tok = ++this.radTok, id = 'woodelves', namn = BAS[id].namn;
+    this.m.glom(this.m.o.rad);
+    this.m.o.rad.v.p = 0; this.m.mala(this.m.o.rad);
+    const k = this.mat(id).v;
+    if (val === 'exile') { this.opt.rad({ visa: true, namn, txt: 'went to exile', val: false }); this.loggNu('du', 'Du väljer Exile'); this.loggNu('mat', `${namn} → exile`); }
+    if (val === 'kvar') { this.opt.rad({ visa: true, namn, txt: 'is back on the table', val: false }); this.loggNu('du', 'Du väljer Still on the table'); this.fas('tillbaka', id, { ut: [k.x, k.y] }); this.loggNu('mat', `${namn} flyger tillbaka till sin plats, 450 ms`); }
+    if (val === 'bib') { this.opt.rad({ visa: true, namn, txt: 'went to your library', val: false }); this.loggNu('du', 'Du väljer Library'); this.fas('tillBib', id, { ut: [k.x, k.y] }); this.loggNu('mat', `${namn} glider till library-högen, 450 ms`); }
+    this.m.senare(this.m.nu() + 1800, () => { if (tok === this.radTok) this.opt.rad({ visa: false }); });
+    this.m.igang();
+  }
+  grav() {
+    const W = BAS.woodelves.hem;
+    this.handIn('h1', this.over(W), 0, 500);
+    this.lyft('woodelves', 550, true);
+    this.handTill('h1', this.over(FHOG), 650, 650, 'INOUT'); this.fysTill('woodelves', FHOG, 650, 650, 'INOUT');
+    this.lyft('woodelves', 1300, false);
+    this.handUt('h1', 1400);
+    this.logg(0, 'du', 'Du tar Wood Elves');
+    this.logg(1300, 'du', 'Du lägger den på graveyard-högen');
+    this.logg(500, 'kam', 'Wood Elves skymd → fryst');
+    this.logg(1300 + VILA, 'kam', 'Graveyard-högen (du har svarat Yes) växte 2 → 3, och platsen där Wood Elves låg är tom');
+    this.at(1300 + VILA, () => { this.fas('grav', 'woodelves'); this.loggNu('mat', 'Wood Elves flyger till högen och landar som toppkort, 400 ms'); });
+  }
+  tappa() {
+    const ord = [['plains1', 450], ['forest1', 1050], ['plains2', 1500]];
+    this.handIn('h1', this.over(BAS.plains1.hem), 0, 450);
+    this.handTill('h1', this.over(BAS.forest1.hem), 700, 300, 'INOUT');
+    this.handTill('h1', this.over(BAS.plains2.hem), 1250, 200, 'INOUT');
+    this.handUt('h1', 1750);
+    let fore = null;
+    for (const [id, t] of ord) {
+      this.fysVrid(id, 90, t);
+      this.logg(t, 'du', `Du tappar ${BAS[id].namn}` + (fore != null ? ` (${sek(t - fore)} efter)` : ''));
+      const saker = t + 250 + TAPSAKER;
+      this.logg(saker, 'kam', `${BAS[id].namn}: säkert tappat`);
+      this.at(saker, () => { this.fas('tap', id); this.loggNu('mat', `${BAS[id].namn} vrids, 240 ms`); });
+      fore = t;
+    }
+  }
+  untap() {
+    for (const id of LAND) { this.fys(id).v.r = 90; this.mat(id).v.r = 90; this.mat(id).v.tappad = true; this.m.mala(this.fys(id)); this.m.mala(this.mat(id)); }
+    const ord = ['plains2', 'plains1', 'forest2', 'forest1'];
+    this.handIn('h1', this.over(BAS.plains2.hem), 0, 400);
+    ord.forEach((id, i) => {
+      const t = 420 + 150 * i;
+      if (i) this.handTill('h1', this.over(BAS[id].hem), t - 150, 150, 'INOUT');
+      this.fysVrid(id, 0, t);
+    });
+    this.handUt('h1', 1000);
+    this.logg(0, 'du', 'Du untappar alla land i ett svep, från höger');
+    this.logg(420, 'kam', 'Handen täcker landen → inga säkra domar än');
+    const nar = 1200 + HANDBORT;
+    this.logg(nar, 'kam', 'Handen borta: alla fyra otappade. Ordningen handen rörde dem: från höger');
+    ord.forEach((id, i) => this.at(nar + 150 * i, () => { this.fas('untap', id); if (!i) this.loggNu('mat', 'Landen vrids i samma ordning som handen rörde dem, 150 ms mellan'); }));
+  }
+  knuff() {
+    const S = BAS.serra.hem, a = [S[0] + 12, S[1]], b = [S[0] + 24, S[1] + 80], h = [S[0] - 16, S[1] + 164];
+    this.handIn('h1', h, 0, 450);
+    this.fysTill('serra', a, 500, 200); this.handTill('h1', [h[0] + 12, h[1]], 500, 200);
+    this.fysTill('serra', b, 1200, 250); this.handTill('h1', [h[0] + 24, h[1] + 80], 1200, 250);
+    this.handUt('h1', 1550);
+    this.logg(500, 'du', 'Du rättar till Serra Angel lite');
+    this.logg(700 + VILA, 'kam', 'Serra Angel flyttad 12 px: under dödzonen (27 px, 15 % av kortet)');
+    this.logg(700 + VILA, 'mat', 'Ingenting ändras');
+    this.logg(1200, 'du', 'Du skjuter den en bit');
+    this.logg(1450 + VILA, 'kam', 'Serra Angel flyttad 83 px');
+    this.at(1450 + VILA, () => { this.fas('knuff', 'serra', { mal: b }); this.loggNu('mat', 'Serra Angel glider dit, 220 ms'); });
+  }
+}
+
+/* ── Prototypen: bordet och mattan sida vid sida ──────────────────────
+   Knapparna är vad spelaren gör vid bordet. Tweaks styr tempot, när namnet
+   kommer, tröskeln för framkallningen, hur suddigt kamerans foto är, den
+   gröna ringen och minskad rörelse. */
+const TEMPO = { '1×': 1, '½×': .5, '¼×': .25 };
+const NAMN_MS = { '0,3 s': 300, '1,2 s': 1200, '4 s': 4000 };
+const TROSKEL_MS = { '0,3 s': 300, '0,5 s': 500, '0,8 s': 800 };
+const SUDD = { 'Låg': 6, 'Mellan': 12, 'Hög': 20 };
+const KOL = { du: 'du', kam: 'kam', mat: 'mat' };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: null, logg: [], gravN: 2, zoomTxt: '100 %', rad: { visa: false }, mark: { visa: false }, sok: { visa: false, q: '' } };
+    this.rotRef = el => { this.rotEl = el; };
+    this.korFn = {}; for (const id in SCEN) this.korFn[id] = () => this.kor(id);
+    this.spelaIgen = () => { if (this.state.sel) this.kor(this.state.sel); };
+    this.aterstall = () => { if (this.b) { this.b.aterstall(); this.setState({ sel: null, logg: [], sok: { visa: false, q: '' } }); } };
+    this.radExile = () => this.b && this.b.radVal('exile');
+    this.radKvar = () => this.b && this.b.radVal('kvar');
+    this.radBib = () => this.b && this.b.radVal('bib');
+    this.markKlick = () => this.setState({ sok: { visa: true, q: '' } });
+    this.sokSkriv = e => this.setState({ sok: { visa: true, q: e && e.target ? e.target.value : '' } });
+    this.sokStang = () => this.setState({ sok: { visa: false, q: '' } });
+  }
+  fart() { return TEMPO[this.props.tempo] || 1; }
+  componentDidMount() {
+    if (!this.rotEl) return;
+    this.m = new Motor(this.rotEl, { fart: () => this.fart(), sudd: () => SUDD[this.props.sudd] || 12 });
+    this.b = new Bord(this.m, {
+      minskad: () => this.props.rorelse === 'Minskad',
+      namnMs: () => NAMN_MS[this.props.namn] || 1200,
+      troskel: () => TROSKEL_MS[this.props.troskel] || 500,
+      ring: () => this.props.ring !== 'Av',
+      logga: r => this.setState(s => ({ logg: s.logg.concat(r).slice(-11) })),
+      rensaLogg: () => this.setState({ logg: [] }),
+      gravN: n => this.setState({ gravN: n }),
+      zoomTxt: t => this.setState({ zoomTxt: t }),
+      rad: r => this.setState({ rad: r }),
+      markera: mk => this.setState({ mark: mk, sok: { visa: false, q: '' } }),
+    });
+    this.b.aterstall();
+  }
+  componentDidUpdate(prev) {
+    if (this.m && this.rotEl && this.m.rot !== this.rotEl) this.m.fastna(this.rotEl);
+    if (this.m && prev && prev.sudd !== this.props.sudd) for (const k in this.m.o) if (this.m.o[k].typ === 'kort') this.m.mala(this.m.o[k]);
+  }
+  componentWillUnmount() { if (this.m) this.m.stopp(); }
+  kor(id) { if (!this.b) return; this.setState({ sel: id, sok: { visa: false, q: '' } }); this.b.kor(id); }
+
+  traffar() {
+    const q = (this.state.sok.q || '').trim().toLowerCase();
+    return LEKEN.filter(n => !q || n.toLowerCase().includes(q)).slice(0, 6).map(n => {
+      const i = q ? n.toLowerCase().indexOf(q) : -1;
+      return {
+        a: i < 0 ? n : n.slice(0, i), b: i < 0 ? '' : n.slice(i, i + q.length), c: i < 0 ? '' : n.slice(i + q.length),
+        valj: () => { const id = this.state.mark.id; this.setState({ sok: { visa: false, q: '' } }); if (this.b && id) this.b.namnGivet(id, n); },
+      };
+    });
+  }
+
+  renderVals() {
+    const st = this.state, mk = st.mark, tr = this.traffar();
+    const markX = mk.visa ? Math.max(70, Math.min(792 - 70, mk.x)) : 0;
+    return {
+      rotRef: this.rotRef,
+      knappar: Object.keys(SCEN).map(id => ({ namn: SCEN[id].knapp, under: SCEN[id].under, cls: id === st.sel ? 'vald' : '', kor: this.korFn[id] })),
+      spelaIgen: this.spelaIgen,
+      aterstall: this.aterstall,
+      logg: st.logg.map(r => ({ t: sek(Math.max(0, Math.round(r.t / 10) * 10)), du: r.kol === 'du' ? r.txt : '', kam: r.kol === 'kam' ? r.txt : '', mat: r.kol === 'mat' ? r.txt : '', cls: 'r-' + KOL[r.kol] })),
+      loggTom: !st.logg.length,
+      gravN: st.gravN,
+      zoomTxt: st.zoomTxt,
+      rad: Object.assign({ namn: '', txt: '', val: false }, st.rad, { exile: this.radExile, kvar: this.radKvar, bib: this.radBib }),
+      mark: { visa: !!mk.visa && !st.sok.visa, stil: `left: ${markX.toFixed(0)}px; top: ${((mk.y || 0) - 34).toFixed(0)}px`, klick: this.markKlick },
+      sok: {
+        visa: !!mk.visa && st.sok.visa,
+        /* Bredvid kortet, inte över det: till vänster om det får plats, annars till höger. */
+        stil: `left: ${(mk.vanster >= 300 ? mk.vanster - 292 : Math.min(792 - 288, (mk.hoger || 0) + 12)).toFixed(0)}px; top: ${Math.max(8, Math.min(499 - 262, mk.topp || 0)).toFixed(0)}px`,
+        q: st.sok.q, skriv: this.sokSkriv, stang: this.sokStang, traffar: tr, ingen: !tr.length,
+      },
+    };
+  }
+}
+
+</script>
+</body>
+</html>

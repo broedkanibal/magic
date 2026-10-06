@@ -1,0 +1,1127 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<title>I dag — spegelns animeringar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0d1015}
+a{color:#6b8cff}a:hover{color:#8ea6ff}
+.ab{position:relative;box-sizing:border-box;width:1440px;height:1500px;padding:28px 32px;background:#0d1015;color:#e7ecf4;
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+.ab *{box-sizing:border-box}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace}
+
+/* Rubriken */
+.hu{display:flex;flex-direction:column;gap:6px;height:84px;max-width:1040px}
+.hu .et{font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:1.2px;text-transform:uppercase;color:#f0a52a}
+.hu h1{margin:0;font:650 24px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;color:#e7ecf4}
+.hu p{margin:0;font-size:14px;line-height:1.5;color:#93a1b6;text-wrap:pretty}
+
+.rad{display:flex;gap:24px;align-items:flex-start;margin-top:22px}
+.v{width:920px;flex:none;display:flex;flex-direction:column;gap:10px}
+.h{width:432px;flex:none;display:flex;flex-direction:column;gap:16px}
+
+/* ── Mattan: appens .matta ── */
+.mat{position:relative;width:920px;height:580px;overflow:hidden;border-radius:12px;
+  background:radial-gradient(1250px 620px at 46% 26%,#18232f,#0a0f14 72%);box-shadow:inset 0 0 90px 20px #00000066,0 0 0 1px #28313f}
+/* Ytan ligger över högarna (z 23 mot 22) så att ett kort som flyger till
+   graveyard syns över dem — i appen är flygturen en kopia med z 900. Korten
+   ligger aldrig på högarna i vila (gravRuta), så det syns bara under flygningen. */
+.surf{position:absolute;z-index:23;left:0;top:0;width:1424px;height:898px;transform:scale(.646067);transform-origin:0 0;pointer-events:none}
+.mattachrome{position:absolute;top:10px;right:10px;z-index:24;display:flex;align-items:center;height:28px;border-radius:7px;border:1px solid #28313f;background:#1b2230;
+  font:11.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#57c785}
+.mattachrome span{display:grid;place-items:center;height:26px;padding:0 9px}
+.mattachrome span+span{border-left:1px solid #28313f}
+.mattachrome .zs{color:#93a1b6;font:700 15px/1 -apple-system,sans-serif;width:26px;padding:0}
+
+/* Kortet: appens .card, men varje lager är ett eget element så att
+   rörelsen bara rör transform och opacitet. */
+.k{position:absolute;left:0;top:0;width:178px;height:248px;border-radius:10px;box-shadow:0 4px 12px -3px #000c;
+  opacity:0;visibility:hidden;transform-origin:50% 50%;will-change:transform,opacity}
+.k.p{box-shadow:none}
+.k-ring{position:absolute;inset:0;border-radius:10px;background:#5fbf7f;opacity:0}
+.k-sh{position:absolute;inset:0;border-radius:10px;box-shadow:0 26px 40px -12px #000f;opacity:0}
+.k-ph{position:absolute;inset:0;display:flex;align-items:flex-end;padding:10px;border-radius:10px;font-size:11px;line-height:1.3;color:#93a1b6;
+  background:linear-gradient(105deg,#1a212c 30%,#232c3c 50%,#1a212c 70%) 0 0/300% 100%;
+  outline:1px dashed #ffffff2e;outline-offset:-1px;opacity:0}
+/* Skimret går bara medan platshållaren syns (klassen sätts av motorn) —
+   annars målas 18 dolda lager om i varje bildruta. */
+.k-ph.syns{animation:sh 1.3s linear infinite}
+.k-ph .t2{display:none}
+.k-ph.claude .t1{display:none}
+.k-ph.claude .t2{display:inline}
+@keyframes sh{to{background-position:-300% 0}}
+.k-face{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;border-radius:10px;background:#11161e}
+.k-scan{position:absolute;left:-3px;right:-3px;top:0;height:3px;border-radius:2px;background:#d6f5e2;box-shadow:0 0 14px 3px #57c785aa;opacity:0}
+.k-lost{position:absolute;inset:0;border-radius:10px;outline:1.5px dashed #e8b33a88;outline-offset:-1.5px;opacity:0}
+.k-glow{position:absolute;inset:0;border-radius:10px;box-shadow:0 0 0 3px #5fbf7f;opacity:0}
+.k-cb{position:absolute;inset:-10px;opacity:0;color:#e7ecf4}
+.k-cb b{position:absolute;width:26px;height:26px;border:0 solid currentColor}
+.k-cb .c1{left:0;top:0;border-width:3.5px 0 0 3.5px;border-top-left-radius:12px}
+.k-cb .c2{right:0;top:0;border-width:3.5px 3.5px 0 0;border-top-right-radius:12px}
+.k-cb .c3{left:0;bottom:0;border-width:0 0 3.5px 3.5px;border-bottom-left-radius:12px}
+.k-cb .c4{right:0;bottom:0;border-width:0 3.5px 3.5px 0;border-bottom-right-radius:12px}
+.k-spok{position:absolute;left:0;top:0;width:178px;height:248px;border-radius:10px;border:2.5px dashed #c9d4e6;opacity:0;visibility:hidden;pointer-events:none}
+
+/* Högarna: appens .gravhog och .bibhog, nere till vänster i mattan. */
+.gravhog,.bibhog{position:absolute;z-index:22;top:344px;width:108px;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.gravhog{left:22px}.bibhog{left:152px}
+.grav{position:relative;display:block;width:108px;height:144px;border-radius:6px;border:1.5px dashed #e8b33a99;background:#0b0f1573}
+.glager{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px;border-radius:5px;background:#1b1f26;border:1px solid #39414e;box-shadow:0 1px 2px #0009}
+.grav img{position:absolute;z-index:2;left:6.5px;top:6.5px;width:92px;height:128px;object-fit:cover;display:block;border-radius:5px;
+  background:#11161e;box-shadow:0 4px 14px -3px #000d;filter:grayscale(.6) brightness(.55) contrast(1.05)}
+.grav img.g-ny{z-index:3;opacity:0;will-change:transform,opacity}
+.g-ring{position:absolute;z-index:4;left:50%;top:50%;width:170px;height:170px;margin:-85px 0 0 -85px;border-radius:50%;border:2px solid #e8c98a;opacity:0;pointer-events:none}
+.hograd{display:flex;align-items:center;gap:6px;height:12px;font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#93a1b6;white-space:nowrap}
+.hograd>i{width:6px;height:6px;border-radius:2px;background:#e8b33a}
+.bibhog .hograd>i{background:#6b8cff}
+.hograd b{display:inline-block;font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#e7ecf4;letter-spacing:0}
+.bib{position:relative;width:108px;height:144px;border-radius:6px;border:1.5px solid #6b8cff;background:#0b0f1540}
+.bib img{position:absolute;left:6.5px;top:6.5px;width:92px;height:128px;object-fit:cover;display:block;border-radius:5px;box-shadow:0 3px 8px #0008}
+.bib img:nth-child(1){transform:translate(4px,-4px);filter:brightness(.55)}
+.bib img:nth-child(2){transform:translate(2px,-2px);filter:brightness(.75)}
+
+/* Motståndarens bild av mitt bord: samma matta, 0,413 och vänd. */
+.mini{position:relative;width:380px;height:240px;border-radius:10px;overflow:hidden;box-shadow:0 0 0 1px #28313f}
+.mini .mat{position:absolute;left:0;top:0;transform:translate(380px,240px) rotate(180deg) scale(.41304);transform-origin:0 0;box-shadow:inset 0 0 90px 20px #00000066}
+.mini .hograd,.mini .mattachrome{display:none}
+.mini .grav img:not(.g-ny),.mini .bib img{rotate:180deg}
+.cap{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;display:flex;align-items:center;gap:8px}
+.cap::after{content:'';flex:1;height:1px;background:#1c2330}
+.minitxt{font-size:12px;line-height:1.45;color:#93a1b6;margin:0}
+
+/* Kontrollerna */
+.grupp{display:flex;flex-direction:column;gap:8px}
+.hk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.hk{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;height:48px;padding:0 12px;border-radius:8px;
+  background:#1b2230;border:1px solid #28313f;color:#e7ecf4;font:inherit;text-align:left;cursor:pointer}
+.hk b{font:600 13px/1.2 -apple-system,sans-serif}
+.hk span{font-size:11px;line-height:1.2;color:#93a1b6}
+.hk:hover{background:#232c3c;border-color:#3b485c}
+.hk.vald{background:#f0a52a14;border-color:#f0a52a;box-shadow:0 0 0 3px #f0a52a1f}
+.hk.vald b{color:#ffd98a}
+.btnrad{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:7px;background:#1b2230;border:1px solid #28313f;
+  color:#c8d2e0;font:500 12.5px -apple-system,sans-serif;white-space:nowrap;cursor:pointer}
+.btn:hover{background:#232c3c;color:#e7ecf4;border-color:#3b485c}
+.ctl{display:grid;grid-template-columns:104px 1fr;align-items:center;gap:8px 10px}
+.ctl .l{font-size:12px;color:#93a1b6}
+.seg{display:flex;height:30px;border-radius:7px;border:1px solid #28313f;background:#141922;overflow:hidden}
+.seg button{flex:1;border:0;background:none;color:#93a1b6;font:500 12px -apple-system,sans-serif;cursor:pointer;padding:0 8px;white-space:nowrap}
+.seg button+button{border-left:1px solid #28313f}
+.seg button:hover{background:#1b2230;color:#e7ecf4}
+.seg button.vald{background:#232c3c;color:#ffd98a}
+.logg{min-height:118px;padding:10px 12px;border-radius:8px;background:#0b0f15;border:1px solid #28313f;display:flex;flex-direction:column;gap:4px}
+.lrad{display:grid;grid-template-columns:54px 1fr;gap:8px;font-size:12px;line-height:1.35;color:#c8d2e0}
+.lrad .lt{font:11.5px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;color:#66748a}
+.lrad.setup{color:#66748a}
+.ltom{font-size:12px;color:#66748a}
+.rub{font:600 9.5px/1 -apple-system,sans-serif;letter-spacing:.9px;text-transform:uppercase;color:#5c6b82;display:flex;align-items:center;gap:8px;height:14px}
+.rub::after{content:'';flex:1;height:1px;background:#1c2330}
+
+/* Tidslinjen */
+.tl{display:flex;flex-direction:column;gap:8px}
+.tl-rubrik{display:flex;align-items:baseline;gap:10px}
+.tl-rubrik b{font:650 15px/1.2 -apple-system,sans-serif;color:#e7ecf4}
+.tl-rubrik span{font-size:12px;color:#66748a}
+.tl-fas{position:relative;padding:8px 12px 8px;border-radius:10px;background:#11161e;border:1px solid #232b38}
+.tl-fh{display:flex;align-items:baseline;gap:10px;height:22px}
+.tl-fh b{font:600 12.5px/1.2 -apple-system,sans-serif;color:#e7ecf4;white-space:nowrap}
+.tl-fh .nar{font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:#f0a52a;white-space:nowrap}
+.tl-fh .om{font-size:11.5px;color:#66748a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-grid{display:grid;grid-template-columns:150px 380px minmax(0,1fr);column-gap:12px}
+.tl-ax{position:relative;height:16px}
+.tl-tick{position:absolute;top:0;bottom:0;width:1px;background:#1f2733}
+.tl-tick i{position:absolute;top:1px;left:3px;font:9.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal;color:#4a5870;white-space:nowrap}
+.tl-row{display:contents}
+.tl-lbl{height:21px;display:flex;align-items:center;font-size:11.5px;color:#93a1b6;white-space:nowrap;overflow:hidden}
+.tl-bana{position:relative;height:21px;background:linear-gradient(#1c2330,#1c2330) 0 50%/100% 1px no-repeat}
+.tl-txt{height:21px;display:flex;align-items:center;font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#c8d2e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-b{position:absolute;top:6.5px;height:8px;border-radius:4px;background:var(--c);min-width:3px}
+.tl-b.hopp{background:none;border:1.5px dashed var(--c);height:8px}
+.tl-d{position:absolute;top:6px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px #11161e}
+.tl-k{position:absolute;top:7px;width:7px;height:7px;margin-left:-3.5px;background:#e7ecf4;transform:rotate(45deg);box-shadow:0 0 0 2px #11161e}
+.m-kort{--c:#6b8cff}.m-plats{--c:#8a97ab}.m-spok{--c:#b98ff0}.m-hog,.m-hogring,.m-hogtal{--c:#e8b33a}
+.tl-tom{font-size:12px;line-height:1.45;color:#93a1b6;padding:4px 0 2px}
+.tl-head{position:absolute;left:174px;top:30px;bottom:6px;width:2px;margin-left:-1px;background:#f0a52a;box-shadow:0 0 8px #f0a52a88;opacity:0;pointer-events:none}
+.leg{display:grid;grid-template-columns:64px 1fr;gap:3px 10px;font-size:11.5px;line-height:1.4;color:#93a1b6}
+.leg .mono{color:#c8d2e0;font-size:11px}
+.regler{margin:0;padding:0 0 0 16px;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:1.45;color:#93a1b6}
+.regler b{color:#c8d2e0;font-weight:600}
+
+</style>
+</helmet>
+<div class="ab" ref="{{rotRef}}" style="width: 1440px; height: 1500px">
+  <div class="hu">
+    <span class="et">I dag · så gör index.html nu</span>
+    <h1>I dag</h1>
+    <p>Platshållaren och kortet poppar fram, och den gröna ringen pulsar i 1,4 s. Ett kort kameran tappar tonas ned efter 0,6 s och hoppar till den nya platsen när namnet kommer, 1,5–5 s senare. Tap har ett överslag på 0,34 s.</p>
+  </div>
+  <div class="rad">
+    <div class="v">
+      <div class="mat" data-mat="0" data-rot="0">
+      <div class="surf">
+        <i class="k-spok" data-spok="1"></i>
+        <div class="k" data-k="forest1">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="forest.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="forest2">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="forest.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="plains1">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="plains.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="plains2">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="plains.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="llanowar">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="llanowar.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="serra">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="serra.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="woodelves">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="woodelves.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="anthem">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="anthem.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k p" data-k="P">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+      </div>
+      <div class="gravhog">
+        <div class="grav">
+          <i class="glager" style="transform: translate(1.5px, -1.5px)"></i>
+          <img src="pikemaster.jpg" alt="" draggable="false">
+          <img class="g-ny" data-hog="1" data-src="woodelves.jpg" alt="" draggable="false">
+          <i class="g-ring" data-hogring="1"></i>
+        </div>
+        <span class="hograd"><i></i>Graveyard<b data-hogtal="1">{{gravN}}</b></span>
+      </div>
+      <div class="bibhog">
+        <div class="bib"><img src="baksida.jpg" alt=""><img src="baksida.jpg" alt=""><img src="baksida.jpg" alt=""></div>
+        <span class="hograd"><i></i>Library<b>47</b></span>
+      </div>
+      <div class="mattachrome"><span class="zs">−</span><span>65 %</span><span class="zs">+</span></div>
+    </div>
+    </div>
+    <div class="h">
+      <div class="grupp">
+        <div class="rub">Händelser</div>
+        <div class="hk-grid">
+          <sc-for list="{{knappar}}" as="k" hint-placeholder-count="8">
+            <button type="button" class="hk {{k.cls}}" onClick="{{k.kor}}"><b>{{k.namn}}</b><span>{{k.under}}</span></button>
+          </sc-for>
+        </div>
+        <div class="btnrad">
+          <button type="button" class="btn" onClick="{{hoppa}}">Hoppa fram »</button>
+          <button type="button" class="btn" onClick="{{aterstall}}">Återställ bordet</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span class="l">Tempo</span>
+        <div class="seg"><sc-for list="{{farter}}" as="f" hint-placeholder-count="3"><button type="button" class="{{f.cls}}" onClick="{{f.val}}">{{f.txt}}</button></sc-for></div>
+        <sc-if value="{{visaRorelse}}" hint-placeholder-val="{{true}}">
+          <span class="l">Rörelse</span>
+          <div class="seg"><sc-for list="{{rorelse}}" as="f" hint-placeholder-count="2"><button type="button" class="{{f.cls}}" onClick="{{f.val}}">{{f.txt}}</button></sc-for></div>
+        </sc-if>
+        <span class="l">Namnet efter</span>
+        <div class="seg"><sc-for list="{{namnval}}" as="f" hint-placeholder-count="3"><button type="button" class="{{f.cls}}" onClick="{{f.val}}">{{f.txt}}</button></sc-for></div>
+      </div>
+      <div class="grupp">
+        <div class="rub">Kameran säger</div>
+        <div class="logg">
+          <sc-if value="{{loggTom}}" hint-placeholder-val="{{true}}"><span class="ltom">Välj en händelse. Tiderna räknas från händelsens början.</span></sc-if>
+          <sc-for list="{{logg}}" as="l" hint-placeholder-count="0"><div class="lrad"><span class="lt">{{l.t}}</span><span>{{l.txt}}</span></div></sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="rad">
+    <div class="v tl">
+      <div class="tl-rubrik"><b>Tidslinje · {{tlTitel}}</b><span>tider i ms från kamerans uppdatering · spelhuvudet följer uppspelningen</span></div>
+      <sc-for list="{{tl}}" as="f" hint-placeholder-count="3">
+        <div class="tl-fas">
+          <div class="tl-fh"><b>{{f.titel}}</b><span class="nar">{{f.nar}}</span><span class="om">{{f.om}}</span></div>
+          <sc-if value="{{f.harRader}}" hint-placeholder-val="{{true}}">
+          <div class="tl-grid">
+            <span></span>
+            <div class="tl-ax"><sc-for list="{{f.ticks}}" as="t" hint-placeholder-count="5"><span class="tl-tick" style="{{t.stil}}"><i>{{t.txt}}</i></span></sc-for></div>
+            <span></span>
+            <sc-for list="{{f.rader}}" as="r" hint-placeholder-count="2">
+              <span class="tl-lbl">{{r.lbl}}</span>
+              <div class="tl-bana {{r.cls}}"><sc-for list="{{r.bitar}}" as="b" hint-placeholder-count="1"><i class="{{b.cls}}" style="{{b.stil}}"></i></sc-for></div>
+              <span class="tl-txt">{{r.txt}}</span>
+            </sc-for>
+          </div>
+          </sc-if>
+          <sc-if value="{{f.tom}}" hint-placeholder-val="{{false}}"><div class="tl-tom">{{f.tomTxt}}</div></sc-if>
+          <i class="tl-head"></i>
+        </div>
+      </sc-for>
+    </div>
+    <div class="h">
+      <div class="grupp">
+        <div class="cap">Så ser motståndaren ditt bord</div>
+        <div class="mini">
+          <div class="mat" data-mat="1" data-rot="180">
+      <div class="surf">
+        <i class="k-spok" data-spok="1"></i>
+        <div class="k" data-k="forest1">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="forest.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="forest2">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="forest.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="plains1">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="plains.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="plains2">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="plains.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="llanowar">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="llanowar.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="serra">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="serra.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="woodelves">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="woodelves.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k" data-k="anthem">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          <img class="k-face" src="anthem.jpg" alt="" draggable="false">
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+        <div class="k p" data-k="P">
+          <i class="k-ring"></i><i class="k-sh"></i>
+          <div class="k-ph"><span class="t1">Reading the card…</span><span class="t2">Asking Claude…</span></div>
+          
+          <i class="k-scan"></i><i class="k-lost"></i><i class="k-glow"></i>
+          <i class="k-cb"><b class="c1"></b><b class="c2"></b><b class="c3"></b><b class="c4"></b></i>
+        </div>
+      </div>
+      <div class="gravhog">
+        <div class="grav">
+          <i class="glager" style="transform: translate(1.5px, -1.5px)"></i>
+          <img src="pikemaster.jpg" alt="" draggable="false">
+          <img class="g-ny" data-hog="1" data-src="woodelves.jpg" alt="" draggable="false">
+          <i class="g-ring" data-hogring="1"></i>
+        </div>
+        <span class="hograd"><i></i>Graveyard<b data-hogtal="1">{{gravN}}</b></span>
+      </div>
+      <div class="bibhog">
+        <div class="bib"><img src="baksida.jpg" alt=""><img src="baksida.jpg" alt=""><img src="baksida.jpg" alt=""></div>
+        <span class="hograd"><i></i>Library<b>47</b></span>
+      </div>
+      <div class="mattachrome"><span class="zs">−</span><span>65 %</span><span class="zs">+</span></div>
+    </div>
+        </div>
+        <p class="minitxt">Samma händelser på mattan en motståndare ser i bordsvyn: 0,41 gånger så stor och vänd mot hen, korten upprätta.</p>
+      </div>
+      <div class="grupp">
+        <div class="rub">Regler</div>
+        <ul class="regler">
+      <li><b>Det här är nuläget</b>, inte ett förslag — samma knappar, så att varianterna går att jämföra.</li>
+      <li><b>Flytten</b> läses som att ett kort försvann och ett annat kom: nedtonat efter 0,6 s, hopp när namnet kommer.</li>
+      <li><b>Till graveyard</b> tonas kortet först ned, sedan flyger en kopia dit.</li>
+        </ul>
+      </div>
+      <div class="grupp">
+        <div class="rub">Easing och värden</div>
+        <div class="leg">
+        <span class="mono">UT</span><span>cubic-bezier(.2,.8,.3,1) — landning och settle</span>
+        <span class="mono">HF</span><span>cubic-bezier(.3,.75,.25,1) — flygturen ur solfjädern</span>
+        <span class="mono">FLY</span><span>cubic-bezier(.4,0,.2,1) — flygTillGrav</span>
+        <span class="mono">OS</span><span>cubic-bezier(.34,1.4,.5,1) — tap med överslag</span>
+        <span class="mono">OUT/IN</span><span>ease-out, ease-in, ease-in-out, linear</span>
+        <span class="mono">värden</span><span>nedtoning 1 = grayscale(.8) brightness(.55) + streckad kant · skugga 1 = 0 26px 40px -12px #000f · grön ring 0→1 = 0→12 px, alfa .53→0</span>
+        <span class="mono">färger</span><span>blå = kortet · grå = platshållaren · lila = spåret · gul = graveyard-högen · ◆ = mellanläge</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+const VAR = 'N';
+/* ── Tidslinjerna, som data ─────────────────────────────────────────────
+   Samma data driver animeringen i artboarden och ritar tidslinjen under
+   den, så att det som syns och det som står aldrig kan skilja sig åt.
+
+   Ett spår: [mål, egenskap, nycklar, flagga?]
+     mål        kort · plats · spok · hog · hogring · hogtal
+     egenskap   se EGENSKAP nedan
+     nycklar    [[t ms, värde, easing för segmentet som börjar här], …]
+                En enda nyckel = värdet sätts direkt vid t.
+     värde      tal, eller 'cur' (där egenskapen står just nu), 'mal' (nya
+                platsen), 'mal2' (den rättade platsen), 'hog' (graveyard-
+                högen), 'hogS' (kortet i högens storlek), 'flygS' (skalan
+                flygTillGrav använder).
+     flagga     'svag' = hoppas över om egenskapen redan animeras av något
+                annat (tap mitt i en flytt tar inte över skalan).
+                'intern' = styr ritningen men visas inte i tidslinjen.
+   t räknas från kamerans uppdatering, inte från handen. */
+
+const EASE = {
+  UT:    { b: [.2, .8, .3, 1],   css: 'cubic-bezier(.2,.8,.3,1)',   om: 'appens landning och settle (cLand, cSettle, graveyard-högen)' },
+  HF:    { b: [.3, .75, .25, 1], css: 'cubic-bezier(.3,.75,.25,1)', om: 'flygturen ur solfjädern till mattan (hfFlyg, 480 ms)' },
+  FLY:   { b: [.4, 0, .2, 1],    css: 'cubic-bezier(.4,0,.2,1)',    om: 'flygturen till graveyard (flygTillGrav, 340 ms)' },
+  OS:    { b: [.34, 1.4, .5, 1], css: 'cubic-bezier(.34,1.4,.5,1)', om: '.card-transitionen i dag: tap med överslag' },
+  SOFT:  { b: [.3, .7, .3, 1],   css: 'cubic-bezier(.3,.7,.3,1)',   om: 'mjuk vridning utan överslag (ny)' },
+  OUT:   { b: [0, 0, .58, 1],    css: 'ease-out' },
+  IN:    { b: [.42, 0, 1, 1],    css: 'ease-in' },
+  INOUT: { b: [.42, 0, .58, 1],  css: 'ease-in-out' },
+  LIN:   { b: null,              css: 'linear' },
+  STEP:  { b: 'step',            css: 'hopp' },
+};
+
+const EGENSKAP = {
+  pos: 'position', dy: 'lyft i y', s: 'skala', r: 'vridning', o: 'opacitet',
+  lift: 'skugga', face: 'framsida', ph: 'platshållare', dim: 'nedtoning',
+  ring: 'grön ring', glow: 'grön kant', clip: 'framsidan skannas', scan: 'skannerlinje',
+  cb: 'sökarhörn', cbs: 'hörnens skala',
+};
+const MAL = { kort: 'kortet', plats: 'platshållaren', spok: 'spåret', hog: 'högens toppkort', hogring: 'högens ring', hogtal: 'högens tal' };
+
+/* Graveyard-högens landning (GRAVEYARD_ANIMATION.md §3): cLand på
+   toppkortet, cRing ur högen och cBump på talet — flyttad i tid. */
+function landa(t) {
+  return [
+    ['hog', 'o', [[t, 0, 'UT'], [t + 500, 1]]],
+    ['hog', 'dy', [[t, -40, 'UT'], [t + 300, 4, 'UT'], [t + 500, 0]]],
+    ['hog', 's', [[t, 1.14, 'UT'], [t + 300, .98, 'UT'], [t + 500, 1]]],
+    ['hogring', 's', [[t, .5, 'OUT'], [t + 550, 1.5]]],
+    ['hogring', 'o', [[t, .7, 'OUT'], [t + 550, 0]]],
+    ['hogtal', 's', [[t, 1, 'UT'], [t + 168, 1.18, 'UT'], [t + 420, 1]]],
+  ];
+}
+/* Dagens flygtur till graveyard, oförändrad. */
+const FLYG_I_DAG = [
+  ['kort', 'pos', [[0, 'cur', 'FLY'], [340, 'hog']]],
+  ['kort', 's', [[0, 1, 'FLY'], [340, 'flygS']]],
+  ['kort', 'r', [[0, 'cur', 'FLY'], [340, -12]]],
+  ['kort', 'o', [[0, 1, 'FLY'], [340, .15, 'STEP'], [341, 0]]],
+];
+
+const SPEC = {
+  /* ── I dag: det index.html gör nu ── */
+  N: {
+    vanta: 700,                  // BORTA_NAD 600 ms + lyftT 100 ms
+    plats: [['plats', 'o', [[0, 1]]]],
+    namn: [['kort', 'face', [[0, 1]]], ['kort', 'ph', [[0, 0]]], ['kort', 'ring', [[0, 0, 'OUT'], [1400, 1]]]],
+    tappad: [],
+    nedtonad: [['kort', 'dim', [[0, 1]]]],
+    flytt: [['kort', 'pos', [[0, 'mal']]], ['kort', 'dim', [[0, 0]]], ['plats', 'o', [[0, 0]]]],
+    avbrott: [['kort', 'pos', [[0, 'mal2']]], ['plats', 'pos', [[0, 'mal2']]], ['kort', 'r', [[0, 'cur', 'OS'], [340, 90]]]],
+    tillbaka: [['kort', 'dim', [[0, 0]]], ['plats', 'o', [[0, 0]]]],
+    tillbakaNy: [['kort', 'pos', [[0, 'mal']]], ['kort', 'dim', [[0, 0]]], ['plats', 'o', [[0, 0]]]],
+    grav: [['kort', 'dim', [[0, 0]]], ...FLYG_I_DAG, ...landa(0)],
+    tap: [['kort', 'r', [[0, 'cur', 'OS'], [340, 90]]]],
+    untap: [['kort', 'r', [[0, 'cur', 'OS'], [340, 0]]]],
+  },
+
+  /* ── A · Stilla: toning och raka glid, inget lyfts ── */
+  A: {
+    vanta: 5000,
+    plats: [['plats', 'o', [[0, 0, 'OUT'], [180, 1]]], ['plats', 's', [[0, .96, 'UT'], [180, 1]]]],
+    namn: [['kort', 'face', [[0, 0, 'OUT'], [220, 1]]], ['kort', 'ph', [[0, 1, 'LIN'], [220, 0]]], ['kort', 'ring', [[0, 0, 'OUT'], [900, 1]]]],
+    tappad: [],
+    nedtonad: [['kort', 'dim', [[0, 0, 'INOUT'], [480, 1]]]],
+    flytt: [['kort', 'pos', [[0, 'cur', 'HF'], [380, 'mal']]], ['plats', 'o', [[220, 1, 'LIN'], [380, 0]]]],
+    avbrott: [['kort', 'pos', [[0, 'cur', 'HF'], [320, 'mal2']]], ['plats', 'pos', [[0, 'cur', 'HF'], [320, 'mal2']]], ['kort', 'r', [[0, 'cur', 'UT'], [200, 90]]]],
+    tillbaka: [['kort', 'dim', [[0, 1, 'OUT'], [240, 0]]], ['plats', 'o', [[0, 1, 'LIN'], [160, 0]]]],
+    tillbakaNy: [['kort', 'pos', [[0, 'cur', 'HF'], [380, 'mal']]], ['kort', 'dim', [[0, 1, 'OUT'], [380, 0]]], ['plats', 'o', [[220, 1, 'LIN'], [380, 0]]]],
+    grav: [...FLYG_I_DAG, ...landa(200)],
+    tap: [['kort', 'r', [[0, 'cur', 'UT'], [200, 90]]]],
+    untap: [['kort', 'r', [[0, 'cur', 'UT'], [200, 0]]]],
+  },
+
+  /* ── B · Handen: läggs ned, lyfts, bärs, sätts ned ── */
+  B: {
+    vanta: 5000,
+    plats: [
+      ['plats', 'o', [[0, 0, 'LIN'], [120, 1]]],
+      ['plats', 'dy', [[0, -18, 'UT'], [180, 2, 'UT'], [300, 0]]],
+      ['plats', 's', [[0, 1.06, 'UT'], [180, .99, 'UT'], [300, 1]]],
+      ['plats', 'lift', [[0, 1, 'UT'], [300, 0]]],
+    ],
+    namn: [['kort', 'face', [[0, 0, 'OUT'], [200, 1]]], ['kort', 'ph', [[0, 1, 'LIN'], [200, 0]]], ['kort', 'ring', [[0, 0, 'OUT'], [900, 1]]]],
+    tappad: [],
+    nedtonad: [['kort', 'dim', [[0, 0, 'INOUT'], [520, 1]]], ['kort', 's', [[0, 1, 'INOUT'], [520, .975]]]],
+    flytt: [
+      ['kort', 'lift', [[0, 'cur', 'OUT'], [100, 1, 'LIN'], [300, 1, 'IN'], [420, 0]]],
+      ['kort', 's', [[0, 'cur', 'OUT'], [100, 1.05, 'LIN'], [300, 1.05, 'UT'], [380, .985, 'UT'], [450, 1]]],
+      ['kort', 'pos', [[0, 'cur', 'FLY'], [420, 'mal']]],
+      ['plats', 'o', [[300, 1, 'LIN'], [400, 0]]],
+    ],
+    avbrott: [
+      ['kort', 'pos', [[0, 'cur', 'FLY'], [320, 'mal2']]],
+      ['plats', 'pos', [[0, 'cur', 'HF'], [320, 'mal2']]],
+      ['kort', 's', [[0, 'cur', 'LIN'], [170, 1.05, 'UT'], [250, .985, 'UT'], [320, 1]]],
+      ['kort', 'lift', [[0, 'cur', 'LIN'], [170, 1, 'IN'], [290, 0]]],
+      ['kort', 'r', [[0, 'cur', 'SOFT'], [240, 90]]],
+    ],
+    tillbaka: [['kort', 'dim', [[0, 1, 'OUT'], [260, 0]]], ['kort', 's', [[0, 'cur', 'UT'], [150, 1.02, 'UT'], [300, 1]]], ['plats', 'o', [[0, 1, 'LIN'], [160, 0]]]],
+    tillbakaNy: [
+      ['kort', 'dim', [[0, 1, 'OUT'], [200, 0]]],
+      ['kort', 'lift', [[0, 'cur', 'OUT'], [100, 1, 'LIN'], [300, 1, 'IN'], [420, 0]]],
+      ['kort', 's', [[0, 'cur', 'OUT'], [100, 1.05, 'LIN'], [300, 1.05, 'UT'], [380, .985, 'UT'], [450, 1]]],
+      ['kort', 'pos', [[0, 'cur', 'FLY'], [420, 'mal']]],
+      ['plats', 'o', [[300, 1, 'LIN'], [400, 0]]],
+    ],
+    grav: [
+      ['kort', 'lift', [[0, 'cur', 'OUT'], [80, 1]]],
+      ['kort', 's', [[0, 'cur', 'OUT'], [80, 1.04, 'FLY'], [360, 'hogS']]],
+      ['kort', 'pos', [[0, 'cur', 'FLY'], [360, 'hog']]],
+      ['kort', 'r', [[0, 'cur', 'FLY'], [180, -6, 'UT'], [360, 0]]],
+      ['kort', 'o', [[360, 0]]],
+      ['hog', 'o', [[360, 1]]],
+      ['hog', 's', [[360, 1.06, 'UT'], [540, .985, 'UT'], [660, 1]]],
+      ['hogring', 's', [[360, .5, 'OUT'], [910, 1.5]]],
+      ['hogring', 'o', [[360, .7, 'OUT'], [910, 0]]],
+      ['hogtal', 's', [[360, 1, 'UT'], [528, 1.18, 'UT'], [780, 1]]],
+    ],
+    tap: [['kort', 'r', [[0, 'cur', 'SOFT'], [240, 90]]], ['kort', 's', [[0, 'cur', 'INOUT'], [120, 1.03, 'INOUT'], [240, 1]], 'svag'], ['kort', 'lift', [[0, 'cur', 'INOUT'], [120, .5, 'INOUT'], [240, 0]], 'svag']],
+    untap: [['kort', 'r', [[0, 'cur', 'SOFT'], [240, 0]]], ['kort', 's', [[0, 'cur', 'INOUT'], [120, 1.03, 'INOUT'], [240, 1]], 'svag'], ['kort', 'lift', [[0, 'cur', 'INOUT'], [120, .5, 'INOUT'], [240, 0]], 'svag']],
+  },
+
+  /* ── C · Kameran: visar vad kameran vet ── */
+  C: {
+    vanta: 5000,
+    plats: [['plats', 'o', [[0, 0, 'LIN'], [140, 1]]], ['plats', 'cb', [[0, 0, 'UT'], [220, 1]]], ['plats', 'cbs', [[0, 1.12, 'UT'], [220, 1]]]],
+    namn: [
+      ['kort', 'face', [[0, 1]], 'intern'], ['kort', 'cbg', [[0, 1]], 'intern'],
+      ['kort', 'clip', [[0, 0, 'FLY'], [280, 1]]],
+      ['kort', 'scan', [[0, 0, 'FLY'], [280, 1]]],
+      ['kort', 'ph', [[0, 1, 'LIN'], [280, 0]]],
+      ['kort', 'cb', [[0, 1, 'LIN'], [1100, 1, 'OUT'], [1400, 0]]],
+    ],
+    tappad: [['kort', 'cbg', [[0, 0]], 'intern'], ['kort', 'cb', [[1500, 0, 'INOUT'], [1900, .45]]], ['kort', 'cbs', [[1500, 1.06, 'INOUT'], [1900, 1]]]],
+    nedtonad: [['kort', 'dim', [[0, 0, 'INOUT'], [480, 1]]], ['kort', 'cb', [[0, 'cur', 'LIN'], [480, 0]]]],
+    flytt: [
+      ['kort', 'cbg', [[0, 1]], 'intern'],
+      ['kort', 'pos', [[0, 'cur', 'HF'], [360, 'mal']]],
+      ['spok', 'o', [[0, .7, 'OUT'], [600, 0]]],
+      ['plats', 'o', [[200, 1, 'LIN'], [360, 0]]],
+      ['kort', 'cb', [[0, 'cur', 'LIN'], [120, .8, 'LIN'], [1000, .8, 'OUT'], [1300, 0]]],
+    ],
+    avbrott: [['kort', 'pos', [[0, 'cur', 'HF'], [300, 'mal2']]], ['plats', 'pos', [[0, 'cur', 'HF'], [300, 'mal2']]], ['kort', 'r', [[0, 'cur', 'UT'], [220, 90]]]],
+    tillbaka: [
+      ['kort', 'cbg', [[0, 1]], 'intern'],
+      ['kort', 'dim', [[0, 1, 'OUT'], [280, 0]]],
+      ['kort', 'scan', [[0, 0, 'FLY'], [280, 1]]],
+      ['plats', 'o', [[0, 1, 'LIN'], [160, 0]]],
+      ['kort', 'cb', [[0, 'cur', 'LIN'], [120, .8, 'LIN'], [900, .8, 'OUT'], [1200, 0]]],
+    ],
+    tillbakaNy: [
+      ['kort', 'cbg', [[0, 1]], 'intern'],
+      ['kort', 'dim', [[0, 1, 'OUT'], [360, 0]]],
+      ['kort', 'pos', [[0, 'cur', 'HF'], [360, 'mal']]],
+      ['spok', 'o', [[0, .7, 'OUT'], [600, 0]]],
+      ['plats', 'o', [[200, 1, 'LIN'], [360, 0]]],
+      ['kort', 'cb', [[0, 'cur', 'LIN'], [120, .8, 'LIN'], [1000, .8, 'OUT'], [1300, 0]]],
+    ],
+    grav: [['kort', 'cb', [[0, 'cur', 'LIN'], [120, 0]]], ['spok', 'o', [[0, .7, 'OUT'], [600, 0]]], ...FLYG_I_DAG, ...landa(200)],
+    tap: [['kort', 'r', [[0, 'cur', 'UT'], [220, 90]]]],
+    untap: [['kort', 'r', [[0, 'cur', 'UT'], [220, 0]]]],
+  },
+
+  /* ── Minskad rörelse (prefers-reduced-motion), samma för A, B och C:
+        bara toning. Positionen och vridningen byts medan kortet är
+        osynligt eller nästan osynligt. ── */
+  R: {
+    vanta: 5000,
+    plats: [['plats', 'o', [[0, 0, 'LIN'], [150, 1]]]],
+    namn: [['kort', 'face', [[0, 0, 'LIN'], [200, 1]]], ['kort', 'ph', [[0, 1, 'LIN'], [200, 0]]], ['kort', 'glow', [[0, .8, 'LIN'], [900, 0]]]],
+    tappad: [],
+    nedtonad: [['kort', 'dim', [[0, 0, 'LIN'], [480, 1]]]],
+    flytt: [['kort', 'o', [[0, 1, 'LIN'], [150, 0, 'LIN'], [350, 1]]], ['kort', 'pos', [[150, 'mal']]], ['plats', 'o', [[150, 1, 'LIN'], [350, 0]]]],
+    avbrott: [['kort', 'o', [[0, 'cur', 'LIN'], [100, 0, 'LIN'], [250, 1]]], ['kort', 'pos', [[100, 'mal2']]], ['plats', 'pos', [[100, 'mal2']]], ['kort', 'r', [[100, 90]]]],
+    tillbaka: [['kort', 'dim', [[0, 1, 'LIN'], [240, 0]]], ['plats', 'o', [[0, 1, 'LIN'], [160, 0]]]],
+    tillbakaNy: [['kort', 'o', [[0, 1, 'LIN'], [150, 0, 'LIN'], [350, 1]]], ['kort', 'pos', [[150, 'mal']]], ['kort', 'dim', [[150, 0]]], ['plats', 'o', [[150, 1, 'LIN'], [350, 0]]]],
+    grav: [['kort', 'o', [[0, 1, 'LIN'], [200, 0]]], ['hog', 'o', [[0, 0, 'LIN'], [200, 1]]]],
+    tap: [['kort', 'o', [[0, 1, 'LIN'], [100, .3, 'LIN'], [240, 1]]], ['kort', 'r', [[100, 90]]]],
+    untap: [['kort', 'o', [[0, 1, 'LIN'], [100, .3, 'LIN'], [240, 1]]], ['kort', 'r', [[100, 0]]]],
+  },
+};
+
+/* Faserna — vad kameran säger, och när. Vilka faser en händelse får beror
+   på väntetiden (I dag tonas ett tappat kort ned innan platshållaren kommer)
+   och på hur snabbt namnet kommer. */
+const FAS = {
+  plats: 'Platshållaren syns',
+  claude: 'Kameran frågar Claude',
+  namn: 'Namnet kommer',
+  tappad: 'Kameran tappar kortet',
+  nedtonad: 'Väntan slut: nedtonat',
+  flytt: 'Namnet kommer: samma kort, ny plats',
+  avbrott: 'Ny rapport mitt i flytten',
+  tillbaka: 'Namnet kommer: det nedtonade kortet',
+  tillbakaNy: 'Namnet kommer: det nedtonade kortet, ny plats',
+  grav: 'Graveyard-högen växer',
+  tap: 'Kameran är säker: tappat',
+  untap: 'Kameran är säker: otappat',
+};
+
+/* ── Rörelsemotorn ────────────────────────────────────────────────────
+   En klocka, en kö med kamerans uppdateringar och en lista med spår. Varje
+   bildruta räknas varje aktivt spår fram och skrivs som transform, opacitet
+   och (bara vid nedtoning) filter på kortens lager. Inget läggs i DOM:en
+   medan det rör sig, och React rör aldrig de egenskaperna.
+
+   Avbrott: ett spår som startar på en egenskap som redan rör sig tar över
+   från där den står, och för position, vridning och skala tas farten med —
+   det första segmentets easing byts mot cubic-bezier(x1, k·x1, x2, y2) där
+   k = v·T/Δ (v = farten nu, T = segmentets längd, Δ = sträckan kvar). Då
+   fortsätter kortet i samma fart åt det nya hållet i stället för att stanna
+   och börja om. */
+
+const Z = 920 / 1424;                       // mattans zoom: brädet 1424 px brett i 920 px
+const KW = 178, KH = 248;                   // MATTA.CW × MATTA.CH
+const HOG_MITT = [76 / Z, 416 / Z];         // mitten av graveyard-kortet (22+54, 344+72) i brädets px
+const BAS = {
+  llanowar: { namn: 'Llanowar Elves', hem: [420, 80], z: 10 },
+  serra: { namn: 'Serra Angel', hem: [630, 80], z: 11 },
+  woodelves: { namn: 'Wood Elves', hem: [840, 80], z: 12 },
+  forest1: { hem: [440, 420], z: 1 }, forest2: { hem: [466, 446], z: 2 },
+  plains1: { hem: [700, 420], z: 3 }, plains2: { hem: [726, 446], z: 4 },
+  anthem: { namn: 'Glorious Anthem', hem: [1060, 80], z: 13, ute: true },
+  P: { hem: [1000, 440], z: 60, plats: true },
+};
+const PUNKT = { M1: [1000, 440], M2: [1180, 330], serraNy: [1210, 400] };
+
+const SCEN = {
+  utspel: { kort: 'anthem', plats: 'anthem', vid: 'hem', knapp: 'Utspel', under: 'platshållare → namn' },
+  flytt: { kort: 'llanowar', plats: 'P', vid: 'M1', knapp: 'Flytt', under: 'tappas → platshållare → namn' },
+  avbrott: { kort: 'llanowar', plats: 'P', vid: 'M1', mal2: 'M2', knapp: 'Flytt, avbruten', under: 'ny rapport mitt i flytten' },
+  tappat: { kort: 'serra', knapp: 'Tappat kort', under: 'väntan → nedtonat' },
+  tillbaka: { kort: 'serra', plats: 'P', vid: 'hem', dimmad: true, knapp: 'Tillbaka', under: 'nedtonat → samma plats' },
+  tillbakaNy: { kort: 'serra', plats: 'P', vid: 'serraNy', dimmad: true, knapp: 'Tillbaka, ny plats', under: 'nedtonat → ny plats' },
+  grav: { kort: 'woodelves', knapp: 'Till graveyard', under: 'högen växer under väntan' },
+  tap: { kort: 'llanowar', knapp: 'Tap / untap', under: 'när kameran är säker', ingenSetup: true },
+};
+const OM = {
+  plats: 'Kameran ser något nytt 0,1–0,5 s efter att handen släppt · “Reading the card…”',
+  claude: '“Asking Claude…” · namnet kan dröja upp till 5 s',
+  namn: 'Namnet kommer 0,3–2 s efter platshållaren',
+  tappad: 'Handen tar kortet — eller så skyms det bara',
+  nedtonad: 'Ingen ny plats och ingen hög växte',
+  flytt: 'Samma namn på en ny plats medan kortet väntade',
+  avbrott: 'Kameran rättar platsen och ser att kortet är tappat',
+  tillbaka: 'Platshållaren binds till det nedtonade kortet',
+  tillbakaNy: 'Platshållaren binds till det nedtonade kortet',
+  grav: 'Högvakten: högen i bild blev större medan kortet väntade',
+  tap: 'Bara en tydlig dom, inom 20° (tapTydlig)',
+  untap: 'Bara en tydlig dom, inom 20° (tapTydlig)',
+};
+
+const sek = ms => (ms / 1000).toFixed(ms % 100 ? 2 : 1).replace('.', ',') + ' s';
+const tal = v => {
+  const s = String(Math.round(v * 1000) / 1000).replace('.', ',');
+  return s;
+};
+
+/* cubic-bezier: y(x) och lutningen dy/dx. */
+function bezier(p) {
+  if (!p) return { y: x => x, d: () => 1 };
+  const [x1, y1, x2, y2] = p;
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const X = t => ((ax * t + bx) * t + cx) * t, Y = t => ((ay * t + by) * t + cy) * t;
+  const dX = t => (3 * ax * t + 2 * bx) * t + cx, dY = t => (3 * ay * t + 2 * by) * t + cy;
+  const tAv = x => {
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const e = X(t) - x, d = dX(t);
+      if (Math.abs(e) < 1e-6) return t;
+      if (Math.abs(d) < 1e-6) break;
+      t -= e / d;
+    }
+    let lo = 0, hi = 1; t = x;
+    for (let i = 0; i < 40; i++) { if (X(t) < x) lo = t; else hi = t; t = (lo + hi) / 2; }
+    return t;
+  };
+  return {
+    y: x => x <= 0 ? 0 : x >= 1 ? 1 : Y(tAv(x)),
+    d: x => { const t = tAv(Math.min(1, Math.max(0, x))), dx = dX(t); return Math.abs(dx) < 1e-6 ? 0 : dY(t) / dx; },
+  };
+}
+const BEZ = {};
+for (const k in EASE) if (Array.isArray(EASE[k].b)) BEZ[k] = bezier(EASE[k].b);
+
+function grund(id) {
+  const b = BAS[id], dold = b.ute || b.plats;
+  return { x: b.hem[0], y: b.hem[1], r: 0, s: 1, o: dold ? 0 : 1, dy: 0, lift: 0, face: b.plats ? 0 : 1, ph: b.plats ? 1 : 0,
+    dim: 0, ring: 1, glow: 0, clip: 1, scan: 1, cb: 0, cbs: 1, cbg: 0, z: b.z, claude: false, tappad: false };
+}
+const hogGrund = () => ({ o: 0, dy: 0, s: 1 });
+
+class Motor {
+  constructor(rot, ab) {
+    this.ab = ab; this.klocka = 0; this.q = []; this.vantar = []; this.aktiva = []; this.raf = 0; this.sist = 0; this.topZ = 100;
+    this.o = {};
+    for (const id in BAS) this.o[id] = { id, v: grund(id), els: [] };
+    this.o.spok = { id: 'spok', v: { x: 0, y: 0, r: 0, o: 0 }, els: [] };
+    this.o.hog = { id: 'hog', v: hogGrund(), els: [] };
+    this.o.hogring = { id: 'hogring', v: { s: .5, o: 0 }, els: [] };
+    this.o.hogtal = { id: 'hogtal', v: { s: 1 }, els: [] };
+    this.fastna(rot);
+  }
+  fastna(rot) {
+    this.rot = rot;
+    for (const k in this.o) this.o[k].els = [];
+    for (const m of rot.querySelectorAll('[data-mat]')) {
+      const vrid = +m.dataset.rot || 0;
+      for (const el of m.querySelectorAll('[data-k]')) {
+        const q = s => el.querySelector(s);
+        this.o[el.dataset.k].els.push({ el, vrid, sh: q('.k-sh'), ph: q('.k-ph'), face: q('.k-face'), lost: q('.k-lost'), scan: q('.k-scan'), ring: q('.k-ring'), glow: q('.k-glow'), cb: q('.k-cb') });
+      }
+      const sp = m.querySelector('[data-spok]'); if (sp) this.o.spok.els.push({ el: sp, vrid });
+      const h = m.querySelector('[data-hog]'); if (h) this.o.hog.els.push({ el: h, vrid });
+      const hr = m.querySelector('[data-hogring]'); if (hr) this.o.hogring.els.push({ el: hr, vrid });
+      const ht = m.querySelector('[data-hogtal]'); if (ht) this.o.hogtal.els.push({ el: ht, vrid });
+    }
+    for (const k in this.o) this.mala(this.o[k]);
+  }
+
+  /* ── ritningen ── */
+  mala(ob) {
+    const v = ob.v;
+    if (ob.id === 'spok') {
+      for (const e of ob.els) {
+        e.el.style.transform = `translate(${v.x}px,${v.y}px) rotate(${v.r + e.vrid}deg)`;
+        e.el.style.opacity = v.o; e.el.style.visibility = v.o > .001 ? 'visible' : 'hidden';
+      }
+      return;
+    }
+    if (ob.id === 'hog') {
+      for (const e of ob.els) { e.el.style.transform = `translateY(${v.dy}px) scale(${v.s}) rotate(${e.vrid}deg)`; e.el.style.opacity = v.o; }
+      return;
+    }
+    if (ob.id === 'hogring') { for (const e of ob.els) { e.el.style.transform = `scale(${v.s})`; e.el.style.opacity = v.o; } return; }
+    if (ob.id === 'hogtal') { for (const e of ob.els) e.el.style.transform = `scale(${v.s})`; return; }
+    const tapp = Math.min(1, Math.abs(v.r) / 90);
+    const ljus = (1 - .14 * tapp) * (1 - .45 * v.dim);
+    const filter = v.dim > .001 || tapp > .001 ? `grayscale(${(.8 * v.dim).toFixed(3)}) brightness(${ljus.toFixed(3)}) saturate(${(1 - .06 * tapp).toFixed(3)})` : 'none';
+    const rp = Math.max(0, Math.min(1, v.ring)), spread = 12 * rp;
+    const cbFarg = v.cbg > .5 ? '#6fd49a' : '#e7ecf4';
+    for (const e of ob.els) {
+      const st = e.el.style;
+      st.transform = `translate(${v.x.toFixed(2)}px,${(v.y + v.dy).toFixed(2)}px) rotate(${(v.r + e.vrid).toFixed(2)}deg) scale(${v.s.toFixed(4)})`;
+      st.opacity = v.o; st.visibility = v.o > .001 ? 'visible' : 'hidden'; st.zIndex = v.z;
+      e.sh.style.opacity = v.lift;
+      e.ph.style.opacity = v.ph;
+      e.ph.classList.toggle('claude', !!v.claude);
+      e.ph.classList.toggle('syns', v.ph > .001 && v.o > .001);
+      if (e.face) {
+        e.face.style.opacity = v.face;
+        e.face.style.filter = filter;
+        e.face.style.clipPath = v.clip < .999 ? `inset(0 0 ${((1 - v.clip) * 100).toFixed(2)}% 0 round 10px)` : 'none';
+      }
+      e.lost.style.opacity = v.dim;
+      e.scan.style.opacity = v.scan > .001 && v.scan < .999 ? 1 : 0;
+      e.scan.style.transform = `translateY(${(v.scan * KH - 1.5).toFixed(1)}px)`;
+      e.ring.style.opacity = rp < 1 ? (.53 * (1 - rp)).toFixed(3) : 0;
+      e.ring.style.transform = `scale(${1 + 2 * spread / KW},${1 + 2 * spread / KH})`;
+      e.glow.style.opacity = v.glow;
+      e.cb.style.opacity = v.cb; e.cb.style.transform = `scale(${v.cbs})`; e.cb.style.color = cbFarg;
+    }
+  }
+
+  /* ── spåren ── */
+  varde(sym, ob, prop, ctx) {
+    if (typeof sym === 'number') return sym;
+    if (sym === 'cur') return ob.v[prop];
+    if (sym === 'hogS') return 92 / (KW * Z);
+    if (sym === 'flygS') return Math.min(1, 108 * .8 / (KW * Z));
+    const p = sym === 'mal' ? ctx.mal : sym === 'mal2' ? ctx.mal2 : sym === 'hog' ? [HOG_MITT[0] - KW / 2, HOG_MITT[1] - KH / 2] : null;
+    return p ? p[prop === 'x' ? 0 : 1] : 0;
+  }
+  /* Ett spår ur SPEC blir ett eller två (position = x och y) körbara spår. */
+  lagg(spec, ob, t0, ctx) {
+    const [, prop, nycklar, flagga] = spec;
+    for (const p of prop === 'pos' ? ['x', 'y'] : [prop]) {
+      this.vantar.push({ ob, p, ctx, svag: flagga === 'svag', k: nycklar.map(([t, v, e]) => ({ t: t0 + t, sym: v, e: e || 'LIN' })) });
+    }
+    this.vantar.sort((a, b) => a.k[0].t - b.k[0].t);
+  }
+  vardeI(s, T) {
+    const k = s.k, n = k.length;
+    if (n === 1 || T >= k[n - 1].t) return k[n - 1].v;
+    let i = 0; while (i < n - 2 && T >= k[i + 1].t) i++;
+    const a = k[i], b = k[i + 1], D = b.t - a.t;
+    const x = D <= 0 ? 1 : Math.max(0, Math.min(1, (T - a.t) / D));
+    if (a.e === 'STEP') return x >= 1 ? b.v : a.v;
+    const f = a.bez || BEZ[a.e];
+    return a.v + (b.v - a.v) * (f ? f.y(x) : x);
+  }
+  starta(s, T) {
+    const ob = s.ob, p = s.p;
+    const gammal = this.aktiva.find(a => a.ob === ob && a.p === p);
+    if (gammal && s.svag) return false;
+    /* 'cur' är där egenskapen står när spåret börjar — räknat ur det gamla
+       spåret vid starttiden, inte ur förra bildrutan. */
+    const t0 = s.k[0].t, nu0 = gammal ? this.vardeI(gammal, t0) : ob.v[p];
+    for (const k of s.k) k.v = k.sym === 'cur' ? nu0 : this.varde(k.sym, ob, p, s.ctx);
+    if (gammal) {
+      if (['x', 'y', 'r', 's'].includes(p) && s.k.length > 1) {
+        /* Farten tas med, också när det nya målet ligger åt andra hållet:
+           då blir y1 negativt och kortet bär vidare en bit innan det vänder. */
+        const v0 = (this.vardeI(gammal, t0) - this.vardeI(gammal, t0 - 4)) / 4;
+        const a = s.k[0], b = s.k[1], delta = b.v - a.v, D = b.t - a.t;
+        const bas = EASE[a.e] && EASE[a.e].b;
+        if (Array.isArray(bas) && Math.abs(delta) > .01 && D > 0 && Math.abs(v0) > 1e-4) {
+          const x1 = Math.max(bas[0], .15), k = v0 * D / delta;
+          a.bez = bezier([x1, Math.max(-1.2, Math.min(k * x1, 3)), bas[2], bas[3]]);
+          a.fart = k;
+        }
+      }
+      this.aktiva = this.aktiva.filter(a => a !== gammal);
+    }
+    this.aktiva.push(s);
+    return true;
+  }
+  steg(T) {
+    while (this.vantar.length && this.vantar[0].k[0].t <= T) {
+      const s = this.vantar.shift();
+      this.starta(s, T);
+    }
+    const smutsiga = new Set();
+    this.aktiva = this.aktiva.filter(s => {
+      s.ob.v[s.p] = this.vardeI(s, T);
+      smutsiga.add(s.ob);
+      return T < s.k[s.k.length - 1].t;
+    });
+    for (const ob of smutsiga) this.mala(ob);
+  }
+  glom(ob) {
+    this.aktiva = this.aktiva.filter(s => s.ob !== ob);
+    this.vantar = this.vantar.filter(s => s.ob !== ob);
+  }
+
+  /* ── klockan ── */
+  senare(t, fn, kort) { this.q.push({ t: (this.fasTid != null ? this.fasTid : this.klocka) + t, fn, kort }); this.q.sort((a, b) => a.t - b.t); this.igang(); }
+  igang() { if (!this.raf) { this.sist = performance.now(); this.raf = requestAnimationFrame(n => this.tick(n)); } }
+  tick(nu) {
+    this.raf = 0;
+    const dt = Math.min(64, nu - this.sist) * this.ab.fart(); this.sist = nu;
+    this.klocka += dt;
+    /* En uppdatering räknas från sin egen tid, inte från bildrutan den
+       råkade hamna i — annars står kortet still en bildruta. */
+    while (this.q.length && this.q[0].t <= this.klocka) { const x = this.q.shift(); this.fasTid = x.t; x.fn(); this.fasTid = null; }
+    this.steg(this.klocka);
+    this.ab.huvuden(this.klocka);
+    if (this.q.length || this.aktiva.length || this.vantar.length || this.ab.huvudenIgang(this.klocka)) this.igang();
+  }
+  hoppa() {
+    if (!this.q.length) return 0;
+    const d = this.q[0].t - this.klocka;
+    for (const x of this.q) x.t -= d;
+    return d;
+  }
+  stopp() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; }
+}
+
+/* ── Artboarden ───────────────────────────────────────────────────── */
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'flytt', fart: 1, minskad: false, namnMs: 1200, logg: [], gravN: 2 };
+    this.rotRef = el => { this.rotEl = el; };
+    this.lopp = null;
+    this.korFn = {}; for (const id in SCEN) this.korFn[id] = () => this.kor(id);
+    this.fartFn = {}; for (const f of [1, .5, .25]) this.fartFn[f] = () => this.setState({ fart: f });
+    this.namnFn = {}; for (const n of [500, 1200, 4000]) this.namnFn[n] = () => this.setState({ namnMs: n });
+    this.rorFn = { full: () => this.setState({ minskad: false }), min: () => this.setState({ minskad: true }) };
+    this.hoppa = () => { if (this.m) this.m.hoppa(); };
+    this.aterstall = () => this.aterstallAllt();
+  }
+  componentDidMount() {
+    if (!this.rotEl) return;
+    this.m = new Motor(this.rotEl, {
+      fart: () => this.state.fart,
+      huvuden: T => this.huvuden(T),
+      huvudenIgang: T => this.huvudenIgang(T),
+    });
+  }
+  componentDidUpdate() { if (this.m && this.rotEl && this.m.rot !== this.rotEl) this.m.fastna(this.rotEl); }
+  componentWillUnmount() { if (this.m) this.m.stopp(); }
+
+  spec() { return VAR !== 'N' && this.state.minskad ? SPEC.R : SPEC[VAR]; }
+
+  /* Faserna för en händelse: [{ kind, at }] i ms från händelsens början. */
+  faser(id) {
+    const sp = this.spec(), w = SPEC[VAR].vanta, n = this.state.namnMs;
+    const S = SCEN[id], ut = [];
+    const plus = (kind, at) => ut.push({ kind, at });
+    if (id === 'utspel') { plus('plats', 0); if (n >= 2500) plus('claude', 1500); plus('namn', n); }
+    if (id === 'flytt' || id === 'avbrott') {
+      plus('tappad', 0); if (w < 1000) plus('nedtonad', w); plus('plats', 1000); plus('flytt', 1000 + n);
+      if (id === 'avbrott') {
+        const pos = (sp.flytt || []).find(t => t[1] === 'pos' && t[0] === 'kort'), nk = pos ? pos[2] : null;
+        const halv = nk && nk.length > 1 ? Math.round((nk[nk.length - 1][0] + nk[0][0]) / 2) : 200;
+        plus('avbrott', 1000 + n + halv);
+      }
+    }
+    if (id === 'tappat') { plus('tappad', 0); plus('nedtonad', w); }
+    if (id === 'tillbaka') { plus('plats', 0); plus('tillbaka', n); }
+    if (id === 'tillbakaNy') { plus('plats', 0); plus('tillbakaNy', n); }
+    if (id === 'grav') { plus('tappad', 0); if (w < 900) plus('nedtonad', w); plus('grav', 900); }
+    if (id === 'tap') plus(this.m && this.m.o[S.kort].v.tappad ? 'untap' : 'tap', 0);
+    return ut.sort((a, b) => a.at - b.at);
+  }
+
+  /* ── en händelse ── */
+  kor(id) {
+    const m = this.m; if (!m) return;
+    const S = SCEN[id], kort = m.o[S.kort], logg = [];
+    if (!S.ingenSetup) {
+      /* Förbered: bara de kort händelsen gäller, direkt och utan rörelse. */
+      const rora = [kort, m.o.P];
+      if (id === 'grav') rora.push(m.o.hog, m.o.hogring, m.o.hogtal);
+      m.q = m.q.filter(x => !rora.includes(x.kort));
+      for (const ob of rora) m.glom(ob);
+      Object.assign(kort.v, grund(kort.id));
+      if (S.dimmad) for (const t of this.spec().nedtonad) if (t[0] === 'kort') { const k = t[2][t[2].length - 1]; kort.v[t[1]] = typeof k[1] === 'number' ? k[1] : kort.v[t[1]]; }
+      Object.assign(m.o.P.v, grund('P'));
+      m.o.spok.v.o = 0;
+      if (id === 'grav') this.hogAterstall();
+      for (const ob of rora.concat(m.o.spok)) m.mala(ob);
+    }
+    const faser = this.faser(id);
+    const t0 = m.klocka;
+    this.lopp = { id, t0, faser: faser.map(f => ({ kind: f.kind, at: t0 + f.at })) };
+    const ctx = { kort, plats: S.plats ? m.o[S.plats] : null, vid: S.vid === 'hem' ? BAS[S.kort].hem : PUNKT[S.vid], mal2: S.mal2 ? PUNKT[S.mal2] : null };
+    faser.forEach((f, i) => m.senare(f.at, () => this.fas(f.kind, ctx, i), S.ingenSetup ? null : kort));
+    this.setState({ sel: id, logg: S.ingenSetup ? this.state.logg : [] });
+    m.igang();
+  }
+  logga(txt) {
+    const m = this.m, t = this.lopp ? m.klocka - this.lopp.t0 : 0;
+    this.setState(s => ({ logg: s.logg.concat({ t: sek(Math.max(0, Math.round(t / 10) * 10)), txt }).slice(-6) }));
+  }
+  fas(kind, ctx, i) {
+    const m = this.m, sp = this.spec(), kort = ctx.kort, nu = m.fasTid != null ? m.fasTid : m.klocka, namn = BAS[kort.id].namn;
+    if (this.lopp && this.lopp.faser[i] && this.lopp.faser[i].kind === kind) this.lopp.faser[i].at = nu;
+    let spar = sp[kind] || [];
+    if (kind === 'tap' || kind === 'untap') {
+      const ar = kort.v.tappad; kind = ar ? 'untap' : 'tap'; spar = sp[kind]; kort.v.tappad = !ar;
+      if (this.lopp && this.lopp.id === 'tap') this.lopp.faser[0].kind = kind;
+    }
+    const pl = ctx.plats;
+    if (kind === 'plats' && pl) {
+      if (pl !== kort) Object.assign(pl.v, grund('P'), { x: ctx.vid[0], y: ctx.vid[1] });
+      else Object.assign(pl.v, { x: ctx.vid[0], y: ctx.vid[1], face: 0, ph: 1, clip: 1, scan: 1, cb: 0, cbs: 1, cbg: 0, claude: false, o: 0 });
+      m.mala(pl);
+    }
+    if (kind === 'claude' && pl) { pl.v.claude = true; m.mala(pl); }
+    if (kind === 'flytt' || kind === 'tillbakaNy') {
+      ctx.mal = [pl.v.x, pl.v.y];
+      Object.assign(m.o.spok.v, { x: kort.v.x, y: kort.v.y, r: kort.v.r });
+      kort.v.z = ++m.topZ; m.mala(kort);
+    }
+    if (kind === 'avbrott') { kort.v.tappad = true; }
+    if (kind === 'grav') {
+      kort.v.z = ++m.topZ; m.mala(kort);
+      Object.assign(m.o.spok.v, { x: kort.v.x, y: kort.v.y, r: kort.v.r });
+      const hogT = spar.filter(t => /^hog/.test(t[0])).map(t => t[2][0][0]);
+      const byt = hogT.length ? Math.min(...hogT) : 0;
+      m.senare(byt, () => {
+        for (const e of m.o.hog.els) e.el.src = e.el.dataset.src;
+        Object.assign(m.o.hog.v, hogGrund()); m.mala(m.o.hog);
+        this.setState({ gravN: 3 });
+      }, m.o.hog);
+    }
+    const mal = { kort, plats: pl, spok: m.o.spok, hog: m.o.hog, hogring: m.o.hogring, hogtal: m.o.hogtal };
+    for (const t of spar) { const ob = mal[t[0]]; if (ob) m.lagg(t, ob, nu, ctx); }
+    const LOGG = {
+      plats: 'Något nytt på bordet: “Reading the card…”',
+      claude: 'Kameran frågar Claude: “Asking Claude…”',
+      namn: 'Namnet: ' + namn,
+      tappad: 'Kameran ser inte ' + namn + ' längre',
+      nedtonad: 'Ingen ny plats, ingen hög växte på ' + sek(SPEC[VAR].vanta) + ' → nedtonat',
+      flytt: 'Namnet: ' + namn + ' — samma kort som försvann: en flytt',
+      avbrott: 'Ny rapport: kortet ligger längre bort, och är tappat',
+      tillbaka: 'Namnet: ' + namn + ' — det nedtonade kortet syns igen',
+      tillbakaNy: 'Namnet: ' + namn + ' — det nedtonade kortet, på ny plats',
+      grav: 'Graveyard-högen växer 2 → 3: kortet gick dit',
+      tap: 'Kameran är säker: ' + namn + ' är tappat',
+      untap: 'Kameran är säker: ' + namn + ' är otappat',
+    };
+    this.logga(LOGG[kind]);
+    m.igang();
+  }
+  hogAterstall() {
+    const m = this.m;
+    for (const e of m.o.hog.els) e.el.removeAttribute('src');
+    Object.assign(m.o.hog.v, hogGrund()); Object.assign(m.o.hogring.v, { s: .5, o: 0 }); m.o.hogtal.v.s = 1;
+    m.mala(m.o.hog); m.mala(m.o.hogring); m.mala(m.o.hogtal);
+    this.setState({ gravN: 2 });
+  }
+  aterstallAllt() {
+    const m = this.m; if (!m) return;
+    m.q = []; m.aktiva = []; m.vantar = [];
+    for (const id in BAS) { m.o[id].v = grund(id); m.mala(m.o[id]); }
+    m.o.spok.v.o = 0; m.mala(m.o.spok);
+    this.hogAterstall();
+    this.lopp = null;
+    this.setState({ logg: [] });
+    this.huvuden(m.klocka);
+  }
+
+  /* ── tidslinjens spelhuvuden ── */
+  axlar(id) {
+    const sp = this.spec();
+    return this.faser(id).map(f => {
+      const spar = (sp[f.kind] || []).filter(t => t[3] !== 'intern');
+      const slut = spar.reduce((a, t) => Math.max(a, t[2][t[2].length - 1][0]), 0);
+      return Math.max(500, Math.ceil((slut + 1) / 100) * 100);
+    });
+  }
+  huvuden(T) {
+    if (!this.rotEl) return;
+    const el = this.rotEl.querySelectorAll('.tl-head');
+    const lopp = this.lopp && this.lopp.id === this.state.sel ? this.lopp : null;
+    const ax = lopp ? this.axlar(lopp.id) : [];
+    el.forEach((h, i) => {
+      const f = lopp && lopp.faser[i], d = f ? T - f.at : -1;
+      if (!f || d < 0 || d > ax[i]) { h.style.opacity = 0; return; }
+      h.style.opacity = 1;
+      h.style.transform = `translateX(${(d / ax[i] * 380).toFixed(1)}px)`;
+    });
+  }
+  huvudenIgang(T) {
+    const l = this.lopp; if (!l) return false;
+    const ax = this.axlar(l.id);
+    return l.faser.some((f, i) => T - f.at <= ax[i] + 50);
+  }
+
+  /* ── tidslinjen som data åt mallen ── */
+  tidslinje() {
+    const id = this.state.sel, sp = this.spec(), faser = this.faser(id), ax = this.axlar(id);
+    const visa = v => typeof v === 'number' ? tal(v) : { cur: 'nu', mal: 'nya platsen', mal2: 'rättade platsen', hog: 'högen', hogS: 'högens storlek (' + tal(92 / (KW * Z)) + ')', flygS: tal(Math.min(1, 108 * .8 / (KW * Z))) }[v] || v;
+    return faser.map((f, i) => {
+      const A = ax[i];
+      const spar = (sp[f.kind] || []).filter(t => t[3] !== 'intern');
+      const steg = A <= 600 ? 100 : A <= 1000 ? 200 : 500;
+      const ticks = [];
+      for (let t = 0; t <= A; t += steg) ticks.push({ stil: `left: ${(t / A * 100).toFixed(2)}%`, txt: t === 0 ? '0 ms' : String(t) });
+      const rader = spar.map(([malId, prop, k, flagga]) => {
+        const bitar = [];
+        if (k.length === 1) bitar.push({ cls: 'tl-d', stil: `left: ${(k[0][0] / A * 100).toFixed(2)}%` });
+        for (let j = 0; j < k.length - 1; j++) {
+          const a = k[j][0], b = k[j + 1][0];
+          bitar.push({ cls: 'tl-b' + (k[j][2] === 'STEP' ? ' hopp' : ''), stil: `left: ${(a / A * 100).toFixed(2)}%; width: ${Math.max(.6, (b - a) / A * 100).toFixed(2)}%` });
+          if (j > 0) bitar.push({ cls: 'tl-k', stil: `left: ${(a / A * 100).toFixed(2)}%` });
+        }
+        const grad = prop === 'r' ? '°' : '';
+        const varden = k.map(x => visa(x[1]) + (typeof x[1] === 'number' ? grad : '')).join(' → ');
+        const tid = k.length === 1 ? (k[0][0] ? 'vid ' + k[0][0] + ' ms' : 'direkt') : (k[0][0] ? k[0][0] + '–' : '') + k[k.length - 1][0] + ' ms';
+        const eases = [...new Set(k.slice(0, -1).map(x => x[2] || 'LIN'))].filter(e => e !== 'STEP' || k.length > 2).join('/');
+        const extra = f.kind === 'avbrott' && k[0][1] === 'cur' && ['pos', 's', 'r'].includes(prop) ? ' · farten tas med' : flagga === 'svag' ? ' · inte mitt i en flytt' : '';
+        return { cls: 'm-' + malId, lbl: MAL[malId] + ' · ' + EGENSKAP[prop], bitar, txt: varden + ' · ' + tid + (eases && k.length > 1 ? ' · ' + eases : '') + extra };
+      });
+      const tomTxt = f.kind === 'claude' ? 'Texten i platshållaren byts. Inget rör sig.'
+        : f.kind === 'tappad' ? (VAR === 'N' ? 'Ingenting än. Kortet tonas ned efter 0,6 s.' : 'Ingenting ändras. Kortet står kvar som det står i upp till ' + sek(SPEC[VAR].vanta) + '. Fem av sex tappade kort är falsklarm (82 borta-domar på fem minuter, högst 10 riktiga), så väntan syns inte.')
+        : 'Ingenting rör sig.';
+      return { titel: FAS[f.kind], nar: (i === 0 ? 'vid ' : '+') + sek(f.at), om: OM[f.kind] + (f.kind === 'nedtonad' ? ' på ' + sek(SPEC[VAR].vanta) : ''), ticks, rader, harRader: !!rader.length, tom: !rader.length, tomTxt };
+    });
+  }
+
+  renderVals() {
+    const st = this.state;
+    const tappSek = sek(SPEC[VAR].vanta);
+    return {
+      rotRef: this.rotRef,
+      knappar: Object.keys(SCEN).map(id => ({ namn: SCEN[id].knapp, under: id === 'tappat' ? 'väntan ' + tappSek + ' → nedtonat' : SCEN[id].under, cls: id === st.sel ? 'vald' : '', kor: this.korFn[id] })),
+      farter: [[1, '1×'], [.5, '½×'], [.25, '¼×']].map(([f, txt]) => ({ txt, cls: st.fart === f ? 'vald' : '', val: this.fartFn[f] })),
+      namnval: [[500, '0,5 s'], [1200, '1,2 s'], [4000, '4 s · Claude']].map(([n, txt]) => ({ txt, cls: st.namnMs === n ? 'vald' : '', val: this.namnFn[n] })),
+      rorelse: [['full', 'Full'], ['min', 'Minskad']].map(([k, txt]) => ({ txt, cls: (k === 'min') === st.minskad ? 'vald' : '', val: this.rorFn[k] })),
+      visaRorelse: VAR !== 'N',
+      logg: st.logg,
+      loggTom: !st.logg.length,
+      gravN: st.gravN,
+      tl: this.tidslinje(),
+      tlTitel: SCEN[st.sel].knapp + (VAR !== 'N' && st.minskad ? ' · minskad rörelse' : ''),
+      hoppa: this.hoppa,
+      aterstall: this.aterstall,
+    };
+  }
+}
+
+</script>
+</body>
+</html>
