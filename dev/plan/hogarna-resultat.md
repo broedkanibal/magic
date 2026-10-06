@@ -1,11 +1,14 @@
-# Högarna utan uppstart: resultatet av orkestreringen (MES-334, 2026-10-04)
+# Högarna utan uppstart: resultatet av orkestreringen (MES-334, 2026-10-04 och 2026-10-05)
 
 > En orkestrerande session (Opus 5.5) körde del A och del B i
 > [`prompt-hogarna-matning-och-etapp-1.md`](prompt-hogarna-matning-och-etapp-1.md) från 05:20 den 4 oktober
-> till natten mot den 5 oktober. Alla agenter körde på Opus 5.5.
-> **Bygget är halvvägs:** steg 1 och 2 ligger på main och är ute i produktionen, steg 3 ligger på en gren,
-> och steg 4–6 återstår. Jesper valde att avsluta här och köra steg 4–6 i en ny, snålare session:
-> [`prompt-hogarna-steg-4-6.md`](prompt-hogarna-steg-4-6.md).
+> till natten mot den 5 oktober. Alla agenter körde på Opus 5.5. Steg 4–6 byggdes den 5 oktober i en ny,
+> snålare session ([`prompt-hogarna-steg-4-6.md`](prompt-hogarna-steg-4-6.md)).
+> **Läget 2026-10-05 kl. 23: sida 5 är ute.** Fall 05 med Claude var ett hål i helbildens antalsregel som fanns på
+> main också (rättelse 4 och 4b, avsnittet *Fall 05 med Claude: orsaken och rättelsen*). Grenen `mes-334-sida5`
+> är ihopslagen med main och pushad; telefonprovet står i [`hogarna-telefonprov.md`](hogarna-telefonprov.md).
+> **Samma natt, efter Jespers första blick i produktionen:** sida 5 var inte komplett. Avsnittet *Det som saknades
+> (2026-10-05, natten)* säger vad som rättats och vad som väntar på Jespers beslut.
 
 ## Sammanfattning
 
@@ -15,8 +18,9 @@
 | **0 · Baslinjen** | ✅ Klar | `dev/material/arbete/2026-10-04-hogarna-matning/baslinje.md` (lokalt) |
 | **1 · Vinkeln per kort** | ✅ På main, ute | e138dae (ovanpå en annan sessions "minnet av remsor steg 3", 261803e) |
 | **2 · Mattan ritas inte om från noll** | ✅ På main, ute | 5da8fc0 |
-| **3 · Leken** | Byggt och granskat i tre varv, **inte på main** | grenen `mes-334-steg3` (7bc8564), pushad som gren |
-| **4 · Graveyard, 5 · Högarna bland korten, 6 · Steg 4 bort** | Inte påbörjade | ny session |
+| **3 · Leken** | ✅ På main, ute | grenen `mes-334-sida5`, ihopslagen 2026-10-05 |
+| **4 · Graveyard, 5 · Högarna bland korten, 6 · Steg 4 bort** | ✅ På main, ute | samma gren, fyra rättelser efter granskning |
+| **Rättelse 4 · Helbildens namn lyder lekens antal** | ✅ På main, ute | c1ac468 + 8639a8a — hålet som fall 05 med Claude hittade, fanns på main också |
 
 ## Grindarna
 
@@ -95,6 +99,144 @@ Kvar som avvikelse från TIDSLINJER: skalan tar inte med farten vid ett avbrott.
 - Golden lokalt (på f45c5e0, före rättelse 4): 01–08 BÄTTRE (07: dubbletter 1 → 0), 09–18 LIKA BRA, 0 fel namn.
   `--utan-leken`: samma 6 fel namn som baslinjen.
 
+### Sida 5, 2026-10-05: steg 0 och 4–6 (grenen `mes-334-sida5`)
+
+En byggare (mesa-bygg, Opus) gjorde allt i följd på en gren; en granskare läste hela diffen, två till kontrollerade
+rättelserna. Detaljerna, med funktionsnamn: `dev/material/arbete/2026-10-04-hogarna-matning/steg4-6-rapport.md`
+(lokalt) och granskningarna `granskning/sida5-granskning.md`, `sida5-kontroll.md`, `sida5-kontroll2.md`.
+
+| Commit | Vad |
+|---|---|
+| c89ed37 · steg 0 | steg 3 omlagt på main med steg 1; leken får en egen, strängare väg till grundläget (`lekVinkel`: still, en låda, ingen hand, tre nya mätningar ±5° över ≥ 2 s; `lekGrund.exakt`). Uppmätt i golden 10, 11, 13: 87,8–91,3° |
+| 794a988 · steg 4 | graveyard ur spelet: sidoregeln (i lekens rad) och kort ovanpå kort (≥ 90 % täckt) ger "Is this your graveyard? Yes · No" ovanför högen, bara för ägaren; Yes → graveyard där den ligger + telefonens ruta (MES-85); No → Permanent / Ignore this spot (`gravFragaSteg`, `gravSvar`) |
+| ee1c1d3 · steg 5 | högarna bland korten i D1: graveyard där den ligger med brickan "Graveyard N", brickan behåller sin storlek i zoomen, ensamma nedvända kort visas; delas utan namn |
+| 870ae6e · steg 6 | uppstartens steg 4 bort **i Mirror my table** (provkort, Card direction, graveyard-plats, library-ruta, statusfältets fråga om grundläget). Use camera to add cards behåller steget (Jespers beslut, MES-339) |
+| c32d5ec · rättelse 1 | Ignore-zonerna glöms vid nollställning; grundläget skrivs till raden och överlever en omladdning; graveyard-rutan ur korten, oberoende av riktning; spärren medan uppstarten står öppen tillbaka |
+| 4ea0759 · rättelse 2 | **Jespers beslut:** ensamma nedvända kort och leken som läggs ner igen visas lika fort som ett vanligt kort (0 ms med kortstorlek, annars 150 ms; förut 3000 resp. 1500 ms) |
+| ec7b2b9 · rättelse 3 | Ignore gäller också efter Yes; leken flyttar till den nya högen när platsen sett tom ut > 450 ms och ritas aldrig som nedvänt kort; ett uppvänt kort på ett nedvänt tappas inte |
+
+**Mätt på det sammanslagna läget** (31c5480 = main 36ebf2a + grenen, inte pushat), profilen golden-tmp, port 8271, pool 168:
+
+| Prov | Resultat |
+|---|---|
+| `dev/kolla.sh` | grön (avstämningen 199, kamerabänken 239, leken 45, högarna 42, mattan 32, lekfoto 84/56/48 …) |
+| Golden lokalt (byggaren, efter steg 6) | 95/119, 0 fel namn — som main |
+| `--utan-leken` | 54 rätt, samma sex fel namn som main |
+| `--utan-bib` 10, 11, 13, 17 (efter rättelserna) | 9/24 rätt, 0 fel namn, 1 falsk — som efter steg 6 |
+| `--utan-bib` 18 | 8 hittade / 3 rätt mot 9 / 4 med facits ruta (glappet var 7/1 mot 9/2 i steg 3) |
+| **Med Claude, 01–17** | 93/109 rätt (var 92), **1 fel namn i 05** (var 0) |
+| Med Claude, 18 | 4/10 (var 3), 0 fel namn |
+
+## Det som saknades (2026-10-05, natten)
+
+Jesper såg i produktionen (spel ACDHC6): en tom graveyard-plats och en fast library med "Pick up 40" i hörnet,
+med kameran ansluten och efter att den tappats. Bordsraden visade att leken aldrig kom upp på mattan.
+
+**Varför det gick igenom:** bänken provade att library-högen var borta i steg 1, aldrig graveyard; och provet
+"utan kamera" ställde upp Mirror my table med kameran borta och krävde de fasta högarna — principernas "spelare
+utan kamera" betyder Use camera to add cards ('skarm'). En fristående granskare gick sedan igenom hela
+byggunderlaget, promptarna och sida 5 krav för krav mot koden och proven.
+
+| Hål | Rättelse | Prov |
+|---|---|---|
+| Fast graveyard i hörnet från att kameran anslöt, också hos motståndaren | `speglatBord(p)`: inga fasta högar på ett speglat bord | hogarna "1 · kameran ansluten…", "5 · före Yes…", motståndaren |
+| Fast library när telefonen inte rapporterat någon lek (detektorn laddar, eller inte går att ladda) och när kameran tappats; mattan sa "Play your first card" | `lekUtanFastPlats`, `lekText` utan krav på telefonens rapport | leken "1 · telefonen har inte börjat leta" |
+| Ett kort som **flyttas** till graveyard-platsen (en varelse som dör) gav ingen fråga | `gravSedda` minns läget; flyttat och lagt sig = prövas igen | avstamning GY8, GY9 |
+| Högarna gled upp till 340 px mot korten när kortens median-bredd ändrades | skalan låst (byts vid > 8 %) och i nyckeln, så att allt räknas om ihop | hogarna "skalan byts" |
+| Frågan och Not my library-kortet försvann när kameran tappades | `gravFragaNu`, `lekUteLista` utan krav på anslutning | hogarna "5 · kameran tappas" |
+| Tom graveyard bland korten efter Yes | ingen post när högen är tom | hogarna "graveyard efter Yes men tom" |
+| Exile som en bricka i hörnet, inte bredvid leken | `hogarBredvid`: exile i D1 bredvid leken på mattan | hogarna "exile bredvid graveyard…" |
+| Ett instant före Yes (besvärjelseregeln) tog fram den fasta graveyard-högen | samma: graveyard bredvid leken, bort från landen — **antagande, väntar på Jesper** | hogarna "reserven med leken på mattan" |
+
+Bekräftat i samma prov: graveyard skapas där första kortet låg (4–6 px), och leken och graveyard följer
+panoreringen exakt som ett kort. De delarna var byggda; flödet slogs bara aldrig på.
+
+**Väntar på Jespers beslut:**
+1. Instant före Yes: graveyard bredvid leken (byggt nu), eller ingen graveyard alls förrän Yes, eller vänta med
+   besvärjelseregeln tills graveyard finns.
+2. Statusfältets "Untapped angle not saved — lay a card untapped and press Save" kom tillbaka i Mirror my table
+   i rättelse 1 (byggarens val). Byggunderlaget säger grundläget automatiskt, utan fråga.
+3. Graveyard följer inte när spelaren flyttar högen (del A mätte det i 09-21). Hör det till det här bygget?
+
+**Kvar, utan beslut (mindre synligt):** leken visas med Magic-baksidan ~3 s innan sleevesfärgen är mätt; Yes byter
+kort mot hög utan designens toning; en telefon utan tränad detektor tar inte grundläget ur första kortet
+(telefonens kod, kräver golden); motståndarna ser inte Not my library-högen; brickan på motståndarens matta
+skalar med brädet.
+
+## Fall 05 med Claude: orsaken och rättelsen (2026-10-05 kl. 20–23)
+
+**Orsaken** var två hål i `tillampaHelbild` (Kamera-modulen), identiska på main och grenen:
+
+1. **Lekens antal prövades bara för nya spår ur helbilden.** Ett eget, osäkert spår som helbilden namngav fick
+   namnet säkert utan att antalet räknades. I 05 är #1 (Pacifism) osäkert efter klungan "Scourge, Pacifism", och
+   Claudes Scourge-punkt gav det Scourge säkert — fast #6 redan var säkert Scourge ur remsan och leken har ett.
+2. **Punkten i flera lådor tog det första spåret i listan.** #1 och #6 ligger omlott; Scourge-punkten låg i båda,
+   och #1 kom först.
+
+Ingen av misstankarna i avsnittet nedan höll: helbildens funktioner, lådorna och bilden till Claude var identiska
+på main och grenen i alla 24 körningar. Det som skilde var Claudes punkt från gång till gång. 0 av 6 på main mot
+8 av 19 efter steg 3 går inte att skilja från slumpen (~4 %), så steg 3 är varken fällt eller friat — hålet fanns
+på main och är nu stängt där med.
+
+**Rättelsen** (c1ac468, granskad; granskningens fynd rättade i 8639a8a): `farSakert()` räknar de säkra spår
+som bär namnet (egna, förra helbildens — också innan de känts igen — och omgångens nya, utom spåret som prövas,
+inte spår på väg bort) mot `cb.lekTak`, på alla tre vägarna: eget spår, förra helbildens spår och nytt spår. Ett
+namn utöver antalet blir osäkert ("fler än leken") och går till granskningen. Punkten i flera lådor tar spåret
+som redan bär namnet (säkert före gissat), sedan ett spår utan säkert namn, sedan det första; ett spår tar en
+punkt per omgång. Vägen går genom `cb.lekTak` i stället för appens globaler, så att bänken kan pröva regeln:
+HB0–HB5 i `dev/kamerabank.cjs` (248 OK). Granskaren (en fristående agent, ~30 min) fann inget blockerande;
+de tre viktiga fynden (förra helbildens spår räknades sent, ett klart säkert spår kunde ta punkten, bänken
+skilde inte namnregeln från antalsregeln) är rättade och har egna bänkfall.
+
+**Mätt på det sammanslagna läget** (8639a8a = main 62202b2 + grenen, profilen golden-tmp, port 8271, pool 168,
+bildmodellen från HuggingFace = appens förval):
+
+| Prov | Resultat |
+|---|---|
+| **Fall 05 med Claude** | **6 av 6 körningar 0 fel namn, 6/6 rätt** (3 på rättelse 4, 3 på 4b) — helbilden ger Pacifism rätt varje gång; före: säkert fel i 8 av 19 |
+| `dev/kolla.sh` | grön (kamerabänken 248) |
+| Golden lokalt 01–18 | 95/119, 0 fel namn, falska 1 → 1 — som main |
+| Med Claude 01–17 | **96/109** (var 92 i baslinjen, 93 i byggarens mätning), 0 fel namn, 0 falska; 13: 4 → 5, 14: 8 → 10, 15: 9 → 10 |
+| Med Claude 18 | 4/10 (var 3), 0 fel namn |
+| Sämre mot baslinjen | bara lägesuppdateringar (13, 18) och en falsk tap-flipp i 13 — videofall som varierar |
+
+**Fälla på vägen:** mätträdet i scratchpaden saknade `node_modules`, så de tre första "0 fel"-körningarna var
+den lokala kedjan utan Claude (5/6, `helbild: null`). kor.cjs säger det bara i en VARNING-rad sist i utskriften.
+Läs den raden och `namnViaAi` i JSON före varje slutsats ur en `--ai`-körning; i en ny worktree: symlänka
+`.env.local`, `dev/material`, `node_modules`, `dev/embed/modeller` och `dev/embed/cache`.
+
+### Så såg det ut när det stannade (2026-10-05 kl. 20)
+
+**Felet:** Pacifism (spår 1, hög B ovanpå/under Scourge of the Undercity) blir säkert **Scourge of the Undercity**
+via helbilden (`varfor: helbild`) — fast spår 6 redan är säkert Scourge ur remsan. Kortets egen fråga ger klungan
+"Scourge, Pacifism" osäker. Samma hög är MES-331:s kända klunga-fälla, men den här vägen går genom helbilden.
+
+**Mätt, fall 05 med Claude, tre körningar per steg, om växlande, samma profil och port:**
+
+| Kod | Fel namn |
+|---|---|
+| main 36ebf2a | 0 · 0 · 0 |
+| 208ca99 (steg 3:s första commit) | 0 · 0 · 0 |
+| ad4b5b2 (steg 3 klart, före steg 0) | 1 · 1 · 0 |
+| c89ed37 (steg 0) | 0 · 0 · 0 |
+| ee1c1d3 (steg 5) | 0 · 1 · 1 |
+| 870ae6e (steg 6) | 1 · 0 · 0 |
+| 4ea0759 (rättelse 2) | 0 · 0 · 0 |
+| ec7b2b9 / 31c5480 (allt) | 1 · 0 · 1 · 1 |
+
+Före steg 3:s andra commit: 0 av 6. Efter: 8 av 19. Felet är slumpartat (Claudes helbild svarar olika) men
+kommer in med **steg 3 (leken), mellan 208ca99 och ad4b5b2**. Fall 05 hittar ingen lek (`ingen lek vald`), så det
+är inte lekens ruta som lägger kortet. **Misstankar, inte prövade:** (1) lekvaktens arbete per ruta flyttar
+*när* helbilden skickas, och helbildens fördelning av svaret på spåren (`tillampaHelbild`) har en svaghet som main
+råkar slippa; (2) helbilden ger ett andra säkert Scourge fast leken bara har ett och ett annat spår redan bär
+namnet — antalsspärren (`lekTak`/dubblettregeln) verkar inte gälla helbildens namn. Utskrifterna:
+`/private/tmp/claude-501/-Users-jesperfunk-Code-magic/efd1c35f-2a55-4b48-8dad-5e911547e617/scratchpad/bisekt/`
+och `…/f05/` (JSON per körning, `spar[].varfor`, `helbild`).
+
+**Nästa steg:** en mesa-bygg-tung som (1) prövar misstanke 2 i koden — gäller lekens antal helbildens namn? — och
+(2) kör 05 med Claude fler gånger på main för att veta mains egen frekvens. Rättas det i helbildens väg är det en
+ändring som rör 0 fel namn även på main. Sedan: ihopslagningen enligt prompten (merge-tree + bänk + `--ai`).
+
 ## Vad som mättes (del A)
 
 Allt står i [`hogarna-matning.md`](hogarna-matning.md). Kort:
@@ -122,8 +264,12 @@ Varje steg granskades av fristående agenter som inte byggt steget. Varje rätte
 | 1 | 1 | 0 / 2 / 4 | fel långsida med en hand i lådan; tap-domen för kort utan namn jämförde mot fel lådor |
 | 1 | 2 | 0 / 1 / 4 | rättelsen fångade inte sitt eget fall (golden 18) — därför "bara remsan är säker" |
 
-Inget varv hittade ett säkert fel namn. Rättelse 4 av steg 3 (7bc8564) och steg 1:s rättelse 2 (21b451b, kontrollerad av orkestreraren) är inte granskade
-separat; de ingår i nästa sessions helgranskning av steg 3–6.
+| 3–6 (sida 5) | 1 | 0 / 4 / 4 | Ignore this spot blev en osynlig zon för alltid; grundläget överlevde inte en omladdning; graveyard-rutan för låg efter Yes; en nedvänd hand blir ett nedvänt kort (V2, Jesper accepterade) |
+| 3–6, rättelse 1+2 | 2 | 0 / 4 / 5 | regression: Ignore + Yes gav tillbaka den ignorerade högen; leken visades som nedvänt kort efter en flytt; ett uppvänt kort på ett nedvänt tappades |
+| 3–6, rättelse 3 | 3 | 0 / 1 / 3 | K2-1: lyft lek + nedvänt kort + leken tillbaka inom 0,6–2 s → Library hamnar på det nedvända kortet (känd rest) |
+
+Inget granskningsvarv hittade ett säkert fel namn. Felet i fall 05 hittades av golden med Claude, inte av granskningen.
+Rättelse 4 av steg 3 granskades i helgranskningen av sida 5 (RP2, RP7, RP8 — håller).
 
 ## Vad som valdes där underlaget var oklart
 
@@ -135,21 +281,19 @@ separat; de ingår i nästa sessions helgranskning av steg 3–6.
 | Brickan "Library" utan tal | **Jespers beslut** 2026-10-04 (frågat i sessionen): Mesa vet inte när kort dras |
 | Zoomen glider i en synlig vy men ritas på plats vid vybyten | Steg 2:s prompt bad om transform-animering för zoom; zoomstegen själva är MES-338 |
 | Steg 1 vrider bara beskärningen när remsan ger riktningen | Osäkert = orört; formens riktning gav fel långsida med en hand i lådan |
+| Use camera to add cards behåller uppstartens steg 4 | **Jespers beslut** 2026-10-05: graveyard-frågan kräver Follow the table; resten i MES-339 |
+| Nedvända kort och leken som läggs ner igen visas direkt; en nedlagd hand blir ett nedvänt kort | **Jespers beslut** 2026-10-05: hellre direkt än 3 s väntan, som ändå inte hjälper när handen ligger nere medan man bläddrar i leken |
+| K2-1 (lyft lek + nedvänt kort inom ~2 s) blir känd rest | Sista granskningsvarvet: rester som inte ger fel namn eller läcker dold info rättas inte |
 
 ## Vad som fattas
 
-- **Steg 4–6** (graveyard, högarna bland korten, uppstartens steg 4 bort): [`prompt-hogarna-steg-4-6.md`](prompt-hogarna-steg-4-6.md).
-- **Golden 18 utan uppstartens ruta:** 7 hittade / 1 rätt namn mot 9 / 2 med rutan. Orsaken är **okänd**
-  (korten som skiljer ligger 3–4 kortbredder från leken); nio varianter av lekens egen ruta gav högst 8 / 1.
-  Golden kör i dag med facits ruta, som uppstarten. Steg 6 tar bort uppstarten, så skillnaden måste hittas eller
-  redovisas där.
-- Golden 07: en falsk "lek" vid 30,6 s efter första kortet (en inbränd ram i videon).
-- Ett nedvänt kort på lekens gamla plats tas för leken vid första lyftet efter en flytt (Not my library rättar).
-- Riktig telefon är oprovad för allt: vinkelns kostnad på telefonen, upplockad lek med en riktig hand,
-  sleeves-färgen under lampan, mattans tempo.
+- **Fall 05 med Claude** (ovan): stoppar ihopslagningen.
+- **Kända rester** (steg4-6-rapport.md, *Kända rester efter rättelse 3*): N5 blandning på bordet ger nedvända kort
+  ~1 s; N7–N9 misstankar; N4:s rest (ett draget kort kan blinka förbi som nedvänt); Ignore filtrerar inte i Screen
+  leads; K2-1; V2 (Jespers val); golden 18 utan ruta 8/3 mot 9/4; golden 07:s falska lek vid 30,6 s.
+- Kort ovanpå kort kräver att kameran ser det nya kortet som eget kort (MES-250); Ignore har ingen ångra.
+- **Riktig telefon är oprovad för allt** i sida 5. Provlistan för Jesper: `dev/plan/hogarna-telefonprov.md`.
 - `dev/spegelfacit/kor.cjs` väntar på en pool om 114 kort; poolen är 168. Kör med `--tunn-pool` tills det rättats.
-- Golden 18 med Claude hade 1 fel namn på main efter remsminnet steg 3 (261803e); koden är borttagen i 2db6621,
-  så nästa sessions `--ai`-körning jämförs åter mot 0. Från 6c38206 säger `--ai` ifrån om Claude-handlern inte laddas.
 
 ## Hur körningen gick (lärdomar)
 
@@ -161,6 +305,13 @@ separat; de ingår i nästa sessions helgranskning av steg 3–6.
 - **Pushen till main nekades först** av behörighetskontrollen i auto-läget; Jesper godkände den sedan i chatten.
 - Ett mätlås (`matlas.sh` i sessionens scratchpad) höll golden, bänken och tunga Python-jobb till en åt gången.
 - En golden-körning med "⏱ tak" på ett fall är ogiltig — fallet slog i tidstaket under last.
+- **Steg 4–6 (2026-10-05):** bygget tog ~4 h, granskning + tre rättelser ~3 h, ihopslagningens mätning ~1 h, och
+  fall 05 ~2 h (mest väntan på en annan sessions 4K-jobb och på svar). Varje kontroll av en rättelse hittade nya
+  fel (3 av 3). Mätbudgeten står nu i `dev/plan/orkestrering.md` och agentdefinitionerna (05c1bab), och
+  stillbildstaket i golden är 60 s (36ebf2a).
+- **Samordning med andra sessioner:** skicka "golden startar" *och* "klart" — ett uteblivet "klart" fick en annan
+  session att starta 4K-märkning som sedan krockade med nästa golden. En pausad process (SIGSTOP) syns fortfarande
+  i `pgrep`; vänta på lasten, inte på processen.
 
 ## Inspelningslistan (ur del A)
 

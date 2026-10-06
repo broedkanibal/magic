@@ -1681,6 +1681,100 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     Kamera.satTrosklar({ remsaMinne: 1 });
     namnSvar = saker;
 
+    // ── HB: helbilden och lekens antal (MES-334, golden 05 med Claude) ──
+    /* Två kort omlott (bygg3/det3). Det första spåret i listan är osäkert
+       med Scourge överst bland gissningarna (klungan), det andra är säkert
+       Scourge ur remsan, och leken har ETT Scourge. Claudes helbild ger
+       Scourge och Pacifism med punkter i båda lådorna (HB1), Scourge med en
+       punkt bara i det osäkra spårets låda (HB2, HB3) och Scourge långt
+       från båda (HB4). Före rättelsen tog det första spåret i listan
+       Scourge säkert — ett andra exemplar av ett kort leken har ett av —
+       i 8 av 19 golden-körningar. */
+    {
+      const SC = 'Scourge of the Undercity', PA = 'Pacifism';
+      namnSvar = osaker; nystart(); Kamera.satTrosklar({ remsaMinne: 0, spokMs: 2000 }); await lyft(LYFT);
+      for (let i = 0; i < 20; i++) s = await rutaDet(bygg3, det3);
+      /* Rollerna: det första spåret i listan är det osäkra — och i HB1b
+         tvärtom, så att utfallet inte beror på listordningen. */
+      let [osakert, sakert] = Kamera.spar;
+      const stall = () => {
+        Object.assign(osakert, { tillstand: 'okand', saker: false, namn: SC, sid: null, varfor: 'ai klunga', fragad: true, cands: [{ name: SC, sid: 's9', score: 0 }, { name: PA, sid: 's2', score: 0 }] });
+        Object.assign(sakert, { tillstand: 'klar', saker: true, namn: SC, sid: 's9', varfor: 'remsa', fragad: true, cands: [{ name: SC, sid: 's9', score: 0.9 }] });
+      };
+      const inne = (x, y, b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+      /* En punkt i båda lådorna (snittets mitt) och en bara i det osäkra spårets låda. */
+      let bada = null, bara = null;
+      if (Kamera.spar.length === 2) {
+        const a = osakert.box, b = sakert.box;
+        const x0 = Math.max(a.x, b.x), x1 = Math.min(a.x + a.w, b.x + b.w), y0 = Math.max(a.y, b.y), y1 = Math.min(a.y + a.h, b.y + b.h);
+        if (x1 > x0 && y1 > y0) bada = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+        for (let y = a.y + 1; y < a.y + a.h && !bara; y += 2) for (let x = a.x + 1; x < a.x + a.w && !bara; x += 2) if (!inne(x, y, b)) bara = { x, y };
+      }
+      const fmtHB = () => Kamera.spar.map(t => `#${t.id} ${t.tillstand} ${t.namn || ''}${t.saker ? ' SÄKER' : ''} [${t.varfor}]${t.ai && t.ai.helbild ? ' helbild' : ''}`).join(', ');
+      const sakraSC = () => Kamera.spar.filter(t => t.saker && t.namn === SC).length;
+      const upplagg = `spår ${Kamera.spar.length}, lådor ${JSON.stringify(Kamera.spar.map(t => t.box))}, båda ${JSON.stringify(bada)}, bara ${JSON.stringify(bara)}`;
+      check(`HB0 uppställningen: ${upplagg}`, Kamera.spar.length === 2 && !!bada && !!bara);
+      if (bada && bara) {
+        Kamera.installera({ lekTak: n => (n === SC ? 1 : 4) });
+        // HB1: Scourge och Pacifism, båda punkterna i båda lådorna — Scourge tas av spåret som redan bär det säkert, Pacifism av det osäkra
+        stall();
+        Kamera.tillampaHelbild([{ x: bada.x / W, y: bada.y / H, namn: SC, sid: 's9', saker: true }, { x: bada.x / W, y: bada.y / H, namn: PA, sid: 's2', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        const hb1 = () => Kamera.spar.length === 2 && sakraSC() === 1 && sakert.saker && sakert.namn === SC && osakert.saker && osakert.namn === PA && osakert.varfor === 'helbild' && osakert.tillstand === 'klar';
+        check(`HB1 två namn i båda lådorna: ${fmtHB()}`, hb1());
+        // HB1b: samma med rollerna bytta — det säkra spåret först i listan
+        [osakert, sakert] = [sakert, osakert]; stall();
+        Kamera.tillampaHelbild([{ x: bada.x / W, y: bada.y / H, namn: SC, sid: 's9', saker: true }, { x: bada.x / W, y: bada.y / H, namn: PA, sid: 's2', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB1b samma, det säkra spåret först i listan: ${fmtHB()}`, hb1());
+        [osakert, sakert] = [sakert, osakert];
+        // HB1c: utan lek (ingen antalsspärr), bara Scourge i båda lådorna — spåret som bär namnet tar punkten, det osäkra rörs inte
+        Kamera.installera({ lekTak: null }); stall();
+        Kamera.tillampaHelbild([{ x: bada.x / W, y: bada.y / H, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB1c utan lek, Scourge i båda lådorna: ${fmtHB()}`,
+              Kamera.spar.length === 2 && sakraSC() === 1 && !osakert.saker && osakert.tillstand === 'okand' && osakert.varfor === 'ai klunga');
+        // HB1d: två Scourge-punkter i båda lådorna och leken har två — det andra kortet får också namnet
+        Kamera.installera({ lekTak: n => (n === SC ? 2 : 4) }); stall();
+        Kamera.tillampaHelbild([{ x: bada.x / W, y: bada.y / H, namn: SC, sid: 's9', saker: true }, { x: bada.x / W, y: bada.y / H, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB1d två Scourge-punkter, leken har två: ${fmtHB()}`, Kamera.spar.length === 2 && sakraSC() === 2 && osakert.saker && osakert.varfor === 'helbild');
+        Kamera.installera({ lekTak: n => (n === SC ? 1 : 4) });
+        // HB2: Scourge med punkten bara i det osäkra spårets låda — leken har ett, och det bärs redan: osäkert, 'fler än leken'
+        stall();
+        Kamera.tillampaHelbild([{ x: bara.x / W, y: bara.y / H, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB2 ett andra Scourge på ett eget spår, leken har ett: ${fmtHB()}`,
+              Kamera.spar.length === 2 && sakraSC() === 1 && !osakert.saker && osakert.tillstand === 'okand' && osakert.namn === SC && osakert.varfor === 'fler än leken' && osakert.cands[0].name === SC);
+        // HB3: samma, leken har två Scourge — säkert ur helbilden
+        Kamera.installera({ lekTak: n => (n === SC ? 2 : 4) });
+        stall();
+        Kamera.tillampaHelbild([{ x: bara.x / W, y: bara.y / H, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        check(`HB3 leken har två Scourge: ${fmtHB()}`,
+              Kamera.spar.length === 2 && sakraSC() === 2 && osakert.saker && osakert.tillstand === 'klar' && osakert.varfor === 'helbild');
+        // HB4: ett NYTT spår ur helbilden (punkten långt från båda), leken har ett Scourge som redan bärs — föds osäkert; med två: säkert
+        Kamera.installera({ lekTak: n => (n === SC ? 1 : 4) });
+        stall();
+        const langt = { x: 0.85, y: 0.3 };
+        Kamera.tillampaHelbild([{ x: langt.x, y: langt.y, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        /* Ögonblicksbilden: nästa anrop känner igen samma helbildsspår (fall 2) och får göra det säkert när leken har två. */
+        const hb4 = Kamera.spar.find(t => t.ai && t.ai.helbild) || null, ny1 = hb4 ? Object.assign({}, hb4) : null;
+        Kamera.installera({ lekTak: n => (n === SC ? 2 : 4) });
+        Kamera.tillampaHelbild([{ x: langt.x, y: langt.y, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        const ny2 = Kamera.spar.find(t => t.ai && t.ai.helbild) || null;
+        check(`HB4 nytt spår ur helbilden: leken har ett → ${ny1 && ny1.tillstand} [${ny1 && ny1.varfor}], två → ${ny2 && ny2.tillstand} [${ny2 && ny2.varfor}]; ${fmtHB()}`,
+              !!ny1 && ny1.tillstand === 'okand' && !ny1.saker && ny1.varfor === 'fler än leken' && !!ny2 && ny2.tillstand === 'klar' && ny2.saker && ny2.varfor === 'helbild');
+        // HB5: förra helbildens säkra Scourge (långt bort) räknas också när ett NYTT spår med samma namn kommer FÖRE det i svaret — leken har ett: det nya föds osäkert, det gamla behålls säkert
+        Object.assign(osakert, { tillstand: 'okand', saker: false, namn: PA, varfor: 'ai klunga', cands: [{ name: PA, sid: 's2', score: 0 }] });
+        Object.assign(sakert, { tillstand: 'okand', saker: false, namn: PA, varfor: 'ai klunga', cands: [{ name: PA, sid: 's2', score: 0 }] });
+        Kamera.installera({ lekTak: n => (n === SC ? 1 : 4) });
+        const gammal = Kamera.spar.find(t => t.ai && t.ai.helbild) || null;   // ny2 ovan: säkert Scourge ur helbilden vid langt
+        const annan = { x: 0.85, y: 0.6 };
+        Kamera.tillampaHelbild([{ x: annan.x, y: annan.y, namn: SC, sid: 's9', saker: true }, { x: langt.x, y: langt.y, namn: SC, sid: 's9', saker: true }], { helbild: true, skal: 'auto' }, nu);
+        const hbs = Kamera.spar.filter(t => t.ai && t.ai.helbild);
+        check(`HB5 nytt spår före förra helbildens säkra i svaret, leken har ett: ${fmtHB()}`,
+              !!gammal && gammal.saker && hbs.length === 2 && hbs.includes(gammal) && sakraSC() === 1 && hbs.some(t => t !== gammal && !t.saker && t.varfor === 'fler än leken'));
+        Kamera.installera({ lekTak: null });
+      }
+      Kamera.satTrosklar({ remsaMinne: 1 });
+      namnSvar = saker;
+    }
+
     // ── VK: kortets vinkel i detektorns raka låda (MES-334 steg 1) ───
     /* Videon här är en attrapp utan bildpunkter, så KortVinkel.kortVinkel
        byts mot en stubb som svarar med en given vinkel per anrop — det är
@@ -2012,6 +2106,510 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     }
     KV.kortVinkel = kvRiktig; kvSvar = null;
     namnSvar = saker;
+  }
+
+  // ── LK: leken utan uppstart (MES-334 steg 3) ─────────────────────
+  /* Ingen library-ruta (kal.bib null): lekvakten letar efter leken bland
+     detektorns baksidelådor (klass baksida). Högen ritas som ett mörkt
+     kort så att masken ser den, och lådan matas in som i appen
+     (steg(…, det)). Identifieringen svarar 'baksida ficka' för spår med
+     klassen baksida — som kamIdentifiera för en lek i sleeves — och Plains
+     för allt annat. Kraven ur Byggunderlaget och del A:s mått: still i
+     1,5 s, inte vid kanten, ensam (eller den som ligger kvar), upplockad
+     först när detektorn tappat den i 1,5 s OCH platsen sett tom ut i 2 s. */
+  {
+    /* RM-blocket startade modulen med en egen bord-återkoppling utan extra: tillbaka till bänkens, som läser rapportens extra (lek). */
+    const forraSvar = namnSvar;
+    Kamera.installera({ bord: (spar, nollstall, extra) => { bord = spar; bordExtra = extra || null; bordRapporter++; if (nollstall) nollst++; } });
+    const V = 8;
+    const lada = (b, klass) => ({ x0: b.x * V, y0: b.y * V, x1: (b.x + b.w) * V, y1: (b.y + b.h) * V, poang: 0.9, klass });
+    const det = kort => ({ lador: { kort, remsor: [] }, ruta: { x: 0, y: 0, w: W * V, h: H * V } });
+    const svar = (id, gissning) => {
+      const t = Kamera.spar.find(q => q.id === id);
+      return t && t.klass === 'baksida' ? { baksida: true, varfor: 'baksida ficka', poang: 0.9 } : { namn: 'Plains', sid: 's1', saker: true, cands: [{ name: 'Plains', sid: 's1', score: 0.9 }] };
+    };
+    const steg1 = async (ritar, lador) => {
+      nu += TAKT; const sl = lcg(2000 + nu); const g = matta(W, H, 100, 3, sl);
+      for (const r of ritar) r(g);
+      Kamera.steg(g, nu, H, undefined, V, det(lador));
+      await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+      return Kamera.lek;
+    };
+    const hog = b => g => kort(g, W, b.x, b.y, b.w, b.h, 55);       // en nedvänd hög: mörk, med kortets struktur
+    const kortR = b => g => kort(g, W, b.x, b.y, b.w, b.h, 180);
+    const kor = async (n, ritar, lador) => { let l = null; for (let i = 0; i < n; i++) l = await steg1(ritar, lador); return l; };
+    /* Kör n rutor och ge första rutan (1 = första) där varje villkor blev sant; ms(i) är tiden från första rutan (Rättelse 2). */
+    const forstaRuta = async (n, ritar, lador, villkor) => {
+      const ut = villkor.map(() => null);
+      for (let i = 1; i <= n; i++) { const l = await steg1(ritar, lador); villkor.forEach((v, j) => { if (ut[j] == null && v(l)) ut[j] = i; }); }
+      return ut;
+    };
+    const ms = i => i == null ? '–' : (i - 1) * TAKT;
+    const grader = () => Kamera.grund == null ? null : Math.round(Kamera.grund * 180 / Math.PI) % 180;
+    const L = { x: 150, y: 60, w: 30, h: 42 }, L2 = { x: 40, y: 70, w: 30, h: 42 };
+    const nyttBord = async upp => { nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: upp || 'v' } }); namnSvar = svar; await kor(14, [], []); };
+
+    // LK1: leken läggs ner på ett tomt bord — library efter 1,5 s still, och dess vinkel blir otappat
+    await nyttBord('h');
+    const l1a = await kor(6, [hog(L)], [lada(L, 'baksida')]);
+    const l1b = await kor(8, [hog(L)], [lada(L, 'baksida')]);
+    const sp1 = Kamera.spar.find(t => t.klass === 'baksida');
+    check(`LK1 leken läggs ner: efter 0,9 s ${l1a && l1a.lage}, efter 2,1 s ${l1b && l1b.lage} ruta ${JSON.stringify(l1b && l1b.ruta)}, grundläget ${grader()}° (${l1b && l1b.grund}), rapporten ${bordExtra && bordExtra.lek && bordExtra.lek.lage}, högens spår ${sp1 && sp1.tillstand} [${sp1 && sp1.varfor}]`,
+          !!l1a && l1a.lage === 'ingen' && !!l1b && l1b.lage === 'nere' && Math.abs(l1b.ruta.x - L.x / W) < 0.01 && Math.abs(l1b.ruta.w - L.w / W) < 0.01
+          && grader() === 90 && l1b.grund === 'lek' && bordExtra && bordExtra.lek && bordExtra.lek.lage === 'nere' && !!sp1 && sp1.tillstand === 'skrap');
+    const id1 = l1b && l1b.id;
+
+    // LK2: Not my library — högen blir ett nedvänt kort (ute), texten tillbaka till steg 1, grundläget släpps (inget kort lagt); väljs inte igen
+    const inte = Kamera.lekInte(id1);
+    const l2a = Kamera.lek;
+    const l2b = await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK2 Not my library: svar ${inte}, ${l2a && l2a.lage}, ute ${JSON.stringify(l2b && l2b.ute)}, efter 2 s till ${l2b && l2b.lage}, grundläget ${grader()}`,
+          inte === true && l2a.lage === 'ingen' && l2b.lage === 'ingen' && l2b.ute.length === 1 && l2b.ute[0].id === id1 && grader() === null);
+    // LK2b: It's my library — det nedvända kortet blir leken igen
+    const ja = Kamera.lekJa(id1);
+    const l2c = await kor(2, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK2b It's my library: svar ${ja}, ${l2c && l2c.lage} id ${l2c && l2c.id}, ute ${l2c && l2c.ute.length}, grundläget ${grader()}`,
+          ja === true && l2c.lage === 'nere' && l2c.id === id1 && l2c.ute.length === 0 && grader() === 90);
+
+    // LK3: en hand vilar på leken (lådan borta, platsen täckt) — leken fryser, blir inte upplockad
+    const handL = g => hand(g, W, L.x + 15, L.y + 21, 26, 30, 170);
+    const l3a = await kor(25, [hog(L), handL], []);
+    check(`LK3 hand på leken i 3,7 s: ${l3a && l3a.lage}`, !!l3a && l3a.lage === 'nere');
+    // LK4: leken plockas upp (platsen tom) — upplockad efter ~2 s, inte före 1,5 s
+    const l4a = await kor(8, [], []);
+    const l4b = await kor(10, [], []);
+    check(`LK4 leken upplockad: efter 1,2 s ${l4a && l4a.lage}, efter 2,7 s ${l4b && l4b.lage}, ruta kvar ${!!(l4b && l4b.ruta)}`,
+          !!l4a && l4a.lage === 'nere' && !!l4b && l4b.lage === 'upp' && !!l4b.ruta);
+    // LK5: leken läggs ner någon annanstans — den flyttar dit, samma id. Lika fort som ett vanligt kort (Rättelse 2,
+    //   Jespers beslut 2026-10-05): utan kortstorlek (inget säkert kort än) två formstilla rutor, som skuggklar — förut 1,5 s still.
+    const nereVid = b => l => l.lage === 'nere' && Math.abs(l.ruta.x - b.x / W) < 0.01;
+    const [i5] = await forstaRuta(14, [hog(L2)], [lada(L2, 'baksida')], [nereVid(L2)]);
+    const l5b = Kamera.lek;
+    check(`LK5 leken lagd på ny plats: nere där efter ${ms(i5)} ms (två formstilla rutor), efter 2,1 s ${l5b && l5b.lage} x ${l5b && l5b.ruta && l5b.ruta.x} (väntat ${(L2.x / W).toFixed(3)}), id ${l5b && l5b.id} (var ${id1})`,
+          i5 === 2 && l5b.lage === 'nere' && Math.abs(l5b.ruta.x - L2.x / W) < 0.01 && l5b.id === id1);
+    // LK5b: leken plockas upp igen och läggs tillbaka på SAMMA plats — nere i andra rutan, förut efter stillaMs (0,8 s still)
+    await kor(26, [], []);
+    const l5c = Kamera.lek && Kamera.lek.lage;
+    const [i5b] = await forstaRuta(10, [hog(L2)], [lada(L2, 'baksida')], [nereVid(L2)]);
+    check(`LK5b leken tillbaka på samma plats: lyft ${l5c}, nere igen efter ${ms(i5b)} ms, id ${Kamera.lek && Kamera.lek.id}`,
+          l5c === 'upp' && i5b === 2 && Kamera.lek.id === id1);
+    // LK5c: leken hålls över bordet en stund (syns två rutor vid L3) och försvinner igen — inte nerlagd: upplockad på sin
+    //   gamla plats igen lika fort som ett vanligt kort försvinner (mer än bortaMs tom matta), och läggs sedan vid L3 på riktigt
+    const L3c = { x: 100, y: 95, w: 30, h: 42 };
+    await kor(14, [hog(L2)], [lada(L2, 'baksida')]);
+    await kor(26, [], []);
+    const l5f = await kor(2, [hog(L3c)], [lada(L3c, 'baksida')]);
+    const l5g = [];
+    for (let i = 0; i < 5; i++) { const l = await steg1([], []); l5g.push(l.lage + (l.ruta ? '@' + Math.round(l.ruta.x * W) : '')); }
+    const l5h = await kor(3, [hog(L3c)], [lada(L3c, 'baksida')]);
+    check(`LK5c leken i handen över L3 två rutor: ${l5f && l5f.lage} x ${l5f && l5f.ruta && Math.round(l5f.ruta.x * W)}; sedan ruta för ruta ${l5g.join(' ')}; lagd vid L3: ${l5h && l5h.lage} x ${l5h && l5h.ruta && Math.round(l5h.ruta.x * W)}, id ${l5h && l5h.id}`,
+          l5f.lage === 'nere' && Math.abs(l5f.ruta.x * W - L3c.x) < 2 && l5g[2].startsWith('nere') && l5g[3] === 'upp@' + L2.x && l5h.lage === 'nere' && Math.abs(l5h.ruta.x * W - L3c.x) < 2 && l5h.id === id1);
+
+    // LK6: två nedvända högar (starthanden nedvänd) — ingen lek förrän en plockats upp; den som ligger kvar blir library
+    await nyttBord('v');
+    const l6a = await kor(16, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
+    const l6b = await kor(20, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK6 två högar: medan båda ligger ${l6a && l6a.lage}, när den ena plockats upp ${l6b && l6b.lage} x ${l6b && l6b.ruta && l6b.ruta.x} (väntat ${(L.x / W).toFixed(3)})`,
+          l6a.lage === 'ingen' && l6b.lage === 'nere' && Math.abs(l6b.ruta.x - L.x / W) < 0.01);
+
+    // LK6b: två högar, och en hand vilar på den ena (ingen låda, platsen täckt) — den andra blir inte ensam; när handen gått och högen är borta: library
+    await nyttBord('v');
+    const handL2 = g => hand(g, W, L2.x + 15, L2.y + 21, 26, 30, 170);
+    await kor(16, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
+    const l6c = await kor(27, [hog(L), hog(L2), handL2], [lada(L, 'baksida')]);
+    const l6d = await kor(24, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK6b hand på den ena högen i 4 s: ${l6c && l6c.lage}; handen och högen borta: ${l6d && l6d.lage} x ${l6d && l6d.ruta && l6d.ruta.x}`,
+          l6c.lage === 'ingen' && l6d.lage === 'nere' && Math.abs(l6d.ruta.x - L.x / W) < 0.01);
+
+    // LK7: en hög vid bildkanten blir aldrig library
+    await nyttBord('v');
+    const K = { x: 0, y: 40, w: 30, h: 42 };
+    const l7 = await kor(16, [hog(K)], [lada(K, 'baksida')]);
+    check(`LK7 hög vid kanten: ${l7 && l7.lage}`, l7.lage === 'ingen');
+
+    // LK8: ingen lek — första kortets vinkel blir otappat (liggande kort med upp 'v' → 0°); en lek som kommer sedan ändrar den inte
+    await nyttBord('v');
+    const F = { x: 60, y: 50, w: 42, h: 30 };
+    await kor(10, [kortR(F)], [lada(F, 'kort')]);
+    const g8a = grader(), l8a = Kamera.lek;
+    await kor(14, [kortR(F), hog(L)], [lada(F, 'kort'), lada(L, 'baksida')]);
+    const l8b = Kamera.lek;
+    check(`LK8 första kortet utan lek: grundläget ${g8a}° (${l8a && l8a.grund}); leken efteråt ${l8b && l8b.lage}, grundläget ${grader()}° (${l8b && l8b.grund})`,
+          g8a === 0 && l8a.grund === 'kort' && l8b.lage === 'nere' && grader() === 0 && l8b.grund === 'kort');
+
+    // LK8b: handen som lägger första kortet blir ett kortformat spår som dör (golden 07) — första kortets vinkel tas ändå
+    await nyttBord('v');
+    const Hf = { x: 110, y: 40, w: 28, h: 38 };
+    await kor(3, [kortR(F), kortR(Hf)], [lada(F, 'kort'), lada(Hf, 'kort')]);
+    await kor(10, [kortR(F)], [lada(F, 'kort')]);
+    check(`LK8b första kortet med handens spår intill: grundläget ${grader()}° (${Kamera.lek && Kamera.lek.grund})`, grader() === 0 && Kamera.lek && Kamera.lek.grund === 'kort');
+    // LK8c: två kort som båda ligger still innan något gav vinkeln (kameran såg dem samtidigt) — inget första kort, grundläget orört
+    await nyttBord('v');
+    const F4 = { x: 120, y: 50, w: 42, h: 30 };
+    await kor(12, [kortR(F), kortR(F4)], [lada(F, 'kort'), lada(F4, 'kort')]);
+    check(`LK8c två kort samtidigt: grundläget ${grader()} (${Kamera.lek && Kamera.lek.grund})`, grader() === null && Kamera.lek && Kamera.lek.grund === null);
+
+    // LK9: ett uppvänt kort läggs över lekens kant (klassen kort, mitten utanför lekens ruta) — läses som vanligt, blir inte lekens skräp.
+    //      Ett kort med mitten PÅ leken syns inte (lekens ruta, LK16) — som med uppstartens library-ruta.
+    const P = { x: 172, y: 64, w: 30, h: 42 };   // över lekens högra kant, men ett eget kort (egen låda)
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);   // leken först, som i spel
+    await kor(14, [hog(L), kortR(P)], [lada(L, 'baksida'), lada(P, 'kort')]);
+    const p9 = Kamera.spar.find(t => t.klass === 'kort' && Math.abs(t.cx - (P.x + P.w / 2)) < 4);
+    check(`LK9 kort över lekens kant: ${p9 && p9.tillstand} ${p9 && p9.namn} [${p9 && p9.varfor}]`, !!p9 && p9.tillstand === 'klar' && p9.namn === 'Plains');
+
+    // LK10: kameran startar med kort på bordet och en ensam hög (som golden 08): högen blir library, och inget "första kort" sätter vinkeln
+    nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v' } }); namnSvar = svar;
+    const F2 = { x: 30, y: 30, w: 30, h: 42 }, F3 = { x: 80, y: 30, w: 30, h: 42 };
+    const l10 = await kor(26, [kortR(F2), kortR(F3), hog(L)], [lada(F2, 'kort'), lada(F3, 'kort'), lada(L, 'baksida')]);
+    check(`LK10 kort och en hög från början: ${l10 && l10.lage} (${l10 && l10.grund}), grundläget ${grader()}°`, l10.lage === 'nere' && l10.grund === 'lek' && grader() === 90);
+
+    // LK12: sleevesens färg — medianen i lekens inre över flera rutor, också när ett blänk ligger på leken i varannan ruta; magic = false (spåret sa 'baksida ficka')
+    await nyttBord('v');
+    const rgbaRuta = blank => { const d = new Uint8ClampedArray(W * H * 4); for (let i = 0; i < W * H; i++) { d[4 * i] = 90; d[4 * i + 1] = 80; d[4 * i + 2] = 70; d[4 * i + 3] = 255; }
+      for (let y = L.y; y < L.y + L.h; y++) for (let x = L.x; x < L.x + L.w; x++) { const i = 4 * (y * W + x); d[i] = 40; d[i + 1] = 140; d[i + 2] = 80; }
+      if (blank) for (let y = L.y + 10; y < L.y + 18; y++) for (let x = L.x + 8; x < L.x + 22; x++) { const i = 4 * (y * W + x); d[i] = d[i + 1] = d[i + 2] = 250; }
+      return d; };
+    let l12 = null;
+    for (let i = 0; i < 60; i++) {
+      nu += TAKT; const g = matta(W, H, 100, 3, lcg(2000 + nu)); hog(L)(g);
+      Kamera.steg(g, nu, H, undefined, V, det([lada(L, 'baksida')]), rgbaRuta(i % 2 === 1));
+      await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r));
+      l12 = Kamera.lek;
+    }
+    check(`LK12 sleevesens färg: ${JSON.stringify(l12 && l12.farg)}`, !!l12 && l12.lage === 'nere' && !!l12.farg && Math.abs(l12.farg.r - 40) <= 2 && Math.abs(l12.farg.g - 140) <= 2 && Math.abs(l12.farg.b - 80) <= 2 && l12.farg.magic === false);
+
+    // ── Granskningen runda 1 (MES-334 steg 3): fynd 2, 3 och 5 som bänkfall (granskarens GP1–GP3) och fynd 1 (lekens ruta) ──
+    // LK13 (GP1): grundläget ur leken nollas av en skrivning av raden utan grundläge (tillampaKalRad → satGrund(null)) — telefonen tar lekens vinkel igen
+    await nyttBord('h');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const g13a = grader(), l13a = Kamera.lek && Kamera.lek.grund;
+    Kamera.satGrund(null);
+    await kor(30, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK13 grundläget ur leken efter en radskrivning utan grundläge: före ${g13a}° (${l13a}), efter 4,5 s ${grader()}° (${Kamera.lek && Kamera.lek.grund}), leken ${Kamera.lek && Kamera.lek.lage}`,
+          g13a === 90 && grader() === 90 && Kamera.lek && Kamera.lek.grund === 'lek');
+    // LK14 (GP2): leken lyfts medan ett nedvänt kort ligger still vid L2 sedan länge — Picked up, inte ett hopp till L2
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const id14 = Kamera.lek && Kamera.lek.id;
+    await kor(20, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
+    let upp14 = false, l14 = null;
+    for (let i = 0; i < 40; i++) { l14 = await steg1([hog(L2)], [lada(L2, 'baksida')]); if (l14 && l14.lage === 'upp') upp14 = true; }
+    check(`LK14 leken lyfts medan ett nedvänt kort ligger vid L2: upp någon gång ${upp14}, efter 6 s ${l14 && l14.lage} x ${l14 && l14.ruta && l14.ruta.x} (L ${(L.x / W).toFixed(3)}), id ${l14 && l14.id} (var ${id14})`,
+          upp14 && !!l14 && l14.lage === 'upp' && Math.abs(l14.ruta.x - L.x / W) < 0.01 && l14.id === id14);
+    // LK14b (GP2b): leken läggs ner på en ny plats L3 medan kortet vid L2 ligger kvar — dit, samma id
+    const L3 = { x: 100, y: 95, w: 30, h: 42 };
+    const l14b = await kor(20, [hog(L2), hog(L3)], [lada(L2, 'baksida'), lada(L3, 'baksida')]);
+    check(`LK14b leken lagd vid L3 medan kortet vid L2 ligger kvar: ${l14b && l14b.lage} x ${l14b && l14b.ruta && l14b.ruta.x} (L3 ${(L3.x / W).toFixed(3)}), id ${l14b && l14b.id}`,
+          !!l14b && l14b.lage === 'nere' && Math.abs(l14b.ruta.x - L3.x / W) < 0.01 && l14b.id === id14);
+    // LK15 (GP3): två högar ligger där från början, sedan läggs starthanden nedvänd — ingen av dem förrän bara en är kvar
+    await nyttBord('v');
+    const Hh = { x: 100, y: 95, w: 30, h: 42 };
+    await kor(26, [hog(L), hog(L2)], [lada(L, 'baksida'), lada(L2, 'baksida')]);
+    const l15 = await kor(16, [hog(L), hog(L2), hog(Hh)], [lada(L, 'baksida'), lada(L2, 'baksida'), lada(Hh, 'baksida')]);
+    check(`LK15 två gamla högar + starthanden nedvänd: ${l15 && l15.lage}${l15 && l15.ruta ? ' x ' + l15.ruta.x : ''}`, !!l15 && l15.lage === 'ingen');
+    // LK16: lekens egen ruta — när leken hittats föds inga spår på leken (en kortlåda mitt på den), och rutan följer med när leken läggs någon annanstans
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const P16 = { x: L.x + 2, y: L.y + 3, w: 26, h: 36 };   // mitten inne i lekens ruta
+    await kor(14, [hog(L), kortR(P16)], [lada(L, 'baksida'), lada(P16, 'kort')]);
+    const pa16 = Kamera.spar.filter(t => t.klass === 'kort' && Math.abs(t.cx - (P16.x + P16.w / 2)) < 4 && t.tillstand !== 'skrap').length;
+    await kor(26, [], []);   // leken upplockad
+    await kor(14, [hog(L2)], [lada(L2, 'baksida')]);   // och lagd vid L2
+    const P16b = { x: L2.x + 2, y: L2.y + 3, w: 26, h: 36 };
+    await kor(14, [hog(L2), kortR(P16b)], [lada(L2, 'baksida'), lada(P16b, 'kort')]);
+    const pa16b = Kamera.spar.filter(t => t.klass === 'kort' && Math.abs(t.cx - (P16b.x + P16b.w / 2)) < 4 && t.tillstand !== 'skrap').length;
+    const pa16c = Kamera.spar.filter(t => t.klass === 'kort' && t.tillstand !== 'skrap').length;
+    check(`LK16 lekens ruta: spår på leken vid L ${pa16}, leken flyttad till L2 (${Kamera.lek && Kamera.lek.lage} x ${Kamera.lek && Kamera.lek.ruta && Kamera.lek.ruta.x}), spår på leken vid L2 ${pa16b}, kortspår totalt ${pa16c}`,
+          pa16 === 0 && pa16b === 0 && Kamera.lek && Kamera.lek.lage === 'nere' && Math.abs(Kamera.lek.ruta.x - L2.x / W) < 0.01);
+    // LK16b: utan lek ingen ruta — samma kortlåda på samma plats blir ett spår
+    await nyttBord('v');
+    await kor(14, [kortR(P16)], [lada(P16, 'kort')]);
+    const pa16d = Kamera.spar.filter(t => t.klass === 'kort' && t.tillstand !== 'skrap').length;
+    check(`LK16b utan lek: kortet vid L blir ett spår (${pa16d})`, pa16d === 1);
+
+    // LK17 (granskarens RP1, runda 2 fynd 2): leken flyttas till bildkanten — den står som upplockad vid L,
+    //   men lekens ruta står inte kvar på den tomma platsen: ett riktigt kort som läggs där får ett spår
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const k17E = { x: 0, y: 60, w: 30, h: 42 };
+    await kor(30, [hog(k17E)], [lada(k17E, 'baksida')]);
+    const l17 = Kamera.lek;
+    const k17P = { x: L.x + 2, y: L.y + 3, w: 26, h: 36 };
+    await kor(20, [hog(k17E), kortR(k17P)], [lada(k17E, 'baksida'), lada(k17P, 'kort')]);
+    const n17 = Kamera.spar.filter(t => t.klass === 'kort' && Math.abs(t.cx - (k17P.x + k17P.w / 2)) < 4 && t.tillstand !== 'skrap').length;
+    check(`LK17 leken flyttad till kanten: ${l17 && l17.lage} x ${l17 && l17.ruta && l17.ruta.x}; kort på lekens gamla plats efter 3 s: ${n17} spår`, n17 === 1);
+
+    // LK18 (granskarens RP2, runda 2 fynd 3): leken lyfts (söka), handen läggs nedvänd medan leken är uppe
+    //   (och tas för leken), leken läggs tillbaka vid L, handen plockas upp — leken ligger vid L igen
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    await kor(26, [], []);
+    const l18a = Kamera.lek && Kamera.lek.lage;
+    const k18H = { x: 100, y: 95, w: 30, h: 42 };
+    const l18b = await kor(14, [hog(k18H)], [lada(k18H, 'baksida')]);
+    const l18c = await kor(14, [hog(k18H), hog(L)], [lada(k18H, 'baksida'), lada(L, 'baksida')]);
+    const l18d = await kor(40, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK18 handen nedvänd under sökningen: lyft ${l18a}; handen lagd ${l18b && l18b.lage} x ${l18b && l18b.ruta && l18b.ruta.x}; leken tillbaka vid L ${l18c && l18c.lage}; handen upplockad 6 s: ${l18d && l18d.lage} x ${l18d && l18d.ruta && l18d.ruta.x} (L ${(L.x / W).toFixed(3)})`,
+          !!l18d && l18d.lage === 'nere' && Math.abs(l18d.ruta.x - L.x / W) < 0.01);
+
+    // LK19 (granskarens RP5, runda 2 fynd 1): leken blandas i handen ovanför bordet — detektorn ser den ibland,
+    //   också över lekens gamla plats — och läggs ner vid L3: leken glider dit
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const id19 = Kamera.lek && Kamera.lek.id;
+    const k19L3 = { x: 100, y: 95, w: 30, h: 42 };
+    for (const s of [0.4, 0.5, 0.6, 0.5, 0.4, 0.3, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
+      const b = { x: Math.round(L.x + (k19L3.x - L.x) * s), y: Math.round(L.y + (k19L3.y - L.y) * s), w: 30, h: 42 };
+      await steg1([hog(b)], [lada(b, 'baksida')]);
+    }
+    let upp19 = false, l19 = null;
+    for (let i = 0; i < 60; i++) { l19 = await steg1([hog(k19L3)], [lada(k19L3, 'baksida')]); if (l19 && l19.lage === 'upp') upp19 = true; }
+    check(`LK19 leken blandad ovanför bordet och lagd vid L3: upp någon gång ${upp19}, efter 9 s ${l19 && l19.lage} x ${l19 && l19.ruta && l19.ruta.x} (L3 ${(k19L3.x / W).toFixed(3)}), id ${l19 && l19.id} (var ${id19})`,
+          !!l19 && l19.lage === 'nere' && Math.abs(l19.ruta.x - k19L3.x / W) < 0.01 && l19.id === id19);
+
+    // LK20 (granskarens RP6, runda 2 fynd 1): leken upp, lagd vid L3, och EN ruta med en baksida över lekens
+    //   gamla plats (handen med något nedvänt, ett blänk) — leken glider ändå till L3
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    await kor(26, [], []);
+    const l20a = Kamera.lek && Kamera.lek.lage;
+    await kor(3, [hog(k19L3)], [lada(k19L3, 'baksida')]);
+    await steg1([hog(k19L3), hog(L)], [lada(k19L3, 'baksida'), lada(L, 'baksida')]);
+    const l20 = await kor(60, [hog(k19L3)], [lada(k19L3, 'baksida')]);
+    check(`LK20 leken upp (${l20a}), lagd vid L3, en ruta med en baksida över den gamla platsen: efter 9 s ${l20 && l20.lage} x ${l20 && l20.ruta && l20.ruta.x} (L3 ${(k19L3.x / W).toFixed(3)})`,
+          !!l20 && l20.lage === 'nere' && Math.abs(l20.ruta.x - k19L3.x / W) < 0.01);
+
+    // LK21 (granskarens RP7, runda 3 fynd 1): sökningen med två lyft. Leken lyfts från L och läggs vid L3 (steg 3
+    //   flyttar den), handen läggs nedvänd vid H, och leken lyfts igen för att blandas: leken står som upplockad
+    //   (Picked up), den hoppar inte till handen. Blandningen tar 12 s, leken läggs vid L4, handen plockas upp:
+    //   leken ligger vid L4.
+    const k21L3 = { x: 100, y: 95, w: 30, h: 42 }, k21H = { x: 40, y: 70, w: 30, h: 42 }, k21L4 = { x: 190, y: 95, w: 30, h: 42 };
+    const xs21 = l => l && l.ruta ? l.ruta.x : null;
+    const tvaLyft = async blanda => {
+      await nyttBord('v');
+      await kor(24, [hog(L)], [lada(L, 'baksida')]);
+      await kor(26, [], []);
+      const a = await kor(14, [hog(k21L3)], [lada(k21L3, 'baksida')]);
+      await kor(14, [hog(k21L3), hog(k21H)], [lada(k21L3, 'baksida'), lada(k21H, 'baksida')]);
+      const b = await kor(26, [hog(k21H)], [lada(k21H, 'baksida')]);
+      await kor(blanda, [hog(k21H)], [lada(k21H, 'baksida')]);
+      await kor(14, [hog(k21H), hog(k21L4)], [lada(k21H, 'baksida'), lada(k21L4, 'baksida')]);
+      const c = await kor(40, [hog(k21L4)], [lada(k21L4, 'baksida')]);
+      return { a, b, c };
+    };
+    const r21 = await tvaLyft(80);
+    check(`LK21 två lyft (blandning 12 s): leken vid L3 ${r21.a && r21.a.lage} x ${xs21(r21.a)} (L3 ${(k21L3.x / W).toFixed(3)}); handen lagd, leken lyft igen: ${r21.b && r21.b.lage} x ${xs21(r21.b)} (H ${(k21H.x / W).toFixed(3)}); lagd vid L4, handen upp: ${r21.c && r21.c.lage} x ${xs21(r21.c)} (L4 ${(k21L4.x / W).toFixed(3)})`,
+          !!r21.a && r21.a.lage === 'nere' && Math.abs(r21.a.ruta.x - k21L3.x / W) < 0.01 && !!r21.b && r21.b.lage === 'upp' && !!r21.c && r21.c.lage === 'nere' && Math.abs(r21.c.ruta.x - k21L4.x / W) < 0.01);
+    // LK21b (granskarens RP7k): samma, men blandningen tar 3 s
+    const r21b = await tvaLyft(20);
+    check(`LK21b två lyft (blandning 3 s): leken lyft igen: ${r21b.b && r21b.b.lage} x ${xs21(r21b.b)}; lagd vid L4, handen upp: ${r21b.c && r21b.c.lage} x ${xs21(r21b.c)} (L4 ${(k21L4.x / W).toFixed(3)})`,
+          !!r21b.b && r21b.b.lage === 'upp' && !!r21b.c && r21b.c.lage === 'nere' && Math.abs(r21b.c.ruta.x - k21L4.x / W) < 0.01);
+
+    // LK22 (granskarens RP8, runda 3 fynd 1 och 2): LK18 med en sökning på 15 s — handen nedvänd medan leken är uppe
+    //   (och tas för leken), leken tillbaka vid L, handen plockas upp: leken ligger vid L igen, hur lång sökningen än är
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    await kor(26, [], []);
+    const k22H = { x: 100, y: 95, w: 30, h: 42 };
+    const l22a = await kor(14, [hog(k22H)], [lada(k22H, 'baksida')]);
+    await kor(100, [hog(k22H)], [lada(k22H, 'baksida')]);
+    await kor(14, [hog(k22H), hog(L)], [lada(k22H, 'baksida'), lada(L, 'baksida')]);
+    const l22 = await kor(40, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK22 handen nedvänd under en sökning på 15 s: handen lagd ${l22a && l22a.lage} x ${xs21(l22a)}; handen upplockad 6 s: ${l22 && l22.lage} x ${xs21(l22)} (L ${(L.x / W).toFixed(3)})`,
+          !!l22 && l22.lage === 'nere' && Math.abs(l22.ruta.x - L.x / W) < 0.01);
+
+    // LN (steg 5): ensamma nedvända kort medan leken ligger — en låda, inte vid kanten; inte en hög av två lådor.
+    //   Lika fort som ett vanligt kort (Rättelse 2, Jespers beslut 2026-10-05): det nedvända kortet kommer i samma ruta
+    //   som ett vanligt korts skugga (rapportens kortlik) och går i samma ruta som det vanliga kortets spår. Förut: efter
+    //   3 s still, och borta i första rutan detektorn missade lådan. Tiderna skrivs ut i ms från första rutan (rutor à 150 ms).
+    await nyttBord('v');
+    await kor(14, [hog(L)], [lada(L, 'baksida')]);
+    const N1 = { x: 60, y: 40, w: 30, h: 42 }, N2a = { x: 100, y: 90, w: 30, h: 42 }, N2b = { x: 108, y: 96, w: 30, h: 42 }, NK = { x: 210, y: 50, w: 30, h: 42 };
+    const FU = { x: 20, y: 100, w: 30, h: 42 };   // ett vanligt kort (uppvänt) som läggs i samma ruta
+    const ritN = [hog(L), hog(N1), hog(N2a), hog(N2b), hog(NK)], ladN = [lada(L, 'baksida'), lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')];
+    const nedX = l => (l && l.ned || []).map(u => Math.round(u.ruta.x * W));
+    const nedVid = (l, b) => nedX(l).some(x => Math.abs(x - b.x) < 2);
+    const sparVid = b => bord.find(t => Math.abs((t.x + t.w / 2) * W - (b.x + b.w / 2)) < 3 && Math.abs((t.y + t.h / 2) * H - (b.y + b.h / 2)) < 3);
+    let fel1 = [], flagg1 = null;
+    const [iN1, iK1] = await forstaRuta(26, ritN.concat(kortR(FU)), ladN.concat(lada(FU, 'kort')), [
+      l => { if (nedVid(l, N2a) || nedVid(l, NK)) fel1.push(nedX(l)); const ja = nedVid(l, N1); if (ja && flagg1 == null) { const t = sparVid(N1); flagg1 = t ? [!!t.ned, !!t.kortlik] : null; } return ja; },
+      () => { const t = sparVid(FU); return !!t && t.kortlik; }]);
+    const ln2 = Kamera.lek;
+    check(`LN1 ensamt nedvänt kort utan kortstorlek: syns efter ${ms(iN1)} ms, det vanliga kortets skugga efter ${ms(iK1)} ms (två formstilla rutor, som skuggklar); efter 3,9 s ${JSON.stringify(nedX(ln2))} (väntat [${N1.x}]: aldrig högen av två lådor vid ${N2a.x} eller kortet vid kanten ${NK.x}${fel1.length ? ', men ' + JSON.stringify(fel1[0]) : ''}); spåret under det har ned/kortlik ${JSON.stringify(flagg1)} (datorn ritar ingen platshållare); leken ${ln2 && ln2.lage}`,
+          iN1 === 2 && iK1 === 2 && fel1.length === 0 && !!ln2 && ln2.lage === 'nere' && Math.abs(ln2.ruta.x * W - L.x) < 2 && JSON.stringify(nedX(ln2)) === JSON.stringify([N1.x]) && !!flagg1 && flagg1[0] === true && !(sparVid(FU) || {}).ned);
+    // LN1b: med kortstorlek (det vanliga kortet har fått sitt namn) — ett nytt nedvänt kort och ett nytt vanligt kort i samma ruta: båda i första rutan
+    const N3 = { x: 20, y: 40, w: 30, h: 42 }, FU2 = { x: 60, y: 100, w: 30, h: 42 };
+    const kr1b = Kamera.diagnos && Kamera.diagnos.kortRef;
+    const ritN3 = ritN.concat(kortR(FU), hog(N3), kortR(FU2)), ladN3 = ladN.concat(lada(FU, 'kort'), lada(N3, 'baksida'), lada(FU2, 'kort'));
+    const [iN3, iK3] = await forstaRuta(14, ritN3, ladN3, [l => nedVid(l, N3), () => { const t = sparVid(FU2); return !!t && t.kortlik; }]);
+    check(`LN1b med kortstorlek ${kr1b ? kr1b.lang + '×' + kr1b.kort : '–'}: nedvänt kort efter ${ms(iN3)} ms, vanligt korts skugga efter ${ms(iK3)} ms`, !!kr1b && iN3 === 1 && iK3 === 1);
+    // LN3: båda lyfts i samma ruta (ingen låda, tom matta) — det nedvända kortet går i samma ruta som det vanliga kortets spår:
+    //   när mattan under det sett tom ut i mer än bortaMs (450 ms), fjärde tomma rutan
+    const ritUtan = ritN.concat(kortR(FU)), ladUtan = ladN.concat(lada(FU, 'kort'));
+    const [jN3, jK3] = await forstaRuta(8, ritUtan, ladUtan, [l => !nedVid(l, N3), () => !sparVid(FU2)]);
+    check(`LN3 nedvänt och vanligt kort lyfta i samma ruta: det nedvända borta i ruta ${jN3} (${ms(jN3)} ms efter första tomma), det vanliga kortets spår i ruta ${jK3} (${ms(jK3)} ms)`, jN3 === 4 && jK3 === 4);
+    // LN4: en ruta där detektorn missar lådan men kortet syns, och sedan en hand över kortet i 9 s (längre än kandidaternas 8 s):
+    //   kortet står kvar hela tiden, som ett skymt spår — förut försvann det i varje ruta utan låda
+    const utanN1 = ladN.filter((_, i) => i !== 1).concat(lada(FU, 'kort'));
+    const ln4a = await steg1(ritUtan, utanN1);
+    const handN1 = g => hand(g, W, N1.x + 15, N1.y + 21, 20, 26, 170);
+    let borta4 = 0;
+    for (let i = 0; i < 60; i++) { const l = await steg1(ritUtan.concat(handN1), utanN1); if (!nedVid(l, N1)) borta4++; }
+    const ln4c = await kor(3, ritUtan, ladUtan);
+    check(`LN4 en ruta utan låda: ${nedVid(ln4a, N1) ? 'kvar' : 'borta'}; hand över kortet i 9 s: borta i ${borta4} av 60 rutor; handen bort: ${nedVid(ln4c, N1) ? 'kvar' : 'borta'}`,
+          nedVid(ln4a, N1) && borta4 === 0 && nedVid(ln4c, N1));
+    // LK5d (här för kortstorleken: det vanliga kortet har namn): leken lyfts och läggs på en ny plats — nere i FÖRSTA rutan, som ett vanligt korts skugga
+    const L5d = { x: 185, y: 100, w: 30, h: 42 };
+    const utanLek = ritUtan.filter(r => r !== ritUtan[0]), ladUtanLek = ladUtan.filter(r => r !== ladUtan[0]);
+    await kor(26, utanLek, ladUtanLek);
+    const l5d0 = Kamera.lek && Kamera.lek.lage, kr5d = Kamera.diagnos && Kamera.diagnos.kortRef;
+    const [i5d] = await forstaRuta(3, utanLek.concat(hog(L5d)), ladUtanLek.concat(lada(L5d, 'baksida')), [l => l.lage === 'nere' && Math.abs(l.ruta.x * W - L5d.x) < 2]);
+    check(`LK5d leken lagd på ny plats med kortstorlek ${kr5d ? kr5d.lang + '×' + kr5d.kort : '–'}: lyft ${l5d0}, nere vid den nya platsen efter ${ms(i5d)} ms`, l5d0 === 'upp' && !!kr5d && i5d === 1);
+    const ln3 = await kor(22, [hog(N1), hog(N2a), hog(N2b), hog(NK)], [lada(N1, 'baksida'), lada(N2a, 'baksida'), lada(N2b, 'baksida'), lada(NK, 'baksida')]);
+    check(`LN2 leken upplockad: inga nedvända kort i rapporten (det kan vara leken som läggs ner): ${ln3 && ln3.lage}, ned ${JSON.stringify(nedX(ln3))}`, !!ln3 && ln3.lage === 'upp' && ln3.ned.length === 0);
+
+    // ── Kontrollgranskningen av rättelse 2 (granskarens S1, S2, S5; S3–S4 är N5, en känd rest) ──
+    const lekTxt = l => l ? l.lage + (l.ruta ? '@' + Math.round(l.ruta.x * W) + ',' + Math.round(l.ruta.y * H) : '') : 'null';
+    const FUk = { x: 20, y: 100, w: 30, h: 42 };            // ett vanligt kort (uppvänt) som ger bordet en kortstorlek
+    for (const med of [false, true]) {
+      const bas = med ? [kortR(FUk)] : [], basL = med ? [lada(FUk, 'kort')] : [];
+      // LK23 (S1, N2): leken lyfts och läggs på en ny plats mellan två rutor — den står där när den gamla platsen sett tom ut
+      //   i mer än bortaMs (fjärde tomma rutan, som ett vanligt kort), och ritas ALDRIG som ett nedvänt kort på den nya.
+      //   Förut: Library på den tomma platsen i ~2 s och ett nedvänt kort där leken låg.
+      await nyttBord('v');
+      await kor(20, bas.concat(hog(L)), basL.concat(lada(L, 'baksida')));
+      const L2s = { x: 60, y: 30, w: 30, h: 42 };
+      const r23 = [];
+      for (let i = 1; i <= 10; i++) { const l = await steg1(bas.concat(hog(L2s)), basL.concat(lada(L2s, 'baksida'))); r23.push(lekTxt(l) + (l.ned.length ? ' ned' + JSON.stringify(nedX(l)) : '')); }
+      const dit23 = r23.findIndex(x => x.startsWith('nere@' + L2s.x + ',' + L2s.y)) + 1;
+      check(`LK23 leken flyttad snabbt (${med ? 'med' : 'utan'} kortstorlek): på nya platsen i ruta ${dit23} (${ms(dit23)} ms), aldrig nedvänt kort: ${r23.slice(0, 5).join(' · ')}`,
+            dit23 === 4 && r23.every(x => !x.includes('ned')) && r23.slice(dit23 - 1).every(x => x.startsWith('nere@' + L2s.x)));
+    }
+    {
+      const bas = [kortR(FUk)], basL = [lada(FUk, 'kort')];
+      // LN5 (S2, N4): ett kort dras från leken mot spelarens kant (baksidan upp), 10 px per ruta, med kortstorlek — inget nedvänt kort
+      //   blinkar förbi: en hög som föds på leken visas först när den legat formstilla
+      await nyttBord('v');
+      await kor(20, bas.concat(hog(L)), basL.concat(lada(L, 'baksida')));
+      const s2 = [];
+      for (let i = 1; i <= 6; i++) { const D = { x: L.x, y: L.y + 10 * i, w: 30, h: 42 }; s2.push(nedX(await steg1(bas.concat(hog(L), hog(D)), basL.concat(lada(L, 'baksida'), lada(D, 'baksida'))))); }
+      for (let i = 7; i <= 10; i++) s2.push(nedX(await steg1(bas.concat(hog(L)), basL.concat(lada(L, 'baksida')))));
+      // …men ett kort som läggs från leken och ligger kvar visas: två formstilla rutor
+      const Dk = { x: L.x - 31, y: L.y + 6, w: 30, h: 42 };   // intill leken (lådan plus en tiondel nuddar)
+      const [iDk] = await forstaRuta(4, bas.concat(hog(L), hog(Dk)), basL.concat(lada(L, 'baksida'), lada(Dk, 'baksida')), [l => nedX(l).includes(Dk.x)]);
+      check(`LN5 kort dras ur leken i handen: nedvända kort ruta för ruta ${JSON.stringify(s2)}; ett kort som läggs intill leken och ligger kvar: efter ${ms(iDk)} ms`,
+            s2.every(x => x.length === 0) && iDk === 2);
+      // LN6 (S5, N3): ett nedvänt kort vänds upp på samma plats, och kameran kan inte läsa det — det nedvända kortet går, och det
+      //   uppvända kortets spår går till datorn som ett vanligt kort (inte märkt ned): platshållare eller granskning
+      await nyttBord('v');
+      const T5 = { x: 100, y: 60, w: 30, h: 42 };
+      await kor(20, bas.concat(hog(L)), basL.concat(lada(L, 'baksida')));
+      const s5a = await kor(6, bas.concat(hog(L), hog(T5)), basL.concat(lada(L, 'baksida'), lada(T5, 'baksida')));
+      const svarForra5 = namnSvar;
+      namnSvar = (id) => { const t = Kamera.spar.find(q => q.id === id); return t && t.klass === 'baksida' ? { baksida: true, varfor: 'baksida ficka', poang: 0.9 } : { namn: null, saker: false, cands: [] }; };
+      const upp5 = { x: 101, y: 61, w: 30, h: 42 };
+      let ned5 = 0, markt5 = 0, sedd5 = 0, sista5 = null;
+      for (let i = 1; i <= 40; i++) {
+        const l = await steg1(bas.concat(hog(L), kortR(upp5)), basL.concat(lada(L, 'baksida'), lada(upp5, 'kort')));
+        const t = bord.find(q => Math.abs((q.x + q.w / 2) * W - (upp5.x + 15)) < 4 && Math.abs((q.y + q.h / 2) * H - (upp5.y + 21)) < 4);
+        if (nedX(l).length) ned5++;
+        if (t) { sedd5++; if (t.ned) markt5++; sista5 = t; }
+      }
+      namnSvar = svarForra5;
+      check(`LN6 nedvänt kort vänds upp och går inte att läsa: först ned ${JSON.stringify(nedX(s5a))}; sedan nedvänt kort i ${ned5} av 40 rutor, det uppvända spåret i rapporten ${sedd5} av 40, märkt ned ${markt5}, till sist ${sista5 ? sista5.tillstand + ' kortlik=' + sista5.kortlik : 'inget'}`,
+            JSON.stringify(nedX(s5a)) === JSON.stringify([T5.x]) && ned5 === 0 && sedd5 === 40 && markt5 === 0 && !!sista5 && sista5.kortlik);
+    }
+
+    // ── LV: lekens egen väg till grundläget (MES-334 sida 5, steg 0) ──
+    /* Leken har ingen namnremsa, så steg 1:s sparVinkel().matt blir aldrig sann för den. Lekens vinkel tas
+       i stället ur formens mätning (kalla 'form') när leken ligger still, högen är en låda, ingen annan låda
+       ligger över den och masken runt den är matta — tre NYA mätningar i följd (vinkelminnet mäter en stilla
+       låda om var 2 s) med samma axel ±5°. Videon är en attrapp, så KortVinkel.kortVinkel byts mot en stubb
+       som svarar med lekens vinkel (som VK). Leken ritas vriden så att masken ser den där lådan ligger. */
+    {
+      const KVl = vm.runInContext('KortVinkel', ctx), kvForra = KVl.kortVinkel;
+      let lvSvar = null;
+      KVl.kortVinkel = () => typeof lvSvar === 'function' ? lvSvar() : lvSvar;
+      const Dg = Math.PI / 180;
+      const formSvar = (a, kalla = 'form') => ({ axel: ((a % 180) + 270) % 180 - 90, vinkel: null, phi: ((a % 90) + 90) % 90, styrka: 0.6, kalla });
+      /* Leken (30 × 42) vriden a grader medurs runt (cx, cy): lådan runt den, och ritningen. */
+      const lekV = (cx, cy, a) => {
+        const s = Math.abs(Math.sin(a * Dg)), c = Math.abs(Math.cos(a * Dg)), w = Math.round(42 * s + 30 * c), h = Math.round(42 * c + 30 * s);
+        return { b: { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h }, rita: g => kortVriden(g, W, cx, cy, 30, 42, a * Dg, 55) };
+      };
+      const vMatt = () => Kamera.lek && Kamera.lek.vinkel != null ? Math.round(Kamera.lek.vinkel) : null;
+      Kamera.satTrosklar({ vinkelMat: 1 });
+
+      // LV1: leken ligger 20° snett — grundläget först ur lådan (stående, 90°), sedan lekens uppmätta vinkel (110°)
+      await nyttBord('v');
+      const v20 = lekV(160, 80, 20);
+      lvSvar = () => formSvar(20);
+      await kor(14, [v20.rita], [lada(v20.b, 'baksida')]);
+      const lv1a = grader(), lv1aV = vMatt();
+      await kor(40, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV1 leken 20° snett: vald med grundläget ${lv1a}° ur lådan (mätt ${lv1aV}), efter 6 s lekens vinkel ${vMatt()}°, grundläget ${grader()}° (${Kamera.lek && Kamera.lek.grund})`,
+            lv1a === 90 && lv1aV === null && vMatt() === 110 && grader() === 110 && Kamera.lek.grund === 'lek');
+
+      // LV2: leken vrids 15° till (35°) — grundläget följer (125°); en knuff på 4° (tillbaka till 31°) ändrar inget
+      const v35 = lekV(160, 80, 35);
+      lvSvar = () => formSvar(35);
+      await kor(50, [v35.rita], [lada(v35.b, 'baksida')]);
+      const lv2a = grader(), lv2aV = vMatt();
+      const v31 = lekV(160, 80, 31);
+      lvSvar = () => formSvar(31);
+      await kor(50, [v31.rita], [lada(v31.b, 'baksida')]);
+      check(`LV2 leken vriden till 35°: lekens vinkel ${lv2aV}°, grundläget ${lv2a}°; knuffad till 31°: lekens vinkel ${vMatt()}°, grundläget ${grader()}°`,
+            lv2aV === 125 && lv2a === 125 && vMatt() === 121 && grader() === 125);
+
+      // LV3: leken nästan rak (3°) — den första uppmätta vinkeln gör grundläget exakt (93°) utan omdömning, fast den ligger inom knuffen
+      await nyttBord('v');
+      const v3 = lekV(160, 80, 3);
+      lvSvar = () => formSvar(3);
+      await kor(54, [v3.rita], [lada(v3.b, 'baksida')]);
+      check(`LV3 leken 3° snett: lekens vinkel ${vMatt()}°, grundläget ${Kamera.grundGrader}°`, vMatt() === 93 && Math.abs(Kamera.grundGrader - 93) < 0.01);
+
+      // LV4: en annan låda (ett kort, en hand som detektorn tar för ett kort) ligger över leken hela tiden — ingen mätning räknas
+      /* Leken 3° snett: kortet ger bordet en kortstorlek, och en lek 20° snett har en RAK låda på 1,7 kortytor —
+         lekvaktens 0,6–1,6 kortytor (steg 3) räknar på den raka lådan, så den väljs inte alls (en känd gräns). */
+      await nyttBord('v');
+      const Hk = { x: v3.b.x + 8, y: v3.b.y + 16, w: 30, h: 42 };
+      lvSvar = () => formSvar(3);
+      await kor(54, [v3.rita, kortR(Hk)], [lada(v3.b, 'baksida'), lada(Hk, 'kort')]);
+      check(`LV4 något över leken: lekens vinkel ${vMatt()}, grundläget ${grader()}° (${Kamera.lek && Kamera.lek.lage})`, vMatt() === null && grader() === 90);
+
+      // LV5: mätningen är profilens (inte formens) — osäkert, grundläget står kvar ur lådan
+      await nyttBord('v');
+      lvSvar = () => formSvar(20, 'profil');
+      await kor(54, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV5 profilens vinkel: lekens vinkel ${vMatt()}, grundläget ${grader()}°`, vMatt() === null && grader() === 90);
+
+      // LV6: en arm når in till leken (ingen låda för den, men masken runt leken fylls) — ingen mätning räknas medan den ligger där
+      await nyttBord('v');
+      lvSvar = () => formSvar(20);
+      /* Armen kommer in nerifrån höger och slutar vid lekens kant: den fyller ringens nedre och högra del, inte leken. */
+      const armV = g => { for (let y = v20.b.y + (v20.b.h >> 1); y < H; y++) for (let x = v20.b.x; x < Math.min(W, v20.b.x + v20.b.w + 40); x++) if (x >= v20.b.x + v20.b.w || y >= v20.b.y + v20.b.h) g[y * W + x] = 60; };
+      await kor(54, [v20.rita, armV], [lada(v20.b, 'baksida')]);
+      const lv6a = vMatt(), lv6lage = Kamera.lek && Kamera.lek.lage, lv6ring = Kamera.diagnos.lekRing;
+      await kor(40, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV6 armen vid leken i 8 s: lekens vinkel ${lv6a} (${lv6lage}, masken i ringen ${lv6ring}); armen borta 6 s: ${vMatt()}° (ringen ${Kamera.diagnos.lekRing}), grundläget ${grader()}°`,
+            lv6a === null && lv6ring > 0.3 && vMatt() === 110 && grader() === 110 && Kamera.diagnos.lekRing < 0.1);
+
+      // LV7: två mätningar som skiljer 8° — serien börjar om; först tre i följd inom ±5° ger vinkeln
+      await nyttBord('v');
+      let lv7n = 0; lvSvar = () => formSvar(lv7n++ % 2 ? 28 : 20);
+      await kor(54, [v20.rita], [lada(v20.b, 'baksida')]);
+      check(`LV7 mätningarna hoppar 20°/28°: lekens vinkel ${vMatt()}, grundläget ${grader()}°`, vMatt() === null && grader() === 90);
+
+      KVl.kortVinkel = kvForra; lvSvar = null;
+    }
+
+    // LK11: med uppstartens library-ruta gäller dagens lekvakt (bibSag) — ingen ny lek i rapporten
+    nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v', bib: { x: L.x / W - 0.02, y: L.y / H - 0.02, w: L.w / W + 0.04, h: L.h / H + 0.04 } } }); namnSvar = svar;
+    await kor(26, [hog(L)], [lada(L, 'baksida')]);
+    check(`LK11 med uppstartens ruta: Kamera.lek ${JSON.stringify(Kamera.lek)}, rapporten ${bordExtra && JSON.stringify(bordExtra.lek)}, bib ${JSON.stringify(Kamera.bib)}`,
+          Kamera.lek === null && bordExtra && bordExtra.lek === null && !!Kamera.bib);
+    nystart(); namnSvar = forraSvar;
   }
 
   console.log([...ok, ...fel].join('\n'));
