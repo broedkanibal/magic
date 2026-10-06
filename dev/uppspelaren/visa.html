@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mesa uppspelaren</title>
+<!-- Uppspelarens visare (MES-333): bilden från bordet till vänster, appens
+     riktiga matta till höger (index.html i en iframe, i samma storlek som
+     mätningen, 1400 × 1000, nedskalad). Motorn (motor.js) spelar upp
+     telefonens bord på bildens klocka. Startas av kor.cjs --visa eller
+     --bilder, som serverar fallens data på /__upp/. -->
+<style>
+  :root { --bg: #15161a; --panel: #1d1f25; --text: #e9e9ee; --dim: #9a9cab; --acc: #6fd3a0; --warn: #f0b35a; --line: #2c2f38; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.35 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  body { display: grid; grid-template-columns: 40% 60%; height: 100vh; overflow: hidden; }
+  #vanster { display: flex; flex-direction: column; padding: 12px; gap: 10px; border-right: 1px solid var(--line); min-width: 0; }
+  #rubrik { font-weight: 600; font-size: 14px; }
+  #rubrik small { display: block; color: var(--dim); font-weight: 400; font-size: 12px; margin-top: 2px; }
+  #media { position: relative; flex: 1 1 auto; min-height: 0; background: #000; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  #media video, #media img.hel { max-width: 100%; max-height: 100%; display: block; }
+  #ark { width: 100%; aspect-ratio: 390 / 220; background-repeat: no-repeat; }
+  #inset { position: absolute; right: 8px; bottom: 8px; width: 34%; border: 2px solid var(--acc); border-radius: 4px; display: none; }
+  #bildText { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.65); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--dim); }
+  #kontroller { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 9px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--dim); }
+  #tid { font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; }
+  #linje { position: relative; height: 26px; }
+  #linje input { width: 100%; margin: 0; position: absolute; top: 9px; }
+  #markor { position: absolute; left: 0; right: 0; top: 0; height: 8px; }
+  #markor i { position: absolute; top: 0; width: 2px; height: 8px; background: var(--acc); opacity: .8; }
+  #markor i.bort { background: var(--warn); }
+  #markor i.flytt { background: #8fb4ff; }
+  #handelser { flex: 0 0 132px; overflow: auto; background: var(--panel); border-radius: 6px; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  #handelser div { color: var(--dim); white-space: nowrap; }
+  #handelser div.nu { color: var(--text); }
+  #not { color: var(--warn); font-size: 12px; }
+  #hoger { position: relative; overflow: hidden; background: #0d0e11; }
+  #app { position: absolute; left: 0; top: 0; width: 1400px; height: 1000px; border: 0; transform-origin: 0 0; background: #fff; }
+  #lage { position: absolute; right: 10px; bottom: 8px; color: var(--dim); font-size: 12px; background: rgba(0,0,0,.6); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<section id="vanster">
+  <div id="rubrik">Uppspelaren<small id="underrubrik">laddar …</small></div>
+  <div id="media"><span id="bildText"></span><img id="inset" alt=""></div>
+  <div id="linje"><div id="markor"></div><input id="spola" type="range" min="0" max="100" step="0.0667" value="0"></div>
+  <div id="kontroller">
+    <select id="fallVal" title="Fall"></select>
+    <button id="bak" title="En videoruta bakåt (←)">◀︎ ruta</button>
+    <button id="spela" title="Spela / paus (mellanslag)">▶︎ Spela</button>
+    <button id="fram" title="En videoruta framåt (→)">ruta ▶︎</button>
+    <select id="fart" title="Fart"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+    <span id="tid">0,00 s</span>
+  </div>
+  <div id="not"></div>
+  <div id="handelser"></div>
+</section>
+<section id="hoger"><iframe id="app" title="Mattan (appens kod)"></iframe><span id="lage"></span></section>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search);
+const RUTA = 1 / 15;
+let lista = [], fall = null, data = null, t = 0, spelar = false, motorSrc = '', appKlar = false, laddar = null, appT = -1;
+const fmt = s => (Math.round(s * 100) / 100).toFixed(2).replace('.', ',') + ' s';
+
+function skala() { const h = $('#hoger'), k = Math.min(h.clientWidth / 1400, h.clientHeight / 1000); $('#app').style.transform = `scale(${k})`; }
+addEventListener('resize', skala);
+
+/* Appen i iframen: laddas om, motorn läggs in, fallet startas. Bakåt i
+   tiden = om från början (motorn kan bara gå framåt), fort fram till t. */
+function laddaApp() {
+  appKlar = false; appT = -1;
+  laddar = new Promise(res => {
+    const f = $('#app');
+    f.onload = async () => {
+      const w = f.contentWindow;
+      for (let i = 0; i < 300; i++) { if (typeof w.renderGrid === 'function' && typeof w.avstamBord === 'function' && w.document.readyState === 'complete') break; await new Promise(r => setTimeout(r, 100)); }
+      await new Promise(r => setTimeout(r, 300));
+      if (!w.__upp) { $('#not').textContent = 'Motorn laddades inte i appen (app.html).'; return; }
+      w.__upp.visaStarta(data);
+      appKlar = true; appT = data.fran; res();
+    };
+    f.src = '/app.html?upp=' + Date.now();
+  });
+  return laddar;
+}
+async function tillTid(s) {
+  if (!appKlar) await laddar;
+  if (s < appT - 1e-6) { await laddaApp(); }
+  const w = $('#app').contentWindow;
+  appT = w.__upp.visaTill(Math.max(s, data.fran));
+  const l = w.__upp.visaLage();
+  $('#lage').textContent = `mattan vid ${fmt(appT)} · ${l.kort} kort, ${l.platser} platshållare · rapport ${l.hi}/${l.n}`;
+}
+
+/* Bilden: video (golden), kontaktark med en ruta per sekund (passet
+   2026-09-22) eller kamerans rutor (partiet 2026-09-21). */
+let video = null, arkEl = null, hel = null;
+function byggMedia() {
+  const m = $('#media'); [...m.querySelectorAll('video,#ark,img.hel')].forEach(e => e.remove()); video = arkEl = hel = null;
+  const md = fall.media || {};
+  if (md.slag === 'video') { video = document.createElement('video'); video.src = '/' + md.fil; video.muted = true; video.playsInline = true; video.preload = 'auto'; m.prepend(video); }
+  else if (md.slag === 'stillbilder') { arkEl = document.createElement('div'); arkEl.id = 'ark'; m.prepend(arkEl); }
+  else if (md.slag === 'rutor') { hel = document.createElement('img'); hel.className = 'hel'; hel.alt = 'kamerans ruta'; m.prepend(hel); }
+}
+function visaBild(s) {
+  const md = fall.media || {};
+  const bt = $('#bildText'), ins = $('#inset');
+  ins.style.display = 'none';
+  if (video) { bt.textContent = 'telefonens video ' + fmt(s); return; }
+  if (arkEl) {
+    const sek = Math.floor(s), start = Math.floor(sek / 20) * 20, i = sek - start;
+    const fil = (md.bilder || []).find(b => /\/s1_/.test(b.fil) && Math.round(b.s) === start);
+    if (!fil) { arkEl.style.backgroundImage = ''; bt.textContent = 'ingen bild för ' + sek + ' s'; return; }
+    arkEl.style.backgroundImage = `url('/${fil.fil}')`;
+    arkEl.style.backgroundSize = '400% 500%';
+    arkEl.style.backgroundPosition = `${(i % 4) / 3 * 100}% ${Math.floor(i / 4) / 4 * 100}%`;
+    bt.textContent = `stillbild ${sek} s (kontaktark, en per sekund — videon ligger på Google Drive)`;
+    return;
+  }
+  if (hel) {
+    const sek = Math.max(md.sek[0], Math.min(md.sek[1], Math.floor(s)));
+    const src = `/${md.mapp}/rutor/kam-${String(sek).padStart(3, '0')}.jpg`;
+    if (hel.getAttribute('src') !== src) hel.src = src;
+    const fin = (md.fin || []).filter(v => v <= s + 1e-6 && s - v < 0.2).pop();
+    if (fin != null) { ins.src = `/${md.mapp}/fin/g-${fin.toFixed(2).padStart(7, '0')}.jpg`; ins.style.display = 'block'; }
+    bt.textContent = `kamerans ruta ${sek} s (en per sekund)` + (fin != null ? ` · utsnitt vid graveyard ${fin.toFixed(2)} s (5/s)` : '');
+  }
+}
+function handelser() {
+  const h = $('#handelser'), F = (fall.facit || []);
+  const nu = F.filter(x => Math.abs(x.t - t) < 6);
+  h.innerHTML = (fall.slag === 'facit' ? '<div class="nu">Mattan matas med v2-facit (en idealiserad telefon var tionde sekund), inte med telefonens ström.</div>' : '')
+    + (nu.length ? nu.map(x => `<div class="${Math.abs(x.t - t) < 1 ? 'nu' : ''}">${fmt(x.t)} · ${x.typ} · ${x.kort || ''}${x.till ? ' → ' + x.till : ''}</div>`).join('') : '<div>inga händelser i facit inom ±6 s</div>');
+}
+function markor() {
+  const m = $('#markor'), span = fall.till - fall.fran;
+  m.innerHTML = (fall.facit || []).map(x => `<i class="${x.typ === 'tar_bort' ? 'bort' : x.typ === 'flyttar' ? 'flytt' : ''}" style="left:${((x.t - fall.fran) / span * 100).toFixed(2)}%" title="${fmt(x.t)} ${x.typ} ${x.kort || ''}"></i>`).join('');
+}
+async function satt(s, franVideo) {
+  t = Math.max(fall.fran, Math.min(fall.till, s));
+  $('#spola').value = t; $('#tid').textContent = fmt(t);
+  if (video && !franVideo && Math.abs(video.currentTime - t) > 0.03) { video.currentTime = t; await new Promise(r => { const f = () => { video.removeEventListener('seeked', f); r(); }; video.addEventListener('seeked', f); setTimeout(r, 1500); }); }
+  visaBild(t); handelser();
+  await tillTid(t);
+}
+let forraTick = 0, upptagen = false;
+async function loop(nu) {
+  requestAnimationFrame(loop);
+  if (!fall || upptagen) return;
+  upptagen = true;
+  try {
+    if (spelar) {
+      if (video) { if (video.paused) video.play().catch(() => {}); await satt(video.currentTime, true); }
+      else { const dt = forraTick ? (nu - forraTick) / 1000 : 0; await satt(t + dt * +$('#fart').value); }
+      if (t >= fall.till) paus();
+    } else if (appKlar) await tillTid(t);   // står still: animeringarna hålls på klockan
+  } finally { forraTick = nu; upptagen = false; }
+}
+function paus() { spelar = false; if (video) video.pause(); $('#spela').textContent = '▶︎ Spela'; }
+$('#spela').onclick = () => { if (spelar) return paus(); spelar = true; if (video) { video.playbackRate = +$('#fart').value; video.play().catch(() => {}); } $('#spela').textContent = '❚❚ Paus'; };
+$('#fart').onchange = () => { if (video) video.playbackRate = +$('#fart').value; };
+$('#fram').onclick = () => { paus(); satt(t + RUTA); };
+$('#bak').onclick = () => { paus(); satt(t - RUTA); };
+$('#spola').oninput = e => { paus(); satt(+e.target.value); };
+$('#fallVal').onchange = e => { location.search = '?fall=' + e.target.value; };
+addEventListener('keydown', e => {
+  if (e.key === ' ') { e.preventDefault(); $('#spela').click(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); $('#fram').click(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); $('#bak').click(); }
+});
+
+(async () => {
+  skala();
+  lista = await (await fetch('/__upp/fall.json')).json();
+  const id = q.get('fall') || lista[0].id;
+  fall = lista.find(f => f.id === id) || lista[0];
+  $('#fallVal').innerHTML = lista.map(f => `<option value="${f.id}"${f.id === fall.id ? ' selected' : ''}>${f.id} — ${f.namn}</option>`).join('');
+  $('#underrubrik').textContent = fall.namn + ' — ' + (fall.anm || '');
+  $('#not').textContent = fall.slag === 'facit' ? 'Facit, inte telefonen: mattan visar hur appen ritar korten när telefonen ser allt rätt.' : '';
+  data = await (await fetch(`/__upp/fall/${fall.id}.json`)).json();
+  const sp = $('#spola'); sp.min = fall.fran; sp.max = fall.till;
+  byggMedia(); markor();
+  await laddaApp();
+  await satt(q.has('t') ? +q.get('t') : fall.fran);
+  window.__visaKlar = true;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
