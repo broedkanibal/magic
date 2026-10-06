@@ -39,6 +39,22 @@ Varför Fable på 2 och 5: det är i avstämningens bindningar ett spår kan få
 
 **Krock att hålla koll på:** MES-334 står i Redo att testas och kan få rättelser efter Jespers prov. Rättelserna rör samma kod som steg 1–3. Kolla `ListAgents` och In Progress innan ett steg börjar, och säg till i chatten om MES-334 är igång.
 
+## Samtidigt i natt: sessionen "MES-340 bildmodell manga kort"
+
+Den kör golden flera gånger i rad på samma dator (baslinjen C, sedan v2 ×2,
+v3 ×2 och kanske v4, enligt `prompt-2026-10-06-kvall-remsmodell-v4.md`), och
+dess jämförelse kräver att `index.html` är **samma** i alla körningar. Den rör
+inte `index.html`, `dev/embed/embed.js`, `kor.cjs` eller `kor.html` och lägger
+ingen modell i appen. Regler för orkestreraren:
+
+| | Regel |
+|---|---|
+| Golden | Kör aldrig golden medan deras går (`ps -axo command= \| grep -E '^node .*golden/kor\.cjs'` tomt först). Du behöver sällan golden: bara om telefonens kod ändrats |
+| Push av `index.html` | Skicka ett meddelande till sessionen (`SendMessage` till "MES-340 bildmodell manga kort") **innan** du pushar en ändring i `index.html`, och vänta med pushen tills deras pågående golden-körning är klar, så att deras tre körningar inte jämför olika kod. Dokumentation och `dev/uppspelaren/` kan pushas när som helst |
+| Pull | `git fetch` och bygg på `origin/main` före varje ihopslagning: de pushar golden-resultat och planer under natten |
+| Last | Deras golden tar processorn. Uppspelarens mått är antal och ordning (hopp, utbytta kort, rutor), inte millisekunder; mät inte tider (`--tid`) medan golden går, eller skriv att det mättes under last |
+| Kod | Ni rör olika områden (`dev/embed`, `dev/remsa`, `dev/golden/historik.md` mot `avstamBord`, mattan, `dev/uppspelaren`). `dev/golden/historik.md` kan båda skriva i: ta deras rad med vid merge |
+
 ## Två sätt att köra
 
 | | A · En issue i taget | B · Orkestrerare |
