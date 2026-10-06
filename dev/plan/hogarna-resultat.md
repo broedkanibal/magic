@@ -163,6 +163,22 @@ kort mot hög utan designens toning; en telefon utan tränad detektor tar inte g
 (telefonens kod, kräver golden); motståndarna ser inte Not my library-högen; brickan på motståndarens matta
 skalar med brädet.
 
+## Jespers beslut 2026-10-06 och bygget
+
+| Beslut | Byggt |
+|---|---|
+| 1 · Graveyard antas när ett kort **flyttas** till en plats bredvid library, vänster eller höger. Kortets exakta läge blir graveyard vid Yes | `naraLek` i `gravFragaSteg`: lekens rad, högst 1,6 kortbredder från leken (`GRAV_NARA_LEK`), också på landsidan. En tappning är ingen flytt. Före Yes väntar besvärjelseregeln, så att ett instant som flyttas dit ger frågan. Yes tonar kortet till högen (designytans tavla 4) |
+| 2 · Grundläget antas alltid i bakgrunden ur det första kort som läggs ut (oftast leken), och inget statusfält säger något | Statusfältets rad borta; kamerapanelen neutral. På telefonen `forstaKortGrund` utanför detektorns spärr: utan detektorn ger första kortet (oftast leken) grundläget, två kort samtidigt ger det som legat still längst, kort vid start: de flestas axel efter 10 s |
+| 3 · Graveyard följer med när högen flyttas | Telefonen säger när graveyard-rutan är tom (`grav.tom`); datorn tar ett nytt spår med det översta kortets namn som högen, flyttar rutan dit och gör inget kort av det (`gravFoljer`) |
+
+Två granskningsvarv (ett blockerande fel: fel spår kunde bli högen — rättat). Prov: avstamning GY12–GY14,
+hogarna (statusfältet tyst, graveyard följer med i fyra varianter, Yes-toningen), kamerabänken LK8–LK8e, GY4b.
+
+**Avsteg och öppna frågor till Jesper:** land undantas från regel 1 (landen ligger i samma rad som leken); ett
+instant som plockas upp före Yes och inte läggs ner igen blir ett lyft kort, inte graveyard; graveyard följer
+inte med när den bara har ett kort (att ta det kortet går inte att skilja från att flytta högen); utan tränad
+detektor finns ingen lek på mattan, och då gäller bara sidoregeln och kort ovanpå kort.
+
 ## Fall 05 med Claude: orsaken och rättelsen (2026-10-05 kl. 20–23)
 
 **Orsaken** var två hål i `tillampaHelbild` (Kamera-modulen), identiska på main och grenen:
