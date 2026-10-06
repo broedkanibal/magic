@@ -8542,7 +8542,7 @@ function renderGrid(force) {
      nedtonade kortet finns kvar från förra ritningen), överst i högen som i
      flyttaTill. En förflyttning, ingen radering — ingen notis. En gång per
      kort, bara på mitt eget bord. */
-  if (arMitt(p)) for (const c of cards.filter(c => c.gravAuto && !gravSagda.has(c.cid))) {
+  if (arMitt(p)) for (const c of cards.filter(c => (c.gravAuto || c.spellAuto) && !gravSagda.has(c.cid))) {   // besvärjelsen också: den ligger fysiskt överst (granskningen varv 2)
     gravSagda.add(c.cid);
     flygTillGrav([...gridEl.querySelectorAll('.card[data-cid]')].find(el => el.dataset.cid === c.cid));
     const valt = cards[state.sel];
@@ -26578,7 +26578,7 @@ const Kamera = (() => {
          kort i spel är otappade), med medianen av den axelns vinklar.
      Bara spår som ligger still räknas: handen som lägger kortet blir ofta ett par kortformade spår som dör
      inom en sekund (golden 07: två sådana medan Thriving Moor lades). */
-  const GRUND_ANTA_MS = 10000, KORT_START_MS = 3000, KORT_STILLA_MS = 1500;   // första kortet: still i 1,5 s (ett land som tappas direkt hinner inte)
+  const GRUND_ANTA_MS = 10000, KORT_START_MS = 3000;
   function forstaKortGrund(nu) {
     const riktiga = spar.filter(lekRiktigt);
     if (lekKortVid == null) { lekKortVid = riktiga.length; kortVidStart = new Set(riktiga.map(t => t.id)); kortVaktStart = nu; }
@@ -26587,7 +26587,7 @@ const Kamera = (() => {
     if (lekKortVid > 0 && nu - kortVaktStart < KORT_START_MS) for (const t of riktiga) kortVidStart.add(t.id);   // bara när bordet hade kort vid starten: på ett tomt bord är varje kort nytt
     if (!lekForsta && riktiga.length) lekForsta = nu;
     if (kal.bib || lek || grundKalla != null || kal.grund != null) return;   // uppstartens library-ruta: provkortet gav grundläget, som förut
-    const stillaRiktiga = riktiga.filter(t => t.regionNar != null && forra - t.stillaFran >= Math.max(T.stillaMs, KORT_STILLA_MS));
+    const stillaRiktiga = riktiga.filter(arStilla);   // T.stillaMs som förut: 1,5 s gjorde fönstret för ett tappat land större (granskningen varv 2)
     if (!stillaRiktiga.length) return;
     const nya = stillaRiktiga.filter(t => !kortVidStart.has(t.id)).sort((a, b) => a.stillaFran - b.stillaFran);
     let v = null;
@@ -31174,11 +31174,18 @@ function gravFragaSteg(mig, nu, synliga) {
       if (c.ny && nu - c.ny < GRAV_NY_MS) nya.push(c);   // annars: låg där när kameran kom, en omladdning — ingen fråga
       continue;
     }
-    /* Flyttat och lagt sig (inte preliminärt): prövas som om det lades där nu. */
-    if (c.kam.prel || Math.hypot(c.kam.x - fore.x, c.kam.y - fore.y) <= GRAV_FLYTT * Math.min(c.kam.w, c.kam.h)) continue;
+    /* Flyttat och lagt sig (inte preliminärt): prövas som om det lades där nu. Annars följer bara tap-läget med
+       (en tappning på plats), så att nästa flytt jämförs mot kortets senast sedda läge. */
+    const flytt = Math.hypot(c.kam.x - fore.x, c.kam.y - fore.y);
+    if (c.kam.prel || flytt <= GRAV_FLYTT * Math.min(c.kam.w, c.kam.h)) {
+      if (!c.kam.prel && c.kamTap != null && fore.tap !== c.kamTap) gravSedda.set(c.cid, Object.assign({}, fore, { tap: c.kamTap }));
+      continue;
+    }
     if ((fore.t || 0) < gravOmstart && (c.kam.nar || nu) - gravOmstart < GRAV_OMSTART_MS) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu })); continue; }
-    /* En tappning vrider kortet runt ett hörn, och mitten flyttar ~1 kortbredd: ingen flytt (granskningen av besluten, fynd 7). */
-    if (c.kamTap != null && fore.tap != null && c.kamTap !== fore.tap) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu, tap: c.kamTap })); continue; }
+    /* En tappning vrider kortet runt ett hörn, och mitten flyttar upp till ~0,9 av långsidan: ingen flytt (granskningen
+       av besluten, fynd 7). Bara så långt — en tappad varelse som dör och läggs bredvid library har flyttats längre,
+       och ska ge frågan (granskningen varv 2). */
+    if (c.kamTap != null && fore.tap != null && c.kamTap !== fore.tap && flytt <= Math.max(c.kam.w, c.kam.h)) { gravSedda.set(c.cid, Object.assign({}, fore, { x: c.kam.x, y: c.kam.y, t: nu, tap: c.kamTap })); continue; }
     const lagd = c.kam.nar || nu;
     gravSedda.set(c.cid, { x: c.kam.x, y: c.kam.y, lagd, t: nu, tap: c.kamTap });
     if (nu - lagd < GRAV_NY_MS) flyttade.push({ c, dx: c.kam.x - fore.x, dy: c.kam.y - fore.y, s: Math.min(c.kam.w, c.kam.h) });

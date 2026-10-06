@@ -2115,6 +2115,30 @@ prov('GY14 (granskningen av besluten, fynd 7) ett kort bredvid library som TAPPA
   stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, tappad: true, ...kortVid(0.585 + 0.04, 0.702 + 0.01, 0.088, 0.063) })]));   // tappat och lite förskjutet, kvar i lekens rad bredvid library
   assert.equal(fraga(), null, 'tappningen gav en fråga');
 });
+prov('GY15 (granskningen varv 2) en TAPPAD varelse som dör och läggs OTAPPAD bredvid library ger frågan — tappningsundantaget gäller bara en vridning', () => {
+  gyStart();
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.7, 0.7) })];
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.45, 0.45) })]));
+  klocka.t += 20000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, tappad: true, ...kortVid(0.45 + 0.04, 0.45 + 0.01, 0.088, 0.063) })]));   // anfaller: tappad på plats
+  klocka.t += 5000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]));    // dör: flyttas otappad till graveyard-platsen
+  const c = app.kort.find(c => c.name === 'Ukud Cobra');
+  assert.ok(fraga(), 'flyttat (och otappat) kort gav ingen fråga');
+});
+
+
+
+prov('GY16 (granskningen varv 2) en varelse tappas PÅ PLATS (anfaller), dör och skjuts TAPPAD bredvid library — ger frågan', () => {
+  gyStart();
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.62, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.7, 0.7) })];
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.45, 0.45) })]));
+  klocka.t += 20000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, tappad: true, ...kortVid(0.452, 0.452, 0.088, 0.063) })]));
+  klocka.t += 5000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, tappad: true, ...kortVid(0.38, 0.71, 0.088, 0.063) })]));
+  assert.ok(fraga(), 'tappat kort flyttat till graveyard-platsen gav ingen fråga');
+});
 prov('GY4 Permanent: Mesa frågar en gång till när ett kort läggs ovanpå på samma plats, sedan aldrig', () => {
   gyStart(); app.bib = null;
   stam([klar(1, 'Ukud Cobra', { sen: 10, ...kortVid(0.3, 0.3) })]);
