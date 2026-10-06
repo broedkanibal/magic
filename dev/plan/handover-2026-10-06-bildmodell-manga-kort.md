@@ -55,9 +55,11 @@ hinner; mapparna finns. Klippen ska heta likadant i alla mappar (klipp1–4).
    och gör **stickprovet med egna ögon** (galleri: skriptet i scratchpaden är borta — bygg ett: montage per klipp finns
    redan som `<klipp>/montage.jpg`, tre rader: lägg, sista läget, remsan; för zoom skriv en HTML med inbäddade
    bilder som i går). Skriv `facit-manuell.json` per klipp för osäkra du kan läsa; `null` för Claude-fel.
-2. **Märk B när den finns:** `mark.py pass …-lampa --par …-tra-skugga --tel` (namn ur A via ordning + ORB mot A:s
+2. **B och C finns inte än (2026-10-06 14:30) — hoppa över det här steget och gå direkt till 3.** Blänket finns redan i
+   träningen via pass 2/3/5 (490 namngivna kort); B/C blir v4 om golden visar att blänket är kvar. När de finns:
+   `mark.py pass …-lampa --par …-tra-skugga --tel` `mark.py pass …-lampa --par …-tra-skugga --tel` (namn ur A via ordning + ORB mot A:s
    4K-utsnitt; `saker_ordning` för utbrända). `mark.py par A B --torr` visar parningen först. Samma för C.
-3. **Dataset:** `dataset.py rakna`, sedan `dataset.py bygg --ut ~/Library/Caches/mesa/ds-riktiga-v3 --om`, lägg
+3. **Dataset (A + pass 2/3/5):** `dataset.py rakna`, sedan `dataset.py bygg --ut ~/Library/Caches/mesa/ds-riktiga-v3 --om`, lägg
    `dataset-metadata.json` (id `jesperfunkrosling/mesa-riktiga-utsnitt`, privat) och ladda upp som **ny version**:
    `~/.mesa/kaggle-venv/bin/kaggle datasets version -p <mapp> --dir-mode zip -m "v3: många kort"`. Jesper har sagt ja
    till uppladdning och Kaggle-körning (2026-10-05).
@@ -65,7 +67,8 @@ hinner; mapparna finns. Klippen ska heta likadant i alla mappar (klipp1–4).
    [datasetets slug]) till en scratchmapp, patcha rad `ARGS = sys.argv[1:]` → `sys.argv[1:] or ['--rok', '--val-klipp',
    '<pass>/<klipp>']` för röken (3 min), `kaggle kernels push -p <mapp>`, `kaggle kernels status jesperfunkrosling/
    mesa-remsa-tran`, `kaggle kernels output … -p <ut>`. Sedan utan `--rok` (170 min). `--basvikt` är förvalt
-   (basland 53 → 33 % av dragningarna). Håll ett klipp utanför som `--val-klipp` (t.ex. B:s klipp 4).
+   (basland 53 → 33 % av dragningarna). Håll ett klipp utanför som `--val-klipp` (A:s klipp4 — det är kort, ~10 kort, så hellre
+   `2026-10-05-traning-landhogar/klipp3-enfargad-duk-island` som i v2, för jämförbarhet).
 5. **Mät v3:** `dev/remsa/helkort_jamfor.py <v3.onnx>` (grind ≥ 55/61 nu, 0 säkra fel vid 0,11), remsbänken
    (`MESA_MOBILECLIP=<v3> MESA_REMSEXP_NPZ=resultat/remsexp-v3.npz python dev/remsa/remsexp.py bygg`, sedan
    `remsregel.py resultat/remsexp-bas.npz resultat/remsexp-v2.npz resultat/remsexp-v3.npz`) — **basland-felet i Jespers
@@ -95,4 +98,4 @@ läsa stickprov och golden), inte beräkningen. Delegera märkningens kod till `
 byggas om; märkningen körs med de färdiga kommandona. Golden-körningar: `mesa-matning` (Sonnet, medium).
 
 ## Öppningsreplik
-> Dina fyra klipp och kortlistan ligger på plats: 151 kort, 121 olika namn. Jag startar märkningen av skugginspelningen nu och kollar samtidigt hur golden gick för v2 — sedan visar jag stickprovet innan något tränas.
+> Dina fyra klipp och kortlistan ligger på plats: 151 kort, 121 olika namn, cirka 98 nya för modellen. Jag startar märkningen av skugginspelningen nu och kollar samtidigt hur golden gick för v2 — sedan visar jag stickprovet innan något tränas.
