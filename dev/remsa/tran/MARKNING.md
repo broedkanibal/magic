@@ -145,3 +145,25 @@ Spärrarna: källklippet ska vara träning (delning), inget golden-namn, inget k
 `remsor_ur: 'horn'`. `mesa_remsa_tran.py` (v2) blandar dem med de syntetiska; se dess docstring.
 Läget 2026-10-05 kväll: 31 namn (5 basland), 4 704 utsnitt, 57 MB — och bara ett valideringsnamn (Plate Armor),
 eftersom passen bara har Jespers två lekar.
+
+## Två inspelningar av samma kort (`par`, 2026-10-06)
+
+Pass A (bra ljus) och B (taklampa, blänk) har samma kort i samma ordning. B:s namn tas ur A:
+
+| Del | Regel |
+|---|---|
+| Sekvenserna | lägg-ögonblicken i tidsordning, klipp-par med samma filnamn (annars samma ordningsnummer) |
+| Bilden | ORB med CLAHE mellan B:s och A:s 4K-utsnitt (utsnittscachen), B vriden 0/90/180/270°, A-lägg ± 3 runt den förväntade platsen (+ skillnaden i antal) |
+| Parningen | Needleman–Wunsch: par = 1 + inliers/12, par mot en entydig bild −3, lucka −0,6 — ett missat lägg förskjuter inte resten |
+| `saker` | paret är bildens bästa med ≥ 12 inliers och ≥ 2 × näst bästa; A-spåret säkert; Claude i B säger inte ett annat säkert namn |
+| `saker_ordning` | B-bilden utbränd (< 6 inliers mot alla i fönstret), ensam mellan två bildsäkra par (eller sekvensens ände) med samma avstånd i A och B; aldrig ett valideringsnamn; aldrig i `val/` |
+| Annars | `osaker`; en människas facit och baksidorna står kvar |
+
+Två utbrända i rad räknas inte ur ordningen: simuleringen visade att två bytta kort som båda är blinda annars
+gav två fel namn. Fyrhörningen räknas om för B:s nya namn (ORB mot namnets konstverk); `par` i varje spår och
+i markning.json; rapporten har en kolumn för det. En CSV (ManaBox "Name", Delver Lens "Name"/"Card Name") i
+klippets källmapp ersätter slumpnamnen i C:s kandidatlek, och ett säkert namn utanför listan blir osäkert.
+
+    $PY dev/remsa/tran/mark.py pass dev/material/2026-10-06-traning-200kort-ljus --tel
+    $PY dev/remsa/tran/mark.py pass dev/material/2026-10-06-traning-200kort-lampa --par dev/material/2026-10-06-traning-200kort-ljus --tel
+    $PY dev/remsa/tran/mark.py par <A> <B> --torr     # bara parningen, skriver inget

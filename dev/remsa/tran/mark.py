@@ -21,6 +21,9 @@ Stegen (varje steg läser föregående stegs JSON och körs inte om när utdata 
     $PY dev/remsa/tran/mark.py klipp <fil.MOV> [--fran S] [--till S] [--om B,C,E|alla] [--ocr] [--utan-avkodning] [--uppskatta]
     $PY dev/remsa/tran/mark.py detektera|spar|namn|beskar <fil.MOV> [--fran S] [--till S] [--om]
     $PY dev/remsa/tran/mark.py pass <passmapp>        alla klipp i passet i ordning (1, 2, 3), sedan rapport
+    $PY dev/remsa/tran/mark.py pass <passB> --par <passA>   B:s namn ur A (samma kort, samma ordning): par efter C
+    $PY dev/remsa/tran/mark.py par <passA> <passB> [--torr]  bara parningen (B:s markning.json; E körs om sedan)
+    En CSV (ManaBox/Delver Lens) i klippets källmapp blir kandidatleken i C och ett vittne (namn utanför → osäkert).
     $PY dev/remsa/tran/mark.py rapport <passmapp>
 
 Före varje 4K-avkodning väntar skriptet så länge en golden körs (pgrep -f dev/golden/kor.cjs).
@@ -1589,6 +1592,273 @@ def las_manuellt_facit(mapp, index):
     return ut
 
 
+
+# ── par: samma kort i två inspelningar (A bra ljus, B blänk) ─────────────────
+# Jesper spelar in samma ~200 kort två gånger i samma ordning (2026-10-06): A i bra ljus, B under taklampan med
+# blänk. B:s namn tas ur A: lägg-ögonblicken i tidsordning är två sekvenser, och ordningen är grunden; bilden
+# (ORB med CLAHE mellan B:s och A:s 4K-utsnitt av samma fysiska kort) är kontrollen. Dynamisk programmering
+# (parning med luckor) gör att ett missat lägg i A eller B inte förskjuter resten.
+PAR = {'fonster': 3,          # A-lägg prövas ± 3 runt den förväntade platsen (+ skillnaden i antal)
+       'bild_min': 12,        # entydig bild: bästa ≥ 12 inliers …
+       'bild_ggr': 2.0,       # … och ≥ 2 × näst bästa i fönstret
+       'utbrand': 6,          # under 6 inliers mot alla i fönstret: bilden säger ingenting
+       'ordning_max': 1,      # högst 1 B-lägg utan bild mellan två bildsäkra par: två utbrända i rad kan ha bytt plats
+       'mot': 3.0,            # straffet när ett par går emot en entydig bild
+       'lucka': 0.6}          # kostnaden för en lucka (ett lägg som bara finns i A eller i B)
+
+
+def par_drag(hel4k, rot=0):
+    """ORB-drag för parningen: utsnittet utan marginal, vridet rot × 90° moturs, kortsidan 488 (som Scryfall)."""
+    g = cv2.cvtColor(utan_marginal(hel4k), cv2.COLOR_BGR2GRAY)
+    if rot:
+        g = np.ascontiguousarray(np.rot90(g, rot))
+    s = 488 / max(1, min(g.shape[:2]))
+    return orb_drag(cv2.resize(g, (max(8, round(g.shape[1] * s)), max(8, round(g.shape[0] * s))), interpolation=cv2.INTER_CUBIC))
+
+
+def par_fonster(i, nA, nB):
+    """A-index att pröva för B-lägg i: ± fönster runt den förväntade platsen, vidgat med skillnaden i antal."""
+    c = i * (nA - 1) / max(1, nB - 1) if nB > 1 else 0
+    w = PAR['fonster'] + abs(nA - nB)
+    return [j for j in range(nA) if abs(j - c) <= w]
+
+
+def para_sekvenser(nA, nB, S):
+    """Sekvensparning med luckor (Needleman–Wunsch). S: {(i, j): inliers} för de par som får prövas (B-lägg i,
+    A-lägg j, fönstret). Ett par ger 1 + inliers/12 (ordningen ensam ger 1); ett par mot en entydig bild (B-bilden
+    har ≥ 12 inliers mot ett annat A-lägg och det här har under hälften) ger 1 − mot; en lucka kostar PAR['lucka'].
+    Svar: [j eller None] per B-lägg."""
+    bast = {}
+    for (i, j), v in S.items():
+        bast[i] = max(bast.get(i, 0), v)
+
+    def poang(i, j):
+        if (i, j) not in S:
+            return None
+        v = S[(i, j)]
+        p = 1.0 + min(v, 60) / 12.0
+        if bast.get(i, 0) >= PAR['bild_min'] and v < bast[i] / PAR['bild_ggr']:
+            p -= PAR['mot'] + 1.0
+        return p
+    NEG = -1e9
+    D = np.full((nB + 1, nA + 1), NEG); D[0, 0] = 0.0
+    bak = np.zeros((nB + 1, nA + 1), np.int8)   # 1 = par, 2 = lucka i A (B-lägg utan par), 3 = lucka i B
+    for i in range(nB + 1):
+        for j in range(nA + 1):
+            if i == 0 and j == 0:
+                continue
+            bast_v, bast_b = NEG, 0
+            if i and j:
+                p = poang(i - 1, j - 1)
+                if p is not None and D[i - 1, j - 1] + p > bast_v:
+                    bast_v, bast_b = D[i - 1, j - 1] + p, 1
+            if i and D[i - 1, j] - PAR['lucka'] > bast_v:
+                bast_v, bast_b = D[i - 1, j] - PAR['lucka'], 2
+            if j and D[i, j - 1] - PAR['lucka'] > bast_v:
+                bast_v, bast_b = D[i, j - 1] - PAR['lucka'], 3
+            D[i, j], bak[i, j] = bast_v, bast_b
+    ut = [None] * nB
+    i, j = nB, nA
+    while i or j:
+        b = bak[i, j]
+        if b == 1:
+            ut[i - 1] = j - 1; i, j = i - 1, j - 1
+        elif b == 2:
+            i -= 1
+        else:
+            j -= 1
+    return ut
+
+
+def par_domar(nA, nB, S, par):
+    """Domen per B-lägg ur parningen: ('bild' | 'ordning' | None, A-index, varför, inliers, näst bästa).
+    bild: paret är bildens bästa med ≥ 12 inliers och ≥ 2 × näst bästa i fönstret. ordning: B-bilden är utbränd
+    (< 6 inliers mot alla i fönstret) och paret ligger mellan två bildsäkra par (eller sekvensens ände) med lika
+    många lägg i A och B emellan, högst PAR['ordning_max'], på rätt plats. Allt annat: None."""
+    rader = []
+    for i in range(nB):
+        v = sorted(((S[(i, j)], j) for j in par_fonster(i, nA, nB) if (i, j) in S), reverse=True)
+        bast = v[0][0] if v else 0
+        nast = v[1][0] if len(v) > 1 else 0
+        j = par[i]
+        rader.append({'j': j, 'inliers': S.get((i, j), 0) if j is not None else None, 'bast': bast, 'nast': nast,
+                      'arg': v[0][1] if v else None})
+    ank = []
+    for i, r in enumerate(rader):
+        r['typ'] = None
+        if r['j'] is None:
+            r['varfor'] = 'inget A-lägg i parningen (missat i A, eller B-lägget saknar motsvarighet)'
+            continue
+        if r['inliers'] >= PAR['bild_min'] and r['arg'] == r['j'] and r['inliers'] >= PAR['bild_ggr'] * r['nast']:
+            r['typ'], r['varfor'] = 'bild', f"bilden: {r['inliers']} inliers mot {r['nast']} för näst bästa"
+            ank.append(i)
+    for i, r in enumerate(rader):
+        if r['typ'] or r['j'] is None:
+            continue
+        if r['bast'] >= PAR['utbrand']:
+            r['varfor'] = (f"bilden inte entydig: {r['inliers']} inliers (bäst {r['bast']} mot A-lägg {r['arg']}, "
+                           f"näst bäst {r['nast']})")
+            continue
+        fore = max([a for a in ank if a < i], default=None)
+        efter = min([a for a in ank if a > i], default=None)
+        ib, jb = (fore, rader[fore]['j']) if fore is not None else (-1, -1)
+        ie, je = (efter, rader[efter]['j']) if efter is not None else (nB, nA)
+        mellan = ie - ib - 1
+        if ie - ib == je - jb and i - ib == r['j'] - jb and mellan <= PAR['ordning_max']:
+            r['typ'] = 'ordning'
+            r['varfor'] = f"ordningen: B-bilden utbränd (bäst {r['bast']} inliers), {mellan} lägg mellan bildsäkra par i både A och B"
+        else:
+            r['varfor'] = (f"ordningen inte entydig: {ie - ib - 1} B-lägg mot {je - jb - 1} A-lägg mellan bildsäkra par"
+                           + (f' (fler än {PAR["ordning_max"]})' if mellan > PAR['ordning_max'] else ''))
+    return rader
+
+
+def horn_for_namn(hel4k, namn, konst, lada, W, H, ensam_yta):
+    """Fyrhörningen för ett namn som inte kom ur C (B:s namn ur A): ORB mot namnets konstverk, bästa som i C."""
+    egna = [p['id'] for p in konst.get(namn, []) if os.path.exists(os.path.join(REF, p['id'] + '.jpg'))]
+    if not egna:
+        return None, 'inga konstverk', None
+    fq = orb_fraga(hel4k)
+    best = None
+    for c in egna:
+        n, Hm, (Sm, s_in) = orb_inliers(fq, ref_orb(c), med_h=True)
+        if best is None or n > best[0]:
+            best = (n, Hm, Sm, s_in, c)
+    n, Hm, Sm, s_in, c = best
+    ref = cv2.imread(os.path.join(REF, c + '.jpg'), cv2.IMREAD_GRAYSCALE)
+    ob = {'inliers': n, 'bild': c, 'H': Hm.tolist() if Hm is not None else None, 'S': Sm.tolist() if Sm is not None else None,
+          'S_inliers': s_in, 'ref_wh': [int(ref.shape[1]), int(ref.shape[0])], 'overens': bool(n >= 12), 'kalla': 'par'}
+    horn, hv = horn_ur_orb(ob, lada, W, H, hel4k.shape, ensam_yta)
+    return horn, hv, ob
+
+
+def par_utsnitt(mapp, s):
+    fil = os.path.join(mapp, 'utsnitt', '4k', utsnitt_namn(s['lagg']['ruta'], s['lagg']['lada']))
+    return cv2.imread(fil) if os.path.exists(fil) else None
+
+
+def par_matris(A_bilder, B_bilder, rotationer=(0, 1, 2, 3)):
+    """S[(i, j)] = bästa inliers över B-bildens vridningar, och vilken vridning, inom fönstret."""
+    fa = [par_drag(b) if b is not None else None for b in A_bilder]
+    S, rot = {}, {}
+    nA, nB = len(A_bilder), len(B_bilder)
+    for i, b in enumerate(B_bilder):
+        fb = [par_drag(b, r) for r in rotationer] if b is not None else None
+        for j in par_fonster(i, nA, nB):
+            if fb is None or fa[j] is None:
+                S[(i, j)] = 0; rot[(i, j)] = None
+                continue
+            v = [orb_inliers(f, fa[j]) for f in fb]
+            k = int(np.argmax(v))
+            S[(i, j)], rot[(i, j)] = int(v[k]), int(rotationer[k])
+    return S, rot
+
+
+def par_klipp(amapp, bmapp, skriv=True):
+    """B:s domar ur parningen med A (båda efter C). skriv: B:s markning.json får domen, namnet och parningen per spår,
+    beskar: null (E körs om); annars bara svaret. A:s spår måste vara säkra för att B ska få namnet."""
+    MA, MB = las_json(os.path.join(amapp, 'markning.json')), las_json(os.path.join(bmapp, 'markning.json'))
+    sA = sorted([s for s in MA['spar'] if s['lagg']], key=lambda s: s['lagg']['t'])
+    sB = sorted([s for s in MB['spar'] if s['lagg']], key=lambda s: s['lagg']['t'])
+    t0 = time.time()
+    S, rot = par_matris([par_utsnitt(amapp, s) for s in sA], [par_utsnitt(bmapp, s) for s in sB])
+    par = para_sekvenser(len(sA), len(sB), S)
+    rader = par_domar(len(sA), len(sB), S, par)
+    konst = las_json(KONSTFIL) if os.path.exists(KONSTFIL) else {}
+    W, H = MB['W'], MB['H']
+    c = {}
+    for s, r in zip(sB, rader):
+        a = sA[r['j']] if r['j'] is not None else None
+        info = {'a': rel(amapp), 'a_spar': a['id'] if a else None, 'a_namn': a['namn'] if a else None, 'typ': r['typ'],
+                'inliers': r['inliers'], 'bast': r['bast'], 'nast': r['nast'], 'rot': rot.get((sB.index(s), r['j'])) if a else None,
+                'varfor': r['varfor']}
+        manuell = s['dom'] == 'saker_manuell' or (s['dom'] == 'slangd' and str(s.get('varfor', '')).startswith('manuellt'))
+        dom, namn, varfor = 'osaker', None, 'par: ' + r['varfor']
+        if r['typ'] and a and a['dom'] not in ('saker', 'saker_manuell'):
+            varfor = f"par: A-spåret {a['id']} är inte säkert ({a['dom']})"
+        elif r['typ'] and a:
+            cl = s.get('claude') or {}
+            if cl.get('namn') and cl.get('sure') and cl['namn'] != a['namn']:
+                varfor = f"par: Claude läste «{cl['namn']}» i B, A säger «{a['namn']}»"
+            elif r['typ'] == 'ordning' and ar_val(a['namn']):
+                varfor = f"par: «{a['namn']}» är ett valideringsnamn — ordningen ensam räcker inte där"
+            else:
+                dom = 'saker' if r['typ'] == 'bild' else 'saker_ordning'
+                namn = a['namn']
+                varfor = f"par med A {a['id']} — {r['varfor']}"
+        info['dom'] = dom
+        s['par'] = info
+        c[dom if not manuell else 'manuell'] = c.get(dom if not manuell else 'manuell', 0) + 1
+        if not skriv or manuell or s['dom'] == 'baksida':
+            continue   # en människas facit och baksidorna står kvar
+        utanfor = bool(a and a.get('utanfor_traning')) if namn else False
+        s.update({'dom': dom, 'namn': namn, 'varfor': varfor, 'utanfor_traning': utanfor,
+                  'val': bool(dom == 'saker' and not utanfor and ar_val(namn))})
+        if namn:
+            hel4k = par_utsnitt(bmapp, s)
+            horn, hv, ob = horn_for_namn(hel4k, namn, konst, s['lagg']['lada'], W, H, MB['ensam_yta']) if hel4k is not None else (None, 'inget utsnitt', None)
+            s['horn4k'], s['horn_varfor'], s['orb'] = horn, hv, ob
+            s.pop('horn_remsband', None)
+            if horn:
+                s['horn_remsband'] = horn_lada(remsband(horn))
+        else:
+            s['horn4k'], s['horn_varfor'] = None, 'inget namn'
+    sammanf = {'a': rel(amapp), 'nA': len(sA), 'nB': len(sB), 'domar': c,
+               'bild': sum(1 for r in rader if r['typ'] == 'bild'), 'ordning': sum(1 for r in rader if r['typ'] == 'ordning'),
+               'utan_par': sum(1 for r in rader if r['j'] is None), 'A_utan_par': len(sA) - sum(1 for r in rader if r['j'] is not None),
+               'tid_s': round(time.time() - t0, 1)}
+    if skriv:
+        MB['par'] = sammanf
+        MB['beskar'], MB['filer'] = None, []
+        skriv_json(os.path.join(bmapp, 'markning.json'), MB)
+        for d in ('tran', 'val'):
+            shutil.rmtree(os.path.join(bmapp, d), ignore_errors=True)
+    logg(f"par {rel(bmapp)} ← {rel(amapp)}: {len(sB)} B-lägg mot {len(sA)} A-lägg; bild {sammanf['bild']}, ordning "
+         f"{sammanf['ordning']}, utan par {sammanf['utan_par']}; domar {c} ({sammanf['tid_s']} s)")
+    return sammanf, rader
+
+
+def par_klippen(passA, passB):
+    """[(A-klipp, B-klipp)]: samma filnamn, annars samma ordningsnummer."""
+    def lista(p):
+        d = p if os.path.isdir(p) else os.path.join(ROT, 'dev', 'material', os.path.basename(p))
+        return sorted(glob.glob(os.path.join(d, '*.MOV')) + glob.glob(os.path.join(d, '*.mov')))
+    A, B = lista(passA), lista(passB)
+    if not A or not B:
+        raise SystemExit(f'inga klipp i {passA} eller {passB}')
+    namnA = {os.path.splitext(os.path.basename(k))[0]: k for k in A}
+    if all(os.path.splitext(os.path.basename(k))[0] in namnA for k in B):
+        return [(namnA[os.path.splitext(os.path.basename(k))[0]], k) for k in B]
+    if len(A) != len(B):
+        raise SystemExit(f'{len(A)} klipp i A och {len(B)} i B, och namnen skiljer — para dem för hand')
+    return list(zip(A, B))
+
+
+# ── kortlistan (CSV ur ManaBox eller Delver Lens) ────────────────────────────
+def las_kortlista(klipp, index):
+    """Namnen ur en CSV i klippets källmapp (ManaBox: "Name"; Delver Lens: "Name" eller "Card Name"),
+    normaliserade som Claudes. Svar: (set med namn, info) eller (None, None) utan CSV."""
+    import csv
+    filer = sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(klipp)), '*.csv')))
+    if not filer:
+        return None, None
+    namn, ej = set(), []
+    for fil in filer:
+        with open(fil, encoding='utf-8-sig', newline='') as f:
+            for rad in csv.DictReader(f):
+                n = (rad.get('Name') or rad.get('Card Name') or rad.get('name') or '').strip()
+                if not n:
+                    continue
+                hit, hur = index.sla_upp(n)
+                if hit:
+                    namn.add(hit)
+                else:
+                    ej.append(f'{n} ({hur})')
+    info = {'filer': [rel(f) for f in filer], 'namn': len(namn), 'ej_hittade': ej[:50], 'n_ej': len(ej)}
+    logg(f"C: kortlistan {', '.join(os.path.basename(f) for f in filer)}: {len(namn)} namn" + (f', {len(ej)} hittades inte i Scryfalls lista' if ej else ''))
+    return namn, info
+
+
 def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     t00 = time.time()
     S = las_json(os.path.join(mapp, 'spar.json'))
@@ -1780,7 +2050,12 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
     manuell = las_manuellt_facit(mapp, index)
     detta = {c['namn'] for c in claude.values() if c['namn']} | {v[0] for v in manuell.values() if v[0]}
     tidigare = tidigare_namn(mapp)
-    leknamn = sorted(set(BAS) | {'baksida'} | set(slumpnamn(nl)) | tidigare | detta)
+    kortlista, kortlista_info = las_kortlista(klipp, index)
+    if kortlista:
+        # kortlistan (CSV) ersätter de 200 slumpnamnen och den växande leken: bara korten som ligger på bordet
+        leknamn = sorted(set(BAS) | {'baksida'} | kortlista | {v[0] for v in manuell.values() if v[0]})
+    else:
+        leknamn = sorted(set(BAS) | {'baksida'} | set(slumpnamn(nl)) | tidigare | detta)
     konst = bank.konstverk(leknamn)
     # Vittne (a) jämför mot en lek som appens: basland med poolens konstverk (≤ 24 per typ, year≥2021). ORB (b)
     # jämför mot ALLA konstverk (konst[...]).
@@ -1856,6 +2131,8 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
             continue
         cl, mm, ob = claude[s['id']], modell_svar.get(s['id']) or {}, orb.get(s['id'])
         dom, namn, varfor = doma(s, cl, mm.get('overens', False), bool(ob and ob['overens']), mm.get('hel'))
+        if kortlista and dom == 'saker' and namn not in kortlista and namn not in BAS:
+            dom, namn, varfor = 'osaker', None, f"«{cl.get('ratt')}» står inte i kortlistan (CSV)"
         s['dom_vittnen'] = [dom, varfor]   # vittnenas dom, innan facit-manuell.json
         if s['id'] in manuell:
             # en människas titt går före vittnena: ett namn ger saker_manuell, null slänger — också ett säkert spår
@@ -1912,7 +2189,7 @@ def steg_c(klipp, mapp, ocr_pa=False, avkoda=True):
                                                     'fraga': FRAGA, 'fraga_v': FRAGA_V, 'spar': vittnen})
     M = {'klipp': S['klipp'], 'pass': os.path.basename(os.path.dirname(mapp)), 'mapp': rel(mapp), 'fps': S['fps'], 'W': W, 'H': H,
          'kortsida': S['kortsida'], 'ensam_yta': S['ensam_yta'], 'kortkvot': S['kortkvot'], 'regler': R, 'lekens_storlek': len(ref_hel.namnlista),
-         'remsor_ur': 'horn', 'claude': kost, 'lek_a': lek_info, 'tid_s': {'B': S['tid_s'], 'C': tid}, 'spar': [{k: v for k, v in s.items() if k != 'prov'} for s in S['spar']], 'filer': [],
+         'remsor_ur': 'horn', 'kortlista': kortlista_info, 'claude': kost, 'lek_a': lek_info, 'tid_s': {'B': S['tid_s'], 'C': tid}, 'spar': [{k: v for k, v in s.items() if k != 'prov'} for s in S['spar']], 'filer': [],
          'beskar': None}   # None = E inaktuell (C har körts sedan); E skriver tran/ och val/ på nytt
     A = las_json(os.path.join(mapp, 'detektioner.json'))
     M['tid_s']['A'] = A['tid_s']
@@ -1961,7 +2238,7 @@ def steg_e(klipp, mapp, uppskatta=False):
         s.pop('kontroll_foll', None)
         if not s['lagg'] or s['utanfor_traning']:
             continue
-        skriv = s['dom'] in ('saker', 'saker_manuell', 'baksida')
+        skriv = s['dom'] in ('saker', 'saker_manuell', 'saker_ordning', 'baksida')
         if not skriv and not uppskatta:
             continue
         for li, lg in enumerate(s['lagen']):
@@ -2299,8 +2576,8 @@ def montage(mapp, M):
         f1 = ImageFont.truetype('/System/Library/Fonts/Helvetica.ttc', 13)
     except Exception:  # noqa: BLE001
         f1 = ImageFont.load_default()
-    farg = {'saker': (120, 220, 120), 'saker_manuell': (90, 200, 200), 'osaker': (240, 200, 90), 'slangd': (230, 110, 110), 'baksida': (140, 170, 240),
-            'ofragad': (200, 140, 230)}
+    farg = {'saker': (120, 220, 120), 'saker_manuell': (90, 200, 200), 'saker_ordning': (170, 210, 90), 'osaker': (240, 200, 90),
+            'slangd': (230, 110, 110), 'baksida': (140, 170, 240), 'ofragad': (200, 140, 230)}
     lagg_remsa = {f['spar']: f for f in (M.get('filer') or [])
                   if f['upplosning'] == '1080' and f['typ'] == 'remsa' and f['lage'] == 0}
     sista = {}
@@ -2342,7 +2619,7 @@ def montage(mapp, M):
             d.text((x + 4, y2 + CH + 2), f"sista läget {f['t']:.1f}s · {tillst}", fill=(180, 180, 180), font=f1)
             d.text((x + 4, y2 + CH + 20), (s['namn'] or '–')[:34], fill=(235, 235, 235), font=f1)
         else:
-            d.text((x + 4, y2 + CH // 2), 'inga sparade lägen' if s['dom'] in ('saker', 'saker_manuell', 'baksida') else '(inte säkert — inga lägen skrivs)',
+            d.text((x + 4, y2 + CH // 2), 'inga sparade lägen' if s['dom'] in ('saker', 'saker_manuell', 'saker_ordning', 'baksida') else '(inte säkert — inga lägen skrivs)',
                    fill=(110, 110, 110), font=f1)
         y3 = y2 + CH + TX
         fr = lagg_remsa.get(s['id'])
@@ -2369,7 +2646,7 @@ def rapport(passmapp, bara=None):
     if not os.path.isdir(passdir):
         raise SystemExit(f'ingen märkning för {passmapp} ({rel(passdir)})')
     rad = [f'# Märkningen: {os.path.basename(passdir)}', '']
-    summa = {'spar': 0, 'kortliv': 0, 'lagg': 0, 'saker': 0, 'saker_manuell': 0, 'osaker': 0, 'slangd': 0, 'baksida': 0, 'ofragad': 0, 'utanfor': 0, 'val': 0,
+    summa = {'spar': 0, 'kortliv': 0, 'lagg': 0, 'saker': 0, 'saker_manuell': 0, 'saker_ordning': 0, 'osaker': 0, 'slangd': 0, 'baksida': 0, 'ofragad': 0, 'utanfor': 0, 'val': 0,
              'filer': 0, 'mb': 0.0, 'mb_alla': 0.0, 's': 0.0, 'fragor': 0, 'in': 0, 'ut': 0, 'usd': 0.0, 'klipp': 0}
     for d in sorted(os.listdir(passdir)):
         mf = os.path.join(passdir, d, 'markning.json')
@@ -2381,7 +2658,7 @@ def rapport(passmapp, bara=None):
         sek = ((M.get('till') or (las_json(os.path.join(mapp, 'detektioner.json'))['i1'] / M['fps'])) - (M.get('fran') or 0))
         lang = [s for s in M['spar'] if s['n_prov'] >= R['lagg_prov'] + 1]
         kortliv = len(M['spar']) - len(lang)
-        c = {k: sum(1 for s in M['spar'] if s['dom'] == k) for k in ('saker', 'saker_manuell', 'osaker', 'slangd', 'baksida', 'ofragad')}
+        c = {k: sum(1 for s in M['spar'] if s['dom'] == k) for k in ('saker', 'saker_manuell', 'saker_ordning', 'osaker', 'slangd', 'baksida', 'ofragad')}
         utanfor = sum(1 for s in M['spar'] if s.get('utanfor_traning'))
         val = sum(1 for s in M['spar'] if s.get('val'))
         lagg = sum(1 for s in M['spar'] if s['lagg'])
@@ -2402,7 +2679,7 @@ def rapport(passmapp, bara=None):
                 f"Spår {len(M['spar'])} (varav {kortliv} kortlivade, < {R['lagg_prov'] + 1} prov) · lägg-ögonblick {lagg} · "
                 f"Claude {K.get('fragor', 0)} frågor ({K.get('nya_fragor', 0)} nya), token in {K.get('in', 0)} / ut {K.get('ut', 0)}{usd} · "
                 f"Claude-namn {cl_namn} (säkra {cl_sakra}) · (a) modellen överens {a_o} · (b) ORB överens {b_o} · "
-                f"säkra {c['saker']} · manuellt säkra {c['saker_manuell']} · osäkra {c['osaker']} · slängda {c['slangd']} ({kortliv} kortlivade, "
+                f"säkra {c['saker']} · manuellt säkra {c['saker_manuell']} · säkra ur ordningen {c['saker_ordning']} · osäkra {c['osaker']} · slängda {c['slangd']} ({kortliv} kortlivade, "
                 f"{sum(1 for s in lang if not s['lagg'])} utan lägg-ögonblick, {sum(1 for s in M['spar'] if s['lagg'] and s['dom'] == 'slangd')} utan vittne) · "
                 f"baksidor {c['baksida']} · ofrågade {c['ofragad']} · utanför träning {utanfor} · val {val}", '',
                 f"Tid: {tider}. Disk: beskärningar {bmb:.1f} MB ({len(M['filer'])} filer" + (f"; {bmb_alla:.1f} MB om alla spår med lägg-ögonblick blev säkra" if mätt else '') + f"), hela mappen {mb:.1f} MB. "
@@ -2410,8 +2687,8 @@ def rapport(passmapp, bara=None):
                 + (f"Telefonens kvalitet: {M['tel_beskar']['filer']} filer, {M['tel_beskar']['mb']:.1f} MB; tel.mp4 {M['tel']['byte'] / 1e6:.1f} MB, "
                    f"kodad på {M['tel']['kodad_s']} s ({M['tel']['kodad_s'] / max(1e-6, M['tel']['sek_video']) * 60:.0f} s per minut video)."
                    if M.get('tel_beskar') and M.get('tel') else 'Telefonens kvalitet: inte körd.'), '',
-                '| spår | lägg (s) | Claude (namn · säker · frågor) | (a) modellen hel · remsa (topp-1, marginal) | (b) ORB inliers namn / bästa andra | dom | varför | lägen | filer / tel |',
-                '|---|---|---|---|---|---|---|---|---|']
+                '| spår | lägg (s) | Claude (namn · säker · frågor) | (a) modellen hel · remsa (topp-1, marginal) | (b) ORB inliers namn / bästa andra | par med A (spår · inliers / näst bästa · typ) | dom | varför | lägen | filer / tel |',
+                '|---|---|---|---|---|---|---|---|---|---|']
         for s in sorted(lang, key=lambda s: s['start']):
             cl = s.get('claude') or {}
             if cl:
@@ -2427,10 +2704,13 @@ def rapport(passmapp, bara=None):
             ob = s.get('orb')
             at = f"{fmt_svar(mm.get('hel'))} · {fmt_svar(mm.get('remsa'))}" + (' ✓' if mm.get('overens') else '')
             bt = (f"{ob['inliers']} / {ob['andra_bast']}" + (' ✓' if ob['overens'] else '')) if ob else '–'
-            rad.append(f"| {s['id']} | {s['lagg']['t']:.1f} | {ct} | {at} | {bt} | "
+            pa = s.get('par') or {}
+            pt = (f"{pa.get('a_spar') or '–'} · {pa.get('inliers') if pa.get('inliers') is not None else '–'} / {pa.get('nast')} · {pa.get('typ') or '–'}"
+                  if pa else '–')
+            rad.append(f"| {s['id']} | {s['lagg']['t']:.1f} | {ct} | {at} | {bt} | {pt} | "
                        f"**{s['dom']}**{' (utanför)' if s.get('utanfor_traning') else ''}{' (val)' if s.get('val') else ''} | {s['varfor']} | "
                        f"{len(s['lagen'])} | {s.get('filer', 0)} / {s.get('filer_tel', 0)} |" if s['lagg'] else
-                       f"| {s['id']} | – ({s['start']:.1f}–{s['slut']:.1f}) | – | – | – | **{s['dom']}** | {s['varfor']} | 0 | 0 |")
+                       f"| {s['id']} | – ({s['start']:.1f}–{s['slut']:.1f}) | – | – | – | – | **{s['dom']}** | {s['varfor']} | 0 | 0 |")
         rad.append('')
         med_namn = [s_ for s_ in M['spar'] if s_.get('lagg') and (s_.get('namn') not in (None, 'baksida') or (s_.get('claude') or {}).get('namn'))]
         horn_n = sum(1 for s_ in med_namn if s_.get('horn4k'))
@@ -2454,7 +2734,7 @@ def rapport(passmapp, bara=None):
         summa['fragor'] += K.get('fragor', 0); summa['in'] += K.get('in', 0); summa['ut'] += K.get('ut', 0); summa['usd'] += K.get('usd', 0.0)
         for k, v in (('spar', len(M['spar'])), ('kortliv', kortliv), ('lagg', lagg), ('utanfor', utanfor), ('val', val), ('filer', len(M['filer'])), ('mb', bmb), ('mb_alla', bmb_alla), ('s', sek)):
             summa[k] += v
-        for k in ('saker', 'saker_manuell', 'osaker', 'slangd', 'baksida', 'ofragad'):
+        for k in ('saker', 'saker_manuell', 'saker_ordning', 'osaker', 'slangd', 'baksida', 'ofragad'):
             summa[k] += c[k]
     andel = summa['saker'] / summa['lagg'] if summa['lagg'] else 0.0
     mbs = summa['mb'] / summa['s'] if summa['s'] else 0.0
@@ -2490,7 +2770,7 @@ STEG = ['A', 'B', 'C', 'E']
 UTFIL = {'A': 'detektioner.json', 'B': 'spar.json', 'C': 'markning.json', 'E': None}
 
 
-def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=False, tel=False):
+def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=False, tel=False, par_a=None):
     klipp = os.path.abspath(klipp)
     krav_traning(klipp)
     mapp = klippmapp(klipp, fran, till)
@@ -2505,6 +2785,12 @@ def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=
             if ofr:
                 logg(f'C: {len(ofr)} ofrågade spår ({", ".join(ofr[:8])}) — C körs om; de andra svaren tas ur cachen')
                 finns = False
+        if k == 'E' and par_a:
+            # B:s namn ur A före E: efter varje C (som skriver om domarna) och när parningen saknas eller är mot ett annat A
+            Mb = las_json(os.path.join(mapp, 'markning.json'))
+            if tvinga or (Mb.get('par') or {}).get('a') != rel(par_a):
+                par_klipp(par_a, mapp)
+                tvinga = True
         if finns and not tvinga and k not in om:
             logg(f'{k}: finns redan — hoppar över (--om {k} tvingar)')
             continue
@@ -2528,8 +2814,11 @@ def kor_klipp(klipp, fran, till, steg, om, ocr_pa=False, avkoda=True, uppskatta=
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('kommando', choices=['klipp', 'detektera', 'spar', 'namn', 'beskar', 'tel', 'pass', 'rapport', 'forbered'])
+    p.add_argument('kommando', choices=['klipp', 'detektera', 'spar', 'namn', 'beskar', 'tel', 'pass', 'rapport', 'forbered', 'par'])
     p.add_argument('mal', nargs='?', default='', help='klippet (.MOV) eller passmappen')
+    p.add_argument('mal2', nargs='?', default='', help='par: B-passet')
+    p.add_argument('--par', default=None, help='pass: B-passets namn ur detta A-pass (samma kort i samma ordning)')
+    p.add_argument('--torr', action='store_true', help='par: bara svaret, skriv inget')
     p.add_argument('--fran', type=float, default=0.0)
     p.add_argument('--till', type=float, default=None)
     p.add_argument('--om', nargs='?', const='alla', default='', help='kör om: alla, eller stegen, t.ex. B,C,E')
@@ -2556,13 +2845,24 @@ def main():
         bank.hamta(poster)
         logg(f'förberett: {len(namn)} namn, {len(poster)} bilder ({bank.hamtade} hämtade nu), utan bild: {[n for n in namn if not konst[n]]}')
         return
+    if a.kommando == 'par':
+        for ka, kb in par_klippen(a.mal, a.mal2):
+            am, bm = klippmapp(ka), klippmapp(kb)
+            for m_ in (am, bm):
+                if not os.path.exists(os.path.join(m_, 'markning.json')):
+                    raise SystemExit(f'{rel(m_)} saknar markning.json — kör passet till och med C först')
+            par_klipp(am, bm, skriv=not a.torr)
+        return
     if a.kommando == 'pass':
         passdir = os.path.abspath(a.mal) if os.path.isdir(a.mal) else os.path.join(ROT, 'dev', 'material', os.path.basename(a.mal))
         klipp = sorted(glob.glob(os.path.join(passdir, '*.MOV')) + glob.glob(os.path.join(passdir, '*.mov')))
         if not klipp:
             raise SystemExit(f'inga klipp i {passdir}')
+        par_a = {kb: klippmapp(ka) for ka, kb in par_klippen(a.par, passdir)} if a.par else {}
         for k in klipp:
-            kor_klipp(k, 0.0, None, STEG, om, **flaggor)
+            if a.par and not os.path.exists(os.path.join(par_a[k], 'markning.json')):
+                raise SystemExit(f'{rel(par_a[k])} saknar markning.json — kör A-passet först')
+            kor_klipp(k, 0.0, None, STEG, om, par_a=par_a.get(k), **flaggor)
         rapport(os.path.basename(passdir)); return
     enskilt = {'detektera': ['A'], 'spar': ['B'], 'namn': ['C'], 'beskar': ['E'], 'klipp': STEG}[a.kommando]
     if a.kommando != 'klipp':

@@ -32,6 +32,8 @@ sina referenser — titta på dem), logg.txt.
     python mesa_remsa_tran.py            # Kaggle (GPU): hittar datasetet själv under /kaggle/input (manifest.json);
                                          # utan dataset stannar den (lägg det i kernel-metadata.json:s dataset_sources)
     python mesa_remsa_tran.py --utan-riktiga                       # bara syntetiska (som piloten)
+    python mesa_remsa_tran.py --utan-basvikt                       # likformig dragning (v2 2026-10-05); förval:
+                                         # vikt 1/(utsnitt eller konstverk med samma namn)^0,5 — basland nedviktade
     python mesa_remsa_tran.py --rok --riktiga <mapp> --ut <ut>     # lokalt på CPU: ≤ 200 riktiga, 40 steg
     python mesa_remsa_tran.py --bara-data --ut <mapp>              # lokalt: bara frågebilder (ingen modell)
 
@@ -60,6 +62,7 @@ UT = arg('--ut', '/kaggle/working')
 TEMP = '/kaggle/temp' if PA_KAGGLE else arg('--cache', os.path.join(UT, 'cache'))
 CACHE = os.path.join(UT, 'scryfall') if BARA_DATA else os.path.join(TEMP, 'scryfall')
 VAL_KLIPP = [x for x in (arg('--val-klipp', '') or '').split(',') if x]
+BASVIKT = '--utan-basvikt' not in ARGS     # --basvikt (förval): sampla med vikt 1/(utsnitt med samma namn)^0,5
 os.makedirs(UT, exist_ok=True); os.makedirs(CACHE, exist_ok=True); os.makedirs(TEMP, exist_ok=True)
 LOGG = open(os.path.join(UT, 'logg.txt'), 'a')
 
@@ -583,6 +586,17 @@ def validera_riktiga(modell, rader, lek):
 
 
 # ── träningen ───────────────────────────────────────────────────────────────
+def vikter(lista):
+    """Dragningsvikter 1/(antal med samma namn)^0,5 (--basvikt): 700 Plains-utsnitt ska inte dränka 3 Snarespinner,
+    och de syntetiska baslandens ~50 konstverk per typ inte de andra namnens ett. None = likformigt."""
+    if not BASVIKT or not lista:
+        return None
+    from collections import Counter
+    c = Counter(x['namn'] for x in lista)
+    w = np.array([1.0 / math.sqrt(c[x['namn']]) for x in lista])
+    return w / w.sum()
+
+
 class Par(torch.utils.data.IterableDataset):
     """Paren (fråga, referens, namn, typ). Med riktiga: varannan riktig — de riktiga översamplas."""
 
@@ -602,18 +616,22 @@ class Par(torch.utils.data.IterableDataset):
             return cache[fil]
         hel = [r for r in (self.r or {}).get('tran', []) if r['typ'] == 'hel']
         rem = [r for r in (self.r or {}).get('tran', []) if r['typ'] == 'remsa']
+        p_hel, p_rem, p_kort = vikter(hel), vikter(rem), vikter(self.kort)
+
+        def dra(lista, p):
+            return lista[int(rng.choice(len(lista), p=p))] if p is not None else lista[int(rng.integers(len(lista)))]
         i = 0
         while True:
             i += 1
             typ = str(rng.choice(['hel', 'remsa', 'titel'], p=[0.4, 0.4, 0.2]))
             pool = hel if typ == 'hel' else rem
             if self.r and pool and i % 2 == 0:
-                rad = pool[int(rng.integers(len(pool)))]
+                rad = dra(pool, p_hel if typ == 'hel' else p_rem)
                 q = riktig_fraga(bild(rad['bild']), typ, rad['rot'], rng)
                 ref = rad['ref'] or self.r['kand'][rad['namn']][int(rng.integers(len(self.r['kand'][rad['namn']])))]
                 r, namn = referens(bild(ref), typ), rad['namn']
             else:
-                k = self.kort[int(rng.integers(len(self.kort)))]
+                k = dra(self.kort, p_kort)
                 b = bild(k['fil'])
                 andra = [bild(self.kort[int(rng.integers(len(self.kort)))]['fil']) for _ in range(2)]
                 q, r, namn = fraga(b, typ, rng, andra), referens(b, typ), k['namn']
@@ -678,7 +696,7 @@ def huvud():
     logg('före:', json.dumps(matt['fore']))
     if R:
         prov_riktiga(R, os.path.join(UT, 'prov-riktiga.jpg'))
-        matt['riktiga'] = dict(R['manifest'], tran=len(R['tran']), val=len(R['val']), val_klipp=len(R['val_klipp']),
+        matt['riktiga'] = dict(R['manifest'], basvikt=BASVIKT, tran=len(R['tran']), val=len(R['val']), val_klipp=len(R['val_klipp']),
                                val_klipp_namn=VAL_KLIPP, lek_namn=len({n for n, _ in R['lek']}), lek_referenser=len(R['lek']), rok=ROK)
         matt['riktiga_fore'] = validera_riktiga(modell, R['val'], R['lek'])
         logg('riktiga före:', json.dumps(matt['riktiga_fore']))

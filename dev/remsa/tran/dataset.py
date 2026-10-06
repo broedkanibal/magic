@@ -2,7 +2,8 @@
 """Riktiga exempel till bildmodellens träning (steg 4): märkningens utsnitt som ett platt dataset.
 
 Läser varje <pass>/<klipp>/markning.json under dev/material/arbete/markning/ (mark.py, MARKNING.md) och tar
-spåren med dom saker eller saker_manuell — inte baksidor, inte utanför träningen (golden-lekens namn). En rad
+spåren med dom saker, saker_manuell eller saker_ordning (B:s blänkbilder med namnet ur A, mark.py par —
+bara träning, aldrig validering) — inte baksidor, inte utanför träningen (golden-lekens namn). En rad
 per utsnitt:
 
     {fil, pass, klipp, spar, t, namn, typ (hel|remsa), utsnitt (app|rata|horn), variant (tel|1080), val,
@@ -43,7 +44,7 @@ from delning import krav_traning, ProvLacka  # noqa: E402
 ARBETE = mark.ARBETE
 ROT = mark.ROT
 BAS = set(mark.BAS)
-SAKRA = ('saker', 'saker_manuell')
+SAKRA = ('saker', 'saker_manuell', 'saker_ordning')   # saker_ordning: B:s namn ur A (mark.py par) — bara träning
 VARIANTER = {'tel': 'tel', '1080': '1080'}     # upplosning i markning.json → variant; '4k' tränas aldrig
 KONST_PER_NAMN = 12                            # som appens urval (12 nyaste); basland: poolen + ORB:s
 
@@ -76,7 +77,7 @@ def rot_upp(f, M):
 
 def konstverk_ur_orb(s):
     ob, cl = s.get('orb') or {}, s.get('claude') or {}
-    if ob.get('bild') and cl.get('namn') == s['namn'] and ob.get('inliers', 0) >= 12:
+    if ob.get('bild') and (cl.get('namn') == s['namn'] or ob.get('kalla') == 'par') and ob.get('inliers', 0) >= 12:
         return ob['bild']
     return None
 
@@ -127,13 +128,15 @@ def las(strikt):
             if f.get('namn', s['namn']) != s['namn']:
                 raise SystemExit(f'STOPP: {p}/{k} {f["fil"]}: filens namn {f.get("namn")!r} ≠ spårets {s["namn"]!r}')
             namn = s['namn']
+            if s['dom'] == 'saker_ordning' and mark.ar_val(namn):
+                continue   # ett valideringsnamn tränas aldrig — par ger dem aldrig saker_ordning, men ändå
             if namn not in BAS and (namn in gold or any(x in gold for x in namn.split(' // '))):
                 slank.append(f'{p}/{k} {s["id"]} {namn}')
                 continue
             rot, rot_kalla = rot_upp(f, M)
             rader.append({'fil': None, 'kalla': rel(os.path.join(mapp, f['fil'])), 'pass': p, 'klipp': k, 'spar': s['id'],
                           't': f['t'], 'lage': f.get('lage'), 'namn': namn, 'typ': f['typ'], 'utsnitt': f['utsnitt'],
-                          'variant': variant, 'val': bool(s.get('val')), 'konstverk': konstverk_ur_orb(s), 'rot': rot,
+                          'variant': variant, 'val': bool(s.get('val')) and s['dom'] != 'saker_ordning', 'konstverk': konstverk_ur_orb(s), 'rot': rot,
                           'rot_kalla': rot_kalla, 'px': f.get('px'), 'dom': s['dom']})
     if slank:
         raise SystemExit(f'STOPP: golden-lekens namn slank igenom ({len(slank)} utsnitt) — utanfor_traning är fel satt: '
