@@ -2827,7 +2827,13 @@ def main():
     p.add_argument('--bara', default=None, help='rapport: bara klippmappar vars namn innehåller detta (t.ex. _0-30s); skriver rapport_<bara>.md')
     p.add_argument('--tel', action='store_true', help='klipp/pass: efter E också telefonens kvalitet (tel.mp4, 1080p H.264 1500 kbit/s, tran/tel/)')
     p.add_argument('--uppskatta', action='store_true', help='E: mät också hur många MB de osäkra spåren skulle ge (avkodar deras rutor)')
+    p.add_argument('--lagg-fonster', type=float, default=None,
+                   help="B: sekunder från spårets start inom vilka lägg-ögonblicket får komma (förval 3,0; sparas i spar.json:s regler). "
+                        "Pass A 2026-10-06: handens skugga höll rörelsemåttet över 4 i 5–8 s medan nästa kort lades intill, "
+                        "så 10 av 37 kort i klipp 1 fick inget lägg — kör med 20")
     a = p.parse_args()
+    if a.lagg_fonster is not None:
+        R['lagg_fonster_s'] = float(a.lagg_fonster)
     flaggor = {'ocr_pa': a.ocr, 'avkoda': not a.utan_avkodning, 'uppskatta': a.uppskatta, 'tel': a.tel}
     om = set(STEG) | {'T'} if a.om == 'alla' else {x.strip().upper() for x in a.om.split(',') if x.strip()}
     if a.kommando == 'tel':

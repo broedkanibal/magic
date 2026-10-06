@@ -125,6 +125,13 @@ Avvikelser från granskningens ordalydelse, och varför:
 - **Lutningens tecken** ur kortets kanter när lådan är hela kortet; annars `remsnamn.rata`.
 - **Lägena** sparas bara i lugna prov; **i hög** även kant i kant när kortet är delvis täckt; **högar**
   < 1 s räknas inte; **validering** med hash (samma namn på samma sida i alla pass).
+- **Lägg-fönstret** (`lagg_fonster_s`, förval 3 s från spårets start) går att vidga med `--lagg-fonster <s>`;
+  värdet sparas i `spar.json:s regler`. Pass A 2026-10-06 (ett kort i taget på ny plats, var 3–4 s): handens
+  skugga höll rörelsemåttet på 4–16 gråsteg i 5–8 s efter lägget medan nästa kort lades intill, så 10 av 37
+  kort i klipp 1 (Gloom Sower, Miasmic Mummy …) fick aldrig tre stilla prov inom 3 s — de låg still i 100 s
+  med rörelse ~1,5 efteråt. Passet kördes om med `--lagg-fonster 20 --om B`. Spåret är samma fysiska kort
+  (IoU ≥ 0,9 mot samma låda; ett kort ovanpå ger krympt låda och nytt spår), lägena skrivs från lägget och
+  kontrolleras mot läggets konstverk, så ett senare lägg ger inget annat namn än ett tidigt.
 - **Namnlistan:** utan tokens, emblem, framsideskort (`front_card`) och Alchemy ("A-"), men MED kort vars
   representativa tryckning är digital (Black Lotus, Dwarven Ruins); 34 612 namn, 1 101 tokennamn.
 - **Rapporten:** utsnitt (`_0-30s`) visas men räknas inte i passets summor; `--bara` skriver en egen rapport.
