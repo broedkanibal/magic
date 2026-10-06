@@ -7,7 +7,9 @@
 # dubblettmåttet på videofall 07, mattans element genom en uppdatering
 # (MES-334 steg 2, huvudlös Chrome, några sekunder), leken bland korten
 # (MES-334 steg 3, samma sätt), graveyard-frågan och högarna (MES-334 steg 4–5,
-# samma sätt) och kamerabänken.
+# samma sätt), kamerabänken och uppspelaren (MES-333: att den går på golden-
+# fallen och partiet 2026-09-21 — jämförelsen mot baslinjen, --jamfor, körs
+# av spegelmattans issues, inte här).
 set -e
 cd "$(dirname "$0")/.."
 # Varje steg går genom steg(): faller det skrivs vilket steg det var, och
@@ -51,3 +53,5 @@ steg mattan node dev/mattan.cjs
 steg leken node dev/leken.cjs
 steg hogarna node dev/hogarna.cjs
 steg kamerabank node dev/kamerabank.cjs
+steg uppspelaren node dev/uppspelaren/kor.cjs --fall g07,g09,g10,g11,g12,p0921 > /dev/null
+echo "uppspelaren: kördes"
