@@ -1,14 +1,64 @@
 # Spegelmattan: principer för en lugn och levande matta
 
-> Beslutat med Jesper 2026-10-02, i frågor och svar. Ingen kod är ändrad.
+> Beslutat med Jesper 2026-10-02, i frågor och svar.
 > Bygger vidare på design D i MES-292 ("När kameran vet"). Där de säger emot
-> varandra gäller den här filen.
->
-> Nästa steg: uppspelaren byggs först, sedan uppdateras designytan
-> "Mesa Mirror Animations" så att Jesper kan prova tempot. Inget byggs i
-> `index.html` förrän han sagt ja till designytan.
+> varandra gäller den här filen. Hur högarna och grundläget hittas står i
+> [`hogarna-principer.md`](hogarna-principer.md) (MES-334), som bygger på den
+> här filen.
 
-## Problemen, och varför de finns i dag
+## Läget 2026-10-06
+
+Läs det här först. Resten av filen är besluten som de togs 2026-10-02, och
+där läget har ändrats sedan dess gäller avsnittet.
+
+**Designytan är klar men inte godkänd.** Sida 3, "Lugn matta", i
+[Mesa Mirror Animations](https://claude.ai/artifact/EbDpd4ggjnb7cp7j3KuEhY)
+har en prototyp med det fysiska bordet och mattan sida vid sida (källan:
+`design_handoff_animeringar/src3/` och `gen3.mjs`, tiderna i
+`TIDSLINJER-E.md`). MES-292 står i Behöver dig tills Jesper sagt ja. Inget av
+det som återstår byggs i `index.html` förrän dess.
+
+**Fyra saker bestämdes i designytan och väntar på Jespers bekräftelse:**
+
+1. En flytt väntar inte på namnet. Vilar ett kort på en ny plats i samma stund
+   som ett känt kort försvann, är det samma kort och bärs dit direkt. Namnet
+   bekräftar i efterhand.
+2. Untap i ett svep vrids med 150 ms mellanrum, ungefär handens fart.
+3. Raden och sökrutan är på engelska, som resten av appen: "went to your hand",
+   "Still on the table", "Which card is this?".
+4. Sökrutan öppnas bredvid kortet, inte över det.
+
+**Byggt sedan dess, av andra sessioner:**
+
+| Vad | Var | Läge |
+|---|---|---|
+| Mattan ritas inte om från noll (grund 2 nedan). Varje kort behåller sitt element, och knuff, flytt, tap och zoom glider (FLIP) med D:s tider | MES-334 steg 2, `b757b86`; `matSynk` i `index.html`, provet `dev/mattan.cjs` | på main, MES-334 Redo att testas |
+| Högarna har ingen fast plats. De ligger bland korten där de ligger på bordet, i utseendet D1, och följer mattans zoom | MES-334 sida 5 | på main |
+| Uppstartens steg 4 (provkort, graveyard-plats, library-ruta) är borta i Mirror my table | MES-334 sida 5, `870ae6e` | på main |
+
+**Issues som täcker delar av filen:**
+
+| Issue | Del | Läge |
+|---|---|---|
+| MES-333 uppspelaren | grund 1 | Triage. Baslinjen blir main som den är nu, alltså redan med mattan utan omritning |
+| MES-338 zoomstegen | "Mattan: zoomsteg" | Triage |
+| MES-336 graveyard minns kort utan namn | framkallningen och sökrutan, för graveyard | Triage |
+| MES-337 den fysiska exile-högen | ersätter inte "ingen exile-plats i uppstarten" | Triage |
+
+**Utan issue än**, skapas när designytan är godkänd: bordets minne och
+handzonen, kort som lämnar bordet (fall 1–11) och att nedtoningen tas bort,
+framkallningen för nya kort på mattan, utspelets rörelse (lägg ned), tap i
+spelarens ordning, och positionerna (perspektiv, dödzon, inga falska omlott).
+
+**Ändrat av högarna (MES-334):**
+- Fall 4 (till graveyard) och fall 10 (till library) gäller högen där den
+  ligger bland korten, inte en fast hög nere till vänster.
+- Graveyard finns först när spelaren svarat Yes på "Is this your graveyard?".
+- Exile görs i appen och står på en fast plats bredvid leken.
+
+Designytans sida 3 visar fortfarande högarna som fasta, nere till vänster.
+
+## Problemen, och varför de fanns 2026-10-02
 
 | Det Jesper ser | Vad som händer i koden |
 |---|---|
@@ -134,7 +184,7 @@ Det här är inga designval, men allt ovan bygger på dem.
 | # | Vad | Varför |
 |---|---|---|
 | 1 | **Uppspelaren** (byggs först) | Ett inspelat parti med videon bredvid mattan, med de riktiga animeringarna, och med paus och spola. Den räknar hopp, kort som bytts ut i stället för flyttats, kort som felaktigt gått till handen, tid till första synliga och tid till rätt plats. Den mäter dagens läge innan något ändras |
-| 2 | **Mattan byggs inte om från noll** | Varje kort behåller sitt element hela livet, och rörelser blir transform-animeringar som kan avbrytas (FLIP). I dag kör `avstamBord` `renderAll(true)` |
+| 2 | **Mattan byggs inte om från noll** | Varje kort behåller sitt element hela livet, och rörelser blir transform-animeringar som kan avbrytas (FLIP). **Byggt 2026-10-04 i MES-334 steg 2** (`matSynk`) |
 | 3 | **Bordets minne** | Ett lager mellan kamerans spår och mattan, som drar slutsatser (principerna 1, 3, 4, 9, 10) |
 | 4 | **Handzonen** | Från det telefonen redan skickar (`skymd`, `kortlik`, `vilar`) |
 | 5 | **Perspektivrättningen** | `kamTillMatta` i dag är rak skalning |
@@ -167,9 +217,9 @@ Inget av dem ritar mattan. Det är det nya.
 
 ## Ordningen (förslag, inte beslutad)
 
-1. Uppspelaren och mätningen av dagens läge.
-2. Designytan "Mesa Mirror Animations" uppdaterad med besluten. Jesper provar tempot.
-3. Mattan utan omritning, och animeringar för det som redan finns: tap, flytt och utspel.
+1. Uppspelaren och mätningen av dagens läge (MES-333).
+2. Designytan "Mesa Mirror Animations" uppdaterad med besluten. Jesper provar tempot. *(Sida 3 finns, väntar på Jespers ja.)*
+3. Mattan utan omritning, och animeringar för det som redan finns: tap, flytt och utspel. *(Omritningen, tap, flytt och zoom är byggda i MES-334 steg 2. Utspelets rörelse återstår.)*
 4. Bordets minne, handzonen och kort som lämnar bordet.
 5. Framkallningen.
 6. Positionerna (perspektiv, städat) och zoomstegen.
