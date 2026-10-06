@@ -215,8 +215,14 @@ const BILDER = [
        (facit som ideal telefon, MES-342/338:s fall). Tider får skilja ±0,1 s,
        antal inget. Per fall skrivs som diagnos: VARNING, fäller inte. */
     const GRIND = ['totalt', 'p0921'];
-    let samreN = 0, battreN = 0, varnN = 0, saknas = 0;
+    let samreN = 0, battreN = 0, varnN = 0, saknas = 0, saknasMatt = 0;
+    /* Måtten som jämförs är baslinjens OCH dagens: ett mått som finns i
+       baslinjen men inte längre räknas (borttaget ur MATT) får inte tyst
+       hoppas över — då kan grinden aldrig fälla på det (granskningen av
+       MES-333, fynd 3). Det ger slutkod 2, som ett fall som inte gick att köra. */
+    const nycklar = m => [...new Set([...MATT.map(x => x[0]), ...Object.keys(m || {})])];
     const rad = (fall, key, f, e) => {
+      if (!MATT.find(m => m[0] === key)) { console.log(`  ${pad(fall, 8)} ${pad(key, 61)} ${lpad(visa(f), 8)} → MÅTTET RÄKNAS INTE LÄNGRE`); saknasMatt++; return; }
       const namn = (MATT.find(m => m[0] === key) || [, key])[1];
       const grind = GRIND.includes(fall);
       const s = samre(key, f, e, true), b = !s && samre(key, e, f, true);
@@ -227,12 +233,13 @@ const BILDER = [
     for (const bf of B.fall.filter(f => !FALL || FALL.includes(f.id))) {
       const r = ok.find(r => r.id === bf.id);
       if (!r) { console.log(`  ${pad(bf.id, 8)} GICK INTE ATT KÖRA`); saknas++; continue; }
-      for (const [key] of MATT) rad(bf.id, key, bf.matt[key], r.matt[key]);
+      for (const key of nycklar(bf.matt)) rad(bf.id, key, bf.matt[key], r.matt[key]);
     }
-    if (!FALL) for (const [key] of MATT) rad('totalt', key, B.totalt[key], tot[key]);
+    if (!FALL) for (const key of nycklar(B.totalt)) rad('totalt', key, B.totalt[key], tot[key]);
     else console.log('  (--fall: bara de fallen jämförs, inte totalt)');
     console.log(`  → grinden (totalt och p0921): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
-    if (saknas) process.exitCode = 2;
+    if (saknasMatt) console.log(`  → ${saknasMatt} mått i baslinjen räknas inte längre — spara om baslinjen på main om det är avsiktligt`);
+    if (saknas || saknasMatt) process.exitCode = 2;
     else if (samreN && process.exitCode !== 2) process.exitCode = 1;
   }
 })().catch(e => { console.error('uppspelaren: ' + (e && e.stack || e)); process.exit(2); });
