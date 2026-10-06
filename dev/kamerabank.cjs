@@ -443,6 +443,9 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
      tappat i hörnet, spåret okand). */
   {
     nystart(); await referens();
+    /* Grundläget finns alltid i ett parti (forstaKortGrund, Jesper 2026-10-06): stående otappat, som korten här.
+       Utan det tas det ur första kortet — och här tappas det innan det legat still länge nog. */
+    Kamera.satGrundGrader(90);
     const namnFore = namnSvar;
     for (let i = 0; i < 10; i++) s = await ruta(g => kortVriden(g, W, 60, 50, 30, 42, 0, 180));
     const idA = s[0] && s[0].id, klarA = !!(s[0] && s[0].st === 'klar');
@@ -745,6 +748,15 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
   for (let i = 0; i < 10; i++) await ruta((g, sl) => { NYTT(g); ARM(g, sl); });                          // en hand med arm vilar på högen (1,5 s)
   for (let i = 0; i < 10; i++) await ruta(NYTT);
   check(`GY4 en hand sveper förbi och vilar på högen: ${Kamera.grav ? Kamera.grav.n - gy1 : null} ändringar (0)`, !!Kamera.grav && Kamera.grav.n - gy1 === 0);
+  /* GY4b (Jesper 2026-10-06: graveyard följer med): högen lyfts — rutan är matta. Efter 1 s säger rapporten tom,
+     och det är ingen ändring av högen. Läggs den tillbaka är den inte tom längre. */
+  { const gy2 = Kamera.grav.n;
+    let tidig = null; for (let i = 0; i < 4; i++) { await ruta(null); if (i === 2) tidig = Kamera.grav.tom; }
+    for (let i = 0; i < 8; i++) await ruta(null);
+    const tom = Kamera.grav.tom, n2 = Kamera.grav.n - gy2, iRapport = !!(bordExtra && bordExtra.grav && bordExtra.grav.tom);
+    for (let i = 0; i < 10; i++) await ruta(NYTT);
+    check(`GY4b högen lyft: tom efter 0,45 s ${tidig}, efter 1,8 s ${tom} (i rapporten ${iRapport}), ändringar ${n2} (0); tillbaka: tom ${Kamera.grav.tom}, ändringar ${Kamera.grav.n - gy2}`,
+          tidig === false && tom === true && iRapport && n2 === 0 && Kamera.grav.tom === false && Kamera.grav.n - gy2 === 0); }
   Kamera.satGrav(null);
   for (let i = 0; i < 8; i++) await ruta(NYTT);
   check(`GY5 ingen ruta: grav ${JSON.stringify(Kamera.grav)} (null), i rapporten ${bordExtra && JSON.stringify(bordExtra.grav)}`, Kamera.grav === null && !!bordExtra && bordExtra.grav === null);
@@ -1268,6 +1280,7 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
        föds — men aldrig två klara samtidigt, och ett spår till sist. */
     const hx = 110 - 15 + 21, hy = 70 + 21 + 15;
     nystart(); await referens();
+    Kamera.satGrundGrader(90);   // grundläget finns alltid i ett parti (forstaKortGrund); provet gäller spåren vid tappningen
     for (let i = 0; i < 10; i++) await ruta(g => kortVriden(g, W, 110, 70, 30, 42, 0, 180));
     for (let i = 0; i < 4; i++) await ruta(g => { kortVriden(g, W, hx, hy, 30, 42, Math.PI / 2, 180); hand(g, W, 112, 88, 30, 28, 60); });
     let flestKlara = 0;
@@ -2243,11 +2256,27 @@ const check = (namn, villkor, detalj) => { (villkor ? ok : fel).push(`${villkor 
     await kor(3, [kortR(F), kortR(Hf)], [lada(F, 'kort'), lada(Hf, 'kort')]);
     await kor(10, [kortR(F)], [lada(F, 'kort')]);
     check(`LK8b första kortet med handens spår intill: grundläget ${grader()}° (${Kamera.lek && Kamera.lek.grund})`, grader() === 0 && Kamera.lek && Kamera.lek.grund === 'kort');
-    // LK8c: två kort som båda ligger still innan något gav vinkeln (kameran såg dem samtidigt) — inget första kort, grundläget orört
+    // LK8c: två kort som båda ligger still innan något gav vinkeln (kameran såg dem samtidigt) — grundläget antas ändå,
+    //       ur det som legat still längst (Jesper 2026-10-06: alltid i bakgrunden; förut stod det orört och statusfältet frågade)
     await nyttBord('v');
     const F4 = { x: 120, y: 50, w: 42, h: 30 };
     await kor(12, [kortR(F), kortR(F4)], [lada(F, 'kort'), lada(F4, 'kort')]);
-    check(`LK8c två kort samtidigt: grundläget ${grader()} (${Kamera.lek && Kamera.lek.grund})`, grader() === null && Kamera.lek && Kamera.lek.grund === null);
+    check(`LK8c två kort samtidigt: grundläget ${grader()} (${Kamera.lek && Kamera.lek.grund})`, grader() === 0 && Kamera.lek && Kamera.lek.grund === 'kort');
+    // LK8d: utan den tränade detektorn (inga lådor): första kortet ger grundläget ändå — förut stod det i lekvaktens spärr
+    {
+      nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
+      const utanDet = async (n, ritar) => { for (let i = 0; i < n; i++) { nu += TAKT; const sl = lcg(2000 + nu); const g = matta(W, H, 100, 3, sl); for (const r of ritar) r(g); Kamera.steg(g, nu, H, undefined, V); await new Promise(r => setImmediate(r)); await new Promise(r => setImmediate(r)); } };
+      await utanDet(14, []);
+      await utanDet(12, [kortR(F)]);
+      check(`LK8d utan detektorn: första kortets vinkel blir grundläget: ${grader()}°`, grader() === 0);
+      // LK8e: kameran startar med kort på bordet och inget nytt kort läggs — de stilla kortens vanligaste axel efter 10 s
+      nystart(); Kamera.satKalibrering({ ruta: { x: 0, y: 0, w: 1, h: 1, upp: 'v' } });
+      const S1 = { x: 40, y: 40, w: 30, h: 42 }, S2 = { x: 90, y: 40, w: 30, h: 42 }, T1 = { x: 150, y: 50, w: 42, h: 30 };
+      await utanDet(14, [kortR(S1), kortR(S2), kortR(T1)]);
+      const fore = grader();
+      await utanDet(Math.ceil(10500 / TAKT), [kortR(S1), kortR(S2), kortR(T1)]);
+      check(`LK8e kameran startade med kort på bordet: inget grundläge först (${fore}), sedan de flestas axel (två stående, ett liggande): ${grader()}°`, fore === null && grader() === 90);
+    }
 
     // LK9: ett uppvänt kort läggs över lekens kant (klassen kort, mitten utanför lekens ruta) — läses som vanligt, blir inte lekens skräp.
     //      Ett kort med mitten PÅ leken syns inte (lekens ruta, LK16) — som med uppstartens library-ruta.

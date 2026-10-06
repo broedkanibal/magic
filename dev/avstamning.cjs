@@ -2045,7 +2045,7 @@ prov('GY8 ett kort som FLYTTAS till andra sidan om leken (en varelse som dör) g
   klocka.t += 2000;
   stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.38, 0.71) })]));    // varelsen dör: flyttas till graveyard-platsen
   assert.equal(app.kort.filter(c => c.name === 'Ukud Cobra').length, 1, 'ett andra Ukud Cobra');
-  assert.ok(fraga(), 'flyttat kort gav ingen fråga'); assert.equal(fraga().orsak, 'sida'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra']);
+  assert.ok(fraga(), 'flyttat kort gav ingen fråga'); assert.equal(fraga().orsak, 'flytt', 'bredvid library: Jespers regel för flyttade kort (GY12) går före sidoregeln'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra']);
 });
 prov('GY9 medan frågan står: ett kort som flyttas till högen hör till den; ett kort som flyttas ovanpå ett annat ger frågan', () => {
   gyStart(); app.bib = null;
@@ -2084,6 +2084,28 @@ prov('GY11 (granskningen av rättelsen, fynd 2) kameran som flyttar sig flyttar 
   klocka.t += 2000;
   stam(bord(0.06), 'ljus'); stam(bord(0.1), 'kort');       // ny referensbild: lägena glöms, och nästa läge är inget flytt
   assert.equal(fraga(), null, 'en ny referensbild gav en fråga');
+});
+prov('GY12 (Jesper 2026-10-06) ett kort som flyttas bredvid library — också på landsidan — ger frågan; flyttat långt bort gör det inte', () => {
+  gyStart();
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.7, 0.7) }), klar(2, 'Plains', { sen: 10, ...kortVid(0.78, 0.7) })];
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.45, 0.4) })]));
+  klocka.t += 20000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.45, 0.25) })]));          // flyttad, men inte bredvid library
+  assert.equal(fraga(), null, 'flyttat långt från library gav en fråga');
+  klocka.t += 2000;
+  stam(land.concat([klar(3, 'Ukud Cobra', { sen: 10, ...kortVid(0.585, 0.702) })]));       // bredvid library, till höger (landsidan)
+  assert.ok(fraga(), 'ingen fråga bredvid library'); assert.equal(fraga().orsak, 'flytt'); assert.deepEqual(namnPa(fraga().cids), ['Ukud Cobra']);
+});
+prov('GY13 (Jesper 2026-10-06) före Yes: ett instant som spelas och sedan flyttas bredvid library är samma kort och ger frågan — det går inte till graveyard digitalt', () => {
+  gyStart(); app.typ = new Map([['Lightning Bolt', 'Instant']]);
+  const land = [klar(1, 'Forest', { sen: 10, ...kortVid(0.7, 0.7) })];
+  stam(land.concat([klar(3, 'Lightning Bolt', { sen: 10, ...kortVid(0.5, 0.35) })]));
+  klocka.t += 1500; stam(land);                                                            // plockas upp
+  klocka.t += 1200; stam(land.concat([klar(4, 'Lightning Bolt', { sen: 10, ...kortVid(0.415, 0.702) })]));   // läggs bredvid library
+  klocka.t += 300; stam(land.concat([klar(4, 'Lightning Bolt', { sen: 10, ...kortVid(0.415, 0.702) })]));
+  const bolt = app.kort.filter(c => c.name === 'Lightning Bolt');
+  assert.equal(bolt.length, 1, 'två Lightning Bolt'); assert.notEqual(bolt[0].zon, 'grav', 'gick till graveyard före Yes');
+  assert.ok(fraga(), 'ingen fråga'); assert.deepEqual(namnPa(fraga().cids), ['Lightning Bolt']);
 });
 prov('GY4 Permanent: Mesa frågar en gång till när ett kort läggs ovanpå på samma plats, sedan aldrig', () => {
   gyStart(); app.bib = null;

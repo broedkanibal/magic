@@ -97,7 +97,7 @@ const PROV = async steg => {
   const spar = (id, namn, cx, cy) => ({ id, tillstand: 'klar', namn, saker: true, x: cx - 0.05, y: cy - 0.11, w: 0.1, h: 0.22, tappad: false, vilar: true, sen: 10 });
   const R1 = { x: 0.40, y: 0.5, w: 0.1, h: 0.22 };            // leken, mitten (0,45; 0,61)
   const LAND = [spar(11, 'Forest', 0.6, 0.61), spar(12, 'Forest', 0.72, 0.61)];
-  const nollGrav = () => { gravLage = null; gravSedda = new Map(); gravOmstart = 0; gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
+  const nollGrav = () => { gravLage = null; gravSedda = new Map(); gravOmstart = 0; gravTomNar = 0; gravFoljdaSpar = new Map(); gravMenyOppen = false; try { localStorage.removeItem('sthv.grav.v1.' + spelLage.id); } catch (e) {} kamGravRad = null; };
   /* Ett bord från telefonen, en stund efter det förra (kortets ny-stämpel avgör vem som ligger under). */
   const stam = async lista => { await vanta(15); avstamBord(lista, false); };
   /* Brädets zoom glider efter en omritning (matSynk, MES-334 steg 2): mät när lekens ruta stått still. */
@@ -172,6 +172,10 @@ const PROV = async steg => {
       const kortEl = gridEl.querySelector('.card[data-cid]'), rekt = () => [g, lek, kortEl].map(e => e.getBoundingClientRect());
       const fore = rekt(), vyP = matVyFor(player()), p0 = Object.assign({}, vyP.pan);
       vyP.pan = { x: p0.x + 90, y: p0.y + 40 }; renderGrid(true); await stilla();
+      document.getAnimations().forEach(a => { try { a.finish(); } catch (e) {} });   // glidningen till slutläget: under last hann den inte börja
+      /* Glidningen kan börja sent under last (en dold flik stryper timrarna): vänta tills kortet flyttat sig, högst 4 s. */
+      for (let i = 0; i < 40 && Math.abs(kortEl.getBoundingClientRect().left - fore[2].left) < 1; i++) await vanta(100);
+      await stilla();
       const efter = rekt(), d = efter.map((r, i) => [r.left - fore[i].left, r.top - fore[i].top]);
       ok('4 · leken och graveyard följer panoreringen precis som ett kort (samma matta)', !!kortEl && Math.abs(d[2][0]) > 20 && d.every(q => Math.abs(q[0] - d[2][0]) < 1.5 && Math.abs(q[1] - d[2][1]) < 1.5),
          JSON.stringify(d.map(q => q.map(Math.round))));
@@ -208,6 +212,21 @@ const PROV = async steg => {
     sparaNu();
     const rad4 = W.__sparat[W.__sparat.length - 1].kort, post = rad4.find(k => k.hog === 'grav');
     ok('4 · bordsraden bär högens läge (inga namn — korten ligger i listan med zon grav)', !!post && post.cid === 'hog:grav' && post.name === undefined && post.x === Math.round(mig().gravHog.x), JSON.stringify(post));
+    /* Graveyard följer med (Jesper 2026-10-06): högen lyfts (telefonen: rutan tom) och läggs ner ovanför landen —
+       spåret med översta kortets namn är högen. Rutan flyttas dit, och inget Wood Elves hamnar i spel. */
+    { const bas = [spar(23, 'Serra Angel', 0.8, 0.3), spar(24, 'Ukud Cobra', 0.18, 0.62)].concat(LAND);
+      const gr0 = Object.assign({}, kamGravRad), n0 = gravSistaN || 0, g0 = Object.assign({}, mig().gravHog);
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      await vanta(15); avstamBord(bas.concat([spar(91, 'Wood Elves', 0.45, 0.25)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });
+      await vanta(15); avstamBord(bas.concat([spar(91, 'Wood Elves', 0.45, 0.25)]), false, 'kort', undefined, '', { n: n0, sen: null, tom: true });   // telefonen har inte fått den nya rutan än
+      renderAll(true); await stilla();
+      const r = kamGravRad, mitt = r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : null, gh = mig().gravHog;
+      ok('graveyard följer med: högen lyfts och läggs ovanför landen — rutan flyttar dit, graveyard på mattan med, inget kort i spel',
+         !!mitt && Math.abs(mitt.x - 0.45) < 0.02 && Math.abs(mitt.y - 0.25) < 0.02 && !mig().cards.some(c => c.name === 'Wood Elves' && zonAv(c) !== ZON_GRAV)
+           && kortNamn('grav').join(',') === 'Wood Elves,Llanowar Elves' && !!gh && Math.hypot(gh.x - g0.x, gh.y - g0.y) > 100,
+         JSON.stringify({ fore: gr0 && { x: +(gr0.x + gr0.w / 2).toFixed(2), y: +(gr0.y + gr0.h / 2).toFixed(2) }, efter: mitt && { x: +mitt.x.toFixed(2), y: +mitt.y.toFixed(2) }, iSpel: mig().cards.filter(c => zonAv(c) !== ZON_GRAV).map(c => c.name) }));
+      /* Tillbaka: högen ligger där den nu ligger (telefonen: inte tom), och nästa kort med samma namn är ett nytt kort. */
+      await vanta(15); avstamBord(bas, false, 'kort', undefined, '', { n: n0, sen: null, tom: false }); }
   }
   if (steg === 3) {
     /* Reserven, och No → menyn M1 → Permanent. */
@@ -318,8 +337,7 @@ const PROV = async steg => {
     ok('V4 · Yes på ett tappat första kort: rutan är kvadratisk i bildpunkter (längsta sidan × 1,15)', !!r && Math.abs(r.w - r.h * A) < 0.004 && Math.abs(r.w - L * A * 1.15) < 0.01, JSON.stringify(r));
     ok('V4 · nästa kort, stående och 0,45 kortlängder ner, hamnar i rutan; grannkorten intill gör det inte', nasta && !hoger && !under, `nästa ${nasta}, stående till höger ${hoger}, stående under ${under}`);
     /* V3: telefonens grundläge skrivs till raden när det skiljer mer än en grad och stått kvar i 2 s — bara
-       tal (en omstartad telefon säger null innan den läst raden). Saknas grundläget med kort på bordet säger
-       statusfältet till med kameravyns text och knapp. */
+       tal (en omstartad telefon säger null innan den läst raden). */
     W.__kal = []; kamGrundRad = null; kamGrund = 90; grundTillRad();
     const fore = W.__kal.length; await vanta(2300);
     const forsta = W.__kal.map(k => k.grund);
@@ -328,12 +346,13 @@ const PROV = async steg => {
     kamGrund = null; grundTillRad(); await vanta(2300);
     const efterNull = W.__kal.length;
     ok('V3 · telefonens grundläge till raden efter 2 s; en grad är inget byte; null skrivs inte', fore === 0 && forsta.join() === '90' && kamGrundRad === 90 && knuff === 1 && efterNull === 1, `före ${fore}, sedan ${forsta}, knuff ${knuff}, efter null ${efterNull}, raden ${kamGrundRad}`);
+    /* Jesper 2026-10-06: grundläget antas alltid i bakgrunden — statusfältet säger aldrig något om det, inte heller
+       när det saknas med kort på bordet (raden från granskningen av sida 5, V3, är borta). */
     await stam([spar(53, 'Serra Angel', 0.3, 0.3)]);
-    grundSaknasFran = Date.now() - 11000; renderAutoBar();
+    kamGrund = null; await vanta(50); renderAutoBar();
     const not = $('#autoNot');
-    ok('V3 · statusfältet när grundläget saknas: kameravyns rad och Save', !not.hidden && /Untapped angle not saved — lay a card untapped and press Save/.test(not.textContent) && !!not.querySelector('[data-mode="grund-spara"]'), not.textContent);
+    ok('statusfältet säger ingenting om grundläget, också när det saknas med kort på bordet', not.hidden && !/Untapped angle|Save/.test(not.textContent) && !document.querySelector('[data-mode="grund-spara"]'), not.textContent);
     kamGrund = 90; renderAutoBar();
-    ok('V3 · med ett grundläge: ingen rad', not.hidden || !/Untapped angle/.test(not.textContent));
   }
   if (steg === 10) {
     /* Rättelse 2 (Jespers beslut 2026-10-05): ett ensamt nedvänt kort — en token, ett kort med baksidan upp — syns lika
