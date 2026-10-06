@@ -15,6 +15,7 @@ Besluten är Jespers från 2026-10-02 och 2026-10-06 och står i
 | Committa och pusha till main utan att fråga, inom spegelmattans issues (MES-333, 338, 341, 342, 343, 344, 336) | **ja**, när `dev/kolla.sh` är grön, de riktade bänkproven går (`dev/mattan.cjs`, `dev/avstamning.cjs`, `dev/dubbletter.cjs --fall 07`, spegelfacit), uppspelarens mått inte är sämre på någon rad, och — bara om telefonens kod ändrats — golden inte är sämre med 0 fel namn |
 | Flytta issues till Done själv | **ja**, när kriterierna är uppfyllda och arbetet är på main |
 | Golden med Claude (`--ai`) | högst tre körningar per issue, som förut |
+| Flytta spegelmattans issues till Todo, sätta prioritet och släppa Blocked när blockeraren är klar | **ja** (Jesper 2026-10-06, inför nattpasset) — orkestreraren får ordna kön själv för att komma så långt som möjligt. Gäller bara MES-333, 338, 341, 342, 343, 344 och 336; andra issues rörs inte, och Triage sorteras fortfarande av Jesper |
 
 Main driftsätts till produktion vid push. Sessionen stannar alltid vid: systemprompten i `api/identify.js`, allt som kräver telefonen eller en inspelning, ett designval som inte står i principfilen eller på sida 3, och ett enda fel namn i golden.
 
