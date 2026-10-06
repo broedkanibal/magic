@@ -79,7 +79,7 @@ function laddaApp() {
       const w = f.contentWindow;
       for (let i = 0; i < 300; i++) { if (typeof w.renderGrid === 'function' && typeof w.avstamBord === 'function' && w.document.readyState === 'complete') break; await new Promise(r => setTimeout(r, 100)); }
       await new Promise(r => setTimeout(r, 300));
-      w.eval(motorSrc);
+      if (!w.__upp) { $('#not').textContent = 'Motorn laddades inte i appen (app.html).'; return; }
       w.__upp.visaStarta(data);
       appKlar = true; appT = data.fran; res();
     };
@@ -175,7 +175,6 @@ addEventListener('keydown', e => {
 
 (async () => {
   skala();
-  motorSrc = await (await fetch('/dev/uppspelaren/motor.js')).text();
   lista = await (await fetch('/__upp/fall.json')).json();
   const id = q.get('fall') || lista[0].id;
   fall = lista.find(f => f.id === id) || lista[0];

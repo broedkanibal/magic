@@ -20,15 +20,17 @@ const MATT = [
   ['extraKort', 'Nya kort utan utspel i facit', 'lagre', 'antal'],
   ['felNedtoning', 'Fel nedtoning eller fel borttagning (kortet ligger kvar enligt facit)', 'lagre', 'antal'],
   ['bortaMissade', 'Borttagna kort som står kvar på mattan', 'lagre', 'antal'],
-  ['tidBortaMedian', 'Tid till borta, median', 'lagre', 's'],
+  ['felTillHanden', 'Fel till handen (kortet ligger kvar enligt facit)', 'lagre', 'antal'],
+  ['tidBortaMedian', 'Tid till borta, median (miss = 10 s)', 'lagre', 's'],
+  ['tidBortaMax', 'Tid till borta, längst (miss = 10 s)', 'lagre', 's'],
   ['utspelSyntes', 'Utspel som syntes på mattan', 'hogre', 'kvot'],
   ['utspelKort', 'Utspel där kortet kom med namn', 'hogre', 'kvot'],
-  ['tidSynsMedian', 'Tid till något syns, median', 'lagre', 's'],
-  ['tidSynsMax', 'Tid till något syns, längst', 'lagre', 's'],
-  ['tidPlatsMedian', 'Tid till rätt plats, median', 'lagre', 's'],
-  ['tidPlatsMax', 'Tid till rätt plats, längst', 'lagre', 's'],
+  ['tidSynsMedian', 'Tid till något syns, median (miss = 10 s)', 'lagre', 's'],
+  ['tidSynsMax', 'Tid till något syns, längst (miss = 10 s)', 'lagre', 's'],
+  ['tidPlatsMedian', 'Tid till rätt plats, median (miss = 10 s)', 'lagre', 's'],
+  ['tidPlatsMax', 'Tid till rätt plats, längst (miss = 10 s)', 'lagre', 's'],
   ['flyttGlid', 'Flyttar där samma kort glider till nya platsen', 'hogre', 'kvot'],
-  ['flyttTidMedian', 'Flytt: tid till nya platsen, median', 'lagre', 's'],
+  ['flyttTidMedian', 'Flytt: tid till nya platsen, median (miss = 10 s)', 'lagre', 's'],
   ['zoomPerMin', 'Mattans zoomändringar per minut', 'lagre', '/min'],
   ['panPerMin', 'Mattans panoreringar per minut', 'lagre', '/min'],
   ['zoomUtanGlid', 'Zoom eller pan som hoppar (utan glidning)', 'lagre', 'antal'],
@@ -47,6 +49,7 @@ const MATT = [
 const median = l => { if (!l.length) return null; const s = l.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const kvantil = (l, q) => { if (!l.length) return null; const s = l.slice().sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
 const r2 = v => v == null ? null : Math.round(v * 100) / 100;
+const tak = v => v == null ? EFTER : Math.min(v, EFTER);   // en miss = taket
 
 /* Kortets läge vid tiden t ur banan: [t, vx, vy, lx, ly, tappad]. */
 function vid(k, t) { let b = null; for (const x of k.bana) { if (x[0] > t + 1e-9) break; b = x; } return b; }
@@ -95,6 +98,15 @@ function berakna(fall, logg) {
   };
   const nastaFor = (namn, T) => { const h = facit.find(h => h.t > T + 1e-6 && h.kort === namn); return h ? h.t : Infinity; };
 
+  /* Namnen ett spår bar i telefonens bord: id → [[s, Set(namn)]]. */
+  const sparNamn = new Map();
+  for (const r of fall.rader || []) for (const t of r.spar || []) {
+    const n = new Set([t.namn, t.gissning, t.cands && t.cands[0] && t.cands[0].name].filter(Boolean));
+    if (!n.size) continue;
+    (sparNamn.get(String(t.id)) || sparNamn.set(String(t.id), []).get(String(t.id))).push([r.s, n]);
+  }
+  const sparBar = (id, namn, a, b) => (sparNamn.get(String(id)) || []).some(([s, n]) => s >= a && s <= b && n.has(namn));
+
   if (harFacit) {
     /* ── utspel: något syns, och kortet ligger på sin plats ── */
     const tagnaF = new Set(), tagnaP = new Set();
@@ -108,13 +120,19 @@ function berakna(fall, logg) {
       const an = ankomst.filter(x => !tagnaA.has(x) && x.k.namn === h.kort && x.t >= h.t - FORE && x.t <= h.t + EFTER).sort((a, b) => a.t - b.t)[0] || null;
       if (an) { tagnaA.add(an); if (an.ny) tagnaF.add(an.k); }
       const k = an ? Object.assign({}, an.k, { fodd: an.t, sparFodd: an.ny ? an.k.sparFodd : null }) : null;
-      /* Platshållaren för samma spår, annars närmast kortet. */
+      /* Något annat som syntes före kortet (i dag platshållaren, .plats;
+         i morgon vad som helst som inte är ett kort eller en hög): samma
+         spår som kortet, eller inom 1,5 kortbredder från där kortet kom.
+         Kom kortet aldrig räknas bara det vars spår i telefonens bord bär
+         facits namn (namn, gissning eller första förslag) i fönstret — en
+         platshållare någon annanstans på bordet är inte det här utspelet. */
       const slut = k ? k.fodd : h.t + EFTER;
       const kandidat = logg.platser.filter(q => !tagnaP.has(q) && q.fodd >= h.t - FORE && q.fodd <= slut + 1e-9);
-      let q = k ? kandidat.find(q => k.sparFodd != null && String(q.spar) === String(k.sparFodd)) : null;
-      if (!q && k && k.bana.length) q = kandidat.filter(q => Math.hypot(q.sx - k.bana[0][3], q.sy - k.bana[0][4]) / cw <= 1.5).sort((a, b) => a.fodd - b.fodd)[0] || null;
-      if (!q && !k) q = kandidat.sort((a, b) => a.fodd - b.fodd)[0] || null;
-      if (q) for (const p of logg.platser) if (String(p.spar) === String(q.spar) && p.fodd >= q.fodd && p.fodd <= slut + 1e-9) tagnaP.add(p);
+      const kPos = k ? vid(k, k.fodd + 1e-6) : null;
+      let q = k ? kandidat.find(q => k.sparFodd != null && q.spar != null && String(q.spar) === String(k.sparFodd)) : null;
+      if (!q && kPos) q = kandidat.filter(q => Math.hypot(q.sx - kPos[3], q.sy - kPos[4]) / cw <= 1.5).sort((a, b) => a.fodd - b.fodd)[0] || null;
+      if (!q && !k) q = kandidat.filter(q => q.spar != null && sparBar(q.spar, h.kort, h.t - FORE, h.t + EFTER)).sort((a, b) => a.fodd - b.fodd)[0] || null;
+      if (q) for (const p of logg.platser) if (p.spar != null && String(p.spar) === String(q.spar) && p.fodd >= q.fodd && p.fodd <= slut + 1e-9) tagnaP.add(p);
       const syns = [k && k.fodd, q && q.fodd].filter(v => v != null);
       const tref = k ? Math.min(h.t + EFTER, nastaFor(h.kort, h.t) - 0.01, k.dod != null ? k.dod - 0.001 : Infinity) : null;
       const v = k && tref > k.fodd ? vila(k, k.fodd, tref) : null;
@@ -124,7 +142,9 @@ function berakna(fall, logg) {
     const u = detalj.utspel;
     m.utspelSyntes = u.length ? { n: u.filter(x => x.syns != null).length, av: u.length } : null;
     m.utspelKort = u.length ? { n: u.filter(x => x.kortT != null).length, av: u.length } : null;
-    const sy = u.map(x => x.syns).filter(v => v != null), pl = u.map(x => x.plats).filter(v => v != null);
+    /* En miss (inget syntes, kortet kom aldrig till ro) räknas som taket,
+       EFTER = 10 s — annars blir medianen bättre när det blir sämre. */
+    const sy = u.map(x => tak(x.syns)), pl = u.map(x => tak(x.plats));
     m.tidSynsMedian = r2(median(sy)); m.tidSynsMax = sy.length ? r2(Math.max(...sy)) : null;
     m.tidPlatsMedian = r2(median(pl)); m.tidPlatsMax = pl.length ? r2(Math.max(...pl)) : null;
 
@@ -135,10 +155,22 @@ function berakna(fall, logg) {
       if (f) tagnaL.add(f);
       detalj.borta.push({ t: h.t, kort: h.kort, till: h.till, dt: f ? r2(f.t - h.t) : null, som: f ? f.som : null });
     }
+    /* En borttagning som syns först efter fönstret: raden står kvar (missad,
+       taket i tiden), men nedtoningen är ingen fel nedtoning — kortet var
+       borta. Före nästa utspel med namnet. */
+    for (const b of detalj.borta.filter(b => b.dt == null)) {
+      const nasta = facit.find(h => h.t > b.t && h.kort === b.kort && (h.typ === 'spelar' || h.typ === 'grav_till_bord'));
+      const f = forluster.find(f => !tagnaL.has(f) && f.k.namn === b.kort && f.t > b.t + EFTER && (!nasta || f.t < nasta.t - FORE));
+      if (f) { tagnaL.add(f); b.sen = r2(f.t - b.t); b.som = f.som; }
+    }
     m.bortaMissade = detalj.borta.filter(b => b.dt == null).length;
-    m.tidBortaMedian = r2(median(detalj.borta.map(b => b.dt).filter(v => v != null)));
+    const bt = detalj.borta.map(b => tak(b.dt));
+    m.tidBortaMedian = r2(median(bt)); m.tidBortaMax = bt.length ? r2(Math.max(...bt)) : null;
     for (const f of forluster) if (!tagnaL.has(f)) detalj.fel.push({ t: f.t, kort: f.k.namn, som: f.som, ser: f.k.s });
     m.felNedtoning = detalj.fel.length;
+    /* Till handen (MES-343): ett kort som lämnar mattan mot handen fast det
+       ligger kvar. I dag går inget kort till handen av sig självt. */
+    m.felTillHanden = detalj.fel.filter(f => f.som === 'hand' || f.som === 'borttaget').length;   // borttaget = ur korten helt: appens hand och library är ett
 
     /* ── flyttar ── */
     const tagnaU = new Set();
@@ -160,7 +192,7 @@ function berakna(fall, logg) {
     }
     const fl = detalj.flytt;
     m.flyttGlid = fl.length ? { n: fl.filter(x => x.som === 'glid').length, av: fl.length } : null;
-    m.flyttTidMedian = r2(median(fl.map(x => x.dt).filter(v => v != null)));
+    m.flyttTidMedian = r2(median(fl.map(x => tak(x.dt))));
 
     /* ── utbytta och extra kort ──
        Utbytt: en flytt i facit som syntes som ett nytt kort, eller ett nytt
@@ -179,7 +211,7 @@ function berakna(fall, logg) {
     m.utbytta = detalj.utbytta.length + domNod;
     m.extraKort = detalj.extra.length;
   } else {
-    for (const n of ['utspelSyntes', 'utspelKort', 'tidSynsMedian', 'tidSynsMax', 'tidPlatsMedian', 'tidPlatsMax', 'bortaMissade', 'tidBortaMedian', 'felNedtoning', 'flyttGlid', 'flyttTidMedian', 'utbytta', 'extraKort']) m[n] = null;
+    for (const n of ['utspelSyntes', 'utspelKort', 'tidSynsMedian', 'tidSynsMax', 'tidPlatsMedian', 'tidPlatsMax', 'bortaMissade', 'tidBortaMedian', 'tidBortaMax', 'felNedtoning', 'felTillHanden', 'flyttGlid', 'flyttTidMedian', 'utbytta', 'extraKort']) m[n] = null;
   }
 
   /* ── mattans rörelser ── */
@@ -195,7 +227,7 @@ function berakna(fall, logg) {
 
   /* ── platshållare och laddtexter ── */
   const episoder = [];
-  for (const q of logg.platser.slice().sort((a, b) => a.fodd - b.fodd)) {
+  for (const q of logg.platser.filter(q => q.slag === 'p').sort((a, b) => a.fodd - b.fodd)) {
     const e = episoder.find(e => e.spar === q.spar && e.dod != null && Math.abs(e.dod - q.fodd) < 1e-6);
     const slut = q.dod != null ? q.dod : fall.till;
     if (e) { e.dod = q.dod; e.slut = slut; for (const t of q.texter) if (!e.texter.includes(t)) e.texter.push(t); }
@@ -257,10 +289,12 @@ function totalt(res) {
     else if (enh === 'antal' || key === 'platshallareS' || key === 'utanforS') t[key] = r2(l.reduce((a, v) => a + v, 0));
     else t[key] = null;
   }
-  const lista = (f, key) => R.flatMap(r => (r.detalj[f] || []).map(x => x[key]).filter(v => v != null));
-  t.tidSynsMedian = r2(median(lista('utspel', 'syns'))); const sy = lista('utspel', 'syns'); t.tidSynsMax = sy.length ? r2(Math.max(...sy)) : null;
-  const pl = lista('utspel', 'plats'); t.tidPlatsMedian = r2(median(pl)); t.tidPlatsMax = pl.length ? r2(Math.max(...pl)) : null;
-  t.tidBortaMedian = r2(median(lista('borta', 'dt')));
+  const lista = (f, key) => R.flatMap(r => (r.detalj[f] || []).map(x => tak(x[key])));   // en miss = taket, som per fall
+  const mx = l => l.length ? r2(Math.max(...l)) : null;
+  const sy = lista('utspel', 'syns'), pl = lista('utspel', 'plats'), bt = lista('borta', 'dt');
+  t.tidSynsMedian = r2(median(sy)); t.tidSynsMax = mx(sy);
+  t.tidPlatsMedian = r2(median(pl)); t.tidPlatsMax = mx(pl);
+  t.tidBortaMedian = r2(median(bt)); t.tidBortaMax = mx(bt);
   t.flyttTidMedian = r2(median(lista('flytt', 'dt')));
   const min = R.reduce((a, r) => a + r.minuter, 0);
   const zoom = R.reduce((a, r) => a + (r.matt.zoomPerMin || 0) * r.minuter, 0), pan = R.reduce((a, r) => a + (r.matt.panPerMin || 0) * r.minuter, 0);
@@ -270,8 +304,10 @@ function totalt(res) {
 
 /* Sämre? null efter men ett tal före = vet inte = sämre. Tider jämförs på
    hundradelar (det som skrivs ut). */
-function samre(key, fore, efter) {
+function samre(key, fore, efter, grind) {
   const def = MATT.find(x => x[0] === key); if (!def) return false;
+  if (grind && def[3] === 's' && typeof fore === 'number' && typeof efter === 'number')
+    return def[2] === 'lagre' ? efter > fore + 0.1 + 1e-9 : efter < fore - 0.1 - 1e-9;   // tider: ±0,1 s
   if (fore == null) return false;
   if (efter == null) return true;
   if (typeof fore === 'object' || typeof efter === 'object') {   // kvot n/av: färre n är sämre (av är facits rader, samma före och efter)

@@ -20,7 +20,19 @@ function server(fil, extra) {
     const s = http.createServer((req, ut) => {
       const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (extra && extra[u]) { const d = extra[u](); ut.writeHead(200, { 'Content-Type': TYPER[path.extname(u)] || 'application/json', 'Cache-Control': 'no-store' }); return ut.end(d); }
-      const malet = u === '/' || u === '/index.html' || u === '/app.html' ? fil : path.join(ROT, path.normalize(u));
+      /* /app.html: appen med uppspelarens motor FÖRST i sidan, så att den
+         hinner fånga timrarna och ResizeObserver som appen ställer när den
+         startar (motor.js). Motorn gör ingenting förrän uppspelningen börjar. */
+      if (u === '/app.html') {
+        return fs.readFile(fil, 'utf8', (fel, html) => {
+          if (fel) { ut.writeHead(404); return ut.end(); }
+          const tag = '<script src="/dev/uppspelaren/motor.js"></script>';
+          const m = /<head[^>]*>/i.exec(html);
+          ut.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+          ut.end(m ? html.slice(0, m.index + m[0].length) + tag + html.slice(m.index + m[0].length) : tag + html);
+        });
+      }
+      const malet = u === '/' || u === '/index.html' ? fil : path.join(ROT, path.normalize(u));
       if (u.split('/').some(d => d.startsWith('.')) || (malet !== fil && !malet.startsWith(ROT + path.sep))) { ut.writeHead(404); return ut.end(); }
       let verklig = malet;
       try { verklig = fs.realpathSync(malet); } catch (e) { ut.writeHead(404); return ut.end(); }

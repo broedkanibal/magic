@@ -32,7 +32,7 @@ const har = n => process.argv.includes(n);
 const FIL = path.resolve(arg('--fil', path.join(ROT, 'index.html')));
 const FALL = arg('--fall', '') ? arg('--fall').split(',').map(s => s.trim()).filter(Boolean) : null;
 const BASLINJE = path.join(__dirname, 'baslinje', 'baslinje.json');
-const MOTOR = fs.readFileSync(path.join(__dirname, 'motor.js'), 'utf8');
+const SOLO = process.argv.includes('--solo');
 
 function gitHead() { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROT, encoding: 'utf8' }).trim(); } catch (e) { return null; } }
 const sha = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex').slice(0, 12);
@@ -40,11 +40,11 @@ const sha = f => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('
 /* Ett fall i en ny sida: appen laddas, motorn läggs in, uppspelningen går
    i ett svep. Fallets data hämtas från filservern. */
 async function korEtt(c, url, fall) {
-  await c.cdp('Page.navigate', { url });
+  await c.cdp('Page.navigate', { url: url + 'app.html?upp=1' });
   await vantaApp(c);
   await vanta(300);
-  await c.ev(MOTOR);
-  return c.ev(`(async () => { const f = await (await fetch('/__upp/fall/${fall.id}.json')).json(); return __upp.korFall(f); })()`);
+  if (!(await c.ev("typeof __upp === 'object' && !!__upp.korFall"))) throw new Error('motorn laddades inte i sidan (app.html)');
+  return c.ev(`(async () => { const f = await (await fetch('/__upp/fall/${fall.id}.json')).json(); if (${SOLO}) f.motstandare = false; return __upp.korFall(f); })()`);
 }
 
 async function korAlla(ids) {
@@ -68,7 +68,9 @@ async function korAlla(ids) {
         const logg = await korEtt(c, url, f);
         const b = berakna(f, logg);
         res.push({ id: f.id, namn: f.namn, slag: f.slag, kalla: f.kalla, anm: f.anm, minuter: (f.till - f.fran) / 60, ms: Date.now() - t0, matt: b.matt, detalj: b.detalj, n: b.n, logg });
-        if (b.n.fel.length) console.error(`uppspelaren: ${f.id}: undantag i appen under uppspelningen: ${b.n.fel.slice(0, 3).join(' | ')}`);
+        /* Ett undantag i appen, eller en läsning motorn inte kan tolka, gör
+           måtten opålitliga: slutkod 2 i alla lägen, också med --jamfor. */
+        if (b.n.fel.length) { console.error(`uppspelaren: ${f.id}: ${b.n.fel.length} fel under uppspelningen (undantag i appen eller en läsning som inte går att tolka) — måtten gäller inte: ${b.n.fel.slice(0, 3).join(' | ')}`); process.exitCode = 2; }
       } catch (e) {
         console.error(`uppspelaren: ${f.id} gick inte att köra — ${e.message}`);
         for (const k of c.konsol.splice(0)) console.error('     ' + k);
@@ -99,7 +101,7 @@ function markdown(res, tot, meta) {
   const L = [];
   L.push(`# Uppspelarens baslinje — ${meta.datum}`);
   L.push('');
-  L.push(`Kod: \`${meta.html}\` (sha256 ${meta.sha}, commit ${meta.commit || '?'}). Simulerad klocka: två körningar på samma fil ger samma tal. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).`);
+  L.push(`Kod: \`${meta.html}\` (sha256 ${meta.sha}, commit ${meta.commit || '?'}). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (\`--jamfor\`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).`);
   L.push('');
   L.push('| Fall | Vad | Underlag |');
   L.push('|---|---|---|');
@@ -122,7 +124,7 @@ function detaljUt(r) {
   const L = [`${r.id} — ${r.namn}: ${r.n.rapporter} rapporter, ${r.n.hjartslag} hjärtslag, ${r.n.timrar} timrar, ${r.n.prov} mätpunkter, ${r.n.kort} kortelement (${r.ms} ms)`];
   const d = r.detalj;
   if (d.utspel.length) { L.push('  utspel (facit t → kort, platshållare, syns, rätt plats; s efter facit):'); for (const u of d.utspel) L.push(`    ${pad(u.t, 7)} ${pad(u.kort, 26)} kort ${pad(visa(u.kortT), 6)} plats ${pad(visa(u.platsT), 6)} syns ${pad(visa(u.syns), 6)} rätt plats ${visa(u.plats)}`); }
-  if (d.borta.length) { L.push('  borttagningar:'); for (const b of d.borta) L.push(`    ${pad(b.t, 7)} ${pad(b.kort, 26)} ${b.dt == null ? 'står kvar' : visa(b.dt) + ' s, ' + b.som}`); }
+  if (d.borta.length) { L.push("  borttagningar:"); for (const b of d.borta) L.push(`    ${pad(b.t, 7)} ${pad(b.kort, 26)} ${b.dt == null ? "står kvar" + (b.sen != null ? ` (lämnar mattan först +${visa(b.sen)} s, ${b.som})` : "") : visa(b.dt) + " s, " + b.som}`); }
   if (d.fel.length) { L.push('  fel nedtoning / borttagning:'); for (const f of d.fel) L.push(`    ${pad(f.t, 7)} ${pad(f.kort, 26)} ${f.som}`); }
   if (d.flytt.length) { L.push('  flyttar:'); for (const f of d.flytt) L.push(`    ${pad(f.t, 7)} ${pad(f.kort, 26)} ${f.som}${f.dt != null ? ', ' + visa(f.dt) + ' s' : ''}`); }
   if (d.utbytta.length) { L.push('  utbytta:'); for (const u of d.utbytta) L.push(`    ${pad(u.t, 7)} ${pad(u.kort, 26)} efter ${u.forlust} vid ${u.forlustT}`); }
@@ -190,9 +192,9 @@ const BILDER = [
   if (arg('--json')) { fs.writeFileSync(path.resolve(arg('--json')), JSON.stringify({ meta, totalt: tot, fall: res }) + '\n'); console.log(`allt skrivet till ${arg('--json')}`); }
 
   if (har('--spara')) {
-    if (res.some(r => r.fel)) { console.error('uppspelaren --spara: ett fall gick inte att köra — ingen baslinje skriven'); process.exit(2); }
+    if (res.some(r => r.fel || r.n.fel.length)) { console.error('uppspelaren --spara: ett fall gick inte att köra eller gav fel under uppspelningen — ingen baslinje skriven'); process.exit(2); }
     fs.mkdirSync(path.dirname(BASLINJE), { recursive: true });
-    const B = { meta, totalt: tot, fall: ok.map(r => ({ id: r.id, namn: r.namn, slag: r.slag, kalla: r.kalla, anm: r.anm, minuter: r.minuter, matt: r.matt, n: Object.assign({}, r.n, { fel: undefined }) })) };
+    const B = { meta, totalt: tot, fall: ok.map(r => ({ id: r.id, namn: r.namn, slag: r.slag, kalla: r.kalla, anm: r.anm, minuter: r.minuter, matt: r.matt, n: Object.assign({}, r.n, { fel: undefined, felAntal: r.n.fel.length }) })) };
     fs.writeFileSync(BASLINJE, JSON.stringify(B, null, 1) + '\n');
     fs.writeFileSync(path.join(path.dirname(BASLINJE), 'baslinje.md'), markdown(res, tot, meta));
     console.log(`baslinjen skriven: ${path.relative(process.cwd(), BASLINJE)} och baslinje.md`);
@@ -202,21 +204,35 @@ const BILDER = [
     if (!fs.existsSync(BASLINJE)) { console.error('uppspelaren --jamfor: ingen baslinje (' + path.relative(process.cwd(), BASLINJE) + ') — kör --spara först'); process.exit(2); }
     const B = JSON.parse(fs.readFileSync(BASLINJE, 'utf8'));
     console.log(`\nJämfört med baslinjen ${B.meta.datum} (${B.meta.html}, sha256 ${B.meta.sha}, commit ${B.meta.commit || '?'}):`);
-    let samreN = 0, battreN = 0, saknas = 0;
+    /* Baslinjen ska vara main: har origin/main:s index.html ändrats sedan den
+       sparades jämförs en ändring mot fel utgångsläge. */
+    try {
+      const mainHtml = execFileSync('git', ['show', 'origin/main:index.html'], { cwd: ROT, maxBuffer: 64 << 20 });
+      const mainSha = crypto.createHash('sha256').update(mainHtml).digest('hex').slice(0, 12);
+      if (mainSha !== B.meta.sha) console.log(`  VARNING: origin/main:s index.html (sha256 ${mainSha}) är inte baslinjens (${B.meta.sha}). Kör --spara på main först, annars jämförs mot ett gammalt utgångsläge.`);
+    } catch (e) { console.log('  VARNING: kunde inte läsa origin/main:index.html (' + String(e.message).split('\n')[0] + ')'); }
+    /* Grinden: varje mått i totalt-kolumnen (golden + passet) och i p0921
+       (facit som ideal telefon, MES-342/338:s fall). Tider får skilja ±0,1 s,
+       antal inget. Per fall skrivs som diagnos: VARNING, fäller inte. */
+    const GRIND = ['totalt', 'p0921'];
+    let samreN = 0, battreN = 0, varnN = 0, saknas = 0;
     const rad = (fall, key, f, e) => {
       const namn = (MATT.find(m => m[0] === key) || [, key])[1];
-      const s = samre(key, f, e), b = !s && samre(key, e, f);
-      if (s) samreN++; if (b) battreN++;
-      if (s || b || har('--alla')) console.log(`  ${pad(fall, 8)} ${pad(namn.length > 60 ? namn.slice(0, 59) + '…' : namn, 61)} ${lpad(visa(f), 8)} → ${pad(visa(e), 8)} ${s ? 'SÄMRE' : b ? 'bättre' : ''}`);
+      const grind = GRIND.includes(fall);
+      const s = samre(key, f, e, true), b = !s && samre(key, e, f, true);
+      if (s && grind) samreN++; else if (s) varnN++;
+      if (b && grind) battreN++;
+      if (s || b || har('--alla')) console.log(`  ${pad(fall, 8)} ${pad(namn.length > 60 ? namn.slice(0, 59) + '…' : namn, 61)} ${lpad(visa(f), 8)} → ${pad(visa(e), 8)} ${s ? (grind ? 'SÄMRE' : 'VARNING (per fall, fäller inte)') : b ? 'bättre' : ''}`);
     };
     for (const bf of B.fall.filter(f => !FALL || FALL.includes(f.id))) {
       const r = ok.find(r => r.id === bf.id);
-      if (!r) { console.log(`  ${pad(bf.id, 8)} GICK INTE ATT KÖRA — räknas som sämre`); saknas++; continue; }
+      if (!r) { console.log(`  ${pad(bf.id, 8)} GICK INTE ATT KÖRA`); saknas++; continue; }
       for (const [key] of MATT) rad(bf.id, key, bf.matt[key], r.matt[key]);
     }
     if (!FALL) for (const [key] of MATT) rad('totalt', key, B.totalt[key], tot[key]);
     else console.log('  (--fall: bara de fallen jämförs, inte totalt)');
-    console.log(`  → ${samreN} rader sämre, ${battreN} bättre${saknas ? `, ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
-    if (samreN || saknas) process.exitCode = 1;
+    console.log(`  → grinden (totalt och p0921): ${samreN} rader sämre, ${battreN} bättre; per fall: ${varnN} varningar${saknas ? `; ${saknas} fall gick inte att köra` : ''}${har('--alla') ? '' : ' (oförändrade rader visas med --alla)'}`);
+    if (saknas) process.exitCode = 2;
+    else if (samreN && process.exitCode !== 2) process.exitCode = 1;
   }
 })().catch(e => { console.error('uppspelaren: ' + (e && e.stack || e)); process.exit(2); });

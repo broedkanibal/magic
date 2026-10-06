@@ -38,16 +38,79 @@
   U.sek = t => (t - VIRT0) / 1000;
   U.nu = () => virt;
 
-  /* Appens timrar under uppspelningen: en kö på uppspelningens klocka. */
+  /* Appens timrar under uppspelningen: en kö på uppspelningens klocka.
+     Motorn laddas före appen (kor.cjs och visaren lägger den först i
+     sidan), så timrar appen ställer när den startar — renderAutoBar varje
+     sekund, kamerapricken, strömmen — fångas också: när uppspelningen
+     börjar stoppas de riktiga och läggs i kön med samma takt. */
   const rST = window.setTimeout, rCT = window.clearTimeout, rSI = window.setInterval, rCI = window.clearInterval;
   let ko = [], timN = 0;
   const TID0 = 900000000;
-  function kolagg(fn, ms, args, period) { const id = TID0 + (++timN); ko.push({ id, t: virt + Math.max(0, +ms || 0), fn, args, period, n: timN }); return id; }
-  window.setTimeout = function (fn, ms, ...args) { return pa && typeof fn === 'function' ? kolagg(fn, ms, args, 0) : rST.call(window, fn, ms, ...args); };
-  window.setInterval = function (fn, ms, ...args) { return pa && typeof fn === 'function' ? kolagg(fn, ms, args, Math.max(1, +ms || 0)) : rSI.call(window, fn, ms, ...args); };
-  window.clearTimeout = function (id) { if (typeof id === 'number' && id > TID0) { ko = ko.filter(x => x.id !== id); } else rCT.call(window, id); };
-  window.clearInterval = function (id) { if (typeof id === 'number' && id > TID0) { ko = ko.filter(x => x.id !== id); } else rCI.call(window, id); };
+  const forTimrar = new Map();   // timrar från före uppspelningen: riktigt id → { fn, ms, args, period, due }
+  function kolagg(fn, ms, args, period, alias) { const id = TID0 + (++timN); ko.push({ id, t: virt + Math.max(0, +ms || 0), fn, args, period, n: timN, alias }); return id; }
+  window.setTimeout = function (fn, ms, ...args) {
+    if (pa && typeof fn === 'function') return kolagg(fn, ms, args, 0);
+    if (typeof fn !== 'function') return rST.call(window, fn, ms, ...args);
+    let id; id = rST.call(window, (...a) => { forTimrar.delete(id); fn(...a); }, ms, ...args);
+    forTimrar.set(id, { fn, ms: +ms || 0, args, period: 0, due: riktigNu() + (+ms || 0) });
+    return id;
+  };
+  window.setInterval = function (fn, ms, ...args) {
+    if (pa && typeof fn === 'function') return kolagg(fn, ms, args, Math.max(1, +ms || 0));
+    const id = rSI.call(window, fn, ms, ...args);
+    if (typeof fn === 'function') forTimrar.set(id, { fn, ms: Math.max(1, +ms || 0), args, period: Math.max(1, +ms || 0) });
+    return id;
+  };
+  const rensa = id => { const f = ko.length; ko = ko.filter(x => x.id !== id && x.alias !== id); return ko.length !== f; };
+  window.clearTimeout = function (id) { if (typeof id === 'number' && (id > TID0 || rensa(id))) { rensa(id); return; } forTimrar.delete(id); rCT.call(window, id); };
+  window.clearInterval = function (id) { if (typeof id === 'number' && (id > TID0 || rensa(id))) { rensa(id); return; } forTimrar.delete(id); rCI.call(window, id); };
+  /* Uppspelningen börjar: de riktiga timrarna stoppas och går vidare i kön. */
+  function flyttaTimrar() {
+    const nu = riktigNu();
+    for (const [id, x] of forTimrar) {
+      rCT.call(window, id); rCI.call(window, id);
+      kolagg(x.fn, x.period ? x.period : Math.max(0, x.due - nu), x.args, x.period, id);
+    }
+    forTimrar.clear();
+  }
   function nastaTimer() { let b = null; for (const x of ko) if (!b || x.t < b.t || (x.t === b.t && x.n < b.n)) b = x; return b; }
+
+  /* En bildruta: det webbläsaren gör mellan två uppgifter och som appen
+     lyssnar på — requestAnimationFrame och ResizeObserver (index.html:
+     bordsvyn ritar om mattan när rutan runt den ändrar storlek). Under
+     uppspelningen körs de här, efter varje steg, på uppspelningens klocka;
+     webbläsarens egna leveranser släpps inte fram. */
+  const rRaf = window.requestAnimationFrame, rCaf = window.cancelAnimationFrame;
+  let rafKo = [], rafN = 0;
+  window.requestAnimationFrame = function (fn) { if (!pa) return rRaf.call(window, fn); const id = 800000000 + (++rafN); rafKo.push({ id, fn }); return id; };
+  window.cancelAnimationFrame = function (id) { if (id > 800000000) rafKo = rafKo.filter(x => x.id !== id); else rCaf.call(window, id); };
+  const RRO = window.ResizeObserver, observatorer = new Set();
+  if (RRO) {
+    window.ResizeObserver = class extends RRO {
+      constructor(cb) { super((e, o) => { if (!pa) cb(e, o); }); this.__cb = cb; this.__mal = new Map(); observatorer.add(this); }
+      observe(t, o) { super.observe(t, o); this.__mal.set(t, null); }
+      unobserve(t) { super.unobserve(t); this.__mal.delete(t); }
+      disconnect() { super.disconnect(); this.__mal.clear(); }
+    };
+  }
+  const storlekAv = t => { const r = t.getBoundingClientRect(); return { w: Math.round(r.width * 100) / 100, h: Math.round(r.height * 100) / 100 }; };
+  function storlekarNu() { for (const o of observatorer) for (const t of o.__mal.keys()) o.__mal.set(t, storlekAv(t)); }
+  function bildruta() {
+    for (let varv = 0; varv < 4; varv++) {
+      const raf = rafKo; rafKo = [];
+      for (const x of raf) try { x.fn(virt); } catch (e) { if (L) L.fel.push('requestAnimationFrame: ' + (e && e.message || e)); }
+      let levererat = false;
+      for (const o of observatorer) {
+        const poster = [];
+        for (const [t, f] of o.__mal) {
+          const n = storlekAv(t);
+          if (!f || f.w !== n.w || f.h !== n.h) { o.__mal.set(t, n); poster.push({ target: t, contentRect: { width: n.w, height: n.h, x: 0, y: 0, top: 0, left: 0, right: n.w, bottom: n.h }, borderBoxSize: [{ inlineSize: n.w, blockSize: n.h }], contentBoxSize: [{ inlineSize: n.w, blockSize: n.h }] }); }
+        }
+        if (poster.length) { levererat = true; try { o.__cb(poster, o); } catch (e) { if (L) L.fel.push('ResizeObserver: ' + (e && e.message || e)); } }
+      }
+      if (!levererat && !rafKo.length) break;
+    }
+  }
 
   /* Nätet under uppspelningen: ett anrop som aldrig svarar. Kortens
      uppslag (resolveAll) väntar då som i ett spel där leken redan finns
@@ -102,11 +165,21 @@
     const l = parseFloat(el.style.left) || 0, t = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || CW(), h = parseFloat(el.style.height) || 248;
     return { lx: l + w / 2, ly: t + h / 2, vx: l + w / 2 + dx, vy: t + h / 2 + dy, w, h };
   }
-  function lasPos() { const m = new Map(); for (const el of kortEl()) m.set(serOf(el), lage(el)); return m; }
+  /* En flytt eller knuff som går just nu (matGlid i index.html, el._matA.pos). */
+  const glider = el => !!(el._matA && el._matA.pos && el._matA.pos.playState === 'running');
+  function lasPos() { const m = new Map(); for (const el of kortEl()) m.set(serOf(el), Object.assign(lage(el), { glid: glider(el) })); return m; }
   function zonen(c) { try { return zonAv(c); } catch (e) { return c.zon || ''; } }
+  /* Det motorn läser ur appens inre (mattans transform, nycklarna c:/p:,
+     klassen .lyft) går inte alltid att lita på när appen ändras. Går en
+     läsning inte att tolka skrivs det som ett fel, och kor.cjs avbryter
+     med slutkod 2 — en mätning som tystnar får inte se ut som 0. */
+  const tolk = (vad) => { if (L && !L.tolkSett.has(vad)) { L.tolkSett.add(vad); L.fel.push('tolkning: ' + vad); } };
   function grid() {
     const t = gridEl._matT || '', m = /translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(([\d.]+)\)/.exec(t);
-    return { t, z: m ? +m[3] : null, px: m ? +m[1] : null, py: m ? +m[2] : null, glider: !!(gridEl._matZoom && gridEl._matZoom.playState === 'running') };
+    if (t && !m) tolk('mattans transform (gridEl._matT) går inte att läsa: ' + t.slice(0, 80));
+    if (pa && !t) tolk('mattans transform (gridEl._matT) saknas');
+    /* Glider: mattans egen rörelse (matBradeSkriv), eller CSS-övergången bordsvyn och zoomknapparna sätter (.bordglid, .glider). */
+    return { t, z: m ? +m[3] : null, px: m ? +m[1] : null, py: m ? +m[2] : null, glider: !!(gridEl._matZoom && gridEl._matZoom.playState === 'running') || gridEl.classList.contains('bordglid') || gridEl.classList.contains('glider') };
   }
 
   /* ── loggen ──────────────────────────────────────────────────────── */
@@ -115,7 +188,7 @@
     return {
       opt, kort: new Map(), platser: new Map(), hopp: [], grid: [], utanfor: [], ogon: [],
       steg: 0, rapporter: 0, hjartslag: 0, timrar: 0, prov: 0,
-      forraProv: null, forraProvT: null, snabbSist: new Map(), teleport: new Set(), fel: []
+      forraProv: null, forraProvT: null, snabbSist: new Map(), teleport: new Set(), fel: [], tolkSett: new Set(), sattKortEl: false
     };
   }
   /* Ett kortelement: födsel, död (och varför), nedtoningar, chip och banan
@@ -142,10 +215,13 @@
     if (fullt) { const r = gridWrap.getBoundingClientRect(); vp = { l: r.left, t: r.top, r: r.right, b: r.bottom }; }
     for (const el of kortEl()) {
       const cid = el._mat.nyckel.slice(2), c = cards.get(cid);
+      if (!c) tolk('ett c:-element vars kort inte finns i mig.cards');
+      L.sattKortEl = true;
       const k = kortPost(el, c, t);
       sedda.add(k.s);
       if (c && k.namn !== c.name) k.namn = c.name;
       const lyft = el.classList.contains('lyft');
+      if (c && (c.lyft != null) !== lyft) tolk('klassen .lyft stämmer inte med kortets lyft (' + (c.lyft != null ? 'lyft utan klass' : 'klass utan lyft') + ')');
       const sistaL = k.lyft[k.lyft.length - 1];
       if (lyft && !(sistaL && sistaL[1] == null)) k.lyft.push([t, null]);
       if (!lyft && sistaL && sistaL[1] == null) sistaL[1] = t;
@@ -169,21 +245,32 @@
       k.dod = t;
       const c = cards.get(k.cid);
       const ers = [...sedda].some(s => s !== k.s && L.kort.get(s).cid === k.cid && L.kort.get(s).fodd === t);
-      k.dodSom = ers ? 'utbytt element' : !c ? 'borttaget' : (zonen(c) === 'grav' ? 'graveyard' : zonen(c) === 'exil' ? 'exile' : 'inte på mattan');
+      k.dodSom = ers ? 'utbytt element' : !c ? 'borttaget' : (zonen(c) === 'grav' ? 'graveyard' : zonen(c) === 'exil' ? 'exile' : /hand/i.test(zonen(c)) ? 'hand' : 'inte på mattan');
       const sl = k.lyft[k.lyft.length - 1]; if (sl && sl[1] == null) sl[1] = t;
       const sc = k.chip[k.chip.length - 1]; if (sc && sc[2] == null) sc[2] = t;
     }
-    /* Platshållarna (.plats, nyckeln p:<spår>). */
+    /* Allt annat som syns på mattan och inte är ett kort eller en hög
+       (h:): platshållarna i dag (.plats, nyckeln p:<spår>), och det som
+       ersätter dem (ett oframkallat kort, MES-344) utan att motorn behöver
+       ändras. Texten: .platstxt, annars elementets egen. */
     const pSedda = new Set();
     for (const el of gridEl.children) {
-      const m = el._mat; if (!m || !m.nyckel || !m.nyckel.startsWith('p:')) continue;
+      const m = el._mat;
+      if (!m || !m.nyckel) {
+        if (el.matches('.card[data-cid], .plats')) tolk('ett kort eller en platshållare på mattan utan matSynk-nyckel');
+        continue;
+      }
+      if (el.matches('.card[data-cid]') && !m.nyckel.startsWith('c:') && !m.nyckel.startsWith('h:')) tolk('.card-element med nyckeln ' + m.nyckel.split(':')[0] + ': (väntade c:)');
+      if (el.matches('.plats') && !m.nyckel.startsWith('p:')) tolk('.plats-element med nyckeln ' + m.nyckel.split(':')[0] + ': (väntade p:)');
+      if (m.nyckel.startsWith('c:') || m.nyckel.startsWith('h:')) continue;
       const s = serOf(el); pSedda.add(s);
       let q = L.platser.get(s);
-      const txt = ((el.querySelector('.platstxt') || {}).textContent || '').trim();
-      const l = parseFloat(el.style.left) || 0, tp = parseFloat(el.style.top) || 0;
-      if (!q) { q = { s, spar: m.nyckel.slice(2), fodd: t, dod: null, texter: [], x: l + cw / 2, y: tp + 124 }; L.platser.set(s, q); }
+      const txtEl = el.querySelector('.platstxt'), txt = ((txtEl || el).textContent || '').trim().slice(0, 80);
+      const l = parseFloat(el.style.left) || 0, tp = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || cw, h = parseFloat(el.style.height) || 248;
+      const ix = m.nyckel.indexOf(':'), slag = ix > 0 ? m.nyckel.slice(0, ix) : m.nyckel;
+      if (!q) { q = { s, nyckel: m.nyckel, slag, spar: ix > 0 ? m.nyckel.slice(ix + 1) : null, fodd: t, dod: null, texter: [], x: l + w / 2, y: tp + h / 2 }; L.platser.set(s, q); }
       if (txt && !q.texter.includes(txt)) q.texter.push(txt);
-      q.sx = l + cw / 2; q.sy = tp + 124;
+      q.sx = l + w / 2; q.sy = tp + h / 2;
     }
     for (const q of L.platser.values()) if (q.dod == null && !pSedda.has(q.s)) q.dod = t;
     /* Mattans transform (zoom och pan) efter varje steg: glider säger om
@@ -198,6 +285,8 @@
     synka();
     const fore = lasPos();
     try { fn(); } catch (e) { L.fel.push(namn + ': ' + (e && e.message || e)); }
+    synka();
+    bildruta();   // det webbläsaren gör innan nästa bild: rAF och ResizeObserver (index.html ritar om mattan när rutan ändrar storlek)
     synka();
     const efter = lasPos(), cw = CW();
     for (const [s, b] of efter) {
@@ -216,7 +305,8 @@
     observera(virt, true);
     const nu = lasPos(), cw = CW(), f = L.forraProv;
     if (f) for (const [s, b] of nu) {
-      const a = f.get(s); if (!a || L.teleport.has(s)) continue;
+      /* En glidning (matGlid) är en rörelse, hur lång den än är: bara det som rör sig utan en räknas. */
+      const a = f.get(s); if (!a || L.teleport.has(s) || a.glid || b.glid) continue;
       const d = Math.hypot(b.vx - a.vx, b.vy - a.vy) / cw;
       if (d <= L.opt.snabb) continue;
       /* Flera rutor i rad över gränsen för samma kort är ett hopp (en rörelse), med den största sträckan. */
@@ -249,7 +339,8 @@
   /* ── spelet: som dev/mattan.cjs ──────────────────────────────────── */
   function starta(fall) {
     pa = true; fro = 0x5EED ^ (fall.fro || 1); virt = U.ms((fall.fran || 0) - 1);
-    ko = []; anims.clear();
+    ko = []; rafKo = []; anims.clear();
+    flyttaTimrar();
     visaVy('app');
     const m = player();
     spelLage = { id: 'upp-' + fall.id, kod: 'UPP001', namn: 'Uppspelaren', vard: m.id, mig: m.id };
@@ -259,7 +350,19 @@
     kamAnsluten = true; kamFas = ''; prefs.autoLage = true;
     kamUpplosning = fall.upplosning || null;
     if (typeof sattLekTal === 'function') sattLekTal(fall.lek || null);
+    /* En motståndare, som i ett riktigt spel (förval): bordsvyn delar
+       skärmen mellan mattorna, och den ritar om mattan när rutan ändras.
+       Hennes kort ligger still. --solo: bara mitt bord. */
+    if (fall.motstandare !== false) {
+      const opp = normalisera({ id: 'upp-opp', name: 'Sara', color: '#b782ff', plats: 2, lage: 'bord', cards: [
+        { cid: 'uo1', name: 'Delver of Secrets', x: 40, y: 60, z: 1, tapped: 0, cts: [] },
+        { cid: 'uo2', name: 'Island', x: 260, y: 330, z: 2, tapped: 0, cts: [] }], shots: [], shotIdx: 0, pending: [], pane: null, namnkalla: 'anvandare', version: 1 }, 1);
+      state.players = [m, opp]; state.active = m.id;
+      if (typeof bord !== 'undefined' && bord) bord.valt = 'all';
+    }
     renderAll(true);
+    bildruta();
+    storlekarNu();
   }
   /* En rad ur bordsloggen, som kamTogsEmot tar emot den: grundläget och
      library-rutan före avstämningen, sedan avstamBord. */
@@ -322,6 +425,7 @@
     tick = U.ms(fall.fran); ogonT = (fall.ogonblick || []).slice().sort((a, b) => a.s - b.s); oi = 0;
     L.forraProv = null;
     till(U.ms(fall.till), true);
+    if ((fall.facit || []).some(h => h.typ === 'spelar') && !L.sattKortEl) tolk('fallet har utspel i facit men mattan fick aldrig ett c:-element');
     const ut = {
       kort: [...L.kort.values()], platser: [...L.platser.values()], hopp: L.hopp, grid: L.grid, utanfor: L.utanfor, ogon: L.ogon,
       steg: L.steg, rapporter: L.rapporter, hjartslag: L.hjartslag, timrar: L.timrar, prov: L.prov, fel: L.fel,
