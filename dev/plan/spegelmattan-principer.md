@@ -18,15 +18,18 @@ har en prototyp med det fysiska bordet och mattan sida vid sida (källan:
 `TIDSLINJER-E.md`). MES-292 står i Behöver dig tills Jesper sagt ja. Inget av
 det som återstår byggs i `index.html` förrän dess.
 
-**Fyra saker bestämdes i designytan och väntar på Jespers bekräftelse:**
+**Fyra saker bestämdes i designytan, och Jesper svarade 2026-10-06:**
 
-1. En flytt väntar inte på namnet. Vilar ett kort på en ny plats i samma stund
+1. **Bekräftat.** En flytt väntar inte på namnet. Vilar ett kort på en ny plats i samma stund
    som ett känt kort försvann, är det samma kort och bärs dit direkt. Namnet
    bekräftar i efterhand.
-2. Untap i ett svep vrids med 150 ms mellanrum, ungefär handens fart.
-3. Raden och sökrutan är på engelska, som resten av appen: "went to your hand",
+2. **Ändrat av Jesper.** Ett kort vars tap-läge ändrats vrids så fort handen
+   lämnat det och domen är säker, också mitt i ett svep, innan de andra korten
+   är klara. Det fanns inget fast mellanrum. Bara kort som är skymda samtidigt
+   kommer på en gång.
+3. **Bekräftat.** Raden och sökrutan är på engelska, som resten av appen: "went to your hand",
    "Still on the table", "Which card is this?".
-4. Sökrutan öppnas bredvid kortet, inte över det.
+4. **Bekräftat.** Sökrutan öppnas bredvid kortet, inte över det.
 
 **Byggt sedan dess, av andra sessioner:**
 
@@ -153,7 +156,7 @@ Med reglerna ovan blir inget kort grått. `.card.lyft`, chippen "Where did it go
 
 - Kortet vrids bara när kameran är säker (MES-293).
 - Det animeras, ~240 ms SOFT med ett litet lyft (D), precis som tap för hand.
-- Ordningen och tempot följer dina. När kameran ser flera kort på en gång, för att handen täckte dem, vrids de i den ordning handen rörde vid dem.
+- Ordningen och tempot följer dina. Varje kort vrids så fort handen lämnat det och domen är säker, också mitt i ett svep (Jesper 2026-10-06). Bara när kameran ser flera kort på en gång, för att handen täckte alla samtidigt, vrids de i den ordning handen rörde vid dem.
 
 ### Positionerna: trogen plats, städad
 

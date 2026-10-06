@@ -18,7 +18,7 @@ const SCEN = {
   tackt:      { knapp: 'Lägg ett kort över ett annat', under: 'täckt är inte borta' },
   grav:       { knapp: 'Till graveyard', under: 'flyger dit när högen växer' },
   tappa:      { knapp: 'Tappa land i din takt', under: 'samma ordning och tempo' },
-  untap:      { knapp: 'Untappa med ett svep', under: 'i ordningen handen rörde dem' },
+  untap:      { knapp: 'Untappa med ett svep', under: 'varje land så fort handen gått vidare' },
   zoom:       { knapp: 'Lägg ut långt till höger', under: 'ett zoomsteg, samma rörelse' },
   knuff:      { knapp: 'Rätta till ett kort', under: 'en liten knuff syns inte' },
 };
@@ -295,19 +295,25 @@ class Bord {
   }
   untap() {
     for (const id of LAND) { this.fys(id).v.r = 90; this.mat(id).v.r = 90; this.mat(id).v.tappad = true; this.m.mala(this.fys(id)); this.m.mala(this.mat(id)); }
-    const ord = ['plains2', 'plains1', 'forest2', 'forest1'];
+    /* Svepet går från höger. Varje land syns för kameran så fort handen gått
+       vidare från det, och vrids då — också mitt i svepet (Jesper 2026-10-06).
+       Bara kort som är skymda samtidigt kommer på en gång. */
+    const ord = ['plains2', 'plains1', 'forest2', 'forest1'], steg = 150, forst = 420;
     this.handIn('h1', this.over(BAS.plains2.hem), 0, 400);
     ord.forEach((id, i) => {
-      const t = 420 + 150 * i;
-      if (i) this.handTill('h1', this.over(BAS[id].hem), t - 150, 150, 'INOUT');
+      const t = forst + steg * i;
+      if (i) this.handTill('h1', this.over(BAS[id].hem), t - steg, steg, 'INOUT');
       this.fysVrid(id, 0, t);
     });
-    this.handUt('h1', 1000);
+    const sist = forst + steg * (ord.length - 1);
+    this.handUt('h1', sist + 130);
     this.logg(0, 'du', 'Du untappar alla land i ett svep, från höger');
-    this.logg(420, 'kam', 'Handen täcker landen → inga säkra domar än');
-    const nar = 1200 + HANDBORT;
-    this.logg(nar, 'kam', 'Handen borta: alla fyra otappade. Ordningen handen rörde dem: från höger');
-    ord.forEach((id, i) => this.at(nar + 150 * i, () => { this.fas('untap', id); if (!i) this.loggNu('mat', 'Landen vrids i samma ordning som handen rörde dem, 150 ms mellan'); }));
+    ord.forEach((id, i) => {
+      const fri = i < ord.length - 1 ? forst + steg * (i + 1) : sist + 130 + 150;   // när handen lämnat landet
+      const saker = fri + TAPSAKER;
+      this.logg(saker, 'kam', `${BAS[id].namn}: handen har gått vidare → säkert otappat`);
+      this.at(saker, () => { this.fas('untap', id); this.loggNu('mat', `${BAS[id].namn} vrids, 240 ms`); });
+    });
   }
   knuff() {
     const S = BAS.serra.hem, a = [S[0] + 12, S[1]], b = [S[0] + 24, S[1] + 80], h = [S[0] - 16, S[1] + 164];
