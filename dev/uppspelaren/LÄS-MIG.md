@@ -340,6 +340,18 @@ Tabellen: [`baslinje/baslinje.md`](baslinje/baslinje.md). Bilder ur visaren:
   som håller är v2-rutornas geometri, saknade kort, hoppen och zoomhoppen
   — det som grindar — och, när MES-344 är inne, när något syns. Med Claude (`--ai`, som telefonen i partiet) eller
   telefonens egen 4K-inspelning av ett nytt parti blir namnen riktiga.
+- **Saknade kort i p0921k paras på telefonens nuvarande spår.** Med MES-344
+  v2 (c7baf19, `--fil`) blir det 73 saknade mot 45 på main. 29 är nya, 27
+  av dem land i landhögar; på main ligger alla 29 som platshållare. 22 av
+  de 29 visas ändå på c7baf19: telefonen gav kortet ett nytt spår-id (median
+  0,9 s före ögonblicket), och MES-344:s kort eller oframkallade kort ligger
+  kvar på det äldre spåret inom 0,5 kortbredd — main:s platshållare följer
+  det nya spåret direkt. 7 visas inte alls: sex ytterligare kort i en
+  landhög vars nya, olästa spår inte får något (spår 122 290, 171 330, 194
+  360, 307 440, 322 450, 406 510), och Faithful Pikemaster 530 (det
+  oframkallade kortet kommer tillbaka 531,35, efter ögonblicket 531).
+  Grinden på saknade kort fäller alltså MES-344 för båda sakerna. Det första
+  är en eftersläpning i ombindningen, inte ett kort som fattas.
 - **Borttagna kort som står kvar** i p0921k: kortet låg oftast aldrig på
   mattan som kort, bara som platshållare. `--detalj p0921k` skriver "fanns
   inte som kort på mattan" för dem.
