@@ -3,7 +3,7 @@
 Prompten: `prompt-2026-10-07-D-remsan-forst.md`. Issue MES-340. Gren `remsan-forst` (worktree
 `.claude/worktrees/remsan-forst`), bas `b464d8d` (origin/main 10:30) + MES-344 inslagen (`b66794a`).
 Loggar, json och bänkutskrifter: sessionens scratchpad `…/d9b1ba4f…/scratchpad/{golden,bank}/`
-(kopieras till `dev/material/arbete/markning/golden-2026-10-07/D/` när serien är klar).
+(kopierade till `dev/material/arbete/markning/golden-2026-10-07/D/`: C, S1, B1–B4 med felböcker).
 
 Jespers beslut som gällde: modellvägen är **v2 bara på remsorna**; spärren mot kort i handen byggs i samma svep.
 Jespers regel: ingenting skrivs mot ett visst kort — varje regel ska hjälpa ett annat kort i en annan lek i samma
@@ -87,6 +87,11 @@ Mätt i `dev/detektor/tran/parprov.py` (66 ritade lägen i MES-246 + 8 golden-fa
 | `alla` + vakt (a) ihop-remsa, vakt (b) låda utan remsa | 730 | 8 | 0 | 45 | 99 | 10 | lika |
 | **`alla` + vakterna skärpta** (a kräver 70 % inne i den parade remsans låda; b högst 0,2 från kanten) | **730** | 8 | **0** | **48** | **99** | 13 | lika |
 | …+ högdelningen (`hog`) | 733 | 4 | **1** | 48 | 103 | 36 | lika |
+| **slutlig parning** (`alla` + bara vakt (a); vakt (b) bort efter granskningen) | **730** | 8 | **0** | **62** | **99** | 27 | lika |
+
+Vakt (b) hade stoppat 14 dubbletter till (62 → 48) men kunde ge det övre kortets låda det undre kortets remsa — ett
+säkert fel namn på fel spår (granskningen, fynd 1). Dubbletterna är det här kortet en gång till ur remsan: får båda
+samma säkra namn slår sammaKortSom ihop dem; står kortets egen låda osäker ligger två spår tills granskningen avgör.
 
 - **Vakt (a)**: en remsa som ligger ihop med en redan parad remsa (mittpunkterna < 0,6 tjocklekar isär, appens
   remsaIsar) och till ≥ 70 % inne i den parade remsans låda är samma titel en gång till — NMS 0,6 släpper igenom par
@@ -125,6 +130,11 @@ Alla körningar: samma varma profil (TMPDIR = e4a618fc:s scratchpad), port 8293,
 | **C** på bas b464d8d (kor.cjs med absolut sökväg, attrappen md5-kontrollerad) | b464d8d | 118/119 | **95/119** | 95/118 | **0** | 1 (+2 token) | 8/15 | 34,05 s | 15:13–15:39 |
 | **B1** bygget (steg 1 + 2) | cb7ed38 | **121/119** | **98/119** | 98/118 | **0** | 1 (+2 token) | 8/15 | 27,65 s | 15:39–16:00 |
 | **B2** bygget | cb7ed38 | 121/119 | **98/119** | 98/118 | **0** | 1 (+2 token) | 8/15 | 27,65 s | 16:01–16:23 — kort för kort identisk med B1 |
+| **B3** bygget + granskningens rättelser | 0013174 | 121/119 | **98/119** | 98/118 | **0** | 1 (+2 token) | 8/15 | 27,65 s | 16:36–16:58 — kort för kort identisk med B1 |
+| **B4** samma | 0013174 | 121/119 | **98/119** | 98/118 | **0** | 1 (+2 token) | 8/15 | 27,65 s | 16:58–17:19 — kort för kort identisk med B3 |
+
+**Grinden klarad på 0013174:** 0 fel namn i två körningar (fyra med B1/B2), 98 > 95, falska lika, hittade 118 → 121,
+varje sämre kort förklarat. Slås ihop med main och pushas; MES-340 → Redo att testas.
 
 C är kort för kort lika med prompt A:s C på 25bcf0a (samma antal rätt per fall; domskäl modell+orb 53 · modell+namn 19 ·
 modell land 7 · modell 4 · remsa 4 · bild 3 · remsa+titel 3 · namn 2; land 31/44). MES-346:s kamerabänk körde under
