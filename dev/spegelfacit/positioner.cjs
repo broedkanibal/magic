@@ -116,10 +116,15 @@ function lasLagen(fil, tMax) {
     poly: k.horn.map(p => [p[0] * B, p[1] * H])
   })) })) };
 }
-const SENASTE = path.join(ROT, 'dev', 'golden', 'senaste.json');
+/* Bordsloggen fryst i uppspelarens underlag (ur dev/golden/senaste.json, commit 5505933), så att talen inte
+   flyttar sig när golden sparas om. */
+const UNDERLAG = path.join(ROT, 'dev', 'uppspelaren', 'underlag', 'golden-13-18-bordlogg.json.gz');
+let underlag = null;
 function golden(nr, lagenFil, tMax) {
-  const r = JSON.parse(fs.readFileSync(SENASTE, 'utf8')).find(x => x.id.startsWith(nr + '-'));
-  if (!r || !r.bordLogg) throw new Error(`golden ${nr} saknar bordslogg i ${path.relative(ROT, SENASTE)}`);
+  if (!underlag) underlag = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(UNDERLAG)).toString('utf8'));
+  const id = Object.keys(underlag.fall).find(k => k.startsWith(nr + '-'));
+  const r = id && underlag.fall[id];
+  if (!r || !r.bordLogg) throw new Error(`golden ${nr} saknar bordslogg i ${path.relative(ROT, UNDERLAG)}`);
   const m = /(\d+)\s*[×x]\s*(\d+)/.exec(r.kallStorlek);
   const facit = lasLagen(path.join(ROT, lagenFil), tMax);
   let rader = r.bordLogg;
