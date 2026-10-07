@@ -1,6 +1,6 @@
 # Uppspelarens baslinje — 2026-10-07
 
-Kod: `index.html` (sha256 782d8191fac7, commit 4141d5a). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
+Kod: `index.html` (sha256 251751f39563, commit 9e0f10a). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
 
 | Fall | Vad | Underlag |
 |---|---|---|
@@ -29,11 +29,11 @@ Kod: `index.html` (sha256 782d8191fac7, commit 4141d5a). Simulerad klocka: två 
 | Utspel där kortet kom med namn | 7/7 | 4/4 | 4/4 | 5/5 | 1/2 | 8/14 | – | 29/36 |
 | Tid till något syns, median (miss = 10 s) | -0,35 | -0,47 | -0,55 | -0,5 | 4,85 | 1,36 | – | 0,32 |
 | Tid till något syns, längst (miss = 10 s) | 2,3 | -0,4 | 0,45 | -0,1 | 10 | 10 | – | 10 |
-| Tid till rätt plats, median (miss = 10 s) | 1,3 | -0,23 | 0,82 | 0,37 | 5,25 | 8,25 | – | 1,71 |
-| Tid till rätt plats, längst (miss = 10 s) | 5,83 | 1,57 | 4,47 | 0,9 | 10 | 10 | – | 10 |
-| Flyttar där samma kort glider till nya platsen | – | 0/1 | – | – | 1/1 | 4/18 | – | 5/20 |
-| Flytt: tid till nya platsen, median (miss = 10 s) | – | 10 | – | – | 0,37 | 10 | – | 10 |
-| Mattans zoomändringar per minut | 5,31 | 0 | 1,5 | 0 | 0 | 0,41 | 0,39 | 0,68 |
+| Tid till rätt plats, median (miss = 10 s) | 0,7 | -0,23 | 0,12 | 0,37 | 5,25 | 7,9 | – | 0,95 |
+| Tid till rätt plats, längst (miss = 10 s) | 3,27 | 1,57 | 1 | 0,9 | 10 | 10 | – | 10 |
+| Flyttar där samma kort glider till nya platsen | – | 1/1 | – | – | 1/1 | 5/18 | – | 7/20 |
+| Flytt: tid till nya platsen, median (miss = 10 s) | – | 0,3 | – | – | 0,77 | 10 | – | 10 |
+| Mattans zoomändringar per minut | 5,31 | 0 | 0 | 0 | 0 | 1,03 | 0,39 | 0,87 |
 | Mattans panoreringar per minut | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Zoom eller pan som hoppar (utan glidning) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Platshållare som syntes | 21 | 10 | 5 | 19 | 9 | 217 | 0 | 281 |
