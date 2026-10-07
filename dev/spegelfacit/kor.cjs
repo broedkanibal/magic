@@ -52,7 +52,8 @@ const VIDEO = arg('--video', 'kamera.mp4');
 const FACIT = arg('--facit', '') ? path.resolve(arg('--facit')) : null;
 const FRAN = +arg('--fran', 0);
 /* Golden 17:s namn och tokens (lek.txt från "# golden 17" och nedåt) hör inte till passens lek. */
-const UTAN_LEKEN = utanforPassensLek();
+let UTAN_LEKEN;
+try { UTAN_LEKEN = utanforPassensLek(); } catch (e) { console.error('spegelfacit/kor.cjs: ' + e.message); process.exit(2); }
 const AIFLAG = process.argv.includes('--ai');
 const TRO = arg('--tro', '');   // "tapTapp:60,tapOtapp:25" — valfria trösklar till Kamera.satTrosklar, som golden-kor.cjs --tro (MES-298)
 const PORT = +arg('--port', 8263);
