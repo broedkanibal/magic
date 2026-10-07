@@ -27,12 +27,33 @@
    körning i en annan session inte krockar med den här; första gången
    kopieras golden-profilen, så att poolen och lekens inbäddning inte
    hämtas om (en tunn pool efter Scryfalls 429 gör siffrorna till skräp —
-   läs raden Poolen:, den ska säga 114). */
+   läs raden Poolen:, den ska säga 114).
+
+   Poolen är passens lek: de 28 namnen i dev/golden/lek.txt före raden
+   "# golden 17". Allt därunder (golden 17:s namn 2026-10-05, tokens
+   2026-10-07) skickas som utanleken, som golden kor.cjs --utan-leken —
+   annars blir poolen en annan lek än den passen spelades med, och
+   kontrollen nedan väntar förgäves på 114.
+
+   Partiet 2026-09-21 (MES-333, uppspelarens fall p0921k):
+     --pass 2026-09-21-mes-238-parti-4k15-20min --video kamera-180-540.mp4
+       --facit dev/uppspelaren/underlag/2026-09-21-handelser.tsv --fran 180
+   --video: en annan fil än kamera.mp4 i passets mapp (där: kamerabilden
+   beskuren ur skärminspelningen dator.mov, se dev/uppspelaren/LÄS-MIG.md).
+   --facit: ett facit utanför passets mapp. --fran: videons start i facits
+   tid (sekunder) — facits tider flyttas så att de stämmer med videons, och
+   bordsloggen bär videons tid (från 0). */
 'use strict';
 const { spawn, execFileSync } = require('child_process'), fs = require('fs'), path = require('path'), os = require('os');
-const { ROT, PASS_FORVAL, materialMapp, lasFacit } = require('./facit.cjs');
+const { ROT, PASS_FORVAL, materialMapp, lasFacit, utanforPassensLek } = require('./facit.cjs');
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i >= 0 ? process.argv[i + 1] : d; };
 const PASS = arg('--pass', PASS_FORVAL);
+const VIDEO = arg('--video', 'kamera.mp4');
+const FACIT = arg('--facit', '') ? path.resolve(arg('--facit')) : null;
+const FRAN = +arg('--fran', 0);
+/* Golden 17:s namn och tokens (lek.txt från "# golden 17" och nedåt) hör inte till passens lek. */
+let UTAN_LEKEN;
+try { UTAN_LEKEN = utanforPassensLek(); } catch (e) { console.error('spegelfacit/kor.cjs: ' + e.message); process.exit(2); }
 const AIFLAG = process.argv.includes('--ai');
 const TRO = arg('--tro', '');   // "tapTapp:60,tapOtapp:25" — valfria trösklar till Kamera.satTrosklar, som golden-kor.cjs --tro (MES-298)
 const PORT = +arg('--port', 8263);
@@ -48,14 +69,21 @@ const ID = 'spegel-' + PASS;
    y ≈ 338 till kanten. Telefonens egen zonram i skärminspelningen (röd/gul
    streckad) går 82–405 × 342–605. */
 const ZONER = {
-  '2026-09-22-1x-34cm-normaltempo': { grav: { x: 0.074, y: 0.55, w: 0.151, h: 0.45 }, bib: { x: 0.225, y: 0.55, w: 0.17, h: 0.45 } }
+  '2026-09-22-1x-34cm-normaltempo': { grav: { x: 0.074, y: 0.55, w: 0.151, h: 0.45 }, bib: { x: 0.225, y: 0.55, w: 0.17, h: 0.45 } },
+  /* Partiet 2026-09-21, kamerabilden ur dator.mov (704 × 438, samma utsnitt
+     som rutor/kam-NNN.jpg): graveyard = Mesas egen gula streckade ruta, mätt
+     i rutorna 240–540 (x 8–133, y 242–407 px, samma i alla). Library = den
+     gröna leken, som låg där uppstarten pekade (x 167–284, y 246–399 px). */
+  '2026-09-21-mes-238-parti-4k15-20min': { grav: { x: 0.011, y: 0.553, w: 0.178, h: 0.376 }, bib: { x: 0.235, y: 0.55, w: 0.17, h: 0.38 } }
 };
 
 /* Facit för kor.html: slutläget (kort) och förloppet (video.handelser) i
    golden-formatet, så att sidans eget förloppsbetyg också räknas. Videons
    sökväg är relativ till fall/<id>/ och landar i dev/material/…. */
-function byggFacit(rader) {
+function byggFacit(alla) {
   const handelser = [], bord = new Map();
+  /* --fran: facits tid → videons tid; det som hände före videon är inte med. */
+  const rader = alla.filter(r => r.t >= FRAN).map(r => Object.assign({}, r, { t: +(r.t - FRAN).toFixed(2) }));
   for (const r of rader) {
     if (r.handelse === 'spelar' || r.handelse === 'grav_till_bord') { handelser.push({ t: r.t, spelar: r.kort }); bord.set(r.kort, (bord.get(r.kort) || 0) + 1); }
     else if (r.handelse === 'tar_bort') { handelser.push(Object.assign({ t: r.t, tar_bort: r.kort }, r.till === 'grav' ? { till: 'grav' } : {})); bord.set(r.kort, (bord.get(r.kort) || 0) - 1); }
@@ -69,7 +97,7 @@ function byggFacit(rader) {
     yta: 'svart matta', ljus: 'dagsljus', hojd_cm: 34,
     ruta: { upp: 'v', grund: 90 },
     grav: z.grav, bib: z.bib, kort,
-    video: { fil: `../../../material/inspelningar/${PASS}/kamera.mp4`, takt_ms: 150, svans_s: 8, handelser }
+    video: { fil: `../../../material/inspelningar/${PASS}/${VIDEO}`, takt_ms: 150, svans_s: 8, handelser }
   };
 }
 
@@ -82,11 +110,11 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
 
 (async () => {
   if (!fs.existsSync(CHROME)) { console.error('Hittar inte Chrome på ' + CHROME); process.exit(2); }
-  const video = path.join(materialMapp(PASS), 'kamera.mp4');
+  const video = path.join(materialMapp(PASS), VIDEO);
   if (!fs.existsSync(video)) { console.error(`Videon saknas: ${video} (ligger utanför git)`); process.exit(2); }
-  const rader = lasFacit(PASS);
+  const rader = lasFacit(PASS, FACIT);
   const facit = byggFacit(rader);
-  console.log(`Pass ${PASS}: ${rader.length} rader i facit, ${facit.video.handelser.length} som golden-händelser, ${facit.kort.length} kort i slutläget${AIFLAG ? ' — MED Claude (kostar)' : ' — utan Claude'}`);
+  console.log(`Pass ${PASS}: ${VIDEO}${FRAN ? ` (start ${FRAN} s i facits tid)` : ''}, ${rader.length} rader i facit${FACIT ? ' (' + path.relative(ROT, FACIT) + ')' : ''}, ${facit.video.handelser.length} som golden-händelser, ${facit.kort.length} kort i slutläget${AIFLAG ? ' — MED Claude (kostar)' : ' — utan Claude'}`);
 
   /* 1. attrappen */
   const server = spawn(process.execPath, [path.join(ROT, 'dev', 'stub-server.cjs')], { env: Object.assign({}, process.env, { PORT: String(PORT) }, AIFLAG ? { MESA_AI: '1' } : {}), stdio: ['ignore', 'pipe', 'pipe'] });
@@ -139,7 +167,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(130)
      en ny port hämtas hela leken från Scryfall, och svarar den 429 blir
      poolen tunn. Då väntas en minut och sidan laddas om, som sidan själv
      säger; en tunn pool mäts aldrig (--tunn-pool kör ändå, för felsökning). */
-  const param = [AIFLAG && 'ai=1', EMBED_LOKALT && 'embedlokalt=1', TRO && 'tro=' + encodeURIComponent(TRO)].filter(Boolean).join('&');
+  const param = [AIFLAG && 'ai=1', EMBED_LOKALT && 'embedlokalt=1', TRO && 'tro=' + encodeURIComponent(TRO), 'utanleken=' + encodeURIComponent(UTAN_LEKEN.join('|'))].filter(Boolean).join('&');
   const status = () => kor(`(document.querySelector('#status') || {}).textContent || ''`);
   let poolRad = '', poolN = 0;
   for (let forsok = 1; ; forsok++) {

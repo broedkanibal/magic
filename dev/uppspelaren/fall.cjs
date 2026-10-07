@@ -9,12 +9,14 @@
    Underlaget är fryst i dev/uppspelaren/underlag/ där det annars kan ändras
    under fötterna: golden-fallens bordslogg (ur dev/golden/senaste.json,
    som skrivs om varje gång golden sparas) och v2-facit för partiet
-   2026-09-21 (otrackat i huvudträdet när uppspelaren byggdes). Passet
+   2026-09-21 (otrackat i huvudträdet när uppspelaren byggdes), och
+   partiets bordslogg genom kedjan med sitt händelsefacit (p0921k). Passet
    2026-09-22 läses ur dev/material (utanför git, ändras inte). */
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const ROT = path.join(__dirname, '..', '..');
 const UNDERLAG = path.join(__dirname, 'underlag');
+const { passensLek } = require('../spegelfacit/facit.cjs');
 
 /* ── golden 07, 09–12: telefonens riktiga bordslogg ur videokörningen ── */
 const GOLDEN = ['07', '09', '10', '11', '12'];
@@ -85,8 +87,8 @@ function pass0922() {
 }
 
 /* ── partiet 2026-09-21: v2-facit som en idealiserad telefon ──────────
-   Ingen bordslogg finns för partiet (spegelfacit kördes aldrig på det, och
-   videon ligger på Google Drive). v2-facit beskriver varje kort i var
+   Det här fallet är facit, inte telefonen; partiet genom kedjan är p0921k
+   nedan. v2-facit beskriver varje kort i var
    tionde sekund 240–540: mitten i procent av kamerabilden (705 × 438),
    upprätt/tappad, hög och synlighet. Här blir varje sådan ruta ETT bord
    från en telefon som ser allt rätt: ett klart, säkert spår per kort, med
@@ -152,6 +154,67 @@ function parti0921() {
     anm: 'v2-facit matat som en idealiserad telefon (ett klart spår per kort, rutan var 10:e sekund) — inte telefonens ström; den finns inte för partiet'
   };
 }
+/* ── partiet 2026-09-21 genom telefonens kedja (p0921k) ──────────────
+   Kamerabilden ur skärminspelningen dator.mov (Mesas kamerapanel, 704 ×
+   438, samma utsnitt som rutor/kam-NNN.jpg och v2-facit), sek 180–540,
+   genom dev/spegelfacit/kor.cjs utan Claude 2026-10-07. Bordsloggen är fryst
+   i underlag/2026-09-21-kedja-bordlogg.json.gz; tiderna här är partiets
+   (videons + 180). Facit: underlag/2026-09-21-handelser.tsv (ur
+   handelser.tsv, platser.tsv, hogar-handelser.tsv och rutorna, se
+   LÄS-MIG.md), med kortets läge i bilden per rad.
+
+   Mätningen börjar 230 s (matFran): det som föddes på mattan före dess är
+   uppstarten — kedjan startar kall vid 180 med åtta kort på bordet — och
+   räknas inte som nya kort, platshållare eller rörelser. v2-rutorna jämförs
+   med mattan 1 s efter rutan: facit-kortet paras med telefonens spår på
+   samma plats i bilden (högst 60 px, närmast först), och spåret med kortet
+   på mattan (c.spar). Ett facit-kort utan spår där, eller vars spår inget
+   kort har på mattan, räknas som saknat. */
+const KEDJA_START = 180, KEDJA_MATT = 230, KEDJA_PAR_PX = 60;
+function lasHandelser0921() {
+  const fil = path.join(UNDERLAG, '2026-09-21-handelser.tsv');
+  const rader = fs.readFileSync(fil, 'utf8').split('\n').filter(r => r.trim());
+  const rub = rader[0].split('\t'), i = k => rub.indexOf(k);
+  const tom = v => v == null || v === '' || v === '-' ? null : v;
+  return rader.slice(1).map(r => { const c = r.split('\t'); return { t: +c[i('t')], typ: c[i('handelse')], kort: tom(c[i('kort')]), till: tom(c[i('till')]), plats: tom(c[i('plats')]), osaker: tom(c[i('osaker')]), x: +c[i('x')] / 100, y: +c[i('y')] / 100 }; });
+}
+let kedjaCache = null;
+function parti0921k() {
+  const fil = path.join(UNDERLAG, '2026-09-21-kedja-bordlogg.json.gz');
+  if (!fs.existsSync(fil)) throw new Error('underlaget saknas: ' + path.relative(ROT, fil));
+  if (!kedjaCache) kedjaCache = JSON.parse(zlib.gunzipSync(fs.readFileSync(fil)).toString('utf8'));
+  const K = kedjaCache;
+  if (K.start !== KEDJA_START) throw new Error(`bordsloggen börjar ${K.start} s i partiets tid, väntade ${KEDJA_START}`);
+  const rader = K.bordLogg.map(r => Object.assign({}, r, { s: +(r.s + K.start).toFixed(2) }));
+  const facit = lasHandelser0921().filter(h => ['spelar', 'grav_till_bord', 'tar_bort', 'tappar', 'otappar', 'flyttar'].includes(h.typ));
+  const sista = rader[rader.length - 1].s;
+  /* v2 var tionde sekund, parat med telefonens spår på samma plats i bilden. */
+  const rutor = lasV2(path.join(UNDERLAG, '2026-09-21-v2-tabell.tsv'));
+  const B = K.upplosning || { w: 704, h: 438 };
+  const bordVid = s => { let b = null; for (const r of rader) { if (r.s <= s + 1e-6) b = r; else break; } return b; };
+  let lost = -1;
+  const v2 = rutor.map(q => {
+    const s = q.ruta + 1, b = bordVid(s), spar = ((b && b.spar) || []).map(t => ({ id: t.id, x: t.vx != null ? t.vx : t.x + t.w / 2, y: t.vy != null ? t.vy : t.y + t.h / 2 }));
+    const par = [];
+    q.kort.forEach((k, i) => spar.forEach((t, j) => { const d = Math.hypot((k.x - t.x) * B.w, (k.y - t.y) * B.h); if (d <= KEDJA_PAR_PX) par.push([d, i, j]); }));
+    par.sort((a, b) => a[0] - b[0]);
+    const ti = new Set(), tj = new Set(), id = new Map();
+    for (const [, i, j] of par) { if (ti.has(i) || tj.has(j)) continue; ti.add(i); tj.add(j); id.set(i, spar[j].id); }
+    return { ruta: q.ruta, kort: q.kort.map((k, i) => ({ id: id.has(i) ? id.get(i) : lost--, x: k.x, y: k.y, hog: k.hog, tappad: k.lage === 'tappad', synligt: k.synligt })) };
+  });
+  const rutorMapp = path.join(ROT, 'dev', 'material', 'arbete', '2026-10-04-hogarna-matning', 'a1a');
+  const fin = fs.existsSync(path.join(rutorMapp, 'fin')) ? fs.readdirSync(path.join(rutorMapp, 'fin')).map(f => { const m = /^g-(\d+\.\d+)\.jpg$/.exec(f); return m ? +m[1] : null; }).filter(v => v != null).sort((a, b) => a - b) : [];
+  return {
+    id: 'p0921k', namn: 'partiet 2026-09-21, sek 230–540 — telefonens kedja på skärminspelningens kamerabild', slag: 'kedja',
+    kalla: `underlag/2026-09-21-kedja-bordlogg.json.gz (${K.kalla}, ${K.skapad.slice(0, 10)}, poolen ${K.pool}, utan Claude)`,
+    rader, facit, fran: KEDJA_START, matFran: KEDJA_MATT, till: +Math.min(sista + 3.5, 550).toFixed(2), upplosning: B,
+    lek: passensLek(),   // 28 namn, 40 kort — kastar ett fel om gränsraden i lek.txt saknas
+    ogonblick: v2.map(q => ({ s: q.ruta + 1, namn: String(q.ruta) })), v2, v2Par: 'plats',
+    media: { slag: 'rutor', mapp: 'dev/material/arbete/2026-10-04-hogarna-matning/a1a', sek: [0, 1206], fin },
+    anm: 'kamerabilden ur skärminspelningen (704 × 438, Mesas ramar i bilden) genom kedjan utan Claude — inte telefonens egen ström i 4K; mätningen börjar 230 s'
+  };
+}
+
 /* Avståndet på bordet mellan två facit-kort, i kortbredder: bildavståndet
    delat med kortbredden där korten ligger (medel av de två). */
 function bordAvstand(a, b) {
@@ -166,11 +229,12 @@ function bordRekt(a) {
   return { x: a.x * BILD.w - w / 2, y: a.y * BILD.h - h / 2, w, h };
 }
 
-const ALLA = ['g07', 'g09', 'g10', 'g11', 'g12', 'p0922', 'p0921'];
+const ALLA = ['g07', 'g09', 'g10', 'g11', 'g12', 'p0922', 'p0921', 'p0921k'];
 function lasFall(id) {
   if (/^g\d\d$/.test(id)) return golden(id.slice(1));
   if (id === 'p0922') return pass0922();
   if (id === 'p0921') return parti0921();
+  if (id === 'p0921k') return parti0921k();
   throw new Error('okänt fall ' + id + ' (finns: ' + ALLA.join(', ') + ')');
 }
 module.exports = { ALLA, lasFall, bordAvstand, bordRekt, ROT };

@@ -333,7 +333,51 @@
                   rect, cx: rect.x + rect.w / 2, cy: rect.y + rect.h / 2,
                   skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
     }
-    L.ogon.push({ namn, s: U.sek(virt), vp: { l: r.left, t: r.top, r: r.right, b: r.bottom }, z: g.z, kort });
+    /* Det mattan visar för ett spår som inte är ett kort med namn än: det
+       oframkallade kortet (MES-344, nyckeln o:<spår>) och platshållaren
+       (p:<spår>). Samma uppgifter, med plats: true och utan namn — o: först,
+       så att det går före en platshållare för samma spår. Partiet genom
+       kedjan (p0921k) har få namn, och då är det det här som ligger där
+       kortet ligger. Läget: elementets left/top/width/height, som för
+       platshållarna i observera(). Det oframkallade kortets nyckel bär
+       spåret det föddes på; har kortet bundits om till ett nytt spår står
+       det i appens ofrMinne (post-id → { spar }), och det är det spåret
+       som gäller nu. Går det inte att läsa — ofrMinne är ingen Map, posten saknas, eller
+       dess spar är inget tal — är det ett tolkningsfel (kod 2), inte nyckelns
+       spår i tysthet: då paras kortet med fel spår, och saknade kort och
+       avstånd blir andra tal utan att något säger det (granskningen). */
+    const ofrNu = typeof ofrMinne !== 'undefined' && ofrMinne instanceof Map ? ofrMinne : null;
+    for (const pre of ['o:', 'p:']) for (const el of gridEl.children) {
+      const m = el._mat; if (!m || !m.nyckel || !m.nyckel.startsWith(pre)) continue;
+      const l = parseFloat(el.style.left) || 0, tp = parseFloat(el.style.top) || 0, w = parseFloat(el.style.width) || CW(), h = parseFloat(el.style.height) || 248;
+      const sk = el.getBoundingClientRect(), s0 = m.nyckel.slice(2), id = s0 === '' ? null : (isFinite(+s0) ? +s0 : s0);
+      let spar = id;
+      if (pre === 'o:') {
+        const post = ofrNu && id != null ? (ofrNu.get(id) || ofrNu.get(String(id))) : null;
+        if (!ofrNu) { tolk('oframkallat kort (o:) men appens ofrMinne går inte att läsa som en Map'); continue; }
+        if (!post) { tolk('oframkallat kort ' + m.nyckel + ' saknas i appens ofrMinne'); continue; }
+        if (!Number.isFinite(post.spar)) { tolk('oframkallat kort ' + m.nyckel + ': posten i ofrMinne har inget spår (spar ' + String(post.spar).slice(0, 20) + ')'); continue; }
+        spar = post.spar;
+      }
+      kort.push({ cid: null, namn: '', spar, lyft: false, tappad: w > h, plats: true, slag: pre[0],
+                  rect: { x: l, y: tp, w, h }, cx: l + w / 2, cy: tp + h / 2,
+                  skarm: { l: sk.left, t: sk.top, r: sk.right, b: sk.bottom } });
+    }
+    /* Facits läge på mattan (p0921k, fall.v2Par = 'plats'): varje v2-kort i
+       ögonblickets ruta räknat genom appens egen kamTillMatta med den skala
+       mattan står i — kamSkalaFryst() eller den låsta kamSkala.las för mig.
+       kamSkala() själv anropas inte: den låser om skalan, och en mätning får
+       inte ändra appen. Går det inte att läsa: tolkningsfel (kod 2). */
+    let facit = null;
+    const rv = fallNu && fallNu.v2Par === 'plats' ? (fallNu.v2 || []).find(q => String(q.ruta) === namn) : null;
+    if (rv) {
+      const fr = typeof kamSkalaFryst === 'function' ? kamSkalaFryst() : null;
+      const las = typeof kamSkala === 'function' && kamSkala.las instanceof Map ? kamSkala.las.get(p && p.id) : null;
+      const sk = fr || (typeof las === 'number' ? las : las && las.v);
+      if (typeof kamTillMatta !== 'function' || !Number.isFinite(sk) || sk <= 0) tolk('facits läge på mattan: kamTillMatta eller mattans skala (kamSkalaFryst / kamSkala.las) går inte att läsa');
+      else facit = rv.kort.map(k => { const m = kamTillMatta({ x: k.x, y: k.y }, sk); return { mx: m.x, my: m.y }; });
+    }
+    L.ogon.push({ namn, s: U.sek(virt), vp: { l: r.left, t: r.top, r: r.right, b: r.bottom }, z: g.z, kort, facit });
   }
 
   /* ── spelet: som dev/mattan.cjs ──────────────────────────────────── */
