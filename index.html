@@ -9395,7 +9395,10 @@ function kamSkala(p) {
   const hela = vilande.filter(c => kamHel(c, asp));
   /* Vilande kort men inget som syns helt (en hand över högen, spåren borta ur bordet): inget mått. Ett lås från korten
      står kvar, som i spärren ovan — annars tog lekens bredd över det efter 3 s, och första hela kortet bytte tillbaka
-     direkt (två zoomsteg; granskningen av MES-345). */
+     direkt (två zoomsteg; granskningen av MES-345). Väntan nollställs, som i spärren: en ny skala efter att telefonen
+     flyttats kräver 3 s där varje rapport har minst ett helt kort. Ligger alla kort i högar eller under händer var
+     annan sekund står skalan kvar tills de inte gör det. Att låta en rapport utan helt kort stå utanför väntan
+     (utan att nollställa) prövades: då bar glesa hela kort byten, och p0921k:s avståndsfel p90 gick 0,44 → 0,51. */
   if (vilande.length && !hela.length && las && las.kalla === 'kort') { las.kand = null; return las.v; }
   const w = (hela.length ? hela : las && las.kalla !== 'gissning' ? [] : vilande.length ? vilande : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
