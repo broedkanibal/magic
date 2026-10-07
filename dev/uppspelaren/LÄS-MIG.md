@@ -173,6 +173,10 @@ i högen, eller under handen eller armen).
   saknat. Telefonens spår-id spelar ingen roll. Går läget inte att räkna:
   kod 2. `--detalj p0921k` visar hur många som inte var kort med namn.
   (p0921 parar som förut på spår, som där är facit.)
+  Måttet räknar att *något* ligger på platsen, inte att det är rätt kort:
+  på main paras 14 av de 27 facit-kort som telefonen aldrig såg ändå, oftast
+  med ett land i samma hög (granskningen 2026-10-07). Saknade kort i p0921k
+  är alltså ett golv, inte ett exakt tal.
 
 ## Hur uppspelningen går till
 
