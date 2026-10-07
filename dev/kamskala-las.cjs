@@ -1,21 +1,33 @@
 /* Riktat prov för kamSkalas lås (MES-342, granskningens fynd 1 och 2): leken och första kortet inom 8 %,
    en blink på 1 s, två värden som fladdrar mot varandra, ett nytt värde som står sig, ett kort som bärs (kam.prel),
    spärren medan korten bärs, ett kort i graveyard, leken och ett kort som aldrig vilar, korten borta.
+   MES-345: bara kort som syns hela mäter (kamHel) — en hög med delvis täckta kort (under, en remsa som inte ryms i
+   lådan, en låda från när kortet låg i högen, en hand över), och att skalan ändå byts av hela kort och får en
+   första skala ur en hög när inget är mätt.
    Kör: node dev/kamskala-las.cjs [index.html]. Slutkod 1 vid FEL. .cjs eftersom package.json säger "type": "module". */
 'use strict';
 const fs = require('fs');
 const HTML = process.argv[2] || require('path').join(__dirname, '..', 'index.html');
 const src = fs.readFileSync(HTML, 'utf8');
-const a0 = src.indexOf('function kamKortsida('), a = a0 >= 0 ? a0 : src.indexOf('function kamSkala(p)'), b = src.indexOf('function kamTillMatta', a);   // kamKortsida (MES-342) står före kamSkala där den finns
+const a0 = src.indexOf('function kamKortsida('), a = a0 >= 0 ? a0 : src.indexOf('function kamSkala(p)'), b = src.indexOf('function kamTillMatta', a);   // kamKortsida (MES-342) och kamHel (MES-345) står före kamSkala där de finns
 const kod = src.slice(a, b);
 let fel = 0;
 const ok = (namn, villkor, info) => { console.log(`${villkor ? 'OK ' : 'FEL'}  ${namn}${info ? '  (' + info + ')' : ''}`); if (!villkor) fel++; };
+const ASP = 1080 / 1920, R = 1.397;
 function ny() {
   const klocka = { t: 0 };
-  const kamSkala = new Function('Date', `const MATTA = { CW: 178 }; const kamUpplosning = { w: 1920, h: 1080 }; const kamSkalaFryst = () => null; const paMattan = e => !e.zon || (e.zon !== 'grav' && e.zon !== 'exil');\n${kod}\nreturn kamSkala;`)({ now: () => klocka.t });
+  const app = new Function('Date', `const MATTA = { CW: 178 }; const kamUpplosning = { w: 1920, h: 1080 }; const kamSkalaFryst = () => null; const paMattan = e => !e.zon || (e.zon !== 'grav' && e.zon !== 'exil');\nlet senasteRa = [];\n${kod}\nreturn { kamSkala, bord: r => { senasteRa = r; } };`)({ now: () => klocka.t });
   const p = { id: 'p1', cards: [], bibHog: null };
-  /* Spela: varje 0,1 s ett anrop med kortens bredder enligt fn(t) (null = inga kort), lek = lekens bredd. */
-  const spela = (t0, t1, fn, lek) => { const ut = []; for (let t = t0; t <= t1 + 1e-9; t += 100) { klocka.t = t; const w = fn(t); p.cards = w == null ? [] : [].concat(w).map(x => typeof x === 'object' ? { kam: Object.assign({}, x), zon: x.zon } : { kam: { w: x, h: x * 1.397 / (1080 / 1920) } });   /* ett objekt är en låda som den är: { w, h, prel } */ p.bibHog = lek ? { kam: { w: lek, h: lek * 1.397 / (1080 / 1920) } } : null; ut.push([t, kamSkala(p)]); } return ut; };
+  /* Spela: varje 0,1 s ett anrop med kortens bredder enligt fn(t) (null = inga kort), lek = lekens bredd. Varje kort har ett
+     spår i telefonens bord (senasteRa) med samma låda, helt. Ett objekt är en låda som den är: { w, h, prel, zon } och
+     spårets fält (MES-345): under, skymd, rl (remsans låda, andelar av bredden), rsynt, nu ({ w, h }: spårets låda i bordet
+     när den inte är k.kam), utanSpar (kortets spår finns inte i bordet). */
+  const spela = (t0, t1, fn, lek) => { const ut = []; for (let t = t0; t <= t1 + 1e-9; t += 100) {
+    klocka.t = t; const w = fn(t);
+    const lador = w == null ? [] : [].concat(w).map(x => typeof x === 'object' ? x : { w: x, h: x * R / ASP });
+    p.cards = lador.map((x, i) => ({ spar: i + 1, kam: { w: x.w, h: x.h, prel: x.prel }, zon: x.zon }));
+    app.bord(lador.map((x, i) => ({ id: x.utanSpar ? -1 : i + 1, w: (x.nu || x).w, h: (x.nu || x).h, under: x.under || null, skymd: !!x.skymd, rl: x.rl || null, rsynt: !!x.rsynt })));
+    p.bibHog = lek ? { kam: { w: lek, h: lek * R / ASP } } : null; ut.push([t, app.kamSkala(p)]); } return ut; };
   return { spela };
 }
 const S = w => Math.round(178 / w);
@@ -115,6 +127,78 @@ const unika = l => [...new Set(l.map(x => Math.round(x[1])))];
   spela(0, 3000, () => [0.075]);
   const r = spela(3100, 10000, () => null);
   ok('4 · korten borta, ingen lek: skalan står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
+/* ── MES-345: bara kort som syns hela mäter ── */
+/* Ett delvis täckt kort i en hög: lådan är den synliga delen, nästan kvadratisk (kortsidan ur lådan ~0,055 mot ett helt korts 0,075). */
+const del = (extra) => Object.assign({ w: 0.075, h: 0.075 * 1.1 / ASP }, extra);
+/* 9. Tre hela kort, sedan en landhög: två hela och tre delvis täckta med ett spår ovanpå (under). Medianen över alla fem
+      vore högens (byte efter 3 s); bara de hela mäter, och skalan står kvar. (passet 2026-09-22, 237,75 s) */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075, 0.075]);
+  const r = spela(3100, 13000, () => [0.075, 0.076, del({ under: [1] }), del({ under: [4] }), del({ under: [5] })]);
+  ok('9 · landhög med tre delvis täckta kort (under): skalan står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
+/* 9b. Samma hög, men korten ovanpå har inget eget spår (under = null): namnremsan (rl, 0,072 lång) ryms inte i lådans kortsida. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075, 0.075]);
+  const rl = { x: 0.1, y: 0.1, w: 0.072, h: 0.012 };
+  const r = spela(3100, 13000, () => [0.075, 0.076, del({ rl }), del({ rl }), del({ rl })]);
+  ok('9b · delvis täckta kort utan spår ovanpå, remsan längre än lådan: skalan står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
+/* 9c. En remsa som är lådans kant (rsynt) är inget mått: tre hela kort med var sin sådan remsa och ett nytt avstånd byter skalan efter 3 s. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075, 0.075]);
+  const rl = { x: 0.1, y: 0.1, w: 0.2, h: 0.012 };
+  const r = spela(3100, 9000, () => [0.090, 0.090, 0.090].map(w => ({ w, h: w * R / ASP, rl, rsynt: true })));
+  const byte = r.find(x => Math.round(x[1]) === S(0.090));
+  ok('9c · remsan är lådans kant (rsynt): hela kort byter skalan efter 3 s', !!byte && byte[0] - 3100 >= 3000 && byte[0] - 3100 <= 3300, byte ? `efter ${((byte[0] - 3100) / 1000).toFixed(1)} s` : 'byttes aldrig: ' + unika(r).join(', '));
+}
+/* 9d. k.kam är från när kortet låg i högen (en kvadratisk låda), men spåret syns helt nu: k.kam är inte kortets låda och
+      mäter inte. (passet 2026-09-22, 146 s: k.kam 0,122 × 0,256, lådan nu 0,161 × 0,379) */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075]);
+  const r = spela(3100, 13000, () => [0.075, del({ nu: { w: 0.075, h: 0.075 * R / ASP } }), del({ nu: { w: 0.075, h: 0.075 * R / ASP } })]);
+  ok('9d · två kort vars k.kam är från högen, lådan nu hel: skalan står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
+/* 9e. En hand över högen (skymd): lådorna mäter inte. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075]);
+  const r = spela(3100, 13000, () => [0.075, del({ skymd: true }), del({ skymd: true })]);
+  ok('9e · handen över två kort (skymd): skalan står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+}
+/* 9f. Telefonen flyttas medan en hög ligger kvar: de hela korten (0,090) byter skalan efter 3 s, högen (delvis täckt) drar inte. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075, 0.075, del({ under: [1] }), del({ under: [2] })]);
+  const r = spela(3100, 9000, () => [0.090, 0.090, del({ w: 0.09, h: 0.09 * 1.1 / ASP, under: [1] }), del({ w: 0.09, h: 0.09 * 1.1 / ASP, under: [2] }), del({ w: 0.09, h: 0.09 * 1.1 / ASP, under: [1] })]);
+  const byte = r.find(x => Math.round(x[1]) !== S(0.075));
+  ok('9f · telefonen flyttad, högen kvar: de hela korten byter skalan efter 3 s, till sitt värde', !!byte && byte[0] - 3100 >= 3000 && byte[0] - 3100 <= 3300 && Math.round(byte[1]) === S(0.090), byte ? `efter ${((byte[0] - 3100) / 1000).toFixed(1)} s till ${Math.round(byte[1])} (hela korten ${S(0.090)})` : 'byttes aldrig');
+}
+/* 9g. Bara en hög på bordet och inget mätt: högen ger en första skala (bättre än gissningen), och första hela kortet tar över efter 3 s. */
+{
+  const { spela } = ny();
+  const forsta = spela(0, 2000, () => [del({ under: [2] }), del({ under: [1] })]);
+  ok('9g · bara delvis täckta kort, inget mätt: de ger en första skala', unika(forsta).length === 1 && unika(forsta)[0] !== Math.round(178 / 0.12), 'skala ' + unika(forsta).join(', '));
+  const r = spela(2100, 8000, () => [0.075, del({ under: [3] }), del({ under: [1] })]);
+  const byte = r.find(x => Math.round(x[1]) === S(0.075));
+  ok('9g · …och första hela kortet tar över efter 3 s', !!byte && byte[0] - 2100 >= 3000 && byte[0] - 2100 <= 3300, byte ? `efter ${((byte[0] - 2100) / 1000).toFixed(1)} s` : 'byttes aldrig: ' + unika(r).join(', '));
+}
+/* 9h. Två kort vars spår inte finns i bordet (nåd, eller ett spår som dött) är inte kända som hela: skalan står kvar.
+      Med spåren i bordet (kontrollen) byter samma lådor skalan efter 3 s. */
+{
+  const { spela } = ny();
+  spela(0, 3000, () => [0.075]);
+  const r = spela(3100, 9000, () => [0.075, { w: 0.09, h: 0.09 * R / ASP, utanSpar: true }, { w: 0.09, h: 0.09 * R / ASP, utanSpar: true }]);
+  ok('9h · två kort utan spår i bordet: skalan står kvar', unika(r).length === 1 && unika(r)[0] === S(0.075), 'skalor ' + unika(r).join(', '));
+  const k = ny();
+  k.spela(0, 3000, () => [0.075]);
+  const r2 = k.spela(3100, 9000, () => [0.075, 0.09, 0.09]);
+  ok('9h · …kontrollen: med spåren i bordet byts den efter 3 s', unika(r2).length === 2 && Math.round(r2[r2.length - 1][1]) === S(0.09), 'skalor ' + unika(r2).join(', '));
 }
 console.log(fel ? `kamskala-las: ${fel} FEL` : 'kamskala-las: 0 FEL');
 process.exit(fel ? 1 : 0);

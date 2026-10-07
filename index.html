@@ -9335,10 +9335,35 @@ function kamSkalaFryst() {
    avståndsfelet mot facits ritade lägen, i kortbredder (dev/spegelfacit/positioner.cjs --lager geometri),
    golden 18 median 0,55 → 0,07 (p90 0,98 → 0,22), golden 13 0,21 → 0,06 (p90 0,43 → 0,23). En låda med
    kortets form (som p0921:s) ger samma tal som förut. En nästan kvadratisk låda kan också vara ett kort
-   som bara syns till en del — då blir c för litet; medianen över korten bär det. */
+   som bara syns till en del — då blir c för litet, och kamSkala mäter därför bara kort som syns hela (kamHel, MES-345). */
 function kamKortsida(k, asp) {
   const w = k.w, h = k.h ? k.h * asp : k.w, R = 88 / 63, S = w + h, D = w - h;
   return Math.min(w, h, Math.sqrt((S * S / ((1 + R) * (1 + R)) + D * D / ((R - 1) * (R - 1))) / 2));
+}
+/* Visar kortets låda (k.kam) hela kortet, enligt telefonens senaste bord (MES-345)? Ett kort i en hög är delvis
+   täckt, och dess låda är bara den synliga delen — nästan kvadratisk, så kamKortsida läser den som ett vridet kort
+   med en för liten kortsida. I passet 2026-09-22 (237,75 s) drog två sådana Swamp (kortsida 0,103 mot ett helt
+   korts 0,141) medianen så att skalan byttes 40 % och mattan tog två zoomsteg ut. Tre villkor:
+   - inget annat spår ligger över kortet (under: id:n på spåren ovanpå) och ingen hand skymmer det (skymd);
+   - lådan är den kortet har nu: k.kam skrivs bara när kortet flyttats (kamLage), så den kan vara från när kortet
+     låg i en hög och syntes till en del. Kortsidan ur k.kam och ur spårets låda i bordet får skilja högst 15 %
+     (detektorns darr). Passet 2026-09-22, 146 s: ett Swamp med k.kam 0,122 × 0,256 och lådan nu 0,161 × 0,379;
+   - namnremsan ryms i kortet: remsans låda (rl, MES-330) ligger inne i kortet, så dess långsida kan inte vara
+     längre än kortsidan. Är den mer än 15 % längre är lådan bara en del av kortet — ett kort som ligger över
+     utan eget spår syns inte i under. För kort som ligger fritt på bordet var remsan högst 1,18 gånger
+     kortsidan i 99 % av rapporterna i golden 07–18, och i landhögarna i partiet 2026-09-21 upp till 1,6. Att
+     ett helt kort ibland inte räknas kostar inget (medianen bärs av de andra); att ett delvis täckt räknas
+     flyttar hela mattan. En remsa som är lådans kant (rsynt) är inget eget mått.
+   Ett kort vars spår inte finns i bordet är inte känt som helt. senasteRa står längre ned i skriptet än appens
+   första rendering, som kan anropa kamSkala med sparade kort: före raden är den inte läsbar, och då är inget kort
+   känt som helt. */
+function kamHel(c, asp) {
+  let ra = null; try { ra = senasteRa; } catch (e) { /* före let-raden */ }
+  const t = ra && c.spar != null ? ra.find(u => u.id === c.spar) : null;
+  if (!t || t.skymd || (t.under && t.under.length) || t.w == null || t.h == null) return false;
+  const sida = kamKortsida(c.kam, asp), nu = kamKortsida(t, asp);
+  if (!(nu > 0) || Math.abs(sida / nu - 1) > 0.15) return false;
+  return !(t.rl && !t.rsynt && Math.max(t.rl.w, t.rl.h) > 1.15 * sida);
 }
 /* Skalan utan uppstartens provkort (Mirror my table sedan MES-334 steg 6) är medianen av kortens bredd i
    bilden — men låst: den byts först när medianen gått mer än 8 % ifrån och stått sig där i 3 s, och den
@@ -9365,7 +9390,10 @@ function kamSkala(p) {
      aldrig lekens mätta värde (kontrollgranskningen av MES-342). */
   const allaKam = p.cards.filter(c => c.kam && c.kam.w && paMattan(c)), vilande = allaKam.filter(c => !c.kam.prel);
   if (allaKam.length && vilande.length * 2 <= allaKam.length && las && las.kalla === 'kort') { las.kand = null; return las.v; }
-  const w = (vilande.length ? vilande : las && las.kalla !== 'gissning' ? [] : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
+  /* Bara kort som syns hela mäter (kamHel, MES-345). Ett delvis täckt kort är som ett som inte vilat: det ger en
+     första skala när inget är mätt, men flyttar aldrig ett mätt värde. */
+  const hela = vilande.filter(c => kamHel(c, asp));
+  const w = (hela.length ? hela : las && las.kalla !== 'gissning' ? [] : vilande.length ? vilande : allaKam).map(c => kortsida(c.kam)).sort((a, b) => a - b);
   /* Inga kort än: lekens bredd i bilden (MES-334 steg 3) — en lek är ett kort brett. */
   const lek = p.bibHog && p.bibHog.kam && p.bibHog.kam.w;
   const med = w.length ? w[Math.floor(w.length / 2)] : (lek ? kortsida(p.bibHog.kam) : 0.12);
