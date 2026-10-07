@@ -2013,7 +2013,10 @@ body.ispel:not(.lasvy) .handbar{display:none}
 .ofram::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px #0c0d10;pointer-events:none}
 .ofram.vand > .ofoto{transform:rotate(180deg)}
 .ofram > .ofsudd{filter:blur(12px) saturate(.72) brightness(.9) contrast(.92)}
-.ofram > .ofsudd,.ofram > .oglans{clip-path:path('M9 9H169V26H9Z M12 28H166V139H12Z M9 141H169V155H9Z M13 157H165V226H13Z M140 228H169V239H140Z')}
+/* De unika ytorna i ett enda sammanhängande fält (namnraden till och med textrutan, och P/T): prototypens fem
+   band med skarpa strimmor emellan förutsätter att fotot ligger exakt rakt, och ett kort som ligger några grader
+   snett i fotot visade då en bit skarp titelrad i strimman (granskningen av MES-344). Ramen runt är skarp. */
+.ofram > .ofsudd,.ofram > .oglans{clip-path:path('M9 8H169V229H9Z M140 227H169V240H140Z')}
 .ofram > .oglans{background:linear-gradient(118deg,#0000 30%,#ffffff40 44%,#ffffff12 52%,#0000 62%),linear-gradient(#c8d6e622,#c8d6e622);mix-blend-mode:screen;opacity:.55}
 /* "Name this card": nere på kortet, i skärmens storlek oavsett mattans zoom (--matz, som brickorna). */
 .ofrmark{position:absolute;left:50%;bottom:calc(6px / var(--matz, 1));z-index:5;transform:translateX(-50%) scale(calc(1 / var(--matz, 1)));transform-origin:50% 100%;
@@ -31519,9 +31522,17 @@ function ofrSteg(spar, mig, nu, losa, flyttKan) {
     if (nu - p.dod > OFR_NAD) { ofrMinne.delete(id); andrat = true; continue; }
     ofrFrister.push(p.dod + OFR_NAD + 1);   // glöms när nåden gått (> OFR_NAD)
   }
+  /* Ett spår som föds där ett kort i väntan ligger (kortets spår har dött, kortet ligger kvar på mattan)
+     är kortet sett igen — samma regel som platsTackt i steg 3b. En hög som tappas föder om sina spår på
+     samma plats (passet 2026-09-22, 215 s): utan regeln låg ett oframkallat kort ovanpå kortet i ~0,3 s,
+     tills spåret blev stilla och steg 3b band kortet — och motståndarna såg det också (granskningen F4).
+     Ingen tidsgräns: så länge kortet ligger kvar på platsen är det där. */
+  const vantarHar = mig.cards.filter(c => c.spar != null && !synliga.has(c.spar) && !!c.kam && zonAv(c) !== ZON_GRAV && zonAv(c) !== 'exil');
+  const kortSettIgen = t => vantarHar.some(c => tackning(kamRekt(c.kam), t) >= SAMMA_KORT_TACKNING);
   /* Nya: ett löst spår som ligger still som ett kort, OFR_TROSKEL efter släppet, utan namn — eller med
-     antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, och inte ett som kan vara ett
-     kort i väntan som flyttats hit (det avgörs när telefonen läst det). */
+     antalets fråga. Inte ett spår spelaren hoppat över eller tagit bort, inte ett som kan vara ett kort
+     i väntan som flyttats hit (det avgörs när telefonen läst det), och inte ett som ligger där ett kort i
+     väntan ligger. */
   for (const t of spar) {
     if (!losa.has(t.id) || iPost(t.id) || !ofrVila.has(t.id) || hoppade.has(t.id) || borttagna.has(t.id)) continue;
     const q = mig.pending.find(q => q.spar === t.id);
@@ -31530,6 +31541,7 @@ function ofrSteg(spar, mig, nu, losa, flyttKan) {
     const v = ofrVila.get(t.id);
     if (nu - v < OFR_TROSKEL) { ofrFrister.push(v + OFR_TROSKEL); continue; }
     if (flyttKan && flyttKan(t)) continue;
+    if (kortSettIgen(t)) continue;
     const p = { id: t.id, spar: t.id, vila: v, lagd: nu, kam: ofrKam(t, nu), tappad: !!t.tappad, pend: null, overTak: false, tak: null, namn: null, foto: ofrFoto.get(t.id) || null };
     ofrMinne.set(p.id, p); post(p, t); andrat = true;
   }

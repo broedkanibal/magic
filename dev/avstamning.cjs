@@ -987,6 +987,20 @@ prov('O12 spelaren säger "inte ett kort" (eller hoppar över det): det oframkal
   stam([ovila(1, { tillstand: 'okand', cands: [{ name: 'Swamp', score: 0.4 }] })]);
   assert.deepEqual(ofrSlag(), []);
 });
+prov('O13 (granskningen F4) ett spår som föds om där ett kort i väntan ligger (högen tappas): inget oframkallat kort ovanpå kortet', () => {
+  stam([klar(1, 'Swamp', { sen: 0, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 150; stam([]);                                   // spåret dog (tap i högen)
+  klocka.t += 300; stam([ovila(2)]);                           // föds om på samma plats: ny, kortlik, vilar
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ritas över kortet som ligger kvar');
+  klocka.t += 150; stam([ovila(2, { tillstand: 'stilla' })]);  // telefonen bestämmer sig för att läsa: kortet binds
+  assert.equal(a.spar, 2); assert.deepEqual(ofrSlag(), []);
+  // ett nytt kort bredvid (inte över kortet i väntan) får sitt oframkallade kort som vanligt
+  stam([ovila(2, { tillstand: 'stilla' }), ovila(3, LANGT)]);
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), ['3']);
+});
 prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
   stam([ovila(1)]);
   tid(klocka.t + 600);
