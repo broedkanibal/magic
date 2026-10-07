@@ -78,23 +78,52 @@ Telefonen i partiet läste i 4K och frågade Claude; den här strömmen gör
 inte det. Mesas ramar ligger i bilden, som i golden 09–12 och passet
 2026-09-22.
 
-**Vad p0921k säger** (main 8114741, med motståndare): något syntes i 12 av
-13 utspel, median −0,7 s från att handen lade kortet (platshållaren kommer
-med handen); Valkyrie's Sword 246,5 är missen — telefonen behöll spåret där
-Killing Glare låg (232) och mattan sin platshållare, så inget nytt syntes.
-0 av 13 utspel kom som kort med namn, 10 av 10 borttagningar "står kvar"
-(korten låg bara som platshållare). 523 platshållare, 2286 s, 540
-laddtexter. Avståndsfelet är större än i p0921: median 0,34 och p90 0,70
-kortbredder (0,07/0,17 med facit som telefon) — mattan lägger korten för
-tätt: avstånden på mattan är 0,84 av bordets (median över 798 kortpar mer
-än 1,5 kortbredder isär, p10 0,76, p90 0,93). Skalan är medianen av
-kortens lådor i bilden (`kamSkala`; uppspelaren har inget provkort), och
-lådornas kortsida är 120 px (median) mot kortets ~98–105. Två falska omlott, båda ur lådorna: ruta 360
-(spår 194 nere till höger, armen täcker; lådan är bara överkanten, 126 × 91
-px, så platshållaren hamnar upp mot Trusty Retriever i övre raden) och
-ruta 530 (spår 388, skymt, lådan 135 × 97 px blir ett tappat Plains som
-täcker grannen). 45 facit-kort · rutor saknas (inget spår där, eller
-spåret utan kort och platshållare), 206 låg som platshållare.
+**Vad p0921k säger** (main 2f2fd99, efter MES-342, med motståndare):
+något syntes i 12 av 13 utspel, median −0,7 s från att handen lade kortet
+(platshållaren kommer med handen); Valkyrie's Sword 246,5 är missen —
+telefonen behöll spåret där Killing Glare låg (232) och mattan sin
+platshållare, så inget nytt syntes. 0 av 13 utspel kom som kort med namn,
+10 av 10 borttagningar "står kvar" (korten låg bara som platshållare). 523
+platshållare, 2286 s, 540 laddtexter. 45 facit-kort · rutor saknas (inget
+spår där, eller spåret utan kort och platshållare), 206 låg som
+platshållare.
+
+**Avståndet före och efter MES-342 (kamerans skala).** Skalan är medianen
+av kortens lådor i bilden (`kamSkala`; uppspelaren har inget provkort).
+
+| | main 8114741 (före) | main 2f2fd99 (efter) |
+|---|---|---|
+| avståndsfel, median / p90 (kortbredder) | 0,34 / 0,70 | 0,20 / 0,45 |
+| avstånden på mattan mot bordets (798 kortpar mer än 1,5 kb isär), median (p10–p90) | 0,84 (0,76–0,93) | 1,08 (0,95–1,18) |
+| falska omlott | 2 | 0 |
+| mattans zoomändringar per minut | 0,57 | 0,76 |
+
+Före lade mattan korten för tätt (lådornas kortsida 120 px i median mot
+kortets ~98–105). Efter ligger de lite för glest. De två falska omlotten
+före kom ur lådorna: ruta 360 (spår 194 nere till höger, armen täcker;
+lådan är bara överkanten, 126 × 91 px, så platshållaren hamnade upp mot
+Trusty Retriever i övre raden) och ruta 530 (spår 388, skymt, lådan 135 ×
+97 px blev ett tappat Plains som täckte grannen). De andra måtten ändrades
+inte av MES-342.
+
+**Vad p0921k kan och inte kan mäta.** Det kan mäta **var** korten ligger
+(spåren på rätt plats, avstånd, omlott, kanten), **tap** (tappad/upprätt
+rätt i 263 av 274 parade) och **antal** (spår mot facits kort per ruta),
+liksom när något syns och platshållarna. Det kan **inte** mäta **namn**:
+kedjan på den här bilden namnger bara landen, så "kortet kom med namn",
+borttagningar, flyttar och utbytta mäter kedjans namnlöshet, inte mattan.
+Namnen kräver en körning med `--ai` (som telefonen i partiet, kostar) eller
+en ny 4K-inspelning från telefonen.
+
+**Osäkra rader i facit** (`osaker` = trolig/osäker i
+`underlag/2026-09-21-handelser.tsv`): Trusty Retriever flyttar 287
+(osäker — kom ur handen, kan vara ett nytt kort), Plains flyttar 314, 319
+och 398 (osäkra omflyttningar i landhögarna), Killing Glare 230/232,
+Trusty Retriever 230 (P4), Ancestral Blade 254/282/446,5, Mirran Bardiche
+374/437, Coat with Venom 508/514 och Faithful Pikemaster 529 (troliga:
+namnet ur konsten eller en delvis läsbar titel, inte en tydlig titelrad).
+Sekunderna är avlästa i rutor en per sekund, i bytesfönstren 0,2–0,4 s;
+räkna med ±0,5 s.
 
 **Mätningen börjar 230 s** (`matFran`). Kedjan startar kall vid 180 med åtta
 kort på bordet; det som föds på mattan före 230 är uppstarten och räknas
@@ -247,8 +276,8 @@ Varje mått stämdes av mot underlaget innan det kallades mätt:
 | Avståndsfel | p0921 ruta 240, kort 1–2 (Serpent Assassin, Danitha) | Facit (18, 28) och (34, 28): 113 px / 98 px = 1,15 kortbredder. Mattan 414 → 606 px: 1,08. Fel 0,07, och de ligger inte omlott på mattan |
 | p0921k: tid till något syns | Night's Whisper 427 (facit 76,28 %) | Rutorna 427–428: handen lägger kortet, det ligger 428. Loggen: spår 262 föds 427,80, 13 px från facits plats, `okand`. Mattan: platshållare för spår 262 428,1 ("Reading the card…", sedan "Fill in Night's Whisper?") → +1,1 s, samma som uppspelaren |
 | p0921k: missat utspel | Valkyrie's Sword 246,5 | Ruta 240–244: tom grön ram där Killing Glare låg (taget 232). Loggen: spår 6 står kvar där 241,5–256,5 (12 px), mattans platshållare för spår 6 sedan 235,35 — inget nytt föds när kortet läggs, alltså miss (10 s) |
-| p0921k: avståndsfel | ruta 450, Serpent Assassin (19,27 %) och Danitha (37,24 %) | Bordet: 127,6 px / 97,8 px (kortbredden vid y 27 och 24 %) = 1,30 kb. Mattan 451: platshållarna för spår 296 och 205 (telefonen: 20,28 och 37,27 %) i 418,247 och 617,233 → 199,5 px / 178 = 1,12 kb. Fel 0,18 |
-| p0921k: falskt omlott | ruta 360, spår 184 och 194 | Ruta 360: armen täcker nedre raden; facit Trusty Retriever 79,35 och kortet 78,73 i högen nere till höger, 1,63 kb isär. Telefonens låda för 194 är bara överkanten (126 × 91 px, mitt 74,63 %), så platshållaren hamnar 165 px under Trusty Retrievers på mattan — mindre än ett korts höjd (248) |
+| p0921k: avståndsfel | ruta 450, Serpent Assassin (19,27 %) och Danitha (37,24 %) | Bordet: 127,6 px / 97,8 px (kortbredden vid y 27 och 24 %) = 1,30 kb. Mattan 451 på 8114741: platshållarna för spår 296 och 205 (telefonen: 20,28 och 37,27 %) i 418,247 och 617,233 → 199,5 px / 178 = 1,12 kb, fel 0,18. På 2f2fd99 (MES-342): 463,287 och 705,267 → 242,8 px = 1,36 kb, fel 0,06 |
+| p0921k: falskt omlott (8114741, före MES-342) | ruta 360, spår 184 och 194 | Ruta 360: armen täcker nedre raden; facit Trusty Retriever 79,35 och kortet 78,73 i högen nere till höger, 1,63 kb isär. Telefonens låda för 194 är bara överkanten (126 × 91 px, mitt 74,63 %), så platshållaren hamnar 165 px under Trusty Retrievers på mattan — mindre än ett korts höjd (248) |
 | Grinden | granskarens varianter | `avstamBord` som kastar varannan rapport: kod 2. `BORTA_NAD` 15 s: tid till borta 7,25 → 10, borttagna som står kvar 7 → 10, kod 1. Inga platshållare: utspel som syntes 31 → 29 av 36, kod 1. Samma fil: kod 0 |
 
 ## Vad baslinjen säger (main 2026-10-07, a59238e, med motståndare)
