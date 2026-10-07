@@ -1,6 +1,6 @@
 # Uppspelarens baslinje — 2026-10-07
 
-Kod: `index.html` (sha256 5585caa38f72, commit ce6606e). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
+Kod: `index.html` (sha256 48894c781b3c, commit dc29c25). Simulerad klocka: två körningar på samma fil ger samma tal. Spelet har en motståndare (bordsvyn), som ett riktigt parti. Grinden (`--jamfor`) är totalt-kolumnen och p0921; tider ±0,1 s, antal exakt. Definitionerna: [LÄS-MIG](../LÄS-MIG.md).
 
 | Fall | Vad | Underlag |
 |---|---|---|
@@ -45,9 +45,9 @@ Kod: `index.html` (sha256 5585caa38f72, commit ce6606e). Simulerad klocka: två 
 | Kort som var utanför mattans kant (antal kort) | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Kort utanför mattans kant, kortsekunder | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Avståndsfel mattan mot bordet, median (kortbredder) | – | – | – | – | – | – | 0,07 | 0,13 | – |
-| Avståndsfel mattan mot bordet, 90:e percentilen (kortbredder) | – | – | – | – | – | – | 0,17 | 0,4 | – |
+| Avståndsfel mattan mot bordet, 90:e percentilen (kortbredder) | – | – | – | – | – | – | 0,17 | 0,39 | – |
 | Falska omlott (kortpar · rutor) | – | – | – | – | – | – | 0 | 0 | – |
 | Kort utanför mattans kant (kort · rutor) | – | – | – | – | – | – | 0 | 0 | – |
-| Kort i facit som saknas på mattan (kort · rutor) | – | – | – | – | – | – | 0 | 26 | – |
+| Kort i facit som saknas på mattan (kort · rutor) | – | – | – | – | – | – | 0 | 23 | – |
 
 \* totalt = golden 07, 09–12 och passet 2026-09-22 (telefonens ström; inte p0921 och p0921k). Tider i sekunder från facits tid (rösten eller bildrutan), medianer över alla händelser ihop. – = går inte att räkna för fallet (inget facit för det).
