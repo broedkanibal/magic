@@ -30585,6 +30585,28 @@ let flyttVantan = new Map(); // spår-id → när spåret först fick vänta på
    flytt dit utan namn — det får namnet avgöra. Kortets eget gamla spår räknas inte: ett spår som
    föds där kortet låg är kortet sett igen. */
 let platsMinne = new Map();  // spår-id → { x, y, w, h, sist }: varje spårs senaste låda och när det sågs, FLYTT_VILA bakåt
+/* Handzonen (princip 3: handen fryser, den raderar inte). Handen byggs av det telefonen redan
+   skickar: spår som är skymda (något ligger över kortet) och spår som rör sig utan ett korts form
+   (tillstand ny, inte kortlik och vilande) — en hand, eller något som bärs. Nära ett kort = kortets
+   ruta vuxen HAND_NARA kortbredder åt varje håll rör vid spårets låda. Ett kort vars spår dött medan
+   en hand är nära får ingen slutsats om nedtoning förrän handen gått — högst HAND_MAX efter väntan
+   (BORTA_NAD), så att en hand som vilar vid bordskanten (den skymda remsan vid library, 60 s i
+   passet) inte håller ett kort för evigt. Högen är starkare än handen: växer graveyard i fönstret
+   går kortet dit ändå. En hand som vilar längre bort spelar ingen roll. */
+const HAND_NARA = 0.5;       // kortbredder: så långt från kortets kant räknas en hand som "intill"
+const HAND_MAX = 5000;       // ms: så mycket längre än BORTA_NAD väntar nedtoningen på att handen ska gå
+/* Ett skymt spår som ett KORT ligger över (ett klart eller kortlikt spår som syns, sammaPlats-täckning)
+   är ett täckt kort, ingen hand: Pharika's Chosen på svärdet i passet (154 s, VN11). */
+function handSpar(t, spar) {
+  if (t.w == null || t.h == null || franHelbild(t)) return false;
+  if (t.tillstand === 'ny' && !(t.kortlik && (t.vilar != null ? t.vilar : t.stilla))) return true;
+  return !!t.skymd && !spar.some(u => u !== t && u.w != null && !u.skymd && (u.tillstand === 'klar' || u.kortlik) && tackning(u, t) >= SAMMA_KORT_TACKNING);
+}
+function handNara(k, spar) {
+  if (!k.kam || !(k.kam.w > 0)) return false;
+  const m = HAND_NARA * k.kam.w, r = { x: k.kam.x - k.kam.w / 2 - m, y: k.kam.y - k.kam.h / 2 - m, w: k.kam.w + 2 * m, h: k.kam.h + 2 * m };
+  return spar.some(t => handSpar(t, spar) && tackning(r, t) > 0);
+}
 /* Att spåret lagt sig en bit bort räcker inte: ett kort som flyttas under
    handen gör precis så, och det är samma kort (Pharika's Chosen flyttades
    lite åt höger i passet, 77,8 s — spåret var skymt i 2 s). Det krävs ett
@@ -31543,6 +31565,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     senasteSpar = spar; renderMode(); uppdateraPbStatus(); return;
   }
   /* Ett spår som kommer tillbaka på en ny plats bär inte längre sitt kort (tvivelSteg). */
+  /* Handzonen (handNara) läser bordet FÖRE tvivelSteg: ett spår som tvivlas på (Pharika's Chosen på
+     svärdet, VN11) ligger ändå där som ett kort, och det kortet under det är täckt, inte i en hand. */
+  const sparRa = spar;
   const tv = tvivelSteg(spar, mig.cards, nu);
   spar = tv.spar;
   let andrat = tv.andrat;
@@ -31995,7 +32020,9 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
     if (k.spar == null || synliga.has(k.spar) || !k.borta) continue;
     const vantat = nu - k.borta;
     if (vantat <= SLAPP_MS) continue;                                                        // nåden: inget avgörs än
-    if (vantat <= BORTA_NAD && tonasNed(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
+    /* Handzonen (MES-341, princip 3): en hand nära platsen skjuter upp nedtoningen, högst HAND_MAX. */
+    const hand = vantat <= BORTA_NAD + HAND_MAX && handNara(k, sparRa);
+    if ((vantat <= BORTA_NAD || hand) && tonasNed(k, k.borta) && !gravAutoKan(k, k.borta)) continue;   // väntan: kortet antas flyttat, tills högen växer
     const borta0 = k.borta;
     delete k.spar; delete k.borta; andrat = true;
     /* Borta digitalt redan (graveyard/exile medan det låg kvar): nu har
@@ -32052,7 +32079,7 @@ function avstamBord(spar, nollstall, fas, yta, rad, grav) {
      namn band kortet igen i nästa rapport (Pharika's Chosen i passet
      2026-09-22, 154 s, när timern hann gå före rapporten). */
   clearTimeout(lyftT);
-  const frister = mig.cards.filter(k => k.borta).map(k => k.borta + (nu - k.borta <= SLAPP_MS ? SLAPP_MS : BORTA_NAD));
+  const frister = mig.cards.filter(k => k.borta).map(k => { const v = nu - k.borta; return k.borta + (v <= SLAPP_MS ? SLAPP_MS : v <= BORTA_NAD ? BORTA_NAD : BORTA_NAD + HAND_MAX); });   // efter väntan: handzonens tak
   /* Dubblettväntan (steg 4) tar slut i tid också när telefonen är tyst; spår som försvunnit glöms. */
   for (const id of [...flyttVantan.keys()]) if (!synliga.has(id)) flyttVantan.delete(id);
   /* Platsminnet (steg 3b): var varje spår låg senast, FLYTT_VILA bakåt. Timerns omspelning av samma

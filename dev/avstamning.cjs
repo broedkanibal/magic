@@ -2324,6 +2324,59 @@ prov('FL8 tap i spelarens ordning: tre land vrids ett i taget, så fort var sitt
   assert.equal(tappade(), '111');
 });
 
+/* H (MES-341, princip 3): handen fryser, den raderar inte. En hand är ett
+   skymt spår eller ett spår som rör sig utan ett korts form. */
+const hand = (id, b) => ({ id, tillstand: 'ny', namn: null, saker: false, tappad: false, sen: 0, kortlik: false, vilar: false, skymd: false, ...b });
+prov('H1 handen över korten: två skymda kort — ingenting ändras, ingen granskning, ingen nedtoning, läget och tap-läget står kvar', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Forest', { sen: 0, tappad: true, ...LAND_ })]);
+  const fore = app.kort.map(c => [c.spar, c.kam.x, c.kam.y, c.tapped, c.lyft]);
+  for (let i = 0; i < 20; i++) { klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 150 * (i + 1), skymd: true, ...PORT }), klar(2, 'Forest', { sen: 150 * (i + 1), skymd: true, tappad: true, ...LAND_ })]); }
+  assert.deepEqual(app.kort.map(c => [c.spar, c.kam.x, c.kam.y, c.tapped, c.lyft]), fore, 'under handen (3 s)');
+  assert.equal(app.pending.length, 0); assert.equal(app.kort.length, 2);
+  klocka.t += 300; stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Forest', { sen: 0, tappad: true, ...LAND_ })]);
+  assert.deepEqual(app.kort.map(c => [c.spar, c.kam.x, c.kam.y, c.tapped, c.lyft]), fore, 'handen borta: båda ligger kvar');
+});
+prov('H2 flytta med andra handen kvar: ett kort bärs utan namn medan en hand vilar på ett annat — det andra rörs inte', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT }), klar(2, 'Serra Angel', { sen: 0, ...LANGT })]);
+  const u = app.kort.find(c => c.name === 'Ukud Cobra'), s = app.kort.find(c => c.name === 'Serra Angel');
+  klocka.t += 150; stam([klar(2, 'Serra Angel', { sen: 150, skymd: true, ...LANGT })]);
+  klocka.t += 300; stam([klar(2, 'Serra Angel', { sen: 450, skymd: true, ...LANGT }), vilande(3, NY_PLATS)]);
+  assert.equal(u.spar, 3, 'Ukud buret dit'); assert.equal(s.spar, 2); assert.equal(s.lyft, undefined); assert.ok(Math.abs(s.kam.x - mitt(LANGT)) < 1e-9, 'Serra ligger kvar');
+});
+prov('H3 en hand nära platsen skjuter upp nedtoningen tills handen gått — men högst HAND_MAX efter väntan', () => {
+  const OVER = box(PORT.x - 0.02, PORT.y - 0.05, 0.12, 0.10);   // handen över platsen, utan ett korts form
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k = app.kort[0];
+  klocka.t += 150; stam([hand(5, OVER)]);
+  klocka.t += 3100; stam([hand(5, OVER)]);                      // väntan (3 s i provet) är slut, men handen är kvar
+  assert.ok(k.borta, 'väntar ännu'); assert.equal(k.lyft, undefined, 'inte nedtonat under handen');
+  klocka.t += 1000; stam([hand(5, OVER)]);
+  assert.equal(k.lyft, undefined, 'fortfarande under handen');
+  klocka.t += 150; stam([]);                                    // handen gick
+  assert.ok(k.lyft != null, 'nedtonat när handen gått'); assert.equal(k.spar, undefined);
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k2 = app.kort[0];
+  klocka.t += 150; stam([hand(5, OVER)]);
+  klocka.t += 3100; stam([hand(5, OVER)]);
+  klocka.t += 5100; stam([hand(5, OVER)]);                      // handen blir kvar: taket
+  assert.ok(k2.lyft != null, 'nedtonat vid taket fast handen är kvar');
+  app.nollstall(); klocka.t = 1e6;
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const k3 = app.kort[0];
+  klocka.t += 150; stam([hand(5, LANGT)]);                      // en hand långt bort spelar ingen roll
+  klocka.t += 3100; stam([hand(5, LANGT)]);
+  assert.ok(k3.lyft != null, 'nedtonat: handen var inte nära');
+});
+prov('H4 högen är starkare än handen: graveyard växer medan handen är kvar över platsen — kortet går dit', () => {
+  const OVER = box(PORT.x - 0.02, PORT.y - 0.05, 0.12, 0.10);
+  stamG([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })], hog(0));
+  const k = app.kort[0];
+  klocka.t += 150; stamG([hand(5, OVER)], hog(0));
+  klocka.t += 1000; stamG([hand(5, OVER)], hog(1));
+  assert.equal(k.zon, 'grav'); assert.equal(k.lyft, undefined);
+});
+
 console.log([...ok, ...fel].join('\n'));
 console.log(`\n${ok.length} OK, ${fel.length} FEL`);
 process.exit(fel.length ? 1 : 0);
