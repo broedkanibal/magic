@@ -2050,7 +2050,7 @@ body.ispel:not(.lasvy) .handbar{display:none}
    --ofrdy flyttar den i skärm-px (ofrMarkLagg), så att etiketter på kort som ligger tätt inte täcker varandra. */
 .ofrmark{position:absolute;z-index:650;transform:translate(-50%,-100%) scale(calc(1 / var(--matz, 1))) translateY(var(--ofrdy, -6px));transform-origin:50% 100%;
   height:28px;padding:0 11px;border-radius:14px;border:1px solid var(--acc);background:#1b2230f2;color:var(--pa-acc);font:600 12px var(--sans);white-space:nowrap;cursor:pointer;box-shadow:0 6px 16px -6px #000e}
-.ofrmark.aktuell{z-index:901}
+.ofrmark.aktuell{z-index:901!important}   /* över strålkastarens dimning (.ofr.aktuell 900), före left/top/z-index inline */
 /* Pekaren på en etikett lyser upp dess kort: där korten ligger tätt kan etiketten stå en bit från sitt kort. */
 .ofr.pekad{outline:2px solid var(--acc);outline-offset:2px}
 .ofrmark:hover{background:#2a2416}
@@ -31891,11 +31891,24 @@ const ofrVilar = t => t.vilar != null ? !!t.vilar : !!t.stilla;
    aldrig, och ett par utan den är "okänt" och behandlas som förut. Ger telefonen varje kort i en hög en egen
    låda (prompt D, remsan först) blir relationen bara tätare. */
 const ofrSkilda = (a, b) => { const x = ofrOver.get(a), y = ofrOver.get(b); return !!(x && x.has(b)) || !!(y && y.has(a)); };
-/* Relationerna i bordet, först i avstamBord: steg 3b och 5 läser dem också (motsager, passar, ledtråden). */
+/* Relationerna i bordet, först i avstamBord: steg 3b och 5 läser dem också (motsager, passar, ledtråden).
+   Inte ett spår vars låda ligger nästan helt inne i det undre spårets låda (OFR_INNE): ett kort som ligger
+   ÖVER ett annat ligger överst och syns helt, så dess låda sticker ut ur det undres — en låda inne i kortets
+   egen är en bit av samma kort (två lådor på ett kort, handen över Swamp i golden 11; granskningen av MES-346,
+   T2). Åt andra hållet gäller relationen: det undre kortet syns bara delvis, och dess låda kan mycket väl ligga
+   inne i det övres (passet 2026-09-21, 500 s). */
+const OFR_INNE = 0.9;
 function ofrOverTa(spar) {
+  const lada = new Map(spar.filter(t => t.w != null && t.h != null && !franHelbild(t)).map(t => [t.id, t]));
+  const inne = (a, b) => { const iw = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), ih = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y); return iw <= 0 || ih <= 0 ? 0 : iw * ih / Math.max(1e-9, a.w * a.h); };
   for (const t of spar) if (Array.isArray(t.under) && t.under.length) {
-    let s = ofrOver.get(t.id); if (!s) ofrOver.set(t.id, s = new Set());
-    for (const u of t.under) s.add(u);
+    let s = null;
+    for (const id of t.under) {
+      const u = lada.get(id), tl = lada.get(t.id);
+      if (u && tl && inne(u, tl) >= OFR_INNE) continue;
+      if (!s && !(s = ofrOver.get(t.id))) ofrOver.set(t.id, s = new Set());
+      s.add(id);
+    }
   }
 }
 function ofrSomKort(t) { return t.w != null && t.h != null && !franHelbild(t) && !!t.kortlik && ofrVilar(t) && !t.skymd && !t.ned; }

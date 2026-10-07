@@ -1070,6 +1070,33 @@ prov('O19 (MES-346) en tappad hög med två kort: spåren föds om, och det nya 
   assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ovanpå en hög som bara tappats');
   assert.ok(app.kort.includes(b) && app.kort.includes(f));
 });
+prov('O20 (MES-346, granskningen T4) det nya landet läses snabbt som osäkert Plains: landet under ligger kvar under det, utan gissad flytt (passar i steg 3b, och motsager i steg 5 som ångrar i samma avstämning)', () => {
+  stam([klar(1, 'Plains', { sen: 0, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, under: [2], ...PORT }), ovila(2, { vilar: false, ...OVANPA })]);
+  klocka.t += 150; stam([klar(1, 'Plains', { sen: 0, under: [2], ...PORT }), ovila(2, OVANPA)]);
+  klocka.t += 150; stam([ovila(2, { tillstand: 'stilla', ...OVANPA })]);
+  klocka.t += 150; stam([ovila(2, { tillstand: 'okand', gissning: 'Plains', cands: [{ name: 'Plains', score: 0.4 }], ...OVANPA })]);
+  assert.equal(a.spar, 1, 'landet under bars till det nya landet'); assert.ok(!a.flyttFran);
+});
+prov('O21 (MES-346) en gissad flytt ångras när telefonen ser det nya spåret ligga över kortets gamla (motsager)', () => {
+  stam([klar(1, 'Mirran Bardiche', { sen: 10, ...PORT })]);
+  const a = app.kort[0];
+  klocka.t += 200; stam([]);                                                       // lyfts
+  klocka.t += 300; stam([ovila(2, { tillstand: 'stilla', ...OVANPA })]);           // något läggs ned bredvid: flytten gissas
+  assert.equal(a.spar, 2); assert.ok(!!a.flyttFran);
+  klocka.t += 150; stam([{ id: 1, tillstand: 'ny', kortlik: true, vilar: true, sen: 0, under: [2], ...PORT }, ovila(2, { tillstand: 'okand', ...OVANPA })]);   // det gamla spåret syns igen, med det nya över sig
+  assert.equal(a.spar, 1, 'kortet ligger kvar under det nya — flytten var fel'); assert.ok(!a.flyttFran);
+});
+prov('O22 (MES-346, granskningen T2) två lådor på SAMMA kort: en låda inne i kortets egen räknas inte som ett kort ovanpå — inget oframkallat kort när kortets spår dör', () => {
+  stam([klar(1, 'Ukud Cobra', { sen: 0, ...PORT })]);
+  const DEL = box(PORT.x, PORT.y + 0.03, 0.063, 0.058);                             // en bit av samma kort
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, under: [5], ...PORT }), ovila(5, DEL)]);
+  klocka.t += 150; stam([klar(1, 'Ukud Cobra', { sen: 0, under: [5], ...PORT }), ovila(5, DEL)]);
+  klocka.t += 150; stam([ovila(5, PORT)]);                                          // huvudspåret dör, dubbletten är kortet
+  tid(klocka.t + 600);
+  assert.deepEqual(ofrSlag(), [], 'ett oframkallat kort ovanpå kortet');
+});
 prov('O11 namnet kommer på ett spår som fötts om bredvid: kortet tar över, ingen post blir kvar bredvid', () => {
   stam([ovila(1)]);
   tid(klocka.t + 600);
