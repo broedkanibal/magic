@@ -16,7 +16,7 @@ Ingenting i `index.html`, `api/` eller `dev/golden/*.cjs` ändras. Allt bor här
 | Kommando | Gör | Tid |
 |---|---|---|
 | `node dev/uppspelaren/kor.cjs` | alla åtta fallen mot `index.html`, tabellen | ~25 s |
-| `node dev/uppspelaren/kor.cjs --fil /tmp/x.html --jamfor` | samma mot en annan `index.html`, rad för rad mot baslinjen. **Slutkod 1 om något mått i totalt-kolumnen eller i p0921 är sämre** | ~15 s |
+| `node dev/uppspelaren/kor.cjs --fil /tmp/x.html --jamfor` | samma mot en annan `index.html`, rad för rad mot baslinjen. **Slutkod 1 om något mått i totalt-kolumnen eller i p0921 är sämre, eller något av p0921k:s grindrader** (geometrin, hoppen, zoomhoppen — se *Grinden*); övriga p0921k-rader är diagnos | ~25 s |
 | `node dev/uppspelaren/kor.cjs --jamfor --alla` | jämförelsen med alla rader, också de oförändrade | |
 | `node dev/uppspelaren/kor.cjs --fall g09,p0921 --detalj g09` | bara de fallen, och vad som räknades händelse för händelse | några s |
 | `node dev/uppspelaren/kor.cjs --spara` | skriver baslinjen (`baslinje/baslinje.json` och `baslinje.md`) — bara när en ändring ska bli den nya baslinjen | |
@@ -48,7 +48,7 @@ ligger där), annars faller fallet p0922 med slutkod 2.
 | g07, g09, g10, g11, g12 | golden-videofallen. Bordsloggen ur golden-körningen (utan Claude), fryst i `underlag/golden-bordlogg.json.gz` (ur `dev/golden/senaste.json`, commit 5505933) så att baslinjen inte flyttar sig när golden sparas om. Facit: `dev/golden/fall/<id>/facit.json` (`video.handelser`). Video: `dev/golden/fall/<id>/video.mp4` | ja |
 | p0922 | passet 2026-09-22. Bordsloggen ur `dev/spegelfacit/kor.cjs` på passets video, körd 2026-10-04 utan Claude (`dev/material/arbete/2026-10-04-hogarna-matning/baslinje/spegel-lokal.json`, 1262 bord). Facit: `dev/golden/inspelningar/2026-09-22-1x-34cm-normaltempo/handelser.tsv`. Ingen video här (Google Drive) — visaren visar kontaktarken, en ruta per sekund | ja |
 | p0921 | partiet 2026-09-21, sek 240–540. **Facit, inte telefonen:** v2-facit (`underlag/2026-09-21-v2-tabell.tsv`, kopia av den otrackade filen i huvudträdet) matas in som en idealiserad telefon — ett klart, säkert spår per kort var tionde sekund, kortets mitt ur facit och en låda i den storlek ett kort har där i bilden. Namnen är påhittade ("Kort 01"). Här mäts mattans geometri, inte kamerans fart | **nej** |
-| p0921k | partiet 2026-09-21, sek 230–540, **genom kedjan**: kamerabilden ur skärminspelningen `dator.mov` (Mesas kamerapanel, 704 × 438 px, Mesas spårramar i bilden) körd genom `dev/spegelfacit/kor.cjs` utan Claude från sek 180 (avsnittet nedan). Bordsloggen fryst i `underlag/2026-09-21-kedja-bordlogg.json.gz`. Facit: `underlag/2026-09-21-handelser.tsv` (händelser med namn och läge i bilden) och v2-tabellen. Visaren visar kamerans rutor, en per sekund | ja, men inte telefonens egen (se nedan) |
+| p0921k | partiet 2026-09-21, sek 230–540, **genom kedjan**: kamerabilden ur skärminspelningen `dator.mov` (Mesas kamerapanel, 704 × 438 px, Mesas spårramar i bilden) körd genom `dev/spegelfacit/kor.cjs` utan Claude från sek 180 (avsnittet nedan). Bordsloggen fryst i `underlag/2026-09-21-kedja-bordlogg.json.gz` med `node dev/uppspelaren/frys-kedja.cjs`. Facit: `underlag/2026-09-21-handelser.tsv` (händelser med namn och läge i bilden) och v2-tabellen. Visaren visar kamerans rutor, en per sekund | ja, men inte telefonens egen (se nedan) |
 
 ### p0921k: partiet genom kedjan
 
@@ -60,14 +60,17 @@ pixel för pixel i ruta 260 och 450) och körs genom kedjan som ett pass.
 Graveyard-rutan är Mesas gula ruta i bilden, library-rutan den gröna leken.
 
 **Vad kedjan gör med den bilden** (körningen 2026-10-07, sek 180–540, 1992
-bord, utan Claude), mot v2 i de 31 rutorna 240–540:
+bord, utan Claude), mot v2 i de 31 rutorna 240–540. Det här är en
+**engångsanalys av telefonens bord** (`node dev/uppspelaren/frys-kedja.cjs
+--bara-analys`), inga mått i uppspelaren — uppspelaren har till exempel
+inget tap-mått:
 
 | | |
 |---|---|
-| facits kort som har ett spår på samma plats (högst 70 px) | 279 av 310 (90 %) |
-| spår utan kort i facit | 39 av 318 (12 %; mest händer och spår som står kvar där ett kort togs bort) |
-| tappad/upprätt rätt, bland de parade | 263 av 274 (96 %) |
-| spår med säkert namn, bland de parade | 64 av 279 — bara landen (Plains, Swamp) |
+| facits kort som har ett spår på samma plats (högst 60 px, som i fall.cjs) | 278 av 310 (90 %) |
+| spår utan kort i facit | 40 av 318 (13 %; mest händer och spår som står kvar där ett kort togs bort) |
+| tappad/upprätt rätt, bland de parade | 262 av 273 (96 %) |
+| spår med säkert namn, bland de parade | 64 av 278 — bara landen (Plains, Swamp) |
 | spår i hela körningen | 428, mediantid 1,7 s |
 
 Kedjan **hittar korten och var de ligger, men sätter nästan inga namn**:
@@ -106,14 +109,20 @@ Trusty Retriever i övre raden) och ruta 530 (spår 388, skymt, lådan 135 ×
 97 px blev ett tappat Plains som täckte grannen). De andra måtten ändrades
 inte av MES-342.
 
-**Vad p0921k kan och inte kan mäta.** Det kan mäta **var** korten ligger
-(spåren på rätt plats, avstånd, omlott, kanten), **tap** (tappad/upprätt
-rätt i 263 av 274 parade) och **antal** (spår mot facits kort per ruta),
-liksom när något syns och platshållarna. Det kan **inte** mäta **namn**:
-kedjan på den här bilden namnger bara landen, så "kortet kom med namn",
+**Vad p0921k kan och inte kan mäta.** Det kan mäta **var** mattan lägger
+det telefonen ser (avståndsfel, falska omlott, kanten) och **saknade kort**
+(facits kort utan något på mattan för spåret där — det enda antal p0921k
+mäter), plus hoppen och zoomen som hoppar. De måtten grindar. Tap mäts
+inte: uppspelaren har inget tap-mått, och 262 av 273 ovan är
+engångsanalysen av telefonens bord. Det kan **inte** mäta **namn**: kedjan
+på den här bilden namnger bara landen, så "kortet kom med namn",
 borttagningar, flyttar och utbytta mäter kedjans namnlöshet, inte mattan.
-Namnen kräver en körning med `--ai` (som telefonen i partiet, kostar) eller
-en ny 4K-inspelning från telefonen.
+Platshållarna och laddtexterna mäter också namnlösheten — varje kort utan
+namn blir en platshållare — och är diagnos, liksom zoom och pan per minut.
+*Utspel som syntes* och *tid till något syns* är diagnos tills MES-344 är
+inne; då ska de grinda (det oframkallade kortet är det som ska synas inom
+0,5 s). Namnen kräver en körning med `--ai` (som telefonen i partiet,
+kostar) eller en ny 4K-inspelning från telefonen.
 
 **Osäkra rader i facit** (`osaker` = trolig/osäker i
 `underlag/2026-09-21-handelser.tsv`): Trusty Retriever flyttar 287
@@ -156,8 +165,11 @@ i högen, eller under handen eller armen).
 - *v2-rutorna* (avstånd, omlott, kanten, saknas) jämförs med mattan 1 s
   efter rutan. Facits kort paras med telefonens spår på samma plats (högst
   60 px, närmast först), spåret med kortet på mattan — eller, finns inget
-  kort, med spårets platshållare. `--detalj p0921k` visar hur många som var
-  platshållare. Ett facit-kort utan spår där räknas som saknat.
+  kort, med det mattan visar för spåret: MES-344:s oframkallade kort (`o:`,
+  på spåret det bundits om till enligt appens `ofrMinne`) före
+  platshållaren (`p:`). `--detalj p0921k` visar hur många som inte var kort
+  med namn. Ett facit-kort utan spår där, eller vars spår inget har på
+  mattan, räknas som saknat.
 
 ## Hur uppspelningen går till
 
@@ -244,13 +256,18 @@ aldrig 0. Totalt räknas över fallen med telefonens ström (golden och
 p0922): antal summeras, tider ur alla händelser ihop. p0921 och p0921k står
 i egna kolumner och räknas inte in.
 
-**Grinden** i `--jamfor` är varje mått i **totalt-kolumnen** (golden och
-passet ihop), i **p0921** (facit som ideal telefon, MES-342/338:s fall) och
-i **p0921k** (partiet genom kedjan) — det sista först när baslinjen sparats
-med p0921k: `--jamfor` kör baslinjens fall.
+**Grinden** i `--jamfor` är, per kolumn (`GRIND` i `kor.cjs`):
+
+| Kolumn | Grindar |
+|---|---|
+| **totalt** (golden och passet ihop) | varje mått |
+| **p0921** (facit som ideal telefon, MES-342/338:s fall) | varje mått |
+| **p0921k** (partiet genom kedjan) — först när baslinjen sparats med p0921k: `--jamfor` kör baslinjens fall | avståndsfel median och p90, falska omlott, utanför kanten (kort · rutor, antal kort, kortsekunder), saknade kort, hopp, snabba hopp, zoom/pan som hoppar. **Inte**: det som räknar på namn (kom med namn, borttagna, tid till borta, tid till rätt plats, flyttar, utbytta, nya kort utan utspel, fel nedtoning, fel till handen), platshållare, platshållarsekunder, laddtexter, zoom och pan per minut — och tills MES-344 är inne utspel som syntes och tid till något syns. **När MES-344 är inne ska de två grinda** |
+
 Sämre = antal som blivit större (exakt), tider som blivit mer än 0,1 s
 längre, kvoter vars täljare blivit mindre, och – där baslinjen hade ett tal.
-Per fall skrivs sämre rader som **VARNING** — diagnos, fäller inte. Bättre
+Sämre rader som inte grindar (per fall, och p0921k:s diagnosrader) skrivs
+som **VARNING** — diagnos, fäller inte. Bättre
 rader skrivs också.
 
 ## Kontrollräknat för hand (2026-10-07)
@@ -274,7 +291,7 @@ Varje mått stämdes av mot underlaget innan det kallades mätt:
 | Platshållare | g09: 10 | Loggen: spåren 1–10 är alla utan namn en stund (spår 1: 3,3–4,05, spår 6: 20,1–22,05 …) |
 | Laddtexter | g09: 14 | Visarens bild vid 21,0: två "Reading the card…" på mattan |
 | Avståndsfel | p0921 ruta 240, kort 1–2 (Serpent Assassin, Danitha) | Facit (18, 28) och (34, 28): 113 px / 98 px = 1,15 kortbredder. Mattan 414 → 606 px: 1,08. Fel 0,07, och de ligger inte omlott på mattan |
-| p0921k: tid till något syns | Night's Whisper 427 (facit 76,28 %) | Rutorna 427–428: handen lägger kortet, det ligger 428. Loggen: spår 262 föds 427,80, 13 px från facits plats, `okand`. Mattan: platshållare för spår 262 428,1 ("Reading the card…", sedan "Fill in Night's Whisper?") → +1,1 s, samma som uppspelaren |
+| p0921k: tid till något syns | Night's Whisper 427 (facit 76,28 %) | Rutorna 427–428: handen lägger kortet, det ligger 428. Loggen: spår 262 fanns redan 408–411,75 på Valkyrie's Swords plats (78,26 %, kortet till graveyard 411) och kommer tillbaka 427,80, 13 px från facits plats, `okand` — det föds inte då. Mattan: platshållare för spår 262 428,1 ("Reading the card…", sedan "Fill in Night's Whisper?") → +1,1 s, samma som uppspelaren |
 | p0921k: missat utspel | Valkyrie's Sword 246,5 | Ruta 240–244: tom grön ram där Killing Glare låg (taget 232). Loggen: spår 6 står kvar där 241,5–256,5 (12 px), mattans platshållare för spår 6 sedan 235,35 — inget nytt föds när kortet läggs, alltså miss (10 s) |
 | p0921k: avståndsfel | ruta 450, Serpent Assassin (19,27 %) och Danitha (37,24 %) | Bordet: 127,6 px / 97,8 px (kortbredden vid y 27 och 24 %) = 1,30 kb. Mattan 451 på 8114741: platshållarna för spår 296 och 205 (telefonen: 20,28 och 37,27 %) i 418,247 och 617,233 → 199,5 px / 178 = 1,12 kb, fel 0,18. På 2f2fd99 (MES-342): 463,287 och 705,267 → 242,8 px = 1,36 kb, fel 0,06 |
 | p0921k: falskt omlott (8114741, före MES-342) | ruta 360, spår 184 och 194 | Ruta 360: armen täcker nedre raden; facit Trusty Retriever 79,35 och kortet 78,73 i högen nere till höger, 1,63 kb isär. Telefonens låda för 194 är bara överkanten (126 × 91 px, mitt 74,63 %), så platshållaren hamnar 165 px under Trusty Retrievers på mattan — mindre än ett korts höjd (248) |
@@ -319,9 +336,9 @@ Tabellen: [`baslinje/baslinje.md`](baslinje/baslinje.md). Bilder ur visaren:
   px bred i stället för 4K, Mesas ramar ligger i bilden och kedjan körs
   utan Claude. Därför kommer nästan inga namn, och allt som räknas på namn
   (kortet kom med namn, borttagningar, flyttar, utbytta) mäter kedjans
-  namnlöshet mer än mattan. Det som håller är det som inte behöver namn:
-  när något syns, platshållarna och laddtexterna, mattans rörelser och
-  v2-rutornas geometri. Med Claude (`--ai`, som telefonen i partiet) eller
+  namnlöshet mer än mattan, och platshållarna och laddtexterna likaså. Det
+  som håller är v2-rutornas geometri, saknade kort, hoppen och zoomhoppen
+  — det som grindar — och, när MES-344 är inne, när något syns. Med Claude (`--ai`, som telefonen i partiet) eller
   telefonens egen 4K-inspelning av ett nytt parti blir namnen riktiga.
 - **Borttagna kort som står kvar** i p0921k: kortet låg oftast aldrig på
   mattan som kort, bara som platshållare. `--detalj p0921k` skriver "fanns
@@ -346,6 +363,7 @@ Tabellen: [`baslinje/baslinje.md`](baslinje/baslinje.md). Bilder ur visaren:
 | `motor.js` | motorn i appens sida: klockan, timrarna, animeringarna, loggen |
 | `matt.cjs` | måtten ur loggen och facit |
 | `fall.cjs` | fallen: bordslogg, facit, bild |
+| `frys-kedja.cjs` | fryser partiets bordslogg genom kedjan (`spegel-lokal.json`, start 180) till `underlag/2026-09-21-kedja-bordlogg.json.gz` och skriver engångsanalysen mot v2 (`--bara-analys`: bara den) |
 | `chrome.cjs` | filservern och Chrome (som `dev/mattan.cjs`) |
 | `visa.html` | visaren |
 | `underlag/` | frysta golden-bordsloggar, v2-tabellen för 2026-09-21, partiets bordslogg genom kedjan (`2026-09-21-kedja-bordlogg.json.gz`) och dess händelsefacit (`2026-09-21-handelser.tsv`) |
